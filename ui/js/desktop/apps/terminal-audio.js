@@ -3,6 +3,12 @@
 
     const STORAGE_KEY = 'aurago.desktop.terminal.audioMuted';
     const BELL = { type: 'square', freq: 880, gain: 0.05, dur: 0.12, release: 0.02 };
+    // xterm reports every BEL byte: a burst gives one tone, BELs within this gap of the last tone are ignored.
+    const BELL_GAP_MS = 150;
+
+    function clock() {
+        return window.performance && typeof window.performance.now === 'function' ? window.performance.now() : Date.now();
+    }
 
     function shouldSilence() {
         return (document.body && document.body.dataset.animations === 'false')
@@ -37,6 +43,7 @@
         let retro = false;
         let muted = loadMuted();
         let ctx = null;
+        let lastBell = -Infinity;
 
         function ensureCtx() {
             if (ctx) return ctx;
@@ -60,13 +67,24 @@
             return muted;
         }
 
-        // One oscillator through a gain that decays after `dur` seconds (time constant `release`).
-        function sound(type, freq, level, dur, release) {
+        // The context, asked to resume when the browser keeps or puts it in the suspended state.
+        function wakeCtx() {
             const audio = ensureCtx();
-            if (!audio) return;
-            if (audio.state === 'suspended') {
+            if (audio && audio.state === 'suspended') {
                 audio.resume().catch(function () {});
             }
+            return audio;
+        }
+
+        // A running context only: a tone scheduled against a suspended clock would wait and pile up.
+        function runningCtx() {
+            const audio = wakeCtx();
+            if (!audio) return null;
+            return audio.state === 'running' ? audio : null;
+        }
+
+        // One oscillator through a gain that decays after `dur` seconds (time constant `release`).
+        function sound(audio, type, freq, level, dur, release) {
             const osc = audio.createOscillator();
             const gain = audio.createGain();
             osc.type = type;
@@ -83,14 +101,22 @@
         function playKey(event) {
             if (!retro || muted || shouldSilence()) return;
             if (!event || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+            const audio = wakeCtx();
+            if (!audio) return;
             const spec = timbre(profileId);
-            sound(spec.type, spec.freq + Math.random() * 40, spec.gain, spec.dur, 0.008);
+            sound(audio, spec.type, spec.freq + Math.random() * 40, spec.gain, spec.dur, 0.008);
         }
 
-        // The terminal bell of C64 sessions (BEL from the board): a short square tone under the key-click rules.
+        // The terminal bell of C64 sessions (BEL from the board): a short square tone under the key-click rules,
+        // at most one per BELL_GAP_MS and only against a running clock.
         function beep() {
             if (!retro || muted || shouldSilence()) return;
-            sound(BELL.type, BELL.freq, BELL.gain, BELL.dur, BELL.release);
+            const at = clock();
+            if (at - lastBell < BELL_GAP_MS) return;
+            const audio = runningCtx();
+            if (!audio) return;
+            lastBell = at;
+            sound(audio, BELL.type, BELL.freq, BELL.gain, BELL.dur, BELL.release);
         }
 
         function dispose() {

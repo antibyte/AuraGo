@@ -2,7 +2,8 @@
 // Runs ui/js/desktop/apps/terminal-modem.js (after terminal-text.js) in Node with stubs only: baud storage, the
 // per-frame baud throttle (including the 1 MiB queue cap), the ATZ/OK/ATDT transcript with skip, overlapping dials and
 // dispose, and the sound rules of the key clicks (retro style only, never muted, never under reduced motion), with the
-// AudioContext created synchronously inside dial() and no tones scheduled while the context stays suspended.
+// AudioContext created synchronously inside dial() and no tones scheduled while the context stays suspended, plus the
+// C64 bell of terminal-audio.js (one tone per 150 ms however many BELs, never against a suspended clock).
 // Usage: node scripts/test-terminal-modem.mjs
 import fs from 'node:fs';
 import path from 'node:path';
@@ -368,6 +369,86 @@ async function dialSounds(profile, muted, setup, expected = 'skipped') {
     const frozen = await dialSounds({ retro: true }, false);
     check('no tones are scheduled while the context stays suspended', frozen.resumed >= 2 && frozen.started === 0, JSON.stringify(frozen));
     delete window.AudioContext;
+}
+
+// 5. The C64 bell (terminal-audio.js beep): the key-click rules, at most one tone per 150 ms however many BELs
+// arrive, and never a tone queued against a suspended clock.
+{
+    let clock = 1000;
+    const bellLog = { started: 0, resumed: 0 };
+    const bellWindow = {
+        localStorage: { getItem: () => '0', setItem() {} },
+        matchMedia: () => ({ matches: false }),
+        performance: { now: () => clock }
+    };
+    const bellDocument = { body: { dataset: { animations: 'true' } } };
+    let contextState = 'running';
+    let resumeTo = 'running';
+    bellWindow.AudioContext = function () {
+        this.state = contextState;
+        this.currentTime = 0;
+        this.destination = {};
+        const param = () => ({ value: 0, setTargetAtTime() {} });
+        const node = () => ({ connect() {}, type: '', frequency: param(), gain: param(), start() { bellLog.started += 1; }, stop() {} });
+        this.createOscillator = node;
+        this.createGain = node;
+        this.resume = () => { bellLog.resumed += 1; this.state = resumeTo; return Promise.resolve(); };
+        this.close = () => Promise.resolve();
+    };
+    const bellContext = vm.createContext({ window: bellWindow, document: bellDocument, Math });
+    vm.runInContext(fs.readFileSync(path.join(apps, 'terminal-audio.js'), 'utf8'), bellContext, { filename: 'terminal-audio.js' });
+    const Audio = bellWindow.TerminalAudio;
+    const c64 = { id: 'commodore64', retro: true };
+    const bell = Audio.create();
+    bell.setProfile(c64);
+    for (let i = 0; i < 10; i += 1) {
+        bell.beep();
+        clock += 1;
+    }
+    same('a burst of 10 BELs plays one tone', bellLog.started, 1);
+    clock += 50;
+    bell.beep();
+    same('a BEL within 150 ms of the last tone is ignored', bellLog.started, 1);
+    clock += 160;
+    bell.beep();
+    same('a BEL 160 ms after the last tone plays again', bellLog.started, 2);
+    bell.dispose();
+    clock += 1000;
+    contextState = 'suspended';
+    resumeTo = 'suspended';
+    const frozen = Audio.create();
+    frozen.setProfile(c64);
+    frozen.beep();
+    clock += 200;
+    frozen.beep();
+    check('no bell is queued against a suspended clock, which is asked to resume', bellLog.started === 2 && bellLog.resumed >= 1, JSON.stringify(bellLog));
+    frozen.dispose();
+    clock += 1000;
+    resumeTo = 'running';
+    const waking = Audio.create();
+    waking.setProfile(c64);
+    waking.beep();
+    same('a context that resumes at once plays the bell', bellLog.started, 3);
+    waking.dispose();
+    contextState = 'running';
+    clock += 1000;
+    const quiet = Audio.create();
+    quiet.setProfile({ id: 'modern', retro: false });
+    quiet.beep();
+    quiet.setProfile(c64);
+    quiet.setMuted(true);
+    quiet.beep();
+    quiet.setMuted(false);
+    bellWindow.matchMedia = () => ({ matches: true });
+    quiet.beep();
+    bellWindow.matchMedia = () => ({ matches: false });
+    bellDocument.body.dataset.animations = 'false';
+    quiet.beep();
+    same('the bell follows the key-click rules: retro style, not muted, no reduced motion, animations on', bellLog.started, 3);
+    bellDocument.body.dataset.animations = 'true';
+    quiet.beep();
+    same('and plays once they allow it', bellLog.started, 4);
+    quiet.dispose();
 }
 
 if (failures) {

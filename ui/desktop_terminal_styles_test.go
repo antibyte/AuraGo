@@ -280,6 +280,10 @@ func TestDesktopTerminalAudioContract(t *testing.T) {
 		// C64 bell (Contract C): the key-click rules, one short square tone.
 		"function beep()",
 		"const BELL = { type: 'square'",
+		// One tone per BELL_GAP_MS however many BELs arrive, never queued against a suspended clock.
+		"const BELL_GAP_MS = 150;",
+		"if (at - lastBell < BELL_GAP_MS) return;",
+		"return audio.state === 'running' ? audio : null;",
 		"return { setProfile, setMuted, playKey, beep, dispose }",
 	} {
 		if !strings.Contains(source, want) {
