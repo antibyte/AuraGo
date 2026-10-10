@@ -273,6 +273,7 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Telnyx call/SMS transport and reconciliation | `internal/telnyx/AGENTS.md` |
 | Tool System; Prompt and Runtime Drift Contract | `internal/agent/AGENTS.md` |
 | Bluetooth Integration Contract | `internal/bluetooth/AGENTS.md` |
+| CYD Creator board profiles, themes, project model and layout ops | `internal/cydcreator/AGENTS.md` |
 | God's Eye View Store Contract | `internal/desktopstore/AGENTS.md` |
 | Fritz!Box Desktop Widget Contract | `internal/fritzbox/AGENTS.md` |
 | Game Maker Studio Contract; Game Maker tool validation contract; Game Maker sprite library contract | `internal/gamemaker/AGENTS.md` |
@@ -599,6 +600,7 @@ Current child AGENTS.md files:
 - `internal/acestep/AGENTS.md` — Private local music lifecycle, pinned runtime/models and hardware qualification.
 - `internal/agent/AGENTS.md` — Runtime prompt, tool-discovery, dispatch, and context rules.
 - `internal/bluetooth/AGENTS.md` — Native Bluetooth discovery, permissions, and playback.
+- `internal/cydcreator/AGENTS.md` — CYD Creator domain: board profiles, themes, widget catalog, project validation and layout ops, partitions, config blob and build diagnostics.
 - `internal/desktop/AGENTS.md` — Rooted Desktop file/archive operations; owns the pets-assets child index.
 - `internal/desktopstore/AGENTS.md` — Store app configuration, runtime, assets, and publication.
 - `internal/detective/AGENTS.md` — Isolated Desktop research cases, evidence, budgets, revisions and exports.
