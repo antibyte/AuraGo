@@ -2192,10 +2192,15 @@ registration lives in `internal/desktop/types.go`.
   `ui/img/whitesur`, and the backend icon catalog in
   `internal/desktop/types.go`); button icons are retinted via CSS
   `--oscad-icon-filter` so they stay legible on dark glass.
-- OpenSCAD result events must filter on `window_id` when present; without it,
-  idle multi-window instances must ignore global `openscad_result` events.
+- OpenSCAD result events: a present `window_id` still selects that window
+  only. A missing `window_id` is ignored whenever more than one OpenSCAD
+  window exists, including a busy window. OpenSCAD does not listen for
+  `window` `message` events. Preview URLs must match
+  `/api/openscad/jobs/oscad-…/files/…`. SVG preview uses an image element,
+  and PDF preview uses a sandboxed iframe. The more-exports row includes AMF.
 - OpenSCAD readonly mode disables CodeMirror/`textarea` editing, defines
-  inputs, and the agent prompt.
+  inputs, and the agent prompt. Readonly mode does not apply `source_scad`
+  into the editor.
 - OpenSCAD visible UI strings use `desktop.openscad.*` keys in all
   `ui/lang/desktop/*.json` files.
 - `homepage-studio.js`, `homepage-studio-preview.js`,
