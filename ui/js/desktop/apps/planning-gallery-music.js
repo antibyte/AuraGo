@@ -129,6 +129,7 @@
         });
         host.querySelectorAll('[data-filter]').forEach(btn => btn.addEventListener('click', () => {
             host.dataset.todoFilter = btn.dataset.filter;
+            host.querySelectorAll('[data-filter]').forEach(other => other.classList.toggle('active', other === btn));
             load(host.dataset.todoSelected);
         }));
         host.querySelector('.vd-todo-add').addEventListener('submit', async event => {
