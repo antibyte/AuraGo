@@ -279,10 +279,23 @@ func nativeRunYtDlp(ctx context.Context, cfg *config.Config, args []string) (str
 	return stdout.String(), stderr.String(), nil
 }
 
+func videoDownloadHostConfig(downloadDir string) map[string]interface{} {
+	return map[string]interface{}{
+		"Binds":          []string{downloadDir + ":" + videoDownloadContainerDir},
+		"NetworkMode":    "bridge",
+		"Memory":         int64(512 << 20),
+		"NanoCpus":       int64(1_000_000_000),
+		"PidsLimit":      int64(64),
+		"ReadonlyRootfs": true,
+		"Tmpfs":          map[string]string{"/tmp": "rw,nosuid,nodev,size=64m"},
+		"SecurityOpt":    []string{"no-new-privileges:true"},
+	}
+}
+
 func dockerRunYtDlp(ctx context.Context, cfg *config.Config, args []string, logger *slog.Logger) (string, string, error) {
 	image := strings.TrimSpace(cfg.Tools.VideoDownload.ContainerImage)
 	if image == "" {
-		image = "ghcr.io/jauderho/yt-dlp:latest"
+		image = "ghcr.io/jauderho/yt-dlp@sha256:90cd9016efc4451153c8bc35cc7a0d9a8cba0e796818e52f3b4d28b9736ac91c"
 	}
 	dockerCfg := DockerConfig{Host: cfg.Docker.Host, WorkspaceDir: cfg.Directories.WorkspaceDir}
 	if err := DockerPing(dockerCfg.Host); err != nil {
@@ -306,10 +319,7 @@ func dockerRunYtDlp(ctx context.Context, cfg *config.Config, args []string, logg
 		"Image":      image,
 		"Cmd":        args,
 		"WorkingDir": videoDownloadContainerDir,
-		"HostConfig": map[string]interface{}{
-			"Binds":       []string{downloadDir + ":" + videoDownloadContainerDir},
-			"NetworkMode": "bridge",
-		},
+		"HostConfig": videoDownloadHostConfig(downloadDir),
 	}
 	payload, _ := json.Marshal(body)
 	data, code, err := dockerRequestContext(ctx, dockerCfg, http.MethodPost, "/containers/create?name="+url.QueryEscape(name), string(payload))

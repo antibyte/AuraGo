@@ -225,3 +225,22 @@ func TestDispatchVideoDownloadRequiresExplicitTranscribePermission(t *testing.T)
 		t.Fatalf("message = %q, want allow_transcribe guidance", result.Message)
 	}
 }
+
+func TestVideoDownloadHostConfigIsBounded(t *testing.T) {
+	t.Parallel()
+	host := videoDownloadHostConfig(`C:\downloads`)
+	if host["Memory"] != int64(512<<20) || host["NanoCpus"] != int64(1_000_000_000) || host["PidsLimit"] != int64(64) {
+		t.Fatalf("limits = %#v", host)
+	}
+	if host["ReadonlyRootfs"] != true {
+		t.Fatal("root filesystem must be read-only")
+	}
+	opts, _ := host["SecurityOpt"].([]string)
+	if len(opts) != 1 || opts[0] != "no-new-privileges:true" {
+		t.Fatalf("SecurityOpt = %#v", host["SecurityOpt"])
+	}
+	tmpfs, _ := host["Tmpfs"].(map[string]string)
+	if tmpfs["/tmp"] != "rw,nosuid,nodev,size=64m" {
+		t.Fatalf("Tmpfs = %#v", tmpfs)
+	}
+}
