@@ -32,26 +32,35 @@ var (
 //   - Paths under workRoot (e.g. /work/ccb_x) become project-relative.
 //     Warnings and notes outside the project (toolchain, framework, .pio/
 //     library sources) are dropped; errors are kept wherever they occur.
-//   - ANSI colors and CR are stripped; duplicates are removed; at most 200
-//     entries are returned (notes are dropped first, then warnings).
+//   - ANSI colors and CR are stripped; indented lines (source excerpts, caret
+//     lines, "from" continuations) are skipped because gcc and ld start every
+//     diagnostic in column 0; duplicates are removed; at most 200 entries are
+//     returned (notes are dropped first, then warnings).
+//   - File is clipped with clipReason because a #line directive lets a source
+//     file name any path; Generated is decided from the full path first.
 func ParseDiagnostics(log string, workRoot string) []Diagnostic {
 	root := strings.TrimSuffix(strings.ReplaceAll(workRoot, "\\", "/"), "/")
 	var out []Diagnostic
 	seen := map[Diagnostic]bool{}
+	var collected [3]int // per severity rank; no severity can ever keep more than maxDiagnostics
 	for _, raw := range strings.Split(log, "\n") {
 		line := strings.TrimRight(ansiEscape.ReplaceAllString(raw, ""), "\r")
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "In file included from") || strings.HasPrefix(trimmed, "from ") {
+		if line == "" || line[0] == ' ' || line[0] == '\t' || strings.HasPrefix(line, "In file included from") {
 			continue
 		}
 		d, ok := parseLinkerLine(line)
 		if !ok {
 			d, ok = parseCompilerLine(line, root)
 		}
-		if !ok || seen[d] {
+		if !ok {
+			continue
+		}
+		rank := severityRank(d.Severity)
+		if collected[rank] >= maxDiagnostics || seen[d] {
 			continue
 		}
 		seen[d] = true
+		collected[rank]++
 		out = append(out, d)
 	}
 	return capDiagnostics(out)
@@ -90,7 +99,7 @@ func parseCompilerLine(line, root string) (Diagnostic, bool) {
 	if !inProject && sev != SeverityError {
 		return Diagnostic{}, false
 	}
-	return Diagnostic{File: file, Line: lineNo, Column: col, Severity: sev,
+	return Diagnostic{File: clipReason(file), Line: lineNo, Column: col, Severity: sev,
 		Message: clipReason(strings.TrimSpace(m[5])), Generated: IsGeneratedPath(file)}, true
 }
 
@@ -112,17 +121,61 @@ func isAbsPath(p string) bool {
 	return strings.HasPrefix(p, "/") || (len(p) > 2 && p[1] == ':' && p[2] == '/')
 }
 
-// capDiagnostics keeps at most maxDiagnostics entries in log order, dropping
-// notes from the end first, then warnings, then trailing errors.
+// severityRank orders severities by importance: error 0, warning 1, note 2.
+func severityRank(sev string) int {
+	switch sev {
+	case SeverityError:
+		return 0
+	case SeverityWarning:
+		return 1
+	}
+	return 2
+}
+
+// capDiagnostics keeps at most maxDiagnostics entries in log order. The budget
+// goes to errors first, then warnings, then notes; inside a severity the
+// earliest entries win (later ones are dropped from the end). It counts first
+// and filters once, so it is linear however large the input is.
 func capDiagnostics(list []Diagnostic) []Diagnostic {
-	for _, drop := range []string{SeverityNote, SeverityWarning, SeverityError} {
-		for i := len(list) - 1; i >= 0 && len(list) > maxDiagnostics; i-- {
-			if list[i].Severity == drop {
-				list = append(list[:i], list[i+1:]...)
-			}
+	if len(list) <= maxDiagnostics {
+		return list
+	}
+	var total, keep, kept [3]int
+	for _, d := range list {
+		total[severityRank(d.Severity)]++
+	}
+	left := maxDiagnostics
+	for rank := range keep {
+		keep[rank] = min(total[rank], left)
+		left -= keep[rank]
+	}
+	out := make([]Diagnostic, 0, maxDiagnostics)
+	for _, d := range list {
+		rank := severityRank(d.Severity)
+		if kept[rank] < keep[rank] {
+			kept[rank]++
+			out = append(out, d)
 		}
 	}
-	return list
+	return out
+}
+
+// windowsReserved reports a Windows device name (CON, PRN, AUX, NUL, COM0-9,
+// LPT0-9). Windows resolves it from the part of a path segment before the
+// first dot and ignores case, so "con.h" or "Aux" would open a device, not a
+// file, and a project checked out or built on Windows could hang or lose data.
+func windowsReserved(seg string) bool {
+	base := seg
+	if dot := strings.IndexByte(seg, '.'); dot >= 0 {
+		base = seg[:dot]
+	}
+	base = strings.ToLower(base)
+	switch base {
+	case "con", "prn", "aux", "nul":
+		return true
+	}
+	return len(base) == 4 && (strings.HasPrefix(base, "com") || strings.HasPrefix(base, "lpt")) &&
+		base[3] >= '0' && base[3] <= '9'
 }
 
 func cleanRel(rel string) string {
@@ -148,12 +201,18 @@ func IsGeneratedPath(rel string) bool {
 	return false
 }
 
-var editableSegment = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$`)
+// editableSegment is one path segment of 1..64 bytes: it starts with a letter,
+// digit or underscore and does not end with a dot, because Windows drops
+// trailing dots ("net." is "net") and the two spellings would alias one folder.
+var editableSegment = regexp.MustCompile(`^[A-Za-z0-9_](?:[A-Za-z0-9_.-]{0,62}[A-Za-z0-9_-])?$`)
 
 // IsEditablePath reports app source paths the user and the agent may write:
-// src/app/** with a .cpp, .h, .hpp or .c extension, at most four directory
-// levels below src/app, segments of [A-Za-z0-9_.-] that do not start with a
-// dot, no "..", no backslashes, at most 160 bytes.
+// src/app/** (matched case-sensitively) with a .cpp, .h, .hpp or .c
+// extension, at most four directory levels below src/app, ASCII segments of
+// [A-Za-z0-9_.-] that start with a letter, digit or underscore, do not end
+// with a dot and are no Windows device name (CON, PRN, AUX, NUL, COM0-9,
+// LPT0-9, with or without an extension), no "..", no backslashes, no ":", at
+// most 160 bytes.
 func IsEditablePath(rel string) bool {
 	if rel == "" || len(rel) > 160 || strings.ContainsAny(rel, "\\\x00") || !strings.HasPrefix(rel, "src/app/") {
 		return false
@@ -163,7 +222,7 @@ func IsEditablePath(rel string) bool {
 		return false
 	}
 	for _, s := range segs {
-		if !editableSegment.MatchString(s) {
+		if !editableSegment.MatchString(s) || windowsReserved(s) {
 			return false
 		}
 	}

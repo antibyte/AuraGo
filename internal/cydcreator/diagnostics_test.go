@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 )
 
@@ -80,6 +81,13 @@ func TestParseDiagnosticsLineForms(t *testing.T) {
 			"In file included from /work/ccb_x/src/app/a.cpp:1:\n" +
 			"                 from /work/ccb_x/src/app/b.cpp:2:\n" +
 			"/work/ccb_x/src/app/a.cpp:10:5:   required from here", "/work/ccb_x", nil},
+		{"indented excerpt lines ignored",
+			"   42 |     fetch_forecast(); // undefined reference to `fetch_forecast()'\n" +
+				"\t/work/ccb_x/src/app/a.cpp:3:4: error: tab indented\n" +
+				"  src/app/a.cpp:3:4: warning: space indented\n" +
+				"      | multiple definition of `x'", "/work/ccb_x", nil},
+		{"unindented linker line kept", "ld: undefined reference to `f()'", "",
+			[]Diagnostic{{Severity: "error", Message: "undefined reference to `f()'"}}},
 	}
 	for _, tc := range cases {
 		got := ParseDiagnostics(tc.line, tc.root)
@@ -98,6 +106,91 @@ func TestParseDiagnosticsMessageCap(t *testing.T) {
 	msg := got[0].Message
 	if len(msg) > maxDiagMessageBytes+len("…") || !strings.HasSuffix(msg, "…") || !utf8.ValidString(msg) {
 		t.Fatalf("message not capped cleanly: %d bytes", len(msg))
+	}
+}
+
+func TestParseDiagnosticsFileCap(t *testing.T) {
+	// A #line directive lets a source file name any path it likes.
+	long := "src/generated/" + strings.Repeat("ж", 2000) + ".cpp"
+	got := ParseDiagnostics(long+":3:1: error: boom", "")
+	if len(got) != 1 {
+		t.Fatalf("got %d diagnostics", len(got))
+	}
+	d := got[0]
+	if len(d.File) > maxDiagMessageBytes+len("…") || !strings.HasSuffix(d.File, "…") || !utf8.ValidString(d.File) {
+		t.Fatalf("file not clipped cleanly: %d bytes", len(d.File))
+	}
+	if !d.Generated {
+		t.Fatal("Generated must be computed from the full path before the file is clipped")
+	}
+}
+
+func TestParseDiagnosticsLinearCap(t *testing.T) {
+	var b strings.Builder
+	for i := 0; i < 60000; i++ {
+		fmt.Fprintf(&b, "src/app/a.cpp:%d:1: note: n%d\n", i+1, i)
+	}
+	for i := 0; i < 60000; i++ {
+		fmt.Fprintf(&b, "src/app/b.cpp:%d:1: error: e%d\n", i+1, i)
+	}
+	start := time.Now()
+	got := ParseDiagnostics(b.String(), "")
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Fatalf("ParseDiagnostics took %v on a 120k line log", elapsed)
+	}
+	if len(got) != maxDiagnostics {
+		t.Fatalf("%d diagnostics, want %d", len(got), maxDiagnostics)
+	}
+	for i, d := range got {
+		if d.Severity != "error" || d.Message != fmt.Sprintf("e%d", i) {
+			t.Fatalf("entry %d = %+v, want the first %d errors in log order", i, d, maxDiagnostics)
+		}
+	}
+
+	// capDiagnostics itself must be linear, whatever the caller collected.
+	list := make([]Diagnostic, 0, 120000)
+	for i := 0; i < 60000; i++ {
+		list = append(list, Diagnostic{Severity: "note", Message: fmt.Sprintf("n%d", i)})
+	}
+	for i := 0; i < 60000; i++ {
+		list = append(list, Diagnostic{Severity: "error", Message: fmt.Sprintf("e%d", i)})
+	}
+	start = time.Now()
+	capped := capDiagnostics(list)
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Fatalf("capDiagnostics took %v on 120k entries", elapsed)
+	}
+	if len(capped) != maxDiagnostics || capped[0].Message != "e0" || capped[maxDiagnostics-1].Message != "e199" {
+		t.Fatalf("capDiagnostics kept %d entries, first %q", len(capped), capped[0].Message)
+	}
+}
+
+func TestCapDiagnosticsPriority(t *testing.T) {
+	var list []Diagnostic
+	add := func(sev string, n int) {
+		for i := 0; i < n; i++ {
+			list = append(list, Diagnostic{Severity: sev, Message: fmt.Sprintf("%s%d", sev, i)})
+		}
+	}
+	add("note", 100)
+	add("warning", 100)
+	add("error", 150)
+	got := capDiagnostics(list)
+	counts := map[string]int{}
+	for _, d := range got {
+		counts[d.Severity]++
+	}
+	if len(got) != maxDiagnostics || counts["error"] != 150 || counts["warning"] != 50 || counts["note"] != 0 {
+		t.Fatalf("kept %d entries %v, want 150 errors + 50 warnings", len(got), counts)
+	}
+	if got[0].Message != "warning0" || got[49].Message != "warning49" || got[50].Message != "error0" {
+		t.Fatalf("log order not preserved: %q %q %q", got[0].Message, got[49].Message, got[50].Message)
+	}
+
+	// Under the cap nothing is dropped and the input is returned unchanged.
+	small := []Diagnostic{{Severity: "note", Message: "n"}, {Severity: "error", Message: "e"}}
+	if got := capDiagnostics(small); len(got) != 2 || got[0].Message != "n" || got[1].Message != "e" {
+		t.Fatalf("small list changed: %+v", got)
 	}
 }
 
@@ -162,6 +255,22 @@ func TestIsEditablePath(t *testing.T) {
 		"src/app//x.cpp": false, `src\app\x.cpp`: false, "/src/app/x.cpp": false, "src/generated/ui.cpp": false,
 		"src/app/x y.cpp": false, "src/app/x\x00.cpp": false, "src/apps/x.cpp": false, "": false,
 		"src/app/" + strings.Repeat("a", 150) + ".cpp": false,
+		// Segment length: 64 bytes at most.
+		"src/app/" + strings.Repeat("a", 60) + ".cpp": true,
+		"src/app/" + strings.Repeat("a", 61) + ".cpp": false,
+		// Windows aliases: a trailing dot is dropped, so net. is net.
+		"src/app/net./x.cpp": false, "src/app/x./y.cpp": false, "src/app/a-/x.cpp": true, "src/app/a_/x.cpp": true,
+		// Windows device names, with or without extension, in files and folders.
+		"src/app/aux/x.cpp": false, "src/app/Con.h": false, "src/app/com1.cpp": false, "src/app/NUL.c": false,
+		"src/app/prn/x.cpp": false, "src/app/lpt9.h": false, "src/app/LPT0.hpp": false, "src/app/con.tainer.cpp": false,
+		"src/app/COM0.c": false, "src/app/x/aux.cpp": false,
+		"src/app/console.cpp": true, "src/app/com10.cpp": true, "src/app/auxiliary.h": true, "src/app/lpt.h": true,
+		"src/app/com.cpp": true, "src/app/nulx.c": true, "src/app/a.con.cpp": true,
+		// Windows alternate data streams and drive letters.
+		"src/app/x.cpp:s": false, "src/app/C:x.cpp": false, "src/app/x.cpp::$DATA": false,
+		// The prefix is case-sensitive; non-ASCII look-alikes are rejected.
+		"SRC/APP/x.cpp": false, "Src/app/x.cpp": false, "src/App/x.cpp": false,
+		"src/app/с.cpp": false, "src/app/ä.cpp": false, "src/app/x.cpр": false,
 	}
 	for rel, want := range cases {
 		if got := IsEditablePath(rel); got != want {

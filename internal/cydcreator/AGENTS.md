@@ -126,13 +126,20 @@ service to this same package.
 
 - `ParseDiagnostics` makes paths under the work root project-relative, drops warnings and notes outside the
   project or in `.pio/`, keeps errors anywhere, maps linker `undefined reference`/`multiple definition` lines to
-  file-less errors, clips messages with `clipReason`, deduplicates and returns at most 200 entries (notes, then
-  warnings, then trailing errors are dropped first). `Generated` diagnostics are generator bugs
-  (`CYD_GENERATOR_ERROR`) and never go to the agent for repair.
+  file-less errors, skips indented lines (gcc and ld start every diagnostic in column 0; excerpts and `from`
+  continuations are indented), clips `File` (a `#line` directive can name any path) and `Message` with
+  `clipReason`, deduplicates and returns at most 200 entries in log order. The cap is linear: errors get the budget
+  first, then warnings, then notes, and inside a severity the earliest entries win. `Generated` is decided from the
+  full path before clipping; `Generated` diagnostics are generator bugs (`CYD_GENERATOR_ERROR`) and never go to the
+  agent for repair.
 - `IsGeneratedPath` classifies `src/generated/**`, `lib/cyd_template/**`, `include/**`, `platformio.ini` and
-  `partitions.csv`. `IsEditablePath` is the single write gate for `src/app/**` (file API and agent tools): `.cpp`,
-  `.h`, `.hpp` or `.c`, at most four directory levels below `src/app`, segments of `[A-Za-z0-9_.-]` that do not
-  start with a dot, no `..`, no backslashes, at most 160 bytes. Generated paths are never writable.
+  `partitions.csv`. `IsEditablePath` is the single write gate for `src/app/**` (file API and agent tools): the
+  `src/app/` prefix is case-sensitive, the extension `.cpp`, `.h`, `.hpp` or `.c`, at most four directory levels
+  below `src/app`, at most 160 bytes, no `..`, backslashes or `:`. Every segment is ASCII, 1..64 bytes of
+  `[A-Za-z0-9_.-]`, starts with a letter, digit or `_`, does not end with `.` (Windows drops trailing dots, so `net.`
+  would alias `net`) and is no Windows device name (`CON PRN AUX NUL COM0-9 LPT0-9`, compared case-insensitively on
+  the part before the first dot, so `aux/x.cpp` and `con.h` are rejected while `console.cpp` and `com10.cpp` pass).
+  Generated paths are never writable.
 
 ## Work Guidance
 
