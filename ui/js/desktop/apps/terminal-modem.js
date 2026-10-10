@@ -301,7 +301,134 @@
         return { dial: dial, skip: skip, connectLine: connectLine, dispose: dispose };
     }
 
-    // Releases queued output per animation frame at baud/10 bytes per second.
+    // Throttle units (Contract C): one per code point outside escape sequences and one per complete escape sequence
+    // (CSI; OSC, DCS, SOS, PM and APC strings ended by BEL or ST; SS2/SS3 with their byte; ESC with intermediates and
+    // a final byte; ESC with one byte), so 24-bit colours and C64 glyphs cost what one character costs on a real
+    // line. A synchronized-output block, ESC[?2026h through ESC[?2026l (the PETSCII engine's repaints and row
+    // redraws), is one unit as a whole and leaves at once; until its end arrives it stays queued (push() flushes
+    // everything beyond MAX_QUEUE_BYTES, setBaud(0) and flush() release it too). An escape that has not ended
+    // SEQUENCE_LIMIT bytes after its ESC counts as one unit there and its rest as text, so a broken stream cannot
+    // hold the queue back.
+    const SEQUENCE_LIMIT = 1024;
+    const SYNC_BEGIN = '?2026h';
+    const SYNC_END = '?2026l';
+    const TEXT = 0;
+    const ESC = 1;
+    const CSI = 2;
+    const STRING = 3;
+    const STRING_ESC = 4;
+    const INTERMEDIATE = 5;
+    const SHIFT = 6;
+
+    // A scanner for bytes that start outside any code point, sequence or synchronized block: step(byte) is true
+    // when the byte completes a unit, which always leaves the scanner outside again.
+    function unitScanner() {
+        let state = TEXT;
+        let pending = 0; // UTF-8 continuation bytes still expected
+        let length = 0; // bytes since the ESC that opened the sequence
+        let csi = ''; // the first parameter and intermediate bytes of the open CSI (enough for the 2026 modes)
+        let ended = ''; // parameters and final byte of the CSI that just ended
+        let sync = false; // inside ESC[?2026h ... ESC[?2026l
+
+        // The byte after an ESC (also after the ESC inside a string that is not ST): true when the escape ends.
+        function afterEscape(b) {
+            if (b === 0x5b) {
+                state = CSI;
+                csi = '';
+            } else if (b === 0x5d || b === 0x50 || b === 0x58 || b === 0x5e || b === 0x5f) state = STRING;
+            else if (b === 0x4e || b === 0x4f) state = SHIFT;
+            else if (b >= 0x20 && b <= 0x2f) state = INTERMEDIATE;
+            else if (b === 0x1b || b < 0x20) state = ESC;
+            else return true;
+            return false;
+        }
+
+        function inSequence(b) {
+            if (state === ESC) return afterEscape(b);
+            if (state === CSI) {
+                if (b >= 0x40 && b <= 0x7e) {
+                    ended = csi + String.fromCharCode(b);
+                    return true;
+                }
+                if (b === 0x1b) state = ESC;
+                else if (csi.length < 8) csi += String.fromCharCode(b);
+                return false;
+            }
+            if (state === INTERMEDIATE) {
+                if (b === 0x1b) state = ESC;
+                return b >= 0x30 && b <= 0x7e;
+            }
+            if (state === STRING) {
+                if (b === 0x1b) state = STRING_ESC;
+                return b === 0x07;
+            }
+            if (state === STRING_ESC) return b === 0x5c || afterEscape(b);
+            return true;
+        }
+
+        // A code point or sequence ended (`sequence`: the CSI's parameters and final byte, else ''): one unit,
+        // except inside a synchronized block, which ends as one unit with ESC[?2026l.
+        function unit(sequence) {
+            if (sequence === SYNC_BEGIN) {
+                sync = true;
+                return false;
+            }
+            if (!sync) return true;
+            if (sequence !== SYNC_END) return false;
+            sync = false;
+            return true;
+        }
+
+        return function step(b) {
+            if (state === TEXT) {
+                if (pending && (b & 0xc0) === 0x80) {
+                    pending -= 1;
+                    return pending === 0 && unit('');
+                }
+                pending = 0;
+                if (b === 0x1b) {
+                    state = ESC;
+                    length = 1;
+                    return false;
+                }
+                if (b >= 0xc0 && b < 0xf8) {
+                    pending = b >= 0xf0 ? 3 : b >= 0xe0 ? 2 : 1;
+                    return false;
+                }
+                return unit('');
+            }
+            length += 1;
+            if (inSequence(b) || length >= SEQUENCE_LIMIT) {
+                const sequence = ended;
+                ended = '';
+                state = TEXT;
+                return unit(sequence);
+            }
+            return false;
+        };
+    }
+
+    // Bytes at the head of `parts` that hold at most `limit` complete units, and how many units that is (fewer
+    // when the queue ends first; an unfinished code point or sequence at the end stays queued).
+    function countUnits(parts, limit) {
+        const step = unitScanner();
+        let units = 0;
+        let offset = 0;
+        let bytes = 0;
+        for (let p = 0; p < parts.length && units < limit; p += 1) {
+            const part = parts[p];
+            for (let i = 0; i < part.length && units < limit; i += 1) {
+                offset += 1;
+                if (step(part[i])) {
+                    units += 1;
+                    bytes = offset;
+                }
+            }
+        }
+        return { units: units, bytes: bytes };
+    }
+
+    // Releases queued output per animation frame at baud/10 units per second (see unitScanner).
     function createThrottle(write) {
         const sink = typeof write === 'function' ? write : function () {};
         let baud = 0;
@@ -329,6 +456,25 @@
             pending.forEach(function (part) { sink(part); });
         }
 
+        // Writes the first `count` queued bytes, part by part.
+        function take(count) {
+            let left = count;
+            while (left > 0 && queue.length) {
+                const head = queue[0];
+                if (head.length <= left) {
+                    queue.shift();
+                    queued -= head.length;
+                    left -= head.length;
+                    sink(head);
+                } else {
+                    queue[0] = head.subarray(left);
+                    queued -= left;
+                    sink(head.subarray(0, left));
+                    left = 0;
+                }
+            }
+        }
+
         function release(now) {
             frame = 0;
             if (disposed) return;
@@ -339,23 +485,12 @@
             const elapsed = last ? Math.min(1000, Math.max(0, now - last)) : 16;
             last = now;
             budget += (baud / 10) * elapsed / 1000;
-            let allowance = Math.floor(budget);
+            const allowance = Math.floor(budget);
             budget -= allowance;
-            while (allowance > 0 && queue.length) {
-                const head = queue[0];
-                if (head.length <= allowance) {
-                    queue.shift();
-                    queued -= head.length;
-                    allowance -= head.length;
-                    sink(head);
-                } else {
-                    queue[0] = head.subarray(allowance);
-                    queued -= allowance;
-                    sink(head.subarray(0, allowance));
-                    allowance = 0;
-                }
-            }
-            if (queue.length) schedule();
+            const found = allowance > 0 ? countUnits(queue, allowance) : { units: 0, bytes: 0 };
+            take(found.bytes);
+            // Fewer units than allowed: the queue is empty or holds only an unfinished unit, which push() resumes.
+            if (queue.length && found.units === allowance) schedule();
             else {
                 last = 0;
                 budget = 0;

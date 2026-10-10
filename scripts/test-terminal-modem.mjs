@@ -90,6 +90,164 @@ storageThrows = false;
     frames.length = 0;
 }
 
+// 2b. Throttle units (Contract C): one per code point outside escape sequences, one per complete escape sequence;
+// a frame never releases part of a code point or of a sequence.
+{
+    const encoder = new TextEncoder();
+    const strict = new TextDecoder('utf-8', { fatal: true });
+    const equal = (name, actual, expected) => same(name, JSON.stringify(actual), JSON.stringify(expected));
+    const join = (chunks) => {
+        const out = new Uint8Array(chunks.reduce((sum, chunk) => sum + chunk.length, 0));
+        let at = 0;
+        chunks.forEach((chunk) => { out.set(chunk, at); at += chunk.length; });
+        return out;
+    };
+    // At 300 baud a frame 1000/30 ms after the previous one allows exactly one unit (the first frame only 0.48).
+    let now = 0;
+    const tick = () => { now += 1000 / 30 + 0.01; frames.shift()(now); };
+    const unitThrottle = () => {
+        const out = [];
+        const throttle = modem.createThrottle((bytes) => out.push(new Uint8Array(bytes)));
+        throttle.setBaud(300);
+        frames.length = 0;
+        return { out, throttle, text: () => new TextDecoder().decode(join(out)) };
+    };
+    const glyph = String.fromCharCode(0xef08); // a C64 Pro Mono glyph: three UTF-8 bytes
+    const sgr = '\x1b[38;2;112;109;235m';
+    {
+        const { out, throttle, text } = unitThrottle();
+        throttle.push(encoder.encode((sgr + glyph).repeat(20)));
+        frames.shift()(1000);
+        frames.shift()(2000);
+        same('300 baud releases 30 units: 15 colour changes and 15 glyphs', text(), (sgr + glyph).repeat(15));
+        frames.shift()(3000);
+        same('the next second releases the remaining 10 units', text(), (sgr + glyph).repeat(20));
+        same('an empty queue schedules no frame', frames.length, 0);
+        throttle.dispose();
+        check('byte counting would have released far less', out.length > 0);
+    }
+    {
+        const { throttle, text } = unitThrottle();
+        throttle.push(encoder.encode(glyph).subarray(0, 1));
+        frames.shift()(1000);
+        frames.shift()(2000);
+        equal('an unfinished code point waits for its rest', [text(), frames.length], ['', 0]);
+        throttle.push(encoder.encode(glyph).subarray(1));
+        throttle.push(encoder.encode('\x1b[3'));
+        throttle.push(encoder.encode('1mA'));
+        frames.shift()(3000);
+        frames.shift()(4000);
+        same('split code points and sequences are released whole', text(), glyph + '\x1b[31mA');
+        throttle.dispose();
+    }
+    {
+        const sequences = ['\x1b]0;' + 'title '.repeat(40) + '\x07', '\x1b[2J', '\x1bP1$r0m\x1b\\', '\x1bOA', '\x1b(B', '\x1b7', 'Z', glyph, '\x07', '\r', '\n'];
+        const { out, throttle } = unitThrottle();
+        throttle.push(encoder.encode(sequences.join('')));
+        tick();
+        const released = [];
+        for (let i = 0; i < sequences.length; i += 1) {
+            const mark = out.length;
+            tick();
+            released.push(new TextDecoder().decode(join(out.slice(mark))));
+        }
+        equal('OSC, CSI, DCS with ST, SS3, charset, ESC 7, ASCII, a glyph and controls are one unit each', released, sequences);
+        throttle.dispose();
+    }
+    {
+        const { out, throttle } = unitThrottle();
+        throttle.push(encoder.encode('\x1b]' + 'y'.repeat(2000)));
+        tick();
+        tick();
+        same('an escape still open after 1024 bytes counts as one unit there', join(out).length, 1024);
+        tick();
+        same('its rest counts as text', join(out).length, 1025);
+        throttle.dispose();
+    }
+    {
+        const { out, throttle } = unitThrottle();
+        throttle.push(new Uint8Array([0x80, 0xbf, 0x41]));
+        tick();
+        tick();
+        equal('stray continuation bytes are one unit each', [...join(out)], [0x80]);
+        throttle.dispose();
+    }
+    {
+        const { out, throttle } = unitThrottle();
+        throttle.setBaud(1200);
+        const parts = [];
+        for (let i = 0; i < 300; i += 1) parts.push(i % 7 === 0 ? '\x1b[' + (i % 40) + ';' + (i % 25) + 'H' : i % 5 === 0 ? sgr : i % 3 === 0 ? '\xe9' : glyph);
+        const source = encoder.encode(parts.join(''));
+        for (let at = 0; at < source.length; at += 7) throttle.push(source.subarray(at, at + 7));
+        const broken = [];
+        for (let i = 0; i < 400 && frames.length; i += 1) {
+            const mark = out.length;
+            frames.shift()(1000 + i * 17);
+            const chunk = join(out.slice(mark));
+            try {
+                if (/\x1b(\[[0-?]*[ -/]*)?$/.test(strict.decode(chunk))) broken.push('frame ' + i + ' ends inside an escape');
+            } catch (e) {
+                broken.push('frame ' + i + ' splits a code point');
+            }
+        }
+        equal('every frame releases whole units', broken, []);
+        same('everything arrives byte for byte', [...join(out)].join(','), [...source].join(','));
+        throttle.dispose();
+    }
+    // Synchronized output (the PETSCII engine's repaints): ESC[?2026h ... ESC[?2026l is one unit and leaves at once.
+    const BEGIN = '\x1b[?2026h';
+    const END = '\x1b[?2026l';
+    const repaint = BEGIN + (sgr + glyph).repeat(200) + '\x1b[?2026h\x1b[?25h' + END;
+    {
+        const { out, throttle } = unitThrottle();
+        throttle.push(encoder.encode('A' + repaint + 'B' + END));
+        tick();
+        const released = [];
+        for (let i = 0; i < 4; i += 1) {
+            const mark = out.length;
+            tick();
+            released.push(new TextDecoder().decode(join(out.slice(mark))));
+        }
+        equal('a synchronized block (nested begin and ?25h inside) is one unit; a lone end is an ordinary unit', released, ['A', repaint, 'B', END]);
+        throttle.dispose();
+    }
+    {
+        const { out, throttle } = unitThrottle();
+        throttle.push(encoder.encode(BEGIN + 'xyz' + glyph));
+        throttle.push(encoder.encode('\x1b[?20'));
+        tick();
+        tick();
+        equal('an open block waits without spinning frames', [join(out).length, frames.length], [0, 0]);
+        throttle.push(encoder.encode('26l' + 'C'));
+        tick();
+        tick();
+        same('a block split across pushes leaves whole once its end arrives', new TextDecoder().decode(join(out)), BEGIN + 'xyz' + glyph + END);
+        tick();
+        same('the next unit follows on the next allowance', new TextDecoder().decode(join(out)), BEGIN + 'xyz' + glyph + END + 'C');
+        throttle.dispose();
+    }
+    {
+        const { out, throttle } = unitThrottle();
+        throttle.push(encoder.encode(BEGIN + 'q'.repeat(100)));
+        tick();
+        tick();
+        same('an unterminated block is held', join(out).length, 0);
+        throttle.setBaud(0);
+        same('switching the throttle off releases it', new TextDecoder().decode(join(out)), BEGIN + 'q'.repeat(100));
+        throttle.dispose();
+    }
+    {
+        let total = 0;
+        const throttle = modem.createThrottle((bytes) => { total += bytes.length; });
+        throttle.setBaud(300);
+        throttle.push(encoder.encode(BEGIN));
+        throttle.push(new Uint8Array(modem.MAX_QUEUE_BYTES));
+        same('an unterminated block beyond the queue limit is released', total, BEGIN.length + modem.MAX_QUEUE_BYTES);
+        throttle.dispose();
+    }
+    frames.length = 0;
+}
+
 // 3. Transcript: reduced motion, typing + skip, overlapping dials, dispose during a dial.
 {
     motion(false);

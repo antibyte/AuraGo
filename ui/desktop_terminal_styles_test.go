@@ -801,6 +801,13 @@ func TestDesktopTerminalModemContract(t *testing.T) {
 		"window.TerminalText.printable(host)",
 		"if (audible()) context();",
 		"ctx.state === 'running'",
+		// Throttle units (Contract C): code points, whole escape sequences and whole synchronized-output blocks.
+		"const SEQUENCE_LIMIT = 1024;",
+		"const SYNC_BEGIN = '?2026h';",
+		"const SYNC_END = '?2026l';",
+		"function countUnits(parts, limit)",
+		"const found = allowance > 0 ? countUnits(queue, allowance) : { units: 0, bytes: 0 };",
+		"if (queue.length && found.units === allowance) schedule();",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("terminal-modem.js missing %q", want)
