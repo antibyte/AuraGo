@@ -10,9 +10,11 @@ Operations:
 - `list_streams`: List enabled configured streams with sanitized reachability, codec, producer, and consumer data.
 - `stream_status`: Inspect one configured stream.
 - `snapshot`: Create a verified JPEG snapshot and show it in chat; persistent registration follows `store_media`. The result also includes machine-readable artifact provenance and recommends `go2rtc/analyze_snapshot` for a later camera-analysis question.
-- `analyze_snapshot`: Store a verified snapshot and analyze it through AuraGo's configured vision provider and budget path.
+- `analyze_snapshot`: Store a verified snapshot and analyze a bounded private copy through AuraGo's configured vision provider and budget path. Managed snapshots do not need to be inside the agent workspace.
 - `show_live_stream`: Open AuraGo's same-origin viewer. Prefer this path over embedding upstream go2rtc URLs.
 
 Snapshots accept optional `width`, `height`, `rotate`, and `cache_seconds`. Valid rotations are 0, 90, 180, and 270. The tool cannot start or stop the service and cannot add, edit, disable, or remove streams.
+
+`reachable` is a passive observation of current codec metadata, not an active connection test. An idle stream with no codecs or consumers can report `reachable: false` and still produce a snapshot when requested. Do not declare a camera offline from that field alone; use `snapshot` to check image availability.
 
 For follow-up questions about a camera snapshot, keep using `go2rtc` with `analyze_snapshot` and the trusted `stream_id`. Use `analyze_image` only for an existing general-media artifact. Never try to resolve internal `/files/...` URLs through filesystem, shell, Python, or credential lookup.

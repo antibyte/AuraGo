@@ -70,6 +70,10 @@ When the integration, agent access, and authenticated API are all available, Aur
 
 The agent accepts stable stream IDs only and cannot start or stop the service or modify stream configuration. Snapshot analysis uses AuraGo's existing Vision provider and budget accounting.
 
+Snapshots stored under `data/go2rtc/snapshots` are prepared as bounded private Vision inputs; only the private copies are removed after analysis. General `analyze_image` calls can use the exact local or `/files/...` path of an existing image in the Media Registry. Neither path grants general agent access to the data directory; unregistered paths and root-escaping symlinks remain blocked.
+
+Stream `reachable` telemetry is based on current codec metadata, not an active camera probe. Idle streams may report `false` with no codecs or consumers and still produce a snapshot on demand. The agent receives this distinction with stream status results; request a snapshot to verify image availability.
+
 ## Configuration
 
 Configure the integration under **Config → Network & Remote → go2rtc Cameras**, or use the administrator onboarding in **Network Cameras**. Connection tests, container controls, snapshots, and viewers intentionally use only the last saved configuration.

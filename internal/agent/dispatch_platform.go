@@ -244,7 +244,7 @@ func handleThreeDPrinterAnalyzeCamera(ctx context.Context, cfg *config.Config, r
 	if prompt == "" {
 		prompt = "Analyze this 3D printer camera snapshot. Describe print progress, visible issues, adhesion problems, spaghetti failures, and anything that needs attention."
 	}
-	analysis, pTokens, cTokens, err := dispatchAnalyzeImageWithPrompt(snapshot.LocalPath, prompt, cfg)
+	analysis, pTokens, cTokens, err := analyzeManagedImageWithPrompt(snapshot.LocalPath, prompt, cfg)
 	if err != nil {
 		data, _ := json.Marshal(map[string]string{
 			"status":        "error",
@@ -682,13 +682,13 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if err != nil {
 					return encode(map[string]interface{}{"status": "error", "message": err.Error()})
 				}
-				return encode(map[string]interface{}{"status": "ok", "streams": streams})
+				return encode(map[string]interface{}{"status": "ok", "streams": streams, "reachability_note": go2RTCReachabilityNote})
 			case "stream_status":
 				stream, err := manager.StreamStatus(ctx, streamID)
 				if err != nil {
 					return encode(map[string]interface{}{"status": "error", "message": err.Error()})
 				}
-				return encode(map[string]interface{}{"status": "ok", "stream": stream})
+				return encode(map[string]interface{}{"status": "ok", "stream": stream, "reachability_note": go2RTCReachabilityNote})
 			case "snapshot", "analyze_snapshot":
 				if operation == "analyze_snapshot" && budgetTracker != nil && budgetTracker.IsBlocked("vision") {
 					return `Tool Output: {"status":"error","message":"Vision analysis is blocked because the daily budget is exceeded."}`
@@ -739,7 +739,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					prompt = "Analyze this camera snapshot. Describe the scene, relevant activity, safety concerns, visible changes, and anything that may need attention."
 				}
 				prompt, _ = tools.PrepareVisionPrompt(prompt)
-				analysis, promptTokens, completionTokens, err := dispatchAnalyzeImageWithPrompt(result.LocalPath, prompt, cfg)
+				analysis, promptTokens, completionTokens, err := analyzeManagedImageWithPrompt(result.LocalPath, prompt, cfg)
 				if err != nil {
 					return encode(map[string]interface{}{"status": "error", "message": "snapshot analysis failed: " + err.Error(), "snapshot": result.WebPath})
 				}
