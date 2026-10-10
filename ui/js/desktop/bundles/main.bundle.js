@@ -18332,7 +18332,17 @@ if (appId === 'pixel') {
             if (nextSelectedID !== undefined) {
                 host.dataset.todoSelected = nextSelectedID || '';
             }
-            const todos = await api('/api/desktop/integrations/todos?status=all');
+            let todos;
+            try {
+                todos = await api('/api/desktop/integrations/todos?status=all');
+            } catch (err) {
+                if (host.dataset.todoGeneration !== generation) return;
+                const failedList = host.querySelector('.vd-todo-list');
+                if (failedList) {
+                    failedList.innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`;
+                }
+                return;
+            }
             if (host.dataset.todoGeneration !== generation) return;
             const selectedID = host.dataset.todoSelected || '';
             const selectionChanged = nextSelectedID !== undefined && String(nextSelectedID || '') !== String(priorSelectedID);
@@ -18403,7 +18413,7 @@ if (appId === 'pixel') {
                 await load(result.id);
             });
         });
-        try { await load(); } catch (err) { host.querySelector('.vd-todo-list').innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`; }
+        await load();
     }
 
     function renderTodoCard(todo, selectedID, todoReadonly) {
