@@ -16,15 +16,18 @@ import (
 	"aurago/internal/sqlconnections"
 )
 
-func TestMCPEffectiveAllowedToolsUsesVSCodePreset(t *testing.T) {
+func TestMCPEffectiveAllowedToolsEmptyBridgeDeniesAll(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.MCPServer.VSCodeDebugBridge = true
 
 	got := mcpEffectiveAllowedTools(cfg)
-	joined := strings.Join(got, ",")
-	for _, want := range []string{"ask_aurago", "execute_shell", "api_request", "query_memory"} {
-		if !strings.Contains(joined, want) {
-			t.Fatalf("effective allowed tools missing %q: %v", want, got)
+	if len(got) != 0 {
+		t.Fatalf("empty bridge scope granted tools: %v", got)
+	}
+	s := &Server{Cfg: cfg}
+	for _, name := range []string{"ask_aurago", "execute_shell", "invoke_tool"} {
+		if mcpToolAllowed(s, name) {
+			t.Fatalf("empty scope allows %s", name)
 		}
 	}
 }
@@ -247,6 +250,7 @@ func TestMCPBuildToolListIncludesAskAuraGoWhenBridgeEnabled(t *testing.T) {
 	cfg.Directories.ToolsDir = t.TempDir()
 	cfg.Directories.SkillsDir = t.TempDir()
 	cfg.MCPServer.VSCodeDebugBridge = true
+	cfg.MCPServer.AllowedTools = []string{"ask_aurago"}
 
 	s := &Server{
 		Cfg:    cfg,

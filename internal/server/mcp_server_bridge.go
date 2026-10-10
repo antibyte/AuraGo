@@ -43,12 +43,6 @@ func mcpEffectiveAllowedTools(cfg *config.Config) []string {
 	if cfg == nil {
 		return nil
 	}
-	if !cfg.MCPServer.VSCodeDebugBridge {
-		return append([]string(nil), cfg.MCPServer.AllowedTools...)
-	}
-	if len(cfg.MCPServer.AllowedTools) == 0 {
-		return append([]string(nil), mcpVSCodeDebugBridgeTools...)
-	}
 	return uniqueStrings(append([]string(nil), cfg.MCPServer.AllowedTools...))
 }
 

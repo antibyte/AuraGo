@@ -775,7 +775,9 @@ mcp_server:
 
 The `/mcp` endpoint negotiates MCP `2025-11-25` while retaining `2024-11-05` compatibility. Native clients may omit `Origin`; browser-originated requests must match AuraGo's effective host.
 
-`allowed_tools` is an explicit server-side allowlist. Leave it empty to expose no AuraGo tools; `vscode_debug_bridge` applies its own limited debugging preset.
+`allowed_tools` is an explicit server-side allowlist. An empty list exposes no tools, including in IDE bridge mode. Opening settings or toggling the bridge never adds permissions. Use **Add recommended tools** to explicitly add the backend's IDE preset, then save. Select-all saves the current tool names.
+
+**Compatibility change:** Existing IDE configurations with an empty list must explicitly select tools after upgrading. There is no automatic preset migration. MCP client allowlists retain their separate semantics.
 
 ---
 
