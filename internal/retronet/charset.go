@@ -10,14 +10,17 @@ type Codec interface {
 	Encode(dst, src []byte) []byte
 }
 
-// NewCodec returns the codec for c. Empty and unknown charsets get the UTF-8
-// pass-through codec.
+// NewCodec returns the codec for c. CharsetPETSCII gets a new stateful
+// engine per call (never share one between sessions). Empty and unknown
+// charsets get the UTF-8 pass-through codec.
 func NewCodec(c Charset) Codec {
 	switch c {
 	case CharsetCP437:
 		return cp437Codec{}
 	case CharsetLatin1:
 		return latin1Codec{}
+	case CharsetPETSCII:
+		return newPetsciiCodec()
 	default:
 		return utf8Codec{}
 	}

@@ -97,3 +97,70 @@ func C64Glyph(lowerSet bool, screenCode byte) rune {
 	}
 	return 0xEE00 + rune(screenCode&0x7F)
 }
+
+// petsciiASCIIKeys maps single ASCII bytes from the browser to PETSCII; 0
+// means the byte is dropped (no key produces PETSCII 0x00).
+var petsciiASCIIKeys = func() [128]byte {
+	var t [128]byte
+	for b := 0x20; b <= 0x3F; b++ {
+		t[b] = byte(b) // space, digits and !"#$%&'()*+,-./:;<=>?
+	}
+	for b := 'a'; b <= 'z'; b++ {
+		t[b] = byte(b-'a') + 0x41
+	}
+	for b := 'A'; b <= 'Z'; b++ {
+		t[b] = byte(b-'A') + 0xC1
+	}
+	t['@'] = 0x40
+	t['['] = 0x5B
+	t[']'] = 0x5D
+	t['^'] = 0x5E
+	t['_'] = 0x5F
+	t['\r'] = petsciiReturn
+	t[0x7F] = petsciiDel
+	t[0x08] = petsciiDel
+	t[0x03] = petsciiRunStop
+	return t
+}()
+
+// petsciiRuneKey maps the non-ASCII keys the browser can send.
+func petsciiRuneKey(r rune) (byte, bool) {
+	switch r {
+	case '\U000000A3': // pound sign
+		return 0x5C, true
+	case '\U00002191': // up arrow
+		return 0x5E, true
+	case '\U00002190': // left arrow
+		return 0x5F, true
+	}
+	return 0, false
+}
+
+// petsciiKeySequences maps complete xterm key sequences to PETSCII.
+var petsciiKeySequences = map[string]byte{
+	"\x1b[A": 0x91, "\x1bOA": 0x91, // up
+	"\x1b[B": 0x11, "\x1bOB": 0x11, // down
+	"\x1b[C": 0x1D, "\x1bOC": 0x1D, // right
+	"\x1b[D": 0x9D, "\x1bOD": 0x9D, // left
+	"\x1b[H": 0x13, "\x1bOH": 0x13, "\x1b[1~": 0x13, // Home -> HOME
+	"\x1b[1;2H": 0x93, // Shift+Home -> CLR
+	"\x1b[2~":   0x94, // Insert -> INST
+	"\x1b[3~":   0x14, // Delete -> DEL
+	"\x1bOP":    0x85, // F1
+	"\x1bOQ":    0x89, // F2
+	"\x1bOR":    0x86, // F3
+	"\x1bOS":    0x8A, // F4
+	"\x1b[15~":  0x87, // F5
+	"\x1b[17~":  0x8B, // F6
+	"\x1b[18~":  0x88, // F7
+	"\x1b[19~":  0x8C, // F8
+}
+
+// petsciiPrivatePrefix starts the browser's colour-key sequence ESC [ 6 4 ; n ~.
+const petsciiPrivatePrefix = "\x1b[64;"
+
+// petsciiPrivateAllowed reports whether the colour-key sequence may send b:
+// the 16 colour codes, RVS ON and RVS OFF.
+func petsciiPrivateAllowed(b byte) bool {
+	return petsciiColourIndex[b] >= 0 || b == petsciiRvsOn || b == petsciiRvsOff
+}

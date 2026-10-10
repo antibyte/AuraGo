@@ -28,9 +28,10 @@ type Charset string
 
 // Supported charsets.
 const (
-	CharsetUTF8   Charset = "utf8"
-	CharsetCP437  Charset = "cp437"
-	CharsetLatin1 Charset = "latin1"
+	CharsetUTF8    Charset = "utf8"
+	CharsetCP437   Charset = "cp437"
+	CharsetLatin1  Charset = "latin1"
+	CharsetPETSCII Charset = "petscii" // Commodore 64: stateful 40x25 engine, one codec per session
 )
 
 // Category values, rendered in this order.
