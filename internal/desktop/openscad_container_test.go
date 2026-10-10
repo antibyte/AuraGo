@@ -931,3 +931,39 @@ func TestOpenSCADStatusIncludesRenderQueueNote(t *testing.T) {
 		t.Fatalf("max_concurrent_jobs = %d", status.MaxConcurrentJobs)
 	}
 }
+
+func TestOpenSCADOutputLimitRejectsBeforeReading(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "big.stl")
+	if err := os.WriteFile(path, bytes.Repeat([]byte("x"), 64), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, _, err := readOpenSCADRegularFile(path, 32)
+	if err == nil || !strings.Contains(err.Error(), "exceed") {
+		t.Fatalf("error = %v, want exceed", err)
+	}
+}
+
+func TestOpenSCADJobFileRefusesSymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink creation requires elevated privileges on this test setup; openFileNoFollow still has its own Windows test")
+	}
+	dataDir := t.TempDir()
+	svc := NewOpenSCADContainerService(Config{DataDir: dataDir, OpenSCAD: OpenSCADConfig{Enabled: true, MaxOutputMB: 1}}, nil)
+	root := filepath.Join(dataDir, "openscad", "jobs")
+	jobDir := filepath.Join(root, "oscad-0123456789abcdef01234567")
+	if err := os.MkdirAll(jobDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	secret := filepath.Join(dataDir, "secret.txt")
+	if err := os.WriteFile(secret, []byte("secret-bytes"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(secret, filepath.Join(jobDir, "model.stl")); err != nil {
+		t.Fatal(err)
+	}
+	_, _, err := svc.JobFile("oscad-0123456789abcdef01234567", "model.stl")
+	if err == nil || strings.Contains(err.Error(), "secret-bytes") {
+		t.Fatalf("error = %v, want a symlink refusal without the target contents", err)
+	}
+}

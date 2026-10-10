@@ -1,12 +1,15 @@
 package desktop
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path"
@@ -758,10 +761,11 @@ func (s *OpenSCADContainerService) SaveJob(ctx context.Context, desktopSvc *Serv
 		return OpenSCADRenderResult{}, err
 	}
 	base := "Documents/OpenSCAD/" + safeOpenSCADModelName(result.ModelName) + "-" + jobID
+	outputCap := int64(openSCADMaxOutputMB(s.cfg.OpenSCAD)) * 1024 * 1024
 	var saved []string
 	for i := range result.Files {
 		filePath := filepath.Join(jobDir, result.Files[i].Name)
-		data, err := os.ReadFile(filePath)
+		data, _, err := readOpenSCADRegularFile(filePath, outputCap)
 		if err != nil {
 			return result, fmt.Errorf("read openscad output %s: %w", result.Files[i].Name, err)
 		}
@@ -772,8 +776,17 @@ func (s *OpenSCADContainerService) SaveJob(ctx context.Context, desktopSvc *Serv
 		result.Files[i].SavedPath = rel
 		saved = append(saved, rel)
 	}
-	sourceData, err := os.ReadFile(filepath.Join(jobDir, "model.scad"))
-	if err == nil {
+	modelCap := outputCap
+	sourceCap := int64(openSCADMaxSourceKB(s.cfg.OpenSCAD)) * 1024
+	if sourceCap < modelCap {
+		modelCap = sourceCap
+	}
+	sourceData, _, err := readOpenSCADRegularFile(filepath.Join(jobDir, "model.scad"), modelCap)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return result, fmt.Errorf("save openscad source: %w", err)
+		}
+	} else {
 		rel := path.Join(base, "model.scad")
 		if err := desktopSvc.WriteFileBytes(ctx, rel, sourceData, SourceAgent); err != nil {
 			return result, fmt.Errorf("save openscad source: %w", err)
@@ -922,24 +935,70 @@ func (s *OpenSCADContainerService) outputFile(jobDir, jobID, filename, format st
 	return s.describeOutputFile(path, jobID, filename, format)
 }
 
+// readOpenSCADRegularFile opens a regular file without following symlinks and
+// refuses anything larger than maxBytes before it copies the contents.
+func readOpenSCADRegularFile(path string, maxBytes int64) ([]byte, os.FileInfo, error) {
+	data, info, _, err := copyOpenSCADRegularFile(path, maxBytes, true)
+	return data, info, err
+}
+
+// copyOpenSCADRegularFile hashes with io.Copy and keeps the bytes only when keepBytes is set.
+func copyOpenSCADRegularFile(path string, maxBytes int64, keepBytes bool) ([]byte, os.FileInfo, []byte, error) {
+	file, err := openFileNoFollow(path, os.O_RDONLY, 0)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("openscad output is not a regular file: %w", err)
+	}
+	info, statErr := file.Stat()
+	if statErr != nil {
+		_ = file.Close()
+		return nil, nil, nil, fmt.Errorf("openscad output is not a regular file: %w", statErr)
+	}
+	if !info.Mode().IsRegular() {
+		_ = file.Close()
+		return nil, info, nil, fmt.Errorf("openscad output is not a regular file")
+	}
+	if maxBytes > 0 && info.Size() > maxBytes {
+		_ = file.Close()
+		return nil, info, nil, fmt.Errorf("openscad output exceeds %d bytes", maxBytes)
+	}
+	hash := sha256.New()
+	var buf bytes.Buffer
+	dst := io.Writer(hash)
+	if keepBytes {
+		dst = io.MultiWriter(hash, &buf)
+	}
+	_, copyErr := io.Copy(dst, file)
+	closeErr := file.Close()
+	if copyErr != nil {
+		return nil, info, nil, fmt.Errorf("read openscad output: %w", copyErr)
+	}
+	if closeErr != nil {
+		return nil, info, nil, fmt.Errorf("read openscad output: %w", closeErr)
+	}
+	sum := hash.Sum(nil)
+	if !keepBytes {
+		return nil, info, sum, nil
+	}
+	return buf.Bytes(), info, sum, nil
+}
+
 func (s *OpenSCADContainerService) describeOutputFile(filePath, jobID, filename, format string) (OpenSCADFile, error) {
-	info, err := os.Stat(filePath)
+	maxBytes := int64(openSCADMaxOutputMB(s.cfg.OpenSCAD)) * 1024 * 1024
+	_, info, sum, err := copyOpenSCADRegularFile(filePath, maxBytes, false)
 	if err != nil {
-		return OpenSCADFile{}, fmt.Errorf("openscad output %s missing: %w", filename, err)
+		if info != nil && info.IsDir() {
+			return OpenSCADFile{}, fmt.Errorf("openscad output %s is a directory", filename)
+		}
+		if errors.Is(err, os.ErrNotExist) {
+			return OpenSCADFile{}, fmt.Errorf("openscad output %s missing: %w", filename, err)
+		}
+		return OpenSCADFile{}, err
 	}
-	if info.IsDir() {
-		return OpenSCADFile{}, fmt.Errorf("openscad output %s is a directory", filename)
-	}
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return OpenSCADFile{}, fmt.Errorf("read openscad output %s: %w", filename, err)
-	}
-	sum := sha256.Sum256(data)
 	return OpenSCADFile{
 		Name:        filename,
 		Format:      strings.ToLower(format),
 		Size:        info.Size(),
-		SHA256:      hex.EncodeToString(sum[:]),
+		SHA256:      hex.EncodeToString(sum),
 		DownloadURL: "/api/openscad/jobs/" + jobID + "/files/" + filename + "?download=1",
 		PreviewURL:  "/api/openscad/jobs/" + jobID + "/files/" + filename,
 	}, nil
