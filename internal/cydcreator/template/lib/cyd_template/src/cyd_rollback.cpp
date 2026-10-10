@@ -36,18 +36,26 @@ void elf_sha_hex(const esp_app_desc_t& d, char out[65]) {
 
 namespace detail {
 
-// Called right before an OTA switch: the running image is what the other slot
-// will hold after the reboot, and the only image a rollback may return to.
-void rollback_remember_running() {
+// Called right before an OTA switch (the new image is fully written and checked).
+// The running image is what the other slot holds after the reboot, and the only
+// image a rollback may return to; the new image is the only one that may roll back.
+void rollback_remember_update() {
   const esp_partition_t* running = esp_ota_get_running_partition();
+  const esp_partition_t* target = esp_ota_get_next_update_partition(nullptr);
   esp_app_desc_t desc;
-  if (running == nullptr || esp_ota_get_partition_description(running, &desc) != ESP_OK) {
-    sys_set_string("cyd_sys", "prev_elf", "");
-    return;
-  }
   char hex[65];
-  elf_sha_hex(desc, hex);
+  if (running != nullptr && esp_ota_get_partition_description(running, &desc) == ESP_OK) {
+    elf_sha_hex(desc, hex);
+  } else {
+    hex[0] = '\0';
+  }
   sys_set_string("cyd_sys", "prev_elf", hex);
+  if (target != nullptr && esp_ota_get_partition_description(target, &desc) == ESP_OK) {
+    elf_sha_hex(desc, hex);
+  } else {
+    hex[0] = '\0';
+  }
+  sys_set_string("cyd_sys", "ota_new_elf", hex);
 }
 
 bool rollback_pending_verify() {
@@ -63,9 +71,11 @@ void rollback_guard_early() {
     g_rtc_magic = kRtcMagic;  // RTC memory is random after power-on
     g_rtc_count = 0;
   }
-  // Brown-outs and deliberate restarts (our own OTA/rollback restart, esp_restart()
-  // in app code) say nothing about the stability of the image.
-  if (why != ESP_RST_BROWNOUT && why != ESP_RST_SW) g_rtc_count++;
+  // Only crash resets count (panic and the watchdogs). Everything else says nothing
+  // about the image: software resets (our own OTA/rollback restart, esp_restart()
+  // in app code), deep sleep, brown-outs, the reset button or a USB serial
+  // reset, SDIO and unknown reasons leave the counter as it is.
+  if (why == ESP_RST_PANIC || why == ESP_RST_INT_WDT || why == ESP_RST_TASK_WDT || why == ESP_RST_WDT) g_rtc_count++;
   const esp_partition_t* running = esp_ota_get_running_partition();
   log::info("boot: slot %s, unstable boots %lu%s", running ? running->label : "?", (unsigned long)g_rtc_count,
             rollback_pending_verify() ? ", image pending verification" : "");
@@ -83,12 +93,21 @@ void rollback_guard_early() {
     log::warn("boot: %d unstable boots, but the other slot is marked bad", CYD_ROLLBACK_THRESHOLD);
     return;
   }
-  // Only the image this device updated from is a rollback target: after a USB
-  // flash the other slot may hold a stale build of another project.
-  char other_hex[65];
-  elf_sha_hex(desc, other_hex);
-  if (sys_get_string("cyd_sys", "prev_elf") != other_hex) {
+  // Only a rollback from the image this device installed by OTA, to the image it
+  // updated from: after a USB flash the running image is a different one and the
+  // other slot may hold a stale build of another project.
+  char hex[65];
+  esp_app_desc_t running_desc;
+  elf_sha_hex(desc, hex);
+  if (sys_get_string("cyd_sys", "prev_elf") != hex) {
     log::warn("boot: %d unstable boots, but the other slot is not the image this device updated from",
+              CYD_ROLLBACK_THRESHOLD);
+    return;
+  }
+  if (running == nullptr || esp_ota_get_partition_description(running, &running_desc) != ESP_OK) return;
+  elf_sha_hex(running_desc, hex);
+  if (sys_get_string("cyd_sys", "ota_new_elf") != hex) {
+    log::warn("boot: %d unstable boots, but the running image was not installed by this device's OTA",
               CYD_ROLLBACK_THRESHOLD);
     return;
   }

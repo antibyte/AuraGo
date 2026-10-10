@@ -71,6 +71,7 @@ bool g_busy = false;  // loop task only: a heartbeat or OTA job is in flight
 uint32_t g_busy_deadline = 0;
 std::atomic<bool> g_cert_changed{false};  // pin mismatch seen: stop talking to the server
 bool g_banner_shown = false;
+String g_bad_offer;  // worker task only: the last invalid update offer that was logged
 uint32_t g_next_heartbeat = 0;  // millis(); 0 = as soon as Wi-Fi is up
 uint32_t g_interval_ms = 60000;
 String g_ota_state = "idle";
@@ -429,7 +430,7 @@ void run_ota(UpdateOffer u) {
     return ota_fail(u, "sha256 mismatch");
   }
   if (esp_ota_end(handle) != ESP_OK) return ota_fail(u, "image invalid");
-  detail::rollback_remember_running();                     // the only image a rollback may return to
+  detail::rollback_remember_update();                      // ties a rollback to this OTA
   detail::sys_set_string(kSysNs, "ota_pend", u.build_id);  // confirmed by the new image
   if (esp_ota_set_boot_partition(target) != ESP_OK) {
     detail::sys_set_string(kSysNs, "ota_pend", "");
@@ -524,13 +525,23 @@ void send_heartbeat() {
     r.code = link_json(true, "/api/cyd-creator/device/heartbeat", body, &resp, &r.err);
     r.ok = r.code == 200 && r.err.length() == 0;
     r.interval_s = resp["interval_s"] | 60;
-    r.has_update = r.ok && resp["update"].is<JsonObject>();
+    bool offered = r.ok && !resp["update"].isNull();
+    r.has_update = offered && resp["update"].is<JsonObject>();
     if (r.has_update) {
       r.offer.build_id = resp["update"]["build_id"] | "";
       r.offer.size = resp["update"]["size"] | 0;
       r.offer.sha256 = resp["update"]["sha256"] | "";
       r.offer.url = resp["update"]["url"] | "";
+      r.offer.sha256.toLowerCase();
       r.has_update = is_build_id(r.offer.build_id) && is_hex64(r.offer.sha256);
+    }
+    if (offered && !r.has_update) {  // log each bad offer once, not at every heartbeat
+      String key = r.offer.build_id.substring(0, 80) + "/" + r.offer.sha256.substring(0, 80);
+      if (key != g_bad_offer) {
+        g_bad_offer = key;
+        log::warn("link: ignoring an invalid update offer (build_id %s, sha256 %s)",
+                  is_build_id(r.offer.build_id) ? "valid" : "invalid", is_hex64(r.offer.sha256) ? "valid" : "invalid");
+      }
     }
     publish_result(std::move(r));
   });

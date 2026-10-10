@@ -90,7 +90,7 @@ void rollback_guard_early();
 void rollback_loop();
 void rollback_mark_stable(const char* why);
 bool rollback_pending_verify();
-void rollback_remember_running();     // before an OTA switch: the running image becomes the only rollback target
+void rollback_remember_update();      // before an OTA switch: ties a rollback to this OTA (running = target, new = source)
 
 }  // namespace detail
 }  // namespace cyd
