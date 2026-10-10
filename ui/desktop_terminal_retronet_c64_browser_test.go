@@ -75,16 +75,24 @@ func runTerminalRetroNetC64Browser(t *testing.T, browser *rod.Browser, base, mot
 	}
 	ctrlShift := []input.Key{input.ControlLeft, input.ShiftLeft}
 	altShift := []input.Key{input.AltLeft, input.ShiftLeft}
-	// connect sends board output (`data`, shown as `marker`) before CONNECT, skips an animated dial with a local key
-	// and waits until CONNECT shows the Telnet notice and the key hint while that output waits for the hold.
-	connect := func(name, data, marker string) {
-		c.run(`()=>{fixtureWatchConnect();fixtureData('` + data + `');fixtureControl({type:'connected',protocol:'telnet',kind:'c64',charset:'petscii'});}`)
+	// connect sends board output (`data`, shown as `marker`) before CONNECT and skips an animated dial with a local
+	// key. A manual hold is kept by the fixture until terminal.js ends it or fixtureReleaseHold(), so connect checks
+	// without a deadline that CONNECT shows the Telnet notice and the key hint while that output waits. Otherwise
+	// the real 2 s timer runs and connect only waits for CONNECT.
+	connect := func(name, data, marker string, manual bool) {
+		c.run(`()=>{fixtureExpectHold(` + strconv.FormatBool(manual) + `);fixtureData('` + data + `');fixtureControl({type:'connected',protocol:'telnet',kind:'c64',charset:'petscii'});}`)
 		if full {
 			c.check(name+": still dialling", `()=>fixtureRoot().dataset.terminalMode==='dialing'`)
 			c.run(`async()=>{await fixtureInput('x');}`)
 		}
-		c.wait(name+": CONNECT holds the Telnet notice and the key hint, the board output waits", `async()=>fixtureRoot().dataset.terminalMode==='retro'&&await fixtureHintShown('`+marker+`')`)
-		c.check(name+": still held a second after CONNECT", `async()=>{await fixtureAfterConnect(1000);return fixtureHintShown('`+marker+`');}`)
+		if !manual {
+			c.wait(name+": CONNECT arms the real hold timer", `()=>fixtureRoot().dataset.terminalMode==='retro'&&fixtureHolds.length===1&&!fixtureHold().manual`)
+			return
+		}
+		c.wait(name+": CONNECT holds the Telnet notice and the key hint, the board output waits", `async()=>fixtureRoot().dataset.terminalMode==='retro'&&
+			fixtureHolds.length===1&&fixtureHold().manual&&fixtureHold().state==='pending'&&await fixtureHintShown('`+marker+`')`)
+		c.check(name+": still held a moment later", `async()=>{await new Promise(r=>setTimeout(r,300));
+			return fixtureHold().state==='pending'&&fixtureHintShown('`+marker+`');}`)
 	}
 	// dial opens the C64 board from the directory, where it is the last entry and preselected.
 	dial := func(name string) {
@@ -134,7 +142,7 @@ func runTerminalRetroNetC64Browser(t *testing.T, browser *rod.Browser, base, mot
 	c.run(`()=>fixtureTerm().focus()`)
 	press(ctrlShift, input.Digit1)
 	c.check("the colour key reached the terminal while dialling", `()=>fixtureKeys.at(-1)==='CS+Digit1'&&fixtureRoot().dataset.terminalMode==='dialing'`)
-	connect("first call", `\x1b[38;2;112;109;235mBOARD ONE`, "BOARD ONE")
+	connect("first call", `\x1b[38;2;112;109;235mBOARD ONE`, "BOARD ONE", true)
 	c.check("CONNECT, then every part of the key hint whole", `async()=>{await fixtureFlush();const lines=fixtureLines(),text=lines.join('\n'),parts=t('desktop.terminal_retronet_c64_keys').split(' · '),
 			connect=lines.findIndex(l=>l.startsWith('CONNECT ')),notice=lines.indexOf(fixtureWrapped('desktop.terminal_retronet_telnet_notice')[0]),hint=lines.findIndex(l=>l.startsWith(parts[0]));
 		return connect>=0&&notice>connect&&hint>notice&&parts.every(p=>text.includes(p))&&!text.includes('…');}`)
@@ -142,9 +150,9 @@ func runTerminalRetroNetC64Browser(t *testing.T, browser *rod.Browser, base, mot
 		return live.startsWith(t('desktop.terminal_retronet_telnet_notice'))&&live.includes(t('desktop.terminal_retronet_c64_keys'))&&
 			live.includes(t('desktop.terminal_retronet_style_locked'))&&!live.includes(t('desktop.terminal_retronet_hangup_hint'))&&live.split('Strg+]').length===2;}`)
 	c.check("neither the colour key nor the skip key reached the board", `()=>fixtureSent(fixtureSocket()).length===0`)
-	c.check("a key ends the hold at once: it reaches the board and the board output lands on the fresh screen", `async()=>{const early=performance.now()-fixtureConnectAt<1900;
+	c.check("a key ends the hold at once: it reaches the board and the board output lands on the fresh screen", `async()=>{const held=fixtureHold().state==='pending';
 		await fixtureInput('A');await fixtureFlush();const b=fixtureTerm().buffer.active;
-		return early&&fixtureSent(fixtureSocket()).join('|')==='bin:A'&&(`+freshScreen+`)('BOARD ONE')&&b.cursorY===24&&b.cursorX===9;}`)
+		return held&&fixtureHold().state==='cleared'&&fixtureSent(fixtureSocket()).join('|')==='bin:A'&&(`+freshScreen+`)('BOARD ONE')&&b.cursorY===24&&b.cursorX===9;}`)
 
 	// 4. The PETSCII engine owns the 40x25 screen from the first board byte: it started blank with the cursor at row 25,
 	// column 1 (above), and every glyph lands where the engine's cursor positioning puts it. Its repaints come as
@@ -199,11 +207,13 @@ func runTerminalRetroNetC64Browser(t *testing.T, browser *rod.Browser, base, mot
 			localStorage.getItem('aurago.desktop.terminal.style')==='amber';}`)
 	c.check("leaving the C64 look switches straight to the user's font", `()=>fixtureFonts.length>0&&!fixtureFonts.some(f=>f.includes('Aura C64'))`)
 
-	// 8. Without a key the held board output follows the hold. Then the server ends the call because Retro-Net was
-	// switched off: the next key opens the shell in the user's look.
+	// 8. Without a key the real 2 s timer ends the hold by itself and the held board output follows (c.wait polls up
+	// to 8 s, so a slow machine only delays it). Then the server ends the call because Retro-Net was switched off:
+	// the next key opens the shell in the user's look.
 	dial("second call")
-	connect("second call", "BOARD TWO", "BOARD TWO")
-	c.wait("without a key the board output follows the hold on the fresh screen", `async()=>{await fixtureFlush();return (`+freshScreen+`)('BOARD TWO')&&performance.now()-fixtureConnectAt>=1950;}`)
+	connect("second call", "BOARD TWO", "BOARD TWO", false)
+	c.wait("without a key the real timer ends the hold and the board output follows on the fresh screen", `async()=>{await fixtureFlush();const hold=fixtureHold();
+		return hold.state==='fired'&&hold.endedAt-hold.armedAt>=1950&&(`+freshScreen+`)('BOARD TWO');}`)
 	c.check("nothing went to the board", `()=>fixtureSent(fixtureSocket()).length===0`)
 	c.run(`()=>{fixtureControl({type:'result',code:'NO CARRIER',reason:'disabled'});fixtureSocket().serverClose(1000);}`)
 	c.wait("the disabled result offers the shell", `async()=>{await fixtureFlush();const lines=fixtureLines();
@@ -226,28 +236,30 @@ func runTerminalRetroNetC64Browser(t *testing.T, browser *rod.Browser, base, mot
 	c.run(`async()=>{await fixtureBoot(true);}`)
 	c.wait("a fresh window shows the directory", `async()=>fixtureRoot().dataset.terminalMode==='directory'&&(await fixtureText()).includes(t('desktop.terminal_retronet_title'))&&fixtureLive().length===0`)
 	dial("third call")
-	connect("third call", "BOARD THREE", "BOARD THREE")
+	connect("third call", "BOARD THREE", "BOARD THREE", true)
 	c.run(`()=>{fixtureControl({type:'result',code:'NO CARRIER',reason:'remote_closed'});fixtureSocket().serverClose(1000);}`)
-	c.wait("the held output is shown before the result", `async()=>{await fixtureFlush();const lines=fixtureLines(),board=lines.indexOf('BOARD THREE'),code=lines.indexOf('NO CARRIER');
-		return fixtureRoot().dataset.terminalMode==='result'&&board>=0&&code>board&&!lines.some(l=>l.startsWith(t('desktop.terminal_retronet_c64_keys').split(' · ')[0]));}`)
+	c.wait("the hang-up ends the hold and the held output is shown before the result", `async()=>{await fixtureFlush();const lines=fixtureLines(),board=lines.indexOf('BOARD THREE'),code=lines.indexOf('NO CARRIER');
+		return fixtureHold().state==='cleared'&&fixtureRoot().dataset.terminalMode==='result'&&board>=0&&code>board&&!lines.some(l=>l.startsWith(t('desktop.terminal_retronet_c64_keys').split(' · ')[0]));}`)
 	c.run(`async()=>{await fixtureDismiss('q');}`)
 
 	// A local hang-up during the hold drops the held output and the hold never writes over the result.
 	dial("fourth call")
-	connect("fourth call", "BOARD FOUR", "BOARD FOUR")
+	connect("fourth call", "BOARD FOUR", "BOARD FOUR", true)
 	c.run(`async()=>{await fixtureInput('\x1d');}`)
-	c.check("Ctrl+] hangs up during the hold and is never sent", `async()=>{await fixtureFlush();return fixtureRoot().dataset.terminalMode==='result'&&fixtureLines().includes('NO CARRIER')&&fixtureSent(fixtureSocket()).length===0;}`)
-	c.check("after the hold time the result is untouched and the held output dropped", `async()=>{await fixtureAfterConnect(2400);await fixtureFlush();const lines=fixtureLines();
-		return lines.includes('NO CARRIER')&&!lines.some(l=>l.includes('BOARD FOUR'))&&fixtureRoot().dataset.terminalMode==='result';}`)
+	c.check("Ctrl+] hangs up during the hold, ends it and is never sent", `async()=>{await fixtureFlush();
+		return fixtureHold().state==='cleared'&&fixtureRoot().dataset.terminalMode==='result'&&fixtureLines().includes('NO CARRIER')&&fixtureSent(fixtureSocket()).length===0;}`)
+	c.check("a hold timer going off late leaves the result untouched and the held output dropped", `async()=>{const pending=fixtureReleaseHold(),late=fixtureReleaseHold(true);
+		await fixtureFlush();const lines=fixtureLines();
+		return !pending&&late&&lines.includes('NO CARRIER')&&!lines.some(l=>l.includes('BOARD FOUR'))&&fixtureRoot().dataset.terminalMode==='result';}`)
 	c.run(`async()=>{await fixtureDismiss('q');}`)
 
 	// A colour key ends the hold like any key.
 	dial("fifth call")
-	connect("fifth call", "BOARD FIVE", "BOARD FIVE")
+	connect("fifth call", "BOARD FIVE", "BOARD FIVE", true)
 	c.run(`()=>fixtureTerm().focus()`)
 	press(ctrlShift, input.Digit1)
-	c.check("a colour key ends the hold at once and is sent", `async()=>{const early=performance.now()-fixtureConnectAt<1900;await fixtureFlush();
-		return early&&fixtureSent(fixtureSocket()).join('|')==='bin:\x1b[64;144~'&&(`+freshScreen+`)('BOARD FIVE');}`)
+	c.check("a colour key ends the hold at once and is sent", `async()=>{await fixtureFlush();
+		return fixtureHold().state==='cleared'&&fixtureSent(fixtureSocket()).join('|')==='bin:\x1b[64;144~'&&(`+freshScreen+`)('BOARD FIVE');}`)
 	c.run(`async()=>{await fixtureInput('\x1d');}`)
 	c.wait("the fifth call hangs up", `()=>fixtureRoot().dataset.terminalMode==='result'&&fixtureLive().length===0`)
 	c.run(`async()=>{await fixtureDismiss('q');}`)
@@ -255,10 +267,10 @@ func runTerminalRetroNetC64Browser(t *testing.T, browser *rod.Browser, base, mot
 	// More held output than the throttle may queue ends the hold early; closing the window during the call leaves
 	// the saved style untouched.
 	dial("sixth call")
-	connect("sixth call", "BOARD SIX", "BOARD SIX")
-	c.check("a full queue ends the hold at once", `async()=>{const early=performance.now()-fixtureConnectAt<1900;
+	connect("sixth call", "BOARD SIX", "BOARD SIX", true)
+	c.check("a full queue ends the hold at once", `async()=>{const held=fixtureHold().state==='pending';
 		fixtureData('\x1b[0m'.repeat(TerminalModem.MAX_QUEUE_BYTES/4+1));await fixtureFlush();
-		return early&&(`+freshScreen+`)('BOARD SIX');}`)
+		return held&&fixtureHold().state==='cleared'&&(`+freshScreen+`)('BOARD SIX');}`)
 	c.run(`()=>TerminalApp.dispose()`)
 	c.check("dispose closes the call and the C64 look was never saved", `()=>fixtureLive().length===0&&localStorage.getItem('aurago.desktop.terminal.style')==='amber'`)
 	c.check("no browser errors and never two live sockets", `()=>fixtureErrors.length===0`)

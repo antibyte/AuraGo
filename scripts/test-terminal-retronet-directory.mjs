@@ -99,8 +99,16 @@ same('pad fills to the width', fitToCells('\u6f22a', 5, true), '\u6f22a  ');
 same('pad after a cut', fitToCells('\u6f22\u5b57\u30c6', 4, true), '\u6f22\u2026 ');
 same('pad of nothing', fitToCells('', 3, true), '   ');
 same('directory exposes only its contract', Object.keys(Directory).join(','), 'LOCAL_SHELL_ID,create');
-same('TerminalText exposes only its contract', Object.keys(sandbox.TerminalText).join(','), 'cellWidth,cells,fitToCells,printable,wrapHints,wrapWords');
-const { cells, wrapHints, wrapWords } = sandbox.TerminalText;
+same('TerminalText exposes only its contract', Object.keys(sandbox.TerminalText).join(','), 'cellWidth,cells,fitToCells,printable,sentences,wrapHints,wrapWords');
+const { cells, sentences, wrapHints, wrapWords } = sandbox.TerminalText;
+// sentences: parts of one announcement end as sentences; an ASCII full stop only where sentence punctuation is missing.
+same('sentences adds a full stop only where one is missing', sentences(['Telnet sends passwords unencrypted', 'Ctrl+] hang up', 'The style stays locked.']),
+    'Telnet sends passwords unencrypted. Ctrl+] hang up. The style stays locked.');
+same('sentences keeps ASCII ! ? and the ellipsis', sentences(['Busy!', 'Hang up?', 'Dialling…']), 'Busy! Hang up? Dialling…');
+same('sentences keeps CJK and fullwidth punctuation', sentences(['按任意键返回目录。', 'ビジー！', '切断しますか？', 'ＯＫ．']), '按任意键返回目录。 ビジー！ 切断しますか？ ＯＫ．');
+same('sentences keeps the Devanagari danda', sentences(['कुंजी दबाएँ।']), 'कुंजी दबाएँ।');
+same('sentences ends a CJK part without punctuation with a full stop', sentences(['実際のパスワードは使わないでください']), '実際のパスワードは使わないでください.');
+same('sentences strips control characters and trailing spaces', sentences(['a\x1b[2J ', 'b. ']), 'a[2J. b.');
 // wrapWords: text to read (notices, results) wraps at spaces; nothing is cut or dropped, a word wider than a line is
 // split at cell boundaries (CJK two cells each, clusters never split).
 same('wrapWords packs words greedily at spaces', JSON.stringify(wrapWords('The service ended the connection.', 12)), JSON.stringify(['The service', 'ended the', 'connection.']));

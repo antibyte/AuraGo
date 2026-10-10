@@ -285,6 +285,8 @@
             if (c64Look) term.options.theme = Object.assign({}, profile.theme, C64_THEME);
             // A pinned grid gets its font back at once; the fit itself follows below. Not while the C64 look is left:
             // the geometry leaves 'c64' right after, in the same task, and restores the user's font and fit itself.
+            // When the user's font was not loaded yet, the await above lets the geometry leave 'c64' first: `leaving`
+            // is false and the refit fits the grid the geometry has by then, never the C64 one, so that path is safe too.
             const leaving = !c64Look && !!geometry && geometry.mode() === 'c64';
             if (geometry && geometry.mode() !== 'fit' && !leaving) geometry.refit();
             ensureCanvas(profile.retro);
@@ -614,11 +616,11 @@
             const telnet = (run.connected.protocol || run.entry.protocol) === 'telnet';
             if (telnet) writeDim(tr('desktop.terminal_retronet_telnet_notice'));
             if (run.c64) window.TerminalText.wrapHints(tr('desktop.terminal_retronet_c64_keys'), term.cols - 1).forEach(function (line) { writeDim(line); });
-            // Spoken as sentences: the Telnet notice first, then the C64 keys (they name Ctrl+]) and why the style is
-            // locked, or the hang-up hint.
+            // Spoken as sentences (a full stop only where one is missing): the Telnet notice first, then the C64 keys
+            // (they name Ctrl+]) and why the style is locked, or the hang-up hint.
             const spoken = (telnet ? [tr('desktop.terminal_retronet_telnet_notice')] : []).concat(run.c64
                 ? [tr('desktop.terminal_retronet_c64_keys'), tr('desktop.terminal_retronet_style_locked')] : [tr('desktop.terminal_retronet_hangup_hint')]);
-            announce(plain(spoken.map(function (text) { return /[.!?\u0964\u3002\uff01\uff1f]$/.test(text) ? text : text + '.'; }).join(' ')));
+            announce(window.TerminalText.sentences(spoken));
             setMode('retro');
             setStatus('desktop.terminal_connected');
             if (run.c64) run.hold = window.setTimeout(function () { endHold(run); }, C64_HINT_HOLD_MS);

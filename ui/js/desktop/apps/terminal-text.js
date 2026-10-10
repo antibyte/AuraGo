@@ -135,7 +135,9 @@
 
     // Text to read (notices, result lines) in lines of at most `width` cells (at least one), packed greedily at
     // spaces. Nothing is cut: a word wider than a line is split at cell boundaries, never inside a cluster, so text
-    // without spaces (Chinese, Japanese) simply breaks where the line is full. Empty text is one empty line.
+    // without spaces (Chinese, Japanese) simply breaks where the line is full. A single cluster wider than `width`
+    // (a two-cell character at width 1) still gets a line of its own, the one line wider than `width`. Empty text
+    // is one empty line.
     function wrapWords(value, width) {
         const limit = Math.max(1, Math.floor(Number(width) || 0));
         const lines = [''];
@@ -156,5 +158,15 @@
         return lines;
     }
 
-    window.TerminalText = { cellWidth: cellWidth, cells: cells, fitToCells: fitToCells, printable: printable, wrapHints: wrapHints, wrapWords: wrapWords };
+    // Translated parts read out as one announcement, joined by spaces with control characters stripped. A part
+    // gets an ASCII full stop only when it does not already end with sentence punctuation: . ! ? or the ellipsis,
+    // the Devanagari danda, or the CJK/fullwidth full stop, exclamation and question marks.
+    function sentences(parts) {
+        return parts.map(function (part) {
+            const text = printable(part).trim();
+            return /[.!?\u2026\u0964\u3002\uff01\uff0e\uff1f]$/.test(text) ? text : text + '.';
+        }).join(' ');
+    }
+
+    window.TerminalText = { cellWidth: cellWidth, cells: cells, fitToCells: fitToCells, printable: printable, sentences: sentences, wrapHints: wrapHints, wrapWords: wrapWords };
 })();

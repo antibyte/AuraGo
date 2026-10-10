@@ -389,6 +389,7 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		"if (!remote) run.buffer = [];",
 		// The CONNECT announcement names Ctrl+] once: the C64 keys include it, other calls get the hang-up hint.
 		"[tr('desktop.terminal_retronet_c64_keys'), tr('desktop.terminal_retronet_style_locked')] : [tr('desktop.terminal_retronet_hangup_hint')]",
+		"announce(window.TerminalText.sentences(spoken));",
 		// Dim text wraps between words inside the screen; the locked style select is described for screen readers.
 		"window.TerminalText.wrapWords(text, term.cols - 1)",
 		"writeDim(next, true);",
@@ -408,7 +409,7 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		}
 	}
 	for _, forbidden := range []string{"function printable", "function cellWidth", "function fitToCells", "key === 'y'", "dialog.close(); dialog.remove()", "ctx.t(key, params)",
-		"bbsMode", "fitBbsFont", "VGA_FONT", "function wrapHints", "styles.save('commodore64')", "forEach(writeDim)", "function wrapWords"} {
+		"bbsMode", "fitBbsFont", "VGA_FONT", "function wrapHints", "styles.save('commodore64')", "forEach(writeDim)", "function wrapWords", "function sentences"} {
 		if strings.Contains(source, forbidden) {
 			t.Fatalf("terminal.js must use the shared TerminalText/session helpers; found %q", forbidden)
 		}
@@ -931,12 +932,15 @@ func TestDesktopTerminalTextContract(t *testing.T) {
 
 	source := readDesktopAssetText(t, "js/desktop/apps/terminal-text.js")
 	for _, want := range []string{
-		"window.TerminalText = { cellWidth: cellWidth, cells: cells, fitToCells: fitToCells, printable: printable, wrapHints: wrapHints, wrapWords: wrapWords }",
+		"window.TerminalText = { cellWidth: cellWidth, cells: cells, fitToCells: fitToCells, printable: printable, sentences: sentences, wrapHints: wrapHints, wrapWords: wrapWords }",
 		"function cells(value)",
 		"function wrapHints(value, width)",
 		// Text to read wraps at spaces and splits only over-long words, at cluster boundaries; nothing is cut.
 		"function wrapWords(value, width)",
 		"else clusters(word).forEach(function (part, index) { put(part.text, part.width, index === 0); });",
+		// Announcements: a full stop only after a part without sentence punctuation (ASCII, ellipsis, danda, CJK).
+		"function sentences(parts)",
+		`/[.!?\u2026\u0964\u3002\uff01\uff0e\uff1f]$/.test(text) ? text : text + '.'`,
 		`const HINT_SEPARATOR = ' \xb7 ';`,
 		"function cellWidth(code)",
 		"function fitToCells(value, width, pad)",
