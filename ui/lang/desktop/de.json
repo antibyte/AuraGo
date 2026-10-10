@@ -3069,6 +3069,7 @@
   "desktop.todo_priority_low": "Niedrig",
   "desktop.todo_priority_medium": "Mittel",
   "desktop.todo_remind_daily": "Täglich erinnern",
+  "desktop.todo_readonly": "Der Desktop ist nur lesbar. Aufgaben bleiben sichtbar, Änderungen bleiben aus.",
   "desktop.todo_select_task": "Aufgabe auswählen",
   "desktop.todo_title_placeholder": "Aufgabentitel...",
   "desktop.trash_empty": "Der Papierkorb ist leer.",

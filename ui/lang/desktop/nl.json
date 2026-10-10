@@ -3069,6 +3069,7 @@
   "desktop.todo_priority_low": "Laag",
   "desktop.todo_priority_medium": "Gemiddeld",
   "desktop.todo_remind_daily": "Dagelijks herinneren",
+  "desktop.todo_readonly": "Het bureaublad is alleen-lezen. Taken blijven zichtbaar en wijzigingen blijven uit.",
   "desktop.todo_select_task": "Selecteer een taak",
   "desktop.todo_title_placeholder": "Taaktitel...",
   "desktop.trash_empty": "De prullenbak is leeg.",

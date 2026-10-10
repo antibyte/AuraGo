@@ -3069,6 +3069,7 @@
   "desktop.todo_priority_low": "低",
   "desktop.todo_priority_medium": "中",
   "desktop.todo_remind_daily": "毎日通知",
+  "desktop.todo_readonly": "デスクトップは読み取り専用です。タスクは表示されたままで、変更はオフです。",
   "desktop.todo_select_task": "タスクを選択",
   "desktop.todo_title_placeholder": "タスク名...",
   "desktop.trash_empty": "ゴミ箱は空です。",

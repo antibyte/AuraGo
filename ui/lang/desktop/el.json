@@ -3069,6 +3069,7 @@
   "desktop.todo_priority_low": "Χαμηλή",
   "desktop.todo_priority_medium": "Μεσαία",
   "desktop.todo_remind_daily": "Καθημερινή υπενθύμιση",
+  "desktop.todo_readonly": "Η επιφάνεια εργασίας είναι μόνο για ανάγνωση. Οι εργασίες μένουν ορατές και οι αλλαγές μένουν κλειστές.",
   "desktop.todo_select_task": "Επιλέξτε εργασία",
   "desktop.todo_title_placeholder": "Τίτλος εργασίας...",
   "desktop.trash_empty": "Ο κάδος είναι άδειος.",

@@ -3069,6 +3069,7 @@
   "desktop.todo_priority_low": "Baixa",
   "desktop.todo_priority_medium": "Média",
   "desktop.todo_remind_daily": "Lembrar diariamente",
+  "desktop.todo_readonly": "O ambiente de trabalho é só de leitura. As tarefas ficam visíveis e as alterações ficam desligadas.",
   "desktop.todo_select_task": "Selecione uma tarefa",
   "desktop.todo_title_placeholder": "Título da tarefa...",
   "desktop.trash_empty": "A lixeira está vazia.",

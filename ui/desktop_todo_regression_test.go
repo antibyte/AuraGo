@@ -89,6 +89,20 @@ func TestDesktopTodoReopenKeepsChecklistItems(t *testing.T) {
 	}
 }
 
+func TestDesktopTodoReadonlyDisablesMutations(t *testing.T) {
+	t.Parallel()
+	source := readDesktopAssetText(t, "js/desktop/apps/planning-gallery-music.js")
+	for _, marker := range []string{
+		"const todoReadonly = desktopReadonly()",
+		"desktop.todo_readonly",
+		"if (todoReadonly) return",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("todo readonly marker missing %q", marker)
+		}
+	}
+}
+
 func TestDesktopTodoDueDateRoundTripUsesTheCivilDay(t *testing.T) {
 	t.Parallel()
 	source := readDesktopAssetText(t, "js/desktop/apps/planning-gallery-music.js")

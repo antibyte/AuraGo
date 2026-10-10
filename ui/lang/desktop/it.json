@@ -3069,6 +3069,7 @@
   "desktop.todo_priority_low": "Bassa",
   "desktop.todo_priority_medium": "Media",
   "desktop.todo_remind_daily": "Promemoria giornaliero",
+  "desktop.todo_readonly": "Il desktop è di sola lettura. Le attività restano visibili e le modifiche restano disattivate.",
   "desktop.todo_select_task": "Seleziona un’attività",
   "desktop.todo_title_placeholder": "Titolo attività...",
   "desktop.trash_empty": "Il cestino è vuoto.",

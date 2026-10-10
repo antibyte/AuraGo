@@ -3069,6 +3069,7 @@
   "desktop.todo_priority_low": "Niski",
   "desktop.todo_priority_medium": "Średni",
   "desktop.todo_remind_daily": "Przypominaj codziennie",
+  "desktop.todo_readonly": "Pulpit jest tylko do odczytu. Zadania pozostają widoczne, a zmiany są wyłączone.",
   "desktop.todo_select_task": "Wybierz zadanie",
   "desktop.todo_title_placeholder": "Tytuł zadania...",
   "desktop.trash_empty": "Kosz jest pusty.",

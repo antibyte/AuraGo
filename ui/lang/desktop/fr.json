@@ -3069,6 +3069,7 @@
   "desktop.todo_priority_low": "Basse",
   "desktop.todo_priority_medium": "Moyenne",
   "desktop.todo_remind_daily": "Rappel quotidien",
+  "desktop.todo_readonly": "Le bureau est en lecture seule. Les tâches restent visibles et les modifications restent désactivées.",
   "desktop.todo_select_task": "Sélectionnez une tâche",
   "desktop.todo_title_placeholder": "Titre de la tâche...",
   "desktop.trash_empty": "La corbeille est vide.",

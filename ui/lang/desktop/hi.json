@@ -3069,6 +3069,7 @@
   "desktop.todo_priority_low": "कम",
   "desktop.todo_priority_medium": "मध्यम",
   "desktop.todo_remind_daily": "रोज याद दिलाएँ",
+  "desktop.todo_readonly": "डेस्कटॉप केवल पढ़ने के लिए है। कार्य दिखते रहते हैं और बदलाव बंद रहते हैं।",
   "desktop.todo_select_task": "कार्य चुनें",
   "desktop.todo_title_placeholder": "कार्य शीर्षक...",
   "desktop.trash_empty": "कचरा खाली है.",

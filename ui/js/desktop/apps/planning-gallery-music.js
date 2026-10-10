@@ -66,18 +66,20 @@
     async function renderTodo(id) {
         const host = contentEl(id);
         if (!host) return;
+        const todoReadonly = desktopReadonly();
         host.dataset.todoFilter = host.dataset.todoFilter || 'all';
+        const todoAddDisabled = todoReadonly ? ' disabled' : '';
         host.innerHTML = `<div class="vd-todo"><aside class="vd-todo-sidebar">
             ${['all', 'open', 'in_progress', 'done'].map(status => `<button type="button" data-filter="${status}" class="${host.dataset.todoFilter === status ? 'active' : ''}">${esc(t('desktop.todo_' + status))}</button>`).join('')}
-        </aside><main class="vd-todo-main"><form class="vd-todo-add"><input placeholder="${esc(t('desktop.todo_title_placeholder'))}"><select><option value="low">${esc(t('desktop.todo_priority_low'))}</option><option value="medium" selected>${esc(t('desktop.todo_priority_medium'))}</option><option value="high">${esc(t('desktop.todo_priority_high'))}</option></select><button class="vd-button vd-button-primary">${esc(t('desktop.todo_add'))}</button></form><div class="vd-todo-list">${esc(t('desktop.loading'))}</div></main><section class="vd-todo-detail"><div class="vd-empty">${esc(t('desktop.todo_select_task'))}</div></section></div>`;
+        </aside><main class="vd-todo-main"><form class="vd-todo-add"><input placeholder="${esc(t('desktop.todo_title_placeholder'))}"${todoAddDisabled}><select${todoAddDisabled}><option value="low">${esc(t('desktop.todo_priority_low'))}</option><option value="medium" selected>${esc(t('desktop.todo_priority_medium'))}</option><option value="high">${esc(t('desktop.todo_priority_high'))}</option></select><button class="vd-button vd-button-primary"${todoAddDisabled}>${esc(t('desktop.todo_add'))}</button></form><div class="vd-todo-list">${esc(t('desktop.loading'))}</div></main><section class="vd-todo-detail"><div class="vd-empty">${esc(t('desktop.todo_select_task'))}</div></section></div>`;
         if (host._todoTimer) clearInterval(host._todoTimer);
         const showTodoContextMenu = (event, todo, reload) => {
             event.preventDefault();
             showContextMenu(event.clientX, event.clientY, [
-                { labelKey: 'desktop.context_open', icon: 'folder-open', action: () => renderTodoDetail(host, todo, reload) },
-                { labelKey: 'desktop.todo_complete', icon: 'check-square', disabled: todo.status === 'done', action: async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); } },
+                { labelKey: 'desktop.context_open', icon: 'folder-open', action: () => renderTodoDetail(host, todo, reload, todoReadonly) },
+                { labelKey: 'desktop.todo_complete', icon: 'check-square', disabled: todoReadonly || todo.status === 'done', action: async () => { if (todoReadonly) return; await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); } },
                 { separator: true },
-                { labelKey: 'desktop.delete', icon: 'trash', action: async () => { if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } } }
+                { labelKey: 'desktop.delete', icon: 'trash', disabled: todoReadonly, action: async () => { if (todoReadonly) return; if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } } }
             ]);
             return true;
         };
@@ -94,16 +96,16 @@
             const filtered = todos.filter(todo => host.dataset.todoFilter === 'all' || todo.status === host.dataset.todoFilter)
                 .sort((a, b) => (({ high: 0, medium: 1, low: 2 }[a.priority] ?? 3) - (({ high: 0, medium: 1, low: 2 }[b.priority] ?? 3)) || String(a.due_date || '9999').localeCompare(String(b.due_date || '9999'))));
             const list = host.querySelector('.vd-todo-list');
-            list.innerHTML = filtered.length ? filtered.map(todo => renderTodoCard(todo, selectedID)).join('') : `<div class="vd-empty">${esc(t('desktop.empty_folder'))}</div>`;
+            list.innerHTML = filtered.length ? filtered.map(todo => renderTodoCard(todo, selectedID, todoReadonly)).join('') : `<div class="vd-empty">${esc(t('desktop.empty_folder'))}</div>`;
             list.querySelectorAll('[data-todo-id]').forEach(card => card.addEventListener('click', () => {
                 host.dataset.todoSelected = card.dataset.todoId;
-                renderTodoDetail(host, todos.find(todo => todo.id === card.dataset.todoId), load);
+                renderTodoDetail(host, todos.find(todo => todo.id === card.dataset.todoId), load, todoReadonly);
             }));
             list.querySelectorAll('[data-todo-status-toggle]').forEach(input => input.addEventListener('click', event => event.stopPropagation()));
             list.querySelectorAll('[data-todo-status-toggle]').forEach(input => input.addEventListener('change', async event => {
                 event.stopPropagation();
                 const todo = todos.find(item => item.id === input.dataset.todoStatusToggle);
-                if (todo) await setTodoDone(todo, input.checked, load);
+                if (todo) await setTodoDone(todo, input.checked, load, todoReadonly);
             }));
             list.querySelectorAll('[data-todo-id]').forEach(card => card.addEventListener('contextmenu', event => {
                 const todo = todos.find(item => item.id === card.dataset.todoId);
@@ -111,7 +113,7 @@
             }));
             const selected = filtered.find(todo => todo.id === selectedID);
             if (selected) {
-                renderTodoDetail(host, selected, load);
+                renderTodoDetail(host, selected, load, todoReadonly);
             } else {
                 clearTodoDetail(host);
             }
@@ -134,6 +136,7 @@
         }));
         host.querySelector('.vd-todo-add').addEventListener('submit', async event => {
             event.preventDefault();
+            if (todoReadonly) return;
             const input = event.currentTarget.querySelector('input');
             const title = input.value.trim();
             if (!title) return;
@@ -144,13 +147,14 @@
         try { await load(); } catch (err) { host.querySelector('.vd-todo-list').innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`; }
     }
 
-    function renderTodoCard(todo, selectedID) {
+    function renderTodoCard(todo, selectedID, todoReadonly) {
         const now = new Date();
         const overdue = todoIsOverdue(todo, now);
         const dueLabel = todo.due_date ? todoDueLabel(todo.due_date) : '';
+        const cardDoneDisabled = todoReadonly ? ' disabled' : '';
         return `<article class="vd-todo-card ${todo.id === selectedID ? 'active' : ''} ${overdue ? 'overdue' : ''}" data-todo-id="${esc(todo.id)}">
             <div class="vd-todo-card-grid">
-                <input class="vd-todo-card-done" type="checkbox" data-todo-status-toggle="${esc(todo.id)}" ${todo.status === 'done' ? 'checked' : ''} aria-label="${esc(t('desktop.todo_complete'))}">
+                <input class="vd-todo-card-done" type="checkbox" data-todo-status-toggle="${esc(todo.id)}" ${todo.status === 'done' ? 'checked' : ''}${cardDoneDisabled} aria-label="${esc(t('desktop.todo_complete'))}">
                 <div class="vd-todo-card-copy">
                     <strong>${esc(todo.title)}</strong>
                     <small>${esc(t('desktop.todo_' + todo.status))}${dueLabel ? ' &middot; ' + esc(dueLabel) : ''}${overdue ? ' &middot; ' + esc(t('desktop.todo_overdue')) : ''}</small>
@@ -161,7 +165,8 @@
         </article>`;
     }
 
-    async function setTodoDone(todo, done, reload) {
+    async function setTodoDone(todo, done, reload, todoReadonly) {
+        if (todoReadonly) return;
         if (!todo) return;
         if (done) {
             await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true });
@@ -178,13 +183,16 @@
         await reload(todo.id);
     }
 
-    function renderTodoDetail(host, todo, reload) {
+    function renderTodoDetail(host, todo, reload, todoReadonly) {
         host.dataset.todoSelected = todo.id;
         const pane = host.querySelector('.vd-todo-detail');
         const items = todo.items || [];
-        pane.innerHTML = `<form class="vd-todo-form"><input name="title" value="${esc(todo.title)}"><textarea name="description" placeholder="${esc(t('desktop.todo_description'))}">${esc(todo.description || '')}</textarea><div class="vd-todo-form-row"><label>${esc(t('desktop.todo_priority'))}<select name="priority">${['low','medium','high'].map(p => `<option value="${p}" ${todo.priority === p ? 'selected' : ''}>${esc(t('desktop.todo_priority_' + p))}</option>`).join('')}</select></label><label>${esc(t('desktop.cal_status'))}<select name="status">${['open','in_progress','done'].map(s => `<option value="${s}" ${todo.status === s ? 'selected' : ''}>${esc(t('desktop.todo_' + s))}</option>`).join('')}</select></label><label>${esc(t('desktop.todo_due_date'))}<input type="date" name="due_date" value="${esc(todoDueCivilDate(todo.due_date))}"></label></div><label class="vd-check"><input type="checkbox" name="remind_daily" ${todo.remind_daily ? 'checked' : ''}>${esc(t('desktop.todo_remind_daily'))}</label><div class="vd-todo-actions"><button class="vd-button vd-button-primary" data-action="save">${esc(t('desktop.save'))}</button><button type="button" class="vd-button" data-action="complete">${esc(t('desktop.todo_complete'))}</button><button type="button" class="vd-button" data-action="delete">${esc(t('desktop.delete'))}</button></div></form><h3>${esc(t('desktop.todo_items'))}</h3><form class="vd-todo-item-add"><input placeholder="${esc(t('desktop.todo_add_item'))}"><button class="vd-button">${esc(t('desktop.todo_add_item'))}</button></form><div class="vd-todo-items">${items.map(item => `<div class="vd-todo-item" data-item-id="${esc(item.id)}"><input class="vd-todo-item-check" type="checkbox" data-item-toggle="${esc(item.id)}" ${item.is_done ? 'checked' : ''} aria-label="${esc(t('desktop.todo_complete'))}"><input class="vd-todo-item-title" data-item-title="${esc(item.id)}" value="${esc(item.title)}" aria-label="${esc(t('desktop.todo_add_item'))}" spellcheck="true"><button type="button" class="vd-todo-item-delete" data-item-delete="${esc(item.id)}" title="${esc(t('desktop.delete'))}">${iconMarkup('x', 'X', 'vd-todo-action-icon', 13)}</button></div>`).join('')}</div>`;
+        const todoDetailDisabled = todoReadonly ? ' disabled' : '';
+        const readonlyHint = todoReadonly ? `<p class="vd-hint">${esc(t('desktop.todo_readonly'))}</p>` : '';
+        pane.innerHTML = `${readonlyHint}<form class="vd-todo-form"><input name="title" value="${esc(todo.title)}"${todoDetailDisabled}><textarea name="description" placeholder="${esc(t('desktop.todo_description'))}"${todoDetailDisabled}>${esc(todo.description || '')}</textarea><div class="vd-todo-form-row"><label>${esc(t('desktop.todo_priority'))}<select name="priority"${todoDetailDisabled}>${['low','medium','high'].map(p => `<option value="${p}" ${todo.priority === p ? 'selected' : ''}>${esc(t('desktop.todo_priority_' + p))}</option>`).join('')}</select></label><label>${esc(t('desktop.cal_status'))}<select name="status"${todoDetailDisabled}>${['open','in_progress','done'].map(s => `<option value="${s}" ${todo.status === s ? 'selected' : ''}>${esc(t('desktop.todo_' + s))}</option>`).join('')}</select></label><label>${esc(t('desktop.todo_due_date'))}<input type="date" name="due_date" value="${esc(todoDueCivilDate(todo.due_date))}"${todoDetailDisabled}></label></div><label class="vd-check"><input type="checkbox" name="remind_daily" ${todo.remind_daily ? 'checked' : ''}${todoDetailDisabled}>${esc(t('desktop.todo_remind_daily'))}</label><div class="vd-todo-actions"><button class="vd-button vd-button-primary" data-action="save"${todoDetailDisabled}>${esc(t('desktop.save'))}</button><button type="button" class="vd-button" data-action="complete"${todoDetailDisabled}>${esc(t('desktop.todo_complete'))}</button><button type="button" class="vd-button" data-action="delete"${todoDetailDisabled}>${esc(t('desktop.delete'))}</button></div></form><h3>${esc(t('desktop.todo_items'))}</h3><form class="vd-todo-item-add"><input placeholder="${esc(t('desktop.todo_add_item'))}"${todoDetailDisabled}><button class="vd-button"${todoDetailDisabled}>${esc(t('desktop.todo_add_item'))}</button></form><div class="vd-todo-items">${items.map(item => `<div class="vd-todo-item" data-item-id="${esc(item.id)}"><input class="vd-todo-item-check" type="checkbox" data-item-toggle="${esc(item.id)}" ${item.is_done ? 'checked' : ''}${todoDetailDisabled} aria-label="${esc(t('desktop.todo_complete'))}"><input class="vd-todo-item-title" data-item-title="${esc(item.id)}" value="${esc(item.title)}" aria-label="${esc(t('desktop.todo_add_item'))}" spellcheck="true"${todoDetailDisabled}><button type="button" class="vd-todo-item-delete" data-item-delete="${esc(item.id)}" title="${esc(t('desktop.delete'))}"${todoDetailDisabled}>${iconMarkup('x', 'X', 'vd-todo-action-icon', 13)}</button></div>`).join('')}</div>`;
         pane.querySelector('.vd-todo-form').addEventListener('submit', async event => {
             event.preventDefault();
+            if (todoReadonly) return;
             const form = event.currentTarget;
             const body = {
                 title: form.title.value.trim(),
@@ -198,10 +206,10 @@
             await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), 'PUT', body);
             await reload(todo.id);
         });
-        pane.querySelector('[data-action="complete"]').addEventListener('click', async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); });
-        pane.querySelector('[data-action="delete"]').addEventListener('click', async () => { if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } });
-        pane.querySelector('.vd-todo-item-add').addEventListener('submit', async event => { event.preventDefault(); const input = event.currentTarget.querySelector('input'); if (!input.value.trim()) return; await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/items', 'POST', { title: input.value.trim() }); await reload(todo.id); });
-        pane.querySelectorAll('[data-item-toggle]').forEach(input => input.addEventListener('change', async () => { await updateTodoItem(todo, input.dataset.itemToggle, { is_done: input.checked }, reload); }));
+        pane.querySelector('[data-action="complete"]').addEventListener('click', async () => { if (todoReadonly) return; await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); });
+        pane.querySelector('[data-action="delete"]').addEventListener('click', async () => { if (todoReadonly) return; if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } });
+        pane.querySelector('.vd-todo-item-add').addEventListener('submit', async event => { event.preventDefault(); if (todoReadonly) return; const input = event.currentTarget.querySelector('input'); if (!input.value.trim()) return; await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/items', 'POST', { title: input.value.trim() }); await reload(todo.id); });
+        pane.querySelectorAll('[data-item-toggle]').forEach(input => input.addEventListener('change', async () => { if (todoReadonly) return; await updateTodoItem(todo, input.dataset.itemToggle, { is_done: input.checked }, reload); }));
         pane.querySelectorAll('[data-item-title]').forEach(titleInput => {
             titleInput.addEventListener('keydown', async event => {
                 if (event.key === 'Enter') {
@@ -215,6 +223,7 @@
                 }
             });
             titleInput.addEventListener('change', async () => {
+                if (todoReadonly) return;
                 const title = titleInput.value.trim();
                 const item = items.find(entry => entry.id === titleInput.dataset.itemTitle);
                 if (!title || !item || title === item.title) {
@@ -224,11 +233,11 @@
                 await updateTodoItem(todo, titleInput.dataset.itemTitle, { title: titleInput.value.trim() }, reload);
             });
         });
-        pane.querySelectorAll('[data-item-delete]').forEach(btn => btn.addEventListener('click', async () => { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/items/' + encodeURIComponent(btn.dataset.itemDelete), { method: 'DELETE' }); await reload(todo.id); }));
-        setTodoMenus(host, todo, reload);
+        pane.querySelectorAll('[data-item-delete]').forEach(btn => btn.addEventListener('click', async () => { if (todoReadonly) return; await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/items/' + encodeURIComponent(btn.dataset.itemDelete), { method: 'DELETE' }); await reload(todo.id); }));
+        setTodoMenus(host, todo, reload, todoReadonly);
     }
 
-    function setTodoMenus(host, todo, reload) {
+    function setTodoMenus(host, todo, reload, todoReadonly) {
         const win = host && host.closest && host.closest('.vd-window');
         const id = win && win.dataset.windowId;
         if (!id || !todo) return;
@@ -237,7 +246,8 @@
                 id: 'file',
                 labelKey: 'desktop.menu_file',
                 items: [
-                    { id: 'save', labelKey: 'desktop.save', icon: 'save', shortcut: 'Ctrl+S', action: () => {
+                    { id: 'save', labelKey: 'desktop.save', icon: 'save', shortcut: 'Ctrl+S', disabled: todoReadonly, action: () => {
+                        if (todoReadonly) return;
                         const form = host.querySelector('.vd-todo-form');
                         if (form) form.requestSubmit();
                     } }
@@ -247,8 +257,8 @@
                 id: 'edit',
                 labelKey: 'desktop.menu_edit',
                 items: [
-                    { id: 'complete', labelKey: 'desktop.todo_complete', icon: 'check-square', action: async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); } },
-                    { id: 'delete', labelKey: 'desktop.delete', icon: 'trash', action: async () => { if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } } }
+                    { id: 'complete', labelKey: 'desktop.todo_complete', icon: 'check-square', disabled: todoReadonly, action: async () => { if (todoReadonly) return; await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); } },
+                    { id: 'delete', labelKey: 'desktop.delete', icon: 'trash', disabled: todoReadonly, action: async () => { if (todoReadonly) return; if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } } }
                 ]
             }
         ]);

@@ -3069,6 +3069,7 @@
   "desktop.todo_priority_low": "Low",
   "desktop.todo_priority_medium": "Medium",
   "desktop.todo_remind_daily": "Remind daily",
+  "desktop.todo_readonly": "The desktop is read-only. Tasks stay visible, and changes stay off.",
   "desktop.todo_select_task": "Select a task",
   "desktop.todo_title_placeholder": "Task title...",
   "desktop.trash_empty": "Trash is empty.",

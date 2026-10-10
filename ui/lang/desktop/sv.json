@@ -3069,6 +3069,7 @@
   "desktop.todo_priority_low": "Låg",
   "desktop.todo_priority_medium": "Medel",
   "desktop.todo_remind_daily": "Påminn dagligen",
+  "desktop.todo_readonly": "Skrivbordet är skrivskyddat. Uppgifter förblir synliga och ändringar är avstängda.",
   "desktop.todo_select_task": "Välj en uppgift",
   "desktop.todo_title_placeholder": "Uppgiftstitel...",
   "desktop.trash_empty": "Papperskorgen är tom.",

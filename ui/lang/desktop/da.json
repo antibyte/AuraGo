@@ -3069,6 +3069,7 @@
   "desktop.todo_priority_low": "Lav",
   "desktop.todo_priority_medium": "Mellem",
   "desktop.todo_remind_daily": "Påmind dagligt",
+  "desktop.todo_readonly": "Skrivebordet er skrivebeskyttet. Opgaver forbliver synlige, og ændringer er slået fra.",
   "desktop.todo_select_task": "Vælg en opgave",
   "desktop.todo_title_placeholder": "Opgavetitel...",
   "desktop.trash_empty": "Papirkurven er tom.",
