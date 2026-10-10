@@ -52,7 +52,16 @@ func TestYepAPIYouTubeRejectsLooseIDsAndCapsLimit(t *testing.T) {
 		"limit":    float64(500),
 	})
 	if err != nil || client.lastLimit != 25 {
-		t.Fatalf("limit = %d, err = %v", client.lastLimit, err)
+		t.Fatalf("comments limit = %d, err = %v", client.lastLimit, err)
+	}
+	client.calls = 0
+	client.lastLimit = 0
+	_, err = DispatchYepAPIYouTube(context.Background(), client.client(), "search", map[string]interface{}{
+		"query": "golang",
+		"limit": float64(500),
+	})
+	if err != nil || client.lastLimit != 25 {
+		t.Fatalf("search limit = %d, err = %v", client.lastLimit, err)
 	}
 	_, err = DispatchYepAPIYouTube(context.Background(), client.client(), "resolve", map[string]interface{}{
 		"url": "https://example.com/watch?v=dQw4w9WgXcQ",

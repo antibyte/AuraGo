@@ -24,9 +24,7 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 			return yepAPIFormatError("search operation requires a 'query' string"), nil
 		}
 		payload := map[string]interface{}{"query": query}
-		if limit, ok := args["limit"].(float64); ok && limit > 0 {
-			payload["limit"] = int(limit)
-		}
+		addYouTubePositiveIntArg(payload, args, "limit", "limit")
 		data, err := client.Post(ctx, "/v1/youtube/search", payload)
 		if err != nil {
 			return "", err
