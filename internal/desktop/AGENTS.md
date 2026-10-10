@@ -20,6 +20,7 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 - `TrashPaths` preflights the whole selection before moving any entry. Notes use `Trash/Notes/<uuid>/<original Notes subpath>` and restore that subpath. Reject root/ancestor and overlapping selections. Generic HTTP moves cannot bypass Notes trash transitions; older ordinary Trash entries keep their existing interpretation.
 - SFTP paths are relative to the remote home: `normalizeSFTPRemotePath` rejects traversal, `~`, sensitive POSIX roots, Windows drive prefixes (`C:`) and UNC hosts (`//server`, `\\server`); a bare `/` or `\\` is the home.
 - On Windows `openFileNoFollow` refuses a symlink at `Lstat`, pins that entry's file ID before opening and refuses a handle that is not the same file; `O_TRUNC` is applied only after that check, so a swap between the check and the open is refused before any truncation (`TestOpenFileNoFollowRefusesEntrySwappedAfterLstat`).
+- The OpenSCAD compiler default is the manifest-list pin `openscad/openscad@sha256:147e48525bec392bcf628d7a6d5ea4ccac71b16251952328f86e1061cbf47c37` (`defaultOpenSCADImage`). Config defaults and `config_template.yaml` use that same reference. A configured `virtual_desktop.openscad.image` overrides it. The image user stays unset.
 
 ## Work Guidance
 

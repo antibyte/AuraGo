@@ -15,6 +15,24 @@ import (
 	"time"
 )
 
+func TestOpenSCADDefaultImageIsPinned(t *testing.T) {
+	const prefix = "openscad/openscad@sha256:"
+	if !strings.HasPrefix(defaultOpenSCADImage, prefix) {
+		t.Fatalf("image = %q", defaultOpenSCADImage)
+	}
+	digest := strings.TrimPrefix(defaultOpenSCADImage, prefix)
+	if len(digest) != 64 {
+		t.Fatalf("digest length = %d", len(digest))
+	}
+	for _, r := range digest {
+		switch {
+		case r >= '0' && r <= '9', r >= 'a' && r <= 'f':
+		default:
+			t.Fatalf("digest %q", digest)
+		}
+	}
+}
+
 func TestOpenSCADEnsureInstalledCreatesNoNetworkContainerWithLimits(t *testing.T) {
 	t.Parallel()
 
@@ -24,7 +42,7 @@ func TestOpenSCADEnsureInstalledCreatesNoNetworkContainerWithLimits(t *testing.T
 		DataDir: dataDir,
 		OpenSCAD: OpenSCADConfig{
 			Enabled:         true,
-			Image:           "openscad/openscad:latest",
+			Image:           "openscad/openscad@sha256:147e48525bec392bcf628d7a6d5ea4ccac71b16251952328f86e1061cbf47c37",
 			MaxMemoryMB:     1024,
 			MaxCPUCores:     1,
 			AutoStopMinutes: 20,
@@ -35,7 +53,7 @@ func TestOpenSCADEnsureInstalledCreatesNoNetworkContainerWithLimits(t *testing.T
 	if err := svc.EnsureInstalled(context.Background()); err != nil {
 		t.Fatalf("EnsureInstalled: %v", err)
 	}
-	if len(fake.ensuredImages) != 1 || fake.ensuredImages[0] != "openscad/openscad:latest" {
+	if len(fake.ensuredImages) != 1 || fake.ensuredImages[0] != "openscad/openscad@sha256:147e48525bec392bcf628d7a6d5ea4ccac71b16251952328f86e1061cbf47c37" {
 		t.Fatalf("ensured images = %#v", fake.ensuredImages)
 	}
 	if len(fake.creates) != 1 {

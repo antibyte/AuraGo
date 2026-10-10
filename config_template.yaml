@@ -1125,7 +1125,7 @@ virtual_desktop:
         max_cpu_cores: 2                                   # Docker CPU quota
     openscad:
         enabled: true                                      # built-in headless OpenSCAD compiler container
-        image: openscad/openscad:latest
+        image: openscad/openscad@sha256:147e48525bec392bcf628d7a6d5ea4ccac71b16251952328f86e1061cbf47c37
         auto_start: false                                  # false = lazy start when the app renders
         auto_stop_minutes: 20                              # stop container after inactivity
         max_memory_mb: 2048                                # Docker memory limit
