@@ -15,6 +15,16 @@
     font-display: block;
 }
 
+/* C64 Pro Mono (c) 2010-2019 Style (style64.org), embedded unmodified under its licence (free software only),
+   see /fonts/C64_Pro_Mono-LICENSE.txt. */
+@font-face {
+    font-family: "Aura C64";
+    src: url('/fonts/C64_Pro_Mono-STYLE.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+    font-display: block;
+}
+
 .vd-terminal-app {
     --vd-term-bezel: transparent;
     --vd-term-ink: #ffc16c;

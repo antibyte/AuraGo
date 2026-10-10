@@ -218,6 +218,7 @@ Self-hosted under `ui/fonts/` (see `ui/fonts/fonts.css`).
 | Press Start 2P | SIL Open Font License 1.1 | https://fonts.google.com/specimen/Press+Start+2P |
 | Datatype | Check upstream (self-hosted specialty face) | Vendor/original foundry for the Datatype files in `ui/fonts/` |
 | Px437 IBM VGA 8x16 (The Ultimate Oldschool PC Font Pack, VileR) | CC BY-SA 4.0 | https://int10h.org/oldschool-pc-fonts/ · `ui/fonts/Px437_IBM_VGA_8x16.woff`, unmodified (attribution: `ui/fonts/Px437-LICENSE.txt`) |
+| C64 Pro Mono 1.2.1 (C64 TrueType, Style) | Style C64 TrueType licence (custom): free software only, `@font-face` embedding allowed, no modification or renaming, no separate download | http://style64.org/c64-truetype · `ui/fonts/C64_Pro_Mono-STYLE.woff`, unmodified, original file name (licence text and hashes: `ui/fonts/C64_Pro_Mono-LICENSE.txt`) |
 
 ---
 
@@ -277,6 +278,7 @@ These use strong or network-relevant copyleft licenses. Redistributors should re
 | Eclipse Paho MQTT | EPL-2.0 | MQTT client |
 | noVNC | MPL-2.0 | VNC in virtual computers UI |
 | Px437 IBM VGA 8x16 font | CC BY-SA 4.0 (share-alike) | Terminal Retro-Net 80×25 BBS mode (`ui/fonts/Px437_IBM_VGA_8x16.woff`) |
+| C64 Pro Mono font (Style) | Style C64 TrueType licence (custom, not open source): AuraGo must stay free of charge; file unmodified under its original name; never offered as a separate download | Terminal Retro-Net 40×25 Commodore 64 mode (`ui/fonts/C64_Pro_Mono-STYLE.woff`) |
 
 ---
 
