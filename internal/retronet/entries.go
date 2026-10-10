@@ -17,7 +17,7 @@ import (
 const (
 	EntriesSetting         = "retronet.entries"
 	DefaultEntriesDocument = `{"version":1,"entries":[]}`
-	MaxOwnEntries          = 64
+	MaxOwnEntries          = 50 // catalog plus own entries must fit the two-digit directory numbers 01-99
 	MaxEntriesDocumentSize = 64 << 10
 )
 
@@ -62,7 +62,7 @@ type storedEntry struct {
 }
 
 // ValidateEntriesDocument checks the stored JSON document (strict decode, DisallowUnknownFields,
-// trailing data rejected, version 1, entries non-nil, <= 64 entries, <= 64 KiB, unique IDs).
+// trailing data rejected, version 1, entries non-nil, <= 50 entries, <= 64 KiB, unique IDs).
 // Errors are always fmt.Errorf("invalid desktop setting value for %s", EntriesSetting) so the
 // settings API never echoes user input.
 func ValidateEntriesDocument(value string) error {
@@ -283,7 +283,9 @@ func validTarget(e Entry) bool {
 	}
 	switch e.Protocol {
 	case ProtocolTelnet:
-		return e.Kind.valid() && e.Charset.valid() && e.User == "" && e.HostKey == ""
+		// Only C64 boards speak PETSCII, and they speak nothing else: kind c64 <=> charset petscii.
+		return e.Kind.valid() && e.Charset.valid() && (e.Kind == KindC64) == (e.Charset == CharsetPETSCII) &&
+			e.User == "" && e.HostKey == ""
 	case ProtocolSSH:
 		return e.Kind == "" && e.Charset == "" && sshUserPattern.MatchString(e.User) &&
 			(e.HostKey == "" || hostKeyPattern.MatchString(e.HostKey))
