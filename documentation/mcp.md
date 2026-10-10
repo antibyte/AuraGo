@@ -25,3 +25,8 @@ retains only its last 64 KiB.
 Cancellation and deadlines cover lock waits and writes as well as response
 reads. Calls without a deadline receive 60 seconds; an explicit caller deadline,
 including longer llm-sandbox execution budgets, is preserved.
+
+The server catalog uses the same feature prerequisites as the agent, including
+the current configuration snapshot and available service handles. Enabled
+integrations such as S3 still require an explicit export grant. Co-agents are
+excluded; `ask_aurago` is available only in IDE mode and retains the export scope.

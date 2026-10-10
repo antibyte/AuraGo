@@ -408,86 +408,19 @@ func mcpToolAllowed(s *Server, toolName string) bool {
 }
 
 func mcpFeatureFlags(s *Server) agent.ToolFeatureFlags {
-	cfg := s.Cfg
-	networkSharesCapabilities := config.ComputeNetworkSharesCapabilities(cfg)
-	return agent.ToolFeatureFlags{
-		HomeAssistantEnabled:         cfg.HomeAssistant.Enabled,
-		DockerEnabled:                cfg.Docker.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK),
-		CoAgentEnabled:               false, // MCP clients should not spawn co-agents
-		SudoEnabled:                  cfg.Agent.SudoEnabled && !cfg.Runtime.IsDocker && !cfg.Runtime.NoNewPrivileges,
-		WebhooksEnabled:              cfg.Webhooks.Enabled,
-		ProxmoxEnabled:               cfg.Proxmox.Enabled,
-		FrigateEnabled:               cfg.Frigate.Enabled,
-		OllamaEnabled:                cfg.Ollama.Enabled,
-		TailscaleEnabled:             cfg.Tailscale.Enabled,
-		WebScraperEnabled:            cfg.Tools.WebScraper.Enabled,
-		CloudflareTunnelEnabled:      cfg.CloudflareTunnel.Enabled,
-		GoogleWorkspaceEnabled:       cfg.GoogleWorkspace.Enabled,
-		OneDriveEnabled:              cfg.OneDrive.Enabled,
-		VirusTotalEnabled:            cfg.VirusTotal.Enabled,
-		GolangciLintEnabled:          cfg.GolangciLint.Enabled,
-		AnsibleEnabled:               cfg.Ansible.Enabled,
-		InvasionControlEnabled:       cfg.InvasionControl.Enabled,
-		GitHubEnabled:                cfg.GitHub.Enabled,
-		MQTTEnabled:                  cfg.MQTT.Enabled,
-		AdGuardEnabled:               cfg.AdGuard.Enabled,
-		MCPEnabled:                   cfg.MCP.Enabled && cfg.Agent.AllowMCP,
-		SandboxEnabled:               cfg.Sandbox.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK),
-		MeshCentralEnabled:           cfg.MeshCentral.Enabled,
-		HomepageEnabled:              cfg.Homepage.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK || cfg.Homepage.AllowLocalServer),
-		HomepageAllowLocalServer:     cfg.Homepage.AllowLocalServer,
-		NetlifyEnabled:               cfg.Netlify.Enabled,
-		HereNowEnabled:               cfg.HereNow.Enabled,
-		FirewallEnabled:              cfg.Firewall.Enabled && cfg.Runtime.FirewallAccessOK,
-		EmailEnabled:                 cfg.Email.Enabled || len(cfg.EmailAccounts) > 0,
-		ImageGenerationEnabled:       cfg.ImageGeneration.Enabled,
-		MusicGenerationEnabled:       cfg.MusicGeneration.Enabled,
-		VideoGenerationEnabled:       cfg.VideoGeneration.Enabled,
-		RemoteControlEnabled:         cfg.RemoteControl.Enabled,
-		DiscordEnabled:               cfg.Discord.Enabled,
-		TelegramEnabled:              cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0,
-		NetworkSharesEnabled:         networkSharesCapabilities.Enabled,
-		NetworkSharesCreateEnabled:   networkSharesCapabilities.AllowCreate,
-		NetworkSharesUpdateEnabled:   networkSharesCapabilities.AllowUpdate,
-		NetworkSharesDeleteEnabled:   networkSharesCapabilities.AllowDelete,
-		SIPPhoneEnabled:              cfg.SIP.Enabled,
-		SIPPhoneDialEnabled:          cfg.SIP.Enabled && !cfg.SIP.ReadOnly && cfg.SIP.Permissions.OriginateOutbound,
-		SIPPhoneAnswerEnabled:        cfg.SIP.Enabled && !cfg.SIP.ReadOnly && cfg.SIP.Permissions.AnswerInbound,
-		SIPPhoneDTMFEnabled:          cfg.SIP.Enabled && !cfg.SIP.ReadOnly && cfg.SIP.Permissions.SendDTMF,
-		SIPPhoneHangupEnabled:        cfg.SIP.Enabled && !cfg.SIP.ReadOnly && cfg.SIP.Permissions.AgentHangup,
-		SQLConnectionsEnabled:        cfg.SQLConnections.Enabled && s.SQLConnectionsDB != nil && s.SQLConnectionPool != nil,
-		MemoryEnabled:                cfg.Tools.Memory.Enabled,
-		KnowledgeGraphEnabled:        cfg.Tools.KnowledgeGraph.Enabled,
-		SecretsVaultEnabled:          cfg.Tools.SecretsVault.Enabled,
-		SchedulerEnabled:             cfg.Tools.Scheduler.Enabled,
-		NotesEnabled:                 cfg.Tools.Notes.Enabled,
-		MissionsEnabled:              cfg.Tools.Missions.Enabled,
-		StopProcessEnabled:           cfg.Tools.StopProcess.Enabled,
-		InventoryEnabled:             cfg.Tools.Inventory.Enabled,
-		MemoryMaintenanceEnabled:     cfg.Tools.MemoryMaintenance.Enabled,
-		WOLEnabled:                   cfg.Tools.WOL.Enabled && cfg.Runtime.BroadcastOK,
-		AllowShell:                   cfg.Agent.AllowShell,
-		AllowPython:                  cfg.Agent.AllowPython,
-		AllowFilesystemWrite:         cfg.Agent.AllowFilesystemWrite,
-		AllowNetworkRequests:         cfg.Agent.AllowNetworkRequests,
-		AllowRemoteShell:             cfg.Agent.AllowRemoteShell,
-		AllowSelfUpdate:              cfg.Agent.AllowSelfUpdate,
-		FritzBoxSystemEnabled:        cfg.FritzBox.Enabled && cfg.FritzBox.System.Enabled,
-		FritzBoxNetworkEnabled:       cfg.FritzBox.Enabled && cfg.FritzBox.Network.Enabled,
-		FritzBoxTelephonyEnabled:     cfg.FritzBox.Enabled && cfg.FritzBox.Telephony.Enabled,
-		FritzBoxSmartHomeEnabled:     cfg.FritzBox.Enabled && cfg.FritzBox.SmartHome.Enabled,
-		FritzBoxStorageEnabled:       cfg.FritzBox.Enabled && cfg.FritzBox.Storage.Enabled,
-		FritzBoxTVEnabled:            cfg.FritzBox.Enabled && cfg.FritzBox.TV.Enabled,
-		ContactsEnabled:              cfg.Tools.Contacts.Enabled,
-		PlannerEnabled:               cfg.Tools.Planner.Enabled,
-		MediaConversionEnabled:       cfg.Tools.MediaConversion.Enabled,
-		VideoDownloadEnabled:         cfg.Tools.VideoDownload.Enabled,
-		VideoDownloadAllowDownload:   cfg.Tools.VideoDownload.AllowDownload && !cfg.Tools.VideoDownload.ReadOnly,
-		VideoDownloadAllowTranscribe: cfg.Tools.VideoDownload.AllowTranscribe && !cfg.Tools.VideoDownload.ReadOnly,
-		SendYouTubeVideoEnabled:      cfg.Tools.SendYouTubeVideo.Enabled,
-		PythonSecretInjectionEnabled: cfg.Tools.PythonSecretInjection.Enabled,
-		LocalWikipediaEnabled:        cfg.LocalWikipedia.Enabled && cfg.LocalWikipedia.AgentAccess && tools.LocalWikipediaAvailable(),
-	}
+	return mcpFeatureFlagsForConfig(s, s.ConfigSnapshot())
+}
+
+func mcpFeatureFlagsForConfig(s *Server, cfg *config.Config) agent.ToolFeatureFlags {
+	flags := agent.RuntimeToolFeatureFlags(agent.RunConfig{
+		Config: cfg, InvasionDB: s.InvasionDB, RemoteHub: s.RemoteHub,
+		MediaRegistryDB: s.MediaRegistryDB, HomepageRegistryDB: s.HomepageRegistryDB,
+		ContactsDB: s.ContactsDB, PlannerDB: s.PlannerDB,
+		SQLConnectionsDB: s.SQLConnectionsDB, SQLConnectionPool: s.SQLConnectionPool,
+		ShortTermMem: s.ShortTermMem,
+	})
+	flags.CoAgentEnabled = false
+	return flags
 }
 
 // ── Config API endpoints ────────────────────────────────────────────────────

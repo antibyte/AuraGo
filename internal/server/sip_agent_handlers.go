@@ -326,7 +326,7 @@ func validateSIPAgentToolScope(s *Server, cfg *config.Config, allowed []string) 
 // is open (first load, data-dir change, deletion): the tool then answers
 // needs_setup instead of every call failing the tool-scope check.
 func sipToolFeatureFlags(s *Server, cfg *config.Config) agent.ToolFeatureFlags {
-	ff := mcpFeatureFlags(s)
+	ff := mcpFeatureFlagsForConfig(s, cfg)
 	if cfg != nil {
 		ff.LocalWikipediaEnabled = cfg.LocalWikipedia.Enabled && cfg.LocalWikipedia.AgentAccess
 	}
