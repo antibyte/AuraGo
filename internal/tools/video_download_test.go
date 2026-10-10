@@ -64,6 +64,23 @@ func TestResolveDownloadedFilePathMapsContainerPath(t *testing.T) {
 	}
 }
 
+func TestResolveDownloadedFilePathRejectsSymlink(t *testing.T) {
+	dir := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "secret.txt")
+	if err := os.WriteFile(outside, []byte("secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "clip.mp4")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skip("symlinks are not available here")
+	}
+	cfg := &config.Config{}
+	cfg.Tools.VideoDownload.Mode = "native"
+	if _, err := resolveDownloadedFilePath(cfg, dir, link); err == nil {
+		t.Fatal("symlink path was accepted")
+	}
+}
+
 func TestResolveDownloadedFilePathRejectsTraversalOutsideDownloadDir(t *testing.T) {
 	dir := t.TempDir()
 	outside := filepath.Clean(filepath.Join(dir, "..", "escape.mp4"))

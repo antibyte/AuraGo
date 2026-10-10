@@ -533,9 +533,14 @@ func resolveDownloadedFilePath(cfg *config.Config, downloadDir, stdout string) (
 		if err != nil {
 			return "", err
 		}
-		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
-			return candidate, nil
+		info, err := os.Lstat(candidate)
+		if err != nil {
+			continue
 		}
+		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+			return "", fmt.Errorf("downloaded path is not a regular file")
+		}
+		return candidate, nil
 	}
 	return "", fmt.Errorf("yt-dlp did not report a downloaded file path")
 }
