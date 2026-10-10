@@ -1,6 +1,7 @@
 package cydcreator
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -19,6 +20,29 @@ func TestErrorFormatting(t *testing.T) {
 	for _, tc := range cases {
 		if got := tc.err.Error(); got != tc.want {
 			t.Errorf("Error() = %q, want %q", got, tc.want)
+		}
+	}
+}
+
+// TestErrorJSONShape pins the wire envelope {"error","code","details"} that the
+// HTTP layer and the agent tool return.
+func TestErrorJSONShape(t *testing.T) {
+	cases := []struct {
+		name string
+		err  *Error
+		want string
+	}{
+		{"no details", NewError(CodeBusy, "x", nil), `{"code":"CYD_BUSY","error":"x"}`},
+		{"empty details", NewError(CodeBusy, "x", map[string]any{}), `{"code":"CYD_BUSY","error":"x"}`},
+		{"with details", NewError(CodeBusy, "x", map[string]any{"k": 1}), `{"code":"CYD_BUSY","error":"x","details":{"k":1}}`},
+	}
+	for _, tc := range cases {
+		b, err := json.Marshal(tc.err)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		if got := string(b); got != tc.want {
+			t.Errorf("%s: json = %s, want %s", tc.name, got, tc.want)
 		}
 	}
 }

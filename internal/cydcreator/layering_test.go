@@ -9,8 +9,10 @@ import (
 	"testing"
 )
 
-// TestPackageLayering keeps the domain package free of server, agent, tool and
-// Docker code; those layers reach it through interfaces.
+// TestPackageLayering keeps the domain package from directly importing server,
+// agent, tool and Docker code; those layers reach it through interfaces. Only
+// direct imports are checked: indirect imports (for example via internal/config)
+// are expected in later plans.
 func TestPackageLayering(t *testing.T) {
 	forbidden := []string{
 		"aurago/internal/server", "aurago/internal/agent", "aurago/internal/tools",
