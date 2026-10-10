@@ -72,6 +72,23 @@ func TestDesktopTodoLoadsKeepTheNewestResponse(t *testing.T) {
 	}
 }
 
+func TestDesktopTodoReopenKeepsChecklistItems(t *testing.T) {
+	t.Parallel()
+	source := readDesktopAssetText(t, "js/desktop/apps/planning-gallery-music.js")
+	if strings.Contains(source, "is_done: false") {
+		t.Fatal("unchecking a task still clears checklist items")
+	}
+	for _, marker := range []string{
+		"name=\"status\"",
+		"status: 'open'",
+		"status: form.status.value",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("todo status control missing %q", marker)
+		}
+	}
+}
+
 func TestDesktopTodoDueDateRoundTripUsesTheCivilDay(t *testing.T) {
 	t.Parallel()
 	source := readDesktopAssetText(t, "js/desktop/apps/planning-gallery-music.js")
