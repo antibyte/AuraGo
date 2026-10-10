@@ -64,7 +64,8 @@ type CodeDockerContainer struct {
 
 // CodeDockerState is the subset of Docker inspect state Code Studio needs.
 type CodeDockerState struct {
-	Running bool `json:"Running"`
+	Running  bool `json:"Running"`
+	ExitCode int  `json:"ExitCode"`
 }
 
 // CodeDockerInspect is the subset of Docker inspect data Code Studio needs.
@@ -88,19 +89,21 @@ type CodeDockerExecResult struct {
 
 // CodeDockerCreateRequest describes the container Code Studio wants to create.
 type CodeDockerCreateRequest struct {
-	Name        string
-	Image       string
-	Env         []string
-	Ports       map[string]string
-	Volumes     []string
-	Cmd         []string
-	Restart     string
-	NetworkMode string
-	User        string
-	SecurityOpt []string
-	CapDrop     []string
-	CapAdd      []string
-	Resources   *CodeContainerResources
+	Name           string
+	Image          string
+	Env            []string
+	Ports          map[string]string
+	Volumes        []string
+	Cmd            []string
+	Restart        string
+	NetworkMode    string
+	User           string
+	SecurityOpt    []string
+	CapDrop        []string
+	CapAdd         []string
+	Resources      *CodeContainerResources
+	ReadonlyRootfs bool
+	Tmpfs          map[string]string
 }
 
 // CodeContainerResources holds Docker resource limits for Code Studio.

@@ -1196,6 +1196,8 @@ func DockerContainerAction(cfg DockerConfig, containerID, action string, force b
 		method, endpoint = "POST", "/containers/"+safe+"/pause"
 	case "unpause":
 		method, endpoint = "POST", "/containers/"+safe+"/unpause"
+	case "kill":
+		method, endpoint = "POST", "/containers/"+safe+"/kill"
 	case "remove", "rm":
 		q := "?v=true"
 		if force {
@@ -1203,7 +1205,7 @@ func DockerContainerAction(cfg DockerConfig, containerID, action string, force b
 		}
 		method, endpoint = "DELETE", "/containers/"+safe+q
 	default:
-		return errJSON("Unknown container action: %s. Use: start, stop, restart, pause, unpause, remove", action)
+		return errJSON("Unknown container action: %s. Use: start, stop, restart, pause, unpause, kill, remove", action)
 	}
 
 	data, code, err := dockerRequest(cfg, method, endpoint, "")

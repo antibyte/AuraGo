@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -53,11 +54,10 @@ func TestOpenSCADEnsureInstalledCreatesNoNetworkContainerWithLimits(t *testing.T
 	if req.Resources == nil || req.Resources.MemoryMB != 1024 || req.Resources.CPUCores != 1 || req.Resources.PidsLimit != defaultOpenSCADPidsLimit {
 		t.Fatalf("resources = %#v", req.Resources)
 	}
-	wantMount := filepath.Join(dataDir, "openscad", "jobs") + ":" + openSCADJobsInContainer
-	if len(req.Volumes) != 1 || req.Volumes[0] != wantMount {
-		t.Fatalf("volumes = %#v, want %q", req.Volumes, wantMount)
+	if len(req.Volumes) != 0 {
+		t.Fatalf("volumes = %#v, want none", req.Volumes)
 	}
-	if !containsString(fake.actions, "created-1:stop") {
+	if !containsString(fake.actions, "created-1 stop") {
 		t.Fatalf("install validation should stop container when auto_start is false; actions=%#v", fake.actions)
 	}
 }
@@ -75,8 +75,8 @@ func TestBuildOpenSCADCommandUsesSeparateArgs(t *testing.T) {
 		"xvfb-run", "-a", "openscad", "--render",
 		"-D", "height=42",
 		"-D", `label="A B"`,
-		"-o", "/jobs/oscad-123/test-model.png",
-		"/jobs/oscad-123/model.scad",
+		"-o", "/work/test-model.png",
+		"/work/model.scad",
 	}
 	if filename != "test-model.png" {
 		t.Fatalf("filename = %q", filename)
@@ -438,12 +438,19 @@ func TestOpenSCADRenderWritesExportDiagnosticsToContainerLogStream(t *testing.T)
 			t.Fatalf("container logs missing %q in:\n%s", want, logText)
 		}
 	}
-	if len(fake.containerLogExecs) != 2 {
-		t.Fatalf("container log wrapped execs = %d, want 2", len(fake.containerLogExecs))
+	var jobCmds [][]string
+	for _, created := range fake.creates {
+		if strings.HasPrefix(created.Name, openSCADContainerName+"-oscad-") {
+			jobCmds = append(jobCmds, created.Cmd)
+		}
 	}
-	for _, cmd := range fake.containerLogExecs {
-		if len(cmd) < 6 || cmd[0] != "sh" || cmd[1] != "-c" || !strings.Contains(strings.Join(cmd, " "), "/proc/1/fd/1") {
-			t.Fatalf("render exec should write diagnostics to PID 1 stdout, got %#v", cmd)
+	if len(jobCmds) != 2 {
+		t.Fatalf("job containers = %d, want 2", len(jobCmds))
+	}
+	for _, cmd := range jobCmds {
+		joined := strings.Join(cmd, " ")
+		if len(cmd) < 6 || cmd[0] != "sh" || cmd[1] != "-c" || !strings.Contains(joined, "/work/compiler.log") {
+			t.Fatalf("job command = %#v, want /work/compiler.log", cmd)
 		}
 	}
 }
@@ -455,6 +462,108 @@ type fakeOpenSCADExportDocker struct {
 	runtimeBackendHelp string
 	containerLogs      []string
 	containerLogExecs  [][]string
+}
+
+func (f *fakeOpenSCADExportDocker) CreateContainer(ctx context.Context, req CodeDockerCreateRequest) (string, error) {
+	id, err := f.fakeCodeContainerDocker.CreateContainer(ctx, req)
+	if err != nil || !strings.HasPrefix(req.Name, openSCADContainerName+"-oscad-") {
+		return id, err
+	}
+	f.finishOpenSCADJobCreate(id, req)
+	return id, nil
+}
+
+func (f *fakeOpenSCADExportDocker) ContainerAction(ctx context.Context, container, action string) error {
+	err := f.fakeCodeContainerDocker.ContainerAction(ctx, container, action)
+	if action != "start" || f.inspectByName == nil {
+		return err
+	}
+	inspect, ok := f.inspectByName[container]
+	if !ok {
+		return err
+	}
+	name := strings.TrimPrefix(inspect.Name, "/")
+	if !strings.HasPrefix(name, openSCADContainerName+"-oscad-") && !strings.HasPrefix(container, openSCADContainerName+"-oscad-") {
+		return err
+	}
+	inspect.State.Running = false
+	f.inspectByName[container] = inspect
+	return err
+}
+
+func (f *fakeOpenSCADExportDocker) finishOpenSCADJobCreate(id string, req CodeDockerCreateRequest) {
+	result := f.openSCADExportResult(req.Cmd)
+	startLog, doneLog := fakeOpenSCADWrappedContainerLogLines(req.Cmd)
+	if startLog != "" {
+		f.containerLogs = append(f.containerLogs, startLog)
+		f.containerLogExecs = append(f.containerLogExecs, append([]string(nil), req.Cmd...))
+		f.containerLogs = append(f.containerLogs, doneLog+" exit_code="+strconv.Itoa(result.ExitCode))
+	}
+	if jobDir := openSCADBindHost(req.Volumes, openSCADWorkDir); jobDir != "" {
+		var log strings.Builder
+		if startLog != "" {
+			log.WriteString(startLog)
+			log.WriteByte('\n')
+		}
+		log.WriteString(result.Output)
+		if doneLog != "" {
+			if log.Len() == 0 || !strings.HasSuffix(log.String(), "\n") {
+				log.WriteByte('\n')
+			}
+			log.WriteString(doneLog)
+			log.WriteString(" exit_code=")
+			log.WriteString(strconv.Itoa(result.ExitCode))
+			log.WriteByte('\n')
+		}
+		logFile, logErr := os.OpenFile(filepath.Join(jobDir, "compiler.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+		if logErr == nil {
+			_, _ = logFile.Write([]byte(log.String()))
+			_ = logFile.Close()
+		}
+		if result.ExitCode == 0 {
+			outputPath := openSCADOutputArg(req.Cmd)
+			ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(outputPath), "."))
+			switch ext {
+			case "png", "stl", "3mf", "off", "amf", "csg", "txt":
+				_ = os.WriteFile(filepath.Join(jobDir, filepath.Base(outputPath)), []byte(ext+" data"), 0o644)
+			}
+		}
+	}
+	if f.inspectByName == nil {
+		f.inspectByName = map[string]CodeDockerInspect{}
+	}
+	inspect := f.inspectByName[id]
+	inspect.State.ExitCode = result.ExitCode
+	f.inspectByName[id] = inspect
+	named := inspect
+	named.State.Running = false
+	f.inspectByName[req.Name] = named
+}
+
+func (f *fakeOpenSCADExportDocker) openSCADExportResult(cmd []string) CodeDockerExecResult {
+	outputPath := openSCADOutputArg(cmd)
+	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(outputPath), "."))
+	if fail, ok := f.failExports[ext]; ok {
+		return fail
+	}
+	switch ext {
+	case "svg", "pdf", "dxf":
+		return CodeDockerExecResult{ExitCode: 1, Output: "Top level object is a 3D object.\nCurrent top level object is not a 2D object.\n"}
+	case "png", "stl", "3mf", "off", "amf", "csg", "txt":
+		return CodeDockerExecResult{ExitCode: 0, Output: "rendered " + ext + "\n"}
+	default:
+		return CodeDockerExecResult{ExitCode: 0}
+	}
+}
+
+func openSCADBindHost(volumes []string, destination string) string {
+	suffix := ":" + destination
+	for _, volume := range volumes {
+		if strings.HasSuffix(volume, suffix) {
+			return strings.TrimSuffix(volume, suffix)
+		}
+	}
+	return ""
 }
 
 func (f *fakeOpenSCADExportDocker) ExecContainer(ctx context.Context, container string, cmd []string, user string, timeout time.Duration) (result CodeDockerExecResult, err error) {
@@ -509,7 +618,10 @@ func (f *fakeOpenSCADExportDocker) ExecContainer(ctx context.Context, container 
 }
 
 func fakeOpenSCADWrappedContainerLogLines(cmd []string) (string, string) {
-	if len(cmd) < 6 || cmd[0] != "sh" || cmd[1] != "-c" || !strings.Contains(cmd[2], "/proc/1/fd/1") {
+	if len(cmd) < 6 || cmd[0] != "sh" || cmd[1] != "-c" {
+		return "", ""
+	}
+	if !strings.Contains(cmd[2], "/work/compiler.log") && !strings.Contains(cmd[2], "/proc/1/fd/1") {
 		return "", ""
 	}
 	return cmd[4], cmd[5]
@@ -577,6 +689,114 @@ func TestOpenSCADPruneOldJobsRemovesExpiredDirectories(t *testing.T) {
 	}
 	if _, err := os.Stat(keepJob); err != nil {
 		t.Fatalf("keep job dir should remain: %v", err)
+	}
+}
+
+func TestOpenSCADRenderMountsOnlyTheJobDirectory(t *testing.T) {
+	dataDir := t.TempDir()
+	fake := &fakeCodeContainerDocker{}
+	svc := NewOpenSCADContainerService(Config{
+		DataDir:  dataDir,
+		OpenSCAD: OpenSCADConfig{Enabled: true},
+	}, nil)
+	svc.SetDockerClient(fake)
+
+	_, err := svc.Render(context.Background(), OpenSCADRenderRequest{
+		SourceSCAD: "cube(1);",
+		ModelName:  "mount-test",
+		Exports:    []string{"png"},
+	})
+	if err == nil {
+		t.Fatal("Render succeeded with a fake that writes no output")
+	}
+
+	var probe, job *CodeDockerCreateRequest
+	for i := range fake.creates {
+		req := &fake.creates[i]
+		switch {
+		case req.Name == openSCADContainerName:
+			probe = req
+		case strings.HasPrefix(req.Name, openSCADContainerName+"-oscad-"):
+			job = req
+		}
+	}
+	if probe == nil {
+		t.Fatal("probe container was not created")
+	}
+	if len(probe.Volumes) != 0 {
+		t.Fatalf("probe volumes = %#v, want none", probe.Volumes)
+	}
+	if job == nil {
+		t.Fatalf("job container missing in %#v", fake.creates)
+	}
+	if len(job.Volumes) != 1 || !strings.HasSuffix(job.Volumes[0], ":/work") {
+		t.Fatalf("job volumes = %#v, want one :/work bind", job.Volumes)
+	}
+	host := strings.TrimSuffix(job.Volumes[0], ":/work")
+	if filepath.Base(host) == "jobs" || !strings.HasPrefix(filepath.Base(host), "oscad-") {
+		t.Fatalf("job bind host = %q, want the job directory", host)
+	}
+	joined := strings.Join(job.Cmd, " ")
+	if strings.Contains(joined, "/jobs/") || !strings.Contains(joined, "/work/model.scad") || !strings.Contains(joined, "/work/compiler.log") {
+		t.Fatalf("job command = %q, want /work paths and compiler.log", joined)
+	}
+	if job.NetworkMode != "none" || !containsString(job.CapDrop, "ALL") || !containsString(job.SecurityOpt, "no-new-privileges:true") {
+		t.Fatalf("job hardening = network %q cap %#v security %#v", job.NetworkMode, job.CapDrop, job.SecurityOpt)
+	}
+	if !job.ReadonlyRootfs || job.Tmpfs["/tmp"] == "" || !containsString(job.Env, "HOME=/tmp") {
+		t.Fatalf("job rootfs = readonly %v tmpfs %#v env %#v", job.ReadonlyRootfs, job.Tmpfs, job.Env)
+	}
+}
+
+type cancelOnStartDocker struct {
+	fakeCodeContainerDocker
+	cancel context.CancelFunc
+}
+
+func (f *cancelOnStartDocker) ContainerAction(ctx context.Context, container, action string) error {
+	err := f.fakeCodeContainerDocker.ContainerAction(ctx, container, action)
+	if action == "start" && strings.HasPrefix(container, openSCADContainerName+"-oscad-") && f.cancel != nil {
+		f.cancel()
+	}
+	return err
+}
+
+func (f *cancelOnStartDocker) InspectContainer(ctx context.Context, container string) (CodeDockerInspect, error) {
+	running := true
+	for _, action := range f.actions {
+		if strings.HasPrefix(action, container+" kill") || action == container+" kill" {
+			running = false
+		}
+	}
+	return CodeDockerInspect{ID: container, Name: container, State: CodeDockerState{Running: running, ExitCode: 0}}, nil
+}
+
+func TestOpenSCADCancelKillsTheJobContainer(t *testing.T) {
+	dataDir := t.TempDir()
+	ctx, cancel := context.WithCancel(context.Background())
+	fake := &cancelOnStartDocker{cancel: cancel}
+	svc := NewOpenSCADContainerService(Config{
+		DataDir:  dataDir,
+		OpenSCAD: OpenSCADConfig{Enabled: true},
+	}, nil)
+	svc.SetDockerClient(fake)
+
+	_, err := svc.Render(ctx, OpenSCADRenderRequest{
+		SourceSCAD: "cube(1);",
+		ModelName:  "cancel-test",
+		Exports:    []string{"png"},
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Render error = %v, want context.Canceled", err)
+	}
+	var killed bool
+	for _, action := range fake.actions {
+		if strings.Contains(action, "kill") && strings.Contains(action, openSCADContainerName+"-oscad-") {
+			killed = true
+		}
+	}
+	if !killed {
+		t.Fatalf("actions = %#v, want kill of the job container", fake.actions)
 	}
 }
 

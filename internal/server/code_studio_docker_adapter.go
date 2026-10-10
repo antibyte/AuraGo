@@ -215,11 +215,13 @@ func (a codeStudioDockerAdapter) CreateContainer(ctx context.Context, req deskto
 		}
 	}
 	options := tools.ContainerCreateOptions{
-		User:        req.User,
-		SecurityOpt: req.SecurityOpt,
-		CapDrop:     req.CapDrop,
-		CapAdd:      req.CapAdd,
-		NetworkMode: req.NetworkMode,
+		User:           req.User,
+		SecurityOpt:    req.SecurityOpt,
+		CapDrop:        req.CapDrop,
+		CapAdd:         req.CapAdd,
+		NetworkMode:    req.NetworkMode,
+		ReadonlyRootfs: req.ReadonlyRootfs,
+		Tmpfs:          req.Tmpfs,
 	}
 	raw := tools.DockerCreateContainerWithOptions(a.cfg, req.Name, req.Image, req.Env, req.Ports, req.Volumes, req.Cmd, req.Restart, resources, options)
 	var resp struct {

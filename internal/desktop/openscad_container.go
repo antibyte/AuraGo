@@ -22,6 +22,7 @@ const (
 	openSCADContainerName                       = "aurago-openscad"
 	defaultOpenSCADImage                        = "openscad/openscad:latest"
 	openSCADJobsInContainer                     = "/jobs"
+	openSCADWorkDir                             = "/work"
 	defaultOpenSCADMemoryMB                     = 2048
 	defaultOpenSCADCPUCores                     = 2
 	defaultOpenSCADPidsLimit                    = 512
@@ -176,8 +177,7 @@ func (s *OpenSCADContainerService) ensureStarted(ctx context.Context, keepRunnin
 	if s.state == StateStarting {
 		return fmt.Errorf("openscad container is already starting")
 	}
-	jobsRoot, err := s.ensureJobsRootLocked()
-	if err != nil {
+	if _, err := s.ensureJobsRootLocked(); err != nil {
 		s.state = StateError
 		return err
 	}
@@ -204,7 +204,7 @@ func (s *OpenSCADContainerService) ensureStarted(ctx context.Context, keepRunnin
 			s.state = StateError
 			return fmt.Errorf("prepare openscad image %s: %w", image, err)
 		}
-		containerID, err = s.createOpenSCADContainerLocked(ctx, image, jobsRoot)
+		containerID, err = s.createOpenSCADContainerLocked(ctx, image)
 		if err != nil {
 			s.state = StateError
 			return err
@@ -230,18 +230,20 @@ func (s *OpenSCADContainerService) ensureStarted(ctx context.Context, keepRunnin
 	return nil
 }
 
-func (s *OpenSCADContainerService) createOpenSCADContainerLocked(ctx context.Context, image, jobsRoot string) (string, error) {
+func (s *OpenSCADContainerService) createOpenSCADContainerLocked(ctx context.Context, image string) (string, error) {
 	createdID, err := s.docker.CreateContainer(ctx, CodeDockerCreateRequest{
-		Name:        openSCADContainerName,
-		Image:       image,
-		Ports:       map[string]string{},
-		Volumes:     []string{jobsRoot + ":" + openSCADJobsInContainer},
-		Cmd:         []string{"sleep", "infinity"},
-		Restart:     "no",
-		NetworkMode: "none",
-		SecurityOpt: []string{"no-new-privileges:true"},
-		CapDrop:     []string{"ALL"},
-		Resources:   openSCADResourcesPtr(s.cfg.OpenSCAD),
+		Name:           openSCADContainerName,
+		Image:          image,
+		Env:            []string{"HOME=/tmp"},
+		Ports:          map[string]string{},
+		Cmd:            []string{"sleep", "infinity"},
+		Restart:        "no",
+		NetworkMode:    "none",
+		SecurityOpt:    []string{"no-new-privileges:true"},
+		CapDrop:        []string{"ALL"},
+		Resources:      openSCADResourcesPtr(s.cfg.OpenSCAD),
+		ReadonlyRootfs: true,
+		Tmpfs:          map[string]string{"/tmp": "rw,nosuid,size=256m"},
 	})
 	if err != nil {
 		return "", fmt.Errorf("create openscad container: %w", err)
@@ -256,6 +258,101 @@ func (s *OpenSCADContainerService) createOpenSCADContainerLocked(ctx context.Con
 		return "", err
 	}
 	return createdID, nil
+}
+
+func openSCADJobContainerName(jobID, export string) string {
+	return openSCADContainerName + "-" + jobID + "-" + export
+}
+
+func (s *OpenSCADContainerService) runOpenSCADJobContainer(ctx context.Context, name, jobDir string, cmd []string, timeout time.Duration) (CodeDockerExecResult, error) {
+	_, err := s.docker.CreateContainer(ctx, CodeDockerCreateRequest{
+		Name:           name,
+		Image:          openSCADImage(s.cfg.OpenSCAD),
+		Env:            []string{"HOME=/tmp"},
+		Volumes:        []string{jobDir + ":" + openSCADWorkDir},
+		Cmd:            cmd,
+		Restart:        "no",
+		NetworkMode:    "none",
+		SecurityOpt:    []string{"no-new-privileges:true"},
+		CapDrop:        []string{"ALL"},
+		Resources:      openSCADResourcesPtr(s.cfg.OpenSCAD),
+		ReadonlyRootfs: true,
+		Tmpfs:          map[string]string{"/tmp": "rw,nosuid,size=256m"},
+	})
+	if err != nil {
+		return CodeDockerExecResult{}, fmt.Errorf("create openscad job container: %w", err)
+	}
+	if err := s.docker.ContainerAction(ctx, name, "start"); err != nil || ctx.Err() != nil {
+		s.killOpenSCADJobContainer(name)
+		if ctx.Err() != nil {
+			return CodeDockerExecResult{}, ctx.Err()
+		}
+		return CodeDockerExecResult{}, fmt.Errorf("start openscad job container: %w", err)
+	}
+	inspect, err := s.waitOpenSCADJobExit(ctx, name, timeout)
+	if err != nil {
+		s.killOpenSCADJobContainer(name)
+		return CodeDockerExecResult{}, err
+	}
+	s.removeOpenSCADJobContainer(name)
+	return CodeDockerExecResult{ExitCode: inspect.State.ExitCode, Output: readOpenSCADCompilerLog(jobDir)}, nil
+}
+
+func (s *OpenSCADContainerService) waitOpenSCADJobExit(ctx context.Context, name string, timeout time.Duration) (CodeDockerInspect, error) {
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	for {
+		if err := ctx.Err(); err != nil {
+			return CodeDockerInspect{}, err
+		}
+		inspect, err := s.docker.InspectContainer(ctx, name)
+		if err == nil && !inspect.State.Running {
+			return inspect, nil
+		}
+		if err := ctx.Err(); err != nil {
+			return CodeDockerInspect{}, err
+		}
+		select {
+		case <-ctx.Done():
+			return CodeDockerInspect{}, ctx.Err()
+		case <-timer.C:
+			return CodeDockerInspect{}, fmt.Errorf("openscad export timed out")
+		case <-ticker.C:
+		}
+	}
+}
+
+func (s *OpenSCADContainerService) killOpenSCADJobContainer(name string) {
+	s.cleanupOpenSCADJobContainer(name, true)
+}
+
+func (s *OpenSCADContainerService) removeOpenSCADJobContainer(name string) {
+	s.cleanupOpenSCADJobContainer(name, false)
+}
+
+func (s *OpenSCADContainerService) cleanupOpenSCADJobContainer(name string, kill bool) {
+	if kill {
+		s.openSCADJobContainerAction(name, "kill")
+	}
+	s.openSCADJobContainerAction(name, "remove")
+}
+
+func (s *OpenSCADContainerService) openSCADJobContainerAction(name, action string) {
+	cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := s.docker.ContainerAction(cleanupCtx, name, action); err != nil && s.logger != nil {
+		s.logger.Warn("openscad job container action failed", "container", name, "action", action, "error", err)
+	}
+}
+
+func readOpenSCADCompilerLog(jobDir string) string {
+	data, err := os.ReadFile(filepath.Join(jobDir, "compiler.log"))
+	if err != nil {
+		return ""
+	}
+	return truncateOpenSCADOutput(string(data))
 }
 
 func (s *OpenSCADContainerService) probeRuntimeLocked(ctx context.Context, containerID string) error {
@@ -406,7 +503,7 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 				"geometry_backend_requested", openSCADGeometryBackendPreference(s.cfg.OpenSCAD),
 			)
 		}
-		execResult, execErr := s.docker.ExecContainer(ctx, containerID, execCmd, "", timeout)
+		execResult, execErr := s.runOpenSCADJobContainer(ctx, openSCADJobContainerName(jobID, export), jobDir, execCmd, timeout)
 		exportDuration := time.Since(exportStart)
 		execOutput := strings.TrimSpace(execResult.Output)
 		if execErr != nil {
@@ -583,7 +680,7 @@ func (s *OpenSCADContainerService) JobFile(jobID, filename string) (string, Open
 		return "", OpenSCADFile{}, err
 	}
 	name := safeOpenSCADFilename(filename)
-	if name == "" || name == "job.json" || name == "model.scad" {
+	if name == "" || name == "job.json" || name == "model.scad" || name == "compiler.log" {
 		return "", OpenSCADFile{}, fmt.Errorf("invalid openscad job filename")
 	}
 	path := filepath.Join(jobDir, name)
@@ -899,8 +996,8 @@ func buildOpenSCADCommandWithBackend(jobID, modelName, export string, req OpenSC
 		ext = "txt"
 	}
 	filename := modelName + "." + ext
-	outputPath := path.Join(openSCADJobsInContainer, jobID, filename)
-	sourcePath := path.Join(openSCADJobsInContainer, jobID, "model.scad")
+	outputPath := path.Join(openSCADWorkDir, filename)
+	sourcePath := path.Join(openSCADWorkDir, "model.scad")
 	cmd := []string{"openscad"}
 	if export == "png" {
 		cmd = []string{"xvfb-run", "-a", "openscad"}
@@ -1072,13 +1169,16 @@ func wrapOpenSCADCommandWithContainerLogs(cmd []string, startLine, doneLine stri
 	if len(cmd) == 0 {
 		return cmd
 	}
+	logPath := openSCADWorkDir + "/compiler.log"
 	script := `start_line=$1
 done_line=$2
 shift 2
-{ printf '%s\n' "$start_line" > /proc/1/fd/1; } 2>/dev/null || true
-"$@"
+{
+  printf '%s\n' "$start_line"
+  "$@"
+} >> ` + logPath + ` 2>&1
 rc=$?
-{ printf '%s exit_code=%s\n' "$done_line" "$rc" > /proc/1/fd/1; } 2>/dev/null || true
+printf '%s exit_code=%s\n' "$done_line" "$rc" >> ` + logPath + `
 exit "$rc"`
 	wrapped := []string{"sh", "-c", script, "aurago-openscad-log", startLine, doneLine}
 	return append(wrapped, cmd...)

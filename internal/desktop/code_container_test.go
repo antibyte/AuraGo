@@ -116,10 +116,10 @@ func TestCodeContainerEnsureStartedReconcilesCachedRunningState(t *testing.T) {
 			if err != nil || !svc.IsRunning() {
 				t.Fatalf("recovery failed: %v", err)
 			}
-			if mode == "stopped" && !containsString(fake.actions, "created-1:start") {
+			if mode == "stopped" && !containsString(fake.actions, "created-1 start") {
 				t.Fatal("externally stopped container was not restarted")
 			}
-			if mode == "removed" && (len(fake.creates) != 2 || !containsString(fake.actions, "created-2:start")) {
+			if mode == "removed" && (len(fake.creates) != 2 || !containsString(fake.actions, "created-2 start")) {
 				t.Fatal("externally removed container was not recreated")
 			}
 		})
@@ -154,10 +154,15 @@ func (f *fakeCodeContainerDocker) CreateContainer(ctx context.Context, req CodeD
 }
 
 func (f *fakeCodeContainerDocker) ContainerAction(ctx context.Context, container, action string) error {
-	f.actions = append(f.actions, container+":"+action)
+	f.actions = append(f.actions, container+" "+action)
 	if f.inspectByName != nil {
 		inspect := f.inspectByName[container]
 		inspect.State.Running = action == "start"
+		if action == "start" && strings.HasPrefix(container, openSCADContainerName+"-oscad-") {
+			// One-shot export containers exit as soon as they start. The shared
+			// fake has no daemon to flip Running back off.
+			inspect.State.Running = false
+		}
 		f.inspectByName[container] = inspect
 	}
 	return nil
@@ -324,7 +329,7 @@ func TestCodeContainerEnsureStartedReplacesLegacyWorkspaceMount(t *testing.T) {
 	if len(fake.creates) != 1 {
 		t.Fatalf("create count = %d, want replacement container", len(fake.creates))
 	}
-	if !containsString(fake.actions, "legacy-1:remove") {
+	if !containsString(fake.actions, "legacy-1 remove") {
 		t.Fatalf("actions = %#v, want legacy container removal", fake.actions)
 	}
 	wantBind := workspace + ":" + codeWorkspaceInContainer
@@ -365,7 +370,7 @@ func TestCodeContainerEnsureStartedReplacesDefaultContainerWhenRuntimeMissing(t 
 	if err := svc.EnsureStarted(context.Background()); err != nil {
 		t.Fatalf("EnsureStarted returned error: %v", err)
 	}
-	if !containsString(fake.actions, "old-1:remove") {
+	if !containsString(fake.actions, "old-1 remove") {
 		t.Fatalf("actions = %#v, want old default container removal", fake.actions)
 	}
 	if len(fake.creates) != 1 {
@@ -416,7 +421,7 @@ func TestCodeContainerEnsureStartedReplacesExistingContainerWhenWorkspaceRepairF
 	if err := svc.EnsureStarted(context.Background()); err != nil {
 		t.Fatalf("EnsureStarted returned error: %v", err)
 	}
-	if !containsString(fake.actions, "old-1:remove") {
+	if !containsString(fake.actions, "old-1 remove") {
 		t.Fatalf("actions = %#v, want old container removal after workspace repair failure", fake.actions)
 	}
 	if len(fake.creates) != 1 {
@@ -461,7 +466,7 @@ func TestCodeContainerEnsureStartedFallsBackToLocalRuntimeImageWhenDefaultStillM
 	if !containsString(fake.ensuredImages, "aurago/code-studio-runtime:latest") {
 		t.Fatalf("ensured images = %#v, want local runtime fallback ensured", fake.ensuredImages)
 	}
-	if !containsString(fake.actions, "created-1:remove") {
+	if !containsString(fake.actions, "created-1 remove") {
 		t.Fatalf("actions = %#v, want failed default container removal", fake.actions)
 	}
 }
@@ -488,8 +493,8 @@ func TestCodeContainerEnsureStartedStartsExistingStoppedContainer(t *testing.T) 
 	if len(fake.creates) != 0 {
 		t.Fatalf("create count = %d, want existing container start only", len(fake.creates))
 	}
-	if len(fake.actions) != 1 || fake.actions[0] != "abc123:start" {
-		t.Fatalf("actions = %#v, want abc123:start", fake.actions)
+	if len(fake.actions) != 1 || fake.actions[0] != "abc123 start" {
+		t.Fatalf("actions = %#v, want abc123 start", fake.actions)
 	}
 }
 
