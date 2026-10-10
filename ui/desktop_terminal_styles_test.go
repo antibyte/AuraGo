@@ -333,8 +333,6 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		"retroNetOn && typeof ctx.path !== 'string'",
 		"term.options.convertEol = false",
 		"term.options.convertEol = true",
-		"term.resize(80, 25)",
-		`'"Aura VGA", "Aura Terminal", ui-monospace, monospace'`,
 		"'aurago.desktop.terminal.retronet.last'",
 		`const HANGUP_KEY = '\x1d'`,
 		"'desktop.terminal_directory'",
@@ -342,7 +340,6 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		"'desktop.terminal_connected'",
 		"'desktop.terminal_retronet_result_' + reason",
 		"data-terminal-mode",
-		"data-terminal-geometry",
 		`data-terminal-announce aria-live="polite"`,
 		"select[data-terminal-baud]",
 		"[data-terminal-retronet-action]",
@@ -356,9 +353,13 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		"if (remote && run.connected && !run.live && !run.hostKey) {",
 		// Dispose removes own-entry dialogs without close(), which would reopen a dialog with a pending save.
 		"root.querySelectorAll('dialog[data-terminal-retronet-dialog]').forEach(function (dialog) { dialog.remove(); })",
-		// BBS fits run one at a time; a request during a fit reruns it once afterwards.
-		"if (bbsFitting) {",
-		"bbsRefit = true;",
+		// Screen geometry lives in terminal-geometry.js (Contract C): fit, 80x25 BBS, 40x25 C64.
+		"window.TerminalGeometry.create({",
+		"getProfile: currentProfile,",
+		"if (geometry) geometry.set(next);",
+		"setGeometry(pinned);",
+		"cols: grid ? grid.cols : term.cols,",
+		"if (retro && retro.session && (!geometry || geometry.mode() === 'fit')) retro.session.resize(size.cols, size.rows);",
 		// A result ignores keys for a moment so keys typed as the service hangs up do not dismiss it.
 		"if (window.performance.now() - resultAt >= RESULT_GRACE_MS) afterResult();",
 		// Placeholders are filled here, never by the shared t(), whose replaceAll treats $ in server text as a pattern.
@@ -368,7 +369,8 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 			t.Fatalf("terminal.js missing %q", want)
 		}
 	}
-	for _, forbidden := range []string{"function printable", "function cellWidth", "function fitToCells", "key === 'y'", "dialog.close(); dialog.remove()", "ctx.t(key, params)"} {
+	for _, forbidden := range []string{"function printable", "function cellWidth", "function fitToCells", "key === 'y'", "dialog.close(); dialog.remove()", "ctx.t(key, params)",
+		"bbsMode", "fitBbsFont", "VGA_FONT"} {
 		if strings.Contains(source, forbidden) {
 			t.Fatalf("terminal.js must use the shared TerminalText/session helpers; found %q", forbidden)
 		}

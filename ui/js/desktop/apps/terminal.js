@@ -4,8 +4,6 @@
     const instances = new Map();
     const LAST_ENTRY_KEY = 'aurago.desktop.terminal.retronet.last';
     const HANGUP_KEY = '\x1d';
-    const VGA_FONT = '"Aura VGA", "Aura Terminal", ui-monospace, monospace';
-    const VGA_FONT_SPEC = '16px "Aura VGA"';
     // Normal screen buffer, then DECSTR (attributes, cursor, scroll region, wrap, insert, focus and paste
     // reporting) and mouse reporting off: after a session only real keys reach the result prompt.
     const PLAIN_SCREEN = '\x1b[?1047l\x1b[!p\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l';
@@ -44,10 +42,10 @@
         }).join('');
     }
 
-    // Retro-Net needs every module of Contract E, including the shared TerminalText helpers.
+    // Retro-Net needs every module of Contracts C and E, including the shared TerminalText helpers and the geometry.
     function retroNetModulesLoaded() {
         return !!(window.TerminalText && window.TerminalModem && window.TerminalRetroNetDirectory &&
-            window.TerminalRetroNetSession && window.TerminalRetroNetEntries);
+            window.TerminalRetroNetSession && window.TerminalRetroNetEntries && window.TerminalGeometry);
     }
 
     // Interpolates {{name}} itself: ctx.t() is called without params, so `$` in server text (host-key type and
@@ -70,12 +68,6 @@
         try {
             window.localStorage.setItem(LAST_ENTRY_KEY, String(id));
         } catch (e) {}
-    }
-
-    function nextFrame() {
-        return new Promise(function (resolve) {
-            window.requestAnimationFrame(function () { resolve(); });
-        });
     }
 
     function render(host, windowId, ctx) {
@@ -164,12 +156,7 @@
         let directory = null;
         let modem = null;
         let retro = null;
-        let bbsMode = false;
-        let bbsRevision = 0;
-        let bbsFrame = 0;
-        let bbsFitting = false;
-        let bbsRefit = false;
-        let bbsFontSize = 16;
+        let geometry = null;
         let resultAt = 0;
         const inst = { root: host };
 
@@ -184,6 +171,12 @@
 
         function currentProfile() {
             return styles.profile(root.getAttribute('data-terminal-style'), effectValues);
+        }
+
+        // The fit of the current geometry: the fit addon, or the pinned grid's font fit.
+        function refitScreen() {
+            if (geometry) geometry.refit();
+            else if (fit && typeof fit.fit === 'function') fit.fit();
         }
 
         function syncEffectsMenu() {
@@ -265,7 +258,8 @@
             if (!term || revision !== styleRevision) return;
             profile = currentProfile();
             styles.applyXterm(term, profile);
-            if (bbsMode) applyBbsOptions();
+            // A pinned grid gets its font back at once; the fit itself follows below.
+            if (geometry && geometry.mode() !== 'fit') geometry.refit();
             ensureCanvas(profile.retro);
             if (profile.retro) {
                 if (!crt && window.TerminalCrt) {
@@ -293,8 +287,7 @@
             if (audio) audio.setProfile(profile);
             applyEffects();
             syncAudioButton();
-            if (bbsMode) scheduleBbsFit();
-            else if (fit && typeof fit.fit === 'function') fit.fit();
+            refitScreen();
             if (crt && typeof crt.resize === 'function') crt.resize();
         }
 
@@ -360,7 +353,7 @@
         function openShell() {
             leaveDirectory();
             stopRetro();
-            leaveBbsMode();
+            setGeometry('fit');
             closeShell();
             if (!term) return;
             term.options.convertEol = true;
@@ -428,7 +421,7 @@
             stopRetro();
             closeShell();
             leaveDirectory();
-            leaveBbsMode();
+            setGeometry('fit');
             resetScreen();
             term.options.convertEol = false;
             setMode('directory');
@@ -502,9 +495,9 @@
             closeShell();
             resetScreen();
             term.options.convertEol = false;
-            const bbs = entry.protocol === 'telnet' && entry.kind === 'bbs';
-            if (bbs) enterBbsMode();
-            else leaveBbsMode();
+            const pinned = entry.protocol === 'telnet' && entry.kind === 'bbs' ? 'bbs' : 'fit';
+            setGeometry(pinned);
+            const grid = window.TerminalGeometry.MODES[pinned];
             setMode('dialing');
             setStatus('desktop.terminal_dialing');
             if (!modem) {
@@ -523,8 +516,8 @@
             run.session = window.TerminalRetroNetSession.open({
                 term: term,
                 entry: entry,
-                cols: bbs ? 80 : term.cols,
-                rows: bbs ? 25 : term.rows,
+                cols: grid ? grid.cols : term.cols,
+                rows: grid ? grid.rows : term.rows,
                 t: ctx.t,
                 onControl: function (control) { onRetroControl(run, control); },
                 onData: function (bytes) { onRetroData(run, bytes); },
@@ -678,7 +671,7 @@
                 showDirectory();
                 return;
             }
-            leaveBbsMode();
+            setGeometry('fit');
             resetScreen();
             openShell();
         }
@@ -721,7 +714,7 @@
                 directory.render();
                 return;
             }
-            if (retro && retro.session && !bbsMode) retro.session.resize(size.cols, size.rows);
+            if (retro && retro.session && (!geometry || geometry.mode() === 'fit')) retro.session.resize(size.cols, size.rows);
         }
 
         // Explicit readonly true, enabled false or retronet_enabled false switch Retro-Net off; retronet_enabled
@@ -742,142 +735,11 @@
             }
         }
 
-        // ---- 80x25 BBS geometry with the VGA font ----
+        // ---- Screen geometry: fitted, 80x25 BBS or 40x25 C64 (terminal-geometry.js) ----
 
-        function applyBbsOptions() {
-            term.options.fontFamily = VGA_FONT;
-            term.options.lineHeight = 1;
-            term.options.fontSize = bbsFontSize;
-            term.options.scrollback = 0;
-        }
-
-        function enterBbsMode() {
-            if (!term) return;
-            bbsMode = true;
-            bbsRevision += 1;
-            const revision = bbsRevision;
-            root.setAttribute('data-terminal-geometry', 'bbs');
-            applyBbsOptions();
-            term.resize(80, 25);
-            const ready = document.fonts && typeof document.fonts.load === 'function'
-                ? document.fonts.load(VGA_FONT_SPEC).catch(function () { return []; })
-                : Promise.resolve([]);
-            ready.then(function () {
-                if (bbsMode && revision === bbsRevision) runBbsFit();
-            });
-        }
-
-        function leaveBbsMode() {
-            if (!bbsMode) return;
-            bbsMode = false;
-            bbsRevision += 1;
-            if (bbsFrame) window.cancelAnimationFrame(bbsFrame);
-            bbsFrame = 0;
-            root.removeAttribute('data-terminal-geometry');
-            if (!term) return;
-            if (term.element) {
-                term.element.style.padding = '';
-                const screenEl = term.element.querySelector('.xterm-screen');
-                if (screenEl) screenEl.style.background = '';
-            }
-            term.options.scrollback = 1000;
-            styles.applyXterm(term, currentProfile());
-            if (fit) fit.fit();
-            if (crt) crt.resize();
-        }
-
-        function scheduleBbsFit() {
-            if (!bbsMode) return;
-            if (bbsFitting) {
-                bbsRefit = true;
-                return;
-            }
-            if (bbsFrame) return;
-            bbsFrame = window.requestAnimationFrame(function () {
-                bbsFrame = 0;
-                runBbsFit();
-            });
-        }
-
-        // One fit at a time: a request during a fit reruns it once afterwards, so an older, slower fit never
-        // leaves its padding behind.
-        function runBbsFit() {
-            if (!bbsMode) return;
-            if (bbsFitting) {
-                bbsRefit = true;
-                return;
-            }
-            bbsFitting = true;
-            bbsRefit = false;
-            fitBbsFont().catch(function () {}).then(function () {
-                bbsFitting = false;
-                if (!bbsRefit) return;
-                bbsRefit = false;
-                scheduleBbsFit();
-            });
-        }
-
-        // The style's own padding and the glass size, read with the letterbox padding removed and restored
-        // in the same task: a rendered change would fire the screen's ResizeObserver and refit endlessly.
-        function bbsSpace(element) {
-            const sides = ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'];
-            const kept = sides.map(function (side) { return element.style[side]; });
-            element.style.padding = '';
-            const style = window.getComputedStyle(element);
-            const pad = {
-                left: parseFloat(style.paddingLeft) || 0,
-                right: parseFloat(style.paddingRight) || 0,
-                top: parseFloat(style.paddingTop) || 0,
-                bottom: parseFloat(style.paddingBottom) || 0
-            };
-            const space = { pad: pad, width: screen.clientWidth - pad.left - pad.right, height: screen.clientHeight - pad.top - pad.bottom };
-            sides.forEach(function (side, index) { element.style[side] = kept[index]; });
-            return space;
-        }
-
-        // Largest font size in 0.5 px steps at which the 80x25 grid fits; centered via padding, written only
-        // when it changes.
-        async function fitBbsFont() {
-            if (!bbsMode || !term || !term.element) return;
-            const revision = bbsRevision;
-            const element = term.element;
-            const screenEl = element.querySelector('.xterm-screen');
-            if (!screenEl) return;
-            const space = bbsSpace(element);
-            const pad = space.pad;
-            const availW = space.width;
-            const availH = space.height;
-            if (availW <= 0 || availH <= 0) return;
-            // Px437 8x16: a cell is 0.5em wide and 1em high, so 80x25 needs 40em x 25em.
-            let size = Math.max(6, Math.floor(Math.min(availW / 40, availH / 25) * 2) / 2);
-            let rect = null;
-            for (let attempt = 0; attempt < 12; attempt += 1) {
-                term.options.fontSize = size;
-                await nextFrame();
-                if (!bbsMode || revision !== bbsRevision || !term) return;
-                rect = screenEl.getBoundingClientRect();
-                if ((rect.width <= availW + 0.5 && rect.height <= availH + 0.5) || size <= 6) break;
-                size -= 0.5;
-            }
-            const resized = bbsFontSize !== term.options.fontSize;
-            bbsFontSize = term.options.fontSize;
-            const extraX = Math.max(0, (availW - rect.width) / 2);
-            const extraY = Math.max(0, (availH - rect.height) / 2);
-            const px = function (value) { return Math.round(value * 100) / 100 + 'px'; };
-            const next = {
-                paddingLeft: px(pad.left + extraX),
-                paddingRight: px(pad.right + extraX),
-                paddingTop: px(pad.top + extraY),
-                paddingBottom: px(pad.bottom + extraY)
-            };
-            let moved = false;
-            Object.keys(next).forEach(function (side) {
-                if (element.style[side] === next[side]) return;
-                element.style[side] = next[side];
-                moved = true;
-            });
-            screenEl.style.background = (term.options.theme && term.options.theme.background) || '';
-            if (crt && (resized || moved)) crt.resize();
+        // 'fit' | 'bbs' | 'c64' for the next screen.
+        function setGeometry(next) {
+            if (geometry) geometry.set(next);
         }
 
         function cleanup() {
@@ -889,11 +751,7 @@
             if (effectsDialog.open) effectsDialog.close();
             // Removed, not closed: close() reopens an entry dialog whose save is still pending.
             removeEntryDialogs();
-            if (bbsFrame) window.cancelAnimationFrame(bbsFrame);
-            bbsFrame = 0;
-            bbsMode = false;
-            bbsRefit = false;
-            bbsRevision += 1;
+            if (geometry) geometry.dispose();
             if (modem) modem.dispose();
             leaveDirectory();
             stopRetro();
@@ -907,6 +765,7 @@
             ws = null;
             term = null;
             fit = null;
+            geometry = null;
             canvasAddon = null;
             crt = null;
             audio = null;
@@ -982,12 +841,21 @@
             fit = new window.FitAddon.FitAddon();
             term.loadAddon(fit);
             fit.fit();
-            window.setTimeout(function () { if (fit && !bbsMode) fit.fit(); }, 80);
+            window.setTimeout(function () { if (fit && (!geometry || geometry.mode() === 'fit')) fit.fit(); }, 80);
+        }
+        if (window.TerminalGeometry) {
+            geometry = window.TerminalGeometry.create({
+                term: term,
+                screen: screen,
+                root: root,
+                fit: fit,
+                getProfile: currentProfile,
+                onFitted: function () { if (crt) crt.resize(); }
+            });
         }
         if (typeof ResizeObserver === 'function') {
             observer = new ResizeObserver(function () {
-                if (bbsMode) scheduleBbsFit();
-                else if (fit) fit.fit();
+                refitScreen();
                 if (crt) crt.resize();
             });
             observer.observe(screen);
