@@ -42,6 +42,8 @@ struct SetupUi {
   bool scanning = false;
   bool hidden = false;
   bool connecting = false;
+  uint32_t ip_gen = 0;    // wifi_ip_generation() when the attempt started
+  uint32_t fail_gen = 0;  // wifi_fail_generation() when the attempt started
   uint32_t connect_started = 0;
   uint32_t scan_started = 0;
   uint32_t close_at = 0;
@@ -60,6 +62,7 @@ constexpr int32_t kQrMax = 220;
 constexpr int32_t kQrQuiet = 4;   // white frame around the code (quiet zone on dark themes)
 constexpr int32_t kQrStep = 8;
 constexpr size_t kMaxNetworks = 20;
+constexpr uint32_t kMaxAttempts = 3;  // failed joins (the driver retries itself) before an attempt fails
 constexpr uint32_t kScanMs = 15000;  // a scan that has not reported by then found nothing
 
 int32_t line_h(const lv_font_t* f) { return lv_font_get_line_height(f); }
@@ -158,17 +161,44 @@ void on_network(lv_event_t* e) {
   g_ui->pending = View::Password;
 }
 
+void finish_success();
+
 void start_connect() {
   const ThemeColors& t = ui_theme_colors();
   String ssid = g_ui->hidden ? String(lv_textarea_get_text(g_ui->ta_ssid)) : g_ui->sel_ssid;
   ssid.trim();
   if (ssid.length() == 0) return;
+  String pass = lv_textarea_get_text(g_ui->ta_pass);
   g_ui->sel_ssid = ssid;
-  g_ui->connecting = true;
-  g_ui->connect_started = millis();
   set_status(CYD_S_WIFI_CONNECTING, t.text_muted);
   show_keyboard(false);
-  detail::wifi_connect(ssid, String(lv_textarea_get_text(g_ui->ta_pass)));
+  if (WiFi.status() == WL_CONNECTED && WiFi.SSID() == ssid && WiFi.psk() == pass) {
+    finish_success();  // already on this network: a new begin() would only drop and rejoin it
+    return;
+  }
+  // Join as a plain station. The radio has one channel: next to the SoftAP
+  // on another channel first joins timed out (AUTH_EXPIRE, NO_AP_FOUND).
+  // wifi_ui_loop() brings the portal back if the attempt fails.
+  detail::portal_stop();
+  WiFi.setAutoReconnect(true);  // the driver retries transient failures; connect_failed() ends that
+  g_ui->connecting = true;
+  g_ui->connect_started = millis();
+  g_ui->ip_gen = detail::wifi_ip_generation();
+  g_ui->fail_gen = detail::wifi_fail_generation();
+  detail::wifi_connect(ssid, pass);
+}
+
+// The error stays readable (keyboard hidden) until the user taps a field.
+void connect_failed() {
+  log::warn("wifi: joining \"%s\" failed (status %d after %lu ms)", g_ui->sel_ssid.c_str(), (int)WiFi.status(),
+            (unsigned long)(millis() - g_ui->connect_started));
+  g_ui->connecting = false;
+  // Without this the driver keeps joining in the background (auto-reconnect)
+  // while the screen says the attempt failed.
+  WiFi.setAutoReconnect(false);
+  WiFi.disconnect(false, false);
+  set_status(CYD_S_WIFI_FAILED, ui_theme_colors().danger);
+  g_ui->portal_retry_at = millis();  // phone path back right away
 }
 
 // Tapping a field brings the keyboard back (it is hidden while connecting and
@@ -497,8 +527,10 @@ void wifi_ui_open(bool closable) {
 
 void wifi_ui_close() {
   if (g_ui == nullptr) return;
+  bool joined = g_ui->close_at != 0;  // closing after a successful setup
   portal_stop();
   WiFi.scanDelete();
+  WiFi.setAutoReconnect(true);
   lv_obj_t* scr = g_ui->scr;
   lv_screen_load(g_ui->prev);
   lv_obj_delete(scr);
@@ -507,6 +539,12 @@ void wifi_ui_close() {
   if (WiFi.status() == WL_CONNECTED) {
     wifi_set_state(wifi::State::Connected);
     time_begin();
+    return;
+  }
+  if (joined) {
+    // The new network was up a moment ago and the driver is rejoining it on
+    // its own; a new begin() would only restart that.
+    wifi_await_link();
     return;
   }
   // A failed attempt must not replace the working network: go back to the stored
@@ -560,16 +598,19 @@ void wifi_ui_loop() {
     }
   }
   if (g_ui->connecting) {
+    // Success needs an address handed out after begin(): WiFi.status() can
+    // still say WL_CONNECTED for the link begin() is about to drop.
     wl_status_t st = WiFi.status();
-    if (st == WL_CONNECTED) {
+    uint32_t elapsed = millis() - g_ui->connect_started;
+    if (st == WL_CONNECTED && detail::wifi_ip_generation() != g_ui->ip_gen) {
       g_ui->connecting = false;
+      log::info("wifi: joined \"%s\" in %lu ms", g_ui->sel_ssid.c_str(), (unsigned long)elapsed);
       finish_success();
-    } else if (millis() - g_ui->connect_started > CYD_WIFI_CONNECT_MS ||
-               ((st == WL_CONNECT_FAILED || st == WL_NO_SSID_AVAIL) && millis() - g_ui->connect_started > 3000)) {
-      // The error stays readable (keyboard hidden) until the user taps a field.
-      g_ui->connecting = false;
-      WiFi.disconnect(false, false);
-      set_status(CYD_S_WIFI_FAILED, ui_theme_colors().danger);
+    } else if (elapsed > CYD_WIFI_CONNECT_MS || (st == WL_CONNECT_FAILED && elapsed > 3000) ||
+               detail::wifi_fail_generation() - g_ui->fail_gen >= kMaxAttempts) {
+      // Wrong password (the driver gives up), no such network, or timeout. The
+      // attempt cap keeps a wrong password from hammering the access point.
+      connect_failed();
     }
   }
 }

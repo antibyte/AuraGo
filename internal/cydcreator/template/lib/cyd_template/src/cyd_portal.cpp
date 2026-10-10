@@ -12,7 +12,31 @@
 namespace cyd {
 namespace {
 
-WiFiManager* g_wm = nullptr;  // created once, never deleted (owns WiFi event hooks)
+// WiFiManager 2.0.17 stopConfigPortal() runs shutdownConfigPortal(), which
+// rewrites the SoftAP config (empty SSID on channel 6, so the AP restarts),
+// blocks the loop for a second, forces its own default mode (STA) and calls
+// WiFi.reconnect() when the station sits between association and DHCP; each
+// step can restart the station link a setup just brought up. stop_quietly()
+// only frees what the portal allocated (web and DNS server, which the next
+// startConfigPortal() creates again) and leaves the radio to portal_stop().
+// It uses protected members of the pinned WiFiManager version.
+class CydWiFiManager : public WiFiManager {
+ public:
+  void stop_quietly() {
+    if (server) {
+      server->stop();
+      server.reset();
+    }
+    if (dnsServer) {
+      dnsServer->stop();
+      dnsServer.reset();
+    }
+    configPortalActive = false;
+    _end();
+  }
+};
+
+CydWiFiManager* g_wm = nullptr;  // created once, never deleted (owns WiFi event hooks)
 bool g_running = false;
 String g_css;
 
@@ -76,8 +100,9 @@ void portal_start(String* ap_ssid, String* ap_pass) {
   *ap_pass = pass;
 
   if (g_wm == nullptr) {
-    g_wm = new WiFiManager();
+    g_wm = new CydWiFiManager();
     g_wm->setRestorePersistent(false);  // keep WiFi.persistent(false)
+    g_wm->setDisableConfigPortal(false);  // a phone-path connect must not run shutdownConfigPortal() either
     g_wm->setDebugOutput(false);
     g_wm->setConfigPortalBlocking(false);
     g_wm->setConnectTimeout(15);
@@ -98,9 +123,9 @@ void portal_start(String* ap_ssid, String* ap_pass) {
 
 bool portal_active() { return g_running; }
 
-// True once a phone saved credentials and the station connected; WiFiManager
-// has then already shut its portal down. It also shuts down on its own in other
-// cases; its web server is freed then and must never be touched again.
+// True once a phone saved credentials and the station connected; the portal
+// keeps running until portal_stop(). If WiFiManager ever shuts it down on its
+// own, its web server is freed: stop_quietly() checks for that.
 bool portal_loop() {
   if (!g_running) return false;
   bool connected = g_wm->process();
@@ -118,8 +143,10 @@ void portal_stop() {
   bool active = g_wm->getConfigPortalActive();
   if (!g_running && !active) return;
   g_running = false;
-  if (active) g_wm->stopConfigPortal();  // never after WiFiManager shut itself down (freed web server)
-  WiFi.softAPdisconnect(true);           // AP off, station link untouched
+  if (active) g_wm->stop_quietly();
+  // SoftAP off: AP+STA -> STA keeps an associated station associated (no AP
+  // config rewrite, no reconnect); from AP only the station starts idle.
+  WiFi.mode(WIFI_STA);
   log::info("portal: stopped");
 }
 

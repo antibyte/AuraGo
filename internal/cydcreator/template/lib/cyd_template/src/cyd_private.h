@@ -71,6 +71,9 @@ bool wifi_load_credentials(String* ssid, String* pass);
 void wifi_save_credentials(const String& ssid, const String& pass);
 void wifi_set_state(wifi::State s);
 void wifi_connect(const String& ssid, const String& pass);
+void wifi_await_link();               // Connecting without a new attempt (the driver reconnects on its own)
+uint32_t wifi_ip_generation();        // number of STA_GOT_IP events so far
+uint32_t wifi_fail_generation();      // number of failed or lost station links so far
 void wifi_ui_open(bool closable);     // setup screen (portal + on-device path)
 void wifi_ui_close();
 bool wifi_ui_active();

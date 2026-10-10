@@ -417,6 +417,7 @@ bool reconnect_case(const char* name, const String& ssid, const String& pass, co
   pump_until([] { return probe().closing || !probe().connecting; }, CYD_WIFI_CONNECT_MS + 5000);
   bool success = probe().closing;
   uint32_t t_success = millis();
+  if (!success) detail::wifi_ui_test(detail::WifiUiTest::Close);  // like the user giving up
   pump_until([] { return !detail::wifi_ui_active(); }, 5000);
   uint32_t t_closed = millis();
   int from = g_tr_n;

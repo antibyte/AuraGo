@@ -191,6 +191,18 @@ service to this same package.
   `wifi` only, and its admin routes (`/update /u /erase /restart /info /param /paramsave /exit /close`) answer 404:
   `block_admin_routes` registers them from WiFiManager's web-server callback, before WiFiManager's own routes, and the
   first matching handler wins. Keep that list in step with the WiFiManager version pin.
+- Portal shutdown and joining (hardware-verified 2026-10-10): never call WiFiManager's `stopConfigPortal()`. Its
+  `shutdownConfigPortal()` rewrites the SoftAP config (empty, channel 6), blocks for a second, forces STA mode and may
+  call `WiFi.reconnect()`. `portal_stop()` uses `CydWiFiManager::stop_quietly()` (frees web and DNS server through
+  protected members of the pinned 2.0.17; re-check on a version bump) and `WiFi.mode(WIFI_STA)`, which keeps an
+  associated station associated; `setDisableConfigPortal(false)` keeps the phone path from running the shutdown
+  inside `process()`. The on-device path stops the portal before `WiFi.begin()` (one radio channel: next to the
+  SoftAP the first join timed out), skips the join when the station is already on that SSID with that password,
+  counts success only for a `STA_GOT_IP` after its `begin()` (`wifi_ip_generation()`), gives up after 3 failed
+  joins (`wifi_fail_generation()`), on `WL_CONNECT_FAILED` or after `CYD_WIFI_CONNECT_MS`, and then stops the
+  driver's auto-reconnect until the next attempt or the close. Closing after a success never starts a new join
+  (`wifi_await_link()`). Scans are polled for up to 15 s: 2.0.17 `scanComplete()` reports a failure after 6 s,
+  which scans next to the SoftAP exceed.
 - Token origin: the AuraGo bearer token is sent only to `g_cfg.url + path` (the `cydcc` URL; https is pinned by
   `cert_sha256` before any token leaves the device). An update offer's `url` is honoured only when empty, a `/path`
   or absolute below the configured URL (at most 256 bytes, visible ASCII 0x21-0x7E, not starting with `//`); anything

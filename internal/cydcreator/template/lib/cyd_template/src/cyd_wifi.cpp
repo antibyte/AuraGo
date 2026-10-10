@@ -6,6 +6,7 @@
 #include <esp_wifi.h>
 #include <time.h>
 
+#include <atomic>
 #include <vector>
 
 namespace cyd {
@@ -21,6 +22,8 @@ bool g_have_creds = false;
 uint32_t g_connect_started = 0;
 uint32_t g_last_retry = 0;
 bool g_time_started = false;
+std::atomic<uint32_t> g_ip_gen{0};    // STA_GOT_IP events (counted on the Wi-Fi event task)
+std::atomic<uint32_t> g_fail_gen{0};  // failed or lost station links (not our own disconnects)
 
 const char* state_name(wifi::State s) {
   switch (s) {
@@ -102,6 +105,16 @@ void wifi_connect(const String& ssid, const String& pass) {
   if (!wifi_ui_active()) wifi_set_state(wifi::State::Connecting);
 }
 
+void wifi_await_link() {
+  g_connect_started = millis();
+  g_last_retry = g_connect_started;
+  wifi_set_state(wifi::State::Connecting);
+}
+
+uint32_t wifi_ip_generation() { return g_ip_gen.load(); }
+
+uint32_t wifi_fail_generation() { return g_fail_gen.load(); }
+
 void time_begin() {
   if (g_time_started) return;
   g_time_started = true;
@@ -116,6 +129,12 @@ void wifi_begin() {
 #else
   WiFi.persistent(false);  // credentials live in our own NVS namespace
   WiFi.setAutoReconnect(true);
+  WiFi.onEvent([](arduino_event_id_t, arduino_event_info_t) { g_ip_gen++; }, ARDUINO_EVENT_WIFI_STA_GOT_IP);
+  WiFi.onEvent(
+      [](arduino_event_id_t, arduino_event_info_t info) {
+        if (info.wifi_sta_disconnected.reason != WIFI_REASON_ASSOC_LEAVE) g_fail_gen++;
+      },
+      ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
   apply_hostname();
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
