@@ -697,8 +697,13 @@ func UpdateTodo(db *sql.DB, t Todo) error {
 		}
 	}
 	t.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	requestedStatus := t.Status
 	if err := prepareTodoForPersistence(&t, t.UpdatedAt); err != nil {
 		return err
+	}
+	if requestedStatus != "done" && t.Status == "done" {
+		t.Status = requestedStatus
+		t.CompletedAt = ""
 	}
 
 	tx, err := db.Begin()
@@ -863,7 +868,7 @@ func AddTodoItem(db *sql.DB, todoID string, item TodoItem) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to insert todo item: %w", err)
 	}
-	if err := syncTodoDerivedState(db, todoID, now); err != nil {
+	if err := syncTodoDerivedState(db, todoID, now, item.IsDone); err != nil {
 		return "", err
 	}
 	return item.ID, nil
@@ -878,6 +883,16 @@ func UpdateTodoItem(db *sql.DB, item TodoItem) error {
 		return fmt.Errorf("todo_id is required")
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
+	var previousIsDone int
+	if err := db.QueryRow(
+		`SELECT is_done FROM todo_items WHERE id=? AND todo_id=?`, item.ID, item.TodoID,
+	).Scan(&previousIsDone); err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("todo item not found: %s", item.ID)
+		}
+		return fmt.Errorf("failed to load todo item: %w", err)
+	}
+	previousDone := previousIsDone != 0
 	if err := prepareTodoItem(&item, item.Position, now); err != nil {
 		return err
 	}
@@ -893,7 +908,8 @@ func UpdateTodoItem(db *sql.DB, item TodoItem) error {
 	if n == 0 {
 		return fmt.Errorf("todo item not found: %s", item.ID)
 	}
-	return syncTodoDerivedState(db, item.TodoID, now)
+	allowComplete := !previousDone && item.IsDone
+	return syncTodoDerivedState(db, item.TodoID, now, allowComplete)
 }
 
 // DeleteTodoItem removes a subtask from a todo.
@@ -906,7 +922,7 @@ func DeleteTodoItem(db *sql.DB, todoID, itemID string) error {
 	if n == 0 {
 		return fmt.Errorf("todo item not found: %s", itemID)
 	}
-	return syncTodoDerivedState(db, todoID, time.Now().UTC().Format(time.RFC3339))
+	return syncTodoDerivedState(db, todoID, time.Now().UTC().Format(time.RFC3339), true)
 }
 
 // ReorderTodoItems updates item positions inside a todo.
@@ -927,7 +943,7 @@ func ReorderTodoItems(db *sql.DB, todoID string, itemIDs []string) error {
 			return fmt.Errorf("todo item not found: %s", itemID)
 		}
 	}
-	if err := syncTodoDerivedStateTx(tx, todoID, time.Now().UTC().Format(time.RFC3339)); err != nil {
+	if err := syncTodoDerivedStateTx(tx, todoID, time.Now().UTC().Format(time.RFC3339), false); err != nil {
 		return err
 	}
 	if err := tx.Commit(); err != nil {
@@ -1333,14 +1349,14 @@ func reminderMatchesDay(stored, dayKey string) bool {
 	return false
 }
 
-func syncTodoDerivedState(db *sql.DB, todoID, updatedAt string) error {
+func syncTodoDerivedState(db *sql.DB, todoID, updatedAt string, allowComplete bool) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return fmt.Errorf("begin todo state sync: %w", err)
 	}
 	defer tx.Rollback()
 
-	if err := syncTodoDerivedStateTx(tx, todoID, updatedAt); err != nil {
+	if err := syncTodoDerivedStateTx(tx, todoID, updatedAt, allowComplete); err != nil {
 		return err
 	}
 	if err := tx.Commit(); err != nil {
@@ -1349,7 +1365,7 @@ func syncTodoDerivedState(db *sql.DB, todoID, updatedAt string) error {
 	return nil
 }
 
-func syncTodoDerivedStateTx(tx *sql.Tx, todoID, updatedAt string) error {
+func syncTodoDerivedStateTx(tx *sql.Tx, todoID, updatedAt string, allowComplete bool) error {
 	todo, err := getTodoTx(tx, todoID)
 	if err != nil {
 		return err
@@ -1360,7 +1376,7 @@ func syncTodoDerivedStateTx(tx *sql.Tx, todoID, updatedAt string) error {
 	}
 	todo.Items = items
 	todo.UpdatedAt = updatedAt
-	deriveTodoStateFromChecklist(todo, updatedAt)
+	deriveTodoStateFromChecklist(todo, updatedAt, allowComplete)
 	res, err := tx.Exec(
 		`UPDATE todos SET status=?, completed_at=?, updated_at=? WHERE id=?`,
 		todo.Status, todo.CompletedAt, updatedAt, todoID,
@@ -1388,7 +1404,7 @@ func syncTodoDerivedStateTx(tx *sql.Tx, todoID, updatedAt string) error {
 	return nil
 }
 
-func deriveTodoStateFromChecklist(todo *Todo, updatedAt string) {
+func deriveTodoStateFromChecklist(todo *Todo, updatedAt string, allowComplete bool) {
 	if todo == nil {
 		return
 	}
@@ -1401,13 +1417,13 @@ func deriveTodoStateFromChecklist(todo *Todo, updatedAt string) {
 			}
 		}
 		switch {
-		case doneCount == len(todo.Items):
+		case todo.Status == "done" && doneCount == len(todo.Items):
+			// already done
+		case doneCount == len(todo.Items) && allowComplete:
 			todo.Status = "done"
-		case doneCount > 0:
-			if todo.Status == "done" || todo.Status == "open" {
-				todo.Status = "in_progress"
-			}
-		case todo.Status == "done" || todo.Status == "in_progress":
+		case doneCount > 0 && doneCount < len(todo.Items) && (todo.Status == "open" || todo.Status == "done"):
+			todo.Status = "in_progress"
+		case doneCount == 0 && (todo.Status == "done" || todo.Status == "in_progress"):
 			todo.Status = "open"
 		}
 	}

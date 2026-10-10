@@ -1248,6 +1248,40 @@ func TestUpdateTodo(t *testing.T) {
 	}
 }
 
+func TestUpdateTodoReopenKeepsFinishedItems(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	id, err := CreateTodo(db, Todo{
+		Title: "Pack",
+		Items: []TodoItem{{Title: "Box"}, {Title: "Tape"}},
+	})
+	if err != nil {
+		t.Fatalf("CreateTodo: %v", err)
+	}
+	if err := CompleteTodo(db, id, true); err != nil {
+		t.Fatalf("CompleteTodo: %v", err)
+	}
+	todo, err := GetTodo(db, id)
+	if err != nil {
+		t.Fatalf("GetTodo: %v", err)
+	}
+	todo.Status = "open"
+	if err := UpdateTodo(db, *todo); err != nil {
+		t.Fatalf("UpdateTodo: %v", err)
+	}
+	reopened, err := GetTodo(db, id)
+	if err != nil {
+		t.Fatalf("GetTodo after reopen: %v", err)
+	}
+	if reopened.Status != "open" {
+		t.Fatalf("status = %q, want open", reopened.Status)
+	}
+	if reopened.DoneItemCount != 2 {
+		t.Fatalf("done items = %d, want 2", reopened.DoneItemCount)
+	}
+}
+
 func TestUpdateTodoDoneCompletesItems(t *testing.T) {
 	db := testDB(t)
 	defer db.Close()
