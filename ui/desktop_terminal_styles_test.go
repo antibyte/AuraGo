@@ -348,12 +348,14 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		"bbsRefit = true;",
 		// A result ignores keys for a moment so keys typed as the service hangs up do not dismiss it.
 		"if (window.performance.now() - resultAt >= RESULT_GRACE_MS) afterResult();",
+		// Placeholders are filled here, never by the shared t(), whose replaceAll treats $ in server text as a pattern.
+		"let text = String(ctx.t(key));",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("terminal.js missing %q", want)
 		}
 	}
-	for _, forbidden := range []string{"function printable", "function cellWidth", "function fitToCells", "key === 'y'", "dialog.close(); dialog.remove()"} {
+	for _, forbidden := range []string{"function printable", "function cellWidth", "function fitToCells", "key === 'y'", "dialog.close(); dialog.remove()", "ctx.t(key, params)"} {
 		if strings.Contains(source, forbidden) {
 			t.Fatalf("terminal.js must use the shared TerminalText/session helpers; found %q", forbidden)
 		}

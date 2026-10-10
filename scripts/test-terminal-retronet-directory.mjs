@@ -590,6 +590,31 @@ for (const [label, options] of [['can_edit false', { data: { ...payload, can_edi
     h.real.dispose();
 }
 
+// 8. `$` in own-entry text: the desktop's shared t() interpolates with String.replaceAll, where $&, $` and $' in
+// the replacement are patterns. The directory interpolates itself, so the announcement keeps the text as typed.
+{
+    const sharedT = (key, params) => {
+        let text = Object.prototype.hasOwnProperty.call(english, key) ? english[key] : key;
+        Object.keys(params || {}).forEach((name) => {
+            text = text.replaceAll('{{' + name + '}}', params[name]);
+            text = text.replaceAll('{' + name + '}', params[name]);
+        });
+        return text;
+    };
+    same('the shared t() mangles $& (the trap this guards against)', sharedT('desktop.terminal_retronet_announce', { entry: 'a$&b', position: 1, total: 1 }).startsWith('a$&b'), false);
+    const dollarName = 'Cash $& Carry $\' Co $` $$';
+    const dollarDescription = 'Costs $5 $& more $\'';
+    const dollarPayload = { entries: [payload.entries[0], own('dollar', dollarName, dollarDescription)], status: { dollar: { state: 'online' } }, stale: false, can_edit: true };
+    const { term, directory, announced } = await renderDirectory(80, 30, sharedT, dollarPayload);
+    directory.handleData('\x1b[F');
+    same('End selects the own entry', directory.selected().id, 'dollar');
+    const entryText = '02 ' + dollarName + '. ' + dollarDescription + '. ' + english['desktop.terminal_retronet_status_online'];
+    same('the announcement keeps $ patterns in name and description', announced.at(-1),
+        english['desktop.terminal_retronet_announce'].split('{{entry}}').join(entryText).split('{{position}}').join('3').split('{{total}}').join('3'));
+    directory.dispose();
+    term.dispose();
+}
+
 if (failures) {
     console.log(failures + ' check(s) failed');
     process.exit(1);

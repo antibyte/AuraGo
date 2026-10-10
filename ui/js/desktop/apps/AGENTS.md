@@ -2852,7 +2852,10 @@ registration lives in `internal/desktop/types.go`.
   `printable`) is the single display-width source (vendored xterm's Unicode 6
   table); `printable` strips control characters from API-provided and
   translated strings (names, descriptions, fingerprints, host, result text)
-  before the coordinator or directory writes them. The service's own byte
+  before the coordinator or directory writes them. The coordinator, directory
+  and entry editor call `t(key)` without params and fill `{{name}}`
+  themselves (the shared `t()` uses `replaceAll`, where `$&`/`` $` ``/`$'`
+  in names would be patterns). The service's own byte
   stream passes unchanged so ANSI works. Modem sounds follow the key-click
   rules. Style catalog in `terminal-styles.js`
   (`window.TerminalStyles`: `ids`, `normalize`, `load`, `save`, `profile`,

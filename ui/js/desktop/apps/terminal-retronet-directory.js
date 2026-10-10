@@ -116,13 +116,13 @@
         let pendingDigit = null;
         let lastTap = { index: -1, at: 0 };
 
+        // Interpolates {{name}} itself: t() is called without params, so `$` in entry names and descriptions is never
+        // a replacement pattern of the shared t().
         function tr(key, params) {
-            let text = String(t(key, params));
-            if (params) {
-                Object.keys(params).forEach(function (name) {
-                    text = text.split('{{' + name + '}}').join(String(params[name]));
-                });
-            }
+            let text = String(t(key));
+            Object.keys(params || {}).forEach(function (name) {
+                text = text.split('{{' + name + '}}').join(String(params[name]));
+            });
             return text;
         }
 

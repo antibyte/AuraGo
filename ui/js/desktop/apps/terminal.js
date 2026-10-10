@@ -50,13 +50,13 @@
             window.TerminalRetroNetSession && window.TerminalRetroNetEntries);
     }
 
+    // Interpolates {{name}} itself: ctx.t() is called without params, so `$` in server text (host-key type and
+    // fingerprint) is never a replacement pattern of the shared t().
     function translate(ctx, key, params) {
-        let text = String(ctx.t(key, params));
-        if (params) {
-            Object.keys(params).forEach(function (name) {
-                text = text.split('{{' + name + '}}').join(String(params[name]));
-            });
-        }
+        let text = String(ctx.t(key));
+        Object.keys(params || {}).forEach(function (name) {
+            text = text.split('{{' + name + '}}').join(String(params[name]));
+        });
         return text;
     }
 
