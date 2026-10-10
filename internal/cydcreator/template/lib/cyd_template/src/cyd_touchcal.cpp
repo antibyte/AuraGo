@@ -20,7 +20,8 @@ struct StoredCal {
 };
 
 #if defined(CYD_TOUCH_DRIVER_XPT2046)
-constexpr float kMaxResidualPx = 15.0f;     // a fit worse than this at any point is rejected
+constexpr float kMaxResidualPx = 10.0f;     // a fit worse than this at any point is rejected
+                                            // (one bad corner tap of error e leaves only about e/4 residual)
 constexpr uint32_t kCalIdleMs = 60000;      // nobody touches the screen: give up, store nothing
 constexpr uint32_t kCalReleaseMs = 10000;   // a touch that never releases: give up too
 

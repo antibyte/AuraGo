@@ -101,7 +101,9 @@ void display_begin() {
 }
 
 void ui_queue_begin() {
-  if (g_ui_queue == nullptr) g_ui_queue = xQueueCreate(CYD_UI_QUEUE_LEN, sizeof(std::function<void()>*));
+  if (g_ui_queue != nullptr) return;
+  g_ui_queue = xQueueCreate(CYD_UI_QUEUE_LEN, sizeof(std::function<void()>*));
+  if (g_ui_queue == nullptr) log::error("could not create the ui_async queue, ui_async calls will be dropped");
 }
 
 void ui_queue_drain() {

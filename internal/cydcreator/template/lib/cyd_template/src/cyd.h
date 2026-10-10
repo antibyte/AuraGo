@@ -59,8 +59,12 @@ void remove(const char* key);
 }  // namespace storage
 
 // Hardware the runtime owns: LEDC channels 0-2 (RGB LED), 4 (speaker) and 7
-// (backlight) are reserved. Use board::beep() for sound; never call tone(),
-// analogWrite() or ledcSetup()/ledcAttachPin() on those channels or pins.
+// (backlight) are in use. Never call tone() (it always takes channel 0) or
+// analogWrite() (it allocates channels from the top; on the ESP32-S3 its first
+// call takes channel 7, the backlight), and use board::beep() for sound. For
+// your own PWM use LEDC channels 8-15 on the ESP32. The ESP32-S3 has only 8
+// channels: on boards without RGB LED and speaker use channels 0-5 (6 and 7
+// share the backlight timer).
 // On boards whose touch controller sits on VSPI (classic CYD) the SD card slot
 // shares the default SPI bus, so mounting an SD card there breaks touch.
 namespace board {

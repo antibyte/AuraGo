@@ -24,11 +24,14 @@ struct Locked {
 const char* const kAppNs = "app";
 
 // NVS keys hold at most 15 characters. Preferences rejects longer ones, so the
-// value would silently never be stored: tell the app author in the log.
+// value would silently never be stored: tell the app author in the log, once
+// per boot (a polling loop must not flood the serial port). The flag is not
+// guarded by a lock; a race between tasks costs at most one extra line.
 void warn_long_key(const char* key) {
-  if (key != nullptr && strlen(key) > 15) {
-    log::warn("storage: key \"%s\" is longer than 15 characters and will not be stored", key);
-  }
+  static bool warned = false;
+  if (warned || key == nullptr || strlen(key) <= 15) return;
+  warned = true;
+  log::warn("storage: key \"%s\" is longer than 15 characters and will not be stored (reported once)", key);
 }
 
 }  // namespace

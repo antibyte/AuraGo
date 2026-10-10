@@ -238,6 +238,13 @@ func (v *validator) project() {
 	if !slices.Contains(orientations, p.Orientation) {
 		v.add(SeverityError, IssueOrientationInvalid, "", "", "orientation", "orientation %q must be one of %s",
 			clipEcho(p.Orientation), strings.Join(orientations, ", "))
+	} else if v.board != nil && v.board.Display.Driver == "NV3041A" &&
+		strings.HasPrefix(p.Orientation, "portrait") != (v.board.Display.NativeOrientation == "portrait") {
+		// The NV3041A cannot rotate by register (LovyanGFX), so only the board's
+		// native orientation family works; the template has a matching #error.
+		v.add(SeverityError, IssueOrientationInvalid, "", "", "orientation",
+			"orientation %q is not available: this panel supports %s only", clipEcho(p.Orientation),
+			v.board.Display.NativeOrientation)
 	}
 	if !slices.Contains(Languages, p.Language) {
 		v.add(SeverityError, IssueLanguageUnknown, "", "", "language", "unknown language %q", clipEcho(p.Language))

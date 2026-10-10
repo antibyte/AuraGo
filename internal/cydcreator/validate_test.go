@@ -802,3 +802,44 @@ func TestValidateScreenNames(t *testing.T) {
 		t.Errorf("got %d issues, want %d:\n%s", len(issues), len(want), fmtIssues(issues))
 	}
 }
+
+// The NV3041A cannot rotate by register, so a board with that driver only
+// accepts orientations of its native family; other boards rotate freely.
+func TestValidateOrientationNV3041ALandscapeOnly(t *testing.T) {
+	p, err := NewProject("Dash", "jc4827w543", "night", "en", "UTC0", &SeqIDs{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		orientation string
+		ok          bool
+	}{
+		{"landscape", true},
+		{"landscape_flipped", true},
+		{"portrait", false},
+		{"portrait_flipped", false},
+	}
+	for _, c := range cases {
+		p.Orientation = c.orientation
+		issues := Validate(p, ValidateOptions{})
+		got := issueAt(issues, IssueOrientationInvalid, "orientation")
+		if got == c.ok {
+			t.Errorf("jc4827w543 orientation %q: ORIENTATION_INVALID = %v, want %v\n%s", c.orientation, got, !c.ok, fmtIssues(issues))
+		}
+		if !c.ok {
+			for _, is := range issues {
+				if is.Code == IssueOrientationInvalid && !strings.Contains(is.Message, "this panel supports landscape only") {
+					t.Errorf("message %q does not explain the landscape limit", is.Message)
+				}
+			}
+		}
+	}
+
+	classic := newTestProject(t)
+	for _, o := range []string{"portrait", "portrait_flipped", "landscape_flipped"} {
+		classic.Orientation = o
+		if issues := Validate(classic, ValidateOptions{}); issueAt(issues, IssueOrientationInvalid, "orientation") {
+			t.Errorf("esp32-2432s028r %q must stay valid\n%s", o, fmtIssues(issues))
+		}
+	}
+}

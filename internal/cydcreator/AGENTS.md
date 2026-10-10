@@ -88,6 +88,10 @@ service to this same package.
   - The project `name` (1..64 runes, no control characters, valid UTF-8) and `timezone` (1..64 printable ASCII,
     never empty) are `PROP_INVALID` at paths `name` and `timezone`. `NewProject` defaults the timezone to `UTC0`;
     project settings and imports must keep it non-empty.
+  - `orientation` is one of the four names (`ORIENTATION_INVALID`). A board with an NV3041A display
+    (`jc4827w543`) cannot rotate by register, so it only accepts its native orientation family: portrait on a
+    landscape-native board is `ORIENTATION_INVALID` ("this panel supports landscape only"). The template's
+    `cyd_board.cpp` has the matching `#error` on the internal rotation.
   - `UNKNOWN_PROP` lists at most 20 props per widget plus one summary issue at `<widget path>/props`.
   - The asset budget counts every listed asset; `AssetSizes == nil` skips it.
 - `ApplyOps` is atomic and never modifies its input (it works on a deep copy). It accepts at most 200 ops, each

@@ -28,9 +28,10 @@ using CydPanel = lgfx::Panel_RGB;
 #endif
 
 // The NV3041A cannot rotate by register (LovyanGFX note), so a portrait
-// orientation cannot work: such boards stay landscape (CYD_ROTATION is relative
-// to the native landscape orientation, odd values are portrait).
-#if defined(CYD_PANEL_DRIVER_NV3041A) && (CYD_ROTATION & 1)
+// orientation cannot work: such boards stay landscape. The internal LovyanGFX
+// rotation is the project rotation plus the panel offset rotation; odd values
+// swap the axes (see internal_rotation() below).
+#if defined(CYD_PANEL_DRIVER_NV3041A) && ((CYD_ROTATION + CYD_PANEL_OFFSET_ROTATION) & 1)
 #error "NV3041A panels support landscape only"
 #endif
 
