@@ -1,4 +1,8 @@
 {
+  "desktop.fullscreen": "Fullskjerm",
+  "desktop.exit_fullscreen": "Avslutt fullskjerm",
+  "desktop.fullscreen_unavailable": "Fullskjerm er ikke tilgjengelig i denne nettleseren.",
+  "desktop.fullscreen_error": "Kunne ikke bytte fullskjermmodus.",
   "layerling.fullscreen": "Fullskjerm",
   "layerling.exit_fullscreen": "Avslutt fullskjerm",
   "layerling.fullscreen_error": "Kunne ikke bytte fullskjermmodus.",

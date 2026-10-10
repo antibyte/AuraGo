@@ -1,4 +1,8 @@
 {
+  "desktop.fullscreen": "全画面表示",
+  "desktop.exit_fullscreen": "全画面表示を終了",
+  "desktop.fullscreen_unavailable": "このブラウザーでは全画面表示を利用できません。",
+  "desktop.fullscreen_error": "全画面表示を切り替えられませんでした。",
   "layerling.fullscreen": "全画面表示",
   "layerling.exit_fullscreen": "全画面表示を終了",
   "layerling.fullscreen_error": "全画面表示を切り替えられませんでした。",

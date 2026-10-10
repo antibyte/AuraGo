@@ -280,14 +280,14 @@
 }
 
 /* Keyboard focus: the tray controls, the clock and pinned launchers share the shell ring. */
-.desktop-body :is(.vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-notification-button, .vd-clock, .vd-live-speech-button, .vd-agent-button, .vd-space-pager-btn, .vd-taskbar-pin, .vd-notification-clear, .vd-clock-popup-open):focus-visible {
+.desktop-body :is(.vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-fullscreen-button, .vd-notification-button, .vd-clock, .vd-live-speech-button, .vd-agent-button, .vd-space-pager-btn, .vd-taskbar-pin, .vd-notification-clear, .vd-clock-popup-open):focus-visible {
     outline: var(--ds-focus-ring-width, 2px) solid var(--ds-color-border-focus, var(--vd-accent));
     outline-offset: 1px;
 }
 
 /* Hover and press: the bell, pinned launchers and the small tray buttons answer like the rest of the
  * bar. */
-.desktop-body :is(.vd-notification-button, .vd-taskbar-pin, .vd-space-pager-btn, .vd-show-desktop-btn, .vd-taskbar-widget-btn, .vd-live-speech-button) {
+.desktop-body :is(.vd-fullscreen-button, .vd-notification-button, .vd-taskbar-pin, .vd-space-pager-btn, .vd-show-desktop-btn, .vd-taskbar-widget-btn, .vd-live-speech-button) {
     transition:
         background-color var(--ds-motion-duration-fast, 120ms) var(--ds-motion-ease-standard, ease),
         color var(--ds-motion-duration-fast, 120ms) var(--ds-motion-ease-standard, ease),
@@ -296,13 +296,14 @@
         transform 80ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+.desktop-body .vd-fullscreen-button:enabled:hover,
 .desktop-body .vd-notification-button:hover,
 .desktop-body .vd-taskbar-pin:hover {
     background-color: var(--vd-theme-control-hover, var(--ds-color-control-hover));
     border-color: var(--vd-theme-border-strong, var(--vd-border-bright));
 }
 
-.desktop-body :is(.vd-notification-button, .vd-taskbar-pin, .vd-space-pager-btn, .vd-show-desktop-btn, .vd-taskbar-widget-btn, .vd-live-speech-button):active {
+.desktop-body :is(.vd-fullscreen-button:enabled, .vd-notification-button, .vd-taskbar-pin, .vd-space-pager-btn, .vd-show-desktop-btn, .vd-taskbar-widget-btn, .vd-live-speech-button):active {
     transform: scale(0.94);
 }
 
@@ -335,7 +336,7 @@
     .desktop-body[data-theme="standard"] .vd-task-button::after,
     .vd-toast,
     .vd-icon > :is(.vd-sprite-icon, .vd-theme-icon, .vd-app-logo-icon, .vd-icon-letter),
-    .desktop-body :is(.vd-notification-button, .vd-taskbar-pin, .vd-space-pager-btn, .vd-show-desktop-btn, .vd-taskbar-widget-btn, .vd-live-speech-button) {
+    .desktop-body :is(.vd-fullscreen-button, .vd-notification-button, .vd-taskbar-pin, .vd-space-pager-btn, .vd-show-desktop-btn, .vd-taskbar-widget-btn, .vd-live-speech-button) {
         transition: none;
     }
 

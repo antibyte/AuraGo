@@ -1,4 +1,8 @@
 {
+  "desktop.fullscreen": "Volledig scherm",
+  "desktop.exit_fullscreen": "Volledig scherm afsluiten",
+  "desktop.fullscreen_unavailable": "Volledig scherm is niet beschikbaar in deze browser.",
+  "desktop.fullscreen_error": "De schermmodus kon niet worden gewijzigd.",
   "layerling.fullscreen": "Volledig scherm",
   "layerling.exit_fullscreen": "Volledig scherm verlaten",
   "layerling.fullscreen_error": "De modus voor volledig scherm kon niet worden gewijzigd.",

@@ -1,4 +1,8 @@
 {
+  "desktop.fullscreen": "Plein écran",
+  "desktop.exit_fullscreen": "Quitter le plein écran",
+  "desktop.fullscreen_unavailable": "Le plein écran n’est pas disponible dans ce navigateur.",
+  "desktop.fullscreen_error": "Impossible de changer le mode plein écran.",
   "layerling.fullscreen": "Plein écran",
   "layerling.exit_fullscreen": "Quitter le plein écran",
   "layerling.fullscreen_error": "Impossible de changer le mode plein écran.",

@@ -1,4 +1,8 @@
 {
+  "desktop.fullscreen": "Celá obrazovka",
+  "desktop.exit_fullscreen": "Ukončit režim celé obrazovky",
+  "desktop.fullscreen_unavailable": "V tomto prohlížeči není režim celé obrazovky k dispozici.",
+  "desktop.fullscreen_error": "Režim celé obrazovky se nepodařilo přepnout.",
   "layerling.fullscreen": "Celá obrazovka",
   "layerling.exit_fullscreen": "Ukončit celou obrazovku",
   "layerling.fullscreen_error": "Režim celé obrazovky se nepodařilo přepnout.",

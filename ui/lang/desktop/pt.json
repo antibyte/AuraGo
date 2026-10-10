@@ -1,4 +1,8 @@
 {
+  "desktop.fullscreen": "Tela cheia",
+  "desktop.exit_fullscreen": "Sair da tela cheia",
+  "desktop.fullscreen_unavailable": "A tela cheia não está disponível neste navegador.",
+  "desktop.fullscreen_error": "Não foi possível alternar o modo de tela cheia.",
   "layerling.fullscreen": "Tela cheia",
   "layerling.exit_fullscreen": "Sair da tela cheia",
   "layerling.fullscreen_error": "Não foi possível alternar o modo de tela cheia.",

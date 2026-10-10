@@ -1,4 +1,8 @@
 {
+  "desktop.fullscreen": "Pantalla completa",
+  "desktop.exit_fullscreen": "Salir de pantalla completa",
+  "desktop.fullscreen_unavailable": "La pantalla completa no está disponible en este navegador.",
+  "desktop.fullscreen_error": "No se pudo cambiar el modo de pantalla completa.",
   "layerling.fullscreen": "Pantalla completa",
   "layerling.exit_fullscreen": "Salir de pantalla completa",
   "layerling.fullscreen_error": "No se pudo cambiar el modo de pantalla completa.",

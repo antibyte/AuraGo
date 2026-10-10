@@ -1,4 +1,8 @@
 {
+  "desktop.fullscreen": "पूर्ण स्क्रीन",
+  "desktop.exit_fullscreen": "पूर्ण स्क्रीन से बाहर निकलें",
+  "desktop.fullscreen_unavailable": "इस ब्राउज़र में पूर्ण स्क्रीन उपलब्ध नहीं है।",
+  "desktop.fullscreen_error": "पूर्ण स्क्रीन मोड बदला नहीं जा सका।",
   "layerling.fullscreen": "पूर्ण स्क्रीन",
   "layerling.exit_fullscreen": "पूर्ण स्क्रीन से बाहर निकलें",
   "layerling.fullscreen_error": "पूर्ण स्क्रीन मोड बदला नहीं जा सका।",

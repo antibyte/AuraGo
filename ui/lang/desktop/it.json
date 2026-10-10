@@ -1,4 +1,8 @@
 {
+  "desktop.fullscreen": "Schermo intero",
+  "desktop.exit_fullscreen": "Esci da schermo intero",
+  "desktop.fullscreen_unavailable": "Lo schermo intero non è disponibile in questo browser.",
+  "desktop.fullscreen_error": "Impossibile cambiare la modalità a schermo intero.",
   "layerling.fullscreen": "Schermo intero",
   "layerling.exit_fullscreen": "Esci da schermo intero",
   "layerling.fullscreen_error": "Impossibile cambiare la modalità a schermo intero.",

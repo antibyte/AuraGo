@@ -1,4 +1,8 @@
 {
+  "desktop.fullscreen": "Fullscreen",
+  "desktop.exit_fullscreen": "Exit fullscreen",
+  "desktop.fullscreen_unavailable": "Fullscreen is unavailable in this browser.",
+  "desktop.fullscreen_error": "Could not switch fullscreen mode.",
   "layerling.fullscreen": "Fullscreen",
   "layerling.exit_fullscreen": "Exit fullscreen",
   "layerling.fullscreen_error": "Could not switch fullscreen mode.",

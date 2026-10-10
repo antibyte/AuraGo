@@ -318,6 +318,43 @@
     }
 
     function wireShellChromeControls() {
+        const fullscreenBtn = document.getElementById('vd-fullscreen-button');
+        if (fullscreenBtn && !fullscreenBtn.dataset.shellChromeWired) {
+            fullscreenBtn.dataset.shellChromeWired = 'true';
+            let pending = false;
+            const syncFullscreen = () => {
+                const active = !!document.fullscreenElement;
+                const supported = !!(document.fullscreenEnabled && document.documentElement.requestFullscreen && document.exitFullscreen);
+                const label = !supported ? 'desktop.fullscreen_unavailable' : active ? 'desktop.exit_fullscreen' : 'desktop.fullscreen';
+                fullscreenBtn.disabled = pending || !supported;
+                fullscreenBtn.setAttribute('aria-busy', String(pending));
+                fullscreenBtn.setAttribute('aria-pressed', String(active));
+                fullscreenBtn.dataset.i18nTitle = label;
+                fullscreenBtn.dataset.i18nAriaLabel = label;
+                fullscreenBtn.title = t(label);
+                fullscreenBtn.setAttribute('aria-label', t(label));
+                fullscreenBtn.querySelector('path').setAttribute('d', active
+                    ? 'M3 8h5V3m8 0v5h5M8 21v-5H3m18 0h-5v5'
+                    : 'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5');
+            };
+            fullscreenBtn.addEventListener('click', async () => {
+                if (fullscreenBtn.disabled) return;
+                pending = true;
+                syncFullscreen();
+                try {
+                    if (document.fullscreenElement) await document.exitFullscreen();
+                    else await document.documentElement.requestFullscreen();
+                } catch (_) {
+                    showDesktopNotification({ type: 'error', title: t('desktop.fullscreen'), message: t('desktop.fullscreen_error') });
+                } finally {
+                    pending = false;
+                    syncFullscreen();
+                }
+            });
+            document.addEventListener('fullscreenchange', syncFullscreen);
+            window.addEventListener('aurago:language-changed', syncFullscreen);
+            syncFullscreen();
+        }
         const clock = document.getElementById('vd-clock');
         if (clock && !clock.dataset.shellChromeWired) {
             clock.dataset.shellChromeWired = 'true';

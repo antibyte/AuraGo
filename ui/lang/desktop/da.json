@@ -1,4 +1,8 @@
 {
+  "desktop.fullscreen": "Fuld skærm",
+  "desktop.exit_fullscreen": "Afslut fuld skærm",
+  "desktop.fullscreen_unavailable": "Fuld skærm er ikke tilgængelig i denne browser.",
+  "desktop.fullscreen_error": "Kunne ikke skifte fuldskærmstilstand.",
   "layerling.fullscreen": "Fuld skærm",
   "layerling.exit_fullscreen": "Afslut fuld skærm",
   "layerling.fullscreen_error": "Kunne ikke skifte fuldskærmstilstand.",

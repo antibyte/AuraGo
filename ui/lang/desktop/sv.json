@@ -1,4 +1,8 @@
 {
+  "desktop.fullscreen": "Helskärm",
+  "desktop.exit_fullscreen": "Avsluta helskärm",
+  "desktop.fullscreen_unavailable": "Helskärm är inte tillgängligt i den här webbläsaren.",
+  "desktop.fullscreen_error": "Det gick inte att växla helskärmsläge.",
   "layerling.fullscreen": "Helskärm",
   "layerling.exit_fullscreen": "Avsluta helskärm",
   "layerling.fullscreen_error": "Det gick inte att växla helskärmsläge.",

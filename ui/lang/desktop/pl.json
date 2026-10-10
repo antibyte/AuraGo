@@ -1,4 +1,8 @@
 {
+  "desktop.fullscreen": "Pełny ekran",
+  "desktop.exit_fullscreen": "Wyjdź z pełnego ekranu",
+  "desktop.fullscreen_unavailable": "Tryb pełnoekranowy jest niedostępny w tej przeglądarce.",
+  "desktop.fullscreen_error": "Nie udało się przełączyć trybu pełnoekranowego.",
   "layerling.fullscreen": "Pełny ekran",
   "layerling.exit_fullscreen": "Opuść pełny ekran",
   "layerling.fullscreen_error": "Nie udało się przełączyć trybu pełnoekranowego.",

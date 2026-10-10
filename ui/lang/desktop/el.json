@@ -1,4 +1,8 @@
 {
+  "desktop.fullscreen": "Πλήρης οθόνη",
+  "desktop.exit_fullscreen": "Έξοδος από πλήρη οθόνη",
+  "desktop.fullscreen_unavailable": "Η πλήρης οθόνη δεν είναι διαθέσιμη σε αυτό το πρόγραμμα περιήγησης.",
+  "desktop.fullscreen_error": "Δεν ήταν δυνατή η αλλαγή της λειτουργίας πλήρους οθόνης.",
   "layerling.fullscreen": "Πλήρης οθόνη",
   "layerling.exit_fullscreen": "Έξοδος από πλήρη οθόνη",
   "layerling.fullscreen_error": "Δεν ήταν δυνατή η εναλλαγή της λειτουργίας πλήρους οθόνης.",

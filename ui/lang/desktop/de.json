@@ -1,4 +1,8 @@
 {
+  "desktop.fullscreen": "Vollbild",
+  "desktop.exit_fullscreen": "Vollbild beenden",
+  "desktop.fullscreen_unavailable": "Vollbild ist in diesem Browser nicht verfügbar.",
+  "desktop.fullscreen_error": "Der Vollbildmodus konnte nicht umgeschaltet werden.",
   "layerling.fullscreen": "Vollbild",
   "layerling.exit_fullscreen": "Vollbild beenden",
   "layerling.fullscreen_error": "Der Vollbildmodus konnte nicht umgeschaltet werden.",
