@@ -1,10 +1,12 @@
 // cyd_storage.cpp - NVS access. App values live in namespace "app"; the
 // runtime uses "cyd_wifi" (credentials) and "cyd_sys" (calibration, OTA state).
 // Every call opens and closes its namespace under one mutex, so the API is
-// safe from any task.
+// safe from any task. Lookups of data that does not exist yet return the
+// default without an error line in the log (see begin_read).
 #include "cyd_private.h"
 
 #include <Preferences.h>
+#include <nvs.h>
 #include <string.h>
 
 namespace cyd {
@@ -22,6 +24,19 @@ struct Locked {
 };
 
 const char* const kAppNs = "app";
+
+// A namespace exists only after its first write, and Preferences::begin logs
+// "nvs_open failed: NOT_FOUND" as an error whenever a read opens a missing one,
+// so every lookup on a fresh device would print it. Probe with the IDF API
+// first: a missing namespace means "use the default", silently. Any other
+// probe result falls through to Preferences::begin, which handles it as before.
+bool begin_read(Preferences* p, const char* ns) {
+  nvs_handle_t h;
+  esp_err_t err = nvs_open(ns, NVS_READONLY, &h);
+  if (err == ESP_ERR_NVS_NOT_FOUND) return false;
+  if (err == ESP_OK) nvs_close(h);
+  return p->begin(ns, true);
+}
 
 // NVS keys hold at most 15 characters. Preferences rejects longer ones, so the
 // value would silently never be stored: tell the app author in the log, once
@@ -42,7 +57,7 @@ int32_t get_int(const char* key, int32_t def) {
   warn_long_key(key);
   Locked l;
   Preferences p;
-  if (!p.begin(kAppNs, true)) return def;
+  if (!begin_read(&p, kAppNs)) return def;
   int32_t v = p.getInt(key, def);
   p.end();
   return v;
@@ -61,8 +76,9 @@ float get_float(const char* key, float def) {
   warn_long_key(key);
   Locked l;
   Preferences p;
-  if (!p.begin(kAppNs, true)) return def;
-  float v = p.getFloat(key, def);
+  if (!begin_read(&p, kAppNs)) return def;
+  // getFloat reads a blob and logs a missing key as an error; getInt/getBool do not.
+  float v = p.isKey(key) ? p.getFloat(key, def) : def;
   p.end();
   return v;
 }
@@ -80,7 +96,7 @@ bool get_bool(const char* key, bool def) {
   warn_long_key(key);
   Locked l;
   Preferences p;
-  if (!p.begin(kAppNs, true)) return def;
+  if (!begin_read(&p, kAppNs)) return def;
   bool v = p.getBool(key, def);
   p.end();
   return v;
@@ -99,7 +115,7 @@ String get_string(const char* key, const String& def) {
   warn_long_key(key);
   Locked l;
   Preferences p;
-  if (!p.begin(kAppNs, true)) return def;
+  if (!begin_read(&p, kAppNs)) return def;
   String v = p.isKey(key) ? p.getString(key, def) : def;
   p.end();
   return v;
@@ -119,7 +135,7 @@ void remove(const char* key) {
   Locked l;
   Preferences p;
   if (!p.begin(kAppNs, false)) return;
-  p.remove(key);
+  if (p.isKey(key)) p.remove(key);  // Preferences::remove logs a missing key as an error
   p.end();
 }
 
@@ -130,7 +146,7 @@ namespace detail {
 bool sys_get_blob(const char* ns, const char* key, void* out, size_t len) {
   Locked l;
   Preferences p;
-  if (!p.begin(ns, true)) return false;
+  if (!begin_read(&p, ns)) return false;
   bool ok = p.isKey(key) && p.getBytesLength(key) == len && p.getBytes(key, out, len) == len;
   p.end();
   return ok;
@@ -147,7 +163,7 @@ void sys_set_blob(const char* ns, const char* key, const void* data, size_t len)
 String sys_get_string(const char* ns, const char* key) {
   Locked l;
   Preferences p;
-  if (!p.begin(ns, true)) return String();
+  if (!begin_read(&p, ns)) return String();
   String v = p.isKey(key) ? p.getString(key, "") : String();
   p.end();
   return v;
@@ -158,7 +174,7 @@ void sys_set_string(const char* ns, const char* key, const String& value) {
   Preferences p;
   if (!p.begin(ns, false)) return;
   if (value.length() == 0) {
-    p.remove(key);
+    if (p.isKey(key)) p.remove(key);
   } else {
     p.putString(key, value);
   }

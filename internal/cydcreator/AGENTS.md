@@ -198,6 +198,9 @@ service to this same package.
   size), so a different board or profile offers a fresh calibration instead of using a foreign one. The flow
   gives up without storing after 60 s idle or a touch held 10 s, uses a relative pivot, and rejects a fit with a
   residual above 10 px (retry).
+- NVS (`cyd_storage.cpp`): reads probe the namespace with the IDF `nvs_open(ns, NVS_READONLY)` before
+  `Preferences::begin`, because Preferences logs a missing namespace (every lookup on a fresh device) as an error;
+  `get_float` and key removal check `isKey` first for the same reason. Results are the same either way.
 - Link and worker state: the worker task only talks to the server and hands results to the loop task (mutex slot,
   progress atomics, 15-minute busy watchdog); it never touches LVGL. Holding BOOT for 5 s during the splash erases
   the Wi-Fi credentials, including the IDF driver's own store.
