@@ -3,9 +3,11 @@ package cydcreator
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"reflect"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 // validFixture: screens home (s_0001, start) and details (s_0002), one asset, no issues.
@@ -446,5 +448,357 @@ func TestHasErrors(t *testing.T) {
 	}
 	if !HasErrors([]Issue{{Severity: SeverityWarning}, {Severity: SeverityError}}) {
 		t.Fatal("error not detected")
+	}
+}
+
+// errorsOf returns the error-severity issues only.
+func errorsOf(issues []Issue) []Issue {
+	var out []Issue
+	for _, is := range issues {
+		if is.Severity == SeverityError {
+			out = append(out, is)
+		}
+	}
+	return out
+}
+
+func TestValidateInvalidTabviewPropDoesNotCascade(t *testing.T) {
+	cases := []struct {
+		name  string
+		prop  string
+		value any
+	}{
+		{"bar size out of range", "bar_size", 500},
+		{"bar size wrong type", "bar_size", "wide"},
+		{"bar position unknown", "bar_position", "diagonal"},
+		{"tabs not a list", "tabs", "oops"},
+		{"too many tabs", "tabs", make([]string, 9)},
+	}
+	for _, tc := range cases {
+		p := validFixture(t)
+		addTo(&p, 0, Widget{ID: "w_tv", Type: "tabview", W: 300, H: 200, Props: map[string]any{tc.prop: tc.value},
+			Children: []Widget{
+				{ID: "w_c0", Type: "label", W: 100, H: 24},
+				{ID: "w_c1", Type: "label", Tab: 1, Y: 120, W: 100, H: 24},
+			}})
+		issues := Validate(p, ValidateOptions{})
+		if len(issues) != 1 || !issueAt(issues, IssuePropInvalid, "screens/0/widgets/0/props/"+tc.prop) {
+			t.Errorf("%s: want exactly one PROP_INVALID at props/%s, got:\n%s", tc.name, tc.prop, fmtIssues(issues))
+		}
+	}
+
+	// A valid explicit bar_size still shrinks the child area (200-80 = 120 high).
+	p := validFixture(t)
+	addTo(&p, 0, Widget{ID: "w_tv", Type: "tabview", W: 300, H: 200, Props: map[string]any{"bar_size": 80},
+		Children: []Widget{{ID: "w_c0", Type: "label", Y: 150, W: 100, H: 20}}})
+	if issues := Validate(p, ValidateOptions{}); !issueAt(issues, IssueOutOfBounds, "screens/0/widgets/0/children/0") {
+		t.Errorf("valid bar_size must still apply:\n%s", fmtIssues(issues))
+	}
+}
+
+func TestValidateExtremeCoordinates(t *testing.T) {
+	cases := []struct {
+		name string
+		x, y int
+		code string
+	}{
+		{"x min int", math.MinInt, 0, IssueSizeInvalid},
+		{"y min int", 0, math.MinInt, IssueSizeInvalid},
+		{"x max int", math.MaxInt, 0, IssueSizeInvalid},
+		{"y max int", 0, math.MaxInt, IssueSizeInvalid},
+		{"x beyond limit", maxCoordinate + 1, 0, IssueSizeInvalid},
+		{"y beyond negative limit", 0, -maxCoordinate - 1, IssueSizeInvalid},
+		{"x at negative limit", -maxCoordinate, 0, IssueOutOfBounds},
+		{"y at limit", 0, maxCoordinate, IssueOutOfBounds},
+	}
+	for _, tc := range cases {
+		p := validFixture(t)
+		addTo(&p, 0, Widget{ID: "w_1", Type: "label", X: tc.x, Y: tc.y, W: 10, H: 10})
+		issues := Validate(p, ValidateOptions{})
+		if len(issues) != 1 || !issueAt(issues, tc.code, "screens/0/widgets/0") {
+			t.Errorf("%s: want exactly one %s, got:\n%s", tc.name, tc.code, fmtIssues(issues))
+		}
+	}
+}
+
+func TestClipEcho(t *testing.T) {
+	long3 := strings.Repeat("€", 30) // 90 bytes, 64 falls inside a rune
+	cases := []struct{ name, in, want string }{
+		{"short", "abc", "abc"},
+		{"exactly the limit", strings.Repeat("a", maxEchoBytes), strings.Repeat("a", maxEchoBytes)},
+		{"one over", strings.Repeat("a", maxEchoBytes+1), strings.Repeat("a", maxEchoBytes) + "…"},
+		{"two byte runes", strings.Repeat("ä", 40), strings.Repeat("ä", 32) + "…"},
+		{"cut inside a rune", long3, strings.Repeat("€", 21) + "…"},
+		{"only continuation bytes", strings.Repeat("\x80", 100), "…"},
+	}
+	for _, tc := range cases {
+		if got := clipEcho(tc.in); got != tc.want {
+			t.Errorf("%s: clipEcho = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+	if got := clipEcho(long3); !utf8.ValidString(got) {
+		t.Errorf("clipped text is not valid UTF-8: %q", got)
+	}
+}
+
+func TestValidateClipsEchoedValues(t *testing.T) {
+	huge := strings.Repeat("ä", 100<<10) // 200 KB
+	bounded := func(t *testing.T, label string, issues []Issue, wantCodes ...string) {
+		t.Helper()
+		for _, is := range issues {
+			if len(is.Message) > 512 {
+				t.Errorf("%s: %s message is %d bytes: %.80q", label, is.Code, len(is.Message), is.Message)
+			}
+		}
+		for _, code := range wantCodes {
+			found := false
+			for _, is := range issues {
+				found = found || is.Code == code
+			}
+			if !found {
+				t.Errorf("%s: missing %s in:\n%.2000s", label, code, fmtIssues(issues))
+			}
+		}
+	}
+
+	// Project-level values (the board is unknown, so only these checks run).
+	p := validFixture(t)
+	p.Board, p.Theme, p.Orientation, p.Language, p.StartScreen = huge, huge, huge, huge, huge
+	p.Settings.WiFi, p.Settings.Libraries = huge, []string{huge}
+	bounded(t, "project", Validate(p, ValidateOptions{}), IssueBoardUnknown, IssueThemeUnknown, IssueOrientationInvalid,
+		IssueLanguageUnknown, IssueWiFiModeInvalid, IssueLibraryUnknown, IssueStartScreenMissing)
+
+	// Screens, widgets, events, actions and assets under a known board.
+	p = validFixture(t)
+	p.Screens[1].Name, p.Screens[1].Transition = huge, huge
+	badName := lbl("w_1")
+	badName.Name = huge
+	badType := lbl("w_2")
+	badType.Type = huge
+	// An unknown type has no event list, so the "bound twice" branch echoes the event name.
+	badType.Name, badType.Events = "t_unknown", []EventBinding{{On: huge, Action: Action{Type: "back"}}, {On: huge, Action: Action{Type: "back"}}}
+	unknownProp := lbl("w_3")
+	unknownProp.Props = map[string]any{huge: 1}
+	badEvent := lbl("w_4")
+	badEvent.Name, badEvent.Events = "lbl_ev", []EventBinding{{On: huge, Action: Action{Type: "back"}}, {On: huge, Action: Action{Type: "back"}}}
+	badAction := Widget{ID: "w_5", Type: "button", Name: "btn_a", W: 100, H: 40, Events: []EventBinding{
+		{On: "clicked", Action: Action{Type: huge}}}}
+	badTarget := Widget{ID: "w_6", Type: "button", Name: "btn_b", W: 100, H: 40, Events: []EventBinding{
+		{On: "clicked", Action: Action{Type: "goto_screen", Screen: huge, Transition: huge}}}}
+	badAsset := Widget{ID: "w_7", Type: "image", W: 64, H: 64, Props: map[string]any{"asset": huge + "z"}} // not the huge asset id declared below
+	badColor := lbl("w_8")
+	badColor.Style.BgColor = huge
+	dupA, dupB := lbl(huge), lbl(huge)
+	addTo(&p, 0, badName, badType, unknownProp, badEvent, badAction, badTarget, badAsset, badColor, dupA, dupB)
+	p.Assets = append(p.Assets,
+		Asset{ID: huge, File: huge, W: 0, H: 0},
+		Asset{ID: huge, File: "assets/ok.png", W: 10, H: 10})
+	bounded(t, "layout", Validate(p, ValidateOptions{}), IssueScreenNameInvalid, IssueTransitionInvalid, IssueNameInvalid,
+		IssueUnknownType, IssueUnknownProp, IssueEventNotAllowed, IssueActionInvalid, IssueScreenTargetMissing,
+		IssueAssetMissing, IssueColorInvalid, IssueIDDuplicate, IssuePropInvalid, IssueSizeInvalid)
+
+	// A duplicate screen name.
+	p = validFixture(t)
+	p.Screens[0].Name, p.Screens[1].Name = "dup", "dup"
+	bounded(t, "dup", Validate(p, ValidateOptions{}), IssueScreenNameDuplicate)
+}
+
+func TestValidateUnknownPropCap(t *testing.T) {
+	build := func(n int) []Issue {
+		props := map[string]any{}
+		for i := 0; i < n; i++ {
+			props[fmt.Sprintf("k%04d", i)] = i
+		}
+		p := validFixture(t)
+		addTo(&p, 0, Widget{ID: "w_1", Type: "label", W: 120, H: 24, Props: props})
+		return Validate(p, ValidateOptions{})
+	}
+	for _, n := range []int{1, maxUnknownPropIssues} {
+		issues := build(n)
+		if len(issues) != n {
+			t.Errorf("%d unknown props: got %d issues:\n%s", n, len(issues), fmtIssues(issues))
+		}
+	}
+	issues := build(maxUnknownPropIssues + 1)
+	if len(issues) != maxUnknownPropIssues+1 || !issueAt(issues, IssueUnknownProp, "screens/0/widgets/0/props") {
+		t.Errorf("21 unknown props: want 20 plus one summary, got:\n%s", fmtIssues(issues))
+	}
+
+	issues = build(1000)
+	if len(issues) != maxUnknownPropIssues+1 {
+		t.Fatalf("1000 unknown props: got %d issues, want %d:\n%s", len(issues), maxUnknownPropIssues+1, fmtIssues(issues))
+	}
+	for i, is := range issues {
+		if is.Code != IssueUnknownProp || is.Severity != SeverityError {
+			t.Errorf("issue %d is %s %s", i, is.Severity, is.Code)
+		}
+	}
+	if !issueAt(issues, IssueUnknownProp, "screens/0/widgets/0/props/k0000") ||
+		!issueAt(issues, IssueUnknownProp, "screens/0/widgets/0/props/k0019") ||
+		issueAt(issues, IssueUnknownProp, "screens/0/widgets/0/props/k0020") {
+		t.Errorf("the first 20 sorted keys must be reported individually:\n%s", fmtIssues(issues))
+	}
+	last := issues[len(issues)-1]
+	if last.Path != "screens/0/widgets/0/props" || !strings.Contains(last.Message, "980") {
+		t.Errorf("summary issue = %+v", last)
+	}
+}
+
+func TestValidateProjectNameAndTimezone(t *testing.T) {
+	names := []struct {
+		name  string
+		value string
+		ok    bool
+	}{
+		{"plain", "Wetterstation", true},
+		{"64 runes", strings.Repeat("ä", 64), true},
+		{"empty", "", false},
+		{"blank", " \t ", false},
+		{"65 runes", strings.Repeat("x", 65), false},
+		{"tab inside", "a\tb", false},
+		{"newline", "a\nb", false},
+		{"nul", "a\x00b", false},
+		{"invalid utf8", "a\xffb", false},
+	}
+	for _, tc := range names {
+		p := validFixture(t)
+		p.Name = tc.value
+		issues := Validate(p, ValidateOptions{})
+		if tc.ok {
+			if len(issues) != 0 {
+				t.Errorf("name %s: unexpected issues:\n%s", tc.name, fmtIssues(issues))
+			}
+			continue
+		}
+		if len(issues) != 1 || !issueAt(issues, IssuePropInvalid, "name") || issues[0].Severity != SeverityError {
+			t.Errorf("name %s: want exactly one PROP_INVALID at name, got:\n%s", tc.name, fmtIssues(issues))
+		}
+	}
+
+	// Validate must not be looser than NewProject for names NewProject can see.
+	for _, tc := range names {
+		if !utf8.ValidString(tc.value) {
+			continue // NewProject does not check UTF-8; Validate does
+		}
+		_, err := NewProject(tc.value, "esp32-2432s028r", "night", "de", "", &SeqIDs{})
+		if (err == nil) != tc.ok {
+			t.Errorf("name %s: NewProject ok=%v, Validate ok=%v", tc.name, err == nil, tc.ok)
+		}
+	}
+
+	zones := []struct {
+		name  string
+		value string
+		ok    bool
+	}{
+		{"posix rule", "CET-1CEST,M3.5.0,M10.5.0/3", true},
+		{"angle brackets", "<+03>-3", true},
+		{"utc", "UTC0", true},
+		{"64 bytes", strings.Repeat("A", 64), true},
+		{"empty", "", false},
+		{"65 bytes", strings.Repeat("A", 65), false},
+		{"non ascii", "Zürich", false},
+		{"control", "UTC0\n", false},
+		{"nul", "UTC\x000", false},
+		{"del", "UTC0\x7f", false},
+	}
+	for _, tc := range zones {
+		p := validFixture(t)
+		p.Timezone = tc.value
+		issues := Validate(p, ValidateOptions{})
+		if tc.ok {
+			if len(issues) != 0 {
+				t.Errorf("timezone %s: unexpected issues:\n%s", tc.name, fmtIssues(issues))
+			}
+			continue
+		}
+		if len(issues) != 1 || !issueAt(issues, IssuePropInvalid, "timezone") || issues[0].Severity != SeverityError {
+			t.Errorf("timezone %s: want exactly one PROP_INVALID at timezone, got:\n%s", tc.name, fmtIssues(issues))
+		}
+	}
+
+	// NewProject's own output (including the "UTC0" default) validates.
+	p, err := NewProject("Demo", "esp32-2432s028r", "night", "", "", &SeqIDs{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if issues := Validate(p, ValidateOptions{}); len(issues) != 0 {
+		t.Errorf("fresh project has issues:\n%s", fmtIssues(issues))
+	}
+}
+
+func TestValidateReservedWidgetNames(t *testing.T) {
+	reserved := []string{
+		"init", "goto", "back", "theme_colors", "event_index", "async",
+		"scr_home", "show_x", "hide_x", "font_big", "x_series", "my_series",
+	}
+	fine := []string{
+		"initial", "gotos", "back_button", "backup", "theme", "event", "asynchronous", "async_x", "xasync",
+		"scr", "scrx", "shown", "hidden", "hide", "fonts", "series", "seriesx", "font", "show",
+	}
+	for _, name := range reserved {
+		p := validFixture(t)
+		w := lbl("w_1")
+		w.Name = name
+		addTo(&p, 0, w)
+		issues := Validate(p, ValidateOptions{})
+		if len(issues) != 1 || !issueAt(issues, IssueNameInvalid, "screens/0/widgets/0/name") {
+			t.Errorf("name %q: want exactly one NAME_INVALID, got:\n%s", name, fmtIssues(issues))
+		}
+	}
+	for _, name := range fine {
+		p := validFixture(t)
+		w := lbl("w_1")
+		w.Name = name
+		addTo(&p, 0, w)
+		if issues := Validate(p, ValidateOptions{}); len(issues) != 0 {
+			t.Errorf("name %q must be allowed, got:\n%s", name, fmtIssues(issues))
+		}
+	}
+}
+
+func TestPropProblemStringLimit(t *testing.T) {
+	v := &validator{}
+	limited := &PropSpec{Name: "s", Kind: PropString, MaxLen: 5}
+	for _, tc := range []struct {
+		val  string
+		code string
+	}{
+		{"abcde", ""},
+		{"abcdef", IssueTextTooLong},
+		{"ää", ""},
+		{"äää", IssueTextTooLong}, // 6 bytes: the limit counts bytes, not runes
+	} {
+		if code, _ := v.propProblem(limited, tc.val); code != tc.code {
+			t.Errorf("MaxLen 5, %q: code %q, want %q", tc.val, code, tc.code)
+		}
+	}
+	unset := &PropSpec{Name: "t", Kind: PropText}
+	if code, _ := v.propProblem(unset, strings.Repeat("x", MaxTextBytes)); code != "" {
+		t.Errorf("MaxLen 0 must fall back to MaxTextBytes, got %q", code)
+	}
+	if code, _ := v.propProblem(unset, strings.Repeat("x", MaxTextBytes+1)); code != IssueTextTooLong {
+		t.Errorf("MaxLen 0 must cap at MaxTextBytes, got %q", code)
+	}
+}
+
+func TestValidateScreenNames(t *testing.T) {
+	p := validFixture(t)
+	p.Screens = append(p.Screens, Screen{ID: "s_0003", Name: "home", Transition: "none", Widgets: []Widget{}})
+	p.Screens[1].Name = "Bad"
+	p.Screens = append(p.Screens, Screen{ID: "s_0004", Name: "Bad", Transition: "none", Widgets: []Widget{}})
+	issues := Validate(p, ValidateOptions{})
+	want := []struct{ code, path string }{
+		{IssueScreenNameInvalid, "screens/1/name"},
+		{IssueScreenNameDuplicate, "screens/2/name"},
+		{IssueScreenNameInvalid, "screens/3/name"}, // an invalid name is reported as invalid, not as a duplicate
+	}
+	for _, w := range want {
+		if !issueAt(issues, w.code, w.path) {
+			t.Errorf("missing %s at %s", w.code, w.path)
+		}
+	}
+	if len(issues) != len(want) {
+		t.Errorf("got %d issues, want %d:\n%s", len(issues), len(want), fmtIssues(issues))
 	}
 }
