@@ -375,11 +375,27 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		"term.write(C64_FRESH_SCREEN);",
 		`const C64_FRESH_SCREEN = '\x1b[0m\x1b[2J\x1b[25;1H';`,
 		// Key hint after CONNECT, colour keys and the bell (C64 calls only).
-		"window.TerminalText.wrapHints(tr('desktop.terminal_retronet_c64_keys'), term.cols - 1).forEach(writeDim);",
+		"window.TerminalText.wrapHints(tr('desktop.terminal_retronet_c64_keys'), term.cols - 1).forEach(function (line) { writeDim(line); });",
 		"term.attachCustomKeyEventHandler(onTermKey);",
 		"const sequence = window.TerminalRetroNetSession.c64ColorKey(event);",
 		"if (!run || !run.c64 || mode !== 'retro') return true;",
-		"if (event.type === 'keydown' && !event.repeat) run.session.send(sequence);",
+		"if (event.type === 'keydown' && !event.repeat) {",
+		// The hint hold: board output waits 2 s after CONNECT unless a key (also a colour key) or a full queue ends it;
+		// every way out of the call ends it, a local hang-up drops the held output.
+		"const C64_HINT_HOLD_MS = 2000;",
+		"if (run.c64) run.hold = window.setTimeout(function () { endHold(run); }, C64_HINT_HOLD_MS);",
+		"if ((!run.live || run.hold) && run.buffered + bytes.length > window.TerminalModem.MAX_QUEUE_BYTES) {",
+		"if (retro === run && !run.ended) releaseHeld(run);",
+		"if (!remote) run.buffer = [];",
+		// The CONNECT announcement names Ctrl+] once: the C64 keys include it, other calls get the hang-up hint.
+		"[tr('desktop.terminal_retronet_c64_keys'), tr('desktop.terminal_retronet_style_locked')] : [tr('desktop.terminal_retronet_hangup_hint')]",
+		// Dim text wraps between words inside the screen; the locked style select is described for screen readers.
+		"window.TerminalText.wrapWords(text, term.cols - 1)",
+		"writeDim(next, true);",
+		"select.setAttribute('aria-describedby', styleNote.id);",
+		"select.removeAttribute('aria-describedby');",
+		// Leaving the C64 look never puts the C64 font back before the geometry leaves 'c64'.
+		"const leaving = !c64Look && !!geometry && geometry.mode() === 'c64';",
 		"term.onBell(onTermBell);",
 		"if (audio && retro && retro.c64 && mode === 'retro') audio.beep();",
 		// A result ignores keys for a moment so keys typed as the service hangs up do not dismiss it.
@@ -392,7 +408,7 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		}
 	}
 	for _, forbidden := range []string{"function printable", "function cellWidth", "function fitToCells", "key === 'y'", "dialog.close(); dialog.remove()", "ctx.t(key, params)",
-		"bbsMode", "fitBbsFont", "VGA_FONT", "function wrapHints", "styles.save('commodore64')"} {
+		"bbsMode", "fitBbsFont", "VGA_FONT", "function wrapHints", "styles.save('commodore64')", "forEach(writeDim)", "function wrapWords"} {
 		if strings.Contains(source, forbidden) {
 			t.Fatalf("terminal.js must use the shared TerminalText/session helpers; found %q", forbidden)
 		}
@@ -915,9 +931,12 @@ func TestDesktopTerminalTextContract(t *testing.T) {
 
 	source := readDesktopAssetText(t, "js/desktop/apps/terminal-text.js")
 	for _, want := range []string{
-		"window.TerminalText = { cellWidth: cellWidth, cells: cells, fitToCells: fitToCells, printable: printable, wrapHints: wrapHints }",
+		"window.TerminalText = { cellWidth: cellWidth, cells: cells, fitToCells: fitToCells, printable: printable, wrapHints: wrapHints, wrapWords: wrapWords }",
 		"function cells(value)",
 		"function wrapHints(value, width)",
+		// Text to read wraps at spaces and splits only over-long words, at cluster boundaries; nothing is cut.
+		"function wrapWords(value, width)",
+		"else clusters(word).forEach(function (part, index) { put(part.text, part.width, index === 0); });",
 		`const HINT_SEPARATOR = ' \xb7 ';`,
 		"function cellWidth(code)",
 		"function fitToCells(value, width, pad)",

@@ -133,5 +133,28 @@
         return lines;
     }
 
-    window.TerminalText = { cellWidth: cellWidth, cells: cells, fitToCells: fitToCells, printable: printable, wrapHints: wrapHints };
+    // Text to read (notices, result lines) in lines of at most `width` cells (at least one), packed greedily at
+    // spaces. Nothing is cut: a word wider than a line is split at cell boundaries, never inside a cluster, so text
+    // without spaces (Chinese, Japanese) simply breaks where the line is full. Empty text is one empty line.
+    function wrapWords(value, width) {
+        const limit = Math.max(1, Math.floor(Number(width) || 0));
+        const lines = [''];
+        let used = 0;
+        function put(text, size, fresh) {
+            if (used && (fresh || used + size > limit)) {
+                lines.push('');
+                used = 0;
+            }
+            lines[lines.length - 1] += text;
+            used += size;
+        }
+        printable(value).split(' ').forEach(function (word) {
+            if (!word) return;
+            if (used && used + 1 + cells(word) <= limit) put(' ' + word, 1 + cells(word));
+            else clusters(word).forEach(function (part, index) { put(part.text, part.width, index === 0); });
+        });
+        return lines;
+    }
+
+    window.TerminalText = { cellWidth: cellWidth, cells: cells, fitToCells: fitToCells, printable: printable, wrapHints: wrapHints, wrapWords: wrapWords };
 })();

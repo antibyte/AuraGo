@@ -144,6 +144,8 @@ func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion
 	wait("CONNECT, Telnet notice, then the buffered data", `async()=>{const text=await fixtureText(),c=text.indexOf('CONNECT 14400'),n=text.indexOf(t('desktop.terminal_retronet_telnet_notice')),b=text.indexOf('EARLY BANNER');
 		return text.includes('ATZ')&&text.includes('ATDT telehack.com')&&c>=0&&n>c&&b>n;}`)
 	check("connected; the skip key stays local", `()=>{const root=fixtureRoot();return fixtureSent(fixtureSocket()).length===0&&root.dataset.terminalMode==='retro'&&root.dataset.terminalState==='desktop.terminal_connected'&&fixtureTerm().options.convertEol===false;}`)
+	check("a Telnet CONNECT announces the notice, then the hang-up hint", `()=>{const live=fixtureRoot().querySelector('[data-terminal-announce]').textContent;
+		return live.startsWith(t('desktop.terminal_retronet_telnet_notice'))&&live.endsWith(t('desktop.terminal_retronet_hangup_hint'));}`)
 	check("a muted modem plays no tones", `()=>fixtureOscillators===0`)
 
 	// 5. Local line editing for a world entry, hidden echo (password prompt), then character mode.
@@ -296,6 +298,7 @@ func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion
 		return s.length===1&&s[0]==='txt:{"type":"hostkey_decision","accept":true}'&&question>=0&&lines[question].trimEnd().endsWith(' '+t('desktop.terminal_retronet_hostkey_yes'));}`)
 	run(`()=>fixtureControl({type:'connected',protocol:'ssh'})`)
 	wait("SSH connects without the Telnet notice", `async()=>{const text=await fixtureText();return text.includes('CONNECT 14400')&&!text.includes(t('desktop.terminal_retronet_telnet_notice'))&&fixtureRoot().dataset.terminalMode==='retro';}`)
+	check("an SSH CONNECT announces only the hang-up hint", `()=>fixtureRoot().querySelector('[data-terminal-announce]').textContent===t('desktop.terminal_retronet_hangup_hint')`)
 	run(`async()=>{await fixtureInput('\x1d');await fixtureDismiss('q');}`)
 	wait("back in the directory after SSH", backInDirectory)
 	check("the dialed own entry stays selected", `async()=>(await fixtureSelectedLine()).includes('Fresh SSH')`)

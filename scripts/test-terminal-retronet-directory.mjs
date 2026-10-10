@@ -99,8 +99,22 @@ same('pad fills to the width', fitToCells('\u6f22a', 5, true), '\u6f22a  ');
 same('pad after a cut', fitToCells('\u6f22\u5b57\u30c6', 4, true), '\u6f22\u2026 ');
 same('pad of nothing', fitToCells('', 3, true), '   ');
 same('directory exposes only its contract', Object.keys(Directory).join(','), 'LOCAL_SHELL_ID,create');
-same('TerminalText exposes only its contract', Object.keys(sandbox.TerminalText).join(','), 'cellWidth,cells,fitToCells,printable,wrapHints');
-const { cells, wrapHints } = sandbox.TerminalText;
+same('TerminalText exposes only its contract', Object.keys(sandbox.TerminalText).join(','), 'cellWidth,cells,fitToCells,printable,wrapHints,wrapWords');
+const { cells, wrapHints, wrapWords } = sandbox.TerminalText;
+// wrapWords: text to read (notices, results) wraps at spaces; nothing is cut or dropped, a word wider than a line is
+// split at cell boundaries (CJK two cells each, clusters never split).
+same('wrapWords packs words greedily at spaces', JSON.stringify(wrapWords('The service ended the connection.', 12)), JSON.stringify(['The service', 'ended the', 'connection.']));
+same('wrapWords keeps a line that fits', JSON.stringify(wrapWords('You hung up.', 39)), JSON.stringify(['You hung up.']));
+const german = 'Drücke eine beliebige Taste, um zum Verzeichnis zurückzukehren';
+same('the German line has 62 characters', [...german].length, 62);
+same('wrapWords wraps a German line at 39 cells between words', JSON.stringify(wrapWords(german, 39)), JSON.stringify(['Drücke eine beliebige Taste, um zum', 'Verzeichnis zurückzukehren']));
+same('wrapWords splits CJK without spaces at cell boundaries', JSON.stringify(wrapWords('按任意键返回目录。', 7)), JSON.stringify(['按任意', '键返回', '目录。']));
+same('wrapWords moves a wide character that would straddle the edge to the next line', JSON.stringify(wrapWords('a漢字', 4)), JSON.stringify(['a漢', '字']));
+same('wrapWords hard-splits an over-long word without dropping anything', JSON.stringify(wrapWords('see Donaudampfschifffahrt now', 8)), JSON.stringify(['see', 'Donaudam', 'pfschiff', 'fahrt', 'now']));
+same('wrapWords never splits a cluster', JSON.stringify(wrapWords('ééé', 2)), JSON.stringify(['éé', 'é']));
+same('wrapWords of an empty string is one empty line', JSON.stringify([wrapWords('', 39), wrapWords(null, 39)]), JSON.stringify([[''], ['']]));
+same('wrapWords strips control characters and collapses runs of spaces', JSON.stringify(wrapWords('a\x1b[2J  b ', 39)), JSON.stringify(['a[2J b']));
+same('wrapWords never makes a line narrower than one cell', JSON.stringify(wrapWords('ab 漢', 0)), JSON.stringify(['a', 'b', '漢']));
 same('cells measures display cells of the printable text', JSON.stringify([cells('abc'), cells('漢字'), cells('a\x1b[31mb'), cells('e' + String.fromCharCode(0x301)), cells(null)]), JSON.stringify([3, 4, 6, 1, 0]));
 same('wrapHints packs hints into as few lines as fit', JSON.stringify(wrapHints('a · b · c', 5)), JSON.stringify(['a · b', 'c']));
 same('wrapHints cuts an overlong hint with an ellipsis', JSON.stringify(wrapHints('abcdefgh · x', 5)), JSON.stringify(['abcd…', 'x']));
@@ -319,6 +333,18 @@ for (const lang of LANGS) {
         check(lang + ' the packed C64 key hint keeps every part whole', packed.every((line) => width(line) <= 39 && !line.endsWith('…')) && packed.length <= 8, JSON.stringify(packed));
         const help = strings['desktop.terminal_retronet_status_c64_help'] || '';
         check(lang + ' the [C] help starts with the marker and fits 79 cells', help.startsWith('[C]') && width(help) <= 79, help);
+        // The coordinator's dim lines on the 40-column C64 screen: whole, inside 39 cells, words kept together.
+        const dim = ['telnet_notice', 'press_key', 'press_key_shell', 'result_remote_closed', 'result_lost', 'result_max_duration']
+            .map((key) => strings['desktop.terminal_retronet_' + key]);
+        const broken = dim.filter((text) => {
+            const wrapped = wrapWords(text, 39);
+            const words = text.split(' ').filter(Boolean);
+            const fits = wrapped.every((line) => width(line) <= 39);
+            const whole = wrapped.join('').replace(/ /g, '') === text.replace(/ /g, '');
+            const unsplit = words.every((word) => width(word) > 39 || wrapped.some((line) => line.split(' ').includes(word)));
+            return !(fits && whole && unsplit);
+        });
+        check(lang + ' the dim C64 lines wrap whole at 39 cells', broken.length === 0, broken.join(' | '));
     }
 }
 

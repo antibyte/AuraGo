@@ -2849,10 +2849,15 @@ registration lives in `internal/desktop/types.go`.
   `retronet.entries` setting): it re-reads the directory and merges before
   saving, and also refuses `localhost` names. `terminal-text.js`
   (`window.TerminalText`: `cellWidth`, `fitToCells(value, width, pad)`,
-  `printable`) is the single display-width source (vendored xterm's Unicode 6
-  table); `printable` strips control characters from API-provided and
-  translated strings (names, descriptions, fingerprints, host, result text)
-  before the coordinator or directory writes them. The coordinator, directory
+  `printable`, `wrapHints`, `wrapWords(value, width)`) is the single display-width
+  source (vendored xterm's Unicode 6 table); `printable` strips control characters
+  from API-provided and translated strings (names, descriptions, fingerprints, host,
+  result text) before the coordinator or directory writes them. The coordinator's dim
+  lines (Telnet notice, results) wrap between words at `term.cols - 1` through
+  `wrapWords` (never cut). C64 calls hold board output for `C64_HINT_HOLD_MS` (2 s)
+  after CONNECT so the notice and key hint stay readable; a key (colour keys too) or a
+  full queue ends the hold early, a local hang-up drops the held output, a remote end
+  shows it before the result. The coordinator, directory
   and entry editor call `t(key)` without params and fill `{{name}}`
   themselves (the shared `t()` uses `replaceAll`, where `$&`/`` $` ``/`$'`
   in names would be patterns). The service's own byte

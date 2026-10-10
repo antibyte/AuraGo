@@ -2,6 +2,7 @@
     'use strict';
 
     const instances = new Map();
+    let windowSerial = 0;
     const LAST_ENTRY_KEY = 'aurago.desktop.terminal.retronet.last';
     const HANGUP_KEY = '\x1d';
     // C64 sessions (Contract C): black screen, cursor and border in C64 light blue (colour 14, the power-on text).
@@ -11,6 +12,9 @@
     // screen from then on and its model starts blank with the cursor at row 25, column 1. The coordinator writes its
     // own lines (dial, CONNECT, key hint) only before this point and nothing during the call.
     const C64_FRESH_SCREEN = '\x1b[0m\x1b[2J\x1b[25;1H';
+    // After CONNECT of a C64 call the Telnet notice and the key hint stay readable this long: board output waits
+    // (queued) until then, a key (also a colour key) or a full queue.
+    const C64_HINT_HOLD_MS = 2000;
     // Normal screen buffer, then DECSTR (attributes, cursor, scroll region, wrap, insert, focus and paste
     // reporting) and mouse reporting off: after a session only real keys reach the result prompt.
     const PLAIN_SCREEN = '\x1b[?1047l\x1b[!p\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l';
@@ -95,6 +99,7 @@
                 '<input type="range" data-terminal-effect="' + effect.key + '" min="' + (effect.min || 0) +
                 '" max="' + (effect.max || 100) + '" step="1"></label>';
         }).join('');
+        const styleNoteId = 'vd-terminal-style-note-' + (++windowSerial);
         const baudMarkup = retroNetReady ? window.TerminalModem.BAUD_RATES.map(function (rate) {
             const label = rate ? tr('desktop.terminal_retronet_baud_rate', { rate: rate }) : tr('desktop.terminal_retronet_baud_off');
             return '<option value="' + rate + '">' + esc(label) + '</option>';
@@ -118,6 +123,7 @@
             '</button>' +
             '</div></div>' +
             '<div class="vd-sr-only" data-terminal-announce aria-live="polite" aria-atomic="true"></div>' +
+            '<div class="vd-sr-only" data-terminal-style-note id="' + styleNoteId + '"></div>' +
             '<div class="vd-terminal-stage">' +
             '<div class="vd-terminal-bezel" data-terminal-bezel>' +
             '<div class="vd-terminal-screen" data-terminal-screen><div class="vd-terminal-reflection" aria-hidden="true"></div></div>' +
@@ -149,6 +155,7 @@
         const baudLabel = host.querySelector('[data-terminal-baud-label]');
         const baudSelect = host.querySelector('select[data-terminal-baud]');
         const announcer = host.querySelector('[data-terminal-announce]');
+        const styleNote = host.querySelector('[data-terminal-style-note]');
         const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
         let effectValues = styles.loadEffects(initial);
         let ws = null;
@@ -276,8 +283,10 @@
             profile = currentProfile();
             styles.applyXterm(term, profile);
             if (c64Look) term.options.theme = Object.assign({}, profile.theme, C64_THEME);
-            // A pinned grid gets its font back at once; the fit itself follows below.
-            if (geometry && geometry.mode() !== 'fit') geometry.refit();
+            // A pinned grid gets its font back at once; the fit itself follows below. Not while the C64 look is left:
+            // the geometry leaves 'c64' right after, in the same task, and restores the user's font and fit itself.
+            const leaving = !c64Look && !!geometry && geometry.mode() === 'c64';
+            if (geometry && geometry.mode() !== 'fit' && !leaving) geometry.refit();
             ensureCanvas(profile.retro);
             if (profile.retro) {
                 if (!crt && window.TerminalCrt) {
@@ -305,7 +314,7 @@
             if (audio) audio.setProfile(profile);
             applyEffects();
             syncAudioButton();
-            refitScreen();
+            if (!leaving) refitScreen();
             if (crt && typeof crt.resize === 'function') crt.resize();
         }
 
@@ -341,8 +350,12 @@
             if (announcer) announcer.textContent = String(text || '');
         }
 
-        function writeDim(text) {
-            if (term) term.write('\x1b[2m' + plain(text) + '\x1b[0m\r\n');
+        // Dim text to read, wrapped between words one cell short of the screen width; `open` leaves the cursor
+        // behind the last line (the result's key prompt).
+        function writeDim(text, open) {
+            if (!term) return;
+            const lines = window.TerminalText.wrapWords(text, term.cols - 1).map(function (line) { return '\x1b[2m' + line + '\x1b[0m'; });
+            term.write(lines.join('\r\n') + (open ? '' : '\r\n'));
         }
 
         // term.reset() acts at once, but output written before it is still queued and would land on the
@@ -527,7 +540,7 @@
                     isMuted: function () { return window.TerminalAudio ? window.TerminalAudio.loadMuted() : true; }
                 });
             }
-            const run = { entry: entry, c64: c64, fresh: c64, buffer: [], buffered: 0, connected: null, animationDone: false, live: false, ended: false, hostKey: false, session: null, throttle: null };
+            const run = { entry: entry, c64: c64, fresh: c64, buffer: [], buffered: 0, connected: null, animationDone: false, live: false, hold: 0, ended: false, hostKey: false, session: null, throttle: null };
             retro = run;
             run.throttle = window.TerminalModem.createThrottle(function (bytes) {
                 if (!term || retro !== run) return;
@@ -554,17 +567,21 @@
             });
         }
 
-        // Data before CONNECT waits for the dial animation, at most the throttle's queue limit: a service that
-        // sends more cuts the animation short. Data never precedes "connected", so the drop only bounds a bad server.
+        // Data before CONNECT waits for the dial animation (and in C64 calls for the hint hold), at most the throttle's
+        // queue limit: a service that sends more cuts the animation and the hold short. Data never precedes
+        // "connected", so the drop only bounds a bad server.
         function onRetroData(run, bytes) {
             if (retro !== run || run.ended) return;
-            if (!run.live && run.buffered + bytes.length > window.TerminalModem.MAX_QUEUE_BYTES) {
-                if (modem) modem.skip();
-                run.animationDone = true;
-                goLive(run);
-                if (!run.live) return;
+            if ((!run.live || run.hold) && run.buffered + bytes.length > window.TerminalModem.MAX_QUEUE_BYTES) {
+                if (!run.live) {
+                    if (modem) modem.skip();
+                    run.animationDone = true;
+                    goLive(run);
+                    if (!run.live) return;
+                }
+                endHold(run);
             }
-            if (run.live) run.throttle.push(bytes);
+            if (run.live && !run.hold) run.throttle.push(bytes);
             else {
                 run.buffer.push(bytes);
                 run.buffered += bytes.length;
@@ -594,15 +611,35 @@
             const baud = window.TerminalModem.loadBaud();
             run.throttle.setBaud(baud);
             modem.connectLine(baud);
-            if ((run.connected.protocol || run.entry.protocol) === 'telnet') writeDim(tr('desktop.terminal_retronet_telnet_notice'));
-            if (run.c64) window.TerminalText.wrapHints(tr('desktop.terminal_retronet_c64_keys'), term.cols - 1).forEach(writeDim);
-            announce(plain(tr('desktop.terminal_retronet_hangup_hint') + (run.c64 ? ' ' + tr('desktop.terminal_retronet_c64_keys') : '')));
+            const telnet = (run.connected.protocol || run.entry.protocol) === 'telnet';
+            if (telnet) writeDim(tr('desktop.terminal_retronet_telnet_notice'));
+            if (run.c64) window.TerminalText.wrapHints(tr('desktop.terminal_retronet_c64_keys'), term.cols - 1).forEach(function (line) { writeDim(line); });
+            // Spoken as sentences: the Telnet notice first, then the C64 keys (they name Ctrl+]) and why the style is
+            // locked, or the hang-up hint.
+            const spoken = (telnet ? [tr('desktop.terminal_retronet_telnet_notice')] : []).concat(run.c64
+                ? [tr('desktop.terminal_retronet_c64_keys'), tr('desktop.terminal_retronet_style_locked')] : [tr('desktop.terminal_retronet_hangup_hint')]);
+            announce(plain(spoken.map(function (text) { return /[.!?\u0964\u3002\uff01\uff1f]$/.test(text) ? text : text + '.'; }).join(' ')));
             setMode('retro');
             setStatus('desktop.terminal_connected');
+            if (run.c64) run.hold = window.setTimeout(function () { endHold(run); }, C64_HINT_HOLD_MS);
+            else releaseHeld(run);
+        }
+
+        // Output that waited for CONNECT or the C64 hint hold goes into the throttle in arrival order.
+        function releaseHeld(run) {
             const pending = run.buffer;
             run.buffer = [];
             run.buffered = 0;
             pending.forEach(function (bytes) { run.throttle.push(bytes); });
+        }
+
+        // Ends the C64 hint hold (its timer, a key, a full queue or the end of the call): the held output follows
+        // unless the call has ended.
+        function endHold(run) {
+            if (!run.hold) return;
+            window.clearTimeout(run.hold);
+            run.hold = 0;
+            if (retro === run && !run.ended) releaseHeld(run);
         }
 
         // SSH first contact (a sub-state of dialing): fingerprint and a localized yes/no question.
@@ -648,7 +685,7 @@
             const next = retroNetOn ? tr('desktop.terminal_retronet_press_key') : tr('desktop.terminal_retronet_press_key_shell');
             term.write(PLAIN_SCREEN + '\r\n' + hayes + '\r\n');
             writeDim(explanation);
-            term.write('\x1b[2m' + plain(next) + '\x1b[0m');
+            writeDim(next, true);
             announce(plain(hayes + '. ' + explanation + ' ' + next));
             enterResult();
             setStatus('desktop.terminal_stopped');
@@ -663,6 +700,10 @@
                 run.animationDone = true;
                 goLive(run);
             }
+            // Output held for the C64 hint is treated like output buffered during the dial: shown on a remote end,
+            // dropped on a local hang-up.
+            if (!remote) run.buffer = [];
+            endHold(run);
             run.ended = true;
             if (modem) modem.skip();
             if (remote) run.session.dispose();
@@ -678,6 +719,7 @@
             if (!run) return;
             retro = null;
             run.ended = true;
+            endHold(run);
             if (modem) modem.skip();
             if (run.session) run.session.dispose();
             if (run.throttle) run.throttle.dispose();
@@ -731,6 +773,8 @@
                 else if (modem) modem.skip();
                 return;
             }
+            // A key during the C64 hint hold ends it and still goes to the board.
+            endHold(run);
             if (run.session) run.session.send(data);
         }
 
@@ -742,7 +786,10 @@
             const sequence = window.TerminalRetroNetSession.c64ColorKey(event);
             if (!sequence) return true;
             event.preventDefault();
-            if (event.type === 'keydown' && !event.repeat) run.session.send(sequence);
+            if (event.type === 'keydown' && !event.repeat) {
+                endHold(run);
+                run.session.send(sequence);
+            }
             return false;
         }
 
@@ -787,6 +834,11 @@
                 else node.removeAttribute('title');
             });
             if (select) select.disabled = locked;
+            // The reason as the select's description too: screen readers do not reliably read a title.
+            if (!select || !styleNote) return;
+            styleNote.textContent = locked ? ctx.t('desktop.terminal_retronet_style_locked') : '';
+            if (locked) select.setAttribute('aria-describedby', styleNote.id);
+            else select.removeAttribute('aria-describedby');
         }
 
         // The commodore64 style without saving it, a black screen and a blinking block cursor.
