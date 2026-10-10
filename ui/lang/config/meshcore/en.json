@@ -19,6 +19,7 @@
   "config.meshcore.pair": "Pair saved device",
   "config.meshcore.permissions": "Permissions",
   "config.meshcore.direct_replies": "Reply to trusted direct messages",
+  "config.meshcore.direct_replies_help": "The trust list only stores the contact. This switch starts the agent and allows the radio reply.",
   "config.meshcore.trusted_nodes": "Trusted node keys",
   "config.meshcore.proactive_send": "Allow proactive sending",
   "config.meshcore.send_nodes": "Allowed proactive node keys",

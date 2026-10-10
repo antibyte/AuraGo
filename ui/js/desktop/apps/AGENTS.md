@@ -597,9 +597,9 @@ buttons and menu popovers remain excluded from those gestures.
   enabled) and refreshes on the metadata-only `aurago:meshcore-change`
   document event plus a 30 s visibility-gated poll; all listeners and timers
   are released via `registerWidgetCleanup`. Rows open the `meshcore` app with
-  a validated 64-hex `conversation_id`. Protected previews show the lock
-  placeholder and are never revealed; radio text renders via `textContent`
-  only. Strings use `desktop.widget_meshcore_*` plus reused
+  a validated 64-hex `conversation_id`. A protected conversation always shows
+  the lock placeholder, including when a preview string is present, and is
+  never revealed; radio text renders via `textContent` only. Strings use `desktop.widget_meshcore_*` plus reused
   `desktop.meshcore_*` keys in all 16 desktop locales.
 - The System Info app reuses `hours_minutes` and `minutes`, and uses
   `desktop.system_info_uptime_days_hours_minutes` when days are present.

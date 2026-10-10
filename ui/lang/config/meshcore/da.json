@@ -19,6 +19,7 @@
   "config.meshcore.pair": "Par gemt enhed",
   "config.meshcore.permissions": "Tilladelser",
   "config.meshcore.direct_replies": "Besvar betroede direkte beskeder",
+  "config.meshcore.direct_replies_help": "Tillidslisten gemmer kun kontakten. Denne indstilling starter agenten og tillader radiosvaret.",
   "config.meshcore.trusted_nodes": "Betroede noders nøgler",
   "config.meshcore.proactive_send": "Tillad proaktiv afsendelse",
   "config.meshcore.send_nodes": "Tilladte nøgler til proaktiv afsendelse",

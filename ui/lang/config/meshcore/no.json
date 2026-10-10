@@ -19,6 +19,7 @@
   "config.meshcore.pair": "Par lagret enhet",
   "config.meshcore.permissions": "Tillatelser",
   "config.meshcore.direct_replies": "Svar på pålitelige direktemeldinger",
+  "config.meshcore.direct_replies_help": "Tillitslisten lagrer bare kontakten. Denne bryteren starter agenten og tillater radiosvaret.",
   "config.meshcore.trusted_nodes": "Nøkler for pålitelige noder",
   "config.meshcore.proactive_send": "Tillat proaktiv sending",
   "config.meshcore.send_nodes": "Tillatte nodenøkler for proaktiv sending",

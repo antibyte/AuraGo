@@ -32,14 +32,17 @@ Der Konfigurationsschlüssel heißt `meshcore.additional_prompt`.
    liest ausschließlich gespeicherte Einstellungen und Gerätemetadaten; er sendet
    keine Funknachricht.
 5. Vollständige öffentliche Schlüssel sicherer Nodes mit 64 Zeichen eintragen,
-   einen pro Zeile. Nur eindeutige synchronisierte Chat-Kontakte dürfen direkte
-   Plain-Text-Befehle auslösen. Jeder vollständige Node-Schlüssel besitzt eine
-   eigene Sitzung.
+   einen pro Zeile. Die Liste speichert den Kontakt. Erst eingeschaltete
+   Direktantworten starten den Agenten. Dafür kommen nur eindeutige
+   synchronisierte Chat-Kontakte mit Plain Text in Frage. Jeder vollständige
+   Node-Schlüssel besitzt eine eigene Sitzung.
    Alternativ die Nodeliste nach Name oder Schlüssel durchsuchen, unter
    **Übernehmen in** die gewünschte Freigabeliste wählen und einen Chat-Node
    anklicken. Der vollständige Schlüssel wird ohne Duplikate übernommen;
    anschließend **Speichern** wählen.
-6. Antworten auf sichere Direktnachrichten bei Bedarf einschalten. Bei Kanälen
+6. Direktantworten einschalten, wenn vertrauenswürdige Kontakte den Agenten
+   starten und eine Funkantwort erhalten sollen. Ohne diesen Schalter bleibt
+   der Eingang liegen und es läuft kein Agent. Bei Kanälen
    die Zuordnung bestätigen und Empfang, Präfix (`!aura` mit anschließendem
    Leerzeichen) oder automatische Frageerkennung wählen. Einstellungen speichern.
    Die Frageerkennung berücksichtigt offene Kanalfragen und Empfangstests wie
@@ -96,7 +99,9 @@ Bei seinem Ausfall wird nicht auf das Hauptmodell ausgewichen. Ist der Wächter
 deaktiviert, prüft das Hauptmodell in einem eigenen werkzeuglosen Aufruf ohne
 Verlauf oder private Erinnerungen. Timeout, ungültige oder abgeschnittene
 Ausgabe und Werkzeugaufrufe führen zur Quarantäne. Auch sichere Nodes durchlaufen
-diese Prüfung und unterliegen weiterhin den bestehenden AuraGo-Sperren.
+diese Prüfung und unterliegen weiterhin den bestehenden AuraGo-Sperren. Die
+Vertrauensliste allein startet keinen Agenten. Ohne Direktantworten bleibt der
+Eingang bei `received` mit dem Grund `direct_replies_disabled`.
 Absendernamen, @Adressierungen, Grüße und Ortsnamen sind für sich genommen
 normale Funknachrichten und kein Verdachtsgrund. Der gesamte Text wird weiterhin
 geprüft. Bereits quarantänisierte Nachrichten bleiben geschützt, bis ein Admin
@@ -216,6 +221,10 @@ Operational-Issue-Lebenszyklus.
 
 Das Agentenwerkzeug `meshcore` bietet `status`, `contacts`, `channels`,
 `send_direct` mit `node_key`/`text` und `send_channel` mit `channel`/`text`.
+`contacts` nennt Schlüssel, Namen, Typ, Flags und Zeitstempel. Angekündigte
+Positionen und gespeicherte Ausgangspfade bleiben im Admin-Status und im
+Aufweckblock der einzelnen Direktnachricht. Sendefehler heißen
+`meshcore_send_failed` und nennen den Sendestatus, nicht den internen Fehlertext.
 Es bietet keine Rohprotokoll-, Schlüssel-, Firmware- oder Geräteverwaltung.
 
 ## Desktop-Messenger

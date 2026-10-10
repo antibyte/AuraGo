@@ -539,3 +539,89 @@ func TestReconnectDrainsAndDeduplicates(t *testing.T) {
 		t.Fatalf("duplicate inbox: %d %v", len(msgs), err)
 	}
 }
+
+func TestAgentContactsOmitPositionAndRoute(t *testing.T) {
+	hops := 2
+	original := []Contact{{
+		Key: nodeKey, Name: "Operator", Type: 1, Flags: 3,
+		LastAdvert: 11, LastModified: 12,
+		Position: &Position{Latitude: 52.5, Longitude: 13.4},
+		OutPath:  &PathInfo{Hashes: "deadbeef", Hops: &hops},
+	}}
+	got := AgentContacts(original)
+	if original[0].Position == nil || original[0].OutPath == nil {
+		t.Fatal("projection mutated the status contacts")
+	}
+	raw, err := json.Marshal(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(raw)
+	for _, forbidden := range []string{"advertised_position", "out_path", "52.5", "deadbeef"} {
+		if strings.Contains(text, forbidden) {
+			t.Fatalf("agent contacts leaked %s: %s", forbidden, text)
+		}
+	}
+	if got[0].Key != nodeKey || got[0].Name != "Operator" || got[0].Type != 1 || got[0].Flags != 3 || got[0].LastAdvert != 11 || got[0].LastModified != 12 {
+		t.Fatalf("%+v", got[0])
+	}
+}
+
+func TestDirectRepliesGateTrustedRuns(t *testing.T) {
+	runs := 0
+	repliesOff := true
+	m, _, _ := testManager(t, Hooks{
+		Scan: func(context.Context, Message) Review { return Review{Decision: "safe"} },
+		Run: func(_ context.Context, _ Message, mode string) (string, error) {
+			runs++
+			if mode == "trusted" && repliesOff {
+				t.Fatal("trusted run while direct replies are off")
+			}
+			return "NO_REPLY", nil
+		},
+	})
+	m.cfg.DirectReplies = false
+	msg, err := decodeMessage(directFrame(7, 0, "hello"), m.Status())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := m.store.insert(msg); !ok || err != nil {
+		t.Fatal(err)
+	}
+	m.process(context.Background(), msg)
+	if runs != 0 {
+		t.Fatal("trusted message ran while direct replies are off")
+	}
+	got, err := m.store.get(msg.ID)
+	if err != nil || got.State != "received" || got.Reason != "direct_replies_disabled" {
+		t.Fatalf("%+v %v", got, err)
+	}
+	if len(m.runs[nodeKey]) != 0 || len(m.runs[""]) != 0 {
+		t.Fatal("disabled direct replies consumed a run slot")
+	}
+	channel := Message{
+		ID: strings.Repeat("ab", 32), State: "pending", IdentityKey: deviceKey, Kind: "channel",
+		Channel: 0, Binding: m.cfg.Channels[0].Binding, Text: "Operator: !aura What is LoRa?",
+		TextType: 0, ReceivedAt: time.Now().Unix(),
+	}
+	if ok, err := m.store.insert(channel); !ok || err != nil {
+		t.Fatal(err)
+	}
+	m.process(context.Background(), channel)
+	if runs != 1 {
+		t.Fatalf("channel run while direct replies are off: %d", runs)
+	}
+	repliesOff = false
+	m.cfg.DirectReplies = true
+	again, err := decodeMessage(directFrame(7, 0, "again"), m.Status())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := m.store.insert(again); !ok || err != nil {
+		t.Fatal(err)
+	}
+	m.process(context.Background(), again)
+	if runs != 2 {
+		t.Fatalf("enabled direct replies ran %d times", runs)
+	}
+}

@@ -19,6 +19,7 @@
   "config.meshcore.pair": "Opgeslagen apparaat koppelen",
   "config.meshcore.permissions": "Rechten",
   "config.meshcore.direct_replies": "Vertrouwde directe berichten beantwoorden",
+  "config.meshcore.direct_replies_help": "De vertrouwenslijst bewaart alleen het contact. Deze schakelaar start de agent en staat het radioantwoord toe.",
   "config.meshcore.trusted_nodes": "Sleutels van vertrouwde nodes",
   "config.meshcore.proactive_send": "Proactief verzenden toestaan",
   "config.meshcore.send_nodes": "Toegestane nodesleutels voor proactief verzenden",

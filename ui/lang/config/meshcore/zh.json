@@ -19,6 +19,7 @@
   "config.meshcore.pair": "配对已保存的设备",
   "config.meshcore.permissions": "权限",
   "config.meshcore.direct_replies": "回复可信节点的私信",
+  "config.meshcore.direct_replies_help": "信任列表只保存联系人。打开这个开关才会启动代理，并允许无线电回复。",
   "config.meshcore.trusted_nodes": "可信节点公钥",
   "config.meshcore.proactive_send": "允许主动发送",
   "config.meshcore.send_nodes": "允许主动发送的节点公钥",

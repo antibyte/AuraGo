@@ -19,6 +19,7 @@
   "config.meshcore.pair": "सहेजे गए डिवाइस को पेयर करें",
   "config.meshcore.permissions": "अनुमतियाँ",
   "config.meshcore.direct_replies": "विश्वसनीय सीधे संदेशों का जवाब दें",
+  "config.meshcore.direct_replies_help": "विश्वास सूची केवल संपर्क सहेजती है। यह स्विच एजेंट शुरू करता है और रेडियो उत्तर की अनुमति देता है।",
   "config.meshcore.trusted_nodes": "विश्वसनीय नोड की कुंजियाँ",
   "config.meshcore.proactive_send": "सक्रिय संदेश भेजने की अनुमति दें",
   "config.meshcore.send_nodes": "सक्रिय संदेशों के अनुमत नोड की कुंजियाँ",

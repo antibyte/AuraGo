@@ -19,6 +19,7 @@
   "config.meshcore.pair": "Appairer l’appareil enregistré",
   "config.meshcore.permissions": "Autorisations",
   "config.meshcore.direct_replies": "Répondre aux messages directs fiables",
+  "config.meshcore.direct_replies_help": "La liste de confiance mémorise seulement le contact. Cet interrupteur démarre l'agent et autorise la réponse radio.",
   "config.meshcore.trusted_nodes": "Clés des nœuds fiables",
   "config.meshcore.proactive_send": "Autoriser l’envoi proactif",
   "config.meshcore.send_nodes": "Clés des nœuds autorisés pour l’envoi proactif",

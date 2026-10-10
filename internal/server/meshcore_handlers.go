@@ -4,7 +4,9 @@ import (
 	"aurago/internal/bluetooth"
 	"aurago/internal/meshcore"
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strconv"
@@ -103,7 +105,7 @@ func registerMeshCoreRoutes(mux *http.ServeMux, s *Server) {
 			writeJSON(w, map[string]interface{}{"status": st})
 		case "recheck":
 			if err := s.MeshCore.Recheck(body.ID); err != nil {
-				jsonError(w, err.Error(), 409)
+				jsonError(w, meshCoreRecheckCode(err), 409)
 				return
 			}
 			writeJSON(w, map[string]interface{}{"status": "queued"})
@@ -137,4 +139,17 @@ func registerMeshCoreRoutes(mux *http.ServeMux, s *Server) {
 			jsonError(w, "Unknown MeshCore action", 404)
 		}
 	})))
+}
+
+func meshCoreRecheckCode(err error) string {
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return "message_not_found"
+	}
+	switch err.Error() {
+	case "meshcore_disabled", "message_cannot_be_retried", "meshcore_queue_full":
+		return err.Error()
+	default:
+		return "operation_failed"
+	}
 }

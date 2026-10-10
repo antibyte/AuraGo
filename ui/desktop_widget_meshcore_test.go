@@ -37,6 +37,9 @@ func TestDesktopMeshCoreWidgetRuntimeIsRegistered(t *testing.T) {
 	if strings.Contains(runtime, "innerHTML = preview") || strings.Contains(runtime, "innerHTML += ") {
 		t.Fatal("meshcore widget runtime must not render message text via innerHTML")
 	}
+	if strings.Contains(runtime, "protected && !previewText") {
+		t.Fatal("protected previews must stay locked even when preview text is present")
+	}
 
 	shell := readDesktopAssetText(t, "js/desktop/core/window-shell-runtime.js")
 	if !strings.Contains(shell, "widget.id === 'builtin-meshcore'") {

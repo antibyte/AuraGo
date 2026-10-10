@@ -19,6 +19,7 @@
   "config.meshcore.pair": "保存済みデバイスをペアリング",
   "config.meshcore.permissions": "権限",
   "config.meshcore.direct_replies": "信頼済みの直接メッセージに返信",
+  "config.meshcore.direct_replies_help": "信頼リストは連絡先を保存するだけです。このスイッチがエージェントを起動し、無線の返信を許可します。",
   "config.meshcore.trusted_nodes": "信頼するノードの鍵",
   "config.meshcore.proactive_send": "能動的な送信を許可",
   "config.meshcore.send_nodes": "能動的な送信を許可するノードの鍵",

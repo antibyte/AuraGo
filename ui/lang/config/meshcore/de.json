@@ -19,6 +19,7 @@
   "config.meshcore.pair": "Gespeichertes Gerät koppeln",
   "config.meshcore.permissions": "Berechtigungen",
   "config.meshcore.direct_replies": "Direktnachrichten vertrauenswürdiger Nodes beantworten",
+  "config.meshcore.direct_replies_help": "Die Vertrauensliste speichert nur den Kontakt. Erst dieser Schalter startet den Agenten und erlaubt die Funkantwort.",
   "config.meshcore.trusted_nodes": "Schlüssel vertrauenswürdiger Nodes",
   "config.meshcore.proactive_send": "Proaktives Senden erlauben",
   "config.meshcore.send_nodes": "Für proaktives Senden erlaubte Node-Schlüssel",

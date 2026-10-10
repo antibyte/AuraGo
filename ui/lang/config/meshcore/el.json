@@ -19,6 +19,7 @@
   "config.meshcore.pair": "Σύζευξη αποθηκευμένης συσκευής",
   "config.meshcore.permissions": "Δικαιώματα",
   "config.meshcore.direct_replies": "Απαντήσεις σε έμπιστα άμεσα μηνύματα",
+  "config.meshcore.direct_replies_help": "Η λίστα εμπιστοσύνης αποθηκεύει μόνο την επαφή. Αυτός ο διακόπτης ξεκινά τον πράκτορα και επιτρέπει την ασύρματη απάντηση.",
   "config.meshcore.trusted_nodes": "Κλειδιά έμπιστων κόμβων",
   "config.meshcore.proactive_send": "Να επιτρέπεται προληπτική αποστολή",
   "config.meshcore.send_nodes": "Επιτρεπόμενα κλειδιά κόμβων αποστολής",

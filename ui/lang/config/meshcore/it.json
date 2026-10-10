@@ -19,6 +19,7 @@
   "config.meshcore.pair": "Associa dispositivo salvato",
   "config.meshcore.permissions": "Autorizzazioni",
   "config.meshcore.direct_replies": "Rispondi ai messaggi diretti attendibili",
+  "config.meshcore.direct_replies_help": "L'elenco di fiducia memorizza solo il contatto. Questo interruttore avvia l'agente e consente la risposta radio.",
   "config.meshcore.trusted_nodes": "Chiavi dei nodi attendibili",
   "config.meshcore.proactive_send": "Consenti invio proattivo",
   "config.meshcore.send_nodes": "Chiavi dei nodi autorizzati all’invio proattivo",

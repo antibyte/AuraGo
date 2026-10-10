@@ -19,6 +19,7 @@
   "config.meshcore.pair": "Emparelhar dispositivo guardado",
   "config.meshcore.permissions": "Permissões",
   "config.meshcore.direct_replies": "Responder a mensagens diretas de confiança",
+  "config.meshcore.direct_replies_help": "A lista de confiança apenas guarda o contacto. Este interruptor inicia o agente e permite a resposta por rádio.",
   "config.meshcore.trusted_nodes": "Chaves de nós de confiança",
   "config.meshcore.proactive_send": "Permitir envio proativo",
   "config.meshcore.send_nodes": "Chaves de nós permitidos para envio proativo",
