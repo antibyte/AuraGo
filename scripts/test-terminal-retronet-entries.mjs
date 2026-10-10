@@ -465,6 +465,63 @@ async function edit(values) {
     full.dialog.close();
 }
 
+// 11b. C64 entries (Contract C): type c64 always stores petscii and hides the character set; the UX mirror of the
+// server rule kind c64 <=> charset petscii.
+{
+    const editor = openEditor({});
+    same('the type select offers the C64 type last', editor.field('kind').children.map((option) => [option.getAttribute('value'), option.textContent]), [
+        ['bbs', t('desktop.terminal_retronet_type_bbs')], ['world', t('desktop.terminal_retronet_type_world')], ['c64', t('desktop.terminal_retronet_type_c64')]
+    ]);
+    editor.set({ charset: 'latin1' });
+    editor.set({ kind: 'c64' });
+    same('C64 hides the character set row', editor.field('charset').parent.hidden, true);
+    editor.set({ name: 'The Cabin', host: 'TheCabinBBS.com', port: '6400' });
+    editor.submit();
+    await flush();
+    same('a C64 entry stores petscii, whatever the hidden select holds', { ...editor.calls[0].doc.entries[0], id: '' }, { id: '', name: 'The Cabin', protocol: 'telnet', host: 'thecabinbbs.com', port: 6400, kind: 'c64', charset: 'petscii' });
+}
+{
+    const C64 = { id: 'own-c64board0001', name: 'C64 Board', category: 'own', protocol: 'telnet', host: 'c64.example.net', port: 6400, kind: 'c64', charset: 'petscii', own: true };
+    const editor = openEditor({ entry: C64, own: [C64] });
+    same('a stored C64 entry opens as C64 with the character set row hidden', [editor.field('kind').value, editor.field('charset').parent.hidden], ['c64', true]);
+    editor.set({ kind: 'bbs' });
+    same('switching to a mailbox shows the row with CP437', [editor.field('charset').parent.hidden, editor.field('charset').value], [false, 'cp437']);
+    editor.set({ kind: 'world' });
+    same('a text world still defaults to UTF-8', editor.field('charset').value, 'utf8');
+    editor.set({ kind: 'c64' });
+    editor.set({ protocol: 'ssh' });
+    same('SSH hides type and character set', [editor.field('kind').parent.hidden, editor.field('charset').parent.hidden, editor.field('user').parent.hidden], [true, true, false]);
+    editor.set({ protocol: 'telnet' });
+    same('back on Telnet the C64 type still hides the character set', [editor.field('kind').parent.hidden, editor.field('charset').parent.hidden], [false, true]);
+    editor.set({ kind: 'bbs' });
+    editor.submit();
+    await flush();
+    same('the edited entry is a mailbox again', { ...editor.calls[0].doc.entries[0] }, { id: C64.id, name: 'C64 Board', protocol: 'telnet', host: 'c64.example.net', port: 6400, kind: 'bbs', charset: 'cp437' });
+}
+{
+    const MIXED = { id: 'own-mixedcharset1', name: 'Mixed', protocol: 'telnet', host: 'mixed.example.net', port: 23, kind: 'bbs', charset: 'petscii', own: true };
+    const NOPET = { id: 'own-c64nopetscii', name: 'C64 without petscii', protocol: 'telnet', host: 'c64.example.org', port: 6400, kind: 'c64', charset: 'cp437', own: true };
+    const editor = await editWith({ own: [MIXED, NOPET] }, { name: 'Other', host: 'other.example.net' });
+    same('stored entries follow kind c64 <=> petscii', editor.calls[0].doc.entries.slice(0, 2).map((entry) => entry.kind + '/' + entry.charset), ['bbs/utf8', 'c64/petscii']);
+    editor.dialog.close();
+}
+// Round trips: a stored C64 entry stays c64/petscii when it is edited and when another entry is saved or deleted.
+{
+    const C64 = { id: 'own-c64roundtrip', name: 'C64 Board', category: 'own', protocol: 'telnet', host: 'c64.example.net', port: 6400, kind: 'c64', charset: 'petscii', own: true };
+    const STORED = { id: C64.id, name: C64.name, protocol: 'telnet', host: C64.host, port: 6400, kind: 'c64', charset: 'petscii' };
+    const renamed = await editWith({ entry: C64, own: [C64, MUD] }, { name: 'C64 Board II', description: 'Renamed' });
+    same('editing a C64 entry keeps c64/petscii', renamed.calls[0].doc.entries[0], { id: C64.id, name: 'C64 Board II', description: 'Renamed', protocol: 'telnet', host: C64.host, port: 6400, kind: 'c64', charset: 'petscii' });
+    same('and the saved entry handed to the coordinator is still C64', [renamed.saved[0].entry.kind, renamed.saved[0].entry.charset], ['c64', 'petscii']);
+    const other = await editWith({ entry: MUD, own: [C64, MUD] }, { name: 'Mud II' });
+    same('saving another entry keeps the C64 entry unchanged', other.calls[0].doc.entries[0], STORED);
+    const added = await editWith({ own: [C64] }, { name: 'New', host: 'new.example.net' });
+    same('adding an entry keeps the C64 entry unchanged', added.calls[0].doc.entries[0], STORED);
+    const remover = openEditor({ remove: true, entry: MUD, own: [C64, MUD] });
+    remover.submit();
+    await flush();
+    same('deleting another entry keeps the C64 entry unchanged', remover.calls[0].doc.entries, [STORED]);
+}
+
 // 12. Text reaches the DOM only through textContent and value: the module never parses markup.
 {
     const source = fs.readFileSync(path.join(ui, 'js', 'desktop', 'apps', 'terminal-retronet-entries.js'), 'utf8');

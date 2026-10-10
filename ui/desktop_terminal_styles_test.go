@@ -1040,6 +1040,11 @@ func TestDesktopTerminalRetroNetEntriesContract(t *testing.T) {
 		"tr('desktop.terminal_retronet_delete_confirm', { name: entry.name })",
 		"tr('desktop.terminal_retronet_type_bbs')",
 		"tr('desktop.terminal_retronet_type_world')",
+		// C64 entries (Contract C): type c64, charset fixed to petscii (UX mirror of kind c64 <=> charset petscii).
+		"const KINDS = ['bbs', 'world', 'c64']",
+		"tr('desktop.terminal_retronet_type_c64')",
+		"if (kind === 'c64') return 'petscii';",
+		"(c64 && row.getAttribute('data-retronet-field') === 'charset')",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("terminal-retronet-entries.js missing %q", want)
