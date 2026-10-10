@@ -3,6 +3,7 @@ package cydcreator
 import (
 	"fmt"
 	"strings"
+	"unicode"
 )
 
 // cString quotes s as a C/C++ string literal for generated sources (plan 1b
@@ -20,15 +21,17 @@ import (
 // text cannot contain, comes out as U+FFFD.
 func cString(s string) string { return cStringLiteral(s) }
 
-// cComment makes free text safe for the end of a // comment: control
-// characters become spaces, "??" is split so no trigraph can form, and
-// trailing spaces and backslashes are removed (a trailing backslash would
-// continue the comment onto the next line).
+// cComment makes free text safe for the end of a // comment. Every control
+// character, format character (bidirectional overrides, zero-width marks,
+// BOM: the "Trojan Source" family) and Unicode line or paragraph separator
+// (U+2028, U+2029) becomes a space, "??" is split so no trigraph can form,
+// "*/" becomes "* /" so the text can never end a block comment, and trailing
+// spaces and backslashes are removed (a trailing backslash would continue
+// the comment onto the next line).
 func cComment(s string) string {
 	var b strings.Builder
 	for _, r := range s {
-		// U+2028 and U+2029 are line separators for some tools.
-		if r < 0x20 || r == 0x7F || r == ' ' || r == ' ' {
+		if unicode.IsControl(r) || unicode.In(r, unicode.Cf, unicode.Zl, unicode.Zp) {
 			r = ' '
 		}
 		b.WriteRune(r)
@@ -37,11 +40,17 @@ func cComment(s string) string {
 	for strings.Contains(out, "??") {
 		out = strings.ReplaceAll(out, "??", "? ?")
 	}
+	out = strings.ReplaceAll(out, "*/", "* /")
 	return strings.TrimRight(out, " \\")
 }
 
 // cHexColor turns "#rrggbb" into the LVGL constant lv_color_hex(0xRRGGBB).
+// Callers pass validated #RRGGBB colors (Validate rejects everything else);
+// any other input falls back to black so the output is always valid C.
 func cHexColor(color string) string {
+	if !colorPattern.MatchString(color) {
+		return "lv_color_hex(0x000000)"
+	}
 	return "lv_color_hex(0x" + strings.ToUpper(strings.TrimPrefix(color, "#")) + ")"
 }
 
@@ -64,14 +73,17 @@ type codeWriter struct {
 	b strings.Builder
 }
 
-// line writes one line at the given indentation level; an empty format
-// writes an empty line.
+// line writes one line at the given indentation level (a negative level
+// counts as 0); an empty format writes an empty line. format must be a
+// constant: pass all data as %s/%d arguments (user text through cString or
+// cComment first). With no args the text is written verbatim; go vet checks
+// calls like Printf, so text with a literal "%" goes through raw instead.
 func (w *codeWriter) line(indent int, format string, args ...any) {
 	if format == "" {
 		w.b.WriteByte('\n')
 		return
 	}
-	w.b.WriteString(strings.Repeat("  ", indent))
+	w.b.WriteString(strings.Repeat("  ", max(indent, 0)))
 	if len(args) == 0 {
 		w.b.WriteString(format)
 	} else {
