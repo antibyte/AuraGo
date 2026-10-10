@@ -5803,6 +5803,7 @@
   "desktop.terminal_retronet_cat_bbs": "电子公告板 (BBS)",
   "desktop.terminal_retronet_cat_muds": "MUD 与文字世界",
   "desktop.terminal_retronet_cat_games": "游戏",
+  "desktop.terminal_retronet_cat_commodore": "Commodore 64",
   "desktop.terminal_retronet_cat_own": "自己的条目",
   "desktop.terminal_retronet_status_online": "可达",
   "desktop.terminal_retronet_status_offline": "不可达",
@@ -5891,5 +5892,15 @@
   "desktop.terminal_retronet_entry_digital_highway": "来自瑞典、提供 Door 游戏的 BBS",
   "desktop.terminal_retronet_entry_digicom": "提供经典 Door 游戏的 BBS",
   "desktop.terminal_retronet_entry_digital_warfare": "以 Door 游戏为主的 BBS",
-  "desktop.terminal_retronet_entry_disconnected_by_peer": "来自奥地利、提供 Door 游戏的 BBS"
+  "desktop.terminal_retronet_entry_disconnected_by_peer": "来自奥地利、提供 Door 游戏的 BBS",
+  "desktop.terminal_retronet_entry_the_oasis": "带有 PETSCII 艺术的 Color 64 BBS (仅一条线路)",
+  "desktop.terminal_retronet_entry_the_cabin": "带有星空标题画面的 Color 64 BBS (仅一条线路)",
+  "desktop.terminal_retronet_entry_citadel_64": "带有 PETSCII 标志的 Color 64 BBS",
+  "desktop.terminal_retronet_entry_arrakis": "以 Dune 中的沙漠星球命名的 Color 64 BBS",
+  "desktop.terminal_retronet_entry_enterprise": "以 Star Trek 为主题的 Color 64 BBS",
+  "desktop.terminal_retronet_entry_high_desert": "运行 Color 64 7.37 的 BBS",
+  "desktop.terminal_retronet_entry_commodore_image": "运行 Image BBS 1.2 的 BBS",
+  "desktop.terminal_retronet_entry_reign_of_fire": "Reign of Fire 小组的 C-Net 64 DS-II BBS",
+  "desktop.terminal_retronet_entry_dead_zone": "带有 PETSCII 艺术标题画面的 C-Base BBS",
+  "desktop.terminal_retronet_entry_deepskies": "运行 VIC BBS 的 BBS (仅一条线路)"
 }

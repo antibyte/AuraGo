@@ -4,7 +4,7 @@
     const TerminalText = window.TerminalText;
     const LOCAL_SHELL_ID = 'local-shell';
     const LAST_KEY = 'aurago.desktop.terminal.retronet.last';
-    const CATEGORIES = ['classics', 'bbs', 'muds', 'games', 'own'];
+    const CATEGORIES = ['classics', 'bbs', 'muds', 'games', 'commodore', 'own'];
     const MARKERS = { online: '[*]', offline: '[ ]', unknown: '[?]' };
     const MARKER_COLORS = { online: '\x1b[32m', offline: '\x1b[31m', unknown: '\x1b[33m' };
     const HEADER_ROWS = 2;

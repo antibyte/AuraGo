@@ -227,7 +227,7 @@ for (const [cols, rows] of [[80, 30], [120, 30], [52, 32]]) {
 const LANGS = ['cs', 'da', 'de', 'el', 'en', 'es', 'fr', 'hi', 'it', 'ja', 'nl', 'no', 'pl', 'pt', 'sv', 'zh'];
 const CATALOG_PREFIX = 'desktop.terminal_retronet_entry_';
 const catalog = Object.keys(english).filter((key) => key.startsWith(CATALOG_PREFIX)).map((key, index) => ({
-    id: key.slice(CATALOG_PREFIX.length), name: 'Catalog entry ' + index, category: ['classics', 'bbs', 'muds', 'games'][index % 4],
+    id: key.slice(CATALOG_PREFIX.length), name: 'Catalog entry ' + index, category: ['classics', 'bbs', 'muds', 'games', 'commodore'][index % 5],
     description_key: key, protocol: 'telnet', host: 'bbs.example.org', port: 23, kind: 'bbs', charset: 'cp437', own: false
 }));
 const fullPayload = { entries: catalog.concat(payload.entries.filter((entry) => entry.own)), status: payload.status, stale: false, can_edit: true };
@@ -262,6 +262,8 @@ for (const lang of LANGS) {
         const hints = (strings['desktop.terminal_retronet_help'] + ' \u00b7 ' + strings['desktop.terminal_retronet_help_admin']).split(' \u00b7 ');
         const missing = hints.filter((hint) => width(hint) <= cols - 1 && !screen.some((text) => text.includes(hint)));
         check(label + ' every key hint is shown whole', missing.length === 0, missing.join(' | '));
+        const commodore = String(strings['desktop.terminal_retronet_cat_commodore']).toUpperCase();
+        check(label + ' the Commodore 64 heading is shown', screen.some((text) => text.includes(commodore)), commodore);
         check(label + ' announcements carry no control characters', announced.length > 0 && announced.every((text) => !CONTROL.test(text)));
         term.dispose();
     }

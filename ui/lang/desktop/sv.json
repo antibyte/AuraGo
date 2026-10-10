@@ -5803,6 +5803,7 @@
   "desktop.terminal_retronet_cat_bbs": "Anslagstavlor (BBS)",
   "desktop.terminal_retronet_cat_muds": "MUD:ar och textvärldar",
   "desktop.terminal_retronet_cat_games": "Spel",
+  "desktop.terminal_retronet_cat_commodore": "Commodore 64",
   "desktop.terminal_retronet_cat_own": "Egna poster",
   "desktop.terminal_retronet_status_online": "nåbar",
   "desktop.terminal_retronet_status_offline": "inte nåbar",
@@ -5891,5 +5892,15 @@
   "desktop.terminal_retronet_entry_digital_highway": "Anslagstavla från Sverige med door-spel",
   "desktop.terminal_retronet_entry_digicom": "Anslagstavla med klassiska door-spel",
   "desktop.terminal_retronet_entry_digital_warfare": "Anslagstavla med fokus på door-spel",
-  "desktop.terminal_retronet_entry_disconnected_by_peer": "Anslagstavla från Österrike med door-spel"
+  "desktop.terminal_retronet_entry_disconnected_by_peer": "Anslagstavla från Österrike med door-spel",
+  "desktop.terminal_retronet_entry_the_oasis": "Color 64-anslagstavla med PETSCII-konst (bara en linje)",
+  "desktop.terminal_retronet_entry_the_cabin": "Color 64-anslagstavla med stjärnklar titelskärm (bara en linje)",
+  "desktop.terminal_retronet_entry_citadel_64": "Color 64-anslagstavla med PETSCII-logga",
+  "desktop.terminal_retronet_entry_arrakis": "Color 64-anslagstavla uppkallad efter ökenplaneten i Dune",
+  "desktop.terminal_retronet_entry_enterprise": "Color 64-anslagstavla med Star Trek-tema",
+  "desktop.terminal_retronet_entry_high_desert": "Anslagstavla med Color 64 7.37",
+  "desktop.terminal_retronet_entry_commodore_image": "Anslagstavla med Image BBS 1.2",
+  "desktop.terminal_retronet_entry_reign_of_fire": "C-Net 64 DS-II-anslagstavla från gruppen Reign of Fire",
+  "desktop.terminal_retronet_entry_dead_zone": "C-Base-anslagstavla med titelskärm i PETSCII-konst",
+  "desktop.terminal_retronet_entry_deepskies": "Anslagstavla med VIC BBS (bara en linje)"
 }

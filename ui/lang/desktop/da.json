@@ -5803,6 +5803,7 @@
   "desktop.terminal_retronet_cat_bbs": "Opslagstavler (BBS)",
   "desktop.terminal_retronet_cat_muds": "MUD'er og tekstverdener",
   "desktop.terminal_retronet_cat_games": "Spil",
+  "desktop.terminal_retronet_cat_commodore": "Commodore 64",
   "desktop.terminal_retronet_cat_own": "Egne poster",
   "desktop.terminal_retronet_status_online": "tilgængelig",
   "desktop.terminal_retronet_status_offline": "ikke tilgængelig",
@@ -5891,5 +5892,15 @@
   "desktop.terminal_retronet_entry_digital_highway": "Opslagstavle fra Sverige med door-spil",
   "desktop.terminal_retronet_entry_digicom": "Opslagstavle med klassiske door-spil",
   "desktop.terminal_retronet_entry_digital_warfare": "Opslagstavle med fokus på door-spil",
-  "desktop.terminal_retronet_entry_disconnected_by_peer": "Opslagstavle fra Østrig med door-spil"
+  "desktop.terminal_retronet_entry_disconnected_by_peer": "Opslagstavle fra Østrig med door-spil",
+  "desktop.terminal_retronet_entry_the_oasis": "Color 64-opslagstavle med PETSCII-kunst (kun én linje)",
+  "desktop.terminal_retronet_entry_the_cabin": "Color 64-opslagstavle med stjerneklar titelskærm (kun én linje)",
+  "desktop.terminal_retronet_entry_citadel_64": "Color 64-opslagstavle med PETSCII-logo",
+  "desktop.terminal_retronet_entry_arrakis": "Color 64-opslagstavle opkaldt efter ørkenplaneten fra Dune",
+  "desktop.terminal_retronet_entry_enterprise": "Color 64-opslagstavle med Star Trek-tema",
+  "desktop.terminal_retronet_entry_high_desert": "Opslagstavle med Color 64 7.37",
+  "desktop.terminal_retronet_entry_commodore_image": "Opslagstavle med Image BBS 1.2",
+  "desktop.terminal_retronet_entry_reign_of_fire": "C-Net 64 DS-II-opslagstavle fra gruppen Reign of Fire",
+  "desktop.terminal_retronet_entry_dead_zone": "C-Base-opslagstavle med titelskærm i PETSCII-kunst",
+  "desktop.terminal_retronet_entry_deepskies": "Opslagstavle med VIC BBS (kun én linje)"
 }

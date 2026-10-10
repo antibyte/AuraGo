@@ -5803,6 +5803,7 @@
   "desktop.terminal_retronet_cat_bbs": "電子掲示板 (BBS)",
   "desktop.terminal_retronet_cat_muds": "MUD とテキストワールド",
   "desktop.terminal_retronet_cat_games": "ゲーム",
+  "desktop.terminal_retronet_cat_commodore": "Commodore 64",
   "desktop.terminal_retronet_cat_own": "自分のエントリ",
   "desktop.terminal_retronet_status_online": "接続可",
   "desktop.terminal_retronet_status_offline": "接続不可",
@@ -5891,5 +5892,15 @@
   "desktop.terminal_retronet_entry_digital_highway": "ドアゲームがあるスウェーデンの BBS",
   "desktop.terminal_retronet_entry_digicom": "クラシックなドアゲームがある BBS",
   "desktop.terminal_retronet_entry_digital_warfare": "ドアゲーム中心の BBS",
-  "desktop.terminal_retronet_entry_disconnected_by_peer": "ドアゲームがあるオーストリアの BBS"
+  "desktop.terminal_retronet_entry_disconnected_by_peer": "ドアゲームがあるオーストリアの BBS",
+  "desktop.terminal_retronet_entry_the_oasis": "PETSCII アートがある Color 64 の BBS (1 回線のみ)",
+  "desktop.terminal_retronet_entry_the_cabin": "星空のタイトル画面がある Color 64 の BBS (1 回線のみ)",
+  "desktop.terminal_retronet_entry_citadel_64": "PETSCII ロゴがある Color 64 の BBS",
+  "desktop.terminal_retronet_entry_arrakis": "Dune の砂漠の惑星にちなんだ Color 64 の BBS",
+  "desktop.terminal_retronet_entry_enterprise": "Star Trek がテーマの Color 64 の BBS",
+  "desktop.terminal_retronet_entry_high_desert": "Color 64 7.37 で動く BBS",
+  "desktop.terminal_retronet_entry_commodore_image": "Image BBS 1.2 で動く BBS",
+  "desktop.terminal_retronet_entry_reign_of_fire": "Reign of Fire グループの C-Net 64 DS-II の BBS",
+  "desktop.terminal_retronet_entry_dead_zone": "PETSCII アートのタイトル画面がある C-Base の BBS",
+  "desktop.terminal_retronet_entry_deepskies": "VIC BBS で動く BBS (1 回線のみ)"
 }

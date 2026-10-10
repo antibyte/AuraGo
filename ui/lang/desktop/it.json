@@ -5803,6 +5803,7 @@
   "desktop.terminal_retronet_cat_bbs": "Bacheche (BBS)",
   "desktop.terminal_retronet_cat_muds": "MUD e mondi testuali",
   "desktop.terminal_retronet_cat_games": "Giochi",
+  "desktop.terminal_retronet_cat_commodore": "Commodore 64",
   "desktop.terminal_retronet_cat_own": "Voci personali",
   "desktop.terminal_retronet_status_online": "raggiungibile",
   "desktop.terminal_retronet_status_offline": "non raggiungibile",
@@ -5891,5 +5892,15 @@
   "desktop.terminal_retronet_entry_digital_highway": "BBS svedese con giochi door",
   "desktop.terminal_retronet_entry_digicom": "BBS con giochi door classici",
   "desktop.terminal_retronet_entry_digital_warfare": "BBS dedicata ai giochi door",
-  "desktop.terminal_retronet_entry_disconnected_by_peer": "BBS austriaca con giochi door"
+  "desktop.terminal_retronet_entry_disconnected_by_peer": "BBS austriaca con giochi door",
+  "desktop.terminal_retronet_entry_the_oasis": "BBS Color 64 con arte PETSCII (una sola linea)",
+  "desktop.terminal_retronet_entry_the_cabin": "BBS Color 64 con schermata iniziale stellata (una sola linea)",
+  "desktop.terminal_retronet_entry_citadel_64": "BBS Color 64 con un logo PETSCII",
+  "desktop.terminal_retronet_entry_arrakis": "BBS Color 64 che prende il nome dal pianeta deserto di Dune",
+  "desktop.terminal_retronet_entry_enterprise": "BBS Color 64 a tema Star Trek",
+  "desktop.terminal_retronet_entry_high_desert": "BBS che usa Color 64 7.37",
+  "desktop.terminal_retronet_entry_commodore_image": "BBS che usa Image BBS 1.2",
+  "desktop.terminal_retronet_entry_reign_of_fire": "BBS C-Net 64 DS-II del gruppo Reign of Fire",
+  "desktop.terminal_retronet_entry_dead_zone": "BBS C-Base con schermata iniziale in arte PETSCII",
+  "desktop.terminal_retronet_entry_deepskies": "BBS che usa VIC BBS (una sola linea)"
 }

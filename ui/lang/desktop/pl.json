@@ -5803,6 +5803,7 @@
   "desktop.terminal_retronet_cat_bbs": "Tablice ogłoszeń (BBS)",
   "desktop.terminal_retronet_cat_muds": "MUD-y i światy tekstowe",
   "desktop.terminal_retronet_cat_games": "Gry",
+  "desktop.terminal_retronet_cat_commodore": "Commodore 64",
   "desktop.terminal_retronet_cat_own": "Własne wpisy",
   "desktop.terminal_retronet_status_online": "dostępny",
   "desktop.terminal_retronet_status_offline": "niedostępny",
@@ -5891,5 +5892,15 @@
   "desktop.terminal_retronet_entry_digital_highway": "Tablica ze Szwecji z grami door",
   "desktop.terminal_retronet_entry_digicom": "Tablica z klasycznymi grami door",
   "desktop.terminal_retronet_entry_digital_warfare": "Tablica skupiona na grach door",
-  "desktop.terminal_retronet_entry_disconnected_by_peer": "Tablica z Austrii z grami door"
+  "desktop.terminal_retronet_entry_disconnected_by_peer": "Tablica z Austrii z grami door",
+  "desktop.terminal_retronet_entry_the_oasis": "Tablica Color 64 z grafiką PETSCII (jedna linia)",
+  "desktop.terminal_retronet_entry_the_cabin": "Tablica Color 64 z gwiaździstym ekranem tytułowym (jedna linia)",
+  "desktop.terminal_retronet_entry_citadel_64": "Tablica Color 64 z logotypem PETSCII",
+  "desktop.terminal_retronet_entry_arrakis": "Tablica Color 64 nazwana na cześć pustynnej planety z Dune",
+  "desktop.terminal_retronet_entry_enterprise": "Tablica Color 64 w klimacie Star Trek",
+  "desktop.terminal_retronet_entry_high_desert": "Tablica na oprogramowaniu Color 64 7.37",
+  "desktop.terminal_retronet_entry_commodore_image": "Tablica na oprogramowaniu Image BBS 1.2",
+  "desktop.terminal_retronet_entry_reign_of_fire": "Tablica C-Net 64 DS-II grupy Reign of Fire",
+  "desktop.terminal_retronet_entry_dead_zone": "Tablica C-Base z ekranem tytułowym w grafice PETSCII",
+  "desktop.terminal_retronet_entry_deepskies": "Tablica na oprogramowaniu VIC BBS (jedna linia)"
 }

@@ -5803,6 +5803,7 @@
   "desktop.terminal_retronet_cat_bbs": "Elektronické nástěnky (BBS)",
   "desktop.terminal_retronet_cat_muds": "MUDy a textové světy",
   "desktop.terminal_retronet_cat_games": "Hry",
+  "desktop.terminal_retronet_cat_commodore": "Commodore 64",
   "desktop.terminal_retronet_cat_own": "Vlastní záznamy",
   "desktop.terminal_retronet_status_online": "dostupný",
   "desktop.terminal_retronet_status_offline": "nedostupný",
@@ -5891,5 +5892,15 @@
   "desktop.terminal_retronet_entry_digital_highway": "Nástěnka ze Švédska s door hrami",
   "desktop.terminal_retronet_entry_digicom": "Nástěnka s klasickými door hrami",
   "desktop.terminal_retronet_entry_digital_warfare": "Nástěnka zaměřená na door hry",
-  "desktop.terminal_retronet_entry_disconnected_by_peer": "Nástěnka z Rakouska s door hrami"
+  "desktop.terminal_retronet_entry_disconnected_by_peer": "Nástěnka z Rakouska s door hrami",
+  "desktop.terminal_retronet_entry_the_oasis": "Nástěnka Color 64 s PETSCII grafikou (jen jedna linka)",
+  "desktop.terminal_retronet_entry_the_cabin": "Nástěnka Color 64 s hvězdnou titulní stranou (jen jedna linka)",
+  "desktop.terminal_retronet_entry_citadel_64": "Nástěnka Color 64 s logem v PETSCII",
+  "desktop.terminal_retronet_entry_arrakis": "Nástěnka Color 64 nazvaná podle pouštní planety ze ságy Dune",
+  "desktop.terminal_retronet_entry_enterprise": "Nástěnka Color 64 s tématem Star Trek",
+  "desktop.terminal_retronet_entry_high_desert": "Nástěnka se softwarem Color 64 7.37",
+  "desktop.terminal_retronet_entry_commodore_image": "Nástěnka se softwarem Image BBS 1.2",
+  "desktop.terminal_retronet_entry_reign_of_fire": "Nástěnka C-Net 64 DS-II skupiny Reign of Fire",
+  "desktop.terminal_retronet_entry_dead_zone": "Nástěnka C-Base s úvodní obrazovkou v PETSCII grafice",
+  "desktop.terminal_retronet_entry_deepskies": "Nástěnka se softwarem VIC BBS (jen jedna linka)"
 }

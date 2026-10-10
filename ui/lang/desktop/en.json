@@ -5803,6 +5803,7 @@
   "desktop.terminal_retronet_cat_bbs": "Mailboxes (BBS)",
   "desktop.terminal_retronet_cat_muds": "MUDs and text worlds",
   "desktop.terminal_retronet_cat_games": "Games",
+  "desktop.terminal_retronet_cat_commodore": "Commodore 64",
   "desktop.terminal_retronet_cat_own": "Own entries",
   "desktop.terminal_retronet_status_online": "reachable",
   "desktop.terminal_retronet_status_offline": "not reachable",
@@ -5891,5 +5892,15 @@
   "desktop.terminal_retronet_entry_digital_highway": "Board from Sweden with door games",
   "desktop.terminal_retronet_entry_digicom": "Board with classic door games",
   "desktop.terminal_retronet_entry_digital_warfare": "Board focused on door games",
-  "desktop.terminal_retronet_entry_disconnected_by_peer": "Board from Austria with door games"
+  "desktop.terminal_retronet_entry_disconnected_by_peer": "Board from Austria with door games",
+  "desktop.terminal_retronet_entry_the_oasis": "Color 64 board with PETSCII art (single line)",
+  "desktop.terminal_retronet_entry_the_cabin": "Color 64 board with a starry title screen (single line)",
+  "desktop.terminal_retronet_entry_citadel_64": "Color 64 board with a PETSCII logo",
+  "desktop.terminal_retronet_entry_arrakis": "Color 64 board named after the desert planet from Dune",
+  "desktop.terminal_retronet_entry_enterprise": "Color 64 board with a Star Trek theme",
+  "desktop.terminal_retronet_entry_high_desert": "Board running Color 64 7.37",
+  "desktop.terminal_retronet_entry_commodore_image": "Board running Image BBS 1.2",
+  "desktop.terminal_retronet_entry_reign_of_fire": "C-Net 64 DS-II board of the Reign of Fire group",
+  "desktop.terminal_retronet_entry_dead_zone": "C-Base board with a PETSCII art title screen",
+  "desktop.terminal_retronet_entry_deepskies": "Board running VIC BBS (single line)"
 }

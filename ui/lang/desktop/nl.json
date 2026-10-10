@@ -5803,6 +5803,7 @@
   "desktop.terminal_retronet_cat_bbs": "Prikborden (BBS)",
   "desktop.terminal_retronet_cat_muds": "MUD's en tekstwerelden",
   "desktop.terminal_retronet_cat_games": "Games",
+  "desktop.terminal_retronet_cat_commodore": "Commodore 64",
   "desktop.terminal_retronet_cat_own": "Eigen items",
   "desktop.terminal_retronet_status_online": "bereikbaar",
   "desktop.terminal_retronet_status_offline": "niet bereikbaar",
@@ -5891,5 +5892,15 @@
   "desktop.terminal_retronet_entry_digital_highway": "Prikbord uit Zweden met door-games",
   "desktop.terminal_retronet_entry_digicom": "Prikbord met klassieke door-games",
   "desktop.terminal_retronet_entry_digital_warfare": "Prikbord met de nadruk op door-games",
-  "desktop.terminal_retronet_entry_disconnected_by_peer": "Prikbord uit Oostenrijk met door-games"
+  "desktop.terminal_retronet_entry_disconnected_by_peer": "Prikbord uit Oostenrijk met door-games",
+  "desktop.terminal_retronet_entry_the_oasis": "Color 64-prikbord met PETSCII-art (één telefoonlijn)",
+  "desktop.terminal_retronet_entry_the_cabin": "Color 64-prikbord met sterrig titelscherm (één telefoonlijn)",
+  "desktop.terminal_retronet_entry_citadel_64": "Color 64-prikbord met een PETSCII-logo",
+  "desktop.terminal_retronet_entry_arrakis": "Color 64-prikbord genoemd naar de woestijnplaneet uit Dune",
+  "desktop.terminal_retronet_entry_enterprise": "Color 64-prikbord in Star Trek-stijl",
+  "desktop.terminal_retronet_entry_high_desert": "Prikbord met Color 64 7.37",
+  "desktop.terminal_retronet_entry_commodore_image": "Prikbord met Image BBS 1.2",
+  "desktop.terminal_retronet_entry_reign_of_fire": "C-Net 64 DS-II-prikbord van de groep Reign of Fire",
+  "desktop.terminal_retronet_entry_dead_zone": "C-Base-prikbord met een titelscherm in PETSCII-art",
+  "desktop.terminal_retronet_entry_deepskies": "Prikbord met VIC BBS (één telefoonlijn)"
 }

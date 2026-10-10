@@ -5803,6 +5803,7 @@
   "desktop.terminal_retronet_cat_bbs": "बुलेटिन बोर्ड (BBS)",
   "desktop.terminal_retronet_cat_muds": "MUD और टेक्स्ट दुनिया",
   "desktop.terminal_retronet_cat_games": "गेम",
+  "desktop.terminal_retronet_cat_commodore": "Commodore 64",
   "desktop.terminal_retronet_cat_own": "अपनी प्रविष्टियाँ",
   "desktop.terminal_retronet_status_online": "पहुँच योग्य",
   "desktop.terminal_retronet_status_offline": "पहुँच योग्य नहीं",
@@ -5891,5 +5892,15 @@
   "desktop.terminal_retronet_entry_digital_highway": "स्वीडन का डोर गेम वाला बोर्ड",
   "desktop.terminal_retronet_entry_digicom": "क्लासिक डोर गेम वाला बोर्ड",
   "desktop.terminal_retronet_entry_digital_warfare": "डोर गेम पर केंद्रित बोर्ड",
-  "desktop.terminal_retronet_entry_disconnected_by_peer": "ऑस्ट्रिया का डोर गेम वाला बोर्ड"
+  "desktop.terminal_retronet_entry_disconnected_by_peer": "ऑस्ट्रिया का डोर गेम वाला बोर्ड",
+  "desktop.terminal_retronet_entry_the_oasis": "PETSCII आर्ट वाला Color 64 बोर्ड (केवल एक लाइन)",
+  "desktop.terminal_retronet_entry_the_cabin": "तारों भरी टाइटल स्क्रीन वाला Color 64 बोर्ड (केवल एक लाइन)",
+  "desktop.terminal_retronet_entry_citadel_64": "PETSCII लोगो वाला Color 64 बोर्ड",
+  "desktop.terminal_retronet_entry_arrakis": "Dune के रेगिस्तानी ग्रह के नाम पर रखा गया Color 64 बोर्ड",
+  "desktop.terminal_retronet_entry_enterprise": "Star Trek थीम वाला Color 64 बोर्ड",
+  "desktop.terminal_retronet_entry_high_desert": "Color 64 7.37 पर चलने वाला बोर्ड",
+  "desktop.terminal_retronet_entry_commodore_image": "Image BBS 1.2 पर चलने वाला बोर्ड",
+  "desktop.terminal_retronet_entry_reign_of_fire": "Reign of Fire समूह का C-Net 64 DS-II बोर्ड",
+  "desktop.terminal_retronet_entry_dead_zone": "PETSCII आर्ट टाइटल स्क्रीन वाला C-Base बोर्ड",
+  "desktop.terminal_retronet_entry_deepskies": "VIC BBS पर चलने वाला बोर्ड (केवल एक लाइन)"
 }

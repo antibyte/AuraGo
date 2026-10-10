@@ -5803,6 +5803,7 @@
   "desktop.terminal_retronet_cat_bbs": "Serveurs BBS",
   "desktop.terminal_retronet_cat_muds": "MUD et mondes textuels",
   "desktop.terminal_retronet_cat_games": "Jeux",
+  "desktop.terminal_retronet_cat_commodore": "Commodore 64",
   "desktop.terminal_retronet_cat_own": "Entrées personnelles",
   "desktop.terminal_retronet_status_online": "accessible",
   "desktop.terminal_retronet_status_offline": "inaccessible",
@@ -5891,5 +5892,15 @@
   "desktop.terminal_retronet_entry_digital_highway": "Serveur BBS suédois avec jeux door",
   "desktop.terminal_retronet_entry_digicom": "Serveur BBS avec des jeux door classiques",
   "desktop.terminal_retronet_entry_digital_warfare": "Serveur BBS axé sur les jeux door",
-  "desktop.terminal_retronet_entry_disconnected_by_peer": "Serveur BBS autrichien avec jeux door"
+  "desktop.terminal_retronet_entry_disconnected_by_peer": "Serveur BBS autrichien avec jeux door",
+  "desktop.terminal_retronet_entry_the_oasis": "Serveur BBS Color 64 avec art PETSCII (une seule ligne)",
+  "desktop.terminal_retronet_entry_the_cabin": "Serveur BBS Color 64 avec écran titre étoilé (une seule ligne)",
+  "desktop.terminal_retronet_entry_citadel_64": "Serveur BBS Color 64 avec un logo PETSCII",
+  "desktop.terminal_retronet_entry_arrakis": "Serveur BBS Color 64 nommé d'après la planète désert de Dune",
+  "desktop.terminal_retronet_entry_enterprise": "Serveur BBS Color 64 sur le thème de Star Trek",
+  "desktop.terminal_retronet_entry_high_desert": "Serveur BBS sous Color 64 7.37",
+  "desktop.terminal_retronet_entry_commodore_image": "Serveur BBS sous Image BBS 1.2",
+  "desktop.terminal_retronet_entry_reign_of_fire": "Serveur BBS C-Net 64 DS-II du groupe Reign of Fire",
+  "desktop.terminal_retronet_entry_dead_zone": "Serveur BBS C-Base avec écran titre en art PETSCII",
+  "desktop.terminal_retronet_entry_deepskies": "Serveur BBS sous VIC BBS (une seule ligne)"
 }

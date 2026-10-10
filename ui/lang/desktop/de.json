@@ -5803,6 +5803,7 @@
   "desktop.terminal_retronet_cat_bbs": "Mailboxen (BBS)",
   "desktop.terminal_retronet_cat_muds": "MUDs und Textwelten",
   "desktop.terminal_retronet_cat_games": "Spiele",
+  "desktop.terminal_retronet_cat_commodore": "Commodore 64",
   "desktop.terminal_retronet_cat_own": "Eigene Einträge",
   "desktop.terminal_retronet_status_online": "erreichbar",
   "desktop.terminal_retronet_status_offline": "nicht erreichbar",
@@ -5891,5 +5892,15 @@
   "desktop.terminal_retronet_entry_digital_highway": "Mailbox aus Schweden mit Door-Spielen",
   "desktop.terminal_retronet_entry_digicom": "Mailbox mit klassischen Door-Spielen",
   "desktop.terminal_retronet_entry_digital_warfare": "Mailbox mit Schwerpunkt auf Door-Spielen",
-  "desktop.terminal_retronet_entry_disconnected_by_peer": "Mailbox aus Österreich mit Door-Spielen"
+  "desktop.terminal_retronet_entry_disconnected_by_peer": "Mailbox aus Österreich mit Door-Spielen",
+  "desktop.terminal_retronet_entry_the_oasis": "Color-64-Mailbox mit PETSCII-Kunst (nur eine Leitung)",
+  "desktop.terminal_retronet_entry_the_cabin": "Color-64-Mailbox mit Sternen-Titelbild (nur eine Leitung)",
+  "desktop.terminal_retronet_entry_citadel_64": "Color-64-Mailbox mit PETSCII-Logo",
+  "desktop.terminal_retronet_entry_arrakis": "Color-64-Mailbox, benannt nach dem Wüstenplaneten aus Dune",
+  "desktop.terminal_retronet_entry_enterprise": "Color-64-Mailbox im Star-Trek-Stil",
+  "desktop.terminal_retronet_entry_high_desert": "Mailbox mit Color 64 7.37",
+  "desktop.terminal_retronet_entry_commodore_image": "Mailbox mit Image BBS 1.2",
+  "desktop.terminal_retronet_entry_reign_of_fire": "C-Net-64-DS-II-Mailbox der Reign-of-Fire-Gruppe",
+  "desktop.terminal_retronet_entry_dead_zone": "C-Base-Mailbox mit PETSCII-Titelbild",
+  "desktop.terminal_retronet_entry_deepskies": "Mailbox mit VIC BBS (nur eine Leitung)"
 }

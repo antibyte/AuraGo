@@ -478,6 +478,7 @@ var terminalRetroNetCategories = []string{
 	retronet.CategoryBBS,
 	retronet.CategoryMUDs,
 	retronet.CategoryGames,
+	retronet.CategoryCommodore,
 	retronet.CategoryOwn,
 }
 
@@ -685,6 +686,11 @@ func TestDesktopTerminalRetroNetI18n(t *testing.T) {
 	for _, reason := range terminalRetroNetReasons() {
 		copyChecked = append(copyChecked, "desktop.terminal_retronet_result_"+reason)
 	}
+	for _, entry := range retronet.DefaultCatalog() {
+		if entry.Kind == retronet.KindC64 {
+			copyChecked = append(copyChecked, entry.DescriptionKey) // C64 descriptions are translated, never copied
+		}
+	}
 	placeholder := regexp.MustCompile(`\{\{[a-z_]+\}\}`)
 	english := readTerminalDesktopLocale(t, "en")
 	for _, lang := range terminalRetroNetLocales {
@@ -819,7 +825,7 @@ func TestDesktopTerminalRetroNetDirectoryContract(t *testing.T) {
 		"const TerminalText = window.TerminalText",
 		"const LOCAL_SHELL_ID = 'local-shell'",
 		"'aurago.desktop.terminal.retronet.last'",
-		"['classics', 'bbs', 'muds', 'games', 'own']",
+		"['classics', 'bbs', 'muds', 'games', 'commodore', 'own']",
 		"online: '[*]'",
 		"offline: '[ ]'",
 		"unknown: '[?]'",

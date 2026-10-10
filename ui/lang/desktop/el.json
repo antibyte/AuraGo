@@ -5803,6 +5803,7 @@
   "desktop.terminal_retronet_cat_bbs": "Πίνακες ανακοινώσεων (BBS)",
   "desktop.terminal_retronet_cat_muds": "MUD και κόσμοι κειμένου",
   "desktop.terminal_retronet_cat_games": "Παιχνίδια",
+  "desktop.terminal_retronet_cat_commodore": "Commodore 64",
   "desktop.terminal_retronet_cat_own": "Δικές σου καταχωρίσεις",
   "desktop.terminal_retronet_status_online": "διαθέσιμο",
   "desktop.terminal_retronet_status_offline": "μη διαθέσιμο",
@@ -5891,5 +5892,15 @@
   "desktop.terminal_retronet_entry_digital_highway": "Πίνακας από τη Σουηδία με παιχνίδια door",
   "desktop.terminal_retronet_entry_digicom": "Πίνακας με κλασικά παιχνίδια door",
   "desktop.terminal_retronet_entry_digital_warfare": "Πίνακας με έμφαση στα παιχνίδια door",
-  "desktop.terminal_retronet_entry_disconnected_by_peer": "Πίνακας από την Αυστρία με παιχνίδια door"
+  "desktop.terminal_retronet_entry_disconnected_by_peer": "Πίνακας από την Αυστρία με παιχνίδια door",
+  "desktop.terminal_retronet_entry_the_oasis": "Πίνακας Color 64 με τέχνη PETSCII (μόνο μία γραμμή)",
+  "desktop.terminal_retronet_entry_the_cabin": "Πίνακας Color 64 με έναστρη οθόνη τίτλου (μόνο μία γραμμή)",
+  "desktop.terminal_retronet_entry_citadel_64": "Πίνακας Color 64 με λογότυπο PETSCII",
+  "desktop.terminal_retronet_entry_arrakis": "Πίνακας Color 64 με όνομα από τον πλανήτη-έρημο του Dune",
+  "desktop.terminal_retronet_entry_enterprise": "Πίνακας Color 64 με θέμα το Star Trek",
+  "desktop.terminal_retronet_entry_high_desert": "Πίνακας με το λογισμικό Color 64 7.37",
+  "desktop.terminal_retronet_entry_commodore_image": "Πίνακας με το λογισμικό Image BBS 1.2",
+  "desktop.terminal_retronet_entry_reign_of_fire": "Πίνακας C-Net 64 DS-II της ομάδας Reign of Fire",
+  "desktop.terminal_retronet_entry_dead_zone": "Πίνακας C-Base με οθόνη τίτλου σε τέχνη PETSCII",
+  "desktop.terminal_retronet_entry_deepskies": "Πίνακας με το λογισμικό VIC BBS (μόνο μία γραμμή)"
 }
