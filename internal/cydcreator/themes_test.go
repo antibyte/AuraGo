@@ -98,29 +98,51 @@ func TestParseThemesRejects(t *testing.T) {
 	if _, err := parseThemes([]byte("[" + good + "]")); err != nil {
 		t.Fatalf("good theme rejected: %v", err)
 	}
-	cases := map[string]string{
-		"lowercase color": strings.Replace(good, `"bg":"#000000"`, `"bg":"#00000a"`, 1),
-		"short color":     strings.Replace(good, `"bg":"#000000"`, `"bg":"#000"`, 1),
-		"unknown font":    strings.Replace(good, `"montserrat"`, `"comic_sans"`, 1),
-		"bad size":        strings.Replace(good, `"font_size":16`, `"font_size":15`, 1),
-		"bad button":      strings.Replace(good, `"filled"`, `"glossy"`, 1),
-		"border width":    strings.Replace(good, `"border_width":1`, `"border_width":9`, 1),
-		"radius":          strings.Replace(good, `"radius":4`, `"radius":65`, 1),
-		"unknown key":     strings.Replace(good, `"radius":4`, `"radius":4,"shadow":2`, 1),
-		"bad id":          strings.Replace(good, `"x_theme"`, `"X Theme"`, 1),
+	// Every case names the substring of the real error, so a case cannot pass
+	// for the wrong reason.
+	cases := []struct{ name, doc, want string }{
+		{"lowercase color", "[" + strings.Replace(good, `"bg":"#000000"`, `"bg":"#00000a"`, 1) + "]", `tokens.bg "#00000a" must be #RRGGBB (uppercase)`},
+		{"short color", "[" + strings.Replace(good, `"bg":"#000000"`, `"bg":"#000"`, 1) + "]", `tokens.bg "#000" must be #RRGGBB (uppercase)`},
+		{"unknown font", "[" + strings.Replace(good, `"montserrat"`, `"comic_sans"`, 1) + "]", `font "comic_sans" is unknown`},
+		{"bad size", "[" + strings.Replace(good, `"font_size":16`, `"font_size":15`, 1) + "]", "font_size 15 is not one of"},
+		{"bad button", "[" + strings.Replace(good, `"filled"`, `"glossy"`, 1) + "]", `button_style "glossy" must be filled, outline or bracket`},
+		{"border width", "[" + strings.Replace(good, `"border_width":1`, `"border_width":9`, 1) + "]", "tokens.border_width must be within 0..8"},
+		{"radius", "[" + strings.Replace(good, `"radius":4`, `"radius":65`, 1) + "]", "tokens.radius must be within 0..64"},
+		{"unknown key", "[" + strings.Replace(good, `"radius":4`, `"radius":4,"shadow":2`, 1) + "]", `unknown field "shadow"`},
+		{"bad id", "[" + strings.Replace(good, `"x_theme"`, `"X Theme"`, 1) + "]", "id must match " + themeIDPattern.String()},
+		{"duplicate id", "[" + good + "," + good + "]", `theme "x_theme" is defined twice`},
+		{"empty list", "[]", "themes.json is empty"},
+		{"trailing data", "[" + good + "] []", "trailing data"},
 	}
-	for name, theme := range cases {
-		if _, err := parseThemes([]byte("[" + theme + "]")); err == nil {
-			t.Errorf("%s: accepted", name)
+	for _, tc := range cases {
+		_, err := parseThemes([]byte(tc.doc))
+		if err == nil {
+			t.Errorf("%s: accepted", tc.name)
+			continue
+		}
+		if !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: error %q does not contain %q", tc.name, err, tc.want)
 		}
 	}
-	if _, err := parseThemes([]byte("[" + good + "," + good + "]")); err == nil || !strings.Contains(err.Error(), "twice") {
-		t.Errorf("duplicate id: %v", err)
+}
+
+func TestThemesReturnsCopy(t *testing.T) {
+	first, err := Themes()
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, err := parseThemes([]byte("[]")); err == nil {
-		t.Error("empty list accepted")
+	wantID, wantBg := first[0].ID, first[0].Tokens.Bg
+	first[0].ID = "x"
+	first[0].Tokens.Bg = "#000000"
+	second, err := Themes()
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, err := parseThemes([]byte("[" + good + "] []")); err == nil {
-		t.Error("trailing data accepted")
+	if second[0].ID != wantID || second[0].Tokens.Bg != wantBg {
+		t.Fatalf("Themes() shares storage with its caller: got %q %q, want %q %q",
+			second[0].ID, second[0].Tokens.Bg, wantID, wantBg)
+	}
+	if byID, err := ThemeByID(wantID); err != nil || byID.Tokens.Bg != wantBg {
+		t.Fatalf("ThemeByID(%q) = %+v, %v after mutating a Themes() result", wantID, byID, err)
 	}
 }
