@@ -6,12 +6,15 @@ import (
 )
 
 // FontFamilies are the LVGL fonts the builder image converts (spec §4).
+// Read-only: validation uses these slices; copy before modifying.
 var FontFamilies = []string{"montserrat", "inter", "jetbrains_mono"}
 
 // FontSizes are the allowed pixel sizes of every font family.
+// Read-only: validation uses these slices; copy before modifying.
 var FontSizes = []int{12, 14, 16, 20, 24, 28, 32, 40, 48}
 
 // Symbols are the button symbols; each maps 1:1 to LV_SYMBOL_<UPPER>.
+// Read-only: validation uses these slices; copy before modifying.
 var Symbols = []string{
 	"audio", "video", "list", "ok", "close", "power", "settings", "home", "download",
 	"drive", "refresh", "mute", "volume_mid", "volume_max", "image", "tint", "prev", "play", "pause", "stop",
@@ -95,6 +98,8 @@ func WidgetSpecFor(typ string) (WidgetSpec, bool) {
 }
 
 // widgetSpecRef returns the shared cached spec; callers must not modify it.
+// Events, Options and []string defaults are shared read-only data too — clone
+// them before modifying.
 func widgetSpecRef(typ string) (*WidgetSpec, bool) {
 	loadCatalog()
 	s, ok := catalogMap[typ]
@@ -146,6 +151,7 @@ func pList(name string, maxItems int, def ...string) PropSpec {
 	if def == nil {
 		def = []string{}
 	}
+	def = slices.Clone(def)
 	return PropSpec{Name: name, Kind: PropList, Default: def, MaxLen: maxItems}
 }
 func pColor(name string) PropSpec    { return PropSpec{Name: name, Kind: PropColor, Default: ""} }
@@ -158,6 +164,7 @@ func catalogEntry(typ, group string, w, h int, container bool, events []string, 
 	if events == nil {
 		events = []string{}
 	}
+	events = slices.Clone(events)
 	if props == nil {
 		props = []PropSpec{}
 	}

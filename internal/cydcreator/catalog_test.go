@@ -126,9 +126,17 @@ func TestWidgetCatalogCopies(t *testing.T) {
 	a := WidgetCatalog()
 	a[0].Props[0].Name = "mutated"
 	a[9].Props[0].Default.([]string)[0] = "mutated"
+	a[0].Props[3].Options[0] = "mutated" // label.align
+	*a[4].Props[1].Min = 99              // line.thickness
 	spec, ok := WidgetSpecFor("label")
 	if !ok || spec.Props[0].Name != "text" {
 		t.Fatal("WidgetCatalog leaked its cache")
+	}
+	if spec.Props[3].Options[0] != "left" {
+		t.Fatal("WidgetCatalog leaked enum options")
+	}
+	if line, _ := WidgetSpecFor("line"); *line.Props[1].Min != 1 {
+		t.Fatal("WidgetCatalog leaked int bounds")
 	}
 	spec.Events[0] = "mutated"
 	again, _ := WidgetSpecFor("label")
