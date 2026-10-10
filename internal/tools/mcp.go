@@ -55,6 +55,8 @@ type MCPToolInfo struct {
 	Name        string                 `json:"name"`
 	Description string                 `json:"description,omitempty"`
 	InputSchema map[string]interface{} `json:"input_schema,omitempty"`
+	connection  *mcpConn
+	manager     *MCPManager
 }
 
 type MCPConnectionTestResult struct {
@@ -919,6 +921,7 @@ func (m *MCPManager) CachedTools(serverName string) []MCPToolInfo {
 		if cfg.Enabled && conn.ready && conn.toolsGeneration == mcpToolsGeneration(conn.transport) && (conn.transport == nil || time.Since(conn.toolsRefreshed) < time.Minute) {
 			for _, t := range conn.tools {
 				if mcpToolVisible(cfg, t.Name) {
+					t.connection, t.manager = conn, m
 					result = append(result, t)
 				}
 			}
@@ -959,6 +962,10 @@ const mcpCallToolTimeout = 60 * time.Second
 // CallTool never replays a sent request: a transport failure cannot establish
 // whether a remote mutation completed. Reconnection is for a subsequent call.
 func (m *MCPManager) CallTool(ctx context.Context, serverName, toolName string, arguments map[string]interface{}) (string, error) {
+	return m.callTool(ctx, serverName, toolName, arguments, nil)
+}
+
+func (m *MCPManager) callTool(ctx context.Context, serverName, toolName string, arguments map[string]interface{}, expected *mcpConn) (string, error) {
 	if err := m.requireToolAllowed(serverName, toolName); err != nil {
 		return "", err
 	}
@@ -973,6 +980,9 @@ func (m *MCPManager) CallTool(ctx context.Context, serverName, toolName string, 
 	conn, err := m.ensureServerConnected(callCtx, serverName)
 	if err != nil {
 		return "", err
+	}
+	if expected != nil && conn != expected {
+		return "", fmt.Errorf("MCP connection changed after preferred-tool discovery; select the tool again")
 	}
 	if err := conn.refreshToolsIfNeeded(callCtx, m.logger); err != nil {
 		if callCtx.Err() != nil || isRetryableMCPTransportError(err) {
@@ -1069,7 +1079,7 @@ func MCPListToolsContext(ctx context.Context, serverName string, logger *slog.Lo
 	if mgr == nil {
 		return nil, fmt.Errorf("MCP manager not initialized")
 	}
-	ctx, cancel := context.WithTimeout(ctx, mcpCallToolTimeout)
+	ctx, cancel := mcpRequestContext(ctx)
 	defer cancel()
 	return mgr.ListToolsWithStatus(ctx, serverName)
 }

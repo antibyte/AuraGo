@@ -30,3 +30,12 @@ The server catalog uses the same feature prerequisites as the agent, including
 the current configuration snapshot and available service handles. Enabled
 integrations such as S3 still require an explicit export grant. Co-agents are
 excluded; `ask_aurago` is available only in IDE mode and retains the export scope.
+
+Preferred vision tools receive MIME-checked images of at most 50 MiB. An explicit
+base64 input takes precedence; URL inputs receive a data URL only when their schema
+accepts it. Remote tools that accept only local paths are rejected without
+publishing images. Local stdio receives a private staged file; Docker receives
+its container path inside the existing workspace mount. Staged files are removed
+after success, failure or cancellation. Discovery and execution share the caller's
+context and the discovered manager/connection; a replacement requires rediscovery.
+Schema validation does not fetch external references.

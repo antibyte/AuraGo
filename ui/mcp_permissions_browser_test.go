@@ -30,7 +30,7 @@ func TestMCPPermissionsBrowser(t *testing.T) {
 	page.MustEval(`async()=>{configData.mcp_server.allowed_tools=[];await selectSection('mcp_server',{scrollBehavior:'auto'});}`)
 	waitForJSBool(t, page, `()=>document.querySelectorAll('.mcp-tool-cb').length>=2`)
 	for i := 0; i < 2; i++ {
-		page.MustEval(`()=>mcpToggleVSCodeBridge(document.querySelector('[data-path="mcp_server.vscode_debug_bridge"]'))`)
+		page.MustEval(`()=>{const toggle=document.querySelector('[data-path="mcp_server.vscode_debug_bridge"]');toggle.checked=!toggle.checked;mcpToggleVSCodeBridge(toggle);}`)
 		waitForJSBool(t, page, `()=>document.querySelectorAll('.mcp-tool-cb').length>=2`)
 	}
 	if !page.MustEval(`()=>document.getElementById('mcp-allowed-tools-state').value==='[]'`).Bool() {
@@ -39,5 +39,9 @@ func TestMCPPermissionsBrowser(t *testing.T) {
 	page.MustEval(`async()=>await mcpApplyBridgePreset(document.getElementById('mcp-apply-preset'))`)
 	if !page.MustEval(`()=>JSON.stringify(configData.mcp_server.allowed_tools)==='["ask_aurago","execute_shell"]'`).Bool() {
 		t.Fatal("explicit preset not applied")
+	}
+	page.MustEval(`async()=>await selectSection('mcp',{scrollBehavior:'auto'})`)
+	if !page.MustEval(`()=>mcpValidateServerEntry({name:'fixture',transport:'stdio',runtime:'docker',command:'',docker_command:'server'}) && !mcpValidateServerEntry({name:'fixture',transport:'stdio',runtime:'local',command:''})`).Bool() {
+		t.Fatal("Docker-only command validation differs from runtime")
 	}
 }
