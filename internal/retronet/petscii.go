@@ -176,6 +176,14 @@ func (c *petsciiCodec) control(dst []byte, b byte) []byte {
 		s.reverse = false
 	case petsciiBell:
 		return append(dst, 0x07)
+	case petsciiDel:
+		return c.del(dst)
+	case petsciiInsert:
+		return c.insert(dst)
+	case petsciiLowerSet:
+		return c.switchSet(dst, false)
+	case petsciiUpperSet:
+		return c.switchSet(dst, true)
 	}
 	return dst
 }
@@ -289,4 +297,64 @@ func appendRGB(dst []byte, rgb uint32) []byte {
 	dst = strconv.AppendUint(dst, uint64(rgb>>8&0xFF), 10)
 	dst = append(dst, ';')
 	return strconv.AppendUint(dst, uint64(rgb&0xFF), 10)
+}
+
+// del is the C64 DEL key: the cursor moves left (wrapping to the end of the
+// previous row), the rest of the row shifts left onto it and the last cell
+// becomes blank. Nothing happens in the top-left corner.
+func (c *petsciiCodec) del(dst []byte) []byte {
+	s := &c.scr
+	if s.row == 0 && s.col == 0 {
+		return dst
+	}
+	s.left()
+	row := &s.cells[s.row]
+	copy(row[s.col:], row[s.col+1:])
+	row[c64Cols-1] = s.blankCell()
+	return c.drawRow(dst, s.row, s.col)
+}
+
+// insert is the C64 INST key: a blank cell is inserted at the cursor, the
+// last cell of the row is lost and the cursor stays.
+func (c *petsciiCodec) insert(dst []byte) []byte {
+	s := &c.scr
+	row := &s.cells[s.row]
+	copy(row[s.col+1:], row[s.col:c64Cols-1])
+	row[s.col] = s.blankCell()
+	return c.drawRow(dst, s.row, s.col)
+}
+
+// switchSet selects the lower/upper (upper=false) or upper/graphics set,
+// repaints all 25 rows from the model and restores the cursor. It does
+// nothing when the set does not change.
+func (c *petsciiCodec) switchSet(dst []byte, upper bool) []byte {
+	s := &c.scr
+	if s.upper == upper {
+		return dst
+	}
+	s.upper = upper
+	for row := 0; row < c64Rows; row++ {
+		dst = c.drawRow(dst, row, 0)
+	}
+	return c.moveVT(dst, s.row, s.col)
+}
+
+// drawRow re-emits cells from..39 of row: glyphs up to the last non-blank
+// cell, then one erase to the end of the line (EL on black) for the blank
+// rest.
+func (c *petsciiCodec) drawRow(dst []byte, row, from int) []byte {
+	cells := &c.scr.cells[row]
+	last := c64Cols - 1
+	for last >= from && cells[last].blank() {
+		last--
+	}
+	for col := from; col <= last; col++ {
+		dst = c.drawCell(dst, row, col)
+	}
+	if last == c64Cols-1 {
+		return dst
+	}
+	dst = c.moveVT(dst, row, last+1)
+	dst = c.setBackground(dst)
+	return append(dst, "\x1b[K"...)
 }
