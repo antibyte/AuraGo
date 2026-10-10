@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -1716,8 +1717,11 @@ func TestLoadVideoDownloadDefaults(t *testing.T) {
 	if cfg.Tools.VideoDownload.DownloadDir != "data/downloads" {
 		t.Fatalf("download_dir = %q, want data/downloads", cfg.Tools.VideoDownload.DownloadDir)
 	}
-	if cfg.Tools.VideoDownload.ContainerImage != "ghcr.io/jauderho/yt-dlp:latest" {
-		t.Fatalf("container_image = %q", cfg.Tools.VideoDownload.ContainerImage)
+	if strings.Contains(cfg.Tools.VideoDownload.ContainerImage, ":latest") {
+		t.Fatalf("container_image = %q, want a digest pin", cfg.Tools.VideoDownload.ContainerImage)
+	}
+	if !regexp.MustCompile(`^ghcr\.io/jauderho/yt-dlp@sha256:[0-9a-f]{64}$`).MatchString(cfg.Tools.VideoDownload.ContainerImage) {
+		t.Fatalf("container_image = %q, want ghcr.io/jauderho/yt-dlp@sha256:<64 hex>", cfg.Tools.VideoDownload.ContainerImage)
 	}
 	if !cfg.Tools.VideoDownload.AutoPull {
 		t.Fatal("expected auto_pull to default to true")

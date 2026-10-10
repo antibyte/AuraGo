@@ -70,6 +70,17 @@ func TestParseYouTubeTimeValueDurationForms(t *testing.T) {
 	}
 }
 
+func TestSendYouTubeVideoRejectsALongTitle(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+	raw := handleSendYouTubeVideo(youtubeVideoArgs{
+		URL:   "https://youtu.be/dQw4w9WgXcQ",
+		Title: strings.Repeat("ä", 121),
+	}, logger)
+	if !strings.Contains(raw, `"status":"error"`) || !strings.Contains(raw, "120") {
+		t.Fatalf("result = %s", raw)
+	}
+}
+
 func TestHandleSendYouTubeVideoReturnsEmbedPayload(t *testing.T) {
 	raw := handleSendYouTubeVideo(youtubeVideoArgs{
 		URL:          "https://youtu.be/dQw4w9WgXcQ",

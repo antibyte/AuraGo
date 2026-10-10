@@ -122,7 +122,7 @@ YouTube data without quota limits.
 - `tag` — Hashtag/tag without # (for hashtag)
 - `post_id` — YouTube community post ID (for post and post_comments)
 - `country` / `language` — Optional feed localization
-- `limit` — Max results (default: 10)
+- `limit` — Max results (default: 10, maximum: 25)
 
 **Pricing:** $0.01–$0.02 per call.
 

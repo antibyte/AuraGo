@@ -3852,3 +3852,26 @@ func TestConfigDockerHostAccessLivesInDangerZone(t *testing.T) {
 		t.Fatalf("catalog.js searchSections.danger_zone does not own docker.allow_host_access: %q", ownerLine)
 	}
 }
+
+func readChatSource(t *testing.T, path string) string {
+	t.Helper()
+	return readEmbeddedText(t, path)
+}
+
+func TestChatYouTubeParserReadsFragmentStart(t *testing.T) {
+	t.Parallel()
+	source := readChatSource(t, "js/shared/chat-core.js")
+	for _, marker := range []string{
+		"parsed.hash",
+		"parseYouTubeTimeValue(fragment)",
+		"replace(/^#?t=/, '')",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("chat-core.js missing %s", marker)
+		}
+	}
+	fallback := readChatSource(t, "js/chat/chat-messages.js")
+	if !strings.Contains(fallback, "parsed.hash") {
+		t.Fatal("chat-messages.js fallback parser ignores the fragment")
+	}
+}
