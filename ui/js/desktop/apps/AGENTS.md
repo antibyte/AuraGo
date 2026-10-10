@@ -2836,28 +2836,59 @@ registration lives in `internal/desktop/types.go`.
   (`TerminalModem.MAX_QUEUE_BYTES`, 1 MiB), more skips the animation; results print
   the Hayes code plus `desktop.terminal_retronet_result_<reason>` (also the
   browser-only `local_hangup` and `lost`), and keys in the first 400 ms after a
-  result are ignored. `bbs` entries use a fixed 80×25 grid with the vendored
-  `Aura VGA` font (Px437 IBM VGA 8x16, CC BY-SA 4.0, `ui/fonts/Px437-LICENSE.txt`,
-  credited in `THIRD_PARTY_LIBRARIES.md`), a fitted font size instead of the fit
-  addon and no scrollback; `world`/SSH entries fit the window and send
-  `resize`. Retro sessions set `convertEol=false`, the shell restores `true`.
+  result are ignored. Screen geometry lives in `terminal-geometry.js`
+  (`window.TerminalGeometry`: `MODES`, `create` → `set`/`mode`/`refit`/`dispose`;
+  modes `fit`, `bbs`, `c64`; terminal.js switches only through `setGeometry()`).
+  `bbs` entries use a fixed 80×25 grid with the vendored `Aura VGA` font
+  (Px437 IBM VGA 8x16, CC BY-SA 4.0, `ui/fonts/Px437-LICENSE.txt`), `c64`
+  entries 40×25 with the vendored `Aura C64` font (C64 Pro Mono by Style,
+  `ui/fonts/C64_Pro_Mono-STYLE.woff`, unmodified under its original name,
+  licence and hashes in `ui/fonts/C64_Pro_Mono-LICENSE.txt`; the licence allows
+  `@font-face` embedding in free software only, so never link or offer the
+  `.woff` as a download); both fonts are credited in `THIRD_PARTY_LIBRARIES.md`.
+  Pinned grids set `data-terminal-geometry`, wait for their font before the
+  first fit, size it in 0.5 px steps to the glass, centre the grid with letterbox padding and keep no
+  scrollback; `fit` uses the fit addon. `world`/SSH entries fit the window and
+  send `resize`. Retro sessions set `convertEol=false`, the shell restores `true`.
+  C64 calls put on the `commodore64` style with `persist=false`
+  (never saved; dispose drops it), lock the style select (disabled, `title`
+  and an `aria-describedby` screen-reader note with
+  `desktop.terminal_retronet_style_locked`), switch to a blinking block cursor
+  on a black screen and paint the letterbox in the C64 border colour `#706DEB`.
+  The look stays through the result and is left only through `setGeometry()`
+  (directory, shell, policy switch, directory 403), which restores the saved
+  style, cursor and select. `C64_FRESH_SCREEN` (SGR reset, clear, cursor to row
+  25) goes out right before the first board byte, matching the server's PETSCII
+  model; the coordinator writes nothing during the call. After CONNECT the
+  Telnet notice and the C64 key hint (`TerminalText.wrapHints`) stay for
+  `C64_HINT_HOLD_MS` (2 s) while board output waits; a key (colour keys too,
+  forwarded) or a full queue ends the hold early, a local hang-up drops the
+  held output and a remote end shows it before the result. Colour keys
+  (`attachCustomKeyEventHandler`, live C64 calls only): Ctrl+Shift+1–8,
+  Alt+Shift+1–8 and Ctrl+Shift+9/0 by `event.code` send `ESC[64;n~`
+  (`TerminalRetroNetSession.c64ColorKey`), prevent the browser default and never
+  reach xterm. BEL in a C64 call beeps through `TerminalAudio.beep` under the
+  key-click rules, at most one tone per 150 ms and only on a running
+  AudioContext. The directory marks `c64` entries `[C]` (never checked) and
+  explains the marker in its help when one is listed.
   `world` entries edit lines locally while `echo.remote` is false and suppress
   local echo and history while `echo.hidden` is true. Input leaves in UTF-8
   frames of at most 16 KiB (server read limit 64 KiB). The host-key prompt
   takes the localized letters first, then ASCII Y/N (Greek uses Latin Y/N).
   Admins manage own entries in `terminal-retronet-entries.js` (modal,
   `retronet.entries` setting): it re-reads the directory and merges before
-  saving, and also refuses `localhost` names. `terminal-text.js`
-  (`window.TerminalText`: `cellWidth`, `fitToCells(value, width, pad)`,
-  `printable`, `wrapHints`, `wrapWords(value, width)`) is the single display-width
-  source (vendored xterm's Unicode 6 table); `printable` strips control characters
+  saving, and also refuses `localhost` names; type `c64` always stores charset
+  `petscii` and hides the charset row. `terminal-text.js`
+  (`window.TerminalText`: `cellWidth`, `cells`, `fitToCells(value, width, pad)`,
+  `printable`, `sentences(parts)`, `wrapHints(value, width)`,
+  `wrapWords(value, width)`) is the single display-width source (vendored
+  xterm's Unicode 6 table); `printable` strips control characters
   from API-provided and translated strings (names, descriptions, fingerprints, host,
   result text) before the coordinator or directory writes them. The coordinator's dim
   lines (Telnet notice, results) wrap between words at `term.cols - 1` through
-  `wrapWords` (never cut). C64 calls hold board output for `C64_HINT_HOLD_MS` (2 s)
-  after CONNECT so the notice and key hint stay readable; a key (colour keys too) or a
-  full queue ends the hold early, a local hang-up drops the held output, a remote end
-  shows it before the result. The coordinator, directory
+  `wrapWords` (never cut); key hints pack through `wrapHints`; the CONNECT
+  announcement joins its parts through `sentences` (a full stop only where
+  sentence punctuation, CJK included, is missing). The coordinator, directory
   and entry editor call `t(key)` without params and fill `{{name}}`
   themselves (the shared `t()` uses `replaceAll`, where `$&`/`` $` ``/`$'`
   in names would be patterns). The service's own byte
@@ -2874,10 +2905,19 @@ registration lives in `internal/desktop/types.go`.
   captures every `.xterm-screen` canvas at its CSS offset and scale;
   output is capped at DPR 1.25 and 30 fps, never stretches text to fill the tube),
   CSS bezels, and Web Audio key-clicks in `terminal-audio.js`
-  (`window.TerminalAudio.create` → `setProfile`/`setMuted`/`playKey`/`dispose`).
-  Load order: xterm.css, desktop-app-terminal.css, xterm, fit, WebGL addon,
-  styles, crt, audio, text, modem, retronet-directory, retronet-session,
-  retronet-entries, terminal.js. Scope is this app only. Reduced motion
+  (`window.TerminalAudio.create` → `setProfile`/`setMuted`/`playKey`/`beep`/`dispose`).
+  Load order (`module-loader.js`, mirrored by the browser fixtures): xterm.css,
+  desktop-app-terminal.css, then the 13 scripts `xterm.min.js`,
+  `xterm-addon-fit.min.js`, `xterm-addon-webgl.min.js`, `terminal-styles.js`,
+  `terminal-crt.js`, `terminal-audio.js`, `terminal-text.js`,
+  `terminal-geometry.js`, `terminal-modem.js`, `terminal-retronet-directory.js`,
+  `terminal-retronet-session.js`, `terminal-retronet-entries.js`, `terminal.js`.
+  The baud throttle (`TerminalModem.createThrottle`) counts units: one per code
+  point outside escapes and one per complete escape sequence; a synchronized
+  block `ESC[?2026h`...`ESC[?2026l` (the PETSCII repaints) is one unit; an
+  unterminated block ends as one unit once it holds 64 KiB, or 1 s after the
+  throttle stalled on it; the queue is scanned incrementally (each byte once)
+  and CAN/SUB cancel an escape. Scope is this app only. Reduced motion
   and `dataset.animations === 'false'` disable flicker, burn-in, animated grain, and audio.
   The native Effects dialog applies bounded sliders to the existing renderer,
   without recreating xterm or its socket. Preferences live per style in
@@ -2905,11 +2945,17 @@ registration lives in `internal/desktop/types.go`.
   socket status via `data-terminal-state`; Modern stays frameless. Keep compact
   cases inside the app without changing xterm's measured screen padding.
   Browser verification is
-  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run 'TestDesktopTerminalRetro(Net)?Browser' -count=1`
-  (styles/CRT and Retro-Net; both use `ui/desktop_terminal_harness_test.go`,
-  the Retro-Net fixture is `ui/testdata/terminal-retronet-fixture.js`).
-  Retro-Net module behaviour: `npm run test:terminal-retronet` (four Node
-  scripts, also run by `TestDesktopTerminalBehaviourScripts`).
+  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run 'TestDesktopTerminalRetro(Net(C64)?)?Browser' -count=1 -v`
+  (styles/CRT, Retro-Net and the C64 call, each in both motion modes; all use
+  `ui/desktop_terminal_harness_test.go`, the Retro-Net fixture is
+  `ui/testdata/terminal-retronet-fixture.js` plus
+  `ui/testdata/terminal-retronet-c64-fixture.js`, which keeps the C64 hint
+  hold's timer callback for manual release so hold checks need no deadline).
+  Retro-Net module behaviour: `npm run test:terminal-retronet` (five Node
+  scripts: modem, geometry, directory, session, entries; also run by
+  `TestDesktopTerminalBehaviourScripts`). Static contracts, the C64 font and
+  the Node scripts: `go test ./ui -run TestDesktopTerminal -count=1` (the
+  browser tests skip without `AURAGO_RUN_BROWSER_SMOKE=1`).
   WebGL/canvas failure uses CSS fallback and keeps the WebSocket. Style
   changes wait for `document.fonts.load` before changing xterm options or
   creating the canvas renderer, then fit once. Ignore stale font completions
@@ -2917,8 +2963,9 @@ registration lives in `internal/desktop/types.go`.
   `window.TerminalApp = { render, dispose }` with a per-window instances Map.
   The standalone window opens at 960x720 (4:3 CRT framing), scaling both axes
   together on smaller desktops; saved session bounds, user resizing and mobile
-  maximization remain unchanged. Browser coverage delays the C64 font on first
-  load and checks its measured glyph width as well as constrained opening sizes.
+  maximization remain unchanged. Browser coverage delays the `commodore64`
+  style's pixel font (Press Start 2P) on first load and checks its measured
+  glyph width as well as constrained opening sizes.
   Visible strings use `desktop.terminal_*` plus `desktop.terminal_style*`,
   `desktop.terminal_audio*` and `desktop.terminal_retronet_*` (including one
   description per catalog entry) in all 16 desktop locales. Package contracts:
