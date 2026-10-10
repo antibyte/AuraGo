@@ -305,11 +305,14 @@
     // (CSI; OSC, DCS, SOS, PM and APC strings ended by BEL or ST; SS2/SS3 with their byte; ESC with intermediates and
     // a final byte; ESC with one byte), so 24-bit colours and C64 glyphs cost what one character costs on a real
     // line. A synchronized-output block, ESC[?2026h through ESC[?2026l (the PETSCII engine's repaints and row
-    // redraws), is one unit as a whole and leaves at once; until its end arrives it stays queued (push() flushes
-    // everything beyond MAX_QUEUE_BYTES, setBaud(0) and flush() release it too). An escape that has not ended
-    // SEQUENCE_LIMIT bytes after its ESC counts as one unit there and its rest as text, so a broken stream cannot
-    // hold the queue back.
+    // redraws), is one unit as a whole and leaves at once. An unterminated block is never held for long: it ends as
+    // one unit once it holds SYNC_LIMIT bytes, or SYNC_WAIT_MS after the throttle stalled on it (up to its last
+    // complete code point or sequence; the rest continues outside the block); push() beyond MAX_QUEUE_BYTES,
+    // setBaud(0) and flush() release everything. An escape that has not ended SEQUENCE_LIMIT bytes after its ESC
+    // counts as one unit there and its rest as text, so a broken stream cannot hold the queue back.
     const SEQUENCE_LIMIT = 1024;
+    const SYNC_LIMIT = 64 * 1024;
+    const SYNC_WAIT_MS = 1000;
     const SYNC_BEGIN = '?2026h';
     const SYNC_END = '?2026l';
     const TEXT = 0;
@@ -319,9 +322,14 @@
     const STRING_ESC = 4;
     const INTERMEDIATE = 5;
     const SHIFT = 6;
+    // What a scanned byte completes: nothing, a code point or sequence inside an open synchronized block, a unit.
+    const NONE = 0;
+    const INNER = 1;
+    const UNIT = 2;
 
-    // A scanner for bytes that start outside any code point, sequence or synchronized block: step(byte) is true
-    // when the byte completes a unit, which always leaves the scanner outside again.
+    // A scanner for bytes that start outside any code point, sequence or synchronized block. step(byte) tells
+    // whether the byte completes a unit (which leaves the scanner outside again) or a code point or sequence inside
+    // an open block; the state carries over between calls, so every byte is scanned once.
     function unitScanner() {
         let state = TEXT;
         let pending = 0; // UTF-8 continuation bytes still expected
@@ -329,6 +337,8 @@
         let csi = ''; // the first parameter and intermediate bytes of the open CSI (enough for the 2026 modes)
         let ended = ''; // parameters and final byte of the CSI that just ended
         let sync = false; // inside ESC[?2026h ... ESC[?2026l
+        let block = 0; // bytes of the open block after its ESC[?2026h
+        let blocks = 0; // blocks opened so far (names the open one)
 
         // The byte after an ESC (also after the ESC inside a string that is not ST): true when the escape ends.
         function afterEscape(b) {
@@ -366,66 +376,58 @@
             return true;
         }
 
-        // A code point or sequence ended (`sequence`: the CSI's parameters and final byte, else ''): one unit,
-        // except inside a synchronized block, which ends as one unit with ESC[?2026l.
-        function unit(sequence) {
-            if (sequence === SYNC_BEGIN) {
+        // A code point or sequence ended (`sequence`: the CSI's parameters and final byte, else ''): a unit outside
+        // a synchronized block; inside one an inner boundary, and the block ends as one unit with ESC[?2026l or
+        // once it holds SYNC_LIMIT bytes.
+        function boundary(sequence) {
+            if (!sync) {
+                if (sequence !== SYNC_BEGIN) return UNIT;
                 sync = true;
-                return false;
+                block = 0;
+                blocks += 1;
+                return INNER;
             }
-            if (!sync) return true;
-            if (sequence !== SYNC_END) return false;
+            if (sequence !== SYNC_END && block < SYNC_LIMIT) return INNER;
             sync = false;
-            return true;
+            return UNIT;
         }
 
-        return function step(b) {
+        function step(b) {
+            if (sync) block += 1;
             if (state === TEXT) {
                 if (pending && (b & 0xc0) === 0x80) {
                     pending -= 1;
-                    return pending === 0 && unit('');
+                    return pending === 0 ? boundary('') : NONE;
                 }
                 pending = 0;
                 if (b === 0x1b) {
                     state = ESC;
                     length = 1;
-                    return false;
+                    return NONE;
                 }
                 if (b >= 0xc0 && b < 0xf8) {
                     pending = b >= 0xf0 ? 3 : b >= 0xe0 ? 2 : 1;
-                    return false;
+                    return NONE;
                 }
-                return unit('');
+                return boundary('');
             }
             length += 1;
             if (inSequence(b) || length >= SEQUENCE_LIMIT) {
                 const sequence = ended;
                 ended = '';
                 state = TEXT;
-                return unit(sequence);
+                return boundary(sequence);
             }
-            return false;
-        };
-    }
-
-    // Bytes at the head of `parts` that hold at most `limit` complete units, and how many units that is (fewer
-    // when the queue ends first; an unfinished code point or sequence at the end stays queued).
-    function countUnits(parts, limit) {
-        const step = unitScanner();
-        let units = 0;
-        let offset = 0;
-        let bytes = 0;
-        for (let p = 0; p < parts.length && units < limit; p += 1) {
-            const part = parts[p];
-            for (let i = 0; i < part.length && units < limit; i += 1) {
-                offset += 1;
-                if (step(part[i])) {
-                    units += 1;
-                    bytes = offset;
-                }
-            }
+            return NONE;
         }
-        return { units: units, bytes: bytes };
+
+        return {
+            step: step,
+            // The open block's number, or 0 outside a block.
+            openBlock: function () { return sync ? blocks : 0; },
+            // Ends the open block where the scan stands: its bytes so far count as one unit.
+            endBlock: function () { sync = false; }
+        };
     }
 
     // Releases queued output per animation frame at baud/10 units per second (see unitScanner).
@@ -438,9 +440,32 @@
         let last = 0;
         let budget = 0;
         let disposed = false;
+        let scanner = unitScanner();
+        let scanPart = 0; // scanning goes on at queue[scanPart][scanIndex]
+        let scanIndex = 0;
+        let scanned = 0; // bytes at the queue head already scanned: an unfinished unit or an open block
+        let inner = 0; // of those, the bytes up to the open block's last complete code point or sequence
+        let stall = 0; // timer that releases the open block the throttle stalled on
+        let stallBlock = 0;
 
         function schedule() {
             if (!frame && !disposed && queue.length) frame = window.requestAnimationFrame(release);
+        }
+
+        function stopStall() {
+            if (stall) window.clearTimeout(stall);
+            stall = 0;
+            stallBlock = 0;
+        }
+
+        // The queue was emptied: scanning starts afresh.
+        function resetScan() {
+            scanner = unitScanner();
+            scanPart = 0;
+            scanIndex = 0;
+            scanned = 0;
+            inner = 0;
+            stopStall();
         }
 
         function flush() {
@@ -453,26 +478,69 @@
             queued = 0;
             last = 0;
             budget = 0;
+            resetScan();
             pending.forEach(function (part) { sink(part); });
         }
 
-        // Writes the first `count` queued bytes, part by part.
+        // Writes the first `count` queued bytes (all of them scanned already), part by part.
         function take(count) {
             let left = count;
+            scanned -= count;
+            inner = Math.max(0, inner - count);
             while (left > 0 && queue.length) {
                 const head = queue[0];
                 if (head.length <= left) {
                     queue.shift();
                     queued -= head.length;
                     left -= head.length;
+                    if (scanPart > 0) scanPart -= 1;
+                    else scanIndex = 0;
                     sink(head);
                 } else {
                     queue[0] = head.subarray(left);
                     queued -= left;
+                    if (scanPart === 0) scanIndex -= left;
                     sink(head.subarray(0, left));
                     left = 0;
                 }
             }
+        }
+
+        // Scans on from where the last scan stopped until `limit` units are complete or the queue ends: the units
+        // found and the bytes they take from the queue head.
+        function scan(limit) {
+            let units = 0;
+            let bytes = 0;
+            while (units < limit && scanPart < queue.length) {
+                const part = queue[scanPart];
+                while (units < limit && scanIndex < part.length) {
+                    const found = scanner.step(part[scanIndex]);
+                    scanIndex += 1;
+                    scanned += 1;
+                    if (found === UNIT) {
+                        units += 1;
+                        bytes = scanned;
+                        inner = 0;
+                    } else if (found === INNER) inner = scanned;
+                }
+                if (scanIndex >= part.length) {
+                    scanPart += 1;
+                    scanIndex = 0;
+                }
+            }
+            return { units: units, bytes: bytes };
+        }
+
+        // SYNC_WAIT_MS after the throttle stalled on an open block, the block leaves as one unit up to its last
+        // complete code point or sequence; an unfinished one after it continues outside the block.
+        function expire() {
+            const block = stallBlock;
+            stall = 0;
+            stallBlock = 0;
+            if (disposed || !block || scanner.openBlock() !== block) return;
+            scanner.endBlock();
+            take(inner);
+            schedule();
         }
 
         function release(now) {
@@ -487,13 +555,20 @@
             budget += (baud / 10) * elapsed / 1000;
             const allowance = Math.floor(budget);
             budget -= allowance;
-            const found = allowance > 0 ? countUnits(queue, allowance) : { units: 0, bytes: 0 };
+            const found = allowance > 0 ? scan(allowance) : { units: 0, bytes: 0 };
             take(found.bytes);
-            // Fewer units than allowed: the queue is empty or holds only an unfinished unit, which push() resumes.
+            const open = scanner.openBlock();
+            if (stallBlock && open !== stallBlock) stopStall();
+            // Fewer units than allowed: the queue is empty or holds only an unfinished unit or block, which push()
+            // resumes (an open block also leaves SYNC_WAIT_MS later).
             if (queue.length && found.units === allowance) schedule();
             else {
                 last = 0;
                 budget = 0;
+                if (open && !stall) {
+                    stallBlock = open;
+                    stall = window.setTimeout(expire, SYNC_WAIT_MS);
+                }
             }
         }
 
@@ -524,6 +599,7 @@
             frame = 0;
             queue = [];
             queued = 0;
+            resetScan();
         }
 
         return { setBaud: setBaud, push: push, flush: flush, dispose: dispose };

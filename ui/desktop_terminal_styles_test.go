@@ -817,9 +817,14 @@ func TestDesktopTerminalModemContract(t *testing.T) {
 		"const SEQUENCE_LIMIT = 1024;",
 		"const SYNC_BEGIN = '?2026h';",
 		"const SYNC_END = '?2026l';",
-		"function countUnits(parts, limit)",
-		"const found = allowance > 0 ? countUnits(queue, allowance) : { units: 0, bytes: 0 };",
+		"const found = allowance > 0 ? scan(allowance) : { units: 0, bytes: 0 };",
 		"if (queue.length && found.units === allowance) schedule();",
+		// Unterminated blocks leave at 64 KiB or 1 s after a stall; scanning goes on from where it stopped.
+		"const SYNC_LIMIT = 64 * 1024;",
+		"const SYNC_WAIT_MS = 1000;",
+		"function scan(limit)",
+		"stall = window.setTimeout(expire, SYNC_WAIT_MS);",
+		"if (stall) window.clearTimeout(stall);",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("terminal-modem.js missing %q", want)

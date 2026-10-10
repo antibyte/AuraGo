@@ -23,6 +23,9 @@ const window = {
     },
     requestAnimationFrame: (fn) => { frames.push(fn); return frames.length; },
     cancelAnimationFrame: () => {},
+    // The throttle's stall timer; section 2b swaps in fake timers.
+    setTimeout: (fn, ms) => setTimeout(fn, ms),
+    clearTimeout: (id) => clearTimeout(id),
     matchMedia: () => ({ matches: true })
 };
 const document = { body: { dataset: { animations: 'false' } } };
@@ -244,6 +247,121 @@ storageThrows = false;
         throttle.push(encoder.encode(BEGIN));
         throttle.push(new Uint8Array(modem.MAX_QUEUE_BYTES));
         same('an unterminated block beyond the queue limit is released', total, BEGIN.length + modem.MAX_QUEUE_BYTES);
+        throttle.dispose();
+    }
+    // An unterminated block is never held for long: it ends as one unit at 64 KiB, or 1 s after the throttle stalled
+    // on it (up to its last complete code point or sequence), and every byte is scanned once.
+    const SYNC_LIMIT = 64 * 1024;
+    {
+        const { out, throttle } = unitThrottle();
+        throttle.push(encoder.encode(BEGIN + 'q'.repeat(70 * 1024)));
+        tick();
+        tick();
+        same('an unterminated block of 70 KiB leaves at 64 KiB as one unit', join(out).length, BEGIN.length + SYNC_LIMIT);
+        tick();
+        same('its rest counts as ordinary units', join(out).length, BEGIN.length + SYNC_LIMIT + 1);
+        throttle.dispose();
+    }
+    const realTimers = [window.setTimeout, window.clearTimeout];
+    const timers = new Map();
+    let timerSeq = 0;
+    window.setTimeout = (fn, ms) => { timerSeq += 1; timers.set(timerSeq, { fn, ms }); return timerSeq; };
+    window.clearTimeout = (id) => { timers.delete(id); };
+    const fire = () => {
+        const due = [...timers.entries()];
+        timers.clear();
+        due.forEach(([, timer]) => timer.fn());
+        return due.map(([, timer]) => timer.ms);
+    };
+    {
+        const { out, throttle, text } = unitThrottle();
+        throttle.push(encoder.encode(BEGIN + 'xyz' + glyph + '\x1b[3'));
+        tick();
+        tick();
+        equal('a small open block stalls the throttle without frames and arms one 1 s timer', [join(out).length, frames.length, [...timers.values()].map((timer) => timer.ms)], [0, 0, [1000]]);
+        throttle.push(encoder.encode(';4'));
+        tick();
+        tick();
+        same('more bytes of the open block keep the same timer', timers.size, 1);
+        same('when the timer fires, the block leaves up to its last complete character', fire().length === 1 && text(), BEGIN + 'xyz' + glyph);
+        throttle.push(encoder.encode('1mA'));
+        for (let i = 0; i < 20 && frames.length; i += 1) tick();
+        same('the unfinished sequence then continues outside the block', text(), BEGIN + 'xyz' + glyph + '\x1b[3;41mA');
+        same('and no timer is left', timers.size, 0);
+        throttle.dispose();
+    }
+    {
+        const { throttle, text } = unitThrottle();
+        throttle.push(encoder.encode(BEGIN + 'a'));
+        tick();
+        tick();
+        throttle.push(encoder.encode(END + 'b'));
+        tick();
+        tick();
+        equal('a block that ends in time clears its timer', [text(), timers.size], [BEGIN + 'a' + END, 0]);
+        throttle.push(encoder.encode(BEGIN));
+        tick();
+        tick();
+        same('a later open block arms a new timer', timers.size, 1);
+        throttle.flush();
+        same('flush clears it', timers.size, 0);
+        throttle.push(encoder.encode(BEGIN));
+        tick();
+        tick();
+        throttle.setBaud(0);
+        same('switching the throttle off clears it', timers.size, 0);
+        throttle.setBaud(300);
+        throttle.push(encoder.encode(BEGIN));
+        tick();
+        tick();
+        throttle.dispose();
+        same('dispose clears it', timers.size, 0);
+    }
+    [window.setTimeout, window.clearTimeout] = realTimers;
+    {
+        // 1 MiB of a repaint that never ends, in 4 KiB pushes with a frame after each: the old byte-for-byte rescan of
+        // the open block on every push took seconds; scanning on from the last position is linear.
+        const { out, throttle } = unitThrottle();
+        const chunk = encoder.encode((sgr + glyph).repeat(186) + 'qqqq');
+        const started = Date.now();
+        throttle.push(encoder.encode(BEGIN));
+        let firstRelease = -1;
+        for (let i = 0; i < 256; i += 1) {
+            throttle.push(chunk);
+            if (frames.length) tick();
+            if (firstRelease < 0 && out.length) firstRelease = i;
+        }
+        const elapsed = Date.now() - started;
+        check('1 MiB of an open block in 4 KiB pushes is scanned in linear time', elapsed < 2000, elapsed + ' ms');
+        check('the open block leaves after 64 KiB, not 1 MiB', firstRelease >= 0 && firstRelease <= 17, String(firstRelease));
+        throttle.setBaud(0);
+        same('everything arrives', join(out).length, BEGIN.length + 256 * chunk.length);
+        throttle.dispose();
+    }
+    {
+        // Every byte is scanned once: count the scanner's reads of 1000 pushes of 60 bytes into one open block.
+        let reads = 0;
+        const counted = (bytes) => new Proxy(bytes, {
+            get(target, prop) {
+                if (typeof prop === 'string' && /^[0-9]+$/.test(prop)) reads += 1;
+                const value = Reflect.get(target, prop, target);
+                return typeof value === 'function' ? value.bind(target) : value;
+            }
+        });
+        let total = 0;
+        const throttle = modem.createThrottle((bytes) => { total += bytes.length; });
+        throttle.setBaud(300);
+        frames.length = 0;
+        throttle.push(counted(encoder.encode(BEGIN)));
+        const piece = encoder.encode('w'.repeat(60));
+        for (let i = 0; i < 1000; i += 1) {
+            throttle.push(counted(piece.slice()));
+            if (frames.length) tick();
+        }
+        throttle.push(counted(encoder.encode(END)));
+        for (let i = 0; i < 4 && frames.length; i += 1) tick();
+        const bytes = BEGIN.length + 60000 + END.length;
+        check('every byte of an open block is scanned once, however often it grows', total === bytes && reads <= bytes, total + ' bytes released, ' + reads + ' reads of ' + bytes + ' bytes');
         throttle.dispose();
     }
     frames.length = 0;
