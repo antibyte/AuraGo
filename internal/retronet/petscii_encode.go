@@ -32,11 +32,12 @@ func (c *petsciiCodec) Encode(dst, src []byte) []byte {
 }
 
 // petsciiKeySequence decodes the key that starts with the ESC at src[0] and
-// returns the number of bytes it consumed. A lone ESC is RUN/STOP; ESC
-// followed by another key (an Alt chord) is dropped together with that key;
-// incomplete, malformed and unknown sequences are dropped.
+// returns the number of bytes it consumed. A lone ESC and an ESC followed by
+// another ESC are RUN/STOP; ESC followed by another key (an Alt chord) is
+// dropped together with that key; incomplete, malformed and unknown
+// sequences are dropped.
 func petsciiKeySequence(src []byte) (n int, key byte, ok bool) {
-	if len(src) == 1 {
+	if len(src) == 1 || src[1] == petsciiEsc {
 		return 1, petsciiRunStop, true
 	}
 	switch src[1] {

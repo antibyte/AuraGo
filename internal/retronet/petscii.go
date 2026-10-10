@@ -64,6 +64,11 @@ const (
 	escCSI                       // inside ESC [ (parameter and intermediate bytes)
 )
 
+// maxANSIParams caps the parameter and intermediate bytes the ANSI-probe
+// swallower takes; a longer sequence is no probe, so the swallow ends and the
+// following bytes are processed normally.
+const maxANSIParams = 16
+
 // rgbUnknown is no 24-bit colour; it forces the next SGR.
 const rgbUnknown uint32 = 1 << 24
 
@@ -74,7 +79,8 @@ const rgbUnknown uint32 = 1 << 24
 type petsciiCodec struct {
 	scr     c64Screen
 	esc     petsciiEscape
-	started bool // the first output reset xterm's attributes
+	escLen  uint8 // parameter and intermediate bytes swallowed in escCSI
+	started bool  // the first output reset xterm's attributes
 
 	// dirty holds, per row, the first column whose xterm content is stale
 	// (DEL, INST, charset switch), c64Cols when the row is current. Decode
@@ -169,19 +175,20 @@ func (c *petsciiCodec) decodeByte(dst []byte, b byte) []byte {
 	case escSeen:
 		c.esc = escNone
 		if b == '[' {
-			c.esc = escCSI
+			c.esc, c.escLen = escCSI, 0
 			return dst
 		}
 		// A lone ESC is ignored; b is an ordinary byte.
 	case escCSI:
 		switch {
-		case b >= 0x20 && b <= 0x3F: // parameter and intermediate bytes
+		case b >= 0x20 && b <= 0x3F && c.escLen < maxANSIParams: // parameter and intermediate bytes
+			c.escLen++
 			return dst
 		case b >= 0x40 && b <= 0x7E: // final byte
 			c.esc = escNone
 			return dst
 		}
-		c.esc = escNone // not part of a CSI: the sequence ends, b is ordinary
+		c.esc = escNone // not part of a CSI, or one parameter byte too many: b is ordinary
 	}
 	if b == petsciiEsc {
 		c.esc = escSeen

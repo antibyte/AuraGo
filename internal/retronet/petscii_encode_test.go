@@ -31,6 +31,8 @@ func TestPetsciiEncodeKeys(t *testing.T) {
 		{"F1 F3 F5 F7", "\x1bOP\x1bOR\x1b[15~\x1b[18~", []byte{0x85, 0x86, 0x87, 0x88}},
 		{"F2 F4 F6 F8", "\x1bOQ\x1bOS\x1b[17~\x1b[19~", []byte{0x89, 0x8A, 0x8B, 0x8C}},
 		{"lone escape is RUN/STOP", "\x1b", []byte{0x03}},
+		{"escape twice is RUN/STOP twice", "\x1b\x1b", []byte{0x03, 0x03}},
+		{"escape before a cursor key", "\x1b\x1b[A", []byte{0x03, 0x91}},
 		{"ctrl-c is RUN/STOP", "\x03", []byte{0x03}},
 		{"pasted word", "Hello", []byte{0xC8, 0x45, 0x4C, 0x4C, 0x4F}},
 		{"keys and sequences mixed", "a\x1b[Cb\r", []byte{0x41, 0x1D, 0x42, 0x0D}},
@@ -109,7 +111,7 @@ func TestPetsciiEncodeDropsEverythingElse(t *testing.T) {
 		"\x1b[1;5A",                      // Ctrl+Up
 		"\x1b[200~",                      // bracketed paste start
 		"\x1bOx",                         // unknown SS3
-		"\x1bx\x1b\x1b",                  // Alt chords
+		"\x1bx",                          // Alt chord
 		"\x1b\U000000E9",                 // Alt + non-ASCII
 		"\x1b[",                          // incomplete
 		"\x1bO",                          // incomplete

@@ -276,6 +276,10 @@ func TestPetsciiANSIProbesAreSwallowed(t *testing.T) {
 		{"ESC ESC", []string{"\x1b\x1b[6nA"}, "a"},
 		{"control byte ends the sequence", []string{"\x1b[1\x0dA"}, ""},
 		{"shifted letter ends the sequence", []string{"\x1b[1\xc1"}, "A"},
+		{"16 parameter bytes are swallowed", []string{"\x1b[" + strings.Repeat("1", 16) + "mA"}, "a"},
+		{"a 17th parameter byte ends the swallow", []string{"\x1b[" + strings.Repeat("1", 17) + "A"}, "1a"},
+		{"intermediate bytes count too", []string{"\x1b[" + strings.Repeat(" ", 16) + "1A"}, "1a"},
+		{"the cap counts across reads", []string{"\x1b[" + strings.Repeat("1", 9), strings.Repeat("1", 8) + "A"}, "1a"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
