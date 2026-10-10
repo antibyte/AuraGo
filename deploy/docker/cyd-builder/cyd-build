@@ -14,11 +14,14 @@ writes <work>/out/{merged.bin, firmware.bin, firmware.elf, result.json} and, on
 success, out/fonts/{<symbol>.c..., fonts.json} (the converted LVGL fonts)
 
 Runs offline (docker run --network none), as uid 1000, on a read-only root
-filesystem: it writes only below <work>, /cache and /tmp. Builds of one cache
-key are serialized by /cache/locks/<cache-key>.lock; PlatformIO's build
-directory is /cache/build/<builder-version>/<cache-key>; converted fonts are
-cached by content in /cache/fonts (a hit refreshes the entry's mtime, so the
-oldest entries are the ones to evict).
+filesystem: it writes only below <work>, /cache and /tmp. One build at a time
+per container (/tmp/cyd-build.lock: parallel builds would exhaust the memory
+limit) and per cache key across every container sharing /cache
+(/cache/locks/<cache-key>.lock); a build that has to wait says so. PlatformIO's
+build directory is /cache/build/<builder-version>/<cache-key>; converted fonts
+are cached by content in /cache/fonts (a hit refreshes the entry's mtime, so
+the oldest entries are the ones to evict). A closed log reader (broken pipe)
+does not stop the build: the exit code and result.json stay correct.
 
 Trust boundary: the arguments and the image are trusted (the server chooses
 them). The build tree below --work is not: src/app/** is written by users and
@@ -57,6 +60,7 @@ LIBS = OPT + "/libs"              # every curated library, installed from the re
 FONTS = OPT + "/fonts"
 LV_FONT_CONV = OPT + "/node/bin/lv_font_conv"
 BUILDER_VERSION_FILE = OPT + "/builder-version"
+CONTAINER_LOCK = "/tmp/cyd-build.lock"
 TMP = "/tmp/cyd-pio"
 CACHE = "/cache"
 WORK_ROOT = "/work"
@@ -91,7 +95,11 @@ RANGE_RE = re.compile(r"0x([0-9A-Fa-f]{1,6})(?:-0x([0-9A-Fa-f]{1,6}))?")
 WARNING_RE = re.compile(r"^[^\s:][^:]*:\d+:\d+: warning: ")
 CODE_ERROR_RE = re.compile(r"^[^\s:][^:]*:\d+(?::\d+)?: (?:fatal )?error: "
                            r"|undefined reference to |multiple definition of |region `[^']*' overflowed")
-KILLED_RE = re.compile(r"Killed signal terminated program|terminated with signal 9|internal compiler error: Killed")
+# Only messages of the compiler driver or collect2 itself, so a source line the
+# compiler echoes cannot turn a compile error (1) into a tooling error (2).
+KILLED_RE = re.compile(r"^(?:\S*/)?(?:xtensa-esp32(?:s3)?-elf-(?:gcc|g\+\+|c\+\+|ld)|collect2): "
+                       r"(?:fatal error: Killed signal terminated program|internal compiler error: Killed"
+                       r"|fatal error: \S+ terminated with signal 9)")
 USAGE_RE = re.compile(r"^(RAM|Flash):\s+\[.*\]\s+[\d.]+% \(used (\d+) bytes from (\d+) bytes\)")
 BUDGET_RE = re.compile(r"The program size \((\d+) bytes\) is greater than maximum allowed \((\d+) bytes\)")
 LOG_CAP = 4 << 20  # bytes of PlatformIO output echoed; later lines are only parsed
@@ -100,16 +108,33 @@ JOB_MEMORY = 512 << 20  # one compiler job per 512 MiB of the container memory l
 ENV_ALLOWLIST = ("PATH", "LANG", "LC_ALL")
 DEFAULT_PATH = "/opt/cyd/pio-venv/bin:/opt/cyd/node/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
+SIGNALS = {signal.SIGTERM, signal.SIGINT}
+
 _children = set()  # running Popen objects that lead their own process group
 _font_file_hashes = {}
+# stdout_dead: the log reader went away; finished: result.json is final, a late
+# cancel signal no longer changes the outcome.
+_state = {"stdout_dead": False, "finished": False}
 
 
 class ToolError(Exception):
     pass
 
 
+def emit(text):
+    """Write to the build log. A closed reader (broken pipe) must not stop
+    the build: remember it and drop all further log output."""
+    if _state["stdout_dead"]:
+        return
+    try:
+        sys.stdout.write(text)
+        sys.stdout.flush()
+    except (OSError, ValueError):
+        _state["stdout_dead"] = True
+
+
 def say(msg):
-    print("[cyd-build] " + msg, flush=True)
+    emit("[cyd-build] " + msg + "\n")
 
 
 def sha256_file(path):
@@ -129,10 +154,12 @@ def kill_group(proc):
 
 def on_signal(signum, frame):
     """Cancel (SIGTERM, SIGINT): take every compiler process group down, then
-    unwind through main() so result.json is still written."""
+    unwind through main() so result.json is still written. Once result.json
+    is final the build's own exit code stands."""
     for proc in list(_children):
         kill_group(proc)
-    raise SystemExit(EXIT_TOOLING)
+    if not _state["finished"]:
+        raise SystemExit(EXIT_TOOLING)
 
 
 def parse_args():
@@ -166,16 +193,18 @@ def builder_version():
     return version
 
 
-def acquire_lock(cache_key):
-    """One build per cache key at a time, across every container that shares /cache."""
-    lock_dir = os.path.join(CACHE, "locks")
-    os.makedirs(lock_dir, exist_ok=True)
-    lock = open(os.path.join(lock_dir, cache_key + ".lock"), "a")
+def take_lock(path, waiting):
+    """An exclusive flock on path; says `waiting` before it blocks."""
+    lock = open(path, "a")
     try:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
-        say("waiting for another build of cache key %s" % cache_key)
-        fcntl.flock(lock, fcntl.LOCK_EX)
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            say(waiting)
+            fcntl.flock(lock, fcntl.LOCK_EX)
+    except BaseException:
+        lock.close()
+        raise
     return lock
 
 
@@ -360,7 +389,7 @@ def convert_font(font, cache_dir, cached, env):
                              text=True, errors="replace")
         produced = os.path.join(tmp_dir, name)
         if res.returncode != 0 or not os.path.isfile(produced):
-            sys.stdout.write(res.stdout)
+            emit(res.stdout)
             raise ToolError("lv_font_conv failed for %s" % symbol)
         normalize_font_header(produced, symbol, family, size)
         os.replace(produced, cached)
@@ -497,8 +526,7 @@ def run_pio(work, env_name, env, result, seen):
                 say("log truncated after %d bytes; the build goes on" % echoed)
             else:
                 echoed += size
-                sys.stdout.write(line)
-                sys.stdout.flush()
+                emit(line)
             last_echo[0] = time.monotonic()
         return proc.wait()
     finally:
@@ -531,7 +559,7 @@ def merge_image(chip, build_env_dir, out_dir):
            "0xe000", BOOT_APP0,
            "0x10000", os.path.join(build_env_dir, "firmware.bin")]
     res = subprocess.run(cmd, env=base_environment(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-    sys.stdout.write(res.stdout)
+    emit(res.stdout)
     if res.returncode != 0:
         raise ToolError("esptool merge_bin failed")
     shutil.copyfile(os.path.join(build_env_dir, "firmware.bin"), os.path.join(out_dir, "firmware.bin"))
@@ -564,9 +592,12 @@ def main():
               "flash": {"used": 0, "total": 0}, "ram": {"used": 0, "total": 0}, "files": {}, "fonts": {}}
     seen = {"budget": False, "code_error": False, "killed": False}
     code = EXIT_TOOLING
-    lock = None
+    locks = []
     try:
-        lock = acquire_lock(args.cache_key)
+        locks.append(take_lock(CONTAINER_LOCK, "waiting for the build running in this container"))
+        os.makedirs(os.path.join(CACHE, "locks"), exist_ok=True)
+        locks.append(take_lock(os.path.join(CACHE, "locks", args.cache_key + ".lock"),
+                               "waiting for another build of cache key %s" % args.cache_key))
         check_tree(args.work)
         shutil.rmtree(out_dir, ignore_errors=True)
         os.makedirs(out_dir)
@@ -618,21 +649,26 @@ def main():
         say("internal error: %r" % (exc,))
         code = EXIT_TOOLING
     finally:
-        result["exit"] = code
-        result["ok"] = code == EXIT_OK
-        if code != EXIT_OK:
-            result["files"], result["fonts"] = {}, {}
-        result["duration_ms"] = int((time.monotonic() - started) * 1000)
+        signal.pthread_sigmask(signal.SIG_BLOCK, SIGNALS)  # a cancel must not cut result.json short
         try:
-            os.makedirs(out_dir, exist_ok=True)
-            with open(os.path.join(out_dir, "result.json"), "w", encoding="utf-8") as f:
-                json.dump(result, f, separators=(",", ":"))
-                f.write("\n")
-        except OSError as exc:
-            say("cannot write result.json: %s" % exc)
-        if lock is not None:
-            fcntl.flock(lock, fcntl.LOCK_UN)
-            lock.close()
+            result["exit"] = code
+            result["ok"] = code == EXIT_OK
+            if code != EXIT_OK:
+                result["files"], result["fonts"] = {}, {}
+            result["duration_ms"] = int((time.monotonic() - started) * 1000)
+            try:
+                os.makedirs(out_dir, exist_ok=True)
+                with open(os.path.join(out_dir, "result.json"), "w", encoding="utf-8") as f:
+                    json.dump(result, f, separators=(",", ":"))
+                    f.write("\n")
+            except OSError as exc:
+                say("cannot write result.json: %s" % exc)
+            _state["finished"] = True
+            for lock in reversed(locks):
+                fcntl.flock(lock, fcntl.LOCK_UN)
+                lock.close()
+        finally:
+            signal.pthread_sigmask(signal.SIG_UNBLOCK, SIGNALS)
     say("done: exit %d in %.1f s" % (code, result["duration_ms"] / 1000))
     return code
 
@@ -640,9 +676,16 @@ def main():
 if __name__ == "__main__":
     try:
         exit_code = main()
-    except SystemExit:
-        raise
+    except SystemExit as exc:  # argparse errors, cancel
+        exit_code = exc.code if exc.code in (EXIT_OK, EXIT_COMPILE, EXIT_TOOLING, EXIT_BUDGET) else EXIT_TOOLING
     except BaseException as exc:  # noqa: BLE001 - never leave with a traceback's exit code
         say("internal error: %r" % (exc,))
         exit_code = EXIT_TOOLING
-    sys.exit(exit_code)
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.flush()
+        except (OSError, ValueError):
+            pass
+    # os._exit: the interpreter's own final flush of a broken stdout would
+    # turn the exit code into 120.
+    os._exit(exit_code)

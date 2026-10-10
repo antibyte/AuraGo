@@ -141,7 +141,7 @@ COPY --from=cydcreator testdata/reference/basic /opt/cyd/selftest/reference
 # world-readable).
 RUN mkdir -p /work /cache \
     && cyd-selftest --all \
-    && rm -rf /work/* /cache/* /tmp/cyd-pio /tmp/cyd-pio-build \
+    && rm -rf /work/* /cache/* /tmp/cyd-pio /tmp/cyd-build.lock /tmp/cyd-pio-build \
     && find /opt/cyd \( \( -type d ! -perm -o+rx \) -o \( -type f ! -perm -o+r \) \) -print0 \
       | xargs -0 -r chmod a+rX,go-w \
     && chown 1000:1000 /work /cache
