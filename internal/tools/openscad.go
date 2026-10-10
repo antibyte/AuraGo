@@ -51,7 +51,6 @@ func ExecuteOpenSCADRender(ctx context.Context, cfg *config.Config, args map[str
 		"job_id":        result.JobID,
 		"model_name":    result.ModelName,
 		"files":         result.Files,
-		"source_path":   result.SourcePath,
 		"source_scad":   req.SourceSCAD,
 		"exit_code":     result.ExitCode,
 		"duration_ms":   result.DurationMS,

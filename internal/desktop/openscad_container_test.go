@@ -967,3 +967,22 @@ func TestOpenSCADJobFileRefusesSymlink(t *testing.T) {
 		t.Fatalf("error = %v, want a symlink refusal without the target contents", err)
 	}
 }
+
+func TestOpenSCADStatusAndResultOmitHostPaths(t *testing.T) {
+	dataDir := t.TempDir()
+	svc := NewOpenSCADContainerService(Config{DataDir: dataDir, OpenSCAD: OpenSCADConfig{Enabled: true}}, nil)
+	body, err := json.Marshal(svc.Status(context.Background()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(body, []byte("jobs_host_path")) || bytes.Contains(body, []byte(dataDir)) {
+		t.Fatalf("status leaked a host path: %s", body)
+	}
+	resultBody, err := json.Marshal(OpenSCADRenderResult{JobID: "oscad-1", SourcePath: filepath.Join(dataDir, "model.scad")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(resultBody, []byte("source_path")) || bytes.Contains(resultBody, []byte(dataDir)) {
+		t.Fatalf("result leaked a host path: %s", resultBody)
+	}
+}

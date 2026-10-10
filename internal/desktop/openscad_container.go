@@ -110,7 +110,7 @@ type OpenSCADRenderResult struct {
 	JobID        string         `json:"job_id"`
 	ModelName    string         `json:"model_name"`
 	Files        []OpenSCADFile `json:"files"`
-	SourcePath   string         `json:"source_path"`
+	SourcePath   string         `json:"-"`
 	SourceSCAD   string         `json:"source_scad,omitempty"`
 	ExitCode     int            `json:"exit_code"`
 	DurationMS   int64          `json:"duration_ms"`
@@ -127,7 +127,6 @@ type OpenSCADStatus struct {
 	Running                 bool                   `json:"running"`
 	ContainerID             string                 `json:"container_id,omitempty"`
 	Image                   string                 `json:"image"`
-	JobsHostPath            string                 `json:"jobs_host_path"`
 	JobsContainerPath       string                 `json:"jobs_container_path"`
 	AutoStopMinutes         int                    `json:"auto_stop_minutes"`
 	MaxConcurrentJobs       int                    `json:"max_concurrent_jobs"`
@@ -820,7 +819,6 @@ func (s *OpenSCADContainerService) Status(ctx context.Context) OpenSCADStatus {
 		State:                   s.state.String(),
 		Running:                 s.state == StateRunning,
 		Image:                   openSCADImage(s.cfg.OpenSCAD),
-		JobsHostPath:            s.jobsRootLocked(),
 		JobsContainerPath:       openSCADJobsInContainer,
 		AutoStopMinutes:         openSCADAutoStopMinutes(s.cfg.OpenSCAD),
 		MaxConcurrentJobs:       openSCADMaxConcurrentJobs(s.cfg.OpenSCAD),
