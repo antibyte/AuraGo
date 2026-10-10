@@ -13,7 +13,7 @@ import (
 
 func TestParseYtDlpSearch(t *testing.T) {
 	output := strings.Join([]string{
-		`{"id":"abc123","title":"Example","uploader":"Uploader","duration":42,"view_count":1000}`,
+		`{"id":"dQw4w9WgXcQ","title":"Example","uploader":"Uploader","duration":42,"view_count":1000}`,
 		`warning: ignored`,
 		`{"id":"def456","title":"Second","url":"https://example.test/video","thumbnail":"https://img.test/t.jpg"}`,
 	}, "\n")
@@ -22,7 +22,7 @@ func TestParseYtDlpSearch(t *testing.T) {
 	if len(items) != 2 {
 		t.Fatalf("len(items) = %d, want 2", len(items))
 	}
-	if items[0].URL != "https://www.youtube.com/watch?v=abc123" {
+	if items[0].URL != "https://www.youtube.com/watch?v=dQw4w9WgXcQ" {
 		t.Fatalf("first URL = %q", items[0].URL)
 	}
 	if items[1].URL != "https://example.test/video" {
@@ -117,6 +117,22 @@ func TestValidateVideoDownloadURLRejectsUnsafeSchemes(t *testing.T) {
 	}
 	if err := validateVideoDownloadURL("https://www.youtube.com/watch?v=dQw4w9WgXcQ"); err != nil {
 		t.Fatalf("validateVideoDownloadURL(https) error = %v", err)
+	}
+}
+
+func TestValidateVideoDownloadURLRejectsInternalTargets(t *testing.T) {
+	t.Parallel()
+	for _, raw := range []string{
+		"https://127.0.0.1/video.mp4",
+		"http://169.254.169.254/latest/meta-data",
+		"https://user:secret@www.youtube.com/watch?v=dQw4w9WgXcQ",
+		"https://192.168.1.10/cam.m3u8",
+	} {
+		t.Run(raw, func(t *testing.T) {
+			if err := validateVideoDownloadURL(raw); err == nil {
+				t.Fatalf("validateVideoDownloadURL(%q) succeeded, want error", raw)
+			}
+		})
 	}
 }
 

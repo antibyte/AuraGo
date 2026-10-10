@@ -13,14 +13,18 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 )
 
 const videoDownloadContainerDir = "/downloads"
 const maxVideoSearchDescriptionLength = 200
+
+var youtubeVideoIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{11}$`)
 
 type VideoDownloadRequest struct {
 	Operation string
@@ -393,15 +397,7 @@ func dockerRequestContext(ctx context.Context, cfg DockerConfig, method, endpoin
 }
 
 func validateVideoDownloadURL(raw string) error {
-	parsed, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil || parsed.Hostname() == "" {
-		return fmt.Errorf("invalid video URL")
-	}
-	scheme := strings.ToLower(parsed.Scheme)
-	if scheme != "http" && scheme != "https" {
-		return fmt.Errorf("unsupported video URL scheme: %s", parsed.Scheme)
-	}
-	return nil
+	return security.ValidatePublicHTTPURL(raw)
 }
 
 func splitDockerLogStreams(raw []byte) (string, string) {
@@ -448,7 +444,7 @@ func parseYtDlpSearch(output string) []videoSearchResult {
 			Description: truncateVideoSearchDescription(stringFromMap(raw, "description")),
 			Thumbnail:   stringFromMap(raw, "thumbnail"),
 		}
-		if item.URL == "" && item.ID != "" {
+		if item.URL == "" && youtubeVideoIDPattern.MatchString(item.ID) {
 			item.URL = "https://www.youtube.com/watch?v=" + item.ID
 		}
 		results = append(results, item)
