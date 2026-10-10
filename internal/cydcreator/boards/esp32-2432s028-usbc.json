@@ -1,0 +1,40 @@
+{
+  "id": "esp32-2432s028-usbc",
+  "label": "CYD2USB 2.8\" (ESP32-2432S028R, USB-C, ST7789)",
+  "status": "community",
+  "source": "https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display/blob/main/cyd.md",
+  "chip": "esp32",
+  "flash_mb": 4,
+  "psram": false,
+  "pio": {
+    "board": "esp32dev"
+  },
+  "display": {
+    "driver": "ST7789",
+    "bus": "spi",
+    "width": 320,
+    "height": 240,
+    "native_orientation": "landscape",
+    "invert": false,
+    "bgr": false,
+    "pins": { "sclk": 14, "mosi": 13, "miso": 12, "cs": 15, "dc": 2, "rst": -1, "bl": 21 },
+    "hz": 40000000,
+    "bl_pwm": true,
+    "offset_rotation": 1
+  },
+  "touch": {
+    "driver": "XPT2046",
+    "bus": "spi",
+    "pins": { "sclk": 25, "mosi": 32, "miso": 39, "cs": 33, "irq": 36 },
+    "calibration": { "x_min": 290, "x_max": 3670, "y_min": 230, "y_max": 3860 },
+    "needs_calibration": true
+  },
+  "extras": {
+    "rgb_led": { "r": 4, "g": 16, "b": 17, "active_low": true },
+    "ldr": 34,
+    "speaker": 26,
+    "sd_cs": 5,
+    "boot_button": 0
+  },
+  "lvgl": { "draw_buffer_lines": 24, "double_buffer": false }
+}

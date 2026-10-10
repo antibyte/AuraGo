@@ -1,0 +1,50 @@
+{
+  "id": "esp32-8048s043",
+  "label": "Sunton 4.3\" (ESP32-8048S043C, ESP32-S3, RGB 800x480)",
+  "status": "community",
+  "source": "https://github.com/lovyan03/LovyanGFX/blob/master/src/lgfx_user/LGFX_ESP32S3_RGB_ESP32-8048S043.h",
+  "chip": "esp32s3",
+  "flash_mb": 16,
+  "psram": true,
+  "pio": {
+    "board": "esp32-s3-devkitc-1",
+    "build_flags": ["-DBOARD_HAS_PSRAM"],
+    "board_build": { "arduino.memory_type": "qio_opi", "flash_mode": "qio" }
+  },
+  "display": {
+    "driver": "ST7262",
+    "bus": "rgb",
+    "width": 800,
+    "height": 480,
+    "native_orientation": "landscape",
+    "invert": false,
+    "bgr": false,
+    "pins": {
+      "de": 40, "vsync": 41, "hsync": 39, "pclk": 42,
+      "r0": 45, "r1": 48, "r2": 47, "r3": 21, "r4": 14,
+      "g0": 5, "g1": 6, "g2": 7, "g3": 15, "g4": 16, "g5": 4,
+      "b0": 8, "b1": 3, "b2": 46, "b3": 9, "b4": 1,
+      "bl": 2
+    },
+    "hz": 0,
+    "bl_pwm": true,
+    "timing": {
+      "pclk_hz": 14000000,
+      "hsync_polarity": 0, "hsync_front_porch": 8, "hsync_pulse_width": 4, "hsync_back_porch": 16,
+      "vsync_polarity": 0, "vsync_front_porch": 4, "vsync_pulse_width": 4, "vsync_back_porch": 4,
+      "pclk_active_neg": 1, "pclk_idle_high": 1, "de_idle_high": 0
+    }
+  },
+  "touch": {
+    "driver": "GT911",
+    "bus": "i2c",
+    "pins": { "sda": 19, "scl": 20, "int": -1, "rst": 38 },
+    "i2c_addr": 93,
+    "needs_calibration": false
+  },
+  "extras": {
+    "sd_cs": 10,
+    "boot_button": 0
+  },
+  "lvgl": { "draw_buffer_lines": 40, "double_buffer": false }
+}

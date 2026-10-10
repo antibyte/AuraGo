@@ -1,0 +1,39 @@
+{
+  "id": "jc4827w543",
+  "label": "Guition 4.3\" (JC4827W543C, ESP32-S3, NV3041A)",
+  "status": "community",
+  "source": "https://github.com/profi-max/JC4827W543_4.3inch_ESP32S3_board",
+  "chip": "esp32s3",
+  "flash_mb": 4,
+  "psram": true,
+  "pio": {
+    "board": "esp32-s3-devkitc-1",
+    "build_flags": ["-DBOARD_HAS_PSRAM", "-DARDUINO_USB_MODE=1", "-DARDUINO_USB_CDC_ON_BOOT=1"],
+    "board_build": { "arduino.memory_type": "qio_opi", "flash_mode": "qio" }
+  },
+  "display": {
+    "driver": "NV3041A",
+    "bus": "qspi",
+    "width": 480,
+    "height": 272,
+    "native_orientation": "landscape",
+    "invert": true,
+    "bgr": true,
+    "pins": { "cs": 45, "sclk": 47, "d0": 21, "d1": 48, "d2": 40, "d3": 39, "rst": -1, "bl": 1 },
+    "hz": 32000000,
+    "bl_pwm": true
+  },
+  "touch": {
+    "driver": "GT911",
+    "bus": "i2c",
+    "pins": { "sda": 8, "scl": 4, "int": 3, "rst": 38 },
+    "i2c_addr": 93,
+    "needs_calibration": false,
+    "offset_rotation": 2
+  },
+  "extras": {
+    "sd_cs": 10,
+    "boot_button": 0
+  },
+  "lvgl": { "draw_buffer_lines": 40, "double_buffer": false }
+}
