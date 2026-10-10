@@ -914,6 +914,15 @@ buttons and menu popovers remain excluded from those gestures.
 - Readonly omits rename/delete controls and shows the readonly hint instead of
   rendering disabled buttons. There is no upload because media mounts are
   server-side read-only.
+- `gallery-metadata.js` loads after `gallery-library.js` and before the view.
+  Descriptions/tags use the media registry via `/api/desktop/gallery/metadata`;
+  category keyword rules use the validated `gallery.categories` Desktop setting.
+  Keep optimistic version checks, rooted image reads, admin-only explicit vision,
+  vision budget accounting and Desktop revocation gates. Analyze all snapshots
+  the complete Photos library (not the filtered grid), warns above 20 photos,
+  runs sequentially and cancels on Stop/disposal/revocation. Preserve prompts,
+  source tags and unsaved editor drafts. Verify `TestGalleryMetadataBrowser`,
+  `TestDesktopGallery*`, `TestGallery*` and all 16 locales.
 - Width/height/duration are derived client-side from loaded `<img>`/`<video>`
   elements; `FileEntry` carries none. Live refresh listens to `desktop_changed`
   SSE payload paths, polls every 45 s and reloads on `visibilitychange`.

@@ -39,6 +39,12 @@
                     </button>
                 </div>
             </div>
+            <div class="vd-gallery-metadata-toolbar">
+                <label>${esc(t('desktop.gallery_category'))}<select data-gallery-category aria-label="${esc(t('desktop.gallery_category'))}"><option value="">${esc(t('desktop.gallery_category_all'))}</option></select></label>
+                ${readonly ? '' : `<button type="button" class="vd-button" data-gallery-categories>${esc(t('desktop.gallery_categories_manage'))}</button><button type="button" class="vd-button" data-gallery-analyze-all>${esc(t('desktop.gallery_analyze_all'))}</button>`}
+                <span data-gallery-metadata-status role="status"></span>
+                <button type="button" class="vd-button" data-gallery-analysis-stop hidden>${esc(t('desktop.cancel'))}</button>
+            </div>
             <div class="vd-gallery-body${state.infoOpen ? ' has-info' : ''}">
                 <div class="vd-gallery-scroll vd-scroll" data-gallery-scroll tabindex="0" role="listbox" aria-multiselectable="true" aria-label="${esc(t('desktop.app_gallery'))}">
                     <div class="vd-gallery-pill" data-gallery-new hidden>
@@ -169,6 +175,7 @@
                 <input class="vd-gallery-info-name" type="text" value="${esc(item.name || '')}" data-gallery-info-name aria-label="${esc(t('desktop.gallery_field_name'))}"${readonly ? ' readonly' : ''} spellcheck="false" autocomplete="off" enterkeyhint="done">
             </div>
             <dl class="vd-gallery-info-list">${rows.map(([label, value]) => `<div><dt>${esc(label)}</dt><dd title="${esc(value)}">${esc(value)}</dd></div>`).join('')}</dl>
+            ${kind === 'image' ? window.GalleryMetadata.editorHTML(v, item) : ''}
             <div class="vd-gallery-info-actions">
                 <button type="button" class="vd-button" data-gallery-info-download>${iconMarkup('gallery-action-download', 'D', ICON, 14)}<span>${esc(t('desktop.gallery_download'))}</span></button>
                 ${kind === 'image' ? `<button type="button" class="vd-button" data-gallery-info-edit>${iconMarkup('gallery-action-edit', 'E', ICON, 14)}<span>${esc(t('desktop.gallery_edit_pixel'))}</span></button>` : ''}

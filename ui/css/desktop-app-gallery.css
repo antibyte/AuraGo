@@ -2,6 +2,57 @@
 
 /* ── App shell ─────────────────────────────────────────────────────── */
 
+.vd-gallery-metadata-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--vd-theme-chrome-bg);
+    border-bottom: 1px solid var(--vd-theme-border);
+    font-size: 12px;
+}
+.vd-gallery-metadata-toolbar label { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.vd-gallery-metadata-toolbar select { max-width: 190px; }
+.vd-gallery-metadata-editor { padding: 12px; border-top: 1px solid var(--vd-theme-border); }
+.vd-gallery-metadata-editor label,
+.vd-gallery-category-dialog label { display: grid; gap: 5px; margin-bottom: 12px; font-size: 12px; }
+.vd-gallery-metadata-editor input,
+.vd-gallery-metadata-editor textarea,
+.vd-gallery-category-dialog input,
+.vd-gallery-category-dialog select,
+.vd-gallery-metadata-toolbar select {
+    box-sizing: border-box;
+    min-width: 0;
+    width: 100%;
+    padding: 7px 9px;
+    border: 1px solid var(--vd-theme-border);
+    border-radius: 6px;
+    background: var(--vd-theme-control-bg);
+    color: var(--vd-text);
+    font: inherit;
+}
+.vd-gallery-metadata-editor textarea { resize: vertical; min-height: 85px; }
+.vd-gallery-metadata-editor p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.vd-gallery-metadata-editor details { margin-bottom: 12px; font-size: 12px; }
+.vd-gallery-metadata-editor summary { cursor: pointer; }
+.vd-gallery-dialog-backdrop {
+    position: absolute; inset: 0; z-index: 20; display: flex;
+    align-items: center; justify-content: center; padding: 12px;
+    background: rgb(0 0 0 / 45%);
+}
+.vd-gallery-category-dialog {
+    width: min(430px, 100%); max-height: 100%; overflow: auto;
+    box-sizing: border-box; padding: 20px; border-radius: 12px;
+    background: var(--vd-theme-app-bg); color: var(--vd-text);
+    border: 1px solid var(--vd-theme-border);
+}
+.vd-gallery-category-dialog h3 { margin-top: 0; }
+.vd-gallery-category-dialog p { font-size: 12px; line-height: 1.5; }
+.vd-gallery-category-dialog select { margin-bottom: 14px; }
+.vd-gallery [data-gallery-metadata-status] { flex: 1 1 180px; overflow-wrap: anywhere; }
+.vd-gallery :is(.vd-gallery-metadata-editor, .vd-gallery-category-dialog, .vd-gallery-metadata-toolbar) :focus-visible { outline: 2px solid var(--vd-accent); outline-offset: 2px; }
+
 .vd-gallery-host {
     display: flex;
     flex-direction: column;

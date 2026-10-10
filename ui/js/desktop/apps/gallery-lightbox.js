@@ -386,6 +386,8 @@
             if (created && created !== modified) rows.push([t('desktop.gallery_field_created'), created]);
             const dir = String(item.path || '').split('/').slice(0, -1).join('/');
             if (dir) rows.push([t('desktop.gallery_field_path'), dir]);
+            if (item.metadata && item.metadata.description) rows.push([t('desktop.gallery_description'), item.metadata.description]);
+            if (item.metadata && item.metadata.tags && item.metadata.tags.length) rows.push([t('desktop.gallery_tags'), item.metadata.tags.join(', ')]);
             el.info.innerHTML = `<h3 class="vd-lightbox-info-title">${esc(item.name || '')}</h3>
                 <dl class="vd-lightbox-info-list">${rows.map(([label, value]) => `<div><dt>${esc(label)}</dt><dd title="${esc(value)}">${esc(value)}</dd></div>`).join('')}</dl>
                 ${typeof actions.reveal === 'function' ? `<button type="button" class="vd-button" data-lb-reveal>${iconMarkup('folder', '▤', 'vd-viewer-action-icon', 14)}<span>${esc(t('desktop.gallery_show_in_files'))}</span></button>` : ''}`;
