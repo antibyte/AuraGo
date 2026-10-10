@@ -525,6 +525,7 @@ var terminalRetroNetFixedKeys = []string{
 	"desktop.terminal_retronet_field_type",
 	"desktop.terminal_retronet_type_bbs",
 	"desktop.terminal_retronet_type_world",
+	"desktop.terminal_retronet_type_c64",
 	"desktop.terminal_retronet_field_charset",
 	"desktop.terminal_retronet_field_host",
 	"desktop.terminal_retronet_field_port",
@@ -545,6 +546,9 @@ var terminalRetroNetFixedKeys = []string{
 	"desktop.terminal_retronet_keep_editing",
 	"desktop.terminal_retronet_delete_title",
 	"desktop.terminal_retronet_delete_confirm",
+	"desktop.terminal_retronet_status_c64_help",
+	"desktop.terminal_retronet_c64_keys",
+	"desktop.terminal_retronet_style_locked",
 }
 
 // Full sentences that must be translated in every non-English locale.
@@ -567,6 +571,9 @@ var terminalRetroNetSentenceKeys = []string{
 	"desktop.terminal_retronet_error_limit",
 	"desktop.terminal_retronet_error_gone",
 	"desktop.terminal_retronet_discard_question",
+	"desktop.terminal_retronet_status_c64_help",
+	"desktop.terminal_retronet_c64_keys",
+	"desktop.terminal_retronet_style_locked",
 }
 
 func terminalRetroNetI18nKeys(t *testing.T) []string {
@@ -575,7 +582,7 @@ func terminalRetroNetI18nKeys(t *testing.T) []string {
 	for _, category := range terminalRetroNetCategories {
 		keys = append(keys, "desktop.terminal_retronet_cat_"+category)
 	}
-	for _, state := range []string{"online", "offline", "unknown"} {
+	for _, state := range []string{"online", "offline", "unknown", "c64"} {
 		keys = append(keys, "desktop.terminal_retronet_status_"+state)
 	}
 	for _, reason := range terminalRetroNetReasons() {
@@ -725,12 +732,30 @@ func TestDesktopTerminalRetroNetI18n(t *testing.T) {
 	if english["desktop.terminal_retronet_telnet_notice"] != "Unencrypted Telnet connection – do not use real passwords" {
 		t.Errorf("English Telnet notice changed: %q", english["desktop.terminal_retronet_telnet_notice"])
 	}
+	for _, lang := range terminalRetroNetLocales {
+		values := readTerminalDesktopLocale(t, lang)
+		if !strings.HasPrefix(values["desktop.terminal_retronet_status_c64_help"], "[C]") {
+			t.Errorf("lang/desktop/%s.json desktop.terminal_retronet_status_c64_help must start with the [C] marker", lang)
+		}
+		keys := values["desktop.terminal_retronet_c64_keys"]
+		for _, key := range []string{"DEL", "RUN/STOP", "HOME", "CLR", "INST", "F1", "F8", "RVS", "1–8", "9–16", "9/0", "+]"} {
+			if !strings.Contains(keys, key) {
+				t.Errorf("lang/desktop/%s.json desktop.terminal_retronet_c64_keys must name %q", lang, key)
+			}
+		}
+		if strings.Count(keys, " · ") < 9 {
+			t.Errorf("lang/desktop/%s.json desktop.terminal_retronet_c64_keys must keep its 10 parts separated by \" · \"", lang)
+		}
+	}
 	german := readTerminalDesktopLocale(t, "de")
 	for key, umlaut := range map[string]string{
 		"desktop.terminal_retronet_cat_own":                 "ä",
 		"desktop.terminal_retronet_telnet_notice":           "ü",
 		"desktop.terminal_retronet_press_key":               "ü",
 		"desktop.terminal_retronet_result_hostkey_mismatch": "ü",
+		"desktop.terminal_retronet_c64_keys":                "ü",
+		"desktop.terminal_retronet_style_locked":            "ä",
+		"desktop.terminal_retronet_status_c64":              "ü",
 	} {
 		if !strings.Contains(german[key], umlaut) {
 			t.Errorf("German %s must use real umlauts, got %q", key, german[key])
