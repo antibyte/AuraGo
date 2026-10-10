@@ -802,6 +802,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		fileIndexerEnabledAfterReload := false
 		restartAgentMailAfterUnlock := false
 		syncMCPAfterUnlock := false
+		var mcpGeneration uint64
 		bluetoothChanged := false
 		networkSharesChanged := false
 		go2RTCChanged := false
@@ -924,6 +925,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 
 			// Apply hot-reload by publishing a new immutable config snapshot after
 			// all synchronous auto-detection adjustments are complete.
+			if !reflect.DeepEqual(oldCfg.Agent, newCfg.Agent) || !reflect.DeepEqual(oldCfg.Docker, newCfg.Docker) || !reflect.DeepEqual(oldCfg.Sandbox, newCfg.Sandbox) || !reflect.DeepEqual(oldCfg.MCP, newCfg.MCP) || !reflect.DeepEqual(oldCfg.Dograh, newCfg.Dograh) {
+				syncMCPAfterUnlock = true
+				mcpGeneration = shutdownExternalMCPManager()
+			}
 			s.replaceConfigSnapshot(newCfg)
 			cfFinish(true)
 			tools.ConfigureRuntimePermissions(tools.RuntimePermissionsFromConfig(newCfg))
@@ -1128,9 +1133,6 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			newDograhRuntime.APIKey = ""
 			newDograhRuntime.AuraGoMCPToken = ""
 			dograhRuntimeChanged := !reflect.DeepEqual(oldDograhRuntime, newDograhRuntime) || oldCfg.Docker.Host != newCfg.Docker.Host || oldCfg.Runtime.IsDocker != newCfg.Runtime.IsDocker
-			if dograhChanged || oldCfg.Agent.AllowMCP != newCfg.Agent.AllowMCP || !reflect.DeepEqual(oldCfg.MCP, newCfg.MCP) {
-				syncMCPAfterUnlock = true
-			}
 			if dograhChanged && newCfg.Docker.Enabled && newCfg.Dograh.Enabled && newCfg.Dograh.AutoStart && strings.EqualFold(newCfg.Dograh.Mode, "managed") {
 				if err := s.ensureDograhSecrets(newCfg); err != nil {
 					s.Logger.Warn("[Config UI] Failed to ensure Dograh secrets", "error", err)
@@ -1513,7 +1515,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			s.Logger.Info("[Config UI] AgentMail relay hot-reloaded", "enabled", newCfg.AgentMail.Enabled, "relay", newCfg.AgentMail.RelayToAgent)
 		}
 		if loadErr == nil && syncMCPAfterUnlock && newCfg != nil {
-			syncExternalMCPRuntime(newCfg, s.Vault, s.Logger)
+			syncExternalMCPRuntime(newCfg, s.Vault, s.Logger, mcpGeneration)
 		}
 		if loadErr == nil && newCfg != nil {
 			optimizer.SetEnabled(newCfg.Agent.OptimizerEnabled)

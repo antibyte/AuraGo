@@ -296,13 +296,14 @@ func TestHandlePutMCPServersReinitializesRuntimeManager(t *testing.T) {
 	)
 	oldInit := initExternalMCPManager
 	oldShutdown := shutdownExternalMCPManager
-	initExternalMCPManager = func(configs []tools.MCPServerConfig, _ *slog.Logger) *tools.MCPManager {
+	initExternalMCPManager = func(configs []tools.MCPServerConfig, _ *slog.Logger, _ uint64) *tools.MCPManager {
 		initCalls++
 		gotConfigs = append([]tools.MCPServerConfig(nil), configs...)
 		return nil
 	}
-	shutdownExternalMCPManager = func() {
+	shutdownExternalMCPManager = func() uint64 {
 		shutdownCalls++
+		return 0
 	}
 	defer func() {
 		initExternalMCPManager = oldInit
@@ -376,10 +377,10 @@ mcp:
 
 	oldInit := initExternalMCPManager
 	oldShutdown := shutdownExternalMCPManager
-	initExternalMCPManager = func(configs []tools.MCPServerConfig, _ *slog.Logger) *tools.MCPManager {
+	initExternalMCPManager = func(configs []tools.MCPServerConfig, _ *slog.Logger, _ uint64) *tools.MCPManager {
 		return nil
 	}
-	shutdownExternalMCPManager = func() {}
+	shutdownExternalMCPManager = func() uint64 { return 0 }
 	defer func() {
 		initExternalMCPManager = oldInit
 		shutdownExternalMCPManager = oldShutdown
@@ -456,10 +457,10 @@ mcp:
 
 	oldInit := initExternalMCPManager
 	oldShutdown := shutdownExternalMCPManager
-	initExternalMCPManager = func(configs []tools.MCPServerConfig, _ *slog.Logger) *tools.MCPManager {
+	initExternalMCPManager = func(configs []tools.MCPServerConfig, _ *slog.Logger, _ uint64) *tools.MCPManager {
 		return nil
 	}
-	shutdownExternalMCPManager = func() {}
+	shutdownExternalMCPManager = func() uint64 { return 0 }
 	defer func() {
 		initExternalMCPManager = oldInit
 		shutdownExternalMCPManager = oldShutdown
@@ -519,10 +520,10 @@ func TestHandlePutMCPPreferencesPersistsCapabilitySelections(t *testing.T) {
 
 	oldInit := initExternalMCPManager
 	oldShutdown := shutdownExternalMCPManager
-	initExternalMCPManager = func(configs []tools.MCPServerConfig, _ *slog.Logger) *tools.MCPManager {
+	initExternalMCPManager = func(configs []tools.MCPServerConfig, _ *slog.Logger, _ uint64) *tools.MCPManager {
 		return nil
 	}
-	shutdownExternalMCPManager = func() {}
+	shutdownExternalMCPManager = func() uint64 { return 0 }
 	defer func() {
 		initExternalMCPManager = oldInit
 		shutdownExternalMCPManager = oldShutdown
