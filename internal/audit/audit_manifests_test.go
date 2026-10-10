@@ -1063,6 +1063,10 @@ func TestGitHubWorkflowsUseNativeNode24Actions(t *testing.T) {
 		used[strings.ToLower(ref.action)] = true
 	}
 	for _, floor := range githubNode24Floors {
+		// Python training CI lives in agotrain; its floor still applies if used here.
+		if floor.name == "actions/setup-python" {
+			continue
+		}
 		if !used[floor.name] {
 			t.Errorf("workflows missing SHA-pinned Node 24 action %s (want `uses: %s@<40-hex sha> # vX.Y.Z` with X >= %d)", floor.name, floor.name, floor.minMajor)
 		}

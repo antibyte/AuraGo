@@ -307,9 +307,10 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 3. Add prompt manual in `prompts/tools_manuals/your_tool.md`
 4. Update tool registry if needed
 5. Add tests in `internal/tools/your_tool_test.go`
-6. Reconcile `training/tool_tiers.json` and `operation_contracts.json` with the
+6. Reconcile `../agotrain/training/tool_tiers.json` and `operation_contracts.json` with the
    effective strict schema snapshot, preserving curated entries. Regenerate
-   training artifacts and run `.github/workflows/training-dataset.yml` checks.
+   training artifacts in `antibyte/agotrain` and run `.github/workflows/training-dataset.yml`
+   against the commit pinned in `.github/agotrain-revision`. See `documentation/training.md`.
    Keep the validator's expected tool count and schema-token limit synchronized
    with the exporter. `--check` is read-only for the committed training pack.
    Preserve paired German/English direct coverage for every operation and
@@ -382,7 +383,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 - Triggered by `v*` tags or manual dispatch (`image=all` or `image=gods-eye-view`)
 - Multi-arch builds: linux/amd64, linux/arm64
 
-Every workflow `uses:` ref is pinned to a full commit SHA with a ` # vX.Y.Z` comment, and workflows default to `permissions: contents: read` with write scopes granted per job; `internal/audit` tests reject floating refs in tracked workflows. Dependabot (`.github/dependabot.yml`) refreshes the action pins monthly except `dtolnay/rust-toolchain`, which is refreshed by hand; `govulncheck@v1.8.0` (`security-gates.yml`) and `uv==0.11.15` (`training-dataset.yml`, kept in step with `training/needle3/bootstrap_runpod.sh`) are also bumped by hand.
+Every workflow `uses:` ref is pinned to a full commit SHA with a ` # vX.Y.Z` comment, and workflows default to `permissions: contents: read` with write scopes granted per job; `internal/audit` tests reject floating refs in tracked workflows. Dependabot (`.github/dependabot.yml`) refreshes the action pins monthly except `dtolnay/rust-toolchain`, which is refreshed by hand; `govulncheck@v1.8.0` (`security-gates.yml`) is also bumped by hand. Training Python dependencies, uv pins and GPU research live in `antibyte/agotrain`; AuraGo retains its Go exporter/importer and pinned integration checks.
 
 ### Release Process
 1. `./make_deploy.sh` builds cross-platform artifacts; by default it may commit/push `main` (`--no-publish` suppresses that). It does not create a tag or GitHub Release.
@@ -637,7 +638,6 @@ Current child AGENTS.md files:
 - `internal/videostudio/AGENTS.md` — Desktop video project model, local FFmpeg processing and render limits.
 - `internal/webassets/AGENTS.md` — External resource integrity, installation, resolution and verification.
 - `internal/zim/AGENTS.md` — Read-only ZIM archive reader, cluster cache, decompression limits and test fixtures; owns the xapian (full-text and title index) child index.
-- `training/needle3/AGENTS.md` — Category-routing experiments, retained manual selector, pinned Needle training/runtime, API budgets and deferred RunPod lifecycle.
 - `ui/AGENTS.md` — External Web UI ownership, Precision Workspace opt-in rules, protected Chat/Desktop surfaces, translations, and UI verification. Its child index owns deeper UI contracts.
 
 The root AGENTS.md owns the whole repository except where a subtree has its own local contract.
@@ -657,7 +657,7 @@ Top-level durable areas:
 - `plans/` and `openspec/` - Planning, specification, and change-management artifacts.
 - `prompts/` - Agent prompts, templates, personalities, and tool manuals.
 - `scripts/` and `tools/` - Developer and runtime helper tooling.
-- `training/` - Versioned synthetic tool-call datasets and validation; `training/needle3/` owns category-routing experiments and the separately gated manual selector.
+- External `../agotrain` (`antibyte/agotrain`) owns training datasets, curated training contracts, Python environments and Needle3. `documentation/training.md` owns the cross-repository update workflow; ordinary AuraGo builds require no training checkout.
 - `ui/` - External Web UI HTML, CSS, JavaScript, translations, and UI tests.
 
 Ignored/runtime areas such as `bin/`, `data/`, `reports/`, `node_modules/`, `.venv/`, `.worktrees/`, and `terminals/` are not child DOX owners.

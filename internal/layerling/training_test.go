@@ -3,11 +3,16 @@ package layerling
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
 func TestTrainingArgumentsMatchPinnedContract(t *testing.T) {
-	data, err := os.ReadFile("../../training/operation_contracts.json")
+	path := "testdata/operation_contracts.json"
+	if source := os.Getenv("AURAGO_TRAINING_DIR"); source != "" {
+		path = filepath.Join(source, "operation_contracts.json")
+	}
+	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}

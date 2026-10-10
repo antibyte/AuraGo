@@ -23,7 +23,7 @@ type options struct {
 
 func parseFlags() options {
 	var opts options
-	flag.StringVar(&opts.outDir, "out", "training", "output directory")
+	flag.StringVar(&opts.outDir, "out", "../agotrain/training", "output directory in the agotrain checkout")
 	flag.StringVar(&opts.sourceDir, "source", "", "directory containing curated tier and operation manifests (default: --out)")
 	flag.BoolVar(&opts.check, "check", false, "regenerate in a temporary directory and fail when checked-in artifacts differ")
 	flag.BoolVar(&opts.bootstrapContracts, "bootstrap-contracts", false, "create deterministic manifests for review when native schemas changed")

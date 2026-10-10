@@ -215,6 +215,19 @@ func TestManualMetadataIgnoresCheckoutLineEndings(t *testing.T) {
 	}
 }
 
+func trainingSource(t *testing.T) string {
+	t.Helper()
+	source := os.Getenv("AURAGO_TRAINING_DIR")
+	if source == "" {
+		t.Skip("set AURAGO_TRAINING_DIR to run agotrain integration checks; CI always sets it")
+	}
+	path, err := filepath.Abs(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
 func TestCurrentCatalogTrainingCoverage(t *testing.T) {
 	root, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
@@ -222,7 +235,7 @@ func TestCurrentCatalogTrainingCoverage(t *testing.T) {
 	}
 	// The full current catalog exhausted the old direct-example allocation.
 	// Keep bilingual operations, tier coverage and schema limits enforced together.
-	if _, err := buildTrainingPack(root, filepath.Join(root, "training"), false); err != nil {
+	if _, err := buildTrainingPack(root, trainingSource(t), false); err != nil {
 		t.Fatal(err)
 	}
 }
