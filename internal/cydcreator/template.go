@@ -117,20 +117,29 @@ func writeStringDefines(b *strings.Builder, keys []string, table map[string]stri
 }
 
 // cStringLiteral quotes s as a C string literal; non-ASCII stays raw UTF-8.
+// Control characters (and DEL) become three-digit octal escapes, and the
+// second of two consecutive question marks is escaped so that no trigraph
+// such as ??= can form.
 func cStringLiteral(s string) string {
 	var b strings.Builder
 	b.WriteByte('"')
+	var prev rune
 	for _, r := range s {
-		switch r {
-		case '"':
+		switch {
+		case r == '"':
 			b.WriteString(`\"`)
-		case '\\':
+		case r == '\\':
 			b.WriteString(`\\`)
-		case '\n':
+		case r == '\n':
 			b.WriteString(`\n`)
+		case r < 0x20 || r == 0x7f:
+			fmt.Fprintf(&b, `\%03o`, r)
+		case r == '?' && prev == '?':
+			b.WriteString(`\?`)
 		default:
 			b.WriteRune(r)
 		}
+		prev = r
 	}
 	b.WriteByte('"')
 	return b.String()

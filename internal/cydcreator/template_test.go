@@ -2,9 +2,12 @@ package cydcreator
 
 import (
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 )
+
+var templateStringKeyPattern = regexp.MustCompile(`^[A-Z0-9_]+$`)
 
 func TestNewProjectStampsTemplateVersion(t *testing.T) {
 	p, err := NewProject("Test", "esp32-2432s028r", "night", "de", "CET-1CEST,M3.5.0,M10.5.0/3", &SeqIDs{})
@@ -40,6 +43,16 @@ func TestTemplateStringsComplete(t *testing.T) {
 	if len(f.Keys) == 0 {
 		t.Fatal("no keys")
 	}
+	seen := make(map[string]bool, len(f.Keys))
+	for _, k := range f.Keys {
+		if seen[k] {
+			t.Errorf("duplicate key %q", k)
+		}
+		seen[k] = true
+		if !templateStringKeyPattern.MatchString(k) {
+			t.Errorf("key %q does not match %s", k, templateStringKeyPattern)
+		}
+	}
 	if len(f.Strings) != len(DeviceLanguages) {
 		t.Fatalf("strings.json has %d locales, want %d", len(f.Strings), len(DeviceLanguages))
 	}
@@ -69,6 +82,30 @@ func TestTemplateStringsComplete(t *testing.T) {
 	}
 	if !strings.Contains(f.Strings["de"]["OTA_CERT_CHANGED"], "bitte per USB neu flashen") {
 		t.Fatal("German certificate message must match spec §9")
+	}
+}
+
+func TestCStringLiteral(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"quote", "\"", `"\""`},
+		{"backslash", `\`, `"\\"`},
+		{"newline", "\n", `"\n"`},
+		{"non-ASCII stays raw", "é…", `"é…"`},
+		{"trigraph", "??=", `"?\?="`},
+		{"single question mark", "a?b", `"a?b"`},
+		{"question mark run", "???", `"?\?\?"`},
+		{"carriage return", "\r", `"\015"`},
+		{"nul", "\x00", `"\000"`},
+		{"del", "\x7f", `"\177"`},
+	}
+	for _, tc := range cases {
+		if got := cStringLiteral(tc.in); got != tc.want {
+			t.Errorf("%s: cStringLiteral(%q) = %s, want %s", tc.name, tc.in, got, tc.want)
+		}
 	}
 }
 
