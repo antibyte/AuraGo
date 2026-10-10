@@ -1,0 +1,9 @@
+Linking .pio/build/esp32-2432s028r/firmware.elf
+/root/.platformio/packages/toolchain-xtensa-esp32/bin/../lib/gcc/xtensa-esp32-elf/8.4.0/../../../../xtensa-esp32-elf/bin/ld: .pio/build/esp32-2432s028r/src/app/app_main.cpp.o:(.literal._Z8app_loopv+0x4): undefined reference to `fetch_forecast()'
+/root/.platformio/packages/toolchain-xtensa-esp32/bin/../lib/gcc/xtensa-esp32-elf/8.4.0/../../../../xtensa-esp32-elf/bin/ld: .pio/build/esp32-2432s028r/src/app/app_main.cpp.o: in function `app_loop()':
+/work/ccb_0123456789ab/src/app/app_main.cpp:51: undefined reference to `fetch_forecast()'
+/root/.platformio/packages/toolchain-xtensa-esp32/bin/../lib/gcc/xtensa-esp32-elf/8.4.0/../../../../xtensa-esp32-elf/bin/ld: .pio/build/esp32-2432s028r/src/app/app_events.cpp.o: in function `on_btn_refresh_clicked(_lv_event_t*)':
+/work/ccb_0123456789ab/src/app/app_events.cpp:9: multiple definition of `on_btn_refresh_clicked(_lv_event_t*)'; .pio/build/esp32-2432s028r/src/app/app_main.cpp.o:/work/ccb_0123456789ab/src/app/app_main.cpp:60: first defined here
+collect2: error: ld returned 1 exit status
+*** [.pio/build/esp32-2432s028r/firmware.elf] Error 1
+========================= [FAILED] Took 12.04 seconds =========================
