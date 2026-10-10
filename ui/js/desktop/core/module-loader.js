@@ -119,6 +119,7 @@
                 '/js/desktop/apps/terminal-crt.js',
                 '/js/desktop/apps/terminal-audio.js',
                 '/js/desktop/apps/terminal-text.js',
+                '/js/desktop/apps/terminal-geometry.js',
                 '/js/desktop/apps/terminal-modem.js',
                 '/js/desktop/apps/terminal-retronet-directory.js',
                 '/js/desktop/apps/terminal-retronet-session.js',

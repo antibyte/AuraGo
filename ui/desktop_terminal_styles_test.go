@@ -141,14 +141,15 @@ func TestDesktopTerminalAssetsLoadInDependencyOrder(t *testing.T) {
 		`'/js/desktop/apps/terminal-crt.js'`,
 		`'/js/desktop/apps/terminal-audio.js'`,
 		`'/js/desktop/apps/terminal-text.js'`,
+		`'/js/desktop/apps/terminal-geometry.js'`,
 		`'/js/desktop/apps/terminal-modem.js'`,
 		`'/js/desktop/apps/terminal-retronet-directory.js'`,
 		`'/js/desktop/apps/terminal-retronet-session.js'`,
 		`'/js/desktop/apps/terminal-retronet-entries.js'`,
 		`'/js/desktop/apps/terminal.js'`,
 	}
-	if got := strings.Count(loader, "'/js/"); got != 12 {
-		t.Fatalf("terminal loader lists %d scripts, want exactly the 12 of Contract E", got)
+	if got := strings.Count(loader, "'/js/"); got != 13 {
+		t.Fatalf("terminal loader lists %d scripts, want exactly the 13 of the C64 Contract C", got)
 	}
 	prev := -1
 	for _, marker := range markers {
@@ -390,13 +391,54 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 	if strings.Count(session, "new WebSocket") != 1 || !strings.Contains(session, "/api/desktop/retronet/connect") {
 		t.Fatal("terminal-retronet-session.js must own exactly one Retro-Net WebSocket")
 	}
-	for _, module := range []string{"terminal-text.js", "terminal-modem.js", "terminal-retronet-directory.js", "terminal-retronet-entries.js", "terminal-styles.js", "terminal-crt.js", "terminal-audio.js"} {
+	for _, module := range []string{"terminal-text.js", "terminal-geometry.js", "terminal-modem.js", "terminal-retronet-directory.js", "terminal-retronet-entries.js", "terminal-styles.js", "terminal-crt.js", "terminal-audio.js"} {
 		if strings.Contains(readDesktopAssetText(t, "js/desktop/apps/"+module), "new WebSocket") {
 			t.Fatalf("%s must not open sockets", module)
 		}
 	}
 	if strings.Contains(source, "onclick=") {
 		t.Fatal("terminal.js must not use inline onclick")
+	}
+}
+
+// Screen geometry (Contract C): fit, 80x25 BBS with the VGA font, 40x25 C64 with the C64 font; one fit at a time.
+// Behaviour is covered by scripts/test-terminal-geometry.mjs.
+func TestDesktopTerminalGeometryContract(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/terminal-geometry.js")
+	for _, want := range []string{
+		"window.TerminalGeometry = { MODES: MODES, create: create }",
+		"fit: null,",
+		`bbs: { cols: 80, rows: 25, font: '"Aura VGA", "Aura Terminal", ui-monospace, monospace', load: '16px "Aura VGA"', cell: [0.5, 1] }`,
+		`c64: { cols: 40, rows: 25, font: '"Aura C64", "Aura Terminal", ui-monospace, monospace', load: '16px "Aura C64"', cell: [1, 1] }`,
+		"set: set,",
+		"mode: function () { return current; },",
+		"refit: refit,",
+		"dispose: dispose",
+		"root.setAttribute('data-terminal-geometry', mode);",
+		"root.removeAttribute('data-terminal-geometry');",
+		"term.resize(spec.cols, spec.rows);",
+		"document.fonts.load(spec.load)",
+		"term.options.scrollback = 0;",
+		"term.options.scrollback = FIT_SCROLLBACK;",
+		"const FIT_SCROLLBACK = 1000;",
+		"window.TerminalStyles.applyXterm(term, getProfile());",
+		"Math.floor(ems * 2) / 2",
+		// One fit at a time: a request during a fit reruns it once afterwards.
+		"if (fitting) {",
+		"again = true;",
+		"if (disposed || mine !== revision) return;",
+		"screenEl.style.background = (term.options.theme && term.options.theme.background) || '';",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("terminal-geometry.js missing %q", want)
+		}
+	}
+	for _, forbidden := range []string{"new WebSocket", "innerHTML", "localStorage", "ctx.t(", "TerminalRetroNet"} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("terminal-geometry.js only sizes the grid; found %q", forbidden)
+		}
 	}
 }
 
@@ -408,7 +450,7 @@ func TestDesktopTerminalRetroNetSourcesUseKnownKeys(t *testing.T) {
 		known[key] = true
 	}
 	pattern := regexp.MustCompile(`desktop\.terminal_(?:retronet_[a-z0-9_]+|directory|dialing|connected)\b`)
-	for _, file := range []string{"terminal.js", "terminal-modem.js", "terminal-retronet-directory.js", "terminal-retronet-session.js", "terminal-retronet-entries.js"} {
+	for _, file := range []string{"terminal.js", "terminal-geometry.js", "terminal-modem.js", "terminal-retronet-directory.js", "terminal-retronet-session.js", "terminal-retronet-entries.js"} {
 		source := readDesktopAssetText(t, "js/desktop/apps/"+file)
 		for _, key := range pattern.FindAllString(source, -1) {
 			if strings.HasSuffix(key, "_") {
@@ -945,7 +987,7 @@ func TestDesktopTerminalBehaviourScripts(t *testing.T) {
 	if err != nil {
 		t.Skip("node is not installed")
 	}
-	for _, name := range []string{"test-terminal-modem.mjs", "test-terminal-retronet-directory.mjs", "test-terminal-retronet-session.mjs", "test-terminal-retronet-entries.mjs"} {
+	for _, name := range []string{"test-terminal-modem.mjs", "test-terminal-geometry.mjs", "test-terminal-retronet-directory.mjs", "test-terminal-retronet-session.mjs", "test-terminal-retronet-entries.mjs"} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
