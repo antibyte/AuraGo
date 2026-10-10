@@ -52,6 +52,26 @@ bool is_dark(lv_color_t c) {
   return (r * 299 + g * 587 + b * 114) / 1000 < 128;
 }
 
+// The save form takes any password, and a WPA network with an empty or short
+// one only fails after the phone has lost the SoftAP. This head script blocks
+// the submit and says why: a network the scan marked locked (WiFiManager puts
+// class "l" on the signal icon after its link) needs 8..63 characters or 64 hex
+// digits; an SSID typed by hand may also have none (open hidden network); an
+// open network's field is disabled by WiFiManager and sends nothing.
+// cydPwOk() is the rule (kind 0 open, 1 locked, 2 typed); the Go tests run it.
+const char kPasswordCheck[] = "<script>var cydPwMsg=\"" CYD_S_WIFI_PASSWORD_LENGTH "\";" R"JS(
+function cydPwOk(p,k){return k==0||(k==2&&p=="")||(p.length>7&&p.length<64)||/^[0-9a-fA-F]{64}$/.test(p)}
+document.addEventListener("submit",function(e){
+var f=e.target,s=f.querySelector("#s"),p=f.querySelector("#p"),k=2,a=document.querySelectorAll("[data-ssid]");
+if(!s||!p)return;
+for(var i=0;i<a.length;i++)if(a[i].getAttribute("data-ssid")==s.value){var q=a[i].nextElementSibling;k=q&&q.classList.contains("l")?1:0}
+if(cydPwOk(p.value,k))return;
+e.preventDefault();
+var m=document.getElementById("cydpe");
+if(!m){m=document.createElement("div");m.id="cydpe";m.className="msg D";p.parentNode.insertBefore(m,p.nextSibling)}
+m.textContent=cydPwMsg;p.focus()},true);
+)JS" "</script>";
+
 void build_css() {
   const ThemeColors& t = ui_theme_colors();
   String radius = String((int)t.radius) + "px";
@@ -67,6 +87,7 @@ void build_css() {
            ";color:" + hex_color(t.text) + "}";
   g_css += ".msg.S{border-left-color:" + hex_color(t.success) + "}.msg.D{border-left-color:" + hex_color(t.danger) + "}";
   g_css += "</style>";
+  g_css += kPasswordCheck;
 }
 
 // WiFiManager registers admin routes next to the Wi-Fi pages (firmware upload,
