@@ -14,10 +14,6 @@ import (
 // ProjectFormat is the cyd.project.json format this package reads and writes.
 const ProjectFormat = 1
 
-// newProjectTemplateVersion is stamped into new projects. It must equal
-// TemplateVersion from template.go (plan 1b), which adds a test for that.
-const newProjectTemplateVersion = "1.0.0"
-
 // Languages are the AuraGo locales a project may use for device strings.
 // The template falls back to English for el, hi, ja and zh.
 var Languages = []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
@@ -140,7 +136,7 @@ func NewProject(name, boardID, themeID, language, timezone string, ids IDSource)
 	screenID := ids.NewID("s")
 	return Project{
 		Format:          ProjectFormat,
-		TemplateVersion: newProjectTemplateVersion,
+		TemplateVersion: TemplateVersion,
 		Name:            name,
 		Board:           board.ID,
 		Orientation:     board.Display.NativeOrientation,
