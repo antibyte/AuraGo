@@ -26,6 +26,26 @@ assert.equal(game.transaction({wood:-1},{}),false);
 const full=new VoxelGame({...definition,enemies:[]});full.inventory=Array.from({length:36},()=>({item:'wood',count:64}));const fullBefore=JSON.stringify(full.inventory);
 assert.equal(full.craft('wood_tool'),false);assert.equal(JSON.stringify(full.inventory),fullBefore,'full inventory craft must not consume ingredients');
 const creative=new VoxelGame({...definition,mode:'creative',enemies:[]});assert(creative.supply('metal_tool'));assert.equal(creative.held().id,'metal_tool');creative.damage(100);assert(creative.alive);
+for (const mode of ['creative', 'survival']) {
+    const mining = new VoxelGame({...definition, mode, terrain:'flat', enemies:[]});
+    const target = mining.aim();assert(target);
+    const blockBefore = mining.world.get(...target.cell);
+    while (mining.credit('wood', mining.items.get('wood').stack)) {}
+    assert.equal(mining.inventory.filter(Boolean).length, 36);
+    const inventoryBefore = JSON.stringify(mining.inventory), pickupsBefore = mining.metrics.pickups, revisionBefore = mining.revision;
+    mining.primary(4);
+    assert.equal(mining.world.get(...target.cell), mode === 'creative' ? 0 : blockBefore);
+    assert.equal(mining.metrics.mined, mode === 'creative' ? 1 : 0);
+    assert.equal(mining.metrics.pickups, pickupsBefore, 'discarded creative drops must not count as collected');
+    assert.deepEqual(mining.progress, {}, 'discarded drops must not advance collection objectives');
+    assert.equal(JSON.stringify(mining.inventory), inventoryBefore, 'full inventory must remain unchanged');
+    assert(validateVoxelState(mining.definition, mining.snapshot()));
+    if (mode === 'creative') {
+        assert(mining.revision > revisionBefore);
+        const saved = new VoxelGame(mining.definition);saved.restore(mining.snapshot());
+        assert.equal(saved.world.get(...target.cell), 0, 'creative removal survives saving');
+    }
+}
 const movingEnemies=new VoxelGame({...definition,terrain:'flat'}),enemyRevision=movingEnemies.revision;
 movingEnemies.tickEnemies(.05);assert(movingEnemies.revision>enemyRevision,'enemy movement must mark saves dirty even when the player is idle');
 const state=game.snapshot();assert(validateVoxelState(game.definition,state));

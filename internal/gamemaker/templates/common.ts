@@ -79,6 +79,7 @@ export class GameScene extends Phaser.Scene {
         const fixed = !!node.collider && !moving && node.properties?.dynamic !== true;
         const color = Number.isFinite(Number(node.properties?.color)) ? Number(node.properties.color) : 0x64748b;
         const object=this.body(node.at[0],node.at[1],size[0],size[1],color,fixed,node.role || '');
+        object.__gmID=node.id;
         const rotation=Number(node.rotation?.[2] || 0);
         object.setRotation(rotation).setScale(Number(node.scale?.[0]) || 1,Number(node.scale?.[1]) || 1);
         const c=node.collider;
@@ -118,7 +119,7 @@ export class GameScene extends Phaser.Scene {
       removeNode: (_node:any, object:any) => { object.setActive(false).setVisible(false); for(const visual of this.visuals.filter((item:any)=>item.object===object))visual.art?.setVisible(false); if (object.body) object.body.enable = false; },
       resetNode: (_node:any, object:any, at:any) => { object.setPosition(at[0], at[1]); object.setActive(true); const visuals=this.visuals.filter((item:any)=>item.object===object); object.setVisible(visuals.length===0);for(const visual of visuals)visual.art?.setVisible(true); if (object.body) object.body.enable = true; },
       move: (_node:any, object:any, delta:any) => this.moveSceneObject(object,delta),
-      destroyNode: (_node:any,object:any)=>object.destroy(),
+      destroyNode: (_node:any,object:any)=>{object.destroy();this.gameObjects=this.gameObjects.filter((item:any)=>item!==object);},
       debugChanged: (enabled:boolean)=>{this.sceneDebugGraphics?.setVisible(enabled);for(const label of this.sceneDebugLabels)label.setVisible(enabled);},
       renderDebug: (builder:any) => this.renderSceneDebug(builder),
     });
@@ -240,7 +241,7 @@ export class GameScene extends Phaser.Scene {
   // Authored stages rebuild through the existing Scene lifecycle. Carry only campaign progress.
   configureLevels(levels:any[]) {this.levels=levelChoices(null,levels);if(this.levelIndex>=this.levels.length)this.levelIndex=0;}
   nextLevel() {if(this.state.outcome!==1||this.levelIndex+1>=this.levels.length)return;this.stageCarry={score:this.state.score,lives:this.state.lives};this.levelIndex++;this.scene.restart();}
-  restartGame() {this.levelIndex=0;this.stageCarry=null;this.scene.restart();}
+  restartGame() {this.levelIndex=Math.max(0,this.levels.findIndex((level:any)=>level.active));this.stageCarry=null;this.scene.restart();}
   configureWorld(width:number,height:number,follow=true) {
     if(!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0)throw Error('World dimensions must be positive');
     this.physics.world.setBounds(0,0,width,height);this.cameras.main.setBounds(0,0,width,height);
