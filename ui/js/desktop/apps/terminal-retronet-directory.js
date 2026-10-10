@@ -25,13 +25,6 @@
         enter: ['\r', '\n', '\r\n']
     };
 
-    // Display width in xterm cells (control characters do not count).
-    function cells(value) {
-        let width = 0;
-        for (const ch of TerminalText.printable(value)) width += TerminalText.cellWidth(ch.codePointAt(0));
-        return width;
-    }
-
     // Upper case in the UI language (Greek drops accents); an invalid tag falls back to the default rules.
     function upper(text) {
         try {
@@ -179,8 +172,8 @@
             const nameWidth = Math.max(8, Math.min(24, Math.floor(width * 0.3)));
             const fixed = 1 + 2 + 1 + 3 + 1 + nameWidth + 1;
             let seen = lastSeen(status);
-            if (seen && width - fixed - cells(seen) - 1 < 12) seen = '';
-            const descWidth = Math.max(0, width - fixed - (seen ? cells(seen) + 1 : 0));
+            if (seen && width - fixed - TerminalText.cells(seen) - 1 < 12) seen = '';
+            const descWidth = Math.max(0, width - fixed - (seen ? TerminalText.cells(seen) + 1 : 0));
             let out = selected ? '\x1b[7m>' : ' ';
             out += pad2(item.number) + ' ';
             out += status ? MARKER_COLORS[status.state] + MARKERS[status.state] + '\x1b[39m' : '   ';
@@ -197,10 +190,10 @@
         function headerLine(cols) {
             const title = TerminalText.fitToCells(tr('desktop.terminal_retronet_title'), cols - 2);
             let out = ' \x1b[1m' + title + RESET;
-            const room = cols - 4 - cells(title);
+            const room = cols - 4 - TerminalText.cells(title);
             if (notice && room > 3) {
                 const text = TerminalText.fitToCells(tr(notice), room);
-                out += ' '.repeat(Math.max(2, cols - 2 - cells(title) - cells(text))) + DIM + text + RESET;
+                out += ' '.repeat(Math.max(2, cols - 2 - TerminalText.cells(title) - TerminalText.cells(text))) + DIM + text + RESET;
             }
             return out;
         }

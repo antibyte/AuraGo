@@ -845,7 +845,8 @@ func TestDesktopTerminalTextContract(t *testing.T) {
 
 	source := readDesktopAssetText(t, "js/desktop/apps/terminal-text.js")
 	for _, want := range []string{
-		"window.TerminalText = { cellWidth: cellWidth, fitToCells: fitToCells, printable: printable, wrapHints: wrapHints }",
+		"window.TerminalText = { cellWidth: cellWidth, cells: cells, fitToCells: fitToCells, printable: printable, wrapHints: wrapHints }",
+		"function cells(value)",
 		"function wrapHints(value, width)",
 		`const HINT_SEPARATOR = ' \xb7 ';`,
 		"function cellWidth(code)",
@@ -919,7 +920,7 @@ func TestDesktopTerminalRetroNetDirectoryContract(t *testing.T) {
 		}
 	}
 	for _, forbidden := range []string{"new WebSocket", "innerHTML", "alert(", "window.confirm", "._core", "unicodeService", ".length > width", ".slice(0, width",
-		"function cellWidth", "function fitToCells", "function printable", "ZERO_WIDTH", "WIDE_EMOJI", "activeVersion", `\u001f`} {
+		"function cellWidth", "function cells", "function fitToCells", "function printable", "ZERO_WIDTH", "WIDE_EMOJI", "activeVersion", `\u001f`} {
 		if strings.Contains(source, forbidden) {
 			t.Fatalf("terminal-retronet-directory.js must render only into xterm and use the shared TerminalText helpers; found %q", forbidden)
 		}
@@ -973,7 +974,7 @@ func TestDesktopTerminalRetroNetSessionContract(t *testing.T) {
 		"if (!event || !event.shiftKey || event.metaKey || event.ctrlKey === event.altKey) return '';",
 		`'\x1b[64;' + keys[event.code] + '~'`,
 		"const TerminalText = window.TerminalText",
-		"TerminalText.cellWidth(ch.codePointAt(0))",
+		"const width = TerminalText.cells(String(text || '').split('\\t').join(' '));",
 		"line = lineText(text)",
 		`split('\t').map(TerminalText.printable).join('\t')`,
 		"const start = lastCharacterStart(chars)",
@@ -1015,7 +1016,7 @@ func TestDesktopTerminalRetroNetSessionContract(t *testing.T) {
 	if !strings.Contains(source, "function forget()") || strings.Count(strings.ReplaceAll(source, "\r\n", "\n"), "detach();\n            forget();") != 2 {
 		t.Fatal("terminal-retronet-session.js must forget the line buffer and history in shutdown() and on remote close")
 	}
-	for _, forbidden := range []string{"&host=", "&port=", "?host=", "innerHTML", "function cellWidth", "function fitToCells", "function printable", "0x1f300", `\u001f`} {
+	for _, forbidden := range []string{"&host=", "&port=", "?host=", "innerHTML", "function cellWidth", "function cells", "function fitToCells", "function printable", "0x1f300", `\u001f`} {
 		if strings.Contains(source, forbidden) {
 			t.Fatalf("terminal-retronet-session.js dials by entry ID only and uses the shared TerminalText helpers; found %q", forbidden)
 		}

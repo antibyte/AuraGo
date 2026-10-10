@@ -22,14 +22,6 @@
         Digit1: 0x81, Digit2: 0x95, Digit3: 0x96, Digit4: 0x97, Digit5: 0x98, Digit6: 0x99, Digit7: 0x9a, Digit8: 0x9b
     };
 
-    // Display width in xterm cells from the shared Unicode 6 table (emoji are one cell, as in xterm);
-    // a Tab in the line is shown as one space.
-    function cells(text) {
-        let width = 0;
-        for (const ch of String(text || '')) width += ch === '\t' ? 1 : TerminalText.cellWidth(ch.codePointAt(0));
-        return width;
-    }
-
     function isRegional(code) {
         return code >= 0x1f1e6 && code <= 0x1f1ff;
     }
@@ -162,9 +154,10 @@
             if (term && text && !hiddenEcho) term.write(TerminalText.printable(text.split('\t').join(' ')));
         }
 
-        // Moves back over `text`, blanks its cells and moves back again (nothing while hidden).
+        // Moves back over `text`, blanks its cells and moves back again (nothing while hidden): the cells echo()
+        // wrote, a Tab as one space (shared Unicode 6 widths, emoji one cell as in xterm).
         function erase(text) {
-            const width = cells(text);
+            const width = TerminalText.cells(String(text || '').split('\t').join(' '));
             if (width > 0 && term && !hiddenEcho) term.write('\b'.repeat(width) + ' '.repeat(width) + '\b'.repeat(width));
         }
 

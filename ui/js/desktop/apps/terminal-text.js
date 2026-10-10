@@ -113,7 +113,8 @@
         return pad ? out + ' '.repeat(limit - used) : out;
     }
 
-    // Display width in cells of text without its control characters.
+    // Display width in xterm cells of the text without its control characters (shared by the directory, the line
+    // editor of the session and the hint packing).
     function cells(value) {
         let width = 0;
         for (const ch of printable(value)) width += cellWidth(ch.codePointAt(0));
@@ -132,5 +133,5 @@
         return lines;
     }
 
-    window.TerminalText = { cellWidth: cellWidth, fitToCells: fitToCells, printable: printable, wrapHints: wrapHints };
+    window.TerminalText = { cellWidth: cellWidth, cells: cells, fitToCells: fitToCells, printable: printable, wrapHints: wrapHints };
 })();
