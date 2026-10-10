@@ -43,6 +43,7 @@ struct SetupUi {
   bool hidden = false;
   bool connecting = false;
   uint32_t connect_started = 0;
+  uint32_t scan_started = 0;
   uint32_t close_at = 0;
   uint32_t portal_retry_at = 0;
   String ap_ssid, ap_pass, sel_ssid;
@@ -59,6 +60,7 @@ constexpr int32_t kQrMax = 220;
 constexpr int32_t kQrQuiet = 4;   // white frame around the code (quiet zone on dark themes)
 constexpr int32_t kQrStep = 8;
 constexpr size_t kMaxNetworks = 20;
+constexpr uint32_t kScanMs = 15000;  // a scan that has not reported by then found nothing
 
 int32_t line_h(const lv_font_t* f) { return lv_font_get_line_height(f); }
 
@@ -308,6 +310,7 @@ void start_scan() {
     return;
   }
   g_ui->scanning = true;
+  g_ui->scan_started = millis();
 }
 
 lv_obj_t* add_entry(const char* icon, const char* text, lv_event_cb_t cb, void* user) {
@@ -359,6 +362,7 @@ void fill_list(int n) {
     if (!dup) g_ui->found.push_back(ssid);  // scan results are sorted by RSSI
   }
   WiFi.scanDelete();
+  log::info("wifi: scan found %u networks", (unsigned)g_ui->found.size());
   if (g_ui->list == nullptr) return;
   fill_entries();
   if (g_ui->found.empty()) {
@@ -543,11 +547,14 @@ void wifi_ui_loop() {
     if (g_ui->view == View::Phone && g_ui->pending == View::None) g_ui->pending = View::Phone;
   }
   if (g_ui->scanning) {
+    // Arduino-ESP32 2.0.17 scanComplete() says WIFI_SCAN_FAILED once a scan
+    // runs longer than 20 x 300 ms, which scans next to the SoftAP and a
+    // station link regularly do; their results still arrive, so keep polling.
     int n = WiFi.scanComplete();
     if (n >= 0) {
       g_ui->scanning = false;
       fill_list(n);
-    } else if (n == WIFI_SCAN_FAILED) {
+    } else if (n == WIFI_SCAN_FAILED && millis() - g_ui->scan_started > kScanMs) {
       g_ui->scanning = false;
       fill_list(0);
     }
