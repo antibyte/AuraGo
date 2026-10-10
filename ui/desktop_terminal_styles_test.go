@@ -821,6 +821,7 @@ func TestDesktopTerminalModemContract(t *testing.T) {
 		"if (queue.length && found.units === allowance) schedule();",
 		// Unterminated blocks leave at 64 KiB or 1 s after a stall; scanning goes on from where it stopped.
 		"const SYNC_LIMIT = 64 * 1024;",
+		"if (b === 0x18 || b === 0x1a) return true;",
 		"const SYNC_WAIT_MS = 1000;",
 		"function scan(limit)",
 		"stall = window.setTimeout(expire, SYNC_WAIT_MS);",

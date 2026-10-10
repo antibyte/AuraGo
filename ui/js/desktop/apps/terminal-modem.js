@@ -353,7 +353,10 @@
             return false;
         }
 
+        // The next byte of an open escape: true when it ends the sequence. CAN and SUB cancel any sequence, as in
+        // xterm's parser.
         function inSequence(b) {
+            if (b === 0x18 || b === 0x1a) return true;
             if (state === ESC) return afterEscape(b);
             if (state === CSI) {
                 if (b >= 0x40 && b <= 0x7e) {

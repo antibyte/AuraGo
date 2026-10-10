@@ -159,6 +159,21 @@ storageThrows = false;
         throttle.dispose();
     }
     {
+        // CAN and SUB cancel an escape sequence (as in xterm's parser): the cancelled sequence ends there as one unit.
+        const sequences = ['\x1b[31\x18', '\x1b]0;title\x1a', '\x1b(\x18', '\x1b\x1a', '\x1bP1$r\x18', 'A', '\x18', '\x1a'];
+        const { out, throttle } = unitThrottle();
+        throttle.push(encoder.encode(sequences.join('')));
+        tick();
+        const released = [];
+        for (let i = 0; i < sequences.length && frames.length; i += 1) {
+            const mark = out.length;
+            tick();
+            released.push(new TextDecoder().decode(join(out.slice(mark))));
+        }
+        equal('CAN and SUB end CSI, OSC, ESC and DCS sequences as one unit each; alone they are one unit', released, sequences);
+        throttle.dispose();
+    }
+    {
         const { out, throttle } = unitThrottle();
         throttle.push(encoder.encode('\x1b]' + 'y'.repeat(2000)));
         tick();
