@@ -50,6 +50,14 @@ lv_obj_t* make_button(lv_obj_t* parent, const char* text, lv_event_cb_t cb, void
 lv_obj_t* make_label(lv_obj_t* parent, const char* text, const lv_font_t* font, lv_color_t color);
 void pump_ui(uint32_t ms);            // run LVGL for ms (used by blocking boot phases)
 
+// cyd_layout.cpp - layout checker for the runtime's own screens. Counts (and
+// with log=true warns "layout: <view> ...") every visible object outside the
+// visible area (the screen above `overlay` when that is shown), every child
+// outside its parent's content box, every overlap of siblings, every scrollable
+// container and every wrapped label whose text does not fit. `scroller` may
+// scroll vertically: its children only have to fit horizontally.
+int layout_check(lv_obj_t* root, const char* view, const lv_obj_t* overlay, const lv_obj_t* scroller, bool log);
+
 // cyd_touchcal.cpp
 void touchcal_begin();                // apply stored or default calibration
 bool touchcal_needed();               // resistive, profile asks for it, nothing stored
@@ -72,6 +80,21 @@ void portal_stop();
 bool portal_active();
 bool portal_loop();                   // true once the phone path connected
 void time_begin();                    // NTP + TZ after the first connection
+
+#if CYD_LAYOUT_SELFTEST
+// Layout self-test (test builds only): cyd_layout.cpp drives the real setup
+// screen through these hooks of cyd_wifi_ui.cpp.
+enum class WifiUiTest { ToDevice, Hidden, Network, Close };
+struct WifiUiProbe {
+  lv_obj_t *scr, *content, *list, *kb, *status, *ta_ssid, *ta_pass;
+  int view;  // 0 none, 1 phone, 2 list, 3 password
+  bool scanning, connecting, closing;
+};
+bool wifi_ui_probe(WifiUiProbe* out);  // false while the setup screen is closed
+void wifi_ui_test(WifiUiTest action, const char* ssid = nullptr);
+void layout_selftest_begin();          // before wifi_begin(): Wi-Fi event log
+void layout_selftest_loop();           // runs once, a few seconds after boot
+#endif
 
 // cyd_http.cpp - one worker task for blocking network work.
 void worker_begin();

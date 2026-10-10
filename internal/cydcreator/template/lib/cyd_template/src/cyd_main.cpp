@@ -26,6 +26,9 @@ void setup() {
   cyd::detail::splash_window();
   if (cyd::detail::touchcal_needed()) cyd::detail::touchcal_run();
   cyd::detail::worker_begin();
+#if CYD_LAYOUT_SELFTEST
+  cyd::detail::layout_selftest_begin();
+#endif
   cyd::detail::wifi_begin();
   cyd::detail::link_begin();
   ui_init();
@@ -41,5 +44,8 @@ void loop() {
   cyd::detail::link_loop();
   cyd::detail::rollback_loop();
   app_loop();
+#if CYD_LAYOUT_SELFTEST
+  cyd::detail::layout_selftest_loop();
+#endif
   delay(1);  // yield to the idle task (task watchdog)
 }

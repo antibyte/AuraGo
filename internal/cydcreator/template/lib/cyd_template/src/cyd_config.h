@@ -31,6 +31,13 @@
 #define CYD_WIFI_OPTIONAL 1
 #define CYD_WIFI_REQUIRED 2
 
+// Test builds only: the on-device self-test of the Wi-Fi setup screen runs a few
+// seconds after boot (cyd_layout.cpp): 1 = layout and reconnect (boots without
+// joining the stored network), 2 = layout only. Never set by the generator.
+#ifndef CYD_LAYOUT_SELFTEST
+#define CYD_LAYOUT_SELFTEST 0
+#endif
+
 // Limits shared by the runtime.
 #define CYD_HTTP_MAX_BODY 32768        // app HTTP responses larger than this fail with "too large"
 #define CYD_HTTP_QUEUE_LEN 8           // pending async HTTP jobs

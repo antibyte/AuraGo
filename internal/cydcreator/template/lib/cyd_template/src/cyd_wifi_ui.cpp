@@ -284,12 +284,15 @@ void apply_view(View v) {
   switch (v) {
     case View::Phone:
       build_phone();
+      detail::layout_check(g_ui->scr, "phone", nullptr, nullptr, true);
       break;
     case View::List:
       build_list();
+      detail::layout_check(g_ui->scr, "list", nullptr, g_ui->list, true);
       break;
     case View::Password:
       build_password();
+      detail::layout_check(g_ui->scr, "password", g_ui->kb, nullptr, true);
       break;
     default:
       break;
@@ -419,6 +422,48 @@ void wifi_ui_loop() {
     }
   }
 }
+
+#if CYD_LAYOUT_SELFTEST
+bool wifi_ui_probe(WifiUiProbe* out) {
+  *out = WifiUiProbe{};
+  if (g_ui == nullptr) return false;
+  out->scr = g_ui->scr;
+  out->content = g_ui->content;
+  out->list = g_ui->list;
+  out->kb = g_ui->kb;
+  out->status = g_ui->status;
+  out->ta_ssid = g_ui->ta_ssid;
+  out->ta_pass = g_ui->ta_pass;
+  // A requested view is built by the next wifi_ui_loop(): until then report none.
+  if (g_ui->pending == View::None) {
+    out->view = g_ui->view == View::Phone ? 1 : g_ui->view == View::List ? 2 : g_ui->view == View::Password ? 3 : 0;
+  }
+  out->scanning = g_ui->scanning;
+  out->connecting = g_ui->connecting;
+  out->closing = g_ui->close_at != 0;
+  return true;
+}
+
+void wifi_ui_test(WifiUiTest action, const char* ssid) {
+  if (g_ui == nullptr) return;
+  switch (action) {
+    case WifiUiTest::ToDevice:
+      on_to_device(nullptr);
+      break;
+    case WifiUiTest::Hidden:
+      on_hidden(nullptr);
+      break;
+    case WifiUiTest::Network:  // on_network() for any SSID, also one the scan did not list
+      g_ui->hidden = false;
+      g_ui->sel_ssid = ssid != nullptr ? ssid : "";
+      g_ui->pending = View::Password;
+      break;
+    case WifiUiTest::Close:
+      g_ui->close_requested = true;
+      break;
+  }
+}
+#endif
 
 }  // namespace detail
 }  // namespace cyd

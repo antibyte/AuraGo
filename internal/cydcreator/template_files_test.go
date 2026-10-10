@@ -22,6 +22,7 @@ var templateFiles = []string{
 	"lib/cyd_template/src/cyd_config.h",
 	"lib/cyd_template/src/cyd_display.cpp",
 	"lib/cyd_template/src/cyd_http.cpp",
+	"lib/cyd_template/src/cyd_layout.cpp",
 	"lib/cyd_template/src/cyd_link.cpp",
 	"lib/cyd_template/src/cyd_log.cpp",
 	"lib/cyd_template/src/cyd_main.cpp",

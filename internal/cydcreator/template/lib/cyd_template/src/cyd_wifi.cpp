@@ -120,6 +120,9 @@ void wifi_begin() {
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
   g_have_creds = wifi_load_credentials(&g_ssid, &g_pass);
+#if CYD_LAYOUT_SELFTEST == 1
+  g_have_creds = false;  // the reconnect self-test starts like a device without a network (first-time setup)
+#endif
   if (g_have_creds) {
     splash_status(CYD_S_WIFI_CONNECTING);
     wifi_connect(g_ssid, g_pass);
