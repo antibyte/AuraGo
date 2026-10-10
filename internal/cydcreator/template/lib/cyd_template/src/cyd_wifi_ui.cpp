@@ -290,7 +290,8 @@ void clear_view() {
   lv_obj_set_flex_align(g_ui->content, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
 }
 
-bool phone_fits() { return detail::layout_check(g_ui->content, "phone", nullptr, nullptr, false) == 0; }
+// Only placement findings: what a smaller QR code or a dropped hint can fix.
+bool phone_fits() { return detail::layout_check(g_ui->content, "phone", nullptr, nullptr, false, true) == 0; }
 
 // The largest QR side from max down to kQrMin (in kQrStep steps) with which
 // the phone view fits; -1 when even the smallest does not.

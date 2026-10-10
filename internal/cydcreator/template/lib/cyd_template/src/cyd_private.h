@@ -51,12 +51,14 @@ lv_obj_t* make_label(lv_obj_t* parent, const char* text, const lv_font_t* font, 
 void pump_ui(uint32_t ms);            // run LVGL for ms (used by blocking boot phases)
 
 // cyd_layout.cpp - layout checker for the runtime's own screens. Counts (and
-// with log=true warns "layout: <view> ...") every visible object outside the
-// visible area (the screen above `overlay` when that is shown), every child
-// outside its parent's content box, every overlap of siblings, every scrollable
-// container and every wrapped label whose text does not fit. `scroller` may
+// with log=true warns "layout: <view> ...", at most 5 lines plus "<n> more")
+// every visible object outside the visible area (the screen above `overlay`
+// when that is shown), every child outside its parent's content box, every
+// overlap of siblings, every scrollable container and every wrapped label whose
+// text does not fit; placement_only counts just the first two. `scroller` may
 // scroll vertically: its children only have to fit horizontally.
-int layout_check(lv_obj_t* root, const char* view, const lv_obj_t* overlay, const lv_obj_t* scroller, bool log);
+int layout_check(lv_obj_t* root, const char* view, const lv_obj_t* overlay, const lv_obj_t* scroller, bool log,
+                 bool placement_only = false);
 
 // cyd_touchcal.cpp
 void touchcal_begin();                // apply stored or default calibration
