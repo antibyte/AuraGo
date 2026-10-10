@@ -15,7 +15,7 @@ func TestBoardSetMatchesSpec(t *testing.T) {
 		"esp32-2432s024c":     {ChipESP32, "ILI9341", "CST820", 4},
 		"esp32-2432s024r":     {ChipESP32, "ILI9341", "XPT2046", 4},
 		"esp32-2432s028-usbc": {ChipESP32, "ST7789", "XPT2046", 4},
-		"esp32-2432s028r":     {ChipESP32, "ILI9341", "XPT2046", 4},
+		"esp32-2432s028r":     {ChipESP32, "ILI9341_2", "XPT2046", 4},
 		"esp32-3248s035c":     {ChipESP32, "ST7796", "GT911", 4},
 		"esp32-3248s035r":     {ChipESP32, "ST7796", "XPT2046", 4},
 		"esp32-8048s043":      {ChipESP32S3, "ST7262", "GT911", 16},

@@ -10,7 +10,7 @@
     "board": "esp32dev"
   },
   "display": {
-    "driver": "ILI9341",
+    "driver": "ILI9341_2",
     "bus": "spi",
     "width": 320,
     "height": 240,

@@ -76,6 +76,10 @@ service to this same package.
   `invert: true` and the XPT2046 calibration 290/3670/230/3860 (XPT2046_Touchscreen rotation 1, landscape) come
   from the hardware-tested `agocyd` firmware. 24 draw-buffer lines are 1/10 of the screen (15 KiB) and leave heap
   for Wi-Fi, TLS and WiFiManager. Promote a community profile to `verified` only after a hardware test.
+  Hardware finding (2026-10-10, ESP32-2432S028R with ESP32-D0WD-V3): with `Panel_ILI9341` the panel updated only
+  partly (stale content and garbage on the right); `ILI9341_2` (the init `agocyd` uses through TFT_eSPI
+  `ILI9341_2_DRIVER`) with `offset_rotation: 5`, `invert: true` and 40 MHz gives a correct picture, so the profile
+  uses `ILI9341_2`. The community `esp32-2432s024r/c` profiles stay on `ILI9341` until someone tests them.
 - `themes.json` is the only source of theme values (colors uppercase `#RRGGBB`); `ThemesJSON()` is the compact
   API form. Library `PIOSpec` and every `Depends` entry pin exact versions; the builder image and exported
   `platformio.ini` use the identical strings.

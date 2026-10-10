@@ -62,7 +62,7 @@ func TestVerifiedCYDProfile(t *testing.T) {
 		PSRAM:   false,
 		PIO:     BoardPIO{Board: "esp32dev"},
 		Display: BoardDisplay{
-			Driver: "ILI9341", Bus: "spi", Width: 320, Height: 240, NativeOrientation: "landscape",
+			Driver: "ILI9341_2", Bus: "spi", Width: 320, Height: 240, NativeOrientation: "landscape",
 			Invert: true, BGR: false,
 			Pins: map[string]int{"sclk": 14, "mosi": 13, "miso": 12, "cs": 15, "dc": 2, "rst": -1, "bl": 21},
 			Hz:   40000000, BacklightPWM: true, OffsetRotation: 5,
