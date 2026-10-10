@@ -199,13 +199,32 @@ func parsePlannerTime(value string) (time.Time, bool) {
 	return time.Time{}, false
 }
 
+func civilDueDate(due string) (year int, month time.Month, day int, ok bool) {
+	due = strings.TrimSpace(due)
+	if !strings.HasSuffix(due, "T00:00:00Z") {
+		return 0, 0, 0, false
+	}
+	parsed, err := time.Parse(time.RFC3339, due)
+	if err != nil {
+		return 0, 0, 0, false
+	}
+	year, month, day = parsed.UTC().Date()
+	return year, month, day, true
+}
+
 func isTodoOpenStatus(status string) bool {
 	return status == "open" || status == "in_progress"
 }
 
 func isTodoOverdue(todo Todo, now time.Time) bool {
-	if !isTodoOpenStatus(todo.Status) {
+	if !isTodoOpenStatus(todo.Status) || strings.TrimSpace(todo.DueDate) == "" {
 		return false
+	}
+	if year, month, day, ok := civilDueDate(todo.DueDate); ok {
+		ty, tm, td := now.In(now.Location()).Date()
+		dueDay := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+		today := time.Date(ty, tm, td, 0, 0, 0, 0, time.UTC)
+		return dueDay.Before(today)
 	}
 	due, ok := parsePlannerTime(todo.DueDate)
 	if !ok {
