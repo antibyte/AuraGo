@@ -1643,6 +1643,9 @@ registration lives in `internal/desktop/types.go`.
   window owns its engine/worker, requests, panels, chart canvases, operation
   journal and save queue. Load OfficeSession, data, panels and charts before
   sheets.js. The local vendor build imports only Apache-2.0 Univer OSS 1.0.3.
+- Resolve the engine import and formula worker through `AuraLazyAssets.versionedURL`
+  so both match the desktop build, including after a cached pre-1.0 resource set.
+  Verify `TestDesktopSheetsVersionedAssetsBrowser` alongside the app/recovery checks.
 - Failed workbook loads release the editor/save queue and show New, Open and
   Retry actions with an error status. A confirmed 404 clears the shell's stored
   path; temporary failures retain it for retry. New uses a fresh create-only
