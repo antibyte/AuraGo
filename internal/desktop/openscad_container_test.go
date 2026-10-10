@@ -986,6 +986,46 @@ func TestOpenSCADJobFileRefusesSymlink(t *testing.T) {
 	}
 }
 
+func TestOpenSCADCompilerLogCapsReadAndRefusesSymlink(t *testing.T) {
+	t.Run("size cap", func(t *testing.T) {
+		dir := t.TempDir()
+		const capBytes = 6000
+		const pastCap = "COMPILER-LOG-PAST-CAP"
+		body := append(bytes.Repeat([]byte("A"), capBytes), pastCap...)
+		if err := os.WriteFile(filepath.Join(dir, "compiler.log"), body, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		got := readOpenSCADCompilerLog(dir)
+		if strings.Contains(got, pastCap) {
+			t.Fatalf("compiler log included bytes past the cap")
+		}
+		if len(got) > capBytes {
+			t.Fatalf("compiler log length = %d, want <= %d", len(got), capBytes)
+		}
+		if !strings.HasPrefix(got, "AAAA") {
+			t.Fatalf("compiler log = %q, want the file prefix", got)
+		}
+	})
+
+	t.Run("symlink", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("symlink creation requires elevated privileges on this test setup; openFileNoFollow still has its own Windows test")
+		}
+		dir := t.TempDir()
+		secret := filepath.Join(dir, "secret.txt")
+		if err := os.WriteFile(secret, []byte("secret-bytes"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(secret, filepath.Join(dir, "compiler.log")); err != nil {
+			t.Fatal(err)
+		}
+		got := readOpenSCADCompilerLog(dir)
+		if strings.Contains(got, "secret-bytes") || got == "" || len(got) > 80 {
+			t.Fatalf("compiler log = %q, want a short read error without the target contents", got)
+		}
+	})
+}
+
 func TestOpenSCADStatusAndResultOmitHostPaths(t *testing.T) {
 	dataDir := t.TempDir()
 	svc := NewOpenSCADContainerService(Config{DataDir: dataDir, OpenSCAD: OpenSCADConfig{Enabled: true}}, nil)

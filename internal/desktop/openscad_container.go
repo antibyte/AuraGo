@@ -411,12 +411,42 @@ func (s *OpenSCADContainerService) openSCADJobContainerAction(name, action strin
 	}
 }
 
+const (
+	openSCADCompilerLogMaxBytes  = 6000
+	openSCADCompilerLogReadError = "compiler log could not be read"
+)
+
+// readOpenSCADCompilerLog reads compiler.log without following symlinks and
+// keeps at most openSCADCompilerLogMaxBytes, the same budget truncateOpenSCADOutput
+// applies. A longer log stays a successful read. A symlink or other non-regular
+// file contributes a short read error and never the target contents.
 func readOpenSCADCompilerLog(jobDir string) string {
-	data, err := os.ReadFile(filepath.Join(jobDir, "compiler.log"))
+	file, err := openFileNoFollow(filepath.Join(jobDir, "compiler.log"), os.O_RDONLY, 0)
 	if err != nil {
-		return ""
+		if errors.Is(err, os.ErrNotExist) {
+			return ""
+		}
+		return openSCADCompilerLogReadError
 	}
-	return truncateOpenSCADOutput(string(data))
+	defer func() { _ = file.Close() }()
+	info, err := file.Stat()
+	if err != nil || !info.Mode().IsRegular() {
+		return openSCADCompilerLogReadError
+	}
+	data, err := io.ReadAll(io.LimitReader(file, openSCADCompilerLogMaxBytes))
+	if err != nil {
+		return openSCADCompilerLogReadError
+	}
+	if info.Size() <= openSCADCompilerLogMaxBytes {
+		return truncateOpenSCADOutput(string(data))
+	}
+	const suffix = "\n...[truncated]"
+	budget := openSCADCompilerLogMaxBytes - len(suffix)
+	text := strings.TrimSpace(string(data))
+	if len(text) > budget {
+		text = text[:budget]
+	}
+	return text + suffix
 }
 
 func (s *OpenSCADContainerService) probeRuntimeLocked(ctx context.Context, containerID string) error {
