@@ -75,6 +75,31 @@
         return false;
     }
 
+    function editedTodoFields(host) {
+        const form = host.querySelector('.vd-todo-form');
+        const shown = host._todoShown;
+        if (!form || !shown) return null;
+        const edits = {};
+        if (form.title.value.trim() !== String(shown.title || '').trim()) edits.title = form.title.value.trim();
+        if (form.description.value !== String(shown.description || '')) edits.description = form.description.value;
+        if (form.priority.value !== shown.priority) edits.priority = form.priority.value;
+        if (form.status.value !== shown.status) edits.status = form.status.value;
+        if (!!form.remind_daily.checked !== !!shown.remind_daily) edits.remind_daily = form.remind_daily.checked;
+        if (String(form.due_date.value || '').trim() !== String(shown.due || '')) edits.due = String(form.due_date.value || '').trim();
+        return edits;
+    }
+
+    function applyEditedTodoFields(host, edits) {
+        const form = host.querySelector('.vd-todo-form');
+        if (!form || !edits) return;
+        if ('title' in edits) form.title.value = edits.title;
+        if ('description' in edits) form.description.value = edits.description;
+        if ('priority' in edits) form.priority.value = edits.priority;
+        if ('status' in edits) form.status.value = edits.status;
+        if ('remind_daily' in edits) form.remind_daily.checked = edits.remind_daily;
+        if ('due' in edits) form.due_date.value = edits.due;
+    }
+
     async function renderTodo(id) {
         const host = contentEl(id);
         if (!host) return;
@@ -97,7 +122,7 @@
             event.preventDefault();
             showContextMenu(event.clientX, event.clientY, [
                 { labelKey: 'desktop.context_open', icon: 'folder-open', action: () => renderTodoDetail(host, todo, reload, todoReadonly, runTodoAction) },
-                { labelKey: 'desktop.todo_complete', icon: 'check-square', disabled: todoReadonly || todo.status === 'done', action: async () => { if (todoReadonly) return; await runTodoAction(async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); }); } },
+                { labelKey: 'desktop.todo_complete', icon: 'check-square', disabled: todoReadonly || todo.status === 'done', action: async () => { if (todoReadonly) return; await runTodoAction(async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id, { preserveEdits: true }); }); } },
                 { separator: true },
                 { labelKey: 'desktop.delete', icon: 'trash', disabled: todoReadonly, action: async () => { if (todoReadonly) return; if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await runTodoAction(async () => { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); }); } } }
             ]);
@@ -137,8 +162,18 @@
             }));
             const selected = filtered.find(todo => todo.id === selectedID);
             if (selected) {
-                if (options.replaceDetail || selectionChanged || !detailIsDirty(host, selected)) {
+                let pendingEdits = null;
+                if (!options.replaceDetail && !selectionChanged) {
+                    pendingEdits = editedTodoFields(host);
+                }
+                const hasEdits = pendingEdits && Object.keys(pendingEdits).length > 0;
+                if (hasEdits && !options.preserveEdits) {
+                    // keep the open form; checklist-only refresh waits for a quiet form or preserveEdits reload
+                } else {
                     renderTodoDetail(host, selected, load, todoReadonly, runTodoAction);
+                    if (hasEdits && options.preserveEdits) {
+                        applyEditedTodoFields(host, pendingEdits);
+                    }
                 }
             } else {
                 clearTodoDetail(host);
@@ -200,18 +235,18 @@
         await runTodoAction(async () => {
             if (done) {
                 await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true });
-                await reload(todo.id);
+                await reload(todo.id, { preserveEdits: true });
                 return;
             }
             await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), 'PUT', { status: 'open' });
-            await reload(todo.id);
+            await reload(todo.id, { preserveEdits: true });
         });
     }
 
     async function updateTodoItem(todo, itemID, patch, reload) {
         if (!todo || !itemID) return;
         await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/items/' + encodeURIComponent(itemID), 'PUT', patch);
-        await reload(todo.id);
+        await reload(todo.id, { preserveEdits: true });
     }
 
     function renderTodoDetail(host, todo, reload, todoReadonly, runTodoAction) {
@@ -239,9 +274,9 @@
                 await reload(todo.id);
             });
         });
-        pane.querySelector('[data-action="complete"]').addEventListener('click', async () => { if (todoReadonly) return; await runTodoAction(async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); }); });
+        pane.querySelector('[data-action="complete"]').addEventListener('click', async () => { if (todoReadonly) return; await runTodoAction(async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id, { preserveEdits: true }); }); });
         pane.querySelector('[data-action="delete"]').addEventListener('click', async () => { if (todoReadonly) return; if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await runTodoAction(async () => { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); }); } });
-        pane.querySelector('.vd-todo-item-add').addEventListener('submit', async event => { event.preventDefault(); if (todoReadonly) return; const input = event.currentTarget.querySelector('input'); if (!input.value.trim()) return; await runTodoAction(async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/items', 'POST', { title: input.value.trim() }); await reload(todo.id); }); });
+        pane.querySelector('.vd-todo-item-add').addEventListener('submit', async event => { event.preventDefault(); if (todoReadonly) return; const input = event.currentTarget.querySelector('input'); if (!input.value.trim()) return; await runTodoAction(async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/items', 'POST', { title: input.value.trim() }); await reload(todo.id, { preserveEdits: true }); }); });
         pane.querySelectorAll('[data-item-toggle]').forEach(input => input.addEventListener('change', async () => { if (todoReadonly) return; await runTodoAction(async () => { await updateTodoItem(todo, input.dataset.itemToggle, { is_done: input.checked }, reload); }); }));
         pane.querySelectorAll('[data-item-title]').forEach(titleInput => {
             titleInput.addEventListener('keydown', async event => {
@@ -266,7 +301,15 @@
                 await runTodoAction(async () => { await updateTodoItem(todo, titleInput.dataset.itemTitle, { title: titleInput.value.trim() }, reload); });
             });
         });
-        pane.querySelectorAll('[data-item-delete]').forEach(btn => btn.addEventListener('click', async () => { if (todoReadonly) return; await runTodoAction(async () => { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/items/' + encodeURIComponent(btn.dataset.itemDelete), { method: 'DELETE' }); await reload(todo.id); }); }));
+        pane.querySelectorAll('[data-item-delete]').forEach(btn => btn.addEventListener('click', async () => { if (todoReadonly) return; await runTodoAction(async () => { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/items/' + encodeURIComponent(btn.dataset.itemDelete), { method: 'DELETE' }); await reload(todo.id, { preserveEdits: true }); }); }));
+        host._todoShown = {
+            title: todo.title,
+            description: todo.description || '',
+            priority: todo.priority,
+            status: todo.status,
+            remind_daily: !!todo.remind_daily,
+            due: todoDueCivilDate(todo.due_date)
+        };
         setTodoMenus(host, todo, reload, todoReadonly, runTodoAction);
     }
 
@@ -290,7 +333,7 @@
                 id: 'edit',
                 labelKey: 'desktop.menu_edit',
                 items: [
-                    { id: 'complete', labelKey: 'desktop.todo_complete', icon: 'check-square', disabled: todoReadonly, action: async () => { if (todoReadonly) return; await runTodoAction(async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); }); } },
+                    { id: 'complete', labelKey: 'desktop.todo_complete', icon: 'check-square', disabled: todoReadonly, action: async () => { if (todoReadonly) return; await runTodoAction(async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id, { preserveEdits: true }); }); } },
                     { id: 'delete', labelKey: 'desktop.delete', icon: 'trash', disabled: todoReadonly, action: async () => { if (todoReadonly) return; if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await runTodoAction(async () => { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); }); } } }
                 ]
             }

@@ -6,17 +6,17 @@
     min-height: 0;
 }
 
-@container todo (max-width: 760px) {
-    .vd-todo {
-        grid-template-columns: 1fr;
-    }
-}
-
 .vd-todo {
     display: grid;
     grid-template-columns: 150px minmax(260px, 1fr) minmax(280px, 0.9fr);
     height: 100%;
     min-height: 0;
+}
+
+@container todo (max-width: 760px) {
+    .vd-todo {
+        grid-template-columns: 1fr;
+    }
 }
 
 .vd-todo {
