@@ -99,7 +99,8 @@ int ui_event_index(lv_event_t *e) {
   if (tag > 0) return (int)(tag - 1);
   lv_obj_t *target = lv_event_get_target_obj(e);
   if (target != NULL && lv_obj_check_type(target, &lv_buttonmatrix_class)) {
-    return (int)lv_buttonmatrix_get_selected_button(target);
+    uint32_t sel = lv_buttonmatrix_get_selected_button(target);
+    return sel == LV_BUTTONMATRIX_BUTTON_NONE ? -1 : (int)sel;
   }
   return -1;
 }

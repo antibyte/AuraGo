@@ -8,10 +8,18 @@ __attribute__((weak)) void app_loop() {}
 
 __attribute__((weak)) void on_sld_level_value_changed(lv_event_t *e) {
   (void)e;
-  cyd::log::warn("hook not implemented: on_sld_level_value_changed");
+  static bool warned = false;
+  if (!warned) {
+    warned = true;
+    cyd::log::warn("hook not implemented: on_sld_level_value_changed");
+  }
 }
 
 __attribute__((weak)) void on_sw_light_value_changed(lv_event_t *e) {
   (void)e;
-  cyd::log::warn("hook not implemented: on_sw_light_value_changed");
+  static bool warned = false;
+  if (!warned) {
+    warned = true;
+    cyd::log::warn("hook not implemented: on_sw_light_value_changed");
+  }
 }
