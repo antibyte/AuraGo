@@ -89,6 +89,7 @@ func TestRenderBoardConfigPanelDriverMacro(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	chain := panelSelectionChain(t, string(src))
 	p := loadReferenceProject(t)
 	b, err := BoardByID("esp32-2432s028r")
 	if err != nil {
@@ -105,10 +106,27 @@ func TestRenderBoardConfigPanelDriverMacro(t *testing.T) {
 		if want := []string{"#define CYD_PANEL_DRIVER_" + driver + " 1"}; !slices.Equal(macros, want) {
 			t.Errorf("%s: driver macros %q, want %q", driver, macros, want)
 		}
-		if !strings.Contains(string(src), "defined(CYD_PANEL_DRIVER_"+driver+")") {
-			t.Errorf("%s: cyd_board.cpp has no CYD_PANEL_DRIVER_%s case", driver, driver)
+		if !strings.Contains(chain, "defined(CYD_PANEL_DRIVER_"+driver+")") {
+			t.Errorf("%s: cyd_board.cpp has no CYD_PANEL_DRIVER_%s case in its panel selection", driver, driver)
 		}
 	}
+}
+
+// panelSelectionChain is the #if/#elif chain of cyd_board.cpp that picks the
+// LovyanGFX panel class: from the last "#if defined(CYD_PANEL_DRIVER_" before
+// its "#error" to that line. Include guards and later checks (the NV3041A
+// rotation #error) also mention driver macros and must not count as a case.
+func panelSelectionChain(t *testing.T, src string) string {
+	t.Helper()
+	end := strings.Index(src, `#error "board_config.h: unknown CYD_PANEL_DRIVER_*"`)
+	if end < 0 {
+		t.Fatal("cyd_board.cpp: the panel selection #error is missing")
+	}
+	start := strings.LastIndex(src[:end], "#if defined(CYD_PANEL_DRIVER_")
+	if start < 0 {
+		t.Fatal("cyd_board.cpp: the panel selection #if is missing")
+	}
+	return src[start:end]
 }
 
 func TestGenLibDeps(t *testing.T) {
