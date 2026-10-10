@@ -47,8 +47,27 @@ ENV PLATFORMIO_CORE_DIR=/tmp/cyd-pio-build \
     PLATFORMIO_SETTING_CHECK_PLATFORMIO_INTERVAL=36500 \
     PLATFORMIO_DISABLE_PROGRESSBAR=true
 
-RUN /opt/cyd/pio-venv/bin/pio pkg install --global --platform "platformio/espressif32@6.13.0" \
+# The platform and every package a build uses, at exact versions. Installed
+# first, they satisfy the platform's version ranges (e.g. framework
+# ~3.20017.0), so PlatformIO never resolves a range against whatever the
+# registry offers on the day the image is built; the check after the prewarm
+# fails the build on any drift. The same RUN drops the SDKs of chips no profile
+# uses and the RISC-V (ULP) toolchain binaries - its package.json/.piopm stay,
+# so PlatformIO still sees the package as installed; CYD apps never build ULP
+# code (saves ~900 MB, which a later RUN could no longer reclaim).
+RUN /opt/cyd/pio-venv/bin/pio pkg install --global \
+      --tool "platformio/framework-arduinoespressif32@3.20017.241212" \
+      --tool "platformio/tool-esptoolpy@2.41100.260830" \
+      --tool "platformio/tool-scons@4.40801.0" \
+      --tool "espressif/toolchain-xtensa-esp32@8.4.0+2021r2-patch5" \
+      --tool "espressif/toolchain-xtensa-esp32s3@8.4.0+2021r2-patch5" \
+      --tool "espressif/toolchain-riscv32-esp@8.4.0+2021r2-patch5" \
+    && /opt/cyd/pio-venv/bin/pio pkg install --global --platform "platformio/espressif32@6.13.0" \
     && rm -rf /tmp/cyd-pio-build \
+      /opt/cyd/platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s2 \
+      /opt/cyd/platformio/packages/framework-arduinoespressif32/tools/sdk/esp32c3 \
+    && find /opt/cyd/platformio/packages/toolchain-riscv32-esp -mindepth 1 -maxdepth 1 \
+      ! -name package.json ! -name .piopm -exec rm -rf {} + \
     && chmod -R a+rX,go-w /opt/cyd/platformio
 
 # Curated libraries (identical specs to cydcreator.Libraries() and the template's
@@ -74,7 +93,7 @@ RUN mkdir -p /opt/cyd/libs \
 # lv_font_conv (MIT) ships its dependencies bundled; the tarball is pinned by SHA-256.
 RUN curl -fsSL -o /tmp/lv_font_conv.tgz https://registry.npmjs.org/lv_font_conv/-/lv_font_conv-1.5.3.tgz \
     && echo "9f64fb8eb553dbab1990402eae74afbafd80b4f39a8314a01484083b6ed1000d  /tmp/lv_font_conv.tgz" | sha256sum -c - \
-    && npm install --global --prefix /opt/cyd/node --no-audit --no-fund --offline /tmp/lv_font_conv.tgz \
+    && npm install --global --prefix /opt/cyd/node --no-audit --no-fund --offline --ignore-scripts /tmp/lv_font_conv.tgz \
     && rm -f /tmp/lv_font_conv.tgz \
     && /opt/cyd/node/bin/lv_font_conv --help > /dev/null
 
@@ -106,27 +125,42 @@ RUN mkdir -p /tmp/fonts /opt/cyd/fonts/licenses && cd /tmp/fonts \
 
 COPY --chmod=0755 cyd-build cyd-addr2line cyd-selftest /usr/local/bin/
 
+# cyd-build keeps its PlatformIO build directories per builder version
+# (/cache/build/<version>/<cache key>), so a new image never reuses objects
+# compiled by an older toolchain.
+RUN printf '%s\n' "${CYD_BUILDER_VERSION}" > /opt/cyd/builder-version
+
 # Reference sample + template, used by cyd-selftest (prewarm now, smoke test later).
 COPY --from=cydcreator template/lib/cyd_template /opt/cyd/selftest/cyd_template
 COPY --from=cydcreator testdata/reference/basic /opt/cyd/selftest/reference
 
 # Prewarm: compile the reference sample for every board profile with network
-# access, so every package PlatformIO installs on demand (framework, ESP32-S3
-# and RISC-V toolchains, SCons) is in the image. Then drop build outputs, the
-# SDKs of chips no profile uses and the RISC-V (ULP) toolchain binaries - its
-# package.json/.piopm stay, so PlatformIO still sees the package as installed;
-# CYD apps never build ULP code (saves ~900 MB). Finally open up only the
-# entries this RUN created (everything older is already world-readable).
+# access, so anything PlatformIO still wants on demand ends up in the image (the
+# check below fails the build if that was a package). Then drop build outputs
+# and open up only the entries this RUN created (everything older is already
+# world-readable).
 RUN mkdir -p /work /cache \
     && cyd-selftest --all \
-    && rm -rf /work/* /cache/* /tmp/cyd-pio /tmp/cyd-build.lock /tmp/cyd-pio-build \
-      /opt/cyd/platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s2 \
-      /opt/cyd/platformio/packages/framework-arduinoespressif32/tools/sdk/esp32c3 \
-    && find /opt/cyd/platformio/packages/toolchain-riscv32-esp -mindepth 1 -maxdepth 1 \
-      ! -name package.json ! -name .piopm -exec rm -rf {} + \
+    && rm -rf /work/* /cache/* /tmp/cyd-pio /tmp/cyd-pio-build \
     && find /opt/cyd \( \( -type d ! -perm -o+rx \) -o \( -type f ! -perm -o+r \) \) -print0 \
       | xargs -0 -r chmod a+rX,go-w \
     && chown 1000:1000 /work /cache
+
+# Toolchain drift check: the installed platform and packages must be exactly
+# the pinned set (an extra or different entry means PlatformIO resolved
+# something on its own during the prewarm).
+RUN /opt/cyd/pio-venv/bin/python -I -c 'import glob, json, os, sys; \
+got = sorted("%s %s" % (os.path.basename(os.path.dirname(p)), json.load(open(p))["version"]) \
+  for p in glob.glob("/opt/cyd/platformio/platforms/*/platform.json") + glob.glob("/opt/cyd/platformio/packages/*/package.json")); \
+want = sorted(sys.argv[1:]); print("\n".join(got)); \
+sys.exit(0 if got == want else "toolchain drift: expected %s" % want)' \
+      "espressif32 6.13.0" \
+      "framework-arduinoespressif32 3.20017.241212+sha.dcc1105b" \
+      "tool-esptoolpy 2.41100.260830" \
+      "tool-scons 4.40801.0" \
+      "toolchain-riscv32-esp 8.4.0+2021r2-patch5" \
+      "toolchain-xtensa-esp32 8.4.0+2021r2-patch5" \
+      "toolchain-xtensa-esp32s3 8.4.0+2021r2-patch5"
 
 ENV PLATFORMIO_CORE_DIR=/tmp/cyd-pio/core \
     PLATFORMIO_PLATFORMS_DIR=/tmp/cyd-pio/platforms \
