@@ -1,0 +1,419 @@
+#!/opt/cyd/pio-venv/bin/python -I
+"""cyd-build: compile one generated CYD Creator project inside the builder image.
+
+usage: cyd-build --work /work/<build_id> --env <board_id> --build-id <build_id>
+                 --cache-key <project_id>-<board_id> [--clean]
+
+stdout/stderr: human build log (streamed)
+exit: 0 ok, 1 compile error, 2 tooling/internal error, 3 flash budget exceeded
+writes <work>/out/{merged.bin, firmware.bin, firmware.elf, result.json} and, on
+success, out/fonts/{<symbol>.c..., fonts.json} (the converted LVGL fonts)
+
+Runs offline (docker run --network none), as uid 1000, on a read-only root
+filesystem: it writes only below <work>, /cache and /tmp.
+"""
+import argparse
+import fcntl
+import hashlib
+import json
+import os
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import threading
+import time
+
+EXIT_OK, EXIT_COMPILE, EXIT_TOOLING, EXIT_BUDGET = 0, 1, 2, 3
+
+OPT = "/opt/cyd"
+PIO_BIN = OPT + "/pio-venv/bin/pio"
+PYTHON = OPT + "/pio-venv/bin/python"
+PIO_SHARED = OPT + "/platformio"  # platforms/ and packages/ (read-only)
+LIBS = OPT + "/libs"              # every curated library, installed from the registry
+FONTS = OPT + "/fonts"
+LV_FONT_CONV = OPT + "/node/bin/lv_font_conv"
+TMP = "/tmp/cyd-pio"
+CACHE = "/cache"
+WORK_ROOT = "/work"
+
+ESPTOOL = PIO_SHARED + "/packages/tool-esptoolpy/esptool.py"
+BOOT_APP0 = PIO_SHARED + "/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin"
+BOOTLOADER_OFFSET = {"esp32": "0x1000", "esp32s3": "0x0"}
+
+FONT_FILES = {
+    "montserrat": "Montserrat-Medium.ttf",
+    "inter": "Inter-Medium.ttf",
+    "jetbrains_mono": "JetBrainsMono-Medium.ttf",
+}
+SYMBOL_FONT = "FontAwesome5-Solid+Brands+Regular.woff"
+# The glyphs behind LVGL's LV_SYMBOL_* (scripts/built_in_font/built_in_font_gen.py of LVGL 9.5.0).
+LV_SYMBOL_CODEPOINTS = (
+    "61441,61448,61451,61452,61453,61457,61459,61461,61465,61468,61473,61478,61479,61480,"
+    "61502,61507,61512,61515,61516,61517,61521,61522,61523,61524,61543,61544,61550,61552,"
+    "61553,61556,61559,61560,61561,61563,61587,61589,61636,61637,61639,61641,61664,61671,"
+    "61674,61683,61724,61732,61787,61931,62016,62017,62018,62019,62020,62087,62099,62189,"
+    "62212,62810,63426,63650"
+)
+FONT_CONVERTER_ID = "lv_font_conv-1.5.3/bpp4/compressed/v1"
+
+ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
+SYMBOL_RE = re.compile(r"^ui_font_[a-z0-9_]{1,48}$")
+RANGE_RE = re.compile(r"^0x[0-9A-Fa-f]{1,6}(-0x[0-9A-Fa-f]{1,6})?$")
+WARNING_RE = re.compile(r"^[^\s:][^:]*:\d+:\d+: warning: ")
+USAGE_RE = re.compile(r"^(RAM|Flash):\s+\[.*\]\s+[\d.]+% \(used (\d+) bytes from (\d+) bytes\)")
+BUDGET_RE = re.compile(r"The program size \((\d+) bytes\) is greater than maximum allowed \((\d+) bytes\)")
+LOG_CAP = 4 << 20
+KEEPALIVE_S = 240  # the Docker socket proxy cuts exec streams that stay silent for 10 minutes
+JOB_MEMORY = 512 << 20  # one compiler job per 512 MiB of the container memory limit
+
+
+class ToolError(Exception):
+    pass
+
+
+def say(msg):
+    print("[cyd-build] " + msg, flush=True)
+
+
+def sha256_file(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def parse_args():
+    p = argparse.ArgumentParser(prog="cyd-build")
+    p.add_argument("--work", required=True)
+    p.add_argument("--env", required=True)
+    p.add_argument("--build-id", required=True)
+    p.add_argument("--cache-key", required=True)
+    p.add_argument("--clean", action="store_true", help="drop the build cache of this cache key first")
+    a = p.parse_args()
+    for name in ("env", "build_id", "cache_key"):
+        if not ID_RE.match(getattr(a, name)):
+            p.error("invalid --" + name.replace("_", "-"))
+    work = os.path.realpath(a.work)
+    if os.path.dirname(work) != WORK_ROOT or not os.path.isdir(work):
+        p.error("--work must be an existing directory directly below " + WORK_ROOT)
+    a.work = work
+    return a
+
+
+def detect_chip(work):
+    with open(os.path.join(work, "include", "board_config.h"), encoding="utf-8") as f:
+        text = f.read()
+    if re.search(r"^#define CYD_CHIP_ESP32S3 1$", text, re.M):
+        return "esp32s3"
+    if re.search(r"^#define CYD_CHIP_ESP32 1$", text, re.M):
+        return "esp32"
+    raise ToolError("include/board_config.h defines no CYD_CHIP_* macro")
+
+
+def prepare_pio_dirs(env_name):
+    """PlatformIO writes lock files next to its package folders and an
+    integrity file into every libdeps folder; with a read-only /opt these
+    live in /tmp and point at the shared, pre-installed trees."""
+    for sub in ("platforms", "packages"):
+        link = os.path.join(TMP, sub)
+        os.makedirs(TMP, exist_ok=True)
+        if not os.path.islink(link):
+            os.symlink(os.path.join(PIO_SHARED, sub), link)
+    libdeps = os.path.join(TMP, "libdeps", env_name)
+    os.makedirs(libdeps, exist_ok=True)
+    for name in sorted(os.listdir(LIBS)):
+        link = os.path.join(libdeps, name)
+        if not os.path.islink(link):
+            os.symlink(os.path.join(LIBS, name), link)
+    os.makedirs(os.path.join(TMP, "core"), exist_ok=True)
+    os.makedirs(os.path.join(TMP, "home"), exist_ok=True)
+
+
+def pio_environment(build_dir):
+    env = dict(os.environ)
+    env.update({
+        "HOME": os.path.join(TMP, "home"),
+        "PLATFORMIO_CORE_DIR": os.path.join(TMP, "core"),
+        "PLATFORMIO_PLATFORMS_DIR": os.path.join(TMP, "platforms"),
+        "PLATFORMIO_PACKAGES_DIR": os.path.join(TMP, "packages"),
+        "PLATFORMIO_LIBDEPS_DIR": os.path.join(TMP, "libdeps"),
+        "PLATFORMIO_BUILD_DIR": build_dir,
+        "PLATFORMIO_SETTING_ENABLE_TELEMETRY": "No",
+        "PLATFORMIO_SETTING_CHECK_PLATFORMIO_INTERVAL": "36500",
+        "PLATFORMIO_DISABLE_PROGRESSBAR": "true",
+        "PYTHONDONTWRITEBYTECODE": "1",
+    })
+    for key in ("PLATFORMIO_BUILD_FLAGS", "PLATFORMIO_BUILD_SRC_FLAGS", "PLATFORMIO_SRC_DIR"):
+        env.pop(key, None)  # build flags come from platformio.ini only
+    return env
+
+
+def write_build_id(work, build_id):
+    path = os.path.join(work, "include", "cyd_build_id.h")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("// Written by cyd-build. Only cyd_build_info.cpp includes this file.\n")
+        f.write('#define CYD_BUILD_ID "%s"\n' % build_id)
+
+
+def keep_build_cache(work, env):
+    """PlatformIO wipes the build directory whenever the "project checksum"
+    (config + absolute source paths) changes, which is every build here
+    because each build has its own /work/<build_id>. SCons tracks file
+    contents itself, so write the checksum PlatformIO will expect."""
+    saved_env, saved_cwd = dict(os.environ), os.getcwd()
+    os.environ.clear()
+    os.environ.update(env)
+    try:
+        os.chdir(work)
+        from platformio.project.config import ProjectConfig
+        from platformio.project.helpers import compute_project_checksum
+        cfg = ProjectConfig.get_instance(os.path.join(work, "platformio.ini"))
+        build_dir = cfg.get("platformio", "build_dir")
+        os.makedirs(build_dir, exist_ok=True)
+        with open(os.path.join(build_dir, "project.checksum"), "w", encoding="utf-8") as f:
+            f.write(compute_project_checksum(cfg))
+    finally:
+        os.chdir(saved_cwd)
+        os.environ.clear()
+        os.environ.update(saved_env)
+
+
+def convert_fonts(work):
+    spec_path = os.path.join(work, "src", "generated", "fonts.json")
+    try:
+        with open(spec_path, encoding="utf-8") as f:
+            spec = json.load(f)
+        fonts = spec["fonts"]
+        assert isinstance(fonts, list)
+    except Exception as exc:  # noqa: BLE001 - any shape error is a generator bug
+        raise ToolError("src/generated/fonts.json is invalid: %s" % exc) from exc
+    out_dir = os.path.join(work, "src", "generated", "fonts")
+    shutil.rmtree(out_dir, ignore_errors=True)
+    os.makedirs(out_dir)
+    cache_dir = os.path.join(CACHE, "fonts")
+    os.makedirs(cache_dir, exist_ok=True)
+    for font in fonts:
+        symbol = font.get("symbol", "")
+        family = font.get("family", "")
+        size = font.get("size")
+        ranges = font.get("ranges", [])
+        chars = font.get("chars", "")
+        if (not SYMBOL_RE.match(symbol) or family not in FONT_FILES or not isinstance(size, int)
+                or not 8 <= size <= 96 or not isinstance(ranges, list)
+                or not all(isinstance(r, str) and RANGE_RE.match(r) for r in ranges)
+                or not isinstance(chars, str) or len(chars) > 4096
+                or not isinstance(font.get("lv_symbols", False), bool)):
+            raise ToolError("fonts.json entry %r is invalid" % symbol)
+        key = hashlib.sha256(json.dumps({"converter": FONT_CONVERTER_ID, "font": font},
+                                        sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+        cached = os.path.join(cache_dir, key + ".c")
+        if os.path.exists(cached):
+            say("font %s (cached)" % symbol)
+        else:
+            say("font %s: converting %s %dpx" % (symbol, family, size))
+            cmd = [LV_FONT_CONV, "--bpp", "4", "--size", str(size),
+                   "--format", "lvgl", "--lv-include", "lvgl.h", "--lv-font-name", symbol,
+                   "--force-fast-kern-format", "--font", os.path.join(FONTS, FONT_FILES[family])]
+            for r in ranges:
+                cmd += ["-r", r]
+            if chars:
+                cmd += ["--symbols", chars]
+            if font.get("lv_symbols"):
+                cmd += ["--font", os.path.join(FONTS, SYMBOL_FONT), "-r", LV_SYMBOL_CODEPOINTS]
+            tmp = os.path.join(cache_dir, ".tmp-%s-%d.c" % (key, os.getpid()))
+            cmd += ["-o", tmp]
+            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            if res.returncode != 0 or not os.path.exists(tmp):
+                sys.stdout.write(res.stdout)
+                raise ToolError("lv_font_conv failed for %s" % symbol)
+            os.replace(tmp, cached)
+        shutil.copyfile(cached, os.path.join(out_dir, symbol + ".c"))
+
+
+def read_first(paths):
+    for path in paths:
+        try:
+            with open(path, encoding="ascii") as f:
+                return f.read().split()
+        except (OSError, UnicodeDecodeError):
+            continue
+    return None
+
+
+def build_jobs():
+    """Parallel compiler jobs: the container's CPU quota, at most one job per
+    JOB_MEMORY of its memory limit, at least 1. PlatformIO's default is every
+    CPU the kernel shows (all host CPUs even under --cpus 2), which lets a
+    2 CPU / 2 GiB builder without swap (plan 2) get its compilers OOM-killed
+    while the large LovyanGFX font tables compile."""
+    jobs = os.cpu_count() or 1
+    quota = read_first(["/sys/fs/cgroup/cpu.max"])  # cgroup v2: "<quota> <period>" or "max <period>"
+    if quota is None:
+        v1 = (read_first(["/sys/fs/cgroup/cpu/cpu.cfs_quota_us"]), read_first(["/sys/fs/cgroup/cpu/cpu.cfs_period_us"]))
+        if v1[0] and v1[1] and v1[0][0] != "-1":
+            quota = [v1[0][0], v1[1][0]]
+    try:
+        if quota and quota[0] != "max":
+            jobs = min(jobs, max(1, -(-int(quota[0]) // int(quota[1]))))
+    except (ValueError, IndexError, ZeroDivisionError):
+        pass
+    limit = read_first(["/sys/fs/cgroup/memory.max", "/sys/fs/cgroup/memory/memory.limit_in_bytes"])
+    try:
+        if limit and limit[0] != "max" and int(limit[0]) < (1 << 50):
+            jobs = min(jobs, max(1, int(limit[0]) // JOB_MEMORY))
+    except ValueError:
+        pass
+    return max(1, jobs)
+
+
+def run_pio(work, env_name, env, log_lines):
+    jobs = build_jobs()
+    cmd = [PIO_BIN, "run", "--project-dir", work, "--environment", env_name, "--jobs", str(jobs)]
+    say("running: pio run --environment %s --jobs %d" % (env_name, jobs))
+    proc = subprocess.Popen(cmd, cwd=work, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                            text=True, errors="replace", bufsize=1, start_new_session=True)
+
+    def stop(signum, frame):  # cancel: take the whole compiler process group down
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        sys.exit(EXIT_TOOLING)
+
+    signal.signal(signal.SIGTERM, stop)
+    signal.signal(signal.SIGINT, stop)
+    last_output = [time.monotonic()]
+
+    def keepalive():  # print something at least every KEEPALIVE_S seconds
+        while proc.poll() is None:
+            time.sleep(15)
+            idle = time.monotonic() - last_output[0]
+            if idle >= KEEPALIVE_S:
+                say("still working (%d s without compiler output)" % idle)
+                last_output[0] = time.monotonic()
+
+    threading.Thread(target=keepalive, daemon=True).start()
+    size = 0
+    for line in proc.stdout:
+        last_output[0] = time.monotonic()
+        sys.stdout.write(line)
+        sys.stdout.flush()
+        size += len(line)
+        if size < LOG_CAP:
+            log_lines.append(line.rstrip("\n"))
+    return proc.wait()
+
+
+def merge_image(chip, build_env_dir, out_dir):
+    for name in ("bootloader.bin", "partitions.bin", "firmware.bin", "firmware.elf"):
+        if not os.path.exists(os.path.join(build_env_dir, name)):
+            raise ToolError("PlatformIO did not produce %s" % name)
+    cmd = [PYTHON, ESPTOOL, "--chip", chip, "merge_bin", "-o", os.path.join(out_dir, "merged.bin"),
+           "--flash_mode", "keep", "--flash_freq", "keep", "--flash_size", "keep",
+           BOOTLOADER_OFFSET[chip], os.path.join(build_env_dir, "bootloader.bin"),
+           "0x8000", os.path.join(build_env_dir, "partitions.bin"),
+           "0xe000", BOOT_APP0,
+           "0x10000", os.path.join(build_env_dir, "firmware.bin")]
+    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    sys.stdout.write(res.stdout)
+    if res.returncode != 0:
+        raise ToolError("esptool merge_bin failed")
+    shutil.copyfile(os.path.join(build_env_dir, "firmware.bin"), os.path.join(out_dir, "firmware.bin"))
+    shutil.copyfile(os.path.join(build_env_dir, "firmware.elf"), os.path.join(out_dir, "firmware.elf"))
+
+
+def export_fonts(work, out_dir, result):
+    """Copy the converted fonts and the fonts.json they were made from to
+    out/fonts/. They exist only in this build tree; the server keeps them with
+    the artefacts so a ZIP export builds outside the container (plan 5)."""
+    gen = os.path.join(work, "src", "generated")
+    dst = os.path.join(out_dir, "fonts")
+    os.makedirs(dst, exist_ok=True)
+    sources = [(name, os.path.join(gen, "fonts", name))
+               for name in sorted(os.listdir(os.path.join(gen, "fonts"))) if name.endswith(".c")]
+    sources.append(("fonts.json", os.path.join(gen, "fonts.json")))
+    for name, src in sources:
+        path = os.path.join(dst, name)
+        shutil.copyfile(src, path)
+        result["fonts"][name] = {"size": os.path.getsize(path), "sha256": sha256_file(path)}
+
+
+def main():
+    args = parse_args()
+    started = time.monotonic()
+    out_dir = os.path.join(args.work, "out")
+    result = {"ok": False, "exit": EXIT_TOOLING, "env": args.env, "chip": "", "duration_ms": 0, "warnings": 0,
+              "flash": {"used": 0, "total": 0}, "ram": {"used": 0, "total": 0}, "files": {}, "fonts": {}}
+    code = EXIT_TOOLING
+    lock = open("/tmp/cyd-build.lock", "w")
+    fcntl.flock(lock, fcntl.LOCK_EX)  # one build at a time per container
+    try:
+        shutil.rmtree(out_dir, ignore_errors=True)
+        os.makedirs(out_dir)
+        for rel in ("platformio.ini", "partitions.csv", "include/board_config.h", "lib/cyd_template/library.json",
+                    "src/generated/fonts.json"):
+            if not os.path.isfile(os.path.join(args.work, rel)):
+                raise ToolError("missing %s in the build tree" % rel)
+        chip = detect_chip(args.work)
+        result["chip"] = chip
+        build_dir = os.path.join(CACHE, "build", args.cache_key)
+        if args.clean:
+            shutil.rmtree(build_dir, ignore_errors=True)
+        prepare_pio_dirs(args.env)
+        env = pio_environment(build_dir)
+        write_build_id(args.work, args.build_id)
+        convert_fonts(args.work)
+        keep_build_cache(args.work, env)
+        log_lines = []
+        rc = run_pio(args.work, args.env, env, log_lines)
+        for line in log_lines:
+            if WARNING_RE.match(line):
+                result["warnings"] += 1
+            m = USAGE_RE.match(line)
+            if m:
+                result["ram" if m.group(1) == "RAM" else "flash"] = {"used": int(m.group(2)), "total": int(m.group(3))}
+            m = BUDGET_RE.search(line)
+            if m:
+                result["flash"] = {"used": int(m.group(1)), "total": int(m.group(2))}
+                code = EXIT_BUDGET
+        if rc != 0:
+            if code != EXIT_BUDGET:
+                code = EXIT_COMPILE
+            say("build failed (exit %d)" % code)
+        else:
+            merge_image(chip, os.path.join(build_dir, args.env), out_dir)
+            flash = result["flash"]
+            if flash["total"] and flash["used"] * 10 >= flash["total"] * 9:
+                say("warning: firmware uses %d%% of the app slot" % (flash["used"] * 100 // flash["total"]))
+            for name in ("merged.bin", "firmware.bin", "firmware.elf"):
+                path = os.path.join(out_dir, name)
+                result["files"][name] = {"size": os.path.getsize(path), "sha256": sha256_file(path)}
+            export_fonts(args.work, out_dir, result)
+            code = EXIT_OK
+    except ToolError as exc:
+        say("error: %s" % exc)
+        code = EXIT_TOOLING
+    except Exception as exc:  # noqa: BLE001 - every unexpected failure is a tooling error
+        say("internal error: %r" % (exc,))
+        code = EXIT_TOOLING
+    finally:
+        result["exit"] = code
+        result["ok"] = code == EXIT_OK
+        result["duration_ms"] = int((time.monotonic() - started) * 1000)
+        try:
+            os.makedirs(out_dir, exist_ok=True)
+            with open(os.path.join(out_dir, "result.json"), "w", encoding="utf-8") as f:
+                json.dump(result, f, separators=(",", ":"))
+                f.write("\n")
+        except OSError as exc:
+            say("cannot write result.json: %s" % exc)
+        fcntl.flock(lock, fcntl.LOCK_UN)
+    say("done: exit %d in %.1f s" % (code, result["duration_ms"] / 1000))
+    return code
+
+
+if __name__ == "__main__":
+    sys.exit(main())

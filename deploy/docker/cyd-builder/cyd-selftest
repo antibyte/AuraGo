@@ -1,0 +1,34 @@
+#!/bin/bash
+# cyd-selftest [--all | <board_id>...] - compile the embedded reference sample
+# (internal/cydcreator/testdata/reference/basic + template/lib/cyd_template)
+# for board profiles with cyd-build. Used to prewarm the image at build time
+# and as the offline smoke test in CI. Exit 0 only when every build succeeds.
+set -euo pipefail
+
+REF=/opt/cyd/selftest/reference
+TPL=/opt/cyd/selftest/cyd_template
+
+if [ "$#" -eq 0 ] || [ "$1" = "--all" ]; then
+  set -- $(ls "$REF/profiles")
+fi
+
+fail=0
+for id in "$@"; do
+  if [ ! -d "$REF/profiles/$id" ]; then
+    echo "cyd-selftest: unknown profile $id" >&2
+    exit 2
+  fi
+  work="/work/selftest-$id"
+  rm -rf "$work"
+  mkdir -p "$work/lib" "$work/src"
+  cp -r "$TPL" "$work/lib/cyd_template"
+  cp -r "$REF/src/." "$work/src/"
+  cp -r "$REF/profiles/$id/." "$work/"
+  rc=0
+  cyd-build --work "$work" --env "$id" --build-id "selftest-$id" --cache-key "selftest-$id" || rc=$?
+  echo "== $id exit $rc: $(cat "$work/out/result.json" 2>/dev/null || echo '{}')"
+  if [ "$rc" -ne 0 ]; then
+    fail=1
+  fi
+done
+exit "$fail"
