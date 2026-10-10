@@ -173,10 +173,10 @@ service to this same package.
   first matching handler wins. Keep that list in step with the WiFiManager version pin.
 - Token origin: the AuraGo bearer token is sent only to `g_cfg.url + path` (the `cydcc` URL; https is pinned by
   `cert_sha256` before any token leaves the device). An update offer's `url` is honoured only when empty, a `/path`
-  or absolute below the configured URL (printable ASCII, at most 256 bytes, no `//`); anything else falls back to
-  `/api/cyd-creator/device/firmware/<build_id>`. The offered `sha256` is lowercased and must be 64 hex, `build_id`
-  must match `[A-Za-z0-9._-]{1,64}`, and heartbeat/ota-result answers are capped at 4 KiB. The server must therefore
-  send `update.url` empty or as a `/path`. App code gets a separate worker (`cyd_http.cpp`) whose https requests are
+  or absolute below the configured URL (at most 256 bytes, visible ASCII 0x21-0x7E, not starting with `//`); anything
+  else falls back to `/api/cyd-creator/device/firmware/<build_id>`. The offered `sha256` is lowercased and must be 64
+  hex, `build_id` must match `[A-Za-z0-9._-]{1,64}`, and heartbeat/ota-result answers are capped at 4 KiB. The server
+  must therefore send `update.url` empty or as a `/path`. App code gets a separate worker (`cyd_http.cpp`) whose https requests are
   not certificate-verified: never route secrets through it.
 - Rollback has two guards. The RTC boot counter counts only crash resets (`PANIC`, `INT_WDT`, `TASK_WDT`, `WDT`) and
   is cleared on power-on, after the first successful heartbeat or after 120 s of uptime. At 3 unstable boots the other
@@ -207,8 +207,9 @@ service to this same package.
   PlatformIO build cache) and keeps the PlatformIO project checksum stable across work directories. It passes
   `--jobs` (the allowed CPUs, capped by the CPU quota and by one compiler per 512 MiB of the container memory limit
   after 512 MiB for PlatformIO and the linker): without it the compilers are OOM-killed in the 2 GiB container.
-- Exit codes are the contract with the service: `0` ok; `1` compile error (a compiler/linker diagnostic with a source
-  location and no killed compiler, so the agent can repair `src/app`); `2` tooling or internal error (a compiler
+- Exit codes are the contract with the service: `0` ok; `1` compile error (a `file:line: error:` compiler diagnostic
+  or a linker diagnostic (undefined reference, multiple definition, region overflow) and no killed compiler, so the
+  agent can repair `src/app`); `2` tooling or internal error (a compiler
   killed by the OOM killer, PlatformIO failing without a code diagnostic, a missing package or `cannot find -l`, a
   cancel, a symlink or special file in the work tree, an invalid `fonts.json`, a bootloader whose chip differs from
   `board_config.h`); `3` flash budget exceeded. `2` is never agent-repairable. `out/result.json` is always written
