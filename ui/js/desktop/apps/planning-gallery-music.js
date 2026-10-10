@@ -6,6 +6,51 @@
         });
     }
 
+    function todoDueCivilDate(value) {
+        const text = String(value || '').trim();
+        const civil = /^(\d{4}-\d{2}-\d{2})T00:00:00Z$/.exec(text);
+        if (civil) return civil[1];
+        if (!text) return '';
+        const date = new Date(text);
+        if (Number.isNaN(date.getTime())) return '';
+        const pad = n => String(n).padStart(2, '0');
+        return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate());
+    }
+
+    function todoIsOverdue(todo, now) {
+        if (!todo || todo.status === 'done' || !todo.due_date) return false;
+        const text = String(todo.due_date).trim();
+        const civil = /^(\d{4}-\d{2}-\d{2})T00:00:00Z$/.exec(text);
+        if (civil) {
+            const pad = n => String(n).padStart(2, '0');
+            const today = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+            return civil[1] < today;
+        }
+        const due = new Date(text);
+        if (Number.isNaN(due.getTime())) return false;
+        return due < now;
+    }
+
+    function todoDueLabel(value) {
+        if (!value) return '';
+        const text = String(value).trim();
+        const civil = /^(\d{4}-\d{2}-\d{2})T00:00:00Z$/.exec(text);
+        if (civil) {
+            const [year, month, day] = civil[1].split('-').map(Number);
+            return new Date(year, month - 1, day).toLocaleDateString();
+        }
+        const date = new Date(text);
+        if (Number.isNaN(date.getTime())) return text;
+        return date.toLocaleDateString();
+    }
+
+    function todoDueFieldValue(originalDue, inputValue) {
+        if (todoDueCivilDate(originalDue) === String(inputValue || '').trim()) {
+            return { omit: true };
+        }
+        return { omit: false, value: inputValue };
+    }
+
     async function renderTodo(id) {
         const host = contentEl(id);
         if (!host) return;
@@ -61,14 +106,15 @@
     }
 
     function renderTodoCard(todo, selectedID) {
-        const due = todo.due_date ? new Date(todo.due_date) : null;
-        const overdue = due && due < new Date() && todo.status !== 'done';
+        const now = new Date();
+        const overdue = todoIsOverdue(todo, now);
+        const dueLabel = todo.due_date ? todoDueLabel(todo.due_date) : '';
         return `<article class="vd-todo-card ${todo.id === selectedID ? 'active' : ''} ${overdue ? 'overdue' : ''}" data-todo-id="${esc(todo.id)}">
             <div class="vd-todo-card-grid">
                 <input class="vd-todo-card-done" type="checkbox" data-todo-status-toggle="${esc(todo.id)}" ${todo.status === 'done' ? 'checked' : ''} aria-label="${esc(t('desktop.todo_complete'))}">
                 <div class="vd-todo-card-copy">
                     <strong>${esc(todo.title)}</strong>
-                    <small>${esc(t('desktop.todo_' + todo.status))}${due ? ' &middot; ' + esc(due.toLocaleDateString()) : ''}${overdue ? ' &middot; ' + esc(t('desktop.todo_overdue')) : ''}</small>
+                    <small>${esc(t('desktop.todo_' + todo.status))}${dueLabel ? ' &middot; ' + esc(dueLabel) : ''}${overdue ? ' &middot; ' + esc(t('desktop.todo_overdue')) : ''}</small>
                 </div>
                 <span class="vd-todo-priority ${esc(todo.priority)}">${esc(t('desktop.todo_priority_' + todo.priority))}</span>
             </div>
@@ -100,11 +146,19 @@
     function renderTodoDetail(host, todo, reload) {
         const pane = host.querySelector('.vd-todo-detail');
         const items = todo.items || [];
-        pane.innerHTML = `<form class="vd-todo-form"><input name="title" value="${esc(todo.title)}"><textarea name="description" placeholder="${esc(t('desktop.todo_description'))}">${esc(todo.description || '')}</textarea><div class="vd-todo-form-row"><label>${esc(t('desktop.todo_priority'))}<select name="priority">${['low','medium','high'].map(p => `<option value="${p}" ${todo.priority === p ? 'selected' : ''}>${esc(t('desktop.todo_priority_' + p))}</option>`).join('')}</select></label><label>${esc(t('desktop.todo_due_date'))}<input type="date" name="due_date" value="${esc(todo.due_date || '')}"></label></div><label class="vd-check"><input type="checkbox" name="remind_daily" ${todo.remind_daily ? 'checked' : ''}>${esc(t('desktop.todo_remind_daily'))}</label><div class="vd-todo-actions"><button class="vd-button vd-button-primary" data-action="save">${esc(t('desktop.save'))}</button><button type="button" class="vd-button" data-action="complete">${esc(t('desktop.todo_complete'))}</button><button type="button" class="vd-button" data-action="delete">${esc(t('desktop.delete'))}</button></div></form><h3>${esc(t('desktop.todo_items'))}</h3><form class="vd-todo-item-add"><input placeholder="${esc(t('desktop.todo_add_item'))}"><button class="vd-button">${esc(t('desktop.todo_add_item'))}</button></form><div class="vd-todo-items">${items.map(item => `<div class="vd-todo-item" data-item-id="${esc(item.id)}"><input class="vd-todo-item-check" type="checkbox" data-item-toggle="${esc(item.id)}" ${item.is_done ? 'checked' : ''} aria-label="${esc(t('desktop.todo_complete'))}"><input class="vd-todo-item-title" data-item-title="${esc(item.id)}" value="${esc(item.title)}" aria-label="${esc(t('desktop.todo_add_item'))}" spellcheck="true"><button type="button" class="vd-todo-item-delete" data-item-delete="${esc(item.id)}" title="${esc(t('desktop.delete'))}">${iconMarkup('x', 'X', 'vd-todo-action-icon', 13)}</button></div>`).join('')}</div>`;
+        pane.innerHTML = `<form class="vd-todo-form"><input name="title" value="${esc(todo.title)}"><textarea name="description" placeholder="${esc(t('desktop.todo_description'))}">${esc(todo.description || '')}</textarea><div class="vd-todo-form-row"><label>${esc(t('desktop.todo_priority'))}<select name="priority">${['low','medium','high'].map(p => `<option value="${p}" ${todo.priority === p ? 'selected' : ''}>${esc(t('desktop.todo_priority_' + p))}</option>`).join('')}</select></label><label>${esc(t('desktop.todo_due_date'))}<input type="date" name="due_date" value="${esc(todoDueCivilDate(todo.due_date))}"></label></div><label class="vd-check"><input type="checkbox" name="remind_daily" ${todo.remind_daily ? 'checked' : ''}>${esc(t('desktop.todo_remind_daily'))}</label><div class="vd-todo-actions"><button class="vd-button vd-button-primary" data-action="save">${esc(t('desktop.save'))}</button><button type="button" class="vd-button" data-action="complete">${esc(t('desktop.todo_complete'))}</button><button type="button" class="vd-button" data-action="delete">${esc(t('desktop.delete'))}</button></div></form><h3>${esc(t('desktop.todo_items'))}</h3><form class="vd-todo-item-add"><input placeholder="${esc(t('desktop.todo_add_item'))}"><button class="vd-button">${esc(t('desktop.todo_add_item'))}</button></form><div class="vd-todo-items">${items.map(item => `<div class="vd-todo-item" data-item-id="${esc(item.id)}"><input class="vd-todo-item-check" type="checkbox" data-item-toggle="${esc(item.id)}" ${item.is_done ? 'checked' : ''} aria-label="${esc(t('desktop.todo_complete'))}"><input class="vd-todo-item-title" data-item-title="${esc(item.id)}" value="${esc(item.title)}" aria-label="${esc(t('desktop.todo_add_item'))}" spellcheck="true"><button type="button" class="vd-todo-item-delete" data-item-delete="${esc(item.id)}" title="${esc(t('desktop.delete'))}">${iconMarkup('x', 'X', 'vd-todo-action-icon', 13)}</button></div>`).join('')}</div>`;
         pane.querySelector('.vd-todo-form').addEventListener('submit', async event => {
             event.preventDefault();
             const form = event.currentTarget;
-            await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), 'PUT', { title: form.title.value.trim(), description: form.description.value, priority: form.priority.value, due_date: form.due_date.value, remind_daily: form.remind_daily.checked });
+            const body = {
+                title: form.title.value.trim(),
+                description: form.description.value,
+                priority: form.priority.value,
+                remind_daily: form.remind_daily.checked
+            };
+            const due = todoDueFieldValue(todo.due_date, form.due_date.value);
+            if (!due.omit) body.due_date = due.value;
+            await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), 'PUT', body);
             await reload(todo.id);
         });
         pane.querySelector('[data-action="complete"]').addEventListener('click', async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); });

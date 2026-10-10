@@ -95,7 +95,7 @@ function renderTodoCard(todo) {
     const priorityLabel = todoPriorityLabel(todo.priority);
     const statusLabel = todoStatusLabel(todo.status);
     const due = todo.due_date ? formatTodoDueDate(todo.due_date) : '';
-    const isOverdue = todo.due_date && !isDone && new Date(todo.due_date) < new Date();
+    const isOverdue = todoDueDateIsOverdue(todo.due_date, isDone);
     const progress = Number.isFinite(todo.progress_percent) ? todo.progress_percent : 0;
     const hasItems = Array.isArray(todo.items) && todo.items.length > 0;
     // Collapse checklist by default for compactness; only auto-open when actively in progress
@@ -520,26 +520,34 @@ function formatTodoDate(iso) {
     }
 }
 
-function toLocalDateInput(iso) {
-    if (!iso) return '';
-    try {
-        const date = new Date(iso);
+function todoDueDateIsOverdue(dueDate, isDone) {
+    if (!dueDate || isDone) return false;
+    const text = String(dueDate).trim();
+    const civil = /^(\d{4}-\d{2}-\d{2})T00:00:00Z$/.exec(text);
+    if (civil) {
+        const now = new Date();
         const pad = value => String(value).padStart(2, '0');
-        return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate());
-    } catch {
-        return '';
+        const today = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+        return civil[1] < today;
     }
+    const due = new Date(text);
+    return !Number.isNaN(due.getTime()) && due < new Date();
+}
+
+function toLocalDateInput(iso) {
+    const text = String(iso || '').trim();
+    const civil = /^(\d{4}-\d{2}-\d{2})T00:00:00Z$/.exec(text);
+    if (civil) return civil[1];
+    if (!text) return '';
+    const date = new Date(text);
+    if (Number.isNaN(date.getTime())) return '';
+    const pad = value => String(value).padStart(2, '0');
+    return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate());
 }
 
 function fromLocalDateInput(value) {
-    if (!value) return '';
-    try {
-        const [year, month, day] = value.split('-').map(Number);
-        if (!year || !month || !day) return '';
-        return new Date(year, month - 1, day).toISOString();
-    } catch {
-        return '';
-    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return '';
+    return value;
 }
 
 function quoteJS(value) {

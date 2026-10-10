@@ -51,3 +51,24 @@ func TestDesktopTodoAddUsesDefinedPlannerJSONHelper(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopTodoDueDateRoundTripUsesTheCivilDay(t *testing.T) {
+	t.Parallel()
+	source := readDesktopAssetText(t, "js/desktop/apps/planning-gallery-music.js")
+	for _, marker := range []string{
+		"function todoDueCivilDate(",
+		"function todoIsOverdue(",
+		"function todoDueFieldValue(",
+		"T00:00:00Z",
+		"if (!due.omit) body.due_date = due.value",
+		`value="${esc(todoDueCivilDate(todo.due_date))}"`,
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("todo date round-trip missing %q", marker)
+		}
+	}
+	knowledge := string(mustReadUIFile(t, "js/knowledge/todos.js"))
+	if !strings.Contains(knowledge, "return value;") || !strings.Contains(knowledge, "T00:00:00Z") {
+		t.Fatal("knowledge date helpers still convert a civil day through toISOString")
+	}
+}
