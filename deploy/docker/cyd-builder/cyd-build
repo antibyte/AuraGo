@@ -4,13 +4,32 @@
 usage: cyd-build --work /work/<build_id> --env <board_id> --build-id <build_id>
                  --cache-key <project_id>-<board_id> [--clean]
 
-stdout/stderr: human build log (streamed)
-exit: 0 ok, 1 compile error, 2 tooling/internal error, 3 flash budget exceeded
+stdout/stderr: human build log (streamed; PlatformIO output is echoed up to
+4 MiB, then one "[cyd-build] log truncated" line - parsing still sees all of it)
+exit: 0 ok, 1 compile error (a compiler/linker diagnostic in the code),
+      2 tooling/internal error (also: a compiler was killed, e.g. out of
+      memory; PlatformIO failed without a code diagnostic; cancelled),
+      3 flash budget exceeded
 writes <work>/out/{merged.bin, firmware.bin, firmware.elf, result.json} and, on
 success, out/fonts/{<symbol>.c..., fonts.json} (the converted LVGL fonts)
 
 Runs offline (docker run --network none), as uid 1000, on a read-only root
-filesystem: it writes only below <work>, /cache and /tmp.
+filesystem: it writes only below <work>, /cache and /tmp. Builds of one cache
+key are serialized by /cache/locks/<cache-key>.lock; PlatformIO's build
+directory is /cache/build/<builder-version>/<cache-key>; converted fonts are
+cached by content in /cache/fonts (a hit refreshes the entry's mtime, so the
+oldest entries are the ones to evict).
+
+Trust boundary: the arguments and the image are trusted (the server chooses
+them). The build tree below --work is not: src/app/** is written by users and
+the agent; platformio.ini, partitions.csv, include/, lib/ and src/generated/
+must come from the generator and must never be user-editable (platformio.ini
+could run Python through extra_scripts). cyd-build refuses symlinks and special
+files anywhere in the tree (exit 2), validates fonts.json before converting it
+and gives PlatformIO, the compiler and lv_font_conv only an allowlisted
+environment. Compiling untrusted C++ runs no code at build time, but it can
+read every file the container can read (#include, .incbin): keep secrets out
+of the image, /work and /cache, and the container off the network.
 """
 import argparse
 import fcntl
@@ -20,10 +39,13 @@ import os
 import re
 import shutil
 import signal
+import stat
 import subprocess
 import sys
+import tempfile
 import threading
 import time
+import unicodedata
 
 EXIT_OK, EXIT_COMPILE, EXIT_TOOLING, EXIT_BUDGET = 0, 1, 2, 3
 
@@ -34,6 +56,7 @@ PIO_SHARED = OPT + "/platformio"  # platforms/ and packages/ (read-only)
 LIBS = OPT + "/libs"              # every curated library, installed from the registry
 FONTS = OPT + "/fonts"
 LV_FONT_CONV = OPT + "/node/bin/lv_font_conv"
+BUILDER_VERSION_FILE = OPT + "/builder-version"
 TMP = "/tmp/cyd-pio"
 CACHE = "/cache"
 WORK_ROOT = "/work"
@@ -41,6 +64,7 @@ WORK_ROOT = "/work"
 ESPTOOL = PIO_SHARED + "/packages/tool-esptoolpy/esptool.py"
 BOOT_APP0 = PIO_SHARED + "/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin"
 BOOTLOADER_OFFSET = {"esp32": "0x1000", "esp32s3": "0x0"}
+IMAGE_CHIP_IDS = {0: "esp32", 9: "esp32s3"}  # chip_id, bytes 12-13 of an ESP image header
 
 FONT_FILES = {
     "montserrat": "Montserrat-Medium.ttf",
@@ -56,17 +80,28 @@ LV_SYMBOL_CODEPOINTS = (
     "61674,61683,61724,61732,61787,61931,62016,62017,62018,62019,62020,62087,62099,62189,"
     "62212,62810,63426,63650"
 )
-FONT_CONVERTER_ID = "lv_font_conv-1.5.3/bpp4/compressed/v1"
+FONT_CONVERTER_ID = "lv_font_conv-1.5.3/bpp4/compressed/v2"
+MAX_FONT_RANGES = 16
+MAX_FONT_CHARS = 4096
 
-ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
-SYMBOL_RE = re.compile(r"^ui_font_[a-z0-9_]{1,48}$")
-RANGE_RE = re.compile(r"^0x[0-9A-Fa-f]{1,6}(-0x[0-9A-Fa-f]{1,6})?$")
+# Matched with fullmatch(): "$" would also accept a trailing newline.
+ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}")
+SYMBOL_RE = re.compile(r"ui_font_[a-z0-9_]{1,48}")
+RANGE_RE = re.compile(r"0x([0-9A-Fa-f]{1,6})(?:-0x([0-9A-Fa-f]{1,6}))?")
 WARNING_RE = re.compile(r"^[^\s:][^:]*:\d+:\d+: warning: ")
+CODE_ERROR_RE = re.compile(r"^[^\s:][^:]*:\d+(?::\d+)?: (?:fatal )?error: "
+                           r"|undefined reference to |multiple definition of |region `[^']*' overflowed")
+KILLED_RE = re.compile(r"Killed signal terminated program|terminated with signal 9|internal compiler error: Killed")
 USAGE_RE = re.compile(r"^(RAM|Flash):\s+\[.*\]\s+[\d.]+% \(used (\d+) bytes from (\d+) bytes\)")
 BUDGET_RE = re.compile(r"The program size \((\d+) bytes\) is greater than maximum allowed \((\d+) bytes\)")
-LOG_CAP = 4 << 20
+LOG_CAP = 4 << 20  # bytes of PlatformIO output echoed; later lines are only parsed
 KEEPALIVE_S = 240  # the Docker socket proxy cuts exec streams that stay silent for 10 minutes
 JOB_MEMORY = 512 << 20  # one compiler job per 512 MiB of the container memory limit
+ENV_ALLOWLIST = ("PATH", "LANG", "LC_ALL")
+DEFAULT_PATH = "/opt/cyd/pio-venv/bin:/opt/cyd/node/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+_children = set()  # running Popen objects that lead their own process group
+_font_file_hashes = {}
 
 
 class ToolError(Exception):
@@ -85,6 +120,21 @@ def sha256_file(path):
     return h.hexdigest()
 
 
+def kill_group(proc):
+    try:
+        os.killpg(proc.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
+
+
+def on_signal(signum, frame):
+    """Cancel (SIGTERM, SIGINT): take every compiler process group down, then
+    unwind through main() so result.json is still written."""
+    for proc in list(_children):
+        kill_group(proc)
+    raise SystemExit(EXIT_TOOLING)
+
+
 def parse_args():
     p = argparse.ArgumentParser(prog="cyd-build")
     p.add_argument("--work", required=True)
@@ -94,13 +144,55 @@ def parse_args():
     p.add_argument("--clean", action="store_true", help="drop the build cache of this cache key first")
     a = p.parse_args()
     for name in ("env", "build_id", "cache_key"):
-        if not ID_RE.match(getattr(a, name)):
+        if not ID_RE.fullmatch(getattr(a, name)):
             p.error("invalid --" + name.replace("_", "-"))
+    if os.path.islink(a.work.rstrip("/")):
+        p.error("--work must not be a symlink")
     work = os.path.realpath(a.work)
     if os.path.dirname(work) != WORK_ROOT or not os.path.isdir(work):
         p.error("--work must be an existing directory directly below " + WORK_ROOT)
     a.work = work
     return a
+
+
+def builder_version():
+    try:
+        with open(BUILDER_VERSION_FILE, encoding="ascii") as f:
+            version = f.read().strip()
+    except (OSError, UnicodeDecodeError) as exc:
+        raise ToolError("cannot read %s: %s" % (BUILDER_VERSION_FILE, exc)) from exc
+    if not ID_RE.fullmatch(version):
+        raise ToolError("%s holds no valid version" % BUILDER_VERSION_FILE)
+    return version
+
+
+def acquire_lock(cache_key):
+    """One build per cache key at a time, across every container that shares /cache."""
+    lock_dir = os.path.join(CACHE, "locks")
+    os.makedirs(lock_dir, exist_ok=True)
+    lock = open(os.path.join(lock_dir, cache_key + ".lock"), "a")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        say("waiting for another build of cache key %s" % cache_key)
+        fcntl.flock(lock, fcntl.LOCK_EX)
+    return lock
+
+
+def check_tree(work):
+    """The build tree may hold only regular files and directories: a symlink
+    or a special file could make the build read or write outside the tree."""
+    pending = [work]
+    while pending:
+        folder = pending.pop()
+        with os.scandir(folder) as entries:
+            for entry in entries:
+                mode = entry.stat(follow_symlinks=False).st_mode
+                if stat.S_ISDIR(mode):
+                    pending.append(entry.path)
+                elif not stat.S_ISREG(mode):
+                    raise ToolError("the build tree may only hold regular files and directories: %.200r"
+                                    % os.path.relpath(entry.path, work))
 
 
 def detect_chip(work):
@@ -113,29 +205,44 @@ def detect_chip(work):
     raise ToolError("include/board_config.h defines no CYD_CHIP_* macro")
 
 
+def ensure_symlink(target, link):
+    if not os.path.islink(link):
+        try:
+            os.symlink(target, link)
+        except FileExistsError:  # a concurrent build of another cache key made it
+            if not os.path.islink(link):
+                raise
+
+
 def prepare_pio_dirs(env_name):
     """PlatformIO writes lock files next to its package folders and an
     integrity file into every libdeps folder; with a read-only /opt these
     live in /tmp and point at the shared, pre-installed trees."""
+    os.makedirs(TMP, exist_ok=True)
     for sub in ("platforms", "packages"):
-        link = os.path.join(TMP, sub)
-        os.makedirs(TMP, exist_ok=True)
-        if not os.path.islink(link):
-            os.symlink(os.path.join(PIO_SHARED, sub), link)
+        ensure_symlink(os.path.join(PIO_SHARED, sub), os.path.join(TMP, sub))
     libdeps = os.path.join(TMP, "libdeps", env_name)
     os.makedirs(libdeps, exist_ok=True)
     for name in sorted(os.listdir(LIBS)):
-        link = os.path.join(libdeps, name)
-        if not os.path.islink(link):
-            os.symlink(os.path.join(LIBS, name), link)
+        ensure_symlink(os.path.join(LIBS, name), os.path.join(libdeps, name))
     os.makedirs(os.path.join(TMP, "core"), exist_ok=True)
     os.makedirs(os.path.join(TMP, "home"), exist_ok=True)
 
 
+def base_environment():
+    """The environment of every tool cyd-build runs, built from an allowlist:
+    nothing else from the exec environment reaches PlatformIO, SCons, the
+    compiler, esptool or node."""
+    env = {key: os.environ[key] for key in ENV_ALLOWLIST if key in os.environ}
+    env.setdefault("PATH", DEFAULT_PATH)
+    env["HOME"] = os.path.join(TMP, "home")
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    return env
+
+
 def pio_environment(build_dir):
-    env = dict(os.environ)
+    env = base_environment()
     env.update({
-        "HOME": os.path.join(TMP, "home"),
         "PLATFORMIO_CORE_DIR": os.path.join(TMP, "core"),
         "PLATFORMIO_PLATFORMS_DIR": os.path.join(TMP, "platforms"),
         "PLATFORMIO_PACKAGES_DIR": os.path.join(TMP, "packages"),
@@ -144,10 +251,7 @@ def pio_environment(build_dir):
         "PLATFORMIO_SETTING_ENABLE_TELEMETRY": "No",
         "PLATFORMIO_SETTING_CHECK_PLATFORMIO_INTERVAL": "36500",
         "PLATFORMIO_DISABLE_PROGRESSBAR": "true",
-        "PYTHONDONTWRITEBYTECODE": "1",
     })
-    for key in ("PLATFORMIO_BUILD_FLAGS", "PLATFORMIO_BUILD_SRC_FLAGS", "PLATFORMIO_SRC_DIR"):
-        env.pop(key, None)  # build flags come from platformio.ini only
     return env
 
 
@@ -181,55 +285,127 @@ def keep_build_cache(work, env):
         os.environ.update(saved_env)
 
 
+def font_file_sha256(name):
+    if name not in _font_file_hashes:
+        _font_file_hashes[name] = sha256_file(os.path.join(FONTS, name))
+    return _font_file_hashes[name]
+
+
+def font_entry_problem(font, seen):
+    """Why a fonts.json entry cannot be converted, or "" when it can."""
+    if not isinstance(font, dict):
+        return "not an object"
+    symbol, family, size = font.get("symbol"), font.get("family"), font.get("size")
+    if not isinstance(symbol, str) or not SYMBOL_RE.fullmatch(symbol):
+        return "symbol must match ui_font_[a-z0-9_]{1,48}"
+    if symbol in seen:
+        return "duplicate symbol %s" % symbol
+    if not isinstance(family, str) or family not in FONT_FILES:
+        return "family must be one of " + ", ".join(sorted(FONT_FILES))
+    if type(size) is not int or not 8 <= size <= 96:
+        return "size must be an integer from 8 to 96"
+    ranges = font.get("ranges", [])
+    if not isinstance(ranges, list) or len(ranges) > MAX_FONT_RANGES:
+        return "ranges must be a list of at most %d ranges" % MAX_FONT_RANGES
+    for r in ranges:
+        m = RANGE_RE.fullmatch(r) if isinstance(r, str) else None
+        if not m:
+            return "range %.40r is not 0xSTART or 0xSTART-0xEND" % (r,)
+        start = int(m.group(1), 16)
+        end = int(m.group(2), 16) if m.group(2) else start
+        if not start <= end <= 0x10FFFF:
+            return "range %s must have start <= end <= 0x10FFFF" % r
+    chars = font.get("chars", "")
+    if not isinstance(chars, str) or len(chars) > MAX_FONT_CHARS:
+        return "chars must be a string of at most %d characters" % MAX_FONT_CHARS
+    for c in chars:
+        if ord(c) < 0x7F or unicodedata.category(c) in ("Cc", "Cs"):
+            return "chars must not hold ASCII or control characters (U+%04X); ASCII comes from ranges" % ord(c)
+    if not isinstance(font.get("lv_symbols", False), bool):
+        return "lv_symbols must be true or false"
+    return ""
+
+
+def normalize_font_header(path, symbol, family, size):
+    """lv_font_conv copies its command line (font paths, output name, chars)
+    into an " * Opts:" header comment. Replace it with a fixed line so one
+    fonts.json entry always converts to the same bytes."""
+    with open(path, encoding="utf-8", newline="") as f:
+        lines = f.read().split("\n")
+    hits = [i for i, line in enumerate(lines[:8]) if line.startswith(" * Opts:")]
+    if len(hits) != 1:
+        raise ToolError("unexpected lv_font_conv header in %s.c" % symbol)
+    lines[hits[0]] = " * Opts: %s, family %s, size %d" % (FONT_CONVERTER_ID, family, size)
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write("\n".join(lines))
+
+
+def convert_font(font, cache_dir, cached, env):
+    symbol, family, size = font["symbol"], font["family"], font["size"]
+    name = symbol + ".c"
+    cmd = [LV_FONT_CONV, "--bpp", "4", "--size", str(size),
+           "--format", "lvgl", "--lv-include", "lvgl.h", "--lv-font-name", symbol,
+           "--force-fast-kern-format", "--font", os.path.join(FONTS, FONT_FILES[family])]
+    for r in font.get("ranges", []):
+        cmd += ["-r", r]
+    chars = font.get("chars", "")
+    if chars:
+        cmd += ["--symbols", chars]
+    if font.get("lv_symbols"):
+        cmd += ["--font", os.path.join(FONTS, SYMBOL_FONT), "-r", LV_SYMBOL_CODEPOINTS]
+    cmd += ["-o", name]
+    tmp_dir = tempfile.mkdtemp(prefix=".tmp-", dir=cache_dir)
+    try:
+        res = subprocess.run(cmd, cwd=tmp_dir, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                             text=True, errors="replace")
+        produced = os.path.join(tmp_dir, name)
+        if res.returncode != 0 or not os.path.isfile(produced):
+            sys.stdout.write(res.stdout)
+            raise ToolError("lv_font_conv failed for %s" % symbol)
+        normalize_font_header(produced, symbol, family, size)
+        os.replace(produced, cached)
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
 def convert_fonts(work):
     spec_path = os.path.join(work, "src", "generated", "fonts.json")
     try:
         with open(spec_path, encoding="utf-8") as f:
             spec = json.load(f)
-        fonts = spec["fonts"]
-        assert isinstance(fonts, list)
-    except Exception as exc:  # noqa: BLE001 - any shape error is a generator bug
-        raise ToolError("src/generated/fonts.json is invalid: %s" % exc) from exc
+    except (OSError, ValueError) as exc:
+        raise ToolError("src/generated/fonts.json is unreadable: %s" % exc) from exc
+    fonts = spec.get("fonts") if isinstance(spec, dict) else None
+    if not isinstance(fonts, list):
+        raise ToolError('src/generated/fonts.json must be an object with a "fonts" list')
+    seen = set()
+    for i, font in enumerate(fonts):
+        problem = font_entry_problem(font, seen)
+        if problem:
+            raise ToolError("src/generated/fonts.json entry %d is invalid: %s" % (i, problem))
+        seen.add(font["symbol"])
     out_dir = os.path.join(work, "src", "generated", "fonts")
     shutil.rmtree(out_dir, ignore_errors=True)
     os.makedirs(out_dir)
     cache_dir = os.path.join(CACHE, "fonts")
     os.makedirs(cache_dir, exist_ok=True)
+    env = base_environment()
     for font in fonts:
-        symbol = font.get("symbol", "")
-        family = font.get("family", "")
-        size = font.get("size")
-        ranges = font.get("ranges", [])
-        chars = font.get("chars", "")
-        if (not SYMBOL_RE.match(symbol) or family not in FONT_FILES or not isinstance(size, int)
-                or not 8 <= size <= 96 or not isinstance(ranges, list)
-                or not all(isinstance(r, str) and RANGE_RE.match(r) for r in ranges)
-                or not isinstance(chars, str) or len(chars) > 4096
-                or not isinstance(font.get("lv_symbols", False), bool)):
-            raise ToolError("fonts.json entry %r is invalid" % symbol)
-        key = hashlib.sha256(json.dumps({"converter": FONT_CONVERTER_ID, "font": font},
+        symbol, family, size = font["symbol"], font["family"], font["size"]
+        files = [FONT_FILES[family]] + ([SYMBOL_FONT] if font.get("lv_symbols") else [])
+        key = hashlib.sha256(json.dumps({"converter": FONT_CONVERTER_ID, "font": font,
+                                         "files": {name: font_file_sha256(name) for name in files}},
                                         sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
         cached = os.path.join(cache_dir, key + ".c")
-        if os.path.exists(cached):
+        if os.path.isfile(cached):
             say("font %s (cached)" % symbol)
+            try:
+                os.utime(cached)  # touch on hit: evict the least recently used entries first
+            except OSError:
+                pass
         else:
             say("font %s: converting %s %dpx" % (symbol, family, size))
-            cmd = [LV_FONT_CONV, "--bpp", "4", "--size", str(size),
-                   "--format", "lvgl", "--lv-include", "lvgl.h", "--lv-font-name", symbol,
-                   "--force-fast-kern-format", "--font", os.path.join(FONTS, FONT_FILES[family])]
-            for r in ranges:
-                cmd += ["-r", r]
-            if chars:
-                cmd += ["--symbols", chars]
-            if font.get("lv_symbols"):
-                cmd += ["--font", os.path.join(FONTS, SYMBOL_FONT), "-r", LV_SYMBOL_CODEPOINTS]
-            tmp = os.path.join(cache_dir, ".tmp-%s-%d.c" % (key, os.getpid()))
-            cmd += ["-o", tmp]
-            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-            if res.returncode != 0 or not os.path.exists(tmp):
-                sys.stdout.write(res.stdout)
-                raise ToolError("lv_font_conv failed for %s" % symbol)
-            os.replace(tmp, cached)
+            convert_font(font, cache_dir, cached, env)
         shutil.copyfile(cached, os.path.join(out_dir, symbol + ".c"))
 
 
@@ -244,12 +420,17 @@ def read_first(paths):
 
 
 def build_jobs():
-    """Parallel compiler jobs: the container's CPU quota, at most one job per
-    JOB_MEMORY of its memory limit, at least 1. PlatformIO's default is every
-    CPU the kernel shows (all host CPUs even under --cpus 2), which lets a
-    2 CPU / 2 GiB builder without swap (plan 2) get its compilers OOM-killed
-    while the large LovyanGFX font tables compile."""
-    jobs = os.cpu_count() or 1
+    """Parallel compiler jobs: the CPUs this process may run on, capped by the
+    container's CPU quota and by its memory limit (512 MiB stay with
+    PlatformIO/SCons and the linker, then one job per further 512 MiB), at
+    least 1. PlatformIO's default is every CPU the kernel shows (all host CPUs
+    even under --cpus 2), which lets a 2 CPU / 2 GiB builder without swap
+    (plan 2) get its compilers OOM-killed while the large LovyanGFX font
+    tables compile."""
+    try:
+        jobs = len(os.sched_getaffinity(0))
+    except (AttributeError, OSError):
+        jobs = os.cpu_count() or 1
     quota = read_first(["/sys/fs/cgroup/cpu.max"])  # cgroup v2: "<quota> <period>" or "max <period>"
     if quota is None:
         v1 = (read_first(["/sys/fs/cgroup/cpu/cpu.cfs_quota_us"]), read_first(["/sys/fs/cgroup/cpu/cpu.cfs_period_us"]))
@@ -263,61 +444,93 @@ def build_jobs():
     limit = read_first(["/sys/fs/cgroup/memory.max", "/sys/fs/cgroup/memory/memory.limit_in_bytes"])
     try:
         if limit and limit[0] != "max" and int(limit[0]) < (1 << 50):
-            jobs = min(jobs, max(1, int(limit[0]) // JOB_MEMORY))
+            jobs = min(jobs, max(1, (int(limit[0]) - JOB_MEMORY) // JOB_MEMORY))
     except ValueError:
         pass
     return max(1, jobs)
 
 
-def run_pio(work, env_name, env, log_lines):
+def scan_line(line, result, seen):
+    """Take what result.json and the exit code need from one log line."""
+    if WARNING_RE.match(line):
+        result["warnings"] += 1
+    m = USAGE_RE.match(line)
+    if m:
+        result["ram" if m.group(1) == "RAM" else "flash"] = {"used": int(m.group(2)), "total": int(m.group(3))}
+    m = BUDGET_RE.search(line)
+    if m:
+        result["flash"] = {"used": int(m.group(1)), "total": int(m.group(2))}
+        seen["budget"] = True
+    if KILLED_RE.search(line):
+        seen["killed"] = True
+    elif CODE_ERROR_RE.search(line):
+        seen["code_error"] = True
+
+
+def run_pio(work, env_name, env, result, seen):
     jobs = build_jobs()
     cmd = [PIO_BIN, "run", "--project-dir", work, "--environment", env_name, "--jobs", str(jobs)]
     say("running: pio run --environment %s --jobs %d" % (env_name, jobs))
     proc = subprocess.Popen(cmd, cwd=work, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                             text=True, errors="replace", bufsize=1, start_new_session=True)
-
-    def stop(signum, frame):  # cancel: take the whole compiler process group down
-        try:
-            os.killpg(proc.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-        sys.exit(EXIT_TOOLING)
-
-    signal.signal(signal.SIGTERM, stop)
-    signal.signal(signal.SIGINT, stop)
-    last_output = [time.monotonic()]
+    _children.add(proc)
+    last_echo = [time.monotonic()]
 
     def keepalive():  # print something at least every KEEPALIVE_S seconds
         while proc.poll() is None:
             time.sleep(15)
-            idle = time.monotonic() - last_output[0]
+            idle = time.monotonic() - last_echo[0]
             if idle >= KEEPALIVE_S:
                 say("still working (%d s without compiler output)" % idle)
-                last_output[0] = time.monotonic()
+                last_echo[0] = time.monotonic()
 
     threading.Thread(target=keepalive, daemon=True).start()
-    size = 0
-    for line in proc.stdout:
-        last_output[0] = time.monotonic()
-        sys.stdout.write(line)
-        sys.stdout.flush()
-        size += len(line)
-        if size < LOG_CAP:
-            log_lines.append(line.rstrip("\n"))
-    return proc.wait()
+    try:
+        echoed, truncated = 0, False
+        for line in proc.stdout:
+            scan_line(line.rstrip("\n"), result, seen)
+            if truncated:
+                continue
+            size = len(line.encode("utf-8", "replace"))
+            if echoed + size > LOG_CAP:
+                truncated = True
+                say("log truncated after %d bytes; the build goes on" % echoed)
+            else:
+                echoed += size
+                sys.stdout.write(line)
+                sys.stdout.flush()
+            last_echo[0] = time.monotonic()
+        return proc.wait()
+    finally:
+        if proc.poll() is None:
+            kill_group(proc)
+            proc.wait()
+        _children.discard(proc)
+
+
+def bootloader_chip(path):
+    """The chip an ESP image was built for (chip_id in its extended header)."""
+    with open(path, "rb") as f:
+        head = f.read(16)
+    if len(head) < 16 or head[0] != 0xE9:
+        raise ToolError("bootloader.bin is not an ESP image")
+    return IMAGE_CHIP_IDS.get(int.from_bytes(head[12:14], "little"), "unknown")
 
 
 def merge_image(chip, build_env_dir, out_dir):
     for name in ("bootloader.bin", "partitions.bin", "firmware.bin", "firmware.elf"):
         if not os.path.exists(os.path.join(build_env_dir, name)):
             raise ToolError("PlatformIO did not produce %s" % name)
+    boot_chip = bootloader_chip(os.path.join(build_env_dir, "bootloader.bin"))
+    if boot_chip != chip:
+        raise ToolError("bootloader.bin is for %s, but include/board_config.h selects %s" % (boot_chip, chip))
     cmd = [PYTHON, ESPTOOL, "--chip", chip, "merge_bin", "-o", os.path.join(out_dir, "merged.bin"),
            "--flash_mode", "keep", "--flash_freq", "keep", "--flash_size", "keep",
            BOOTLOADER_OFFSET[chip], os.path.join(build_env_dir, "bootloader.bin"),
            "0x8000", os.path.join(build_env_dir, "partitions.bin"),
            "0xe000", BOOT_APP0,
            "0x10000", os.path.join(build_env_dir, "firmware.bin")]
-    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    res = subprocess.run(cmd, env=base_environment(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     sys.stdout.write(res.stdout)
     if res.returncode != 0:
         raise ToolError("esptool merge_bin failed")
@@ -342,15 +555,19 @@ def export_fonts(work, out_dir, result):
 
 
 def main():
+    signal.signal(signal.SIGTERM, on_signal)
+    signal.signal(signal.SIGINT, on_signal)
     args = parse_args()
     started = time.monotonic()
     out_dir = os.path.join(args.work, "out")
     result = {"ok": False, "exit": EXIT_TOOLING, "env": args.env, "chip": "", "duration_ms": 0, "warnings": 0,
               "flash": {"used": 0, "total": 0}, "ram": {"used": 0, "total": 0}, "files": {}, "fonts": {}}
+    seen = {"budget": False, "code_error": False, "killed": False}
     code = EXIT_TOOLING
-    lock = open("/tmp/cyd-build.lock", "w")
-    fcntl.flock(lock, fcntl.LOCK_EX)  # one build at a time per container
+    lock = None
     try:
+        lock = acquire_lock(args.cache_key)
+        check_tree(args.work)
         shutil.rmtree(out_dir, ignore_errors=True)
         os.makedirs(out_dir)
         for rel in ("platformio.ini", "partitions.csv", "include/board_config.h", "lib/cyd_template/library.json",
@@ -359,7 +576,7 @@ def main():
                 raise ToolError("missing %s in the build tree" % rel)
         chip = detect_chip(args.work)
         result["chip"] = chip
-        build_dir = os.path.join(CACHE, "build", args.cache_key)
+        build_dir = os.path.join(CACHE, "build", builder_version(), args.cache_key)
         if args.clean:
             shutil.rmtree(build_dir, ignore_errors=True)
         prepare_pio_dirs(args.env)
@@ -367,21 +584,18 @@ def main():
         write_build_id(args.work, args.build_id)
         convert_fonts(args.work)
         keep_build_cache(args.work, env)
-        log_lines = []
-        rc = run_pio(args.work, args.env, env, log_lines)
-        for line in log_lines:
-            if WARNING_RE.match(line):
-                result["warnings"] += 1
-            m = USAGE_RE.match(line)
-            if m:
-                result["ram" if m.group(1) == "RAM" else "flash"] = {"used": int(m.group(2)), "total": int(m.group(3))}
-            m = BUDGET_RE.search(line)
-            if m:
-                result["flash"] = {"used": int(m.group(1)), "total": int(m.group(2))}
-                code = EXIT_BUDGET
+        rc = run_pio(args.work, args.env, env, result, seen)
         if rc != 0:
-            if code != EXIT_BUDGET:
+            if seen["budget"]:
+                code = EXIT_BUDGET
+            elif seen["code_error"] and not seen["killed"]:
                 code = EXIT_COMPILE
+            else:
+                code = EXIT_TOOLING
+                if seen["killed"]:
+                    say("a compiler process was killed (out of memory?)")
+                else:
+                    say("PlatformIO failed without a compiler or linker diagnostic")
             say("build failed (exit %d)" % code)
         else:
             merge_image(chip, os.path.join(build_dir, args.env), out_dir)
@@ -396,12 +610,18 @@ def main():
     except ToolError as exc:
         say("error: %s" % exc)
         code = EXIT_TOOLING
-    except Exception as exc:  # noqa: BLE001 - every unexpected failure is a tooling error
+    except SystemExit:
+        say("cancelled")
+        code = EXIT_TOOLING
+        raise
+    except BaseException as exc:  # noqa: BLE001 - every unexpected failure is a tooling error
         say("internal error: %r" % (exc,))
         code = EXIT_TOOLING
     finally:
         result["exit"] = code
         result["ok"] = code == EXIT_OK
+        if code != EXIT_OK:
+            result["files"], result["fonts"] = {}, {}
         result["duration_ms"] = int((time.monotonic() - started) * 1000)
         try:
             os.makedirs(out_dir, exist_ok=True)
@@ -410,10 +630,19 @@ def main():
                 f.write("\n")
         except OSError as exc:
             say("cannot write result.json: %s" % exc)
-        fcntl.flock(lock, fcntl.LOCK_UN)
+        if lock is not None:
+            fcntl.flock(lock, fcntl.LOCK_UN)
+            lock.close()
     say("done: exit %d in %.1f s" % (code, result["duration_ms"] / 1000))
     return code
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        exit_code = main()
+    except SystemExit:
+        raise
+    except BaseException as exc:  # noqa: BLE001 - never leave with a traceback's exit code
+        say("internal error: %r" % (exc,))
+        exit_code = EXIT_TOOLING
+    sys.exit(exit_code)
