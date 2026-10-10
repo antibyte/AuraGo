@@ -198,3 +198,22 @@ func TestDockerInspectEnvValuesKeepWhitespaceSpanningScrubbing(t *testing.T) {
 		t.Fatalf("harmless env value was rewritten: %s", out)
 	}
 }
+
+func TestOpenSCADProbeInspectExposesHardening(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, true)
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasSuffix(r.URL.Path, "/containers/aurago-openscad/json") {
+			t.Errorf("unexpected Docker request %s", r.URL.Path)
+			return
+		}
+		_, _ = w.Write([]byte(`{"Id":"probe","Name":"/aurago-openscad","State":{"Running":true},` +
+			`"HostConfig":{"ReadonlyRootfs":true,"Tmpfs":{"/tmp":"rw,nosuid,size=256m"}},` +
+			`"Config":{"Env":["HOME=/tmp","PATH=/usr/bin"]}}`))
+	})
+	out := DockerInspectContainerWithMountSources(DockerConfig{Host: host}, "aurago-openscad")
+	for _, want := range []string{`"readonly_rootfs":true`, `"/tmp":"rw,nosuid,size=256m"`, `"HOME=/tmp"`} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("inspect output missing %s: %s", want, out)
+		}
+	}
+}

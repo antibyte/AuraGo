@@ -123,13 +123,26 @@ func (h openSCADHandlers) handleJobPath(w http.ResponseWriter, r *http.Request) 
 			jsonError(w, err.Error(), http.StatusNotFound)
 			return
 		}
+		opened, err := desktop.OpenFileNoFollow(filePath)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		defer opened.Close()
+		info, err := opened.Stat()
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusNotFound)
+			return
+		}
 		w.Header().Set("X-AuraGo-OpenSCAD-SHA256", file.SHA256)
 		disposition := "inline"
 		if r.URL.Query().Get("download") == "1" {
 			disposition = "attachment"
 		}
 		w.Header().Set("Content-Disposition", disposition+`; filename="`+strings.ReplaceAll(file.Name, `"`, "")+`"`)
-		http.ServeFile(w, r, filePath)
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'none'; object-src 'none'; base-uri 'none'")
+		http.ServeContent(w, r, file.Name, info.ModTime(), opened)
 		return
 	}
 	jsonError(w, "Not found", http.StatusNotFound)

@@ -729,8 +729,37 @@ func dockerInspectContainer(cfg DockerConfig, containerID string, fullBindSource
 			"ports":      netSettings["Ports"],
 		}
 	}
+	if hostConfig, ok := full["HostConfig"].(map[string]interface{}); ok {
+		if readonly, ok := hostConfig["ReadonlyRootfs"].(bool); ok && readonly {
+			result["readonly_rootfs"] = true
+		}
+		if tmpfs := dockerInspectTmpfs(hostConfig["Tmpfs"]); len(tmpfs) > 0 {
+			result["tmpfs"] = tmpfs
+		}
+	}
 	out, _ := json.Marshal(result)
 	return string(out)
+}
+
+// dockerInspectTmpfs copies HostConfig.Tmpfs into string pairs. Non-string
+// values are dropped so the trimmed inspect stays a plain map.
+func dockerInspectTmpfs(value interface{}) map[string]string {
+	items, ok := value.(map[string]interface{})
+	if !ok || len(items) == 0 {
+		return nil
+	}
+	copied := make(map[string]string, len(items))
+	for key, item := range items {
+		text, ok := item.(string)
+		if !ok || strings.TrimSpace(key) == "" || text == "" {
+			continue
+		}
+		copied[key] = text
+	}
+	if len(copied) == 0 {
+		return nil
+	}
+	return copied
 }
 
 // dockerInspectMountFields maps the Docker mount fields kept in inspect output
@@ -1196,6 +1225,8 @@ func DockerContainerAction(cfg DockerConfig, containerID, action string, force b
 		method, endpoint = "POST", "/containers/"+safe+"/pause"
 	case "unpause":
 		method, endpoint = "POST", "/containers/"+safe+"/unpause"
+	case "kill":
+		method, endpoint = "POST", "/containers/"+safe+"/kill"
 	case "remove", "rm":
 		q := "?v=true"
 		if force {
@@ -1203,7 +1234,7 @@ func DockerContainerAction(cfg DockerConfig, containerID, action string, force b
 		}
 		method, endpoint = "DELETE", "/containers/"+safe+q
 	default:
-		return errJSON("Unknown container action: %s. Use: start, stop, restart, pause, unpause, remove", action)
+		return errJSON("Unknown container action: %s. Use: start, stop, restart, pause, unpause, kill, remove", action)
 	}
 
 	data, code, err := dockerRequest(cfg, method, endpoint, "")

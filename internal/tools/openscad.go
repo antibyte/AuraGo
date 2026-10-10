@@ -34,6 +34,9 @@ func ExecuteOpenSCADRender(ctx context.Context, cfg *config.Config, args map[str
 		return virtualDesktopJSON("error", err.Error(), nil, nil)
 	}
 	defer cleanup()
+	if cfg.VirtualDesktop.ReadOnly || svc.Config().ReadOnly {
+		return virtualDesktopJSON("error", "virtual desktop is read-only", nil, nil)
+	}
 	result, err := svc.OpenSCADContainer().Render(ctx, req)
 	if err != nil {
 		return virtualDesktopJSON("error", err.Error(), result, nil)
@@ -48,7 +51,6 @@ func ExecuteOpenSCADRender(ctx context.Context, cfg *config.Config, args map[str
 		"job_id":        result.JobID,
 		"model_name":    result.ModelName,
 		"files":         result.Files,
-		"source_path":   result.SourcePath,
 		"source_scad":   req.SourceSCAD,
 		"exit_code":     result.ExitCode,
 		"duration_ms":   result.DurationMS,

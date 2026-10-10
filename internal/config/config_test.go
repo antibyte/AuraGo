@@ -1801,8 +1801,8 @@ func TestLoadOpenSCADDefaults(t *testing.T) {
 	if !got.Enabled {
 		t.Fatal("OpenSCAD should default enabled")
 	}
-	if got.Image != "openscad/openscad:latest" {
-		t.Fatalf("OpenSCAD image = %q, want openscad/openscad:latest", got.Image)
+	if got.Image != "openscad/openscad@sha256:147e48525bec392bcf628d7a6d5ea4ccac71b16251952328f86e1061cbf47c37" {
+		t.Fatalf("OpenSCAD image = %q, want openscad/openscad@sha256:147e48525bec392bcf628d7a6d5ea4ccac71b16251952328f86e1061cbf47c37", got.Image)
 	}
 	if got.AutoStart {
 		t.Fatal("OpenSCAD auto_start should default false")

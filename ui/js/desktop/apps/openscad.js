@@ -423,7 +423,7 @@ model();`;
         }
         const more = state.host.querySelector('[data-oscad-more-exports]');
         if (more) {
-            more.innerHTML = ['svg', 'pdf', '3mf', 'off', 'dxf', 'csg', 'echo'].map(format => exportChipHTML(state, format)).join('');
+            more.innerHTML = ['svg', 'pdf', '3mf', 'amf', 'off', 'dxf', 'csg', 'echo'].map(format => exportChipHTML(state, format)).join('');
         }
         wireShell(state);
         state.shellReady = true;
@@ -717,12 +717,6 @@ model();`;
     function attachResultListeners(state) {
         if (state.eventsAttached) return;
         state.eventsAttached = true;
-        const onMessage = event => {
-            const data = normalizeEventData(event.data);
-            applyOpenSCADResultEvent(state, data);
-        };
-        window.addEventListener('message', onMessage);
-        state.listeners.push(() => window.removeEventListener('message', onMessage));
         if (window.AuraSSE && typeof window.AuraSSE.on === 'function') {
             const onDesktopEvent = payload => applyOpenSCADResultEvent(state, payload);
             window.AuraSSE.on('virtual_desktop_event', onDesktopEvent);
@@ -753,15 +747,10 @@ model();`;
             ''
         ).trim();
         if (targetWindowId && targetWindowId !== String(state.windowId || '')) return;
-        if (!targetWindowId && stateByWindow.size > 1 && !state.busy) return;
+        if (!targetWindowId && stateByWindow.size > 1) return;
         state.result = payload;
-        if (payload && typeof payload.source_scad === 'string' && payload.source_scad.length) {
-            if (isOpenSCADReadOnly(state.ctx)) {
-                state.source = payload.source_scad;
-                if (state.editor && typeof state.editor.setValue === 'function') {
-                    state.editor.setValue(payload.source_scad);
-                }
-            } else if (payload.source_scad === state.source) {
+        if (!isOpenSCADReadOnly(state.ctx) && payload && typeof payload.source_scad === 'string' && payload.source_scad.length) {
+            if (payload.source_scad === state.source) {
                 state.pendingAgentSource = null;
             } else {
                 state.pendingAgentSource = payload.source_scad;
@@ -789,12 +778,10 @@ model();`;
     }
 
     function isOpenSCADResultPayload(value) {
-        return !!(value && typeof value === 'object' && (
-            typeof value.job_id === 'string' ||
-            Array.isArray(value.files) ||
-            typeof value.source_scad === 'string' ||
-            typeof value.download_base === 'string'
-        ));
+        if (!value || typeof value !== 'object') return false;
+        const jobID = typeof value.job_id === 'string' ? value.job_id : '';
+        if (!jobID.startsWith('oscad-')) return false;
+        return Array.isArray(value.files) || typeof value.download_base === 'string';
     }
 
     async function loadStatus(state) {
@@ -1312,18 +1299,13 @@ model();`;
             renderPreviewEmptyState(state, panel);
             return;
         }
-        if (file.format === 'png') {
+        if (file.format === 'png' || file.format === 'svg') {
             panel.innerHTML = `<img class="oscad-preview-img" data-oscad-preview-img src="${esc(url)}" alt="">`;
             bindPreviewLoadError(state, panel, panel.querySelector('[data-oscad-preview-img]'));
             return;
         }
-        if (file.format === 'svg') {
-            panel.innerHTML = `<object class="oscad-preview-object" data-oscad-preview-object data="${esc(url)}" type="image/svg+xml"></object>`;
-            bindPreviewLoadError(state, panel, panel.querySelector('[data-oscad-preview-object]'));
-            return;
-        }
         if (file.format === 'pdf') {
-            panel.innerHTML = `<iframe class="oscad-preview-object" data-oscad-preview-frame src="${esc(url)}"></iframe>`;
+            panel.innerHTML = `<iframe class="oscad-preview-object" data-oscad-preview-frame src="${esc(url)}" sandbox=""></iframe>`;
             bindPreviewLoadError(state, panel, panel.querySelector('[data-oscad-preview-frame]'));
             return;
         }
@@ -1634,8 +1616,13 @@ model();`;
         state.ctx.updateWindowContext(state.windowId, { source: state.source });
     }
 
+    function openSCADTrustedPreviewURL(url) {
+        return /^\/api\/openscad\/jobs\/oscad-[A-Za-z0-9-]{8,80}\/files\/[A-Za-z0-9._-]{1,128}(?:\?download=1)?$/.test(String(url || ''));
+    }
+
     function previewURL(file) {
-        return file.preview_url || file.download_url || '';
+        const url = (file && (file.preview_url || file.download_url)) || '';
+        return openSCADTrustedPreviewURL(url) ? url : '';
     }
 
     function primaryFile(state) {

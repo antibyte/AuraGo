@@ -50,7 +50,10 @@ func TestCodeStudioDockerAdapterInspectKeepsBindSource(t *testing.T) {
 			t.Errorf("unexpected Docker request %s", r.URL.Path)
 		}
 		io.WriteString(w, `{"Id":"abc","Name":"/code-studio","State":{"Running":true,"Status":"running"},`+
-			`"Mounts":[{"Type":"bind","Source":"/home/aurago/workspace/code","Destination":"/workspace","RW":true}]}`)
+			`"HostConfig":{"ReadonlyRootfs":true,"Tmpfs":{"/tmp":"rw,nosuid,size=256m"}},`+
+			`"Config":{"Env":["HOME=/tmp","PATH=/usr/bin"]},`+
+			`"Mounts":[{"Type":"bind","Source":"/home/aurago/workspace/code","Destination":"/workspace","RW":true},`+
+			`{"Type":"tmpfs","Source":"","Destination":"/tmp"}]}`)
 	}))
 	defer srv.Close()
 
@@ -59,8 +62,14 @@ func TestCodeStudioDockerAdapterInspectKeepsBindSource(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InspectContainer: %v", err)
 	}
-	if len(inspect.Mounts) != 1 || inspect.Mounts[0].Source != "/home/aurago/workspace/code" || inspect.Mounts[0].Destination != "/workspace" {
+	if len(inspect.Mounts) != 2 || inspect.Mounts[0].Type != "bind" || inspect.Mounts[0].Source != "/home/aurago/workspace/code" || inspect.Mounts[0].Destination != "/workspace" {
 		t.Fatalf("mounts = %+v, want the full workspace bind", inspect.Mounts)
+	}
+	if inspect.Mounts[1].Type != "tmpfs" || inspect.Mounts[1].Destination != "/tmp" {
+		t.Fatalf("mounts = %+v, want the /tmp tmpfs kept", inspect.Mounts)
+	}
+	if !inspect.ReadonlyRootfs || inspect.Tmpfs["/tmp"] != "rw,nosuid,size=256m" || !strings.Contains(strings.Join(inspect.Env, "\n"), "HOME=/tmp") {
+		t.Fatalf("hardening = readonly %v tmpfs %#v env %#v", inspect.ReadonlyRootfs, inspect.Tmpfs, inspect.Env)
 	}
 	if !inspect.State.Running {
 		t.Fatalf("state = %+v, want running", inspect.State)

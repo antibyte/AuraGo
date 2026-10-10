@@ -28,12 +28,14 @@ type ContainerResources struct {
 
 // ContainerCreateOptions holds hardening options for Docker container creation.
 type ContainerCreateOptions struct {
-	User        string
-	SecurityOpt []string
-	CapDrop     []string
-	CapAdd      []string
-	NetworkMode string
-	AutoRemove  bool
+	User           string
+	SecurityOpt    []string
+	CapDrop        []string
+	CapAdd         []string
+	NetworkMode    string
+	AutoRemove     bool
+	ReadonlyRootfs bool
+	Tmpfs          map[string]string
 }
 
 // DockerCreateContainer creates a new container from a configuration.
@@ -142,6 +144,16 @@ func buildDockerCreateContainerPayloadWithOptions(image string, env []string, po
 	}
 	if networkMode := strings.TrimSpace(options.NetworkMode); networkMode != "" {
 		hostConfig["NetworkMode"] = networkMode
+	}
+	if options.ReadonlyRootfs {
+		hostConfig["ReadonlyRootfs"] = true
+	}
+	if len(options.Tmpfs) > 0 {
+		tmpfs := make(map[string]string, len(options.Tmpfs))
+		for key, value := range options.Tmpfs {
+			tmpfs[key] = value
+		}
+		hostConfig["Tmpfs"] = tmpfs
 	}
 
 	payload := map[string]interface{}{
