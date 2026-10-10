@@ -186,6 +186,21 @@ func (s *OpenSCADContainerService) ensureStarted(ctx context.Context, keepRunnin
 		s.state = StateError
 		return err
 	}
+	if containerID != "" {
+		inspect, inspectErr := s.docker.InspectContainer(ctx, containerID)
+		if inspectErr != nil {
+			s.state = StateError
+			return fmt.Errorf("inspect openscad container: %w", inspectErr)
+		}
+		if openSCADProbeNeedsReplace(inspect) {
+			if err := s.docker.ContainerAction(ctx, containerID, "remove"); err != nil {
+				s.state = StateError
+				return fmt.Errorf("replace openscad container: %w", err)
+			}
+			containerID = ""
+			running = false
+		}
+	}
 	if containerID != "" && !running {
 		if err := s.docker.ContainerAction(ctx, containerID, "start"); err != nil {
 			s.state = StateError
@@ -258,6 +273,45 @@ func (s *OpenSCADContainerService) createOpenSCADContainerLocked(ctx context.Con
 		return "", err
 	}
 	return createdID, nil
+}
+
+// openSCADProbeNeedsReplace reports whether an existing aurago-openscad
+// container still has a job bind or is missing the hardened rootfs. A matching
+// probe stays in place. Docker also lists the /tmp tmpfs inside Mounts; that
+// entry is the hardening itself and does not force a replacement.
+func openSCADProbeNeedsReplace(inspect CodeDockerInspect) bool {
+	if openSCADProbeHasDisallowedMount(inspect.Mounts) {
+		return true
+	}
+	if !inspect.ReadonlyRootfs {
+		return true
+	}
+	if strings.TrimSpace(inspect.Tmpfs["/tmp"]) == "" {
+		return true
+	}
+	for _, item := range inspect.Env {
+		if item == "HOME=/tmp" {
+			return false
+		}
+	}
+	return true
+}
+
+func openSCADProbeHasDisallowedMount(mounts []CodeDockerMount) bool {
+	for _, mount := range mounts {
+		if openSCADProbeTmpfsMount(mount) {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+func openSCADProbeTmpfsMount(mount CodeDockerMount) bool {
+	if path.Clean(mount.Destination) != "/tmp" || strings.TrimSpace(mount.Source) != "" {
+		return false
+	}
+	return mount.Type == "" || mount.Type == "tmpfs"
 }
 
 func openSCADJobContainerName(jobID, export string) string {

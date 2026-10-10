@@ -800,6 +800,126 @@ func TestOpenSCADCancelKillsTheJobContainer(t *testing.T) {
 	}
 }
 
+func TestOpenSCADProbeReplacesMountedContainerAndKeepsHardenedProbe(t *testing.T) {
+	t.Parallel()
+
+	t.Run("legacy job mount", func(t *testing.T) {
+		t.Parallel()
+		dataDir := t.TempDir()
+		jobsRoot := filepath.Join(dataDir, "openscad", "jobs")
+		fake := &fakeCodeContainerDocker{
+			containers: []CodeDockerContainer{{
+				ID:    "legacy-probe",
+				Names: []string{"/" + openSCADContainerName},
+			}},
+			inspectByName: map[string]CodeDockerInspect{
+				"legacy-probe": {
+					ID:     "legacy-probe",
+					Name:   "/" + openSCADContainerName,
+					State:  CodeDockerState{Running: true},
+					Mounts: []CodeDockerMount{{Source: jobsRoot, Destination: openSCADJobsInContainer}},
+				},
+			},
+		}
+		svc := newOpenSCADProbeTestService(dataDir, fake)
+
+		if err := svc.EnsureStarted(context.Background()); err != nil {
+			t.Fatalf("EnsureStarted: %v", err)
+		}
+		if err := svc.EnsureStarted(context.Background()); err != nil {
+			t.Fatalf("second EnsureStarted: %v", err)
+		}
+		if !containsString(fake.actions, "legacy-probe remove") {
+			t.Fatalf("actions = %#v, want removal of the mounted probe", fake.actions)
+		}
+		if containsString(fake.actions, "legacy-probe start") {
+			t.Fatalf("actions = %#v, want the mounted probe removed instead of started", fake.actions)
+		}
+		if len(fake.creates) != 1 {
+			t.Fatalf("creates = %d, want one hardened probe and no second recreate", len(fake.creates))
+		}
+		removals := 0
+		for _, action := range fake.actions {
+			if action == "legacy-probe remove" {
+				removals++
+			}
+		}
+		if removals != 1 {
+			t.Fatalf("actions = %#v, want the mounted probe removed once", fake.actions)
+		}
+		req := fake.creates[0]
+		if req.Name != openSCADContainerName || len(req.Volumes) != 0 {
+			t.Fatalf("probe = name %q volumes %#v, want %s with no volumes", req.Name, req.Volumes, openSCADContainerName)
+		}
+		if !req.ReadonlyRootfs || req.Tmpfs["/tmp"] == "" || !containsString(req.Env, "HOME=/tmp") {
+			t.Fatalf("probe hardening = readonly %v tmpfs %#v env %#v", req.ReadonlyRootfs, req.Tmpfs, req.Env)
+		}
+		if req.NetworkMode != "none" || !containsString(req.CapDrop, "ALL") || !containsString(req.SecurityOpt, "no-new-privileges:true") {
+			t.Fatalf("probe isolation = network %q cap %#v security %#v", req.NetworkMode, req.CapDrop, req.SecurityOpt)
+		}
+	})
+
+	t.Run("hardened probe stays", func(t *testing.T) {
+		t.Parallel()
+		fake := &fakeCodeContainerDocker{
+			containers: []CodeDockerContainer{{
+				ID:    "healthy-probe",
+				Names: []string{"/" + openSCADContainerName},
+			}},
+			inspectByName: map[string]CodeDockerInspect{
+				"healthy-probe": {
+					ID:             "healthy-probe",
+					Name:           "/" + openSCADContainerName,
+					State:          CodeDockerState{Running: false},
+					Env:            []string{"HOME=/tmp"},
+					ReadonlyRootfs: true,
+					Tmpfs:          map[string]string{"/tmp": "rw,nosuid,size=256m"},
+				},
+			},
+		}
+		svc := newOpenSCADProbeTestService(t.TempDir(), fake)
+
+		if err := svc.EnsureStarted(context.Background()); err != nil {
+			t.Fatalf("EnsureStarted: %v", err)
+		}
+		if err := svc.EnsureStarted(context.Background()); err != nil {
+			t.Fatalf("second EnsureStarted: %v", err)
+		}
+		if len(fake.creates) != 0 {
+			t.Fatalf("creates = %#v, want the hardened probe left in place", fake.creates)
+		}
+		for _, action := range fake.actions {
+			if strings.HasSuffix(action, " remove") {
+				t.Fatalf("actions = %#v, want no removal", fake.actions)
+			}
+		}
+		if !containsString(fake.actions, "healthy-probe start") {
+			t.Fatalf("actions = %#v, want the stopped probe started", fake.actions)
+		}
+		starts := 0
+		for _, action := range fake.actions {
+			if action == "healthy-probe start" {
+				starts++
+			}
+		}
+		if starts != 1 {
+			t.Fatalf("actions = %#v, want one start of the already hardened probe", fake.actions)
+		}
+	})
+}
+
+func newOpenSCADProbeTestService(dataDir string, fake *fakeCodeContainerDocker) *OpenSCADContainerService {
+	svc := NewOpenSCADContainerService(Config{
+		DataDir: dataDir,
+		OpenSCAD: OpenSCADConfig{
+			Enabled: true,
+			Image:   "openscad/openscad:latest",
+		},
+	}, nil)
+	svc.SetDockerClient(fake)
+	return svc
+}
+
 func TestOpenSCADStatusIncludesRenderQueueNote(t *testing.T) {
 	t.Parallel()
 	svc := NewOpenSCADContainerService(Config{OpenSCAD: OpenSCADConfig{Enabled: true}}, nil)

@@ -149,12 +149,34 @@ func (f *fakeCodeContainerDocker) CreateContainer(ctx context.Context, req CodeD
 			mounts = append(mounts, CodeDockerMount{Source: volume[:separator], Destination: volume[separator+1:]})
 		}
 	}
-	f.inspectByName[id] = CodeDockerInspect{ID: id, Name: "/" + name, State: CodeDockerState{Running: true}, Mounts: mounts}
+	if req.Tmpfs["/tmp"] != "" {
+		mounts = append(mounts, CodeDockerMount{Type: "tmpfs", Destination: "/tmp"})
+	}
+	var tmpfs map[string]string
+	if len(req.Tmpfs) > 0 {
+		tmpfs = make(map[string]string, len(req.Tmpfs))
+		for key, value := range req.Tmpfs {
+			tmpfs[key] = value
+		}
+	}
+	f.inspectByName[id] = CodeDockerInspect{
+		ID:             id,
+		Name:           "/" + name,
+		State:          CodeDockerState{Running: true},
+		Mounts:         mounts,
+		Env:            append([]string(nil), req.Env...),
+		ReadonlyRootfs: req.ReadonlyRootfs,
+		Tmpfs:          tmpfs,
+	}
 	return id, nil
 }
 
 func (f *fakeCodeContainerDocker) ContainerAction(ctx context.Context, container, action string) error {
 	f.actions = append(f.actions, container+" "+action)
+	if action == "remove" || action == "rm" {
+		f.containers = withoutCodeContainer(f.containers, container)
+		return nil
+	}
 	if f.inspectByName != nil {
 		inspect := f.inspectByName[container]
 		inspect.State.Running = action == "start"
@@ -175,6 +197,26 @@ func (f *fakeCodeContainerDocker) ExecContainer(ctx context.Context, container s
 		return f.execResults[index], nil
 	}
 	return CodeDockerExecResult{ExitCode: 0}, nil
+}
+
+func withoutCodeContainer(containers []CodeDockerContainer, container string) []CodeDockerContainer {
+	remaining := make([]CodeDockerContainer, 0, len(containers))
+	for _, item := range containers {
+		if item.ID == container {
+			continue
+		}
+		drop := false
+		for _, name := range item.Names {
+			if strings.TrimPrefix(name, "/") == container {
+				drop = true
+				break
+			}
+		}
+		if !drop {
+			remaining = append(remaining, item)
+		}
+	}
+	return remaining
 }
 
 func containsString(values []string, want string) bool {

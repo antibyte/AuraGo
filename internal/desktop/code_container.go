@@ -69,16 +69,22 @@ type CodeDockerState struct {
 }
 
 // CodeDockerInspect is the subset of Docker inspect data Code Studio needs.
+// Env, ReadonlyRootfs and Tmpfs let OpenSCAD tell a hardened probe from an
+// older container that still bind-mounts the job tree.
 type CodeDockerInspect struct {
-	ID     string            `json:"id"`
-	Name   string            `json:"name"`
-	State  CodeDockerState   `json:"state"`
-	Mounts []CodeDockerMount `json:"mounts,omitempty"`
+	ID             string            `json:"id"`
+	Name           string            `json:"name"`
+	State          CodeDockerState   `json:"state"`
+	Mounts         []CodeDockerMount `json:"mounts,omitempty"`
+	Env            []string          `json:"env,omitempty"`
+	ReadonlyRootfs bool              `json:"readonly_rootfs,omitempty"`
+	Tmpfs          map[string]string `json:"tmpfs,omitempty"`
 }
 
 type CodeDockerMount struct {
 	Source      string `json:"source"`
 	Destination string `json:"destination"`
+	Type        string `json:"type,omitempty"`
 }
 
 // CodeDockerExecResult is the subset of Docker exec output Code Studio needs.
