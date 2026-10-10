@@ -153,3 +153,18 @@ func TestDesktopTodoMutationsKeepTheFormAndReportFailure(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopTodoBundleCarriesTheCivilDay(t *testing.T) {
+	t.Parallel()
+	bundle := readDesktopAssetText(t, "js/desktop/main.js")
+	for _, marker := range []string{
+		"function todoDueCivilDate(",
+		"desktop.todo_empty",
+		"desktop.todo_readonly",
+		"const TODO_REFRESH_MS = 60000",
+	} {
+		if !strings.Contains(bundle, marker) {
+			t.Fatalf("desktop bundle missing %q", marker)
+		}
+	}
+}

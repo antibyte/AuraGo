@@ -10,7 +10,7 @@ Issue lifecycle, notification, and background retry policy.
 
 ## Local Contracts
 
-- Overdue todo notifications claim the todo ID and exact due value durably in `planner_meta` before dispatch. Recheck due/status atomically. A restart or ambiguous/panicking delivery cannot replay that revision; changing the due value creates a new claimable revision. Verify `TestOverdueClaimSurvivesNotifierRestartAndPanic`.
+- Overdue todo notifications claim the todo ID and exact due value durably in `planner_meta` before dispatch. Recheck due/status atomically. A restart or ambiguous/panicking delivery cannot replay that revision; changing the due value creates a new claimable revision. A due value of `YYYY-MM-DDT00:00:00Z` is that civil day in the machine's local timezone. It becomes overdue on the next local day. Any other timestamp is overdue once that instant has passed. Reopening through `UpdateTodo` with status `open` or `in_progress` keeps checklist ticks. Verify `TestOverdueClaimSurvivesNotifierRestartAndPanic`, `TestCivilDueDateIsNotOverdueOnItsLocalDay`, and `TestUpdateTodoReopenKeepsFinishedItems`.
 
 ### Operational Issue Notification Contract
 
