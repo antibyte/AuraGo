@@ -2831,7 +2831,9 @@ registration lives in `internal/desktop/types.go`.
   screen, modes and mouse reporting (`PLAIN_SCREEN`).
   Dialing runs the modem sequence and the optional baud throttle from
   `terminal-modem.js` (`aurago.desktop.terminal.baud`, default off) in parallel
-  with the socket and shows `CONNECT` only after both finished; results print
+  with the socket and shows `CONNECT` only after both finished; output before
+  `CONNECT` is buffered up to the throttle's queue limit
+  (`TerminalModem.MAX_QUEUE_BYTES`, 1 MiB), more skips the animation; results print
   the Hayes code plus `desktop.terminal_retronet_result_<reason>` (also the
   browser-only `local_hangup` and `lost`), and keys in the first 400 ms after a
   result are ignored. `bbs` entries use a fixed 80×25 grid with the vendored

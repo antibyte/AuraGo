@@ -515,7 +515,7 @@
                     isMuted: function () { return window.TerminalAudio ? window.TerminalAudio.loadMuted() : true; }
                 });
             }
-            const run = { entry: entry, buffer: [], connected: null, animationDone: false, live: false, ended: false, hostKey: false, session: null, throttle: null };
+            const run = { entry: entry, buffer: [], buffered: 0, connected: null, animationDone: false, live: false, ended: false, hostKey: false, session: null, throttle: null };
             retro = run;
             run.throttle = window.TerminalModem.createThrottle(function (bytes) {
                 if (term && retro === run) term.write(bytes);
@@ -537,10 +537,21 @@
             });
         }
 
+        // Data before CONNECT waits for the dial animation, at most the throttle's queue limit: a service that
+        // sends more cuts the animation short. Data never precedes "connected", so the drop only bounds a bad server.
         function onRetroData(run, bytes) {
             if (retro !== run || run.ended) return;
+            if (!run.live && run.buffered + bytes.length > window.TerminalModem.MAX_QUEUE_BYTES) {
+                if (modem) modem.skip();
+                run.animationDone = true;
+                goLive(run);
+                if (!run.live) return;
+            }
             if (run.live) run.throttle.push(bytes);
-            else run.buffer.push(bytes);
+            else {
+                run.buffer.push(bytes);
+                run.buffered += bytes.length;
+            }
         }
 
         function onRetroControl(run, control) {
@@ -572,6 +583,7 @@
             setStatus('desktop.terminal_connected');
             const pending = run.buffer;
             run.buffer = [];
+            run.buffered = 0;
             pending.forEach(function (bytes) { run.throttle.push(bytes); });
         }
 

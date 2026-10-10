@@ -396,6 +396,7 @@
 
     window.TerminalModem = {
         BAUD_RATES: BAUD_RATES.slice(),
+        MAX_QUEUE_BYTES: MAX_QUEUE_BYTES,
         loadBaud: loadBaud,
         saveBaud: saveBaud,
         create: create,

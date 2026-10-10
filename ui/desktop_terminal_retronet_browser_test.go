@@ -218,6 +218,25 @@ func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion
 	run(`async()=>{await fixtureDismiss('q');}`)
 	wait("back in the directory after the busy banner", backInDirectory)
 
+	// 10c. A flood during the dial: the buffer before CONNECT is capped at the throttle's queue limit, so the dial
+	// animation is cut short and everything is shown after CONNECT instead of piling up unbounded.
+	// Every xterm write of this session: strings as text, data as its byte count (reduced motion prints the dial at once).
+	run(`()=>{const term=fixtureTerm(),write=term.write.bind(term);window.fixtureWrites=[];
+		term.write=(data,cb)=>{fixtureWrites.push(typeof data==='string'?data:data.byteLength);return write(data,cb);};}`)
+	run(`async()=>{await fixtureInput('0');await fixtureInput('2');await fixtureInput('\r');}`)
+	wait("fourth session opens", `()=>fixtureSockets.length===4&&fixtureSocket().readyState===1&&new URL(fixtureSocket().url).searchParams.get('entry')==='towel'`)
+	check("a flood over the queue limit connects at once", `()=>{const cap=TerminalModem.MAX_QUEUE_BYTES,chunk='F'.repeat(1<<16);
+		fixtureControl({type:'connected',protocol:'telnet',kind:'world',charset:'utf8'});
+		for(let n=0;n<=cap;n+=chunk.length)fixtureData(chunk);
+		fixtureData('\r\nFLOOD-END\r\n');
+		return cap===1<<20&&fixtureRoot().dataset.terminalMode==='retro';}`)
+	wait("CONNECT, then all of the flood", `async()=>{const text=await fixtureText(),first=fixtureWrites.findIndex(w=>typeof w==='number'),
+		before=fixtureWrites.slice(0,first).join(''),bytes=fixtureWrites.filter(w=>typeof w==='number').reduce((a,b)=>a+b,0);
+		return text.includes('FLOOD-END')&&first>0&&before.includes('ATDT towel.blinkenlights.nl')&&before.includes('CONNECT 14400')&&
+			bytes===17*65536+'\r\nFLOOD-END\r\n'.length;}`)
+	run(`async()=>{delete fixtureTerm().write;await fixtureInput('\x1d');await fixtureDismiss('q');}`)
+	wait("back in the directory after the flood", backInDirectory)
+
 	// 11. BBS: fixed 80x25 grid with the VGA font.
 	run(`async()=>{await fixtureInput('0');await fixtureInput('3');await fixtureInput('\r');}`)
 	wait("a BBS dials with a fixed 80x25 grid", `()=>{const s=fixtureSocket(),u=new URL(s.url),term=fixtureTerm();return u.searchParams.get('entry')==='vertrauen'&&
