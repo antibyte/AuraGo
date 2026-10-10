@@ -174,6 +174,12 @@ func TestValidateBoardRejects(t *testing.T) {
 		{"partitions board_build", func(m map[string]any) {
 			profileSection(m, "pio")["board_build"] = map[string]any{"partitions": "x.csv"}
 		}, "board_build.partitions"},
+		{"board_build option outside the list", func(m map[string]any) {
+			profileSection(m, "pio")["board_build"] = map[string]any{"embed_files": "x.bin"}
+		}, `board_build key "embed_files" is not allowed`},
+		{"board_build bad value", func(m map[string]any) {
+			profileSection(m, "pio")["board_build"] = map[string]any{"flash_mode": "q io"}
+		}, "pio.board_build"},
 		{"driver bus mismatch", func(m map[string]any) { profileSection(m, "display")["driver"] = "NV3041A" }, "needs bus qspi"},
 		{"unknown driver", func(m map[string]any) { profileSection(m, "display")["driver"] = "SSD1306" }, "display.driver \"SSD1306\""},
 		{"portrait mismatch", func(m map[string]any) { profileSection(m, "display")["native_orientation"] = "portrait" }, "portrait display"},
@@ -186,6 +192,16 @@ func TestValidateBoardRejects(t *testing.T) {
 		{"input-only output", func(m map[string]any) { profileSection(m, "display", "pins")["cs"] = 35 }, "GPIO 35 is input-only"},
 		{"duplicate pin", func(m map[string]any) { profileSection(m, "touch", "pins")["cs"] = 2 }, "GPIO 2 is used twice (display.dc, touch.cs)"},
 		{"duplicate extra", func(m map[string]any) { profileSection(m, "extras")["speaker"] = 4 }, "GPIO 4 is used twice"},
+		{"ldr on an ADC2 pin", func(m map[string]any) { profileSection(m, "extras")["ldr"] = 27 }, "GPIO 27 is not an ADC1 pin"},
+		{"touch shares sclk only", func(m map[string]any) { profileSection(m, "touch", "pins")["sclk"] = 14 },
+			"touch must use the display's sclk, mosi and miso exactly or none of them"},
+		{"touch shares mosi only", func(m map[string]any) { profileSection(m, "touch", "pins")["mosi"] = 13 },
+			"touch must use the display's sclk, mosi and miso exactly or none of them"},
+		{"touch shares sclk and mosi, display has no miso", func(m map[string]any) {
+			p := profileSection(m, "touch", "pins")
+			p["sclk"], p["mosi"] = 14, 13
+			delete(profileSection(m, "display", "pins"), "miso")
+		}, "touch must use the display's sclk, mosi and miso exactly or none of them"},
 		{"touch bus mismatch", func(m map[string]any) { profileSection(m, "touch")["driver"] = "GT911" }, "needs bus i2c"},
 		{"missing calibration", func(m map[string]any) { delete(profileSection(m, "touch"), "calibration") }, "default calibration"},
 		{"inverted calibration", func(m map[string]any) { profileSection(m, "touch", "calibration")["x_min"] = 4000 }, "touch.calibration must"},
@@ -231,6 +247,11 @@ func TestValidateBoardAccepts(t *testing.T) {
 		{"build flags", func(m map[string]any) {
 			profileSection(m, "pio")["build_flags"] = []any{"-DBOARD_HAS_PSRAM", "-DCYD_X=1", "-mfix-esp32-psram-cache-issue"}
 		}},
+		{"board_build options", func(m map[string]any) {
+			profileSection(m, "pio")["board_build"] = map[string]any{
+				"arduino.memory_type": "qio_qspi", "flash_mode": "qio", "f_flash": "80000000L", "f_cpu": "240000000L"}
+		}},
+		{"ldr on another ADC1 pin", func(m map[string]any) { profileSection(m, "extras")["ldr"] = 35 }},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -284,6 +305,26 @@ func TestValidateBoardS3Profiles(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "timing.vsync_back_porch is required") ||
 		!strings.Contains(err.Error(), "timing.vsync_extra is unknown") {
 		t.Fatalf("timing checks: %v", err)
+	}
+	widePorch := cloneBoard(rgb)
+	widePorch.Display.Timing["hsync_back_porch"] = 210
+	if err := validateBoard(widePorch); err == nil || !strings.Contains(err.Error(), "timing.hsync_back_porch=210 is out of range") {
+		t.Fatalf("int8 porch bound: %v", err)
+	}
+	noMemType := cloneBoard(rgb)
+	delete(noMemType.PIO.BoardBuild, "arduino.memory_type")
+	if err := validateBoard(noMemType); err == nil || !strings.Contains(err.Error(), `must set pio.board_build["arduino.memory_type"]`) {
+		t.Fatalf("PSRAM without memory_type: %v", err)
+	}
+	s3LDR := cloneBoard(rgb)
+	ldr := 12
+	s3LDR.Extras.LDR = &ldr
+	if err := validateBoard(s3LDR); err == nil || !strings.Contains(err.Error(), "GPIO 12 is not an ADC1 pin") {
+		t.Fatalf("s3 ADC2 LDR: %v", err)
+	}
+	ldr = 10
+	if err := validateBoard(s3LDR); err != nil {
+		t.Fatalf("s3 ADC1 LDR rejected: %v", err)
 	}
 	cst := cloneBoard(rgb)
 	cst.Touch.Driver, cst.Touch.I2CAddr = "CST820", 0x5D

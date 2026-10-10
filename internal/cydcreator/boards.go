@@ -219,11 +219,13 @@ type pinRule struct {
 }
 
 var (
-	boardIDPattern    = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,47}$`)
-	pioBoardPattern   = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
-	buildFlagPattern  = regexp.MustCompile(`^-(D[A-Za-z_][A-Za-z0-9_]*(=[A-Za-z0-9_.+-]*)?|m[a-z0-9-]+)$`)
-	boardBuildKey     = regexp.MustCompile(`^[a-z0-9_]+(\.[a-z0-9_]+)*$`)
-	boardBuildValue   = regexp.MustCompile(`^[A-Za-z0-9_./-]+$`)
+	boardIDPattern   = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,47}$`)
+	pioBoardPattern  = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
+	buildFlagPattern = regexp.MustCompile(`^-(D[A-Za-z_][A-Za-z0-9_]*(=[A-Za-z0-9_.+-]*)?|m[a-z0-9-]+)$`)
+	boardBuildValue  = regexp.MustCompile(`^[A-Za-z0-9_./-]+$`)
+	// boardBuildKeys are the only board_build options a profile may set; the
+	// generator owns everything else (partitions, filesystem, embed_files, ...).
+	boardBuildKeys    = []string{"arduino.memory_type", "flash_mode", "f_flash", "f_cpu"}
 	displayDriverBus  = map[string]string{"ILI9341": "spi", "ST7789": "spi", "ST7796": "spi", "NV3041A": "qspi", "ST7262": "rgb", "EK9716": "rgb"}
 	touchDriverBus    = map[string]string{"XPT2046": "spi", "GT911": "i2c", "CST820": "i2c"}
 	touchI2CAddresses = map[string][]int{"GT911": {0x5D, 0x14}, "CST820": {0x15}}
@@ -280,9 +282,16 @@ func validateBoard(b Board) error {
 		switch {
 		case k == "partitions" || k == "filesystem":
 			bad("pio.board_build.%s is generated and must not be set", k)
-		case !boardBuildKey.MatchString(k) || !boardBuildValue.MatchString(v):
+		case !slices.Contains(boardBuildKeys, k):
+			bad("pio.board_build key %q is not allowed (allowed: %s)", k, strings.Join(boardBuildKeys, ", "))
+		case !boardBuildValue.MatchString(v):
 			bad("pio.board_build %q=%q is invalid", k, v)
 		}
+	}
+	// Without the memory type the arduino core does not start PSRAM, and the
+	// octal-PSRAM pin check below would be skipped.
+	if b.Chip == ChipESP32S3 && b.PSRAM && b.PIO.BoardBuild["arduino.memory_type"] == "" {
+		bad(`esp32s3 boards with PSRAM must set pio.board_build["arduino.memory_type"] (e.g. qio_opi)`)
 	}
 
 	d := b.Display
@@ -369,6 +378,10 @@ func validateBoard(b Board) error {
 	}
 	if e.LDR != nil {
 		probs = append(probs, checkSinglePin(b, "extras.ldr", *e.LDR, true)...)
+		// ADC2 cannot be read while Wi-Fi is running, so the LDR needs an ADC1 pin.
+		if gpioExists(b.Chip, *e.LDR) && !gpioADC1(b.Chip, *e.LDR) {
+			bad("extras.ldr: GPIO %d is not an ADC1 pin (ADC2 is unusable while Wi-Fi runs)", *e.LDR)
+		}
 	}
 	if e.Speaker != nil {
 		probs = append(probs, checkSinglePin(b, "extras.speaker", *e.Speaker, false)...)
@@ -377,6 +390,7 @@ func validateBoard(b Board) error {
 		probs = append(probs, checkSinglePin(b, "extras.sd_cs", *e.SDCS, false)...)
 	}
 	probs = append(probs, checkPinConflicts(b)...)
+	probs = append(probs, checkSPIBusSharing(b)...)
 
 	long := max(d.Width, d.Height)
 	if b.LVGL.DrawBufferLines < 1 || b.LVGL.DrawBufferLines > long {
@@ -413,7 +427,8 @@ func checkRGBTiming(timing map[string]int) []string {
 			probs = append(probs, fmt.Sprintf("display.timing.%s must be 0 or 1", k))
 		case k == "pclk_hz" && (v < 1_000_000 || v > 40_000_000):
 			probs = append(probs, "display.timing.pclk_hz must be within 1..40 MHz")
-		case k != "pclk_hz" && (v < 0 || v > 1000):
+		// Porch and pulse widths are int8_t in LovyanGFX Bus_RGB::config_t.
+		case k != "pclk_hz" && (v < 0 || v > 127):
 			probs = append(probs, fmt.Sprintf("display.timing.%s=%d is out of range", k, v))
 		}
 	}
@@ -487,6 +502,16 @@ func gpioInputOnly(chip string, pin int) bool {
 	return chip == ChipESP32 && pin >= 34 && pin <= 39
 }
 
+func gpioADC1(chip string, pin int) bool {
+	switch chip {
+	case ChipESP32:
+		return pin >= 32 && pin <= 39
+	case ChipESP32S3:
+		return pin >= 1 && pin <= 10
+	}
+	return false
+}
+
 type pinUse struct{ group, role string }
 
 // checkPinConflicts rejects every GPIO used twice. The only allowed reuse is
@@ -534,6 +559,25 @@ func checkPinConflicts(b Board) []string {
 		probs = append(probs, fmt.Sprintf("GPIO %d is used twice (%s)", pin, strings.Join(names, ", ")))
 	}
 	return probs
+}
+
+// checkSPIBusSharing requires a touch controller to share the display's SPI
+// bus completely (sclk, mosi and miso) or not at all; the template decides
+// bus sharing from sclk alone.
+func checkSPIBusSharing(b Board) []string {
+	if b.Display.Bus != "spi" || b.Touch.Bus != "spi" {
+		return nil
+	}
+	shared := 0
+	for _, role := range []string{"sclk", "mosi", "miso"} {
+		if pin, ok := b.Display.Pins[role]; ok && pin >= 0 && b.Touch.Pins[role] == pin {
+			shared++
+		}
+	}
+	if shared != 0 && shared != 3 {
+		return []string{"touch must use the display's sclk, mosi and miso exactly or none of them"}
+	}
+	return nil
 }
 
 func sharedSPIBus(b Board, list []pinUse) bool {
