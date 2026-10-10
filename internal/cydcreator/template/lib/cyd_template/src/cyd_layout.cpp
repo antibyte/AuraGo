@@ -10,6 +10,7 @@ namespace {
 
 struct Check {
   const char* view;
+  const lv_obj_t* root;
   const lv_obj_t* overlay;
   const lv_obj_t* scroller;
   lv_area_t visible;
@@ -77,8 +78,10 @@ bool shown(const lv_obj_t* o) { return !lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN); 
 void check_obj(Check& c, lv_obj_t* o, bool in_scroller) {
   lv_area_t a;
   lv_obj_get_coords(o, &a);
-  // Scroller children are checked against the scroller (horizontally) below.
-  if (!in_scroller && !inside(a, c.visible, true) && o != c.overlay) report(c, o, "is outside the visible area");
+  // Scroller children are checked against the scroller (horizontally) below;
+  // the screen itself is the visible area plus what the overlay covers.
+  bool exempt = in_scroller || o == c.overlay || (o == c.root && lv_obj_get_parent(o) == nullptr);
+  if (!exempt && !inside(a, c.visible, true)) report(c, o, "is outside the visible area");
   if (o != c.scroller && lv_obj_get_class(o) == &lv_obj_class && lv_obj_has_flag(o, LV_OBJ_FLAG_SCROLLABLE)) {
     report(c, o, "is a scrollable container");
   }
@@ -122,7 +125,7 @@ namespace detail {
 int layout_check(lv_obj_t* root, const char* view, const lv_obj_t* overlay, const lv_obj_t* scroller, bool log) {
   if (root == nullptr) return 0;
   lv_obj_update_layout(root);
-  Check c{view, overlay, scroller, {0, 0, CYD_SCREEN_W - 1, CYD_SCREEN_H - 1}, log, 0};
+  Check c{view, root, overlay, scroller, {0, 0, CYD_SCREEN_W - 1, CYD_SCREEN_H - 1}, log, 0};
   if (overlay != nullptr && shown(overlay)) {
     lv_area_t oa;
     lv_obj_get_coords(overlay, &oa);
@@ -224,6 +227,60 @@ int fail(const char* view, const char* what) {
   return 1;
 }
 
+// Screen capture for the host: "shot:<view>:<x>,<y>,<w>,<h>:<base64>" per
+// flushed band, the payload a run-length list of (count, RGB565) uint16 LE
+// pairs. Only on screens up to 480x320 (larger ones would take minutes at
+// 115200 baud).
+struct Base64Out {
+  uint8_t acc[3];
+  int n = 0;
+  void put(uint8_t b) {
+    acc[n++] = b;
+    if (n == 3) flush();
+  }
+  void flush() {
+    static const char kAlpha[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    if (n == 0) return;
+    uint32_t v = (uint32_t)acc[0] << 16 | (n > 1 ? (uint32_t)acc[1] << 8 : 0) | (n > 2 ? acc[2] : 0);
+    char out[4] = {kAlpha[(v >> 18) & 63], kAlpha[(v >> 12) & 63], n > 1 ? kAlpha[(v >> 6) & 63] : '=',
+                   n > 2 ? kAlpha[v & 63] : '='};
+    Serial.write((const uint8_t*)out, 4);
+    n = 0;
+  }
+  void put16(uint16_t v) {
+    put(v & 0xFF);
+    put(v >> 8);
+  }
+};
+
+const char* g_shot = nullptr;
+
+void shot_band(int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t* px) {
+  Serial.printf("shot:%s:%ld,%ld,%ld,%ld:", g_shot, (long)x, (long)y, (long)w, (long)h);
+  Base64Out b;
+  int32_t total = w * h;
+  for (int32_t i = 0; i < total;) {
+    uint16_t c = px[i];
+    int32_t run = 1;
+    while (i + run < total && px[i + run] == c && run < 0xFFFF) ++run;
+    b.put16((uint16_t)run);
+    b.put16(c);
+    i += run;
+  }
+  b.flush();
+  Serial.write('\n');
+}
+
+void shoot(const char* view) {
+  if (CYD_SCREEN_W * CYD_SCREEN_H > 480 * 320) return;
+  g_shot = view;
+  detail::flush_tap = shot_band;
+  lv_obj_invalidate(lv_screen_active());
+  lv_refr_now(nullptr);
+  detail::flush_tap = nullptr;
+  Serial.printf("shot-end:%s\n", view);
+}
+
 // A textarea the user types into must be completely above the keyboard.
 int textarea_above_keyboard(const char* view, const lv_obj_t* ta, const lv_obj_t* kb, const char* which) {
   if (ta == nullptr || !visible_now(kb)) return 0;
@@ -268,6 +325,7 @@ int check_view(const char* name) {
   } else {
     log::info("layout-selftest: %s FAIL %d", name, n);
   }
+  shoot(name);
   return n;
 }
 

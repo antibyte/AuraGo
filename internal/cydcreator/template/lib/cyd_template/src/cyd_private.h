@@ -92,6 +92,7 @@ struct WifiUiProbe {
 };
 bool wifi_ui_probe(WifiUiProbe* out);  // false while the setup screen is closed
 void wifi_ui_test(WifiUiTest action, const char* ssid = nullptr);
+extern void (*flush_tap)(int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t* px);  // cyd_display.cpp
 void layout_selftest_begin();          // before wifi_begin(): Wi-Fi event log
 void layout_selftest_loop();           // runs once, a few seconds after boot
 #endif

@@ -18,6 +18,9 @@ void flush_cb(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
   int32_t w = lv_area_get_width(area);
   int32_t h = lv_area_get_height(area);
   detail::panel_push(area->x1, area->y1, w, h, (const uint16_t*)px_map);
+#if CYD_LAYOUT_SELFTEST
+  if (detail::flush_tap != nullptr) detail::flush_tap(area->x1, area->y1, w, h, (const uint16_t*)px_map);
+#endif
   lv_display_flush_ready(disp);
 }
 
@@ -52,6 +55,10 @@ void* alloc_draw_buffer(size_t bytes) {
 }  // namespace
 
 namespace detail {
+
+#if CYD_LAYOUT_SELFTEST
+void (*flush_tap)(int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t* px) = nullptr;
+#endif
 
 void display_begin() {
   g_loop_task = xTaskGetCurrentTaskHandle();  // setup() runs on the loop task
