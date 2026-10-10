@@ -92,16 +92,20 @@ func generateVideoAgnes(ctx context.Context, baseURL, apiKey, model string, para
 	}
 	respBody, readErr := io.ReadAll(io.LimitReader(resp.Body, 2*1024*1024))
 	resp.Body.Close()
-	if readErr != nil {
-		return VideoGenResult{Status: "error", Error: fmt.Sprintf("Failed to read Agnes AI video response: %v", readErr)}
-	}
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		return VideoGenResult{Status: "error", Error: fmt.Sprintf("Agnes AI video API returned status %d: %s", resp.StatusCode, truncateString(string(respBody), 500))}
+	}
+	// Every status outside 2xx is a rejection and releases the slot, even
+	// when the body could not be read. A 2xx body that cannot be read or is
+	// not JSON has no task id, so the slot stays reserved. A parsed state
+	// below still returns status error.
+	if readErr != nil {
+		return VideoGenResult{Status: "external_status_unknown", Error: videoProviderOutcomeUnknownMsg}
 	}
 
 	state, err := parseAgnesVideoState(respBody)
 	if err != nil {
-		return VideoGenResult{Status: "error", Error: fmt.Sprintf("Failed to parse Agnes AI video response: %v", err)}
+		return VideoGenResult{Status: "external_status_unknown", Error: videoProviderOutcomeUnknownMsg}
 	}
 	if state.TaskID == "" && state.VideoID == "" {
 		return VideoGenResult{Status: "error", Error: "Agnes AI did not return a task_id or video_id"}

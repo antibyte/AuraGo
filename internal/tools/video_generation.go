@@ -470,14 +470,20 @@ func generateVideoMiniMax(ctx context.Context, baseURL, apiKey, model string, pa
 		return videoCreateTransportFailure(err, reached, "MiniMax API request failed: %v")
 	}
 	defer resp.Body.Close()
-	respBody, _ := io.ReadAll(resp.Body)
+	respBody, readErr := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		return VideoGenResult{Status: "error", Error: fmt.Sprintf("MiniMax API returned status %d: %s", resp.StatusCode, truncateString(string(respBody), 500))}
+	}
+	// The provider accepted the create request. An unread or non-JSON body
+	// has no task id, so the daily slot stays reserved. A parsed rejection
+	// below still returns status error.
+	if readErr != nil {
+		return VideoGenResult{Status: "external_status_unknown", Error: videoProviderOutcomeUnknownMsg}
 	}
 
 	var createResp miniMaxVideoCreateResponse
 	if err := json.Unmarshal(respBody, &createResp); err != nil {
-		return VideoGenResult{Status: "error", Error: fmt.Sprintf("Failed to parse MiniMax response: %v", err)}
+		return VideoGenResult{Status: "external_status_unknown", Error: videoProviderOutcomeUnknownMsg}
 	}
 	if createResp.BaseResp.StatusCode != 0 {
 		return VideoGenResult{Status: "error", Error: fmt.Sprintf("MiniMax API error: %s (code %d)", createResp.BaseResp.StatusMsg, createResp.BaseResp.StatusCode)}
@@ -680,14 +686,20 @@ func generateVideoGoogle(ctx context.Context, baseURL, apiKey, model string, par
 		return videoCreateTransportFailure(err, reached, "Google Veo API request failed: %v")
 	}
 	defer resp.Body.Close()
-	respBody, _ := io.ReadAll(resp.Body)
+	respBody, readErr := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		return VideoGenResult{Status: "error", Error: fmt.Sprintf("Google Veo API returned status %d: %s", resp.StatusCode, truncateString(string(respBody), 500))}
+	}
+	// The provider accepted the create request. An unread or non-JSON body
+	// has no task id, so the daily slot stays reserved. A parsed operation
+	// with an empty name below still returns status error.
+	if readErr != nil {
+		return VideoGenResult{Status: "external_status_unknown", Error: videoProviderOutcomeUnknownMsg}
 	}
 
 	var operation googleVeoOperation
 	if err := json.Unmarshal(respBody, &operation); err != nil {
-		return VideoGenResult{Status: "error", Error: fmt.Sprintf("Failed to parse Google Veo operation: %v", err)}
+		return VideoGenResult{Status: "external_status_unknown", Error: videoProviderOutcomeUnknownMsg}
 	}
 	if operation.Name == "" {
 		return VideoGenResult{Status: "error", Error: "Google Veo did not return an operation name"}
