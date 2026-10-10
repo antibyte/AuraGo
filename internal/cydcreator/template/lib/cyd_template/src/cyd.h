@@ -58,6 +58,11 @@ void set_string(const char* key, const String& v);
 void remove(const char* key);
 }  // namespace storage
 
+// Hardware the runtime owns: LEDC channels 0-2 (RGB LED), 4 (speaker) and 7
+// (backlight) are reserved. Use board::beep() for sound; never call tone(),
+// analogWrite() or ledcSetup()/ledcAttachPin() on those channels or pins.
+// On boards whose touch controller sits on VSPI (classic CYD) the SD card slot
+// shares the default SPI bus, so mounting an SD card there breaks touch.
 namespace board {
 enum class Feature { RgbLed, LightSensor, Speaker, SdCard };
 bool has(Feature f);
@@ -67,7 +72,10 @@ int light_level();
 void beep(uint16_t hz, uint16_t ms);
 }  // namespace board
 
-// Run fn on the loop task (the only place LVGL may be called). Safe from any task.
+// Run fn on the loop task (the only place LVGL may be called). Safe from any
+// task, but NOT from an interrupt handler: it allocates and may block for up to
+// a second when the queue is full. A call made before the runtime has set up
+// the display is dropped with a warning.
 void ui_async(std::function<void()> fn);
 
 namespace log {

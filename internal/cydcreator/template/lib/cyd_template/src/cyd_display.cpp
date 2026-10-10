@@ -68,21 +68,23 @@ void display_begin() {
   uint32_t lines = CYD_DRAW_BUF_LINES;
   void* buf1 = nullptr;
   void* buf2 = nullptr;
-  while (lines >= 4) {
+  // Halve the line count until one buffer fits; the second (double) buffer is
+  // optional: flushes are synchronous, so a single buffer renders correctly.
+  while (lines >= 1) {
     size_t bytes = (size_t)line_px * lines * 2;
     buf1 = alloc_draw_buffer(bytes);
-    if (buf1 != nullptr && CYD_DRAW_BUF_DOUBLE) {
-      buf2 = alloc_draw_buffer(bytes);
-      if (buf2 == nullptr) {
-        heap_caps_free(buf1);
-        buf1 = nullptr;
+    if (buf1 != nullptr) {
+      if (CYD_DRAW_BUF_DOUBLE) {
+        buf2 = alloc_draw_buffer(bytes);
+        if (buf2 == nullptr) log::warn("no memory for a second draw buffer, using a single buffer");
       }
+      break;
     }
-    if (buf1 != nullptr) break;
     lines /= 2;
   }
   if (buf1 == nullptr) {
-    log::error("no memory for LVGL draw buffers");
+    log::error("no memory for LVGL draw buffers (not even one line)");
+    Serial.flush();
     abort();
   }
   if (lines != CYD_DRAW_BUF_LINES) log::warn("draw buffer reduced to %lu lines", (unsigned long)lines);
@@ -120,7 +122,12 @@ void display_loop() {
 }  // namespace detail
 
 void ui_async(std::function<void()> fn) {
-  detail::ui_queue_begin();
+  // The queue is created once by display_begin() on the loop task before any
+  // other task starts; creating it lazily here would race between tasks.
+  if (g_ui_queue == nullptr) {
+    log::warn("ui_async called before the runtime started, callback dropped");
+    return;  // nothing was allocated yet
+  }
   auto* heap_fn = new std::function<void()>(std::move(fn));
   // Other tasks wait briefly for room; the loop task itself must not wait on
   // the queue it drains.

@@ -27,6 +27,13 @@ using CydPanel = lgfx::Panel_RGB;
 #error "board_config.h: unknown CYD_PANEL_DRIVER_*"
 #endif
 
+// The NV3041A cannot rotate by register (LovyanGFX note), so a portrait
+// orientation cannot work: such boards stay landscape (CYD_ROTATION is relative
+// to the native landscape orientation, odd values are portrait).
+#if defined(CYD_PANEL_DRIVER_NV3041A) && (CYD_ROTATION & 1)
+#error "NV3041A panels support landscape only"
+#endif
+
 #if defined(CYD_TOUCH_DRIVER_XPT2046)
 using CydTouch = lgfx::Touch_XPT2046;
 #elif defined(CYD_TOUCH_DRIVER_GT911)
@@ -232,7 +239,6 @@ class CydLGFX : public lgfx::LGFX_Device {
 };
 
 CydLGFX* g_lcd = nullptr;
-uint8_t g_backlight_pct = CYD_BACKLIGHT_DEFAULT;
 esp_timer_handle_t g_beep_timer = nullptr;
 
 // Inverse of the transform LovyanGFX applies in Panel_Device::convertRawXY,
@@ -264,10 +270,19 @@ namespace detail {
 
 void board_begin() {
   g_lcd = new CydLGFX();
-  g_lcd->init();
+  if (!g_lcd->init()) {
+    // Typical causes: no PSRAM for an RGB panel, wrong pins in the board profile.
+    log::error("display init failed on board %s (panel driver, bus pins or PSRAM)", CYD_BOARD_ID);
+    Serial.flush();
+    abort();
+  }
   g_lcd->setRotation(CYD_ROTATION);
   g_lcd->setColorDepth(16);
   g_lcd->fillScreen(TFT_BLACK);
+  if (g_lcd->width() != CYD_SCREEN_W || g_lcd->height() != CYD_SCREEN_H) {
+    log::error("display is %dx%d but the project expects %dx%d (rotation %d)", (int)g_lcd->width(),
+               (int)g_lcd->height(), CYD_SCREEN_W, CYD_SCREEN_H, CYD_ROTATION);
+  }
 #if CYD_PIN_LCD_BL >= 0 && !CYD_BL_PWM
   pinMode(CYD_PIN_LCD_BL, OUTPUT);
 #endif
@@ -309,9 +324,20 @@ void panel_push(int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t* rgb5
 bool touch_screen(int16_t* x, int16_t* y) {
   lgfx::touch_point_t tp;
   if (g_lcd == nullptr || g_lcd->getTouch(&tp, 1) == 0) return false;
-  if (tp.x < 0 || tp.y < 0 || tp.x >= g_lcd->width() || tp.y >= g_lcd->height()) return false;
-  *x = tp.x;
-  *y = tp.y;
+  // Touch layers often reach a little past the visible area: clamp those
+  // points to the edge and drop only readings far outside.
+  constexpr int kSlack = 20;
+  const int w = g_lcd->width();
+  const int h = g_lcd->height();
+  int tx = tp.x;
+  int ty = tp.y;
+  if (tx < -kSlack || ty < -kSlack || tx > w - 1 + kSlack || ty > h - 1 + kSlack) return false;
+  if (tx < 0) tx = 0;
+  if (tx > w - 1) tx = w - 1;
+  if (ty < 0) ty = 0;
+  if (ty > h - 1) ty = h - 1;
+  *x = (int16_t)tx;
+  *y = (int16_t)ty;
   return true;
 }
 
@@ -390,7 +416,6 @@ bool has(Feature f) {
 
 void backlight(uint8_t pct) {
   if (pct > 100) pct = 100;
-  g_backlight_pct = pct;
 #if CYD_PIN_LCD_BL >= 0
 #if CYD_BL_PWM
   if (g_lcd != nullptr) g_lcd->setBrightness((uint8_t)((pct * 255 + 50) / 100));
@@ -430,7 +455,7 @@ int light_level() {
 // Non-blocking: starts the tone and stops it from an esp_timer after ms.
 void beep(uint16_t hz, uint16_t ms) {
 #if CYD_HAS_SPEAKER
-  if (hz == 0 || ms == 0) return;
+  if (hz == 0 || ms == 0 || g_beep_timer == nullptr) return;
   esp_timer_stop(g_beep_timer);
   ledcWriteTone(CYD_LEDC_SPEAKER, hz);
   esp_timer_start_once(g_beep_timer, (uint64_t)ms * 1000ULL);

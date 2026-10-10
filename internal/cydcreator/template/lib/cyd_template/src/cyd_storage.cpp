@@ -5,6 +5,7 @@
 #include "cyd_private.h"
 
 #include <Preferences.h>
+#include <string.h>
 
 namespace cyd {
 namespace {
@@ -22,11 +23,20 @@ struct Locked {
 
 const char* const kAppNs = "app";
 
+// NVS keys hold at most 15 characters. Preferences rejects longer ones, so the
+// value would silently never be stored: tell the app author in the log.
+void warn_long_key(const char* key) {
+  if (key != nullptr && strlen(key) > 15) {
+    log::warn("storage: key \"%s\" is longer than 15 characters and will not be stored", key);
+  }
+}
+
 }  // namespace
 
 namespace storage {
 
 int32_t get_int(const char* key, int32_t def) {
+  warn_long_key(key);
   Locked l;
   Preferences p;
   if (!p.begin(kAppNs, true)) return def;
@@ -36,6 +46,7 @@ int32_t get_int(const char* key, int32_t def) {
 }
 
 void set_int(const char* key, int32_t v) {
+  warn_long_key(key);
   Locked l;
   Preferences p;
   if (!p.begin(kAppNs, false)) return;
@@ -44,6 +55,7 @@ void set_int(const char* key, int32_t v) {
 }
 
 float get_float(const char* key, float def) {
+  warn_long_key(key);
   Locked l;
   Preferences p;
   if (!p.begin(kAppNs, true)) return def;
@@ -53,6 +65,7 @@ float get_float(const char* key, float def) {
 }
 
 void set_float(const char* key, float v) {
+  warn_long_key(key);
   Locked l;
   Preferences p;
   if (!p.begin(kAppNs, false)) return;
@@ -61,6 +74,7 @@ void set_float(const char* key, float v) {
 }
 
 bool get_bool(const char* key, bool def) {
+  warn_long_key(key);
   Locked l;
   Preferences p;
   if (!p.begin(kAppNs, true)) return def;
@@ -70,6 +84,7 @@ bool get_bool(const char* key, bool def) {
 }
 
 void set_bool(const char* key, bool v) {
+  warn_long_key(key);
   Locked l;
   Preferences p;
   if (!p.begin(kAppNs, false)) return;
@@ -78,6 +93,7 @@ void set_bool(const char* key, bool v) {
 }
 
 String get_string(const char* key, const String& def) {
+  warn_long_key(key);
   Locked l;
   Preferences p;
   if (!p.begin(kAppNs, true)) return def;
@@ -87,6 +103,7 @@ String get_string(const char* key, const String& def) {
 }
 
 void set_string(const char* key, const String& v) {
+  warn_long_key(key);
   Locked l;
   Preferences p;
   if (!p.begin(kAppNs, false)) return;
@@ -95,6 +112,7 @@ void set_string(const char* key, const String& v) {
 }
 
 void remove(const char* key) {
+  warn_long_key(key);
   Locked l;
   Preferences p;
   if (!p.begin(kAppNs, false)) return;
