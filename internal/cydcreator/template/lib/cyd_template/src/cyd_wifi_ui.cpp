@@ -664,6 +664,8 @@ bool wifi_ui_probe(WifiUiProbe* out) {
   out->scanning = g_ui->scanning;
   out->connecting = g_ui->connecting;
   out->closing = g_ui->close_at != 0;
+  out->portal = portal_active();
+  out->networks = g_ui->found.size();
   return true;
 }
 
@@ -680,6 +682,9 @@ void wifi_ui_test(WifiUiTest action, const char* ssid) {
       g_ui->hidden = false;
       g_ui->sel_ssid = ssid != nullptr ? ssid : "";
       g_ui->pending = View::Password;
+      break;
+    case WifiUiTest::Back:
+      on_back(nullptr);
       break;
     case WifiUiTest::Close:
       g_ui->close_requested = true;

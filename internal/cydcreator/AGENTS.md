@@ -182,11 +182,13 @@ service to this same package.
   fits; the list view has rescan as the header's refresh button and "hidden network" as the last list entry; the
   password view shows the SSID as the title, gives the keyboard at most half the screen (less when two fields need
   the room) and ends the content at its top edge; the status replaces the keyboard while connecting and after a
-  failure, until a field is tapped. `layout_check()` (`cyd_layout.cpp`, always compiled) logs
-  `layout: <view> ...` after every view change. Test builds with `#define CYD_LAYOUT_SELFTEST 1` (layout and
-  reconnect; boots without joining the stored network) or `2` (layout only) in `include/board_config.h` run the
-  on-device self-test a few seconds after boot and print `layout-selftest: <view> PASS|FAIL <n>`,
-  `layout-selftest: PASS|FAIL <n>` and `layout-selftest: reconnect PASS|FAIL <ms>`; the generator never sets it.
+  failure, until a field is tapped; leaving the password view cancels a running attempt and restarts the portal
+  first. `layout_check()` (`cyd_layout.cpp`, always compiled) logs `layout: <view> ...` (at most five lines plus
+  `<n> more`) after every view change. Test builds with `#define CYD_LAYOUT_SELFTEST 1` (layout and reconnect;
+  boots without joining the stored network), `2` (layout only) or `3` (layout and a 50-cycle soak with heap
+  numbers) in `include/board_config.h` run the on-device self-test (`cyd_layout_selftest.cpp`, compiled only then)
+  a few seconds after boot and print `layout-selftest: <view> PASS|FAIL <n>`, `layout-selftest: PASS|FAIL <n>`,
+  `layout-selftest: reconnect PASS|FAIL <ms>` and `layout-selftest: soak ...`; the generator never sets it.
 - Setup portal: the SoftAP `CYD-Setup-XXXX` is WPA2 with a fresh random 8-character password. WiFiManager's menu is
   `wifi` only, and its admin routes (`/update /u /erase /restart /info /param /paramsave /exit /close`) answer 404:
   `block_admin_routes` registers them from WiFiManager's web-server callback, before WiFiManager's own routes, and the
@@ -198,9 +200,11 @@ service to this same package.
   associated station associated; `setDisableConfigPortal(false)` keeps the phone path from running the shutdown
   inside `process()`. The on-device path stops the portal before `WiFi.begin()` (one radio channel: next to the
   SoftAP the first join timed out), skips the join when the station is already on that SSID with that password,
-  counts success only for a `STA_GOT_IP` after its `begin()` (`wifi_ip_generation()`), gives up after 3 failed
-  joins (`wifi_fail_generation()`), on `WL_CONNECT_FAILED` or after `CYD_WIFI_CONNECT_MS`, and then stops the
-  driver's auto-reconnect until the next attempt or the close. Closing after a success never starts a new join
+  counts success only for a `STA_GOT_IP` after its `begin()` (`wifi_ip_generation()`), gives up on the first
+  `NO_AP_FOUND` (`wifi_last_fail_reason()`), after 3 failed joins (`wifi_fail_generation()`), on
+  `WL_CONNECT_FAILED` or after `CYD_WIFI_CONNECT_MS`. Ending or leaving an attempt disconnects with the driver's
+  auto-reconnect off and restarts the portal, which turns auto-reconnect back on (WiFiManager's phone-path join
+  tries once and relies on the driver's retry). Closing after a success never starts a new join
   (`wifi_await_link()`). Scans are polled for up to 15 s: 2.0.17 `scanComplete()` reports a failure after 6 s,
   which scans next to the SoftAP exceed.
 - Token origin: the AuraGo bearer token is sent only to `g_cfg.url + path` (the `cydcc` URL; https is pinned by

@@ -88,13 +88,14 @@ bool portal_loop();                   // true once the phone path connected
 void time_begin();                    // NTP + TZ after the first connection
 
 #if CYD_LAYOUT_SELFTEST
-// Layout self-test (test builds only): cyd_layout.cpp drives the real setup
-// screen through these hooks of cyd_wifi_ui.cpp.
-enum class WifiUiTest { ToDevice, Hidden, Network, Close };
+// Layout self-test (test builds only): cyd_layout_selftest.cpp drives the
+// real setup screen through these hooks of cyd_wifi_ui.cpp.
+enum class WifiUiTest { ToDevice, Hidden, Network, Back, Close };
 struct WifiUiProbe {
   lv_obj_t *scr, *content, *list, *kb, *status, *ta_ssid, *ta_pass;
   int view;  // 0 none, 1 phone, 2 list, 3 password
-  bool scanning, connecting, closing;
+  bool scanning, connecting, closing, portal;
+  size_t networks;  // of the last scan
 };
 bool wifi_ui_probe(WifiUiProbe* out);  // false while the setup screen is closed
 void wifi_ui_test(WifiUiTest action, const char* ssid = nullptr);

@@ -32,8 +32,9 @@
 #define CYD_WIFI_REQUIRED 2
 
 // Test builds only: the on-device self-test of the Wi-Fi setup screen runs a few
-// seconds after boot (cyd_layout.cpp): 1 = layout and reconnect (boots without
-// joining the stored network), 2 = layout only. Never set by the generator.
+// seconds after boot (cyd_layout_selftest.cpp): 1 = layout and reconnect (boots
+// without joining the stored network), 2 = layout only, 3 = layout and a soak of
+// 50 view-switch cycles with heap numbers. Never set by the generator.
 #ifndef CYD_LAYOUT_SELFTEST
 #define CYD_LAYOUT_SELFTEST 0
 #endif
