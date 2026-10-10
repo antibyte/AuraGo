@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -259,5 +260,28 @@ func TestVideoDownloadHostConfigIsBounded(t *testing.T) {
 	tmpfs, _ := host["Tmpfs"].(map[string]string)
 	if tmpfs["/tmp"] != "rw,nosuid,nodev,size=64m" {
 		t.Fatalf("Tmpfs = %#v", tmpfs)
+	}
+}
+
+func TestVideoDownloadResultOmitsHostPathAndBoundsText(t *testing.T) {
+	t.Parallel()
+	long := strings.Repeat("ä", 250)
+	raw := videoDownloadJSON(videoDownloadResult{
+		Status:   "ok",
+		FilePath: `C:\secret\clip.mp4`,
+		WebPath:  "/files/downloads/clip.mp4",
+		Info:     compactVideoInfo(map[string]interface{}{"description": long, "title": "clip"}),
+		Message:  commandErrMessage(fmt.Errorf("yt-dlp failed"), long),
+	})
+	if strings.Contains(raw, `C:\secret`) || strings.Contains(raw, "file_path") {
+		t.Fatalf("host path leaked: %s", raw)
+	}
+	var decoded map[string]interface{}
+	if err := json.Unmarshal([]byte(raw), &decoded); err != nil {
+		t.Fatal(err)
+	}
+	info := decoded["info"].(map[string]interface{})
+	if got := []rune(info["description"].(string)); len(got) > 203 {
+		t.Fatalf("description runes = %d", len(got))
 	}
 }

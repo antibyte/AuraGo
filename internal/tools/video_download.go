@@ -41,7 +41,7 @@ type videoDownloadResult struct {
 	Message       string                 `json:"message,omitempty"`
 	Results       []videoSearchResult    `json:"results,omitempty"`
 	Info          map[string]interface{} `json:"info,omitempty"`
-	FilePath      string                 `json:"file_path,omitempty"`
+	FilePath      string                 `json:"-"`
 	WebPath       string                 `json:"web_path,omitempty"`
 	MediaID       int64                  `json:"media_id,omitempty"`
 	MediaType     string                 `json:"media_type,omitempty"`
@@ -464,10 +464,11 @@ func parseYtDlpSearch(output string) []videoSearchResult {
 
 func truncateVideoSearchDescription(value string) string {
 	value = strings.TrimSpace(value)
-	if len(value) <= maxVideoSearchDescriptionLength {
+	runes := []rune(value)
+	if len(runes) <= maxVideoSearchDescriptionLength {
 		return value
 	}
-	return strings.TrimSpace(value[:maxVideoSearchDescriptionLength]) + "..."
+	return strings.TrimSpace(string(runes[:maxVideoSearchDescriptionLength])) + "..."
 }
 
 func compactVideoInfo(info map[string]interface{}) map[string]interface{} {
@@ -475,6 +476,12 @@ func compactVideoInfo(info map[string]interface{}) map[string]interface{} {
 	out := make(map[string]interface{}, len(keys))
 	for _, key := range keys {
 		if val, ok := info[key]; ok {
+			if key == "description" {
+				if text, ok := val.(string); ok {
+					out[key] = truncateVideoSearchDescription(text)
+					continue
+				}
+			}
 			out[key] = val
 		}
 	}
@@ -610,12 +617,19 @@ func videoDownloadMode(cfg *config.Config) string {
 	return "docker"
 }
 
+const maxVideoDownloadCommandErrRunes = 300
+
 func commandErrMessage(err error, stderr string) string {
 	stderr = strings.TrimSpace(stderr)
-	if stderr == "" {
-		return err.Error()
+	msg := err.Error()
+	if stderr != "" {
+		msg = msg + ": " + stderr
 	}
-	return err.Error() + ": " + stderr
+	runes := []rune(msg)
+	if len(runes) <= maxVideoDownloadCommandErrRunes {
+		return msg
+	}
+	return string(runes[:maxVideoDownloadCommandErrRunes])
 }
 
 func videoDownloadJSON(result videoDownloadResult) string {

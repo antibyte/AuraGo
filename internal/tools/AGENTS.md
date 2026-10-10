@@ -10,6 +10,8 @@ Agent filesystem, external service and Docker tool safety boundaries.
 
 ## Local Contracts
 
+- `video_download` admits info, download, and transcribe URLs through `security.ValidatePublicHTTPURL`. Docker mode runs the pinned `ghcr.io/jauderho/yt-dlp@sha256:90cd9016efc4451153c8bc35cc7a0d9a8cba0e796818e52f3b4d28b9736ac91c` image with a 512 MiB memory cap, one CPU, 64 pids, a read-only root, a 64 MiB `/tmp` tmpfs, and `no-new-privileges`. A downloaded path must be a regular file inside the download directory. Tool JSON returns `web_path` and omits the host path. Verify `TestValidateVideoDownloadURLRejectsInternalTargets`, `TestVideoDownloadHostConfigIsBounded`, `TestResolveDownloadedFilePathRejectsSymlink`, and `TestVideoDownloadResultOmitsHostPathAndBoundsText`.
+
 - Email watchers inherit the server context. Stop cancels and joins polling, IMAP TCP/TLS and commands, Guardian evaluation, mission callbacks and loopback notifications before database shutdown. A failed initial account seed must be retried before forwarding old unseen mail. A stopped watcher can start with a fresh context; callbacks run outside its mutex.
 
 - YepAPI POST operations are sent once because results may be billable or mutate provider jobs. YepAPI and Dograh bind custom credential headers to one HTTP origin. Proxmox error responses use JSON encoding for dynamic messages.
