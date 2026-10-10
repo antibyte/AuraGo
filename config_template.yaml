@@ -1130,7 +1130,7 @@ virtual_desktop:
         auto_stop_minutes: 20                              # stop container after inactivity
         max_memory_mb: 2048                                # Docker memory limit
         max_cpu_cores: 2                                   # Docker CPU quota
-        max_concurrent_jobs: 1                             # render jobs at once
+        max_concurrent_jobs: 1                             # accepted for compatibility; renders always run one at a time
         geometry_backend: auto                             # auto prefers Manifold when the image supports --backend; cgal/manifold force a backend when available
         default_exports: [png, stl]                        # default render output formats
         max_source_kb: 512                                 # maximum uploaded/generated SCAD source size

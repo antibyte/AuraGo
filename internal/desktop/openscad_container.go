@@ -355,15 +355,20 @@ func (s *OpenSCADContainerService) runOpenSCADJobContainer(ctx context.Context, 
 }
 
 func (s *OpenSCADContainerService) waitOpenSCADJobExit(ctx context.Context, name string, timeout time.Duration) (CodeDockerInspect, error) {
+	if timeout <= 0 {
+		return CodeDockerInspect{}, fmt.Errorf("openscad export timed out")
+	}
+	// The inspect context is the per-export budget. A cancelled parent still
+	// wins; a live parent must not keep a finished budget running.
+	waitCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	ticker := time.NewTicker(200 * time.Millisecond)
 	defer ticker.Stop()
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
 	for {
 		if err := ctx.Err(); err != nil {
 			return CodeDockerInspect{}, err
 		}
-		inspect, err := s.docker.InspectContainer(ctx, name)
+		inspect, err := s.docker.InspectContainer(waitCtx, name)
 		if err == nil && !inspect.State.Running {
 			return inspect, nil
 		}
@@ -373,7 +378,10 @@ func (s *OpenSCADContainerService) waitOpenSCADJobExit(ctx context.Context, name
 		select {
 		case <-ctx.Done():
 			return CodeDockerInspect{}, ctx.Err()
-		case <-timer.C:
+		case <-waitCtx.Done():
+			if ctx.Err() != nil {
+				return CodeDockerInspect{}, ctx.Err()
+			}
 			return CodeDockerInspect{}, fmt.Errorf("openscad export timed out")
 		case <-ticker.C:
 		}
@@ -504,6 +512,7 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 	}
 	start := time.Now()
 	timeout := openSCADRenderTimeout(req.TimeoutSeconds, s.cfg.OpenSCAD)
+	deadline := time.Now().Add(timeout)
 	if s.logger != nil {
 		s.logger.Info("openscad render job started",
 			"job_id", jobID,
@@ -528,6 +537,20 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 	}
 	runtimeDiag := s.logOpenSCADRuntimeDiagnostics(ctx, containerID, jobID)
 	for _, export := range req.Exports {
+		if time.Until(deadline) <= 0 {
+			result.DurationMS = time.Since(start).Milliseconds()
+			result.Stderr = truncateOpenSCADOutput(combinedOutput.String())
+			_ = s.writeJobMetadata(jobDir, result)
+			if s.logger != nil {
+				s.logger.Warn("openscad export failed",
+					"job_id", jobID,
+					"export", export,
+					"duration_ms", result.DurationMS,
+					"error", "openscad export timed out",
+				)
+			}
+			return result, fmt.Errorf("openscad export timed out")
+		}
 		selectedBackend := selectOpenSCADGeometryBackend(s.cfg.OpenSCAD, export, runtimeDiag)
 		cmd, filename := buildOpenSCADCommandWithBackend(jobID, modelName, export, req, selectedBackend)
 		exportStart := time.Now()
@@ -559,7 +582,7 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 				"geometry_backend_requested", openSCADGeometryBackendPreference(s.cfg.OpenSCAD),
 			)
 		}
-		execResult, execErr := s.runOpenSCADJobContainer(ctx, openSCADJobContainerName(jobID, export), jobDir, execCmd, timeout)
+		execResult, execErr := s.runOpenSCADJobContainer(ctx, openSCADJobContainerName(jobID, export), jobDir, execCmd, time.Until(deadline))
 		exportDuration := time.Since(exportStart)
 		execOutput := strings.TrimSpace(execResult.Output)
 		if execErr != nil {
@@ -822,7 +845,7 @@ func (s *OpenSCADContainerService) Status(ctx context.Context) OpenSCADStatus {
 		JobsContainerPath:       openSCADJobsInContainer,
 		AutoStopMinutes:         openSCADAutoStopMinutes(s.cfg.OpenSCAD),
 		MaxConcurrentJobs:       openSCADMaxConcurrentJobs(s.cfg.OpenSCAD),
-		RenderQueueNote:         "Renders run one at a time in the OpenSCAD container.",
+		RenderQueueNote:         "Renders run one at a time.",
 		DefaultExports:          openSCADDefaultExports(s.cfg.OpenSCAD),
 		RenderTimeoutSeconds:    int(openSCADDefaultTimeout(s.cfg.OpenSCAD).Seconds()),
 		MaxRenderTimeoutSeconds: int(openSCADMaxTimeout(s.cfg.OpenSCAD).Seconds()),
@@ -1420,10 +1443,9 @@ func openSCADCPUCores(cfg OpenSCADConfig) int {
 	return defaultOpenSCADCPUCores
 }
 
-func openSCADMaxConcurrentJobs(cfg OpenSCADConfig) int {
-	if cfg.MaxConcurrentJobs > 0 {
-		return cfg.MaxConcurrentJobs
-	}
+// openSCADMaxConcurrentJobs is the effective render queue. The YAML field stays
+// loadable for compatibility, and renders always run one at a time.
+func openSCADMaxConcurrentJobs(OpenSCADConfig) int {
 	return 1
 }
 

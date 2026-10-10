@@ -986,3 +986,84 @@ func TestOpenSCADStatusAndResultOmitHostPaths(t *testing.T) {
 		t.Fatalf("result leaked a host path: %s", resultBody)
 	}
 }
+
+func TestOpenSCADStatusReportsASingleQueue(t *testing.T) {
+	svc := NewOpenSCADContainerService(Config{
+		DataDir:  t.TempDir(),
+		OpenSCAD: OpenSCADConfig{Enabled: true, MaxConcurrentJobs: 4},
+	}, nil)
+	status := svc.Status(context.Background())
+	if status.MaxConcurrentJobs != 1 || status.RenderQueueNote != "Renders run one at a time." {
+		t.Fatalf("queue = %d %q", status.MaxConcurrentJobs, status.RenderQueueNote)
+	}
+}
+
+// openSCADDeadlineDocker blocks each job inspect until the context passed into
+// the wait ends, then reports the container stopped. It writes the export file
+// so a finished container is a successful export. The per-export timeout must
+// be that context: the parent test context stays alive for longer.
+type openSCADDeadlineDocker struct {
+	fakeCodeContainerDocker
+}
+
+func (f *openSCADDeadlineDocker) CreateContainer(ctx context.Context, req CodeDockerCreateRequest) (string, error) {
+	id, err := f.fakeCodeContainerDocker.CreateContainer(ctx, req)
+	if err != nil || !strings.HasPrefix(req.Name, openSCADContainerName+"-oscad-") {
+		return id, err
+	}
+	jobDir := openSCADBindHost(req.Volumes, openSCADWorkDir)
+	output := openSCADOutputArg(req.Cmd)
+	if jobDir != "" && output != "" {
+		if writeErr := os.WriteFile(filepath.Join(jobDir, filepath.Base(output)), []byte("export"), 0o644); writeErr != nil {
+			return id, writeErr
+		}
+	}
+	return id, nil
+}
+
+func (f *openSCADDeadlineDocker) InspectContainer(ctx context.Context, container string) (CodeDockerInspect, error) {
+	if strings.HasPrefix(container, openSCADContainerName+"-oscad-") {
+		<-ctx.Done()
+		return CodeDockerInspect{
+			ID:    container,
+			Name:  container,
+			State: CodeDockerState{Running: ctx.Err() == nil},
+		}, nil
+	}
+	return f.fakeCodeContainerDocker.InspectContainer(ctx, container)
+}
+
+func TestOpenSCADRenderUsesOneDeadlineForEveryExport(t *testing.T) {
+	dataDir := t.TempDir()
+	fake := &openSCADDeadlineDocker{}
+	svc := NewOpenSCADContainerService(Config{
+		DataDir: dataDir,
+		OpenSCAD: OpenSCADConfig{
+			Enabled: true, RenderTimeoutSeconds: 1, MaxRenderTimeoutSeconds: 1,
+		},
+	}, nil)
+	svc.SetDockerClient(fake)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err := svc.Render(ctx, OpenSCADRenderRequest{
+		SourceSCAD:     "cube(1);",
+		ModelName:      "deadline",
+		Exports:        []string{"png", "stl", "3mf"},
+		TimeoutSeconds: 1,
+	})
+	if ctx.Err() != nil {
+		t.Fatalf("parent context ended before the export budget: %v", ctx.Err())
+	}
+	if err == nil || !strings.Contains(err.Error(), "timed out") {
+		t.Fatalf("error = %v, want timed out", err)
+	}
+	jobs := 0
+	for _, req := range fake.creates {
+		if strings.HasPrefix(req.Name, openSCADContainerName+"-oscad-") {
+			jobs++
+		}
+	}
+	if jobs > 1 {
+		t.Fatalf("job containers = %d, want the deadline to stop the later exports", jobs)
+	}
+}
