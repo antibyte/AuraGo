@@ -34,6 +34,7 @@ class CydWiFiManager : public WiFiManager {
     configPortalActive = false;
     _end();
   }
+  const String& saved_ssid() const { return _ssid; }  // SSID of the last phone save
 };
 
 CydWiFiManager* g_wm = nullptr;  // created once, never deleted (owns WiFi event hooks)
@@ -144,19 +145,34 @@ void portal_start(String* ap_ssid, String* ap_pass) {
 
 bool portal_active() { return g_running; }
 
-// True once a phone saved credentials and the station connected; the portal
+// Joined once a phone saved credentials and the station connected; the portal
 // keeps running until portal_stop(). If WiFiManager ever shuts it down on its
 // own, its web server is freed: stop_quietly() checks for that.
-bool portal_loop() {
-  if (!g_running) return false;
+//
+// A phone save joins inside process() (blocking, up to setConnectTimeout()).
+// When that join fails, WiFiManager keeps the portal up and shows the reason
+// on its status line the next time the phone opens a page, but the device saw
+// nothing; and the driver keeps retrying the saved credentials in the
+// background (auto-reconnect), hopping off the SoftAP's channel. Any failed
+// join during process() therefore ends those retries and reports JoinFailed.
+PortalEvent portal_loop() {
+  if (!g_running) return PortalEvent::None;
+  uint32_t fails = wifi_fail_generation();
   bool connected = g_wm->process();
   if (connected || !g_wm->getConfigPortalActive()) g_running = false;
   if (connected) {
     log::info("portal: connected through the phone path");
-  } else if (!g_running) {
-    log::warn("portal: ended without a connection");
+    return PortalEvent::Joined;
   }
-  return connected;
+  if (!g_running) {
+    log::warn("portal: ended without a connection");
+  } else if (wifi_fail_generation() != fails && WiFi.status() != WL_CONNECTED) {
+    log::warn("portal: joining \"%s\" from the phone failed (reason %u)", g_wm->saved_ssid().c_str(),
+              (unsigned)wifi_last_fail_reason());
+    WiFi.disconnect(false, false);
+    return PortalEvent::JoinFailed;
+  }
+  return PortalEvent::None;
 }
 
 void portal_stop() {

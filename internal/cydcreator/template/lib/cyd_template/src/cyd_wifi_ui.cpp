@@ -41,15 +41,21 @@ struct SetupUi {
   bool close_requested = false;
   bool scanning = false;
   bool hidden = false;
+  bool sel_listed = false;    // the selected network came from the scan list
+  bool sel_locked = false;    // ... and the scan saw it encrypted
+  bool phone_failed = false;  // the last phone-path join failed (the phone view says so)
   bool connecting = false;
-  uint32_t ip_gen = 0;    // wifi_ip_generation() when the attempt started
-  uint32_t fail_gen = 0;  // wifi_fail_generation() when the attempt started
+  uint32_t ip_gen = 0;     // wifi_ip_generation() when the attempt started
+  uint32_t fail_gen = 0;   // wifi_fail_generation() when the attempt started
+  uint32_t seen_fail = 0;  // wifi_fail_generation() last looked at
+  uint32_t no_ap = 0;      // NO_AP_FOUND joins of this attempt
   uint32_t connect_started = 0;
   uint32_t scan_started = 0;
   uint32_t close_at = 0;
   uint32_t portal_retry_at = 0;
   String ap_ssid, ap_pass, sel_ssid;
   std::vector<String> found;
+  std::vector<bool> found_locked;  // per found[] entry: not WIFI_AUTH_OPEN
 };
 
 SetupUi* g_ui = nullptr;
@@ -145,24 +151,48 @@ void on_back(lv_event_t*) {
 }
 
 void on_to_device(lv_event_t*) { g_ui->pending = View::List; }
-void on_rescan(lv_event_t*) {
-  // A scan that outlasted scanComplete()'s 6 s still delivers its results; a
-  // second one started now would fail and drop them.
-  if (!g_ui->scanning) g_ui->pending = View::List;
-}
+void on_rescan(lv_event_t*) { g_ui->pending = View::List; }
 
 void on_hidden(lv_event_t*) {
   g_ui->hidden = true;
+  g_ui->sel_listed = false;
+  g_ui->sel_locked = false;
   g_ui->sel_ssid = "";
+  g_ui->pending = View::Password;
+}
+
+// A network by SSID with what the scan said about it; one the scan did not
+// list counts as encrypted, so the password view asks for a password.
+void select_network(const String& ssid) {
+  g_ui->hidden = false;
+  g_ui->sel_ssid = ssid;
+  g_ui->sel_listed = false;
+  g_ui->sel_locked = true;
+  for (size_t i = 0; i < g_ui->found.size(); ++i) {
+    if (g_ui->found[i] == ssid) {
+      g_ui->sel_listed = true;
+      g_ui->sel_locked = g_ui->found_locked[i];
+    }
+  }
   g_ui->pending = View::Password;
 }
 
 void on_network(lv_event_t* e) {
   size_t idx = (size_t)(uintptr_t)lv_event_get_user_data(e);
-  if (idx >= g_ui->found.size()) return;
-  g_ui->hidden = false;
-  g_ui->sel_ssid = g_ui->found[idx];
-  g_ui->pending = View::Password;
+  if (idx < g_ui->found.size()) select_network(g_ui->found[idx]);
+}
+
+// WPA2 passphrases have 8..63 characters, a raw key has 64 hex digits; an open
+// network (hidden or not) has none.
+bool password_ok(const String& p, bool required) {
+  size_t n = p.length();
+  if (n == 0) return !required;
+  if (n >= 8 && n <= 63) return true;
+  if (n != 64) return false;
+  for (size_t i = 0; i < n; ++i) {
+    if (!isxdigit((unsigned char)p[i])) return false;
+  }
+  return true;
 }
 
 void finish_success();
@@ -172,8 +202,14 @@ void start_connect() {
   String ssid = g_ui->hidden ? String(lv_textarea_get_text(g_ui->ta_ssid)) : g_ui->sel_ssid;
   ssid.trim();
   if (ssid.length() == 0) return;
-  String pass = lv_textarea_get_text(g_ui->ta_pass);
+  String pass = g_ui->ta_pass != nullptr ? String(lv_textarea_get_text(g_ui->ta_pass)) : String();
+  if (!password_ok(pass, g_ui->sel_locked && !g_ui->hidden)) {
+    show_keyboard(false);  // the reason stays readable until a field is tapped
+    set_status(CYD_S_WIFI_PASSWORD_LENGTH, t.warning);
+    return;
+  }
   g_ui->sel_ssid = ssid;
+  g_ui->phone_failed = false;
   set_status(CYD_S_WIFI_CONNECTING, t.text_muted);
   show_keyboard(false);
   if (WiFi.status() == WL_CONNECTED && WiFi.SSID() == ssid && WiFi.psk() == pass) {
@@ -189,6 +225,8 @@ void start_connect() {
   g_ui->connect_started = millis();
   g_ui->ip_gen = detail::wifi_ip_generation();
   g_ui->fail_gen = detail::wifi_fail_generation();
+  g_ui->seen_fail = g_ui->fail_gen;
+  g_ui->no_ap = 0;
   detail::wifi_connect(ssid, pass);
 }
 
@@ -306,7 +344,8 @@ int32_t fit_qr(lv_obj_t* frame, int32_t max) {
 // Landscape: QR code and info side by side, the button below. Portrait: QR
 // code on top, info below, the button at the bottom. Too little room: the QR
 // code shrinks stepwise to kQrMin, then the hint goes (QR code and title
-// explain themselves).
+// explain themselves), then the network and the password lines (the QR code
+// carries both); a failure message always stays.
 void build_phone() {
   const ThemeColors& t = ui_theme_colors();
   lv_obj_t* c = g_ui->content;
@@ -333,20 +372,25 @@ void build_phone() {
     lv_obj_set_width(info, lv_pct(100));
     lv_obj_set_flex_grow(info, 1);
   }
+  // A failed phone-path join stays visible here until the next attempt.
+  if (g_ui->phone_failed) g_ui->status = prose(info, CYD_S_WIFI_FAILED, t.font_small, t.danger);
   lv_obj_t* hint = prose(info, CYD_S_WIFI_PHONE_HINT, t.font_small, t.text_muted);
   String net = String(CYD_S_WIFI_NETWORK) + ": " + g_ui->ap_ssid;
-  prose(info, net.c_str(), t.font_small, t.text);
+  lv_obj_t* net_line = prose(info, net.c_str(), t.font_small, t.text);
   String pw = String(CYD_S_WIFI_PASSWORD) + ": " + g_ui->ap_pass;
-  prose(info, pw.c_str(), t.font_mono, t.accent);
+  lv_obj_t* pw_line = prose(info, pw.c_str(), t.font_mono, t.accent);
   wide_button(c, CYD_S_WIFI_ON_DEVICE, on_to_device);
 
   int32_t max = landscape ? CYD_SCREEN_W * 2 / 5 - 2 * kQrQuiet : CYD_SCREEN_W - 2 * kPad - 2 * kQrQuiet;
   max = LV_CLAMP(kQrMin, max, kQrMax);
   int32_t q = fit_qr(frame, max);
-  if (q < 0) {
-    lv_obj_add_flag(hint, LV_OBJ_FLAG_HIDDEN);
+  for (lv_obj_t* optional : {hint, net_line, pw_line}) {
+    if (q >= 0) break;
+    lv_obj_add_flag(optional, LV_OBJ_FLAG_HIDDEN);
     q = fit_qr(frame, max);
-    if (q < 0) q = kQrMin;  // layout_check() reports what still does not fit
+  }
+  if (q < 0) {
+    q = kQrMin;  // layout_check() reports what still does not fit
     lv_obj_set_size(frame, q + 2 * kQrQuiet, q + 2 * kQrQuiet);
   }
 
@@ -359,6 +403,9 @@ void build_phone() {
 }
 
 void start_scan() {
+  // A scan that outlasted scanComplete()'s 6 s still delivers its results,
+  // also into a rebuilt list; a second scan would fail and drop them.
+  if (g_ui->scanning) return;
   WiFi.scanDelete();
   if (WiFi.scanNetworks(true, true) == WIFI_SCAN_FAILED) {
     g_ui->scanning = false;
@@ -402,7 +449,10 @@ void build_list() {
   lv_obj_set_style_bg_color(g_ui->list, t.surface, 0);
   lv_obj_set_style_border_color(g_ui->list, t.border, 0);
   lv_obj_set_style_radius(g_ui->list, t.radius, 0);
-  g_ui->found.clear();
+  if (!g_ui->scanning) {  // a list rebuilt during a scan keeps waiting for it
+    g_ui->found.clear();
+    g_ui->found_locked.clear();
+  }
   fill_entries();
   start_scan();
 }
@@ -410,12 +460,15 @@ void build_list() {
 void fill_list(int n) {
   const ThemeColors& t = ui_theme_colors();
   g_ui->found.clear();
+  g_ui->found_locked.clear();
   for (int i = 0; i < n; ++i) {
     String ssid = WiFi.SSID(i);
     if (ssid.length() == 0) continue;
     bool dup = false;
     for (auto& s : g_ui->found) dup = dup || s == ssid;
-    if (!dup) g_ui->found.push_back(ssid);  // scan results are sorted by RSSI
+    if (dup) continue;  // scan results are sorted by RSSI: the strongest entry stays
+    g_ui->found.push_back(ssid);
+    g_ui->found_locked.push_back(WiFi.encryptionType(i) != WIFI_AUTH_OPEN);
   }
   WiFi.scanDelete();
   log::info("wifi: scan found %u networks", (unsigned)g_ui->found.size());
@@ -435,6 +488,11 @@ void build_password() {
   const ThemeColors& t = ui_theme_colors();
   lv_obj_t* c = g_ui->content;
   lv_obj_set_style_pad_ver(c, kGap, 0);
+  if (!g_ui->hidden && !g_ui->sel_locked) {  // open network: nothing to type, join right away
+    g_ui->status = prose(c, "", t.font_small, t.text_muted);
+    start_connect();
+    return;
+  }
   if (g_ui->hidden) g_ui->ta_ssid = make_textarea(c, CYD_S_WIFI_SSID, false);
   g_ui->ta_pass = make_textarea(c, CYD_S_WIFI_PASSWORD, true);
   g_ui->status = prose(c, "", t.font_small, t.text_muted);
@@ -602,9 +660,14 @@ void wifi_ui_loop() {
     g_ui->pending = View::None;
     apply_view(v);
   }
-  if (portal_loop()) {
+  PortalEvent portal = portal_loop();
+  if (portal == PortalEvent::Joined) {
     finish_success();
     return;
+  }
+  if (portal == PortalEvent::JoinFailed) {
+    g_ui->phone_failed = true;
+    if (g_ui->view == View::Phone && g_ui->pending == View::None) g_ui->pending = View::Phone;
   }
   if (!portal_active() && !g_ui->connecting && g_ui->close_at == 0 &&
       (int32_t)(millis() - g_ui->portal_retry_at) >= 0) {
@@ -630,17 +693,22 @@ void wifi_ui_loop() {
     // still say WL_CONNECTED for the link begin() is about to drop.
     wl_status_t st = WiFi.status();
     uint32_t elapsed = millis() - g_ui->connect_started;
-    uint32_t failed_joins = detail::wifi_fail_generation() - g_ui->fail_gen;
+    uint32_t fails = detail::wifi_fail_generation();
+    uint32_t failed_joins = fails - g_ui->fail_gen;
+    if (fails != g_ui->seen_fail) {
+      g_ui->seen_fail = fails;
+      if (detail::wifi_last_fail_reason() == WIFI_REASON_NO_AP_FOUND) ++g_ui->no_ap;
+    }
     if (st == WL_CONNECTED && detail::wifi_ip_generation() != g_ui->ip_gen) {
       g_ui->connecting = false;
       log::info("wifi: joined \"%s\" in %lu ms", g_ui->sel_ssid.c_str(), (unsigned long)elapsed);
       finish_success();
     } else if (elapsed > CYD_WIFI_CONNECT_MS || (st == WL_CONNECT_FAILED && elapsed > 3000) ||
-               failed_joins >= kMaxAttempts ||
-               (failed_joins >= 1 && detail::wifi_last_fail_reason() == WIFI_REASON_NO_AP_FOUND)) {
+               failed_joins >= kMaxAttempts || g_ui->no_ap >= (g_ui->sel_listed ? 2u : 1u)) {
       // Wrong password (the driver gives up), timeout, or the attempt cap that
       // keeps a wrong password from hammering the access point. With the
-      // SoftAP off "network not found" is real: no retry for that.
+      // SoftAP off "network not found" is real: once for a typed SSID, twice
+      // for one the scan has just listed (a missed beacon).
       connect_failed();
     }
   }
@@ -679,9 +747,11 @@ void wifi_ui_test(WifiUiTest action, const char* ssid) {
       on_hidden(nullptr);
       break;
     case WifiUiTest::Network:  // on_network() for any SSID, also one the scan did not list
-      g_ui->hidden = false;
-      g_ui->sel_ssid = ssid != nullptr ? ssid : "";
-      g_ui->pending = View::Password;
+      select_network(ssid != nullptr ? ssid : "");
+      break;
+    case WifiUiTest::PhoneFailed:  // as after a failed phone-path join
+      g_ui->phone_failed = true;
+      g_ui->pending = View::Phone;
       break;
     case WifiUiTest::Back:
       on_back(nullptr);

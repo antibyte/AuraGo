@@ -84,13 +84,14 @@ void wifi_ui_loop();
 void portal_start(String* ap_ssid, String* ap_pass);
 void portal_stop();
 bool portal_active();
-bool portal_loop();                   // true once the phone path connected
+enum class PortalEvent { None, Joined, JoinFailed };
+PortalEvent portal_loop();            // Joined / JoinFailed after a phone-path join
 void time_begin();                    // NTP + TZ after the first connection
 
 #if CYD_LAYOUT_SELFTEST
 // Layout self-test (test builds only): cyd_layout_selftest.cpp drives the
 // real setup screen through these hooks of cyd_wifi_ui.cpp.
-enum class WifiUiTest { ToDevice, Hidden, Network, Back, Close };
+enum class WifiUiTest { ToDevice, Hidden, Network, Back, PhoneFailed, Close };
 struct WifiUiProbe {
   lv_obj_t *scr, *content, *list, *kb, *status, *ta_ssid, *ta_pass;
   int view;  // 0 none, 1 phone, 2 list, 3 password
