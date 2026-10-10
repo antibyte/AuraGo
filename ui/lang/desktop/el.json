@@ -5813,7 +5813,7 @@
   "desktop.terminal_retronet_status_c64_help": "[C] = χωρίς έλεγχο: πολλοί πίνακες C64 έχουν μόνο μία γραμμή",
   "desktop.terminal_retronet_last_seen": "τελευταία φορά διαθέσιμο {{when}}",
   "desktop.terminal_retronet_telnet_notice": "Μη κρυπτογραφημένη σύνδεση Telnet – μη χρησιμοποιείς πραγματικούς κωδικούς πρόσβασης",
-  "desktop.terminal_retronet_c64_keys": "Πλήκτρα C64: Backspace = DEL · Esc = RUN/STOP · Home = HOME · Shift+Home = CLR · Insert = INST · F1–F8 · Ctrl+Shift+1–8 = χρώματα 1–8 · Alt+Shift+1–8 = χρώματα 9–16 · Ctrl+Shift+9/0 = RVS ναι/όχι · Ctrl+] = τερματισμός κλήσης",
+  "desktop.terminal_retronet_c64_keys": "Πλήκτρα C64: Backspace = DEL · Esc = RUN/STOP · Home = HOME · Shift+Home = CLR · Insert = INST · F1–F8 · Ctrl+Shift+1–8 = χρώματα 1–8 · Alt+Shift+1–8 = χρώματα 9–16 · Ctrl+Shift+9/0 = RVS ενεργό/ανενεργό · Ctrl+] = τερματισμός κλήσης",
   "desktop.terminal_retronet_press_key": "Πάτησε οποιοδήποτε πλήκτρο για να επιστρέψεις στον κατάλογο.",
   "desktop.terminal_retronet_press_key_shell": "Πάτησε οποιοδήποτε πλήκτρο για να ανοίξεις το τοπικό κέλυφος.",
   "desktop.terminal_retronet_hostkey_title": "Πρώτη σύνδεση σε αυτόν τον διακομιστή SSH.",

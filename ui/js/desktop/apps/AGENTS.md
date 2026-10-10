@@ -2844,7 +2844,8 @@ registration lives in `internal/desktop/types.go`.
   entries 40×25 with the vendored `Aura C64` font (C64 Pro Mono by Style,
   `ui/fonts/C64_Pro_Mono-STYLE.woff`, unmodified under its original name,
   licence and hashes in `ui/fonts/C64_Pro_Mono-LICENSE.txt`; the licence allows
-  `@font-face` embedding in free software only, so never link or offer the
+  `@font-face` embedding only in software provided to end users free of
+  charge, so never link or offer the
   `.woff` as a download); both fonts are credited in `THIRD_PARTY_LIBRARIES.md`.
   Pinned grids set `data-terminal-geometry`, wait for their font before the
   first fit, size it in 0.5 px steps to the glass, centre the grid with letterbox padding and keep no

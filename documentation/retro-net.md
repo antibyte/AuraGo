@@ -91,7 +91,7 @@ boards the catalog offers can change between releases when one goes offline.
   locked during the call (it says why); your own style comes back when you
   leave the result screen after the call. The Commodore 64 style is never
   saved as your choice.
-- **After `CONNECT`** the Telnet reminder and a line of C64 keys stay readable
+- **After `CONNECT`** the Telnet reminder and a short list of the C64 keys stay readable
   for 2 seconds before the board's screen appears. Any key continues at once
   and still goes to the board.
 - **Graphics detection:** many boards ask you to press DEL or Backspace.
@@ -101,7 +101,7 @@ boards the catalog offers can change between releases when one goes offline.
 - **Busy and slow boards:** a single-line board that is in use shows `BUSY`
   and hangs up; try again a few minutes later. Some boards take up to about
   40 seconds before their first screen, especially right after a previous
-  call; the key line stays until then, and `Ctrl+]` hangs up at any time.
+  call; the key list stays until then, and `Ctrl+]` hangs up at any time.
 - Copying text from a C64 screen copies the C64 font's own characters, not
   readable text, and screen readers cannot read the board's screen.
 

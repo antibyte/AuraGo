@@ -68,7 +68,9 @@ Operator docs: `documentation/retro-net.md`.
   NAWS 40x25, input is IAC-escaped; a later IAC stays data. `connected`
   carries protocol `telnet`, kind `c64`, charset `petscii`; the size stays
   40x25 (`sessionSize`), browser resizes are ignored and no `echo` control is
-  sent.
+  sent. The auto-detect only looks at the first received chunk and needs IAC
+  plus its verb (`FF FB`..`FF FE`) in that chunk: a board whose first read is
+  a lone `FF` stays raw, by design.
 - PETSCII engine (`petscii*.go`): `NewCodec(CharsetPETSCII)` returns a new
   stateful engine per call; one per session, never shared, no locking. Its
   40x25 screen model (blank, cursor at row 25 column 1, light blue text,
