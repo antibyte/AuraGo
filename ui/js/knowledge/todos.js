@@ -503,7 +503,15 @@ function todoStatusLabel(status) {
 function formatTodoDueDate(iso) {
     if (!iso) return '';
     try {
-        const date = new Date(iso);
+        const text = String(iso).trim();
+        const civil = /^(\d{4}-\d{2}-\d{2})T00:00:00Z$/.exec(text);
+        if (civil) {
+            const [year, month, day] = civil[1].split('-').map(Number);
+            const date = new Date(year, month - 1, day);
+            return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+        const date = new Date(text);
+        if (Number.isNaN(date.getTime())) return text;
         return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
     } catch {
         return iso;
