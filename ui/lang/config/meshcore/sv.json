@@ -19,6 +19,7 @@
   "config.meshcore.pair": "Parkoppla sparad enhet",
   "config.meshcore.permissions": "Behörigheter",
   "config.meshcore.direct_replies": "Besvara betrodda direktmeddelanden",
+  "config.meshcore.direct_replies_help": "Förtroendelistan sparar bara kontakten. Den här brytaren startar agenten och tillåter radiosvaret.",
   "config.meshcore.trusted_nodes": "Betrodda noders nycklar",
   "config.meshcore.proactive_send": "Tillåt proaktiv sändning",
   "config.meshcore.send_nodes": "Tillåtna nodnycklar för proaktiv sändning",

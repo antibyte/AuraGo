@@ -29,12 +29,15 @@ use these instructions. The configuration key is `meshcore.additional_prompt`.
    choose **Confirm this device identity**, and save. A test only reads saved
    connection settings and radio metadata; it sends no radio message.
 5. Copy complete 64-character node public keys into the trusted list, one per
-   line. Only unambiguous, synchronized chat contacts sending direct plain text
-   may start the normal agent. Each full node key has its own chat session.
+   line. The list stores the contact. Direct replies must also be on before
+   that contact starts the agent. Only unambiguous, synchronized chat contacts
+   sending direct plain text qualify. Each full node key has its own chat session.
    Alternatively, search the node list by name or key, choose the permission list
    under **Add to**, and click a chat node. Its full key is added without
    duplicates; then select **Save**.
-6. Enable **Reply to trusted direct messages** if desired. For channels, confirm
+6. Enable **Reply to trusted direct messages** when a trusted contact should
+   start the agent and receive a radio reply. With the switch off, the message
+   stays received and no agent runs. For channels, confirm
    the channel assignment and select receive-only, prefix (`!aura` followed by
    whitespace), or question detection. Save the configuration.
    Question detection includes open channel questions and radio checks such as
@@ -88,6 +91,8 @@ allow`. An unavailable enabled Guardian never silently falls back. When Guardian
 is disabled, the main model scans with a fixed prompt, no tools, no history and
 no private memory. Invalid/truncated output, tool calls and timeouts quarantine
 the message. Trust never bypasses this check or AuraGo's existing tool gates.
+The trust list alone does not start the agent. With direct replies off, the
+message stays received with reason `direct_replies_disabled`.
 Sender labels, @recipient tags, greetings and place names are ordinary radio
 formatting, not threats on their own. The full text is still scanned. An old
 quarantined message stays protected until an administrator reviews the cause
@@ -197,7 +202,11 @@ pagination uses `limit` (up to 100) and `offset` within that window.
 Connection/security failures use the Operational Issues lifecycle.
 
 The `meshcore` agent tool supports `status`, `contacts`, `channels`,
-`send_direct` (`node_key`, `text`) and `send_channel` (`channel`, `text`). It has
+`send_direct` (`node_key`, `text`) and `send_channel` (`channel`, `text`).
+`contacts` returns keys, names, types, flags and timestamps. Advertised positions
+and cached outgoing routes stay on the admin status and in the wake block of
+that one direct message. Send failures use `meshcore_send_failed` plus the send
+state, without the internal error text. It has
 no raw protocol, key management, flashing, pairing or radio settings operations.
 
 ## Desktop Messenger

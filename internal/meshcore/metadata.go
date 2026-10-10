@@ -21,6 +21,19 @@ type Position struct {
 	Longitude float64 `json:"longitude"`
 }
 
+// AgentContacts copies contacts for the agent tool. Advertised positions and
+// cached outgoing routes stay on the administrator status, the Messenger and
+// the single trusted wake snapshot.
+func AgentContacts(contacts []Contact) []Contact {
+	out := make([]Contact, len(contacts))
+	for i, contact := range contacts {
+		contact.Position = nil
+		contact.OutPath = nil
+		out[i] = contact
+	}
+	return out
+}
+
 type ReceptionInfo struct {
 	FrameType             byte     `json:"frame_type"`
 	FrameBytes            int      `json:"companion_frame_bytes"`

@@ -500,6 +500,12 @@ func (m *Manager) process(ctx context.Context, msg Message) {
 		return
 	}
 	mode, admitted := admit(msg, cfg, st, time.Now())
+	if mode == "trusted" && !cfg.DirectReplies {
+		msg.State = "received"
+		msg.Reason = "direct_replies_disabled"
+		m.save(msg)
+		return
+	}
 	peer := admitted.Sender
 	if msg.Kind == "channel" {
 		peer = fmt.Sprintf("channel:%d", msg.Channel)

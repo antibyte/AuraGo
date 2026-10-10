@@ -19,6 +19,7 @@
   "config.meshcore.pair": "Sparuj zapisane urządzenie",
   "config.meshcore.permissions": "Uprawnienia",
   "config.meshcore.direct_replies": "Odpowiadaj na zaufane wiadomości bezpośrednie",
+  "config.meshcore.direct_replies_help": "Lista zaufania tylko zapisuje kontakt. Ten przełącznik uruchamia agenta i zezwala na odpowiedź radiową.",
   "config.meshcore.trusted_nodes": "Klucze zaufanych węzłów",
   "config.meshcore.proactive_send": "Zezwalaj na wysyłanie proaktywne",
   "config.meshcore.send_nodes": "Dozwolone klucze węzłów do wysyłania",

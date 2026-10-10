@@ -9,8 +9,8 @@ use while preserving security, privacy, destination permissions and radio limits
 Operations:
 
 - `status`: connection state and confirmed device information.
-- `contacts`: synchronized public keys, names/types/flags, advertised positions,
-  advertisement/update times and cached outgoing paths.
+- `contacts`: synchronized public keys, names, types, flags and advertisement/update
+  times. Advertised positions and cached outgoing paths are not included.
 - `channels`: synchronized slot numbers and display names, without channel secrets.
 - `send_direct`: requires `node_key` (complete 64-character public key) and `text`.
 - `send_channel`: requires explicit numeric `channel` and `text`.

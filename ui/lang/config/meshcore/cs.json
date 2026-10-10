@@ -19,6 +19,7 @@
   "config.meshcore.pair": "Spárovat uložené zařízení",
   "config.meshcore.permissions": "Oprávnění",
   "config.meshcore.direct_replies": "Odpovídat na důvěryhodné přímé zprávy",
+  "config.meshcore.direct_replies_help": "Seznam důvěry jen uloží kontakt. Tento přepínač spustí agenta a povolí rádiovou odpověď.",
   "config.meshcore.trusted_nodes": "Klíče důvěryhodných uzlů",
   "config.meshcore.proactive_send": "Povolit proaktivní odesílání",
   "config.meshcore.send_nodes": "Povolené klíče cílových uzlů",

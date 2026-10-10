@@ -58,7 +58,7 @@ func dispatchMeshCore(ctx context.Context, tc ToolCall, dc *DispatchContext) str
 		st := m.Status()
 		result["data"] = map[string]interface{}{"state": st.State, "identity_key": st.IdentityKey, "name": st.Name, "firmware": st.Firmware, "hardware_verified": false}
 	case "contacts":
-		result["contacts"] = m.Status().Contacts
+		result["contacts"] = meshcore.AgentContacts(m.Status().Contacts)
 	case "channels":
 		channels := []map[string]interface{}{}
 		for _, ch := range m.Status().Channels {
@@ -80,7 +80,6 @@ func dispatchMeshCore(ctx context.Context, tc ToolCall, dc *DispatchContext) str
 		if err != nil {
 			result["status"] = "error"
 			result["code"] = "meshcore_send_failed"
-			result["message"] = err.Error()
 		}
 	default:
 		result = map[string]interface{}{"status": "error", "code": "invalid_operation"}

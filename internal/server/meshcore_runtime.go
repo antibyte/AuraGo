@@ -118,6 +118,11 @@ func meshCoreMinimalContext(s *Server, cfg *config.Config, id string) *agent.Dis
 	copyCfg.MCP.PreferredCapabilities.WebSearch = config.MCPPreferredToolSelection{}
 	return &agent.DispatchContext{Cfg: &copyCfg, Logger: s.Logger, LLMClient: s.LLMClient, Guardian: s.Guardian, LLMGuardian: s.LLMGuardian, BudgetTracker: s.BudgetTracker, SessionID: "meshcore-reply-" + id, MessageSource: "meshcore_reply", Broker: agent.NoopBroker{}, AllowedTools: map[string]struct{}{}, ToolScopeRestricted: true, AllowedAgentSkills: map[string]struct{}{}, SkillScopeRestricted: true}
 }
+
+// meshCoreTrustedTurnObserver is nil outside tests. It sees the isolated
+// trusted-turn intent and the model request before the agent loop starts.
+var meshCoreTrustedTurnObserver func(intent string, request openai.ChatCompletionRequest)
+
 func (s *Server) runMeshCoreMessage(ctx context.Context, msg meshcore.Message, mode string) (string, error) {
 	cfg := s.ConfigSnapshot()
 	if cfg == nil {
@@ -136,8 +141,11 @@ func (s *Server) runMeshCoreMessage(ctx context.Context, msg meshcore.Message, m
 			return "", err
 		}
 		turn.runCfg.VoiceOutputActive = false
-		turn.runCfg.UserIntent = msg.Text
+		turn.runCfg.UserIntent = text
 		turn.runCfg.HistoryManager = nil
+		if meshCoreTrustedTurnObserver != nil {
+			meshCoreTrustedTurnObserver(turn.runCfg.UserIntent, turn.req)
+		}
 		resp, err := agent.ExecuteAgentLoop(ctx, turn.req, turn.runCfg, false, agent.NoopBroker{})
 		if err != nil {
 			return "", err

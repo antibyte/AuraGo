@@ -126,7 +126,7 @@
 
                 const preview = document.createElement('span');
                 const previewText = String(conversation && conversation.preview || '').trim();
-                if (conversation && conversation.protected && !previewText) {
+                if (conversation && conversation.protected) {
                     preview.className = 'vd-mesh-preview vd-mesh-preview-protected';
                     const lock = document.createElement('span');
                     lock.className = 'vd-mesh-lock';
