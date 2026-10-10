@@ -51,6 +51,18 @@
         return { omit: false, value: inputValue };
     }
 
+    const TODO_REFRESH_MS = 60000;
+
+    function clearTodoDetail(host) {
+        const pane = host.querySelector('.vd-todo-detail');
+        if (pane) {
+            pane.innerHTML = `<div class="vd-empty">${esc(t('desktop.todo_select_task'))}</div>`;
+        }
+        const win = host && host.closest && host.closest('.vd-window');
+        const windowId = win && win.dataset.windowId;
+        if (windowId) setWindowMenus(windowId, []);
+    }
+
     async function renderTodo(id) {
         const host = contentEl(id);
         if (!host) return;
@@ -58,6 +70,7 @@
         host.innerHTML = `<div class="vd-todo"><aside class="vd-todo-sidebar">
             ${['all', 'open', 'in_progress', 'done'].map(status => `<button type="button" data-filter="${status}" class="${host.dataset.todoFilter === status ? 'active' : ''}">${esc(t('desktop.todo_' + status))}</button>`).join('')}
         </aside><main class="vd-todo-main"><form class="vd-todo-add"><input placeholder="${esc(t('desktop.todo_title_placeholder'))}"><select><option value="low">${esc(t('desktop.todo_priority_low'))}</option><option value="medium" selected>${esc(t('desktop.todo_priority_medium'))}</option><option value="high">${esc(t('desktop.todo_priority_high'))}</option></select><button class="vd-button vd-button-primary">${esc(t('desktop.todo_add'))}</button></form><div class="vd-todo-list">${esc(t('desktop.loading'))}</div></main><section class="vd-todo-detail"><div class="vd-empty">${esc(t('desktop.todo_select_task'))}</div></section></div>`;
+        if (host._todoTimer) clearInterval(host._todoTimer);
         const showTodoContextMenu = (event, todo, reload) => {
             event.preventDefault();
             showContextMenu(event.clientX, event.clientY, [
@@ -69,13 +82,23 @@
             return true;
         };
         wireContextMenuBoundary(host);
-        const load = async (selectedID) => {
+        const load = async (nextSelectedID) => {
+            host.dataset.todoGeneration = String(Number(host.dataset.todoGeneration || 0) + 1);
+            const generation = host.dataset.todoGeneration;
+            if (nextSelectedID !== undefined) {
+                host.dataset.todoSelected = nextSelectedID || '';
+            }
+            const selectedID = host.dataset.todoSelected || '';
             const todos = await api('/api/desktop/integrations/todos?status=all');
+            if (host.dataset.todoGeneration !== generation) return;
             const filtered = todos.filter(todo => host.dataset.todoFilter === 'all' || todo.status === host.dataset.todoFilter)
                 .sort((a, b) => (({ high: 0, medium: 1, low: 2 }[a.priority] ?? 3) - (({ high: 0, medium: 1, low: 2 }[b.priority] ?? 3)) || String(a.due_date || '9999').localeCompare(String(b.due_date || '9999'))));
             const list = host.querySelector('.vd-todo-list');
             list.innerHTML = filtered.length ? filtered.map(todo => renderTodoCard(todo, selectedID)).join('') : `<div class="vd-empty">${esc(t('desktop.empty_folder'))}</div>`;
-            list.querySelectorAll('[data-todo-id]').forEach(card => card.addEventListener('click', () => renderTodoDetail(host, todos.find(todo => todo.id === card.dataset.todoId), load)));
+            list.querySelectorAll('[data-todo-id]').forEach(card => card.addEventListener('click', () => {
+                host.dataset.todoSelected = card.dataset.todoId;
+                renderTodoDetail(host, todos.find(todo => todo.id === card.dataset.todoId), load);
+            }));
             list.querySelectorAll('[data-todo-status-toggle]').forEach(input => input.addEventListener('click', event => event.stopPropagation()));
             list.querySelectorAll('[data-todo-status-toggle]').forEach(input => input.addEventListener('change', async event => {
                 event.stopPropagation();
@@ -86,12 +109,27 @@
                 const todo = todos.find(item => item.id === card.dataset.todoId);
                 if (todo) showTodoContextMenu(event, todo, load);
             }));
-            const selected = todos.find(todo => todo.id === selectedID) || filtered[0];
-            if (selected) renderTodoDetail(host, selected, load);
+            const selected = filtered.find(todo => todo.id === selectedID);
+            if (selected) {
+                renderTodoDetail(host, selected, load);
+            } else {
+                clearTodoDetail(host);
+            }
+            host.dataset.todoLoadedAt = String(Date.now());
         };
+        host._todoTimer = setInterval(() => {
+            if (document.hidden) return;
+            if (Date.now() - Number(host.dataset.todoLoadedAt || 0) < TODO_REFRESH_MS) return;
+            load(host.dataset.todoSelected);
+        }, TODO_REFRESH_MS);
+        registerWindowCleanup(id, () => {
+            clearInterval(host._todoTimer);
+            host._todoTimer = null;
+            host.dataset.todoGeneration = String(Number(host.dataset.todoGeneration || 0) + 1);
+        });
         host.querySelectorAll('[data-filter]').forEach(btn => btn.addEventListener('click', () => {
             host.dataset.todoFilter = btn.dataset.filter;
-            renderTodo(id);
+            load(host.dataset.todoSelected);
         }));
         host.querySelector('.vd-todo-add').addEventListener('submit', async event => {
             event.preventDefault();
@@ -144,6 +182,7 @@
     }
 
     function renderTodoDetail(host, todo, reload) {
+        host.dataset.todoSelected = todo.id;
         const pane = host.querySelector('.vd-todo-detail');
         const items = todo.items || [];
         pane.innerHTML = `<form class="vd-todo-form"><input name="title" value="${esc(todo.title)}"><textarea name="description" placeholder="${esc(t('desktop.todo_description'))}">${esc(todo.description || '')}</textarea><div class="vd-todo-form-row"><label>${esc(t('desktop.todo_priority'))}<select name="priority">${['low','medium','high'].map(p => `<option value="${p}" ${todo.priority === p ? 'selected' : ''}>${esc(t('desktop.todo_priority_' + p))}</option>`).join('')}</select></label><label>${esc(t('desktop.todo_due_date'))}<input type="date" name="due_date" value="${esc(todoDueCivilDate(todo.due_date))}"></label></div><label class="vd-check"><input type="checkbox" name="remind_daily" ${todo.remind_daily ? 'checked' : ''}>${esc(t('desktop.todo_remind_daily'))}</label><div class="vd-todo-actions"><button class="vd-button vd-button-primary" data-action="save">${esc(t('desktop.save'))}</button><button type="button" class="vd-button" data-action="complete">${esc(t('desktop.todo_complete'))}</button><button type="button" class="vd-button" data-action="delete">${esc(t('desktop.delete'))}</button></div></form><h3>${esc(t('desktop.todo_items'))}</h3><form class="vd-todo-item-add"><input placeholder="${esc(t('desktop.todo_add_item'))}"><button class="vd-button">${esc(t('desktop.todo_add_item'))}</button></form><div class="vd-todo-items">${items.map(item => `<div class="vd-todo-item" data-item-id="${esc(item.id)}"><input class="vd-todo-item-check" type="checkbox" data-item-toggle="${esc(item.id)}" ${item.is_done ? 'checked' : ''} aria-label="${esc(t('desktop.todo_complete'))}"><input class="vd-todo-item-title" data-item-title="${esc(item.id)}" value="${esc(item.title)}" aria-label="${esc(t('desktop.todo_add_item'))}" spellcheck="true"><button type="button" class="vd-todo-item-delete" data-item-delete="${esc(item.id)}" title="${esc(t('desktop.delete'))}">${iconMarkup('x', 'X', 'vd-todo-action-icon', 13)}</button></div>`).join('')}</div>`;

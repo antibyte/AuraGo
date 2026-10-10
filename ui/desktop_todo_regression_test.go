@@ -52,6 +52,26 @@ func TestDesktopTodoAddUsesDefinedPlannerJSONHelper(t *testing.T) {
 	}
 }
 
+func TestDesktopTodoLoadsKeepTheNewestResponse(t *testing.T) {
+	t.Parallel()
+	source := readDesktopAssetText(t, "js/desktop/apps/planning-gallery-music.js")
+	for _, marker := range []string{
+		"const TODO_REFRESH_MS = 60000",
+		"host.dataset.todoGeneration",
+		"if (host.dataset.todoGeneration !== generation) return",
+		"filtered.find(todo => todo.id === selectedID)",
+		"registerWindowCleanup(id, () => {",
+		"clearInterval(host._todoTimer)",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("todo load marker missing %q", marker)
+		}
+	}
+	if strings.Contains(source, "renderTodo(id);") {
+		t.Fatal("filter changes still rebuild the todo shell")
+	}
+}
+
 func TestDesktopTodoDueDateRoundTripUsesTheCivilDay(t *testing.T) {
 	t.Parallel()
 	source := readDesktopAssetText(t, "js/desktop/apps/planning-gallery-music.js")
