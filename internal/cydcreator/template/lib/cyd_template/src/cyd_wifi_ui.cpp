@@ -178,7 +178,7 @@ void start_connect() {
   }
   // Join as a plain station. The radio has one channel: next to the SoftAP
   // on another channel first joins timed out (AUTH_EXPIRE, NO_AP_FOUND).
-  // wifi_ui_loop() brings the portal back if the attempt fails.
+  // stop_attempt() brings the portal back if the attempt fails or is left.
   detail::portal_stop();
   WiFi.setAutoReconnect(true);  // the driver retries transient failures; connect_failed() ends that
   g_ui->connecting = true;
@@ -188,17 +188,31 @@ void start_connect() {
   detail::wifi_connect(ssid, pass);
 }
 
+// Starts the portal again (new password, so the phone view shows a new QR
+// code). Auto-reconnect goes back on: WiFiManager's phone-path join tries only
+// once and relies on the driver to retry a first join that times out.
+void restart_portal() {
+  detail::portal_start(&g_ui->ap_ssid, &g_ui->ap_pass);
+  WiFi.setAutoReconnect(true);
+  g_ui->portal_retry_at = millis() + 3000;
+}
+
+// Ends an on-device attempt that has no link yet: the driver stops joining in
+// the background (auto-reconnect would carry on while the screen says the
+// attempt ended) and the portal comes back right away.
+void stop_attempt() {
+  g_ui->connecting = false;
+  WiFi.setAutoReconnect(false);
+  WiFi.disconnect(false, false);
+  restart_portal();
+}
+
 // The error stays readable (keyboard hidden) until the user taps a field.
 void connect_failed() {
   log::warn("wifi: joining \"%s\" failed (status %d after %lu ms)", g_ui->sel_ssid.c_str(), (int)WiFi.status(),
             (unsigned long)(millis() - g_ui->connect_started));
-  g_ui->connecting = false;
-  // Without this the driver keeps joining in the background (auto-reconnect)
-  // while the screen says the attempt failed.
-  WiFi.setAutoReconnect(false);
-  WiFi.disconnect(false, false);
+  stop_attempt();
   set_status(CYD_S_WIFI_FAILED, ui_theme_colors().danger);
-  g_ui->portal_retry_at = millis();  // phone path back right away
 }
 
 // Tapping a field brings the keyboard back (it is hidden while connecting and
@@ -450,6 +464,12 @@ void layout_header(View v) {
 }
 
 void apply_view(View v) {
+  // Leaving the password view cancels its attempt; the portal is back before
+  // the next view is built (its QR code, its scan next to the SoftAP).
+  if (g_ui->connecting) {
+    log::info("wifi: joining \"%s\" cancelled", g_ui->sel_ssid.c_str());
+    stop_attempt();
+  }
   clear_view();
   g_ui->view = v;
   layout_header(v);
@@ -578,10 +598,8 @@ void wifi_ui_loop() {
   }
   if (!portal_active() && !g_ui->connecting && g_ui->close_at == 0 &&
       (int32_t)(millis() - g_ui->portal_retry_at) >= 0) {
-    // The portal ended on its own: restart it, or the QR code would be dead. The
-    // new password makes the phone view show a new QR code.
-    g_ui->portal_retry_at = millis() + 3000;
-    portal_start(&g_ui->ap_ssid, &g_ui->ap_pass);
+    // The portal ended on its own: restart it, or the QR code would be dead.
+    restart_portal();
     if (g_ui->view == View::Phone && g_ui->pending == View::None) g_ui->pending = View::Phone;
   }
   if (g_ui->scanning) {
