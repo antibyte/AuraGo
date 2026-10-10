@@ -622,6 +622,9 @@
         function showResult(code, reasonCode) {
             if (!term) return;
             const reason = RESULT_REASONS.indexOf(reasonCode) >= 0 ? reasonCode : 'remote_closed';
+            // The server ends calls with "disabled" before the policy change reaches the page: treat it as
+            // Retro-Net off now, so the hint and the next key both lead to the shell.
+            if (reason === 'disabled') retroNetOn = false;
             const hayes = window.TerminalText.printable(code).replace(/[^A-Z ]/g, '') || 'NO CARRIER';
             const explanation = tr('desktop.terminal_retronet_result_' + reason);
             const next = retroNetOn ? tr('desktop.terminal_retronet_press_key') : tr('desktop.terminal_retronet_press_key_shell');

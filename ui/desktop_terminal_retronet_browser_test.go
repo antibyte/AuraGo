@@ -425,6 +425,21 @@ func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion
 	run(`async()=>{window.fixtureDirectoryStatus=0;await fixtureInput('ls');}`)
 	check("the fallback shell takes keys and Ctrl+] stays with it", `async()=>{await fixtureInput('\x1d');const s=fixtureSocket();return s.sent.includes('ls')&&s.sent.includes('\x1d')&&fixtureRoot().dataset.terminalMode==='shell'&&fixtureLive().length===1;}`)
 
+	// 18c. The server ends a call with NO CARRIER / disabled before the policy change reaches the page (the
+	// bootstrap still says on): the result already offers the shell and the next key opens it, not the directory.
+	run(`async()=>{window.fixtureMark=fixtureSockets.length;await fixtureBoot(true);}`)
+	wait("a fresh window shows the directory again", backInDirectory)
+	run(`async()=>{await fixtureInput('0');await fixtureInput('1');await fixtureInput('\r');}`)
+	wait("a call to Telehack opens", `()=>fixtureSockets.length===fixtureMark+1&&fixtureSocket().readyState===1&&new URL(fixtureSocket().url).searchParams.get('entry')==='telehack'`)
+	run(`()=>{fixtureControl({type:'result',code:'NO CARRIER',reason:'disabled'});fixtureSocket().serverClose(1000);}`)
+	check("a disabled result offers the shell, not the directory", `async()=>{const text=await fixtureText(),root=fixtureRoot();return text.includes('NO CARRIER')&&text.includes(t('desktop.terminal_retronet_result_disabled'))&&
+		text.includes(t('desktop.terminal_retronet_press_key_shell'))&&!text.includes(t('desktop.terminal_retronet_press_key'))&&root.dataset.terminalMode==='result'&&
+		root.querySelector('[data-terminal-retronet-action]').hidden&&fixtureLive().length===0;}`)
+	run(`async()=>{window.fixtureCallMark=fixtureCalls.length;window.fixtureMark=fixtureSockets.length;await fixtureDismiss('q');}`)
+	wait("the next key opens the local shell", `()=>{const created=fixtureSockets.slice(fixtureMark),root=fixtureRoot();
+		return created.length===1&&created[0].readyState===1&&new URL(created[0].url).pathname==='/api/code-studio/terminal'&&fixtureLive().length===1&&
+			root.dataset.terminalMode==='shell'&&root.dataset.terminalState==='desktop.terminal_running'&&!fixtureCalls.slice(fixtureCallMark).some(c=>c.path==='/api/desktop/retronet/directory');}`)
+
 	// 19. Dispose closes everything; the one-socket invariant held throughout.
 	run(`()=>TerminalApp.dispose()`)
 	check("dispose closes every socket", `()=>fixtureLive().length===0`)
