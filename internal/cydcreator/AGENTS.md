@@ -49,6 +49,11 @@ service to this same package.
   the running server. `display.width/height` describe the board's designed orientation, not the controller's RAM
   orientation; `display.offset_rotation` (LovyanGFX semantics, 0-7) turns the controller frame into that
   orientation (classic CYD: 5) and `touch.offset_rotation` corrects capacitive touch layers (XPT2046: always 0).
+- Drivers and their bus: display `ILI9341`, `ILI9341_2`, `ST7789`, `ST7796` (spi), `NV3041A` (qspi), `ST7262`,
+  `EK9716` (rgb); touch `XPT2046` (spi), `GT911`, `CST820` (i2c). `ILI9341_2` is the ILI9341 with the alternative
+  init sequence (TFT_eSPI `ILI9341_2_DRIVER`, LovyanGFX `Panel_ILI9341_2`): same pins, same 240x320 controller RAM.
+  The generator emits `CYD_PANEL_DRIVER_<driver>` verbatim, so a new driver needs a case in `cyd_board.cpp`
+  (`TestRenderBoardConfigPanelDriverMacro` checks both).
 - Pin keys per bus: display spi `sclk mosi cs dc` (optional `miso rst bl`), qspi `cs sclk d0 d1 d2 d3` (optional
   `rst bl`), rgb `de vsync hsync pclk r0..r4 g0..g5 b0..b4` (optional `bl disp`) plus `timing` (`pclk_hz`,
   `hsync_polarity hsync_front_porch hsync_pulse_width hsync_back_porch`, the same four for vsync,

@@ -196,6 +196,11 @@ func TestValidateBoardRejects(t *testing.T) {
 			profileSection(m, "pio")["board_build"] = map[string]any{"flash_mode": "q io"}
 		}, "pio.board_build"},
 		{"driver bus mismatch", func(m map[string]any) { profileSection(m, "display")["driver"] = "NV3041A" }, "needs bus qspi"},
+		{"ILI9341_2 on another bus", func(m map[string]any) {
+			profileSection(m, "display")["driver"] = "ILI9341_2"
+			profileSection(m, "display")["bus"] = "qspi"
+		}, "display.driver ILI9341_2 needs bus spi"},
+		{"driver name in lower case", func(m map[string]any) { profileSection(m, "display")["driver"] = "ili9341_2" }, `display.driver "ili9341_2"`},
 		{"unknown driver", func(m map[string]any) { profileSection(m, "display")["driver"] = "SSD1306" }, "display.driver \"SSD1306\""},
 		{"portrait mismatch", func(m map[string]any) { profileSection(m, "display")["native_orientation"] = "portrait" }, "portrait display"},
 		{"hz too high", func(m map[string]any) { profileSection(m, "display")["hz"] = 100000000 }, "display.hz"},
@@ -252,6 +257,9 @@ func TestValidateBoardAccepts(t *testing.T) {
 		fn   func(m map[string]any)
 	}{
 		{"unchanged", func(m map[string]any) {}},
+		// Both ILI9341 init sequences drive the same 240x320 controller on SPI.
+		{"ILI9341 with the standard init", func(m map[string]any) { profileSection(m, "display")["driver"] = "ILI9341" }},
+		{"ILI9341 with the alternative init", func(m map[string]any) { profileSection(m, "display")["driver"] = "ILI9341_2" }},
 		{"touch shares the display SPI bus", func(m map[string]any) {
 			p := profileSection(m, "touch", "pins")
 			p["sclk"], p["mosi"], p["miso"] = 14, 13, 12

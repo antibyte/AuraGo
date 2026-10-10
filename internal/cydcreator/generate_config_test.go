@@ -1,6 +1,8 @@
 package cydcreator
 
 import (
+	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -75,6 +77,36 @@ func TestRenderBoardConfigProjectMacros(t *testing.T) {
 	} {
 		if !strings.Contains(cfg, want) {
 			t.Errorf("board_config.h lacks %q", want)
+		}
+	}
+}
+
+// Every display driver of the board schema becomes exactly one
+// CYD_PANEL_DRIVER_<driver> macro (ILI9341_2 must not also define ILI9341), and
+// the template's cyd_board.cpp selects a LovyanGFX panel class for it.
+func TestRenderBoardConfigPanelDriverMacro(t *testing.T) {
+	src, err := fs.ReadFile(TemplateFS(), "lib/cyd_template/src/cyd_board.cpp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := loadReferenceProject(t)
+	b, err := BoardByID("esp32-2432s028r")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, driver := range slices.Sorted(maps.Keys(displayDriverBus)) {
+		b.Display.Driver = driver
+		var macros []string
+		for _, line := range strings.Split(renderBoardConfig(p, b, "ccp_000000000001"), "\n") {
+			if strings.HasPrefix(line, "#define CYD_PANEL_DRIVER_") {
+				macros = append(macros, line)
+			}
+		}
+		if want := []string{"#define CYD_PANEL_DRIVER_" + driver + " 1"}; !slices.Equal(macros, want) {
+			t.Errorf("%s: driver macros %q, want %q", driver, macros, want)
+		}
+		if !strings.Contains(string(src), "defined(CYD_PANEL_DRIVER_"+driver+")") {
+			t.Errorf("%s: cyd_board.cpp has no CYD_PANEL_DRIVER_%s case", driver, driver)
 		}
 	}
 }

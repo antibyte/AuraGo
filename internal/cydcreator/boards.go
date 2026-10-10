@@ -51,8 +51,12 @@ type BoardPIO struct {
 // BoardDisplay describes the panel. Width/Height are given in the board's
 // native (designed) orientation, not the controller's RAM orientation.
 type BoardDisplay struct {
-	Driver            string         `json:"driver"` // ILI9341 ST7789 ST7796 NV3041A ST7262 EK9716
-	Bus               string         `json:"bus"`    // spi | qspi | rgb
+	// Driver is ILI9341, ILI9341_2, ST7789, ST7796, NV3041A, ST7262 or EK9716.
+	// ILI9341_2 is the ILI9341 with the alternative init sequence (TFT_eSPI
+	// ILI9341_2_DRIVER, LovyanGFX Panel_ILI9341_2); some panels only update
+	// partly with the standard one.
+	Driver            string         `json:"driver"`
+	Bus               string         `json:"bus"` // spi | qspi | rgb
 	Width             int            `json:"width"`
 	Height            int            `json:"height"`
 	NativeOrientation string         `json:"native_orientation"` // landscape | portrait
@@ -234,7 +238,7 @@ var (
 	// boardBuildKeys are the only board_build options a profile may set; the
 	// generator owns everything else (partitions, filesystem, embed_files, ...).
 	boardBuildKeys    = []string{"arduino.memory_type", "flash_mode", "f_flash", "f_cpu"}
-	displayDriverBus  = map[string]string{"ILI9341": "spi", "ST7789": "spi", "ST7796": "spi", "NV3041A": "qspi", "ST7262": "rgb", "EK9716": "rgb"}
+	displayDriverBus  = map[string]string{"ILI9341": "spi", "ILI9341_2": "spi", "ST7789": "spi", "ST7796": "spi", "NV3041A": "qspi", "ST7262": "rgb", "EK9716": "rgb"}
 	touchDriverBus    = map[string]string{"XPT2046": "spi", "GT911": "i2c", "CST820": "i2c"}
 	touchI2CAddresses = map[string][]int{"GT911": {0x5D, 0x14}, "CST820": {0x15}}
 	displayPinRules   = map[string]pinRule{

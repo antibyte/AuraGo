@@ -15,6 +15,10 @@
 
 #if defined(CYD_PANEL_DRIVER_ILI9341)
 using CydPanel = lgfx::Panel_ILI9341;
+#elif defined(CYD_PANEL_DRIVER_ILI9341_2)
+// Same controller, alternative init sequence (TFT_eSPI ILI9341_2_DRIVER): some
+// classic CYD panels only update partly with Panel_ILI9341's init.
+using CydPanel = lgfx::Panel_ILI9341_2;
 #elif defined(CYD_PANEL_DRIVER_ST7789)
 using CydPanel = lgfx::Panel_ST7789;
 #elif defined(CYD_PANEL_DRIVER_ST7796)
@@ -171,7 +175,7 @@ class CydLGFX : public lgfx::LGFX_Device {
     panel_.config_detail(detail);
 #else
     // panel_width/height keep the driver's controller-RAM geometry
-    // (ILI9341/ST7789 240x320, ST7796 320x480, NV3041A 480x272);
+    // (ILI9341/ILI9341_2/ST7789 240x320, ST7796 320x480, NV3041A 480x272);
     // CYD_PANEL_OFFSET_ROTATION turns that frame into the board's native one.
     cfg.pin_cs = CYD_PIN_LCD_CS;
     cfg.pin_rst = CYD_PIN_LCD_RST;
