@@ -2,7 +2,7 @@
 // Runs ui/js/desktop/apps/terminal-retronet-entries.js in Node with a minimal fake DOM (no npm packages) and checks the
 // own-entry editor: client-side validation mirroring internal/retronet (name and description runes and invisible
 // categories, RFC 1123 host names, IP literals and restricted ranges, ports, SSH users), the exact keys of the stored
-// document, host keys kept only while the SSH target is unchanged, the 64-entry limit, server errors shown in the
+// document, host keys kept only while the SSH target is unchanged, the 50-entry limit, server errors shown in the
 // dialog, text set only as text, delete, dismissal while a save is pending and focus return.
 // Usage: node scripts/test-terminal-retronet-entries.mjs
 import fs from 'node:fs';
@@ -317,9 +317,9 @@ async function edit(values) {
 
 // 9. Limits and server errors.
 {
-    const many = Array.from({ length: 64 }, (_, i) => ({ id: 'own-' + String(i).padStart(12, '0'), name: 'E' + i, protocol: 'telnet', host: 'bbs.example.net', port: 23, kind: 'bbs', charset: 'cp437', own: true }));
+    const many = Array.from({ length: 50 }, (_, i) => ({ id: 'own-' + String(i).padStart(12, '0'), name: 'E' + i, protocol: 'telnet', host: 'bbs.example.net', port: 23, kind: 'bbs', charset: 'cp437', own: true }));
     const full = await attempt({ name: 'One too many', host: 'bbs.example.net' }, many);
-    same('the 65th entry is refused locally', [full.problem, full.editor.calls.length], [english['desktop.terminal_retronet_error_limit'], 0]);
+    same('the 51st entry is refused locally', [full.problem, full.editor.calls.length], [english['desktop.terminal_retronet_error_limit'], 0]);
     const failing = openEditor({ own: [HOME], respond: () => Promise.reject(Object.assign(new Error('invalid desktop setting value for retronet.entries'), { status: 400 })) });
     failing.set({ name: 'Board', host: 'bbs.example.net' });
     failing.submit();
@@ -459,8 +459,8 @@ async function edit(values) {
     const malformed = await editWith({ own: [HOME], directory: () => Promise.resolve({ status: {} }) }, { name: 'Board', host: 'bbs.example.net' });
     same('a reply without entries saves nothing', [malformed.error.textContent, malformed.calls.length], ['Saving failed: ' + english['desktop.request_failed'], 0]);
     malformed.dialog.close();
-    const stored = Array.from({ length: 64 }, (_, i) => ({ id: 'own-' + String(i).padStart(12, '0'), name: 'E' + i, protocol: 'telnet', host: 'bbs.example.net', port: 23, kind: 'bbs', charset: 'cp437', own: true }));
-    const full = await editWith({ own: stored.slice(0, 63), server: stored }, { name: 'One too many', host: 'bbs.example.net' });
+    const stored = Array.from({ length: 50 }, (_, i) => ({ id: 'own-' + String(i).padStart(12, '0'), name: 'E' + i, protocol: 'telnet', host: 'bbs.example.net', port: 23, kind: 'bbs', charset: 'cp437', own: true }));
+    const full = await editWith({ own: stored.slice(0, 49), server: stored }, { name: 'One too many', host: 'bbs.example.net' });
     same('the limit counts the stored entries', [full.error.textContent, full.calls.length], [english['desktop.terminal_retronet_error_limit'], 0]);
     full.dialog.close();
 }

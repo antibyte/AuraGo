@@ -5850,7 +5850,7 @@
   "desktop.terminal_retronet_error_port": "Πληκτρολόγησε μια θύρα από 1 έως 65535.",
   "desktop.terminal_retronet_error_mail_port": "Οι θύρες αλληλογραφίας 25, 465 και 587 είναι αποκλεισμένες.",
   "desktop.terminal_retronet_error_user": "Πληκτρολόγησε όνομα χρήστη SSH έως 32 χαρακτήρων: a–z, 0–9, τελεία, ενωτικό ή κάτω παύλα.",
-  "desktop.terminal_retronet_error_limit": "Μπορείς να αποθηκεύσεις έως 64 δικές σου καταχωρίσεις.",
+  "desktop.terminal_retronet_error_limit": "Μπορείς να αποθηκεύσεις έως 50 δικές σου καταχωρίσεις.",
   "desktop.terminal_retronet_error_save": "Η αποθήκευση απέτυχε: {{message}}",
   "desktop.terminal_retronet_error_delete": "Η διαγραφή απέτυχε: {{message}}",
   "desktop.terminal_retronet_error_gone": "Αυτή η καταχώριση δεν υπάρχει πλέον. Ίσως διαγράφηκε σε άλλο παράθυρο.",

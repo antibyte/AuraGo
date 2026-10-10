@@ -5850,7 +5850,7 @@
   "desktop.terminal_retronet_error_port": "Gib einen Port von 1 bis 65535 ein.",
   "desktop.terminal_retronet_error_mail_port": "Die Mail-Ports 25, 465 und 587 sind gesperrt.",
   "desktop.terminal_retronet_error_user": "Gib einen SSH-Benutzernamen mit höchstens 32 Zeichen ein: a–z, 0–9, Punkt, Bindestrich oder Unterstrich.",
-  "desktop.terminal_retronet_error_limit": "Du kannst höchstens 64 eigene Einträge speichern.",
+  "desktop.terminal_retronet_error_limit": "Du kannst höchstens 50 eigene Einträge speichern.",
   "desktop.terminal_retronet_error_save": "Speichern fehlgeschlagen: {{message}}",
   "desktop.terminal_retronet_error_delete": "Löschen fehlgeschlagen: {{message}}",
   "desktop.terminal_retronet_error_gone": "Dieser Eintrag existiert nicht mehr. Vielleicht wurde er in einem anderen Fenster gelöscht.",

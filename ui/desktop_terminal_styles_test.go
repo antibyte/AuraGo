@@ -970,7 +970,7 @@ func TestDesktopTerminalRetroNetEntriesContract(t *testing.T) {
 		"window.crypto.getRandomValues",
 		"'own-' + chars.join('')",
 		"const ID_LENGTH = 12",
-		"const MAX_ENTRIES = 64",
+		"const MAX_ENTRIES = 50",
 		"const BLOCKED_PORTS = [25, 465, 587]",
 		`const INVISIBLE = /[\p{Cc}\p{Co}\p{Cs}\p{Zl}\p{Zp}\ufffd]|(?!\u200d)\p{Cf}/u`,
 		`const VISIBLE = /[^\p{White_Space}\u200d]/u`,

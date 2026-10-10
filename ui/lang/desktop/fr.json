@@ -5850,7 +5850,7 @@
   "desktop.terminal_retronet_error_port": "Saisissez un port compris entre 1 et 65535.",
   "desktop.terminal_retronet_error_mail_port": "Les ports de messagerie 25, 465 et 587 sont bloqués.",
   "desktop.terminal_retronet_error_user": "Saisissez un nom d'utilisateur SSH de 32 caractères au maximum : a–z, 0–9, point, trait d'union ou tiret bas.",
-  "desktop.terminal_retronet_error_limit": "Vous pouvez enregistrer au maximum 64 entrées personnelles.",
+  "desktop.terminal_retronet_error_limit": "Vous pouvez enregistrer au maximum 50 entrées personnelles.",
   "desktop.terminal_retronet_error_save": "Échec de l'enregistrement : {{message}}",
   "desktop.terminal_retronet_error_delete": "Échec de la suppression : {{message}}",
   "desktop.terminal_retronet_error_gone": "Cette entrée n'existe plus. Elle a peut-être été supprimée dans une autre fenêtre.",

@@ -5850,7 +5850,7 @@
   "desktop.terminal_retronet_error_port": "Inserisci una porta da 1 a 65535.",
   "desktop.terminal_retronet_error_mail_port": "Le porte di posta 25, 465 e 587 sono bloccate.",
   "desktop.terminal_retronet_error_user": "Inserisci un nome utente SSH di massimo 32 caratteri: a–z, 0–9, punto, trattino o trattino basso.",
-  "desktop.terminal_retronet_error_limit": "Puoi salvare al massimo 64 voci personali.",
+  "desktop.terminal_retronet_error_limit": "Puoi salvare al massimo 50 voci personali.",
   "desktop.terminal_retronet_error_save": "Salvataggio non riuscito: {{message}}",
   "desktop.terminal_retronet_error_delete": "Eliminazione non riuscita: {{message}}",
   "desktop.terminal_retronet_error_gone": "Questa voce non esiste più. Potrebbe essere stata eliminata in un'altra finestra.",

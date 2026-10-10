@@ -5850,7 +5850,7 @@
   "desktop.terminal_retronet_error_port": "Digite uma porta de 1 a 65535.",
   "desktop.terminal_retronet_error_mail_port": "As portas de e-mail 25, 465 e 587 estão bloqueadas.",
   "desktop.terminal_retronet_error_user": "Digite um usuário SSH com até 32 caracteres: a–z, 0–9, ponto, hífen ou sublinhado.",
-  "desktop.terminal_retronet_error_limit": "É possível salvar no máximo 64 entradas próprias.",
+  "desktop.terminal_retronet_error_limit": "É possível salvar no máximo 50 entradas próprias.",
   "desktop.terminal_retronet_error_save": "Falha ao salvar: {{message}}",
   "desktop.terminal_retronet_error_delete": "Falha ao excluir: {{message}}",
   "desktop.terminal_retronet_error_gone": "Esta entrada não existe mais. Ela pode ter sido excluída em outra janela.",

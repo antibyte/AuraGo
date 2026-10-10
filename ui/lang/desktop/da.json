@@ -5850,7 +5850,7 @@
   "desktop.terminal_retronet_error_port": "Indtast en port fra 1 til 65535.",
   "desktop.terminal_retronet_error_mail_port": "Mailportene 25, 465 og 587 er blokeret.",
   "desktop.terminal_retronet_error_user": "Indtast et SSH-brugernavn på højst 32 tegn: a–z, 0–9, punktum, bindestreg eller understregning.",
-  "desktop.terminal_retronet_error_limit": "Du kan højst gemme 64 egne poster.",
+  "desktop.terminal_retronet_error_limit": "Du kan højst gemme 50 egne poster.",
   "desktop.terminal_retronet_error_save": "Lagring mislykkedes: {{message}}",
   "desktop.terminal_retronet_error_delete": "Sletning mislykkedes: {{message}}",
   "desktop.terminal_retronet_error_gone": "Denne post findes ikke længere. Den er muligvis slettet i et andet vindue.",

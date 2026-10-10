@@ -5850,7 +5850,7 @@
   "desktop.terminal_retronet_error_port": "Ange en port från 1 till 65535.",
   "desktop.terminal_retronet_error_mail_port": "E-postportarna 25, 465 och 587 är blockerade.",
   "desktop.terminal_retronet_error_user": "Ange ett SSH-användarnamn med högst 32 tecken: a–z, 0–9, punkt, bindestreck eller understreck.",
-  "desktop.terminal_retronet_error_limit": "Du kan spara högst 64 egna poster.",
+  "desktop.terminal_retronet_error_limit": "Du kan spara högst 50 egna poster.",
   "desktop.terminal_retronet_error_save": "Det gick inte att spara: {{message}}",
   "desktop.terminal_retronet_error_delete": "Det gick inte att ta bort: {{message}}",
   "desktop.terminal_retronet_error_gone": "Den här posten finns inte längre. Den kan ha tagits bort i ett annat fönster.",

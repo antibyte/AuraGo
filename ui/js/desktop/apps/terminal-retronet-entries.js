@@ -2,7 +2,7 @@
     'use strict';
 
     const SETTING_KEY = 'retronet.entries';
-    const MAX_ENTRIES = 64;
+    const MAX_ENTRIES = 50;
     const MAX_BYTES = 64 * 1024;
     const NAME_MAX = 40;
     const DESCRIPTION_MAX = 80;

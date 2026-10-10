@@ -5850,7 +5850,7 @@
   "desktop.terminal_retronet_error_port": "Enter a port from 1 to 65535.",
   "desktop.terminal_retronet_error_mail_port": "The mail ports 25, 465 and 587 are blocked.",
   "desktop.terminal_retronet_error_user": "Enter an SSH user name with up to 32 characters: a–z, 0–9, dot, hyphen or underscore.",
-  "desktop.terminal_retronet_error_limit": "You can store at most 64 own entries.",
+  "desktop.terminal_retronet_error_limit": "You can store at most 50 own entries.",
   "desktop.terminal_retronet_error_save": "Saving failed: {{message}}",
   "desktop.terminal_retronet_error_delete": "Deleting failed: {{message}}",
   "desktop.terminal_retronet_error_gone": "This entry no longer exists. It may have been deleted in another window.",

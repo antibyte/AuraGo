@@ -5850,7 +5850,7 @@
   "desktop.terminal_retronet_error_port": "Voer een poort van 1 tot 65535 in.",
   "desktop.terminal_retronet_error_mail_port": "De mailpoorten 25, 465 en 587 zijn geblokkeerd.",
   "desktop.terminal_retronet_error_user": "Voer een SSH-gebruikersnaam in van maximaal 32 tekens: a–z, 0–9, punt, koppelteken of underscore.",
-  "desktop.terminal_retronet_error_limit": "Je kunt maximaal 64 eigen items opslaan.",
+  "desktop.terminal_retronet_error_limit": "Je kunt maximaal 50 eigen items opslaan.",
   "desktop.terminal_retronet_error_save": "Opslaan mislukt: {{message}}",
   "desktop.terminal_retronet_error_delete": "Verwijderen mislukt: {{message}}",
   "desktop.terminal_retronet_error_gone": "Dit item bestaat niet meer. Mogelijk is het in een ander venster verwijderd.",

@@ -31,7 +31,7 @@ Operator docs: `documentation/retro-net.md`.
   and `golang.org/x/crypto/ssh`; it must not import `internal/desktop` or
   `internal/server` (`TestProductionImportsStayInsideContract`).
 - Own entries (`entries.go`): document `{"version":1,"entries":[...]}`, at most
-  64 entries and 64 KiB, IDs `own-[a-z0-9]{8,32}` unique. Object keys must be
+  50 entries and 64 KiB, IDs `own-[a-z0-9]{8,32}` unique. Object keys must be
   exactly the stored field names, unique per object (`hasExactKeys`; JSON's
   case folding must not let the browser see another value). Name 1-40 and
   description up to 80 runes reject Unicode Cc/Cf/Co/Zl/Zp and U+FFFD (ZWJ

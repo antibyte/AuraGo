@@ -5850,7 +5850,7 @@
   "desktop.terminal_retronet_error_port": "Podaj port od 1 do 65535.",
   "desktop.terminal_retronet_error_mail_port": "Porty poczty 25, 465 i 587 są zablokowane.",
   "desktop.terminal_retronet_error_user": "Podaj nazwę użytkownika SSH o długości do 32 znaków: a–z, 0–9, kropka, łącznik lub podkreślenie.",
-  "desktop.terminal_retronet_error_limit": "Możesz zapisać maksymalnie 64 własne wpisy.",
+  "desktop.terminal_retronet_error_limit": "Możesz zapisać maksymalnie 50 własnych wpisów.",
   "desktop.terminal_retronet_error_save": "Zapisywanie nie powiodło się: {{message}}",
   "desktop.terminal_retronet_error_delete": "Usuwanie nie powiodło się: {{message}}",
   "desktop.terminal_retronet_error_gone": "Ten wpis już nie istnieje. Mógł zostać usunięty w innym oknie.",

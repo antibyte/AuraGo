@@ -5850,7 +5850,7 @@
   "desktop.terminal_retronet_error_port": "1～65535 のポートを入力してください。",
   "desktop.terminal_retronet_error_mail_port": "メールポート 25、465、587 はブロックされています。",
   "desktop.terminal_retronet_error_user": "a–z、0–9、ピリオド、ハイフン、アンダースコアを使った 32 文字以内の SSH ユーザー名を入力してください。",
-  "desktop.terminal_retronet_error_limit": "自分のエントリは最大 64 件まで保存できます。",
+  "desktop.terminal_retronet_error_limit": "自分のエントリは最大 50 件まで保存できます。",
   "desktop.terminal_retronet_error_save": "保存に失敗しました: {{message}}",
   "desktop.terminal_retronet_error_delete": "削除に失敗しました: {{message}}",
   "desktop.terminal_retronet_error_gone": "このエントリはもう存在しません。別のウィンドウで削除された可能性があります。",

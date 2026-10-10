@@ -5850,7 +5850,7 @@
   "desktop.terminal_retronet_error_port": "Skriv inn en port fra 1 til 65535.",
   "desktop.terminal_retronet_error_mail_port": "E-postportene 25, 465 og 587 er blokkert.",
   "desktop.terminal_retronet_error_user": "Skriv inn et SSH-brukernavn på opptil 32 tegn: a–z, 0–9, punktum, bindestrek eller understrek.",
-  "desktop.terminal_retronet_error_limit": "Du kan lagre høyst 64 egne oppføringer.",
+  "desktop.terminal_retronet_error_limit": "Du kan lagre høyst 50 egne oppføringer.",
   "desktop.terminal_retronet_error_save": "Lagring mislyktes: {{message}}",
   "desktop.terminal_retronet_error_delete": "Sletting mislyktes: {{message}}",
   "desktop.terminal_retronet_error_gone": "Denne oppføringen finnes ikke lenger. Den kan ha blitt slettet i et annet vindu.",

@@ -86,7 +86,7 @@ explanation:
 
 ## Own entries
 
-Administrators can add up to 64 own entries (`N` in the directory): name (1 to
+Administrators can add up to 50 own entries (`N` in the directory): name (1 to
 40 characters), description (up to 80), protocol (Telnet or SSH), host name or
 public IP address and port; for Telnet also the type (Mailbox or MUD/text
 world) and character set (UTF-8, CP437, ISO 8859-1); for SSH a user name (up to

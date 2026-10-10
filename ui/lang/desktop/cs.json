@@ -5850,7 +5850,7 @@
   "desktop.terminal_retronet_error_port": "Zadej port od 1 do 65535.",
   "desktop.terminal_retronet_error_mail_port": "Poštovní porty 25, 465 a 587 jsou blokované.",
   "desktop.terminal_retronet_error_user": "Zadej uživatelské jméno SSH o nejvýše 32 znacích: a–z, 0–9, tečka, spojovník nebo podtržítko.",
-  "desktop.terminal_retronet_error_limit": "Můžeš uložit nejvýše 64 vlastních záznamů.",
+  "desktop.terminal_retronet_error_limit": "Můžeš uložit nejvýše 50 vlastních záznamů.",
   "desktop.terminal_retronet_error_save": "Uložení selhalo: {{message}}",
   "desktop.terminal_retronet_error_delete": "Smazání selhalo: {{message}}",
   "desktop.terminal_retronet_error_gone": "Tento záznam již neexistuje. Možná byl smazán v jiném okně.",

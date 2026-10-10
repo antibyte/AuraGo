@@ -5850,7 +5850,7 @@
   "desktop.terminal_retronet_error_port": "1 से 65535 तक का पोर्ट दर्ज करें।",
   "desktop.terminal_retronet_error_mail_port": "मेल पोर्ट 25, 465 और 587 ब्लॉक हैं।",
   "desktop.terminal_retronet_error_user": "अधिकतम 32 अक्षरों का SSH उपयोगकर्ता नाम दर्ज करें: a–z, 0–9, बिंदु, हाइफ़न या अंडरस्कोर।",
-  "desktop.terminal_retronet_error_limit": "आप अधिकतम 64 अपनी प्रविष्टियाँ सहेज सकते हैं।",
+  "desktop.terminal_retronet_error_limit": "आप अधिकतम 50 अपनी प्रविष्टियाँ सहेज सकते हैं।",
   "desktop.terminal_retronet_error_save": "सहेजना विफल रहा: {{message}}",
   "desktop.terminal_retronet_error_delete": "हटाना विफल रहा: {{message}}",
   "desktop.terminal_retronet_error_gone": "यह प्रविष्टि अब मौजूद नहीं है। शायद इसे किसी दूसरी विंडो में हटा दिया गया है।",
