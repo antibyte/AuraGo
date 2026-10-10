@@ -88,9 +88,9 @@
             if (nextSelectedID !== undefined) {
                 host.dataset.todoSelected = nextSelectedID || '';
             }
-            const selectedID = host.dataset.todoSelected || '';
             const todos = await api('/api/desktop/integrations/todos?status=all');
             if (host.dataset.todoGeneration !== generation) return;
+            const selectedID = host.dataset.todoSelected || '';
             const filtered = todos.filter(todo => host.dataset.todoFilter === 'all' || todo.status === host.dataset.todoFilter)
                 .sort((a, b) => (({ high: 0, medium: 1, low: 2 }[a.priority] ?? 3) - (({ high: 0, medium: 1, low: 2 }[b.priority] ?? 3)) || String(a.due_date || '9999').localeCompare(String(b.due_date || '9999'))));
             const list = host.querySelector('.vd-todo-list');
