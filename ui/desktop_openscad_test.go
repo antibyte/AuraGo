@@ -578,7 +578,7 @@ func TestDesktopOpenSCADSTLPreviewIgnoresStaleLoads(t *testing.T) {
 	if cleanupAt < 0 {
 		t.Fatal("renderPreview must release the STL scene before showing another preview")
 	}
-	for _, marker := range []string{"renderPreviewEmptyState(state, panel)", "data-oscad-preview-img", "data-oscad-preview-object", "data-oscad-preview-frame", "desktop.openscad.download_hint"} {
+	for _, marker := range []string{"renderPreviewEmptyState(state, panel)", "data-oscad-preview-img", "data-oscad-preview-frame", "desktop.openscad.download_hint"} {
 		at := strings.Index(preview, marker)
 		if at < 0 || at < cleanupAt {
 			t.Fatalf("renderPreview must call cleanupPreview(state) before %q", marker)
@@ -587,5 +587,39 @@ func TestDesktopOpenSCADSTLPreviewIgnoresStaleLoads(t *testing.T) {
 	stlAt := strings.Index(preview, "renderSTL(state, panel.querySelector('[data-stl-viewer]'), url)")
 	if stlAt < 0 || stlAt > cleanupAt {
 		t.Fatal("the STL branch must run before the non-STL cleanup so an unchanged STL scene is kept")
+	}
+}
+
+func TestDesktopOpenSCADResultAndPreviewTrust(t *testing.T) {
+	t.Parallel()
+	app := readDesktopAssetText(t, "js/desktop/apps/openscad.js")
+	if strings.Contains(app, "window.addEventListener('message'") {
+		t.Fatal("OpenSCAD must not listen for window message events")
+	}
+	for _, want := range []string{
+		"if (!targetWindowId && stateByWindow.size > 1) return;",
+		"function openSCADTrustedPreviewURL",
+		"sandbox=\"\"",
+		"'amf'",
+	} {
+		if !strings.Contains(app, want) {
+			t.Fatalf("missing %q", want)
+		}
+	}
+	if strings.Contains(app, "state.editor.setValue(payload.source_scad)") {
+		t.Fatal("result events must not write the editor")
+	}
+	svg := strings.Index(app, "file.format === 'svg'")
+	png := strings.Index(app, "file.format === 'png'")
+	object := strings.Index(app, "type=\"image/svg+xml\"")
+	if svg < 0 || object >= 0 {
+		t.Fatal("SVG preview must use an img, the same path as PNG")
+	}
+	_ = png
+	start := strings.Index(app, "function isOpenSCADResultPayload")
+	end := strings.Index(app[start:], "async function loadStatus")
+	body := app[start : start+end]
+	if !strings.Contains(body, "oscad-") || strings.Contains(body, "value.source_scad") {
+		t.Fatalf("payload detector = %s", body)
 	}
 }
