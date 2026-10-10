@@ -154,16 +154,86 @@ func NewProject(name, boardID, themeID, language, timezone string, ids IDSource)
 	}, nil
 }
 
+// layoutError builds the CYD_INVALID_LAYOUT envelope. The reason can echo
+// attacker-controlled text (an unknown key), so it is clipped to
+// maxDiagMessageBytes at a rune boundary before it reaches the message and
+// details.reason.
 func layoutError(reason string, details map[string]any) *Error {
 	if details == nil {
 		details = map[string]any{}
 	}
+	reason = clipReason(reason)
 	details["reason"] = reason
 	return NewError(CodeInvalidLayout, "invalid layout: "+reason, details)
 }
 
-// ParseProject decodes cyd.project.json strictly: size ≤ MaxLayoutBytes, no
-// unknown fields, no trailing data, format == ProjectFormat and well-formed
+func clipReason(s string) string {
+	if len(s) <= maxDiagMessageBytes {
+		return s
+	}
+	cut := maxDiagMessageBytes
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut] + "…"
+}
+
+// layoutShapeFrame is one open JSON container in checkLayoutShape.
+type layoutShapeFrame struct {
+	array  bool
+	commas int
+}
+
+// checkLayoutShape scans untrusted layout JSON without allocating per element
+// and rejects nesting deeper than maxLayoutDepth or an array with more than
+// maxLayoutArrayElems elements. It tracks string and escape state so brackets
+// and commas inside strings do not count. It does not validate the syntax:
+// malformed input that passes here is rejected by the decoder.
+func checkLayoutShape(data []byte) error {
+	stack := make([]layoutShapeFrame, 0, maxLayoutDepth)
+	inString, escaped := false, false
+	for _, c := range data {
+		if inString {
+			switch {
+			case escaped:
+				escaped = false
+			case c == '\\':
+				escaped = true
+			case c == '"':
+				inString = false
+			}
+			continue
+		}
+		switch c {
+		case '"':
+			inString = true
+		case '{', '[':
+			if len(stack) >= maxLayoutDepth {
+				return layoutError(fmt.Sprintf("nesting deeper than %d levels", maxLayoutDepth),
+					map[string]any{"limit": maxLayoutDepth})
+			}
+			stack = append(stack, layoutShapeFrame{array: c == '['})
+		case '}', ']':
+			if len(stack) > 0 {
+				stack = stack[:len(stack)-1]
+			}
+		case ',':
+			if n := len(stack); n > 0 && stack[n-1].array {
+				stack[n-1].commas++
+				// k commas separate k+1 elements.
+				if stack[n-1].commas >= maxLayoutArrayElems {
+					return layoutError(fmt.Sprintf("array with more than %d elements", maxLayoutArrayElems),
+						map[string]any{"limit": maxLayoutArrayElems})
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// ParseProject decodes cyd.project.json strictly: size ≤ MaxLayoutBytes,
+// nesting ≤ 32 levels, no array with more than 4096 elements, no unknown
+// fields, no trailing data, format == ProjectFormat and well-formed
 // screen/widget/asset ids. Semantic problems are left to Validate. Every
 // failure is *Error CYD_INVALID_LAYOUT with details.reason.
 func ParseProject(data []byte) (Project, error) {
@@ -172,6 +242,9 @@ func ParseProject(data []byte) (Project, error) {
 			map[string]any{"limit": MaxLayoutBytes})
 	}
 	data = bytes.TrimPrefix(data, []byte("\xEF\xBB\xBF"))
+	if err := checkLayoutShape(data); err != nil {
+		return Project{}, err
+	}
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
 	var p Project
@@ -242,7 +315,9 @@ func firstInvalidWidgetID(list []Widget, base string) (string, bool) {
 
 // MarshalProject writes the canonical form: struct field order, sorted map
 // keys, 2-space indent, no HTML escaping, trailing newline. nil slices are
-// written as []. The input is not modified.
+// written as []. The input is not modified. A canonical document larger than
+// MaxLayoutBytes could not be parsed back, so it fails with *Error
+// CYD_INVALID_LAYOUT (details.limit, details.bytes).
 func MarshalProject(p Project) ([]byte, error) {
 	screens := make([]Screen, len(p.Screens))
 	copy(screens, p.Screens)
@@ -254,6 +329,10 @@ func MarshalProject(p Project) ([]byte, error) {
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(p); err != nil {
 		return nil, fmt.Errorf("encode project: %w", err)
+	}
+	if buf.Len() > MaxLayoutBytes {
+		return nil, layoutError(fmt.Sprintf("canonical layout is %d bytes, maximum %d", buf.Len(), MaxLayoutBytes),
+			map[string]any{"limit": MaxLayoutBytes, "bytes": buf.Len()})
 	}
 	return buf.Bytes(), nil
 }

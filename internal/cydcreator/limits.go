@@ -27,6 +27,12 @@ const (
 	maxProjectNameRunes = 64
 	maxDiagnostics      = 200
 	maxDiagMessageBytes = 1024
+	// ParseProject bounds the shape of untrusted layout JSON before decoding it:
+	// a valid layout nests about 16 levels (root, screens, screen, widgets, up
+	// to MaxNesting widget levels with props/events inside) and real arrays hold
+	// at most a few hundred items, so these leave generous headroom.
+	maxLayoutDepth      = 32
+	maxLayoutArrayElems = 4096
 	// maxInternalDrawBuffer caps LVGL draw buffers on boards without PSRAM so
 	// Wi-Fi, TLS (OTA) and WiFiManager keep enough internal heap (spec §21.5).
 	maxInternalDrawBuffer = 48 << 10
