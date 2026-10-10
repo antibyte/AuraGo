@@ -106,7 +106,7 @@ type sessionStats struct {
 // Active returns the number of running sessions.
 func (m *Manager) Active() int { return int(m.active.Load()) }
 
-// Run dials and pumps one session until it ends. It sends "connected", "echo" (telnet),
+// Run dials and pumps one session until it ends. It sends "connected", "echo" (telnet, not C64),
 // "hostkey_prompt" (when needed) and always exactly one final "result" control, then returns.
 // Context cancellation maps to ReasonDisabled when ctx carries ErrDisabled as cause
 // (context.Cause), to ReasonServerShutdown when the cause is ErrShutdown, else remote_closed
@@ -160,6 +160,9 @@ func (m *Manager) session(parent context.Context, e Entry, size Size, client Cli
 func (m *Manager) serve(ctx context.Context, e Entry, size Size, client Client, conn net.Conn, stats *sessionStats) string {
 	switch e.Protocol {
 	case ProtocolTelnet:
+		if e.Kind == KindC64 {
+			return m.runC64(ctx, client, conn, stats)
+		}
 		return m.runTelnet(ctx, e, size, client, conn, stats)
 	case ProtocolSSH:
 		return m.runSSH(ctx, e, size, client, conn, stats)
@@ -197,10 +200,15 @@ func (m *Manager) maxDuration() time.Duration {
 }
 
 // sessionSize clamps the browser size like the WebSocket handler (cols 20-400, rows 5-200,
-// default 80x25) and pins Telnet BBS entries to their fixed 80x25 geometry.
+// default 80x25) and pins Telnet BBS entries to 80x25 and C64 boards to 40x25.
 func sessionSize(e Entry, s Size) Size {
-	if e.Protocol == ProtocolTelnet && e.Kind == KindBBS {
-		return Size{Cols: 80, Rows: 25}
+	if e.Protocol == ProtocolTelnet {
+		switch e.Kind {
+		case KindBBS:
+			return Size{Cols: 80, Rows: 25}
+		case KindC64:
+			return Size{Cols: c64Cols, Rows: c64Rows}
+		}
 	}
 	return clampSessionSize(s)
 }
