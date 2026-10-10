@@ -185,13 +185,15 @@ type layoutShapeFrame struct {
 }
 
 // checkLayoutShape scans untrusted layout JSON without allocating per element
-// and rejects nesting deeper than maxLayoutDepth or an array with more than
-// maxLayoutArrayElems elements. It tracks string and escape state so brackets
-// and commas inside strings do not count. It does not validate the syntax:
-// malformed input that passes here is rejected by the decoder.
+// and rejects nesting deeper than maxLayoutDepth, an array with more than
+// maxLayoutArrayElems elements, or more than maxLayoutObjects objects in total.
+// It tracks string and escape state so brackets and commas inside strings do
+// not count. It does not validate the syntax: malformed input that passes here
+// is rejected by the decoder.
 func checkLayoutShape(data []byte) error {
 	stack := make([]layoutShapeFrame, 0, maxLayoutDepth)
 	inString, escaped := false, false
+	objects := 0
 	for _, c := range data {
 		if inString {
 			switch {
@@ -211,6 +213,13 @@ func checkLayoutShape(data []byte) error {
 			if len(stack) >= maxLayoutDepth {
 				return layoutError(fmt.Sprintf("nesting deeper than %d levels", maxLayoutDepth),
 					map[string]any{"limit": maxLayoutDepth})
+			}
+			if c == '{' {
+				objects++
+				if objects > maxLayoutObjects {
+					return layoutError(fmt.Sprintf("more than %d objects", maxLayoutObjects),
+						map[string]any{"limit": maxLayoutObjects})
+				}
 			}
 			stack = append(stack, layoutShapeFrame{array: c == '['})
 		case '}', ']':
@@ -232,10 +241,11 @@ func checkLayoutShape(data []byte) error {
 }
 
 // ParseProject decodes cyd.project.json strictly: size ≤ MaxLayoutBytes,
-// nesting ≤ 32 levels, no array with more than 4096 elements, no unknown
-// fields, no trailing data, format == ProjectFormat and well-formed
-// screen/widget/asset ids. Semantic problems are left to Validate. Every
-// failure is *Error CYD_INVALID_LAYOUT with details.reason.
+// nesting ≤ 32 levels, no array with more than 4096 elements, at most 32768
+// objects in total, no unknown fields, no trailing data, format ==
+// ProjectFormat and well-formed screen/widget/asset ids. Semantic problems are
+// left to Validate. Every failure is *Error CYD_INVALID_LAYOUT with
+// details.reason.
 func ParseProject(data []byte) (Project, error) {
 	if len(data) > MaxLayoutBytes {
 		return Project{}, layoutError(fmt.Sprintf("layout is %d bytes, maximum %d", len(data), MaxLayoutBytes),

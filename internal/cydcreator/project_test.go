@@ -341,6 +341,80 @@ func TestParseProjectBoundsNestingAndArrays(t *testing.T) {
 	}
 }
 
+// layoutWithObjectCount builds a layout of exactly total JSON objects spread
+// over nine screens (so no array reaches maxLayoutArrayElems). widget is the
+// text of one widget object.
+func layoutWithObjectCount(total int, widget string) string {
+	const screens = 9
+	widgets := total - (2 + 2*screens) // root, settings, and a screen plus its style per screen
+	var b strings.Builder
+	b.WriteString(`{"format":1,"template_version":"1.0.0","name":"x","board":"esp32-2432s028r","orientation":"landscape",` +
+		`"theme":"clear","language":"en","timezone":"UTC0","settings":{"wifi":"off","aurago_link":false,"libraries":[],` +
+		`"backlight":100,"statusbar_clock":false},"start_screen":"s_0","screens":[`)
+	for si := 0; si < screens; si++ {
+		n := widgets / screens
+		if si < widgets%screens {
+			n++
+		}
+		if si > 0 {
+			b.WriteByte(',')
+		}
+		fmt.Fprintf(&b, `{"id":"s_%d","name":"s%d","title":"","transition":"none","style":{},"widgets":[`, si, si)
+		for wi := 0; wi < n; wi++ {
+			if wi > 0 {
+				b.WriteByte(',')
+			}
+			b.WriteString(widget)
+		}
+		b.WriteString(`]}`)
+	}
+	b.WriteString(`],"assets":[]}`)
+	return b.String()
+}
+
+func TestParseProjectBoundsTotalObjects(t *testing.T) {
+	// 9 screens x 4000 empty widgets: every array stays under 4096 elements,
+	// but the document holds about 36k objects.
+	var screens []string
+	for i := 0; i < 9; i++ {
+		screens = append(screens, fmt.Sprintf(
+			`{"id":"s_%d","name":"s%d","title":"","transition":"none","style":{},"widgets":[%s{}]}`,
+			i, i, strings.Repeat("{},", 3999)))
+	}
+	doc := `{"format":1,"template_version":"1.0.0","name":"x","board":"esp32-2432s028r","orientation":"landscape",` +
+		`"theme":"clear","language":"en","timezone":"UTC0","settings":{"wifi":"off","aurago_link":false,"libraries":[],` +
+		`"backlight":100,"statusbar_clock":false},"start_screen":"s_0","screens":[` + strings.Join(screens, ",") + `],"assets":[]}`
+	_, err := ParseProject([]byte(doc))
+	e := asLayoutError(t, err)
+	if e == nil {
+		t.Fatal("36k objects not rejected as a layout error")
+	}
+	if reason, _ := e.Details["reason"].(string); reason != "more than 32768 objects" {
+		t.Errorf("reason = %q", reason)
+	}
+	if e.Details["limit"] != maxLayoutObjects {
+		t.Errorf("details.limit = %v, want %d", e.Details["limit"], maxLayoutObjects)
+	}
+
+	// Exactly maxLayoutObjects objects pass the scan; one more does not. Braces
+	// inside strings never count.
+	const widget = `{"id":"w_1"}`
+	if _, err := ParseProject([]byte(layoutWithObjectCount(maxLayoutObjects, widget))); err != nil {
+		t.Errorf("exactly %d objects rejected: %v", maxLayoutObjects, err)
+	}
+	_, err = ParseProject([]byte(layoutWithObjectCount(maxLayoutObjects+1, widget)))
+	if e := asLayoutError(t, err); e != nil {
+		if reason, _ := e.Details["reason"].(string); reason != "more than 32768 objects" {
+			t.Errorf("one over: reason = %q", reason)
+		}
+	}
+	braces := layoutWithWidgets(`[{"id":"w_1","type":"label","x":0,"y":0,"w":1,"h":1,"props":{"text":"` +
+		strings.Repeat("{", maxLayoutObjects+10) + `"}}]`)
+	if _, err := ParseProject([]byte(braces)); err != nil {
+		t.Errorf("braces inside a string counted as objects: %v", err)
+	}
+}
+
 func TestParseProjectMalformedPastShapeScanStillRejected(t *testing.T) {
 	// Mismatched brackets and a dangling string pass the shape scan, never the decoder.
 	for name, doc := range map[string]string{

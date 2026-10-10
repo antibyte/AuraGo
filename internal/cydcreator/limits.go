@@ -33,6 +33,11 @@ const (
 	// at most a few hundred items, so these leave generous headroom.
 	maxLayoutDepth      = 32
 	maxLayoutArrayElems = 4096
+	// maxLayoutObjects caps the total number of JSON objects: the largest valid
+	// layout (16 screens x 200 widgets, each with style, props and events
+	// objects) has about 16-20k, while many arrays that each stay under
+	// maxLayoutArrayElems could otherwise still allocate hundreds of thousands.
+	maxLayoutObjects = 32768
 	// maxInternalDrawBuffer caps LVGL draw buffers on boards without PSRAM so
 	// Wi-Fi, TLS (OTA) and WiFiManager keep enough internal heap (spec §21.5).
 	maxInternalDrawBuffer = 48 << 10
