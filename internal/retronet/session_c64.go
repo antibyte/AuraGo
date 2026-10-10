@@ -14,8 +14,8 @@ import (
 // does the call switch to Telnet for its remaining lifetime: Initial() goes out at that
 // moment, Feed strips negotiation and answers TTYPE "PETSCII" and NAWS 40x25, and input is
 // IAC-escaped. The PETSCII codec maps Enter ("\r" -> 0x0D) in both modes; geometry stays
-// 40x25 (c64Cols x c64Rows, the engine's screen), browser resizes are ignored and no "echo" control is sent (C64 boards always echo
-// in character mode).
+// 40x25 (c64Cols x c64Rows, the engine's screen), browser resizes are ignored and no "echo"
+// control is sent (C64 boards always echo in character mode).
 func (m *Manager) runC64(ctx context.Context, client Client, conn net.Conn, stats *sessionStats) string {
 	codec := NewCodec(CharsetPETSCII) // stateful: one per session
 	out := sessionWriter{w: conn, deadline: conn, stats: stats}
