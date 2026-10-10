@@ -51,7 +51,7 @@ func ApplyOps(p Project, ops []LayoutOp, ids IDSource) (Project, []OpResult, err
 		ids = RandomIDs{}
 	}
 	if len(ops) > maxLayoutOps {
-		return p, nil, opFailure(maxLayoutOps, "", fmt.Sprintf("too many ops (maximum %d per call)", maxLayoutOps), nil)
+		return p, nil, opFailure(maxLayoutOps, "", fmt.Sprintf("too many ops (maximum %d per call)", maxLayoutOps), nil, nil)
 	}
 	work := cloneProject(p)
 	known := errorKeys(&work, Validate(work, ValidateOptions{}))
@@ -59,26 +59,69 @@ func ApplyOps(p Project, ops []LayoutOp, ids IDSource) (Project, []OpResult, err
 	for i, op := range ops {
 		res, err := applyOp(&work, op, ids)
 		if err != nil {
-			return p, nil, opFailure(i, op.Op, err.Error(), nil)
+			return p, nil, opFailure(i, op.Op, err.Error(), nil, nil)
 		}
 		issues := Validate(work, ValidateOptions{})
 		for _, is := range issues {
 			if is.Severity == SeverityError && !known[issueKey(&work, is)] {
-				return p, nil, opFailure(i, op.Op, is.Message, &is)
+				return p, nil, opFailure(i, op.Op, is.Message, &is, nil)
 			}
 		}
 		known = errorKeys(&work, issues)
 		res.Index, res.Op = i, op.Op
 		results = append(results, res)
 	}
+	// The per-op gate only looks at validation errors; a layout that is too
+	// large or too deep for storage and for ParseProject can still pass it (for
+	// example when the widget already has an error of the same kind).
+	if len(ops) > 0 {
+		if reason, extra := resultProblem(work); reason != "" {
+			last := len(ops) - 1
+			return p, nil, opFailure(last, ops[last].Op, "the ops make the layout too large or too complex: "+reason, nil, extra)
+		}
+	}
 	return work, results, nil
 }
 
-func opFailure(index int, op, reason string, is *Issue) *Error {
+// resultProblem checks that the canonical form of p can be stored and parsed
+// back: it must marshal within MaxLayoutBytes and pass checkLayoutShape. It
+// returns "" when fine, else the reason and the limit details of the failure.
+func resultProblem(p Project) (string, map[string]any) {
+	data, err := MarshalProject(p)
+	if err == nil {
+		err = checkLayoutShape(data)
+	}
+	if err == nil {
+		return "", nil
+	}
+	reason, extra := err.Error(), map[string]any{}
+	var le *Error
+	if errors.As(err, &le) {
+		if r, ok := le.Details["reason"].(string); ok {
+			reason = r
+		}
+		for _, k := range []string{"limit", "bytes"} {
+			if v, ok := le.Details[k]; ok {
+				extra[k] = v
+			}
+		}
+	}
+	return reason, extra
+}
+
+// opFailure builds the CYD_INVALID_LAYOUT error of a failed op. Everything an
+// op can make it echo (op name, ids, keys, issue paths) is bounded: the op name
+// to clipEcho, reason and path to clipReason. extra adds more details (limit,
+// bytes).
+func opFailure(index int, op, reason string, is *Issue, extra map[string]any) *Error {
+	op, reason = clipEcho(op), clipReason(reason)
 	details := map[string]any{"index": index, "op": op, "reason": reason}
 	if is != nil {
 		details["code"] = is.Code
-		details["path"] = is.Path
+		details["path"] = clipReason(is.Path)
+	}
+	for k, v := range extra {
+		details[k] = v
 	}
 	return NewError(CodeInvalidLayout, fmt.Sprintf("layout op %d (%s) failed: %s", index, op, reason), details)
 }
@@ -142,15 +185,17 @@ func duplicatedValue(p *Project, path string) (string, bool) {
 }
 
 // issueKey identifies a validation error across ops; p is the project the
-// issue was produced for. Most keys are code + screen id + widget id + the path
-// below the element. Two families are keyed differently because the element an
-// issue is attributed to is not stable:
+// issue was produced for. A key is code + element id + the path below the
+// element; the element is the widget when the issue has one (without its
+// screen, so moving a widget to another screen keeps its pre-existing errors
+// pre-existing), else the screen, else the project. Two families are keyed
+// differently because the element an issue is attributed to is not stable:
 //   - NAME_DUPLICATE, ID_DUPLICATE and SCREEN_NAME_DUPLICATE land on the later
 //     of the clashing elements, which changes when elements are reordered or
 //     moved; they are keyed by code + the duplicated name or id.
 //   - UNKNOWN_PROP lists at most maxUnknownPropIssues props per widget (the
 //     rest is summarised), so removing one prop changes which props are
-//     listed; it is keyed by code + screen + widget.
+//     listed; it is keyed by code + widget.
 func issueKey(p *Project, is Issue) string {
 	switch is.Code {
 	case IssueNameDuplicate, IssueIDDuplicate, IssueScreenNameDuplicate:
@@ -158,9 +203,15 @@ func issueKey(p *Project, is Issue) string {
 			return is.Code + "\x00dup\x00" + v
 		}
 	case IssueUnknownProp:
-		return is.Code + "\x00" + is.Screen + "\x00" + is.Widget
+		if is.Widget != "" {
+			return is.Code + "\x00\x00" + is.Widget
+		}
 	}
-	return is.Code + "\x00" + is.Screen + "\x00" + is.Widget + "\x00" + issuePathPrefix.ReplaceAllString(is.Path, "")
+	screen := is.Screen
+	if is.Widget != "" {
+		screen = ""
+	}
+	return is.Code + "\x00" + screen + "\x00" + is.Widget + "\x00" + issuePathPrefix.ReplaceAllString(is.Path, "")
 }
 
 func errorKeys(p *Project, issues []Issue) map[string]bool {
@@ -191,14 +242,14 @@ func applyOp(p *Project, op LayoutOp, ids IDSource) (OpResult, error) {
 		return opDeleteScreen(p, op)
 	case "set_theme":
 		if _, err := ThemeByID(op.Theme); err != nil {
-			return OpResult{}, fmt.Errorf("unknown theme %q", op.Theme)
+			return OpResult{}, fmt.Errorf("unknown theme %q", clipEcho(op.Theme))
 		}
 		p.Theme = op.Theme
 		return OpResult{ID: op.Theme, Summary: "theme set to " + op.Theme}, nil
 	case "set_settings":
 		return opSetSettings(p, op)
 	}
-	return OpResult{}, fmt.Errorf("unknown op %q", op.Op)
+	return OpResult{}, fmt.Errorf("unknown op %q", clipEcho(op.Op))
 }
 
 // ---- lookup helpers ----
@@ -217,7 +268,7 @@ func (p *Project) screenIndex(idOrName string) (int, error) {
 			return i, nil
 		}
 	}
-	return -1, fmt.Errorf("screen %q not found", idOrName)
+	return -1, fmt.Errorf("screen %q not found", clipEcho(idOrName))
 }
 
 type widgetLoc struct {
@@ -244,7 +295,8 @@ func (p *Project) parentList(loc widgetLoc) (*[]Widget, *Widget) {
 	return &parent.Children, parent
 }
 
-// findWidgetLoc finds a widget by id, then name; screen ("" = all) restricts the search.
+// findWidgetLoc finds a widget by id, then name; screen (an id or name,
+// "" = all screens) restricts the search.
 func (p *Project) findWidgetLoc(idOrName, screen string) (widgetLoc, error) {
 	if idOrName == "" {
 		return widgetLoc{}, errors.New("id is required")
@@ -256,6 +308,16 @@ func (p *Project) findWidgetLoc(idOrName, screen string) (widgetLoc, error) {
 			return widgetLoc{}, err
 		}
 		only = si
+	}
+	return p.findWidgetLocIn(idOrName, only)
+}
+
+// findWidgetLocIn is findWidgetLoc restricted to the screen at index only
+// (-1 = all screens). Callers that already hold a screen index use it so that
+// a duplicate screen id cannot redirect the search to another screen.
+func (p *Project) findWidgetLocIn(idOrName string, only int) (widgetLoc, error) {
+	if idOrName == "" {
+		return widgetLoc{}, errors.New("id is required")
 	}
 	for _, match := range []func(*Widget) bool{
 		func(w *Widget) bool { return w.ID == idOrName },
@@ -270,7 +332,7 @@ func (p *Project) findWidgetLoc(idOrName, screen string) (widgetLoc, error) {
 			}
 		}
 	}
-	return widgetLoc{}, fmt.Errorf("widget %q not found", idOrName)
+	return widgetLoc{}, fmt.Errorf("widget %q not found", clipEcho(idOrName))
 }
 
 func (p *Project) usedIDs() map[string]bool {
@@ -346,7 +408,32 @@ func (p *Project) screenWidth() int {
 	return 0
 }
 
-func describeWidget(w *Widget) string { return w.Type + " " + widgetLabel(w) }
+func describeWidget(w *Widget) string { return clipEcho(w.Type) + " " + widgetLabel(w) }
+
+// checkNewTree rejects a widget list that is added by one op when it cannot
+// become valid anyway: nested deeper than MaxNesting or holding more than
+// MaxWidgetsPerScreen widgets. It runs before the list is cloned or validated
+// and stops descending as soon as a limit is crossed, so it is cheap for
+// oversized input.
+func checkNewTree(list []Widget) error {
+	count := 0
+	var visit func(list []Widget, depth int) error
+	visit = func(list []Widget, depth int) error {
+		for i := range list {
+			if depth > MaxNesting {
+				return fmt.Errorf("widgets are nested deeper than %d levels", MaxNesting)
+			}
+			if count++; count > MaxWidgetsPerScreen {
+				return fmt.Errorf("more than %d widgets", MaxWidgetsPerScreen)
+			}
+			if err := visit(list[i].Children, depth+1); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return visit(list, 1)
+}
 
 // ---- widget ops ----
 
@@ -358,9 +445,12 @@ func opAddWidget(p *Project, op LayoutOp, ids IDSource) (OpResult, error) {
 	if op.Widget == nil {
 		return OpResult{}, errors.New("widget is required")
 	}
+	if err := checkNewTree([]Widget{*op.Widget}); err != nil {
+		return OpResult{}, fmt.Errorf("widget: %w", err)
+	}
 	w := cloneWidget(*op.Widget)
 	if _, ok := widgetSpecRef(w.Type); !ok {
-		return OpResult{}, fmt.Errorf("unknown widget type %q", w.Type)
+		return OpResult{}, fmt.Errorf("unknown widget type %q", clipEcho(w.Type))
 	}
 	if op.X != nil {
 		w.X = *op.X
@@ -368,7 +458,7 @@ func opAddWidget(p *Project, op LayoutOp, ids IDSource) (OpResult, error) {
 	if op.Y != nil {
 		w.Y = *op.Y
 	}
-	list, where := &p.Screens[si].Widgets, p.Screens[si].Name
+	list, where := &p.Screens[si].Widgets, clipEcho(p.Screens[si].Name)
 	areaW := p.screenWidth()
 	tab := w.Tab
 	if op.Tab != nil {
@@ -376,7 +466,7 @@ func opAddWidget(p *Project, op LayoutOp, ids IDSource) (OpResult, error) {
 	}
 	w.Tab = 0
 	if op.Parent != "" {
-		loc, err := p.findWidgetLoc(op.Parent, p.Screens[si].ID)
+		loc, err := p.findWidgetLocIn(op.Parent, si)
 		if err != nil {
 			return OpResult{}, fmt.Errorf("parent: %w", err)
 		}
@@ -413,7 +503,7 @@ func opUpdateWidget(p *Project, op LayoutOp) (OpResult, error) {
 	keys := slices.Sorted(maps.Keys(op.Set))
 	for _, k := range keys {
 		if err := setWidgetField(&updated, k, op.Set[k]); err != nil {
-			return OpResult{}, fmt.Errorf("set.%s: %w", k, err)
+			return OpResult{}, fmt.Errorf("set.%s: %w", clipEcho(k), err)
 		}
 	}
 	resolveActionScreens(p, &updated)
@@ -453,7 +543,7 @@ func setWidgetField(w *Widget, key string, val any) error {
 	case "id", "type", "children":
 		err = fmt.Errorf("%s cannot be changed with update_widget", key)
 	default:
-		err = fmt.Errorf("unknown widget field %q", key)
+		err = fmt.Errorf("unknown widget field %q", clipEcho(key))
 	}
 	return err
 }
@@ -479,7 +569,7 @@ func opMoveWidget(p *Project, op LayoutOp) (OpResult, error) {
 	}
 	moved := cloneWidget(*w)
 	if op.Parent != "" {
-		ploc, err := p.findWidgetLoc(op.Parent, p.Screens[destScreen].ID)
+		ploc, err := p.findWidgetLocIn(op.Parent, destScreen)
 		if err != nil {
 			return OpResult{}, fmt.Errorf("parent: %w", err)
 		}
@@ -492,14 +582,17 @@ func opMoveWidget(p *Project, op LayoutOp) (OpResult, error) {
 	list, _ := p.parentList(loc)
 	idx := loc.path[len(loc.path)-1]
 	*list = slices.Delete(*list, idx, idx+1)
-	dest, where := &p.Screens[destScreen].Widgets, p.Screens[destScreen].Name
+	dest, where := &p.Screens[destScreen].Widgets, clipEcho(p.Screens[destScreen].Name)
 	tab := 0
 	if op.Tab != nil {
 		tab = *op.Tab
 	}
 	moved.Tab = 0
 	if op.Parent != "" {
-		ploc, _ := p.findWidgetLoc(op.Parent, p.Screens[destScreen].ID)
+		ploc, err := p.findWidgetLocIn(op.Parent, destScreen)
+		if err != nil {
+			return OpResult{}, fmt.Errorf("parent: %w", err)
+		}
 		parent := p.widgetAt(ploc)
 		if spec, _ := widgetSpecRef(parent.Type); spec == nil || !spec.Container {
 			return OpResult{}, fmt.Errorf("parent %s cannot contain widgets", describeWidget(parent))
@@ -551,6 +644,9 @@ func opAddScreen(p *Project, op LayoutOp, ids IDSource) (OpResult, error) {
 	if op.ScreenData == nil {
 		return OpResult{}, errors.New("screen_data is required")
 	}
+	if err := checkNewTree(op.ScreenData.Widgets); err != nil {
+		return OpResult{}, fmt.Errorf("screen_data: %w", err)
+	}
 	s := cloneScreen(*op.ScreenData)
 	used := p.usedIDs()
 	id, err := freshID(ids, "s", used)
@@ -578,7 +674,7 @@ func opAddScreen(p *Project, op LayoutOp, ids IDSource) (OpResult, error) {
 	if p.StartScreen == "" {
 		p.StartScreen = s.ID
 	}
-	return OpResult{ID: s.ID, Summary: "added screen " + s.Name}, nil
+	return OpResult{ID: s.ID, Summary: "added screen " + clipEcho(s.Name)}, nil
 }
 
 func opUpdateScreen(p *Project, op LayoutOp) (OpResult, error) {
@@ -609,14 +705,14 @@ func opUpdateScreen(p *Project, op LayoutOp) (OpResult, error) {
 		case "id", "widgets":
 			err = fmt.Errorf("%s cannot be changed with update_screen", k)
 		default:
-			err = fmt.Errorf("unknown screen field %q", k)
+			err = fmt.Errorf("unknown screen field %q", clipEcho(k))
 		}
 		if err != nil {
-			return OpResult{}, fmt.Errorf("set.%s: %w", k, err)
+			return OpResult{}, fmt.Errorf("set.%s: %w", clipEcho(k), err)
 		}
 	}
 	p.Screens[si] = s
-	return OpResult{ID: s.ID, Summary: fmt.Sprintf("updated screen %s (%s)", s.Name, strings.Join(keys, ", "))}, nil
+	return OpResult{ID: s.ID, Summary: fmt.Sprintf("updated screen %s (%s)", clipEcho(s.Name), strings.Join(keys, ", "))}, nil
 }
 
 func opDeleteScreen(p *Project, op LayoutOp) (OpResult, error) {
@@ -636,7 +732,7 @@ func opDeleteScreen(p *Project, op LayoutOp) (OpResult, error) {
 			p.StartScreen = p.Screens[0].ID
 		}
 	}
-	return OpResult{ID: s.ID, Summary: "deleted screen " + s.Name}, nil
+	return OpResult{ID: s.ID, Summary: "deleted screen " + clipEcho(s.Name)}, nil
 }
 
 func opSetSettings(p *Project, op LayoutOp) (OpResult, error) {
@@ -660,10 +756,10 @@ func opSetSettings(p *Project, op LayoutOp) (OpResult, error) {
 		case "statusbar_clock":
 			st.StatusbarClock, err = setBool(val)
 		default:
-			err = fmt.Errorf("unknown settings field %q", k)
+			err = fmt.Errorf("unknown settings field %q", clipEcho(k))
 		}
 		if err != nil {
-			return OpResult{}, fmt.Errorf("set.%s: %w", k, err)
+			return OpResult{}, fmt.Errorf("set.%s: %w", clipEcho(k), err)
 		}
 	}
 	p.Settings = st
@@ -760,10 +856,10 @@ func mergeStyle(st *Style, val any) error {
 		case "radius":
 			st.Radius, err = styleInt(v)
 		default:
-			err = fmt.Errorf("unknown style field %q", k)
+			err = fmt.Errorf("unknown style field %q", clipEcho(k))
 		}
 		if err != nil {
-			return fmt.Errorf("%s: %w", k, err)
+			return fmt.Errorf("%s: %w", clipEcho(k), err)
 		}
 	}
 	return nil
@@ -796,6 +892,14 @@ func decodeStrict(val any, dst any) error {
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(dst); err != nil {
+		// encoding/json echoes the offending key; bound it like every other echo.
+		if rest, ok := strings.CutPrefix(err.Error(), "json: unknown field "); ok {
+			name, uerr := strconv.Unquote(rest)
+			if uerr != nil {
+				name = rest
+			}
+			return fmt.Errorf("unknown field %q", clipEcho(name))
+		}
 		return err
 	}
 	if _, err := dec.Token(); err != io.EOF {

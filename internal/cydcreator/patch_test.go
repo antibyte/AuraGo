@@ -533,6 +533,239 @@ func TestApplyOpsRemovingUnknownPropFromCappedWidgetIsNotNew(t *testing.T) {
 	}
 }
 
+// Every value an op can make an error echo is bounded: the message stays
+// within about 1 KB however large the offending input is.
+func TestApplyOpsBoundsEchoedInput(t *testing.T) {
+	big := strings.Repeat("ä", 1<<19) // 1 MiB
+	cases := []struct {
+		name string
+		op   LayoutOp
+	}{
+		{"op name", LayoutOp{Op: big}},
+		{"screen", LayoutOp{Op: "add_widget", Screen: big, Widget: &Widget{Type: "label"}}},
+		{"parent", LayoutOp{Op: "add_widget", Screen: "home", Parent: big, Widget: &Widget{Type: "label"}}},
+		{"widget type", LayoutOp{Op: "add_widget", Screen: "home", Widget: &Widget{Type: big}}},
+		{"update target", LayoutOp{Op: "update_widget", ID: big, Set: map[string]any{"x": 1}}},
+		{"update screen filter", LayoutOp{Op: "update_widget", ID: "lbl", Screen: big, Set: map[string]any{"x": 1}}},
+		{"move target", LayoutOp{Op: "move_widget", ID: big, X: opInt(1)}},
+		{"delete target", LayoutOp{Op: "delete_widget", ID: big}},
+		{"delete screen", LayoutOp{Op: "delete_screen", ID: big}},
+		{"theme", LayoutOp{Op: "set_theme", Theme: big}},
+		{"widget set key", LayoutOp{Op: "update_widget", ID: "lbl", Set: map[string]any{big: 1}}},
+		{"style key", LayoutOp{Op: "update_widget", ID: "lbl", Set: map[string]any{"style": map[string]any{big: 1}}}},
+		{"screen set key", LayoutOp{Op: "update_screen", ID: "home", Set: map[string]any{big: 1}}},
+		{"settings key", LayoutOp{Op: "set_settings", Set: map[string]any{big: 1}}},
+		{"event field", LayoutOp{Op: "update_widget", ID: "btn_go", Set: map[string]any{"events": []any{
+			map[string]any{"on": "clicked", "action": map[string]any{"type": "back"}, big: 1}}}}},
+		{"prop key (validation issue)", LayoutOp{Op: "update_widget", ID: "lbl", Set: map[string]any{"props": map[string]any{big: 1}}}},
+		{"screen name (validation issue)", LayoutOp{Op: "update_screen", ID: "home", Set: map[string]any{"name": big}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p, ids := patchFixture(t)
+			_, _, err := ApplyOps(p, []LayoutOp{tc.op}, ids)
+			if ErrorCode(err) != CodeInvalidLayout {
+				t.Fatalf("err = %.200v, want CYD_INVALID_LAYOUT", err)
+			}
+			if n := len(err.Error()); n > 1100 {
+				t.Errorf("error text is %d bytes", n)
+			}
+			d := err.(*Error).Details
+			for _, k := range []string{"reason", "path", "op"} {
+				if s, _ := d[k].(string); len(s) > 1100 {
+					t.Errorf("details.%s is %d bytes", k, len(s))
+				}
+			}
+			if s, _ := d["op"].(string); len(s) > 2*maxEchoBytes {
+				t.Errorf("details.op is %d bytes", len(s))
+			}
+		})
+	}
+	t.Run("summaries", func(t *testing.T) {
+		p, ids := patchFixture(t)
+		p.Screens[1].Name = strings.Repeat("a", 100_000) // pre-existing SCREEN_NAME_INVALID
+		_, res, err := ApplyOps(p, []LayoutOp{{Op: "update_screen", ID: "s_0002", Set: map[string]any{"title": "x"}}}, ids)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(res[0].Summary) > 200 {
+			t.Fatalf("summary is %d bytes", len(res[0].Summary))
+		}
+	})
+}
+
+func TestApplyOpsRejectsOversizedResult(t *testing.T) {
+	p, ids := patchFixture(t)
+	before := mustMarshal(t, p)
+	cells := make([]any, 256)
+	for i := range cells {
+		cells[i] = strings.Repeat("a", 1000)
+	}
+	var tables []Widget
+	for i := 0; i < 5; i++ {
+		tables = append(tables, Widget{Type: "table", Props: map[string]any{"columns": 8, "rows": 32, "cells": cells}})
+	}
+	out, res, err := ApplyOps(p, []LayoutOp{
+		{Op: "set_theme", Theme: "night"},
+		{Op: "add_screen", ScreenData: &Screen{Name: "big", Widgets: tables}},
+	}, ids)
+	if ErrorCode(err) != CodeInvalidLayout || res != nil {
+		t.Fatalf("err = %.200v, results = %v", err, res)
+	}
+	d := err.(*Error).Details
+	if d["index"] != 1 || d["op"] != "add_screen" || d["limit"] != MaxLayoutBytes {
+		t.Fatalf("details = %v", d)
+	}
+	if n, _ := d["bytes"].(int); n <= MaxLayoutBytes {
+		t.Fatalf("details.bytes = %v", d["bytes"])
+	}
+	if reason, _ := d["reason"].(string); !strings.Contains(reason, "the ops make the layout too large or too complex") {
+		t.Fatalf("reason = %q", reason)
+	}
+	if _, has := d["code"]; has {
+		t.Fatalf("a size failure has no validation code: %v", d)
+	}
+	if mustMarshal(t, out) != before || mustMarshal(t, p) != before {
+		t.Fatal("a failed ApplyOps changed the project")
+	}
+}
+
+// The unknown prop is masked from the per-op gate by the widget's earlier
+// unknown prop (UNKNOWN_PROP is keyed per widget), so only the result check
+// can reject the nesting.
+func TestApplyOpsRejectsTooDeepResult(t *testing.T) {
+	nest := func(depth int) any {
+		v := any(1)
+		for i := 0; i < depth; i++ {
+			v = map[string]any{"k": v}
+		}
+		return v
+	}
+	set := func(depth int) []LayoutOp {
+		return []LayoutOp{{Op: "update_widget", ID: "lbl", Set: map[string]any{"props": map[string]any{"deep": nest(depth)}}}}
+	}
+	p, ids := patchFixture(t)
+	p.Screens[0].Widgets[0].Props = map[string]any{"zz": 1}
+	before := mustMarshal(t, p)
+	if _, _, err := ApplyOps(p, set(3), ids); err != nil {
+		t.Fatalf("shallow nesting rejected: %v", err)
+	}
+	out, _, err := ApplyOps(p, set(40), ids)
+	if ErrorCode(err) != CodeInvalidLayout {
+		t.Fatalf("err = %v", err)
+	}
+	d := err.(*Error).Details
+	if reason, _ := d["reason"].(string); !strings.Contains(reason, "the ops make the layout too large or too complex") ||
+		!strings.Contains(reason, "nesting deeper than") || d["limit"] != maxLayoutDepth || d["index"] != 0 {
+		t.Fatalf("details = %v", d)
+	}
+	if mustMarshal(t, out) != before || mustMarshal(t, p) != before {
+		t.Fatal("a failed ApplyOps changed the project")
+	}
+}
+
+func nestedPanels(depth int) Widget {
+	w := Widget{Type: "label"}
+	for i := 1; i < depth; i++ {
+		w = Widget{Type: "panel", Children: []Widget{w}}
+	}
+	return w
+}
+
+func TestApplyOpsRejectsOversizedSubtreesEarly(t *testing.T) {
+	flat := make([]Widget, MaxWidgetsPerScreen+1)
+	for i := range flat {
+		flat[i] = Widget{Type: "label"}
+	}
+	cases := []struct {
+		name   string
+		op     LayoutOp
+		reason string
+	}{
+		{"widget 50 deep", LayoutOp{Op: "add_widget", Screen: "home", Widget: ptr(nestedPanels(50))}, "nested deeper than 4 levels"},
+		{"widget 5 deep", LayoutOp{Op: "add_widget", Screen: "home", Widget: ptr(nestedPanels(MaxNesting + 1))}, "nested deeper than 4 levels"},
+		{"screen 50 deep", LayoutOp{Op: "add_screen", ScreenData: &Screen{Name: "deep", Widgets: []Widget{nestedPanels(50)}}}, "nested deeper than 4 levels"},
+		{"screen too many widgets", LayoutOp{Op: "add_screen", ScreenData: &Screen{Name: "many", Widgets: flat}}, "more than 200 widgets"},
+		{"widget too many children", LayoutOp{Op: "add_widget", Screen: "home", Widget: &Widget{Type: "panel", Children: flat}}, "more than 200 widgets"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p, ids := patchFixture(t)
+			_, _, err := ApplyOps(p, []LayoutOp{tc.op}, ids)
+			if ErrorCode(err) != CodeInvalidLayout {
+				t.Fatalf("err = %v", err)
+			}
+			d := err.(*Error).Details
+			if reason, _ := d["reason"].(string); !strings.Contains(reason, tc.reason) {
+				t.Errorf("reason = %q, want it to contain %q", reason, tc.reason)
+			}
+			if _, has := d["code"]; has {
+				t.Errorf("rejected by the validation gate instead of the pre-check: %v", d)
+			}
+		})
+	}
+	if err := checkNewTree([]Widget{nestedPanels(MaxNesting)}); err != nil {
+		t.Fatalf("a tree of the maximum depth was rejected: %v", err)
+	}
+}
+
+func ptr[T any](v T) *T { return &v }
+
+// A widget keeps its pre-existing errors when it moves to another screen: the
+// gate key must not contain the screen.
+func TestApplyOpsMovingWidgetToOtherScreenKeepsPreexistingErrors(t *testing.T) {
+	cases := []struct {
+		name  string
+		props map[string]any
+		code  string
+	}{
+		{"text too long", map[string]any{"text": strings.Repeat("x", MaxTextBytes+1)}, IssueTextTooLong},
+		{"unknown prop", map[string]any{"colour": "red"}, IssueUnknownProp},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p, ids := patchFixture(t)
+			p.Screens[0].Widgets[0].Props = tc.props
+			if countIssues(p, tc.code) == 0 {
+				t.Fatalf("precondition: no %s issue", tc.code)
+			}
+			out, _, err := ApplyOps(p, []LayoutOp{{Op: "move_widget", ID: "lbl", Screen: "details", X: opInt(5), Y: opInt(5)}}, ids)
+			if err != nil {
+				t.Fatalf("moving a widget with a pre-existing %s error was rejected: %v", tc.code, err)
+			}
+			if d := out.Screens[1].Widgets; len(d) != 1 || d[0].Name != "lbl" {
+				t.Fatalf("details widgets: %+v", d)
+			}
+			if countIssues(out, tc.code) == 0 {
+				t.Fatalf("%s vanished", tc.code)
+			}
+			// the same kind of error on another widget is still new
+			if _, _, err := ApplyOps(out, []LayoutOp{{Op: "update_widget", ID: "btn_go", Set: map[string]any{"props": tc.props}}}, ids); err == nil {
+				t.Fatal("a new error on another widget must still fail")
+			}
+		})
+	}
+}
+
+// Parents are searched on the screen that was resolved, even when screen ids
+// are not unique (a pre-existing error).
+func TestApplyOpsParentLookupUsesTheResolvedScreen(t *testing.T) {
+	p, ids := patchFixture(t)
+	p.Screens[1].ID = "s_0001" // duplicate screen id: screenIndex("s_0001") finds home first
+	p.Screens[1].Widgets = []Widget{{ID: "w_0099", Type: "panel", Name: "pnl2", W: 160, H: 100}}
+	out, _, err := ApplyOps(p, []LayoutOp{
+		{Op: "add_widget", Screen: "details", Parent: "pnl2", Widget: &Widget{Type: "label", Name: "lbl2"}},
+		{Op: "move_widget", ID: "lbl", Screen: "details", Parent: "pnl2", X: opInt(3), Y: opInt(3)},
+	}, ids)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pnl := out.Screens[1].Widgets[0]
+	if len(pnl.Children) != 2 || pnl.Children[0].Name != "lbl2" || pnl.Children[1].Name != "lbl" {
+		t.Fatalf("pnl2 children: %+v", pnl.Children)
+	}
+}
+
 // A duplicate that did not exist before still fails, also next to a
 // pre-existing duplicate of another name.
 func TestApplyOpsNewDuplicateNameIsStillRejected(t *testing.T) {
