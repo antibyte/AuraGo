@@ -126,6 +126,10 @@ func TestParseDiagnosticsFileCap(t *testing.T) {
 }
 
 func TestParseDiagnosticsLinearCap(t *testing.T) {
+	// The linear code needs milliseconds; the old quadratic one needed about
+	// 20 s. 5 s leaves room for the race detector (5-10x slower) and still
+	// catches the regression.
+	const limit = 5 * time.Second
 	var b strings.Builder
 	for i := 0; i < 60000; i++ {
 		fmt.Fprintf(&b, "src/app/a.cpp:%d:1: note: n%d\n", i+1, i)
@@ -135,7 +139,7 @@ func TestParseDiagnosticsLinearCap(t *testing.T) {
 	}
 	start := time.Now()
 	got := ParseDiagnostics(b.String(), "")
-	if elapsed := time.Since(start); elapsed > time.Second {
+	if elapsed := time.Since(start); elapsed > limit {
 		t.Fatalf("ParseDiagnostics took %v on a 120k line log", elapsed)
 	}
 	if len(got) != maxDiagnostics {
@@ -157,7 +161,7 @@ func TestParseDiagnosticsLinearCap(t *testing.T) {
 	}
 	start = time.Now()
 	capped := capDiagnostics(list)
-	if elapsed := time.Since(start); elapsed > time.Second {
+	if elapsed := time.Since(start); elapsed > limit {
 		t.Fatalf("capDiagnostics took %v on 120k entries", elapsed)
 	}
 	if len(capped) != maxDiagnostics || capped[0].Message != "e0" || capped[maxDiagnostics-1].Message != "e199" {
