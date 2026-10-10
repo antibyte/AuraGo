@@ -54,19 +54,37 @@ bool is_dark(lv_color_t c) {
   return (r * 299 + g * 587 + b * 114) / 1000 < 128;
 }
 
-// The save form takes any password, and a WPA network with an empty or short
-// one only fails after the phone has lost the SoftAP. This head script blocks
-// the submit and says why: a network the scan marked locked (WiFiManager puts
-// class "l" on the signal icon after its link) needs 8..63 characters or 64 hex
-// digits; an SSID typed by hand may also have none (open hidden network); an
-// open network's field is disabled by WiFiManager and sends nothing.
-// Lengths are UTF-8 bytes, as the driver and the device count them (cydLen).
-// cydPwOk() is the rule (kind 0 open, 1 locked, 2 typed); the Go tests run it.
-const char kPasswordCheck[] = "<script>var cydPwMsg=\"" CYD_S_WIFI_PASSWORD_LENGTH "\";" R"JS(
-function cydLen(p){for(var b=0,i=0;i<p.length;i++){var c=p.charCodeAt(i);b+=c<128?1:c<2048?2:c>>10==54?4:c>>10==55?0:3}return b}
+// Head script of every portal page.
+// 1. The save form takes any password, and a WPA network with an empty or
+//    short one only fails after the phone has lost the SoftAP. The script
+//    blocks the submit and says why: a network the scan marked locked
+//    (WiFiManager puts class "l" on the signal icon after its link) needs
+//    8..63 characters or 64 hex digits; an SSID typed by hand may also have
+//    none (open hidden network); an open network's field is disabled by
+//    WiFiManager and sends nothing. Lengths are UTF-8 bytes as the browser
+//    sends them (cydLen; an unpaired surrogate goes out as U+FFFD), the same
+//    count as the driver and the device. cydPwOk() is the rule (kind 0 open,
+//    1 locked, 2 typed).
+// 2. WiFiManager answers /wifi only after a blocking scan, so the page that
+//    asked just sits there: a form going to /wifi (menu "configure",
+//    "refresh") shows a scanning overlay at once (#cydsc, styled in
+//    build_css(); static with prefers-reduced-motion). It never blocks the
+//    navigation and is hidden again when the browser restores the page from
+//    its back-forward cache.
+// The Go tests run both parts under Node.
+const char kPortalScript[] = "<script>var cydPwMsg=\"" CYD_S_WIFI_PASSWORD_LENGTH "\",cydScanMsg=\"" CYD_S_WIFI_SCANNING
+                             "\";" R"JS(
+function cydLen(p){if(typeof TextEncoder!="undefined")return new TextEncoder().encode(p).length;
+for(var b=0,i=0;i<p.length;i++){var c=p.charCodeAt(i);if(c<128)b++;else if(c<2048)b+=2;else if(c>>10==54&&p.charCodeAt(i+1)>>10==55){b+=4;i++}else b+=3}return b}
 function cydPwOk(p,k){var n=cydLen(p);return k==0||(k==2&&n==0)||(n>7&&n<64)||/^[0-9a-fA-F]{64}$/.test(p)}
+function cydScan(){var o=document.getElementById("cydsc");if(!o){o=document.createElement("div");o.id="cydsc";
+var t=document.createElement("p");t.textContent=cydScanMsg;o.appendChild(document.createElement("i"));o.appendChild(t);document.body.appendChild(o)}
+o.style.display=""}
+window.addEventListener("pageshow",function(){var o=document.getElementById("cydsc");if(o)o.style.display="none"});
 document.addEventListener("submit",function(e){
-var f=e.target,s=f.querySelector("#s"),p=f.querySelector("#p"),k=2,a=document.querySelectorAll("[data-ssid]");
+var f=e.target,w=f.getAttribute?f.getAttribute("action"):"";
+w=w||"";if(w=="/wifi"||w.indexOf("/wifi?")==0){try{cydScan()}catch(x){}return}
+var s=f.querySelector("#s"),p=f.querySelector("#p"),k=2,a=document.querySelectorAll("[data-ssid]");
 if(!s||!p)return;
 for(var i=0;i<a.length;i++)if(a[i].getAttribute("data-ssid")==s.value){var q=a[i].nextElementSibling;k=q&&q.classList.contains("l")?1:0}
 if(cydPwOk(p.disabled?"":p.value,k))return;
@@ -90,8 +108,15 @@ void build_css() {
   g_css += ".msg{background:" + hex_color(t.surface) + ";border-left-color:" + hex_color(t.accent) +
            ";color:" + hex_color(t.text) + "}";
   g_css += ".msg.S{border-left-color:" + hex_color(t.success) + "}.msg.D{border-left-color:" + hex_color(t.danger) + "}";
+  g_css += "#cydsc{position:fixed;left:0;top:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;"
+           "justify-content:center;background:" +
+           hex_color(t.bg) + "e6;color:" + hex_color(t.text) + "}";
+  g_css += "#cydsc i{width:40px;height:40px;border:4px solid " + hex_color(t.surface_alt) + ";border-top-color:" +
+           hex_color(t.accent) + ";border-radius:50%;animation:cydr 1s linear infinite}";
+  g_css += "@keyframes cydr{to{transform:rotate(1turn)}}";
+  g_css += "@media (prefers-reduced-motion:reduce){#cydsc i{animation:none;border-color:" + hex_color(t.accent) + "}}";
   g_css += "</style>";
-  g_css += kPasswordCheck;
+  g_css += kPortalScript;
 }
 
 // WiFiManager registers admin routes next to the Wi-Fi pages (firmware upload,
@@ -173,7 +198,7 @@ PortalEvent portal_loop() {
   }
   if (!g_running) {
     log::warn("portal: ended without a connection");
-  } else if (g_saved && g_wm->saved_ssid().length() > 0) {
+  } else if (g_saved && g_wm->saved_ssid().length() > 0 && WiFi.status() != WL_CONNECTED) {
     log::warn("portal: joining \"%s\" from the phone failed (status %d)", g_wm->saved_ssid().c_str(),
               (int)WiFi.status());
     WiFi.disconnect(false, false);

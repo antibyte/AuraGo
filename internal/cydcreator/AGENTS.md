@@ -194,12 +194,17 @@ service to this same package.
   `block_admin_routes` registers them from WiFiManager's web-server callback, before WiFiManager's own routes, and the
   first matching handler wins. Keep that list in step with the WiFiManager version pin.
 - Passwords: a WPA network needs 8..63 characters or 64 hex digits; a network typed by hand (hidden) may also have
-  none, an open one never asks. The portal's head element carries a small script (`kPasswordCheck` in
-  `cyd_portal.cpp`, a raw string the Go tests extract and run under Node with a fake DOM) that blocks the save form
-  and shows `WIFI_PASSWORD_LENGTH` when this rule fails; it reads the lock from WiFiManager's list markup (class
-  `l` on the signal icon after `a[data-ssid]`), so re-check it on a WiFiManager bump. The device applies the same
+  none, an open one never asks. The portal's head element carries a small script (`kPortalScript` in
+  `cyd_portal.cpp`, a raw string the Go tests extract and run under Node with a fake DOM; keep it below 1.5 KiB,
+  WiFiManager sends it with every page) that blocks the save form and shows `WIFI_PASSWORD_LENGTH` when this rule
+  fails; it reads the lock from WiFiManager's list markup (class `l` on the signal icon after `a[data-ssid]`), so
+  re-check it on a WiFiManager bump. The same script shows a scanning overlay (`#cydsc`, `WIFI_SCANNING`, a CSS
+  spinner from the theme, static with `prefers-reduced-motion`) as soon as a form goes to `/wifi` (menu, refresh),
+  because WiFiManager answers only after a blocking scan; it never blocks the navigation and `pageshow` hides it
+  after a back-forward-cache restore. WiFiManager's own 30 s scan cache stays as it is; its scan preload stays off,
+  it would race the device's async list scans for the driver's single scan buffer. The device applies the same
   rule before joining (`password_ok()`, lock flags remembered from the scan); an open listed network joins right
-  away without the keyboard. Page, device and driver count UTF-8 bytes; WEP keys (5 or 13 characters) are
+  away without the keyboard. Page (TextEncoder, or a fallback that counts an unpaired surrogate as U+FFFD), device and driver count UTF-8 bytes; WEP keys (5 or 13 characters) are
   rejected on purpose (obsolete).
 - Portal shutdown and joining (hardware-verified 2026-10-10): never call WiFiManager's `stopConfigPortal()`. Its
   `shutdownConfigPortal()` rewrites the SoftAP config (empty, channel 6), blocks for a second, forces STA mode and may
