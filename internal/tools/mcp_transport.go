@@ -30,70 +30,75 @@ var errMCPTransportClosed = errors.New("MCP transport is closed")
 
 type stdioMCPTransport struct {
 	mcpNotificationState
-	cmd       *exec.Cmd
-	stdin     io.WriteCloser
-	stdout    *bufio.Reader
-	stderrBuf *safeBuffer
-	mu        sync.Mutex
-	nextID    int64
-	closed    chan struct{}
-	closeOnce sync.Once
+	cmd          *exec.Cmd
+	stdin        io.WriteCloser
+	stdout       *bufio.Reader
+	stderrBuf    *safeBuffer
+	mu           mcpContextMutex
+	stdoutCloser io.Closer
+	closing      atomic.Bool
+	nextID       int64
+	closed       chan struct{}
+	closeOnce    sync.Once
 }
 
 func newStdioMCPTransport(cmd *exec.Cmd, stdin io.WriteCloser, stdout io.Reader, stderrBuf *safeBuffer) *stdioMCPTransport {
+	closer, _ := stdout.(io.Closer)
 	return &stdioMCPTransport{
-		cmd:       cmd,
-		stdin:     stdin,
-		stdout:    bufio.NewReaderSize(stdout, 1024*1024),
-		stderrBuf: stderrBuf,
-		closed:    make(chan struct{}),
+		stdoutCloser: closer,
+		cmd:          cmd,
+		stdin:        stdin,
+		stdout:       bufio.NewReaderSize(stdout, 1024*1024),
+		stderrBuf:    stderrBuf,
+		closed:       make(chan struct{}),
 	}
 }
 
 func (t *stdioMCPTransport) Send(ctx context.Context, method string, params interface{}) (*jsonRPCResponse, error) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	if err := ctx.Err(); err != nil {
+	ctx, cancel := mcpRequestContext(ctx)
+	defer cancel()
+	if err := t.mu.Lock(ctx); err != nil {
 		return nil, err
 	}
-
-	id := atomic.AddInt64(&t.nextID, 1)
-	req := jsonRPCRequest{
-		JSONRPC: "2.0",
-		ID:      id,
-		Method:  method,
-		Params:  params,
+	defer t.mu.Unlock()
+	if t.closing.Load() {
+		return nil, errMCPTransportClosed
 	}
-
-	data, err := json.Marshal(req)
+	select {
+	case <-t.closed:
+		return nil, errMCPTransportClosed
+	default:
+	}
+	id := atomic.AddInt64(&t.nextID, 1)
+	data, err := json.Marshal(jsonRPCRequest{JSONRPC: "2.0", ID: id, Method: method, Params: params})
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
-	if _, err := t.stdin.Write(append(data, '\n')); err != nil {
-		return nil, fmt.Errorf("write to stdin: %w", err)
-	}
-
-	type readResult struct {
+	type result struct {
 		resp *jsonRPCResponse
 		err  error
 	}
-	done := make(chan readResult, 1)
+	done := make(chan result, 1)
 	go func() {
+		if err := ctx.Err(); err != nil {
+			done <- result{err: err}
+			return
+		}
+		if _, err := t.stdin.Write(append(data, '\n')); err != nil {
+			done <- result{err: fmt.Errorf("write to stdin: %w", err)}
+			return
+		}
 		resp, err := t.readResponse(id)
-		done <- readResult{resp: resp, err: err}
+		done <- result{resp, err}
 	}()
-
 	select {
 	case res := <-done:
+		if res.err != nil {
+			t.abort()
+		}
 		return res.resp, res.err
-	case <-time.After(mcpNetworkRequestTimeout):
-		go t.Close()
-		return nil, fmt.Errorf("stdio MCP request timed out")
 	case <-ctx.Done():
-		go t.Close()
+		t.abort()
 		return nil, ctx.Err()
 	case <-t.closed:
 		return nil, errMCPTransportClosed
@@ -102,7 +107,7 @@ func (t *stdioMCPTransport) Send(ctx context.Context, method string, params inte
 
 func (t *stdioMCPTransport) readResponse(id int64) (*jsonRPCResponse, error) {
 	for {
-		line, err := t.stdout.ReadBytes('\n')
+		line, err := readMCPLine(t.stdout, mcpMessageLimit)
 		if err != nil {
 			if t.stderrBuf != nil && t.stderrBuf.Len() > 0 {
 				return nil, fmt.Errorf("read from stdout: %w (stderr: %s)", err, mcpStderrSnippet(t.stderrBuf))
@@ -126,32 +131,55 @@ func (t *stdioMCPTransport) readResponse(id int64) (*jsonRPCResponse, error) {
 }
 
 func (t *stdioMCPTransport) Notify(ctx context.Context, method string, params interface{}) error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	if err := ctx.Err(); err != nil {
+	ctx, cancel := mcpRequestContext(ctx)
+	defer cancel()
+	if err := t.mu.Lock(ctx); err != nil {
 		return err
 	}
-
-	notif := jsonRPCNotification{
-		JSONRPC: "2.0",
-		Method:  method,
-		Params:  params,
+	defer t.mu.Unlock()
+	if t.closing.Load() {
+		return errMCPTransportClosed
 	}
-	data, err := json.Marshal(notif)
+	select {
+	case <-t.closed:
+		return errMCPTransportClosed
+	default:
+	}
+	data, err := json.Marshal(jsonRPCNotification{JSONRPC: "2.0", Method: method, Params: params})
 	if err != nil {
 		return fmt.Errorf("marshal notification: %w", err)
 	}
-	if _, err := t.stdin.Write(append(data, '\n')); err != nil {
-		return fmt.Errorf("write notification to stdin: %w", err)
+	done := make(chan error, 1)
+	go func() {
+		if err := ctx.Err(); err != nil {
+			done <- err
+			return
+		}
+		_, err := t.stdin.Write(append(data, '\n'))
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.abort()
+		}
+		return err
+	case <-ctx.Done():
+		t.abort()
+		return ctx.Err()
+	case <-t.closed:
+		return errMCPTransportClosed
 	}
-	return nil
 }
 
+func (t *stdioMCPTransport) abort() { t.closing.Store(true); go t.Close() }
+
 func (t *stdioMCPTransport) Close() {
+	t.closing.Store(true)
 	t.closeOnce.Do(func() {
+		if t.stdoutCloser != nil {
+			_ = t.stdoutCloser.Close()
+		}
 		if t.stdin != nil {
 			_ = t.stdin.Close()
 		}
@@ -218,6 +246,7 @@ type httpMCPTransport struct {
 	sessionID       string
 	protocolVersion string
 	closeOnce       sync.Once
+	closed          atomic.Bool
 }
 
 func newHTTPMCPTransport(endpoint string, headers map[string]string, allowPrivateOverride ...bool) (*httpMCPTransport, error) {
@@ -238,7 +267,6 @@ func newHTTPMCPTransport(endpoint string, headers map[string]string, allowPrivat
 		transport: transport,
 		client: &http.Client{
 			Transport: transport,
-			Timeout:   mcpNetworkRequestTimeout,
 			CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 				return http.ErrUseLastResponse
 			},
@@ -276,6 +304,7 @@ func (t *httpMCPTransport) SetProtocolVersion(version string) {
 
 func (t *httpMCPTransport) Close() {
 	t.closeOnce.Do(func() {
+		t.closed.Store(true)
 		t.stateMu.RLock()
 		sessionID := t.sessionID
 		protocolVersion := t.protocolVersion
@@ -299,10 +328,18 @@ func (t *httpMCPTransport) Close() {
 	})
 }
 
-func (t *httpMCPTransport) postJSON(ctx context.Context, payload interface{}) (*jsonRPCResponse, error) {
-	if ctx == nil {
-		ctx = context.Background()
+func (t *httpMCPTransport) postJSON(ctx context.Context, payload interface{}) (response *jsonRPCResponse, resultErr error) {
+	ctx, cancel := mcpRequestContext(ctx)
+	defer cancel()
+	if t.closed.Load() {
+		return nil, errMCPTransportClosed
 	}
+	defer func() {
+		if errors.Is(resultErr, errMCPMessageTooLarge) || errors.Is(resultErr, errMCPTransportClosed) {
+			t.closed.Store(true)
+			go t.Close()
+		}
+	}()
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
@@ -336,6 +373,9 @@ func (t *httpMCPTransport) postJSON(ctx context.Context, payload interface{}) (*
 		t.stateMu.Unlock()
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		if sessionID != "" && resp.StatusCode == http.StatusNotFound {
+			return nil, fmt.Errorf("MCP HTTP session expired: %w", errMCPTransportClosed)
+		}
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return nil, fmt.Errorf("HTTP MCP request failed with status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
@@ -355,8 +395,16 @@ func (t *httpMCPTransport) postJSON(ctx context.Context, payload interface{}) (*
 	if mediaType == "text/event-stream" {
 		return readMCPStreamableHTTPResponse(resp.Body, t.observeNotification)
 	}
+	limit := mcpMessageLimit
+	if request, ok := payload.(jsonRPCRequest); ok && request.Method == "tools/list" {
+		limit = mcpDiscoveryPageLimit
+	}
+	body, err := readMCPBounded(resp.Body, limit)
+	if err != nil {
+		return nil, fmt.Errorf("read HTTP MCP response: %w", err)
+	}
 	var rpcResp jsonRPCResponse
-	if err := json.NewDecoder(resp.Body).Decode(&rpcResp); err != nil {
+	if err := json.Unmarshal(body, &rpcResp); err != nil {
 		if isJSONRPCNotification(payload) {
 			return &jsonRPCResponse{}, nil
 		}
@@ -367,46 +415,35 @@ func (t *httpMCPTransport) postJSON(ctx context.Context, payload interface{}) (*
 
 func readMCPStreamableHTTPResponse(body io.Reader, observers ...func(*jsonRPCResponse)) (*jsonRPCResponse, error) {
 	scanner := bufio.NewScanner(body)
-	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
-	var dataLines []string
-	for scanner.Scan() {
-		line := scanner.Text()
-		if line == "" {
-			if len(dataLines) == 0 {
-				continue
-			}
-			data := strings.Join(dataLines, "\n")
-			dataLines = nil
-			var resp jsonRPCResponse
-			if err := json.Unmarshal([]byte(data), &resp); err != nil {
-				continue
-			}
-			for _, observe := range observers {
-				observe(&resp)
-			}
-			if resp.ID != nil {
-				return &resp, nil
-			}
+	scanner.Buffer(make([]byte, 64*1024), mcpMessageLimit+1)
+	for {
+		_, data, err := readMCPSSEEvent(scanner)
+		if err != nil {
+			return nil, fmt.Errorf("read HTTP MCP SSE response: %w", err)
+		}
+		var resp jsonRPCResponse
+		if json.Unmarshal(data, &resp) != nil {
 			continue
 		}
-		if strings.HasPrefix(line, "data:") {
-			dataLines = append(dataLines, strings.TrimSpace(strings.TrimPrefix(line, "data:")))
+		for _, observe := range observers {
+			observe(&resp)
+		}
+		if resp.ID != nil {
+			return &resp, nil
 		}
 	}
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("read HTTP MCP SSE response: %w", err)
-	}
-	return nil, fmt.Errorf("HTTP MCP SSE stream ended without a JSON-RPC response")
 }
 
 type websocketMCPTransport struct {
 	mcpNotificationState
 	conn      *websocket.Conn
 	mu        sync.Mutex
+	writeMu   mcpContextMutex
 	nextID    int64
 	pending   map[int64]chan *jsonRPCResponse
 	closed    chan struct{}
 	closeOnce sync.Once
+	readErr   error
 }
 
 func newWebSocketMCPTransport(ctx context.Context, endpoint string, headers map[string]string, allowPrivate bool) (*websocketMCPTransport, error) {
@@ -431,61 +468,62 @@ func newWebSocketMCPTransport(ctx context.Context, endpoint string, headers map[
 		pending: make(map[int64]chan *jsonRPCResponse),
 		closed:  make(chan struct{}),
 	}
+	conn.SetReadLimit(mcpMessageLimit)
 	go t.readLoop()
 	return t, nil
 }
 
 func (t *websocketMCPTransport) Send(ctx context.Context, method string, params interface{}) (*jsonRPCResponse, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx, cancel := mcpRequestContext(ctx)
+	defer cancel()
 	id := atomic.AddInt64(&t.nextID, 1)
 	ch := make(chan *jsonRPCResponse, 1)
-
 	t.mu.Lock()
 	t.pending[id] = ch
-	req := jsonRPCRequest{JSONRPC: "2.0", ID: id, Method: method, Params: params}
-	if err := t.conn.WriteJSON(req); err != nil {
-		delete(t.pending, id)
-		t.mu.Unlock()
-		return nil, fmt.Errorf("write websocket MCP request: %w", err)
-	}
 	t.mu.Unlock()
-
+	defer func() { t.mu.Lock(); delete(t.pending, id); t.mu.Unlock() }()
+	if err := t.write(ctx, jsonRPCRequest{JSONRPC: "2.0", ID: id, Method: method, Params: params}); err != nil {
+		return nil, err
+	}
 	select {
 	case resp, ok := <-ch:
 		if !ok {
-			return nil, fmt.Errorf("websocket MCP connection closed")
+			return nil, t.failure()
 		}
 		return resp, nil
-	case <-time.After(mcpNetworkRequestTimeout):
-		t.mu.Lock()
-		delete(t.pending, id)
-		t.mu.Unlock()
-		return nil, fmt.Errorf("websocket MCP request timed out")
 	case <-ctx.Done():
-		t.mu.Lock()
-		delete(t.pending, id)
-		t.mu.Unlock()
 		return nil, ctx.Err()
 	case <-t.closed:
-		return nil, errMCPTransportClosed
+		return nil, t.failure()
 	}
 }
-
 func (t *websocketMCPTransport) Notify(ctx context.Context, method string, params interface{}) error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	if ctx == nil {
-		ctx = context.Background()
+	ctx, cancel := mcpRequestContext(ctx)
+	defer cancel()
+	return t.write(ctx, jsonRPCNotification{JSONRPC: "2.0", Method: method, Params: params})
+}
+func (t *websocketMCPTransport) write(ctx context.Context, payload interface{}) error {
+	if err := t.writeMu.Lock(ctx); err != nil {
+		return err
+	}
+	defer t.writeMu.Unlock()
+	select {
+	case <-t.closed:
+		return errMCPTransportClosed
+	default:
 	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-
-	notif := jsonRPCNotification{JSONRPC: "2.0", Method: method, Params: params}
-	if err := t.conn.WriteJSON(notif); err != nil {
-		return fmt.Errorf("write websocket MCP notification: %w", err)
+	deadline, _ := ctx.Deadline()
+	if err := t.conn.SetWriteDeadline(deadline); err != nil {
+		return err
+	}
+	stop := context.AfterFunc(ctx, func() { t.conn.Close() })
+	defer stop()
+	if err := t.conn.WriteJSON(payload); err != nil {
+		t.Close()
+		return fmt.Errorf("write websocket MCP message: %w", err)
 	}
 	return nil
 }
@@ -507,6 +545,12 @@ func (t *websocketMCPTransport) readLoop() {
 	for {
 		var resp jsonRPCResponse
 		if err := t.conn.ReadJSON(&resp); err != nil {
+			if errors.Is(err, websocket.ErrReadLimit) {
+				err = errMCPMessageTooLarge
+			}
+			t.mu.Lock()
+			t.readErr = err
+			t.mu.Unlock()
 			t.Close()
 			return
 		}
@@ -524,6 +568,15 @@ func (t *websocketMCPTransport) readLoop() {
 	}
 }
 
+func (t *websocketMCPTransport) failure() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.readErr != nil {
+		return fmt.Errorf("websocket MCP connection closed: %w", t.readErr)
+	}
+	return errMCPTransportClosed
+}
+
 type sseMCPTransport struct {
 	mcpNotificationState
 	endpointReady chan string
@@ -536,6 +589,8 @@ type sseMCPTransport struct {
 	pending       map[int64]chan *jsonRPCResponse
 	closed        chan struct{}
 	closeOnce     sync.Once
+	cancel        context.CancelFunc
+	readErr       error
 }
 
 func newSSEMCPTransport(ctx context.Context, endpoint string, headers map[string]string, allowPrivate bool) (*sseMCPTransport, error) {
@@ -569,10 +624,12 @@ func newSSEMCPTransport(ctx context.Context, endpoint string, headers map[string
 		pending: make(map[int64]chan *jsonRPCResponse),
 		closed:  make(chan struct{}),
 	}
-	// The legacy SSE GET is long-lived. Use transport header timeouts for setup
-	// rather than the caller context, whose cancellation must not close a
-	// successfully established event stream.
-	if err := t.open(context.Background(), endpoint); err != nil {
+	lifetime, cancel := context.WithCancel(context.Background())
+	t.cancel = cancel
+	stop := context.AfterFunc(ctx, cancel)
+	defer stop()
+	if err := t.open(lifetime, endpoint); err != nil {
+		cancel()
 		return nil, err
 	}
 	select {
@@ -582,7 +639,16 @@ func newSSEMCPTransport(ctx context.Context, endpoint string, headers map[string
 			t.Close()
 			return nil, fmt.Errorf("SSE MCP endpoint event did not include a valid message URL")
 		}
+		if !stop() || ctx.Err() != nil {
+			t.Close()
+			return nil, ctx.Err()
+		}
 		return t, nil
+	case <-ctx.Done():
+		t.Close()
+		return nil, ctx.Err()
+	case <-t.closed:
+		return nil, t.failure()
 	case <-time.After(10 * time.Second):
 		t.Close()
 		return nil, fmt.Errorf("SSE MCP endpoint event timed out")
@@ -611,9 +677,8 @@ func (t *sseMCPTransport) open(ctx context.Context, endpoint string) error {
 }
 
 func (t *sseMCPTransport) Send(ctx context.Context, method string, params interface{}) (*jsonRPCResponse, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx, cancel := mcpRequestContext(ctx)
+	defer cancel()
 	id := atomic.AddInt64(&t.nextID, 1)
 	ch := make(chan *jsonRPCResponse, 1)
 
@@ -632,31 +697,31 @@ func (t *sseMCPTransport) Send(ctx context.Context, method string, params interf
 	select {
 	case resp, ok := <-ch:
 		if !ok {
-			return nil, fmt.Errorf("SSE MCP connection closed")
+			return nil, t.failure()
 		}
 		return resp, nil
-	case <-time.After(mcpNetworkRequestTimeout):
-		t.mu.Lock()
-		delete(t.pending, id)
-		t.mu.Unlock()
-		return nil, fmt.Errorf("SSE MCP request timed out")
 	case <-ctx.Done():
 		t.mu.Lock()
 		delete(t.pending, id)
 		t.mu.Unlock()
 		return nil, ctx.Err()
 	case <-t.closed:
-		return nil, errMCPTransportClosed
+		return nil, t.failure()
 	}
 }
 
 func (t *sseMCPTransport) Notify(ctx context.Context, method string, params interface{}) error {
+	ctx, cancel := mcpRequestContext(ctx)
+	defer cancel()
 	notif := jsonRPCNotification{JSONRPC: "2.0", Method: method, Params: params}
 	return t.postMessage(ctx, notif)
 }
 
 func (t *sseMCPTransport) Close() {
 	t.closeOnce.Do(func() {
+		if t.cancel != nil {
+			t.cancel()
+		}
 		if t.body != nil {
 			_ = t.body.Close()
 		}
@@ -671,7 +736,21 @@ func (t *sseMCPTransport) Close() {
 	})
 }
 
+func (t *sseMCPTransport) failure() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.readErr != nil {
+		return fmt.Errorf("SSE MCP stream closed: %w", t.readErr)
+	}
+	return errMCPTransportClosed
+}
+
 func (t *sseMCPTransport) postMessage(ctx context.Context, payload interface{}) error {
+	select {
+	case <-t.closed:
+		return t.failure()
+	default:
+	}
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("marshal request: %w", err)
@@ -695,58 +774,43 @@ func (t *sseMCPTransport) postMessage(ctx context.Context, payload interface{}) 
 }
 
 func (t *sseMCPTransport) readLoop(body io.Reader) {
+	defer t.Close()
 	scanner := bufio.NewScanner(body)
-	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
-	eventName := ""
-	var dataLines []string
-
-	flushEvent := func() {
-		data := strings.Join(dataLines, "\n")
-		switch eventName {
-		case "endpoint":
+	scanner.Buffer(make([]byte, 64*1024), mcpMessageLimit+1)
+	for {
+		event, data, err := readMCPSSEEvent(scanner)
+		if err != nil {
+			t.mu.Lock()
+			t.readErr = err
+			t.mu.Unlock()
+			return
+		}
+		if event == "endpoint" {
 			select {
-			case t.endpointReady <- data:
+			case t.endpointReady <- string(data):
 			default:
 			}
-		case "message", "":
-			if strings.TrimSpace(data) == "" {
-				return
-			}
-			var resp jsonRPCResponse
-			if err := json.Unmarshal([]byte(data), &resp); err != nil {
-				return
-			}
-			if resp.ID == nil {
-				t.observeNotification(&resp)
-				return
-			}
-			t.mu.Lock()
-			ch := t.pending[*resp.ID]
-			delete(t.pending, *resp.ID)
-			t.mu.Unlock()
-			if ch != nil {
-				ch <- &resp
-			}
-		}
-		eventName = ""
-		dataLines = nil
-	}
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		if line == "" {
-			flushEvent()
 			continue
 		}
-		if strings.HasPrefix(line, "event:") {
-			eventName = strings.TrimSpace(strings.TrimPrefix(line, "event:"))
+		if event != "" && event != "message" {
 			continue
 		}
-		if strings.HasPrefix(line, "data:") {
-			dataLines = append(dataLines, strings.TrimSpace(strings.TrimPrefix(line, "data:")))
+		var resp jsonRPCResponse
+		if json.Unmarshal(data, &resp) != nil {
+			continue
+		}
+		if resp.ID == nil {
+			t.observeNotification(&resp)
+			continue
+		}
+		t.mu.Lock()
+		ch := t.pending[*resp.ID]
+		delete(t.pending, *resp.ID)
+		t.mu.Unlock()
+		if ch != nil {
+			ch <- &resp
 		}
 	}
-	t.Close()
 }
 
 func applyMCPHeaders(dst http.Header, headers map[string]string) {

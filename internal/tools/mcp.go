@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -110,33 +109,45 @@ const (
 	mcpProtocolVersionLegacy  = "2024-11-05"
 )
 
-// safeBuffer is a thread-safe wrapper around bytes.Buffer for capturing
-// process stderr without data races.
+// safeBuffer retains only the tail of process stderr.
 type safeBuffer struct {
 	mu  sync.Mutex
-	buf bytes.Buffer
+	buf []byte
 }
 
 func (b *safeBuffer) Write(p []byte) (int, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return b.buf.Write(p)
+	n := len(p)
+	if len(p) >= mcpStderrLimit {
+		b.buf = b.buf[:0]
+		p = p[len(p)-mcpStderrLimit:]
+	}
+	if b.buf == nil {
+		b.buf = make([]byte, 0, mcpStderrLimit)
+	}
+	if extra := len(b.buf) + len(p) - mcpStderrLimit; extra > 0 {
+		copy(b.buf, b.buf[extra:])
+		b.buf = b.buf[:len(b.buf)-extra]
+	}
+	b.buf = append(b.buf, p...)
+	return n, nil
 }
 
 func (b *safeBuffer) String() string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return b.buf.String()
+	return string(b.buf)
 }
 
 func (b *safeBuffer) Len() int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return b.buf.Len()
+	return len(b.buf)
 }
 
 type mcpConn struct {
-	discoveryMu     sync.Mutex
+	discoveryMu     mcpContextMutex
 	toolsGeneration uint64
 	toolsRefreshed  time.Time
 	name            string
@@ -569,7 +580,9 @@ func (c *mcpConn) initialize(ctx context.Context, logger *slog.Logger) error {
 
 // discoverTools calls tools/list and caches the results.
 func (c *mcpConn) discoverTools(ctx context.Context, logger *slog.Logger) error {
-	c.discoveryMu.Lock()
+	if err := c.discoveryMu.Lock(ctx); err != nil {
+		return err
+	}
 	defer c.discoveryMu.Unlock()
 	return c.discoverToolsLocked(ctx, logger)
 }
@@ -580,6 +593,7 @@ func (c *mcpConn) discoverToolsLocked(ctx context.Context, logger *slog.Logger) 
 	seen := map[string]bool{}
 	names := map[string]bool{}
 	var newTools []MCPToolInfo
+	totalBytes := 0
 	for page := 0; ; page++ {
 		if page >= 128 {
 			return fmt.Errorf("tools/list exceeded page limit")
@@ -598,8 +612,10 @@ func (c *mcpConn) discoverToolsLocked(ctx context.Context, logger *slog.Logger) 
 		if resp.Error != nil {
 			return fmt.Errorf("tools/list error: %s (code %d)", resp.Error.Message, resp.Error.Code)
 		}
-		if len(resp.Result) > 16*1024*1024 {
-			return fmt.Errorf("tools/list exceeded page size limit")
+		totalBytes += len(resp.Result)
+		if len(resp.Result) > mcpDiscoveryPageLimit || totalBytes > mcpDiscoveryTotalLimit {
+			go c.close()
+			return fmt.Errorf("tools/list exceeded catalog size limit: %w", errMCPMessageTooLarge)
 		}
 		var result struct {
 			Tools []struct {
@@ -797,7 +813,7 @@ func isRetryableMCPTransportError(err error) bool {
 	if err == nil {
 		return false
 	}
-	if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) || errors.Is(err, errMCPTransportClosed) {
+	if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) || errors.Is(err, errMCPTransportClosed) || errors.Is(err, errMCPMessageTooLarge) {
 		return true
 	}
 	var netErr net.Error
