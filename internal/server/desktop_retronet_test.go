@@ -354,8 +354,8 @@ func TestDesktopRetroNetDirectoryListsCatalogThenOwnEntries(t *testing.T) {
 			if last.ID != retroNetTestEntryID || !last.Own || last.Category != retronet.CategoryOwn {
 				t.Fatalf("last entry = %+v, want the own entry", last)
 			}
-			if len(directory.Status) != len(directory.Entries) {
-				t.Fatalf("status has %d entries, want %d", len(directory.Status), len(directory.Entries))
+			if want := len(directory.Entries) - retroNetC64Count(directory.Entries); len(directory.Status) != want {
+				t.Fatalf("status has %d entries, want %d (every entry except the C64 boards)", len(directory.Status), want)
 			}
 			switch directory.Status[last.ID].State {
 			case "online", "offline", "unknown":
@@ -366,6 +366,58 @@ func TestDesktopRetroNetDirectoryListsCatalogThenOwnEntries(t *testing.T) {
 				t.Fatalf("can_edit = %v, want %v", directory.CanEdit, tc.canEdit)
 			}
 		})
+	}
+}
+
+// retroNetC64Count counts the C64 boards in entries; they never get a status.
+func retroNetC64Count(entries []retronet.Entry) int {
+	n := 0
+	for _, e := range entries {
+		if e.Kind == retronet.KindC64 {
+			n++
+		}
+	}
+	return n
+}
+
+// C64 boards, catalog and own, are never probed: the directory and the status refresh leave
+// them out of the status map (the browser marks them [C] instead).
+func TestDesktopRetroNetStatusLeavesOutC64Boards(t *testing.T) {
+	env := newRetroNetTestEnv(t)
+	ownC64 := `{"id":"own-c64board1","name":"Fake C64","protocol":"telnet","host":"c64.retronet.test","port":6400,"kind":"c64","charset":"petscii"}`
+	env.saveEntries(t, env.ownTelnetEntry(), ownC64)
+	directory := env.directory(t, env.writeToken)
+	if got, want := retroNetC64Count(directory.Entries), retroNetC64Count(retronet.DefaultCatalog())+1; got != want {
+		t.Fatalf("directory lists %d C64 boards, want %d (the catalog's plus the own one)", got, want)
+	}
+	rec := env.serve(t, http.MethodPost, "/api/desktop/retronet/status", env.writeToken, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var refreshed struct {
+		Status map[string]retronet.Status `json:"status"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &refreshed); err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range directory.Entries {
+		_, inDirectory := directory.Status[e.ID]
+		_, inRefresh := refreshed.Status[e.ID]
+		if e.Kind != retronet.KindC64 {
+			if !inDirectory || !inRefresh {
+				t.Errorf("%s has no status (directory %v, refresh %v)", e.ID, inDirectory, inRefresh)
+			}
+			continue
+		}
+		if inDirectory || inRefresh {
+			t.Errorf("C64 board %s has a status (directory %v, refresh %v)", e.ID, inDirectory, inRefresh)
+		}
+		if e.Charset != retronet.CharsetPETSCII || e.Protocol != retronet.ProtocolTelnet || (!e.Own && e.Category != retronet.CategoryCommodore) {
+			t.Errorf("C64 board %s = %+v, want telnet/petscii and the commodore category for catalog boards", e.ID, e)
+		}
+	}
+	if got := refreshed.Status[retroNetTestEntryID].State; got != "online" {
+		t.Fatalf("own world entry state = %q, want online (%s)", got, rec.Body.String())
 	}
 }
 

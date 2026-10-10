@@ -55,8 +55,9 @@ type StatusProber struct {
 //
 // entries must be the full directory (catalog plus own entries) on every call: a run caches
 // only the entries it was given, so callers that pass different lists evict each other's
-// results.
+// results. C64 boards (KindC64) are never probed and never appear in the map.
 func (p *StatusProber) Snapshot(entries []Entry) (map[string]Status, bool) {
+	entries = probeable(entries)
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	now := p.now()
@@ -70,8 +71,9 @@ func (p *StatusProber) Snapshot(entries []Entry) (map[string]Status, bool) {
 
 // Refresh forces a probe unless the last one started < MinInterval ago, waits up to wait for
 // the in-flight probe and returns the status map. entries must be the full directory, like for
-// Snapshot.
+// Snapshot; C64 boards are skipped the same way.
 func (p *StatusProber) Refresh(ctx context.Context, entries []Entry, wait time.Duration) map[string]Status {
+	entries = probeable(entries)
 	p.mu.Lock()
 	now := p.now()
 	if p.mayStartLocked(now) {
@@ -92,6 +94,18 @@ func (p *StatusProber) Refresh(ctx context.Context, entries []Entry, wait time.D
 	defer p.mu.Unlock()
 	statuses, _ := p.statusesLocked(entries)
 	return statuses
+}
+
+// probeable returns the entries that may be probed. C64 boards (KindC64) are left out: many
+// have a single line, and a probe connect would occupy it and drop the caller who is on.
+func probeable(entries []Entry) []Entry {
+	out := make([]Entry, 0, len(entries))
+	for _, e := range entries {
+		if e.Kind != KindC64 {
+			out = append(out, e)
+		}
+	}
+	return out
 }
 
 // statusesLocked copies the cached status of every entry and reports whether one is missing.
