@@ -199,15 +199,17 @@ int check_view(const char* name) {
   return n;
 }
 
-// After a failed attempt the error must be readable.
-int check_failure_status(const char* name) {
+// The status must show `want` and be readable (not hidden, not under the keyboard).
+int check_status(const char* name, const char* want) {
   detail::WifiUiProbe p = probe();
   if (p.status == nullptr || !visible_now(p.status)) return fail(name, "status label is hidden");
-  const char* text = lv_label_get_text(p.status);
-  if (strcmp(text, CYD_S_WIFI_FAILED) != 0) return fail(name, "status does not show the failure text");
+  if (strcmp(lv_label_get_text(p.status), want) != 0) return fail(name, "status shows another text");
   if (visible_now(p.kb) && bottom_of(p.status) >= top_of(p.kb)) return fail(name, "status is under the keyboard");
   return 0;
 }
+
+// After a failed attempt the error must be readable.
+int check_failure_status(const char* name) { return check_status(name, CYD_S_WIFI_FAILED); }
 
 int layout_views() {
   int fails = 0;
@@ -223,6 +225,21 @@ int layout_views() {
   detail::wifi_ui_test(detail::WifiUiTest::Network, kLongSsid);
   pump_until([] { return probe().view == 3; }, 3000);
   fails += check_view("password");
+
+  // A too short password for an encrypted network: no join, the reason shows.
+  {
+    detail::WifiUiProbe q = probe();
+    if (q.ta_pass != nullptr && q.kb != nullptr) {
+      lv_textarea_set_text(q.ta_pass, "short");
+      lv_obj_send_event(q.kb, LV_EVENT_READY, nullptr);
+      pump(300);
+      q = probe();
+      int n = check_status("password-short", CYD_S_WIFI_PASSWORD_LENGTH);
+      if (q.connecting || !q.portal) n += fail("password-short", "a join started");
+      n += check_view("password-short");
+      fails += n;
+    }
+  }
 
   detail::wifi_ui_test(detail::WifiUiTest::Hidden);
   pump_until([] { return probe().view == 3 && probe().ta_ssid != nullptr; }, 3000);
@@ -275,6 +292,11 @@ int layout_views() {
   } else {
     fails += fail("password-failed", "hidden-network view has no textareas or keyboard");
   }
+
+  // The phone view after a failed phone-path join (state injected).
+  detail::wifi_ui_test(detail::WifiUiTest::PhoneFailed);
+  pump_until([] { return probe().view == 1; }, 3000);
+  fails += check_failure_status("phone-failed") + check_view("phone-failed");
 
   detail::wifi_ui_test(detail::WifiUiTest::Close);
   pump_until([] { return !detail::wifi_ui_active(); }, 5000);
