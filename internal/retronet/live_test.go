@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -20,15 +22,42 @@ const (
 	liveBackstop       = 40 * time.Second // whole session; dial and handshake have their own 10 s limits
 	liveParallel       = 8
 	liveTextLimit      = 256 << 10
+
+	// C64 boards (KindC64) often answer only after several seconds and stop at a detection
+	// prompt, and their output is font glyphs, not readable runes. A board passes with at least
+	// livePETSCIITarget printable PETSCII characters (source bytes, counted before the codec)
+	// within liveC64Window of "connected", or with a BUSY banner (a single-line board in use).
+	livePETSCIITarget = 10
+	liveC64Window     = 45 * time.Second
+	liveC64Backstop   = 60 * time.Second // window plus the 10 s dial budget and some slack
 )
 
 // liveKick holds the keystrokes sent once, right after "connected", to entries that print only
-// a prompt until the user types. The bytes are exactly what the browser sends (Enter is "\r").
-// Use harmless, read-only commands. Verified 2026-10-09:
+// a prompt until the user types. The bytes are exactly what the browser sends (Enter is "\r",
+// Backspace - the C64 DEL key - is "\x7f"). Use harmless, read-only commands; a C64 board may
+// only get one detection key ("\r" or "\x7f"), never an answer to a login or new-user prompt.
+// Verified 2026-10-09/10:
 //   - telehack-ssh shows only its "." prompt; "date" answers with about 39 readable runes
 //     (too few, and the length varies with the date), "help" lists the commands (> 130 runes).
+//   - the C64 boards need no kick: each sent at least 12 printable PETSCII characters (banner
+//     or detection prompt) within 6 s of connecting.
 var liveKick = map[string][]byte{
 	"telehack-ssh": []byte("help\r"),
+}
+
+// liveRule is how long an entry may print after "connected" and how many readable runes end
+// that window early (0: never; C64 boards are counted on the wire instead).
+type liveRule struct {
+	window time.Duration
+	target int
+}
+
+// liveRuleFor returns the C64 rule for KindC64 entries and the readable-text rule otherwise.
+func liveRuleFor(e Entry) liveRule {
+	if e.Kind == KindC64 {
+		return liveRule{window: liveC64Window}
+	}
+	return liveRule{window: liveWindow, target: liveReadableTarget}
 }
 
 // liveClient is a browser that types nothing except an optional kick. Its output window starts
@@ -36,6 +65,7 @@ var liveKick = map[string][]byte{
 type liveClient struct {
 	events chan ClientEvent // buffered for the single kick
 	kick   []byte
+	rule   liveRule
 	cancel context.CancelFunc
 
 	mu        sync.Mutex
@@ -46,8 +76,8 @@ type liveClient struct {
 	text      []byte
 }
 
-func newLiveClient(entryID string, cancel context.CancelFunc) *liveClient {
-	return &liveClient{events: make(chan ClientEvent, 1), kick: liveKick[entryID], cancel: cancel}
+func newLiveClient(e Entry, cancel context.CancelFunc) *liveClient {
+	return &liveClient{events: make(chan ClientEvent, 1), kick: liveKick[e.ID], rule: liveRuleFor(e), cancel: cancel}
 }
 
 func (c *liveClient) Events() <-chan ClientEvent { return c.events }
@@ -60,7 +90,7 @@ func (c *liveClient) SendData(p []byte) error {
 		c.text = append(c.text, p...)
 	}
 	c.readable = liveReadableRunes(string(c.text))
-	if c.readable >= liveReadableTarget {
+	if c.rule.target > 0 && c.readable >= c.rule.target {
 		c.cancel()
 	}
 	return nil
@@ -76,7 +106,7 @@ func (c *liveClient) SendControl(ctl Control) error {
 		return nil
 	}
 	c.connected = true
-	c.window = time.AfterFunc(liveWindow, c.cancel)
+	c.window = time.AfterFunc(c.rule.window, c.cancel)
 	if c.kick != nil {
 		c.events <- ClientEvent{Data: bytes.Clone(c.kick)} // buffered: never blocks the Run goroutine
 	}
@@ -92,27 +122,130 @@ func (c *liveClient) stop() {
 	}
 }
 
+// livePETSCIICount counts what a C64 board sends on the wire, before the codec: printable
+// PETSCII characters, and whether a BUSY banner arrived. enough ends the session once the board
+// has proved itself. Telnet negotiation would be counted too; no catalog board negotiates
+// (probe of 2026-10-10).
+type livePETSCIICount struct {
+	enough context.CancelFunc
+
+	mu        sync.Mutex
+	printable int
+	letters   []byte // the board's bytes, PETSCII letters folded to lower-case ASCII
+	busy      bool
+}
+
+// dial is the Dialer.Dial of a C64 live session: a plain TCP connect (the guard has already
+// validated and pinned the address) whose reads are counted.
+func (c *livePETSCIICount) dial(ctx context.Context, network, address string) (net.Conn, error) {
+	conn, err := (&net.Dialer{}).DialContext(ctx, network, address)
+	if err != nil {
+		return nil, err
+	}
+	return livePETSCIIConn{Conn: conn, count: c}, nil
+}
+
+// add counts one chunk from the board.
+func (c *livePETSCIICount) add(p []byte) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, b := range p {
+		if livePrintablePETSCII(b) {
+			c.printable++
+		}
+		if len(c.letters) < liveTextLimit {
+			c.letters = append(c.letters, liveFoldPETSCII(b))
+		}
+	}
+	c.busy = c.busy || bytes.Contains(c.letters, []byte("busy"))
+	if (c.printable >= livePETSCIITarget || c.busy) && c.enough != nil {
+		c.enough()
+	}
+}
+
+func (c *livePETSCIICount) result() (printable int, busy bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.printable, c.busy
+}
+
+// livePETSCIIConn hands every chunk read from a C64 board to its count.
+type livePETSCIIConn struct {
+	net.Conn
+	count *livePETSCIICount
+}
+
+func (c livePETSCIIConn) Read(p []byte) (int, error) {
+	n, err := c.Conn.Read(p)
+	if n > 0 {
+		c.count.add(p[:n])
+	}
+	return n, err
+}
+
+// livePrintablePETSCII reports a printable PETSCII character other than a space: 0x21-0x7F and
+// 0xA1-0xFF (0xFF is pi).
+func livePrintablePETSCII(b byte) bool {
+	return (b >= 0x21 && b <= 0x7F) || b >= 0xA1
+}
+
+// liveFoldPETSCII folds PETSCII letters of both case ranges (0x41-0x5A, 0x61-0x7A, 0xC1-0xDA)
+// to lower-case ASCII, so "BUSY" is found in either character set.
+func liveFoldPETSCII(b byte) byte {
+	switch {
+	case b >= 0x41 && b <= 0x5A:
+		return b + 0x20
+	case b >= 0xC1 && b <= 0xDA:
+		return b - 0x60
+	default:
+		return b
+	}
+}
+
 // liveRow is one line of the live report.
 type liveRow struct {
+	c64       bool
 	connected bool
 	bytes     int
 	readable  int
+	petscii   int  // C64 boards: printable PETSCII characters received
+	busy      bool // C64 boards: a BUSY banner arrived
 	result    Result
 }
 
-// passed is the same rule for every entry: enough readable output within the window.
-func (r liveRow) passed() bool { return r.readable >= liveReadableTarget }
+// passed: at least liveReadableTarget readable runes within the window; C64 boards need
+// livePETSCIITarget printable PETSCII characters or a BUSY banner.
+func (r liveRow) passed() bool {
+	if r.c64 {
+		return r.petscii >= livePETSCIITarget || r.busy
+	}
+	return r.readable >= liveReadableTarget
+}
 
-// liveDial runs one catalog entry; the only input is its liveKick, if any.
+// liveDial runs one catalog entry; the only input is its liveKick, if any. A C64 board gets its
+// own Manager whose dialer counts the board's bytes.
 func liveDial(m *Manager, e Entry) liveRow {
-	ctx, cancel := context.WithTimeout(context.Background(), liveBackstop)
+	backstop := liveBackstop
+	if e.Kind == KindC64 {
+		backstop = liveC64Backstop
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), backstop)
 	defer cancel()
-	client := newLiveClient(e.ID, cancel)
+	var count *livePETSCIICount
+	if e.Kind == KindC64 {
+		count = &livePETSCIICount{enough: cancel}
+		m = &Manager{Dialer: Dialer{Dial: count.dial}}
+	}
+	client := newLiveClient(e, cancel)
 	res := m.Run(ctx, e, Size{Cols: 80, Rows: 25}, client)
 	client.stop()
 	client.mu.Lock()
 	defer client.mu.Unlock()
-	return liveRow{connected: client.connected, bytes: client.bytes, readable: client.readable, result: res}
+	row := liveRow{c64: count != nil, connected: client.connected, bytes: client.bytes, readable: client.readable, result: res}
+	if count != nil {
+		row.petscii, row.busy = count.result()
+	}
+	return row
 }
 
 // liveReadableRunes counts visible, non-space runes outside ANSI escape sequences.
@@ -185,15 +318,20 @@ func TestLiveReadableRunesSkipsEscapesAndSpaces(t *testing.T) {
 }
 
 func TestLiveKickTargetsCatalogEntries(t *testing.T) {
-	ids := map[string]bool{}
+	catalog := map[string]Entry{}
 	for _, e := range DefaultCatalog() {
-		ids[e.ID] = true
+		catalog[e.ID] = e
 	}
 	for id, kick := range liveKick {
-		if !ids[id] {
+		e, ok := catalog[id]
+		switch {
+		case !ok:
 			t.Errorf("liveKick names %q, which is not a catalog entry", id)
-		}
-		if len(kick) == 0 || kick[len(kick)-1] != '\r' || bytes.Contains(kick, []byte("\n")) {
+		case e.Kind == KindC64:
+			if string(kick) != "\r" && string(kick) != "\x7f" {
+				t.Errorf("liveKick[%q] = %q, want a single C64 detection key: RETURN \"\\r\" or DEL \"\\x7f\"", id, kick)
+			}
+		case len(kick) == 0 || kick[len(kick)-1] != '\r' || bytes.Contains(kick, []byte("\n")):
 			t.Errorf("liveKick[%q] = %q, want keystrokes ending with the browser's Enter \"\\r\"", id, kick)
 		}
 	}
@@ -202,7 +340,7 @@ func TestLiveKickTargetsCatalogEntries(t *testing.T) {
 func TestLiveClientSendsKickOnceAfterConnected(t *testing.T) {
 	_, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	kicked := newLiveClient("telehack-ssh", cancel)
+	kicked := newLiveClient(Entry{ID: "telehack-ssh", Protocol: ProtocolSSH}, cancel)
 	defer kicked.stop()
 	_ = kicked.SendControl(Control{Type: controlEcho})
 	if len(kicked.events) != 0 {
@@ -217,7 +355,7 @@ func TestLiveClientSendsKickOnceAfterConnected(t *testing.T) {
 		t.Fatalf("kick event = %+v, want Data %q only", ev, liveKick["telehack-ssh"])
 	}
 
-	silent := newLiveClient("towel", cancel)
+	silent := newLiveClient(Entry{ID: "towel", Protocol: ProtocolTelnet, Kind: KindWorld}, cancel)
 	defer silent.stop()
 	_ = silent.SendControl(Control{Type: controlConnected})
 	if len(silent.events) != 0 {
@@ -228,9 +366,62 @@ func TestLiveClientSendsKickOnceAfterConnected(t *testing.T) {
 	}
 }
 
+func TestLiveC64RuleCountsPETSCIIOnTheWire(t *testing.T) {
+	if rule := liveRuleFor(Entry{Protocol: ProtocolTelnet, Kind: KindC64}); rule.window != 45*time.Second || rule.target != 0 {
+		t.Fatalf("C64 rule = %+v, want a 45 s window that readable text never ends", rule)
+	}
+	if rule := liveRuleFor(Entry{Protocol: ProtocolTelnet, Kind: KindBBS}); rule.window != liveWindow || rule.target != liveReadableTarget {
+		t.Fatalf("BBS rule = %+v, want the readable-text rule", rule)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	count := &livePETSCIICount{enough: cancel}
+	// CLR, CR, space and shifted space are not printable; "PRESS" (5), "DEL" in the upper
+	// case range (3) and pi (1) are.
+	count.add([]byte{0x93, 0x0D, 'P', 'R', 'E', 'S', 'S', 0x20, 0xC4, 0xC5, 0xCC, 0xA0, 0xFF})
+	if printable, busy := count.result(); printable != 9 || busy || ctx.Err() != nil {
+		t.Fatalf("after 9 printable characters: printable %d, busy %v, ended %v", printable, busy, ctx.Err() != nil)
+	}
+	count.add([]byte{':'})
+	if printable, _ := count.result(); printable != 10 || ctx.Err() == nil {
+		t.Fatalf("printable %d, ended %v; the 10th printable character must end the session", printable, ctx.Err() != nil)
+	}
+
+	for name, chunks := range map[string][][]byte{
+		"lower/upper set capitals split across reads": {{0xC2, 0xD5}, {0xD3, 0xD9}},
+		"upper/graphics set":                          {[]byte("BUSY! Call later")},
+		"mixed ranges":                                {{'b', 0xD5, 's', 'Y'}},
+	} {
+		busy := &livePETSCIICount{}
+		for _, chunk := range chunks {
+			busy.add(chunk)
+		}
+		if _, seen := busy.result(); !seen {
+			t.Errorf("%s: BUSY banner not recognised", name)
+		}
+	}
+
+	rows := []struct {
+		row  liveRow
+		want bool
+	}{
+		{liveRow{c64: true, petscii: livePETSCIITarget - 1}, false},
+		{liveRow{c64: true, petscii: livePETSCIITarget}, true},
+		{liveRow{c64: true, busy: true}, true},
+		{liveRow{c64: true, readable: 100}, false},
+	}
+	for _, tc := range rows {
+		if got := tc.row.passed(); got != tc.want {
+			t.Errorf("%+v passed = %v, want %v", tc.row, got, tc.want)
+		}
+	}
+}
+
 // TestLiveCatalog dials every catalog entry through the real engine. It needs Internet
 // access and runs only with AURAGO_RETRONET_LIVE=1. Every entry must show at least 40
-// readable runes within 10 s of "connected"; the only input is the entry's liveKick.
+// readable runes within 10 s of "connected"; C64 boards need at least 10 printable PETSCII
+// characters within 45 s, or a BUSY banner. The only input is the entry's liveKick.
 //
 // funtopia (funtopia.synchro.net:3023) publishes an AAAA record that does not answer on port
 // 3023 (checked 2026-10-09); it passes only because DialEntry tries every validated address,
@@ -251,21 +442,29 @@ func TestLiveCatalog(t *testing.T) {
 				defer func() { <-sem }()
 				rows[i] = liveDial(m, e)
 				if !rows[i].passed() {
-					t.Errorf("%s (%s): %d readable runes, connected %v, result %s/%s",
-						e.ID, e.Address(), rows[i].readable, rows[i].connected, rows[i].result.Code, rows[i].result.Reason)
+					t.Errorf("%s (%s): %d readable runes, %d printable PETSCII, busy %v, connected %v, result %s/%s",
+						e.ID, e.Address(), rows[i].readable, rows[i].petscii, rows[i].busy, rows[i].connected,
+						rows[i].result.Code, rows[i].result.Reason)
 				}
 			})
 		}
 	})
 	var report strings.Builder
-	fmt.Fprintf(&report, "\n%-22s %-36s %8s %8s  %-26s %s\n", "ENTRY", "ADDRESS", "BYTES", "READABLE", "RESULT", "KICK")
+	fmt.Fprintf(&report, "\n%-22s %-36s %8s %8s %9s  %-26s %s\n", "ENTRY", "ADDRESS", "BYTES", "READABLE", "PETSCII", "RESULT", "KICK")
 	for i, e := range entries {
 		row := rows[i]
+		petscii := "-"
+		if row.c64 {
+			petscii = strconv.Itoa(row.petscii)
+			if row.busy {
+				petscii += " BUSY"
+			}
+		}
 		kick := ""
 		if k, ok := liveKick[e.ID]; ok {
 			kick = fmt.Sprintf("%q", k)
 		}
-		fmt.Fprintf(&report, "%-22s %-36s %8d %8d  %-26s %s\n", e.ID, e.Address(), row.bytes, row.readable,
+		fmt.Fprintf(&report, "%-22s %-36s %8d %8d %9s  %-26s %s\n", e.ID, e.Address(), row.bytes, row.readable, petscii,
 			row.result.Code+"/"+row.result.Reason, kick)
 	}
 	t.Log(report.String())
