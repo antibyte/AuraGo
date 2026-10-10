@@ -9,7 +9,9 @@ func TestReferenceTerminalRendersTheEngineAlphabet(t *testing.T) {
 	v := newVTScreen()
 	a, g := string(C64Glyph(true, 0x01)), string(C64Glyph(false, 0x41))
 	steps := "\x1b[0m" +
+		"\x1b[?2026h" + // a synchronized block changes nothing by itself
 		"\x1b[2;39H\x1b[38;2;255;255;255;48;2;129;51;56m" + a + g + // white on red in columns 39-40 of row 2
+		"\x1b[?2026l" +
 		"\x07" +
 		"\x1b[1;1H\x1b[38;2;112;109;235m\x1b[48;2;0;0;0m" + a // light blue on black, home
 	if err := v.write([]byte(steps)); err != nil {
@@ -76,6 +78,11 @@ func TestReferenceTerminalRejectsOtherOutput(t *testing.T) {
 		"EL with a pending wrap":   "\x1b[1;40H" + g + "\x1b[K",
 		"scroll by zero":           "\x1b[0S",
 		"scroll with two operands": "\x1b[1;1S",
+		"open synchronized block":  "\x1b[?2026h" + g,
+		"sync end without start":   "\x1b[?2026l",
+		"nested synchronized":      "\x1b[?2026h\x1b[?2026h\x1b[?2026l\x1b[?2026l",
+		"other private mode 2027":  "\x1b[?2027h",
+		"truncated sync marker":    "\x1b[?2026",
 	}
 	for name, out := range bad {
 		if err := newVTScreen().write([]byte(out)); err == nil {

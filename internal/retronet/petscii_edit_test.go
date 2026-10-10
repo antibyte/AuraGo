@@ -39,8 +39,17 @@ func TestPetsciiDelete(t *testing.T) {
 	}
 	h := newPetsciiHarness(t)
 	h.feed("\x93AB")
-	if out := h.feed(del); string(out) != "\x1b[1;2H\x1b[K" {
-		t.Fatalf("DEL output = %q, want the row re-emitted from the cursor as CUP + EL", out)
+	if out := h.feed(del); string(out) != "\x1b[?2026h\x1b[1;2H\x1b[K\x1b[?2026l" {
+		t.Fatalf("DEL output = %q, want the row tail redrawn once at the end of the call (CUP + EL) in a synchronized block", out)
+	}
+	h.feed("\x93ABCDEF\x9d\x9d")
+	out := h.feed(del + del + del + "\x94\x94")
+	start, end := bytes.Index(out, []byte("\x1b[?2026h")), bytes.Index(out, []byte("\x1b[?2026l"))
+	if bytes.Count(out, []byte("\x1b[?2026h")) != 1 || start < 0 || end < start || bytes.Count(out[start:end], []byte("\x1b[1;")) != 1 {
+		t.Fatalf("DEL/INST run output = %q, want one redraw of row 1 in one synchronized block", out)
+	}
+	if got := rowText(&h.c.scr, 0); got != "a  ef" {
+		t.Fatalf("row 0 = %q after DEL DEL DEL INST INST, want \"a  ef\"", got)
 	}
 	h.feed("\x13")
 	if out := h.feed(del); len(out) != 0 {
@@ -77,8 +86,9 @@ func TestPetsciiCharsetSwitch(t *testing.T) {
 			t.Errorf("repaint lacks row %d", row)
 		}
 	}
-	if !bytes.Contains(out, []byte(string(C64Glyph(false, 0x01)))) || !bytes.HasSuffix(out, []byte("\x1b[2;2H")) {
-		t.Fatalf("repaint output = %q, want upper-set glyphs and the cursor restored", out)
+	if !bytes.Contains(out, []byte(string(C64Glyph(false, 0x01)))) || !bytes.HasPrefix(out, []byte("\x1b[?2026h")) ||
+		!bytes.HasSuffix(out, []byte("\x1b[?2026l\x1b[2;2H")) {
+		t.Fatalf("repaint output = %q, want upper-set glyphs in one synchronized block, then the cursor restored", out)
 	}
 	if out := h.feed("\x8e"); len(out) != 0 {
 		t.Fatalf("0x8E in the upper set = %q, want nothing", out)
@@ -96,5 +106,9 @@ func TestPetsciiCharsetSwitch(t *testing.T) {
 	}
 	if out := h.feed("\x09\x8e"); !h.c.scr.upper || !bytes.Contains(out, []byte(string(C64Glyph(false, 0x03)))) {
 		t.Fatalf("0x09 then 0x8E = %q, want the upper/graphics set repainted", out)
+	}
+	toggles := h.feed(strings.Repeat("\x0e\x8e", 100) + "\x0e")
+	if bytes.Count(toggles, []byte("\x1b[?2026h")) != 1 || bytes.Count(toggles, []byte("\x1b[1;1H")) != 1 || h.c.scr.upper {
+		t.Fatalf("201 switches in one read = %d bytes, want one repaint at the end of the call in the final set", len(toggles))
 	}
 }

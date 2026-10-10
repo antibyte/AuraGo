@@ -60,8 +60,7 @@ func vtDiff(v *vtScreen, s *c64Screen) string {
 		for c := 0; c < c64Cols; c++ {
 			m, got := s.cells[r][c], v.cells[r][c]
 			if m.blank() {
-				blankGlyph := got.ch == ' ' || got.ch == C64Glyph(true, c64Space) || got.ch == C64Glyph(false, c64Space)
-				if !blankGlyph || got.bg != int32(c64Background) {
+				if !got.blank() {
 					return fmt.Sprintf("cell %d,%d = %U fg %06X bg %06X, want blank", r, c, got.ch, got.fg, got.bg)
 				}
 				continue

@@ -33,7 +33,7 @@ func TestPetsciiSplitReadsAtEveryBoundary(t *testing.T) {
 		if h.c.scr != whole.c.scr {
 			t.Fatalf("split at %d: model differs from the unsplit run", i)
 		}
-		if h.vt.cells != whole.vt.cells || h.vt.row != whole.vt.row || h.vt.col != whole.vt.col || h.vt.bells != whole.vt.bells {
+		if h.vt.visible() != whole.vt.visible() || h.vt.row != whole.vt.row || h.vt.col != whole.vt.col || h.vt.bells != whole.vt.bells {
 			t.Fatalf("split at %d: rendered output differs from the unsplit run", i)
 		}
 	}
@@ -41,8 +41,58 @@ func TestPetsciiSplitReadsAtEveryBoundary(t *testing.T) {
 	for _, b := range petsciiSample {
 		h.feed(string([]byte{b}))
 	}
-	if h.c.scr != whole.c.scr || h.vt.cells != whole.vt.cells {
+	if h.c.scr != whole.c.scr || h.vt.visible() != whole.vt.visible() {
 		t.Fatal("byte-by-byte decoding differs from the unsplit run")
+	}
+}
+
+// petsciiOutputBound is the most output one Decode call may produce for n
+// input bytes: one deferred full-screen redraw plus 64 bytes per byte.
+func petsciiOutputBound(n int) int {
+	return 48<<10 + 64*n
+}
+
+// petsciiBusyScreen fills the screen so that every cell needs its own SGR:
+// reverse and colour change from cell to cell (the review's worst case).
+func petsciiBusyScreen() []byte {
+	b := []byte{0x93}
+	for i := 0; i < c64Rows*c64Cols-1; i++ { // the last cell would scroll
+		if i%2 == 0 {
+			b = append(b, 0x12, petsciiColourCodes[(i/2)%16], 0xA6)
+		} else {
+			b = append(b, 0x92, petsciiColourCodes[(i/2+7)%16], 0xA6)
+		}
+	}
+	return append(b, 0x13)
+}
+
+func TestPetsciiOutputIsBounded(t *testing.T) {
+	busy := petsciiBusyScreen()
+	tests := []struct {
+		name  string
+		setup []byte
+		in    []byte
+	}{
+		{"INST and alternating reverse prints", busy, bytes.Repeat([]byte{0x94, 0x12, 0x1C, 0xA6, 0x9D, 0x94, 0x92, 0x05, 0xA6, 0x9D}, 3276)},
+		{"DEL and alternating reverse prints", busy, bytes.Repeat([]byte{0x1D, 0x14, 0x12, 0x1C, 0xA6, 0x9D, 0x1D, 0x14, 0x92, 0x05, 0xA6, 0x9D}, 2730)},
+		{"cursor right and DEL", busy, bytes.Repeat([]byte{0x1D, 0x14}, 16<<10)},
+		{"INST in column 0", busy, bytes.Repeat([]byte{0x94}, 32<<10)},
+		{"one charset switch", busy, []byte{0x8E}},
+		{"charset toggles", busy, bytes.Repeat([]byte{0x8E, 0x0E}, 16<<10)},
+		{"colour-alternating print", nil, bytes.Repeat([]byte{0x12, 0x1C, 0xA6, 0x92, 0x05, 0xA6}, 5<<10)},
+		{"reverse print and scroll", nil, bytes.Repeat([]byte{0x12, 0x1C, 0xA6, 0x0D}, 8<<10)},
+	}
+	// No subtests: the first case over the bound stops the test before an
+	// unbounded engine reaches the gigabyte-sized charset-toggle case.
+	for _, tc := range tests {
+		h := newPetsciiHarness(t)
+		h.feed(string(tc.setup))
+		out := h.c.Decode(nil, tc.in)
+		if bound := petsciiOutputBound(len(tc.in)); len(out) > bound {
+			t.Fatalf("%s: %d bytes in produced %d bytes out, bound %d", tc.name, len(tc.in), len(out), bound)
+		}
+		h.check(out)
+		t.Logf("%s: %d bytes in, %d bytes out", tc.name, len(tc.in), len(out))
 	}
 }
 
@@ -67,25 +117,39 @@ func BenchmarkPetsciiDecode(b *testing.B) {
 	}
 }
 
-// FuzzPetsciiDecode feeds arbitrary bytes in chunks of 1-16 bytes: Decode must
-// not panic, must keep the cursor inside 40x25, must emit valid UTF-8 in the
-// engine's output alphabet, and the reference terminal must show the model
-// after every call.
+// FuzzPetsciiDecode feeds arbitrary bytes in one call and in chunks of 1-16
+// bytes: Decode must not panic, must keep the cursor inside 40x25, must emit
+// valid UTF-8 in the engine's output alphabet within petsciiOutputBound, and
+// the reference terminal must show the model after every call.
 func FuzzPetsciiDecode(f *testing.F) {
 	f.Add(petsciiSample, uint8(0))
 	f.Add(petsciiSample, uint8(6))
 	f.Add([]byte("\x93\x8e\xb0\xc0\xae\x0e\x14\x94\x1b[6n\x07\xff"), uint8(2))
 	f.Add([]byte("\x1b[1;2;3;4;5;6;7;8;9\x1b\x1b[\x0d\x8d\x12\x92"), uint8(1))
+	f.Add([]byte("\x1b[11111111111111111111A\x8e\x0e\x8e\x14\x94\x94"), uint8(15))
 	f.Fuzz(func(t *testing.T, data []byte, chunk uint8) {
+		whole := newPetsciiHarness(t)
+		out := whole.c.Decode(nil, data)
+		if bound := petsciiOutputBound(len(data)); len(out) > bound {
+			t.Fatalf("%d bytes in produced %d bytes out, bound %d", len(data), len(out), bound)
+		}
+		whole.check(out)
 		size := int(chunk%16) + 1
 		h := newPetsciiHarness(t)
 		for len(data) > 0 {
 			n := min(size, len(data))
-			h.check(h.c.Decode(nil, data[:n]))
+			out := h.c.Decode(nil, data[:n])
+			if bound := petsciiOutputBound(n); len(out) > bound {
+				t.Fatalf("%d bytes in produced %d bytes out, bound %d", n, len(out), bound)
+			}
+			h.check(out)
 			data = data[n:]
 			if s := &h.c.scr; s.row < 0 || s.row >= c64Rows || s.col < 0 || s.col >= c64Cols {
 				t.Fatalf("cursor %d,%d outside 40x25", s.row, s.col)
 			}
+		}
+		if h.c.scr != whole.c.scr || h.vt.visible() != whole.vt.visible() {
+			t.Fatal("chunked decoding differs from one call")
 		}
 	})
 }

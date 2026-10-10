@@ -19,15 +19,18 @@ type vtCell struct {
 
 // vtScreen is a minimal 40x25 xterm model for the engine's output alphabet:
 // glyphs U+EE00-U+EE7F/U+EF00-U+EF7F, CUP, SGR 0 / 38;2 / 48;2, SU, ED 2,
-// EL 0 and BEL. Anything else is an error, and so is a glyph written while a
-// wrap is pending (the engine must never rely on autowrap). Erases and
-// scrolls fill with the current background, like xterm (BCE).
+// EL 0, BEL and synchronized-output blocks (ESC[?2026h ... ESC[?2026l, which
+// must be balanced within one Decode output and do not change the screen).
+// Anything else is an error, and so is a glyph written while a wrap is
+// pending (the engine must never rely on autowrap). Erases and scrolls fill
+// with the current background, like xterm (BCE).
 type vtScreen struct {
 	cells    [c64Rows][c64Cols]vtCell
 	row, col int
 	pending  bool // a glyph was written in column 39
 	fg, bg   int32
 	bells    int
+	sync     bool // inside ESC[?2026h ... ESC[?2026l
 }
 
 func newVTScreen() *vtScreen {
@@ -44,6 +47,27 @@ func newVTScreen() *vtScreen {
 // current background.
 func (v *vtScreen) erased() vtCell {
 	return vtCell{ch: ' ', fg: vtDefaultFG, bg: v.bg}
+}
+
+// blank reports whether the cell looks empty: an erased cell or the space
+// glyph of either set, on black (the foreground does not show).
+func (c vtCell) blank() bool {
+	space := c.ch == ' ' || c.ch == C64Glyph(true, c64Space) || c.ch == C64Glyph(false, c64Space)
+	return space && c.bg == int32(c64Background)
+}
+
+// visible returns the cells as they look: every blank cell becomes an erased
+// cell on black, so two terminals showing the same picture compare equal.
+func (v *vtScreen) visible() [c64Rows][c64Cols]vtCell {
+	out := v.cells
+	for r := range out {
+		for c, cell := range out[r] {
+			if cell.blank() {
+				out[r][c] = vtCell{ch: ' ', fg: vtDefaultFG, bg: int32(c64Background)}
+			}
+		}
+	}
+	return out
 }
 
 // write interprets one Decode output. Every call must hold complete
@@ -80,13 +104,39 @@ func (v *vtScreen) write(p []byte) error {
 			p = p[size:]
 		}
 	}
+	if v.sync {
+		return fmt.Errorf("synchronized output left open at the end of the output")
+	}
 	return nil
 }
+
+// Synchronized-output markers (DEC private mode 2026).
+const (
+	vtSyncBegin = "\x1b[?2026h"
+	vtSyncEnd   = "\x1b[?2026l"
+)
 
 // csi interprets one ESC [ params final sequence at the start of p.
 func (v *vtScreen) csi(p []byte) (int, error) {
 	if len(p) < 2 || p[1] != '[' {
 		return 0, fmt.Errorf("unexpected escape %q", p)
+	}
+	if len(p) > 2 && p[2] == '?' {
+		switch {
+		case len(p) >= len(vtSyncBegin) && string(p[:len(vtSyncBegin)]) == vtSyncBegin:
+			if v.sync {
+				return 0, fmt.Errorf("nested synchronized output")
+			}
+			v.sync = true
+			return len(vtSyncBegin), nil
+		case len(p) >= len(vtSyncEnd) && string(p[:len(vtSyncEnd)]) == vtSyncEnd:
+			if !v.sync {
+				return 0, fmt.Errorf("synchronized output ended without a start")
+			}
+			v.sync = false
+			return len(vtSyncEnd), nil
+		}
+		return 0, fmt.Errorf("unsupported private mode in %q", p[:min(len(p), 12)])
 	}
 	n := 2
 	for n < len(p) && (p[n] >= '0' && p[n] <= '9' || p[n] == ';') {

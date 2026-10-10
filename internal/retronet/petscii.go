@@ -76,11 +76,23 @@ type petsciiCodec struct {
 	esc     petsciiEscape
 	started bool // the first output reset xterm's attributes
 
+	// dirty holds, per row, the first column whose xterm content is stale
+	// (DEL, INST, charset switch), c64Cols when the row is current. Decode
+	// redraws stale cells once, at the end of the call.
+	dirty [c64Rows]uint8
+
 	// xterm's state as far as the emitted output determines it.
 	vtRow, vtCol int
 	vtKnown      bool   // false until the first CUP and after a glyph in column 39 (pending wrap)
 	fg, bg       uint32 // current SGR colours, rgbUnknown if not known
 }
+
+// Synchronized-output block (DEC private mode 2026) around deferred redraws:
+// xterm renders it at once and the browser throttle counts it as one unit.
+const (
+	syncOutputBegin = "\x1b[?2026h"
+	syncOutputEnd   = "\x1b[?2026l"
+)
 
 // newPetsciiCodec returns an engine with a blank screen, the cursor in the
 // bottom-left corner (board output scrolls the browser's dial lines away),
@@ -90,11 +102,15 @@ func newPetsciiCodec() *petsciiCodec {
 	c.scr.colour = c64InitialColour
 	c.scr.clear()
 	c.scr.row = c64Rows - 1
+	c.markClean()
 	return c
 }
 
 // Decode feeds server bytes into the screen model and appends the xterm
-// output to dst. Every call emits complete sequences only and ends with
+// output to dst. Glyphs, scrolling, CLR and BEL are emitted as they come;
+// rows changed by DEL, INST or a charset switch are redrawn once at the end
+// of the call in one synchronized-output block. Every call emits complete
+// sequences only, at most 48 KiB plus 64 bytes per input byte, and ends with
 // xterm's cursor on the model cursor.
 func (c *petsciiCodec) Decode(dst, src []byte) []byte {
 	if len(src) == 0 {
@@ -107,7 +123,43 @@ func (c *petsciiCodec) Decode(dst, src []byte) []byte {
 	for _, b := range src {
 		dst = c.decodeByte(dst, b)
 	}
+	dst = c.flush(dst)
 	return c.moveVT(dst, c.scr.row, c.scr.col)
+}
+
+// markClean marks every row as current.
+func (c *petsciiCodec) markClean() {
+	for row := range c.dirty {
+		c.dirty[row] = c64Cols
+	}
+}
+
+// markDirty records that xterm's cells from col to the end of row are stale.
+func (c *petsciiCodec) markDirty(row, col int) {
+	if uint8(col) < c.dirty[row] {
+		c.dirty[row] = uint8(col)
+	}
+}
+
+// flush redraws the stale part of every dirty row inside one
+// synchronized-output block and marks the screen current.
+func (c *petsciiCodec) flush(dst []byte) []byte {
+	open := false
+	for row, from := range c.dirty {
+		if from >= c64Cols {
+			continue
+		}
+		if !open {
+			dst = append(dst, syncOutputBegin...)
+			open = true
+		}
+		dst = c.drawRow(dst, row, int(from))
+		c.dirty[row] = c64Cols
+	}
+	if open {
+		dst = append(dst, syncOutputEnd...)
+	}
+	return dst
 }
 
 // decodeByte handles one byte: the ANSI-probe swallower first, then printable
@@ -168,6 +220,7 @@ func (c *petsciiCodec) control(dst []byte, b byte) []byte {
 		s.row, s.col = 0, 0
 	case petsciiClear:
 		s.clear()
+		c.markClean() // ED leaves nothing stale
 		dst = c.setBackground(dst)
 		return append(dst, "\x1b[2J"...)
 	case petsciiRvsOn:
@@ -177,23 +230,26 @@ func (c *petsciiCodec) control(dst []byte, b byte) []byte {
 	case petsciiBell:
 		return append(dst, 0x07)
 	case petsciiDel:
-		return c.del(dst)
+		c.del()
 	case petsciiInsert:
-		return c.insert(dst)
+		c.insert()
 	case petsciiLowerSet:
-		return c.switchSet(dst, false)
+		c.switchSet(false)
 	case petsciiUpperSet:
-		return c.switchSet(dst, true)
+		c.switchSet(true)
 	}
 	return dst
 }
 
 // print stores sc at the cursor in the current colour and reverse mode, draws
-// it and advances the cursor.
+// it (unless the cell is stale anyway and the flush will draw it) and
+// advances the cursor.
 func (c *petsciiCodec) print(dst []byte, sc byte) []byte {
 	s := &c.scr
 	s.cells[s.row][s.col] = c64Cell{code: sc, colour: s.colour, reverse: s.reverse}
-	dst = c.drawCell(dst, s.row, s.col)
+	if s.col < int(c.dirty[s.row]) {
+		dst = c.drawCell(dst, s.row, s.col)
+	}
 	return c.advance(dst)
 }
 
@@ -219,7 +275,7 @@ func (c *petsciiCodec) down(dst []byte) []byte {
 
 // scroll moves every row up one and blanks the bottom row; xterm scrolls with
 // SU on a black background (it fills the new row with the current
-// background) and keeps its cursor.
+// background) and keeps its cursor. Stale rows move up with their content.
 func (c *petsciiCodec) scroll(dst []byte) []byte {
 	s := &c.scr
 	copy(s.cells[:c64Rows-1], s.cells[1:])
@@ -227,6 +283,8 @@ func (c *petsciiCodec) scroll(dst []byte) []byte {
 	for col := range s.cells[c64Rows-1] {
 		s.cells[c64Rows-1][col] = blank
 	}
+	copy(c.dirty[:c64Rows-1], c.dirty[1:])
+	c.dirty[c64Rows-1] = c64Cols
 	dst = c.setBackground(dst)
 	return append(dst, "\x1b[S"...)
 }
@@ -301,42 +359,41 @@ func appendRGB(dst []byte, rgb uint32) []byte {
 
 // del is the C64 DEL key: the cursor moves left (wrapping to the end of the
 // previous row), the rest of the row shifts left onto it and the last cell
-// becomes blank. Nothing happens in the top-left corner.
-func (c *petsciiCodec) del(dst []byte) []byte {
+// becomes blank. Nothing happens in the top-left corner. The row tail is
+// redrawn by the flush.
+func (c *petsciiCodec) del() {
 	s := &c.scr
 	if s.row == 0 && s.col == 0 {
-		return dst
+		return
 	}
 	s.left()
 	row := &s.cells[s.row]
 	copy(row[s.col:], row[s.col+1:])
 	row[c64Cols-1] = s.blankCell()
-	return c.drawRow(dst, s.row, s.col)
+	c.markDirty(s.row, s.col)
 }
 
 // insert is the C64 INST key: a blank cell is inserted at the cursor, the
-// last cell of the row is lost and the cursor stays.
-func (c *petsciiCodec) insert(dst []byte) []byte {
+// last cell of the row is lost and the cursor stays. The row tail is redrawn
+// by the flush.
+func (c *petsciiCodec) insert() {
 	s := &c.scr
 	row := &s.cells[s.row]
 	copy(row[s.col+1:], row[s.col:c64Cols-1])
 	row[s.col] = s.blankCell()
-	return c.drawRow(dst, s.row, s.col)
+	c.markDirty(s.row, s.col)
 }
 
-// switchSet selects the lower/upper (upper=false) or upper/graphics set,
-// repaints all 25 rows from the model and restores the cursor. It does
-// nothing when the set does not change.
-func (c *petsciiCodec) switchSet(dst []byte, upper bool) []byte {
-	s := &c.scr
-	if s.upper == upper {
-		return dst
+// switchSet selects the lower/upper (upper=false) or upper/graphics set; the
+// flush repaints all 25 rows. Nothing happens when the set does not change.
+func (c *petsciiCodec) switchSet(upper bool) {
+	if c.scr.upper == upper {
+		return
 	}
-	s.upper = upper
-	for row := 0; row < c64Rows; row++ {
-		dst = c.drawRow(dst, row, 0)
+	c.scr.upper = upper
+	for row := range c.dirty {
+		c.dirty[row] = 0
 	}
-	return c.moveVT(dst, s.row, s.col)
 }
 
 // drawRow re-emits cells from..39 of row: glyphs up to the last non-blank
