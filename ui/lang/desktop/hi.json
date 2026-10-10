@@ -1,4 +1,7 @@
 {
+  "layerling.fullscreen": "पूर्ण स्क्रीन",
+  "layerling.exit_fullscreen": "पूर्ण स्क्रीन से बाहर निकलें",
+  "layerling.fullscreen_error": "पूर्ण स्क्रीन मोड बदला नहीं जा सका।",
   "layerling.new": "नया",
   "layerling.open": "खोलें",
   "layerling.save": "सहेजें",

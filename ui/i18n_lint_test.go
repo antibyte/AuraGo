@@ -455,6 +455,7 @@ func TestFrontend_StaticI18nKeysExistInEnglishBundle(t *testing.T) {
 		filepath.ToSlash(filepath.Join("js", "chat", "bundles", "chat-vendor.bundle.js")): true,
 	}
 	localPrefixes := map[string]string{
+		"js/desktop/apps/layerling.js":               "layerling.",
 		"js/desktop/apps/meshcore-device.js":         "desktop.meshcore_",
 		"js/desktop/apps/personal-radio.js":          "personalRadio.",
 		"js/desktop/apps/personal-radio-settings.js": "personalRadio.",

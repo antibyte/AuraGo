@@ -1,4 +1,7 @@
 {
+  "layerling.fullscreen": "Celá obrazovka",
+  "layerling.exit_fullscreen": "Ukončit celou obrazovku",
+  "layerling.fullscreen_error": "Režim celé obrazovky se nepodařilo přepnout.",
   "layerling.new": "Nový",
   "layerling.open": "Otevřít",
   "layerling.save": "Uložit",

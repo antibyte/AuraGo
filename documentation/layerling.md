@@ -9,6 +9,8 @@ The Desktop frame follows AuraGo's language and theme. The CAD editor uses
 German for a German Desktop and English for all other Desktop languages.
 Open it from the Creative category. New windows start maximized, are loaded
 on demand and participate in Desktop session restoration.
+Use **Fullscreen** in the toolbar to hide browser chrome and the Desktop frame.
+File dialogs remain available. Use **Exit fullscreen** or **Esc** to return.
 
 ## Files
 

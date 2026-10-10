@@ -1,4 +1,7 @@
 {
+  "layerling.fullscreen": "Volledig scherm",
+  "layerling.exit_fullscreen": "Volledig scherm verlaten",
+  "layerling.fullscreen_error": "De modus voor volledig scherm kon niet worden gewijzigd.",
   "layerling.new": "Nieuw",
   "layerling.open": "Openen",
   "layerling.save": "Opslaan",

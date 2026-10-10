@@ -773,7 +773,7 @@
                 ${options.choices ? options.choices.map(choice => `<button type="button" class="vd-button" data-choice="${esc(choice.value)}" ${choice.disabled ? 'disabled' : ''}>${esc(choice.label)}</button>`).join('') : `<button type="submit" class="vd-button vd-button-primary">${esc(t('desktop.ok'))}</button>`}
             </div>
         </form>`;
-        document.body.appendChild(overlay);
+        const unmount = mountDesktopDialog(overlay);
         desktopSound('dialog.open');
         const form = overlay.querySelector('form');
         const input = overlay.querySelector('input');
@@ -799,6 +799,7 @@
                 document.removeEventListener('focusin', trapFocus);
                 document.removeEventListener('keydown', onKey, true);
                 options.signal?.removeEventListener('abort', onAbort);
+                unmount();
                 overlay.remove();
                 if (previousFocus && typeof previousFocus.focus === 'function') previousFocus.focus();
                 if (value === true) desktopSound('dialog.confirm');

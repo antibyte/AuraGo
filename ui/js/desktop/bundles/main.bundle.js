@@ -8149,6 +8149,19 @@ function wireWindow(win, id) {
 /* ui/js/desktop/core/file-dialog-runtime.js */
     const fileDialogDefaultRoots = ['Desktop', 'Documents', 'Downloads', 'Pictures', 'Photos', 'Music', 'Videos', 'Apps', 'Widgets', 'Shared'];
 
+    function mountDesktopDialog(overlay) {
+        const mount = () => {
+            const host = document.fullscreenElement || document.body;
+            if (overlay.parentElement === host) return;
+            const focused = overlay.contains(document.activeElement) ? document.activeElement : null;
+            host.appendChild(overlay);
+            focused?.focus();
+        };
+        mount();
+        document.addEventListener('fullscreenchange', mount);
+        return () => document.removeEventListener('fullscreenchange', mount);
+    }
+
     function fileDialogText(key, fallback, vars) {
         let value = '';
         if (typeof t === 'function') {
@@ -8375,7 +8388,7 @@ function wireWindow(win, id) {
                 </div>
             </footer>
         </form>`;
-        document.body.appendChild(overlay);
+        const unmount = mountDesktopDialog(overlay);
 
         const form = overlay.querySelector('form');
         const list = overlay.querySelector('[data-file-dialog-list]');
@@ -8579,6 +8592,7 @@ function wireWindow(win, id) {
             settled = true;
             document.removeEventListener('keydown', onKeydown);
             if (options.signal) options.signal.removeEventListener('abort', onAbort);
+            unmount();
             overlay.remove();
             resolveDialog(result);
         }
@@ -16486,7 +16500,7 @@ function updateTaskbarSystemButtonsForMobile() {
                 ${options.choices ? options.choices.map(choice => `<button type="button" class="vd-button" data-choice="${esc(choice.value)}" ${choice.disabled ? 'disabled' : ''}>${esc(choice.label)}</button>`).join('') : `<button type="submit" class="vd-button vd-button-primary">${esc(t('desktop.ok'))}</button>`}
             </div>
         </form>`;
-        document.body.appendChild(overlay);
+        const unmount = mountDesktopDialog(overlay);
         desktopSound('dialog.open');
         const form = overlay.querySelector('form');
         const input = overlay.querySelector('input');
@@ -16512,6 +16526,7 @@ function updateTaskbarSystemButtonsForMobile() {
                 document.removeEventListener('focusin', trapFocus);
                 document.removeEventListener('keydown', onKey, true);
                 options.signal?.removeEventListener('abort', onAbort);
+                unmount();
                 overlay.remove();
                 if (previousFocus && typeof previousFocus.focus === 'function') previousFocus.focus();
                 if (value === true) desktopSound('dialog.confirm');

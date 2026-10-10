@@ -1,4 +1,7 @@
 {
+  "layerling.fullscreen": "Fullskjerm",
+  "layerling.exit_fullscreen": "Avslutt fullskjerm",
+  "layerling.fullscreen_error": "Kunne ikke bytte fullskjermmodus.",
   "layerling.new": "Ny",
   "layerling.open": "Åpne",
   "layerling.save": "Lagre",

@@ -14,7 +14,7 @@
         root.innerHTML = `<div class="vd-layerling"><div class="vd-layerling-toolbar" role="toolbar" aria-label="Layerling">
             ${button('new', t('new'))}${button('open', t('open'))}${button('save', t('save'))}${button('save_as', t('save_as'))}${button('import', t('import'))}${button('recover', t('recover'))}
             <select data-format aria-label="${ctx.esc(t('format'))}">${['stl','obj','3mf','step','png'].map(format=>`<option value="${format}">${format.toUpperCase()}</option>`).join('')}</select>
-            ${button('export', t('export'))}${button('download', t('download'))}
+            ${button('export', t('export'))}${button('download', t('download'))}${button('fullscreen', t('fullscreen'))}
             <a href="${API}ui/source.zip" download>${ctx.esc(t('source'))}</a><a href="${API}ui/LICENSE.txt" target="_blank" rel="noopener">AGPL-3.0</a>
         </div><div class="vd-layerling-status" role="status" aria-live="polite"></div><div class="vd-layerling-host"></div></div>`;
         s.status = root.querySelector('.vd-layerling-status');
@@ -31,6 +31,19 @@
             });
         };
         const signal = life.signal;
+        const shell = root.querySelector('.vd-layerling');
+        const fullscreenButton = root.querySelector('[data-action="fullscreen"]');
+        const syncFullscreen = () => {
+            const active = document.fullscreenElement === shell;
+            fullscreenButton.textContent = t(active ? 'exit_fullscreen' : 'fullscreen');
+            fullscreenButton.setAttribute('aria-pressed', String(active));
+        };
+        fullscreenButton.disabled = !document.fullscreenEnabled || !shell.requestFullscreen;
+        document.addEventListener('fullscreenchange', syncFullscreen, {signal});
+        signal.addEventListener('abort', () => {
+            if (document.fullscreenElement === shell) document.exitFullscreen().catch(() => {});
+        }, {once:true});
+        syncFullscreen();
         const fileURL = path => API + 'file?path=' + encodeURIComponent(path);
         const agentHeaders = () => s.agentCommand ? {'X-Layerling-Editor':s.editorID,'X-Layerling-Command':s.agentCommand} : {};
         const draftKey = () => location.origin + ':layerling:' + ctx.sessionKey + ':' + (s.path || 'untitled');
@@ -182,6 +195,11 @@
         };
         root.querySelector('[role="toolbar"]').addEventListener('click',event=>{
             const action=event.target.closest('[data-action]')?.dataset.action;if(!action)return;
+            if (action === 'fullscreen') {
+                const change = document.fullscreenElement === shell ? document.exitFullscreen() : shell.requestFullscreen();
+                change.catch(() => { if (!signal.aborted) s.show(t('fullscreen_error'), true); });
+                return;
+            }
             s.run(async()=>{
                 if(action==='new'){if(s.readonly)throw Error(t('readonly'));return load('');}
                 if(action==='open')return pick(false);

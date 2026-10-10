@@ -1,4 +1,7 @@
 {
+  "layerling.fullscreen": "Schermo intero",
+  "layerling.exit_fullscreen": "Esci da schermo intero",
+  "layerling.fullscreen_error": "Impossibile cambiare la modalità a schermo intero.",
   "layerling.new": "Nuovo",
   "layerling.open": "Apri",
   "layerling.save": "Salva",

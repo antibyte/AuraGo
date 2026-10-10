@@ -153,10 +153,39 @@ func TestLayerlingDesktopBrowser(t *testing.T) {
 	if scene()["shapeCount"] != float64(0) {
 		t.Fatal("new editor not empty")
 	}
+	fullscreen := page.MustElement(`[data-action="fullscreen"]`)
+	page.MustEval(`()=>document.querySelector('.vd-layerling').requestFullscreen=()=>Promise.reject(new Error('fixture denial'))`)
+	fullscreen.MustClick()
+	page.MustWait(`()=>document.querySelector('.vd-layerling-status.is-error')?.textContent.includes('Vollbildmodus')`)
+	if page.MustEval(`()=>!!document.fullscreenElement`).Bool() {
+		t.Fatal("denied fullscreen request changed the display mode")
+	}
+	page.MustEval(`()=>delete document.querySelector('.vd-layerling').requestFullscreen`)
+	fullscreen.MustClick()
+	page.MustWait(`()=>document.fullscreenElement?.matches('.vd-layerling') && document.querySelector('[data-action="fullscreen"]').getAttribute('aria-pressed')==='true'`)
+	if fullscreen.MustText() != "Vollbild beenden" {
+		t.Fatal("fullscreen exit control not localized")
+	}
 	page.MustEval(`id=>cadTest.state.windows.get(id).element.querySelector('[data-action="save"]').click()`, firstWindow)
 	page.MustElement("[data-file-dialog-filename]").MustSelectAllText().MustInput("First.lyl")
+	if !page.MustEval(`()=>document.fullscreenElement.contains(document.querySelector('.vd-file-dialog-backdrop'))`).Bool() {
+		t.Fatal("save dialog hidden behind fullscreen")
+	}
+	// Browser-driven exits (including Esc) must keep an open dialog usable and focused.
+	page.MustEval(`()=>document.exitFullscreen()`)
+	page.MustWait(`()=>!document.fullscreenElement && document.querySelector('.vd-file-dialog-backdrop').parentElement===document.body && document.querySelector('[data-action="fullscreen"]').getAttribute('aria-pressed')==='false'`)
+	if !page.MustEval(`()=>document.activeElement.matches('[data-file-dialog-filename]')`).Bool() {
+		t.Fatal("fullscreen exit lost file dialog focus")
+	}
 	page.MustElement("[data-file-dialog-confirm]").MustClick()
 	page.MustWait(`()=>[...cadTest.state.windows.values()].some(w=>w.context?.path==='Documents/Layerling/First.lyl')`)
+	fullscreen.MustClick()
+	page.MustWait(`()=>!!document.fullscreenElement`)
+	fullscreen.MustClick()
+	page.MustWait(`()=>!document.fullscreenElement`)
+	if page.MustEval(`id=>LayerlingApp.editorId(id)`, firstWindow).Str() != firstID {
+		t.Fatal("fullscreen toggle replaced the connected editor")
+	}
 	command("create_shape", map[string]interface{}{"kind": "box", "name": "Block", "width": 30, "depth": 20, "height": 10})
 	state := scene()
 	shapes, ok := state["shapes"].([]interface{})
@@ -231,8 +260,19 @@ func TestLayerlingDesktopBrowser(t *testing.T) {
 	clickSave := func() {
 		page.MustEval(`id=>cadTest.state.windows.get(id).element.querySelector('[data-action="save"]').click()`, secondWindow)
 	}
+	secondFullscreen := page.MustElement(fmt.Sprintf(`[data-window-id="%s"] [data-action="fullscreen"]`, secondWindow))
+	secondFullscreen.MustClick()
+	page.MustWait(`()=>!!document.fullscreenElement`)
 	clickSave()
+	page.MustElement(".vd-modal [data-cancel]").MustFocus()
+	if !page.MustEval(`()=>document.fullscreenElement.contains(document.querySelector('.vd-modal-backdrop'))`).Bool() {
+		t.Fatal("conflict dialog hidden behind fullscreen")
+	}
+	page.MustEval(`()=>document.exitFullscreen()`)
+	page.MustWait(`()=>document.querySelector('.vd-modal-backdrop').parentElement===document.body && document.activeElement.matches('.vd-modal [data-cancel]')`)
 	page.MustElement(".vd-modal [data-cancel]").MustClick()
+	secondFullscreen.MustClick()
+	page.MustWait(`()=>!!document.fullscreenElement`)
 	clickSave()
 	page.MustElement(".vd-modal [data-choice=copy]").MustClick()
 	page.MustElement("[data-file-dialog-filename]").MustSelectAllText().MustInput("manual.lyl")
@@ -260,6 +300,7 @@ func TestLayerlingDesktopBrowser(t *testing.T) {
 	// Real close guards finish saving; reopening must preserve the imported scene.
 	count := scene()["shapeCount"]
 	page.MustEval(`async id=>{await cadTest.closeWindow(id);}`, secondWindow)
+	page.MustWait(`()=>!document.fullscreenElement`)
 	page.MustEval(`()=>cadTest.openApp('layerling',{path:'Documents/Layerling/imports.lyl',forceNew:true})`)
 	page.MustWait(`()=>[...cadTest.state.windows.values()].some(w=>w.context?.path==='Documents/Layerling/imports.lyl'&&LayerlingApp.editorId(w.id))`)
 	id = page.MustEval(`()=>{const w=[...cadTest.state.windows.values()].find(w=>w.context?.path==='Documents/Layerling/imports.lyl');return LayerlingApp.editorId(w.id);}`).Str()
@@ -306,6 +347,16 @@ func TestLayerlingDesktopBrowser(t *testing.T) {
 					t.Fatal("horizontal overflow", theme, mode, width)
 				}
 				page.MustScreenshot(fmt.Sprintf("../../reports/layerling/%s-%s-%d.png", theme, mode, width))
+				activeWindow := page.MustEval(`()=>[...cadTest.state.windows.values()].find(w=>w.sessionKey==='cad-recovery-picker').id`).Str()
+				control := page.MustElement(fmt.Sprintf(`[data-window-id="%s"] [data-action="fullscreen"]`, activeWindow))
+				control.MustClick()
+				page.MustWait(`()=>!!document.fullscreenElement`)
+				if !page.MustEval(`()=>{const el=document.fullscreenElement,r=el.getBoundingClientRect(),frame=el.querySelector('iframe').getBoundingClientRect();return r.x===0 && r.y===0 && Math.abs(r.width-innerWidth)<2 && Math.abs(r.height-innerHeight)<2 && el.scrollWidth<=el.clientWidth+1 && frame.height>innerHeight*0.6;}`).Bool() {
+					t.Fatal("fullscreen editor does not fill viewport", theme, mode, width)
+				}
+				page.MustScreenshot(fmt.Sprintf("../../reports/layerling/fullscreen-%s-%s-%d.png", theme, mode, width))
+				control.MustClick()
+				page.MustWait(`()=>!document.fullscreenElement`)
 			}
 		}
 	}

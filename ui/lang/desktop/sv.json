@@ -1,4 +1,7 @@
 {
+  "layerling.fullscreen": "Helskärm",
+  "layerling.exit_fullscreen": "Avsluta helskärm",
+  "layerling.fullscreen_error": "Det gick inte att växla helskärmsläge.",
   "layerling.new": "Nytt",
   "layerling.open": "Öppna",
   "layerling.save": "Spara",

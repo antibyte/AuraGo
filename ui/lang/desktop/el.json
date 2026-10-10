@@ -1,4 +1,7 @@
 {
+  "layerling.fullscreen": "Πλήρης οθόνη",
+  "layerling.exit_fullscreen": "Έξοδος από πλήρη οθόνη",
+  "layerling.fullscreen_error": "Δεν ήταν δυνατή η εναλλαγή της λειτουργίας πλήρους οθόνης.",
   "layerling.new": "Νέο",
   "layerling.open": "Άνοιγμα",
   "layerling.save": "Αποθήκευση",

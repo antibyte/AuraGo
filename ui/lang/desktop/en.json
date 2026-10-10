@@ -1,4 +1,7 @@
 {
+  "layerling.fullscreen": "Fullscreen",
+  "layerling.exit_fullscreen": "Exit fullscreen",
+  "layerling.fullscreen_error": "Could not switch fullscreen mode.",
   "layerling.new": "New",
   "layerling.open": "Open",
   "layerling.save": "Save",

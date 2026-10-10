@@ -1,4 +1,7 @@
 {
+  "layerling.fullscreen": "Pantalla completa",
+  "layerling.exit_fullscreen": "Salir de pantalla completa",
+  "layerling.fullscreen_error": "No se pudo cambiar el modo de pantalla completa.",
   "layerling.new": "Nuevo",
   "layerling.open": "Abrir",
   "layerling.save": "Guardar",

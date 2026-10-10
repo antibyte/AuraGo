@@ -1,4 +1,7 @@
 {
+  "layerling.fullscreen": "Vollbild",
+  "layerling.exit_fullscreen": "Vollbild beenden",
+  "layerling.fullscreen_error": "Der Vollbildmodus konnte nicht umgeschaltet werden.",
   "layerling.new": "Neu",
   "layerling.open": "Öffnen",
   "layerling.save": "Speichern",

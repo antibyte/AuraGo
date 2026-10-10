@@ -1,4 +1,7 @@
 {
+  "layerling.fullscreen": "Tela cheia",
+  "layerling.exit_fullscreen": "Sair da tela cheia",
+  "layerling.fullscreen_error": "Não foi possível alternar o modo de tela cheia.",
   "layerling.new": "Novo",
   "layerling.open": "Abrir",
   "layerling.save": "Guardar",

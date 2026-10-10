@@ -1,4 +1,7 @@
 {
+  "layerling.fullscreen": "Pełny ekran",
+  "layerling.exit_fullscreen": "Opuść pełny ekran",
+  "layerling.fullscreen_error": "Nie udało się przełączyć trybu pełnoekranowego.",
   "layerling.new": "Nowy",
   "layerling.open": "Otwórz",
   "layerling.save": "Zapisz",

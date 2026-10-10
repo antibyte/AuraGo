@@ -1,4 +1,7 @@
 {
+  "layerling.fullscreen": "全屏",
+  "layerling.exit_fullscreen": "退出全屏",
+  "layerling.fullscreen_error": "无法切换全屏模式。",
   "layerling.new": "新建",
   "layerling.open": "打开",
   "layerling.save": "保存",
