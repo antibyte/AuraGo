@@ -277,10 +277,18 @@ func TestDesktopTerminalAudioContract(t *testing.T) {
 		"apple2",
 		"prefers-reduced-motion",
 		"dataset.animations",
+		// C64 bell (Contract C): the key-click rules, one short square tone.
+		"function beep()",
+		"const BELL = { type: 'square'",
+		"return { setProfile, setMuted, playKey, beep, dispose }",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("terminal-audio.js missing %q", want)
 		}
+	}
+	beep := source[strings.Index(source, "function beep()"):]
+	if !strings.Contains(beep[:strings.Index(beep, "}")], "if (!retro || muted || shouldSilence()) return;") {
+		t.Fatal("beep() must follow the key-click rules: retro style, not muted, no reduced motion or disabled animations")
 	}
 }
 
@@ -947,7 +955,13 @@ func TestDesktopTerminalRetroNetSessionContract(t *testing.T) {
 
 	source := readDesktopAssetText(t, "js/desktop/apps/terminal-retronet-session.js")
 	for _, want := range []string{
-		"window.TerminalRetroNetSession = { open: open, hostKeyAnswer: hostKeyAnswer }",
+		"window.TerminalRetroNetSession = { open: open, hostKeyAnswer: hostKeyAnswer, c64ColorKey: c64ColorKey }",
+		// C64 colour keys (Contract C): event.code, exact modifiers, the private sequence.
+		"Digit1: 0x90, Digit2: 0x05, Digit3: 0x1c, Digit4: 0x9f, Digit5: 0x9c,",
+		"Digit6: 0x1e, Digit7: 0x1f, Digit8: 0x9e, Digit9: 0x12, Digit0: 0x92",
+		"Digit1: 0x81, Digit2: 0x95, Digit3: 0x96, Digit4: 0x97, Digit5: 0x98, Digit6: 0x99, Digit7: 0x9a, Digit8: 0x9b",
+		"if (!event || !event.shiftKey || event.metaKey || event.ctrlKey === event.altKey) return '';",
+		`'\x1b[64;' + keys[event.code] + '~'`,
 		"const TerminalText = window.TerminalText",
 		"TerminalText.cellWidth(ch.codePointAt(0))",
 		"line = lineText(text)",

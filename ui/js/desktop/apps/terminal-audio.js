@@ -2,6 +2,7 @@
     'use strict';
 
     const STORAGE_KEY = 'aurago.desktop.terminal.audioMuted';
+    const BELL = { type: 'square', freq: 880, gain: 0.05, dur: 0.12, release: 0.02 };
 
     function shouldSilence() {
         return (document.body && document.body.dataset.animations === 'false')
@@ -59,26 +60,37 @@
             return muted;
         }
 
-        function playKey(event) {
-            if (!retro || muted || shouldSilence()) return;
-            if (!event || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+        // One oscillator through a gain that decays after `dur` seconds (time constant `release`).
+        function sound(type, freq, level, dur, release) {
             const audio = ensureCtx();
             if (!audio) return;
             if (audio.state === 'suspended') {
                 audio.resume().catch(function () {});
             }
-            const spec = timbre(profileId);
             const osc = audio.createOscillator();
             const gain = audio.createGain();
-            osc.type = spec.type;
-            osc.frequency.value = spec.freq + Math.random() * 40;
-            gain.gain.value = spec.gain;
+            osc.type = type;
+            osc.frequency.value = freq;
+            gain.gain.value = level;
             osc.connect(gain);
             gain.connect(audio.destination);
             const now = audio.currentTime;
-            gain.gain.setTargetAtTime(0.0001, now + spec.dur, 0.008);
+            gain.gain.setTargetAtTime(0.0001, now + dur, release);
             osc.start(now);
-            osc.stop(now + spec.dur + 0.03);
+            osc.stop(now + dur + release * 4);
+        }
+
+        function playKey(event) {
+            if (!retro || muted || shouldSilence()) return;
+            if (!event || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+            const spec = timbre(profileId);
+            sound(spec.type, spec.freq + Math.random() * 40, spec.gain, spec.dur, 0.008);
+        }
+
+        // The terminal bell of C64 sessions (BEL from the board): a short square tone under the key-click rules.
+        function beep() {
+            if (!retro || muted || shouldSilence()) return;
+            sound(BELL.type, BELL.freq, BELL.gain, BELL.dur, BELL.release);
         }
 
         function dispose() {
@@ -88,7 +100,7 @@
             ctx = null;
         }
 
-        return { setProfile, setMuted, playKey, dispose };
+        return { setProfile, setMuted, playKey, beep, dispose };
     }
 
     window.TerminalAudio = { create, loadMuted, saveMuted, shouldSilence };

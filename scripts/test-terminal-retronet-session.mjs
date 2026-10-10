@@ -307,6 +307,46 @@ for (const file of fs.readdirSync(langDir).filter((name) => name.endsWith('.json
     same(file + ' accepts ASCII y and n', [answer('Y', yes, no), answer('n', yes, no)], [no.toLowerCase() === 'y' ? false : true, yes.toLowerCase() === 'n' ? true : false]);
 }
 
+// 15. C64 colour keys (Contract C): event.code with exact modifiers becomes ESC [ 6 4 ; <PETSCII byte> ~.
+{
+    const colorKey = Session.c64ColorKey;
+    const press = (code, modifiers) => colorKey(Object.assign({ type: 'keydown', code, key: '', ctrlKey: false, altKey: false, shiftKey: false, metaKey: false }, modifiers));
+    const CTRL_SHIFT = { ctrlKey: true, shiftKey: true };
+    const ALT_SHIFT = { altKey: true, shiftKey: true };
+    const digits = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8'];
+    const ctrl = digits.map((code) => press(code, CTRL_SHIFT));
+    const alt = digits.map((code) => press(code, ALT_SHIFT));
+    const reverse = [press('Digit9', CTRL_SHIFT), press('Digit0', CTRL_SHIFT)];
+    same('Ctrl+Shift+1-8: black, white, red, cyan, purple, green, blue, yellow', ctrl,
+        ['\x1b[64;144~', '\x1b[64;5~', '\x1b[64;28~', '\x1b[64;159~', '\x1b[64;156~', '\x1b[64;30~', '\x1b[64;31~', '\x1b[64;158~']);
+    same('Alt+Shift+1-8: orange, brown, light red, dark grey, grey, light green, light blue, light grey', alt,
+        ['\x1b[64;129~', '\x1b[64;149~', '\x1b[64;150~', '\x1b[64;151~', '\x1b[64;152~', '\x1b[64;153~', '\x1b[64;154~', '\x1b[64;155~']);
+    same('Ctrl+Shift+9/0: reverse on/off', reverse, ['\x1b[64;18~', '\x1b[64;146~']);
+    const allowList = [0x90, 0x05, 0x1c, 0x9f, 0x9c, 0x1e, 0x1f, 0x9e, 0x81, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9a, 0x9b, 0x12, 0x92];
+    same('the keys produce exactly the server allow-list (Contract A)', ctrl.concat(alt, reverse).map((seq) => Number(/^\x1b\[64;(\d+)~$/.exec(seq)[1])).sort((a, b) => a - b), allowList.slice().sort((a, b) => a - b));
+    same('event.code counts, not the layout key', colorKey({ type: 'keydown', code: 'Digit3', key: '§', ctrlKey: true, shiftKey: true, altKey: false, metaKey: false }), '\x1b[64;28~');
+    same('keyup of a colour key maps too (the coordinator sends only on keydown)', colorKey({ type: 'keyup', code: 'Digit1', ctrlKey: true, shiftKey: true, altKey: false, metaKey: false }), '\x1b[64;144~');
+    same('other keys and modifier sets are no colour keys', [
+        press('Digit1', { ctrlKey: true }), press('Digit1', { shiftKey: true }), press('Digit1', { ctrlKey: true, altKey: true, shiftKey: true }),
+        press('Digit1', { ctrlKey: true, shiftKey: true, metaKey: true }), press('Digit9', ALT_SHIFT), press('Digit0', ALT_SHIFT),
+        press('KeyA', CTRL_SHIFT), press('Numpad1', CTRL_SHIFT), press('toString', CTRL_SHIFT), colorKey(null)
+    ], ['', '', '', '', '', '', '', '', '', '']);
+}
+
+// 16. C64 entries are character mode at 40x25: keys go out at once and unchanged, nothing is echoed locally.
+{
+    screen.out = '';
+    const c64 = Session.open({ term: screen, entry: { id: 'the-cabin', protocol: 'telnet', kind: 'c64' }, cols: 40, rows: 25 });
+    const socket = sockets.at(-1);
+    same('a C64 call asks for 40x25', socket.url, 'wss://desk.example/api/desktop/retronet/connect?entry=the-cabin&cols=40&rows=25');
+    c64.send('A');
+    c64.send('\x7f');
+    c64.send('\x1b[64;144~');
+    same('keys and colour sequences go out unchanged', socket.sent, ['bin:A', 'bin:\x7f', 'bin:\x1b[64;144~']);
+    same('no local echo', screen.out, '');
+    c64.dispose();
+}
+
 if (failures) {
     console.log(failures + ' check(s) failed');
     process.exit(1);
