@@ -18,6 +18,7 @@ namespace cyd {
 namespace {
 
 QueueHandle_t g_jobs = nullptr;
+bool g_worker_failed = false;  // the task could not be created: every job fails fast
 
 void worker_main(void*) {
   for (;;) {
@@ -61,6 +62,7 @@ struct Response {
 
 Response do_request(bool post, const String& url, const String& body, uint32_t timeout_ms) {
   Response r;
+  if (timeout_ms > 65535) timeout_ms = 65535;  // HTTPClient::setTimeout takes a uint16_t
   if (!wifi::connected()) {
     r.error = "offline";
     return r;
@@ -135,7 +137,7 @@ void run_json(bool post, const String& url, const String& body, http::JsonCallba
   if (!detail::worker_post(job)) {
     ui_async([cb]() {
       JsonDocument empty;
-      cb(0, empty, "busy");
+      cb(0, empty, g_worker_failed ? "worker unavailable" : "busy");
     });
   }
 }
@@ -145,10 +147,26 @@ void run_json(bool post, const String& url, const String& body, http::JsonCallba
 namespace detail {
 
 void worker_begin() {
-  if (g_jobs != nullptr) return;
+  if (g_jobs != nullptr || g_worker_failed) return;
   g_jobs = xQueueCreate(CYD_HTTP_QUEUE_LEN, sizeof(std::function<void()>*));
   // 12 KiB: an mbedTLS handshake needs ~7 KiB of stack.
-  xTaskCreatePinnedToCore(worker_main, "cyd_worker", 12288, nullptr, 1, nullptr, 0);
+  if (g_jobs == nullptr ||
+      xTaskCreatePinnedToCore(worker_main, "cyd_worker", 12288, nullptr, 1, nullptr, 0) != pdPASS) {
+    log::error("http: could not start the worker task (free heap %lu), network requests will fail",
+               (unsigned long)ESP.getFreeHeap());
+    if (g_jobs != nullptr) vQueueDelete(g_jobs);
+    g_jobs = nullptr;  // worker_post() now fails fast
+    g_worker_failed = true;
+  }
+}
+
+// For the AuraGo link: the same capped read, so a chunked body cannot exhaust the heap.
+bool http_read_body(HTTPClient& http, size_t cap, String* out) {
+  CapStream sink(cap);
+  http.writeToStream(&sink);
+  if (sink.over) return false;
+  *out = sink.body;
+  return true;
 }
 
 bool worker_post(std::function<void()> job) {

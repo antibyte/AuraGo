@@ -45,6 +45,20 @@ void build_css() {
   g_css += "</style>";
 }
 
+// WiFiManager registers admin routes next to the Wi-Fi pages (firmware upload,
+// erase, restart, info, exit, ...) that nobody on the setup SoftAP may use, and
+// /exit shuts the portal down behind our back. WiFiManager calls this hook after
+// it has reset its web server and before it registers its own routes, and the
+// first matching handler wins, so these routes answer 404 instead.
+void block_admin_routes() {
+  static const char* const kBlocked[] = {"/update", "/u", "/erase", "/restart", "/info",
+                                         "/param",  "/paramsave", "/exit", "/close"};
+  if (g_wm == nullptr || !g_wm->server) return;
+  for (const char* path : kBlocked) {
+    g_wm->server->on(path, []() { g_wm->server->send(404, "text/plain", "Not found"); });
+  }
+}
+
 }  // namespace
 
 namespace detail {
@@ -69,8 +83,9 @@ void portal_start(String* ap_ssid, String* ap_pass) {
     g_wm->setConnectTimeout(15);
     g_wm->setShowInfoUpdate(false);
     g_wm->setShowInfoErase(false);
-    static const char* menu[] = {"wifi", "exit"};
-    g_wm->setMenu(menu, 2);
+    static const char* menu[] = {"wifi"};
+    g_wm->setMenu(menu, 1);
+    g_wm->setWebServerCallback(block_admin_routes);
   }
   build_css();
   g_wm->setTitle(CYD_S_WIFI_SETUP_TITLE);
@@ -84,22 +99,27 @@ void portal_start(String* ap_ssid, String* ap_pass) {
 bool portal_active() { return g_running; }
 
 // True once a phone saved credentials and the station connected; WiFiManager
-// has then already shut its portal down.
+// has then already shut its portal down. It also shuts down on its own in other
+// cases; its web server is freed then and must never be touched again.
 bool portal_loop() {
   if (!g_running) return false;
-  if (g_wm->process()) {
-    g_running = false;
+  bool connected = g_wm->process();
+  if (connected || !g_wm->getConfigPortalActive()) g_running = false;
+  if (connected) {
     log::info("portal: connected through the phone path");
-    return true;
+  } else if (!g_running) {
+    log::warn("portal: ended without a connection");
   }
-  return false;
+  return connected;
 }
 
 void portal_stop() {
-  if (!g_running) return;
-  g_wm->stopConfigPortal();
+  if (g_wm == nullptr) return;
+  bool active = g_wm->getConfigPortalActive();
+  if (!g_running && !active) return;
   g_running = false;
-  WiFi.softAPdisconnect(true);  // AP off, station link untouched
+  if (active) g_wm->stopConfigPortal();  // never after WiFiManager shut itself down (freed web server)
+  WiFi.softAPdisconnect(true);           // AP off, station link untouched
   log::info("portal: stopped");
 }
 

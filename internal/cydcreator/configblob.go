@@ -91,6 +91,9 @@ func (c DeviceConfig) validate() error {
 	if strings.HasPrefix(u.Host, "[") {
 		return configError("url must not use an IPv6 literal host")
 	}
+	if u.Hostname() == "" { // "http://:80": url.Parse accepts it, the device cannot connect to it
+		return configError("url must have a host name")
+	}
 	if strings.HasSuffix(u.Host, ":") {
 		return configError("url port must be 1..65535")
 	}

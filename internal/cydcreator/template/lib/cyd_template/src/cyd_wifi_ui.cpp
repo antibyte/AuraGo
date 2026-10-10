@@ -34,6 +34,7 @@ struct SetupUi {
   bool connecting = false;
   uint32_t connect_started = 0;
   uint32_t close_at = 0;
+  uint32_t portal_retry_at = 0;
   String ap_ssid, ap_pass, sel_ssid;
   std::vector<String> found;
 };
@@ -353,8 +354,19 @@ void wifi_ui_close() {
   lv_obj_delete(scr);
   delete g_ui;
   g_ui = nullptr;
-  wifi_set_state(WiFi.status() == WL_CONNECTED ? wifi::State::Connected : wifi::State::Offline);
-  if (WiFi.status() == WL_CONNECTED) time_begin();
+  if (WiFi.status() == WL_CONNECTED) {
+    wifi_set_state(wifi::State::Connected);
+    time_begin();
+    return;
+  }
+  // A failed attempt must not replace the working network: go back to the stored
+  // one (wifi_connect() enters Connecting now that the setup screen is gone).
+  String ssid, pass;
+  if (wifi_load_credentials(&ssid, &pass)) {
+    wifi_connect(ssid, pass);
+  } else {
+    wifi_set_state(wifi::State::Offline);
+  }
 }
 
 void wifi_ui_loop() {
@@ -375,6 +387,14 @@ void wifi_ui_loop() {
   if (portal_loop()) {
     finish_success();
     return;
+  }
+  if (!portal_active() && !g_ui->connecting && g_ui->close_at == 0 &&
+      (int32_t)(millis() - g_ui->portal_retry_at) >= 0) {
+    // The portal ended on its own: restart it, or the QR code would be dead. The
+    // new password makes the phone view show a new QR code.
+    g_ui->portal_retry_at = millis() + 3000;
+    portal_start(&g_ui->ap_ssid, &g_ui->ap_pass);
+    if (g_ui->view == View::Phone && g_ui->pending == View::None) g_ui->pending = View::Phone;
   }
   if (g_ui->scanning) {
     int n = WiFi.scanComplete();

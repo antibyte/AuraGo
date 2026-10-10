@@ -5,6 +5,8 @@
 #include "cyd_config.h"
 #include "cyd_strings.h"
 
+class HTTPClient;
+
 namespace cyd {
 namespace detail {
 
@@ -74,6 +76,7 @@ void time_begin();                    // NTP + TZ after the first connection
 // cyd_http.cpp - one worker task for blocking network work.
 void worker_begin();
 bool worker_post(std::function<void()> job);
+bool http_read_body(HTTPClient& http, size_t cap, String* out);  // false when the body is longer than cap
 
 // cyd_link.cpp - AuraGo link (config partition, heartbeat, OTA).
 void link_begin();
@@ -87,6 +90,7 @@ void rollback_guard_early();
 void rollback_loop();
 void rollback_mark_stable(const char* why);
 bool rollback_pending_verify();
+void rollback_remember_running();     // before an OTA switch: the running image becomes the only rollback target
 
 }  // namespace detail
 }  // namespace cyd

@@ -120,10 +120,11 @@ service to this same package.
   most 4088 payload bytes.
 - `DeviceConfig.validate` is firmware-compatible and strict for encode and decode alike: the URL starts with the
   literal lowercase `http://` or `https://`, is printable ASCII without quotes or backslashes, has no userinfo,
-  query, fragment or IPv6 literal and a port of 1..65535; `https` requires a 64-hex lowercase `cert_sha256`, `http`
-  must not carry one; the token matches `[A-Za-z0-9._~+/=-]+`. Decoding also needs exactly the four keys
-  (case-sensitive, once each, all strings), no trailing data and zero padding. Violations are `CYD_BAD_REQUEST`; an
-  IPv6 literal host is one of them, so a device URL needs a hostname or an IPv4 address.
+  query, fragment or IPv6 literal, a non-empty host name and a port of 1..65535; `https` requires a 64-hex
+  lowercase `cert_sha256`, `http` must not carry one; the token matches `[A-Za-z0-9._~+/=-]+`. Decoding also
+  needs exactly the four keys (case-sensitive, once each, all strings), no trailing data and zero padding.
+  Violations are `CYD_BAD_REQUEST`; an IPv6 literal host is one of them, so a device URL needs a hostname or an
+  IPv4 address.
 - `DeviceConfig` redacts `Token` in `String`, `GoString` and `LogValue`; only the JSON blob carries it. Never log it.
 
 ### Diagnostics and paths

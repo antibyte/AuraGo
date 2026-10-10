@@ -27,9 +27,28 @@ RTC_NOINIT_ATTR uint32_t g_rtc_magic;
 RTC_NOINIT_ATTR uint32_t g_rtc_count;
 bool g_stable = false;
 
+// Hex of the ELF SHA-256 in an app descriptor: identifies one exact build.
+void elf_sha_hex(const esp_app_desc_t& d, char out[65]) {
+  for (int i = 0; i < 32; ++i) snprintf(out + i * 2, 3, "%02x", d.app_elf_sha256[i]);
+}
+
 }  // namespace
 
 namespace detail {
+
+// Called right before an OTA switch: the running image is what the other slot
+// will hold after the reboot, and the only image a rollback may return to.
+void rollback_remember_running() {
+  const esp_partition_t* running = esp_ota_get_running_partition();
+  esp_app_desc_t desc;
+  if (running == nullptr || esp_ota_get_partition_description(running, &desc) != ESP_OK) {
+    sys_set_string("cyd_sys", "prev_elf", "");
+    return;
+  }
+  char hex[65];
+  elf_sha_hex(desc, hex);
+  sys_set_string("cyd_sys", "prev_elf", hex);
+}
 
 bool rollback_pending_verify() {
   esp_ota_img_states_t st;
@@ -44,7 +63,9 @@ void rollback_guard_early() {
     g_rtc_magic = kRtcMagic;  // RTC memory is random after power-on
     g_rtc_count = 0;
   }
-  g_rtc_count++;
+  // Brown-outs and deliberate restarts (our own OTA/rollback restart, esp_restart()
+  // in app code) say nothing about the stability of the image.
+  if (why != ESP_RST_BROWNOUT && why != ESP_RST_SW) g_rtc_count++;
   const esp_partition_t* running = esp_ota_get_running_partition();
   log::info("boot: slot %s, unstable boots %lu%s", running ? running->label : "?", (unsigned long)g_rtc_count,
             rollback_pending_verify() ? ", image pending verification" : "");
@@ -54,6 +75,21 @@ void rollback_guard_early() {
   esp_app_desc_t desc;
   if (other == nullptr || other == running || esp_ota_get_partition_description(other, &desc) != ESP_OK) {
     log::warn("boot: %d unstable boots, but the other slot holds no app", CYD_ROLLBACK_THRESHOLD);
+    return;
+  }
+  esp_ota_img_states_t other_state;
+  if (esp_ota_get_state_partition(other, &other_state) == ESP_OK &&
+      (other_state == ESP_OTA_IMG_INVALID || other_state == ESP_OTA_IMG_ABORTED)) {
+    log::warn("boot: %d unstable boots, but the other slot is marked bad", CYD_ROLLBACK_THRESHOLD);
+    return;
+  }
+  // Only the image this device updated from is a rollback target: after a USB
+  // flash the other slot may hold a stale build of another project.
+  char other_hex[65];
+  elf_sha_hex(desc, other_hex);
+  if (sys_get_string("cyd_sys", "prev_elf") != other_hex) {
+    log::warn("boot: %d unstable boots, but the other slot is not the image this device updated from",
+              CYD_ROLLBACK_THRESHOLD);
     return;
   }
   sys_set_string("cyd_sys", "rb_from", build_id());

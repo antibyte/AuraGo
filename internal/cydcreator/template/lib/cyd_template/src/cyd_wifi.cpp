@@ -3,6 +3,7 @@
 #include "cyd_private.h"
 
 #include <WiFi.h>
+#include <esp_wifi.h>
 #include <time.h>
 
 #include <vector>
@@ -71,7 +72,18 @@ void wifi_forget_credentials() {
   g_ssid = "";
   g_pass = "";
   g_have_creds = false;
+#if CYD_WIFI_MODE != CYD_WIFI_OFF
+  // Also clear what the IDF keeps in its own NVS namespace (older firmware,
+  // WiFiManager). The BOOT reset runs before wifi_begin(), so the driver may not
+  // be started yet: eraseAP() starts it and we stop it again afterwards.
+  bool was_off = WiFi.getMode() == WIFI_OFF;
+  bool erased = WiFi.eraseAP();
+  esp_wifi_set_storage(WIFI_STORAGE_RAM);  // the driver was started with flash storage before WiFi.persistent(false)
+  if (was_off) WiFi.mode(WIFI_OFF);
+  log::info("wifi: credentials erased (driver store %s)", erased ? "cleared" : "unchanged");
+#else
   log::info("wifi: credentials erased");
+#endif
 }
 
 void wifi_set_state(wifi::State s) {
@@ -126,6 +138,7 @@ void wifi_begin() {
   while (g_state != wifi::State::Connected) {
     display_loop();
     wifi_loop();
+    rollback_loop();  // waiting in setup for minutes is no unstable boot
     delay(5);
   }
 #else
@@ -220,7 +233,8 @@ String format(const char* strftime_fmt) {
   localtime_r(&t, &tmv);
   char buf[64];
   size_t n = strftime(buf, sizeof(buf), strftime_fmt, &tmv);
-  return String(buf).substring(0, n);
+  if (n == 0) return String();  // too long for the buffer (or an empty result): buf is undefined then
+  return String(buf);
 }
 
 }  // namespace time

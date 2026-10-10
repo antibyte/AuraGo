@@ -148,6 +148,11 @@ func TestEncodeDeviceConfigRejects(t *testing.T) {
 			c.URL = "http://x.example:"
 			c.CertSHA256 = ""
 		}, "port"},
+		"empty host with port": {func(c *DeviceConfig) { c.URL = "https://:8443/base" }, "host name"},
+		"empty host http": {func(c *DeviceConfig) {
+			c.URL = "http://:80"
+			c.CertSHA256 = ""
+		}, "host name"},
 		"empty device":     {func(c *DeviceConfig) { c.DeviceID = "" }, "device_id"},
 		"bad device":       {func(c *DeviceConfig) { c.DeviceID = "ccd 1" }, "device_id"},
 		"empty token":      {func(c *DeviceConfig) { c.Token = "" }, "token"},
@@ -263,6 +268,8 @@ func TestDecodeDeviceConfigPayloadRules(t *testing.T) {
 			`{"url":"http://[::1]:80","device_id":"d1","token":"t","cert_sha256":""}`, "IPv6"},
 		"port zero": {
 			`{"url":"http://x.example:0","device_id":"d1","token":"t","cert_sha256":""}`, "port"},
+		"empty host": {
+			`{"url":"http://:80","device_id":"d1","token":"t","cert_sha256":""}`, "host name"},
 		"uppercase scheme": {
 			`{"url":"HTTP://x.example","device_id":"d1","token":"t","cert_sha256":""}`, "start with http"},
 	}
