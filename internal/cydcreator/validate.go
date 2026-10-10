@@ -104,10 +104,15 @@ var (
 	// Widget names become ui_<name>, on_<name>_<event>, ui_show_<name>,
 	// ui_hide_<name> and ui_<name>_series; these would collide with other
 	// generated symbols (ui_init, ui_goto, ui_back, ui_theme_colors,
-	// ui_event_index, ui_async (cyd::ui_async), ui_scr_*, ui_font_*).
-	reservedNames        = []string{"init", "goto", "back", "theme_colors", "event_index", "async"}
+	// ui_event_index, ui_async (cyd::ui_async), the types ui_screen_t and
+	// ui_transition_t, ui_scr_*, ui_font_*). ui_img_<asset id> is checked
+	// against the project's assets.
+	reservedNames        = []string{"init", "goto", "back", "theme_colors", "event_index", "async", "screen_t", "transition_t"}
 	reservedNamePrefixes = []string{"scr_", "show_", "hide_", "font_"}
 	reservedNameSuffixes = []string{"_series"}
+
+	// Asset ids become the C symbol ui_img_<id>.
+	assetSymbolPattern = regexp.MustCompile(`^[A-Za-z0-9_]+$`)
 )
 
 const (
@@ -359,6 +364,9 @@ func (v *validator) widget(s *Screen, parent *Widget, w *Widget, path string, de
 			add(SeverityError, IssueNameInvalid, "/name", "name %q must match ^[a-z][a-z0-9_]{0,31}$", clipEcho(w.Name))
 		case reservedWidgetName(w.Name):
 			add(SeverityError, IssueNameInvalid, "/name", "name %q is reserved for generated code", clipEcho(w.Name))
+		case strings.HasPrefix(w.Name, "img_") && v.assetIDs[strings.TrimPrefix(w.Name, "img_")]:
+			add(SeverityError, IssueNameInvalid, "/name", "name %q collides with the image symbol ui_%s of asset %s",
+				clipEcho(w.Name), clipEcho(w.Name), clipEcho(strings.TrimPrefix(w.Name, "img_")))
 		case v.names[w.Name]:
 			add(SeverityError, IssueNameDuplicate, "/name", "name %q is used twice", clipEcho(w.Name))
 		}
@@ -787,6 +795,10 @@ func (v *validator) assets() {
 			v.add(SeverityError, IssueIDDuplicate, "", "", path+"/id", "asset id %q is used twice", clipEcho(a.ID))
 		}
 		seen[a.ID] = true
+		if !assetSymbolPattern.MatchString(a.ID) {
+			v.add(SeverityError, IssuePropInvalid, "", "", path+"/id",
+				"asset id %q may only contain letters, digits and _ (it becomes the C symbol ui_img_<id>)", clipEcho(a.ID))
+		}
 		if !assetFileRegex.MatchString(a.File) {
 			v.add(SeverityError, IssuePropInvalid, "", "", path+"/file", "asset file %q must match %s", clipEcho(a.File), assetFileRegex)
 		}
