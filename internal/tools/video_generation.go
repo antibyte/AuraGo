@@ -10,11 +10,13 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/config"
@@ -25,11 +27,23 @@ import (
 var videoGenHTTPClient = security.NewSSRFProtectedHTTPClient(12 * time.Minute)
 
 const (
-	defaultMiniMaxVideoModel    = "MiniMax-Hailuo-2.3"
-	legacyMiniMaxHailuo23Preset = "Hailuo-2.3-768P"
-	defaultGoogleVideoModel     = "veo-3.1-generate-preview"
-	defaultAgnesVideoModel      = "agnes-video-v2.0"
-	maxGeneratedVideoBytes      = int64(512 * 1024 * 1024)
+	defaultMiniMaxVideoModel       = "MiniMax-Hailuo-2.3"
+	legacyMiniMaxHailuo23Preset    = "Hailuo-2.3-768P"
+	defaultGoogleVideoModel        = "veo-3.1-generate-preview"
+	defaultAgnesVideoModel         = "agnes-video-v2.0"
+	maxGeneratedVideoBytes         = int64(512 * 1024 * 1024)
+	maxVideoGenerationImageBytes   = 20 << 20
+	videoProviderOutcomeUnknownMsg = "The video provider received the request and its outcome is unknown."
+)
+
+// videoImageMode selects which non-URL image forms a provider accepts.
+type videoImageMode int
+
+const (
+	// videoImagePublicOrDataURL accepts a public HTTP(S) URL or a PNG/JPEG data URL.
+	videoImagePublicOrDataURL videoImageMode = iota
+	// videoImagePublicOrBase64 accepts a public HTTP(S) URL or raw standard base64.
+	videoImagePublicOrBase64
 )
 
 // VideoGenParams holds the parameters for the generate_video tool call.
@@ -170,7 +184,9 @@ func GenerateVideoResult(ctx context.Context, cfg *config.Config, mediaDB *sql.D
 	}
 
 	if result.Status != "ok" {
-		videoCounterRelease()
+		if result.Status != "external_status_unknown" {
+			videoCounterRelease()
+		}
 		return result
 	}
 
@@ -234,6 +250,144 @@ func applyVideoDefaults(cfg *config.Config, params VideoGenParams) VideoGenParam
 	return params
 }
 
+// acceptVideoGenerationImage checks one generation image. An empty value is
+// allowed. http and https must be publicly routable. MiniMax also accepts
+// PNG and JPEG data URLs; Google also accepts raw standard base64. Decoded
+// bytes must be non-empty and at most 20 MiB. file URLs, filesystem paths,
+// and any other scheme are rejected.
+func acceptVideoGenerationImage(value string, mode videoImageMode) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	lower := strings.ToLower(value)
+	if strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") {
+		return validatePublicImageURL(value)
+	}
+	if strings.HasPrefix(lower, "file:") {
+		return fmt.Errorf("file images are not accepted")
+	}
+	switch {
+	case strings.HasPrefix(value, "data:image/png;base64,"):
+		if mode != videoImagePublicOrDataURL {
+			return fmt.Errorf("data URL images are not accepted for this provider")
+		}
+		return decodeVideoImageBase64(strings.TrimPrefix(value, "data:image/png;base64,"))
+	case strings.HasPrefix(value, "data:image/jpeg;base64,"):
+		if mode != videoImagePublicOrDataURL {
+			return fmt.Errorf("data URL images are not accepted for this provider")
+		}
+		return decodeVideoImageBase64(strings.TrimPrefix(value, "data:image/jpeg;base64,"))
+	}
+	if scheme, _, ok := strings.Cut(value, ":"); ok && scheme != "" && !strings.ContainsAny(scheme, "/\\") {
+		return fmt.Errorf("image scheme %q is not accepted", scheme)
+	}
+	if isVideoImageFilesystemPath(value) {
+		return fmt.Errorf("filesystem image paths are not accepted")
+	}
+	if mode == videoImagePublicOrBase64 {
+		return decodeVideoImageBase64(value)
+	}
+	return fmt.Errorf("image must be a public HTTP(S) URL or a PNG or JPEG data URL")
+}
+
+func isVideoImageFilesystemPath(value string) bool {
+	if strings.HasPrefix(value, `\\`) || strings.HasPrefix(value, "./") || strings.HasPrefix(value, `.\`) ||
+		strings.HasPrefix(value, "../") || strings.HasPrefix(value, `..\`) || strings.Contains(value, `\`) {
+		return true
+	}
+	if len(value) >= 3 {
+		c := value[0]
+		if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) && value[1] == ':' && (value[2] == '\\' || value[2] == '/') {
+			return true
+		}
+	}
+	if strings.Contains(value, "/") && strings.Contains(value, ".") {
+		return true
+	}
+	// JPEG base64 often starts with "/". An absolute path that is not valid
+	// standard base64 is still a filesystem path. Oversized values are left
+	// for the base64 size check.
+	if strings.HasPrefix(value, "/") && len(value) <= base64.StdEncoding.EncodedLen(maxVideoGenerationImageBytes) {
+		_, err := base64.StdEncoding.DecodeString(value)
+		return err != nil
+	}
+	return false
+}
+
+func decodeVideoImageBase64(encoded string) error {
+	if encoded == "" {
+		return fmt.Errorf("image data is empty")
+	}
+	if len(encoded) > base64.StdEncoding.EncodedLen(maxVideoGenerationImageBytes) {
+		return fmt.Errorf("image exceeds 20 MiB")
+	}
+	decoded, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return fmt.Errorf("image data is not standard base64: %w", err)
+	}
+	if len(decoded) == 0 {
+		return fmt.Errorf("image data is empty")
+	}
+	if len(decoded) > maxVideoGenerationImageBytes {
+		return fmt.Errorf("image exceeds 20 MiB")
+	}
+	return nil
+}
+
+func acceptMiniMaxVideoImages(params VideoGenParams) error {
+	if err := acceptVideoGenerationImage(params.FirstFrameImage, videoImagePublicOrDataURL); err != nil {
+		return fmt.Errorf("MiniMax first_frame_image was rejected: %w", err)
+	}
+	if err := acceptVideoGenerationImage(params.LastFrameImage, videoImagePublicOrDataURL); err != nil {
+		return fmt.Errorf("MiniMax last_frame_image was rejected: %w", err)
+	}
+	for i, image := range params.ReferenceImages {
+		if err := acceptVideoGenerationImage(image, videoImagePublicOrDataURL); err != nil {
+			return fmt.Errorf("MiniMax reference_images[%d] was rejected: %w", i, err)
+		}
+	}
+	return nil
+}
+
+// withVideoProviderCreateTrace records whether the create POST obtained a
+// connection. It composes that hook with a parent GotConn, such as the one
+// Video Studio installs in providerRequestContext, and calls the parent
+// before returning. The parent hook is cleared only while httptrace composes
+// the new trace, then restored, so the parent is not invoked a second time.
+func withVideoProviderCreateTrace(ctx context.Context, reached *atomic.Bool) context.Context {
+	parent := httptrace.ContextClientTrace(ctx)
+	var parentGotConn func(httptrace.GotConnInfo)
+	if parent != nil && parent.GotConn != nil {
+		parentGotConn = parent.GotConn
+		parent.GotConn = nil
+		defer func() { parent.GotConn = parentGotConn }()
+	}
+	return httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
+		GotConn: func(info httptrace.GotConnInfo) {
+			reached.Store(true)
+			if parentGotConn != nil {
+				parentGotConn(info)
+			}
+		},
+	})
+}
+
+func videoCreateTransportFailure(err error, reached *atomic.Bool, fallback string) VideoGenResult {
+	if reached != nil && reached.Load() {
+		return VideoGenResult{Status: "external_status_unknown", Error: videoProviderOutcomeUnknownMsg}
+	}
+	return VideoGenResult{Status: "error", Error: fmt.Sprintf(fallback, err)}
+}
+
+func videoTaskOutcomeUnknown(taskID string) VideoGenResult {
+	return VideoGenResult{
+		Status: "external_status_unknown",
+		TaskID: taskID,
+		Error:  videoProviderOutcomeUnknownMsg,
+	}
+}
+
 type miniMaxVideoCreateResponse struct {
 	TaskID   string `json:"task_id"`
 	BaseResp struct {
@@ -275,6 +429,10 @@ func generateVideoMiniMax(ctx context.Context, baseURL, apiKey, model string, pa
 	}
 	baseURL = strings.TrimSuffix(baseURL, "/video_generation")
 
+	if err := acceptMiniMaxVideoImages(params); err != nil {
+		return VideoGenResult{Status: "error", Error: err.Error()}
+	}
+
 	payload := map[string]interface{}{
 		"prompt":     params.Prompt,
 		"model":      apiModel,
@@ -299,7 +457,8 @@ func generateVideoMiniMax(ctx context.Context, baseURL, apiKey, model string, pa
 		return VideoGenResult{Status: "error", Error: fmt.Sprintf("Failed to build MiniMax request: %v", err)}
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", baseURL+"/video_generation", bytes.NewReader(bodyBytes))
+	reached := &atomic.Bool{}
+	req, err := http.NewRequestWithContext(withVideoProviderCreateTrace(ctx, reached), "POST", baseURL+"/video_generation", bytes.NewReader(bodyBytes))
 	if err != nil {
 		return VideoGenResult{Status: "error", Error: fmt.Sprintf("Failed to create MiniMax request: %v", err)}
 	}
@@ -308,7 +467,7 @@ func generateVideoMiniMax(ctx context.Context, baseURL, apiKey, model string, pa
 
 	resp, err := videoGenHTTPClient.Do(req)
 	if err != nil {
-		return VideoGenResult{Status: "error", Error: fmt.Sprintf("MiniMax API request failed: %v", err)}
+		return videoCreateTransportFailure(err, reached, "MiniMax API request failed: %v")
 	}
 	defer resp.Body.Close()
 	respBody, _ := io.ReadAll(resp.Body)
@@ -330,18 +489,18 @@ func generateVideoMiniMax(ctx context.Context, baseURL, apiKey, model string, pa
 
 	fileID, err := pollMiniMaxVideo(ctx, baseURL, apiKey, taskID, pollIntervalSeconds, timeoutSeconds)
 	if err != nil {
-		return VideoGenResult{Status: "error", TaskID: taskID, Error: err.Error()}
+		return videoTaskOutcomeUnknown(taskID)
 	}
 
 	downloadURL, err := retrieveMiniMaxVideoURL(ctx, baseURL, apiKey, fileID)
 	if err != nil {
-		return VideoGenResult{Status: "error", TaskID: taskID, Error: err.Error()}
+		return videoTaskOutcomeUnknown(taskID)
 	}
 
 	filename := fmt.Sprintf("video_%s.mp4", uid.New()[:8])
 	filePath := filepath.Join(videoDir, filename)
 	if err := downloadFileWithHeaders(ctx, downloadURL, filePath, nil); err != nil {
-		return VideoGenResult{Status: "error", TaskID: taskID, Error: fmt.Sprintf("Failed to download MiniMax video: %v", err)}
+		return videoTaskOutcomeUnknown(taskID)
 	}
 	fileSize := fileSizeOrZero(filePath)
 
@@ -498,6 +657,9 @@ func generateVideoGoogle(ctx context.Context, baseURL, apiKey, model string, par
 	if baseURL == "" {
 		baseURL = "https://generativelanguage.googleapis.com/v1beta"
 	}
+	if err := acceptVideoGenerationImage(params.FirstFrameImage, videoImagePublicOrBase64); err != nil {
+		return VideoGenResult{Status: "error", Error: fmt.Sprintf("Google Veo image was rejected: %v", err)}
+	}
 
 	payload := buildGoogleVideoPayload(params)
 	bodyBytes, err := json.Marshal(payload)
@@ -505,7 +667,8 @@ func generateVideoGoogle(ctx context.Context, baseURL, apiKey, model string, par
 		return VideoGenResult{Status: "error", Error: fmt.Sprintf("Failed to build Google Veo request: %v", err)}
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", fmt.Sprintf("%s/models/%s:predictLongRunning", baseURL, model), bytes.NewReader(bodyBytes))
+	reached := &atomic.Bool{}
+	req, err := http.NewRequestWithContext(withVideoProviderCreateTrace(ctx, reached), "POST", fmt.Sprintf("%s/models/%s:predictLongRunning", baseURL, model), bytes.NewReader(bodyBytes))
 	if err != nil {
 		return VideoGenResult{Status: "error", Error: fmt.Sprintf("Failed to create Google Veo request: %v", err)}
 	}
@@ -514,7 +677,7 @@ func generateVideoGoogle(ctx context.Context, baseURL, apiKey, model string, par
 
 	resp, err := videoGenHTTPClient.Do(req)
 	if err != nil {
-		return VideoGenResult{Status: "error", Error: fmt.Sprintf("Google Veo API request failed: %v", err)}
+		return videoCreateTransportFailure(err, reached, "Google Veo API request failed: %v")
 	}
 	defer resp.Body.Close()
 	respBody, _ := io.ReadAll(resp.Body)
@@ -532,13 +695,13 @@ func generateVideoGoogle(ctx context.Context, baseURL, apiKey, model string, par
 
 	done, err := pollGoogleVideo(ctx, baseURL, apiKey, operation.Name, pollIntervalSeconds, timeoutSeconds)
 	if err != nil {
-		return VideoGenResult{Status: "error", TaskID: operation.Name, Error: err.Error()}
+		return videoTaskOutcomeUnknown(operation.Name)
 	}
 
 	filename := fmt.Sprintf("video_%s.mp4", uid.New()[:8])
 	filePath := filepath.Join(videoDir, filename)
 	if err := saveGoogleVideoOutput(ctx, apiKey, done.Response, filePath); err != nil {
-		return VideoGenResult{Status: "error", TaskID: operation.Name, Error: err.Error()}
+		return videoTaskOutcomeUnknown(operation.Name)
 	}
 	fileSize := fileSizeOrZero(filePath)
 

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/uid"
@@ -77,7 +78,8 @@ func generateVideoAgnes(ctx context.Context, baseURL, apiKey, model string, para
 	if err != nil {
 		return VideoGenResult{Status: "error", Error: fmt.Sprintf("Failed to marshal Agnes AI video request: %v", err)}
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, apiBase+"/videos", bytes.NewReader(body))
+	reached := &atomic.Bool{}
+	req, err := http.NewRequestWithContext(withVideoProviderCreateTrace(ctx, reached), http.MethodPost, apiBase+"/videos", bytes.NewReader(body))
 	if err != nil {
 		return VideoGenResult{Status: "error", Error: fmt.Sprintf("Failed to create Agnes AI video request: %v", err)}
 	}
@@ -86,7 +88,7 @@ func generateVideoAgnes(ctx context.Context, baseURL, apiKey, model string, para
 
 	resp, err := videoGenHTTPClient.Do(req)
 	if err != nil {
-		return VideoGenResult{Status: "error", Error: fmt.Sprintf("Agnes AI video request failed: %v", err)}
+		return videoCreateTransportFailure(err, reached, "Agnes AI video request failed: %v")
 	}
 	respBody, readErr := io.ReadAll(io.LimitReader(resp.Body, 2*1024*1024))
 	resp.Body.Close()
@@ -107,14 +109,14 @@ func generateVideoAgnes(ctx context.Context, baseURL, apiKey, model string, para
 	if state.URL == "" {
 		state, err = pollAgnesVideo(ctx, apiBase, resultEndpoint, apiKey, state, pollIntervalSeconds, timeoutSeconds)
 		if err != nil {
-			return VideoGenResult{Status: "error", TaskID: firstNonEmpty(state.TaskID, state.VideoID), Error: err.Error()}
+			return videoTaskOutcomeUnknown(firstNonEmpty(state.TaskID, state.VideoID))
 		}
 	}
 
 	filename := fmt.Sprintf("video_%s.mp4", uid.New()[:8])
 	filePath := filepath.Join(videoDir, filename)
 	if err := downloadFileWithHeaders(ctx, state.URL, filePath, nil); err != nil {
-		return VideoGenResult{Status: "error", TaskID: firstNonEmpty(state.TaskID, state.VideoID), Error: fmt.Sprintf("Failed to download Agnes AI video: %v", err)}
+		return videoTaskOutcomeUnknown(firstNonEmpty(state.TaskID, state.VideoID))
 	}
 
 	durationSeconds := float64(params.DurationSeconds)
