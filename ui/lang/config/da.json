@@ -1,4 +1,11 @@
 {
+  "config.layerling.enabled": "Aktivér Layerling",
+  "config.layerling.help": "Lokal 3D-CAD i browseren. Editorsprog: tysk og engelsk.",
+  "config.layerling.access": "Agentadgang",
+  "config.layerling.access_help": "Gælder åbne editorer i denne skrivebordssession. Skrivebordets tilladelser gælder også.",
+  "config.layerling.off": "Fra",
+  "config.layerling.read": "Læsning",
+  "config.layerling.write": "Læsning og skrivning",
   "config.tool_policy.effective_help": "Backendværdier for den primære udbyder; individuelle anmodninger kan reduceres yderligere af rolle, omfang og rutebudget. Opdater efter lagring.",
   "config.tool_policy.output_bytes": "Output-bytes",
   "config.tool_policy.guides": "Guider",

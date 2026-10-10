@@ -1,4 +1,11 @@
 {
+  "config.layerling.enabled": "Aktiver Layerling",
+  "config.layerling.help": "Lokal 3D-CAD i nettleseren. Språk i redigereren: tysk og engelsk.",
+  "config.layerling.access": "Agenttilgang",
+  "config.layerling.access_help": "Gjelder åpne redigerere i denne skrivebordsøkten. Skrivebordets rettigheter gjelder også.",
+  "config.layerling.off": "Av",
+  "config.layerling.read": "Lesing",
+  "config.layerling.write": "Lesing og skriving",
   "config.agent.output_compression.reversible.enabled_label": "Arkiver originalutdata",
   "config.agent.output_compression.reversible.max_age_hours_label": "Arkivoppbevaring (timer)",
   "config.agent.output_compression.reversible.primary_output_vault_label": "Arkiver store utdata",

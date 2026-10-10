@@ -583,6 +583,7 @@ func Load(path string) (*Config, error) {
 	// Virtual Desktop defaults: disabled by default, first-party browser desktop
 	// with a project-local persistent workspace when explicitly enabled.
 	cfg.VirtualDesktop.WorkspaceDir = "agent_workspace/virtual_desktop"
+	cfg.VirtualDesktop.Layerling.AgentAccess = "off"
 	cfg.VirtualDesktop.MaxFileSizeMB = 50
 	cfg.VirtualDesktop.MaxWSClients = 8
 	cfg.VirtualDesktop.RemoteMaxSessionMinutes = 60
@@ -595,7 +596,7 @@ func Load(path string) (*Config, error) {
 	cfg.VirtualDesktop.CodeStudio.MaxMemoryMB = 4096
 	cfg.VirtualDesktop.CodeStudio.MaxCPUCores = 2
 	cfg.VirtualDesktop.OpenSCAD.Enabled = true
-	cfg.VirtualDesktop.OpenSCAD.Image = "openscad/openscad:latest"
+	cfg.VirtualDesktop.OpenSCAD.Image = "openscad/openscad@sha256:147e48525bec392bcf628d7a6d5ea4ccac71b16251952328f86e1061cbf47c37"
 	cfg.VirtualDesktop.OpenSCAD.AutoStart = false
 	cfg.VirtualDesktop.OpenSCAD.AutoStopMinutes = 20
 	cfg.VirtualDesktop.OpenSCAD.MaxMemoryMB = 2048
@@ -1402,7 +1403,7 @@ func Load(path string) (*Config, error) {
 		cfg.VirtualDesktop.CodeStudio.MaxCPUCores = 2
 	}
 	if strings.TrimSpace(cfg.VirtualDesktop.OpenSCAD.Image) == "" {
-		cfg.VirtualDesktop.OpenSCAD.Image = "openscad/openscad:latest"
+		cfg.VirtualDesktop.OpenSCAD.Image = "openscad/openscad@sha256:147e48525bec392bcf628d7a6d5ea4ccac71b16251952328f86e1061cbf47c37"
 	}
 	if cfg.VirtualDesktop.OpenSCAD.AutoStopMinutes <= 0 {
 		cfg.VirtualDesktop.OpenSCAD.AutoStopMinutes = 20

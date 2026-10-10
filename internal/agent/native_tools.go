@@ -133,6 +133,7 @@ type ToolFeatureFlags struct {
 	FrigateEnabled          bool
 	Go2RTCEnabled           bool
 	RTLSDREnabled           bool
+	LayerlingEnabled        bool
 	LocalWikipediaEnabled   bool
 	ThreeDPrinterEnabled    bool
 	OllamaEnabled           bool

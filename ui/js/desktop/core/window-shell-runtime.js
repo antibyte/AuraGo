@@ -1285,6 +1285,7 @@
             pixel: { width: 1100, height: 750 },
             'galaxa-deluxe': { width: 600, height: 800 },
             chess: { width: 980, height: 680 },
+            layerling: { width: 1280, height: 850 },
             nasscad: { width: 1280, height: 850 },
             people: { width: 1020, height: 700 },
             'mission-control': { width: 1100, height: 750 },
@@ -1360,11 +1361,11 @@
 
     function matchesExistingAppWindow(win, appId, context) {
         if (win.appId !== appId || appId === 'quick-connect') return false;
-        if ((appId === 'editor' || appId === 'writer' || appId === 'sheets' || appId === 'notes' || appId === 'synth-studio') && context && context.path != null) {
+        if ((appId === 'editor' || appId === 'writer' || appId === 'sheets' || appId === 'notes' || appId === 'synth-studio' || appId === 'layerling') && context && context.path != null) {
             const requestedPath = normalizeDesktopPath(context.path);
             return win.context && normalizeDesktopPath(win.context.path) === requestedPath;
         }
-        return !['editor', 'writer', 'sheets', 'synth-studio'].includes(appId);
+        return !['editor', 'writer', 'sheets', 'synth-studio', 'layerling'].includes(appId);
     }
 
     function findExistingAppWindow(appId, context) {

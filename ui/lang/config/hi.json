@@ -1,4 +1,11 @@
 {
+  "config.layerling.enabled": "Layerling सक्षम करें",
+  "config.layerling.help": "ब्राउज़र में स्थानीय 3D CAD। संपादक की भाषाएँ: जर्मन और अंग्रेज़ी।",
+  "config.layerling.access": "एजेंट की पहुँच",
+  "config.layerling.access_help": "इस डेस्कटॉप सत्र के खुले संपादकों पर लागू होता है। डेस्कटॉप की अनुमतियाँ भी लागू होती हैं।",
+  "config.layerling.off": "बंद",
+  "config.layerling.read": "पढ़ना",
+  "config.layerling.write": "पढ़ना और लिखना",
   "config.agent.output_compression.reversible.enabled_label": "मूल आउटपुट संग्रहित करें",
   "config.agent.output_compression.reversible.max_age_hours_label": "संग्रह अवधारण (घंटे)",
   "config.agent.output_compression.reversible.primary_output_vault_label": "बड़े आउटपुट संग्रहित करें",

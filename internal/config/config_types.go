@@ -571,6 +571,13 @@ type VirtualDesktopConfig struct {
 	RemoteIdleTimeoutMinutes int              `yaml:"remote_idle_timeout_minutes" json:"remote_idle_timeout_minutes"` // idle timeout for SSH/VNC remote sessions
 	CodeStudio               CodeStudioConfig `yaml:"code_studio" json:"code_studio"`                                 // built-in Code Studio development container
 	OpenSCAD                 OpenSCADConfig   `yaml:"openscad" json:"openscad"`                                       // built-in OpenSCAD compiler container
+	Layerling                LayerlingConfig  `yaml:"layerling" json:"layerling"`
+}
+
+// LayerlingConfig controls the local browser CAD editor and its agent bridge.
+type LayerlingConfig struct {
+	Enabled     bool   `yaml:"enabled" json:"enabled"`
+	AgentAccess string `yaml:"agent_access" json:"agent_access"` // off, read or write; unknown values deny access
 }
 
 // GameMakerConfig controls the isolated Virtual Desktop Game Maker Studio.

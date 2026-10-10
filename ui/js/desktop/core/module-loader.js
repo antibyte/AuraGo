@@ -300,6 +300,7 @@
                 '/js/desktop/apps/chess.js'
             ]
         },
+        'layerling': { styles: appStyles('/css/desktop-app-layerling.css'), scripts: ['/js/desktop/apps/writer-session.js', '/js/desktop/apps/layerling.js'] },
         'nasscad': {
             styles: appStyles('/css/desktop-app-nasscad.css'),
             scripts: ['/js/desktop/apps/nasscad.js']
@@ -542,6 +543,7 @@
         'mission-control': ['missions'],
         'newspaper': ['newspaper'],
         'personal-radio': ['personalRadio'],
+        'layerling': ['layerling'],
         'synth-studio': ['synthStudio'],
         'video-studio': ['videoStudio'],
         'rtl-sdr': ['rtlSdr'],

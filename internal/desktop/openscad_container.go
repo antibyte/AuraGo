@@ -1,12 +1,15 @@
 package desktop
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path"
@@ -20,8 +23,9 @@ import (
 
 const (
 	openSCADContainerName                       = "aurago-openscad"
-	defaultOpenSCADImage                        = "openscad/openscad:latest"
+	defaultOpenSCADImage                        = "openscad/openscad@sha256:147e48525bec392bcf628d7a6d5ea4ccac71b16251952328f86e1061cbf47c37"
 	openSCADJobsInContainer                     = "/jobs"
+	openSCADWorkDir                             = "/work"
 	defaultOpenSCADMemoryMB                     = 2048
 	defaultOpenSCADCPUCores                     = 2
 	defaultOpenSCADPidsLimit                    = 512
@@ -106,7 +110,7 @@ type OpenSCADRenderResult struct {
 	JobID        string         `json:"job_id"`
 	ModelName    string         `json:"model_name"`
 	Files        []OpenSCADFile `json:"files"`
-	SourcePath   string         `json:"source_path"`
+	SourcePath   string         `json:"-"`
 	SourceSCAD   string         `json:"source_scad,omitempty"`
 	ExitCode     int            `json:"exit_code"`
 	DurationMS   int64          `json:"duration_ms"`
@@ -123,7 +127,6 @@ type OpenSCADStatus struct {
 	Running                 bool                   `json:"running"`
 	ContainerID             string                 `json:"container_id,omitempty"`
 	Image                   string                 `json:"image"`
-	JobsHostPath            string                 `json:"jobs_host_path"`
 	JobsContainerPath       string                 `json:"jobs_container_path"`
 	AutoStopMinutes         int                    `json:"auto_stop_minutes"`
 	MaxConcurrentJobs       int                    `json:"max_concurrent_jobs"`
@@ -176,8 +179,7 @@ func (s *OpenSCADContainerService) ensureStarted(ctx context.Context, keepRunnin
 	if s.state == StateStarting {
 		return fmt.Errorf("openscad container is already starting")
 	}
-	jobsRoot, err := s.ensureJobsRootLocked()
-	if err != nil {
+	if _, err := s.ensureJobsRootLocked(); err != nil {
 		s.state = StateError
 		return err
 	}
@@ -185,6 +187,21 @@ func (s *OpenSCADContainerService) ensureStarted(ctx context.Context, keepRunnin
 	if err != nil {
 		s.state = StateError
 		return err
+	}
+	if containerID != "" {
+		inspect, inspectErr := s.docker.InspectContainer(ctx, containerID)
+		if inspectErr != nil {
+			s.state = StateError
+			return fmt.Errorf("inspect openscad container: %w", inspectErr)
+		}
+		if openSCADProbeNeedsReplace(inspect) {
+			if err := s.docker.ContainerAction(ctx, containerID, "remove"); err != nil {
+				s.state = StateError
+				return fmt.Errorf("replace openscad container: %w", err)
+			}
+			containerID = ""
+			running = false
+		}
 	}
 	if containerID != "" && !running {
 		if err := s.docker.ContainerAction(ctx, containerID, "start"); err != nil {
@@ -204,7 +221,7 @@ func (s *OpenSCADContainerService) ensureStarted(ctx context.Context, keepRunnin
 			s.state = StateError
 			return fmt.Errorf("prepare openscad image %s: %w", image, err)
 		}
-		containerID, err = s.createOpenSCADContainerLocked(ctx, image, jobsRoot)
+		containerID, err = s.createOpenSCADContainerLocked(ctx, image)
 		if err != nil {
 			s.state = StateError
 			return err
@@ -230,18 +247,20 @@ func (s *OpenSCADContainerService) ensureStarted(ctx context.Context, keepRunnin
 	return nil
 }
 
-func (s *OpenSCADContainerService) createOpenSCADContainerLocked(ctx context.Context, image, jobsRoot string) (string, error) {
+func (s *OpenSCADContainerService) createOpenSCADContainerLocked(ctx context.Context, image string) (string, error) {
 	createdID, err := s.docker.CreateContainer(ctx, CodeDockerCreateRequest{
-		Name:        openSCADContainerName,
-		Image:       image,
-		Ports:       map[string]string{},
-		Volumes:     []string{jobsRoot + ":" + openSCADJobsInContainer},
-		Cmd:         []string{"sleep", "infinity"},
-		Restart:     "no",
-		NetworkMode: "none",
-		SecurityOpt: []string{"no-new-privileges:true"},
-		CapDrop:     []string{"ALL"},
-		Resources:   openSCADResourcesPtr(s.cfg.OpenSCAD),
+		Name:           openSCADContainerName,
+		Image:          image,
+		Env:            []string{"HOME=/tmp"},
+		Ports:          map[string]string{},
+		Cmd:            []string{"sleep", "infinity"},
+		Restart:        "no",
+		NetworkMode:    "none",
+		SecurityOpt:    []string{"no-new-privileges:true"},
+		CapDrop:        []string{"ALL"},
+		Resources:      openSCADResourcesPtr(s.cfg.OpenSCAD),
+		ReadonlyRootfs: true,
+		Tmpfs:          map[string]string{"/tmp": "rw,nosuid,size=256m"},
 	})
 	if err != nil {
 		return "", fmt.Errorf("create openscad container: %w", err)
@@ -256,6 +275,178 @@ func (s *OpenSCADContainerService) createOpenSCADContainerLocked(ctx context.Con
 		return "", err
 	}
 	return createdID, nil
+}
+
+// openSCADProbeNeedsReplace reports whether an existing aurago-openscad
+// container still has a job bind or is missing the hardened rootfs. A matching
+// probe stays in place. Docker also lists the /tmp tmpfs inside Mounts; that
+// entry is the hardening itself and does not force a replacement.
+func openSCADProbeNeedsReplace(inspect CodeDockerInspect) bool {
+	if openSCADProbeHasDisallowedMount(inspect.Mounts) {
+		return true
+	}
+	if !inspect.ReadonlyRootfs {
+		return true
+	}
+	if strings.TrimSpace(inspect.Tmpfs["/tmp"]) == "" {
+		return true
+	}
+	for _, item := range inspect.Env {
+		if item == "HOME=/tmp" {
+			return false
+		}
+	}
+	return true
+}
+
+func openSCADProbeHasDisallowedMount(mounts []CodeDockerMount) bool {
+	for _, mount := range mounts {
+		if openSCADProbeTmpfsMount(mount) {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+func openSCADProbeTmpfsMount(mount CodeDockerMount) bool {
+	if path.Clean(mount.Destination) != "/tmp" || strings.TrimSpace(mount.Source) != "" {
+		return false
+	}
+	return mount.Type == "" || mount.Type == "tmpfs"
+}
+
+func openSCADJobContainerName(jobID, export string) string {
+	return openSCADContainerName + "-" + jobID + "-" + export
+}
+
+func (s *OpenSCADContainerService) runOpenSCADJobContainer(ctx context.Context, name, jobDir string, cmd []string, timeout time.Duration) (CodeDockerExecResult, error) {
+	_, err := s.docker.CreateContainer(ctx, CodeDockerCreateRequest{
+		Name:           name,
+		Image:          openSCADImage(s.cfg.OpenSCAD),
+		Env:            []string{"HOME=/tmp"},
+		Volumes:        []string{jobDir + ":" + openSCADWorkDir},
+		Cmd:            cmd,
+		Restart:        "no",
+		NetworkMode:    "none",
+		SecurityOpt:    []string{"no-new-privileges:true"},
+		CapDrop:        []string{"ALL"},
+		Resources:      openSCADResourcesPtr(s.cfg.OpenSCAD),
+		ReadonlyRootfs: true,
+		Tmpfs:          map[string]string{"/tmp": "rw,nosuid,size=256m"},
+	})
+	if err != nil {
+		return CodeDockerExecResult{}, fmt.Errorf("create openscad job container: %w", err)
+	}
+	if err := s.docker.ContainerAction(ctx, name, "start"); err != nil || ctx.Err() != nil {
+		s.killOpenSCADJobContainer(name)
+		if ctx.Err() != nil {
+			return CodeDockerExecResult{}, ctx.Err()
+		}
+		return CodeDockerExecResult{}, fmt.Errorf("start openscad job container: %w", err)
+	}
+	inspect, err := s.waitOpenSCADJobExit(ctx, name, timeout)
+	if err != nil {
+		s.killOpenSCADJobContainer(name)
+		return CodeDockerExecResult{}, err
+	}
+	s.removeOpenSCADJobContainer(name)
+	return CodeDockerExecResult{ExitCode: inspect.State.ExitCode, Output: readOpenSCADCompilerLog(jobDir)}, nil
+}
+
+func (s *OpenSCADContainerService) waitOpenSCADJobExit(ctx context.Context, name string, timeout time.Duration) (CodeDockerInspect, error) {
+	if timeout <= 0 {
+		return CodeDockerInspect{}, fmt.Errorf("openscad export timed out")
+	}
+	// The inspect context is the per-export budget. A cancelled parent still
+	// wins; a live parent must not keep a finished budget running.
+	waitCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if err := ctx.Err(); err != nil {
+			return CodeDockerInspect{}, err
+		}
+		inspect, err := s.docker.InspectContainer(waitCtx, name)
+		if err == nil && !inspect.State.Running {
+			return inspect, nil
+		}
+		if err := ctx.Err(); err != nil {
+			return CodeDockerInspect{}, err
+		}
+		select {
+		case <-ctx.Done():
+			return CodeDockerInspect{}, ctx.Err()
+		case <-waitCtx.Done():
+			if ctx.Err() != nil {
+				return CodeDockerInspect{}, ctx.Err()
+			}
+			return CodeDockerInspect{}, fmt.Errorf("openscad export timed out")
+		case <-ticker.C:
+		}
+	}
+}
+
+func (s *OpenSCADContainerService) killOpenSCADJobContainer(name string) {
+	s.cleanupOpenSCADJobContainer(name, true)
+}
+
+func (s *OpenSCADContainerService) removeOpenSCADJobContainer(name string) {
+	s.cleanupOpenSCADJobContainer(name, false)
+}
+
+func (s *OpenSCADContainerService) cleanupOpenSCADJobContainer(name string, kill bool) {
+	if kill {
+		s.openSCADJobContainerAction(name, "kill")
+	}
+	s.openSCADJobContainerAction(name, "remove")
+}
+
+func (s *OpenSCADContainerService) openSCADJobContainerAction(name, action string) {
+	cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := s.docker.ContainerAction(cleanupCtx, name, action); err != nil && s.logger != nil {
+		s.logger.Warn("openscad job container action failed", "container", name, "action", action, "error", err)
+	}
+}
+
+const (
+	openSCADCompilerLogMaxBytes  = 6000
+	openSCADCompilerLogReadError = "compiler log could not be read"
+)
+
+// readOpenSCADCompilerLog reads compiler.log without following symlinks and
+// keeps at most openSCADCompilerLogMaxBytes, the same budget truncateOpenSCADOutput
+// applies. A longer log stays a successful read. A symlink or other non-regular
+// file contributes a short read error and never the target contents.
+func readOpenSCADCompilerLog(jobDir string) string {
+	file, err := openFileNoFollow(filepath.Join(jobDir, "compiler.log"), os.O_RDONLY, 0)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return ""
+		}
+		return openSCADCompilerLogReadError
+	}
+	defer func() { _ = file.Close() }()
+	info, err := file.Stat()
+	if err != nil || !info.Mode().IsRegular() {
+		return openSCADCompilerLogReadError
+	}
+	data, err := io.ReadAll(io.LimitReader(file, openSCADCompilerLogMaxBytes))
+	if err != nil {
+		return openSCADCompilerLogReadError
+	}
+	if info.Size() <= openSCADCompilerLogMaxBytes {
+		return truncateOpenSCADOutput(string(data))
+	}
+	const suffix = "\n...[truncated]"
+	budget := openSCADCompilerLogMaxBytes - len(suffix)
+	text := strings.TrimSpace(string(data))
+	if len(text) > budget {
+		text = text[:budget]
+	}
+	return text + suffix
 }
 
 func (s *OpenSCADContainerService) probeRuntimeLocked(ctx context.Context, containerID string) error {
@@ -351,6 +542,7 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 	}
 	start := time.Now()
 	timeout := openSCADRenderTimeout(req.TimeoutSeconds, s.cfg.OpenSCAD)
+	deadline := time.Now().Add(timeout)
 	if s.logger != nil {
 		s.logger.Info("openscad render job started",
 			"job_id", jobID,
@@ -375,6 +567,20 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 	}
 	runtimeDiag := s.logOpenSCADRuntimeDiagnostics(ctx, containerID, jobID)
 	for _, export := range req.Exports {
+		if time.Until(deadline) <= 0 {
+			result.DurationMS = time.Since(start).Milliseconds()
+			result.Stderr = truncateOpenSCADOutput(combinedOutput.String())
+			_ = s.writeJobMetadata(jobDir, result)
+			if s.logger != nil {
+				s.logger.Warn("openscad export failed",
+					"job_id", jobID,
+					"export", export,
+					"duration_ms", result.DurationMS,
+					"error", "openscad export timed out",
+				)
+			}
+			return result, fmt.Errorf("openscad export timed out")
+		}
 		selectedBackend := selectOpenSCADGeometryBackend(s.cfg.OpenSCAD, export, runtimeDiag)
 		cmd, filename := buildOpenSCADCommandWithBackend(jobID, modelName, export, req, selectedBackend)
 		exportStart := time.Now()
@@ -406,7 +612,7 @@ func (s *OpenSCADContainerService) Render(ctx context.Context, req OpenSCADRende
 				"geometry_backend_requested", openSCADGeometryBackendPreference(s.cfg.OpenSCAD),
 			)
 		}
-		execResult, execErr := s.docker.ExecContainer(ctx, containerID, execCmd, "", timeout)
+		execResult, execErr := s.runOpenSCADJobContainer(ctx, openSCADJobContainerName(jobID, export), jobDir, execCmd, time.Until(deadline))
 		exportDuration := time.Since(exportStart)
 		execOutput := strings.TrimSpace(execResult.Output)
 		if execErr != nil {
@@ -583,7 +789,7 @@ func (s *OpenSCADContainerService) JobFile(jobID, filename string) (string, Open
 		return "", OpenSCADFile{}, err
 	}
 	name := safeOpenSCADFilename(filename)
-	if name == "" || name == "job.json" || name == "model.scad" {
+	if name == "" || name == "job.json" || name == "model.scad" || name == "compiler.log" {
 		return "", OpenSCADFile{}, fmt.Errorf("invalid openscad job filename")
 	}
 	path := filepath.Join(jobDir, name)
@@ -607,10 +813,11 @@ func (s *OpenSCADContainerService) SaveJob(ctx context.Context, desktopSvc *Serv
 		return OpenSCADRenderResult{}, err
 	}
 	base := "Documents/OpenSCAD/" + safeOpenSCADModelName(result.ModelName) + "-" + jobID
+	outputCap := int64(openSCADMaxOutputMB(s.cfg.OpenSCAD)) * 1024 * 1024
 	var saved []string
 	for i := range result.Files {
 		filePath := filepath.Join(jobDir, result.Files[i].Name)
-		data, err := os.ReadFile(filePath)
+		data, _, err := readOpenSCADRegularFile(filePath, outputCap)
 		if err != nil {
 			return result, fmt.Errorf("read openscad output %s: %w", result.Files[i].Name, err)
 		}
@@ -621,8 +828,17 @@ func (s *OpenSCADContainerService) SaveJob(ctx context.Context, desktopSvc *Serv
 		result.Files[i].SavedPath = rel
 		saved = append(saved, rel)
 	}
-	sourceData, err := os.ReadFile(filepath.Join(jobDir, "model.scad"))
-	if err == nil {
+	modelCap := outputCap
+	sourceCap := int64(openSCADMaxSourceKB(s.cfg.OpenSCAD)) * 1024
+	if sourceCap < modelCap {
+		modelCap = sourceCap
+	}
+	sourceData, _, err := readOpenSCADRegularFile(filepath.Join(jobDir, "model.scad"), modelCap)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return result, fmt.Errorf("save openscad source: %w", err)
+		}
+	} else {
 		rel := path.Join(base, "model.scad")
 		if err := desktopSvc.WriteFileBytes(ctx, rel, sourceData, SourceAgent); err != nil {
 			return result, fmt.Errorf("save openscad source: %w", err)
@@ -656,11 +872,10 @@ func (s *OpenSCADContainerService) Status(ctx context.Context) OpenSCADStatus {
 		State:                   s.state.String(),
 		Running:                 s.state == StateRunning,
 		Image:                   openSCADImage(s.cfg.OpenSCAD),
-		JobsHostPath:            s.jobsRootLocked(),
 		JobsContainerPath:       openSCADJobsInContainer,
 		AutoStopMinutes:         openSCADAutoStopMinutes(s.cfg.OpenSCAD),
 		MaxConcurrentJobs:       openSCADMaxConcurrentJobs(s.cfg.OpenSCAD),
-		RenderQueueNote:         "Renders run one at a time in the OpenSCAD container.",
+		RenderQueueNote:         "Renders run one at a time.",
 		DefaultExports:          openSCADDefaultExports(s.cfg.OpenSCAD),
 		RenderTimeoutSeconds:    int(openSCADDefaultTimeout(s.cfg.OpenSCAD).Seconds()),
 		MaxRenderTimeoutSeconds: int(openSCADMaxTimeout(s.cfg.OpenSCAD).Seconds()),
@@ -771,24 +986,70 @@ func (s *OpenSCADContainerService) outputFile(jobDir, jobID, filename, format st
 	return s.describeOutputFile(path, jobID, filename, format)
 }
 
+// readOpenSCADRegularFile opens a regular file without following symlinks and
+// refuses anything larger than maxBytes before it copies the contents.
+func readOpenSCADRegularFile(path string, maxBytes int64) ([]byte, os.FileInfo, error) {
+	data, info, _, err := copyOpenSCADRegularFile(path, maxBytes, true)
+	return data, info, err
+}
+
+// copyOpenSCADRegularFile hashes with io.Copy and keeps the bytes only when keepBytes is set.
+func copyOpenSCADRegularFile(path string, maxBytes int64, keepBytes bool) ([]byte, os.FileInfo, []byte, error) {
+	file, err := openFileNoFollow(path, os.O_RDONLY, 0)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("openscad output is not a regular file: %w", err)
+	}
+	info, statErr := file.Stat()
+	if statErr != nil {
+		_ = file.Close()
+		return nil, nil, nil, fmt.Errorf("openscad output is not a regular file: %w", statErr)
+	}
+	if !info.Mode().IsRegular() {
+		_ = file.Close()
+		return nil, info, nil, fmt.Errorf("openscad output is not a regular file")
+	}
+	if maxBytes > 0 && info.Size() > maxBytes {
+		_ = file.Close()
+		return nil, info, nil, fmt.Errorf("openscad output exceeds %d bytes", maxBytes)
+	}
+	hash := sha256.New()
+	var buf bytes.Buffer
+	dst := io.Writer(hash)
+	if keepBytes {
+		dst = io.MultiWriter(hash, &buf)
+	}
+	_, copyErr := io.Copy(dst, file)
+	closeErr := file.Close()
+	if copyErr != nil {
+		return nil, info, nil, fmt.Errorf("read openscad output: %w", copyErr)
+	}
+	if closeErr != nil {
+		return nil, info, nil, fmt.Errorf("read openscad output: %w", closeErr)
+	}
+	sum := hash.Sum(nil)
+	if !keepBytes {
+		return nil, info, sum, nil
+	}
+	return buf.Bytes(), info, sum, nil
+}
+
 func (s *OpenSCADContainerService) describeOutputFile(filePath, jobID, filename, format string) (OpenSCADFile, error) {
-	info, err := os.Stat(filePath)
+	maxBytes := int64(openSCADMaxOutputMB(s.cfg.OpenSCAD)) * 1024 * 1024
+	_, info, sum, err := copyOpenSCADRegularFile(filePath, maxBytes, false)
 	if err != nil {
-		return OpenSCADFile{}, fmt.Errorf("openscad output %s missing: %w", filename, err)
+		if info != nil && info.IsDir() {
+			return OpenSCADFile{}, fmt.Errorf("openscad output %s is a directory", filename)
+		}
+		if errors.Is(err, os.ErrNotExist) {
+			return OpenSCADFile{}, fmt.Errorf("openscad output %s missing: %w", filename, err)
+		}
+		return OpenSCADFile{}, err
 	}
-	if info.IsDir() {
-		return OpenSCADFile{}, fmt.Errorf("openscad output %s is a directory", filename)
-	}
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return OpenSCADFile{}, fmt.Errorf("read openscad output %s: %w", filename, err)
-	}
-	sum := sha256.Sum256(data)
 	return OpenSCADFile{
 		Name:        filename,
 		Format:      strings.ToLower(format),
 		Size:        info.Size(),
-		SHA256:      hex.EncodeToString(sum[:]),
+		SHA256:      hex.EncodeToString(sum),
 		DownloadURL: "/api/openscad/jobs/" + jobID + "/files/" + filename + "?download=1",
 		PreviewURL:  "/api/openscad/jobs/" + jobID + "/files/" + filename,
 	}, nil
@@ -899,8 +1160,8 @@ func buildOpenSCADCommandWithBackend(jobID, modelName, export string, req OpenSC
 		ext = "txt"
 	}
 	filename := modelName + "." + ext
-	outputPath := path.Join(openSCADJobsInContainer, jobID, filename)
-	sourcePath := path.Join(openSCADJobsInContainer, jobID, "model.scad")
+	outputPath := path.Join(openSCADWorkDir, filename)
+	sourcePath := path.Join(openSCADWorkDir, "model.scad")
 	cmd := []string{"openscad"}
 	if export == "png" {
 		cmd = []string{"xvfb-run", "-a", "openscad"}
@@ -1072,13 +1333,16 @@ func wrapOpenSCADCommandWithContainerLogs(cmd []string, startLine, doneLine stri
 	if len(cmd) == 0 {
 		return cmd
 	}
+	logPath := openSCADWorkDir + "/compiler.log"
 	script := `start_line=$1
 done_line=$2
 shift 2
-{ printf '%s\n' "$start_line" > /proc/1/fd/1; } 2>/dev/null || true
-"$@"
+{
+  printf '%s\n' "$start_line"
+  "$@"
+} >> ` + logPath + ` 2>&1
 rc=$?
-{ printf '%s exit_code=%s\n' "$done_line" "$rc" > /proc/1/fd/1; } 2>/dev/null || true
+printf '%s exit_code=%s\n' "$done_line" "$rc" >> ` + logPath + `
 exit "$rc"`
 	wrapped := []string{"sh", "-c", script, "aurago-openscad-log", startLine, doneLine}
 	return append(wrapped, cmd...)
@@ -1209,10 +1473,9 @@ func openSCADCPUCores(cfg OpenSCADConfig) int {
 	return defaultOpenSCADCPUCores
 }
 
-func openSCADMaxConcurrentJobs(cfg OpenSCADConfig) int {
-	if cfg.MaxConcurrentJobs > 0 {
-		return cfg.MaxConcurrentJobs
-	}
+// openSCADMaxConcurrentJobs is the effective render queue. The YAML field stays
+// loadable for compatibility, and renders always run one at a time.
+func openSCADMaxConcurrentJobs(OpenSCADConfig) int {
 	return 1
 }
 

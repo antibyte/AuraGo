@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Gewinde, Zahnräder und andere Bauteile - layerling Anleitung</title>
+    <meta name="description" content="Schrauben, Muttern und Gewindelöcher, die zusammenpassen, dazu Zahnrad, Feder, gebogenes Rohr, Wabengitter, Schwalbenschwanz, Tropfenbohrung sowie Stufen- und Senkbohrung.">
+    <link rel="canonical" href="https://layerling.com/anleitung/gewinde-und-mechanik.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/gewinde-und-mechanik.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/threads-and-mechanics.html">
+    <meta property="og:title" content="Gewinde, Zahnräder und andere Bauteile - layerling Anleitung">
+    <meta property="og:description" content="Schrauben, Muttern und Gewindelöcher, die zusammenpassen, dazu Zahnrad, Feder, gebogenes Rohr, Wabengitter, Schwalbenschwanz, Tropfenbohrung sowie Stufen- und Senkbohrung.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite")document.documentElement.dataset.theme="dark"}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar a.lang { color: var(--muted); font-size: 14px; font-weight: 600; text-decoration: none; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: left; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-left: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-left: auto; text-align: right; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/anleitung/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Anleitung</span></span></a>
+      <a class="lang" href="/api/desktop/layerling/ui/guide/threads-and-mechanics.html" hreflang="en" title="Read this in English">English</a>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Zum Editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Der Editor ist schon in einem anderen Tab offen - wechsle einfach dorthin.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Kapitel"><h2>Kapitel</h2><ol><li><a href="/api/desktop/layerling/ui/anleitung/erste-schritte.html">Erste Schritte</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html">Ansicht und Arbeitsebene</a></li><li><a href="/api/desktop/layerling/ui/anleitung/formen.html">Formen setzen und einstellen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html">Auswählen und Anordnen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html">Körper und Aussparungen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html">Kanten brechen und Körper aushöhlen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html">Skizzen: vom Umriss zum Körper</a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html">Text und gebogene Schrift</a></li><li><a href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html" aria-current="page">Gewinde, Zahnräder und andere Bauteile</a></li><li><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html">Messen und Notizen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/drucken.html">Für den 3D-Druck vorbereiten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/dateien-und-speichern.html">Dateien, Speichern und Weitergeben</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html">Tastenkürzel</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ki-mit-mcp.html">Mit einer KI bauen (MCP)</a></li><li><a href="/api/desktop/layerling/ui/anleitung/offline-und-installieren.html">Als App installieren, ohne Internet arbeiten und selbst hosten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/videos.html">Videos über layerling</a></li></ol></nav>
+      <main>
+<h1>Gewinde, Zahnräder und andere Bauteile</h1>
+<p class="lead">Schrauben, Muttern und Gewindelöcher, die zusammenpassen, dazu Zahnrad, Feder, gebogenes Rohr, Wabengitter, Schwalbenschwanz, Tropfenbohrung sowie Stufen- und Senkbohrung.</p>
+<div class="toc"><b>Auf dieser Seite</b><ul><li><a href="#gewinde">Gewinde</a></li><li><a href="#zahnraeder">Zahnräder</a></li><li><a href="#federn">Federn</a></li><li><a href="#gebogene-rohre">Gebogene Rohre</a></li><li><a href="#uebergang">Übergang</a></li><li><a href="#wabengitter">Wabengitter</a></li><li><a href="#scharnier">Scharnier</a></li><li><a href="#raendelung">Rändelung</a></li><li><a href="#schwalbenschwanz">Schwalbenschwanz</a></li><li><a href="#tropfenbohrung">Tropfenbohrung</a></li><li><a href="#stufen-und-senkbohrung">Stufen- und Senkbohrung</a></li></ul></div>
+<p>Die Formenbibliothek enthält neben den Grundformen einige Bauteile, die man sonst mühsam zusammensetzen müsste. Alle lassen sich nachträglich in ihren Einstellungen ändern.</p>
+<h2 id="gewinde">Gewinde</h2>
+<p>Wähle <strong class="ui">„Gewinde“</strong> in der Formenbibliothek. Unter <strong class="ui">„Art“</strong> entscheidest du, was es sein soll:</p>
+<ul><li><strong><strong class="ui">„Gewindestange“</strong>:</strong> ein Zylinder mit Gewinde, zum Beispiel eine Schraube ohne Kopf.</li><li><strong><strong class="ui">„Schraube“</strong>:</strong> mit Kopf. Die <strong class="ui">„Kopfform“</strong> wählst du aus: <strong class="ui">„Zylinderkopf“</strong>, <strong class="ui">„Senkkopf“</strong> oder <strong class="ui">„Sechskant“</strong>.</li><li><strong><strong class="ui">„Mutter“</strong>:</strong> die passende Mutter.</li><li><strong><strong class="ui">„Gewindeloch“</strong>:</strong> ein Gewindeloch. Es ist eine Aussparung. Ziehe es in ein Teil, gruppiere beides, und das Teil hat ein Innengewinde.</li></ul>
+<figure><img src="/api/desktop/layerling/ui/anleitung/img/thread-screw.webp" alt="Eine Schraube mit Zylinderkopf. Rechts stehen Art und Kopfform, weiter unten Größe, Steigung und Profil." width="1280" height="800" loading="lazy"><figcaption>Eine Schraube mit Zylinderkopf. Rechts stehen Art und Kopfform, weiter unten Größe, Steigung und Profil.</figcaption></figure>
+<p>Die Größe suchst du bei <strong class="ui">„Größe“</strong> aus einer Liste: metrisch von M2 bis M12, die Zollgrößen UNC und UNF von Nr. 4 bis 1 Zoll und die Rohrgewinde G1/16 bis G4. Wählst du <strong class="ui">„Frei“</strong>, bestimmst du <strong class="ui">„Durchmesser“</strong> und <strong class="ui">„Steigung“</strong> selbst. Bei einer Zoll- oder G-Größe fragt das Feld nach <strong class="ui">„Gänge je Zoll“</strong> statt nach der Steigung in Millimetern.</p>
+<p>Die Liste ordnet die Größen nach Reihen, und eine Zeile unter dem Feld nennt die Reihe der gewählten Größe, mit Beispielen aus dem Alltag:</p>
+<ul><li><strong>M, Regelgewinde:</strong> das metrische ISO-Regelgewinde nach ISO 261, wie bei Normschrauben und -muttern.</li><li><strong>UNC, US-Zoll grob:</strong> Die Kamera- und Stativschraube ist 1/4&quot;-20 UNC (ISO 1222), größere Stativköpfe nehmen 3/8&quot;-16 UNC.</li><li><strong>UNF, US-Zoll fein:</strong> dieselben Durchmesser wie UNC mit feinerer Steigung (ASME B1.1).</li><li><strong>G, Rohrgewinde:</strong> Ein Duschschlauch wird mit G1/2 angeschlossen, ein Waschmaschinen-Zulaufschlauch mit G3/4. Ein Gartenwasserhahn endet in G3/4, kleinere Hähne in G1/2; dort wird der Hahnverbinder eines Schlauch-Stecksystems aufgeschraubt.</li></ul>
+<p>Die G-Größen sind die zylindrischen Whitworth-Rohrgewinde nach ISO 228-1, wie sie an Fittings für Wasser, Gas, Hydraulik und Pneumatik sitzen. Die Größe nennt das Rohr, nicht das Gewinde: Ein G1 misst über das Gewinde 33,249 mm. Wählst du eine G-Größe, wechselt das Profil auf <strong class="ui">„Whitworth (55°)“</strong>, eine metrische oder Zollgröße stellt es wieder auf <strong class="ui">„Spitzgewinde (ISO)“</strong>. Ein <strong class="ui">„Trapezgewinde“</strong> oder <strong class="ui">„Rundgewinde“</strong>, das du selbst gewählt hast, bleibt. Die Norm legt nur das Gewinde fest; Schraubenkopf und Mutter bekommen bei einer G-Größe dieselben Verhältnisse wie bei einem selbst gewählten Durchmesser. Die kegeligen Rohrgewinde R, Rc und Rp sind nicht dabei.</p>
+<p>Weitere Einstellungen:</p>
+<ul><li><strong><strong class="ui">„Gangrichtung“</strong>:</strong> <strong class="ui">„Rechtsgewinde“</strong> oder <strong class="ui">„Linksgewinde“</strong>.</li><li><strong><strong class="ui">„Profil“</strong>:</strong> <strong class="ui">„Spitzgewinde (ISO)“</strong> ist das genormte Profil der metrischen und Zollgewinde, <strong class="ui">„Whitworth (55°)“</strong> das der G-Rohrgewinde: 55° mit gerundeten Spitzen und Tälern. <strong class="ui">„Trapezgewinde“</strong> und <strong class="ui">„Rundgewinde“</strong> haben flache Spitzen und Täler. Das druckt sich meist zuverlässiger, weil keine dünnen Spitzen entstehen.</li><li><strong><strong class="ui">„Spiel“</strong>:</strong> Bei Mutter und Gewindeloch der Spielraum, der dafür sorgt, dass ein gedrucktes Paar sich wirklich dreht. Je gröber dein Drucker arbeitet, desto mehr Spiel braucht das Paar. Bei Gewindestange und Schraube steht hier ein eigenes Spiel, das den Bolzen im Durchmesser um diesen Wert dünner macht. Es ist auf 0 gestellt. Brauchst du es, weil ein gedruckter Bolzen in eine Mutter aus Metall soll, die selbst kein Spiel hat, sind 0,2 bis 0,3 mm ein guter Anfang.</li><li><strong><strong class="ui">„Fase“</strong>, <strong class="ui">„Kopffase“</strong> und <strong class="ui">„Außenfase“</strong>:</strong> Fasen an den Enden, damit das Gewinde sauber anläuft und der Kopf keine scharfe Kante hat.</li><li><strong><strong class="ui">„Qualität“</strong>:</strong> Wie fein das Gewinde berechnet wird. Höher ist genauer, aber langsamer.</li></ul>
+<p>Gedruckte Gewinde sind eine Sache für sich. Stelle die Pärchen aus Schraube und Mutter zuerst als Test her, bevor du ein großes Teil druckst, und passe das Spiel an deinen Drucker an.</p>
+<p>Das Kantenwerkzeug nimmt ein Gewinde als exakten Körper. Du kannst das Teil, in dem es sitzt, mit dem Gewinde darin fasen oder verrunden, ebenso die Kanten eines Schraubenkopfs, siehe <a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html">Kanten brechen und Körper aushöhlen</a>. Die Kanten eines Gewindes zu ermitteln dauert etwas: ein paar Sekunden bei M6, etwa eine halbe Minute bei einem G1/2-Rohrgewinde. Am schnellsten brichst du die Kante eines Schraubenkopfs aber weiterhin mit der Kopffase in den Eigenschaften.</p>
+<h2 id="zahnraeder">Zahnräder</h2>
+<p><strong class="ui">„Zahnrad“</strong> gibt es als <strong class="ui">„Stirnrad“</strong>, <strong class="ui">„Schrägrad“</strong> und <strong class="ui">„Kegelrad“</strong>. Neue Zahnräder haben unter <strong class="ui">„Zahnform“</strong> die <strong class="ui">„Evolvente“</strong>: Zähne mit Evolventenflanken, wie sie Zahnradgeneratoren und der Maschinenbau verwenden. Solche Zähne rollen sauber aufeinander ab. Du stellst die Zahl der <strong class="ui">„Zähne“</strong> und den <strong class="ui">„Modul (mm)“</strong> ein, daraus folgt die Größe: Der Außendurchmesser ist Modul × (Zähne + 2), der Teilkreis Modul × Zähne. Neue Räder starten mit Modul 2. Zwei Räder greifen ineinander, wenn sie denselben Modul und denselben <strong class="ui">„Eingriffswinkel“</strong> haben (meist 20°) und ihre Mitten (Zähne + Zähne) × Modul / 2 auseinanderstehen. Wählst du beide Räder aus, nennt das Eigenschaftenfeld diesen Achsabstand und wie weit die Mitten gerade auseinanderstehen. Steht dabei Zahn auf Zahn statt Zahn in Lücke, drehst du eines der Räder um einen halben Zahn, also um 180° geteilt durch seine Zähnezahl. <strong class="ui">„Spiel“</strong> nimmt den Zähnen etwas Dicke, damit ein gedrucktes Paar nicht klemmt. Der Wert gilt für das Paar, jedes Rad nimmt die Hälfte davon; 0,2 mm ist ein guter Anfang, 0 ergibt das genaue Rad. Unter dem Grundkreis läuft die Flanke gerade zum Fuß hinunter und wird nicht hinterschnitten wie beim Fräsen. Zum Drucken passt das, ein sehr kleines Ritzel unter etwa 17 Zähnen kann am Fuß aber leicht streifen.</p>
+<p>Beim Schrägrad kommt der <strong class="ui">„Schrägungswinkel“</strong> dazu. Bei Evolventenzähnen ist das der echte Schrägungswinkel am Teilkreis: Zwei Schrägräder greifen ineinander, wenn sie denselben Modul und denselben Winkel haben, das eine positiv und das andere negativ. Das Kegelrad nimmt die Evolventenzähne und lässt sie zur Oberseite hin kleiner werden. Das ist eine Näherung, kein genau berechnetes Kegelradpaar.</p>
+<p><strong class="ui">„Einfach“</strong> sind die geraden Zähne, die alle Zahnräder bisher hatten. Dort stellst du <strong class="ui">„Zahngröße“</strong> und <strong class="ui">„Zahnbreite“</strong> von Hand ein. Ältere Entwürfe behalten sie, bis du die Zahnform umstellst. Die <strong class="ui">„Mittelbohrung“</strong> gibt es bei beiden.</p>
+<p>Das Kantenwerkzeug und der STEP-Export nehmen jedes Zahnrad als exakten Körper, die Evolventenflanken als glatte Kurven. Ein Schrägrad auf ovaler Grundfläche bleibt ein Dreiecksnetz, ebenso ein Schrägrad mit Evolventenzähnen ab etwa 31 Zähnen. Kleine Zähne begrenzen, wie stark sich Kanten verrunden lassen: Bei einem Rad mit einfachen Zähnen, 30 mm Durchmesser und 12 Zähnen ist die Fläche zwischen zwei Zähnen am Fuß nur etwa 0,65 mm breit, alle Kanten zu verrunden geht deshalb bis etwa 0,5 mm, beim Kegelrad mit seiner kleineren Oberseite bis etwa 0,4 mm. Die Zähne eines Schrägrads stehen schräg, das macht diese Fläche quer zu ihren schrägen Kanten noch schmaler: Je größer der Schrägungswinkel im Verhältnis zur Höhe des Rads, desto kleiner die Rundung, die passt. Beim Schrägrad lassen sich die Kanten der beiden flachen Enden verrunden, nur diese Kanten zu fasen scheitert aber im CAD-Kern; verrunde sie oder fase alle Kanten zusammen mit kleinerem Maß, etwa 0,2 mm.</p>
+<h2 id="federn">Federn</h2>
+<p>Die <strong class="ui">„Feder“</strong> hat <strong class="ui">„Windungen“</strong> und eine <strong class="ui">„Drahtstärke“</strong>. Zusammen mit der Höhe bestimmen sie, wie weich die Feder wird. Unter <strong class="ui">„Wickelrichtung“</strong> wählst du, wie herum der Draht läuft: <strong class="ui">„Rechtsgewickelt“</strong> wie bei einer üblichen Druckfeder, oder <strong class="ui">„Linksgewickelt“</strong>.</p>
+<p>Das Kantenwerkzeug und der STEP-Export nehmen eine Feder als exakten Körper: ein runder Draht entlang einer Schraubenlinie, an beiden Enden gerade abgeschnitten. Diese beiden Drahtenden kannst du zum Beispiel verrunden oder fasen.</p>
+<h2 id="gebogene-rohre">Gebogene Rohre</h2>
+<p>Ein <strong class="ui">„Gebogenes Rohr“</strong> besteht aus bis zu zwölf Abschnitten: ein gerades Stück, gefolgt von einer Biegung. Für jedes stellst du die <strong class="ui">„Gerade Länge“</strong>, den <strong class="ui">„Biegewinkel“</strong>, den <strong class="ui">„Biegeradius“</strong> und den <strong class="ui">„Rollwinkel“</strong> ein. Der Abschnitt, den du gerade bearbeitest, leuchtet auf dem Rohr orange auf, so behältst du die Reihenfolge im Blick. Ein Rollwinkel von 0° biegt in der Ebene der Arbeitsfläche, bei 90° biegt das Rohr nach oben. Das Profil kann rund, quadratisch, sechs- oder achteckig sein, innen ebenso, oder ganz massiv. Läuft das Rohr in sich selbst, warnt dich layerling.</p>
+<h2 id="uebergang">Übergang</h2>
+<p>Der <strong class="ui">„Übergang“</strong> verbindet einen Umriss unten mit einem anderen oben, wie ein Loft in Fusion: ein Schlauchadapter von einem Durchmesser auf einen anderen, ein eckiger Lüfter auf ein rundes Rohr, ein Sockel, der nach oben rund wird. Für beide Enden wählst du <strong class="ui">„Umriss unten“</strong> und <strong class="ui">„Umriss oben“</strong>: <strong class="ui">„Kreis / Ellipse“</strong>, <strong class="ui">„Rechteck“</strong> mit <strong class="ui">„Eckenradius unten“</strong> oder <strong class="ui">„Vieleck“</strong> mit seiner Eckenzahl, dazu Breite und Länge jedes Endes und die Höhe. Mit <strong class="ui">„Versatz oben in der Breite“</strong> und <strong class="ui">„Versatz oben in der Länge“</strong> sitzt das obere Ende seitlich versetzt, für einen schrägen Übergang; das untere Ende bleibt dabei stehen.</p>
+<p><strong class="ui">„Wandstärke (0 = voll)“</strong> macht aus dem vollen Körper ein Rohr, das oben und unten offen ist. Die Öffnung ist an beiden Enden um die Wandstärke kleiner, waagerecht gemessen; wo die Wand schräg steht, ist sie also etwas dünner. Ziehst du den Rahmen größer, wachsen beide Enden mit, Eckenradius und Wand bleiben gleich.</p>
+<p><strong class="ui">„Verdrehung“</strong> dreht den Querschnitt auf dem Weg nach oben gleichmäßig um die Hochachse, bis zu 360° in beide Richtungen; die Seiten winden sich dann. <strong class="ui">„Neigung oben, vorn/hinten“</strong> und <strong class="ui">„Neigung oben, links/rechts“</strong> kippen das obere Ende, bis zu 45°: Ein positiver Wert hebt seine Vorderkante beziehungsweise seine rechte Seite. Die Schnitte dazwischen kippen anteilig mit, so dass die Wand weich in die Schräge läuft. Der höchste Punkt bleibt auf der eingestellten Höhe. Wird die Höhe später so klein, dass das schräge Ende unter die Platte reichen würde, gibt die Neigung so weit nach, dass es passt. Einen Bogen entlang eines Pfads, etwa einen Rohrkrümmer, macht der Übergang nicht.</p>
+<p>Der Übergang ist ein exakter Körper, auch verdreht und gekippt: Seine Kanten lassen sich fasen und verrunden, und der STEP-Export behält ihn. Einen Flansch mit Schraubenlöchern setzt du wie gewohnt dazu und gruppierst.</p>
+<h2 id="wabengitter">Wabengitter</h2>
+<p>Das <strong class="ui">„Wabengitter“</strong> ist eine Platte mit sechseckigen Aussparungen: leicht, stabil und schön anzusehen. Die <strong class="ui">„Wabengröße“</strong>, die <strong class="ui">„Stegbreite“</strong> und die <strong class="ui">„Rahmenbreite“</strong> legen das Aussehen fest.</p>
+<h2 id="scharnier">Scharnier</h2>
+<p>Das <strong class="ui">„Scharnier“</strong> wird in einem Stück gedruckt und bewegt sich danach (print-in-place): zwei Blätter, die aufgeklappt flach auf der Platte liegen, dazwischen abwechselnde Knöchel auf einer Achse. Der Stift gehört zum hinteren Blatt und läuft mit Spiel durch die Knöchel des vorderen. Du stellst die <strong class="ui">„Länge (Achse)“</strong>, die <strong class="ui">„Breite aufgeklappt“</strong> und den <strong class="ui">„Knöcheldurchmesser“</strong> ein, dazu die Zahl der <strong class="ui">„Knöchel“</strong> (ungerade, damit der Stift an beiden Enden hält), den <strong class="ui">„Stiftdurchmesser“</strong> und die <strong class="ui">„Blattstärke“</strong>.</p>
+<p><strong class="ui">„Spiel“</strong> ist der Abstand zwischen den beweglichen Teilen: um den Stift, zwischen den Knöcheln und vor den Blättern. Mit 0,4 mm löst sich ein gut eingestellter Drucker meist mit einer kleinen Drehung; verwachsen die Teile, nimm mehr, wackelt es zu sehr, weniger. Drucke das Scharnier liegend, so wie es auf der Platte erscheint, ohne Stützen. Die Blätter kannst du mit Bohrungen versehen oder in ein größeres Teil gruppieren, etwa einen Deckel.</p>
+<h2 id="raendelung">Rändelung</h2>
+<p>Die <strong class="ui">„Rändelung“</strong> ist ein runder Griff mit Rillen ringsum, für Drehknöpfe, Stellräder und Werkzeuggriffe. Unter <strong class="ui">„Muster“</strong> wählst du <strong class="ui">„Gerade“</strong>, also Rillen längs der Achse wie an einem Drehknopf, oder <strong class="ui">„Gekreuzt“</strong>: Zwei schräge Rillenreihen kreuzen sich zu kleinen Rauten. Du stellst <strong class="ui">„Durchmesser“</strong> und <strong class="ui">„Höhe“</strong> ein, die Zahl der <strong class="ui">„Rillen“</strong> und die <strong class="ui">„Rillentiefe“</strong>; bei der gekreuzten Rändelung dazu den <strong class="ui">„Winkel der Rillen“</strong> zur Achse. Die <strong class="ui">„Fase an den Enden“</strong> bricht beide Enden unter 45°, wie bei einem gedrehten Knopf; 0 lässt sie scharf.</p>
+<p>Die gerade Rändelung ist ein exakter Körper, ihre Kanten lassen sich brechen und runden. Die gekreuzte bleibt ein Netz, denn als exakter Körper bräuchte sie bei 30 Rillen schon fast eine Minute zum Rechnen. Für einen Knopf auf einer Achse gruppierst du die Rändelung mit einer Bohrung, etwa einem <strong class="ui">„Gewinde“</strong> als Gewindeloch. Rillen unter 0,4 mm Tiefe druckt kaum ein Drucker sauber, und enger als 0,8 mm am Umfang lässt layerling die Rillen gar nicht erst stehen: Ein dünner Griff bekommt entsprechend weniger.</p>
+<h2 id="schwalbenschwanz">Schwalbenschwanz</h2>
+<p>Der <strong class="ui">„Schwalbenschwanz“</strong> ist die Verbindung, bei der zwei Teile ineinander einrasten und sich nur seitlich zusammenschieben lassen. Du stellst die Breite am breiten Ende, die <strong class="ui">„Halsbreite“</strong> und die Länge des Zapfens ein. Kopiere den Zapfen für die Gegenseite und mache die Kopie zur Aussparung: <strong class="ui">„Spiel als Aussparung“</strong> sorgt dann für ein wenig Spiel, damit die Verbindung nach dem Druck nicht klemmt.</p>
+<aside class="tip"><p><strong>Tipp:</strong> Ein Gewindeloch schneidet sich beim Gruppieren in das Teil, mit dem es sich überlappt. Setze es also ein Stück in das Material hinein und lasse es nicht nur an der Fläche anliegen.</p></aside>
+<h2 id="tropfenbohrung">Tropfenbohrung</h2>
+<p>Ein Loch, das waagerecht im Teil liegt, bekommt beim Drucken oben eine Brücke, und die hängt durch. Die <strong class="ui">„Tropfenbohrung“</strong> hat deshalb oben eine Spitze: Jede Schicht liegt auf der darunter, und das Loch wird ohne Stützen rund genug. Stelle den <strong class="ui">„Durchmesser (Rundung)“</strong> auf das Maß des Lochs, etwa 3,4 mm für eine M3-Schraube, und die <strong class="ui">„Bohrungslänge“</strong> so lang, dass sie durch das Teil reicht. Der <strong class="ui">„Spitzenwinkel“</strong> steht auf 90°, die Flanken laufen also unter 45° zusammen. Das druckt bei den meisten Druckern sauber; flachere Spitzen brauchen mehr Höhe, steilere sparen sie.</p>
+<p>Mache die Tropfenbohrung zur Aussparung und gruppiere sie mit dem Teil. Sie liegt mit der Länge in Richtung der Tiefe, die Spitze zeigt nach oben. Für ein Loch in der anderen Richtung drehst du sie um 90° um die senkrechte Achse.</p>
+<h2 id="stufen-und-senkbohrung">Stufen- und Senkbohrung</h2>
+<p>Ein Schraubenkopf soll oft nicht überstehen. Die <strong class="ui">„Stufenbohrung“</strong> schneidet dafür eine runde Tasche für einen Zylinderkopf (DIN 912), die <strong class="ui">„Senkbohrung“</strong> einen Kegel für eine Senkkopfschraube (DIN 7991). Beide stehen mit dem Kopf nach oben: Der <strong class="ui">„Kopfdurchmesser“</strong> ist der Durchmesser der Tasche oder des Kegels, der <strong class="ui">„Schaftdurchmesser“</strong> die Bohrung darunter, die <strong class="ui">„Gesamtlänge“</strong> die ganze Länge. Bei der Stufenbohrung stellst du die <strong class="ui">„Kopftiefe“</strong> ein, bei der Senkbohrung den <strong class="ui">„Öffnungswinkel“</strong> (90° passt zu Senkschrauben). Die Vorgaben passen zu einer M3-Schraube.</p>
+<p>Mache die Form zur Aussparung und gruppiere sie mit dem Teil. Lass ihre Oberseite ein Stück über der Fläche enden, auf der der Kopf sitzen soll, damit die Tasche sauber offen ist. Für die Tasche einer Sechskantmutter nimmst du einen <strong class="ui">„Mehrkant“</strong> mit sechs Seiten als Aussparung.</p>
+<div class="pager"><a href="/api/desktop/layerling/ui/anleitung/text.html"><small>Vorheriges Kapitel</small>Text und gebogene Schrift</a><a class="next" href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html"><small>Nächstes Kapitel</small>Messen und Notizen</a></div>
+      </main>
+    </div>
+    <footer class="note">Diese Anleitung wächst mit dem Programm. Fehlt dir etwas oder stimmt etwas nicht, sag es im <a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=de" rel="noopener">Projekt unterstützen</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mehr Informationen zum Projekt auf GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Versionshinweise v1.57.0</a></div></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Zurück zum Editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Zum Editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+  </body>
+</html>

@@ -261,6 +261,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"virtual_browser", "Interactive website navigation in visible Chromium; watch via Virtual Computers Agent Workspaces"},
 		{"office_document", "Create, read, patch, and export virtual desktop Writer documents"},
 		{"office_workbook", "Create, read, edit, evaluate, and export virtual desktop spreadsheets"},
+		{"layerling", "Inspect and edit an open Layerling 3D CAD model in the Desktop"},
 		{"openscad_render", "Render OpenSCAD CAD source to preview and export files"},
 		{"meshcentral", "Manage MeshCentral groups, devices, events, power actions, and commands"},
 		{"remote_control_devices", "List and inspect remote control devices"},

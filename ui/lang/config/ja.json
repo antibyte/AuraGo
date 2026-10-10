@@ -1,4 +1,11 @@
 {
+  "config.layerling.enabled": "Layerlingを有効にする",
+  "config.layerling.help": "ブラウザー内のローカル3D CAD。エディターの言語：ドイツ語と英語。",
+  "config.layerling.access": "エージェントのアクセス",
+  "config.layerling.access_help": "このデスクトップセッションで開いているエディターに適用されます。デスクトップの権限も適用されます。",
+  "config.layerling.off": "オフ",
+  "config.layerling.read": "読み取り",
+  "config.layerling.write": "読み取りと書き込み",
   "config.agent.output_compression.reversible.enabled_label": "元の出力をアーカイブ",
   "config.agent.output_compression.reversible.max_age_hours_label": "アーカイブ保持期間（時間）",
   "config.agent.output_compression.reversible.primary_output_vault_label": "大きな出力をアーカイブ",

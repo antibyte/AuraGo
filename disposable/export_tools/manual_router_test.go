@@ -13,7 +13,7 @@ func TestManualRouterCanonicalBindingsAndSources(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	catalog, _, err := buildRoutingCatalog(root, filepath.Join(root, "training"))
+	catalog, _, err := buildRoutingCatalog(root, trainingSource(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +45,7 @@ func TestManualRouterCanonicalBindingsAndSources(t *testing.T) {
 
 func TestManualRouterSearchHonorsExplicitEmptyAndAllowedFamilies(t *testing.T) {
 	root, _ := filepath.Abs(filepath.Join("..", ".."))
-	catalog, search, err := buildRoutingCatalog(root, filepath.Join(root, "training"))
+	catalog, search, err := buildRoutingCatalog(root, trainingSource(t))
 	if err != nil {
 		t.Fatal(err)
 	}

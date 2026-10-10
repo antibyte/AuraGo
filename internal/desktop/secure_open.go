@@ -95,6 +95,11 @@ func validateNoSymlinkComponents(rootAbs, candidateAbs string, allowMissing bool
 	return nil
 }
 
+// OpenFileNoFollow opens path read-only and refuses to follow a symlink.
+func OpenFileNoFollow(path string) (*os.File, error) {
+	return openFileNoFollow(path, os.O_RDONLY, 0)
+}
+
 func secureOpenWorkspaceRead(path string) (*os.File, os.FileInfo, error) {
 	file, err := openFileNoFollow(path, os.O_RDONLY, 0)
 	if err != nil {

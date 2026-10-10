@@ -1060,6 +1060,9 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	if ff.RTLSDREnabled {
 		tools = append(tools, rtlSDRSchema())
 	}
+	if ff.LayerlingEnabled {
+		tools = append(tools, layerlingSchema())
+	}
 	if ff.LocalWikipediaEnabled {
 		tools = append(tools, localWikipediaSchema())
 	}

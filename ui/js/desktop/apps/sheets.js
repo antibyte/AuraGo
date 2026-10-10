@@ -95,7 +95,7 @@
             find('[data-save-state]').textContent=tr('loading');find('[data-save-state]').dataset.state='loading';find('[data-notice] [data-action="saveAs"]').hidden=true;
             ctx.updateWindowContext?.(windowId,{path});
             try{
-                enginePromise ||= import('/js/vendor/sheets/engine.js').catch(error=>{enginePromise=null;throw error;});lib=await enginePromise;
+                enginePromise ||= import(window.AuraLazyAssets.versionedURL('/js/vendor/sheets/engine.js')).catch(error=>{enginePromise=null;throw error;});lib=await enginePromise;
                 let doc;
                 if(template)doc=window.SheetsData.template(template,tr);
                 else if(/\.csv$/i.test(target)){doc=await window.SheetsData.importCSV(state,target);if(!doc)throw new DOMException('Cancelled','AbortError');path=target.replace(/\.csv$/i,'')+'-import-'+crypto.randomUUID().slice(0,6)+'.xlsx';}
@@ -115,7 +115,7 @@
                 structuralLocked=!!doc.structural_locked;
                 const localeName=({de:'de-DE',es:'es-ES',fr:'fr-FR',it:'it-IT',ja:'ja-JP',pl:'pl-PL',pt:'pt-BR',zh:'zh-CN'})[locale.split('-')[0]]||'en-US',localeID=localeName.replace('-','');
                 const created=lib.createUniver({locale:localeID,locales:{[localeID]:localeName==='en-US'&&!locale.startsWith('en')?SheetsData.nativeLocale(lib.locales[localeName],tr,locale):lib.locales[localeName]},logLevel:4,presets:[
-                    lib.UniverSheetsCorePreset({container:mount,header:false,toolbar:false,formulaBar:false,footer:false,contextMenu:!ctx.showContextMenu,disableAutoFocus:true,workerURL:'/js/vendor/sheets/worker.js',customFontFamily:['Geist','Carlito'],formula:{initialFormulaComputing:0,function:[lib.averageAlias]}}),
+                    lib.UniverSheetsCorePreset({container:mount,header:false,toolbar:false,formulaBar:false,footer:false,contextMenu:!ctx.showContextMenu,disableAutoFocus:true,workerURL:window.AuraLazyAssets.versionedURL('/js/vendor/sheets/worker.js'),customFontFamily:['Geist','Carlito'],formula:{initialFormulaComputing:0,function:[lib.averageAlias]}}),
                     lib.UniverSheetsFilterPreset(),lib.UniverSheetsSortPreset(),lib.UniverSheetsDataValidationPreset(),lib.UniverSheetsConditionalFormattingPreset(),lib.UniverSheetsFindReplacePreset(),lib.UniverSheetsNotePreset(),lib.UniverSheetsHyperLinkPreset(),lib.UniverSheetsTablePreset()
                 ]});
                 engine=created.univer;api=created.univerAPI;api.toggleDarkMode(false);api.getFormula().setFormulaReturnDependencyTree(true);

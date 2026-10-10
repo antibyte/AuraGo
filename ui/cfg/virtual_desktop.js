@@ -77,6 +77,10 @@ function renderVirtualDesktopSection(section) {
     html += '</div>';
 
     html += vdCfgVideoStudio();
+    const layerling = data.layerling || {};
+    html += '<h3>Layerling</h3>';
+    html += vdCfgToggleRow('config.layerling.enabled', 'config.layerling.help', layerling.enabled === true, 'virtual_desktop.layerling.enabled');
+    html += vdCfgField('config.layerling.access', 'config.layerling.access_help', '<select class="field-input" data-path="virtual_desktop.layerling.agent_access">' + ['off', 'read', 'write'].map(value => '<option value="' + value + '"' + ((layerling.agent_access || 'off') === value ? ' selected' : '') + '>' + t('config.layerling.' + value) + '</option>').join('') + '</select>');
     html += '<div class="field-group">';
     html += '<button class="btn-save dc-test-btn" onclick="vdCfgTestDesktop()" id="vd-cfg-test-btn">▣ ' + t('config.virtual_desktop.test_button') + '</button>';
     html += '<a class="btn-save dc-test-btn" href="/desktop">' + t('config.virtual_desktop.open_button') + '</a>';

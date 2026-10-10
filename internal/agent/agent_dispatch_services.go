@@ -380,8 +380,16 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				prompt = "Describe this image in detail. What do you see? If there is text, transcribe it. If there are people, describe their actions."
 			}
 			prompt, _ = tools.PrepareVisionPrompt(prompt)
+			visionCfg := cfg
 			if hasFile {
-				if preferredResult, usedPreferred, err := dispatchPreferredMCPVision(ctx, cfg, fpath, prompt, logger); usedPreferred {
+				var cleanup func()
+				var err error
+				fpath, visionCfg, cleanup, err = prepareRegisteredVisionInput(mediaRegistryDB, cfg, fpath)
+				if err != nil {
+					return "Tool Output: " + tools.ErrorJSONf("Vision input failed: %v", err)
+				}
+				defer cleanup()
+				if preferredResult, usedPreferred, err := dispatchPreferredMCPVision(ctx, visionCfg, fpath, prompt, logger); usedPreferred {
 					if err != nil {
 						logger.Warn("[Vision] Preferred MCP vision failed, falling back to native vision", "source", source, "error", err)
 					} else {
@@ -398,10 +406,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if hasURL {
 				result, pTokens, cTokens, err = dispatchAnalyzeImageURLWithPrompt(imageURL, prompt, cfg)
 			} else {
-				result, pTokens, cTokens, err = dispatchAnalyzeImageWithPrompt(fpath, prompt, cfg)
+				result, pTokens, cTokens, err = dispatchAnalyzeImageWithPrompt(fpath, prompt, visionCfg)
 			}
 			if err != nil {
-				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Vision analysis failed: %v"}`, err)
+				return "Tool Output: " + tools.ErrorJSONf("Vision analysis failed: %v", err)
 			}
 			if budgetTracker != nil {
 				vModel := cfg.Vision.Model

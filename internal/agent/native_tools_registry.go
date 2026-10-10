@@ -86,7 +86,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		OpenSCADEnabled: true, OfficeDocumentEnabled: true, OfficeWorkbookEnabled: true, NetworkPingEnabled: true, WebScraperEnabled: true,
 		S3Enabled: true, NetworkScanEnabled: true, FormAutomationEnabled: true, UPnPScanEnabled: true,
 		MeshCoreEnabled: true,
-		RTLSDREnabled: true,
+		RTLSDREnabled:   true,
 		JellyfinEnabled: true, ChromecastEnabled: true, BluetoothEnabled: true, BluetoothWriteEnabled: true, BluetoothAudioEnabled: true,
 		NetworkSharesEnabled: true, NetworkSharesCreateEnabled: true, NetworkSharesUpdateEnabled: true, NetworkSharesDeleteEnabled: true,
 		SIPPhoneEnabled: true, SIPPhoneDialEnabled: true, SIPPhoneAnswerEnabled: true, SIPPhoneDTMFEnabled: true, SIPPhoneHangupEnabled: true,
@@ -100,7 +100,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		YepAPIScrapingEnabled: true, YepAPIYouTubeEnabled: true,
 		YepAPITikTokEnabled: true, YepAPIInstagramEnabled: true,
 		YepAPIAmazonEnabled: true,
-		DaemonSkillsEnabled: true, PaperlessNGXEnabled: true, LocalWikipediaEnabled: true,
+		DaemonSkillsEnabled: true, PaperlessNGXEnabled: true, LocalWikipediaEnabled: true, LayerlingEnabled: true,
 	}
 }
 
@@ -132,6 +132,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("frigate", ff.FrigateEnabled)
 	appendToolFeatureKeyPart("go2rtc", ff.Go2RTCEnabled)
 	appendToolFeatureKeyPart("rtl_sdr", ff.RTLSDREnabled)
+	appendToolFeatureKeyPart("layerling", ff.LayerlingEnabled)
 	appendToolFeatureKeyPart("local_wikipedia", ff.LocalWikipediaEnabled)
 	appendToolFeatureKeyPart("three_d_printer", ff.ThreeDPrinterEnabled)
 	appendToolFeatureKeyPart("ollama", ff.OllamaEnabled)

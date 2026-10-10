@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Skizzen: vom Umriss zum Körper - layerling Anleitung</title>
+    <meta name="description" content="Einen flachen Umriss zeichnen, Ecken runden oder fasen und daraus einen Körper ziehen oder drehen.">
+    <link rel="canonical" href="https://layerling.com/anleitung/skizzen.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/skizzen.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/sketches.html">
+    <meta property="og:title" content="Skizzen: vom Umriss zum Körper - layerling Anleitung">
+    <meta property="og:description" content="Einen flachen Umriss zeichnen, Ecken runden oder fasen und daraus einen Körper ziehen oder drehen.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite")document.documentElement.dataset.theme="dark"}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar a.lang { color: var(--muted); font-size: 14px; font-weight: 600; text-decoration: none; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: left; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-left: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-left: auto; text-align: right; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/anleitung/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Anleitung</span></span></a>
+      <a class="lang" href="/api/desktop/layerling/ui/guide/sketches.html" hreflang="en" title="Read this in English">English</a>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Zum Editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Der Editor ist schon in einem anderen Tab offen - wechsle einfach dorthin.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Kapitel"><h2>Kapitel</h2><ol><li><a href="/api/desktop/layerling/ui/anleitung/erste-schritte.html">Erste Schritte</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html">Ansicht und Arbeitsebene</a></li><li><a href="/api/desktop/layerling/ui/anleitung/formen.html">Formen setzen und einstellen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html">Auswählen und Anordnen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html">Körper und Aussparungen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html">Kanten brechen und Körper aushöhlen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html" aria-current="page">Skizzen: vom Umriss zum Körper</a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html">Text und gebogene Schrift</a></li><li><a href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html">Gewinde, Zahnräder und andere Bauteile</a></li><li><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html">Messen und Notizen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/drucken.html">Für den 3D-Druck vorbereiten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/dateien-und-speichern.html">Dateien, Speichern und Weitergeben</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html">Tastenkürzel</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ki-mit-mcp.html">Mit einer KI bauen (MCP)</a></li><li><a href="/api/desktop/layerling/ui/anleitung/offline-und-installieren.html">Als App installieren, ohne Internet arbeiten und selbst hosten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/videos.html">Videos über layerling</a></li></ol></nav>
+      <main>
+<h1>Skizzen: vom Umriss zum Körper</h1>
+<p class="lead">Einen flachen Umriss zeichnen, Ecken runden oder fasen und daraus einen Körper ziehen oder drehen.</p>
+<div class="toc"><b>Auf dieser Seite</b><ul><li><a href="#eine-skizze-beginnen">Eine Skizze beginnen</a></li><li><a href="#zeichnen">Zeichnen</a></li><li><a href="#linien-nach-mass">Linien nach Maß</a></li><li><a href="#eine-gerade-seite-kruemmen">Eine gerade Seite krümmen</a></li><li><a href="#winkel-ablesen-und-eintippen">Winkel ablesen und eintippen</a></li><li><a href="#ecken-runden-oder-fasen">Ecken runden oder fasen</a></li><li><a href="#ein-koerper-daraus-machen">Ein Körper daraus machen</a></li><li><a href="#als-kontur-bauen">Als Kontur bauen</a></li><li><a href="#fuellung-und-silhouette">Füllung und Silhouette</a></li><li><a href="#ein-bild-als-vorlage">Ein Bild als Vorlage</a></li><li><a href="#tasten-im-skizzenmodus">Tasten im Skizzenmodus</a></li></ul></div>
+<p>Nicht alles lässt sich aus Grundformen zusammensetzen. Für Teile mit eigener Kontur, etwa einen Halter, ein Zahnprofil oder eine Vase, zeichnest du zuerst den <strong>Umriss</strong> und machst dann einen Körper daraus. Dafür gibt es den Skizzenmodus.</p>
+<h2 id="eine-skizze-beginnen">Eine Skizze beginnen</h2>
+<p>Wechsle oben von <strong class="ui">„3D-Editor“</strong> auf <strong class="ui">„Skizze“</strong>. Klicke im Menüband auf <strong class="ui">„Skizze zu 3D“</strong> und wähle, was aus dem Umriss werden soll:</p>
+<ul><li><strong><strong class="ui">„Skizze extrudieren“</strong>:</strong> Der Umriss wird in die Höhe gezogen, wie eine Ausstechform.</li><li><strong><strong class="ui">„Skizze rotieren“</strong>:</strong> Der Umriss wird um eine Achse gedreht, wie bei einer Drehbank. So entstehen Vasen, Becher, Kegel und alles, was rund ist.</li></ul>
+<p>Danach zeigt der Editor ein Blatt mit Gitter. Das ist deine Zeichenfläche.</p>
+<h2 id="zeichnen">Zeichnen</h2>
+<p>Das Menüband des Skizzenmodus ist in Bereiche geteilt:</p>
+<ul><li><strong>Zeichnen:</strong> <strong class="ui">„Linie“</strong> setzt gerade Abschnitte: Punkte nacheinander anklicken; mit gehaltener <kbd>Umschalt</kbd>-Taste rastet die neue Linie in 15°-Schritten ein, waagerecht und senkrecht eingeschlossen. Am Zeiger stehen Länge und Winkel der neuen Linie. Wie lang sie werden soll, kannst du auch eintippen, siehe <a href="#linien-nach-mass">Linien nach Maß</a>. Die <strong class="ui">„Bézier-Kurve“</strong> spannst du an ihren Griffen: Punkt anklicken und ziehen, und zwar in die Richtung, in der die Linie weiterlaufen soll, wie mit dem Zeichenstift in Illustrator oder Inkscape. Je weiter du ziehst, desto stärker biegt sie sich; der Abschnitt zum neuen Punkt biegt sich schon während des Ziehens mit, so dass du siehst, was entsteht. Das Ziehen beim Setzen formt die Kurve; wer aus Tinkercad kommt und nur Punkte anklicken will, nimmt die <strong class="ui">„Weiche Kurve“</strong>. Die <strong class="ui">„Weiche Kurve“</strong> legt einen fließenden Verlauf durch die Punkte, die du anklickst. Um den Umriss zu schließen, klickst du am Ende wieder auf den ersten Punkt.</li><li><strong>Formen:</strong> <strong class="ui">„Skizzenform hinzufügen“</strong> bietet fertige Umrisse: <strong class="ui">„Rechteck“</strong>, <strong class="ui">„Kreis“</strong>, <strong class="ui">„Oval“</strong>, <strong class="ui">„Halbkreis“</strong>, <strong class="ui">„Tortenstück“</strong>, <strong class="ui">„Lochkreis“</strong> (eine Scheibe mit Bohrungen), <strong class="ui">„Dreieck“</strong> und <strong class="ui">„Sechseck“</strong>. Wähle eine aus und ziehe einen Rahmen auf.</li><li><strong>Auswahl:</strong> <strong class="ui">„Auswählen“</strong> verschiebt Punkte und Linien. Ein Klick in einen geschlossenen Umriss wählt den ganzen Umriss, so dass du ihn gleich verschieben oder skalieren kannst; in einem Loch wird das Loch gewählt. Der Rahmen um die Auswahl hat acht Griffe: Die an den Ecken ändern Breite und Höhe zugleich, mit gehaltener <kbd>Umschalt</kbd>-Taste im gleichen Verhältnis. Die an den Seiten ändern nur eine Richtung. Die Maßblasen für Breite und Höhe lassen sich anklicken; dort tippst du ein neues Maß ein, gern auch als Rechnung („60+12,5“) oder in Prozent („150%“). Mit <kbd>Umschalt</kbd> nimmst du per Klick weitere Punkte und Linien dazu oder wieder weg, so dass du mehrere auf einmal verschieben kannst. Ein Rahmen über freier Fläche wählt alles darin. Auch eine Linie lässt sich ziehen (sie wandert an ihren beiden Enden, oder die ganze Auswahl, wenn sie zu einer gehört). Die Pfeiltasten verschieben die Auswahl um einen Rasterschritt, mit <kbd>Umschalt</kbd> um einen größeren, und <kbd>Umschalt</kbd> beim Ziehen hält die Bewegung auf einer Achse. <strong class="ui">„Punkte setzen oder entfernen“</strong>: Ein Klick auf einen Abschnitt setzt einen Punkt, ein Klick auf einen Punkt entfernt ihn. Dazu kommen <strong class="ui">„Radieren“</strong> und das Einfügen eines Vorlagenbilds (<strong class="ui">„Bild hinzufügen“</strong>).</li><li><strong>Zwischenablage:</strong> <strong class="ui">„Kopieren“</strong>, <strong class="ui">„Einfügen“</strong>, <strong class="ui">„Duplizieren“</strong> und <strong class="ui">„Löschen“</strong> wirken auf die gewählten Punkte, Linien und Bilder, wie im 3D-Editor; <kbd>Strg</kbd>+<kbd>X</kbd> schneidet aus. Eingefügtes und Dupliziertes landet mit 10 mm Abstand neben dem Original, an einer freien Stelle, an der es keine vorhandene Linie berührt, so dass es nie mit dem Bestehenden verbunden wird. Es bleibt ausgewählt, so dass du es gleich an seinen Platz ziehen kannst.</li><li><strong>Verlauf:</strong> <strong class="ui">„Skizze rückgängig“</strong> und <strong class="ui">„Skizze wiederherstellen“</strong>.</li><li><strong>Ansicht:</strong> <kbd>F</kbd> holt die ganze Skizze ins Bild, <kbd>Umschalt</kbd>+<kbd>F</kbd> zoomt auf die Auswahl, wie im 3D-Editor. Das <strong class="ui">„Massband“</strong> in der Seitenleiste misst den Abstand zwischen zwei Punkten. Außerdem zeigt die Skizze Maße, sobald du etwas anklickst: bei einer Linie ihre Länge, bei einem Punkt die Längen der Linien, die dort zusammentreffen. Die Schaltfläche <strong class="ui">„Maße anzeigen“</strong> in der Seitenleiste blendet diese Maße aus und wieder ein, wenn sie stören, zum Beispiel beim Formen von Kurven; das Bandmaß funktioniert weiter. Bei einer geraden Linie kannst du die Maßblase anklicken und die Länge in Millimetern eintippen; <kbd>Enter</kbd> übernimmt sie, <kbd>Esc</kbd> bricht ab. Die Linie behält ihre Richtung, ihr Anfangspunkt bleibt stehen, und die Linien am anderen Ende gehen mit. Ist ein Endpunkt markiert, wandert dieser. Mit <kbd>Alt</kbd>+<kbd>Enter</kbd> wächst die Linie zu beiden Seiten und behält ihre Mitte. Bei Kurven zeigt die Blase nur die Länge.</li></ul>
+<p>Ein Körper entsteht nur aus einem <strong>geschlossenen</strong> Umriss.</p>
+<figure><img src="/api/desktop/layerling/ui/anleitung/img/sketch-outline.webp" alt="Ein L-förmiger Umriss. Am gewählten Eckpunkt oben links stehen die Längen der beiden Linien in Millimetern und der Winkel dazwischen in Grad." width="1280" height="800" loading="lazy"><figcaption>Ein L-förmiger Umriss. Am gewählten Eckpunkt oben links stehen die Längen der beiden Linien in Millimetern und der Winkel dazwischen in Grad.</figcaption></figure>
+<h2 id="linien-nach-mass">Linien nach Maß</h2>
+<p>Hast du mit <strong class="ui">„Linie“</strong> oder <strong class="ui">„Weiche Kurve“</strong> den ersten Punkt gesetzt, tippst du einfach eine Zahl: Neben der Linie öffnen sich zwei Felder, <strong class="ui">„Länge“</strong> in Millimetern und <strong class="ui">„Winkel“</strong> in Grad. Mit <kbd>&lt;</kbd> oder <kbd>Tab</kbd> wechselst du zum Winkel, so dass „50&lt;30“ eine 50 mm lange Linie unter 30° ergibt, wie in AutoCAD. <kbd>Enter</kbd> setzt den Punkt, und du tippst gleich die nächste Linie; <kbd>Esc</kbd> schließt die Felder, ohne den Linienzug zu beenden.</p>
+<p>Der Winkel zählt von rechts gegen den Uhrzeigersinn: 0° nach rechts, 90° nach oben, 180° nach links, 270° nach unten. Lässt du ihn leer, folgt die Linie dem Zeiger, du gibst also nur die Länge vor und zeigst die Richtung mit der Maus. Rechnungen wie „40+12,5“ gehen in beiden Feldern. Würde der Punkt neben der Platte landen, sagt das Feld es dir und wartet auf ein anderes Maß.</p>
+<h2 id="eine-gerade-seite-kruemmen">Eine gerade Seite krümmen</h2>
+<p>Wähle eine gerade Linie und klicke in der Leiste, die erscheint, auf <strong class="ui">„Linie krümmen“</strong>: Die Seite wölbt sich wie bei Tinkercad zu einer Kurve und zeigt ihre beiden Griffe. Ziehe daran, um die Kurve zu formen; je weiter ein Griff absteht, desto stärker die Biegung. <strong class="ui">„Linie gerade“</strong> macht die Seite wieder gerade. Einen gewählten Punkt kannst du mit <strong class="ui">„Weiche Kurve“</strong> rund machen: Er bekommt eigene Griffe, und die Linien daneben werden zu Kurven.</p>
+<figure><img src="/api/desktop/layerling/ui/anleitung/img/sketch-curve.webp" alt="Die untere Seite des L-förmigen Umrisses zu einer Kurve gebogen, mit ihren zwei Griffen an den Enden." width="1280" height="800" loading="lazy"><figcaption>Die untere Seite des L-förmigen Umrisses zu einer Kurve gebogen, mit ihren zwei Griffen an den Enden.</figcaption></figure>
+<h2 id="winkel-ablesen-und-eintippen">Winkel ablesen und eintippen</h2>
+<p>Klickst du einen Eckpunkt an, an dem <strong>zwei gerade Linien</strong> zusammentreffen, zeigt layerling neben den Längen den <strong>Winkel</strong> dazwischen in Grad, mit einem kleinen Bogen. In einem geschlossenen Umriss ist es der Winkel im Inneren der Form, eine Einbuchtung liest sich also über 180°. Klicke auf den Wert und tippe einen neuen Winkel. Dann dreht sich eine der beiden Linien um die Ecke und behält ihre Länge, die andere bleibt, wo sie ist. Die Linie, die sich dreht, ist gestrichelt; mit <kbd>Tab</kbd> wechselst du zur anderen, <kbd>Enter</kbd> übernimmt und <kbd>Esc</kbd> bricht ab. Was am anderen Ende der gedrehten Linie hängt, geht mit.</p>
+<p>Verschiebst du einen Punkt, ändern sich drei Winkel: an ihm selbst und an den beiden Nachbarecken am anderen Ende seiner Linien. Darum zeigt layerling auch diese beiden, und jeder lässt sich anklicken und eintippen. So stellst du etwa eine Ecke unten links auf 75,5°, während oben links der Punkt gewählt ist, der dafür wandert. Auch hier darfst du rechnen, z. B. „90-14,5“.</p>
+<p>Wo eine Kurve an die Ecke stößt oder mehr als zwei Linien zusammenlaufen, gibt es keinen Winkel. Der Knopf <strong class="ui">„Maße anzeigen“</strong> in der Seitenleiste blendet den Winkel zusammen mit den Längen aus.</p>
+<h2 id="ecken-runden-oder-fasen">Ecken runden oder fasen</h2>
+<p>Klicke auf einen Eckpunkt und wähle <strong class="ui">„Ecke verrunden“</strong> oder <strong class="ui">„Ecke fasen“</strong>. Es erscheint ein kleines Feld für den <strong class="ui">„Radius“</strong> beziehungsweise den <strong class="ui">„Abstand“</strong>. Trage das Maß ein und bestätige mit dem Haken. Das geht für Ecken zwischen zwei geraden Linien.</p>
+<figure><img src="/api/desktop/layerling/ui/anleitung/img/sketch-fillet.webp" alt="Die Ecke oben links wird mit 12 mm Radius verrundet." width="1280" height="800" loading="lazy"><figcaption>Die Ecke oben links wird mit 12 mm Radius verrundet.</figcaption></figure>
+<h2 id="ein-koerper-daraus-machen">Ein Körper daraus machen</h2>
+<p>Klicke auf <strong class="ui">„Skizze abschließen“</strong>. Der Umriss steht als Körper auf der Arbeitsebene und trägt den Namen „Skizzenkörper“. In seinen Einstellungen änderst du die Höhe, die Farbe und alles Weitere wie bei jeder anderen Form. Änderst du seine Größe, baut layerling ihn kurz danach aus der Skizze neu auf, und die Skizze wächst mit. So bleibt er ein exakter Körper, an dem Fase und Rundung gehen, und beim nächsten Bearbeiten hat die Skizze die Größe, die der Körper hat.</p>
+<p>Liegt die Arbeitsebene auf einer Seite eines Körpers, zeichnest du so, wie du auf diese Seite schaust: Oben in der Skizze ist auch am fertigen Körper oben. Der blasse Umriss des Körpers in der Skizzenansicht zeigt, wo er steht. Schneidet die Arbeitsebene durch einen Körper, zeigt die Skizzenansicht stattdessen den Umriss dieses Schnitts: Ein ausgehöhlter Körper erscheint als Ring, und du kannst die Skizze an seinen Wänden ausrichten. Ein Punkt, den du nahe an eine Ecke dieser Umrisse setzt oder ziehst, rastet genau dort ein; ein kleiner blauer Ring zeigt das an. So übernimmst du Kanten anderer Körper in die Skizze, auch wenn die Arbeitsebene nicht genau auf ihnen liegt.</p>
+<figure><img src="/api/desktop/layerling/ui/anleitung/img/sketch-result.webp" alt="Aus dem Umriss ist ein Körper geworden. Die Ecke ist gerundet." width="1280" height="800" loading="lazy"><figcaption>Aus dem Umriss ist ein Körper geworden. Die Ecke ist gerundet.</figcaption></figure>
+<p>Mit <strong class="ui">„Skizze bearbeiten“</strong> kehrst du jederzeit in die Skizze zurück, um sie zu ändern. Ein Doppelklick auf den Körper tut dasselbe, wie bei Tinkercad (ein gesperrter Körper bleibt zu); in den Einstellungen lässt sich das mit <strong class="ui">„Doppelklick öffnet die Skizze“</strong> abschalten. Kantenbearbeitungen, die du an dem Körper schon gemacht hast, gehen dabei allerdings verloren, weil die Kanten neu entstehen.</p>
+<h3 id="rotieren">Rotieren</h3>
+<p>Beim Rotieren zeichnest du den halben Querschnitt <strong>links von der Achse</strong>, die in der Skizze eingezeichnet ist. Daneben siehst du eine 3D-Vorschau der Drehung. Sie zeigt sofort, wie der Körper aussieht. Der Umriss muss geschlossen sein. Zum Schluss klickst du auf <strong class="ui">„Rotation abschließen“</strong>.</p>
+<p>Ein gedrehter Körper ist ein exakter Körper wie ein ausgezogener: Er nimmt Fasen und Verrundungen an, und du kannst ihn aushöhlen, für einen Becher oder eine Vase. Ein Körper, der mit einer älteren layerling-Fassung gedreht wurde, ist ein Netz; öffne <strong class="ui">„Skizze bearbeiten“</strong> und schließe ihn neu ab, dann ist er exakt. Ein Umriss, der über die Achse hinausreicht, lässt sich nicht exakt bauen und wird wie bisher ein Netz.</p>
+<h2 id="als-kontur-bauen">Als Kontur bauen</h2>
+<p>Normalerweise wird die Fläche innerhalb eines geschlossenen Umrisses zum Körper. Mit <strong class="ui">„Kontur“</strong> im Abschnitt <strong class="ui">„Abschluss“</strong> baust du stattdessen die Linie selbst, mit einer Breite, die du einstellst. Setze dazu in der Tafel das Häkchen bei <strong class="ui">„Als Kontur bauen“</strong>. Die Skizze zeigt dann gleich, was entsteht.</p>
+<ul><li>Ein <strong>geschlossener Umriss</strong> wird zu einem Rahmen. <strong class="ui">„Lage“</strong> sagt, wo die Wand liegt: <strong class="ui">„Mittig“</strong> auf der gezeichneten Linie, <strong class="ui">„Innen“</strong> innerhalb oder <strong class="ui">„Außen“</strong> außerhalb. Außen ist praktisch für eine Toleranz: Zeichne den Umriss einer Aussparung, etwa eines Schwalbenschwanzes, und gib ihm 0,2 mm Kontur außen. So entsteht der Spalt, den der Druck braucht.</li><li>Eine <strong>offene Linie</strong> wird zu einem Streifen, mittig auf der Linie. Unter <strong class="ui">„Enden“</strong> wählst du, wie ihre Enden aussehen: <strong class="ui">„Flach“</strong>, <strong class="ui">„Eckig“</strong> (um die halbe Breite verlängert) oder <strong class="ui">„Rund“</strong>.</li><li><strong class="ui">„Ecken“</strong> gilt für beide: <strong class="ui">„Spitz“</strong>, <strong class="ui">„Rund“</strong> oder <strong class="ui">„Abgeschrägt“</strong>.</li></ul>
+<p>Die Skizze behält die gezeichnete Linie. Öffnest du sie wieder, änderst du Linie und Kontur weiter, und ohne Häkchen wird wieder die Fläche gebaut. Kurven werden dabei in kurze gerade Stücke zerlegt. Beim Rotieren gibt es die Kontur nicht.</p>
+<h2 id="fuellung-und-silhouette">Füllung und Silhouette</h2>
+<p>Die Kontur stellst du auch ein, ohne die Skizze zu öffnen: In den Eigenschaften eines Skizzenkörpers wählst du unter <strong class="ui">„Füllung“</strong> <strong class="ui">„Fläche“</strong>, <strong class="ui">„Kontur außen“</strong>, <strong class="ui">„Kontur innen“</strong> oder <strong class="ui">„Kontur mittig“</strong>, dazu <strong class="ui">„Linienbreite“</strong> und <strong class="ui">„Ecken“</strong>. Der Körper wird gleich neu gebaut, an seinem Platz. Das entspricht den Füllarten beim SVG-Import in Tinkercad: Standard, Außenlinie und Innenlinie.</p>
+<p><strong class="ui">„Silhouette (ohne Löcher)“</strong> lässt alle Umrisse weg, die in einem anderen liegen: Löcher und was in ihnen liegt. Übrig bleibt nur der äußere Umriss. Zusammen mit <strong class="ui">„Kontur außen“</strong> wird daraus ein Ausstecher: Importiere ein SVG zweimal, einmal mit Silhouette als Fläche für den Boden und einmal mit Silhouette und 1 bis 2 mm Kontur außen als Wand. Den Schalter gibt es auch in der Tafel <strong class="ui">„Kontur“</strong> im Skizzenmodus.</p>
+<p>Verrundungen und Fasen an den Kanten gehen beim Neubau verloren, wie beim Bearbeiten der Skizze.</p>
+<h2 id="ein-bild-als-vorlage">Ein Bild als Vorlage</h2>
+<p>Mit <strong class="ui">„Bild hinzufügen“</strong> legst du ein Foto oder eine Zeichnung unter die Skizze und zeichnest sie nach. Du kannst die Größe, die Deckkraft und die Lage einstellen. Sobald das Bild richtig liegt, sperrst du es mit <kbd>L</kbd>, damit du es beim Zeichnen nicht versehentlich verschiebst. Ein gesperrtes Bild ist aus dem Weg: Klicks gehen durch es hindurch, du wählst also Linien und Punkte darauf an und ziehst einen Rahmen darüber. Um es wieder auszuwählen, etwa zum Entsperren, klickst du mit <kbd>Alt</kbd> darauf. Verdecken seine Einstellungen am rechten Rand das Bild, ziehst du sie an ihrer Titelleiste weg; ein Doppelklick darauf dockt sie wieder an.</p>
+<h2 id="tasten-im-skizzenmodus">Tasten im Skizzenmodus</h2>
+<div class="table-scroll"><table><thead><tr><th>Taste</th><th>Wirkung</th></tr></thead><tbody><tr><td><kbd>Esc</kbd></td><td>Linienzug beenden, Auswahl aufheben</td></tr><tr><td><kbd>Entf</kbd></td><td>gewähltes Element löschen</td></tr><tr><td><kbd>Strg</kbd>+<kbd>C</kbd></td><td>Auswahl kopieren</td></tr><tr><td><kbd>Strg</kbd>+<kbd>X</kbd></td><td>Auswahl ausschneiden</td></tr><tr><td><kbd>Strg</kbd>+<kbd>V</kbd></td><td>einfügen</td></tr><tr><td><kbd>Strg</kbd>+<kbd>D</kbd></td><td>Auswahl duplizieren</td></tr><tr><td><kbd>Strg</kbd>+<kbd>Z</kbd></td><td>rückgängig</td></tr><tr><td><kbd>Umschalt</kbd></td><td>beim Zeichnen: Linie in 15°-Schritten einrasten; beim Ziehen: Bewegung auf eine Achse beschränken</td></tr><tr><td>Ziffer, <kbd>&lt;</kbd>, <kbd>Tab</kbd>, <kbd>Enter</kbd></td><td>beim Zeichnen: Länge und Winkel der nächsten Linie eintippen und setzen</td></tr><tr><td><kbd>R</kbd></td><td>geschlossene Skizze um 45° drehen</td></tr><tr><td><kbd>L</kbd></td><td>Vorlagenbild sperren oder entsperren</td></tr></tbody></table></div>
+<aside class="tip"><p><strong>Tipp:</strong> Zeichne so wenig Punkte wie nötig. Ein Umriss mit wenigen, sauber gesetzten Punkten ergibt einen glatteren Körper als ein Gewirr aus vielen.</p></aside>
+<div class="pager"><a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html"><small>Vorheriges Kapitel</small>Kanten brechen und Körper aushöhlen</a><a class="next" href="/api/desktop/layerling/ui/anleitung/text.html"><small>Nächstes Kapitel</small>Text und gebogene Schrift</a></div>
+      </main>
+    </div>
+    <footer class="note">Diese Anleitung wächst mit dem Programm. Fehlt dir etwas oder stimmt etwas nicht, sag es im <a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=de" rel="noopener">Projekt unterstützen</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mehr Informationen zum Projekt auf GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Versionshinweise v1.57.0</a></div></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Zurück zum Editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Zum Editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+  </body>
+</html>

@@ -64,20 +64,27 @@ type CodeDockerContainer struct {
 
 // CodeDockerState is the subset of Docker inspect state Code Studio needs.
 type CodeDockerState struct {
-	Running bool `json:"Running"`
+	Running  bool `json:"Running"`
+	ExitCode int  `json:"ExitCode"`
 }
 
 // CodeDockerInspect is the subset of Docker inspect data Code Studio needs.
+// Env, ReadonlyRootfs and Tmpfs let OpenSCAD tell a hardened probe from an
+// older container that still bind-mounts the job tree.
 type CodeDockerInspect struct {
-	ID     string            `json:"id"`
-	Name   string            `json:"name"`
-	State  CodeDockerState   `json:"state"`
-	Mounts []CodeDockerMount `json:"mounts,omitempty"`
+	ID             string            `json:"id"`
+	Name           string            `json:"name"`
+	State          CodeDockerState   `json:"state"`
+	Mounts         []CodeDockerMount `json:"mounts,omitempty"`
+	Env            []string          `json:"env,omitempty"`
+	ReadonlyRootfs bool              `json:"readonly_rootfs,omitempty"`
+	Tmpfs          map[string]string `json:"tmpfs,omitempty"`
 }
 
 type CodeDockerMount struct {
 	Source      string `json:"source"`
 	Destination string `json:"destination"`
+	Type        string `json:"type,omitempty"`
 }
 
 // CodeDockerExecResult is the subset of Docker exec output Code Studio needs.
@@ -88,19 +95,21 @@ type CodeDockerExecResult struct {
 
 // CodeDockerCreateRequest describes the container Code Studio wants to create.
 type CodeDockerCreateRequest struct {
-	Name        string
-	Image       string
-	Env         []string
-	Ports       map[string]string
-	Volumes     []string
-	Cmd         []string
-	Restart     string
-	NetworkMode string
-	User        string
-	SecurityOpt []string
-	CapDrop     []string
-	CapAdd      []string
-	Resources   *CodeContainerResources
+	Name           string
+	Image          string
+	Env            []string
+	Ports          map[string]string
+	Volumes        []string
+	Cmd            []string
+	Restart        string
+	NetworkMode    string
+	User           string
+	SecurityOpt    []string
+	CapDrop        []string
+	CapAdd         []string
+	Resources      *CodeContainerResources
+	ReadonlyRootfs bool
+	Tmpfs          map[string]string
 }
 
 // CodeContainerResources holds Docker resource limits for Code Studio.

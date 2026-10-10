@@ -1643,6 +1643,9 @@ registration lives in `internal/desktop/types.go`.
   window owns its engine/worker, requests, panels, chart canvases, operation
   journal and save queue. Load OfficeSession, data, panels and charts before
   sheets.js. The local vendor build imports only Apache-2.0 Univer OSS 1.0.3.
+- Resolve the engine import and formula worker through `AuraLazyAssets.versionedURL`
+  so both match the desktop build, including after a cached pre-1.0 resource set.
+  Verify `TestDesktopSheetsVersionedAssetsBrowser` alongside the app/recovery checks.
 - Failed workbook loads release the editor/save queue and show New, Open and
   Retry actions with an error status. A confirmed 404 clears the shell's stored
   path; temporary failures retain it for retry. New uses a fresh create-only
@@ -2192,10 +2195,15 @@ registration lives in `internal/desktop/types.go`.
   `ui/img/whitesur`, and the backend icon catalog in
   `internal/desktop/types.go`); button icons are retinted via CSS
   `--oscad-icon-filter` so they stay legible on dark glass.
-- OpenSCAD result events must filter on `window_id` when present; without it,
-  idle multi-window instances must ignore global `openscad_result` events.
+- OpenSCAD result events: a present `window_id` still selects that window
+  only. A missing `window_id` is ignored whenever more than one OpenSCAD
+  window exists, including a busy window. OpenSCAD does not listen for
+  `window` `message` events. Preview URLs must match
+  `/api/openscad/jobs/oscad-…/files/…`. SVG preview uses an image element,
+  and PDF preview uses a sandboxed iframe. The more-exports row includes AMF.
 - OpenSCAD readonly mode disables CodeMirror/`textarea` editing, defines
-  inputs, and the agent prompt.
+  inputs, and the agent prompt. Readonly mode does not apply `source_scad`
+  into the editor.
 - OpenSCAD visible UI strings use `desktop.openscad.*` keys in all
   `ui/lang/desktop/*.json` files.
 - `homepage-studio.js`, `homepage-studio-preview.js`,

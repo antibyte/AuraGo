@@ -24,6 +24,24 @@ func TestDesktopSheetsLoadRecoveryBrowser(t *testing.T) {
 	testSheetsAppBrowser(t, testSheetsLoadRecovery)
 }
 
+func TestDesktopSheetsVersionedAssetsBrowser(t *testing.T) {
+	testSheetsAppBrowser(t, func(t *testing.T, page *rod.Page) {
+		page.MustEval(`async()=>{
+  const app=SheetsApp.instances.get('test');
+  if(!app.session)throw Error(document.querySelector('[data-notice-text]').textContent);
+  const legacy=await import('/js/vendor/sheets/engine.js');
+  if(legacy.locales['en-US']['engine-formula'])throw Error('Legacy locale fixture was not loaded');
+  await app.act('function');
+  for(const name of ['SUM','AVERAGE','AVG']){
+    if(!document.querySelector('[data-functions] [data-function="'+name+'"] small')?.textContent)throw Error('Missing function help: '+name);
+  }
+  const workers=performance.getEntriesByType('resource').filter(entry=>new URL(entry.name).pathname==='/js/vendor/sheets/worker.js');
+  if(!workers.length||workers.some(entry=>new URL(entry.name).searchParams.get('v')!==BUILD_VERSION))throw Error('Unversioned formula worker');
+  SheetsApp.dispose('test');
+ }`)
+	})
+}
+
 func testSheetsAppBrowser(t *testing.T, check func(*testing.T, *rod.Page)) {
 	t.Helper()
 	requirePrecisionBrowserSmoke(t)
@@ -36,6 +54,20 @@ func testSheetsAppBrowser(t *testing.T, check func(*testing.T, *rod.Page)) {
 	versions := map[string]int{}
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.Dir(".")))
+	mux.HandleFunc("/js/vendor/sheets/engine.js", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("v") != "" {
+			http.ServeFile(w, r, "js/vendor/sheets/engine.js")
+			return
+		}
+		// Model a cached pre-1.0 bundle whose function catalog lived under sheets-formula.
+		w.Header().Set("Content-Type", "text/javascript")
+		fmt.Fprint(w, `export * from '/js/vendor/sheets/engine.js?v=sheets-test';
+import {locales as current} from '/js/vendor/sheets/engine.js?v=sheets-test';
+const english={...current['en-US']};
+english['sheets-formula']={...english['sheets-formula'],functionList:english['engine-formula'].functionList};
+delete english['engine-formula'];
+export const locales={...current,'en-US':english};`)
+	})
 	mux.HandleFunc("/api/desktop/office/workbook", func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		defer mu.Unlock()
@@ -110,7 +142,8 @@ func testSheetsAppBrowser(t *testing.T, check func(*testing.T, *rod.Page)) {
 		w.Header().Set("Content-Type", "text/html")
 		fmt.Fprint(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/js/vendor/sheets/engine.css"><link rel="stylesheet" href="/css/desktop-app-sheets.css">
 <style>html,body{margin:0;height:100%;font-family:system-ui}body{--vd-text:#e4e8f0;--vd-theme-app-bg:#141922;--vd-theme-panel-bg:#1b202a;--vd-theme-chrome-bg:#1d2430;--vd-theme-control-bg:#252d3a;--vd-theme-border:#ffffff1a;--vd-theme-muted:#a7b1c3;--vd-accent:#9abfff}body[data-fruity-mode=light]{--vd-text:#212b3c;--vd-theme-app-bg:#e2e7ee;--vd-theme-panel-bg:#e5e9ef;--vd-theme-chrome-bg:#d7dfe9;--vd-theme-control-bg:#f8fafc;--vd-theme-border:#65748c40;--vd-theme-muted:#536279;--vd-accent:#2169bd}#host{height:100%}</style></head><body class="desktop-body" data-theme="default"><div id="host"></div>
-<script>window.sheetErrors=[];addEventListener('error',e=>sheetErrors.push(e.error?.stack||e.message));addEventListener('unhandledrejection',e=>sheetErrors.push(e.reason?.stack||String(e.reason)));</script>
+<script>window.BUILD_VERSION='sheets-test';window.sheetErrors=[];addEventListener('error',e=>sheetErrors.push(e.error?.stack||e.message));addEventListener('unhandledrejection',e=>sheetErrors.push(e.reason?.stack||String(e.reason)));</script>
+<script src="/js/shared/lazy-assets.js"></script>
 <script src="/chart.min.js"></script><script src="/js/desktop/core/print-runtime.js"></script><script src="/js/desktop/apps/writer-session.js"></script><script src="/js/desktop/apps/sheets-data.js"></script><script src="/js/desktop/apps/sheets-panels.js"></script><script src="/js/desktop/apps/sheets-charts.js"></script><script src="/js/desktop/apps/sheets.js"></script>
 <script>window.ready=(async()=>{const labels=await(await fetch('/lang/desktop/en.json')).json();window.sheetsContext={t:(key,params)=>String(labels[key]||key).replace(/\{\{(\w+)\}\}/g,(_,x)=>params?.[x]??''),promptDialog:async(title,value)=>value,confirmDialog:async()=>true,setWindowBeforeClose:(id,fn)=>window.closeGuard=fn,setWindowMenus:(id,menus)=>window.menus=menus,saveFileDialog:async()=>({path:'Documents/copy.xlsx'}),openFileDialog:async()=>({path:SheetsApp.instances.get('test').path})};SheetsApp.render(document.getElementById('host'),'test',sheetsContext);})();</script></body></html>`)
 	})

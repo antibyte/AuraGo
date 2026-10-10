@@ -1,4 +1,11 @@
 {
+  "config.layerling.enabled": "Layerling inschakelen",
+  "config.layerling.help": "Lokale 3D-CAD in de browser. Editortalen: Duits en Engels.",
+  "config.layerling.access": "Agenttoegang",
+  "config.layerling.access_help": "Geldt voor open editors in deze bureaubladsessie. De bureaubladrechten gelden ook.",
+  "config.layerling.off": "Uit",
+  "config.layerling.read": "Lezen",
+  "config.layerling.write": "Lezen en schrijven",
   "config.agent.output_compression.reversible.enabled_label": "Originele uitvoer archiveren",
   "config.agent.output_compression.reversible.max_age_hours_label": "Archiefbewaartermijn (uren)",
   "config.agent.output_compression.reversible.primary_output_vault_label": "Grote uitvoer archiveren",
