@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -26,6 +28,10 @@ const (
 )
 
 // DeviceConfig is the payload the template's AuraGo link reads at boot.
+//
+// Token is a bearer secret; never log it. String, GoString and LogValue redact
+// it, so printing the struct with fmt or slog is safe; JSON encoding (the blob
+// itself) still carries the token on purpose.
 type DeviceConfig struct {
 	URL        string `json:"url"`
 	DeviceID   string `json:"device_id"`
@@ -33,16 +39,65 @@ type DeviceConfig struct {
 	CertSHA256 string `json:"cert_sha256"` // lowercase hex of the DER leaf cert; "" for http://
 }
 
+const redactedToken = "***"
+
+// String implements fmt.Stringer with the token redacted.
+func (c DeviceConfig) String() string {
+	return fmt.Sprintf("DeviceConfig{URL:%s DeviceID:%s Token:%s CertSHA256:%s}",
+		c.URL, c.DeviceID, redactedToken, c.CertSHA256)
+}
+
+// GoString implements fmt.GoStringer so %#v does not leak the token either.
+func (c DeviceConfig) GoString() string { return c.String() }
+
+// LogValue implements slog.LogValuer with the token redacted.
+func (c DeviceConfig) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("url", c.URL),
+		slog.String("device_id", c.DeviceID),
+		slog.String("token", redactedToken),
+		slog.String("cert_sha256", c.CertSHA256),
+	)
+}
+
 var (
 	configTokenPattern = regexp.MustCompile(`^[A-Za-z0-9._~+/=-]+$`)
 	configCertPattern  = regexp.MustCompile(`^[0-9a-f]{64}$`)
 )
 
+// validate is the single gate for the encoder and the decoder. The firmware
+// builds request URLs by string joining, checks the literal prefix "https://",
+// splits host and port with lastIndexOf(':') and casts the port to uint16, so a
+// URL is only accepted when it is plain ASCII, has no credentials, query or
+// fragment, no IPv6 literal and a port in 1..65535.
 func (c DeviceConfig) validate() error {
+	https := strings.HasPrefix(c.URL, "https://")
+	if !https && !strings.HasPrefix(c.URL, "http://") {
+		return configError("url must start with http:// or https://")
+	}
+	for i := 0; i < len(c.URL); i++ {
+		if b := c.URL[i]; b < 0x21 || b > 0x7E || b == '"' || b == '\\' {
+			return configError("url must be printable ASCII without quotes or backslashes")
+		}
+	}
 	u, err := url.Parse(c.URL)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" ||
-		strings.ContainsAny(c.URL, " \t\r\n\"\\") {
-		return configError("url must be an absolute http(s) URL")
+	if err != nil || u.Host == "" {
+		return configError("url must be an absolute http(s) URL with a host")
+	}
+	if u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Opaque != "" ||
+		u.ForceQuery || strings.ContainsAny(c.URL, "?#") {
+		return configError("url must not contain credentials, a query or a fragment")
+	}
+	if strings.HasPrefix(u.Host, "[") {
+		return configError("url must not use an IPv6 literal host")
+	}
+	if strings.HasSuffix(u.Host, ":") {
+		return configError("url port must be 1..65535")
+	}
+	if port := u.Port(); port != "" {
+		if n, err := strconv.Atoi(port); err != nil || n < 1 || n > 65535 {
+			return configError("url port must be 1..65535")
+		}
 	}
 	if !validElementID(c.DeviceID) {
 		return configError("device_id is invalid")
@@ -53,7 +108,10 @@ func (c DeviceConfig) validate() error {
 	if c.CertSHA256 != "" && !configCertPattern.MatchString(c.CertSHA256) {
 		return configError("cert_sha256 must be empty or 64 lowercase hex characters")
 	}
-	if u.Scheme == "http" && c.CertSHA256 != "" {
+	if https && c.CertSHA256 == "" {
+		return configError("an https URL needs cert_sha256")
+	}
+	if !https && c.CertSHA256 != "" {
 		return configError("cert_sha256 must be empty for an http:// URL")
 	}
 	return nil
@@ -88,7 +146,11 @@ func EncodeDeviceConfig(c DeviceConfig) ([]byte, error) {
 	return out, nil
 }
 
-// DecodeDeviceConfig parses a cydcc blob with the same rules the firmware applies.
+// DecodeDeviceConfig parses a cydcc blob. It is stricter than encoding/json on
+// purpose: the payload must be one JSON object with exactly the four keys
+// url, device_id, token and cert_sha256 (case-sensitive, each once, each a
+// string), nothing after the object, and the fields must pass the same
+// validation as EncodeDeviceConfig.
 func DecodeDeviceConfig(b []byte) (DeviceConfig, error) {
 	if len(b) != ConfigSize {
 		return DeviceConfig{}, configError(fmt.Sprintf("blob is %d bytes, want %d", len(b), ConfigSize))
@@ -96,8 +158,11 @@ func DecodeDeviceConfig(b []byte) (DeviceConfig, error) {
 	if string(b[0:4]) != ConfigMagic {
 		return DeviceConfig{}, configError("bad magic")
 	}
-	if b[4] != ConfigVersion || b[5] != 0 {
+	if b[4] != ConfigVersion {
 		return DeviceConfig{}, configError(fmt.Sprintf("unsupported version %d", b[4]))
+	}
+	if b[5] != 0 {
+		return DeviceConfig{}, configError(fmt.Sprintf("reserved byte is %d, want 0", b[5]))
 	}
 	n := int(binary.LittleEndian.Uint16(b[6:8]))
 	if n < 1 || n > ConfigMaxPayload {
@@ -108,17 +173,66 @@ func DecodeDeviceConfig(b []byte) (DeviceConfig, error) {
 			return DeviceConfig{}, configError("non-zero bytes after the payload")
 		}
 	}
-	dec := json.NewDecoder(bytes.NewReader(b[8 : 8+n]))
-	dec.DisallowUnknownFields()
+	c, err := decodeConfigPayload(b[8 : 8+n])
+	if err != nil {
+		return DeviceConfig{}, err
+	}
+	if err := c.validate(); err != nil {
+		return DeviceConfig{}, err
+	}
+	return c, nil
+}
+
+// decodeConfigPayload reads the JSON object token by token so unknown keys,
+// case variants and duplicate keys are rejected instead of silently merged.
+func decodeConfigPayload(payload []byte) (DeviceConfig, error) {
+	dec := json.NewDecoder(bytes.NewReader(payload))
+	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
+		return DeviceConfig{}, configError("payload must be a JSON object")
+	}
 	var c DeviceConfig
-	if err := dec.Decode(&c); err != nil {
+	seen := map[string]bool{}
+	for dec.More() {
+		keyTok, err := dec.Token()
+		if err != nil {
+			return DeviceConfig{}, configError("payload: " + err.Error())
+		}
+		key, _ := keyTok.(string)
+		var field *string
+		switch key {
+		case "url":
+			field = &c.URL
+		case "device_id":
+			field = &c.DeviceID
+		case "token":
+			field = &c.Token
+		case "cert_sha256":
+			field = &c.CertSHA256
+		default:
+			return DeviceConfig{}, configError(fmt.Sprintf("payload has unknown field %q", key))
+		}
+		if seen[key] {
+			return DeviceConfig{}, configError(fmt.Sprintf("payload repeats field %q", key))
+		}
+		seen[key] = true
+		var raw json.RawMessage
+		if err := dec.Decode(&raw); err != nil {
+			return DeviceConfig{}, configError("payload: " + err.Error())
+		}
+		if len(raw) == 0 || raw[0] != '"' || json.Unmarshal(raw, field) != nil {
+			return DeviceConfig{}, configError(fmt.Sprintf("payload field %q must be a string", key))
+		}
+	}
+	if _, err := dec.Token(); err != nil { // the closing brace
 		return DeviceConfig{}, configError("payload: " + err.Error())
 	}
 	if _, err := dec.Token(); err != io.EOF {
 		return DeviceConfig{}, configError("payload has trailing data")
 	}
-	if err := c.validate(); err != nil {
-		return DeviceConfig{}, err
+	for _, key := range []string{"url", "device_id", "token", "cert_sha256"} {
+		if !seen[key] {
+			return DeviceConfig{}, configError(fmt.Sprintf("payload is missing field %q", key))
+		}
 	}
 	return c, nil
 }
