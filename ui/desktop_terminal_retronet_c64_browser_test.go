@@ -16,8 +16,9 @@ import (
 //go:embed testdata/terminal-retronet-c64-fixture.js
 var terminalRetroNetC64Fixture string
 
-// A C64 call in the real Terminal (Contract C): 40x25 with the C64 font, the temporary commodore64 look, the key
-// hint and its hold, colour keys, the bell and the restore on every way out; fake sockets and a fake API.
+// A C64 call in the real Terminal (Contract C): 40x25 with the C64 font scaled by whole pixels (also at DPR 1.25),
+// the temporary commodore64 look, the key hint and its hold, colour keys, the bell and the restore on every way
+// out; fake sockets and a fake API.
 func TestDesktopTerminalRetroNetC64Browser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	srv := newTerminalDesktopServer(t, terminalRetroNetFixture+"\n"+terminalRetroNetC64Fixture, nil)
@@ -27,7 +28,39 @@ func TestDesktopTerminalRetroNetC64Browser(t *testing.T) {
 			runTerminalRetroNetC64Browser(t, browser, srv.URL, motion)
 		})
 	}
+	// A fractional DPR, where xterm's measured C64 cell comes out one device px short and needs correcting.
+	t.Run("dpr-1.25", func(t *testing.T) {
+		page := newTerminalBrowser(t, "1.25").MustPage().Timeout(120 * time.Second)
+		defer page.Close()
+		page.MustSetViewport(1280, 850, 1.25, false)
+		page.MustNavigate(srv.URL + "/fixture?motion=reduce").MustWaitLoad()
+		page.MustEval(`async()=>{await fixtureReady;}`)
+		c := terminalChecks{t: t, page: page}
+		c.wait("directory rendered", `async()=>(await fixtureText()).includes(t('desktop.terminal_retronet_title'))`)
+		c.run(`async()=>{fixtureTerm().focus();await fixtureInput('3');await fixtureInput('6');await fixtureInput('\r');}`)
+		c.wait("the C64 board dials", `()=>fixtureRoot().dataset.terminalGeometry==='c64'&&fixtureSocket().readyState===1`)
+		c.wait("the C64 grid takes whole pixels at DPR 1.25", terminalC64WholePixels)
+		c.check("no browser errors", `()=>fixtureErrors.length===0`)
+	})
 }
+
+// After a C64 dial the grid is scaled by whole device pixels (Contract C): xterm's cell (test-only access to its
+// render dimensions) is 8k device px square, equals the font size times the DPR and, in CSS px times the DPR, a
+// multiple of 8; the next k would not fit the glass; the grid is centred in the C64 border colour on a black
+// screen and drawn from xterm's alpha glyph atlas (no LCD fringe over the neighbouring cell).
+const terminalC64WholePixels = `async()=>{
+	const loaded=(await document.fonts.load('16px "Aura C64"')).some(f=>f.status==='loaded');
+	await new Promise(r=>setTimeout(r,300));
+	const term=fixtureTerm(),dims=term._core._renderService.dimensions,dpr=devicePixelRatio,css=dims.css.cell,dev=dims.device.cell,
+		grid=term.element.querySelector('.xterm-screen'),scr=grid.getBoundingClientRect(),
+		glass=fixtureRoot().querySelector('.vd-terminal-screen'),g=glass.getBoundingClientRect(),next=dev.width+8;
+	return loaded&&dev.width===dev.height&&dev.width%8===0&&Math.abs(term.options.fontSize*dpr-dev.width)<1e-6&&
+		Math.abs(css.width*dpr-dev.width)<0.05&&Math.abs(css.height*dpr-dev.height)<0.05&&Math.round(css.width*dpr)%8===0&&
+		term.options.allowTransparency===true&&scr.width<=g.width+0.5&&scr.height<=g.height+0.5&&
+		(40*next/dpr>g.width||25*next/dpr>g.height)&&
+		Math.abs((scr.left-g.left)-(g.right-scr.right))<=2&&Math.abs((scr.top-g.top)-(g.bottom-scr.bottom))<=2&&
+		getComputedStyle(glass).backgroundColor==='rgb(112, 109, 235)'&&grid.style.background==='rgb(0, 0, 0)';
+}`
 
 // The C64 colour keys (Contract C) in the order the test presses them and the PETSCII code each one sends.
 var terminalC64ColourKeys = []struct {
@@ -125,16 +158,7 @@ func runTerminalRetroNetC64Browser(t *testing.T, browser *rod.Browser, base, mot
 			term.options.theme.background==='#000000'&&term.options.cursorStyle==='block'&&term.options.cursorBlink===true&&
 			fixtureCrtBackgrounds.at(-1)==='#706DEB';}`)
 	// The fit settles over two or three frames after the font has loaded.
-	c.wait("the C64 font fills the glass, centred in the C64 border colour, on a black screen", `async()=>{
-		const loaded=(await document.fonts.load('16px "Aura C64"')).some(f=>f.status==='loaded');
-		await new Promise(r=>setTimeout(r,300));
-		const term=fixtureTerm(),grid=term.element.querySelector('.xterm-screen'),scr=grid.getBoundingClientRect(),
-			glass=fixtureRoot().querySelector('.vd-terminal-screen'),g=glass.getBoundingClientRect();
-		return loaded&&Number.isInteger(term.options.fontSize*2)&&scr.width<=g.width+0.5&&scr.height<=g.height+0.5&&
-			Math.max(scr.width/g.width,scr.height/g.height)>0.75&&
-			Math.abs((scr.left-g.left)-(g.right-scr.right))<=2&&Math.abs((scr.top-g.top)-(g.bottom-scr.bottom))<=2&&
-			getComputedStyle(glass).backgroundColor==='rgb(112, 109, 235)'&&grid.style.background==='rgb(0, 0, 0)';
-	}`)
+	c.wait("the C64 grid takes whole pixels, centred in the C64 border colour, on a black screen", terminalC64WholePixels)
 
 	// 3. A colour key while dialling stays local. Board output buffered before CONNECT waits while CONNECT, the Telnet
 	// notice and the key hint (packed into 40 columns) stay readable; a key ends that hold at once and still goes out.
@@ -203,6 +227,7 @@ func runTerminalRetroNetC64Browser(t *testing.T, browser *rod.Browser, base, mot
 			root.dataset.terminalStyle==='amber'&&select.value==='amber'&&!select.disabled&&!select.title&&!root.querySelector('.vd-terminal-style-label').title&&
 			!select.hasAttribute('aria-describedby')&&[...root.querySelectorAll('.vd-sr-only')].every(n=>n.textContent!==t('desktop.terminal_retronet_style_locked'))&&
 			term.options.fontFamily===amber.fontFamily&&term.options.theme.background===amber.theme.background&&term.options.cursorBlink===false&&
+			term.options.allowTransparency===false&&term.options.letterSpacing===0&&
 			!term.element.style.paddingLeft&&!(term.cols===40&&term.rows===25)&&fixtureCrtBackgrounds.at(-1)===amber.theme.background&&
 			localStorage.getItem('aurago.desktop.terminal.style')==='amber';}`)
 	c.check("leaving the C64 look switches straight to the user's font", `()=>fixtureFonts.length>0&&!fixtureFonts.some(f=>f.includes('Aura C64'))`)

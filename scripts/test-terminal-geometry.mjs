@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // Runs ui/js/desktop/apps/terminal-geometry.js (after terminal-styles.js) in Node with a fake xterm, glass and
 // animation frames: the three modes of Contract C (fit, bbs 80x25 "Aura VGA", c64 40x25 "Aura C64"), the font
-// load before the first fit, the 0.5 px fit loop and its centring padding, one fit at a time, the pinned font
-// re-applied at once after a style change, the return to the fit addon with the style's options, and dispose.
+// load before the first fit, the 0.5 px fit loop and its centring padding, the C64 grid scaled by whole device
+// pixels at several DPRs (with xterm's rounded cell corrected or stepped down) and its 0.5 px fallback, the refit
+// on a DPR change, one fit at a time, the pinned font re-applied at once after a style change, the return to the
+// fit addon with the style's options, and dispose.
 // Usage: node scripts/test-terminal-geometry.mjs
 import fs from 'node:fs';
 import path from 'node:path';
@@ -28,7 +30,16 @@ let frames = new Map();
 let frameId = 0;
 const fontLoads = [];
 let computedReads = 0;
+// Media queries the module watches; a test fires `change` on them after changing devicePixelRatio.
+const mediaQueries = [];
 const window = {
+    devicePixelRatio: 1,
+    matchMedia: (query) => {
+        const listeners = new Set();
+        const mq = { query, listeners, addEventListener: (type, fn) => listeners.add(fn), removeEventListener: (type, fn) => listeners.delete(fn) };
+        mediaQueries.push(mq);
+        return mq;
+    },
     localStorage: { getItem: () => null, setItem() {} },
     requestAnimationFrame: (fn) => { frameId += 1; frames.set(frameId, fn); return frameId; },
     cancelAnimationFrame: (id) => { frames.delete(id); },
@@ -66,8 +77,21 @@ function styleBox() {
     return style;
 }
 
-// xterm stand-in: the grid measures cols x cell width and rows x line height of the current font size; `slack`
-// adds pixels per row, like a font whose measured cell is taller than its em.
+// xterm 6 (WebGL) cell for C64 Pro Mono in Chrome, as measured in headless Chrome at DPR 1 to 3: the advance is
+// truncated to 1/65536 px and floored in device px, the font box is the rounded ascent (7/8 em) plus the rounded
+// descent (1/8 em) in CSS px, ceiled in device px; the line height multiplies it (floored), letter spacing adds
+// whole device px, and the canvas size is rounded back to CSS px. `slack` adds device px per row.
+function c64Box(term, slack) {
+    const o = term.options;
+    const dpr = window.devicePixelRatio;
+    const round = (x) => Math.floor(x + 0.5);
+    const w = Math.floor(Math.floor(o.fontSize * 65536) / 65536 * dpr) + Math.round(o.letterSpacing || 0);
+    const h = Math.floor(Math.ceil((round(o.fontSize * 7 / 8) + round(o.fontSize / 8)) * dpr) * o.lineHeight) + slack;
+    return { width: Math.round(term.cols * w / dpr), height: Math.round(term.rows * h / dpr) };
+}
+
+// xterm stand-in: the C64 font per c64Box; other fonts measure cols x cell width and rows x line height of the
+// current font size, with `slack` pixels per row, like a font whose measured cell is taller than its em.
 function setup() {
     const attrs = new Map();
     const root = { setAttribute: (name, value) => attrs.set(name, String(value)), removeAttribute: (name) => attrs.delete(name) };
@@ -77,13 +101,18 @@ function setup() {
         cols: 100,
         rows: 30,
         resizes: [],
-        options: { fontFamily: 'ui-monospace', fontSize: 13, lineHeight: 1.2, scrollback: 1000, theme: { background: '#123456' } },
+        sizes: [],
+        options: { fontFamily: 'ui-monospace', lineHeight: 1.2, scrollback: 1000, allowTransparency: false, theme: { background: '#123456' } },
         resize(cols, rows) { this.cols = cols; this.rows = rows; this.resizes.push(cols + 'x' + rows); },
         element: { style: styleBox(), querySelector: (selector) => (selector === '.xterm-screen' ? grid : null) }
     };
+    // Every font size written, in order (xterm measures the cell again on each change).
+    let fontSize = 13;
+    Object.defineProperty(term.options, 'fontSize', { enumerable: true, get: () => fontSize, set: (value) => { fontSize = value; term.sizes.push(value); } });
     grid.getBoundingClientRect = () => {
         const family = term.options.fontFamily;
-        const em = family.startsWith('"Aura VGA"') ? 0.5 : family.startsWith('"Aura C64"') ? 1 : 0.6;
+        if (family.startsWith('"Aura C64"')) return c64Box(term, grid.slack);
+        const em = family.startsWith('"Aura VGA"') ? 0.5 : 0.6;
         return { width: term.cols * em * term.options.fontSize, height: term.rows * (term.options.fontSize * term.options.lineHeight + grid.slack) };
     };
     const fitAddon = { calls: 0, fit() { this.calls += 1; } };
@@ -123,7 +152,7 @@ same('the module exposes only its contract', Object.keys(Geometry), ['MODES', 'c
     fontLoads.length = 0;
     geometry.set('bbs');
     same('bbs marks the root', attrs.get('data-terminal-geometry'), 'bbs');
-    same('bbs pins 80x25 with the VGA font and no scrollback', [term.resizes, term.options.fontFamily.split(',')[0], term.options.lineHeight, term.options.scrollback], [['80x25'], '"Aura VGA"', 1, 0]);
+    same('bbs pins 80x25 with the VGA font, no scrollback and the opaque atlas', [term.resizes, term.options.fontFamily.split(',')[0], term.options.lineHeight, term.options.scrollback, term.options.allowTransparency], [['80x25'], '"Aura VGA"', 1, 0, false]);
     same('the VGA font is loaded before the first fit', fontLoads, ['16px "Aura VGA"']);
     await settle();
     same('largest 0.5 px size that fits 960x560 for 40em x 25em', term.options.fontSize, 22);
@@ -139,37 +168,110 @@ same('the module exposes only its contract', Object.keys(Geometry), ['MODES', 'c
     same('the theme background follows the style', grid.style.background, Styles.profile('green').theme.background);
 }
 
-// 4. c64: 40x25 in the C64 font; a taller measured cell shrinks the size until the grid fits.
+// 4. c64: 40x25 in the C64 font, scaled by whole device pixels (8k px cells); a cell xterm makes taller than
+// that falls back to the 0.5 px steps.
 {
     const { geometry, term, attrs, grid } = setup();
     fontLoads.length = 0;
     geometry.set('c64');
     same('c64 marks the root', attrs.get('data-terminal-geometry'), 'c64');
     same('c64 pins 40x25 with the C64 font', [term.resizes, term.options.fontFamily.split(',')[0], term.options.scrollback], [['40x25'], '"Aura C64"', 0]);
+    same('c64 draws from the alpha glyph atlas (no LCD fringe over the neighbouring cell)', term.options.allowTransparency, true);
     same('the C64 font is loaded before the first fit', fontLoads, ['16px "Aura C64"']);
+    term.sizes.length = 0;
     await settle();
-    same('C64 cells are one em square: 22 px fits', [term.options.fontSize, padding(term.element.style)], [22, ['25px', '60px', '25px', '60px']]);
+    same('once the font loaded, a size change makes xterm measure it before the fit', term.sizes.slice(0, 2), [17, 16]);
+    same('960x560 at DPR 1: 16 px (k = 2), not the 22 px of 0.5 px steps', [term.options.fontSize, term.options.lineHeight, term.options.letterSpacing], [16, 1, 0]);
+    same('the whole-pixel grid is centred, the rest stays letterbox', padding(term.element.style), ['100px', '180px', '100px', '180px']);
     grid.slack = 1;
     geometry.set('c64');
     await settle();
-    same('entering again refits; the loop steps down in 0.5 px', term.options.fontSize, 21);
-    same('the smaller grid is centred again', padding(term.element.style), ['25px', '80px', '25px', '80px']);
+    same('entering again refits; a cell xterm makes taller falls back to the 0.5 px loop', term.options.fontSize, 21);
+    same('the fallback grid is centred again', padding(term.element.style), ['25px', '80px', '25px', '80px']);
     geometry.set('bbs');
     same('switching pinned modes clears the old letterbox first', [attrs.get('data-terminal-geometry'), term.cols, term.rows], ['bbs', 80, 25]);
     await settle();
 }
 
-// 5. Back to fit: attribute, letterbox and scrollback reset, the style's options, the fit addon, a report.
+// 4b. Whole pixels per glass size and DPR: the fitted size, line height and letter spacing, the device cell xterm
+// ends up with (c64Box) and the letterbox padding.
+async function c64Fit(dpr, width, height, mode = 'c64') {
+    window.devicePixelRatio = dpr;
+    const { geometry, term, screen } = setup();
+    screen.clientWidth = width + 40;
+    screen.clientHeight = height + 40;
+    geometry.set(mode);
+    await settle();
+    const box = c64Box(term, 0);
+    const fit = {
+        size: term.options.fontSize,
+        lineHeight: term.options.lineHeight,
+        letterSpacing: term.options.letterSpacing,
+        cell: [Math.round(box.width * dpr / 40), Math.round(box.height * dpr / 25)],
+        padding: padding(term.element.style)
+    };
+    geometry.dispose();
+    window.devicePixelRatio = 1;
+    return fit;
+}
+const whole = (fit, dpr, cell) => Math.abs(fit.size * dpr - cell) < 1e-9 && cell % 8 === 0 && fit.cell.every((n) => n === cell);
 {
+    let fit = await c64Fit(1, 750, 473);
+    same('750x473 at DPR 1: 16 px, centred', [fit.size, fit.cell, fit.padding], [16, [16, 16], ['56.5px', '75px', '56.5px', '75px']]);
+    fit = await c64Fit(1, 1880, 1000);
+    same('a maximized 1880x1000 at DPR 1: 40 px (k = 5), the height fills', [fit.size, fit.cell, fit.padding], [40, [40, 40], ['20px', '160px', '20px', '160px']]);
+    fit = await c64Fit(1.25, 1000, 700);
+    check('1000x700 at DPR 1.25: 19.2 px = 24 device px', whole(fit, 1.25, 24), JSON.stringify(fit));
+    same('xterm floors the advance to 23 device px: one px of letter spacing restores 24', [fit.lineHeight, fit.letterSpacing], [1, 1]);
+    fit = await c64Fit(1.5, 500, 300);
+    check('500x300 at DPR 1.5: 16 device px', whole(fit, 1.5, 16), JSON.stringify(fit));
+    same('a 15 px font box gets line height 16.5/15 and the advance one px of spacing', [fit.lineHeight, fit.letterSpacing], [16.5 / 15, 1]);
+    fit = await c64Fit(2, 750, 473);
+    check('750x473 at DPR 2: 16 px = 32 device px (k = 4)', fit.size === 16 && whole(fit, 2, 32), JSON.stringify(fit));
+    fit = await c64Fit(2, 900, 560);
+    check('900x560 at DPR 2: k = 5 rounds to a 42 px cell, so k = 4 (32 px)', fit.size === 16 && whole(fit, 2, 32), JSON.stringify(fit));
+    fit = await c64Fit(1.25, 750, 473);
+    same('750x473 at DPR 1.25: no k up to 2 gets an exact cell from xterm, so the 0.5 px loop', [fit.size, fit.lineHeight, fit.letterSpacing], [18.5, 1, 0]);
+    fit = await c64Fit(1, 260, 160);
+    same('a glass below 320x200 at DPR 1 (k = 1 does not fit) falls back to the 0.5 px loop', [fit.size, fit.padding], [6, ['25px', '30px', '25px', '30px']]);
+    fit = await c64Fit(1.25, 960, 560, 'bbs');
+    same('bbs keeps its 0.5 px loop at any DPR', [fit.size, fit.lineHeight, fit.letterSpacing], [22, 1, 0]);
+}
+
+// 4c. A DPR change refits a pinned grid: the module watches (resolution: <dpr>dppx), re-arms for the new ratio,
+// and dispose stops watching.
+{
+    const { geometry, term } = setup();
+    const first = mediaQueries.at(-1);
+    same('the current DPR is watched', [first.query, first.listeners.size], ['(resolution: 1dppx)', 1]);
+    geometry.set('c64');
+    await settle();
+    window.devicePixelRatio = 1.25;
+    [...first.listeners].forEach((fn) => fn());
+    await settle();
+    const second = mediaQueries.at(-1);
+    same('the change refits 960x560 at DPR 1.25: 19.2 px with one px of spacing', [term.options.fontSize, term.options.letterSpacing], [19.2, 1]);
+    same('the old query is released, the new ratio watched', [first.listeners.size, second.query, second.listeners.size], [0, '(resolution: 1.25dppx)', 1]);
+    geometry.dispose();
+    same('dispose stops watching', second.listeners.size, 0);
+    window.devicePixelRatio = 1;
+}
+
+// 5. Back to fit: attribute, letterbox, scrollback and letter spacing reset, the style's options, the fit addon,
+// a report. At DPR 1.25 the C64 grid had one px of spacing.
+{
+    window.devicePixelRatio = 1.25;
     const { geometry, term, attrs, grid, fitAddon, events } = setup();
     geometry.set('c64');
     await settle();
+    window.devicePixelRatio = 1;
+    same('the C64 grid had letter spacing', term.options.letterSpacing, 1);
     const before = events.fitted;
     geometry.set('fit');
     same('fit removes the attribute', attrs.has('data-terminal-geometry'), false);
     same('fit clears the letterbox', [term.element.style.padding, grid.style.background], ['', '']);
     const amber = Styles.profile('amber');
-    same('fit restores scrollback and the style options', [term.options.scrollback, term.options.fontFamily, term.options.fontSize, term.options.lineHeight], [1000, amber.fontFamily, amber.fontSize, amber.lineHeight]);
+    same('fit restores scrollback, no letter spacing, the opaque atlas and the style options', [term.options.scrollback, term.options.letterSpacing, term.options.allowTransparency, term.options.fontFamily, term.options.fontSize, term.options.lineHeight], [1000, 0, false, amber.fontFamily, amber.fontSize, amber.lineHeight]);
     same('fit runs the fit addon and reports', [fitAddon.calls, events.fitted], [1, before + 1]);
     same('mode is fit', geometry.mode(), 'fit');
 }

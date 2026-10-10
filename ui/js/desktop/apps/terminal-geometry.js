@@ -3,11 +3,11 @@
 
     // Pinned grids (Contract C). `cell` is the font's cell in em, width and height (Px437 8x16: half an em wide
     // and one em high; C64 Pro Mono: one em square), so both 80x25 and 40x25 need 40em x 25em. `load` is the
-    // font face the first fit waits for.
+    // font face the first fit waits for; `pixels` (C64 Pro Mono: 8 per em) scales the grid by whole device pixels.
     const MODES = {
         fit: null,
         bbs: { cols: 80, rows: 25, font: '"Aura VGA", "Aura Terminal", ui-monospace, monospace', load: '16px "Aura VGA"', cell: [0.5, 1] },
-        c64: { cols: 40, rows: 25, font: '"Aura C64", "Aura Terminal", ui-monospace, monospace', load: '16px "Aura C64"', cell: [1, 1] }
+        c64: { cols: 40, rows: 25, font: '"Aura C64", "Aura Terminal", ui-monospace, monospace', load: '16px "Aura C64"', cell: [1, 1], pixels: 8 }
     };
     const MIN_FONT_SIZE = 6;
     const FIT_ATTEMPTS = 12;
@@ -29,7 +29,8 @@
     }
 
     // One geometry per Terminal window: 'fit' follows the window through the fit addon; 'bbs' and 'c64' pin the
-    // grid, load the font, size it to the glass in 0.5 px steps and centre it with inline padding (letterbox).
+    // grid, load the font, size it to the glass (c64 by whole device pixels, otherwise in 0.5 px steps) and centre
+    // it with inline padding (letterbox).
     function create(options) {
         const opts = options || {};
         const term = opts.term;
@@ -43,16 +44,22 @@
         let frame = 0;
         let fitting = false;
         let again = false;
-        let fontSize = 16;
+        let fitted = { fontSize: 16, lineHeight: 1, letterSpacing: 0 };
         let disposed = false;
+        let dprQuery = null;
 
-        // Font, line height and scrollback of the pinned grid; the size only outside a running fit, which owns it.
+        // Font, scrollback and glyph atlas of the pinned grid; the fitted size, line height and letter spacing only
+        // outside a running fit, which owns them (line height 1 and no spacing meanwhile). Pixel fonts get xterm's
+        // alpha atlas: the opaque one antialiases for LCD, and each glyph's colour fringe overwrites the edge column
+        // of the cell before it, a dark seam in solid blocks. xterm applies it with the next font change.
         function pin(withSize) {
             const spec = MODES[current];
+            term.options.allowTransparency = !!spec.pixels;
             term.options.fontFamily = spec.font;
-            term.options.lineHeight = 1;
+            term.options.lineHeight = withSize ? fitted.lineHeight : 1;
+            term.options.letterSpacing = withSize ? fitted.letterSpacing : 0;
             term.options.scrollback = 0;
-            if (withSize) term.options.fontSize = fontSize;
+            if (withSize) term.options.fontSize = fitted.fontSize;
         }
 
         function cancelFrame() {
@@ -84,7 +91,12 @@
             return room;
         }
 
-        // Largest font size in 0.5 px steps at which the grid fits; centred via padding, written only when it changes.
+        // A grid with `pixels` takes the largest k whose grid of (pixels * k) device px cells fits: font size
+        // pixels * k / dpr, so every font pixel is k device px. xterm floors the measured advance and ceils the
+        // rounded font box in device px; a cell one px short gets it back through letter spacing and line height,
+        // any other cell tries the next smaller k. Without such a k (a tiny glass, or a DPR at which xterm's cell
+        // cannot match) and for other grids: the largest size in 0.5 px steps that fits. Centred via padding,
+        // written only when it changes.
         async function fitFont() {
             const spec = MODES[current];
             if (!spec || !term.element) return;
@@ -96,18 +108,39 @@
             const room = space(element);
             if (room.width <= 0 || room.height <= 0) return;
             const ems = Math.min(room.width / (spec.cols * spec.cell[0]), room.height / (spec.rows * spec.cell[1]));
-            let size = Math.max(MIN_FONT_SIZE, Math.floor(ems * 2) / 2);
-            let rect = null;
-            for (let attempt = 0; attempt < FIT_ATTEMPTS; attempt += 1) {
+            const dpr = window.devicePixelRatio || 1;
+            const fits = function (box) { return box.width <= room.width + 0.5 && box.height <= room.height + 0.5; };
+            const cellOf = function (box) { return [Math.round(box.width * dpr / spec.cols), Math.round(box.height * dpr / spec.rows)]; };
+            async function measure(size, lineHeight, letterSpacing) {
                 term.options.fontSize = size;
+                term.options.lineHeight = lineHeight;
+                term.options.letterSpacing = letterSpacing;
                 await nextFrame();
+                return screenEl.getBoundingClientRect();
+            }
+            let rect = null;
+            for (let k = spec.pixels ? Math.floor(ems * dpr / spec.pixels) : 0; k >= 1 && !rect; k -= 1) {
+                const cell = spec.pixels * k;
+                let box = await measure(cell / dpr, 1, 0);
                 if (disposed || mine !== revision) return;
-                rect = screenEl.getBoundingClientRect();
-                if ((rect.width <= room.width + 0.5 && rect.height <= room.height + 0.5) || size <= MIN_FONT_SIZE) break;
+                const got = cellOf(box);
+                if (got.some(function (n) { return n !== cell && n !== cell - 1; })) continue;
+                if (got[0] !== cell || got[1] !== cell) {
+                    box = await measure(cell / dpr, got[1] < cell ? (cell + 0.5) / got[1] : 1, cell - got[0]);
+                    if (disposed || mine !== revision) return;
+                }
+                if (cellOf(box).every(function (n) { return n === cell; }) && fits(box)) rect = box;
+            }
+            let size = Math.max(MIN_FONT_SIZE, Math.floor(ems * 2) / 2);
+            for (let attempt = 0; attempt < FIT_ATTEMPTS && !rect; attempt += 1) {
+                const box = await measure(size, 1, 0);
+                if (disposed || mine !== revision) return;
+                if (fits(box) || size <= MIN_FONT_SIZE || attempt === FIT_ATTEMPTS - 1) rect = box;
                 size -= 0.5;
             }
-            const resized = fontSize !== term.options.fontSize;
-            fontSize = term.options.fontSize;
+            const now = { fontSize: term.options.fontSize, lineHeight: term.options.lineHeight, letterSpacing: term.options.letterSpacing };
+            const resized = Object.keys(now).some(function (key) { return now[key] !== fitted[key]; });
+            fitted = now;
             const extraX = Math.max(0, (room.width - rect.width) / 2);
             const extraY = Math.max(0, (room.height - rect.height) / 2);
             const next = {
@@ -171,7 +204,12 @@
                 ? document.fonts.load(spec.load).catch(function () { return []; })
                 : Promise.resolve([]);
             ready.then(function () {
-                if (!disposed && mine === revision) runFit();
+                if (disposed || mine !== revision) return;
+                // xterm measured the cell and built its atlas when the family was set, maybe before the font had
+                // loaded, and does neither again for an unchanged size: a size change makes it do both now.
+                term.options.fontSize = fitted.fontSize + 1;
+                pin(true);
+                runFit();
             });
         }
 
@@ -182,6 +220,8 @@
             root.removeAttribute('data-terminal-geometry');
             clearLetterbox();
             term.options.scrollback = FIT_SCROLLBACK;
+            term.options.letterSpacing = 0;
+            term.options.allowTransparency = false;
             window.TerminalStyles.applyXterm(term, getProfile());
             if (fit) fit.fit();
             onFitted();
@@ -207,13 +247,29 @@
             schedule();
         }
 
+        // Whole pixels depend on the device pixel ratio: a change without a resize (another monitor) refits too.
+        function watchDpr() {
+            if (dprQuery) dprQuery.removeEventListener('change', onDpr);
+            dprQuery = !disposed && typeof window.matchMedia === 'function'
+                ? window.matchMedia('(resolution: ' + (window.devicePixelRatio || 1) + 'dppx)')
+                : null;
+            if (dprQuery) dprQuery.addEventListener('change', onDpr);
+        }
+
+        function onDpr() {
+            watchDpr();
+            schedule();
+        }
+
         function dispose() {
             disposed = true;
             revision += 1;
             again = false;
             cancelFrame();
+            watchDpr();
         }
 
+        watchDpr();
         return {
             set: set,
             mode: function () { return current; },

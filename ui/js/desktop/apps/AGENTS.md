@@ -2847,9 +2847,19 @@ registration lives in `internal/desktop/types.go`.
   `@font-face` embedding only in software provided to end users free of
   charge, so never link or offer the
   `.woff` as a download); both fonts are credited in `THIRD_PARTY_LIBRARIES.md`.
-  Pinned grids set `data-terminal-geometry`, wait for their font before the
-  first fit, size it in 0.5 px steps to the glass, centre the grid with letterbox padding and keep no
-  scrollback; `fit` uses the fit addon. `world`/SSH entries fit the window and
+  Pinned grids set `data-terminal-geometry`, wait for their font (then change
+  the size once so xterm measures the loaded font) before the first fit, centre
+  the grid with letterbox padding and keep no scrollback; `bbs` takes the
+  largest size in 0.5 px steps that fits the glass. `c64` (`pixels: 8`) scales
+  by whole device pixels: font size 8k/DPR for the largest k whose grid fits,
+  so a C64 pixel is k device px. xterm floors the measured advance and ceils
+  the rounded font box in device px; a cell one px short is corrected through
+  `letterSpacing`/`lineHeight`, any other mismatch tries k−1; with no exact k
+  (tiny glass; DPR 1.25 below 24 px cells) it falls back to the 0.5 px steps.
+  `c64` uses xterm's alpha glyph atlas (`allowTransparency`; the opaque atlas
+  antialiases for LCD and a glyph's fringe overwrites the previous cell's edge
+  column) and refits on a DPR change (`matchMedia('(resolution: …dppx)')`).
+  `fit` uses the fit addon. `world`/SSH entries fit the window and
   send `resize`. Retro sessions set `convertEol=false`, the shell restores `true`.
   C64 calls put on the `commodore64` style with `persist=false`
   (never saved; dispose drops it), lock the style select (disabled, `title`
@@ -2947,7 +2957,8 @@ registration lives in `internal/desktop/types.go`.
   cases inside the app without changing xterm's measured screen padding.
   Browser verification is
   `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run 'TestDesktopTerminalRetro(Net(C64)?)?Browser' -count=1 -v`
-  (styles/CRT, Retro-Net and the C64 call, each in both motion modes; all use
+  (styles/CRT, Retro-Net and the C64 call, each in both motion modes, the C64
+  grid also at DPR 1.25; all use
   `ui/desktop_terminal_harness_test.go`, the Retro-Net fixture is
   `ui/testdata/terminal-retronet-fixture.js` plus
   `ui/testdata/terminal-retronet-c64-fixture.js`, which keeps the C64 hint

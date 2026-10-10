@@ -87,7 +87,10 @@ boards the catalog offers can change between releases when one goes offline.
   occupy it and could drop the caller who is on.
 - **The look:** a call shows the board on a 40×25 C64 screen in the C64 font
   and the 16 C64 colors on black, with a light-blue border and a blinking
-  block cursor, in the Commodore 64 terminal style. The style selector is
+  block cursor, in the Commodore 64 terminal style. Where the window size and
+  display scaling allow, the screen is scaled by whole pixels (every C64 pixel
+  covers the same whole number of screen pixels, so block graphics show no
+  seams) and the border fills the rest of the window. The style selector is
   locked during the call (it says why); your own style comes back when you
   leave the result screen after the call. The Commodore 64 style is never
   saved as your choice.

@@ -456,7 +456,12 @@ func TestDesktopTerminalGeometryContract(t *testing.T) {
 		"window.TerminalGeometry = { MODES: MODES, create: create }",
 		"fit: null,",
 		`bbs: { cols: 80, rows: 25, font: '"Aura VGA", "Aura Terminal", ui-monospace, monospace', load: '16px "Aura VGA"', cell: [0.5, 1] }`,
-		`c64: { cols: 40, rows: 25, font: '"Aura C64", "Aura Terminal", ui-monospace, monospace', load: '16px "Aura C64"', cell: [1, 1] }`,
+		`c64: { cols: 40, rows: 25, font: '"Aura C64", "Aura Terminal", ui-monospace, monospace', load: '16px "Aura C64"', cell: [1, 1], pixels: 8 }`,
+		// C64: whole device pixels (font size pixels * k / dpr) from xterm's alpha glyph atlas, refit on a DPR change.
+		"Math.floor(ems * dpr / spec.pixels)",
+		"term.options.allowTransparency = !!spec.pixels;",
+		"term.options.allowTransparency = false;",
+		"window.matchMedia('(resolution: ' + (window.devicePixelRatio || 1) + 'dppx)')",
 		"set: set,",
 		"mode: function () { return current; },",
 		"refit: refit,",
