@@ -3,6 +3,13 @@
 //   on device: LVGL scan list, hidden-SSID entry and on-screen keyboard.
 // View switches and closing are deferred to wifi_ui_loop() so no widget is
 // deleted inside its own event callback.
+//
+// Layout rules (every board, orientation, theme and language; layout_check()
+// verifies them after every view change): only the network list scrolls, and
+// only vertically; every label inside a container has a width and a long mode
+// (wrap for prose and button captions, dots for single-line values); the
+// content area ends at the keyboard while it is shown, so the fields stay
+// above it, and the status replaces the keyboard while connecting.
 #include "cyd_private.h"
 
 #include <WiFi.h>
@@ -19,12 +26,15 @@ struct SetupUi {
   lv_obj_t* prev = nullptr;
   lv_obj_t* title = nullptr;
   lv_obj_t* back_btn = nullptr;
+  lv_obj_t* rescan_btn = nullptr;
   lv_obj_t* content = nullptr;
   lv_obj_t* status = nullptr;
   lv_obj_t* list = nullptr;
   lv_obj_t* ta_ssid = nullptr;
   lv_obj_t* ta_pass = nullptr;
   lv_obj_t* kb = nullptr;
+  int32_t header_h = 0;
+  int32_t kb_h = 0;
   bool closable = false;
   View view = View::None;
   View pending = View::Phone;
@@ -41,12 +51,82 @@ struct SetupUi {
 
 SetupUi* g_ui = nullptr;
 
-const int kHeaderH = 36;
+constexpr int32_t kPad = 8;       // content padding
+constexpr int32_t kGap = 6;       // gap between stacked items
+constexpr int32_t kIconW = 44;    // header icon buttons
+constexpr int32_t kQrMin = 96;    // QR code side (without the quiet zone)
+constexpr int32_t kQrMax = 220;
+constexpr int32_t kQrQuiet = 4;   // white frame around the code (quiet zone on dark themes)
+constexpr int32_t kQrStep = 8;
+constexpr size_t kMaxNetworks = 20;
+
+int32_t line_h(const lv_font_t* f) { return lv_font_get_line_height(f); }
+
+// A transparent flex container that never scrolls.
+lv_obj_t* box(lv_obj_t* parent, lv_flex_flow_t flow) {
+  lv_obj_t* b = lv_obj_create(parent);
+  lv_obj_remove_style_all(b);
+  lv_obj_remove_flag(b, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_flex_flow(b, flow);
+  lv_obj_set_style_pad_row(b, kGap, 0);
+  lv_obj_set_style_pad_column(b, 10, 0);
+  return b;
+}
+
+// Prose that wraps inside the parent's width.
+lv_obj_t* prose(lv_obj_t* parent, const char* text, const lv_font_t* font, lv_color_t color) {
+  lv_obj_t* l = detail::make_label(parent, text, font, color);
+  lv_obj_set_width(l, lv_pct(100));
+  lv_label_set_long_mode(l, LV_LABEL_LONG_MODE_WRAP);
+  return l;
+}
+
+// One line that ends in "..." when it is too long (titles, SSIDs).
+void single_line(lv_obj_t* l, const lv_font_t* font) {
+  lv_label_set_long_mode(l, LV_LABEL_LONG_MODE_DOTS);
+  lv_obj_set_height(l, line_h(font));
+}
+
+lv_obj_t* icon_button(lv_obj_t* parent, const char* symbol, lv_event_cb_t cb) {
+  lv_obj_t* b = detail::make_button(parent, symbol, cb, nullptr);
+  lv_obj_set_size(b, kIconW, g_ui->header_h - 8);
+  lv_obj_set_style_pad_all(b, 0, 0);
+  return b;
+}
+
+// Full-width button whose caption wraps instead of running out of it.
+lv_obj_t* wide_button(lv_obj_t* parent, const char* text, lv_event_cb_t cb) {
+  lv_obj_t* b = detail::make_button(parent, text, cb, nullptr);
+  lv_obj_set_size(b, lv_pct(100), LV_SIZE_CONTENT);
+  lv_obj_set_style_pad_ver(b, 6, 0);
+  lv_obj_t* l = lv_obj_get_child(b, 0);
+  lv_obj_set_width(l, lv_pct(100));
+  lv_label_set_long_mode(l, LV_LABEL_LONG_MODE_WRAP);
+  lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
+  return b;
+}
 
 void set_status(const char* text, lv_color_t color) {
   if (g_ui == nullptr || g_ui->status == nullptr) return;
   lv_label_set_text(g_ui->status, text);
   lv_obj_set_style_text_color(g_ui->status, color, 0);
+}
+
+// Keyboard shown: the content ends at its top edge and the status (under the
+// keyboard anyway) is hidden. Keyboard hidden: the status is readable.
+void show_keyboard(bool show) {
+  if (g_ui->kb == nullptr) return;
+  int32_t h = CYD_SCREEN_H - g_ui->header_h;
+  if (show) {
+    lv_obj_remove_flag(g_ui->kb, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(g_ui->status, LV_OBJ_FLAG_HIDDEN);
+    h -= g_ui->kb_h;
+  } else {
+    lv_obj_add_flag(g_ui->kb, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(g_ui->status, LV_OBJ_FLAG_HIDDEN);
+  }
+  lv_obj_set_height(g_ui->content, h);
+  detail::layout_check(g_ui->scr, show ? "password" : "password-status", g_ui->kb, nullptr, true);
 }
 
 void on_back(lv_event_t*) {
@@ -60,7 +140,6 @@ void on_back(lv_event_t*) {
 }
 
 void on_to_device(lv_event_t*) { g_ui->pending = View::List; }
-void on_to_phone(lv_event_t*) { g_ui->pending = View::Phone; }
 void on_rescan(lv_event_t*) { g_ui->pending = View::List; }
 
 void on_hidden(lv_event_t*) {
@@ -86,12 +165,17 @@ void start_connect() {
   g_ui->connecting = true;
   g_ui->connect_started = millis();
   set_status(CYD_S_WIFI_CONNECTING, t.text_muted);
+  show_keyboard(false);
   detail::wifi_connect(ssid, String(lv_textarea_get_text(g_ui->ta_pass)));
 }
 
+// Tapping a field brings the keyboard back (it is hidden while connecting and
+// after a failure, so the status stays readable until then).
 void on_ta_focus(lv_event_t* e) {
+  if (g_ui->kb == nullptr || g_ui->connecting) return;
   lv_obj_t* ta = lv_event_get_target_obj(e);
-  if (g_ui->kb != nullptr) lv_keyboard_set_textarea(g_ui->kb, ta);
+  lv_keyboard_set_textarea(g_ui->kb, ta);
+  if (lv_obj_has_flag(g_ui->kb, LV_OBJ_FLAG_HIDDEN)) show_keyboard(true);
 }
 
 void on_kb_ready(lv_event_t*) {
@@ -107,6 +191,8 @@ void on_kb_ready(lv_event_t*) {
 
 void on_kb_cancel(lv_event_t*) { g_ui->pending = View::List; }
 
+// One-line field with compact padding, so two fit above the keyboard on
+// 240 px tall screens.
 lv_obj_t* make_textarea(lv_obj_t* parent, const char* placeholder, bool password) {
   const ThemeColors& t = ui_theme_colors();
   lv_obj_t* ta = lv_textarea_create(parent);
@@ -118,6 +204,9 @@ lv_obj_t* make_textarea(lv_obj_t* parent, const char* placeholder, bool password
     lv_textarea_set_password_bullet(ta, "*");  // ASCII, always in the font
   }
   lv_obj_set_width(ta, lv_pct(100));
+  lv_obj_set_style_pad_ver(ta, 4, 0);
+  lv_obj_set_style_pad_hor(ta, 8, 0);
+  lv_obj_set_style_text_font(ta, t.font_normal, 0);
   lv_obj_set_style_bg_color(ta, t.surface, 0);
   lv_obj_set_style_text_color(ta, t.text, 0);
   lv_obj_set_style_border_color(ta, t.border, 0);
@@ -126,14 +215,6 @@ lv_obj_t* make_textarea(lv_obj_t* parent, const char* placeholder, bool password
   lv_obj_add_event_cb(ta, on_ta_focus, LV_EVENT_FOCUSED, nullptr);
   lv_obj_add_event_cb(ta, on_ta_focus, LV_EVENT_CLICKED, nullptr);
   return ta;
-}
-
-lv_obj_t* column(lv_obj_t* parent) {
-  lv_obj_t* c = lv_obj_create(parent);
-  lv_obj_remove_style_all(c);
-  lv_obj_set_flex_flow(c, LV_FLEX_FLOW_COLUMN);
-  lv_obj_set_style_pad_row(c, 6, 0);
-  return c;
 }
 
 void clear_view() {
@@ -146,43 +227,77 @@ void clear_view() {
   g_ui->ta_ssid = nullptr;
   g_ui->ta_pass = nullptr;
   lv_obj_clean(g_ui->content);
+  lv_obj_set_height(g_ui->content, CYD_SCREEN_H - g_ui->header_h);
+  lv_obj_set_style_pad_ver(g_ui->content, kPad, 0);
   lv_obj_set_flex_flow(g_ui->content, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_flex_align(g_ui->content, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
 }
 
+bool phone_fits() { return detail::layout_check(g_ui->content, "phone", nullptr, nullptr, false) == 0; }
+
+// The largest QR side from max down to kQrMin (in kQrStep steps) with which
+// the phone view fits; -1 when even the smallest does not.
+int32_t fit_qr(lv_obj_t* frame, int32_t max) {
+  for (int32_t q = max; q >= kQrMin; q -= kQrStep) {
+    lv_obj_set_size(frame, q + 2 * kQrQuiet, q + 2 * kQrQuiet);
+    if (phone_fits()) return q;
+  }
+  return -1;
+}
+
+// Landscape: QR code and info side by side, the button below. Portrait: QR
+// code on top, info below, the button at the bottom. Too little room: the QR
+// code shrinks stepwise to kQrMin, then the hint goes (QR code and title
+// explain themselves).
 void build_phone() {
   const ThemeColors& t = ui_theme_colors();
   lv_obj_t* c = g_ui->content;
   bool landscape = CYD_SCREEN_W >= CYD_SCREEN_H;
-  lv_obj_set_flex_flow(c, landscape ? LV_FLEX_FLOW_ROW : LV_FLEX_FLOW_COLUMN);
   lv_obj_set_flex_align(c, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-  int avail_w = CYD_SCREEN_W - 16;
-  int avail_h = CYD_SCREEN_H - kHeaderH - 16;
-  int qr = landscape ? (avail_h < avail_w / 2 ? avail_h : avail_w / 2) : (avail_w < avail_h / 2 ? avail_w : avail_h / 2);
-  qr -= 12;
-  if (qr > 220) qr = 220;
+  lv_obj_t* top = c;
+  if (landscape) {
+    top = box(c, LV_FLEX_FLOW_ROW);
+    lv_obj_set_width(top, lv_pct(100));
+    lv_obj_set_flex_grow(top, 1);
+    lv_obj_set_flex_align(top, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  }
+  lv_obj_t* frame = box(top, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_style_bg_color(frame, lv_color_white(), 0);
+  lv_obj_set_style_bg_opa(frame, LV_OPA_COVER, 0);
+  lv_obj_set_style_pad_all(frame, kQrQuiet, 0);
+
+  lv_obj_t* info = box(top, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_style_pad_row(info, 4, 0);
+  if (landscape) {
+    lv_obj_set_flex_grow(info, 1);
+    lv_obj_set_height(info, LV_SIZE_CONTENT);
+  } else {
+    lv_obj_set_width(info, lv_pct(100));
+    lv_obj_set_flex_grow(info, 1);
+  }
+  lv_obj_t* hint = prose(info, CYD_S_WIFI_PHONE_HINT, t.font_small, t.text_muted);
+  String net = String(CYD_S_WIFI_NETWORK) + ": " + g_ui->ap_ssid;
+  prose(info, net.c_str(), t.font_small, t.text);
+  String pw = String(CYD_S_WIFI_PASSWORD) + ": " + g_ui->ap_pass;
+  prose(info, pw.c_str(), t.font_mono, t.accent);
+  wide_button(c, CYD_S_WIFI_ON_DEVICE, on_to_device);
+
+  int32_t max = landscape ? CYD_SCREEN_W * 2 / 5 - 2 * kQrQuiet : CYD_SCREEN_W - 2 * kPad - 2 * kQrQuiet;
+  max = LV_CLAMP(kQrMin, max, kQrMax);
+  int32_t q = fit_qr(frame, max);
+  if (q < 0) {
+    lv_obj_add_flag(hint, LV_OBJ_FLAG_HIDDEN);
+    q = fit_qr(frame, max);
+    if (q < 0) q = kQrMin;  // layout_check() reports what still does not fit
+    lv_obj_set_size(frame, q + 2 * kQrQuiet, q + 2 * kQrQuiet);
+  }
 
   String payload = "WIFI:T:WPA;S:" + g_ui->ap_ssid + ";P:" + g_ui->ap_pass + ";;";
-  lv_obj_t* code = lv_qrcode_create(c);
-  lv_qrcode_set_size(code, qr);
+  lv_obj_t* code = lv_qrcode_create(frame);
+  lv_qrcode_set_size(code, q);
   lv_qrcode_set_dark_color(code, lv_color_black());
   lv_qrcode_set_light_color(code, lv_color_white());
   lv_qrcode_update(code, payload.c_str(), payload.length());
-  lv_obj_set_style_border_color(code, lv_color_white(), 0);
-  lv_obj_set_style_border_width(code, 4, 0);  // quiet zone on dark themes
-
-  lv_obj_t* info = column(c);
-  lv_obj_set_width(info, landscape ? avail_w - qr - 20 : avail_w);
-  lv_obj_set_height(info, LV_SIZE_CONTENT);
-  lv_obj_t* hint = detail::make_label(info, CYD_S_WIFI_PHONE_HINT, t.font_small, t.text_muted);
-  lv_obj_set_width(hint, lv_pct(100));
-  lv_label_set_long_mode(hint, LV_LABEL_LONG_MODE_WRAP);
-  String net = String(CYD_S_WIFI_NETWORK) + ": " + g_ui->ap_ssid;
-  String pw = String(CYD_S_WIFI_PASSWORD) + ": " + g_ui->ap_pass;
-  detail::make_label(info, net.c_str(), t.font_small, t.text);
-  detail::make_label(info, pw.c_str(), t.font_mono, t.accent);
-  lv_obj_t* b = detail::make_button(info, CYD_S_WIFI_ON_DEVICE, on_to_device, nullptr);
-  lv_obj_set_width(b, lv_pct(100));
 }
 
 void start_scan() {
@@ -195,25 +310,41 @@ void start_scan() {
   g_ui->scanning = true;
 }
 
+lv_obj_t* add_entry(const char* icon, const char* text, lv_event_cb_t cb, void* user) {
+  const ThemeColors& t = ui_theme_colors();
+  lv_obj_t* b = lv_list_add_button(g_ui->list, icon, text);
+  lv_obj_set_style_bg_color(b, t.surface, 0);
+  lv_obj_set_style_text_color(b, t.text, 0);
+  lv_obj_set_style_bg_color(b, t.surface_alt, LV_STATE_PRESSED);
+  single_line(lv_obj_get_child(b, -1), t.font_normal);  // the label is the last child
+  lv_obj_add_event_cb(b, cb, LV_EVENT_CLICKED, user);
+  return b;
+}
+
+// The networks of the last scan (strongest first), then "hidden network".
+void fill_entries() {
+  lv_obj_clean(g_ui->list);
+  for (size_t i = 0; i < g_ui->found.size() && i < kMaxNetworks; ++i) {
+    add_entry(LV_SYMBOL_WIFI, g_ui->found[i].c_str(), on_network, (void*)(uintptr_t)i);
+  }
+  add_entry(LV_SYMBOL_EDIT, CYD_S_WIFI_HIDDEN, on_hidden, nullptr);
+}
+
+// Status line (while scanning or when nothing was found), the list takes the
+// rest; rescan is the header's refresh button.
 void build_list() {
   const ThemeColors& t = ui_theme_colors();
   lv_obj_t* c = g_ui->content;
-  g_ui->status = detail::make_label(c, CYD_S_WIFI_SCANNING, t.font_small, t.text_muted);
+  g_ui->status = prose(c, CYD_S_WIFI_SCANNING, t.font_small, t.text_muted);
   g_ui->list = lv_list_create(c);
   lv_obj_set_width(g_ui->list, lv_pct(100));
   lv_obj_set_flex_grow(g_ui->list, 1);
+  lv_obj_set_scroll_dir(g_ui->list, LV_DIR_VER);
   lv_obj_set_style_bg_color(g_ui->list, t.surface, 0);
   lv_obj_set_style_border_color(g_ui->list, t.border, 0);
   lv_obj_set_style_radius(g_ui->list, t.radius, 0);
-  lv_obj_t* row = lv_obj_create(c);
-  lv_obj_remove_style_all(row);
-  lv_obj_set_size(row, lv_pct(100), LV_SIZE_CONTENT);
-  lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW_WRAP);
-  lv_obj_set_style_pad_column(row, 6, 0);
-  lv_obj_set_style_pad_row(row, 6, 0);
-  detail::make_button(row, CYD_S_WIFI_RESCAN, on_rescan, nullptr);
-  detail::make_button(row, CYD_S_WIFI_HIDDEN, on_hidden, nullptr);
-  detail::make_button(row, CYD_S_WIFI_WITH_PHONE, on_to_phone, nullptr);
+  g_ui->found.clear();
+  fill_entries();
   start_scan();
 }
 
@@ -229,58 +360,65 @@ void fill_list(int n) {
   }
   WiFi.scanDelete();
   if (g_ui->list == nullptr) return;
-  lv_obj_clean(g_ui->list);
-  for (size_t i = 0; i < g_ui->found.size() && i < 20; ++i) {
-    lv_obj_t* b = lv_list_add_button(g_ui->list, LV_SYMBOL_WIFI, g_ui->found[i].c_str());
-    lv_obj_set_style_bg_color(b, t.surface, 0);
-    lv_obj_set_style_text_color(b, t.text, 0);
-    lv_obj_set_style_bg_color(b, t.surface_alt, LV_STATE_PRESSED);
-    lv_obj_add_event_cb(b, on_network, LV_EVENT_CLICKED, (void*)(uintptr_t)i);
-  }
+  fill_entries();
   if (g_ui->found.empty()) {
     set_status(CYD_S_WIFI_NO_NETWORKS, t.warning);
   } else {
-    set_status(CYD_S_WIFI_SETUP_TITLE, t.text_muted);
+    lv_obj_add_flag(g_ui->status, LV_OBJ_FLAG_HIDDEN);  // the list says it all
   }
+  detail::layout_check(g_ui->scr, "list", nullptr, g_ui->list, true);
 }
 
+// The SSID is the header title; the keyboard takes at most half the screen,
+// less when the fields need the room.
 void build_password() {
   const ThemeColors& t = ui_theme_colors();
   lv_obj_t* c = g_ui->content;
-  if (g_ui->hidden) {
-    g_ui->ta_ssid = make_textarea(c, CYD_S_WIFI_SSID, false);
-  } else {
-    lv_obj_t* l = detail::make_label(c, g_ui->sel_ssid.c_str(), t.font_normal, t.text);
-    lv_label_set_long_mode(l, LV_LABEL_LONG_MODE_DOTS);
-    lv_obj_set_width(l, lv_pct(100));
-  }
+  lv_obj_set_style_pad_ver(c, kGap, 0);
+  if (g_ui->hidden) g_ui->ta_ssid = make_textarea(c, CYD_S_WIFI_SSID, false);
   g_ui->ta_pass = make_textarea(c, CYD_S_WIFI_PASSWORD, true);
-  g_ui->status = detail::make_label(c, "", t.font_small, t.text_muted);
-  lv_obj_set_width(g_ui->status, lv_pct(100));
-  lv_label_set_long_mode(g_ui->status, LV_LABEL_LONG_MODE_WRAP);
+  g_ui->status = prose(c, "", t.font_small, t.text_muted);
+
+  lv_obj_update_layout(g_ui->scr);
+  int32_t need = 2 * kGap + lv_obj_get_height(g_ui->ta_pass);
+  if (g_ui->ta_ssid != nullptr) need += kGap + lv_obj_get_height(g_ui->ta_ssid);
+  g_ui->kb_h = LV_MIN(CYD_SCREEN_H / 2, CYD_SCREEN_H - g_ui->header_h - need);
 
   g_ui->kb = lv_keyboard_create(g_ui->scr);
-  lv_obj_set_size(g_ui->kb, CYD_SCREEN_W, CYD_SCREEN_H / 2);
+  lv_obj_set_size(g_ui->kb, CYD_SCREEN_W, g_ui->kb_h);
   lv_obj_align(g_ui->kb, LV_ALIGN_BOTTOM_MID, 0, 0);
-  lv_obj_set_style_bg_color(g_ui->kb, t.surface, 0);
-  lv_obj_set_style_text_font(g_ui->kb, t.font_normal, 0);
+  lv_obj_set_style_bg_color(g_ui->kb, t.surface_alt, 0);  // white keys of light themes stay visible
+  // Four key rows: fall back to the small font when the normal one is taller than a key.
+  bool roomy = g_ui->kb_h / 4 >= line_h(t.font_normal) + 6;
+  lv_obj_set_style_text_font(g_ui->kb, roomy ? t.font_normal : t.font_small, 0);
   lv_obj_add_event_cb(g_ui->kb, on_kb_ready, LV_EVENT_READY, nullptr);
   lv_obj_add_event_cb(g_ui->kb, on_kb_cancel, LV_EVENT_CANCEL, nullptr);
   lv_obj_t* first = g_ui->hidden ? g_ui->ta_ssid : g_ui->ta_pass;
   lv_keyboard_set_textarea(g_ui->kb, first);
   lv_obj_add_state(first, LV_STATE_FOCUSED);
+  show_keyboard(true);
+}
+
+// Header: title (dots), [rescan], back. The title gets what the buttons leave.
+void layout_header(View v) {
+  bool back = v != View::Phone || g_ui->closable;
+  bool rescan = v == View::List;
+  lv_obj_set_flag(g_ui->back_btn, LV_OBJ_FLAG_HIDDEN, !back);
+  lv_obj_set_flag(g_ui->rescan_btn, LV_OBJ_FLAG_HIDDEN, !rescan);
+  lv_label_set_text(lv_obj_get_child(g_ui->back_btn, 0), v == View::Phone ? LV_SYMBOL_CLOSE : LV_SYMBOL_LEFT);
+  const char* title = CYD_S_WIFI_SETUP_TITLE;
+  if (v == View::Password) title = g_ui->hidden ? CYD_S_WIFI_HIDDEN : g_ui->sel_ssid.c_str();
+  lv_label_set_text(g_ui->title, title);
+  int32_t w = CYD_SCREEN_W - 10 - 4 - 6;
+  if (back) w -= kIconW;
+  if (rescan) w -= kIconW + 4;
+  lv_obj_set_width(g_ui->title, w);
 }
 
 void apply_view(View v) {
   clear_view();
   g_ui->view = v;
-  bool back = v != View::Phone || g_ui->closable;
-  if (back) {
-    lv_obj_remove_flag(g_ui->back_btn, LV_OBJ_FLAG_HIDDEN);
-  } else {
-    lv_obj_add_flag(g_ui->back_btn, LV_OBJ_FLAG_HIDDEN);
-  }
-  lv_label_set_text(lv_obj_get_child(g_ui->back_btn, 0), v == View::Phone ? LV_SYMBOL_CLOSE : LV_SYMBOL_LEFT);
+  layout_header(v);
   switch (v) {
     case View::Phone:
       build_phone();
@@ -291,8 +429,7 @@ void apply_view(View v) {
       detail::layout_check(g_ui->scr, "list", nullptr, g_ui->list, true);
       break;
     case View::Password:
-      build_password();
-      detail::layout_check(g_ui->scr, "password", g_ui->kb, nullptr, true);
+      build_password();  // checked by show_keyboard()
       break;
     default:
       break;
@@ -303,6 +440,7 @@ void finish_success() {
   const ThemeColors& t = ui_theme_colors();
   detail::wifi_save_credentials(WiFi.SSID(), WiFi.psk());
   detail::portal_stop();
+  if (g_ui->kb != nullptr) show_keyboard(false);
   if (g_ui->status != nullptr) set_status(CYD_S_WIFI_SAVED, t.success);
   g_ui->close_at = millis() + 800;
 }
@@ -319,6 +457,7 @@ void wifi_ui_open(bool closable) {
   g_ui = new SetupUi();
   g_ui->closable = closable;
   g_ui->prev = lv_screen_active();
+  g_ui->header_h = LV_MAX(36, line_h(t.font_normal) + 12);
   wifi_set_state(wifi::State::Setup);
   WiFi.mode(WIFI_AP_STA);
   portal_start(&g_ui->ap_ssid, &g_ui->ap_pass);
@@ -326,21 +465,25 @@ void wifi_ui_open(bool closable) {
   g_ui->scr = make_screen();
   lv_obj_t* header = lv_obj_create(g_ui->scr);
   lv_obj_remove_style_all(header);
-  lv_obj_set_size(header, CYD_SCREEN_W, kHeaderH);
+  lv_obj_remove_flag(header, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_size(header, CYD_SCREEN_W, g_ui->header_h);
   lv_obj_set_style_bg_color(header, t.surface, 0);
   lv_obj_set_style_bg_opa(header, LV_OPA_COVER, 0);
   g_ui->title = make_label(header, CYD_S_WIFI_SETUP_TITLE, t.font_normal, t.text);
+  single_line(g_ui->title, t.font_normal);
   lv_obj_align(g_ui->title, LV_ALIGN_LEFT_MID, 10, 0);
-  g_ui->back_btn = make_button(header, LV_SYMBOL_CLOSE, on_back, nullptr);
-  lv_obj_set_size(g_ui->back_btn, 44, kHeaderH - 6);
+  g_ui->back_btn = icon_button(header, LV_SYMBOL_CLOSE, on_back);
   lv_obj_align(g_ui->back_btn, LV_ALIGN_RIGHT_MID, -4, 0);
+  g_ui->rescan_btn = icon_button(header, LV_SYMBOL_REFRESH, on_rescan);
+  lv_obj_align_to(g_ui->rescan_btn, g_ui->back_btn, LV_ALIGN_OUT_LEFT_MID, -4, 0);
 
   g_ui->content = lv_obj_create(g_ui->scr);
   lv_obj_remove_style_all(g_ui->content);
-  lv_obj_set_size(g_ui->content, CYD_SCREEN_W, CYD_SCREEN_H - kHeaderH);
-  lv_obj_set_pos(g_ui->content, 0, kHeaderH);
-  lv_obj_set_style_pad_all(g_ui->content, 8, 0);
-  lv_obj_set_style_pad_row(g_ui->content, 6, 0);
+  lv_obj_remove_flag(g_ui->content, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_size(g_ui->content, CYD_SCREEN_W, CYD_SCREEN_H - g_ui->header_h);
+  lv_obj_set_pos(g_ui->content, 0, g_ui->header_h);
+  lv_obj_set_style_pad_all(g_ui->content, kPad, 0);
+  lv_obj_set_style_pad_row(g_ui->content, kGap, 0);
   lv_obj_set_style_pad_column(g_ui->content, 10, 0);
 
   lv_screen_load(g_ui->scr);
@@ -416,6 +559,7 @@ void wifi_ui_loop() {
       finish_success();
     } else if (millis() - g_ui->connect_started > CYD_WIFI_CONNECT_MS ||
                ((st == WL_CONNECT_FAILED || st == WL_NO_SSID_AVAIL) && millis() - g_ui->connect_started > 3000)) {
+      // The error stays readable (keyboard hidden) until the user taps a field.
       g_ui->connecting = false;
       WiFi.disconnect(false, false);
       set_status(CYD_S_WIFI_FAILED, ui_theme_colors().danger);

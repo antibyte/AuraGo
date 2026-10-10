@@ -176,6 +176,17 @@ service to this same package.
 - A change to any template file is a template version bump (`TemplateVersion`, `library.json`); projects are never
   migrated automatically. Device strings: edit `template/strings.json`, then
   `CYD_UPDATE_STRINGS=1 go test ./internal/cydcreator/ -run TestTemplateStringsHeaderUpToDate`.
+- Setup screen (`cyd_wifi_ui.cpp`) layout, for every board, orientation, theme and language: only the network list
+  scrolls (vertically); every label in a container has a width and a long mode (wrap for prose and button captions,
+  dots for titles and SSIDs). The phone view shrinks the QR code (96..220 px) and then drops the hint until it
+  fits; the list view has rescan as the header's refresh button and "hidden network" as the last list entry; the
+  password view shows the SSID as the title, gives the keyboard at most half the screen (less when two fields need
+  the room) and ends the content at its top edge; the status replaces the keyboard while connecting and after a
+  failure, until a field is tapped. `layout_check()` (`cyd_layout.cpp`, always compiled) logs
+  `layout: <view> ...` after every view change. Test builds with `#define CYD_LAYOUT_SELFTEST 1` (layout and
+  reconnect; boots without joining the stored network) or `2` (layout only) in `include/board_config.h` run the
+  on-device self-test a few seconds after boot and print `layout-selftest: <view> PASS|FAIL <n>`,
+  `layout-selftest: PASS|FAIL <n>` and `layout-selftest: reconnect PASS|FAIL <ms>`; the generator never sets it.
 - Setup portal: the SoftAP `CYD-Setup-XXXX` is WPA2 with a fresh random 8-character password. WiFiManager's menu is
   `wifi` only, and its admin routes (`/update /u /erase /restart /info /param /paramsave /exit /close`) answer 404:
   `block_admin_routes` registers them from WiFiManager's web-server callback, before WiFiManager's own routes, and the
