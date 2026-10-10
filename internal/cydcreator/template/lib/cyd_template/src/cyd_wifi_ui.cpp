@@ -145,7 +145,11 @@ void on_back(lv_event_t*) {
 }
 
 void on_to_device(lv_event_t*) { g_ui->pending = View::List; }
-void on_rescan(lv_event_t*) { g_ui->pending = View::List; }
+void on_rescan(lv_event_t*) {
+  // A scan that outlasted scanComplete()'s 6 s still delivers its results; a
+  // second one started now would fail and drop them.
+  if (!g_ui->scanning) g_ui->pending = View::List;
+}
 
 void on_hidden(lv_event_t*) {
   g_ui->hidden = true;
@@ -215,21 +219,28 @@ void connect_failed() {
   set_status(CYD_S_WIFI_FAILED, ui_theme_colors().danger);
 }
 
+// The keyboard types into ta, and only ta looks focused (no LVGL group tracks
+// the focus of these fields, so nothing clears the other one's state).
+void focus_field(lv_obj_t* ta) {
+  lv_keyboard_set_textarea(g_ui->kb, ta);
+  for (lv_obj_t* f : {g_ui->ta_ssid, g_ui->ta_pass}) {
+    if (f != nullptr && f != ta) lv_obj_remove_state(f, LV_STATE_FOCUSED);
+  }
+  lv_obj_add_state(ta, LV_STATE_FOCUSED);
+}
+
 // Tapping a field brings the keyboard back (it is hidden while connecting and
 // after a failure, so the status stays readable until then).
 void on_ta_focus(lv_event_t* e) {
   if (g_ui->kb == nullptr || g_ui->connecting) return;
-  lv_obj_t* ta = lv_event_get_target_obj(e);
-  lv_keyboard_set_textarea(g_ui->kb, ta);
+  focus_field(lv_event_get_target_obj(e));
   if (lv_obj_has_flag(g_ui->kb, LV_OBJ_FLAG_HIDDEN)) show_keyboard(true);
 }
 
 void on_kb_ready(lv_event_t*) {
   if (g_ui->connecting) return;
   if (g_ui->hidden && lv_keyboard_get_textarea(g_ui->kb) == g_ui->ta_ssid) {
-    lv_keyboard_set_textarea(g_ui->kb, g_ui->ta_pass);
-    lv_obj_add_state(g_ui->ta_pass, LV_STATE_FOCUSED);
-    lv_obj_remove_state(g_ui->ta_ssid, LV_STATE_FOCUSED);
+    focus_field(g_ui->ta_pass);
     return;
   }
   start_connect();
@@ -441,9 +452,7 @@ void build_password() {
   lv_obj_set_style_text_font(g_ui->kb, roomy ? t.font_normal : t.font_small, 0);
   lv_obj_add_event_cb(g_ui->kb, on_kb_ready, LV_EVENT_READY, nullptr);
   lv_obj_add_event_cb(g_ui->kb, on_kb_cancel, LV_EVENT_CANCEL, nullptr);
-  lv_obj_t* first = g_ui->hidden ? g_ui->ta_ssid : g_ui->ta_pass;
-  lv_keyboard_set_textarea(g_ui->kb, first);
-  lv_obj_add_state(first, LV_STATE_FOCUSED);
+  focus_field(g_ui->hidden ? g_ui->ta_ssid : g_ui->ta_pass);
   show_keyboard(true);
 }
 
@@ -620,14 +629,17 @@ void wifi_ui_loop() {
     // still say WL_CONNECTED for the link begin() is about to drop.
     wl_status_t st = WiFi.status();
     uint32_t elapsed = millis() - g_ui->connect_started;
+    uint32_t failed_joins = detail::wifi_fail_generation() - g_ui->fail_gen;
     if (st == WL_CONNECTED && detail::wifi_ip_generation() != g_ui->ip_gen) {
       g_ui->connecting = false;
       log::info("wifi: joined \"%s\" in %lu ms", g_ui->sel_ssid.c_str(), (unsigned long)elapsed);
       finish_success();
     } else if (elapsed > CYD_WIFI_CONNECT_MS || (st == WL_CONNECT_FAILED && elapsed > 3000) ||
-               detail::wifi_fail_generation() - g_ui->fail_gen >= kMaxAttempts) {
-      // Wrong password (the driver gives up), no such network, or timeout. The
-      // attempt cap keeps a wrong password from hammering the access point.
+               failed_joins >= kMaxAttempts ||
+               (failed_joins >= 1 && detail::wifi_last_fail_reason() == WIFI_REASON_NO_AP_FOUND)) {
+      // Wrong password (the driver gives up), timeout, or the attempt cap that
+      // keeps a wrong password from hammering the access point. With the
+      // SoftAP off "network not found" is real: no retry for that.
       connect_failed();
     }
   }

@@ -74,6 +74,7 @@ void wifi_connect(const String& ssid, const String& pass);
 void wifi_await_link();               // Connecting without a new attempt (the driver reconnects on its own)
 uint32_t wifi_ip_generation();        // number of STA_GOT_IP events so far
 uint32_t wifi_fail_generation();      // number of failed or lost station links so far
+uint8_t wifi_last_fail_reason();      // wifi_err_reason_t of the last of those
 void wifi_ui_open(bool closable);     // setup screen (portal + on-device path)
 void wifi_ui_close();
 bool wifi_ui_active();

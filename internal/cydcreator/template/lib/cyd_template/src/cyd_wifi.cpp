@@ -24,6 +24,7 @@ uint32_t g_last_retry = 0;
 bool g_time_started = false;
 std::atomic<uint32_t> g_ip_gen{0};    // STA_GOT_IP events (counted on the Wi-Fi event task)
 std::atomic<uint32_t> g_fail_gen{0};  // failed or lost station links (not our own disconnects)
+std::atomic<uint8_t> g_fail_reason{0};  // disconnect reason of the last of those
 
 const char* state_name(wifi::State s) {
   switch (s) {
@@ -115,6 +116,8 @@ uint32_t wifi_ip_generation() { return g_ip_gen.load(); }
 
 uint32_t wifi_fail_generation() { return g_fail_gen.load(); }
 
+uint8_t wifi_last_fail_reason() { return g_fail_reason.load(); }
+
 void time_begin() {
   if (g_time_started) return;
   g_time_started = true;
@@ -132,7 +135,9 @@ void wifi_begin() {
   WiFi.onEvent([](arduino_event_id_t, arduino_event_info_t) { g_ip_gen++; }, ARDUINO_EVENT_WIFI_STA_GOT_IP);
   WiFi.onEvent(
       [](arduino_event_id_t, arduino_event_info_t info) {
-        if (info.wifi_sta_disconnected.reason != WIFI_REASON_ASSOC_LEAVE) g_fail_gen++;
+        if (info.wifi_sta_disconnected.reason == WIFI_REASON_ASSOC_LEAVE) return;
+        g_fail_reason = info.wifi_sta_disconnected.reason;
+        g_fail_gen++;
       },
       ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
   apply_hostname();
