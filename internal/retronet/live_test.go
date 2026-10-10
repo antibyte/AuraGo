@@ -39,8 +39,9 @@ const (
 // Verified 2026-10-09/10:
 //   - telehack-ssh shows only its "." prompt; "date" answers with about 39 readable runes
 //     (too few, and the length varies with the date), "help" lists the commands (> 130 runes).
-//   - the C64 boards need no kick: each sent at least 12 printable PETSCII characters (banner
-//     or detection prompt) within 6 s of connecting.
+//   - the C64 boards need no kick: each sent at least 11 printable PETSCII characters (banner
+//     or detection prompt) within 6 s of connecting; decades sends only "PRESS DELETE" (11)
+//     and hangs up after a while unless DEL is pressed.
 var liveKick = map[string][]byte{
 	"telehack-ssh": []byte("help\r"),
 }

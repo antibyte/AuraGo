@@ -52,7 +52,7 @@ var catalogSpec = []struct {
 	{"the-oasis", "The Oasis", "commodore", "oasisbbs.hopto.org:6400", ProtocolTelnet, KindC64, CharsetPETSCII, ""},
 	{"the-cabin", "The Cabin", "commodore", "thecabinbbs.com:6400", ProtocolTelnet, KindC64, CharsetPETSCII, ""},
 	{"citadel-64", "Citadel 64", "commodore", "citadel64.thejlab.com:6400", ProtocolTelnet, KindC64, CharsetPETSCII, ""},
-	{"arrakis", "Arrakis", "commodore", "atl.ddns.net:6403", ProtocolTelnet, KindC64, CharsetPETSCII, ""},
+	{"decades", "Decades", "commodore", "decades.freeddns.org:6401", ProtocolTelnet, KindC64, CharsetPETSCII, ""},
 	{"enterprise", "Enterprise", "commodore", "enterprisebbs.ddns.net:1701", ProtocolTelnet, KindC64, CharsetPETSCII, ""},
 	{"high-desert", "High Desert", "commodore", "highdesertbbs.ddns.net:6400", ProtocolTelnet, KindC64, CharsetPETSCII, ""},
 	{"commodore-image", "Commodore Image", "commodore", "cib.dyndns.org:6400", ProtocolTelnet, KindC64, CharsetPETSCII, ""},

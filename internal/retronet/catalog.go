@@ -54,7 +54,7 @@ var catalogEntries = []Entry{
 	telnetEntry("the-oasis", "The Oasis", CategoryCommodore, "oasisbbs.hopto.org", 6400, KindC64, CharsetPETSCII),
 	telnetEntry("the-cabin", "The Cabin", CategoryCommodore, "thecabinbbs.com", 6400, KindC64, CharsetPETSCII),
 	telnetEntry("citadel-64", "Citadel 64", CategoryCommodore, "citadel64.thejlab.com", 6400, KindC64, CharsetPETSCII),
-	telnetEntry("arrakis", "Arrakis", CategoryCommodore, "atl.ddns.net", 6403, KindC64, CharsetPETSCII),
+	telnetEntry("decades", "Decades", CategoryCommodore, "decades.freeddns.org", 6401, KindC64, CharsetPETSCII),
 	telnetEntry("enterprise", "Enterprise", CategoryCommodore, "enterprisebbs.ddns.net", 1701, KindC64, CharsetPETSCII),
 	telnetEntry("high-desert", "High Desert", CategoryCommodore, "highdesertbbs.ddns.net", 6400, KindC64, CharsetPETSCII),
 	telnetEntry("commodore-image", "Commodore Image", CategoryCommodore, "cib.dyndns.org", 6400, KindC64, CharsetPETSCII),
