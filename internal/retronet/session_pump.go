@@ -67,9 +67,10 @@ func (w sessionWriter) bounded(f func() error) error {
 }
 
 // pump moves bytes between src and the browser until the session ends and returns the
-// reason. Only user input (Data events) resets the idle timer. The reader goroutine reuses
-// one buffer: it waits until the pump has handled a chunk before reading the next one. src is
-// closed and the reader goroutine has exited when pump returns.
+// reason. Only user input (Data events that are not just terminal reports) resets the idle
+// timer. The reader goroutine reuses one buffer: it waits until the pump has handled a chunk
+// before reading the next one. src is closed and the reader goroutine has exited when pump
+// returns.
 func (m *Manager) pump(ctx context.Context, client Client, src io.ReadCloser, stats *sessionStats, h pumpHandlers) string {
 	readCtx, stopRead := context.WithCancel(ctx)
 	reads := make(chan serviceRead)
@@ -116,7 +117,11 @@ func (m *Manager) pump(ctx context.Context, client Client, src io.ReadCloser, st
 			// close the connection when they stall (sessionWriter.abort). A service that never
 			// drains its socket or channel ends the session as remote_closed.
 			if len(ev.Data) > 0 {
-				idle.Reset(m.idleTimeout())
+				// The browser answers some service queries on its own; those replies still go
+				// to the service but are not user activity.
+				if !terminalReportsOnly(ev.Data) {
+					idle.Reset(m.idleTimeout())
+				}
 				if err := h.input(ev.Data); err != nil {
 					return endReason(ctx, ReasonRemoteClosed)
 				}
@@ -156,6 +161,78 @@ func readService(ctx context.Context, src io.Reader, out chan<- serviceRead, rel
 			return
 		}
 	}
+}
+
+// terminalReportsOnly reports whether p, one browser message, consists only of replies the
+// terminal emulator sends without the user: cursor position (ESC [ n ; n R), status
+// (ESC [ n n), primary and secondary device attributes (ESC [ ? params c, ESC [ > params c),
+// mode reports (ESC [ ? n ; n $ y, ESC [ n ; n $ y) and focus changes (ESC [ I, ESC [ O).
+// Mouse reports and everything else are user input. A modified F3 key that xterm encodes like
+// a cursor position report (ESC [ 1 ; 2 R) is indistinguishable and counts as a report.
+func terminalReportsOnly(p []byte) bool {
+	if len(p) == 0 {
+		return false
+	}
+	for len(p) > 0 {
+		n := terminalReportLen(p)
+		if n == 0 {
+			return false
+		}
+		p = p[n:]
+	}
+	return true
+}
+
+// terminalReportLen returns the length of the terminal report at the start of p, or 0.
+func terminalReportLen(p []byte) int {
+	if len(p) < 3 || p[0] != 0x1b || p[1] != '[' {
+		return 0
+	}
+	if p[2] == 'I' || p[2] == 'O' {
+		return 3
+	}
+	i := 2
+	var marker byte
+	if p[i] == '?' || p[i] == '>' {
+		marker = p[i]
+		i++
+	}
+	start := i
+	for i < len(p) && (p[i] == ';' || ('0' <= p[i] && p[i] <= '9')) {
+		i++
+	}
+	count, ok := reportParameterCount(p[start:i])
+	if !ok || i >= len(p) {
+		return 0
+	}
+	switch final := p[i]; {
+	case final == 'R' && marker == 0 && count == 2, // cursor position
+		final == 'n' && marker == 0 && count == 1, // status
+		final == 'c' && marker != 0:               // device attributes
+		return i + 1
+	case final == '$' && marker != '>' && count == 2 && i+1 < len(p) && p[i+1] == 'y': // mode report
+		return i + 2
+	}
+	return 0
+}
+
+// reportParameterCount counts the numbers in params ("12;40" -> 2). Empty input or an empty
+// number is not a valid parameter list.
+func reportParameterCount(params []byte) (int, bool) {
+	if len(params) == 0 {
+		return 0, false
+	}
+	count := 1
+	for i, b := range params {
+		if b != ';' {
+			continue
+		}
+		if i == 0 || i == len(params)-1 || params[i-1] == ';' {
+			return 0, false
+		}
+		count++
+	}
+	return count, true
 }
 
 // idleTimeout is how long a session may go without user input.

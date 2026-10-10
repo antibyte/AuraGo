@@ -59,6 +59,54 @@ func TestManagerUserInputResetsIdleTimer(t *testing.T) {
 	sessExpectResult(t, c, sessAwait(t, done), CodeNoCarrier, ReasonIdle)
 }
 
+// The browser's automatic terminal reports reach the service but do not keep an otherwise
+// idle session alive; a mouse report is user input and does.
+func TestManagerIdleTimeoutIgnoresTerminalReports(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		input string
+		alive bool
+	}{
+		{"terminal reports", "\x1b[12;40R\x1b[I", false},
+		{"mouse reports", "\x1b[<0;10;5M", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := startTelnetFixture(t, telnetFixtureScript{})
+			m := &Manager{Dialer: Dialer{AllowRestricted: true}, IdleTimeout: 200 * time.Millisecond}
+			c := newSessionTestClient()
+			started := time.Now()
+			done := sessStart(context.Background(), m, f.entry(KindWorld, CharsetUTF8), Size{Cols: 80, Rows: 25}, c)
+			c.waitControl(t, controlConnected)
+			sending := time.NewTicker(40 * time.Millisecond)
+			stopSending := time.NewTimer(700 * time.Millisecond)
+			for sendingDone := false; !sendingDone; {
+				select {
+				case res := <-done:
+					if tc.alive {
+						t.Fatalf("session ended while the user sent %s: %s/%s", tc.name, res.Code, res.Reason)
+					}
+					sessExpectResult(t, c, res, CodeNoCarrier, ReasonIdle)
+					if elapsed := time.Since(started); elapsed > 600*time.Millisecond {
+						t.Fatalf("idle timeout after %v despite only terminal reports, want about 200ms", elapsed)
+					}
+					f.waitReceived(t, []byte(tc.input))
+					return
+				case <-sending.C:
+					c.typeText(tc.input)
+				case <-stopSending.C:
+					sendingDone = true
+				}
+			}
+			sending.Stop()
+			if !tc.alive {
+				t.Fatal("a session that received only terminal reports did not go idle")
+			}
+			sessExpectResult(t, c, sessAwait(t, done), CodeNoCarrier, ReasonIdle)
+			f.waitReceived(t, []byte(tc.input))
+		})
+	}
+}
+
 func TestManagerMaxDurationEndsSession(t *testing.T) {
 	f := startTelnetFixture(t, telnetFixtureScript{})
 	m := &Manager{Dialer: Dialer{AllowRestricted: true}, IdleTimeout: time.Hour, MaxDuration: 200 * time.Millisecond}

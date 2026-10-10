@@ -63,7 +63,10 @@ Operator docs: `documentation/retro-net.md`.
 - `Manager.Run` always sends exactly one final `result` control. Limits (one
   Manager per server, shared by all users): 4 concurrent sessions (`limit`
   without dialing), 30 min without user input (only browser keystrokes reset
-  it), 4 h maximum. Context causes `ErrDisabled`/`ErrShutdown` map to
+  it; terminal status replies don't count: a message that consists only of
+  cursor position, status, device attribute, mode or focus reports still
+  goes to the service but leaves the timer, see `terminalReportsOnly`; mouse
+  reports count), 4 h maximum. Context causes `ErrDisabled`/`ErrShutdown` map to
   `disabled`/`server_shutdown`; `ErrClientGone` (the server's adapter noticed
   the browser left, also during the dial or SSH handshake) maps to
   `remote_closed`, and cancellation closes the connection at once, so no PTY

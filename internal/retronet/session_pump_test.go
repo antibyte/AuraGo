@@ -68,3 +68,50 @@ func TestSessionWriterDoesNotAbortFastCalls(t *testing.T) {
 		t.Fatalf("abort calls = %d, bytes out = %d, want 0 and 5", aborts.Load(), stats.bytesOut)
 	}
 }
+
+// xterm answers some service queries on its own (cursor position, status, device attributes,
+// mode reports, focus changes). Such replies are not user activity; everything else is.
+func TestTerminalReportsOnly(t *testing.T) {
+	cases := []struct {
+		name string
+		data string
+		want bool
+	}{
+		{"cursor position report", "\x1b[12;40R", true},
+		{"status report", "\x1b[0n", true},
+		{"primary device attributes", "\x1b[?1;2c", true},
+		{"primary device attributes, many", "\x1b[?62;1;2;6;7;8;9;15;22c", true},
+		{"secondary device attributes", "\x1b[>0;276;0c", true},
+		{"private mode report", "\x1b[?2004;2$y", true},
+		{"ansi mode report", "\x1b[4;2$y", true},
+		{"focus in", "\x1b[I", true},
+		{"focus out", "\x1b[O", true},
+		{"several reports in one message", "\x1b[I\x1b[24;80R\x1b[?1;2c\x1b[O", true},
+
+		{"empty", "", false},
+		{"a key", "a", false},
+		{"enter", "\r", false},
+		{"escape", "\x1b", false},
+		{"arrow up", "\x1b[A", false},
+		{"function key", "\x1b[15~", false},
+		{"sgr mouse press", "\x1b[<0;10;5M", false},
+		{"x10 mouse press", "\x1b[M !!", false},
+		{"report followed by a key", "\x1b[12;40Rx", false},
+		{"key followed by a report", "x\x1b[12;40R", false},
+		{"cursor report with one number", "\x1b[12R", false},
+		{"cursor report with three numbers", "\x1b[1;2;3R", false},
+		{"status report without a number", "\x1b[n", false},
+		{"device attributes without a marker", "\x1b[1;2c", false},
+		{"device attributes without parameters", "\x1b[?c", false},
+		{"mode report with one number", "\x1b[?2004$y", false},
+		{"mode report without the y", "\x1b[?2004;2$", false},
+		{"empty parameter", "\x1b[;40R", false},
+		{"truncated report", "\x1b[12;40", false},
+		{"bracketed paste start", "\x1b[200~", false},
+	}
+	for _, tc := range cases {
+		if got := terminalReportsOnly([]byte(tc.data)); got != tc.want {
+			t.Errorf("%s: terminalReportsOnly(%q) = %v, want %v", tc.name, tc.data, got, tc.want)
+		}
+	}
+}

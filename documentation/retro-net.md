@@ -82,7 +82,7 @@ explanation:
 | `BUSY` | The service refused the connection, or 4 Retro-Net sessions are already running (the limit is shared by everyone using this AuraGo installation) |
 | `NO ANSWER` | The service did not answer within 10 seconds |
 | `NO DIALTONE` | The name did not resolve, or the target is blocked (private address or mail port) |
-| `NO CARRIER` | The service hung up; 30 minutes passed without your input; the session reached 4 hours; Retro-Net was switched off or your access ended; AuraGo shut down; an SSH host key did not match or was not accepted; you hung up; or the browser lost its connection to AuraGo |
+| `NO CARRIER` | The service hung up; 30 minutes passed without your input (terminal status replies don't count); the session reached 4 hours; Retro-Net was switched off or your access ended; AuraGo shut down; an SSH host key did not match or was not accepted; you hung up; or the browser lost its connection to AuraGo |
 
 ## Own entries
 
