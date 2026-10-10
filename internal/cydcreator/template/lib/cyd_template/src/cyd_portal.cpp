@@ -39,6 +39,7 @@ class CydWiFiManager : public WiFiManager {
 
 CydWiFiManager* g_wm = nullptr;  // created once, never deleted (owns WiFi event hooks)
 bool g_running = false;
+bool g_saved = false;  // a phone saved a network during the current process() call
 String g_css;
 
 String hex_color(lv_color_t c) {
@@ -59,14 +60,16 @@ bool is_dark(lv_color_t c) {
 // class "l" on the signal icon after its link) needs 8..63 characters or 64 hex
 // digits; an SSID typed by hand may also have none (open hidden network); an
 // open network's field is disabled by WiFiManager and sends nothing.
+// Lengths are UTF-8 bytes, as the driver and the device count them (cydLen).
 // cydPwOk() is the rule (kind 0 open, 1 locked, 2 typed); the Go tests run it.
 const char kPasswordCheck[] = "<script>var cydPwMsg=\"" CYD_S_WIFI_PASSWORD_LENGTH "\";" R"JS(
-function cydPwOk(p,k){return k==0||(k==2&&p=="")||(p.length>7&&p.length<64)||/^[0-9a-fA-F]{64}$/.test(p)}
+function cydLen(p){for(var b=0,i=0;i<p.length;i++){var c=p.charCodeAt(i);b+=c<128?1:c<2048?2:c>>10==54?4:c>>10==55?0:3}return b}
+function cydPwOk(p,k){var n=cydLen(p);return k==0||(k==2&&n==0)||(n>7&&n<64)||/^[0-9a-fA-F]{64}$/.test(p)}
 document.addEventListener("submit",function(e){
 var f=e.target,s=f.querySelector("#s"),p=f.querySelector("#p"),k=2,a=document.querySelectorAll("[data-ssid]");
 if(!s||!p)return;
 for(var i=0;i<a.length;i++)if(a[i].getAttribute("data-ssid")==s.value){var q=a[i].nextElementSibling;k=q&&q.classList.contains("l")?1:0}
-if(cydPwOk(p.value,k))return;
+if(cydPwOk(p.disabled?"":p.value,k))return;
 e.preventDefault();
 var m=document.getElementById("cydpe");
 if(!m){m=document.createElement("div");m.id="cydpe";m.className="msg D";p.parentNode.insertBefore(m,p.nextSibling)}
@@ -133,6 +136,8 @@ void portal_start(String* ap_ssid, String* ap_pass) {
     static const char* menu[] = {"wifi"};
     g_wm->setMenu(menu, 1);
     g_wm->setWebServerCallback(block_admin_routes);
+    // handleWifiSave() calls this right before it asks process() to join.
+    g_wm->setPreSaveConfigCallback([] { g_saved = true; });
   }
   build_css();
   g_wm->setTitle(CYD_S_WIFI_SETUP_TITLE);
@@ -149,15 +154,17 @@ bool portal_active() { return g_running; }
 // keeps running until portal_stop(). If WiFiManager ever shuts it down on its
 // own, its web server is freed: stop_quietly() checks for that.
 //
-// A phone save joins inside process() (blocking, up to setConnectTimeout()).
-// When that join fails, WiFiManager keeps the portal up and shows the reason
-// on its status line the next time the phone opens a page, but the device saw
-// nothing; and the driver keeps retrying the saved credentials in the
-// background (auto-reconnect), hopping off the SoftAP's channel. Any failed
-// join during process() therefore ends those retries and reports JoinFailed.
+// A phone save joins inside the same process() call (blocking, up to
+// setConnectTimeout()). When that join fails, WiFiManager keeps the portal up
+// and shows the reason on its status line the next time the phone opens a
+// page, but the device saw nothing, and the driver keeps retrying the saved
+// credentials in the background (auto-reconnect), hopping off the SoftAP's
+// channel. So a save (pre-save callback) with an SSID that did not end
+// connected reports JoinFailed and ends those retries; nothing else does (a
+// page request that only scans must not touch the station link).
 PortalEvent portal_loop() {
   if (!g_running) return PortalEvent::None;
-  uint32_t fails = wifi_fail_generation();
+  g_saved = false;
   bool connected = g_wm->process();
   if (connected || !g_wm->getConfigPortalActive()) g_running = false;
   if (connected) {
@@ -166,9 +173,9 @@ PortalEvent portal_loop() {
   }
   if (!g_running) {
     log::warn("portal: ended without a connection");
-  } else if (wifi_fail_generation() != fails && WiFi.status() != WL_CONNECTED) {
-    log::warn("portal: joining \"%s\" from the phone failed (reason %u)", g_wm->saved_ssid().c_str(),
-              (unsigned)wifi_last_fail_reason());
+  } else if (g_saved && g_wm->saved_ssid().length() > 0) {
+    log::warn("portal: joining \"%s\" from the phone failed (status %d)", g_wm->saved_ssid().c_str(),
+              (int)WiFi.status());
     WiFi.disconnect(false, false);
     return PortalEvent::JoinFailed;
   }

@@ -85,6 +85,7 @@ function page(list) {
 }
 function submit(form) { let blocked = false; listener({ target: form, preventDefault() { blocked = true; } }); return blocked; }
 const hex64 = "0123456789abcdefABCDEF0123456789abcdefABCDEF0123456789abcdef0123";
+const uml = String.fromCharCode(0xe4), emoji = String.fromCodePoint(0x1f600);
 const cases = [
   // ssid, password, listed networks, blocked
   ["Home", "", [["Home", true]], true],
@@ -97,6 +98,14 @@ const cases = [
   ["Hidden", "", [["Home", true]], false],
   ["Hidden", "abc", [["Home", true]], true],
   ["Hidden", "abcdefgh", [["Home", true]], false],
+  // UTF-8 bytes, as the driver counts them: 60 umlauts are 120 bytes, 7
+  // characters with two umlauts are 9 bytes, an emoji is 4 bytes.
+  ["Home", uml.repeat(60), [["Home", true]], true],
+  ["Home", uml + uml + "abcde", [["Home", true]], false],
+  ["Home", emoji + emoji, [["Home", true]], false],
+  ["Home", emoji + "abc", [["Home", true]], true],
+  ["Home", emoji.repeat(16), [["Home", true]], true],
+  ["Home", emoji.repeat(15) + "abc", [["Home", true]], false],
 ];
 for (const [ssid, pw, list, want] of cases) {
   const { s, p, form } = page(list);
@@ -106,6 +115,13 @@ for (const [ssid, pw, list, want] of cases) {
   const msg = document.getElementById("cydpe");
   if (want && !(msg && msg.textContent === "MSG" && msg.className === "msg D" && p.focused)) throw new Error("no message for " + ssid);
   if (!want && msg) throw new Error("message for an accepted password");
+}
+// A disabled field (WiFiManager disables it for an open network) sends
+// nothing: its leftover value must not block a typed SSID.
+{
+  const { s, p, form } = page([["Home", true], ["Cafe", false]]);
+  s.value = "Typed"; p.value = "secret"; p.disabled = true;
+  if (submit(form)) throw new Error("blocked by a disabled field");
 }
 // A second rejection reuses the message; other forms are left alone.
 const { s, p, form } = page([["Home", true]]);

@@ -199,7 +199,8 @@ service to this same package.
   and shows `WIFI_PASSWORD_LENGTH` when this rule fails; it reads the lock from WiFiManager's list markup (class
   `l` on the signal icon after `a[data-ssid]`), so re-check it on a WiFiManager bump. The device applies the same
   rule before joining (`password_ok()`, lock flags remembered from the scan); an open listed network joins right
-  away without the keyboard.
+  away without the keyboard. Page, device and driver count UTF-8 bytes; WEP keys (5 or 13 characters) are
+  rejected on purpose (obsolete).
 - Portal shutdown and joining (hardware-verified 2026-10-10): never call WiFiManager's `stopConfigPortal()`. Its
   `shutdownConfigPortal()` rewrites the SoftAP config (empty, channel 6), blocks for a second, forces STA mode and may
   call `WiFi.reconnect()`. `portal_stop()` uses `CydWiFiManager::stop_quietly()` (frees web and DNS server through
@@ -212,10 +213,11 @@ service to this same package.
   failed joins (`wifi_fail_generation()`), on `WL_CONNECT_FAILED` or after `CYD_WIFI_CONNECT_MS`. Ending or leaving an attempt disconnects with the driver's
   auto-reconnect off and restarts the portal, which turns auto-reconnect back on (WiFiManager's phone-path join
   tries once and relies on the driver's retry). Closing after a success never starts a new join
-  (`wifi_await_link()`). A phone-path join runs inside `process()`; when a join fails there (`portal_loop()` sees
-  the fail counter move and returns `PortalEvent::JoinFailed`), the station is disconnected (the driver would keep
-  retrying the saved credentials off the SoftAP's channel) and the phone view shows `WIFI_FAILED` until the next
-  attempt; WiFiManager keeps the portal up and shows the reason on its own status line. Scans are polled for up to
+  (`wifi_await_link()`). A phone-path join runs inside the `process()` call that handled the save; when such a
+  save (WiFiManager's pre-save callback, non-empty SSID) does not end connected, `portal_loop()` returns
+  `PortalEvent::JoinFailed`, disconnects the station (the driver would keep retrying the saved credentials off
+  the SoftAP's channel) and the phone view shows `WIFI_FAILED` until the next attempt; page requests that only
+  scan never touch the station link. WiFiManager keeps the portal up and shows the reason on its status line. Scans are polled for up to
   15 s (2.0.17 `scanComplete()` reports a failure after 6 s, which scans next to the SoftAP exceed), and
   `start_scan()` never starts a second scan while one runs (a rebuilt list keeps waiting).
 - Token origin: the AuraGo bearer token is sent only to `g_cfg.url + path` (the `cydcc` URL; https is pinned by
