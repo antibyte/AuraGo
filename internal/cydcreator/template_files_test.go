@@ -13,6 +13,7 @@ import (
 // miss one.
 var templateFiles = []string{
 	"lib/cyd_template/config/cyd_strings.h",
+	"lib/cyd_template/config/cyd_wm_strings.h",
 	"lib/cyd_template/config/lv_conf.h",
 	"lib/cyd_template/library.json",
 	"lib/cyd_template/src/cyd.h",
@@ -21,10 +22,13 @@ var templateFiles = []string{
 	"lib/cyd_template/src/cyd_config.h",
 	"lib/cyd_template/src/cyd_display.cpp",
 	"lib/cyd_template/src/cyd_log.cpp",
+	"lib/cyd_template/src/cyd_portal.cpp",
 	"lib/cyd_template/src/cyd_private.h",
 	"lib/cyd_template/src/cyd_screens.cpp",
 	"lib/cyd_template/src/cyd_storage.cpp",
 	"lib/cyd_template/src/cyd_touchcal.cpp",
+	"lib/cyd_template/src/cyd_wifi.cpp",
+	"lib/cyd_template/src/cyd_wifi_ui.cpp",
 	"strings.json",
 }
 
