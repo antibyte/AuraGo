@@ -827,7 +827,9 @@ func TestDesktopTerminalTextContract(t *testing.T) {
 
 	source := readDesktopAssetText(t, "js/desktop/apps/terminal-text.js")
 	for _, want := range []string{
-		"window.TerminalText = { cellWidth: cellWidth, fitToCells: fitToCells, printable: printable }",
+		"window.TerminalText = { cellWidth: cellWidth, fitToCells: fitToCells, printable: printable, wrapHints: wrapHints }",
+		"function wrapHints(value, width)",
+		`const HINT_SEPARATOR = ' \xb7 ';`,
 		"function cellWidth(code)",
 		"function fitToCells(value, width, pad)",
 		"function printable(value)",
@@ -861,6 +863,9 @@ func TestDesktopTerminalRetroNetDirectoryContract(t *testing.T) {
 		"online: '[*]'",
 		"offline: '[ ]'",
 		"unknown: '[?]'",
+		"c64: '[C]'",
+		"if (entry.kind === 'c64') return { state: 'c64', lastOnline: '' };",
+		"TerminalText.wrapHints(tr('desktop.terminal_retronet_status_c64_help'), cols - 1)",
 		"api('/api/desktop/retronet/directory')",
 		"api('/api/desktop/retronet/status', { method: 'POST' })",
 		"payload.can_edit === true",
@@ -900,6 +905,9 @@ func TestDesktopTerminalRetroNetDirectoryContract(t *testing.T) {
 		if strings.Contains(source, forbidden) {
 			t.Fatalf("terminal-retronet-directory.js must render only into xterm and use the shared TerminalText helpers; found %q", forbidden)
 		}
+	}
+	if strings.Contains(source, "function wrapHints") || strings.Contains(source, "HINT_SEPARATOR") {
+		t.Fatal("terminal-retronet-directory.js must pack its key help through TerminalText.wrapHints")
 	}
 }
 

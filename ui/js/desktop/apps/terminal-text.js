@@ -4,6 +4,9 @@
     // Display widths follow the vendored xterm's default Unicode 6 table only (emoji are one cell there).
     const ELLIPSIS = '\u2026';
 
+    // Separator of the key hints in one translated help string (a middle dot between spaces).
+    const HINT_SEPARATOR = ' \xb7 ';
+
     // Zero-width ranges of xterm's default Unicode 6 provider (vendored xterm.js, after Markus Kuhn's wcwidth).
     const ZERO_WIDTH = [
         0x300, 0x36f, 0x483, 0x486, 0x488, 0x489, 0x591, 0x5bd, 0x5bf, 0x5bf, 0x5c1, 0x5c2, 0x5c4, 0x5c5,
@@ -110,5 +113,24 @@
         return pad ? out + ' '.repeat(limit - used) : out;
     }
 
-    window.TerminalText = { cellWidth: cellWidth, fitToCells: fitToCells, printable: printable };
+    // Display width in cells of text without its control characters.
+    function cells(value) {
+        let width = 0;
+        for (const ch of printable(value)) width += cellWidth(ch.codePointAt(0));
+        return width;
+    }
+
+    // Packs the middle-dot-separated key hints of one translated string into as few lines of at most `width`
+    // cells as fit (directory help, C64 key hint); a hint longer than a line is cut with an ellipsis.
+    function wrapHints(value, width) {
+        const lines = [];
+        printable(value).split(HINT_SEPARATOR).forEach(function (part) {
+            const last = lines.length - 1;
+            if (last >= 0 && cells(lines[last] + HINT_SEPARATOR + part) <= width) lines[last] += HINT_SEPARATOR + part;
+            else lines.push(fitToCells(part, width));
+        });
+        return lines;
+    }
+
+    window.TerminalText = { cellWidth: cellWidth, fitToCells: fitToCells, printable: printable, wrapHints: wrapHints };
 })();

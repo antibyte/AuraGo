@@ -5,15 +5,15 @@
     const LOCAL_SHELL_ID = 'local-shell';
     const LAST_KEY = 'aurago.desktop.terminal.retronet.last';
     const CATEGORIES = ['classics', 'bbs', 'muds', 'games', 'commodore', 'own'];
-    const MARKERS = { online: '[*]', offline: '[ ]', unknown: '[?]' };
-    const MARKER_COLORS = { online: '\x1b[32m', offline: '\x1b[31m', unknown: '\x1b[33m' };
+    // C64 boards are never checked (many have a single line): [C] instead of a reachability state.
+    const MARKERS = { online: '[*]', offline: '[ ]', unknown: '[?]', c64: '[C]' };
+    const MARKER_COLORS = { online: '\x1b[32m', offline: '\x1b[31m', unknown: '\x1b[33m', c64: '\x1b[36m' };
     const HEADER_ROWS = 2;
     const DOUBLE_TAP_MS = 500;
     const DIGIT_WINDOW_MS = 1000;
     const RESET = '\x1b[0m';
     const DIM = '\x1b[2m';
     const RULE = '\u2500';
-    const HINT_SEPARATOR = ' \u00b7 ';
     const KEYS = {
         up: ['\x1b[A', '\x1bOA'],
         down: ['\x1b[B', '\x1bOB'],
@@ -30,17 +30,6 @@
         let width = 0;
         for (const ch of TerminalText.printable(value)) width += TerminalText.cellWidth(ch.codePointAt(0));
         return width;
-    }
-
-    // Packs the middle-dot-separated key hints into as few lines as fit; an overlong hint is cut.
-    function wrapHints(value, width) {
-        const lines = [];
-        TerminalText.printable(value).split(HINT_SEPARATOR).forEach(function (part) {
-            const last = lines.length - 1;
-            if (last >= 0 && cells(lines[last] + HINT_SEPARATOR + part) <= width) lines[last] += HINT_SEPARATOR + part;
-            else lines.push(TerminalText.fitToCells(part, width));
-        });
-        return lines;
     }
 
     // Upper case in the UI language (Greek drops accents); an invalid tag falls back to the default rules.
@@ -164,6 +153,7 @@
 
         function statusOf(entry) {
             if (entry.local) return null;
+            if (entry.kind === 'c64') return { state: 'c64', lastOnline: '' };
             const status = data.status && data.status[entry.id];
             const state = status && (status.state === 'online' || status.state === 'offline') ? status.state : 'unknown';
             return { state: state, lastOnline: status ? status.last_online_at : '' };
@@ -240,8 +230,11 @@
             if (disposed || !term) return;
             const cols = Math.max(12, term.cols);
             const rows = Math.max(3, term.rows);
-            let help = wrapHints(tr('desktop.terminal_retronet_help'), cols - 1);
-            if (editable()) help = help.concat(wrapHints(tr('desktop.terminal_retronet_help_admin'), cols - 1));
+            let help = TerminalText.wrapHints(tr('desktop.terminal_retronet_help'), cols - 1);
+            if (data.entries.some(function (entry) { return entry && entry.kind === 'c64'; })) {
+                help = help.concat(TerminalText.wrapHints(tr('desktop.terminal_retronet_status_c64_help'), cols - 1));
+            }
+            if (editable()) help = help.concat(TerminalText.wrapHints(tr('desktop.terminal_retronet_help_admin'), cols - 1));
             if (rows < HEADER_ROWS + help.length + 4) help = [];
             const footerRows = help.length ? help.length + 1 : 0;
             visibleRows = Math.max(1, rows - HEADER_ROWS - footerRows);

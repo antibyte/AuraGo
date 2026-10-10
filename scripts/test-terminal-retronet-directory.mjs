@@ -99,6 +99,12 @@ same('pad fills to the width', fitToCells('\u6f22a', 5, true), '\u6f22a  ');
 same('pad after a cut', fitToCells('\u6f22\u5b57\u30c6', 4, true), '\u6f22\u2026 ');
 same('pad of nothing', fitToCells('', 3, true), '   ');
 same('directory exposes only its contract', Object.keys(Directory).join(','), 'LOCAL_SHELL_ID,create');
+same('TerminalText exposes only its contract', Object.keys(sandbox.TerminalText).join(','), 'cellWidth,fitToCells,printable,wrapHints');
+const { wrapHints } = sandbox.TerminalText;
+same('wrapHints packs hints into as few lines as fit', JSON.stringify(wrapHints('a · b · c', 5)), JSON.stringify(['a · b', 'c']));
+same('wrapHints cuts an overlong hint with an ellipsis', JSON.stringify(wrapHints('abcdefgh · x', 5)), JSON.stringify(['abcd…', 'x']));
+same('wrapHints measures cells (CJK is two each)', JSON.stringify([wrapHints('漢字 · 漢', 8), wrapHints('漢字 · 漢', 9)]), JSON.stringify([['漢字', '漢'], ['漢字 · 漢']]));
+same('wrapHints strips control characters', JSON.stringify(wrapHints('a\x1b[31m · b', 20)), JSON.stringify(['a[31m · b']));
 same('printable strips C0, DEL and C1', printable('a\u001b[2Jb\u009b31m\u0007c\u007f\u0000d\r\n\u0085e'), 'a[2Jb31mcde');
 same('fitToCells strips control characters', fitToCells('\u001b]0;x\u0007ok', 10), ']0;xok');
 same('printable keeps zwj and text', printable('\u{1F469}\u200d\u{1F4BB} \u00e9'), '\u{1F469}\u200d\u{1F4BB} \u00e9');
@@ -266,6 +272,52 @@ for (const lang of LANGS) {
         check(label + ' the Commodore 64 heading is shown', screen.some((text) => text.includes(commodore)), commodore);
         check(label + ' announcements carry no control characters', announced.length > 0 && announced.every((text) => !CONTROL.test(text)));
         term.dispose();
+    }
+}
+
+// 4b. C64 boards (Contract C): never checked, so [C] instead of a reachability state (a stale status is ignored),
+// their own category before the own entries, the [C] help line only when C64 boards are listed, and translations
+// that fit: every part of the C64 key hint fits one 40-column line, the [C] help one 80-column line.
+{
+    const cabin = { id: 'the-cabin', name: 'The Cabin', category: 'commodore', description_key: 'desktop.terminal_retronet_entry_the_cabin', protocol: 'telnet', host: 'thecabinbbs.com', port: 6400, kind: 'c64', charset: 'petscii', own: false };
+    const game = { id: 'sshtron', name: 'SSHTron', category: 'games', description_key: 'desktop.terminal_retronet_entry_sshtron', protocol: 'ssh', host: 'sshtron.zachlatta.com', port: 22, user: 'guest', own: false };
+    const mine = { ...own('mybox', 'My C64 Box', '#own c64 board'), kind: 'c64', charset: 'petscii' };
+    const data = { entries: [mine, cabin, payload.entries[0], game], status: { telehack: { state: 'online' }, 'the-cabin': { state: 'offline', last_online_at: hoursAgo } }, stale: false, can_edit: true };
+    const { term, directory, announced } = await renderDirectory(80, 30, t, data);
+    const screen = [];
+    for (let y = 0; y < 30; y += 1) screen.push(term.buffer.active.getLine(y).translateToString(true));
+    const row = (name) => screen.find((text) => text.includes(name)) || '';
+    same('a catalog C64 board shows [C]', row('The Cabin').slice(4, 7), '[C]');
+    same('an own C64 board shows [C]', row('My C64 Box').slice(4, 7), '[C]');
+    check('a status for a C64 board is ignored (no last-reachable time)', !row('The Cabin').includes('last reachable'), row('The Cabin'));
+    const heading = (category) => screen.findIndex((text) => text.trim() === t('desktop.terminal_retronet_cat_' + category).toUpperCase());
+    check('the Commodore 64 category follows Games and precedes the own entries', heading('games') >= 0 && heading('games') < heading('commodore') && heading('commodore') < heading('own'), [heading('games'), heading('commodore'), heading('own')].join(','));
+    const markerRow = screen.indexOf(row('The Cabin'));
+    const marker = term.buffer.active.getLine(markerRow).getCell(5);
+    check('[C] is cyan', marker.getChars() === 'C' && marker.isFgPalette() && marker.getFgColor() === 6);
+    check('the [C] help line is shown', screen.some((text) => text.includes(t('desktop.terminal_retronet_status_c64_help'))));
+    const number = row('The Cabin').slice(1, 3);
+    directory.handleData(number[0]);
+    directory.handleData(number[1]);
+    check('the announcement says the board is not checked', announced.at(-1).includes('The Cabin') && announced.at(-1).includes(t('desktop.terminal_retronet_status_c64')) && !announced.at(-1).includes(t('desktop.terminal_retronet_status_offline')), announced.at(-1));
+    directory.dispose();
+    term.dispose();
+    const plain = await renderDirectory(80, 30);
+    const lines = [];
+    for (let y = 0; y < 30; y += 1) lines.push(plain.term.buffer.active.getLine(y).translateToString(true));
+    check('without C64 boards there is no [C] help', !lines.join('\n').includes('[C]'));
+    plain.directory.dispose();
+    plain.term.dispose();
+    for (const lang of LANGS) {
+        const strings = JSON.parse(read('lang/desktop/' + lang + '.json'));
+        const keys = strings['desktop.terminal_retronet_c64_keys'] || '';
+        const parts = keys.split(' · ');
+        const wide = parts.filter((part) => width(part) > 39);
+        check(lang + ' every C64 key hint part fits a 40-column line', parts.length >= 10 && wide.length === 0, wide.join(' | ') || String(parts.length));
+        const packed = wrapHints(keys, 39);
+        check(lang + ' the packed C64 key hint keeps every part whole', packed.every((line) => width(line) <= 39 && !line.endsWith('…')) && packed.length <= 8, JSON.stringify(packed));
+        const help = strings['desktop.terminal_retronet_status_c64_help'] || '';
+        check(lang + ' the [C] help starts with the marker and fits 79 cells', help.startsWith('[C]') && width(help) <= 79, help);
     }
 }
 
