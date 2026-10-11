@@ -227,6 +227,10 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 		case "game_maker_project", "game_maker_file", "game_maker_asset", "game_maker_validate":
 			result, _ := dispatchGameMaker(ctx, tc, dc)
 			return result
+		case "cyd_creator_read_project", "cyd_creator_api_reference", "cyd_creator_submit_plan", "cyd_creator_update_layout",
+			"cyd_creator_read_file", "cyd_creator_write_file", "cyd_creator_delete_file", "cyd_creator_build", "cyd_creator_finish":
+			result, _ := dispatchCYDCreator(ctx, tc, dc)
+			return result
 		case "code_analysis":
 			if !cfg.Agent.AllowFilesystemWrite && !cfg.Agent.AllowShell {
 				return `Tool Output: {"status":"error","message":"code_analysis requires filesystem access to be enabled"}`
