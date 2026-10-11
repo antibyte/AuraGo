@@ -649,6 +649,7 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		defer os.RemoveAll(sqliteStagingDir)
 
 		sqliteAdded := 0
+		var sqliteSkipped []string
 		for _, dbPath := range sqlitePaths {
 			if dbPath == "" {
 				continue
@@ -668,6 +669,13 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 				if os.IsNotExist(snapshotErr) {
 					continue
 				}
+				if config.IsBestEffortSQLiteBackup(s.Cfg, absDB) {
+					// The rebuildable Retro Games index must never fail the
+					// whole backup; the manifest says what is missing.
+					s.Logger.Warn("[Backup] Skipping an unreadable optional SQLite database", "path", absDB, "error", snapshotErr)
+					sqliteSkipped = append(sqliteSkipped, fmt.Sprintf("sqlite/%s skipped (snapshot failed)", filepath.Base(absDB)))
+					continue
+				}
 				s.Logger.Warn("[Backup] Failed to create SQLite snapshot", "path", absDB, "error", snapshotErr)
 				jsonError(w, "Failed to create a consistent SQLite backup", http.StatusInternalServerError)
 				return
@@ -685,6 +693,7 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		if sqliteAdded > 0 {
 			contents = append(contents, fmt.Sprintf("sqlite/ (%d consistent database snapshot(s))", sqliteAdded))
 		}
+		contents = append(contents, sqliteSkipped...)
 
 		// 5. VectorDB (optional — can be large)
 		if req.IncludeVectorDB {

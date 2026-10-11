@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // Fixed SQLite database filenames stored under directories.data_dir but not
@@ -83,6 +84,26 @@ func SQLiteDatabasePaths(cfg *Config) []string {
 	}
 
 	return dedupeNonEmptyPaths(paths)
+}
+
+// IsBestEffortSQLiteBackup reports whether path (one of SQLiteDatabasePaths)
+// is backed up only on a best-effort basis: a failed snapshot skips that file
+// instead of failing the whole backup. Only the Retro Games index qualifies:
+// it is rebuildable and opens lazily, so a damaged file can sit unnoticed
+// until Retro Games is used again. Paths are compared cleaned and absolute.
+func IsBestEffortSQLiteBackup(cfg *Config, path string) bool {
+	if cfg == nil || strings.TrimSpace(cfg.Directories.DataDir) == "" || strings.TrimSpace(path) == "" {
+		return false
+	}
+	want, err := filepath.Abs(filepath.Join(cfg.Directories.DataDir, RetroGamesDirName, RetroGamesDBFilename))
+	if err != nil {
+		return false
+	}
+	got, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	return got == want
 }
 
 // SQLiteProtectedPaths returns SQLite database paths plus WAL/SHM sidecars that
