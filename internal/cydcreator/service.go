@@ -111,6 +111,10 @@ type ServiceConfig struct {
 	Now                           func() time.Time
 	Limits                        ServiceLimits
 	Logger                        *slog.Logger
+	// Scrub redacts registered secrets from agent text shown in the job chat
+	// (the server passes security.Scrub; this package cannot import it,
+	// because config's tests import cydcreator). nil leaves text unchanged.
+	Scrub func(string) string
 }
 
 // Service is the CYD Creator core: projects, files, assets, events and the
@@ -121,6 +125,7 @@ type Service struct {
 	generate     func(GenerateInput) (GenerateOutput, error)
 	now          func() time.Time
 	logger       *slog.Logger
+	scrub        func(string) string // ServiceConfig.Scrub; nil = unchanged
 	ids          IDSource
 	workspaceDir string
 	dataDir      string
@@ -216,6 +221,7 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 		generate:     generate,
 		now:          now,
 		logger:       logger,
+		scrub:        cfg.Scrub,
 		ids:          &lockedIDs{ids: ids},
 		workspaceDir: cfg.WorkspaceDir,
 		dataDir:      cfg.DataDir,

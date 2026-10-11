@@ -12,6 +12,7 @@ import (
 	"aurago/internal/agent"
 	"aurago/internal/config"
 	"aurago/internal/cydcreator"
+	"aurago/internal/i18n"
 	"aurago/internal/llm"
 	"aurago/internal/security"
 
@@ -35,7 +36,7 @@ type cydCreatorConversation struct {
 }
 
 // cydCreatorJobContext is the untrusted data block of the phase request.
-func cydCreatorJobContext(ctx context.Context, run cydcreator.JobRun, toolLimit int) map[string]any {
+func cydCreatorJobContext(run cydcreator.JobRun, toolLimit int) map[string]any {
 	data := map[string]any{
 		"job_id": run.Job.ID, "phase": run.Phase, "mode": run.Job.Mode, "resumed": run.Resumed,
 		"project": map[string]any{"id": run.Project.ID, "name": run.Project.Name, "board": run.Project.Board, "theme": run.Project.Theme},
@@ -57,8 +58,10 @@ func cydCreatorJobContext(ctx context.Context, run cydcreator.JobRun, toolLimit 
 			"error_code": run.BuildErrorCode, "diagnostics": run.Diagnostics}
 	}
 	budget := map[string]any{"tool_calls": toolLimit}
-	if deadline, ok := ctx.Deadline(); ok {
-		budget["seconds_remaining"] = max(0, int(time.Until(deadline).Seconds())/30*30)
+	if run.TimeRemaining > 0 {
+		// The job timeout is a timer (no ctx deadline): the orchestrator passes
+		// what is left of the segment, rounded down to 30 s.
+		budget["seconds_remaining"] = int(run.TimeRemaining.Seconds()) / 30 * 30
 	}
 	data["budget"] = budget
 	return data
@@ -76,7 +79,9 @@ func (r *cydCreatorAgentRunner) conversation(ctx context.Context, cfg *config.Co
 	var saved cydCreatorConversation
 	if len(raw) > 0 {
 		if err := json.Unmarshal(raw, &saved); err != nil {
-			return nil, nil, fmt.Errorf("decode CYD Creator conversation: %w", err)
+			// A damaged checkpoint must not block every resume: start fresh.
+			r.logger().Warn("CYD Creator conversation checkpoint is unreadable; continuing without it", "job_id", run.Job.ID, "error", err)
+			saved = cydCreatorConversation{}
 		}
 	}
 	history := saved.Messages
@@ -86,7 +91,11 @@ func (r *cydCreatorAgentRunner) conversation(ctx context.Context, cfg *config.Co
 			history[i].ReasoningContent = ""
 		}
 	}
-	durable := append([]openai.ChatCompletionMessage(nil), history...)
+	view := gameMakerRequestView(history)
+	// The archive continues from the request view, not the whole saved
+	// history, so it does not grow with every phase and resume; each save is
+	// also capped (cydCreatorTrimConversation).
+	durable := append([]openai.ChatCompletionMessage(nil), view...)
 	seen := map[string]bool{}
 	phaseUserKey := ""
 	checkpoint := func(messages []openai.ChatCompletionMessage) error {
@@ -130,6 +139,7 @@ func (r *cydCreatorAgentRunner) conversation(ctx context.Context, cfg *config.Co
 			seen[key] = true
 			durable = append(durable, msg)
 		}
+		durable = cydCreatorTrimConversation(durable, cydCreatorMaxConversationBytes)
 		data, err := json.Marshal(cydCreatorConversation{ProviderID: cfg.LLM.Provider, Model: cfg.LLM.Model, Messages: durable})
 		if err != nil {
 			return err
@@ -139,7 +149,74 @@ func (r *cydCreatorAgentRunner) conversation(ctx context.Context, cfg *config.Co
 		defer cancel()
 		return r.service.SaveAgentContext(saveCtx, run.Job.ID, data)
 	}
-	return gameMakerRequestView(history), checkpoint, nil
+	return view, checkpoint, nil
+}
+
+// cydCreatorMaxConversationBytes caps the messages of one private checkpoint
+// (the service refuses more than 16 MiB, and a refused checkpoint fails the
+// run). A resume only ever sends the newest rounds (gameMakerRequestView).
+const cydCreatorMaxConversationBytes = 2 << 20
+
+// cydCreatorTrimConversation drops the oldest messages until the encoded
+// messages fit maxBytes. A dropped assistant tool call takes its results along,
+// so the archive never starts with an orphaned tool result.
+func cydCreatorTrimConversation(messages []openai.ChatCompletionMessage, maxBytes int) []openai.ChatCompletionMessage {
+	sizes := make([]int, len(messages))
+	total := 2 // the enclosing brackets
+	for i, msg := range messages {
+		data, _ := json.Marshal(msg)
+		sizes[i] = len(data) + 1 // plus the separating comma
+		total += sizes[i]
+	}
+	if total <= maxBytes {
+		return messages
+	}
+	start := 0
+	for total > maxBytes && start < len(messages) {
+		total -= sizes[start]
+		start++
+		for start < len(messages) && messages[start].Role == openai.ChatMessageRoleTool {
+			total -= sizes[start]
+			start++
+		}
+	}
+	trimmed, _ := agent.SanitizeToolMessages(append([]openai.ChatCompletionMessage(nil), messages[start:]...))
+	return trimmed
+}
+
+// cydCreatorAgentFailure is a failed agent loop as the job chat reports it
+// ("The agent stopped: ..."). Provider errors can carry endpoint URLs, LAN
+// addresses, account ids in URL paths and provider response bodies, and the
+// chat reaches read-only sessions: Error() is a generic category text, the
+// raw error goes to the server log and stays in the chain (Unwrap).
+type cydCreatorAgentFailure struct {
+	public string
+	err    error
+}
+
+func (e cydCreatorAgentFailure) Error() string { return e.public }
+func (e cydCreatorAgentFailure) Unwrap() error { return e.err }
+
+// cydCreatorAgentFailureText picks the reason by category: the English texts
+// of the normal chat (chatCompletionErrorMessage), plus an "unreachable" text
+// for transport failures and the quota text for rate limits.
+func cydCreatorAgentFailureText(err error) string {
+	category := llm.ClassifyError(err)
+	switch {
+	case agent.IsToolLimitFinalResponseInvalid(err), agent.IsContextBudgetExceeded(err):
+	case category == llm.ErrCategoryTemporaryTransport:
+		return "The LLM provider could not be reached or did not answer in time. Check that it is running and reachable, then try again."
+	case category == llm.ErrCategoryRateLimit:
+		return i18n.T("en", "backend.handler_llm_quota_error")
+	}
+	return chatCompletionErrorMessage("en", err)
+}
+
+func (r *cydCreatorAgentRunner) logger() *slog.Logger {
+	if r.server != nil && r.server.Logger != nil {
+		return r.server.Logger
+	}
+	return slog.Default()
 }
 
 // RunCYDJob implements cydcreator.Runner.
@@ -183,7 +260,7 @@ func (r *cydCreatorAgentRunner) RunCYDJob(ctx context.Context, run cydcreator.Jo
 	if err != nil {
 		return err
 	}
-	sessionID := "cyd-creator-" + run.Job.ID
+	sessionID := cydCreatorAgentSessionPrefix + run.Job.ID
 	runCfg := buildDesktopRunConfigForSession(s, &cfg, client, sessionID, "cyd_creator")
 	runCfg.TrustedPromptAddenda = nil
 	runCfg.PreparedPrompt = profile
@@ -198,6 +275,9 @@ func (r *cydCreatorAgentRunner) RunCYDJob(ctx context.Context, run cydcreator.Jo
 	runCfg.StableSystemPrompt = true
 	runCfg.RequireCompleteStream = true
 	runCfg.RetryStreamIdle = true
+	// Like Game Maker: a slow model that keeps streaming may outlast the fixed
+	// per-call timeout (never past the job's own budget).
+	runCfg.StreamThroughput = &gameMakerStreamThroughput
 	// Same server-owned budget as Game Maker: max(40, ceil(1.25 × circuit breaker)).
 	runCfg.ToolCallLimit = gameMakerToolCallLimit(cfg.CircuitBreaker.MaxToolCalls)
 	runCfg.SuppressTurnSideEffects = true
@@ -210,7 +290,7 @@ func (r *cydCreatorAgentRunner) RunCYDJob(ctx context.Context, run cydcreator.Jo
 		runCfg.RunComplete = func() bool { return r.service.JobFinished(run.Job.ID) }
 	}
 	// encoding/json escapes angle brackets, so data cannot close the wrapper.
-	data, _ := json.Marshal(cydCreatorJobContext(ctx, run, runCfg.ToolCallLimit))
+	data, _ := json.Marshal(cydCreatorJobContext(run, runCfg.ToolCallLimit))
 	req := openai.ChatCompletionRequest{
 		Model: cfg.LLM.Model,
 		Messages: append(history, openai.ChatCompletionMessage{
@@ -236,7 +316,10 @@ func (r *cydCreatorAgentRunner) RunCYDJob(ctx context.Context, run cydcreator.Jo
 			// The extra call stays unexecuted; the orchestrator builds what was saved.
 			return nil
 		}
-		return fmt.Errorf("CYD Creator agent loop: %w", err)
+		// The raw error (provider URL, address, response body) stays in the
+		// server log; the job chat gets the generic reason.
+		r.logger().Warn("CYD Creator agent loop failed", "job_id", run.Job.ID, "phase", run.Phase, "error", err)
+		return cydCreatorAgentFailure{public: cydCreatorAgentFailureText(err), err: err}
 	}
 	answer := ""
 	if len(response.Choices) > 0 {

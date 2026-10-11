@@ -1128,6 +1128,28 @@ func TestOrchestratorFailuresStayInTheServerLog(t *testing.T) {
 	}
 }
 
+// The agent's reason reaches the chat through ServiceConfig.Scrub (a second
+// safeguard behind the runner's generic texts), and every phase learns how
+// much of the segment's time budget is left.
+func TestAgentStopReasonIsScrubbedAndPhasesSeeTheirTimeBudget(t *testing.T) {
+	env, runner, p := newJobEnv(t, testServiceOptions{limits: ServiceLimits{JobTimeout: 30 * time.Minute}})
+	env.svc.scrub = func(s string) string { return strings.ReplaceAll(s, "sk-secret-123", "[redacted]") }
+	runner.on(PhaseCoding, func(ctx context.Context, run JobRun) error {
+		return errors.New("the provider said sk-secret-123")
+	})
+	job, err := env.svc.StartJob(context.Background(), p.ID, StartJobInput{Mode: JobModeChange, Prompt: "x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := waitJob(t, env, job.ID, JobFailed, JobSucceeded)
+	if done.Status != JobFailed || done.ErrorMessage != "The agent stopped: the provider said [redacted]" {
+		t.Fatalf("job = %+v", done)
+	}
+	if got := runner.last().TimeRemaining; got <= 0 || got > 30*time.Minute {
+		t.Fatalf("time remaining = %s", got)
+	}
+}
+
 func TestToolsRefuseAnEndingJob(t *testing.T) {
 	env, runner, p := newJobEnv(t)
 	started := make(chan struct{})

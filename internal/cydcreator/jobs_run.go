@@ -173,6 +173,9 @@ func (s *Service) runAgent(run *jobRun, phase string) error {
 	in := JobRun{Job: run.job, Project: summary, Phase: phase, Prompt: run.job.Prompt, Attachments: run.attachments,
 		Plan: run.job.Plan, RepairAttempt: run.job.RepairAttempt, MaxRepairAttempts: s.Limits().MaxRepairAttempts,
 		Model: s.Limits().Model, UserChanges: run.userChanges, Resumed: run.resumed, Hooks: []LogicHook{}}
+	if run.budget > 0 && !run.segmentStart.IsZero() {
+		in.TimeRemaining = max(0, run.budget-time.Since(run.segmentStart))
+	}
 	if phase == PhaseRepairing {
 		in.Diagnostics, in.BuildErrorCode = diags, lastCode
 	}
@@ -469,7 +472,13 @@ func (s *Service) classifyJobError(run *jobRun, err error) (status, code, messag
 		return JobFailed, typed.Code, typed.Message
 	case errors.As(err, &agent):
 		s.logger.Warn("CYD Creator agent run failed", "job_id", run.jobID, "error", err)
-		message = "The agent stopped: " + strings.Join(strings.Fields(err.Error()), " ")
+		reason := err.Error()
+		if s.scrub != nil {
+			// Second safeguard: the runner already reports provider failures
+			// generically; registered secrets never reach the chat.
+			reason = s.scrub(reason)
+		}
+		message = "The agent stopped: " + strings.Join(strings.Fields(reason), " ")
 		if utf8.RuneCountInString(message) > 300 {
 			message = string([]rune(message)[:299]) + "…"
 		}

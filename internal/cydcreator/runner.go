@@ -31,6 +31,10 @@ type JobRun struct {
 	UserChanges       *UserChanges
 	Hooks             []LogicHook // logic hooks of the layout (the coding task list)
 	Resumed           bool        // the working copy continues a saved draft
+	// TimeRemaining is what is left of the run segment's time budget when the
+	// phase starts (without a possible grace window); 0 = unknown. The job
+	// timeout is a timer, so ctx carries no deadline.
+	TimeRemaining time.Duration
 }
 
 // UserChanges lists what the user changed since the last successful job.

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"path/filepath"
 	"strings"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/cydcreator"
 	"aurago/internal/desktop"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 )
 
@@ -175,6 +177,7 @@ func (s *Server) initCYDCreator() {
 		Builder:      builder,
 		Limits:       cydCreatorLimits(cfg.CYDCreator),
 		Logger:       s.Logger,
+		Scrub:        security.Scrub,
 	})
 	if err != nil {
 		s.cydCreatorProblem = cydCreatorStartFailed
@@ -184,11 +187,43 @@ func (s *Server) initCYDCreator() {
 		builder.Close()
 		return
 	}
+	s.sweepCYDCreatorAgentSessions(service)
 	service.SetRunner(&cydCreatorAgentRunner{server: s, service: service})
 	s.CYDCreator, s.cydBuilder, s.cydCreatorProblem = service, builder, ""
 	cydcreator.SetDefaultService(service)
 	if s.Logger != nil {
 		s.Logger.Info("CYD Creator initialized", "builder_image", cfg.CYDCreator.BuilderImage)
+	}
+}
+
+// cydCreatorAgentSessionPrefix names a job's transient agent session in
+// short-term memory (cyd-creator-<job>); the runner purges it after every
+// phase.
+const cydCreatorAgentSessionPrefix = "cyd-creator-"
+
+// sweepCYDCreatorAgentSessions purges agent sessions that a crash left behind
+// before the runner's deferred purge ran. initCYDCreator calls it before the
+// runner is installed, so no phase can be using one; a session whose job is
+// still queued or running is kept all the same.
+func (s *Server) sweepCYDCreatorAgentSessions(service *cydcreator.Service) {
+	if s == nil || s.ShortTermMem == nil || service == nil {
+		return
+	}
+	ids, err := s.ShortTermMem.TransientSessionIDs(cydCreatorAgentSessionPrefix)
+	if err != nil {
+		if s.Logger != nil {
+			s.Logger.Warn("CYD Creator could not list leftover agent sessions", "error", err)
+		}
+		return
+	}
+	for _, id := range ids {
+		job, err := service.GetJob(context.Background(), strings.TrimPrefix(id, cydCreatorAgentSessionPrefix))
+		if err == nil && (job.Status == cydcreator.JobQueued || job.Status == cydcreator.JobRunning) {
+			continue
+		}
+		if err := s.ShortTermMem.PurgeChatSession(id); err != nil && s.Logger != nil {
+			s.Logger.Warn("CYD Creator could not purge a leftover agent session", "session_id", id, "error", err)
+		}
 	}
 }
 
