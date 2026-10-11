@@ -361,9 +361,10 @@ configuration, the HTTP API and the Docker adapter.
   `desktop:admin`.
 - SSE `GET projects/{id}/events`: subscribes, then sends the backlog after max(`?after=`, `Last-Event-ID`) in pages
   of 500 and drops live events with a seq it already sent (ephemeral events, seq 0, have no `id:`), then
-  `event: stream_ready` without id, live events and `: ping` every 15 s. `stream_ready` carries `{"reload":true}`
-  when events after the resume point were pruned or the resume point lies above the project's newest event (forged,
-  or a restored or reset database; the stream continues from the newest). `armCYDSSEWrite` sets a 30 s write
+  `event: stream_ready` without id, live events and `: ping` every 15 s. `stream_ready` carries `{"after":N}`, N the
+  seq the live loop continues after (the last backlog event, else the resume point), plus `"reload":true` when
+  events after the resume point were pruned or the resume point lies above the project's newest event (forged, or a
+  restored or reset database; the stream continues from the newest, N); the client moves its cursor to N. `armCYDSSEWrite` sets a 30 s write
   deadline before each frame; on the API listeners `httpstream.WithWriteTimeout` renews it to its own budget
   (`agentHTTPWriteTimeout`, 40 min, on the main listener) on every write and flush, so a stuck client times out
   there; the deadline is never cleared. A failed write or flush, a closed subscription (subscriber dropped, project

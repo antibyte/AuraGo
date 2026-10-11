@@ -171,7 +171,9 @@ func cydEventsPruned(ctx context.Context, svc *cydcreator.Service, projectID str
 // points count as 0. The subscription is taken before the backlog is read,
 // so an event emitted in between reaches both and the live loop drops it by
 // seq (ephemeral events, seq 0, are never dropped). stream_ready carries
-// {"reload":true} when the client's state cannot be continued: events after
+// {"after":N}, N the seq the live loop continues after (the last backlog
+// event, else the resume point), so a client can move its cursor there, and
+// also "reload":true when the client's state cannot be continued: events after
 // the resume point were pruned, or the resume point lies above the project's
 // newest event (forged, or the database was restored or reset; the stream
 // then continues from the newest event). A subscriber that falls behind is
@@ -246,9 +248,9 @@ func (s *Server) cydEvents(w http.ResponseWriter, r *http.Request, params map[st
 			break
 		}
 	}
-	ready := "{}"
+	ready := fmt.Sprintf(`{"after":%d}`, after)
 	if reload {
-		ready = `{"reload":true}`
+		ready = fmt.Sprintf(`{"reload":true,"after":%d}`, after)
 	}
 	if armCYDSSEWrite(rc) != nil {
 		return

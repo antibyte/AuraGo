@@ -484,7 +484,8 @@ publication, revisions, the job chat and the agent tool implementations. Plan 5 
   deleted projects (an `Emit` racing `DeleteProject`) are dropped at startup and by every retention pass.
 - Consumers subscribe before reading `EventsAfter` and drop live events whose seq they already have; a resume point
   below the project's oldest kept event means events were pruned, one above its newest one cannot come from this
-  database: the client reloads its state (the SSE handler's `stream_ready` `{"reload":true}`).
+  database: the client reloads its state (the SSE handler's `stream_ready` `{"reload":true,"after":N}`, N the seq
+  the stream continues after).
 - Never call `Emit` or `EmitEphemeral` inside a database transaction or while iterating rows. `Emit` holds
   `eventsMu` (which `EmitEphemeral` also takes) while it inserts through its own connection of the pool
   (`dbutil.Open` default: 4 connections, `busy_timeout` 5 s): inside an open write transaction the insert waits for

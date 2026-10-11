@@ -105,10 +105,10 @@ func TestCYDCreatorEventsReplayResumeAndLive(t *testing.T) {
 	stream, closeStream := openCYDEvents(t, srv, f.read, "projects/"+p.ID+"/events?after=0", "")
 	backlog := readSSE(t, stream, 10*time.Second, func(fr sseFrame) bool { return fr.event == cydcreator.EventStreamReady })
 	ready := backlog[len(backlog)-1]
-	if ready.id != "" || ready.data != "{}" {
-		t.Fatalf("stream_ready = %+v, want no id and {}", ready)
-	}
 	persisted := backlog[:len(backlog)-1]
+	if want := cydReadyData(false, persisted[len(persisted)-1].id); ready.id != "" || ready.data != want {
+		t.Fatalf("stream_ready = %+v, want no id and %s", ready, want)
+	}
 	if len(persisted) != 600 {
 		t.Fatalf("backlog has %d events, want 600 (pages of 500 without gaps)", len(persisted))
 	}
@@ -145,6 +145,18 @@ func TestCYDCreatorEventsReplayResumeAndLive(t *testing.T) {
 	if len(resumed) != 52 || resumed[0].data != `{"i":550}` || resumed[50].event != cydcreator.EventBuildStatus {
 		t.Fatalf("resumed backlog = %d frames (first %+v), want 50 changes, the build_status and stream_ready", len(resumed), resumed[0])
 	}
+	if want := cydReadyData(false, resumed[50].id); resumed[51].data != want {
+		t.Fatalf("resumed stream_ready = %+v, want %s (the live loop continues after the build_status)", resumed[51], want)
+	}
+}
+
+// cydReadyData is the stream_ready data the handler sends: the seq the live
+// loop continues after, and reload when the client must reload its state.
+func cydReadyData(reload bool, after string) string {
+	if reload {
+		return `{"reload":true,"after":` + after + `}`
+	}
+	return `{"after":` + after + `}`
 }
 
 func TestCYDCreatorEventsOfAnUnknownProject(t *testing.T) {
@@ -187,10 +199,8 @@ func TestCYDCreatorEventsAskForAReloadWhenTheResumePointWasPruned(t *testing.T) 
 		stream, closeStream := openCYDEvents(t, srv, f.read, "projects/"+p.ID+"/events"+tc.query, tc.lastID)
 		frames := readSSE(t, stream, 5*time.Second, func(fr sseFrame) bool { return fr.event == cydcreator.EventStreamReady })
 		ready := frames[len(frames)-1]
-		want := "{}"
-		if tc.reload {
-			want = `{"reload":true}`
-		}
+		// Every case's backlog ends with the newest event; the live loop continues after it.
+		want := cydReadyData(tc.reload, strconv.FormatInt(all[len(all)-1].Seq, 10))
 		if ready.id != "" || ready.data != want || len(frames)-1 != tc.backlog {
 			t.Errorf("%s: %d backlog frames, stream_ready %+v; want %d and data %s", tc.name, len(frames)-1, ready, tc.backlog, want)
 		}
@@ -355,10 +365,15 @@ func TestCYDCreatorEventsReloadWhenTheResumePointIsAboveTheNewestEvent(t *testin
 		{"huge Last-Event-ID", "", "9000000000000000000"},
 		{"after above the newest", "?after=" + strconv.FormatInt(newest+1000, 10), ""},
 	} {
+		current, err := f.svc.LatestEventSeq(context.Background(), p.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
 		stream, closeStream := openCYDEvents(t, srv, f.read, "projects/"+p.ID+"/events"+tc.query, tc.lastID)
 		frames := readSSE(t, stream, 5*time.Second, func(fr sseFrame) bool { return fr.event == cydcreator.EventStreamReady })
-		if len(frames) != 1 || frames[0].data != `{"reload":true}` {
-			t.Fatalf("%s: frames before live = %+v, want only stream_ready with reload", tc.name, frames)
+		// The stream continues after the newest event, which the reload tells the client.
+		if want := cydReadyData(true, strconv.FormatInt(current, 10)); len(frames) != 1 || frames[0].data != want {
+			t.Fatalf("%s: frames before live = %+v, want only stream_ready %s", tc.name, frames, want)
 		}
 		f.svc.Emit(p.ID, cydcreator.EventBuildStatus, "", "ccb_1", map[string]any{"case": tc.name})
 		live := readSSE(t, stream, 5*time.Second, func(fr sseFrame) bool { return fr.event == cydcreator.EventBuildStatus })
@@ -371,7 +386,7 @@ func TestCYDCreatorEventsReloadWhenTheResumePointIsAboveTheNewestEvent(t *testin
 		stream, closeStream := openCYDEvents(t, srv, f.read, "projects/"+p.ID+"/events", lastID)
 		frames := readSSE(t, stream, 5*time.Second, func(fr sseFrame) bool { return fr.event == cydcreator.EventStreamReady })
 		all, _ := f.svc.EventsAfter(context.Background(), p.ID, 0, 500)
-		if ready := frames[len(frames)-1]; ready.data != "{}" || len(frames)-1 != len(all) {
+		if ready := frames[len(frames)-1]; len(all) == 0 || ready.data != cydReadyData(false, strconv.FormatInt(all[len(all)-1].Seq, 10)) || len(frames)-1 != len(all) {
 			t.Errorf("Last-Event-ID %q: %d backlog frames, ready %+v; want the whole backlog (%d) without reload", lastID, len(frames)-1, ready, len(all))
 		}
 		closeStream()
