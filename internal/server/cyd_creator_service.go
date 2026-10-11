@@ -184,6 +184,7 @@ func (s *Server) initCYDCreator() {
 		builder.Close()
 		return
 	}
+	service.SetRunner(&cydCreatorAgentRunner{server: s, service: service})
 	s.CYDCreator, s.cydBuilder, s.cydCreatorProblem = service, builder, ""
 	cydcreator.SetDefaultService(service)
 	if s.Logger != nil {
