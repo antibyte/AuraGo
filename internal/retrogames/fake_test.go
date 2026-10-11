@@ -3,6 +3,7 @@ package retrogames
 import (
 	"context"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -65,6 +66,21 @@ func (f *fakeFetcher) callCount() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return len(f.calls)
+}
+
+// callsFor counts the requests made for one platform's query.
+func (f *fakeFetcher) callsFor(platform string) int {
+	src, _ := SourceByKey(platform)
+	prefix := src.Query() + "|"
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	n := 0
+	for _, c := range f.calls {
+		if strings.HasPrefix(c, prefix) {
+			n++
+		}
+	}
+	return n
 }
 
 // onePerSource answers every source with a single valid item.
