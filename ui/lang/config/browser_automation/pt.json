@@ -27,6 +27,8 @@
   "help.browser_automation.cloak_fingerprint_seed": "Seed fixa para fingerprint determinístico do navegador. Útil para identidade consistente entre sessões.",
   "config.browser_automation.egress_network_label": "Rede Docker isolada",
   "help.browser_automation.egress_network": "Rede Docker interna para o navegador; o serviço não inicia sem ela.",
+  "config.browser_automation.outbound_network_label": "Rede Docker de saída",
+  "help.browser_automation.outbound_network": "Rede Docker com rota para a internet. O sidecar junta-se a ela além da rede isolada para o filtro conseguir ligar. O navegador continua a usar o filtro em 127.0.0.1.",
   "config.browser_automation.private_origins_label": "Origens privadas permitidas",
   "help.browser_automation.private_origins": "Uma origem HTTP(S) ou WS(S) exata por linha. Configure a mesma lista no proxy."
 }

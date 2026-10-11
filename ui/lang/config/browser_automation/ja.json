@@ -27,6 +27,8 @@
   "help.browser_automation.cloak_fingerprint_seed": "決定論的ブラウザフィンガープリントの固定シード。セッション間で一貫した識別に役立ちます。",
   "config.browser_automation.egress_network_label": "隔離された Docker ネットワーク",
   "help.browser_automation.egress_network": "ブラウザ用の内部 Docker ネットワークです。設定しないとサービスは起動しません。",
+  "config.browser_automation.outbound_network_label": "外向きの Docker ネットワーク",
+  "help.browser_automation.outbound_network": "インターネットへの経路を持つ Docker ネットワークです。サイドカーは隔離ネットワークに加えてこのネットワークにも参加し、フィルタが接続できるようにします。ブラウザは引き続き 127.0.0.1 のフィルタを使います。",
   "config.browser_automation.private_origins_label": "許可するプライベートオリジン",
   "help.browser_automation.private_origins": "正確な HTTP(S) または WS(S) オリジンを1行に1つ入力します。プロキシにも同じ一覧を設定します。"
 }

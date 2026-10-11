@@ -1169,6 +1169,9 @@ func TestLoadBrowserAutomationDefaults(t *testing.T) {
 	if cfg.BrowserAutomation.ReadOnly {
 		t.Fatal("expected browser_automation.readonly to default to false")
 	}
+	if cfg.BrowserAutomation.OutboundNetwork != "bridge" {
+		t.Fatalf("outbound_network = %q, want bridge", cfg.BrowserAutomation.OutboundNetwork)
+	}
 }
 
 func TestLoadSpaceAgentDefaults(t *testing.T) {

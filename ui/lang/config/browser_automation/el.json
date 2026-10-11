@@ -27,6 +27,8 @@
   "help.browser_automation.cloak_fingerprint_seed": "Σταθερός σπόρος για ντετερμινιστικό δακτυλικό αποτύπωμα. Χρήσιμο για συνεπή ταυτότητα σε όλες τις συνεδρίες.",
   "config.browser_automation.egress_network_label": "Απομονωμένο δίκτυο Docker",
   "help.browser_automation.egress_network": "Εσωτερικό δίκτυο Docker για το πρόγραμμα περιήγησης· χωρίς αυτό η υπηρεσία δεν ξεκινά.",
+  "config.browser_automation.outbound_network_label": "Εξερχόμενο δίκτυο Docker",
+  "help.browser_automation.outbound_network": "Δίκτυο Docker με διαδρομή προς το διαδίκτυο. Το sidecar συνδέεται σε αυτό εκτός από το απομονωμένο δίκτυο, ώστε το φίλτρο του να ανοίγει συνδέσεις. Το πρόγραμμα περιήγησης συνεχίζει να χρησιμοποιεί το φίλτρο στο 127.0.0.1.",
   "config.browser_automation.private_origins_label": "Επιτρεπόμενες τοπικές διευθύνσεις",
   "help.browser_automation.private_origins": "Μία ακριβής διεύθυνση HTTP(S) ή WS(S) ανά γραμμή. Ορίστε την ίδια λίστα στον proxy."
 }

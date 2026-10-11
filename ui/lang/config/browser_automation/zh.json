@@ -27,6 +27,8 @@
   "help.browser_automation.cloak_fingerprint_seed": "确定性浏览器指纹的固定种子。有助于跨会话保持一致的标识。",
   "config.browser_automation.egress_network_label": "隔离的 Docker 网络",
   "help.browser_automation.egress_network": "浏览器使用的内部 Docker 网络；未配置时服务不会启动。",
+  "config.browser_automation.outbound_network_label": "出站 Docker 网络",
+  "help.browser_automation.outbound_network": "具有互联网路由的 Docker 网络。Sidecar 会在隔离网络之外再加入该网络，以便过滤器能够建立连接。浏览器仍使用 127.0.0.1 上的过滤器。",
   "config.browser_automation.private_origins_label": "允许的私有源",
   "help.browser_automation.private_origins": "每行填写一个准确的 HTTP(S) 或 WS(S) 源，并在代理中配置相同列表。"
 }

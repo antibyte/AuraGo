@@ -265,13 +265,14 @@ An MCP server with network access rejects private destination addresses unless t
 
 ### Browser automation with egress sidecar
 
-Browser automation requires a nonempty sidecar token and an attested sidecar (`egress-v1`). The managed sidecar starts only on a verified Docker-internal network with a filtering proxy; navigation, resources, and WebSockets follow the same egress policy.
+Browser automation requires a nonempty sidecar token and an attested sidecar (`egress-v1`). The managed sidecar joins a Docker-internal network and a second network that is not internal. Its own filter listens on `127.0.0.1:7332`, and Chromium uses that filter. A browser that ignores the proxy can dial through the outbound network. `cloak_proxy` stays empty. Navigation, resources, and WebSockets follow the same egress policy.
 
 ```yaml
 browser_automation:
-  cloak_proxy: "http://browser-egress:7332"   # controlled proxy on the browser network
-  egress_network: aurago-app                  # Docker network, must be internal: true
-  allowed_private_origins: []                 # exact home-lab origin URLs allowed by the policy
+  cloak_proxy: ""                  # must stay empty; the sidecar owns the filter
+  egress_network: aurago-app       # Docker network, must be internal: true
+  outbound_network: bridge         # different Docker network with a route out
+  allowed_private_origins: []      # exact home-lab origin URLs allowed by the policy
 ```
 
 ### Host execution without isolation

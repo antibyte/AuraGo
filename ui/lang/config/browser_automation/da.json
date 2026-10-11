@@ -27,6 +27,8 @@
   "help.browser_automation.cloak_fingerprint_seed": "Fast seed for deterministisk browser-fingeraftryk. Nyttigt til konsistent identitet på tværs af sessioner.",
   "config.browser_automation.egress_network_label": "Isoleret Docker-netværk",
   "help.browser_automation.egress_network": "Internt Docker-netværk til browseren; tjenesten starter ikke uden det.",
+  "config.browser_automation.outbound_network_label": "Udgående Docker-netværk",
+  "help.browser_automation.outbound_network": "Docker-netværk med en rute til internettet. Sidecaren tilslutter sig det ud over det isolerede netværk, så filteret kan oprette forbindelser. Browseren bruger stadig filteret på 127.0.0.1.",
   "config.browser_automation.private_origins_label": "Tilladte lokale adresser",
   "help.browser_automation.private_origins": "Én præcis HTTP(S)- eller WS(S)-adresse pr. linje. Brug samme liste i proxyen."
 }

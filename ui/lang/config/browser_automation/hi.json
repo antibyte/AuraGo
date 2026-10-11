@@ -27,6 +27,8 @@
   "help.browser_automation.cloak_fingerprint_seed": "निर्धारक ब्राउज़र फ़िंगरप्रिंट के लिए निश्चित सीड। सत्रों में सुसंगत पहचान के लिए उपयोगी।",
   "config.browser_automation.egress_network_label": "अलग Docker नेटवर्क",
   "help.browser_automation.egress_network": "ब्राउज़र के लिए आंतरिक Docker नेटवर्क; इसके बिना सेवा शुरू नहीं होगी।",
+  "config.browser_automation.outbound_network_label": "आउटबाउंड Docker नेटवर्क",
+  "help.browser_automation.outbound_network": "इंटरनेट तक रास्ता वाला Docker नेटवर्क। साइडकार अलग नेटवर्क के साथ इसमें भी जुड़ता है, ताकि उसका फ़िल्टर कनेक्शन बना सके। ब्राउज़र फिर भी 127.0.0.1 पर फ़िल्टर का इस्तेमाल करता है।",
   "config.browser_automation.private_origins_label": "अनुमत निजी मूल पते",
   "help.browser_automation.private_origins": "हर पंक्ति में एक सटीक HTTP(S) या WS(S) मूल पता। यही सूची प्रॉक्सी में भी रखें।"
 }

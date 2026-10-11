@@ -80,6 +80,7 @@ type BrowserAutomationSidecarConfig struct {
 	CloakHumanPreset      string
 	CloakProxy            string
 	EgressNetwork         string
+	OutboundNetwork       string
 	AllowedPrivateOrigins []string
 	CloakFingerprintSeed  string
 	RuntimeIsDocker       bool // cfg.Runtime.IsDocker or /.dockerenv; only words the remote-build warning
@@ -590,6 +591,7 @@ func browserAutomationSidecarConfig(cfg *config.Config) (BrowserAutomationSideca
 		CloakHumanPreset:      cfg.BrowserAutomation.CloakHumanPreset,
 		CloakProxy:            cfg.BrowserAutomation.CloakProxy,
 		EgressNetwork:         cfg.BrowserAutomation.EgressNetwork,
+		OutboundNetwork:       cfg.BrowserAutomation.OutboundNetwork,
 		AllowedPrivateOrigins: cfg.BrowserAutomation.AllowedPrivateOrigins,
 		CloakFingerprintSeed:  cfg.BrowserAutomation.CloakFingerprintSeed,
 		RuntimeIsDocker:       runningInDocker,
@@ -781,7 +783,12 @@ func ExecuteBrowserAutomation(ctx context.Context, cfg *config.Config, req Brows
 func browserAutomationContainerMatches(info map[string]interface{}, sidecarCfg BrowserAutomationSidecarConfig) bool {
 	configMap, _ := info["Config"].(map[string]interface{})
 	host, _ := info["HostConfig"].(map[string]interface{})
-	if configMap["Image"] != sidecarCfg.Image || host["NetworkMode"] != sidecarCfg.EgressNetwork {
+	outbound := strings.TrimSpace(sidecarCfg.OutboundNetwork)
+	egress := strings.TrimSpace(sidecarCfg.EgressNetwork)
+	if configMap["Image"] != sidecarCfg.Image || host["NetworkMode"] != outbound {
+		return false
+	}
+	if !browserAutomationHasNetworks(info, outbound, egress) {
 		return false
 	}
 	env := map[string]string{}
@@ -796,6 +803,7 @@ func browserAutomationContainerMatches(info map[string]interface{}, sidecarCfg B
 	}
 	if env["AURAGO_BROWSER_EGRESS_ISOLATED"] != "true" ||
 		env["AURAGO_BROWSER_EGRESS_PROXY"] != browserAutomationLoopbackProxy ||
+		env["AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS"] != browserAutomationPrivateOriginsValue(sidecarCfg.AllowedPrivateOrigins) ||
 		env["AURAGO_BROWSER_AUTOMATION_TOKEN"] != sidecarCfg.AuthToken ||
 		env["READ_ONLY"] != strconv.FormatBool(sidecarCfg.ReadOnly) ||
 		env["ALLOW_FILE_UPLOADS"] != strconv.FormatBool(sidecarCfg.AllowUploads) ||
@@ -846,6 +854,11 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 		logger.Error("[BrowserAutomation] Egress network is missing or is not Docker-internal", "network", sidecarCfg.EgressNetwork)
 		return
 	}
+	outbound := strings.TrimSpace(sidecarCfg.OutboundNetwork)
+	if outbound == "" || outbound == strings.TrimSpace(sidecarCfg.EgressNetwork) || !browserAutomationRoutableNetwork(dockerCfg, outbound) {
+		logger.Error("[BrowserAutomation] Outbound network must be a different Docker network that is not internal", "network", outbound)
+		return
+	}
 
 	image := sidecarCfg.Image
 	if image == "" {
@@ -877,6 +890,7 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 		}
 		logger.Warn("[BrowserAutomation] Managed sidecar spec drifted; recreating",
 			"network", sidecarCfg.EgressNetwork,
+			"outbound", outbound,
 			"image", image,
 			"container", containerName)
 		StopBrowserAutomationSidecar(dockerHost, sidecarCfg, logger)
@@ -925,11 +939,10 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 		fmt.Sprintf("CLOAK_HUMANIZE=%t", sidecarCfg.CloakHumanize),
 		fmt.Sprintf("CLOAK_HUMAN_PRESET=%s", sidecarCfg.CloakHumanPreset),
 	}
-	allowedPrivateOrigins, _ := json.Marshal(sidecarCfg.AllowedPrivateOrigins)
 	env = append(env,
 		"AURAGO_BROWSER_EGRESS_ISOLATED=true",
 		"AURAGO_BROWSER_EGRESS_PROXY="+browserAutomationLoopbackProxy,
-		"AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS="+string(allowedPrivateOrigins),
+		"AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS="+browserAutomationPrivateOriginsValue(sidecarCfg.AllowedPrivateOrigins),
 	)
 	if sidecarCfg.CloakFingerprintSeed != "" {
 		env = append(env, "CLOAK_FINGERPRINT_SEED="+sidecarCfg.CloakFingerprintSeed)
@@ -944,19 +957,12 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 			fmt.Sprintf("%d/tcp", browserAutomationContainerPort): struct{}{},
 		},
 	}
-	hostConfig["NetworkMode"] = sidecarCfg.EgressNetwork
+	networkMode, endpoints := browserAutomationEndpointConfig(sidecarCfg, managedHost)
+	hostConfig["NetworkMode"] = networkMode
+	payload["NetworkingConfig"] = map[string]interface{}{"EndpointsConfig": endpoints}
 	if browserAutomationIsLoopbackHost(managedHost) {
 		hostConfig["PortBindings"] = map[string]interface{}{
 			fmt.Sprintf("%d/tcp", browserAutomationContainerPort): []map[string]string{{"HostIp": "127.0.0.1", "HostPort": fmt.Sprintf("%d", browserAutomationContainerPort)}},
-		}
-	} else {
-		networkName := sidecarCfg.EgressNetwork
-		payload["NetworkingConfig"] = map[string]interface{}{
-			"EndpointsConfig": map[string]interface{}{
-				networkName: map[string]interface{}{
-					"Aliases": []string{managedHost},
-				},
-			},
 		}
 	}
 	body, _ := json.Marshal(payload)
@@ -971,6 +977,56 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 		return
 	}
 	logger.Info("[BrowserAutomation] Sidecar container created and started", "image", image, "container", containerName)
+}
+
+func browserAutomationPrivateOriginsValue(origins []string) string {
+	raw, err := json.Marshal(origins)
+	if err != nil {
+		return ""
+	}
+	return string(raw)
+}
+
+func browserAutomationHasNetworks(info map[string]interface{}, names ...string) bool {
+	settings, _ := info["NetworkSettings"].(map[string]interface{})
+	networks, _ := settings["Networks"].(map[string]interface{})
+	for _, name := range names {
+		if strings.TrimSpace(name) == "" {
+			return false
+		}
+		if _, ok := networks[name]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func browserAutomationEndpointConfig(sidecarCfg BrowserAutomationSidecarConfig, managedHost string) (string, map[string]interface{}) {
+	outbound := strings.TrimSpace(sidecarCfg.OutboundNetwork)
+	egress := strings.TrimSpace(sidecarCfg.EgressNetwork)
+	egressEndpoint := map[string]interface{}{}
+	if !browserAutomationIsLoopbackHost(managedHost) {
+		egressEndpoint["Aliases"] = []string{managedHost}
+	}
+	return outbound, map[string]interface{}{
+		outbound: map[string]interface{}{},
+		egress:   egressEndpoint,
+	}
+}
+
+func browserAutomationRoutableNetwork(dockerCfg DockerConfig, name string) bool {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return false
+	}
+	data, code, err := dockerRequest(dockerCfg, http.MethodGet, "/networks/"+url.PathEscape(name), "")
+	if err != nil || code != http.StatusOK {
+		return false
+	}
+	var info struct {
+		Internal bool `json:"Internal"`
+	}
+	return json.Unmarshal(data, &info) == nil && !info.Internal
 }
 
 func browserAutomationInternalNetwork(dockerCfg DockerConfig, name string) bool {
