@@ -1,0 +1,69 @@
+name: Publish reviewed RuView image
+
+on:
+  workflow_dispatch:
+    inputs:
+      asset_id:
+        description: Published release asset ID of the reviewed OCI archive in this repository
+        type: string
+        required: true
+      archive_sha256:
+        description: SHA-256 of the reviewed OCI archive
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ruview-image-publication
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'antibyte/AuraGo'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ASSET_ID: ${{ inputs.asset_id }}
+      ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install OCI transfer utility
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends skopeo
+      - name: Download and verify reviewed image
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$ASSET_ID" =~ ^[0-9]+$ ]]
+          [[ "$ARCHIVE_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/releases/assets/$ASSET_ID" -H 'Accept: application/octet-stream' > ruview.tar
+          printf '%s  ruview.tar\n' "$ARCHIVE_SHA256" | sha256sum -c -
+          pinned=$(jq -r .docker_image internal/ruview/artifacts.json)
+          version=$(jq -r .version internal/ruview/artifacts.json)
+          [[ "$pinned" =~ ^ghcr.io/antibyte/aurago-ruview@sha256:[a-f0-9]{64}$ ]]
+          [[ "$version" =~ ^v[0-9]+$ ]]
+          skopeo inspect --raw "oci-archive:ruview.tar:$version" > image-index.json
+          test "$(skopeo manifest-digest image-index.json)" = "${pinned#*@}"
+          test "$(jq -c '[.manifests[] | select(.platform.os == "linux") | .platform.os + "/" + .platform.architecture] | sort' image-index.json)" = "$(jq -c '.docker_platforms | sort' internal/ruview/artifacts.json)"
+      - name: Publish with unchanged digest and verify
+        env:
+          REGISTRY_AUTH_FILE: ${{ runner.temp }}/ruview-registry-auth.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          pinned=$(jq -r .docker_image internal/ruview/artifacts.json)
+          version=$(jq -r .version internal/ruview/artifacts.json)
+          printf '%s' "$GH_TOKEN" | skopeo login --username "$GITHUB_ACTOR" --password-stdin ghcr.io
+          skopeo copy --all --preserve-digests "oci-archive:ruview.tar:$version" "docker://${pinned%@*}:$version"
+          skopeo inspect --raw "docker://$pinned" > published-index.json
+          test "$(skopeo manifest-digest published-index.json)" = "${pinned#*@}"
+          printf 'Published %s:%s\n\nVerified %s\n' "${pinned%@*}" "$version" "$pinned" >> "$GITHUB_STEP_SUMMARY"
