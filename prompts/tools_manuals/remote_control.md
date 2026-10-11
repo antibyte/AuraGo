@@ -4,6 +4,13 @@ Manage remote machines running the AuraGo Remote agent or a paired agodesk deskt
 
 Prefer `remote_control_devices`, `remote_control_shell`, `remote_control_files`, and `remote_control_desktop` when they are visible. The legacy `remote_control` action remains accepted for dispatch compatibility with older clients and prompts.
 
+Transport compatibility is separate: classic clients require WSS, certificate
+verification and security revision 1. Older classic clients are refused with
+`CLIENT_UPGRADE_REQUIRED`. Use only advertised capabilities. Global and device
+ReadOnly combine with OR; pending settings block dispatch until acknowledged.
+Text output may be marked truncated at 1 MiB. Do not interpret unavailable
+telemetry (`null`) as zero or replay an uncertain mutation automatically.
+
 ## Operations
 
 | Operation | Description |

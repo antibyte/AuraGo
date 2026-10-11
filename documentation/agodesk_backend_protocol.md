@@ -24,6 +24,17 @@ AuraGo accepts `desktop.result` WebSocket messages up to 16 MiB because screensh
 
 ## Connection Flow
 
+Production and loopback development connections both require WSS, with TLS
+termination accepted only through a configured trusted proxy. Pairing finalizes
+the one-time token through the shared RemoteHub transaction. Revocation, deletion,
+disablement and permission changes invalidate the session and close its socket;
+pending requests and chat runs are cancelled. Results and cancellation belong
+to the exact transport generation, so an old connection cannot affect its
+replacement. Socket writes are bounded to five seconds or the remaining request
+deadline. AgoDesk keeps its own local permission management; the device API's
+`server_enforced` state is not a client configuration acknowledgement. See
+[Remote Control](remote-control.md) for installation and rollout guidance.
+
 1. Client connects to `/api/agodesk/ws`.
 2. Server immediately sends `system.connected`.
 3. Production clients send `session.start` with either a one-time `pairing_token` or a stored `device_id` plus `shared_key_proof`.

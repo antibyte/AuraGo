@@ -1,9 +1,16 @@
 // cfg/remote_control.js — Remote Control config section module
 
 let _rcSection = null;
+let _rcDevicesOwner = null;
+let _rcPollTimer = null;
+let _rcFetch = null;
 
 async function renderRemoteControlSection(section) {
     if (section) _rcSection = section; else section = _rcSection;
+    clearTimeout(_rcPollTimer);
+    if (_rcFetch) _rcFetch.abort();
+    _rcFetch = null;
+    _rcDevicesOwner = null;
     const cfg = configData.remote_control || {};
     const enabled = cfg.enabled === true;
 
@@ -75,12 +82,7 @@ async function renderRemoteControlSection(section) {
         </div>`;
     }
 
-    const curPort = cfg.discovery_port || 8092;
-    html += `<div class="field-group">
-        <div class="field-label">${t('config.remote_control.discovery_port_label')}</div>
-        <input type="number" class="field-input" data-path="remote_control.discovery_port" value="${curPort}" min="1024" max="65535">
-    </div></div>`;
-    html += `</div>`;
+    html += `</div></div>`;
 
     // ── Security ──
     html += `<div class="field-group">
@@ -88,6 +90,8 @@ async function renderRemoteControlSection(section) {
         <div class="field-group-desc">${t('config.remote_control.security_desc')}</div>`;
 
     html += `<div class="field-help">${t('config.remote_control.pairing_token_desc')}</div>`;
+
+    html += `<p class="field-help">${t('config.remote_control.security_hint')}</p>`;
 
     // Audit Log
     const auditLog = cfg.audit_log !== false;
@@ -160,6 +164,8 @@ async function renderRemoteControlSection(section) {
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.remote_control.devices_title')}</div>
         <div class="field-group-desc">${t('config.remote_control.devices_desc')}</div>
+        <button type="button" class="btn-save btn-secondary" onclick="loadRemoteDevices()">${t('config.remote_control.refresh')}</button>
+        <div id="rc-devices-error" class="rc-error-text" role="status"></div>
         <div id="rc-devices-list" class="rc-devices-list">
             <span class="rc-muted-text">${t('config.remote_control.loading_devices')}</span>
         </div>
@@ -171,6 +177,7 @@ async function renderRemoteControlSection(section) {
 
     // Load platform list and device list async
     loadRemotePlatforms();
+    _rcDevicesOwner = document.getElementById('rc-devices-list');
     loadRemoteDevices();
 }
 
@@ -281,40 +288,118 @@ async function rcCopyEnrollmentToken() {
     }
 }
 
+function rcText(key) { return t('config.remote_control.' + key); }
+
 async function loadRemoteDevices() {
     const container = document.getElementById('rc-devices-list');
-    if (!container) return;
+    if (!container || container !== _rcDevicesOwner || _rcFetch) return;
+    clearTimeout(_rcPollTimer);
+    const request = new AbortController();
+    _rcFetch = request;
+    const timeout = setTimeout(() => request.abort(), 8000);
     try {
-        const resp = await fetch('/api/remote/devices');
-        if (!resp.ok) {
-            container.innerHTML = `<span class="rc-muted-text">${t('config.remote_control.no_devices')}</span>`;
-            return;
-        }
+        const resp = await fetch('/api/remote/devices', { signal: request.signal });
+        if (!resp.ok) throw new Error(rcText('devices_error'));
         const devices = await resp.json();
-        if (!devices || devices.length === 0) {
-            container.innerHTML = `<span class="rc-muted-text">${t('config.remote_control.no_devices')}</span>`;
+        if (!Array.isArray(devices)) throw new Error(rcText('devices_error'));
+        if (!container.isConnected || container !== _rcDevicesOwner) return;
+        document.getElementById('rc-devices-error').textContent = '';
+        if (!devices.length) {
+            container.innerHTML = `<span class="rc-muted-text">${rcText('no_devices')}</span>`;
             return;
         }
-        let html = '<div class="rc-device-list">';
-        devices.forEach(d => {
-            const statusIcon = d.is_connected ? '🟢' : '⚪';
-            const statusText = d.is_connected ? t('config.remote_control.status_connected') : t('config.remote_control.status_offline');
-            html += `<div class="rc-device-item">
-                <span>${statusIcon}</span>
-                <div class="rc-device-meta">
-                    <div class="rc-device-name">${escapeAttr(d.name || d.hostname || d.id)}</div>
-                    <div class="rc-device-subline">${escapeAttr(d.os || '')} ${escapeAttr(d.arch || '')} — ${escapeAttr(d.ip_address || '')}</div>
-                </div>
-                <span class="rc-device-status ${d.is_connected ? 'is-connected' : ''}">${statusText}</span>
-                ${d.status === 'pending' ? `<button class="btn-save btn-secondary" data-approve-device="${escapeAttr(d.id)}">${t('config.remote_control.pairing_token_generate')}</button>` : ''}
-            </div>`;
+        container.querySelector(':scope > .rc-muted-text')?.remove();
+        const ids = new Set(devices.map(d => d.id));
+        for (const card of container.querySelectorAll('[data-device-id]')) {
+            if (!ids.has(card.dataset.deviceId)) card.remove();
+        }
+        for (const d of devices) {
+            let card = [...container.children].find(el => el.dataset.deviceId === d.id);
+            if (!card) {
+                card = document.createElement('article');
+                card.className = 'rc-managed-device';
+                card.dataset.deviceId = d.id;
+                card.innerHTML = '<div class="rc-device-summary"></div><div class="rc-device-editor"></div>';
+                container.appendChild(card);
+            }
+            const state = ['confirmed', 'pending', 'error', 'server_enforced'].includes(d.config_state) ? d.config_state : 'pending';
+            const status = d.status === 'revoked' ? 'revoked' : d.status === 'upgrade_required' ? 'upgrade_required' : d.is_connected ? 'status_connected' : 'status_offline';
+            card.querySelector('.rc-device-summary').innerHTML = `
+                <div class="rc-device-name">${escapeAttr(d.name || d.hostname || d.id)}</div>
+                <div class="rc-device-subline">${escapeAttr(d.os || '')} ${escapeAttr(d.arch || '')} · ${rcText('version')}: ${escapeAttr(d.version || rcText('unknown'))}</div>
+                <div class="rc-device-status ${d.is_connected ? 'is-connected' : ''}">${rcText(status)} · ${rcText(state)}</div>
+                <div class="field-help">${rcText('effective')}: ${rcText(d.effective_read_only ? 'device_read_only' : 'write_enabled')}</div>
+                <div class="field-help rc-wrap">${rcText('allowed_paths_label')}: ${escapeAttr((d.effective_allowed_paths || []).join(', ') || '—')}</div>
+                <div class="field-help rc-wrap">${rcText('capabilities')}: ${escapeAttr((d.capabilities || []).join(', ') || rcText('unknown'))}</div>`;
+            const editor = card.querySelector('.rc-device-editor');
+            if (editor.querySelector('details[open]') || editor.contains(document.activeElement) || editor.dataset.busy === 'true') continue;
+            const agodesk = (d.tags || []).includes('agodesk');
+            editor.innerHTML = `<details><summary>${rcText('manage')}</summary>
+                <label class="field-label rc-device-option"><input type="checkbox" data-rc-readonly ${d.read_only ? 'checked' : ''}> ${rcText('device_read_only')}</label>
+                ${agodesk ? `<p class="field-help">${rcText('server_enforced')}</p>` : `<label class="field-label">${rcText('allowed_paths_label')}<textarea class="field-input rc-paths-textarea" data-rc-paths rows="3">${escapeAttr((d.allowed_paths || []).join('\n'))}</textarea></label><p class="field-help">${rcText('paths_inherit')}</p>`}
+                <div class="cfg-actions-row rc-device-actions">
+                    <button type="button" class="btn-save" data-rc-action="save">${rcText('save_device')}</button>
+                    ${d.status === 'pending' ? `<button type="button" class="btn-save btn-secondary" data-approve-device data-rc-action="approve">${rcText('pairing_token_generate')}</button>` : ''}
+                    ${d.status !== 'revoked' ? `<button type="button" class="btn-save btn-secondary" data-rc-action="revoke">${rcText('revoke')}</button>` : ''}
+                    <button type="button" class="btn-save btn-secondary" data-rc-action="delete">${rcText('delete')}</button>
+                </div><div class="field-help" data-rc-feedback role="status"></div>
+            </details>`;
+            editor.querySelectorAll('[data-rc-action]').forEach(button => button.addEventListener('click', () => rcDeviceAction(card, d, button.dataset.rcAction)));
+        }
+    } catch (error) {
+        if (container.isConnected && container === _rcDevicesOwner) {
+            document.getElementById('rc-devices-error').textContent = rcText('devices_error');
+        }
+    } finally {
+        clearTimeout(timeout);
+        if (_rcFetch === request) _rcFetch = null;
+        if (container.isConnected && container === _rcDevicesOwner) rcScheduleRefresh(container);
+    }
+}
+
+function rcScheduleRefresh(container) {
+    clearTimeout(_rcPollTimer);
+    _rcPollTimer = setTimeout(() => {
+        if (!container.isConnected || container !== _rcDevicesOwner) return;
+        if (document.visibilityState === 'visible' && container.getClientRects().length) loadRemoteDevices();
+        else rcScheduleRefresh(container);
+    }, 10000);
+}
+
+async function rcDeviceAction(card, device, action) {
+    const editor = card.querySelector('.rc-device-editor');
+    if (editor.dataset.busy === 'true') return;
+    if (action === 'approve') { await rcCreateEnrollmentToken(device.id); return; }
+    if (action !== 'save' && !await showConfirm(rcText(action), rcText('confirm_removal'))) return;
+    if (!card.isConnected) return;
+    editor.dataset.busy = 'true';
+    const buttons = [...editor.querySelectorAll('button')];
+    buttons.forEach(button => { button.disabled = true; });
+    const feedback = editor.querySelector('[data-rc-feedback]');
+    feedback.textContent = rcText('pending');
+    const payload = { read_only: editor.querySelector('[data-rc-readonly]').checked };
+    const paths = editor.querySelector('[data-rc-paths]');
+    if (paths) payload.allowed_paths = paths.value.split('\n').map(p => p.trim()).filter(Boolean);
+    const request = new AbortController();
+    const timeout = setTimeout(() => request.abort(), 8000);
+    try {
+        const resp = await fetch(`/api/remote/devices/${encodeURIComponent(device.id)}${action === 'revoke' ? '/revoke' : ''}`, {
+            signal: request.signal,
+            method: action === 'save' ? 'PUT' : action === 'delete' ? 'DELETE' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            ...(action === 'save' ? { body: JSON.stringify(payload) } : {})
         });
-        html += '</div>';
-        container.innerHTML = html;
-        container.querySelectorAll('[data-approve-device]').forEach(button => {
-            button.addEventListener('click', () => rcCreateEnrollmentToken(button.dataset.approveDevice));
-        });
-    } catch (e) {
-        container.innerHTML = `<span class="rc-error-text">${escapeAttr(t('config.remote_control.error_prefix'))} ${escapeAttr(e && e.message ? e.message : String(e))}</span>`;
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || rcText('error'));
+        if (!card.isConnected) return;
+        feedback.textContent = rcText('saved');
+        if (action === 'delete') card.remove();
+        await loadRemoteDevices();
+    } catch (error) {
+        if (card.isConnected) feedback.textContent = rcText('error') + ': ' + error.message;
+    } finally {
+        clearTimeout(timeout);
+        editor.dataset.busy = 'false';
+        buttons.forEach(button => { button.disabled = false; });
     }
 }

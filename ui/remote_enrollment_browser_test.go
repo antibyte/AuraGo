@@ -27,6 +27,7 @@ func TestRemoteEnrollmentTokenBrowser(t *testing.T) {
 		await selectSection('remote_control',{scrollBehavior:'auto'});
 	}`)
 	waitForJSBool(t, page, `()=>!!document.querySelector('[data-approve-device]')`)
+	page.MustElement("[data-device-id] summary").MustClick()
 	for _, width := range []int{390, 1440} {
 		for _, theme := range []string{"dark", "light"} {
 			page.MustSetViewport(width, 900, 1, false)
