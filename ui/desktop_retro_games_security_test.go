@@ -54,3 +54,32 @@ func TestDesktopRetroGamesPlayerFrameIsLockedDown(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopRetroGamesAppLifecycle(t *testing.T) {
+	src := rawDesktopAssetText(t, "js/desktop/apps/retro-games.js")
+	for _, banned := range []string{"innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "alert(", "confirm(", "prompt("} {
+		if strings.Contains(src, banned) {
+			t.Errorf("app contains %q", banned)
+		}
+	}
+	for _, marker := range []string{
+		"window.RetroGamesApp = { render, dispose, open };",
+		"function dispose(windowId)",
+		"instances.delete(windowId);",
+		"st.controller.abort();",
+		"stopPlayer(st);",
+		"clearTimeout(st.pollTimer);",
+		"const BASE = '/api/desktop/retro-games';",
+		"'noopener,noreferrer'",
+		"seq !== st.listSeq",
+	} {
+		if !strings.Contains(src, marker) {
+			t.Errorf("app lacks %q", marker)
+		}
+	}
+	for _, file := range retroGamesAppFiles {
+		if lines := strings.Count(rawDesktopAssetText(t, file), "\n"); lines >= 1100 {
+			t.Errorf("%s has %d lines", file, lines)
+		}
+	}
+}
