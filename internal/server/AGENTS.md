@@ -396,7 +396,8 @@ configuration, the HTTP API and the Docker adapter.
   Compose and the image reservation protect the container, its volumes and the image repository
   (`internal/tools/AGENTS.md`); the administrator container API lists the owner `cyd-creator` (above).
 - Default socket proxy (`tecnativa/docker-socket-proxy` v0.5.0 with the compose environment; rules read from the
-  pinned image's `haproxy.cfg.template` on 2026-10-11, the builder behind the proxy is not live-tested yet): every
+  pinned image's `haproxy.cfg.template` on 2026-10-11; live-checked the same day: `TestCYDBuilderStubMechanicsLive`
+  passes with `DOCKER_HOST` pointing at that proxy, only `POST /build` is refused): every
   non-GET request needs `POST=1`; container inspect, create, start, stop and remove, `PUT`/`GET /archive` and exec
   create are `/containers` paths (`CONTAINERS=1`), exec start and inspect need `EXEC=1`, image inspect and pull
   `IMAGES=1`, volume create `VOLUMES=1`, API negotiation `VERSION=1`; `BUILD=0` is fine. HAProxy's
