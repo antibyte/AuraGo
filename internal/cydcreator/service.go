@@ -134,8 +134,8 @@ type Service struct {
 	locksMu      sync.Mutex
 	projectLocks map[string]*sync.Mutex
 
-	eventsMu    sync.Mutex // serializes persisted event order and fan-out
-	emitCount   int
+	eventsMu    sync.Mutex     // serializes persisted event order and fan-out
+	emitCounts  map[string]int // persisted emits per project since its last prune (eventsMu)
 	subsMu      sync.Mutex
 	subscribers map[string]map[*eventSubscriber]struct{}
 	subsClosed  bool // set by Close: Subscribe then hands out a closed channel
@@ -217,6 +217,7 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 		artifactsDir: filepath.Join(cfg.DataDir, "cyd_creator", "artifacts"),
 		limits:       cfg.Limits.withDefaults(),
 		projectLocks: map[string]*sync.Mutex{},
+		emitCounts:   map[string]int{},
 		subscribers:  map[string]map[*eventSubscriber]struct{}{},
 		waiters:      map[string]chan struct{}{},
 		wake:         make(chan struct{}, 1),
@@ -238,9 +239,13 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 	}
 	s.discardPartialArtifacts(recovered)
 	for _, b := range recovered {
-		if build, err := s.loadBuild(context.Background(), b.ID); err == nil {
-			s.Emit(b.ProjectID, EventBuildStatus, b.JobID, b.ID, map[string]any{"build": build})
+		build, err := s.loadBuild(context.Background(), b.ID)
+		if err != nil {
+			logger.Warn("CYD Creator interrupted build could not be read; no build_status event sent",
+				"build_id", b.ID, "project_id", b.ProjectID, "error", err)
+			continue
 		}
+		s.Emit(b.ProjectID, EventBuildStatus, b.JobID, b.ID, map[string]any{"build": build})
 	}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	return s, nil

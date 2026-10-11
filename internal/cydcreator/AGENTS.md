@@ -358,6 +358,18 @@ turns a project into the complete PlatformIO tree. Later plans add storage and t
   `CYD_BUILDER_VERSION` therefore moves only `:1`: bump the version for every pin, template or builder-script change.
   A generator-only push to `main` also runs the workflow and republishes `:1` with unchanged inputs.
 
+### Service and events
+
+- Never call `Emit` or `EmitEphemeral` inside a database transaction or while iterating rows. `Emit` holds
+  `eventsMu` (which `EmitEphemeral` also takes) while it inserts through its own connection of the pool
+  (`dbutil.Open` default: 4 connections, `busy_timeout` 5 s): inside an open write transaction the insert waits for
+  the busy timeout and the event is lost while the transaction cannot commit, and open rows hold connections, so an
+  exhausted pool blocks every emitter. Commit or close the rows first, then emit.
+- Persisted events are pruned per project (`maxEventsPerProject`, checked after every `eventPruneEvery` emits of
+  that project); a live persisted event never carries `seq` 0 (0 marks ephemeral events).
+- `Close` closes every subscription, and `Subscribe` after `Close` returns an already closed channel: consumers treat
+  a closed channel as the end of the stream (the SSE client resumes with `Last-Event-ID`).
+
 ## Work Guidance
 
 - Table-driven tests live beside the source; golden files belong to the generator under `testdata/golden/`.

@@ -74,8 +74,18 @@ func TestSlowSubscriberIsDropped(t *testing.T) {
 		env.svc.EmitEphemeral("ccp_slow", EventBuildLog, "", "", nil)
 	}
 	n := 0
-	for range events {
-		n++
+	timeout := time.After(2 * time.Second)
+drain:
+	for {
+		select {
+		case _, ok := <-events:
+			if !ok {
+				break drain
+			}
+			n++
+		case <-timeout:
+			t.Fatalf("subscription still open after %d events", n)
+		}
 	}
 	if n != subscriberBuffer {
 		t.Fatalf("received %d buffered events before the close, want %d", n, subscriberBuffer)
@@ -90,15 +100,60 @@ func TestCloseEndsSubscriptions(t *testing.T) {
 	if err := env.svc.Close(); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
-	if _, ok := <-events; ok {
-		t.Fatal("a subscription survived Close")
-	}
+	wantClosed(t, events, "subscription opened before Close")
 	late, cancelLate := env.svc.Subscribe("ccp_close")
 	defer cancelLate()
-	if _, ok := <-late; ok {
-		t.Fatal("Subscribe after Close returned an open channel")
-	}
+	wantClosed(t, late, "subscription opened after Close")
 	env.svc.EmitEphemeral("ccp_close", EventBuildLog, "", "", nil) // must not panic
+}
+
+// wantClosed fails unless ch is closed (and empty) within two seconds.
+func wantClosed(t *testing.T, ch <-chan Event, what string) {
+	t.Helper()
+	select {
+	case ev, ok := <-ch:
+		if ok {
+			t.Fatalf("%s: got %+v, want a closed channel", what, ev)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("%s: channel still open after 2 s", what)
+	}
+}
+
+// TestEventsArePrunedPerProjectCounter interleaves two projects so that every
+// fifth emit overall belongs to ccp_b: a global emit counter would never prune
+// ccp_a.
+func TestEventsArePrunedPerProjectCounter(t *testing.T) {
+	savedMax, savedEvery := maxEventsPerProject, eventPruneEvery
+	maxEventsPerProject, eventPruneEvery = 10, 5
+	t.Cleanup(func() { maxEventsPerProject, eventPruneEvery = savedMax, savedEvery })
+	env := newTestService(t)
+	ctx := context.Background()
+	for round := 0; round < 10; round++ {
+		for i := 0; i < 4; i++ {
+			env.svc.Emit("ccp_a", EventProjectChanged, "", "", map[string]any{"i": round*4 + i})
+		}
+		env.svc.Emit("ccp_b", EventProjectChanged, "", "", map[string]any{"i": round})
+	}
+	a, _ := env.svc.EventsAfter(ctx, "ccp_a", 0, 0)
+	if len(a) != 10 {
+		t.Fatalf("ccp_a kept %d events, want the newest 10", len(a))
+	}
+	if newest := string(a[len(a)-1].Data); newest != `{"i":39}` {
+		t.Fatalf("ccp_a newest event = %s, want {\"i\":39}", newest)
+	}
+	if b, _ := env.svc.EventsAfter(ctx, "ccp_b", 0, 0); len(b) != 10 {
+		t.Fatalf("ccp_b kept %d events, want 10", len(b))
+	}
+	env.svc.Emit("ccp_a", EventProjectChanged, "", "", nil)
+	env.svc.dropProjectSubscribers("ccp_a")
+	env.svc.eventsMu.Lock()
+	_, kept := env.svc.emitCounts["ccp_a"]
+	n := len(env.svc.emitCounts)
+	env.svc.eventsMu.Unlock()
+	if kept || n != 0 {
+		t.Fatalf("prune counters after the drop: ccp_a kept=%v, %d entries; want none", kept, n)
+	}
 }
 
 func TestEventsArePrunedPerProject(t *testing.T) {

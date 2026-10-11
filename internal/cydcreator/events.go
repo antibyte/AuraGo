@@ -41,7 +41,8 @@ const (
 )
 
 // maxEventsPerProject persisted events are kept per project; older ones are
-// pruned every eventPruneEvery emits. Variables so tests can shrink them.
+// pruned after every eventPruneEvery emits of that project. Variables so tests
+// can shrink them.
 var (
 	maxEventsPerProject = 5000
 	eventPruneEvery     = 200
@@ -68,6 +69,14 @@ func marshalEventData(data any) json.RawMessage {
 
 // Emit persists an event and fans it out to the project's subscribers.
 // Failures are logged; events never fail the operation that caused them.
+//
+// Never call Emit or EmitEphemeral inside a database transaction or while
+// iterating rows: Emit holds eventsMu (which EmitEphemeral also takes) while
+// it writes through its own pool connection (dbutil default: 4 connections,
+// busy_timeout 5 s). Inside an open write transaction the INSERT waits for the
+// busy timeout and the event is lost while the transaction cannot commit; open
+// rows hold connections, and an exhausted pool blocks every emitter. Commit or
+// close the rows first, then emit.
 func (s *Service) Emit(projectID, typ, jobID, buildID string, data any) {
 	raw := marshalEventData(data)
 	s.eventsMu.Lock()
@@ -79,10 +88,16 @@ func (s *Service) Emit(projectID, typ, jobID, buildID string, data any) {
 		s.logger.Warn("CYD Creator event could not be stored", "type", typ, "error", err)
 		return
 	}
-	seq, _ := res.LastInsertId()
-	s.fanOut(Event{Seq: seq, ProjectID: projectID, Type: typ, JobID: jobID, BuildID: buildID, Data: raw, CreatedAt: created})
-	s.emitCount++
-	if s.emitCount%eventPruneEvery == 0 {
+	// A persisted event must never go out live with seq 0 (the ephemeral
+	// marker); without its seq it is only delivered by EventsAfter.
+	if seq, err := res.LastInsertId(); err != nil || seq <= 0 {
+		s.logger.Warn("CYD Creator event was stored without a known seq; not sent live", "type", typ, "error", err)
+	} else {
+		s.fanOut(Event{Seq: seq, ProjectID: projectID, Type: typ, JobID: jobID, BuildID: buildID, Data: raw, CreatedAt: created})
+	}
+	s.emitCounts[projectID]++
+	if s.emitCounts[projectID] >= eventPruneEvery {
+		delete(s.emitCounts, projectID) // a missing entry counts as 0, so the map only holds projects between prunes
 		if _, err := s.db.Exec(`DELETE FROM cc_events WHERE project_id=? AND seq < (
 			SELECT seq FROM cc_events WHERE project_id=? ORDER BY seq DESC LIMIT 1 OFFSET ?)`,
 			projectID, projectID, maxEventsPerProject-1); err != nil {
@@ -152,7 +167,12 @@ func (s *Service) dropSubscriberLocked(projectID string, sub *eventSubscriber) {
 	}
 }
 
+// dropProjectSubscribers ends the subscriptions of a deleted project and
+// forgets its prune counter.
 func (s *Service) dropProjectSubscribers(projectID string) {
+	s.eventsMu.Lock()
+	delete(s.emitCounts, projectID)
+	s.eventsMu.Unlock()
 	s.subsMu.Lock()
 	defer s.subsMu.Unlock()
 	for sub := range s.subscribers[projectID] {

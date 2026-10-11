@@ -1,9 +1,14 @@
 package cydcreator
 
 import (
+	"bytes"
 	"context"
+	"errors"
+	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -70,6 +75,78 @@ func TestValidOrigin(t *testing.T) {
 		if got := validOrigin(origin); got != want {
 			t.Errorf("validOrigin(%q) = %v, want %v", origin, got, want)
 		}
+	}
+}
+
+func TestCheckLock(t *testing.T) {
+	cases := []struct {
+		name     string
+		lockedBy string
+		origin   string
+		code     string // "" = allowed
+	}{
+		{"invalid origin", "", "admin", CodeBadRequest},
+		{"invalid job origin", "ccj_0001", "job:../x", CodeBadRequest},
+		{"user while unlocked", "", OriginUser, ""},
+		{"job while unlocked", "", JobOrigin("ccj_0001"), ""},
+		{"own job", "ccj_0001", JobOrigin("ccj_0001"), ""},
+		{"user while locked", "ccj_0001", OriginUser, CodeProjectLocked},
+		{"restore while locked", "ccj_0001", OriginRestore, CodeProjectLocked},
+		{"other job", "ccj_0001", JobOrigin("ccj_0002"), CodeProjectLocked},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := checkLock(projectRow{ID: "ccp_1", LockedByJob: tc.lockedBy}, tc.origin)
+			if tc.code == "" {
+				if err != nil {
+					t.Fatalf("checkLock = %v, want nil", err)
+				}
+				return
+			}
+			typed := wantCode(t, err, tc.code)
+			if tc.code == CodeProjectLocked && typed.Details["job_id"] != tc.lockedBy {
+				t.Fatalf("details = %v, want job_id %s", typed.Details, tc.lockedBy)
+			}
+		})
+	}
+}
+
+func TestInternalError(t *testing.T) {
+	var logs bytes.Buffer
+	s := &Service{logger: slog.New(slog.NewTextHandler(&logs, nil))}
+	typed := NewError(CodeNotFound, "project not found", nil)
+	cases := []struct {
+		name string
+		err  error
+		same bool // returned unchanged
+	}{
+		{"typed", typed, true},
+		{"wrapped typed", fmt.Errorf("load: %w", typed), true},
+		{"canceled", context.Canceled, true},
+		{"wrapped deadline", fmt.Errorf("query: %w", context.DeadlineExceeded), true},
+		{"cause", errors.New("disk I/O error at /secret/path"), false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			logs.Reset()
+			got := s.internalError("read project", tc.err)
+			if tc.same {
+				if got != tc.err || logs.Len() != 0 {
+					t.Fatalf("internalError = %v (logged %q), want the error unchanged and nothing logged", got, logs.String())
+				}
+				return
+			}
+			internal := wantCode(t, got, CodeInternal)
+			if internal.Message != "read project failed" || strings.Contains(internal.Error(), "secret") {
+				t.Fatalf("internal error = %q, want a generic message", internal.Error())
+			}
+			if !strings.Contains(logs.String(), "disk I/O error at /secret/path") || !strings.Contains(logs.String(), "op=\"read project\"") {
+				t.Fatalf("log = %q, want the op and the cause", logs.String())
+			}
+		})
+	}
+	if s.internalError("noop", nil) != nil {
+		t.Fatal("internalError(nil) != nil")
 	}
 }
 
