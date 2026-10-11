@@ -250,6 +250,41 @@ func TestExecuteBrowserAutomationValidatesOperationInputsBeforeSidecarRequest(t 
 	}
 }
 
+func TestExecuteBrowserAutomationDefaultScreenshotUsesConfiguredDir(t *testing.T) {
+	var sentPath string
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"status":"success","policy_version":"egress-v1","egress_isolated":true}`))
+			return
+		}
+		body, _ := io.ReadAll(r.Body)
+		var payload map[string]interface{}
+		_ = json.Unmarshal(body, &payload)
+		sentPath, _ = payload["output_path"].(string)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"success","operation":"screenshot"}`))
+	}))
+	defer srv.Close()
+
+	cfg := browserAutomationTestConfig(t, srv.URL)
+	cfg.BrowserAutomation.ScreenshotsDir = "shots"
+	result := decodeBrowserAutomationResult(t, ExecuteBrowserAutomation(context.Background(), cfg, BrowserAutomationRequest{
+		Operation: "screenshot",
+		SessionID: "ba_123",
+	}, nil))
+	if got, _ := result["status"].(string); got != "error" && !strings.HasPrefix(sentPath, "shots/") {
+		t.Fatalf("sent output_path = %q, status = %#v, want a shots/ path", sentPath, result["status"])
+	}
+	if strings.Contains(sentPath, "browser_screenshots") {
+		t.Fatalf("sent output_path = %q, want the configured shots directory", sentPath)
+	}
+	webPath, _ := result["screenshot_web_path"].(string)
+	if !strings.HasPrefix(webPath, "/files/shots/") || !strings.HasSuffix(webPath, ".png") {
+		t.Fatalf("screenshot_web_path = %q, want /files/shots/<file>.png", webPath)
+	}
+}
+
 func TestExecuteBrowserAutomationMapsScreenshotAndDownloads(t *testing.T) {
 	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/health" {

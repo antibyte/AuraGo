@@ -424,12 +424,16 @@ func browserAutomationCurrentContainerNetwork(dockerCfg DockerConfig) (string, e
 	return "", fmt.Errorf("current container has no attached Docker network")
 }
 
-func browserAutomationDefaultScreenshotRel(req BrowserAutomationRequest) string {
+func browserAutomationDefaultScreenshotRel(screenshotsRel string, req BrowserAutomationRequest) string {
+	dir := strings.Trim(filepath.ToSlash(strings.TrimSpace(screenshotsRel)), "/")
+	if dir == "" || dir == "." || strings.HasPrefix(dir, "..") {
+		dir = "browser_screenshots"
+	}
 	sessionPart := strings.TrimSpace(req.SessionID)
 	if sessionPart == "" {
 		sessionPart = "session"
 	}
-	return filepath.ToSlash(filepath.Join("browser_screenshots", fmt.Sprintf("%s_%d.png", sessionPart, time.Now().UnixMilli())))
+	return filepath.ToSlash(filepath.Join(dir, fmt.Sprintf("%s_%d.png", sessionPart, time.Now().UnixMilli())))
 }
 
 func browserAutomationSidecarRequest(ctx context.Context, cfg BrowserAutomationSidecarConfig, payload map[string]interface{}) (map[string]interface{}, error) {
@@ -658,8 +662,13 @@ func ExecuteBrowserAutomation(ctx context.Context, cfg *config.Config, req Brows
 			return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": screenshotsErr.Error()})
 		}
 		outputPath := strings.TrimSpace(req.OutputPath)
-		if outputPath == "" {
-			outputPath = browserAutomationDefaultScreenshotRel(req)
+		usedDefaultScreenshotPath := outputPath == ""
+		if usedDefaultScreenshotPath {
+			screenshotsRel, relErr := filepath.Rel(workspaceRoot, screenshotsRoot)
+			if relErr != nil {
+				screenshotsRel = "browser_screenshots"
+			}
+			outputPath = browserAutomationDefaultScreenshotRel(filepath.ToSlash(screenshotsRel), req)
 		}
 		withinRel, workspaceRel, abs, shotErr := browserAutomationScreenshotTarget(workspaceRoot, screenshotsRoot, outputPath)
 		if shotErr != nil {
@@ -670,7 +679,11 @@ func ExecuteBrowserAutomation(ctx context.Context, cfg *config.Config, req Brows
 		}
 		screenshotWorkspaceRel = workspaceRel
 		screenshotAbs = abs
-		payload["output_path"] = withinRel
+		sidecarOutputPath := withinRel
+		if usedDefaultScreenshotPath {
+			sidecarOutputPath = workspaceRel
+		}
+		payload["output_path"] = sidecarOutputPath
 	}
 
 	if op == "upload_file" {
