@@ -52,10 +52,15 @@ Server-owned HTTP and cross-component integration contracts.
   and `GET /api/desktop/retronet/connect` (`desktop_retronet*.go`) check, in
   order and before any WebSocket upgrade: Desktop write scope plus the
   operation class (connect is Desktop execution), the live `retronet_enabled`
-  grant (`virtual_desktop.retronet_enabled`, default off; false when readonly
-  or without write scope; 403 `retronet_disabled`), the method, then for
-  connect a known entry ID (404), a same-host `Origin` (403, empty refused) and
-  a WebSocket upgrade (400).
+  grant (`virtual_desktop.retronet_enabled`; false when the Desktop is
+  disabled, readonly or without write scope; 403 `retronet_disabled`), the
+  method, then for connect a known entry ID (404), a same-host `Origin` (403,
+  empty refused) and a WebSocket upgrade (400).
+- The setting defaults on (template and Go default in `config.Load`, so also
+  when the key is missing): an owner decision and a deliberate exception to the
+  root default-off rule for harmful capabilities. An explicit `false` stays off;
+  no migration flips it (`TestVirtualDesktopRetroNetToggleDefaultsOnAndPersists`,
+  `TestDesktopRetroNetPolicyFollowsLoadedConfigDefault`).
 - The browser sends only an entry ID plus `cols`/`rows`; the server looks the
   entry up in the catalog or `retronet.entries` and runs it through the one
   lazily created `retronet.Manager` (limits shared by all users) and its

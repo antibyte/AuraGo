@@ -8,9 +8,12 @@ anonymous SSH games. You
 pick an entry, the terminal "dials" with a short modem sequence, and the
 session runs inside the existing retro terminal styles and CRT effects.
 
-Retro-Net is **disabled by default**. Enable it with
-`virtual_desktop.retronet_enabled` (Config → Virtual Desktop → "Retro-Net in
-the Terminal"). Read-only mode disables it. Every Desktop user with write
+Retro-Net is **enabled by default**: `virtual_desktop.retronet_enabled` is
+`true` in the configuration template and whenever a configuration lacks the
+key, so it is also on after an update of an installation that never set it. A
+configuration that says `retronet_enabled: false` stays off. Switch it off or
+on in Config → Virtual Desktop → "Retro-Net in the Terminal". It needs an
+enabled Desktop, and read-only mode disables it. Every Desktop user with write
 access can dial; only administrators manage own entries.
 
 ## Privacy and safety

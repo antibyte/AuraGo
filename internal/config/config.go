@@ -594,6 +594,9 @@ func Load(path string) (*Config, error) {
 	cfg.VirtualDesktop.RemoteMaxSessionMinutes = 60
 	cfg.VirtualDesktop.RemoteIdleTimeoutMinutes = 5
 	cfg.VirtualDesktop.AllowGeneratedApps = true
+	// Terminal Retro-Net is on by default; an explicit retronet_enabled: false
+	// keeps it off, and the grant still needs an enabled, writable Desktop.
+	cfg.VirtualDesktop.RetroNetEnabled = true
 	cfg.VirtualDesktop.CodeStudio.Enabled = true
 	cfg.VirtualDesktop.CodeStudio.Image = "ghcr.io/antibyte/aurago-code-studio:latest"
 	cfg.VirtualDesktop.CodeStudio.AutoStart = false

@@ -85,7 +85,7 @@ worker. Keep packaging, recovery and offline instructions in
   configuration translations aligned. See `js/desktop/apps/AGENTS.md` and
   `documentation/quick-connect-serial.md` for lifecycle and hardware acceptance.
 - Retro-Net in the Desktop Terminal follows the live `retronet_enabled` grant
-  (bootstrap and `aurago:desktop-policy`; default off, off when readonly). The
+  (bootstrap and `aurago:desktop-policy`; default on, off when readonly). The
   browser names only directory entry IDs, never a host or port. Keep all
   sixteen `desktop.terminal_retronet_*` and Config toggle translations aligned.
   See `js/desktop/apps/AGENTS.md` (Terminal), `internal/retronet/AGENTS.md`
