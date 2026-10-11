@@ -4,6 +4,7 @@ const fs = require('fs/promises');
 const path = require('path');
 const { spawn } = require('child_process');
 const { parseAllowedOrigins, validateBrowserTarget } = require('./egress_policy');
+const { noteEgressProxyExit } = require('./egress_supervisor');
 const { resolveInside } = require('./path_policy');
 
 const PORT = parseInt(process.env.PORT || '7331', 10);
@@ -715,8 +716,13 @@ async function shutdown(signal) {
 
 let egressProxyChild = null;
 let egressProxyReady = null;
+let egressRestarts = 0;
+let egressWindowStart = 0;
+let egressProxyAccepted = false;
+let egressProxyGaveUp = false;
 
-function startLocalEgressProxy() {
+function startLocalEgressProxy(options = {}) {
+  const fatalOnFailure = options.fatalOnFailure !== false;
   if (egressProxyReady) return egressProxyReady;
   egressProxyReady = (async () => {
     const proxyEnv = {
@@ -732,19 +738,50 @@ function startLocalEgressProxy() {
     });
     const child = egressProxyChild;
     child.on('error', () => {});
+    child.on('exit', () => {
+      const decision = noteEgressProxyExit({
+        shuttingDown,
+        accepted: egressProxyAccepted,
+        gaveUp: egressProxyGaveUp,
+        restarts: egressRestarts,
+        windowStart: egressWindowStart,
+        now: Date.now(),
+        limit: 3,
+        windowMs: 60000,
+      });
+      egressRestarts = decision.restarts;
+      egressWindowStart = decision.windowStart;
+      egressProxyGaveUp = decision.gaveUp;
+      if (decision.action !== 'restart') {
+        if (decision.action === 'give-up') {
+          console.error('filtering egress proxy exceeded its restart limit');
+        }
+        return;
+      }
+      egressProxyReady = null;
+      egressProxyChild = null;
+      startLocalEgressProxy({ fatalOnFailure: false }).catch((error) => {
+        console.error('filtering egress proxy restart failed', error && error.message ? error.message : error);
+      });
+    });
     const deadline = Date.now() + 5000;
     while (Date.now() < deadline) {
       if (child.exitCode !== null) break;
       try {
         await verifyEgressProxy();
+        egressProxyAccepted = true;
         return;
       } catch (_) {
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
     }
     if (child.exitCode === null) child.kill();
-    console.error('filtering egress proxy did not become ready');
-    process.exit(1);
+    const failure = new Error('filtering egress proxy did not become ready');
+    console.error(failure.message);
+    if (fatalOnFailure) {
+      process.exit(1);
+    }
+    throw failure;
   })();
   return egressProxyReady;
 }
@@ -754,7 +791,7 @@ async function boot() {
   await ensureDir(DOWNLOAD_ROOT);
   await ensureDir(SCREENSHOTS_ROOT);
   await cleanupStaleArtifacts();
-  await startLocalEgressProxy();
+  await startLocalEgressProxy({ fatalOnFailure: true });
   server.listen(PORT, '0.0.0.0');
 }
 
