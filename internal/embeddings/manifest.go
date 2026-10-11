@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"aurago/internal/onnxrt"
 )
 
 const (
@@ -23,22 +25,15 @@ const (
 	llamaDockerVulkanImage = "ghcr.io/ggml-org/llama.cpp:server-vulkan-b9994@sha256:5c9c880045f1d6131aa7c90bf2695dbb3e9c9bf2e3f4513eb0672f1500318e02"
 )
 
-type assetKind string
-
+// The embeddings manifests use the shared onnxrt asset types; the aliases keep
+// the package-internal names.
 const (
-	assetFile    assetKind = "file"
-	assetZip     assetKind = "zip"
-	assetTarGzip assetKind = "tar.gz"
+	assetFile    = onnxrt.AssetFile
+	assetZip     = onnxrt.AssetZip
+	assetTarGzip = onnxrt.AssetTarGzip
 )
 
-type assetSpec struct {
-	ID       string
-	URL      string
-	Size     int64
-	SHA256   string
-	Kind     assetKind
-	FileName string
-}
+type assetSpec = onnxrt.AssetSpec
 
 var graniteONNXModelAsset = assetSpec{
 	ID:       "granite-onnx-int8",
@@ -164,7 +159,7 @@ func tokenizerPath(cacheDir string) string {
 }
 
 func runtimeAssetPath(cacheDir string, asset assetSpec) string {
-	return filepath.Join(cacheDir, "runtimes", asset.ID)
+	return onnxrt.RuntimeDir(cacheDir, asset)
 }
 
 func onnxFingerprint() string {

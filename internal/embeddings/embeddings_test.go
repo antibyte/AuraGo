@@ -1,51 +1,21 @@
 package embeddings
 
 import (
-	"archive/tar"
-	"archive/zip"
 	"bytes"
-	"compress/gzip"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"math"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 )
-
-type assetDownloadTestTransport struct {
-	handler http.Handler
-}
-
-func (transport assetDownloadTestTransport) RoundTrip(request *http.Request) (*http.Response, error) {
-	recorder := httptest.NewRecorder()
-	transport.handler.ServeHTTP(recorder, request.Clone(request.Context()))
-	response := recorder.Result()
-	response.Request = request
-	return response, nil
-}
-
-// newAssetDownloadTestClient keeps the asset specification on an HTTPS URL
-// while serving the test response entirely in memory. This avoids dependence
-// on host-wide TLS interception and loopback capacity without weakening
-// production TLS or bypassing validateAssetSpec's HTTPS requirement.
-func newAssetDownloadTestClient(handler http.Handler) (*http.Client, string) {
-	return &http.Client{
-		Transport: assetDownloadTestTransport{handler: handler},
-	}, "https://assets.invalid"
-}
 
 func TestCandidateMatrixAlwaysIncludesCPUFallbacks(t *testing.T) {
 	hardware := hardwareInfo{NVIDIA: true, Vulkan: true}
@@ -196,197 +166,6 @@ func TestGraniteFingerprintsCaptureFormatAndRuntime(t *testing.T) {
 		if !bytes.Contains([]byte(gguf), []byte(expected)) {
 			t.Fatalf("GGUF fingerprint %q does not contain %q", gguf, expected)
 		}
-	}
-}
-
-func TestSecureArchiveDestinationRejectsTraversal(t *testing.T) {
-	root := t.TempDir()
-	for _, name := range []string{
-		"../escape",
-		"../../escape",
-		`..\escape`,
-		`nested\..\..\escape`,
-		`C:\escape`,
-		"C:/escape",
-		"C:escape",
-		`\\server\share\escape`,
-		"//server/share/escape",
-		"/absolute",
-		`\absolute`,
-		"invalid\x00name",
-	} {
-		if _, err := secureArchiveDestination(root, name); err == nil {
-			t.Fatalf("secureArchiveDestination(%q) unexpectedly succeeded", name)
-		}
-	}
-	for _, name := range []string{"runtime/bin/llama-server", `runtime\bin\llama-server`} {
-		if destination, err := secureArchiveDestination(root, name); err != nil || !pathWithinRoot(destination, root) {
-			t.Fatalf("secureArchiveDestination(%q) = %q, %v", name, destination, err)
-		}
-	}
-}
-
-func TestExtractZipSecureRejectsSymlink(t *testing.T) {
-	temp := t.TempDir()
-	archivePath := filepath.Join(temp, "runtime.zip")
-	var archive bytes.Buffer
-	writer := zip.NewWriter(&archive)
-	header := &zip.FileHeader{Name: "runtime/link"}
-	header.SetMode(os.ModeSymlink | 0o777)
-	entry, err := writer.CreateHeader(header)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := entry.Write([]byte("../outside")); err != nil {
-		t.Fatal(err)
-	}
-	if err := writer.Close(); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(archivePath, archive.Bytes(), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if err := extractZipSecure(archivePath, filepath.Join(temp, "out")); err == nil {
-		t.Fatal("expected symlink archive to be rejected")
-	}
-}
-
-func TestExtractTarGzipSecureExtractsFilesWithoutMaterializingLinks(t *testing.T) {
-	var archive bytes.Buffer
-	gzipWriter := gzip.NewWriter(&archive)
-	tarWriter := tar.NewWriter(gzipWriter)
-	if err := tarWriter.WriteHeader(&tar.Header{
-		Name:     "runtime/bin/",
-		Typeflag: tar.TypeDir,
-		Mode:     0o755,
-	}); err != nil {
-		t.Fatal(err)
-	}
-	content := []byte("runtime")
-	if err := tarWriter.WriteHeader(&tar.Header{
-		Name:     "runtime/bin/libonnxruntime.so.1",
-		Typeflag: tar.TypeReg,
-		Mode:     0o644,
-		Size:     int64(len(content)),
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := tarWriter.Write(content); err != nil {
-		t.Fatal(err)
-	}
-	if err := tarWriter.WriteHeader(&tar.Header{
-		Name:     "runtime/bin/libonnxruntime.so",
-		Typeflag: tar.TypeSymlink,
-		Linkname: "libonnxruntime.so.1",
-		Mode:     0o777,
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if err := tarWriter.Close(); err != nil {
-		t.Fatal(err)
-	}
-	if err := gzipWriter.Close(); err != nil {
-		t.Fatal(err)
-	}
-	archivePath := filepath.Join(t.TempDir(), "runtime.tar.gz")
-	if err := os.WriteFile(archivePath, archive.Bytes(), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	target := t.TempDir()
-	if err := extractTarGzipSecure(archivePath, target); err != nil {
-		t.Fatal(err)
-	}
-	raw, err := os.ReadFile(filepath.Join(target, "runtime", "bin", "libonnxruntime.so.1"))
-	if err != nil || string(raw) != "runtime" {
-		t.Fatalf("extracted runtime = %q, %v", raw, err)
-	}
-	if _, err := os.Lstat(filepath.Join(target, "runtime", "bin", "libonnxruntime.so")); !os.IsNotExist(err) {
-		t.Fatalf("archive symlink was materialized: %v", err)
-	}
-}
-
-func TestFileMatchesRejectsManipulatedCache(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "asset.bin")
-	content := []byte("verified asset")
-	if err := os.WriteFile(path, content, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	hash := sha256.Sum256(content)
-	if !fileMatches(path, int64(len(content)), hex.EncodeToString(hash[:])) {
-		t.Fatal("expected valid cache file")
-	}
-	if err := os.WriteFile(path, []byte("tampered asset"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if fileMatches(path, int64(len("tampered asset")), hex.EncodeToString(hash[:])) {
-		t.Fatal("manipulated cache file unexpectedly validated")
-	}
-}
-
-func TestAssetDownloadCleansInterruptedPartAndReusesOfflineCache(t *testing.T) {
-	content := []byte("checksum-verified embedding asset")
-	hash := sha256.Sum256(content)
-	interrupt := true
-	client, baseURL := newAssetDownloadTestClient(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Length", strconv.Itoa(len(content)))
-		if interrupt {
-			_, _ = w.Write(content[:len(content)/2])
-			return
-		}
-		_, _ = w.Write(content)
-	}))
-	cache := newAssetCache(t.TempDir(), nil)
-	cache.client = client
-	spec := assetSpec{
-		ID:     "test-asset",
-		URL:    baseURL + "/asset",
-		Size:   int64(len(content)),
-		SHA256: hex.EncodeToString(hash[:]),
-		Kind:   assetFile,
-	}
-	destination := filepath.Join(cache.root, "models", "asset.bin")
-	if err := cache.ensureDirectAsset(context.Background(), spec, destination); err == nil {
-		t.Fatal("interrupted download unexpectedly succeeded")
-	}
-	if _, err := os.Stat(destination + ".part"); !os.IsNotExist(err) {
-		t.Fatalf("partial download was not cleaned up: %v", err)
-	}
-	interrupt = false
-	if err := cache.ensureDirectAsset(context.Background(), spec, destination); err != nil {
-		t.Fatal(err)
-	}
-	if err := cache.ensureDirectAsset(context.Background(), spec, destination); err != nil {
-		t.Fatalf("verified offline cache was not reused: %v", err)
-	}
-}
-
-func TestAssetDownloadRejectsMatchingSizeWithWrongHash(t *testing.T) {
-	content := []byte("expected")
-	tampered := []byte("tampered")
-	if len(content) != len(tampered) {
-		t.Fatal("test data must have matching lengths")
-	}
-	hash := sha256.Sum256(content)
-	client, baseURL := newAssetDownloadTestClient(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write(tampered)
-	}))
-	cache := newAssetCache(t.TempDir(), nil)
-	cache.client = client
-	spec := assetSpec{
-		ID:     "tampered",
-		URL:    baseURL,
-		Size:   int64(len(content)),
-		SHA256: hex.EncodeToString(hash[:]),
-		Kind:   assetFile,
-	}
-	destination := filepath.Join(cache.root, "asset.bin")
-	if err := cache.ensureDirectAsset(context.Background(), spec, destination); err == nil {
-		t.Fatal("tampered download unexpectedly succeeded")
-	} else if !strings.Contains(err.Error(), "SHA-256") {
-		t.Fatalf("tampered download failed before checksum verification: %v", err)
-	}
-	if _, err := os.Stat(destination); !os.IsNotExist(err) {
-		t.Fatalf("tampered destination exists: %v", err)
 	}
 }
 
@@ -794,96 +573,6 @@ func TestDockerModelMountUsesReadOnlyVolumeSubpathAndRejectsUnsafeOldEngine(t *t
 	selected, err = selectDockerModelMount("/app/data/embeddings/models/gguf", "1.44", exact)
 	if err != nil || selected.VolumeSubpath != "" || selected.Target != "/app/data/embeddings" {
 		t.Fatalf("old Docker Engine exact mount = %#v, %v", selected, err)
-	}
-}
-
-func TestRuntimeManifestRepairsTamperedMissingAndUnexpectedFilesOffline(t *testing.T) {
-	var archive bytes.Buffer
-	writer := zip.NewWriter(&archive)
-	for name, content := range map[string]string{
-		"runtime/bin/runtime.dll": "verified runtime",
-		"runtime/bin/helper.exe":  "verified helper",
-	} {
-		entry, err := writer.Create(name)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err := entry.Write([]byte(content)); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := writer.Close(); err != nil {
-		t.Fatal(err)
-	}
-	content := archive.Bytes()
-	hash := sha256.Sum256(content)
-	client, baseURL := newAssetDownloadTestClient(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write(content)
-	}))
-	cache := newAssetCache(t.TempDir(), nil)
-	cache.client = client
-	spec := assetSpec{
-		ID:     "test-runtime",
-		URL:    baseURL + "/runtime.zip",
-		Size:   int64(len(content)),
-		SHA256: hex.EncodeToString(hash[:]),
-		Kind:   assetZip,
-	}
-	root, err := cache.ensureRuntimeAsset(context.Background(), spec)
-	if err != nil {
-		t.Fatal(err)
-	}
-	runtimeFile := filepath.Join(root, "runtime", "bin", "runtime.dll")
-	helperFile := filepath.Join(root, "runtime", "bin", "helper.exe")
-	assertRepaired := func(path, want string) {
-		t.Helper()
-		raw, readErr := os.ReadFile(path)
-		if readErr != nil || string(raw) != want {
-			t.Fatalf("repaired file %s = %q, %v; want %q", path, raw, readErr, want)
-		}
-	}
-	if err := os.WriteFile(runtimeFile, []byte("tampered runtime"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := cache.ensureRuntimeAsset(context.Background(), spec); err != nil {
-		t.Fatal(err)
-	}
-	assertRepaired(runtimeFile, "verified runtime")
-
-	if err := os.Remove(helperFile); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := cache.ensureRuntimeAsset(context.Background(), spec); err != nil {
-		t.Fatal(err)
-	}
-	assertRepaired(helperFile, "verified helper")
-
-	unexpected := filepath.Join(root, "runtime", "bin", "injected.dll")
-	if err := os.WriteFile(unexpected, []byte("unexpected"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := cache.ensureRuntimeAsset(context.Background(), spec); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Stat(unexpected); !os.IsNotExist(err) {
-		t.Fatalf("unexpected runtime file was not removed: %v", err)
-	}
-
-	if err := os.Remove(runtimeFile); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Symlink(helperFile, runtimeFile); err == nil {
-		if _, err := cache.ensureRuntimeAsset(context.Background(), spec); err != nil {
-			t.Fatal(err)
-		}
-		info, err := os.Lstat(runtimeFile)
-		if err != nil {
-			t.Fatalf("linked runtime file was not replaced: %v", err)
-		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			t.Fatalf("linked runtime file was not replaced: mode=%v", info.Mode())
-		}
-		assertRepaired(runtimeFile, "verified runtime")
 	}
 }
 

@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"aurago/internal/onnxrt"
 )
 
 type LocalOptions struct {
@@ -908,11 +910,11 @@ func (manager *Manager) cleanupUnusedGPURuntimes(selected candidate, candidates 
 			continue
 		}
 		target := runtimeAssetPath(manager.options.CacheDir, current.Asset)
-		if err := safeRemoveAll(filepath.Join(manager.options.CacheDir, "runtimes"), target); err != nil {
+		if err := onnxrt.SafeRemoveAll(filepath.Join(manager.options.CacheDir, "runtimes"), target); err != nil {
 			manager.logger.Debug("Could not remove unused GPU runtime", "asset", current.Asset.ID, "error", err)
 		}
-		archive := filepath.Join(manager.options.CacheDir, "downloads", current.Asset.ID+archiveSuffix(current.Asset.Kind))
-		if pathWithinRoot(archive, filepath.Join(manager.options.CacheDir, "downloads")) {
+		archive := onnxrt.ArchivePath(manager.options.CacheDir, current.Asset)
+		if onnxrt.PathWithinRoot(archive, filepath.Join(manager.options.CacheDir, "downloads")) {
 			_ = os.Remove(archive)
 		}
 	}

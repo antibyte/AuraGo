@@ -6,6 +6,8 @@ import (
 	"math"
 	"sync"
 	"time"
+
+	"aurago/internal/onnxrt"
 )
 
 const (
@@ -40,12 +42,7 @@ type BenchmarkResult struct {
 }
 
 // DownloadStatus is safe to expose through the local status API.
-type DownloadStatus struct {
-	Asset      string  `json:"asset,omitempty"`
-	Downloaded int64   `json:"downloaded"`
-	Total      int64   `json:"total"`
-	Percent    float64 `json:"percent"`
-}
+type DownloadStatus = onnxrt.DownloadStatus
 
 // Status describes setup, selection, health, and fallback state.
 type Status struct {
