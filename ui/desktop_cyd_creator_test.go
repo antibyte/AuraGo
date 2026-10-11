@@ -229,3 +229,29 @@ func TestCYDCreatorStylesheetUsesThemeTokens(t *testing.T) {
 		}
 	}
 }
+
+func TestCYDCreatorDockModule(t *testing.T) {
+	text := checkCYDCreatorModule(t, "cyd-creator-dock.js",
+		"P.dock = { create };", "registerTab,", "ccDockTab: id", "problems: { set: setIssues, setDiagnostics,",
+		"inst.bus.on('sse:build_log'", "inst.bus.on('layout:issues'", "inst.reveal(", "inst.openFile(", "trackBuild(build) {", "dispose() {")
+	checkCYDCreatorCancelNotReadonly(t, "cyd-creator-dock.js", text, "cancelBtn.hidden =")
+}
+
+// checkCYDCreatorCancelNotReadonly: plan 2 allows the job/build cancel routes while the desktop is
+// read-only (cydRoute.Stop), so no line that shows or enables a Cancel button may depend on
+// inst.readonly.
+func checkCYDCreatorCancelNotReadonly(t *testing.T, name, text, marker string) {
+	t.Helper()
+	found := 0
+	for _, line := range strings.Split(text, "\n") {
+		if strings.Contains(line, marker) {
+			found++
+			if strings.Contains(line, "readonly") || strings.Contains(line, "disabled,") {
+				t.Errorf("%s gates a Cancel button on read-only: %s", name, strings.TrimSpace(line))
+			}
+		}
+	}
+	if found == 0 {
+		t.Errorf("%s has no line with %q", name, marker)
+	}
+}
