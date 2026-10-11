@@ -616,6 +616,7 @@
             'detective': 'DetectiveApp',
             'newspaper': 'NewspaperApp',
             'local-wikipedia': 'LocalWikipediaApp',
+            'retro-games': 'RetroGamesApp',
             cheater: 'CheaterApp',
             'agent-chat': 'AgentChatApp',
             'live-speech': 'LiveSpeechApp',

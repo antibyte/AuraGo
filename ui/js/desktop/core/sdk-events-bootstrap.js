@@ -420,7 +420,10 @@
                 openStandaloneWidget(event.payload.path, event.payload.widget_id || event.payload.app_id, event.payload);
                 return;
             }
-            openApp(event.payload.app_id, event.payload.path ? { path: event.payload.path } : undefined);
+            const launch = {};
+            if (event.payload.path) launch.path = event.payload.path;
+            if (typeof event.payload.game === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(event.payload.game)) launch.game = event.payload.game;
+            openApp(event.payload.app_id, Object.keys(launch).length ? launch : undefined);
             return;
         }
         if (event.type === 'notification') {

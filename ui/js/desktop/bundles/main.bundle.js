@@ -848,6 +848,7 @@
             'detective': 'DetectiveApp',
             'newspaper': 'NewspaperApp',
             'local-wikipedia': 'LocalWikipediaApp',
+            'retro-games': 'RetroGamesApp',
             cheater: 'CheaterApp',
             'agent-chat': 'AgentChatApp',
             'live-speech': 'LiveSpeechApp',
@@ -6456,20 +6457,21 @@
             'system-world': { width: 1440, height: 900 },
             noisemaker: { width: 1120, height: 740 },
             'homepage-studio': { width: 1240, height: 760 },
+            'retro-games': { width: 1100, height: 720 },
             'local-wikipedia': { width: 1080, height: 760 }
         };
         if (presets[appId]) return presets[appId];
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { if (appId === 'ha-switchboard') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, easydrag: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { if (appId === 'ha-switchboard') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, easydrag: true, viewer: true, 'viewer-3d': true, chess: true, 'retro-games': true, nasscad: true, 'mission-control': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
 
     function appWindowMinSize(appId) {
         if (appId === 'ha-switchboard') return { width: 360, height: 540 };
         if (appId === 'radio') return { width: 360, height: 540 };
         if (appId === 'teevee') return { width: 1140, height: 540 }; // Keep the sidebar above its 1050px content breakpoint plus wood trim.
         if (appId === 'meshcore') return { width: 360, height: 480 };
-        const mins = { 'system-info': { width: 560, height: 460 }, 'log-viewer': { width: 640, height: 420 }, 'virtual-computers': { width: 640, height: 480 }, 'network-cameras': { width: 680, height: 480 }, 'sip-phone': { width: 340, height: 580 }, 'live-speech': { width: 340, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 }, noisemaker: { width: 760, height: 520 }, easydrag: { width: 720, height: 480 } };
+        const mins = { 'system-info': { width: 560, height: 460 }, 'log-viewer': { width: 640, height: 420 }, 'virtual-computers': { width: 640, height: 480 }, 'network-cameras': { width: 680, height: 480 }, 'sip-phone': { width: 340, height: 580 }, 'live-speech': { width: 340, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 }, 'retro-games': { width: 640, height: 480 }, noisemaker: { width: 760, height: 520 }, easydrag: { width: 720, height: 480 } };
         return mins[appId] || { width: WINDOW_MIN_W, height: WINDOW_MIN_H };
     }
 
@@ -6683,6 +6685,7 @@
             if (appId === 'settings' && context && context.category) renderAppContent(existing.id, appId, context);
             if (appId === 'meshcore' && context && window.MeshCoreApp) window.MeshCoreApp.openConversation(existing.id, context);
             if (appId === 'easydrag' && context && window.EasyDragApp && typeof window.EasyDragApp.open === 'function') window.EasyDragApp.open(existing.id, context);
+            if (appId === 'retro-games' && context && context.game && window.RetroGamesApp && typeof window.RetroGamesApp.open === 'function') window.RetroGamesApp.open(existing.id, context);
             if (context && context.path) recordRecentFile(context.path, appId, context.pathKind);
             return;
         }
@@ -17689,6 +17692,13 @@ if (appId === 'pixel') {
             }
             return window.LocalWikipediaApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, openApp }));
         }
+        if (appId === 'retro-games') {
+            if (!window.RetroGamesApp) {
+                window.AuraDesktopModules.loadAppScript('retro-games').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            return window.RetroGamesApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, openApp, showContextMenu }));
+        }
         if (appId === 'homepage-studio') {
             if (!window.HomepageStudioApp) {
                 window.AuraDesktopModules.loadAppScript('homepage-studio').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
@@ -21267,7 +21277,10 @@ if (appId === 'pixel') {
                 openStandaloneWidget(event.payload.path, event.payload.widget_id || event.payload.app_id, event.payload);
                 return;
             }
-            openApp(event.payload.app_id, event.payload.path ? { path: event.payload.path } : undefined);
+            const launch = {};
+            if (event.payload.path) launch.path = event.payload.path;
+            if (typeof event.payload.game === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(event.payload.game)) launch.game = event.payload.game;
+            openApp(event.payload.app_id, Object.keys(launch).length ? launch : undefined);
             return;
         }
         if (event.type === 'notification') {

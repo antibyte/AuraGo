@@ -1860,6 +1860,13 @@ if (appId === 'pixel') {
             }
             return window.LocalWikipediaApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, openApp }));
         }
+        if (appId === 'retro-games') {
+            if (!window.RetroGamesApp) {
+                window.AuraDesktopModules.loadAppScript('retro-games').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            return window.RetroGamesApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, openApp, showContextMenu }));
+        }
         if (appId === 'homepage-studio') {
             if (!window.HomepageStudioApp) {
                 window.AuraDesktopModules.loadAppScript('homepage-studio').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));

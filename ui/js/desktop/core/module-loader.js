@@ -402,6 +402,10 @@
             styles: appStyles('/css/desktop-app-local-wikipedia.css'),
             scripts: ['/js/desktop/apps/local-wikipedia-views.js', '/js/desktop/apps/local-wikipedia.js']
         },
+        'retro-games': {
+            styles: appStyles('/css/desktop-app-retro-games.css'),
+            scripts: ['/js/desktop/apps/retro-games-views.js', '/js/desktop/apps/retro-games-player.js', '/js/desktop/apps/retro-games.js']
+        },
         'homepage-studio': {
             styles: appStyles('/css/desktop-app-homepage-studio.css', '/css/chat-modules.css', '/css/hljs-github-dark.min.css'),
             scripts: [
