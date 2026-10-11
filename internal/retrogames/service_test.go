@@ -626,45 +626,43 @@ func TestServicePrepareLibraryChangeWritesOnlyOnCommit(t *testing.T) {
 		return len(lib.Favorites), len(lib.Recent), len(lib.Broken)
 	}
 
-	// Preparing resolves everything but must not write: dropping the commit
-	// func leaves every list empty.
+	// Preparing resolves everything but must not write: releasing without a
+	// commit leaves every list empty.
 	for _, kind := range []LibraryKind{LibraryFavorite, LibraryBroken, LibraryPlay} {
-		commit, err := svc.PrepareLibraryChange(ctx, kind, id, true)
-		if err != nil || commit == nil {
-			t.Fatalf("prepare kind %d: commit=%v err=%v", kind, commit != nil, err)
+		commit, release, err := svc.PrepareLibraryChange(ctx, kind, id, true)
+		if err != nil || commit == nil || release == nil {
+			t.Fatalf("prepare kind %d: commit=%v release=%v err=%v", kind, commit != nil, release != nil, err)
 		}
+		release()
 	}
 	if fav, recent, broken := libraryCounts(); fav != 0 || recent != 0 || broken != 0 {
 		t.Fatalf("prepare wrote to the store: favorites=%d recent=%d broken=%d", fav, recent, broken)
 	}
 
 	// Each commit performs exactly its own write.
-	commit, err := svc.PrepareLibraryChange(ctx, LibraryFavorite, id, true)
-	if err != nil {
-		t.Fatal(err)
+	apply := func(kind LibraryKind, id string, on bool) error {
+		t.Helper()
+		commit, release, err := svc.PrepareLibraryChange(ctx, kind, id, on)
+		if err != nil {
+			return err
+		}
+		defer release()
+		return commit(ctx)
 	}
-	if err := commit(ctx); err != nil {
+	if err := apply(LibraryFavorite, id, true); err != nil {
 		t.Fatal(err)
 	}
 	if fav, recent, broken := libraryCounts(); fav != 1 || recent != 0 || broken != 0 {
 		t.Fatalf("favorite commit: favorites=%d recent=%d broken=%d", fav, recent, broken)
 	}
 	// on is ignored for plays: a play always counts.
-	commit, err = svc.PrepareLibraryChange(ctx, LibraryPlay, id, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := commit(ctx); err != nil {
+	if err := apply(LibraryPlay, id, false); err != nil {
 		t.Fatal(err)
 	}
 	if fav, recent, broken := libraryCounts(); fav != 1 || recent != 1 || broken != 0 {
 		t.Fatalf("play commit: favorites=%d recent=%d broken=%d", fav, recent, broken)
 	}
-	commit, err = svc.PrepareLibraryChange(ctx, LibraryBroken, id, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := commit(ctx); err != nil {
+	if err := apply(LibraryBroken, id, true); err != nil {
 		t.Fatal(err)
 	}
 	if fav, recent, broken := libraryCounts(); fav != 1 || recent != 1 || broken != 1 {
@@ -672,12 +670,8 @@ func TestServicePrepareLibraryChangeWritesOnlyOnCommit(t *testing.T) {
 	}
 
 	// Removing a favorite needs no game lookup, so even an unknown id prepares.
-	commit, err = svc.PrepareLibraryChange(ctx, LibraryFavorite, "gone_game", false)
-	if err != nil {
-		t.Fatalf("removing an unknown favorite must prepare: %v", err)
-	}
-	if err := commit(ctx); err != nil {
-		t.Fatal(err)
+	if err := apply(LibraryFavorite, "gone_game", false); err != nil {
+		t.Fatalf("removing an unknown favorite must prepare and commit: %v", err)
 	}
 }
 
@@ -687,25 +681,29 @@ func TestServicePrepareLibraryChangeRefusals(t *testing.T) {
 	svc, _, _ := newTestService(t, f)
 	ctx := context.Background()
 
-	if commit, err := svc.PrepareLibraryChange(ctx, LibraryFavorite, "unknown_game", true); !errors.Is(err, ErrUnknownGame) || commit != nil {
-		t.Fatalf("unknown game: commit=%v err=%v", commit != nil, err)
+	refused := func(name string, kind LibraryKind, id string, want error) {
+		t.Helper()
+		commit, release, err := svc.PrepareLibraryChange(ctx, kind, id, true)
+		if err == nil || (want != nil && !errors.Is(err, want)) || commit != nil || release != nil {
+			t.Fatalf("%s: commit=%v release=%v err=%v", name, commit != nil, release != nil, err)
+		}
 	}
-	if commit, err := svc.PrepareLibraryChange(ctx, LibraryFavorite, "../x", true); !errors.Is(err, ErrInvalidIdentifier) || commit != nil {
-		t.Fatalf("invalid id: commit=%v err=%v", commit != nil, err)
-	}
-	if commit, err := svc.PrepareLibraryChange(ctx, LibraryFavorite, "", true); !errors.Is(err, ErrInvalidIdentifier) || commit != nil {
-		t.Fatalf("empty id: commit=%v err=%v", commit != nil, err)
-	}
-	if commit, err := svc.PrepareLibraryChange(ctx, LibraryKind(99), "arcade_tron", true); err == nil || commit != nil {
-		t.Fatalf("unknown kind: commit=%v err=%v", commit != nil, err)
+	refused("unknown game", LibraryFavorite, "unknown_game", ErrUnknownGame)
+	refused("invalid id", LibraryFavorite, "../x", ErrInvalidIdentifier)
+	refused("empty id", LibraryFavorite, "", ErrInvalidIdentifier)
+	refused("unknown kind", LibraryKind(99), "arcade_tron", nil)
+	// No refusal kept the write lock.
+	if n := len(svc.store.writeSem); n != 0 {
+		t.Fatalf("a refused prepare kept the write lock: %d", n)
 	}
 
 	// A commit prepared before the service stops reports ErrDisabled, not the
 	// raw "database is closed" error.
-	commit, err := svc.PrepareLibraryChange(ctx, LibraryFavorite, "arcade_tron", true)
+	commit, release, err := svc.PrepareLibraryChange(ctx, LibraryFavorite, "arcade_tron", true)
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer release()
 	sctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := svc.Shutdown(sctx); err != nil {
@@ -714,7 +712,7 @@ func TestServicePrepareLibraryChangeRefusals(t *testing.T) {
 	if err := commit(ctx); !errors.Is(err, ErrDisabled) {
 		t.Fatalf("commit after Shutdown: err = %v, want ErrDisabled", err)
 	}
-	if _, err := svc.PrepareLibraryChange(ctx, LibraryFavorite, "arcade_tron", true); !errors.Is(err, ErrDisabled) {
+	if _, _, err := svc.PrepareLibraryChange(ctx, LibraryFavorite, "arcade_tron", true); !errors.Is(err, ErrDisabled) {
 		t.Fatalf("prepare after Shutdown: err = %v, want ErrDisabled", err)
 	}
 }

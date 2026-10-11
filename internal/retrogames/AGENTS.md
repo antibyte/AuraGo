@@ -24,6 +24,15 @@
   deadline (`freshUntil`).
 - Lifecycle: the store opens lazily outside `s.mu` (`openMu`); after `Shutdown` every call returns an
   `ErrDisabled`-wrapped error.
+- Write lock: every SQLite write of a `Store` (`ReplaceSource` for its whole transaction,
+  `RecordSyncFailure`, `SetFavorite`/`SetBroken`/`RecordPlay`) takes `writeSem`, a ctx-aware one-slot
+  semaphore (`lockWrites`); the `*Locked` helpers expect the caller to hold it, never take it again. Only
+  `OpenStore` writes without it (schema setup before anyone can reach the store). New write paths must use it.
+- `PrepareLibraryChange` takes the write lock after resolving the game and returns `(commit, release, err)`:
+  the desktop handler waits for a running sync there, outside the desktop publication gate, and the commit
+  inside the gate never waits. Callers `defer release()` (idempotent); `commit` works once and frees the lock;
+  a ctx that ends while waiting returns `ctx.Err()` (the handler maps `context.Canceled` to 403
+  `desktop_readonly`). Teardown never needs the lock: a sync waiting for it ends with its context.
 - Scrape pages are stream-decoded with a cap of 10,000 elements; `FlexText` stream-decodes with depth 3 / 64
   values.
 - Identifiers must match `^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$` everywhere (API paths, embed URLs).

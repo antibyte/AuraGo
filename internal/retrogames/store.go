@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/dbutil"
@@ -75,6 +76,15 @@ ON CONFLICT(identifier) DO NOTHING`
 // Store is the SQLite index plus the user's library.
 type Store struct {
 	db *sql.DB
+	// writeSem is the store's in-process write lock, a one-slot semaphore.
+	// Every write takes it before it touches SQLite, so writes of this
+	// process never wait for each other inside SQLite's busy timeout; a
+	// caller with a critical section of its own (the desktop publication
+	// gate) takes the lock first, outside that section (see lockWrites).
+	writeSem chan struct{}
+	// beforeReplaceCommit, set only by tests, runs inside ReplaceSource's
+	// transaction (write lock held, rows written) just before the commit.
+	beforeReplaceCommit func()
 }
 
 // SyncState is the persisted sync bookkeeping of one source.
@@ -133,7 +143,25 @@ func OpenStore(dir string, logger *slog.Logger) (*Store, error) {
 			return nil, fmt.Errorf("retrogames: set schema version: %w", err)
 		}
 	}
-	return &Store{db: db}, nil
+	// The schema statements above ran before anyone else could reach the
+	// store, so they need no write lock.
+	return &Store{db: db, writeSem: make(chan struct{}, 1)}, nil
+}
+
+// lockWrites takes the store's write lock, waiting at most until ctx ends (a
+// canceled ctx is refused even when the lock is free). The returned unlock is
+// idempotent: a second call never frees a lock taken by someone else.
+func (st *Store) lockWrites(ctx context.Context) (unlock func(), err error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	select {
+	case st.writeSem <- struct{}{}:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	var once sync.Once
+	return func() { once.Do(func() { <-st.writeSem }) }, nil
 }
 
 // isCorruptDB reports whether err means the database file itself is damaged.
@@ -176,7 +204,8 @@ func (st *Store) Close() error {
 }
 
 // ReplaceSource swaps all rows of one source for games in a single
-// transaction and records the successful sync.
+// transaction and records the successful sync. It holds the write lock for
+// the whole transaction.
 func (st *Store) ReplaceSource(ctx context.Context, source string, games []Game, now time.Time) error {
 	if !ValidPlatform(source) {
 		return fmt.Errorf("retrogames: unknown source %q", source)
@@ -184,6 +213,11 @@ func (st *Store) ReplaceSource(ctx context.Context, source string, games []Game,
 	if len(games) == 0 {
 		return fmt.Errorf("retrogames: refusing to replace source %s with no games", source)
 	}
+	unlock, err := st.lockWrites(ctx)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	tx, err := st.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("retrogames: begin replace: %w", err)
@@ -214,6 +248,9 @@ func (st *Store) ReplaceSource(ctx context.Context, source string, games []Game,
 		source, ts, ts, stored); err != nil {
 		return fmt.Errorf("retrogames: record sync of %s: %w", source, err)
 	}
+	if st.beforeReplaceCommit != nil {
+		st.beforeReplaceCommit()
+	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("retrogames: commit replace: %w", err)
 	}
@@ -222,7 +259,12 @@ func (st *Store) ReplaceSource(ctx context.Context, source string, games []Game,
 
 // RecordSyncFailure stores a failed attempt without touching the last success.
 func (st *Store) RecordSyncFailure(ctx context.Context, source string, now time.Time, message string) error {
-	_, err := st.db.ExecContext(ctx, `INSERT INTO sync_state(source, last_attempt_at, last_error) VALUES (?, ?, ?)
+	unlock, err := st.lockWrites(ctx)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	_, err = st.db.ExecContext(ctx, `INSERT INTO sync_state(source, last_attempt_at, last_error) VALUES (?, ?, ?)
 		ON CONFLICT(source) DO UPDATE SET last_attempt_at = excluded.last_attempt_at, last_error = excluded.last_error`,
 		source, now.Unix(), truncateRunes(message, 300))
 	if err != nil {

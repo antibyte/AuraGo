@@ -36,16 +36,45 @@ type Library struct {
 	Broken    []LibraryEntry `json:"broken"`
 }
 
-// SetFavorite adds (with a snapshot of g) or removes a favorite.
+// SetFavorite adds (with a snapshot of g) or removes a favorite. It takes the
+// store's write lock.
 func (st *Store) SetFavorite(ctx context.Context, g Game, on bool, now time.Time) error {
+	return st.locked(ctx, func() error { return st.setFavoriteLocked(ctx, g, on, now) })
+}
+
+// SetBroken adds or removes a "doesn't start" marker. It takes the store's
+// write lock.
+func (st *Store) SetBroken(ctx context.Context, g Game, on bool, now time.Time) error {
+	return st.locked(ctx, func() error { return st.setBrokenLocked(ctx, g, on, now) })
+}
+
+// RecordPlay counts one start of g and keeps the newest maxStoredPlays rows. It
+// takes the store's write lock.
+func (st *Store) RecordPlay(ctx context.Context, g Game, now time.Time) error {
+	return st.locked(ctx, func() error { return st.recordPlayLocked(ctx, g, now) })
+}
+
+// locked runs write under the store's write lock.
+func (st *Store) locked(ctx context.Context, write func() error) error {
+	unlock, err := st.lockWrites(ctx)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	return write()
+}
+
+// The *Locked writers expect the caller to hold the store's write lock.
+
+func (st *Store) setFavoriteLocked(ctx context.Context, g Game, on bool, now time.Time) error {
 	return st.setMarker(ctx, "favorites", "added_at", maxFavorites, g, on, now)
 }
 
-// SetBroken adds or removes a "doesn't start" marker.
-func (st *Store) SetBroken(ctx context.Context, g Game, on bool, now time.Time) error {
+func (st *Store) setBrokenLocked(ctx context.Context, g Game, on bool, now time.Time) error {
 	return st.setMarker(ctx, "broken", "marked_at", maxBroken, g, on, now)
 }
 
+// setMarker writes one favorites/broken row; the caller holds the write lock.
 func (st *Store) setMarker(ctx context.Context, table, timeColumn string, limit int, g Game, on bool, now time.Time) error {
 	if strings.TrimSpace(g.Identifier) == "" {
 		return errEmptyIdentifier
@@ -80,8 +109,7 @@ func (st *Store) setMarker(ctx context.Context, table, timeColumn string, limit 
 	return nil
 }
 
-// RecordPlay counts one start of g and keeps the newest maxStoredPlays rows.
-func (st *Store) RecordPlay(ctx context.Context, g Game, now time.Time) error {
+func (st *Store) recordPlayLocked(ctx context.Context, g Game, now time.Time) error {
 	if strings.TrimSpace(g.Identifier) == "" {
 		return errEmptyIdentifier
 	}

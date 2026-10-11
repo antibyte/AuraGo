@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -664,34 +665,46 @@ func (s *Service) RecordPlay(ctx context.Context, id string) error {
 }
 
 func (s *Service) changeLibrary(ctx context.Context, kind LibraryKind, id string, on bool) error {
-	commit, err := s.PrepareLibraryChange(ctx, kind, id, on)
+	commit, release, err := s.PrepareLibraryChange(ctx, kind, id, on)
 	if err != nil {
 		return err
 	}
+	defer release()
 	return commit(ctx)
 }
 
+// errLibraryChangeDone refuses a second commit, or a commit after release.
+var errLibraryChangeDone = errors.New("retrogames: library change already committed or released")
+
 // PrepareLibraryChange does everything for a library change except the write:
-// it validates the identifier, opens the index and resolves the game (index,
-// Hall of Fame, then the library snapshot of a game that left the index). The
-// returned commit func performs the single store write and nothing else, so a
-// caller can keep a short critical section around it. Nothing is written until
-// commit runs. on is ignored for LibraryPlay (a play always counts).
-func (s *Service) PrepareLibraryChange(ctx context.Context, kind LibraryKind, id string, on bool) (func(context.Context) error, error) {
+// it validates the identifier, opens the index, resolves the game (index, Hall
+// of Fame, then the library snapshot of a game that left the index) and then
+// takes the store's write lock, waiting for a running sync transaction if
+// needed. A ctx that ends while it waits returns ctx.Err(). Nothing is written
+// until commit runs.
+//
+// On success the caller holds the write lock and must call release (defer it):
+// release is idempotent and frees the lock unless commit already did. commit
+// performs the single store write while holding the lock, so it never waits
+// for a sync and a caller can keep a short critical section around it; it
+// frees the lock when it returns and works only once. On error commit and
+// release are nil and no lock is held. on is ignored for LibraryPlay (a play
+// always counts).
+func (s *Service) PrepareLibraryChange(ctx context.Context, kind LibraryKind, id string, on bool) (commit func(context.Context) error, release func(), err error) {
 	switch kind {
 	case LibraryFavorite, LibraryBroken:
 	case LibraryPlay:
 		on = true
 	default:
-		return nil, fmt.Errorf("retrogames: unknown library kind %d", kind)
+		return nil, nil, fmt.Errorf("retrogames: unknown library kind %d", kind)
 	}
 	id = strings.TrimSpace(id)
 	if !ValidIdentifier(id) {
-		return nil, ErrInvalidIdentifier
+		return nil, nil, ErrInvalidIdentifier
 	}
 	st, err := s.openStore()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	g := Game{Identifier: id}
 	if on {
@@ -699,27 +712,54 @@ func (s *Service) PrepareLibraryChange(ctx context.Context, kind LibraryKind, id
 		if errors.Is(err, ErrUnknownGame) {
 			snap, ok, snapErr := st.Snapshot(ctx, id)
 			if snapErr != nil {
-				return nil, s.storeErr(snapErr)
+				return nil, nil, s.storeErr(snapErr)
 			}
 			if !ok {
-				return nil, ErrUnknownGame
+				return nil, nil, ErrUnknownGame
 			}
 			g, err = snap, nil
 		}
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
-	return func(ctx context.Context) error {
+	unlock, err := st.lockWrites(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	// The service may have been switched off, shut down or moved to another
+	// data directory while this waited; the detached store is (being) closed.
+	s.mu.Lock()
+	derr := s.disabledLocked()
+	if derr == nil && s.store != st {
+		derr = fmt.Errorf("%w: index changed while preparing the change", ErrDisabled)
+	}
+	s.mu.Unlock()
+	if derr != nil {
+		unlock()
+		return nil, nil, derr
+	}
+	var done atomic.Bool
+	release = func() {
+		if done.CompareAndSwap(false, true) {
+			unlock()
+		}
+	}
+	commit = func(ctx context.Context) error {
+		if !done.CompareAndSwap(false, true) {
+			return errLibraryChangeDone
+		}
+		defer unlock()
 		var err error
 		switch kind {
 		case LibraryFavorite:
-			err = st.SetFavorite(ctx, g, on, s.now())
+			err = st.setFavoriteLocked(ctx, g, on, s.now())
 		case LibraryBroken:
-			err = st.SetBroken(ctx, g, on, s.now())
+			err = st.setBrokenLocked(ctx, g, on, s.now())
 		default:
-			err = st.RecordPlay(ctx, g, s.now())
+			err = st.recordPlayLocked(ctx, g, s.now())
 		}
 		return s.storeErr(err)
-	}, nil
+	}
+	return commit, release, nil
 }

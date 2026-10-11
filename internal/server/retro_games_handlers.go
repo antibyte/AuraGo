@@ -154,13 +154,16 @@ func (s *Server) handleRetroGames(w http.ResponseWriter, r *http.Request) {
 		if route == "broken" {
 			kind = retrogames.LibraryBroken
 		}
-		// Opening the index and resolving the game can be slow, so only the
-		// single write runs inside the desktop publication gate.
-		commit, err := svc.PrepareLibraryChange(r.Context(), kind, id, on)
+		// Opening the index, resolving the game and waiting for the store's
+		// write lock (a running sync transaction holds it for seconds) all
+		// happen here, before the desktop publication gate: only the single
+		// write, which no longer waits for anything, runs inside it.
+		commit, release, err := svc.PrepareLibraryChange(r.Context(), kind, id, on)
 		if err != nil {
 			s.writeRetroGamesError(w, err)
 			return
 		}
+		defer release()
 		if err := publishDesktopResult(r.Context(), func() error { return commit(r.Context()) }); err != nil {
 			s.writeRetroGamesError(w, err)
 			return
@@ -183,11 +186,12 @@ func (s *Server) handleRetroGames(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Only the write runs inside the publication gate (see above).
-		commit, err := svc.PrepareLibraryChange(r.Context(), retrogames.LibraryPlay, id, true)
+		commit, release, err := svc.PrepareLibraryChange(r.Context(), retrogames.LibraryPlay, id, true)
 		if err != nil {
 			s.writeRetroGamesError(w, err)
 			return
 		}
+		defer release()
 		if err := publishDesktopResult(r.Context(), func() error { return commit(r.Context()) }); err != nil {
 			s.writeRetroGamesError(w, err)
 			return
