@@ -52,7 +52,10 @@ const (
 
 // Job is one agent job (overview "Job" JSON). Prompt is the current request
 // (an edited re-plan prompt replaces it) and is not part of the API answer;
-// the chat history carries it as a user message.
+// the chat history carries it as a user message. ErrorReason is the
+// details.reason of the typed error that failed the job (publication_review,
+// file_open, ...): the job JSON has no details, and a client needs the reason
+// to tell a fenced publication from another CYD_BUSY.
 type Job struct {
 	ID            string   `json:"id"`
 	ProjectID     string   `json:"project_id"`
@@ -63,6 +66,7 @@ type Job struct {
 	Plan          *JobPlan `json:"plan"`
 	ErrorCode     string   `json:"error_code"`
 	ErrorMessage  string   `json:"error_message"`
+	ErrorReason   string   `json:"error_reason,omitempty"`
 	BuildID       string   `json:"build_id"`
 	ResumeOf      string   `json:"resume_of"`
 	CreatedAt     string   `json:"created_at"`
@@ -252,13 +256,13 @@ func ParseJobPlan(data []byte) (JobPlan, error) {
 	return plan, nil
 }
 
-const jobColumns = `id,project_id,mode,status,phase,prompt,plan,repair_attempt,error_code,error_message,build_id,staging_dir,resume_of,created_at,started_at,finished_at`
+const jobColumns = `id,project_id,mode,status,phase,prompt,plan,repair_attempt,error_code,error_message,error_reason,build_id,staging_dir,resume_of,created_at,started_at,finished_at`
 
 func scanJob(row rowScanner) (Job, error) {
 	var j Job
 	var plan string
 	if err := row.Scan(&j.ID, &j.ProjectID, &j.Mode, &j.Status, &j.Phase, &j.Prompt, &plan, &j.RepairAttempt, &j.ErrorCode,
-		&j.ErrorMessage, &j.BuildID, &j.StagingDir, &j.ResumeOf, &j.CreatedAt, &j.StartedAt, &j.FinishedAt); err != nil {
+		&j.ErrorMessage, &j.ErrorReason, &j.BuildID, &j.StagingDir, &j.ResumeOf, &j.CreatedAt, &j.StartedAt, &j.FinishedAt); err != nil {
 		return Job{}, err
 	}
 	if plan != "" {
@@ -297,9 +301,9 @@ func (s *Service) loadJob(ctx context.Context, id string) (Job, error) {
 // insertJob stores a new job row.
 func (s *Service) insertJob(ctx context.Context, j Job) error {
 	_, err := s.db.ExecContext(ctx, `INSERT INTO cc_jobs(id,project_id,mode,status,phase,prompt,plan,repair_attempt,error_code,
-		error_message,build_id,staging_dir,resume_of,created_at,started_at,finished_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		error_message,error_reason,build_id,staging_dir,resume_of,created_at,started_at,finished_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		j.ID, j.ProjectID, j.Mode, j.Status, j.Phase, j.Prompt, planJSON(j.Plan), j.RepairAttempt, j.ErrorCode, j.ErrorMessage,
-		j.BuildID, j.StagingDir, j.ResumeOf, j.CreatedAt, j.StartedAt, j.FinishedAt)
+		j.ErrorReason, j.BuildID, j.StagingDir, j.ResumeOf, j.CreatedAt, j.StartedAt, j.FinishedAt)
 	if err != nil {
 		return fmt.Errorf("insert cyd creator job: %w", err)
 	}
@@ -322,8 +326,8 @@ func (s *Service) saveJob(j Job) error {
 			time.Sleep(jobSaveRetryDelay)
 		}
 		res, err = s.db.Exec(`UPDATE cc_jobs SET status=?, phase=?, prompt=?, plan=?, repair_attempt=?, error_code=?, error_message=?,
-			build_id=?, started_at=?, finished_at=? WHERE id=?`, j.Status, j.Phase, j.Prompt, planJSON(j.Plan), j.RepairAttempt,
-			j.ErrorCode, j.ErrorMessage, j.BuildID, j.StartedAt, j.FinishedAt, j.ID)
+			error_reason=?, build_id=?, started_at=?, finished_at=? WHERE id=?`, j.Status, j.Phase, j.Prompt, planJSON(j.Plan), j.RepairAttempt,
+			j.ErrorCode, j.ErrorMessage, j.ErrorReason, j.BuildID, j.StartedAt, j.FinishedAt, j.ID)
 		if err == nil {
 			break
 		}

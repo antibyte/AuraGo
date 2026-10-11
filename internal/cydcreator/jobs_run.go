@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -28,8 +29,7 @@ func (s *Service) executeJob(run *jobRun) {
 		return
 	}
 	if outcome.err != nil {
-		status, code, message := s.classifyJobError(run, outcome.err)
-		_ = s.finishJob(run.job, status, code, message)
+		_ = s.finishJob(run.job, s.classifyJobError(run, outcome.err))
 	}
 	s.jobs.mu.Lock()
 	delete(s.jobs.planningUsed, run.jobID)
@@ -52,14 +52,13 @@ func (s *Service) awaitConfirmation(run *jobRun) {
 	}
 	if run.ctx.Err() != nil {
 		delete(s.jobs.planningUsed, run.jobID)
-		status, code, message := s.classifyJobError(run, context.Cause(run.ctx))
-		_ = s.finishJob(run.job, status, code, message)
+		_ = s.finishJob(run.job, s.classifyJobError(run, context.Cause(run.ctx)))
 		return
 	}
 	run.job.Status = JobAwaitingConfirmation
 	if err := s.saveJob(run.job); err != nil {
 		delete(s.jobs.planningUsed, run.jobID)
-		_ = s.finishJob(run.job, JobFailed, "", "The plan could not be stored.")
+		_ = s.finishJob(run.job, jobEnding{status: JobFailed, message: "The plan could not be stored."})
 		return
 	}
 	if s.jobs.planningUsed == nil {
@@ -446,14 +445,25 @@ func (s *Service) publishOnce(run *jobRun, b Build) error {
 	return nil
 }
 
-// classifyJobError maps the end of a failed segment to status, code and the
-// English message shown in the chat.
+// jobEnding is how a job that did not publish ends: its status, the typed
+// error's code and details.reason (empty for untyped endings) and the English
+// message shown in the chat.
+type jobEnding struct {
+	status, code, reason, message string
+}
+
+// jobErrorReasonPattern accepts the identifier-shaped details.reason values
+// of service errors (publication_review, file_open, too_large, ...); free-text
+// reasons such as ParseJobPlan's are not stored on the job.
+var jobErrorReasonPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
+
+// classifyJobError maps the end of a failed segment to a jobEnding.
 //
 // When the run's context has ended, its cause decides: a step that was
 // waiting (a build, a database read) returns the bare context error, which
 // would otherwise read as a failure. Shutdown cancels the parent, so its
 // cause is context.Canceled and the s.ctx check makes it "interrupted".
-func (s *Service) classifyJobError(run *jobRun, err error) (status, code, message string) {
+func (s *Service) classifyJobError(run *jobRun, err error) jobEnding {
 	if run.ctx.Err() != nil {
 		if cause := context.Cause(run.ctx); cause != nil {
 			err = cause
@@ -463,13 +473,17 @@ func (s *Service) classifyJobError(run *jobRun, err error) (status, code, messag
 	var agent agentStopped
 	switch {
 	case errors.Is(err, errJobCancelled):
-		return JobCancelled, "", ""
+		return jobEnding{status: JobCancelled}
 	case errors.Is(err, errJobTimeout):
-		return JobFailed, "", fmt.Sprintf("The job exceeded its time limit of %s.", formatBudget(run.budget))
+		return jobEnding{status: JobFailed, message: fmt.Sprintf("The job exceeded its time limit of %s.", formatBudget(run.budget))}
 	case s.ctx.Err() != nil:
-		return JobInterrupted, "", "The server stopped while the job was running."
+		return jobEnding{status: JobInterrupted, message: "The server stopped while the job was running."}
 	case errors.As(err, &typed):
-		return JobFailed, typed.Code, typed.Message
+		reason, _ := typed.Details["reason"].(string)
+		if !jobErrorReasonPattern.MatchString(reason) {
+			reason = ""
+		}
+		return jobEnding{status: JobFailed, code: typed.Code, reason: reason, message: typed.Message}
 	case errors.As(err, &agent):
 		s.logger.Warn("CYD Creator agent run failed", "job_id", run.jobID, "error", err)
 		reason := err.Error()
@@ -478,16 +492,16 @@ func (s *Service) classifyJobError(run *jobRun, err error) (status, code, messag
 			// generically; registered secrets never reach the chat.
 			reason = s.scrub(reason)
 		}
-		message = "The agent stopped: " + strings.Join(strings.Fields(reason), " ")
+		message := "The agent stopped: " + strings.Join(strings.Fields(reason), " ")
 		if utf8.RuneCountInString(message) > 300 {
 			message = string([]rune(message)[:299]) + "…"
 		}
-		return JobFailed, "", message
+		return jobEnding{status: JobFailed, message: message}
 	}
 	// An orchestrator failure (file system, database): the cause can name
 	// host paths, so it stays in the server log.
 	s.logger.Warn("CYD Creator job failed", "job_id", run.jobID, "error", err)
-	return JobFailed, CodeInternal, "The job failed because of an internal error; the server log has the details."
+	return jobEnding{status: JobFailed, code: CodeInternal, message: "The job failed because of an internal error; the server log has the details."}
 }
 
 // terminalSaveDelays are the pauses between further attempts to store a
@@ -519,7 +533,7 @@ func (s *Service) saveTerminalJob(job Job) error {
 // working copy with changes becomes the project's draft (replacing an older
 // one), the lock is released and the chat gets a status line. It returns the
 // error of the terminal job write (logged).
-func (s *Service) finishJob(job Job, status, code, message string) error {
+func (s *Service) finishJob(job Job, end jobEnding) error {
 	ctx := context.Background()
 	stage := s.stagingPath(job.ID)
 	unlock := s.lockProject(job.ProjectID)
@@ -527,7 +541,7 @@ func (s *Service) finishJob(job Job, status, code, message string) error {
 	if err != nil {
 		unlock()
 		s.logger.Warn("CYD Creator job could not be finished", "job_id", job.ID, "error", err)
-		job.Status, job.ErrorCode, job.ErrorMessage, job.FinishedAt = status, code, message, formatTime(s.now())
+		job.Status, job.ErrorCode, job.ErrorReason, job.ErrorMessage, job.FinishedAt = end.status, end.code, end.reason, end.message, formatTime(s.now())
 		if ErrorCode(err) == CodeNotFound {
 			return s.saveTerminalJob(job) // the project is gone; the row must not stay active
 		}
@@ -543,7 +557,7 @@ func (s *Service) finishJob(job Job, status, code, message string) error {
 	if keep {
 		draft = job.ID
 	}
-	job.Status, job.ErrorCode, job.ErrorMessage, job.FinishedAt = status, code, message, formatTime(s.now())
+	job.Status, job.ErrorCode, job.ErrorReason, job.ErrorMessage, job.FinishedAt = end.status, end.code, end.reason, end.message, formatTime(s.now())
 	released := row.LockedByJob == job.ID
 	if _, err := s.db.Exec(`UPDATE cc_projects SET locked_by_job=CASE WHEN locked_by_job=? THEN '' ELSE locked_by_job END,
 		draft_job=? WHERE id=?`, job.ID, draft, row.ID); err != nil {
@@ -565,8 +579,8 @@ func (s *Service) finishJob(job Job, status, code, message string) error {
 		_, _ = s.db.Exec(`DELETE FROM cc_agent_context WHERE job_id=?`, job.ID)
 	}
 	saveErr := s.saveTerminalJob(job)
-	text := message
-	switch status {
+	text := end.message
+	switch end.status {
 	case JobCancelled:
 		text = "The job was cancelled. The project is unchanged."
 	case JobFailed, JobInterrupted:

@@ -50,7 +50,7 @@ func TestStoreCreatesTheOverviewSchema(t *testing.T) {
 			"usage", "artifacts", "created_at", "started_at", "finished_at"},
 		"cc_events": {"seq", "project_id", "type", "job_id", "build_id", "data", "created_at"},
 		"cc_jobs": {"id", "project_id", "mode", "status", "phase", "prompt", "plan", "repair_attempt", "error_code", "error_message",
-			"build_id", "staging_dir", "resume_of", "created_at", "started_at", "finished_at"},
+			"error_reason", "build_id", "staging_dir", "resume_of", "created_at", "started_at", "finished_at"},
 		"cc_messages":       {"id", "project_id", "job_id", "role", "text", "attachments", "created_at"},
 		"cc_agent_context":  {"job_id", "project_id", "data", "updated_at"},
 		"cc_revisions":      {"id", "project_id", "label", "reason", "job_id", "build_id", "layout_sha256", "created_at"},

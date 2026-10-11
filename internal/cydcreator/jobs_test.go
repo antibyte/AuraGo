@@ -1261,3 +1261,70 @@ func TestConfirmAndCancelOfAWaitingJobDoNotRace(t *testing.T) {
 		}
 	}
 }
+
+func TestFencedPublicationKeepsTheFailureReason(t *testing.T) {
+	env, runner, p := newJobEnv(t)
+	runner.on(PhaseCoding, func(ctx context.Context, run JobRun) error {
+		if _, err := env.svc.WriteJobFile(ctx, run.Job.ID, "src/app/extra.cpp", "int f;\n"); err != nil {
+			return err
+		}
+		return env.svc.FinishJob(ctx, run.Job.ID, "done")
+	})
+	// The build was accepted; before the publication the project gets fenced
+	// (an unresolved swap of another write).
+	env.builder.build = func(ctx context.Context, req BuildRequest, onLog func(string)) (BuildOutput, error) {
+		env.svc.setPublicationFence(p.ID, "publish_ccj_review")
+		return successOutput(req), nil
+	}
+	ctx := context.Background()
+	events, cancel := env.svc.Subscribe(p.ID)
+	defer cancel()
+	job, err := env.svc.StartJob(ctx, p.ID, StartJobInput{Mode: JobModeChange, Prompt: "x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := waitJob(t, env, job.ID, JobSucceeded, JobFailed)
+	if done.Status != JobFailed || done.ErrorCode != CodeBusy || done.ErrorReason != "publication_review" {
+		t.Fatalf("job = %+v", done)
+	}
+	if jobs, _ := env.svc.ListJobs(ctx, p.ID); len(jobs) != 1 || jobs[0].ErrorReason != "publication_review" {
+		t.Fatalf("listed jobs = %+v", jobs)
+	}
+	announced := false
+	for _, ev := range drain(events) {
+		if ev.Type == EventJobStatus && strings.Contains(string(ev.Data), `"status":"failed"`) {
+			announced = strings.Contains(string(ev.Data), `"error_code":"CYD_BUSY"`) &&
+				strings.Contains(string(ev.Data), `"error_reason":"publication_review"`)
+		}
+	}
+	if !announced {
+		t.Fatal("the failed job_status event lacks error_code CYD_BUSY and error_reason publication_review")
+	}
+	if _, err := os.Stat(filepath.Join(env.svc.projectDir(p.Slug), "src", "app", "extra.cpp")); !os.IsNotExist(err) {
+		t.Fatalf("the fenced publication changed the project: %v", err)
+	}
+	// Jobs without a reason keep the field out of the JSON.
+	if data, err := json.Marshal(Job{ID: "ccj_plain", Status: JobFailed}); err != nil || strings.Contains(string(data), "error_reason") {
+		t.Fatalf("job JSON = %s (%v)", data, err)
+	}
+}
+
+func TestJobErrorReasonIsAnIdentifierOnly(t *testing.T) {
+	env, _, _ := newJobEnv(t)
+	run := &jobRun{ctx: context.Background()}
+	cases := []struct {
+		details map[string]any
+		want    string
+	}{
+		{map[string]any{"reason": "file_open"}, "file_open"},
+		{map[string]any{"reason": "summary must have at most 1000 characters"}, ""},
+		{map[string]any{"reason": 7}, ""},
+		{nil, ""},
+	}
+	for _, c := range cases {
+		end := env.svc.classifyJobError(run, NewError(CodeBusy, "busy", c.details))
+		if end.status != JobFailed || end.code != CodeBusy || end.reason != c.want || end.message != "busy" {
+			t.Errorf("details %v: ending = %+v, want reason %q", c.details, end, c.want)
+		}
+	}
+}

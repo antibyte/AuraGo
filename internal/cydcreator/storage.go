@@ -134,8 +134,8 @@ CREATE INDEX cc_events_project ON cc_events(project_id, seq);
 CREATE TABLE cc_jobs (
   id TEXT PRIMARY KEY, project_id TEXT NOT NULL, mode TEXT NOT NULL, status TEXT NOT NULL, phase TEXT NOT NULL,
   prompt TEXT NOT NULL, plan TEXT NOT NULL DEFAULT '', repair_attempt INTEGER NOT NULL DEFAULT 0,
-  error_code TEXT NOT NULL DEFAULT '', error_message TEXT NOT NULL DEFAULT '', build_id TEXT NOT NULL DEFAULT '',
-  staging_dir TEXT NOT NULL DEFAULT '', resume_of TEXT NOT NULL DEFAULT '',
+  error_code TEXT NOT NULL DEFAULT '', error_message TEXT NOT NULL DEFAULT '', error_reason TEXT NOT NULL DEFAULT '',
+  build_id TEXT NOT NULL DEFAULT '', staging_dir TEXT NOT NULL DEFAULT '', resume_of TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL, started_at TEXT NOT NULL DEFAULT '', finished_at TEXT NOT NULL DEFAULT '');
 CREATE INDEX cc_jobs_project ON cc_jobs(project_id, created_at);
 CREATE TABLE cc_messages (

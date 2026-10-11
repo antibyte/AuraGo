@@ -416,7 +416,7 @@ func (s *Service) CancelJob(ctx context.Context, jobID string) error {
 	// that is being cancelled.
 	delete(s.jobs.planningUsed, jobID)
 	defer s.jobs.mu.Unlock()
-	return s.internalError("cancel job", s.finishJob(job, JobCancelled, "", ""))
+	return s.internalError("cancel job", s.finishJob(job, jobEnding{status: JobCancelled}))
 }
 
 // DiscardDraft deletes the project's saved draft (working copy and private

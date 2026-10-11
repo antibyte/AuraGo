@@ -414,7 +414,8 @@ publication, revisions, the job chat and the agent tool implementations. Plan 5 
   `config.SQLiteDatabasePaths`; `dbutil.Open`: WAL, foreign keys, busy timeout) with the overview schema: nine `cc_*`
   tables, `cc_meta.schema_version` 1 and seven indexes, one of them `UNIQUE cc_devices_token(token_hash)` (device
   fixtures need distinct non-empty hashes); `cc_projects.publish_receipt` (plan 3, added before v1 was released) is the
-  receipt id of the last committed directory swap. Migrations append to `storeMigrations` (never edit a released step; each
+  receipt id of the last committed directory swap; `cc_jobs.error_reason` (plan 4a review, also added to the unreleased
+  v1) keeps a failed job's `details.reason`. Migrations append to `storeMigrations` (never edit a released step; each
   step commits with its version); an existing database is first copied with `VACUUM INTO <db>.v<N>.bak`, and a schema
   newer than the code refuses the start. Times are fixed-width RFC 3339 UTC (`timeLayout`), so SQL order is
   chronological.
@@ -581,9 +582,12 @@ publication, revisions, the job chat and the agent tool implementations. Plan 5 
   project becomes its single draft (`draft_job`; an older draft's folder and conversation go), otherwise the copy
   and the job's conversation are removed; the lock is released and a system chat line written. `classifyJobError`
   decides by the run context's cause, not by the error a waiting step returned: cancel → `cancelled`, timeout →
-  `failed` ("exceeded its time limit"), shutdown → `interrupted`, a typed error → `failed` with its code and
-  message, a Runner error (`agentStopped`) → "The agent stopped: <reason>" (scrubbed with `ServiceConfig.Scrub`, at
-  most 300 runes), anything else → `CYD_INTERNAL` with a generic text (the cause can name host paths; logged).
+  `failed` ("exceeded its time limit"), shutdown → `interrupted`, a typed error → `failed` with its code, message
+  and an identifier-shaped `details.reason` (`^[a-z][a-z0-9_]{0,63}$`, e.g. `publication_review`, `file_open`; free
+  text such as `ParseJobPlan`'s is dropped) as `error_reason` (job JSON `error_reason`, omitted when empty; the
+  client tells a fenced publication from another `CYD_BUSY` by it), a Runner error (`agentStopped`) → "The agent
+  stopped: <reason>" (scrubbed with `ServiceConfig.Scrub`, at most 300 runes), anything else → `CYD_INTERNAL` with
+  a generic text (the cause can name host paths; logged).
 - Job rows: `saveJob` emits `job_status` only for a stored state (one retry; it returns the error, a missing row is
   `CYD_JOB_NOT_FOUND`). Failed, cancelled and interrupted endings (`finishJob`, `abortStart`) go through
   `saveTerminalJob` (further tries after 0.2, 0.5 and 1 s), because a lost terminal write keeps the slot taken until
