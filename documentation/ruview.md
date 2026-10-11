@@ -28,6 +28,8 @@ ESP32 reception needs explicit UDP publication: a concrete RFC1918 IPv4 LAN bind
 
 Managed recordings and models live below `data/ruview/data`; native executables live in `data/ruview/runtime/<revision>/<platform>`. An external service keeps its own storage. The managed storage watcher checks once per second, refuses recording starts when the budget is exhausted and requests a recording stop when it reaches the configured budget (default 1024 MiB). This is a controlled recording stop, not a filesystem quota; data written between checks can exceed the budget. AuraGo does not delete recordings automatically.
 
+Recording creation validates any requested ID as a filename prefix and appends a random suffix. Use the returned ID for later operations: reusing a prefix cannot overwrite an existing recording. External model statistics render as text, and embedded documents allow inline scripts only with an AuraGo-generated nonce. Observatory and the legacy 3D visualization require explicit demo selection for generated frames; stalled live data expires after ten seconds.
+
 ## ESP32 browser setup
 
 Use HTTPS (or localhost) and a browser that supports Web Serial, with serial permissions allowed. Plug the board into the **browser computer**, close other tools using the port and use a USB data cable. BOOT while reconnecting can help enter the ROM loader. The RuView iframe has no serial permission; the separate AuraGo dialog owns the serial port.

@@ -1,7 +1,9 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"io/fs"
 	"net/http"
@@ -47,7 +49,11 @@ func registerRuViewRoutes(mux *http.ServeMux, s *Server) {
 				http.NotFound(w, r)
 				return
 			}
-			w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'none'")
+			nonce := rand.Text()
+			if path.Ext(name) == ".html" {
+				data = bytes.ReplaceAll(data, []byte("<script"), []byte("<script nonce=\""+nonce+"\""))
+			}
+			w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self' 'nonce-"+nonce+"' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'none'")
 			w.Header().Set("X-Frame-Options", "SAMEORIGIN")
 			w.Header().Set("Permissions-Policy", "serial=(), camera=(), microphone=(), geolocation=()")
 			w.Header().Set("Cache-Control", "no-store")

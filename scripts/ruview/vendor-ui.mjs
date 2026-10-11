@@ -8,6 +8,10 @@ const source = process.argv.find(x => x.startsWith('--source='))?.slice(9);
 const target = 'ui/js/vendor/ruview';
 const check = process.argv.includes('--check');
 const digest = b => crypto.createHash('sha256').update(b).digest('hex');
+function patch(text, before, after) {
+  if (!text.includes(before)) throw Error('Pinned RuView adapter patch no longer matches');
+  return text.replace(before, after);
+}
 if (check) {
   const manifest = JSON.parse(await readFile(`${target}/provenance.json`));
   if (manifest.revision !== revision) throw Error('RuView revision mismatch');
@@ -27,7 +31,7 @@ if (check) {
       if (!/\.(js|css|html|svg|png|ico|woff2?|jpg|json|wasm)$/.test(name) || /(?:test|spec)\.js$/.test(name)) continue;
       let bytes = await readFile(full);
       if (/\.(js|css|html)$/.test(name)) {
-        let text = bytes.toString('utf8');
+        let text = bytes.toString('utf8').replaceAll('\r\n','\n');
         text = text.replaceAll('https://unpkg.com/three@0.160.0/', './deps/three/').replaceAll('https://unpkg.com/stats.js@0.17.0/build/stats.min.js', './deps/stats.min.js').replaceAll('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', './deps/three-global.js');
         if (name.endsWith('.html')) {
           text = text.replace(/<img\b[^>]*\bsrc="https:[^"]*"[^>]*>/g, '');
@@ -50,6 +54,62 @@ if (check) {
     return;
   }`);
           text=text.replace("statusLabel.textContent = 'LIVE CSI';", "statusLabel.textContent = 'EXPERIMENTAL CSI';");
+        }
+        if (name === 'components/ModelPanel.js') {
+          const start=text.indexOf('      st.innerHTML = '),end=text.indexOf('\n',start);
+          if(start<0||end<0)throw Error('Pinned model statistics renderer changed');
+          text=text.slice(0,start)+`      st.appendChild(this._el('span', 'mp-stat-label', 'Inference: '));
+      st.appendChild(this._el('span', 'mp-stat-value', (Number.isFinite(am.avg_inference_ms) ? am.avg_inference_ms.toFixed(1) : '—') + ' ms'));
+      st.appendChild(this._el('span', 'mp-stat-sep', ' | '));
+      st.appendChild(this._el('span', 'mp-stat-label', 'Frames: '));
+      st.appendChild(this._el('span', 'mp-stat-value', am.frames_processed ?? 0));`+text.slice(end);
+        }
+        if (name === 'observatory/js/main.js') {
+          text=patch(text,'this._liveData = JSON.parse(evt.data);','this._liveData = JSON.parse(evt.data); this._auragoFrameAt = performance.now();');
+          text=patch(text,"WebSocket closed, falling back to demo","WebSocket closed; waiting for live data");
+          text=patch(text,"this.settings.dataSource = 'demo';","this._liveData = null; this.settings.dataSource = 'ws';");
+          text=patch(text,`    if (this.settings.dataSource === 'ws' && this._liveData) {
+      this._currentData = this._liveData;
+    } else {
+      this._currentData = this._demoData.update(dt);
+    }`, `    const demoAllowed = window.auragoRuViewSimulationAllowed?.() === true;
+    const frame = this._liveData;
+    const real = frame && !frame._simulated && (frame.source === 'esp32' || frame.source === 'wifi' || String(frame.source).startsWith('wifi:'));
+    if (this.settings.dataSource === 'ws' && frame && performance.now() - this._auragoFrameAt < 10000 && (real || demoAllowed)) {
+      this._currentData = frame;
+    } else if (demoAllowed) {
+      this._currentData = this._demoData.update(dt);
+    } else {
+      this._currentData = null;
+      this._renderer.clear();
+      this._hud.updateHUD({}, this._demoData);
+      this._hud.updateSourceBadge('unavailable', null);
+      for (const id of ['hr-value','br-value','conf-value','rssi-value','var-value','motion-value','persons-value','presence-label']) {
+        const el=document.getElementById(id);if(el)el.textContent='—';
+      }
+      return;
+    }
+    this._hud.updateSourceBadge(this._currentData === frame && real ? 'ws' : 'demo', this._ws);`);
+        }
+        if (name === 'observatory/js/hud-controller.js') {
+          text=patch(text,"    if (dataSource === 'ws' && ws?.readyState === WebSocket.OPEN) {",`    if (dataSource === 'unavailable') {
+      dot.className = 'dot'; label.textContent = 'NO LIVE DATA';
+    } else if (dataSource === 'ws' && ws?.readyState === WebSocket.OPEN) {`);
+        }
+        if (name === 'viz.html') {
+          text=patch(text,'    function mainUpdate(delta, elapsed) {',`    function mainUpdate(delta, elapsed) {
+      const demoAllowed = window.auragoRuViewSimulationAllowed?.() === true;
+      const fresh = Number.isFinite(state.auragoFrameAt) && performance.now() - state.auragoFrameAt < 10000;
+      state.scene.renderer.domElement.style.visibility = demoAllowed || fresh ? '' : 'hidden';
+      if (!demoAllowed && !fresh) {
+        state.hud?.updateState({connectionStatus:'disconnected',isRealData:false,personCount:0,confidence:0,sensingMode:'Unavailable'});
+        return;
+      }`);
+          text=patch(text,'      if (state.isDemoMode) {\n        // Generate demo data','      if (state.isDemoMode && demoAllowed) {\n        // Generate demo data');
+          text=patch(text,'      if (!processed) return;',`      if (!processed?.metadata?.isRealData) return;
+      state.auragoFrameAt = performance.now();`);
+          text=patch(text,"      } else if (newState === 'error' || newState === 'disconnected') {",`      } else if (newState === 'error' || newState === 'disconnected') {
+        state.auragoFrameAt = undefined;`);
         }
         bytes = Buffer.from(text);
       }

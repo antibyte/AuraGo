@@ -484,11 +484,11 @@ class Observatory {
         console.log('[Observatory] WebSocket connected');
         this._hud.updateSourceBadge('ws', this._ws);
       };
-      this._ws.onmessage = (evt) => { try { this._liveData = JSON.parse(evt.data); } catch {} };
+      this._ws.onmessage = (evt) => { try { this._liveData = JSON.parse(evt.data); this._auragoFrameAt = performance.now(); } catch {} };
       this._ws.onclose = () => {
-        console.log('[Observatory] WebSocket closed, falling back to demo');
+        console.log('[Observatory] WebSocket closed; waiting for live data');
         this._ws = null;
-        this.settings.dataSource = 'demo';
+        this._liveData = null; this.settings.dataSource = 'ws';
         this._hud.updateSourceBadge('demo', null);
       };
       this._ws.onerror = () => {};
@@ -510,11 +510,24 @@ class Observatory {
     const elapsed = this._clock.getElapsedTime();
 
     // Data source
-    if (this.settings.dataSource === 'ws' && this._liveData) {
-      this._currentData = this._liveData;
-    } else {
+    const demoAllowed = window.auragoRuViewSimulationAllowed?.() === true;
+    const frame = this._liveData;
+    const real = frame && !frame._simulated && (frame.source === 'esp32' || frame.source === 'wifi' || String(frame.source).startsWith('wifi:'));
+    if (this.settings.dataSource === 'ws' && frame && performance.now() - this._auragoFrameAt < 10000 && (real || demoAllowed)) {
+      this._currentData = frame;
+    } else if (demoAllowed) {
       this._currentData = this._demoData.update(dt);
+    } else {
+      this._currentData = null;
+      this._renderer.clear();
+      this._hud.updateHUD({}, this._demoData);
+      this._hud.updateSourceBadge('unavailable', null);
+      for (const id of ['hr-value','br-value','conf-value','rssi-value','var-value','motion-value','persons-value','presence-label']) {
+        const el=document.getElementById(id);if(el)el.textContent='—';
+      }
+      return;
     }
+    this._hud.updateSourceBadge(this._currentData === frame && real ? 'ws' : 'demo', this._ws);
     const data = this._currentData;
 
     // Updates

@@ -3,6 +3,7 @@ import {readFile,mkdir} from 'node:fs/promises';
 import path from 'node:path';
 import {createRequire} from 'node:module';
 import assert from 'node:assert/strict';
+import {randomBytes} from 'node:crypto';
 const require=createRequire(import.meta.url);
 const {chromium}=process.env.AURAGO_PLAYWRIGHT?require(process.env.AURAGO_PLAYWRIGHT):require('playwright');
 const locales=['cs','da','de','el','en','es','fr','hi','it','ja','nl','no','pl','pt','sv','zh'];
@@ -22,8 +23,9 @@ const server=createServer(async(req,res)=>{
   }
   const rel=p.includes('/ui/')?'js/vendor/ruview/'+p.split('/ui/')[1]:p.slice(1);
   if(!rel||rel.includes('..')){res.writeHead(404).end();return;}
-  if(p.includes('/ui/')){res.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'none'");res.setHeader('Permissions-Policy','serial=(), camera=(), microphone=()');}
-  res.setHeader('Content-Type',({'.js':'application/javascript','.mjs':'application/javascript','.css':'text/css','.html':'text/html','.json':'application/json','.svg':'image/svg+xml','.wasm':'application/wasm'})[path.extname(rel)]||'application/octet-stream');res.end(await readFile(path.join('ui',rel)));
+  let data=await readFile(path.join('ui',rel));
+  if(p.includes('/ui/')){const nonce=randomBytes(18).toString('base64url');if(rel.endsWith('.html'))data=Buffer.from(data.toString().replaceAll('<script',`<script nonce="${nonce}"`));res.setHeader('Content-Security-Policy',`default-src 'none'; script-src 'self' 'nonce-${nonce}' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'none'`);res.setHeader('Permissions-Policy','serial=(), camera=(), microphone=()');}
+  res.setHeader('Content-Type',({'.js':'application/javascript','.mjs':'application/javascript','.css':'text/css','.html':'text/html','.json':'application/json','.svg':'image/svg+xml','.wasm':'application/wasm'})[path.extname(rel)]||'application/octet-stream');res.end(data);
  }catch{res.writeHead(404).end();}
 });
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -46,7 +48,25 @@ try{
  await page.locator('[data-tab=overview]').click();await page.locator('[data-action=test]').click();assert.equal(writes,1);
  readonly=true;await page.evaluate(()=>render());await page.waitForFunction(()=>document.querySelector('[data-action=flash]')?.disabled);assert.equal(await page.locator('[data-action=test]').isDisabled(),false);
  offline=true;await page.evaluate(()=>render());await page.locator('.ruview-summary').waitFor();
- for(const view of ['index.html','observatory.html','pose-fusion.html']){await page.locator(`[data-tab="${view}"]`).click();await page.locator('iframe').waitFor();await page.waitForTimeout(1500);assert.equal(await page.locator('iframe').getAttribute('allow'),"serial 'none'; camera 'none'; microphone 'none'");}
+ for(const view of ['index.html','observatory.html','pose-fusion.html']){
+  await page.locator(`[data-tab="${view}"]`).click();await page.locator('iframe').waitFor();await page.waitForTimeout(1500);assert.equal(await page.locator('iframe').getAttribute('allow'),"serial 'none'; camera 'none'; microphone 'none'");
+  const frame=page.frames().find(f=>f.url().endsWith('/'+view));
+  if(view==='index.html'){
+   assert.equal(await frame.evaluate(async()=>{
+    const {default:Panel}=await import('./components/ModelPanel.js');const panel=Object.create(Panel.prototype);
+    panel.state={models:[],loraProfiles:[],activeModel:{avg_inference_ms:1,frames_processed:'<img src=x onerror="window.ruviewInjected=1">'}};
+    const card=panel._renderActive();document.body.append(card);const count=card.querySelectorAll('img').length;card.remove();
+    const button=document.createElement('button');button.setAttribute('onclick','window.ruviewInjected=1');document.body.append(button);button.click();button.remove();
+    return count===0&&!window.ruviewInjected;
+   }),true,'untrusted counters and inline event handlers must not execute');
+  }
+  if(view==='observatory.html'){
+   await frame.waitForFunction(()=>document.getElementById('data-source-label')?.textContent==='NO LIVE DATA');
+   assert.equal(await frame.locator('#hr-value').textContent(),'—');
+   source='simulated';await frame.waitForFunction(()=>document.getElementById('data-source-label')?.textContent==='DEMO');
+   source='esp32';await frame.waitForFunction(()=>document.getElementById('data-source-label')?.textContent==='NO LIVE DATA');
+  }
+ }
  const fusion=page.frames().find(f=>f.url().endsWith('/pose-fusion.html'));
  await fusion.waitForFunction(()=>document.getElementById('status-label')?.textContent==='NO LIVE CSI');
  await fusion.waitForFunction(()=>document.getElementById('cnn-backend')?.textContent.includes('RuVector WASM'));
@@ -54,6 +74,10 @@ try{
  source='simulated';await fusion.waitForFunction(()=>window.auragoRuViewSimulationAllowed());
  await fusion.waitForFunction(()=>document.getElementById('csi-bar-val')?.textContent!=='Unavailable');
  source='esp32';await fusion.waitForFunction(()=>document.getElementById('status-label')?.textContent==='NO LIVE CSI');
+ await fusion.goto(`http://127.0.0.1:${server.address().port}/api/desktop/integrations/ruview/ui/viz.html`);
+ await fusion.waitForFunction(()=>document.querySelector('#viz-container > canvas')?.style.visibility==='hidden');
+ source='simulated';await fusion.waitForFunction(()=>document.querySelector('#viz-container > canvas')?.style.visibility==='');
+ source='esp32';await fusion.waitForFunction(()=>document.querySelector('#viz-container > canvas')?.style.visibility==='hidden');
  await page.evaluate(()=>RuViewApp.dispose('test'));assert.equal(await page.locator('iframe').count(),0);
  assert.deepEqual(errors,[]);
  console.log('RuView: 64 locale/theme/size cases, passive status, wizard cleanup, read-only, offline and iframe disposal passed');

@@ -231,13 +231,20 @@
 
     // -- Main Update Loop (called every frame) --
     function mainUpdate(delta, elapsed) {
+      const demoAllowed = window.auragoRuViewSimulationAllowed?.() === true;
+      const fresh = Number.isFinite(state.auragoFrameAt) && performance.now() - state.auragoFrameAt < 10000;
+      state.scene.renderer.domElement.style.visibility = demoAllowed || fresh ? '' : 'hidden';
+      if (!demoAllowed && !fresh) {
+        state.hud?.updateState({connectionStatus:'disconnected',isRealData:false,personCount:0,confidence:0,sensingMode:'Unavailable'});
+        return;
+      }
       // Stats.js begin
       if (state.stats) state.stats.begin();
 
       // Determine data source
       let vizData = null;
 
-      if (state.isDemoMode) {
+      if (state.isDemoMode && demoAllowed) {
         // Generate demo data
         vizData = state.dataProcessor.generateDemoData(delta);
 
@@ -291,7 +298,8 @@
     // -- Handle incoming WebSocket messages --
     function handleWebSocketMessage(message) {
       const processed = state.dataProcessor.processMessage(message);
-      if (!processed) return;
+      if (!processed?.metadata?.isRealData) return;
+      state.auragoFrameAt = performance.now();
 
       // Switch off demo mode when we get real data
       if (processed.persons.length > 0) {
@@ -327,6 +335,7 @@
         // Will switch from demo to real when data arrives
         console.log('[VIZ] Connected to server, waiting for data...');
       } else if (newState === 'error' || newState === 'disconnected') {
+        state.auragoFrameAt = undefined;
         // Fall back to demo mode
         if (!state.isDemoMode) {
           state.isDemoMode = true;

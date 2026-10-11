@@ -33,6 +33,7 @@ func TestRuViewRoutesRequireAdminAndWriteOrigin(t *testing.T) {
 	}{
 		{"GET", "status", readToken, "", 403},
 		{"GET", "status", admin, "", 200},
+		{"GET", "ui/observatory.html", admin, "", 200},
 		{"GET", "ui/pose-fusion/pkg/ruvector-attention/ruvector_attention_wasm_bg.wasm", admin, "", 200},
 		{"GET", "test", admin, "", 405},
 		{"POST", "test", admin, "https://evil.invalid", 403},
@@ -54,6 +55,17 @@ func TestRuViewRoutesRequireAdminAndWriteOrigin(t *testing.T) {
 		if strings.HasSuffix(tc.route, ".wasm") {
 			if w.Header().Get("Content-Type") != "application/wasm" || !strings.Contains(w.Header().Get("Content-Security-Policy"), "'wasm-unsafe-eval'") || !strings.HasPrefix(w.Body.String(), "\x00asm") {
 				t.Fatal("pinned WebAssembly is missing or blocked by its response policy")
+			}
+		}
+		if strings.HasSuffix(tc.route, ".html") {
+			policy := w.Header().Get("Content-Security-Policy")
+			_, after, ok := strings.Cut(policy, "'nonce-")
+			nonce, _, found := strings.Cut(after, "'")
+			if !ok || !found || nonce == "" || strings.Contains(strings.Split(policy, ";")[1], "'unsafe-inline'") {
+				t.Fatal("RuView scripts lack a restricted nonce policy")
+			}
+			if strings.Count(w.Body.String(), "<script") != strings.Count(w.Body.String(), "<script nonce=\""+nonce+"\"") {
+				t.Fatal("trusted inline scripts/import maps lack their nonce")
 			}
 		}
 	}

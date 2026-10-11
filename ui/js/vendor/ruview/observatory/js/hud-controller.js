@@ -362,7 +362,9 @@ export class HudController {
   updateSourceBadge(dataSource, ws) {
     const dot = document.querySelector('#data-source-badge .dot');
     const label = document.getElementById('data-source-label');
-    if (dataSource === 'ws' && ws?.readyState === WebSocket.OPEN) {
+    if (dataSource === 'unavailable') {
+      dot.className = 'dot'; label.textContent = 'NO LIVE DATA';
+    } else if (dataSource === 'ws' && ws?.readyState === WebSocket.OPEN) {
       dot.className = 'dot dot--live'; label.textContent = 'LIVE';
     } else {
       dot.className = 'dot dot--demo'; label.textContent = 'DEMO';

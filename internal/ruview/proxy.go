@@ -4,6 +4,7 @@ import (
 	"aurago/internal/security"
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -48,12 +49,32 @@ func (m *Manager) Proxy(w http.ResponseWriter, r *http.Request, p string) {
 			http.Error(w, "RuView request exceeds limit", 400)
 			return
 		}
+		var value any = map[string]any{}
 		if len(data) > 0 {
-			var value any
 			if json.Unmarshal(data, &value) != nil || !safeControlBody(value, 0) {
 				http.Error(w, "Invalid RuView control payload", 400)
 				return
 			}
+		}
+		if p == "/api/v1/recording/start" {
+			body, ok := value.(map[string]any)
+			if !ok || body == nil {
+				http.Error(w, "Invalid RuView recording payload", 400)
+				return
+			}
+			prefix := "rec"
+			if raw, exists := body["id"]; exists {
+				id, valid := raw.(string)
+				if !valid || len(id) > 96 || !resourceID.MatchString(id) {
+					http.Error(w, "Invalid RuView recording identifier", 400)
+					return
+				}
+				prefix = id
+			}
+			// Upstream joins the ID to its recording directory and truncates existing files.
+			body["id"] = prefix + "_" + rand.Text()
+			data, _ = json.Marshal(body)
+			r.Header.Set("Content-Type", "application/json")
 		}
 		r.Body = io.NopCloser(bytes.NewReader(data))
 		r.ContentLength = int64(len(data))

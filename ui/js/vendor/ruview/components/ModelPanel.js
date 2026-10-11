@@ -157,7 +157,11 @@ export default class ModelPanel {
 
     if (am.avg_inference_ms != null) {
       const st = this._el('div', 'mp-active-stats');
-      st.innerHTML = `<span class="mp-stat-label">Inference:</span> <span class="mp-stat-value">${am.avg_inference_ms.toFixed(1)} ms</span><span class="mp-stat-sep">|</span><span class="mp-stat-label">Frames:</span> <span class="mp-stat-value">${am.frames_processed ?? 0}</span>`;
+      st.appendChild(this._el('span', 'mp-stat-label', 'Inference: '));
+      st.appendChild(this._el('span', 'mp-stat-value', (Number.isFinite(am.avg_inference_ms) ? am.avg_inference_ms.toFixed(1) : '—') + ' ms'));
+      st.appendChild(this._el('span', 'mp-stat-sep', ' | '));
+      st.appendChild(this._el('span', 'mp-stat-label', 'Frames: '));
+      st.appendChild(this._el('span', 'mp-stat-value', am.frames_processed ?? 0));
       card.appendChild(st);
     }
 

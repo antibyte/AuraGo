@@ -194,3 +194,37 @@ func TestReconfigurationCancelsLiveRequests(t *testing.T) {
 		t.Fatal("request was not cancelled")
 	}
 }
+
+func TestRecordingIDsStayInsideStorageAndNeverOverwrite(t *testing.T) {
+	var ids []string
+	m, c := fixture(t, func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+		}
+		id, _ := body["id"].(string)
+		ids = append(ids, id)
+		io.WriteString(w, `{"success":true}`)
+	})
+	c.RuView.ReadOnly = false
+	for _, body := range []string{`{"id":"../outside"}`, `{"id":"C:\\outside"}`, `{"id":null}`, `[]`} {
+		w := httptest.NewRecorder()
+		m.Proxy(w, httptest.NewRequest("POST", "/", strings.NewReader(body)), "/api/v1/recording/start")
+		if w.Code != 400 {
+			t.Errorf("unsafe recording identifier reached upstream: HTTP %d", w.Code)
+		}
+	}
+	if len(ids) != 0 {
+		t.Fatal("invalid recordings were forwarded")
+	}
+	for range 2 {
+		w := httptest.NewRecorder()
+		m.Proxy(w, httptest.NewRequest("POST", "/", strings.NewReader(`{"id":"room","label":"pose"}`)), "/api/v1/recording/start")
+		if w.Code != 200 {
+			t.Fatalf("valid recording refused: HTTP %d", w.Code)
+		}
+	}
+	if len(ids) != 2 || ids[0] == ids[1] || !resourceID.MatchString(ids[0]) || !resourceID.MatchString(ids[1]) {
+		t.Fatalf("recording identifiers are not distinct safe filenames: %v", ids)
+	}
+}
