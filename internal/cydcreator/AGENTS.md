@@ -6,8 +6,8 @@
 `cyd.project.json` model with validation and layout patch ops, partition tables, the `cydcc` config blob and the
 build diagnostics parser, plus (plan 1b) the embedded device template `cyd_template`, the reference generated
 project and, outside the package, the builder image (`deploy/docker/Dockerfile.cyd-builder`,
-`deploy/docker/cyd-builder/`, `.github/workflows/cyd-builder.yml`). Later plans add the generator, storage and the
-service to this same package.
+`deploy/docker/cyd-builder/`, `.github/workflows/cyd-builder.yml`), plus (plan 1c) the deterministic generator that
+turns a project into the complete PlatformIO tree. Later plans add storage and the service to this same package.
 
 ## Ownership
 
@@ -25,6 +25,10 @@ service to this same package.
   generator, prewarm and smoke project of the builder image).
 - `deploy/docker/Dockerfile.cyd-builder`, `deploy/docker/cyd-builder/{cyd-build,cyd-addr2line,cyd-selftest,requirements.*}`
   and `.github/workflows/cyd-builder.yml`.
+- `generate*.go` (plan 1c): `Generate`, `InspectAsset`, `ScaffoldAppFiles` and the renderers of
+  `include/board_config.h`, `platformio.ini`, `partitions.csv` and `src/generated/*`. `testdata/golden/<case>/` holds
+  generator inputs (`cyd.project.json`) with their expected output. `generate_builder_it_test.go` is the opt-in
+  compile proof (Docker and the builder image).
 
 ## Local Contracts
 
@@ -96,10 +100,12 @@ service to this same package.
   and `ApplyOps` callers must handle that error and map it to the agent as a typed error, never to an internal one.
 - `WalkWidgets` hands out pointers that alias the caller's slices; deep-copy before mutating (`ApplyOps` does).
 - Widget names are C identifiers (`^[a-z][a-z0-9_]{0,31}$`), unique per project, and must not collide with
-  generated symbols: the names `init goto back theme_colors event_index async` and the prefixes `scr_ show_ hide_
-  font_` and suffix `_series` are reserved (`NAME_INVALID`). The designer's JS `RESERVED_NAMES` must mirror this
-  list. Generator-private symbols use `ui__` or `cyd_`, which no valid name produces. Free text (project name,
-  timezone, titles, props, hints) must be escaped wherever it reaches C code.
+  generated symbols: the names `init goto back theme_colors event_index async screen_t transition_t`, the prefixes
+  `scr_ show_ hide_ font_`, the suffix `_series` and `img_<asset id>` of an existing asset are reserved
+  (`NAME_INVALID`). The designer's JS `RESERVED_NAMES` must mirror this list; the `Validate` issue stays
+  authoritative. Asset ids may only use letters, digits and `_` (they become `ui_img_<id>`; `PROP_INVALID` at
+  `assets/<n>/id`). Generator-private symbols use `ui__` or `cyd_`, which no valid name produces. Free text
+  (project name, timezone, titles, props, hints) must be escaped wherever it reaches C code.
 - `Validate` covers every code in `IssueCodes()` in deterministic order with English messages free of indexes.
   - A widget placed on a screen has depth 1 (maximum 4); tabview children are bounded by the content area (size
     minus `bar_size` on the bar side). Geometry is checked with comparisons, not `abs`, so huge values cannot
@@ -112,6 +118,9 @@ service to this same package.
     landscape-native board is `ORIENTATION_INVALID` ("this panel supports landscape only"). The template's
     `cyd_board.cpp` has the matching `#error` on the internal rotation.
   - `UNKNOWN_PROP` lists at most 20 props per widget plus one summary issue at `<widget path>/props`.
+  - A `msgbox` needs at least one button (`PROP_INVALID` at `<widget path>/props/buttons`): LVGL creates the footer
+    with the first button, so a box without one could never be closed. `ApplyOps` refuses an op that empties the
+    list, like any other new error.
   - The asset budget counts every listed asset; `AssetSizes == nil` skips it.
 - `ApplyOps` is atomic and never modifies its input (it works on a deep copy). It accepts at most 200 ops, each
   checked by the gate: an op fails when it is structurally impossible or introduces a validation error whose key
@@ -250,6 +259,55 @@ service to this same package.
   progress atomics, 15-minute busy watchdog); it never touches LVGL. Holding BOOT for 5 s during the splash erases
   the Wi-Fi credentials, including the IDF driver's own store.
 
+### Generator
+
+- `Generate` is deterministic (project order, sorted map keys, fixed formatting) and returns the whole PlatformIO
+  tree: the embedded `lib/cyd_template/**`, `src/app/**` verbatim as given, `include/board_config.h`,
+  `platformio.ini`, `partitions.csv` and `src/generated/{ui.h,ui.cpp,ui_theme.cpp,ui_assets.cpp,ui_hooks_weak.cpp,fonts.json}`.
+  It never writes `include/cyd_build_id.h` (cyd-build does) and emits C++ only. It reproduces
+  `testdata/reference/basic` byte for byte for every board (`TestGenerateReproducesReference`); a change of
+  generated output updates the reference (when affected) and the goldens in the same commit.
+- Refusals, in order: a `template_version` other than `TemplateVersion` is `CYD_INVALID_LAYOUT`
+  (`details.template_version`, `details.embedded`); asset problems are `CYD_BAD_REQUEST`; validation errors are
+  `CYD_INVALID_LAYOUT` with `details.issues` (also in `GenerateOutput.Issues`; warnings never block); an app path
+  that fails `IsEditablePath` is `CYD_BAD_REQUEST` (`details.path`); more than 4096 extra glyphs (characters
+  outside Latin-1 and Latin Extended-A, cyd-build's limit) is `CYD_INVALID_LAYOUT` (`details.chars`,
+  `details.limit`). Assets are decoded before `Validate`, so a bad asset together with layout errors gives a
+  bad-request error without `Issues`.
+- Images (`generate_assets.go`): PNG and JPEG only (the format comes from the header, so a decoder another package
+  registers is not enough), 1..2048 px per side. Decoded pixels are far larger than the files, so
+  `decodeProjectAssets` reads every header first and refuses before any pixel is decoded: a missing asset, a size
+  that differs from the layout, an image larger than the largest display of any board (`maxBoardDisplay()` over
+  `Boards()`) and a project whose images need more than `AssetBudgetLarge` even as opaque RGB565. Errors are
+  `CYD_BAD_REQUEST` with `details.asset`; the last two add `details.reason` `dimensions` or `budget`. `Validate`
+  then applies the exact budget of the board. `InspectAsset` decodes pixels, so an importer must make the same
+  header checks before it calls it. Descriptors are LVGL 9: RGB565 little-endian (`lv_color_to_u16` truncation), or
+  RGB565A8 (alpha plane after the colours, straight alpha) when any pixel is not opaque, stride `w*2`, data 4-byte
+  aligned.
+- Generated names: public `ui_<name>` (named widgets), `ui_scr_<screen>`, `UI_SCREEN_<SCREEN>`, `ui_img_<asset id>`,
+  `ui_font_<family>_<size>`, `on_<name>_<event>`, `ui_show_<name>`/`ui_hide_<name>` (named msgboxes),
+  `ui_<name>_series[n]` (named charts). Private: `ui__<key>_wifi`/`_clock` (key = name, or the decimal traversal
+  index of an unnamed widget, which no name can be), `ui__ev_<name>_<event>`, `ui__scr_<screen>_create`/`_kb` and
+  fixed helpers (`ui__style_*`, `ui__statusbar_*`, `ui__msgbox_close` and others). A new private name must not end
+  in `_wifi`/`_clock` and must not start with `ui__ev_`, `ui__scr_` or `ui__<digit>`, so it can never collide with
+  a derived one.
+- Free text reaches C only through `cString` (quote, backslash and newline escaped, other control bytes and DEL as
+  octal `\ooo`, the second `?` of `??` escaped, UTF-8 raw; the same escaper as the template's strings header) or
+  `cComment` (control characters, format characters such as bidi overrides and line or paragraph separators become
+  spaces, `??` and `*/` are split, trailing spaces and backslashes are cut so a comment never continues). Colours go
+  through `cHexColor` (anything but `#RRGGBB` becomes black) and `codeWriter.line` takes a constant format, so a
+  user value is never a format string.
+- `ui_theme.cpp` is fixed text with the theme's tokens substituted (`renderTheme`); every `ui__style_*` helper is
+  defined non-static, so `ui.cpp` may call any of them. A colour that is not exactly `#RRGGBB` renders black and
+  `colorLuma` (the `DARK` flag, background luma below 128) counts it as black too, so flag and colour agree; an
+  unknown button style renders as filled and the theme id passes through `cComment`.
+- Device fidelity rules: panel children are offset by the panel's border width (padding 0), tab pages have no
+  padding, gauges are square (`lv_scale` draws a needle only then), message boxes live on `lv_layer_top()` behind a
+  hidden backdrop and always have at least one footer button, text areas share one keyboard per screen (a password
+  text area sets the bullet `*`: LVGL's default U+2022 is in none of the converted fonts), keypad `LV_SYMBOL_*` keys
+  exist only in the built-in `numeric` and `numeric_ok` layouts (custom keys are always quoted text, button symbols
+  outside the catalog list are dropped), and canvas buffers come from PSRAM when the board has it.
+
 ### Builder image
 
 - The builder image pins PlatformIO Core 6.1.19 (hash-pinned `requirements.txt`, generated from
@@ -290,15 +348,22 @@ service to this same package.
   (writes only `/work`, `/cache`, `/tmp`). Compiling untrusted C++ can still read every file the container can read:
   keep secrets out of the image, `/work` and `/cache`.
 - Publishing: `.github/workflows/cyd-builder.yml` builds each architecture natively and smoke-tests it offline
-  (amd64 all profiles, arm64 one). Pushes to `main` and `v*` tags (or a manual dispatch with `publish`) push by
+  (amd64 all profiles, arm64 one). The amd64 job then compiles ten generator goldens (`all_widgets*` and
+  `theme_*`) strictly with `TestGenerateCompilesInBuilder` (4 CPUs, volumes `cyd-ci-work` and `cyd-ci-cache`). The
+  path filters include `generate*.go` and `testdata/golden/**`, and the checkout keeps no credentials
+  (`persist-credentials: false`). Pushes to `main` and `v*` tags (or a manual dispatch with `publish`) push by
   digest, then one job creates the multi-arch `:1` and, only when it does not exist yet, the immutable
   `:<CYD_BUILDER_VERSION>`, and signs the manifest with cosign. A changed image under an unchanged
   `CYD_BUILDER_VERSION` therefore moves only `:1`: bump the version for every pin, template or builder-script change.
+  A generator-only push to `main` also runs the workflow and republishes `:1` with unchanged inputs.
 
 ## Work Guidance
 
 - Table-driven tests live beside the source; golden files belong to the generator under `testdata/golden/`.
 - A new board profile records its source URL and must pass `TestEveryEmbeddedBoardLoads`.
+- A new device theme needs its `testdata/golden/theme_<id>` case (`TestGenerateGolden` requires exactly one per
+  `Themes()` entry); a new widget type, event or action kind must appear in the `all_widgets` golden
+  (`TestAllWidgetsGoldenCoversCatalog`).
 
 ## Verification
 
@@ -308,6 +373,21 @@ service to this same package.
   (`docker build -f deploy/docker/Dockerfile.cyd-builder --build-context cydcreator=internal/cydcreator -t aurago-cyd-builder:dev deploy/docker/cyd-builder`,
   about 10 minutes: the prewarm compiles all nine profiles) and run
   `docker run --rm --network none --read-only --tmpfs /tmp:rw,exec,size=1g -e HOME=/tmp --user 1000:1000 -v <work volume>:/work -v <cache volume>:/cache <image> cyd-selftest --all`.
+- Generator changes: `go test ./internal/cydcreator/ -run TestGenerate`; after an intended output change run
+  `go test ./internal/cydcreator/ -run TestGenerateGolden -update`, review the diff and commit it with the code.
+  `-update` is a test flag, unlike the `CYD_UPDATE_*` environment variables of the reference and strings tests; it
+  also rewrites a golden `cyd.project.json` that is not in canonical form.
+- Compile proof (Docker and the builder image; opt-in, 19 builds):
+  `CYD_BUILDER_IT=1 CYD_BUILDER_IT_STRICT=1 CYD_BUILDER_IMAGE=<image> go test ./internal/cydcreator/ -run TestGenerateCompilesInBuilder -v -timeout 90m`.
+  It compiles the goldens (`all_widgets` on the classic CYD and an ESP32-S3 board, `all_widgets_portrait`, one build
+  per theme) and the reference on every board, in a container with plan 2's settings: read-only root, 1 GiB `/tmp`
+  tmpfs (rw, exec, nosuid, nodev), uid 1000, no network, `--cap-drop ALL`, `--memory 2g --memory-swap 2g --init
+  --pids-limit 512`. `CYD_BUILDER_IT_STRICT=1` adds `-Wall -Wextra` for `src/` and fails on any compiler warning;
+  `CYD_BUILDER_IT_ONLY` keeps the builds whose `case@board` contains one of its comma-separated parts;
+  `CYD_BUILDER_IT_CPUS` (default 2) sets `--cpus`; `CYD_BUILDER_WORK_VOLUME` and `CYD_BUILDER_CACHE_VOLUME` name the
+  volumes (defaults `aurago-cyd-work-it` and `aurago-cyd-cache-it`; the live `aurago-cyd-work` and
+  `aurago-cyd-cache` are refused because the test deletes build directories). One build gets 15 minutes, the
+  container lives at most two hours, and everything stops a minute before the test deadline.
 - `gofmt -l internal/cydcreator` prints nothing; `-race` needs gcc (run it on aurago-test).
 
 ## Child DOX Index
