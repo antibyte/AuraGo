@@ -9,14 +9,12 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"aurago/internal/sandbox"
+	"aurago/internal/onnxrt"
 )
 
 type workerRequest struct {
@@ -152,8 +150,7 @@ func newONNXWorkerEmbedder(ctx context.Context, options onnxWorkerOptions) (*onn
 		"--backend", options.Backend,
 		"--context-size", fmt.Sprintf("%d", options.ContextSize),
 	)
-	configureHiddenProcess(command)
-	command.Env = runtimeEnvironment(options.RuntimeRoot)
+	onnxrt.ConfigureWorkerCommand(command, options.RuntimeRoot)
 	stdin, err := command.StdinPipe()
 	if err != nil {
 		return nil, fmt.Errorf("open ONNX worker stdin: %w", err)
@@ -317,67 +314,6 @@ func (worker *onnxWorkerEmbedder) forceCloseLocked() error {
 		return fmt.Errorf("wait for ONNX worker: %w", err)
 	}
 	return nil
-}
-
-func runtimeEnvironment(runtimeRoots ...string) []string {
-	environment := sandbox.FilterEnv(os.Environ())
-	var directories []string
-	for _, runtimeRoot := range runtimeRoots {
-		_ = filepath.WalkDir(runtimeRoot, func(path string, entry os.DirEntry, err error) error {
-			if err == nil && entry.IsDir() {
-				directories = append(directories, path)
-			}
-			return nil
-		})
-	}
-	prefix := strings.Join(directories, string(os.PathListSeparator))
-	keys := []string{"PATH"}
-	switch goruntimeGOOS() {
-	case "linux":
-		keys = append(keys, "LD_LIBRARY_PATH")
-	case "darwin":
-		keys = append(keys, "DYLD_LIBRARY_PATH")
-	}
-	for _, key := range keys {
-		current := environmentValue(environment, key)
-		value := prefix
-		if current != "" {
-			value += string(os.PathListSeparator) + current
-		}
-		environment = setEnvironmentValue(environment, key, value)
-	}
-	return environment
-}
-
-func goruntimeGOOS() string {
-	return runtimeGOOS
-}
-
-var runtimeGOOS = func() string {
-	// Assigned through a small variable to keep runtimeEnvironment directly
-	// testable without mutating the process environment.
-	return runtime.GOOS
-}()
-
-func environmentValue(environment []string, key string) string {
-	prefix := strings.ToUpper(key) + "="
-	for _, entry := range environment {
-		if strings.HasPrefix(strings.ToUpper(entry), prefix) {
-			return entry[len(prefix):]
-		}
-	}
-	return ""
-}
-
-func setEnvironmentValue(environment []string, key, value string) []string {
-	prefix := strings.ToUpper(key) + "="
-	for index, entry := range environment {
-		if strings.HasPrefix(strings.ToUpper(entry), prefix) {
-			environment[index] = key + "=" + value
-			return environment
-		}
-	}
-	return append(environment, key+"="+value)
 }
 
 type limitedBuffer struct {

@@ -18,6 +18,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"aurago/internal/onnxrt"
 )
 
 type llamaEmbedder struct {
@@ -196,8 +198,7 @@ func (embedder *llamaEmbedder) startLocked(ctx context.Context) error {
 		"--n-gpu-layers", gpuLayers,
 	}
 	command := exec.Command(embedder.serverPath, args...)
-	configureHiddenProcess(command)
-	command.Env = runtimeEnvironment(embedder.libraryRoots...)
+	onnxrt.ConfigureWorkerCommand(command, embedder.libraryRoots...)
 	stderr := newLimitedBuffer(64 << 10)
 	command.Stdout = stderr
 	command.Stderr = stderr

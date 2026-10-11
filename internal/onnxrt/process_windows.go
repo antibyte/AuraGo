@@ -1,13 +1,15 @@
 //go:build windows
 
-package embeddings
+package onnxrt
 
 import (
 	"os/exec"
 	"syscall"
 )
 
-func configureHiddenProcess(command *exec.Cmd) {
+// hideWindow keeps native workers from opening a console window
+// (CREATE_NO_WINDOW).
+func hideWindow(command *exec.Cmd) {
 	command.SysProcAttr = &syscall.SysProcAttr{
 		HideWindow:    true,
 		CreationFlags: 0x08000000,

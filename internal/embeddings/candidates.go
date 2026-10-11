@@ -5,14 +5,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
-	"aurago/internal/sandbox"
+	"aurago/internal/onnxrt"
 )
 
 type candidate struct {
@@ -101,7 +99,7 @@ func detectHardware(ctx context.Context) hardwareInfo {
 
 	switch runtime.GOOS {
 	case "linux":
-		if renderDevice, err := accessibleLinuxVulkanRenderDevice("/dev/dri"); err == nil {
+		if renderDevice, err := onnxrt.AccessibleRenderNode("/dev/dri"); err == nil {
 			info.Vulkan = true
 			info.VulkanReason = renderDevice + " is accessible"
 			evidence = append(evidence, "dri="+renderDevice)
@@ -128,34 +126,11 @@ func detectHardware(ctx context.Context) hardwareInfo {
 	return info
 }
 
-func accessibleLinuxVulkanRenderDevice(driRoot string) (string, error) {
-	renderDevices, err := filepath.Glob(filepath.Join(driRoot, "renderD*"))
-	if err != nil {
-		return "", fmt.Errorf("find Vulkan render devices: %w", err)
-	}
-	if len(renderDevices) == 0 {
-		return "", fmt.Errorf("no Vulkan render device found under %s", driRoot)
-	}
-	var accessErrors []string
-	for _, renderDevice := range renderDevices {
-		handle, openErr := os.OpenFile(renderDevice, os.O_RDWR, 0)
-		if openErr == nil {
-			if closeErr := handle.Close(); closeErr != nil {
-				return "", fmt.Errorf("close Vulkan render device %s: %w", renderDevice, closeErr)
-			}
-			return renderDevice, nil
-		}
-		accessErrors = append(accessErrors, filepath.Base(renderDevice)+": "+openErr.Error())
-	}
-	return "", fmt.Errorf("no accessible Vulkan render device under %s (%s)", driRoot, strings.Join(accessErrors, "; "))
-}
-
 func shortCommand(parent context.Context, name string, args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(parent, 3*time.Second)
 	defer cancel()
 	command := exec.CommandContext(ctx, name, args...)
-	configureHiddenProcess(command)
-	command.Env = sandbox.FilterEnv(os.Environ())
+	onnxrt.ConfigureWorkerCommand(command)
 	output, err := command.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", name, err)

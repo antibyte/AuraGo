@@ -41,25 +41,6 @@ func TestCandidateMatrixSkipsUnsupportedWindowsARM64GPU(t *testing.T) {
 	assertCandidate(t, candidates, "llama-cpu")
 }
 
-func TestAccessibleLinuxVulkanRenderDeviceRequiresUsableRenderNode(t *testing.T) {
-	driRoot := t.TempDir()
-	if _, err := accessibleLinuxVulkanRenderDevice(driRoot); err == nil {
-		t.Fatal("empty DRI directory unexpectedly enabled Vulkan")
-	}
-
-	renderDevice := filepath.Join(driRoot, "renderD128")
-	if err := os.WriteFile(renderDevice, []byte("test render device"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	found, err := accessibleLinuxVulkanRenderDevice(driRoot)
-	if err != nil {
-		t.Fatalf("accessible render device was rejected: %v", err)
-	}
-	if found != renderDevice {
-		t.Fatalf("render device = %q, want %q", found, renderDevice)
-	}
-}
-
 func TestBenchmarkSelectionPrefersVerifiedGPUThenFastest(t *testing.T) {
 	values := []struct {
 		candidate candidate
@@ -191,42 +172,6 @@ func TestGraniteTokenizerGoldenIDs(t *testing.T) {
 		}
 		if !equalInts(actual, expected) {
 			t.Errorf("encode %q = %v, want %v", text, actual, expected)
-		}
-	}
-}
-
-func TestRuntimeEnvironmentPrependsPrivateDirectories(t *testing.T) {
-	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, "lib"), 0o750); err != nil {
-		t.Fatal(err)
-	}
-	environment := runtimeEnvironment(root)
-	pathValue := environmentValue(environment, "PATH")
-	if !bytes.Contains([]byte(pathValue), []byte(root)) {
-		t.Fatalf("PATH %q does not contain runtime root", pathValue)
-	}
-	for key, value := range map[string]string{
-		"AURAGO_MASTER_KEY":   "master-secret",
-		"OPENAI_API_KEY":      "api-secret",
-		"CUSTOM_AUTH_TOKEN":   "token-secret",
-		"MY_DB_PASSWORD":      "password-secret",
-		"PROJECT_CREDENTIALS": "credentials-secret",
-	} {
-		t.Setenv(key, value)
-	}
-	environment = runtimeEnvironment(root)
-	for _, entry := range environment {
-		upper := strings.ToUpper(entry)
-		for _, forbidden := range []string{
-			"AURAGO_MASTER_KEY=",
-			"OPENAI_API_KEY=",
-			"CUSTOM_AUTH_TOKEN=",
-			"MY_DB_PASSWORD=",
-			"PROJECT_CREDENTIALS=",
-		} {
-			if strings.HasPrefix(upper, forbidden) {
-				t.Fatalf("sensitive environment variable escaped into native process: %s", forbidden)
-			}
 		}
 	}
 }
