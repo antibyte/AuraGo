@@ -20,8 +20,27 @@ type Box struct {
 	Score float64 `json:"score"`
 }
 
-// maxFramePixels bounds JPEG decoding (8K is 33 Mpx).
-const maxFramePixels = 40_000_000
+// Frame limits, checked on the JPEG header before anything is decoded. A pixel
+// cap alone does not bound memory: x/image/draw's kernel scaler allocates
+// width × source height × 32 B per Scale (a 610×65535 grey JPEG has only
+// 40 Mpx but needed 1.39 GB), and the progressive decoder allocates per block
+// before it reads any scan data (611×65450 needed 1.95 GB). With at most 8192 px
+// per side and 16 Mpx (4K UHD is 8.3 Mpx) the worst case for the 640 px model
+// input is a 2048×8192 frame: about 170 MB for the scaler plus 25 MB for the
+// decoded frame (measured 200 MB allocated).
+const (
+	maxFrameSide   = 8192
+	maxFramePixels = 1 << 24
+)
+
+func validateFrameSize(width, height int) error {
+	if width <= 0 || height <= 0 || width > maxFrameSide || height > maxFrameSide ||
+		int64(width)*int64(height) > maxFramePixels {
+		return fmt.Errorf("JPEG size %dx%d is not supported (at most %d px per side and %d Mpx)",
+			width, height, maxFrameSide, maxFramePixels>>20)
+	}
+	return nil
+}
 
 // Preprocess decodes a JPEG, resizes it to size×size with x/image/draw's
 // antialiased BiLinear kernel (no letterbox, like PIL's BILINEAR resize used
@@ -39,8 +58,8 @@ func Preprocess(jpegData []byte, size int) (pixels []float32, width, height int,
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("decode JPEG header: %w", err)
 	}
-	if config.Width <= 0 || config.Height <= 0 || int64(config.Width)*int64(config.Height) > maxFramePixels {
-		return nil, 0, 0, fmt.Errorf("JPEG size %dx%d is not supported", config.Width, config.Height)
+	if err := validateFrameSize(config.Width, config.Height); err != nil {
+		return nil, 0, 0, err
 	}
 	source, err := jpeg.Decode(bytes.NewReader(jpegData))
 	if err != nil {
@@ -123,8 +142,13 @@ func IoU(a, b Box) float64 {
 
 // SameDetections compares two detection sets: same count, then greedy
 // best-IoU matching; every pair needs IoU ≥ minIoU and |score difference| ≤
-// maxScoreDiff. The reason names the count mismatch or the worst pair values;
-// two empty sets are the same (the caller decides whether that is enough).
+// maxScoreDiff. The reason names the count mismatch or the worst values over
+// all pairs (the minimum IoU and the maximum score difference may come from
+// different pairs); two empty sets are the same (the caller decides whether
+// that is enough). The greedy matching can reject near-duplicate boxes whose
+// scores are crossed, and it requires equal counts, so a box whose score sits
+// right at the decode threshold makes it flaky: use SameConfidentDetections to
+// compare sets that were decoded at a threshold.
 func SameDetections(a, b []Box, minIoU, maxScoreDiff float64) (bool, string) {
 	if len(a) != len(b) {
 		return false, fmt.Sprintf("count %d vs %d", len(a), len(b))
@@ -153,6 +177,156 @@ func SameDetections(a, b []Box, minIoU, maxScoreDiff float64) (bool, string) {
 	}
 	reason := fmt.Sprintf("min IoU %.4f, max score diff %.4f", worstIoU, worstDiff)
 	return worstIoU >= minIoU && worstDiff <= maxScoreDiff, reason
+}
+
+// SameConfidentDetections compares two detection sets that both were decoded
+// at threshold-maxScoreDiff, so a box right at the threshold cannot flip the
+// verdict through tiny numeric differences between two runtimes. Only
+// confident boxes (score ≥ threshold+maxScoreDiff) have to be found in the
+// other set: every confident box of a needs a distinct box of b with IoU ≥
+// minIoU and |score difference| ≤ maxScoreDiff, and the other way round.
+// Boxes in the band below the confidence cutoff may stay unmatched; they can
+// still be the partner of a confident box. Each direction is an exact maximum
+// bipartite matching (augmenting paths), so the verdict does not depend on the
+// order of the boxes or of the arguments and never rejects a pairing that
+// exists.
+//
+// On success the reason reports the matched count and the worst IoU and score
+// difference over the matched pairs. On failure it names the first confident
+// box without a partner ("set a" and "set b" are the arguments) and its
+// closest candidate. Two sets without confident boxes are the same ("no
+// confident detections in either set"): callers decide separately whether
+// that is enough. Non-finite boxes and invalid parameters never pass.
+func SameConfidentDetections(a, b []Box, threshold, minIoU, maxScoreDiff float64) (bool, string) {
+	cutoff := threshold + maxScoreDiff
+	if !finite(threshold) || !finite(minIoU) || !finite(maxScoreDiff) || maxScoreDiff < 0 || !finite(cutoff) {
+		return false, fmt.Sprintf("invalid comparison parameters (threshold %v, min IoU %v, max score diff %v)", threshold, minIoU, maxScoreDiff)
+	}
+	for _, set := range []struct {
+		name  string
+		boxes []Box
+	}{{"a", a}, {"b", b}} {
+		for _, box := range set.boxes {
+			if !finite(box.X1) || !finite(box.Y1) || !finite(box.X2) || !finite(box.Y2) || !finite(box.Score) {
+				return false, fmt.Sprintf("non-finite detection in set %s", set.name)
+			}
+		}
+	}
+	forward, confidentA, failure := matchConfident(a, b, "a", "b", cutoff, minIoU, maxScoreDiff)
+	if failure != "" {
+		return false, failure
+	}
+	backward, confidentB, failure := matchConfident(b, a, "b", "a", cutoff, minIoU, maxScoreDiff)
+	if failure != "" {
+		return false, failure
+	}
+	if confidentA == 0 && confidentB == 0 {
+		return true, "no confident detections in either set"
+	}
+	worstIoU, worstDiff := 1.0, 0.0
+	for _, match := range append(forward, backward...) {
+		worstIoU = math.Min(worstIoU, match.iou)
+		worstDiff = math.Max(worstDiff, match.scoreDiff)
+	}
+	plural := "s"
+	if confidentA == 1 {
+		plural = ""
+	}
+	if confidentA == confidentB {
+		return true, fmt.Sprintf("matched %d confident detection%s (min IoU %.4f, max score diff %.4f)",
+			confidentA, plural, worstIoU, worstDiff)
+	}
+	return true, fmt.Sprintf("matched %d confident detection%s in a and %d in b (min IoU %.4f, max score diff %.4f)",
+		confidentA, plural, confidentB, worstIoU, worstDiff)
+}
+
+type detectionMatch struct {
+	iou, scoreDiff float64
+}
+
+type detectionEdge struct {
+	to  int
+	iou float64
+}
+
+// matchConfident assigns every confident box of from (score ≥ cutoff) a
+// distinct box of to with Kuhn's augmenting paths. It returns the matched
+// pairs and the number of confident boxes, or a failure reason naming the
+// first confident box that no augmenting path can place.
+func matchConfident(from, to []Box, fromName, toName string, cutoff, minIoU, maxScoreDiff float64) (matches []detectionMatch, confident int, failure string) {
+	var sources []int
+	for index, box := range from {
+		if box.Score >= cutoff {
+			sources = append(sources, index)
+		}
+	}
+	if len(sources) == 0 {
+		return nil, 0, ""
+	}
+	// Candidate partners per confident box, best IoU first so the first try is
+	// usually the natural pairing.
+	edges := make([][]detectionEdge, len(sources))
+	for u, index := range sources {
+		for j, other := range to {
+			iou := IoU(from[index], other)
+			if iou >= minIoU && math.Abs(from[index].Score-other.Score) <= maxScoreDiff {
+				edges[u] = append(edges[u], detectionEdge{to: j, iou: iou})
+			}
+		}
+		sort.SliceStable(edges[u], func(x, y int) bool { return edges[u][x].iou > edges[u][y].iou })
+	}
+	owner := make([]int, len(to)) // index into sources, or -1
+	for j := range owner {
+		owner[j] = -1
+	}
+	var augment func(u int, visited []bool) bool
+	augment = func(u int, visited []bool) bool {
+		for _, edge := range edges[u] {
+			if visited[edge.to] {
+				continue
+			}
+			visited[edge.to] = true
+			if owner[edge.to] < 0 || augment(owner[edge.to], visited) {
+				owner[edge.to] = u
+				return true
+			}
+		}
+		return false
+	}
+	for u := range sources {
+		if !augment(u, make([]bool, len(to))) {
+			return nil, 0, describeUnmatched(from[sources[u]], to, len(edges[u]) > 0, fromName, toName)
+		}
+	}
+	matches = make([]detectionMatch, 0, len(sources))
+	for j, u := range owner {
+		if u >= 0 {
+			box := from[sources[u]]
+			matches = append(matches, detectionMatch{iou: IoU(box, to[j]), scoreDiff: math.Abs(box.Score - to[j].Score)})
+		}
+	}
+	return matches, len(sources), ""
+}
+
+// describeUnmatched explains why a confident box has no partner: the other set
+// is empty, every compatible box is needed by other confident boxes, or no box
+// is compatible (then the closest candidate shows which condition failed).
+func describeUnmatched(box Box, to []Box, hasCompatible bool, fromName, toName string) string {
+	reason := fmt.Sprintf("confident detection in set %s (score %.4f, box [%.3f %.3f %.3f %.3f]) has no match in set %s",
+		fromName, box.Score, box.X1, box.Y1, box.X2, box.Y2, toName)
+	if len(to) == 0 {
+		return reason + fmt.Sprintf(" (set %s is empty)", toName)
+	}
+	if hasCompatible {
+		return reason + fmt.Sprintf(" (its compatible boxes in set %s are all needed by other confident detections)", toName)
+	}
+	best, bestIoU := 0, -1.0
+	for j, other := range to {
+		if iou := IoU(box, other); iou > bestIoU {
+			best, bestIoU = j, iou
+		}
+	}
+	return reason + fmt.Sprintf(" (best candidate IoU %.4f, score diff %.4f)", bestIoU, math.Abs(box.Score-to[best].Score))
 }
 
 func sigmoid(x float64) float64 {

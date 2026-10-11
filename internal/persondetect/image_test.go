@@ -8,8 +8,11 @@ import (
 	"image/jpeg"
 	"image/png"
 	"math"
+	"math/rand"
 	"strings"
 	"testing"
+
+	"golang.org/x/image/draw"
 )
 
 func encodeTestJPEG(t testing.TB, width, height int, fill func(x, y int) color.RGBA) []byte {
@@ -130,18 +133,135 @@ func TestPreprocessRejectsCorruptAndForeignImages(t *testing.T) {
 	}
 }
 
-func TestPreprocessRejectsOversizedFrames(t *testing.T) {
-	data := encodeTestJPEG(t, 16, 16, func(int, int) color.RGBA { return color.RGBA{R: 10, G: 20, B: 30, A: 255} })
-	// Rewrite the baseline SOF0 header to claim a 65535x65535 frame: the size
-	// check must reject it from the header alone, before any pixel buffer exists.
+// withFrameSize rewrites the baseline SOF0 header of a Go-encoded JPEG to claim
+// another frame size. The entropy data no longer matches, so decoding it would
+// fail or allocate: only the header-based size check may look at such a file.
+func withFrameSize(t testing.TB, data []byte, width, height int) []byte {
+	t.Helper()
 	marker := bytes.Index(data, []byte{0xFF, 0xC0})
 	if marker < 0 {
 		t.Fatal("no SOF0 marker in the test JPEG")
 	}
-	huge := append([]byte(nil), data...)
-	copy(huge[marker+5:], []byte{0xFF, 0xFF, 0xFF, 0xFF}) // height, width
-	if _, _, _, err := Preprocess(huge, 64); err == nil || !strings.Contains(err.Error(), "not supported") {
-		t.Fatalf("oversized JPEG error = %v", err)
+	patched := append([]byte(nil), data...)
+	copy(patched[marker+5:], []byte{byte(height >> 8), byte(height), byte(width >> 8), byte(width)})
+	return patched
+}
+
+func TestPreprocessRejectsOversizedFrames(t *testing.T) {
+	data := encodeTestJPEG(t, 16, 16, func(int, int) color.RGBA { return color.RGBA{R: 10, G: 20, B: 30, A: 255} })
+	// The size check must reject these from the header alone, before any
+	// decoder or scaler buffer exists. "not supported" (not "decode JPEG") shows
+	// that Decode was never reached.
+	for _, size := range [][2]int{
+		{65535, 65535},
+		{610, 65535}, // measured 1.39 GB in the scaler before the side limit
+		{611, 65450},
+		{8193, 16},
+		{16, 8193},
+		{8193, 8193},
+		{4097, 4096}, // one column over the pixel cap
+	} {
+		huge := withFrameSize(t, data, size[0], size[1])
+		if config, err := jpeg.DecodeConfig(bytes.NewReader(huge)); err != nil || config.Width != size[0] || config.Height != size[1] {
+			t.Fatalf("patched header %v reads back as %+v, %v", size, config, err)
+		}
+		if _, _, _, err := Preprocess(huge, 64); err == nil || !strings.Contains(err.Error(), "not supported") {
+			t.Fatalf("oversized JPEG %dx%d error = %v", size[0], size[1], err)
+		}
+	}
+}
+
+func TestValidateFrameSize(t *testing.T) {
+	// The limits themselves are part of the memory bound: x/image/draw's scaler
+	// needs width x source-height x 32 B, the progressive decoder allocates per
+	// block before it reads scans.
+	if maxFrameSide != 8192 || maxFramePixels != 1<<24 {
+		t.Fatalf("limits changed: side %d, pixels %d", maxFrameSide, maxFramePixels)
+	}
+	for _, tc := range []struct {
+		width, height int
+		ok            bool
+	}{
+		{1, 1, true},
+		{640, 480, true},
+		{1280, 720, true},
+		{3840, 2160, true},
+		{4096, 4096, true}, // exactly maxFramePixels
+		{8192, 2048, true}, // longest side and pixel cap both exactly at the limit
+		{2048, 8192, true},
+		{8192, 1, true},
+		{1, 8192, true},
+		{8193, 16, false},
+		{16, 8193, false},
+		{8193, 1, false},
+		{1, 8193, false},
+		{4097, 4096, false},
+		{8192, 2049, false},
+		{2049, 8192, false},
+		{610, 65535, false},
+		{65535, 65535, false},
+		{0, 16, false},
+		{16, 0, false},
+		{-1, 16, false},
+		{16, -1, false},
+		{math.MaxInt, math.MaxInt, false},
+		{math.MaxInt, 1, false},
+	} {
+		err := validateFrameSize(tc.width, tc.height)
+		if tc.ok && err != nil {
+			t.Errorf("%dx%d rejected: %v", tc.width, tc.height, err)
+		}
+		if !tc.ok && (err == nil || !strings.Contains(err.Error(), "not supported")) {
+			t.Errorf("%dx%d error = %v", tc.width, tc.height, err)
+		}
+	}
+}
+
+// realisticTestFrame is a camera-like frame: the reference photo scaled to the
+// requested size with some sensor noise, so JPEG entropy coding has real work.
+func realisticTestFrame(tb testing.TB, width, height int) []byte {
+	tb.Helper()
+	reference, err := jpeg.Decode(bytes.NewReader(ReferenceImage()))
+	if err != nil {
+		tb.Fatal(err)
+	}
+	frame := image.NewRGBA(image.Rect(0, 0, width, height))
+	draw.CatmullRom.Scale(frame, frame.Bounds(), reference, reference.Bounds(), draw.Src, nil)
+	noise := rand.New(rand.NewSource(1))
+	for i := 0; i < len(frame.Pix); i += 4 {
+		for channel := 0; channel < 3; channel++ {
+			value := int(frame.Pix[i+channel]) + noise.Intn(9) - 4
+			frame.Pix[i+channel] = uint8(min(255, max(0, value)))
+		}
+	}
+	var buffer bytes.Buffer
+	if err := jpeg.Encode(&buffer, frame, &jpeg.Options{Quality: 85}); err != nil {
+		tb.Fatal(err)
+	}
+	return buffer.Bytes()
+}
+
+// BenchmarkPreprocess is the baseline for the per-frame cost of the worker's
+// hot path: a 1280x720 camera frame decoded and resized to the 640x640 model
+// input. Not part of the normal test run; use
+// go test ./internal/persondetect/ -run '^$' -bench BenchmarkPreprocess -benchmem
+func BenchmarkPreprocess(b *testing.B) {
+	data := realisticTestFrame(b, 1280, 720)
+	b.ReportAllocs()
+	b.SetBytes(int64(len(data)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, _, _, err := Preprocess(data, 640); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func TestRealisticTestFrameIsUsable(t *testing.T) {
+	data := realisticTestFrame(t, 1280, 720)
+	pixels, width, height, err := Preprocess(data, 64)
+	if err != nil || width != 1280 || height != 720 || len(pixels) != 3*64*64 {
+		t.Fatalf("Preprocess(realistic frame) = %d values, %dx%d, %v", len(pixels), width, height, err)
 	}
 }
 
@@ -487,5 +607,297 @@ func TestSameDetectionsToleratesNonFiniteBoxes(t *testing.T) {
 	badScore := []Box{{X1: 0.1, Y1: 0.1, X2: 0.3, Y2: 0.5, Score: math.NaN()}}
 	if ok, reason := SameDetections(good, badScore, 0.9, 0.02); ok {
 		t.Fatalf("NaN score accepted: %q", reason)
+	}
+}
+
+// stripe is a tall box of width 0.2 whose left edge is at x. Two stripes with
+// the left edges x and x+s have IoU (0.2-s)/(0.2+s), so IoU >= 0.9 needs s <=
+// 0.0105.
+func stripe(x, score float64) Box {
+	return Box{X1: x, Y1: 0.2, X2: x + 0.2, Y2: 0.8, Score: score}
+}
+
+// The comparison parameters of the WebGPU self-test: boxes are decoded at
+// threshold-margin = 0.28 and boxes with score >= threshold+margin = 0.32 are
+// confident. The variables keep the sums at run time exactly like the
+// implementation computes them.
+var (
+	confThreshold = 0.3
+	confMaxDiff   = 0.02
+	confMinIoU    = 0.9
+)
+
+func sameConfident(a, b []Box) (bool, string) {
+	return SameConfidentDetections(a, b, confThreshold, confMinIoU, confMaxDiff)
+}
+
+// sameConfidentBothWays checks that the verdict does not depend on the
+// argument order and returns it with both reasons.
+func sameConfidentBothWays(t *testing.T, a, b []Box) (bool, string, string) {
+	t.Helper()
+	forward, forwardReason := sameConfident(a, b)
+	backward, backwardReason := sameConfident(b, a)
+	if forward != backward {
+		t.Fatalf("verdict depends on argument order: (a,b) = %v %q, (b,a) = %v %q", forward, forwardReason, backward, backwardReason)
+	}
+	return forward, forwardReason, backwardReason
+}
+
+func TestSameConfidentDetectionsAcceptsNearDuplicateSwap(t *testing.T) {
+	// Two near-identical boxes (IoU 0.956) whose scores are swapped between the
+	// sets: only the crossed pairing is valid. Greedy best-IoU matching pairs the
+	// first box with its geometric twin and fails.
+	a := []Box{stripe(0.4000, 0.80), stripe(0.4045, 0.55)}
+	b := []Box{stripe(0.4000, 0.55), stripe(0.4045, 0.80)}
+	if iou := IoU(a[0], a[1]); iou < 0.95 || iou > 0.96 {
+		t.Fatalf("test boxes have IoU %v", iou)
+	}
+	if ok, reason := SameDetections(a, b, confMinIoU, confMaxDiff); ok {
+		t.Fatalf("greedy SameDetections unexpectedly accepts the swap: %q", reason)
+	}
+	ok, forward, backward := sameConfidentBothWays(t, a, b)
+	if !ok {
+		t.Fatalf("swap rejected: %q / %q", forward, backward)
+	}
+	for _, reason := range []string{forward, backward} {
+		if !strings.HasPrefix(reason, "matched 2 confident detections (min IoU 0.95") || !strings.HasSuffix(reason, "max score diff 0.0000)") {
+			t.Fatalf("reason = %q", reason)
+		}
+	}
+}
+
+func TestSameConfidentDetectionsUsesAugmentingPaths(t *testing.T) {
+	// a1 prefers b1 (IoU 1) but can also use b2; a2 can only use b1. A matching
+	// that keeps a1-b1 strands a2; the augmenting path re-routes a1 to b2.
+	a := []Box{stripe(0.400, 0.8), stripe(0.408, 0.8)}
+	b := []Box{stripe(0.400, 0.8), stripe(0.390, 0.8)}
+	if IoU(a[0], b[0]) != 1 || IoU(a[0], b[1]) < confMinIoU || IoU(a[1], b[0]) < confMinIoU || IoU(a[1], b[1]) >= confMinIoU {
+		t.Fatalf("test geometry is off: %v %v %v %v", IoU(a[0], b[0]), IoU(a[0], b[1]), IoU(a[1], b[0]), IoU(a[1], b[1]))
+	}
+	if ok, _ := SameDetections(a, b, confMinIoU, confMaxDiff); ok {
+		t.Fatal("greedy SameDetections unexpectedly accepts the chain")
+	}
+	ok, forward, backward := sameConfidentBothWays(t, a, b)
+	if !ok {
+		t.Fatalf("chain rejected: %q / %q", forward, backward)
+	}
+	// The statistics cover the pairs of the final matchings; the weakest pair is the one forced onto b2.
+	for _, reason := range []string{forward, backward} {
+		if !strings.HasPrefix(reason, "matched 2 confident detections (min IoU 0.90") {
+			t.Fatalf("reason = %q", reason)
+		}
+	}
+}
+
+func TestSameConfidentDetectionsIgnoresTheThresholdBand(t *testing.T) {
+	for name, pair := range map[string][2][]Box{
+		"band vs band":      {{stripe(0.4, 0.305)}, {stripe(0.4, 0.295)}},
+		"band vs nothing":   {{stripe(0.4, 0.305)}, nil},
+		"edge of the band":  {{stripe(0.4, 0.319)}, {stripe(0.4, 0.281)}},
+		"band box far away": {{stripe(0.1, 0.31)}, {stripe(0.7, 0.29)}},
+	} {
+		ok, forward, backward := sameConfidentBothWays(t, pair[0], pair[1])
+		if !ok || forward != "no confident detections in either set" || backward != forward {
+			t.Errorf("%s = %v, %q, %q", name, ok, forward, backward)
+		}
+	}
+	// An unmatched band box next to a matched confident box is fine.
+	a := []Box{stripe(0.4, 0.80), stripe(0.1, 0.31)}
+	b := []Box{stripe(0.4, 0.79)}
+	if ok, forward, backward := sameConfidentBothWays(t, a, b); !ok || !strings.HasPrefix(forward, "matched 1 confident detection (") || !strings.HasPrefix(backward, "matched 1 confident detection (") {
+		t.Fatalf("band box next to a match = %v, %q, %q", ok, forward, backward)
+	}
+	// A confident box may be matched by a band box of the other set: the
+	// partner is not required to be confident itself.
+	ok, forward, backward := sameConfidentBothWays(t, []Box{stripe(0.4, 0.322)}, []Box{stripe(0.4, 0.305)})
+	if !ok || !strings.HasPrefix(forward, "matched 1 confident detection in a and 0 in b (") || !strings.HasPrefix(backward, "matched 0 confident detections in a and 1 in b (") {
+		t.Fatalf("confident vs band partner = %v, %q, %q", ok, forward, backward)
+	}
+	// ... but only within the score margin.
+	if ok, reason, _ := sameConfidentBothWays(t, []Box{stripe(0.4, 0.34)}, []Box{stripe(0.4, 0.31)}); ok {
+		t.Fatalf("confident 0.34 matched by 0.31: %q", reason)
+	}
+}
+
+func TestSameConfidentDetectionsConfidenceCutoffIsThresholdPlusMargin(t *testing.T) {
+	cutoff := confThreshold + confMaxDiff
+	if ok, reason := sameConfident([]Box{stripe(0.4, cutoff)}, nil); ok || !strings.Contains(reason, "set a") {
+		t.Fatalf("box exactly at the cutoff is not required: %v %q", ok, reason)
+	}
+	if ok, reason := sameConfident([]Box{stripe(0.4, math.Nextafter(cutoff, 0))}, nil); !ok || reason != "no confident detections in either set" {
+		t.Fatalf("box just below the cutoff is required: %v %q", ok, reason)
+	}
+}
+
+func TestSameConfidentDetectionsEmptySets(t *testing.T) {
+	for name, pair := range map[string][2][]Box{
+		"nil/nil":     {nil, nil},
+		"empty/empty": {{}, {}},
+		"nil/empty":   {nil, {}},
+	} {
+		ok, reason := sameConfident(pair[0], pair[1])
+		if !ok || reason != "no confident detections in either set" {
+			t.Errorf("%s = %v, %q", name, ok, reason)
+		}
+	}
+}
+
+func TestSameConfidentDetectionsNamesTheUnmatchedBox(t *testing.T) {
+	p, q := stripe(0.10, 0.90), stripe(0.60, 0.6)
+	ok, reason := sameConfident([]Box{p, q}, []Box{stripe(0.10, 0.90)})
+	if ok || !strings.Contains(reason, "set a") || !strings.Contains(reason, "score 0.6000") || !strings.Contains(reason, "no match in set b") {
+		t.Fatalf("missing confident box (a to b) = %v, %q", ok, reason)
+	}
+	ok, reason = sameConfident([]Box{stripe(0.10, 0.90)}, []Box{p, q})
+	if ok || !strings.Contains(reason, "set b") || !strings.Contains(reason, "score 0.6000") || !strings.Contains(reason, "no match in set a") {
+		t.Fatalf("missing confident box (b to a) = %v, %q", ok, reason)
+	}
+	ok, reason = sameConfident([]Box{p}, nil)
+	if ok || !strings.Contains(reason, "set a") || !strings.Contains(reason, "set b is empty") {
+		t.Fatalf("confident box against an empty set = %v, %q", ok, reason)
+	}
+	// The first unmatched confident box in input order is the one named.
+	ok, reason = sameConfident([]Box{stripe(0.10, 0.9), stripe(0.4, 0.8), stripe(0.7, 0.7)}, []Box{stripe(0.10, 0.9)})
+	if ok || !strings.Contains(reason, "score 0.8000") {
+		t.Fatalf("first unmatched confident box = %v, %q", ok, reason)
+	}
+}
+
+func TestSameConfidentDetectionsRejectsScoreAndBoxMismatch(t *testing.T) {
+	ok, reason := sameConfident([]Box{stripe(0.4, 0.80)}, []Box{stripe(0.4, 0.75)})
+	if ok || !strings.Contains(reason, "set a") || !strings.Contains(reason, "score 0.8000") || !strings.Contains(reason, "score diff 0.0500") {
+		t.Fatalf("score diff 0.05 = %v, %q", ok, reason)
+	}
+	// Exactly the margin is fine (0.75 and 0.5 are exact in binary).
+	if ok, reason := SameConfidentDetections([]Box{stripe(0.4, 0.75)}, []Box{stripe(0.4, 0.5)}, 0.3, 0.9, 0.25); !ok {
+		t.Fatalf("score diff exactly at the margin rejected: %q", reason)
+	}
+	ok, reason = sameConfident([]Box{stripe(0.40, 0.8)}, []Box{stripe(0.43, 0.8)})
+	if ok || !strings.Contains(reason, "best candidate IoU 0.7") {
+		t.Fatalf("shifted box = %v, %q", ok, reason)
+	}
+}
+
+func TestSameConfidentDetectionsNeedsDistinctMatches(t *testing.T) {
+	one := []Box{stripe(0.4, 0.8)}
+	two := []Box{stripe(0.4, 0.8), stripe(0.4, 0.8)}
+	if ok, reason, _ := sameConfidentBothWays(t, two, one); ok || !strings.Contains(reason, "no match") {
+		t.Fatalf("two confident boxes sharing one partner = %v, %q", ok, reason)
+	}
+	if ok, reason, _ := sameConfidentBothWays(t, two, two); !ok || !strings.HasPrefix(reason, "matched 2 confident detections (") {
+		t.Fatalf("duplicates on both sides = %v, %q", ok, reason)
+	}
+	// The band box of the other set is no partner for the second confident box (score gap).
+	if ok, _, _ := sameConfidentBothWays(t, two, []Box{stripe(0.4, 0.8), stripe(0.4, 0.31)}); ok {
+		t.Fatal("0.8 + 0.8 accepted against 0.8 + 0.31")
+	}
+}
+
+func TestSameConfidentDetectionsRejectsNonFiniteInput(t *testing.T) {
+	nan, inf := math.NaN(), math.Inf(1)
+	good := []Box{stripe(0.4, 0.8)}
+	for name, bad := range map[string]Box{
+		"NaN score":   stripe(0.4, nan),
+		"Inf score":   stripe(0.4, inf),
+		"NaN X1":      {X1: nan, Y1: 0.2, X2: 0.6, Y2: 0.8, Score: 0.8},
+		"Inf Y2":      {X1: 0.4, Y1: 0.2, X2: 0.6, Y2: inf, Score: 0.8},
+		"-Inf X2":     {X1: 0.4, Y1: 0.2, X2: -inf, Y2: 0.8, Score: 0.8},
+		"NaN in band": {X1: 0.4, Y1: nan, X2: 0.6, Y2: 0.8, Score: 0.3},
+	} {
+		for _, pair := range [][2][]Box{{good, {bad}}, {{bad}, good}, {{bad}, {bad}}, {{bad}, nil}} {
+			if ok, reason := sameConfident(pair[0], pair[1]); ok || !strings.Contains(reason, "non-finite") {
+				t.Errorf("%s: sets %v / %v = %v, %q", name, pair[0], pair[1], ok, reason)
+			}
+		}
+	}
+	for name, params := range map[string][3]float64{
+		"NaN threshold": {nan, 0.9, 0.02},
+		"NaN minIoU":    {0.3, nan, 0.02},
+		"NaN margin":    {0.3, 0.9, nan},
+		"Inf threshold": {inf, 0.9, 0.02},
+		"Inf margin":    {0.3, 0.9, inf},
+		"negative diff": {0.3, 0.9, -0.02},
+	} {
+		// Vacuous truth must never leak through bad parameters: even two empty sets fail.
+		for _, sets := range [][2][]Box{{good, good}, {nil, nil}} {
+			if ok, reason := SameConfidentDetections(sets[0], sets[1], params[0], params[1], params[2]); ok || !strings.Contains(reason, "invalid") {
+				t.Errorf("%s: %v / %v = %v, %q", name, sets[0], sets[1], ok, reason)
+			}
+		}
+	}
+}
+
+func TestSameConfidentDetectionsDoesNotModifyInput(t *testing.T) {
+	a := []Box{stripe(0.4045, 0.55), stripe(0.4000, 0.80)}
+	b := []Box{stripe(0.4000, 0.55), stripe(0.4045, 0.80)}
+	wantA, wantB := append([]Box(nil), a...), append([]Box(nil), b...)
+	sameConfident(a, b)
+	sameConfident(b, a)
+	for i := range a {
+		if a[i] != wantA[i] || b[i] != wantB[i] {
+			t.Fatalf("input reordered or changed: a=%v b=%v", a, b)
+		}
+	}
+}
+
+// coversByBruteForce is an independent oracle: can every confident box of
+// from be assigned a distinct box of to under the edge rule?
+func coversByBruteForce(from, to []Box) bool {
+	var confident []Box
+	for _, box := range from {
+		if box.Score >= confThreshold+confMaxDiff {
+			confident = append(confident, box)
+		}
+	}
+	used := make([]bool, len(to))
+	var assign func(index int) bool
+	assign = func(index int) bool {
+		if index == len(confident) {
+			return true
+		}
+		for j, other := range to {
+			if used[j] || IoU(confident[index], other) < confMinIoU || math.Abs(confident[index].Score-other.Score) > confMaxDiff {
+				continue
+			}
+			used[j] = true
+			if assign(index + 1) {
+				return true
+			}
+			used[j] = false
+		}
+		return false
+	}
+	return assign(0)
+}
+
+func TestSameConfidentDetectionsMatchesBruteForce(t *testing.T) {
+	random := rand.New(rand.NewSource(7))
+	scores := []float64{0.281, 0.295, 0.305, 0.319, 0.321, 0.335, 0.34, 0.5, 0.55, 0.8}
+	randomSet := func() []Box {
+		set := make([]Box, random.Intn(6))
+		for i := range set {
+			// Few positions at 0.004 spacing: many pairs hover around IoU 0.9, and the
+			// score list has pairs just inside and just outside the 0.02 margin.
+			set[i] = stripe(0.4+0.004*float64(random.Intn(6)), scores[random.Intn(len(scores))])
+		}
+		return set
+	}
+	accepted := 0
+	for iteration := 0; iteration < 5000; iteration++ {
+		a, b := randomSet(), randomSet()
+		want := coversByBruteForce(a, b) && coversByBruteForce(b, a)
+		got, reason := sameConfident(a, b)
+		if got != want {
+			t.Fatalf("a=%v b=%v: got %v (%q), brute force %v", a, b, got, reason, want)
+		}
+		if reverse, _ := sameConfident(b, a); reverse != got {
+			t.Fatalf("a=%v b=%v: verdict depends on argument order", a, b)
+		}
+		if got {
+			accepted++
+		}
+	}
+	if accepted < 500 || accepted > 4500 {
+		t.Fatalf("random sets are degenerate: %d of 5000 accepted", accepted)
 	}
 }
