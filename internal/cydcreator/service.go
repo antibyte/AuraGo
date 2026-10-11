@@ -188,8 +188,9 @@ func (l *lockedIDs) NewID(prefix string) string {
 }
 
 // NewService opens the database (migrating it), marks builds and jobs of a
-// previous process as interrupted, discards their partial artefacts and starts
-// the build worker.
+// previous process as interrupted, discards their partial artefacts, recovers
+// interrupted publications, drafts and working copies (recoverJobs; a project
+// it cannot recover is fenced, the start goes on) and starts the build worker.
 func NewService(cfg ServiceConfig) (*Service, error) {
 	if strings.TrimSpace(cfg.WorkspaceDir) == "" || strings.TrimSpace(cfg.DataDir) == "" || strings.TrimSpace(cfg.DBPath) == "" {
 		return nil, errors.New("cyd creator workspace, data directory and database path are required")
@@ -237,6 +238,11 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 		return nil, err
 	}
 	s.db = db
+	interruptedJobs, err := unfinishedJobIDs(context.Background(), db)
+	if err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	recovered, err := recoverStore(context.Background(), db, formatTime(now()))
 	if err != nil {
 		_ = db.Close()
@@ -252,6 +258,7 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 		}
 		s.Emit(b.ProjectID, EventBuildStatus, b.JobID, b.ID, map[string]any{"build": build})
 	}
+	s.recoverJobs(context.Background(), interruptedJobs)
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	s.wg.Add(1)
 	go s.buildWorker()

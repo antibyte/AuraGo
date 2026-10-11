@@ -270,8 +270,9 @@ func (s *Service) RenameProject(ctx context.Context, id, name string) (ProjectSu
 	return s.GetProject(ctx, id)
 }
 
-// DeleteProject removes the project directory, its artefacts and every row
-// that belongs to it. A queued or running build refuses with CYD_BUSY.
+// DeleteProject removes the project directory, its artefacts, its jobs'
+// working copies (drafts) and every row that belongs to it. A queued or
+// running build refuses with CYD_BUSY.
 func (s *Service) DeleteProject(ctx context.Context, id string) error {
 	unlock := s.lockProject(id)
 	defer unlock()
@@ -290,6 +291,10 @@ func (s *Service) DeleteProject(ctx context.Context, id string) error {
 		return NewError(CodeBusy, "a build of this project is queued or running", map[string]any{"project_id": id})
 	}
 	buildIDs, err := s.projectBuildIDs(ctx, id)
+	if err != nil {
+		return s.internalError("delete project", err)
+	}
+	jobIDs, err := s.projectJobIDs(ctx, id)
 	if err != nil {
 		return s.internalError("delete project", err)
 	}
@@ -318,6 +323,9 @@ func (s *Service) DeleteProject(ctx context.Context, id string) error {
 		return s.internalError("delete project", err)
 	}
 	s.removeBuildArtifacts(buildIDs)
+	for _, jobID := range jobIDs {
+		s.removeStaging(jobID) // drafts; blobs of the deleted revisions are pruned at startup
+	}
 	if err := os.RemoveAll(s.projectDir(row.Slug)); err != nil {
 		s.logger.Warn("CYD Creator project directory could not be removed", "project_id", id, "error", err)
 	}
