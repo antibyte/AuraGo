@@ -2,6 +2,7 @@ const http = require('http');
 const crypto = require('crypto');
 const fs = require('fs/promises');
 const path = require('path');
+const { spawn } = require('child_process');
 const { parseAllowedOrigins, validateBrowserTarget } = require('./egress_policy');
 const { resolveInside } = require('./path_policy');
 
@@ -14,7 +15,7 @@ const ALLOW_FILE_DOWNLOADS = process.env.ALLOW_FILE_DOWNLOADS !== 'false';
 const READ_ONLY = process.env.READ_ONLY === 'true';
 const RAW_SIDECAR_TOKEN = String(process.env.AURAGO_BROWSER_AUTOMATION_TOKEN || '').trim();
 const EGRESS_ISOLATED = process.env.AURAGO_BROWSER_EGRESS_ISOLATED === 'true';
-const EGRESS_PROXY = String(process.env.AURAGO_BROWSER_EGRESS_PROXY || '').trim();
+const LOCAL_EGRESS_PROXY = 'http://127.0.0.1:7332';
 const ALLOWED_PRIVATE_ORIGINS = parseAllowedOrigins(process.env.AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS || '[]');
 const PLACEHOLDER_TOKENS = new Set([
   'change_me_please',
@@ -46,26 +47,20 @@ const FILE_RETENTION_MS = Math.max(SESSION_TTL_MS, parseInt(process.env.FILE_RET
 const SCREENSHOTS_ROOT = process.env.SCREENSHOTS_ROOT || path.join(WORKSPACE_ROOT, 'browser_screenshots');
 const CLOAK_HUMANIZE = process.env.CLOAK_HUMANIZE === 'true';
 const CLOAK_HUMAN_PRESET = String(process.env.CLOAK_HUMAN_PRESET || 'default').trim();
-const CLOAK_PROXY = EGRESS_PROXY;
+const CLOAK_PROXY = LOCAL_EGRESS_PROXY;
 const CLOAK_FINGERPRINT_SEED = String(process.env.CLOAK_FINGERPRINT_SEED || '').trim();
 
 if (!SIDECAR_TOKEN) {
   console.error('AURAGO_BROWSER_AUTOMATION_TOKEN is required.');
   process.exit(1);
 }
-if (!EGRESS_ISOLATED || !EGRESS_PROXY) {
+if (!EGRESS_ISOLATED) {
   console.error('Browser automation requires an isolated egress network and a filtering proxy.');
-  process.exit(1);
-}
-const parsedEgressProxy = new URL(EGRESS_PROXY);
-if (parsedEgressProxy.protocol !== 'http:' || parsedEgressProxy.username || parsedEgressProxy.password ||
-    parsedEgressProxy.pathname !== '/' || parsedEgressProxy.search || parsedEgressProxy.hash) {
-  console.error('AURAGO_BROWSER_EGRESS_PROXY must be a credential-free HTTP origin.');
   process.exit(1);
 }
 
 async function verifyEgressProxy() {
-  const response = await fetch(new URL('/health', parsedEgressProxy), { signal: AbortSignal.timeout(5000) });
+  const response = await fetch(LOCAL_EGRESS_PROXY + '/health', { signal: AbortSignal.timeout(5000) });
   if (!response.ok) throw new Error('filtering egress proxy is unavailable');
   const status = await response.json();
   if (status.policy_version !== 'egress-v1' || status.dns_pinned !== true) {
@@ -409,10 +404,10 @@ async function registerDownload(session, download) {
 }
 
 async function createSession(targetURL) {
-	if (READ_ONLY && targetURL) {
-		return { status: 'error', operation: 'create_session', message: 'browser automation sidecar is in read-only mode' };
-	}
-	if (targetURL) await validateBrowserTarget(targetURL, ALLOWED_PRIVATE_ORIGINS);
+  if (READ_ONLY && targetURL) {
+    return { status: 'error', operation: 'create_session', message: 'browser automation sidecar is in read-only mode' };
+  }
+  if (targetURL) await validateBrowserTarget(targetURL, ALLOWED_PRIVATE_ORIGINS);
   await enforceSessionLimit();
   const browser = await getBrowser();
   const context = await browser.newContext({
@@ -643,6 +638,7 @@ const server = http.createServer({ requestTimeout: HTTP_TIMEOUT_MS }, async (req
     if (req.method === 'GET' && req.url === '/health') {
       try {
         const browser = await getBrowser();
+        await verifyEgressProxy();
         const version = await browser.version();
         return json(res, 200, {
           status: 'success',
@@ -653,6 +649,7 @@ const server = http.createServer({ requestTimeout: HTTP_TIMEOUT_MS }, async (req
           browser_version: version
           ,policy_version: 'egress-v1'
           ,egress_isolated: EGRESS_ISOLATED
+          ,proxy_addr: '127.0.0.1:7332'
         });
       } catch (error) {
         return json(res, 503, {
@@ -707,10 +704,49 @@ async function shutdown(signal) {
       browserPromise = null;
     }
   } finally {
+    if (egressProxyChild && egressProxyChild.exitCode === null) {
+      egressProxyChild.kill();
+    }
     if (signal) {
       process.exit(0);
     }
   }
+}
+
+let egressProxyChild = null;
+let egressProxyReady = null;
+
+function startLocalEgressProxy() {
+  if (egressProxyReady) return egressProxyReady;
+  egressProxyReady = (async () => {
+    const proxyEnv = {
+      ...process.env,
+      PORT: '7332',
+      AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS: process.env.AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS || '[]',
+    };
+    delete proxyEnv.AURAGO_BROWSER_EGRESS_PROXY;
+    delete proxyEnv.AURAGO_BROWSER_AUTOMATION_TOKEN;
+    egressProxyChild = spawn(process.execPath, [path.join(__dirname, 'egress_proxy.js')], {
+      env: proxyEnv,
+      stdio: 'inherit',
+    });
+    const child = egressProxyChild;
+    child.on('error', () => {});
+    const deadline = Date.now() + 5000;
+    while (Date.now() < deadline) {
+      if (child.exitCode !== null) break;
+      try {
+        await verifyEgressProxy();
+        return;
+      } catch (_) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    }
+    if (child.exitCode === null) child.kill();
+    console.error('filtering egress proxy did not become ready');
+    process.exit(1);
+  })();
+  return egressProxyReady;
 }
 
 async function boot() {
@@ -718,6 +754,7 @@ async function boot() {
   await ensureDir(DOWNLOAD_ROOT);
   await ensureDir(SCREENSHOTS_ROOT);
   await cleanupStaleArtifacts();
+  await startLocalEgressProxy();
   server.listen(PORT, '0.0.0.0');
 }
 

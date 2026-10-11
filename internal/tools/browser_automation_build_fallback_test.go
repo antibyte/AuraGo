@@ -647,7 +647,7 @@ func TestEnsureBrowserAutomationSidecarRunningBuildsOnConfiguredEngine(t *testin
 		AuthToken:     "test-token",
 		AutoBuild:     true,
 		DockerfileDir: browserAutomationBuildContextDir(t),
-		CloakProxy:    "http://proxy:3128",
+		CloakProxy:    "",
 		EgressNetwork: "browser-egress",
 		WorkspaceDir:  t.TempDir(),
 		DownloadDir:   t.TempDir(),

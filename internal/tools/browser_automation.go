@@ -32,6 +32,7 @@ const (
 	browserAutomationContainerPort = 7331
 	browserAutomationWorkspaceDir  = "/workspace"
 	browserAutomationDownloadsDir  = "/downloads"
+	browserAutomationLoopbackProxy = "http://127.0.0.1:7332"
 )
 
 type BrowserAutomationRequest struct {
@@ -523,6 +524,9 @@ func BrowserAutomationHealth(ctx context.Context, cfg *config.Config) map[string
 	if result["policy_version"] != "egress-v1" || result["egress_isolated"] != true {
 		return map[string]interface{}{"status": "error", "message": "sidecar does not attest the required egress policy"}
 	}
+	if proxyAddr, present := result["proxy_addr"]; present && proxyAddr != strings.TrimPrefix(browserAutomationLoopbackProxy, "http://") {
+		return map[string]interface{}{"status": "error", "message": "sidecar egress proxy is not the loopback filter"}
+	}
 	return result
 }
 
@@ -684,6 +688,13 @@ func ExecuteBrowserAutomation(ctx context.Context, cfg *config.Config, req Brows
 		payload["download_name"] = req.DownloadName
 	}
 
+	if strings.TrimSpace(cfg.BrowserAutomation.CloakProxy) != "" {
+		return browserAutomationJSON(map[string]interface{}{
+			"status": "error", "operation": op,
+			"message": "browser_automation.cloak_proxy must be empty; the sidecar runs its own loopback filter",
+		})
+	}
+
 	if health := BrowserAutomationHealth(ctx, cfg); health["status"] != "success" {
 		return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": "browser automation egress policy is unavailable"})
 	}
@@ -776,8 +787,12 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 		logger.Info("[BrowserAutomation] Skipping auto-start because sidecar URL points to an external/container service", "url", sidecarCfg.URL)
 		return
 	}
-	if sidecarCfg.AuthToken == "" || sidecarCfg.CloakProxy == "" || sidecarCfg.EgressNetwork == "" {
-		logger.Error("[BrowserAutomation] Managed sidecar requires a token, filtering proxy, and internal egress network")
+	if strings.TrimSpace(sidecarCfg.CloakProxy) != "" {
+		logger.Error("[BrowserAutomation] browser_automation.cloak_proxy must be empty; the sidecar runs its own loopback filter")
+		return
+	}
+	if sidecarCfg.AuthToken == "" || sidecarCfg.EgressNetwork == "" {
+		logger.Error("[BrowserAutomation] Managed sidecar requires a token and an internal egress network")
 		return
 	}
 
@@ -869,7 +884,7 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 	allowedPrivateOrigins, _ := json.Marshal(sidecarCfg.AllowedPrivateOrigins)
 	env = append(env,
 		"AURAGO_BROWSER_EGRESS_ISOLATED=true",
-		"AURAGO_BROWSER_EGRESS_PROXY="+sidecarCfg.CloakProxy,
+		"AURAGO_BROWSER_EGRESS_PROXY="+browserAutomationLoopbackProxy,
 		"AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS="+string(allowedPrivateOrigins),
 	)
 	if sidecarCfg.CloakFingerprintSeed != "" {

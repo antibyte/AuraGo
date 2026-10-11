@@ -93,6 +93,6 @@ server.on('upgrade', async (req, socket, head) => {
   }
 });
 
-if (require.main === module) server.listen(port, '0.0.0.0');
+if (require.main === module) server.listen(port, '127.0.0.1');
 
 module.exports = { server };

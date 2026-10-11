@@ -22,7 +22,7 @@
   "config.browser_automation.cloak_human_preset_label": "Preset zachowania",
   "help.browser_automation.cloak_human_preset": "Prędkość symulacji: 'default' (normalna) lub 'careful' (wolniejsza, bardziej ostrożna).",
   "config.browser_automation.cloak_proxy_label": "URL proxy",
-  "help.browser_automation.cloak_proxy": "Wymagany adres filtrującego proxy w izolowanej sieci.",
+  "help.browser_automation.cloak_proxy": "Zostaw to puste. Sidecar uruchamia własny filtr na 127.0.0.1. Adres URL w tym miejscu nie zastępuje tego filtra i blokuje uruchomienie.",
   "config.browser_automation.cloak_fingerprint_seed_label": "Ziarno odcisku przeglądarki",
   "help.browser_automation.cloak_fingerprint_seed": "Stałe ziarno dla deterministycznego odcisku przeglądarki. Przydatne do spójnej tożsamości w sesjach.",
   "config.browser_automation.egress_network_label": "Izolowana sieć Docker",

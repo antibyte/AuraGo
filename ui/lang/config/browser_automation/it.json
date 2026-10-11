@@ -22,7 +22,7 @@
   "config.browser_automation.cloak_human_preset_label": "Preset comportamento",
   "help.browser_automation.cloak_human_preset": "Velocità simulazione: 'default' (normale) o 'careful' (più lenta, più deliberata).",
   "config.browser_automation.cloak_proxy_label": "URL proxy",
-  "help.browser_automation.cloak_proxy": "Indirizzo obbligatorio del proxy filtrante nella rete isolata.",
+  "help.browser_automation.cloak_proxy": "Lascialo vuoto. Il sidecar avvia il proprio filtro su 127.0.0.1. Un URL qui non sostituisce quel filtro e blocca l'avvio.",
   "config.browser_automation.cloak_fingerprint_seed_label": "Seed fingerprint",
   "help.browser_automation.cloak_fingerprint_seed": "Seed fisso per fingerprint del browser deterministico. Utile per identità coerente tra le sessioni.",
   "config.browser_automation.egress_network_label": "Rete Docker isolata",

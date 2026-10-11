@@ -567,3 +567,18 @@ func TestBrowserAutomationEffectiveContainerName(t *testing.T) {
 		}
 	}
 }
+
+func TestBrowserAutomationRejectsOperatorCloakProxy(t *testing.T) {
+	cfg := browserAutomationTestConfig(t, "http://127.0.0.1:7331")
+	cfg.BrowserAutomation.CloakProxy = "http://127.0.0.1:9"
+	result := decodeBrowserAutomationResult(t, ExecuteBrowserAutomation(context.Background(), cfg, BrowserAutomationRequest{
+		Operation: "current_state",
+		SessionID: "ba_123",
+	}, nil))
+	if got, _ := result["status"].(string); got != "error" {
+		t.Fatalf("status = %q, want error", got)
+	}
+	if !strings.Contains(result["message"].(string), "cloak_proxy") {
+		t.Fatalf("message = %q, want cloak_proxy", result["message"])
+	}
+}

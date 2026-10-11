@@ -22,7 +22,7 @@
   "config.browser_automation.cloak_human_preset_label": "Adfærdspreset",
   "help.browser_automation.cloak_human_preset": "Simuleringshastighed: 'default' (normal) eller 'careful' (langsommere, forsigtig).",
   "config.browser_automation.cloak_proxy_label": "Proxy URL",
-  "help.browser_automation.cloak_proxy": "Påkrævet adresse til filtrerende proxy på det isolerede netværk.",
+  "help.browser_automation.cloak_proxy": "Lad det stå tomt. Sidecaren starter sit eget filter på 127.0.0.1. En URL her erstatter ikke filteret og blokerer opstarten.",
   "config.browser_automation.cloak_fingerprint_seed_label": "Fingeraftryks-seed",
   "help.browser_automation.cloak_fingerprint_seed": "Fast seed for deterministisk browser-fingeraftryk. Nyttigt til konsistent identitet på tværs af sessioner.",
   "config.browser_automation.egress_network_label": "Isoleret Docker-netværk",

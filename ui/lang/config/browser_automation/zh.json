@@ -22,7 +22,7 @@
   "config.browser_automation.cloak_human_preset_label": "行为预设",
   "help.browser_automation.cloak_human_preset": "模拟速度：'default'（正常）或 'careful'（更慢、更谨慎）。",
   "config.browser_automation.cloak_proxy_label": "代理 URL",
-  "help.browser_automation.cloak_proxy": "隔离网络中必需的过滤代理地址。",
+  "help.browser_automation.cloak_proxy": "请留空。Sidecar 会在 127.0.0.1 上自行启动过滤器。在这里填写 URL 不会替换该过滤器，并且会阻止启动。",
   "config.browser_automation.cloak_fingerprint_seed_label": "指纹种子",
   "help.browser_automation.cloak_fingerprint_seed": "确定性浏览器指纹的固定种子。有助于跨会话保持一致的标识。",
   "config.browser_automation.egress_network_label": "隔离的 Docker 网络",
