@@ -261,3 +261,10 @@ func TestCYDCreatorCodeModule(t *testing.T) {
 		"P.code = { create, HOOK_FILE };", "const HOOK_FILE = 'src/app/app_events.cpp';", "import('/js/vendor/codemirror-bundle.esm.js')",
 		"cm.cpp()", "ensureHook,", "P.autosave.create({", "cyd_creator.code.generated_hint", "view.lineBlockAt(", "dispose() {")
 }
+
+func TestCYDCreatorAgentModule(t *testing.T) {
+	text := checkCYDCreatorModule(t, "cyd-creator-agent.js",
+		"P.agent = { create, tailBytes };", "attachLog(text)", "inst.setPanelBadge('agent', active)", "ccAgentAction: 'confirm'",
+		"ccAgentAction: 'resume'", "ccAgentAction: 'discard'", "inst.api.restoreRevision(", "dispose() {")
+	checkCYDCreatorCancelNotReadonly(t, "cyd-creator-agent.js", text, "ccAgentAction: 'cancel'")
+}
