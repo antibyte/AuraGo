@@ -14,6 +14,7 @@ import (
 
 	"aurago/internal/desktop"
 	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/launcher"
 )
 
 // Keep the real desktop runtime and DOM, exposing only test entry points.
@@ -26,6 +27,13 @@ func desktopAuditBrowser(t *testing.T) *rod.Page {
 // more specific pattern (for example "/api/desktop/local-wikipedia/") wins over
 // the generic "/api/" fixture answers.
 func desktopAuditBrowserWithAPI(t *testing.T, handlers map[string]http.Handler) *rod.Page {
+	t.Helper()
+	return desktopAuditBrowserWith(t, handlers, nil)
+}
+
+// desktopAuditBrowserWith is desktopAuditBrowserWithAPI with extra launcher
+// flags from tweak (see newSmokeBrowserWith).
+func desktopAuditBrowserWith(t *testing.T, handlers map[string]http.Handler, tweak func(*launcher.Launcher)) *rod.Page {
 	t.Helper()
 	requirePrecisionBrowserSmoke(t)
 	html := regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(readDesktopAssetText(t, "desktop.html"), "")
@@ -62,7 +70,7 @@ func desktopAuditBrowserWithAPI(t *testing.T, handlers map[string]http.Handler) 
 	}
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
-	page := newSmokeBrowser(t).MustPage().Timeout(30 * time.Second)
+	page := newSmokeBrowserWith(t, tweak).MustPage().Timeout(30 * time.Second)
 	t.Cleanup(func() { _ = page.Close() })
 	page.MustSetViewport(1280, 900, 1, false)
 	page.MustNavigate(server.URL + "/fixture").MustWaitLoad()

@@ -1,16 +1,40 @@
-// Retro Games cabinet player: runs archive.org's own emulator embed in a
-// locked-down iframe and unloads it completely when the player closes.
+// Retro Games cabinet player: frames AuraGo's own player page, which runs
+// archive.org's emulators in an opaque origin, follows the state messages that
+// page posts and unloads the frame completely when the player closes.
 (function () {
     'use strict';
 
-    const EMBED_BASE = 'https://archive.org/embed/';
-    const SANDBOX = 'allow-scripts allow-same-origin allow-pointer-lock';
+    const PLAYER_BASE = '/api/desktop/retro-games/player?id=';
+    // Scripts and pointer lock only, never the page's own origin: archive.org's
+    // code in the frame must stay in an opaque origin, unable to read AuraGo's
+    // cookies, storage, DOM or APIs.
+    const SANDBOX = 'allow-scripts allow-pointer-lock';
     const ALLOW = 'fullscreen; gamepad; autoplay';
     const STALL_MS = 60000;
+    const MUTE_KEY = 'aurago.retroGames.muted';
+    // The page's states, in the order a healthy start goes through them.
+    const PLAYER_STATES = ['loading', 'running', 'failed'];
     const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 
-    function embedURL(id) {
-        return EMBED_BASE + encodeURIComponent(id);
+    function playerURL(id, muted, soundLabel) {
+        return PLAYER_BASE + encodeURIComponent(id) + '&muted=' + (muted ? '1' : '0') + '&sound=' + encodeURIComponent(soundLabel || '');
+    }
+
+    // The sound choice is remembered per viewer; storage may be blocked or full.
+    function readMuted() {
+        try {
+            return window.localStorage.getItem(MUTE_KEY) === '1';
+        } catch (error) {
+            return false;
+        }
+    }
+
+    function writeMuted(on) {
+        try {
+            window.localStorage.setItem(MUTE_KEY, on ? '1' : '0');
+        } catch (error) {
+            // The choice then only lasts for this player.
+        }
     }
 
     function mount(stage, game, options) {
@@ -23,15 +47,18 @@
         const el = v.el;
         let disposed = false;
         let stallTimer = 0;
-        // generation is bumped by start() and restartGame(); loadGeneration is
-        // the generation whose embed navigation is in flight. Load events that
-        // arrive while the two differ (the about:blank unload) are ignored.
+        // generation is bumped by start() and restartGame(): a restart that was
+        // overtaken by a newer one (or by start itself) does not load anything.
         let generation = 0;
-        let loadGeneration = 0;
-        // True while the frame holds the focus only because focusFrame() put it
-        // there. The window blur that call causes (and the frame being the
-        // active element from mount on) is not the player touching the game.
-        let frameFocusIsOurs = false;
+        let muted = readMuted();
+        // The mute value the current page was started with. The page cannot hear
+        // a click that comes before it listens, so it is told again once it says
+        // it started (see onPlayerState).
+        let urlMuted = muted;
+        // Where the current page is: 'idle' until it posts its first state (what
+        // the frame's previous page still had in flight must not count for the new
+        // one), then 'loading' -> 'running'; 'failed' is final until a restart.
+        let phase = 'idle';
         stage.textContent = '';
 
         const call = name => () => {
@@ -53,6 +80,7 @@
         back.addEventListener('click', call('onBack'));
         const fav = button('rg-player-fav', '', '', returnFocus(call('onFavorite')));
         const broken = button('rg-player-broken', '', '⚠', returnFocus(call('onBroken')));
+        const mute = button('rg-mute', '', '', returnFocus(() => toggleMute()));
         const restart = button('rg-restart', t('desktop.retro_games_restart'), '⟲', returnFocus(() => restartGame()));
         const full = button('rg-full', t('desktop.retro_games_fullscreen'), '⛶', returnFocus(() => toggleFullscreen()));
         const external = button('rg-external', t('desktop.retro_games_open_archive'), '↗', call('onExternal'));
@@ -62,7 +90,7 @@
                 el('span', { className: 'rg-marquee-name', text: game.title }),
                 el('span', { className: 'rg-marquee-meta', text: v.metaLine(t, game) })
             ]),
-            el('div', { className: 'rg-marquee-actions' }, [fav, broken, restart, full, external])
+            el('div', { className: 'rg-marquee-actions' }, [fav, broken, mute, restart, full, external])
         ]);
 
         const frame = el('iframe', {
@@ -73,16 +101,16 @@
             referrerpolicy: 'no-referrer',
             title: t('desktop.retro_games_frame_title', { title: game.title })
         });
-        // The loading bar and the "taking unusually long" hint are the same
+        // The loading bar and the hints (slow start, failed start) are the same
         // bottom strip. It never takes pointer events itself (only the hint
         // buttons do), so the game stays clickable underneath it.
         const overlayText = el('p', { className: 'rg-overlay-text' });
-        const stalledActions = el('div', { className: 'rg-overlay-actions', hidden: true }, [
+        const hintActions = el('div', { className: 'rg-overlay-actions', hidden: true }, [
             button('rg-overlay-restart', t('desktop.retro_games_restart'), '⟲ ' + t('desktop.retro_games_restart'), returnFocus(() => restartGame())),
             button('rg-overlay-external', t('desktop.retro_games_open_archive'), '↗ ' + t('desktop.retro_games_open_archive'), call('onExternal')),
             button('rg-overlay-broken', t('desktop.retro_games_mark_broken'), '⚠ ' + t('desktop.retro_games_mark_broken'), returnFocus(call('onMarkBroken')))
         ]);
-        const overlay = el('div', { className: 'rg-overlay', role: 'status' }, [overlayText, stalledActions]);
+        const overlay = el('div', { className: 'rg-overlay', role: 'status' }, [overlayText, hintActions]);
         const screen = el('div', { className: 'rg-screen' }, [frame, overlay]);
         const bezel = el('div', { className: 'rg-bezel' }, [screen]);
         const panel = el('footer', { className: 'rg-panel' }, [
@@ -91,33 +119,56 @@
             el('span', { className: 'rg-panel-hint', text: t('desktop.retro_games_focus_hint') })
         ]);
 
-        // archive.org fires the embed's load event only after every sub-resource
-        // (a splash GIF can take minutes), long after the emulator is usable.
-        frame.addEventListener('load', () => {
-            if (disposed || loadGeneration !== generation) return;
-            hideOverlay();
-        });
-        frame.addEventListener('focusout', () => {
-            frameFocusIsOurs = false;
-        });
-
-        // The cross-origin frame hides its input from us. What the parent can
-        // see is its own window blurring while the frame becomes the active
-        // element, and that only counts when the user (not focusFrame()) did it.
-        function userFocusedFrame() {
-            return document.activeElement === frame && !frameFocusIsOurs;
+        // The page tells us how it is doing; nothing else says anything about the
+        // game. Only the frame's own window counts, and only messages that carry
+        // the {rg: 1} marker of the protocol (see internal/server/retro_games_player.go).
+        // The sender is not trusted beyond that: archive.org's code runs in the
+        // same realm as the page and can post any {rg: 1} message, so only the
+        // known types with well-formed values act, everything else is dropped
+        // silently, and nothing from a message is ever rendered or logged.
+        function onMessage(event) {
+            const data = event.data;
+            if (disposed || event.source !== frame.contentWindow || !data || data.rg !== 1) return;
+            if (data.type === 'state' && PLAYER_STATES.includes(data.state)) {
+                onPlayerState(data.state);
+            } else if (data.type === 'audio' && typeof data.blocked === 'boolean') {
+                // Well-formed and deliberately unused: the page shows its own click-for-sound pill.
+                return;
+            }
         }
 
-        function onWindowBlur() {
-            if (!disposed && !overlay.hidden && userFocusedFrame()) hideOverlay();
+        // A healthy page goes idle -> loading -> running. failed ends it from any
+        // phase, even idle: a script that cannot load (archive.org down or blocked)
+        // fails the page before it reports loading. Repeats, states out of order and
+        // anything after failed change nothing, so a flood of messages cannot
+        // restart the mute handshake or bring a failed game's bar back.
+        function onPlayerState(state) {
+            if (phase === 'failed') return;
+            if (state === 'loading') {
+                if (phase !== 'idle') return;
+                phase = 'loading';
+                if (muted !== urlMuted) postMute();
+            } else if (state === 'running') {
+                if (phase !== 'loading') return;
+                phase = 'running';
+                hideOverlay();
+            } else if (state === 'failed') {
+                phase = 'failed';
+                showHint('desktop.retro_games_player_failed');
+            }
+        }
+
+        function postToFrame(message) {
+            const target = frame.contentWindow;
+            if (!disposed && target) target.postMessage(message, '*');
+        }
+
+        function postMute() {
+            postToFrame({ rg: 1, type: 'mute', muted });
         }
 
         function focusFrame() {
-            if (disposed) return;
-            // Set before the call: the blur it causes is delivered synchronously.
-            frameFocusIsOurs = true;
-            frame.focus();
-            frameFocusIsOurs = document.activeElement === frame;
+            if (!disposed) frame.focus();
         }
 
         function hideOverlay() {
@@ -125,9 +176,18 @@
             const hadFocus = overlay.contains(document.activeElement);
             overlay.hidden = true;
             overlay.classList.remove('is-stalled');
-            stalledActions.hidden = true;
+            hintActions.hidden = true;
             // A focused hint button disappears with the strip; keep the keyboard in the game.
             if (hadFocus) focusFrame();
+        }
+
+        // The hint strip: the text names what happened, the buttons offer a way out.
+        function showHint(key) {
+            clearTimeout(stallTimer);
+            overlay.hidden = false;
+            overlay.classList.add('is-stalled');
+            overlayText.textContent = t(key);
+            hintActions.hidden = false;
         }
 
         function armOverlay() {
@@ -135,31 +195,25 @@
             overlay.hidden = false;
             overlay.classList.remove('is-stalled');
             overlayText.textContent = t('desktop.retro_games_player_loading');
-            stalledActions.hidden = true;
+            hintActions.hidden = true;
             stallTimer = setTimeout(() => {
-                if (disposed) return;
-                // The user is already playing: nothing to report.
-                if (userFocusedFrame()) {
-                    hideOverlay();
-                    return;
-                }
-                overlay.classList.add('is-stalled');
-                overlayText.textContent = t('desktop.retro_games_player_stalled');
-                stalledActions.hidden = false;
+                if (!disposed) showHint('desktop.retro_games_player_stalled');
             }, stallMs);
         }
 
         function start() {
             armOverlay();
             generation += 1;
-            loadGeneration = generation;
-            frame.setAttribute('src', embedURL(game.identifier));
+            phase = 'idle';
+            urlMuted = muted;
+            frame.setAttribute('src', playerURL(game.identifier, muted, t('desktop.retro_games_click_for_sound')));
         }
 
         function restartGame() {
             if (disposed) return;
             generation += 1;
             const pending = generation;
+            phase = 'idle';
             frame.setAttribute('src', 'about:blank');
             setTimeout(() => {
                 if (!disposed && pending === generation) start();
@@ -185,9 +239,27 @@
             broken.title = label;
         }
 
+        // Like the broken marker: the icon shows the state (🔇 = muted = pressed),
+        // the label names what a click does.
+        function renderMute() {
+            const label = muted ? t('desktop.retro_games_sound_on') : t('desktop.retro_games_sound_off');
+            mute.textContent = muted ? '🔇' : '🔊';
+            mute.setAttribute('aria-pressed', muted ? 'true' : 'false');
+            mute.setAttribute('aria-label', label);
+            mute.title = label;
+        }
+
+        function toggleMute() {
+            muted = !muted;
+            writeMuted(muted);
+            renderMute();
+            postMute();
+        }
+
         setFavorite(opts.favorite);
         setBroken(opts.broken);
-        window.addEventListener('blur', onWindowBlur);
+        renderMute();
+        window.addEventListener('message', onMessage);
         start();
         stage.appendChild(el('div', { className: 'rg-cabinet' }, [marquee, bezel, panel]));
         // The game gets the keyboard from the start (Space/Enter must not hit Back).
@@ -200,7 +272,7 @@
                 if (disposed) return;
                 disposed = true;
                 clearTimeout(stallTimer);
-                window.removeEventListener('blur', onWindowBlur);
+                window.removeEventListener('message', onMessage);
                 if (document.fullscreenElement === bezel && document.exitFullscreen) document.exitFullscreen().catch(() => {});
                 frame.setAttribute('src', 'about:blank');
                 frame.remove();
@@ -209,5 +281,5 @@
         };
     }
 
-    window.RetroGamesPlayer = { mount, embedURL, SANDBOX, ALLOW };
+    window.RetroGamesPlayer = { mount, playerURL, SANDBOX, ALLOW };
 })();

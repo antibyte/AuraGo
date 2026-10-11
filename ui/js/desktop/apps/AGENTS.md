@@ -200,7 +200,7 @@
 - `retro-games-views.js`, `retro-games-player.js` and `retro-games.js` load in this
   order with `desktop-app-retro-games.css`. The builtin `retro-games` app ("Retro
   Games", icon `arcade` → `run`, category `games`) requires the `retro_games`
-  capability. Strings are `desktop.app_retro_games` and 77 `desktop.retro_games_*`
+  capability. Strings are `desktop.app_retro_games` and 81 `desktop.retro_games_*`
   keys in all sixteen locales.
 - The app owns a scoped dark skin (`.rg-*`, neon browser + cabinet player) that is
   identical under Standard and Fruity; fonts are the bundled Press Start 2P and
@@ -208,25 +208,45 @@
 - No `innerHTML` in the three files: archive.org titles and makers reach the DOM
   only via `textContent`/attributes. Thumbnails load from
   `https://archive.org/services/img/<id>` with `referrerpolicy="no-referrer"`.
-- The emulator frame is `https://archive.org/embed/<encoded id>` with exactly
-  `sandbox="allow-scripts allow-same-origin allow-pointer-lock"` and
-  `allow="fullscreen; gamepad; autoplay"` (no clipboard, popups, forms or top
-  navigation). Back and window close (`dispose`) point the frame at `about:blank`
-  and remove it. `allow-same-origin` is safe only because the frame stays
-  cross-origin (archive.org); the frame can navigate itself, so never point it at
-  an AuraGo URL and keep AuraGo HTML pages framed only with a CSP sandbox.
-- The loading bar and the "taking unusually long" hint (`desktop.retro_games_player_stalled`,
-  after `STALL_MS` = 60 s) are one bottom strip and never cover the frame: `.rg-overlay` is
-  `pointer-events: none` in both states, only the hint buttons opt back in. archive.org fires
-  the embed's `load` only after every sub-resource (a splash GIF took 112 s), long after the
-  emulator runs, so the strip also retires on interaction: a window `blur` while
-  `document.activeElement === frame` (registered in `mount`, removed in `destroy`) or a frame
-  that the user (not `focusFrame()`) focused when the stall timer fires. `mount(..., { stallMs })`
-  shortens the delay for tests only; they wrap `RetroGamesPlayer.mount`.
-- The keyboard belongs to the game: `mount` focuses the frame (never Back), and restart,
-  fullscreen, favorite, broken and the hint's restart/mark-broken buttons return the focus to
-  it through `focusFrame()` (the external link opens a tab and leaves it). `frameFocusIsOurs`
-  separates our own focus calls from the user's, so the bar still hides on a real click; our
+- The emulator frame is AuraGo's own player page, never archive.org's `/embed/` page (that one starts
+  every emulator muted, is cut off in a small frame and fires `load` long before the emulator runs). Its
+  URL is `PLAYER_BASE + encodeURIComponent(id)` plus `&muted=0|1&sound=<label>` (`playerURL(id, muted,
+  soundLabel)`; the label is `desktop.retro_games_click_for_sound`, rendered by the page as text), with
+  exactly `sandbox="allow-scripts allow-pointer-lock"` and `allow="fullscreen; gamepad; autoplay"` (no
+  clipboard, popups, forms or top navigation). The page (`internal/server/retro_games_player.go`) runs
+  archive.org's Emularity loader. Without `allow-same-origin` (the page's CSP carries the same sandbox) the
+  frame has an opaque origin: archive.org's code cannot read AuraGo cookies, storage, DOM or APIs and can
+  only talk to archive.org hosts. Never add `allow-same-origin`, `allow-top-navigation` or `allow-popups`,
+  and never point the frame at anything but the player route or `about:blank`. Back and window close
+  (`dispose`) point the frame at `about:blank` and remove it. The player mount is the only place that
+  frames it; the "open on archive.org" button still opens `https://archive.org/details/<id>` in a new tab.
+- Message protocol (`{ rg: 1, ... }` both ways, `postMessage` with target `'*'` because the origin is
+  opaque). Page -> app: `{ type: 'state', state: 'loading' | 'running' | 'failed' }` and
+  `{ type: 'audio', blocked: boolean }` (the page shows its own click-for-sound pill; the app ignores it).
+  App -> page: `{ type: 'mute', muted: boolean }` (the page also accepts `{ type: 'focus' }`; the app does
+  not send it). `mount` registers exactly one `message` listener and `destroy` removes it. It accepts
+  only `event.source === frame.contentWindow` with `data.rg === 1`, and then only `PLAYER_STATES`
+  (`loading`/`running`/`failed`) and a boolean `blocked`: archive.org's code runs in the same realm as the
+  page and can post any `{ rg: 1 }` message, so the content is untrusted, nothing from it is rendered or
+  logged, and a flood or out-of-order states must change nothing. `phase` enforces that: `idle` -> `loading`
+  (counted once) -> `running`; `failed` ends it from any phase (a script that cannot load fails the page
+  before it reports `loading`) and is final until a restart; `start()` and `restartGame()` reset it, so a
+  `running` the previous page still had in flight is ignored.
+- States drive one bottom strip (`.rg-overlay`, `pointer-events: none`, only the hint buttons opt back
+  in, so the game stays clickable): the loading bar (`desktop.retro_games_player_loading`) from mount
+  until `running`; `failed` or no `running` within `STALL_MS` = 60 s show the hint with restart, open on
+  archive.org and mark as not starting plus `desktop.retro_games_player_failed` or
+  `desktop.retro_games_player_stalled` (a late `running` retires the stall hint). The frame's `load` event
+  and window focus/blur say nothing about the emulator and are not used. `mount(..., { stallMs })` shortens
+  the delay for tests only; they wrap `RetroGamesPlayer.mount`.
+- Sound: the mute button (🔊/🔇, `aria-pressed`, label `desktop.retro_games_sound_off` while sound plays,
+  `desktop.retro_games_sound_on` while muted) sits in the marquee actions. The choice is kept in
+  `localStorage` key `aurago.retroGames.muted` (read and write in try/catch; blocked storage means sound
+  on), goes into the player URL (`muted=1`, also after a restart) and is posted to the running page on
+  click. A click before the page listens is repeated once the page reports `loading` (`urlMuted`).
+- The keyboard belongs to the game: `mount` focuses the frame (never Back), and restart, fullscreen,
+  favorite, broken, mute and the hint's restart/mark-broken buttons return the focus to it through
+  `focusFrame()` (the external link opens a tab and leaves it); the page moves it on to its canvas. Our
   buttons stay in the tab order.
 - Launch argument `game` (validated `^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$`) opens the
   player directly: `openApp('retro-games', { game })`, the existing-window hook
@@ -245,11 +265,19 @@
   the first index download.
 - Verify `TestDesktopRetroGamesTranslations`, `TestDesktopRetroGamesRegistration`,
   `TestDesktopRetroGamesViewsNeverRenderHTML`, `TestDesktopRetroGamesPlayerFrameIsLockedDown`,
+  `TestDesktopRetroGamesPlayerTrustsOnlyItsOwnFrame`, `TestDesktopRetroGamesPlayerHasAMuteToggle`,
   `TestDesktopRetroGamesAppLifecycle`, `TestDesktopRetroGamesPlayerGivesTheGameTheKeyboard`,
   `TestDesktopRetroGamesStalledHintNeverCoversTheFrame` and, with `AURAGO_RUN_BROWSER_SMOKE=1`,
-  `TestDesktopRetroGamesBrowser` and `TestDesktopRetroGamesBrowserStalledHint` (real shell,
-  archive.org stubbed, a held sub-resource keeps `load` from firing; screenshots in
-  `reports/retro-games/`). Server contract: `internal/retrogames/AGENTS.md`.
+  `TestDesktopRetroGamesBrowser`, `TestDesktopRetroGamesPlayerBrowser`,
+  `TestDesktopRetroGamesPlayerBrowserFailure`, `TestDesktopRetroGamesPlayerBrowserHostileMessages` and
+  `TestDesktopRetroGamesBrowserStalledHint`. They drive the real shell (`desktopAuditBrowserWith`) with the
+  REAL player page (`server.ServeRetroGamesPlayerUngated`, headers included); only archive.org's
+  `browserfs.min.js` and `loader.js` are hijacked (`page.HijackRequests()`: an empty script and a fake
+  `IALoader` that draws a test pattern, can be held back, fail or post junk). A sandboxed frame is
+  out-of-process by default and its requests never reach the page-level router, so these tests launch
+  Chrome with site isolation off (`disable-site-isolation-trials`, `disable-features=...IsolateOrigins,
+  IsolateSandboxedIframes`); reach into the frame with `el.MustFrame()`. Screenshots land in
+  `reports/retro-games/`. Server contract: `internal/retrogames/AGENTS.md`.
 
 ## Looper
 - `looper-monitor.js` precedes `looper.js`. The monitor owns the run view

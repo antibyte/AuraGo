@@ -44,6 +44,13 @@ func newDestructiveFlowFixture(t *testing.T) *destructiveFlowFixture {
 
 func newSmokeBrowser(t *testing.T) *rod.Browser {
 	t.Helper()
+	return newSmokeBrowserWith(t, nil)
+}
+
+// newSmokeBrowserWith is newSmokeBrowser with extra launcher flags from tweak
+// (nil keeps the defaults every other test runs with).
+func newSmokeBrowserWith(t *testing.T, tweak func(*launcher.Launcher)) *rod.Browser {
+	t.Helper()
 
 	bin, ok := browserExecutable()
 	if !ok {
@@ -51,14 +58,17 @@ func newSmokeBrowser(t *testing.T) *rod.Browser {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	t.Cleanup(cancel)
-	u, err := launcher.New().
+	l := launcher.New().
 		Context(ctx).
 		Bin(bin).
 		Headless(true).
 		NoSandbox(true).
 		Set("disable-gpu").
-		Set("disable-dev-shm-usage").
-		Launch()
+		Set("disable-dev-shm-usage")
+	if tweak != nil {
+		tweak(l)
+	}
+	u, err := l.Launch()
 	if err != nil {
 		t.Skipf("headless browser smoke test skipped; browser launch failed: %v", err)
 	}
