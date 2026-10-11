@@ -995,7 +995,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			req := decodeBrowserAutomationArgs(tc)
 			logger.Info("LLM requested browser automation", "operation", req.Operation, "session_id", req.SessionID, "url", req.URL)
-			return "Tool Output: " + tools.ExecuteBrowserAutomation(ctx, cfg, tools.BrowserAutomationRequest{
+			output := tools.ExecuteBrowserAutomation(ctx, cfg, tools.BrowserAutomationRequest{
 				Operation:            req.Operation,
 				SessionID:            req.SessionID,
 				URL:                  req.URL,
@@ -1015,6 +1015,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				CloakProxy:           req.CloakProxy,
 				CloakFingerprintSeed: req.CloakFingerprintSeed,
 			}, logger)
+			return formatBrowserAutomationOutput(ctx, output)
 
 		case "space_agent":
 			if !cfg.SpaceAgent.Enabled {
@@ -2034,6 +2035,10 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 		}
 	}()
 	return result, handled
+}
+
+func formatBrowserAutomationOutput(ctx context.Context, raw string) string {
+	return externalToolOutput(ctx, raw)
 }
 
 func synthesizeExecuteSkillArgs(tc ToolCall) map[string]interface{} {
