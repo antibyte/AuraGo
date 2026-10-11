@@ -274,7 +274,11 @@ func TestServeLoopAnswersFieldErrorsWithID(t *testing.T) {
 		`{"id":5,"command":"detect","jpeg":"!!!!","min_score":0.5}`,
 		`{"id":6,"command":"detect","jpeg":` + string(frame) + `,"min_score":"high"}`,
 		``,
-		`{"id":7,"command":"detect","jpeg":` + string(frame) + `,"min_score":0.5}`,
+		// CRLF line ends (a client on Windows) are whitespace to the decoder.
+		`{"id":9,"command":"detect","jpeg":"!!!!","min_score":0.5}` + "\r",
+		// The decoder quotes an overflowing number literal in full.
+		`{"id":10,"command":"detect","min_score":1` + strings.Repeat("0", 400) + `}`,
+		`{"id":7,"command":"detect","jpeg":` + string(frame) + `,"min_score":0.5}` + "\r",
 		`{"id":8,"command":"close"}`,
 	}, "\n")
 	var output bytes.Buffer
@@ -282,17 +286,42 @@ func TestServeLoopAnswersFieldErrorsWithID(t *testing.T) {
 		t.Fatal(err)
 	}
 	lines := decodeLines(t, output.Bytes())
-	if len(lines) != 4 {
+	if len(lines) != 6 {
 		t.Fatalf("lines = %v", lines)
 	}
-	for i, fragment := range []string{"illegal base64 data", "min_score"} {
+	for i, want := range []struct {
+		id       float64
+		fragment string
+	}{{5, "illegal base64 data"}, {6, "min_score"}, {9, "illegal base64 data"}, {10, "cannot unmarshal number 1000"}} {
 		message, _ := lines[i]["error"].(string)
-		if lines[i]["id"] != float64(5+i) || lines[i]["type"] != "result" || !strings.HasPrefix(message, "invalid request: ") || !strings.Contains(message, fragment) {
-			t.Fatalf("line %d = %v, want an error with %q", i, lines[i], fragment)
+		if lines[i]["id"] != want.id || lines[i]["type"] != "result" || !strings.HasPrefix(message, "invalid request: ") || !strings.Contains(message, want.fragment) {
+			t.Fatalf("line %d = %v, want an error with %q", i, lines[i], want.fragment)
 		}
 	}
-	if lines[2]["id"] != float64(7) || lines[2]["error"] != nil || lines[3]["id"] != float64(8) || eng.runs != 1 {
+	if overflow, _ := lines[3]["error"].(string); len(overflow) > len("invalid request: ")+maxRequestErrorBytes+len("…") || !strings.HasSuffix(overflow, "…") {
+		t.Fatalf("overflow error has %d bytes: %q", len(overflow), overflow)
+	}
+	if lines[4]["id"] != float64(7) || lines[4]["error"] != nil || lines[5]["id"] != float64(8) || eng.runs != 1 {
 		t.Fatalf("lines = %v, engine runs %d", lines, eng.runs)
+	}
+}
+
+func TestTruncateTextKeepsUTF8(t *testing.T) {
+	cases := []struct {
+		text  string
+		limit int
+		want  string
+	}{
+		{"short", 10, "short"},
+		{"exactly10!", 10, "exactly10!"},
+		{"abcdefghijk", 10, "abcdefghij…"},
+		{"abcdefghü", 9, "abcdefgh…"}, // ü is 2 bytes at offset 8
+		{"üü", 1, "…"},
+	}
+	for _, tc := range cases {
+		if got := truncateText(tc.text, tc.limit); got != tc.want {
+			t.Errorf("truncateText(%q, %d) = %q, want %q", tc.text, tc.limit, got, tc.want)
+		}
 	}
 }
 

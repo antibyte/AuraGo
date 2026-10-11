@@ -7,7 +7,10 @@ package persondetect
 const maxFrameBytes = 16 << 20
 
 // SelfTest is the worker's startup check on ReferenceImage(): 1 warm-up and 3
-// measured runs per session, wall time and process CPU time per run.
+// measured runs per session, wall time and process CPU time per run. A webgpu
+// worker measures its GPU session twice (2×3 runs, the second set after the
+// CPU comparison) and reports the set with the lower GPU CPU time.
+// GPUCPUMS may be 0 and is then omitted; clients read it as 0.
 type SelfTest struct {
 	Passed           bool    `json:"passed"`
 	Reason           string  `json:"reason,omitempty"`

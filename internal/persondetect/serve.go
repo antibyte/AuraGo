@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/onnxrt"
 )
@@ -271,13 +272,15 @@ func durationMS(d time.Duration) float64 {
 }
 
 // serveLoop answers JSON-line requests until close or EOF. Each line may hold
-// at most maxRequestLineBytes bytes; blank lines are skipped. A line that is
-// valid JSON with a readable id but a bad field (wrong type, invalid base64
-// jpeg, …) is answered with {"id":N,"type":"result","error":"invalid request:
-// …"} and the loop continues, as for every other bad request. Only an
-// unreadable stream, an over-long line, a line that is not valid JSON or has
-// no readable id, and a failed write end the loop with an error (the worker
-// exits 1 and reports it on stderr).
+// at most maxRequestLineBytes bytes; blank lines are skipped and a trailing
+// "\r" is ignored. A line that is valid JSON with a readable id but a bad
+// field (wrong type, invalid base64 jpeg, …) is answered with
+// {"id":N,"type":"result","error":"invalid request: …"} (the error text is
+// cut to maxRequestErrorBytes) and the loop continues, as for every other bad
+// request; a well-formed line without an "id" member is answered with id 0.
+// Only an unreadable stream, an over-long line, a line that is not valid
+// JSON, a field error in a line without a readable id, and a failed write end
+// the loop with an error (the worker exits 1 and reports it on stderr).
 func serveLoop(input io.Reader, output io.Writer, eng engine) error {
 	return serveLines(input, output, eng, maxRequestLineBytes)
 }
@@ -351,6 +354,11 @@ func readRequestLine(reader *bufio.Reader, maxLineBytes int) ([]byte, error) {
 	}
 }
 
+// maxRequestErrorBytes bounds the decoder message in an "invalid request: …"
+// response: some messages quote the offending value (an overflowing number
+// literal, for example).
+const maxRequestErrorBytes = 256
+
 // parseRequest decodes one request line. A field error in a line that is
 // valid JSON with a readable id returns an error response for that id; any
 // other decoding failure is fatal.
@@ -363,10 +371,25 @@ func parseRequest(line []byte) (workerRequest, *errorResponse, error) {
 	var head struct {
 		ID *uint64 `json:"id"`
 	}
-	if !json.Valid(line) || json.Unmarshal(line, &head) != nil || head.ID == nil {
+	// Unmarshal checks the whole line for valid JSON before decoding.
+	if json.Unmarshal(line, &head) != nil || head.ID == nil {
 		return workerRequest{}, nil, fmt.Errorf("decode request: %w", err)
 	}
-	return workerRequest{}, &errorResponse{ID: *head.ID, Type: "result", Error: "invalid request: " + err.Error()}, nil
+	message := "invalid request: " + truncateText(err.Error(), maxRequestErrorBytes)
+	return workerRequest{}, &errorResponse{ID: *head.ID, Type: "result", Error: message}, nil
+}
+
+// truncateText cuts s to at most limit bytes at a UTF-8 boundary and marks
+// the cut with "…".
+func truncateText(s string, limit int) string {
+	if len(s) <= limit {
+		return s
+	}
+	cut := limit
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut] + "…"
 }
 
 // handleDetect answers one detect request. wall_ms and cpu_ms cover decoding,
