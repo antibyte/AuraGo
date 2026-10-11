@@ -1,0 +1,224 @@
+package retrogames
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"aurago/internal/dbutil"
+
+	_ "modernc.org/sqlite" // registers the "sqlite" driver that dbutil.Open uses
+)
+
+const (
+	schemaVersion = 1
+	dbFileName    = "retrogames.db"
+	gameColumns   = "g.identifier, g.title, g.year, g.creator, g.platform, g.system, g.emulator, g.downloads"
+)
+
+var schemaStatements = []string{
+	`CREATE TABLE IF NOT EXISTS games (
+		id INTEGER PRIMARY KEY,
+		identifier TEXT NOT NULL UNIQUE,
+		title TEXT NOT NULL,
+		year INTEGER NOT NULL DEFAULT 0,
+		creator TEXT NOT NULL DEFAULT '',
+		platform TEXT NOT NULL,
+		system TEXT NOT NULL,
+		emulator TEXT NOT NULL DEFAULT '',
+		downloads INTEGER NOT NULL DEFAULT 0,
+		pop_rank INTEGER NOT NULL DEFAULT 0,
+		tags TEXT NOT NULL DEFAULT '',
+		source TEXT NOT NULL,
+		synced_at INTEGER NOT NULL
+	)`,
+	`CREATE INDEX IF NOT EXISTS games_source ON games(source)`,
+	`CREATE INDEX IF NOT EXISTS games_downloads ON games(downloads DESC)`,
+	`CREATE INDEX IF NOT EXISTS games_platform_downloads ON games(platform, downloads DESC)`,
+	`CREATE VIRTUAL TABLE IF NOT EXISTS games_fts USING fts5(title, creator, tags, content='games', content_rowid='id', tokenize='unicode61 remove_diacritics 2', prefix='2 3')`,
+	`CREATE TRIGGER IF NOT EXISTS games_ai AFTER INSERT ON games BEGIN
+		INSERT INTO games_fts(rowid, title, creator, tags) VALUES (new.id, new.title, new.creator, new.tags);
+	END`,
+	`CREATE TRIGGER IF NOT EXISTS games_ad AFTER DELETE ON games BEGIN
+		INSERT INTO games_fts(games_fts, rowid, title, creator, tags) VALUES ('delete', old.id, old.title, old.creator, old.tags);
+	END`,
+	`CREATE TRIGGER IF NOT EXISTS games_au AFTER UPDATE ON games BEGIN
+		INSERT INTO games_fts(games_fts, rowid, title, creator, tags) VALUES ('delete', old.id, old.title, old.creator, old.tags);
+		INSERT INTO games_fts(rowid, title, creator, tags) VALUES (new.id, new.title, new.creator, new.tags);
+	END`,
+	`CREATE TABLE IF NOT EXISTS favorites (identifier TEXT PRIMARY KEY, added_at INTEGER NOT NULL, title TEXT NOT NULL, platform TEXT NOT NULL, system TEXT NOT NULL, year INTEGER NOT NULL DEFAULT 0)`,
+	`CREATE TABLE IF NOT EXISTS plays (identifier TEXT PRIMARY KEY, last_played_at INTEGER NOT NULL, play_count INTEGER NOT NULL DEFAULT 0, title TEXT NOT NULL, platform TEXT NOT NULL, system TEXT NOT NULL, year INTEGER NOT NULL DEFAULT 0)`,
+	`CREATE INDEX IF NOT EXISTS plays_last ON plays(last_played_at DESC)`,
+	`CREATE TABLE IF NOT EXISTS broken (identifier TEXT PRIMARY KEY, marked_at INTEGER NOT NULL, title TEXT NOT NULL, platform TEXT NOT NULL, system TEXT NOT NULL, year INTEGER NOT NULL DEFAULT 0)`,
+	`CREATE TABLE IF NOT EXISTS sync_state (source TEXT PRIMARY KEY, last_success_at INTEGER NOT NULL DEFAULT 0, last_attempt_at INTEGER NOT NULL DEFAULT 0, item_count INTEGER NOT NULL DEFAULT 0, last_error TEXT NOT NULL DEFAULT '')`,
+}
+
+const upsertGameSQL = `INSERT INTO games(identifier, title, year, creator, platform, system, emulator, downloads, pop_rank, tags, source, synced_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(identifier) DO UPDATE SET title = excluded.title, year = excluded.year, creator = excluded.creator,
+	platform = excluded.platform, system = excluded.system, emulator = excluded.emulator, downloads = excluded.downloads,
+	pop_rank = excluded.pop_rank, tags = excluded.tags, source = excluded.source, synced_at = excluded.synced_at`
+
+// Store is the SQLite index plus the user's library.
+type Store struct {
+	db *sql.DB
+}
+
+// SyncState is the persisted sync bookkeeping of one source.
+type SyncState struct {
+	Source        string
+	LastSuccessAt time.Time
+	LastAttemptAt time.Time
+	ItemCount     int
+	LastError     string
+}
+
+// OpenStore opens or creates the index database in dir. A corrupt database is
+// moved aside to .bak by dbutil and replaced by a fresh one.
+func OpenStore(dir string, logger *slog.Logger) (*Store, error) {
+	dir = strings.TrimSpace(dir)
+	if dir == "" {
+		return nil, errors.New("retrogames: empty data directory")
+	}
+	if logger == nil {
+		logger = slog.Default()
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, fmt.Errorf("retrogames: create data directory: %w", err)
+	}
+	db, err := dbutil.Open(filepath.Join(dir, dbFileName), dbutil.WithCorruptionRecovery(logger))
+	if err != nil {
+		return nil, fmt.Errorf("retrogames: open index: %w", err)
+	}
+	for _, stmt := range schemaStatements {
+		if _, err := db.Exec(stmt); err != nil {
+			_ = db.Close()
+			return nil, fmt.Errorf("retrogames: create schema: %w", err)
+		}
+	}
+	if err := dbutil.SetUserVersion(db, schemaVersion); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("retrogames: set schema version: %w", err)
+	}
+	return &Store{db: db}, nil
+}
+
+// Close closes the database.
+func (st *Store) Close() error {
+	return st.db.Close()
+}
+
+// ReplaceSource swaps all rows of one source for games in a single
+// transaction and records the successful sync.
+func (st *Store) ReplaceSource(ctx context.Context, source string, games []Game, now time.Time) error {
+	tx, err := st.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("retrogames: begin replace: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, `DELETE FROM games WHERE source = ?`, source); err != nil {
+		return fmt.Errorf("retrogames: clear source %s: %w", source, err)
+	}
+	stmt, err := tx.PrepareContext(ctx, upsertGameSQL)
+	if err != nil {
+		return fmt.Errorf("retrogames: prepare insert: %w", err)
+	}
+	defer stmt.Close()
+	ts := now.Unix()
+	for _, g := range games {
+		if _, err := stmt.ExecContext(ctx, g.Identifier, g.Title, g.Year, g.Creator, g.Platform, g.System, g.Emulator, g.Downloads, popRank(g.Downloads), g.Tags, source, ts); err != nil {
+			return fmt.Errorf("retrogames: insert %s: %w", g.Identifier, err)
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO sync_state(source, last_success_at, last_attempt_at, item_count, last_error) VALUES (?, ?, ?, ?, '')
+		ON CONFLICT(source) DO UPDATE SET last_success_at = excluded.last_success_at, last_attempt_at = excluded.last_attempt_at, item_count = excluded.item_count, last_error = ''`,
+		source, ts, ts, len(games)); err != nil {
+		return fmt.Errorf("retrogames: record sync of %s: %w", source, err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("retrogames: commit replace: %w", err)
+	}
+	return nil
+}
+
+// RecordSyncFailure stores a failed attempt without touching the last success.
+func (st *Store) RecordSyncFailure(ctx context.Context, source string, now time.Time, message string) error {
+	_, err := st.db.ExecContext(ctx, `INSERT INTO sync_state(source, last_attempt_at, last_error) VALUES (?, ?, ?)
+		ON CONFLICT(source) DO UPDATE SET last_attempt_at = excluded.last_attempt_at, last_error = excluded.last_error`,
+		source, now.Unix(), truncateRunes(message, 300))
+	if err != nil {
+		return fmt.Errorf("retrogames: record failure of %s: %w", source, err)
+	}
+	return nil
+}
+
+// SyncStates returns the sync bookkeeping keyed by source.
+func (st *Store) SyncStates(ctx context.Context) (map[string]SyncState, error) {
+	rows, err := st.db.QueryContext(ctx, `SELECT source, last_success_at, last_attempt_at, item_count, last_error FROM sync_state`)
+	if err != nil {
+		return nil, fmt.Errorf("retrogames: read sync state: %w", err)
+	}
+	defer rows.Close()
+	out := map[string]SyncState{}
+	for rows.Next() {
+		var s SyncState
+		var success, attempt int64
+		if err := rows.Scan(&s.Source, &success, &attempt, &s.ItemCount, &s.LastError); err != nil {
+			return nil, fmt.Errorf("retrogames: scan sync state: %w", err)
+		}
+		s.LastSuccessAt = fromUnix(success)
+		s.LastAttemptAt = fromUnix(attempt)
+		out[s.Source] = s
+	}
+	return out, rows.Err()
+}
+
+// NeedsSync reports whether any of keys never synced or is older than maxAge.
+func (st *Store) NeedsSync(ctx context.Context, now time.Time, maxAge time.Duration, keys []string) (bool, error) {
+	states, err := st.SyncStates(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, key := range keys {
+		s, ok := states[key]
+		if !ok || s.LastSuccessAt.IsZero() || now.Sub(s.LastSuccessAt) > maxAge {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// Game looks up one indexed game.
+func (st *Store) Game(ctx context.Context, id string) (Game, bool, error) {
+	g, err := scanGame(st.db.QueryRowContext(ctx, `SELECT `+gameColumns+` FROM games g WHERE g.identifier = ?`, id))
+	if errors.Is(err, sql.ErrNoRows) {
+		return Game{}, false, nil
+	}
+	if err != nil {
+		return Game{}, false, fmt.Errorf("retrogames: read game: %w", err)
+	}
+	return g, true, nil
+}
+
+type rowScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanGame(r rowScanner) (Game, error) {
+	var g Game
+	err := r.Scan(&g.Identifier, &g.Title, &g.Year, &g.Creator, &g.Platform, &g.System, &g.Emulator, &g.Downloads)
+	return g, err
+}
+
+func fromUnix(v int64) time.Time {
+	if v <= 0 {
+		return time.Time{}
+	}
+	return time.Unix(v, 0).UTC()
+}
