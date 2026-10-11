@@ -152,3 +152,75 @@ func TestConfigRetroNetDefaultSurvivesGetAndPut(t *testing.T) {
 		})
 	}
 }
+
+// Switching the toggle saves the chosen value explicitly: off with the key
+// missing writes false, on over an explicit false writes true, and both reload
+// and show as saved.
+func TestConfigRetroNetToggleSavesTheChosenValue(t *testing.T) {
+	for _, tc := range []struct {
+		name, yaml, written string
+		want                bool
+	}{
+		{"key missing, switched off", "virtual_desktop:\n  enabled: true\n", "retronet_enabled: false", false},
+		{"explicit false, switched on", "virtual_desktop:\n  enabled: true\n  retronet_enabled: false\n", "retronet_enabled: true", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			path := filepath.Join(root, "config.yaml")
+			if err := os.WriteFile(path, []byte(tc.yaml), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := config.Load(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if cfg.VirtualDesktop.RetroNetEnabled == tc.want {
+				t.Fatalf("fixture already loads retronet_enabled=%v", tc.want)
+			}
+			cfg.ConfigPath = path
+			vault, err := security.NewVault(strings.Repeat("6b", 32), filepath.Join(root, "vault.bin"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			s := &Server{Cfg: cfg, Vault: vault, Logger: slog.Default()}
+
+			patch := `{"virtual_desktop":{"retronet_enabled":false}}`
+			if tc.want {
+				patch = `{"virtual_desktop":{"retronet_enabled":true}}`
+			}
+			put := httptest.NewRecorder()
+			handleUpdateConfig(s).ServeHTTP(put, httptest.NewRequest(http.MethodPut, "/api/config", strings.NewReader(patch)))
+			if put.Code != http.StatusOK {
+				t.Fatalf("PUT %s: %d %s", patch, put.Code, put.Body.String())
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(data), tc.written) {
+				t.Fatalf("PUT %s did not write %q:\n%s", patch, tc.written, data)
+			}
+			reloaded, err := config.Load(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if reloaded.VirtualDesktop.RetroNetEnabled != tc.want {
+				t.Fatalf("saved file reloads retronet_enabled=%v, want %v", reloaded.VirtualDesktop.RetroNetEnabled, tc.want)
+			}
+			if live := s.ConfigSnapshot().VirtualDesktop.RetroNetEnabled; live != tc.want {
+				t.Fatalf("live config retronet_enabled=%v, want %v", live, tc.want)
+			}
+			rec := httptest.NewRecorder()
+			handleGetConfig(s).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/config", nil))
+			var body struct {
+				VirtualDesktop map[string]interface{} `json:"virtual_desktop"`
+			}
+			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+				t.Fatal(err)
+			}
+			if body.VirtualDesktop["retronet_enabled"] != tc.want {
+				t.Fatalf("GET after save shows %#v, want %v", body.VirtualDesktop["retronet_enabled"], tc.want)
+			}
+		})
+	}
+}
