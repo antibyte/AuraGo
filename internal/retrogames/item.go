@@ -3,6 +3,7 @@ package retrogames
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"regexp"
 	"strconv"
 	"strings"
@@ -43,39 +44,52 @@ const (
 	maxFlexDepth  = 3
 )
 
-// UnmarshalJSON implements json.Unmarshaler.
+// UnmarshalJSON implements json.Unmarshaler. It streams tokens instead of
+// building a generic value, so a hostile array of millions of strings costs
+// time but no memory beyond the maxFlexValues kept entries. Arrays are
+// followed while fewer than maxFlexDepth arrays enclose them; deeper arrays
+// and every object are consumed without contributing anything.
 func (f *FlexText) UnmarshalJSON(data []byte) error {
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.UseNumber()
-	var v any
-	if err := dec.Decode(&v); err != nil {
-		return err
-	}
 	var out FlexText
-	flattenFlex(v, 0, &out)
+	depth := 0 // open arrays whose elements are collected
+	skip := 0  // open delimiters inside a skipped object or too-deep array
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			if err == io.EOF {
+				err = io.ErrUnexpectedEOF
+			}
+			return err
+		}
+		switch t := tok.(type) {
+		case json.Delim:
+			switch {
+			case t == '{', t == '[' && (skip > 0 || depth >= maxFlexDepth):
+				skip++
+			case t == '[':
+				depth++
+			case skip > 0:
+				skip--
+			default:
+				depth--
+			}
+		case string:
+			if skip == 0 && len(out) < maxFlexValues {
+				out = append(out, t)
+			}
+		case json.Number:
+			if skip == 0 && len(out) < maxFlexValues {
+				out = append(out, t.String())
+			}
+		}
+		if depth == 0 && skip == 0 {
+			break
+		}
+	}
 	*f = out
 	return nil
-}
-
-// flattenFlex appends the strings and numbers found in v to out. Arrays are
-// followed only while depth < maxFlexDepth; collection stops at maxFlexValues.
-func flattenFlex(v any, depth int, out *FlexText) {
-	if len(*out) >= maxFlexValues {
-		return
-	}
-	switch x := v.(type) {
-	case string:
-		*out = append(*out, x)
-	case json.Number:
-		*out = append(*out, x.String())
-	case []any:
-		if depth >= maxFlexDepth {
-			return
-		}
-		for _, elem := range x {
-			flattenFlex(elem, depth+1, out)
-		}
-	}
 }
 
 // First returns the first non-empty value.

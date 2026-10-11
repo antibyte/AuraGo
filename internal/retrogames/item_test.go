@@ -2,11 +2,86 @@ package retrogames
 
 import (
 	"encoding/json"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestFlexTextHugeArrayStaysCappedAndCheap(t *testing.T) {
+	const elements = 1_000_000
+	var b strings.Builder
+	b.Grow(elements*5 + 32)
+	b.WriteString(`{"title":[`)
+	for i := 0; i < elements; i++ {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		b.WriteString(`"ab"`)
+	}
+	b.WriteString(`]}`)
+	input := []byte(b.String())
+	b.Reset()
+
+	var v struct {
+		Title FlexText `json:"title"`
+	}
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	if err := json.Unmarshal(input, &v); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	runtime.ReadMemStats(&after)
+
+	if len(v.Title) != maxFlexValues {
+		t.Fatalf("len = %d, want %d", len(v.Title), maxFlexValues)
+	}
+	const limit = 32 << 20
+	delta := after.TotalAlloc - before.TotalAlloc
+	t.Logf("decoding %d elements allocated %d KiB", elements, delta>>10)
+	if delta > limit {
+		t.Fatalf("decoding a %d-element array allocated %d MiB, want under %d MiB", elements, delta>>20, limit>>20)
+	}
+}
+
+func TestFlexTextStreamingEdgeCases(t *testing.T) {
+	cases := []struct {
+		name string
+		raw  string
+		want string
+	}{
+		{"top-level string", `"a"`, "a"},
+		{"top-level number", `12`, "12"},
+		{"top-level null", `null`, ""},
+		{"top-level bool", `true`, ""},
+		{"top-level object", `{"a":["x"],"b":"y"}`, ""},
+		{"empty array", `[]`, ""},
+		{"object inside array is skipped", `["a",{"k":["x",{"d":"y"}],"j":"z"},"b"]`, "a,b"},
+		{"array inside object inside array is skipped", `[{"k":[[["x"]]]},"b"]`, "b"},
+		{"skipped deep array keeps siblings in sync", `["a",[[[["x",["y"]]]]],"b"]`, "a,b"},
+		{"nested within depth", `["a",["b",["c"]]]`, "a,b,c"},
+		{"nested beyond depth", `["a",["b",["c",["d",["e"]]]]]`, "a,b,c"},
+		{"whitespace", " [ 1 , \"x\" ,\n [ true , 2 ] ] ", "1,x,2"},
+		{"escaped string", "[\"a\x5cu00e9\"]", "aé"},
+	}
+	for _, tc := range cases {
+		var f FlexText
+		if err := f.UnmarshalJSON([]byte(tc.raw)); err != nil {
+			t.Errorf("%s: %v", tc.name, err)
+			continue
+		}
+		if got := f.Join(","); got != tc.want {
+			t.Errorf("%s: got %q, want %q", tc.name, got, tc.want)
+		}
+	}
+	for _, raw := range []string{``, `[`, `["a"`, `["a",`, `{"a":`, `[1,}`, `{"a":["b"]`, `nul`} {
+		var f FlexText
+		if err := f.UnmarshalJSON([]byte(raw)); err == nil {
+			t.Errorf("UnmarshalJSON(%q) should fail", raw)
+		}
+	}
+}
 
 func TestFlexTextDeeplyNestedArrayIsLinearAndDepthLimited(t *testing.T) {
 	const depth = 5000
