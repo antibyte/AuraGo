@@ -127,6 +127,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		injectLocalWikipediaDefaults(rawCfg, s.Cfg)
 		injectHereNowDefaults(rawCfg, s.Cfg)
 		injectMQTTRelayDefaults(rawCfg, s.ConfigSnapshot())
+		injectRetroNetDefault(rawCfg, s.ConfigSnapshot())
 		injectTregDefaults(rawCfg, s.Cfg)
 
 		// Mask sensitive fields
@@ -180,6 +181,25 @@ func injectMQTTRelayDefaults(rawCfg map[string]interface{}, cfg *config.Config) 
 		rawCfg["mqtt"] = section
 	}
 	section["allow_unauthenticated_relay"] = cfg.MQTT.AllowUnauthenticatedRelay
+}
+
+// injectRetroNetDefault exposes the effective virtual_desktop.retronet_enabled
+// when the raw YAML has no boolean for it (key missing, null or an unusual
+// spelling). config.Load turns Retro-Net on by default, so showing the absence
+// as "off" would make the next Virtual Desktop save write false. A written
+// true or false is shown as it is.
+func injectRetroNetDefault(rawCfg map[string]interface{}, cfg *config.Config) {
+	if cfg == nil {
+		return
+	}
+	section, ok := rawCfg["virtual_desktop"].(map[string]interface{})
+	if !ok {
+		section = make(map[string]interface{})
+		rawCfg["virtual_desktop"] = section
+	}
+	if _, explicit := section["retronet_enabled"].(bool); !explicit {
+		section["retronet_enabled"] = cfg.VirtualDesktop.RetroNetEnabled
+	}
 }
 
 func injectGo2RTCConfig(rawCfg map[string]interface{}, cfg *config.Config, vault *security.Vault) {

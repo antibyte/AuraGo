@@ -59,8 +59,11 @@ Server-owned HTTP and cross-component integration contracts.
 - The setting defaults on (template and Go default in `config.Load`, so also
   when the key is missing): an owner decision and a deliberate exception to the
   root default-off rule for harmful capabilities. An explicit `false` stays off;
-  no migration flips it (`TestVirtualDesktopRetroNetToggleDefaultsOnAndPersists`,
-  `TestDesktopRetroNetPolicyFollowsLoadedConfigDefault`).
+  no migration flips it. `GET /api/config` shows the loaded value where the
+  YAML has no boolean (`injectRetroNetDefault`), so a Config save never writes
+  a false the user did not choose (`TestVirtualDesktopRetroNetToggleDefaultsOnAndPersists`,
+  `TestDesktopRetroNetPolicyFollowsLoadedConfigDefault`,
+  `TestConfigRetroNetDefaultSurvivesGetAndPut`).
 - The browser sends only an entry ID plus `cols`/`rows`; the server looks the
   entry up in the catalog or `retronet.entries` and runs it through the one
   lazily created `retronet.Manager` (limits shared by all users) and its
