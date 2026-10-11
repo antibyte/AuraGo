@@ -133,12 +133,11 @@ func (s *Service) ReadProjectForJob(ctx context.Context, jobID string) (JobProje
 	if err != nil {
 		return JobProjectView{}, err
 	}
+	// run.plan is set at launch and by SubmitPlan (run.job belongs to the
+	// orchestrator goroutine and is not read here).
 	run.mu.Lock()
 	plan := run.plan
 	run.mu.Unlock()
-	if plan == nil {
-		plan = run.job.Plan
-	}
 	return JobProjectView{Phase: run.currentPhase(), Layout: p, Issues: validateLayout(p), Files: nonNil(files),
 		Board: boardInfo(board, p.Orientation), UserChanges: run.userChanges, Plan: plan}, nil
 }

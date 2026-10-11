@@ -73,6 +73,25 @@ type jobRuntime struct {
 	active       *jobRun
 	closing      bool
 	planningUsed map[string]time.Duration
+	newTimer     jobTimer // nil = realJobTimer; tests install fake timers
+}
+
+// jobTimer starts the job timeout's timer: the channel delivers once after d,
+// stop releases the timer.
+type jobTimer func(d time.Duration) (c <-chan time.Time, stop func() bool)
+
+func realJobTimer(d time.Duration) (<-chan time.Time, func() bool) {
+	t := time.NewTimer(d)
+	return t.C, t.Stop
+}
+
+// formatBudget renders a time budget for job messages: whole seconds, or
+// milliseconds below one second.
+func formatBudget(d time.Duration) string {
+	if d < time.Second {
+		return d.Round(time.Millisecond).String()
+	}
+	return d.Round(time.Second).String()
 }
 
 // jobRun is the in-memory state of the job that holds the agent slot.
@@ -186,7 +205,11 @@ func jobTimeoutGrace(budget time.Duration) time.Duration {
 // newJobContext returns a context that ends with errJobTimeout after budget,
 // or after one grace window when productive() holds at that moment. The
 // timer goroutine is counted in wg (when not nil) and ends with the context.
-func newJobContext(parent context.Context, wg *sync.WaitGroup, budget time.Duration, productive func() bool, extended func(time.Duration)) (context.Context, context.CancelCauseFunc) {
+// newTimer starts its timers (nil = realJobTimer).
+func newJobContext(parent context.Context, wg *sync.WaitGroup, newTimer jobTimer, budget time.Duration, productive func() bool, extended func(time.Duration)) (context.Context, context.CancelCauseFunc) {
+	if newTimer == nil {
+		newTimer = realJobTimer
+	}
 	ctx, cancel := context.WithCancelCause(parent)
 	if wg != nil {
 		wg.Add(1)
@@ -195,21 +218,24 @@ func newJobContext(parent context.Context, wg *sync.WaitGroup, budget time.Durat
 		if wg != nil {
 			defer wg.Done()
 		}
-		timer := time.NewTimer(budget)
-		defer timer.Stop()
-		select {
-		case <-ctx.Done():
+		expired := func(d time.Duration) bool {
+			c, stop := newTimer(d)
+			defer stop()
+			select {
+			case <-ctx.Done():
+				return false
+			case <-c:
+				return true
+			}
+		}
+		if !expired(budget) {
 			return
-		case <-timer.C:
 		}
 		if productive() {
 			grace := jobTimeoutGrace(budget)
 			extended(grace)
-			timer.Reset(grace)
-			select {
-			case <-ctx.Done():
+			if !expired(grace) {
 				return
-			case <-timer.C:
 			}
 		}
 		cancel(errJobTimeout)

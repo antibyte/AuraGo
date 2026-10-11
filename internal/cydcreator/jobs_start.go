@@ -65,7 +65,12 @@ func (s *Service) StartJob(ctx context.Context, projectID string, in StartJobInp
 	if s.jobs.closing || s.ctx.Err() != nil {
 		return Job{}, NewError(CodeBusy, "CYD Creator is shutting down", nil)
 	}
-	if active := s.activeJob(ctx); active != nil || s.jobs.active != nil {
+	active, err := s.activeJob(ctx)
+	if err != nil {
+		// A failed read must not open a second slot.
+		return Job{}, NewError(CodeBusy, "the agent slot could not be checked; try again", nil)
+	}
+	if active != nil || s.jobs.active != nil {
 		details := map[string]any{}
 		if active != nil {
 			details["job_id"], details["project_id"] = active.JobID, active.ProjectID
@@ -292,7 +297,7 @@ func (s *Service) abortStart(job Job, cause error) {
 // s.jobs.mu, which orders the WaitGroup Add before Close's Wait.
 func (s *Service) launchRun(run *jobRun) {
 	run.segmentStart = time.Now()
-	run.ctx, run.cancel = newJobContext(s.ctx, &s.wg, run.budget, func() bool {
+	run.ctx, run.cancel = newJobContext(s.ctx, &s.wg, s.jobs.newTimer, run.budget, func() bool {
 		run.mu.Lock()
 		defer run.mu.Unlock()
 		switch run.phase {
@@ -303,7 +308,7 @@ func (s *Service) launchRun(run *jobRun) {
 		window := min(run.budget/3, 10*time.Minute)
 		return !run.lastChange.IsZero() && time.Since(run.lastChange) <= window
 	}, func(grace time.Duration) {
-		s.emitStep(run.projectID, run.jobID, StepInfo, fmt.Sprintf("Recent changes are still being built; the job gets %s more to finish.", grace.Round(time.Second)))
+		s.emitStep(run.projectID, run.jobID, StepInfo, fmt.Sprintf("Recent changes are still being built; the job gets %s more to finish.", formatBudget(grace)))
 	})
 	s.jobs.active = run
 	s.wg.Add(1)

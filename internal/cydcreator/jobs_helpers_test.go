@@ -136,6 +136,64 @@ func waitIdle(t *testing.T, env *testEnv) {
 	}
 }
 
+// fakeTimers replaces the job timeout's real timers: every started timer is
+// announced on started and fires only when the test calls fire.
+type fakeTimers struct{ started chan *fakeTimer }
+
+type fakeTimer struct {
+	d time.Duration
+	c chan time.Time
+}
+
+func (ft *fakeTimer) fire() { ft.c <- time.Now() }
+
+func newFakeTimers() *fakeTimers { return &fakeTimers{started: make(chan *fakeTimer, 16)} }
+
+func (f *fakeTimers) newTimer(d time.Duration) (<-chan time.Time, func() bool) {
+	ft := &fakeTimer{d: d, c: make(chan time.Time, 1)}
+	f.started <- ft
+	return ft.c, func() bool { return true }
+}
+
+// next waits for the next started timer.
+func (f *fakeTimers) next(t *testing.T) *fakeTimer {
+	t.Helper()
+	select {
+	case ft := <-f.started:
+		return ft
+	case <-time.After(5 * time.Second):
+		t.Fatal("no job timer was started")
+		return nil
+	}
+}
+
+// useFakeTimers installs fake job timers for the jobs env starts from now on.
+func useFakeTimers(env *testEnv) *fakeTimers {
+	f := newFakeTimers()
+	env.svc.jobs.mu.Lock()
+	env.svc.jobs.newTimer = f.newTimer
+	env.svc.jobs.mu.Unlock()
+	return f
+}
+
+// waitClosed waits until ch is closed.
+func waitClosed(t *testing.T, ch <-chan struct{}, what string) {
+	t.Helper()
+	select {
+	case <-ch:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timed out waiting for %s", what)
+	}
+}
+
+// waitGroupDone waits until wg is back to zero.
+func waitGroupDone(t *testing.T, wg *sync.WaitGroup) {
+	t.Helper()
+	done := make(chan struct{})
+	go func() { wg.Wait(); close(done) }()
+	waitClosed(t, done, "the job goroutines")
+}
+
 func eventTypes(events []Event) []string {
 	out := make([]string, 0, len(events))
 	for _, e := range events {

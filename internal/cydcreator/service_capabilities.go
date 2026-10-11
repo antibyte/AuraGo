@@ -2,6 +2,9 @@ package cydcreator
 
 import (
 	"context"
+	"database/sql"
+	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -69,11 +72,12 @@ func (s *Service) Capabilities(ctx context.Context) Capabilities {
 	toolchain := s.Toolchain(ctx)
 	limits := s.Limits()
 	publicURL := strings.TrimSpace(limits.OTA.PublicURL)
+	active, _ := s.activeJob(ctx) // logged; the answer stays usable without it
 	caps := Capabilities{
 		Enabled:         true,
 		TemplateVersion: TemplateVersion,
 		Toolchain:       toolchain,
-		ActiveJob:       s.activeJob(ctx),
+		ActiveJob:       active,
 		BuildQueue:      s.activeBuilds(),
 		Boards:          nonNil(boards),
 		Themes:          nonNil(themes),
@@ -104,16 +108,22 @@ func (s *Service) Toolchain(ctx context.Context) ToolchainStatus {
 }
 
 // activeJob returns the newest job that is queued, running or waiting for
-// confirmation (plan 3 writes cc_jobs), or nil.
-func (s *Service) activeJob(ctx context.Context) *ActiveJob {
+// confirmation (plan 3 writes cc_jobs), or nil. A failed query is logged and
+// returned, never read as "no job": StartJob treats it as a busy slot, while
+// Capabilities shows no active job.
+func (s *Service) activeJob(ctx context.Context) (*ActiveJob, error) {
 	var j ActiveJob
 	err := s.db.QueryRowContext(ctx, `SELECT id, project_id, phase, status FROM cc_jobs
 		WHERE status IN ('queued','running','awaiting_confirmation') ORDER BY created_at DESC LIMIT 1`).
 		Scan(&j.JobID, &j.ProjectID, &j.Phase, &j.Status)
-	if err != nil {
-		return nil
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
 	}
-	return &j
+	if err != nil {
+		s.logger.Warn("CYD Creator active job could not be read", "error", err)
+		return nil, fmt.Errorf("read the active cyd creator job: %w", err)
+	}
+	return &j, nil
 }
 
 func nonNil[T any](list []T) []T {

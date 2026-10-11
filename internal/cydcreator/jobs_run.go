@@ -104,7 +104,7 @@ func (s *Service) driveJob(run *jobRun) runOutcome {
 			plan, accepted := run.plan, run.planAccepted
 			run.mu.Unlock()
 			if !accepted || plan == nil {
-				return runOutcome{err: errors.New("the agent ended planning without submitting a plan")}
+				return runOutcome{err: agentStopped{errors.New("the agent ended planning without submitting a plan")}}
 			}
 			run.job.Plan = plan // stored with the waiting status by awaitConfirmation
 			return runOutcome{awaiting: true}
@@ -186,8 +186,19 @@ func (s *Service) runAgent(run *jobRun, phase string) error {
 	if run.ctx.Err() != nil {
 		return context.Cause(run.ctx)
 	}
-	return err
+	if err != nil {
+		return agentStopped{err}
+	}
+	return nil
 }
+
+// agentStopped marks an error of the agent run itself (the Runner): its text
+// is the agent's reason and goes to the chat ("The agent stopped: ...").
+// Other untyped orchestrator errors stay in the server log (CYD_INTERNAL).
+type agentStopped struct{ err error }
+
+func (e agentStopped) Error() string { return e.err.Error() }
+func (e agentStopped) Unwrap() error { return e.err }
 
 // logicHooks lists every `logic` event binding of named widgets.
 func logicHooks(p Project) []LogicHook {
@@ -434,24 +445,40 @@ func (s *Service) publishOnce(run *jobRun, b Build) error {
 
 // classifyJobError maps the end of a failed segment to status, code and the
 // English message shown in the chat.
+//
+// When the run's context has ended, its cause decides: a step that was
+// waiting (a build, a database read) returns the bare context error, which
+// would otherwise read as a failure. Shutdown cancels the parent, so its
+// cause is context.Canceled and the s.ctx check makes it "interrupted".
 func (s *Service) classifyJobError(run *jobRun, err error) (status, code, message string) {
+	if run.ctx.Err() != nil {
+		if cause := context.Cause(run.ctx); cause != nil {
+			err = cause
+		}
+	}
 	var typed *Error
+	var agent agentStopped
 	switch {
 	case errors.Is(err, errJobCancelled):
 		return JobCancelled, "", ""
 	case errors.Is(err, errJobTimeout):
-		return JobFailed, "", fmt.Sprintf("The job exceeded its time limit of %s.", run.budget.Round(time.Second))
+		return JobFailed, "", fmt.Sprintf("The job exceeded its time limit of %s.", formatBudget(run.budget))
 	case s.ctx.Err() != nil:
 		return JobInterrupted, "", "The server stopped while the job was running."
 	case errors.As(err, &typed):
 		return JobFailed, typed.Code, typed.Message
+	case errors.As(err, &agent):
+		s.logger.Warn("CYD Creator agent run failed", "job_id", run.jobID, "error", err)
+		message = "The agent stopped: " + strings.Join(strings.Fields(err.Error()), " ")
+		if utf8.RuneCountInString(message) > 300 {
+			message = string([]rune(message)[:299]) + "…"
+		}
+		return JobFailed, "", message
 	}
+	// An orchestrator failure (file system, database): the cause can name
+	// host paths, so it stays in the server log.
 	s.logger.Warn("CYD Creator job failed", "job_id", run.jobID, "error", err)
-	message = "The agent stopped: " + strings.Join(strings.Fields(err.Error()), " ")
-	if utf8.RuneCountInString(message) > 300 {
-		message = string([]rune(message)[:299]) + "…"
-	}
-	return JobFailed, "", message
+	return JobFailed, CodeInternal, "The job failed because of an internal error; the server log has the details."
 }
 
 // terminalSaveDelays are the pauses between further attempts to store a

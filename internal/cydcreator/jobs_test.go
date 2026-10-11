@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -361,40 +363,58 @@ func TestJobTimeoutFailsTheJob(t *testing.T) {
 	}
 }
 
+// The job's timers are fakes here (review fix): with real 300 ms timers a slow
+// write on a loaded machine crossed the deadline and the test flaked.
 func TestProductiveJobGetsOneGraceWindow(t *testing.T) {
-	env, runner, p := newJobEnv(t, testServiceOptions{limits: ServiceLimits{JobTimeout: 300 * time.Millisecond}})
-	var extendedAt time.Time
-	ended := make(chan time.Time, 1)
-	start := time.Now()
+	env, runner, p := newJobEnv(t, testServiceOptions{limits: ServiceLimits{JobTimeout: 30 * time.Second}})
+	timers := useFakeTimers(env)
+	wrote := make(chan struct{})
+	ended := make(chan error, 1)
 	runner.on(PhaseCoding, func(ctx context.Context, run JobRun) error {
-		ticker := time.NewTicker(40 * time.Millisecond)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				ended <- time.Now()
-				return ctx.Err()
-			case <-ticker.C:
-				if _, err := env.svc.WriteJobFile(ctx, run.Job.ID, "src/app/progress.cpp", time.Now().String()); err != nil && ctx.Err() == nil {
-					return err
-				}
-			}
+		if _, err := env.svc.WriteJobFile(ctx, run.Job.ID, "src/app/progress.cpp", "int p;\n"); err != nil {
+			return err
 		}
+		close(wrote)
+		<-ctx.Done()
+		ended <- context.Cause(ctx)
+		return ctx.Err()
 	})
 	events, cancel := env.svc.Subscribe(p.ID)
 	defer cancel()
-	job, _ := env.svc.StartJob(context.Background(), p.ID, StartJobInput{Mode: JobModeChange, Prompt: "x"})
+	job, err := env.svc.StartJob(context.Background(), p.ID, StartJobInput{Mode: JobModeChange, Prompt: "x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	budget := timers.next(t)
+	waitClosed(t, wrote, "the agent's write")
+	budget.fire()
+	grace := timers.next(t)
+	if budget.d != 30*time.Second || grace.d != 15*time.Second {
+		t.Fatalf("timers = %v then %v, want 30s then 15s", budget.d, grace.d)
+	}
+	select {
+	case cause := <-ended:
+		t.Fatalf("the job ended inside its grace window: %v", cause)
+	default:
+	}
+	grace.fire()
+	select {
+	case cause := <-ended:
+		if !errors.Is(cause, errJobTimeout) {
+			t.Fatalf("cause = %v", cause)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the job did not end after its grace window")
+	}
 	done := waitJob(t, env, job.ID, JobFailed)
+	extended := false
 	for _, ev := range drain(events) {
-		if ev.Type == EventJobStep && strings.Contains(string(ev.Data), "more to finish") {
-			extendedAt = ev.CreatedAt
+		if ev.Type == EventJobStep && strings.Contains(string(ev.Data), "the job gets 15s more to finish") {
+			extended = true
 		}
 	}
-	if extendedAt.IsZero() || !strings.Contains(done.ErrorMessage, "time limit") {
-		t.Fatalf("no grace step; job = %+v", done)
-	}
-	if took := (<-ended).Sub(start); took < 400*time.Millisecond {
-		t.Fatalf("job ended after %v; the grace window (150 ms) was not granted", took)
+	if !extended || !strings.Contains(done.ErrorMessage, "time limit of 30s") {
+		t.Fatalf("grace step %v; job = %+v", extended, done)
 	}
 }
 
@@ -800,20 +820,11 @@ func TestPublicationRetriesWhileAProjectFileIsOpen(t *testing.T) {
 	}
 	env, runner, p := newJobEnv(t)
 	opened := make(chan *os.File, 1)
-	t.Cleanup(func() {
-		select {
-		case f := <-opened:
-			_ = f.Close()
-		default:
-		}
-	})
 	runner.on(PhaseCoding, func(ctx context.Context, run JobRun) error {
 		f, err := os.Open(filepath.Join(env.svc.projectDir(p.Slug), "src", "app", "app_main.cpp"))
 		if err != nil {
 			return err
 		}
-		// Longer than one publication attempt (fileutil retries ~0.4 s).
-		time.AfterFunc(time.Second, func() { _ = f.Close() })
 		opened <- f
 		return env.svc.FinishJob(ctx, run.Job.ID, "done")
 	})
@@ -824,15 +835,30 @@ func TestPublicationRetriesWhileAProjectFileIsOpen(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	done := waitJob(t, env, job.ID, JobSucceeded, JobFailed)
-	retried := false
-	for _, ev := range drain(events) {
-		if ev.Type == EventJobStep && strings.Contains(string(ev.Data), "A project file is open") {
-			retried = true
+	var f *os.File
+	select {
+	case f = <-opened:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the coding round did not open the file")
+	}
+	defer f.Close()
+	// The file stays open until the publication reports the open file and
+	// waits; then the next attempt can succeed.
+	deadline := time.After(20 * time.Second)
+	for retried := false; !retried; {
+		select {
+		case ev, ok := <-events:
+			if !ok {
+				t.Fatal("the subscription ended")
+			}
+			retried = ev.Type == EventJobStep && strings.Contains(string(ev.Data), "A project file is open")
+		case <-deadline:
+			t.Fatal("no retry step while a project file was open")
 		}
 	}
-	if done.Status != JobSucceeded || !retried {
-		t.Fatalf("job = %+v, retried = %v", done, retried)
+	_ = f.Close()
+	if done := waitJob(t, env, job.ID, JobSucceeded, JobFailed); done.Status != JobSucceeded {
+		t.Fatalf("job = %+v", done)
 	}
 }
 
@@ -964,5 +990,208 @@ func TestCloseInterruptsTheRunningJobAndLeavesNoGoroutine(t *testing.T) {
 	summary, _ := after.svc.GetProject(ctx, p.ID)
 	if done.Status != JobInterrupted || summary.LockedByJob != "" || !summary.HasDraft {
 		t.Fatalf("after restart: job %+v, project %+v", done, summary)
+	}
+}
+
+func TestNewJobContextGrantsOneGraceWindow(t *testing.T) {
+	for _, productive := range []bool{true, false} {
+		t.Run(fmt.Sprintf("productive=%v", productive), func(t *testing.T) {
+			timers := newFakeTimers()
+			var wg sync.WaitGroup
+			var extensions []time.Duration
+			ctx, cancel := newJobContext(context.Background(), &wg, timers.newTimer, time.Minute,
+				func() bool { return productive }, func(d time.Duration) { extensions = append(extensions, d) })
+			defer cancel(nil)
+			budget := timers.next(t)
+			if budget.d != time.Minute || ctx.Err() != nil {
+				t.Fatalf("budget timer %v, ctx %v", budget.d, ctx.Err())
+			}
+			budget.fire()
+			if productive {
+				grace := timers.next(t)
+				if grace.d != 30*time.Second || ctx.Err() != nil {
+					t.Fatalf("grace timer %v, ctx %v", grace.d, ctx.Err())
+				}
+				grace.fire()
+			}
+			waitClosed(t, ctx.Done(), "the timeout")
+			waitGroupDone(t, &wg)
+			want := 0
+			if productive {
+				want = 1
+			}
+			if !errors.Is(context.Cause(ctx), errJobTimeout) || len(extensions) != want {
+				t.Fatalf("cause %v, extensions %v", context.Cause(ctx), extensions)
+			}
+			select {
+			case ft := <-timers.started:
+				t.Fatalf("a further timer (%v) was started", ft.d)
+			default:
+			}
+		})
+	}
+}
+
+func TestNewJobContextStopsWithItsContext(t *testing.T) {
+	timers := newFakeTimers()
+	var wg sync.WaitGroup
+	never := func() bool { t.Error("productive was asked after the context ended"); return true }
+	noGrace := func(time.Duration) { t.Error("a grace window was granted after the context ended") }
+	ctx, cancel := newJobContext(context.Background(), &wg, timers.newTimer, time.Minute, never, noGrace)
+	timers.next(t)
+	cancel(errJobCancelled)
+	waitGroupDone(t, &wg)
+	if !errors.Is(context.Cause(ctx), errJobCancelled) {
+		t.Fatalf("cause = %v", context.Cause(ctx))
+	}
+	parent, stop := context.WithCancel(context.Background())
+	ctx, cancel = newJobContext(parent, &wg, timers.newTimer, time.Minute, never, noGrace)
+	defer cancel(nil)
+	timers.next(t)
+	stop() // Close cancels the service context
+	waitGroupDone(t, &wg)
+	if !errors.Is(context.Cause(ctx), context.Canceled) {
+		t.Fatalf("cause after the parent ended = %v", context.Cause(ctx))
+	}
+}
+
+// blockingBuild makes every build wait until it is cancelled and announces
+// its start.
+func blockingBuild(started chan<- struct{}) func(ctx context.Context, req BuildRequest, onLog func(string)) (BuildOutput, error) {
+	return func(ctx context.Context, req BuildRequest, onLog func(string)) (BuildOutput, error) {
+		started <- struct{}{}
+		<-ctx.Done()
+		return BuildOutput{}, ctx.Err()
+	}
+}
+
+func TestCancelDuringTheOrchestratorBuildCancelsTheJob(t *testing.T) {
+	env, runner, p := newJobEnv(t)
+	started := make(chan struct{}, 1)
+	env.builder.build = blockingBuild(started)
+	runner.on(PhaseCoding, func(ctx context.Context, run JobRun) error {
+		_, err := env.svc.WriteJobFile(ctx, run.Job.ID, "src/app/extra.cpp", "int y;\n")
+		return err
+	})
+	ctx := context.Background()
+	job, err := env.svc.StartJob(ctx, p.ID, StartJobInput{Mode: JobModeChange, Prompt: "x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitClosed(t, started, "the build")
+	if err := env.svc.CancelJob(ctx, job.ID); err != nil {
+		t.Fatal(err)
+	}
+	done := waitJob(t, env, job.ID, JobCancelled, JobFailed, JobInterrupted)
+	summary, _ := env.svc.GetProject(ctx, p.ID)
+	if done.Status != JobCancelled || done.ErrorCode != "" || done.ErrorMessage != "" || !summary.HasDraft {
+		t.Fatalf("job = %+v, project = %+v", done, summary)
+	}
+	if b, _ := env.svc.GetBuild(ctx, done.BuildID); done.BuildID != "" && b.Status != BuildCancelled {
+		t.Fatalf("build = %+v", b)
+	}
+}
+
+func TestTimeoutDuringTheOrchestratorBuildReportsTheTimeLimit(t *testing.T) {
+	env, runner, p := newJobEnv(t, testServiceOptions{limits: ServiceLimits{JobTimeout: 30 * time.Second}})
+	timers := useFakeTimers(env)
+	started := make(chan struct{}, 1)
+	env.builder.build = blockingBuild(started)
+	runner.on(PhaseCoding, func(ctx context.Context, run JobRun) error { return nil }) // no change: no grace window
+	job, err := env.svc.StartJob(context.Background(), p.ID, StartJobInput{Mode: JobModeChange, Prompt: "x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	budget := timers.next(t)
+	waitClosed(t, started, "the build")
+	budget.fire()
+	done := waitJob(t, env, job.ID, JobFailed, JobCancelled, JobInterrupted)
+	if done.Status != JobFailed || done.ErrorCode != "" || done.ErrorMessage != "The job exceeded its time limit of 30s." {
+		t.Fatalf("job = %+v", done)
+	}
+}
+
+func TestOrchestratorFailuresStayInTheServerLog(t *testing.T) {
+	env, runner, p := newJobEnv(t)
+	runner.on(PhaseCoding, func(ctx context.Context, run JobRun) error {
+		// The working copy vanishes: the build step fails with a path error.
+		return os.RemoveAll(env.svc.stagingPath(run.Job.ID))
+	})
+	job, err := env.svc.StartJob(context.Background(), p.ID, StartJobInput{Mode: JobModeChange, Prompt: "x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := waitJob(t, env, job.ID, JobFailed, JobSucceeded)
+	if done.Status != JobFailed || done.ErrorCode != CodeInternal || strings.Contains(done.ErrorMessage, env.dir) ||
+		strings.Contains(done.ErrorMessage, stagingDirName) || strings.Contains(done.ErrorMessage, "agent stopped") {
+		t.Fatalf("job = %+v", done)
+	}
+}
+
+func TestToolsRefuseAnEndingJob(t *testing.T) {
+	env, runner, p := newJobEnv(t)
+	started := make(chan struct{})
+	var late error
+	runner.on(PhaseCoding, func(ctx context.Context, run JobRun) error {
+		close(started)
+		<-ctx.Done()
+		// A tool call that was already on its way when the job was cancelled.
+		_, late = env.svc.WriteJobFile(context.Background(), run.Job.ID, "src/app/late.cpp", "int l;\n")
+		return ctx.Err()
+	})
+	ctx := context.Background()
+	job, err := env.svc.StartJob(ctx, p.ID, StartJobInput{Mode: JobModeChange, Prompt: "x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitClosed(t, started, "the coding round")
+	if err := env.svc.CancelJob(ctx, job.ID); err != nil {
+		t.Fatal(err)
+	}
+	waitJob(t, env, job.ID, JobCancelled)
+	if e := wantCode(t, late, CodeJobState); !strings.Contains(e.Message, "ending") {
+		t.Fatalf("late write = %v", e)
+	}
+	summary, _ := env.svc.GetProject(ctx, p.ID)
+	if summary.HasDraft {
+		t.Fatal("the refused write became a draft")
+	}
+}
+
+func TestConfirmAndCancelOfAWaitingJobDoNotRace(t *testing.T) {
+	env, runner, p := newJobEnv(t)
+	runner.on(PhasePlanning, func(ctx context.Context, run JobRun) error {
+		_, err := env.svc.SubmitPlan(ctx, run.Job.ID, []byte(testPlanJSON))
+		return err
+	})
+	// A confirmed run that the cancel does not reach would wait here forever.
+	runner.on(PhaseLayout, func(ctx context.Context, run JobRun) error {
+		<-ctx.Done()
+		return ctx.Err()
+	})
+	ctx := context.Background()
+	for i := 0; i < 20; i++ {
+		job, err := env.svc.StartJob(ctx, p.ID, StartJobInput{Mode: JobModeNew, Prompt: fmt.Sprintf("idea %d", i)})
+		if err != nil {
+			t.Fatalf("round %d: %v", i, err)
+		}
+		waitJob(t, env, job.ID, JobAwaitingConfirmation)
+		var wg sync.WaitGroup
+		var confirmErr, cancelErr error
+		gate := make(chan struct{})
+		wg.Add(2)
+		go func() { defer wg.Done(); <-gate; _, confirmErr = env.svc.ConfirmJob(ctx, job.ID, "") }()
+		go func() { defer wg.Done(); <-gate; cancelErr = env.svc.CancelJob(ctx, job.ID) }()
+		close(gate)
+		wg.Wait()
+		if cancelErr != nil || (confirmErr != nil && ErrorCode(confirmErr) != CodeJobState) {
+			t.Fatalf("round %d: confirm %v, cancel %v", i, confirmErr, cancelErr)
+		}
+		if done := waitJob(t, env, job.ID, JobCancelled, JobFailed, JobSucceeded); done.Status != JobCancelled {
+			t.Fatalf("round %d: job = %+v", i, done)
+		}
+		if summary, _ := env.svc.GetProject(ctx, p.ID); summary.LockedByJob != "" {
+			t.Fatalf("round %d: project still locked: %+v", i, summary)
+		}
 	}
 }
