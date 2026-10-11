@@ -41,9 +41,17 @@ func correctionFixture(t *testing.T) (*MemoryCorrectionService, MemoryReference,
 	return &MemoryCorrectionService{Memory: s, Vector: v, Graph: g, Access: CorrectionAccess{true, true, true}}, MemoryReference{Store: "core", ID: fmt.Sprint(id)}, stored.CreatedIDs[0]
 }
 
+func correctionFixtureChanges(ref MemoryReference, vectorID, operation, value string) []MemoryCorrectionChange {
+	return []MemoryCorrectionChange{
+		{Reference: ref, Operation: operation, Value: value},
+		{Reference: MemoryReference{Store: "profile", Category: "prefs", Key: "drink"}, Operation: operation, Value: value},
+		{Reference: MemoryReference{Store: "ltm", ID: vectorID}, Operation: operation, Value: value},
+	}
+}
+
 func TestMemoryCorrectionFourStoresAndReplay(t *testing.T) {
 	c, ref, oldID := correctionFixture(t)
-	p, err := c.Preview(t.Context(), "chat", "turn", "User corrected their preference", []MemoryCorrectionChange{{Reference: ref, Operation: "replace", Value: correctionNew}}, correctionTestEvidence())
+	p, err := c.Preview(t.Context(), "chat", "turn", "User corrected their preference", correctionFixtureChanges(ref, oldID, "replace", correctionNew), correctionTestEvidence())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +105,13 @@ func TestMemoryCorrectionFourStoresAndReplay(t *testing.T) {
 	if _, err = c.Graph.UpdateNode("core_fact_"+ref.ID, correctionOld, map[string]string{"content": correctionOld}); err == nil {
 		t.Fatal("old graph fact resurrected")
 	}
-	next, err := c.Preview(t.Context(), "chat", "new-turn", "User changed their preference again", []MemoryCorrectionChange{{Reference: ref, Operation: "replace", Value: correctionOld}}, correctionTestEvidence())
+	var currentID string
+	for _, item := range p.Items {
+		if item.Reference.Store == "ltm" {
+			currentID = item.ReplacementID
+		}
+	}
+	next, err := c.Preview(t.Context(), "chat", "new-turn", "User changed their preference again", correctionFixtureChanges(ref, currentID, "replace", correctionOld), correctionTestEvidence())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +124,7 @@ func TestMemoryCorrectionArchiveAndProtection(t *testing.T) {
 	for _, mode := range []string{"archive", "protected", "readonly", "profile-disabled", "stale", "cancelled"} {
 		t.Run(mode, func(t *testing.T) {
 			c, ref, vectorID := correctionFixture(t)
-			p, err := c.Preview(t.Context(), "chat", "turn", "Withdraw incorrect preference", []MemoryCorrectionChange{{Reference: ref, Operation: "archive"}}, correctionTestEvidence())
+			p, err := c.Preview(t.Context(), "chat", "turn", "Withdraw incorrect preference", correctionFixtureChanges(ref, vectorID, "archive", ""), correctionTestEvidence())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -182,10 +196,10 @@ func (v *failingCorrectionVector) StoreCorrectionDocument(ctx context.Context, i
 }
 
 func TestMemoryCorrectionEmbeddingFailureAndResume(t *testing.T) {
-	c, ref, _ := correctionFixture(t)
+	c, ref, oldID := correctionFixture(t)
 	v := &failingCorrectionVector{c.Vector.(*ChromemVectorDB), true}
 	c.Vector = v
-	p, err := c.Preview(t.Context(), "chat", "turn", "Correct preference", []MemoryCorrectionChange{{Reference: ref, Operation: "replace", Value: correctionNew}}, correctionTestEvidence())
+	p, err := c.Preview(t.Context(), "chat", "turn", "Correct preference", correctionFixtureChanges(ref, oldID, "replace", correctionNew), correctionTestEvidence())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,8 +226,8 @@ func TestMemoryCorrectionEmbeddingFailureAndResume(t *testing.T) {
 }
 
 func TestMemoryCorrectionLocalFailureUsesDurableReceipt(t *testing.T) {
-	c, ref, _ := correctionFixture(t)
-	p, err := c.Preview(t.Context(), "chat", "turn", "Correct preference", []MemoryCorrectionChange{{Reference: ref, Operation: "replace", Value: correctionNew}}, correctionTestEvidence())
+	c, ref, oldID := correctionFixture(t)
+	p, err := c.Preview(t.Context(), "chat", "turn", "Correct preference", correctionFixtureChanges(ref, oldID, "replace", correctionNew), correctionTestEvidence())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -284,7 +298,7 @@ func TestMemoryCorrectionMigrationBacksUpPopulatedDatabase(t *testing.T) {
 
 func TestMemoryCorrectionFreshEvidenceCanRestoreArchivedTargets(t *testing.T) {
 	c, ref, oldID := correctionFixture(t)
-	p, err := c.Preview(t.Context(), "chat", "turn", "Withdraw preference", []MemoryCorrectionChange{{Reference: ref, Operation: "archive"}}, correctionTestEvidence())
+	p, err := c.Preview(t.Context(), "chat", "turn", "Withdraw preference", correctionFixtureChanges(ref, oldID, "archive", ""), correctionTestEvidence())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -306,7 +320,7 @@ func TestMemoryCorrectionFreshEvidenceCanRestoreArchivedTargets(t *testing.T) {
 
 func TestMemoryCorrectionReadActivityDoesNotInvalidatePreview(t *testing.T) {
 	c, ref, oldID := correctionFixture(t)
-	p, err := c.Preview(t.Context(), "chat", "turn", "Correct preference", []MemoryCorrectionChange{{Reference: ref, Operation: "replace", Value: correctionNew}}, correctionTestEvidence())
+	p, err := c.Preview(t.Context(), "chat", "turn", "Correct preference", correctionFixtureChanges(ref, oldID, "replace", correctionNew), correctionTestEvidence())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -71,6 +71,9 @@ func TestCorrectMemoryFourStoresUseCurrentRetrieval(t *testing.T) {
 			if operation == "archive" {
 				call.CorrectionChanges[0].Value = ""
 			}
+			for _, ref := range []memory.MemoryReference{{Store: "profile", Category: "prefs", Key: "drink"}, {Store: "ltm", ID: "old-vector"}} {
+				call.CorrectionChanges = append(call.CorrectionChanges, memory.MemoryCorrectionChange{Reference: ref, Operation: operation, Value: call.CorrectionChanges[0].Value})
+			}
 			p, status := decodeCorrectionTestResult(t, dispatchMemoryCorrection(t.Context(), call, dc))
 			if p == nil || status != "success" || len(p.Items) != 4 {
 				t.Fatal("four-store preview failed", p, status)
@@ -109,5 +112,56 @@ func TestCorrectMemoryFourStoresUseCurrentRetrieval(t *testing.T) {
 				t.Fatal("historical vector lost")
 			}
 		})
+	}
+}
+
+type interruptedCorrectionVector struct {
+	*correctionRetrievalVector
+}
+
+func (v *interruptedCorrectionVector) StoreCorrectionDocument(ctx context.Context, id, text string) error {
+	if err := v.correctionRetrievalVector.StoreCorrectionDocument(ctx, id, text); err != nil {
+		return err
+	}
+	return fmt.Errorf("injected interruption after vector write")
+}
+
+func TestCorrectMemoryPendingReplacementRemainsInvisible(t *testing.T) {
+	_, dc, _ := correctionAgentFixture(t)
+	const old, updated, query = "User prefers black coffee", "User prefers green tea", "User prefers"
+	v := &interruptedCorrectionVector{&correctionRetrievalVector{documents: map[string]string{"old-vector": old}, archiveFilterVectorDB: archiveFilterVectorDB{byQuery: map[string][]memory.SearchResult{
+		query: {{DocID: "old-vector", Text: old, Similarity: .99}},
+		old:   {{DocID: "old-vector", Text: old, Similarity: .99}},
+	}}}}
+	if err := dc.ShortTermMem.UpsertMemoryMetaWithDetails("old-vector", memory.MemoryMetaUpdate{VerificationStatus: "confirmed"}); err != nil {
+		t.Fatal(err)
+	}
+	c := &memory.MemoryCorrectionService{Memory: dc.ShortTermMem, Vector: v, Access: memory.CorrectionAccess{MemoryWrite: true, ProfileEnabled: true}}
+	p, err := c.Preview(t.Context(), "chat", "turn", "Correct preference", []memory.MemoryCorrectionChange{{Reference: memory.MemoryReference{Store: "ltm", ID: "old-vector"}, Operation: "replace", Value: updated}}, []memory.CorrectionEvidence{{Reference: "user:current", Kind: "user", Quote: "I prefer green tea", ContentHash: "fixture"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = c.Apply(t.Context(), p.ID, "chat"); err == nil {
+		t.Fatal("interruption was not injected")
+	}
+	replacement := p.Items[0].ReplacementID
+	if err = dc.ShortTermMem.ApplyMemoryCurationAction(memory.MemoryCurationAction{DocID: replacement, Action: "confirm"}, "admin", false); err == nil {
+		t.Fatal("curation published an incomplete correction")
+	}
+	local, err := QueryMemoryForLocalAgent(query, 10, dc.ShortTermMem, v, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, _ := json.Marshal(local)
+	if strings.Contains(string(data), updated) || !strings.Contains(string(data), old) {
+		t.Fatal("normal/local retrieval exposed staged replacement or hid original", string(data))
+	}
+	ranked, err := searchRankedMemoriesOnly(t.Context(), v, dc.ShortTermMem, query, 5, nil, time.Now())
+	if err != nil || len(ranked) != 1 || ranked[0].text != old {
+		t.Fatal("Auto-RAG exposed staged replacement", ranked, err)
+	}
+	recalled, err := RecallMemoryForLocalAgent(replacement, dc.ShortTermMem, v)
+	if err != nil || len(recalled["results"].([]interface{})) != 0 {
+		t.Fatal("ID retrieval exposed staged replacement", recalled, err)
 	}
 }

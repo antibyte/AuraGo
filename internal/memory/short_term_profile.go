@@ -500,11 +500,10 @@ func (s *SQLiteMemory) GetProfileEntries(category string) ([]ProfileEntry, error
 
 // DeleteProfileEntry removes a single user profile entry by category and key.
 func (s *SQLiteMemory) DeleteProfileEntry(category, key string) error {
-	res, err := s.db.Exec("DELETE FROM user_profile WHERE category = ? AND key = ?", category, key)
+	affected, err := s.deleteProfileEntries(category, key, false)
 	if err != nil {
 		return err
 	}
-	affected, _ := res.RowsAffected()
 	if affected == 0 {
 		return fmt.Errorf("profile entry not found: %s/%s", category, key)
 	}
@@ -513,7 +512,7 @@ func (s *SQLiteMemory) DeleteProfileEntry(category, key string) error {
 
 // ResetUserProfile deletes all automatically collected profile data.
 func (s *SQLiteMemory) ResetUserProfile() error {
-	_, err := s.db.Exec("DELETE FROM user_profile")
+	_, err := s.deleteProfileEntries("", "", true)
 	return err
 }
 

@@ -35,8 +35,9 @@ Each change has `reference`, `operation` (`replace` or `archive`), and optionall
 No whole-entity deletion is supported. Protected or externally owned entries
 remain protected. Read-only and disabled stores are checked before applying.
 Co-agents cannot use this tool. The backend freshly reads each target and includes
-unambiguous exact fact copies; short scalar matches and other semantic neighbors
-are `review_required` candidates, never implicitly authorized edits. Supply explicit
+its proven core-memory graph copy. Equal text alone does not establish ownership:
+all other matching values and semantic neighbors are `review_required` candidates.
+Supply explicit
 changes for candidates that evidence clearly identifies as the same fact. Arbitrary
 paraphrases cannot be linked deterministically. `review_limited` means the bounded
 candidate search could not establish complete coverage.
@@ -50,6 +51,9 @@ When evidence is clear, continue immediately with
 Apply and `status` accept only `operation` and the saved ID. Old content stays
 in the protected database history; old LTM vectors remain archived. Pending
 replacement vectors are invisible to normal memory retrieval.
+Administrative confirmation cannot publish a staged replacement. Deleting or
+resetting a corrected profile field keeps it withdrawn; use a fresh evidenced
+correction to restore it.
 
 ## Result and recovery
 
@@ -59,5 +63,6 @@ has unresolved candidates. Never claim all copies were fixed in that case.
 `incomplete` or `blocked` is not success, even if some items are `done`.
 Use `status` with the ID to inspect durable per-step progress. Retries resume
 the same ID only while saved target states, permissions and protections still
-match. Changed facts require a new preview and fresh evidence. A later real
+match. Graph property revisions also reject changes that reverted to the old value.
+Changed facts require a new preview and fresh evidence. A later real
 change in preference is a new correction, not a replay of an old operation.

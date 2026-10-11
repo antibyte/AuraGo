@@ -147,7 +147,10 @@ func (s *SQLiteMemory) initMemoryCorrections() error {
 	CREATE TRIGGER IF NOT EXISTS core_correction_update BEFORE UPDATE OF fact ON core_memory
 	WHEN EXISTS(SELECT 1 FROM memory_correction_guards WHERE identity=NEW.normalized_fact)
 	BEGIN SELECT RAISE(ABORT,'fact was corrected; use a new evidenced correction'); END;`)
-	return err
+	if err != nil {
+		return err
+	}
+	return s.initCorrectionPublication()
 }
 
 func (s *SQLiteMemory) MemoryCorrection(id, sessionID string) (*MemoryCorrection, error) {
@@ -179,6 +182,13 @@ func (s *SQLiteMemory) IsCorrectedMemoryFact(text string) (bool, error) {
 	var exists int
 	err := s.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM memory_correction_guards WHERE identity=?)`, correctionIdentity(text)).Scan(&exists)
 	return exists != 0, err
+}
+
+// KeepCoreMemoryGraphNode also covers restoration after maintenance loaded its facts.
+func (s *SQLiteMemory) KeepCoreMemoryGraphNode(id string) (bool, error) {
+	var keep bool
+	err := s.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM core_memory WHERE id=?) OR EXISTS(SELECT 1 FROM memory_correction_tombstones WHERE reference=?)`, id, correctionReferenceKey(MemoryReference{Store: "core", ID: id})).Scan(&keep)
+	return keep, err
 }
 
 func (c *MemoryCorrectionService) checkAccess(ref MemoryReference) error {

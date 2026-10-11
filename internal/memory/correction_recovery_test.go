@@ -151,12 +151,12 @@ func TestMemoryCorrectionToolEvidenceCannotAuthorizePersonalFact(t *testing.T) {
 }
 
 func TestMemoryCorrectionAmbiguousCandidateRemainsUnchanged(t *testing.T) {
-	c, ref, _ := correctionFixture(t)
+	c, ref, oldID := correctionFixture(t)
 	other, err := StoreAutomaticMemoryDocument(c.Memory, c.Vector, "unrelated", "A visitor prefers black tea", MemoryMetaUpdate{VerificationStatus: "confirmed"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := c.Preview(t.Context(), "chat", "turn", "Correct preference", []MemoryCorrectionChange{{Reference: ref, Operation: "replace", Value: correctionNew}}, correctionTestEvidence())
+	p, err := c.Preview(t.Context(), "chat", "turn", "Correct preference", correctionFixtureChanges(ref, oldID, "replace", correctionNew), correctionTestEvidence())
 	if err != nil || len(p.Review) != 1 || p.Review[0].ID != other.CreatedIDs[0] {
 		t.Fatal("ambiguous candidate missing", err)
 	}

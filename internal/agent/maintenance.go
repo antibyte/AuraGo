@@ -2586,6 +2586,13 @@ func SyncCoreMemoryToKnowledgeGraph(ctx context.Context, stm *memory.SQLiteMemor
 		if _, ok := expected[node.ID]; ok {
 			continue
 		}
+		keep, err := stm.KeepCoreMemoryGraphNode(strings.TrimPrefix(node.ID, "core_fact_"))
+		if err != nil {
+			return errors.Join(resultErr, fmt.Errorf("read core correction retirement: %w", err))
+		}
+		if keep {
+			continue
+		}
 		if err := kg.DeleteNode(node.ID); err != nil {
 			resultErr = errors.Join(resultErr, err)
 			logger.Debug("[Maintenance] Failed to delete stale core memory KG node", "nodeID", node.ID, "error", err)

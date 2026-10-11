@@ -263,11 +263,8 @@ func (c *MemoryCorrectionService) relatedCopies(ctx context.Context, change Memo
 			return
 		}
 		if correctionIdentity(value) == correctionIdentity(old) {
-			if len(strings.Fields(old)) < 3 || change.Reference.Store == "kg_edge" {
-				review = append(review, ref)
-			} else {
-				copies = append(copies, MemoryCorrectionChange{Reference: ref, Operation: change.Operation, Value: change.Value})
-			}
+			// Equal values do not establish a shared subject, field or provenance.
+			review = append(review, ref)
 		}
 	}
 	facts, err := c.Memory.GetCoreMemoryFacts()
@@ -320,7 +317,7 @@ func (c *MemoryCorrectionService) relatedCopies(ctx context.Context, change Memo
 		}
 	}
 	if c.Graph != nil {
-		// Exact property/label equality catches copied facts without expanding a fuzzy match into a mutation.
+		// Only the explicit core-memory ownership link authorizes automatic expansion.
 		nodes, err := c.Graph.GetAllNodes(10001)
 		if err != nil {
 			return nil, nil, false, err

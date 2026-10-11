@@ -46,7 +46,10 @@ func (kg *KnowledgeGraph) initCorrectionHistory() error {
 	}
 	_, err := kg.db.Exec(`CREATE TABLE IF NOT EXISTS kg_correction_receipts (id TEXT PRIMARY KEY, after_json TEXT NOT NULL);
 	CREATE TABLE IF NOT EXISTS kg_correction_guards (reference TEXT NOT NULL, value TEXT NOT NULL, correction_id TEXT NOT NULL, PRIMARY KEY(reference,value));`)
-	return err
+	if err != nil {
+		return err
+	}
+	return kg.initCorrectionFieldRevisions()
 }
 
 func (kg *KnowledgeGraph) correctionSnapshot(ctx context.Context, q correctionQueryer, ref MemoryReference) (correctionSnapshot, error) {
@@ -57,7 +60,10 @@ func (kg *KnowledgeGraph) correctionSnapshot(ctx context.Context, q correctionQu
 		}
 		node := &Node{ID: ref.ID}
 		var props string
-		if err := q.QueryRowContext(ctx, `SELECT label,properties,protected,updated_at FROM kg_nodes WHERE id=?`, ref.ID).Scan(&node.Label, &props, &node.Protected, &s.Revision); err != nil {
+		if err := q.QueryRowContext(ctx, `SELECT label,properties,protected,
+			'field-v1:'||COALESCE((SELECT revision FROM kg_correction_field_revisions WHERE node_id=kg_nodes.id AND field=''),0)
+			||':'||COALESCE((SELECT revision FROM kg_correction_field_revisions WHERE node_id=kg_nodes.id AND field=?),0)
+			FROM kg_nodes WHERE id=?`, ref.Field, ref.ID).Scan(&node.Label, &props, &node.Protected, &s.Revision); err != nil {
 			return s, err
 		}
 		if node.Protected {

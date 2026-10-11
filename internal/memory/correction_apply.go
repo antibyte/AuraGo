@@ -46,7 +46,7 @@ func correctionItemMatches(item *MemoryCorrectionItem, actual, expected []byte) 
 		return false
 	}
 	// Independent properties on the same entity may be corrected in separate steps.
-	return a.Value == b.Value && a.Node.Protected == b.Node.Protected && a.Node.Properties["source"] == b.Node.Properties["source"] && a.Node.Properties["type"] == b.Node.Properties["type"]
+	return a.Revision == b.Revision && a.Value == b.Value && a.Node.Protected == b.Node.Protected && a.Node.Properties["source"] == b.Node.Properties["source"] && a.Node.Properties["type"] == b.Node.Properties["type"]
 }
 
 // Apply replays only the stored plan. Each database commits its own receipt with its mutation.
@@ -182,8 +182,26 @@ func (c *MemoryCorrectionService) stageCorrectionVector(ctx context.Context, cor
 	if !ok {
 		return fmt.Errorf("vector backend does not support correction staging")
 	}
-	_, err := c.Memory.db.ExecContext(ctx, `INSERT INTO memory_meta(doc_id,verification_status,archived_at,archived_reason,source_type) VALUES(?,'archived',CURRENT_TIMESTAMP,?,'memory_correction') ON CONFLICT(doc_id) DO NOTHING`, item.ReplacementID, "staged correction "+correction.ID)
+	tx, err := c.Memory.db.BeginTx(ctx, nil)
 	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err = tx.ExecContext(ctx, `INSERT INTO memory_correction_vectors(doc_id,correction_id) VALUES(?,?) ON CONFLICT(doc_id) DO NOTHING`, item.ReplacementID, correction.ID); err != nil {
+		return err
+	}
+	var owner string
+	var published bool
+	if err = tx.QueryRowContext(ctx, `SELECT correction_id,published FROM memory_correction_vectors WHERE doc_id=?`, item.ReplacementID).Scan(&owner, &published); err != nil {
+		return err
+	}
+	if owner != correction.ID || published {
+		return fmt.Errorf("replacement publication ownership changed")
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO memory_meta(doc_id,verification_status,archived_at,archived_reason,source_type) VALUES(?,'archived',CURRENT_TIMESTAMP,?,'memory_correction') ON CONFLICT(doc_id) DO NOTHING`, item.ReplacementID, "staged correction "+correction.ID); err != nil {
+		return err
+	}
+	if err = tx.Commit(); err != nil {
 		return err
 	}
 	meta, err := c.Memory.GetMemoryMeta(item.ReplacementID)
@@ -250,6 +268,13 @@ func (c *MemoryCorrectionService) applyLocalCorrection(ctx context.Context, corr
 			}
 			if body != item.Value {
 				return fmt.Errorf("staged replacement content changed")
+			}
+			publication, writeErr := tx.ExecContext(ctx, `UPDATE memory_correction_vectors SET published=1 WHERE doc_id=? AND correction_id=? AND published=0`, item.ReplacementID, correction.ID)
+			if writeErr != nil {
+				return writeErr
+			}
+			if n, err := publication.RowsAffected(); err != nil || n != 1 {
+				return fmt.Errorf("replacement publication receipt missing or changed: %w", errors.Join(err, sql.ErrNoRows))
 			}
 			result, writeErr := tx.ExecContext(ctx, `UPDATE memory_meta SET verification_status='confirmed',source_type=?,source_reliability=1,extraction_confidence=1,archived_at=NULL,archived_reason='',last_reviewed_at=CURRENT_TIMESTAMP,review_note=?,last_event_at=CURRENT_TIMESTAMP WHERE doc_id=? AND archived_reason=? AND protected=0 AND keep_forever=0`, correctionReplacementSource(current.Meta), correction.Reason, item.ReplacementID, "staged correction "+correction.ID)
 			if writeErr != nil {
@@ -318,6 +343,13 @@ func (c *MemoryCorrectionService) verifyCorrectionItem(ctx context.Context, item
 			return fmt.Errorf("old long-term memory remains active")
 		}
 		if item.Operation == "replace" {
+			var published bool
+			if err := c.Memory.db.QueryRowContext(ctx, `SELECT published FROM memory_correction_vectors WHERE doc_id=?`, item.ReplacementID).Scan(&published); err != nil {
+				return err
+			}
+			if !published {
+				return fmt.Errorf("replacement publication is incomplete")
+			}
 			m, err := c.Memory.GetMemoryMeta(item.ReplacementID)
 			if err != nil {
 				return err
