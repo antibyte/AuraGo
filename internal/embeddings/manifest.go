@@ -3,7 +3,6 @@ package embeddings
 import (
 	"fmt"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"aurago/internal/onnxrt"
@@ -182,15 +181,4 @@ func llamaRuntimeAsset(goos, goarch, backend string) (assetSpec, bool) {
 		return runtimeManifest["llama-darwin-arm64-metal"], true
 	}
 	return assetSpec{}, false
-}
-
-func defaultRuntimeLibraryName() string {
-	switch runtime.GOOS {
-	case "windows":
-		return "onnxruntime.dll"
-	case "darwin":
-		return "libonnxruntime.dylib"
-	default:
-		return "libonnxruntime.so"
-	}
 }

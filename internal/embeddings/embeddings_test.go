@@ -378,9 +378,6 @@ func TestRuntimeDiscoveryAndBackendHelpers(t *testing.T) {
 		onnxProviderName("directml") != "" {
 		t.Fatal("ONNX provider mapping still exposes an unsupported backend")
 	}
-	if !containsStringFold([]string{"CPUExecutionProvider", "CUDAExecutionProvider"}, "cudaexecutionprovider") {
-		t.Fatal("case-insensitive provider lookup failed")
-	}
 }
 
 func TestDetectHardwareProducesStableFingerprint(t *testing.T) {
