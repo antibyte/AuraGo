@@ -486,6 +486,7 @@ func TestValidateAssetSpecRejectsUnsafeIDsAndNonHexHashes(t *testing.T) {
 	valid := pinnedSpec("ort-linux-amd64-cpu", "https://example.invalid/a.bin", AssetFile, []byte("a"))
 	accepted := []string{
 		"a",
+		"a1",
 		"0",
 		"granite-gguf-q8_0",
 		"llama-windows-amd64-cuda-runtime",
@@ -510,6 +511,11 @@ func TestValidateAssetSpecRejectsUnsafeIDsAndNonHexHashes(t *testing.T) {
 		"-leading-dash",
 		".hidden",
 		"_leading-underscore",
+		// Windows strips trailing dots (and spaces) from path components, so
+		// "a." and "a" would share one directory; IDs end alphanumeric.
+		"a.",
+		"a-",
+		"a_",
 		"with space",
 		"nul\x00byte",
 		"ünicode",

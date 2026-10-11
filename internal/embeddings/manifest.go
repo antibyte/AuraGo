@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	onnxRuntimeVersion = "1.26.0"
+	onnxRuntimeVersion = onnxrt.CPURuntimeVersion
 	llamaRuntimeBuild  = "b9994"
 
 	onnxRevision = "9639449beea46c2d70bc73c31458f71ad7eed838"
@@ -63,34 +63,6 @@ var graniteGGUFModelAsset = assetSpec{
 }
 
 var runtimeManifest = map[string]assetSpec{
-	"ort-linux-amd64-cpu": {
-		ID: "ort-linux-amd64-cpu", URL: "https://github.com/microsoft/onnxruntime/releases/download/v1.26.0/onnxruntime-linux-x64-1.26.0.tgz",
-		Size: 8_590_023, SHA256: "1254da24fb389cf39dc0ff3451ab48301740ffbfcbaf646849df92f80ee92c57", Kind: assetTarGzip,
-	},
-	"ort-linux-arm64-cpu": {
-		ID: "ort-linux-arm64-cpu", URL: "https://github.com/microsoft/onnxruntime/releases/download/v1.26.0/onnxruntime-linux-aarch64-1.26.0.tgz",
-		Size: 7_608_947, SHA256: "34ff1c2d0f12e2cf3d33a0c5f82e39792e1d581fbd6968fd7c30d173654be01a", Kind: assetTarGzip,
-	},
-	"ort-linux-amd64-cuda": {
-		ID: "ort-linux-amd64-cuda", URL: "https://github.com/microsoft/onnxruntime/releases/download/v1.26.0/onnxruntime-linux-x64-gpu-1.26.0.tgz",
-		Size: 225_080_769, SHA256: "cb7df7ee2ca0f962c7ce7c839aeae36223d146a91fb4646d62fb0046f297479f", Kind: assetTarGzip,
-	},
-	"ort-windows-amd64-cpu": {
-		ID: "ort-windows-amd64-cpu", URL: "https://github.com/microsoft/onnxruntime/releases/download/v1.26.0/onnxruntime-win-x64-1.26.0.zip",
-		Size: 75_675_381, SHA256: "6ebe99b5564bf4d029b6e93eac9ff423682b6212eade769e9ca3f685eaf500b4", Kind: assetZip,
-	},
-	"ort-windows-arm64-cpu": {
-		ID: "ort-windows-arm64-cpu", URL: "https://github.com/microsoft/onnxruntime/releases/download/v1.26.0/onnxruntime-win-arm64-1.26.0.zip",
-		Size: 77_548_904, SHA256: "852e89621fb752b261821dda131042ed7c7fa18d8bb06768bd4eb7fa7086d87f", Kind: assetZip,
-	},
-	"ort-windows-amd64-cuda": {
-		ID: "ort-windows-amd64-cuda", URL: "https://github.com/microsoft/onnxruntime/releases/download/v1.26.0/onnxruntime-win-x64-gpu-1.26.0.zip",
-		Size: 300_180_373, SHA256: "1133b1bcb0fb6f82b1c5b470b7cc15f9080a58b27dbc7b579a1fd63125ec2a15", Kind: assetZip,
-	},
-	"ort-darwin-arm64-cpu": {
-		ID: "ort-darwin-arm64-cpu", URL: "https://github.com/microsoft/onnxruntime/releases/download/v1.26.0/onnxruntime-osx-arm64-1.26.0.tgz",
-		Size: 31_717_869, SHA256: "7a1280bbb1701ea514f71828765237e7896e0f2e1cd332f1f70dbd5c3e33aca3", Kind: assetTarGzip,
-	},
 	"llama-linux-amd64-cpu": {
 		ID: "llama-linux-amd64-cpu", URL: "https://github.com/ggml-org/llama.cpp/releases/download/b9994/llama-b9994-bin-ubuntu-x64.tar.gz",
 		Size: 15_857_307, SHA256: "c24bca8f672d2cc9a2d2b056f68d224de3ab017c512c988c56007491fc4f1587", Kind: assetTarGzip,
@@ -189,18 +161,16 @@ func ggufFingerprint() string {
 }
 
 func onnxRuntimeAsset(goos, goarch, backend string) (assetSpec, bool) {
-	assetBackend := "cpu"
 	switch backend {
 	case "cuda":
-		assetBackend = "cuda"
+		return onnxrt.CUDARuntimeAsset(goos, goarch)
 	case "cpu", "coreml":
 		// The official macOS runtime bundle exposes CoreML from the same
 		// archive as its CPU provider.
+		return onnxrt.CPURuntimeAsset(goos, goarch)
 	default:
 		return assetSpec{}, false
 	}
-	asset, ok := runtimeManifest[fmt.Sprintf("ort-%s-%s-%s", goos, goarch, assetBackend)]
-	return asset, ok
 }
 
 func llamaRuntimeAsset(goos, goarch, backend string) (assetSpec, bool) {

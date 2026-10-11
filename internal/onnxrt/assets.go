@@ -212,7 +212,7 @@ func ArchivePath(root string, spec AssetSpec) string {
 // archive kinds extractRuntimeArchive cannot unpack. Keep both in sync.
 func validateRuntimeArchiveKind(spec AssetSpec) error {
 	switch spec.Kind {
-	case AssetZip, AssetTarGzip:
+	case AssetZip, AssetTarGzip, AssetWheel:
 		return nil
 	default:
 		return fmt.Errorf("runtime asset %s has unsupported archive kind %q", spec.ID, spec.Kind)
@@ -225,6 +225,8 @@ func extractRuntimeArchive(spec AssetSpec, archivePath, target string) error {
 		return extractZipSecure(archivePath, target)
 	case AssetTarGzip:
 		return extractTarGzipSecure(archivePath, target)
+	case AssetWheel:
+		return extractWheelMembers(archivePath, target, spec.Members)
 	default:
 		return fmt.Errorf("runtime asset %s has unsupported archive kind %q", spec.ID, spec.Kind)
 	}
@@ -322,11 +324,13 @@ func (c *AssetCache) ensureFileUnlocked(ctx context.Context, spec AssetSpec, des
 
 // assetIDPattern keeps asset IDs safe as single path components: RuntimeDir
 // and ArchivePath join them below the cache root. It also rules out "." and
-// "..".
-var assetIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
+// "..", and a trailing ".", "-" or "_" (Windows strips trailing dots, so "a."
+// and "a" would share one runtime directory).
+var assetIDPattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$`)
 
 // ValidateAssetSpec requires an ID that is a safe path component, an
-// absolute HTTPS URL, a positive size and a 64-digit hexadecimal SHA-256.
+// absolute HTTPS URL, a positive size and a 64-digit hexadecimal SHA-256;
+// wheel assets also need valid Members.
 func ValidateAssetSpec(spec AssetSpec) error {
 	if !assetIDPattern.MatchString(spec.ID) {
 		return fmt.Errorf("asset ID %q must match %s", spec.ID, assetIDPattern)
@@ -346,6 +350,9 @@ func ValidateAssetSpec(spec AssetSpec) error {
 	}
 	if _, err := hex.DecodeString(spec.SHA256); err != nil {
 		return fmt.Errorf("asset %s has invalid SHA-256: %w", spec.ID, err)
+	}
+	if spec.Kind == AssetWheel {
+		return validateWheelMembers(spec.ID, spec.Members)
 	}
 	return nil
 }
