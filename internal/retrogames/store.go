@@ -13,13 +13,17 @@ import (
 
 	"aurago/internal/dbutil"
 
-	_ "modernc.org/sqlite" // registers the "sqlite" driver that dbutil.Open uses
+	"modernc.org/sqlite" // also registers the "sqlite" driver that dbutil.Open uses
 )
 
 const (
 	schemaVersion = 1
 	dbFileName    = "retrogames.db"
 	gameColumns   = "g.identifier, g.title, g.year, g.creator, g.platform, g.system, g.emulator, g.downloads"
+
+	// busyTimeoutMS is generous because replacing a large source holds the
+	// write lock for several seconds.
+	busyTimeoutMS = 30000
 )
 
 var schemaStatements = []string{
@@ -48,7 +52,7 @@ var schemaStatements = []string{
 	`CREATE TRIGGER IF NOT EXISTS games_ad AFTER DELETE ON games BEGIN
 		INSERT INTO games_fts(games_fts, rowid, title, creator, tags) VALUES ('delete', old.id, old.title, old.creator, old.tags);
 	END`,
-	`CREATE TRIGGER IF NOT EXISTS games_au AFTER UPDATE ON games BEGIN
+	`CREATE TRIGGER IF NOT EXISTS games_au AFTER UPDATE OF title, creator, tags ON games BEGIN
 		INSERT INTO games_fts(games_fts, rowid, title, creator, tags) VALUES ('delete', old.id, old.title, old.creator, old.tags);
 		INSERT INTO games_fts(rowid, title, creator, tags) VALUES (new.id, new.title, new.creator, new.tags);
 	END`,
@@ -59,11 +63,11 @@ var schemaStatements = []string{
 	`CREATE TABLE IF NOT EXISTS sync_state (source TEXT PRIMARY KEY, last_success_at INTEGER NOT NULL DEFAULT 0, last_attempt_at INTEGER NOT NULL DEFAULT 0, item_count INTEGER NOT NULL DEFAULT 0, last_error TEXT NOT NULL DEFAULT '')`,
 }
 
-const upsertGameSQL = `INSERT INTO games(identifier, title, year, creator, platform, system, emulator, downloads, pop_rank, tags, source, synced_at)
+// insertGameSQL keeps the first source that owns an identifier: another source
+// listing the same item does not steal it.
+const insertGameSQL = `INSERT INTO games(identifier, title, year, creator, platform, system, emulator, downloads, pop_rank, tags, source, synced_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(identifier) DO UPDATE SET title = excluded.title, year = excluded.year, creator = excluded.creator,
-	platform = excluded.platform, system = excluded.system, emulator = excluded.emulator, downloads = excluded.downloads,
-	pop_rank = excluded.pop_rank, tags = excluded.tags, source = excluded.source, synced_at = excluded.synced_at`
+ON CONFLICT(identifier) DO NOTHING`
 
 // Store is the SQLite index plus the user's library.
 type Store struct {
@@ -79,8 +83,9 @@ type SyncState struct {
 	LastError     string
 }
 
-// OpenStore opens or creates the index database in dir. A corrupt database is
-// moved aside to .bak by dbutil and replaced by a fresh one.
+// OpenStore opens or creates the index database in dir. Only a database that
+// is really corrupt is moved aside (to .corrupt-<timestamp>) and replaced by a
+// fresh one; any other open error is returned unchanged.
 func OpenStore(dir string, logger *slog.Logger) (*Store, error) {
 	dir = strings.TrimSpace(dir)
 	if dir == "" {
@@ -92,9 +97,26 @@ func OpenStore(dir string, logger *slog.Logger) (*Store, error) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, fmt.Errorf("retrogames: create data directory: %w", err)
 	}
-	db, err := dbutil.Open(filepath.Join(dir, dbFileName), dbutil.WithCorruptionRecovery(logger))
+	path := filepath.Join(dir, dbFileName)
+	db, err := dbutil.Open(path, dbutil.WithBusyTimeout(busyTimeoutMS))
+	if err != nil && isCorruptDB(err) {
+		logger.Error("retrogames: index database is corrupt, starting a fresh one", "path", path, "error", err)
+		if moveErr := moveCorruptAside(path, time.Now().UTC()); moveErr != nil {
+			return nil, fmt.Errorf("retrogames: move corrupt index aside: %w", moveErr)
+		}
+		db, err = dbutil.Open(path, dbutil.WithBusyTimeout(busyTimeoutMS))
+	}
 	if err != nil {
 		return nil, fmt.Errorf("retrogames: open index: %w", err)
+	}
+	version, err := dbutil.GetUserVersion(db)
+	if err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("retrogames: read schema version: %w", err)
+	}
+	if version > schemaVersion {
+		_ = db.Close()
+		return nil, fmt.Errorf("retrogames: index was created by a newer AuraGo (schema %d)", version)
 	}
 	for _, stmt := range schemaStatements {
 		if _, err := db.Exec(stmt); err != nil {
@@ -102,11 +124,47 @@ func OpenStore(dir string, logger *slog.Logger) (*Store, error) {
 			return nil, fmt.Errorf("retrogames: create schema: %w", err)
 		}
 	}
-	if err := dbutil.SetUserVersion(db, schemaVersion); err != nil {
-		_ = db.Close()
-		return nil, fmt.Errorf("retrogames: set schema version: %w", err)
+	if version < schemaVersion {
+		if err := dbutil.SetUserVersion(db, schemaVersion); err != nil {
+			_ = db.Close()
+			return nil, fmt.Errorf("retrogames: set schema version: %w", err)
+		}
 	}
 	return &Store{db: db}, nil
+}
+
+// isCorruptDB reports whether err means the database file itself is damaged.
+// The library tables (favorites, plays, broken) are user data, so only real
+// corruption may move the file; locks, I/O and permission errors must not.
+func isCorruptDB(err error) bool {
+	var se *sqlite.Error
+	if errors.As(err, &se) {
+		switch se.Code() & 0xff {
+		case 11, 26: // SQLITE_CORRUPT, SQLITE_NOTADB
+			return true
+		}
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "database integrity check failed") || strings.Contains(msg, "file is not a database")
+}
+
+// moveCorruptAside renames the database and its WAL/SHM companions that exist
+// to <name>.corrupt-<timestamp>.
+func moveCorruptAside(path string, now time.Time) error {
+	stamp := now.Format("20060102-150405")
+	for _, suffix := range []string{"", "-wal", "-shm"} {
+		src := path + suffix
+		if _, err := os.Stat(src); err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			return err
+		}
+		if err := os.Rename(src, src+".corrupt-"+stamp); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Close closes the database.
@@ -117,6 +175,12 @@ func (st *Store) Close() error {
 // ReplaceSource swaps all rows of one source for games in a single
 // transaction and records the successful sync.
 func (st *Store) ReplaceSource(ctx context.Context, source string, games []Game, now time.Time) error {
+	if !ValidPlatform(source) {
+		return fmt.Errorf("retrogames: unknown source %q", source)
+	}
+	if len(games) == 0 {
+		return fmt.Errorf("retrogames: refusing to replace source %s with no games", source)
+	}
 	tx, err := st.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("retrogames: begin replace: %w", err)
@@ -125,7 +189,7 @@ func (st *Store) ReplaceSource(ctx context.Context, source string, games []Game,
 	if _, err := tx.ExecContext(ctx, `DELETE FROM games WHERE source = ?`, source); err != nil {
 		return fmt.Errorf("retrogames: clear source %s: %w", source, err)
 	}
-	stmt, err := tx.PrepareContext(ctx, upsertGameSQL)
+	stmt, err := tx.PrepareContext(ctx, insertGameSQL)
 	if err != nil {
 		return fmt.Errorf("retrogames: prepare insert: %w", err)
 	}
@@ -136,9 +200,15 @@ func (st *Store) ReplaceSource(ctx context.Context, source string, games []Game,
 			return fmt.Errorf("retrogames: insert %s: %w", g.Identifier, err)
 		}
 	}
+	// Identifiers already owned by another source were skipped above, so the
+	// stored count is what this source really holds.
+	var stored int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM games WHERE source = ?`, source).Scan(&stored); err != nil {
+		return fmt.Errorf("retrogames: count %s: %w", source, err)
+	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO sync_state(source, last_success_at, last_attempt_at, item_count, last_error) VALUES (?, ?, ?, ?, '')
 		ON CONFLICT(source) DO UPDATE SET last_success_at = excluded.last_success_at, last_attempt_at = excluded.last_attempt_at, item_count = excluded.item_count, last_error = ''`,
-		source, ts, ts, len(games)); err != nil {
+		source, ts, ts, stored); err != nil {
 		return fmt.Errorf("retrogames: record sync of %s: %w", source, err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -210,6 +280,7 @@ type rowScanner interface {
 	Scan(dest ...any) error
 }
 
+// scanGame reads the gameColumns of one row; Game.Tags is not loaded.
 func scanGame(r rowScanner) (Game, error) {
 	var g Game
 	err := r.Scan(&g.Identifier, &g.Title, &g.Year, &g.Creator, &g.Platform, &g.System, &g.Emulator, &g.Downloads)
