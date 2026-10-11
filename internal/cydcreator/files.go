@@ -147,9 +147,19 @@ func (s *Service) ReadFile(ctx context.Context, id, rel string) ([]byte, string,
 	defer root.Close()
 	switch {
 	case IsEditablePath(rel):
+		onDisk, err := appPathOnDisk(root, rel)
+		if err != nil {
+			return nil, "", s.internalError("read file", err)
+		}
+		if onDisk != rel {
+			return nil, "", notFound
+		}
 		data, err := rootReadFile(root, rel, MaxAppFileBytes)
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil, "", notFound
+		}
+		if errors.Is(err, errNotRegularFile) {
+			return nil, "", notRegularError(rel)
 		}
 		if errors.Is(err, errFileTooLarge) {
 			return nil, "", NewError(CodeFileLimit, fmt.Sprintf("%s is larger than %d bytes", rel, MaxAppFileBytes),
@@ -173,16 +183,101 @@ func (s *Service) ReadFile(ctx context.Context, id, rel string) ([]byte, string,
 	return nil, "", notFound
 }
 
-// currentAppFile returns the content and hash of rel, or exists=false.
-func currentAppFile(root *os.Root, rel string) (data []byte, sha string, exists bool, err error) {
-	data, err = rootReadFile(root, rel, MaxAppTotalBytes)
+// notRegularError refuses a path below src/app that holds a directory, link
+// or device instead of a file (only possible by hand). Nothing is removed or
+// replaced there.
+func notRegularError(rel string) error {
+	return NewError(CodeBadRequest, "this path is not a regular file", map[string]any{"path": rel, "reason": "not_regular"})
+}
+
+// appPathOnDisk resolves rel segment by segment below src/app with the exact
+// letter case. It returns "" when rel does not exist, rel when every segment
+// exists exactly, and otherwise the existing path prefix whose last segment
+// differs from rel only by letter case. On case-insensitive file systems
+// (Windows, macOS) opening src/app/APP_MAIN.cpp finds app_main.cpp, so every
+// read, write and delete of an app path checks the case first.
+func appPathOnDisk(root *os.Root, rel string) (string, error) {
+	rest, ok := strings.CutPrefix(rel, AppDir+"/")
+	if !ok {
+		return "", fmt.Errorf("%s is not below %s", rel, AppDir)
+	}
+	segments := strings.Split(rest, "/")
+	dir := AppDir
+	for i, seg := range segments {
+		entries, err := fs.ReadDir(root.FS(), dir)
+		if errors.Is(err, fs.ErrNotExist) {
+			return "", nil
+		}
+		if err != nil {
+			return "", err
+		}
+		var exact, folded fs.DirEntry
+		for _, e := range entries {
+			if e.Name() == seg {
+				exact = e
+				break
+			}
+			if folded == nil && strings.EqualFold(e.Name(), seg) {
+				folded = e
+			}
+		}
+		switch {
+		case exact != nil:
+			dir += "/" + seg
+			if i < len(segments)-1 && !exact.IsDir() {
+				return "", nil // a file where rel needs a directory
+			}
+		case folded != nil:
+			return dir + "/" + folded.Name(), nil
+		default:
+			return "", nil
+		}
+	}
+	return dir, nil
+}
+
+// appFileState is what an editable path holds on disk.
+type appFileState struct {
+	exists  bool   // an entry with exactly this path, letter case included
+	alias   string // an existing file or folder whose path differs only by letter case
+	regular bool   // the entry is a regular file
+	size    int64  // size of a regular file
+	sha     string // "" for files above MaxAppFileBytes (ListFiles and ReadFile never expose one) and other entries
+}
+
+// currentAppFile reports what rel holds on disk. A file above
+// MaxAppFileBytes (put there by hand) exists without a hash, so only an
+// unconditional write or delete replaces it.
+func currentAppFile(root *os.Root, rel string) (appFileState, error) {
+	onDisk, err := appPathOnDisk(root, rel)
+	if err != nil || onDisk == "" {
+		return appFileState{}, err
+	}
+	if onDisk != rel {
+		return appFileState{alias: onDisk}, nil
+	}
+	info, err := root.Lstat(filepath.FromSlash(rel))
 	if errors.Is(err, fs.ErrNotExist) {
-		return nil, "", false, nil
+		return appFileState{}, nil
 	}
 	if err != nil {
-		return nil, "", false, err
+		return appFileState{}, err
 	}
-	return data, sha256Hex(data), true, nil
+	st := appFileState{exists: true, regular: info.Mode().IsRegular()}
+	if !st.regular {
+		return st, nil
+	}
+	st.size = info.Size()
+	if st.size <= MaxAppFileBytes {
+		data, err := rootReadFile(root, rel, MaxAppFileBytes)
+		switch {
+		case err == nil:
+			st.size, st.sha = int64(len(data)), sha256Hex(data)
+		case !errors.Is(err, errFileTooLarge):
+			return appFileState{}, err
+		}
+	}
+	return st, nil
 }
 
 // WriteFile writes an app file. ifSHA is "*" (create only), the SHA-256 of
@@ -226,19 +321,26 @@ func (s *Service) WriteFile(ctx context.Context, id, rel string, data []byte, if
 				map[string]any{"path": rel, "existing": f.Path, "sha256": ""})
 		}
 	}
-	old, current, exists, err := currentAppFile(root, rel)
+	cur, err := currentAppFile(root, rel)
 	if err != nil {
 		return "", s.internalError("write file", err)
 	}
-	switch {
-	case ifSHA == "*" && exists, ifSHA != "" && ifSHA != "*" && (!exists || ifSHA != current):
-		return "", NewError(CodeFileConflict, "the file was changed in the meantime", map[string]any{"path": rel, "sha256": current})
+	if cur.alias != "" {
+		return "", NewError(CodeFileConflict, "a file or folder with the same name in different letter case exists",
+			map[string]any{"path": rel, "existing": cur.alias, "sha256": ""})
 	}
-	if !exists && len(files)+1 > MaxAppFiles {
+	if cur.exists && !cur.regular {
+		return "", notRegularError(rel)
+	}
+	switch {
+	case ifSHA == "*" && cur.exists, ifSHA != "" && ifSHA != "*" && (!cur.exists || ifSHA != cur.sha):
+		return "", NewError(CodeFileConflict, "the file was changed in the meantime", map[string]any{"path": rel, "sha256": cur.sha})
+	}
+	if !cur.exists && len(files)+1 > MaxAppFiles {
 		return "", NewError(CodeFileLimit, fmt.Sprintf("a project may have at most %d source files", MaxAppFiles),
 			map[string]any{"limit": "files", "max": MaxAppFiles, "path": rel})
 	}
-	if total-int64(len(old))+int64(len(data)) > MaxAppTotalBytes {
+	if total-cur.size+int64(len(data)) > MaxAppTotalBytes {
 		return "", NewError(CodeFileLimit, fmt.Sprintf("all source files together may have at most %d bytes", MaxAppTotalBytes),
 			map[string]any{"limit": "total_bytes", "max": MaxAppTotalBytes, "path": rel})
 	}
@@ -271,15 +373,18 @@ func (s *Service) DeleteFile(ctx context.Context, id, rel, ifSHA string, origin 
 		return s.internalError("delete file", err)
 	}
 	defer root.Close()
-	_, current, exists, err := currentAppFile(root, rel)
+	cur, err := currentAppFile(root, rel)
 	if err != nil {
 		return s.internalError("delete file", err)
 	}
-	if !exists {
+	if !cur.exists {
 		return NewError(CodeNotFound, "file not found", map[string]any{"path": rel})
 	}
-	if ifSHA != "" && ifSHA != "*" && ifSHA != current {
-		return NewError(CodeFileConflict, "the file was changed in the meantime", map[string]any{"path": rel, "sha256": current})
+	if !cur.regular {
+		return notRegularError(rel)
+	}
+	if ifSHA != "" && ifSHA != "*" && ifSHA != cur.sha {
+		return NewError(CodeFileConflict, "the file was changed in the meantime", map[string]any{"path": rel, "sha256": cur.sha})
 	}
 	if err := fileutil.PublishContext(ctx, func() error { return root.Remove(filepath.FromSlash(rel)) }); err != nil {
 		return s.internalError("delete file", err)
@@ -297,8 +402,10 @@ func (s *Service) DeleteFile(ctx context.Context, id, rel, ifSHA string, origin 
 }
 
 // touchAppFiles records an app file change; user changes set
-// app_changed_since_job so the next agent job learns about them.
+// app_changed_since_job so the next agent job learns about them. The file is
+// already published, so a cancelled request still records the change.
 func (s *Service) touchAppFiles(ctx context.Context, id, origin string) error {
+	ctx = context.WithoutCancel(ctx)
 	now := formatTime(s.now())
 	if origin == OriginUser {
 		_, err := s.db.ExecContext(ctx, `UPDATE cc_projects SET app_changed_since_job=1, updated_at=? WHERE id=?`, now, id)

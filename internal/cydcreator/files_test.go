@@ -232,3 +232,111 @@ func TestDeleteFile(t *testing.T) {
 	}
 	wantCode(t, env.svc.DeleteFile(ctx, p.ID, "src/app/sub/deep.cpp", "", OriginUser), CodeNotFound)
 }
+
+// TestAppFilesNeedTheExactLetterCase: reads, deletes and writes never reach a
+// file or folder through a differently cased path (on Windows and macOS
+// opening src/app/APP_MAIN.cpp finds app_main.cpp).
+func TestAppFilesNeedTheExactLetterCase(t *testing.T) {
+	env := newTestService(t)
+	ctx := context.Background()
+	p := env.createProject(t, "Exact")
+	appMain := filepath.Join(env.cfg.WorkspaceDir, "CYD", "exact", "src", "app", "app_main.cpp")
+	original, err := os.ReadFile(appMain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantCode(t, env.svc.DeleteFile(ctx, p.ID, "src/app/APP_MAIN.cpp", "", OriginUser), CodeNotFound)
+	_, _, err = env.svc.ReadFile(ctx, p.ID, "src/app/APP_MAIN.cpp")
+	wantCode(t, err, CodeNotFound)
+	if after, err := os.ReadFile(appMain); err != nil || !bytes.Equal(after, original) {
+		t.Fatalf("app_main.cpp changed: %v", err)
+	}
+
+	if _, err := env.svc.WriteFile(ctx, p.ID, "src/app/sub/deep.cpp", []byte("//\n"), "*", OriginUser); err != nil {
+		t.Fatal(err)
+	}
+	wantCode(t, env.svc.DeleteFile(ctx, p.ID, "src/app/SUB/deep.cpp", "", OriginUser), CodeNotFound)
+	_, _, err = env.svc.ReadFile(ctx, p.ID, "src/app/SUB/deep.cpp")
+	wantCode(t, err, CodeNotFound)
+	_, err = env.svc.WriteFile(ctx, p.ID, "src/app/SUB/new.cpp", []byte("//\n"), "*", OriginUser)
+	if typed := wantCode(t, err, CodeFileConflict); typed.Details["existing"] != "src/app/sub" {
+		t.Fatalf("folder clash details = %v", typed.Details)
+	}
+	_, err = env.svc.WriteFile(ctx, p.ID, "src/app/SUB/deep.cpp", []byte("// other\n"), "", OriginUser)
+	wantCode(t, err, CodeFileConflict)
+	files, err := env.svc.ListFiles(ctx, p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var editable []string
+	for _, f := range files {
+		if f.Editable {
+			editable = append(editable, f.Path)
+		}
+	}
+	if strings.Join(editable, ",") != "src/app/app_main.cpp,src/app/sub/deep.cpp" {
+		t.Fatalf("app files = %v", editable)
+	}
+	data, _, err := env.svc.ReadFile(ctx, p.ID, "src/app/sub/deep.cpp")
+	if err != nil || string(data) != "//\n" {
+		t.Fatalf("deep.cpp = %q, %v", data, err)
+	}
+}
+
+// TestOversizedAndNonRegularAppPaths: a file above the limits put into
+// src/app by hand has no hash, so only an unconditional write or delete
+// replaces it; a directory at a file path is refused and never removed.
+func TestOversizedAndNonRegularAppPaths(t *testing.T) {
+	env := newTestService(t)
+	ctx := context.Background()
+	p := env.createProject(t, "Hand")
+	app := filepath.Join(env.cfg.WorkspaceDir, "CYD", "hand", "src", "app")
+	huge := filepath.Join(app, "huge.cpp")
+	writeHuge := func() {
+		t.Helper()
+		if err := os.WriteFile(huge, bytes.Repeat([]byte("h"), MaxAppTotalBytes+1), 0o640); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeHuge()
+	_, _, err := env.svc.ReadFile(ctx, p.ID, "src/app/huge.cpp")
+	wantCode(t, err, CodeFileLimit)
+	err = env.svc.DeleteFile(ctx, p.ID, "src/app/huge.cpp", strings.Repeat("1", 64), OriginUser)
+	if typed := wantCode(t, err, CodeFileConflict); typed.Details["sha256"] != "" {
+		t.Fatalf("conflict details = %v", typed.Details)
+	}
+	_, err = env.svc.WriteFile(ctx, p.ID, "src/app/huge.cpp", []byte("int h;\n"), "*", OriginUser)
+	wantCode(t, err, CodeFileConflict)
+	if _, err := env.svc.WriteFile(ctx, p.ID, "src/app/huge.cpp", []byte("int h;\n"), "", OriginUser); err != nil {
+		t.Fatalf("unconditional overwrite: %v", err)
+	}
+	writeHuge()
+	if err := env.svc.DeleteFile(ctx, p.ID, "src/app/huge.cpp", "*", OriginUser); err != nil {
+		t.Fatalf("unconditional delete: %v", err)
+	}
+	if _, err := os.Stat(huge); !os.IsNotExist(err) {
+		t.Fatal("huge.cpp was kept")
+	}
+
+	inner := filepath.Join(app, "dir.cpp", "inner.h")
+	if err := os.MkdirAll(filepath.Dir(inner), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(inner, []byte("//\n"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	notRegular := func(err error) {
+		t.Helper()
+		if typed := wantCode(t, err, CodeBadRequest); typed.Details["reason"] != "not_regular" {
+			t.Fatalf("details = %v", typed.Details)
+		}
+	}
+	notRegular(env.svc.DeleteFile(ctx, p.ID, "src/app/dir.cpp", "", OriginUser))
+	_, err = env.svc.WriteFile(ctx, p.ID, "src/app/dir.cpp", []byte("x"), "", OriginUser)
+	notRegular(err)
+	_, _, err = env.svc.ReadFile(ctx, p.ID, "src/app/dir.cpp")
+	notRegular(err)
+	if _, err := os.Stat(inner); err != nil {
+		t.Fatalf("the directory content was removed: %v", err)
+	}
+}

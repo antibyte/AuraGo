@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"image"
 	"io"
 	"io/fs"
 	"os"
@@ -46,23 +47,38 @@ func assetFileError(assetID string) error {
 
 // checkUploadHeader reads only the image header and refuses a picture larger
 // than the largest display of any board before InspectAsset decodes its
-// pixels (a small PNG can decode to tens of MiB). The display of the
-// project's board is checked exactly after the decode.
+// pixels (a small PNG can decode to tens of MiB). Every display is smaller
+// than assetHeader's 2048-pixel limit, so a phone photo is "too large"
+// (dimensions), not a bad request. The display of the project's board is
+// checked exactly after the decode.
 func checkUploadHeader(data []byte) error {
-	cfg, err := assetHeader(data)
-	if err != nil {
-		return err
-	}
 	long, short, err := maxBoardDisplay()
 	if err != nil {
 		return err
 	}
-	w, h := cfg.Width, cfg.Height
-	if max(w, h) > long || min(w, h) > short {
-		return NewError(CodeAssetTooLarge, fmt.Sprintf("the image (%dx%d) is larger than every supported display (%dx%d)", w, h, long, short),
-			map[string]any{"reason": "dimensions", "w": w, "h": h, "max_w": long, "max_h": short})
+	if cfg, format, err := image.DecodeConfig(bytes.NewReader(data)); err == nil && (format == "png" || format == "jpeg") {
+		w, h := cfg.Width, cfg.Height
+		if max(w, h) > long || min(w, h) > short {
+			return NewError(CodeAssetTooLarge, fmt.Sprintf("the image (%dx%d) is larger than every supported display (%dx%d)", w, h, long, short),
+				map[string]any{"reason": "dimensions", "w": w, "h": h, "max_w": long, "max_h": short})
+		}
 	}
-	return nil
+	_, err = assetHeader(data)
+	return err
+}
+
+// layoutListsAsset reports whether the stored layout lists asset a.
+func layoutListsAsset(root *os.Root, a Asset) bool {
+	p, err := readLayout(root)
+	if err != nil {
+		return false
+	}
+	for _, listed := range p.Assets {
+		if listed.ID == a.ID && listed.File == a.File {
+			return true
+		}
+	}
+	return false
 }
 
 // sanitizeAssetBase turns an upload file name into the base of
@@ -191,7 +207,11 @@ func (s *Service) PutAsset(ctx context.Context, id string, name string, data []b
 	p.Assets = append(p.Assets, asset)
 	version, err := s.saveLayoutLocked(ctx, root, row, p)
 	if err != nil {
-		_ = root.Remove(filepath.FromSlash(file))
+		// saveLayoutLocked can fail after it published the layout (version
+		// bump): then the stored layout lists the image and it must stay.
+		if !layoutListsAsset(root, asset) {
+			_ = root.Remove(filepath.FromSlash(file))
+		}
 		return Asset{}, 0, s.internalError("store asset", err)
 	}
 	s.Emit(id, EventProjectChanged, "", "", projectChange(version, OriginUser, "assets"))

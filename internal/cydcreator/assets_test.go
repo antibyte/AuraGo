@@ -162,10 +162,13 @@ func TestPutAssetChecksTheHeaderBeforeDecoding(t *testing.T) {
 	env := newTestService(t)
 	ctx := context.Background()
 	p := env.createProject(t, "Header")
-	_, _, err := env.svc.PutAsset(ctx, p.ID, "huge.png", headerOnlyPNG(2000, 1000))
-	typed := wantCode(t, err, CodeAssetTooLarge)
-	if typed.Details["reason"] != "dimensions" || strings.Contains(typed.Message, "damaged") {
-		t.Fatalf("error = %v (details %v), want the header refusal", typed, typed.Details)
+	// 4000x3000 is a phone photo, above assetHeader's 2048-pixel limit.
+	for _, size := range [][2]int{{2000, 1000}, {4000, 3000}} {
+		_, _, err := env.svc.PutAsset(ctx, p.ID, "huge.png", headerOnlyPNG(size[0], size[1]))
+		typed := wantCode(t, err, CodeAssetTooLarge)
+		if typed.Details["reason"] != "dimensions" || strings.Contains(typed.Message, "damaged") {
+			t.Fatalf("%v: error = %v (details %v), want the header refusal", size, typed, typed.Details)
+		}
 	}
 	layout, version, _, err := env.svc.GetLayout(ctx, p.ID)
 	if err != nil || version != 1 || len(layout.Assets) != 0 {
@@ -255,4 +258,52 @@ func TestAssetEntriesOutsideTheAssetRule(t *testing.T) {
 		t.Fatalf("the file the remaining entry lists was removed: %v", err)
 	}
 	_ = r.Close()
+}
+
+// TestDamagedAssetFiles: a directory at an asset path is never served or
+// passed to the generator, and an image file above the upload limit is a
+// typed refusal.
+func TestDamagedAssetFiles(t *testing.T) {
+	env := newTestService(t)
+	ctx := context.Background()
+	p := env.createProject(t, "Damaged")
+	dir := filepath.Join(env.cfg.WorkspaceDir, "CYD", "damaged", "assets")
+	if err := os.MkdirAll(filepath.Join(dir, "folder.png"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	rawAssetEntry(t, env, p.ID, Asset{ID: "a_dir", File: "assets/folder.png", W: 4, H: 4})
+	_, _, _, err := env.svc.OpenAsset(ctx, p.ID, "a_dir")
+	wantCode(t, err, CodeNotFound)
+	tree, err := env.svc.Generate(ctx, p.ID, "")
+	if err != nil || strings.Contains(string(tree["src/generated/ui_assets.cpp"]), "a_dir") {
+		t.Fatalf("Generate with a directory as image = %s, %v", tree["src/generated/ui_assets.cpp"], err)
+	}
+
+	big := append(pngBytes(t, 4, 4, false), bytes.Repeat([]byte{0}, MaxAssetUploadBytes)...)
+	if err := os.WriteFile(filepath.Join(dir, "big.png"), big, 0o640); err != nil {
+		t.Fatal(err)
+	}
+	rawAssetEntry(t, env, p.ID, Asset{ID: "a_big", File: "assets/big.png", W: 4, H: 4})
+	_, err = env.svc.Generate(ctx, p.ID, "")
+	if typed := wantCode(t, err, CodeAssetTooLarge); typed.Details["asset"] != "a_big" || typed.Details["reason"] != "file_size" {
+		t.Fatalf("details = %v", typed.Details)
+	}
+}
+
+// TestPutAssetKeepsTheImageOfAPublishedLayout: when the version bump fails
+// after the layout was written, the stored layout lists the new image, so its
+// file stays.
+func TestPutAssetKeepsTheImageOfAPublishedLayout(t *testing.T) {
+	env := newTestService(t)
+	ctx := context.Background()
+	p := env.createProject(t, "Bump")
+	if _, err := env.svc.db.Exec(`CREATE TRIGGER cc_test_no_bump BEFORE UPDATE OF version ON cc_projects
+		BEGIN SELECT RAISE(ABORT, 'no version bump'); END`); err != nil {
+		t.Fatal(err)
+	}
+	_, _, err := env.svc.PutAsset(ctx, p.ID, "kept.png", pngBytes(t, 4, 4, false))
+	wantCode(t, err, CodeInternal)
+	if _, err := os.Stat(filepath.Join(env.cfg.WorkspaceDir, "CYD", "bump", "assets", "kept.png")); err != nil {
+		t.Fatalf("the image the stored layout lists was removed: %v", err)
+	}
 }
