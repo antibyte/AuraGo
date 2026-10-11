@@ -15,10 +15,10 @@ import (
 // cmd.Env (callers add their own variables afterwards): the environment is
 // the current one filtered through sandbox.FilterEnv, with every directory
 // below runtimeRoots prepended to PATH (plus LD_LIBRARY_PATH on Linux,
-// DYLD_LIBRARY_PATH on macOS). Roots are made absolute; empty, missing or
-// unreadable roots contribute nothing, and when no directory is found the
-// filtered environment is used unchanged, so the working directory never
-// lands on a library search path. On Windows it also sets HideWindow and
+// DYLD_LIBRARY_PATH on macOS). Roots are made absolute; roots that are empty,
+// missing, not directories or cannot be stat'ed contribute nothing, and when
+// no directory is found the filtered environment is used unchanged, so the
+// working directory never lands on a library search path. On Windows it also sets HideWindow and
 // CREATE_NO_WINDOW on cmd.SysProcAttr, keeping any other attributes the
 // caller already set, so no console window opens.
 func ConfigureWorkerCommand(cmd *exec.Cmd, runtimeRoots ...string) {

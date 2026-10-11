@@ -59,29 +59,48 @@ func TestRuntimeEnvironmentPrependsPrivateDirectories(t *testing.T) {
 	}
 }
 
-func TestRuntimeEnvironmentSetsLibraryPathPerPlatform(t *testing.T) {
+// The per-platform rules run on a synthetic environment: the real one spells
+// PATH as the host does ("Path" when a Windows binary is started by an IDE or
+// debugger), which the case rules of another goos would not match.
+func TestPrependLibraryDirectoriesPerPlatform(t *testing.T) {
+	directories := []string{"/d1", "/d2"}
+	prefix := "/d1" + listSeparator + "/d2" + listSeparator
+	cases := []struct {
+		goos string
+		want []string
+	}{
+		{"linux", []string{"PATH=" + prefix + "/keep-path", "LD_LIBRARY_PATH=" + prefix + "/keep-ld", "DYLD_LIBRARY_PATH=/keep-dyld", "OTHER=1"}},
+		{"darwin", []string{"PATH=" + prefix + "/keep-path", "LD_LIBRARY_PATH=/keep-ld", "DYLD_LIBRARY_PATH=" + prefix + "/keep-dyld", "OTHER=1"}},
+		{"windows", []string{"PATH=" + prefix + "/keep-path", "LD_LIBRARY_PATH=/keep-ld", "DYLD_LIBRARY_PATH=/keep-dyld", "OTHER=1"}},
+	}
+	for _, c := range cases {
+		environment := []string{"PATH=/keep-path", "LD_LIBRARY_PATH=/keep-ld", "DYLD_LIBRARY_PATH=/keep-dyld", "OTHER=1"}
+		if got := prependLibraryDirectories(c.goos, environment, directories); !slices.Equal(got, c.want) {
+			t.Errorf("%s environment = %v, want %v", c.goos, got, c.want)
+		}
+	}
+}
+
+func TestRuntimeEnvironmentSetsLibraryPathForTheHost(t *testing.T) {
 	root := absoluteTempDir(t)
 	t.Setenv("LD_LIBRARY_PATH", "/opt/keep-ld")
 	t.Setenv("DYLD_LIBRARY_PATH", "/opt/keep-dyld")
-	cases := []struct {
-		goos           string
-		wantLD, wantDY string
-	}{
-		{"linux", root + listSeparator + "/opt/keep-ld", "/opt/keep-dyld"},
-		{"darwin", "/opt/keep-ld", root + listSeparator + "/opt/keep-dyld"},
-		{"windows", "/opt/keep-ld", "/opt/keep-dyld"},
+	wantLD, wantDY := "/opt/keep-ld", "/opt/keep-dyld"
+	switch goruntime.GOOS {
+	case "linux":
+		wantLD = root + listSeparator + wantLD
+	case "darwin":
+		wantDY = root + listSeparator + wantDY
 	}
-	for _, c := range cases {
-		environment := runtimeEnvironment(c.goos, root)
-		if got := environmentValue(c.goos, environment, "PATH"); !strings.HasPrefix(got, root+listSeparator) {
-			t.Errorf("%s PATH = %q, want prefix %q", c.goos, got, root+listSeparator)
-		}
-		if got := environmentValue(c.goos, environment, "LD_LIBRARY_PATH"); got != c.wantLD {
-			t.Errorf("%s LD_LIBRARY_PATH = %q, want %q", c.goos, got, c.wantLD)
-		}
-		if got := environmentValue(c.goos, environment, "DYLD_LIBRARY_PATH"); got != c.wantDY {
-			t.Errorf("%s DYLD_LIBRARY_PATH = %q, want %q", c.goos, got, c.wantDY)
-		}
+	environment := runtimeEnvironment(goruntime.GOOS, root)
+	if got := environmentValue(goruntime.GOOS, environment, "PATH"); !strings.HasPrefix(got, root+listSeparator) {
+		t.Errorf("PATH = %q, want prefix %q", got, root+listSeparator)
+	}
+	if got := environmentValue(goruntime.GOOS, environment, "LD_LIBRARY_PATH"); got != wantLD {
+		t.Errorf("LD_LIBRARY_PATH = %q, want %q", got, wantLD)
+	}
+	if got := environmentValue(goruntime.GOOS, environment, "DYLD_LIBRARY_PATH"); got != wantDY {
+		t.Errorf("DYLD_LIBRARY_PATH = %q, want %q", got, wantDY)
 	}
 }
 
@@ -104,40 +123,53 @@ func TestRuntimeEnvironmentIgnoresRootsWithoutDirectories(t *testing.T) {
 		"all unusable": {"", filepath.Join(dir, "missing"), file},
 	}
 	for name, rootList := range roots {
+		// The real environment, for the host platform.
+		environment := runtimeEnvironment(goruntime.GOOS, rootList...)
+		if got := environmentValue(goruntime.GOOS, environment, "PATH"); got != "keep-a"+listSeparator+"keep-b" {
+			t.Errorf("%s PATH = %q", name, got)
+		}
+		if got := environmentValue(goruntime.GOOS, environment, "LD_LIBRARY_PATH"); got != "/opt/keep-ld" {
+			t.Errorf("%s LD_LIBRARY_PATH = %q", name, got)
+		}
+		if got := environmentValue(goruntime.GOOS, environment, "DYLD_LIBRARY_PATH"); got != "/opt/keep-dyld" {
+			t.Errorf("%s DYLD_LIBRARY_PATH = %q", name, got)
+		}
+		if want := filterEnvironment(os.Environ()); !slices.Equal(environment, want) {
+			t.Errorf("%s changed the environment although no directory was found", name)
+		}
+
+		// Every platform's rules, on a synthetic environment.
+		directories := runtimeDirectories(rootList)
+		if len(directories) != 0 {
+			t.Errorf("%s: directories = %v", name, directories)
+		}
 		for _, goos := range []string{"linux", "darwin", "windows"} {
-			environment := runtimeEnvironment(goos, rootList...)
-			if got := environmentValue(goos, environment, "PATH"); got != "keep-a"+listSeparator+"keep-b" {
-				t.Errorf("%s/%s PATH = %q", name, goos, got)
-			}
-			if got := environmentValue(goos, environment, "LD_LIBRARY_PATH"); got != "/opt/keep-ld" {
-				t.Errorf("%s/%s LD_LIBRARY_PATH = %q", name, goos, got)
-			}
-			if got := environmentValue(goos, environment, "DYLD_LIBRARY_PATH"); got != "/opt/keep-dyld" {
-				t.Errorf("%s/%s DYLD_LIBRARY_PATH = %q", name, goos, got)
-			}
-			if want := filterEnvironment(os.Environ()); !slices.Equal(environment, want) {
-				t.Errorf("%s/%s changed the environment although no directory was found", name, goos)
+			synthetic := []string{"PATH=keep-a" + listSeparator + "keep-b", "LD_LIBRARY_PATH=/opt/keep-ld", "DYLD_LIBRARY_PATH=/opt/keep-dyld"}
+			want := slices.Clone(synthetic)
+			if got := prependLibraryDirectories(goos, synthetic, directories); !slices.Equal(got, want) {
+				t.Errorf("%s/%s environment = %v, want %v", name, goos, got, want)
 			}
 		}
 	}
 }
 
 func TestRuntimeEnvironmentDoesNotCreateEmptyLibraryPath(t *testing.T) {
-	t.Setenv("LD_LIBRARY_PATH", "set so that the restore on cleanup works")
-	if err := os.Unsetenv("LD_LIBRARY_PATH"); err != nil {
-		t.Fatal(err)
-	}
-	environment := runtimeEnvironment("linux", filepath.Join(absoluteTempDir(t), "missing"))
-	for _, entry := range environment {
-		if strings.HasPrefix(strings.ToUpper(entry), "LD_LIBRARY_PATH=") {
-			t.Fatalf("unexpected %q", entry)
-		}
-	}
-	// With a usable root the variable is created without a trailing separator.
 	root := absoluteTempDir(t)
-	environment = runtimeEnvironment("linux", root)
-	if got := environmentValue("linux", environment, "LD_LIBRARY_PATH"); got != root {
-		t.Fatalf("LD_LIBRARY_PATH = %q, want %q", got, root)
+	for _, goos := range []string{"linux", "darwin"} {
+		key := map[string]string{"linux": "LD_LIBRARY_PATH", "darwin": "DYLD_LIBRARY_PATH"}[goos]
+		// The variable is absent from the environment: no usable directory
+		// must not create it, a usable one creates it without a separator.
+		unchanged := prependLibraryDirectories(goos, []string{"PATH=/keep"}, runtimeDirectories([]string{filepath.Join(root, "missing")}))
+		if want := []string{"PATH=/keep"}; !slices.Equal(unchanged, want) {
+			t.Errorf("%s: environment = %v, want %v", goos, unchanged, want)
+		}
+		created := prependLibraryDirectories(goos, []string{"PATH=/keep"}, runtimeDirectories([]string{root}))
+		if got := environmentValue(goos, created, key); got != root {
+			t.Errorf("%s: %s = %q, want %q", goos, key, got, root)
+		}
+		if got := environmentValue(goos, created, "PATH"); got != root+listSeparator+"/keep" {
+			t.Errorf("%s: PATH = %q", goos, got)
+		}
 	}
 }
 
@@ -182,9 +214,6 @@ func TestEnvironmentNamesAreCaseSensitiveOutsideWindows(t *testing.T) {
 	if got := environmentValue("darwin", environment, "PATH"); got != "/upper" {
 		t.Fatalf("darwin PATH = %q", got)
 	}
-	if got := environmentValue("windows", environment, "PATH"); got != "/lower" {
-		t.Fatalf("windows PATH = %q", got)
-	}
 	if got := environmentValue("linux", environment, "LD_LIBRARY_PATH"); got != "" {
 		t.Fatalf("linux LD_LIBRARY_PATH = %q", got)
 	}
@@ -197,9 +226,23 @@ func TestEnvironmentNamesAreCaseSensitiveOutsideWindows(t *testing.T) {
 	if want := []string{"path=/lower", "PATH=/new"}; !slices.Equal(appended, want) {
 		t.Fatalf("linux append = %v, want %v", appended, want)
 	}
-	updated = setEnvironmentValue("windows", slices.Clone(environment), "PATH", "/new")
-	if want := []string{"PATH=/new", "PATH=/upper", "Ld_Library_Path=/other"}; !slices.Equal(updated, want) {
+
+	// Windows names are case-insensitive: "Path" is PATH there, a different
+	// variable elsewhere.
+	mixed := []string{"Path=/mixed", "OTHER=1"}
+	if got := environmentValue("windows", mixed, "PATH"); got != "/mixed" {
+		t.Fatalf("windows PATH = %q", got)
+	}
+	if got := environmentValue("linux", mixed, "PATH"); got != "" {
+		t.Fatalf("linux PATH = %q", got)
+	}
+	updated = setEnvironmentValue("windows", slices.Clone(mixed), "PATH", "/new")
+	if want := []string{"PATH=/new", "OTHER=1"}; !slices.Equal(updated, want) {
 		t.Fatalf("windows set = %v, want %v", updated, want)
+	}
+	updated = setEnvironmentValue("linux", slices.Clone(mixed), "PATH", "/new")
+	if want := []string{"Path=/mixed", "OTHER=1", "PATH=/new"}; !slices.Equal(updated, want) {
+		t.Fatalf("linux set = %v, want %v", updated, want)
 	}
 
 	prepended := prependLibraryDirectories("linux", []string{"path=/lower", "PATH=/upper"}, []string{"/d"})
