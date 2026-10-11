@@ -77,6 +77,7 @@ function renderVirtualDesktopSection(section) {
     html += '</div>';
 
     html += vdCfgVideoStudio();
+    html += vdCfgRetroGames();
     const layerling = data.layerling || {};
     html += '<h3>Layerling</h3>';
     html += vdCfgToggleRow('config.layerling.enabled', 'config.layerling.help', layerling.enabled === true, 'virtual_desktop.layerling.enabled');
@@ -184,4 +185,48 @@ async function vdCfgTestVideoStudio(button) {
     } catch (_) {
         if (result.isConnected) result.textContent = t(prefix + 'unavailable');
     } finally { button.disabled = false; }
+}
+
+function vdCfgRetroGames() {
+    const data = configData.retro_games || (configData.retro_games = {});
+    if (typeof data.enabled !== 'boolean') data.enabled = true;
+    if (typeof data.agent_access !== 'boolean') data.agent_access = true;
+    const prefix = 'config.retro_games.';
+    let html = '<h3>' + t(prefix + 'title') + '</h3><p class="field-help">' + t(prefix + 'help') + '</p>';
+    html += '<div class="field-grid two-cols">';
+    html += vdCfgToggleRow(prefix + 'enabled', '', data.enabled === true, 'retro_games.enabled');
+    html += vdCfgToggleRow(prefix + 'agent_access', '', data.agent_access === true, 'retro_games.agent_access');
+    html += '</div><div class="field-group"><button type="button" class="btn-save dc-test-btn" onclick="vdCfgTestRetroGames(this)">' + t(prefix + 'check') + '</button><span id="vd-retro-games-result" class="dc-test-result" role="status"></span></div>';
+    return html;
+}
+
+async function vdCfgTestRetroGames(button) {
+    const result = document.getElementById('vd-retro-games-result');
+    const prefix = 'config.retro_games.';
+    if (hasUnsavedConfigChanges()) { result.textContent = t(prefix + 'save_first'); return; }
+    button.disabled = true;
+    result.className = 'dc-test-result';
+    result.textContent = t(prefix + 'checking');
+    try {
+        const response = await fetch('/api/desktop/retro-games/status', { signal: AbortSignal.timeout(15000) });
+        const status = await response.json();
+        if (!result.isConnected) return;
+        if (!response.ok || !status.enabled) {
+            result.textContent = t(prefix + 'unavailable');
+            result.className = 'dc-test-result is-danger';
+            return;
+        }
+        const total = Number(status.total_games) || 0;
+        result.textContent = total > 0
+            ? t(prefix + 'status_ready').replace('{count}', total.toLocaleString(document.documentElement.lang || undefined))
+            : t(prefix + 'status_empty');
+        result.className = 'dc-test-result is-success';
+    } catch (_) {
+        if (result.isConnected) {
+            result.textContent = t(prefix + 'unavailable');
+            result.className = 'dc-test-result is-danger';
+        }
+    } finally {
+        button.disabled = false;
+    }
 }
