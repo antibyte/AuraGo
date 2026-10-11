@@ -492,3 +492,50 @@ func TestSandboxManagerTimeoutCleansUpGoroutine(t *testing.T) {
 		t.Fatalf("active calls after timeout cleanup = %d, want 0 (goroutine should be terminated)", activeAfterTimeout)
 	}
 }
+
+func TestSandboxMCPEnvUsesNetworkModeAndImage(t *testing.T) {
+	off, err := sandboxMCPEnv(SandboxConfig{Backend: "docker", Image: "python:3.11-slim"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if off["SANDBOX_NETWORK_MODE"] != "none" {
+		t.Fatalf("network off = %#v", off)
+	}
+	if _, ok := off["ENABLE_NETWORKING"]; ok {
+		t.Fatalf("ENABLE_NETWORKING must not be set: %#v", off)
+	}
+	if off["IMAGE"] != "python:3.11-slim" {
+		t.Fatalf("image = %q", off["IMAGE"])
+	}
+
+	on, err := sandboxMCPEnv(SandboxConfig{Backend: "podman", NetworkEnabled: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if on["SANDBOX_NETWORK_MODE"] != "bridge" || on["BACKEND"] != "podman" {
+		t.Fatalf("network on = %#v", on)
+	}
+	if _, ok := on["IMAGE"]; ok {
+		t.Fatal("empty image must stay unset")
+	}
+}
+
+func TestSandboxMCPEnvRejectsUnsafeImage(t *testing.T) {
+	if _, err := sandboxMCPEnv(SandboxConfig{Image: "python:3.11-slim;touch /tmp/x"}); err == nil {
+		t.Fatal("expected image rejection")
+	}
+}
+
+func TestLLMSandboxRequirementIsPinned(t *testing.T) {
+	got, err := llmSandboxRequirement("docker")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "llm-sandbox[mcp-docker]==0.3.45" {
+		t.Fatalf("requirement = %q", got)
+	}
+	got, err = llmSandboxRequirement("podman")
+	if err != nil || got != "llm-sandbox[mcp-podman]==0.3.45" {
+		t.Fatalf("podman requirement = %q, err = %v", got, err)
+	}
+}
