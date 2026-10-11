@@ -42,12 +42,18 @@
   values.
 - Identifiers must match `^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$` everywhere (API paths, embed URLs).
 - Trust boundary: archive.org's code (Emularity `loader.js`, BrowserFS, the emulators) runs only in the
-  player page `GET|HEAD /api/desktop/retro-games/player` (`internal/server/retro_games_player.go`). Its CSP
-  sandbox (no `allow-same-origin`, mirrored by the app's iframe sandbox) gives it an opaque origin, so it
-  never reaches AuraGo cookies, storage, DOM or APIs; `script-src` (per-response nonce) and `connect-src`
-  name archive.org hosts only. The page is self-contained (no AuraGo URL), takes id/muted/label from
-  server-rendered values, never from `location`, and talks to the app only via `postMessage` with `rg: 1`.
-  Widening the sandbox or the CSP to `'self'` breaks that boundary; `TestRetroGamesPlayerCSPIsolation` pins it.
+  player page `GET|HEAD /api/desktop/retro-games/player` (`internal/server/retro_games_player.go`).
+  Protected is AuraGo's origin: the CSP sandbox (no `allow-same-origin`, mirrored by the app's iframe
+  sandbox) gives the page an opaque origin, so it cannot read AuraGo cookies, storage, DOM or API responses;
+  `script-src` allows the hashes of the two static inline scripts plus archive.org hosts, `connect-src`
+  archive.org hosts only; `'self'` appears only in `frame-ancestors`. Not protected: the page's own content
+  (identifier, label) is not secret; archive.org's code runs in the same realm as the inline scripts, so it
+  can change their state and post any `{rg: 1}` message, and the app must check message types and values
+  against fixed enums and never render message data; the frame can navigate itself (no `navigate-to`), but
+  not the desktop. The page has no AuraGo URL and takes id/muted/label from server-rendered values, never
+  from `location`. Mute is a master `GainNode` per AudioContext (never `emu.setMute`, whose fallback is
+  `eval`). `TestRetroGamesPlayerCSPIsolation` pins the policy; keep the inline scripts template-free
+  (their hashes are computed once at init).
 - User input never reaches FTS5 syntax: `BuildMatch` keeps letters and digits only and quotes each term.
 - Hall of Fame ids were verified live on 2026-10-11; re-verify (metadata API: exists, mediatype software,
   emulator set) before adding or swapping entries. The opt-in live test is

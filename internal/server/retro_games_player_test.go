@@ -1,6 +1,7 @@
 package server
 
 import (
+	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 )
 
@@ -18,10 +20,9 @@ const (
 )
 
 var (
-	retroGamesTestNonceSource = regexp.MustCompile(`'nonce-([^']*)'`)
-	retroGamesTestScriptTag   = regexp.MustCompile(`(?is)<script\b([^>]*)>`)
-	retroGamesTestURLAttr     = regexp.MustCompile(`(?i)\b(src|href|action|poster|srcset|data|formaction)\s*=\s*"([^"]*)"`)
-	retroGamesTestSoundPill   = regexp.MustCompile(`(?s)<div id="rg-sound"[^>]*>([^<]*)</div>`)
+	retroGamesTestScriptElement = regexp.MustCompile(`(?is)<script\b([^>]*)>(.*?)</script>`)
+	retroGamesTestURLAttr       = regexp.MustCompile(`(?i)\b(src|href|action|poster|srcset|data|formaction)\s*=\s*"([^"]*)"`)
+	retroGamesTestSoundPill     = regexp.MustCompile(`(?s)<div id="rg-sound"[^>]*>([^<]*)</div>`)
 )
 
 func retroGamesPlayerPath(params url.Values) string {
@@ -39,51 +40,51 @@ func (h *retroGamesHarness) playerPage(params url.Values) (*httptest.ResponseRec
 	return w, w.Body.String()
 }
 
-// retroGamesTestNonce returns the nonce of the response's CSP and checks that
-// the header is exactly the pinned policy with that nonce.
-func retroGamesTestNonce(t *testing.T, w *httptest.ResponseRecorder) string {
-	t.Helper()
-	csp := w.Header().Get("Content-Security-Policy")
-	m := retroGamesTestNonceSource.FindStringSubmatch(csp)
-	if m == nil {
-		t.Fatalf("CSP without a nonce: %q", csp)
-	}
-	nonce := m[1]
-	if want := fmt.Sprintf(retroGamesPlayerCSP, nonce); csp != want {
-		t.Fatalf("CSP:\n got %q\nwant %q", csp, want)
-	}
-	raw, err := base64.RawURLEncoding.DecodeString(nonce)
-	if err != nil || len(raw) != 16 {
-		t.Fatalf("nonce %q is not 16 base64 bytes: %d %v", nonce, len(raw), err)
-	}
-	return nonce
-}
-
 type retroGamesTestScript struct {
+	attrs string
 	src   string
-	nonce string
+	body  string
 	at    int
 }
 
 func retroGamesTestScripts(page string) []retroGamesTestScript {
 	var scripts []retroGamesTestScript
-	attr := func(attrs, name string) (string, bool) {
-		m := regexp.MustCompile(`(?i)\b` + name + `="([^"]*)"`).FindStringSubmatch(attrs)
-		if m == nil {
-			return "", false
-		}
-		return m[1], true
-	}
-	for _, loc := range retroGamesTestScriptTag.FindAllStringSubmatchIndex(page, -1) {
+	for _, loc := range retroGamesTestScriptElement.FindAllStringSubmatchIndex(page, -1) {
 		attrs := page[loc[2]:loc[3]]
-		src, _ := attr(attrs, "src")
-		nonce, _ := attr(attrs, "nonce")
-		scripts = append(scripts, retroGamesTestScript{src: src, nonce: nonce, at: loc[0]})
+		src := ""
+		if m := regexp.MustCompile(`(?i)\bsrc="([^"]*)"`).FindStringSubmatch(attrs); m != nil {
+			src = m[1]
+		}
+		scripts = append(scripts, retroGamesTestScript{attrs: attrs, src: src, body: page[loc[4]:loc[5]], at: loc[0]})
 	}
 	return scripts
 }
 
-func TestRetroGamesPlayerPageHeadersAndNonce(t *testing.T) {
+func retroGamesTestHashSource(body string) string {
+	sum := sha256.Sum256([]byte(body))
+	return "'sha256-" + base64.StdEncoding.EncodeToString(sum[:]) + "'"
+}
+
+// retroGamesTestCSP checks that the response's CSP is the pinned policy and
+// that its script hashes are those of the inline scripts the page serves.
+func retroGamesTestCSP(t *testing.T, w *httptest.ResponseRecorder, page string) {
+	t.Helper()
+	csp := w.Header().Get("Content-Security-Policy")
+	if csp != retroGamesPlayerCSP {
+		t.Fatalf("CSP:\n got %q\nwant %q", csp, retroGamesPlayerCSP)
+	}
+	var hashes []string
+	for _, s := range retroGamesTestScripts(page) {
+		if s.src == "" {
+			hashes = append(hashes, retroGamesTestHashSource(s.body))
+		}
+	}
+	if want := fmt.Sprintf(retroGamesPlayerCSPFormat, strings.Join(hashes, " ")); csp != want {
+		t.Fatalf("the CSP's script hashes do not match the served inline scripts:\n got %q\nwant %q", csp, want)
+	}
+}
+
+func TestRetroGamesPlayerPageHeadersAndScriptHashes(t *testing.T) {
 	h := newRetroGamesHarness(t)
 	params := url.Values{"id": {"msdos_Prince_of_Persia_1990"}}
 	w, page := h.playerPage(params)
@@ -99,28 +100,33 @@ func TestRetroGamesPlayerPageHeadersAndNonce(t *testing.T) {
 			t.Errorf("%s = %q, want %q", name, got, want)
 		}
 	}
-	nonce := retroGamesTestNonce(t, w)
-	inline := 0
+	retroGamesTestCSP(t, w, page)
+
+	// The inline scripts are the static constants, byte for byte: no template
+	// value reaches them, so their hashes never change per response.
+	var inline []string
 	for _, s := range retroGamesTestScripts(page) {
-		if s.src != "" {
-			continue
-		}
-		inline++
-		if s.nonce != nonce {
-			t.Errorf("inline script at %d has nonce %q, want %q", s.at, s.nonce, nonce)
+		if s.src == "" {
+			inline = append(inline, s.body)
+			if strings.TrimSpace(s.attrs) != "" {
+				t.Errorf("inline script with attributes %q", s.attrs)
+			}
 		}
 	}
-	if inline != 2 {
-		t.Fatalf("inline scripts = %d, want 2 (bootstrap and start)", inline)
+	if len(inline) != 2 || inline[0] != retroGamesPlayerBootstrap || inline[1] != retroGamesPlayerStart {
+		t.Fatalf("inline scripts are not the static bootstrap and start scripts: %d", len(inline))
 	}
-	if strings.Count(page, `nonce="`+nonce+`"`) != inline {
-		t.Fatalf("the nonce appears %d times, want once per inline script", strings.Count(page, `nonce="`+nonce+`"`))
+	for _, script := range []string{retroGamesPlayerBootstrap, retroGamesPlayerStart} {
+		if strings.Contains(strings.ToLower(script), "</script") || strings.Contains(script, "{{") {
+			t.Fatalf("an inline script must not contain </script or template actions")
+		}
+	}
+	if strings.Contains(page, "nonce") {
+		t.Fatalf("the page still carries a nonce")
 	}
 
-	w2, _ := h.playerPage(params)
-	if other := retroGamesTestNonce(t, w2); other == nonce {
-		t.Fatalf("two responses share the nonce %q", nonce)
-	}
+	w2, page2 := h.playerPage(url.Values{"id": {"arcade_tron"}, "muted": {"1"}, "sound": {"Klick für Ton"}})
+	retroGamesTestCSP(t, w2, page2)
 }
 
 func TestRetroGamesPlayerPageStructure(t *testing.T) {
@@ -136,16 +142,10 @@ func TestRetroGamesPlayerPageStructure(t *testing.T) {
 	if len(scripts) == 0 || strings.Index(page, base) > scripts[0].at {
 		t.Fatalf("<base> must come before every script")
 	}
+	if !strings.Contains(page, "<html>") || strings.Contains(page, "lang=") {
+		t.Errorf("<html> must not claim a language")
+	}
 
-	var external []string
-	for _, s := range scripts {
-		if s.src != "" {
-			external = append(external, s.src)
-		}
-	}
-	if strings.Join(external, " ") != retroGamesTestBrowserFS+" "+retroGamesTestLoader {
-		t.Fatalf("external scripts = %q, want BrowserFS then loader.js", external)
-	}
 	// Bootstrap, BrowserFS, loader.js, start.
 	if len(scripts) != 4 || scripts[0].src != "" || scripts[1].src != retroGamesTestBrowserFS || scripts[2].src != retroGamesTestLoader || scripts[3].src != "" {
 		t.Fatalf("script order = %+v", scripts)
@@ -160,34 +160,53 @@ func TestRetroGamesPlayerPageStructure(t *testing.T) {
 			t.Errorf("unexpected URL attribute %s=%q", m[1], m[2])
 		}
 	}
-	for _, forbidden := range []string{"/api/", "/js/", "/css/", "url(", "@import", "location"} {
+	for _, forbidden := range []string{
+		"/api/", "/js/", "/css/", "url(", "@import",
+		"location",   // the page trusts only server-rendered values
+		"object-fit", // the canvas box itself is sized to the picture
+		".setMute(",  // archive.org's mute falls back to eval; the page mutes with a gain
+	} {
 		if strings.Contains(page, forbidden) {
 			t.Errorf("page contains %q", forbidden)
 		}
 	}
+
+	// The bootstrap installs the hooks before archive.org's scripts run.
 	for _, want := range []string{
-		`<canvas id="canvas" tabindex="0">`,
-		"width:100% !important",
-		"height:100% !important",
-		"object-fit:contain",
-		"image-rendering:pixelated",
-		".emularity-splash-screen",
-		".emularity-splash-title",
-		".emularity-progress-indicator",
+		"AudioContext", "webkitAudioContext", "'statechange'",
+		"AudioNode.prototype.connect", "AudioNode.prototype.disconnect", "AudioDestinationNode", "createGain",
+		"instanceof HTMLScriptElement", "'securitypolicyviolation'", "'script-src-elem'", "'worker-src'",
+	} {
+		if !strings.Contains(retroGamesPlayerBootstrap, want) {
+			t.Errorf("bootstrap lacks %q", want)
+		}
+	}
+	for _, want := range []string{
 		"new IALoader(canvas, id, { before_run:",
 		"hasCustomCSS: true",
-		"setMute(",
 		"MutationObserver",
-		"'Failed'",
+		"/^(Failed|Invalid media|Non-system disk)/",
 		"event.source !== window.parent",
 		"data.rg !== 1",
 		"rg: 1, type: 'state'",
 		"rg: 1, type: 'audio'",
+		"Promise.allSettled",
 		"DOMContentLoaded",
 		"'pointerdown'",
 		"'keydown'",
-		"AudioContext",
-		"webkitAudioContext",
+		"ResizeObserver",
+		"'important'",
+	} {
+		if !strings.Contains(retroGamesPlayerStart, want) {
+			t.Errorf("start script lacks %q", want)
+		}
+	}
+	for _, want := range []string{
+		`<canvas id="canvas" tabindex="0">`,
+		"image-rendering:pixelated",
+		".emularity-splash-screen",
+		".emularity-splash-title",
+		".emularity-progress-indicator",
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("page lacks %q", want)
@@ -295,7 +314,7 @@ func TestRetroGamesPlayerGates(t *testing.T) {
 	}
 
 	w, _ := h.do(http.MethodHead, path, h.readToken)
-	if w.Code != http.StatusOK || w.Header().Get("Content-Type") != "text/html; charset=utf-8" || !strings.HasPrefix(w.Header().Get("Content-Security-Policy"), "sandbox allow-scripts allow-pointer-lock;") {
+	if w.Code != http.StatusOK || w.Header().Get("Content-Type") != "text/html; charset=utf-8" || w.Header().Get("Content-Security-Policy") != retroGamesPlayerCSP {
 		t.Fatalf("HEAD: %d %v", w.Code, w.Header())
 	}
 	if w, body := h.do(http.MethodPost, path, h.writeToken); w.Code != http.StatusMethodNotAllowed || body["code"] != "method_not_allowed" || w.Header().Get("Allow") != "GET, HEAD" {
@@ -306,12 +325,16 @@ func TestRetroGamesPlayerGates(t *testing.T) {
 	}
 }
 
-// TestRetroGamesPlayerCSPIsolation pins what keeps archive.org's code away
-// from AuraGo: an opaque origin, no inline or eval'd script besides the
-// nonce'd ones, and network access to archive.org hosts only.
+// TestRetroGamesPlayerCSPIsolation pins what protects AuraGo's origin from
+// archive.org's code: an opaque origin (no access to AuraGo's cookies,
+// storage, DOM or API responses), script only from the two hashed static
+// inline scripts and archive.org, and connections to archive.org hosts only.
+// It does not make the page's own content secret, and it does not stop
+// archive.org's code (same realm as the inline scripts) from posting any
+// {rg: 1} message to the app or navigating the frame itself.
 func TestRetroGamesPlayerCSPIsolation(t *testing.T) {
 	directives := map[string][]string{}
-	for _, part := range strings.Split(fmt.Sprintf(retroGamesPlayerCSP, "TESTNONCE"), ";") {
+	for _, part := range strings.Split(retroGamesPlayerCSP, ";") {
 		fields := strings.Fields(part)
 		if len(fields) == 0 {
 			continue
@@ -333,15 +356,30 @@ func TestRetroGamesPlayerCSPIsolation(t *testing.T) {
 	if got := strings.Join(directives["sandbox"], " "); got != "allow-scripts allow-pointer-lock" || has("sandbox", "allow-same-origin") {
 		t.Fatalf("sandbox = %q", got)
 	}
-	for _, token := range []string{"'unsafe-inline'", "'unsafe-eval'", "'self'", "'strict-dynamic'", "*", "data:", "blob:", "https:", "http:"} {
+	for _, token := range []string{"'unsafe-inline'", "'unsafe-eval'", "'unsafe-hashes'", "'strict-dynamic'", "*", "data:", "blob:", "https:", "http:"} {
 		if has("script-src", token) {
 			t.Errorf("script-src allows %s", token)
 		}
 	}
-	if !has("script-src", "'nonce-TESTNONCE'") {
-		t.Errorf("script-src lacks the nonce")
+	hashes := 0
+	for _, v := range directives["script-src"] {
+		if strings.HasPrefix(v, "'nonce-") {
+			t.Errorf("script-src has a nonce: %s", v)
+		}
+		if strings.HasPrefix(v, "'sha256-") {
+			hashes++
+		}
 	}
-	if has("connect-src", "'self'") || has("connect-src", "*") || has("connect-src", "https:") {
+	if hashes != 2 || !has("script-src", retroGamesTestHashSource(retroGamesPlayerBootstrap)) || !has("script-src", retroGamesTestHashSource(retroGamesPlayerStart)) {
+		t.Errorf("script-src must allow exactly the two inline scripts by hash: %q", directives["script-src"])
+	}
+	// Only frame-ancestors may name AuraGo's origin.
+	for directive := range directives {
+		if directive != "frame-ancestors" && has(directive, "'self'") {
+			t.Errorf("%s allows 'self'", directive)
+		}
+	}
+	if has("connect-src", "*") || has("connect-src", "https:") {
 		t.Errorf("connect-src = %q", directives["connect-src"])
 	}
 	if got := strings.Join(directives["default-src"], " "); got != "'none'" {
@@ -387,8 +425,44 @@ func TestRetroGamesPlayerFramingSurvivesSecurityHeaders(t *testing.T) {
 	if w.Code != http.StatusOK || w.Header().Get("X-Frame-Options") != "SAMEORIGIN" || w.Header().Get("Referrer-Policy") != "no-referrer" || w.Header().Get("Cache-Control") != "no-store" {
 		t.Fatalf("page through the middleware: %d %v", w.Code, w.Header())
 	}
-	retroGamesTestNonce(t, w)
+	retroGamesTestCSP(t, w, w.Body.String())
 	if refused := serve("../x"); refused.Code != http.StatusBadRequest || refused.Header().Get("X-Frame-Options") != "DENY" {
 		t.Fatalf("refusal through the middleware: %d %v", refused.Code, refused.Header())
+	}
+}
+
+// TestRetroGamesPlayerSessionThroughAuthMiddleware follows the real iframe
+// navigation: the desktop's session cookie, through authMiddleware and the
+// security headers, gets the framable page; without it the refusal stays
+// unframable.
+func TestRetroGamesPlayerSessionThroughAuthMiddleware(t *testing.T) {
+	h := newRetroGamesHarness(t)
+	mux := http.NewServeMux()
+	registerRetroGamesRoutes(mux, h.s)
+	handler := securityHeadersMiddleware(authMiddleware(h.s, mux), false, false)
+	serve := func(session bool) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(http.MethodGet, retroGamesPrefix+retroGamesPlayerPath(url.Values{"id": {"arcade_tron"}, "muted": {"1"}}), nil)
+		r.Header.Set("Sec-Fetch-Dest", "iframe")
+		r.Header.Set("Sec-Fetch-Mode", "navigate")
+		r.Header.Set("Sec-Fetch-Site", "same-origin")
+		r.Header.Set("Referer", "http://example.com/desktop")
+		if session {
+			r.AddCookie(&http.Cookie{Name: sessionCookieName, Value: createSessionValue(h.s.Cfg.Auth.SessionSecret, time.Now().Add(time.Hour))})
+		}
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		return w
+	}
+	w := serve(true)
+	if w.Code != http.StatusOK || w.Header().Get("X-Frame-Options") != "SAMEORIGIN" || w.Header().Get("Content-Type") != "text/html; charset=utf-8" {
+		t.Fatalf("session navigation: %d %v", w.Code, w.Header())
+	}
+	retroGamesTestCSP(t, w, w.Body.String())
+	if !strings.Contains(w.Body.String(), `<meta name="rg-muted" content="1">`) {
+		t.Fatalf("session navigation did not render the page")
+	}
+	anonymous := serve(false)
+	if anonymous.Code != http.StatusUnauthorized || anonymous.Header().Get("X-Frame-Options") != "DENY" || anonymous.Header().Get("Content-Security-Policy") == retroGamesPlayerCSP {
+		t.Fatalf("anonymous navigation: %d %v", anonymous.Code, anonymous.Header())
 	}
 }

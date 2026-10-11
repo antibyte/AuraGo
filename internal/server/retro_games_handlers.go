@@ -154,7 +154,7 @@ func (s *Server) handleRetroGames(w http.ResponseWriter, r *http.Request) {
 			retroGamesMethodNotAllowed(w, "GET, HEAD")
 			return
 		}
-		ServeRetroGamesPlayer(w, r)
+		ServeRetroGamesPlayerUngated(w, r)
 	case (route == "favorites" || route == "broken") && id != "":
 		on := r.Method == http.MethodPut
 		if !on && r.Method != http.MethodDelete {
