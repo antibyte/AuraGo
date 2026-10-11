@@ -24,21 +24,29 @@ func (im genImage) symbol() string { return imageSymbol(im.asset.ID) }
 // imageSymbol is the public descriptor name of an asset (ui.h declares it).
 func imageSymbol(assetID string) string { return "ui_img_" + assetID }
 
-// decodeAsset decodes a PNG or JPEG after checking its header: other formats
-// (even if another package registered a decoder) and pictures above
-// maxWidgetSide pixels per side are rejected before the pixels are read.
-func decodeAsset(data []byte) (image.Image, error) {
+// assetHeader reads only the header of a PNG or JPEG: other formats (even if
+// another package registered a decoder) and pictures above maxWidgetSide
+// pixels per side are rejected without reading any pixel.
+func assetHeader(data []byte) (image.Config, error) {
 	cfg, format, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
-		return nil, NewError(CodeBadRequest, "the image is not a readable PNG or JPEG file", nil)
+		return image.Config{}, NewError(CodeBadRequest, "the image is not a readable PNG or JPEG file", nil)
 	}
 	if format != "png" && format != "jpeg" {
-		return nil, NewError(CodeBadRequest, fmt.Sprintf("image format %q is not supported (PNG or JPEG only)", format),
+		return image.Config{}, NewError(CodeBadRequest, fmt.Sprintf("image format %q is not supported (PNG or JPEG only)", format),
 			map[string]any{"format": format})
 	}
 	if cfg.Width < 1 || cfg.Height < 1 || cfg.Width > maxWidgetSide || cfg.Height > maxWidgetSide {
-		return nil, NewError(CodeBadRequest, fmt.Sprintf("image size %dx%d must be within 1..%d pixels per side", cfg.Width, cfg.Height, maxWidgetSide),
+		return image.Config{}, NewError(CodeBadRequest, fmt.Sprintf("image size %dx%d must be within 1..%d pixels per side", cfg.Width, cfg.Height, maxWidgetSide),
 			map[string]any{"width": cfg.Width, "height": cfg.Height, "limit": maxWidgetSide})
+	}
+	return cfg, nil
+}
+
+// decodeAsset decodes a PNG or JPEG after checking its header (assetHeader).
+func decodeAsset(data []byte) (image.Image, error) {
+	if _, err := assetHeader(data); err != nil {
+		return nil, err
 	}
 	img, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
@@ -107,25 +115,91 @@ func encodeImage(img image.Image, alpha bool) []byte {
 	return append(out, alphas...)
 }
 
+// assetError scopes an asset problem to its asset id: "asset" is merged into
+// the error's details (the other keys stay) and "asset <id>: " prefixes the
+// message. Errors that are not *Error pass through unchanged.
+func assetError(id string, err error) error {
+	var e *Error
+	if !errors.As(err, &e) || e == nil {
+		return err
+	}
+	if e.Details == nil {
+		e.Details = map[string]any{}
+	}
+	e.Details["asset"] = id
+	e.Message = "asset " + id + ": " + e.Message
+	return err
+}
+
+// maxBoardDisplay returns the largest long and the largest short display side
+// over all board profiles: an asset that fits no supported display is refused
+// before it is decoded.
+func maxBoardDisplay() (long, short int, err error) {
+	boards, err := Boards()
+	if err != nil {
+		return 0, 0, err
+	}
+	for _, b := range boards {
+		long = max(long, b.Display.Width, b.Display.Height)
+		short = max(short, min(b.Display.Width, b.Display.Height))
+	}
+	return long, short, nil
+}
+
 // decodeProjectAssets decodes every asset of the project from in.Assets.
 // Missing data, an unreadable file or a size that differs from the layout
 // are *Error CYD_BAD_REQUEST (the stored asset and the layout disagree).
+//
+// The layout is not validated yet when this runs (an imported project is
+// untrusted) and decoded pixels are far larger than the files (a 16-bit RGBA
+// PNG of 2048x2048 is ~37 KB compressed but ~64 MiB decoded). Pass 1 therefore
+// reads only the headers of all assets and refuses, before any pixel is
+// decoded: a header that differs from the layout, an image larger than the
+// largest supported display (CYD_BAD_REQUEST, details.reason "dimensions"),
+// and a project whose images would need more than AssetBudgetLarge even as
+// opaque RGB565 (details.reason "budget"; Validate checks the exact budget of
+// the board afterwards). That bounds pass 2, the full decode, to about 2M
+// pixels in total.
 func decodeProjectAssets(p Project, data map[string][]byte) ([]genImage, map[string]int64, error) {
-	images := make([]genImage, 0, len(p.Assets))
-	sizes := make(map[string]int64, len(p.Assets))
+	var maxLong, maxShort int
+	if len(p.Assets) > 0 {
+		var err error
+		if maxLong, maxShort, err = maxBoardDisplay(); err != nil {
+			return nil, nil, err
+		}
+	}
+	var minBytes int64
 	for _, a := range p.Assets {
 		raw, ok := data[a.ID]
 		if !ok {
 			return nil, nil, NewError(CodeBadRequest, fmt.Sprintf("asset %s has no image data", a.ID), map[string]any{"asset": a.ID})
 		}
-		img, err := decodeAsset(raw)
+		cfg, err := assetHeader(raw)
 		if err != nil {
-			var e *Error
-			if errors.As(err, &e) {
-				e.Details = map[string]any{"asset": a.ID}
-				e.Message = "asset " + a.ID + ": " + e.Message
-			}
-			return nil, nil, err
+			return nil, nil, assetError(a.ID, err)
+		}
+		if cfg.Width != a.W || cfg.Height != a.H {
+			return nil, nil, NewError(CodeBadRequest, fmt.Sprintf("asset %s is %dx%d but the layout says %dx%d", a.ID, cfg.Width, cfg.Height, a.W, a.H),
+				map[string]any{"asset": a.ID})
+		}
+		if max(cfg.Width, cfg.Height) > maxLong || min(cfg.Width, cfg.Height) > maxShort {
+			return nil, nil, NewError(CodeBadRequest,
+				fmt.Sprintf("asset %s is %dx%d, larger than the largest supported display (%dx%d)", a.ID, cfg.Width, cfg.Height, maxLong, maxShort),
+				map[string]any{"asset": a.ID, "reason": "dimensions", "width": cfg.Width, "height": cfg.Height, "max_width": maxLong, "max_height": maxShort})
+		}
+		minBytes += imageDataSize(cfg.Width, cfg.Height, false)
+		if minBytes > AssetBudgetLarge {
+			return nil, nil, NewError(CodeBadRequest,
+				fmt.Sprintf("the images need at least %d bytes, more than the largest budget of %d bytes (asset %s)", minBytes, int64(AssetBudgetLarge), a.ID),
+				map[string]any{"asset": a.ID, "reason": "budget", "needed": minBytes, "budget": int64(AssetBudgetLarge)})
+		}
+	}
+	images := make([]genImage, 0, len(p.Assets))
+	sizes := make(map[string]int64, len(p.Assets))
+	for _, a := range p.Assets {
+		img, err := decodeAsset(data[a.ID])
+		if err != nil {
+			return nil, nil, assetError(a.ID, err)
 		}
 		b := img.Bounds()
 		if b.Dx() != a.W || b.Dy() != a.H {
@@ -160,10 +234,14 @@ func renderAssets(images []genImage) string {
 		if im.alpha {
 			cf, format = "LV_COLOR_FORMAT_RGB565A8", "RGB565A8"
 		}
+		// Size and stride come from the pixels that are written, like the
+		// data itself (decodeProjectAssets guarantees they equal the layout).
+		bounds := im.img.Bounds()
+		iw, ih := bounds.Dx(), bounds.Dy()
 		data := encodeImage(im.img, im.alpha)
 		mapName := "ui__img_" + a.ID + "_map"
 		w.line(0, "")
-		w.line(0, "// %s: %s, %dx%d, %s, %d bytes", a.ID, cComment(a.File), a.W, a.H, format, len(data))
+		w.line(0, "// %s: %s, %dx%d, %s, %d bytes", a.ID, cComment(a.File), iw, ih, format, len(data))
 		w.line(0, "static const uint8_t %s[] __attribute__((aligned(4))) = {", mapName)
 		for i := 0; i < len(data); i += 16 {
 			end := min(i+16, len(data))
@@ -176,7 +254,7 @@ func renderAssets(images []genImage) string {
 		w.line(0, "};")
 		w.line(0, "")
 		w.line(0, "const lv_image_dsc_t %s = {", im.symbol())
-		w.line(2, "{LV_IMAGE_HEADER_MAGIC, %s, 0, %d, %d, %d, 0},", cf, a.W, a.H, a.W*2)
+		w.line(2, "{LV_IMAGE_HEADER_MAGIC, %s, 0, %d, %d, %d, 0},", cf, iw, ih, iw*2)
 		w.line(2, "%d,", len(data))
 		w.line(2, "%s,", mapName)
 		w.line(2, "NULL,")
