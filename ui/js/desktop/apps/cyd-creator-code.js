@@ -8,7 +8,11 @@
     const P = window.CYDCreatorParts = window.CYDCreatorParts || {};
     const HOOK_FILE = 'src/app/app_events.cpp';
     const APP_DIR = 'src/app/';
-    const FILE_NAME = /^(?:[A-Za-z0-9_][A-Za-z0-9_-]*\/)*[A-Za-z0-9_][A-Za-z0-9_.-]*\.(?:cpp|h|hpp|c)$/;
+    // The server's IsEditablePath (internal/cydcreator/diagnostics.go): at most four folders below
+    // src/app, 160 bytes, ASCII segments that start with a letter, digit or _, do not end with a dot
+    // and are no Windows device name, and a .cpp, .h, .hpp or .c file.
+    const SEGMENT = /^[A-Za-z0-9_](?:[A-Za-z0-9_.-]{0,62}[A-Za-z0-9_-])?$/;
+    const DEVICE = /^(?:con|prn|aux|nul|com[0-9]|lpt[0-9])$/;
     const HOOK_HEADER = [
         '// Event hooks of the CYD Creator layout. "Create hook" in the designer adds a function',
         '// here for every logic event; the prototypes live in src/generated/ui.h.',
@@ -51,10 +55,25 @@
         ].join('\n');
     }
 
-    function lineOf(text, needle) {
-        const index = String(text).indexOf(needle);
-        if (index < 0) return 1;
-        return String(text).slice(0, index).split('\n').length;
+    function isEditablePath(rel) {
+        const p = String(rel || '');
+        const segs = p.split('/');
+        if (p.length > 160 || !p.startsWith(APP_DIR) || segs.length < 3 || segs.length > 7) return false;
+        if (!segs.every(s => SEGMENT.test(s) && !DEVICE.test(s.split('.')[0].toLowerCase()))) return false;
+        return /\.(?:cpp|h|hpp|c)$/.test(segs[segs.length - 1]);
+    }
+
+    // hookLine returns the line of the definition (or declaration) void fn(…), 0 when there is none;
+    // a call or a mention of the bare name does not count.
+    function hookLine(text, fn) {
+        const s = String(text);
+        const m = new RegExp('\\bvoid\\s+' + fn + '\\s*\\(').exec(s);
+        return m ? s.slice(0, m.index).split('\n').length : 0;
+    }
+
+    // severityOf maps a diagnostic like the dock does: error, warning, everything else a note.
+    function severityOf(d) {
+        return d.severity === 'error' ? 'error' : (d.severity === 'warning' ? 'warning' : 'note');
     }
 
     function create(inst) {
@@ -65,6 +84,9 @@
             files: [],
             openPath: '',
             openInfo: null,
+            openSha: '',
+            missing: '',
+            switching: 0,
             saver: null,
             cm: null,
             view: null,
@@ -99,17 +121,45 @@
             empty);
         const root = el('div', { class: 'cc-code', dataset: { ccCode: '' } }, tree, main);
 
+        // The editor is read-only while it switches or renames a file, so nothing typed between the
+        // flush and the new document is lost.
         function readOnlyFor(info) {
-            return !info || !info.editable || inst.readonly || inst.isLocked();
+            return !info || !info.editable || state.switching > 0 || inst.readonly || inst.isLocked();
+        }
+
+        function setSwitching(on) {
+            state.switching = Math.max(0, state.switching + (on ? 1 : -1));
+            updateReadOnly();
         }
 
         // ── tree ──
+        function treeFocusKey() {
+            const active = document.activeElement;
+            if (!active || !active.dataset || !groups.contains(active)) return null;
+            return { file: active.dataset.ccFile, action: active.dataset.ccCodeAction, path: active.dataset.path };
+        }
+
+        function restoreTreeFocus(key) {
+            if (!key) return;
+            const buttons = Array.from(groups.querySelectorAll('button'));
+            const hit = (key.action && buttons.find(n => n.dataset.ccCodeAction === key.action && n.dataset.path === key.path)) ||
+                buttons.find(n => n.dataset.ccFile === (key.file || key.path));
+            (hit || buttons[0] || newBtn).focus();
+        }
+
         function renderTree() {
             const byGroup = { app: [], generated: [], template: [] };
             state.files.slice().sort((x, y) => String(x.path).localeCompare(String(y.path))).forEach(info => byGroup[fileGroup(info)].push(info));
             const counts = new Map();
-            state.problems.forEach(d => { if (d.file) counts.set(d.file, (counts.get(d.file) || 0) + 1); });
+            const rank = { note: 0, warning: 1, error: 2 };
+            state.problems.forEach(d => {
+                const c = counts.get(d.file) || { n: 0, worst: 'note' };
+                const s = severityOf(d);
+                counts.set(d.file, { n: c.n + 1, worst: rank[s] > rank[c.worst] ? s : c.worst });
+            });
+            const tones = { error: 'danger', warning: 'warning', note: null };
             const canEdit = !inst.readonly && !inst.isLocked();
+            const focusKey = treeFocusKey();
             const sections = [['app', true], ['generated', false], ['template', false]].map(([group, open]) => {
                 const list = byGroup[group];
                 if (!list.length && group !== 'app') return null;
@@ -119,7 +169,7 @@
                         type: 'button', class: 'cc-tree-item', dataset: { ccFile: info.path },
                         'aria-current': info.path === state.openPath ? 'true' : null, title: info.path
                     }, el('span', { class: 'cc-tree-name', text: label }),
-                    counts.get(info.path) ? el('span', { class: 'cc-tag', dataset: { tone: 'danger' }, text: String(counts.get(info.path)) }) : null);
+                    counts.get(info.path) ? el('span', { class: 'cc-tag', dataset: { tone: tones[counts.get(info.path).worst] }, text: String(counts.get(info.path).n) }) : null);
                     item.addEventListener('click', () => openFile(info.path));
                     const tools = group === 'app' && canEdit ? el('span', { class: 'cc-tree-tools' },
                         el('button', { type: 'button', class: 'cc-icon-btn', dataset: { ccCodeAction: 'rename', path: info.path }, 'aria-label': t('cyd_creator.code.rename_file', { name: label }), title: t('cyd_creator.code.rename'), text: '✎', onClick: () => renameFile(info) }),
@@ -135,20 +185,48 @@
             groups.replaceChildren(...sections.filter(Boolean));
             if (openGroups.size) groups.querySelectorAll('details').forEach(d => { d.open = openGroups.has(d.dataset.group) || d.dataset.group === 'app'; });
             newBtn.disabled = !canEdit;
+            restoreTreeFocus(focusKey);
+        }
+
+        // openIsStale: a read-only (generated or template) file whose listed sha moved on.
+        function openIsStale() {
+            const info = state.files.find(f => f.path === state.openPath);
+            return !!(info && !state.saver && state.openSha && info.sha256 && info.sha256 !== state.openSha);
         }
 
         async function refreshFiles() {
             try {
+                // A save that lands while the list loads changes the token: the list may predate it.
+                const saver = state.saver;
+                const before = saver ? saver.token() : null;
                 const files = await inst.api.listFiles(inst.projectId);
                 if (state.disposed) return;
                 state.files = files;
                 renderTree();
                 const info = files.find(f => f.path === state.openPath);
-                if (state.openPath && !info) { closeEditor(); return; }
+                if (state.openPath && !info) {
+                    // Deleted or renamed elsewhere (agent, restore, another window). Unsaved text stays
+                    // open; saving it ends in the conflict choice: keep editing, drop it or recreate the file.
+                    if (state.saver && state.saver.dirty()) {
+                        if (state.missing !== state.openPath && state.saver.state() !== 'conflict') {
+                            state.missing = state.openPath;
+                            inst.notify('error', t('cyd_creator.error.CYD_FILE_CONFLICT'));
+                            state.saver.flush();
+                        }
+                        return;
+                    }
+                    closeEditor();
+                    return;
+                }
                 if (info) {
+                    state.missing = '';
                     state.openInfo = info;
-                    // Changed elsewhere (agent, restore, another window) and nothing local to keep: reload.
-                    if (state.saver && !state.saver.dirty() && info.sha256 && info.sha256 !== state.saver.token()) await reloadOpen();
+                    // Changed elsewhere and nothing local to keep: reload.
+                    if (saver && saver === state.saver) {
+                        if (!saver.dirty() && saver.token() === before && info.sha256 && info.sha256 !== before) await reloadOpen();
+                    } else if (openIsStale()) {
+                        await reloadOpen();
+                    }
                 }
             } catch (err) {
                 if (!state.disposed) inst.notify('error', P.errors.message(t, err));
@@ -194,6 +272,7 @@
                 cm.closeBrackets(),
                 cm.highlightSelectionMatches(),
                 cm.cpp(),
+                cm.EditorView.contentAttributes.of({ 'aria-label': t('cyd_creator.code.editor_label') }),
                 state.themeCompartment.of(themeExtensions(cm, state.light)),
                 cm.keymap.of([
                     { key: 'Mod-s', preventDefault: true, run: () => { flush(); return true; } },
@@ -315,6 +394,7 @@
                 onSaved: token => {
                     const info = state.files.find(f => f.path === path);
                     if (info) info.sha256 = token;
+                    else refreshFiles(); // recreated after it was deleted elsewhere
                 },
                 onConflict: () => resolveConflict(path)
             });
@@ -328,18 +408,30 @@
                     { id: 'keep', label: t('cyd_creator.code.conflict_keep') },
                     { id: 'reload', label: t('cyd_creator.code.conflict_reload') },
                     { id: 'overwrite', label: t('cyd_creator.code.conflict_overwrite'), kind: 'danger' }
-                ]
+                ],
+                owner: b
             });
             const choice = await d.promise;
             if (choice !== 'reload' && choice !== 'overwrite') return { action: 'keep' };
+            let server = null;
             try {
-                const server = await inst.api.readFile(inst.projectId, path);
-                if (choice === 'reload' && path === state.openPath) setText(server.text, readOnlyFor(state.openInfo));
-                return { action: choice, token: server.sha };
+                server = await inst.api.readFile(inst.projectId, path);
             } catch (err) {
-                inst.notify('error', P.errors.message(t, err));
-                return { action: 'keep' };
+                if (!err || err.status !== 404) {
+                    inst.notify('error', P.errors.message(t, err));
+                    return { action: 'keep' };
+                }
             }
+            if (!server) {
+                // Deleted elsewhere: Overwrite recreates it (If-Match * creates only), the saved
+                // version is no file at all.
+                if (choice === 'overwrite') return { action: 'overwrite', token: '*' };
+                if (path === state.openPath) closeEditor();
+                refreshFiles();
+                return { action: 'reload' };
+            }
+            if (choice === 'reload' && path === state.openPath) setText(server.text, readOnlyFor(state.openInfo));
+            return { action: choice, token: server.sha };
         }
 
         function onEdit(text) {
@@ -352,6 +444,8 @@
             state.openPath = path;
             state.openInfo = state.files.find(f => f.path === path) || { path, editable: false, generated: true };
             state.saver = state.openInfo.editable ? makeSaver(path, sha) : null;
+            state.openSha = sha || '';
+            state.missing = '';
             pathLabel.textContent = path;
             empty.hidden = true;
             editorHost.hidden = false;
@@ -359,6 +453,7 @@
             renderHint();
             renderChip();
             renderTree();
+            inst.bus.emit('code:state', state.saver ? state.saver.state() : 'saved');
         }
 
         function closeEditor() {
@@ -366,6 +461,8 @@
             state.saver = null;
             state.openPath = '';
             state.openInfo = null;
+            state.openSha = '';
+            state.missing = '';
             pathLabel.textContent = '';
             setText('', true);
             empty.hidden = false;
@@ -373,6 +470,7 @@
             renderHint();
             renderChip('');
             renderTree();
+            inst.bus.emit('code:state', 'saved');
         }
 
         async function reloadOpen() {
@@ -400,14 +498,18 @@
         async function openFile(path, line) {
             await ensureEditor();
             if (state.disposed) return false;
-            if (path === state.openPath) {
+            if (path === state.openPath && !openIsStale()) {
+                // The open file wins over another file that is still loading.
+                state.loadToken++;
+                root.classList.remove('is-loading');
                 if (line) gotoLine(line);
                 return true;
             }
-            if (!(await leaveCurrent())) return false;
             const token = ++state.loadToken;
-            root.classList.add('is-loading');
+            setSwitching(true);
             try {
+                if (!(await leaveCurrent()) || token !== state.loadToken || state.disposed) return false;
+                root.classList.add('is-loading');
                 if (!state.files.some(f => f.path === path)) await refreshFiles();
                 const server = await inst.api.readFile(inst.projectId, path);
                 if (token !== state.loadToken || state.disposed) return false;
@@ -419,11 +521,21 @@
                 return false;
             } finally {
                 if (token === state.loadToken) root.classList.remove('is-loading');
+                if (!state.disposed) setSwitching(false);
             }
         }
 
         // ── file actions ──
-        function nameDialog(titleKey, value) {
+        // nameError checks a new name against the server's rules; existing names compare without
+        // letter case (the server refuses a second spelling), ignoring the renamed file itself.
+        function nameError(path, ignorePath) {
+            if (!isEditablePath(path)) return t('cyd_creator.code.file_name_invalid');
+            const lower = path.toLowerCase();
+            if (state.files.some(f => f.path !== ignorePath && String(f.path).toLowerCase() === lower)) return t('cyd_creator.code.file_exists');
+            return '';
+        }
+
+        function nameDialog(titleKey, value, ignorePath) {
             const input = el('input', { class: 'cc-input', type: 'text', value: value || '', autofocus: true, spellcheck: 'false', 'aria-label': t('cyd_creator.code.file_name'), dataset: { ccFileName: '' } });
             const help = el('p', { class: 'cc-form-help', text: t('cyd_creator.code.file_name_help') });
             const d = P.dialog.open(inst.root, {
@@ -432,11 +544,12 @@
                 actions: [{ id: 'cancel', label: t('cyd_creator.app.cancel') }, { id: 'ok', label: t('cyd_creator.app.ok'), kind: 'primary' }],
                 onAction(id, dialog) {
                     if (id !== 'ok') { dialog.close(null); return; }
-                    const name = input.value.trim().replace(/^src\/app\//, '');
-                    if (!FILE_NAME.test(name) || name.split('/').includes('..')) { dialog.setError(t('cyd_creator.code.file_name_invalid')); return; }
-                    if (state.files.some(f => f.path === APP_DIR + name)) { dialog.setError(t('cyd_creator.code.file_exists')); return; }
-                    dialog.close(APP_DIR + name);
-                }
+                    const path = APP_DIR + input.value.trim().replace(/^src\/app\//, '');
+                    const error = nameError(path, ignorePath);
+                    if (error) { dialog.setError(error); return; }
+                    dialog.close(path);
+                },
+                owner: b
             });
             input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); d.el.querySelector('[data-cc-dialog-action="ok"]').click(); } });
             input.select();
@@ -456,21 +569,45 @@
             }
         }
 
+        // renameFile copies and deletes (the API has no rename) and undoes the first step when the
+        // second fails. A change of letter case only deletes first: the server refuses a second
+        // spelling of an existing name.
         async function renameFile(info) {
-            const target = await nameDialog('cyd_creator.code.rename', info.path.slice(APP_DIR.length));
+            const target = await nameDialog('cyd_creator.code.rename', info.path.slice(APP_DIR.length), info.path);
             if (!target || target === info.path) return;
+            const id = inst.projectId;
+            const wasOpen = state.openPath === info.path;
+            let renamed = false;
+            if (wasOpen) setSwitching(true);
             try {
-                if (state.openPath === info.path && !(await flush())) return;
-                const current = await inst.api.readFile(inst.projectId, info.path);
-                await inst.api.writeFile(inst.projectId, target, current.text, '*');
-                await inst.api.deleteFile(inst.projectId, info.path, current.sha);
-                const wasOpen = state.openPath === info.path;
-                if (wasOpen) closeEditor();
-                await refreshFiles();
-                if (wasOpen) await openFile(target, 1);
+                if (wasOpen && !(await flush())) return;
+                const current = await inst.api.readFile(id, info.path);
+                if (target.toLowerCase() === info.path.toLowerCase()) {
+                    await inst.api.deleteFile(id, info.path, current.sha);
+                    try {
+                        await inst.api.writeFile(id, target, current.text, '*');
+                    } catch (err) {
+                        await inst.api.writeFile(id, info.path, current.text, '*').catch(() => {});
+                        throw err;
+                    }
+                } else {
+                    const sha = await inst.api.writeFile(id, target, current.text, '*');
+                    try {
+                        await inst.api.deleteFile(id, info.path, current.sha);
+                    } catch (err) {
+                        await inst.api.deleteFile(id, target, sha).catch(() => {});
+                        throw err;
+                    }
+                }
+                renamed = true;
+                if (state.openPath === info.path) closeEditor();
             } catch (err) {
                 inst.notify('error', P.errors.message(t, err));
+            } finally {
+                if (wasOpen && !state.disposed) setSwitching(false);
             }
+            await refreshFiles();
+            if (renamed && wasOpen && !state.openPath) await openFile(target, 1);
         }
 
         async function deleteFile(info) {
@@ -493,32 +630,39 @@
             const event = String((spec && spec.event) || '');
             if (!/^[a-z][a-z0-9_]{0,31}$/.test(name) || !/^[a-z_]{1,32}$/.test(event)) throw new Error('invalid hook name');
             const fn = 'on_' + name + '_' + event;
-            if (state.openPath === HOOK_FILE && !(await flush())) return false;
+            const wasOpen = state.openPath === HOOK_FILE;
+            if (wasOpen) setSwitching(true);
             let text = null;
             let sha = '*';
             try {
-                const current = await inst.api.readFile(inst.projectId, HOOK_FILE);
-                text = current.text;
-                sha = current.sha;
-            } catch (err) {
-                if (!err || err.status !== 404) { inst.notify('error', P.errors.message(t, err)); return false; }
-            }
-            if (text === null || !new RegExp('\\b' + fn + '\\s*\\(').test(text)) {
-                if (inst.readonly || inst.isLocked()) { inst.notify('error', t(inst.readonly ? 'cyd_creator.app.readonly_hint' : 'cyd_creator.app.locked_banner')); return false; }
-                text = (text === null ? HOOK_HEADER : text.replace(/\s*$/, '\n')) + '\n' + hookStub(fn);
+                if (wasOpen && !(await flush())) return false;
                 try {
-                    sha = await inst.api.writeFile(inst.projectId, HOOK_FILE, text, sha);
+                    const current = await inst.api.readFile(inst.projectId, HOOK_FILE);
+                    text = current.text;
+                    sha = current.sha;
                 } catch (err) {
-                    inst.notify('error', P.errors.message(t, err));
-                    return false;
+                    if (!err || err.status !== 404) { inst.notify('error', P.errors.message(t, err)); return false; }
                 }
-                await refreshFiles();
+                if (text === null || !hookLine(text, fn)) {
+                    if (inst.readonly || inst.isLocked()) { inst.notify('error', t(inst.readonly ? 'cyd_creator.app.readonly_hint' : 'cyd_creator.app.locked_banner')); return false; }
+                    text = (text === null ? HOOK_HEADER : text.replace(/\s*$/, '\n')) + '\n' + hookStub(fn);
+                    try {
+                        sha = await inst.api.writeFile(inst.projectId, HOOK_FILE, text, sha);
+                    } catch (err) {
+                        inst.notify('error', P.errors.message(t, err));
+                        return false;
+                    }
+                    await refreshFiles();
+                }
+                inst.setMode('code');
+                await ensureEditor();
+                if (state.disposed) return false;
+                if (state.openPath === HOOK_FILE) installDocument(HOOK_FILE, text, sha);
+            } finally {
+                if (wasOpen && !state.disposed) setSwitching(false);
             }
-            inst.setMode('code');
-            await ensureEditor();
-            if (state.openPath === HOOK_FILE) installDocument(HOOK_FILE, text, sha);
-            else if (!(await openFile(HOOK_FILE))) return false;
-            gotoLine(lineOf(text, 'void ' + fn + '('));
+            if (state.openPath !== HOOK_FILE && !(await openFile(HOOK_FILE))) return false;
+            gotoLine(hookLine(text, fn) || 1);
             return true;
         }
 
@@ -541,12 +685,14 @@
                 const block = view.lineBlockAt(doc.line(line).from);
                 const top = block.top + view.documentTop - box.top;
                 if (top + block.height < 0 || top > box.height) return;
-                const severity = d.severity === 'error' ? 'error' : 'warning';
+                const severity = severityOf(d);
+                // Notes stay quiet (muted edge, no fill) instead of looking like an error.
+                const look = severity === 'note' ? { borderLeftColor: 'var(--cc-muted)', background: 'transparent' } : {};
                 markers.appendChild(el('div', {
                     class: 'cc-code-marker is-' + severity,
                     title: (d.line ? d.line + ': ' : '') + String(d.message || ''),
-                    dataset: { ccMarker: String(line) },
-                    style: { top: top + 'px', height: block.height + 'px' }
+                    dataset: { ccMarker: String(line), severity },
+                    style: Object.assign({ top: top + 'px', height: block.height + 'px' }, look)
                 }));
             });
         }
@@ -601,4 +747,7 @@
     }
 
     P.code = { create, HOOK_FILE };
+    // Pure rules, for the Node checks.
+    P.code.isEditablePath = isEditablePath;
+    P.code.hookLine = hookLine;
 })();

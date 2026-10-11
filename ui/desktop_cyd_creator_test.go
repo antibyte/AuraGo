@@ -284,6 +284,13 @@ func TestCYDCreatorCodeModule(t *testing.T) {
 	checkCYDCreatorModule(t, "cyd-creator-code.js",
 		"P.code = { create, HOOK_FILE };", "const HOOK_FILE = 'src/app/app_events.cpp';", "import('/js/vendor/codemirror-bundle.esm.js')",
 		"cm.cpp()", "ensureHook,", "P.autosave.create({", "cyd_creator.code.generated_hint", "view.lineBlockAt(", "dispose() {")
+	// Fix round: the chip follows every document change, a vanished file keeps unsaved text and can
+	// be recreated, dialogs close with the module, the editor has a name, hooks match definitions.
+	checkCYDCreatorModule(t, "cyd-creator-code.js",
+		"inst.bus.emit('code:state', state.saver ? state.saver.state() : 'saved');", "inst.bus.emit('code:state', 'saved');",
+		"return { action: 'overwrite', token: '*' };", "owner: b", "function isEditablePath(rel)",
+		"cm.EditorView.contentAttributes.of({ 'aria-label': t('cyd_creator.code.editor_label') })",
+		`new RegExp('\\bvoid\\s+' + fn + '\\s*\\(')`)
 }
 
 func TestCYDCreatorAgentModule(t *testing.T) {

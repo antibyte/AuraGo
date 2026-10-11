@@ -456,10 +456,30 @@
 
     // ── in-window dialog ────────────────────────────────────────────────────
 
+    // Open dialogs, oldest first. One capturing keydown listener serves them all: the newest dialog
+    // whose host holds the focus (the newest one when nothing has focus) handles Escape and Tab, so
+    // a confirm stacked over another dialog closes alone and focus elsewhere on the desktop is left
+    // alone. A dialog whose host left the document without closing it is closed on the next key.
+    const openDialogs = [];
+    function dialogForKey() {
+        openDialogs.slice().forEach(entry => { if (!document.contains(entry.backdrop)) entry.api.close(null); });
+        const active = document.activeElement;
+        const free = !active || active === document.body || active === document.documentElement;
+        for (let i = openDialogs.length - 1; i >= 0; i--) {
+            if (free || openDialogs[i].host.contains(active)) return openDialogs[i];
+        }
+        return null;
+    }
+    function onDialogKey(event) {
+        const entry = dialogForKey();
+        if (entry) entry.onKey(event);
+    }
+
     // P.dialog.open(host, spec) shows a modal inside host (the app root, so it stays in the window).
     // spec: {title, body (Node or array), actions: [{id, label, kind: 'primary'|'danger'|'', disabled}],
-    // onAction(id, dialog), className}. Escape, the backdrop and an action without onAction close it;
-    // the promise resolves with the closing value (null for Escape/backdrop).
+    // onAction(id, dialog), className, owner}. Escape, the backdrop and an action without onAction
+    // close it; the promise resolves with the closing value (null for Escape/backdrop). owner (a
+    // P.util.bag) closes the dialog when the owner is disposed.
     function openDialog(host, spec) {
         const s = spec || {};
         const util = P.util;
@@ -479,12 +499,15 @@
         actions);
         const backdrop = util.el('div', { class: 'cc-modal-backdrop' }, dialog);
         let closed = false;
+        let entry = null;
         const api = {
             el: dialog,
             close(value) {
                 if (closed) return;
                 closed = true;
-                document.removeEventListener('keydown', onKey, true);
+                const index = openDialogs.indexOf(entry);
+                if (index >= 0) openDialogs.splice(index, 1);
+                if (!openDialogs.length) document.removeEventListener('keydown', onDialogKey, true);
                 backdrop.remove();
                 if (previousFocus && typeof previousFocus.focus === 'function' && document.contains(previousFocus)) previousFocus.focus();
                 resolveFn(value === undefined ? null : value);
@@ -535,7 +558,10 @@
             }
         }
         backdrop.addEventListener('mousedown', event => { if (event.target === backdrop) api.close(null); });
-        document.addEventListener('keydown', onKey, true);
+        entry = { api, host, backdrop, onKey };
+        if (!openDialogs.length) document.addEventListener('keydown', onDialogKey, true);
+        openDialogs.push(entry);
+        if (s.owner && typeof s.owner.add === 'function') s.owner.add(() => api.close(null));
         host.appendChild(backdrop);
         const first = dialog.querySelector('[autofocus]') || focusables()[0];
         if (first) first.focus();

@@ -543,6 +543,8 @@ class FakeNode {
         const classes = new Set();
         this.classList = {
             toggle(name, on) { const want = on === undefined ? !classes.has(name) : !!on; if (want) classes.add(name); else classes.delete(name); return want; },
+            add: name => classes.add(name),
+            remove: name => classes.delete(name),
             contains: name => classes.has(name)
         };
         this.style = { props: {}, setProperty(name, value) { this.props[name] = String(value); } };
@@ -556,6 +558,10 @@ class FakeNode {
     set disabled(on) { if (on) this.attrs.disabled = ''; else delete this.attrs.disabled; }
     get checked() { return this.checkedProp === undefined ? 'checked' in this.attrs : this.checkedProp; }
     set checked(on) { this.checkedProp = !!on; }
+    get open() { return this.openProp === undefined ? 'open' in this.attrs : this.openProp; }
+    set open(on) { this.openProp = !!on; }
+    get value() { return this.valueProp === undefined ? (this.attrs.value || '') : this.valueProp; }
+    set value(v) { this.valueProp = String(v); }
     get scrollHeight() { return this.childNodes.length * 10; }
     get textContent() { return this.ownText + this.childNodes.map(n => n.textContent).join(''); }
     set textContent(value) { this.replaceChildren(); this.ownText = String(value); }
@@ -587,14 +593,37 @@ class FakeNode {
     addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
     removeEventListener(type, fn) { this.listeners[type] = (this.listeners[type] || []).filter(f => f !== fn); }
     dispatch(type, extra) { (this.listeners[type] || []).slice().forEach(fn => fn(Object.assign({ preventDefault() {}, button: 0 }, extra))); }
+    // Simple selectors only: tag, [attr], [attr="v"], tag[attr], :not([tabindex="-1"]), comma lists.
+    matches(selector) {
+        return selector.split(',').some(part => {
+            const m = /^([a-z]+)?(?:\[([a-z-]+)(?:="([^"]*)")?\])?(:not\(\[tabindex="-1"\]\))?$/.exec(part.trim());
+            if (!m) throw new Error('fake DOM: unsupported selector ' + part);
+            const [, tag, attr, want, notMinus] = m;
+            if (tag && this.tagName !== tag.toUpperCase()) return false;
+            if (!attr) return true;
+            let value;
+            if (attr.startsWith('data-')) value = this.dataset[attr.slice(5).replace(/-([a-z])/g, (_, c) => c.toUpperCase())];
+            else if (attr === 'open') value = this.open ? '' : undefined;
+            else value = this.attrs[attr];
+            if (value === undefined) return false;
+            if (notMinus && value === '-1') return false;
+            return want === undefined || value === want;
+        });
+    }
     querySelectorAll(selector) {
-        if (selector !== '[role="tab"]') throw new Error('fake DOM: unsupported selector ' + selector);
         const out = [];
-        const walk = node => node.childNodes.forEach(n => { if (n.attrs.role === 'tab') out.push(n); walk(n); });
+        const walk = node => node.childNodes.forEach(n => { if (n.tagName !== '#TEXT' && n.matches(selector)) out.push(n); walk(n); });
         walk(this);
         return out;
     }
-    focus() {}
+    querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
+    contains(node) { for (let n = node; n; n = n.parentNode) if (n === this) return true; return false; }
+    getClientRects() { return this.hidden ? [] : [{}]; }
+    getBoundingClientRect() { return { top: 0, left: 0, width: 600, height: 400 }; }
+    focus() { sandbox.document.activeElement = this; }
+    click() { this.dispatch('click'); }
+    select() {}
+    setSelectionRange() {}
     setPointerCapture() {}
 }
 const fakeStorage = new Map();
@@ -712,6 +741,300 @@ function makeDock(prefs, listed, logs) {
     check('showing the log while following scrolls to its end', d.pre().scrollTop === d.pre().scrollHeight && d.pre().scrollTop > 0);
     d.dock.dispose();
 }
+
+// ── dialog (cyd-creator-core.js): only the topmost dialog takes keys; owners close theirs ──
+const docKeys = [];
+Object.assign(sandbox.document, {
+    body: new FakeNode('body'),
+    addEventListener(type, fn) { if (type === 'keydown') docKeys.push(fn); },
+    removeEventListener(type, fn) { const i = docKeys.indexOf(fn); if (type === 'keydown' && i >= 0) docKeys.splice(i, 1); },
+    contains: node => sandbox.document.body.contains(node)
+});
+sandbox.document.activeElement = sandbox.document.body;
+function pressKey(name) {
+    const event = { key: name, shiftKey: false, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() {} };
+    docKeys.slice().forEach(fn => fn(event));
+    return event;
+}
+function testDialog(host, title, owner) {
+    return P.dialog.open(host, { title, actions: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }], owner });
+}
+function attachedHost() {
+    const host = new FakeNode('div');
+    sandbox.document.body.appendChild(host);
+    return host;
+}
+{
+    const host = attachedHost();
+    const versions = testDialog(host, 'versions');
+    const confirm = testDialog(host, 'confirm');
+    const buttons = confirm.el.querySelectorAll('button');
+    eq('stacked dialogs share one key listener', docKeys.length, 1);
+    check('the newest dialog takes the focus', sandbox.document.activeElement === buttons[0]);
+    pressKey('Tab');
+    const second = sandbox.document.activeElement === buttons[1];
+    pressKey('Tab');
+    check('Tab cycles inside the newest dialog only', second && sandbox.document.activeElement === buttons[0]);
+    pressKey('Escape');
+    eq('Escape closes only the newest dialog', [confirm.closed, versions.closed], [true, false]);
+    pressKey('Escape');
+    eq('the next Escape closes the dialog below and no key listener stays', [versions.closed, docKeys.length], [true, 0]);
+    host.remove();
+}
+{
+    const hostA = attachedHost();
+    const hostB = attachedHost();
+    const a = testDialog(hostA, 'a');
+    const b = testDialog(hostB, 'b');
+    a.el.querySelector('button').focus();
+    pressKey('Escape');
+    eq('Escape closes the dialog of the window that has the focus', [a.closed, b.closed], [true, false]);
+    const outside = attachedHost();
+    outside.focus();
+    const event = pressKey('Escape');
+    eq('an Escape elsewhere on the desktop is left alone', [b.closed, event.defaultPrevented], [false, false]);
+    b.close();
+    [hostA, hostB, outside].forEach(n => n.remove());
+}
+{
+    const host = attachedHost();
+    const owner = P.util.bag();
+    const owned = testDialog(host, 'owned', owner);
+    let result = 'pending';
+    owned.promise.then(v => { result = v; });
+    owner.dispose();
+    await settle();
+    eq('disposing the owner closes its dialog', [owned.closed, result, docKeys.length, host.childNodes.length], [true, null, 0, 0]);
+    const orphan = testDialog(host, 'orphan');
+    host.remove();
+    sandbox.document.activeElement = sandbox.document.body;
+    const event = pressKey('Escape');
+    eq('a dialog whose window is gone closes on the next key without taking it', [orphan.closed, event.defaultPrevented, docKeys.length], [true, false, 0]);
+}
+
+// ── code editor (cyd-creator-code.js) on the fake DOM with the textarea fallback ──
+sandbox.requestAnimationFrame = fn => fakeSetTimeout(fn, 16);
+sandbox.cancelAnimationFrame = fakeClearTimeout;
+{
+    const full = path.join(apps, 'cyd-creator-code.js');
+    vm.runInContext(fs.readFileSync(full, 'utf8'), sandbox, { filename: full });
+}
+const codeT = P.i18n({});
+const consoleWarn = console.warn;
+console.warn = (...args) => { if (!String(args[0]).includes('CodeMirror failed to load')) consoleWarn(...args); };
+{
+    const ok = P.code.isEditablePath;
+    const deep = 'src/app/' + ('a'.repeat(60) + '/').repeat(2);
+    eq('file names follow the server rules', [
+        'src/app/main.cpp', 'src/app/a/b/c/d/x.h', 'src/app/x.y.hpp', 'src/app/_a-b.c', deep + 'b'.repeat(26) + '.cpp', 'src/app/' + 'a'.repeat(60) + '.cpp'
+    ].map(ok), [true, true, true, true, true, true]);
+    eq('names the server refuses are refused', [
+        'src/app/a/b/c/d/e/x.h', 'src/app/con.cpp', 'src/app/COM1.h', 'src/app/lpt9.x.c', 'src/app/x.', 'src/app/.x.cpp', 'src/app/x.CPP',
+        'src/app/x.txt', 'src/app/../x.cpp', deep + 'b'.repeat(27) + '.cpp', 'src/app/' + 'a'.repeat(61) + '.cpp', 'src/generated/ui.h', 'src/app/a b.cpp'
+    ].map(ok), Array(13).fill(false));
+    const hooks = '#include <cyd.h>\n\nvoid on_btn_clicked(lv_event_t *e) {\n  on_other_clicked(e);\n}\n// on_note_clicked(e) runs from ui.cpp\nvoid  on_spaced_pressed (lv_event_t *e);\n';
+    eq('hookLine finds definitions, not calls or comments', ['on_btn_clicked', 'on_other_clicked', 'on_note_clicked', 'on_spaced_pressed', 'on_btn_click'].map(fn => P.code.hookLine(hooks, fn)), [3, 0, 0, 7, 0]);
+}
+// codeBackend answers like plan 2's file routes: If-Match "*" creates only, a sha must match an
+// existing file, a second spelling of a name is a conflict. gates delay an answer, fail fails once.
+function codeBackend(initial) {
+    const files = new Map(Object.entries(initial));
+    const calls = [];
+    const gates = {};
+    const fail = {};
+    let n = 0;
+    const E = P.api.ApiError;
+    const failOnce = name => { if (fail[name]) { const e = fail[name]; delete fail[name]; throw e; } };
+    const api = {
+        async listFiles() {
+            calls.push(['list']);
+            const snapshot = Array.from(files, ([p, f]) => ({ path: p, sha256: f.sha, editable: f.editable !== false, generated: f.editable === false }));
+            if (gates.list) await gates.list;
+            return snapshot;
+        },
+        async readFile(id, p) {
+            calls.push(['read', p]);
+            if (gates.read) await gates.read;
+            failOnce('read');
+            const f = files.get(p);
+            if (!f) throw new E(404, 'CYD_NOT_FOUND', 'file not found');
+            return { text: f.text, sha: f.sha };
+        },
+        async writeFile(id, p, text, ifMatch) {
+            calls.push(['write', p, ifMatch]);
+            failOnce('write');
+            const f = files.get(p);
+            const clash = Array.from(files.keys()).some(k => k !== p && k.toLowerCase() === p.toLowerCase());
+            if (clash || (ifMatch === '*' && f) || (ifMatch !== '*' && (!f || f.sha !== ifMatch))) throw new E(409, 'CYD_FILE_CONFLICT', 'conflict');
+            const sha = 's' + (++n);
+            files.set(p, { text, sha });
+            return sha;
+        },
+        async deleteFile(id, p, ifMatch) {
+            calls.push(['delete', p, ifMatch]);
+            failOnce('delete');
+            const f = files.get(p);
+            if (!f) throw new E(404, 'CYD_NOT_FOUND', 'file not found');
+            if (ifMatch !== '*' && ifMatch !== f.sha) throw new E(409, 'CYD_FILE_CONFLICT', 'conflict');
+            files.delete(p);
+            return true;
+        }
+    };
+    return { files, calls, gates, fail, api, changes: () => calls.filter(x => x[0] === 'write' || x[0] === 'delete').map(x => x[0] + ' ' + x[1]) };
+}
+async function makeCode(initial) {
+    const be = codeBackend(initial);
+    const host = attachedHost();
+    const seen = { state: [], notes: [] };
+    const inst = {
+        t: P.i18n({}), bus: P.createBus(), projectId: 'ccp_1', root: host, readonly: false, isLocked: () => false,
+        notify: (kind, text) => seen.notes.push(text), confirm: () => Promise.resolve(true), setMode() {}, api: be.api
+    };
+    inst.bus.on('code:state', s => seen.state.push(s));
+    const code = P.code.create(inst);
+    await code.mount(host);
+    await settle();
+    const c = {
+        be, host, code, seen,
+        area: () => findNode(code.el, n => n.dataset.ccCodeFallback !== undefined),
+        dialog: () => findNode(host, n => n.attrs.role === 'dialog'),
+        action: id => findNode(c.dialog(), n => n.dataset.ccDialogAction === id),
+        input: () => findNode(c.dialog(), n => n.dataset.ccFileName !== undefined),
+        dialogError: () => findNode(c.dialog(), n => n.attrs.role === 'alert').textContent,
+        tool: (action, p) => findNode(code.el, n => n.dataset.ccCodeAction === action && (!p || n.dataset.path === p)),
+        file: p => findNode(code.el, n => n.dataset.ccFile === p),
+        type(text) { const a = c.area(); a.value = text; a.dispatch('input'); },
+        last: () => seen.state[seen.state.length - 1],
+        dispose() { code.dispose(); host.remove(); }
+    };
+    return c;
+}
+{
+    const c = await makeCode({ 'src/app/a.cpp': { text: 'int a;\n', sha: 'a1' } });
+    await c.code.openFile('src/app/a.cpp');
+    eq('an opened file reports its saver state', c.last(), 'saved');
+    c.type('int a = 1;\n');
+    eq('typing marks the file dirty', c.last(), 'dirty');
+    c.be.files.delete('src/app/a.cpp');
+    await c.code.refreshFiles();
+    await settle();
+    check('a file deleted elsewhere keeps its unsaved text open', c.code.openPath() === 'src/app/a.cpp' && c.area().value === 'int a = 1;\n');
+    eq('the user is told and gets the conflict choice', [c.seen.notes, !!c.dialog(), c.last()], [[codeT('cyd_creator.error.CYD_FILE_CONFLICT')], true, 'conflict']);
+    await c.code.refreshFiles();
+    await settle();
+    eq('a second refresh does not ask again', [c.seen.notes.length, c.host.querySelectorAll('[role="dialog"]').length], [1, 1]);
+    c.action('overwrite').click();
+    await settle();
+    eq('Overwrite recreates the deleted file with If-Match *', [c.be.files.get('src/app/a.cpp').text, c.be.calls.filter(x => x[0] === 'write').map(x => x[2]), c.last()],
+        ['int a = 1;\n', ['a1', '*'], 'saved']);
+    check('the recreated file is listed again', !!c.file('src/app/a.cpp'));
+    c.dispose();
+}
+{
+    const c = await makeCode({ 'src/app/a.cpp': { text: 'x\n', sha: 'a1' } });
+    await c.code.openFile('src/app/a.cpp');
+    c.type('y\n');
+    c.be.files.delete('src/app/a.cpp');
+    await advance(1000);
+    check('a missed deletion ends in the conflict choice on the next save', !!c.dialog());
+    c.action('reload').click();
+    await settle();
+    eq('loading the saved version of a deleted file closes it and reports saved', [c.code.openPath(), c.last()], ['', 'saved']);
+    c.dispose();
+}
+{
+    const c = await makeCode({ 'src/app/a.cpp': { text: 'x\n', sha: 'a1' } });
+    await c.code.openFile('src/app/a.cpp');
+    c.type('xy\n');
+    let release;
+    c.be.gates.list = new Promise(resolve => { release = resolve; });
+    const refresh = c.code.refreshFiles();
+    await advance(1000);
+    release();
+    await refresh;
+    delete c.be.gates.list;
+    eq('a list from before the own save does not reload the file', [c.be.calls.filter(x => x[0] === 'read').length, c.area().value], [1, 'xy\n']);
+    c.be.files.set('src/app/a.cpp', { text: 'agent\n', sha: 'z9' });
+    await c.code.refreshFiles();
+    eq('a change made elsewhere reloads a clean file', c.area().value, 'agent\n');
+    c.dispose();
+}
+{
+    const c = await makeCode({ 'src/app/a.cpp': { text: 'a\n', sha: 'a1' }, 'src/app/b.cpp': { text: 'b\n', sha: 'b1' } });
+    await c.code.openFile('src/app/a.cpp');
+    let release;
+    c.be.gates.read = new Promise(resolve => { release = resolve; });
+    const loading = c.code.openFile('src/app/b.cpp');
+    await settle();
+    check('the editor is read-only while another file loads', c.area().readOnly === true && c.code.el.classList.contains('is-loading'));
+    await c.code.openFile('src/app/a.cpp');
+    release();
+    delete c.be.gates.read;
+    eq('a click on the open file wins over the file still loading', [await loading, c.code.openPath(), c.code.el.classList.contains('is-loading'), c.area().readOnly],
+        [false, 'src/app/a.cpp', false, false]);
+    c.dispose();
+}
+{
+    const c = await makeCode({ 'src/app/app.cpp': { text: 'a\n', sha: 'a1' }, 'src/app/b.cpp': { text: 'b\n', sha: 'b1' } });
+    c.tool('new').click();
+    c.input().value = 'APP.cpp';
+    c.action('ok').click();
+    const clash = c.dialogError();
+    c.input().value = 'sub/nul.h';
+    c.action('ok').click();
+    eq('the name dialog refuses a second spelling and device names', [clash, c.dialogError()], [codeT('cyd_creator.code.file_exists'), codeT('cyd_creator.code.file_name_invalid')]);
+    c.action('cancel').click();
+    await settle();
+    c.tool('rename', 'src/app/app.cpp').click();
+    c.input().value = 'App.cpp';
+    c.action('ok').click();
+    await settle();
+    eq('a case-only rename deletes first, then writes', [c.be.changes(), Array.from(c.be.files.keys()).sort()],
+        [['delete src/app/app.cpp', 'write src/app/App.cpp'], ['src/app/App.cpp', 'src/app/b.cpp']]);
+    c.be.calls.length = 0;
+    c.be.fail.delete = new P.api.ApiError(500, 'CYD_INTERNAL', 'boom');
+    c.tool('rename', 'src/app/b.cpp').click();
+    c.input().value = 'c.cpp';
+    c.action('ok').click();
+    await settle();
+    eq('a rename whose delete fails removes the copy and refreshes the tree',
+        [c.be.changes(), Array.from(c.be.files.keys()).sort(), c.be.calls.some(x => x[0] === 'list'), c.seen.notes.slice(-1)],
+        [['write src/app/c.cpp', 'delete src/app/b.cpp', 'delete src/app/c.cpp'], ['src/app/App.cpp', 'src/app/b.cpp'], true, [codeT('cyd_creator.error.CYD_INTERNAL')]]);
+    c.tool('new').click();
+    check('a name dialog is open before dispose', !!c.dialog() && docKeys.length === 1);
+    c.code.dispose();
+    eq('dispose closes the module\'s dialogs', [!!c.dialog(), docKeys.length], [false, 0]);
+    c.host.remove();
+}
+{
+    const c = await makeCode({ 'src/generated/ui.h': { text: 'v1\n', sha: 'g1', editable: false } });
+    await c.code.openFile('src/generated/ui.h');
+    c.be.files.set('src/generated/ui.h', { text: 'v2\n', sha: 'g2', editable: false });
+    await c.code.refreshFiles();
+    eq('an open generated file follows a layout change', c.area().value, 'v2\n');
+    c.be.files.set('src/generated/ui.h', { text: 'v3\n', sha: 'g3', editable: false });
+    c.be.fail.read = new P.api.ApiError(503, 'CYD_INTERNAL', 'busy');
+    await c.code.refreshFiles();
+    eq('a failed reload keeps the old text', c.area().value, 'v2\n');
+    await c.code.openFile('src/generated/ui.h');
+    eq('clicking a stale generated file reloads it', c.area().value, 'v3\n');
+    c.dispose();
+}
+{
+    const c = await makeCode({ 'src/app/a.cpp': { text: 'a\n', sha: 'a1' }, 'src/app/b.cpp': { text: 'b\n', sha: 'b1' } });
+    c.code.setProblems([
+        { file: 'src/app/a.cpp', line: 1, severity: 'note' },
+        { file: 'src/app/b.cpp', line: 2, severity: 'note' }, { file: 'src/app/b.cpp', line: 3, severity: 'warning' }
+    ]);
+    const tag = p => findNode(c.file(p), n => n.className === 'cc-tag');
+    eq('notes count as notes in the tree', [tag('src/app/a.cpp').dataset.tone, tag('src/app/b.cpp').dataset.tone, tag('src/app/b.cpp').textContent], [undefined, 'warning', '2']);
+    c.file('src/app/b.cpp').focus();
+    c.code.setProblems([]);
+    const active = sandbox.document.activeElement;
+    check('a rebuilt tree keeps the focus on the same file', active && active.dataset.ccFile === 'src/app/b.cpp' && c.code.el.contains(active));
+    c.dispose();
+}
+console.warn = consoleWarn;
 
 if (failures) {
     console.log(failures + ' check(s) failed');
