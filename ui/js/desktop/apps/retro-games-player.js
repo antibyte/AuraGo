@@ -21,6 +21,11 @@
         const el = v.el;
         let disposed = false;
         let stallTimer = 0;
+        // generation is bumped by start() and restartGame(); loadGeneration is
+        // the generation whose embed navigation is in flight. Load events that
+        // arrive while the two differ (the about:blank unload) are ignored.
+        let generation = 0;
+        let loadGeneration = 0;
         stage.textContent = '';
 
         const call = name => () => {
@@ -60,7 +65,7 @@
         const stalledActions = el('div', { className: 'rg-overlay-actions', hidden: true }, [
             button('rg-overlay-restart', t('desktop.retro_games_restart'), '⟲ ' + t('desktop.retro_games_restart'), () => restartGame()),
             button('rg-overlay-external', t('desktop.retro_games_open_archive'), '↗ ' + t('desktop.retro_games_open_archive'), call('onExternal')),
-            button('rg-overlay-broken', t('desktop.retro_games_mark_broken'), '⚠ ' + t('desktop.retro_games_mark_broken'), call('onBroken'))
+            button('rg-overlay-broken', t('desktop.retro_games_mark_broken'), '⚠ ' + t('desktop.retro_games_mark_broken'), call('onMarkBroken'))
         ]);
         const overlay = el('div', { className: 'rg-overlay', role: 'status' }, [overlayText, stalledActions]);
         const screen = el('div', { className: 'rg-screen' }, [frame, overlay]);
@@ -72,7 +77,7 @@
         ]);
 
         frame.addEventListener('load', () => {
-            if (disposed || frame.getAttribute('src') !== embedURL(game.identifier)) return;
+            if (disposed || loadGeneration !== generation) return;
             clearTimeout(stallTimer);
             overlay.hidden = true;
         });
@@ -93,14 +98,18 @@
 
         function start() {
             armOverlay();
+            generation += 1;
+            loadGeneration = generation;
             frame.setAttribute('src', embedURL(game.identifier));
         }
 
         function restartGame() {
             if (disposed) return;
+            generation += 1;
+            const pending = generation;
             frame.setAttribute('src', 'about:blank');
             setTimeout(() => {
-                if (!disposed) start();
+                if (!disposed && pending === generation) start();
             }, 0);
         }
 

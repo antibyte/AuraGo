@@ -153,8 +153,10 @@
     }
 
     function setFavoriteButton(t, button, on) {
+        const label = on ? t('desktop.retro_games_favorite_remove') : t('desktop.retro_games_favorite_add');
         button.setAttribute('aria-pressed', on ? 'true' : 'false');
-        button.setAttribute('aria-label', on ? t('desktop.retro_games_favorite_remove') : t('desktop.retro_games_favorite_add'));
+        button.setAttribute('aria-label', label);
+        button.title = label;
         button.textContent = on ? '♥' : '♡';
     }
 

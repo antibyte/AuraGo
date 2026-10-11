@@ -24,6 +24,7 @@ func TestDesktopRetroGamesViewsNeverRenderHTML(t *testing.T) {
 		"encodeURIComponent(game.identifier)",
 		"referrerpolicy: 'no-referrer'",
 		"node.textContent = String(value)",
+		"button.title = label;",
 	} {
 		if !strings.Contains(src, marker) {
 			t.Errorf("views lacks %q", marker)
@@ -48,6 +49,9 @@ func TestDesktopRetroGamesPlayerFrameIsLockedDown(t *testing.T) {
 		"frame.setAttribute('src', 'about:blank');",
 		"frame.remove();",
 		"window.RetroGamesPlayer = {",
+		"let generation = 0;",
+		"loadGeneration !== generation",
+		"call('onMarkBroken')",
 	} {
 		if !strings.Contains(src, marker) {
 			t.Errorf("player lacks %q", marker)
@@ -72,6 +76,16 @@ func TestDesktopRetroGamesAppLifecycle(t *testing.T) {
 		"const BASE = '/api/desktop/retro-games';",
 		"'noopener,noreferrer'",
 		"seq !== st.listSeq",
+		"st.loadingMore",
+		"st.librarySeq",
+		"seq !== st.librarySeq",
+		"st.openSeq",
+		"token !== st.openSeq",
+		"st.pending",
+		"onMarkBroken: () => markBroken(st, game)",
+		"function syncButtons(st)",
+		"event.ctrlKey || event.metaKey || event.altKey",
+		"MAX_STATUS_FAILURES",
 	} {
 		if !strings.Contains(src, marker) {
 			t.Errorf("app lacks %q", marker)
