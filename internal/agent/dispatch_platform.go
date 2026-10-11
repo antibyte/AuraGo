@@ -309,6 +309,17 @@ func resolveChromecastTarget(req *chromecastArgs, inventoryDB *sql.DB, logger *s
 	return nil
 }
 
+func frigateReadOnlyOperation(operation string) bool {
+	switch operation {
+	case "status", "health", "cameras", "events", "event",
+		"event_snapshot", "event_clip", "reviews", "review_summary", "review_activity",
+		"latest_frame", "recordings_summary", "export_recording", "config", "config_raw":
+		return true
+	default:
+		return false
+	}
+}
+
 func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (string, bool) {
 	cfg := dc.Cfg
 	logger := dc.Logger
@@ -800,6 +811,9 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status":"error","message":"Frigate integration is not enabled. Set frigate.enabled=true in config.yaml."}`
 			}
 			req := decodeFrigateArgs(tc)
+			if cfg.Frigate.ReadOnly && !frigateReadOnlyOperation(req.Operation) {
+				return "Tool Output: " + tools.ErrorJSON("Frigate is read-only. This write is blocked.")
+			}
 			frCfg := tools.FrigateConfig{
 				URL:           cfg.Frigate.URL,
 				APIToken:      cfg.Frigate.APIToken,

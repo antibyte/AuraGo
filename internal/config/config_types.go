@@ -1859,7 +1859,7 @@ type Config struct {
 	} `yaml:"proxmox"`
 	Frigate struct {
 		Enabled         bool   `yaml:"enabled"`
-		ReadOnly        bool   `yaml:"readonly"`            // true = only read events/reviews/stats, block delete/config save
+		ReadOnly        bool   `yaml:"readonly"`            // true blocks operations outside the Frigate read allow-list; store_media stays independent
 		URL             string `yaml:"url"`                 // e.g. "https://frigate.local:8971"
 		APIToken        string `yaml:"-" vault:"api_token"` // Bearer token (vault-only)
 		InternalPort    bool   `yaml:"internal_port"`       // true = use :5000 unauthenticated (Docker-internal only)

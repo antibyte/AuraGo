@@ -34,7 +34,7 @@ Examples:
 ```
 
 Notes:
-- Current Frigate tool operations are read-only against the Frigate API. Media operations may write fetched files into AuraGo's local data directory when `frigate.store_media` is enabled.
+- Current Frigate tool operations are read-only against the Frigate API. `frigate.readonly` defaults to true and allows only the operations in this table; anything else is refused before a request. `frigate.store_media` defaults to true and does not follow that switch. Media operations may write fetched files into AuraGo's local data directory when it is enabled.
 - `default_camera` is used for camera-specific queries when `camera` is omitted.
 - Time filters use Unix seconds. `start_time` and `end_time` for `export_recording` should be Unix timestamps.
 - `offset` paginates `events` and `reviews` together with `limit`.

@@ -1987,14 +1987,14 @@ Videoüberwachung und NVR-Management über Frigate.
 ```yaml
 frigate:
   enabled: true
-  readonly: false
+  readonly: true
   url: "https://frigate.local:8971"
   internal_port: false
   insecure: false
   default_camera: ""
   event_relay: false
   review_relay: false
-  store_media: false
+  store_media: true
   mqtt_topic_prefix: "frigate"
 ```
 
