@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -79,13 +80,19 @@ func (s *LandlockSandbox) PrepareCommand(command, workDir string) *exec.Cmd {
 		return cmd
 	}
 
-	cmd := exec.Command(selfBin, "--sandbox-exec", command)
-	cmd.Dir = workDir
-
 	// Pass sandbox config via environment variables — avoids complex arg parsing
 	// and doesn't expose config in /proc/PID/cmdline beyond what's necessary.
-	cmd.Env = s.buildEnv(workDir, nil)
+	env, err := s.buildEnv(workDir, nil)
+	if err != nil {
+		s.logger.Error("Cannot build sandbox environment", "error", err)
+		cmd := blockedCommand("shell sandbox rejected a path: " + err.Error())
+		cmd.Dir = workDir
+		return cmd
+	}
 
+	cmd := exec.Command(selfBin, "--sandbox-exec", command)
+	cmd.Dir = workDir
+	cmd.Env = env
 	return cmd
 }
 
@@ -108,60 +115,139 @@ func (s *LandlockSandbox) PrepareExecCommand(binary string, args []string, workD
 		return cmd
 	}
 
-	cmd := exec.Command(selfBin, "--sandbox-exec-bin")
-	cmd.Dir = workDir
-	cmd.Env = s.buildEnv(workDir, []string{
+	env, err := s.buildEnv(workDir, []string{
 		"AURAGO_SBX_EXEC_BIN=" + binary,
 		"AURAGO_SBX_EXEC_ARGS=" + string(argsJSON),
 	})
+	if err != nil {
+		s.logger.Error("Cannot build sandbox environment", "error", err)
+		cmd := blockedCommand("shell sandbox rejected a path: " + err.Error())
+		cmd.Dir = workDir
+		return cmd
+	}
+
+	cmd := exec.Command(selfBin, "--sandbox-exec-bin")
+	cmd.Dir = workDir
+	cmd.Env = env
 	return cmd
 }
 
 // buildEnv creates the environment for the sandboxed helper process.
-func (s *LandlockSandbox) buildEnv(workDir string, extra []string) []string {
+// The work directory and every configured allowed path are canonicalized and
+// listed as required. Built-in defaults are canonicalized and stay optional.
+// An empty work directory is omitted: it is not a path, and the helper already
+// treats a missing work-directory variable as ".".
+func (s *LandlockSandbox) buildEnv(workDir string, extra []string) ([]string, error) {
+	var rwPaths, roPaths, rwRequired, roRequired []string
+	home := workDir
+	if workDir != "" {
+		canon, err := canonicalSandboxPath(workDir)
+		if err != nil {
+			return nil, err
+		}
+		home = canon
+		rwPaths = append(rwPaths, canon)
+		rwRequired = append(rwRequired, canon)
+	}
+	for _, path := range defaultReadWritePaths {
+		if err := appendSandboxPath(&rwPaths, &rwRequired, path, false); err != nil {
+			return nil, err
+		}
+	}
+	for _, path := range defaultReadOnlyPaths {
+		if err := appendSandboxPath(&roPaths, &roRequired, path, false); err != nil {
+			return nil, err
+		}
+	}
+	for _, rule := range s.cfg.AllowedPaths {
+		if rule.ReadOnly {
+			if err := appendSandboxPath(&roPaths, &roRequired, rule.Path, true); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		if err := appendSandboxPath(&rwPaths, &rwRequired, rule.Path, true); err != nil {
+			return nil, err
+		}
+	}
+
 	env := []string{
 		// Minimal environment for shell commands
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		"HOME=" + workDir,
+		"HOME=" + home,
 		"TERM=dumb",
 		"LANG=C.UTF-8",
 	}
 
-	// Sandbox configuration
-	env = append(env, "AURAGO_SBX_WORKDIR="+workDir)
+	// Sandbox configuration. Path lists stay colon-separated, and only after
+	// every entry has been rejected or canonicalized.
+	env = append(env, "AURAGO_SBX_WORKDIR="+home)
 	env = append(env, "AURAGO_SBX_MEM="+strconv.Itoa(s.cfg.MaxMemoryMB))
 	env = append(env, "AURAGO_SBX_CPU="+strconv.Itoa(s.cfg.MaxCPUSeconds))
 	env = append(env, "AURAGO_SBX_PROCS="+strconv.Itoa(s.cfg.MaxProcesses))
 	env = append(env, "AURAGO_SBX_FSIZE="+strconv.Itoa(s.cfg.MaxFileSizeMB))
 	env = append(env, "AURAGO_SBX_ABI="+strconv.Itoa(s.caps.LandlockABI))
-
-	// Build allowed paths: rw and ro separated
-	var rwPaths, roPaths []string
-
-	// Workspace is always read-write
-	rwPaths = append(rwPaths, workDir)
-	// Default read-write paths
-	rwPaths = append(rwPaths, defaultReadWritePaths...)
-	// Default read-only paths
-	roPaths = append(roPaths, defaultReadOnlyPaths...)
-
-	// User-configured additional paths
-	for _, rule := range s.cfg.AllowedPaths {
-		if rule.ReadOnly {
-			roPaths = append(roPaths, rule.Path)
-		} else {
-			rwPaths = append(rwPaths, rule.Path)
-		}
-	}
-
 	env = append(env, "AURAGO_SBX_RW="+strings.Join(rwPaths, ":"))
 	env = append(env, "AURAGO_SBX_RO="+strings.Join(roPaths, ":"))
+	env = append(env, "AURAGO_SBX_RW_REQUIRED="+strings.Join(rwRequired, ":"))
+	env = append(env, "AURAGO_SBX_RO_REQUIRED="+strings.Join(roRequired, ":"))
 
-	// Additional env vars requested by the caller (e.g. DOCKER_HOST)
+	// Additional env vars requested by the caller (e.g. DOCKER_HOST).
+	// The Docker socket is not granted here.
 	env = append(env, s.cfg.ExtraEnv...)
 	env = append(env, extra...)
 
-	return env
+	return env, nil
+}
+
+// canonicalSandboxPath rejects an empty path and any path that cannot be
+// stored in a colon-separated list. An existing path is made absolute and
+// then resolved through filepath.EvalSymlinks. The helper changes directory
+// before it opens rules, so the Landlock list must hold that absolute
+// result. A missing path keeps its cleaned absolute form so an optional
+// built-in default can be skipped later on ENOENT. The string placed in the
+// list is rejected again when it contains ':', a newline, or NUL.
+func canonicalSandboxPath(path string) (string, error) {
+	if path == "" || strings.ContainsAny(path, ":\n\x00") {
+		return "", fmt.Errorf("rejected sandbox path %q", path)
+	}
+	var resolved string
+	if _, err := os.Lstat(path); err != nil {
+		if !os.IsNotExist(err) {
+			return "", fmt.Errorf("sandbox path %q: %w", path, err)
+		}
+		abs, absErr := filepath.Abs(path)
+		if absErr != nil {
+			return "", fmt.Errorf("sandbox path %q: %w", path, absErr)
+		}
+		resolved = filepath.Clean(abs)
+	} else {
+		abs, absErr := filepath.Abs(path)
+		if absErr != nil {
+			return "", fmt.Errorf("sandbox path %q: %w", path, absErr)
+		}
+		var err error
+		resolved, err = filepath.EvalSymlinks(abs)
+		if err != nil {
+			return "", fmt.Errorf("sandbox path %q: %w", path, err)
+		}
+	}
+	if strings.ContainsAny(resolved, ":\n\x00") {
+		return "", fmt.Errorf("rejected sandbox path %q", resolved)
+	}
+	return resolved, nil
+}
+
+func appendSandboxPath(paths *[]string, required *[]string, path string, isRequired bool) error {
+	canon, err := canonicalSandboxPath(path)
+	if err != nil {
+		return err
+	}
+	*paths = append(*paths, canon)
+	if isRequired {
+		*required = append(*required, canon)
+	}
+	return nil
 }
 
 // FormatHelperEnvDebug returns a debug string showing the sandbox environment.

@@ -2,6 +2,7 @@ package agent
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"strings"
@@ -67,6 +68,52 @@ func TestDispatchShellExecuteSandboxFailsClosedByDefault(t *testing.T) {
 	}
 }
 
+func TestDispatchShellExecuteSandboxDoesNotFallbackAfterTimeout(t *testing.T) {
+	oldSandboxExecuteCode := sandboxExecuteCodeFunc
+	oldExecutePython := executePythonFunc
+	oldExecutePythonWithSecrets := executePythonWithSecretsFunc
+	defer func() {
+		sandboxExecuteCodeFunc = oldSandboxExecuteCode
+		executePythonFunc = oldExecutePython
+		executePythonWithSecretsFunc = oldExecutePythonWithSecrets
+	}()
+
+	fallbackCalls := 0
+	sandboxExecuteCodeFunc = func(string, string, []string, int, *slog.Logger) (string, error) {
+		return "", fmt.Errorf("TIMEOUT: sandbox execution exceeded 30s limit")
+	}
+	executePythonFunc = func(code, workspaceDir, toolsDir string) (string, string, error) {
+		fallbackCalls++
+		return "host", "", nil
+	}
+
+	cfg := &config.Config{}
+	cfg.Sandbox.Enabled = true
+	cfg.Sandbox.AllowLocalPythonFallback = true
+	cfg.Agent.AllowPython = true
+	cfg.Directories.WorkspaceDir = t.TempDir()
+	cfg.Directories.ToolsDir = t.TempDir()
+
+	out := dispatchShell(ToolCall{
+		Action:   "execute_sandbox",
+		Code:     "print('hello')",
+		Language: "python",
+	}, &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+
+	if fallbackCalls != 0 {
+		t.Fatalf("local Python fallback calls = %d, want 0", fallbackCalls)
+	}
+	if !strings.Contains(out, "TIMEOUT") {
+		t.Fatalf("expected output to contain TIMEOUT, got:\n%s", out)
+	}
+	if strings.Contains(out, "host") || strings.Contains(out, "ran via local Python") {
+		t.Fatalf("expected timeout to stay in the sandbox result, got:\n%s", out)
+	}
+}
+
 func TestDispatchShellExecuteSandboxFallbackRequiresExplicitOptIn(t *testing.T) {
 	oldSandboxExecuteCode := sandboxExecuteCodeFunc
 	oldExecutePython := executePythonFunc
@@ -79,7 +126,7 @@ func TestDispatchShellExecuteSandboxFallbackRequiresExplicitOptIn(t *testing.T) 
 
 	fallbackCalls := 0
 	sandboxExecuteCodeFunc = func(code, language string, libraries []string, timeoutSecs int, logger *slog.Logger) (string, error) {
-		return "", errors.New("container unavailable")
+		return "", fmt.Errorf("start: %w", tools.ErrSandboxUnavailable)
 	}
 	executePythonFunc = func(code, workspaceDir, toolsDir string) (string, string, error) {
 		fallbackCalls++

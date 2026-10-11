@@ -777,7 +777,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			var skillErr error
 			if cfg.Tools.SkillManager.RequireSandbox {
 				// Sandbox enforcement: skills must run in the container sandbox
-				if !tools.GetSandboxManager().IsReady() {
+				if !tools.SandboxReady() {
 					if executionSkillManager != nil {
 						_ = executionSkillManager.RecordSkillUsage(cleanSkillName, false)
 					}
