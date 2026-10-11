@@ -43,3 +43,33 @@ func TestUnifiedDiff(t *testing.T) {
 		t.Fatalf("insert:\n%s", inserted)
 	}
 }
+
+func TestUnifiedDiffLineEndings(t *testing.T) {
+	if got := unifiedDiff("p", "a\nb", "a\nb\n", false, false); got != "--- a/p\n+++ b/p\n@@ -1,2 +1,2 @@\n a\n-b\n\\ No newline at end of file\n+b\n" {
+		t.Fatalf("final newline added:\n%s", got)
+	}
+	if got := unifiedDiff("p", "a\n", "a", false, false); got != "--- a/p\n+++ b/p\n@@ -1,1 +1,1 @@\n-a\n+a\n\\ No newline at end of file\n" {
+		t.Fatalf("final newline removed:\n%s", got)
+	}
+	if got := unifiedDiff("p", "x", "", false, true); got != "--- a/p\n+++ /dev/null\n@@ -1,1 +0,0 @@\n-x\n\\ No newline at end of file\n" {
+		t.Fatalf("deleted without newline:\n%s", got)
+	}
+	if got := unifiedDiff("p", "a\r\nb\r\n", "a\nb\n", false, false); got != "--- a/p\n+++ b/p\n@@ -1,2 +1,2 @@\n-a\r\n-b\r\n+a\n+b\n" {
+		t.Fatalf("CRLF to LF:\n%q", got)
+	}
+	if got := unifiedDiff("p", "a\r\nb\r\n", "a\r\nb\r\n", false, false); got != "" {
+		t.Fatalf("identical CRLF text: %q", got)
+	}
+}
+
+func TestUnifiedDiffSpendsTheCellBudget(t *testing.T) {
+	old, changed := "x\na\ny\n", "z\na\nw\n"
+	budget := 100
+	if got := unifiedDiffBudget("p", old, changed, false, false, &budget); !strings.Contains(got, "\n a\n") || budget != 91 {
+		t.Fatalf("with budget: %q, %d cells left", got, budget)
+	}
+	budget = 8
+	if got := unifiedDiffBudget("p", old, changed, false, false, &budget); strings.Contains(got, "\n a\n") || budget != 8 {
+		t.Fatalf("over budget: %q, %d cells left", got, budget)
+	}
+}

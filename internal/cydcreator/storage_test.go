@@ -45,7 +45,7 @@ func TestStoreCreatesTheOverviewSchema(t *testing.T) {
 	db, _ := openTestStore(t)
 	want := map[string][]string{
 		"cc_meta":     {"key", "value"},
-		"cc_projects": {"id", "slug", "name", "board", "theme", "version", "locked_by_job", "draft_job", "last_build", "app_changed_since_job", "created_at", "updated_at"},
+		"cc_projects": {"id", "slug", "name", "board", "theme", "version", "locked_by_job", "draft_job", "last_build", "app_changed_since_job", "created_at", "updated_at", "publish_receipt"},
 		"cc_builds": {"id", "project_id", "job_id", "origin", "status", "board", "project_version", "error_code", "diagnostics",
 			"usage", "artifacts", "created_at", "started_at", "finished_at"},
 		"cc_events": {"seq", "project_id", "type", "job_id", "build_id", "data", "created_at"},

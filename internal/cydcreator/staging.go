@@ -28,8 +28,9 @@ func (s *Service) stagingPath(jobID string) string { return filepath.Join(s.stag
 // stagingRel is the staging_dir column value (workspace-relative, slash form).
 func stagingRel(jobID string) string { return stagingDirName + "/" + jobID }
 
-// copyTree copies the regular files of src into the new directory dst.
-// Symlinks and other special files are refused; the copy is bounded.
+// copyTree copies the regular files of src into the new directory dst (each
+// file synced; publishStage syncs the directories before a swap). Symlinks
+// and other special files are refused; the copy is bounded.
 func copyTree(src, dst string) error {
 	srcRoot, err := os.OpenRoot(src)
 	if err != nil {
@@ -87,6 +88,11 @@ func copyTree(src, dst string) error {
 		n, err := io.Copy(out, io.LimitReader(in, info.Size()+1))
 		if err == nil && n != info.Size() {
 			err = fmt.Errorf("%s changed while it was copied", rel)
+		}
+		if err == nil {
+			// A working copy may become the project (publishStage), which then
+			// deletes the old directory: the copy must be on disk.
+			err = out.Sync()
 		}
 		if err != nil {
 			_ = out.Close()

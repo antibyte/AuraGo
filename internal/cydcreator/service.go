@@ -134,6 +134,9 @@ type Service struct {
 	locksMu      sync.Mutex
 	projectLocks map[string]*sync.Mutex
 
+	fenceMu sync.Mutex        // leaf lock
+	fences  map[string]string // project id → receipt id of an unresolved publication (staging_publish.go)
+
 	eventsMu    sync.Mutex     // serializes persisted event order and fan-out
 	emitCounts  map[string]int // persisted emits per project since its last prune (eventsMu)
 	subsMu      sync.Mutex
@@ -311,10 +314,14 @@ func (s *Service) lockProject(id string) func() {
 	return m.Unlock
 }
 
-// checkLock applies the locking rule to a write with origin.
+// checkLock applies the locking rule to a write with origin. A project with
+// an unresolved publication (row.PublishReview) refuses every write.
 func checkLock(row projectRow, origin string) error {
 	if !validOrigin(origin) {
 		return NewError(CodeBadRequest, fmt.Sprintf("invalid write origin %q", origin), nil)
+	}
+	if row.PublishReview != "" {
+		return publicationReviewError()
 	}
 	if row.LockedByJob == "" || origin == JobOrigin(row.LockedByJob) {
 		return nil
@@ -322,7 +329,8 @@ func checkLock(row projectRow, origin string) error {
 	return NewError(CodeProjectLocked, "an agent job is working on this project", map[string]any{"job_id": row.LockedByJob})
 }
 
-// loadProjectRow returns the row or *Error CYD_NOT_FOUND.
+// loadProjectRow returns the row (with the publication fence in
+// PublishReview) or *Error CYD_NOT_FOUND.
 func (s *Service) loadProjectRow(ctx context.Context, id string) (projectRow, error) {
 	row, err := scanProjectRow(s.db.QueryRowContext(ctx, `SELECT `+projectColumns+` FROM cc_projects WHERE id=?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
@@ -331,6 +339,7 @@ func (s *Service) loadProjectRow(ctx context.Context, id string) (projectRow, er
 	if err != nil {
 		return projectRow{}, fmt.Errorf("read cyd creator project: %w", err)
 	}
+	row.PublishReview = s.publicationFence(row.ID)
 	return row, nil
 }
 

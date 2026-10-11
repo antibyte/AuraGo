@@ -111,13 +111,16 @@ func migrateStore(db *sql.DB, path string) error {
 // migrateStoreV1 creates every table of the overview "Storage schema"; plans 3
 // and 5 use cc_jobs, cc_messages, cc_agent_context, cc_revisions,
 // cc_revision_files and cc_devices without changing them.
+// cc_projects.publish_receipt (plan 3, added before schema v1 was released)
+// holds the receipt id of the project's last committed directory swap, the
+// commit marker startup recovery compares a leftover receipt with.
 func migrateStoreV1(tx *sql.Tx) error {
 	const schema = `
 CREATE TABLE cc_projects (
   id TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE, name TEXT NOT NULL, board TEXT NOT NULL, theme TEXT NOT NULL,
   version INTEGER NOT NULL DEFAULT 1, locked_by_job TEXT NOT NULL DEFAULT '', draft_job TEXT NOT NULL DEFAULT '',
   last_build TEXT NOT NULL DEFAULT '', app_changed_since_job INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL, publish_receipt TEXT NOT NULL DEFAULT '');
 CREATE TABLE cc_builds (
   id TEXT PRIMARY KEY, project_id TEXT NOT NULL, job_id TEXT NOT NULL DEFAULT '', origin TEXT NOT NULL,
   status TEXT NOT NULL, board TEXT NOT NULL, project_version INTEGER NOT NULL, error_code TEXT NOT NULL DEFAULT '',
@@ -230,6 +233,10 @@ type projectRow struct {
 	LastBuild                    string
 	AppChangedSinceJob           bool
 	CreatedAt, UpdatedAt         string
+	// PublishReview is no column: loadProjectRow fills it with the receipt id
+	// of an unresolved publication (the in-memory fence, publicationFence), and
+	// checkLock then refuses every write.
+	PublishReview string
 }
 
 const projectColumns = `id,slug,name,board,theme,version,locked_by_job,draft_job,last_build,app_changed_since_job,created_at,updated_at`

@@ -390,7 +390,8 @@ app files, assets, events) and the build queue. Plans 3 and 5 add jobs, revision
 - One SQLite database (`sqlite.cyd_creator_path`, default `./data/cyd_creator.db`, listed in
   `config.SQLiteDatabasePaths`; `dbutil.Open`: WAL, foreign keys, busy timeout) with the overview schema: nine `cc_*`
   tables, `cc_meta.schema_version` 1 and seven indexes, one of them `UNIQUE cc_devices_token(token_hash)` (device
-  fixtures need distinct non-empty hashes). Migrations append to `storeMigrations` (never edit a released step; each
+  fixtures need distinct non-empty hashes); `cc_projects.publish_receipt` (plan 3, added before v1 was released) is the
+  receipt id of the last committed directory swap. Migrations append to `storeMigrations` (never edit a released step; each
   step commits with its version); an existing database is first copied with `VACUUM INTO <db>.v<N>.bak`, and a schema
   newer than the code refuses the start. Times are fixed-width RFC 3339 UTC (`timeLayout`), so SQL order is
   chronological.
@@ -446,7 +447,9 @@ app files, assets, events) and the build queue. Plans 3 and 5 add jobs, revision
   fresh `a_` ids. Because a hand-edited or imported layout can carry any path, the asset file rule is checked again
   right before every open, read and remove (`OpenAsset`, `DeleteAsset`, `loadGenerateInput`); `DeleteAsset` keeps a
   file that a remaining entry still lists. An asset file above 2 MiB fails `Generate`/`StartBuild` with
-  `CYD_ASSET_TOO_LARGE` (`details.asset`, `reason` `file_size`). `OpenAsset` returns an open file the caller closes.
+  `CYD_ASSET_TOO_LARGE` (`details.asset`, `reason` `file_size`). `OpenAsset` reads the file (at most 2 MiB) into
+  memory under the project lock and returns a reader the caller closes: no handle may stay open inside a project
+  directory, because on Windows it blocks the directory swap of a publication or restore.
 
 ### Events (plan 2)
 

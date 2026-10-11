@@ -8,12 +8,14 @@ import (
 // The repository has no in-process line diff (internal/tools shells out to
 // git diff, which the service cannot depend on), so revisions carry their own
 // small unified diff: common prefix and suffix are trimmed, the rest is an LCS
-// table bounded by maxDiffCells; larger changes become one delete+insert hunk.
+// table bounded by maxDiffCells (and by the caller's cell budget); larger
+// changes become one delete+insert hunk.
 
 const (
 	diffContext   = 3
 	maxDiffCells  = 4_000_000
 	maxDiffOutput = 64 << 10
+	noNewlineMark = "\\ No newline at end of file\n"
 )
 
 type diffOp struct {
@@ -21,20 +23,23 @@ type diffOp struct {
 	text string
 }
 
-// splitLines splits text into lines without their "\n"; a final newline does
-// not produce an empty last line.
+// splitLines splits text after every "\n" and keeps the terminators, so a
+// last line without "\n" differs from the same text with one (and "\r\n"
+// from "\n"). A final newline does not produce an empty last line.
 func splitLines(text string) []string {
 	if text == "" {
 		return nil
 	}
-	lines := strings.Split(text, "\n")
+	lines := strings.SplitAfter(text, "\n")
 	if lines[len(lines)-1] == "" {
 		lines = lines[:len(lines)-1]
 	}
 	return lines
 }
 
-func diffLines(a, b []string) []diffOp {
+// diffLines returns the edit script from a to b. An LCS table is used only
+// while its cell count fits maxDiffCells and *budget, which it then reduces.
+func diffLines(a, b []string, budget *int) []diffOp {
 	pre := 0
 	for pre < len(a) && pre < len(b) && a[pre] == b[pre] {
 		pre++
@@ -48,7 +53,7 @@ func diffLines(a, b []string) []diffOp {
 	for _, l := range a[:pre] {
 		ops = append(ops, diffOp{' ', l})
 	}
-	if len(am) == 0 || len(bm) == 0 || len(am)*len(bm) > maxDiffCells {
+	if cells := len(am) * len(bm); cells == 0 || cells > min(maxDiffCells, *budget) {
 		for _, l := range am {
 			ops = append(ops, diffOp{'-', l})
 		}
@@ -56,6 +61,7 @@ func diffLines(a, b []string) []diffOp {
 			ops = append(ops, diffOp{'+', l})
 		}
 	} else {
+		*budget -= cells
 		ops = append(ops, lcsDiff(am, bm)...)
 	}
 	for _, l := range a[len(a)-suf:] {
@@ -108,10 +114,18 @@ func lcsDiff(a, b []string) []diffOp {
 }
 
 // unifiedDiff renders the change of path from oldText to newText with three
-// lines of context. added/deleted files use /dev/null on the missing side.
+// lines of context. added/deleted files use /dev/null on the missing side, a
+// last line without newline is followed by "\ No newline at end of file".
 // Identical texts return "". The result is capped at 64 KiB.
 func unifiedDiff(path, oldText, newText string, added, deleted bool) string {
-	ops := diffLines(splitLines(oldText), splitLines(newText))
+	cells := maxDiffCells
+	return unifiedDiffBudget(path, oldText, newText, added, deleted, &cells)
+}
+
+// unifiedDiffBudget is unifiedDiff with a shared LCS cell budget (one
+// RevisionDiff call spends it over all of its files).
+func unifiedDiffBudget(path, oldText, newText string, added, deleted bool, budget *int) string {
+	ops := diffLines(splitLines(oldText), splitLines(newText), budget)
 	type span struct{ start, end int }
 	var hunks []span
 	for i, op := range ops {
@@ -163,7 +177,9 @@ func unifiedDiff(path, oldText, newText string, added, deleted bool) string {
 		for _, op := range ops[h.start : h.end+1] {
 			b.WriteByte(op.kind)
 			b.WriteString(op.text)
-			b.WriteByte('\n')
+			if !strings.HasSuffix(op.text, "\n") {
+				b.WriteString("\n" + noNewlineMark)
+			}
 			if op.kind != '+' {
 				oldLine++
 			}

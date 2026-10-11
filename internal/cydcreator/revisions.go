@@ -40,6 +40,8 @@ const (
 	// maxRevisionDiffBytes bounds the unified diffs of one RevisionDiff answer
 	// (each file's diff is capped at maxDiffOutput on its own).
 	maxRevisionDiffBytes = 1 << 20
+	// maxRevisionDiffCells bounds the LCS work of one RevisionDiff answer.
+	maxRevisionDiffCells = 4 * maxDiffCells
 )
 
 // Revision is one saved project state (layout, src/app files and assets).
@@ -168,8 +170,19 @@ func (s *Service) openBlobRoot() (*os.Root, error) {
 	return root, nil
 }
 
+// blobPresent reports whether the blob at final (inside root) holds data:
+// right size and hash.
+func blobPresent(root *os.Root, final string, data []byte, sha string) bool {
+	got, err := rootReadFile(root, filepath.ToSlash(final), int64(len(data)))
+	return err == nil && len(got) == len(data) && sha256Hex(got) == sha
+}
+
 // writeBlob stores data content-addressed (deduplicated) and returns its
-// hash. A new blob is a synced temporary sibling renamed into place.
+// hash. A new blob is a synced temporary sibling renamed into place, then the
+// shard and blobs directories are synced (no-op on Windows). When the rename
+// fails because another writer published the same blob meanwhile (Windows
+// refuses to replace a file that is being read), the present blob is
+// accepted once its size and hash match.
 func (s *Service) writeBlob(data []byte) (string, error) {
 	sha := sha256Hex(data)
 	root, err := s.openBlobRoot()
@@ -200,6 +213,13 @@ func (s *Service) writeBlob(data []byte) (string, error) {
 	}
 	if werr == nil {
 		werr = fileutil.RenameRootContext(context.Background(), root, tmp, final)
+		if werr != nil && blobPresent(root, final, data, sha) {
+			_ = root.Remove(tmp)
+			return sha, nil
+		}
+	}
+	if werr == nil {
+		werr = errors.Join(syncDir(filepath.Join(s.blobsDir(), sha[:2])), syncDir(s.blobsDir()))
 	}
 	if werr != nil {
 		_ = root.Remove(tmp)
@@ -278,11 +298,11 @@ func (s *Service) createRevision(ctx context.Context, projectID string, root *os
 		}
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM cc_revision_files WHERE revision_id IN (SELECT id FROM cc_revisions
-		WHERE project_id=? ORDER BY created_at DESC, id DESC LIMIT -1 OFFSET ?)`, projectID, maxRevisionsPerProject); err != nil {
+		WHERE project_id=? ORDER BY created_at DESC, rowid DESC LIMIT -1 OFFSET ?)`, projectID, maxRevisionsPerProject); err != nil {
 		return Revision{}, fmt.Errorf("trim revision files: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM cc_revisions WHERE id IN (SELECT id FROM cc_revisions
-		WHERE project_id=? ORDER BY created_at DESC, id DESC LIMIT -1 OFFSET ?)`, projectID, maxRevisionsPerProject); err != nil {
+		WHERE project_id=? ORDER BY created_at DESC, rowid DESC LIMIT -1 OFFSET ?)`, projectID, maxRevisionsPerProject); err != nil {
 		return Revision{}, fmt.Errorf("trim revisions: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -291,11 +311,13 @@ func (s *Service) createRevision(ctx context.Context, projectID string, root *os
 	return rev, nil
 }
 
-// revisionRow is a revision with its project and layout hash.
+// revisionRow is a revision with its project, layout hash and SQLite rowid
+// (the tie-break of revisions created in the same millisecond).
 type revisionRow struct {
 	Revision
 	ProjectID string
 	LayoutSHA string
+	rowID     int64
 }
 
 func (s *Service) loadRevision(ctx context.Context, id string) (revisionRow, error) {
@@ -303,8 +325,8 @@ func (s *Service) loadRevision(ctx context.Context, id string) (revisionRow, err
 		return revisionRow{}, NewError(CodeNotFound, "revision not found", map[string]any{"revision_id": clipEcho(id)})
 	}
 	var r revisionRow
-	err := s.db.QueryRowContext(ctx, `SELECT id,project_id,label,reason,job_id,build_id,layout_sha256,created_at FROM cc_revisions WHERE id=?`, id).
-		Scan(&r.ID, &r.ProjectID, &r.Label, &r.Reason, &r.JobID, &r.BuildID, &r.LayoutSHA, &r.CreatedAt)
+	err := s.db.QueryRowContext(ctx, `SELECT rowid,id,project_id,label,reason,job_id,build_id,layout_sha256,created_at FROM cc_revisions WHERE id=?`, id).
+		Scan(&r.rowID, &r.ID, &r.ProjectID, &r.Label, &r.Reason, &r.JobID, &r.BuildID, &r.LayoutSHA, &r.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return revisionRow{}, NewError(CodeNotFound, "revision not found", map[string]any{"revision_id": id})
 	}
@@ -314,22 +336,65 @@ func (s *Service) loadRevision(ctx context.Context, id string) (revisionRow, err
 	return r, nil
 }
 
-// revisionFiles returns path → sha256 of a revision.
-func (s *Service) revisionFiles(ctx context.Context, id string) (map[string]string, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT path, sha256 FROM cc_revision_files WHERE revision_id=?`, id)
+// revisionFile is one cc_revision_files row.
+type revisionFile struct {
+	sha  string
+	size int64
+}
+
+// revisionFileRows returns path → hash and size of a revision.
+func (s *Service) revisionFileRows(ctx context.Context, id string) (map[string]revisionFile, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT path, sha256, size FROM cc_revision_files WHERE revision_id=?`, id)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	files := map[string]string{}
+	files := map[string]revisionFile{}
 	for rows.Next() {
-		var p, sha string
-		if err := rows.Scan(&p, &sha); err != nil {
+		var p string
+		var f revisionFile
+		if err := rows.Scan(&p, &f.sha, &f.size); err != nil {
 			return nil, err
 		}
-		files[p] = sha
+		files[p] = f
 	}
 	return files, rows.Err()
+}
+
+// revisionFiles returns path → sha256 of a revision.
+func (s *Service) revisionFiles(ctx context.Context, id string) (map[string]string, error) {
+	rows, err := s.revisionFileRows(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	files := make(map[string]string, len(rows))
+	for p, f := range rows {
+		files[p] = f.sha
+	}
+	return files, nil
+}
+
+// revisionFingerprint equals treeSnapshot.fingerprint of the saved content.
+func (s *Service) revisionFingerprint(ctx context.Context, revisionID string) (string, error) {
+	r, err := s.loadRevision(ctx, revisionID)
+	if err != nil {
+		return "", err
+	}
+	files, err := s.revisionFiles(ctx, revisionID)
+	if err != nil {
+		return "", err
+	}
+	paths := make([]string, 0, len(files))
+	for p := range files {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+	var b strings.Builder
+	b.WriteString(ProjectFile + "\x00" + r.LayoutSHA + "\n")
+	for _, p := range paths {
+		b.WriteString(p + "\x00" + files[p] + "\n")
+	}
+	return sha256Hex([]byte(b.String())), nil
 }
 
 // ListRevisions returns the project's revisions, newest first.
@@ -338,7 +403,7 @@ func (s *Service) ListRevisions(ctx context.Context, projectID string) ([]Revisi
 		return nil, s.internalError("list revisions", err)
 	}
 	rows, err := s.db.QueryContext(ctx, `SELECT id,label,reason,job_id,build_id,created_at FROM cc_revisions
-		WHERE project_id=? ORDER BY created_at DESC, id DESC`, projectID)
+		WHERE project_id=? ORDER BY created_at DESC, rowid DESC`, projectID)
 	if err != nil {
 		return nil, s.internalError("list revisions", err)
 	}
@@ -358,8 +423,8 @@ func (s *Service) ListRevisions(ctx context.Context, projectID string) ([]Revisi
 // ok=false for the first one.
 func (s *Service) previousRevision(ctx context.Context, r revisionRow) (revisionRow, bool, error) {
 	var id string
-	err := s.db.QueryRowContext(ctx, `SELECT id FROM cc_revisions WHERE project_id=? AND (created_at<? OR (created_at=? AND id<?))
-		ORDER BY created_at DESC, id DESC LIMIT 1`, r.ProjectID, r.CreatedAt, r.CreatedAt, r.ID).Scan(&id)
+	err := s.db.QueryRowContext(ctx, `SELECT id FROM cc_revisions WHERE project_id=? AND (created_at<? OR (created_at=? AND rowid<?))
+		ORDER BY created_at DESC, rowid DESC LIMIT 1`, r.ProjectID, r.CreatedAt, r.CreatedAt, r.rowID).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return revisionRow{}, false, nil
 	}
@@ -368,6 +433,17 @@ func (s *Service) previousRevision(ctx context.Context, r revisionRow) (revision
 	}
 	prev, err := s.loadRevision(ctx, id)
 	return prev, err == nil, err
+}
+
+// newestRevisionID returns the project's newest revision, "" when it has none.
+func (s *Service) newestRevisionID(ctx context.Context, projectID string) (string, error) {
+	var id string
+	err := s.db.QueryRowContext(ctx, `SELECT id FROM cc_revisions WHERE project_id=? ORDER BY created_at DESC, rowid DESC LIMIT 1`,
+		projectID).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return id, err
 }
 
 // diffableText reports whether data can be shown as a line diff (UTF-8 text
@@ -379,14 +455,15 @@ func diffableText(data []byte) bool {
 // RevisionDiff compares a revision with the project's previous revision (the
 // first revision is compared with an empty project). App files get unified
 // diffs (each capped at maxDiffOutput, all together at about
-// maxRevisionDiffBytes); assets and app files that are not UTF-8 text get a
-// size note.
+// maxRevisionDiffBytes, LCS tables of all files within
+// maxRevisionDiffCells); app files that are not UTF-8 text get a size note,
+// assets a size note from the stored sizes (their blobs are not read).
 func (s *Service) RevisionDiff(ctx context.Context, revisionID string) (RevisionDiffResult, error) {
 	r, err := s.loadRevision(ctx, revisionID)
 	if err != nil {
 		return RevisionDiffResult{}, s.internalError("diff revision", err)
 	}
-	files, err := s.revisionFiles(ctx, r.ID)
+	files, err := s.revisionFileRows(ctx, r.ID)
 	if err != nil {
 		return RevisionDiffResult{}, s.internalError("diff revision", err)
 	}
@@ -394,9 +471,9 @@ func (s *Service) RevisionDiff(ctx context.Context, revisionID string) (Revision
 	if err != nil {
 		return RevisionDiffResult{}, s.internalError("diff revision", err)
 	}
-	prevFiles := map[string]string{}
+	prevFiles := map[string]revisionFile{}
 	if hasPrev {
-		if prevFiles, err = s.revisionFiles(ctx, prev.ID); err != nil {
+		if prevFiles, err = s.revisionFileRows(ctx, prev.ID); err != nil {
 			return RevisionDiffResult{}, s.internalError("diff revision", err)
 		}
 	}
@@ -413,11 +490,11 @@ func (s *Service) RevisionDiff(ctx context.Context, revisionID string) (Revision
 		sorted = append(sorted, p)
 	}
 	sort.Strings(sorted)
-	shown := 0
+	shown, cells := 0, maxRevisionDiffCells
 	for _, p := range sorted {
-		newSHA, inNew := files[p]
-		oldSHA, inOld := prevFiles[p]
-		if inNew && inOld && newSHA == oldSHA {
+		newFile, inNew := files[p]
+		oldFile, inOld := prevFiles[p]
+		if inNew && inOld && newFile.sha == oldFile.sha {
 			continue
 		}
 		status := "modified"
@@ -427,23 +504,26 @@ func (s *Service) RevisionDiff(ctx context.Context, revisionID string) (Revision
 		case !inNew:
 			status = "deleted"
 		}
-		var oldData, newData []byte
-		if inOld {
-			if oldData, err = s.readBlob(oldSHA); err != nil {
-				return RevisionDiffResult{}, s.internalError("diff revision", err)
+		diff := fmt.Sprintf("Binary file, %d → %d bytes\n", oldFile.size, newFile.size)
+		if IsEditablePath(p) {
+			var oldData, newData []byte
+			if inOld {
+				if oldData, err = s.readBlob(oldFile.sha); err != nil {
+					return RevisionDiffResult{}, s.internalError("diff revision", err)
+				}
 			}
-		}
-		if inNew {
-			if newData, err = s.readBlob(newSHA); err != nil {
-				return RevisionDiffResult{}, s.internalError("diff revision", err)
+			if inNew {
+				if newData, err = s.readBlob(newFile.sha); err != nil {
+					return RevisionDiffResult{}, s.internalError("diff revision", err)
+				}
 			}
-		}
-		diff := fmt.Sprintf("Binary file, %d → %d bytes\n", len(oldData), len(newData))
-		if IsEditablePath(p) && diffableText(oldData) && diffableText(newData) {
-			if shown >= maxRevisionDiffBytes {
+			switch {
+			case !diffableText(oldData) || !diffableText(newData):
+				diff = fmt.Sprintf("Binary file, %d → %d bytes\n", len(oldData), len(newData))
+			case shown >= maxRevisionDiffBytes:
 				diff = "… diff omitted: this revision changes too much to show …\n"
-			} else {
-				diff = unifiedDiff(p, string(oldData), string(newData), status == "added", status == "deleted")
+			default:
+				diff = unifiedDiffBudget(p, string(oldData), string(newData), status == "added", status == "deleted", &cells)
 				shown += len(diff)
 			}
 		}
@@ -454,13 +534,32 @@ func (s *Service) RevisionDiff(ctx context.Context, revisionID string) (Revision
 
 // materializeRevision writes a revision's layout and files into the new,
 // empty directory dir (through an os.Root of it). Only editable app paths and
-// asset file paths are written; paths that differ only by letter case are
-// refused (CYD_FILE_CONFLICT), because case-insensitive file systems would
-// merge them.
+// asset file paths are written. Every path and each of its folders must keep
+// one spelling: names that differ only by letter case (src/app/net/a.cpp next
+// to src/app/NET/b.cpp) are refused with CYD_FILE_CONFLICT, because
+// case-insensitive file systems would merge them.
 func (s *Service) materializeRevision(ctx context.Context, r revisionRow, dir string) error {
 	files, err := s.revisionFiles(ctx, r.ID)
 	if err != nil {
 		return err
+	}
+	spelled := map[string]string{}
+	write := make([]string, 0, len(files))
+	for p := range files {
+		if !IsEditablePath(p) && !assetFileRegex.MatchString(p) {
+			continue
+		}
+		for prefix := p; prefix != ""; {
+			key := strings.ToLower(prefix)
+			if other, ok := spelled[key]; ok && other != prefix {
+				return NewError(CodeFileConflict, "the revision lists files or folders whose names differ only in letter case",
+					map[string]any{"revision_id": r.ID, "path": max(prefix, other), "existing": min(prefix, other)})
+			}
+			spelled[key] = prefix
+			i := strings.LastIndexByte(prefix, '/')
+			prefix = prefix[:max(i, 0)]
+		}
+		write = append(write, p)
 	}
 	if err := os.MkdirAll(filepath.Dir(dir), 0o750); err != nil {
 		return err
@@ -488,20 +587,7 @@ func (s *Service) materializeRevision(ctx context.Context, r revisionRow, dir st
 	if err := rootWriteFile(context.WithoutCancel(ctx), root, ProjectFile, layout); err != nil {
 		return err
 	}
-	folded := make(map[string]string, len(files))
-	for p := range files {
-		if !IsEditablePath(p) && !assetFileRegex.MatchString(p) {
-			continue
-		}
-		key := strings.ToLower(p)
-		if other, ok := folded[key]; ok {
-			first, second := min(p, other), max(p, other)
-			return NewError(CodeFileConflict, "the revision lists files whose names differ only in letter case",
-				map[string]any{"revision_id": r.ID, "path": second, "existing": first})
-		}
-		folded[key] = p
-	}
-	for _, p := range folded {
+	for _, p := range write {
 		data, err := s.readBlob(files[p])
 		if err != nil {
 			return missing(p, err)
@@ -530,12 +616,50 @@ func layoutRowMeta(row projectRow, p Project) (name, board, theme string) {
 	return name, board, theme
 }
 
+// recordBeforeRestore saves the current project as a "restore" revision
+// labelled "Before restoring: <label>" when it differs from the project's
+// newest revision, so a restore never silently drops changes made since. A
+// tree that cannot be read (the user may be restoring it because it is
+// damaged) is logged and replaced anyway; a failure to store a readable tree
+// is returned. Callers hold the project mutex.
+func (s *Service) recordBeforeRestore(ctx context.Context, row projectRow, target revisionRow) error {
+	root, err := s.openRoot(row, "")
+	if err != nil {
+		s.logger.Warn("CYD Creator could not save the project before a restore", "project_id", row.ID, "error", err)
+		return nil
+	}
+	defer root.Close()
+	snap, err := snapshotTree(root)
+	if err != nil {
+		s.logger.Warn("CYD Creator could not save the project before a restore", "project_id", row.ID, "error", err)
+		return nil
+	}
+	newest, err := s.newestRevisionID(ctx, row.ID)
+	if err != nil {
+		return err
+	}
+	if newest != "" {
+		fp, err := s.revisionFingerprint(ctx, newest)
+		if err != nil {
+			return err
+		}
+		if fp == snap.fingerprint() {
+			return nil
+		}
+	}
+	_, err = s.createRevision(ctx, row.ID, root, "Before restoring: "+target.Label, RevisionRestore, "", "")
+	return err
+}
+
 // RestoreRevision replaces the project's layout, app files and assets with a
 // revision (crash-safe directory swap), records a "restore" revision and
 // returns the new version. It respects the project lock (origin restore).
 // The restored layout must parse and pass the asset entry rule
-// (CYD_INVALID_LAYOUT). The project_changed events follow the commit, also
-// when the restore revision cannot be recorded afterwards.
+// (CYD_INVALID_LAYOUT). Unsaved changes of the current project are saved
+// first (recordBeforeRestore). A rename blocked by an open file is CYD_BUSY
+// (reason file_open). After the commit the project_changed events always
+// follow; a restore revision that cannot be recorded is logged and the
+// restore still succeeds (with an empty Revision).
 func (s *Service) RestoreRevision(ctx context.Context, revisionID string) (int64, Revision, error) {
 	r, err := s.loadRevision(ctx, revisionID)
 	if err != nil {
@@ -543,6 +667,11 @@ func (s *Service) RestoreRevision(ctx context.Context, revisionID string) (int64
 	}
 	unlock := s.lockProject(r.ProjectID)
 	defer unlock()
+	// Trimming runs under the project mutex: read the revision again now
+	// that no other revision of the project can be created meanwhile.
+	if r, err = s.loadRevision(ctx, revisionID); err != nil {
+		return 0, Revision{}, s.internalError("restore revision", err)
+	}
 	row, err := s.loadProjectRow(ctx, r.ProjectID)
 	if err != nil {
 		return 0, Revision{}, s.internalError("restore revision", err)
@@ -554,14 +683,16 @@ func (s *Service) RestoreRevision(ctx context.Context, revisionID string) (int64
 	_, _ = rand.Read(suffix[:])
 	stageName := "restore-" + r.ID + "-" + hex.EncodeToString(suffix[:])
 	stage := filepath.Join(s.stagingRoot(), stageName)
-	if err := s.materializeRevision(ctx, r, stage); err != nil {
+	fail := func(err error) (int64, Revision, error) {
 		_ = os.RemoveAll(stage)
 		return 0, Revision{}, s.internalError("restore revision", err)
 	}
+	if err := s.materializeRevision(ctx, r, stage); err != nil {
+		return fail(err)
+	}
 	stageRoot, err := os.OpenRoot(stage)
 	if err != nil {
-		_ = os.RemoveAll(stage)
-		return 0, Revision{}, s.internalError("restore revision", err)
+		return fail(err)
 	}
 	p, err := readLayout(stageRoot)
 	_ = stageRoot.Close()
@@ -571,8 +702,12 @@ func (s *Service) RestoreRevision(ctx context.Context, revisionID string) (int64
 		err = checkLayoutAssets(nil, p.Assets)
 	}
 	if err != nil {
-		_ = os.RemoveAll(stage)
-		return 0, Revision{}, s.internalError("restore revision", err)
+		return fail(err)
+	}
+	// After the stage holds the revision: saving the current state may trim
+	// the oldest revisions, r among them.
+	if err := s.recordBeforeRestore(ctx, row, r); err != nil {
+		return fail(err)
 	}
 	name, board, theme := layoutRowMeta(row, p)
 	version, err := s.publishStage(ctx, row, stage, receiptRestore, receiptRestore+"_"+strings.TrimPrefix(stageName, "restore-"),
@@ -582,8 +717,7 @@ func (s *Service) RestoreRevision(ctx context.Context, revisionID string) (int64
 			return err
 		})
 	if err != nil {
-		_ = os.RemoveAll(stage)
-		return 0, Revision{}, s.internalError("restore revision", err)
+		return fail(err)
 	}
 	// Committed: finish without the caller's cancellation.
 	ctx = context.WithoutCancel(ctx)
@@ -593,11 +727,12 @@ func (s *Service) RestoreRevision(ctx context.Context, revisionID string) (int64
 		rev, err = s.createRevision(ctx, row.ID, root, r.Label, RevisionRestore, "", "")
 		_ = root.Close()
 	}
+	if err != nil {
+		s.logger.Warn("CYD Creator restore revision could not be stored", "project_id", row.ID, "revision_id", r.ID, "error", err)
+		rev = Revision{}
+	}
 	s.Emit(row.ID, EventProjectChanged, "", "", projectChange(version, OriginRestore, "layout"))
 	s.Emit(row.ID, EventProjectChanged, "", "", projectChange(version, OriginRestore, "files"))
-	if err != nil {
-		return version, Revision{}, s.internalError("restore revision", err)
-	}
 	return version, rev, nil
 }
 

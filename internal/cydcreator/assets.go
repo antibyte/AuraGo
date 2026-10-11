@@ -280,8 +280,17 @@ func (s *Service) removeAssetFile(root *os.Root, projectID, file string, remaini
 	}
 }
 
-// OpenAsset opens the original image of an asset for the designer preview.
-// The caller closes the reader.
+// memoryAsset serves an asset read into memory; Close is a no-op.
+type memoryAsset struct{ *bytes.Reader }
+
+func (memoryAsset) Close() error { return nil }
+
+// OpenAsset returns the original image of an asset for the designer preview.
+// The file is read into memory (at most MaxAssetUploadBytes, else
+// CYD_ASSET_TOO_LARGE reason file_size) under the project lock, so no file
+// handle stays open inside the project directory while the response streams:
+// on Windows an open handle would block the directory swap of a publication
+// or restore. The caller closes the reader.
 func (s *Service) OpenAsset(ctx context.Context, id, assetID string) (io.ReadSeekCloser, Asset, string, error) {
 	unlock := s.lockProject(id)
 	defer unlock()
@@ -305,23 +314,18 @@ func (s *Service) OpenAsset(ctx context.Context, id, assetID string) (io.ReadSee
 		if !assetFileRegex.MatchString(a.File) {
 			return nil, Asset{}, "", assetFileError(a.ID)
 		}
-		f, err := root.Open(filepath.FromSlash(a.File))
-		if errors.Is(err, fs.ErrNotExist) {
+		data, err := rootReadFile(root, a.File, MaxAssetUploadBytes)
+		if errors.Is(err, fs.ErrNotExist) || errors.Is(err, errNotRegularFile) {
 			break
+		}
+		if errors.Is(err, errFileTooLarge) {
+			return nil, Asset{}, "", NewError(CodeAssetTooLarge, fmt.Sprintf("asset %s: the image file is larger than %d bytes", a.ID, MaxAssetUploadBytes),
+				map[string]any{"asset": a.ID, "reason": "file_size", "max": MaxAssetUploadBytes})
 		}
 		if err != nil {
 			return nil, Asset{}, "", s.internalError("read asset", err)
 		}
-		info, err := f.Stat()
-		if err != nil {
-			_ = f.Close()
-			return nil, Asset{}, "", s.internalError("read asset", err)
-		}
-		if !info.Mode().IsRegular() {
-			_ = f.Close()
-			break
-		}
-		return f, a, assetContentType(a.File), nil
+		return memoryAsset{bytes.NewReader(data)}, a, assetContentType(a.File), nil
 	}
 	return nil, Asset{}, "", NewError(CodeNotFound, "asset not found", map[string]any{"asset_id": assetID})
 }

@@ -3,6 +3,7 @@ package cydcreator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -282,5 +283,138 @@ func TestReadBlobRejectsCorruption(t *testing.T) {
 	}
 	if _, err := env.svc.readBlob("../x"); err == nil {
 		t.Fatal("invalid blob name accepted")
+	}
+}
+
+func TestReadBlobIsCapped(t *testing.T) {
+	env := newTestService(t)
+	name := strings.Repeat("ab", 32)
+	path := env.svc.blobPath(name)
+	writeTestFile(t, path, "")
+	if err := os.Truncate(path, maxBlobBytes+1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.svc.readBlob(name); !errors.Is(err, errFileTooLarge) {
+		t.Fatalf("oversized blob: %v", err)
+	}
+}
+
+func TestRestoreRefusesCaseVariantFolders(t *testing.T) {
+	env, p := newProjectEnv(t)
+	rev := recordRaw(t, env, p)
+	sha, err := env.svc.writeBlob([]byte("int b;\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"src/app/net/a.cpp", "src/app/NET/b.cpp"} {
+		if _, err := env.svc.db.Exec(`INSERT INTO cc_revision_files(revision_id,path,sha256,size) VALUES(?,?,?,?)`, rev.ID, path, sha, 7); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, _, err = env.svc.RestoreRevision(context.Background(), rev.ID)
+	if e := wantCode(t, err, CodeFileConflict); e.Details["path"] != "src/app/net" || e.Details["existing"] != "src/app/NET" {
+		t.Fatalf("details = %v", e.Details)
+	}
+}
+
+func TestMalformedRevisionIDsAreNotFound(t *testing.T) {
+	env := newTestService(t)
+	ctx := context.Background()
+	for _, id := range []string{"../x", "a/b", "", strings.Repeat("r", 65)} {
+		if _, err := env.svc.RevisionDiff(ctx, id); ErrorCode(err) != CodeNotFound {
+			t.Fatalf("RevisionDiff(%q) = %v", id, err)
+		}
+		if _, _, err := env.svc.RestoreRevision(ctx, id); ErrorCode(err) != CodeNotFound {
+			t.Fatalf("RestoreRevision(%q) = %v", id, err)
+		}
+	}
+}
+
+func TestLayoutRowMeta(t *testing.T) {
+	row := projectRow{Name: "Old", Board: "esp32-2432s028r", Theme: "night"}
+	name, board, theme := layoutRowMeta(row, Project{Name: "New", Board: "esp32-2432s024r", Theme: "clear"})
+	if name != "New" || board != "esp32-2432s024r" || theme != "clear" {
+		t.Fatalf("valid values = %q %q %q", name, board, theme)
+	}
+	name, board, theme = layoutRowMeta(row, Project{Name: "", Board: "no-such-board", Theme: "no-such-theme"})
+	if name != "Old" || board != row.Board || theme != row.Theme {
+		t.Fatalf("invalid values = %q %q %q", name, board, theme)
+	}
+}
+
+func TestRestoreSavesUnrecordedChangesFirst(t *testing.T) {
+	env, p := newProjectEnv(t)
+	ctx := context.Background()
+	rev := recordRaw(t, env, p)
+	writeTestFile(t, filepath.Join(env.svc.projectDir(p.Slug), "src", "app", "untracked.h"), "int u;\n")
+	if _, _, err := env.svc.RestoreRevision(ctx, rev.ID); err != nil {
+		t.Fatal(err)
+	}
+	revs, _ := env.svc.ListRevisions(ctx, p.ID)
+	if len(revs) != 3 || revs[1].Label != "Before restoring: raw" || revs[1].Reason != RevisionRestore {
+		t.Fatalf("revisions = %+v", revs)
+	}
+	saved, err := env.svc.RevisionDiff(ctx, revs[1].ID)
+	if err != nil || len(saved.Files) != 1 || saved.Files[0].Path != "src/app/untracked.h" || saved.Files[0].Status != "added" {
+		t.Fatalf("saved state diff = %+v, %v", saved, err)
+	}
+	if _, err := os.Stat(filepath.Join(env.svc.projectDir(p.Slug), "src", "app", "untracked.h")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("the restore kept a file the revision does not have")
+	}
+	// Nothing changed since the newest revision: no extra snapshot.
+	if _, _, err := env.svc.RestoreRevision(ctx, revs[1].ID); err != nil {
+		t.Fatal(err)
+	}
+	if again, _ := env.svc.ListRevisions(ctx, p.ID); len(again) != 4 {
+		t.Fatalf("%d revisions after a restore without changes, want 4", len(again))
+	}
+}
+
+func TestRevisionDiffTakesAssetSizesFromTheRows(t *testing.T) {
+	env, p := newProjectEnv(t)
+	ctx := context.Background()
+	recordRaw(t, env, p)
+	writeTestFile(t, filepath.Join(env.svc.projectDir(p.Slug), "assets", "logo.png"), "not really a png")
+	rev := recordRaw(t, env, p)
+	files, _ := env.svc.revisionFiles(ctx, rev.ID)
+	if err := os.Remove(env.svc.blobPath(files["assets/logo.png"])); err != nil {
+		t.Fatal(err)
+	}
+	diff, err := env.svc.RevisionDiff(ctx, rev.ID)
+	if err != nil || len(diff.Files) != 1 || diff.Files[0].Diff != "Binary file, 0 → 16 bytes\n" {
+		t.Fatalf("diff = %+v, %v", diff, err)
+	}
+}
+
+func TestRevisionDiffIsCappedInTotal(t *testing.T) {
+	env, p := newProjectEnv(t)
+	ctx := context.Background()
+	const files, lines = 20, 8000
+	write := func(prefix string) {
+		for i := 0; i < files; i++ {
+			var b strings.Builder
+			for n := 0; n < lines; n++ {
+				fmt.Fprintf(&b, "%s%02d-%d\n", prefix, i, n)
+			}
+			writeTestFile(t, filepath.Join(env.svc.projectDir(p.Slug), "src", "app", fmt.Sprintf("f%02d.cpp", i)), b.String())
+		}
+	}
+	write("a")
+	recordRaw(t, env, p)
+	write("b")
+	rev := recordRaw(t, env, p)
+	diff, err := env.svc.RevisionDiff(ctx, rev.ID)
+	if err != nil || len(diff.Files) != files {
+		t.Fatalf("diff = %d files, %v", len(diff.Files), err)
+	}
+	total, omitted := 0, 0
+	for _, f := range diff.Files {
+		total += len(f.Diff)
+		if strings.HasPrefix(f.Diff, "… diff omitted") {
+			omitted++
+		}
+	}
+	if omitted == 0 || total > maxRevisionDiffBytes+maxDiffOutput+files*64 {
+		t.Fatalf("total %d bytes, %d files omitted", total, omitted)
 	}
 }

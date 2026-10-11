@@ -10,18 +10,22 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
+	"syscall"
 
 	"aurago/internal/fileutil"
 )
 
 // A synced receipt precedes every swap of a project directory (pattern
-// internal/gamemaker/fs_receipt.go). The database version is the commit
-// point: version == NewVersion means the swap is committed, version ==
-// PreviousVersion means it is not; anything else is left for review. A
-// receipt that outlives its commit (the backup could not be removed) is
-// rewritten with Committed set, so later version bumps cannot make it
-// ambiguous.
+// internal/gamemaker/fs_receipt.go). The commit point is the transaction that
+// bumps the version and stores the receipt id in cc_projects.publish_receipt:
+// recovery treats a receipt as committed exactly when the row names it. A
+// receipt that is not committed is rolled back only while the version is
+// still PreviousVersion; anything else is left for review. While a receipt of
+// a project is unresolved (a failed put-back, a recovery error) the project is
+// fenced in memory: every write refuses with CYD_BUSY (reason
+// publication_review) until a restart resolves it.
 const (
 	receiptPublish = "publish"
 	receiptRestore = "restore"
@@ -38,17 +42,90 @@ type publishReceipt struct {
 	Stage           string `json:"stage"`
 	PreviousVersion int64  `json:"previous_version"`
 	NewVersion      int64  `json:"new_version"`
-	Committed       bool   `json:"committed,omitempty"`
 }
 
 var (
 	receiptIDPattern = regexp.MustCompile(`^(publish|restore)_[A-Za-z0-9_-]{1,96}$`)
 	slugPattern      = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,49}$`)
 	stagePattern     = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$`)
+	backupPattern    = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,49}\.cyd-backup-((?:publish|restore)_[A-Za-z0-9_-]{1,96})$`)
 )
 
 func (s *Service) receiptsDir() string {
 	return filepath.Join(s.dataDir, "cyd_creator", "transactions")
+}
+
+// publicationFence returns the receipt id of an unresolved publication of
+// the project, or "".
+func (s *Service) publicationFence(projectID string) string {
+	s.fenceMu.Lock()
+	defer s.fenceMu.Unlock()
+	return s.fences[projectID]
+}
+
+// setPublicationFence fences the project until the next start.
+func (s *Service) setPublicationFence(projectID, receiptID string) {
+	s.fenceMu.Lock()
+	defer s.fenceMu.Unlock()
+	if s.fences == nil {
+		s.fences = map[string]string{}
+	}
+	s.fences[projectID] = receiptID
+}
+
+func publicationReviewError() error {
+	return NewError(CodeBusy, "an interrupted publication of this project needs review; restart AuraGo or see the server log",
+		map[string]any{"reason": "publication_review"})
+}
+
+// isOpenFileError reports a Windows directory rename refused because a file
+// or folder inside is open (access denied or sharing violation).
+func isOpenFileError(err error) bool {
+	return runtime.GOOS == "windows" && (errors.Is(err, fs.ErrPermission) || errors.Is(err, syscall.Errno(32)))
+}
+
+// swapError maps a failed directory rename: an open file is CYD_BUSY (reason
+// file_open, retryable), anything else stays internal.
+func swapError(what string, err error) error {
+	if isOpenFileError(err) {
+		return NewError(CodeBusy, "a project file is open; try again in a moment", map[string]any{"reason": "file_open"})
+	}
+	return fmt.Errorf("%s: %w", what, err)
+}
+
+// syncDir makes new entries and renames in dir durable. Windows has no
+// directory fsync (NTFS journals its metadata), so it is a no-op there, and a
+// file system without directory fsync (EINVAL) is accepted.
+func syncDir(dir string) error {
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+	f, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	err = f.Sync()
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if errors.Is(err, syscall.EINVAL) || errors.Is(err, errors.ErrUnsupported) {
+		return nil
+	}
+	return err
+}
+
+// syncTree fsyncs every directory of the tree at dir; its files were synced
+// when they were written. A no-op on Windows.
+func syncTree(dir string) error {
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+	return filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || !d.IsDir() {
+			return err
+		}
+		return syncDir(p)
+	})
 }
 
 // rejectLinkedComponents fails when a component of the slash path rel below
@@ -92,6 +169,7 @@ func (s *Service) receiptPaths(r publishReceipt) (target, backup, stage string, 
 	return target, target + ".cyd-backup-" + r.ID, filepath.Join(s.stagingRoot(), r.Stage), nil
 }
 
+// writeReceipt persists the receipt durably (synced file, synced directory).
 func (s *Service) writeReceipt(r publishReceipt) (string, error) {
 	if _, _, _, err := s.receiptPaths(r); err != nil {
 		return "", err
@@ -110,28 +188,23 @@ func (s *Service) writeReceipt(r publishReceipt) (string, error) {
 	if err := fileutil.WriteFileContext(context.Background(), p, data, 0o600); err != nil {
 		return "", fmt.Errorf("persist receipt: %w", err)
 	}
+	if err := syncDir(s.receiptsDir()); err != nil {
+		_ = os.Remove(p)
+		return "", fmt.Errorf("persist receipt: %w", err)
+	}
 	return p, nil
 }
 
-// markReceiptCommitted replaces the receipt at p with one that records the
-// commit (best effort: an unmarked receipt is still recovered while the
-// version stays NewVersion).
-func (s *Service) markReceiptCommitted(p string, r publishReceipt) {
-	r.Committed = true
-	data, err := json.Marshal(r)
-	if err == nil {
-		err = fileutil.WriteFileContext(context.Background(), p, data, 0o600)
-	}
-	if err != nil {
-		s.logger.Warn("CYD Creator receipt could not be marked as committed", "receipt", r.ID, "error", err)
-	}
-}
-
 // publishStage replaces the project directory with stage. commit runs inside
-// the transaction that bumps the version (the commit point); on any failure
-// before the commit the old directory is put back. Callers hold the project
-// mutex. It returns the new version.
+// the transaction that bumps the version and records the receipt id (the
+// commit point); on any failure before the commit the old directory is put
+// back. A rename refused because a file is open is CYD_BUSY (reason
+// file_open); callers may retry. Callers hold the project mutex. It returns
+// the new version.
 func (s *Service) publishStage(ctx context.Context, row projectRow, stage, kind, id string, commit func(tx *sql.Tx, version int64) error) (int64, error) {
+	if s.publicationFence(row.ID) != "" {
+		return 0, publicationReviewError()
+	}
 	r := publishReceipt{Version: receiptFormat, ID: id, Kind: kind, ProjectID: row.ID, Slug: row.Slug,
 		Stage: filepath.Base(stage), PreviousVersion: row.Version, NewVersion: row.Version + 1}
 	target, backup, stagePath, err := s.receiptPaths(r)
@@ -141,34 +214,44 @@ func (s *Service) publishStage(ctx context.Context, row projectRow, stage, kind,
 	if filepath.Clean(stagePath) != filepath.Clean(stage) {
 		return 0, errors.New("the stage is outside the staging folder")
 	}
+	// The stage's files were synced when written; its directories now, so
+	// the published tree survives a power loss once the backup is gone.
+	if err := syncTree(stage); err != nil {
+		return 0, fmt.Errorf("sync stage: %w", err)
+	}
 	receipt, err := s.writeReceipt(r)
 	if err != nil {
 		return 0, err
 	}
 	if err := fileutil.Rename(target, backup); err != nil {
 		_ = os.Remove(receipt)
-		return 0, fmt.Errorf("move project aside: %w", err)
+		return 0, swapError("move project aside", err)
 	}
 	rollback := func(cause error) (int64, error) {
 		if dirExists(target) {
 			_ = fileutil.Rename(target, stage)
 		}
 		if err := fileutil.Rename(backup, target); err != nil {
-			s.logger.Error("CYD Creator project could not be put back; the receipt stays for recovery", "receipt", r.ID, "error", err)
-			return 0, cause
+			s.setPublicationFence(row.ID, r.ID)
+			s.logger.Error("CYD Creator project could not be put back; the receipt stays for recovery at the next start",
+				"receipt", r.ID, "project_id", row.ID, "error", err, "cause", cause)
+			return 0, publicationReviewError()
 		}
 		_ = os.Remove(receipt)
 		return 0, cause
 	}
 	if err := fileutil.Rename(stage, target); err != nil {
-		return rollback(fmt.Errorf("move stage into place: %w", err))
+		return rollback(swapError("move stage into place", err))
+	}
+	if err := errors.Join(syncDir(s.projectsDir), syncDir(s.stagingRoot())); err != nil {
+		return rollback(fmt.Errorf("sync the swapped directories: %w", err))
 	}
 	tx, err := s.db.BeginTx(context.WithoutCancel(ctx), nil)
 	if err != nil {
 		return rollback(err)
 	}
-	res, err := tx.Exec(`UPDATE cc_projects SET version=?, updated_at=? WHERE id=? AND version=?`,
-		r.NewVersion, formatTime(s.now()), row.ID, row.Version)
+	res, err := tx.Exec(`UPDATE cc_projects SET version=?, updated_at=?, publish_receipt=? WHERE id=? AND version=?`,
+		r.NewVersion, formatTime(s.now()), r.ID, row.ID, row.Version)
 	if err == nil {
 		if n, _ := res.RowsAffected(); n != 1 {
 			err = errors.New("the project version changed during publication")
@@ -185,23 +268,22 @@ func (s *Service) publishStage(ctx context.Context, row projectRow, stage, kind,
 	if err != nil {
 		return rollback(err)
 	}
+	// Committed. A backup that cannot be removed now has no receipt left and
+	// is swept at the next start (sweepOrphanBackups).
 	if err := os.RemoveAll(backup); err != nil {
-		s.logger.Warn("CYD Creator publication backup could not be removed", "receipt", r.ID, "error", err)
-		s.markReceiptCommitted(receipt, r)
-		return r.NewVersion, nil // the receipt stays; recovery removes the backup
+		s.logger.Warn("CYD Creator publication backup could not be removed; it is removed at the next start", "receipt", r.ID, "error", err)
 	}
 	_ = os.Remove(receipt)
 	return r.NewVersion, nil
 }
 
-// recoverReceipts finishes or rolls back swaps interrupted by a crash.
-// Ambiguous receipts are kept and logged; the project stays as found.
+// recoverReceipts finishes or rolls back swaps interrupted by a crash, then
+// removes backups whose receipt is gone. Receipts that need review are kept
+// and logged, the project stays as found and is fenced until the next start.
 func (s *Service) recoverReceipts(ctx context.Context) {
 	entries, err := os.ReadDir(s.receiptsDir())
-	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			s.logger.Error("CYD Creator receipts could not be listed", "error", err)
-		}
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		s.logger.Error("CYD Creator receipts could not be listed", "error", err)
 		return
 	}
 	if len(entries) > maxReceipts {
@@ -214,64 +296,97 @@ func (s *Service) recoverReceipts(ctx context.Context) {
 			_ = os.Remove(p) // an unfinished receipt write: no swap started
 			continue
 		}
-		if err := s.recoverReceipt(ctx, p); err != nil {
-			s.logger.Error("CYD Creator receipt needs review", "receipt", e.Name(), "error", err)
+		r, err := s.recoverReceipt(ctx, p)
+		if err != nil {
+			if r.ProjectID != "" {
+				s.setPublicationFence(r.ProjectID, r.ID)
+			}
+			s.logger.Error("CYD Creator receipt needs review", "receipt", e.Name(), "project_id", r.ProjectID, "error", err)
 		}
 	}
+	s.sweepOrphanBackups()
 }
 
-func (s *Service) recoverReceipt(ctx context.Context, p string) error {
+// recoverReceipt resolves one receipt file. It returns the parsed receipt
+// (empty when the file is unreadable) so the caller can fence its project.
+func (s *Service) recoverReceipt(ctx context.Context, p string) (publishReceipt, error) {
 	info, err := os.Lstat(p)
 	if err != nil || !info.Mode().IsRegular() || info.Size() > 16<<10 || !strings.HasSuffix(p, ".json") {
-		return errors.New("unrecognized receipt file")
+		return publishReceipt{}, errors.New("unrecognized receipt file")
 	}
 	data, err := os.ReadFile(p)
 	if err != nil {
-		return err
+		return publishReceipt{}, err
 	}
 	var r publishReceipt
 	if err := json.Unmarshal(data, &r); err != nil {
-		return err
+		return publishReceipt{}, err
 	}
 	if filepath.Base(p) != r.ID+".json" {
-		return errors.New("receipt name mismatch")
+		return publishReceipt{}, errors.New("receipt name mismatch")
 	}
 	target, backup, stage, err := s.receiptPaths(r)
 	if err != nil {
-		return err
+		return r, err
 	}
 	var version int64
-	var slug string
-	if err := s.db.QueryRowContext(ctx, `SELECT version, slug FROM cc_projects WHERE id=?`, r.ProjectID).Scan(&version, &slug); err != nil {
-		return fmt.Errorf("read project: %w", err)
+	var slug, committed string
+	if err := s.db.QueryRowContext(ctx, `SELECT version, slug, publish_receipt FROM cc_projects WHERE id=?`, r.ProjectID).
+		Scan(&version, &slug, &committed); err != nil {
+		return r, fmt.Errorf("read project: %w", err)
 	}
 	if slug != r.Slug {
-		return errors.New("the project directory changed")
+		return r, errors.New("the project directory changed")
 	}
 	switch {
-	case version == r.NewVersion, r.Committed && version > r.NewVersion:
+	case committed == r.ID:
+		// Committed; saves after the commit do not matter.
 		if !dirExists(target) {
-			return errors.New("the committed project directory is missing")
+			return r, errors.New("the committed project directory is missing")
 		}
 		if err := os.RemoveAll(backup); err != nil {
-			return err
+			return r, err
 		}
-	case !r.Committed && version == r.PreviousVersion:
+	case version == r.PreviousVersion:
+		// Not committed, and nothing was saved since (a commit always bumps
+		// the version): put the old directory back.
 		if dirExists(backup) {
 			if dirExists(target) {
 				if dirExists(stage) {
-					return errors.New("both the stage and the new project directory exist")
+					return r, errors.New("both the stage and the new project directory exist")
 				}
 				if err := fileutil.Rename(target, stage); err != nil {
-					return err
+					return r, err
 				}
 			}
 			if err := fileutil.Rename(backup, target); err != nil {
-				return err
+				return r, err
 			}
 		}
 	default:
-		return fmt.Errorf("project version %d matches neither side of the receipt", version)
+		return r, fmt.Errorf("the receipt is not committed but the project version moved from %d to %d", r.PreviousVersion, version)
 	}
-	return os.Remove(p)
+	return r, os.Remove(p)
+}
+
+// sweepOrphanBackups removes <slug>.cyd-backup-<receipt> directories whose
+// receipt no longer exists: their publication was committed (the receipt is
+// removed only after a commit or a completed rollback).
+func (s *Service) sweepOrphanBackups() {
+	entries, err := os.ReadDir(s.projectsDir)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		m := backupPattern.FindStringSubmatch(e.Name())
+		if m == nil {
+			continue
+		}
+		if _, err := os.Lstat(filepath.Join(s.receiptsDir(), m[1]+".json")); !errors.Is(err, fs.ErrNotExist) {
+			continue // the receipt is still pending (or cannot be checked)
+		}
+		if err := os.RemoveAll(filepath.Join(s.projectsDir, e.Name())); err != nil {
+			s.logger.Warn("CYD Creator publication backup could not be removed", "backup", e.Name(), "error", err)
+		}
+	}
 }
