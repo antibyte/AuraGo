@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -74,6 +75,26 @@ func TestGenerateGolden(t *testing.T) {
 		"theme_night", "theme_sandstorm", "theme_synthwave", "theme_terminal"}
 	if !slices.Equal(cases, wantCases) {
 		t.Fatalf("golden cases %v, want %v", cases, wantCases)
+	}
+	// Every theme of themes.json has its theme_<id> case and no case names a
+	// theme that is gone, so a new theme cannot ship without a golden.
+	themes, err := Themes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var themeCases, wantThemeCases []string
+	for _, name := range cases {
+		if strings.HasPrefix(name, "theme_") {
+			themeCases = append(themeCases, name)
+		}
+	}
+	for _, th := range themes {
+		wantThemeCases = append(wantThemeCases, "theme_"+th.ID)
+	}
+	slices.Sort(themeCases)
+	slices.Sort(wantThemeCases)
+	if !slices.Equal(themeCases, wantThemeCases) {
+		t.Fatalf("theme golden cases %v, want one per Themes() entry %v", themeCases, wantThemeCases)
 	}
 	for _, name := range cases {
 		t.Run(name, func(t *testing.T) {
