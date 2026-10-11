@@ -322,6 +322,27 @@ func EffectiveServerHost(configured string) string {
 	return configured
 }
 
+func clearLegacyBrowserAutomationCloakProxy(cfg *Config) {
+	if cfg == nil {
+		return
+	}
+	parsed, err := url.Parse(strings.TrimSpace(cfg.BrowserAutomation.CloakProxy))
+	if err != nil || parsed == nil || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return
+	}
+	if !strings.EqualFold(parsed.Scheme, "http") || !strings.EqualFold(parsed.Hostname(), "browser-egress") {
+		return
+	}
+	port := parsed.Port()
+	if port == "" {
+		port = "80"
+	}
+	if port != "7332" || (parsed.Path != "" && parsed.Path != "/") {
+		return
+	}
+	cfg.BrowserAutomation.CloakProxy = ""
+}
+
 func Load(path string) (*Config, error) {
 	absConfigPath, err := filepath.Abs(path)
 	if err != nil {
@@ -993,6 +1014,7 @@ func Load(path string) (*Config, error) {
 
 		return nil, fmt.Errorf("failed to unmarshal config (backup saved to %s): %w", backupPath, err)
 	}
+	clearLegacyBrowserAutomationCloakProxy(&cfg)
 	// Defaults are applied before YAML decoding, so an omitted mode would otherwise
 	// be indistinguishable from an explicit managed_garage selection. Clear only the
 	// defaulted value here and let normalization preserve legacy endpoint-based S3.
