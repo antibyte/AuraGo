@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime/debug"
 	"time"
 	"unicode/utf8"
 
@@ -123,7 +124,7 @@ func runServeCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) i
 		fmt.Fprintf(stderr, "write worker hello: %v\n", err)
 		return 1
 	}
-	if err := serveLoop(stdin, stdout, primary); err != nil {
+	if err := serveLoop(stdin, stdout, stderr, primary); err != nil {
 		fmt.Fprintf(stderr, "person detection worker: %v\n", err)
 		return 1
 	}
@@ -280,12 +281,14 @@ func durationMS(d time.Duration) float64 {
 // request; a well-formed line without an "id" member is answered with id 0.
 // Only an unreadable stream, an over-long line, a line that is not valid
 // JSON, a field error in a line without a readable id, and a failed write end
-// the loop with an error (the worker exits 1 and reports it on stderr).
-func serveLoop(input io.Reader, output io.Writer, eng engine) error {
-	return serveLines(input, output, eng, maxRequestLineBytes)
+// the loop with an error (the worker exits 1 and reports it on stderr). A
+// Go panic while one frame is handled is answered as that frame's error
+// (handleDetect); diagnostics receives its stack.
+func serveLoop(input io.Reader, output, diagnostics io.Writer, eng engine) error {
+	return serveLines(input, output, diagnostics, eng, maxRequestLineBytes)
 }
 
-func serveLines(input io.Reader, output io.Writer, eng engine, maxLineBytes int) error {
+func serveLines(input io.Reader, output, diagnostics io.Writer, eng engine, maxLineBytes int) error {
 	reader := bufio.NewReaderSize(input, 64<<10)
 	encoder := json.NewEncoder(output)
 	for {
@@ -308,7 +311,7 @@ func serveLines(input io.Reader, output io.Writer, eng engine, maxLineBytes int)
 		case failure != nil:
 			response = *failure
 		case request.Command == "detect":
-			response = handleDetect(eng, request)
+			response = handleDetect(eng, request, diagnostics)
 		case request.Command == "close":
 			if err := encoder.Encode(closeResponse{ID: request.ID, Type: "result"}); err != nil {
 				return fmt.Errorf("write response: %w", err)
@@ -394,8 +397,19 @@ func truncateText(s string, limit int) string {
 
 // handleDetect answers one detect request. wall_ms and cpu_ms cover decoding,
 // preprocessing and inference; cpu_ms has ≈15.6 ms resolution on Windows and
-// is 0 when the process CPU time cannot be read.
-func handleDetect(eng engine, request workerRequest) any {
+// is 0 when the process CPU time cannot be read. A Go panic while the frame
+// is handled (a decoder or post-processing bug hit by one frame) is answered
+// as the frame's error, "internal error: …", with the stack on diagnostics;
+// the worker keeps serving.
+func handleDetect(eng engine, request workerRequest, diagnostics io.Writer) (response any) {
+	defer func() {
+		value := recover()
+		if value == nil {
+			return
+		}
+		fmt.Fprintf(diagnostics, "person detection worker: panic while handling request %d: %v\n%s", request.ID, value, debug.Stack())
+		response = errorResponse{ID: request.ID, Type: "result", Error: truncateText(fmt.Sprintf("internal error: %v", value), maxRequestErrorBytes)}
+	}()
 	if len(request.JPEG) == 0 {
 		return errorResponse{ID: request.ID, Type: "result", Error: "jpeg is required"}
 	}

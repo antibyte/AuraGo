@@ -2,6 +2,7 @@ package persondetect
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -53,6 +54,32 @@ type detectorFixture struct {
 	deps      detectorDeps
 	installer *fakeInstaller
 	phases    []string
+	logs      *syncBuffer
+}
+
+// syncBuffer collects slog output written from several goroutines.
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *syncBuffer) Write(data []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(data)
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+// restartPending reports the plain ErrWorkerRestarting a Detect returns
+// during the backoff; the Detect that saw the failure returns an error that
+// wraps ErrWorkerRestarting and the cause.
+func restartPending(err error) bool {
+	return err == ErrWorkerRestarting
 }
 
 func newDetectorFixture(t *testing.T, mode string, backend Backend) *detectorFixture {
@@ -64,13 +91,13 @@ func newDetectorFixture(t *testing.T, mode string, backend Backend) *detectorFix
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := &detectorFixture{dir: dir, installer: &fakeInstaller{root: filepath.Join(dir, "runtime-cache")}}
+	f := &detectorFixture{dir: dir, installer: &fakeInstaller{root: filepath.Join(dir, "runtime-cache")}, logs: &syncBuffer{}}
 	f.opts = DetectorOptions{
 		ModelDir:        filepath.Join(dir, "models"),
 		RuntimeCacheDir: filepath.Join(dir, "runtime-cache"),
 		Model:           ModelStandard,
 		Backend:         backend,
-		Logger:          slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Logger:          slog.New(slog.NewTextHandler(f.logs, nil)),
 		OnProgress:      func(progress SetupProgress) { f.phases = append(f.phases, progress.Phase) },
 		GPUProbe:        func() (bool, string) { return true, "" },
 		Executable:      executable,
@@ -283,13 +310,14 @@ func TestDetectorValidatesOptionsAndFrames(t *testing.T) {
 
 func TestDetectorRestartsAfterCrash(t *testing.T) {
 	f := newDetectorFixture(t, "crash_first_detect", BackendCPU)
-	f.deps.backoffBase = 500 * time.Millisecond
+	f.deps.backoffBase, f.deps.backoffMax = 3*time.Second, 3*time.Second
 	detector := f.start(t)
 	_, err := detectFrame(detector)
-	if err == nil || errors.Is(err, ErrDetectorFailed) || errors.Is(err, ErrWorkerRestarting) || !strings.Contains(err.Error(), "worker exited") {
+	if err == nil || errors.Is(err, ErrDetectorFailed) || !errors.Is(err, ErrWorkerRestarting) || restartPending(err) ||
+		err.Error() != "person detector worker is restarting in 3s: worker exited unexpectedly (exit status 3)" {
 		t.Fatalf("first Detect error = %v", err)
 	}
-	if _, err := detectFrame(detector); !errors.Is(err, ErrWorkerRestarting) {
+	if _, err := detectFrame(detector); !restartPending(err) {
 		t.Fatalf("Detect during backoff = %v, want ErrWorkerRestarting", err)
 	}
 	deadline := time.Now().Add(15 * time.Second)
@@ -301,7 +329,7 @@ func TestDetectorRestartsAfterCrash(t *testing.T) {
 			}
 			break
 		}
-		if !errors.Is(err, ErrWorkerRestarting) || time.Now().After(deadline) {
+		if !restartPending(err) || time.Now().After(deadline) {
 			t.Fatalf("Detect after restart = %v", err)
 		}
 		time.Sleep(20 * time.Millisecond)
@@ -321,7 +349,7 @@ func TestDetectorFailsAfterFiveConsecutiveFailures(t *testing.T) {
 		if err == nil {
 			t.Fatal("crashing worker answered")
 		}
-		if errors.Is(err, ErrWorkerRestarting) {
+		if restartPending(err) {
 			if time.Now().After(deadline) {
 				t.Fatal("worker never restarted")
 			}
@@ -330,10 +358,13 @@ func TestDetectorFailsAfterFiveConsecutiveFailures(t *testing.T) {
 		}
 		failures++
 		if errors.Is(err, ErrDetectorFailed) {
+			if errors.Is(err, ErrWorkerRestarting) || !strings.Contains(err.Error(), "after 5 consecutive failures: worker exited unexpectedly") {
+				t.Fatalf("final failure = %v", err)
+			}
 			break
 		}
-		if failures > 5 {
-			t.Fatalf("not failed after %d failures: %v", failures, err)
+		if !errors.Is(err, ErrWorkerRestarting) || failures > 5 {
+			t.Fatalf("failure %d = %v", failures, err)
 		}
 	}
 	if failures != 5 {
@@ -362,12 +393,12 @@ func TestDetectorSuccessResetsFailureCount(t *testing.T) {
 		switch {
 		case err == nil:
 			successes++
-		case errors.Is(err, ErrWorkerRestarting):
+		case restartPending(err):
 			time.Sleep(10 * time.Millisecond)
-		case errors.Is(err, ErrDetectorFailed):
-			t.Fatalf("detector failed after %d crashes, %d successes: %v", crashes, successes, err)
-		default:
+		case errors.Is(err, ErrWorkerRestarting):
 			crashes++
+		default:
+			t.Fatalf("Detect after %d crashes, %d successes = %v", crashes, successes, err)
 		}
 	}
 	if successes < 6 {
@@ -380,7 +411,7 @@ func TestDetectorFrameErrorIsNotAWorkerFailure(t *testing.T) {
 	detector := f.start(t)
 	for i := 0; i < 6; i++ {
 		_, err := detectFrame(detector)
-		if err == nil || err.Error() != "detect: decode JPEG header: fake frame error" {
+		if err == nil || err.Error() != "detect: decode JPEG header: fake frame error" || errors.Is(err, ErrWorkerRestarting) {
 			t.Fatalf("Detect %d = %v", i, err)
 		}
 	}
@@ -391,13 +422,14 @@ func TestDetectorFrameErrorIsNotAWorkerFailure(t *testing.T) {
 
 func TestDetectorTreatsIDLessErrorLineAsWorkerFailure(t *testing.T) {
 	f := newDetectorFixture(t, "panic_detect", BackendCPU)
-	f.deps.backoffBase = time.Second
+	f.deps.backoffBase, f.deps.backoffMax = 3*time.Second, 3*time.Second
 	detector := f.start(t)
 	_, err := detectFrame(detector)
-	if err == nil || errors.Is(err, ErrDetectorFailed) || !strings.Contains(err.Error(), "worker failed: person detection worker panic: fake panic") {
+	if err == nil || errors.Is(err, ErrDetectorFailed) || !errors.Is(err, ErrWorkerRestarting) ||
+		!strings.HasSuffix(err.Error(), ": worker failed: person detection worker panic: fake panic") {
 		t.Fatalf("Detect error = %v", err)
 	}
-	if _, err := detectFrame(detector); !errors.Is(err, ErrWorkerRestarting) {
+	if _, err := detectFrame(detector); !restartPending(err) {
 		t.Fatalf("Detect after the panic line = %v, want ErrWorkerRestarting", err)
 	}
 }
@@ -509,17 +541,17 @@ func TestDetectorCancelDuringPrepare(t *testing.T) {
 func TestDetectorKillsHungWorker(t *testing.T) {
 	f := newDetectorFixture(t, "hang_detect", BackendCPU)
 	f.deps.detectTimeout = 300 * time.Millisecond
-	f.deps.backoffBase = time.Second
+	f.deps.backoffBase, f.deps.backoffMax = 3*time.Second, 3*time.Second
 	detector := f.start(t)
 	start := time.Now()
 	_, err := detectFrame(detector)
-	if err == nil || !strings.Contains(err.Error(), "detect timed out after 300ms") {
+	if err == nil || !errors.Is(err, ErrWorkerRestarting) || !strings.HasSuffix(err.Error(), ": detect timed out after 300ms") {
 		t.Fatalf("Detect error = %v", err)
 	}
 	if elapsed := time.Since(start); elapsed > 8*time.Second {
 		t.Fatalf("hung worker took %s to kill", elapsed)
 	}
-	if _, err := detectFrame(detector); !errors.Is(err, ErrWorkerRestarting) {
+	if _, err := detectFrame(detector); !restartPending(err) {
 		t.Fatalf("Detect after kill = %v, want ErrWorkerRestarting", err)
 	}
 }

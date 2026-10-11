@@ -18,10 +18,15 @@ import (
 
 const (
 	// workerLogBytes is how much of a worker's stderr (plus stray non-JSON
-	// stdout) is kept for error messages. stderr is diagnostics only: ONNX
-	// Runtime warnings such as "Some nodes were not assigned to the preferred
-	// execution providers" are never an error by themselves.
+	// stdout) is kept. stderr is diagnostics only: ONNX Runtime warnings such
+	// as "Some nodes were not assigned to the preferred execution providers"
+	// are never an error by themselves. The whole tail goes to the slog
+	// warnings only (workerLog); error texts and fallback reasons carry the
+	// last line, cut to maxWorkerErrorBytes.
 	workerLogBytes = 4 << 10
+	// maxWorkerErrorBytes bounds worker-provided text (the last log line, a
+	// hello, panic or prepare error) inside error messages.
+	maxWorkerErrorBytes = 400
 	// maxWorkerLineBytes bounds one stdout line of a worker; longer lines are
 	// skipped (a result holds at most 300 boxes, a few KiB).
 	maxWorkerLineBytes = 1 << 20
@@ -29,6 +34,9 @@ const (
 	workerStopWait = 5 * time.Second
 	// workerCloseWait is how long shutdown lets a worker answer "close".
 	workerCloseWait = 2 * time.Second
+	// workerWaitDelay bounds the wait for a worker's output pipes after it
+	// exited (exec.Cmd.WaitDelay).
+	workerWaitDelay = 2 * time.Second
 )
 
 // workerLaunch is everything needed to (re)start a serve worker.
@@ -55,6 +63,7 @@ type workerProcess struct {
 func startWorkerProcess(launch workerLaunch) (*workerProcess, error) {
 	command := exec.Command(launch.executable, append([]string{workerFlag}, launch.args...)...)
 	onnxrt.ConfigureWorkerCommand(command, launch.runtimeRoot)
+	command.WaitDelay = workerWaitDelay
 	stdin, err := command.StdinPipe()
 	if err != nil {
 		return nil, fmt.Errorf("open worker stdin: %w", err)
@@ -128,26 +137,41 @@ func readWorkerLine(reader *bufio.Reader, limit int) (line []byte, overlong bool
 	}
 }
 
-// sendAsync writes one request line in the background and reports the write
-// result. Lines never interleave. A write blocks while the worker does not
-// read (busy with an abandoned frame, or hung), so callers bound the wait with
-// their own timer and stop the worker when it expires; the kill then fails the
-// pending write.
-func (w *workerProcess) sendAsync(request workerRequest) <-chan error {
-	result := make(chan error, 1)
+// requestWrite is one request line being written to a worker.
+type requestWrite struct {
+	done chan struct{} // closed when the write returned
+	err  error         // valid once done is closed
+}
+
+func (r *requestWrite) finished() bool {
+	select {
+	case <-r.done:
+		return true
+	default:
+		return false
+	}
+}
+
+// sendAsync writes one request line in the background. Lines never
+// interleave. A write blocks while the worker does not read (busy with an
+// earlier frame, or hung), so callers bound the wait with their own timer and
+// stop the worker when it expires; the kill then fails the pending write.
+func (w *workerProcess) sendAsync(request workerRequest) *requestWrite {
+	write := &requestWrite{done: make(chan struct{})}
 	line, err := json.Marshal(request)
 	if err != nil {
-		result <- err
-		return result
+		write.err = err
+		close(write.done)
+		return write
 	}
 	line = append(line, '\n')
 	go func() {
 		w.writeMu.Lock()
 		defer w.writeMu.Unlock()
-		_, err := w.stdin.Write(line)
-		result <- err
+		_, write.err = w.stdin.Write(line)
+		close(write.done)
 	}()
-	return result
+	return write
 }
 
 // buffered returns an already received message accepted by want, without
@@ -176,7 +200,7 @@ func workerError(message workerMessage) error {
 	if message.Error == "" {
 		return errors.New("worker failed")
 	}
-	return fmt.Errorf("worker failed: %s", message.Error)
+	return fmt.Errorf("worker failed: %s", truncateText(message.Error, maxWorkerErrorBytes))
 }
 
 func isHelloOrError(message workerMessage) bool {
@@ -188,7 +212,7 @@ func helloResult(message workerMessage) (workerMessage, error) {
 		return message, workerError(message)
 	}
 	if message.Error != "" {
-		return message, errors.New(message.Error)
+		return message, errors.New(truncateText(message.Error, maxWorkerErrorBytes))
 	}
 	return message, nil
 }
@@ -209,25 +233,28 @@ func (w *workerProcess) awaitHello(ctx context.Context, timeout time.Duration) (
 			if message, ok := w.buffered(isHelloOrError); ok {
 				return helloResult(message)
 			}
-			return workerMessage{}, fmt.Errorf("worker exited before it was ready: %s", w.exitSummary())
+			return workerMessage{}, w.exitError("worker exited before it was ready")
 		case <-timer.C:
-			return workerMessage{}, fmt.Errorf("worker was not ready within %s", timeout)
+			return workerMessage{}, withLastLogLine(fmt.Sprintf("worker was not ready within %s", timeout), w.log.String())
 		case <-ctx.Done():
 			return workerMessage{}, ctx.Err()
 		}
 	}
 }
 
-// exitSummary describes how the worker ended; only valid once done is closed.
-func (w *workerProcess) exitSummary() string {
-	summary := "exited"
-	if w.waitErr != nil {
-		summary = w.waitErr.Error()
+// exitStatus is how the worker ended ("exit status 0" for a clean exit);
+// only valid once done is closed.
+func (w *workerProcess) exitStatus() string {
+	if w.waitErr == nil {
+		return "exit status 0"
 	}
-	if log := w.log.String(); log != "" {
-		summary += "; log: " + log
-	}
-	return summary
+	return w.waitErr.Error()
+}
+
+// exitError is "<what> (<exit status>); last log line: …"; only valid once
+// done is closed.
+func (w *workerProcess) exitError(what string) error {
+	return withLastLogLine(fmt.Sprintf("%s (%s)", what, w.exitStatus()), w.log.String())
 }
 
 // stop kills the worker and waits up to workerStopWait for it to exit. The
@@ -252,9 +279,10 @@ func (w *workerProcess) stop() {
 func (w *workerProcess) shutdown() {
 	deadline := time.NewTimer(workerCloseWait)
 	defer deadline.Stop()
+	write := w.sendAsync(workerRequest{Command: "close"})
 	select {
-	case err := <-w.sendAsync(workerRequest{Command: "close"}):
-		if err == nil {
+	case <-write.done:
+		if write.err == nil {
 			select {
 			case <-w.done:
 			case <-deadline.C:
@@ -267,7 +295,8 @@ func (w *workerProcess) shutdown() {
 }
 
 // startServeWorker starts a serve worker and waits for its hello. On error
-// the worker has been stopped.
+// the worker has been stopped and the error carries its log tail
+// (workerLog).
 func startServeWorker(ctx context.Context, launch workerLaunch, timeout time.Duration, started func()) (*workerProcess, workerMessage, error) {
 	worker, err := startWorkerProcess(launch)
 	if err != nil {
@@ -279,7 +308,7 @@ func startServeWorker(ctx context.Context, launch workerLaunch, timeout time.Dur
 	hello, err := worker.awaitHello(ctx, timeout)
 	if err != nil {
 		worker.stop()
-		return nil, workerMessage{}, err
+		return nil, workerMessage{}, withWorkerLog(err, worker.log.String())
 	}
 	return worker, hello, nil
 }
@@ -287,34 +316,38 @@ func startServeWorker(ctx context.Context, launch workerLaunch, timeout time.Dur
 // runPrepare runs `prepare` in a worker subprocess and returns the number of
 // patched nodes. It returns only after the subprocess has exited, also when
 // ctx is cancelled or the timeout expires (the process is killed then).
+// Errors carry the subprocess's log tail (workerLog).
 func runPrepare(ctx context.Context, executable, runtimeRoot, input, output string, timeout time.Duration) (int, error) {
 	prepareCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	command := exec.CommandContext(prepareCtx, executable, workerFlag, "prepare", "--runtime", runtimeRoot, "--in", input, "--out", output)
 	onnxrt.ConfigureWorkerCommand(command, runtimeRoot)
+	command.WaitDelay = workerWaitDelay
 	stdout := newTailBuffer(64 << 10)
-	log := newTailBuffer(workerLogBytes)
+	stderr := newTailBuffer(workerLogBytes)
 	command.Stdout = stdout
-	command.Stderr = log
+	command.Stderr = stderr
 	runErr := command.Run()
+	log := stderr.String()
 	if message, ok := lastJSONLine(stdout.Bytes()); ok {
 		if runErr == nil && message.Type == "prepared" && message.PatchedNodes > 0 {
 			return message.PatchedNodes, nil
 		}
 		if message.Error != "" {
-			return 0, errors.New(message.Error)
+			return 0, withWorkerLog(errors.New(truncateText(message.Error, maxWorkerErrorBytes)), log)
 		}
 	}
 	if err := ctx.Err(); err != nil {
 		return 0, err
 	}
 	if prepareCtx.Err() != nil {
-		return 0, fmt.Errorf("prepare did not finish within %s", timeout)
+		return 0, withLastLogLine(fmt.Sprintf("prepare did not finish within %s", timeout), log)
 	}
-	if runErr == nil {
-		return 0, fmt.Errorf("prepare worker printed no result; log: %s", log.String())
+	status := "exit status 0, no result"
+	if runErr != nil {
+		status = runErr.Error()
 	}
-	return 0, fmt.Errorf("prepare worker failed: %v; log: %s", runErr, log.String())
+	return 0, withLastLogLine(fmt.Sprintf("prepare worker failed (%s)", status), log)
 }
 
 func lastJSONLine(output []byte) (workerMessage, bool) {
@@ -330,6 +363,49 @@ func lastJSONLine(output []byte) (workerMessage, bool) {
 		}
 	}
 	return workerMessage{}, false
+}
+
+// workerLogError carries a worker's log tail next to a bounded error.
+type workerLogError struct {
+	err error
+	log string
+}
+
+func (e *workerLogError) Error() string { return e.err.Error() }
+func (e *workerLogError) Unwrap() error { return e.err }
+
+func withWorkerLog(err error, log string) error {
+	if err == nil || log == "" {
+		return err
+	}
+	return &workerLogError{err: err, log: log}
+}
+
+// workerLog is the log tail carried by err (or "").
+func workerLog(err error) string {
+	var logged *workerLogError
+	if errors.As(err, &logged) {
+		return logged.log
+	}
+	return ""
+}
+
+// withLastLogLine is message plus "; last log line: …" (when log has one),
+// carrying the whole log for workerLog.
+func withLastLogLine(message, log string) error {
+	if line := lastLogLine(log); line != "" {
+		message += "; last log line: " + line
+	}
+	return withWorkerLog(errors.New(message), log)
+}
+
+// lastLogLine is the last non-empty line of log, cut to maxWorkerErrorBytes.
+func lastLogLine(log string) string {
+	log = strings.TrimSpace(log)
+	if index := strings.LastIndexByte(log, '\n'); index >= 0 {
+		log = strings.TrimSpace(log[index+1:])
+	}
+	return truncateText(log, maxWorkerErrorBytes)
 }
 
 // tailBuffer keeps the last limit bytes written to it.

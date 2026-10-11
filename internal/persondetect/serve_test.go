@@ -37,7 +37,7 @@ func runServeLines(t *testing.T, eng engine, requests []workerRequest) []string 
 		}
 	}
 	var output bytes.Buffer
-	if err := serveLoop(&input, &output, eng); err != nil {
+	if err := serveLoop(&input, &output, io.Discard, eng); err != nil {
 		t.Fatal(err)
 	}
 	return strings.Split(strings.TrimSpace(output.String()), "\n")
@@ -105,7 +105,7 @@ func TestServeLoopSendsEmptyBoxArray(t *testing.T) {
 }
 
 func TestServeLoopFailsOnMalformedJSON(t *testing.T) {
-	if err := serveLoop(strings.NewReader("{not json\n"), io.Discard, newFakeEngine(nil, nil)); err == nil {
+	if err := serveLoop(strings.NewReader("{not json\n"), io.Discard, io.Discard, newFakeEngine(nil, nil)); err == nil {
 		t.Fatal("malformed request accepted")
 	}
 }
@@ -282,7 +282,7 @@ func TestServeLoopAnswersFieldErrorsWithID(t *testing.T) {
 		`{"id":8,"command":"close"}`,
 	}, "\n")
 	var output bytes.Buffer
-	if err := serveLoop(strings.NewReader(input), &output, eng); err != nil {
+	if err := serveLoop(strings.NewReader(input), &output, io.Discard, eng); err != nil {
 		t.Fatal(err)
 	}
 	lines := decodeLines(t, output.Bytes())
@@ -335,7 +335,7 @@ func TestServeLoopFailsOnUnreadableLines(t *testing.T) {
 		"bare value": `"close"`,
 	} {
 		var output bytes.Buffer
-		err := serveLoop(strings.NewReader(line+"\n"+`{"id":9,"command":"close"}`+"\n"), &output, newFakeEngine(nil, nil))
+		err := serveLoop(strings.NewReader(line+"\n"+`{"id":9,"command":"close"}`+"\n"), &output, io.Discard, newFakeEngine(nil, nil))
 		if err == nil || output.Len() != 0 {
 			t.Errorf("%s: err %v, output %q", name, err, output.String())
 		}
@@ -352,7 +352,7 @@ func TestServeLoopBoundsRequestLines(t *testing.T) {
 	exact := `{"id":1,"command":"noop","pad":"` + strings.Repeat("x", 40) + `"}`
 	limit := len(exact)
 	var output bytes.Buffer
-	if err := serveLines(strings.NewReader(exact+"\n"+closeLine+"\n"), &output, newFakeEngine(nil, nil), limit); err != nil {
+	if err := serveLines(strings.NewReader(exact+"\n"+closeLine+"\n"), &output, io.Discard, newFakeEngine(nil, nil), limit); err != nil {
 		t.Fatalf("line at the limit: %v", err)
 	}
 	if lines := decodeLines(t, output.Bytes()); len(lines) != 2 || lines[0]["error"] != "unsupported worker command" {
@@ -360,21 +360,21 @@ func TestServeLoopBoundsRequestLines(t *testing.T) {
 	}
 	output.Reset()
 	long := `{"id":1,"command":"noop","pad":"` + strings.Repeat("x", 41) + `"}`
-	err := serveLines(strings.NewReader(long+"\n"+closeLine+"\n"), &output, newFakeEngine(nil, nil), limit)
+	err := serveLines(strings.NewReader(long+"\n"+closeLine+"\n"), &output, io.Discard, newFakeEngine(nil, nil), limit)
 	if err == nil || !strings.Contains(err.Error(), "exceeds") || output.Len() != 0 {
 		t.Fatalf("over-long line: err %v, output %q", err, output.String())
 	}
 	// Longer than the reader's buffer, without a final newline.
 	output.Reset()
 	big := `{"id":3,"command":"noop","pad":"` + strings.Repeat("y", 200<<10) + `"}`
-	if err := serveLines(strings.NewReader(big), &output, newFakeEngine(nil, nil), len(big)); err != nil || !strings.Contains(output.String(), `"id":3`) {
+	if err := serveLines(strings.NewReader(big), &output, io.Discard, newFakeEngine(nil, nil), len(big)); err != nil || !strings.Contains(output.String(), `"id":3`) {
 		t.Fatalf("big last line: err %v, output %q", err, output.String())
 	}
 }
 
 func TestHandleDetectRejectsOversizedFrame(t *testing.T) {
 	eng := newFakeEngine([]float64{0.9}, oneTestBox)
-	response := handleDetect(eng, workerRequest{ID: 4, Command: "detect", JPEG: make([]byte, maxFrameBytes+1), MinScore: 0.5})
+	response := handleDetect(eng, workerRequest{ID: 4, Command: "detect", JPEG: make([]byte, maxFrameBytes+1), MinScore: 0.5}, io.Discard)
 	failure, ok := response.(errorResponse)
 	if !ok || failure.ID != 4 || failure.Error != fmt.Sprintf("jpeg has %d bytes, limit %d", maxFrameBytes+1, maxFrameBytes) || eng.runs != 0 {
 		t.Fatalf("response = %+v, engine runs %d", response, eng.runs)
@@ -392,6 +392,55 @@ func TestServeLoopReportsEngineErrors(t *testing.T) {
 	}
 }
 
+// panickingEngine panics on its first run and then behaves like inner.
+type panickingEngine struct {
+	inner    *fakeEngine
+	panicked bool
+}
+
+func (p *panickingEngine) Run(pixels []float32, size int) (onnxrt.Tensor, onnxrt.Tensor, error) {
+	if !p.panicked {
+		p.panicked = true
+		var outputs []float32
+		_ = outputs[3] // index out of range
+	}
+	return p.inner.Run(pixels, size)
+}
+
+func (p *panickingEngine) Close() error { return p.inner.Close() }
+
+func TestServeLoopAnswersDetectPanicsAsFrameErrors(t *testing.T) {
+	eng := &panickingEngine{inner: newFakeEngine([]float64{0.9}, oneTestBox)}
+	frame := testFrame(t)
+	var input, output, diagnostics bytes.Buffer
+	for _, request := range []workerRequest{
+		{ID: 1, Command: "detect", JPEG: frame, MinScore: 0.5},
+		{ID: 2, Command: "detect", JPEG: frame, MinScore: 0.5},
+		{ID: 3, Command: "close"},
+	} {
+		if err := writeJSONLine(&input, request); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := serveLoop(&input, &output, &diagnostics, eng); err != nil {
+		t.Fatalf("serve loop ended on a panic: %v", err)
+	}
+	lines := decodeLines(t, output.Bytes())
+	if len(lines) != 3 {
+		t.Fatalf("lines = %v", lines)
+	}
+	message, _ := lines[0]["error"].(string)
+	if lines[0]["id"] != float64(1) || lines[0]["type"] != "result" || !strings.HasPrefix(message, "internal error: runtime error: index out of range") {
+		t.Fatalf("panic answer = %v", lines[0])
+	}
+	if lines[1]["id"] != float64(2) || lines[1]["error"] != nil || lines[2]["id"] != float64(3) || eng.inner.runs != 1 {
+		t.Fatalf("lines after the panic = %v, engine runs %d", lines[1:], eng.inner.runs)
+	}
+	if log := diagnostics.String(); !strings.Contains(log, "panic while handling request 1: runtime error: index out of range") || !strings.Contains(log, "goroutine") {
+		t.Fatalf("diagnostics = %q", log)
+	}
+}
+
 type failingWriter struct{}
 
 func (failingWriter) Write([]byte) (int, error) { return 0, errors.New("pipe closed") }
@@ -401,7 +450,7 @@ func TestServeLoopFailsOnWriteError(t *testing.T) {
 		`{"id":1,"command":"noop"}` + "\n",
 		`{"id":1,"command":"close"}` + "\n",
 	} {
-		if err := serveLoop(strings.NewReader(input), failingWriter{}, newFakeEngine(nil, nil)); err == nil || !strings.Contains(err.Error(), "pipe closed") {
+		if err := serveLoop(strings.NewReader(input), failingWriter{}, io.Discard, newFakeEngine(nil, nil)); err == nil || !strings.Contains(err.Error(), "pipe closed") {
 			t.Fatalf("%s: err = %v", strings.TrimSpace(input), err)
 		}
 	}

@@ -205,6 +205,13 @@ func (s *setup) downloadProgress(status onnxrt.DownloadStatus) {
 	}
 }
 
+// startedWorker is a serve worker that passed its start-up checks.
+type startedWorker struct {
+	worker *workerProcess
+	launch workerLaunch
+	hello  workerMessage
+}
+
 func (s *setup) run(ctx context.Context) (Detector, error) {
 	modelPath := filepath.Join(s.opts.ModelDir, string(s.spec.Tier), s.spec.Asset.FileName)
 	s.report(phaseDownloadingModel)
@@ -213,45 +220,57 @@ func (s *setup) run(ctx context.Context) (Detector, error) {
 	}
 	info := DetectorInfo{Model: s.spec.Tier, ModelName: s.spec.Name, Requested: s.opts.Backend}
 	if s.opts.Backend != BackendCPU {
-		worker, launch, hello, reason := s.tryGPU(ctx, modelPath)
-		if worker != nil {
+		started, err := s.tryGPU(ctx, modelPath)
+		if err == nil {
 			info.Active = BackendGPU
-			return s.activate(launch, worker, hello, info), nil
+			return s.activate(started, info), nil
 		}
-		if err := ctx.Err(); err != nil {
-			return nil, err
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
 		}
-		info.FallbackReason = reason
-		s.opts.Logger.Warn("Person detection GPU path unavailable; using the CPU", "model", s.spec.Name, "reason", reason)
+		info.FallbackReason = err.Error()
+		s.opts.Logger.Warn("Person detection GPU path unavailable; using the CPU",
+			withWorkerLogAttr(err, "model", s.spec.Name, "reason", info.FallbackReason)...)
 	}
-	worker, launch, hello, err := s.startCPU(ctx, modelPath)
+	started, err := s.startCPU(ctx, modelPath)
 	if err != nil {
+		if workerLog(err) != "" {
+			s.opts.Logger.Warn("Person detection CPU worker failed", withWorkerLogAttr(err, "model", s.spec.Name, "error", err)...)
+		}
 		return nil, err
 	}
 	info.Active = BackendCPU
-	return s.activate(launch, worker, hello, info), nil
+	return s.activate(started, info), nil
 }
 
-func (s *setup) tryGPU(ctx context.Context, modelPath string) (*workerProcess, workerLaunch, workerMessage, string) {
-	rejected := func(reason string) (*workerProcess, workerLaunch, workerMessage, string) {
-		return nil, workerLaunch{}, workerMessage{}, reason
+// withWorkerLogAttr appends err's worker log tail as "worker_log" to slog
+// arguments when err carries one.
+func withWorkerLogAttr(err error, args ...any) []any {
+	if log := workerLog(err); log != "" {
+		args = append(args, "worker_log", log)
 	}
+	return args
+}
+
+// tryGPU starts the WebGPU worker. The error text is the fallback reason
+// (overview C2/C3); worker failures carry the worker's log tail.
+func (s *setup) tryGPU(ctx context.Context, modelPath string) (startedWorker, error) {
 	asset, ok := s.deps.webgpuAsset(s.deps.goos, s.deps.goarch)
 	if !ok {
-		return rejected(fmt.Sprintf("no WebGPU runtime for %s/%s", s.deps.goos, s.deps.goarch))
+		return startedWorker{}, fmt.Errorf("no WebGPU runtime for %s/%s", s.deps.goos, s.deps.goarch)
 	}
 	if accessible, reason := s.opts.GPUProbe(); !accessible {
-		return rejected("GPU not accessible: " + reason)
+		return startedWorker{}, errors.New("GPU not accessible: " + reason)
 	}
 	s.report(phaseDownloadingRuntime)
 	runtimeRoot, err := s.deps.install.Runtime(ctx, asset)
 	if err != nil {
-		return rejected("WebGPU runtime: " + err.Error())
+		return startedWorker{}, fmt.Errorf("WebGPU runtime: %w", err)
 	}
 	s.report(phasePreparingGPUModel)
 	gpuModel, err := s.prepareGPUModel(ctx, runtimeRoot, modelPath)
 	if err != nil {
-		return rejected("GPU model preparation: " + err.Error())
+		return startedWorker{}, fmt.Errorf("GPU model preparation: %w", err)
 	}
 	launch := s.serveLaunch(runtimeRoot, gpuModel, "webgpu", 1)
 	worker, hello, err := s.startServe(ctx, launch)
@@ -259,38 +278,38 @@ func (s *setup) tryGPU(ctx context.Context, modelPath string) (*workerProcess, w
 		if ctx.Err() == nil {
 			s.discardGPUModel(ctx)
 		}
-		return rejected("GPU worker: " + err.Error())
+		return startedWorker{}, fmt.Errorf("GPU worker: %w", err)
 	}
 	if reason, modelSuspect := gpuRejection(hello.SelfTest); reason != "" {
 		worker.stop()
 		if modelSuspect {
 			s.discardGPUModel(ctx)
 		}
-		return rejected(reason)
+		return startedWorker{}, errors.New(reason)
 	}
-	return worker, launch, hello, ""
+	return startedWorker{worker: worker, launch: launch, hello: hello}, nil
 }
 
-func (s *setup) startCPU(ctx context.Context, modelPath string) (*workerProcess, workerLaunch, workerMessage, error) {
+func (s *setup) startCPU(ctx context.Context, modelPath string) (startedWorker, error) {
 	asset, ok := s.deps.cpuAsset(s.deps.goos, s.deps.goarch)
 	if !ok {
-		return nil, workerLaunch{}, workerMessage{}, fmt.Errorf("no ONNX Runtime CPU bundle for %s/%s", s.deps.goos, s.deps.goarch)
+		return startedWorker{}, fmt.Errorf("no ONNX Runtime CPU bundle for %s/%s", s.deps.goos, s.deps.goarch)
 	}
 	s.report(phaseDownloadingRuntime)
 	runtimeRoot, err := s.deps.install.Runtime(ctx, asset)
 	if err != nil {
-		return nil, workerLaunch{}, workerMessage{}, fmt.Errorf("download ONNX Runtime CPU bundle: %w", err)
+		return startedWorker{}, fmt.Errorf("download ONNX Runtime CPU bundle: %w", err)
 	}
 	launch := s.serveLaunch(runtimeRoot, modelPath, "cpu", s.deps.cpuThreads)
 	worker, hello, err := s.startServe(ctx, launch)
 	if err != nil {
-		return nil, workerLaunch{}, workerMessage{}, fmt.Errorf("start CPU worker: %w", err)
+		return startedWorker{}, fmt.Errorf("start CPU worker: %w", err)
 	}
-	if err := acceptHello("cpu", hello); err != nil {
+	if err := acceptSelfTest(hello); err != nil {
 		worker.stop()
-		return nil, workerLaunch{}, workerMessage{}, fmt.Errorf("CPU worker: %w", err)
+		return startedWorker{}, fmt.Errorf("CPU worker: %w", err)
 	}
-	return worker, launch, hello, nil
+	return startedWorker{worker: worker, launch: launch, hello: hello}, nil
 }
 
 func (s *setup) serveLaunch(runtimeRoot, model, provider string, threads int) workerLaunch {
@@ -313,11 +332,12 @@ func (s *setup) startServe(ctx context.Context, launch workerLaunch) (*workerPro
 	return startServeWorker(ctx, launch, s.deps.startTimeout, func() { s.report(phaseSelfTest) })
 }
 
-// gpuRejection applies the GPU acceptance rule: the self-test passed and the
-// GPU path's CPU time is at most half of the CPU path's (rejects software
-// Vulkan such as llvmpipe). A missing GPU CPU time reads as 0 (accepted); a
-// missing CPU reference time rejects. modelSuspect marks failures that may
-// come from a bad cached model.
+// gpuRejection applies the GPU acceptance rule of the backend selection: the
+// self-test passed and the GPU path's CPU time is at most half of the CPU
+// path's (rejects software Vulkan such as llvmpipe). A missing GPU CPU time
+// reads as 0 (accepted); a missing CPU reference time rejects. modelSuspect
+// marks failures that may come from a bad cached model. Restarts of an
+// accepted GPU worker only need acceptSelfTest.
 func gpuRejection(selfTest *SelfTest) (reason string, modelSuspect bool) {
 	switch {
 	case selfTest == nil:
@@ -333,14 +353,12 @@ func gpuRejection(selfTest *SelfTest) (reason string, modelSuspect bool) {
 	}
 }
 
-// acceptHello applies the acceptance rule of the worker's provider.
-func acceptHello(provider string, hello workerMessage) error {
-	if provider == "webgpu" {
-		if reason, _ := gpuRejection(hello.SelfTest); reason != "" {
-			return errors.New(reason)
-		}
-		return nil
-	}
+// acceptSelfTest requires a passed self-test: the acceptance rule of a CPU
+// worker and of every restarted worker. A GPU worker's CPU-time ratio is
+// checked once, when the backend is selected (gpuRejection); re-applying it
+// on a restart, possibly under CPU contention, would turn restarts into
+// failures and eventually ErrDetectorFailed, without a CPU fallback.
+func acceptSelfTest(hello workerMessage) error {
 	if hello.SelfTest == nil {
 		return errors.New("self-test: worker reported no self-test")
 	}
@@ -350,7 +368,8 @@ func acceptHello(provider string, hello workerMessage) error {
 	return nil
 }
 
-func (s *setup) activate(launch workerLaunch, worker *workerProcess, hello workerMessage, info DetectorInfo) *workerDetector {
+func (s *setup) activate(started startedWorker, info DetectorInfo) *workerDetector {
+	hello := started.hello
 	info.Runtime = "onnxruntime " + hello.Version
 	info.Providers = append([]string(nil), hello.Providers...)
 	if hello.SelfTest != nil {
@@ -366,11 +385,11 @@ func (s *setup) activate(launch workerLaunch, worker *workerProcess, hello worke
 		"cpu_cpu_ms", info.SelfTest.CPUCPUMS)
 	return &workerDetector{
 		logger: s.opts.Logger,
-		launch: launch,
+		launch: started.launch,
 		deps:   s.deps,
 		info:   info,
 		ctx:    ctx,
 		cancel: cancel,
-		worker: worker,
+		worker: started.worker,
 	}
 }

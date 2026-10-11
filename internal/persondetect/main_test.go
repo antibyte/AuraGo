@@ -32,10 +32,22 @@ func TestMain(m *testing.M) {
 }
 
 // fakeSettings holds comma-separated tokens of AURAGO_PDFAKE_MODE:
-// gpu_cpu_ms=N, cpu_cpu_ms=N, gpu_selftest_fail, cpu_selftest_fail,
-// prepare_fail, prepare_sleep_ms=N, prepare_hang, crash_detect,
-// crash_first_detect, crash_second_detect, hang_detect, panic_detect,
-// panic_start, frame_error, noise.
+//
+//   - self-test: gpu_cpu_ms=N, gpu_cpu_ms_restart=N (GPU CPU time of every
+//     start after the first), cpu_cpu_ms=N, gpu_selftest_fail,
+//     cpu_selftest_fail
+//   - prepare: prepare_fail, prepare_sleep_ms=N, prepare_hang
+//   - start: panic_start, hello_hang, restart_hang (every start after the
+//     first hangs before its hello), exit_after_hello (first start), no_read
+//     (the first start never reads stdin), ignore_close (never reads stdin,
+//     never exits by itself), noise, stderr_flood (100 stderr lines and a
+//     1 KB last line before the hello)
+//   - detect: crash_detect, crash_first_detect (first start only),
+//     crash_second_detect (per start), hang_detect, panic_detect, frame_error,
+//     detect_sleep_ms=N, echo_id (answers with width = request id and height =
+//     frame size)
+//
+// Every detect request read is recorded as a "detect" call.
 type fakeSettings map[string]string
 
 func parseFakeMode(mode string) fakeSettings {
@@ -136,10 +148,22 @@ func runFakeWorker(mode string, args []string, stdin io.Reader, stdout, stderr i
 		if settings.has("noise") {
 			fakeNoise(stdout, stderr)
 		}
+		if settings.has("stderr_flood") {
+			for i := 0; i < 100; i++ {
+				fmt.Fprintf(stderr, "flood line %d\n", i)
+			}
+			fmt.Fprintln(stderr, "last line "+strings.Repeat("x", 1000))
+		}
+		if settings.has("hello_hang") || (settings.has("restart_hang") && starts > 1) {
+			time.Sleep(time.Hour)
+		}
 		selfTest := SelfTest{Passed: true, ReferencePersons: 4, CPUWallMS: 120, CPUCPUMS: settings.float("cpu_cpu_ms", 100)}
 		if *provider == "webgpu" {
 			selfTest.GPUWallMS = 100
 			selfTest.GPUCPUMS = settings.float("gpu_cpu_ms", 10)
+			if starts > 1 && settings.has("gpu_cpu_ms_restart") {
+				selfTest.GPUCPUMS = settings.float("gpu_cpu_ms_restart", 10)
+			}
 			if settings.has("gpu_selftest_fail") {
 				selfTest.Passed = false
 				selfTest.Reason = "GPU/CPU detections differ: count 3 vs 4"
@@ -151,6 +175,12 @@ func runFakeWorker(mode string, args []string, stdin io.Reader, stdout, stderr i
 		_ = writeJSONLine(stdout, helloMessage{
 			Type: "hello", Version: "1.27.0", Providers: []string{"CPUExecutionProvider"}, Provider: *provider, SelfTest: &selfTest,
 		})
+		if settings.has("exit_after_hello") && starts == 1 {
+			return 0
+		}
+		if (settings.has("no_read") && starts == 1) || settings.has("ignore_close") {
+			time.Sleep(time.Hour)
+		}
 		decoder := json.NewDecoder(stdin)
 		detects := 0
 		for {
@@ -161,6 +191,10 @@ func runFakeWorker(mode string, args []string, stdin io.Reader, stdout, stderr i
 			switch request.Command {
 			case "detect":
 				detects++
+				recordFakeCall("detect")
+				if settings.has("detect_sleep_ms") {
+					time.Sleep(time.Duration(settings.float("detect_sleep_ms", 0)) * time.Millisecond)
+				}
 				if settings.has("crash_detect") || (settings.has("crash_first_detect") && starts == 1) ||
 					(settings.has("crash_second_detect") && detects == 2) {
 					return 3
@@ -177,6 +211,10 @@ func runFakeWorker(mode string, args []string, stdin io.Reader, stdout, stderr i
 				}
 				if settings.has("frame_error") {
 					_ = writeJSONLine(stdout, errorResponse{ID: request.ID, Type: "result", Error: "decode JPEG header: fake frame error"})
+					continue
+				}
+				if settings.has("echo_id") {
+					_ = writeJSONLine(stdout, detectResponse{ID: request.ID, Type: "result", Boxes: []Box{}, Width: int(request.ID), Height: len(request.JPEG)})
 					continue
 				}
 				_ = writeJSONLine(stdout, detectResponse{
