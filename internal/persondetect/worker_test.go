@@ -277,24 +277,81 @@ func TestSweepStalePrepareFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	kept = append(kept, "model.webgpu-1.27.0.onnx.tmp-dir")
+	// --in is never swept, even when its name looks like a leftover.
+	input := filepath.Join(dir, "model.webgpu-1.27.0.onnx.tmp-input")
+	if err := os.WriteFile(input, []byte("input"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	kept = append(kept, filepath.Base(input))
 
-	sweepStalePrepareFiles(output)
+	sweepStalePrepareFiles(output, input)
 
+	if names := dirNames(t, dir); !slices.Equal(names, sorted(kept)) {
+		t.Fatalf("after the sweep:\n got %q\nwant %q", names, sorted(kept))
+	}
+	// A missing directory is not an error.
+	sweepStalePrepareFiles(filepath.Join(dir, "missing", "model.onnx"), input)
+}
+
+// Without a file name in --out the prefixes would shrink to ".folded-" and
+// ".tmp-" and match unrelated dot-files, so nothing may be swept.
+func TestSweepStalePrepareFilesNeedsOutputFileName(t *testing.T) {
+	dir := t.TempDir()
+	planted := []string{".folded-x.onnx", ".tmp-x", "..folded-x.onnx", "..tmp-x"}
+	for _, name := range planted {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(name), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	separator := string(filepath.Separator)
+	for _, output := range []string{dir + separator, dir + separator + ".", dir + separator + ".."} {
+		sweepStalePrepareFiles(output, "")
+		if names := dirNames(t, dir); !slices.Equal(names, sorted(planted)) {
+			t.Fatalf("sweep of %q removed files: %q", output, names)
+		}
+	}
+}
+
+func TestPrepareRejectsOutputWithoutFileName(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".tmp-x"), []byte("keep"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	separator := string(filepath.Separator)
+	outputs := []string{dir + separator, dir + separator + ".", dir + separator + ".."}
+	if runtime.GOOS == "windows" {
+		outputs = append(outputs, filepath.VolumeName(dir))
+	}
+	for _, output := range outputs {
+		var stdout, stderr bytes.Buffer
+		code := RunWorker([]string{"prepare", "--runtime", dir, "--in", filepath.Join(dir, "model.onnx"), "--out", output}, strings.NewReader(""), &stdout, &stderr)
+		lines := decodeLines(t, stdout.Bytes())
+		if code != 2 || len(lines) != 1 || lines[0]["type"] != "error" || lines[0]["error"] != "--out must name a file" {
+			t.Fatalf("--out %q: code %d, lines %v", output, code, lines)
+		}
+	}
+	if names := dirNames(t, dir); !slices.Equal(names, []string{".tmp-x"}) {
+		t.Fatalf("directory after the rejected runs: %q", names)
+	}
+}
+
+func dirNames(t *testing.T, dir string) []string {
+	t.Helper()
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var names []string
+	names := make([]string, 0, len(entries))
 	for _, entry := range entries {
 		names = append(names, entry.Name())
 	}
-	slices.Sort(names)
-	slices.Sort(kept)
-	if !slices.Equal(names, kept) {
-		t.Fatalf("after the sweep:\n got %q\nwant %q", names, kept)
-	}
-	// A missing directory is not an error.
-	sweepStalePrepareFiles(filepath.Join(dir, "missing", "model.onnx"))
+	return sorted(names)
+}
+
+func sorted(values []string) []string {
+	result := slices.Clone(values)
+	slices.Sort(result)
+	return result
 }
 
 func TestPrepareRejectsExtraArguments(t *testing.T) {

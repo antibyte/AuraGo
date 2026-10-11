@@ -82,6 +82,9 @@ func runPrepareCommand(args []string, stdout, stderr io.Writer) int {
 	if flags.NArg() > 0 {
 		return prepareUsageError(stdout, fmt.Sprintf("unexpected argument(s) %q", flags.Args()))
 	}
+	if _, ok := outputFileName(*output); !ok {
+		return prepareUsageError(stdout, "--out must name a file")
+	}
 	if sameFile(*input, *output) {
 		return prepareUsageError(stdout, "--in and --out must name different files")
 	}
@@ -130,7 +133,7 @@ func prepareModel(runtimeRoot, inputPath, outputPath string) (int, string, error
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o750); err != nil {
 		return 0, "", fmt.Errorf("create model directory: %w", err)
 	}
-	sweepStalePrepareFiles(outputPath)
+	sweepStalePrepareFiles(outputPath, inputPath)
 	rt, err := onnxrt.Load(runtimeRoot, workerLogID)
 	if err != nil {
 		return 0, "", fmt.Errorf("load ONNX Runtime: %w", err)
@@ -181,16 +184,30 @@ const (
 	tempInfix   = ".tmp-"
 )
 
+// outputFileName is the file name of an --out path; ok is false when the path
+// names no file ("dir/", "dir/.", "dir/..", a bare volume such as "C:").
+func outputFileName(outputPath string) (string, bool) {
+	_, base := filepath.Split(outputPath)
+	return base, base != "" && base != "." && base != ".."
+}
+
 // sweepStalePrepareFiles removes the temp files a killed or crashed prepare
 // of outputPath left behind (15–41 MB each). It is best effort, matches
-// names literally (data paths may contain Glob pattern characters) and
-// skips directories. Only one prepare per output may run at a time; the
-// detector serializes them.
-func sweepStalePrepareFiles(outputPath string) {
-	dir, base := filepath.Split(outputPath)
-	if dir == "" {
-		dir = "."
+// names literally (data paths may contain Glob pattern characters), skips
+// directories and inputPath, and does nothing when outputPath names no file
+// (the prefixes would match unrelated dot-files).
+//
+// Overlapping prepares of one output cannot corrupt it: temp names are
+// random and only a verified file is published, by rename. A sweep can,
+// however, delete the other prepare's temp files and make it fail, so
+// callers serialize prepares per output (the detector holds a per-model-file
+// mutex).
+func sweepStalePrepareFiles(outputPath, inputPath string) {
+	base, ok := outputFileName(outputPath)
+	if !ok {
+		return
 	}
+	dir := filepath.Dir(outputPath)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return
@@ -200,7 +217,11 @@ func sweepStalePrepareFiles(outputPath string) {
 		if entry.IsDir() || !(strings.HasPrefix(name, base+foldedInfix) || strings.HasPrefix(name, base+tempInfix)) {
 			continue
 		}
-		_ = os.Remove(filepath.Join(dir, name))
+		path := filepath.Join(dir, name)
+		if inputPath != "" && sameFile(path, inputPath) {
+			continue
+		}
+		_ = os.Remove(path)
 	}
 }
 
