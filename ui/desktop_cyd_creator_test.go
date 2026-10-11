@@ -168,3 +168,37 @@ func TestCYDCreatorKeysExistInAllLocales(t *testing.T) {
 		t.Error("German strings must use real umlauts and ß")
 	}
 }
+
+// checkCYDCreatorModule asserts the common module shape (purpose comment, strict mode, the shared
+// namespace, the 1100-line budget) and the given markers.
+func checkCYDCreatorModule(t *testing.T, name string, markers ...string) string {
+	t.Helper()
+	text := rawDesktopAssetText(t, "js/desktop/apps/"+name)
+	if lines := strings.Count(text, "\n"); lines >= 1100 {
+		t.Errorf("%s has %d lines, the desktop budget is 1100", name, lines)
+	}
+	if !strings.HasPrefix(strings.TrimSpace(text), "//") || !strings.Contains(text, "'use strict';") || !strings.Contains(text, "window.CYDCreatorParts") {
+		t.Errorf("%s must start with a purpose comment, use strict mode and the CYDCreatorParts namespace", name)
+	}
+	for _, marker := range markers {
+		if !strings.Contains(text, marker) {
+			t.Errorf("%s misses %q", name, marker)
+		}
+	}
+	return text
+}
+
+func TestCYDCreatorFoundationModules(t *testing.T) {
+	checkCYDCreatorModule(t, "cyd-creator-core.js",
+		"P.util = { el, bag, debounce, clamp, uid, escapeText, deepClone, deepFreeze };",
+		"P.i18n = function i18n(inst)", "P.errors = {", "P.createBus = function createBus()",
+		"P.autosave = { create: createAutosave, classify: classifySaveError };", "P.dialog = { open: openDialog };")
+	checkCYDCreatorModule(t, "cyd-creator-api.js",
+		"P.api = {", "class ApiError extends Error", "'/capabilities'", "'/toolchain/pull'", "'/projects'", "'/layout'", "'/files/'",
+		"'/assets'", "'/builds'", "'/cancel'", "'/log'", "'/artifacts/'", "'/decode-backtrace'", "'/events'", "'/jobs'",
+		"'/confirm'", "'/draft/discard'", "'/messages'", "'/revisions'", "'/diff'", "'/restore'", "'If-Match'", "'X-CYD-SHA256'")
+	checkCYDCreatorModule(t, "cyd-creator-events.js",
+		"P.events = { TYPES, connect, createCursor, createCatchup, backoff };",
+		"'project_changed'", "'lock_changed'", "'build_status'", "'build_log'", "'job_status'", "'job_step'", "'job_message'",
+		"'device_changed'", "'stream_ready'")
+}
