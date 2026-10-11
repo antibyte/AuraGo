@@ -78,13 +78,15 @@ type Service struct {
 	// (Enabled, Status and the sync bookkeeping never wait for the disk).
 	openMu sync.Mutex
 
-	mu              sync.Mutex
-	settings        Settings
-	closed          bool
-	store           *Store
-	storeDir        string
-	run             *syncRun
-	progress        map[string]SourceProgress
+	mu       sync.Mutex
+	settings Settings
+	closed   bool
+	store    *Store
+	storeDir string
+	run      *syncRun
+	progress map[string]SourceProgress
+	// teardowns holds the pending background teardowns started by Configure.
+	teardowns       map[chan struct{}]struct{}
 	lastAutoFailure time.Time
 	// freshUntil is the first instant a source can become stale, learned from
 	// the last freshness check; until then ensureFresh skips the database read.
@@ -110,7 +112,7 @@ func NewService(deps Deps) *Service {
 		sleep = sleepContext
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Service{logger: logger, fetcher: fetcher, now: now, sleep: sleep, lifecycleCtx: ctx, lifecycleCancel: cancel, progress: map[string]SourceProgress{}}
+	return &Service{logger: logger, fetcher: fetcher, now: now, sleep: sleep, lifecycleCtx: ctx, lifecycleCancel: cancel, progress: map[string]SourceProgress{}, teardowns: map[chan struct{}]struct{}{}}
 }
 
 func sleepContext(ctx context.Context, d time.Duration) error {
@@ -124,17 +126,23 @@ func sleepContext(ctx context.Context, d time.Duration) error {
 	}
 }
 
-// Configure applies new settings. Disabling (or moving the data directory)
-// cancels a running sync, waits for it and closes the store. After Shutdown it
-// only records the settings: a shut-down service never opens anything again.
+// Configure applies new settings and never waits: the callers publish config
+// snapshots under locks of their own. Disabling (or moving the data directory)
+// detaches the store at once, so every later call is refused or reopens the
+// index elsewhere, and hands the old store and a running sync to a background
+// teardown that cancels the sync, waits for it and then closes the store.
+// Shutdown and WaitIdle wait for that teardown. After Shutdown Configure only
+// records the settings: a shut-down service never opens anything again.
 func (s *Service) Configure(next Settings) {
 	next.DataDir = strings.TrimSpace(next.DataDir)
+	var run *syncRun
+	var st *Store
+	var tracked chan struct{}
 	s.mu.Lock()
 	s.settings = next
 	s.freshUntil = time.Time{}
-	var run *syncRun
-	var st *Store
 	if !next.Enabled || (s.store != nil && s.storeDir != next.DataDir) {
+		// s.run stays set: the sync's own goroutine clears it when it ends.
 		run = s.run
 		st = s.store
 		s.store = nil
@@ -142,17 +150,47 @@ func (s *Service) Configure(next Settings) {
 		if !next.Enabled {
 			s.progress = map[string]SourceProgress{}
 		}
+		// wg.Add runs under s.mu while the service is open: Shutdown sets
+		// closed under s.mu before it waits, so Add never races Wait.
+		if (run != nil || st != nil) && !s.closed {
+			s.wg.Add(1)
+			tracked = make(chan struct{})
+			s.teardowns[tracked] = struct{}{}
+		}
 	}
 	s.mu.Unlock()
+	if run == nil && st == nil {
+		return
+	}
+	if tracked == nil {
+		// Shut down already: nobody waits for a goroutine, so finish here.
+		s.teardown(run, st)
+		return
+	}
+	go func() {
+		defer s.wg.Done()
+		defer s.finishTeardown(tracked)
+		s.teardown(run, st)
+	}()
+}
+
+// teardown stops a detached sync and, once it ended, closes the store it used.
+func (s *Service) teardown(run *syncRun, st *Store) {
 	if run != nil {
 		run.cancel()
 		<-run.done
 	}
 	if st != nil {
-		if err := st.Close(); err != nil {
-			s.logger.Warn("retro games could not close the index", "error", err)
-		}
+		s.closeStore(st)
 	}
+}
+
+// finishTeardown marks one background teardown as done.
+func (s *Service) finishTeardown(tracked chan struct{}) {
+	s.mu.Lock()
+	delete(s.teardowns, tracked)
+	s.mu.Unlock()
+	close(tracked)
 }
 
 // Enabled reports whether the integration is on. A shut-down service is off.
@@ -393,17 +431,26 @@ func (s *Service) ensureFresh(ctx context.Context) {
 	}
 }
 
-// WaitIdle blocks until no sync runs or ctx ends.
+// WaitIdle blocks until no sync runs and no teardown started by Configure is
+// pending, or until ctx ends.
 func (s *Service) WaitIdle(ctx context.Context) error {
 	for {
 		s.mu.Lock()
-		run := s.run
+		var pending chan struct{}
+		if s.run != nil {
+			pending = s.run.done
+		} else {
+			for tracked := range s.teardowns {
+				pending = tracked
+				break
+			}
+		}
 		s.mu.Unlock()
-		if run == nil {
+		if pending == nil {
 			return nil
 		}
 		select {
-		case <-run.done:
+		case <-pending:
 		case <-ctx.Done():
 			return ctx.Err()
 		}

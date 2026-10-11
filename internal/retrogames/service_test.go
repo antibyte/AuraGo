@@ -271,6 +271,128 @@ func TestServiceConfigureDisableCancelsSync(t *testing.T) {
 	if err := svc.StartSync(); !errors.Is(err, ErrDisabled) {
 		t.Fatalf("StartSync after disable = %v", err)
 	}
+	waitIdle(t, svc)
+}
+
+// stuckFetcher ignores cancellation until released, like a fetcher stuck in
+// slow network I/O.
+type stuckFetcher struct {
+	entered chan struct{}
+	release func()
+	gate    chan struct{}
+	once    sync.Once
+}
+
+func newStuckFetcher() *stuckFetcher {
+	gate := make(chan struct{})
+	return &stuckFetcher{entered: make(chan struct{}), gate: gate, release: sync.OnceFunc(func() { close(gate) })}
+}
+
+func (f *stuckFetcher) FetchPage(ctx context.Context, _, _ string) (Page, error) {
+	f.once.Do(func() { close(f.entered) })
+	<-f.gate
+	return Page{}, ctx.Err()
+}
+
+// startStuckSync starts a sync that hangs in the fetcher and returns once the
+// fetcher holds it. The fetcher is released before the service shuts down.
+func startStuckSync(t *testing.T) (*Service, *stuckFetcher, string) {
+	t.Helper()
+	f := newStuckFetcher()
+	svc, _, dir := newTestService(t, f)
+	t.Cleanup(f.release)
+	if err := svc.StartSync(); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-f.entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the sync never reached the fetcher")
+	}
+	return svc, f, dir
+}
+
+// Configure never waits for the sync it cancels: callers publish config
+// snapshots under their own locks. The teardown runs in the background and
+// WaitIdle covers it.
+func TestServiceConfigureDisableDoesNotWaitForTheSync(t *testing.T) {
+	svc, f, dir := startStuckSync(t)
+
+	started := time.Now()
+	svc.Configure(Settings{Enabled: false, DataDir: dir})
+	if took := time.Since(started); took > 100*time.Millisecond {
+		t.Fatalf("Configure(disabled) took %v with a sync stuck in the fetcher, want it not to wait", took)
+	}
+	started = time.Now()
+	if err := svc.StartSync(); !errors.Is(err, ErrDisabled) {
+		t.Fatalf("StartSync right after disable = %v, want ErrDisabled", err)
+	}
+	if took := time.Since(started); took > 100*time.Millisecond {
+		t.Fatalf("StartSync after disable took %v, want an immediate refusal", took)
+	}
+	if svc.Enabled() {
+		t.Fatal("the service must report itself off at once")
+	}
+
+	// The stuck sync is still being torn down in the background.
+	short, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	if err := svc.WaitIdle(short); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("WaitIdle while the sync is stuck = %v, want a deadline", err)
+	}
+
+	f.release()
+	waitIdle(t, svc)
+	svc.mu.Lock()
+	run, store, pending := svc.run, svc.store, len(svc.teardowns)
+	svc.mu.Unlock()
+	if run != nil || store != nil || pending != 0 {
+		t.Fatalf("after WaitIdle: run=%v store=%v pendingTeardowns=%d, want none", run, store, pending)
+	}
+}
+
+// A data directory move also hands the old index to the background: the next
+// call opens the index at the new location without waiting for the old one.
+func TestServiceConfigureMoveDataDirDoesNotWaitForTheSync(t *testing.T) {
+	svc, f, _ := startStuckSync(t)
+
+	other := t.TempDir()
+	started := time.Now()
+	svc.Configure(Settings{Enabled: true, AgentAccess: true, DataDir: other})
+	if took := time.Since(started); took > 100*time.Millisecond {
+		t.Fatalf("Configure(move) took %v with a sync stuck in the fetcher, want it not to wait", took)
+	}
+	if _, err := svc.Library(context.Background()); err != nil {
+		t.Fatalf("Library at the new data directory = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(other, dbFileName)); err != nil {
+		t.Fatalf("the index was not opened in the new data directory: %v", err)
+	}
+	f.release()
+	waitIdle(t, svc)
+}
+
+// Shutdown waits for a teardown Configure left in the background.
+func TestServiceShutdownWaitsForTheConfigureTeardown(t *testing.T) {
+	f := newFakeFetcher()
+	f.fallback = onePerSource
+	f.block = make(chan struct{})
+	svc, _, dir := newTestService(t, f)
+	if err := svc.StartSync(); err != nil {
+		t.Fatal(err)
+	}
+	svc.Configure(Settings{Enabled: false, DataDir: dir})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := svc.Shutdown(ctx); err != nil {
+		t.Fatalf("Shutdown: %v", err)
+	}
+	svc.mu.Lock()
+	pending := len(svc.teardowns)
+	svc.mu.Unlock()
+	if pending != 0 {
+		t.Fatalf("%d teardowns still pending after Shutdown", pending)
+	}
 }
 
 func TestServiceShutdownClosesForGood(t *testing.T) {
@@ -367,6 +489,8 @@ func TestServiceDisableWhileRequestsHoldTheStore(t *testing.T) {
 	}
 
 	svc.Configure(Settings{Enabled: false, DataDir: dir})
+	// Configure detaches the store at once but closes it in the background.
+	waitIdle(t, svc)
 	if _, err := svc.Library(ctx); !errors.Is(err, ErrDisabled) {
 		t.Fatalf("Library after disable = %v, want ErrDisabled", err)
 	}

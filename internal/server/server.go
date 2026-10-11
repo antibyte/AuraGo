@@ -198,6 +198,8 @@ type Server struct {
 	localWikiSyncMu           sync.Mutex // one step from reading the config snapshot to configuring LocalWiki
 	localWikiBeforeConfigure  func()     // test seam: runs in syncLocalWikipediaSettings after the snapshot is read
 	RetroGames                *retrogames.Service
+	retroGamesSyncMu          sync.Mutex // one step from reading the config snapshot to configuring RetroGames
+	retroGamesBeforeConfigure func()     // test seam: runs in syncRetroGamesSettings after the snapshot is read
 	localLLMLifecycleCtx      context.Context
 	Go2RTCDiscovery           *onvif.Service
 	MeshCore                  *meshcore.Manager
@@ -531,7 +533,7 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 		// the broadcast runs off this (usually CfgMu-locked) path.
 		s.announceLocalWikipediaAvailability()
 	}
-	s.syncRetroGamesSettings(cfg)
+	s.syncRetroGamesSettings()
 	if previous != nil && previous.RetroGames.Enabled != cfg.RetroGames.Enabled {
 		// The Retro Games Desktop app appears or disappears with the switch.
 		s.announceRetroGamesAvailability()
