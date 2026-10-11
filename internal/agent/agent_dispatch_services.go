@@ -274,7 +274,7 @@ func meshCentralOutput(fields map[string]interface{}) string {
 	if err != nil {
 		return `Tool Output: {"status":"error","message":"failed to encode MeshCentral tool output"}`
 	}
-	return "Tool Output: " + string(b)
+	return "Tool Output: " + security.Scrub(string(b))
 }
 
 func meshCentralError(message string) string {
@@ -343,6 +343,7 @@ func meshCentralPowerActionType(req meshCentralArgs) (int, string, error) {
 // dispatchServices handles media, infrastructure management, and platform tool calls
 // (vision, transcribe, meshcentral, docker, homepage, webdav, home_assistant).
 func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (string, bool) {
+	if result, handled := dispatchGog(ctx, tc, dc); handled { return result, true }
 	cfg := dc.Cfg
 	logger := dc.Logger
 	vault := dc.Vault
@@ -495,25 +496,32 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return meshCentralError("No password or token found. Please set 'meshcentral_password' or 'meshcentral_token' in the vault.")
 			}
 
+			if pass != "" {
+				security.RegisterSensitive(pass)
+			}
+			if token != "" {
+				security.RegisterSensitive(token)
+			}
+
 			mcClient := getMeshCentralClient(cfg.MeshCentral.URL, cfg.MeshCentral.Username, pass, token, cfg.MeshCentral.Insecure, logger)
 
 			switch op {
 			case "server_info":
-				info, err := mcClient.ServerInfo()
+				info, err := mcClient.ServerInfoContext(ctx)
 				if err != nil {
 					return meshCentralError(fmt.Sprintf("Failed to read server info: %v", err))
 				}
 				return meshCentralSuccess(map[string]interface{}{"server_info": info})
 
 			case "list_groups":
-				meshes, err := mcClient.ListDeviceGroups()
+				meshes, err := mcClient.ListDeviceGroupsContext(ctx)
 				if err != nil {
 					return meshCentralError(fmt.Sprintf("Failed to list device groups: %v", err))
 				}
 				return meshCentralSuccess(map[string]interface{}{"groups": meshes})
 
 			case "list_devices":
-				nodes, err := mcClient.ListDevices(req.MeshID)
+				nodes, err := mcClient.ListDevicesContext(ctx, req.MeshID)
 				if err != nil {
 					return meshCentralError(fmt.Sprintf("Failed to list devices: %v", err))
 				}
@@ -523,7 +531,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if msg := meshCentralValidateNodeID(req.NodeID, "device_info"); msg != "" {
 					return meshCentralError(msg)
 				}
-				info, err := mcClient.DeviceInfo(req.NodeID)
+				info, err := mcClient.DeviceInfoContext(ctx, req.NodeID)
 				if err != nil {
 					return meshCentralError(fmt.Sprintf("Failed to read device info: %v", err))
 				}
@@ -533,7 +541,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if req.NodeID != "" && !strings.HasPrefix(req.NodeID, "node//") {
 					return meshCentralError("invalid node_id: must start with 'node//'")
 				}
-				events, err := mcClient.ListEvents(req.NodeID, req.UserID, req.Limit)
+				events, err := mcClient.ListEventsContext(ctx, req.NodeID, req.UserID, req.Limit)
 				if err != nil {
 					return meshCentralError(fmt.Sprintf("Failed to list events: %v", err))
 				}
@@ -544,7 +552,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					return meshCentralError(msg)
 				}
 				logger.Info("MeshCentral wake_on_lan", "node_id", req.NodeID, "session_id", sessionID)
-				result, err := mcClient.WakeOnLan([]string{req.NodeID})
+				result, err := mcClient.WakeOnLanContext(ctx, []string{req.NodeID})
 				if err != nil {
 					return meshCentralError(fmt.Sprintf("Failed to send wake magic packet: %v", err))
 				}
@@ -559,7 +567,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					return meshCentralError(err.Error())
 				}
 				logger.Info("MeshCentral power_action", "node_id", req.NodeID, "power_action", actionName, "actiontype", actionType, "session_id", sessionID)
-				result, err := mcClient.PowerAction([]string{req.NodeID}, actionType)
+				result, err := mcClient.PowerActionContext(ctx, []string{req.NodeID}, actionType)
 				if err != nil {
 					return meshCentralError(fmt.Sprintf("Failed to send power action: %v", err))
 				}
@@ -573,7 +581,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					return meshCentralError("invalid node_id: must start with 'node//'")
 				}
 				logger.Info("MeshCentral run_command", "node_id", req.NodeID, "command_length", len(req.Command), "session_id", sessionID)
-				result, err := mcClient.RunCommand(req.NodeID, req.Command)
+				result, err := mcClient.RunCommandContext(ctx, req.NodeID, req.Command)
 				if err != nil {
 					return meshCentralError(fmt.Sprintf("Failed to run command: %v", err))
 				}

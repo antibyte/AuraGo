@@ -381,6 +381,17 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 		})
 	}
 
+	// 8b. meshcentral_plaintext — unencrypted HTTP connection
+	if cfg.MeshCentral.Enabled && strings.HasPrefix(strings.ToLower(strings.TrimSpace(cfg.MeshCentral.URL)), "http://") {
+		hints = append(hints, SecurityHint{
+			ID: "meshcentral_plaintext", Severity: SevWarning,
+			Title: "MeshCentral: Plaintext HTTP connection",
+			Description: "meshcentral.url uses unencrypted HTTP. Authentication credentials and control commands " +
+				"are transmitted in plaintext.",
+			AutoFixable: false,
+		})
+	}
+
 	// 9. proxmox_insecure — TLS verification disabled
 	if cfg.Proxmox.Enabled && cfg.Proxmox.Insecure {
 		hints = append(hints, SecurityHint{

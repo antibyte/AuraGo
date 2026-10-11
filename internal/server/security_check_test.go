@@ -856,3 +856,20 @@ func TestCheckSecurityDockerTCPHintSkipsComposeSocketProxy(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckSecurityWarnsOnMeshCentralPlaintextAndInsecure(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.MeshCentral.Enabled = true
+	cfg.MeshCentral.URL = "http://mesh.example.com"
+	cfg.MeshCentral.Insecure = true
+
+	hints := CheckSecurity(cfg)
+	if !hasSecurityHint(hints, "meshcentral_plaintext") {
+		t.Fatalf("expected meshcentral_plaintext hint, got %#v", hints)
+	}
+	if !hasSecurityHint(hints, "meshcentral_insecure") {
+		t.Fatalf("expected meshcentral_insecure hint, got %#v", hints)
+	}
+}

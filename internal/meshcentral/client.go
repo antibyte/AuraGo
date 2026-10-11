@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,8 +16,12 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/security"
+
 	"github.com/gorilla/websocket"
 )
+
+var csrfNonceRegex = regexp.MustCompile(`random="([^"]+)"`)
 
 // pendingRequest holds a channel for a request awaiting a response.
 type pendingRequest struct {
@@ -83,6 +88,10 @@ func NewClient(urlStr, username, password, loginToken string, insecure bool) (*C
 	}
 	if u.Scheme != "http" && u.Scheme != "https" {
 		return nil, fmt.Errorf("URL must use http or https scheme, got: %s", u.Scheme)
+	}
+
+	if password != "" {
+		security.RegisterSensitive(password)
 	}
 
 	return &Client{
@@ -185,17 +194,18 @@ func (c *Client) ConnectContext(ctx context.Context) error {
 	header := http.Header{}
 
 	// Authentication Strategy Selection
+	var authUser string
 	switch {
 	// Strategy 1: Login Token + Password
 	// The loginToken field contains the token name (with or without ~t: prefix)
 	// The password field contains the actual token secret
 	case c.loginToken != "" && c.password != "":
 		c.logf("[MeshCentral] Auth: Login Token")
-		loginUser := c.loginToken
-		if !strings.HasPrefix(loginUser, "~t:") {
-			loginUser = "~t:" + loginUser
+		authUser = c.loginToken
+		if !strings.HasPrefix(authUser, "~t:") {
+			authUser = "~t:" + authUser
 		}
-		if err := c.httpLogin(ctx, loginUser); err != nil {
+		if err := c.httpLogin(ctx, authUser); err != nil {
 			return fmt.Errorf("login with token failed: %w", err)
 		}
 		c.addAuthCookies(header)
@@ -203,6 +213,7 @@ func (c *Client) ConnectContext(ctx context.Context) error {
 	// Strategy 2: Username + Password
 	case c.username != "" && c.password != "":
 		c.logf("[MeshCentral] Auth: Username/Password")
+		authUser = c.username
 		if err := c.httpLogin(ctx, c.username); err != nil {
 			return fmt.Errorf("login with username/password failed: %w", err)
 		}
@@ -213,7 +224,11 @@ func (c *Client) ConnectContext(ctx context.Context) error {
 		c.logf("[MeshCentral] Auth: None (unauthenticated)")
 	}
 
-	// Dial WebSocket with authentication cookies
+	if authUser != "" && c.password != "" {
+		header.Set("x-meshauth", base64.StdEncoding.EncodeToString([]byte(authUser))+","+base64.StdEncoding.EncodeToString([]byte(c.password)))
+	}
+
+	// Dial WebSocket with authentication cookies and header
 	dialer := websocket.Dialer{
 		TLSClientConfig:  &tls.Config{InsecureSkipVerify: c.insecure},
 		HandshakeTimeout: 10 * time.Second,
@@ -222,8 +237,11 @@ func (c *Client) ConnectContext(ctx context.Context) error {
 	ws, resp, err := dialer.DialContext(ctx, u.String(), header)
 	if err != nil {
 		if resp != nil {
-			body, _ := io.ReadAll(resp.Body)
-			return fmt.Errorf("WebSocket handshake failed: HTTP %d - %s", resp.StatusCode, string(body))
+			if resp.Body != nil {
+				defer resp.Body.Close()
+			}
+			body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+			return fmt.Errorf("WebSocket handshake failed: HTTP %d - %s", resp.StatusCode, security.Scrub(strings.TrimSpace(string(body))))
 		}
 		return fmt.Errorf("WebSocket dial failed: %w", err)
 	}
@@ -234,6 +252,7 @@ func (c *Client) ConnectContext(ctx context.Context) error {
 
 	// Session keepalive timeout: connection closes if server stops responding to pings within 90s.
 	const sessionTimeout = 90 * time.Second
+	ws.SetReadLimit(16 * 1024 * 1024)
 	ws.SetReadDeadline(time.Now().Add(sessionTimeout))
 	ws.SetPongHandler(func(string) error {
 		return ws.SetReadDeadline(time.Now().Add(sessionTimeout))
@@ -290,7 +309,7 @@ func (c *Client) httpLogin(ctx context.Context, loginUser string) error {
 	if getResp, err := httpClient.Do(getReq); err == nil {
 		pageBytes, _ := io.ReadAll(io.LimitReader(getResp.Body, 32*1024))
 		getResp.Body.Close()
-		if m := regexp.MustCompile(`random="([^"]+)"`).FindSubmatch(pageBytes); len(m) == 2 {
+		if m := csrfNonceRegex.FindSubmatch(pageBytes); len(m) == 2 {
 			nonce = string(m[1])
 		}
 	} else {
@@ -332,16 +351,19 @@ func (c *Client) httpLogin(ctx context.Context, loginUser string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("login HTTP %d: %s", resp.StatusCode, string(body))
+		bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		cleanBody := security.Scrub(strings.TrimSpace(string(bodyBytes)))
+		return fmt.Errorf("login HTTP %d: %s", resp.StatusCode, cleanBody)
 	}
 
 	if cookies := resp.Cookies(); len(cookies) > 0 {
 		c.authCookies = append([]*http.Cookie(nil), cookies...)
 		for _, cookie := range cookies {
-			if cookie.Name == "meshcom" {
+			if cookie != nil && cookie.Value != "" {
+				security.RegisterSensitive(cookie.Value)
+			}
+			if cookie != nil && cookie.Name == "meshcom" {
 				c.sessionID = cookie.Value
-				break
 			}
 		}
 		return nil
@@ -609,7 +631,10 @@ func (c *Client) send(cmd map[string]interface{}, withResponseID, actionFallback
 		c.reqsMu.Unlock()
 	}
 
-	if err := ws.WriteJSON(cmd); err != nil {
+	_ = ws.SetWriteDeadline(time.Now().Add(10 * time.Second))
+	err := ws.WriteJSON(cmd)
+	_ = ws.SetWriteDeadline(time.Time{})
+	if err != nil {
 		if pr != nil {
 			c.reqsMu.Lock()
 			c.removePendingLocked(pr)
@@ -789,12 +814,10 @@ func (c *Client) pingPump() {
 				return
 			}
 
-			_ = ws.SetWriteDeadline(time.Now().Add(10 * time.Second))
-			if err := ws.WriteMessage(websocket.PingMessage, nil); err != nil {
-				_ = ws.SetWriteDeadline(time.Time{})
+			// WriteControl is safe to call concurrently with active writers.
+			if err := ws.WriteControl(websocket.PingMessage, nil, time.Now().Add(10*time.Second)); err != nil {
 				return
 			}
-			_ = ws.SetWriteDeadline(time.Time{})
 		}
 	}
 }
@@ -803,17 +826,27 @@ func (c *Client) pingPump() {
 
 // ServerInfo returns the MeshCentral server information received at connect time.
 func (c *Client) ServerInfo() (map[string]interface{}, error) {
-	return c.WaitForServerInfoContext(context.Background(), 10*time.Second)
+	return c.ServerInfoContext(context.Background())
+}
+
+// ServerInfoContext returns the MeshCentral server information with context cancellation.
+func (c *Client) ServerInfoContext(ctx context.Context) (map[string]interface{}, error) {
+	return c.WaitForServerInfoContext(ctx, 10*time.Second)
 }
 
 // ListDeviceGroups requests the meshes/groups list.
 func (c *Client) ListDeviceGroups() ([]interface{}, error) {
+	return c.ListDeviceGroupsContext(context.Background())
+}
+
+// ListDeviceGroupsContext requests the meshes/groups list with context cancellation.
+func (c *Client) ListDeviceGroupsContext(ctx context.Context) ([]interface{}, error) {
 	pr, err := c.sendForResponse(map[string]interface{}{"action": "meshes"}, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send meshes request: %w", err)
 	}
 
-	res, err := c.waitForPending(context.Background(), pr, 10*time.Second)
+	res, err := c.waitForPending(ctx, pr, 10*time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -826,6 +859,11 @@ func (c *Client) ListDeviceGroups() ([]interface{}, error) {
 
 // ListDevices requests the nodes/devices list.
 func (c *Client) ListDevices(meshID string) ([]interface{}, error) {
+	return c.ListDevicesContext(context.Background(), meshID)
+}
+
+// ListDevicesContext requests the nodes/devices list with context cancellation.
+func (c *Client) ListDevicesContext(ctx context.Context, meshID string) ([]interface{}, error) {
 	cmd := map[string]interface{}{"action": "nodes"}
 	if meshID != "" {
 		cmd["meshid"] = meshID
@@ -836,7 +874,7 @@ func (c *Client) ListDevices(meshID string) ([]interface{}, error) {
 		return nil, fmt.Errorf("failed to send nodes request: %w", err)
 	}
 
-	res, err := c.waitForPending(context.Background(), pr, 10*time.Second)
+	res, err := c.waitForPending(ctx, pr, 10*time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -862,6 +900,18 @@ func (c *Client) ListDevices(meshID string) ([]interface{}, error) {
 // WakeOnLan sends a WOL magic packet to a specific node.
 // Returns success message or error.
 func (c *Client) WakeOnLan(nodeIDs []string) (string, error) {
+	return c.WakeOnLanContext(context.Background(), nodeIDs)
+}
+
+// WakeOnLanContext sends a WOL magic packet with context cancellation.
+func (c *Client) WakeOnLanContext(ctx context.Context, nodeIDs []string) (string, error) {
+	if ctx != nil {
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		default:
+		}
+	}
 	err := c.sendNoResponse(map[string]interface{}{
 		"action":  "wakedevices",
 		"nodeids": nodeIDs,
@@ -877,6 +927,18 @@ func (c *Client) WakeOnLan(nodeIDs []string) (string, error) {
 // Common action types: 2=off, 3=reset, 4=sleep, 302=AMT on, 308=AMT off, 310=AMT reset.
 // Returns success message or error.
 func (c *Client) PowerAction(nodeIDs []string, powerAction int) (string, error) {
+	return c.PowerActionContext(context.Background(), nodeIDs, powerAction)
+}
+
+// PowerActionContext sends a power action with context cancellation.
+func (c *Client) PowerActionContext(ctx context.Context, nodeIDs []string, powerAction int) (string, error) {
+	if ctx != nil {
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		default:
+		}
+	}
 	err := c.sendNoResponse(map[string]interface{}{
 		"action":     "poweraction",
 		"nodeids":    nodeIDs,
@@ -892,6 +954,11 @@ func (c *Client) PowerAction(nodeIDs []string, powerAction int) (string, error) 
 // RunCommand executes a shell command on the device via the MeshAgent.
 // Waits for command completion and returns the result.
 func (c *Client) RunCommand(nodeID, command string) (map[string]interface{}, error) {
+	return c.RunCommandContext(context.Background(), nodeID, command)
+}
+
+// RunCommandContext executes a shell command on the device with context cancellation.
+func (c *Client) RunCommandContext(ctx context.Context, nodeID, command string) (map[string]interface{}, error) {
 	pr, err := c.sendForResponse(map[string]interface{}{
 		"action":    "runcommands",
 		"nodeids":   []string{nodeID},
@@ -904,7 +971,7 @@ func (c *Client) RunCommand(nodeID, command string) (map[string]interface{}, err
 		return nil, fmt.Errorf("failed to send runcommands request: %w", err)
 	}
 
-	res, err := c.waitForPending(context.Background(), pr, 30*time.Second)
+	res, err := c.waitForPending(ctx, pr, 30*time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -914,6 +981,11 @@ func (c *Client) RunCommand(nodeID, command string) (map[string]interface{}, err
 
 // ListEvents returns MeshCentral audit events, optionally filtered by node or user.
 func (c *Client) ListEvents(nodeID, userID string, limit int) ([]interface{}, error) {
+	return c.ListEventsContext(context.Background(), nodeID, userID, limit)
+}
+
+// ListEventsContext returns MeshCentral audit events with context cancellation.
+func (c *Client) ListEventsContext(ctx context.Context, nodeID, userID string, limit int) ([]interface{}, error) {
 	cmd := map[string]interface{}{"action": "events"}
 	if nodeID != "" {
 		cmd["nodeid"] = nodeID
@@ -929,7 +1001,7 @@ func (c *Client) ListEvents(nodeID, userID string, limit int) ([]interface{}, er
 	if err != nil {
 		return nil, fmt.Errorf("failed to send events request: %w", err)
 	}
-	res, err := c.waitForPending(context.Background(), pr, 10*time.Second)
+	res, err := c.waitForPending(ctx, pr, 10*time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -941,6 +1013,11 @@ func (c *Client) ListEvents(nodeID, userID string, limit int) ([]interface{}, er
 
 // DeviceInfo collects device details from the same control actions MeshCtrl uses.
 func (c *Client) DeviceInfo(nodeID string) (map[string]interface{}, error) {
+	return c.DeviceInfoContext(context.Background(), nodeID)
+}
+
+// DeviceInfoContext collects device details with context cancellation.
+func (c *Client) DeviceInfoContext(ctx context.Context, nodeID string) (map[string]interface{}, error) {
 	requests := []struct {
 		key string
 		cmd map[string]interface{}
@@ -968,7 +1045,7 @@ func (c *Client) DeviceInfo(nodeID string) (map[string]interface{}, error) {
 
 	result := make(map[string]interface{}, len(pending))
 	for _, item := range pending {
-		res, err := c.waitForPending(context.Background(), item.pr, 10*time.Second)
+		res, err := c.waitForPending(ctx, item.pr, 10*time.Second)
 		if err != nil {
 			return nil, err
 		}
@@ -979,6 +1056,11 @@ func (c *Client) DeviceInfo(nodeID string) (map[string]interface{}, error) {
 
 // Shell is intentionally unsupported until the MeshRelay tunnel protocol is implemented.
 func (c *Client) Shell(nodeID, command string) (map[string]interface{}, error) {
+	return c.ShellContext(context.Background(), nodeID, command)
+}
+
+// ShellContext is intentionally unsupported until the MeshRelay tunnel protocol is implemented.
+func (c *Client) ShellContext(ctx context.Context, nodeID, command string) (map[string]interface{}, error) {
 	return nil, fmt.Errorf("unsupported: MeshCentral shell requires a meshrelay.ashx tunnel, which is not implemented")
 }
 

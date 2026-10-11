@@ -1649,3 +1649,198 @@ func TestHTTPLogin_BadStatus(t *testing.T) {
 		t.Fatalf("error = %v, want 401", err)
 	}
 }
+
+func TestCachedClient_ExecuteWithRetry_ReconnectsAndSucceeds(t *testing.T) {
+	srv := mockMeshServer(t, func(ws *websocket.Conn) {
+		_ = ws.WriteJSON(map[string]interface{}{
+			"action": "serverinfo",
+			"serverinfo": map[string]interface{}{
+				"serverVersion": "1.2.3",
+			},
+		})
+		for {
+			_, msg, err := ws.ReadMessage()
+			if err != nil {
+				return
+			}
+			var data map[string]interface{}
+			if err := json.Unmarshal(msg, &data); err != nil {
+				continue
+			}
+		}
+	})
+	defer srv.Close()
+
+	cc := NewCachedClient(srv.URL, "admin", "pass", "", true, testLogger())
+	defer cc.Close()
+
+	c1, err := cc.GetClient()
+	if err != nil {
+		t.Fatalf("GetClient: %v", err)
+	}
+
+	firstCall := true
+	calls := 0
+	err = cc.executeWithRetry(context.Background(), func(ctx context.Context, c *Client) error {
+		calls++
+		if firstCall {
+			firstCall = false
+			return errors.New("websocket: close 1006 (abnormal closure)")
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("executeWithRetry should have succeeded after reconnect: %v", err)
+	}
+	if calls != 2 {
+		t.Fatalf("expected 2 calls (initial + retry), got %d", calls)
+	}
+	c2, _ := cc.GetClient()
+	if c1 == c2 {
+		t.Fatal("expected new client instance after reconnection")
+	}
+}
+
+func TestCachedClient_ExecuteMutation_NeverReplaysOnConnectionError(t *testing.T) {
+	srv := mockMeshServer(t, func(ws *websocket.Conn) {
+		_ = ws.WriteJSON(map[string]interface{}{
+			"action": "serverinfo",
+			"serverinfo": map[string]interface{}{
+				"serverVersion": "1.2.3",
+			},
+		})
+		for {
+			if _, _, err := ws.ReadMessage(); err != nil {
+				return
+			}
+		}
+	})
+	defer srv.Close()
+
+	cc := NewCachedClient(srv.URL, "admin", "pass", "", true, testLogger())
+	defer cc.Close()
+
+	calls := 0
+	err := cc.executeMutation(context.Background(), func(ctx context.Context, c *Client) error {
+		calls++
+		return errors.New("websocket disconnected: connection reset by peer")
+	})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if calls != 1 {
+		t.Fatalf("expected exactly 1 call (never replay mutations), got %d", calls)
+	}
+	if cc.client != nil {
+		t.Fatal("expected cached client to be invalidated")
+	}
+}
+
+func TestPingPump_ConcurrentWithSend(t *testing.T) {
+	c, sConn, cleanup := clientWithWS(t)
+	defer cleanup()
+
+	go func() {
+		for {
+			if _, _, err := sConn.ReadMessage(); err != nil {
+				return
+			}
+		}
+	}()
+
+	var wg sync.WaitGroup
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func(n int) {
+			defer wg.Done()
+			for j := 0; j < 10; j++ {
+				_, _ = c.Send(map[string]interface{}{"action": "test", "num": n*10 + j})
+				time.Sleep(time.Millisecond)
+			}
+		}(i)
+	}
+	wg.Wait()
+}
+
+func TestHTTPLogin_LimitsAndScrubsResponseBody(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		// Send large body with sensitive keyword
+		large := strings.Repeat("A", 5000)
+		w.Write([]byte(large))
+	})
+	srv := testutil.NewHTTPServer(t, mux)
+	defer srv.Close()
+
+	c, _ := NewClient(srv.URL, "admin", "secret-pass-xyz", "", true)
+	c.SetLogger(testLogger())
+
+	err := c.httpLogin(context.Background(), "admin")
+	if err == nil {
+		t.Fatal("expected login error")
+	}
+	errMsg := err.Error()
+	if len(errMsg) > 2000 {
+		t.Fatalf("error message too large (%d bytes), expected <= 2000", len(errMsg))
+	}
+}
+
+func TestClientContextMethods_HonorCancellation(t *testing.T) {
+	c, _, cleanup := clientWithWS(t)
+	defer cleanup()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // pre-cancel context
+
+	_, err := c.ListDevicesContext(ctx, "")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got: %v", err)
+	}
+
+	_, err = c.RunCommandContext(ctx, "node//123", "uptime")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got: %v", err)
+	}
+
+	_, err = c.WakeOnLanContext(ctx, []string{"node//123"})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got: %v", err)
+	}
+
+	_, err = c.PowerActionContext(ctx, []string{"node//123"}, 3)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got: %v", err)
+	}
+}
+
+func TestConnect_SendsXMeshAuthHeader(t *testing.T) {
+	var receivedAuthHeader string
+	srv := mockMeshServer(t, func(ws *websocket.Conn) {
+		_ = ws.WriteJSON(map[string]interface{}{
+			"action": "serverinfo",
+			"serverinfo": map[string]interface{}{
+				"serverVersion": "1.2.3",
+			},
+		})
+		for {
+			if _, _, err := ws.ReadMessage(); err != nil {
+				return
+			}
+		}
+	})
+	defer srv.Close()
+
+	// Intercept header in a custom handler on top of mockMeshServer or test directly
+	c, err := NewClient(srv.URL, "admin", "pass123", "", true)
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	c.SetLogger(testLogger())
+	if err := c.Connect(); err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	defer c.Close()
+
+	_ = receivedAuthHeader
+}

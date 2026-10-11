@@ -557,6 +557,7 @@ func handleMeshCentralTest(s *Server) http.HandlerFunc {
 		if loginToken == "" {
 			loginToken = s.Cfg.MeshCentral.LoginToken
 		}
+		insecure := s.Cfg.MeshCentral.Insecure
 		s.CfgMu.RUnlock()
 
 		meshURL, err := resolveMeshCentralTestURL(body.URL, configuredURL)
@@ -568,24 +569,47 @@ func handleMeshCentralTest(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Vault fallback for password / token
-		if s.Vault != nil {
+		// Vault fallback for password / token: only allowed if meshURL matches configured host/origin
+		allowVaultFallback := configuredURL != ""
+		if allowVaultFallback {
+			same, err := sameURLOrigin(meshURL, configuredURL)
+			if err != nil || !same {
+				allowVaultFallback = false
+			}
+		}
+
+		if s.Vault != nil && allowVaultFallback {
 			if password == "" {
 				if v, _ := s.Vault.ReadSecret("meshcentral_password"); v != "" {
-					s.Logger.Info("[MeshCentral Test] Found password in vault")
+					if s.Logger != nil {
+						s.Logger.Info("[MeshCentral Test] Found password in vault")
+					}
 					password = v
 				}
 			}
 			if loginToken == "" {
 				if v, _ := s.Vault.ReadSecret("meshcentral_token"); v != "" {
-					s.Logger.Info("[MeshCentral Test] Found login token in vault", "tokenLength", len(v))
+					if s.Logger != nil {
+						s.Logger.Info("[MeshCentral Test] Found login token in vault", "tokenLength", len(v))
+					}
 					loginToken = v
-				} else {
+				} else if s.Logger != nil {
 					s.Logger.Info("[MeshCentral Test] No login token found in vault")
 				}
 			}
-		} else {
+		} else if s.Vault != nil && !allowVaultFallback && (password == "" || loginToken == "") {
+			if s.Logger != nil {
+				s.Logger.Info("[MeshCentral Test] Skipping vault fallback: target URL does not match configured URL")
+			}
+		} else if s.Vault == nil && s.Logger != nil {
 			s.Logger.Info("[MeshCentral Test] Vault is nil")
+		}
+
+		if password != "" {
+			security.RegisterSensitive(password)
+		}
+		if loginToken != "" {
+			security.RegisterSensitive(loginToken)
 		}
 
 		// URL is always required. Username is required only when no login token is set.
@@ -604,7 +628,7 @@ func handleMeshCentralTest(s *Server) http.HandlerFunc {
 			return
 		}
 
-		mc, err := meshcentral.NewClient(meshURL, username, password, loginToken, s.Cfg.MeshCentral.Insecure)
+		mc, err := meshcentral.NewClient(meshURL, username, password, loginToken, insecure)
 		if err != nil {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
@@ -615,9 +639,13 @@ func handleMeshCentralTest(s *Server) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 		defer cancel()
 		if err := mc.ConnectContext(ctx); err != nil {
+			safeErr := security.Scrub(err.Error())
+			if s.Logger != nil {
+				s.Logger.Warn("[MeshCentral Test] Connection failed", "error", safeErr)
+			}
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
-				"message": "Connection failed",
+				"message": fmt.Sprintf("Connection failed: %s", safeErr),
 			})
 			return
 		}
