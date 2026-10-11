@@ -84,7 +84,8 @@ func Arguments(req Request, op Operation, dir string, files *Files) ([]string, e
 			if !ok || len(v) > 128<<10 || strings.ContainsRune(v, 0) || strings.HasPrefix(v, "@") {
 				return nil, fmt.Errorf("invalid %s", f.Name)
 			}
-			if f.Required && v == "" && f.Name != "replace" && f.Name != "replacement" {
+			textReplacement := op.Operation == "replace_text" && (f.Name == "replace" || f.Name == "replacement")
+			if f.Required && v == "" && !textReplacement {
 				return nil, fmt.Errorf("%s is required", f.Name)
 			}
 			if len(f.Enum) > 0 && !slices.Contains(f.Enum, v) {
@@ -142,8 +143,14 @@ func Arguments(req Request, op Operation, dir string, files *Files) ([]string, e
 		}
 	}
 	if op.Service == "gmail" && op.Operation == "label" {
-		if add, _ := req.Args["add"].(string); strings.Contains(strings.ToUpper(add), "TRASH") {
-			return nil, fmt.Errorf("use the trash operation for this label")
+		add, _ := req.Args["add"].([]any)
+		for _, value := range add {
+			// gog splits each repeated --add flag on commas before resolving labels.
+			for _, label := range strings.Split(value.(string), ",") {
+				if strings.EqualFold(strings.TrimSpace(label), "TRASH") {
+					return nil, fmt.Errorf("use the trash operation for this label")
+				}
+			}
 		}
 	}
 	if op.Service == "calendar" {

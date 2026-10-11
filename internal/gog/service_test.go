@@ -175,6 +175,48 @@ func TestGogArgumentsRejectEscapeHatches(t *testing.T) {
 	}
 }
 
+func TestGogLabelCannotBypassTrashGrant(t *testing.T) {
+	for _, labels := range [][]any{{"TRASH"}, {"trash"}, {"STARRED, Trash "}, {"STARRED", "\tTRASH\n"}} {
+		t.Run(labels[0].(string), func(t *testing.T) {
+			s, _ := fixtureService(t)
+			calls := 0
+			s.RunProcess = func(context.Context, string, []string, string, []string) (string, int, bool, error) {
+				calls++
+				return `{}`, 0, true, nil
+			}
+			req := Request{AccountID: "primary", Service: "gmail", Operation: "label", Args: map[string]any{"message_id": "fixture", "add": labels}}
+			if result := s.Execute(context.Background(), "agent", req, nil); result.Code != "invalid_arguments" || calls != 0 {
+				t.Fatalf("trash label reached process: result=%+v calls=%d", result, calls)
+			}
+			req.Args["add"] = []any{"STARRED", "Trashcan"}
+			if result := s.Execute(context.Background(), "agent", req, nil); result.Status != "ok" || calls != 1 {
+				t.Fatalf("ordinary labels rejected: result=%+v calls=%d", result, calls)
+			}
+		})
+	}
+}
+
+func TestGogEmptyReplacementOnlyAllowedForText(t *testing.T) {
+	for _, service := range []string{"drive", "docs", "slides"} {
+		opName := "replace_text"
+		args := map[string]any{"doc_id": "fixture", "find": "old", "replace": ""}
+		if service == "drive" {
+			opName, args = "replace", map[string]any{"replace": "", "if_version": 1}
+		} else if service == "slides" {
+			args = map[string]any{"presentation_id": "fixture", "find": "old", "replacement": ""}
+		}
+		op, _ := Lookup(service, opName)
+		_, err := Arguments(Request{Service: service, Operation: opName, Args: args}, op, t.TempDir(), nil)
+		if service == "drive" {
+			if err == nil || err.Error() != "replace is required" {
+				t.Fatalf("empty file ID not rejected before staging: %v", err)
+			}
+		} else if err != nil {
+			t.Fatalf("%s empty text replacement: %v", service, err)
+		}
+	}
+}
+
 func TestGogInstallerRejectsArchiveAndKeepsBinary(t *testing.T) {
 	s, _ := fixtureService(t)
 	a, _ := CurrentArtifact()

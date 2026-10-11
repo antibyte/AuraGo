@@ -17,7 +17,8 @@ import (
 const TokenURL = "https://oauth2.googleapis.com/token"
 const AuthURL = "https://accounts.google.com/o/oauth2/v2/auth"
 
-func TokenKey(id string) string  { return "oauth_gog_" + id }
+// The separator cannot occur in an account ID, including legacy client_* IDs.
+func TokenKey(id string) string  { return "oauth_gog_token:" + id }
 func ClientKey(id string) string { return "oauth_gog_client_" + id }
 
 type Token struct {

@@ -16,6 +16,26 @@ type tokenRoundTrip func(*http.Request) (*http.Response, error)
 
 func (f tokenRoundTrip) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
+func TestGogAccountTokenCannotOverwriteAnotherClientSecret(t *testing.T) {
+	s, _ := fixtureService(t)
+	const secret = "fixture-isolated-client-secret"
+	if err := s.Vault.WriteSecret(ClientKey("primary"), secret); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.BeginLogin("client_primary", "fixture-state", "other-client"); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := s.Vault.ReadSecret(ClientKey("primary")); err != nil || got != secret {
+		t.Fatal("another account's login overwrote the client secret")
+	}
+	if err := s.Disconnect("client_primary"); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := s.Vault.ReadSecret(ClientKey("primary")); err != nil || got != secret {
+		t.Fatal("another account's disconnect removed the client secret")
+	}
+}
+
 func TestGogRefreshSerializesAndDisconnectWins(t *testing.T) {
 	for _, disconnect := range []bool{false, true} {
 		t.Run(map[bool]string{true: "disconnect", false: "serialized"}[disconnect], func(t *testing.T) {
