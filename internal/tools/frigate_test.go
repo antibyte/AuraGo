@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
 	"net/http/httptest"
@@ -21,7 +22,7 @@ func TestFrigateStatusAddsBearerToken(t *testing.T) {
 	}))
 	defer server.Close()
 
-	out := FrigateStatus(FrigateConfig{URL: server.URL, APIToken: "secret-token"})
+	out := FrigateStatus(context.Background(), FrigateConfig{URL: server.URL, APIToken: "secret-token"})
 	if gotAuth != "Bearer secret-token" {
 		t.Fatalf("Authorization = %q", gotAuth)
 	}
@@ -41,7 +42,7 @@ func TestFrigateEventsBuildsQuery(t *testing.T) {
 	defer server.Close()
 
 	hasClip := true
-	out := FrigateEvents(FrigateConfig{URL: server.URL}, FrigateEventParams{Camera: "doorbell", Label: "person", HasClip: &hasClip, Limit: 5, Offset: 10})
+	out := FrigateEvents(context.Background(), FrigateConfig{URL: server.URL}, FrigateEventParams{Camera: "doorbell", Label: "person", HasClip: &hasClip, Limit: 5, Offset: 10})
 	if !strings.Contains(out, `"event-1"`) {
 		t.Fatalf("unexpected output: %s", out)
 	}
@@ -57,7 +58,7 @@ func TestFrigateReviewsBuildsOffsetQuery(t *testing.T) {
 	}))
 	defer server.Close()
 
-	out := FrigateReviews(FrigateConfig{URL: server.URL}, FrigateReviewParams{Camera: "garage", Limit: 25, Offset: 50})
+	out := FrigateReviews(context.Background(), FrigateConfig{URL: server.URL}, FrigateReviewParams{Camera: "garage", Limit: 25, Offset: 50})
 	if !strings.Contains(out, `"review-1"`) {
 		t.Fatalf("unexpected output: %s", out)
 	}
@@ -74,7 +75,7 @@ func TestFrigateReviewsBuildsCurrentFilters(t *testing.T) {
 	defer server.Close()
 
 	reviewed := false
-	out := FrigateReviews(FrigateConfig{URL: server.URL}, FrigateReviewParams{
+	out := FrigateReviews(context.Background(), FrigateConfig{URL: server.URL}, FrigateReviewParams{
 		Cameras:  "doorbell,garage",
 		Labels:   "person",
 		Zones:    "porch",
@@ -96,7 +97,7 @@ func TestFrigateReviewActivityUsesMotionEndpoint(t *testing.T) {
 	}))
 	defer server.Close()
 
-	out := FrigateReviewActivity(FrigateConfig{URL: server.URL}, FrigateReviewParams{Cameras: "front"})
+	out := FrigateReviewActivity(context.Background(), FrigateConfig{URL: server.URL}, FrigateReviewParams{Cameras: "front"})
 	if !strings.Contains(out, `"motion":true`) {
 		t.Fatalf("unexpected output: %s", out)
 	}
@@ -114,7 +115,7 @@ func TestFrigateStatusRetriesTransientServerError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	out := FrigateStatus(FrigateConfig{URL: server.URL})
+	out := FrigateStatus(context.Background(), FrigateConfig{URL: server.URL})
 	if attempts != 2 {
 		t.Fatalf("attempts = %d, want 2", attempts)
 	}
@@ -123,8 +124,42 @@ func TestFrigateStatusRetriesTransientServerError(t *testing.T) {
 	}
 }
 
+func TestFrigateStatusCancelledContextDoesNotRequest(t *testing.T) {
+	calls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		_, _ = w.Write([]byte(`{"service":{"uptime":1}}`))
+	}))
+	defer server.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	out := FrigateStatus(ctx, FrigateConfig{URL: server.URL})
+	if calls != 0 {
+		t.Fatalf("calls = %d, want 0", calls)
+	}
+	if !strings.Contains(out, `"status":"error"`) || strings.Contains(out, "uptime") {
+		t.Fatalf("unexpected output: %s", out)
+	}
+}
+
+func TestFrigateStatusHidesUpstreamErrorBody(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "fixture-error-secret", http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	out := FrigateStatus(context.Background(), FrigateConfig{URL: server.URL})
+	if strings.Contains(out, "fixture-error-secret") {
+		t.Fatalf("upstream body leaked: %s", out)
+	}
+	if !strings.Contains(out, "HTTP 500") || !strings.Contains(out, `"status":"error"`) {
+		t.Fatalf("unexpected output: %s", out)
+	}
+}
+
 func TestFrigateMediaRequiresEventID(t *testing.T) {
-	_, _, err := FrigateMedia(FrigateConfig{URL: "http://example.invalid"}, "event_snapshot", FrigateMediaParams{})
+	_, _, err := FrigateMedia(context.Background(), FrigateConfig{URL: "http://example.invalid"}, "event_snapshot", FrigateMediaParams{})
 	if err == nil || !strings.Contains(err.Error(), "event_id is required") {
 		t.Fatalf("err = %v, want event_id error", err)
 	}
@@ -142,7 +177,7 @@ func TestFrigateMediaExportRecordingUsesClipEndpoint(t *testing.T) {
 	}))
 	defer server.Close()
 
-	data, contentType, err := FrigateMedia(FrigateConfig{URL: server.URL}, "export_recording", FrigateMediaParams{
+	data, contentType, err := FrigateMedia(context.Background(), FrigateConfig{URL: server.URL}, "export_recording", FrigateMediaParams{
 		Camera:    "front",
 		StartTime: "1767225600",
 		EndTime:   "1767225900",

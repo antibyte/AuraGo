@@ -814,52 +814,52 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			switch req.Operation {
 			case "status", "health":
 				logger.Info("LLM requested Frigate status")
-				return "Tool Output: " + tools.FrigateStatus(frCfg)
+				return "Tool Output: " + tools.FrigateStatus(ctx, frCfg)
 			case "cameras":
 				logger.Info("LLM requested Frigate cameras")
-				return "Tool Output: " + tools.FrigateCameras(frCfg)
+				return "Tool Output: " + tools.FrigateCameras(ctx, frCfg)
 			case "events":
 				logger.Info("LLM requested Frigate events", "camera", req.Camera)
-				return "Tool Output: " + tools.FrigateEvents(frCfg, eventParams)
+				return "Tool Output: " + tools.FrigateEvents(ctx, frCfg, eventParams)
 			case "event":
 				logger.Info("LLM requested Frigate event", "event_id", req.EventID)
-				return "Tool Output: " + tools.FrigateEvent(frCfg, req.EventID)
+				return "Tool Output: " + tools.FrigateEvent(ctx, frCfg, req.EventID)
 			case "reviews":
 				logger.Info("LLM requested Frigate reviews", "camera", req.Camera)
-				return "Tool Output: " + tools.FrigateReviews(frCfg, reviewParams)
+				return "Tool Output: " + tools.FrigateReviews(ctx, frCfg, reviewParams)
 			case "review_summary":
 				logger.Info("LLM requested Frigate review summary")
-				return "Tool Output: " + tools.FrigateReviewSummary(frCfg, reviewParams)
+				return "Tool Output: " + tools.FrigateReviewSummary(ctx, frCfg, reviewParams)
 			case "review_activity":
 				logger.Info("LLM requested Frigate review activity")
-				return "Tool Output: " + tools.FrigateReviewActivity(frCfg, reviewParams)
+				return "Tool Output: " + tools.FrigateReviewActivity(ctx, frCfg, reviewParams)
 			case "recordings_summary":
 				logger.Info("LLM requested Frigate recordings summary", "camera", req.Camera)
-				return "Tool Output: " + tools.FrigateRecordingsSummary(frCfg, mediaParams)
+				return "Tool Output: " + tools.FrigateRecordingsSummary(ctx, frCfg, mediaParams)
 			case "event_snapshot", "event_clip", "latest_frame", "export_recording":
 				logger.Info("LLM requested Frigate media", "operation", req.Operation)
-				data, contentType, err := tools.FrigateMedia(frCfg, req.Operation, mediaParams)
+				data, contentType, err := tools.FrigateMedia(ctx, frCfg, req.Operation, mediaParams)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err)
+					return "Tool Output: " + tools.ErrorJSON(security.Scrub(err.Error()))
 				}
 				if !cfg.Frigate.StoreMedia {
 					return fmt.Sprintf(`Tool Output: {"status":"ok","content_type":%q,"bytes":%d,"stored":false,"message":"Media fetched successfully but frigate.store_media is disabled."}`, contentType, len(data))
 				}
 				result, err := tools.StoreFrigateMedia(cfg.Directories.DataDir, dc.MediaRegistryDB, req.Operation, mediaParams, data, contentType)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err)
+					return "Tool Output: " + tools.ErrorJSON(security.Scrub(err.Error()))
 				}
 				raw, err := json.Marshal(result)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status":"error","message":"encode Frigate media result: %s"}`, err)
+					return "Tool Output: " + tools.ErrorJSON("encode Frigate media result")
 				}
 				return "Tool Output: " + string(raw)
 			case "config":
 				logger.Info("LLM requested Frigate config")
-				return "Tool Output: " + tools.FrigateConfigRead(frCfg, false)
+				return "Tool Output: " + tools.FrigateConfigRead(ctx, frCfg, false)
 			case "config_raw":
 				logger.Info("LLM requested Frigate raw config")
-				return "Tool Output: " + tools.FrigateConfigRead(frCfg, true)
+				return "Tool Output: " + tools.FrigateConfigRead(ctx, frCfg, true)
 			default:
 				return `Tool Output: {"status":"error","message":"Unknown frigate operation. Use: status, health, cameras, events, event, event_snapshot, event_clip, reviews, review_summary, review_activity, latest_frame, recordings_summary, export_recording, config, config_raw"}`
 			}

@@ -137,7 +137,12 @@ func frigateBaseURL(cfg FrigateConfig) (string, error) {
 }
 
 // frigateRequest performs a generic HTTP request against the Frigate API.
-func frigateRequest(cfg FrigateConfig, method, path string) ([]byte, int, error) {
+// Each attempt is capped at 30 seconds on the caller context. A cancelled
+// caller returns before another attempt starts.
+func frigateRequest(ctx context.Context, cfg FrigateConfig, method, path string) ([]byte, int, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if cfg.APIToken != "" {
 		security.RegisterSensitive(cfg.APIToken)
 	}
@@ -153,21 +158,27 @@ func frigateRequest(cfg FrigateConfig, method, path string) ([]byte, int, error)
 		attempts = 3
 	}
 	for attempt := 1; attempt <= attempts; attempt++ {
-		req, err := http.NewRequest(method, baseURL+path, nil)
+		if err := ctx.Err(); err != nil {
+			return nil, 0, err
+		}
+		attemptCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		req, err := http.NewRequestWithContext(attemptCtx, method, baseURL+path, nil)
 		if err != nil {
+			cancel()
 			return nil, 0, fmt.Errorf("failed to create request: %w", err)
 		}
 		if cfg.APIToken != "" && !cfg.InternalPort {
 			req.Header.Set("Authorization", "Bearer "+cfg.APIToken)
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		resp, err := getFrigateClient(cfg).Do(req.WithContext(ctx))
+		resp, err := getFrigateClient(cfg).Do(req)
 		if err != nil {
 			cancel()
 			lastErr = fmt.Errorf("request failed: %w", err)
-			if attempt < attempts {
-				time.Sleep(time.Duration(attempt) * 50 * time.Millisecond)
+			if attempt < attempts && frigateRetryWait(ctx, attempt) {
 				continue
+			}
+			if ctx.Err() != nil {
+				return nil, 0, ctx.Err()
 			}
 			return nil, 0, lastErr
 		}
@@ -180,8 +191,12 @@ func frigateRequest(cfg FrigateConfig, method, path string) ([]byte, int, error)
 			return nil, resp.StatusCode, fmt.Errorf("failed to read response: %w", readErr)
 		}
 		if attempt < attempts && frigateRetryableStatus(resp.StatusCode) {
-			time.Sleep(time.Duration(attempt) * 50 * time.Millisecond)
-			continue
+			if frigateRetryWait(ctx, attempt) {
+				continue
+			}
+			if ctx.Err() != nil {
+				return nil, 0, ctx.Err()
+			}
 		}
 		return data, resp.StatusCode, nil
 	}
@@ -192,13 +207,24 @@ func frigateRetryableStatus(code int) bool {
 	return code == http.StatusTooManyRequests || code >= 500
 }
 
-func frigateGetJSON(cfg FrigateConfig, path string) string {
-	data, code, err := frigateRequest(cfg, http.MethodGet, path)
+func frigateRetryWait(ctx context.Context, attempt int) bool {
+	timer := time.NewTimer(time.Duration(attempt) * 50 * time.Millisecond)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	}
+}
+
+func frigateGetJSON(ctx context.Context, cfg FrigateConfig, path string) string {
+	data, code, err := frigateRequest(ctx, cfg, http.MethodGet, path)
 	if err != nil {
-		return frigateJSONError("Frigate request failed: %v", err)
+		return frigateJSONError("Frigate request failed: %s", security.Scrub(err.Error()))
 	}
 	if code < 200 || code >= 300 {
-		return frigateJSONError("Frigate returned HTTP %d: %s", code, string(data))
+		return frigateJSONError("Frigate returned HTTP %d", code)
 	}
 	return frigateJSONResult(data)
 }
@@ -240,17 +266,17 @@ func frigatePath(path string, q url.Values) string {
 }
 
 // FrigateStatus returns cameras, stats, and health data.
-func FrigateStatus(cfg FrigateConfig) string {
-	return frigateGetJSON(cfg, "/api/stats")
+func FrigateStatus(ctx context.Context, cfg FrigateConfig) string {
+	return frigateGetJSON(ctx, cfg, "/api/stats")
 }
 
 // FrigateCameras lists configured cameras and capabilities.
-func FrigateCameras(cfg FrigateConfig) string {
-	return frigateGetJSON(cfg, "/api/config")
+func FrigateCameras(ctx context.Context, cfg FrigateConfig) string {
+	return frigateGetJSON(ctx, cfg, "/api/config")
 }
 
 // FrigateEvents searches events with filters.
-func FrigateEvents(cfg FrigateConfig, params FrigateEventParams) string {
+func FrigateEvents(ctx context.Context, cfg FrigateConfig, params FrigateEventParams) string {
 	q := url.Values{}
 	addFrigateQuery(q, "camera", firstNonEmptyString(params.Camera, cfg.DefaultCamera))
 	addFrigateQuery(q, "label", params.Label)
@@ -268,20 +294,20 @@ func FrigateEvents(cfg FrigateConfig, params FrigateEventParams) string {
 	if params.Offset > 0 {
 		q.Set("offset", strconv.Itoa(params.Offset))
 	}
-	return frigateGetJSON(cfg, frigatePath("/api/events", q))
+	return frigateGetJSON(ctx, cfg, frigatePath("/api/events", q))
 }
 
 // FrigateEvent returns a single event by ID.
-func FrigateEvent(cfg FrigateConfig, eventID string) string {
+func FrigateEvent(ctx context.Context, cfg FrigateConfig, eventID string) string {
 	eventID = strings.TrimSpace(eventID)
 	if eventID == "" {
 		return frigateJSONError("event_id is required")
 	}
-	return frigateGetJSON(cfg, "/api/events/"+url.PathEscape(eventID))
+	return frigateGetJSON(ctx, cfg, "/api/events/"+url.PathEscape(eventID))
 }
 
 // FrigateReviews queries review items.
-func FrigateReviews(cfg FrigateConfig, params FrigateReviewParams) string {
+func FrigateReviews(ctx context.Context, cfg FrigateConfig, params FrigateReviewParams) string {
 	q := url.Values{}
 	addFrigateQuery(q, "cameras", firstNonEmptyString(params.Cameras, params.Camera, cfg.DefaultCamera))
 	addFrigateQuery(q, "labels", params.Labels)
@@ -296,31 +322,31 @@ func FrigateReviews(cfg FrigateConfig, params FrigateReviewParams) string {
 	if params.Offset > 0 {
 		q.Set("offset", strconv.Itoa(params.Offset))
 	}
-	return frigateGetJSON(cfg, frigatePath("/api/review", q))
+	return frigateGetJSON(ctx, cfg, frigatePath("/api/review", q))
 }
 
 // FrigateReviewSummary returns review summary data.
-func FrigateReviewSummary(cfg FrigateConfig, params FrigateReviewParams) string {
+func FrigateReviewSummary(ctx context.Context, cfg FrigateConfig, params FrigateReviewParams) string {
 	q := url.Values{}
 	addFrigateIntQuery(q, "after", params.After)
 	addFrigateIntQuery(q, "before", params.Before)
 	addFrigateQuery(q, "cameras", params.Cameras)
 	addFrigateQuery(q, "labels", params.Labels)
 	addFrigateQuery(q, "zones", params.Zones)
-	return frigateGetJSON(cfg, frigatePath("/api/review/summary", q))
+	return frigateGetJSON(ctx, cfg, frigatePath("/api/review/summary", q))
 }
 
 // FrigateReviewActivity returns review activity over time.
-func FrigateReviewActivity(cfg FrigateConfig, params FrigateReviewParams) string {
+func FrigateReviewActivity(ctx context.Context, cfg FrigateConfig, params FrigateReviewParams) string {
 	q := url.Values{}
 	addFrigateIntQuery(q, "after", params.After)
 	addFrigateIntQuery(q, "before", params.Before)
 	addFrigateQuery(q, "cameras", params.Cameras)
-	return frigateGetJSON(cfg, frigatePath("/api/review/activity/motion", q))
+	return frigateGetJSON(ctx, cfg, frigatePath("/api/review/activity/motion", q))
 }
 
 // FrigateMedia fetches snapshots, clips, latest frames, or exported recording data.
-func FrigateMedia(cfg FrigateConfig, operation string, params FrigateMediaParams) ([]byte, string, error) {
+func FrigateMedia(ctx context.Context, cfg FrigateConfig, operation string, params FrigateMediaParams) ([]byte, string, error) {
 	var path string
 	switch operation {
 	case "event_snapshot":
@@ -348,12 +374,12 @@ func FrigateMedia(cfg FrigateConfig, operation string, params FrigateMediaParams
 	default:
 		return nil, "", fmt.Errorf("unsupported media operation %q", operation)
 	}
-	data, code, err := frigateRequest(cfg, http.MethodGet, path)
+	data, code, err := frigateRequest(ctx, cfg, http.MethodGet, path)
 	if err != nil {
 		return nil, "", err
 	}
 	if code < 200 || code >= 300 {
-		return nil, "", fmt.Errorf("Frigate returned HTTP %d: %s", code, string(data))
+		return nil, "", fmt.Errorf("Frigate returned HTTP %d", code)
 	}
 	return data, frigateContentType(data, operation), nil
 }
@@ -487,7 +513,7 @@ func sanitizeMediaFileToken(value string) string {
 }
 
 // FrigateRecordingsSummary returns hourly recording availability.
-func FrigateRecordingsSummary(cfg FrigateConfig, params FrigateMediaParams) string {
+func FrigateRecordingsSummary(ctx context.Context, cfg FrigateConfig, params FrigateMediaParams) string {
 	camera := firstNonEmptyString(params.Camera, cfg.DefaultCamera)
 	if strings.TrimSpace(camera) == "" {
 		return frigateJSONError("camera is required")
@@ -495,16 +521,16 @@ func FrigateRecordingsSummary(cfg FrigateConfig, params FrigateMediaParams) stri
 	q := url.Values{}
 	addFrigateQuery(q, "start", params.StartTime)
 	addFrigateQuery(q, "end", params.EndTime)
-	return frigateGetJSON(cfg, frigatePath("/api/"+url.PathEscape(camera)+"/recordings/summary", q))
+	return frigateGetJSON(ctx, cfg, frigatePath("/api/"+url.PathEscape(camera)+"/recordings/summary", q))
 }
 
 // FrigateConfigRead reads Frigate config.
-func FrigateConfigRead(cfg FrigateConfig, raw bool) string {
+func FrigateConfigRead(ctx context.Context, cfg FrigateConfig, raw bool) string {
 	path := "/api/config"
 	if raw {
 		path += "/raw"
 	}
-	data, code, err := frigateRequest(cfg, http.MethodGet, path)
+	data, code, err := frigateRequest(ctx, cfg, http.MethodGet, path)
 	if err != nil {
 		return frigateJSONError("Frigate configuration request failed: %s", security.Scrub(err.Error()))
 	}

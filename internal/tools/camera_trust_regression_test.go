@@ -68,7 +68,7 @@ func TestFrigateConfigRedactsBeforeReturningEitherFormat(t *testing.T) {
 				fmt.Fprint(w, `{"mqtt":{"password":"mqtt-secret"},"cameras":{"front":{"detect":{"enabled":true,"width":1920},"ffmpeg":{"inputs":[{"path":"rtsp://user:camera-secret@camera/live"}]}}},"custom_token":"unknown-secret"}`)
 			}
 		}))
-		out := FrigateConfigRead(FrigateConfig{URL: srv.URL}, raw)
+		out := FrigateConfigRead(context.Background(), FrigateConfig{URL: srv.URL}, raw)
 		srv.Close()
 		for _, secret := range []string{"comment-secret", "mqtt-secret", "camera-secret", "unknown-secret"} {
 			if strings.Contains(out, secret) {
@@ -89,7 +89,7 @@ func TestFrigateConfigRedactsBeforeReturningEitherFormat(t *testing.T) {
 		fmt.Fprint(w, "fixture-error-secret")
 	}))
 	defer srv.Close()
-	if out := FrigateConfigRead(FrigateConfig{URL: srv.URL}, true); strings.Contains(out, "fixture-error-secret") || !strings.Contains(out, `"status":"error"`) {
+	if out := FrigateConfigRead(context.Background(), FrigateConfig{URL: srv.URL}, true); strings.Contains(out, "fixture-error-secret") || !strings.Contains(out, `"status":"error"`) {
 		t.Fatalf("raw error forwarded: %s", out)
 	}
 }
@@ -109,10 +109,10 @@ func TestFrigateResponseBodyOutlivesHeadersAndRejectsForeignRedirect(t *testing.
 		fmt.Fprint(w, `{"width":1920}`)
 	}))
 	defer srv.Close()
-	if data, _, err := frigateRequest(FrigateConfig{URL: srv.URL}, http.MethodGet, "/api/config"); err != nil || !strings.Contains(string(data), "1920") {
+	if data, _, err := frigateRequest(context.Background(), FrigateConfig{URL: srv.URL}, http.MethodGet, "/api/config"); err != nil || !strings.Contains(string(data), "1920") {
 		t.Fatalf("response cancelled at headers: %v", err)
 	}
-	if _, _, err := frigateRequest(FrigateConfig{URL: srv.URL, APIToken: "fixture-token"}, http.MethodGet, "/redirect"); err == nil {
+	if _, _, err := frigateRequest(context.Background(), FrigateConfig{URL: srv.URL, APIToken: "fixture-token"}, http.MethodGet, "/redirect"); err == nil {
 		t.Fatal("foreign redirect allowed")
 	}
 	if foreignCalls.Load() != 0 {
