@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -133,13 +134,16 @@ CREATE TABLE cc_jobs (
   error_code TEXT NOT NULL DEFAULT '', error_message TEXT NOT NULL DEFAULT '', build_id TEXT NOT NULL DEFAULT '',
   staging_dir TEXT NOT NULL DEFAULT '', resume_of TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL, started_at TEXT NOT NULL DEFAULT '', finished_at TEXT NOT NULL DEFAULT '');
+CREATE INDEX cc_jobs_project ON cc_jobs(project_id, created_at);
 CREATE TABLE cc_messages (
   id TEXT PRIMARY KEY, project_id TEXT NOT NULL, job_id TEXT NOT NULL DEFAULT '', role TEXT NOT NULL,
   text TEXT NOT NULL, attachments TEXT NOT NULL DEFAULT '[]', created_at TEXT NOT NULL);
+CREATE INDEX cc_messages_project ON cc_messages(project_id, created_at);
 CREATE TABLE cc_agent_context (job_id TEXT PRIMARY KEY, project_id TEXT NOT NULL, data BLOB NOT NULL, updated_at TEXT NOT NULL);
 CREATE TABLE cc_revisions (
   id TEXT PRIMARY KEY, project_id TEXT NOT NULL, label TEXT NOT NULL, reason TEXT NOT NULL,
   job_id TEXT NOT NULL DEFAULT '', build_id TEXT NOT NULL DEFAULT '', layout_sha256 TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE INDEX cc_revisions_project ON cc_revisions(project_id, created_at);
 CREATE TABLE cc_revision_files (revision_id TEXT NOT NULL, path TEXT NOT NULL, sha256 TEXT NOT NULL, size INTEGER NOT NULL,
   PRIMARY KEY (revision_id, path));
 CREATE TABLE cc_devices (
@@ -148,7 +152,8 @@ CREATE TABLE cc_devices (
   ip TEXT NOT NULL DEFAULT '', rssi INTEGER NOT NULL DEFAULT 0, free_heap INTEGER NOT NULL DEFAULT 0,
   template_version TEXT NOT NULL DEFAULT '', ota_state TEXT NOT NULL DEFAULT '', last_error TEXT NOT NULL DEFAULT '',
   last_seen TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, expires_at TEXT NOT NULL DEFAULT '');
-CREATE INDEX cc_devices_project ON cc_devices(project_id);`
+CREATE INDEX cc_devices_project ON cc_devices(project_id);
+CREATE UNIQUE INDEX cc_devices_token ON cc_devices(token_hash);`
 	_, err := tx.Exec(schema)
 	return err
 }
@@ -160,9 +165,16 @@ type recoveredBuild struct{ ID, ProjectID, JobID string }
 // recoverStore runs once at startup: queued and running builds become
 // interrupted (CYD_BUILD_INTERRUPTED), queued and running jobs become
 // interrupted, and project locks held by a job that is no longer active
-// (awaiting_confirmation stays active) are released.
+// (awaiting_confirmation stays active) are released. Everything runs in one
+// transaction: a crash midway leaves the rows unchanged, so the next start
+// recovers the same builds.
 func recoverStore(ctx context.Context, db *sql.DB, now string) ([]recoveredBuild, error) {
-	rows, err := db.QueryContext(ctx, `SELECT id, project_id, job_id FROM cc_builds WHERE status IN ('queued','running') ORDER BY created_at, id`)
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin cyd creator recovery: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	rows, err := tx.QueryContext(ctx, `SELECT id, project_id, job_id FROM cc_builds WHERE status IN ('queued','running') ORDER BY created_at, id`)
 	if err != nil {
 		return nil, fmt.Errorf("list unfinished cyd creator builds: %w", err)
 	}
@@ -178,18 +190,28 @@ func recoverStore(ctx context.Context, db *sql.DB, now string) ([]recoveredBuild
 	if err := rows.Close(); err != nil {
 		return nil, err
 	}
-	if _, err := db.ExecContext(ctx, `UPDATE cc_builds SET status=?, error_code=?, finished_at=?
-		WHERE status IN ('queued','running')`, BuildInterrupted, CodeBuildInterrupted, now); err != nil {
-		return nil, fmt.Errorf("mark interrupted cyd creator builds: %w", err)
+	if len(builds) > 0 {
+		args := make([]any, 0, len(builds)+3)
+		args = append(args, BuildInterrupted, CodeBuildInterrupted, now)
+		for _, b := range builds {
+			args = append(args, b.ID)
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE cc_builds SET status=?, error_code=?, finished_at=?
+			WHERE id IN (`+sqlPlaceholders(len(builds))+`)`, args...); err != nil {
+			return nil, fmt.Errorf("mark interrupted cyd creator builds: %w", err)
+		}
 	}
-	if _, err := db.ExecContext(ctx, `UPDATE cc_jobs SET status='interrupted',
+	if _, err := tx.ExecContext(ctx, `UPDATE cc_jobs SET status='interrupted',
 		error_message='The server restarted while the job was active.', finished_at=?
 		WHERE status IN ('queued','running')`, now); err != nil {
 		return nil, fmt.Errorf("mark interrupted cyd creator jobs: %w", err)
 	}
-	if _, err := db.ExecContext(ctx, `UPDATE cc_projects SET locked_by_job=''
+	if _, err := tx.ExecContext(ctx, `UPDATE cc_projects SET locked_by_job=''
 		WHERE locked_by_job<>'' AND locked_by_job NOT IN (SELECT id FROM cc_jobs WHERE status='awaiting_confirmation')`); err != nil {
 		return nil, fmt.Errorf("release stale cyd creator project locks: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit cyd creator recovery: %w", err)
 	}
 	return builds, nil
 }
@@ -219,6 +241,10 @@ func scanProjectRow(row rowScanner) (projectRow, error) {
 
 const buildColumns = `id,project_id,job_id,origin,status,board,project_version,error_code,diagnostics,usage,artifacts,created_at,started_at,finished_at`
 
+// scanBuild reads one cc_builds row. The JSON columns are written only by the
+// service, so a column that does not decode means a damaged row: it is logged
+// (build id and column, never the content) and read as empty, so one bad row
+// cannot break a build list or lookup.
 func scanBuild(row rowScanner) (Build, error) {
 	var b Build
 	var diagnostics, usage, artifacts string
@@ -226,11 +252,18 @@ func scanBuild(row rowScanner) (Build, error) {
 		&diagnostics, &usage, &artifacts, &b.CreatedAt, &b.StartedAt, &b.FinishedAt); err != nil {
 		return Build{}, err
 	}
-	b.Diagnostics = []Diagnostic{}
-	b.Artifacts = []ArtifactInfo{}
-	_ = json.Unmarshal([]byte(diagnostics), &b.Diagnostics)
-	_ = json.Unmarshal([]byte(usage), &b.Usage)
-	_ = json.Unmarshal([]byte(artifacts), &b.Artifacts)
+	if err := json.Unmarshal([]byte(diagnostics), &b.Diagnostics); err != nil {
+		warnBadBuildColumn(b.ID, "diagnostics", err)
+		b.Diagnostics = nil
+	}
+	if err := json.Unmarshal([]byte(usage), &b.Usage); err != nil {
+		warnBadBuildColumn(b.ID, "usage", err)
+		b.Usage = BuildUsage{}
+	}
+	if err := json.Unmarshal([]byte(artifacts), &b.Artifacts); err != nil {
+		warnBadBuildColumn(b.ID, "artifacts", err)
+		b.Artifacts = nil
+	}
 	if b.Diagnostics == nil {
 		b.Diagnostics = []Diagnostic{}
 	}
@@ -238,6 +271,13 @@ func scanBuild(row rowScanner) (Build, error) {
 		b.Artifacts = []ArtifactInfo{}
 	}
 	return b, nil
+}
+
+// warnBadBuildColumn logs an undecodable JSON column of a build row. Only the
+// error's type is logged: a decoder message can quote part of the content.
+func warnBadBuildColumn(buildID, column string, err error) {
+	slog.Warn("CYD Creator build record has an unreadable column; reading it as empty",
+		"build_id", buildID, "column", column, "error_type", fmt.Sprintf("%T", err))
 }
 
 func sha256Hex(data []byte) string {

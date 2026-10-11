@@ -1,11 +1,14 @@
 package cydcreator
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -60,7 +63,8 @@ func TestStoreCreatesTheOverviewSchema(t *testing.T) {
 			t.Errorf("%s columns = %v, want %v", table, got, cols)
 		}
 	}
-	for _, index := range []string{"cc_builds_project", "cc_events_project", "cc_devices_project"} {
+	for _, index := range []string{"cc_builds_project", "cc_events_project", "cc_devices_project",
+		"cc_jobs_project", "cc_messages_project", "cc_revisions_project", "cc_devices_token"} {
 		var name string
 		if err := db.QueryRow(`SELECT name FROM sqlite_master WHERE type='index' AND name=?`, index).Scan(&name); err != nil {
 			t.Errorf("index %s missing: %v", index, err)
@@ -180,5 +184,109 @@ func TestRecoverStoreMarksUnfinishedWorkInterrupted(t *testing.T) {
 	_ = db.QueryRow(`SELECT locked_by_job FROM cc_projects WHERE id='ccp_2'`).Scan(&lock2)
 	if lock1 != "" || lock2 != "ccj_wait" {
 		t.Fatalf("locks = %q/%q, want released/ccj_wait", lock1, lock2)
+	}
+}
+
+func TestRecoverStoreIsAllOrNothing(t *testing.T) {
+	db, _ := openTestStore(t)
+	if _, err := db.Exec(`INSERT INTO cc_builds(id,project_id,origin,status,board,project_version,created_at)
+		VALUES('ccb_r','ccp_1','user','running','esp32-2432s028r',1,'2026-10-10T08:00:00.000Z')`); err != nil {
+		t.Fatal(err)
+	}
+	// The job update runs after the build update and fails without its table.
+	if _, err := db.Exec(`DROP TABLE cc_jobs`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := recoverStore(context.Background(), db, "2026-10-10T09:00:00.000Z"); err == nil {
+		t.Fatal("recoverStore succeeded without cc_jobs")
+	}
+	var status, code string
+	if err := db.QueryRow(`SELECT status, error_code FROM cc_builds WHERE id='ccb_r'`).Scan(&status, &code); err != nil {
+		t.Fatal(err)
+	}
+	if status != BuildRunning || code != "" {
+		t.Fatalf("build = %s/%q after a failed recovery, want running and untouched", status, code)
+	}
+}
+
+func TestStoreIndexesTheLaterPlanQueries(t *testing.T) {
+	db, _ := openTestStore(t)
+	want := map[string]struct {
+		table  string
+		cols   []string
+		unique bool
+	}{
+		"cc_jobs_project":      {"cc_jobs", []string{"project_id", "created_at"}, false},
+		"cc_messages_project":  {"cc_messages", []string{"project_id", "created_at"}, false},
+		"cc_revisions_project": {"cc_revisions", []string{"project_id", "created_at"}, false},
+		"cc_devices_token":     {"cc_devices", []string{"token_hash"}, true},
+	}
+	for name, w := range want {
+		var table, sqlText string
+		if err := db.QueryRow(`SELECT tbl_name, sql FROM sqlite_master WHERE type='index' AND name=?`, name).Scan(&table, &sqlText); err != nil {
+			t.Errorf("index %s missing: %v", name, err)
+			continue
+		}
+		if table != w.table || strings.HasPrefix(sqlText, "CREATE UNIQUE") != w.unique {
+			t.Errorf("index %s = %s on %s, want table %s unique=%v", name, sqlText, table, w.table, w.unique)
+		}
+		rows, err := db.Query(`SELECT name FROM pragma_index_info(?) ORDER BY seqno`, name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var cols []string
+		for rows.Next() {
+			var col string
+			if err := rows.Scan(&col); err != nil {
+				t.Fatal(err)
+			}
+			cols = append(cols, col)
+		}
+		_ = rows.Close()
+		if !slices.Equal(cols, w.cols) {
+			t.Errorf("index %s columns = %v, want %v", name, cols, w.cols)
+		}
+	}
+	insert := func(id string) error {
+		_, err := db.Exec(`INSERT INTO cc_devices(id,project_id,name,board,status,token_hash,created_at)
+			VALUES(?,'ccp_1','Device','esp32-2432s028r','pending','same-hash','2026-10-10T08:00:00.000Z')`, id)
+		return err
+	}
+	if err := insert("ccd_1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := insert("ccd_2"); err == nil {
+		t.Fatal("two devices share one token hash")
+	}
+}
+
+func TestScanBuildLogsAndEmptiesDamagedJSONColumns(t *testing.T) {
+	db, _ := openTestStore(t)
+	if _, err := db.Exec(`INSERT INTO cc_builds(id,project_id,origin,status,board,project_version,diagnostics,usage,artifacts,created_at)
+		VALUES('ccb_bad','ccp_1','user','failed','esp32-2432s028r',1,'[{"file":"secret-diag"','{"flash_used":"secret-usage"}',
+		'[{"name":1,"sha256":"secret-art"}]','2026-10-10T08:00:00.000Z')`); err != nil {
+		t.Fatal(err)
+	}
+	var logs bytes.Buffer
+	saved := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(saved) })
+
+	b, err := scanBuild(db.QueryRow(`SELECT ` + buildColumns + ` FROM cc_builds WHERE id='ccb_bad'`))
+	if err != nil {
+		t.Fatalf("scanBuild: %v", err)
+	}
+	if b.ID != "ccb_bad" || b.Status != BuildFailed || len(b.Diagnostics) != 0 || b.Diagnostics == nil ||
+		len(b.Artifacts) != 0 || b.Artifacts == nil || b.Usage != (BuildUsage{}) {
+		t.Fatalf("build = %+v, want the row with empty JSON fields", b)
+	}
+	out := logs.String()
+	for _, column := range []string{"diagnostics", "usage", "artifacts"} {
+		if !strings.Contains(out, "column="+column) {
+			t.Errorf("no warning for %s in %q", column, out)
+		}
+	}
+	if strings.Count(out, "build_id=ccb_bad") != 3 || strings.Contains(out, "secret") {
+		t.Fatalf("log must name the build three times and never the content: %q", out)
 	}
 }

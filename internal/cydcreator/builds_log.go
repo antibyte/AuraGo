@@ -5,15 +5,21 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
 
 const (
 	// buildLogMaxLines is the most lines one build_log event carries.
 	buildLogMaxLines = 50
 	// buildLogMaxPending bounds lines waiting for the next event; older ones
-	// are counted as skipped (the full log stays in build.log).
-	buildLogMaxPending = 1000
+	// are counted as skipped (the full log stays in build.log). An event never
+	// carries more than buildLogMaxLines lines, so keeping more would only cost
+	// memory: the output is the same.
+	buildLogMaxPending = buildLogMaxLines
 	maxBuildLogLine    = 4096
+	// buildLogTruncated ends a stored log that reached MaxBuildLogBytes; its
+	// length is reserved, so the log including it never exceeds the cap.
+	buildLogTruncated = "[cyd-creator] log truncated\n"
 )
 
 // buildLogInterval is the minimum gap between two build_log events of a build.
@@ -33,8 +39,8 @@ func (l *buildLog) add(line string) {
 	if l.truncated {
 		return
 	}
-	if l.buf.Len()+len(line)+1 > MaxBuildLogBytes {
-		l.buf.WriteString("[cyd-creator] log truncated\n")
+	if l.buf.Len()+len(line)+1 > MaxBuildLogBytes-len(buildLogTruncated) {
+		l.buf.WriteString(buildLogTruncated)
 		l.truncated = true
 		return
 	}
@@ -53,13 +59,14 @@ func (l *buildLog) String() string {
 // fit, the event starts with a "lines skipped" marker followed by the newest
 // lines.
 type logThrottle struct {
-	mu      sync.Mutex
-	pending []string
-	skipped int
-	last    time.Time // time of the last event
-	emit    func(lines []string)
-	quit    chan struct{}
-	done    chan struct{}
+	mu       sync.Mutex
+	pending  []string
+	skipped  int
+	last     time.Time // time of the last event
+	emit     func(lines []string)
+	quit     chan struct{}
+	done     chan struct{}
+	stopOnce sync.Once
 }
 
 func newLogThrottle(interval time.Duration, emit func(lines []string)) *logThrottle {
@@ -88,16 +95,31 @@ func newLogThrottle(interval time.Duration, emit func(lines []string)) *logThrot
 	return t
 }
 
-func (t *logThrottle) add(line string) {
-	if len(line) > maxBuildLogLine {
-		line = line[:maxBuildLogLine] + "…"
+// clipLogLine cuts a line longer than maxBuildLogLine bytes on a rune boundary
+// and marks the cut with "…". Invalid UTF-8 is cut at most three bytes early.
+func clipLogLine(line string) string {
+	if len(line) <= maxBuildLogLine {
+		return line
 	}
+	cut := maxBuildLogLine
+	for i := 0; i < utf8.UTFMax-1 && cut > 0 && !utf8.RuneStart(line[cut]); i++ {
+		cut--
+	}
+	return line[:cut] + "…"
+}
+
+func (t *logThrottle) add(line string) {
+	line = clipLogLine(line)
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.pending = append(t.pending, line)
 	if len(t.pending) > buildLogMaxPending {
+		// Shift in place: flush hands the old slice to emit and starts a new
+		// one, so no emitted event shares this backing array.
 		drop := len(t.pending) - buildLogMaxPending
-		t.pending = append(t.pending[:0:0], t.pending[drop:]...)
+		n := copy(t.pending, t.pending[drop:])
+		clear(t.pending[n:])
+		t.pending = t.pending[:n]
 		t.skipped += drop
 	}
 }
@@ -124,8 +146,9 @@ func (t *logThrottle) flush() {
 	t.emit(lines)
 }
 
-// stop flushes the remaining lines and waits for the goroutine.
+// stop flushes the remaining lines and waits for the goroutine. Calling it
+// again (also concurrently) only waits for the same end.
 func (t *logThrottle) stop() {
-	close(t.quit)
+	t.stopOnce.Do(func() { close(t.quit) })
 	<-t.done
 }
