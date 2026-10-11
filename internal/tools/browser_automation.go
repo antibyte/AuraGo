@@ -742,19 +742,24 @@ func ExecuteBrowserAutomation(ctx context.Context, cfg *config.Config, req Brows
 	}
 
 	if op == "screenshot" {
-		resp["screenshot_rel_path"] = screenshotWorkspaceRel
-		resp["screenshot_path"] = screenshotAbs
-		if webPath := browserAutomationWebPath(workspaceRoot, screenshotAbs); webPath != "" {
-			resp["screenshot_web_path"] = webPath
+		status, _ := resp["status"].(string)
+		if status == "" || status == "success" {
+			resp["screenshot_rel_path"] = screenshotWorkspaceRel
+			resp["screenshot_path"] = screenshotAbs
+			if webPath := browserAutomationWebPath(workspaceRoot, screenshotAbs); webPath != "" {
+				resp["screenshot_web_path"] = webPath
+			} else {
+				delete(resp, "screenshot_web_path")
+			}
 		} else {
+			delete(resp, "screenshot_rel_path")
+			delete(resp, "screenshot_path")
 			delete(resp, "screenshot_web_path")
 		}
-	} else if screenshotRel, ok := resp["screenshot_rel_path"].(string); ok && screenshotRel != "" {
-		abs := filepath.Join(workspaceRoot, filepath.FromSlash(screenshotRel))
-		resp["screenshot_path"] = abs
-		if webPath := browserAutomationWebPath(workspaceRoot, abs); webPath != "" {
-			resp["screenshot_web_path"] = webPath
-		}
+	} else {
+		delete(resp, "screenshot_rel_path")
+		delete(resp, "screenshot_path")
+		delete(resp, "screenshot_web_path")
 	}
 
 	if downloadRel, ok := resp["download_rel_path"].(string); ok && downloadRel != "" {

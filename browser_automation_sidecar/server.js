@@ -166,9 +166,43 @@ async function cleanupOldEntries(root, maxAgeMs) {
   }
 }
 
+async function cleanupOldScreenshots(root, maxAgeMs) {
+  let rootInfo;
+  try {
+    rootInfo = await fs.lstat(root);
+  } catch (_) {
+    return;
+  }
+  if (rootInfo.isSymbolicLink() || !rootInfo.isDirectory()) {
+    return;
+  }
+  let entries = [];
+  try {
+    entries = await fs.readdir(root, { withFileTypes: true });
+  } catch (_) {
+    return;
+  }
+  const cutoff = Date.now() - maxAgeMs;
+  for (const entry of entries) {
+    const target = path.join(root, entry.name);
+    try {
+      const info = await fs.lstat(target);
+      if (info.isSymbolicLink() || !info.isFile() || info.mtimeMs >= cutoff) {
+        continue;
+      }
+      const checked = resolveUnder(root, relFromRoot(root, target));
+      if (checked !== target) {
+        continue;
+      }
+      await fs.unlink(target);
+    } catch (_) {
+    }
+  }
+}
+
 async function cleanupStaleArtifacts() {
   await cleanupOldEntries(DOWNLOAD_ROOT, FILE_RETENTION_MS);
-  await cleanupOldEntries(SCREENSHOTS_ROOT, FILE_RETENTION_MS);
+  await cleanupOldScreenshots(SCREENSHOTS_ROOT, FILE_RETENTION_MS);
 }
 
 function pushDownloadEntry(session, entry) {

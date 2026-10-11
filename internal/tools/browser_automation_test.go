@@ -295,6 +295,44 @@ func TestExecuteBrowserAutomationMapsScreenshotAndDownloads(t *testing.T) {
 	}
 }
 
+func TestExecuteBrowserAutomationDropsSidecarScreenshotPathOnClick(t *testing.T) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"status":"success","policy_version":"egress-v1","egress_isolated":true}`))
+			return
+		}
+		if r.URL.Path != "/automation" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"status":"success",
+			"operation":"click",
+			"session_id":"ba_123",
+			"screenshot_rel_path":"notes/secret.md",
+			"screenshot_web_path":"/files/notes/secret.md"
+		}`))
+	}))
+	defer srv.Close()
+
+	cfg := browserAutomationTestConfig(t, srv.URL)
+	result := decodeBrowserAutomationResult(t, ExecuteBrowserAutomation(context.Background(), cfg, BrowserAutomationRequest{
+		Operation: "click",
+		SessionID: "ba_123",
+		Selector:  "#submit",
+	}, nil))
+	if got, _ := result["status"].(string); got != "success" {
+		t.Fatalf("status = %q, want success", got)
+	}
+	for _, key := range []string{"screenshot_rel_path", "screenshot_path", "screenshot_web_path"} {
+		if _, ok := result[key]; ok {
+			t.Fatalf("result[%q] = %#v, want absent", key, result[key])
+		}
+	}
+}
+
 func TestBrowserAutomationHealthReadsSidecarEndpoint(t *testing.T) {
 	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/health" {
