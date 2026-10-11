@@ -8,7 +8,9 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// Library is a dynamically loaded native library.
+// Library is a dynamically loaded native library. It is not safe for
+// concurrent use: its owner resolves the symbols it needs and closes the
+// Library only after all lookups have finished.
 type Library struct {
 	handle windows.Handle
 }

@@ -31,22 +31,19 @@ func (transport assetDownloadTestTransport) RoundTrip(request *http.Request) (*h
 	return response, nil
 }
 
-// newAssetDownloadTestClient keeps the asset specification on an HTTPS URL
-// while serving the test response entirely in memory. This avoids dependence
-// on host-wide TLS interception and loopback capacity without weakening
-// production TLS or bypassing ValidateAssetSpec's HTTPS requirement.
-func newAssetDownloadTestClient(handler http.Handler) (*http.Client, string) {
-	return &http.Client{
-		Transport: assetDownloadTestTransport{handler: handler},
-	}, "https://assets.invalid"
-}
+// testAssetBaseURL keeps the asset specification on an HTTPS URL while
+// assetDownloadTestTransport serves the test response entirely in memory.
+// This avoids dependence on host-wide TLS interception and loopback capacity
+// without weakening production TLS or bypassing ValidateAssetSpec's HTTPS
+// requirement. Tests swap only the transport, so the production client's
+// timeout and HTTPS-only redirect policy stay in force.
+const testAssetBaseURL = "https://assets.invalid"
 
 func newTestAssetCache(t *testing.T, handler http.Handler) (*AssetCache, string) {
 	t.Helper()
-	client, baseURL := newAssetDownloadTestClient(handler)
 	cache := NewAssetCache(t.TempDir(), "AuraGo/onnxrt-test", nil)
-	cache.client = client
-	return cache, baseURL
+	cache.client.Transport = assetDownloadTestTransport{handler: handler}
+	return cache, testAssetBaseURL
 }
 
 func buildTestZip(t *testing.T, files map[string]string) []byte {
@@ -321,14 +318,13 @@ func TestRuntimeManifestRepairsTamperedMissingAndUnexpectedFilesOffline(t *testi
 func TestAssetCacheSendsUserAgentAndReportsProgress(t *testing.T) {
 	content := []byte("pinned asset with user agent")
 	var userAgent string
-	client, baseURL := newAssetDownloadTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userAgent = r.Header.Get("User-Agent")
-		_, _ = w.Write(content)
-	}))
 	var last DownloadStatus
 	cache := NewAssetCache(t.TempDir(), "AuraGo/onnxrt-test", func(status DownloadStatus) { last = status })
-	cache.client = client
-	spec := pinnedSpec("ua-asset", baseURL+"/asset", AssetFile, content)
+	cache.client.Transport = assetDownloadTestTransport{handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		userAgent = r.Header.Get("User-Agent")
+		_, _ = w.Write(content)
+	})}
+	spec := pinnedSpec("ua-asset", testAssetBaseURL+"/asset", AssetFile, content)
 	if err := cache.EnsureFile(context.Background(), spec, filepath.Join(cache.Root(), "models", "asset.bin")); err != nil {
 		t.Fatal(err)
 	}
@@ -437,5 +433,131 @@ func TestSafeRemoveAllRefusesRootAndOutside(t *testing.T) {
 	}
 	if _, err := os.Stat(inside); !os.IsNotExist(err) {
 		t.Fatalf("inside directory still exists: %v", err)
+	}
+}
+
+func TestAssetDownloadRefusesNonHTTPSRedirect(t *testing.T) {
+	content := []byte("asset served over plain HTTP")
+	cache, baseURL := newTestAssetCache(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/asset" {
+			http.Redirect(w, r, "http://assets.invalid/plain", http.StatusFound)
+			return
+		}
+		_, _ = w.Write(content)
+	}))
+	spec := pinnedSpec("redirected-asset", baseURL+"/asset", AssetFile, content)
+	destination := filepath.Join(cache.Root(), "models", "asset.bin")
+	err := cache.EnsureFile(context.Background(), spec, destination)
+	if err == nil || !strings.Contains(err.Error(), "refusing non-HTTPS redirect") {
+		t.Fatalf("EnsureFile error = %v, want a refused non-HTTPS redirect", err)
+	}
+	for _, leftover := range []string{destination, destination + ".part"} {
+		if _, statErr := os.Stat(leftover); !os.IsNotExist(statErr) {
+			t.Fatalf("%s exists after the refused redirect: %v", leftover, statErr)
+		}
+	}
+}
+
+func TestAssetDownloadFollowsHTTPSRedirect(t *testing.T) {
+	content := []byte("asset behind an HTTPS redirect")
+	var requested []string
+	cache, baseURL := newTestAssetCache(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requested = append(requested, r.URL.Scheme+"://"+r.URL.Host+r.URL.Path)
+		if r.URL.Path == "/asset" {
+			http.Redirect(w, r, "https://mirror.invalid/blob/asset.bin", http.StatusFound)
+			return
+		}
+		_, _ = w.Write(content)
+	}))
+	spec := pinnedSpec("redirected-asset", baseURL+"/asset", AssetFile, content)
+	destination := filepath.Join(cache.Root(), "models", "asset.bin")
+	if err := cache.EnsureFile(context.Background(), spec, destination); err != nil {
+		t.Fatal(err)
+	}
+	if !FileMatches(destination, spec.Size, spec.SHA256) {
+		t.Fatal("redirected download did not produce the pinned file")
+	}
+	if got, want := strings.Join(requested, ","), "https://assets.invalid/asset,https://mirror.invalid/blob/asset.bin"; got != want {
+		t.Fatalf("requested = %s, want %s", got, want)
+	}
+}
+
+func TestValidateAssetSpecRejectsUnsafeIDsAndNonHexHashes(t *testing.T) {
+	valid := pinnedSpec("ort-linux-amd64-cpu", "https://example.invalid/a.bin", AssetFile, []byte("a"))
+	accepted := []string{
+		"a",
+		"0",
+		"granite-gguf-q8_0",
+		"llama-windows-amd64-cuda-runtime",
+		"ort-1.27.0-webgpu",
+	}
+	for _, id := range accepted {
+		spec := valid
+		spec.ID = id
+		if err := ValidateAssetSpec(spec); err != nil {
+			t.Errorf("ID %q rejected: %v", id, err)
+		}
+	}
+	rejected := []string{
+		"",
+		".",
+		"..",
+		"../escape",
+		"a/b",
+		`a\b`,
+		"C:",
+		"Upper",
+		"-leading-dash",
+		".hidden",
+		"_leading-underscore",
+		"with space",
+		"nul\x00byte",
+		"ünicode",
+	}
+	for _, id := range rejected {
+		spec := valid
+		spec.ID = id
+		if err := ValidateAssetSpec(spec); err == nil {
+			t.Errorf("ID %q accepted", id)
+		}
+	}
+	upper := valid
+	upper.SHA256 = strings.ToUpper(valid.SHA256)
+	if err := ValidateAssetSpec(upper); err != nil {
+		t.Errorf("upper-case SHA-256 rejected: %v", err)
+	}
+	for name, hash := range map[string]string{
+		"empty":   "",
+		"short":   strings.Repeat("a", 63),
+		"long":    strings.Repeat("a", 65),
+		"non-hex": strings.Repeat("g", 64),
+		"padded":  " " + strings.Repeat("a", 62) + " ",
+		"prefix":  "0x" + strings.Repeat("a", 62),
+	} {
+		spec := valid
+		spec.SHA256 = hash
+		if err := ValidateAssetSpec(spec); err == nil {
+			t.Errorf("%s SHA-256 %q accepted", name, hash)
+		}
+	}
+}
+
+func TestEnsureRuntimeRejectsUnsupportedKindBeforeDownload(t *testing.T) {
+	cache, baseURL := newTestAssetCache(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("unexpected download of %s", r.URL)
+		http.Error(w, "unexpected download", http.StatusTeapot)
+	}))
+	content := []byte("not a runtime archive")
+	for _, kind := range []AssetKind{AssetFile, AssetKind("rar"), AssetKind("")} {
+		spec := pinnedSpec("unsupported-runtime", baseURL+"/runtime", kind, content)
+		root, err := cache.EnsureRuntime(context.Background(), spec)
+		if err == nil || !strings.Contains(err.Error(), "unsupported archive kind") {
+			t.Fatalf("EnsureRuntime(kind %q) = %q, %v; want an unsupported archive kind error", kind, root, err)
+		}
+	}
+	for _, dir := range []string{"downloads", "runtimes"} {
+		if _, err := os.Stat(filepath.Join(cache.Root(), dir)); !os.IsNotExist(err) {
+			t.Fatalf("%s directory created for an unsupported runtime: %v", dir, err)
+		}
 	}
 }

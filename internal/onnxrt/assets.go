@@ -20,6 +20,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -128,6 +129,9 @@ func (c *AssetCache) EnsureRuntime(ctx context.Context, spec AssetSpec) (string,
 	if spec.ID == "" {
 		return "", fmt.Errorf("runtime asset is not available for this platform")
 	}
+	if err := validateRuntimeArchiveKind(spec); err != nil {
+		return "", err
+	}
 	target := RuntimeDir(c.root, spec)
 	runtimesRoot := filepath.Join(c.root, "runtimes")
 	err := c.withProcessLock(ctx, func() error {
@@ -202,6 +206,17 @@ func RuntimeDir(root string, spec AssetSpec) string {
 // runtime asset (.zip, .tar.gz, .whl; .bin for anything else).
 func ArchivePath(root string, spec AssetSpec) string {
 	return filepath.Join(root, "downloads", spec.ID+archiveSuffix(spec.Kind))
+}
+
+// validateRuntimeArchiveKind rejects, before anything is downloaded, the
+// archive kinds extractRuntimeArchive cannot unpack. Keep both in sync.
+func validateRuntimeArchiveKind(spec AssetSpec) error {
+	switch spec.Kind {
+	case AssetZip, AssetTarGzip:
+		return nil
+	default:
+		return fmt.Errorf("runtime asset %s has unsupported archive kind %q", spec.ID, spec.Kind)
+	}
 }
 
 func extractRuntimeArchive(spec AssetSpec, archivePath, target string) error {
@@ -305,9 +320,17 @@ func (c *AssetCache) ensureFileUnlocked(ctx context.Context, spec AssetSpec, des
 	return nil
 }
 
-// ValidateAssetSpec requires an absolute HTTPS URL, a positive size and a
-// 64-digit SHA-256.
+// assetIDPattern keeps asset IDs safe as single path components: RuntimeDir
+// and ArchivePath join them below the cache root. It also rules out "." and
+// "..".
+var assetIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
+
+// ValidateAssetSpec requires an ID that is a safe path component, an
+// absolute HTTPS URL, a positive size and a 64-digit hexadecimal SHA-256.
 func ValidateAssetSpec(spec AssetSpec) error {
+	if !assetIDPattern.MatchString(spec.ID) {
+		return fmt.Errorf("asset ID %q must match %s", spec.ID, assetIDPattern)
+	}
 	parsed, err := url.Parse(spec.URL)
 	if err != nil {
 		return fmt.Errorf("parse asset URL: %w", err)
@@ -320,6 +343,9 @@ func ValidateAssetSpec(spec AssetSpec) error {
 	}
 	if len(spec.SHA256) != sha256.Size*2 {
 		return fmt.Errorf("asset %s has invalid SHA-256", spec.ID)
+	}
+	if _, err := hex.DecodeString(spec.SHA256); err != nil {
+		return fmt.Errorf("asset %s has invalid SHA-256: %w", spec.ID, err)
 	}
 	return nil
 }
