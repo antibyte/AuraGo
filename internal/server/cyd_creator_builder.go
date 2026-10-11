@@ -16,7 +16,9 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -27,6 +29,7 @@ import (
 
 	"aurago/internal/cydcreator"
 	"aurago/internal/dockerutil"
+	"aurago/internal/fileutil"
 	"aurago/internal/tools"
 )
 
@@ -95,7 +98,31 @@ type cydBuilderSettings struct {
 	MemoryMB int
 	CPUCores float64
 	IdleStop time.Duration
+	// TrustFile holds the pull record (cydTrustedImage), next to
+	// cyd_creator.db (cydBuilderTrustFile). Empty keeps the record in memory
+	// only (tests), so a restart then needs a new pull.
+	TrustFile string
 }
+
+// cydBuilderTrustFile is the pull record's path for the configured
+// cyd_creator.db path: the data directory, which agent file tools cannot
+// write.
+func cydBuilderTrustFile(cydCreatorDB string) string {
+	return filepath.Join(filepath.Dir(cydCreatorDB), "cyd_builder_image.json")
+}
+
+// cydTrustedImage is the pull record: the image ID that this AuraGo's own pull
+// installed for the configured reference. A different configured reference
+// (a builder_image change) has no record until it is pulled.
+type cydTrustedImage struct {
+	Version    int    `json:"version"`
+	Reference  string `json:"reference"`
+	ID         string `json:"id"`
+	RepoDigest string `json:"repo_digest,omitempty"`
+	RecordedAt string `json:"recorded_at,omitempty"`
+}
+
+const cydTrustFileMaxBytes = 64 << 10
 
 // cydDockerBuilder implements cydcreator.Builder on the Docker Engine API
 // through the internal/tools helpers (runtime Docker gates apply).
@@ -117,6 +144,10 @@ type cydDockerBuilder struct {
 	pulling  bool
 	progress float64
 	pullErr  string
+
+	trustMu     sync.Mutex // the pull record
+	trusted     *cydTrustedImage
+	trustLoaded bool
 }
 
 func newCYDDockerBuilder(docker tools.DockerConfig, settings cydBuilderSettings, logger *slog.Logger) *cydDockerBuilder {
@@ -292,8 +323,8 @@ func (b *cydDockerBuilder) verifiedImage(ctx context.Context) (string, error) {
 	if img == nil {
 		return "", cydcreator.NewError(cydcreator.CodeImageMissing, "the toolchain image "+b.settings.Image+" is not installed", map[string]any{"image": b.settings.Image})
 	}
-	if problem := cydImageProvenanceProblem(b.settings.Image, img.RepoDigests); problem != "" {
-		b.logger.Warn("CYD Creator builder: the toolchain image did not come from its registry and is not used",
+	if problem := b.imageTrustProblem(img); problem != "" {
+		b.logger.Warn("CYD Creator builder: the toolchain image is not trusted and is not used",
 			"image", b.settings.Image, "id", img.ID, "repo_digests", img.RepoDigests, "reason", problem)
 		return "", cydcreator.NewError(cydcreator.CodeImageMissing, cydImageNotPublished, map[string]any{"image": b.settings.Image})
 	}
@@ -326,8 +357,8 @@ func (b *cydDockerBuilder) Status(ctx context.Context) cydcreator.ToolchainStatu
 	if img != nil {
 		// Only an image builds may use counts as present, so the app offers
 		// the pull that replaces an unverified one.
-		if problem := cydImageProvenanceProblem(b.settings.Image, img.RepoDigests); problem != "" {
-			b.logger.Debug("CYD Creator builder: the toolchain image did not come from its registry", "image", b.settings.Image, "reason", problem)
+		if problem := b.imageTrustProblem(img); problem != "" {
+			b.logger.Debug("CYD Creator builder: the toolchain image is not trusted", "image", b.settings.Image, "reason", problem)
 			if st.Error == "" {
 				st.Error = cydImageNotPublished
 			}
@@ -391,10 +422,149 @@ func (b *cydDockerBuilder) pull(ctx context.Context) error {
 		}
 		return b.pullFailed(0, dockerutil.SanitizeOneLine(err.Error(), 300))
 	}
+	if err := b.recordPulledImage(ctx); err != nil {
+		return err
+	}
 	b.pullMu.Lock()
 	b.progress = 1
 	b.pullMu.Unlock()
 	return nil
+}
+
+// recordPulledImage stores the image the pull just installed as the trusted
+// image of the configured reference (cydTrustedImage). A pull that cannot be
+// recorded fails, because builds would not use the image.
+func (b *cydDockerBuilder) recordPulledImage(ctx context.Context) error {
+	img, err := b.inspectImage(ctx)
+	if err == nil && img == nil {
+		err = errors.New("the pulled image is not installed")
+	}
+	if err == nil {
+		if problem := cydImageProvenanceProblem(b.settings.Image, img.RepoDigests); problem != "" {
+			err = errors.New(problem)
+		}
+	}
+	if err == nil {
+		err = b.saveTrustedImage(ctx, cydTrustedImage{Reference: b.settings.Image, ID: img.ID,
+			RepoDigest: cydMatchingRepoDigest(b.settings.Image, img.RepoDigests)})
+	}
+	if err != nil {
+		b.logger.Warn("CYD Creator builder: the pulled toolchain image could not be recorded", "image", b.settings.Image, "error", err)
+		return cydcreator.NewError(cydcreator.CodeImagePullFailed,
+			"pulling "+b.settings.Image+" finished, but AuraGo could not record the image; the server log has the details", nil)
+	}
+	return nil
+}
+
+// trustedImage returns a copy of the pull record, reading TrustFile once.
+func (b *cydDockerBuilder) trustedImage() *cydTrustedImage {
+	b.trustMu.Lock()
+	defer b.trustMu.Unlock()
+	if !b.trustLoaded {
+		b.trustLoaded = true
+		b.trusted = b.readTrustFile()
+	}
+	if b.trusted == nil {
+		return nil
+	}
+	rec := *b.trusted
+	return &rec
+}
+
+// readTrustFile reads the pull record; a missing, oversized or invalid file
+// is no record (a pull writes a new one).
+func (b *cydDockerBuilder) readTrustFile() *cydTrustedImage {
+	path := b.settings.TrustFile
+	if path == "" {
+		return nil
+	}
+	f, err := os.Open(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		b.logger.Warn("CYD Creator builder: the image pull record could not be read", "path", path, "error", err)
+		return nil
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, cydTrustFileMaxBytes+1))
+	var rec cydTrustedImage
+	if err == nil && len(data) > cydTrustFileMaxBytes {
+		err = errors.New("file too large")
+	}
+	if err == nil {
+		err = json.Unmarshal(data, &rec)
+	}
+	if err == nil && (rec.Version != 1 || rec.Reference == "" || !cydImageIDPattern.MatchString(rec.ID)) {
+		err = errors.New("unexpected content")
+	}
+	if err != nil {
+		b.logger.Warn("CYD Creator builder: the image pull record is invalid and ignored", "path", path, "error", err)
+		return nil
+	}
+	return &rec
+}
+
+// saveTrustedImage writes the pull record atomically, then keeps it in memory.
+func (b *cydDockerBuilder) saveTrustedImage(ctx context.Context, rec cydTrustedImage) error {
+	rec.Version = 1
+	rec.RecordedAt = time.Now().UTC().Format(time.RFC3339)
+	b.trustMu.Lock()
+	defer b.trustMu.Unlock()
+	if path := b.settings.TrustFile; path != "" {
+		data, err := json.MarshalIndent(rec, "", "  ")
+		if err != nil {
+			return err
+		}
+		if err := fileutil.WriteFileContext(ctx, path, append(data, '\n'), 0o600); err != nil {
+			return err
+		}
+	}
+	b.trusted, b.trustLoaded = &rec, true
+	return nil
+}
+
+// cydMatchingRepoDigest returns the repository digest that satisfied
+// cydImageProvenanceProblem, or "".
+func cydMatchingRepoDigest(configured string, repoDigests []string) string {
+	repository, pinned := dockerutil.ImageRepository(configured), dockerutil.ImageReferenceDigest(configured)
+	for _, entry := range repoDigests {
+		digest := dockerutil.ImageReferenceDigest(entry)
+		if digest != "" && dockerutil.ImageRepository(entry) == repository && (pinned == "" || digest == pinned) {
+			return entry
+		}
+	}
+	return ""
+}
+
+// cydImageNeedsPullRecord reports whether configured is trusted only through
+// the pull record: a reference with a registry host and no digest pin. A
+// digest pin proves the content by itself, a local-only tag is accepted as it
+// is (development and CI).
+func cydImageNeedsPullRecord(configured string) bool {
+	return dockerutil.ImageReferenceHasRegistry(configured) && dockerutil.ImageReferenceDigest(configured) == ""
+}
+
+// imageTrustProblem returns "" when builds may use img: it passes
+// cydImageProvenanceProblem and, when cydImageNeedsPullRecord, is the image
+// AuraGo's own pull recorded for this reference. On the containerd image store
+// a local build carries a repository digest of its tag too; only the record
+// tells it from the pulled image.
+func (b *cydDockerBuilder) imageTrustProblem(img *cydImageInspect) string {
+	if problem := cydImageProvenanceProblem(b.settings.Image, img.RepoDigests); problem != "" {
+		return problem
+	}
+	if !cydImageNeedsPullRecord(b.settings.Image) {
+		return ""
+	}
+	rec := b.trustedImage()
+	switch {
+	case rec == nil || rec.Reference != b.settings.Image:
+		return "no pull record for this image reference; pull it in CYD Creator"
+	case rec.ID != img.ID:
+		return "the image ID differs from the pulled one (re-tagged or replaced locally)"
+	}
+	return ""
 }
 
 // pullFailed logs the Engine's text and returns CYD_IMAGE_PULL_FAILED with

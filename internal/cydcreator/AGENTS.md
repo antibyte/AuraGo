@@ -351,14 +351,19 @@ turns a project into the complete PlatformIO tree. Later plans add storage and t
   `aurago.managed=cyd-creator`; names in `internal/dockerutil`) belong to the CYD Creator app only: the agent docker
   tool, agent Compose and the admin Containers API protect them (`internal/tools/AGENTS.md`), so tests and CI use
   other names (`aurago-cyd-*-it`, `cyd-ci-*`).
-- Image provenance (`internal/server/cyd_creator_builder.go`, `cydImageProvenanceProblem`): before every acquire the
-  builder inspects `builder_image`; a reference with a registry host needs a `RepoDigests` entry of its own repository
-  (a digest-pinned one exactly its digest), a reference without one (`aurago-cyd-builder:dev`/`:ci`, development and
-  CI) is used as it is. The container is created from the verified image ID, which is part of the fingerprint (a new
-  pull recreates the container); a failed check is `CYD_IMAGE_MISSING` with a generic text (log has the details) and
-  Status reports the image as not present, so the app offers the pull. On the containerd image store (Docker 29
-  default) a local build gets a digest of its tag's repository too: there only a digest-pinned `builder_image` proves
-  the origin, and the agent-side image refusal is the barrier.
+- Image trust (`internal/server/cyd_creator_builder.go`, `imageTrustProblem`): before every acquire the builder
+  inspects `builder_image`. A reference with a registry host needs a `RepoDigests` entry of its own repository
+  (`cydImageProvenanceProblem`); a digest-pinned one needs exactly its digest and nothing else. An unpinned one must
+  also have the image ID that AuraGo's own pull recorded for exactly this reference (`cydTrustedImage`, written
+  atomically after a successful `Pull` to `cyd_builder_image.json` next to `cyd_creator.db`, `cydBuilderTrustFile`;
+  the data directory is out of reach of agent file tools): on the containerd image store (Docker 29 default) a local
+  build under the tag gets a repository digest too, so only the record tells it from the pulled image. No record, a
+  different ID (re-tagged or replaced locally) or a changed `builder_image` is `CYD_IMAGE_MISSING` with a generic
+  text (the server log has the reason) and Status reports the image as not present, so the app offers the pull,
+  which re-establishes trust. A reference without a registry host (`aurago-cyd-builder:dev`/`:ci`) is a local-only
+  tag the administrator configured for development, the integration test and CI: it needs no digest and no record.
+  The container is created from the verified image ID, which is part of the fingerprint (a new pull recreates it).
+  Task 12 wiring must set `TrustFile`; empty keeps the record in memory only (tests).
 - Publishing: `.github/workflows/cyd-builder.yml` builds each architecture natively and smoke-tests it offline
   (amd64 all profiles, arm64 one). The amd64 job then compiles ten builds of the nine golden cases (`all_widgets` on
   two boards, `all_widgets_portrait` and the seven `theme_*` cases) strictly with `TestGenerateCompilesInBuilder`

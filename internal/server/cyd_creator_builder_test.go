@@ -15,6 +15,8 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -332,6 +334,8 @@ func newTestCYDBuilder(cfg tools.DockerConfig, idle time.Duration) *cydDockerBui
 	b := newCYDDockerBuilder(cfg, cydBuilderSettings{Image: "ghcr.io/antibyte/aurago-cyd-builder:1", MemoryMB: 2048, CPUCores: 2, IdleStop: idle},
 		slog.New(slog.NewTextHandler(io.Discard, nil)))
 	b.stopGrace = 0
+	// As after a pull of the fake engine's image (in memory, no TrustFile).
+	b.trusted, b.trustLoaded = &cydTrustedImage{Version: 1, Reference: b.settings.Image, ID: fakeCYDImageID}, true
 	return b
 }
 
@@ -1248,7 +1252,7 @@ func TestCYDBuilderRefusesAnImageThatDidNotComeFromItsRegistry(t *testing.T) {
 		})
 	}
 	// An existing container of a verified image is not reused once the tag
-	// points at an unverified image.
+	// points at an unverified image; a newly pulled image recreates it.
 	engine, cfg := newFakeCYDEngine(t)
 	b := newTestCYDBuilder(cfg, 0)
 	req := cydcreator.BuildRequest{BuildID: "ccb_0031", Env: "esp32-2432s028r", CacheKey: "k", Tree: stubTree(0, 0)}
@@ -1258,6 +1262,9 @@ func TestCYDBuilderRefusesAnImageThatDidNotComeFromItsRegistry(t *testing.T) {
 	engine.mu.Lock()
 	engine.imageID, engine.imageDigests = "sha256:"+strings.Repeat("2", 64), []string{"ghcr.io/antibyte/aurago-cyd-builder@sha256:" + strings.Repeat("2", 64)}
 	engine.mu.Unlock()
+	if err := b.Pull(context.Background()); err != nil {
+		t.Fatalf("Pull: %v", err)
+	}
 	req.BuildID = "ccb_0032"
 	if _, err := b.Build(context.Background(), req, nil); err != nil {
 		t.Fatal(err)
@@ -1289,5 +1296,125 @@ func TestCYDBuilderUsesAConfiguredLocalTagByItsID(t *testing.T) {
 	defer engine.mu.Unlock()
 	if engine.container["Image"] != fakeCYDImageID {
 		t.Fatalf("container image = %v, want the image ID", engine.container["Image"])
+	}
+}
+
+// The pull record: a registry reference without a digest pin is used only
+// when its image ID is the one AuraGo's own pull recorded for exactly that
+// reference. On the containerd image store a local build carries a repository
+// digest of its tag too, so the digest check alone cannot tell them apart.
+func TestCYDBuilderTrustsOnlyTheImageItPulled(t *testing.T) {
+	engine, cfg := newFakeCYDEngine(t)
+	trustFile := filepath.Join(t.TempDir(), "cyd_builder_image.json")
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	newBuilder := func(image string) *cydDockerBuilder {
+		b := newCYDDockerBuilder(cfg, cydBuilderSettings{Image: image, TrustFile: trustFile}, logger)
+		b.stopGrace = 0
+		return b
+	}
+	n := 0
+	build := func(b *cydDockerBuilder) error {
+		n++
+		_, err := b.Build(context.Background(), cydcreator.BuildRequest{BuildID: fmt.Sprintf("ccb_%04d", 40+n), Env: "esp32-2432s028r", CacheKey: "k", Tree: stubTree(0, 0)}, nil)
+		return err
+	}
+	wantMissing := func(b *cydDockerBuilder, what string) {
+		t.Helper()
+		if err := build(b); cydcreator.ErrorCode(err) != cydcreator.CodeImageMissing || !strings.Contains(err.Error(), cydImageNotPublished) {
+			t.Fatalf("%s: build = %v, want CYD_IMAGE_MISSING", what, err)
+		}
+		if st := b.Status(context.Background()); st.Present || st.Error != cydImageNotPublished {
+			t.Fatalf("%s: status = %+v, want not present", what, st)
+		}
+	}
+
+	// No record yet: the image the engine holds (a pulled-looking digest) is
+	// not used, and nothing is created.
+	b := newBuilder("ghcr.io/antibyte/aurago-cyd-builder:1")
+	wantMissing(b, "no record")
+	engine.mu.Lock()
+	created := engine.container != nil
+	engine.mu.Unlock()
+	if created {
+		t.Fatal("a container was created without a pull record")
+	}
+
+	// The pull writes the record; builds proceed, also after a restart.
+	if err := b.Pull(context.Background()); err != nil {
+		t.Fatalf("Pull: %v", err)
+	}
+	var rec cydTrustedImage
+	data, err := os.ReadFile(trustFile)
+	if err != nil || json.Unmarshal(data, &rec) != nil || rec.Version != 1 || rec.Reference != "ghcr.io/antibyte/aurago-cyd-builder:1" ||
+		rec.ID != fakeCYDImageID || rec.RepoDigest != fakeCYDRepoDigest {
+		t.Fatalf("pull record = %s (%v)", data, err)
+	}
+	if err := build(b); err != nil {
+		t.Fatalf("build after the pull: %v", err)
+	}
+	if st := b.Status(context.Background()); !st.Present || st.Error != "" {
+		t.Fatalf("status after the pull = %+v", st)
+	}
+	restarted := newBuilder("ghcr.io/antibyte/aurago-cyd-builder:1")
+	if err := build(restarted); err != nil {
+		t.Fatalf("build after a restart: %v", err)
+	}
+
+	// A local build under the same tag: another ID, with a repository digest
+	// of the tag (containerd image store).
+	engine.mu.Lock()
+	engine.imageID, engine.imageDigests = "sha256:"+strings.Repeat("9", 64), []string{"ghcr.io/antibyte/aurago-cyd-builder@sha256:" + strings.Repeat("9", 64)}
+	engine.mu.Unlock()
+	wantMissing(restarted, "re-tagged image")
+
+	// The pull replaces it and re-establishes trust in the pulled image.
+	if err := restarted.Pull(context.Background()); err != nil {
+		t.Fatalf("Pull: %v", err)
+	}
+	if err := build(restarted); err != nil {
+		t.Fatalf("build after the second pull: %v", err)
+	}
+
+	// A changed builder_image has no record until it is pulled.
+	changed := newBuilder("ghcr.io/antibyte/aurago-cyd-builder:2")
+	wantMissing(changed, "changed builder_image")
+	if err := changed.Pull(context.Background()); err != nil {
+		t.Fatalf("Pull: %v", err)
+	}
+	if err := build(changed); err != nil {
+		t.Fatalf("build after pulling the changed image: %v", err)
+	}
+
+	// A digest-pinned reference needs no record; neither does a local-only tag.
+	if err := os.Remove(trustFile); err != nil {
+		t.Fatal(err)
+	}
+	engine.mu.Lock()
+	pinned := "ghcr.io/antibyte/aurago-cyd-builder@" + strings.TrimPrefix(engine.imageDigests[0], "ghcr.io/antibyte/aurago-cyd-builder@")
+	engine.mu.Unlock()
+	if err := build(newBuilder(pinned)); err != nil {
+		t.Fatalf("build with a digest pin and no record: %v", err)
+	}
+	engine.mu.Lock()
+	engine.imageDigests = nil
+	engine.mu.Unlock()
+	if err := build(newBuilder("aurago-cyd-builder:dev")); err != nil {
+		t.Fatalf("build with a local-only tag and no record: %v", err)
+	}
+
+	// An invalid record file is no record.
+	if err := os.WriteFile(trustFile, []byte(`{"version":1,"reference":"ghcr.io/antibyte/aurago-cyd-builder:1","id":"not-an-id"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	engine.mu.Lock()
+	engine.imageDigests = []string{fakeCYDRepoDigest}
+	engine.mu.Unlock()
+	wantMissing(newBuilder("ghcr.io/antibyte/aurago-cyd-builder:1"), "invalid record")
+}
+
+func TestCYDBuilderTrustFileLivesNextToTheDatabase(t *testing.T) {
+	db := filepath.Join("data", "cyd_creator.db")
+	if got, want := cydBuilderTrustFile(db), filepath.Join("data", "cyd_builder_image.json"); got != want {
+		t.Fatalf("cydBuilderTrustFile(%q) = %q, want %q", db, got, want)
 	}
 }
