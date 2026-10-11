@@ -61,14 +61,14 @@ func (s *Service) BuildForJob(ctx context.Context, jobID string) (JobBuildResult
 // leading entries (first error and library notes) a shortened list must never
 // drop. Ordering an ordered list changes nothing.
 func OrderAgentDiagnostics(diags []Diagnostic) (ordered []Diagnostic, keep int) {
-	first := firstError(diags)
+	first, classes := classifyDiagnostics(diags)
 	ordered = make([]Diagnostic, 0, len(diags))
 	if first >= 0 {
 		ordered = append(ordered, diags[first])
 	}
 	for class := 0; class < diagClasses; class++ {
 		for i, d := range diags {
-			if i != first && diagnosticClass(d) == class {
+			if i != first && classes[i] == class {
 				ordered = append(ordered, d)
 			}
 		}

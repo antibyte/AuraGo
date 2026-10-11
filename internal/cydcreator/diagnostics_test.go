@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -197,16 +198,36 @@ func TestCapDiagnosticsKeepsTheFirstErrorAndLibraryNotes(t *testing.T) {
 		t.Fatalf("kept %d entries %v, last %+v", len(got), counts, got[len(got)-1])
 	}
 
-	// Library notes are bounded; the first error stays even when the errors
-	// budget is gone.
+	// Only the first 16 library notes rank ahead of the errors; later ones
+	// compete as other notes.
 	list = nil
-	list = append(list, Diagnostic{Severity: SeverityError, Message: "first"})
 	for i := 0; i < 300; i++ {
 		list = append(list, libNote(i))
 	}
+	for i := 0; i < 190; i++ {
+		list = append(list, Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("e%d", i)})
+	}
 	got = capDiagnostics(list)
-	if len(got) != 1+maxLibraryNotes || got[0].Message != "first" || got[1] != libNote(0) || got[maxLibraryNotes] != libNote(maxLibraryNotes-1) {
-		t.Fatalf("kept %d entries, first %+v", len(got), got[0])
+	counts = map[int]int{}
+	for _, d := range got {
+		counts[diagnosticClass(d)]++
+	}
+	if len(got) != maxDiagnostics || got[0] != libNote(0) || got[maxLibraryNotes-1] != libNote(maxLibraryNotes-1) ||
+		counts[diagLibraryNote] != 16 || counts[diagError] != 184 || got[len(got)-1].Message != "e183" {
+		t.Fatalf("kept %d entries %v, first %+v", len(got), counts, got[0])
+	}
+
+	// Under the cap every library note stays, also past the 16th.
+	var short strings.Builder
+	short.WriteString("/work/b1/src/app/s.cpp:1:10: fatal error: H0.h: No such file or directory\n")
+	for i := 0; i < 30; i++ {
+		d := libNote(i)
+		fmt.Fprintf(&short, "/work/b1/%s:%d:10: note: %s\n", d.File, d.Line+1, d.Message)
+	}
+	if parsed := ParseDiagnostics(short.String(), "/work/b1"); len(parsed) != 31 {
+		t.Fatalf("parsed %d of 31 entries", len(parsed))
+	} else if ordered, keep := OrderAgentDiagnostics(parsed); keep != 1+maxLibraryNotes || len(ordered) != 31 {
+		t.Fatalf("agent order keeps %d of %d", keep, len(ordered))
 	}
 
 	// ParseDiagnostics does not drop the note while collecting 250 notes before it.
@@ -223,6 +244,32 @@ func TestCapDiagnosticsKeepsTheFirstErrorAndLibraryNotes(t *testing.T) {
 	}
 	if ordered, keep := OrderAgentDiagnostics(parsed); keep != 2 || ordered[0].Severity != SeverityError || !libraryHint(ordered[1]) {
 		t.Fatalf("agent order keep %d: %+v %+v", keep, ordered[0], ordered[1])
+	}
+}
+
+// libraryHint matches exactly the note cyd-build writes and nothing user code
+// can print.
+func TestLibraryHintMatchesCydBuild(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "deploy", "docker", "cyd-builder", "cyd-build"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := regexp.MustCompile(`'%s:%s:%s: note: (%s is in the curated library %s, [^']*)'\s*\n\s*'(project settings [^']*?)\\n'`).FindStringSubmatch(string(data))
+	if m == nil {
+		t.Fatal("library_note's format string not found in cyd-build")
+	}
+	note := fmt.Sprintf(m[1]+m[2], "DHT.h", "dht", "dht")
+	if !libraryHint(Diagnostic{Severity: SeverityNote, Message: note}) {
+		t.Fatalf("cyd-build's note %q is not recognized", note)
+	}
+	for _, msg := range []string{"#pragma message: " + note, "'#pragma message: " + note + "'", "candidate: " + note,
+		strings.Replace(note, "enable dht in", "enable wifi in", 1), note + " x"} {
+		if libraryHint(Diagnostic{Severity: SeverityNote, Message: msg}) {
+			t.Errorf("user note counted as a library note: %q", msg)
+		}
+	}
+	if libraryHint(Diagnostic{Severity: SeverityWarning, Message: note}) {
+		t.Error("a warning counted as a library note")
 	}
 }
 

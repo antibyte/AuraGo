@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"aurago/internal/cydcreator"
 	"aurago/internal/security"
@@ -422,19 +423,27 @@ func cydBuildAnswer(res cydcreator.JobBuildResult, budget int) map[string]any {
 	ordered, keep := cydcreator.OrderAgentDiagnostics(res.Diagnostics)
 	total := max(res.DiagnosticsTotal, len(ordered)) // before the service's cap
 	n, messageRunes := len(ordered), 0               // 0 = full messages
+	clipFiles := false
 	build := func() map[string]any {
 		diags := slices.Clone(ordered[:n])
-		if messageRunes > 0 {
-			for i := range diags {
+		for i := range diags {
+			if messageRunes > 0 {
 				diags[i].Message = cydClipText(diags[i].Message, messageRunes)
+			}
+			if clipFiles {
+				// A #line directive can name a file of up to 1 KB.
+				diags[i].File = cydClipBytes(diags[i].File, cydMaxDiagFileBytes)
 			}
 		}
 		answer := map[string]any{"status": status, "build_status": res.Status, "build_id": res.BuildID,
 			"error_code": res.ErrorCode, "diagnostics": diags, "usage": res.Usage, "next_action": res.NextAction}
-		if n < total || messageRunes > 0 {
+		if n < total || messageRunes > 0 || clipFiles {
 			answer["diagnostics_total"] = total
 			if messageRunes > 0 {
 				answer["messages_clipped"] = true
+			}
+			if clipFiles {
+				answer["files_clipped"] = true
 			}
 		}
 		return answer
@@ -448,12 +457,33 @@ func cydBuildAnswer(res cydcreator.JobBuildResult, budget int) map[string]any {
 			messageRunes = 256
 		case messageRunes > 32:
 			messageRunes /= 4
+		case !clipFiles:
+			clipFiles = true
+		case n > 1:
+			n /= 2 // last resort: library notes go, the first entry stays
 		default:
 			return answer // the agent's bound keeps the status
 		}
 		answer = build()
 	}
 	return answer
+}
+
+// cydMaxDiagFileBytes bounds a diagnostic's file name in a shortened build
+// answer.
+const cydMaxDiagFileBytes = 160
+
+// cydClipBytes shortens s to at most maxBytes bytes at a character boundary,
+// marking the cut with "…".
+func cydClipBytes(s string, maxBytes int) string {
+	if len(s) <= maxBytes {
+		return s
+	}
+	cut := maxBytes
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut] + "…"
 }
 
 // cydLayoutSummary lists the screens of a layout that is too large to show.

@@ -111,7 +111,9 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   longer of results and issues (`results_total`, `issues_total`). build keeps
   `OrderAgentDiagnostics` order (first error, library notes, other errors,
   warnings, notes), halves the list down to the first error and library notes,
-  then shortens messages (`diagnostics_total`, `messages_clipped`). A budget
+  then shortens messages, cuts file names to 160 bytes and last halves the
+  library notes away (`diagnostics_total`, `messages_clipped`,
+  `files_clipped`); the first entry always stays. A budget
   below about 1 KB is `CYD_FILE_LIMIT` for the paged tools (`details.limit`
   `tool_output_limit`, `details.min`). Verify `TestCYDCreator*`,
   `TestDispatchCYDCreator*`, `TestPageCYDText` and `TestCYDLineArg`.

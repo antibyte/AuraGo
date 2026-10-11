@@ -538,16 +538,52 @@ func TestDispatchCYDCreatorAnswersFitTheBudget(t *testing.T) {
 	}
 }
 
+// cydLibraryNote is cyd-build's library note for a missing header.
+func cydLibraryNote(header, lib string) string {
+	return fmt.Sprintf(`%s is in the curated library %s, which this project does not enable: enable %s in the project settings (update_layout op set_settings, "libraries"); builds cannot install libraries`, header, lib, lib)
+}
+
+// File names of up to 1 KB (a #line directive) are cut in the last step,
+// then library notes go; the first error always stays and the answer fits.
+func TestCYDBuildAnswerClipsLongFileNames(t *testing.T) {
+	long := "src/app/" + strings.Repeat(`"<`, 508)
+	diags := []cydcreator.Diagnostic{{File: long, Line: 1, Column: 1, Severity: cydcreator.SeverityError, Message: "expected ';'"}}
+	for i := 0; i < 16; i++ {
+		diags = append(diags, cydcreator.Diagnostic{File: long, Line: i + 2, Column: 1, Severity: cydcreator.SeverityNote,
+			Message: cydLibraryNote(fmt.Sprintf("H%d.h", i), fmt.Sprintf("lib%d", i))})
+	}
+	res := cydcreator.JobBuildResult{BuildID: "ccb_000000000001", Status: cydcreator.BuildFailed, ErrorCode: cydcreator.CodeBuildFailed,
+		Diagnostics: diags, DiagnosticsTotal: len(diags), NextAction: "Fix the listed errors in src/app, then build again."}
+	if full := cydModelBytes(cydCreatorToolJSON(map[string]any{"diagnostics": diags})); full < 50000 {
+		t.Fatalf("fixture too small: %d", full)
+	}
+	for _, limit := range []int{6000, 1800} {
+		out := cydCreatorToolJSON(cydBuildAnswer(res, limit-cydBudgetSlack))
+		if size := len(cydTestGuardian().SanitizeToolOutput(cydcreator.ToolBuild, out)); size > limit || cydModelBytes(out) > limit {
+			t.Errorf("limit %d: answer has %d bytes after the Guardian", limit, size)
+		}
+		body := cydOutput(t, out)
+		kept, _ := body["diagnostics"].([]any)
+		if body["status"] != "failed" || len(kept) == 0 || body["files_clipped"] != true || body["diagnostics_total"] != 17.0 {
+			t.Fatalf("limit %d: answer = %v", limit, body)
+		}
+		first := kept[0].(map[string]any)
+		if first["severity"] != "error" || len(first["file"].(string)) > cydMaxDiagFileBytes+len("…") || !utf8.ValidString(first["file"].(string)) {
+			t.Fatalf("limit %d: first = %v", limit, first)
+		}
+	}
+}
+
 func TestOrderAgentDiagnosticsKeepsFirstErrorAndLibraryNotes(t *testing.T) {
 	d := func(sev, msg string) cydcreator.Diagnostic { return cydcreator.Diagnostic{Severity: sev, Message: msg} }
 	in := []cydcreator.Diagnostic{d("warning", "w1"), d("note", "n1"), d("error", "e1"), d("error", "e2"),
-		d("note", `enable dht in the project settings (update_layout op set_settings, "libraries")`), d("warning", "w2")}
+		d("note", cydLibraryNote("DHT.h", "dht")), d("warning", "w2")}
 	ordered, keep := cydcreator.OrderAgentDiagnostics(in)
 	var got []string
 	for _, x := range ordered {
 		got = append(got, x.Message[:2])
 	}
-	if strings.Join(got, ",") != "e1,en,e2,w1,w2,n1" || keep != 2 {
+	if strings.Join(got, ",") != "e1,DH,e2,w1,w2,n1" || keep != 2 {
 		t.Fatalf("order = %v, keep %d", got, keep)
 	}
 	again, keepAgain := cydcreator.OrderAgentDiagnostics(ordered)

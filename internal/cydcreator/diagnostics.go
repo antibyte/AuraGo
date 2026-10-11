@@ -36,14 +36,15 @@ var (
 //     lines, "from" continuations) are skipped because gcc and ld start every
 //     diagnostic in column 0; duplicates are removed; at most 200 entries are
 //     returned (capDiagnostics: the first error and up to 16 cyd-build
-//     library notes always stay; other notes go first, then warnings).
+//     library notes always stay; other notes go first, then warnings; under
+//     the cap every entry stays).
 //   - File is clipped with clipReason because a #line directive lets a source
 //     file name any path; Generated is decided from the full path first.
 func ParseDiagnostics(log string, workRoot string) []Diagnostic {
 	root := strings.TrimSuffix(strings.ReplaceAll(workRoot, "\\", "/"), "/")
 	var out []Diagnostic
 	seen := map[Diagnostic]bool{}
-	var collected [diagClasses]int // per class; no class can ever keep more than capDiagnostics allows it
+	var collected [diagClasses]int // per class; no class can ever keep more than maxDiagnostics
 	for _, raw := range strings.Split(log, "\n") {
 		line := strings.TrimRight(ansiEscape.ReplaceAllString(raw, ""), "\r")
 		if line == "" || line[0] == ' ' || line[0] == '\t' || strings.HasPrefix(line, "In file included from") {
@@ -56,11 +57,8 @@ func ParseDiagnostics(log string, workRoot string) []Diagnostic {
 		if !ok {
 			continue
 		}
-		class, limit := diagnosticClass(d), maxDiagnostics
-		if class == diagLibraryNote {
-			limit = maxLibraryNotes
-		}
-		if collected[class] >= limit || seen[d] {
+		class := diagnosticClass(d)
+		if collected[class] >= maxDiagnostics || seen[d] {
 			continue
 		}
 		seen[d] = true
@@ -125,20 +123,30 @@ func isAbsPath(p string) bool {
 	return strings.HasPrefix(p, "/") || (len(p) > 2 && p[1] == ':' && p[2] == '/')
 }
 
-// maxLibraryNotes bounds the library notes a capped list keeps ahead of the
-// errors (cyd-build writes one per missing curated header).
+// maxLibraryNotes bounds the library notes a shortened list keeps ahead of
+// the errors (cyd-build writes one per missing curated header); further ones
+// rank as other notes.
 const maxLibraryNotes = 16
 
+// libraryNotePattern is cyd-build's library note, whole and exact (see
+// library_note in deploy/docker/cyd-builder/cyd-build;
+// TestLibraryHintMatchesCydBuild): user code cannot produce it, a
+// "#pragma message" note starts with "#pragma message".
+var libraryNotePattern = regexp.MustCompile(`^[^\s'"]+ is in the curated library ([A-Za-z0-9_.-]+), which this project does not enable: enable ([A-Za-z0-9_.-]+) in the project settings \(update_layout op set_settings, "libraries"\); builds cannot install libraries$`)
+
 // libraryHint reports cyd-build's note that names a curated library to enable
-// for a missing header ("... enable <id> in the project settings (update_layout
-// op set_settings, "libraries") ...").
+// for a missing header.
 func libraryHint(d Diagnostic) bool {
-	return d.Severity == SeverityNote && strings.Contains(d.Message, "op set_settings")
+	if d.Severity != SeverityNote || strings.HasPrefix(strings.TrimLeft(d.Message, `'"`), "#pragma message") {
+		return false
+	}
+	m := libraryNotePattern.FindStringSubmatch(d.Message)
+	return m != nil && m[1] == m[2]
 }
 
 // Diagnostic classes for bounded lists, in priority order after the first
 // error. capDiagnostics (stored builds) and OrderAgentDiagnostics (agent
-// answers) share them so the two cannot drift.
+// answers) share them through classifyDiagnostics so the two cannot drift.
 const (
 	diagLibraryNote = iota
 	diagError
@@ -159,30 +167,42 @@ func diagnosticClass(d Diagnostic) int {
 	return diagOtherNote
 }
 
-// firstError is the index of the first error, -1 without one.
-func firstError(list []Diagnostic) int {
+// classifyDiagnostics returns the index of the first error (-1 without one)
+// and every entry's class; library notes after the first maxLibraryNotes
+// rank as other notes.
+func classifyDiagnostics(list []Diagnostic) (first int, classes []int) {
+	first, libraries := -1, 0
+	classes = make([]int, len(list))
 	for i, d := range list {
-		if d.Severity == SeverityError {
-			return i
+		if first < 0 && d.Severity == SeverityError {
+			first = i
+		}
+		classes[i] = diagnosticClass(d)
+		if classes[i] == diagLibraryNote {
+			if libraries >= maxLibraryNotes {
+				classes[i] = diagOtherNote
+			}
+			libraries++
 		}
 	}
-	return -1
+	return first, classes
 }
 
 // capDiagnostics keeps at most maxDiagnostics entries in log order. The budget
 // goes to the first error, the library notes (at most maxLibraryNotes), the
 // other errors, warnings and other notes, in this order; inside a class the
 // earliest entries win (later ones are dropped from the end). It counts first
-// and filters once, so it is linear however large the input is.
+// and filters once, so it is linear however large the input is. A list within
+// the cap is returned unchanged (every library note stays).
 func capDiagnostics(list []Diagnostic) []Diagnostic {
 	if len(list) <= maxDiagnostics {
 		return list
 	}
-	first := firstError(list)
+	first, classes := classifyDiagnostics(list)
 	var total, keep, kept [diagClasses]int
-	for i, d := range list {
+	for i := range list {
 		if i != first {
-			total[diagnosticClass(d)]++
+			total[classes[i]]++
 		}
 	}
 	left := maxDiagnostics
@@ -190,11 +210,7 @@ func capDiagnostics(list []Diagnostic) []Diagnostic {
 		left--
 	}
 	for class := range keep {
-		limit := left
-		if class == diagLibraryNote {
-			limit = min(left, maxLibraryNotes)
-		}
-		keep[class] = min(total[class], limit)
+		keep[class] = min(total[class], left)
 		left -= keep[class]
 	}
 	out := make([]Diagnostic, 0, maxDiagnostics)
@@ -203,7 +219,7 @@ func capDiagnostics(list []Diagnostic) []Diagnostic {
 			out = append(out, d)
 			continue
 		}
-		if class := diagnosticClass(d); kept[class] < keep[class] {
+		if class := classes[i]; kept[class] < keep[class] {
 			kept[class]++
 			out = append(out, d)
 		}
