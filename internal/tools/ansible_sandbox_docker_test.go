@@ -13,8 +13,10 @@ import (
 
 func TestAnsiblePreparedCommandReceivesDockerGrant(t *testing.T) {
 	binDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(binDir, "ansible.exe"), []byte("not-run"), 0o755); err != nil {
-		t.Fatal(err)
+	for _, name := range []string{"ansible", "ansible.exe"} {
+		if err := os.WriteFile(filepath.Join(binDir, name), []byte("not-run"), 0o755); err != nil {
+			t.Fatal(err)
+		}
 	}
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Cleanup(func() {
