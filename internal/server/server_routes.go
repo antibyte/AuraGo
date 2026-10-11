@@ -665,6 +665,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	registerDetectiveRoutes(mux, s)
 	registerNewspaperRoutes(mux, s)
 	registerLocalWikipediaDesktopRoutes(mux, s)
+	registerRetroGamesRoutes(mux, s)
 	registerFlowsRoutes(mux, s)
 	mux.HandleFunc("/api/desktop/personal-radio/", s.handlePersonalRadio)
 	mux.HandleFunc("/api/desktop/rtl-sdr/", s.handleRTLSDR)
