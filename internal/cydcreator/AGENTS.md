@@ -328,20 +328,23 @@ app files, assets, events) and the build queue. Plans 3 and 5 add jobs, revision
 - `cyd-build` makes the env's libdeps folder (`/tmp/cyd-pio/libdeps/<env>`) anew for every build, with links into
   `/opt/cyd/libs` for exactly the env's `lib_deps` (read with PlatformIO's own parser, each checked against the
   library's `.piopm`): an entry outside `CURATED_LIBS` is exit 2, and app code that includes a library the project
-  does not enable fails to compile (exit 1, "No such file or directory"), as it would in the export.
-  `TestBuilderLibrariesMatchTheGenerator` pins `CURATED_LIBS`, the Dockerfile's `--library` list and the generator's
-  specs to one set; `cyd-selftest --all` (and `--libs`) checks the gate on the classic CYD.
+  does not enable fails to compile (exit 1, "No such file or directory"), as it would in the export. For a missing
+  catalog header (`LIBRARY_HEADERS`) `cyd-build` adds a gcc-style `file:line:col: note:` line naming the library to
+  enable, which `ParseDiagnostics` keeps as a note. `TestBuilderLibrariesMatchTheGenerator` pins `CURATED_LIBS`, the
+  Dockerfile's `--library` list and the generator's specs to one set and `LIBRARY_HEADERS` to `libraryHeaders`;
+  `cyd-selftest --all` (and `--libs`) checks the gate, stale objects and the note on the classic CYD.
 - `cyd-build` passes `CYD_BUILD_ID` through `include/cyd_build_id.h` (never a `-D` flag: flag changes wipe the
   PlatformIO build cache) and keeps the PlatformIO project checksum stable across work directories. It passes
   `--jobs` (the allowed CPUs, capped by the CPU quota and by one compiler per 512 MiB of the container memory limit
   after 512 MiB for PlatformIO and the linker): without it the compilers are OOM-killed in the 2 GiB container.
 - Exit codes are the contract with the service: `0` ok; `1` compile error (a `file:line: error:` compiler diagnostic
   or a linker diagnostic (undefined reference, multiple definition, region overflow) and no killed compiler, so the
-  agent can repair `src/app`); `2` tooling or internal error (a compiler
-  killed by the OOM killer, PlatformIO failing without a code diagnostic, a missing package or `cannot find -l`, a
-  cancel, a symlink or special file in the work tree, an invalid `fonts.json`, a `lib_deps` entry that is not a
-  curated library, a bootloader whose chip differs from `board_config.h`); `3` flash budget exceeded. `2` is never agent-repairable. `out/result.json` is always written
-  (also when the log reader hangs up), and `files`/`fonts` are empty on a non-zero exit.
+  agent can repair `src/app`); `2` tooling or internal error (a compiler killed by the OOM killer, PlatformIO failing
+  without a code diagnostic, a missing package or `cannot find -l`, a cancel, a symlink or special file in the work
+  tree, an invalid `fonts.json`, a malformed `platformio.ini` or a `lib_deps` entry that is not a curated library, a
+  bootloader whose chip differs from `board_config.h`); `3` flash budget exceeded. `2` is never agent-repairable.
+  `out/result.json` is always written (also when the log reader hangs up), and `files`/`fonts` are empty on a
+  non-zero exit.
 - Cache layout: PlatformIO build directory `/cache/build/<builder version>/<cache key>` (the version comes from
   `/opt/cyd/builder-version`, so a new image never reuses objects of an older toolchain), converted fonts in
   `/cache/fonts/<sha256>.c` (key: converter id, the `fonts.json` entry and the SHA-256 of the font files; a hit

@@ -4,10 +4,11 @@
 # for board profiles with cyd-build. Used to prewarm the image at build time
 # and as the offline smoke test in CI. --all (the default) builds every profile
 # and then runs the library check (--libs runs only the check): on the classic
-# CYD, app code that includes <DHT.h> must fail with a compiler diagnostic
-# (exit 1, "DHT.h: No such file or directory") while the project does not
-# enable the library, and must build once lib_deps has the generator's lines
-# for it. Exit 0 only when every build ends as expected.
+# CYD, app code that includes <DHT.h> must build while lib_deps has the
+# generator's lines for the library, and the same project on the same cache key
+# must then fail with a compiler diagnostic (exit 1, "DHT.h: No such file or
+# directory") plus cyd-build's note naming the library once it is no longer
+# enabled. Exit 0 only when every build ends as expected.
 set -euo pipefail
 
 REF=/opt/cyd/selftest/reference
@@ -55,7 +56,8 @@ for id in "$@"; do
 done
 
 if [ "$libs" -eq 1 ]; then
-  # Same cache key as the profile build: a project's lib_deps change between its builds.
+  # Same cache key as the profile build: a project's lib_deps change between its
+  # builds, and the second build must not reuse the first one's DHT objects.
   id=$LIBS_BOARD
   work=/work/selftest-libs
   log=/work/selftest-libs.log
@@ -71,16 +73,7 @@ float selftest_dht_read() {
   return g_dht.readTemperature();
 }
 EOF
-  set +e
-  cyd-build --work "$work" --env "$id" --build-id selftest-libs-off --cache-key "selftest-$id" 2>&1 | tee "$log"
-  rc=${PIPESTATUS[0]}
-  set -e
-  echo "== libs: DHT not enabled, exit $rc (want 1): $(cat "$work/out/result.json" 2>/dev/null || echo '{}')"
-  if [ "$rc" -ne 1 ] || ! grep -q "DHT.h: No such file or directory" "$log"; then
-    echo "cyd-selftest: an app including <DHT.h> must not build while the project does not enable the library" >&2
-    fail=1
-  fi
-  # Enable it: the generator appends the library's specs to the template's lib_deps.
+  # Enabled: the generator appends the library's specs to the template's lib_deps.
   awk -v add="$(printf '  %s\n' "${DHT_LIB_DEPS[@]}")" '
     inlib && !/^  / { print add; inlib = 0 }
     { print }
@@ -94,6 +87,21 @@ EOF
   cyd-build --work "$work" --env "$id" --build-id selftest-libs-on --cache-key "selftest-$id" || rc=$?
   echo "== libs: DHT enabled, exit $rc (want 0): $(cat "$work/out/result.json" 2>/dev/null || echo '{}')"
   if [ "$rc" -ne 0 ]; then
+    fail=1
+  fi
+  # Not enabled any more: the profile's own platformio.ini (template lib_deps only).
+  cp "$REF/profiles/$id/platformio.ini" "$work/platformio.ini"
+  set +e
+  cyd-build --work "$work" --env "$id" --build-id selftest-libs-off --cache-key "selftest-$id" 2>&1 | tee "$log"
+  rc=${PIPESTATUS[0]}
+  set -e
+  echo "== libs: DHT not enabled, exit $rc (want 1): $(cat "$work/out/result.json" 2>/dev/null || echo '{}')"
+  if [ "$rc" -ne 1 ] || ! grep -q "DHT.h: No such file or directory" "$log"; then
+    echo "cyd-selftest: an app including <DHT.h> must not build while the project does not enable the library" >&2
+    fail=1
+  fi
+  if ! grep -Eq '^src/app/selftest_libs\.cpp:[0-9]+:[0-9]+: note: DHT\.h is in the curated library dht, ' "$log"; then
+    echo "cyd-selftest: the missing <DHT.h> got no note naming the library dht" >&2
     fail=1
   fi
   rm -f "$log"

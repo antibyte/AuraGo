@@ -250,8 +250,9 @@ func TestGenLibDepsHaveNoVersionConflicts(t *testing.T) {
 // cyd-build links only the lib_deps entries of a build into PlatformIO's
 // library folder and refuses every entry outside its CURATED_LIBS table, so
 // that table, the libraries the Dockerfile installs and every spec the
-// generator can write must be one set; cyd-selftest's library check enables
-// "dht" with exactly the lines genLibDeps adds for it.
+// generator can write must be one set; its LIBRARY_HEADERS (the note for a
+// missing header) are the API reference's headers, and cyd-selftest's library
+// check enables "dht" with exactly the lines genLibDeps adds for it.
 func TestBuilderLibrariesMatchTheGenerator(t *testing.T) {
 	read := func(rel string) string {
 		t.Helper()
@@ -287,16 +288,40 @@ func TestBuilderLibrariesMatchTheGenerator(t *testing.T) {
 	for _, m := range regexp.MustCompile(`--library "([^"\n]+)"`).FindAllStringSubmatch(read("../../deploy/docker/Dockerfile.cyd-builder"), -1) {
 		installed = append(installed, m[1])
 	}
-	curated := list(read("../../deploy/docker/cyd-builder/cyd-build"), "CURATED_LIBS in cyd-build",
-		regexp.MustCompile(`(?s)\nCURATED_LIBS = \((.*?)\n\)`))
+	build := read("../../deploy/docker/cyd-builder/cyd-build")
+	curated := list(build, "CURATED_LIBS in cyd-build", regexp.MustCompile(`(?s)\nCURATED_LIBS = \((.*?)\n\)`))
 	for what, got := range map[string][]string{"Dockerfile --library": installed, "cyd-build CURATED_LIBS": curated} {
 		if sorted := slices.Sorted(slices.Values(got)); !slices.Equal(sorted, want) {
 			t.Errorf("%s =\n%q\nwant the generator's specs\n%q", what, sorted, want)
 		}
 	}
+	pairs := list(build, "LIBRARY_HEADERS in cyd-build", regexp.MustCompile(`(?s)\nLIBRARY_HEADERS = \{(.*?)\n\}`))
+	headers := map[string]string{}
+	for i := 0; i+1 < len(pairs); i += 2 {
+		headers[pairs[i+1]] = pairs[i] // "<header>": "<library id>"
+	}
+	if len(pairs)%2 != 0 || len(headers)*2 != len(pairs) || !maps.Equal(headers, libraryHeaders) {
+		t.Errorf("cyd-build LIBRARY_HEADERS = %q, want the API reference's libraryHeaders %v", pairs, libraryHeaders)
+	}
 	dht := list(read("../../deploy/docker/cyd-builder/cyd-selftest"), "DHT_LIB_DEPS in cyd-selftest",
 		regexp.MustCompile(`(?s)\nDHT_LIB_DEPS=\((.*?)\n\)`))
 	if wantDHT := genLibDeps([]string{"dht"})[len(genTemplateLibDeps):]; !slices.Equal(dht, wantDHT) {
 		t.Errorf("cyd-selftest DHT_LIB_DEPS = %q, want the generator's lines %q", dht, wantDHT)
+	}
+}
+
+// cyd-build follows a missing catalog header with a gcc-style note (the form
+// cyd-selftest checks in the real log); the parser must keep it as a note at
+// the include, next to the error.
+func TestParseDiagnosticsKeepsTheBuilderLibraryNote(t *testing.T) {
+	log := "src/app/probe.cpp:3:10: fatal error: DHT.h: No such file or directory\n" +
+		"    3 | #include <DHT.h>\n" +
+		`src/app/probe.cpp:3:10: note: DHT.h is in the curated library dht, which this project does not enable: enable dht in the project settings (update_layout op set_settings, "libraries"); builds cannot install libraries` + "\n" +
+		"compilation terminated.\n"
+	got := ParseDiagnostics(log, "/work/ccb_0001")
+	if len(got) != 2 || got[0].Severity != SeverityError || got[1].Severity != SeverityNote ||
+		got[1].File != "src/app/probe.cpp" || got[1].Line != 3 || got[1].Column != 10 || got[1].Generated ||
+		!strings.HasPrefix(got[1].Message, "DHT.h is in the curated library dht, ") {
+		t.Fatalf("ParseDiagnostics = %+v, want the error and the library note at src/app/probe.cpp:3:10", got)
 	}
 }

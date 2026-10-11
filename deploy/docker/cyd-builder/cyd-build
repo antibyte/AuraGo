@@ -27,7 +27,8 @@ does not stop the build: the exit code and result.json stay correct.
 Libraries: PlatformIO's library folder of the env (/tmp/cyd-pio/libdeps/<env>)
 is made anew for every build and links only the curated libraries the env's
 lib_deps names, so app code that includes a library the project does not
-enable fails to compile (exit 1) instead of building here and nowhere else.
+enable fails to compile (exit 1) instead of building here and nowhere else;
+a gcc-style note after the error names the library to enable.
 
 Trust boundary: the arguments and the image are trusted (the server chooses
 them). The build tree below --work is not: src/app/** is written by users and
@@ -93,6 +94,20 @@ CURATED_LIBS = (
     "adafruit/Adafruit Unified Sensor@1.1.15",
     "adafruit/Adafruit BusIO@1.17.4",
 )
+# The header app code includes for each library a project can enable, and its
+# catalog id (libraryHeaders of the API reference in internal/cydcreator,
+# pinned by TestBuilderLibrariesMatchTheGenerator).
+LIBRARY_HEADERS = {
+    "ArduinoJson.h": "arduinojson",
+    "PubSubClient.h": "pubsubclient",
+    "OneWire.h": "onewire",
+    "DallasTemperature.h": "dallastemperature",
+    "DHT.h": "dht",
+    "Adafruit_BME280.h": "bme280",
+    "Adafruit_BMP280.h": "bmp280",
+    "Adafruit_NeoPixel.h": "neopixel",
+}
+MISSING_HEADER_RE = re.compile(r"^([^\s:][^:]*):(\d+):(\d+): fatal error: ([^\s:]+): No such file or directory$")
 
 ESPTOOL = PIO_SHARED + "/packages/tool-esptoolpy/esptool.py"
 BOOT_APP0 = PIO_SHARED + "/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin"
@@ -332,11 +347,21 @@ def pio_config(work, env):
 
 def project_lib_deps(work, env_name, env):
     """The lib_deps of [env:<env_name>] as PlatformIO itself reads them
-    (comments, [env] defaults and extends included)."""
-    with pio_config(work, env) as cfg:
-        if env_name not in cfg.envs():
-            raise ToolError("platformio.ini has no [env:%s] section" % env_name)
-        return cfg.get("env:" + env_name, "lib_deps")
+    (comments, [env] defaults and extends included). A file PlatformIO cannot
+    parse is a tooling error with PlatformIO's reason."""
+    try:
+        with pio_config(work, env) as cfg:
+            if env_name not in cfg.envs():
+                raise ToolError("platformio.ini has no [env:%s] section" % env_name)
+            return cfg.get("env:" + env_name, "lib_deps")
+    except ToolError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - only PlatformIO's and configparser's errors are rewritten
+        import configparser
+        from platformio.exception import PlatformioException  # already loaded by pio_config
+        if isinstance(exc, (PlatformioException, configparser.Error)):
+            raise ToolError("platformio.ini: %.300s" % " ".join(str(exc).split())) from exc
+        raise
 
 
 def link_libraries(env_name, lib_deps):
@@ -593,6 +618,20 @@ def scan_line(line, result, seen):
         seen["code_error"] = True
 
 
+def library_note(line):
+    """For "<file>:<line>:<col>: fatal error: <header>: No such file or
+    directory" with the header of a curated library: a gcc-style note at the
+    same place that names the library to enable (PlatformIO's own hint, a
+    registry search, cannot help an offline build). "" for any other line."""
+    m = MISSING_HEADER_RE.match(line)
+    lib = LIBRARY_HEADERS.get(m.group(4)) if m else None
+    if not lib:
+        return ""
+    return ('%s:%s:%s: note: %s is in the curated library %s, which this project does not enable: enable %s in the '
+            'project settings (update_layout op set_settings, "libraries"); builds cannot install libraries\n'
+            % (m.group(1), m.group(2), m.group(3), m.group(4), lib, lib))
+
+
 def run_pio(work, env_name, env, result, seen):
     jobs = build_jobs()
     cmd = [PIO_BIN, "run", "--project-dir", work, "--environment", env_name, "--jobs", str(jobs)]
@@ -617,6 +656,9 @@ def run_pio(work, env_name, env, result, seen):
             scan_line(line.rstrip("\n"), result, seen)
             if truncated:
                 continue
+            note = library_note(line.rstrip("\n"))
+            if note:
+                line = line.rstrip("\n") + "\n" + note
             size = len(line.encode("utf-8", "replace"))
             if echoed + size > LOG_CAP:
                 truncated = True
