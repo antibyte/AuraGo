@@ -836,6 +836,12 @@ func isRetryableMCPTransportError(err error) bool {
 	return false
 }
 
+func mcpConnectionFailure(ctx context.Context, err error) bool {
+	// A cancelled lock waiter has not touched the shared connection.
+	return err != nil && !errors.Is(err, errMCPRequestNotSent) &&
+		(ctx.Err() != nil || isRetryableMCPTransportError(err))
+}
+
 // GetMCPManager returns the global MCPManager singleton.
 func GetMCPManager() *MCPManager {
 	mcpManagerMu.RLock()
@@ -890,7 +896,7 @@ func (m *MCPManager) ListToolsWithStatus(ctx context.Context, serverName string)
 		conn, err := m.ensureServerConnected(ctx, name)
 		if err == nil {
 			err = conn.refreshToolsIfNeeded(ctx, m.logger)
-			if err != nil && (ctx.Err() != nil || isRetryableMCPTransportError(err)) {
+			if mcpConnectionFailure(ctx, err) {
 				m.invalidateConnection(name, conn, err)
 			}
 		}
@@ -985,7 +991,7 @@ func (m *MCPManager) callTool(ctx context.Context, serverName, toolName string, 
 		return "", fmt.Errorf("MCP connection changed after preferred-tool discovery; select the tool again")
 	}
 	if err := conn.refreshToolsIfNeeded(callCtx, m.logger); err != nil {
-		if callCtx.Err() != nil || isRetryableMCPTransportError(err) {
+		if mcpConnectionFailure(callCtx, err) {
 			m.invalidateConnection(serverName, conn, err)
 		}
 		return "", err
@@ -995,7 +1001,7 @@ func (m *MCPManager) callTool(ctx context.Context, serverName, toolName string, 
 		return "", err
 	}
 	result, err := invokeMCPConnTool(callCtx, conn, toolName, arguments)
-	if err != nil && (callCtx.Err() != nil || isRetryableMCPTransportError(err)) {
+	if mcpConnectionFailure(callCtx, err) {
 		m.invalidateConnection(serverName, conn, err)
 		return "", fmt.Errorf("MCP call outcome uncertain; request was not replayed (server=%s, tool=%s): %w", serverName, toolName, err)
 	}

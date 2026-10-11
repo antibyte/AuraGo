@@ -17,6 +17,7 @@ const (
 )
 
 var errMCPMessageTooLarge = errors.New("MCP message exceeds size limit")
+var errMCPRequestNotSent = errors.New("MCP request was not sent")
 
 // A zero-value lock whose waiters can leave without leaking a goroutine.
 type mcpContextMutex struct {
@@ -27,17 +28,17 @@ type mcpContextMutex struct {
 func (m *mcpContextMutex) Lock(ctx context.Context) error {
 	m.once.Do(func() { m.token = make(chan struct{}, 1) })
 	if err := ctx.Err(); err != nil {
-		return err
+		return errors.Join(errMCPRequestNotSent, err)
 	}
 	select {
 	case m.token <- struct{}{}:
 		if err := ctx.Err(); err != nil {
 			m.Unlock()
-			return err
+			return errors.Join(errMCPRequestNotSent, err)
 		}
 		return nil
 	case <-ctx.Done():
-		return ctx.Err()
+		return errors.Join(errMCPRequestNotSent, ctx.Err())
 	}
 }
 func (m *mcpContextMutex) Unlock() { <-m.token }

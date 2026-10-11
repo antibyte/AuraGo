@@ -150,11 +150,13 @@ async function renderMCPServerSection(section) {
 async function mcpLoadToolList(allowed) {
     const container = document.getElementById('mcp-tools-list');
     if (!container) return;
+    const request = {};
+    container.mcpToolListRequest = request;
     try {
         const resp = await fetch('/api/mcp-server/tools');
         if (!resp.ok) throw new Error('Failed to load tools');
         const toolNames = await resp.json();
-        if (!container.isConnected) return;
+        if (!container.isConnected || container.mcpToolListRequest !== request) return;
         const allToolNames = Array.from(new Set([...(toolNames || []), ...allowed,
             ...(configData?.mcp_server?.vscode_debug_bridge ? ['ask_aurago'] : [])]));
         if (!allToolNames || allToolNames.length === 0) {
@@ -173,6 +175,7 @@ async function mcpLoadToolList(allowed) {
         container.innerHTML = listHtml;
         mcpSyncAllowedToolsState();
     } catch (e) {
+        if (!container.isConnected || container.mcpToolListRequest !== request) return;
         container.innerHTML = '<span class="mcp-srv-error">' + t('config.mcp_server.error_loading_tools') + '</span>';
     }
 }

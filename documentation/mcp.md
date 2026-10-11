@@ -4,10 +4,14 @@ AuraGo's server exports only explicitly selected tool names. Empty server lists
 deny all, including existing IDE bridge configurations. Apply the recommended
 tools explicitly in Config and save; there is no automatic migration.
 Client allowlists retain their separate semantics.
+Overlapping catalog loads cannot replace a newer explicit preset selection.
 
 Configuration and secret changes revoke the old manager before connecting the
 replacement outside the configuration lock. Secrets are stored before the single
 restart. Older generations cannot publish connections or dispatch new calls.
+MCP saves share the configuration writer lock. Vault updates are batched; a failed
+configuration save restores prior secrets, and a failed reload also restores the
+previous configuration file. Rollback errors are reported rather than hidden.
 Discovery transport failures retire only the affected connection; the next call
 may reconnect. Tool calls already sent are never automatically replayed: a timeout
 or disconnect can leave the remote action's outcome unknown.
@@ -25,6 +29,8 @@ retains only its last 64 KiB.
 Cancellation and deadlines cover lock waits and writes as well as response
 reads. Calls without a deadline receive 60 seconds; an explicit caller deadline,
 including longer llm-sandbox execution budgets, is preserved.
+Cancellation while waiting for a discovery or write lock sends nothing and leaves
+other requests on the shared connection running.
 
 The server catalog uses the same feature prerequisites as the agent, including
 the current configuration snapshot and available service handles. Enabled
@@ -38,4 +44,5 @@ publishing images. Local stdio receives a private staged file; Docker receives
 its container path inside the existing workspace mount. Staged files are removed
 after success, failure or cancellation. Discovery and execution share the caller's
 context and the discovered manager/connection; a replacement requires rediscovery.
-Schema validation does not fetch external references.
+Schema validation resolves local references in their original document, including
+`$defs` and `definitions`, and does not fetch external references.

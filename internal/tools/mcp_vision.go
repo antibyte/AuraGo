@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/xeipuuv/gojsonschema"
 )
@@ -33,11 +34,39 @@ func (mcpBlockedSchemaLoader) LoadJSON() (interface{}, error) {
 	return nil, fmt.Errorf("external MCP schema references are unsupported")
 }
 
-func mcpImageInputAccepts(schema interface{}, value string) bool {
+func mcpImagePropertyPointer(schema map[string]interface{}, name string) string {
+	if len(schema) == 0 {
+		return ""
+	}
+	if props, _ := schema["properties"].(map[string]interface{}); len(props) > 0 {
+		if _, ok := props[name]; ok {
+			return "/properties/" + strings.NewReplacer("~", "~0", "/", "~1").Replace(name)
+		}
+		return ""
+	}
+	for _, key := range []string{"inputSchema", "input_schema", "schema", "parameters"} {
+		nested, _ := schema[key].(map[string]interface{})
+		if pointer := mcpImagePropertyPointer(nested, name); pointer != "" {
+			return "/" + key + pointer
+		}
+	}
+	return ""
+}
+
+func mcpImageInputAccepts(schema map[string]interface{}, name, value string) bool {
+	pointer := mcpImagePropertyPointer(schema, name)
+	if pointer == "" {
+		return false
+	}
 	loader := gojsonschema.NewSchemaLoader()
 	loader.AutoDetect = false
 	loader.Draft = gojsonschema.Draft7
-	compiled, err := loader.Compile(mcpOfflineSchemaLoader{gojsonschema.NewGoLoader(schema)})
+	// Cache the original root so local references keep their document context.
+	const document = "urn:aurago:mcp:vision-schema"
+	if err := loader.AddSchema(document, mcpOfflineSchemaLoader{gojsonschema.NewGoLoader(schema)}); err != nil {
+		return false
+	}
+	compiled, err := loader.Compile(mcpOfflineSchemaLoader{gojsonschema.NewReferenceLoader(document + "#" + pointer)})
 	if err != nil {
 		return false
 	}
@@ -94,7 +123,7 @@ func buildPreferredMCPVisionArgs(ctx context.Context, tool *MCPToolInfo, resolve
 		{"image_url", "imageUrl", "url"},
 	} {
 		for _, name := range group {
-			if schema, ok := props[name]; ok {
+			if _, ok := props[name]; ok {
 				if encoded == "" {
 					encoded = base64.StdEncoding.EncodeToString(raw)
 				}
@@ -102,7 +131,7 @@ func buildPreferredMCPVisionArgs(ctx context.Context, tool *MCPToolInfo, resolve
 				if name == "image_url" || name == "imageUrl" || name == "url" {
 					value = "data:" + mime + ";base64," + encoded
 				}
-				if mcpImageInputAccepts(schema, value) {
+				if mcpImageInputAccepts(tool.InputSchema, name, value) {
 					args[name] = value
 					return args, noop, nil
 				}
@@ -114,12 +143,12 @@ func buildPreferredMCPVisionArgs(ctx context.Context, tool *MCPToolInfo, resolve
 		return nil, noop, fmt.Errorf("remote MCP vision tool %q requires a supported base64 or data-URL input; local paths cannot be sent", tool.Name)
 	}
 	for _, name := range []string{"file_path", "filePath", "path", "image_path", "imagePath", "image_file", "imageFile", "image_source", "imageSource", "local_path", "localPath", "input_path", "inputPath", "image"} {
-		if schema, ok := props[name]; ok {
+		if _, ok := props[name]; ok {
 			staged, cleanup, err := stageMCPVisionImage(conn, filepath.Base(resolvedPath), raw)
 			if err != nil {
 				return nil, noop, err
 			}
-			if !mcpImageInputAccepts(schema, staged) {
+			if !mcpImageInputAccepts(tool.InputSchema, name, staged) {
 				cleanup()
 				continue
 			}

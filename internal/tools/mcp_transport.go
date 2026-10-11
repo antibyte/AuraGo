@@ -513,7 +513,7 @@ func (t *websocketMCPTransport) write(ctx context.Context, payload interface{}) 
 	default:
 	}
 	if err := ctx.Err(); err != nil {
-		return err
+		return errors.Join(errMCPRequestNotSent, err)
 	}
 	deadline, _ := ctx.Deadline()
 	if err := t.conn.SetWriteDeadline(deadline); err != nil {
