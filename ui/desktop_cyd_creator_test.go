@@ -317,3 +317,9 @@ func TestCYDCreatorAgentModule(t *testing.T) {
 		}
 	}
 }
+
+func TestCYDCreatorHomeModule(t *testing.T) {
+	checkCYDCreatorModule(t, "cyd-creator-home.js",
+		"P.home = { create, posixTimezone };", "P.transfer && typeof P.transfer.importZip === 'function'", "ccAction: action",
+		"'cyd_creator.board.status_' + board.status", "dispose() {")
+}
