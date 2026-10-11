@@ -73,10 +73,11 @@ does.
   entries can choose UTF-8, CP437 or Latin-1.
 - **Text worlds** (MUDs, Telehack, MapSCII and the other classics) and SSH
   entries follow the window size and report every resize to the service.
-  These classic services always get a screen of at least 80×24, as on a VT100
-  terminal: when the window is too small for that, the font gets smaller (down
-  to 6 px) instead of the screen, and the font size of your style comes back
-  once you return to the directory or the shell. While a Telnet text world does not echo, you type a whole line locally
+  These classic services get a screen of at least 80×24 where the window
+  allows, as on a VT100 terminal: when the window is too small for that, the
+  font gets smaller (down to 6 px) instead of the screen, and the font size of
+  your style comes back once you return to the directory or the shell. While a
+  Telnet text world does not echo, you type a whole line locally
   (Backspace edits, Up/Down recall the last 50 lines) and Enter sends it. At a
   password prompt the MUD takes over echo: you still type a whole line, but
   nothing is shown and the line is not kept in the history. When a service

@@ -385,8 +385,9 @@ const whole = (fit, dpr, cell) => Math.abs(fit.size * dpr - cell) < 1e-9 && cell
 
 // 8. 'fit' with a minimum grid (classic Retro-Net services, 80x24): the style's font size when the fit addon gets
 // at least 80x24 from it, else the largest 0.5 px step below it that does, MIN_FONT_SIZE at the least; at once,
-// so a session opens with the final grid. The fake fit addon measures amber (17 px, line height 1.15, 0.6 em
-// cells) in the glass minus 40px padding and the 14px scrollbar.
+// so a session opens with the final grid, and starting at the current size so that a font size is written only
+// where the font must change. The fake fit addon measures amber (17 px, line height 1.15, 0.6 em cells) in the
+// glass minus 40px padding and the 14px scrollbar.
 const CLASSIC = { minCols: 80, minRows: 24 };
 const fitsAt = (size, setupState) => {
     const { term, fitAddon } = setupState;
@@ -413,20 +414,30 @@ function inFitWindow(width, height) {
     term.sizes.length = 0;
     geometry.set('fit', CLASSIC);
     same('the minimum grid shrinks the font to 13.5 px at once (no frame): 87x24', [term.options.fontSize, term.cols, term.rows], [13.5, 87, 24]);
-    same('three probes from a first guess (17, 14, 13.5 px), then the fit, not every 0.5 px step', [fitAddon.proposals - proposals, term.sizes], [4, [17, 14, 13.5, 13.5]]);
+    same('one font write: the current 17 px is probed as it is, then the expected 13.5 px, then the fit', [fitAddon.proposals - proposals, term.sizes], [3, [13.5]]);
     check('13.5 px is the largest 0.5 px step that keeps 80x24', fitsAt(13.5, state) && !fitsAt(14, state));
     same('fit mode stays fit, no pinned attribute, scrollback kept', [geometry.mode(), attrs.has('data-terminal-geometry'), term.options.scrollback], ['fit', false, 1000]);
     same('the changed size is reported', events.fitted, before + 1);
     await settle();
     same('nothing follows on a later frame', [term.options.fontSize, term.cols, term.rows], [13.5, 87, 24]);
-    state.screen.clientWidth = 1400;
-    state.screen.clientHeight = 900;
-    geometry.refit();
-    same('a resize re-evaluates from the style size: a large glass gets 17 px back and more rows', [term.options.fontSize, term.cols, term.rows], [17, 131, 43]);
-    state.screen.clientWidth = 760;
-    state.screen.clientHeight = 420;
-    geometry.refit();
-    same('shrinking the window shrinks the font again', [term.options.fontSize, term.cols, term.rows], [13.5, 87, 24]);
+    // Drag-resizing: each ResizeObserver tick refits; a font size is written only where the font must change.
+    const tick = (width, height) => {
+        state.screen.clientWidth = width;
+        state.screen.clientHeight = height;
+        term.sizes.length = 0;
+        const calls = fitAddon.calls;
+        geometry.refit();
+        return [term.sizes.slice(), term.options.fontSize, term.cols, term.rows, fitAddon.calls - calls];
+    };
+    same('a refit in the same glass writes no font size', tick(760, 420), [[], 13.5, 87, 24, 1]);
+    same('5px taller: 13.5 px still fits and 14 px is not expected to, so nothing is written', tick(760, 425), [[], 13.5, 87, 24, 1]);
+    same('10px taller: 14 px is expected to fit and does, one write', tick(760, 430), [[14], 14, 84, 24, 1]);
+    same('back to 420px: one write down to 13.5 px', tick(760, 420), [[13.5], 13.5, 87, 24, 1]);
+    same('a hidden (zero-size) glass keeps the size and grid: no write, no fit', tick(0, 420), [[], 13.5, 87, 24, 0]);
+    same('shown again at its size: nothing to write', tick(760, 420), [[], 13.5, 87, 24, 1]);
+    same('a large glass gets the style\'s 17 px back with more rows, one write', tick(1400, 900), [[17], 17, 131, 43, 1]);
+    same('a large glass that keeps the style\'s size writes nothing', tick(1400, 880), [[], 17, 131, 42, 1]);
+    same('shrinking the window shrinks the font again, one write', tick(760, 420), [[13.5], 13.5, 87, 24, 1]);
     state.style.id = 'modern';
     Styles.applyXterm(term, Styles.profile('modern'));
     geometry.refit();
@@ -476,7 +487,7 @@ function inFitWindow(width, height) {
     same('empty options are no minimum: the style font returns', term.options.fontSize, 17);
     screen.clientWidth = 0;
     geometry.set('fit', CLASSIC);
-    same('a hidden glass keeps the style font', term.options.fontSize, 17);
+    same('entering the minimum with a hidden glass keeps the current (style) font', term.options.fontSize, 17);
     screen.clientWidth = 760;
     geometry.set('fit', CLASSIC);
     geometry.dispose();

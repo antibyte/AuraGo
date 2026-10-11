@@ -239,13 +239,14 @@ func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion
 	run(`async()=>{delete fixtureTerm().write;await fixtureInput('\x1d');await fixtureDismiss('q');}`)
 	wait("back in the directory after the flood", backInDirectory)
 
-	// 10d. Classic services keep at least 80x24 (towel.blinkenlights.nl draws 19-row frames without erasing). The
-	// window height is computed from xterm's cell so that today's fit at the style's font gives 18 rows.
+	// 10d. Classic services keep at least 80x24 (towel.blinkenlights.nl draws 19-row frames without erasing, so a
+	// screen of 18 rows or fewer scrolls every frame). The window height is computed from xterm's cell so that
+	// today's fit at the style's font gives 16 or 17 rows (17 minus half a cell of margin).
 	run(`async()=>{const term=fixtureTerm(),w=document.querySelector('.vd-window'),cell=term._core._renderService.dimensions.css.cell.height;
 		window.fixtureWindowSize=[w.style.width,w.style.height];window.fixtureWindowRows=term.rows;window.fixtureStyleSize=TerminalStyles.profile(fixtureRoot().dataset.terminalStyle).fontSize;
-		w.style.height=Math.round(w.getBoundingClientRect().height-(term.rows-18)*cell)+'px';}`)
-	wait("a small window: today's fit at the style font gives fewer than 24 rows", `async()=>{const term=fixtureTerm();await new Promise(r=>requestAnimationFrame(r));
-		return fixtureRoot().dataset.terminalMode==='directory'&&term.options.fontSize===fixtureStyleSize&&term.rows>=16&&term.rows<=20&&(await fixtureText()).includes('Telehack');}`)
+		w.style.height=Math.round(w.getBoundingClientRect().height-(term.rows-17+0.5)*cell)+'px';}`)
+	wait("a small window: today's fit at the style font gives at most 18 rows, where a 19-row frame scrolls", `async()=>{const term=fixtureTerm();await new Promise(r=>requestAnimationFrame(r));
+		return fixtureRoot().dataset.terminalMode==='directory'&&term.options.fontSize===fixtureStyleSize&&term.rows>=12&&term.rows<=18&&(await fixtureText()).includes('Telehack');}`)
 	run(`async()=>{await fixtureInput('0');await fixtureInput('2');await fixtureInput('\r');}`)
 	wait("the Star Wars session opens", `()=>fixtureSockets.length===5&&fixtureSocket().readyState===1&&new URL(fixtureSocket().url).searchParams.get('entry')==='towel'`)
 	check("the world session shrinks the font to keep at least 80x24 and opens with that grid", `()=>{const term=fixtureTerm(),u=new URL(fixtureSocket().url),cols=Number(u.searchParams.get('cols')),rows=Number(u.searchParams.get('rows'));
@@ -276,7 +277,7 @@ func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion
 		term.options.fontSize===fixtureSessionFont&&term.rows>=24;}`)
 	run(`async()=>{await fixtureDismiss('q');}`)
 	wait("the directory restores the style font and today's fit", `async()=>{const term=fixtureTerm();await new Promise(r=>requestAnimationFrame(r));
-		return fixtureRoot().dataset.terminalMode==='directory'&&term.options.fontSize===fixtureStyleSize&&term.rows<24&&fixtureLive().length===0&&(await fixtureText()).includes('Telehack');}`)
+		return fixtureRoot().dataset.terminalMode==='directory'&&term.options.fontSize===fixtureStyleSize&&term.rows<=18&&fixtureLive().length===0&&(await fixtureText()).includes('Telehack');}`)
 	run(`()=>{const w=document.querySelector('.vd-window');[w.style.width,w.style.height]=fixtureWindowSize;}`)
 	wait("back at the earlier window size", `async()=>{await new Promise(r=>requestAnimationFrame(r));return fixtureTerm().rows===fixtureWindowRows&&fixtureRoot().dataset.terminalMode==='directory';}`)
 

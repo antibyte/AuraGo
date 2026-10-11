@@ -493,6 +493,10 @@ func TestDesktopTerminalGeometryContract(t *testing.T) {
 		"const sizeAt = function (step) { return Math.max(MIN_FONT_SIZE, base - step / 2); };",
 		"dims = fit.proposeDimensions();",
 		"else if (restore) term.options.fontSize = styleSize();",
+		// The search starts at the current size and writes a font size only when it changes; a zero-size glass
+		// (hidden window) keeps the minimum's size and grid.
+		"if (term.options.fontSize !== sizeAt(step)) term.options.fontSize = sizeAt(step);",
+		"if (!fit || (minimum && !hasGlass())) return;",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("terminal-geometry.js missing %q", want)

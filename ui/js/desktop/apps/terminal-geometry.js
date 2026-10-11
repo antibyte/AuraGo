@@ -180,41 +180,69 @@
             return profile && profile.fontSize > 0 ? profile.fontSize : term.options.fontSize;
         }
 
-        // 'fit' with a minimum grid (classic Retro-Net services: 80x24) keeps the style's font size when the fit
-        // addon gets at least minimum.cols x minimum.rows from it, otherwise takes the largest size below it in
-        // 0.5 px steps that does, MIN_FONT_SIZE at the least: a glass too small even for that keeps MIN_FONT_SIZE
-        // and whatever grid fits. The fit addon then fills the glass, so the grid may exceed the minimum. Each probe
-        // sets the size and asks the fit addon; xterm measures the cell synchronously on the option change, so the
-        // grid is final when set() or refit() returns (the size a session opens with). A hidden glass keeps the
-        // style's size.
+        // A hidden or minimized window has a zero-size glass, which no grid fits.
+        function hasGlass() {
+            return screen.clientWidth > 0 && screen.clientHeight > 0;
+        }
+
+        // 'fit' with a minimum grid (classic Retro-Net services: 80x24) uses the style's font size or a size below it
+        // in 0.5 px steps (MIN_FONT_SIZE at the least) at which the fit addon gets at least minimum.cols x
+        // minimum.rows; a glass too small even for MIN_FONT_SIZE keeps that and whatever grid fits. The fit addon
+        // then fills the glass, so the grid may exceed the minimum. Every font size written makes xterm re-measure,
+        // clear and rebuild its WebGL atlas, so the search starts at the current size, whose probe writes nothing,
+        // and writes a size only where the font must change: a size that fits stays unless the style's size or a
+        // larger step is expected to fit (cells scale with the font; the fit addon's room over the cell xterm drew),
+        // so drag-resizing within one size writes nothing. Otherwise the expected size is probed, then the 0.5 px
+        // steps towards a size that fits; after a smaller window, sizes up are probed only while expected to fit too
+        // (cells that do not scale). xterm measures synchronously on the option change, so the grid is final when
+        // set() or refit() returns: the size a session opens with.
         function shrinkToMinimum() {
             const base = styleSize();
+            const last = Math.max(0, Math.ceil((base - MIN_FONT_SIZE) * 2));
             const sizeAt = function (step) { return Math.max(MIN_FONT_SIZE, base - step / 2); };
+            const room = space(term.element);
+            room.width -= term.options.scrollback === 0 ? 0 : (term.options.overviewRuler && term.options.overviewRuler.width) || 14;
+            const screenEl = term.element.querySelector('.xterm-screen');
             let dims = null;
             const fits = function (step) {
-                term.options.fontSize = sizeAt(step);
+                if (term.options.fontSize !== sizeAt(step)) term.options.fontSize = sizeAt(step);
                 dims = fit.proposeDimensions();
                 return !dims || (dims.cols >= minimum.cols && dims.rows >= minimum.rows);
             };
-            let step = 0;
-            if (screen.clientWidth > 0 && screen.clientHeight > 0 && !fits(0)) {
-                // Cells scale with the font: a first guess from the grid at the style's size, then 0.5 px steps up
-                // while the next size still fits, or down until one fits.
-                const guess = base * Math.min((dims.cols + 1) / minimum.cols, (dims.rows + 1) / minimum.rows);
-                step = Math.max(1, Math.ceil((base - guess) * 2));
-                if (fits(step)) {
-                    while (step > 1 && fits(step - 1)) step -= 1;
-                } else {
-                    do { step += 1; } while (!fits(step) && sizeAt(step) > MIN_FONT_SIZE);
+            // The step of the largest size expected to fit, from the last probe: the room over the cell xterm drew
+            // (its screen over the grid), else the whole cells the fit addon counted plus one.
+            const expected = function () {
+                const cell = screenEl ? [screenEl.offsetWidth / term.cols, screenEl.offsetHeight / term.rows] : [0, 0];
+                const fill = cell[0] > 0 && cell[1] > 0
+                    ? Math.min(room.width / (cell[0] * minimum.cols), room.height / (cell[1] * minimum.rows))
+                    : Math.min((dims.cols + 1) / minimum.cols, (dims.rows + 1) / minimum.rows);
+                return Math.min(last, Math.max(0, Math.ceil((base - term.options.fontSize * fill) * 2)));
+            };
+            // The current size when it is one of the steps (after a style change it is the new style's size).
+            const now = (base - term.options.fontSize) * 2;
+            const from = Number.isInteger(now) && now >= 0 && now <= last ? now : 0;
+            let step = from;
+            if (!fits(from)) {
+                if (from < last) {
+                    // A smaller window: the size expected to fit, then down until one does.
+                    step = Math.max(from + 1, expected());
+                    let ok = fits(step);
+                    while (!ok && step < last) ok = fits(++step);
+                    while (ok && step - 1 > from && expected() < step && fits(step - 1)) step -= 1;
                 }
+            } else if (dims && from > 0) {
+                // A larger window: the largest size expected to fit, then down towards the current size, which fits.
+                const target = expected();
+                for (step = Math.min(target, from); step < from && !fits(step);) step += 1;
             }
-            term.options.fontSize = sizeAt(step);
+            if (term.options.fontSize !== sizeAt(step)) term.options.fontSize = sizeAt(step);
         }
 
         // The fit addon outside pinned modes, with the minimum grid's font size or (`restore`, the minimum was
-        // dropped) the style's again; reported when the font size changed.
+        // dropped) the style's again; reported when the font size changed. With a minimum, a zero-size glass keeps
+        // its font size and grid (no probe, no fit) until the window has a size again.
         function fitWindow(restore) {
-            if (!fit) return;
+            if (!fit || (minimum && !hasGlass())) return;
             const before = term.options.fontSize;
             if (minimum) shrinkToMinimum();
             else if (restore) term.options.fontSize = styleSize();
@@ -289,7 +317,7 @@
             term.options.letterSpacing = 0;
             term.options.allowTransparency = false;
             window.TerminalStyles.applyXterm(term, getProfile());
-            if (fit && minimum) shrinkToMinimum();
+            if (fit && minimum && hasGlass()) shrinkToMinimum();
             if (fit) fit.fit();
             onFitted();
         }

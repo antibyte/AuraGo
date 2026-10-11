@@ -2963,11 +2963,20 @@ registration lives in `internal/desktop/types.go`.
   may exceed 80×24. The search probes through `proposeDimensions()` (xterm
   re-measures synchronously on a font change), so `set()`/`refit()` return with
   the final grid: the session URL, which the server uses for the first NAWS and
-  the SSH PTY, already carries it and no resize follows. Resizes and style
-  changes re-evaluate from the style's size; a hidden (zero-size) glass keeps
-  it. The minimum stays through the result, like a pinned grid; `set('fit')`
-  without options (directory, shell, policy switch, directory 403) and pinned
-  modes drop it and restore the style's size, which is never changed or saved.
+  the SSH PTY, already carries it and no resize follows. Every font size written
+  re-measures, clears and rebuilds the WebGL atlas, so the search starts at the
+  current size (its probe writes nothing) and writes only where the font must
+  change: a size that fits stays unless the style's size or a larger step is
+  expected to fit (the fit addon's room over the cell xterm drew), so a drag
+  within one size writes nothing; otherwise the expected size is probed, then
+  0.5 px steps towards one that fits. A style change starts at the new style's
+  size. A hidden (zero-size) glass keeps its current font size and grid (no
+  probe, no fit) until it has a size again. Dialing before the style's font has
+  loaded measures the fallback font; the style's refit then corrects the grid
+  with one resize after the session has opened. The minimum stays through the
+  result, like a pinned grid; `set('fit')` without options (directory, shell,
+  policy switch, directory 403) and pinned modes drop it and restore the
+  style's size, which is never changed or saved.
   The directory and the shell have no minimum: the directory redraws for any
   grid. Retro sessions set `convertEol=false`, the shell restores `true`.
   C64 calls put on the `commodore64` style with `persist=false`
