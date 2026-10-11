@@ -41,10 +41,10 @@ import (
 // The container compiles user and agent code, so everything that comes back
 // from it (exec output frames, the out/ archive) is untrusted and bounded.
 const (
-	cydBuilderContainerName = "aurago-cyd-builder"
-	cydBuilderCacheVolume   = "aurago-cyd-cache"
-	cydBuilderWorkVolume    = "aurago-cyd-work"
-	cydBuilderOwner         = "cyd-creator"
+	cydBuilderContainerName = dockerutil.CYDCreatorBuilderContainerName
+	cydBuilderCacheVolume   = dockerutil.CYDCreatorCacheVolumeName
+	cydBuilderWorkVolume    = dockerutil.CYDCreatorWorkVolumeName
+	cydBuilderOwner         = dockerutil.CYDCreatorOwner
 	cydBuilderUser          = "1000:1000"
 	cydBuilderPidsLimit     = 512
 	cydBuilderTmpfsOptions  = "rw,exec,nosuid,nodev,size=1g"

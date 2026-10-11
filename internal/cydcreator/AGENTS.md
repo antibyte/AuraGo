@@ -347,6 +347,10 @@ turns a project into the complete PlatformIO tree. Later plans add storage and t
   and `lv_font_conv` an allowlisted environment and runs offline on a read-only root file system as uid 1000
   (writes only `/work`, `/cache`, `/tmp`). Compiling untrusted C++ can still read every file the container can read:
   keep secrets out of the image, `/work` and `/cache`.
+- The live builder resources (container `aurago-cyd-builder`, volumes `aurago-cyd-work` and `aurago-cyd-cache`, label
+  `aurago.managed=cyd-creator`; names in `internal/dockerutil`) belong to the CYD Creator app only: the agent docker
+  tool, agent Compose and the admin Containers API protect them (`internal/tools/AGENTS.md`), so tests and CI use
+  other names (`aurago-cyd-*-it`, `cyd-ci-*`).
 - Publishing: `.github/workflows/cyd-builder.yml` builds each architecture natively and smoke-tests it offline
   (amd64 all profiles, arm64 one). The amd64 job then compiles ten builds of the nine golden cases (`all_widgets` on
   two boards, `all_widgets_portrait` and the seven `theme_*` cases) strictly with `TestGenerateCompilesInBuilder`

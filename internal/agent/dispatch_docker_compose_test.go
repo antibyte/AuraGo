@@ -122,6 +122,43 @@ func TestDockerComposePolicyAllowsUserContainerNamesEndingInAurago(t *testing.T)
 	}
 }
 
+// Compose must not reach the CYD Creator builder or its volumes through any
+// subcommand (down -v would delete the shared cache); the test and CI volumes
+// and the builder image stay usable.
+func TestDockerComposePolicyRefusesTheCYDCreatorBuilderAndVolumes(t *testing.T) {
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "cyd/compose.yml", "services:\n  web:\n    image: alpine\n")
+	dockerCfg := tools.DockerConfig{WorkspaceDir: workspace}
+	// volumes_from is refused for every container by the older local LLM text
+	// check before the model check runs (tools covers its CYD form).
+	refused := map[string]string{
+		"builder container name": `{"services":{"web":{"image":"alpine","container_name":"aurago-cyd-builder"}}}`,
+		"builder namespace":      `{"services":{"web":{"image":"alpine","network_mode":"container:aurago-cyd-builder"}}}`,
+		"builder pid namespace":  `{"services":{"web":{"image":"alpine","pid":"container:aurago-cyd-builder"}}}`,
+		"builder label":          `{"services":{"web":{"image":"alpine","labels":{"aurago.managed":"cyd-creator"}}}}`,
+		"external cache volume":  `{"services":{"web":{"image":"alpine","volumes":[{"type":"volume","source":"aurago-cyd-cache","target":"/c"}]}},"volumes":{"aurago-cyd-cache":{"name":"aurago-cyd-cache","external":true}}}`,
+		"work volume by name":    `{"services":{"web":{"image":"alpine","volumes":[{"type":"volume","source":"w","target":"/w"}]}},"volumes":{"w":{"name":"aurago-cyd-work","external":true}}}`,
+		"declared cache volume":  `{"services":{"web":{"image":"alpine"}},"volumes":{"c":{"name":"aurago-cyd-cache"}}}`,
+	}
+	for name, resolved := range refused {
+		for _, command := range []string{"up -d", "down -v", "ps"} {
+			stubDockerComposeResolver(t, func(string) (string, error) { return resolved, nil })
+			got := dockerComposePolicy(context.Background(), &config.Config{}, dockerCfg, dockerArgs{Operation: "compose", File: "cyd/compose.yml", Command: command})
+			if !strings.Contains(got, `"code":"docker_managed_cyd_creator_resource"`) {
+				t.Fatalf("%s, %s: dockerComposePolicy() = %s, want docker_managed_cyd_creator_resource", name, command, got)
+			}
+		}
+	}
+	allowed := `{"services":{"it":{"image":"aurago-cyd-builder:dev","container_name":"aurago-cyd-builder-it","volumes":[{"type":"volume","source":"aurago-cyd-work-it","target":"/work"},{"type":"volume","source":"aurago-cyd-cache-it","target":"/cache"},{"type":"volume","source":"cyd-ci-cache","target":"/ci"}]}},` +
+		`"volumes":{"aurago-cyd-work-it":{"name":"aurago-cyd-work-it","external":true},"aurago-cyd-cache-it":{"name":"aurago-cyd-cache-it","external":true},"cyd-ci-cache":{"name":"cyd-ci-cache"}}}`
+	stubDockerComposeResolver(t, func(string) (string, error) { return allowed, nil })
+	for _, command := range []string{"ps", "down", "config"} {
+		if got := dockerComposePolicy(context.Background(), &config.Config{}, dockerCfg, dockerArgs{Operation: "compose", File: "cyd/compose.yml", Command: command}); got != "" {
+			t.Fatalf("%s: test and CI volumes were blocked: %s", command, got)
+		}
+	}
+}
+
 func TestDockerComposePolicyResolvesAbsoluteWorkspaceFileOnce(t *testing.T) {
 	workspace := t.TempDir()
 	file := writeComposeFixture(t, workspace, "stack/compose.yml", "services:\n  web:\n    image: alpine\n")

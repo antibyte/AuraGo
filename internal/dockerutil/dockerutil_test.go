@@ -173,3 +173,40 @@ func TestSecurityProxyReservedName(t *testing.T) {
 		t.Fatal("the security proxy labels do not name their owner")
 	}
 }
+
+// The CYD Creator builder reserves its exact container name and its two volume
+// names; the test and CI volumes stay usable.
+func TestCYDCreatorReservedNames(t *testing.T) {
+	t.Parallel()
+
+	if CYDCreatorOwner != "cyd-creator" || CYDCreatorBuilderContainerName != "aurago-cyd-builder" ||
+		CYDCreatorWorkVolumeName != "aurago-cyd-work" || CYDCreatorCacheVolumeName != "aurago-cyd-cache" {
+		t.Fatalf("owner = %q, container = %q, volumes = %q, %q", CYDCreatorOwner, CYDCreatorBuilderContainerName, CYDCreatorWorkVolumeName, CYDCreatorCacheVolumeName)
+	}
+	for _, name := range []string{"aurago-cyd-builder", "/aurago-cyd-builder", " AURAGO-CYD-BUILDER "} {
+		if !IsCYDCreatorBuilderContainerName(name) {
+			t.Fatalf("builder container name %q was not recognized", name)
+		}
+	}
+	for _, name := range []string{"", "aurago", "cyd-creator", "aurago-cyd-builder-2", "proj-aurago-cyd-builder-1", "aurago-cyd-builder-stub", "aurago-cyd-cache"} {
+		if IsCYDCreatorBuilderContainerName(name) {
+			t.Fatalf("unrelated container %q was recognized as the CYD builder", name)
+		}
+	}
+	for _, name := range []string{"aurago-cyd-work", "aurago-cyd-cache", " AURAGO-CYD-CACHE "} {
+		if !IsCYDCreatorVolumeName(name) {
+			t.Fatalf("builder volume %q was not recognized", name)
+		}
+	}
+	for _, name := range []string{"", "aurago-cyd-work-it", "aurago-cyd-cache-it", "cyd-ci-work", "cyd-ci-cache-123", "proj_aurago-cyd-cache", "aurago-cyd-builder"} {
+		if IsCYDCreatorVolumeName(name) {
+			t.Fatalf("test or unrelated volume %q was recognized as a CYD builder volume", name)
+		}
+	}
+	// The builder's labels name the owner, so label-based ownership needs no
+	// extra rule.
+	if !ManagedBy(ManagedLabels(CYDCreatorOwner, "cyd-creator", "builder", "abc"), CYDCreatorOwner) ||
+		!ManagedBy(map[string]string{"aurago.managed": "cyd-creator"}, CYDCreatorOwner) {
+		t.Fatal("the CYD builder labels do not name their owner")
+	}
+}

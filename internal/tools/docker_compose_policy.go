@@ -186,7 +186,8 @@ func dockerComposeKeepEnd(text string, limit int) string {
 // (canonical and legacy) on services, top-level volumes and networks, the
 // homepage image repository, named and bind volume sources, local bind volume
 // devices, volumes_from and container: namespace references. Owners: acestep.Owner, dockerutil.LocalLLMOwner,
-// BoringGarageOwner, HomepageOwner and AppOwner. The app container matches only
+// BoringGarageOwner, HomepageOwner, AppOwner and CYDCreatorOwner (the exact
+// builder container name and its two exact volume names). The app container matches only
 // its exact name "aurago" or the aurago-app owner label: this tier also binds
 // grandfathered configs, and user stacks name containers like "dev-aurago".
 func DockerComposeModelOwner(model DockerComposeModel) string {
@@ -249,7 +250,7 @@ func DockerComposeModelOwner(model DockerComposeModel) string {
 // dockerComposeLabelOwner reports the AuraGo owner named by canonical or legacy
 // aurago.managed labels on a service, volume or network.
 func dockerComposeLabelOwner(labels map[string]string) string {
-	for _, owner := range []string{acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner, dockerutil.HomepageOwner, dockerutil.AppOwner} {
+	for _, owner := range []string{acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner, dockerutil.HomepageOwner, dockerutil.AppOwner, dockerutil.CYDCreatorOwner} {
 		if dockerutil.ManagedBy(labels, owner) {
 			return owner
 		}
@@ -270,6 +271,8 @@ func dockerComposeContainerOwner(name string) string {
 		return dockerutil.BoringGarageOwner
 	case dockerutil.IsHomepageContainerName(name):
 		return dockerutil.HomepageOwner
+	case dockerutil.IsCYDCreatorBuilderContainerName(name):
+		return dockerutil.CYDCreatorOwner
 	case strings.EqualFold(strings.TrimPrefix(name, "/"), dockerutil.AppContainerName):
 		// Exact name only. dockerutil.IsAuraGoAppContainerName also matches
 		// "*-aurago"/"*_aurago" replicas; the agent create path keeps using it,
@@ -290,6 +293,8 @@ func dockerComposeVolumeOwner(name string) string {
 		return dockerutil.LocalLLMOwner
 	case dockerutil.IsBoringGarageContainerName(name):
 		return dockerutil.BoringGarageOwner
+	case dockerutil.IsCYDCreatorVolumeName(name):
+		return dockerutil.CYDCreatorOwner
 	}
 	return ""
 }

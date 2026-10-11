@@ -956,6 +956,8 @@ func dockerComposeOwnerDenial(owner string) string {
 		return dockerAgentError("docker_managed_homepage_resource", "Docker Compose access to AuraGo-managed homepage resources is blocked. Use homepage_project, homepage_file, or homepage_deploy.")
 	case dockerutil.AppOwner:
 		return dockerAgentError("docker_managed_aurago_resource", "Docker Compose access to AuraGo's application container is blocked.")
+	case dockerutil.CYDCreatorOwner:
+		return dockerAgentError("docker_managed_cyd_creator_resource", "Docker Compose access to AuraGo's CYD Creator builder container and its build volumes (aurago-cyd-work, aurago-cyd-cache) is blocked. Use the CYD Creator app to build firmware.")
 	}
 	return ""
 }

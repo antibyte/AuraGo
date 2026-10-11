@@ -771,3 +771,83 @@ func TestContainerProtectionCoversTheSecurityProxy(t *testing.T) {
 		t.Fatalf("admin list = %s, want both proxy containers protected", list)
 	}
 }
+
+// The CYD Creator builder is a protected AuraGo-managed container: terminal,
+// update and remove ask for a confirmation, by its label and by its reserved
+// name (also when Docker reports no such container).
+func TestContainerProtectionCoversTheCYDCreatorBuilder(t *testing.T) {
+	labels := `{"aurago.managed":"cyd-creator","aurago.component":"cyd-creator","aurago.role":"builder","aurago.fingerprint":"0123456789abcdef"}`
+	var removed []string
+	host := newContainerDockerAPI(t, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodDelete:
+			removed = append(removed, r.URL.Path)
+			w.WriteHeader(http.StatusNoContent)
+		case strings.HasSuffix(r.URL.Path, "/containers/aurago-cyd-builder/json"):
+			_, _ = w.Write([]byte(`{"Id":"cccccccccccc3333","Name":"/aurago-cyd-builder","Config":{"Labels":` + labels + `}}`))
+		case strings.HasSuffix(r.URL.Path, "/containers/renamed/json"):
+			_, _ = w.Write([]byte(`{"Id":"ffffffffffff6666","Name":"/renamed","Config":{"Labels":` + labels + `}}`))
+		case strings.HasSuffix(r.URL.Path, "/containers/json"):
+			_, _ = w.Write([]byte(`[
+				{"Id":"cccccccccccc3333","Names":["/aurago-cyd-builder"],"Image":"ghcr.io/antibyte/aurago-cyd-builder:1","State":"running","Status":"Up","Labels":` + labels + `},
+				{"Id":"ffffffffffff6666","Names":["/renamed"],"Image":"ghcr.io/antibyte/aurago-cyd-builder:1","State":"exited","Status":"Exited (0)","Labels":` + labels + `},
+				{"Id":"aaaaaaaaaaaa1111","Names":["/aurago-cyd-builder-it"],"Image":"aurago-cyd-builder:dev","State":"exited","Status":"Exited (0)","Labels":{}}
+			]`))
+		default:
+			http.NotFound(w, r)
+		}
+	})
+	defer replaceContainerSelfHostname("aurago-host")()
+	defer replaceContainerSelfProcFiles(nil)()
+	defer replaceContainerEndpointAddresses()()
+	s := testContainerServer(true, false)
+	s.Cfg.Docker.Host = host
+	cfg := tools.DockerConfig{Host: host}
+
+	for id, want := range map[string]containerProtection{
+		"aurago-cyd-builder":    {Owner: dockerutil.CYDCreatorOwner},
+		"renamed":               {Owner: dockerutil.CYDCreatorOwner},
+		"aurago-cyd-builder-it": {}, // 404 here; a test container's name reserves nothing
+	} {
+		got := classifyContainerForAction(context.Background(), s, cfg, id)
+		if got != want {
+			t.Fatalf("classify %q = %+v, want %+v", id, got, want)
+		}
+		if want.Owner != "" && (!got.protected() || !strings.Contains(got.confirmationMessage(), "(cyd-creator)")) {
+			t.Fatalf("classify %q: protected = %v, message = %q", id, got.protected(), got.confirmationMessage())
+		}
+	}
+	list := adminContainerListJSON(context.Background(), s, cfg)
+	if strings.Count(list, `"protected_owner":"cyd-creator"`) != 2 {
+		t.Fatalf("admin list = %s, want the builder and the renamed builder protected", list)
+	}
+
+	fake := &fakeContainerTerminalBackend{running: true}
+	defer replaceContainerTerminalBackend(fake)()
+	for _, req := range []*http.Request{
+		newContainerTerminalUpgradeRequest("/api/containers/aurago-cyd-builder/terminal"),
+		httptest.NewRequest(http.MethodPost, "/api/containers/aurago-cyd-builder/update", nil),
+		httptest.NewRequest(http.MethodDelete, "/api/containers/aurago-cyd-builder?force=true", nil),
+	} {
+		rec := httptest.NewRecorder()
+		handleContainerAction(s)(rec, req)
+		body := decodeContainerResponse(t, rec)
+		if rec.Code != http.StatusConflict || body["code"] != containerCodeConfirmationRequired || body["owner"] != dockerutil.CYDCreatorOwner {
+			t.Fatalf("%s %s = %d %v, want 409 %s for cyd-creator", req.Method, req.URL, rec.Code, body, containerCodeConfirmationRequired)
+		}
+	}
+	if fake.createCalls != 0 || len(removed) != 0 {
+		t.Fatalf("unconfirmed actions reached Docker: terminals %d, removals %v", fake.createCalls, removed)
+	}
+	rec := httptest.NewRecorder()
+	handleContainerAction(s)(rec, httptest.NewRequest(http.MethodDelete, "/api/containers/aurago-cyd-builder?force=true&confirm=protected", nil))
+	if len(removed) != 1 {
+		t.Fatalf("confirmed remove = %d %s, removals %v; want it to reach Docker", rec.Code, rec.Body.String(), removed)
+	}
+
+	// A reserved name still names its owner when Docker reports no container.
+	missing := newContainerDockerAPI(t, func(w http.ResponseWriter, r *http.Request) { http.NotFound(w, r) })
+	if got := classifyContainerForAction(context.Background(), s, tools.DockerConfig{Host: missing}, "aurago-cyd-builder"); got != (containerProtection{Owner: dockerutil.CYDCreatorOwner}) {
+		t.Fatalf("classify missing builder = %+v, want owner cyd-creator", got)
+	}
+}

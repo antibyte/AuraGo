@@ -996,6 +996,8 @@ func dockerOwnerMatches(owner, name string, labels map[string]string) bool {
 		return true
 	case strings.EqualFold(trimmed, dockerutil.SecurityProxyOwner) && dockerutil.IsSecurityProxyContainerName(name):
 		return true
+	case strings.EqualFold(trimmed, dockerutil.CYDCreatorOwner) && dockerutil.IsCYDCreatorBuilderContainerName(name):
+		return true
 	}
 	return len(labels) > 0 && dockerutil.ManagedBy(labels, owner)
 }
@@ -1169,6 +1171,14 @@ func dockerManagedResourceExcluded(labels map[string]string, names []string, vol
 			}
 			if strings.EqualFold(strings.TrimSpace(owner), dockerutil.BoringGarageOwner) {
 				if !volume && dockerutil.IsBoringGarageContainerName(name) {
+					return true
+				}
+			}
+			if strings.EqualFold(strings.TrimSpace(owner), dockerutil.CYDCreatorOwner) {
+				if volume && dockerutil.IsCYDCreatorVolumeName(name) {
+					return true
+				}
+				if !volume && dockerutil.IsCYDCreatorBuilderContainerName(name) {
 					return true
 				}
 			}
@@ -1678,7 +1688,7 @@ func DockerRenameContainer(cfg DockerConfig, containerID, newName string) string
 		return errJSON("reserved AuraGo local LLM container name")
 	}
 	if dockerutil.IsBoringGarageContainerName(newName) || dockerutil.IsHomepageContainerName(newName) || dockerutil.IsAuraGoAppContainerName(newName) ||
-		dockerutil.IsSecurityProxyContainerName(newName) {
+		dockerutil.IsSecurityProxyContainerName(newName) || dockerutil.IsCYDCreatorBuilderContainerName(newName) {
 		return errJSON("reserved AuraGo managed container name")
 	}
 	endpoint := "/containers/" + url.PathEscape(containerID) + "/rename?name=" + url.QueryEscape(newName)

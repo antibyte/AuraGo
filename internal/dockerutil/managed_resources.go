@@ -34,6 +34,16 @@ const (
 	// proxy container (internal/proxy).
 	SecurityProxyOwner         = "security-proxy"
 	SecurityProxyContainerName = "aurago-security-proxy"
+
+	// CYDCreatorOwner is the canonical owner of the CYD Creator builder
+	// container and its two named volumes (internal/server/cyd_creator_builder.go).
+	CYDCreatorOwner                = "cyd-creator"
+	CYDCreatorBuilderContainerName = "aurago-cyd-builder"
+	// CYDCreatorWorkVolumeName holds the project trees (/work);
+	// CYDCreatorCacheVolumeName holds the PlatformIO objects every project's
+	// firmware is linked from (/cache).
+	CYDCreatorWorkVolumeName  = "aurago-cyd-work"
+	CYDCreatorCacheVolumeName = "aurago-cyd-cache"
 )
 
 // ManagedBy recognizes both the canonical AuraGo label and the legacy labels
@@ -105,6 +115,21 @@ func IsHomepageContainerName(name string) bool {
 // identifies it.
 func IsSecurityProxyContainerName(name string) bool {
 	return strings.TrimPrefix(strings.ToLower(strings.TrimSpace(name)), "/") == SecurityProxyContainerName
+}
+
+// IsCYDCreatorBuilderContainerName recognizes the reserved CYD Creator builder
+// container. AuraGo creates it only under this exact name, so compose-style
+// variants stay free.
+func IsCYDCreatorBuilderContainerName(name string) bool {
+	return strings.TrimPrefix(strings.ToLower(strings.TrimSpace(name)), "/") == CYDCreatorBuilderContainerName
+}
+
+// IsCYDCreatorVolumeName recognizes the builder's work and cache volumes.
+// Exact names only: the test volumes (aurago-cyd-work-it, aurago-cyd-cache-it,
+// cyd-ci-*) stay usable.
+func IsCYDCreatorVolumeName(name string) bool {
+	name = strings.ToLower(strings.TrimSpace(name))
+	return name == CYDCreatorWorkVolumeName || name == CYDCreatorCacheVolumeName
 }
 
 // IsAuraGoAppContainerName recognizes the compose AuraGo application container

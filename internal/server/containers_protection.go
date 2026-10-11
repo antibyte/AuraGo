@@ -42,6 +42,7 @@ var containerProtectedOwners = []string{
 	"go2rtc",
 	dockerutil.LocalLLMOwner,
 	dockerutil.BoringGarageOwner,
+	dockerutil.CYDCreatorOwner,
 	dockerutil.SecurityProxyOwner,
 }
 
