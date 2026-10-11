@@ -12,9 +12,14 @@ import (
 func renderTheme(th Theme) string {
 	roles := themeFontRoles(th)
 	tk := th.Tokens
-	style := map[string]string{"filled": "0", "outline": "1", "bracket": "2"}[th.ButtonStyle]
+	// An unknown button style falls back to filled ("0"): an empty value
+	// would emit `ui__button_style = ;`, which does not compile.
+	style, known := map[string]string{"filled": "0", "outline": "1", "bracket": "2"}[th.ButtonStyle]
+	if !known {
+		style = "0"
+	}
 	r := strings.NewReplacer(
-		"{{ID}}", th.ID,
+		"{{ID}}", cComment(th.ID),
 		"{{BUTTON_STYLE}}", style,
 		"{{DARK}}", strconv.FormatBool(colorLuma(tk.Bg) < 128),
 		"{{BG}}", cHexColor(tk.Bg),
@@ -40,8 +45,13 @@ func renderTheme(th Theme) string {
 }
 
 // colorLuma is the perceived brightness (0..255) of "#RRGGBB":
-// (299 R + 587 G + 114 B) / 1000.
+// (299 R + 587 G + 114 B) / 1000. Anything that is not exactly "#RRGGBB"
+// counts as black, like cHexColor's fallback, so the dark flag and the
+// colour constant always agree.
 func colorLuma(color string) int {
+	if !colorPattern.MatchString(color) {
+		return 0
+	}
 	v, err := strconv.ParseUint(strings.TrimPrefix(color, "#"), 16, 32)
 	if err != nil {
 		return 0
