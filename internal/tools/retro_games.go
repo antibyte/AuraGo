@@ -106,7 +106,8 @@ func retroGamesSearch(ctx context.Context, svc *retrogames.Service, req RetroGam
 		limit = retroGamesMaxLimit
 	}
 	query := strings.TrimSpace(req.Query)
-	if _, err := (retrogames.Query{Text: query, Platform: req.Platform, Decade: req.Decade}).Normalize(); err != nil {
+	normalized, err := (retrogames.Query{Text: query, Platform: req.Platform, Decade: req.Decade}).Normalize()
+	if err != nil {
 		return retroGamesErrorFor(err)
 	}
 	if query == "" {
@@ -122,19 +123,38 @@ func retroGamesSearch(ctx context.Context, svc *retrogames.Service, req RetroGam
 		return retroGamesErrorFor(err)
 	}
 	if res.Total == 0 {
-		// Only an index that holds no games at all falls back to the Hall of
-		// Fame; a miss on a populated index is an honest empty result.
-		if status, statusErr := svc.Status(ctx); statusErr == nil && status.TotalGames == 0 {
-			hof, hofErr := svc.HallOfFame(ctx, req.Platform)
-			if hofErr != nil {
-				return retroGamesErrorFor(hofErr)
+		if status, statusErr := svc.Status(ctx); statusErr == nil {
+			// An index that holds no games at all falls back to the Hall of Fame.
+			if status.TotalGames == 0 {
+				hof, hofErr := svc.HallOfFame(ctx, req.Platform)
+				if hofErr != nil {
+					return retroGamesErrorFor(hofErr)
+				}
+				hits := retroGamesMatchTitles(retroGamesDecade(hof, req.Decade), query)
+				return retroGamesList("hall_of_fame", len(hits), retroGamesHead(hits, limit),
+					"index_building: the full game index is still being built; only matching Hall of Fame games are listed. Search again in a minute or two.")
 			}
-			hits := retroGamesMatchTitles(retroGamesDecade(hof, req.Decade), query)
-			return retroGamesList("hall_of_fame", len(hits), retroGamesHead(hits, limit),
-				"index_building: the full game index is still being built; only matching Hall of Fame games are listed. Search again in a minute or two.")
+			// A populated index that has not finished syncing the searched
+			// platform(s) may simply not hold the game yet; say so, so an empty
+			// result is not read as "this game does not exist".
+			if retroGamesPlatformNotIndexed(status, normalized.Platform) {
+				return retroGamesList("index", 0, nil,
+					"index_incomplete: some platforms are not fully indexed yet, so this search may miss games there. Search again later.")
+			}
 		}
 	}
 	return retroGamesList("index", res.Total, res.Games, "")
+}
+
+// retroGamesPlatformNotIndexed reports whether a platform the search covers has
+// never completed a sync: the given platform key, or any platform when empty.
+func retroGamesPlatformNotIndexed(status retrogames.Status, platform string) bool {
+	for _, p := range status.Platforms {
+		if (platform == "" || p.Key == platform) && p.LastSuccessAt == 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func retroGamesPlay(ctx context.Context, cfg *config.Config, svc *retrogames.Service, req RetroGamesRequest) VirtualDesktopExecution {

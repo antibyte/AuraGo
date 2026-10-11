@@ -169,6 +169,90 @@ func TestRetroGamesToolNoFallbackWhenIndexHasGames(t *testing.T) {
 	if m["status"] != "success" || m["source"] != "index" || retroGamesNumber(t, m, "total") != 0 || m["results"] != nil || m["note"] != nil {
 		t.Fatalf("a miss on a populated index must be an honest empty result: %v", m)
 	}
+	for _, platform := range []string{"msdos", "c64"} {
+		m = decodeRetroGamesOutput(t, ExecuteRetroGames(context.Background(), retroGamesToolConfig(), RetroGamesRequest{Operation: "search", Platform: platform, Query: "zzzznomatch"}).Output)
+		if m["status"] != "success" || m["source"] != "index" || retroGamesNumber(t, m, "total") != 0 || m["results"] != nil || m["note"] != nil {
+			t.Fatalf("platform %s: a miss on a fully synced index must be an honest empty result: %v", platform, m)
+		}
+	}
+}
+
+// retroGamesPartialFetcher serves every platform from inner except the one
+// whose archive.org query is failing, which never completes a sync.
+type retroGamesPartialFetcher struct {
+	inner   retrogames.Fetcher
+	failing string
+}
+
+func (f retroGamesPartialFetcher) FetchPage(ctx context.Context, query, cursor string) (retrogames.Page, error) {
+	if query == f.failing {
+		return retrogames.Page{}, errors.New("offline")
+	}
+	return f.inner.FetchPage(ctx, query, cursor)
+}
+
+// partiallyIndexedRetroGames returns a service whose Amiga platform has synced
+// while the Commodore 64 platform never did: the index holds games, yet C64 has
+// no successful sync.
+func partiallyIndexedRetroGames(t *testing.T) {
+	t.Helper()
+	failing, ok := retrogames.SourceByKey(retrogames.PlatformC64)
+	if !ok {
+		t.Fatal("c64 source is missing")
+	}
+	svc := useRetroGamesService(t, retroGamesPartialFetcher{
+		inner: &retrogamestest.Fetcher{BySource: map[string][]retrogames.Item{
+			retrogames.PlatformAmiga: {retrogamestest.Item("amiga_zool_1992", "Zool", "dosbox", 1992, 50)},
+		}},
+		failing: failing.Query(),
+	})
+	syncRetroGames(t, svc)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	status, err := svc.Status(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.TotalGames == 0 {
+		t.Fatalf("partial state needs a populated index: %+v", status)
+	}
+	synced := map[string]bool{}
+	for _, p := range status.Platforms {
+		synced[p.Key] = p.LastSuccessAt != 0
+	}
+	if !synced[retrogames.PlatformAmiga] || synced[retrogames.PlatformC64] {
+		t.Fatalf("partial state needs amiga synced and c64 not: %v", synced)
+	}
+}
+
+func TestRetroGamesToolFlagsSearchesOnPlatformsNotIndexedYet(t *testing.T) {
+	partiallyIndexedRetroGames(t)
+	cfg := retroGamesToolConfig()
+	search := func(platform string) map[string]any {
+		t.Helper()
+		return decodeRetroGamesOutput(t, ExecuteRetroGames(context.Background(), cfg, RetroGamesRequest{Operation: "search", Platform: platform, Query: "zzzznomatch"}).Output)
+	}
+
+	for _, platform := range []string{"c64", " c64 "} {
+		m := search(platform)
+		if m["status"] != "success" || m["source"] != "index" || retroGamesNumber(t, m, "total") != 0 || m["results"] != nil ||
+			!strings.HasPrefix(retroGamesText(t, m, "note"), "index_incomplete") {
+			t.Fatalf("platform %q never synced: want an empty result with an index_incomplete note: %v", platform, m)
+		}
+	}
+	// Without a platform filter every platform is relevant, so the unsynced one counts.
+	if m := search(""); m["status"] != "success" || retroGamesNumber(t, m, "total") != 0 || !strings.HasPrefix(retroGamesText(t, m, "note"), "index_incomplete") {
+		t.Fatalf("no platform filter: %v", m)
+	}
+	// A platform that did sync stays an honest empty result.
+	if m := search("amiga"); m["status"] != "success" || m["source"] != "index" || retroGamesNumber(t, m, "total") != 0 || m["results"] != nil || m["note"] != nil {
+		t.Fatalf("synced platform amiga must not carry a note: %v", m)
+	}
+	// Hits are never annotated, even on the platform that is incomplete elsewhere.
+	m := decodeRetroGamesOutput(t, ExecuteRetroGames(context.Background(), cfg, RetroGamesRequest{Operation: "search", Query: "zool"}).Output)
+	if retroGamesNumber(t, m, "total") != 1 || m["note"] != nil {
+		t.Fatalf("a hit must come back without a note: %v", m)
+	}
 }
 
 func TestRetroGamesToolClampsLimit(t *testing.T) {
