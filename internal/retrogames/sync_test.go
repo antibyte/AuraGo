@@ -178,15 +178,19 @@ func TestSyncCancellationDuringRetryWaitIsNotRecorded(t *testing.T) {
 	}
 }
 
-func TestSyncAcceptShrinkReplacesSource(t *testing.T) {
+// shrinkFixture seeds msdos with 10 old games and queues `responses` identical
+// answers of 4 new games, so every sync of msdos looks like a halved source.
+func shrinkFixture(t *testing.T, responses int) (*syncer, *Store, *fakeFetcher, Source) {
+	t.Helper()
 	f := newFakeFetcher()
 	var items []Item
 	for i := 0; i < 4; i++ {
 		items = append(items, testItem("n"+string(rune('a'+i)), "New", "dosbox", 1990, 1))
 	}
-	f.add(PlatformMSDOS, "", Page{Items: items}, nil)
+	for i := 0; i < responses; i++ {
+		f.add(PlatformMSDOS, "", Page{Items: items}, nil)
+	}
 	sy, st, _ := newTestSyncer(t, f)
-	sy.acceptShrink = true
 	var old []Game
 	for i := 0; i < 10; i++ {
 		old = append(old, testGame("o"+string(rune('a'+i)), "Old", PlatformMSDOS, 1990, 1))
@@ -195,9 +199,26 @@ func TestSyncAcceptShrinkReplacesSource(t *testing.T) {
 		t.Fatal(err)
 	}
 	src, _ := SourceByKey(PlatformMSDOS)
-	n, err := sy.syncSource(context.Background(), src)
-	if err != nil || n != 4 {
-		t.Fatalf("syncSource = %d, %v; want 4, nil", n, err)
+	return sy, st, f, src
+}
+
+func TestSyncAcceptShrinkReplacesSource(t *testing.T) {
+	sy, st, _, src := shrinkFixture(t, 2)
+	// An automatic sync is stopped by the guard, which records why.
+	if err := sy.run(context.Background(), []Source{src}); err == nil {
+		t.Fatal("first run must be stopped by the shrink guard")
+	}
+	states, _ := st.SyncStates(context.Background())
+	if !strings.Contains(states[PlatformMSDOS].LastError, ErrShrinkGuard.Error()) {
+		t.Fatalf("guard rejection not recorded: %+v", states[PlatformMSDOS])
+	}
+	if got := countGames(t, st, PlatformMSDOS); got != 10 {
+		t.Fatalf("rows after rejection = %d, want 10", got)
+	}
+	// The user asks again and thereby accepts the shrink.
+	sy.acceptShrink = true
+	if err := sy.run(context.Background(), []Source{src}); err != nil {
+		t.Fatalf("accepted run: %v", err)
 	}
 	if got := countGames(t, st, PlatformMSDOS); got != 4 {
 		t.Fatalf("rows = %d, want 4", got)
@@ -205,9 +226,40 @@ func TestSyncAcceptShrinkReplacesSource(t *testing.T) {
 	if _, ok, _ := st.Game(context.Background(), "oa"); ok {
 		t.Fatal("old rows must be gone")
 	}
-	states, _ := st.SyncStates(context.Background())
-	if states[PlatformMSDOS].ItemCount != 4 {
+	states, _ = st.SyncStates(context.Background())
+	if states[PlatformMSDOS].ItemCount != 4 || states[PlatformMSDOS].LastError != "" {
 		t.Fatalf("state = %+v", states[PlatformMSDOS])
+	}
+}
+
+func TestSyncAcceptShrinkNeedsEarlierGuardRejection(t *testing.T) {
+	sy, st, f, src := shrinkFixture(t, 1)
+	sy.acceptShrink = true
+	if _, err := sy.syncSource(context.Background(), src); !errors.Is(err, ErrShrinkGuard) {
+		t.Fatalf("err = %v, want ErrShrinkGuard on the first sighting", err)
+	}
+	if f.callCount() != 1 {
+		t.Fatalf("calls = %d, want 1", f.callCount())
+	}
+	if got := countGames(t, st, PlatformMSDOS); got != 10 {
+		t.Fatalf("rows = %d, want the 10 old ones", got)
+	}
+	if _, ok, _ := st.Game(context.Background(), "oa"); !ok {
+		t.Fatal("old rows must stay")
+	}
+}
+
+func TestSyncAcceptShrinkIgnoresOtherEarlierErrors(t *testing.T) {
+	sy, st, _, src := shrinkFixture(t, 1)
+	sy.acceptShrink = true
+	if err := st.RecordSyncFailure(context.Background(), PlatformMSDOS, testNow, "retrogames: request failed: timeout"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := sy.syncSource(context.Background(), src); !errors.Is(err, ErrShrinkGuard) {
+		t.Fatalf("err = %v, want ErrShrinkGuard after an unrelated failure", err)
+	}
+	if got := countGames(t, st, PlatformMSDOS); got != 10 {
+		t.Fatalf("rows = %d, want 10", got)
 	}
 }
 

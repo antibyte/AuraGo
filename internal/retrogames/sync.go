@@ -60,8 +60,10 @@ type syncer struct {
 	logger   *slog.Logger
 	progress func(SourceProgress)
 	requests int
-	// acceptShrink disables the shrink guard for user-requested syncs;
-	// automatic syncs keep it.
+	// acceptShrink lets a user-requested sync accept a shrink that the guard
+	// already rejected once (the source's last stored error says so). A source
+	// that was not rejected before stays guarded, so one truncated answer
+	// cannot halve a healthy source. Automatic syncs never set it.
 	acceptShrink bool
 }
 
@@ -159,8 +161,13 @@ func (s *syncer) syncSource(ctx context.Context, src Source) (int, error) {
 	if len(games) == 0 {
 		return 0, errEmptySource
 	}
-	if !s.acceptShrink && previous > 0 && len(games)*2 < previous {
-		return 0, fmt.Errorf("%w (%d now, %d before)", ErrShrinkGuard, len(games), previous)
+	if previous > 0 && len(games)*2 < previous {
+		// run stores a rejection as err.Error(), which starts with the
+		// ErrShrinkGuard text, so the stored message tells a repeat shrink.
+		rejectedBefore := strings.Contains(states[src.Key].LastError, ErrShrinkGuard.Error())
+		if !(s.acceptShrink && rejectedBefore) {
+			return 0, fmt.Errorf("%w (%d now, %d before)", ErrShrinkGuard, len(games), previous)
+		}
 	}
 	if err := s.store.ReplaceSource(ctx, src.Key, games, s.now()); err != nil {
 		return 0, fmt.Errorf("%w: %w", errStore, err)
