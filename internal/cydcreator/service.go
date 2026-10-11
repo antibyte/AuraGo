@@ -248,6 +248,8 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 		s.Emit(b.ProjectID, EventBuildStatus, b.JobID, b.ID, map[string]any{"build": build})
 	}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
+	s.wg.Add(1)
+	go s.buildWorker()
 	return s, nil
 }
 
