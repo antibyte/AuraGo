@@ -35,7 +35,8 @@ func FilterEnv(env []string) []string {
 		"TF_VAR_",
 		"ANSIBLE_VAULT_",
 	}
-	var filtered []string
+	// Never nil: exec.Cmd treats a nil Env as "inherit the parent environment".
+	filtered := make([]string, 0, len(env))
 	for _, e := range env {
 		if !isSensitiveEnvAssignment(e, sensitivePrefixes) {
 			filtered = append(filtered, e)
