@@ -5867,7 +5867,7 @@
   "desktop.retro_games_fullscreen": "पूर्ण स्क्रीन",
   "desktop.retro_games_restart": "फिर से शुरू करें",
   "desktop.retro_games_player_loading": "एमुलेटर शुरू करने के लिए स्क्रीन पर ⏻ पर क्लिक करें। पहली बार शुरू होने में 40 सेकंड तक लग सकते हैं।",
-  "desktop.retro_games_player_stalled": "एमुलेटर जवाब नहीं दे रहा।",
+  "desktop.retro_games_player_stalled": "गेम को लोड होने में असामान्य रूप से अधिक समय लग रहा है।",
   "desktop.retro_games_focus_hint": "कीबोर्ड से खेलने के लिए स्क्रीन पर क्लिक करें; उसे छोड़ने के लिए बाहर क्लिक करें।",
   "desktop.retro_games_controls_label": "नियंत्रण",
   "desktop.retro_games_frame_title": "{title} के लिए एमुलेटर",

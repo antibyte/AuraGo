@@ -5867,7 +5867,7 @@
   "desktop.retro_games_fullscreen": "Pantalla completa",
   "desktop.retro_games_restart": "Reiniciar",
   "desktop.retro_games_player_loading": "Haz clic en ⏻ en la pantalla para iniciar el emulador. El primer arranque puede tardar hasta 40 segundos.",
-  "desktop.retro_games_player_stalled": "El emulador no responde.",
+  "desktop.retro_games_player_stalled": "El juego tarda más de lo normal en cargarse.",
   "desktop.retro_games_focus_hint": "Haz clic en la pantalla para jugar con el teclado; haz clic fuera para soltarlo.",
   "desktop.retro_games_controls_label": "Controles",
   "desktop.retro_games_frame_title": "Emulador de {title}",

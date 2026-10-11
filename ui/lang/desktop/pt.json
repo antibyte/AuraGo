@@ -5867,7 +5867,7 @@
   "desktop.retro_games_fullscreen": "Tela cheia",
   "desktop.retro_games_restart": "Reiniciar",
   "desktop.retro_games_player_loading": "Clique em ⏻ na tela para iniciar o emulador. A primeira inicialização pode levar até 40 segundos.",
-  "desktop.retro_games_player_stalled": "O emulador não está respondendo.",
+  "desktop.retro_games_player_stalled": "O jogo está demorando mais que o normal para carregar.",
   "desktop.retro_games_focus_hint": "Clique na tela para jogar com o teclado; clique fora para liberá-lo.",
   "desktop.retro_games_controls_label": "Controles",
   "desktop.retro_games_frame_title": "Emulador para {title}",

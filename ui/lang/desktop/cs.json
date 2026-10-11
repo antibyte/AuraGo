@@ -5867,7 +5867,7 @@
   "desktop.retro_games_fullscreen": "Celá obrazovka",
   "desktop.retro_games_restart": "Restartovat",
   "desktop.retro_games_player_loading": "Kliknutím na ⏻ na obrazovce spustíte emulátor. První spuštění může trvat až 40 sekund.",
-  "desktop.retro_games_player_stalled": "Emulátor neodpovídá.",
+  "desktop.retro_games_player_stalled": "Hra se načítá nezvykle dlouho.",
   "desktop.retro_games_focus_hint": "Kliknutím do obrazu můžete hrát klávesnicí; kliknutím mimo ji uvolníte.",
   "desktop.retro_games_controls_label": "Ovládání",
   "desktop.retro_games_frame_title": "Emulátor pro {title}",

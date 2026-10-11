@@ -243,10 +243,12 @@
     text-align: center;
     pointer-events: none;
 }
-.rg-overlay.is-stalled { top: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; pointer-events: auto; color: var(--rg-yellow); }
+/* The slow-load hint stays the bottom strip: it never takes pointer events (the game
+   underneath must stay clickable); only its buttons do. */
+.rg-overlay.is-stalled { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 14px; padding: 6px 12px; color: var(--rg-yellow); }
 .rg-overlay-text { margin: 0; }
-.rg-overlay-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
-.rg-overlay-actions .rg-btn { height: auto; padding: 6px 12px; }
+.rg-overlay-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.rg-overlay-actions .rg-btn { height: auto; padding: 3px 8px; font-size: 15px; pointer-events: auto; }
 .rg-panel {
     display: flex;
     flex-wrap: wrap;

@@ -5867,7 +5867,7 @@
   "desktop.retro_games_fullscreen": "Fuld skærm",
   "desktop.retro_games_restart": "Genstart",
   "desktop.retro_games_player_loading": "Klik på ⏻ på skærmen for at starte emulatoren. Første start kan tage op til 40 sekunder.",
-  "desktop.retro_games_player_stalled": "Emulatoren svarer ikke.",
+  "desktop.retro_games_player_stalled": "Spillet tager usædvanligt lang tid at indlæse.",
   "desktop.retro_games_focus_hint": "Klik på skærmen for at spille med tastaturet; klik udenfor for at slippe det.",
   "desktop.retro_games_controls_label": "Styring",
   "desktop.retro_games_frame_title": "Emulator til {title}",

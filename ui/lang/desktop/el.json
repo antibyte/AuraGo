@@ -5867,7 +5867,7 @@
   "desktop.retro_games_fullscreen": "Πλήρης οθόνη",
   "desktop.retro_games_restart": "Επανεκκίνηση",
   "desktop.retro_games_player_loading": "Κάντε κλικ στο ⏻ στην οθόνη για να ξεκινήσει ο εξομοιωτής. Η πρώτη εκκίνηση μπορεί να διαρκέσει έως 40 δευτερόλεπτα.",
-  "desktop.retro_games_player_stalled": "Ο εξομοιωτής δεν ανταποκρίνεται.",
+  "desktop.retro_games_player_stalled": "Το παιχνίδι αργεί ασυνήθιστα πολύ να φορτώσει.",
   "desktop.retro_games_focus_hint": "Κάντε κλικ στην οθόνη για να παίξετε με το πληκτρολόγιο· κάντε κλικ έξω για να το αφήσετε.",
   "desktop.retro_games_controls_label": "Χειριστήρια",
   "desktop.retro_games_frame_title": "Εξομοιωτής για το {title}",

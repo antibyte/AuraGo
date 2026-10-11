@@ -5867,7 +5867,7 @@
   "desktop.retro_games_fullscreen": "全画面表示",
   "desktop.retro_games_restart": "再起動",
   "desktop.retro_games_player_loading": "画面の ⏻ をクリックするとエミュレーターが起動します。初回の起動には最大40秒かかることがあります。",
-  "desktop.retro_games_player_stalled": "エミュレーターが応答しません。",
+  "desktop.retro_games_player_stalled": "ゲームの読み込みに通常より時間がかかっています。",
   "desktop.retro_games_focus_hint": "画面をクリックするとキーボードで遊べます。外側をクリックすると解除されます。",
   "desktop.retro_games_controls_label": "操作方法",
   "desktop.retro_games_frame_title": "{title} のエミュレーター",

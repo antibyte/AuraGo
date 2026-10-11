@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -56,6 +57,101 @@ func TestDesktopRetroGamesPlayerFrameIsLockedDown(t *testing.T) {
 		if !strings.Contains(src, marker) {
 			t.Errorf("player lacks %q", marker)
 		}
+	}
+}
+
+// The player must hand the keyboard to the game: the frame gets focus on mount
+// and again after every control that would otherwise keep it (Space/Enter would
+// re-trigger the button, the arrow keys would go nowhere).
+func TestDesktopRetroGamesPlayerGivesTheGameTheKeyboard(t *testing.T) {
+	src := rawDesktopAssetText(t, "js/desktop/apps/retro-games-player.js")
+	if strings.Contains(src, "back.focus()") {
+		t.Error("mount focuses Back, so Space/Enter would leave the game")
+	}
+	for _, marker := range []string{
+		"function focusFrame()",
+		"frame.focus();",
+		"returnFocus(call('onFavorite'))",
+		"returnFocus(call('onBroken'))",
+		"returnFocus(() => restartGame())",
+		"returnFocus(() => toggleFullscreen())",
+		"returnFocus(call('onMarkBroken'))",
+		// Interaction with the cross-origin frame is only visible as a window blur.
+		"window.addEventListener('blur', onWindowBlur);",
+		"document.activeElement === frame",
+		// Production waits one minute; only the options (tests) can shorten it.
+		"const STALL_MS = 60000;",
+		"opts.stallMs",
+	} {
+		if !strings.Contains(src, marker) {
+			t.Errorf("player lacks %q", marker)
+		}
+	}
+	// Opening a new tab leaves the player where it is: no focus juggling for the external link.
+	if strings.Contains(src, "returnFocus(call('onExternal'))") {
+		t.Error("the external link must not steal the focus back")
+	}
+	// Mount ends by focusing the frame, after the cabinet is attached.
+	attach := strings.Index(src, "stage.appendChild(")
+	if attach < 0 {
+		t.Fatal("player never attaches the cabinet")
+	}
+	tail := src[attach:]
+	if ret := strings.Index(tail, "return {"); ret < 0 || !strings.Contains(tail[:ret], "focusFrame();") {
+		t.Error("mount does not focus the frame after attaching the cabinet")
+	}
+	// The blur listener lives and dies with the player.
+	destroy := strings.Index(src, "destroy() {")
+	if destroy < 0 || !strings.Contains(src[destroy:], "window.removeEventListener('blur', onWindowBlur);") {
+		t.Error("destroy does not remove the window blur listener")
+	}
+	if strings.Count(src, "window.addEventListener('blur'") != 1 || strings.Count(src, "window.removeEventListener('blur'") != 1 {
+		t.Error("the player must register and remove exactly one window blur listener")
+	}
+	// Our buttons stay in the tab order.
+	if strings.Contains(src, "tabindex") || strings.Contains(src, "tabIndex") {
+		t.Error("the player must not take its buttons out of the tab order")
+	}
+}
+
+// The "taking unusually long" hint is a compact strip: neither the loading bar
+// nor the hint may become a layer over the frame that takes its pointer events,
+// or the game cannot be clicked while archive.org still loads the splash image.
+func TestDesktopRetroGamesStalledHintNeverCoversTheFrame(t *testing.T) {
+	css := rawDesktopAssetText(t, "css/desktop-app-retro-games.css")
+	css = regexp.MustCompile(`(?s)/\*.*?\*/`).ReplaceAllString(css, "")
+	rules := regexp.MustCompile(`(?s)([^{}]+)\{([^{}]*)\}`).FindAllStringSubmatch(css, -1)
+	var strip, buttons bool
+	for _, rule := range rules {
+		selector, body := strings.TrimSpace(rule[1]), rule[2]
+		if !strings.Contains(selector, ".rg-overlay") {
+			continue
+		}
+		normalized := strings.Join(strings.Fields(body), " ")
+		if strings.Contains(normalized, "pointer-events: auto") {
+			for _, part := range strings.Split(selector, ",") {
+				if !strings.Contains(part, ".rg-btn") {
+					t.Errorf("%q takes pointer events: only the hint buttons may", strings.TrimSpace(part))
+				}
+			}
+		}
+		switch selector {
+		case ".rg-overlay":
+			strip = strings.Contains(normalized, "pointer-events: none") && strings.Contains(normalized, "bottom: 0")
+		case ".rg-overlay.is-stalled":
+			// The stalled state keeps the bottom strip: no top/inset anchor, no click capture.
+			if regexp.MustCompile(`(^|[;\s])(top|inset)\s*:`).MatchString(body) || strings.Contains(normalized, "pointer-events") {
+				t.Errorf(".rg-overlay.is-stalled must stay the bottom strip, got %q", normalized)
+			}
+		case ".rg-overlay-actions .rg-btn":
+			buttons = strings.Contains(normalized, "pointer-events: auto")
+		}
+	}
+	if !strip {
+		t.Error(".rg-overlay must be a bottom strip with pointer-events: none")
+	}
+	if !buttons {
+		t.Error("the hint buttons must opt back in to pointer events")
 	}
 }
 
