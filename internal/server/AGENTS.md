@@ -11,7 +11,10 @@ Server-owned HTTP and cross-component integration contracts.
   Visibility changes revoke active storage contexts. Transfer preflight enforces
   file, entry, depth and aggregate-byte budgets; verified copies precede
   conditional source cleanup. Uncertain results retain sources and report
-  partial completion. See `documentation/desktop-cloud-storage.md` and
+  partial completion. Revalidate source size and metadata before staging is
+  published; incomplete download bodies must abort the HTTP response. Revocation
+  must also interrupt a paused upload's blocking request-body read.
+  See `documentation/desktop-cloud-storage.md` and
   `TestDesktopStorage*`.
 
 `internal/server` owns this domain. The contracts below also bind related server, UI, config, asset, and test work through the root routing table.

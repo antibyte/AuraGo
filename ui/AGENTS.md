@@ -15,11 +15,13 @@ worker. Keep packaging, recovery and offline instructions in
 ## Ownership
 
 - File Manager cloud references keep provider, Koofr mount and relative path
-  separate through navigation, tabs, favorites, window context, clipboard and
+  separate through navigation, split panes, tabs, favorites, window context, clipboard and
   drag-and-drop. Remote payloads never enter local editor/file APIs. Preserve
   lazy mount loading, readonly previews, abortable transfers and the shared
   Replace / Keep copy / Cancel dialog. Config visibility defaults off in all
-  locales. Verify `TestDesktopCloudStorageBrowser` and existing File Manager
+  locales. Policy updates preserve allowed listings; only changed storage grants
+  cancel transfers. Drops use the destination pane's identity and permissions.
+  Verify `TestDesktopCloudStorageBrowser`, `TestDesktopCloudStorageReviewBrowser` and existing File Manager
   instance/clipboard suites; see `documentation/desktop-cloud-storage.md`.
 
 - Desktop file mutations use the shared conflict runtime: strong ETags for

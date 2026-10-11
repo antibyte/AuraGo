@@ -245,7 +245,19 @@ func (d *desktopStorageSession) copyStorageFile(item *storageTransferItem) error
 	}
 	defer in.Close()
 	sourceHash := sha256.New()
-	counted := &storageCountingReader{Reader: io.TeeReader(in, sourceHash)}
+	// Refuse changed sources before the destination's private staging is published.
+	counted := &storageCountingReader{
+		Reader: io.TeeReader(io.LimitReader(in, item.entry.Size+1), sourceHash),
+		validate: func(n int64) error {
+			if n != item.entry.Size {
+				return fmt.Errorf("storage source size changed during copy; source retained")
+			}
+			if latest, err := d.stat(item.from); err != nil || latest.Version != item.entry.Version || latest.Size != item.entry.Size || latest.Modified != item.entry.Modified {
+				return fmt.Errorf("storage source changed during copy; source retained")
+			}
+			return nil
+		},
+	}
 	written, err := d.put(item.to, counted, item.targetVersion)
 	if err != nil {
 		return err
@@ -279,11 +291,17 @@ func (d *desktopStorageSession) verifyStorageCopy(loc tools.StorageLocation, siz
 
 type storageCountingReader struct {
 	io.Reader
-	n int64
+	n        int64
+	validate func(int64) error
 }
 
 func (r *storageCountingReader) Read(p []byte) (int, error) {
 	n, err := r.Reader.Read(p)
 	r.n += int64(n)
+	if err == io.EOF && r.validate != nil {
+		if validationErr := r.validate(r.n); validationErr != nil {
+			return n, validationErr
+		}
+	}
 	return n, err
 }

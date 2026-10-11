@@ -200,6 +200,17 @@ func handleDesktopStorage(s *Server) http.HandlerFunc {
 			d.serveContent(w, r, req.Location)
 		case action == "upload" && r.Method == http.MethodPost:
 			r.Body = http.MaxBytesReader(w, r.Body, d.maxBytes)
+			readStopped := make(chan struct{})
+			stopRead := context.AfterFunc(ctx, func() {
+				// Context checks alone cannot interrupt a paused client's Body.Read.
+				_ = http.NewResponseController(w).SetReadDeadline(time.Now())
+				close(readStopped)
+			})
+			defer func() {
+				if !stopRead() {
+					<-readStopped
+				}
+			}()
 			entry, err := d.put(req.Location, r.Body, req.Version)
 			if err != nil {
 				d.writeConflict(w, err, req.Location)
@@ -407,7 +418,7 @@ func (d *desktopStorageSession) serveContent(w http.ResponseWriter, r *http.Requ
 		storageError(w, err)
 		return
 	}
-	if entry.Type != "file" || entry.Size > d.maxBytes {
+	if entry.Type != "file" || entry.Size < 0 || entry.Size > d.maxBytes {
 		storageError(w, fmt.Errorf("storage content exceeds file limit"))
 		return
 	}
@@ -424,7 +435,7 @@ func (d *desktopStorageSession) serveContent(w http.ResponseWriter, r *http.Requ
 	if kind == "" {
 		kind = mime.TypeByExtension(path.Ext(entry.Name))
 	}
-	limit := d.maxBytes
+	limit := entry.Size
 	if r.URL.Query().Get("preview") == "text" {
 		kind = "text/plain; charset=utf-8"
 		if limit > 64<<10 {
@@ -441,5 +452,8 @@ func (d *desktopStorageSession) serveContent(w http.ResponseWriter, r *http.Requ
 	}
 	w.Header().Set("Content-Type", kind)
 	w.Header().Set("Content-Disposition", mime.FormatMediaType(disposition, map[string]string{"filename": entry.Name}))
-	_, _ = io.Copy(w, io.LimitReader(storageContextReader{d.ctx, in}, limit))
+	w.Header().Set("Content-Length", fmt.Sprint(limit))
+	if _, err := io.CopyN(w, storageContextReader{d.ctx, in}, limit); err != nil {
+		panic(http.ErrAbortHandler) // A partial body must not become a successful download.
+	}
 }

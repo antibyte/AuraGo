@@ -462,12 +462,7 @@
         loadPreferences();
         bindKeyboard();
         instance.storagePolicyListener = () => {
-            instance.storageBusy?.abort();
-            instance.storageNavigation?.abort();
-            instance.navigationGeneration++;
-            instance.quickLookOverlay?.remove();
-            if (isRemote(instance)) instance.files = [];
-            loadStorageSources(instance);
+            loadStorageSources(instance, true);
         };
         document.addEventListener('aurago:desktop-policy', instance.storagePolicyListener);
         loadStorageSources(instance);
@@ -479,6 +474,7 @@
         if (!fm.host) return;
         const renameInput = fm.renamePath && fm.host.querySelector('[data-rename-input]');
         if (renameInput && renameInput.isConnected) fm.renameDraft = renameInput.value;
+        saveActivePaneState();
         if (typeof syncActiveTab === 'function') syncActiveTab();
         fm.incrementalRenderToken++;
         updateWindowMenus();
@@ -747,6 +743,7 @@
         return {
             storage: { ...fm.storage },
             currentPath: path || '',
+            loading: fm.loading,
             files: [],
             filteredFiles: null,
             selectedPaths: new Set(),
@@ -806,6 +803,7 @@
         
         pane.currentPath = fm.currentPath;
         pane.storage = { ...fm.storage };
+        pane.loading = fm.loading;
         pane.files = [...fm.files];
         pane.filteredFiles = fm.filteredFiles ? [...fm.filteredFiles] : null;
         pane.selectedPaths = new Set(fm.selectedPaths);
@@ -824,6 +822,7 @@
         if (!pane) return;
         fm.currentPath = pane.currentPath;
         fm.storage = { ...pane.storage };
+        fm.loading = pane.loading;
         fm.files = [...pane.files];
         fm.filteredFiles = pane.filteredFiles ? [...pane.filteredFiles] : null;
         fm.selectedPaths = new Set(pane.selectedPaths);
@@ -847,6 +846,16 @@
         fm.activePane = paneName;
         const nextPane = paneName === 'right' ? fm.rightPane : fm.leftPane;
         loadPaneState(nextPane);
+        if (isRemote() && !fm.storagePolicy?.[fm.storage.provider]) {
+            navigate(localLocation(), false);
+            return;
+        }
+        if (fm.loading) {
+            navigate(storageLocation(), false);
+            return;
+        }
+        fm.callbacks.onPathChange?.(fm.currentPath, storageLocation());
+        if (typeof syncActiveTab === 'function') syncActiveTab();
         
         if (fm.host) {
             fm.host.querySelectorAll('.fm-pane').forEach(pane => {
@@ -884,6 +893,11 @@
             }
             
             attachEvents();
+            const root = fm.host.querySelector('.file-manager');
+            if (isReadonly()) root?.setAttribute('data-readonly', 'true');
+            else root?.removeAttribute('data-readonly');
+            updateWindowMenus();
+            updateToolbarState();
         }
     }
 

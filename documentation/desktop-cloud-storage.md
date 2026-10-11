@@ -13,7 +13,7 @@ does not probe either provider. Offline mounts remain visible but disabled.
 The existing list/grid views, sorting, filtering, properties, previews,
 downloads, uploads, new files/folders, rename, duplicate, copy, move, delete,
 keyboard shortcuts and drag-and-drop work with these locations. Hold Ctrl while
-dropping files to copy them. Clipboard entries, tabs, history, favorites and
+dropping files to copy them. Clipboard entries, split panes, tabs, history, favorites and
 window context retain the provider and Koofr mount separately from the relative
 path. Older local path calls and favorites remain supported.
 
@@ -31,6 +31,10 @@ operation observes the configured Desktop file-size limit, at most 10,000
 entries, 64 directory levels and 512 MiB of file content. Remote writes stage one
 bounded file privately before uploading; local writes use rooted, conditional
 Desktop publication. Temporary files are removed when the operation ends.
+Source size and metadata are rechecked before publishing a staged file, so a
+changed or incomplete source cannot replace an existing destination during staging.
+Interrupted downloads fail instead of reporting a truncated file as complete.
+Revocation also interrupts uploads whose clients have stopped sending bytes.
 
 Existing destinations are conflicts. **Replace** is offered only for files with
 an observed strong version: WebDAV ETags, Koofr hashes, or local content hashes.
@@ -69,10 +73,13 @@ and [file operations](https://github.com/koofr/go-koofrclient/blob/master/client
 including `autorename=false`, `overwriteIfHash`, `removeIfHash` and `removeIfEmpty`.
 
 Focused suites: `TestCloudStorage*`, `TestDesktopStorage*`,
-`TestCloudFileManagerVisibilityRoundTrip`, and `TestDesktopCloudStorageBrowser`.
+`TestCloudFileManagerVisibilityRoundTrip`, `TestDesktopCloudStorageBrowser`, and
+`TestDesktopCloudStorageReviewBrowser`.
 The browser suite covers Standard/Fruity at 1280 and 430 pixels, configuration
 toggles, lazy mounts, navigation, tabs/history, sibling windows, clipboard,
-conflicts, drag-and-drop, previews, cancellation and live revocation. Existing
+conflicts, drag-and-drop, previews, cancellation and live revocation. Review
+regressions also cover split-pane identity, pending navigation, destination
+permissions, unrelated policy events and restoring writable Koofr mounts. Existing
 WebDAV/Koofr agent tests, Desktop conditional streams and File Manager instance
 and clipboard regressions remain part of validation. These fixtures do not
 constitute live-provider or deployment acceptance.

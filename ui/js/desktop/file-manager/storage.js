@@ -27,23 +27,43 @@
         return false;
     }
 
-    async function loadStorageSources(instance) {
+    async function loadStorageSources(instance, refresh = false) {
         const generation = instance.storagePolicyGeneration = (instance.storagePolicyGeneration || 0) + 1;
         try {
             const response = await fetch('/api/desktop/storage/sources', { credentials: 'same-origin', signal: instance.storageLifetime.signal });
             const policy = response.ok ? await response.json() : {};
             if (!isLiveInstance(instance) || instance.storagePolicyGeneration !== generation) return;
+            const previous = instance.storagePolicy || {};
+            const changed = refresh && ['webdav', 'koofr', 'readonly', 'webdav_readonly', 'koofr_readonly'].some(key => !!previous[key] !== !!policy[key]);
+            if (changed) {
+                instance.storageBusy?.abort();
+                if (isRemote(instance)) instance.quickLookOverlay?.remove();
+                for (const pane of [instance.leftPane, instance.rightPane]) {
+                    if (!pane || !isRemote(pane)) continue;
+                    pane.files = [];
+                    pane.filteredFiles = null;
+                    pane.selectedPaths.clear();
+                    pane.loading = true;
+                }
+            }
             instance.storagePolicy = policy;
             if (typeof policy.readonly === 'boolean') instance.callbacks.readonly = policy.readonly;
+            if (!policy.koofr) {
+                instance.storageMounts = [];
+                instance.storageMountsOpen = false;
+            } else if (changed && instance.storageMountsOpen && !!previous.koofr_readonly !== !!policy.koofr_readonly) {
+                openStorageMounts(instance, true);
+            }
             withInstance(instance, () => {
                 if (isRemote() && !policy[instance.storage.provider]) navigate(localLocation());
+                else if (changed && isRemote()) navigate(storageLocation(), false);
                 else renderAll();
             });
         } catch (_) { /* Disposing the window cancels its metadata request. */ }
     }
 
-    async function openStorageMounts(instance) {
-        instance.storageMountsOpen = !instance.storageMountsOpen;
+    async function openStorageMounts(instance, reload = false) {
+        instance.storageMountsOpen = reload || !instance.storageMountsOpen;
         if (!instance.storageMountsOpen) { withInstance(instance, renderAll); return; }
         instance.storageMountsLoading = true;
         withInstance(instance, renderAll);
@@ -67,6 +87,14 @@
 
     function attachStorageEvents(root) {
         const instance = fm;
+        const dropLocation = target => {
+            const paneName = target.closest('.fm-pane')?.dataset.pane;
+            const pane = (paneName === 'right' ? instance.rightPane : paneName === 'left' ? instance.leftPane : null) || instance;
+            const button = target.closest('[data-storage-provider]');
+            if (button) return { provider: button.dataset.storageProvider, mount_id: button.dataset.storageMount, path: '' };
+            const directory = target.closest('[data-type="directory"], [data-breadcrumb-path]');
+            return storageLocation(directory?.dataset.breadcrumbPath ?? directory?.dataset.path ?? pane.currentPath, pane);
+        };
         root.querySelectorAll('[data-remove-storage-favorite]').forEach(button => button.addEventListener('click', event => {
             event.stopPropagation();
             instance.favorites.splice(Number(button.dataset.removeStorageFavorite), 1);
@@ -80,13 +108,16 @@
         })));
         // Capture remote payloads before legacy local-only file and window drop handlers.
         root.addEventListener('dragover', event => {
-            if (!Array.from(event.dataTransfer?.types || []).includes(STORAGE_DRAG_TYPE)) return;
+            const destination = dropLocation(event.target);
+            const types = Array.from(event.dataTransfer?.types || []);
+            if (!types.includes(STORAGE_DRAG_TYPE) && !(destination.provider !== 'local' && types.includes(DESKTOP_FILE_DRAG_TYPE))) return;
             event.preventDefault(); event.stopPropagation();
-            event.dataTransfer.dropEffect = event.target.closest('.fm-favorites-section') ? 'copy' : storageReadonly(instance) ? 'none' : (event.ctrlKey ? 'copy' : 'move');
+            event.dataTransfer.dropEffect = event.target.closest('.fm-favorites-section') ? 'copy' : storageReadonly({ ...instance, storage: destination }) ? 'none' : (event.ctrlKey ? 'copy' : 'move');
         }, true);
         root.addEventListener('drop', event => {
+            const destination = dropLocation(event.target);
             const types = Array.from(event.dataTransfer?.types || []);
-            if (!types.includes(STORAGE_DRAG_TYPE) && !(isRemote(instance) && types.includes(DESKTOP_FILE_DRAG_TYPE))) return;
+            if (!types.includes(STORAGE_DRAG_TYPE) && !(destination.provider !== 'local' && types.includes(DESKTOP_FILE_DRAG_TYPE))) return;
             event.preventDefault(); event.stopImmediatePropagation();
             try {
                 const payload = JSON.parse(event.dataTransfer.getData(types.includes(STORAGE_DRAG_TYPE) ? STORAGE_DRAG_TYPE : DESKTOP_FILE_DRAG_TYPE));
@@ -100,9 +131,7 @@
                     withInstance(instance, renderAll);
                     return;
                 }
-                if (storageReadonly(instance)) return;
-                const target = event.target.closest('[data-type="directory"], [data-breadcrumb-path]');
-                const destination = storageLocation(target?.dataset.breadcrumbPath ?? target?.dataset.path ?? instance.currentPath, instance);
+                if (storageReadonly({ ...instance, storage: destination })) return;
                 storageTransferSelection(instance, entries, destination, event.ctrlKey ? 'copy' : 'move');
             } catch (err) { storageNotify(instance, err); }
         }, true);
@@ -163,7 +192,11 @@
         } catch (err) { storageNotify(instance, err); }
         finally {
             overlay.remove(); instance.storageBusy = null;
-            instances.forEach(other => { if (isLiveInstance(other)) withInstance(other, () => navigate(storageLocation(), false)); });
+            instances.forEach(other => {
+                if (!isLiveInstance(other)) return;
+                for (const pane of [other.leftPane, other.rightPane]) if (pane) pane.loading = true;
+                withInstance(other, () => navigate(storageLocation(), false));
+            });
         }
         return complete;
     }
