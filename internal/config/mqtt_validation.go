@@ -401,6 +401,11 @@ func validateMQTTPublishTopic(topic string) error {
 	return nil
 }
 
+// ValidateLiteralMQTTTopic rejects an empty topic, a NUL byte, and any MQTT wildcard.
+func ValidateLiteralMQTTTopic(topic string) error {
+	return validateMQTTPublishTopic(topic)
+}
+
 // ResolveMQTTPassword applies the credential precedence used by the runtime:
 // Vault mqtt_password, then raw MQTT_PASSWORD, then an empty value. Password
 // bytes are returned verbatim; in particular, surrounding whitespace is data.

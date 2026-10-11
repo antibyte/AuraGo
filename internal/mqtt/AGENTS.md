@@ -57,7 +57,9 @@ Broker configuration, subscriptions, relays, and mission dispatch.
   through the server's `mqttRelayAuthorized` gate (broker username or a client
   certificate over TLS per `config.MQTTBrokerAuthenticated`, else
   `mqtt.allow_unauthenticated_relay`), read from the live snapshot per delivery;
-  refusals log once. Mission triggers are invisible to config, so `config.Load`
+  refusals log once. The Frigate prefix must be a literal MQTT topic; otherwise
+  there is no subscription and no agent run, while config load still accepts the
+  file and `frigate_mqtt_prefix` warns. Mission triggers are invisible to config, so `config.Load`
   and config-merger grandfather every enabled anonymous broker without the key
   to `true`; `mqtt_relay_no_auth` reports it as critical.
 - Build direct runtime gates with `tools.RuntimePermissionsFromConfig` at

@@ -654,6 +654,18 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 		}
 	}
 
+	// 24a. frigate_mqtt_prefix — a relay that cannot name a literal topic must not subscribe.
+	if cfg.Frigate.Enabled && (cfg.Frigate.EventRelay || cfg.Frigate.ReviewRelay) {
+		if _, ok := mqtt.FrigateLiteralPrefix(cfg); !ok {
+			hints = append(hints, SecurityHint{
+				ID: "frigate_mqtt_prefix", Severity: SevWarning,
+				Title:       "Frigate: MQTT topic prefix is not literal",
+				Description: frigateMQTTPrefixHint(cfg.Frigate.MQTTTopicPrefix),
+				AutoFixable: false,
+			})
+		}
+	}
+
 	// 24b. sip_auto_answer_all_interfaces / sip_wildcard_callers_cidr_peers — an
 	// auto-answering agent route reachable on every interface, or a wildcard caller
 	// list whose only network check is a whole subnet.
@@ -893,6 +905,18 @@ func fritzBoxAnyGroupWritable(cfg *config.Config) bool {
 		(fb.Telephony.Enabled && !fb.Telephony.ReadOnly) ||
 		(fb.SmartHome.Enabled && !fb.SmartHome.ReadOnly) ||
 		(fb.Storage.Enabled && !fb.Storage.ReadOnly)
+}
+
+func frigateMQTTPrefixHint(prefix string) string {
+	description := "A Frigate event or review relay is enabled, but frigate.mqtt_topic_prefix is not a literal MQTT topic. AuraGo does not subscribe to it and does not start an agent run from it."
+	if strings.ContainsAny(prefix, "+#") || strings.ContainsRune(prefix, 0) {
+		return description
+	}
+	trimmed := strings.TrimSpace(prefix)
+	if trimmed == "" || len(trimmed) > 200 {
+		return description
+	}
+	return description + " Configured prefix: " + trimmed + "."
 }
 
 func pythonSandboxReady(cfg *config.Config) bool {

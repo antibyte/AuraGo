@@ -724,6 +724,42 @@ func TestCheckSecurityMQTTRelayNoAuthWarnsWhenRelayRefused(t *testing.T) {
 	}
 }
 
+func TestFrigateRelayPrefixWarnsWhenNotLiteral(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Frigate.Enabled = true
+	cfg.Frigate.EventRelay = true
+	cfg.Frigate.MQTTTopicPrefix = "home/#"
+	hint := findSecurityHint(CheckSecurity(cfg), "frigate_mqtt_prefix")
+	if hint == nil {
+		t.Fatal("expected frigate_mqtt_prefix")
+	}
+	if hint.Severity != SevWarning {
+		t.Fatalf("severity = %q, want %q", hint.Severity, SevWarning)
+	}
+	if strings.Contains(hint.Description, "home/#") || strings.Contains(hint.Title, "#") {
+		t.Fatalf("wildcard prefix repeated: %#v", hint)
+	}
+
+	cfg.Frigate.MQTTTopicPrefix = "+"
+	hint = findSecurityHint(CheckSecurity(cfg), "frigate_mqtt_prefix")
+	if hint == nil || strings.Contains(hint.Description, "+") {
+		t.Fatalf("plus prefix hint = %#v", hint)
+	}
+
+	cfg.Frigate.MQTTTopicPrefix = "nvr"
+	if hasSecurityHint(CheckSecurity(cfg), "frigate_mqtt_prefix") {
+		t.Fatal("literal prefix warned")
+	}
+
+	cfg.Frigate.MQTTTopicPrefix = "+"
+	cfg.Frigate.EventRelay = false
+	if hasSecurityHint(CheckSecurity(cfg), "frigate_mqtt_prefix") {
+		t.Fatal("disabled relay warned")
+	}
+}
+
 func TestCheckSecurityMQTTRelayNoAuthAbsentWhenAuthenticatedOrIdle(t *testing.T) {
 	t.Parallel()
 
