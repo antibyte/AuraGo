@@ -4136,3 +4136,32 @@ func TestLoadDockerHostAccessNullValues(t *testing.T) {
 		})
 	}
 }
+
+func TestLoadGrandfathersMeshCentralPowerOnlyWhenEnabledAndWritable(t *testing.T) {
+	cases := []struct {
+		name string
+		yaml string
+		want bool
+	}{
+		{"enabled writable, key absent", "meshcentral:\n  enabled: true\n  readonly: false\n", true},
+		{"disabled, key absent", "meshcentral:\n  enabled: false\n  readonly: false\n", false},
+		{"readonly, key absent", "meshcentral:\n  enabled: true\n  readonly: true\n", false},
+		{"explicit false", "meshcentral:\n  enabled: true\n  readonly: false\n  allow_power_actions: false\n", false},
+		{"explicit true", "meshcentral:\n  enabled: true\n  readonly: true\n  allow_power_actions: true\n", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			configPath := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(configPath, []byte(tc.yaml), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := Load(configPath)
+			if err != nil {
+				t.Fatalf("Load() error = %v", err)
+			}
+			if cfg.MeshCentral.AllowPowerActions != tc.want {
+				t.Fatalf("AllowPowerActions = %v, want %v", cfg.MeshCentral.AllowPowerActions, tc.want)
+			}
+		})
+	}
+}

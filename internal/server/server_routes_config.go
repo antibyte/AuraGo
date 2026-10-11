@@ -104,7 +104,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	// Creates/starts the managed Ollama container (recovery after manual deletion).
 	mux.HandleFunc("/api/ollama/managed/recreate", handleOllamaManagedRecreate(s))
 	// Tests MeshCentral connectivity using saved or provided credentials.
-	mux.HandleFunc("/api/meshcentral/test", handleMeshCentralTest(s))
+	mux.Handle("/api/meshcentral/test", requireAdmin(s, handleMeshCentralTest(s)))
 	mux.HandleFunc("/api/restart", handleRestart(s))
 	mux.HandleFunc("/api/embeddings/reset", handleEmbeddingsReset(s))
 	mux.HandleFunc("/api/embeddings/test", handleEmbeddingsTest(s))

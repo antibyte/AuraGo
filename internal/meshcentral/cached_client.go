@@ -2,8 +2,10 @@ package meshcentral
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -16,6 +18,7 @@ type CachedClient struct {
 	password    string
 	loginToken  string
 	insecure    bool
+	caFile      string
 	logger      *slog.Logger
 	idleTimeout time.Duration
 
@@ -47,6 +50,13 @@ func (cc *CachedClient) SetLogger(l *slog.Logger) {
 	cc.logger = l
 }
 
+// SetCAFile sets the PEM CA passed to every connection this cache opens.
+func (cc *CachedClient) SetCAFile(path string) {
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	cc.caFile = strings.TrimSpace(path)
+}
+
 // GetClientContext returns a connected Client with context cancellation, reconnecting if necessary.
 func (cc *CachedClient) GetClientContext(ctx context.Context) (*Client, error) {
 	cc.mu.Lock()
@@ -68,6 +78,7 @@ func (cc *CachedClient) GetClientContext(ctx context.Context) (*Client, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to create MeshCentral client: %w", err)
 		}
+		client.SetCAFile(cc.caFile)
 		client.SetLogger(cc.logger)
 
 		if err := client.ConnectContext(ctx); err != nil {
@@ -151,10 +162,17 @@ func isConnectionError(err error) bool {
 	if err == nil {
 		return false
 	}
+	if errors.Is(err, errNotConnected) {
+		return true
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return true
+	}
 	msg := err.Error()
-	return strings.Contains(msg, "not connected") ||
+	return strings.Contains(msg, "websocket disconnected") ||
+		strings.Contains(msg, "not connected") ||
 		strings.Contains(msg, "use of closed network connection") ||
-		strings.Contains(msg, "websocket") ||
 		strings.Contains(msg, "broken pipe") ||
 		strings.Contains(msg, "connection reset")
 }

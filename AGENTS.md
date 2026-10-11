@@ -41,7 +41,7 @@
 
 - `cmd/aurago` starts the agent (`main.go`, `platform_unix.go`, `platform_windows.go`); `cmd/remote`, `cmd/config-merger`, and `cmd/assetpack` provide remote execution, config merging, and Web UI packaging. `cmd/memory-repair` provides reviewed offline analysis duplicate merging.
 - `internal/` core: `agent` (loop/dispatch/co-agents), `budget` (token cost), `commands` (slash commands), `config` (YAML/defaults), `llm` (client/failover/retry/pricing), `logger` (structured logs), `media` (files), `memory` (STM/LTM/KG/personality), `prompts` (dynamic prompts), `security` (vault/tokens/Guardian), `server` (HTTP/API), `services` (indexing/ingestion), `setup` (first run), and `tools` (implementations).
-- `internal/` integrations: `contacts` (address book), `discord` (bot), `fritzbox` (TR-064), `invasion` (egg/nest), `inventory` (SQLite SSH devices), `meshcentral` (remote desktop), `mqtt` (client), `remote` (SSH/protocol), `rocketchat` (bot), `scraper` (web), `sqlconnections` (external SQL), `telegram` (text/voice/vision), `telnyx` (SMS/voice), `tsnetnode` (Tailscale), and `webhooks` (incoming/outgoing). `sandbox` owns Linux Landlock execution.
+- `internal/` integrations: `contacts` (address book), `discord` (bot), `fritzbox` (TR-064), `invasion` (egg/nest), `inventory` (SQLite SSH devices), `meshcentral` (control WebSocket for devices, wake, power and MeshAgent commands), `mqtt` (client), `remote` (SSH/protocol), `rocketchat` (bot), `scraper` (web), `sqlconnections` (external SQL), `telegram` (text/voice/vision), `telnyx` (SMS/voice), `tsnetnode` (Tailscale), and `webhooks` (incoming/outgoing). `sandbox` owns Linux Landlock execution.
 - `agent_workspace/skills` holds bundled Python skills; `agent_workspace/tools` holds agent-created tools and their manifest; `agent_workspace/workdir` is the sandbox/venv workdir.
 - `prompts/identity.md`, `rules.md`, `personalities/`, `templates/`, and `tools_manuals/` hold identity, rules, profiles, templates, and RAG-indexed manuals.
 - `ui/` holds external HTML, CSS, JavaScript, 16 locale translations, and `embed.go` source fixtures for frontend tests.
@@ -280,6 +280,7 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Local Wikipedia Contract | `internal/localwiki/AGENTS.md` |
 | Memory System | `internal/memory/AGENTS.md` |
 | Newspaper publication, scheduling and delivery | `internal/newspaper/AGENTS.md` |
+| MeshCentral control client, power gate and test route | `internal/meshcentral/AGENTS.md` |
 | MeshCore Integration Contract | `internal/meshcore/AGENTS.md` |
 | MQTT Configuration Contract | `internal/mqtt/AGENTS.md` |
 | Local Network Share Integration Contract | `internal/networkshares/AGENTS.md` |
@@ -460,14 +461,14 @@ Every workflow `uses:` ref is pinned to a full commit SHA with a ` # vX.Y.Z` com
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **AuraGo** (96358 symbols, 663065 relationships, 1294 execution flows).
+This project is indexed by GitNexus as **AuraGo** (139972 symbols, 782496 relationships, 1603 execution flows).
 
-> Index stale? Run `node .gitnexus/run.cjs analyze --index-only` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? Bootstrap with `npx`, `bunx`, or `pnpm dlx` — e.g. `bunx gitnexus@latest analyze` (npm 11 npx crash; #1939).
+> Index stale? Run `node reports/memory-correction-index/run.cjs analyze --index-only` from the project root — it auto-selects an available runner. No `reports/memory-correction-index/run.cjs` yet? Bootstrap with `npx`, `bunx`, or `pnpm dlx` — e.g. `bunx gitnexus@latest analyze` (npm 11 npx crash; #1939).
 
 ## Always Do
 
-- **MUST run impact before editing.** Use `impact({target: "symbolName", direction: "upstream"})` or `node .gitnexus/run.cjs impact "symbolName" --direction upstream --repo .`; report callers, processes, and risk. Never substitute grep for graph analysis.
-- **MUST analyze graph changes before committing.** Use `detect_changes({scope: "all"})` (MCP) or `node .gitnexus/run.cjs detect-changes --scope all --repo .` (CLI fallback). `partial: true` or `truncated: true` is not a clean check — a zero means unseen, not unaffected; re-run it. For regression review: `detect_changes({scope: "compare", base_ref: "main"})` or `node .gitnexus/run.cjs detect-changes --scope compare --base-ref "main" --repo .`.
+- **MUST run impact before editing.** Use `impact({target: "symbolName", direction: "upstream"})` or `node reports/memory-correction-index/run.cjs impact "symbolName" --direction upstream --repo .`; report callers, processes, and risk. Never substitute grep for graph analysis.
+- **MUST analyze graph changes before committing.** Use `detect_changes({scope: "all"})` (MCP) or `node reports/memory-correction-index/run.cjs detect-changes --scope all --repo .` (CLI fallback). `partial: true` or `truncated: true` is not a clean check — a zero means unseen, not unaffected; re-run it. For regression review: `detect_changes({scope: "compare", base_ref: "main"})` or `node reports/memory-correction-index/run.cjs detect-changes --scope compare --base-ref "main" --repo .`.
 - MUST warn on HIGH/CRITICAL `risk` pre-edit; never use `riskSharedAxes` to waive a HIGH/CRITICAL `risk` warning. Compare File/symbol: MCP File omits axes; Graph-RAG expands File.
 - **MUST treat `risk: UNKNOWN` as unresolved, not as low.** An empty caller set is not evidence the symbol is unused — it can also mean the callers are not resolvable by the index (plain-object property access, dynamic dispatch, cross-language calls). `impact` pairs `UNKNOWN` with a `riskNote` saying so. Confirm with a text search before treating the symbol as safe to change or delete; do not proceed on the strength of a zero.
 - **MUST use `query({search_query: "concept"})` for concepts/flows, `context({name: "symbolName"})` for a named symbol, or `impact` for blast radius, on read-only callers, dependencies, imports, or execution flow.** Graph first; text search only for empty/`UNKNOWN`/literals.
@@ -612,6 +613,7 @@ Current child AGENTS.md files:
 - `internal/localllm/AGENTS.md` — Local model lifecycle, routing, attestation, and qualification.
 - `internal/localwiki/AGENTS.md` — Offline Wikipedia: edition download/verify/swap, search, tool and content serving (readers: `internal/zim`, `internal/zim/xapian`).
 - `internal/memory/AGENTS.md` — Memory retrieval, hygiene, indexing, and maintenance.
+- `internal/meshcentral/AGENTS.md` — MeshCentral control WebSocket, power gate, command limits, TLS CA and admin connection test.
 - `internal/meshcore/AGENTS.md` — USB/BLE radio, trust, messaging, and agent replies.
 - `internal/mqtt/AGENTS.md` — Broker configuration, subscriptions, relays, and mission dispatch.
 - `internal/networkshares/AGENTS.md` — SMB/NFS capability, ownership, and mutation policy.
@@ -665,9 +667,8 @@ Ignored/runtime areas such as `bin/`, `data/`, `reports/`, `node_modules/`, `.ve
 <!-- graft:start -->
 ## Graft — repo context graph
 
-`graft/` is an ignored, regenerable local graph of linked system notes and exact
-file:line spans. It can lag behind the current checkout; verify cited spans in
-source before editing. If Graft is unavailable, use `rg` and direct inspection.
+This repo is indexed in `graft/`: small linked markdown nodes that explain each
+system and carry exact file:line spans, kept in sync with the code through git.
 
 For ANY task here — understanding how something works, finding where code lives,
 or scoping a change — get context from the graph before grepping or opening
@@ -679,12 +680,12 @@ hotspots), no LLM, no key.
 - Run `graft ask "<your question>" --source` → ranked nodes with the relevant
   code spans inlined (each hit's ≤8-line crux by default; `--full` for whole
   definitions when the crux isn't enough). Match the tool to the task shape:
-  for understanding or editing, start with the top node and verify its
-  `covers:` file:line spans against current source. For
+  for understanding or editing, the top node IS the answer — cite its
+  `covers:` file:line spans and edit straight from `--source`. For
   exhaustive tasks ("every occurrence / every caller of this pattern"), ranked
   results are top-N, not complete — run `graft grep "<literal>"` instead
   (exhaustive over indexed files, grouped by enclosing symbol), falling back
-  to `rg` for unindexed files.
+  to raw `grep -rn` only for unindexed files.
 - `graft skeleton <file>` → every definition's signature + span, ~10× cheaper
   than reading the file; use it to skim an API surface.
 - `graft callers <symbol>` gives precomputed, exact edges — who calls this.
@@ -698,8 +699,8 @@ hotspots), no LLM, no key.
 
 If a returned span is truncated ("+N more lines"), open the file at that exact
 range before finalizing. Only open source files when a node genuinely lacks a
-needed detail, and then at the exact file:line the node points to. Read the
-applicable AGENTS.md chain in full as required by DOX.
+needed detail, and then at the exact file:line the node points to — never
+re-read whole files.
 
 After big code changes, refresh the graph with `graft build` (deterministic,
 no API key, $0).

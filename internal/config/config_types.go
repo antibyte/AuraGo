@@ -1581,13 +1581,15 @@ type Config struct {
 	} `yaml:"telnyx"`
 	MeshCentral struct {
 		Enabled           bool     `yaml:"enabled"`
-		ReadOnly          bool     `yaml:"readonly"`           // true = only list operations, block wake/power/run_command
-		BlockedOperations []string `yaml:"blocked_operations"` // explicit operation deny-list (case-insensitive)
+		ReadOnly          bool     `yaml:"readonly"`            // true = only list operations, block wake/power/run_command
+		AllowPowerActions bool     `yaml:"allow_power_actions"` // wake and power actions; default false, grandfathered on for existing enabled writable configs
+		BlockedOperations []string `yaml:"blocked_operations"`  // explicit operation deny-list (case-insensitive)
 		URL               string   `yaml:"url"`
 		Username          string   `yaml:"username"`
 		Password          string   `yaml:"-" vault:"password" json:"-"`    // vault-only
 		LoginToken        string   `yaml:"-" vault:"login_token" json:"-"` // vault-only
 		Insecure          bool     `yaml:"insecure"`                       // skip TLS certificate verification (default: false)
+		CAFile            string   `yaml:"ca_file"`                        // PEM CA for the MeshCentral certificate; ignored when insecure is true
 	} `yaml:"meshcentral"`
 	Docker struct {
 		Enabled         bool   `yaml:"enabled"`

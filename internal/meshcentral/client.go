@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
@@ -20,6 +23,22 @@ import (
 
 	"github.com/gorilla/websocket"
 )
+
+const (
+	// MaxCommandBytes is the largest MeshAgent command the client will send.
+	MaxCommandBytes    = 4096
+	maxMeshResultBytes = 64 * 1024
+	meshReadLimit      = 1 << 20
+)
+
+// meshConfirmTimeout is how long wake and power wait for a correlated reply.
+// Tests shorten it.
+var meshConfirmTimeout = 5 * time.Second
+
+// errNotConnected is returned when a frame is written without a live socket.
+var errNotConnected = errors.New("not connected")
+
+const errUnconfirmedText = "meshcentral: unconfirmed"
 
 var csrfNonceRegex = regexp.MustCompile(`random="([^"]+)"`)
 
@@ -46,6 +65,8 @@ type Client struct {
 	password   string // Regular password OR token password (when loginToken is set)
 	loginToken string // Login token username (e.g., "~t:automation" or "automation")
 	insecure   bool
+	caFile     string
+	warnOnce   sync.Once
 
 	ws          *websocket.Conn
 	wsMu        sync.RWMutex // Protects ws for concurrent access
@@ -113,6 +134,43 @@ func (c *Client) SetLogger(l *slog.Logger) {
 	c.logger = l
 }
 
+// SetCAFile sets a PEM CA bundle used to verify the MeshCentral certificate.
+// It is ignored while insecure mode is enabled.
+func (c *Client) SetCAFile(path string) {
+	c.caFile = strings.TrimSpace(path)
+}
+
+func (c *Client) tlsConfig() (*tls.Config, error) {
+	cfg := &tls.Config{InsecureSkipVerify: c.insecure}
+	if c.insecure || c.caFile == "" {
+		return cfg, nil
+	}
+	pemBytes, err := os.ReadFile(c.caFile)
+	if err != nil {
+		return nil, fmt.Errorf("read MeshCentral CA file: %w", err)
+	}
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(pemBytes) {
+		return nil, fmt.Errorf("MeshCentral CA file contains no certificates")
+	}
+	cfg.RootCAs = pool
+	return cfg, nil
+}
+
+func (c *Client) warnTransport() {
+	c.warnOnce.Do(func() {
+		if c.insecure {
+			c.logf("[MeshCentral] TLS certificate verification is disabled")
+		}
+		if c.insecure && c.caFile != "" {
+			c.logf("[MeshCentral] ca_file is ignored because insecure is enabled")
+		}
+		if strings.HasPrefix(strings.ToLower(c.url), "http://") {
+			c.logf("[MeshCentral] URL uses plaintext HTTP")
+		}
+	})
+}
+
 // logf logs a formatted message at Info level.
 func (c *Client) logf(format string, args ...interface{}) {
 	if c.logger != nil {
@@ -173,6 +231,10 @@ func (c *Client) ConnectContext(ctx context.Context) error {
 		return ctx.Err()
 	default:
 	}
+	if strings.TrimSpace(c.loginToken) != "" && c.password == "" {
+		return errors.New("MeshCentral login token requires meshcentral_password to hold the token secret")
+	}
+	c.warnTransport()
 
 	// Build the WebSocket URL
 	baseURL := strings.TrimSuffix(c.url, "/")
@@ -229,8 +291,12 @@ func (c *Client) ConnectContext(ctx context.Context) error {
 	}
 
 	// Dial WebSocket with authentication cookies and header
+	tlsCfg, err := c.tlsConfig()
+	if err != nil {
+		return err
+	}
 	dialer := websocket.Dialer{
-		TLSClientConfig:  &tls.Config{InsecureSkipVerify: c.insecure},
+		TLSClientConfig:  tlsCfg,
 		HandshakeTimeout: 10 * time.Second,
 	}
 
@@ -252,7 +318,7 @@ func (c *Client) ConnectContext(ctx context.Context) error {
 
 	// Session keepalive timeout: connection closes if server stops responding to pings within 90s.
 	const sessionTimeout = 90 * time.Second
-	ws.SetReadLimit(16 * 1024 * 1024)
+	ws.SetReadLimit(meshReadLimit)
 	ws.SetReadDeadline(time.Now().Add(sessionTimeout))
 	ws.SetPongHandler(func(string) error {
 		return ws.SetReadDeadline(time.Now().Add(sessionTimeout))
@@ -290,9 +356,13 @@ func (c *Client) httpLogin(ctx context.Context, loginUser string) error {
 
 	loginURL := u.String()
 
+	tlsCfg, err := c.tlsConfig()
+	if err != nil {
+		return err
+	}
 	httpClient := &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: c.insecure},
+			TLSClientConfig: tlsCfg,
 		},
 		Timeout: 10 * time.Second,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -492,16 +562,15 @@ func (c *Client) readPump() {
 			}
 		}
 		if !delivered && action != "" {
-			if queue := c.pendingActions[action]; len(queue) > 0 {
+			if queue := c.pendingActions[action]; len(queue) == 1 {
 				pr := queue[0]
-				c.pendingActions[action] = queue[1:]
-				if len(c.pendingActions[action]) == 0 {
-					delete(c.pendingActions, action)
-				}
+				delete(c.pendingActions, action)
 				delivered = deliverPending(pr, response{data: data})
 				if delivered {
 					c.logAttrs("[MeshCentral] Delivered action-only response", "action", action)
 				}
+			} else if len(queue) > 1 {
+				c.logAttrs("[MeshCentral] Ambiguous action-only response", "action", action, "waiters", len(queue))
 			}
 		}
 		c.reqsMu.Unlock()
@@ -589,7 +658,7 @@ func (c *Client) send(cmd map[string]interface{}, withResponseID, actionFallback
 	c.wsMu.RUnlock()
 
 	if ws == nil {
-		return 0, "", nil, fmt.Errorf("not connected")
+		return 0, "", nil, errNotConnected
 	}
 
 	c.reqID++
@@ -912,15 +981,21 @@ func (c *Client) WakeOnLanContext(ctx context.Context, nodeIDs []string) (string
 		default:
 		}
 	}
-	err := c.sendNoResponse(map[string]interface{}{
+	pr, err := c.sendForResponse(map[string]interface{}{
 		"action":  "wakedevices",
 		"nodeids": nodeIDs,
-	})
+	}, false)
 	if err != nil {
 		return "", fmt.Errorf("failed to send wake-on-LAN request: %w", err)
 	}
-	// WOL is fire-and-forget, no response expected
-	return "Wake-on-LAN packet sent", nil
+	res, err := c.waitForPending(ctx, pr, meshConfirmTimeout)
+	if err != nil {
+		if isWaitTimeout(err) {
+			return "", errors.New(errUnconfirmedText)
+		}
+		return "", err
+	}
+	return confirmedResult(res), nil
 }
 
 // PowerAction sends a MeshCentral actiontype to one or more nodes.
@@ -939,16 +1014,22 @@ func (c *Client) PowerActionContext(ctx context.Context, nodeIDs []string, power
 		default:
 		}
 	}
-	err := c.sendNoResponse(map[string]interface{}{
+	pr, err := c.sendForResponse(map[string]interface{}{
 		"action":     "poweraction",
 		"nodeids":    nodeIDs,
 		"actiontype": powerAction,
-	})
+	}, false)
 	if err != nil {
 		return "", fmt.Errorf("failed to send power action request: %w", err)
 	}
-	// Power action is fire-and-forget, no immediate response expected
-	return "Power action sent", nil
+	res, err := c.waitForPending(ctx, pr, meshConfirmTimeout)
+	if err != nil {
+		if isWaitTimeout(err) {
+			return "", errors.New(errUnconfirmedText)
+		}
+		return "", err
+	}
+	return confirmedResult(res), nil
 }
 
 // RunCommand executes a shell command on the device via the MeshAgent.
@@ -959,12 +1040,19 @@ func (c *Client) RunCommand(nodeID, command string) (map[string]interface{}, err
 
 // RunCommandContext executes a shell command on the device with context cancellation.
 func (c *Client) RunCommandContext(ctx context.Context, nodeID, command string) (map[string]interface{}, error) {
+	command = strings.TrimSpace(command)
+	if command == "" {
+		return nil, fmt.Errorf("command is empty")
+	}
+	if len(command) > MaxCommandBytes {
+		return nil, fmt.Errorf("command exceeds %d bytes", MaxCommandBytes)
+	}
 	pr, err := c.sendForResponse(map[string]interface{}{
 		"action":    "runcommands",
 		"nodeids":   []string{nodeID},
 		"type":      0,
 		"cmds":      command,
-		"runAsUser": 0,
+		"runAsUser": 0, // MeshAgent service account
 		"reply":     true,
 	}, false)
 	if err != nil {
@@ -973,10 +1061,37 @@ func (c *Client) RunCommandContext(ctx context.Context, nodeID, command string) 
 
 	res, err := c.waitForPending(ctx, pr, 30*time.Second)
 	if err != nil {
+		if isWaitTimeout(err) {
+			return nil, fmt.Errorf("timeout waiting for MeshCentral command response; the command may still be running on the device and must not be retried blindly: %w", err)
+		}
 		return nil, err
 	}
 
-	return res, nil
+	return truncateMeshResult(res), nil
+}
+
+func isWaitTimeout(err error) bool {
+	return err != nil && strings.HasPrefix(err.Error(), "timeout waiting for MeshCentral response")
+}
+
+func confirmedResult(res map[string]interface{}) string {
+	if res != nil {
+		if result, ok := res["result"].(string); ok && strings.TrimSpace(result) != "" {
+			return result
+		}
+	}
+	return "ok"
+}
+
+func truncateMeshResult(res map[string]interface{}) map[string]interface{} {
+	raw, err := json.Marshal(res)
+	if err != nil || len(raw) <= maxMeshResultBytes {
+		return res
+	}
+	return map[string]interface{}{
+		"truncated": true,
+		"data":      string(raw[:maxMeshResultBytes]),
+	}
 }
 
 // ListEvents returns MeshCentral audit events, optionally filtered by node or user.

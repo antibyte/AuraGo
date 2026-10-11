@@ -852,8 +852,10 @@ MeshCentral Geräte über den Control-WebSocket verwalten.
 | `node_id` | string | Geräte-ID für device_info, wake, power_action, run_command oder Ereignisfilter |
 | `user_id` | string | Benutzerfilter für list_events |
 | `power_action` | string | off, reset, sleep, amt_on, amt_off, amt_reset |
-| `command` | string | Befehl für run_command |
+| `command` | string | Befehl für run_command (höchstens 4096 Byte; läuft als MeshAgent-Dienstkonto) |
 | `limit` | integer | Maximale Anzahl von Ereignissen |
+
+Wake und Strom brauchen zusätzlich `meshcentral.allow_power_actions`. `run_command` braucht `agent.allow_remote_shell`. Eine unbestätigte Wake- oder Stromanfrage wiederholst du nicht blind.
 
 ### `vercel`
 Vercel-Projekte, Deployments, Umgebungsvariablen und Domains verwalten.

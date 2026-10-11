@@ -898,8 +898,10 @@ Manage MeshCentral devices through the core control WebSocket.
 | `node_id` | string | Device ID for device_info, wake, power_action, run_command, or event filtering |
 | `user_id` | string | User filter for list_events |
 | `power_action` | string | off, reset, sleep, amt_on, amt_off, amt_reset |
-| `command` | string | Command for run_command |
+| `command` | string | Command for run_command (at most 4096 bytes; runs as the MeshAgent service account) |
 | `limit` | integer | Maximum number of events |
+
+Wake and power also need `meshcentral.allow_power_actions`. `run_command` also needs `agent.allow_remote_shell`. An unconfirmed wake or power request must not be retried blindly.
 
 ### `koofr`
 Access Koofr cloud storage: list, read, download, upload, move, and copy files.

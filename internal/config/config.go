@@ -151,6 +151,10 @@ var configSaveMu sync.Mutex
 // anonymous MQTT broker to once per process.
 var mqttRelayGrandfatherWarning sync.Once
 
+// meshCentralPowerGrandfatherWarning limits the Load warning about a
+// pre-allow_power_actions MeshCentral config to once per process.
+var meshCentralPowerGrandfatherWarning sync.Once
+
 // DefaultWorkspaceSearchExcludes returns the safe default skip list for the resident workspace index.
 func DefaultWorkspaceSearchExcludes() []string {
 	return append([]string(nil), defaultWorkspaceSearchExcludes...)
@@ -1677,6 +1681,16 @@ func Load(path string) (*Config, error) {
 	// off silently; writing the key (true or false) ends the grandfather.
 	if !yamlHasPath(data, "docker", "allow_host_access") {
 		cfg.Docker.AllowHostAccess = true
+	}
+
+	// meshcentral.allow_power_actions gates wake and power. Configurations that
+	// already enabled a writable integration keep that behavior when the key is
+	// absent. Writing the key, including false, ends the grandfather.
+	if cfg.MeshCentral.Enabled && !cfg.MeshCentral.ReadOnly && !yamlHasPath(data, "meshcentral", "allow_power_actions") {
+		cfg.MeshCentral.AllowPowerActions = true
+		meshCentralPowerGrandfatherWarning.Do(func() {
+			slog.Warn("[Config] MeshCentral power actions remain enabled because meshcentral.allow_power_actions is absent on an enabled writable integration. Set allow_power_actions: false to block wake and power actions.")
+		})
 	}
 
 	// Migrate legacy agent.personality_* fields → new personality section.

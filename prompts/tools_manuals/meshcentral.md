@@ -7,7 +7,9 @@ The `meshcentral` tool interacts with devices managed by a MeshCentral server th
 
 **Warning:** `wake`, `power_action`, and `run_command` are privileged operations. Verify the target `node_id` or `mesh_id` before changing remote device state.
 
-`run_command` additionally requires `agent.allow_remote_shell=true`. Integration permissions and the global remote-shell gate must both allow execution.
+`wake` and `power_action` require `meshcentral.allow_power_actions=true`. `meshcentral.readonly=true` blocks them even when that switch is on.
+
+`run_command` additionally requires `agent.allow_remote_shell=true`. Integration permissions and the global remote-shell gate must both allow execution. The command runs as the MeshAgent service account (`runAsUser` 0: SYSTEM on Windows, root on Linux). Trimmed commands must be non-empty and at most 4096 bytes. Results larger than 64 KiB come back with `truncated: true`.
 
 ## Parameters
 
@@ -30,7 +32,8 @@ The `meshcentral` tool interacts with devices managed by a MeshCentral server th
 ## Notes
 
 - Interactive shell, file transfer, desktop relay, WebRelay, invite links, device sharing, reports, and MeshCentral user/group administration are not exposed by this tool yet. Those features require additional MeshCentral relay or admin command handling.
-- `run_command` uses MeshCentral's `runcommands` control action. Returned data depends on the MeshCentral server and agent response.
+- `run_command` uses MeshCentral's `runcommands` control action. Returned data depends on the MeshCentral server and agent response. A timeout means the command may still be running on the device and must not be retried blindly.
+- `wake` and `power_action` wait up to 5 seconds for a correlated MeshCentral response. Status `unconfirmed` means the request was sent but not confirmed. It may already have reached the device. Do not retry it blindly. A connection error is a failure and is not replayed.
 - The old `shell` operation is intentionally unsupported until a real `meshrelay.ashx` tunnel is implemented.
 
 ## Examples

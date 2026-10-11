@@ -558,6 +558,7 @@ func handleMeshCentralTest(s *Server) http.HandlerFunc {
 			loginToken = s.Cfg.MeshCentral.LoginToken
 		}
 		insecure := s.Cfg.MeshCentral.Insecure
+		caFile := s.Cfg.MeshCentral.CAFile
 		s.CfgMu.RUnlock()
 
 		meshURL, err := resolveMeshCentralTestURL(body.URL, configuredURL)
@@ -627,8 +628,18 @@ func handleMeshCentralTest(s *Server) http.HandlerFunc {
 			})
 			return
 		}
+		if loginToken != "" && password == "" {
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  "error",
+				"message": "MeshCentral login token requires meshcentral_password to hold the token secret",
+			})
+			return
+		}
 
 		mc, err := meshcentral.NewClient(meshURL, username, password, loginToken, insecure)
+		if err == nil {
+			mc.SetCAFile(caFile)
+		}
 		if err != nil {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",

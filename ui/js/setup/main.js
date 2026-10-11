@@ -1633,7 +1633,7 @@ function buildTrustLevelPatch(level) {
         home_assistant:   { readonly: n <= 2 },
         fritzbox:         { readonly: n <= 2 },
         telnyx:           { readonly: n <= 2 },
-        meshcentral:      { readonly: n <= 2 },
+        meshcentral:      { readonly: n <= 2, allow_power_actions: n >= 3 },
         // Docker is useful infrastructure for many integrations. Keep it off
         // only at the lowest trust level, read-only at level 2, and writable
         // once the user explicitly grants broader agent permissions.

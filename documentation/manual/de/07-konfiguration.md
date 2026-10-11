@@ -517,7 +517,8 @@ Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `con
     container_port: 11434
     use_host_gpu: false
     gpu_backend: auto` |
-| `proxmox` / `meshcentral` / `ansible` | Infrastruktur | Jeweils `enabled: false`, `url: "", readonly: false` |
+| `proxmox` / `ansible` | Infrastruktur | Jeweils `enabled: false`, `url: ""`, `readonly: false` |
+| `meshcentral` | Control-WebSocket für Geräte, Wake, Strom und MeshAgent-Befehle | `enabled: false`, `readonly: true`, `allow_power_actions: false` |
 | `github` | GitHub API | `github:\n  enabled: false\n  owner: ""` |
 | `s3` / `onedrive` / `webdav` / `koofr` | Cloud-Speicher | Jeweils `enabled: false`, Endpoint/Credentials in UI/Vault |
 | `paperless_ngx` | Dokumentenworkflow | `paperless_ngx:\n  enabled: false\n  url: ""` |

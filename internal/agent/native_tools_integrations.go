@@ -425,7 +425,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 
 	if ff.MeshCentralEnabled {
 		tools = append(tools, tool("meshcentral",
-			"Manage and inspect devices and groups managed by a MeshCentral server. Supports server info, device and event listing, wake-on-lan, power actions, and running commands.",
+			"Manage and inspect devices managed by a MeshCentral server. Supports server info, device and event listing, wake-on-lan, power actions, and running commands. Wake and power require meshcentral.allow_power_actions. run_command runs as the MeshAgent service account and requires agent.allow_remote_shell.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",

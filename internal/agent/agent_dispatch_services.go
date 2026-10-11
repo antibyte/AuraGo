@@ -35,6 +35,7 @@ type meshCentralClientConfig struct {
 	password   string
 	loginToken string
 	insecure   bool
+	caFile     string
 }
 
 // autoAddHomepageHistory records a project history entry when a mutating homepage
@@ -244,7 +245,7 @@ func CloseMeshCentralClient() {
 	meshCentralCachedConfigSet = false
 }
 
-func getMeshCentralClient(url, username, password, loginToken string, insecure bool, logger *slog.Logger) *meshcentral.CachedClient {
+func getMeshCentralClient(url, username, password, loginToken string, insecure bool, caFile string, logger *slog.Logger) *meshcentral.CachedClient {
 	meshCentralClientMu.Lock()
 	defer meshCentralClientMu.Unlock()
 
@@ -254,12 +255,14 @@ func getMeshCentralClient(url, username, password, loginToken string, insecure b
 		password:   password,
 		loginToken: loginToken,
 		insecure:   insecure,
+		caFile:     caFile,
 	}
 	if meshCentralCachedClient == nil || !meshCentralCachedConfigSet || meshCentralCachedConfig != cfg {
 		if meshCentralCachedClient != nil {
 			meshCentralCachedClient.Close()
 		}
 		meshCentralCachedClient = meshcentral.NewCachedClient(url, username, password, loginToken, insecure, logger)
+		meshCentralCachedClient.SetCAFile(caFile)
 		meshCentralCachedConfig = cfg
 		meshCentralCachedConfigSet = true
 	} else {
@@ -284,6 +287,14 @@ func meshCentralError(message string) string {
 func meshCentralSuccess(fields map[string]interface{}) string {
 	fields["status"] = "success"
 	return meshCentralOutput(fields)
+}
+
+func meshCentralUnconfirmed(err error) string {
+	return meshCentralOutput(map[string]interface{}{
+		"status":  "unconfirmed",
+		"message": "The request was sent, but MeshCentral did not confirm it within 5s. It may already have reached the device. Do not retry blindly.",
+		"detail":  err.Error(),
+	})
 }
 
 func meshCentralReadOnlyAllowed(op string) bool {
@@ -466,6 +477,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if cfg.MeshCentral.ReadOnly && !meshCentralReadOnlyAllowed(op) {
 				return meshCentralError(fmt.Sprintf("MeshCentral operation '%s' blocked: meshcentral.readonly is enabled.", req.Operation))
 			}
+			if (op == "wake" || op == "power_action") && !cfg.MeshCentral.AllowPowerActions {
+				return meshCentralError(fmt.Sprintf("MeshCentral operation '%s' blocked: meshcentral.allow_power_actions is disabled.", req.Operation))
+			}
 			if op == "run_command" && !cfg.Agent.AllowRemoteShell {
 				return meshCentralError("MeshCentral run_command requires agent.allow_remote_shell=true.")
 			}
@@ -498,6 +512,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if pass == "" && token == "" && cfg.MeshCentral.Username != "" {
 				return meshCentralError("No password or token found. Please set 'meshcentral_password' or 'meshcentral_token' in the vault.")
 			}
+			if token != "" && pass == "" {
+				return meshCentralError("MeshCentral login token requires meshcentral_password to hold the token secret")
+			}
 
 			if pass != "" {
 				security.RegisterSensitive(pass)
@@ -506,7 +523,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				security.RegisterSensitive(token)
 			}
 
-			mcClient := getMeshCentralClient(cfg.MeshCentral.URL, cfg.MeshCentral.Username, pass, token, cfg.MeshCentral.Insecure, logger)
+			mcClient := getMeshCentralClient(cfg.MeshCentral.URL, cfg.MeshCentral.Username, pass, token, cfg.MeshCentral.Insecure, cfg.MeshCentral.CAFile, logger)
 
 			switch op {
 			case "server_info":
@@ -557,6 +574,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				logger.Info("MeshCentral wake_on_lan", "node_id", req.NodeID, "session_id", sessionID)
 				result, err := mcClient.WakeOnLanContext(ctx, []string{req.NodeID})
 				if err != nil {
+					if strings.Contains(err.Error(), "meshcentral: unconfirmed") {
+						return meshCentralUnconfirmed(err)
+					}
 					return meshCentralError(fmt.Sprintf("Failed to send wake magic packet: %v", err))
 				}
 				return meshCentralSuccess(map[string]interface{}{"message": result})
@@ -572,6 +592,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				logger.Info("MeshCentral power_action", "node_id", req.NodeID, "power_action", actionName, "actiontype", actionType, "session_id", sessionID)
 				result, err := mcClient.PowerActionContext(ctx, []string{req.NodeID}, actionType)
 				if err != nil {
+					if strings.Contains(err.Error(), "meshcentral: unconfirmed") {
+						return meshCentralUnconfirmed(err)
+					}
 					return meshCentralError(fmt.Sprintf("Failed to send power action: %v", err))
 				}
 				return meshCentralSuccess(map[string]interface{}{"message": result, "power_action": actionName, "actiontype": actionType})
@@ -582,6 +605,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				if !strings.HasPrefix(req.NodeID, "node//") {
 					return meshCentralError("invalid node_id: must start with 'node//'")
+				}
+				if len(strings.TrimSpace(req.Command)) > meshcentral.MaxCommandBytes {
+					return meshCentralError(fmt.Sprintf("command exceeds %d bytes", meshcentral.MaxCommandBytes))
 				}
 				logger.Info("MeshCentral run_command", "node_id", req.NodeID, "command_length", len(req.Command), "session_id", sessionID)
 				result, err := mcClient.RunCommandContext(ctx, req.NodeID, req.Command)

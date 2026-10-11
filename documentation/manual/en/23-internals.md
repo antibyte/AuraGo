@@ -1018,7 +1018,7 @@ The A2A protocol in [`internal/a2a/`](../../../internal/a2a/) enables inter-agen
 | S3 | `s3.go` | AWS S3 buckets and objects |
 | TrueNAS | `truenas.go` | Pools, datasets, snapshots |
 | Netlify | `netlify.go` | Deploy and manage sites |
-| MeshCentral | `meshcentral.go` | Remote desktop |
+| MeshCentral | `internal/meshcentral` | Control WebSocket: inventory, wake, power, MeshAgent commands |
 | Ollama | `ollama.go` | Manage local LLM models |
 
 ---

@@ -1308,13 +1308,16 @@ func TestWakeOnLan(t *testing.T) {
 	c, sConn, cleanup := clientWithWS(t)
 	defer cleanup()
 
-	msg, err := c.WakeOnLan([]string{"node1", "node2"})
-	if err != nil {
-		t.Fatalf("WakeOnLan: %v", err)
-	}
-	if msg != "Wake-on-LAN packet sent" {
-		t.Errorf("msg = %q, want 'Wake-on-LAN packet sent'", msg)
-	}
+	errCh := make(chan error, 1)
+	msgCh := make(chan string, 1)
+	go func() {
+		msg, err := c.WakeOnLan([]string{"node1", "node2"})
+		if err != nil {
+			errCh <- err
+			return
+		}
+		msgCh <- msg
+	}()
 
 	_, raw, err := sConn.ReadMessage()
 	if err != nil {
@@ -1330,6 +1333,44 @@ func TestWakeOnLan(t *testing.T) {
 	gotNodeIDs, _ := data["nodeids"].([]interface{})
 	if len(gotNodeIDs) != 2 {
 		t.Errorf("nodeids = %v, want 2 items", gotNodeIDs)
+	}
+	responseID, _ := data["responseid"].(string)
+	_ = sConn.WriteJSON(map[string]interface{}{
+		"action":     "wakedevices",
+		"responseid": responseID,
+		"result":     "OK",
+	})
+
+	select {
+	case err := <-errCh:
+		t.Fatalf("WakeOnLan: %v", err)
+	case msg := <-msgCh:
+		if msg != "OK" {
+			t.Errorf("msg = %q, want OK", msg)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for wake confirmation")
+	}
+}
+
+func TestWakeOnLanUnconfirmed(t *testing.T) {
+	prev := meshConfirmTimeout
+	meshConfirmTimeout = 30 * time.Millisecond
+	t.Cleanup(func() { meshConfirmTimeout = prev })
+
+	c, sConn, cleanup := clientWithWS(t)
+	defer cleanup()
+	go func() {
+		for {
+			if _, _, err := sConn.ReadMessage(); err != nil {
+				return
+			}
+		}
+	}()
+
+	_, err := c.WakeOnLan([]string{"node1"})
+	if err == nil || !strings.Contains(err.Error(), "meshcentral: unconfirmed") {
+		t.Fatalf("WakeOnLan error = %v, want unconfirmed", err)
 	}
 }
 
@@ -1361,6 +1402,12 @@ func TestPowerAction(t *testing.T) {
 			if action == "poweraction" {
 				gotActionType, _ := data["actiontype"].(float64)
 				gotActionTypeCh <- gotActionType
+				responseID, _ := data["responseid"].(string)
+				_ = sConn.WriteJSON(map[string]interface{}{
+					"action":     "poweraction",
+					"responseid": responseID,
+					"result":     "OK",
+				})
 			}
 		}
 	}()
@@ -1369,8 +1416,8 @@ func TestPowerAction(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PowerAction: %v", err)
 	}
-	if msg != "Power action sent" {
-		t.Errorf("msg = %q, want 'Power action sent'", msg)
+	if msg != "OK" {
+		t.Errorf("msg = %q, want OK", msg)
 	}
 	select {
 	case gotActionType := <-gotActionTypeCh:
@@ -1685,7 +1732,7 @@ func TestCachedClient_ExecuteWithRetry_ReconnectsAndSucceeds(t *testing.T) {
 		calls++
 		if firstCall {
 			firstCall = false
-			return errors.New("websocket: close 1006 (abnormal closure)")
+			return errors.New("websocket disconnected: close 1006 (abnormal closure)")
 		}
 		return nil
 	})
@@ -1843,4 +1890,164 @@ func TestConnect_SendsXMeshAuthHeader(t *testing.T) {
 	defer c.Close()
 
 	_ = receivedAuthHeader
+}
+
+func TestConnectTokenWithoutSecretDoesNotDial(t *testing.T) {
+	c, err := NewClient("http://127.0.0.1:1", "", "", "automation", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.SetLogger(testLogger())
+	err = c.Connect()
+	if err == nil || !strings.Contains(err.Error(), "meshcentral_password") {
+		t.Fatalf("Connect error = %v, want token secret error", err)
+	}
+}
+
+func TestRunCommandRejectsOversizedCommandWithoutSending(t *testing.T) {
+	c, sConn, cleanup := clientWithWS(t)
+	defer cleanup()
+	sent := make(chan struct{}, 1)
+	go func() {
+		_, msg, err := sConn.ReadMessage()
+		if err != nil {
+			return
+		}
+		var data map[string]interface{}
+		if json.Unmarshal(msg, &data) == nil && data["action"] == "runcommands" {
+			sent <- struct{}{}
+		}
+	}()
+
+	_, err := c.RunCommand("node//dev1", strings.Repeat("a", MaxCommandBytes+1))
+	if err == nil || !strings.Contains(err.Error(), "exceeds") {
+		t.Fatalf("RunCommand error = %v, want length error", err)
+	}
+	select {
+	case <-sent:
+		t.Fatal("oversized command was sent")
+	case <-time.After(50 * time.Millisecond):
+	}
+}
+
+func TestRunCommandRejectsEmptyCommand(t *testing.T) {
+	c := &Client{}
+	_, err := c.RunCommandContext(context.Background(), "node//dev1", "   ")
+	if err == nil || !strings.Contains(err.Error(), "empty") {
+		t.Fatalf("RunCommand error = %v, want empty command", err)
+	}
+}
+
+func TestRunCommandTruncatesLargeResult(t *testing.T) {
+	c, sConn, cleanup := clientWithWS(t)
+	defer cleanup()
+	go func() {
+		for {
+			_, msg, err := sConn.ReadMessage()
+			if err != nil {
+				return
+			}
+			var data map[string]interface{}
+			if json.Unmarshal(msg, &data) != nil || data["action"] != "runcommands" {
+				continue
+			}
+			responseID, _ := data["responseid"].(string)
+			_ = sConn.WriteJSON(map[string]interface{}{
+				"action":     "runcommands",
+				"responseid": responseID,
+				"output":     strings.Repeat("x", maxMeshResultBytes+128),
+			})
+			return
+		}
+	}()
+
+	res, err := c.RunCommand("node//dev1", "echo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res["truncated"] != true {
+		t.Fatalf("result = %#v, want truncated", res)
+	}
+	data, _ := res["data"].(string)
+	if len(data) != maxMeshResultBytes {
+		t.Fatalf("truncated data length = %d, want %d", len(data), maxMeshResultBytes)
+	}
+}
+
+func TestIsConnectionErrorIgnoresProtocolWord(t *testing.T) {
+	if isConnectionError(errors.New("the remote websocket protocol rejected the frame")) {
+		t.Fatal("a protocol sentence containing websocket must not count as a connection error")
+	}
+	if !isConnectionError(errors.New("websocket disconnected: eof")) {
+		t.Fatal("expected a disconnect to count as a connection error")
+	}
+	if !isConnectionError(errNotConnected) {
+		t.Fatal("expected errNotConnected to count as a connection error")
+	}
+}
+
+func TestActionOnlyResponseDoesNotCrossWaiters(t *testing.T) {
+	c, sConn, cleanup := clientWithWS(t)
+	defer cleanup()
+
+	type listed struct {
+		err error
+	}
+	done := make(chan listed, 2)
+	go func() {
+		_, err := c.ListDeviceGroups()
+		done <- listed{err}
+	}()
+	go func() {
+		_, err := c.ListDeviceGroups()
+		done <- listed{err}
+	}()
+
+	ids := make([]string, 0, 2)
+	for len(ids) < 2 {
+		_, msg, err := sConn.ReadMessage()
+		if err != nil {
+			t.Fatalf("ReadMessage: %v", err)
+		}
+		var data map[string]interface{}
+		if err := json.Unmarshal(msg, &data); err != nil {
+			t.Fatal(err)
+		}
+		if data["action"] != "meshes" {
+			continue
+		}
+		responseID, _ := data["responseid"].(string)
+		if responseID == "" {
+			t.Fatal("missing responseid")
+		}
+		ids = append(ids, responseID)
+	}
+
+	_ = sConn.WriteJSON(map[string]interface{}{
+		"action": "meshes",
+		"meshes": []interface{}{map[string]interface{}{"name": "ambiguous"}},
+	})
+	select {
+	case res := <-done:
+		t.Fatalf("action-only response completed a waiter: %v", res.err)
+	case <-time.After(80 * time.Millisecond):
+	}
+
+	for _, id := range ids {
+		_ = sConn.WriteJSON(map[string]interface{}{
+			"action":     "meshes",
+			"responseid": id,
+			"meshes":     []interface{}{map[string]interface{}{"name": id}},
+		})
+	}
+	for i := 0; i < 2; i++ {
+		select {
+		case res := <-done:
+			if res.err != nil {
+				t.Fatalf("ListDeviceGroups: %v", res.err)
+			}
+		case <-time.After(time.Second):
+			t.Fatal("timed out waiting for correlated meshes response")
+		}
+	}
 }

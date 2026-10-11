@@ -1156,7 +1156,7 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `onedrive` | Microsoft OneDrive. | `onedrive:`<br>`  enabled: false`<br>`  readonly: false`<br>`  client_id: ""`<br>`  tenant_id: common` |
 | `paperless_ngx` | Document management. | `paperless_ngx:`<br>`  enabled: false`<br>`  readonly: false`<br>`  url: ""` |
 | `proxmox` | Proxmox VE integration. | `proxmox:`<br>`  enabled: false`<br>`  readonly: false`<br>`  url: ""`<br>`  token_id: ""` |
-| `meshcentral` | Remote desktop integration. | `meshcentral:`<br>`  enabled: false`<br>`  readonly: false`<br>`  url: ""`<br>`  username: ""` |
+| `meshcentral` | MeshCentral control WebSocket for device inventory, wake, power and MeshAgent commands. | `meshcentral:`<br>`  enabled: false`<br>`  readonly: true`<br>`  allow_power_actions: false`<br>`  url: ""`<br>`  username: ""`<br>`  insecure: false`<br>`  ca_file: ""` |
 | `ansible` | Ansible sidecar integration. | `ansible:`<br>`  enabled: false`<br>`  readonly: false`<br>`  mode: sidecar`<br>`  url: ""`<br>`  timeout: 300` |
 | `ollama` | Local Ollama management. | `ollama:`<br>`  enabled: false`<br>`  readonly: false`<br>`  url: ""`<br>`  managed_instance:`<br>`    enabled: false`<br>`    container_port: 11434`<br>`    use_host_gpu: false`<br>`    gpu_backend: auto`<br>`    default_models: []`<br>`    memory_limit: ""`<br>`    volume_path: ""` |
 | `rocketchat` | Rocket.Chat bot. | `rocketchat:`<br>`  enabled: false`<br>`  url: ""`<br>`  user_id: ""`<br>`  channel: ""` |

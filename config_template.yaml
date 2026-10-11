@@ -790,11 +790,13 @@ logging:
     log_dir: ./log
 meshcentral:
     enabled: false
-    readonly: false
+    readonly: true
+    allow_power_actions: false                  # wake and power; also blocked while readonly is true
     blocked_operations: []
     url: ""
     username: ""
     insecure: false  # Set to true to skip TLS certificate verification (not recommended for production)
+    ca_file: ""      # PEM CA for a private MeshCentral certificate; ignored when insecure is true
 maintenance:
     enabled: true
     time: "04:00"
