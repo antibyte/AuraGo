@@ -490,6 +490,11 @@ func Load(path string) (*Config, error) {
 	cfg.LocalWikipedia.Variant = "nopic"
 	cfg.LocalWikipedia.UpdateCheck = true
 
+	// Retro Games is on by default; the index is built only when the app or
+	// the tool is first used.
+	cfg.RetroGames.Enabled = true
+	cfg.RetroGames.AgentAccess = true
+
 	// Space Agent defaults: disabled by default, managed Docker sidecar when enabled.
 	cfg.SpaceAgent.AutoStart = true
 	cfg.SpaceAgent.RepoURL = "https://github.com/agent0ai/space-agent"

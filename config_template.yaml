@@ -480,6 +480,10 @@ local_wikipedia:
     variant: nopic                 # nopic = without media, maxi = with media
     data_dir: ""                   # empty = <directories.data_dir>/wikipedia; native installs only (fixed in Docker)
     update_check: true             # daily catalog check; updates start only when you click Update
+# Retro Games desktop app: searchable index of the browser-playable archive.org games, built on first use.
+retro_games:
+    enabled: true
+    agent_access: true             # lets the agent search the index and open games in the desktop app
 home_assistant:
     access_token: ""
     enabled: false

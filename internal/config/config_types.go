@@ -412,6 +412,12 @@ type LocalWikipediaConfig struct {
 	UpdateCheck bool   `yaml:"update_check" json:"update_check"`
 }
 
+// RetroGamesConfig controls the Retro Games desktop app and its agent tool.
+type RetroGamesConfig struct {
+	Enabled     bool `yaml:"enabled" json:"enabled"`
+	AgentAccess bool `yaml:"agent_access" json:"agent_access"`
+}
+
 // Go2RTCStreamSourceVaultKey returns the per-stream vault key for a go2rtc source.
 func Go2RTCStreamSourceVaultKey(streamID string) string {
 	id := strings.TrimSpace(strings.ToLower(streamID))
@@ -1862,6 +1868,7 @@ type Config struct {
 	RTLSDR         RTLSDRConfig         `yaml:"rtl_sdr" json:"rtl_sdr"`
 	LocalLLM       LocalLLMConfig       `yaml:"local_llm" json:"local_llm"`
 	LocalWikipedia LocalWikipediaConfig `yaml:"local_wikipedia" json:"local_wikipedia"`
+	RetroGames     RetroGamesConfig     `yaml:"retro_games" json:"retro_games"`
 	ThreeDPrinters ThreeDPrintersConfig `yaml:"three_d_printers"`
 	Ollama         struct {
 		Enabled         bool   `yaml:"enabled"`
