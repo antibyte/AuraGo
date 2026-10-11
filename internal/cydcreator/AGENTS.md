@@ -26,9 +26,9 @@ turns a project into the complete PlatformIO tree. Later plans add storage and t
 - `deploy/docker/Dockerfile.cyd-builder`, `deploy/docker/cyd-builder/{cyd-build,cyd-addr2line,cyd-selftest,requirements.*}`
   and `.github/workflows/cyd-builder.yml`.
 - `generate*.go` (plan 1c): `Generate`, `InspectAsset`, `ScaffoldAppFiles` and the renderers of
-  `include/board_config.h`, `platformio.ini`, `partitions.csv` and `src/generated/*`. `testdata/golden/<case>/` holds
-  generator inputs (`cyd.project.json`) with their expected output. `generate_builder_it_test.go` is the opt-in
-  compile proof (Docker and the builder image).
+  `include/board_config.h`, `platformio.ini` and `src/generated/*` (`partitions.csv` comes from `PartitionCSV` in
+  `partitions.go`). `testdata/golden/<case>/` holds generator inputs (`cyd.project.json`) with their expected
+  output. `generate_builder_it_test.go` is the opt-in compile proof (Docker and the builder image).
 
 ## Local Contracts
 
@@ -268,12 +268,12 @@ turns a project into the complete PlatformIO tree. Later plans add storage and t
   `testdata/reference/basic` byte for byte for every board (`TestGenerateReproducesReference`); a change of
   generated output updates the reference (when affected) and the goldens in the same commit.
 - Refusals, in order: a `template_version` other than `TemplateVersion` is `CYD_INVALID_LAYOUT`
-  (`details.template_version`, `details.embedded`); asset problems are `CYD_BAD_REQUEST`; validation errors are
-  `CYD_INVALID_LAYOUT` with `details.issues` (also in `GenerateOutput.Issues`; warnings never block); an app path
-  that fails `IsEditablePath` is `CYD_BAD_REQUEST` (`details.path`); more than 4096 extra glyphs (characters
-  outside Latin-1 and Latin Extended-A, cyd-build's limit) is `CYD_INVALID_LAYOUT` (`details.chars`,
-  `details.limit`). Assets are decoded before `Validate`, so a bad asset together with layout errors gives a
-  bad-request error without `Issues`.
+  (`details.reason`, `details.template_version`, `details.embedded`); asset problems are `CYD_BAD_REQUEST`;
+  validation errors are `CYD_INVALID_LAYOUT` with `details.issues` (also in `GenerateOutput.Issues`; warnings never
+  block); an app path that fails `IsEditablePath` is `CYD_BAD_REQUEST` (`details.path`); more than 4096 extra glyphs
+  (characters outside printable ASCII, Latin-1 Supplement and Latin Extended-A, cyd-build's limit) is
+  `CYD_INVALID_LAYOUT` (`details.reason`, `details.chars`, `details.limit`). Assets are decoded before `Validate`,
+  so a bad asset together with layout errors gives a bad-request error without `Issues`.
 - Images (`generate_assets.go`): PNG and JPEG only (the format comes from the header, so a decoder another package
   registers is not enough), 1..2048 px per side. Decoded pixels are far larger than the files, so
   `decodeProjectAssets` reads every header first and refuses before any pixel is decoded: a missing asset, a size
@@ -287,18 +287,18 @@ turns a project into the complete PlatformIO tree. Later plans add storage and t
 - Generated names: public `ui_<name>` (named widgets), `ui_scr_<screen>`, `UI_SCREEN_<SCREEN>`, `ui_img_<asset id>`,
   `ui_font_<family>_<size>`, `on_<name>_<event>`, `ui_show_<name>`/`ui_hide_<name>` (named msgboxes),
   `ui_<name>_series[n]` (named charts). Private: `ui__<key>_wifi`/`_clock` (key = name, or the decimal traversal
-  index of an unnamed widget, which no name can be), `ui__ev_<name>_<event>`, `ui__scr_<screen>_create`/`_kb` and
-  fixed helpers (`ui__style_*`, `ui__statusbar_*`, `ui__msgbox_close` and others). A new private name must not end
-  in `_wifi`/`_clock` and must not start with `ui__ev_`, `ui__scr_` or `ui__<digit>`, so it can never collide with
-  a derived one.
+  index of an unnamed widget, which no name can be), `ui__ev_<name>_<event>`, `ui__scr_<screen>_create`/`_kb`,
+  `ui__img_<asset id>_map` and fixed helpers (`ui__style_*`, `ui__statusbar_*`, `ui__msgbox_close` and others). A
+  new private name must not end in `_wifi`/`_clock` and must not start with `ui__ev_`, `ui__scr_`, `ui__img_` or
+  `ui__<digit>`, so it can never collide with a derived one.
 - Free text reaches C only through `cString` (quote, backslash and newline escaped, other control bytes and DEL as
   octal `\ooo`, the second `?` of `??` escaped, UTF-8 raw; the same escaper as the template's strings header) or
   `cComment` (control characters, format characters such as bidi overrides and line or paragraph separators become
   spaces, `??` and `*/` are split, trailing spaces and backslashes are cut so a comment never continues). Colours go
-  through `cHexColor` (anything but `#RRGGBB` becomes black) and `codeWriter.line` takes a constant format, so a
+  through `cHexColor` (anything but `#RRGGBB`, hex digits in either case, becomes black) and `codeWriter.line` takes a constant format, so a
   user value is never a format string.
 - `ui_theme.cpp` is fixed text with the theme's tokens substituted (`renderTheme`); every `ui__style_*` helper is
-  defined non-static, so `ui.cpp` may call any of them. A colour that is not exactly `#RRGGBB` renders black and
+  defined non-static, so `ui.cpp` may call any of them. A colour that is not `#RRGGBB` (hex digits in either case) renders black and
   `colorLuma` (the `DARK` flag, background luma below 128) counts it as black too, so flag and colour agree; an
   unknown button style renders as filled and the theme id passes through `cComment`.
 - Device fidelity rules: panel children are offset by the panel's border width (padding 0), tab pages have no
@@ -348,10 +348,11 @@ turns a project into the complete PlatformIO tree. Later plans add storage and t
   (writes only `/work`, `/cache`, `/tmp`). Compiling untrusted C++ can still read every file the container can read:
   keep secrets out of the image, `/work` and `/cache`.
 - Publishing: `.github/workflows/cyd-builder.yml` builds each architecture natively and smoke-tests it offline
-  (amd64 all profiles, arm64 one). The amd64 job then compiles ten generator goldens (`all_widgets*` and
-  `theme_*`) strictly with `TestGenerateCompilesInBuilder` (4 CPUs, volumes `cyd-ci-work` and `cyd-ci-cache`). The
-  path filters include `generate*.go` and `testdata/golden/**`, and the checkout keeps no credentials
-  (`persist-credentials: false`). Pushes to `main` and `v*` tags (or a manual dispatch with `publish`) push by
+  (amd64 all profiles, arm64 one). The amd64 job then compiles ten builds of the nine golden cases (`all_widgets` on
+  two boards, `all_widgets_portrait` and the seven `theme_*` cases) strictly with `TestGenerateCompilesInBuilder`
+  (4 CPUs, volumes `cyd-ci-work` and `cyd-ci-cache`). The path filters include `generate*.go` and
+  `testdata/golden/**`, and the build job's checkout keeps no credentials (`persist-credentials: false`; the publish
+  job's checkout does not set it). Pushes to `main` and `v*` tags (or a manual dispatch with `publish`) push by
   digest, then one job creates the multi-arch `:1` and, only when it does not exist yet, the immutable
   `:<CYD_BUILDER_VERSION>`, and signs the manifest with cosign. A changed image under an unchanged
   `CYD_BUILDER_VERSION` therefore moves only `:1`: bump the version for every pin, template or builder-script change.
@@ -362,8 +363,10 @@ turns a project into the complete PlatformIO tree. Later plans add storage and t
 - Table-driven tests live beside the source; golden files belong to the generator under `testdata/golden/`.
 - A new board profile records its source URL and must pass `TestEveryEmbeddedBoardLoads`.
 - A new device theme needs its `testdata/golden/theme_<id>` case (`TestGenerateGolden` requires exactly one per
-  `Themes()` entry); a new widget type, event or action kind must appear in the `all_widgets` golden
-  (`TestAllWidgetsGoldenCoversCatalog`).
+  `Themes()` entry) and an entry in two hard-coded lists: `wantCases` in `TestGenerateGolden` and the theme list in
+  `itBuilds` (`generate_builder_it_test.go`), otherwise its golden is never compiled. A new widget type or action
+  kind must appear in the `all_widgets` golden (`TestAllWidgetsGoldenCoversCatalog` derives both from the catalog
+  and `actionTypes`); a new event kind is only checked once it is added to that test's hard-coded event list.
 
 ## Verification
 
