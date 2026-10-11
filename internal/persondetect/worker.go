@@ -49,6 +49,8 @@ func RunWorker(args []string, stdin io.Reader, stdout, stderr io.Writer) (code i
 	switch args[0] {
 	case "prepare":
 		return runPrepareCommand(args[1:], stdout, stderr)
+	case "serve":
+		return runServeCommand(args[1:], stdin, stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown person detection worker command %q\n", args[0])
 		return 2
