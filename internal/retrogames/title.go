@@ -12,8 +12,7 @@ var titlePrefixes = []string{"Internet Arcade: ", "Atari 2600: ", "Commodore 64:
 
 var (
 	tosecGroupPattern      = regexp.MustCompile(`\((?:19|20)[0-9x]{2}[^)]*\)`)
-	yearPattern            = regexp.MustCompile(`(?:^|[^0-9])(19[5-9][0-9]|20[0-9][0-9])(?:[^0-9]|$)`)
-	spacePattern           = regexp.MustCompile(`\s+`)
+	yearPattern            = regexp.MustCompile(`(?:^|[^0-9])(19[5-9][0-9]|20[0-2][0-9]|2030)(?:[^0-9]|$)`)
 	trailingArticlePattern = regexp.MustCompile(`^(.+), (The|A|An)$`)
 )
 
@@ -55,27 +54,41 @@ func ParseYear(s string) int {
 		return 0
 	}
 	year, err := strconv.Atoi(m[1])
-	if err != nil || year > 2030 {
+	if err != nil {
 		return 0
 	}
 	return year
 }
 
+// stripControl makes untrusted archive text safe to display and index: it
+// turns control characters and every kind of Unicode whitespace (including
+// U+2028/U+2029) into plain spaces and drops invisible format characters such
+// as bidi overrides and isolates, zero-width spaces, the byte order mark and
+// the tag block. The zero-width (non-)joiners stay because scripts and emoji
+// sequences need them.
 func stripControl(s string) string {
 	s = strings.ToValidUTF8(s, "")
 	return strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) || r == ' ' || r == ' ' {
+		switch {
+		case r == '\U0000200C' || r == '\U0000200D':
+			return r
+		case unicode.IsControl(r) || unicode.IsSpace(r) || r == '\U00002028' || r == '\U00002029':
 			return ' '
+		case unicode.Is(unicode.Cf, r) || (r >= '\U000E0000' && r <= '\U000E007F'):
+			return -1
 		}
 		return r
 	}, s)
 }
 
 func collapseSpace(s string) string {
-	return strings.TrimSpace(spacePattern.ReplaceAllString(s, " "))
+	return strings.Join(strings.Fields(s), " ")
 }
 
 func truncateRunes(s string, limit int) string {
+	if limit <= 0 {
+		return ""
+	}
 	if utf8.RuneCountInString(s) <= limit {
 		return s
 	}

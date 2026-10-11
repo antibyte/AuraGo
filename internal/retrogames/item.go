@@ -3,9 +3,14 @@ package retrogames
 import (
 	"bytes"
 	"encoding/json"
+	"regexp"
 	"strconv"
 	"strings"
 )
+
+// emulatorPattern is the shape of an archive.org emulator key ("dosbox",
+// "sae-a500p", "np2.v2"); anything else is not a usable emulator.
+var emulatorPattern = regexp.MustCompile(`^[a-z0-9._-]+$`)
 
 const (
 	maxTitleRunes    = 200
@@ -28,43 +33,49 @@ type Game struct {
 }
 
 // FlexText decodes archive.org metadata values that arrive as a string, a
-// number or an (optionally nested) array of those. Objects decode to nothing.
+// number or an (optionally nested) array of those. Booleans, nulls and objects
+// decode to nothing. Arrays are flattened at most three levels deep and a
+// value keeps at most maxFlexValues entries, so hostile payloads stay cheap.
 type FlexText []string
+
+const (
+	maxFlexValues = 64
+	maxFlexDepth  = 3
+)
 
 // UnmarshalJSON implements json.Unmarshaler.
 func (f *FlexText) UnmarshalJSON(data []byte) error {
-	data = bytes.TrimSpace(data)
-	if len(data) == 0 || bytes.Equal(data, []byte("null")) {
-		*f = nil
-		return nil
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.UseNumber()
+	var v any
+	if err := dec.Decode(&v); err != nil {
+		return err
 	}
-	switch data[0] {
-	case '"':
-		var s string
-		if err := json.Unmarshal(data, &s); err != nil {
-			return err
-		}
-		*f = FlexText{s}
-	case '[':
-		var parts []json.RawMessage
-		if err := json.Unmarshal(data, &parts); err != nil {
-			return err
-		}
-		out := FlexText{}
-		for _, part := range parts {
-			var one FlexText
-			if err := one.UnmarshalJSON(part); err != nil {
-				return err
-			}
-			out = append(out, one...)
-		}
-		*f = out
-	case '{':
-		*f = nil
-	default:
-		*f = FlexText{string(data)}
-	}
+	var out FlexText
+	flattenFlex(v, 0, &out)
+	*f = out
 	return nil
+}
+
+// flattenFlex appends the strings and numbers found in v to out. Arrays are
+// followed only while depth < maxFlexDepth; collection stops at maxFlexValues.
+func flattenFlex(v any, depth int, out *FlexText) {
+	if len(*out) >= maxFlexValues {
+		return
+	}
+	switch x := v.(type) {
+	case string:
+		*out = append(*out, x)
+	case json.Number:
+		*out = append(*out, x.String())
+	case []any:
+		if depth >= maxFlexDepth {
+			return
+		}
+		for _, elem := range x {
+			flattenFlex(elem, depth+1, out)
+		}
+	}
 }
 
 // First returns the first non-empty value.
@@ -125,12 +136,12 @@ func normalizeItem(src Source, it Item) (Game, bool) {
 	if !ValidIdentifier(id) {
 		return Game{}, false
 	}
-	rawTitle := collapseSpace(stripControl(it.Title.Join(" ")))
+	rawTitle := collapseSpace(stripControl(it.Title.First()))
 	if rawTitle == "" {
 		return Game{}, false
 	}
 	emulator := strings.ToLower(collapseSpace(stripControl(it.Emulator.First())))
-	if emulator == "" {
+	if !emulatorPattern.MatchString(emulator) {
 		return Game{}, false
 	}
 	title, tosecYear := CleanTitle(rawTitle)
@@ -138,7 +149,7 @@ func normalizeItem(src Source, it Item) (Game, bool) {
 	if year == 0 {
 		year = tosecYear
 	}
-	tags := rawTitle
+	tags := collapseSpace(stripControl(it.Title.Join(" ")))
 	if subject := collapseSpace(stripControl(it.Subject.Join(" "))); subject != "" {
 		tags += " " + subject
 	}

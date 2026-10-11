@@ -2,9 +2,94 @@ package retrogames
 
 import (
 	"encoding/json"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
+
+func TestFlexTextDeeplyNestedArrayIsLinearAndDepthLimited(t *testing.T) {
+	const depth = 5000
+	raw := `{"nested":` + strings.Repeat("[", depth) + `"x"` + strings.Repeat("]", depth) + `}`
+	var v struct {
+		Nested FlexText `json:"nested"`
+	}
+	start := time.Now()
+	if err := json.Unmarshal([]byte(raw), &v); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if elapsed := time.Since(start); elapsed > 500*time.Millisecond {
+		t.Fatalf("deep nesting took %v", elapsed)
+	}
+	if len(v.Nested) != 0 {
+		t.Fatalf("values beyond the depth limit were kept: %q", []string(v.Nested))
+	}
+}
+
+func TestFlexTextDepthBoundary(t *testing.T) {
+	var v struct {
+		Within  FlexText `json:"within"`
+		Beyond  FlexText `json:"beyond"`
+		Mixed   FlexText `json:"mixed"`
+		Numbers FlexText `json:"numbers"`
+	}
+	raw := `{"within":[[["a"]]],"beyond":[[[["b"]]]],"mixed":["m",[[[["n"]]]],"o"],"numbers":[[[1.5e3]]]}`
+	if err := json.Unmarshal([]byte(raw), &v); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if got := v.Within.Join(","); got != "a" {
+		t.Errorf("within = %q", got)
+	}
+	if got := v.Beyond.Join(","); got != "" {
+		t.Errorf("beyond = %q", got)
+	}
+	if got := v.Mixed.Join(","); got != "m,o" {
+		t.Errorf("mixed = %q", got)
+	}
+	if got := v.Numbers.First(); got != "1.5e3" {
+		t.Errorf("numbers = %q", got)
+	}
+}
+
+func TestFlexTextKeepsAtMostMaxFlexValues(t *testing.T) {
+	parts := make([]string, 1000)
+	for i := range parts {
+		parts[i] = "s" + strconv.Itoa(i)
+	}
+	raw, err := json.Marshal(map[string][]string{"flat": parts})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var v struct {
+		Flat FlexText `json:"flat"`
+	}
+	if err := json.Unmarshal(raw, &v); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if len(v.Flat) != 64 {
+		t.Fatalf("len = %d, want 64", len(v.Flat))
+	}
+	if v.Flat[0] != "s0" || v.Flat[63] != "s63" {
+		t.Fatalf("kept the wrong values: first %q last %q", v.Flat[0], v.Flat[63])
+	}
+}
+
+func TestFlexTextIgnoresBooleansAndRejectsBadJSON(t *testing.T) {
+	var v struct {
+		Flag  FlexText `json:"flag"`
+		Mixed FlexText `json:"mixed"`
+	}
+	if err := json.Unmarshal([]byte(`{"flag":true,"mixed":[false,"a",null,true,2]}`), &v); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if v.Flag.First() != "" || v.Mixed.Join(",") != "a,2" {
+		t.Fatalf("flag=%q mixed=%q", v.Flag.First(), v.Mixed.Join(","))
+	}
+	var f FlexText
+	if err := f.UnmarshalJSON([]byte(`[1,`)); err == nil {
+		t.Fatal("truncated JSON should return an error")
+	}
+}
 
 func TestFlexTextDecodesStringsNumbersAndArrays(t *testing.T) {
 	var v struct {
@@ -77,6 +162,48 @@ func TestNormalizeItemRejectsIncompleteRecords(t *testing.T) {
 	for i, it := range cases {
 		if _, ok := normalizeItem(dos, it); ok {
 			t.Errorf("case %d accepted: %+v", i, it)
+		}
+	}
+}
+
+func TestNormalizeItemRejectsBooleanEmulator(t *testing.T) {
+	dos, _ := SourceByKey(PlatformMSDOS)
+	var it Item
+	if err := json.Unmarshal([]byte(`{"identifier":"ok_id","title":"x","emulator":false}`), &it); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if got := it.Emulator.First(); got != "" {
+		t.Fatalf("Emulator.First() = %q, want empty", got)
+	}
+	if _, ok := normalizeItem(dos, it); ok {
+		t.Fatal("item with a boolean emulator was accepted")
+	}
+}
+
+func TestNormalizeItemTitleUsesFirstValueAndTagsKeepAll(t *testing.T) {
+	dos, _ := SourceByKey(PlatformMSDOS)
+	g, ok := normalizeItem(dos, Item{Identifier: "foo", Title: FlexText{"Foo", "Foo (alt)"}, Emulator: FlexText{"dosbox"}})
+	if !ok {
+		t.Fatal("rejected")
+	}
+	if g.Title != "Foo" {
+		t.Fatalf("title = %q, want %q", g.Title, "Foo")
+	}
+	if !strings.Contains(g.Tags, "Foo (alt)") {
+		t.Fatalf("tags = %q, want it to contain the alternate title", g.Tags)
+	}
+}
+
+func TestNormalizeItemRejectsMalformedEmulator(t *testing.T) {
+	dos, _ := SourceByKey(PlatformMSDOS)
+	for _, emu := range []string{"dos box", "dos/box", "dosbox!", "dös", ""} {
+		if _, ok := normalizeItem(dos, Item{Identifier: "ok_id", Title: FlexText{"x"}, Emulator: FlexText{emu}}); ok {
+			t.Errorf("emulator %q accepted", emu)
+		}
+	}
+	for _, emu := range []string{"dosbox", "DOSBox", " dosbox ", "sae-a500p", "np2.v2", "a_b"} {
+		if _, ok := normalizeItem(dos, Item{Identifier: "ok_id", Title: FlexText{"x"}, Emulator: FlexText{emu}}); !ok {
+			t.Errorf("emulator %q rejected", emu)
 		}
 	}
 }
