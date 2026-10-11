@@ -1145,6 +1145,18 @@ Search and read the locally installed Wikipedia edition (Local Wikipedia integra
 | `section` | string | Heading text or section index (`read`, optional) |
 | `offset` | integer | Continue a long article at `next_offset` (`read`, optional) |
 
+### `retro_games`
+Search the local index of browser-playable archive.org games and open one in the Retro Games desktop app (see [Retro Games](../../retro-games.md)). Exists only when **Retro Games** and **Let the agent search and start games** are on. With adaptive tool selection (the default) the agent gets it for requests about retro games (*Retrospiel*), arcade (*Spielhalle*), emulators, DOS games or classic systems such as C64, Amiga, Atari, ZX Spectrum and Mega Drive, and otherwise finds it through `discover_tools`; it never takes another tool's slot. Titles and makers are marked as external data. `search` without `query` lists Hall of Fame classics; while the index still holds no games a query falls back to matching Hall of Fame games (`note: index_building`), and an empty result while a searched platform has not finished its first sync (any platform, when none is given) carries `note: index_incomplete`. Index searches leave out games the user marked as not starting. Results are lines `n. identifier | title | system | year | maker` of at most about 2,800 bytes (`truncated: true` when the list was cut; titles are shortened to 80 and makers to 60 characters). `play` opens the game only when the Virtual Desktop, its agent tool and **Allow agent control** are on (otherwise `desktop_unavailable` or `desktop_agent_control_disabled`); the user starts the emulator with the power button.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | string | `search` or `play` |
+| `query` | string | Title, maker or keywords, at most 200 characters (`search`, optional) |
+| `platform` | string | `msdos`, `arcade`, `console`, `c64`, `amiga`, `apple2`, `zx` or `win3` (`search`, optional) |
+| `decade` | integer | 1970, 1980, 1990 or 2000 (`search`, optional; any decade from 1950 to 2020 is accepted) |
+| `limit` | integer | Number of results, 1–20 (default 10; larger values are lowered to 20; `search`) |
+| `identifier` | string | Game identifier from a search result (`play`, required) |
+
 ### `brave_search`
 Search the web with Brave Search.
 

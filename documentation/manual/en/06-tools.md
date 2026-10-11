@@ -72,6 +72,7 @@ The current version includes several powerful extensions:
 | **Bluetooth** | BlueZ, Just Works pairing, playback from the workspace only |
 | **treg catalog** | `treg_catalog`, `treg_call`, `treg_status` — dynamic API catalog with explicit endpoint grants and a cost ceiling |
 | **Local Wikipedia** | `local_wikipedia` — search and read one offline Wikipedia edition (Kiwix ZIM); read-only |
+| **Retro Games** | `retro_games` — search the archive.org retro games index and open a game in the Retro Games desktop app; read-only (see [Retro Games](../../retro-games.md)) |
 | **desktop_notes** | List, search, and create desktop notes; existing notes cannot be changed by the agent (see [Desktop Notes](../../desktop-notes.md)) |
 
 ---

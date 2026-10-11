@@ -196,6 +196,34 @@
   `desktopAuditBrowserWithAPI`, 4.5:1 text contrast; screenshots in
   `reports/local-wikipedia*/`). Server contract: `internal/localwiki/AGENTS.md`.
 
+## Retro Games
+- `retro-games-views.js`, `retro-games-player.js` and `retro-games.js` load in this
+  order with `desktop-app-retro-games.css`. The builtin `retro-games` app ("Retro
+  Games", icon `arcade` → `run`, category `games`) requires the `retro_games`
+  capability. Strings are `desktop.app_retro_games` and 75 `desktop.retro_games_*`
+  keys in all sixteen locales.
+- The app owns a scoped dark skin (`.rg-*`, neon browser + cabinet player) that is
+  identical under Standard and Fruity; fonts are the bundled Press Start 2P and
+  Px437 IBM VGA ("Retro Games VGA").
+- No `innerHTML` in the three files: archive.org titles and makers reach the DOM
+  only via `textContent`/attributes. Thumbnails load from
+  `https://archive.org/services/img/<id>` with `referrerpolicy="no-referrer"`.
+- The emulator frame is `https://archive.org/embed/<encoded id>` with exactly
+  `sandbox="allow-scripts allow-same-origin allow-pointer-lock"` and
+  `allow="fullscreen; gamepad; autoplay"` (no clipboard, popups, forms or top
+  navigation). Back and window close (`dispose`) point the frame at `about:blank`
+  and remove it. `allow-same-origin` is safe only because the frame stays
+  cross-origin (archive.org); the frame can navigate itself, so never point it at
+  an AuraGo URL and keep AuraGo HTML pages framed only with a CSP sandbox.
+- Launch argument `game` (validated `^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$`) opens the
+  player directly: `openApp('retro-games', { game })`, the existing-window hook
+  `RetroGamesApp.open`, and the `open_app` desktop event (agent tool `retro_games`).
+- Verify `TestDesktopRetroGamesTranslations`, `TestDesktopRetroGamesRegistration`,
+  `TestDesktopRetroGamesViewsNeverRenderHTML`, `TestDesktopRetroGamesPlayerFrameIsLockedDown`,
+  `TestDesktopRetroGamesAppLifecycle` and, with `AURAGO_RUN_BROWSER_SMOKE=1`,
+  `TestDesktopRetroGamesBrowser` (real shell, archive.org stubbed, screenshots in
+  `reports/retro-games/`). Server contract: `internal/retrogames/AGENTS.md`.
+
 ## Looper
 - `looper-monitor.js` precedes `looper.js`. The monitor owns the run view
   (`createRunView`), the log-delta merge (`mergeStatus`) and the history views;
