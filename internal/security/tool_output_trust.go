@@ -76,6 +76,7 @@ func classifyToolOutput(action string) toolOutputTrust {
 		"read_tool_output",
 		"remote_execution",
 		"retrieve_original_output",
+		"retro_games",
 		"rocket_chat_read",
 		"rss_read",
 		"s3",

@@ -73,17 +73,30 @@ func standInGuideSearch(t *testing.T, dir, skip string) func(context.Context, me
 	}
 }
 
-// The local_wikipedia manual is indexed whether or not the tool is enabled.
-// While the tool is off it must not take one of the two semantic guide
-// slots: the prompt guides are exactly those of an index without it.
+// The manual of a non-displacing tool is indexed whether or not the tool is
+// enabled. While the tool is off it must not take one of the two semantic
+// guide slots: the prompt guides are exactly those of an index without it.
 func TestDisabledLocalWikipediaManualTakesNoGuideSlot(t *testing.T) {
+	assertDisabledManualTakesNoGuideSlot(t, "local_wikipedia", "kiwix infobox redirect snippet next_offset truncated", "Kiwix", &ContextFlags{LocalWikipediaEnabled: true})
+}
+
+func TestDisabledRetroGamesManualTakesNoGuideSlot(t *testing.T) {
+	assertDisabledManualTakesNoGuideSlot(t, "retro_games", "retro games hall fame index_building index_incomplete power button msdos", "archive.org", &ContextFlags{RetroGamesEnabled: true})
+}
+
+// assertDisabledManualTakesNoGuideSlot checks the guide selection for the
+// manual of tool: without it in the index, and with it while the tool is off
+// (text mode, native mode with the tool not allowed, native mode without
+// flags), the guides are identical; with the tool on (enabledFlags) its guide
+// is the first one and mentions guideWord.
+func assertDisabledManualTakesNoGuideSlot(t *testing.T, tool, query, guideWord string, enabledFlags *ContextFlags) {
+	t.Helper()
 	original := searchDynamicToolGuides
 	t.Cleanup(func() { searchDynamicToolGuides = original })
-	const query = "kiwix infobox redirect snippet next_offset truncated"
 	dir := t.TempDir()
 	withManual := standInGuideSearch(t, dir, "")
-	withoutManual := standInGuideSearch(t, dir, "local_wikipedia")
-	if top, _ := withManual(context.Background(), nil, query, 2); len(top) == 0 || filepath.Base(top[0].Path) != "local_wikipedia.md" {
+	withoutManual := standInGuideSearch(t, dir, tool)
+	if top, _ := withManual(context.Background(), nil, query, 2); len(top) == 0 || filepath.Base(top[0].Path) != tool+".md" {
 		t.Fatalf("the stand-in ranking must put the manual first, got %v", top)
 	}
 	guides := func(search func(context.Context, memory.VectorDB, string, int) ([]memory.ToolGuideMatch, error), strategy DynamicGuideStrategy) []string {
@@ -101,8 +114,8 @@ func TestDisabledLocalWikipediaManualTakesNoGuideSlot(t *testing.T) {
 			t.Errorf("%s: %d guides with the manual, %d without; differ", name, len(got), len(want))
 		}
 	}
-	enabled := DynamicGuideStrategy{PreferSemantics: true, DisableRecentHeuristics: true, AllowedTools: append(allowed, "local_wikipedia"), Flags: &ContextFlags{LocalWikipediaEnabled: true}}
-	if got := guides(withManual, enabled); len(got) == 0 || !strings.Contains(got[0], "Kiwix") {
-		t.Errorf("enabled local_wikipedia lost its guide: %d guides", len(got))
+	enabled := DynamicGuideStrategy{PreferSemantics: true, DisableRecentHeuristics: true, AllowedTools: append(slices.Clone(allowed), tool), Flags: enabledFlags}
+	if got := guides(withManual, enabled); len(got) == 0 || !strings.Contains(got[0], guideWord) {
+		t.Errorf("enabled %s lost its guide: %d guides", tool, len(got))
 	}
 }
