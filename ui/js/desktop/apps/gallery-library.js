@@ -96,7 +96,8 @@
 
     function matchesQuery(item, tokens) {
         if (!tokens.length) return true;
-        const haystack = `${item.name || ''} ${item.path || ''}`.toLowerCase();
+        const m = item.metadata || {};
+        const haystack = `${item.name || ''} ${item.path || ''} ${m.description || ''} ${m.prompt || ''} ${m.source || ''} ${(m.tags || []).join(' ')}`.toLowerCase();
         return tokens.every(token => haystack.includes(token));
     }
 
@@ -152,7 +153,7 @@
         for (const item of fresh) {
             const old = previousByPath.get(item.path);
             if (!old) { added += 1; changed = true; continue; }
-            if (old.size !== item.size || itemTime(old) !== itemTime(item)) changed = true;
+            if (old.size !== item.size || itemTime(old) !== itemTime(item) || JSON.stringify(old.metadata) !== JSON.stringify(item.metadata)) changed = true;
         }
         if (!changed) {
             for (const path of previousByPath.keys()) {

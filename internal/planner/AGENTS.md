@@ -10,7 +10,7 @@ Issue lifecycle, notification, and background retry policy.
 
 ## Local Contracts
 
-- Overdue todo notifications claim the todo ID and exact due value durably in `planner_meta` before dispatch. Recheck due/status atomically. A restart or ambiguous/panicking delivery cannot replay that revision; changing the due value creates a new claimable revision. Verify `TestOverdueClaimSurvivesNotifierRestartAndPanic`.
+- Overdue todo notifications claim the todo ID and exact due value durably in `planner_meta` before dispatch. Recheck due/status atomically. A restart or ambiguous/panicking delivery cannot replay that revision; changing the due value creates a new claimable revision. A due value of `YYYY-MM-DDT00:00:00Z` is that civil day in the machine's local timezone. It becomes overdue on the next local day. Any other timestamp is overdue once that instant has passed. Reopening through `UpdateTodo` with status `open` or `in_progress` keeps checklist ticks. Verify `TestOverdueClaimSurvivesNotifierRestartAndPanic`, `TestCivilDueDateIsNotOverdueOnItsLocalDay`, and `TestUpdateTodoReopenKeepsFinishedItems`.
 
 ### Operational Issue Notification Contract
 
@@ -19,6 +19,7 @@ Issue lifecycle, notification, and background retry policy.
   result does not spend retry allowance; uncertain executions after a process
   restart require explicit retry. Cron prompts use their own background session.
 - Background and maintenance contexts only record operational issues; they never send user notices themselves.
+- Code Studio assistant turns suppress operational notices before claiming the daily contact. Leave issues pending for ordinary chat; preserve Desktop tool policy, issue recording, and normal chat delivery.
 - Operational notices are limited to one batch at the first direct contact per local calendar day, across sessions/channels and restarts. Atomically claim the day even if no issues are pending; later contacts do not drain additional batches. New or changed issue revisions remain pending until the next day's first contact, with at most two issues ordered by severity, change, and recency. A one-off `tool_failure` warning stays internal until its second occurrence. High-severity open issues may repeat after 24 hours only after another occurrence or while explicitly awaiting a user decision.
 - Supported brokers receive `operational_issue_notice`; other channels receive the same localized text as a deterministic final-answer prefix. Mark a revision notified only after broker delivery or durable final-message persistence.
 - The model receives the notice only as already-delivered diagnostic context and must not be responsible for deciding whether the user sees it. Internal memory-reflection advice stays hidden unless blocked or awaiting a user decision.

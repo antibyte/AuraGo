@@ -914,6 +914,15 @@ buttons and menu popovers remain excluded from those gestures.
 - Readonly omits rename/delete controls and shows the readonly hint instead of
   rendering disabled buttons. There is no upload because media mounts are
   server-side read-only.
+- `gallery-metadata.js` loads after `gallery-library.js` and before the view.
+  Descriptions/tags use the media registry via `/api/desktop/gallery/metadata`;
+  category keyword rules use the validated `gallery.categories` Desktop setting.
+  Keep optimistic version checks, rooted image reads, admin-only explicit vision,
+  vision budget accounting and Desktop revocation gates. Analyze all snapshots
+  the complete Photos library (not the filtered grid), warns above 20 photos,
+  runs sequentially and cancels on Stop/disposal/revocation. Preserve prompts,
+  source tags and unsaved editor drafts. Verify `TestGalleryMetadataBrowser`,
+  `TestDesktopGallery*`, `TestGallery*` and all 16 locales.
 - Width/height/duration are derived client-side from loaded `<img>`/`<video>`
   elements; `FileEntry` carries none. Live refresh listens to `desktop_changed`
   SSE payload paths, polls every 45 s and reloads on `visibilitychange`.
@@ -2609,9 +2618,14 @@ registration lives in `internal/desktop/types.go`.
   Clear their persisted path only on confirmed 404s, retaining temporary failures
   for Retry. Verify `TestDesktopFileLoadRecoveryBrowser`.
 - `planning-gallery-music.js` - Planner/todo, gallery and Webamp music.
-  Bundled in the main shell. Todo and Gallery empty-state load failures
-  use `desktop.load_failed`. Webamp unsupported-browser errors use
-  `desktop.winamp_unsupported`; launcher `notifyError` maps the
+  Bundled in the main shell. The date field shows the civil day and omits
+  an unchanged `due_date`. Loads keep a generation and refresh every 60
+  seconds while the window is visible. Read-only mode disables edits and
+  shows `desktop.todo_readonly`. An empty filter uses `desktop.todo_empty`.
+  The three columns stack on the todo frame's inline size, not the viewport.
+  Mutation errors use `desktop.request_failed`. Todo and Gallery empty-state
+  load failures use `desktop.load_failed`. Webamp unsupported-browser errors
+  use `desktop.winamp_unsupported`; launcher `notifyError` maps the
   English sentinel and reuses `desktop.load_failed` for other
   load failures. Leave the Webamp skin unchanged. No child DOX
   file needed.

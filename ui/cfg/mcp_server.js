@@ -1,20 +1,5 @@
 // cfg/mcp_server.js — Built-in MCP Server section module
 
-const MCP_VSCODE_BRIDGE_PRESET = [
-    'ask_aurago',
-    'filesystem',
-    'smart_file_read',
-    'execute_shell',
-    'api_request',
-    'query_memory',
-    'context_memory',
-    'homepage',
-    'netlify',
-    'here_now_sites',
-    'here_now_site',
-    'web_capture'
-];
-
 async function renderMCPServerSection(section) {
     const cfg = configData.mcp_server || {};
     const enabled = cfg.enabled === true;
@@ -23,9 +8,7 @@ async function renderMCPServerSection(section) {
     const effectiveEnabled = enabled || vscodeBridge;
     const effectiveRequireAuth = requireAuth || vscodeBridge;
     const allowedTools = Array.isArray(cfg.allowed_tools) ? cfg.allowed_tools : [];
-    const effectiveAllowedTools = vscodeBridge
-        ? Array.from(new Set([...allowedTools, ...MCP_VSCODE_BRIDGE_PRESET]))
-        : allowedTools;
+    const effectiveAllowedTools = allowedTools;
 
     let html = `<div class="cfg-section active">
         <div class="section-header">${section.label}</div>
@@ -150,6 +133,7 @@ async function renderMCPServerSection(section) {
         <div class="field-group-title">🛠️ ${t('config.mcp_server.allowed_tools')}</div>
         <div class="field-group-desc">${t('config.mcp_server.allowed_tools_desc')}</div>
         <textarea class="field-input is-hidden pw-u-hidden" id="mcp-allowed-tools-state" data-path="mcp_server.allowed_tools" data-type="json">${escapeHtml(JSON.stringify(effectiveAllowedTools))}</textarea>
+        ${vscodeBridge ? `<button class="btn" id="mcp-apply-preset" onclick="mcpApplyBridgePreset(this)">${t('config.mcp_server.apply_preset')}</button><div id="mcp-preset-status" role="status"></div>` : ''}
         <div id="mcp-tools-list" class="mcp-srv-tools-list"></div>
     </div>`;
 
@@ -170,10 +154,9 @@ async function mcpLoadToolList(allowed) {
         const resp = await fetch('/api/mcp-server/tools');
         if (!resp.ok) throw new Error('Failed to load tools');
         const toolNames = await resp.json();
-        const bridgeEnabled = configData?.mcp_server?.vscode_debug_bridge === true;
-        const allToolNames = bridgeEnabled
-            ? Array.from(new Set([...(toolNames || []), ...MCP_VSCODE_BRIDGE_PRESET]))
-            : (toolNames || []);
+        if (!container.isConnected) return;
+        const allToolNames = Array.from(new Set([...(toolNames || []), ...allowed,
+            ...(configData?.mcp_server?.vscode_debug_bridge ? ['ask_aurago'] : [])]));
         if (!allToolNames || allToolNames.length === 0) {
             container.innerHTML = `<div class="wh-notice"><span>⚠️</span><div><small>${t('config.mcp_server.no_tools_warning')}</small></div></div>`;
             return;
@@ -239,8 +222,6 @@ function mcpToggleVSCodeBridge(toggleEl) {
     if (willEnable) {
         setNestedValue(configData, 'mcp_server.enabled', true);
         setNestedValue(configData, 'mcp_server.require_auth', true);
-        const current = Array.isArray(configData?.mcp_server?.allowed_tools) ? configData.mcp_server.allowed_tools : [];
-        setNestedValue(configData, 'mcp_server.allowed_tools', Array.from(new Set([...current, ...MCP_VSCODE_BRIDGE_PRESET])));
         const tokenInput = document.getElementById('mcp-token-value');
         if (!tokenInput || !tokenInput.value) {
             mcpGenerateToken().catch(() => {});
@@ -255,7 +236,6 @@ function mcpSyncAllowedToolsState() {
     const hiddenInput = document.getElementById('mcp-allowed-tools-state');
     if (!hiddenInput) return;
 
-    const bridgeEnabled = configData?.mcp_server?.vscode_debug_bridge === true;
     const checkboxes = Array.from(document.querySelectorAll('.mcp-tool-cb'));
     if (!checkboxes.length) {
         const current = Array.isArray(configData?.mcp_server?.allowed_tools) ? configData.mcp_server.allowed_tools : [];
@@ -263,12 +243,30 @@ function mcpSyncAllowedToolsState() {
         return;
     }
 
-    const allChecked = checkboxes.every(cb => cb.checked);
-    const selected = (allChecked && !bridgeEnabled)
-        ? []
-        : checkboxes.filter(cb => cb.checked).map(cb => cb.value);
+    const selected = checkboxes.filter(cb => cb.checked).map(cb => cb.value);
 
     hiddenInput.value = JSON.stringify(selected);
+}
+
+async function mcpApplyBridgePreset(button) {
+    button.disabled = true;
+    try {
+        const resp = await fetch('/api/mcp-server/vscode-bridge');
+        if (!resp.ok) throw new Error('Failed to load preset');
+        const data = await resp.json();
+        if (!Array.isArray(data.recommended_tools)) throw new Error('Invalid preset');
+        if (!button.isConnected) return;
+        const current = configData.mcp_server.allowed_tools || [];
+        const selected = Array.from(new Set([...current, ...data.recommended_tools]));
+        setNestedValue(configData, 'mcp_server.allowed_tools', selected);
+        document.getElementById('mcp-allowed-tools-state').value = JSON.stringify(selected);
+        setDirty(true);
+        await mcpLoadToolList(selected);
+    } catch (_) {
+        if (button.isConnected) document.getElementById('mcp-preset-status').textContent = t('config.mcp_server.error_loading_tools');
+    } finally {
+        button.disabled = false;
+    }
 }
 
 async function mcpLoadVSCodeBridgeInfo() {

@@ -109,6 +109,29 @@ func GitHubTrustedProjectRepos(dataDir string, baseURL ...string) []string {
 	return repos
 }
 
+func githubHasTrustGrant(cfg GitHubConfig, fullName string) (bool, error) {
+	id, err := githubTrustIdentity(fullName)
+	if err != nil {
+		return false, err
+	}
+	base, err := githubTrustBase(cfg.BaseURL)
+	if err != nil {
+		return false, err
+	}
+	githubTrustMu.Lock()
+	defer githubTrustMu.Unlock()
+	ledger, _, err := readGitHubTrust(cfg.DataDir)
+	if err != nil {
+		return false, err
+	}
+	for _, grant := range ledger.Grants {
+		if grant.APIBase == base && grant.Repository == id {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func setGitHubCreatedTrust(cfg GitHubConfig, fullName string, trusted bool) error {
 	id, err := githubTrustIdentity(fullName)
 	if err != nil {

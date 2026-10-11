@@ -13,6 +13,13 @@ import (
 
 var _ = (*slog.Logger)(nil)
 
+func githubIssueBody(description, body string) string {
+	if strings.TrimSpace(body) != "" {
+		return body
+	}
+	return description
+}
+
 func hereNowToolOutput(raw json.RawMessage, err error) string {
 	if err == nil {
 		return "Tool Output: " + string(raw)
@@ -48,7 +55,7 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			if cfg.GitHub.ReadOnly {
 				switch req.Operation {
 				case "create_repo", "delete_repo", "create_issue", "close_issue", "create_or_update_file", "track_project", "untrack_project":
-					return `Tool Output: {"status":"error","message":"GitHub is in read-only mode. Disable github.read_only to allow changes."}`
+					return `Tool Output: {"status":"error","message":"GitHub is in read-only mode. Disable github.readonly to allow changes."}`
 				}
 			}
 			token, err := vault.ReadSecret("github_token")
@@ -75,48 +82,52 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			repo := req.Repo
 			switch req.Operation {
 			case "list_repos":
+				limit := req.Limit
+				if limit <= 0 {
+					limit = 100
+				}
 				logger.Info("LLM requested GitHub list repos", "owner", owner)
-				return "Tool Output: " + tools.GitHubListRepos(ghCfg, owner)
+				return "Tool Output: " + tools.GitHubListRepos(ctx, ghCfg, owner, limit)
 			case "create_repo":
 				logger.Info("LLM requested GitHub create repo", "name", repo, "desc", req.Description)
-				return "Tool Output: " + tools.GitHubCreateRepo(ghCfg, repo, req.Description, nil)
+				return "Tool Output: " + tools.GitHubCreateRepo(ctx, ghCfg, repo, req.Description, nil)
 			case "delete_repo":
 				logger.Info("LLM requested GitHub delete repo", "owner", owner, "repo", repo)
-				return "Tool Output: " + tools.GitHubDeleteRepo(ghCfg, owner, repo)
+				return "Tool Output: " + tools.GitHubDeleteRepo(ctx, ghCfg, owner, repo)
 			case "get_repo":
 				logger.Info("LLM requested GitHub get repo", "owner", owner, "repo", repo)
-				return "Tool Output: " + tools.GitHubGetRepo(ghCfg, owner, repo)
+				return "Tool Output: " + tools.GitHubGetRepo(ctx, ghCfg, owner, repo)
 			case "list_issues":
 				state := req.Value
 				if state == "" {
 					state = "open"
 				}
 				logger.Info("LLM requested GitHub list issues", "repo", repo, "state", state)
-				return "Tool Output: " + tools.GitHubListIssues(ghCfg, owner, repo, state)
+				return "Tool Output: " + tools.GitHubListIssues(ctx, ghCfg, owner, repo, state)
 			case "create_issue":
 				logger.Info("LLM requested GitHub create issue", "repo", repo, "title", req.Title)
-				return "Tool Output: " + tools.GitHubCreateIssue(ghCfg, owner, repo, req.Title, req.Body, req.labels())
+				return "Tool Output: " + tools.GitHubCreateIssue(ctx, ghCfg, owner, repo, req.Title, githubIssueBody(req.Description, req.Body), req.labels())
 			case "close_issue":
 				issueNum := req.issueNumber()
 				logger.Info("LLM requested GitHub close issue", "repo", repo, "number", issueNum)
-				return "Tool Output: " + tools.GitHubCloseIssue(ghCfg, owner, repo, issueNum)
+				return "Tool Output: " + tools.GitHubCloseIssue(ctx, ghCfg, owner, repo, issueNum)
 			case "list_pull_requests":
 				state := req.Value
 				if state == "" {
 					state = "open"
 				}
 				logger.Info("LLM requested GitHub list PRs", "repo", repo, "state", state)
-				return "Tool Output: " + tools.GitHubListPullRequests(ghCfg, owner, repo, state)
+				return "Tool Output: " + tools.GitHubListPullRequests(ctx, ghCfg, owner, repo, state)
 			case "list_branches":
 				logger.Info("LLM requested GitHub list branches", "repo", repo)
-				return "Tool Output: " + tools.GitHubListBranches(ghCfg, owner, repo)
+				return "Tool Output: " + tools.GitHubListBranches(ctx, ghCfg, owner, repo)
 			case "get_file":
 				branch := req.Query
 				logger.Info("LLM requested GitHub get file", "repo", repo, "path", req.Path, "branch", branch)
-				return "Tool Output: " + tools.GitHubGetFileContent(ghCfg, owner, repo, req.Path, branch)
+				return "Tool Output: " + tools.GitHubGetFileContent(ctx, ghCfg, owner, repo, req.Path, branch)
 			case "create_or_update_file":
 				logger.Info("LLM requested GitHub create/update file", "repo", repo, "path", req.Path)
-				return "Tool Output: " + tools.GitHubCreateOrUpdateFile(ghCfg, owner, repo, req.Path, req.Content, req.Body, req.Value, req.Query)
+				return "Tool Output: " + tools.GitHubCreateOrUpdateFile(ctx, ghCfg, owner, repo, req.Path, req.Content, req.Body, req.Value, req.Query)
 			case "list_commits":
 				branch := req.Query
 				limit := req.Limit
@@ -124,21 +135,21 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 					limit = 20
 				}
 				logger.Info("LLM requested GitHub list commits", "repo", repo, "branch", branch)
-				return "Tool Output: " + tools.GitHubListCommits(ghCfg, owner, repo, branch, limit)
+				return "Tool Output: " + tools.GitHubListCommits(ctx, ghCfg, owner, repo, branch, limit)
 			case "list_workflow_runs":
 				limit := req.Limit
 				if limit <= 0 {
 					limit = 10
 				}
 				logger.Info("LLM requested GitHub list workflow runs", "repo", repo)
-				return "Tool Output: " + tools.GitHubListWorkflowRuns(ghCfg, owner, repo, limit)
+				return "Tool Output: " + tools.GitHubListWorkflowRuns(ctx, ghCfg, owner, repo, limit)
 			case "search_repos":
 				limit := req.Limit
 				if limit <= 0 {
 					limit = 10
 				}
 				logger.Info("LLM requested GitHub search repos", "query", req.Query)
-				return "Tool Output: " + tools.GitHubSearchRepos(ghCfg, req.Query, limit)
+				return "Tool Output: " + tools.GitHubSearchRepos(ctx, ghCfg, req.Query, limit)
 			case "list_projects":
 				logger.Info("LLM requested GitHub list tracked projects")
 				return "Tool Output: " + tools.GitHubListProjects(cfg.Directories.WorkspaceDir)

@@ -13,14 +13,18 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 )
 
 const videoDownloadContainerDir = "/downloads"
 const maxVideoSearchDescriptionLength = 200
+
+var youtubeVideoIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{11}$`)
 
 type VideoDownloadRequest struct {
 	Operation string
@@ -37,7 +41,7 @@ type videoDownloadResult struct {
 	Message       string                 `json:"message,omitempty"`
 	Results       []videoSearchResult    `json:"results,omitempty"`
 	Info          map[string]interface{} `json:"info,omitempty"`
-	FilePath      string                 `json:"file_path,omitempty"`
+	FilePath      string                 `json:"-"`
 	WebPath       string                 `json:"web_path,omitempty"`
 	MediaID       int64                  `json:"media_id,omitempty"`
 	MediaType     string                 `json:"media_type,omitempty"`
@@ -275,10 +279,23 @@ func nativeRunYtDlp(ctx context.Context, cfg *config.Config, args []string) (str
 	return stdout.String(), stderr.String(), nil
 }
 
+func videoDownloadHostConfig(downloadDir string) map[string]interface{} {
+	return map[string]interface{}{
+		"Binds":          []string{downloadDir + ":" + videoDownloadContainerDir},
+		"NetworkMode":    "bridge",
+		"Memory":         int64(512 << 20),
+		"NanoCpus":       int64(1_000_000_000),
+		"PidsLimit":      int64(64),
+		"ReadonlyRootfs": true,
+		"Tmpfs":          map[string]string{"/tmp": "rw,nosuid,nodev,size=64m"},
+		"SecurityOpt":    []string{"no-new-privileges:true"},
+	}
+}
+
 func dockerRunYtDlp(ctx context.Context, cfg *config.Config, args []string, logger *slog.Logger) (string, string, error) {
 	image := strings.TrimSpace(cfg.Tools.VideoDownload.ContainerImage)
 	if image == "" {
-		image = "ghcr.io/jauderho/yt-dlp:latest"
+		image = "ghcr.io/jauderho/yt-dlp@sha256:90cd9016efc4451153c8bc35cc7a0d9a8cba0e796818e52f3b4d28b9736ac91c"
 	}
 	dockerCfg := DockerConfig{Host: cfg.Docker.Host, WorkspaceDir: cfg.Directories.WorkspaceDir}
 	if err := DockerPing(dockerCfg.Host); err != nil {
@@ -302,10 +319,7 @@ func dockerRunYtDlp(ctx context.Context, cfg *config.Config, args []string, logg
 		"Image":      image,
 		"Cmd":        args,
 		"WorkingDir": videoDownloadContainerDir,
-		"HostConfig": map[string]interface{}{
-			"Binds":       []string{downloadDir + ":" + videoDownloadContainerDir},
-			"NetworkMode": "bridge",
-		},
+		"HostConfig": videoDownloadHostConfig(downloadDir),
 	}
 	payload, _ := json.Marshal(body)
 	data, code, err := dockerRequestContext(ctx, dockerCfg, http.MethodPost, "/containers/create?name="+url.QueryEscape(name), string(payload))
@@ -393,15 +407,7 @@ func dockerRequestContext(ctx context.Context, cfg DockerConfig, method, endpoin
 }
 
 func validateVideoDownloadURL(raw string) error {
-	parsed, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil || parsed.Hostname() == "" {
-		return fmt.Errorf("invalid video URL")
-	}
-	scheme := strings.ToLower(parsed.Scheme)
-	if scheme != "http" && scheme != "https" {
-		return fmt.Errorf("unsupported video URL scheme: %s", parsed.Scheme)
-	}
-	return nil
+	return security.ValidatePublicHTTPURL(raw)
 }
 
 func splitDockerLogStreams(raw []byte) (string, string) {
@@ -448,7 +454,7 @@ func parseYtDlpSearch(output string) []videoSearchResult {
 			Description: truncateVideoSearchDescription(stringFromMap(raw, "description")),
 			Thumbnail:   stringFromMap(raw, "thumbnail"),
 		}
-		if item.URL == "" && item.ID != "" {
+		if item.URL == "" && youtubeVideoIDPattern.MatchString(item.ID) {
 			item.URL = "https://www.youtube.com/watch?v=" + item.ID
 		}
 		results = append(results, item)
@@ -458,10 +464,11 @@ func parseYtDlpSearch(output string) []videoSearchResult {
 
 func truncateVideoSearchDescription(value string) string {
 	value = strings.TrimSpace(value)
-	if len(value) <= maxVideoSearchDescriptionLength {
+	runes := []rune(value)
+	if len(runes) <= maxVideoSearchDescriptionLength {
 		return value
 	}
-	return strings.TrimSpace(value[:maxVideoSearchDescriptionLength]) + "..."
+	return strings.TrimSpace(string(runes[:maxVideoSearchDescriptionLength])) + "..."
 }
 
 func compactVideoInfo(info map[string]interface{}) map[string]interface{} {
@@ -469,6 +476,12 @@ func compactVideoInfo(info map[string]interface{}) map[string]interface{} {
 	out := make(map[string]interface{}, len(keys))
 	for _, key := range keys {
 		if val, ok := info[key]; ok {
+			if key == "description" {
+				if text, ok := val.(string); ok {
+					out[key] = truncateVideoSearchDescription(text)
+					continue
+				}
+			}
 			out[key] = val
 		}
 	}
@@ -527,9 +540,14 @@ func resolveDownloadedFilePath(cfg *config.Config, downloadDir, stdout string) (
 		if err != nil {
 			return "", err
 		}
-		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
-			return candidate, nil
+		info, err := os.Lstat(candidate)
+		if err != nil {
+			continue
 		}
+		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+			return "", fmt.Errorf("downloaded path is not a regular file")
+		}
+		return candidate, nil
 	}
 	return "", fmt.Errorf("yt-dlp did not report a downloaded file path")
 }
@@ -599,12 +617,19 @@ func videoDownloadMode(cfg *config.Config) string {
 	return "docker"
 }
 
+const maxVideoDownloadCommandErrRunes = 300
+
 func commandErrMessage(err error, stderr string) string {
 	stderr = strings.TrimSpace(stderr)
-	if stderr == "" {
-		return err.Error()
+	msg := err.Error()
+	if stderr != "" {
+		msg = msg + ": " + stderr
 	}
-	return err.Error() + ": " + stderr
+	runes := []rune(msg)
+	if len(runes) <= maxVideoDownloadCommandErrRunes {
+		return msg
+	}
+	return string(runes[:maxVideoDownloadCommandErrRunes])
 }
 
 func videoDownloadJSON(result videoDownloadResult) string {

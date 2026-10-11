@@ -34,6 +34,30 @@ func TestGitHubPermissionsBrowser(t *testing.T) {
 	if !page.MustEval(`()=>document.querySelector('#github-allowed-repos-input').value==='owner/legacy' && AuraConfigState.get('github.allow_delete')===true`).Bool() {
 		t.Fatal("explicit administrator approval was not retained")
 	}
+	page.MustEval(`()=>{
+  configData.github.owner = 'owner';
+  document.querySelector('[data-path="github.owner"]').value = 'owner';
+  document.querySelector('#github-allowed-repos-input').value = 'kept/elsewhere, Owner/Legacy';
+  _githubReposData = [
+    {name:'legacy', full_name:'owner/legacy', trust_migration_required:true},
+    {name:'legacy', full_name:'stranger/legacy'},
+    {name:'created', full_name:'owner/created', agent_created:true}
+  ];
+  document.querySelector('#github-repos-list').innerHTML = githubBuildRepoList(_githubReposData, ['kept/elsewhere', 'Owner/Legacy']);
+ }`)
+	if !page.MustEval(`()=>{
+  const boxes=[...document.querySelectorAll('.gh-repo-check')];
+  return boxes.length===3 && boxes[0].checked && !boxes[0].disabled && !boxes[1].checked && boxes[2].checked && boxes[2].disabled;
+ }`).Bool() {
+		t.Fatal("allowlist matching ignored case or treated a bare name as global")
+	}
+	page.MustEval(`()=>document.querySelectorAll('.gh-repo-check')[1].click()`)
+	if !page.MustEval(`()=>{
+  const parts=document.querySelector('#github-allowed-repos-input').value.split(',').map(entry=>entry.trim());
+  return parts.includes('kept/elsewhere') && parts.includes('owner/legacy') && parts.includes('stranger/legacy') && !parts.some(entry=>entry.toLowerCase()==='legacy');
+ }`).Bool() {
+		t.Fatal("visible page replaced allowlist entries that were not listed")
+	}
 	for _, width := range []int{390, 1440} {
 		page.MustSetViewport(width, 1000, 1, width == 390)
 		for _, theme := range []string{"dark", "light"} {

@@ -34,6 +34,8 @@ The provider is chosen in Settings > Video Generation, not per tool call. Only s
 
 Video generation is asynchronous and can take several minutes. The tool polls provider status until completion, failure, or `video_generation.timeout_seconds`.
 
+An attempt that reached the provider keeps the daily slot and is not sent again automatically.
+
 For Agnes AI, duration must be 1–30 seconds; supported resolutions are `480p`, `720p`, `768p`, and `1080p`, with `16:9`, `9:16`, `1:1`, `4:3`, or `3:4`. Base64, local, localhost, and private-network image inputs are rejected. `last_frame_image` requires `first_frame_image`; reference-only keyframe mode requires at least two URLs. The provider-returned `seconds`, `size`, and `metadata.size_mapping` values take precedence over the requested duration and dimensions.
 
 Successful generated videos are automatically posted to the WebUI chat as an inline player. Do not call `send_video` again for the same generated clip unless the user explicitly asks to resend it.

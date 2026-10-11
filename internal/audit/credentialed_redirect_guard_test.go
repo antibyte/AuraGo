@@ -36,7 +36,6 @@ var credentialedRedirectPending = map[string]string{
 	"internal/tools/adguard.go":                       credentialedRedirectPendingReason,
 	"internal/tools/ansible.go":                       credentialedRedirectPendingReason,
 	"internal/tools/cloudflare_tunnel.go":             credentialedRedirectVendorReason,
-	"internal/tools/github.go":                        credentialedRedirectPendingReason,
 	"internal/tools/go2rtc.go":                        credentialedRedirectPendingReason,
 	"internal/tools/grafana.go":                       credentialedRedirectPendingReason,
 	"internal/tools/integration_connection_checks.go": credentialedRedirectPendingReason,

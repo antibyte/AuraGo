@@ -640,7 +640,7 @@ tools:
         timeout_seconds: 300                              # per-command timeout in seconds
         default_format: best                              # best, bestaudio, or a custom yt-dlp format string
         max_search_results: 10                            # maximum search results returned to the agent
-        container_image: ghcr.io/jauderho/yt-dlp:latest    # Docker image used in docker mode
+        container_image: ghcr.io/jauderho/yt-dlp@sha256:90cd9016efc4451153c8bc35cc7a0d9a8cba0e796818e52f3b4d28b9736ac91c    # Docker image used in docker mode (digest-pinned)
         auto_pull: true                                   # automatically pull the container image when missing
     browser_automation:
         enabled: false                                     # enable browser_automation tool (CloakBrowser stealth browser sidecar)

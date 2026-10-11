@@ -103,7 +103,7 @@ func handlePythonToolBridgeTools(s *Server) http.HandlerFunc {
 		cfg := s.Cfg
 		s.CfgMu.RUnlock()
 
-		ff := mcpFeatureFlags(s)
+		ff := mcpFeatureFlagsForConfig(s, cfg)
 		manifest := tools.NewManifest(cfg.Directories.ToolsDir)
 		oaiTools := agent.BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, ff, s.Logger)
 

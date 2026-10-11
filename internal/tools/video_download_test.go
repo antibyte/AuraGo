@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,7 +14,7 @@ import (
 
 func TestParseYtDlpSearch(t *testing.T) {
 	output := strings.Join([]string{
-		`{"id":"abc123","title":"Example","uploader":"Uploader","duration":42,"view_count":1000}`,
+		`{"id":"dQw4w9WgXcQ","title":"Example","uploader":"Uploader","duration":42,"view_count":1000}`,
 		`warning: ignored`,
 		`{"id":"def456","title":"Second","url":"https://example.test/video","thumbnail":"https://img.test/t.jpg"}`,
 	}, "\n")
@@ -22,7 +23,7 @@ func TestParseYtDlpSearch(t *testing.T) {
 	if len(items) != 2 {
 		t.Fatalf("len(items) = %d, want 2", len(items))
 	}
-	if items[0].URL != "https://www.youtube.com/watch?v=abc123" {
+	if items[0].URL != "https://www.youtube.com/watch?v=dQw4w9WgXcQ" {
 		t.Fatalf("first URL = %q", items[0].URL)
 	}
 	if items[1].URL != "https://example.test/video" {
@@ -61,6 +62,23 @@ func TestResolveDownloadedFilePathMapsContainerPath(t *testing.T) {
 	}
 	if got != filePath {
 		t.Fatalf("path = %q, want %q", got, filePath)
+	}
+}
+
+func TestResolveDownloadedFilePathRejectsSymlink(t *testing.T) {
+	dir := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "secret.txt")
+	if err := os.WriteFile(outside, []byte("secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "clip.mp4")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skip("symlinks are not available here")
+	}
+	cfg := &config.Config{}
+	cfg.Tools.VideoDownload.Mode = "native"
+	if _, err := resolveDownloadedFilePath(cfg, dir, link); err == nil {
+		t.Fatal("symlink path was accepted")
 	}
 }
 
@@ -117,6 +135,22 @@ func TestValidateVideoDownloadURLRejectsUnsafeSchemes(t *testing.T) {
 	}
 	if err := validateVideoDownloadURL("https://www.youtube.com/watch?v=dQw4w9WgXcQ"); err != nil {
 		t.Fatalf("validateVideoDownloadURL(https) error = %v", err)
+	}
+}
+
+func TestValidateVideoDownloadURLRejectsInternalTargets(t *testing.T) {
+	t.Parallel()
+	for _, raw := range []string{
+		"https://127.0.0.1/video.mp4",
+		"http://169.254.169.254/latest/meta-data",
+		"https://user:secret@www.youtube.com/watch?v=dQw4w9WgXcQ",
+		"https://192.168.1.10/cam.m3u8",
+	} {
+		t.Run(raw, func(t *testing.T) {
+			if err := validateVideoDownloadURL(raw); err == nil {
+				t.Fatalf("validateVideoDownloadURL(%q) succeeded, want error", raw)
+			}
+		})
 	}
 }
 
@@ -207,5 +241,47 @@ func TestDispatchVideoDownloadRequiresExplicitTranscribePermission(t *testing.T)
 	}
 	if !strings.Contains(result.Message, "allow_transcribe") {
 		t.Fatalf("message = %q, want allow_transcribe guidance", result.Message)
+	}
+}
+
+func TestVideoDownloadHostConfigIsBounded(t *testing.T) {
+	t.Parallel()
+	host := videoDownloadHostConfig(`C:\downloads`)
+	if host["Memory"] != int64(512<<20) || host["NanoCpus"] != int64(1_000_000_000) || host["PidsLimit"] != int64(64) {
+		t.Fatalf("limits = %#v", host)
+	}
+	if host["ReadonlyRootfs"] != true {
+		t.Fatal("root filesystem must be read-only")
+	}
+	opts, _ := host["SecurityOpt"].([]string)
+	if len(opts) != 1 || opts[0] != "no-new-privileges:true" {
+		t.Fatalf("SecurityOpt = %#v", host["SecurityOpt"])
+	}
+	tmpfs, _ := host["Tmpfs"].(map[string]string)
+	if tmpfs["/tmp"] != "rw,nosuid,nodev,size=64m" {
+		t.Fatalf("Tmpfs = %#v", tmpfs)
+	}
+}
+
+func TestVideoDownloadResultOmitsHostPathAndBoundsText(t *testing.T) {
+	t.Parallel()
+	long := strings.Repeat("ä", 250)
+	raw := videoDownloadJSON(videoDownloadResult{
+		Status:   "ok",
+		FilePath: `C:\secret\clip.mp4`,
+		WebPath:  "/files/downloads/clip.mp4",
+		Info:     compactVideoInfo(map[string]interface{}{"description": long, "title": "clip"}),
+		Message:  commandErrMessage(fmt.Errorf("yt-dlp failed"), long),
+	})
+	if strings.Contains(raw, `C:\secret`) || strings.Contains(raw, "file_path") {
+		t.Fatalf("host path leaked: %s", raw)
+	}
+	var decoded map[string]interface{}
+	if err := json.Unmarshal([]byte(raw), &decoded); err != nil {
+		t.Fatal(err)
+	}
+	info := decoded["info"].(map[string]interface{})
+	if got := []rune(info["description"].(string)); len(got) > 203 {
+		t.Fatalf("description runes = %d", len(got))
 	}
 }

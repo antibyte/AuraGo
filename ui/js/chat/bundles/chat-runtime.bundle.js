@@ -583,8 +583,10 @@
     }
 
     function parseYouTubeTimeValue(raw) {
-        const value = String(raw || '').trim().toLowerCase();
+        let value = String(raw || '').trim().toLowerCase();
         if (!value) return 0;
+        value = value.replace(/^#?t=/, '');
+        value = value.replace(/^start=/, '');
         if (/^\d+s?$/.test(value)) return parseInt(value, 10) || 0;
         if (value.includes(':')) {
             return value.split(':').reduce((total, part) => {
@@ -625,7 +627,10 @@
                 videoID = segments[1] || '';
             }
             if (!/^[A-Za-z0-9_-]{11}$/.test(videoID)) return null;
-            const startSeconds = parseYouTubeTimeValue(parsed.searchParams.get('start')) || parseYouTubeTimeValue(parsed.searchParams.get('t'));
+            const fragment = parsed.hash ? parsed.hash.replace(/^#/, '') : '';
+            const startSeconds = parseYouTubeTimeValue(parsed.searchParams.get('start'))
+                || parseYouTubeTimeValue(parsed.searchParams.get('t'))
+                || parseYouTubeTimeValue(fragment);
             const canonicalURL = `https://www.youtube.com/watch?v=${videoID}${startSeconds > 0 ? `&t=${startSeconds}s` : ''}`;
             const embedURL = `https://www.youtube-nocookie.com/embed/${videoID}${startSeconds > 0 ? `?start=${startSeconds}` : ''}`;
             return { video_id: videoID, url: canonicalURL, embed_url: embedURL, start_seconds: startSeconds };
@@ -7230,8 +7235,10 @@ function parseYouTubeTimeValue(raw) {
     if (window.AuraChatCore && typeof window.AuraChatCore.parseYouTubeTimeValue === 'function') {
         return window.AuraChatCore.parseYouTubeTimeValue(raw);
     }
-    const value = String(raw || '').trim().toLowerCase();
+    let value = String(raw || '').trim().toLowerCase();
     if (!value) return 0;
+    value = value.replace(/^#?t=/, '');
+    value = value.replace(/^start=/, '');
     if (/^\d+s?$/.test(value)) return parseInt(value, 10) || 0;
     if (value.includes(':')) {
         return value.split(':').reduce((total, part) => {
@@ -7275,7 +7282,10 @@ function parseYouTubeVideoLink(raw) {
             videoID = segments[1] || '';
         }
         if (!/^[A-Za-z0-9_-]{11}$/.test(videoID)) return null;
-        const startSeconds = parseYouTubeTimeValue(parsed.searchParams.get('start')) || parseYouTubeTimeValue(parsed.searchParams.get('t'));
+        const fragment = parsed.hash ? parsed.hash.replace(/^#/, '') : '';
+        const startSeconds = parseYouTubeTimeValue(parsed.searchParams.get('start'))
+            || parseYouTubeTimeValue(parsed.searchParams.get('t'))
+            || parseYouTubeTimeValue(fragment);
         const canonicalURL = `https://www.youtube.com/watch?v=${videoID}${startSeconds > 0 ? `&t=${startSeconds}s` : ''}`;
         const embedURL = `https://www.youtube-nocookie.com/embed/${videoID}${startSeconds > 0 ? `?start=${startSeconds}` : ''}`;
         return { video_id: videoID, url: canonicalURL, embed_url: embedURL, start_seconds: startSeconds };

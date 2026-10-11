@@ -59,6 +59,7 @@
             styles: appStyles('/css/desktop-app-gallery.css'),
             scripts: [
                 '/js/desktop/apps/gallery-library.js',
+                '/js/desktop/apps/gallery-metadata.js',
                 '/js/desktop/apps/gallery-view.js',
                 '/js/desktop/apps/gallery-menus.js',
                 '/js/desktop/apps/gallery-lightbox.js',

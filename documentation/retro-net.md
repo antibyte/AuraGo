@@ -58,7 +58,12 @@ checked, see below). A check is a plain TCP
 connection under the same address rules, 3 seconds per service. Opening the
 directory starts one when the last check is older than 10 minutes or an entry
 was never checked; `R` asks for one at once. Whatever the trigger, a new check
-starts at most once per minute.
+starts at most once per minute. Looking up a service's name has its own time
+limit (5 seconds, one retry), so slow DNS does not cut the connection short.
+While lookups fail, a service is still checked at the address it had within
+the last hour; without one it keeps its marker from the last hour or shows
+`[?]`. A failed lookup never shows `[ ]`, but a name that no longer exists
+does.
 
 ## Display modes
 

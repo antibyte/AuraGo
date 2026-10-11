@@ -359,7 +359,7 @@ func operationalIssueReminderText(runCfg RunConfig, initialUserMsg string, _ boo
 }
 
 func shouldConsiderOperationalIssueReminder(runCfg RunConfig, initialUserMsg string) bool {
-	if runCfg.PlannerDB == nil || strings.TrimSpace(initialUserMsg) == "" {
+	if runCfg.SuppressOperationalNotices || runCfg.PlannerDB == nil || strings.TrimSpace(initialUserMsg) == "" {
 		return false
 	}
 	if runCfg.IsCoAgent || runCfg.IsMission || runCfg.IsMaintenance {

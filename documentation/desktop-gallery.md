@@ -20,7 +20,8 @@ languages.
 - **Tile size** is adjusted with the zoom slider in the status bar, its
   `+`/`−` buttons, the View menu or `Ctrl`/`Cmd`+mouse wheel over the grid.
   Six sizes from 104 to 320 px are available.
-- **Search** filters the loaded items by name and folder instantly. The clear
+- **Search** filters loaded items by name, folder, description, tags, generation
+  prompt and source. The clear
   button and `Escape` reset the search. A localized empty state explains when
   nothing matches.
 - Large libraries load page by page (80 items per page). Scrolling to the end
@@ -53,6 +54,47 @@ languages.
   and the info panel shows a read-only hint. Uploading is not offered because
   the media mounts are read-only for the browser; new media arrives through
   the agent, the File Manager or the host file system.
+
+## Image metadata and categories
+
+Open the Gallery info panel and select a photo to edit its description and
+comma-separated tags. Original generation prompts and source identifiers remain
+visible. Generating apps populate image descriptions from their existing prompt
+when no explicit description is supplied; Noisemaker covers retain their
+`cover` and `noisemaker` tags. These initial descriptions express generation
+intent, while an explicit vision analysis describes the visible image.
+
+**Manage categories** creates, renames or removes categories with one or more
+keywords. Each category automatically includes images whose description, tags,
+prompt or source contains any of its keywords, without case sensitivity. For
+example, a Music covers category can use `cover, noisemaker`. The category
+dropdown above the grid combines with the text search. Removing a category does
+not remove images or metadata. Categories are shared between browsers; stale
+saves are refused instead of overwriting another window's changes.
+
+**Analyze with AI** analyzes the selected photo. **Analyze all photos** analyzes
+the complete loaded Photos library, regardless of the category or text filter.
+Both ask before sending images to the configured Vision provider. More than
+20 photos trigger an additional warning about increased costs. Descriptions
+are replaced, existing tags are retained, and the original prompt is preserved.
+The queue processes one image at a time and shows successes and failures. Cancel,
+closing the app or Desktop permission revocation stops remaining work; already
+completed results stay saved. A provider request already sent may still incur
+charges. Failed requests are not automatically retried.
+
+Vision requires a configured provider supporting inline images; PNG, JPEG, GIF
+and WebP inputs are limited to 20 MB each. Vision budget enforcement and usage
+accounting apply. Analysis requires Desktop administrator access; read-only
+Desktop mode blocks metadata/category changes and analysis. Failed metadata
+loads leave photos viewable with an explicit warning. Images themselves are
+never modified by metadata editing.
+
+Metadata uses the existing media registry database, with legacy image-gallery
+entries promoted on the first edit. Categories use the validated
+`gallery.categories` Desktop setting, so no schema migration is needed.
+The agent can read and search descriptions and tags with the existing
+`media_registry` `list`, `search` and `get` operations. Category rules are
+dynamic filters, not duplicate copies of the images.
 
 ## Lightbox
 

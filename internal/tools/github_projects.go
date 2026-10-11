@@ -72,6 +72,26 @@ func GitHubTrackCreatedProject(workspaceDir, name, purpose, repoURL, cloneURL, o
 	return gitHubTrackProject(workspaceDir, name, purpose, repoURL, cloneURL, owner, private, fullName, true)
 }
 
+func githubProjectDir(workspaceDir, name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if !githubIdentityPart.MatchString(name) || name == "." || name == ".." {
+		return "", fmt.Errorf("invalid GitHub project name")
+	}
+	rel := filepath.Join("github", name)
+	if !filepath.IsLocal(rel) {
+		return "", fmt.Errorf("invalid GitHub project name")
+	}
+	root, err := os.OpenRoot(workspaceDir)
+	if err != nil {
+		return "", fmt.Errorf("open project workspace: %w", err)
+	}
+	defer root.Close()
+	if err := root.MkdirAll(rel, 0755); err != nil {
+		return "", fmt.Errorf("create project directory: %w", err)
+	}
+	return rel, nil
+}
+
 func gitHubTrackProject(workspaceDir, name, purpose, repoURL, cloneURL, owner string, private bool, fullName string, agentCreated bool) string {
 	if name == "" || purpose == "" {
 		return errJSON("Project name and purpose are required")
@@ -112,6 +132,10 @@ func gitHubTrackProject(workspaceDir, name, purpose, repoURL, cloneURL, owner st
 		}
 	}
 
+	rel, err := githubProjectDir(workspaceDir, name)
+	if err != nil {
+		return errJSON("Failed to create local directory: %v", err)
+	}
 	project := TrackedProject{
 		Name:         name,
 		FullName:     fullName,
@@ -122,18 +146,12 @@ func gitHubTrackProject(workspaceDir, name, purpose, repoURL, cloneURL, owner st
 		Private:      private,
 		AgentCreated: agentCreated,
 		CreatedAt:    time.Now().Format(time.RFC3339),
-		LocalPath:    filepath.Join("github", name),
+		LocalPath:    rel,
 	}
 
 	projects = append(projects, project)
 	if err := saveProjects(workspaceDir, projects); err != nil {
 		return errJSON("Failed to save project: %v", err)
-	}
-
-	// Create local project directory
-	localDir := filepath.Join(workspaceDir, "github", name)
-	if err := os.MkdirAll(localDir, 0755); err != nil {
-		return errJSON("Failed to create local directory: %v", err)
 	}
 
 	out, _ := json.Marshal(map[string]interface{}{
@@ -238,7 +256,7 @@ func GitHubUntrackProject(workspaceDir, name string) string {
 	found := false
 	var updated []TrackedProject
 	for _, p := range projects {
-		if p.Name == name {
+		if strings.EqualFold(p.Name, name) {
 			found = true
 			continue
 		}

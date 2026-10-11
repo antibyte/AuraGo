@@ -10,6 +10,10 @@ Agent filesystem, external service and Docker tool safety boundaries.
 
 ## Local Contracts
 
+- `generate_video` accepts an empty image, a public HTTP(S) URL checked with `validatePublicImageURL`, a MiniMax `data:image/png;base64,` or `data:image/jpeg;base64,` payload, or raw standard base64 for Google. Decoded image bytes must be non-empty and at most 20 MiB. `file:`, filesystem paths, and other schemes are rejected. Agnes image guidance stays on public HTTP(S) URLs. The create POST composes `httptrace.GotConn` with a parent trace and calls that parent hook before returning. A daily slot is released only when the result status is neither `ok` nor `external_status_unknown`: a parsed provider rejection, including a non-2xx create response, a MiniMax `base_resp.status_code` other than 0, a parsed Agnes state, and a Google operation with an empty name, still releases it. A create that obtained a connection and then failed without a response, a success-status body that cannot be read or is not JSON, or a later poll or save after a task id, keeps it. Verify `TestVideoGenerationRejectsInternalImageURLAndKeepsDataURL`, `TestGenerateVideoKeepsDailySlotWhenProviderSawTheRequest`, and `TestGenerateVideoKeepsDailySlotWhenCreateSuccessBodyReadFails`.
+
+- `video_download` admits info, download, and transcribe URLs through `security.ValidatePublicHTTPURL`. Docker mode runs the pinned `ghcr.io/jauderho/yt-dlp@sha256:90cd9016efc4451153c8bc35cc7a0d9a8cba0e796818e52f3b4d28b9736ac91c` image with a 512 MiB memory cap, one CPU, 64 pids, a read-only root, a 64 MiB `/tmp` tmpfs, and `no-new-privileges`. A downloaded path must be a regular file inside the download directory. Tool JSON returns `web_path` and omits the host path. Verify `TestValidateVideoDownloadURLRejectsInternalTargets`, `TestVideoDownloadHostConfigIsBounded`, `TestResolveDownloadedFilePathRejectsSymlink`, and `TestVideoDownloadResultOmitsHostPathAndBoundsText`.
+
 - Email watchers inherit the server context. Stop cancels and joins polling, IMAP TCP/TLS and commands, Guardian evaluation, mission callbacks and loopback notifications before database shutdown. A failed initial account seed must be retried before forwarding old unseen mail. A stopped watcher can start with a fresh context; callbacks run outside its mutex.
 
 - YepAPI POST operations are sent once because results may be billable or mutate provider jobs. YepAPI and Dograh bind custom credential headers to one HTTP origin. Proxmox error responses use JSON encoding for dynamic messages.
@@ -19,6 +23,13 @@ Agent filesystem, external service and Docker tool safety boundaries.
 ### GitHub repository trust
 - Workspace project metadata, including `AgentCreated`, is inventory only. Runtime trust comes from explicit administrator allowlists or the protected, API-bound `github_trust.json` ledger. Legacy inventory requires visible administrator approval. Preserve a private backup and atomically replace ledger updates; malformed ledgers fail closed without being overwritten.
 - Repository deletion requires `github.allow_delete` (default false), repository access and writable mode. A create response followed by a ledger failure reports the created repository plus a migration warning; never suggest retrying the creation.
+- Project directories are a single `github/<name>` segment inside the workspace, created through `os.Root` before `projects.json` is saved. Names must match `githubIdentityPart`.
+- `GitHubSearchRepos` keeps public hits and drops private hits unless `GitHubRepoAllowed`.
+- `GitHubCreateRepo` looks up `/user` and posts to `/orgs/{owner}/repos` when the configured owner is a different account. A failed lookup does not create a repository.
+- `GitHubGetFileContent` decodes base64 text up to 256 KiB and lists directory arrays. `GitHubCreateOrUpdateFile` base64-encodes plain text and preserves round-trip base64.
+- `GitHubListRepos` follows same-origin `Link: rel="next"` for at most 10 pages. A positive limit slices after filtering.
+- `GitHubDeleteRepo` revokes an existing grant before `DELETE`. A non-204 response restores that grant. A transport error leaves it revoked and reports `trust_revoked`.
+- GitHub HTTP uses `NewSSRFProtectedHTTPClientSameOrigin` and the caller context.
 
 ### treg catalog gateway
 - `treg_catalog`, `treg_call` and `treg_status` use the fixed public-only treg transport. Never accept model-supplied origins, authentication, cost headers or polling URLs. Already-sent calls are not replayed after ambiguous failures.

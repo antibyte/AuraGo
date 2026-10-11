@@ -1253,7 +1253,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if strings.EqualFold(strings.TrimSpace(tc.Operation), "transcribe") && budgetTracker != nil && budgetTracker.IsBlocked("stt") {
 				return `Tool Output: {"status":"error","message":"Video transcription blocked: daily speech-to-text budget exceeded. Try again tomorrow."}`
 			}
-			logger.Info("LLM requested video_download", "operation", tc.Operation, "url", tc.URL, "query", tc.Query)
+			logger.Info("LLM requested video_download", "operation", tc.Operation)
 			result := tools.DispatchVideoDownload(ctx, cfg, dc.MediaRegistryDB, tools.VideoDownloadRequest{
 				Operation: tc.Operation,
 				URL:       tc.URL,

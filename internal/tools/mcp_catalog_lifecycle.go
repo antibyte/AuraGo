@@ -30,7 +30,9 @@ func (c *mcpConn) refreshToolsIfNeeded(ctx context.Context, logger *slog.Logger)
 	if c.transport == nil {
 		return nil
 	} // Test adapters supply a prebuilt snapshot.
-	c.discoveryMu.Lock()
+	if err := c.discoveryMu.Lock(ctx); err != nil {
+		return err
+	}
 	defer c.discoveryMu.Unlock()
 	c.mu.Lock()
 	stale := c.toolsGeneration != mcpToolsGeneration(c.transport) || time.Since(c.toolsRefreshed) > time.Minute

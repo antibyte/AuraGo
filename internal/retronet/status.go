@@ -31,18 +31,21 @@ type Status struct {
 // StatusProber caches TCP reachability of directory entries in memory. The zero value is
 // ready to use; a StatusProber must not be copied after first use.
 type StatusProber struct {
-	Dialer      Dialer
-	Timeout     time.Duration    // 0 -> 3 * time.Second per probe
-	Concurrency int              // 0 -> 16
-	MaxAge      time.Duration    // 0 -> 10 * time.Minute
-	MinInterval time.Duration    // 0 -> 60 * time.Second between forced refreshes
-	Now         func() time.Time // nil -> time.Now
+	Dialer               Dialer
+	Timeout              time.Duration    // 0 -> 3 * time.Second TCP connect per probe (name lookup excluded)
+	ResolveTimeout       time.Duration    // 0 -> 5 * time.Second per name lookup, both attempts
+	CachedResolveTimeout time.Duration    // 0 -> 2 * time.Second per name lookup while an earlier answer can stand in
+	Concurrency          int              // 0 -> 16
+	MaxAge               time.Duration    // 0 -> 10 * time.Minute
+	MinInterval          time.Duration    // 0 -> 60 * time.Second between forced refreshes
+	Now                  func() time.Time // nil -> time.Now
 
 	mu       sync.Mutex
 	cache    map[string]Status
-	started  time.Time     // start of the most recent probe run (zero: never)
-	finished time.Time     // end of the most recent completed probe run (zero: never)
-	inflight chan struct{} // closed when the running probe ends; nil when idle
+	answers  map[string]dnsAnswer // last successful lookup per host name (see lookup)
+	started  time.Time            // start of the most recent probe run (zero: never)
+	finished time.Time            // end of the most recent completed probe run (zero: never)
+	inflight chan struct{}        // closed when the running probe ends; nil when idle
 }
 
 // Snapshot returns cached status for entries (missing -> "unknown") and whether the cache is
@@ -159,23 +162,46 @@ func (p *StatusProber) probeAll(entries []Entry, done chan struct{}) {
 	close(done)
 }
 
-// probe is a guarded TCP connect, closed immediately.
-func (p *StatusProber) probe(e Entry) bool {
+// probeOutcome is the result of one probe.
+type probeOutcome int
+
+const (
+	probeOffline    probeOutcome = iota
+	probeOnline                  // the TCP connect succeeded
+	probeUnresolved              // the name lookup failed: the probe learned nothing about the board
+)
+
+// probe looks the host up (see lookup), then makes a guarded TCP connect within Timeout and
+// closes it immediately. DialEntry receives the looked-up addresses through answerResolver, so
+// its public-address check and pinned dial apply to them unchanged.
+func (p *StatusProber) probe(e Entry) probeOutcome {
+	addrs, result := p.lookup(e.Host)
+	switch result {
+	case lookupNotFound:
+		return probeOffline
+	case lookupFailed:
+		return probeUnresolved
+	}
 	timeout := p.timeout()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	dialer := p.Dialer
 	dialer.Timeout = timeout
+	if addrs != nil {
+		dialer.Resolver = answerResolver(addrs)
+	}
 	conn, _, err := dialer.DialEntry(ctx, e)
 	if err != nil {
-		return false
+		return probeOffline
 	}
 	_ = conn.Close()
-	return true
+	return probeOnline
 }
 
-// record stores one probe outcome; offline results keep the last online time.
-func (p *StatusProber) record(id string, online bool) {
+// record stores one probe outcome; offline results keep the last online time. An unresolved
+// probe keeps a result checked within answerMaxAge and otherwise turns the entry "unknown"
+// (CheckedAt and LastOnlineAt stay): a failed lookup never marks an entry offline.
+func (p *StatusProber) record(id string, outcome probeOutcome) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.cache == nil {
@@ -183,8 +209,15 @@ func (p *StatusProber) record(id string, online bool) {
 	}
 	checked := p.now()
 	st := p.cache[id]
+	if outcome == probeUnresolved {
+		if st.CheckedAt == nil || checked.Sub(*st.CheckedAt) > answerMaxAge {
+			st.State = statusUnknown
+		}
+		p.cache[id] = st
+		return
+	}
 	st.CheckedAt = &checked
-	if online {
+	if outcome == probeOnline {
 		st.State = statusOnline
 		lastOnline := checked
 		st.LastOnlineAt = &lastOnline
@@ -194,7 +227,8 @@ func (p *StatusProber) record(id string, online bool) {
 	p.cache[id] = st
 }
 
-// pruneLocked drops cached entries that were not part of the last probe run.
+// pruneLocked drops cached statuses and answers of entries that were not part of the last probe
+// run, and answers too old to stand in.
 func (p *StatusProber) pruneLocked(entries []Entry) {
 	keep := make(map[string]bool, len(entries))
 	for _, e := range entries {
@@ -205,6 +239,7 @@ func (p *StatusProber) pruneLocked(entries []Entry) {
 			delete(p.cache, id)
 		}
 	}
+	p.pruneAnswersLocked(entries, p.now())
 }
 
 // cloneStatus copies s so callers never share time values with the cache.

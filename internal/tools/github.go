@@ -3,6 +3,7 @@ package tools
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/security"
 )
@@ -29,7 +31,7 @@ type GitHubConfig struct {
 	WorkspaceDir          string   // optional: track repos created by the agent
 }
 
-var githubHTTPClient = security.NewSSRFProtectedHTTPClient(30 * time.Second)
+var githubHTTPClient = security.NewSSRFProtectedHTTPClientSameOrigin(30 * time.Second)
 
 func githubRepoEndpoint(owner, repo string, extra ...string) string {
 	parts := []string{"", "repos", url.PathEscape(strings.TrimSpace(owner)), url.PathEscape(strings.TrimSpace(repo))}
@@ -58,25 +60,30 @@ func githubContentEndpoint(owner, repo, filePath string) string {
 // ── Internal helpers ────────────────────────────────────────────────────────
 
 // githubRequest executes an authenticated HTTP request against the GitHub API.
-func githubRequest(cfg GitHubConfig, method, endpoint string, body interface{}) ([]byte, int, error) {
+func githubRequest(ctx context.Context, cfg GitHubConfig, method, endpoint string, body interface{}) ([]byte, http.Header, int, error) {
+	if ctx == nil {
+		return nil, nil, 0, fmt.Errorf("github request context is required")
+	}
 	base := cfg.BaseURL
 	if base == "" {
 		base = "https://api.github.com"
 	}
-	url := strings.TrimRight(base, "/") + endpoint
+	endpointURL := strings.TrimRight(base, "/") + endpoint
 
 	var reqBody io.Reader
 	if body != nil {
 		data, err := json.Marshal(body)
 		if err != nil {
-			return nil, 0, fmt.Errorf("marshal body: %w", err)
+			return nil, nil, 0, fmt.Errorf("marshal body: %w", err)
 		}
 		reqBody = bytes.NewReader(data)
 	}
 
-	req, err := http.NewRequest(method, url, reqBody)
+	reqCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(reqCtx, method, endpointURL, reqBody)
 	if err != nil {
-		return nil, 0, fmt.Errorf("create request: %w", err)
+		return nil, nil, 0, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+cfg.Token)
 	req.Header.Set("Accept", "application/vnd.github+json")
@@ -85,20 +92,17 @@ func githubRequest(cfg GitHubConfig, method, endpoint string, body interface{}) 
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	req = req.WithContext(ctx)
 	resp, err := githubHTTPClient.Do(req)
 	if err != nil {
-		return nil, 0, fmt.Errorf("request failed: %w", err)
+		return nil, nil, 0, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
-		return nil, resp.StatusCode, fmt.Errorf("read response: %w", err)
+		return nil, resp.Header, resp.StatusCode, fmt.Errorf("read response: %w", err)
 	}
-	return respBody, resp.StatusCode, nil
+	return respBody, resp.Header, resp.StatusCode, nil
 }
 
 // githubOwner returns the effective owner (user/org) for API calls.
@@ -199,26 +203,90 @@ func githubStringValue(value interface{}) string {
 	return fmt.Sprintf("%v", value)
 }
 
+const githubMaxListPages = 10
+
+func githubNextLink(base string, header http.Header) (string, bool) {
+	if strings.TrimSpace(base) == "" {
+		base = "https://api.github.com"
+	}
+	baseURL, err := url.Parse(strings.TrimRight(base, "/"))
+	if err != nil || baseURL.Host == "" {
+		return "", false
+	}
+	for _, part := range strings.Split(header.Get("Link"), ",") {
+		part = strings.TrimSpace(part)
+		if !strings.Contains(part, `rel="next"`) {
+			continue
+		}
+		start := strings.IndexByte(part, '<')
+		end := strings.IndexByte(part, '>')
+		if start < 0 || end <= start {
+			continue
+		}
+		next, err := url.Parse(part[start+1 : end])
+		if err != nil || !security.SameHTTPOrigin(baseURL, next) {
+			continue
+		}
+		return next.RequestURI(), true
+	}
+	return "", false
+}
+
+func githubCreateRepoEndpoint(ctx context.Context, cfg GitHubConfig) (string, error) {
+	owner := strings.TrimSpace(cfg.Owner)
+	if owner == "" {
+		return "/user/repos", nil
+	}
+	if !githubIdentityPart.MatchString(owner) || owner == "." || owner == ".." {
+		return "", fmt.Errorf("invalid GitHub owner")
+	}
+	data, _, status, err := githubRequest(ctx, cfg, http.MethodGet, "/user", nil)
+	if err != nil {
+		return "", err
+	}
+	if status != http.StatusOK {
+		return "", fmt.Errorf("GitHub user lookup returned HTTP %d", status)
+	}
+	var user struct {
+		Login string `json:"login"`
+	}
+	if err := json.Unmarshal(data, &user); err != nil {
+		return "", fmt.Errorf("parse GitHub user: %w", err)
+	}
+	if strings.EqualFold(user.Login, owner) {
+		return "/user/repos", nil
+	}
+	return "/orgs/" + url.PathEscape(owner) + "/repos", nil
+}
+
 // ── Repository operations ───────────────────────────────────────────────────
 
 // GitHubListRepos lists repositories for the authenticated user or a specific owner.
-func GitHubListRepos(cfg GitHubConfig, owner string) string {
+func GitHubListRepos(ctx context.Context, cfg GitHubConfig, owner string, limit int) string {
 	endpoint := "/user/repos?per_page=100&sort=updated"
 	if owner != "" && owner != cfg.Owner {
 		endpoint = fmt.Sprintf("/users/%s/repos?per_page=100&sort=updated", url.PathEscape(strings.TrimSpace(owner)))
 	}
 
-	data, status, err := githubRequest(cfg, "GET", endpoint, nil)
-	if err != nil {
-		return errJSON("Failed to list repos: %v", err)
-	}
-	if status != 200 {
-		return errJSON("GitHub API error (HTTP %d): %s", status, string(data))
-	}
-
 	var repos []map[string]interface{}
-	if err := json.Unmarshal(data, &repos); err != nil {
-		return errJSON("Failed to parse repos: %v", err)
+	for page := 0; page < githubMaxListPages; page++ {
+		data, header, status, err := githubRequest(ctx, cfg, "GET", endpoint, nil)
+		if err != nil {
+			return errJSON("Failed to list repos: %v", err)
+		}
+		if status != 200 {
+			return errJSON("GitHub API error (HTTP %d): %s", status, string(data))
+		}
+		var pageRepos []map[string]interface{}
+		if err := json.Unmarshal(data, &pageRepos); err != nil {
+			return errJSON("Failed to parse repos: %v", err)
+		}
+		repos = append(repos, pageRepos...)
+		next, ok := githubNextLink(cfg.BaseURL, header)
+		if !ok {
+			break
+		}
+		endpoint = next
 	}
 
 	// Return compact summary
@@ -265,6 +333,9 @@ func GitHubListRepos(cfg GitHubConfig, owner string) string {
 		}
 		summaries = append(summaries, s)
 	}
+	if limit > 0 && len(summaries) > limit {
+		summaries = summaries[:limit]
+	}
 
 	out, _ := json.Marshal(map[string]interface{}{
 		"status": "ok",
@@ -275,7 +346,7 @@ func GitHubListRepos(cfg GitHubConfig, owner string) string {
 }
 
 // GitHubCreateRepo creates a new repository.
-func GitHubCreateRepo(cfg GitHubConfig, name, description string, private *bool) string {
+func GitHubCreateRepo(ctx context.Context, cfg GitHubConfig, name, description string, private *bool) string {
 	if msg := githubReadOnlyError(cfg); msg != "" {
 		return msg
 	}
@@ -295,7 +366,11 @@ func GitHubCreateRepo(cfg GitHubConfig, name, description string, private *bool)
 		"auto_init":   true,
 	}
 
-	data, status, err := githubRequest(cfg, "POST", "/user/repos", body)
+	endpoint, err := githubCreateRepoEndpoint(ctx, cfg)
+	if err != nil {
+		return errJSON("Failed to create repo: %v", err)
+	}
+	data, _, status, err := githubRequest(ctx, cfg, "POST", endpoint, body)
 	if err != nil {
 		return errJSON("Failed to create repo: %v", err)
 	}
@@ -369,7 +444,7 @@ func GitHubCreateRepo(cfg GitHubConfig, name, description string, private *bool)
 }
 
 // GitHubDeleteRepo deletes a repository.
-func GitHubDeleteRepo(cfg GitHubConfig, owner, repo string) string {
+func GitHubDeleteRepo(ctx context.Context, cfg GitHubConfig, owner, repo string) string {
 	if msg := githubReadOnlyError(cfg); msg != "" {
 		return msg
 	}
@@ -384,16 +459,33 @@ func GitHubDeleteRepo(cfg GitHubConfig, owner, repo string) string {
 		return msg
 	}
 
+	canonical := GitHubCanonicalRepo(o, repo)
+	hadGrant := false
 	if cfg.DataDir != "" {
-		if err := setGitHubCreatedTrust(cfg, GitHubCanonicalRepo(o, repo), false); err != nil {
-			return errJSON("Cannot revoke repository trust before deletion: %v", err)
+		had, err := githubHasTrustGrant(cfg, canonical)
+		if err != nil {
+			return errJSON("Cannot read repository trust before deletion: %v", err)
+		}
+		hadGrant = had
+		if hadGrant {
+			if err := setGitHubCreatedTrust(cfg, canonical, false); err != nil {
+				return errJSON("Cannot revoke repository trust before deletion: %v", err)
+			}
 		}
 	}
-	data, status, err := githubRequest(cfg, "DELETE", githubRepoEndpoint(o, repo), nil)
+	data, _, status, err := githubRequest(ctx, cfg, http.MethodDelete, githubRepoEndpoint(o, repo), nil)
 	if err != nil {
+		if hadGrant {
+			return errJSON("Failed to delete repo: %v; trust_revoked", err)
+		}
 		return errJSON("Failed to delete repo: %v", err)
 	}
-	if status != 204 {
+	if status != http.StatusNoContent {
+		if hadGrant {
+			if restoreErr := setGitHubCreatedTrust(cfg, canonical, true); restoreErr != nil {
+				return errJSON("GitHub API error (HTTP %d): %s; trust grant could not be restored: %v", status, string(data), restoreErr)
+			}
+		}
 		return errJSON("GitHub API error (HTTP %d): %s", status, string(data))
 	}
 
@@ -405,7 +497,7 @@ func GitHubDeleteRepo(cfg GitHubConfig, owner, repo string) string {
 }
 
 // GitHubGetRepo gets detailed information about a repository.
-func GitHubGetRepo(cfg GitHubConfig, owner, repo string) string {
+func GitHubGetRepo(ctx context.Context, cfg GitHubConfig, owner, repo string) string {
 	o := githubOwner(cfg, owner)
 	if o == "" || repo == "" {
 		return errJSON("Owner and repo name are required")
@@ -414,7 +506,7 @@ func GitHubGetRepo(cfg GitHubConfig, owner, repo string) string {
 		return msg
 	}
 
-	data, status, err := githubRequest(cfg, "GET", githubRepoEndpoint(o, repo), nil)
+	data, _, status, err := githubRequest(ctx, cfg, "GET", githubRepoEndpoint(o, repo), nil)
 	if err != nil {
 		return errJSON("Failed to get repo: %v", err)
 	}
@@ -449,7 +541,7 @@ func GitHubGetRepo(cfg GitHubConfig, owner, repo string) string {
 // ── Issue operations ────────────────────────────────────────────────────────
 
 // GitHubListIssues lists issues for a repository.
-func GitHubListIssues(cfg GitHubConfig, owner, repo, state string) string {
+func GitHubListIssues(ctx context.Context, cfg GitHubConfig, owner, repo, state string) string {
 	o := githubOwner(cfg, owner)
 	if o == "" || repo == "" {
 		return errJSON("Owner and repo name are required")
@@ -462,7 +554,7 @@ func GitHubListIssues(cfg GitHubConfig, owner, repo, state string) string {
 	}
 
 	issueQuery := url.Values{"state": []string{state}, "per_page": []string{"50"}}
-	data, status, err := githubRequest(cfg, "GET", githubRepoEndpoint(o, repo, "issues")+"?"+issueQuery.Encode(), nil)
+	data, _, status, err := githubRequest(ctx, cfg, "GET", githubRepoEndpoint(o, repo, "issues")+"?"+issueQuery.Encode(), nil)
 	if err != nil {
 		return errJSON("Failed to list issues: %v", err)
 	}
@@ -493,18 +585,18 @@ func GitHubListIssues(cfg GitHubConfig, owner, repo, state string) string {
 		}
 		s := issueSummary{
 			Number:    i["number"],
-			Title:     fmt.Sprintf("%v", i["title"]),
-			State:     fmt.Sprintf("%v", i["state"]),
-			HTMLURL:   fmt.Sprintf("%v", i["html_url"]),
-			CreatedAt: fmt.Sprintf("%v", i["created_at"]),
+			Title:     githubStringValue(i["title"]),
+			State:     githubStringValue(i["state"]),
+			HTMLURL:   githubStringValue(i["html_url"]),
+			CreatedAt: githubStringValue(i["created_at"]),
 		}
 		if user, ok := i["user"].(map[string]interface{}); ok {
-			s.User = fmt.Sprintf("%v", user["login"])
+			s.User = githubStringValue(user["login"])
 		}
 		if labels, ok := i["labels"].([]interface{}); ok {
 			for _, l := range labels {
 				if lm, ok := l.(map[string]interface{}); ok {
-					s.Labels = append(s.Labels, fmt.Sprintf("%v", lm["name"]))
+					s.Labels = append(s.Labels, githubStringValue(lm["name"]))
 				}
 			}
 		}
@@ -520,7 +612,7 @@ func GitHubListIssues(cfg GitHubConfig, owner, repo, state string) string {
 }
 
 // GitHubCreateIssue creates a new issue in a repository.
-func GitHubCreateIssue(cfg GitHubConfig, owner, repo, title, body string, labels []string) string {
+func GitHubCreateIssue(ctx context.Context, cfg GitHubConfig, owner, repo, title, body string, labels []string) string {
 	if msg := githubReadOnlyError(cfg); msg != "" {
 		return msg
 	}
@@ -540,7 +632,7 @@ func GitHubCreateIssue(cfg GitHubConfig, owner, repo, title, body string, labels
 		payload["labels"] = labels
 	}
 
-	data, status, err := githubRequest(cfg, "POST", githubRepoEndpoint(o, repo, "issues"), payload)
+	data, _, status, err := githubRequest(ctx, cfg, "POST", githubRepoEndpoint(o, repo, "issues"), payload)
 	if err != nil {
 		return errJSON("Failed to create issue: %v", err)
 	}
@@ -564,7 +656,7 @@ func GitHubCreateIssue(cfg GitHubConfig, owner, repo, title, body string, labels
 }
 
 // GitHubCloseIssue closes an issue.
-func GitHubCloseIssue(cfg GitHubConfig, owner, repo string, number int) string {
+func GitHubCloseIssue(ctx context.Context, cfg GitHubConfig, owner, repo string, number int) string {
 	if msg := githubReadOnlyError(cfg); msg != "" {
 		return msg
 	}
@@ -576,7 +668,7 @@ func GitHubCloseIssue(cfg GitHubConfig, owner, repo string, number int) string {
 		return msg
 	}
 
-	data, status, err := githubRequest(cfg, "PATCH",
+	data, _, status, err := githubRequest(ctx, cfg, "PATCH",
 		githubRepoEndpoint(o, repo, fmt.Sprintf("issues/%d", number)),
 		map[string]interface{}{"state": "closed"})
 	if err != nil {
@@ -596,7 +688,7 @@ func GitHubCloseIssue(cfg GitHubConfig, owner, repo string, number int) string {
 // ── Pull Request operations ─────────────────────────────────────────────────
 
 // GitHubListPullRequests lists pull requests for a repository.
-func GitHubListPullRequests(cfg GitHubConfig, owner, repo, state string) string {
+func GitHubListPullRequests(ctx context.Context, cfg GitHubConfig, owner, repo, state string) string {
 	o := githubOwner(cfg, owner)
 	if o == "" || repo == "" {
 		return errJSON("Owner and repo name are required")
@@ -609,7 +701,7 @@ func GitHubListPullRequests(cfg GitHubConfig, owner, repo, state string) string 
 	}
 
 	prQuery := url.Values{"state": []string{state}, "per_page": []string{"50"}}
-	data, status, err := githubRequest(cfg, "GET", githubRepoEndpoint(o, repo, "pulls")+"?"+prQuery.Encode(), nil)
+	data, _, status, err := githubRequest(ctx, cfg, "GET", githubRepoEndpoint(o, repo, "pulls")+"?"+prQuery.Encode(), nil)
 	if err != nil {
 		return errJSON("Failed to list PRs: %v", err)
 	}
@@ -637,19 +729,19 @@ func GitHubListPullRequests(cfg GitHubConfig, owner, repo, state string) string 
 	for _, p := range prs {
 		s := prSummary{
 			Number:    p["number"],
-			Title:     fmt.Sprintf("%v", p["title"]),
-			State:     fmt.Sprintf("%v", p["state"]),
-			HTMLURL:   fmt.Sprintf("%v", p["html_url"]),
-			CreatedAt: fmt.Sprintf("%v", p["created_at"]),
+			Title:     githubStringValue(p["title"]),
+			State:     githubStringValue(p["state"]),
+			HTMLURL:   githubStringValue(p["html_url"]),
+			CreatedAt: githubStringValue(p["created_at"]),
 		}
 		if user, ok := p["user"].(map[string]interface{}); ok {
-			s.User = fmt.Sprintf("%v", user["login"])
+			s.User = githubStringValue(user["login"])
 		}
 		if head, ok := p["head"].(map[string]interface{}); ok {
-			s.Head = fmt.Sprintf("%v", head["ref"])
+			s.Head = githubStringValue(head["ref"])
 		}
 		if base, ok := p["base"].(map[string]interface{}); ok {
-			s.Base = fmt.Sprintf("%v", base["ref"])
+			s.Base = githubStringValue(base["ref"])
 		}
 		summaries = append(summaries, s)
 	}
@@ -665,7 +757,7 @@ func GitHubListPullRequests(cfg GitHubConfig, owner, repo, state string) string 
 // ── Branch operations ───────────────────────────────────────────────────────
 
 // GitHubListBranches lists branches for a repository.
-func GitHubListBranches(cfg GitHubConfig, owner, repo string) string {
+func GitHubListBranches(ctx context.Context, cfg GitHubConfig, owner, repo string) string {
 	o := githubOwner(cfg, owner)
 	if o == "" || repo == "" {
 		return errJSON("Owner and repo name are required")
@@ -675,7 +767,7 @@ func GitHubListBranches(cfg GitHubConfig, owner, repo string) string {
 	}
 
 	branchQuery := url.Values{"per_page": []string{"100"}}
-	data, status, err := githubRequest(cfg, "GET", githubRepoEndpoint(o, repo, "branches")+"?"+branchQuery.Encode(), nil)
+	data, _, status, err := githubRequest(ctx, cfg, "GET", githubRepoEndpoint(o, repo, "branches")+"?"+branchQuery.Encode(), nil)
 	if err != nil {
 		return errJSON("Failed to list branches: %v", err)
 	}
@@ -690,7 +782,7 @@ func GitHubListBranches(cfg GitHubConfig, owner, repo string) string {
 
 	var names []string
 	for _, b := range branches {
-		names = append(names, fmt.Sprintf("%v", b["name"]))
+		names = append(names, githubStringValue(b["name"]))
 	}
 
 	out, _ := json.Marshal(map[string]interface{}{
@@ -703,8 +795,50 @@ func GitHubListBranches(cfg GitHubConfig, owner, repo string) string {
 
 // ── File operations ─────────────────────────────────────────────────────────
 
+const githubFileTextLimit = 256 * 1024
+
+func githubDecodeFileContent(encoding, content string) (string, string, bool) {
+	if !strings.EqualFold(encoding, "base64") {
+		return content, encoding, false
+	}
+	raw, err := base64.StdEncoding.DecodeString(strings.Map(func(r rune) rune {
+		if r == '\n' || r == '\r' || r == ' ' || r == '\t' {
+			return -1
+		}
+		return r
+	}, content))
+	if err != nil {
+		return content, encoding, false
+	}
+	if !utf8.Valid(raw) || bytes.Contains(raw, []byte{0}) {
+		return base64.StdEncoding.EncodeToString(raw), "base64", false
+	}
+	if len(raw) > githubFileTextLimit {
+		cut := raw[:githubFileTextLimit]
+		for !utf8.Valid(cut) && len(cut) > 0 {
+			cut = cut[:len(cut)-1]
+		}
+		return string(cut), "utf-8", true
+	}
+	return string(raw), "utf-8", false
+}
+
+func githubFileContentBase64(content string) string {
+	stripped := strings.Map(func(r rune) rune {
+		if r == '\n' || r == '\r' || r == ' ' || r == '\t' {
+			return -1
+		}
+		return r
+	}, content)
+	raw, err := base64.StdEncoding.DecodeString(stripped)
+	if err == nil && base64.StdEncoding.EncodeToString(raw) == stripped {
+		return stripped
+	}
+	return base64.StdEncoding.EncodeToString([]byte(content))
+}
+
 // GitHubGetFileContent reads a file from a repository.
-func GitHubGetFileContent(cfg GitHubConfig, owner, repo, path, branch string) string {
+func GitHubGetFileContent(ctx context.Context, cfg GitHubConfig, owner, repo, path, branch string) string {
 	o := githubOwner(cfg, owner)
 	if o == "" || repo == "" || path == "" {
 		return errJSON("Owner, repo, and file path are required")
@@ -718,7 +852,7 @@ func GitHubGetFileContent(cfg GitHubConfig, owner, repo, path, branch string) st
 		endpoint += "?" + url.Values{"ref": []string{branch}}.Encode()
 	}
 
-	data, status, err := githubRequest(cfg, "GET", endpoint, nil)
+	data, _, status, err := githubRequest(ctx, cfg, "GET", endpoint, nil)
 	if err != nil {
 		return errJSON("Failed to get file: %v", err)
 	}
@@ -728,24 +862,47 @@ func GitHubGetFileContent(cfg GitHubConfig, owner, repo, path, branch string) st
 
 	var result map[string]interface{}
 	if err := json.Unmarshal(data, &result); err != nil {
-		return errJSON("Failed to parse response: %v", err)
+		var entries []map[string]interface{}
+		if dirErr := json.Unmarshal(data, &entries); dirErr != nil {
+			return errJSON("Failed to parse response: %v", err)
+		}
+		listed := make([]map[string]interface{}, 0, len(entries))
+		for _, entry := range entries {
+			listed = append(listed, map[string]interface{}{
+				"name": entry["name"],
+				"path": entry["path"],
+				"type": entry["type"],
+				"size": entry["size"],
+			})
+		}
+		out, _ := json.Marshal(map[string]interface{}{
+			"status":  "ok",
+			"type":    "dir",
+			"entries": listed,
+		})
+		return string(out)
 	}
 
-	out, _ := json.Marshal(map[string]interface{}{
+	text, encoding, truncated := githubDecodeFileContent(githubStringValue(result["encoding"]), githubStringValue(result["content"]))
+	response := map[string]interface{}{
 		"status":   "ok",
 		"name":     result["name"],
 		"path":     result["path"],
 		"size":     result["size"],
 		"sha":      result["sha"],
-		"content":  result["content"],
-		"encoding": result["encoding"],
+		"content":  text,
+		"encoding": encoding,
 		"html_url": result["html_url"],
-	})
+	}
+	if truncated {
+		response["truncated"] = true
+	}
+	out, _ := json.Marshal(response)
 	return string(out)
 }
 
 // GitHubCreateOrUpdateFile creates or updates a file in a repository.
-func GitHubCreateOrUpdateFile(cfg GitHubConfig, owner, repo, path, content, message, sha, branch string) string {
+func GitHubCreateOrUpdateFile(ctx context.Context, cfg GitHubConfig, owner, repo, path, content, message, sha, branch string) string {
 	if msg := githubReadOnlyError(cfg); msg != "" {
 		return msg
 	}
@@ -762,7 +919,7 @@ func GitHubCreateOrUpdateFile(cfg GitHubConfig, owner, repo, path, content, mess
 
 	payload := map[string]interface{}{
 		"message": message,
-		"content": content, // must be base64 encoded
+		"content": githubFileContentBase64(content),
 	}
 	if sha != "" {
 		payload["sha"] = sha // required for updates
@@ -771,7 +928,7 @@ func GitHubCreateOrUpdateFile(cfg GitHubConfig, owner, repo, path, content, mess
 		payload["branch"] = branch
 	}
 
-	data, status, err := githubRequest(cfg, "PUT", githubContentEndpoint(o, repo, path), payload)
+	data, _, status, err := githubRequest(ctx, cfg, "PUT", githubContentEndpoint(o, repo, path), payload)
 	if err != nil {
 		return errJSON("Failed to create/update file: %v", err)
 	}
@@ -789,7 +946,7 @@ func GitHubCreateOrUpdateFile(cfg GitHubConfig, owner, repo, path, content, mess
 // ── Commit & Actions operations ─────────────────────────────────────────────
 
 // GitHubListCommits lists recent commits for a repository.
-func GitHubListCommits(cfg GitHubConfig, owner, repo, branch string, limit int) string {
+func GitHubListCommits(ctx context.Context, cfg GitHubConfig, owner, repo, branch string, limit int) string {
 	o := githubOwner(cfg, owner)
 	if o == "" || repo == "" {
 		return errJSON("Owner and repo name are required")
@@ -807,7 +964,7 @@ func GitHubListCommits(cfg GitHubConfig, owner, repo, branch string, limit int) 
 	}
 	endpoint := githubRepoEndpoint(o, repo, "commits") + "?" + query.Encode()
 
-	data, status, err := githubRequest(cfg, "GET", endpoint, nil)
+	data, _, status, err := githubRequest(ctx, cfg, "GET", endpoint, nil)
 	if err != nil {
 		return errJSON("Failed to list commits: %v", err)
 	}
@@ -830,13 +987,13 @@ func GitHubListCommits(cfg GitHubConfig, owner, repo, branch string, limit int) 
 	var summaries []commitSummary
 	for _, c := range commits {
 		s := commitSummary{
-			SHA: fmt.Sprintf("%v", c["sha"]),
+			SHA: githubStringValue(c["sha"]),
 		}
 		if commit, ok := c["commit"].(map[string]interface{}); ok {
-			s.Message = fmt.Sprintf("%v", commit["message"])
+			s.Message = githubStringValue(commit["message"])
 			if author, ok := commit["author"].(map[string]interface{}); ok {
-				s.Author = fmt.Sprintf("%v", author["name"])
-				s.Date = fmt.Sprintf("%v", author["date"])
+				s.Author = githubStringValue(author["name"])
+				s.Date = githubStringValue(author["date"])
 			}
 		}
 		// Truncate SHA for display
@@ -855,7 +1012,7 @@ func GitHubListCommits(cfg GitHubConfig, owner, repo, branch string, limit int) 
 }
 
 // GitHubListWorkflowRuns lists recent GitHub Actions workflow runs.
-func GitHubListWorkflowRuns(cfg GitHubConfig, owner, repo string, limit int) string {
+func GitHubListWorkflowRuns(ctx context.Context, cfg GitHubConfig, owner, repo string, limit int) string {
 	o := githubOwner(cfg, owner)
 	if o == "" || repo == "" {
 		return errJSON("Owner and repo name are required")
@@ -868,7 +1025,7 @@ func GitHubListWorkflowRuns(cfg GitHubConfig, owner, repo string, limit int) str
 	}
 
 	runsQuery := url.Values{"per_page": []string{fmt.Sprintf("%d", limit)}}
-	data, status, err := githubRequest(cfg, "GET", githubRepoEndpoint(o, repo, "actions/runs")+"?"+runsQuery.Encode(), nil)
+	data, _, status, err := githubRequest(ctx, cfg, "GET", githubRepoEndpoint(o, repo, "actions/runs")+"?"+runsQuery.Encode(), nil)
 	if err != nil {
 		return errJSON("Failed to list workflow runs: %v", err)
 	}
@@ -900,11 +1057,11 @@ func GitHubListWorkflowRuns(cfg GitHubConfig, owner, repo string, limit int) str
 			}
 			s := runSummary{
 				ID:         rm["id"],
-				Name:       fmt.Sprintf("%v", rm["name"]),
-				Status:     fmt.Sprintf("%v", rm["status"]),
-				Conclusion: fmt.Sprintf("%v", rm["conclusion"]),
-				CreatedAt:  fmt.Sprintf("%v", rm["created_at"]),
-				HTMLURL:    fmt.Sprintf("%v", rm["html_url"]),
+				Name:       githubStringValue(rm["name"]),
+				Status:     githubStringValue(rm["status"]),
+				Conclusion: githubStringValue(rm["conclusion"]),
+				CreatedAt:  githubStringValue(rm["created_at"]),
+				HTMLURL:    githubStringValue(rm["html_url"]),
 			}
 			if branch, ok := rm["head_branch"].(string); ok {
 				s.Branch = branch
@@ -924,7 +1081,7 @@ func GitHubListWorkflowRuns(cfg GitHubConfig, owner, repo string, limit int) str
 // ── Search ──────────────────────────────────────────────────────────────────
 
 // GitHubSearchRepos searches for repositories matching a query.
-func GitHubSearchRepos(cfg GitHubConfig, query string, limit int) string {
+func GitHubSearchRepos(ctx context.Context, cfg GitHubConfig, query string, limit int) string {
 	if query == "" {
 		return errJSON("Search query is required")
 	}
@@ -933,7 +1090,7 @@ func GitHubSearchRepos(cfg GitHubConfig, query string, limit int) string {
 	}
 
 	searchQuery := url.Values{"q": []string{query}, "per_page": []string{fmt.Sprintf("%d", limit)}}
-	data, status, err := githubRequest(cfg, "GET", "/search/repositories?"+searchQuery.Encode(), nil)
+	data, _, status, err := githubRequest(ctx, cfg, "GET", "/search/repositories?"+searchQuery.Encode(), nil)
 	if err != nil {
 		return errJSON("Failed to search repos: %v", err)
 	}
@@ -952,6 +1109,7 @@ func GitHubSearchRepos(cfg GitHubConfig, query string, limit int) string {
 		Stars       int    `json:"stars"`
 		Language    string `json:"language"`
 		HTMLURL     string `json:"html_url"`
+		Private     bool   `json:"private"`
 	}
 
 	var repos []repoResult
@@ -961,15 +1119,21 @@ func GitHubSearchRepos(cfg GitHubConfig, query string, limit int) string {
 			if !ok {
 				continue
 			}
+			private, _ := r["private"].(bool)
 			s := repoResult{
-				FullName: fmt.Sprintf("%v", r["full_name"]),
-				HTMLURL:  fmt.Sprintf("%v", r["html_url"]),
+				FullName: githubStringValue(r["full_name"]),
+				HTMLURL:  githubStringValue(r["html_url"]),
+				Private:  private,
+			}
+			repoOwner, repoName := GitHubSplitFullName(s.FullName)
+			if private && !GitHubRepoAllowed(cfg, repoOwner, repoName) {
+				continue
 			}
 			if r["description"] != nil {
-				s.Description = fmt.Sprintf("%v", r["description"])
+				s.Description = githubStringValue(r["description"])
 			}
 			if r["language"] != nil {
-				s.Language = fmt.Sprintf("%v", r["language"])
+				s.Language = githubStringValue(r["language"])
 			}
 			if stars, ok := r["stargazers_count"].(float64); ok {
 				s.Stars = int(stars)

@@ -123,6 +123,16 @@ Operator docs: `documentation/retro-net.md`.
 - Reason → Hayes code mapping lives only in `CodeFor`; the browser translates
   `desktop.terminal_retronet_result_<reason>`.
 - Never log, audit or forward session payload bytes.
+- Status probes resolve the host before connecting (`lookup`, `status_resolve.go`)
+  with a budget of its own: 5 s, or 2 s while an answer from the past hour can
+  stand in, including one retry after 500 ms for any failure except "no such
+  host". `DialEntry` then gets exactly that answer (`answerResolver`), so its
+  public-address check and pinned dial apply unchanged and the connect timeout
+  is never spent on DNS. A fresh answer always replaces the kept one; "no such
+  host" drops it and is `offline`. Any other lookup failure dials the kept
+  answer; without one the entry keeps a result checked within the hour, else
+  it turns `unknown`, never `offline`. A run prunes answers of entries it was
+  not given and answers older than an hour.
 - Status probes are TCP connects through the same guard: 3 s timeout, 16 in
   parallel, cache 10 min, one probe in flight, and no probe run starts sooner
   than 60 s after the previous start for any trigger (stale snapshot, never

@@ -848,7 +848,9 @@ mcp_server:
 
 > Der MCP-Server teilt sich den Haupt-HTTP-Server — es gibt kein separates `port`-Feld. MCP-Client-Zugriff erfordert zusätzlich **Config → Gefahrenzone** → MCP (`agent.allow_mcp: true`).
 
-`allowed_tools` ist eine explizite serverseitige Allowlist. Leer veröffentlicht keine AuraGo-Tools; `vscode_debug_bridge` nutzt ein eigenes begrenztes Debugging-Preset.
+`allowed_tools` ist eine explizite serverseitige Freigabeliste. Eine leere Liste veröffentlicht keine Tools, auch im IDE-Modus. Das Öffnen der Einstellungen und Umschalten der Bridge ergänzt keine Berechtigungen. Mit **Empfohlene Tools hinzufügen** kannst Du das IDE-Preset des Backends ausdrücklich übernehmen und anschließend speichern. Die Auswahl aller Tools speichert deren aktuelle Namen.
+
+**Kompatibilitätsänderung:** Bestehende IDE-Konfigurationen mit leerer Liste benötigen nach dem Update eine bewusste Tool-Auswahl. Eine automatische Migration zum Preset findet nicht statt. MCP-Client-Freigabelisten behalten ihre getrennte Bedeutung.
 
 ## Composio Integration
 

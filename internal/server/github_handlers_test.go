@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -69,7 +70,7 @@ func TestHandleDashboardGitHubReposFiltersAllowedAndTrustedOnly(t *testing.T) {
 	writeGitHubHandlerTrackedProjects(t, workspaceDir)
 
 	oldListRepos := githubListReposForServer
-	githubListReposForServer = func(cfg tools.GitHubConfig, owner string) string {
+	githubListReposForServer = func(ctx context.Context, cfg tools.GitHubConfig, owner string) string {
 		if cfg.ListReposUnrestricted {
 			t.Fatal("dashboard must not request unrestricted GitHub repo listing")
 		}
@@ -112,7 +113,7 @@ func TestHandleGitHubReposForUIListsAllReposAndAnnotatesPolicy(t *testing.T) {
 	writeGitHubHandlerTrackedProjects(t, workspaceDir)
 
 	oldListRepos := githubListReposForServer
-	githubListReposForServer = func(cfg tools.GitHubConfig, owner string) string {
+	githubListReposForServer = func(ctx context.Context, cfg tools.GitHubConfig, owner string) string {
 		if !cfg.ListReposUnrestricted {
 			t.Fatal("config UI must request unrestricted listing so users can grant repos")
 		}
