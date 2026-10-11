@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/config"
 	"aurago/internal/retrogames"
@@ -18,6 +21,7 @@ func retroGamesToolConfig() *config.Config {
 	cfg.RetroGames.Enabled = true
 	cfg.RetroGames.AgentAccess = true
 	cfg.VirtualDesktop.Enabled = true
+	cfg.VirtualDesktop.AllowAgentControl = true
 	return cfg
 }
 
@@ -29,6 +33,19 @@ func useRetroGamesService(t *testing.T, f retrogames.Fetcher) *retrogames.Servic
 	return svc
 }
 
+// syncRetroGames starts the index sync and waits until it has finished.
+func syncRetroGames(t *testing.T, svc *retrogames.Service) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if _, err := svc.Status(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.WaitIdle(ctx); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func decodeRetroGamesOutput(t *testing.T, out string) map[string]any {
 	t.Helper()
 	var m map[string]any
@@ -36,6 +53,42 @@ func decodeRetroGamesOutput(t *testing.T, out string) map[string]any {
 		t.Fatalf("output is not JSON: %v\n%s", err, out)
 	}
 	return m
+}
+
+// retroGamesNumber reads a JSON number field and fails the test cleanly when
+// the field is missing or has another type.
+func retroGamesNumber(t *testing.T, m map[string]any, key string) float64 {
+	t.Helper()
+	v, ok := m[key].(float64)
+	if !ok {
+		t.Fatalf("field %q is not a number in %v", key, m)
+	}
+	return v
+}
+
+// retroGamesText reads a JSON string field and fails the test cleanly when the
+// field is missing or has another type.
+func retroGamesText(t *testing.T, m map[string]any, key string) string {
+	t.Helper()
+	v, ok := m[key].(string)
+	if !ok {
+		t.Fatalf("field %q is not a string in %v", key, m)
+	}
+	return v
+}
+
+// retroGamesIsolatedBody checks that value is exactly one isolation block and
+// returns the text inside it.
+func retroGamesIsolatedBody(t *testing.T, value string) string {
+	t.Helper()
+	const open, closing = "<external_data>\n", "\n</external_data>"
+	if !strings.HasPrefix(value, open) || !strings.HasSuffix(value, closing) {
+		t.Fatalf("value is not an isolated block: %q", value)
+	}
+	if n := strings.Count(value, "</external_data>"); n != 1 {
+		t.Fatalf("isolated block has %d closing tags, want 1: %q", n, value)
+	}
+	return strings.TrimSuffix(strings.TrimPrefix(value, open), closing)
 }
 
 func TestRetroGamesToolGating(t *testing.T) {
@@ -64,7 +117,7 @@ func TestRetroGamesToolSearchHallOfFameAndIndex(t *testing.T) {
 	cfg := retroGamesToolConfig()
 	m := decodeRetroGamesOutput(t, ExecuteRetroGames(context.Background(), cfg, RetroGamesRequest{Operation: "search", Platform: "zx", Limit: 3}).Output)
 	results, _ := m["results"].(string)
-	if m["status"] != "success" || m["source"] != "hall_of_fame" || m["returned"].(float64) != 3 || !strings.HasPrefix(results, "<external_data>") || !strings.Contains(results, "zx_") {
+	if m["status"] != "success" || m["source"] != "hall_of_fame" || retroGamesNumber(t, m, "returned") != 3 || !strings.HasPrefix(results, "<external_data>") || !strings.Contains(results, "zx_") {
 		t.Fatalf("hall of fame search: %v", m)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -73,20 +126,179 @@ func TestRetroGamesToolSearchHallOfFameAndIndex(t *testing.T) {
 		t.Fatal(err)
 	}
 	m = decodeRetroGamesOutput(t, ExecuteRetroGames(context.Background(), cfg, RetroGamesRequest{Operation: "search", Query: "persia"}).Output)
-	if m["source"] != "index" || m["total"].(float64) != 1 || !strings.Contains(m["results"].(string), "msdos_Prince_of_Persia_1990 | Prince of Persia | MS-DOS | 1990") {
+	if m["source"] != "index" || retroGamesNumber(t, m, "total") != 1 || !strings.Contains(retroGamesText(t, m, "results"), "msdos_Prince_of_Persia_1990 | Prince of Persia | MS-DOS | 1990") {
 		t.Fatalf("index search: %v", m)
 	}
 	m = decodeRetroGamesOutput(t, ExecuteRetroGames(context.Background(), cfg, RetroGamesRequest{Operation: "search", Decade: 1985}).Output)
 	if m["code"] != "invalid_request" {
 		t.Fatalf("bad decade: %v", m)
 	}
+	if msg := retroGamesText(t, m, "message"); !strings.Contains(msg, "1950-2020") {
+		t.Fatalf("decade range in the error text: %q", msg)
+	}
 }
 
 func TestRetroGamesToolSearchFallsBackWhileIndexIsEmpty(t *testing.T) {
 	useRetroGamesService(t, &retrogamestest.Fetcher{Err: errors.New("offline")})
 	m := decodeRetroGamesOutput(t, ExecuteRetroGames(context.Background(), retroGamesToolConfig(), RetroGamesRequest{Operation: "search", Query: "persia"}).Output)
-	if m["source"] != "hall_of_fame" || !strings.Contains(m["note"].(string), "index_building") || !strings.Contains(m["results"].(string), "msdos_Prince_of_Persia_1990") {
+	if m["source"] != "hall_of_fame" || !strings.Contains(retroGamesText(t, m, "note"), "index_building") || !strings.Contains(retroGamesText(t, m, "results"), "msdos_Prince_of_Persia_1990") {
 		t.Fatalf("fallback: %v", m)
+	}
+}
+
+func TestRetroGamesToolFallbackSplitsQueryLikeTheIndex(t *testing.T) {
+	useRetroGamesService(t, &retrogamestest.Fetcher{Err: errors.New("offline")})
+	cfg := retroGamesToolConfig()
+	m := decodeRetroGamesOutput(t, ExecuteRetroGames(context.Background(), cfg, RetroGamesRequest{Operation: "search", Query: "prince-of, persia!"}).Output)
+	if m["source"] != "hall_of_fame" || !strings.Contains(retroGamesText(t, m, "results"), "msdos_Prince_of_Persia_1990") {
+		t.Fatalf("punctuated query: %v", m)
+	}
+	m = decodeRetroGamesOutput(t, ExecuteRetroGames(context.Background(), cfg, RetroGamesRequest{Operation: "search", Query: "!!! ---"}).Output)
+	if m["source"] != "hall_of_fame" || retroGamesNumber(t, m, "total") != 0 || m["results"] != nil {
+		t.Fatalf("query without a searchable word must match nothing: %v", m)
+	}
+}
+
+func TestRetroGamesToolNoFallbackWhenIndexHasGames(t *testing.T) {
+	svc := useRetroGamesService(t, &retrogamestest.Fetcher{BySource: map[string][]retrogames.Item{
+		retrogames.PlatformMSDOS: {retrogamestest.Item("msdos_Prince_of_Persia_1990", "Prince of Persia", "dosbox", 1990, 99)},
+	}})
+	syncRetroGames(t, svc)
+	m := decodeRetroGamesOutput(t, ExecuteRetroGames(context.Background(), retroGamesToolConfig(), RetroGamesRequest{Operation: "search", Query: "zzzznomatch"}).Output)
+	if m["status"] != "success" || m["source"] != "index" || retroGamesNumber(t, m, "total") != 0 || m["results"] != nil || m["note"] != nil {
+		t.Fatalf("a miss on a populated index must be an honest empty result: %v", m)
+	}
+}
+
+func TestRetroGamesToolClampsLimit(t *testing.T) {
+	items := make([]retrogames.Item, 30)
+	for i := range items {
+		items[i] = retrogamestest.Item(fmt.Sprintf("msdos_alpha_%02d", i), fmt.Sprintf("Alpha %02d", i), "dosbox", 1990, int64(100-i))
+	}
+	svc := useRetroGamesService(t, &retrogamestest.Fetcher{BySource: map[string][]retrogames.Item{retrogames.PlatformMSDOS: items}})
+	cfg := retroGamesToolConfig()
+	m := decodeRetroGamesOutput(t, ExecuteRetroGames(context.Background(), cfg, RetroGamesRequest{Operation: "search", Limit: 50}).Output)
+	if m["source"] != "hall_of_fame" || retroGamesNumber(t, m, "returned") != 20 || retroGamesNumber(t, m, "total") <= 20 {
+		t.Fatalf("hall of fame limit 50: %v", m)
+	}
+	syncRetroGames(t, svc)
+	m = decodeRetroGamesOutput(t, ExecuteRetroGames(context.Background(), cfg, RetroGamesRequest{Operation: "search", Query: "alpha", Limit: 50}).Output)
+	if m["source"] != "index" || retroGamesNumber(t, m, "returned") != 20 || retroGamesNumber(t, m, "total") != 30 {
+		t.Fatalf("index limit 50: %v", m)
+	}
+}
+
+func TestRetroGamesToolHallOfFameDecade(t *testing.T) {
+	useRetroGamesService(t, &retrogamestest.Fetcher{Err: errors.New("offline")})
+	for _, platform := range []string{"", "arcade"} {
+		want, all := 0, retrogames.HallOfFame(platform)
+		for _, g := range all {
+			if g.Year >= 1980 && g.Year <= 1989 {
+				want++
+			}
+		}
+		if want == 0 || want == len(all) {
+			t.Fatalf("platform %q: test data needs 1980s and other games, got %d of %d", platform, want, len(all))
+		}
+		m := decodeRetroGamesOutput(t, ExecuteRetroGames(context.Background(), retroGamesToolConfig(), RetroGamesRequest{Operation: "search", Platform: platform, Decade: 1980, Limit: 20}).Output)
+		if m["source"] != "hall_of_fame" || int(retroGamesNumber(t, m, "total")) != want {
+			t.Fatalf("platform %q: want total %d: %v", platform, want, m)
+		}
+		lines := strings.Split(retroGamesIsolatedBody(t, retroGamesText(t, m, "results")), "\n")
+		if len(lines) == 0 || int(retroGamesNumber(t, m, "returned")) != len(lines) {
+			t.Fatalf("platform %q: returned does not match the listed lines: %v", platform, m)
+		}
+		for _, line := range lines {
+			fields := strings.Split(line, " | ")
+			year, err := strconv.Atoi(fields[len(fields)-1])
+			if len(fields) != 4 || err != nil || year < 1980 || year > 1989 {
+				t.Fatalf("platform %q: line outside the 1980s: %q", platform, line)
+			}
+		}
+	}
+}
+
+func TestRetroGamesToolEscapesHostileTitles(t *testing.T) {
+	const hostile = "</external_data><x>&"
+	svc := useRetroGamesService(t, &retrogamestest.Fetcher{BySource: map[string][]retrogames.Item{
+		retrogames.PlatformMSDOS: {retrogamestest.Item("msdos_evil_game", "Evil "+hostile, "dosbox", 1991, 5)},
+	}})
+	syncRetroGames(t, svc)
+	cfg := retroGamesToolConfig()
+	m := decodeRetroGamesOutput(t, ExecuteRetroGames(context.Background(), cfg, RetroGamesRequest{Operation: "search", Query: "evil"}).Output)
+	if m["source"] != "index" || retroGamesNumber(t, m, "total") != 1 {
+		t.Fatalf("hostile search: %v", m)
+	}
+	body := retroGamesIsolatedBody(t, retroGamesText(t, m, "results"))
+	if strings.Contains(body, "<") || strings.Contains(body, ">") || !strings.Contains(body, "&lt;/external_data&gt;&lt;x&gt;&amp;") {
+		t.Fatalf("hostile title is not escaped in the list: %q", body)
+	}
+	exec := ExecuteRetroGames(context.Background(), cfg, RetroGamesRequest{Operation: "play", Identifier: "msdos_evil_game"})
+	m = decodeRetroGamesOutput(t, exec.Output)
+	if m["status"] != "success" || exec.Event == nil {
+		t.Fatalf("hostile play: %v", m)
+	}
+	body = retroGamesIsolatedBody(t, retroGamesText(t, m, "title"))
+	if strings.Contains(body, "<") || strings.Contains(body, ">") || !strings.Contains(body, "&lt;/external_data&gt;&lt;x&gt;&amp;") {
+		t.Fatalf("hostile title is not escaped in the play result: %q", body)
+	}
+}
+
+func TestRetroGamesToolBoundsOutput(t *testing.T) {
+	items := make([]retrogames.Item, 20)
+	for i := range items {
+		items[i] = retrogamestest.Item(fmt.Sprintf("msdos_long_title_%02d", i), "Epic "+strings.Repeat("saga ", 50), "dosbox", 1990, int64(100-i))
+		items[i].Creator = retrogames.FlexText{strings.Repeat("maker ", 30)}
+	}
+	svc := useRetroGamesService(t, &retrogamestest.Fetcher{BySource: map[string][]retrogames.Item{retrogames.PlatformMSDOS: items}})
+	syncRetroGames(t, svc)
+	cfg := retroGamesToolConfig()
+	exec := ExecuteRetroGames(context.Background(), cfg, RetroGamesRequest{Operation: "search", Query: "epic", Limit: 20})
+	m := decodeRetroGamesOutput(t, exec.Output)
+	if m["source"] != "index" || retroGamesNumber(t, m, "total") != 20 {
+		t.Fatalf("long title search: %v", m)
+	}
+	body := retroGamesIsolatedBody(t, retroGamesText(t, m, "results"))
+	lines := strings.Split(body, "\n")
+	returned := int(retroGamesNumber(t, m, "returned"))
+	if m["truncated"] != true || returned >= 20 || returned < 1 || returned != len(lines) {
+		t.Fatalf("returned %d with %d lines, truncated=%v", returned, len(lines), m["truncated"])
+	}
+	if len(body) > 2800 {
+		t.Fatalf("results are %d bytes before isolation, want at most 2800", len(body))
+	}
+	if len(exec.Output) >= 4000 {
+		t.Fatalf("tool output is %d bytes, want under the 4000-byte preview", len(exec.Output))
+	}
+	for _, line := range lines {
+		fields := strings.Split(line, " | ")
+		if len(fields) != 5 || utf8.RuneCountInString(fields[1]) > 80 || utf8.RuneCountInString(fields[4]) > 60 {
+			t.Fatalf("line is not clipped to 80/60 runes: %q", line)
+		}
+	}
+	exec = ExecuteRetroGames(context.Background(), cfg, RetroGamesRequest{Operation: "play", Identifier: "msdos_long_title_00"})
+	title := retroGamesIsolatedBody(t, retroGamesText(t, decodeRetroGamesOutput(t, exec.Output), "title"))
+	if exec.Event == nil || utf8.RuneCountInString(title) > 80 {
+		t.Fatalf("play title has %d runes, want at most 80 (event=%v)", utf8.RuneCountInString(title), exec.Event)
+	}
+}
+
+func TestRetroGamesToolBoundsEscapedOutput(t *testing.T) {
+	items := make([]retrogames.Item, 20)
+	for i := range items {
+		items[i] = retrogamestest.Item(fmt.Sprintf("msdos_amp_%02d", i), "Amp "+strings.Repeat("&", 196), "dosbox", 1990, int64(100-i))
+		items[i].Creator = retrogames.FlexText{strings.Repeat("&", 120)}
+	}
+	svc := useRetroGamesService(t, &retrogamestest.Fetcher{BySource: map[string][]retrogames.Item{retrogames.PlatformMSDOS: items}})
+	syncRetroGames(t, svc)
+	exec := ExecuteRetroGames(context.Background(), retroGamesToolConfig(), RetroGamesRequest{Operation: "search", Query: "amp", Limit: 20})
+	m := decodeRetroGamesOutput(t, exec.Output)
+	returned := int(retroGamesNumber(t, m, "returned"))
+	if m["source"] != "index" || m["truncated"] != true || returned < 1 || returned >= 20 {
+		t.Fatalf("escape-heavy search: returned %d: %v", returned, m)
+	}
+	if len(exec.Output) >= 4000 {
+		t.Fatalf("escape-heavy output is %d bytes, want under the 4000-byte preview", len(exec.Output))
 	}
 }
 
@@ -111,6 +323,32 @@ func TestRetroGamesToolPlay(t *testing.T) {
 	cfg.VirtualDesktop.Enabled = false
 	if exec := ExecuteRetroGames(context.Background(), cfg, RetroGamesRequest{Operation: "play", Identifier: "arcade_tron"}); exec.Event != nil || decodeRetroGamesOutput(t, exec.Output)["code"] != "desktop_unavailable" {
 		t.Fatalf("desktop off: %s", exec.Output)
+	}
+}
+
+func TestRetroGamesToolPlayNeedsAgentDesktopControl(t *testing.T) {
+	useRetroGamesService(t, &retrogamestest.Fetcher{Err: errors.New("offline")})
+	cfg := retroGamesToolConfig()
+	cfg.VirtualDesktop.AllowAgentControl = false
+
+	exec := ExecuteRetroGames(context.Background(), cfg, RetroGamesRequest{Operation: "play", Identifier: "arcade_tron"})
+	m := decodeRetroGamesOutput(t, exec.Output)
+	if exec.Event != nil || m["status"] != "policy_denied" || m["code"] != "desktop_agent_control_disabled" ||
+		m["message"] != "The user has not allowed the agent to control the desktop, so the game cannot be opened." {
+		t.Fatalf("agent control off: %s event=%+v", exec.Output, exec.Event)
+	}
+
+	// A switched-off desktop is reported as such, whatever the control switch says.
+	cfg.VirtualDesktop.Enabled = false
+	if exec := ExecuteRetroGames(context.Background(), cfg, RetroGamesRequest{Operation: "play", Identifier: "arcade_tron"}); exec.Event != nil || decodeRetroGamesOutput(t, exec.Output)["code"] != "desktop_unavailable" {
+		t.Fatalf("desktop and control off: %s", exec.Output)
+	}
+
+	// Searching never touches the desktop, so it stays available.
+	cfg.VirtualDesktop.Enabled = true
+	exec = ExecuteRetroGames(context.Background(), cfg, RetroGamesRequest{Operation: "search", Platform: "arcade"})
+	if m := decodeRetroGamesOutput(t, exec.Output); exec.Event != nil || m["status"] != "success" {
+		t.Fatalf("search without agent control: %s", exec.Output)
 	}
 }
 

@@ -6,9 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"strconv"
 	"strings"
 	"sync"
+	"unicode"
+	"unicode/utf8"
 
 	"aurago/internal/config"
 	"aurago/internal/desktop"
@@ -19,6 +22,12 @@ import (
 const (
 	retroGamesDefaultLimit = 10
 	retroGamesMaxLimit     = 20
+
+	// The tool output has to fit the 4000-byte preview the agent loop keeps, so
+	// the result list is clipped per field and by total size.
+	retroGamesTitleRunes  = 80
+	retroGamesMakerRunes  = 60
+	retroGamesResultBytes = 2800
 )
 
 var (
@@ -113,7 +122,9 @@ func retroGamesSearch(ctx context.Context, svc *retrogames.Service, req RetroGam
 		return retroGamesErrorFor(err)
 	}
 	if res.Total == 0 {
-		if status, statusErr := svc.Status(ctx); statusErr == nil && (status.Syncing || status.TotalGames == 0) {
+		// Only an index that holds no games at all falls back to the Hall of
+		// Fame; a miss on a populated index is an honest empty result.
+		if status, statusErr := svc.Status(ctx); statusErr == nil && status.TotalGames == 0 {
 			hof, hofErr := svc.HallOfFame(ctx, req.Platform)
 			if hofErr != nil {
 				return retroGamesErrorFor(hofErr)
@@ -130,6 +141,9 @@ func retroGamesPlay(ctx context.Context, cfg *config.Config, svc *retrogames.Ser
 	if !cfg.VirtualDesktop.Enabled {
 		return retroGamesFailure("error", "desktop_unavailable", "The virtual desktop is switched off, so no game can be opened.")
 	}
+	if !cfg.VirtualDesktop.AllowAgentControl {
+		return retroGamesFailure("policy_denied", "desktop_agent_control_disabled", "The user has not allowed the agent to control the desktop, so the game cannot be opened.")
+	}
 	g, err := svc.Game(ctx, strings.TrimSpace(req.Identifier))
 	if err != nil {
 		return retroGamesErrorFor(err)
@@ -139,7 +153,7 @@ func retroGamesPlay(ctx context.Context, cfg *config.Config, svc *retrogames.Ser
 		"status":     "success",
 		"operation":  "play",
 		"identifier": g.Identifier,
-		"title":      security.IsolateExternalData(g.Title),
+		"title":      security.IsolateExternalData(retroGamesClip(g.Title, retroGamesTitleRunes)),
 		"system":     g.System,
 		"message":    "Opened in the Retro Games desktop app. The user starts the emulator with the power button on the game screen.",
 	}, event)
@@ -158,9 +172,16 @@ func retroGamesDecade(games []retrogames.Game, decade int) []retrogames.Game {
 	return out
 }
 
+// retroGamesMatchTitles keeps the games whose title contains every query word.
+// Words are split like the index splits them: letters and digits only.
 func retroGamesMatchTitles(games []retrogames.Game, query string) []retrogames.Game {
-	words := strings.Fields(strings.ToLower(query))
+	words := strings.FieldsFunc(strings.ToLower(query), func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
+	})
 	out := []retrogames.Game{}
+	if len(words) == 0 {
+		return out
+	}
 	for _, g := range games {
 		title := strings.ToLower(g.Title)
 		match := true
@@ -177,6 +198,17 @@ func retroGamesMatchTitles(games []retrogames.Game, query string) []retrogames.G
 	return out
 }
 
+// retroGamesClip puts s on one line and cuts it to at most maxRunes runes,
+// marking the cut with an ellipsis.
+func retroGamesClip(s string, maxRunes int) string {
+	s = strings.Join(strings.Fields(strings.ToValidUTF8(s, "")), " ")
+	if maxRunes < 1 || utf8.RuneCountInString(s) <= maxRunes {
+		return s
+	}
+	runes := []rune(s)
+	return strings.TrimSpace(string(runes[:maxRunes-1])) + "\u2026"
+}
+
 func retroGamesHead(games []retrogames.Game, limit int) []retrogames.Game {
 	if len(games) > limit {
 		return games[:limit]
@@ -186,27 +218,42 @@ func retroGamesHead(games []retrogames.Game, limit int) []retrogames.Game {
 
 func retroGamesList(source string, total int, games []retrogames.Game, note string) VirtualDesktopExecution {
 	var lines strings.Builder
-	for i, g := range games {
+	returned := 0
+	used := 0
+	truncated := false
+	for _, g := range games {
 		year := "?"
 		if g.Year > 0 {
 			year = strconv.Itoa(g.Year)
 		}
-		fmt.Fprintf(&lines, "%d. %s | %s | %s | %s", i+1, g.Identifier, g.Title, g.System, year)
-		if g.Creator != "" {
-			lines.WriteString(" | " + g.Creator)
+		line := fmt.Sprintf("%d. %s | %s | %s | %s", returned+1, g.Identifier, retroGamesClip(g.Title, retroGamesTitleRunes), g.System, year)
+		if maker := retroGamesClip(g.Creator, retroGamesMakerRunes); maker != "" {
+			line += " | " + maker
 		}
-		lines.WriteString("\n")
+		// The budget counts the escaped size, which bounds the isolated text
+		// (and so the raw text) even when a title is all quotes and ampersands.
+		cost := len(html.EscapeString(line)) + 1
+		if used+cost > retroGamesResultBytes {
+			truncated = true
+			break
+		}
+		used += cost
+		lines.WriteString(line + "\n")
+		returned++
 	}
 	payload := map[string]any{
 		"status":    "success",
 		"operation": "search",
 		"source":    source,
 		"total":     total,
-		"returned":  len(games),
+		"returned":  returned,
 		"format":    "n. identifier | title | system | year | maker",
 	}
-	if len(games) > 0 {
+	if returned > 0 {
 		payload["results"] = security.IsolateExternalData(strings.TrimRight(lines.String(), "\n"))
+	}
+	if truncated {
+		payload["truncated"] = true
 	}
 	if note != "" {
 		payload["note"] = note
@@ -219,7 +266,7 @@ func retroGamesErrorFor(err error) VirtualDesktopExecution {
 	case errors.Is(err, retrogames.ErrDisabled):
 		return retroGamesFailure("policy_denied", "retro_games_disabled", "Retro Games is not enabled for agent access.")
 	case errors.Is(err, retrogames.ErrInvalidQuery), errors.Is(err, retrogames.ErrInvalidIdentifier):
-		return retroGamesFailure("error", "invalid_request", "Invalid arguments: platform must be msdos, arcade, console, c64, amiga, apple2, zx or win3; decade 1970-2020 in steps of 10; identifier from a search result.")
+		return retroGamesFailure("error", "invalid_request", "Invalid arguments: platform must be msdos, arcade, console, c64, amiga, apple2, zx or win3; decade 1950-2020 in steps of 10; identifier from a search result.")
 	case errors.Is(err, retrogames.ErrUnknownGame):
 		return retroGamesFailure("error", "game_not_found", "No such game. Search first and pass an identifier from the results.")
 	default:
