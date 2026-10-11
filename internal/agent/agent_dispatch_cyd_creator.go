@@ -290,6 +290,23 @@ func pageCYDText(content string, start, end, budget int) (cydFilePage, error) {
 	return page, nil
 }
 
+// cydPageNextAction tells the agent how to continue after a page ("" when the
+// page is complete); clippedNote follows the clipped-line sentence.
+func cydPageNextAction(page cydFilePage, clippedNote string) string {
+	more := ""
+	if page.EndLine < page.TotalLines {
+		more = fmt.Sprintf(" Read the next range with start_line=%d.", page.EndLine+1)
+	}
+	switch {
+	case page.Clipped:
+		return fmt.Sprintf("Line %d is longer than one page and was cut after %d of %d bytes; the rest of that line cannot be read%s.%s",
+			page.EndLine, page.ClippedBytes, page.LineBytes, clippedNote, more)
+	case more != "":
+		return fmt.Sprintf("Lines %d-%d of %d shown.%s", page.StartLine, page.EndLine, page.TotalLines, more)
+	}
+	return ""
+}
+
 // cydReadFileAnswer is the cyd_creator_read_file answer for one page; sha256
 // and total_bytes describe the complete file.
 func cydReadFileAnswer(file cydcreator.JobFile, page cydFilePage) map[string]any {
@@ -297,39 +314,48 @@ func cydReadFileAnswer(file cydcreator.JobFile, page cydFilePage) map[string]any
 		"start_line": page.StartLine, "end_line": page.EndLine, "total_lines": page.TotalLines,
 		"total_bytes": len(file.Content), "truncated": page.Truncated}
 	answer := map[string]any{"status": "ok", "file": f}
-	more := ""
-	if page.EndLine < page.TotalLines {
-		more = fmt.Sprintf(" Read the next range with start_line=%d.", page.EndLine+1)
-	}
-	switch {
-	case page.Clipped:
+	if page.Clipped {
 		f["clipped_line"] = map[string]any{"line": page.EndLine, "shown_bytes": page.ClippedBytes, "line_bytes": page.LineBytes}
-		answer["next_action"] = fmt.Sprintf("Line %d is longer than one page and was cut after %d of %d bytes; the rest of that line cannot be read, so never write this page back as the complete file (rewrite it with shorter lines).%s",
-			page.EndLine, page.ClippedBytes, page.LineBytes, more)
-	case more != "":
-		answer["next_action"] = fmt.Sprintf("Lines %d-%d of %d shown.%s", page.StartLine, page.EndLine, page.TotalLines, more)
+	}
+	if next := cydPageNextAction(page, ", so never write this page back as the complete file (rewrite it with shorter lines)"); next != "" {
+		answer["next_action"] = next
 	}
 	return answer
 }
 
-// cydReadFilePage pages file into budget: the envelope is measured with the
-// largest counters first, then the content gets the rest (at most
-// cydReadPageBytes). Flagged phrases add a security warning line that grows
-// with the page, so the measured answer shrinks the page until it fits.
-func cydReadFilePage(file cydcreator.JobFile, start, end, budget int) (map[string]any, error) {
+// cydReferenceAnswer is the cyd_creator_api_reference answer for one page of
+// a topic.
+func cydReferenceAnswer(topic string, page cydFilePage) map[string]any {
+	answer := map[string]any{"status": "ok", "topic": topic, "reference": page.Content, "start_line": page.StartLine,
+		"end_line": page.EndLine, "total_lines": page.TotalLines, "truncated": page.Truncated}
+	if page.Clipped {
+		answer["clipped_line"] = map[string]any{"line": page.EndLine, "shown_bytes": page.ClippedBytes, "line_bytes": page.LineBytes}
+	}
+	if next := cydPageNextAction(page, ""); next != "" {
+		answer["next_action"] = strings.Replace(next, "start_line=", "topic "+topic+" and start_line=", 1)
+	}
+	return answer
+}
+
+// cydPagedAnswer pages text into budget: the envelope (answer for an empty
+// page with the largest counters) is measured first, then the content gets
+// the rest (at most cydReadPageBytes). Flagged phrases add a security warning
+// line that grows with the page, so the measured answer shrinks the page
+// until it fits.
+func cydPagedAnswer(text string, start, end, budget int, answerFor func(cydFilePage) map[string]any) (map[string]any, error) {
 	big := cydFilePage{StartLine: cydMaxLineArg, EndLine: cydMaxLineArg - 1, TotalLines: cydMaxLineArg, Truncated: true,
 		Clipped: true, ClippedBytes: cydMaxLineArg, LineBytes: cydMaxLineArg}
-	envelope := cydModelBytes(cydCreatorToolJSON(cydReadFileAnswer(file, big)))
+	envelope := cydModelBytes(cydCreatorToolJSON(answerFor(big)))
 	contentBudget := min(cydReadPageBytes, budget-envelope)
 	if contentBudget < cydMinPageBytes {
 		return nil, cydOutputLimitError(envelope + cydMinPageBytes)
 	}
 	for {
-		page, err := pageCYDText(file.Content, start, end, contentBudget)
+		page, err := pageCYDText(text, start, end, contentBudget)
 		if err != nil {
 			return nil, err
 		}
-		answer := cydReadFileAnswer(file, page)
+		answer := answerFor(page)
 		over := cydModelBytes(cydCreatorToolJSON(answer)) - budget
 		if over <= 0 {
 			return answer, nil
@@ -341,6 +367,93 @@ func cydReadFilePage(file cydcreator.JobFile, start, end, budget int) (map[strin
 		// down by the overflow ratio (the envelope makes this conservative).
 		contentBudget = max(min(contentBudget-1, contentBudget*budget/(budget+over)), 1)
 	}
+}
+
+// cydReadFilePage pages one file for cyd_creator_read_file.
+func cydReadFilePage(file cydcreator.JobFile, start, end, budget int) (map[string]any, error) {
+	return cydPagedAnswer(file.Content, start, end, budget, func(page cydFilePage) map[string]any {
+		return cydReadFileAnswer(file, page)
+	})
+}
+
+// cydClipText shortens s to at most runes characters plus "…".
+func cydClipText(s string, runes int) string {
+	if r := []rune(s); len(r) > runes {
+		return string(r[:runes]) + "…"
+	}
+	return s
+}
+
+// cydLayoutUpdateAnswer is the cyd_creator_update_layout answer. The ops are
+// applied already, so it never turns into an error: when it does not fit the
+// budget the longer of results and issues is halved (*_total counts).
+func cydLayoutUpdateAnswer(update cydcreator.LayoutUpdate, budget int) map[string]any {
+	results, issues := update.Results, update.Issues
+	build := func() map[string]any {
+		answer := map[string]any{"status": "ok", "results": results, "issues": issues}
+		if len(results) < len(update.Results) || len(issues) < len(update.Issues) {
+			answer["results_total"], answer["issues_total"] = len(update.Results), len(update.Issues)
+			answer["next_action"] = "The ops were applied; lists ending early show their *_total. cyd_creator_read_project lists the issues."
+		}
+		return answer
+	}
+	answer := build()
+	for cydModelBytes(cydCreatorToolJSON(answer)) > budget && len(results)+len(issues) > 0 {
+		if len(issues) >= len(results) {
+			issues = issues[:len(issues)/2]
+		} else {
+			results = results[:len(results)/2]
+		}
+		answer = build()
+	}
+	return answer
+}
+
+// cydBuildAnswer is the cyd_creator_build answer. Diagnostics come in
+// OrderAgentDiagnostics order; when the answer does not fit the budget the
+// list is halved down to the entries it must keep (first error, library
+// notes), then the kept messages are shortened (*_total counts). The status
+// always stays.
+func cydBuildAnswer(res cydcreator.JobBuildResult, budget int) map[string]any {
+	status := "failed"
+	if res.Status == cydcreator.BuildSucceeded {
+		status = "ok"
+	}
+	ordered, keep := cydcreator.OrderAgentDiagnostics(res.Diagnostics)
+	total := max(res.DiagnosticsTotal, len(ordered)) // before the service's cap
+	n, messageRunes := len(ordered), 0               // 0 = full messages
+	build := func() map[string]any {
+		diags := slices.Clone(ordered[:n])
+		if messageRunes > 0 {
+			for i := range diags {
+				diags[i].Message = cydClipText(diags[i].Message, messageRunes)
+			}
+		}
+		answer := map[string]any{"status": status, "build_status": res.Status, "build_id": res.BuildID,
+			"error_code": res.ErrorCode, "diagnostics": diags, "usage": res.Usage, "next_action": res.NextAction}
+		if n < total || messageRunes > 0 {
+			answer["diagnostics_total"] = total
+			if messageRunes > 0 {
+				answer["messages_clipped"] = true
+			}
+		}
+		return answer
+	}
+	answer := build()
+	for cydModelBytes(cydCreatorToolJSON(answer)) > budget {
+		switch {
+		case n > keep:
+			n = max(keep, n/2)
+		case messageRunes == 0:
+			messageRunes = 256
+		case messageRunes > 32:
+			messageRunes /= 4
+		default:
+			return answer // the agent's bound keeps the status
+		}
+		answer = build()
+	}
+	return answer
 }
 
 // cydLayoutSummary lists the screens of a layout that is too large to show.
@@ -496,11 +609,25 @@ func dispatchCYDCreator(ctx context.Context, tc ToolCall, dc *DispatchContext) (
 		if topic == "" {
 			topic = "overview"
 		}
+		start, err := cydLineArg(tc.Params, "start_line")
+		if err != nil {
+			return toolError(err), true
+		}
+		end, err := cydLineArg(tc.Params, "end_line")
+		if err != nil {
+			return toolError(err), true
+		}
 		text, err := service.APIReference(ctx, jobID, topic)
 		if err != nil {
 			return toolError(err), true
 		}
-		return cydCreatorToolJSON(map[string]any{"status": "ok", "topic": topic, "reference": text}), true
+		answer, err := cydPagedAnswer(text, start, end, cydCreatorOutputBudget(dc), func(page cydFilePage) map[string]any {
+			return cydReferenceAnswer(topic, page)
+		})
+		if err != nil {
+			return toolError(err), true
+		}
+		return cydCreatorToolJSON(answer), true
 	case cydcreator.ToolSubmitPlan:
 		raw, ok := tc.Params["plan"]
 		if !ok || raw == nil {
@@ -531,13 +658,14 @@ func dispatchCYDCreator(ctx context.Context, tc ToolCall, dc *DispatchContext) (
 	case cydcreator.ToolUpdateLayout:
 		ops, err := decodeCYDLayoutOps(tc.Params["ops"])
 		if err != nil {
-			return cydCreatorToolJSON(map[string]any{"status": "error", "code": cydcreator.CodeBadRequest, "message": err.Error()}), true
+			// Decoder errors can echo model-written field names: clip them.
+			return cydCreatorToolJSON(map[string]any{"status": "error", "code": cydcreator.CodeBadRequest, "message": cydClipText(err.Error(), 300)}), true
 		}
 		update, err := service.UpdateLayoutForJob(ctx, jobID, ops)
 		if err != nil {
 			return toolError(err), true
 		}
-		return cydCreatorToolJSON(map[string]any{"status": "ok", "results": update.Results, "issues": update.Issues}), true
+		return cydCreatorToolJSON(cydLayoutUpdateAnswer(update, cydCreatorOutputBudget(dc))), true
 	case cydcreator.ToolReadFile:
 		start, err := cydLineArg(tc.Params, "start_line")
 		if err != nil {
@@ -578,12 +706,7 @@ func dispatchCYDCreator(ctx context.Context, tc ToolCall, dc *DispatchContext) (
 		if err != nil {
 			return toolError(err), true
 		}
-		status := "failed"
-		if res.Status == cydcreator.BuildSucceeded {
-			status = "ok"
-		}
-		return cydCreatorToolJSON(map[string]any{"status": status, "build_status": res.Status, "build_id": res.BuildID,
-			"error_code": res.ErrorCode, "diagnostics": res.Diagnostics, "usage": res.Usage, "next_action": res.NextAction}), true
+		return cydCreatorToolJSON(cydBuildAnswer(res, cydCreatorOutputBudget(dc))), true
 	case cydcreator.ToolFinish:
 		summary, _ := tc.Params["summary"].(string)
 		if err := service.FinishJob(ctx, jobID, summary); err != nil {

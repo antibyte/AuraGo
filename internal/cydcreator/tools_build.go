@@ -18,8 +18,10 @@ type JobBuildResult struct {
 	Status      string       `json:"status"`
 	ErrorCode   string       `json:"error_code"`
 	Diagnostics []Diagnostic `json:"diagnostics"`
-	Usage       BuildUsage   `json:"usage"`
-	NextAction  string       `json:"next_action"`
+	// DiagnosticsTotal counts the findings before the 50-entry cap.
+	DiagnosticsTotal int        `json:"diagnostics_total"`
+	Usage            BuildUsage `json:"usage"`
+	NextAction       string     `json:"next_action"`
 }
 
 // BuildForJob builds the working copy (an agent build in the shared queue)
@@ -34,11 +36,14 @@ func (s *Service) BuildForJob(ctx context.Context, jobID string) (JobBuildResult
 	if err != nil {
 		return JobBuildResult{}, err
 	}
-	diags := agentDiagnostics(b.Diagnostics)
-	if len(diags) > maxToolDiagnostics {
-		diags = diags[:maxToolDiagnostics]
+	// Ordered before the cap, so the first error and the library notes stay.
+	diags, keep := OrderAgentDiagnostics(agentDiagnostics(b.Diagnostics))
+	total := len(diags)
+	if len(diags) > max(maxToolDiagnostics, keep) {
+		diags = diags[:max(maxToolDiagnostics, keep)]
 	}
-	out := JobBuildResult{BuildID: b.ID, Status: b.Status, ErrorCode: b.ErrorCode, Diagnostics: diags, Usage: b.Usage}
+	out := JobBuildResult{BuildID: b.ID, Status: b.Status, ErrorCode: b.ErrorCode, Diagnostics: diags,
+		DiagnosticsTotal: total, Usage: b.Usage}
 	switch {
 	case b.Status == BuildSucceeded:
 		out.NextAction = "The build succeeded. Call cyd_creator_finish with a short summary for the user now."
@@ -48,6 +53,54 @@ func (s *Service) BuildForJob(ctx context.Context, jobID string) (JobBuildResult
 		out.NextAction = "This failure is not caused by the app code; call cyd_creator_finish and describe what you completed."
 	}
 	return out, nil
+}
+
+// libraryHint reports cyd-build's note that names a curated library to enable
+// for a missing header ("... enable <id> in the project settings (update_layout
+// op set_settings, "libraries") ...").
+func libraryHint(d Diagnostic) bool {
+	return d.Severity == SeverityNote && strings.Contains(d.Message, "op set_settings")
+}
+
+// OrderAgentDiagnostics orders build findings for a bounded agent answer: the
+// first error, the library notes, the other errors, warnings, other notes
+// (each group in build order). keep counts the leading entries (first error
+// and library notes) a shortened list must never drop. Ordering an ordered
+// list changes nothing.
+func OrderAgentDiagnostics(diags []Diagnostic) (ordered []Diagnostic, keep int) {
+	first := -1
+	for i, d := range diags {
+		if d.Severity == SeverityError {
+			first = i
+			break
+		}
+	}
+	ordered = make([]Diagnostic, 0, len(diags))
+	if first >= 0 {
+		ordered = append(ordered, diags[first])
+	}
+	groups := []func(Diagnostic) bool{
+		libraryHint,
+		func(d Diagnostic) bool { return d.Severity == SeverityError },
+		func(d Diagnostic) bool { return d.Severity == SeverityWarning },
+		func(Diagnostic) bool { return true },
+	}
+	placed := make([]bool, len(diags))
+	if first >= 0 {
+		placed[first] = true
+	}
+	for g, in := range groups {
+		for i, d := range diags {
+			if !placed[i] && in(d) {
+				placed[i] = true
+				ordered = append(ordered, d)
+			}
+		}
+		if g == 0 {
+			keep = len(ordered)
+		}
+	}
+	return ordered, keep
 }
 
 // SubmitPlan validates and accepts the planning result; the round ends after

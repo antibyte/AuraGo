@@ -123,7 +123,7 @@ Rules:
 - Only the curated libraries (topic libraries); enable one with update_layout op set_settings.
 - Widget names (needed for a ui_<name> handle; a widget with events must have one): ^[a-z][a-z0-9_]{0,31}$, unique in the project; reserved are %s, the prefixes %s, the suffix %s and img_<asset id>. A message box needs at least one button (an op that empties its buttons is refused).
 - Implement every logic hook listed in topic widgets; an unimplemented hook only logs a warning once.
-Topics: cyd (template API and runtime notes), lvgl (LVGL 9 usage), widgets (generated names of this project), libraries, board.`,
+Topics: cyd (template API and runtime notes), lvgl (LVGL 9 usage), widgets (generated names of this project), libraries, board. A long topic comes in pages of whole lines like cyd_creator_read_file: continue with start_line.`,
 		p.Name, info.Label, info.Chip, info.ScreenW, info.ScreenH, p.Orientation, p.Theme, p.Settings.WiFi,
 		p.Settings.AuraGoLink, wifi, flash, AssetBudget(b.FlashMB), ram, strings.Join(reservedNames, ", "),
 		strings.Join(reservedNamePrefixes, ", "), strings.Join(reservedNameSuffixes, ", "))

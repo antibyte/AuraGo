@@ -98,18 +98,23 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   `cyd_creator_build` answers `status` `ok` or `failed` plus `build_status`;
   write_file needs a string `content` (a missing one never becomes an empty
   file); submit_plan takes an object or a JSON string and answers counts only.
-  A read_project or read_file answer must reach the model whole within
-  `toolResultInlineBudget` minus 64 bytes, measured in its largest form
-  (`cydModelBytes`: the escaped `IsolateExternalData` body plus the longer
-  `security.ToolOutputWarning` line); the other tools' answers are not
-  measured yet. read_file pages whole lines (`start_line`/`end_line`, at most 32 KiB
-  of content, a single longer line is cut with `clipped_line` and a warning
-  `next_action`) and also reads `cyd.project.json` and generated files;
-  read_project replaces an oversized layout with `layout_summary`, then halves
-  the longest lists (`*_total`) and finally the plan summary. A budget below
-  about 1 KB is `CYD_FILE_LIMIT` (`details.limit` `tool_output_limit`,
-  `details.min`). Verify `TestCYDCreator*`, `TestDispatchCYDCreator*`,
-  `TestPageCYDText` and `TestCYDLineArg`.
+  A read_project, read_file, api_reference, update_layout or build answer must
+  reach the model whole within `toolResultInlineBudget` minus 64 bytes,
+  measured in its largest form (`cydModelBytes`: the escaped
+  `IsolateExternalData` body plus the longer `security.ToolOutputWarning`
+  line). read_file and api_reference page whole lines (`start_line`/`end_line`,
+  at most 32 KiB of content, a single longer line is cut with `clipped_line`
+  and a warning `next_action`); read_file also reads `cyd.project.json` and
+  generated files. read_project replaces an oversized layout with
+  `layout_summary`, then halves the longest lists (`*_total`) and finally the
+  plan summary. update_layout (ops already applied, always `ok`) halves the
+  longer of results and issues (`results_total`, `issues_total`). build keeps
+  `OrderAgentDiagnostics` order (first error, library notes, other errors,
+  warnings, notes), halves the list down to the first error and library notes,
+  then shortens messages (`diagnostics_total`, `messages_clipped`). A budget
+  below about 1 KB is `CYD_FILE_LIMIT` for the paged tools (`details.limit`
+  `tool_output_limit`, `details.min`). Verify `TestCYDCreator*`,
+  `TestDispatchCYDCreator*`, `TestPageCYDText` and `TestCYDLineArg`.
 
 - Strict schemas are a separate immutable snapshot projection: every object is
   closed, all properties are required, and originally optional values accept

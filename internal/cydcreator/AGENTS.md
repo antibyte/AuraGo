@@ -643,7 +643,9 @@ publication, revisions, the job chat and the agent tool implementations. Plan 5 
   unconditional `WriteFile` and refuses a case-insensitive clash with another file or folder (`CYD_FILE_CONFLICT`)
   before the existence check; `DeleteJobFile` removes regular files only and the folders it empties.
 - `BuildForJob` builds the working copy as an agent build and returns at most 50 diagnostics without generated ones
-  plus a `next_action`; `SubmitPlan` stores the parsed plan; `FinishJob` takes a 1..2000-rune summary for the chat.
+  in `OrderAgentDiagnostics` order (first error, cyd-build's library notes, other errors, warnings, notes; the cap
+  never drops the first error or a library note), `diagnostics_total` and a `next_action`; `SubmitPlan` stores the
+  parsed plan; `FinishJob` takes a 1..2000-rune summary for the chat.
 - `APIReference` topics (`ReferenceTopics`): overview, cyd (`cyd.h` verbatim from `TemplateFS()` plus runtime notes:
   no certificate checks, LittleFS not mounted, HTTP worker limits), lvgl (LVGL 9 names, C++11 without RTTI), widgets
   (the project's generated symbols), libraries, board. `TestAPIReferenceMatchesTheTemplate` pins its facts to the

@@ -24,10 +24,12 @@ import (
 	"aurago/internal/security"
 )
 
-// cydAgentBuilder is a Builder whose builds succeed unless failNext is set.
+// cydAgentBuilder is a Builder whose builds succeed unless failNext is set
+// (failLog replaces the default compiler log of a failed build).
 type cydAgentBuilder struct {
 	mu       sync.Mutex
 	failNext bool
+	failLog  string
 }
 
 func (b *cydAgentBuilder) Status(context.Context) cydcreator.ToolchainStatus {
@@ -39,12 +41,15 @@ func (b *cydAgentBuilder) Addr2Line(context.Context, cydcreator.Addr2LineRequest
 }
 func (b *cydAgentBuilder) Build(_ context.Context, req cydcreator.BuildRequest, _ func(string)) (cydcreator.BuildOutput, error) {
 	b.mu.Lock()
-	fail := b.failNext
+	fail, failLog := b.failNext, b.failLog
 	b.failNext = false
 	b.mu.Unlock()
 	if fail {
-		return cydcreator.BuildOutput{ExitCode: cydcreator.BuildExitCompileError,
-			Log: "/work/" + req.BuildID + "/src/app/app_main.cpp:2:1: error: expected ';' before '}' token\n"}, nil
+		log := "/work/" + req.BuildID + "/src/app/app_main.cpp:2:1: error: expected ';' before '}' token\n"
+		if failLog != "" {
+			log = strings.ReplaceAll(failLog, "{{work}}", "/work/"+req.BuildID)
+		}
+		return cydcreator.BuildOutput{ExitCode: cydcreator.BuildExitCompileError, Log: log}, nil
 	}
 	return cydcreator.BuildOutput{ExitCode: 0, Result: cydcreator.BuildResultFile{OK: true, Env: req.Env},
 		Files: map[string][]byte{"merged.bin": []byte("m"), "firmware.bin": []byte("f"), "firmware.elf": []byte("e")}}, nil
@@ -411,6 +416,143 @@ func TestDispatchCYDCreatorFitsTheDefaultVaultLimit(t *testing.T) {
 	done := waitCYDJob(t, svc, job.ID, cydcreator.JobSucceeded, cydcreator.JobFailed)
 	if len(failures) > 0 || done.Status != cydcreator.JobSucceeded {
 		t.Fatalf("job = %+v\n%s", done, strings.Join(failures, "\n"))
+	}
+}
+
+// cydReadTopic pages one reference topic and returns its text; every page
+// starts right after the previous one.
+func cydReadTopic(t *testing.T, ctx context.Context, dc *DispatchContext, topic string) (string, int) {
+	t.Helper()
+	var text strings.Builder
+	for start, pages := 1, 1; ; pages++ {
+		_, body := cydCall(t, ctx, dc, cydcreator.ToolAPIReference, map[string]any{"topic": topic, "start_line": start})
+		if body["status"] != "ok" || pages > 200 {
+			t.Fatalf("%s from %d = %v", topic, start, body)
+		}
+		text.WriteString(body["reference"].(string))
+		end, total := int(body["end_line"].(float64)), int(body["total_lines"].(float64))
+		if total > 0 && int(body["start_line"].(float64)) != start {
+			t.Fatalf("%s page starts at %v, asked %d", topic, body["start_line"], start)
+		}
+		if end >= total {
+			return text.String(), pages
+		}
+		if !strings.Contains(body["next_action"].(string), fmt.Sprintf("start_line=%d", end+1)) {
+			t.Fatalf("%s next_action = %v", topic, body["next_action"])
+		}
+		start = end + 1
+	}
+}
+
+// cydBigBuildLog has 60 long errors, 20 warnings and, last, a missing curated
+// header with cyd-build's library note.
+func cydBigBuildLog() string {
+	var b strings.Builder
+	for i := 1; i <= 60; i++ {
+		fmt.Fprintf(&b, "{{work}}/src/app/app_main.cpp:%d:5: error: no matching function for call to 'cyd::http::get_json_async(<b>&amp;</b>, %s)'\n", i, strings.Repeat("std::function<void(int, const char*)>&, ", 6))
+	}
+	for i := 1; i <= 20; i++ {
+		fmt.Fprintf(&b, "{{work}}/src/app/net.cpp:%d:3: warning: unused variable 'tmp%d' [-Wunused-variable]\n", i, i)
+	}
+	b.WriteString("{{work}}/src/app/sensor.cpp:1:10: fatal error: DHT.h: No such file or directory\n")
+	b.WriteString(`{{work}}/src/app/sensor.cpp:1:10: note: DHT.h is in the curated library dht, which this project does not enable: enable dht in the project settings (update_layout op set_settings, "libraries"); builds cannot install libraries` + "\n")
+	return b.String()
+}
+
+// Every answer of read tools, layout ops and builds fits the inline budget at
+// the 6000-byte default and at a small custom limit; reference topics page
+// back exactly, a big build keeps its first error and the library note.
+func TestDispatchCYDCreatorAnswersFitTheBudget(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		dc   func() *DispatchContext
+	}{
+		{"vault_default_6000", cydVaultDispatchContext},
+		{"custom_1800", func() *DispatchContext {
+			dc := cydDispatchContext()
+			dc.Cfg.Agent.ToolOutputLimit = 1800
+			return dc
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, builder, p := newCYDAgentService(t)
+			dc := tc.dc()
+			builder.mu.Lock()
+			builder.failLog = cydBigBuildLog()
+			builder.mu.Unlock()
+			failures := []string{}
+			fail := func(format string, args ...any) { failures = append(failures, fmt.Sprintf(format, args...)) }
+			svc.SetRunner(cydAgentRunner{fn: func(ctx context.Context, run cydcreator.JobRun) error {
+				for _, topic := range cydcreator.ReferenceTopics {
+					want, err := svc.APIReference(ctx, run.Job.ID, topic)
+					if err != nil {
+						fail("%s: %v", topic, err)
+						continue
+					}
+					got, pages := cydReadTopic(t, ctx, dc, topic)
+					if got != want {
+						fail("%s paged back with %d of %d bytes", topic, len(got), len(want))
+					}
+					if topic == "cyd" && pages < 2 {
+						fail("cyd came in %d page(s)", pages)
+					}
+				}
+				var ops []any
+				for i := 0; i < 60; i++ {
+					ops = append(ops, map[string]any{"op": "add_widget", "screen": "home", "widget": map[string]any{"type": "label",
+						"name": fmt.Sprintf("lbl_edge_%02d", i), "x": 300, "y": i * 3, "props": map[string]any{"text": "Partly outside"}}})
+				}
+				_, body := cydCall(t, ctx, dc, cydcreator.ToolUpdateLayout, map[string]any{"ops": ops})
+				if body["status"] != "ok" || body["issues_total"] == nil || body["issues_total"].(float64) < 60 || body["results_total"] != 60.0 {
+					fail("big update_layout = %v", body)
+				}
+				builder.mu.Lock()
+				builder.failNext = true
+				builder.mu.Unlock()
+				_, body = cydCall(t, ctx, dc, cydcreator.ToolBuild, nil)
+				diags, _ := body["diagnostics"].([]any)
+				if body["status"] != "failed" || len(diags) < 2 || len(diags) >= 82 || body["diagnostics_total"] != 82.0 {
+					fail("big failed build = %v", body)
+				} else {
+					first, second := diags[0].(map[string]any), diags[1].(map[string]any)
+					if first["severity"] != "error" || first["file"] != "src/app/app_main.cpp" || first["line"] != 1.0 ||
+						second["severity"] != "note" || !strings.Contains(second["message"].(string), "enable dht") {
+						fail("kept diagnostics = %v / %v", first, second)
+					}
+				}
+				if _, body := cydCall(t, ctx, dc, cydcreator.ToolBuild, nil); body["status"] != "ok" {
+					fail("build = %v", body)
+				}
+				cydCall(t, ctx, dc, cydcreator.ToolFinish, map[string]any{"summary": "Fits."})
+				return nil
+			}})
+			job, err := svc.StartJob(context.Background(), p.ID, cydcreator.StartJobInput{Mode: cydcreator.JobModeChange, Prompt: "Fit"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			done := waitCYDJob(t, svc, job.ID, cydcreator.JobSucceeded, cydcreator.JobFailed)
+			if len(failures) > 0 || done.Status != cydcreator.JobSucceeded {
+				t.Fatalf("job = %+v\n%s", done, strings.Join(failures, "\n"))
+			}
+		})
+	}
+}
+
+func TestOrderAgentDiagnosticsKeepsFirstErrorAndLibraryNotes(t *testing.T) {
+	d := func(sev, msg string) cydcreator.Diagnostic { return cydcreator.Diagnostic{Severity: sev, Message: msg} }
+	in := []cydcreator.Diagnostic{d("warning", "w1"), d("note", "n1"), d("error", "e1"), d("error", "e2"),
+		d("note", `enable dht in the project settings (update_layout op set_settings, "libraries")`), d("warning", "w2")}
+	ordered, keep := cydcreator.OrderAgentDiagnostics(in)
+	var got []string
+	for _, x := range ordered {
+		got = append(got, x.Message[:2])
+	}
+	if strings.Join(got, ",") != "e1,en,e2,w1,w2,n1" || keep != 2 {
+		t.Fatalf("order = %v, keep %d", got, keep)
+	}
+	again, keepAgain := cydcreator.OrderAgentDiagnostics(ordered)
+	if !slices.Equal(again, ordered) || keepAgain != keep {
+		t.Fatalf("ordering is not stable: %v", again)
 	}
 }
 

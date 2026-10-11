@@ -104,9 +104,11 @@ func cydCreatorToolSchemas() []openai.Tool {
 			"Read the job's working copy: layout JSON with validation issues, the src/app file list, board capabilities, the accepted plan and what the user changed since the last job. A layout too large for one result is left out (truncated, layout_summary): then page cyd.project.json with cyd_creator_read_file.",
 			schema(map[string]interface{}{})),
 		tool(cydcreator.ToolAPIReference,
-			"Read reference text: overview (rules and budgets), cyd (template API cyd.h and runtime notes), lvgl (LVGL 9 usage), widgets (generated handles, hooks, screens, series and fonts of this project), libraries (allowed libraries), board (features and budgets).",
+			"Read reference text: overview (rules and budgets), cyd (template API cyd.h and runtime notes), lvgl (LVGL 9 usage), widgets (generated handles, hooks, screens, series and fonts of this project), libraries (allowed libraries), board (features and budgets). A long topic comes in pages of whole lines (start_line, end_line, total_lines, truncated); read the rest with start_line.",
 			schema(map[string]interface{}{
-				"topic": map[string]interface{}{"type": "string", "enum": cydcreator.ReferenceTopics},
+				"topic":      map[string]interface{}{"type": "string", "enum": cydcreator.ReferenceTopics},
+				"start_line": prop("integer", "First line, 1-based; default 1"),
+				"end_line":   prop("integer", "Last line, inclusive; default: as many lines as fit one page"),
 			}, "topic")),
 		tool(cydcreator.ToolSubmitPlan,
 			"Submit the app plan for the user's confirmation. An accepted plan ends planning; build nothing now.",
