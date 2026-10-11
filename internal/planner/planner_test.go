@@ -237,6 +237,34 @@ func TestValidTodoPriority(t *testing.T) {
 	}
 }
 
+func TestCreateAppointmentsRollsBackTheWholeSeries(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	ids, err := CreateAppointments(db, []Appointment{
+		{Title: "Standup", DateTime: "2026-10-12T07:00:00Z", NotificationAt: "2026-10-12T06:45:00Z"},
+		{Title: "Standup", DateTime: "not-a-date"},
+	})
+	if err == nil || ids != nil {
+		t.Fatalf("CreateAppointments partial = %v, %v; want error and no ids", ids, err)
+	}
+	list, err := ListAppointments(db, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 0 {
+		t.Fatalf("rows after rollback = %d, want 0", len(list))
+	}
+
+	ids, err = CreateAppointments(db, []Appointment{
+		{Title: "Standup", DateTime: "2026-10-12T07:00:00Z"},
+		{Title: "Standup", DateTime: "2026-10-13T07:00:00Z"},
+	})
+	if err != nil || len(ids) != 2 || ids[0] == ids[1] {
+		t.Fatalf("CreateAppointments = %v, %v; want two distinct ids", ids, err)
+	}
+}
+
 func TestCreateAppointment(t *testing.T) {
 	db := testDB(t)
 	defer db.Close()

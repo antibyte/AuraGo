@@ -1266,26 +1266,36 @@ buttons and menu popovers remain excluded from those gestures.
 - Calendar contracts: views are `day`, `week`, `month`, `agenda`; view,
   sidebar and completed/cancelled filters persist in localStorage
   `aurago.desktop.calendar.prefs`. Rendering is incremental per session (no
-  full shell re-render); loading uses skeletons, failures use
-  `desktop.load_failed` plus a retry button. Reschedule (drag/drop, 15-minute
-  snap in time columns, time kept on month cells), status changes and deletes
-  are optimistic with rollback and an inline `[data-cal-snackbar]` undo; they
-  never call `showDesktopNotification`. Overdue is server-derived: moving an
-  overdue appointment into the future sends `status: 'upcoming'`. Reminder
-  presets map to `notification_at`; enabling "wake the agent" forces a reminder.
-  Single-click on a day/slot opens the editor; clicking an event opens the peek
-  popover inside `.vd-calendar-shell`. Keyboard: `T`/`Home` today, `N` new,
-  `D`/`W`/`M`/`A` views, `/` search, arrows/PageUp/PageDown navigate, arrows on
-  month cells move the roving selection, `Esc` clears search. Searching
-  switches to the agenda view and restores the previous view when cleared.
-  All shell clicks go through one delegated handler in `wireCalendarShell`
-  that matches `data-cal-*` selectors with `closest`, so the shell element
-  itself must never carry one of those attributes: the active view is exposed
-  as `data-cal-mode` and `data-cal-view` belongs to the toolbar tabs only. The
-  editor is appended to `document.body` as a modal; a document-level
-  capture `keydown` closes it on `Escape` regardless of focus and is removed
-  in `closeCalendarEditor`. The stylesheet keeps `[hidden]` authoritative
-  inside `.vd-calendar-shell`, `.vd-calendar-editor` and `.vd-calendar-peek`
+  full shell re-render); loading uses skeletons. A newer list request wins,
+  and an older response does not paint. While the document is visible, the
+  open calendar reloads at the same 60-second cadence as the current-time
+  line. The first load error shows `desktop.load_failed` and a retry button
+  only. Reschedule (drag/drop, 15-minute snap in time columns, time kept on
+  month cells), status changes and deletes are optimistic with rollback and
+  an inline `[data-cal-snackbar]` undo; they never call
+  `showDesktopNotification`. Delete commits when the undo snack ends, and
+  undo keeps the same appointment id. Overdue is server-derived: moving an
+  overdue appointment into the future sends `status: 'upcoming'`. The agenda
+  keeps overdue days that are before today. Reminder presets map to
+  `notification_at`; enabling "wake the agent" forces a reminder. Repeat
+  create sends one `appointments` array. The server inserts 1 to 30 rows in
+  one transaction. A single object POST is unchanged. A read-only desktop
+  disables create, drag, status and delete, and shows `desktop.cal_readonly`.
+  Single-click on a day/slot opens the editor; clicking an event opens the
+  peek popover inside `.vd-calendar-shell`. Keyboard: `T`/`Home` today,
+  `N` new, `D`/`W`/`M`/`A` views, `/` search, arrows/PageUp/PageDown
+  navigate, arrows on month cells move the roving selection, `Esc` clears
+  search. Searching switches to the agenda view and restores the previous
+  view when cleared. All shell clicks go through one delegated handler in
+  `wireCalendarShell` that matches `data-cal-*` selectors with `closest`, so
+  the shell element itself must never carry one of those attributes: the
+  active view is exposed as `data-cal-mode` and `data-cal-view` belongs to
+  the toolbar tabs only. The editor is appended to `document.body` as a
+  modal; a document-level capture `keydown` closes it on `Escape` regardless
+  of focus and is removed in `closeCalendarEditor`. Closing a window
+  disposes only that session's editor. The clock popup matches the local
+  calendar day. The stylesheet keeps `[hidden]` authoritative inside
+  `.vd-calendar-shell`, `.vd-calendar-editor` and `.vd-calendar-peek`
   because several fields use flex/grid classes. Verify with
   `go test ./ui -run TestDesktopCalendar` (the browser flow needs
   `AURAGO_RUN_BROWSER_SMOKE=1`).

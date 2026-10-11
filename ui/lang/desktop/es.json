@@ -471,6 +471,7 @@
   "desktop.cal_description": "Descripción",
   "desktop.cal_description_placeholder": "Notas, lugar, enlaces…",
   "desktop.cal_drag_hint": "Arrastra citas para reprogramar",
+  "desktop.cal_readonly": "El escritorio es de solo lectura. Las citas siguen visibles y los cambios están desactivados.",
   "desktop.cal_edit_appointment": "Editar cita",
   "desktop.cal_empty_agenda": "No hay citas próximas",
   "desktop.cal_empty_hint": "Haz clic en un día o pulsa N para añadir una cita.",

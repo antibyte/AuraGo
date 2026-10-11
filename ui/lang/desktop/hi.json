@@ -471,6 +471,7 @@
   "desktop.cal_description": "विवरण",
   "desktop.cal_description_placeholder": "नोट्स, स्थान, लिंक…",
   "desktop.cal_drag_hint": "समय बदलने के लिए अपॉइंटमेंट खींचें",
+  "desktop.cal_readonly": "डेस्कटॉप केवल पढ़ने के लिए है। मुलाकातें दिखाई देती रहती हैं, बदलाव बंद हैं।",
   "desktop.cal_edit_appointment": "अपॉइंटमेंट संपादित करें",
   "desktop.cal_empty_agenda": "कोई आगामी अपॉइंटमेंट नहीं",
   "desktop.cal_empty_hint": "अपॉइंटमेंट जोड़ने के लिए किसी दिन पर क्लिक करें या N दबाएँ।",

@@ -98,6 +98,39 @@ func TestDesktopCalendarModernizationStyles(t *testing.T) {
 	}
 }
 
+func TestDesktopCalendarReadonlyCopy(t *testing.T) {
+	t.Parallel()
+
+	const english = "The desktop is read-only. Appointments stay visible, and changes stay off."
+	source := readDesktopAssetText(t, "js/desktop/apps/calendar.js")
+	for _, marker := range []string{"desktopReadonly()", "aurago:desktop-policy"} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("calendar.js missing %q", marker)
+		}
+	}
+	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		path := filepath.Join("lang", "desktop", lang+".json")
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var values map[string]string
+		if err := json.Unmarshal(data, &values); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		got := strings.TrimSpace(values["desktop.cal_readonly"])
+		if got == "" {
+			t.Fatalf("%s missing desktop.cal_readonly", path)
+		}
+		if lang == "en" && got != english {
+			t.Fatalf("en desktop.cal_readonly = %q", got)
+		}
+		if lang != "en" && got == english {
+			t.Fatalf("%s copied the English readonly string", path)
+		}
+	}
+}
+
 func TestDesktopCalendarModernizationTranslations(t *testing.T) {
 	t.Parallel()
 

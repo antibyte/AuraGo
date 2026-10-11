@@ -471,6 +471,7 @@
   "desktop.cal_description": "Beskrivelse",
   "desktop.cal_description_placeholder": "Notater, sted, lenker…",
   "desktop.cal_drag_hint": "Dra avtaler for å flytte dem",
+  "desktop.cal_readonly": "Skrivebordet er skrivebeskyttet. Avtaler blir synlige, endringer er av.",
   "desktop.cal_edit_appointment": "Rediger avtale",
   "desktop.cal_empty_agenda": "Ingen kommende avtaler",
   "desktop.cal_empty_hint": "Klikk på en dag eller trykk N for å legge til en avtale.",

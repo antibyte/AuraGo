@@ -471,6 +471,7 @@
   "desktop.cal_description": "Beschrijving",
   "desktop.cal_description_placeholder": "Notities, locatie, links…",
   "desktop.cal_drag_hint": "Sleep afspraken om te verplaatsen",
+  "desktop.cal_readonly": "Het bureaublad is alleen-lezen. Afspraken blijven zichtbaar, wijzigingen staan uit.",
   "desktop.cal_edit_appointment": "Afspraak bewerken",
   "desktop.cal_empty_agenda": "Geen aankomende afspraken",
   "desktop.cal_empty_hint": "Klik op een dag of druk op N om een afspraak toe te voegen.",

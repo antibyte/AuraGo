@@ -471,6 +471,7 @@
   "desktop.cal_description": "Description",
   "desktop.cal_description_placeholder": "Notes, location, links…",
   "desktop.cal_drag_hint": "Drag appointments to reschedule",
+  "desktop.cal_readonly": "The desktop is read-only. Appointments stay visible, and changes stay off.",
   "desktop.cal_edit_appointment": "Edit appointment",
   "desktop.cal_empty_agenda": "No upcoming appointments",
   "desktop.cal_empty_hint": "Click a day or press N to add an appointment.",

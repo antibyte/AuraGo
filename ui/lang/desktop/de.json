@@ -471,6 +471,7 @@
   "desktop.cal_description": "Beschreibung",
   "desktop.cal_description_placeholder": "Notizen, Ort, Links …",
   "desktop.cal_drag_hint": "Termine ziehen zum Verschieben",
+  "desktop.cal_readonly": "Der Desktop ist nur lesbar. Termine bleiben sichtbar, Änderungen sind aus.",
   "desktop.cal_edit_appointment": "Termin bearbeiten",
   "desktop.cal_empty_agenda": "Keine anstehenden Termine",
   "desktop.cal_empty_hint": "Klicke auf einen Tag oder drücke N, um einen Termin anzulegen.",

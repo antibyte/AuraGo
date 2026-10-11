@@ -471,6 +471,7 @@
   "desktop.cal_description": "Beskrivning",
   "desktop.cal_description_placeholder": "Anteckningar, plats, länkar…",
   "desktop.cal_drag_hint": "Dra bokningar för att flytta dem",
+  "desktop.cal_readonly": "Skrivbordet är skrivskyddat. Möten visas, ändringar är avstängda.",
   "desktop.cal_edit_appointment": "Redigera bokning",
   "desktop.cal_empty_agenda": "Inga kommande möten",
   "desktop.cal_empty_hint": "Klicka på en dag eller tryck N för att lägga till ett möte.",

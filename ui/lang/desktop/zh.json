@@ -471,6 +471,7 @@
   "desktop.cal_description": "描述",
   "desktop.cal_description_placeholder": "备注、地点、链接…",
   "desktop.cal_drag_hint": "拖动预约以改期",
+  "desktop.cal_readonly": "桌面为只读。约会仍然可见，更改已关闭。",
   "desktop.cal_edit_appointment": "编辑预约",
   "desktop.cal_empty_agenda": "没有即将到来的日程",
   "desktop.cal_empty_hint": "点击某一天或按 N 添加日程。",

@@ -471,6 +471,7 @@
   "desktop.cal_description": "Description",
   "desktop.cal_description_placeholder": "Notes, lieu, liens…",
   "desktop.cal_drag_hint": "Faites glisser les rendez-vous pour déplacer",
+  "desktop.cal_readonly": "Le bureau est en lecture seule. Les rendez-vous restent visibles, les modifications sont désactivées.",
   "desktop.cal_edit_appointment": "Modifier le rendez-vous",
   "desktop.cal_empty_agenda": "Aucun rendez-vous à venir",
   "desktop.cal_empty_hint": "Clique sur un jour ou appuie sur N pour ajouter un rendez-vous.",

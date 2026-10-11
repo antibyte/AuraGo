@@ -471,6 +471,7 @@
   "desktop.cal_description": "説明",
   "desktop.cal_description_placeholder": "メモ、場所、リンク…",
   "desktop.cal_drag_hint": "予定をドラッグして変更",
+  "desktop.cal_readonly": "デスクトップは読み取り専用です。予定は表示されたままで、変更はできません。",
   "desktop.cal_edit_appointment": "予定を編集",
   "desktop.cal_empty_agenda": "今後の予定はありません",
   "desktop.cal_empty_hint": "日付をクリックするか N キーで予定を追加できます。",

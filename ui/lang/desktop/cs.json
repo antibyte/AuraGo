@@ -471,6 +471,7 @@
   "desktop.cal_description": "Popis",
   "desktop.cal_description_placeholder": "Poznámky, místo, odkazy…",
   "desktop.cal_drag_hint": "Přetažením změníte termín",
+  "desktop.cal_readonly": "Plocha je jen ke čtení. Schůzky zůstávají viditelné, změny jsou vypnuté.",
   "desktop.cal_edit_appointment": "Upravit schůzku",
   "desktop.cal_empty_agenda": "Žádné nadcházející schůzky",
   "desktop.cal_empty_hint": "Klikni na den nebo stiskni N a přidej schůzku.",

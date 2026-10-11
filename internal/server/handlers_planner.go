@@ -51,6 +51,35 @@ func handleAppointments(s *Server) http.HandlerFunc {
 				jsonError(w, "failed to read body", http.StatusBadRequest)
 				return
 			}
+			var raw map[string]json.RawMessage
+			if err := json.Unmarshal(body, &raw); err != nil {
+				jsonError(w, "invalid JSON", http.StatusBadRequest)
+				return
+			}
+			if series, ok := raw["appointments"]; ok {
+				var items []planner.Appointment
+				if err := json.Unmarshal(series, &items); err != nil {
+					jsonError(w, "invalid JSON", http.StatusBadRequest)
+					return
+				}
+				ids, err := planner.CreateAppointments(s.PlannerDB, items)
+				if err != nil {
+					jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to create appointment", "Failed to create appointment", err)
+					return
+				}
+				for i, id := range ids {
+					if len(items[i].ContactIDs) > 0 {
+						if err := planner.SetAppointmentContacts(s.PlannerDB, id, items[i].ContactIDs); err != nil {
+							s.Logger.Warn("Failed to set appointment contacts", "appointment_id", id, "error", err)
+						}
+					}
+					syncAppointmentToKGAsync(s.PlannerDB, id, s.KG, s.Logger)
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusCreated)
+				json.NewEncoder(w).Encode(map[string][]string{"ids": ids})
+				return
+			}
 			if err := json.Unmarshal(body, &a); err != nil {
 				jsonError(w, "invalid JSON", http.StatusBadRequest)
 				return

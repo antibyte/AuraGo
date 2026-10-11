@@ -139,7 +139,10 @@
         if (view === 'week') {
             const days = calendarWeekDays(cursor);
             const first = days[0], last = days[6];
-            if (first.getMonth() === last.getMonth()) return `${first.getDate()} – ${last.getDate()}. ${calFormat(last, { month: 'long', year: 'numeric' })}`;
+            try {
+                const fmt = new Intl.DateTimeFormat(calendarLocale(), { day: 'numeric', month: 'long', year: 'numeric' });
+                if (typeof fmt.formatRange === 'function') return fmt.formatRange(first, last);
+            } catch (_) { /* use the explicit fallback below */ }
             return `${calFormat(first, { day: 'numeric', month: 'short' })} – ${calFormat(last, { day: 'numeric', month: 'short', year: 'numeric' })}`;
         }
         if (view === 'agenda') return t('desktop.cal_agenda');
@@ -226,10 +229,10 @@
             return `<div class="${classes.join(' ')}" role="gridcell" tabindex="${key === session.selected ? '0' : '-1'}" data-cal-date="${key}" data-cal-drop-date="${key}" aria-label="${esc(label)}" aria-selected="${key === session.selected ? 'true' : 'false'}">
                 <div class="vd-calendar-cell-head">
                     <button type="button" class="vd-calendar-daynum" data-cal-open-day="${key}" tabindex="-1" title="${esc(t('desktop.cal_open_day'))}">${showMonth ? `<small>${esc(calFormat(day, { month: 'short' }))}</small>` : ''}<b>${day.getDate()}</b></button>
-                    <button type="button" class="vd-calendar-cell-add" data-cal-add="${key}" tabindex="-1" aria-label="${esc(t('desktop.cal_new_appointment'))}">${iconMarkup('plus', '+', 'vd-calendar-action-icon', 12)}</button>
+                    ${session.readonly() ? '' : `<button type="button" class="vd-calendar-cell-add" data-cal-add="${key}" tabindex="-1" aria-label="${esc(t('desktop.cal_new_appointment'))}">${iconMarkup('plus', '+', 'vd-calendar-action-icon', 12)}</button>`}
                 </div>
                 <div class="vd-calendar-cell-events">
-                    ${visible.map(item => calendarEventButtonHTML(item, { variant: 'chip' })).join('')}
+                    ${visible.map(item => calendarEventButtonHTML(item, { variant: 'chip', draggable: !session.readonly() })).join('')}
                     ${hidden > 0 ? `<button type="button" class="vd-calendar-more" data-cal-more="${key}">${esc(t('desktop.cal_more_events', { count: hidden }))}</button>` : ''}
                 </div>
             </div>`;
@@ -257,13 +260,14 @@
         return placed;
     }
 
-    function calendarTimedEventsHTML(dayItems) {
+    function calendarTimedEventsHTML(dayItems, options) {
+        options = options || {};
         return calendarLayoutColumns(dayItems).map(({ item, start, column, columns }) => {
             const top = (start / 60) * CAL_HOUR_HEIGHT;
             const height = Math.max(24, (CAL_EVENT_MINUTES / 60) * CAL_HOUR_HEIGHT - 2);
             const width = 100 / columns;
             const style = `top:${top.toFixed(1)}px;height:${height.toFixed(1)}px;left:calc(${(width * column).toFixed(2)}% + 2px);width:calc(${width.toFixed(2)}% - 4px)`;
-            return calendarEventButtonHTML(item, { variant: 'timed', style });
+            return calendarEventButtonHTML(item, { variant: 'timed', style, draggable: options.draggable });
         }).join('');
     }
 
@@ -292,7 +296,7 @@
             const slots = Array.from({ length: 24 }, (_, hour) => `<div class="vd-calendar-hour-slot" data-cal-hour="${hour}" style="height:${CAL_HOUR_HEIGHT}px"></div>`).join('');
             return `<div class="vd-calendar-day-column ${calSameDay(day, today) ? 'is-today' : ''} ${calIsWeekend(day) ? 'is-weekend' : ''}" data-cal-column="${key}" data-cal-drop-date="${key}" style="height:${CAL_HOUR_HEIGHT * 24}px">
                 ${slots}
-                <div class="vd-calendar-column-events">${calendarTimedEventsHTML(dayItems)}</div>
+                <div class="vd-calendar-column-events">${calendarTimedEventsHTML(dayItems, { draggable: !session.readonly() })}</div>
                 ${calendarNowLineHTML(day)}
             </div>`;
         }).join('');
@@ -310,12 +314,13 @@
         </div>`;
     }
 
-    function calendarEmptyStateHTML(title, hint, actionKey) {
+    function calendarEmptyStateHTML(title, hint, actionKey, options) {
+        const disabled = options && options.disabled ? ' disabled' : '';
         return `<div class="vd-calendar-empty">
             <div class="vd-calendar-empty-art" aria-hidden="true">${iconMarkup('calendar', 'C', 'vd-calendar-empty-icon', 40)}</div>
             <strong>${esc(title)}</strong>
             ${hint ? `<p>${esc(hint)}</p>` : ''}
-            ${actionKey ? `<button type="button" class="vd-button vd-button-primary" data-cal-create>${iconMarkup('plus', '+', 'vd-calendar-action-icon', 14)}<span>${esc(t(actionKey))}</span></button>` : ''}
+            ${actionKey ? `<button type="button" class="vd-button vd-button-primary" data-cal-create${disabled}>${iconMarkup('plus', '+', 'vd-calendar-action-icon', 14)}<span>${esc(t(actionKey))}</span></button>` : ''}
         </div>`;
     }
 
@@ -325,7 +330,8 @@
         items.forEach(item => {
             const date = calendarDate(item.date_time);
             if (!date) return;
-            if (options.from && date < options.from) return;
+            const keepPastOverdue = item.status === 'overdue';
+            if (options.from && date < options.from && !keepPastOverdue) return;
             if (options.to && date >= options.to) return;
             const key = isoDate(date);
             if (!groups.has(key)) groups.set(key, { date: calStartOfDay(date), items: [] });
@@ -334,16 +340,16 @@
         return Array.from(groups.values()).sort((a, b) => a.date - b.date);
     }
 
-    function calendarAgendaRowHTML(item) {
+    function calendarAgendaRowHTML(item, options) {
+        options = options || {};
         const date = calendarDate(item.date_time);
         const canComplete = item.status === 'upcoming' || item.status === 'overdue';
+        const actions = options.readonly ? '' : `${canComplete ? `<button type="button" class="vd-calendar-icon-button" data-cal-status-action="completed" data-appt-id="${esc(item.id)}" title="${esc(t('desktop.cal_mark_complete'))}" aria-label="${esc(t('desktop.cal_mark_complete'))}">${iconMarkup('check', 'OK', 'vd-calendar-action-icon', 14)}</button>` : ''}
+                <button type="button" class="vd-calendar-icon-button" data-cal-edit="${esc(item.id)}" title="${esc(t('desktop.cal_edit_appointment'))}" aria-label="${esc(t('desktop.cal_edit_appointment'))}">${iconMarkup('edit', 'E', 'vd-calendar-action-icon', 14)}</button>`;
         return `<div class="vd-calendar-agenda-row is-${item.status}" data-appt-row="${esc(item.id)}">
             <div class="vd-calendar-agenda-time"><b>${esc(date ? calFormatTime(date) : '')}</b><span>${esc(calRelativeTime(date))}</span></div>
             ${calendarEventButtonHTML(item, { variant: 'agenda', draggable: false })}
-            <div class="vd-calendar-agenda-actions">
-                ${canComplete ? `<button type="button" class="vd-calendar-icon-button" data-cal-status-action="completed" data-appt-id="${esc(item.id)}" title="${esc(t('desktop.cal_mark_complete'))}" aria-label="${esc(t('desktop.cal_mark_complete'))}">${iconMarkup('check', 'OK', 'vd-calendar-action-icon', 14)}</button>` : ''}
-                <button type="button" class="vd-calendar-icon-button" data-cal-edit="${esc(item.id)}" title="${esc(t('desktop.cal_edit_appointment'))}" aria-label="${esc(t('desktop.cal_edit_appointment'))}">${iconMarkup('edit', 'E', 'vd-calendar-action-icon', 14)}</button>
-            </div>
+            <div class="vd-calendar-agenda-actions">${actions}</div>
         </div>`;
     }
 
@@ -353,7 +359,7 @@
         const groups = calendarAgendaGroups(items, { from });
         if (!groups.length) {
             if (query) return calendarEmptyStateHTML(t('desktop.cal_no_results'), t('desktop.cal_no_results_hint'));
-            return calendarEmptyStateHTML(t('desktop.cal_empty_agenda'), t('desktop.cal_empty_hint'), 'desktop.cal_new_appointment');
+            return calendarEmptyStateHTML(t('desktop.cal_empty_agenda'), t('desktop.cal_empty_hint'), 'desktop.cal_new_appointment', { disabled: session.readonly() });
         }
         const total = groups.reduce((sum, group) => sum + group.items.length, 0);
         const heading = query
@@ -369,7 +375,7 @@
                         <span class="vd-calendar-agenda-daymeta"><b>${esc(relative || calFormat(group.date, { weekday: 'long' }))}</b><span>${esc(calFormat(group.date, { day: 'numeric', month: 'long', year: 'numeric' }))}</span></span>
                     </button>
                 </header>
-                <div class="vd-calendar-agenda-rows">${group.items.map(calendarAgendaRowHTML).join('')}</div>
+                <div class="vd-calendar-agenda-rows">${group.items.map(item => calendarAgendaRowHTML(item, { readonly: session.readonly() })).join('')}</div>
             </section>`;
         }).join('')}</div>`;
     }

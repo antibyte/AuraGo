@@ -471,6 +471,7 @@
   "desktop.cal_description": "Περιγραφή",
   "desktop.cal_description_placeholder": "Σημειώσεις, τοποθεσία, σύνδεσμοι…",
   "desktop.cal_drag_hint": "Σύρετε ραντεβού για μεταφορά",
+  "desktop.cal_readonly": "Η επιφάνεια εργασίας είναι μόνο για ανάγνωση. Τα ραντεβού μένουν ορατά, οι αλλαγές είναι κλειστές.",
   "desktop.cal_edit_appointment": "Επεξεργασία ραντεβού",
   "desktop.cal_empty_agenda": "Δεν υπάρχουν επερχόμενα ραντεβού",
   "desktop.cal_empty_hint": "Κάνε κλικ σε μια ημέρα ή πάτησε N για να προσθέσεις ραντεβού.",

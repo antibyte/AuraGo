@@ -471,6 +471,7 @@
   "desktop.cal_description": "Opis",
   "desktop.cal_description_placeholder": "Notatki, miejsce, linki…",
   "desktop.cal_drag_hint": "Przeciągnij spotkania, aby zmienić termin",
+  "desktop.cal_readonly": "Pulpit jest tylko do odczytu. Terminy pozostają widoczne, zmiany są wyłączone.",
   "desktop.cal_edit_appointment": "Edytuj spotkanie",
   "desktop.cal_empty_agenda": "Brak nadchodzących terminów",
   "desktop.cal_empty_hint": "Kliknij dzień lub naciśnij N, aby dodać termin.",

@@ -471,6 +471,7 @@
   "desktop.cal_description": "Descrição",
   "desktop.cal_description_placeholder": "Notas, local, ligações…",
   "desktop.cal_drag_hint": "Arraste compromissos para reagendar",
+  "desktop.cal_readonly": "O ambiente de trabalho é só de leitura. Os compromissos ficam visíveis e as alterações ficam desligadas.",
   "desktop.cal_edit_appointment": "Editar compromisso",
   "desktop.cal_empty_agenda": "Sem compromissos próximos",
   "desktop.cal_empty_hint": "Clica num dia ou prime N para adicionar um compromisso.",

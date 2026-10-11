@@ -149,6 +149,13 @@
         }
     }
 
+    function clockLocalDay(value) {
+        const date = value instanceof Date ? value : new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+        const pad = n => String(n).padStart(2, '0');
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    }
+
     async function openClockPopup(anchor) {
         closeClockPopup();
         let popup = document.getElementById('vd-clock-popup');
@@ -179,8 +186,8 @@
         }
         if (popup.hidden || popup._request !== request || !popup.isConnected) return;
         const now = new Date();
-        const todayKey = now.toISOString().slice(0, 10);
-        const todayItems = (Array.isArray(appointments) ? appointments : []).filter(item => String(item.date_time || '').startsWith(todayKey));
+        const todayKey = clockLocalDay(now);
+        const todayItems = (Array.isArray(appointments) ? appointments : []).filter(item => clockLocalDay(item.date_time) === todayKey && item.status !== 'cancelled');
         const events = todayItems.slice(0, 6).map(item => {
             const time = item.date_time ? new Date(item.date_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
             return `<li><span class="vd-clock-event-time">${esc(time)}</span><span class="vd-clock-event-title">${esc(item.title || '')}</span></li>`;

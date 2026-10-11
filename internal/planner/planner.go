@@ -1,6 +1,7 @@
 package planner
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -407,6 +408,12 @@ func BuildPromptContextText(snapshot PromptSnapshot) string {
 
 // CreateAppointment adds a new appointment and returns its ID.
 func CreateAppointment(db *sql.DB, a Appointment) (string, error) {
+	return insertAppointment(context.Background(), db, a)
+}
+
+func insertAppointment(ctx context.Context, exec interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}, a Appointment) (string, error) {
 	if a.Title == "" {
 		return "", fmt.Errorf("title is required")
 	}
@@ -431,7 +438,7 @@ func CreateAppointment(db *sql.DB, a Appointment) (string, error) {
 	}
 	a.KGNodeID = "appointment_" + a.ID
 
-	_, err := db.Exec(
+	_, err := exec.ExecContext(ctx,
 		`INSERT INTO appointments (id, title, description, date_time, notification_at, wake_agent, agent_instruction, notified, status, kg_node_id, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		a.ID, a.Title, a.Description, a.DateTime, a.NotificationAt,
@@ -442,6 +449,31 @@ func CreateAppointment(db *sql.DB, a Appointment) (string, error) {
 		return "", fmt.Errorf("failed to insert appointment: %w", err)
 	}
 	return a.ID, nil
+}
+
+// CreateAppointments inserts 1 to 30 appointments in one transaction.
+func CreateAppointments(db *sql.DB, items []Appointment) ([]string, error) {
+	if len(items) == 0 || len(items) > 30 {
+		return nil, fmt.Errorf("appointment series must contain 1 to 30 items")
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("begin appointment series: %w", err)
+	}
+	defer tx.Rollback()
+	ctx := context.Background()
+	ids := make([]string, 0, len(items))
+	for _, item := range items {
+		id, err := insertAppointment(ctx, tx, item)
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit appointment series: %w", err)
+	}
+	return ids, nil
 }
 
 // UpdateAppointment modifies an existing appointment.

@@ -471,6 +471,7 @@
   "desktop.cal_description": "Descrizione",
   "desktop.cal_description_placeholder": "Note, luogo, link…",
   "desktop.cal_drag_hint": "Trascina gli appuntamenti per spostarli",
+  "desktop.cal_readonly": "Il desktop è di sola lettura. Gli appuntamenti restano visibili, le modifiche sono disattivate.",
   "desktop.cal_edit_appointment": "Modifica appuntamento",
   "desktop.cal_empty_agenda": "Nessun appuntamento in programma",
   "desktop.cal_empty_hint": "Clicca su un giorno o premi N per aggiungere un appuntamento.",

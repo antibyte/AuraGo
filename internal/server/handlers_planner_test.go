@@ -59,6 +59,43 @@ func TestRunPlannerKGSyncAsyncReturnsImmediately(t *testing.T) {
 	}
 }
 
+func TestHandleAppointmentsSeriesIsAtomic(t *testing.T) {
+	server, plannerDB := testPlannerServer(t)
+	defer plannerDB.Close()
+
+	body := `{"appointments":[{"title":"Standup","date_time":"2026-10-12T07:00:00Z"},{"title":"Standup","date_time":"bad"}]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/appointments", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+	handleAppointments(server).ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("bad series status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	list, err := planner.ListAppointments(plannerDB, "", "all")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 0 {
+		t.Fatalf("rows after bad series = %d", len(list))
+	}
+
+	body = `{"appointments":[{"title":"Standup","date_time":"2026-10-12T07:00:00Z"},{"title":"Standup","date_time":"2026-10-13T07:00:00Z"}]}`
+	req = httptest.NewRequest(http.MethodPost, "/api/appointments", strings.NewReader(body))
+	rec = httptest.NewRecorder()
+	handleAppointments(server).ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("series status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	var created struct {
+		IDs []string `json:"ids"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+	if len(created.IDs) != 2 {
+		t.Fatalf("ids = %#v", created.IDs)
+	}
+}
+
 func TestHandleAppointmentsPersistsAndEnrichesContactParticipants(t *testing.T) {
 	t.Parallel()
 
