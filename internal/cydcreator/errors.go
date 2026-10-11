@@ -47,6 +47,9 @@ const (
 	CodeFlashPortBusy       = "CYD_FLASH_PORT_BUSY"
 	CodeFlashDisconnected   = "CYD_FLASH_DISCONNECTED"
 	CodeSerialUnsupported   = "CYD_SERIAL_UNSUPPORTED"
+	// CodeInternal (HTTP 500) is an unexpected server failure (database,
+	// filesystem). The message is generic; the cause is only logged.
+	CodeInternal = "CYD_INTERNAL"
 )
 
 var allErrorCodes = []string{
@@ -56,7 +59,7 @@ var allErrorCodes = []string{
 	CodeBuildFailed, CodeBuildTimeout, CodeBuildCancelled, CodeBuildInterrupted, CodeFlashBudgetExceeded,
 	CodeJobNotFound, CodeJobState, CodeDeviceNotFound, CodeUnauthorized, CodeRateLimited, CodeOTADisabled,
 	CodeImportInvalid, CodeTemplateTooNew, CodeFlashWrongChip, CodeFlashPortBusy, CodeFlashDisconnected,
-	CodeSerialUnsupported,
+	CodeSerialUnsupported, CodeInternal,
 }
 
 // ErrorCodes returns every CYD_* code, sorted. The UI i18n tests use it to

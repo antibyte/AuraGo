@@ -70,8 +70,8 @@ func TestErrorCode(t *testing.T) {
 
 func TestErrorCodesComplete(t *testing.T) {
 	codes := ErrorCodes()
-	if len(codes) != 33 {
-		t.Fatalf("ErrorCodes() has %d codes, want 33 (overview error table)", len(codes))
+	if len(codes) != 34 {
+		t.Fatalf("ErrorCodes() has %d codes, want 34 (overview error table plus CYD_INTERNAL)", len(codes))
 	}
 	seen := map[string]bool{}
 	for i, c := range codes {
