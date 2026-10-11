@@ -590,6 +590,31 @@ type GameMakerConfig struct {
 	JobTimeoutSeconds    int    `yaml:"job_timeout_seconds" json:"job_timeout_seconds"`
 }
 
+// CYDCreatorConfig controls the CYD Creator desktop app (spec §15). Defaults
+// are set in config.go and NormalizeCYDCreatorConfig; the builder settings
+// (image, memory, CPUs, idle stop) are read at startup, the rest live.
+type CYDCreatorConfig struct {
+	Enabled                 bool                `yaml:"enabled" json:"enabled"`
+	BuilderImage            string              `yaml:"builder_image" json:"builder_image"`
+	BuildTimeoutSeconds     int                 `yaml:"build_timeout_seconds" json:"build_timeout_seconds"`
+	ColdBuildTimeoutSeconds int                 `yaml:"cold_build_timeout_seconds" json:"cold_build_timeout_seconds"`
+	MemoryMB                int                 `yaml:"memory_mb" json:"memory_mb"`
+	CPUCores                float64             `yaml:"cpu_cores" json:"cpu_cores"`
+	IdleStopMinutes         int                 `yaml:"idle_stop_minutes" json:"idle_stop_minutes"`
+	MaxRepairAttempts       int                 `yaml:"max_repair_attempts" json:"max_repair_attempts"`
+	JobTimeoutMinutes       int                 `yaml:"job_timeout_minutes" json:"job_timeout_minutes"`
+	Model                   string              `yaml:"model" json:"model"` // provider ID (provider system); "" = main provider
+	KeepBuildsPerProject    int                 `yaml:"keep_builds_per_project" json:"keep_builds_per_project"`
+	OTA                     CYDCreatorOTAConfig `yaml:"ota" json:"ota"`
+}
+
+// CYDCreatorOTAConfig controls OTA updates of flashed CYD Creator devices.
+type CYDCreatorOTAConfig struct {
+	Enabled          bool   `yaml:"enabled" json:"enabled"`
+	HeartbeatSeconds int    `yaml:"heartbeat_seconds" json:"heartbeat_seconds"`
+	PublicURL        string `yaml:"public_url" json:"public_url"` // URL devices use to reach AuraGo; empty = derived from server config
+}
+
 // VirtualComputersConfig holds settings for external microVM-backed computers.
 type VirtualComputersConfig struct {
 	Enabled             bool                         `yaml:"enabled" json:"enabled"`                           // enable Virtual Computers APIs and UI
@@ -1050,6 +1075,7 @@ type Config struct {
 		MediaRegistryPath    string `yaml:"media_registry_path"`
 		HomepageRegistryPath string `yaml:"homepage_registry_path"`
 		GameMakerPath        string `yaml:"game_maker_path"`
+		CYDCreatorPath       string `yaml:"cyd_creator_path"`
 		ContactsPath         string `yaml:"contacts_path"`
 		PlannerPath          string `yaml:"planner_path"`
 		VirtualDesktopPath   string `yaml:"virtual_desktop_path"`
@@ -1961,6 +1987,7 @@ type Config struct {
 	Dograh            DograhConfig            `yaml:"dograh"`
 	VirtualDesktop    VirtualDesktopConfig    `yaml:"virtual_desktop"`
 	GameMaker         GameMakerConfig         `yaml:"game_maker"`
+	CYDCreator        CYDCreatorConfig        `yaml:"cyd_creator" json:"cyd_creator"`
 	Detective         DetectiveConfig         `yaml:"detective"`
 	Newspaper         NewspaperConfig         `yaml:"newspaper"`
 	Flows             FlowsConfig             `yaml:"flows"`

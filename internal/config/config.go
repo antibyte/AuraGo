@@ -631,6 +631,7 @@ func Load(path string) (*Config, error) {
 	cfg.GameMaker.MaxAssetSizeMB = 32
 	cfg.GameMaker.MaxProjectSizeMB = 100
 	cfg.GameMaker.JobTimeoutSeconds = 1800
+	cfg.CYDCreator = DefaultCYDCreatorConfig()
 
 	cfg.VirtualComputers.Provider = "boring_computers"
 	cfg.VirtualComputers.ControlPlane.Mode = "ssh_host"
@@ -1149,6 +1150,7 @@ func Load(path string) (*Config, error) {
 		return nil, err
 	}
 	NormalizeLocalWikipediaConfig(&cfg.LocalWikipedia)
+	NormalizeCYDCreatorConfig(&cfg.CYDCreator)
 	cfg.MusicGeneration.Local = cfg.MusicGeneration.Local.Defaults()
 	if err := ValidateLocalMusicConfig(&cfg); err != nil {
 		return nil, err
@@ -1544,6 +1546,10 @@ func Load(path string) (*Config, error) {
 		cfg.SQLite.GameMakerPath = "./data/game_maker.db"
 	}
 	cfg.SQLite.GameMakerPath = resolvePath(configDir, cfg.SQLite.GameMakerPath)
+	if cfg.SQLite.CYDCreatorPath == "" {
+		cfg.SQLite.CYDCreatorPath = "./data/cyd_creator.db"
+	}
+	cfg.SQLite.CYDCreatorPath = resolvePath(configDir, cfg.SQLite.CYDCreatorPath)
 	if cfg.SQLite.ContactsPath == "" {
 		cfg.SQLite.ContactsPath = "./data/contacts.db"
 	}
