@@ -1,6 +1,7 @@
 package cydcreator
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -112,8 +113,14 @@ func (g *uiGen) absPos(gw *genWidget) (int, int) {
 }
 
 // buttonText is the label expression of a button: optional symbol, optional
-// text, wrapped in "[ " … " ]" for bracket themes.
+// text, wrapped in "[ " … " ]" for bracket themes. The symbol becomes the
+// macro LV_SYMBOL_<UPPER> unquoted, so only names of the catalog's Symbols
+// list are used (Validate already guarantees it; anything else is dropped
+// here as well, so no other identifier can reach the C source).
 func (g *uiGen) buttonText(symbol, text string) string {
+	if !slices.Contains(Symbols, symbol) {
+		symbol = ""
+	}
 	bracket := g.theme.ButtonStyle == "bracket"
 	var parts []string
 	if bracket {
@@ -446,7 +453,9 @@ func keypadMap(layout string, keys []string) []string {
 	}
 	out := make([]string, 0, len(src)+1)
 	for _, k := range src {
-		if strings.HasPrefix(k, "LV_SYMBOL_") && layout != "custom" {
+		// Only the built-in layouts carry symbol macros; every other key
+		// (custom, or an unknown layout) is user text and always quoted.
+		if strings.HasPrefix(k, "LV_SYMBOL_") && (layout == "numeric" || layout == "numeric_ok") {
 			out = append(out, k)
 			continue
 		}
@@ -545,7 +554,7 @@ func (g *uiGen) renderEvents(w *codeWriter, gw *genWidget, ind int) {
 		w.line(ind, "lv_obj_add_flag(%s, LV_OBJ_FLAG_CLICKABLE);", h)
 		w.line(ind, "lv_obj_add_event_cb(%s, ui__statusbar_open_setup, LV_EVENT_LONG_PRESSED, NULL);", h)
 	}
-	if len(wd.Events) == 0 {
+	if len(wd.Events) == 0 || !g.registersEvents(gw) {
 		return
 	}
 	switch wd.Type {

@@ -3,7 +3,9 @@ package cydcreator
 import (
 	"fmt"
 	"io/fs"
+	"maps"
 	"path"
+	"slices"
 	"strings"
 )
 
@@ -32,8 +34,8 @@ type GenerateOutput struct {
 func Generate(in GenerateInput) (GenerateOutput, error) {
 	p := in.Project
 	if p.TemplateVersion != TemplateVersion {
-		return GenerateOutput{}, layoutError(fmt.Sprintf("template_version %q differs from the embedded template %s", p.TemplateVersion, TemplateVersion),
-			map[string]any{"template_version": p.TemplateVersion, "embedded": TemplateVersion})
+		return GenerateOutput{}, layoutError(fmt.Sprintf("template_version %q differs from the embedded template %s", clipEcho(p.TemplateVersion), TemplateVersion),
+			map[string]any{"template_version": clipEcho(p.TemplateVersion), "embedded": TemplateVersion})
 	}
 	images, sizes, err := decodeProjectAssets(p, in.Assets)
 	if err != nil {
@@ -62,11 +64,12 @@ func Generate(in GenerateInput) (GenerateOutput, error) {
 	if err := copyTemplateLib(files); err != nil {
 		return out, err
 	}
-	for rel, data := range in.AppFiles {
+	// Sorted, so the first bad path reported is the same on every call.
+	for _, rel := range slices.Sorted(maps.Keys(in.AppFiles)) {
 		if !IsEditablePath(rel) {
-			return out, NewError(CodeBadRequest, fmt.Sprintf("app file %q is not below src/app", rel), map[string]any{"path": rel})
+			return out, NewError(CodeBadRequest, fmt.Sprintf("app file %q is not below src/app", clipEcho(rel)), map[string]any{"path": clipEcho(rel)})
 		}
-		files[rel] = append([]byte(nil), data...)
+		files[rel] = append([]byte(nil), in.AppFiles[rel]...)
 	}
 	csv, err := PartitionCSV(board.FlashMB)
 	if err != nil {
@@ -111,6 +114,9 @@ func copyTemplateLib(files map[string][]byte) error {
 func ScaffoldAppFiles(p Project) map[string][]byte {
 	_ = p // reserved: future scaffolds may depend on the board or settings
 	out := map[string][]byte{}
+	// The walk reads the embedded FS, fixed at compile time: it cannot fail at
+	// run time, and TestScaffoldAppFiles pins the scaffold content, so the
+	// error is ignored instead of widening the contract signature.
 	_ = fs.WalkDir(TemplateFS(), "scaffold", func(name string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err

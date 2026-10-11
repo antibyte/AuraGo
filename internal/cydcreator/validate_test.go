@@ -354,6 +354,7 @@ func TestValidateCrossPropRules(t *testing.T) {
 		{"custom keypad without keys", Widget{Type: "keypad", W: 100, H: 100, Props: map[string]any{"layout": "custom"}}, IssuePropInvalid, "keys", false},
 		{"tabview without tabs", Widget{Type: "tabview", W: 100, H: 100, Props: map[string]any{"tabs": []string{}}}, IssuePropInvalid, "tabs", false},
 		{"chart without series", Widget{Type: "chart", W: 100, H: 100, Props: map[string]any{"series": []any{}}}, IssuePropInvalid, "series", false},
+		{"msgbox without buttons", Widget{Type: "msgbox", W: 240, H: 140, Props: map[string]any{"buttons": []any{}}}, IssuePropInvalid, "buttons", false},
 		{"too many list items", Widget{Type: "list", W: 100, H: 100, Props: map[string]any{"items": make([]string, 65)}}, IssuePropInvalid, "items", false},
 		{"list item not text", Widget{Type: "list", W: 100, H: 100, Props: map[string]any{"items": []any{"ok", 3}}}, IssuePropInvalid, "items", false},
 		{"invalid utf8 item", Widget{Type: "list", W: 100, H: 100, Props: map[string]any{"items": []any{"\xff"}}}, IssuePropInvalid, "items", false},
@@ -361,6 +362,7 @@ func TestValidateCrossPropRules(t *testing.T) {
 		{"fractional int", Widget{Type: "slider", W: 100, H: 20, Props: map[string]any{"value": 1.5}}, IssuePropInvalid, "value", false},
 		{"json float int is fine", Widget{Type: "slider", W: 100, H: 20, Props: map[string]any{"value": float64(60), "max": json.Number("70")}}, "", "", true},
 		{"custom keypad with keys", Widget{Type: "keypad", W: 100, H: 100, Props: map[string]any{"layout": "custom", "keys": []any{"A", "B"}}}, "", "", true},
+		{"msgbox with the default button", Widget{Type: "msgbox", W: 240, H: 140}, "", "", true},
 		{"negative spinbox", Widget{Type: "spinbox", W: 100, H: 40, Props: map[string]any{"min": -999, "max": 999, "value": -5}}, "", "", true},
 	}
 	for _, tc := range cases {

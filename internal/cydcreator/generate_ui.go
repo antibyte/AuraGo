@@ -410,7 +410,7 @@ func (g *uiGen) renderSource() string {
 	g.renderSharedCallbacks(&w)
 	for _, gw := range g.all {
 		for _, ev := range gw.w.Events {
-			if ev.Action.Type != "logic" {
+			if ev.Action.Type != "logic" && g.registersEvents(gw) {
 				g.renderBuiltinAction(&w, gw, ev)
 			}
 		}
@@ -502,9 +502,29 @@ func (g *uiGen) renderSharedCallbacks(w *codeWriter) {
 	if g.hasType("spinbox") {
 		w.raw(genSpinboxStep)
 	}
-	if g.hasType("msgbox") {
+	if g.hasMsgboxButtons() {
 		w.raw(genMsgboxClose)
 	}
+}
+
+// hasMsgboxButtons reports whether some message box has footer buttons, the
+// only users of ui__msgbox_close (an unused static function would warn).
+func (g *uiGen) hasMsgboxButtons() bool {
+	for _, gw := range g.all {
+		if gw.w.Type == "msgbox" && len(genPropList(gw.w, gw.spec, "buttons")) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// registersEvents reports whether renderEvents registers a widget's event
+// bindings. A message box without buttons has no footer to register on
+// (lv_msgbox_get_footer is NULL until the first button); Validate refuses
+// it, and the emitter stays safe without that guarantee: no registration
+// loop and no unused built-in action.
+func (g *uiGen) registersEvents(gw *genWidget) bool {
+	return gw.w.Type != "msgbox" || len(genPropList(gw.w, gw.spec, "buttons")) > 0
 }
 
 const genStatusbarOpenSetup = `

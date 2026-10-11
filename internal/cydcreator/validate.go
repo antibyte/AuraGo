@@ -605,6 +605,12 @@ func (v *validator) props(s *Screen, w *Widget, spec *WidgetSpec, path string) {
 		if ok("series") && len(getl("series")) == 0 {
 			bad("series", "needs at least one series")
 		}
+	case "msgbox":
+		// LVGL creates the footer with the first button: without one the
+		// box could never be closed and lv_msgbox_get_footer stays NULL.
+		if ok("buttons") && len(getl("buttons")) == 0 {
+			bad("buttons", "a message box needs at least one button")
+		}
 	case "keypad":
 		if ok("layout", "keys") && v.propValue(w, spec, "layout") == "custom" && len(getl("keys")) == 0 {
 			bad("keys", "a custom keypad needs keys")

@@ -152,53 +152,140 @@ func TestGenerateTreeContents(t *testing.T) {
 	}
 }
 
+// freshProject returns an independent copy of p (marshal + parse).
+func freshProject(t *testing.T, p Project) Project {
+	t.Helper()
+	raw, err := MarshalProject(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := ParseProject(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
 func TestGenerateRefusals(t *testing.T) {
 	base := loadReferenceProject(t)
+	// details: the keys the error must carry; a nil value only checks that the
+	// key is present.
 	cases := []struct {
-		name   string
-		mutate func(in *GenerateInput)
-		code   string
+		name    string
+		mutate  func(in *GenerateInput)
+		code    string
+		details map[string]any
 	}{
-		{"validation error", func(in *GenerateInput) { in.Project.Screens[0].Widgets[1].Name = "Bad-Name" }, CodeInvalidLayout},
-		{"template version", func(in *GenerateInput) { in.Project.TemplateVersion = "0.9.0" }, CodeInvalidLayout},
+		{"validation error", func(in *GenerateInput) { in.Project.Screens[0].Widgets[1].Name = "Bad-Name" }, CodeInvalidLayout,
+			map[string]any{"issues": nil}},
+		{"template version", func(in *GenerateInput) { in.Project.TemplateVersion = "0.9.0" }, CodeInvalidLayout,
+			map[string]any{"template_version": "0.9.0", "embedded": TemplateVersion}},
 		{"asset data missing", func(in *GenerateInput) {
 			in.Project.Assets = []Asset{{ID: "a_logo", File: "assets/logo.png", W: 24, H: 16, Alpha: true}}
-		}, CodeBadRequest},
+		}, CodeBadRequest, map[string]any{"asset": "a_logo"}},
 		{"asset size differs", func(in *GenerateInput) {
 			in.Project.Assets = []Asset{{ID: "a_logo", File: "assets/logo.png", W: 20, H: 16, Alpha: true}}
 			in.Assets = map[string][]byte{"a_logo": goldenLogoPNG(t)}
-		}, CodeBadRequest},
+		}, CodeBadRequest, map[string]any{"asset": "a_logo"}},
 		{"asset not an image", func(in *GenerateInput) {
 			in.Project.Assets = []Asset{{ID: "a_logo", File: "assets/logo.png", W: 24, H: 16, Alpha: true}}
 			in.Assets = map[string][]byte{"a_logo": []byte("not a png")}
-		}, CodeBadRequest},
+		}, CodeBadRequest, map[string]any{"asset": "a_logo"}},
 		{"app file outside src/app", func(in *GenerateInput) {
 			in.AppFiles = map[string][]byte{"src/generated/ui.cpp": []byte("x")}
-		}, CodeBadRequest},
+		}, CodeBadRequest, map[string]any{"path": "src/generated/ui.cpp"}},
+		// Several bad paths: the first in sorted order is reported, every time.
+		{"first bad app path is deterministic", func(in *GenerateInput) {
+			in.AppFiles = map[string][]byte{"src/generated/ui.cpp": nil, "include/x.h": nil, "src/app/ok.cpp": nil, "lib/y.h": nil}
+		}, CodeBadRequest, map[string]any{"path": "include/x.h"}},
+		{"long template version is clipped", func(in *GenerateInput) { in.Project.TemplateVersion = strings.Repeat("9", 200) }, CodeInvalidLayout,
+			map[string]any{"template_version": strings.Repeat("9", maxEchoBytes) + "\xe2\x80\xa6", "embedded": TemplateVersion}}, // U+2026
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			raw, _ := MarshalProject(base)
-			p, _ := ParseProject(raw)
-			in := GenerateInput{Project: p, ProjectID: testProjectID}
-			tc.mutate(&in)
-			out, err := Generate(in)
-			if ErrorCode(err) != tc.code {
-				t.Fatalf("error %v (code %q), want %s", err, ErrorCode(err), tc.code)
-			}
-			if out.Files != nil {
-				t.Error("a refused generation must not return files")
+			for range 5 { // map iteration order varies between runs
+				in := GenerateInput{Project: freshProject(t, base), ProjectID: testProjectID}
+				tc.mutate(&in)
+				out, err := Generate(in)
+				if ErrorCode(err) != tc.code {
+					t.Fatalf("error %v (code %q), want %s", err, ErrorCode(err), tc.code)
+				}
+				if out.Files != nil {
+					t.Error("a refused generation must not return files")
+				}
+				var e *Error
+				if !errors.As(err, &e) {
+					t.Fatalf("error %T is not *Error", err)
+				}
+				for key, want := range tc.details {
+					got, ok := e.Details[key]
+					if !ok || got == nil || (want != nil && got != want) {
+						t.Fatalf("details[%q] = %v (present %v), want %v; details %v", key, got, ok, want, e.Details)
+					}
+				}
 			}
 		})
 	}
 	// Validation errors come back as issues and in the error details.
-	raw, _ := MarshalProject(base)
-	p, _ := ParseProject(raw)
+	p := freshProject(t, base)
 	p.Screens[0].Widgets[1].Name = "Bad-Name"
 	out, err := Generate(GenerateInput{Project: p})
 	var e *Error
 	if !errors.As(err, &e) || !HasErrors(out.Issues) || e.Details["issues"] == nil {
 		t.Fatalf("want CYD_INVALID_LAYOUT with issues, got %v / %+v", err, out.Issues)
+	}
+}
+
+// TestMsgboxWithoutButtons: Validate refuses a message box without buttons
+// (its footer would be NULL); the emitter, called without Validate, still
+// writes neither the footer registration loop nor the then unused static
+// helpers ui__msgbox_close and the built-in action.
+func TestMsgboxWithoutButtons(t *testing.T) {
+	render := func(buttons []any) (Project, string) {
+		p := loadReferenceProject(t)
+		p.Screens[0].Widgets = append(p.Screens[0].Widgets, Widget{
+			ID: "w_0100", Type: "msgbox", Name: "mb_note", X: 40, Y: 50, W: 240, H: 140,
+			Props:  map[string]any{"buttons": buttons},
+			Events: []EventBinding{{On: "clicked", Action: Action{Type: "goto_screen", Screen: "s_0002"}}},
+		})
+		th, err := ThemeByID(p.Theme)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return p, newUIGen(p, th, nil).renderSource()
+	}
+
+	p, src := render([]any{})
+	for _, never := range []string{"lv_msgbox_get_footer", "ui__msgbox_close", "ui__ev_mb_note_clicked"} {
+		if strings.Contains(src, never) {
+			t.Errorf("ui.cpp of a msgbox without buttons contains %q", never)
+		}
+	}
+	if !strings.Contains(src, "ui_mb_note = lv_msgbox_create(") {
+		t.Error("the message box itself is missing")
+	}
+	issues := Validate(p, ValidateOptions{})
+	if !issueAt(issues, IssuePropInvalid, "screens/0/widgets/5/props/buttons") {
+		t.Errorf("Validate must refuse a msgbox without buttons, got:\n%s", fmtIssues(issues))
+	}
+	if _, err := Generate(GenerateInput{Project: p}); ErrorCode(err) != CodeInvalidLayout {
+		t.Errorf("Generate: error %v, want %s", err, CodeInvalidLayout)
+	}
+
+	// Control: with a button, the helpers and the loops are written.
+	p, src = render([]any{"OK"})
+	for _, want := range []string{
+		"static void ui__msgbox_close(lv_event_t *e) {",
+		"lv_obj_add_event_cb(lv_obj_get_child(lv_msgbox_get_footer(ui_mb_note), i), ui__msgbox_close, LV_EVENT_CLICKED, NULL);",
+		"static void ui__ev_mb_note_clicked(lv_event_t *e) {",
+		"lv_obj_add_event_cb(lv_obj_get_child(lv_msgbox_get_footer(ui_mb_note), i), ui__ev_mb_note_clicked, LV_EVENT_CLICKED, (void *)(intptr_t)(i + 1));",
+	} {
+		if !strings.Contains(src, want) {
+			t.Errorf("ui.cpp of a msgbox with a button lacks %q", want)
+		}
+	}
+	if issues := Validate(p, ValidateOptions{}); len(issues) != 0 {
+		t.Errorf("unexpected issues:\n%s", fmtIssues(issues))
 	}
 }
 
