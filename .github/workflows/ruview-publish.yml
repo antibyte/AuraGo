@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       asset_id:
-        description: Release asset ID of the reviewed OCI archive in this repository
+        description: Published release asset ID of the reviewed OCI archive in this repository
         type: string
         required: true
       archive_sha256:
