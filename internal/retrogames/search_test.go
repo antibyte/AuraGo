@@ -3,8 +3,10 @@ package retrogames
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 )
 
 func seedSearchStore(t *testing.T) *Store {
@@ -89,6 +91,160 @@ func TestSearchIgnoresFTSSyntax(t *testing.T) {
 	for _, q := range []string{`"`, `NEAR(`, `prince OR`, `*`, `-`, `title:prince`, `(a) AND`} {
 		if _, err := st.Search(context.Background(), Query{Text: q}); err != nil {
 			t.Errorf("search %q: %v", q, err)
+		}
+	}
+	// Operators are plain words: "OR" is an ANDed prefix term (no title word
+	// starts with "or" here), so it narrows the hits instead of widening them.
+	// A real FTS5 OR would return the union and "prince OR wolf" five games.
+	for _, q := range []string{"prince OR", "prince or", "prince OR wolf"} {
+		res, err := st.Search(context.Background(), Query{Text: q})
+		if err != nil {
+			t.Fatalf("search %q: %v", q, err)
+		}
+		if res.Total != 0 || len(res.Games) != 0 {
+			t.Errorf("search %q = %v total=%d, want no hits", q, ids(res.Games), res.Total)
+		}
+	}
+	// Column filters are neutralised too: "title:prince" is the two words
+	// "title" and "prince", not a filter on the title column.
+	res, err := st.Search(context.Background(), Query{Text: "title:prince"})
+	if err != nil || res.Total != 0 {
+		t.Errorf(`search "title:prince" = %v total=%d err=%v, want no hits`, ids(res.Games), res.Total, err)
+	}
+}
+
+func TestSearchWithoutSearchableWordFindsNothing(t *testing.T) {
+	st := seedSearchStore(t)
+	for _, q := range []string{"!!!", `"`, "*", "-", " ** -- "} {
+		res, err := st.Search(context.Background(), Query{Text: q, Offset: 3, Limit: 5})
+		if err != nil {
+			t.Fatalf("search %q: %v", q, err)
+		}
+		if res.Total != 0 || len(res.Games) != 0 || res.Games == nil || res.Offset != 3 || res.Limit != 5 {
+			t.Errorf("search %q = %+v, want an empty page with offset 3 limit 5", q, res)
+		}
+	}
+	// Blank text still browses: it is "no text", not "no searchable word".
+	res, err := st.Search(context.Background(), Query{Text: "   "})
+	if err != nil || res.Total != 9 {
+		t.Errorf("blank text total = %d err=%v, want 9", res.Total, err)
+	}
+}
+
+func TestSearchHidesBrokenRows(t *testing.T) {
+	st := seedSearchStore(t)
+	ctx := context.Background()
+	total := func(q Query) (int, []string) {
+		t.Helper()
+		res, err := st.Search(ctx, q)
+		if err != nil {
+			t.Fatalf("search %+v: %v", q, err)
+		}
+		return res.Total, ids(res.Games)
+	}
+	if n, _ := total(Query{}); n != 9 {
+		t.Fatalf("baseline total = %d, want 9", n)
+	}
+	if _, err := st.db.Exec(`INSERT INTO broken(identifier, marked_at, title, platform, system, year) VALUES ('pop1', ?, 'Prince of Persia', 'msdos', 'MS-DOS', 1990)`, testNow.Unix()); err != nil {
+		t.Fatal(err)
+	}
+	if n, got := total(Query{}); n != 8 || contains(got, "pop1") {
+		t.Errorf("browse without broken = %d %v, want 8 without pop1", n, got)
+	}
+	if n, got := total(Query{Text: "prince"}); n != 3 || contains(got, "pop1") {
+		t.Errorf("search without broken = %d %v, want 3 without pop1", n, got)
+	}
+	if n, got := total(Query{IncludeBroken: true}); n != 9 || !contains(got, "pop1") {
+		t.Errorf("browse with broken = %d %v, want 9 with pop1", n, got)
+	}
+	if n, got := total(Query{Text: "prince", IncludeBroken: true}); n != 4 || !contains(got, "pop1") {
+		t.Errorf("search with broken = %d %v, want 4 with pop1", n, got)
+	}
+}
+
+func contains(list []string, want string) bool {
+	for _, s := range list {
+		if s == want {
+			return true
+		}
+	}
+	return false
+}
+
+func TestSearchCombinedFilters(t *testing.T) {
+	st := seedSearchStore(t)
+	ctx := context.Background()
+	// Prince hits in MS-DOS from the 1990s, by relevance: pop1, pop2, little
+	// ("prince" is from 1988 and filtered out by the decade).
+	for offset, want := range []string{"pop1", "pop2", "little"} {
+		res, err := st.Search(ctx, Query{Text: "prince", Platform: PlatformMSDOS, Decade: 1990, Limit: 1, Offset: offset})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.Total != 3 || len(res.Games) != 1 || res.Games[0].Identifier != want || res.Offset != offset || res.Limit != 1 {
+			t.Errorf("offset %d = %v total=%d, want %s total=3", offset, ids(res.Games), res.Total, want)
+		}
+	}
+	res, err := st.Search(ctx, Query{Text: "prince", Platform: PlatformMSDOS, Decade: 1990, Limit: 1, Offset: 3})
+	if err != nil || res.Total != 3 || len(res.Games) != 0 {
+		t.Errorf("past the end = %v total=%d err=%v", ids(res.Games), res.Total, err)
+	}
+	res, err = st.Search(ctx, Query{Text: "prince", Platform: PlatformArcade})
+	if err != nil || res.Total != 0 {
+		t.Errorf("prince on arcade = %v total=%d err=%v, want none", ids(res.Games), res.Total, err)
+	}
+}
+
+func TestSearchStaysFastOnLargeIndex(t *testing.T) {
+	if testing.Short() {
+		t.Skip("large index seeding is skipped in -short mode")
+	}
+	st := newTestStore(t)
+	ctx := context.Background()
+	seed := func(platform, prefix string, n int) {
+		games := make([]Game, n)
+		for i := range games {
+			games[i] = testGame(fmt.Sprintf("%s%05d", prefix, i), fmt.Sprintf("Game %05d", i), platform, 1980+i%20, int64(i))
+		}
+		if err := st.ReplaceSource(ctx, platform, games, testNow); err != nil {
+			t.Fatal(err)
+		}
+	}
+	seed(PlatformMSDOS, "m", 40000)
+	seed(PlatformArcade, "a", 30000)
+	for _, id := range []string{"m00001", "m00002", "a00003"} {
+		if _, err := st.db.Exec(`INSERT INTO broken(identifier, marked_at, title, platform, system, year) VALUES (?, ?, 'Broken', 'msdos', 'MS-DOS', 1980)`, id, testNow.Unix()); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	const budget = 250 * time.Millisecond
+	cases := []struct {
+		name  string
+		query Query
+		total int
+	}{
+		{"platform by title", Query{Platform: PlatformMSDOS, Sort: SortTitle}, 40000 - 2},
+		{"popular", Query{Sort: SortPopular}, 70000 - 3},
+		{"text game 1", Query{Text: "game 1"}, -1},
+		{"arcade by year offset 1000", Query{Platform: PlatformArcade, Sort: SortYear, Offset: 1000}, 30000 - 1},
+	}
+	for _, c := range cases {
+		start := time.Now()
+		res, err := st.Search(ctx, c.query)
+		elapsed := time.Since(start)
+		t.Logf("%s: %v (total=%d)", c.name, elapsed, res.Total)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if c.total >= 0 && res.Total != c.total {
+			t.Errorf("%s: total = %d, want %d", c.name, res.Total, c.total)
+		}
+		if len(res.Games) == 0 {
+			t.Errorf("%s: no games returned", c.name)
+		}
+		if elapsed > budget {
+			t.Errorf("%s took %v, want < %v", c.name, elapsed, budget)
 		}
 	}
 }

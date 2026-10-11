@@ -45,6 +45,9 @@ var schemaStatements = []string{
 	`CREATE INDEX IF NOT EXISTS games_source ON games(source)`,
 	`CREATE INDEX IF NOT EXISTS games_downloads ON games(downloads DESC)`,
 	`CREATE INDEX IF NOT EXISTS games_platform_downloads ON games(platform, downloads DESC)`,
+	`CREATE INDEX IF NOT EXISTS games_title ON games(title COLLATE NOCASE)`,
+	`CREATE INDEX IF NOT EXISTS games_platform_title ON games(platform, title COLLATE NOCASE)`,
+	`CREATE INDEX IF NOT EXISTS games_platform_year ON games(platform, year)`,
 	`CREATE VIRTUAL TABLE IF NOT EXISTS games_fts USING fts5(title, creator, tags, content='games', content_rowid='id', tokenize='unicode61 remove_diacritics 2', prefix='2 3')`,
 	`CREATE TRIGGER IF NOT EXISTS games_ai AFTER INSERT ON games BEGIN
 		INSERT INTO games_fts(rowid, title, creator, tags) VALUES (new.id, new.title, new.creator, new.tags);

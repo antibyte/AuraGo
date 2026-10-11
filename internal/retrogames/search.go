@@ -108,6 +108,11 @@ func (st *Store) Search(ctx context.Context, q Query) (SearchResult, error) {
 		return SearchResult{}, err
 	}
 	match := BuildMatch(q.Text)
+	if q.Text != "" && match == "" {
+		// The text held no searchable word (only punctuation): nothing matches,
+		// rather than silently browsing the whole catalog.
+		return SearchResult{Games: []Game{}, Offset: q.Offset, Limit: q.Limit}, nil
+	}
 	from := "games g"
 	var where []string
 	var args []any
@@ -129,7 +134,15 @@ func (st *Store) Search(ctx context.Context, q Query) (SearchResult, error) {
 		args = append(args, q.Decade, q.Decade+9)
 	}
 	if !q.IncludeBroken {
-		where = append(where, "NOT EXISTS (SELECT 1 FROM broken b WHERE b.identifier = g.identifier)")
+		// The anti-join costs a probe per row, so it is only added while at
+		// least one game is marked broken.
+		var anyBroken bool
+		if err := st.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM broken)`).Scan(&anyBroken); err != nil {
+			return SearchResult{}, fmt.Errorf("retrogames: check broken markers: %w", err)
+		}
+		if anyBroken {
+			where = append(where, "NOT EXISTS (SELECT 1 FROM broken b WHERE b.identifier = g.identifier)")
+		}
 	}
 	whereSQL := ""
 	if len(where) > 0 {
