@@ -454,3 +454,227 @@ func verifyWriterPointerFocus(t *testing.T, page *rod.Page, instanceID, needle s
 		}
 	}
 }
+
+func TestDesktopWriterAppBrowserFileOps(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	bin, ok := browserExecutable()
+	if !ok {
+		t.Fatal("Chrome or Edge required")
+	}
+	var mu sync.Mutex
+	files := map[string][]byte{
+		"Documents/taken.docx": []byte("taken"),
+		"Documents/other.docx": []byte("other"),
+	}
+	versions := map[string]int{
+		"Documents/taken.docx": 1,
+		"Documents/other.docx": 1,
+	}
+	var traces []map[string]any
+	var failNext bool
+	var racePuts int
+	record := func(method, rawURL, ifMatch, ifNone, etag string, status int, oldPath, newPath string) {
+		mu.Lock()
+		defer mu.Unlock()
+		traces = append(traces, map[string]any{
+			"method": method, "url": rawURL, "ifMatch": ifMatch, "ifNone": ifNone,
+			"etag": etag, "status": status, "old": oldPath, "new": newPath,
+		})
+	}
+	mux := http.NewServeMux()
+	mux.Handle("/", http.FileServer(http.Dir(".")))
+	mux.HandleFunc("/test/traces", func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		snapshot := append([]map[string]any(nil), traces...)
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(snapshot)
+	})
+	mux.HandleFunc("/test/fail-next", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method", http.StatusMethodNotAllowed)
+			return
+		}
+		mu.Lock()
+		failNext = true
+		mu.Unlock()
+		w.WriteHeader(http.StatusNoContent)
+	})
+	mux.HandleFunc("/api/desktop/file", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Old string `json:"old_path"`
+			New string `json:"new_path"`
+		}
+		json.NewDecoder(r.Body).Decode(&body)
+		ifNone := r.Header.Get("If-None-Match")
+		status := http.StatusNoContent
+		mu.Lock()
+		switch {
+		case r.Method != http.MethodPatch || ifNone != "*":
+			status = http.StatusPreconditionRequired
+		case files[body.New] != nil:
+			status = http.StatusPreconditionFailed
+		case files[body.Old] == nil:
+			status = http.StatusNotFound
+		default:
+			files[body.New] = files[body.Old]
+			delete(files, body.Old)
+			versions[body.New] = versions[body.Old]
+			delete(versions, body.Old)
+		}
+		mu.Unlock()
+		record("PATCH", r.URL.RequestURI(), r.Header.Get("If-Match"), ifNone, "", status, body.Old, body.New)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		if status != http.StatusNoContent {
+			fmt.Fprintf(w, `{"error":"file_%d"}`, status)
+		}
+	})
+	mux.HandleFunc("/api/desktop/office/document", func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Query().Get("path")
+		ifMatch := r.Header.Get("If-Match")
+		ifNone := r.Header.Get("If-None-Match")
+		var uploaded []byte
+		if r.Method == http.MethodPut {
+			uploaded, _ = io.ReadAll(r.Body)
+		}
+		mu.Lock()
+		status := http.StatusOK
+		etag := ""
+		var payload []byte
+		switch {
+		case r.Method == http.MethodPut && failNext:
+			failNext = false
+			status = http.StatusPreconditionFailed
+		case r.Method == http.MethodPut && path == "Documents/race.docx" && racePuts == 0:
+			racePuts++
+			status = http.StatusPreconditionFailed
+		case r.Method == http.MethodPut && ((versions[path] > 0 && ifMatch != fmt.Sprintf("\"%d\"", versions[path])) || (versions[path] == 0 && ifNone != "*")):
+			status = http.StatusPreconditionFailed
+		case r.Method == http.MethodPut:
+			files[path] = uploaded
+			versions[path]++
+			etag = fmt.Sprintf("\"%d\"", versions[path])
+		case versions[path] == 0:
+			status = http.StatusNotFound
+		default:
+			etag = fmt.Sprintf("\"%d\"", versions[path])
+			payload = append([]byte(nil), files[path]...)
+		}
+		mu.Unlock()
+		record(r.Method, r.URL.RequestURI(), ifMatch, ifNone, etag, status, "", "")
+		if status == http.StatusNotFound {
+			http.NotFound(w, r)
+			return
+		}
+		if etag != "" {
+			w.Header().Set("ETag", etag)
+		}
+		if status != http.StatusOK {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(status)
+			fmt.Fprint(w, `{"error":"conflict"}`)
+			return
+		}
+		if r.Method == http.MethodGet {
+			w.Write(payload)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, "{}")
+	})
+	mux.HandleFunc("/writer-file-ops-fixture", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		fmt.Fprint(w, `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="/js/vendor/writer/engine.css"><link rel="stylesheet" href="/css/desktop-app-writer.css">
+<style>html,body{margin:0;height:100%;font-family:system-ui}#host{height:100%}</style></head><body class="desktop-body"><div id="host"></div>
+<script src="/js/vendor/purify.min.js"></script><script src="/js/vendor/marked.min.js"></script><script src="/js/desktop/apps/writer-session.js"></script><script src="/js/desktop/apps/writer-panels.js"></script><script src="/js/desktop/apps/writer.js"></script>
+<script>window.ready=(async()=>{const labels=await(await fetch('/lang/desktop/en.json')).json();window.writerContext={t:(key,params)=>String(labels[key]||key).replace(/\{\{(\w+)\}\}/g,(_,x)=>params?.[x]??''),promptDialog:async(title,value)=>window.promptAnswer??value,confirmDialog:async()=>window.confirmAnswer!==false,setWindowBeforeClose:()=>{},setWindowMenus:()=>{},saveFileDialog:async()=>({path:window.saveTarget}),openFileDialog:async()=>({path:'Documents/other.docx'})};WriterApp.render(document.getElementById('host'),'test',writerContext);})();</script></body></html>`)
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	launch := launcher.New().Bin(bin).Headless(true).NoSandbox(true)
+	browser := rod.New().ControlURL(launch.MustLaunch()).MustConnect()
+	defer launch.Cleanup()
+	defer browser.Close()
+	page := browser.MustPage(srv.URL + "/writer-file-ops-fixture").Timeout(120 * time.Second)
+	defer page.Close()
+	page.MustSetViewport(1366, 768, 1, false)
+	page.MustWaitLoad()
+	page.MustWait(`()=>WriterApp.instances.get('test')?.editor && !document.querySelector('[data-loading]').offsetHeight`)
+	page.MustEval(`async()=>{
+        const app=WriterApp.instances.get('test');
+        const traces=async()=>await (await fetch('/test/traces')).json();
+        const notice=()=>document.querySelector('[data-notice]');
+        const run=command=>{const result=app.editor.exec(command);if(!result.ok)throw Error(JSON.stringify(result));};
+        if(app.session.dirty)await app.session.save();
+        const original=app.path;
+        window.promptAnswer='renamed.docx';
+        await app.act('rename');
+        if(app.path!=='Documents/renamed.docx')throw Error('rename kept '+app.path);
+        let log=await traces();
+        const patch=log.filter(item=>item.method==='PATCH' && item.new==='Documents/renamed.docx').pop();
+        if(!patch || patch.ifNone!=='*' || patch.status!==204)throw Error('rename precondition '+JSON.stringify(patch));
+        const adopted=log.filter(item=>item.method==='GET' && item.url.includes('renamed.docx') && item.status===200).pop();
+        if(!adopted?.etag)throw Error('rename did not read the new ETag '+JSON.stringify(log.slice(-8)));
+        run({type:'paste',text:' renamed'});
+        await app.session.save();
+        log=await traces();
+        const saved=log.filter(item=>item.method==='PUT' && item.url.includes('renamed.docx') && item.status===200).pop();
+        if(!saved || saved.ifMatch!==adopted.etag)throw Error('saved ETag was invented '+JSON.stringify({saved,adopted}));
+        window.promptAnswer='taken.docx';
+        await app.act('rename');
+        if(app.path!=='Documents/renamed.docx')throw Error('existing name was overwritten: '+app.path);
+        const denied=(await traces()).filter(item=>item.method==='PATCH' && item.new==='Documents/taken.docx').pop();
+        if(!denied || denied.ifNone!=='*' || denied.status!==412)throw Error('name collision '+JSON.stringify(denied));
+        if(notice().hidden || notice().dataset.kind!=='info' || !notice().textContent.includes('taken.docx'))throw Error(notice().dataset.kind+' '+notice().textContent);
+        window.confirmAnswer=true;
+        window.saveTarget='Documents/taken.docx';
+        await app.act('saveAs');
+        if(app.path!=='Documents/taken.docx')throw Error('save as missed '+app.path);
+        log=await traces();
+        const probe=log.filter(item=>item.method==='GET' && item.url.includes('taken.docx') && item.status===200).pop();
+        const replaced=log.filter(item=>item.method==='PUT' && item.url.includes('taken.docx') && item.status===200).pop();
+        if(!probe || !replaced || replaced.ifMatch!==probe.etag)throw Error('overwrite precondition '+JSON.stringify({probe,replaced}));
+        window.confirmAnswer=false;
+        window.saveTarget='Documents/other.docx';
+        await app.act('saveAs');
+        if(app.path!=='Documents/taken.docx')throw Error('declined overwrite changed the path to '+app.path);
+        if((await traces()).some(item=>item.method==='PUT' && item.url.includes('other.docx')))throw Error('declined overwrite wrote the other file');
+        window.confirmAnswer=true;
+        window.saveTarget='Documents/race.docx';
+        const takenBefore=(await traces()).filter(item=>item.method==='PUT' && item.url.includes('taken.docx')).length;
+        await app.act('saveAs');
+        if(app.path!=='Documents/taken.docx')throw Error('conflict save changed the path to '+app.path);
+        if(notice().hidden || notice().dataset.kind!=='saveAs' || notice().querySelector('[data-action="retry"]').hidden || !notice().querySelector('[data-action="reload"]').hidden)throw Error(notice().dataset.kind+' '+notice().textContent);
+        const raced=(await traces()).filter(item=>item.method==='PUT' && item.url.includes('race.docx'));
+        if(raced.length!==1 || raced[0].status!==412 || raced[0].ifNone!=='*')throw Error(JSON.stringify(raced));
+        await app.act('retry');
+        if(app.path!=='Documents/race.docx')throw Error('retry missed the copy: '+app.path);
+        const takenAfter=(await traces()).filter(item=>item.method==='PUT' && item.url.includes('taken.docx')).length;
+        if(takenAfter!==takenBefore)throw Error('retry wrote the original file');
+        const finished=(await traces()).filter(item=>item.method==='PUT' && item.url.includes('race.docx') && item.status===200).pop();
+        if(!finished || finished.ifNone!=='*')throw Error(JSON.stringify(finished));
+        const left=Math.round(12*1440/25.4);
+        run({type:'setIndent',left});
+        run({type:'setPageSetup',pageWidth:15840,pageHeight:12240});
+        await app.act('format');
+        const paper=document.querySelector('[data-field="paper"]').value;
+        const indent=document.querySelector('[data-field="leftIndent"]').value;
+        if(paper!=='letter')throw Error('landscape letter shown as '+paper+' '+JSON.stringify(app.editor.snapshot().pageSetup));
+        if(Number(indent)!==Math.round(left*25.4/1440))throw Error('indent shown as '+indent+' '+JSON.stringify(app.editor.snapshot().formatting.indent));
+        run({type:'setPageSetup',pageWidth:9000,pageHeight:9000});
+        await app.act('format');
+        await app.act('format');
+        if(document.querySelector('[data-field="paper"]').value!=='custom')throw Error('custom size shown as '+document.querySelector('[data-field="paper"]').value);
+        if(app.session.dirty)await app.session.save();
+        await fetch('/test/fail-next',{method:'POST'});
+        run({type:'paste',text:' conflict'});
+        let conflicted=false;
+        try{await app.session.save();}catch(error){conflicted=error.status===412;}
+        if(!conflicted || notice().hidden || notice().dataset.kind!=='conflict' || !notice().querySelector('[data-action="retry"]').hidden || notice().querySelector('[data-action="reload"]').hidden)throw Error('conflict notice '+notice().dataset.kind+' hidden='+notice().hidden);
+        await app.session.save();
+        if(!notice().hidden && (notice().dataset.kind==='conflict' || notice().dataset.kind==='save'))throw Error('success left '+notice().dataset.kind);
+        if(app.path===original)throw Error('file ops stayed on the generated path');
+    }`)
+}

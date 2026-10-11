@@ -35,7 +35,7 @@
             '<div class="writer-toolgroup">' + slotButton('alignment.left','align_left','≡') + slotButton('alignment.center','align_center','≡') + slotButton('alignment.right','align_right','≡') + '</div>' +
             '<div class="writer-toolgroup">' + slotButton('list.bullet','bullets','•') + slotButton('list.numbered','numbering','1.') + slotButton('list.outdent','outdent','⇤') + slotButton('list.indent','indent','⇥') + '</div>' +
             button('insert','insert','＋') + '</div>' +
-            '<div class="writer-notice" data-notice role="alert" hidden><span data-notice-text></span><button data-action="retry">' + esc(tr('retry')) + '</button><button data-action="saveAs">' + esc(tr('save_as')) + '</button><button data-action="dismiss" aria-label="' + esc(tr('close')) + '">×</button></div>' +
+            '<div class="writer-notice" data-notice role="alert" hidden><span data-notice-text></span><button data-action="retry" hidden>' + esc(tr('retry')) + '</button><button data-action="saveAs" hidden>' + esc(tr('save_as')) + '</button><button data-action="reload" hidden>' + esc(tr('reopen')) + '</button><button data-action="dismiss" aria-label="' + esc(tr('close')) + '">×</button></div>' +
             '<div class="writer-workspace"><aside class="writer-left" data-left hidden></aside><main class="writer-canvas"><div class="writer-ruler" aria-hidden="true"><span>0</span><span>2</span><span>4</span><span>6</span><span>8</span><span>10</span><span>12</span><span>14</span><span>16</span></div><div class="writer-viewport docx-editor__scroll-container" data-scroll><div class="writer-editor docx-editor" data-editor></div></div><div class="writer-loading" data-loading><div class="writer-load-message"><p data-load-status role="status">' + esc(tr('loading')) + '</p><div class="writer-load-actions" data-load-actions hidden><button data-action="new"' + (ctx.readonly?' disabled':'') + '>' + esc(tr('new')) + '</button><button data-action="open">' + esc(tr('open')) + '</button></div></div></div></main><aside class="writer-right" data-right hidden></aside></div>' +
             '<footer class="writer-statusbar"><button data-action="page" data-page></button><span data-count></span><span class="writer-status-spacer"></span><span data-language></span>' +
             button('focus','focus_mode','⛶') + '<button data-action="zoomOut" aria-label="' + esc(tr('zoom_out')) + '">−</button><button data-action="fit" data-zoom title="' + esc(tr('fit')) + '">100%</button><button data-action="zoomIn" aria-label="' + esc(tr('zoom_in')) + '">+</button></footer><input data-image type="file" accept="image/png,image/jpeg,image/webp" hidden></div>';
@@ -44,6 +44,7 @@
         let loadFailed = false, loading = true, pin = null, updateTimer, draftTimer, draftDeadline, lastDraft = null;
         let statsRevision=-1, rulerSignature='', documentLanguage='', documentFonts;
         let leftPanel = '', rightPanel = '', author = localStorage.getItem('aurago.writer.author') || 'AuraGo';
+        let noticeKind = '', retrySaveAs = null;
         const lifecycle = new AbortController();
         let documentLife = new AbortController();
         const locale = document.documentElement.lang || 'en';
@@ -63,15 +64,28 @@
             if (pin) editor.releaseSelection(pin);
             pin = editor.retainSelection();
         }
-        function notice(message,error) {
+        function notice(message, error, kind) {
             if (disposed) return;
+            noticeKind = message ? (kind || 'info') : '';
+            if (!message) retrySaveAs = null;
+            const banner = find('[data-notice]');
             find('[data-notice-text]').textContent = message || '';
-            find('[data-notice]').hidden = !message;
-            find('[data-notice]').dataset.error = String(!!error);
+            banner.hidden = !message;
+            banner.dataset.error = String(!!error);
+            banner.dataset.kind = noticeKind;
+            const visible = action => action === 'retry' ? ['save','saveAs','load'].includes(noticeKind)
+                : action === 'saveAs' ? ['conflict','save','saveAs'].includes(noticeKind)
+                : action === 'reload' ? noticeKind === 'conflict' : false;
+            for (const action of ['retry','saveAs','reload']) {
+                const button = banner.querySelector('[data-action="'+action+'"]');
+                if (button) button.hidden = !visible(action);
+            }
         }
-        function fail(error) {
+        function fail(error, kind) {
             if (error?.name === 'AbortError' || disposed) return;
-            notice(error?.status === 412 ? tr('conflict') : (error?.message || String(error)),true);
+            const resolved = kind || (error?.status === 412 ? 'conflict' : 'save');
+            if (resolved !== 'saveAs') retrySaveAs = null;
+            notice(resolved === 'conflict' ? tr('conflict') : (error?.message || String(error)), true, resolved);
         }
         function can(command) {
             if(!editor || !command)return {ok:false};
@@ -125,6 +139,7 @@
                     find('[data-save-state]').textContent=tr(value.error?'save_failed':value.saving?'saving':value.dirty?'unsaved':'saved');
                     find('[data-save-state]').dataset.state=value.error?'error':value.dirty?'dirty':'saved';
                     if(value.error)fail(value.error);
+                    else if(!value.dirty && !value.saving && (noticeKind==='conflict' || noticeKind==='save'))notice('');
                 }
             });
         }
@@ -136,7 +151,6 @@
             draftTimer=draftDeadline=null;lastDraft=null;statsRevision=-1;rulerSignature='';
             mount.replaceChildren();path=target;etag=null;loading=true;loadFailed=false;pin=null;
             find('[data-loading]').hidden=false;find('[data-load-status]').textContent=tr('loading');find('[data-load-actions]').hidden=true;
-            find('[data-notice] [data-action="saveAs"]').hidden=false;
             find('[data-name]').textContent=basename(path);find('[data-location]').textContent=path;notice('');
             find('[data-save-state]').textContent=tr('loading');delete find('[data-save-state]').dataset.state;
             ctx.updateWindowContext?.(windowId,{path});
@@ -218,9 +232,8 @@
                 loading=false;loadFailed=true;editor?.destroy();editor=null;queue?.dispose();queue=null;mount.replaceChildren();
                 find('[data-loading]').hidden=false;find('[data-load-status]').textContent=tr('load_failed');find('[data-load-actions]').hidden=false;
                 find('[data-save-state]').textContent=tr('load_failed');find('[data-save-state]').dataset.state='error';
-                find('[data-notice] [data-action="saveAs"]').hidden=true;
                 if(error.status===404)ctx.updateWindowContext?.(windowId,{path:''});
-                fail(error);setMenus();
+                fail(error,'load');setMenus();
             }
         }
         function sanitize(html) {
@@ -312,7 +325,7 @@
                 const response=await responseOK(await fetch(nativeURL(path),{signal:documentLife.signal,cache:'no-store'}));
                 const current=response.headers.get('ETag');response.body?.cancel().catch(()=>{});
                 if(disposed || token!==generation || loading || queue?.pending || current===etag)return;
-                if(queue?.dirty){notice(tr('conflict'),true);return;}
+                if(queue?.dirty){notice(tr('conflict'),true,'conflict');return;}
                 await load(path);
             } catch(error){fail(error);}
         }
@@ -322,18 +335,46 @@
             const choice=await ctx.saveFileDialog({title:tr('save_as'),initialPath:path.split('/').slice(0,-1).join('/'),defaultName:basename(path),defaultExtension:'.docx',filters:[{label:'DOCX',extensions:['.docx']}]});
             if(!choice?.path || choice.canceled || editor!==sourceEditor || disposed)return;
             if(choice.path===path)return queue.save();
-            if(fileOperation)return;fileOperation=true;
+            await commitCopy(choice.path);
+        }
+        async function commitCopy(target, preset) {
+            if(!editor || ctx.readonly || fileOperation || disposed)return;
+            const sourceEditor=editor;
+            fileOperation=true;
             const activeQueue=queue;activeQueue.suspend();
+            const probed=!!preset?.probed;
+            let expected=probed?preset.expected:null, decided=probed;
             try {
-            await activeQueue.pending?.catch(()=>{});
-            const captured=activeQueue.revision,bytes=await editor.save();
-            const newETag=await write(bytes,choice.path,null);
-            if(disposed)return;
-            const changed=activeQueue.revision!==captured;
-            queue.dispose();path=choice.path;etag=newETag;panels.reset();makeQueue();if(changed)queue.changed();
-            find('[data-name]').textContent=basename(path);find('[data-location]').textContent=path;
-            find('[data-save-state]').textContent=tr(changed?'unsaved':'saved');
-            ctx.updateWindowContext?.(windowId,{path});notice(tr('saved'));ctx.loadBootstrap?.();
+                await activeQueue.pending?.catch(()=>{});
+                if(!decided) {
+                    const probe=await fetch(nativeURL(target),{signal:documentLife.signal,cache:'no-store'});
+                    if(probe.status===404) {
+                        expected=null;decided=true;
+                        await probe.body?.cancel().catch(()=>{});
+                    } else if(probe.ok) {
+                        expected=probe.headers.get('ETag');
+                        await probe.body?.cancel().catch(()=>{});
+                        if(!expected){const error=new Error(tr('conflict'));error.status=412;throw error;}
+                        const name=basename(target);
+                        const replace=await ctx.confirmDialog(ctx.t?.('desktop.file_dialog_overwrite_title') || tr('save_as'), ctx.t?.('desktop.file_dialog_overwrite_message',{name}) || name);
+                        if(!replace || disposed || editor!==sourceEditor){retrySaveAs=null;return;}
+                        decided=true;
+                    } else await responseOK(probe);
+                }
+                if(disposed || editor!==sourceEditor)return;
+                const captured=activeQueue.revision,bytes=await editor.save();
+                const newETag=await write(bytes,target,expected);
+                if(disposed)return;
+                const changed=activeQueue.revision!==captured;
+                queue.dispose();path=target;etag=newETag;panels.reset();makeQueue();if(changed)queue.changed();
+                find('[data-name]').textContent=basename(path);find('[data-location]').textContent=path;
+                find('[data-save-state]').textContent=tr(changed?'unsaved':'saved');
+                ctx.updateWindowContext?.(windowId,{path});
+                retrySaveAs=null;notice(tr('saved'));ctx.loadBootstrap?.();
+            } catch(error) {
+                if(error?.name==='AbortError' || disposed)return;
+                retrySaveAs={path:target,expected,probed:decided};
+                notice(error.status===412?tr('conflict'):(error.message || String(error)),true,'saveAs');
             } finally {fileOperation=false;if(queue===activeQueue)activeQueue.resume();}
         }
         async function rename() {
@@ -341,22 +382,38 @@
             const sourceEditor=editor;
             const name=await ctx.promptDialog(tr('rename'),basename(path));
             if(!name || name===basename(path) || editor!==sourceEditor || disposed)return;
-            if(/[\\/]/.test(name) || !/\.docx$/i.test(name)){notice(tr('name_docx'),true);return;}
+            if(/[\\/]/.test(name) || !/\.docx$/i.test(name)){notice(tr('name_docx'),true,'info');return;}
             if(fileOperation)return;fileOperation=true;
             const activeQueue=queue;activeQueue.suspend();
+            let stage='save';
             try {
-            if(!etag && !queue.dirty)queue.changed();
-            await queue.save();
-            const oldPath=path,target=path.split('/').slice(0,-1).concat(name).join('/');
-            const response=await responseOK(await fetch(nativeURL(oldPath),{signal:documentLife.signal,cache:'no-store'}));
-            if(response.headers.get('ETag')!==etag){const error=new Error(tr('conflict'));error.status=412;throw error;}
-            const bytes=new Uint8Array(await response.arrayBuffer()),prefix=new TextEncoder().encode(target+'\0');
-            const hashInput=new Uint8Array(prefix.length+bytes.length);hashInput.set(prefix);hashInput.set(bytes,prefix.length);
-            const digest=await crypto.subtle.digest('SHA-256',hashInput);
-            const targetETag='"'+[...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,'0')).join('')+'"';
-            await responseOK(await fetch('/api/desktop/file',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({old_path:oldPath,new_path:target}),signal:documentLife.signal}));
-            path=target;etag=targetETag;find('[data-name]').textContent=name;find('[data-location]').textContent=path;
-            ctx.updateWindowContext?.(windowId,{path});ctx.loadBootstrap?.();
+                if(!etag && !queue.dirty)queue.changed();
+                await queue.save();
+                stage='move';
+                const oldPath=path,target=path.split('/').slice(0,-1).concat(name).join('/');
+                const current=await responseOK(await fetch(nativeURL(oldPath),{signal:documentLife.signal,cache:'no-store'}));
+                const currentETag=current.headers.get('ETag');
+                await current.body?.cancel().catch(()=>{});
+                if(currentETag!==etag){notice(tr('conflict'),true,'conflict');return;}
+                const moved=await fetch('/api/desktop/file',{method:'PATCH',headers:{'Content-Type':'application/json','If-None-Match':'*'},body:JSON.stringify({old_path:oldPath,new_path:target}),signal:documentLife.signal});
+                if(moved.status===412){
+                    await moved.body?.cancel().catch(()=>{});
+                    notice(ctx.t?.('desktop.fm.paste_exists',{name}) || name,true,'info');
+                    return;
+                }
+                await responseOK(moved);
+                await moved.body?.cancel().catch(()=>{});
+                stage='adopt';
+                path=target;etag=null;
+                find('[data-name]').textContent=name;find('[data-location]').textContent=path;
+                ctx.updateWindowContext?.(windowId,{path});
+                const adopted=await responseOK(await fetch(nativeURL(target),{signal:documentLife.signal,cache:'no-store'}));
+                etag=adopted.headers.get('ETag');
+                await adopted.body?.cancel().catch(()=>{});
+                ctx.loadBootstrap?.();
+            } catch(error) {
+                if(error?.name==='AbortError' || disposed || stage==='save')return;
+                notice(error?.message || String(error),true,'info');
             } finally {fileOperation=false;if(queue===activeQueue)activeQueue.resume();}
         }
         function showPanel(side,value) {
@@ -382,7 +439,15 @@
                 switch(action) {
                     case 'document':find('[data-document-menu]').hidden=!find('[data-document-menu]').hidden;break;
                     case 'dismiss':notice('');break;
-                    case 'retry':if(loadFailed)await load(path);else await queue?.save();break;
+                    case 'retry':
+                        if(noticeKind==='saveAs' && retrySaveAs)await commitCopy(retrySaveAs.path,retrySaveAs);
+                        else if(loadFailed || noticeKind==='load')await load(path);
+                        else await queue?.save();
+                        break;
+                    case 'reload':
+                        if(queue?.dirty && !await ctx.confirmDialog(tr('unsaved'),tr('discard_confirm')))return;
+                        await load(path);
+                        break;
                     case 'save':if(queue && !etag && !queue.dirty)queue.changed();await queue?.save();break;
                     case 'saveAs':await saveAs();break;
                     case 'rename':await rename();break;

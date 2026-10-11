@@ -1,5 +1,11 @@
 (function () {
     'use strict';
+    function paperSize(widthTwips, heightTwips) {
+        const near = (width, height, expectedWidth, expectedHeight) => Math.abs(width - expectedWidth) < 20 && Math.abs(height - expectedHeight) < 20;
+        if (near(widthTwips, heightTwips, 12240, 15840) || near(widthTwips, heightTwips, 15840, 12240)) return 'letter';
+        if (near(widthTwips, heightTwips, 11906, 16838) || near(widthTwips, heightTwips, 16838, 11906)) return 'a4';
+        return '';
+    }
     function create(app) {
         const {root,find,tr,esc}=app, life=new AbortController();
         let side='', matches=[], matchIndex=-1, searchSignature='', reviewSignature='', outlineSignature='';
@@ -8,7 +14,7 @@
         const commandButton=(command,label)=>'<button type="button" data-command="'+esc(JSON.stringify(command))+'">'+esc(tr(label))+'</button>';
         const field=(label,input)=>'<label class="writer-field"><span>'+esc(tr(label))+'</span>'+input+'</label>';
         const input=(key,value,type='number',extra='')=>'<input data-field="'+key+'" type="'+type+'" value="'+esc(value)+'" '+extra+'>';
-        const select=(key,items)=>'<select data-field="'+key+'">'+items.map(([value,label])=>'<option value="'+esc(value)+'">'+esc(tr(label))+'</option>').join('')+'</select>';
+        const select=(key,items,extra='')=>'<select data-field="'+key+'">'+items.map(([value,label])=>'<option value="'+esc(value)+'">'+esc(tr(label))+'</option>').join('')+extra+'</select>';
         const section=(label,body)=>'<section class="writer-panel-section"><h3>'+esc(tr(label))+'</h3>'+body+'</section>';
         function show(which,name) {
             const node=find('[data-'+which+']');node.hidden=!name;
@@ -32,7 +38,7 @@
                     section('paragraph',field('line_spacing',input('lineSpacing',1.15,'number','min=".5" max="10" step=".05"'))+
                     field('before_spacing',input('beforePt',0,'number','min="0" max="200"'))+field('after_spacing',input('afterPt',8,'number','min="0" max="200"'))+
                     field('left_indent',input('leftIndent',0,'number','min="0" max="100"'))+field('first_indent',input('firstIndent',0,'number','min="-100" max="100"')))+
-                    section('page_setup',field('paper',select('paper',[['a4','a4'],['letter','letter_paper']]))+
+                    section('page_setup',field('paper',select('paper',[['a4','a4'],['letter','letter_paper']],'<option value="custom" disabled>'+esc(tr('paper_custom'))+'</option>'))+
                     field('orientation',select('orientation',[['portrait','portrait'],['landscape','landscape']]))+
                     ['Top','Bottom','Left','Right'].map(x=>field('margin_'+x.toLowerCase(),input('margin'+x,25,'number','min="0" max="100"'))).join(''))+
                     section('table','<p class="writer-hint">'+esc(tr('table_resize_hint'))+'</p>'+
@@ -86,8 +92,24 @@
             const snapshot=editor.snapshot(),fmt=snapshot.formatting || {};
             if(right==='format') {
                 const setup=snapshot.pageSetup, image=snapshot.image;
+                const hex=value=>{const body=String(value??'').trim().replace(/^#/,'');return /^[0-9a-fA-F]{6}$/.test(body)?'#'+body.toLowerCase():'';};
+                const mm=twips=>Math.round(Number(twips)*25.4/1440);
+                const indent=fmt.indent;
                 const fields={lineSpacing:fmt.lineSpacing?.value || 1.15,beforePt:fmt.spaceBeforePt || 0,afterPt:fmt.spaceAfterPt || 0,
-                    orientation:setup.orientation,paper:Math.abs(setup.pageWidthTwips-12240)<20?'letter':'a4'};
+                    orientation:setup.orientation,paper:paperSize(setup.pageWidthTwips,setup.pageHeightTwips) || 'custom',
+                    leftIndent:indent && !indent.mixed?.left ? mm(indent.left) : '',
+                    firstIndent:indent && !indent.mixed?.firstLine ? mm(indent.firstLine) : ''};
+                const color=hex(fmt.color), highlight=hex(fmt.highlight);
+                if(color)fields['text.color']=color;
+                if(highlight)fields['text.highlight']=highlight;
+                if(image) {
+                    const selected=editor.getSelectedImage();
+                    if(selected) {
+                        if(Number.isFinite(selected.widthEmu) && selected.widthEmu>0)fields.imageWidth=Math.round(selected.widthEmu/36000);
+                        fields.imageAlt=selected.description || '';
+                        if(['inline','squareLeft','squareRight','topAndBottom'].includes(selected.wrap))fields.imageWrap=selected.wrap;
+                    }
+                }
                 for(const direction of ['Top','Bottom','Left','Right'])fields['margin'+direction]=Math.round(setup.marginsTwips[direction.toLowerCase()]*25.4/1440);
                 for(const [key,v] of Object.entries(fields)) {
                     const el=find('[data-field="'+key+'"]');if(el && el!==document.activeElement)el.value=v;
@@ -223,6 +245,7 @@
             if(key?.startsWith('margin'))app.run({type:'setPageSetup',[key]:Math.round(n*1440/25.4),scope:'document'});
             if(key==='orientation')app.run({type:'setPageSetup',orientation:v});
             if(key==='paper') {
+                if(v==='custom')return;
                 let [pageWidth,pageHeight]=v==='letter'?[12240,15840]:[11906,16838];
                 if(editor.snapshot().pageSetup.orientation==='landscape')[pageWidth,pageHeight]=[pageHeight,pageWidth];
                 app.run({type:'setPageSetup',pageWidth,pageHeight});
@@ -274,5 +297,5 @@
         function reset(){aiRequest?.abort();suggestion=null;renderSuggestion();matches=[];reviewSignature=outlineSignature=searchSignature='';}
         return {show,update,template,print,reset,dispose(){life.abort();reset();printFrame?.dispose();}};
     }
-    window.WriterPanels={create};
+    window.WriterPanels={create,paperSize};
 })();

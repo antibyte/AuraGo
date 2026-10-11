@@ -1249,7 +1249,7 @@ buttons and menu popovers remain excluded from those gestures.
   Opening a DOCX that a Writer window already shows (Files, the agent's
   `open_in_app`) focuses it and calls `reloadIfChanged()`: the window reloads
   when the file's ETag moved since load or the last save, and unsaved edits are
-  never replaced (conflict notice instead). Markdown/HTML/TXT open as a new
+  never replaced (conflict notice with Save As and reopen instead). Markdown/HTML/TXT open as a new
   import copy, so their windows never match a re-open. Verify
   `TestDesktopWriterReloadsChangedFileOnReopen` (`AURAGO_RUN_BROWSER_SMOKE=1`).
 - The Calendar is three continuations inside the shared Desktop IIFE, bundled
@@ -1682,8 +1682,19 @@ registration lives in `internal/desktop/types.go`.
   owns its editor, abort controllers, panels, draft and serial save queue.
   Autosave waits 800 ms, with a five-second ceiling during continuous typing.
   Acknowledgements cover only the captured revision. Suspend the queue during
-  Save As; native writes require ETag preconditions. Keep the async close guard
-  installed until cleanup and never replace failed loads with blank content.
+  Save As and rename. Native writes require ETag preconditions. Save As probes
+  the destination: a missing file uses `If-None-Match: *`, and an existing file
+  is replaced only after confirmation with that file's `If-Match`. A failed copy
+  retries the chosen destination. Rename sends `If-None-Match: *` on
+  `PATCH /api/desktop/file` and then adopts the ETag from GET of the new path.
+  An existing name stays put and uses `desktop.fm.paste_exists`. A conflict
+  notice offers Save As and reopen; reopen confirms before discarding local
+  edits. Retry stays for load failures and transient saves of the open file.
+  A successful save clears conflict and save notices. Format paper recognizes
+  Letter and A4 in both orientations; other sizes show a non-writing custom
+  option. Format indent, hex color, highlight and image fields follow the
+  selection. Keep the async close guard installed until cleanup and never
+  replace failed loads with blank content.
 - Writer exposes New/Open after load failures and clears the persisted window
   path only on a confirmed 404. Transient errors retain it for Retry. Verify
   `TestDesktopFileLoadRecoveryBrowser` alongside the Sheets recovery check.

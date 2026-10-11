@@ -20,6 +20,8 @@ worker. Keep packaging, recovery and offline instructions in
   version it read; a global path cache must not grant another window an overwrite.
   Adopt the server's returned path after a copy decision. Rebuild Desktop bundles
   and verify `TestDesktopFileConflictBrowser` for changes to this flow.
+  Autor keeps its own DOCX conflict actions, documented in `documentation/autor.md`:
+  Save As and reopen, with create-only rename.
 
 - File Manager paste, archive, extract and batch rename retain their originating
   instance and captured paths across dialogs and requests. Late results cannot
