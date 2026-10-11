@@ -377,7 +377,7 @@ func TestBrowserAutomationHealthReturnsErrorPayloadForNonSuccessStatus(t *testin
 	}
 }
 
-func TestBrowserAutomationSidecarRequestRetriesTransientFailures(t *testing.T) {
+func TestBrowserAutomationSidecarRequestDoesNotRetry(t *testing.T) {
 	attempts := 0
 	httpClient := &http.Client{
 		Timeout: 2 * time.Second,
@@ -401,15 +401,15 @@ func TestBrowserAutomationSidecarRequestRetriesTransientFailures(t *testing.T) {
 		URL:        "http://127.0.0.1:7331",
 		AuthToken:  "test-token",
 		HTTPClient: httpClient,
-	}, map[string]interface{}{"operation": "current_state"})
-	if err != nil {
-		t.Fatalf("browserAutomationSidecarRequest() error = %v", err)
+	}, map[string]interface{}{"operation": "click"})
+	if err == nil {
+		t.Fatal("expected connection failure not to be retried")
 	}
-	if got, _ := result["status"].(string); got != "success" {
-		t.Fatalf("status = %q, want success", got)
+	if result != nil {
+		t.Fatalf("result = %#v, want nil", result)
 	}
-	if attempts != 2 {
-		t.Fatalf("attempts = %d, want 2", attempts)
+	if attempts != 1 {
+		t.Fatalf("attempts = %d, want 1", attempts)
 	}
 }
 

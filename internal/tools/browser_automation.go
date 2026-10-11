@@ -85,13 +85,6 @@ type BrowserAutomationSidecarConfig struct {
 
 var browserAutomationDefaultHTTPClient = &http.Client{Timeout: 60 * time.Second}
 
-var browserAutomationRetryDelays = []time.Duration{
-	250 * time.Millisecond,
-	750 * time.Millisecond,
-	1500 * time.Millisecond,
-	3000 * time.Millisecond,
-}
-
 func browserAutomationHTTPClientFor(cfg BrowserAutomationSidecarConfig) *http.Client {
 	base := browserAutomationDefaultHTTPClient
 	if cfg.HTTPClient != nil {
@@ -458,23 +451,11 @@ func browserAutomationSidecarRequest(ctx context.Context, cfg BrowserAutomationS
 		req.Header.Set("X-AuraGo-Sidecar-Token", token)
 	}
 
-	var (
-		resp   *http.Response
-		reqErr error
-	)
-	for attempt := 0; attempt <= len(browserAutomationRetryDelays); attempt++ {
-		clonedReq := req.Clone(ctx)
-		clonedReq.Body = io.NopCloser(bytes.NewReader(data))
-		resp, reqErr = httpClient.Do(clonedReq)
-		if reqErr == nil {
-			break
-		}
-		if attempt == len(browserAutomationRetryDelays) || !browserAutomationRetryableError(reqErr) {
-			return nil, fmt.Errorf("browser automation request failed: %w", reqErr)
-		}
-		if sleepErr := browserAutomationSleepWithContext(ctx, browserAutomationRetryDelays[attempt]); sleepErr != nil {
-			return nil, fmt.Errorf("browser automation request failed: %w", reqErr)
-		}
+	clonedReq := req.Clone(ctx)
+	clonedReq.Body = io.NopCloser(bytes.NewReader(data))
+	resp, reqErr := httpClient.Do(clonedReq)
+	if reqErr != nil {
+		return nil, fmt.Errorf("browser automation request failed: %w", reqErr)
 	}
 	defer resp.Body.Close()
 
@@ -543,39 +524,6 @@ func BrowserAutomationHealth(ctx context.Context, cfg *config.Config) map[string
 		return map[string]interface{}{"status": "error", "message": "sidecar does not attest the required egress policy"}
 	}
 	return result
-}
-
-func browserAutomationRetryableError(err error) bool {
-	if err == nil {
-		return false
-	}
-	errText := strings.ToLower(err.Error())
-	for _, marker := range []string{
-		"connection refused",
-		"connection reset",
-		"broken pipe",
-		"eof",
-		"no such host",
-		"server misbehaving",
-		"timeout",
-		"temporarily unavailable",
-	} {
-		if strings.Contains(errText, marker) {
-			return true
-		}
-	}
-	return false
-}
-
-func browserAutomationSleepWithContext(ctx context.Context, delay time.Duration) error {
-	timer := time.NewTimer(delay)
-	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
-		return nil
-	}
 }
 
 func ResolveBrowserAutomationSidecarConfig(cfg *config.Config) (BrowserAutomationSidecarConfig, error) {
