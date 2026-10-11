@@ -249,6 +249,16 @@ func TestCYDCreatorDockModule(t *testing.T) {
 		"P.dock = { create };", "registerTab,", "ccDockTab: id", "problems: { set: setIssues, setDiagnostics,",
 		"inst.bus.on('sse:build_log'", "inst.bus.on('layout:issues'", "inst.reveal(", "inst.openFile(", "trackBuild(build) {", "dispose() {")
 	checkCYDCreatorCancelNotReadonly(t, "cyd-creator-dock.js", text, "cancelBtn.hidden =")
+	// Review fixes (behaviour in scripts/test-cyd-creator-shell.mjs): the collapse survives the
+	// restore of the saved tab, pruned builds replayed by the event backlog are ignored, a finished
+	// build's stored log replaces the lossy live lines, and the separator states its range.
+	for _, marker := range []string{"const startCollapsed = !!prefs.collapsed;", "setCollapsed(startCollapsed);",
+		"if (pruned(build, state.builds)) return;", "loadLog(build.id, true);", "'aria-valuemin'", "'aria-valuemax'",
+		"downloadLink.download = build.id + '-build.log';"} {
+		if !strings.Contains(text, marker) {
+			t.Errorf("cyd-creator-dock.js misses %q", marker)
+		}
+	}
 }
 
 // checkCYDCreatorCancelNotReadonly: plan 2 allows the job/build cancel routes while the desktop is

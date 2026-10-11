@@ -8,6 +8,7 @@
     const P = window.CYDCreatorParts = window.CYDCreatorParts || {};
     const PREFS_KEY = 'aurago.cydcreator.dock.v1';
     const LOG_MAX_LINES = 5000;
+    const MIN_HEIGHT = 120;
     const TAB_ORDER = { log: 0, monitor: 1, problems: 2 };
     const ACTIVE_BUILD = new Set(['queued', 'running']);
 
@@ -18,8 +19,25 @@
         try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (_) { /* storage may be blocked */ }
     }
 
+    // Builds sort newest first like GET /builds (created_at DESC, id DESC). created_at is RFC 3339
+    // UTC with milliseconds; Date.parse also copes with other precisions or offsets.
+    function stamp(build) {
+        const ms = Date.parse(build && build.created_at);
+        return Number.isFinite(ms) ? ms : 0;
+    }
     function sortBuilds(list) {
-        return list.slice().sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+        return list.slice().sort((a, b) => (stamp(b) - stamp(a)) || String(b.id).localeCompare(String(a.id)));
+    }
+    // progress orders a build's states: queued < running < finished. A copy with less progress than
+    // the known one is stale (a late POST answer, an older snapshot).
+    function progress(build) {
+        return build.status === 'queued' ? 0 : (build.status === 'running' ? 1 : 2);
+    }
+    // pruned: an unknown finished build older than the newest known one was deleted by the retention
+    // (5 builds per project) while its events (5000 per project) still replay to a new window.
+    function pruned(build, known) {
+        if (ACTIVE_BUILD.has(build.status) || !known.length) return false;
+        return stamp(build) < known.reduce((max, x) => Math.max(max, stamp(x)), 0);
     }
 
     function create(inst) {
@@ -27,10 +45,16 @@
         const t = inst.t;
         const b = bag();
         const prefs = Object.assign({ h: 220, collapsed: false, tab: 'log' }, readPrefs());
+        // Restoring the saved tab while the dock is built must not expand a collapsed dock.
+        const startCollapsed = !!prefs.collapsed;
         const tabs = new Map();
         const state = {
             current: '',
+            // fallback: the shown tab stands in for a saved tab that is not registered (yet).
+            fallback: false,
             builds: [],
+            // early: finished builds that events reported before GET /builds answered (mergeBuilds).
+            early: new Map(),
             selected: '',
             lines: [],
             truncated: false,
@@ -78,10 +102,13 @@
                 show(next.dataset.ccDockTab);
                 next.focus();
             });
-            if (state.current === '' && id === prefs.tab) show(id);
+            if (id === prefs.tab && (state.current === '' || state.fallback)) show(id, true);
         }
 
-        function show(id) {
+        // show(id) is a user's choice: it expands the dock and remembers the tab. show(id, true)
+        // restores a tab while the dock is built or when a saved tab registers later: it neither
+        // expands the dock nor overwrites the saved tab (a fallback to the log keeps plan 5's monitor).
+        function show(id, restore) {
             const entry = tabs.get(id);
             if (!entry) return;
             state.current = id;
@@ -100,17 +127,32 @@
                     console.error('cyd-creator dock tab failed to mount', id, err);
                 }
             }
-            if (prefs.collapsed) setCollapsed(false);
-            prefs.tab = id;
-            writePrefs(prefs);
+            if (restore) {
+                state.fallback = id !== prefs.tab;
+            } else {
+                state.fallback = false;
+                if (prefs.collapsed) setCollapsed(false);
+                prefs.tab = id;
+                writePrefs(prefs);
+            }
+            followTail();
         }
 
-        function setBadge(id, text, tone) {
+        // decorative badges (the running dot) are hidden from screen readers; counts are read.
+        function setBadge(id, text, tone, decorative) {
             const entry = tabs.get(id);
             if (!entry) return;
             entry.badge.hidden = !text;
             entry.badge.textContent = text || '';
             entry.badge.dataset.tone = tone || '';
+            if (decorative) entry.badge.setAttribute('aria-hidden', 'true');
+            else entry.badge.removeAttribute('aria-hidden');
+        }
+
+        // followTail keeps the log at its end while "follow" is on. A hidden <pre> cannot scroll, so
+        // showing the log tab or expanding the dock catches up.
+        function followTail() {
+            if (state.follow && state.current === 'log' && !prefs.collapsed) logPre.scrollTop = logPre.scrollHeight;
         }
 
         // ── collapse and resize ──
@@ -123,11 +165,14 @@
             toggleBtn.title = toggleBtn.getAttribute('aria-label');
             toggleBtn.textContent = prefs.collapsed ? '▴' : '▾';
             writePrefs(prefs);
+            followTail();
         }
         function setHeight(h) {
             const max = Math.max(160, Math.round((inst.root.clientHeight || 800) * 0.7));
-            prefs.h = Math.round(P.util.clamp(h, 120, max));
+            prefs.h = Math.round(P.util.clamp(h, MIN_HEIGHT, max));
             root.style.setProperty('--cc-dock-h', prefs.h + 'px');
+            handle.setAttribute('aria-valuemin', String(MIN_HEIGHT));
+            handle.setAttribute('aria-valuemax', String(max));
             handle.setAttribute('aria-valuenow', String(prefs.h));
         }
         b.on(toggleBtn, 'click', () => setCollapsed(!prefs.collapsed));
@@ -204,7 +249,8 @@
             cancelBtn.hidden = !ACTIVE_BUILD.has(build.status);
             downloadLink.hidden = false;
             downloadLink.href = inst.api.buildLogUrl(build.id);
-            setBadge('log', ACTIVE_BUILD.has(build.status) ? '•' : '', build.status === 'failed' ? 'danger' : 'accent');
+            downloadLink.download = build.id + '-build.log';
+            setBadge('log', ACTIVE_BUILD.has(build.status) ? '•' : '', build.status === 'failed' ? 'danger' : 'accent', true);
         }
 
         function lineClass(line) {
@@ -213,39 +259,63 @@
             return '';
         }
 
+        function lineNode(line) {
+            return el('span', { class: 'cc-log-line ' + lineClass(line), text: line + '\n' });
+        }
+        function noteNode() {
+            return el('span', { class: 'cc-log-line is-note', text: t('cyd_creator.dock.log_truncated') + '\n' });
+        }
+
+        // While state.truncated is set, the truncation note is the log's first node.
         function renderLog() {
-            const nodes = state.lines.map(line => el('span', { class: 'cc-log-line ' + lineClass(line), text: line + '\n' }));
-            if (state.truncated) nodes.unshift(el('span', { class: 'cc-log-line is-note', text: t('cyd_creator.dock.log_truncated') + '\n' }));
+            const nodes = state.lines.map(lineNode);
+            if (state.truncated) nodes.unshift(noteNode());
             logPre.replaceChildren(...nodes);
             if (state.follow) logPre.scrollTop = logPre.scrollHeight;
         }
 
+        // pushLines appends live lines. Past LOG_MAX_LINES the oldest line nodes are removed (the
+        // note stays first) instead of rebuilding the whole ring.
         function pushLines(lines) {
-            const list = Array.isArray(lines) ? lines : [];
+            const list = (Array.isArray(lines) ? lines : []).map(String);
             if (!list.length) return;
-            state.lines.push(...list.map(String));
-            const overflow = state.lines.length - LOG_MAX_LINES;
-            if (overflow > 0) {
-                state.lines.splice(0, overflow);
+            if (list.length >= LOG_MAX_LINES) {
+                state.lines = list.slice(-LOG_MAX_LINES);
                 state.truncated = true;
                 renderLog();
                 return;
             }
+            state.lines.push(...list);
             const frag = document.createDocumentFragment();
-            list.forEach(line => frag.appendChild(el('span', { class: 'cc-log-line ' + lineClass(String(line)), text: String(line) + '\n' })));
+            list.forEach(line => frag.appendChild(lineNode(line)));
             logPre.appendChild(frag);
+            const overflow = state.lines.length - LOG_MAX_LINES;
+            if (overflow > 0) {
+                state.lines.splice(0, overflow);
+                if (!state.truncated) {
+                    state.truncated = true;
+                    logPre.insertBefore(noteNode(), logPre.firstChild);
+                }
+                const note = logPre.firstChild;
+                for (let i = 0; i < overflow && note.nextSibling; i++) note.nextSibling.remove();
+            }
             if (state.follow) logPre.scrollTop = logPre.scrollHeight;
         }
 
-        async function loadLog(buildId) {
+        // loadLog reads the stored log of buildId. keep leaves the visible lines in place until the
+        // answer arrives, and when it is empty (an interrupted build stores no log).
+        async function loadLog(buildId, keep) {
             const token = ++state.logToken;
-            state.lines = [];
-            state.truncated = false;
-            renderLog();
+            if (!keep) {
+                state.lines = [];
+                state.truncated = false;
+                renderLog();
+            }
             if (!buildId) return;
             try {
                 const text = await inst.api.buildLog(buildId);
                 if (token !== state.logToken || b.disposed) return;
+                if (keep && !text) return;
                 const lines = text.split(/\r?\n/);
                 if (lines.length && lines[lines.length - 1] === '') lines.pop();
                 state.truncated = lines.length > LOG_MAX_LINES;
@@ -267,28 +337,69 @@
             loadLog(state.selected);
         }
 
+        // renderSelected repaints the selected build after its record changed (prev: the record
+        // before, null for a new one). A build that just finished gets its stored log: live lines
+        // are throttled (skip markers) and carry no offset, while the stored log is complete before
+        // the final build_status (the artefacts are stored before finishBuild emits it).
+        function renderSelected(prev) {
+            const build = selectedBuild();
+            renderBuildStatus();
+            if (!build || ACTIVE_BUILD.has(build.status)) return;
+            setDiagnostics(build.diagnostics || []);
+            if (!prev || ACTIVE_BUILD.has(prev.status)) loadLog(build.id, true);
+        }
+
+        // mergeBuilds combines GET /builds with what events reported meanwhile (the request and the
+        // stream race): a listed build takes the event copy when that one has progressed further;
+        // an unlisted build stays when it is active or not older than the newest listed one.
+        function mergeBuilds(list) {
+            const byId = new Map();
+            (Array.isArray(list) ? list : []).forEach(build => { if (build && build.id) byId.set(build.id, build); });
+            const listed = Array.from(byId.values());
+            state.builds.concat(Array.from(state.early.values())).forEach(build => {
+                const known = byId.get(build.id);
+                if (known ? progress(build) > progress(known) : !pruned(build, listed)) byId.set(build.id, build);
+            });
+            return sortBuilds(Array.from(byId.values()));
+        }
+
         async function loadBuilds() {
             try {
                 const list = await inst.api.listBuilds(inst.projectId);
                 if (b.disposed) return;
-                state.builds = sortBuilds(list);
+                const before = selectedBuild();
+                state.builds = mergeBuilds(list);
+                state.early.clear();
                 state.buildsLoaded = true;
-                select(state.builds.length ? state.builds[0].id : '');
+                // A build the window already shows (started or followed meanwhile) stays selected.
+                if (before && selectedBuild()) {
+                    renderBuildOptions();
+                    renderSelected(before);
+                } else {
+                    select(state.builds.length ? state.builds[0].id : '');
+                }
             } catch (err) {
                 if (!b.disposed) inst.notify('error', P.errors.message(t, err));
             }
         }
 
         // upsert takes a Build from POST /builds or a build_status event. A new build becomes the
-        // selected one while "follow" is on.
+        // selected one while "follow" is on. A copy with less progress than the known one is stale.
+        // An unknown finished build waits for GET /builds (mergeBuilds) and, once the list is
+        // loaded, is ignored when it is older than the newest known build (pruned).
         function upsert(build) {
             if (!build || !build.id) return;
             const index = state.builds.findIndex(x => x.id === build.id);
-            const isNew = index < 0;
-            if (isNew) state.builds.unshift(build);
-            else state.builds[index] = build;
+            const prev = index >= 0 ? state.builds[index] : null;
+            if (prev && progress(build) < progress(prev)) return;
+            if (!prev && !ACTIVE_BUILD.has(build.status)) {
+                if (!state.buildsLoaded) { state.early.set(build.id, build); return; }
+                if (pruned(build, state.builds)) return;
+            }
+            if (prev) state.builds[index] = build;
+            else state.builds.unshift(build);
             state.builds = sortBuilds(state.builds);
-            if (isNew && (state.follow || !state.selected)) {
+            if (!prev && (state.follow || !state.selected)) {
                 state.selected = build.id;
                 state.lines = [];
                 state.truncated = false;
@@ -296,10 +407,7 @@
                 renderLog();
             }
             renderBuildOptions();
-            if (build.id === state.selected) {
-                renderBuildStatus();
-                if (!ACTIVE_BUILD.has(build.status)) setDiagnostics(build.diagnostics || []);
-            }
+            if (build.id === state.selected) renderSelected(prev);
         }
 
         b.on(buildSelect, 'change', () => select(buildSelect.value));
@@ -380,8 +488,8 @@
         // ── wiring ──
         registerTab('log', { labelKey: 'cyd_creator.dock.log', mount: panel => { panel.appendChild(logPanel); } });
         registerTab('problems', { labelKey: 'cyd_creator.dock.problems', mount: panel => { panel.appendChild(problemsPanel); } });
-        if (!state.current) show(tabs.has(prefs.tab) ? prefs.tab : 'log');
-        setCollapsed(prefs.collapsed);
+        if (!state.current) show(tabs.has(prefs.tab) ? prefs.tab : 'log', true);
+        setCollapsed(startCollapsed);
         setHeight(prefs.h);
         renderBuildStatus();
         renderProblems();
@@ -392,29 +500,30 @@
             pushLines(data.lines);
         }));
         b.add(inst.bus.on('layout:issues', issues => setIssues(issues)));
-        // After a reconnect the ephemeral lines of a running build are gone: read the log again.
-        let streamSeen = false;
+        // Live lines of a running build are ephemeral: after every (re)connect, the first one too
+        // (lines between the HTTP snapshot and the subscription), read its log again.
         b.add(inst.bus.on('sse:stream_ready', () => {
             const build = selectedBuild();
-            if (streamSeen && build && ACTIVE_BUILD.has(build.status)) loadLog(build.id);
-            streamSeen = true;
+            if (build && ACTIVE_BUILD.has(build.status)) loadLog(build.id, true);
         }));
 
         const dock = {
             el: root,
             registerTab,
-            show,
+            show: id => show(id),
             current: () => state.current,
             setCollapsed,
             toggle: () => setCollapsed(!prefs.collapsed),
             problems: { set: setIssues, setDiagnostics, list: () => ({ issues: state.issues.slice(), diagnostics: state.diagnostics.slice() }) },
             builds: { load: loadBuilds, upsert, select, list: () => state.builds.slice(), selected: () => selectedBuild() },
-            // trackBuild follows a build the user just started. Its build_status event may have
-            // arrived before the POST answer; then upsert does not select it and select() does.
+            // trackBuild follows a build the user just started. Its build_status events may have
+            // arrived before the POST answer: then the answer ("queued") must not overwrite them,
+            // and select() selects the build when upsert did not.
             trackBuild(build) {
+                if (!build || !build.id) return;
                 state.follow = true;
                 followBox.checked = true;
-                upsert(build);
+                if (!state.builds.some(x => x.id === build.id)) upsert(build);
                 if (state.selected !== build.id) select(build.id);
                 show('log');
             },

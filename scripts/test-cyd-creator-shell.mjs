@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Runs the pure parts of the CYD Creator shell (cyd-creator-core.js, -api.js, -events.js) in Node:
 // P.util, P.i18n, P.errors, the API error envelope and request(), the autosave/conflict state
-// machine with a fake clock, and the SSE cursor, backoff, backlog coalescing and reconnect logic.
+// machine with a fake clock, and the SSE cursor, backoff, backlog coalescing and reconnect logic;
+// the dock (cyd-creator-dock.js) runs on a minimal fake DOM.
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -524,6 +525,192 @@ function browserConnect(after) {
     eq('jitter +20 % never goes above 30 s', await reconnectDelays(() => 1, 7), [1200, 2400, 4800, 9600, 19200, 30000, 30000]);
     const spread = await reconnectDelays(undefined, 4);
     check('the default jitter stays within ±20 % of the backoff', spread.every((d, i) => d >= Math.max(1000, 0.8 * 1000 * 2 ** i) && d <= 1.2 * 1000 * 2 ** i), JSON.stringify(spread));
+}
+
+// ── dock (cyd-creator-dock.js) on a minimal fake DOM: only what the dock and P.util.el touch ──
+class FakeNode {
+    constructor(tag, text) {
+        this.tagName = String(tag).toUpperCase();
+        this.childNodes = [];
+        this.parentNode = null;
+        this.attrs = {};
+        this.dataset = {};
+        this.listeners = {};
+        this.ownText = text || '';
+        this.checkedProp = undefined;
+        this.scrollTop = 0;
+        this.clientHeight = 100;
+        const classes = new Set();
+        this.classList = {
+            toggle(name, on) { const want = on === undefined ? !classes.has(name) : !!on; if (want) classes.add(name); else classes.delete(name); return want; },
+            contains: name => classes.has(name)
+        };
+        this.style = { props: {}, setProperty(name, value) { this.props[name] = String(value); } };
+    }
+    get children() { return this.childNodes; }
+    get firstChild() { return this.childNodes[0] || null; }
+    get nextSibling() { return this.parentNode ? this.parentNode.childNodes[this.parentNode.childNodes.indexOf(this) + 1] || null : null; }
+    get hidden() { return 'hidden' in this.attrs; }
+    set hidden(on) { if (on) this.attrs.hidden = ''; else delete this.attrs.hidden; }
+    get disabled() { return 'disabled' in this.attrs; }
+    set disabled(on) { if (on) this.attrs.disabled = ''; else delete this.attrs.disabled; }
+    get checked() { return this.checkedProp === undefined ? 'checked' in this.attrs : this.checkedProp; }
+    set checked(on) { this.checkedProp = !!on; }
+    get scrollHeight() { return this.childNodes.length * 10; }
+    get textContent() { return this.ownText + this.childNodes.map(n => n.textContent).join(''); }
+    set textContent(value) { this.replaceChildren(); this.ownText = String(value); }
+    setAttribute(name, value) { this.attrs[name] = String(value); }
+    getAttribute(name) { return name in this.attrs ? this.attrs[name] : null; }
+    removeAttribute(name) { delete this.attrs[name]; }
+    appendChild(node) { return this.insertBefore(node, null); }
+    insertBefore(node, ref) {
+        const nodes = node.tagName === '#FRAGMENT' ? node.childNodes.slice() : [node];
+        nodes.forEach(n => {
+            if (n.parentNode) n.parentNode.removeChild(n);
+            const at = ref ? this.childNodes.indexOf(ref) : -1;
+            if (at < 0) this.childNodes.push(n); else this.childNodes.splice(at, 0, n);
+            n.parentNode = this;
+        });
+        return node;
+    }
+    removeChild(node) {
+        const at = this.childNodes.indexOf(node);
+        if (at >= 0) this.childNodes.splice(at, 1);
+        node.parentNode = null;
+        return node;
+    }
+    remove() { if (this.parentNode) this.parentNode.removeChild(this); }
+    replaceChildren(...nodes) {
+        this.childNodes.slice().forEach(n => this.removeChild(n));
+        nodes.forEach(n => this.appendChild(n));
+    }
+    addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
+    removeEventListener(type, fn) { this.listeners[type] = (this.listeners[type] || []).filter(f => f !== fn); }
+    dispatch(type, extra) { (this.listeners[type] || []).slice().forEach(fn => fn(Object.assign({ preventDefault() {}, button: 0 }, extra))); }
+    querySelectorAll(selector) {
+        if (selector !== '[role="tab"]') throw new Error('fake DOM: unsupported selector ' + selector);
+        const out = [];
+        const walk = node => node.childNodes.forEach(n => { if (n.attrs.role === 'tab') out.push(n); walk(n); });
+        walk(this);
+        return out;
+    }
+    focus() {}
+    setPointerCapture() {}
+}
+const fakeStorage = new Map();
+sandbox.document = {
+    createElement: tag => new FakeNode(tag),
+    createTextNode: text => new FakeNode('#text', String(text)),
+    createDocumentFragment: () => new FakeNode('#fragment')
+};
+sandbox.localStorage = { getItem: key => (fakeStorage.has(key) ? fakeStorage.get(key) : null), setItem: (key, value) => fakeStorage.set(key, String(value)) };
+{
+    const full = path.join(apps, 'cyd-creator-dock.js');
+    vm.runInContext(fs.readFileSync(full, 'utf8'), sandbox, { filename: full });
+}
+const DOCK_PREFS = 'aurago.cydcreator.dock.v1';
+function findNode(node, pred) {
+    if (pred(node)) return node;
+    for (const child of node.childNodes) {
+        const hit = findNode(child, pred);
+        if (hit) return hit;
+    }
+    return null;
+}
+function dockBuild(id, status, minute) {
+    return { id, status, created_at: '2026-10-12T10:' + String(minute).padStart(2, '0') + ':00.000Z', diagnostics: [] };
+}
+// makeDock creates a dock with stored prefs and loads its builds like the app; GET /builds
+// answers when release() is called.
+function makeDock(prefs, listed, logs) {
+    fakeStorage.clear();
+    if (prefs) fakeStorage.set(DOCK_PREFS, JSON.stringify(prefs));
+    const calls = { log: [] };
+    let release;
+    const listedPromise = new Promise(resolve => { release = () => resolve(listed || []); });
+    const inst = {
+        t: P.i18n({}), bus: P.createBus(), projectId: 'ccp_1', root: { clientHeight: 1000 }, domId: s => 'cc1-' + s,
+        api: {
+            listBuilds: () => listedPromise,
+            buildLog: id => { calls.log.push(id); return Promise.resolve((logs || {})[id] || ''); },
+            buildLogUrl: id => '/log/' + id,
+            cancelBuild: () => Promise.resolve(true)
+        },
+        reveal() {}, openFile() {}, notify() {}
+    };
+    const dock = P.dock.create(inst);
+    dock.builds.load();
+    const pre = () => findNode(dock.el, n => n.dataset.ccLog !== undefined);
+    return { dock, inst, calls, release, pre, prefs: () => JSON.parse(fakeStorage.get(DOCK_PREFS) || '{}') };
+}
+{
+    const d = makeDock({ collapsed: true, tab: 'problems', h: 300 });
+    eq('a collapsed dock opens collapsed on its saved tab', [d.dock.el.classList.contains('is-collapsed'), d.dock.current(), d.prefs().collapsed], [true, 'problems', true]);
+    const handle = d.dock.el.childNodes[0];
+    eq('the separator states its range', [handle.getAttribute('aria-valuemin'), handle.getAttribute('aria-valuemax'), handle.getAttribute('aria-valuenow')], ['120', '700', '300']);
+    d.dock.show('log');
+    eq('a tab the user shows expands the dock', [d.dock.el.classList.contains('is-collapsed'), d.prefs().collapsed, d.prefs().tab], [false, false, 'log']);
+    d.dock.dispose();
+}
+{
+    const d = makeDock({ tab: 'monitor' });
+    eq('the log stands in for an unregistered saved tab without replacing it', [d.dock.current(), d.prefs().tab], ['log', 'monitor']);
+    d.dock.registerTab('monitor', { labelKey: 'cyd_creator.dock.log', mount() {} });
+    eq('the saved tab is shown once it registers', [d.dock.current(), d.prefs().tab], ['monitor', 'monitor']);
+    d.dock.dispose();
+}
+{
+    // A new window replays build_status of builds the retention deleted (events outlive builds).
+    const d = makeDock(null, [dockBuild('cb_5', 'succeeded', 5), dockBuild('cb_4', 'failed', 4)], { cb_5: 'five\n', cb_6: 'six stored\n' });
+    d.inst.bus.emit('build:status', dockBuild('cb_1', 'succeeded', 1));
+    d.inst.bus.emit('build:status', dockBuild('cb_6', 'running', 6));
+    eq('before GET /builds a finished unknown build waits, an active one is shown', d.dock.builds.list().map(x => x.id), ['cb_6']);
+    d.release();
+    await settle();
+    eq('the list merges the active build and drops the pruned one', [d.dock.builds.list().map(x => x.id), d.dock.builds.selected().id], [['cb_6', 'cb_5', 'cb_4'], 'cb_6']);
+    d.inst.bus.emit('build:status', dockBuild('cb_2', 'failed', 2));
+    eq('after GET /builds an older unknown finished build is ignored', d.dock.builds.list().length, 3);
+    d.dock.trackBuild(dockBuild('cb_6', 'queued', 6));
+    eq('a late POST answer does not overwrite a running build', d.dock.builds.selected().status, 'running');
+    d.inst.bus.emit('sse:build_log', { build_id: 'cb_6', lines: ['live', '[… 3 lines skipped …]'] });
+    const download = findNode(d.dock.el, n => n.dataset.ccLogAction === 'download');
+    const logBadge = findNode(d.dock.el, n => n.dataset.ccDockTab === 'log').childNodes[1];
+    eq('the download names the build and the running dot is decorative', [download.download, logBadge.getAttribute('aria-hidden')], ['cb_6-build.log', 'true']);
+    d.calls.log.length = 0;
+    d.inst.bus.emit('sse:stream_ready', {});
+    await settle();
+    eq('every stream_ready re-reads a running build', d.calls.log, ['cb_6']);
+    d.inst.bus.emit('build:status', Object.assign(dockBuild('cb_6', 'succeeded', 6), { diagnostics: [{ severity: 'warning', message: 'w', file: 'src/app/app.cpp', line: 3 }] }));
+    await settle();
+    eq('a finished build replaces its lossy live lines with the stored log', d.pre().textContent, 'six stored\n');
+    d.dock.builds.select('cb_5');
+    d.inst.bus.emit('build:status', dockBuild('cb_0', 'failed', 0));
+    await settle();
+    eq('a pruned build cannot cancel the selected build\'s log', [d.dock.builds.selected().id, d.pre().textContent], ['cb_5', 'five\n']);
+    d.dock.dispose();
+}
+{
+    const d = makeDock(null, [dockBuild('cb_7', 'running', 7)], {});
+    d.release();
+    await settle();
+    d.inst.bus.emit('sse:build_log', { build_id: 'cb_7', lines: ['kept'] });
+    d.inst.bus.emit('build:status', dockBuild('cb_7', 'interrupted', 7));
+    await settle();
+    eq('an empty stored log keeps the live lines', d.pre().textContent, 'kept\n');
+    const lines = Array.from({ length: 4995 }, (_, i) => 'line ' + i);
+    d.inst.bus.emit('build:status', dockBuild('cb_8', 'running', 8));
+    d.inst.bus.emit('sse:build_log', { build_id: 'cb_8', lines });
+    const last = d.pre().childNodes[d.pre().childNodes.length - 1];
+    d.inst.bus.emit('sse:build_log', { build_id: 'cb_8', lines: Array.from({ length: 10 }, (_, i) => 'more ' + i) });
+    const nodes = d.pre().childNodes;
+    eq('the ring drops the oldest line nodes and keeps the note first', [nodes.length, nodes[0].textContent, nodes[1].textContent, nodes[nodes.length - 1].textContent],
+        [5001, 'cyd_creator.dock.log_truncated\n', 'line 5\n', 'more 9\n']);
+    check('the ring does not rebuild the kept lines', last.parentNode === d.pre());
+    d.dock.show('problems');
+    d.pre().scrollTop = 0;
+    d.dock.show('log');
+    check('showing the log while following scrolls to its end', d.pre().scrollTop === d.pre().scrollHeight && d.pre().scrollTop > 0);
+    d.dock.dispose();
 }
 
 if (failures) {
