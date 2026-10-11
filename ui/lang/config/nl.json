@@ -1,4 +1,8 @@
 {
+  "config.webdav.show_in_filemanager": "Tonen in bestandsbeheer",
+  "config.webdav.filemanager_help": "Toont deze ingeschakelde integratie als opslaglocatie op het bureaublad. Wijzigingen gelden direct; alleen beheerders hebben toegang.",
+  "config.koofr.show_in_filemanager": "Tonen in bestandsbeheer",
+  "config.koofr.filemanager_help": "Toont deze ingeschakelde integratie als opslaglocatie op het bureaublad. Wijzigingen gelden direct; alleen beheerders hebben toegang.",
   "config.layerling.enabled": "Layerling inschakelen",
   "config.layerling.help": "Lokale 3D-CAD in de browser. Editortalen: Duits en Engels.",
   "config.layerling.access": "Agenttoegang",

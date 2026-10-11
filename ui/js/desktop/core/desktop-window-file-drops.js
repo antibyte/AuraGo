@@ -174,6 +174,11 @@
     }
 
     function handleDesktopFileWindowDragOver(event) {
+        if (desktopWindowDragTypes(event).includes('application/x-aurago-storage-files')) {
+            event.preventDefault(); event.stopPropagation();
+            event.dataTransfer.dropEffect = state.windows.get(event.currentTarget.dataset.windowId)?.appId === 'files' ? (event.ctrlKey ? 'copy' : 'move') : 'none';
+            return;
+        }
         if (!desktopWindowCanHandleDropEvent(event, event.currentTarget.dataset.windowId)) return;
         if (event.defaultPrevented) {
             event.stopPropagation();
@@ -198,6 +203,16 @@
     }
 
     async function handleDesktopFileWindowDrop(event) {
+        if (desktopWindowDragTypes(event).includes('application/x-aurago-storage-files')) {
+            event.preventDefault(); event.stopPropagation();
+            const win = state.windows.get(event.currentTarget.dataset.windowId);
+            if (win?.appId !== 'files') return;
+            try {
+                const payload = JSON.parse(event.dataTransfer.getData('application/x-aurago-storage-files'));
+                await window.FileManager?.transferStorage(win.id, payload.entries || [], null, event.ctrlKey ? 'copy' : 'move');
+            } catch (err) { showDesktopNotification({ title: t('desktop.notification'), message: err.message }); }
+            return;
+        }
         if (!desktopWindowCanHandleDropEvent(event, event.currentTarget.dataset.windowId)) return;
         if (event.defaultPrevented) {
             event.stopPropagation();

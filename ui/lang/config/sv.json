@@ -1,4 +1,8 @@
 {
+  "config.webdav.show_in_filemanager": "Visa i filhanteraren",
+  "config.webdav.filemanager_help": "Visar denna aktiverade integration som lagringsplats på skrivbordet. Ändringar gäller direkt; endast administratörer har åtkomst.",
+  "config.koofr.show_in_filemanager": "Visa i filhanteraren",
+  "config.koofr.filemanager_help": "Visar denna aktiverade integration som lagringsplats på skrivbordet. Ändringar gäller direkt; endast administratörer har åtkomst.",
   "config.layerling.enabled": "Aktivera Layerling",
   "config.layerling.help": "Lokal 3D-CAD i webbläsaren. Redigerarens språk: tyska och engelska.",
   "config.layerling.access": "Agentåtkomst",

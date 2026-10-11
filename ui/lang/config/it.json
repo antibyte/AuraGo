@@ -1,4 +1,8 @@
 {
+  "config.webdav.show_in_filemanager": "Mostra nel gestore file",
+  "config.webdav.filemanager_help": "Mostra questa integrazione attiva come archivio del desktop. Le modifiche sono immediate; l’accesso è riservato agli amministratori.",
+  "config.koofr.show_in_filemanager": "Mostra nel gestore file",
+  "config.koofr.filemanager_help": "Mostra questa integrazione attiva come archivio del desktop. Le modifiche sono immediate; l’accesso è riservato agli amministratori.",
   "config.layerling.enabled": "Attiva Layerling",
   "config.layerling.help": "CAD 3D locale nel browser. Lingue dell’editor: tedesco e inglese.",
   "config.layerling.access": "Accesso dell’agente",

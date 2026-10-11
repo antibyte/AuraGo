@@ -14,6 +14,10 @@ import (
 type desktopLivePolicy struct {
 	Enabled                  bool `json:"enabled"`
 	ReadOnly                 bool `json:"readonly"`
+	WebDAVVisible            bool `json:"webdav_visible"`
+	WebDAVReadOnly           bool `json:"webdav_readonly"`
+	KoofrVisible             bool `json:"koofr_visible"`
+	KoofrReadOnly            bool `json:"koofr_readonly"`
 	SerialBrowserEnabled     bool `json:"serial_browser_enabled"`
 	SerialHostEnabled        bool `json:"serial_host_enabled"`
 	RetroNetEnabled          bool `json:"retronet_enabled"`
@@ -30,6 +34,9 @@ func (s *Server) desktopSerialPolicy(r *http.Request) desktopLivePolicy {
 	if s.Cfg != nil {
 		cfg := s.Cfg.VirtualDesktop
 		policy.Enabled, policy.ReadOnly = cfg.Enabled, cfg.ReadOnly
+		policy.WebDAVVisible = cfg.Enabled && s.Cfg.WebDAV.Enabled && s.Cfg.WebDAV.ShowInFileManager
+		policy.KoofrVisible = cfg.Enabled && s.Cfg.Koofr.Enabled && s.Cfg.Koofr.ShowInFileManager
+		policy.WebDAVReadOnly, policy.KoofrReadOnly = s.Cfg.WebDAV.ReadOnly, s.Cfg.Koofr.ReadOnly
 		policy.SerialBrowserEnabled = cfg.Enabled && !cfg.ReadOnly && cfg.SerialBrowserEnabled
 		policy.SerialHostEnabled = cfg.Enabled && !cfg.ReadOnly && cfg.SerialHostEnabled
 		policy.RetroNetEnabled = cfg.Enabled && !cfg.ReadOnly && cfg.RetroNetEnabled
@@ -42,6 +49,7 @@ func (s *Server) desktopSerialPolicy(r *http.Request) desktopLivePolicy {
 	}
 	s.CfgMu.RUnlock()
 	if r != nil && !desktopRequestIsAdmin(s, r) {
+		policy.WebDAVVisible, policy.KoofrVisible = false, false
 		policy.SerialBrowserEnabled, policy.SerialHostEnabled = false, false
 		if token, _ := bearerCredential(r.Header.Get("Authorization")); !desktopTokenHasScope(s, token, desktopScopeWrite) {
 			policy.ReadOnly = true

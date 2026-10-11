@@ -115,6 +115,8 @@ const jsBundles = [
       'ui/js/desktop/file-manager/tabs.js',
       'ui/js/desktop/file-manager/preview-panel.js',
       'ui/js/desktop/file-manager/advanced-actions.js',
+      'ui/js/desktop/file-manager/storage.js',
+      'ui/js/desktop/file-manager/storage-actions.js',
       'ui/js/desktop/file-manager/lifecycle-export.js'
     ]
   },

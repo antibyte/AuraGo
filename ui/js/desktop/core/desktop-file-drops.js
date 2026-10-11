@@ -60,7 +60,21 @@
     }
 
     function hasDesktopFileClipboard() {
-        return !!desktopFileClipboard();
+        return !!window.AuraDesktopFileClipboard?.entries?.length || !!desktopFileClipboard();
+    }
+
+    async function transferCloudFilesToLocal(entries, path, mode, clipboard) {
+        if ((state.bootstrap || {}).readonly) return;
+        openApp('files', { path });
+        const id = state.activeWindowId;
+        const end = Date.now() + 5000;
+        while (!window.FileManager?.storageReady(id)) {
+            if (!state.windows.has(id) || Date.now() > end) throw new Error(t('desktop.load_failed'));
+            await new Promise(resolve => setTimeout(resolve, 50));
+        }
+        const result = await window.FileManager.transferStorage(id, entries, { provider: 'local', path }, mode, clipboard);
+        await loadBootstrap();
+        return result;
     }
 
     function desktopFileDragPayload(event) {
@@ -182,6 +196,7 @@
 
     async function pasteDesktopFileClipboard(destBase, options) {
         const clipboardState = window.AuraDesktopFileClipboard;
+        if (clipboardState?.entries?.length) return transferCloudFilesToLocal(clipboardState.entries, destBase == null ? 'Desktop' : destBase, clipboardState.mode === 'cut' ? 'move' : 'copy', clipboardState);
         const clipboard = desktopFileClipboard();
         if (!clipboard) return;
         const targetBase = normalizeDesktopPath(destBase == null ? 'Desktop' : destBase);
@@ -265,7 +280,7 @@
     }
 
     function handleDesktopFileDragOver(event) {
-        if (!hasDesktopFileDragPayload(event) && !hasDesktopHostFileDrag(event)) return;
+        if (!hasDesktopFileDragPayload(event) && !hasDesktopHostFileDrag(event) && !dataTransferHasType(event.dataTransfer, 'application/x-aurago-storage-files')) return;
         event.preventDefault();
         event.dataTransfer.dropEffect = hasDesktopHostFileDrag(event) ? 'copy' : 'move';
         const workspace = $('vd-workspace');
@@ -279,6 +294,15 @@
     }
 
     async function handleDesktopFileDrop(event) {
+        if (dataTransferHasType(event.dataTransfer, 'application/x-aurago-storage-files')) {
+            event.preventDefault(); event.stopPropagation();
+            $('vd-workspace')?.classList.remove('vd-desktop-file-drop-target');
+            try {
+                const payload = JSON.parse(event.dataTransfer.getData('application/x-aurago-storage-files'));
+                await transferCloudFilesToLocal(payload.entries || [], 'Desktop', event.ctrlKey ? 'copy' : 'move');
+            } catch (err) { showDesktopNotification({ title: t('desktop.notification'), message: err.message }); }
+            return;
+        }
         const payload = desktopFileDragPayload(event);
         if (payload) {
             event.preventDefault();

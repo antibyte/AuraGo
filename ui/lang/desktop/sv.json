@@ -1,4 +1,13 @@
 {
+  "desktop.fm.storage_offline": "Inte tillgänglig",
+  "desktop.fm.storage_readonly": "Skrivskyddad",
+  "desktop.fm.storage_writable": "Läsa och skriva",
+  "desktop.fm.storage_cancelled": "Avbrutet. Filer som redan kopierats kan finnas kvar på målplatsen.",
+  "desktop.fm.storage_partial": "Överföringen är ofullständig. Kontrollera filerna som redan skapats på målplatsen.",
+  "desktop.fm.storage_transfer": "Filöverföring",
+  "desktop.fm.storage_delete": "Ta bort {count} objekt från {storage}? AuraGo erbjuder ingen papperskorg eller ångring för denna åtgärd.",
+  "desktop.fm.storage_preview": "Skrivskyddad förhandsvisning. Kopiera filen till skrivbordets arbetsyta för att redigera den i en app.",
+  "desktop.fm.storage_retained": "Kopian har verifierats, men vissa källor kunde inte tas bort säkert och har behållits.",
   "desktop.gallery_category": "Kategori",
   "desktop.gallery_category_all": "Alla kategorier",
   "desktop.gallery_categories_manage": "Hantera kategorier",

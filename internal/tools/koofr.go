@@ -43,7 +43,7 @@ func (e *koofrAPIError) Error() string {
 	return fmt.Sprintf("API returns status %d: %s", e.statusCode, e.body)
 }
 
-var koofrHTTPClient = security.NewSSRFProtectedHTTPClient(30 * time.Second)
+var koofrHTTPClient = security.NewSSRFProtectedHTTPClientSameOrigin(30 * time.Second)
 
 // ExecuteKoofr performs operations on the Koofr API.
 // Valid actions: list, read, download, write, upload, mkdir, delete, rename, copy.

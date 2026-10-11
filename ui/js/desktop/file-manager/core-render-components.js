@@ -30,6 +30,7 @@
     }
 
     function api(url, options) {
+        if (isRemote() && url.startsWith('/api/desktop/') && !url.startsWith('/api/desktop/storage/')) return Promise.reject(new Error(t('desktop.fm.storage_preview')));
         if (fm.callbacks && typeof fm.callbacks.api === 'function') {
             return fm.callbacks.api(url, options);
         }
@@ -46,7 +47,7 @@
     }
 
     function isReadonly() {
-        return !!(fm.callbacks && fm.callbacks.readonly);
+        return !!(fm.callbacks && fm.callbacks.readonly) || storageReadonly();
     }
 
     function normalizeFmPath(path) {
@@ -54,10 +55,12 @@
     }
 
     function isTrashFolderPath(path) {
+        if (isRemote()) return false;
         return normalizeFmPath(path).toLowerCase() === 'trash';
     }
 
     function isTrashItemPath(path) {
+        if (isRemote()) return false;
         return normalizeFmPath(path).toLowerCase().startsWith('trash/');
     }
 
@@ -197,6 +200,7 @@
     }
 
     function previewURL(file) {
+        if (file.storage || isRemote()) return storageURL('content', { ...(file.storage || storageLocation()), path: file.path || '' });
         return '/api/desktop/preview?path=' + encodeURIComponent(file.path || '');
     }
 

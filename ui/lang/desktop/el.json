@@ -1,4 +1,13 @@
 {
+  "desktop.fm.storage_offline": "Μη διαθέσιμο",
+  "desktop.fm.storage_readonly": "Μόνο ανάγνωση",
+  "desktop.fm.storage_writable": "Ανάγνωση και εγγραφή",
+  "desktop.fm.storage_cancelled": "Ακυρώθηκε. Αρχεία που έχουν ήδη αντιγραφεί ενδέχεται να παραμείνουν στον προορισμό.",
+  "desktop.fm.storage_partial": "Η μεταφορά δεν ολοκληρώθηκε. Ελέγξτε τα αρχεία που δημιουργήθηκαν στον προορισμό.",
+  "desktop.fm.storage_transfer": "Μεταφορά αρχείων",
+  "desktop.fm.storage_delete": "Διαγραφή {count} στοιχείων από το {storage}; Το AuraGo δεν παρέχει κάδο ανακύκλωσης ή αναίρεση για αυτή την ενέργεια.",
+  "desktop.fm.storage_preview": "Προεπισκόπηση μόνο για ανάγνωση. Αντιγράψτε το αρχείο στον χώρο εργασίας για επεξεργασία σε εφαρμογή.",
+  "desktop.fm.storage_retained": "Το αντίγραφο επαληθεύτηκε, αλλά ορισμένες πηγές δεν μπορούσαν να διαγραφούν με ασφάλεια και διατηρήθηκαν.",
   "desktop.gallery_category": "Κατηγορία",
   "desktop.gallery_category_all": "Όλες οι κατηγορίες",
   "desktop.gallery_categories_manage": "Διαχείριση κατηγοριών",

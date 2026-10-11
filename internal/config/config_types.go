@@ -1683,20 +1683,22 @@ type Config struct {
 		DefaultCost      ModelCostRates `yaml:"default_cost"`
 	} `yaml:"budget"`
 	WebDAV struct {
-		Enabled  bool   `yaml:"enabled"`
-		ReadOnly bool   `yaml:"readonly"`  // true = only list/read/info, block write/delete/move/mkdir
-		AuthType string `yaml:"auth_type"` // basic | bearer
-		URL      string `yaml:"url"`       // e.g. https://cloud.example.com/remote.php/dav/files/user/
-		Username string `yaml:"username"`
-		Password string `yaml:"-" json:"-"`
-		Token    string `yaml:"-" json:"-"`
+		ShowInFileManager bool   `yaml:"show_in_filemanager"`
+		Enabled           bool   `yaml:"enabled"`
+		ReadOnly          bool   `yaml:"readonly"`  // true = only list/read/info, block write/delete/move/mkdir
+		AuthType          string `yaml:"auth_type"` // basic | bearer
+		URL               string `yaml:"url"`       // e.g. https://cloud.example.com/remote.php/dav/files/user/
+		Username          string `yaml:"username"`
+		Password          string `yaml:"-" json:"-"`
+		Token             string `yaml:"-" json:"-"`
 	} `yaml:"webdav"`
 	Koofr struct {
-		Enabled     bool   `yaml:"enabled"`
-		ReadOnly    bool   `yaml:"readonly"` // true = only list/read, block write/delete/move
-		Username    string `yaml:"username"`
-		AppPassword string `yaml:"-" json:"-"`
-		BaseURL     string `yaml:"base_url"` // default: https://app.koofr.net
+		ShowInFileManager bool   `yaml:"show_in_filemanager"`
+		Enabled           bool   `yaml:"enabled"`
+		ReadOnly          bool   `yaml:"readonly"` // true = only list/read, block write/delete/move
+		Username          string `yaml:"username"`
+		AppPassword       string `yaml:"-" json:"-"`
+		BaseURL           string `yaml:"base_url"` // default: https://app.koofr.net
 	} `yaml:"koofr"`
 	S3 struct {
 		Enabled      bool   `yaml:"enabled"`

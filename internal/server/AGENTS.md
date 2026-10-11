@@ -6,6 +6,14 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Ownership
 
+- Desktop cloud storage routes under `/api/desktop/storage/` require admin
+  access and apply Desktop, integration and mount rights independently.
+  Visibility changes revoke active storage contexts. Transfer preflight enforces
+  file, entry, depth and aggregate-byte budgets; verified copies precede
+  conditional source cleanup. Uncertain results retain sources and report
+  partial completion. See `documentation/desktop-cloud-storage.md` and
+  `TestDesktopStorage*`.
+
 `internal/server` owns this domain. The contracts below also bind related server, UI, config, asset, and test work through the root routing table.
 
 ## Local Contracts

@@ -521,6 +521,7 @@ brave_search:
     country: ""
     lang: ""
 koofr:
+    show_in_filemanager: false
     base_url: https://app.koofr.net
     enabled: false
     readonly: false
@@ -1291,6 +1292,7 @@ workspace_search:
         - vault.bin
         - data/vault.bin
 webdav:
+    show_in_filemanager: false
     enabled: false
     readonly: false
     auth_type: basic

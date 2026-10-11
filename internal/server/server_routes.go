@@ -557,6 +557,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/system-world/actions", handleSystemWorldAction(s))
 	mux.HandleFunc("/api/desktop/fritzbox/overview", handleDesktopFritzBoxOverview(s))
 	mux.HandleFunc("/api/desktop/files", handleDesktopFiles(s))
+	mux.HandleFunc("/api/desktop/storage/", handleDesktopStorage(s))
 	mux.HandleFunc("/api/desktop/gallery/metadata", handleDesktopGalleryMetadata(s))
 	mux.HandleFunc("/api/desktop/gallery/categories", handleDesktopGalleryCategories(s))
 	mux.HandleFunc("/api/desktop/search", handleDesktopSearch(s))

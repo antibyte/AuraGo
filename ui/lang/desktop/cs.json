@@ -1,4 +1,13 @@
 {
+  "desktop.fm.storage_offline": "Nedostupné",
+  "desktop.fm.storage_readonly": "Pouze čtení",
+  "desktop.fm.storage_writable": "Čtení a zápis",
+  "desktop.fm.storage_cancelled": "Zrušeno. Již zkopírované soubory mohou zůstat v cíli.",
+  "desktop.fm.storage_partial": "Přenos není dokončen. Zkontrolujte soubory již vytvořené v cíli.",
+  "desktop.fm.storage_transfer": "Přenos souborů",
+  "desktop.fm.storage_delete": "Smazat {count} položek z úložiště {storage}? AuraGo pro tuto akci nenabízí koš ani vrácení změn.",
+  "desktop.fm.storage_preview": "Náhled pouze pro čtení. Pro úpravy v aplikaci zkopírujte soubor do pracovního prostoru plochy.",
+  "desktop.fm.storage_retained": "Kopie byla ověřena, ale některé zdroje nebylo možné bezpečně smazat a byly zachovány.",
   "desktop.gallery_category": "Kategorie",
   "desktop.gallery_category_all": "Všechny kategorie",
   "desktop.gallery_categories_manage": "Spravovat kategorie",

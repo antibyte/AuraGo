@@ -1,4 +1,13 @@
 {
+  "desktop.fm.storage_offline": "Niedostępne",
+  "desktop.fm.storage_readonly": "Tylko odczyt",
+  "desktop.fm.storage_writable": "Odczyt i zapis",
+  "desktop.fm.storage_cancelled": "Anulowano. Już skopiowane pliki mogą pozostać w miejscu docelowym.",
+  "desktop.fm.storage_partial": "Transfer nieukończony. Sprawdź pliki utworzone już w miejscu docelowym.",
+  "desktop.fm.storage_transfer": "Transfer plików",
+  "desktop.fm.storage_delete": "Usunąć {count} elementów z {storage}? AuraGo nie oferuje dla tej operacji kosza ani cofania.",
+  "desktop.fm.storage_preview": "Podgląd tylko do odczytu. Skopiuj plik do obszaru roboczego pulpitu, aby edytować go w aplikacji.",
+  "desktop.fm.storage_retained": "Kopia została zweryfikowana, ale niektórych źródeł nie można było bezpiecznie usunąć i zostały zachowane.",
   "desktop.gallery_category": "Kategoria",
   "desktop.gallery_category_all": "Wszystkie kategorie",
   "desktop.gallery_categories_manage": "Zarządzaj kategoriami",

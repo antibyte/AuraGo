@@ -1,4 +1,13 @@
 {
+  "desktop.fm.storage_offline": "Indisponível",
+  "desktop.fm.storage_readonly": "Só leitura",
+  "desktop.fm.storage_writable": "Leitura e escrita",
+  "desktop.fm.storage_cancelled": "Cancelado. Os ficheiros já copiados podem permanecer no destino.",
+  "desktop.fm.storage_partial": "Transferência incompleta. Verifique os ficheiros já criados no destino.",
+  "desktop.fm.storage_transfer": "Transferência de ficheiros",
+  "desktop.fm.storage_delete": "Eliminar {count} itens de {storage}? O AuraGo não oferece reciclagem nem anulação para esta ação.",
+  "desktop.fm.storage_preview": "Pré-visualização só de leitura. Copie o ficheiro para a área de trabalho do ambiente de trabalho para o editar numa aplicação.",
+  "desktop.fm.storage_retained": "A cópia foi verificada, mas algumas origens não puderam ser eliminadas em segurança e foram mantidas.",
   "desktop.gallery_category": "Categoria",
   "desktop.gallery_category_all": "Todas as categorias",
   "desktop.gallery_categories_manage": "Gerir categorias",

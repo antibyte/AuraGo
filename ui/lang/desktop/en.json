@@ -1,4 +1,13 @@
 {
+  "desktop.fm.storage_offline": "Unavailable",
+  "desktop.fm.storage_readonly": "Read only",
+  "desktop.fm.storage_writable": "Read and write",
+  "desktop.fm.storage_cancelled": "Cancelled. Files already copied may remain at the destination.",
+  "desktop.fm.storage_partial": "Transfer incomplete. Check the files already created at the destination.",
+  "desktop.fm.storage_transfer": "File transfer",
+  "desktop.fm.storage_delete": "Delete {count} item(s) from {storage}? AuraGo offers no trash or undo for this action.",
+  "desktop.fm.storage_preview": "Read-only preview. Copy this file to the Desktop workspace to edit it in an app.",
+  "desktop.fm.storage_retained": "The copy was verified, but some sources could not be safely deleted and were retained.",
   "desktop.gallery_category": "Category",
   "desktop.gallery_category_all": "All categories",
   "desktop.gallery_categories_manage": "Manage categories",

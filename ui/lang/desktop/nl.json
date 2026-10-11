@@ -1,4 +1,13 @@
 {
+  "desktop.fm.storage_offline": "Niet beschikbaar",
+  "desktop.fm.storage_readonly": "Alleen lezen",
+  "desktop.fm.storage_writable": "Lezen en schrijven",
+  "desktop.fm.storage_cancelled": "Geannuleerd. Reeds gekopieerde bestanden kunnen op de bestemming blijven staan.",
+  "desktop.fm.storage_partial": "Overdracht onvolledig. Controleer de bestanden die al op de bestemming zijn gemaakt.",
+  "desktop.fm.storage_transfer": "Bestandsoverdracht",
+  "desktop.fm.storage_delete": "{count} items uit {storage} verwijderen? AuraGo biedt hiervoor geen prullenbak of ongedaan maken.",
+  "desktop.fm.storage_preview": "Voorbeeld met alleen-lezen toegang. Kopieer het bestand naar de werkruimte van het bureaublad om het in een app te bewerken.",
+  "desktop.fm.storage_retained": "De kopie is gecontroleerd, maar sommige bronnen konden niet veilig worden verwijderd en zijn behouden.",
   "desktop.gallery_category": "Categorie",
   "desktop.gallery_category_all": "Alle categorieën",
   "desktop.gallery_categories_manage": "Categorieën beheren",

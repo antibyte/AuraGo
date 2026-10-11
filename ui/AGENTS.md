@@ -14,6 +14,14 @@ worker. Keep packaging, recovery and offline instructions in
 
 ## Ownership
 
+- File Manager cloud references keep provider, Koofr mount and relative path
+  separate through navigation, tabs, favorites, window context, clipboard and
+  drag-and-drop. Remote payloads never enter local editor/file APIs. Preserve
+  lazy mount loading, readonly previews, abortable transfers and the shared
+  Replace / Keep copy / Cancel dialog. Config visibility defaults off in all
+  locales. Verify `TestDesktopCloudStorageBrowser` and existing File Manager
+  instance/clipboard suites; see `documentation/desktop-cloud-storage.md`.
+
 - Desktop file mutations use the shared conflict runtime: strong ETags for
   observed versions, create-only requests for new files, and explicit Replace /
   Keep copy / Cancel after a server conflict. Each editor/SDK client owns the

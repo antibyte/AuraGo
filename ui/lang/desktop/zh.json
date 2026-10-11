@@ -1,4 +1,13 @@
 {
+  "desktop.fm.storage_offline": "不可用",
+  "desktop.fm.storage_readonly": "只读",
+  "desktop.fm.storage_writable": "可读写",
+  "desktop.fm.storage_cancelled": "已取消。已复制的文件可能仍保留在目标位置。",
+  "desktop.fm.storage_partial": "传输未完成。请检查目标位置中已创建的文件。",
+  "desktop.fm.storage_transfer": "文件传输",
+  "desktop.fm.storage_delete": "要从 {storage} 删除 {count} 个项目吗？AuraGo 不为此操作提供回收站或撤销功能。",
+  "desktop.fm.storage_preview": "只读预览。要在应用中编辑，请先将文件复制到桌面工作区。",
+  "desktop.fm.storage_retained": "副本已验证，但某些源文件无法安全删除，因此已保留。",
   "desktop.gallery_category": "分类",
   "desktop.gallery_category_all": "所有分类",
   "desktop.gallery_categories_manage": "管理分类",

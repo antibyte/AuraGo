@@ -1,0 +1,205 @@
+    // A relative path is meaningful only together with its provider and mount.
+    const STORAGE_DRAG_TYPE = 'application/x-aurago-storage-files';
+
+    function storageLocation(path = fm.currentPath, instance = fm) {
+        if (path && typeof path === 'object') return { provider: path.provider || 'local', mount_id: path.mount_id || '', path: String(path.path || '') };
+        return { provider: instance.storage?.provider || 'local', mount_id: instance.storage?.mount_id || '', path: String(path || '') };
+    }
+
+    function localLocation(path = '') { return { provider: 'local', mount_id: '', path }; }
+    function isRemote(instance = fm) { return !!instance.storage && instance.storage.provider !== 'local'; }
+    function locationKey(loc) { return JSON.stringify([loc.provider || 'local', loc.mount_id || '', loc.path || '']); }
+    function savedLocation(value) { return typeof value === 'string' ? localLocation(value) : storageLocation(value); }
+    function storageURL(action, loc) { return '/api/desktop/storage/' + action + '?' + new URLSearchParams(loc).toString(); }
+    function storageName(instance = fm) {
+        if (!isRemote(instance)) return t('desktop.fm.workspace_root');
+        return instance.storage.provider === 'webdav' ? 'WebDAV' : 'Koofr · ' + (instance.storageMounts?.find(m => m.id === instance.storage.mount_id)?.name || instance.storage.mount_id);
+    }
+    function storageReadonly(instance = fm) {
+        const p = instance.storagePolicy || {};
+        if (p.readonly) return true;
+        if (!isRemote(instance)) return false;
+        if (!p[instance.storage.provider] || p[instance.storage.provider + '_readonly']) return true;
+        if (instance.storage.provider === 'koofr') {
+            const mount = instance.storageMounts?.find(m => m.id === instance.storage.mount_id);
+            return !mount || !mount.write || mount.online === false;
+        }
+        return false;
+    }
+
+    async function loadStorageSources(instance) {
+        const generation = instance.storagePolicyGeneration = (instance.storagePolicyGeneration || 0) + 1;
+        try {
+            const response = await fetch('/api/desktop/storage/sources', { credentials: 'same-origin', signal: instance.storageLifetime.signal });
+            const policy = response.ok ? await response.json() : {};
+            if (!isLiveInstance(instance) || instance.storagePolicyGeneration !== generation) return;
+            instance.storagePolicy = policy;
+            if (typeof policy.readonly === 'boolean') instance.callbacks.readonly = policy.readonly;
+            withInstance(instance, () => {
+                if (isRemote() && !policy[instance.storage.provider]) navigate(localLocation());
+                else renderAll();
+            });
+        } catch (_) { /* Disposing the window cancels its metadata request. */ }
+    }
+
+    async function openStorageMounts(instance) {
+        instance.storageMountsOpen = !instance.storageMountsOpen;
+        if (!instance.storageMountsOpen) { withInstance(instance, renderAll); return; }
+        instance.storageMountsLoading = true;
+        withInstance(instance, renderAll);
+        try {
+            const result = await storageJSON('/api/desktop/storage/mounts', { signal: instance.storageLifetime.signal });
+            if (isLiveInstance(instance)) instance.storageMounts = result.mounts || [];
+        } catch (err) {
+            storageNotify(instance, err);
+        } finally {
+            instance.storageMountsLoading = false;
+            if (isLiveInstance(instance)) withInstance(instance, renderAll);
+        }
+    }
+
+    function renderStorageSidebar() {
+        const policy = fm.storagePolicy || {};
+        const button = (provider, mount, name, disabled, status) => `<button type="button" class="fm-sidebar-item${fm.storage?.provider === provider && (fm.storage.mount_id || '') === mount ? ' active' : ''}" data-storage-provider="${esc(provider)}" data-storage-mount="${esc(mount)}" ${disabled ? 'disabled' : ''} title="${esc(status || name)}">${iconMarkup('cloud', '☁', 'fm-sidebar-icon', 18)}<span class="fm-sidebar-label">${esc(name)}${status ? `<small class="fm-storage-status">${esc(status)}</small>` : ''}</span></button>`;
+        const mounts = fm.storageMountsLoading ? `<div class="fm-sidebar-empty" role="status">${esc(t('desktop.fm.loading'))}</div>` : (fm.storageMounts || []).map(m => button('koofr', m.id, m.name, m.online === false || !m.read, m.online === false ? t('desktop.fm.storage_offline') : (!m.write || policy.koofr_readonly ? t('desktop.fm.storage_readonly') : t('desktop.fm.storage_writable')))).join('');
+        return `<div class="fm-sidebar-section">${button('local', '', t('desktop.fm.workspace_root'), false, '')}${policy.webdav ? button('webdav', '', 'WebDAV', false, policy.webdav_readonly ? t('desktop.fm.storage_readonly') : '') : ''}${policy.koofr ? `<button type="button" class="fm-sidebar-item" data-storage-group aria-expanded="${!!fm.storageMountsOpen}">${iconMarkup('cloud', '☁', 'fm-sidebar-icon', 18)}<span class="fm-sidebar-label">Koofr</span><span>${fm.storageMountsOpen ? '−' : '+'}</span></button>${fm.storageMountsOpen ? mounts || `<div class="fm-sidebar-empty">${esc(t('desktop.fm.empty_folder'))}</div>` : ''}` : ''}</div>`;
+    }
+
+    function attachStorageEvents(root) {
+        const instance = fm;
+        root.querySelectorAll('[data-remove-storage-favorite]').forEach(button => button.addEventListener('click', event => {
+            event.stopPropagation();
+            instance.favorites.splice(Number(button.dataset.removeStorageFavorite), 1);
+            localStorage.setItem('aurago.fm.favorites', JSON.stringify(instance.favorites));
+            withInstance(instance, renderAll);
+        }));
+        root.querySelector('[data-storage-group]')?.addEventListener('click', () => openStorageMounts(instance));
+        root.querySelectorAll('[data-storage-provider]').forEach(button => button.addEventListener('click', () => withInstance(instance, () => {
+            instance.sidebarOpen = false;
+            navigate({ provider: button.dataset.storageProvider, mount_id: button.dataset.storageMount, path: '' });
+        })));
+        // Capture remote payloads before legacy local-only file and window drop handlers.
+        root.addEventListener('dragover', event => {
+            if (!Array.from(event.dataTransfer?.types || []).includes(STORAGE_DRAG_TYPE)) return;
+            event.preventDefault(); event.stopPropagation();
+            event.dataTransfer.dropEffect = event.target.closest('.fm-favorites-section') ? 'copy' : storageReadonly(instance) ? 'none' : (event.ctrlKey ? 'copy' : 'move');
+        }, true);
+        root.addEventListener('drop', event => {
+            const types = Array.from(event.dataTransfer?.types || []);
+            if (!types.includes(STORAGE_DRAG_TYPE) && !(isRemote(instance) && types.includes(DESKTOP_FILE_DRAG_TYPE))) return;
+            event.preventDefault(); event.stopImmediatePropagation();
+            try {
+                const payload = JSON.parse(event.dataTransfer.getData(types.includes(STORAGE_DRAG_TYPE) ? STORAGE_DRAG_TYPE : DESKTOP_FILE_DRAG_TYPE));
+                const entries = payload.entries || (payload.paths || []).map(localLocation);
+                if (event.target.closest('.fm-favorites-section')) {
+                    entries.filter(entry => entry.type === 'directory').forEach(entry => {
+                        const loc = storageLocation(entry);
+                        if (!instance.favorites.some(fav => locationKey(savedLocation(fav)) === locationKey(loc))) instance.favorites.push(loc);
+                    });
+                    localStorage.setItem('aurago.fm.favorites', JSON.stringify(instance.favorites));
+                    withInstance(instance, renderAll);
+                    return;
+                }
+                if (storageReadonly(instance)) return;
+                const target = event.target.closest('[data-type="directory"], [data-breadcrumb-path]');
+                const destination = storageLocation(target?.dataset.breadcrumbPath ?? target?.dataset.path ?? instance.currentPath, instance);
+                storageTransferSelection(instance, entries, destination, event.ctrlKey ? 'copy' : 'move');
+            } catch (err) { storageNotify(instance, err); }
+        }, true);
+    }
+
+    function storageNotify(instance, err) {
+        if (!isLiveInstance(instance)) return;
+        withInstance(instance, () => showNotification({ type: 'error', message: err.name === 'AbortError' ? t('desktop.fm.storage_cancelled') : (err.partial ? t('desktop.fm.storage_partial') + ' ' : '') + (err.message === 'storage_source_retained' ? t('desktop.fm.storage_retained') : err.message || String(err)) }));
+    }
+
+    async function storageJSON(url, options = {}) {
+        const response = await fetch(url, { credentials: 'same-origin', ...options });
+        const body = await response.json();
+        if (!response.ok) { const err = new Error(body.error || body.message || response.statusText); err.body = body; err.status = response.status; throw err; }
+        return body;
+    }
+
+    function storageCopyPath(path, n) {
+        const name = baseName(path), dot = name.lastIndexOf('.');
+        return joinPath(parentPath(path), (dot > 0 ? name.slice(0, dot) : name) + ' (' + n + ')' + (dot > 0 ? name.slice(dot) : ''));
+    }
+
+    async function storageConflictRequest(instance, destination, execute, signal) {
+        const original = destination.path;
+        let version = '', copy = 0;
+        for (;;) {
+            if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
+            try { return await execute(destination, version); }
+            catch (err) {
+                if (err.status !== 409 || !err.body?.conflict) throw err;
+                const conflict = err.body.conflict;
+                const decision = copy ? 'copy' : await instance.callbacks.storageConflict?.(conflict, signal);
+                if (!decision) throw new DOMException('Cancelled', 'AbortError');
+                if (decision === 'replace' && conflict.version && !conflict.directory) version = conflict.version;
+                else {
+                    if (++copy > 999) throw err;
+                    destination = { ...destination, path: storageCopyPath(original, copy) };
+                    version = '';
+                }
+            }
+        }
+    }
+
+    async function storageOperation(instance, work) {
+        if (!isLiveInstance(instance) || instance.storageBusy) return false;
+        const controller = new AbortController();
+        instance.storageBusy = controller;
+        const overlay = document.createElement('div');
+        overlay.className = 'fm-upload-overlay';
+        overlay.innerHTML = `<div class="fm-upload-panel" role="dialog" aria-modal="true" aria-label="${esc(t('desktop.fm.storage_transfer'))}"><div class="fm-upload-title">${esc(t('desktop.fm.storage_transfer'))}</div><div role="status" aria-live="polite" data-storage-progress>${esc(t('desktop.fm.loading'))}</div><button type="button" class="fm-btn" data-storage-cancel>${esc(t('desktop.cancel'))}</button></div>`;
+        (document.fullscreenElement || document.body).appendChild(overlay);
+        overlay.querySelector('button').addEventListener('click', () => controller.abort());
+        overlay.querySelector('button').focus();
+        let complete = false;
+        try {
+            await work(controller.signal, message => { overlay.querySelector('[data-storage-progress]').textContent = message; });
+            complete = true;
+        } catch (err) { storageNotify(instance, err); }
+        finally {
+            overlay.remove(); instance.storageBusy = null;
+            instances.forEach(other => { if (isLiveInstance(other)) withInstance(other, () => navigate(storageLocation(), false)); });
+        }
+        return complete;
+    }
+
+    async function storageTransfer(instance, source, destination, mode, signal, progress) {
+        return storageConflictRequest(instance, destination, async (target, version) => {
+            const response = await fetch('/api/desktop/storage/transfer', { method: 'POST', credentials: 'same-origin', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: source, destination: target, mode, version }) });
+            if (!response.ok) {
+                const body = await response.json(); const err = new Error(body.error || response.statusText); err.status = response.status; err.body = body; throw err;
+            }
+            const reader = response.body.getReader(), decoder = new TextDecoder();
+            let buffer = '', completed = false;
+            try {
+                for (;;) {
+                    const chunk = await reader.read();
+                    buffer += decoder.decode(chunk.value || new Uint8Array(), { stream: !chunk.done });
+                    let end;
+                    while ((end = buffer.indexOf('\n\n')) >= 0) {
+                        const block = buffer.slice(0, end); buffer = buffer.slice(end + 2);
+                        if (!block.startsWith('data: ')) continue;
+                        const event = JSON.parse(block.slice(6));
+                        if (event.status === 'error') { const err = new Error(event.error); err.partial = event.partial; throw err; }
+                        if (event.status === 'done') completed = true;
+                        if (event.total) progress(baseName(source.path) + ' · ' + (event.done || 0) + '/' + event.total);
+                    }
+                    if (chunk.done) break;
+                }
+            } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
+            if (!completed) { const err = new Error(t('desktop.fm.storage_partial')); err.partial = true; throw err; }
+            return target;
+        }, signal);
+    }
+
+    function storageTransferSelection(instance, entries, destination, mode, clipboard) {
+        return storageOperation(instance, async (signal, progress) => {
+            for (const entry of entries) await storageTransfer(instance, savedLocation(entry), { ...destination, path: joinPath(destination.path, baseName(entry.path)) }, mode, signal, progress);
+            if (mode === 'move' && clipboard && window.AuraDesktopFileClipboard === clipboard) window.AuraDesktopFileClipboard = null;
+        });
+    }

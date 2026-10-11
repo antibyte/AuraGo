@@ -10,6 +10,13 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 
 ## Local Contracts
 
+- Desktop cloud transfers use `StatStoragePath` for fresh rooted metadata,
+  `CreateStorageDirectory` for exclusive directory creation,
+  `WriteFileStreamConditional` for bounded publication, and
+  `RemoveStorageSource` for versioned file / empty-directory cleanup. Preserve
+  Notes, managed widget and media-mount restrictions. See
+  `documentation/desktop-cloud-storage.md`; verify `TestDesktopStorage*`.
+
 - Archive create/extract use rooted operations and the same read-only/Notes gates as ordinary writes. Preflight every ZIP name, mode, size/count, namespace conflict and existing target before writing; reject escaping symlinks, special files, UNC/drive and traversal names.
 - Archive listing uses the shared 10,000-entry limit before building response entries. ZIP extraction rejects normalized destination type and platform case collisions before any write.
 - Symlink targets are relative to the opened real destination parent. Workspace HTTP serving permits in-root relative or absolute symlinks only after resolving and checking their final target beneath the workspace root.

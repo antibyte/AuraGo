@@ -14,6 +14,7 @@ function renderKoofrSection(section) {
         groups: [{ titleKey: 'config.refresh.operation', fields: [
             form.toggle({ label: t('config.koofr.enabled_label'), help: t('help.koofr.enabled'), path: 'koofr.enabled', value: enabled }),
             form.toggle({ label: t('config.koofr.readonly_label'), help: t('help.koofr.read_only'), path: 'koofr.readonly', value: readonly }),
+            form.toggle({ label: t('config.koofr.show_in_filemanager'), help: t('config.koofr.filemanager_help'), path: 'koofr.show_in_filemanager', value: data.show_in_filemanager === true }),
         ] }, { titleKey: 'config.refresh.connection', fields: [
             form.field({ label: t('config.koofr.base_url_label'), help: t('help.koofr.base_url'), path: 'koofr.base_url', value: data.base_url || 'https://app.koofr.net', placeholder: 'https://app.koofr.net' })
         ] }, { titleKey: 'config.refresh.credentials', fields: [

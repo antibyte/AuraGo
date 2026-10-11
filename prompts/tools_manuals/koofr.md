@@ -2,6 +2,11 @@
 
 Interact with Koofr Cloud Storage. Read, write, and manage folders and files in the primary Koofr storage mount.
 
+Desktop administrators can separately enable `koofr.show_in_filemanager` (off by
+default) to browse all accessible Koofr mounts and transfer binary files in the
+File Manager. The agent tool retains its primary-mount schema and permissions.
+See `documentation/desktop-cloud-storage.md` for conflicts and safe moves.
+
 ## Operations
 
 | Operation | Description |

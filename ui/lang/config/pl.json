@@ -1,4 +1,8 @@
 {
+  "config.webdav.show_in_filemanager": "Pokaż w menedżerze plików",
+  "config.webdav.filemanager_help": "Pokazuje tę włączoną integrację jako lokalizację na pulpicie. Zmiany działają od razu; dostęp mają tylko administratorzy.",
+  "config.koofr.show_in_filemanager": "Pokaż w menedżerze plików",
+  "config.koofr.filemanager_help": "Pokazuje tę włączoną integrację jako lokalizację na pulpicie. Zmiany działają od razu; dostęp mają tylko administratorzy.",
   "config.layerling.enabled": "Włącz Layerling",
   "config.layerling.help": "Lokalny CAD 3D w przeglądarce. Języki edytora: niemiecki i angielski.",
   "config.layerling.access": "Dostęp agenta",

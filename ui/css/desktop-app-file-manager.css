@@ -317,6 +317,11 @@
 .fm-sidebar-item:hover {
     background: var(--vd-theme-control-bg);
 }
+.fm-sidebar-item[data-storage-provider], .fm-sidebar-item[data-storage-group] { min-height: 44px; }
+.fm-sidebar-item:disabled { opacity: .55; cursor: not-allowed; }
+.fm-sidebar-item:focus-visible { outline: 2px solid var(--vd-accent); outline-offset: -2px; }
+.fm-storage-status { display: block; overflow: hidden; text-overflow: ellipsis; color: var(--vd-muted); font-size: 11px; }
+.fm-upload-panel [data-storage-cancel] { min-height: 44px; margin-top: 16px; }
 .fm-sidebar-item.active {
     background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.12);
     color: var(--vd-text);

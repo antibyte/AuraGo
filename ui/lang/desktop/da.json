@@ -1,4 +1,13 @@
 {
+  "desktop.fm.storage_offline": "Ikke tilgængelig",
+  "desktop.fm.storage_readonly": "Kun læsning",
+  "desktop.fm.storage_writable": "Læsning og skrivning",
+  "desktop.fm.storage_cancelled": "Annulleret. Filer, der allerede er kopieret, kan blive på destinationen.",
+  "desktop.fm.storage_partial": "Overførslen er ufuldstændig. Kontrollér filerne, der allerede er oprettet på destinationen.",
+  "desktop.fm.storage_transfer": "Filoverførsel",
+  "desktop.fm.storage_delete": "Slet {count} elementer fra {storage}? AuraGo tilbyder ingen papirkurv eller fortrydelse for denne handling.",
+  "desktop.fm.storage_preview": "Skrivebeskyttet forhåndsvisning. Kopiér filen til skrivebordets arbejdsområde for at redigere den i en app.",
+  "desktop.fm.storage_retained": "Kopien er kontrolleret, men nogle kilder kunne ikke slettes sikkert og blev bevaret.",
   "desktop.gallery_category": "Kategori",
   "desktop.gallery_category_all": "Alle kategorier",
   "desktop.gallery_categories_manage": "Administrer kategorier",

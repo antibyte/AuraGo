@@ -1,9 +1,10 @@
     async function renderFiles(id, path) {
         const host = contentEl(id);
         if (!host) return;
-        state.filesPath = path || '';
+        const initialLocation = (path && typeof path === 'object') ? path : state.windows.get(id)?.context?.storage || { provider: 'local', path: path || '' };
+        if (initialLocation.provider === 'local') state.filesPath = initialLocation.path;
         if (window.FileManager && typeof window.FileManager.render === 'function') {
-            window.FileManager.render(host, id, state.filesPath, Object.assign(desktopFileDialogContext(), {
+            window.FileManager.render(host, id, initialLocation, Object.assign(desktopFileDialogContext(), {
                 esc,
                 api,
                 t,
@@ -15,6 +16,15 @@
                 closeContextMenu,
                 promptDialog,
                 confirmDialog,
+                storageConflict: (conflict, signal) => modalDialog({
+                    title: t('desktop.file_conflict_title'),
+                    message: t('desktop.file_conflict_message').replace('{{path}}', conflict.path || ''),
+                    signal,
+                    choices: [
+                        { value: 'replace', label: t('desktop.file_conflict_replace'), disabled: !conflict.version || conflict.directory },
+                        { value: 'copy', label: t('desktop.file_conflict_copy') }
+                    ]
+                }),
                 showNotification: showDesktopNotification,
                 readonly: !!((state.bootstrap || {}).readonly),
                 maxFileSize: Number((((state.bootstrap || {}).workspace || {}).max_file_size) || 0),
@@ -40,12 +50,14 @@
                 restoreFromTrash: restorePathsFromTrash,
                 moveToTrash: movePathsToTrash,
                 emptyTrash,
-                onPathChange: (newPath) => {
-                    state.filesPath = newPath;
+                onPathChange: (newPath, location) => {
+                    if (!location || location.provider === 'local') state.filesPath = newPath;
                     const item = state.windows.get(id);
                     if (item) {
+                        item.context = Object.assign({}, item.context, { path: newPath, storage: location });
+                        scheduleSessionPersist();
                         const subtitle = item.element.querySelector('.vd-window-subtitle');
-                        if (subtitle) subtitle.textContent = newPath || t('desktop.workspace_root');
+                        if (subtitle) subtitle.textContent = (location && location.provider !== 'local' ? location.provider + ' · ' : '') + (newPath || t('desktop.workspace_root'));
                     }
                 },
                 directories: (state.bootstrap && state.bootstrap.workspace && state.bootstrap.workspace.directories) || []

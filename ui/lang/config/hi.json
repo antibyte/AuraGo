@@ -1,4 +1,8 @@
 {
+  "config.webdav.show_in_filemanager": "फ़ाइल प्रबंधक में दिखाएँ",
+  "config.webdav.filemanager_help": "इस सक्रिय एकीकरण को डेस्कटॉप संग्रहण के रूप में दिखाता है। बदलाव तुरंत लागू होते हैं; केवल प्रशासकों को पहुँच मिलती है।",
+  "config.koofr.show_in_filemanager": "फ़ाइल प्रबंधक में दिखाएँ",
+  "config.koofr.filemanager_help": "इस सक्रिय एकीकरण को डेस्कटॉप संग्रहण के रूप में दिखाता है। बदलाव तुरंत लागू होते हैं; केवल प्रशासकों को पहुँच मिलती है।",
   "config.layerling.enabled": "Layerling सक्षम करें",
   "config.layerling.help": "ब्राउज़र में स्थानीय 3D CAD। संपादक की भाषाएँ: जर्मन और अंग्रेज़ी।",
   "config.layerling.access": "एजेंट की पहुँच",

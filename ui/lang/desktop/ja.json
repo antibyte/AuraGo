@@ -1,4 +1,13 @@
 {
+  "desktop.fm.storage_offline": "利用不可",
+  "desktop.fm.storage_readonly": "読み取り専用",
+  "desktop.fm.storage_writable": "読み書き可能",
+  "desktop.fm.storage_cancelled": "キャンセルしました。コピー済みのファイルは転送先に残る場合があります。",
+  "desktop.fm.storage_partial": "転送が完了していません。転送先に作成されたファイルを確認してください。",
+  "desktop.fm.storage_transfer": "ファイル転送",
+  "desktop.fm.storage_delete": "{storage} から {count} 件を削除しますか？この操作には AuraGo のゴミ箱や取り消し機能はありません。",
+  "desktop.fm.storage_preview": "読み取り専用のプレビューです。アプリで編集するには、デスクトップの作業領域にコピーしてください。",
+  "desktop.fm.storage_retained": "コピーは検証済みですが、一部の転送元を安全に削除できなかったため保持しました。",
   "desktop.gallery_category": "カテゴリー",
   "desktop.gallery_category_all": "すべてのカテゴリー",
   "desktop.gallery_categories_manage": "カテゴリーを管理",

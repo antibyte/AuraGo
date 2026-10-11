@@ -18,6 +18,10 @@
             host: null,
             callbacks: null,
             currentPath: '',
+            storage: { provider: 'local', mount_id: '' },
+            storagePolicy: {},
+            storageMounts: [],
+            storageLifetime: new AbortController(),
             files: [],
             filteredFiles: null,
             selectedPaths: new Set(),
@@ -105,6 +109,12 @@
     }
 
     function showContextMenu(x, y, items) {
+        const origin = fm;
+        const bindItems = entries => entries.map(item => ({ ...item,
+            handler: typeof item.handler === 'function' ? () => withInstance(origin, item.handler) : item.handler,
+            items: item.items ? bindItems(item.items) : item.items
+        }));
+        items = bindItems(items);
         if (fm.callbacks && typeof fm.callbacks.showContextMenu === 'function') {
             // Convert file-manager format {action: string, handler: fn} to main.js format {action: fn}
             const convertItem = item => {
@@ -344,7 +354,8 @@
     }
 
     function addToHistory(path) {
-        if (fm.historyIndex >= 0 && fm.history[fm.historyIndex] === path) return;
+        path = storageLocation(path);
+        if (fm.historyIndex >= 0 && locationKey(savedLocation(fm.history[fm.historyIndex])) === locationKey(path)) return;
         fm.history = fm.history.slice(0, fm.historyIndex + 1);
         fm.history.push(path);
         fm.historyIndex = fm.history.length - 1;
@@ -377,6 +388,12 @@
     async function navigate(path, addHistory = true) {
         if (!path && path !== '') path = '';
         const instance = fm;
+        const location = storageLocation(path);
+        closeContextMenu();
+        instance.storage = { provider: location.provider, mount_id: location.mount_id };
+        path = location.path;
+        instance.storageNavigation?.abort();
+        instance.storageNavigation = new AbortController();
         const generation = ++instance.navigationGeneration;
         fm.loading = true;
         fm.currentPath = path;
@@ -389,14 +406,17 @@
         fm.searchQuery = '';
         if (addHistory) addToHistory(path);
         if (fm.callbacks && typeof fm.callbacks.onPathChange === 'function') {
-            fm.callbacks.onPathChange(path);
+            fm.callbacks.onPathChange(path, location);
         }
         renderAll();
         try {
-            const result = await api('/api/desktop/files?path=' + encodeURIComponent(path));
+            const result = isRemote(instance)
+                ? await storageJSON(storageURL('files', location), { signal: instance.storageNavigation.signal })
+                : await api('/api/desktop/files?path=' + encodeURIComponent(path));
             if (!isLiveInstance(instance) || instance.navigationGeneration !== generation) return;
             withInstance(instance, () => {
                 fm.files = Array.isArray(result.files) ? result.files : [];
+                if (isRemote(instance)) fm.files = fm.files.map(file => ({ ...file, mime_type: file.content_type, storage: location }));
                 fm.loading = false;
                 applyFilter();
                 renderAll();
@@ -441,6 +461,17 @@
         if (typeof fm.callbacks.wireContextMenuBoundary === 'function') fm.callbacks.wireContextMenuBoundary(host);
         loadPreferences();
         bindKeyboard();
+        instance.storagePolicyListener = () => {
+            instance.storageBusy?.abort();
+            instance.storageNavigation?.abort();
+            instance.navigationGeneration++;
+            instance.quickLookOverlay?.remove();
+            if (isRemote(instance)) instance.files = [];
+            loadStorageSources(instance);
+        };
+        document.addEventListener('aurago:desktop-policy', instance.storagePolicyListener);
+        loadStorageSources(instance);
+        if (initialPath && initialPath.provider === 'koofr') openStorageMounts(instance);
         navigate(initialPath || '');
     }
 
@@ -471,6 +502,8 @@
         const hasClipboard = hasSharedFileClipboard();
         const readonly = isReadonly();
         const selectedFile = selected.length === 1 ? selected[0] : null;
+        const instance = fm;
+        const bindMenu = menu => ({ ...menu, action: typeof menu.action === 'function' ? () => withInstance(instance, menu.action) : menu.action, items: menu.items?.map(bindMenu) });
         fm.callbacks.setWindowMenus(fm.windowId, [
             {
                 id: 'file',
@@ -481,7 +514,7 @@
                     { id: 'upload', labelKey: 'desktop.fm.upload', icon: 'upload', disabled: readonly, action: () => uploadFiles() },
                     { type: 'separator' },
                     { id: 'duplicate', labelKey: 'desktop.fm.duplicate', shortcut: 'Ctrl+D', disabled: readonly || !hasSelection, action: () => duplicateSelected() },
-                    { id: 'open-terminal', labelKey: 'desktop.fm.open_terminal', disabled: selected.length > 1, action: () => openTerminalHere(selectedFile && selectedFile.type === 'directory' ? selectedFile.path : fm.currentPath) },
+                    { id: 'open-terminal', labelKey: 'desktop.fm.open_terminal', disabled: isRemote() || selected.length > 1, action: () => openTerminalHere(selectedFile && selectedFile.type === 'directory' ? selectedFile.path : fm.currentPath) },
                     { type: 'separator' },
                     { id: 'download', labelKey: 'desktop.fm.download', icon: 'download', disabled: !selectedFile || selectedFile.type !== 'file', action: () => selectedFile && downloadFile(selectedFile) },
                     { id: 'properties', labelKey: 'desktop.fm.properties', icon: 'info', disabled: !selectedFile, action: () => selectedFile && showProperties(selectedFile) }
@@ -531,7 +564,7 @@
                     }
                 ]
             }
-        ]);
+        ].map(bindMenu));
     }
 
     function focusFileItem(path) {
@@ -685,7 +718,7 @@
         }
 
         return `<div class="file-manager" data-fm-window="${esc(fm.windowId)}" ${fm.sidebarOpen ? 'data-sidebar-open="true"' : ''} ${isReadonly() ? 'data-readonly="true"' : ''} tabindex="-1">
-            <div class="fm-sidebar-backdrop" hidden data-action="sidebar-backdrop-close"></div>
+            <div class="fm-sidebar-backdrop" ${fm.sidebarOpen && isCompactViewportFM() ? '' : 'hidden'} data-action="sidebar-backdrop-close"></div>
             ${tabHtml}
             ${renderToolbarHtml()}
             ${renderSelectionToolbarHtml()}
@@ -712,6 +745,7 @@
 
     function createPaneState(path, history = [], historyIndex = -1) {
         return {
+            storage: { ...fm.storage },
             currentPath: path || '',
             files: [],
             filteredFiles: null,
@@ -747,6 +781,7 @@
             const activeState = fm.activePane === 'right' ? fm.rightPane : fm.leftPane;
             fm.splitViewEnabled = false;
             if (activeState) {
+                fm.storage = { ...activeState.storage };
                 fm.currentPath = activeState.currentPath;
                 fm.files = [...activeState.files];
                 fm.filteredFiles = activeState.filteredFiles ? [...activeState.filteredFiles] : null;
@@ -770,6 +805,7 @@
         if (!pane) return;
         
         pane.currentPath = fm.currentPath;
+        pane.storage = { ...fm.storage };
         pane.files = [...fm.files];
         pane.filteredFiles = fm.filteredFiles ? [...fm.filteredFiles] : null;
         pane.selectedPaths = new Set(fm.selectedPaths);
@@ -787,6 +823,7 @@
     function loadPaneState(pane) {
         if (!pane) return;
         fm.currentPath = pane.currentPath;
+        fm.storage = { ...pane.storage };
         fm.files = [...pane.files];
         fm.filteredFiles = pane.filteredFiles ? [...pane.filteredFiles] : null;
         fm.selectedPaths = new Set(pane.selectedPaths);
@@ -803,6 +840,8 @@
 
     function switchActivePane(paneName) {
         if (!fm.splitViewEnabled || fm.activePane === paneName) return;
+        fm.navigationGeneration++;
+        fm.storageNavigation?.abort();
         
         saveActivePaneState();
         fm.activePane = paneName;
@@ -950,7 +989,7 @@
 
     function renderSidebarHtml() {
         const items = fm.directories.map(dir => {
-            const isActive = fm.currentPath === dir || fm.currentPath.startsWith(dir + '/');
+            const isActive = !isRemote() && (fm.currentPath === dir || fm.currentPath.startsWith(dir + '/'));
             const iconKey = iconForDirectory(baseName(dir) || dir);
             return `<div class="fm-sidebar-item${isActive ? ' active' : ''}" data-sidebar-path="${esc(dir)}" role="button" tabindex="0">
                 ${iconMarkup(iconKey, '\u25A0', 'fm-sidebar-icon', 18)}
@@ -960,15 +999,17 @@
 
         const favs = fm.favorites || [];
         const favItems = favs.map((fav, idx) => {
-            const isActive = fm.currentPath === fav || fm.currentPath.startsWith(fav + '/');
-            return `<div class="fm-sidebar-item${isActive ? ' active' : ''} fm-favorite-item" data-sidebar-path="${esc(fav)}" draggable="true" data-fav-index="${idx}" role="button" tabindex="0" style="position:relative">
+            const loc = savedLocation(fav);
+            const isActive = locationKey(storageLocation()) === locationKey(loc);
+            return `<div class="fm-sidebar-item${isActive ? ' active' : ''} fm-favorite-item" data-sidebar-path="${esc(loc.path)}" draggable="true" data-fav-index="${idx}" role="button" tabindex="0" style="position:relative">
                 ${iconMarkup('star', '\u2605', 'fm-sidebar-icon', 18)}
-                <span class="fm-sidebar-label">${esc(baseName(fav) || fav)}</span>
-                <button type="button" class="fm-favorite-remove" data-action="remove-favorite" data-path="${esc(fav)}" title="${esc(t('desktop.fm.remove_favorite'))}" style="position:absolute;right:8px;background:none;border:none;color:var(--vd-muted);cursor:pointer;font-size:1rem;line-height:1;display:none;align-items:center;justify-content:center;height:100%;top:0">&times;</button>
+                <span class="fm-sidebar-label">${esc((loc.provider === 'local' ? '' : storageName({ ...fm, storage: loc }) + ' · ') + (baseName(loc.path) || '/'))}</span>
+                <button type="button" class="fm-favorite-remove" data-remove-storage-favorite="${idx}" title="${esc(t('desktop.fm.remove_favorite'))}" style="position:absolute;right:8px;background:none;border:none;color:var(--vd-muted);cursor:pointer;font-size:1rem;line-height:1;display:none;align-items:center;justify-content:center;height:100%;top:0">&times;</button>
             </div>`;
         }).join('');
 
         return `<aside class="fm-sidebar">
+            ${renderStorageSidebar()}
             <div class="fm-sidebar-section">
                 <div class="fm-sidebar-head">${esc(t('desktop.fm.quick_access'))}</div>
                 ${items || `<div class="fm-sidebar-empty">${esc(t('desktop.fm.workspace_root'))}</div>`}
@@ -988,7 +1029,7 @@
             const isLast = index === parts.length - 1;
             return `<span class="fm-breadcrumb-segment${isLast ? ' current' : ''}" data-breadcrumb-path="${esc(accumulated)}" role="button" tabindex="0">${esc(part)}</span>`;
         });
-        return segments.join(`<span class="fm-breadcrumb-separator">/</span>`);
+        return (isRemote() ? `<span class="fm-breadcrumb-segment" data-breadcrumb-path="" role="button" tabindex="0">${esc(storageName())}</span><span class="fm-breadcrumb-separator">/</span>` : '') + segments.join(`<span class="fm-breadcrumb-separator">/</span>`);
     }
 
     function renderContentHtml() {

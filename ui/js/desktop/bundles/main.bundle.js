@@ -8953,6 +8953,17 @@ function wireWindow(win, id) {
             out[key] = value;
         });
         if (/^[a-f0-9]{64}$/.test(context.conversation_id || '')) out.conversation_id = context.conversation_id;
+        if (context.storage != null) {
+            const loc = context.storage;
+            const path = loc && loc.path;
+            if (['local', 'webdav', 'koofr'].includes(loc?.provider) && typeof path === 'string' && !/[\\\x00-\x1f]/.test(path) && !path.startsWith('/') && !path.split('/').some(part => part === '..' || part === '.') && (loc.provider !== 'koofr' || typeof loc.mount_id === 'string' && !!loc.mount_id)) {
+                out.storage = { provider: loc.provider, mount_id: loc.provider === 'koofr' ? loc.mount_id : '', path };
+                out.path = path;
+            } else {
+                // Invalid remote identities must never reopen as local paths.
+                delete out.path;
+            }
+        }
         return out;
     }
 
@@ -10276,7 +10287,21 @@ function wireWindow(win, id) {
     }
 
     function hasDesktopFileClipboard() {
-        return !!desktopFileClipboard();
+        return !!window.AuraDesktopFileClipboard?.entries?.length || !!desktopFileClipboard();
+    }
+
+    async function transferCloudFilesToLocal(entries, path, mode, clipboard) {
+        if ((state.bootstrap || {}).readonly) return;
+        openApp('files', { path });
+        const id = state.activeWindowId;
+        const end = Date.now() + 5000;
+        while (!window.FileManager?.storageReady(id)) {
+            if (!state.windows.has(id) || Date.now() > end) throw new Error(t('desktop.load_failed'));
+            await new Promise(resolve => setTimeout(resolve, 50));
+        }
+        const result = await window.FileManager.transferStorage(id, entries, { provider: 'local', path }, mode, clipboard);
+        await loadBootstrap();
+        return result;
     }
 
     function desktopFileDragPayload(event) {
@@ -10398,6 +10423,7 @@ function wireWindow(win, id) {
 
     async function pasteDesktopFileClipboard(destBase, options) {
         const clipboardState = window.AuraDesktopFileClipboard;
+        if (clipboardState?.entries?.length) return transferCloudFilesToLocal(clipboardState.entries, destBase == null ? 'Desktop' : destBase, clipboardState.mode === 'cut' ? 'move' : 'copy', clipboardState);
         const clipboard = desktopFileClipboard();
         if (!clipboard) return;
         const targetBase = normalizeDesktopPath(destBase == null ? 'Desktop' : destBase);
@@ -10481,7 +10507,7 @@ function wireWindow(win, id) {
     }
 
     function handleDesktopFileDragOver(event) {
-        if (!hasDesktopFileDragPayload(event) && !hasDesktopHostFileDrag(event)) return;
+        if (!hasDesktopFileDragPayload(event) && !hasDesktopHostFileDrag(event) && !dataTransferHasType(event.dataTransfer, 'application/x-aurago-storage-files')) return;
         event.preventDefault();
         event.dataTransfer.dropEffect = hasDesktopHostFileDrag(event) ? 'copy' : 'move';
         const workspace = $('vd-workspace');
@@ -10495,6 +10521,15 @@ function wireWindow(win, id) {
     }
 
     async function handleDesktopFileDrop(event) {
+        if (dataTransferHasType(event.dataTransfer, 'application/x-aurago-storage-files')) {
+            event.preventDefault(); event.stopPropagation();
+            $('vd-workspace')?.classList.remove('vd-desktop-file-drop-target');
+            try {
+                const payload = JSON.parse(event.dataTransfer.getData('application/x-aurago-storage-files'));
+                await transferCloudFilesToLocal(payload.entries || [], 'Desktop', event.ctrlKey ? 'copy' : 'move');
+            } catch (err) { showDesktopNotification({ title: t('desktop.notification'), message: err.message }); }
+            return;
+        }
         const payload = desktopFileDragPayload(event);
         if (payload) {
             event.preventDefault();
@@ -10718,6 +10753,11 @@ function wireWindow(win, id) {
     }
 
     function handleDesktopFileWindowDragOver(event) {
+        if (desktopWindowDragTypes(event).includes('application/x-aurago-storage-files')) {
+            event.preventDefault(); event.stopPropagation();
+            event.dataTransfer.dropEffect = state.windows.get(event.currentTarget.dataset.windowId)?.appId === 'files' ? (event.ctrlKey ? 'copy' : 'move') : 'none';
+            return;
+        }
         if (!desktopWindowCanHandleDropEvent(event, event.currentTarget.dataset.windowId)) return;
         if (event.defaultPrevented) {
             event.stopPropagation();
@@ -10742,6 +10782,16 @@ function wireWindow(win, id) {
     }
 
     async function handleDesktopFileWindowDrop(event) {
+        if (desktopWindowDragTypes(event).includes('application/x-aurago-storage-files')) {
+            event.preventDefault(); event.stopPropagation();
+            const win = state.windows.get(event.currentTarget.dataset.windowId);
+            if (win?.appId !== 'files') return;
+            try {
+                const payload = JSON.parse(event.dataTransfer.getData('application/x-aurago-storage-files'));
+                await window.FileManager?.transferStorage(win.id, payload.entries || [], null, event.ctrlKey ? 'copy' : 'move');
+            } catch (err) { showDesktopNotification({ title: t('desktop.notification'), message: err.message }); }
+            return;
+        }
         if (!desktopWindowCanHandleDropEvent(event, event.currentTarget.dataset.windowId)) return;
         if (event.defaultPrevented) {
             event.stopPropagation();
@@ -17756,9 +17806,10 @@ if (appId === 'pixel') {
     async function renderFiles(id, path) {
         const host = contentEl(id);
         if (!host) return;
-        state.filesPath = path || '';
+        const initialLocation = (path && typeof path === 'object') ? path : state.windows.get(id)?.context?.storage || { provider: 'local', path: path || '' };
+        if (initialLocation.provider === 'local') state.filesPath = initialLocation.path;
         if (window.FileManager && typeof window.FileManager.render === 'function') {
-            window.FileManager.render(host, id, state.filesPath, Object.assign(desktopFileDialogContext(), {
+            window.FileManager.render(host, id, initialLocation, Object.assign(desktopFileDialogContext(), {
                 esc,
                 api,
                 t,
@@ -17770,6 +17821,15 @@ if (appId === 'pixel') {
                 closeContextMenu,
                 promptDialog,
                 confirmDialog,
+                storageConflict: (conflict, signal) => modalDialog({
+                    title: t('desktop.file_conflict_title'),
+                    message: t('desktop.file_conflict_message').replace('{{path}}', conflict.path || ''),
+                    signal,
+                    choices: [
+                        { value: 'replace', label: t('desktop.file_conflict_replace'), disabled: !conflict.version || conflict.directory },
+                        { value: 'copy', label: t('desktop.file_conflict_copy') }
+                    ]
+                }),
                 showNotification: showDesktopNotification,
                 readonly: !!((state.bootstrap || {}).readonly),
                 maxFileSize: Number((((state.bootstrap || {}).workspace || {}).max_file_size) || 0),
@@ -17795,12 +17855,14 @@ if (appId === 'pixel') {
                 restoreFromTrash: restorePathsFromTrash,
                 moveToTrash: movePathsToTrash,
                 emptyTrash,
-                onPathChange: (newPath) => {
-                    state.filesPath = newPath;
+                onPathChange: (newPath, location) => {
+                    if (!location || location.provider === 'local') state.filesPath = newPath;
                     const item = state.windows.get(id);
                     if (item) {
+                        item.context = Object.assign({}, item.context, { path: newPath, storage: location });
+                        scheduleSessionPersist();
                         const subtitle = item.element.querySelector('.vd-window-subtitle');
-                        if (subtitle) subtitle.textContent = newPath || t('desktop.workspace_root');
+                        if (subtitle) subtitle.textContent = (location && location.provider !== 'local' ? location.provider + ' · ' : '') + (newPath || t('desktop.workspace_root'));
                     }
                 },
                 directories: (state.bootstrap && state.bootstrap.workspace && state.bootstrap.workspace.directories) || []

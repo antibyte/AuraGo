@@ -1,4 +1,8 @@
 {
+  "config.webdav.show_in_filemanager": "Zobrazit ve správci souborů",
+  "config.webdav.filemanager_help": "Zobrazí tuto zapnutou integraci jako úložiště na ploše. Změny platí ihned; přístup mají pouze správci.",
+  "config.koofr.show_in_filemanager": "Zobrazit ve správci souborů",
+  "config.koofr.filemanager_help": "Zobrazí tuto zapnutou integraci jako úložiště na ploše. Změny platí ihned; přístup mají pouze správci.",
   "config.layerling.enabled": "Povolit Layerling",
   "config.layerling.help": "Lokální 3D CAD v prohlížeči. Jazyky editoru: němčina a angličtina.",
   "config.layerling.access": "Přístup agenta",

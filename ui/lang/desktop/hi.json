@@ -1,4 +1,13 @@
 {
+  "desktop.fm.storage_offline": "उपलब्ध नहीं",
+  "desktop.fm.storage_readonly": "केवल पढ़ने के लिए",
+  "desktop.fm.storage_writable": "पढ़ना और लिखना",
+  "desktop.fm.storage_cancelled": "रद्द किया गया। पहले से कॉपी की गई फ़ाइलें गंतव्य पर रह सकती हैं।",
+  "desktop.fm.storage_partial": "स्थानांतरण अधूरा है। गंतव्य पर पहले से बनाई गई फ़ाइलों की जाँच करें।",
+  "desktop.fm.storage_transfer": "फ़ाइल स्थानांतरण",
+  "desktop.fm.storage_delete": "{storage} से {count} आइटम हटाएँ? इस कार्य के लिए AuraGo में कूड़ेदान या पूर्ववत करने की सुविधा नहीं है।",
+  "desktop.fm.storage_preview": "केवल पढ़ने का पूर्वावलोकन। ऐप में संपादन के लिए फ़ाइल को डेस्कटॉप कार्यक्षेत्र में कॉपी करें।",
+  "desktop.fm.storage_retained": "कॉपी सत्यापित हुई, लेकिन कुछ स्रोत सुरक्षित रूप से हटाए नहीं जा सके और रखे गए हैं।",
   "desktop.gallery_category": "श्रेणी",
   "desktop.gallery_category_all": "सभी श्रेणियाँ",
   "desktop.gallery_categories_manage": "श्रेणियाँ प्रबंधित करें",

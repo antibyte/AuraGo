@@ -1,4 +1,8 @@
 {
+  "config.webdav.show_in_filemanager": "Afficher dans le gestionnaire de fichiers",
+  "config.webdav.filemanager_help": "Affiche cette intégration activée comme emplacement du Bureau. Les changements sont immédiats ; l’accès est réservé aux administrateurs.",
+  "config.koofr.show_in_filemanager": "Afficher dans le gestionnaire de fichiers",
+  "config.koofr.filemanager_help": "Affiche cette intégration activée comme emplacement du Bureau. Les changements sont immédiats ; l’accès est réservé aux administrateurs.",
   "config.layerling.enabled": "Activer Layerling",
   "config.layerling.help": "CAO 3D locale dans le navigateur. Langues de l’éditeur : allemand et anglais.",
   "config.layerling.access": "Accès de l’agent",

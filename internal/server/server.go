@@ -294,6 +294,7 @@ type Server struct {
 	DesktopMu                 sync.Mutex
 	desktopClosed             bool // shutdown closed Desktop storage; guarded by DesktopMu
 	desktopRuns               desktopRunRegistry
+	storageRuns               desktopRunRegistry
 	retroNetOnce              sync.Once              // guards the lazy Retro-Net engine below
 	retroNetManager           *retronet.Manager      // lazy (see retroNet); tests pre-seed it
 	retroNetStatus            *retronet.StatusProber // lazy (see retroNet); tests pre-seed it
@@ -452,6 +453,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 		return
 	}
 	previous := s.ConfigSnapshot()
+	if previous != nil && (previous.WebDAV != cfg.WebDAV || previous.Koofr != cfg.Koofr || previous.VirtualDesktop.ReadOnly != cfg.VirtualDesktop.ReadOnly || previous.VirtualDesktop.Enabled != cfg.VirtualDesktop.Enabled) {
+		s.revokeStorageRequests()
+	}
 	if previous != nil && videoStudioConfigRootsChanged(previous, cfg) {
 		// Cancel before publishing the new roots. A worker may finish an FFmpeg
 		// run after a workspace change, but it must not publish into the new tree.

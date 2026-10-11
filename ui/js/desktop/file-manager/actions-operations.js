@@ -1,5 +1,6 @@
     // File operations
     async function createNewFile() {
+        if (isRemote()) return storageCreate(false);
         const instance = fm;
         const directory = instance.currentPath;
         if (isReadonly()) return;
@@ -26,6 +27,7 @@
     }
 
     async function createNewFolder() {
+        if (isRemote()) return storageCreate(true);
         const instance = fm;
         const directory = instance.currentPath;
         if (isReadonly()) return;
@@ -78,6 +80,7 @@
     }
 
     async function renamePath(path, newName) {
+        if (isRemote()) return storageRename(path, newName);
         const instance = fm;
         if (isReadonly()) return;
         const file = instance.files.find(f => f.path === path);
@@ -122,6 +125,7 @@
     }
 
     async function deleteSelected() {
+        if (isRemote()) return storageDelete();
         const instance = fm;
         if (isReadonly()) return;
         const selected = getSelectedFiles();
@@ -144,6 +148,7 @@
     }
 
     async function downloadFile(file) {
+        if (isRemote()) return storageDownload(file);
         if (!file || file.type !== 'file') return;
         if (fm.callbacks && typeof fm.callbacks.exportDesktopFile === 'function') {
             await fm.callbacks.exportDesktopFile({ path: file.path || '', name: file.name || '', url: file.web_path || '' });
@@ -169,9 +174,10 @@
     async function uploadFiles() {
         const instance = fm;
         const directory = instance.currentPath;
+        const destination = storageLocation(directory, instance);
         if (isReadonly()) return;
         const importFilesFromHost = instance.callbacks && instance.callbacks.importFilesFromHost;
-        if (typeof importFilesFromHost === 'function') {
+        if (!isRemote(instance) && typeof importFilesFromHost === 'function') {
             const result = await importFilesFromHost({ path: directory, multiple: true });
             if (result && !result.canceled && isLiveInstance(instance)) withInstance(instance, () => refresh());
             return;
@@ -181,7 +187,8 @@
         input.multiple = true;
         input.addEventListener('change', async () => {
             if (!input.files || !input.files.length || !isLiveInstance(instance)) return;
-            await uploadFileList(input.files, instance, directory);
+            if (destination.provider !== 'local') await storageUpload(input.files, instance, destination);
+            else await uploadFileList(input.files, instance, directory);
         }, { once: true });
         input.click();
     }
@@ -219,6 +226,7 @@
     }
 
     async function uploadFileList(files, instance = fm, directory = instance.currentPath) {
+        if (isRemote(instance)) return storageUpload(files, instance, storageLocation(directory, instance));
         const targetPath = directory;
         if (isReadonly()) return;
         const totalFiles = files.length;
@@ -271,7 +279,7 @@
         let itemCount = '';
         if (isDir) {
             try {
-                const result = await api('/api/desktop/files?path=' + encodeURIComponent(file.path));
+                const result = isRemote(instance) ? await storageJSON(storageURL('files', storageLocation(file.path, instance))) : await api('/api/desktop/files?path=' + encodeURIComponent(file.path));
                 if (!isLiveInstance(instance)) return;
                 const count = Array.isArray(result.files) ? result.files.length : 0;
                 itemCount = `<div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_items'))}</span><span class="fm-prop-value">${esc(count)}</span></div>`;
@@ -327,6 +335,7 @@
     }
 
     async function moveDroppedDesktopFilesToFolder(paths, destPath) {
+        if (isRemote()) return storageTransferSelection(fm, paths.map(localLocation), storageLocation(destPath), 'move');
         const instance = fm;
         const targetPath = destPath;
         const sourcePaths = Array.from(new Set((paths || []).filter(Boolean)));
@@ -396,6 +405,10 @@
             addSelection(path);
         }
         e.dataTransfer.effectAllowed = 'copyMove';
+        if (isRemote()) {
+            e.dataTransfer.setData(STORAGE_DRAG_TYPE, JSON.stringify({ entries: fileManagerDragPayload(path).paths.map(p => ({ ...storageLocation(p), type: fm.files.find(file => file.path === p)?.type })) }));
+            return;
+        }
         e.dataTransfer.setData('text/plain', path);
         e.dataTransfer.setData(DESKTOP_FILE_DRAG_TYPE, JSON.stringify(fileManagerDragPayload(path)));
     }
@@ -553,6 +566,7 @@
     }
 
     function buildOpenWithSubmenu(file) {
+        if (isRemote()) return [];
         if (!file || file.type !== 'file') return [];
         const apps = [];
         
@@ -604,6 +618,7 @@
     }
 
     async function duplicateSelected() {
+        if (isRemote()) return storageDuplicate();
         const instance = fm;
         if (isReadonly()) return;
         const selected = getSelectedFiles().map(file => Object.assign({}, file));
@@ -654,6 +669,7 @@
             }
         }
         if (!text) return;
+        if (isRemote()) text = text.split('\n').map(path => JSON.stringify(storageLocation(path))).join('\n');
         try {
             await navigator.clipboard.writeText(text);
             showNotification({ type: 'success', message: t('desktop.fm.path_copied') });
@@ -663,12 +679,14 @@
     }
 
     function openTerminalHere(path) {
+        if (isRemote()) return;
         if (fm.callbacks && typeof fm.callbacks.openApp === 'function') {
             fm.callbacks.openApp('terminal', { path });
         }
     }
 
     async function createSymlink(file) {
+        if (isRemote()) return;
         const instance = fm;
         const directory = instance.currentPath;
         if (isReadonly()) return;
@@ -693,6 +711,7 @@
     }
 
     async function calculateFolderSize(path) {
+        if (isRemote()) return;
         const instance = fm;
         const span = instance.host ? instance.host.querySelector(`[data-preview-folder-size="${path.replace(/"/g, '\\"')}"]`) : null;
         if (!span) return;

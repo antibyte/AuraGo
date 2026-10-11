@@ -1,10 +1,11 @@
     // Advanced File Operations & Favorites for File Manager
 
     function toggleFavorite(path) {
+        const loc = storageLocation(path);
         if (!fm.favorites) fm.favorites = [];
-        const idx = fm.favorites.indexOf(path);
+        const idx = fm.favorites.findIndex(fav => locationKey(savedLocation(fav)) === locationKey(loc));
         if (idx === -1) {
-            fm.favorites.push(path);
+            fm.favorites.push(loc);
         } else {
             fm.favorites.splice(idx, 1);
         }
@@ -46,6 +47,7 @@
     }
     
     function handleFavoritesSectionDrop(e) {
+        if (isRemote()) return;
         e.preventDefault();
         e.stopPropagation();
         const payload = fileManagerDragPayloadFromEvent(e);
@@ -68,6 +70,7 @@
     }
 
     async function compressSelectionToZip() {
+        if (isRemote()) return;
         const instance = fm;
         const selected = getSelectedFiles().map(file => ({ path: file.path, name: file.name }));
         if (selected.length === 0) return;
@@ -104,6 +107,7 @@
     }
 
     async function extractZip(file, extractHere = true) {
+        if (isRemote()) return;
         const instance = fm;
         const zipPath = file && file.path;
         const currentPath = instance.currentPath;
@@ -135,6 +139,7 @@
     }
 
     function showBatchRenameDialog() {
+        if (isRemote()) return;
         const selected = getSelectedFiles();
         if (selected.length === 0) return;
         
@@ -350,6 +355,7 @@
     }
 
     async function executeBatchRename() {
+        if (isRemote()) return;
         const instance = fm;
         if (isReadonly()) return;
         const payload = await withInstance(instance, () => showBatchRenameDialog());

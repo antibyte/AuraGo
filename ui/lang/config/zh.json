@@ -1,4 +1,8 @@
 {
+  "config.webdav.show_in_filemanager": "在文件管理器中显示",
+  "config.webdav.filemanager_help": "将已启用的集成显示为桌面存储位置。更改立即生效，仅管理员可访问。",
+  "config.koofr.show_in_filemanager": "在文件管理器中显示",
+  "config.koofr.filemanager_help": "将已启用的集成显示为桌面存储位置。更改立即生效，仅管理员可访问。",
   "config.layerling.enabled": "启用Layerling",
   "config.layerling.help": "浏览器中的本地3D CAD。编辑器语言：德语和英语。",
   "config.layerling.access": "代理访问权限",
