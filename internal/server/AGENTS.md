@@ -383,7 +383,8 @@ configuration, the HTTP API and the Docker adapter.
 - `cyd_creator.model` is a provider ID ("" = main provider); an unknown ID or an empty model is `CYD_DISABLED`. The
   private checkpoint (`Service.SaveAgentContext`) keeps user, assistant and tool messages only, scrubbed, continues
   from the bounded request view and is capped at 2 MiB (`cydCreatorTrimConversation` drops the oldest rounds); an
-  unreadable one is skipped, reasoning is dropped when provider or model changed. A failed loop returns
+  unreadable one is skipped. The run sets `PreserveReasoning`: reasoning is kept and replayed on the same provider
+  and model, and dropped when either changed. A failed loop returns
   `cydCreatorAgentFailure`: its text is a generic category (the normal chat's texts, "could not be reached", the
   quota text), the raw error is logged and stays in the chain; the service scrubs the text again
   (`ServiceConfig.Scrub` = `security.Scrub`). A tool-limit final response outside planning ends the round normally.
@@ -393,9 +394,9 @@ configuration, the HTTP API and the Docker adapter.
   `GET jobs/{id}`, `POST jobs/{id}/confirm` (Write, 200 `{"job"}`), `POST jobs/{id}/cancel` (Stop, 202 `{"job"}`,
   409 `CYD_JOB_STATE` once finished), `POST projects/{id}/draft/discard` (Write, 204 also without a draft),
   `GET projects/{id}/messages`, `GET projects/{id}/revisions`, `GET revisions/{id}/diff`,
-  `POST revisions/{id}/restore` (Write, 200 `{"version","revision"}`). Bodies other than start and confirm are at
-  most 64 KiB and may be empty. Verify `TestCYDCreatorJob*`, `TestCYDCreatorRunner*`, `TestCYDCreatorPromptProfiles`
-  and `TestCYDCreatorStartupSweepPurgesLeftoverAgentSessions`.
+  `POST revisions/{id}/restore` (Write, 200 `{"version","revision"}`). Every job POST body may be empty; start and
+  confirm ≤ 192 KiB, the others ≤ 64 KiB. Verify `TestCYDCreatorJob*`, `TestCYDCreatorRunner*`,
+  `TestCYDCreatorPromptProfiles` and `TestCYDCreatorStartupSweepPurgesLeftoverAgentSessions`.
 - Builder (`cyd_creator_builder.go`, `cydDockerBuilder`): one container `aurago-cyd-builder`, created from the
   verified image ID (`sleep infinity`, init, user 1000:1000, `HOME=/tmp`, `NetworkMode none`, `CapDrop ALL`,
   `no-new-privileges`, read-only rootfs, tmpfs `/tmp` 1 GiB `rw,exec,nosuid,nodev`, memory = memory-swap and CPUs

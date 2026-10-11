@@ -36,10 +36,10 @@ publication, revisions, the job chat and the agent tool implementations. Plan 5 
   `service_projects.go`, `service_layout.go`, `service_generate.go`, `service_capabilities.go`, `files_root.go`,
   `files.go`, `assets.go`, `events.go`, `builds.go`, `builds_log.go`. The server owns the wiring, the Docker adapter
   and the HTTP API (`internal/server/AGENTS.md`, "CYD Creator").
-- Plan 3: `jobs.go` (job model, plan validation, rows, lock setter, `job_step`), `jobs_start.go` (`StartJob`,
-  resume, `ConfirmJob`, `CancelJob`, `DiscardDraft`), `jobs_run.go` (phase state machine, builds, publication,
-  failure and draft handling), `jobs_recover.go` (startup recovery), `jobs_agent_context.go` (private conversation),
-  `job_context.go`, `runner.go` (`Runner`, `JobRun`, phases, job runtime, timeout), `messages.go`, `revisions.go` +
+- Plan 3: `jobs.go` (job model, phases, plan validation, rows, lock setter, `job_step`), `jobs_start.go`
+  (`StartJob`, resume, `ConfirmJob`, `CancelJob`, `DiscardDraft`), `jobs_run.go` (phase state machine, builds,
+  publication, failure and draft handling), `jobs_recover.go` (startup recovery), `jobs_agent_context.go` (private
+  conversation), `job_context.go`, `runner.go` (`Runner`, `JobRun`, job runtime, timeout), `messages.go`, `revisions.go` +
   `revisions_diff.go` (blob store, revisions, diff, restore), `staging.go` + `staging_publish.go` (working copies,
   receipts, fence), `tools_project.go`, `tools_files.go`, `tools_build.go`, `tools_reference.go` (agent tool
   implementations). The agent schemas and dispatcher live in `internal/agent` (`internal/agent/AGENTS.md`), the
@@ -545,10 +545,11 @@ publication, revisions, the job chat and the agent tool implementations. Plan 5 
 - Start: the project (with `resume`: the draft) is copied into `<workspace>/.cyd-creator-staging/<job_id>/`
   (`copyTree`: regular files only, at most 1000 files and 64 MiB, each file synced, `.cyd-write-*` leftovers
   skipped), the `before_job` revision is recorded and `UserChanges` computed (layout changed, app files and assets
-  added/modified/deleted since the newest `job` revision; nil before the first green job). A tree `snapshotTree`
-  refuses (an app file above 256 KiB, an asset above 2 MiB) refuses the start with that typed error; any failed
-  preparation ends the job `failed` and frees the lock. The phases run in a goroutine joined to `s.wg`; `Close`
-  sets `jobs.closing` before it cancels and waits, so a running job ends `interrupted`.
+  added/modified/deleted since the newest `job` revision; nil before the first green job). A project tree that
+  `snapshotTree` refuses (an app file above 256 KiB: `CYD_FILE_LIMIT`; an asset above 2 MiB: `CYD_ASSET_TOO_LARGE`)
+  refuses the start with that typed error; any failed preparation ends the job `failed` and frees the lock. The
+  phases run in a goroutine joined to `s.wg`; `Close` sets `jobs.closing` before it cancels and waits, so a running
+  job ends `interrupted`.
 - Phases: new = planning, awaiting confirmation, layout, coding, building, (repairing, building)*, done; change and
   generate_code start at coding (generate_code, unless resumed, refuses a layout with errors: `CYD_INVALID_LAYOUT`
   with `details.issues`). Planning ends on an accepted `SubmitPlan` (none: "The agent stopped: ..."), coding and
@@ -579,8 +580,9 @@ publication, revisions, the job chat and the agent tool implementations. Plan 5 
   message, a Runner error (`agentStopped`) → "The agent stopped: <reason>" (scrubbed with `ServiceConfig.Scrub`, at
   most 300 runes), anything else → `CYD_INTERNAL` with a generic text (the cause can name host paths; logged).
 - Job rows: `saveJob` emits `job_status` only for a stored state (one retry; it returns the error, a missing row is
-  `CYD_JOB_NOT_FOUND`). Terminal states go through `saveTerminalJob` (further tries after 0.2, 0.5 and 1 s),
-  because a lost terminal write keeps the slot taken until a cancel or restart.
+  `CYD_JOB_NOT_FOUND`). Failed, cancelled and interrupted endings (`finishJob`, `abortStart`) go through
+  `saveTerminalJob` (further tries after 0.2, 0.5 and 1 s), because a lost terminal write keeps the slot taken until
+  a cancel or restart; `succeeded` is written inside the publication's commit transaction.
 - `CancelJob` answers `CYD_JOB_STATE` for a stored terminal status first (also while the finishing run still holds
   the slot); it cancels a running job together with its running build and finishes a job awaiting confirmation at
   once (under `jobs.mu`, so a concurrent `ConfirmJob` cannot start it).
@@ -605,7 +607,8 @@ publication, revisions, the job chat and the agent tool implementations. Plan 5 
   characters, `wifi` off|optional|required, `aurago_link` needs Wi-Fi, known libraries once each. Errors are
   `CYD_BAD_REQUEST` with a clipped `details.reason` the agent can act on.
 - Events carry only server-written text: `job_step` kinds layout, file, build, repair, info (others become info),
-  one line of at most 200 runes, never model reasoning, arguments or plan text (`SubmitPlan` reports counts). The
+  one line of at most 200 runes from a server template (with clipped widget and screen names, app paths and compiler
+  messages), never model prose, reasoning or plan text (`SubmitPlan` reports counts). The
   private conversation lives in `cc_agent_context`: `SaveAgentContext` only for the running job (at most 16 MiB of
   JSON), `LoadAgentContext` returns the job's, else the resumed draft's.
 
@@ -672,7 +675,9 @@ publication, revisions, the job chat and the agent tool implementations. Plan 5 
     and copies kept above; it removes nothing when a receipt or the job rows could not be read. A draft whose
     folder is gone is cleared. `pruneOrphanBlobs` runs only here (blob writes dedupe without a lock).
 - A staging folder (`.cyd-creator-staging`) that is a link or junction is never followed: `StartJob`,
-  `RestoreRevision`, `removeStaging` and the sweep refuse. `DeleteProject` removes its jobs' working copies.
+  `RestoreRevision`, `removeStaging` and the sweep refuse. `receiptPaths` (every swap and its recovery) refuses a
+  link or junction at any existing component of `CYD/`, `CYD/<slug>`, the backup or the stage. `DeleteProject`
+  removes its jobs' working copies.
 - Resolving a fenced project by hand (server log: "CYD Creator receipt needs review" with the receipt and project,
   or "receipts could not all be checked"):
   1. Stop AuraGo. Read the receipt: the project tree is `<workspace>/CYD/<slug>`, the tree before the swap

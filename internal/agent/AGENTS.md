@@ -98,10 +98,11 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   `cyd_creator_build` answers `status` `ok` or `failed` plus `build_status`;
   write_file needs a string `content` (a missing one never becomes an empty
   file); submit_plan takes an object or a JSON string and answers counts only.
-  An answer must reach the model whole within `toolResultInlineBudget` minus
-  64 bytes, measured in its largest form (`cydModelBytes`: the escaped
-  `IsolateExternalData` body plus the longer `security.ToolOutputWarning`
-  line). read_file pages whole lines (`start_line`/`end_line`, at most 32 KiB
+  A read_project or read_file answer must reach the model whole within
+  `toolResultInlineBudget` minus 64 bytes, measured in its largest form
+  (`cydModelBytes`: the escaped `IsolateExternalData` body plus the longer
+  `security.ToolOutputWarning` line); the other tools' answers are not
+  measured yet. read_file pages whole lines (`start_line`/`end_line`, at most 32 KiB
   of content, a single longer line is cut with `clipped_line` and a warning
   `next_action`) and also reads `cyd.project.json` and generated files;
   read_project replaces an oversized layout with `layout_summary`, then halves

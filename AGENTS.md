@@ -273,7 +273,7 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Telnyx call/SMS transport and reconciliation | `internal/telnyx/AGENTS.md` |
 | Tool System; Prompt and Runtime Drift Contract | `internal/agent/AGENTS.md` |
 | Bluetooth Integration Contract | `internal/bluetooth/AGENTS.md` |
-| CYD Creator domain, device template, builder image, generator, storage, build queue, agent jobs and HTTP API | `internal/cydcreator/AGENTS.md`, `internal/server/AGENTS.md` |
+| CYD Creator domain, device template, builder image, generator, storage, build queue, agent jobs and HTTP API | `internal/cydcreator/AGENTS.md`, `internal/server/AGENTS.md`, `internal/agent/AGENTS.md` |
 | God's Eye View Store Contract | `internal/desktopstore/AGENTS.md` |
 | Fritz!Box Desktop Widget Contract | `internal/fritzbox/AGENTS.md` |
 | Game Maker Studio Contract; Game Maker tool validation contract; Game Maker sprite library contract | `internal/gamemaker/AGENTS.md` |
