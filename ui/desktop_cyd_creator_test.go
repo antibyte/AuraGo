@@ -204,3 +204,28 @@ func TestCYDCreatorFoundationModules(t *testing.T) {
 		"'project_changed'", "'lock_changed'", "'build_status'", "'build_log'", "'job_status'", "'job_step'", "'job_message'",
 		"'device_changed'", "'stream_ready'")
 }
+
+func TestCYDCreatorStylesheetUsesThemeTokens(t *testing.T) {
+	css := rawDesktopAssetText(t, "css/desktop-app-cyd-creator.css")
+	split := strings.Index(css, ".cc-app [hidden] { display: none !important; }")
+	if split < 0 {
+		t.Fatal("the [hidden] rule must follow the token block")
+	}
+	// Plan 4b appends a delimited designer section with its own rules; only the shell part is checked.
+	shell := css[split:]
+	if end := strings.Index(shell, "/* ==== CYD Creator designer (plan 4b) — begin"); end >= 0 {
+		shell = shell[:end]
+	}
+	if hex := regexp.MustCompile(`#[0-9a-fA-F]{3,8}\b`).FindString(shell); hex != "" {
+		t.Fatalf("literal colour %s outside the .cc-app token block", hex)
+	}
+	for _, marker := range []string{
+		"--cc-bg: var(--vd-theme-app-bg", "--cc-panel: var(--vd-theme-panel-bg", "--cc-border: var(--vd-theme-border",
+		"--cc-text: var(--vd-text", "container: cc-app / inline-size;", "@container cc-app (max-width: 820px)",
+		"@media (prefers-reduced-motion: reduce)", ".cc-app .cc-modal-backdrop",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Errorf("desktop-app-cyd-creator.css misses %q", marker)
+		}
+	}
+}
