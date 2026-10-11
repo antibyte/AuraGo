@@ -31,7 +31,6 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       ASSET_ID: ${{ inputs.asset_id }}
       ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
-      REGISTRY_AUTH_FILE: ${{ runner.temp }}/ruview-registry-auth.json
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -56,6 +55,8 @@ jobs:
           test "$(skopeo manifest-digest image-index.json)" = "${pinned#*@}"
           test "$(jq -c '[.manifests[] | select(.platform.os == "linux") | .platform.os + "/" + .platform.architecture] | sort' image-index.json)" = "$(jq -c '.docker_platforms | sort' internal/ruview/artifacts.json)"
       - name: Publish with unchanged digest and verify
+        env:
+          REGISTRY_AUTH_FILE: ${{ runner.temp }}/ruview-registry-auth.json
         shell: bash
         run: |
           set -euo pipefail
