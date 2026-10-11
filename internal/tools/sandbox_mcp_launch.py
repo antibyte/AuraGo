@@ -7,17 +7,32 @@ import llm_sandbox.mcp_server.server as server
 _IMAGE = os.environ.get("IMAGE", "").strip()
 
 
-def _install_image(cls):
+def _wrap_class(cls):
     original = cls.__init__
 
     def init(self, *args, **kwargs):
-        if _IMAGE and not kwargs.get("image"):
+        if _IMAGE and "image" not in kwargs:
             kwargs["image"] = _IMAGE
         return original(self, *args, **kwargs)
 
     cls.__init__ = init
 
 
-_install_image(server.SandboxSession)
-_install_image(server.ArtifactSandboxSession)
+def _session_function(original):
+    def session(*args, **kwargs):
+        if _IMAGE and "image" not in kwargs:
+            kwargs["image"] = _IMAGE
+        return original(*args, **kwargs)
+
+    return session
+
+
+if isinstance(server.SandboxSession, type):
+    _wrap_class(server.SandboxSession)
+else:
+    server.SandboxSession = _session_function(server.SandboxSession)
+
+if isinstance(server.ArtifactSandboxSession, type):
+    _wrap_class(server.ArtifactSandboxSession)
+
 server.main()

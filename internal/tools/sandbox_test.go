@@ -1,10 +1,16 @@
 package tools
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -539,3 +545,146 @@ func TestLLMSandboxRequirementIsPinned(t *testing.T) {
 		t.Fatalf("podman requirement = %q, err = %v", got, err)
 	}
 }
+
+func TestSandboxProcessEnvClearsImageWhenUnset(t *testing.T) {
+	unset, err := sandboxProcessEnv(SandboxConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	image, ok := unset["IMAGE"]
+	if !ok || image != "" {
+		t.Fatalf("IMAGE present=%v value=%q, want empty string", ok, image)
+	}
+	if unset["SANDBOX_NETWORK_MODE"] != "none" {
+		t.Fatalf("SANDBOX_NETWORK_MODE = %q", unset["SANDBOX_NETWORK_MODE"])
+	}
+
+	set, err := sandboxProcessEnv(SandboxConfig{Image: "python:3.11-slim"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if set["IMAGE"] != "python:3.11-slim" {
+		t.Fatalf("IMAGE = %q", set["IMAGE"])
+	}
+}
+
+func TestSandboxMCPLauncherInjectsImageIntoFunctionAndClass(t *testing.T) {
+	python := sandboxLauncherPython(t)
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("test file path unavailable")
+	}
+	launcher := filepath.Join(filepath.Dir(file), "sandbox_mcp_launch.py")
+
+	const configured = "ghcr.io/example/sandbox:1"
+	withImage := runSandboxLauncherProbe(t, python, launcher, configured)
+	assertLauncherImage(t, withImage.Function, configured, "function")
+	assertLauncherImage(t, withImage.Class, configured, "class")
+	assertLauncherImage(t, withImage.FunctionOverride, "caller:supplied", "function override")
+	assertLauncherImage(t, withImage.ClassOverride, "caller:supplied", "class override")
+
+	empty := runSandboxLauncherProbe(t, python, launcher, "")
+	if empty.Function != nil || empty.Class != nil {
+		t.Fatalf("empty IMAGE injected function=%v class=%v", ptrString(empty.Function), ptrString(empty.Class))
+	}
+	assertLauncherImage(t, empty.FunctionOverride, "caller:supplied", "empty function override")
+	assertLauncherImage(t, empty.ClassOverride, "caller:supplied", "empty class override")
+}
+
+type sandboxLauncherProbe struct {
+	Function         *string `json:"function"`
+	Class            *string `json:"class"`
+	FunctionOverride *string `json:"function_override"`
+	ClassOverride    *string `json:"class_override"`
+}
+
+func sandboxLauncherPython(t *testing.T) string {
+	t.Helper()
+	for _, name := range []string{"python", "python3"} {
+		path, err := exec.LookPath(name)
+		if err == nil {
+			return path
+		}
+	}
+	t.Skip("python and python3 are not on PATH")
+	return ""
+}
+
+func runSandboxLauncherProbe(t *testing.T, python, launcher, image string) sandboxLauncherProbe {
+	t.Helper()
+	cmd := exec.Command(python, "-", launcher)
+	cmd.Stdin = strings.NewReader(sandboxLauncherProbeScript)
+	cmd.Env = append(os.Environ(), "IMAGE="+image)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("launcher probe IMAGE=%q: %v\nstderr:\n%s\nstdout:\n%s", image, err, stderr.String(), stdout.String())
+	}
+	var got sandboxLauncherProbe
+	if err := json.Unmarshal(bytes.TrimSpace(stdout.Bytes()), &got); err != nil {
+		t.Fatalf("launcher probe JSON: %v\nstdout:\n%s", err, stdout.String())
+	}
+	return got
+}
+
+func assertLauncherImage(t *testing.T, got *string, want, label string) {
+	t.Helper()
+	if got == nil || *got != want {
+		t.Fatalf("%s image = %s, want %q", label, ptrString(got), want)
+	}
+}
+
+func ptrString(value *string) string {
+	if value == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("%q", *value)
+}
+
+const sandboxLauncherProbeScript = `
+import importlib.util
+import json
+import sys
+import types
+
+launcher = sys.argv[1]
+calls = {"function": [], "class": []}
+
+def sandbox_session(*args, **kwargs):
+    if "image" in kwargs:
+        calls["function"].append(kwargs["image"])
+    else:
+        calls["function"].append(None)
+    return dict(kwargs)
+
+class ArtifactSandboxSession:
+    def __init__(self, *args, **kwargs):
+        if "image" in kwargs:
+            calls["class"].append(kwargs["image"])
+        else:
+            calls["class"].append(None)
+
+name = "llm_sandbox.mcp_server.server"
+for mod_name in ("llm_sandbox", "llm_sandbox.mcp_server", name):
+    sys.modules[mod_name] = types.ModuleType(mod_name)
+server = sys.modules[name]
+server.SandboxSession = sandbox_session
+server.ArtifactSandboxSession = ArtifactSandboxSession
+server.main = lambda: None
+
+spec = importlib.util.spec_from_file_location("aurago_sandbox_mcp_launch", launcher)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+server.SandboxSession(lang="javascript")
+server.ArtifactSandboxSession(lang="python")
+server.SandboxSession(lang="javascript", image="caller:supplied")
+server.ArtifactSandboxSession(lang="python", image="caller:supplied")
+print(json.dumps({
+    "function": calls["function"][0],
+    "class": calls["class"][0],
+    "function_override": calls["function"][1],
+    "class_override": calls["class"][1],
+}))
+`

@@ -164,7 +164,7 @@ func InitSandboxManager(cfg SandboxConfig, workspaceDir string, logger *slog.Log
 
 	// 4. Build environment variables for the MCP server.
 	// A rejected image must leave Ready false and must not start the process.
-	env, err := sandboxMCPEnv(cfg)
+	env, err := sandboxProcessEnv(cfg)
 	if err != nil {
 		mgr.status.Error = err.Error()
 		logger.Error("[Sandbox] invalid sandbox configuration", "error", err)
@@ -534,6 +534,20 @@ func sandboxMCPEnv(cfg SandboxConfig) (map[string]string, error) {
 			return nil, fmt.Errorf("sandbox image %q is not a single image reference", cfg.Image)
 		}
 		env["IMAGE"] = image
+	}
+	return env, nil
+}
+
+// sandboxProcessEnv is the MCP child environment. An omitted IMAGE becomes an
+// explicit empty value so the process overrides an inherited IMAGE. Go keeps
+// the last value when a key appears twice.
+func sandboxProcessEnv(cfg SandboxConfig) (map[string]string, error) {
+	env, err := sandboxMCPEnv(cfg)
+	if err != nil {
+		return nil, err
+	}
+	if _, ok := env["IMAGE"]; !ok {
+		env["IMAGE"] = ""
 	}
 	return env, nil
 }
