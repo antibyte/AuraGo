@@ -55,6 +55,9 @@
             builds: [],
             // early: finished builds that events reported before GET /builds answered (mergeBuilds).
             early: new Map(),
+            // seen: builds that events reported while the newest load (loadToken) runs; null otherwise.
+            seen: null,
+            loadToken: 0,
             selected: '',
             lines: [],
             truncated: false,
@@ -349,26 +352,35 @@
             if (!prev || ACTIVE_BUILD.has(prev.status)) loadLog(build.id, true);
         }
 
-        // mergeBuilds combines GET /builds with what events reported meanwhile (the request and the
-        // stream race): a listed build takes the event copy when that one has progressed further;
+        // mergeBuilds combines GET /builds with the builds events reported meanwhile (the request and
+        // the stream race): a listed build takes the event copy when that one has progressed further;
         // an unlisted build stays when it is active or not older than the newest listed one.
-        function mergeBuilds(list) {
+        function mergeBuilds(list, reported) {
             const byId = new Map();
             (Array.isArray(list) ? list : []).forEach(build => { if (build && build.id) byId.set(build.id, build); });
             const listed = Array.from(byId.values());
-            state.builds.concat(Array.from(state.early.values())).forEach(build => {
+            reported.forEach(build => {
                 const known = byId.get(build.id);
                 if (known ? progress(build) > progress(known) : !pruned(build, listed)) byId.set(build.id, build);
             });
             return sortBuilds(Array.from(byId.values()));
         }
 
+        // loadBuilds reads GET /builds; only the newest load applies. The first load merges what
+        // events reported before it (the window's builds and the held-aside finished ones). A later
+        // load (reloadProject after a restored database or pruned events) replaces the window's
+        // builds and merges only those events reported while it ran, so stale builds disappear.
         async function loadBuilds() {
+            const token = ++state.loadToken;
+            const reload = state.buildsLoaded;
+            state.seen = new Map();
             try {
                 const list = await inst.api.listBuilds(inst.projectId);
-                if (b.disposed) return;
+                if (b.disposed || token !== state.loadToken) return;
                 const before = selectedBuild();
-                state.builds = mergeBuilds(list);
+                const reported = reload ? Array.from(state.seen.values()) : state.builds.concat(Array.from(state.early.values()));
+                state.builds = mergeBuilds(list, reported);
+                state.seen = null;
                 state.early.clear();
                 state.buildsLoaded = true;
                 // A build the window already shows (started or followed meanwhile) stays selected.
@@ -379,7 +391,9 @@
                     select(state.builds.length ? state.builds[0].id : '');
                 }
             } catch (err) {
-                if (!b.disposed) inst.notify('error', P.errors.message(t, err));
+                if (b.disposed || token !== state.loadToken) return;
+                state.seen = null;
+                inst.notify('error', P.errors.message(t, err));
             }
         }
 
@@ -396,6 +410,7 @@
                 if (!state.buildsLoaded) { state.early.set(build.id, build); return; }
                 if (pruned(build, state.builds)) return;
             }
+            if (state.seen) state.seen.set(build.id, build);
             if (prev) state.builds[index] = build;
             else state.builds.unshift(build);
             state.builds = sortBuilds(state.builds);

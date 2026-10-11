@@ -259,6 +259,11 @@ func TestCYDCreatorDockModule(t *testing.T) {
 			t.Errorf("cyd-creator-dock.js misses %q", marker)
 		}
 	}
+	// A reload (reloadProject after a restored database) replaces stale builds and merges only the
+	// builds events reported while it ran.
+	if !strings.Contains(text, "const reported = reload ? Array.from(state.seen.values())") {
+		t.Error("cyd-creator-dock.js: a reload of the builds must merge only the builds seen meanwhile")
+	}
 }
 
 // checkCYDCreatorCancelNotReadonly: plan 2 allows the job/build cancel routes while the desktop is

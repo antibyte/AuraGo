@@ -741,6 +741,28 @@ function makeDock(prefs, listed, logs) {
     check('showing the log while following scrolls to its end', d.pre().scrollTop === d.pre().scrollHeight && d.pre().scrollTop > 0);
     d.dock.dispose();
 }
+{
+    // reloadProject loads again after stream_ready {"reload":true} (a restored database, pruned
+    // events): the server list replaces the window's builds, except builds reported meanwhile.
+    const d = makeDock(null, [dockBuild('cb_9', 'running', 9), dockBuild('cb_8', 'succeeded', 8)], {});
+    d.release();
+    await settle();
+    d.inst.bus.emit('build:status', dockBuild('cb_10', 'succeeded', 10));
+    d.dock.builds.select('cb_9');
+    d.inst.api.listBuilds = () => Promise.resolve([dockBuild('cb_8', 'succeeded', 8), dockBuild('cb_7', 'failed', 7)]);
+    await d.dock.builds.load();
+    const list = d.dock.builds.list();
+    eq('a reload drops stale builds, so no stale running build blocks Build', [list.map(x => x.id), list.some(x => x.status === 'queued' || x.status === 'running'), d.dock.builds.selected().id],
+        [['cb_8', 'cb_7'], false, 'cb_8']);
+    let answer;
+    d.inst.api.listBuilds = () => new Promise(resolve => { answer = resolve; });
+    const reloading = d.dock.builds.load();
+    d.inst.bus.emit('build:status', dockBuild('cb_12', 'running', 12));
+    answer([dockBuild('cb_8', 'succeeded', 8)]);
+    await reloading;
+    eq('a reload keeps a build reported while it ran, and its selection', [d.dock.builds.list().map(x => x.id), d.dock.builds.selected().id], [['cb_12', 'cb_8'], 'cb_12']);
+    d.dock.dispose();
+}
 
 // ── dialog (cyd-creator-core.js): only the topmost dialog takes keys; owners close theirs ──
 const docKeys = [];
