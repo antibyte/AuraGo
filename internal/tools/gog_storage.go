@@ -177,7 +177,11 @@ func (g *GogStorage) List(ctx context.Context, loc StorageLocation) ([]StorageEn
 	out := []StorageEntry{}
 	page := ""
 	seen := map[string]bool{}
+	pages := map[string]bool{}
 	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		args := map[string]any{"parent": loc.ItemID, "max": 100}
 		if page != "" {
 			args["page"] = page
@@ -210,9 +214,13 @@ func (g *GogStorage) List(ctx context.Context, loc StorageLocation) ([]StorageEn
 		if list.Next == "" {
 			return out, nil
 		}
-		if list.Next == page {
+		if pages[list.Next] {
 			return nil, fmt.Errorf("repeated Drive page")
 		}
+		if len(pages) >= 1000 {
+			return nil, fmt.Errorf("storage listing exceeds 1000 pages")
+		}
+		pages[list.Next] = true
 		page = list.Next
 	}
 }
@@ -291,11 +299,15 @@ func (g *GogStorage) Put(ctx context.Context, loc StorageLocation, body io.Reade
 	}
 	f, err := decodeGogFile(data)
 	if err != nil {
-		return StorageEntry{}, err
+		return StorageEntry{}, fmt.Errorf("storage_outcome_unknown: upload completed but its result could not be read: %w", err)
 	}
 	loc.ItemID = f.ID
 	g.remember(loc)
-	return g.Stat(ctx, loc)
+	entry, err := g.Stat(ctx, loc)
+	if err != nil {
+		return StorageEntry{}, fmt.Errorf("storage_outcome_unknown: upload completed but verification failed: %w", err)
+	}
+	return entry, nil
 }
 func (g *GogStorage) Mkdir(ctx context.Context, loc StorageLocation) error {
 	p, e := g.parent(ctx, loc)
@@ -307,11 +319,12 @@ func (g *GogStorage) Mkdir(ctx context.Context, loc StorageLocation) error {
 		return e
 	}
 	f, e := decodeGogFile(data)
-	if e == nil {
-		loc.ItemID = f.ID
-		g.remember(loc)
+	if e != nil {
+		return fmt.Errorf("storage_outcome_unknown: folder creation completed but its result could not be read: %w", e)
 	}
-	return e
+	loc.ItemID = f.ID
+	g.remember(loc)
+	return nil
 }
 func (g *GogStorage) Trash(ctx context.Context, loc StorageLocation) error {
 	loc, e := g.resolve(ctx, loc)
@@ -347,7 +360,7 @@ func (g *GogStorage) Copy(ctx context.Context, from, to StorageLocation, version
 	}
 	created, err := decodeGogFile(data)
 	if err != nil {
-		return err
+		return fmt.Errorf("storage_outcome_unknown: copy completed but its result could not be read: %w", err)
 	}
 	to.ItemID = created.ID
 	g.remember(to)
@@ -356,7 +369,10 @@ func (g *GogStorage) Copy(ctx context.Context, from, to StorageLocation, version
 		return fmt.Errorf("storage_outcome_unknown: source changed while Google copied it")
 	}
 	_, err = g.Stat(ctx, to)
-	return err
+	if err != nil {
+		return fmt.Errorf("storage_outcome_unknown: copy completed but verification failed: %w", err)
+	}
+	return nil
 }
 func (g *GogStorage) Move(ctx context.Context, from, to StorageLocation, version string) error {
 	f, e := g.Stat(ctx, from)
@@ -377,6 +393,9 @@ func (g *GogStorage) Move(ctx context.Context, from, to StorageLocation, version
 	}
 	if f.Name != path.Base(to.Path) {
 		_, e = g.call(ctx, from, "rename", map[string]any{"file_id": f.ItemID, "new_name": path.Base(to.Path)}, nil)
+		if e != nil && f.ParentID != p.ItemID {
+			return fmt.Errorf("storage_outcome_unknown: file moved but rename failed: %w", e)
+		}
 	}
 	return e
 }

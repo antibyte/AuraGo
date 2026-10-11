@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"aurago/internal/config"
@@ -87,5 +88,70 @@ func TestGogPublishIsCreateOnlyAndCancellationSafe(t *testing.T) {
 	files, _ := os.ReadDir(filepath.Dir(target))
 	if len(files) != 1 {
 		t.Fatal("staging leaked")
+	}
+}
+
+func TestGogStorageStopsCyclicPages(t *testing.T) {
+	g := &GogStorage{Service: &gog.Service{}}
+	calls := 0
+	g.run = func(_ context.Context, _ string, r gog.Request, _ *gog.Files) gog.Result {
+		calls++
+		if calls > 3 {
+			t.Fatal("cyclic empty pages kept requesting Google")
+		}
+		next := "a"
+		if r.Args["page"] == "a" {
+			next = "b"
+		}
+		return gog.Result{Status: "ok", Data: json.RawMessage(`{"files":[],"nextPageToken":"` + next + `"}`)}
+	}
+	_, err := g.List(context.Background(), StorageLocation{AccountID: "first", ItemID: "root"})
+	if err == nil || !strings.Contains(err.Error(), "repeated Drive page") {
+		t.Fatalf("missing page cycle error: %v", err)
+	}
+}
+
+func TestGogStorageReportsMutationBeforeFailedFollowup(t *testing.T) {
+	for _, operation := range []string{"put", "mkdir", "copy", "move"} {
+		t.Run(operation, func(t *testing.T) {
+			cfg := &config.Config{}
+			g := &GogStorage{Service: &gog.Service{Config: func() *config.Config { return cfg }}}
+			writes := 0
+			g.run = func(_ context.Context, _ string, r gog.Request, _ *gog.Files) gog.Result {
+				switch r.Operation {
+				case "get":
+					if r.Args["file_id"] == "new" {
+						return gog.Failure("provider_unavailable")
+					}
+					return gog.Result{Status: "ok", Data: json.RawMessage(`{"file":{"id":"source","name":"original.txt","mimeType":"text/plain","size":"4","version":"3","parents":["old-parent"]}}`)}
+				case "list":
+					return gog.Result{Status: "ok", Data: json.RawMessage(`{"files":[]}`)}
+				case "rename":
+					return gog.Failure("permission_denied")
+				default:
+					writes++
+					if r.Operation == "mkdir" {
+						return gog.Result{Status: "ok", Data: json.RawMessage(`{}`)}
+					}
+					return gog.Result{Status: "ok", Data: json.RawMessage(`{"file":{"id":"new"}}`)}
+				}
+			}
+			from := StorageLocation{Provider: "gog", AccountID: "first", ItemID: "source", Path: "source"}
+			to := StorageLocation{Provider: "gog", AccountID: "first", ParentID: "new-parent", Path: "destination.txt"}
+			var err error
+			switch operation {
+			case "put":
+				_, err = g.Put(context.Background(), to, strings.NewReader("data"), "")
+			case "mkdir":
+				err = g.Mkdir(context.Background(), to)
+			case "copy":
+				err = g.Copy(context.Background(), from, to, "gog-3")
+			case "move":
+				err = g.Move(context.Background(), from, to, "gog-3")
+			}
+			if writes != 1 || err == nil || !strings.Contains(err.Error(), "storage_outcome_unknown") {
+				t.Fatalf("mutation was hidden by follow-up failure: writes=%d err=%v", writes, err)
+			}
+		})
 	}
 }
