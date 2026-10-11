@@ -51,7 +51,7 @@ func TestHTTPSConfigOptOutBrowser(t *testing.T) {
 	tlsOrigin = tlsServer.URL
 	browser := newSmokeBrowser(t).MustIgnoreCertErrors(true)
 	page := browser.MustPage(tlsOrigin + "/config#server")
-	defer page.MustClose()
+	// Browser cleanup also closes the page without blocking on unsaved drafts.
 	waitForJSBool(t, page, `() => !!document.querySelector('[data-path="server.https.enabled"]')`)
 	for _, width := range []int{1440, 390} {
 		for _, theme := range []string{"dark", "light"} {
@@ -74,10 +74,12 @@ func TestHTTPSConfigOptOutBrowser(t *testing.T) {
 	if saves.Load() != 0 {
 		t.Fatal("confirmation or cancellation saved config")
 	}
-	page.MustEval(`() => document.querySelector('[data-path="server.https.enabled"]').click()`)
+	page.MustEval(`() => document.querySelector('[data-path="server.https.enabled"]').focus()`)
+	page.Keyboard.MustType(input.Space)
 	waitForJSBool(t, page, `() => document.querySelector('#shared-modal-overlay')?.style.display==='flex'`)
 	page.MustElement("#shared-modal-confirm").MustClick()
 	waitForJSBool(t, page, `() => configData.server.https.enabled===false`)
+	page.MustEval(`async () => {await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); if(document.activeElement!==document.querySelector('[data-path="server.https.enabled"]')) throw Error('HTTPS switch lost keyboard focus after confirmation');}`)
 	if saves.Load() != 0 {
 		t.Fatal("confirm saved without Save")
 	}

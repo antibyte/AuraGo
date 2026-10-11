@@ -9,8 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
+	"github.com/gorilla/websocket"
 )
 
 func TestHTTPSListenerHostRedirectAndDisabledHTTP(t *testing.T) {
@@ -133,6 +135,72 @@ func TestConfigRestartURLPreservesProxyOrigin(t *testing.T) {
 	req := httptest.NewRequest("PUT", "https://[::1]:8443/api/config", nil)
 	if got := configRestartURL(req, old, &next); got != "http://[::1]:8088/config" {
 		t.Fatalf("IPv6 URL: %s", got)
+	}
+}
+
+func TestConfigRestartURLAfterReloadFailure(t *testing.T) {
+	req := httptest.NewRequest("PUT", "https://localhost:8443/api/config", nil)
+	if got := configRestartURL(req, &config.Config{}, nil); got != "" {
+		t.Fatalf("unknown saved config must not redirect: %s", got)
+	}
+}
+
+func TestHTTPSDelayedResponseDoesNotRestoreHSTS(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Server.HTTPS.Enabled = true
+	s := &Server{Cfg: cfg}
+	for _, mode := range []string{"write", "header", "flush", "empty"} {
+		s.cfgSnapshot.Store(cfg)
+		handler := securityHeadersMiddleware(s.httpsTransitionMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Another request completed the opt-out while this response was pending.
+			next := *cfg
+			next.Server.HTTPS.Enabled = false
+			s.CfgMu.Lock()
+			defer s.CfgMu.Unlock() // Header publication must not reacquire this lock.
+			s.cfgSnapshot.Store(&next)
+			switch mode {
+			case "flush":
+				if err := http.NewResponseController(w).Flush(); err != nil {
+					t.Fatal(err)
+				}
+			case "write":
+				_, _ = w.Write([]byte("done"))
+			case "header":
+				w.WriteHeader(http.StatusNoContent)
+			}
+		})), true, false)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest("GET", "https://localhost/api/config", nil))
+		if got := rr.Result().Header.Get("Strict-Transport-Security"); got != "max-age=0" {
+			t.Fatalf("pending response restored HSTS (%s): %s", mode, got)
+		}
+	}
+}
+
+func TestHTTPSTransitionPreservesWebSocket(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Server.HTTPS.Enabled = true
+	s := &Server{Cfg: cfg}
+	upgrader := websocket.Upgrader{}
+	handler := s.httpsTransitionMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		_ = conn.WriteMessage(websocket.TextMessage, []byte("connected"))
+	}))
+	listener := httptest.NewServer(gzipMiddleware(accessLogMiddleware(slog.Default(), securityHeadersMiddleware(handler, true, false), false)))
+	defer listener.Close()
+	client, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(listener.URL, "http"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	_ = client.SetReadDeadline(time.Now().Add(time.Second))
+	_, data, err := client.ReadMessage()
+	if err != nil || string(data) != "connected" {
+		t.Fatalf("WebSocket: %s, %v", data, err)
 	}
 }
 

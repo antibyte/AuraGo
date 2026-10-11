@@ -69,7 +69,7 @@ func TestEnsureMasterKeyLoadsValidEnvFileIntoProcess(t *testing.T) {
 }
 
 func TestEnsureConfigFileCopiesTemplateWhenMissing(t *testing.T) {
-	t.Parallel()
+	// Fresh-config tests probe the same initial HTTPS ports and must run serially.
 
 	installDir := t.TempDir()
 	configPath := filepath.Join(installDir, "config.yaml")
@@ -114,8 +114,6 @@ func TestEnsureConfigFileCopiesTemplateWhenMissing(t *testing.T) {
 // produces a syntactically valid YAML document with a `server` section so the
 // next startup can boot with sensible defaults.
 func TestEnsureConfigFileCreatesMinimalFallbackWithoutTemplate(t *testing.T) {
-	t.Parallel()
-
 	installDir := t.TempDir()
 	configPath := filepath.Join(installDir, "config.yaml")
 
@@ -497,8 +495,6 @@ func TestServiceAlreadyInstalledLinuxFileFallback(t *testing.T) {
 // docker.allow_host_access: false, because an absent key loads as the legacy
 // grandfather (true).
 func TestEnsureConfigFileMinimalFallbackWritesDockerHostAccessFalse(t *testing.T) {
-	t.Parallel()
-
 	installDir := t.TempDir()
 	configPath := filepath.Join(installDir, "config.yaml")
 	if err := ensureConfigFile(installDir, configPath, slog.Default()); err != nil {

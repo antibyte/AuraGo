@@ -10,12 +10,16 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"aurago/internal/config"
 )
 
 func TestAgentHTTPServerKeepsSSEAliveThroughMiddleware(t *testing.T) {
 	b := NewSSEBroadcaster()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	handler := gzipMiddleware(accessLogMiddleware(logger, b, false))
+	s := &Server{Cfg: &config.Config{}}
+	s.Cfg.Server.HTTPS.Enabled = true
+	handler := gzipMiddleware(accessLogMiddleware(logger, securityHeadersMiddleware(s.httpsTransitionMiddleware(b), true, false), false))
 	srv := httptest.NewUnstartedServer(newAgentHTTPServer("", handler).Handler)
 	srv.Config.WriteTimeout = 500 * time.Millisecond
 	srv.StartTLS()

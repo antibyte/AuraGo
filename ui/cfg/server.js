@@ -233,6 +233,7 @@ function _srvSyncFormState() {
 
 async function _srvToggleHttps(toggle) {
     if (_srvHttpsConfirmPending) return;
+    const restoreFocus = document.activeElement === toggle;
     _srvSyncFormState();
     if (toggle.classList.contains('on')) {
         _srvHttpsConfirmPending = true;
@@ -249,7 +250,8 @@ async function _srvToggleHttps(toggle) {
     toggleBool(toggle);
     setNestedValue(configData, 'server.https.enabled', toggle.classList.contains('on'));
     markDirty();
-    renderServerSection(null);
+    await renderServerSection(null);
+    if (restoreFocus) focusConfigField('server.https.enabled');
 }
 
 function _srvChangeCertMode(select) {

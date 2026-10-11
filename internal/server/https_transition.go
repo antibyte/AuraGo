@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bufio"
 	"net"
 	"net/http"
 	"net/url"
@@ -14,14 +15,54 @@ import (
 // previous HSTS rule, including config refreshes before the requested restart.
 func (s *Server) httpsTransitionMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		s.CfgMu.RLock()
-		enabled := s.Cfg.Server.HTTPS.Enabled
-		s.CfgMu.RUnlock()
-		if !enabled {
-			w.Header().Set("Strict-Transport-Security", "max-age=0")
-		}
-		next.ServeHTTP(w, r)
+		writer := &httpsTransitionWriter{ResponseWriter: w, server: s}
+		writer.prepareHeader()
+		defer writer.prepareHeader() // Also cover an implicit empty response.
+		next.ServeHTTP(writer, r)
 	})
+}
+
+type httpsTransitionWriter struct {
+	http.ResponseWriter
+	server *Server
+	sent   bool
+}
+
+func (w *httpsTransitionWriter) prepareHeader() {
+	if w.sent {
+		return
+	}
+	// Use the published snapshot: a handler may hold CfgMu while writing.
+	if cfg := w.server.ConfigSnapshot(); cfg != nil && !cfg.Server.HTTPS.Enabled {
+		w.Header().Set("Strict-Transport-Security", "max-age=0")
+	}
+}
+
+func (w *httpsTransitionWriter) WriteHeader(status int) {
+	w.prepareHeader()
+	w.sent = w.sent || status >= 200 || status == http.StatusSwitchingProtocols
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *httpsTransitionWriter) Write(data []byte) (int, error) {
+	w.prepareHeader()
+	w.sent = true
+	return w.ResponseWriter.Write(data)
+}
+
+func (w *httpsTransitionWriter) FlushError() error {
+	w.prepareHeader()
+	w.sent = true
+	return http.NewResponseController(w.ResponseWriter).Flush()
+}
+
+func (w *httpsTransitionWriter) Flush() { _ = w.FlushError() }
+
+func (w *httpsTransitionWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
+func (w *httpsTransitionWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	w.prepareHeader()
+	return http.NewResponseController(w.ResponseWriter).Hijack()
 }
 
 func setupHTTPSStatus(cfg *config.Config) map[string]interface{} {
@@ -51,6 +92,9 @@ func configRequestOrigin(r *http.Request) string {
 // checks restart_from against its own origin, covering TLS-terminating proxies
 // that have not been declared in the config.
 func configRestartURL(r *http.Request, oldCfg, newCfg *config.Config) string {
+	if oldCfg == nil || newCfg == nil {
+		return ""
+	}
 	if oldCfg.Server.HTTPS.BehindProxy || newCfg.Server.HTTPS.BehindProxy || oldCfg.SecurityProxy.Enabled || newCfg.SecurityProxy.Enabled {
 		return ""
 	}
