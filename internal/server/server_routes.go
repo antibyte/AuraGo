@@ -1068,7 +1068,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		// Pre-check that the HTTPS port is actually bindable.
 		// Ports < 1024 require root or CAP_NET_BIND_SERVICE on Linux.
 		// Fail immediately with a clear, actionable error — never silently degrade to HTTP.
-		if ln, err := net.Listen("tcp", fmt.Sprintf(":%d", tlsCfg.HTTPSPort)); err != nil {
+		if ln, err := net.Listen("tcp", net.JoinHostPort(tlsCfg.Host, fmt.Sprint(tlsCfg.HTTPSPort))); err != nil {
 			errMsg := err.Error()
 			if strings.Contains(errMsg, "permission denied") || strings.Contains(errMsg, "access is denied") {
 				return fmt.Errorf(

@@ -28,6 +28,21 @@ This will:
 3. Extract everything into `~/aurago/`
 4. Install a system service for auto-start on boot
 
+### HTTPS and network access
+
+New installations use HTTPS with an automatically generated local certificate.
+Native setup probes `server.host` on port **443**, then **8443** if 443 is busy or
+requires privileges the process does not have. If neither works, setup fails
+with an actionable error. The selected port is saved; later starts never move
+an explicitly configured port. The installer prepares Linux bind capabilities
+before probing, and its systemd service retains `CAP_NET_BIND_SERVICE`.
+
+Network access is a separate installer choice. Without interactive input,
+HTTPS is enabled and `server.host` remains `127.0.0.1`. Existing installations
+keep their transport, ports and certificate mode, even when the old file has
+no HTTPS fields. See [HTTPS configuration](https.md) for browser trust, proxies,
+Let’s Encrypt, and switching back to HTTP.
+
 ### Custom install directory
 
 The installer reads the target directory from `AURAGO_DIR` (default `~/aurago`):
@@ -107,23 +122,11 @@ This command will:
 
 ### Step 4: Configure
 
-Edit `config.yaml` with your favorite editor:
-
-```bash
-nano config.yaml   # or vim, code, notepad, etc.
-```
-
-**Minimum required settings:**
-
-```yaml
-llm:
-  provider: openrouter          # or "openai", "local", etc.
-  base_url: "https://openrouter.ai/api/v1"
-  api_key: "sk-or-v1-YOUR_KEY_HERE"
-  model: "arcee-ai/trinity-large-preview:free"
-```
-
-All other settings have sensible defaults and are optional.
+After starting AuraGo, open its HTTPS address and complete the Setup Wizard.
+Add the provider and API key through the wizard or **Config → Providers**;
+credentials belong in the encrypted Vault. Server settings can be changed in
+**Config → Server** after setup. The wizard displays connection status and
+browser feature requirements without changing the transport mid-session.
 
 ### Step 5: Set the master key
 
@@ -173,9 +176,7 @@ schtasks /Run /TN AuraGo
 
 ### Step 7: Open the Web UI
 
-Navigate to: **http://localhost:8088**
-
-(Port is configurable in `config.yaml` under `server.port`)
+Open **https://localhost** or **https://localhost:8443**, as reported by the installer. The saved port is `server.https.https_port`. Verify the local certificate and configure browser/device trust if needed. Existing HTTP installations retain their original address.
 
 On the same machine the setup wizard opens directly. If AuraGo is reachable from other devices (a `server.host` other than loopback, HTTPS, a reverse proxy, a Cloudflare tunnel or Tailscale), the wizard first asks for a one-time setup token. AuraGo prints it to the log on startup as `bootstrap_token`, together with a `/setup#bootstrap=<token>` path that fills it in automatically. The token changes on every restart and stops working once setup is finished.
 

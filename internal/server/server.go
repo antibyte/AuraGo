@@ -1827,7 +1827,7 @@ func (s *Server) syncAgentSkills(ctx context.Context, cfg *config.Config, instal
 
 // runHTTP starts the server in HTTP mode (for local/LAN use)
 func (s *Server) runHTTP(mux *http.ServeMux, ttsServer *http.Server, shutdownCh chan struct{}) error {
-	addr := fmt.Sprintf("%s:%d", s.Cfg.Server.Host, s.Cfg.Server.Port)
+	addr := net.JoinHostPort(s.Cfg.Server.Host, fmt.Sprint(s.Cfg.Server.Port))
 	s.Logger.Info("Starting HTTP server", "host", s.Cfg.Server.Host, "port", s.Cfg.Server.Port, "tls", false)
 
 	// Apply security headers (relaxed for HTTP, but still present).
@@ -1842,11 +1842,8 @@ func (s *Server) runHTTP(mux *http.ServeMux, ttsServer *http.Server, shutdownCh 
 
 // runHTTPS starts the server with auto-TLS (Let's Encrypt)
 func (s *Server) runHTTPS(mux *http.ServeMux, ttsServer *http.Server, tlsCfg *TLSConfig, shutdownCh chan struct{}) error {
-	tlsCfg.HTTPSPort = s.Cfg.Server.HTTPS.HTTPSPort
-	tlsCfg.HTTPPort = s.Cfg.Server.HTTPS.HTTPPort
-
 	// Apply security headers (strict for HTTPS)
-	handler := trustedProxyMiddleware(s, previewHostMiddleware(s, desktopTicketMiddleware(panicRecoveryMiddleware(s.Logger, gzipMiddleware(accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), true, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy))))))
+	handler := trustedProxyMiddleware(s, previewHostMiddleware(s, desktopTicketMiddleware(panicRecoveryMiddleware(s.Logger, gzipMiddleware(accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(s.httpsTransitionMiddleware(authMiddleware(s, mux)), true, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy))))))
 
 	httpsServer, httpServer, err := SetupServers(tlsCfg, handler, s.Logger)
 	if err != nil {
@@ -1854,6 +1851,7 @@ func (s *Server) runHTTPS(mux *http.ServeMux, ttsServer *http.Server, tlsCfg *TL
 	}
 
 	s.Logger.Info("Starting HTTPS servers",
+		"host", tlsCfg.Host,
 		"domain", tlsCfg.Domain,
 		"https_port", tlsCfg.HTTPSPort,
 		"http_port", tlsCfg.HTTPPort,

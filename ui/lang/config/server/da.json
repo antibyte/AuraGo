@@ -74,7 +74,7 @@
   "config.server.host_label": "Bind-adresse",
   "config.server.http_port_label": "HTTP Port (omdirigering)",
   "config.server.https_desc": "Aktiver HTTPS med automatiske, brugerdefinerede eller selvsignerede certifikater. Fungerer uafhængigt af andre indstillinger.",
-  "config.server.https_disabled_desc": "Aktiver HTTPS for at sikre forbindelser med TLS-kryptering. Vælg mellem automatisk (Let's Encrypt), brugerdefineret eller selvunderskrevet.",
+  "config.server.https_disabled_desc": "Mange skrivebordsfunktioner, især stemmechat og mikrofonadgang, kan svigte via HTTP. HTTPS gennem en omvendt proxy og localhost kan stadig give en sikker browserkontekst.",
   "config.server.https_disabled_notice": "HTTPS er deaktiveret",
   "config.server.https_enabled_label": "Aktiver HTTPS",
   "config.server.https_port_label": "HTTPS-port",
@@ -101,5 +101,9 @@
   "config.updates.installing": "Installerer…",
   "config.updates.running": "Kører…",
   "config.web_scraper.summary_mode": "Opsummeringstilstand",
-  "config.webdav.secret_empty": "Værdien er tom"
+  "config.webdav.secret_empty": "Værdien er tom",
+  "config.server.disable_https_title": "Deaktivér HTTPS?",
+  "config.server.disable_https_confirm": "Dette ændrer kun din kladde. Gem og genstart AuraGo for at bruge HTTP. HSTS-regler fra en proxy eller et overordnet domæne kan stadig gennemtvinge HTTPS.",
+  "config.server.http_port_hint": "0 deaktiverer HTTP-lytteren. Vælg 80 til Let’s Encrypt HTTP-01, og gør den offentlige port 80 tilgængelig.",
+  "config.server.restart_address": "Åbn efter genstart:"
 }

@@ -1763,8 +1763,12 @@ func Load(path string) (*Config, error) {
 		cfg.Server.HTTPS.HTTPSPort = 443
 	}
 	// HTTPPort defaults to 0 = no HTTP redirect server.
-	// Let's Encrypt (auto mode) will override this to 80 at startup since ACME needs it.
-	// For self-signed / custom certs, the redirect is optional — leave 0 as-is.
+	// Leave 0 disabled in every mode. Let's Encrypt HTTP-01 requires explicit port 80.
+	// Before this field existed, public-domain auto TLS opened port 80 at startup.
+	// Retain that legacy listener only when the field is absent, never for an explicit 0.
+	if cfg.Server.HTTPS.Enabled && !UsesSelfSignedTLS(&cfg) && NormalizeCertMode(cfg.Server.HTTPS.CertMode) != "custom" && !yamlHasValue(data, "server", "https", "http_port") {
+		cfg.Server.HTTPS.HTTPPort = 80
+	}
 	if cfg.Server.HTTPS.Enabled && cfg.Server.HTTPS.CertMode == "" {
 		cfg.Server.HTTPS.CertMode = "auto"
 	}

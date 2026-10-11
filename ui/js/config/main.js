@@ -3051,6 +3051,8 @@ async function saveConfig() {
             if (result.needs_restart) {
                 status.className = 'save-status warning';
                 status.textContent = '⚠ ' + (result.message || t('config.save_bar.restart_needed'));
+                rememberConfigRestart(result);
+                appendConfigRestartLink(status);
             } else {
                 status.className = 'save-status success';
                 status.textContent = result.message || t('config.save_bar.saved');
@@ -3184,6 +3186,40 @@ function setRestartBusy(busy) {
     if (restartBtn) restartBtn.disabled = busy;
 }
 
+// The server supplies an address only for direct access. Require the request
+// origin too, so undeclared TLS-terminating proxies keep their public URL.
+let _configRestart = null;
+
+function configRestartTarget() {
+    try {
+        const state = _configRestart || JSON.parse(sessionStorage.getItem('aurago.config.restart') || 'null');
+        if (state?.from === window.location.origin) return state.url;
+    } catch (_) { /* private browsing can disable storage */ }
+    return window.location.href;
+}
+
+function rememberConfigRestart(result) {
+    _configRestart = null;
+    try { sessionStorage.removeItem('aurago.config.restart'); } catch (_) {}
+    if (!result.restart_url || result.restart_from !== window.location.origin) return;
+    try {
+        const target = new URL(result.restart_url, window.location.href);
+        if (!['http:', 'https:'].includes(target.protocol) || target.hostname !== window.location.hostname) return;
+        _configRestart = { from: window.location.origin, url: target.href };
+        sessionStorage.setItem('aurago.config.restart', JSON.stringify(_configRestart));
+    } catch (_) { /* retain the in-memory address when storage is unavailable */ }
+}
+
+function appendConfigRestartLink(parent) {
+    const url = configRestartTarget();
+    const text = document.createElement('span');
+    text.textContent = ' ' + t('config.server.restart_address');
+    const link = document.createElement('a');
+    link.href = url;
+    link.textContent = url;
+    parent.append(text, document.createTextNode(' '), link);
+}
+
 function showRestartScreen(message, description) {
     const screen = document.createElement('div');
     screen.className = 'cfg-restart-screen';
@@ -3197,6 +3233,7 @@ function showRestartScreen(message, description) {
     desc.className = 'cfg-restart-desc';
     desc.textContent = description || '';
     screen.append(spinner, title, desc);
+    appendConfigRestartLink(desc);
     document.body.replaceChildren(screen);
 }
 
@@ -3204,6 +3241,7 @@ function showRestartDisconnected(message) {
     const node = document.createElement('div');
     node.className = 'cfg-restart-disconnected';
     node.textContent = message || '';
+    appendConfigRestartLink(node);
     document.body.replaceChildren(node);
 }
 
@@ -3246,23 +3284,26 @@ const MAX_RELOAD_RETRIES = 10;
 
 function scheduleReloadWithRetry(delayMs) {
     if (_reloadRetryTimer) return;
-    _reloadRetryTimer = setTimeout(function attemptReload() {
-        const img = new Image();
-        img.onload = img.onerror = function () {
-            // Small image load test - if it works, server is back
-            _reloadRetryCount = 0;
-            _reloadRetryTimer = null;
-            window.location.reload();
-        };
-        img.src = '/favicon.ico?t=' + Date.now(); // Cache-bust
-        // If server not back yet, retry after increasing delay
-        _reloadRetryCount++;
-        if (_reloadRetryCount < MAX_RELOAD_RETRIES) {
-            // Exponential backoff: 8s, 12s, 18s, 27s, 40s, 60s, 90s, ...
-            const nextDelay = Math.min(delayMs * 1.5, 120000);
-            delayMs = nextDelay;
-            _reloadRetryTimer = setTimeout(attemptReload, nextDelay);
+    const target = configRestartTarget();
+    const changedOrigin = new URL(target, location.href).origin !== location.origin;
+    _reloadRetryTimer = setTimeout(async function attemptReload() {
+        _reloadRetryTimer = null;
+        // Cross-origin probes cannot test an HTTP downgrade or an untrusted new
+        // certificate. Navigate once so the browser can show its trust prompt.
+        if (changedOrigin) {
+            try { sessionStorage.removeItem('aurago.config.restart'); } catch (_) {}
+            window.location.assign(target);
+            return;
         }
+        try {
+            const response = await fetch('/api/ready', { cache: 'no-store', signal: AbortSignal.timeout(4000) });
+            if (response.ok) {
+                try { sessionStorage.removeItem('aurago.config.restart'); } catch (_) {}
+                window.location.assign(target);
+                return;
+            }
+        } catch (_) { /* the listener is still restarting */ }
+        if (++_reloadRetryCount < MAX_RELOAD_RETRIES) scheduleReloadWithRetry(Math.min(delayMs * 1.5, 15000));
     }, delayMs);
 }
 

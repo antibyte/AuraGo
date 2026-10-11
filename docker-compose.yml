@@ -20,8 +20,10 @@ services:
     container_name: aurago
 
     # --- Port mapping ---
-    # Change the host-side port (left) if 8088 is already in use on your machine.
+    # Fresh installs use HTTPS. Set AURAGO_HTTPS_PORT=8443 if host port 443 is busy.
+    # The HTTP mapping preserves existing installations; fresh HTTPS binds HTTP only on loopback.
     ports:
+      - "${AURAGO_HTTPS_PORT:-443}:8443"
       - "8088:8088"
       # Optional native SIP exposure. Publish the selected signaling transport
       # and the complete configured UDP RTP range; native host operation remains

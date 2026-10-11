@@ -223,5 +223,12 @@
   "setup.local_llm_job_running": "{model} installeras efter att den vanliga leverantören sparats.",
   "setup.local_llm_job_complete": "{model} klarade testerna och den valda rollen är aktiv.",
   "setup.local_llm_job_failed": "Installationen av {model} misslyckades; den vanliga leverantören förblir primär",
-  "setup.local_llm_job_progress": "Installation av {model}: {progress}%"
+  "setup.local_llm_job_progress": "Installation av {model}: {progress}%",
+  "setup.connection_title": "Anslutning och webbläsarfunktioner",
+  "setup.https_active": "AuraGo använder HTTPS på port {port}.",
+  "setup.https_inactive": "AuraGos inbyggda HTTPS är inaktiverat.",
+  "setup.https_selfsigned": "Ett lokalt certifikat skapas automatiskt. Kontrollera det och lägg vid behov till förtroende i webbläsaren eller på enheten.",
+  "setup.secure_ready": "Den här webbläsaren rapporterar en säker kontext. Skrivbordsfunktioner kräver fortfarande webbläsarstöd och enhetsbehörigheter.",
+  "setup.secure_unavailable": "Den här webbläsaren rapporterar ingen säker kontext. Många skrivbordsfunktioner, inklusive röstchatt och mikrofonåtkomst, kan vara otillgängliga.",
+  "setup.https_manage": "Ändra HTTPS i installationsprogrammet eller under Config → Server efter installationen. HTTPS via en proxy och localhost kan också ge en säker kontext."
 }

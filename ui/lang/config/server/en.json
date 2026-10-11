@@ -74,7 +74,7 @@
   "config.server.host_label": "Bind Address",
   "config.server.http_port_label": "HTTP Port (redirect)",
   "config.server.https_desc": "Enable HTTPS with automatic, custom, or self-signed certificates. Works independently of other settings.",
-  "config.server.https_disabled_desc": "Enable HTTPS to secure connections with TLS encryption. Choose between automatic (Let's Encrypt), custom, or self-signed certificates.",
+  "config.server.https_disabled_desc": "Many Desktop features, especially voice chat and microphone access, may fail over HTTP. HTTPS through a reverse proxy and localhost can still provide a secure browser context.",
   "config.server.https_disabled_notice": "HTTPS is disabled",
   "config.server.https_enabled_label": "Enable HTTPS",
   "config.server.https_port_label": "HTTPS Port",
@@ -101,5 +101,9 @@
   "config.updates.installing": "Installing…",
   "config.updates.running": "Running…",
   "config.web_scraper.summary_mode": "Summary Mode",
-  "config.webdav.secret_empty": "Value is empty"
+  "config.webdav.secret_empty": "Value is empty",
+  "config.server.disable_https_title": "Disable HTTPS?",
+  "config.server.disable_https_confirm": "This only changes your draft. Save and restart AuraGo to use HTTP. HSTS rules from a proxy or parent domain may still enforce HTTPS.",
+  "config.server.http_port_hint": "0 disables the HTTP listener. For Let’s Encrypt HTTP-01, select 80 and make public port 80 reachable.",
+  "config.server.restart_address": "After restarting, open:"
 }

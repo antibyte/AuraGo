@@ -213,8 +213,8 @@
   "setup.profile_agnes_ai_name": "Agnes AI",
   "setup.profile_agnes_ai_pricing": "無料利用が可能",
   "setup.step0_provider_agnes": "Agnes AI",
-  "setup.step0_provider_hint_agnes": "Agnes AIのテキスト・画像・動画モデルは無料で利用できます。"
-  ,"setup.step_label_local_llm": "ローカルテストモデル",
+  "setup.step0_provider_hint_agnes": "Agnes AIのテキスト・画像・動画モデルは無料で利用できます。",
+  "setup.step_label_local_llm": "ローカルテストモデル",
   "setup.local_llm_backend_cpu": "CPU（実験的）",
   "setup.local_llm_mtp_forced": "MTP-2（実験的・強制）",
   "setup.local_llm_probing": "変更せずにハードウェアとDockerを確認中…",
@@ -223,5 +223,12 @@
   "setup.local_llm_job_running": "通常プロバイダーの保存後に{model}をインストールしています。",
   "setup.local_llm_job_complete": "{model}は検査に合格し、選択した役割が有効です。",
   "setup.local_llm_job_failed": "{model}のインストールに失敗しました。通常プロバイダーがメインのままです",
-  "setup.local_llm_job_progress": "{model}インストール: {progress}%"
+  "setup.local_llm_job_progress": "{model}インストール: {progress}%",
+  "setup.connection_title": "接続とブラウザー機能",
+  "setup.https_active": "AuraGoのHTTPSはポート{port}で有効です。",
+  "setup.https_inactive": "AuraGoの組み込みHTTPSは無効です。",
+  "setup.https_selfsigned": "ローカル証明書は自動生成されます。証明書を確認し、必要に応じてブラウザーや端末で信頼するように設定してください。",
+  "setup.secure_ready": "このブラウザーは安全なコンテキストを報告しています。デスクトップ機能には、引き続きブラウザーの対応と端末の権限が必要です。",
+  "setup.secure_unavailable": "このブラウザーは安全なコンテキストを報告していません。音声チャットやマイクへのアクセスなど、多くのデスクトップ機能を利用できない場合があります。",
+  "setup.https_manage": "HTTPSはインストーラー、またはセットアップ完了後のConfig → サーバーで変更できます。プロキシ経由のHTTPSやlocalhostでも安全なコンテキストを利用できる場合があります。"
 }

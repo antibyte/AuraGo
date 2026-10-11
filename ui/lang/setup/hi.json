@@ -213,8 +213,8 @@
   "setup.profile_agnes_ai_name": "Agnes AI",
   "setup.profile_agnes_ai_pricing": "निःशुल्क उपयोग उपलब्ध",
   "setup.step0_provider_agnes": "Agnes AI",
-  "setup.step0_provider_hint_agnes": "टेक्स्ट, इमेज और वीडियो के Agnes AI मॉडल का निःशुल्क उपयोग उपलब्ध है।"
-  ,"setup.step_label_local_llm": "स्थानीय परीक्षण मॉडल",
+  "setup.step0_provider_hint_agnes": "टेक्स्ट, इमेज और वीडियो के Agnes AI मॉडल का निःशुल्क उपयोग उपलब्ध है।",
+  "setup.step_label_local_llm": "स्थानीय परीक्षण मॉडल",
   "setup.local_llm_backend_cpu": "CPU (प्रयोगात्मक)",
   "setup.local_llm_mtp_forced": "MTP-2 (प्रयोगात्मक, अनिवार्य)",
   "setup.local_llm_probing": "बिना बदलाव हार्डवेयर और Docker जाँचा जा रहा है…",
@@ -223,5 +223,12 @@
   "setup.local_llm_job_running": "सामान्य प्रदाता सहेजने के बाद {model} स्थापित किया जा रहा है।",
   "setup.local_llm_job_complete": "{model} ने जाँच पूरी की और चुनी हुई भूमिका सक्रिय है।",
   "setup.local_llm_job_failed": "{model} स्थापना विफल; सामान्य प्रदाता मुख्य बना रहेगा",
-  "setup.local_llm_job_progress": "{model} स्थापना: {progress}%"
+  "setup.local_llm_job_progress": "{model} स्थापना: {progress}%",
+  "setup.connection_title": "कनेक्शन और ब्राउज़र सुविधाएँ",
+  "setup.https_active": "AuraGo में पोर्ट {port} पर HTTPS चालू है।",
+  "setup.https_inactive": "AuraGo का अंतर्निहित HTTPS बंद है।",
+  "setup.https_selfsigned": "स्थानीय प्रमाणपत्र अपने आप बनता है। उसकी जाँच करें और ज़रूरत हो तो ब्राउज़र या डिवाइस में उसे विश्वसनीय बनाएँ।",
+  "setup.secure_ready": "यह ब्राउज़र सुरक्षित संदर्भ की सूचना देता है। डेस्कटॉप सुविधाओं के लिए अब भी ब्राउज़र समर्थन और डिवाइस अनुमतियाँ ज़रूरी हैं।",
+  "setup.secure_unavailable": "यह ब्राउज़र सुरक्षित संदर्भ की सूचना नहीं देता है। वॉइस चैट और माइक्रोफ़ोन सहित डेस्कटॉप की कई सुविधाएँ अनुपलब्ध हो सकती हैं।",
+  "setup.https_manage": "HTTPS को इंस्टॉलर में या सेटअप पूरा होने के बाद Config → सर्वर में बदलें। प्रॉक्सी के ज़रिए HTTPS और localhost भी सुरक्षित संदर्भ दे सकते हैं।"
 }

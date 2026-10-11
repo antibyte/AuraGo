@@ -134,19 +134,26 @@ fi
 if [ ! -f "$CONFIG_FILE" ]; then
     echo "[Entrypoint] No config.yaml found, creating initial configuration..."
 
+    FRESH_CONFIG=false
     if [ -n "$USER_CONFIG" ] && [ -f "$USER_CONFIG" ]; then
         echo "[Entrypoint] Using user-supplied config from $USER_CONFIG..."
         cp "$USER_CONFIG" "$CONFIG_FILE"
     elif [ -f "$TEMPLATE_FILE" ]; then
         echo "[Entrypoint] No user config found — copying built-in template to $CONFIG_FILE"
-        echo "[Entrypoint] You can customize settings via the Web UI at http://localhost:8088"
+        FRESH_CONFIG=true
         cp "$TEMPLATE_FILE" "$CONFIG_FILE"
     else
+        FRESH_CONFIG=true
         echo "[Entrypoint] Creating minimal config..."
         cat > "$CONFIG_FILE" << 'EOF'
 server:
     port: 8088
     host: 0.0.0.0
+    https:
+        enabled: true
+        cert_mode: selfsigned
+        https_port: 8443
+        http_port: 0
 docker:
     allow_host_access: false
 EOF
@@ -154,6 +161,11 @@ EOF
     
     normalize_file "$CONFIG_FILE"
     chmod 600 "$CONFIG_FILE"
+    if [ "$FRESH_CONFIG" = true ]; then
+        /app/aurago --config "$CONFIG_FILE" --init-only --https=true --host=0.0.0.0 --cert-mode=selfsigned --https-port=8443 --http-port=0 || exit 1
+        echo "[Entrypoint] HTTPS uses container port 8443 with a local certificate."
+        echo "[Entrypoint] Open https://localhost (Compose default), or your configured published HTTPS port."
+    fi
     echo "[Entrypoint] Initial config created successfully"
 fi
 
@@ -199,6 +211,9 @@ if [ $? -ne 0 ]; then
     echo "[Entrypoint] Your previous settings have been reset. Reconfigure via the Web UI."
     cp "$TEMPLATE_FILE" "$CONFIG_FILE"
     normalize_file "$CONFIG_FILE"
+    # A recovery must not introduce the template's native privileged port.
+    # Existing unreadable configs retain the legacy HTTP recovery behavior.
+    /app/aurago --config "$CONFIG_FILE" --init-only --https="${FRESH_CONFIG:-false}" --cert-mode=selfsigned --https-port=8443 --http-port=0 || exit 1
     # Re-validate the restored template. If this fails, the image itself is broken.
     VALIDATE_ERR2=$(/app/aurago --config "$CONFIG_FILE" --check-config 2>&1)
     if [ $? -ne 0 ]; then

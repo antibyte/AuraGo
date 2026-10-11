@@ -252,7 +252,7 @@ The core agent loop (`internal/agent/agent_loop.go`) implements:
   `TestAgentHTTPServerKeepsSSEAliveThroughMiddleware` plus Tailscale proxy tests.
 - RESTful API under `/api/`
 - Full Web UI served from verified, version-bound external resource sets; only recovery/login is embedded.
-- TLS/HTTPS via Let's Encrypt (automated)
+- Fresh installations use HTTPS with a local self-signed certificate; native setup selects 443 or 8443, Docker uses 8443. Upgrades preserve existing HTTP/TLS choices. See `internal/server/AGENTS.md` and `documentation/https.md`.
 
 ### Cross-component contract routing
 

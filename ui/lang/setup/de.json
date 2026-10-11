@@ -223,5 +223,12 @@
   "setup.local_llm_job_running": "{model} wird installiert, nachdem der reguläre Anbieter gespeichert wurde.",
   "setup.local_llm_job_complete": "{model} hat alle Prüfungen bestanden; die gewählte Rolle ist aktiv.",
   "setup.local_llm_job_failed": "{model}-Installation fehlgeschlagen; der reguläre Anbieter bleibt Hauptmodell",
-  "setup.local_llm_job_progress": "{model}-Installation: {progress} %"
+  "setup.local_llm_job_progress": "{model}-Installation: {progress} %",
+  "setup.connection_title": "Verbindung und Browserfunktionen",
+  "setup.https_active": "AuraGo verwendet HTTPS auf Port {port}.",
+  "setup.https_inactive": "Das eingebaute HTTPS von AuraGo ist deaktiviert.",
+  "setup.https_selfsigned": "Ein lokales Zertifikat wird automatisch erstellt. Prüfe es und richte bei Bedarf das Vertrauen im Browser oder auf Deinem Gerät ein.",
+  "setup.secure_ready": "Dieser Browser meldet einen sicheren Kontext. Desktop-Funktionen benötigen weiterhin Browserunterstützung und Geräteberechtigungen.",
+  "setup.secure_unavailable": "Dieser Browser meldet keinen sicheren Kontext. Viele Desktop-Funktionen, darunter Sprachchat und Mikrofonzugriff, können ausfallen.",
+  "setup.https_manage": "Ändere HTTPS im Installer oder nach der Einrichtung unter Config → Server. HTTPS über einen Proxy und localhost können ebenfalls einen sicheren Kontext bieten."
 }

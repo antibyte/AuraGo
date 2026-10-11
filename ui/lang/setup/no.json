@@ -213,8 +213,8 @@
   "setup.profile_agnes_ai_name": "Agnes AI",
   "setup.profile_agnes_ai_pricing": "Gratis bruk er mulig",
   "setup.step0_provider_agnes": "Agnes AI",
-  "setup.step0_provider_hint_agnes": "Gratis bruk av Agnes AI-modeller for tekst, bilder og video er mulig."
-  ,"setup.step_label_local_llm": "Lokal testmodell",
+  "setup.step0_provider_hint_agnes": "Gratis bruk av Agnes AI-modeller for tekst, bilder og video er mulig.",
+  "setup.step_label_local_llm": "Lokal testmodell",
   "setup.local_llm_backend_cpu": "CPU (eksperimentell)",
   "setup.local_llm_mtp_forced": "MTP-2 (eksperimentell, tvunget)",
   "setup.local_llm_probing": "Kontrollerer maskinvare og Docker uten endringer…",
@@ -223,5 +223,12 @@
   "setup.local_llm_job_running": "{model} installeres etter at vanlig leverandør er lagret.",
   "setup.local_llm_job_complete": "{model} bestod testene, og valgt rolle er aktiv.",
   "setup.local_llm_job_failed": "Installasjon av {model} mislyktes; vanlig leverandør forblir primær",
-  "setup.local_llm_job_progress": "Installasjon av {model}: {progress}%"
+  "setup.local_llm_job_progress": "Installasjon av {model}: {progress}%",
+  "setup.connection_title": "Tilkobling og nettleserfunksjoner",
+  "setup.https_active": "AuraGo bruker HTTPS på port {port}.",
+  "setup.https_inactive": "AuraGos innebygde HTTPS er deaktivert.",
+  "setup.https_selfsigned": "Et lokalt sertifikat opprettes automatisk. Kontroller det og legg til tillit i nettleseren eller på enheten ved behov.",
+  "setup.secure_ready": "Denne nettleseren rapporterer en sikker kontekst. Skrivebordsfunksjoner krever fortsatt nettleserstøtte og enhetstillatelser.",
+  "setup.secure_unavailable": "Denne nettleseren rapporterer ikke en sikker kontekst. Mange skrivebordsfunksjoner, inkludert talechat og mikrofontilgang, kan være utilgjengelige.",
+  "setup.https_manage": "Endre HTTPS i installasjonsprogrammet eller under Config → Server etter oppsettet. HTTPS via en proxy og localhost kan også gi en sikker kontekst."
 }

@@ -213,8 +213,8 @@
   "setup.profile_agnes_ai_name": "Agnes AI",
   "setup.profile_agnes_ai_pricing": "可免费使用",
   "setup.step0_provider_agnes": "Agnes AI",
-  "setup.step0_provider_hint_agnes": "Agnes AI 的文本、图像和视频模型可免费使用。"
-  ,"setup.step_label_local_llm": "本地测试模型",
+  "setup.step0_provider_hint_agnes": "Agnes AI 的文本、图像和视频模型可免费使用。",
+  "setup.step_label_local_llm": "本地测试模型",
   "setup.local_llm_backend_cpu": "CPU（实验性）",
   "setup.local_llm_mtp_forced": "MTP-2（实验性，强制）",
   "setup.local_llm_probing": "正在无修改地检查硬件和 Docker…",
@@ -223,5 +223,12 @@
   "setup.local_llm_job_running": "常规提供商保存后，正在安装 {model}。",
   "setup.local_llm_job_complete": "{model} 已通过检查，所选角色已生效。",
   "setup.local_llm_job_failed": "{model} 安装失败；常规提供商仍为主模型",
-  "setup.local_llm_job_progress": "{model} 安装：{progress}%"
+  "setup.local_llm_job_progress": "{model} 安装：{progress}%",
+  "setup.connection_title": "连接与浏览器功能",
+  "setup.https_active": "AuraGo 已在端口 {port} 上启用 HTTPS。",
+  "setup.https_inactive": "AuraGo 内置的 HTTPS 已关闭。",
+  "setup.https_selfsigned": "本地证书会自动生成。请核实证书，并根据需要在浏览器或设备中将其设为可信。",
+  "setup.secure_ready": "此浏览器报告处于安全上下文中。桌面功能仍需要浏览器支持和设备权限。",
+  "setup.secure_unavailable": "此浏览器未报告安全上下文。语音聊天、麦克风访问等许多桌面功能可能无法使用。",
+  "setup.https_manage": "请在安装程序中，或完成设置后在 Config → 服务器中修改 HTTPS。通过代理提供的 HTTPS 以及 localhost 也可能提供安全上下文。"
 }

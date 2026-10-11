@@ -1,5 +1,7 @@
 # Kapitel 2: Installation
 
+Neue Installationen verwenden HTTPS mit einem lokalen Zertifikat: nativ Port 443 oder 8443, im Docker-Container Port 8443 mit Freigabe auf 443. Nutze die bei der Installation angezeigte Adresse. Bestehende HTTP-Konfigurationen bleiben erhalten. Siehe [HTTPS und Browservertrauen](../../https.md).
+
 <p align="center">
   <a href="../images/manual-install.webp"><img src="../images/manual-install.webp" width="560" alt="AuraGo-Gopher packt Binary und Ressourcenpaket an der Werkbank aus"></a>
 </p>
@@ -80,7 +82,7 @@ cd AuraGo
 docker compose up -d
 ```
 
-Öffne **http://localhost:8088**. Das Image bringt Volumes und das UI-Paket mit. Es erzeugt einen Vault-Key, wenn keiner gesetzt ist. Key mit den Daten sichern.
+Öffne **https://localhost**. Das Image bringt Volumes und das UI-Paket mit. Es erzeugt einen Vault-Key, wenn keiner gesetzt ist. Key mit den Daten sichern.
 
 Der Docker-Zugriff läuft über einen eingeschränkten Socket-Proxy. Er verkleinert die Angriffsfläche, hält ein kompromittiertes AuraGo aber nicht auf; siehe Abschnitt 4 im [Docker-Guide](../../docker_installation.md#4-docker-socket-security).
 
@@ -159,13 +161,13 @@ make_deploy.bat   # Windows
 
 ### 1. API-Key konfigurieren (Web-UI — empfohlen)
 
-1. Öffne `http://localhost:8088` (oder deine konfigurierte Adresse).
+1. Öffne `https://localhost` (oder deine konfigurierte Adresse).
 2. Gehe zu **Menü → Config → Provider**.
 3. Lege einen Provider an (z. B. OpenRouter), trage den API-Key ein und wähle ein Modell.
 4. Unter **Config → LLM Settings** den **Provider** auf die neue Provider-ID setzen.
 5. Auf **Speichern** klicken.
 
-### 1b. API-Key konfigurieren (YAML — Alternative)
+### 1b. Provider in YAML konfigurieren (optional)
 
 Bearbeite `config.yaml`:
 
@@ -173,7 +175,9 @@ Bearbeite `config.yaml`:
 nano config.yaml   # oder vim, code, notepad
 ```
 
-Minimale Konfiguration:
+Ergänze diese Provider-Einstellungen in der erzeugten Konfiguration und behalte
+deren Server- und HTTPS-Einstellungen. Speichere den API-Key über den Assistenten
+oder die Config-Seite im Vault.
 
 ```yaml
 providers:
@@ -181,7 +185,6 @@ providers:
     type: openrouter
     name: "Haupt-LLM"
     base_url: https://openrouter.ai/api/v1
-    api_key: "sk-or-v1-DEIN-API-KEY"
     model: "google/gemini-2.0-flash-001"
 
 llm:
@@ -256,13 +259,13 @@ tail -f log/aurago.log     # Direkt
 Du solltest sehen:
 ```
 [INFO] AuraGo starting...
-[INFO] Web UI available at http://localhost:8088
+[INFO] Web UI available at https://localhost
 [INFO] Agent loop initialized
 ```
 
 ### 3. Web-UI öffnen
 
-Navigiere zu: **http://localhost:8088**
+Navigiere zu: **https://localhost**
 
 Du solltest den Login-Screen oder den Chat sehen (je nach Auth-Konfiguration).
 

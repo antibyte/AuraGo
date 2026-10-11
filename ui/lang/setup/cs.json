@@ -213,8 +213,8 @@
   "setup.profile_agnes_ai_name": "Agnes AI",
   "setup.profile_agnes_ai_pricing": "Bezplatné použití je možné",
   "setup.step0_provider_agnes": "Agnes AI",
-  "setup.step0_provider_hint_agnes": "Pro modely Agnes AI pro text, obrázky a video je možné bezplatné použití."
-  ,"setup.step_label_local_llm": "Místní testovací model",
+  "setup.step0_provider_hint_agnes": "Pro modely Agnes AI pro text, obrázky a video je možné bezplatné použití.",
+  "setup.step_label_local_llm": "Místní testovací model",
   "setup.local_llm_backend_cpu": "CPU (experimentální)",
   "setup.local_llm_mtp_forced": "MTP-2 (experimentální, vynucené)",
   "setup.local_llm_probing": "Kontrola hardwaru a Dockeru bez změn…",
@@ -223,5 +223,12 @@
   "setup.local_llm_job_running": "{model} se instaluje po uložení běžného poskytovatele.",
   "setup.local_llm_job_complete": "{model} prošel testy a zvolená role je aktivní.",
   "setup.local_llm_job_failed": "Instalace {model} selhala; běžný poskytovatel zůstává hlavní",
-  "setup.local_llm_job_progress": "Instalace {model}: {progress}%"
+  "setup.local_llm_job_progress": "Instalace {model}: {progress}%",
+  "setup.connection_title": "Připojení a funkce prohlížeče",
+  "setup.https_active": "AuraGo používá HTTPS na portu {port}.",
+  "setup.https_inactive": "Vestavěné HTTPS v AuraGo je vypnuté.",
+  "setup.https_selfsigned": "Místní certifikát se vytvoří automaticky. Ověř ho a podle potřeby mu nastav důvěru v prohlížeči nebo zařízení.",
+  "setup.secure_ready": "Tento prohlížeč hlásí zabezpečený kontext. Funkce plochy stále vyžadují podporu prohlížeče a oprávnění zařízení.",
+  "setup.secure_unavailable": "Tento prohlížeč nehlásí zabezpečený kontext. Mnoho funkcí plochy, včetně hlasového chatu a přístupu k mikrofonu, nemusí být dostupných.",
+  "setup.https_manage": "HTTPS změň v instalátoru nebo po dokončení nastavení v Config → Server. HTTPS přes proxy a localhost mohou také poskytovat zabezpečený kontext."
 }

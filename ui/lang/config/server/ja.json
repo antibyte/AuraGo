@@ -74,7 +74,7 @@
   "config.server.host_label": "バインドアドレス",
   "config.server.http_port_label": "HTTP ポート（リダイレクト）",
   "config.server.https_desc": "自動、カスタム、または自己署名証明書で HTTPS を有効にします。他の設定とは独立して動作します。",
-  "config.server.https_disabled_desc": "HTTPS を有効にして TLS 暗号化で接続を保護します。自動 (Let's Encrypt)、カスタム、または自己署名から選択してください。",
+  "config.server.https_disabled_desc": "HTTPでは、音声チャットやマイクへのアクセスなど、多くのデスクトップ機能が動作しない場合があります。リバースプロキシ経由のHTTPSやlocalhostでは、安全なブラウザーコンテキストを利用できる場合があります。",
   "config.server.https_disabled_notice": "HTTPS は無効です",
   "config.server.https_enabled_label": "HTTPS を有効にする",
   "config.server.https_port_label": "HTTPS ポート",
@@ -101,5 +101,9 @@
   "config.updates.installing": "インストール中…",
   "config.updates.running": "実行中…",
   "config.web_scraper.summary_mode": "サマリーモード",
-  "config.webdav.secret_empty": "値が空です"
+  "config.webdav.secret_empty": "値が空です",
+  "config.server.disable_https_title": "HTTPSを無効にしますか？",
+  "config.server.disable_https_confirm": "変更は下書きにのみ反映されます。HTTPを使うには保存してAuraGoを再起動してください。プロキシや親ドメインのHSTSルールにより、HTTPSが引き続き強制される場合があります。",
+  "config.server.http_port_hint": "0でHTTPリスナーを無効にします。Let’s EncryptのHTTP-01には80を選択し、公開ポート80に到達できるようにしてください。",
+  "config.server.restart_address": "再起動後に開くアドレス："
 }

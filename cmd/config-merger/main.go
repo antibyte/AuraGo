@@ -157,6 +157,9 @@ func mergeUserConfig(tmplMap, srcMap map[string]interface{}) mergeResult {
 	result.merged = deepMerge(tmplMap, srcMap)
 	result.safetyAdjusted = applyUpgradeSafetyDefaults(result.merged, srcMap)
 	result.typeFixed = enforceTemplateTypes(result.merged, tmplMap)
+	if preserveLegacyHTTPS(result.merged, srcMap) {
+		result.safetyAdjusted = true
+	}
 	if applyUpgradeGrandfathers(result.merged, srcMap) {
 		result.safetyAdjusted = true
 	}
@@ -181,11 +184,13 @@ func recoverCorruptedConfig(tmplMap, salvaged map[string]interface{}) map[string
 		merged := deepMerge(tmplMap, nil)
 		grandfatherDockerHostAccess(merged, nil)
 		preserveNewspaperLegacyDefaults(merged, nil)
+		preserveLegacyHTTPS(merged, nil)
 		return merged
 	}
 	merged := deepMerge(tmplMap, salvaged)
 	applyUpgradeSafetyDefaults(merged, salvaged)
 	enforceTemplateTypes(merged, tmplMap)
+	preserveLegacyHTTPS(merged, salvaged)
 	applyUpgradeGrandfathers(merged, salvaged)
 	preserveNewspaperLegacyDefaults(merged, salvaged)
 	sanitizeMergedConfig(merged)

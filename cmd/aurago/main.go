@@ -99,9 +99,7 @@ func main() {
 	var initOnly bool
 	var checkConfig bool
 	var configFile string
-	var enableHTTPS bool
-	var httpsDomain string
-	var httpsEmail string
+	var networkFlags networkInitFlags
 	var initialPassword string
 	var initialPasswordFile string
 	var healthcheck bool
@@ -113,9 +111,7 @@ func main() {
 	flag.BoolVar(&initOnly, "init-only", false, "Apply -password/-password-file/-https flags to config/vault, then exit immediately (used by installer)")
 	flag.BoolVar(&checkConfig, "check-config", false, "Validate config file syntax and exit (used by Docker entrypoint)")
 	flag.StringVar(&configFile, "config", "config.yaml", "Path to config file (default: config.yaml)")
-	flag.BoolVar(&enableHTTPS, "https", false, "Enable HTTPS (Let's Encrypt) and update config")
-	flag.StringVar(&httpsDomain, "domain", "", "Domain for Let's Encrypt")
-	flag.StringVar(&httpsEmail, "email", "", "Email for Let's Encrypt")
+	networkFlags.register(flag.CommandLine)
 	flag.StringVar(&initialPassword, "password", "", "Set initial login password (hashes and stores in vault)")
 	flag.StringVar(&initialPasswordFile, "password-file", "", "Read initial login password from a 0600 file")
 	flag.BoolVar(&healthcheck, "healthcheck", false, "Check local AuraGo readiness and exit")
@@ -258,29 +254,10 @@ func main() {
 	}
 
 	// -- Apply CLI flags for HTTPS -----------------------------------------
-	if enableHTTPS && cfg != nil {
-		saveNeeded := false
-		if !cfg.Server.HTTPS.Enabled {
-			cfg.Server.HTTPS.Enabled = true
-			saveNeeded = true
-		}
-		if httpsDomain != "" && cfg.Server.HTTPS.Domain != httpsDomain {
-			cfg.Server.HTTPS.Domain = httpsDomain
-			saveNeeded = true
-		}
-		if httpsEmail != "" && cfg.Server.HTTPS.Email != httpsEmail {
-			cfg.Server.HTTPS.Email = httpsEmail
-			saveNeeded = true
-		}
-		if cfg.Server.Host != "0.0.0.0" {
-			cfg.Server.Host = "0.0.0.0"
-			saveNeeded = true
-		}
-		if saveNeeded {
-			appLog.Info("Updating config.yaml with HTTPS settings from CLI flags")
-			if err := cfg.Save(configFile); err != nil {
-				appLog.Error("Failed to save config with HTTPS settings", "error", err)
-			}
+	if cfg != nil {
+		if err := networkFlags.apply(flag.CommandLine, cfg, configFile); err != nil {
+			appLog.Error("Failed to initialize network settings", "error", err)
+			os.Exit(1)
 		}
 	}
 
@@ -294,6 +271,7 @@ func main() {
 				if err == nil {
 					if err := v.WriteSecret("auth_password_hash", hash); err != nil {
 						appLog.Error("Failed to store password hash in vault", "error", err)
+						os.Exit(1)
 					} else {
 						appLog.Info("Initial password hash stored in vault")
 					}
@@ -303,6 +281,7 @@ func main() {
 						if newSec, e := server.GenerateRandomHex(32); e == nil {
 							if err := v.WriteSecret("auth_session_secret", newSec); err != nil {
 								appLog.Error("Failed to store session secret in vault", "error", err)
+								os.Exit(1)
 							}
 						}
 					}
@@ -311,16 +290,20 @@ func main() {
 						cfg.Auth.Enabled = true
 						if err := cfg.Save(configFile); err != nil {
 							appLog.Error("Failed to enable auth in config.yaml", "error", err)
+							os.Exit(1)
 						}
 					}
 				} else {
 					appLog.Error("Failed to hash initial password", "error", err)
+					os.Exit(1)
 				}
 			} else {
 				appLog.Error("Failed to open vault for password setup", "error", err)
+				os.Exit(1)
 			}
 		} else {
 			appLog.Warn("AURAGO_MASTER_KEY missing or invalid to set initial password")
+			os.Exit(1)
 		}
 	}
 

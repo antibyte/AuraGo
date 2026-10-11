@@ -74,7 +74,7 @@
   "config.server.host_label": "Endereço de ligação",
   "config.server.http_port_label": "Porta HTTP (redirecionamento)",
   "config.server.https_desc": "Ative HTTPS com certificados automáticos, personalizados ou autoassinados. Funciona independentemente de outras configurações.",
-  "config.server.https_disabled_desc": "Habilite HTTPS para proteger conexões com criptografia TLS. Escolha entre certificados automáticos (Let's Encrypt), personalizados ou autoassinados.",
+  "config.server.https_disabled_desc": "Muitas funções do ambiente de trabalho, sobretudo o chat de voz e o acesso ao microfone, podem falhar através de HTTP. HTTPS através de um proxy inverso e localhost podem continuar a fornecer um contexto seguro.",
   "config.server.https_disabled_notice": "HTTPS está desativado",
   "config.server.https_enabled_label": "Ativar HTTPS",
   "config.server.https_port_label": "Porta HTTPS",
@@ -101,5 +101,9 @@
   "config.updates.installing": "Instalando…",
   "config.updates.running": "Executando…",
   "config.web_scraper.summary_mode": "Modo de resumo",
-  "config.webdav.secret_empty": "O valor está vazio"
+  "config.webdav.secret_empty": "O valor está vazio",
+  "config.server.disable_https_title": "Desativar HTTPS?",
+  "config.server.disable_https_confirm": "Isto altera apenas o rascunho. Guarda e reinicia o AuraGo para usar HTTP. As regras HSTS de um proxy ou domínio superior podem continuar a exigir HTTPS.",
+  "config.server.http_port_hint": "0 desativa o servidor HTTP. Para HTTP-01 do Let’s Encrypt, escolhe 80 e torna a porta pública 80 acessível.",
+  "config.server.restart_address": "Após reiniciar, abre:"
 }

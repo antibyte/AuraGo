@@ -74,7 +74,7 @@
   "config.server.host_label": "绑定地址",
   "config.server.http_port_label": "HTTP 端口（重定向）",
   "config.server.https_desc": "启用 HTTPS，支持自动、自定义或自签名证书。独立于其他设置工作。",
-  "config.server.https_disabled_desc": "启用 HTTPS 以使用 TLS 加密保护连接。可选择自动 (Let's Encrypt)、自定义或自签名证书。",
+  "config.server.https_disabled_desc": "通过 HTTP 访问时，许多桌面功能可能无法使用，尤其是语音聊天和麦克风访问。通过反向代理提供的 HTTPS 以及 localhost 仍可能提供安全的浏览器上下文。",
   "config.server.https_disabled_notice": "HTTPS 已禁用",
   "config.server.https_enabled_label": "启用 HTTPS",
   "config.server.https_port_label": "HTTPS 端口",
@@ -101,5 +101,9 @@
   "config.updates.installing": "安装中…",
   "config.updates.running": "运行中…",
   "config.web_scraper.summary_mode": "摘要模式",
-  "config.webdav.secret_empty": "值为空"
+  "config.webdav.secret_empty": "值为空",
+  "config.server.disable_https_title": "关闭 HTTPS？",
+  "config.server.disable_https_confirm": "这只会修改草稿。保存并重启 AuraGo 后才会使用 HTTP。代理或父域名的 HSTS 规则可能仍会强制使用 HTTPS。",
+  "config.server.http_port_hint": "0 表示关闭 HTTP 监听。使用 Let’s Encrypt HTTP-01 时，请选择 80 并确保公网端口 80 可访问。",
+  "config.server.restart_address": "重启后请打开："
 }

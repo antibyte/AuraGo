@@ -134,12 +134,15 @@ func handleSetupStatus(s *Server) http.HandlerFunc {
 
 		s.CfgMu.RLock()
 		show := needsSetup(s.Cfg)
+		https := setupHTTPSStatus(s.Cfg)
+		isDocker := s.Cfg.Runtime.IsDocker
 		s.CfgMu.RUnlock()
 
 		resp := map[string]interface{}{
 			"needs_setup":     show,
-			"is_docker":       s.Cfg.Runtime.IsDocker,
-			"ollama_base_url": setupOllamaBaseURL(s.Cfg.Runtime.IsDocker),
+			"is_docker":       isDocker,
+			"ollama_base_url": setupOllamaBaseURL(isDocker),
+			"https":           https,
 		}
 
 		// Issue a fresh CSRF token on every status request when setup is needed.

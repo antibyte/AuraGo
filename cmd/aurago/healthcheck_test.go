@@ -35,6 +35,38 @@ func TestRunCLIHealthcheckBindsRunningAssetSet(t *testing.T) {
 	}
 }
 
+func TestRunCLIHealthcheckHTTPSAndEgg(t *testing.T) {
+	for _, tlsEnabled := range []bool{true, false} {
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/api/ready" {
+				t.Errorf("wrong path: %s", r.URL.Path)
+			}
+			w.Header().Set("X-AuraGo-Asset-Set", webassets.SetID)
+			w.Header().Set("X-AuraGo-Assets-Ready", "true")
+			_, _ = w.Write([]byte(`{"status":"ready"}`))
+		})
+		var listener *httptest.Server
+		if tlsEnabled {
+			listener = httptest.NewTLSServer(handler)
+		} else {
+			listener = httptest.NewServer(handler)
+		}
+		endpoint, _ := url.Parse(listener.URL)
+		port, _ := strconv.Atoi(endpoint.Port())
+		cfg := &config.Config{}
+		cfg.Server.Host = "0.0.0.0"
+		cfg.Server.Port = port
+		cfg.Server.HTTPS.Enabled = tlsEnabled
+		cfg.Server.HTTPS.HTTPSPort = port
+		cfg.EggMode.Enabled = !tlsEnabled
+		err := runCLIHealthcheck(cfg, time.Second, false)
+		listener.Close()
+		if err != nil {
+			t.Fatalf("TLS=%v Egg=%v: %v", tlsEnabled, cfg.EggMode.Enabled, err)
+		}
+	}
+}
+
 func TestRunCLIHealthcheckRequestsTsNetReadiness(t *testing.T) {
 	var gotRequire string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

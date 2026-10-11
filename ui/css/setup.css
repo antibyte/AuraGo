@@ -1357,6 +1357,18 @@
 }
 /* === Precision Entry Setup Adapter: end === */
 
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-https-status {
+    border: 1px solid var(--border-color, #475569);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 24px;
+    overflow-wrap: anywhere;
+    font-size: 14px;
+    line-height: 1.5;
+}
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-https-status p { margin: 8px 0 0; }
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-https-insecure { border-color: var(--warning, #eab308); }
+
 /* ── HTTPS Warning Banner ──────────────────── */
 .https-warning {
     position: fixed;

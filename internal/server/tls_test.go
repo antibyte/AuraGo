@@ -18,16 +18,16 @@ func TestNewTLSConfigFromConfigMatchesSharedCertModeHelpers(t *testing.T) {
 		wantHTTPPort int
 	}{
 		{"custom", "aurago.example.com", TLSModeCustom, 80},
-		{"custom", "", TLSModeCustom, 0},
-		{" Custom ", "", TLSModeCustom, 0},
+		{"custom", "", TLSModeCustom, 80},
+		{" Custom ", "", TLSModeCustom, 80},
 		{"selfsigned", "aurago.example.com", TLSModeSelfSigned, 80},
-		{"selfsigned", "", TLSModeSelfSigned, 0},
+		{"selfsigned", "", TLSModeSelfSigned, 80},
 		{" SelfSigned ", "aurago.example.com", TLSModeSelfSigned, 80},
 		{"auto", "aurago.example.com", TLSModeAuto, 80},
 		{"", "aurago.example.com", TLSModeAuto, 80},
-		{"auto", "", TLSModeSelfSigned, 0},
-		{"", "", TLSModeSelfSigned, 0},
-		{"unknown", "", TLSModeSelfSigned, 0},
+		{"auto", "", TLSModeSelfSigned, 80},
+		{"", "", TLSModeSelfSigned, 80},
+		{"unknown", "", TLSModeSelfSigned, 80},
 	} {
 		cfg := &config.Config{}
 		cfg.Server.HTTPS.Enabled = true

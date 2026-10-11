@@ -39,6 +39,8 @@ PYTHON_PROBE_DIR=""
 GITHUB_REPO="antibyte/AuraGo"
 REPO="https://github.com/${GITHUB_REPO}.git"
 INSTALL_DIR="${AURAGO_DIR:-$HOME/aurago}"
+EXISTING_CONFIG=false
+[ ! -f "$INSTALL_DIR/config.yaml" ] || EXISTING_CONFIG=true
 SYSTEMD_SERVICE="aurago"
 GO_VERSION="1.27.2"
 GO_INSTALL_DIR="/usr/local"
@@ -1481,6 +1483,26 @@ primary_lan_ipv4() {
     return 1
 }
 
+configured_server_value() {
+    local config_file="$1" key="$2" fallback="$3" value=""
+    if [ -f "$config_file" ]; then
+        value="$(awk -v key="$key" '
+            /^server:[[:space:]]*($|#)/ { in_server=1; next }
+            in_server && /^[^[:space:]]/ { exit }
+            in_server && $1 == key ":" {
+                line=$0
+                sub("^[[:space:]]+" key ":[[:space:]]*", "", line)
+                sub(/[[:space:]]*#.*/, "", line)
+                gsub(/^[\042\047]|[\042\047]$/, "", line)
+                sub(/[[:space:]]+$/, "", line)
+                print line
+                exit
+            }
+        ' "$config_file")"
+    fi
+    printf '%s' "${value:-$fallback}"
+}
+
 configured_server_port() {
     local config_file="$1"
     local key="$2"
@@ -2372,33 +2394,43 @@ chmod +x "$INSTALL_DIR/start.sh"
 
 # ── Network binding & HTTPS ───────────────────────────────────────────────
 section "Network & security"
-info "Configure external access and HTTPS for this installation."
-echo ""
 
-prompt_value HTTPS_REPLY "Is this an internet-facing server and do you want to enable HTTPS (Let's Encrypt)? [y/N]: " "n" "n"
-
-SERVER_HOST="127.0.0.1"
-HTTPS_ENABLED="false"
-
-if [[ "${HTTPS_REPLY:-n}" =~ ^[Yy]$ ]]; then
-    SERVER_HOST="0.0.0.0"
+choose_install_network() {
+    SERVER_HOST="127.0.0.1"
     HTTPS_ENABLED="true"
-    prompt_value HTTPS_DOMAIN "Enter your domain (e.g., aurago.example.com): " "" ""
-    prompt_value HTTPS_EMAIL "Enter your email for Let's Encrypt: " "" ""
-    ok "Web UI will listen on ALL interfaces (0.0.0.0:443) with HTTPS."
-else
-    echo ""
-    echo "  Only allow network access if AuraGo runs on a trusted local LAN"
-    echo "  (e.g. a home server / Proxmox container) — never expose it directly"
-    echo "  to the internet without HTTPS / reverse proxy."
-    echo ""
-    prompt_value NET_REPLY "Enable HTTP access from outside localhost (LAN)? [Y/n]: " "y" "n"
+    HTTPS_CERT_MODE="selfsigned"
+    HTTPS_DOMAIN=""
+    HTTPS_EMAIL=""
+    HTTPS_INIT_PORT=0
+    HTTP_REDIRECT_PORT=0
+    prompt_value NET_REPLY "Allow access from other devices on your network? [Y/n]: " "y" "n"
     if [[ "${NET_REPLY:-n}" =~ ^[Yy]$ ]]; then
         SERVER_HOST="0.0.0.0"
-        warn "Web UI will listen on ALL interfaces (0.0.0.0:8088) without HTTPS."
-    else
-        ok "Web UI will only be reachable locally (127.0.0.1:8088)."
     fi
+    prompt_value HTTPS_REPLY "Use HTTPS (recommended for Desktop and voice chat)? [Y/n]: " "y" "y"
+    if [[ "${HTTPS_REPLY:-y}" =~ ^[Nn]$ ]]; then
+        HTTPS_ENABLED="false"
+        warn "Many Desktop features, especially voice chat and microphone access, may not work over HTTP."
+        warn "HTTPS through a reverse proxy and localhost can still provide a secure browser context."
+        return
+    fi
+    info "A local certificate is generated automatically. Your browser may ask you to trust it."
+    prompt_value ACME_REPLY "Use Let's Encrypt with a public domain instead? [y/N]: " "n" "n"
+    if [[ "${ACME_REPLY:-n}" =~ ^[Yy]$ ]]; then
+        HTTPS_CERT_MODE="auto"
+        HTTP_REDIRECT_PORT=80
+        prompt_value HTTPS_DOMAIN "Enter your public domain (e.g. aurago.example.com): " "" ""
+        prompt_value HTTPS_EMAIL "Enter your email for Let's Encrypt: " "" ""
+        [ -n "$HTTPS_DOMAIN" ] && [ -n "$HTTPS_EMAIL" ] || die "Let's Encrypt requires a domain and email."
+        warn "The domain must point to this server. Public TCP port 80 must reach its HTTP challenge listener."
+    fi
+}
+
+if [ "$EXISTING_CONFIG" = true ]; then
+    info "Existing installation: keeping network settings and login credentials."
+    HTTPS_ENABLED="$(configured_server_value "$INSTALL_DIR/config.yaml" enabled false)"
+else
+    choose_install_network
 fi
 
 # ── CAP_NET_BIND_SERVICE for HTTPS on standard ports ─────────────────────
@@ -2419,49 +2451,24 @@ if [ "$HTTPS_ENABLED" = "true" ]; then
 fi
 
 CONFIG_FILE="$INSTALL_DIR/config.yaml"
-if [ -f "$CONFIG_FILE" ]; then
+if [ "$EXISTING_CONFIG" != true ]; then
+    if [ ! -f "$CONFIG_FILE" ]; then
+        [ -f "$INSTALL_DIR/config_template.yaml" ] || die "Cannot initialize HTTPS: config_template.yaml is missing."
+        cp "$INSTALL_DIR/config_template.yaml" "$CONFIG_FILE"
+    fi
     INFO_PASSWORD=$(openssl rand -base64 12 2>/dev/null || python3 -c "import secrets; print(secrets.token_urlsafe(12))")
     INITIAL_PASSWORD_FILE="$(mktemp "${INSTALL_DIR}/.initial-password.XXXXXX")"
     write_secret_text_file "$INITIAL_PASSWORD_FILE" "$INFO_PASSWORD" || die "Failed to write temporary initial password securely."
-
-    # Save first-use password (owner-readable only)
     write_secret_text_file "$INSTALL_DIR/firstpassword.txt" "$INFO_PASSWORD" || die "Failed to write firstpassword.txt securely."
-
-    if [ "$HTTPS_ENABLED" = "true" ]; then
-        if ! ./bin/aurago_linux --config "$CONFIG_FILE" --init-only -password-file "$INITIAL_PASSWORD_FILE" -https -domain "$HTTPS_DOMAIN" -email "$HTTPS_EMAIL"; then
-            die "Initial password and HTTPS setup failed. Check config.yaml and AURAGO_MASTER_KEY."
-        fi
-        ok "config.yaml → HTTPS enabled for $HTTPS_DOMAIN"
-    else
-        if ! ./bin/aurago_linux --config "$CONFIG_FILE" --init-only -password-file "$INITIAL_PASSWORD_FILE"; then
-            die "Initial password setup failed. Check config.yaml and AURAGO_MASTER_KEY."
-        fi
-        awk -v host="$SERVER_HOST" '
-            /^server:/ { in_server=1 }
-            /^[a-z]/ && !/^server:/ { in_server=0 }
-            in_server && /^[[:space:]]+host:/ { sub(/host:.*/, "host: " host) }
-            { print }
-        ' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
-        ok "config.yaml → server.host set to $SERVER_HOST"
+    NETWORK_ARGS=(-https="$HTTPS_ENABLED" -host "$SERVER_HOST" -cert-mode "$HTTPS_CERT_MODE" -http-port "$HTTP_REDIRECT_PORT")
+    if [ "$HTTPS_ENABLED" = true ]; then
+        NETWORK_ARGS+=(-https-port "$HTTPS_INIT_PORT" -domain "$HTTPS_DOMAIN" -email "$HTTPS_EMAIL")
     fi
-else
-    # config.yaml still missing — create from template as last resort
-    TEMPLATE_FILE="$INSTALL_DIR/config_template.yaml"
-    if [ -f "$TEMPLATE_FILE" ]; then
-        cp "$TEMPLATE_FILE" "$CONFIG_FILE"
-        # Apply chosen host binding directly via awk
-        awk -v host="$SERVER_HOST" '
-            /^server:/ { in_server=1 }
-            /^[a-z]/ && !/^server:/ { in_server=0 }
-            in_server && /^[[:space:]]+host:/ { sub(/host:.*/, "host: " host) }
-            { print }
-        ' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
-        ok "config.yaml created from template (server.host=$SERVER_HOST)."
-    else
-        warn "config.yaml not found and no template available — skipping host configuration."
+    if ! ./bin/aurago_linux --config "$CONFIG_FILE" --init-only -password-file "$INITIAL_PASSWORD_FILE" "${NETWORK_ARGS[@]}"; then
+        die "Initial configuration failed. Check the HTTPS ports, config.yaml write permissions and AURAGO_MASTER_KEY."
     fi
+    ok "Initial network settings and password saved."
 fi
-
 
 # ── Optional systemd service ──────────────────────────────────────────────
 section "Service"
@@ -2642,16 +2649,33 @@ fi
 # ── Summary ───────────────────────────────────────────────────────────────
 HTTP_PORT="$(configured_server_port "$CONFIG_FILE" "port" "8088")"
 HTTPS_PORT="$(configured_server_port "$CONFIG_FILE" "https_port" "443")"
-if [ "$HTTPS_ENABLED" = "true" ]; then
-    WEB_UI_URL="https://${HTTPS_DOMAIN}:${HTTPS_PORT}"
-    WEB_UI_LISTEN="0.0.0.0:${HTTPS_PORT} (HTTPS)"
-elif [ "$SERVER_HOST" = "0.0.0.0" ]; then
+HTTPS_ENABLED="$(configured_server_value "$CONFIG_FILE" enabled false)"
+HTTPS_DOMAIN="$(configured_server_value "$CONFIG_FILE" domain '')"
+HTTPS_CERT_MODE="$(configured_server_value "$CONFIG_FILE" cert_mode auto)"
+SERVER_HOST="${AURAGO_SERVER_HOST:-$(configured_server_value "$CONFIG_FILE" host 127.0.0.1)}"
+WEB_HOST="$SERVER_HOST"
+if [ "$SERVER_HOST" = "0.0.0.0" ] || [ "$SERVER_HOST" = "::" ]; then
     LAN_IP="$(primary_lan_ipv4 || true)"
-    WEB_UI_URL="http://${LAN_IP:-<server-LAN-IP>}:${HTTP_PORT}"
-    WEB_UI_LISTEN="0.0.0.0:${HTTP_PORT} (HTTP, LAN)"
-else
-    WEB_UI_URL="http://127.0.0.1:${HTTP_PORT}"
-    WEB_UI_LISTEN="127.0.0.1:${HTTP_PORT} (HTTP, local only)"
+    WEB_HOST="${LAN_IP:-localhost}"
+fi
+WEB_SCHEME=http
+WEB_PORT="$HTTP_PORT"
+if [ "$HTTPS_ENABLED" = true ]; then
+    WEB_SCHEME=https
+    WEB_PORT="$HTTPS_PORT"
+    [ -z "$HTTPS_DOMAIN" ] || WEB_HOST="$HTTPS_DOMAIN"
+fi
+case "$WEB_HOST" in
+    *:*)
+        WEB_HOST="${WEB_HOST#[}"
+        WEB_HOST="${WEB_HOST%]}"
+        WEB_HOST="[$WEB_HOST]"
+        ;;
+esac
+WEB_UI_URL="${WEB_SCHEME}://${WEB_HOST}:${WEB_PORT}"
+WEB_UI_LISTEN="${SERVER_HOST}:${WEB_PORT} (${WEB_SCHEME})"
+if [ "$HTTPS_ENABLED" = true ] && { [ "$HTTPS_CERT_MODE" = selfsigned ] || [ -z "$HTTPS_DOMAIN" ]; }; then
+    info "HTTPS uses a local certificate. Verify and trust it in your browser; change TLS in Config -> Server."
 fi
 
 section "Done"

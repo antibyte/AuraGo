@@ -737,7 +737,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			// Only run the bind-test if HTTPS is being switched on or the port changed
 			runBindTest := !currentHTTPS || (currentPort != httpsPort)
 			if runBindTest {
-				if ln, bindErr := net.Listen("tcp", fmt.Sprintf(":%d", httpsPort)); bindErr != nil {
+				if ln, bindErr := net.Listen("tcp", net.JoinHostPort(validateCfg.Server.Host, fmt.Sprint(httpsPort))); bindErr != nil {
 					errMsg := bindErr.Error()
 					var userMsg string
 					if strings.Contains(errMsg, "permission denied") || strings.Contains(errMsg, "access is denied") {
@@ -1566,12 +1566,17 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
+		if newCfg != nil && oldCfg.Server.HTTPS.Enabled && !newCfg.Server.HTTPS.Enabled && r.TLS != nil {
+			w.Header().Set("Strict-Transport-Security", "max-age=0")
+		}
 		if needsRestart {
 			msg := fmt.Sprintf("Gespeichert. Neustart nötig für: %s", strings.Join(restartReasons, ", "))
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":             "saved",
 				"message":            msg,
 				"needs_restart":      true,
+				"restart_url":        configRestartURL(r, &oldCfg, newCfg),
+				"restart_from":       configRequestOrigin(r),
 				"restart_reason":     restartReasons,
 				"embeddings_changed": embeddingsChanged,
 			})

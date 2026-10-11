@@ -193,6 +193,14 @@ worker. Keep packaging, recovery and offline instructions in
   Browser links remain relative `/speech-lab/`; external mode exposes the separate
   server-side `browser_backend_url` and never links to legacy `advanced_ui_url`.
 
+- Fresh setup displays HTTPS enabled/mode/port and uses `window.isSecureContext`
+  for browser capability guidance; support and device permission remain separate.
+  HTTPS changes belong to installer/Config. Config confirms HTTPS opt-out through
+  the shared modal, preserves drafts on cancel and only persists through Save.
+  Show the restart address and navigate to its protocol/port for direct access;
+  keep proxy and unknown mapped origins. Localize every notice in all 16 locales.
+  Verify `TestHTTPSConfigOptOutBrowser` and `TestSetupHTTPSContextBrowser`.
+
 - Server Config shows reverse-proxy trust independently of local HTTPS mode and
   edits `server.https.trusted_proxy_cidrs` as a list of immediate proxy IPs or
   CIDRs. Keep its labels in all 16 `lang/config/server/` locales.

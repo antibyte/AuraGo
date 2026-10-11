@@ -178,6 +178,26 @@ Server-owned HTTP and cross-component integration contracts.
 - For email confirmation, expose sanitized structured outcomes: known AgentMail rejections include the HTTP status and release only that challenge; a 403 bounce suppression has its own actionable code. Transport/server ambiguity keeps its code and cooldown. Never return provider error bodies, credentials, recipient addresses or confirmation codes.
 - Verify with `go test ./internal/server -run TestNewspaper` and the Newspaper browser test. Core state contracts live in `internal/newspaper/AGENTS.md`.
 
+### HTTPS installation and transitions
+- HTTPS defaults belong only to fresh configuration creation. Never enable it
+  globally in `config.Load`; config-merger preserves the legacy effective
+  enabled/mode/ports when fields are absent. Native initialization chooses a
+  bindable 443 or 8443 and persists it. Explicit runtime ports never fall back.
+- TLS listeners and probes honor `server.host`, including IPv6. Redirects use
+  the actual HTTPS port and preserve escaped paths and queries. `http_port: 0`
+  creates no HTTP listener, including ACME mode (TLS-ALPN-01 needs public 443).
+  Keep the separate internal loopback HTTP listener and stream write budgets.
+- Setup status exposes only HTTPS enabled/mode/port. The wizard never changes
+  HTTPS. Config opt-out confirms feature loss, saves through the usual draft
+  path, and returns a future URL only for direct access. Preserve public proxy
+  origins and unknown port mappings. Never trust arbitrary forwarded headers.
+- A successful HTTP opt-out clears AuraGo's HSTS rule on the current TLS save
+  response and all remaining built-in TLS responses until restart. Failed saves
+  keep HTTPS/HSTS intact. External, parent-domain and preload rules cannot be
+  removed by AuraGo. Preserve the other security headers.
+- Verify `TestHTTPS*`, `TestSetupHTTPS*`, `TestConfigRestartURL*`, security-header,
+  internal HTTP and CLI healthcheck tests, plus `ui/TestHTTPSConfigOptOutBrowser`.
+
 ### Ingress Security and Browser Lab
 - External chat ingress, SMS and SIP block raw input at local `ThreatHigh`; authenticated webchat and browser voice log findings without blocking. Voice always uses canonical escaped external-data isolation, even when supplied text already contains boundary tags. Keep current authorization snapshots and tool scopes.
 - Quarantine replaces an otherwise agent-directed delivery with a fixed safe notice through the existing route. Apply the original eligibility and forwarding rules, including active matching missions; UI/log-only events with no agent destination stay local. Do not execute original payload callbacks or copy subjects, bodies or scanner prose. A failed notice is not acknowledged; accepted notices cannot replay because a label update failed.

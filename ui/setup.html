@@ -59,12 +59,6 @@
     <!-- ── Toast Container ─────────────────────── -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <!-- ── HTTPS Warning Banner ────────────────── -->
-    <div id="https-warning" class="https-warning is-hidden">
-        <span>⚠️</span>
-        <span data-i18n="setup.https_warning"></span>
-    </div>
-
     <!-- ── Owner check: remote setup needs the token from the server log ── -->
     <div id="setup-bootstrap-gate" class="modal-overlay setup-bootstrap-gate" role="dialog" aria-modal="true" aria-labelledby="setup-bootstrap-title">
         <div class="modal setup-bootstrap-modal">
@@ -84,6 +78,13 @@
     <!-- ── Main Setup Card ─────────────────────── -->
     <div class="setup-container" id="main-content">
         <div class="setup-card">
+            <aside id="setup-https-status" class="setup-https-status" aria-live="polite">
+                <strong data-i18n="setup.connection_title"></strong>
+                <p id="setup-https-transport"></p>
+                <p id="setup-https-certificate" class="is-hidden" data-i18n="setup.https_selfsigned"></p>
+                <p id="setup-secure-context"></p>
+                <p data-i18n="setup.https_manage"></p>
+            </aside>
 
             <!-- Step Indicator — rebuilt dynamically by JS based on flow -->
             <div class="step-indicator" id="step-indicator"></div>

@@ -832,14 +832,14 @@ server:
     preview_domain: ""                            # separate registrable site; wildcard DNS/TLS must reach this server
     preview_enabled: false                        # activate only after staged app/login/WebSocket acceptance
     https:
-        enabled: false
-        cert_mode: auto                     # "auto" (Let's Encrypt), "custom" (uploaded cert), "selfsigned" (auto-generated)
+        enabled: true                       # Fresh installs only; upgrades preserve the existing transport
+        cert_mode: selfsigned               # "auto" (Let's Encrypt), "custom" (uploaded cert), "selfsigned" (auto-generated)
         domain: ""
         email: ""
         cert_file: ""                       # custom mode: path to PEM certificate file
         key_file: ""                        # custom mode: path to PEM private key file
         https_port: 443
-        http_port: 80
+        http_port: 0                        # Disabled; select 80 explicitly for Let's Encrypt HTTP-01
         behind_proxy: false
         trusted_proxy_cidrs: []           # explicit immediate proxy source IPs/CIDRs when behind_proxy is true
 sqlite:

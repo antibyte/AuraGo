@@ -1,6 +1,7 @@
 // cfg/server.js — Server config section with HTTPS certificate modes
 
 let _srvSection = null;
+let _srvHttpsConfirmPending = false;
 
 async function renderServerSection(section) {
     if (section) _srvSection = section; else section = _srvSection;
@@ -23,7 +24,7 @@ async function renderServerSection(section) {
 
     html += `<div class="field-group">
         <div class="field-label">${t('config.server.port_label')}</div>
-        <input type="number" class="field-input" data-path="server.port" value="${cfg.port || 3000}" min="1" max="65535">
+        <input type="number" class="field-input" data-path="server.port" value="${cfg.port || 8088}" min="1" max="65535">
     </div>`;
 
     html += `<div class="field-group">
@@ -69,7 +70,7 @@ async function renderServerSection(section) {
     const httpsEnabled = https.enabled === true;
     html += `<div class="cfg-toggle-row-highlight">
         <span class="cfg-toggle-label">${t('config.server.https_enabled_label')}</span>
-        <div class="toggle ${httpsEnabled ? 'on' : ''}" data-path="server.https.enabled" onclick="_srvToggleHttps(this)"></div>
+        <button type="button" class="toggle ${httpsEnabled ? 'on' : ''}" data-path="server.https.enabled" role="switch" aria-checked="${httpsEnabled}" aria-label="${escapeAttr(t('config.server.https_enabled_label'))}" onclick="_srvToggleHttps(this)"></button>
     </div>`;
 
     if (httpsEnabled) {
@@ -91,7 +92,8 @@ async function renderServerSection(section) {
             </div>
             <div class="field-group">
                 <div class="field-label">${t('config.server.http_port_label')}</div>
-                <input type="number" class="field-input" data-path="server.https.http_port" value="${https.http_port || 80}" min="1" max="65535">
+                <input type="number" class="field-input" data-path="server.https.http_port" value="${https.http_port ?? (certMode === 'auto' && https.domain?.trim() ? 80 : 0)}" min="0" max="65535">
+                <div class="field-help">${t('config.server.http_port_hint')}</div>
             </div>
         </div>`;
 
@@ -153,7 +155,7 @@ async function renderServerSection(section) {
             if (httpsPort < 1024) {
                 html += `<div class="wh-notice wh-notice-warning">
                     <span>⚠️</span>
-                    <div><small>${t('config.server.selfsigned_port_warning') + httpsPort + ' requires root/admin privileges on Linux. For local use without root, consider port 8443.'}</small></div>
+                    <div><small>${t('config.server.selfsigned_port_warning')}</small></div>
                 </div>`;
             }
 
@@ -229,8 +231,21 @@ function _srvSyncFormState() {
     });
 }
 
-function _srvToggleHttps(toggle) {
+async function _srvToggleHttps(toggle) {
+    if (_srvHttpsConfirmPending) return;
     _srvSyncFormState();
+    if (toggle.classList.contains('on')) {
+        _srvHttpsConfirmPending = true;
+        toggle.setAttribute('aria-disabled', 'true');
+        let confirmed;
+        try {
+            confirmed = await showConfirm(t('config.server.disable_https_title'), t('config.server.https_disabled_desc') + '\n\n' + t('config.server.disable_https_confirm'));
+        } finally {
+            _srvHttpsConfirmPending = false;
+            toggle.removeAttribute('aria-disabled');
+        }
+        if (!confirmed || !toggle.isConnected) return;
+    }
     toggleBool(toggle);
     setNestedValue(configData, 'server.https.enabled', toggle.classList.contains('on'));
     markDirty();
