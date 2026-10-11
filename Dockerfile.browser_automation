@@ -8,6 +8,9 @@ RUN npm ci --omit=dev
 
 COPY browser_automation_sidecar/server.js /app/server.js
 COPY browser_automation_sidecar/egress_policy.js /app/egress_policy.js
+COPY browser_automation_sidecar/egress_supervisor.js /app/egress_supervisor.js
+COPY browser_automation_sidecar/path_policy.js /app/path_policy.js
+COPY browser_automation_sidecar/egress_proxy.js /app/egress_proxy.js
 RUN chown -R pwuser:pwuser /app
 
 # Pre-download the CloakBrowser binary into the runtime user's cache so the
