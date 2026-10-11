@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strings"
@@ -27,7 +28,9 @@ var ErrDockerArchiveTooLarge = errors.New("docker archive exceeds the size limit
 // DockerStreamContext sends an Engine API request and returns the open
 // response so the caller can read the body while it arrives (exec output,
 // image pull progress). Non-2xx answers are returned as responses; the
-// caller must close the body. Cancelling ctx aborts the stream.
+// caller must close the body. Cancelling ctx aborts the stream. The body is
+// not size-capped: callers must bound what they read and keep (LimitReader,
+// capped buffers, ReadErrorBody for error answers).
 func DockerStreamContext(ctx context.Context, cfg DockerConfig, method, endpoint string, body []byte, contentType string) (*http.Response, error) {
 	if dockerMethodMutates(method) {
 		if err := requireDockerMutationPermission(); err != nil {
@@ -58,9 +61,12 @@ func DockerStreamContext(ctx context.Context, cfg DockerConfig, method, endpoint
 }
 
 // DockerGetArchiveContext downloads containerPath of a container as a tar
-// archive (GET /containers/{id}/archive, socket proxy: CONTAINERS=1). A
-// missing path is ErrDockerArchiveNotFound, an archive larger than maxBytes
-// ErrDockerArchiveTooLarge.
+// archive (GET /containers/{id}/archive, socket proxy: CONTAINERS=1). An
+// archive larger than maxBytes (required, > 0) is ErrDockerArchiveTooLarge.
+// The Engine answers 404 both for a missing path and for a missing container;
+// only its missing-path answer ("Could not find the file ...") is
+// ErrDockerArchiveNotFound. "No such container" and every other 404 are plain
+// errors, so a vanished container is never mistaken for an empty result.
 func DockerGetArchiveContext(ctx context.Context, cfg DockerConfig, containerID, containerPath string, maxBytes int64) ([]byte, error) {
 	if err := validateDockerName(containerID); err != nil {
 		return nil, err
@@ -77,14 +83,18 @@ func DockerGetArchiveContext(ctx context.Context, cfg DockerConfig, containerID,
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, ErrDockerArchiveNotFound
-	}
 	if resp.StatusCode != http.StatusOK {
-		msg := dockerutil.SanitizeOneLine(dockerutil.EngineErrorMessage(dockerutil.ReadErrorBody(resp.Body)), 300)
-		return nil, fmt.Errorf("docker archive download failed: HTTP %d: %s", resp.StatusCode, msg)
+		body := dockerutil.ReadErrorBody(resp.Body)
+		if resp.StatusCode == http.StatusNotFound && dockerArchivePathMissing(body) {
+			return nil, ErrDockerArchiveNotFound
+		}
+		return nil, fmt.Errorf("docker archive download failed: HTTP %d: %s", resp.StatusCode, dockerBodyMessage(resp.StatusCode, body))
 	}
-	data, err := io.ReadAll(io.LimitReader(resp.Body, maxBytes+1))
+	limit := maxBytes
+	if limit < math.MaxInt64 {
+		limit++ // one byte more detects an archive above maxBytes
+	}
+	data, err := io.ReadAll(io.LimitReader(resp.Body, limit))
 	if err != nil {
 		return nil, fmt.Errorf("read docker archive: %w", err)
 	}
@@ -92,4 +102,12 @@ func DockerGetArchiveContext(ctx context.Context, cfg DockerConfig, containerID,
 		return nil, ErrDockerArchiveTooLarge
 	}
 	return data, nil
+}
+
+// dockerArchivePathMissing reports whether a 404 body of GET /archive is the
+// Engine's missing-path answer ("Could not find the file <path> in container
+// <id>"), as opposed to "No such container: <id>" or a proxy's 404.
+func dockerArchivePathMissing(body []byte) bool {
+	msg := strings.ToLower(dockerutil.SanitizeOneLine(dockerutil.EngineErrorMessage(body), 0))
+	return strings.HasPrefix(msg, "could not find the file ")
 }
