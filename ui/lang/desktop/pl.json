@@ -1,4 +1,5 @@
 {
+  "desktop.app_ruview": "RuView",
   "desktop.fm.storage_offline": "Niedostępne",
   "desktop.fm.storage_readonly": "Tylko odczyt",
   "desktop.fm.storage_access_denied": "Dostawca pamięci odmówił dostępu. Sprawdź u niego logowanie i uprawnienia, także dla połączonych kont.",

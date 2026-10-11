@@ -1,4 +1,5 @@
 {
+  "desktop.app_ruview": "RuView",
   "desktop.fm.storage_offline": "不可用",
   "desktop.fm.storage_readonly": "只读",
   "desktop.fm.storage_access_denied": "存储服务商拒绝了访问。请在服务商处检查登录状态和权限，包括已关联的账户。",

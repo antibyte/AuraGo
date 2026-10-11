@@ -89,8 +89,10 @@
     "pdfjs-dist": "6.3.289",
     "phaser": "4.2.1",
     "rollup": "^4.63.5",
+    "stats-ruview": "npm:stats.js@0.17.0",
     "stockfish": "19.0.0",
     "three": "0.186.1",
+    "three-ruview": "npm:three@0.160.0",
     "webamp": "2.3.1"
   },
   "devDependencies": {

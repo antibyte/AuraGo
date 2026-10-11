@@ -1069,6 +1069,9 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	if ff.RetroGamesEnabled {
 		tools = append(tools, retroGamesSchema())
 	}
+	if ff.RuViewEnabled {
+		tools = append(tools, tool("ruview", "Read RuView status, nodes, current sensing, model information and recording metadata. Source and time distinguish real and simulated measurements.", schema(map[string]interface{}{"operation": map[string]interface{}{"type": "string", "enum": []string{"status", "nodes", "sensing", "model_info", "recordings"}}}, "operation")))
+	}
 	if ff.Go2RTCEnabled {
 		tools = append(tools, tool("go2rtc",
 			"Observe configured go2rtc camera streams, create or analyze safe snapshots, and show a same-origin live viewer. This tool never accepts source URLs and cannot change service or stream configuration.",

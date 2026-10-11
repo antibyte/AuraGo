@@ -1,4 +1,5 @@
 {
+  "desktop.app_ruview": "RuView",
   "desktop.fm.storage_offline": "利用不可",
   "desktop.fm.storage_readonly": "読み取り専用",
   "desktop.fm.storage_access_denied": "ストレージ提供元がアクセスを拒否しました。連携アカウントを含め、提供元でログイン状態と権限を確認してください。",

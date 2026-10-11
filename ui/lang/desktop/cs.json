@@ -1,4 +1,5 @@
 {
+  "desktop.app_ruview": "RuView",
   "desktop.fm.storage_offline": "Nedostupné",
   "desktop.fm.storage_readonly": "Pouze čtení",
   "desktop.fm.storage_access_denied": "Poskytovatel úložiště odmítl přístup. Zkontroluj u něj přihlášení a oprávnění, včetně připojených účtů.",

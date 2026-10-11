@@ -40,6 +40,7 @@ func ManagedSidecarContainerNames(cfg *config.Config) []string {
 		add(browserAutomationEffectiveContainerName(BrowserAutomationSidecarConfig{ContainerName: cfg.BrowserAutomation.ContainerName}, managedHost))
 	}
 	add("aurago_go2rtc", cfg.Go2RTC.ContainerName)
+	add("aurago-ruview")
 	add(spaceAgentDefaultContainerName, cfg.SpaceAgent.ContainerName)
 	add(manifestDefaultContainerName, cfg.Manifest.ContainerName, manifestDefaultPostgresContainerName, cfg.Manifest.PostgresContainerName)
 	add(omniRouteDefaultContainerName, cfg.OmniRoute.ContainerName)

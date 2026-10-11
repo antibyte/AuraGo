@@ -1009,7 +1009,7 @@ type Config struct {
 			CertFile          string   `yaml:"cert_file"`           // custom mode: path to PEM certificate
 			KeyFile           string   `yaml:"key_file"`            // custom mode: path to PEM private key
 			HTTPSPort         int      `yaml:"https_port"`          // default: 443
-			HTTPPort          int      `yaml:"http_port"`           // default: 80 (for redirect)
+			HTTPPort          int      `yaml:"http_port"`           // 0 disables HTTP; 80 for Let's Encrypt HTTP-01
 			BehindProxy       bool     `yaml:"behind_proxy"`        // accept forwarded headers only from configured trusted proxies
 			TrustedProxyCIDRs []string `yaml:"trusted_proxy_cidrs"` // explicit proxy source addresses/CIDRs
 		} `yaml:"https"`
@@ -1870,6 +1870,7 @@ type Config struct {
 		StoreMedia      bool   `yaml:"store_media"`         // auto-store snapshots in media registry
 		MQTTTopicPrefix string `yaml:"mqtt_topic_prefix"`   // default: "frigate"
 	} `yaml:"frigate"`
+	RuView         RuViewConfig         `yaml:"ruview" json:"ruview"`
 	Go2RTC         Go2RTCConfig         `yaml:"go2rtc" json:"go2rtc"`
 	RTLSDR         RTLSDRConfig         `yaml:"rtl_sdr" json:"rtl_sdr"`
 	LocalLLM       LocalLLMConfig       `yaml:"local_llm" json:"local_llm"`

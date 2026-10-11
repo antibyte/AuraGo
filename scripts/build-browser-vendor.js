@@ -66,6 +66,7 @@ for (const [source, target] of [['three.module.js', 'three-0.186.1.module.min.js
 }
 await tree('three', 'examples/jsm/libs/draco/gltf', vendor + 'draco');
 await tree('esp-web-tools', 'dist/web', vendor + 'esp-web-tools');
+await bundle('esptool-js', "export { ESPLoader, Transport } from 'esptool-js';", vendor + 'ruview-esptool.js', [], 'esm');
 for (const dir of ['cmaps', 'standard_fonts', 'wasm', 'iccs']) await tree('pdfjs-dist', dir, vendor + 'pdf/' + dir);
 await bundle('three', "import * as THREE from 'three'; window.THREE={...THREE};", vendor + 'three.min.js');
 await bundle('markdown-it', "import markdownit from 'markdown-it'; window.markdownit=markdownit;", vendor + 'markdown-it.min.js');

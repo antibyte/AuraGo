@@ -1,4 +1,5 @@
 {
+  "desktop.app_ruview": "RuView",
   "desktop.fm.storage_offline": "Niet beschikbaar",
   "desktop.fm.storage_readonly": "Alleen lezen",
   "desktop.fm.storage_access_denied": "De opslagprovider weigert toegang. Controleer daar de aanmelding en machtigingen, ook voor gekoppelde accounts.",

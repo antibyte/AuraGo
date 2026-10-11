@@ -17,6 +17,7 @@ import (
 	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/inventory"
+	"aurago/internal/ruview"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 )
@@ -655,6 +656,20 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			request.ID = firstNonEmptyToolString(tc.ID, request.ID)
 			request.Name = firstNonEmptyToolString(tc.Name, request.Name)
 			return tools.ExecuteRTLSDR(ctx, cfg, request)
+		case "ruview":
+			manager := ruview.Default()
+			if manager == nil || !cfg.RuView.Enabled || !cfg.RuView.AgentAccess {
+				return `Tool Output: {"status":"error","message":"RuView agent read access is disabled"}`
+			}
+			result, err := manager.Read(ctx, strings.ToLower(strings.TrimSpace(tc.Operation)))
+			if err != nil {
+				result = map[string]string{"status": "error", "message": err.Error()}
+			}
+			data, err := json.Marshal(result)
+			if err != nil {
+				return `Tool Output: {"status":"error","message":"RuView result encoding failed"}`
+			}
+			return "Tool Output: " + string(data)
 		case "go2rtc":
 			manager := tools.DefaultGo2RTCManager()
 			if manager == nil || !cfg.Go2RTC.Enabled || !cfg.Go2RTC.AgentAccess || !manager.Available() {

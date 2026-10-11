@@ -1,4 +1,5 @@
 {
+  "desktop.app_ruview": "RuView",
   "desktop.fm.storage_offline": "Non disponibile",
   "desktop.fm.storage_readonly": "Sola lettura",
   "desktop.fm.storage_access_denied": "Il fornitore di archiviazione ha negato l’accesso. Verifica presso il fornitore l’accesso e le autorizzazioni, anche degli account collegati.",

@@ -661,6 +661,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			})
 			return
 		}
+		if err := config.ValidateRuViewConfig(validateCfg.RuView, runtimeSnapshot.IsDocker); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		if go2RTCErr := validateGo2RTCSettings(validateCfg.Go2RTC, runtimeSnapshot, s.Vault); go2RTCErr != nil {
 			s.Logger.Error("[Config] Invalid go2rtc settings — save rejected", "error", go2RTCErr)
 			w.Header().Set("Content-Type", "application/json")
@@ -2304,6 +2308,7 @@ var vaultKeyMap = map[string]string{
 	"s3.secret_key":                           "s3_secret_key",
 	"proxmox.secret":                          "proxmox_secret",
 	"frigate.api_token":                       "frigate_api_token",
+	"ruview.api_token":                        "ruview_api_token",
 	"github.token":                            "github_token",
 	"rocketchat.auth_token":                   "rocketchat_auth_token",
 	"mqtt.password":                           "mqtt_password",

@@ -471,6 +471,7 @@ func Load(path string) (*Config, error) {
 	cfg.BrowserAutomation.CloakHumanPreset = "default"
 	cfg.BrowserAutomation.OutboundNetwork = "bridge"
 
+	cfg.RuView = DefaultRuViewConfig()
 	// go2rtc defaults: disabled, proxy-first, and managed as a hardened sidecar.
 	cfg.Go2RTC.AutoStart = true
 	cfg.Go2RTC.AgentAccess = true
@@ -1125,6 +1126,9 @@ func Load(path string) (*Config, error) {
 	}
 
 	cfg.BrowserAutomation.URL = NormalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", 7331)
+	if err := ValidateRuViewConfig(cfg.RuView, runningInDocker); err != nil {
+		return nil, fmt.Errorf("invalid ruview configuration: %w", err)
+	}
 	cfg.Go2RTC.URL = ResolveGo2RTCInternalURL(cfg.Go2RTC.URL, runningInDocker)
 	if strings.TrimSpace(cfg.Go2RTC.Image) == "" {
 		cfg.Go2RTC.Image = Go2RTCDefaultImage
@@ -2990,6 +2994,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"frigate", "review_relay"}, c.Frigate.ReviewRelay},
 		{[]string{"frigate", "store_media"}, c.Frigate.StoreMedia},
 		{[]string{"frigate", "mqtt_topic_prefix"}, c.Frigate.MQTTTopicPrefix},
+		{[]string{"ruview"}, c.RuView},
 		{[]string{"go2rtc", "enabled"}, c.Go2RTC.Enabled},
 		{[]string{"go2rtc", "auto_start"}, c.Go2RTC.AutoStart},
 		{[]string{"go2rtc", "web_ui_enabled"}, c.Go2RTC.WebUIEnabled},

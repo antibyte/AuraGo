@@ -1,0 +1,8 @@
+**/.git
+**/target
+**/node_modules
+**/.venv
+**/venv
+**/reports
+**/data
+!v2/crates/**/data

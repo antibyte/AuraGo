@@ -16,7 +16,7 @@ var desktopIntegrationRoots = map[string]bool{
 	"knowledge-graph": true, "launchpad": true, "meshcore": true, "missions": true,
 	"openscad": true, "operational-issues": true, "people": true, "personalities": true,
 	"providers": true, "radio-browser": true, "realtime-speech": true, "sip": true,
-	"speech-lab": true, "todos": true, "webhooks": true,
+	"speech-lab": true, "todos": true, "webhooks": true, "ruview": true,
 }
 
 func desktopIntegrationHandler(s *Server, routes http.Handler) http.HandlerFunc {

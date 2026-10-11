@@ -1,4 +1,5 @@
 {
+  "desktop.app_ruview": "RuView",
   "desktop.fm.storage_offline": "Μη διαθέσιμο",
   "desktop.fm.storage_readonly": "Μόνο ανάγνωση",
   "desktop.fm.storage_access_denied": "Ο πάροχος αποθήκευσης αρνήθηκε την πρόσβαση. Έλεγξε τη σύνδεση και τα δικαιώματα στον πάροχο, καθώς και στους συνδεδεμένους λογαριασμούς.",

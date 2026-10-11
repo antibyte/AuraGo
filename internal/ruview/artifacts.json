@@ -1,0 +1,225 @@
+{
+  "revision": "a71634ae8a606bba5463489450c69e8b42de114e",
+  "version": "v3122",
+  "firmware_version": "0.8.12",
+  "source_archive_sha256": "a8e8ddabc00bce22399db8799aa5640e6e420efc41be2192458b4959c46bd115",
+  "docker_image": "ghcr.io/antibyte/aurago-ruview@sha256:573c0e15781b2c2f0450111f1ade85fb2b1e4b06d2b3f39dfceb6d7a0d41a41b",
+  "native": [
+    {
+      "platform": "windows-amd64",
+      "files": [
+        {
+          "name": "sensing-server.exe",
+          "size": 7943168,
+          "sha256": "a72516727860159bbb5db20460a6481b628c0888a70b401aadfaff96bc2b2da6",
+          "resource": "js/vendor/ruview-runtime/a71634ae8a606bba5463489450c69e8b42de114e/windows-amd64/sensing-server.exe.bin"
+        }
+      ]
+    }
+  ],
+  "firmware": [
+    {
+      "id": "esp32s3-4mb-uart",
+      "chip": "esp32s3",
+      "flash_bytes": 4194304,
+      "console": "uart",
+      "partition_sha256": "4c2cc4ffd52641e23b779bd57b3908014083ac3c1aab395756478c89e70d81f0",
+      "parts": [
+        {
+          "name": "bootloader.bin",
+          "offset": 0,
+          "size": 18880,
+          "sha256": "e623c689f1efb2174301d5e46b6770a147865e3fca0ce48f72172b20eb6fb337"
+        },
+        {
+          "name": "partition-table.bin",
+          "offset": 32768,
+          "size": 3072,
+          "sha256": "4c2cc4ffd52641e23b779bd57b3908014083ac3c1aab395756478c89e70d81f0"
+        },
+        {
+          "name": "ota_data_initial.bin",
+          "offset": 61440,
+          "size": 8192,
+          "sha256": "7d2c7ac4888bfd75cd5f56e8d61f69595121183afc81556c876732fd3782c62f"
+        },
+        {
+          "name": "esp32-csi-node.bin",
+          "offset": 131072,
+          "size": 938032,
+          "sha256": "e40e675b133052b819bd7149b7179ee94bb86a238827913b5b401ebc7adda8cf"
+        }
+      ]
+    },
+    {
+      "id": "esp32s3-4mb-cdc",
+      "chip": "esp32s3",
+      "flash_bytes": 4194304,
+      "console": "cdc",
+      "partition_sha256": "4c2cc4ffd52641e23b779bd57b3908014083ac3c1aab395756478c89e70d81f0",
+      "parts": [
+        {
+          "name": "bootloader.bin",
+          "offset": 0,
+          "size": 18736,
+          "sha256": "60d9951a4d95b87ced2dab1a84c339b980589586baa82f7cf7c3cbc7176033a6"
+        },
+        {
+          "name": "partition-table.bin",
+          "offset": 32768,
+          "size": 3072,
+          "sha256": "4c2cc4ffd52641e23b779bd57b3908014083ac3c1aab395756478c89e70d81f0"
+        },
+        {
+          "name": "ota_data_initial.bin",
+          "offset": 61440,
+          "size": 8192,
+          "sha256": "7d2c7ac4888bfd75cd5f56e8d61f69595121183afc81556c876732fd3782c62f"
+        },
+        {
+          "name": "esp32-csi-node.bin",
+          "offset": 131072,
+          "size": 931888,
+          "sha256": "ab83a7e3fe63bc76dc59f78f08d58d4d297200b3ca4b582494abc29d1bc82280"
+        }
+      ]
+    },
+    {
+      "id": "esp32s3-8mb-uart",
+      "chip": "esp32s3",
+      "flash_bytes": 8388608,
+      "console": "uart",
+      "partition_sha256": "23bf73995ce6bfc3f1fd6129502231c133725720274123d304829d70a0bc933e",
+      "parts": [
+        {
+          "name": "bootloader.bin",
+          "offset": 0,
+          "size": 18880,
+          "sha256": "d771f86ccbdbcf0be8d83492860e65da81d7f187be791579482c2c37eb9d565a"
+        },
+        {
+          "name": "partition-table.bin",
+          "offset": 32768,
+          "size": 3072,
+          "sha256": "23bf73995ce6bfc3f1fd6129502231c133725720274123d304829d70a0bc933e"
+        },
+        {
+          "name": "ota_data_initial.bin",
+          "offset": 61440,
+          "size": 8192,
+          "sha256": "7d2c7ac4888bfd75cd5f56e8d61f69595121183afc81556c876732fd3782c62f"
+        },
+        {
+          "name": "esp32-csi-node.bin",
+          "offset": 131072,
+          "size": 970144,
+          "sha256": "e94cdafabbcadcf77993147e06c648480baeec3fae47b1ee9b94c2e4eb08450b"
+        }
+      ]
+    },
+    {
+      "id": "esp32s3-8mb-cdc",
+      "chip": "esp32s3",
+      "flash_bytes": 8388608,
+      "console": "cdc",
+      "partition_sha256": "23bf73995ce6bfc3f1fd6129502231c133725720274123d304829d70a0bc933e",
+      "parts": [
+        {
+          "name": "bootloader.bin",
+          "offset": 0,
+          "size": 18736,
+          "sha256": "59615ecf808724023c7760c33449123c629abc5da6ae64b8125a9315dc0a5ec2"
+        },
+        {
+          "name": "partition-table.bin",
+          "offset": 32768,
+          "size": 3072,
+          "sha256": "23bf73995ce6bfc3f1fd6129502231c133725720274123d304829d70a0bc933e"
+        },
+        {
+          "name": "ota_data_initial.bin",
+          "offset": 61440,
+          "size": 8192,
+          "sha256": "7d2c7ac4888bfd75cd5f56e8d61f69595121183afc81556c876732fd3782c62f"
+        },
+        {
+          "name": "esp32-csi-node.bin",
+          "offset": 131072,
+          "size": 964016,
+          "sha256": "225d2e157f54d807c53b2eec56a2bf307939603f8e54acbaa372599a8766a8cf"
+        }
+      ]
+    },
+    {
+      "id": "esp32c6-4mb-uart",
+      "chip": "esp32c6",
+      "flash_bytes": 4194304,
+      "console": "uart",
+      "partition_sha256": "4c2cc4ffd52641e23b779bd57b3908014083ac3c1aab395756478c89e70d81f0",
+      "parts": [
+        {
+          "name": "bootloader.bin",
+          "offset": 0,
+          "size": 19568,
+          "sha256": "666663f5d90a5f9a12fbd44614b21cb78e460c33cdd3901f2df9fe51b502015c"
+        },
+        {
+          "name": "partition-table.bin",
+          "offset": 32768,
+          "size": 3072,
+          "sha256": "4c2cc4ffd52641e23b779bd57b3908014083ac3c1aab395756478c89e70d81f0"
+        },
+        {
+          "name": "ota_data_initial.bin",
+          "offset": 61440,
+          "size": 8192,
+          "sha256": "7d2c7ac4888bfd75cd5f56e8d61f69595121183afc81556c876732fd3782c62f"
+        },
+        {
+          "name": "esp32-csi-node.bin",
+          "offset": 131072,
+          "size": 1049600,
+          "sha256": "7128b03686e87a829ab0201c54a11c6b1645de6dd661492d792a2a113d678328"
+        }
+      ]
+    },
+    {
+      "id": "esp32c6-4mb-cdc",
+      "chip": "esp32c6",
+      "flash_bytes": 4194304,
+      "console": "cdc",
+      "partition_sha256": "4c2cc4ffd52641e23b779bd57b3908014083ac3c1aab395756478c89e70d81f0",
+      "parts": [
+        {
+          "name": "bootloader.bin",
+          "offset": 0,
+          "size": 19456,
+          "sha256": "b601861c692a4e322ecd001621e92fb549caa9968a70551026e0f4f1b4ea922c"
+        },
+        {
+          "name": "partition-table.bin",
+          "offset": 32768,
+          "size": 3072,
+          "sha256": "4c2cc4ffd52641e23b779bd57b3908014083ac3c1aab395756478c89e70d81f0"
+        },
+        {
+          "name": "ota_data_initial.bin",
+          "offset": 61440,
+          "size": 8192,
+          "sha256": "7d2c7ac4888bfd75cd5f56e8d61f69595121183afc81556c876732fd3782c62f"
+        },
+        {
+          "name": "esp32-csi-node.bin",
+          "offset": 131072,
+          "size": 1042560,
+          "sha256": "2513babea3f12f433642ffa0d47e8db517968cc625cc359dcfda79886502e97a"
+        }
+      ]
+    }
+  ],
+  "docker_platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
+  "firmware_builder": "espressif/idf@sha256:f1e9f69dc052b9afc7801ca884e0ef40c17e014bb05ce73d9c09d29290bd17fb"
+}

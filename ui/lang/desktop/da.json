@@ -1,4 +1,5 @@
 {
+  "desktop.app_ruview": "RuView",
   "desktop.fm.storage_offline": "Ikke tilgængelig",
   "desktop.fm.storage_readonly": "Kun læsning",
   "desktop.fm.storage_access_denied": "Lagerudbyderen afviste adgangen. Kontrollér login og tilladelser hos udbyderen, også for tilknyttede konti.",

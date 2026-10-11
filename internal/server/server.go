@@ -57,6 +57,7 @@ import (
 	"aurago/internal/retronet"
 	"aurago/internal/rocketchat"
 	"aurago/internal/rtlsdr"
+	"aurago/internal/ruview"
 	"aurago/internal/security"
 	"aurago/internal/services"
 	"aurago/internal/sipphone"
@@ -192,6 +193,7 @@ type Server struct {
 	CronManager               *tools.CronManager
 	BackgroundTasks           *tools.BackgroundTaskManager
 	Go2RTC                    *tools.Go2RTCManager
+	RuView                    *ruview.Manager
 	LocalLLM                  *localllm.Manager
 	LocalMusic                *acestep.Manager
 	LocalWiki                 *localwiki.Manager
@@ -490,6 +492,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	RegisterLLMSecrets(cfg)
 	s.Cfg = cfg
 	s.cfgSnapshot.Store(cfg)
+	if s.RuView != nil {
+		s.RuView.Configure()
+	}
 	s.finishVideoStudioConfigChange()
 	if hub := s.RemoteHub; hub != nil && previous != nil &&
 		(!slices.Equal(previous.RemoteControl.AllowedPaths, cfg.RemoteControl.AllowedPaths) ||
@@ -715,6 +720,9 @@ func Start(opts StartOptions) error {
 	if s.Go2RTC != nil {
 		s.Go2RTC.StartBackground(serverCtx)
 	}
+	if s.RuView != nil {
+		s.RuView.StartBackground(serverCtx)
+	}
 	if s.LocalMusic != nil {
 		s.LocalMusic.Start()
 	}
@@ -771,6 +779,9 @@ func Start(opts StartOptions) error {
 		}
 		if s.Go2RTC != nil {
 			s.Go2RTC.Close()
+		}
+		if s.RuView != nil {
+			s.RuView.Close()
 		}
 		if tools.DefaultGo2RTCManager() == s.Go2RTC {
 			tools.SetDefaultGo2RTCManager(nil)
@@ -1723,6 +1734,8 @@ func newServerFromOptions(opts StartOptions) *Server {
 		s.VaultSecretPrompter = vaultprompt.NewManager(opts.Vault, 5*time.Minute)
 	}
 	s.Go2RTC = tools.NewGo2RTCManager(cfg, opts.Vault, opts.MediaRegistryDB, logger)
+	s.RuView = ruview.New(s.ConfigSnapshot, opts.Vault, logger)
+	ruview.SetDefault(s.RuView)
 	s.LocalMusic = acestep.New(cfg, opts.Vault, logger)
 	acestep.SetDefault(s.LocalMusic)
 	s.Go2RTCDiscovery = onvif.NewService(cfg.Runtime.BroadcastOK)

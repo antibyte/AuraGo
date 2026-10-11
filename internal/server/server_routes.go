@@ -688,6 +688,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/radio-browser/", handleRadioBrowserProxy(s))
 
 	registerGo2RTCRoutes(mux, s)
+	registerRuViewRoutes(mux, s)
 	registerLocalLLMRoutes(mux, s)
 	registerLocalWikipediaRoutes(mux, s)
 	registerLLMRouterRoutes(mux, s)

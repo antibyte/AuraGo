@@ -10,6 +10,7 @@
                    "WhiteSur"
                ],
     "icons":  {
+    "ruview": "img/whitesur/icons/ruview.svg",
                   "layerling": "img/desktop-icons/layerling.svg",
     "ha-switchboard": "img/whitesur/icons/ha-switchboard.svg",
                   "leafy": "img/whitesur/icons/leafy.svg",

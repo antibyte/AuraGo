@@ -19,6 +19,7 @@
     }
 
     const DESKTOP_APP_ASSETS = {
+        'ruview': { styles: appStyles('/css/ruview.css'), scripts: ['/js/desktop/apps/ruview.js'] },
         'ha-switchboard': {
             styles: appStyles('/css/ha-switchboard.css'),
             scripts: ['/js/desktop/apps/ha-switchboard.js']
@@ -535,6 +536,7 @@
     // App id → i18n section prefixes to merge into window.I18N before scripts run.
     // Shell only embeds desktop.*; apps load their own sections on demand.
     const APP_I18N_SECTIONS = {
+        'ruview': ['ruview'],
         'agent-chat': ['chat'],
         'cheater': ['cheater'],
         'easydrag': ['easydrag'],

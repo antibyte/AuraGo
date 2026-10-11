@@ -132,6 +132,7 @@ type ToolFeatureFlags struct {
 	ProxmoxEnabled          bool
 	FrigateEnabled          bool
 	Go2RTCEnabled           bool
+	RuViewEnabled           bool
 	RTLSDREnabled           bool
 	LayerlingEnabled        bool
 	LocalWikipediaEnabled   bool

@@ -72,6 +72,10 @@
       "version": "1.5.3",
       "license": "MIT"
     },
+    "atob-lite": {
+      "version": "2.0.0",
+      "license": "MIT"
+    },
     "chart.js": {
       "version": "4.5.1",
       "license": "MIT"
@@ -272,6 +276,10 @@
       "version": "10.4.0",
       "license": "Apache-2.0"
     },
+    "esptool-js": {
+      "version": "0.6.1",
+      "license": "Apache-2.0"
+    },
     "float-tooltip": {
       "version": "1.7.5",
       "license": "MIT"
@@ -346,6 +354,10 @@
     "ngraph.random": {
       "version": "1.2.0",
       "license": "BSD-3-Clause"
+    },
+    "pako": {
+      "version": "2.2.0",
+      "license": "(MIT AND Zlib)"
     },
     "pdfjs-dist": {
       "version": "6.3.289",
@@ -600,6 +612,10 @@
     "ui/js/vendor/esp-web-tools/styles-sT2V1cOw.js": {
       "bytes": 59522,
       "sha256": "ad32b41ad8507aed4f7241178d9a472457355ecf0282faaa655de3ea37809c9a"
+    },
+    "ui/js/vendor/ruview-esptool.js": {
+      "bytes": 218260,
+      "sha256": "c30e1a34fed03b1fe8220f908f427d55fcc481ade237f1e148a7cbef8f728136"
     },
     "ui/js/vendor/pdf/cmaps/78-EUC-H.bcmap": {
       "bytes": 2404,
@@ -1458,8 +1474,8 @@
       "sha256": "bd9a843a7f83a857b52d0c1221770e27d9e890c6649b690b3b2e587dbdacb531"
     },
     "ui/js/vendor/LICENSES.md": {
-      "bytes": 225643,
-      "sha256": "60ec4e7ad3e9c22e36ee82eafbe8632902ccbfd7375dc01d8f16565bd49e19ce"
+      "bytes": 239289,
+      "sha256": "5be7508e4efddde493b1ed5f6e5510a9fa708e141383f3e263e1927a0e2175e9"
     }
   }
 }

@@ -1,4 +1,5 @@
 {
+  "desktop.app_ruview": "RuView",
   "desktop.fm.storage_offline": "Indisponível",
   "desktop.fm.storage_readonly": "Só leitura",
   "desktop.fm.storage_access_denied": "O fornecedor de armazenamento recusou o acesso. Verifica junto dele o início de sessão e as permissões, incluindo as contas ligadas.",

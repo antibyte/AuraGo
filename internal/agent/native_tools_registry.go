@@ -69,6 +69,7 @@ func builtinToolSchemasCached(ff ToolFeatureFlags) []openai.Tool {
 func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 	return ToolFeatureFlags{
 		HomeAssistantEnabled: true, DockerEnabled: true, CoAgentEnabled: true, SudoEnabled: true,
+		RuViewEnabled: true,
 		WebhooksEnabled: true, ProxmoxEnabled: true, FrigateEnabled: true, Go2RTCEnabled: true, ThreeDPrinterEnabled: true, OllamaEnabled: true, TailscaleEnabled: true,
 		AnsibleEnabled: true, InvasionControlEnabled: true, GitHubEnabled: true, HuggingFaceEnabled: true, MQTTEnabled: true, CydEnabled: true, NotificationEnabled: true,
 		AdGuardEnabled: true, UptimeKumaEnabled: true, GrafanaEnabled: true, MCPEnabled: true, ComposioEnabled: true, ManusEnabled: true, EvomapEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
@@ -132,6 +133,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("proxmox", ff.ProxmoxEnabled)
 	appendToolFeatureKeyPart("frigate", ff.FrigateEnabled)
 	appendToolFeatureKeyPart("go2rtc", ff.Go2RTCEnabled)
+	appendToolFeatureKeyPart("ruview", ff.RuViewEnabled)
 	appendToolFeatureKeyPart("rtl_sdr", ff.RTLSDREnabled)
 	appendToolFeatureKeyPart("layerling", ff.LayerlingEnabled)
 	appendToolFeatureKeyPart("local_wikipedia", ff.LocalWikipediaEnabled)

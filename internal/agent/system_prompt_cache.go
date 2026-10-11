@@ -453,6 +453,9 @@ func collectEnabledTools(flags *prompts.ContextFlags) []string {
 	if flags.Go2RTCEnabled {
 		tools = append(tools, "go2rtc")
 	}
+	if flags.RuViewEnabled {
+		tools = append(tools, "ruview")
+	}
 	if flags.LayerlingEnabled {
 		tools = append(tools, "layerling")
 	}

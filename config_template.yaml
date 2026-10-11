@@ -1482,6 +1482,23 @@ rtl_sdr:
   device: ""                       # Enumerated USB port ID; empty selects the only dongle
   quota_gb: 10                     # 1-1000 GB; recordings are never automatically deleted
 
+# RuView v3122: experimental Wi-Fi sensing; credentials are stored in the Vault.
+ruview:
+    enabled: false
+    readonly: true
+    agent_access: false
+    mode: docker              # docker | native (Windows/macOS host) | external
+    source: esp32             # esp32 | wifi | simulated (explicit demo)
+    url: ""                   # External HTTP(S) origin; no path or credentials
+    allow_private: false
+    http_port: 3022            # Loopback HTTP; the next port is reserved internally
+    receiver_ip: ""            # Reachable private IPv4 of the RuView receiver
+    udp_enabled: false
+    udp_bind: ""               # Explicit private LAN IPv4; never 0.0.0.0
+    udp_port: 5005
+    udp_allow: []              # Private IPv4 addresses or canonical private CIDRs
+    storage_mb: 1024
+
 go2rtc:
     enabled: false
     auto_start: true

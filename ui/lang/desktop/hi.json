@@ -1,4 +1,5 @@
 {
+  "desktop.app_ruview": "RuView",
   "desktop.fm.storage_offline": "उपलब्ध नहीं",
   "desktop.fm.storage_readonly": "केवल पढ़ने के लिए",
   "desktop.fm.storage_access_denied": "स्टोरेज प्रदाता ने पहुँच अस्वीकार कर दी है। प्रदाता के यहाँ साइन-इन और अनुमतियाँ जाँचें, जुड़े हुए खातों की भी।",

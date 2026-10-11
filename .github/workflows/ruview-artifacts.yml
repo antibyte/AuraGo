@@ -1,0 +1,108 @@
+name: RuView pinned artifacts
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  RUVIEW_REVISION: a71634ae8a606bba5463489450c69e8b42de114e
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2025
+            platform: windows-amd64
+          - runner: macos-15-intel
+            platform: darwin-amd64
+          - runner: macos-15
+            platform: darwin-arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ruvnet/RuView
+          ref: a71634ae8a606bba5463489450c69e8b42de114e
+          path: upstream
+          persist-credentials: false
+      - name: Resolve pinned submodules and compiler
+        shell: bash
+        run: |
+          test "$(git -C upstream rev-parse HEAD)" = "$RUVIEW_REVISION"
+          git -C upstream submodule update --init --depth 1 vendor/ruvector vendor/rufield v2/crates/worldgraph v2/crates/ruview-swarm v2/crates/ruforecast v2/crates/ruv-neural
+          rustup toolchain install 1.89.0 --profile minimal
+      - name: Build native runtime
+        shell: bash
+        run: |
+          cd upstream/v2
+          if [ "$RUNNER_OS" = Windows ]; then
+            export RUSTFLAGS='-C target-feature=+crt-static -C link-arg=/Brepro'
+          fi
+          cargo +1.89.0 build --locked --release --no-default-features -p wifi-densepose-sensing-server --bin sensing-server
+          if [ "$RUNNER_OS" = macOS ]; then
+            swiftc -O ../archive/v1/src/sensing/mac_wifi.swift -framework CoreWLAN -o target/release/mac_wifi
+            codesign --force --sign - target/release/mac_wifi
+            codesign --force --sign - target/release/sensing-server
+          fi
+      - name: Verify and package
+        shell: bash
+        run: node scripts/ruview/package-native.mjs --source=upstream --platform=${{ matrix.platform }} --out=artifacts/${{ matrix.platform }}
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ruview-${{ matrix.platform }}
+          path: artifacts/
+          if-no-files-found: error
+  docker:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ruvnet/RuView
+          ref: a71634ae8a606bba5463489450c69e8b42de114e
+          path: upstream
+          persist-credentials: false
+      - name: Resolve pinned submodules
+        run: git -C upstream submodule update --init --depth 1 vendor/ruvector vendor/rufield v2/crates/worldgraph v2/crates/ruview-swarm v2/crates/ruforecast v2/crates/ruv-neural
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build without publication
+        run: |
+          mkdir -p artifacts
+          docker buildx build --platform linux/${{ matrix.arch }} -f scripts/ruview/Dockerfile --output type=oci,dest=artifacts/ruview-${{ matrix.arch }}.tar --metadata-file artifacts/build.json upstream
+          sha256sum artifacts/ruview-${{ matrix.arch }}.tar > artifacts/SHA256SUMS
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ruview-linux-${{ matrix.arch }}
+          path: artifacts/
+          if-no-files-found: error
+  firmware:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ruvnet/RuView
+          ref: a71634ae8a606bba5463489450c69e8b42de114e
+          path: upstream
+          persist-credentials: false
+      - name: Build all six supported profiles
+        run: |
+          cp scripts/ruview/build-firmware.sh upstream/firmware/esp32-csi-node/aurago-build.sh
+          docker run --rm --mount type=bind,source="$PWD/upstream/firmware/esp32-csi-node",target=/project espressif/idf@sha256:f1e9f69dc052b9afc7801ca884e0ef40c17e014bb05ce73d9c09d29290bd17fb bash /project/aurago-build.sh
+          node scripts/ruview/catalog-firmware.mjs --build=upstream/firmware/esp32-csi-node/out
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ruview-firmware
+          path: |
+            ui/js/vendor/ruview-firmware/
+            internal/ruview/artifacts.json
+          if-no-files-found: error

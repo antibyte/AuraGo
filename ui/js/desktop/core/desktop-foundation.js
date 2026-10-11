@@ -98,6 +98,7 @@
     };
     const appIconKeys = {
         'ha-switchboard': 'ha-switchboard',
+        'ruview': 'ruview',
         analytics: 'analytics',
         backup: 'backup',
         backups: 'backup',
@@ -593,6 +594,7 @@
             'rtl-sdr': 'RTLSDRApp',
             bluetooth: 'BluetoothApp',
             'ha-switchboard': 'HASwitchboardApp',
+            'ruview': 'RuViewApp',
             files: 'FileManager',
             writer: 'WriterApp',
             sheets: 'SheetsApp',

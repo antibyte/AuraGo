@@ -419,6 +419,7 @@ var desktopPreferredIconNames = []string{
 	"radio",
 	"rtl-sdr",
 	"ha-switchboard",
+	"ruview",
 	"redo",
 	"refresh",
 	"romm",
@@ -784,6 +785,7 @@ func BuiltinApps() []AppManifest {
 	apps := []AppManifest{
 		{ID: "video-studio", Name: "Video Studio", Version: "1.0.0", Icon: "video-studio", Entry: "builtin://video-studio", Runtime: BuiltinRuntime, Category: "creative", Description: "Edit multitrack videos with transitions, titles, stickers and optional AI clips.", Permissions: []string{"files:read", "files:write", "notifications"}, Metadata: map[string]string{"open_maximized": "true"}},
 		{ID: "ha-switchboard", Name: "HA Switchboard", Version: "1.0.0", Icon: "ha-switchboard", Entry: "builtin://ha-switchboard", Runtime: BuiltinRuntime, Category: "comms", Description: "Control selected Home Assistant switches on a walnut and silver switchboard."},
+		{ID: "ruview", Name: "RuView", Version: "1.0.0", Icon: "ruview", Entry: "builtin://ruview", Runtime: BuiltinRuntime, Category: "comms", Description: "Wi-Fi sensing, RuView dashboards and optional ESP32 onboarding."},
 		{ID: "files", Name: "Files", Version: "1.0.0", Icon: "folder", Entry: "builtin://files", Runtime: BuiltinRuntime, Category: "system", Description: "Browse and manage desktop workspace files."},
 		{ID: "editor", Name: "Editor", Version: "1.0.0", Icon: "edit", Entry: "builtin://editor", Runtime: BuiltinRuntime, Category: "office", Description: "Edit workspace text files."},
 		{ID: "writer", Name: "Writer", Version: "1.0.0", Icon: "writer", Entry: "builtin://writer", Runtime: BuiltinRuntime, Category: "office", Description: "Create and edit basic word-processing documents.", Permissions: []string{"files:read", "files:write", "notifications"}},
