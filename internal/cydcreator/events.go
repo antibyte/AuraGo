@@ -1,6 +1,7 @@
 package cydcreator
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -53,12 +54,19 @@ type eventSubscriber struct {
 	closed bool
 }
 
+// marshalEventData encodes event data as compact (single-line) JSON, so an
+// SSE frame always carries it on one "data:" line. json.Marshal output is
+// compact already; a caller's json.RawMessage is compacted.
 func marshalEventData(data any) json.RawMessage {
 	if data == nil {
 		return json.RawMessage(`{}`)
 	}
 	if raw, ok := data.(json.RawMessage); ok && json.Valid(raw) {
-		return raw
+		var compact bytes.Buffer
+		if err := json.Compact(&compact, raw); err != nil {
+			return json.RawMessage(`{}`)
+		}
+		return compact.Bytes()
 	}
 	encoded, err := json.Marshal(data)
 	if err != nil {
@@ -219,4 +227,16 @@ func (s *Service) EventsAfter(ctx context.Context, projectID string, after int64
 		return nil, s.internalError("list events", err)
 	}
 	return out, nil
+}
+
+// LatestEventSeq returns the seq of the project's newest persisted event, 0
+// when it has none. An SSE resume point above it cannot come from this
+// database (forged, or the database was restored or reset), so the stream
+// asks the client to reload.
+func (s *Service) LatestEventSeq(ctx context.Context, projectID string) (int64, error) {
+	var seq int64
+	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(MAX(seq),0) FROM cc_events WHERE project_id=?`, projectID).Scan(&seq); err != nil {
+		return 0, s.internalError("read events", fmt.Errorf("query newest event: %w", err))
+	}
+	return seq, nil
 }

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"aurago/internal/cydcreator"
+	"aurago/internal/desktop"
 	"aurago/internal/security"
 )
 
@@ -100,6 +101,29 @@ func findCYDRoute(routes []cydRoute, method, rel string) (route cydRoute, params
 	return cydRoute{}, nil, false, pathFound
 }
 
+// cydAllowedMethods is the Allow header of a 405 for rel: the methods of the
+// routes with that path (HEAD wherever GET is), sorted.
+func cydAllowedMethods(routes []cydRoute, rel string) string {
+	var methods []string
+	for _, candidate := range routes {
+		if _, matched := matchCYDRoute(candidate.Pattern, rel); !matched {
+			continue
+		}
+		methods = append(methods, candidate.Method)
+		if candidate.Method == http.MethodGet {
+			methods = append(methods, http.MethodHead)
+		}
+	}
+	slices.Sort(methods)
+	return strings.Join(slices.Compact(methods), ", ")
+}
+
+// cydMethodNotAllowed writes the 405 answer with its Allow header.
+func cydMethodNotAllowed(w http.ResponseWriter, routes []cydRoute, rel string) {
+	w.Header().Set("Allow", cydAllowedMethods(routes, rel))
+	cydWriteError(w, http.StatusMethodNotAllowed, cydcreator.CodeBadRequest, "method not allowed", nil)
+}
+
 func validCYDParams(params map[string]string) bool {
 	for name, value := range params {
 		switch name {
@@ -149,16 +173,29 @@ func cydCreatorOriginOK(r *http.Request) bool {
 }
 
 // cydCreatorUnavailable writes the CYD_DISABLED answer. When the feature is
-// switched on but initCYDCreator refused or failed to start it, the generic
-// reason (cydCreatorProblem: no paths, no secrets) goes along as
-// details.problem.
+// switched on but has no service, details say why, mirroring
+// cydCreatorRestartReason: details.problem is the generic reason (no paths,
+// no secrets) of a storage refusal of the live configuration (a restart would
+// be refused again) or of a failed start; otherwise details.restart_required
+// is true (switched on since startup, or the refusal was fixed since).
 func (s *Server) cydCreatorUnavailable(w http.ResponseWriter) {
-	if cfg := s.ConfigSnapshot(); cfg != nil && cfg.CYDCreator.Enabled && s.cydCreatorProblem != "" {
-		cydWriteError(w, http.StatusServiceUnavailable, cydcreator.CodeDisabled, "CYD Creator is not available",
-			map[string]any{"problem": s.cydCreatorProblem})
+	cfg := s.ConfigSnapshot()
+	if cfg == nil || !cfg.CYDCreator.Enabled || s.CYDCreator != nil {
+		cydWriteError(w, http.StatusServiceUnavailable, cydcreator.CodeDisabled, "CYD Creator is switched off", nil)
 		return
 	}
-	cydWriteError(w, http.StatusServiceUnavailable, cydcreator.CodeDisabled, "CYD Creator is switched off", nil)
+	if problem := cydCreatorStorageProblem(cfg, desktop.ConfigFromAuraConfig(cfg).WorkspaceDir); problem != "" {
+		cydWriteError(w, http.StatusServiceUnavailable, cydcreator.CodeDisabled, "CYD Creator is not available",
+			map[string]any{"problem": problem})
+		return
+	}
+	if s.cydCreatorProblem == cydCreatorStartFailed {
+		cydWriteError(w, http.StatusServiceUnavailable, cydcreator.CodeDisabled, "CYD Creator is not available; restart AuraGo to try again",
+			map[string]any{"problem": cydCreatorStartFailed, "restart_required": true})
+		return
+	}
+	cydWriteError(w, http.StatusServiceUnavailable, cydcreator.CodeDisabled, "CYD Creator was switched on; restart AuraGo to start it",
+		map[string]any{"restart_required": true})
 }
 
 // handleCYDCreator authenticates, applies the feature and read-only gates
@@ -175,7 +212,7 @@ func (s *Server) handleCYDCreator(w http.ResponseWriter, r *http.Request) {
 	}
 	switch {
 	case !ok && pathFound:
-		cydWriteError(w, http.StatusMethodNotAllowed, cydcreator.CodeBadRequest, "method not allowed", nil)
+		cydMethodNotAllowed(w, cydCreatorRoutes(s), rel)
 		return
 	case !ok || !validCYDParams(params):
 		cydWriteError(w, http.StatusNotFound, cydcreator.CodeNotFound, "unknown CYD Creator route", nil)
@@ -209,7 +246,7 @@ func (s *Server) handleCYDCreatorDevice(w http.ResponseWriter, r *http.Request) 
 	route, params, ok, pathFound := findCYDRoute(cydCreatorDeviceRoutes(s), r.Method, rel)
 	switch {
 	case !ok && pathFound:
-		cydWriteError(w, http.StatusMethodNotAllowed, cydcreator.CodeBadRequest, "method not allowed", nil)
+		cydMethodNotAllowed(w, cydCreatorDeviceRoutes(s), rel)
 	case !ok || !validCYDParams(params):
 		cydWriteError(w, http.StatusNotFound, cydcreator.CodeNotFound, "unknown CYD Creator device route", nil)
 	case !s.cydCreatorAvailable():

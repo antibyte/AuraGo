@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -123,11 +124,31 @@ func (s *Server) cydDecodeBacktrace(w http.ResponseWriter, r *http.Request, para
 	cydWriteJSON(w, http.StatusOK, map[string]any{"frames": frames})
 }
 
-func writeCYDSSE(w io.Writer, ev cydcreator.Event) {
+// writeCYDSSE writes one event frame. Event data is compact JSON
+// (cydcreator.marshalEventData), so it always fits one "data:" line.
+func writeCYDSSE(w io.Writer, ev cydcreator.Event) error {
 	if ev.Seq > 0 {
-		_, _ = fmt.Fprintf(w, "id: %d\n", ev.Seq)
+		if _, err := fmt.Fprintf(w, "id: %d\n", ev.Seq); err != nil {
+			return err
+		}
 	}
-	_, _ = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", ev.Type, ev.Data)
+	_, err := fmt.Fprintf(w, "event: %s\ndata: %s\n\n", ev.Type, ev.Data)
+	return err
+}
+
+// cydSSEWriteTimeout bounds each write of an event stream, so a client that
+// stops reading ends the stream instead of pinning the handler; heartbeats
+// re-arm it. The API listeners' httpstream wrapper renews its own budget per
+// write too. The deadline is never cleared (a stuck client must time out).
+const cydSSEWriteTimeout = 30 * time.Second
+
+// armCYDSSEWrite sets the write deadline for the next frame. Writers without
+// deadline support (httptest recorders) own their transport.
+func armCYDSSEWrite(rc *http.ResponseController) error {
+	if err := rc.SetWriteDeadline(time.Now().Add(cydSSEWriteTimeout)); err != nil && !errors.Is(err, http.ErrNotSupported) {
+		return err
+	}
+	return nil
 }
 
 // cydEventsPruned reports whether the project's persisted events after
@@ -146,23 +167,26 @@ func cydEventsPruned(ctx context.Context, svc *cydcreator.Service, projectID str
 
 // cydEvents streams project events: the persisted backlog after
 // max(?after=, Last-Event-ID) in pages of 500, then stream_ready (no id),
-// then live events; ": ping" every 15 s. The subscription is taken before the
-// backlog is read, so an event emitted in between reaches both and the live
-// loop drops it by seq (ephemeral events, seq 0, are never dropped). When
-// events after the resume point were pruned, stream_ready carries
-// {"reload":true}: the client reloads the project state. A subscriber that
-// falls behind is dropped by the service and a closed subscription (project
-// deleted, service closed) ends the stream; the client reconnects with
-// Last-Event-ID. The handler starts no goroutine and returns when the client
-// goes away.
+// then live events; ": ping" every 15 s. Negative or unparsable resume
+// points count as 0. The subscription is taken before the backlog is read,
+// so an event emitted in between reaches both and the live loop drops it by
+// seq (ephemeral events, seq 0, are never dropped). stream_ready carries
+// {"reload":true} when the client's state cannot be continued: events after
+// the resume point were pruned, or the resume point lies above the project's
+// newest event (forged, or the database was restored or reset; the stream
+// then continues from the newest event). A subscriber that falls behind is
+// dropped by the service and a closed subscription (project deleted, service
+// closed) ends the stream; the client reconnects with Last-Event-ID. Every
+// frame is written under cydSSEWriteTimeout and the first failed write or
+// flush ends the stream. The handler starts no goroutine and returns when
+// the client goes away.
 func (s *Server) cydEvents(w http.ResponseWriter, r *http.Request, params map[string]string) {
 	svc, projectID := s.CYDCreator, params["id"]
 	if _, err := svc.GetProject(r.Context(), projectID); err != nil {
 		s.cydError(w, r, err)
 		return
 	}
-	flusher, ok := w.(http.Flusher)
-	if !ok {
+	if _, ok := w.(http.Flusher); !ok {
 		cydWriteError(w, http.StatusInternalServerError, cydcreator.CodeInternal, "streaming is not supported", nil)
 		return
 	}
@@ -172,18 +196,35 @@ func (s *Server) cydEvents(w http.ResponseWriter, r *http.Request, params map[st
 			after = v
 		}
 	}
-	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-cache, no-store")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("X-Accel-Buffering", "no")
+	setHeaders := func() {
+		w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache, no-store")
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("X-Accel-Buffering", "no")
+	}
 	if r.Method == http.MethodHead {
+		setHeaders()
 		w.WriteHeader(http.StatusOK)
 		return
 	}
+	reload := false
+	if after > 0 {
+		// Read before subscribing: an event emitted afterwards has a larger
+		// seq and reaches the backlog, so lowering after loses nothing.
+		newest, err := svc.LatestEventSeq(r.Context(), projectID)
+		if err != nil {
+			s.cydError(w, r, err)
+			return
+		}
+		if after > newest {
+			after, reload = newest, true
+		}
+	}
 	events, unsubscribe := svc.Subscribe(projectID)
 	defer unsubscribe()
+	setHeaders()
 	w.WriteHeader(http.StatusOK)
-	reload := false
+	rc := http.NewResponseController(w)
 	for {
 		cursor := after
 		page, err := svc.EventsAfter(r.Context(), projectID, after, cydSSEPage)
@@ -196,7 +237,9 @@ func (s *Server) cydEvents(w http.ResponseWriter, r *http.Request, params map[st
 			}
 		}
 		for _, ev := range page {
-			writeCYDSSE(w, ev)
+			if armCYDSSEWrite(rc) != nil || writeCYDSSE(w, ev) != nil {
+				return
+			}
 			after = ev.Seq
 		}
 		if len(page) < cydSSEPage {
@@ -207,8 +250,12 @@ func (s *Server) cydEvents(w http.ResponseWriter, r *http.Request, params map[st
 	if reload {
 		ready = `{"reload":true}`
 	}
-	_, _ = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", cydcreator.EventStreamReady, ready)
-	flusher.Flush()
+	if armCYDSSEWrite(rc) != nil {
+		return
+	}
+	if _, err := fmt.Fprintf(w, "event: %s\ndata: %s\n\n", cydcreator.EventStreamReady, ready); err != nil || rc.Flush() != nil {
+		return
+	}
 	ping := time.NewTicker(cydSSEHeartbeat)
 	defer ping.Stop()
 	for {
@@ -222,14 +269,19 @@ func (s *Server) cydEvents(w http.ResponseWriter, r *http.Request, params map[st
 			if ev.Seq > 0 && ev.Seq <= after {
 				continue // already sent with the backlog
 			}
-			writeCYDSSE(w, ev)
+			if armCYDSSEWrite(rc) != nil || writeCYDSSE(w, ev) != nil || rc.Flush() != nil {
+				return
+			}
 			if ev.Seq > 0 {
 				after = ev.Seq
 			}
-			flusher.Flush()
 		case <-ping.C:
-			_, _ = fmt.Fprint(w, ": ping\n\n")
-			flusher.Flush()
+			if armCYDSSEWrite(rc) != nil {
+				return
+			}
+			if _, err := fmt.Fprint(w, ": ping\n\n"); err != nil || rc.Flush() != nil {
+				return
+			}
 		}
 	}
 }

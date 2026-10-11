@@ -493,9 +493,27 @@ func TestCYDCreatorCapabilitiesOverlayConfigSessionAndProblem(t *testing.T) {
 	f.s.CYDCreator, f.s.cydCreatorProblem = nil, cydCreatorStartFailed
 	w := f.do(f.read, http.MethodGet, "capabilities", nil, nil)
 	refused := wantCYDError(t, w, http.StatusServiceUnavailable, cydcreator.CodeDisabled)
-	if refused.Details["problem"] != cydCreatorStartFailed || strings.Contains(w.Body.String(), filepath.Dir(f.dbPath)) {
+	if refused.Details["problem"] != cydCreatorStartFailed || refused.Details["restart_required"] != true || strings.Contains(w.Body.String(), filepath.Dir(f.dbPath)) {
+		t.Fatalf("failed-start answer = %s", w.Body.String())
+	}
+	// Switched on at runtime without a restart: say so, not "switched off".
+	f.s.cydCreatorProblem = ""
+	w = f.do(f.read, http.MethodGet, "capabilities", nil, nil)
+	pending := wantCYDError(t, w, http.StatusServiceUnavailable, cydcreator.CodeDisabled)
+	if pending.Details["restart_required"] != true || !strings.Contains(pending.Error, "restart") || pending.Details["problem"] != nil {
+		t.Fatalf("switched-on answer = %s", w.Body.String())
+	}
+	// The live configuration would be refused again: the refusal, no restart hint.
+	workspace := filepath.Join(t.TempDir(), "virtual_desktop")
+	f.s.Cfg.VirtualDesktop.WorkspaceDir = workspace
+	f.s.Cfg.SQLite.CYDCreatorPath = filepath.Join(workspace, "cyd.db")
+	w = f.do(f.read, http.MethodGet, "capabilities", nil, nil)
+	storage := wantCYDError(t, w, http.StatusServiceUnavailable, cydcreator.CodeDisabled)
+	if storage.Details["problem"] != "sqlite.cyd_creator_path lies inside the virtual desktop workspace" || storage.Details["restart_required"] != nil ||
+		strings.Contains(w.Body.String(), "virtual_desktop"+string(filepath.Separator)) {
 		t.Fatalf("refused answer = %s", w.Body.String())
 	}
+	f.s.Cfg.VirtualDesktop.WorkspaceDir, f.s.Cfg.SQLite.CYDCreatorPath = "", ""
 	f.s.CYDCreator, f.s.cydCreatorProblem = svc, ""
 
 	// Switched off: no hint.
@@ -570,6 +588,47 @@ func TestCYDCreatorJSONBodiesAreCapped(t *testing.T) {
 	huge := `{"project":"` + strings.Repeat("a", cydcreator.MaxLayoutBytes+cydLayoutBodySlop) + `"}`
 	wantCYDError(t, f.do(f.admin, http.MethodPut, "projects/"+p.ID+"/layout", strings.NewReader(huge), map[string]string{"If-Match": "1"}),
 		http.StatusUnprocessableEntity, cydcreator.CodeInvalidLayout)
+}
+
+func TestCYDCreatorJSONBodiesHoldOneStrictValue(t *testing.T) {
+	f := newCYDTestServer(t)
+	p := f.createProject(t, "Strict")
+	for _, body := range []string{`{"name":"A"} {"name":"B"}`, `{"name":"A"}x`, `{"name":"A","title":"x"}`, `{"name":7}`, `[`} {
+		refused := wantCYDError(t, f.do(f.admin, http.MethodPatch, "projects/"+p.ID, strings.NewReader(body), nil), http.StatusBadRequest, cydcreator.CodeBadRequest)
+		if strings.Contains(refused.Error, "json") || strings.Contains(refused.Error, "Go ") || strings.Contains(refused.Error, "title") {
+			t.Errorf("body %q: answer echoes decoder text: %q", body, refused.Error)
+		}
+	}
+	wantCYDError(t, f.do(f.read, http.MethodPost, "builds/ccb_x1/decode-backtrace", strings.NewReader(`{"addresses":[]}{}`), nil),
+		http.StatusBadRequest, cydcreator.CodeBadRequest)
+	f.json(t, f.admin, http.MethodPatch, "projects/"+p.ID, "{\"name\":\"B\"}\n\t ", nil, http.StatusOK, nil)
+
+	var layout struct {
+		Version int64              `json:"version"`
+		Project cydcreator.Project `json:"project"`
+	}
+	f.json(t, f.read, http.MethodGet, "projects/"+p.ID+"/layout", "", nil, http.StatusOK, &layout)
+	payload, _ := json.Marshal(map[string]any{"project": layout.Project})
+	ifMatch := map[string]string{"If-Match": fmt.Sprint(layout.Version)}
+	wantCYDError(t, f.do(f.admin, http.MethodPut, "projects/"+p.ID+"/layout", strings.NewReader(string(payload)+`{"project":{}}`), ifMatch),
+		http.StatusUnprocessableEntity, cydcreator.CodeInvalidLayout)
+	f.json(t, f.admin, http.MethodPut, "projects/"+p.ID+"/layout", string(payload)+"\n", ifMatch, http.StatusOK, nil)
+}
+
+func TestCYDCreatorMethodNotAllowedListsTheAllowedMethods(t *testing.T) {
+	f := newCYDTestServer(t)
+	for path, want := range map[string]string{
+		"projects":                    "GET, HEAD, POST",
+		"projects/x1":                 "DELETE, GET, HEAD, PATCH",
+		"builds/x1/cancel":            "POST",
+		"projects/x1/files/src/a.cpp": "DELETE, GET, HEAD, PUT",
+	} {
+		w := f.do(f.admin, http.MethodOptions, path, nil, nil)
+		wantCYDError(t, w, http.StatusMethodNotAllowed, cydcreator.CodeBadRequest)
+		if got := w.Header().Get("Allow"); got != want {
+			t.Errorf("OPTIONS %s: Allow %q, want %q", path, got, want)
+		}
+	}
 }
 
 // cydCountingReader counts the bytes a handler pulled from a request body.

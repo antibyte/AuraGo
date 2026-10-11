@@ -3,8 +3,10 @@ package server
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -337,4 +339,135 @@ func TestCYDCreatorEventsStopWhenTheClientGoesAway(t *testing.T) {
 	}
 	// The subscription was released: a later event finds no subscriber to block.
 	f.svc.Emit(p.ID, cydcreator.EventProjectChanged, "", "", map[string]any{"after": "gone"})
+}
+
+func TestCYDCreatorEventsReloadWhenTheResumePointIsAboveTheNewestEvent(t *testing.T) {
+	f := newCYDTestServer(t)
+	p := f.createProject(t, "Future")
+	f.svc.Emit(p.ID, cydcreator.EventProjectChanged, "", "", map[string]any{"i": 1})
+	newest, err := f.svc.LatestEventSeq(context.Background(), p.ID)
+	if err != nil || newest == 0 {
+		t.Fatalf("LatestEventSeq = %d, %v", newest, err)
+	}
+	srv := httptest.NewServer(http.HandlerFunc(f.s.handleCYDCreator))
+	t.Cleanup(srv.Close)
+	for _, tc := range []struct{ name, query, lastID string }{
+		{"huge Last-Event-ID", "", "9000000000000000000"},
+		{"after above the newest", "?after=" + strconv.FormatInt(newest+1000, 10), ""},
+	} {
+		stream, closeStream := openCYDEvents(t, srv, f.read, "projects/"+p.ID+"/events"+tc.query, tc.lastID)
+		frames := readSSE(t, stream, 5*time.Second, func(fr sseFrame) bool { return fr.event == cydcreator.EventStreamReady })
+		if len(frames) != 1 || frames[0].data != `{"reload":true}` {
+			t.Fatalf("%s: frames before live = %+v, want only stream_ready with reload", tc.name, frames)
+		}
+		f.svc.Emit(p.ID, cydcreator.EventBuildStatus, "", "ccb_1", map[string]any{"case": tc.name})
+		live := readSSE(t, stream, 5*time.Second, func(fr sseFrame) bool { return fr.event == cydcreator.EventBuildStatus })
+		if got := live[len(live)-1]; got.id == "" || !strings.Contains(got.data, tc.name) {
+			t.Fatalf("%s: live build_status = %+v", tc.name, got)
+		}
+		closeStream()
+	}
+	for _, lastID := range []string{"-5", "abc", "1e9"} {
+		stream, closeStream := openCYDEvents(t, srv, f.read, "projects/"+p.ID+"/events", lastID)
+		frames := readSSE(t, stream, 5*time.Second, func(fr sseFrame) bool { return fr.event == cydcreator.EventStreamReady })
+		all, _ := f.svc.EventsAfter(context.Background(), p.ID, 0, 500)
+		if ready := frames[len(frames)-1]; ready.data != "{}" || len(frames)-1 != len(all) {
+			t.Errorf("Last-Event-ID %q: %d backlog frames, ready %+v; want the whole backlog (%d) without reload", lastID, len(frames)-1, ready, len(all))
+		}
+		closeStream()
+	}
+}
+
+func TestCYDCreatorEventsHeadAnswersHeadersOnly(t *testing.T) {
+	f := newCYDTestServer(t)
+	p := f.createProject(t, "Head")
+	w := f.do(f.read, http.MethodHead, "projects/"+p.ID+"/events", nil, nil)
+	if w.Code != http.StatusOK || !strings.HasPrefix(w.Header().Get("Content-Type"), "text/event-stream") || w.Body.Len() != 0 {
+		t.Fatalf("HEAD events = %d %v %q", w.Code, w.Header(), w.Body.String())
+	}
+	wantCYDError(t, f.do(f.read, http.MethodHead, "projects/ccp_missing/events", nil, nil), http.StatusNotFound, cydcreator.CodeNotFound)
+}
+
+func TestCYDCreatorEventDataStaysOnOneLine(t *testing.T) {
+	f := newCYDTestServer(t)
+	p := f.createProject(t, "Lines")
+	srv := httptest.NewServer(http.HandlerFunc(f.s.handleCYDCreator))
+	t.Cleanup(srv.Close)
+	stream, _ := openCYDEvents(t, srv, f.read, "projects/"+p.ID+"/events", "")
+	readSSE(t, stream, 5*time.Second, func(fr sseFrame) bool { return fr.event == cydcreator.EventStreamReady })
+	f.svc.Emit(p.ID, cydcreator.EventJobStep, "", "", json.RawMessage("{\n  \"text\": \"two\\nlines\"\r\n}"))
+	got := readSSE(t, stream, 5*time.Second, func(fr sseFrame) bool { return fr.event == cydcreator.EventJobStep })
+	if data := got[len(got)-1].data; data != `{"text":"two\nlines"}` {
+		t.Fatalf("data line = %q", data)
+	}
+}
+
+// cydStallingWriter is a response writer whose client stops reading after
+// the stream became ready: every later write fails as a deadline would.
+type cydStallingWriter struct {
+	header    http.Header
+	mu        sync.Mutex
+	stalled   bool
+	deadlines []time.Duration
+	ready     chan struct{}
+	once      sync.Once
+}
+
+func (w *cydStallingWriter) Header() http.Header { return w.header }
+func (w *cydStallingWriter) WriteHeader(int)     {}
+
+func (w *cydStallingWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.stalled {
+		return 0, os.ErrDeadlineExceeded
+	}
+	return len(p), nil
+}
+
+func (w *cydStallingWriter) Flush() {
+	w.once.Do(func() {
+		w.mu.Lock()
+		w.stalled = true
+		w.mu.Unlock()
+		close(w.ready)
+	})
+}
+
+func (w *cydStallingWriter) SetWriteDeadline(t time.Time) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.deadlines = append(w.deadlines, time.Until(t))
+	return nil
+}
+
+func TestCYDCreatorEventsEndWhenTheClientStopsReading(t *testing.T) {
+	f := newCYDTestServer(t)
+	saved := cydSSEHeartbeat
+	cydSSEHeartbeat = 20 * time.Millisecond
+	t.Cleanup(func() { cydSSEHeartbeat = saved })
+	p := f.createProject(t, "Stall")
+	r := httptest.NewRequest(http.MethodGet, cydCreatorAPIPrefix+"projects/"+p.ID+"/events", nil)
+	r.Header.Set("Authorization", "Bearer "+f.read)
+	w := &cydStallingWriter{header: http.Header{}, ready: make(chan struct{})}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		f.s.handleCYDCreator(w, r) // the request context is never cancelled
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("a client that stopped reading pinned the handler")
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if len(w.deadlines) < 2 {
+		t.Fatalf("write deadlines = %v, want one per frame", w.deadlines)
+	}
+	for _, d := range w.deadlines {
+		if d < cydSSEWriteTimeout-5*time.Second || d > cydSSEWriteTimeout {
+			t.Fatalf("write deadline %v from now, want about %v", d, cydSSEWriteTimeout)
+		}
+	}
 }

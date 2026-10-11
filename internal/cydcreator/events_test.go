@@ -2,6 +2,7 @@ package cydcreator
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 )
@@ -174,5 +175,41 @@ func TestEventsArePrunedPerProject(t *testing.T) {
 	}
 	if kept, _ := env.svc.EventsAfter(context.Background(), "ccp_keep", 0, 0); len(kept) != 1 {
 		t.Fatalf("another project's events were pruned: %d", len(kept))
+	}
+}
+
+func TestEventDataIsCompactJSON(t *testing.T) {
+	env := newTestService(t)
+	events, cancel := env.svc.Subscribe("ccp_compact")
+	defer cancel()
+	indented := json.RawMessage("{\n  \"lines\": [\n    \"a b\"\n  ]\r\n}")
+	env.svc.Emit("ccp_compact", EventJobStep, "", "", indented)
+	env.svc.EmitEphemeral("ccp_compact", EventBuildLog, "", "", indented)
+	env.svc.Emit("ccp_compact", EventJobStep, "", "", json.RawMessage("{broken"))
+	got := collectEvents(t, events, 3, 2*time.Second)
+	want := []string{`{"lines":["a b"]}`, `{"lines":["a b"]}`, `{}`}
+	for i, ev := range got {
+		if string(ev.Data) != want[i] {
+			t.Errorf("live event %d data = %q, want %q", i, ev.Data, want[i])
+		}
+	}
+	stored, err := env.svc.EventsAfter(context.Background(), "ccp_compact", 0, 0)
+	if err != nil || len(stored) != 2 || string(stored[0].Data) != want[0] {
+		t.Fatalf("stored = %+v, %v", stored, err)
+	}
+}
+
+func TestLatestEventSeq(t *testing.T) {
+	env := newTestService(t)
+	ctx := context.Background()
+	if seq, err := env.svc.LatestEventSeq(ctx, "ccp_none"); err != nil || seq != 0 {
+		t.Fatalf("LatestEventSeq without events = %d, %v; want 0", seq, err)
+	}
+	env.svc.Emit("ccp_a", EventProjectChanged, "", "", nil)
+	env.svc.Emit("ccp_b", EventProjectChanged, "", "", nil)
+	env.svc.EmitEphemeral("ccp_a", EventBuildLog, "", "", nil)
+	stored, _ := env.svc.EventsAfter(ctx, "ccp_a", 0, 0)
+	if seq, err := env.svc.LatestEventSeq(ctx, "ccp_a"); err != nil || len(stored) != 1 || seq != stored[0].Seq {
+		t.Fatalf("LatestEventSeq = %d, %v; want %+v (another project's newer event and ephemeral events do not count)", seq, err, stored)
 	}
 }

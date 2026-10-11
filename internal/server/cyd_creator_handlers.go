@@ -65,13 +65,28 @@ func cydDecodeJSON(w http.ResponseWriter, r *http.Request, limit int64, dst any)
 	if len(bytes.TrimSpace(data)) == 0 {
 		return true
 	}
-	dec := json.NewDecoder(bytes.NewReader(data))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(dst); err != nil {
-		cydWriteError(w, http.StatusBadRequest, cydcreator.CodeBadRequest, "the request body is not valid JSON: "+err.Error(), nil)
+	if cydDecodeStrict(data, dst) != nil {
+		cydWriteError(w, http.StatusBadRequest, cydcreator.CodeBadRequest,
+			"the request body must be one JSON object with the fields of this request", nil)
 		return false
 	}
 	return true
+}
+
+// cydDecodeStrict decodes exactly one JSON value into dst: unknown fields
+// and anything after the value are refused. The error is for the caller's
+// decision only; answers never echo decoder text.
+func cydDecodeStrict(data []byte, dst any) error {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(dst); err != nil {
+		return err
+	}
+	var extra json.RawMessage
+	if err := dec.Decode(&extra); !errors.Is(err, io.EOF) {
+		return errors.New("trailing data after the JSON value")
+	}
+	return nil
 }
 
 // cydIfMatch returns the If-Match value without quotes or a weak prefix,
@@ -192,9 +207,7 @@ func (s *Server) cydPutLayout(w http.ResponseWriter, r *http.Request, params map
 	var body struct {
 		Project json.RawMessage `json:"project"`
 	}
-	dec := json.NewDecoder(bytes.NewReader(data))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&body); err != nil || len(body.Project) == 0 {
+	if err := cydDecodeStrict(data, &body); err != nil || len(body.Project) == 0 {
 		cydWriteError(w, http.StatusUnprocessableEntity, cydcreator.CodeInvalidLayout, `the body must be {"project": <layout>}`, nil)
 		return
 	}
