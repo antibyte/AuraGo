@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"log/slog"
 	"strconv"
 	"strings"
 	"sync"
@@ -133,8 +134,13 @@ func retroGamesSearch(ctx context.Context, svc *retrogames.Service, req RetroGam
 					return retroGamesErrorFor(hofErr)
 				}
 				hits := retroGamesMatchTitles(retroGamesDecade(hof, req.Decade), query)
-				return retroGamesList("hall_of_fame", len(hits), retroGamesHead(hits, limit),
-					"index_building: the full game index is still being built; only matching Hall of Fame games are listed. Search again in a minute or two.")
+				// "Building" is only true while a sync runs; after a failed
+				// one the automatic retry waits, so promise nothing soon.
+				note := "index_unavailable: the game index could not be built yet; only matching Hall of Fame games are listed. Try again later."
+				if status.Syncing {
+					note = "index_building: the full game index is still being built; only matching Hall of Fame games are listed. Search again in a minute or two."
+				}
+				return retroGamesList("hall_of_fame", len(hits), retroGamesHead(hits, limit), note)
 			}
 			// A populated index that has not finished syncing the searched
 			// platform(s) may simply not hold the game yet; say so, so an empty
@@ -292,6 +298,8 @@ func retroGamesErrorFor(err error) VirtualDesktopExecution {
 	case errors.Is(err, retrogames.ErrUnknownGame):
 		return retroGamesFailure("error", "game_not_found", "No such game. Search first and pass an identifier from the results.")
 	default:
+		// The cause goes to the log only; the agent gets the generic code.
+		slog.Default().Warn("[RetroGames] tool request failed", "error", err)
 		return retroGamesFailure("error", "retro_games_failed", "Retro Games could not answer; try again shortly.")
 	}
 }

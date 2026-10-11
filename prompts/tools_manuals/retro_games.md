@@ -23,5 +23,6 @@ Use `retro_games` to find browser-playable classic games on archive.org and to o
 - `invalid_request`: fix platform, decade or identifier and retry.
 - `game_not_found`: search first and use a returned identifier.
 - `note` starting with `index_building`: the full index is still being built on first use; only Hall of Fame matches are listed. Tell the user and search again a little later.
+- `note` starting with `index_unavailable`: the index could not be built (archive.org unreachable) and no build is running; only Hall of Fame matches are listed. Tell the user; do not retry right away.
 - `note` starting with `index_incomplete`: the searched platforms are not fully indexed yet, so an empty result does not mean the game is missing. Say so and search again later.
 - `retro_games_failed`: retry once; if it fails again, tell the user.

@@ -1,10 +1,12 @@
 package tools
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"testing"
@@ -139,11 +141,67 @@ func TestRetroGamesToolSearchHallOfFameAndIndex(t *testing.T) {
 	}
 }
 
-func TestRetroGamesToolSearchFallsBackWhileIndexIsEmpty(t *testing.T) {
-	useRetroGamesService(t, &retrogamestest.Fetcher{Err: errors.New("offline")})
+// retroGamesBlockingFetcher keeps every request open until release closes (or
+// the sync is canceled), so the first sync stays running.
+type retroGamesBlockingFetcher struct {
+	release chan struct{}
+}
+
+func (f retroGamesBlockingFetcher) FetchPage(ctx context.Context, query, cursor string) (retrogames.Page, error) {
+	select {
+	case <-f.release:
+		return retrogames.Page{}, errors.New("offline")
+	case <-ctx.Done():
+		return retrogames.Page{}, ctx.Err()
+	}
+}
+
+func TestRetroGamesToolSearchFallsBackWhileTheIndexIsBuilding(t *testing.T) {
+	release := make(chan struct{})
+	t.Cleanup(func() { close(release) })
+	useRetroGamesService(t, retroGamesBlockingFetcher{release: release})
+	// The search starts the first sync, which is still running when the
+	// empty result is explained.
 	m := decodeRetroGamesOutput(t, ExecuteRetroGames(context.Background(), retroGamesToolConfig(), RetroGamesRequest{Operation: "search", Query: "persia"}).Output)
-	if m["source"] != "hall_of_fame" || !strings.Contains(retroGamesText(t, m, "note"), "index_building") || !strings.Contains(retroGamesText(t, m, "results"), "msdos_Prince_of_Persia_1990") {
-		t.Fatalf("fallback: %v", m)
+	if m["source"] != "hall_of_fame" || !strings.HasPrefix(retroGamesText(t, m, "note"), "index_building") || !strings.Contains(retroGamesText(t, m, "results"), "msdos_Prince_of_Persia_1990") {
+		t.Fatalf("fallback while building: %v", m)
+	}
+}
+
+func TestRetroGamesToolSearchSaysWhenTheIndexIsUnavailable(t *testing.T) {
+	svc := useRetroGamesService(t, &retrogamestest.Fetcher{Err: errors.New("offline")})
+	// The first automatic sync fails; the hold-off keeps another one from
+	// starting, so nothing is building the index any more.
+	syncRetroGames(t, svc)
+	m := decodeRetroGamesOutput(t, ExecuteRetroGames(context.Background(), retroGamesToolConfig(), RetroGamesRequest{Operation: "search", Query: "persia"}).Output)
+	const want = "index_unavailable: the game index could not be built yet; only matching Hall of Fame games are listed. Try again later."
+	if m["source"] != "hall_of_fame" || retroGamesText(t, m, "note") != want || !strings.Contains(retroGamesText(t, m, "results"), "msdos_Prince_of_Persia_1990") {
+		t.Fatalf("fallback without a running sync: %v", m)
+	}
+}
+
+func TestRetroGamesToolLogsUnexpectedFailures(t *testing.T) {
+	var logs bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+
+	out := retroGamesErrorFor(fmt.Errorf("read index: %w", errors.New("disk on fire"))).Output
+	m := decodeRetroGamesOutput(t, out)
+	if m["code"] != "retro_games_failed" || strings.Contains(out, "disk on fire") {
+		t.Fatalf("unexpected failure output: %s", out)
+	}
+	if got := logs.String(); !strings.Contains(got, "[RetroGames] tool request failed") || !strings.Contains(got, "disk on fire") {
+		t.Fatalf("the cause was not logged: %q", got)
+	}
+
+	// Expected refusals are answered, not logged.
+	logs.Reset()
+	for _, err := range []error{retrogames.ErrDisabled, retrogames.ErrInvalidQuery, retrogames.ErrInvalidIdentifier, retrogames.ErrUnknownGame} {
+		_ = retroGamesErrorFor(err)
+	}
+	if logs.Len() != 0 {
+		t.Fatalf("expected refusals were logged: %q", logs.String())
 	}
 }
 
