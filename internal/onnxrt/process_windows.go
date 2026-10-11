@@ -7,11 +7,15 @@ import (
 	"syscall"
 )
 
-// hideWindow keeps native workers from opening a console window
-// (CREATE_NO_WINDOW).
+// createNoWindow is CREATE_NO_WINDOW.
+const createNoWindow = 0x08000000
+
+// hideWindow keeps native workers from opening a console window. It adds to
+// the caller's SysProcAttr instead of replacing it.
 func hideWindow(command *exec.Cmd) {
-	command.SysProcAttr = &syscall.SysProcAttr{
-		HideWindow:    true,
-		CreationFlags: 0x08000000,
+	if command.SysProcAttr == nil {
+		command.SysProcAttr = &syscall.SysProcAttr{}
 	}
+	command.SysProcAttr.HideWindow = true
+	command.SysProcAttr.CreationFlags |= createNoWindow
 }
