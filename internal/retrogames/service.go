@@ -638,29 +638,60 @@ func (s *Service) Library(ctx context.Context) (Library, error) {
 	return lib, nil
 }
 
+// LibraryKind selects the library list a change touches.
+type LibraryKind int
+
+// The library lists PrepareLibraryChange can change.
+const (
+	LibraryFavorite LibraryKind = iota
+	LibraryBroken
+	LibraryPlay
+)
+
 // SetFavorite adds or removes a favorite.
 func (s *Service) SetFavorite(ctx context.Context, id string, on bool) error {
-	return s.mutateLibrary(ctx, id, on, func(st *Store, g Game) error { return st.SetFavorite(ctx, g, on, s.now()) })
+	return s.changeLibrary(ctx, LibraryFavorite, id, on)
 }
 
 // SetBroken adds or removes a "doesn't start" marker.
 func (s *Service) SetBroken(ctx context.Context, id string, on bool) error {
-	return s.mutateLibrary(ctx, id, on, func(st *Store, g Game) error { return st.SetBroken(ctx, g, on, s.now()) })
+	return s.changeLibrary(ctx, LibraryBroken, id, on)
 }
 
 // RecordPlay counts one start of a game.
 func (s *Service) RecordPlay(ctx context.Context, id string) error {
-	return s.mutateLibrary(ctx, id, true, func(st *Store, g Game) error { return st.RecordPlay(ctx, g, s.now()) })
+	return s.changeLibrary(ctx, LibraryPlay, id, true)
 }
 
-func (s *Service) mutateLibrary(ctx context.Context, id string, on bool, apply func(*Store, Game) error) error {
+func (s *Service) changeLibrary(ctx context.Context, kind LibraryKind, id string, on bool) error {
+	commit, err := s.PrepareLibraryChange(ctx, kind, id, on)
+	if err != nil {
+		return err
+	}
+	return commit(ctx)
+}
+
+// PrepareLibraryChange does everything for a library change except the write:
+// it validates the identifier, opens the index and resolves the game (index,
+// Hall of Fame, then the library snapshot of a game that left the index). The
+// returned commit func performs the single store write and nothing else, so a
+// caller can keep a short critical section around it. Nothing is written until
+// commit runs. on is ignored for LibraryPlay (a play always counts).
+func (s *Service) PrepareLibraryChange(ctx context.Context, kind LibraryKind, id string, on bool) (func(context.Context) error, error) {
+	switch kind {
+	case LibraryFavorite, LibraryBroken:
+	case LibraryPlay:
+		on = true
+	default:
+		return nil, fmt.Errorf("retrogames: unknown library kind %d", kind)
+	}
 	id = strings.TrimSpace(id)
 	if !ValidIdentifier(id) {
-		return ErrInvalidIdentifier
+		return nil, ErrInvalidIdentifier
 	}
 	st, err := s.openStore()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	g := Game{Identifier: id}
 	if on {
@@ -668,16 +699,27 @@ func (s *Service) mutateLibrary(ctx context.Context, id string, on bool, apply f
 		if errors.Is(err, ErrUnknownGame) {
 			snap, ok, snapErr := st.Snapshot(ctx, id)
 			if snapErr != nil {
-				return s.storeErr(snapErr)
+				return nil, s.storeErr(snapErr)
 			}
 			if !ok {
-				return ErrUnknownGame
+				return nil, ErrUnknownGame
 			}
 			g, err = snap, nil
 		}
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return s.storeErr(apply(st, g))
+	return func(ctx context.Context) error {
+		var err error
+		switch kind {
+		case LibraryFavorite:
+			err = st.SetFavorite(ctx, g, on, s.now())
+		case LibraryBroken:
+			err = st.SetBroken(ctx, g, on, s.now())
+		default:
+			err = st.RecordPlay(ctx, g, s.now())
+		}
+		return s.storeErr(err)
+	}, nil
 }

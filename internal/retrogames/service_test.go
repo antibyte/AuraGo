@@ -609,3 +609,112 @@ func TestServiceEnsureFreshRemembersFreshness(t *testing.T) {
 		t.Fatalf("freshUntil = %v after Configure, want it reset", got)
 	}
 }
+
+func TestServicePrepareLibraryChangeWritesOnlyOnCommit(t *testing.T) {
+	f := newFakeFetcher()
+	f.fallback = func(query, cursor string) (Page, error) { return Page{}, errors.New("offline") }
+	svc, _, _ := newTestService(t, f)
+	ctx := context.Background()
+	const id = "msdos_Prince_of_Persia_1990"
+
+	libraryCounts := func() (int, int, int) {
+		t.Helper()
+		lib, err := svc.Library(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return len(lib.Favorites), len(lib.Recent), len(lib.Broken)
+	}
+
+	// Preparing resolves everything but must not write: dropping the commit
+	// func leaves every list empty.
+	for _, kind := range []LibraryKind{LibraryFavorite, LibraryBroken, LibraryPlay} {
+		commit, err := svc.PrepareLibraryChange(ctx, kind, id, true)
+		if err != nil || commit == nil {
+			t.Fatalf("prepare kind %d: commit=%v err=%v", kind, commit != nil, err)
+		}
+	}
+	if fav, recent, broken := libraryCounts(); fav != 0 || recent != 0 || broken != 0 {
+		t.Fatalf("prepare wrote to the store: favorites=%d recent=%d broken=%d", fav, recent, broken)
+	}
+
+	// Each commit performs exactly its own write.
+	commit, err := svc.PrepareLibraryChange(ctx, LibraryFavorite, id, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if fav, recent, broken := libraryCounts(); fav != 1 || recent != 0 || broken != 0 {
+		t.Fatalf("favorite commit: favorites=%d recent=%d broken=%d", fav, recent, broken)
+	}
+	// on is ignored for plays: a play always counts.
+	commit, err = svc.PrepareLibraryChange(ctx, LibraryPlay, id, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if fav, recent, broken := libraryCounts(); fav != 1 || recent != 1 || broken != 0 {
+		t.Fatalf("play commit: favorites=%d recent=%d broken=%d", fav, recent, broken)
+	}
+	commit, err = svc.PrepareLibraryChange(ctx, LibraryBroken, id, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if fav, recent, broken := libraryCounts(); fav != 1 || recent != 1 || broken != 1 {
+		t.Fatalf("broken commit: favorites=%d recent=%d broken=%d", fav, recent, broken)
+	}
+
+	// Removing a favorite needs no game lookup, so even an unknown id prepares.
+	commit, err = svc.PrepareLibraryChange(ctx, LibraryFavorite, "gone_game", false)
+	if err != nil {
+		t.Fatalf("removing an unknown favorite must prepare: %v", err)
+	}
+	if err := commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestServicePrepareLibraryChangeRefusals(t *testing.T) {
+	f := newFakeFetcher()
+	f.fallback = func(query, cursor string) (Page, error) { return Page{}, errors.New("offline") }
+	svc, _, _ := newTestService(t, f)
+	ctx := context.Background()
+
+	if commit, err := svc.PrepareLibraryChange(ctx, LibraryFavorite, "unknown_game", true); !errors.Is(err, ErrUnknownGame) || commit != nil {
+		t.Fatalf("unknown game: commit=%v err=%v", commit != nil, err)
+	}
+	if commit, err := svc.PrepareLibraryChange(ctx, LibraryFavorite, "../x", true); !errors.Is(err, ErrInvalidIdentifier) || commit != nil {
+		t.Fatalf("invalid id: commit=%v err=%v", commit != nil, err)
+	}
+	if commit, err := svc.PrepareLibraryChange(ctx, LibraryFavorite, "", true); !errors.Is(err, ErrInvalidIdentifier) || commit != nil {
+		t.Fatalf("empty id: commit=%v err=%v", commit != nil, err)
+	}
+	if commit, err := svc.PrepareLibraryChange(ctx, LibraryKind(99), "arcade_tron", true); err == nil || commit != nil {
+		t.Fatalf("unknown kind: commit=%v err=%v", commit != nil, err)
+	}
+
+	// A commit prepared before the service stops reports ErrDisabled, not the
+	// raw "database is closed" error.
+	commit, err := svc.PrepareLibraryChange(ctx, LibraryFavorite, "arcade_tron", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := svc.Shutdown(sctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := commit(ctx); !errors.Is(err, ErrDisabled) {
+		t.Fatalf("commit after Shutdown: err = %v, want ErrDisabled", err)
+	}
+	if _, err := svc.PrepareLibraryChange(ctx, LibraryFavorite, "arcade_tron", true); !errors.Is(err, ErrDisabled) {
+		t.Fatalf("prepare after Shutdown: err = %v, want ErrDisabled", err)
+	}
+}

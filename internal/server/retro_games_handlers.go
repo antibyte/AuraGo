@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -32,9 +33,15 @@ func retroGamesMethodNotAllowed(w http.ResponseWriter, allow string) {
 	retroGamesError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
 }
 
+// retroGamesReadMethod reports whether the request only reads. HEAD is served
+// like GET; net/http drops the body.
+func retroGamesReadMethod(r *http.Request) bool {
+	return r.Method == http.MethodGet || r.Method == http.MethodHead
+}
+
 func (s *Server) handleRetroGames(w http.ResponseWriter, r *http.Request) {
 	scope := desktopScopeRead
-	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+	if !retroGamesReadMethod(r) {
 		scope = desktopScopeWrite
 	}
 	if !authenticateDesktopPermission(s, w, r, scope) {
@@ -62,8 +69,8 @@ func (s *Server) handleRetroGames(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	switch {
 	case route == "status" && id == "":
-		if r.Method != http.MethodGet {
-			retroGamesMethodNotAllowed(w, "GET")
+		if !retroGamesReadMethod(r) {
+			retroGamesMethodNotAllowed(w, "GET, HEAD")
 			return
 		}
 		status, err := svc.Status(ctx)
@@ -86,8 +93,8 @@ func (s *Server) handleRetroGames(w http.ResponseWriter, r *http.Request) {
 		}
 		retroGamesJSON(w, http.StatusAccepted, map[string]bool{"started": true})
 	case route == "search" && id == "":
-		if r.Method != http.MethodGet {
-			retroGamesMethodNotAllowed(w, "GET")
+		if !retroGamesReadMethod(r) {
+			retroGamesMethodNotAllowed(w, "GET, HEAD")
 			return
 		}
 		q, err := retroGamesQueryFromRequest(r)
@@ -102,8 +109,8 @@ func (s *Server) handleRetroGames(w http.ResponseWriter, r *http.Request) {
 		}
 		retroGamesJSON(w, http.StatusOK, res)
 	case route == "hall-of-fame" && id == "":
-		if r.Method != http.MethodGet {
-			retroGamesMethodNotAllowed(w, "GET")
+		if !retroGamesReadMethod(r) {
+			retroGamesMethodNotAllowed(w, "GET, HEAD")
 			return
 		}
 		games, err := svc.HallOfFame(ctx, r.URL.Query().Get("platform"))
@@ -113,8 +120,8 @@ func (s *Server) handleRetroGames(w http.ResponseWriter, r *http.Request) {
 		}
 		retroGamesJSON(w, http.StatusOK, map[string]any{"games": games})
 	case route == "library" && id == "":
-		if r.Method != http.MethodGet {
-			retroGamesMethodNotAllowed(w, "GET")
+		if !retroGamesReadMethod(r) {
+			retroGamesMethodNotAllowed(w, "GET, HEAD")
 			return
 		}
 		lib, err := svc.Library(ctx)
@@ -124,8 +131,8 @@ func (s *Server) handleRetroGames(w http.ResponseWriter, r *http.Request) {
 		}
 		retroGamesJSON(w, http.StatusOK, lib)
 	case route == "games" && id != "":
-		if r.Method != http.MethodGet {
-			retroGamesMethodNotAllowed(w, "GET")
+		if !retroGamesReadMethod(r) {
+			retroGamesMethodNotAllowed(w, "GET, HEAD")
 			return
 		}
 		g, err := svc.Game(ctx, id)
@@ -143,13 +150,18 @@ func (s *Server) handleRetroGames(w http.ResponseWriter, r *http.Request) {
 		if !checkDesktopOperation(s, w, r, desktopWrite) {
 			return
 		}
-		err := publishDesktopResult(r.Context(), func() error {
-			if route == "favorites" {
-				return svc.SetFavorite(r.Context(), id, on)
-			}
-			return svc.SetBroken(r.Context(), id, on)
-		})
+		kind := retrogames.LibraryFavorite
+		if route == "broken" {
+			kind = retrogames.LibraryBroken
+		}
+		// Opening the index and resolving the game can be slow, so only the
+		// single write runs inside the desktop publication gate.
+		commit, err := svc.PrepareLibraryChange(r.Context(), kind, id, on)
 		if err != nil {
+			s.writeRetroGamesError(w, err)
+			return
+		}
+		if err := publishDesktopResult(r.Context(), func() error { return commit(r.Context()) }); err != nil {
 			s.writeRetroGamesError(w, err)
 			return
 		}
@@ -170,7 +182,13 @@ func (s *Server) handleRetroGames(w http.ResponseWriter, r *http.Request) {
 		if !checkDesktopOperation(s, w, r, desktopWrite) {
 			return
 		}
-		if err := publishDesktopResult(r.Context(), func() error { return svc.RecordPlay(r.Context(), id) }); err != nil {
+		// Only the write runs inside the publication gate (see above).
+		commit, err := svc.PrepareLibraryChange(r.Context(), retrogames.LibraryPlay, id, true)
+		if err != nil {
+			s.writeRetroGamesError(w, err)
+			return
+		}
+		if err := publishDesktopResult(r.Context(), func() error { return commit(r.Context()) }); err != nil {
 			s.writeRetroGamesError(w, err)
 			return
 		}
@@ -205,6 +223,12 @@ func retroGamesQueryFromRequest(r *http.Request) (retrogames.Query, error) {
 
 func (s *Server) writeRetroGamesError(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, context.Canceled):
+		// The run was revoked (read-only switch, config reload) or the client
+		// left; nothing failed, so nothing is logged.
+		writeDesktopPolicyError(w, "desktop_readonly", "The desktop action was revoked.")
+	case errors.Is(err, context.DeadlineExceeded):
+		retroGamesError(w, http.StatusServiceUnavailable, "timeout", "Retro Games timed out")
 	case errors.Is(err, retrogames.ErrDisabled):
 		retroGamesError(w, http.StatusServiceUnavailable, "disabled", "Retro Games is switched off")
 	case errors.Is(err, retrogames.ErrInvalidQuery):
