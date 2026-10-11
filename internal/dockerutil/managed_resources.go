@@ -44,6 +44,9 @@ const (
 	// firmware is linked from (/cache).
 	CYDCreatorWorkVolumeName  = "aurago-cyd-work"
 	CYDCreatorCacheVolumeName = "aurago-cyd-cache"
+	// CYDCreatorImageRepository is the repository of the published builder
+	// image (config.DefaultCYDCreatorBuilderImage without its tag).
+	CYDCreatorImageRepository = "ghcr.io/antibyte/aurago-cyd-builder"
 )
 
 // ManagedBy recognizes both the canonical AuraGo label and the legacy labels
@@ -130,6 +133,69 @@ func IsCYDCreatorBuilderContainerName(name string) bool {
 func IsCYDCreatorVolumeName(name string) bool {
 	name = strings.ToLower(strings.TrimSpace(name))
 	return name == CYDCreatorWorkVolumeName || name == CYDCreatorCacheVolumeName
+}
+
+// ImageRepository returns the repository of an image reference: lowercase,
+// without tag and digest, and without Docker Hub's implicit "docker.io/" (or
+// "index.docker.io/") and "library/" prefixes, so "nginx", "library/nginx:1"
+// and "docker.io/library/nginx@sha256:…" share the repository "nginx". It
+// returns "" for an empty reference.
+func ImageRepository(reference string) string {
+	reference = strings.ToLower(strings.TrimSpace(reference))
+	if digest := strings.IndexByte(reference, '@'); digest >= 0 {
+		reference = reference[:digest]
+	}
+	if tag := strings.LastIndexByte(reference, ':'); tag > strings.LastIndexByte(reference, '/') {
+		reference = reference[:tag]
+	}
+	for _, prefix := range []string{"docker.io/", "index.docker.io/"} {
+		if rest, ok := strings.CutPrefix(reference, prefix); ok {
+			reference = rest
+			break
+		}
+	}
+	if rest, ok := strings.CutPrefix(reference, "library/"); ok && !strings.Contains(rest, "/") {
+		reference = rest
+	}
+	return reference
+}
+
+// ImageReferenceHasRegistry reports whether reference names a registry host,
+// with Docker's rule: the first path component contains '.' or ':' or is
+// "localhost". "aurago-cyd-builder:dev" names none (a local-only tag),
+// "ghcr.io/antibyte/aurago-cyd-builder:1" names ghcr.io.
+func ImageReferenceHasRegistry(reference string) bool {
+	reference = strings.ToLower(strings.TrimSpace(reference))
+	first, _, ok := strings.Cut(reference, "/")
+	if !ok {
+		return false
+	}
+	return strings.ContainsAny(first, ".:") || first == "localhost"
+}
+
+// ImageReferenceDigest returns the "sha256:…" digest of a digest-pinned
+// reference (lowercase), or "".
+func ImageReferenceDigest(reference string) string {
+	_, digest, ok := strings.Cut(strings.ToLower(strings.TrimSpace(reference)), "@")
+	if !ok {
+		return ""
+	}
+	return digest
+}
+
+// IsCYDCreatorImageReference reports whether reference names the published
+// builder repository or, when configured is not empty, the repository of the
+// configured builder image (cyd_creator.builder_image), with any tag or digest.
+func IsCYDCreatorImageReference(reference, configured string) bool {
+	repository := ImageRepository(reference)
+	if repository == "" {
+		return false
+	}
+	if repository == CYDCreatorImageRepository {
+		return true
+	}
+	configuredRepository := ImageRepository(configured)
+	return configuredRepository != "" && repository == configuredRepository
 }
 
 // IsAuraGoAppContainerName recognizes the compose AuraGo application container

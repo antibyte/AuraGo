@@ -844,6 +844,12 @@ func dockerComposePolicyRun(ctx context.Context, cfg *config.Config, dockerCfg t
 	if denied := dockerComposeOwnerDenial(preflight.protectedOwner(effective)); denied != "" {
 		return denied
 	}
+	if denied := dockerComposeCYDCreatorImageDenial(cfg, preflight.model, effective.model); denied != "" {
+		return denied
+	}
+	if denied := dockerComposeContainerReferenceDenial(dockerCfg, preflight.model, effective.model); denied != "" {
+		return denied
+	}
 	if subcommand == "up" || subcommand == "create" {
 		// The security proxy name is reserved for everyone, as for agent
 		// create/run; managed sidecar names only without host access.
@@ -957,7 +963,73 @@ func dockerComposeOwnerDenial(owner string) string {
 	case dockerutil.AppOwner:
 		return dockerAgentError("docker_managed_aurago_resource", "Docker Compose access to AuraGo's application container is blocked.")
 	case dockerutil.CYDCreatorOwner:
-		return dockerAgentError("docker_managed_cyd_creator_resource", "Docker Compose access to AuraGo's CYD Creator builder container and its build volumes (aurago-cyd-work, aurago-cyd-cache) is blocked. Use the CYD Creator app to build firmware.")
+		return dockerAgentError("docker_managed_cyd_creator_resource", "Docker Compose access to AuraGo's CYD Creator builder (container aurago-cyd-builder, volumes aurago-cyd-work and aurago-cyd-cache, builder image) is blocked. Use the CYD Creator app to build firmware.")
+	}
+	return ""
+}
+
+// dockerComposeCYDCreatorImageDenial refuses a model whose services use the
+// configured builder image (cyd_creator.builder_image) as image or build tag;
+// DockerComposeModelOwner already refuses the published repository.
+func dockerComposeCYDCreatorImageDenial(cfg *config.Config, models ...tools.DockerComposeModel) string {
+	configured := ""
+	if cfg != nil {
+		configured = cfg.CYDCreator.BuilderImage
+	}
+	matches := func(ref string) bool { return dockerutil.IsCYDCreatorImageReference(ref, configured) }
+	for _, model := range models {
+		if tools.DockerComposeModelUsesImage(model, matches) {
+			return dockerComposeOwnerDenial(dockerutil.CYDCreatorOwner)
+		}
+	}
+	return ""
+}
+
+// dockerComposeReferenceOwners are the owners whose containers no Compose
+// service may join or read through network_mode/pid/ipc "container:" or
+// volumes_from: the owners whose exec the agent docker tool refuses. The
+// security proxy is not listed: the agent keeps its exec access there.
+var dockerComposeReferenceOwners = []string{
+	acestep.Owner, dockerutil.HomepageOwner, "go2rtc", dockerutil.LocalLLMOwner,
+	dockerutil.BoringGarageOwner, dockerutil.CYDCreatorOwner, dockerutil.AppOwner,
+}
+
+// dockerComposeReferenceOwnership resolves a container reference like Docker
+// does (name, full ID or ID prefix; labels for renamed containers). Tests
+// replace it.
+var dockerComposeReferenceOwnership = tools.DockerContainerOwnership
+
+// dockerComposeContainerReferenceDenial resolves every container outside the
+// project that a service joins or reads (tools.DockerComposeContainerReferences)
+// and refuses a protected owner, and a target Docker did not answer for (fail
+// closed, as for container-targeted docker operations). A shared PID
+// namespace exposes the target's /proc/<pid>/root and environ, so the name
+// rules alone (an ID prefix, a renamed container) are not enough. Targets that
+// do not exist (404) pass: Compose itself fails on them.
+func dockerComposeContainerReferenceDenial(dockerCfg tools.DockerConfig, models ...tools.DockerComposeModel) string {
+	seen := map[string]bool{}
+	for _, model := range models {
+		for _, target := range tools.DockerComposeContainerReferences(model) {
+			if seen[target] {
+				continue
+			}
+			seen[target] = true
+			owned, err := dockerComposeReferenceOwnership(dockerCfg, target, dockerComposeReferenceOwners...)
+			for _, owner := range dockerComposeReferenceOwners {
+				if !owned[owner] {
+					continue
+				}
+				if owner == "go2rtc" {
+					return dockerAgentError("docker_managed_go2rtc_resource", "Docker Compose cannot join or read AuraGo's managed go2rtc container.")
+				}
+				return dockerComposeOwnerDenial(owner)
+			}
+			if err != nil {
+				slog.Default().Warn("Docker Compose container reference could not be verified", "container", target, "error", err)
+				return dockerAgentError("docker_ownership_unverified", fmt.Sprintf(
+					"Docker did not answer the ownership check for container %q, which this Compose file joins or reads (network_mode, pid, ipc or volumes_from), so nothing was run. Retry when the Docker API is reachable.", target))
+			}
+		}
 	}
 	return ""
 }

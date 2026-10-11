@@ -213,18 +213,91 @@ func engineMessage(data []byte) string {
 	return dockerutil.SanitizeOneLine(dockerutil.EngineErrorMessage(data), 300)
 }
 
-func (b *cydDockerBuilder) imagePresent(ctx context.Context) (bool, error) {
+// cydImageInspect is the part of GET /images/{name}/json the builder checks.
+type cydImageInspect struct {
+	ID          string   `json:"Id"`
+	RepoDigests []string `json:"RepoDigests"`
+}
+
+// cydImageIDPattern is a full local image ID; the container is created from it.
+var cydImageIDPattern = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+
+// cydImageNotPublished is the user-visible refusal of an image that fails
+// cydImageProvenanceProblem; a pull replaces the local image.
+const cydImageNotPublished = "the installed toolchain image is not the published one; pull it again (the server log has the details)"
+
+// inspectImage returns the configured image, or nil when it is not installed.
+func (b *cydDockerBuilder) inspectImage(ctx context.Context) (*cydImageInspect, error) {
 	data, code, err := b.request(ctx, http.MethodGet, "/images/"+url.PathEscape(b.settings.Image)+"/json", nil)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	switch code {
 	case http.StatusOK:
-		return true, nil
 	case http.StatusNotFound:
-		return false, nil
+		return nil, nil
+	default:
+		return nil, newCYDEngineError("image inspect", code, data)
 	}
-	return false, newCYDEngineError("image inspect", code, data)
+	var img cydImageInspect
+	if err := json.Unmarshal(data, &img); err != nil {
+		return nil, fmt.Errorf("decode image inspect: %w", err)
+	}
+	if !cydImageIDPattern.MatchString(img.ID) {
+		return nil, fmt.Errorf("image inspect answered an unexpected image ID %q", dockerutil.SanitizeOneLine(img.ID, 80))
+	}
+	return &img, nil
+}
+
+// cydImageProvenanceProblem applies the image rule and returns "" when the
+// image may be used. A configured reference without a registry host
+// (dockerutil.ImageReferenceHasRegistry: aurago-cyd-builder:dev or :ci, as
+// development and CI configure it) is a local-only tag the administrator chose
+// and is used as it is. Any other reference must carry a repository digest of
+// its own repository (the registry's content address that a pull records), a
+// digest-pinned reference exactly its digest: a locally built or re-tagged
+// image has none on the classic image store. On the containerd image store
+// (Docker 29 default) a local build also gets a digest of its tag's
+// repository, so there only a digest-pinned builder_image is proof; the agent
+// docker tool and Compose refuse the builder image for that reason.
+func cydImageProvenanceProblem(configured string, repoDigests []string) string {
+	if !dockerutil.ImageReferenceHasRegistry(configured) {
+		return ""
+	}
+	repository := dockerutil.ImageRepository(configured)
+	pinned := dockerutil.ImageReferenceDigest(configured)
+	for _, entry := range repoDigests {
+		digest := dockerutil.ImageReferenceDigest(entry)
+		if digest == "" || dockerutil.ImageRepository(entry) != repository {
+			continue
+		}
+		if pinned == "" || digest == pinned {
+			return ""
+		}
+	}
+	if pinned != "" {
+		return "no repository digest equals the pinned digest"
+	}
+	return "no repository digest of " + repository
+}
+
+// verifiedImage returns the ID of the configured image when it is installed
+// and passes cydImageProvenanceProblem; the container is created from that ID,
+// never from the tag, which could be moved after the check.
+func (b *cydDockerBuilder) verifiedImage(ctx context.Context) (string, error) {
+	img, err := b.inspectImage(ctx)
+	if err != nil {
+		return "", b.dockerUnavailable("image inspect", err)
+	}
+	if img == nil {
+		return "", cydcreator.NewError(cydcreator.CodeImageMissing, "the toolchain image "+b.settings.Image+" is not installed", map[string]any{"image": b.settings.Image})
+	}
+	if problem := cydImageProvenanceProblem(b.settings.Image, img.RepoDigests); problem != "" {
+		b.logger.Warn("CYD Creator builder: the toolchain image did not come from its registry and is not used",
+			"image", b.settings.Image, "id", img.ID, "repo_digests", img.RepoDigests, "reason", problem)
+		return "", cydcreator.NewError(cydcreator.CodeImageMissing, cydImageNotPublished, map[string]any{"image": b.settings.Image})
+	}
+	return img.ID, nil
 }
 
 // Status reports Docker reachability, image presence and pull progress. Its
@@ -242,14 +315,26 @@ func (b *cydDockerBuilder) Status(ctx context.Context) cydcreator.ToolchainStatu
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	present, err := b.imagePresent(ctx)
+	img, err := b.inspectImage(ctx)
 	if err != nil {
 		// Capabilities polls Status: keep the cause out of the warning log.
 		b.logger.Debug("CYD Creator builder status check failed", "error", err)
 		st.Error = cydPublicDockerError(err)
 		return st
 	}
-	st.DockerAvailable, st.Present = true, present
+	st.DockerAvailable = true
+	if img != nil {
+		// Only an image builds may use counts as present, so the app offers
+		// the pull that replaces an unverified one.
+		if problem := cydImageProvenanceProblem(b.settings.Image, img.RepoDigests); problem != "" {
+			b.logger.Debug("CYD Creator builder: the toolchain image did not come from its registry", "image", b.settings.Image, "reason", problem)
+			if st.Error == "" {
+				st.Error = cydImageNotPublished
+			}
+		} else {
+			st.Present = true
+		}
+	}
 	return st
 }
 
@@ -425,10 +510,10 @@ func (p *cydPullProgress) observe(line []byte) {
 }
 
 // fingerprint changes whenever a setting that is baked into the container
-// changes; ensureContainer then recreates it. Bump "v1" when containerSpec
-// changes.
-func (b *cydDockerBuilder) fingerprint() string {
-	sum := sha256.Sum256([]byte(fmt.Sprintf("v1|%s|%d|%g|%s|%s|%s|%d", b.settings.Image, b.settings.MemoryMB, b.settings.CPUCores,
+// changes, including the verified image ID (a pulled update or a moved tag);
+// ensureContainer then recreates it. Bump "v2" when containerSpec changes.
+func (b *cydDockerBuilder) fingerprint(imageID string) string {
+	sum := sha256.Sum256([]byte(fmt.Sprintf("v2|%s|%s|%d|%g|%s|%s|%s|%d", b.settings.Image, imageID, b.settings.MemoryMB, b.settings.CPUCores,
 		cydBuilderUser, cydBuilderTmpfsOptions, b.workVolume+","+b.cacheVolume, cydBuilderPidsLimit)))
 	return hex.EncodeToString(sum[:8])
 }
@@ -464,8 +549,9 @@ func (b *cydDockerBuilder) inspectContainer(ctx context.Context) (*cydContainerI
 // containerSpec is the hardened builder container (overview contract:
 // --init, --memory/--memory-swap equal, --pids-limit 512, read-only root,
 // tmpfs /tmp rw,exec,nosuid,nodev,size=1g, --cap-drop ALL,
-// no-new-privileges, --network none, uid 1000:1000, HOME=/tmp, managed labels).
-func (b *cydDockerBuilder) containerSpec() map[string]any {
+// no-new-privileges, --network none, uid 1000:1000, HOME=/tmp, managed labels),
+// created from the verified image ID.
+func (b *cydDockerBuilder) containerSpec(imageID string) map[string]any {
 	memory := int64(b.settings.MemoryMB) << 20
 	host := map[string]any{
 		"NetworkMode":    "none",
@@ -485,12 +571,12 @@ func (b *cydDockerBuilder) containerSpec() map[string]any {
 		"NanoCpus":      int64(b.settings.CPUCores * 1e9),
 	}
 	return map[string]any{
-		"Image":      b.settings.Image,
+		"Image":      imageID,
 		"User":       cydBuilderUser,
 		"Cmd":        []string{"sleep", "infinity"},
 		"WorkingDir": cydBuilderWorkDir,
 		"Env":        []string{"HOME=/tmp"},
-		"Labels":     dockerutil.ManagedLabels(cydBuilderOwner, "cyd-creator", "builder", b.fingerprint()),
+		"Labels":     dockerutil.ManagedLabels(cydBuilderOwner, "cyd-creator", "builder", b.fingerprint(imageID)),
 		"HostConfig": host,
 	}
 }
@@ -568,12 +654,19 @@ func (b *cydDockerBuilder) ensureContainer(ctx context.Context) (string, error) 
 	if info != nil && !info.managed() {
 		return "", b.foreignContainer(info)
 	}
+	// Every acquire checks the image: a container is only used while its
+	// fingerprint names the image ID that passes the provenance rule now.
+	imageID, err := b.verifiedImage(ctx)
+	if err != nil {
+		return "", err
+	}
+	fingerprint := b.fingerprint(imageID)
 	// A running container found by the first use in this process belongs to
 	// an earlier (maybe crashed) AuraGo: an orphan cyd-build could still hold
 	// the container lock and its /work and /tmp state must not leak into new
 	// builds, so it is discarded rather than reused.
 	stale := info != nil && info.State.Running && !b.claimed
-	if info != nil && (stale || info.Config.Labels["aurago.fingerprint"] != b.fingerprint()) {
+	if info != nil && (stale || info.Config.Labels["aurago.fingerprint"] != fingerprint) {
 		if stale {
 			b.stopContainer(info.ID)
 		}
@@ -592,19 +685,12 @@ func (b *cydDockerBuilder) ensureContainer(ctx context.Context) (string, error) 
 		}
 		return info.ID, nil
 	}
-	present, err := b.imagePresent(ctx)
-	if err != nil {
-		return "", b.dockerUnavailable("image inspect", err)
-	}
-	if !present {
-		return "", cydcreator.NewError(cydcreator.CodeImageMissing, "the toolchain image "+b.settings.Image+" is not installed", map[string]any{"image": b.settings.Image})
-	}
 	for _, v := range [][2]string{{b.cacheVolume, "cache"}, {b.workVolume, "work"}} {
 		if err := b.createVolume(ctx, v[0], v[1]); err != nil {
 			return "", err
 		}
 	}
-	data, code, err := b.request(ctx, http.MethodPost, "/containers/create?name="+url.QueryEscape(b.containerName), b.containerSpec())
+	data, code, err := b.request(ctx, http.MethodPost, "/containers/create?name="+url.QueryEscape(b.containerName), b.containerSpec(imageID))
 	if err != nil {
 		return "", b.dockerUnavailable("container create", err)
 	}

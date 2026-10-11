@@ -290,10 +290,29 @@ var dockerComposeCYDCreatorOwnerCases = map[string]struct {
 	"cyd work volume by name":         {`{"services":{"w":{"volumes":[{"type":"volume","source":"work","target":"/w"}]}},"volumes":{"work":{"name":"aurago-cyd-work","external":true}}}`, dockerutil.CYDCreatorOwner},
 	"declared cyd cache volume":       {`{"services":{},"volumes":{"c":{"name":"aurago-cyd-cache"}}}`, dockerutil.CYDCreatorOwner},
 	"cyd volume label":                {`{"services":{},"volumes":{"c":{"name":"x_c","labels":{"aurago.managed":"cyd-creator"}}}}`, dockerutil.CYDCreatorOwner},
+	"cyd builder image":               {`{"services":{"w":{"image":"ghcr.io/antibyte/aurago-cyd-builder:1"}}}`, dockerutil.CYDCreatorOwner},
+	"cyd builder image build tag":     {`{"services":{"w":{"image":"mine:1","build":{"context":".","tags":["ghcr.io/antibyte/aurago-cyd-builder:latest"]}}}}`, dockerutil.CYDCreatorOwner},
 	"cyd test volumes":                {`{"services":{"w":{"image":"aurago-cyd-builder:dev","volumes":[{"type":"volume","source":"aurago-cyd-work-it","target":"/work"},{"type":"volume","source":"aurago-cyd-cache-it","target":"/cache"}]}},"volumes":{"aurago-cyd-work-it":{"name":"aurago-cyd-work-it"},"aurago-cyd-cache-it":{"name":"aurago-cyd-cache-it"}}}`, ""},
-	"cyd ci volumes":                  {`{"services":{"w":{"image":"ghcr.io/antibyte/aurago-cyd-builder:1","volumes":[{"type":"volume","source":"cyd-ci-cache","target":"/cache"}]}},"volumes":{"cyd-ci-cache":{"name":"cyd-ci-cache"}}}`, ""},
+	"cyd ci volumes":                  {`{"services":{"w":{"image":"aurago-cyd-builder:ci","volumes":[{"type":"volume","source":"cyd-ci-cache","target":"/cache"}]}},"volumes":{"cyd-ci-cache":{"name":"cyd-ci-cache"}}}`, ""},
 	"builder-like test container":     {`{"services":{"w":{"container_name":"aurago-cyd-builder-it"}}}`, ""},
 	"project-scoped cyd cache volume": {`{"services":{},"volumes":{"c":{"name":"proj_aurago-cyd-cache-it"}}}`, ""},
+}
+
+// DockerComposeContainerReferences names every container outside the project
+// that a service joins or reads; the agent resolves each through Docker.
+func TestDockerComposeContainerReferencesListsOutsideContainers(t *testing.T) {
+	model, err := ParseDockerComposeModel(`{"services":{
+		"db":{"image":"x"},
+		"a":{"image":"x","network_mode":"container:cccccccccccc","pid":"container:` + strings.Repeat("c", 64) + `","ipc":"container:renamed"},
+		"b":{"image":"x","network_mode":"service:db","pid":"host","ipc":"shareable","volumes_from":["db","db:ro","container:vpn:rw","other"]},
+		"c":{"image":"x","network_mode":"container:cccccccccccc"}}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"cccccccccccc", strings.Repeat("c", 64), "other", "renamed", "vpn"}
+	if got := DockerComposeContainerReferences(model); strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("references = %q, want %q", got, want)
+	}
 }
 
 func TestDockerComposeModelOwnerFindsStructuredReferences(t *testing.T) {

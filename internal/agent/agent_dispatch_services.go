@@ -586,6 +586,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if dockerRequestTargetsAuraGoApp(req) {
 				return dockerAgentError("docker_managed_aurago_resource", "Direct inspection, lifecycle, log, file, or process access to AuraGo's application container is blocked.")
 			}
+			if dockerRequestTargetsCYDCreatorImage(req, cfg.CYDCreator.BuilderImage) {
+				return dockerAgentError("docker_managed_cyd_creator_resource", "The CYD Creator builder image cannot be run, pulled or removed through the generic docker tool. Use the CYD Creator app; it installs its own toolchain image.")
+			}
 			if dockerRequestCreatesReservedGarageName(req) {
 				return dockerAgentError("docker_managed_garage_resource", "The container name is reserved for AuraGo's managed Boring Computers Garage. Choose another name.")
 			}
@@ -1660,6 +1663,18 @@ const dockerCYDCreatorContainerMessage = "Direct inspection, lifecycle, log, fil
 // container_id, so no container can take the free name before the builder.
 func dockerRequestCreatesReservedCYDCreatorName(req dockerArgs) bool {
 	return dockerCreateRunOperation(req.Operation) && dockerutil.IsCYDCreatorBuilderContainerName(req.Name)
+}
+
+// dockerRequestTargetsCYDCreatorImage reports create/run, pull and
+// remove_image of the published or configured builder image (any tag or
+// digest), like the homepage image rule. A pulled or removed tag would change
+// what the builder runs next.
+func dockerRequestTargetsCYDCreatorImage(req dockerArgs, configured string) bool {
+	switch strings.ToLower(strings.TrimSpace(req.Operation)) {
+	case "create", "create_container", "run", "pull_image", "pull", "remove_image", "rmi":
+		return dockerutil.IsCYDCreatorImageReference(req.Image, configured)
+	}
+	return false
 }
 
 // dockerRequestMountsProtectedCYDCreatorVolume reports a mount of the

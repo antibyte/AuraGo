@@ -34,7 +34,9 @@ type fakeCYDEngine struct {
 	t            *testing.T
 	mu           sync.Mutex
 	imagePresent bool
-	imageStatus  int // when set, GET /images/{name}/json answers this status
+	imageStatus  int      // when set, GET /images/{name}/json answers this status
+	imageID      string   // Id of the image inspect answer
+	imageDigests []string // RepoDigests of the image inspect answer
 	pullBody     string
 	container    map[string]any // create spec, nil when absent
 	running      bool
@@ -60,9 +62,16 @@ type fakeExec struct {
 	exit int
 }
 
+// The fake engine's image: a pulled copy of the published builder image.
+var (
+	fakeCYDImageID    = "sha256:" + strings.Repeat("1", 64)
+	fakeCYDRepoDigest = "ghcr.io/antibyte/aurago-cyd-builder@sha256:" + strings.Repeat("d", 64)
+)
+
 func newFakeCYDEngine(t *testing.T) (*fakeCYDEngine, tools.DockerConfig) {
 	t.Helper()
-	e := &fakeCYDEngine{t: t, imagePresent: true, files: map[string][]byte{}, execs: map[string]*fakeExec{}}
+	e := &fakeCYDEngine{t: t, imagePresent: true, imageID: fakeCYDImageID, imageDigests: []string{fakeCYDRepoDigest},
+		files: map[string][]byte{}, execs: map[string]*fakeExec{}}
 	srv := httptest.NewServer(http.HandlerFunc(e.serve))
 	t.Cleanup(srv.Close)
 	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{DockerEnabled: true})
@@ -105,7 +114,8 @@ func (e *fakeCYDEngine) serve(w http.ResponseWriter, r *http.Request) {
 			_, _ = io.WriteString(w, `{"message":"No such image"}`)
 			return
 		}
-		_, _ = io.WriteString(w, `{"Id":"sha256:abc"}`)
+		data, _ := json.Marshal(map[string]any{"Id": e.imageID, "RepoDigests": e.imageDigests})
+		_, _ = w.Write(data)
 	case r.Method == http.MethodPost && p == "/images/create":
 		e.imagePresent = true
 		_, _ = io.WriteString(w, e.pullBody)
@@ -378,7 +388,7 @@ func TestCYDBuilderBuildCreatesAHardenedContainerAndStreamsTheLog(t *testing.T) 
 		"restart policy":    fmt.Sprint(host["RestartPolicy"]) == "map[Name:no]",
 		"exact host keys":   strings.Join(sortedAnyKeys(host), ",") == "CapDrop,Init,Memory,MemorySwap,Mounts,NanoCpus,NetworkMode,PidsLimit,ReadonlyRootfs,RestartPolicy,SecurityOpt,Tmpfs",
 		"exact spec keys":   strings.Join(sortedAnyKeys(spec), ",") == "Cmd,Env,HostConfig,Image,Labels,User,WorkingDir",
-		"image and workdir": spec["Image"] == "ghcr.io/antibyte/aurago-cyd-builder:1" && spec["WorkingDir"] == "/work",
+		"image and workdir": spec["Image"] == fakeCYDImageID && spec["WorkingDir"] == "/work",
 	}
 	for name, ok := range checks {
 		if !ok {
@@ -948,7 +958,7 @@ func TestCYDBuilderErrorsStayGeneric(t *testing.T) {
 
 func TestCYDBuilderDefaultsMissingLimits(t *testing.T) {
 	b := newCYDDockerBuilder(tools.DockerConfig{}, cydBuilderSettings{Image: "img:1"}, nil)
-	host := b.containerSpec()["HostConfig"].(map[string]any)
+	host := b.containerSpec(fakeCYDImageID)["HostConfig"].(map[string]any)
 	if host["Memory"] != int64(2048<<20) || host["MemorySwap"] != int64(2048<<20) || host["NanoCpus"] != int64(2e9) {
 		t.Fatalf("host config without settings = %v", host)
 	}
@@ -976,7 +986,7 @@ func (e *fakeCYDEngine) presetContainer(labels map[string]string, running bool) 
 func TestCYDBuilderDiscardsARunningContainerOfAnEarlierProcess(t *testing.T) {
 	engine, cfg := newFakeCYDEngine(t)
 	b := newTestCYDBuilder(cfg, 0)
-	engine.presetContainer(dockerutil.ManagedLabels("cyd-creator", "cyd-creator", "builder", b.fingerprint()), true)
+	engine.presetContainer(dockerutil.ManagedLabels("cyd-creator", "cyd-creator", "builder", b.fingerprint(fakeCYDImageID)), true)
 	req := cydcreator.BuildRequest{BuildID: "ccb_0020", Env: "esp32-2432s028r", CacheKey: "k", Tree: stubTree(0, 0)}
 	if _, err := b.Build(context.Background(), req, nil); err != nil {
 		t.Fatal(err)
@@ -1179,5 +1189,105 @@ func TestCYDPullReasonStaysGeneric(t *testing.T) {
 		if !strings.Contains(got, c.want) || (c.not != "" && strings.Contains(got, c.not)) || strings.Contains(got, "/var/lib") {
 			t.Errorf("cydPullReason(%d, %q) = %q, want %q", c.status, c.text, got, c.want)
 		}
+	}
+}
+
+// The image rule: a configured reference with a registry host needs a
+// repository digest of its own repository (exactly the pinned digest when the
+// reference has one); a configured local-only tag is used as it is.
+func TestCYDImageProvenanceRule(t *testing.T) {
+	pinned := "ghcr.io/antibyte/aurago-cyd-builder@sha256:" + strings.Repeat("d", 64)
+	cases := []struct {
+		configured string
+		digests    []string
+		ok         bool
+	}{
+		{"ghcr.io/antibyte/aurago-cyd-builder:1", []string{fakeCYDRepoDigest}, true},
+		{"ghcr.io/antibyte/aurago-cyd-builder:1", nil, false}, // built or re-tagged locally (classic image store)
+		{"ghcr.io/antibyte/aurago-cyd-builder:1", []string{"ghcr.io/evil/aurago-cyd-builder@sha256:" + strings.Repeat("e", 64)}, false},
+		{"ghcr.io/antibyte/aurago-cyd-builder:1", []string{"ghcr.io/antibyte/aurago-cyd-builder"}, false},
+		{"ghcr.io/antibyte/aurago-cyd-builder:1@sha256:" + strings.Repeat("d", 64), []string{pinned}, true},
+		{"ghcr.io/antibyte/aurago-cyd-builder@sha256:" + strings.Repeat("d", 64), []string{"ghcr.io/antibyte/aurago-cyd-builder@sha256:" + strings.Repeat("e", 64)}, false},
+		{"docker.io/library/aurago-cyd-builder:dev", []string{"aurago-cyd-builder@sha256:" + strings.Repeat("f", 64)}, true},
+		{"docker.io/library/aurago-cyd-builder:dev", nil, false},
+		{"aurago-cyd-builder:dev", nil, true}, // local-only tag explicitly configured (development, CI)
+		{"aurago-cyd-builder:ci", []string{}, true},
+	}
+	for _, c := range cases {
+		if problem := cydImageProvenanceProblem(c.configured, c.digests); (problem == "") != c.ok {
+			t.Errorf("cydImageProvenanceProblem(%q, %q) = %q, want ok %v", c.configured, c.digests, problem, c.ok)
+		}
+	}
+}
+
+// An image without a repository digest of the configured repository (a local
+// build or re-tag) is never used: no volume, no container, Status reports it
+// as not present so the app offers the pull that replaces it.
+func TestCYDBuilderRefusesAnImageThatDidNotComeFromItsRegistry(t *testing.T) {
+	for name, digests := range map[string][]string{
+		"no repository digest":         nil,
+		"digest of another repository": {"ghcr.io/evil/aurago-cyd-builder@sha256:" + strings.Repeat("e", 64)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			engine, cfg := newFakeCYDEngine(t)
+			engine.imageDigests = digests
+			b := newTestCYDBuilder(cfg, 0)
+			_, err := b.Build(context.Background(), cydcreator.BuildRequest{BuildID: "ccb_0030", Env: "esp32-2432s028r", CacheKey: "k", Tree: stubTree(0, 0)}, nil)
+			if cydcreator.ErrorCode(err) != cydcreator.CodeImageMissing || !strings.Contains(err.Error(), "not the published one") || strings.Contains(err.Error(), "evil") {
+				t.Fatalf("build with an unverified image = %v", err)
+			}
+			engine.mu.Lock()
+			created, volumes := engine.container != nil, len(engine.volumes)
+			engine.mu.Unlock()
+			if created || volumes != 0 {
+				t.Fatalf("an unverified image reached Docker: container %v, volumes %d", created, volumes)
+			}
+			if st := b.Status(context.Background()); !st.DockerAvailable || st.Present || st.Error != cydImageNotPublished {
+				t.Fatalf("status with an unverified image = %+v", st)
+			}
+		})
+	}
+	// An existing container of a verified image is not reused once the tag
+	// points at an unverified image.
+	engine, cfg := newFakeCYDEngine(t)
+	b := newTestCYDBuilder(cfg, 0)
+	req := cydcreator.BuildRequest{BuildID: "ccb_0031", Env: "esp32-2432s028r", CacheKey: "k", Tree: stubTree(0, 0)}
+	if _, err := b.Build(context.Background(), req, nil); err != nil {
+		t.Fatal(err)
+	}
+	engine.mu.Lock()
+	engine.imageID, engine.imageDigests = "sha256:"+strings.Repeat("2", 64), []string{"ghcr.io/antibyte/aurago-cyd-builder@sha256:" + strings.Repeat("2", 64)}
+	engine.mu.Unlock()
+	req.BuildID = "ccb_0032"
+	if _, err := b.Build(context.Background(), req, nil); err != nil {
+		t.Fatal(err)
+	}
+	engine.mu.Lock()
+	if engine.removes != 1 || engine.container["Image"] != "sha256:"+strings.Repeat("2", 64) {
+		engine.mu.Unlock()
+		t.Fatalf("a new verified image did not recreate the container: removes %d, image %v", engine.removes, engine.container["Image"])
+	}
+	engine.imageDigests = nil
+	engine.mu.Unlock()
+	req.BuildID = "ccb_0033"
+	if _, err := b.Build(context.Background(), req, nil); cydcreator.ErrorCode(err) != cydcreator.CodeImageMissing {
+		t.Fatalf("build after the tag moved to an unverified image = %v", err)
+	}
+}
+
+// A configured local-only tag (development and CI: aurago-cyd-builder:dev)
+// needs no repository digest; the container is still created from the image ID.
+func TestCYDBuilderUsesAConfiguredLocalTagByItsID(t *testing.T) {
+	engine, cfg := newFakeCYDEngine(t)
+	engine.imageDigests = nil
+	b := newTestCYDBuilder(cfg, 0)
+	b.settings.Image = "aurago-cyd-builder:dev"
+	if _, err := b.Build(context.Background(), cydcreator.BuildRequest{BuildID: "ccb_0034", Env: "esp32-2432s028r", CacheKey: "k", Tree: stubTree(0, 0)}, nil); err != nil {
+		t.Fatalf("build with a configured local tag: %v", err)
+	}
+	engine.mu.Lock()
+	defer engine.mu.Unlock()
+	if engine.container["Image"] != fakeCYDImageID {
+		t.Fatalf("container image = %v, want the image ID", engine.container["Image"])
 	}
 }

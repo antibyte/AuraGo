@@ -2,6 +2,7 @@ package dockerutil
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -208,5 +209,59 @@ func TestCYDCreatorReservedNames(t *testing.T) {
 	if !ManagedBy(ManagedLabels(CYDCreatorOwner, "cyd-creator", "builder", "abc"), CYDCreatorOwner) ||
 		!ManagedBy(map[string]string{"aurago.managed": "cyd-creator"}, CYDCreatorOwner) {
 		t.Fatal("the CYD builder labels do not name their owner")
+	}
+}
+
+// The builder image is the published repository plus the configured
+// builder_image repository, with any tag or digest; Docker Hub spellings of a
+// configured local tag are the same repository.
+func TestCYDCreatorImageReference(t *testing.T) {
+	t.Parallel()
+
+	for ref, want := range map[string]string{
+		"ghcr.io/antibyte/aurago-cyd-builder:1":          "ghcr.io/antibyte/aurago-cyd-builder",
+		"GHCR.IO/antibyte/aurago-cyd-builder@sha256:abc": "ghcr.io/antibyte/aurago-cyd-builder",
+		"aurago-cyd-builder:dev":                         "aurago-cyd-builder",
+		"docker.io/library/aurago-cyd-builder:dev":       "aurago-cyd-builder",
+		"library/nginx":                                  "nginx",
+		"registry.local:5000/team/img:2@sha256:abc":      "registry.local:5000/team/img",
+		"ghcr.io/library/x:1":                            "ghcr.io/library/x",
+		"":                                               "",
+	} {
+		if got := ImageRepository(ref); got != want {
+			t.Fatalf("ImageRepository(%q) = %q, want %q", ref, got, want)
+		}
+	}
+	for ref, want := range map[string]bool{
+		"ghcr.io/antibyte/aurago-cyd-builder:1":    true,
+		"localhost/aurago-cyd-builder:dev":         true,
+		"registry:5000/x":                          true,
+		"docker.io/library/aurago-cyd-builder:dev": true,
+		"aurago-cyd-builder:dev":                   false,
+		"antibyte/aurago-cyd-builder:1":            false,
+	} {
+		if got := ImageReferenceHasRegistry(ref); got != want {
+			t.Fatalf("ImageReferenceHasRegistry(%q) = %v, want %v", ref, got, want)
+		}
+	}
+	if got := ImageReferenceDigest("ghcr.io/antibyte/aurago-cyd-builder:1@SHA256:ABC"); got != "sha256:abc" || ImageReferenceDigest("x:1") != "" {
+		t.Fatalf("ImageReferenceDigest = %q", got)
+	}
+	for _, ref := range []string{"ghcr.io/antibyte/aurago-cyd-builder:1", "ghcr.io/antibyte/aurago-cyd-builder:latest",
+		"ghcr.io/antibyte/aurago-cyd-builder@sha256:" + strings.Repeat("a", 64), " GHCR.IO/ANTIBYTE/AURAGO-CYD-BUILDER "} {
+		if !IsCYDCreatorImageReference(ref, "") {
+			t.Fatalf("published builder image %q was not recognized", ref)
+		}
+	}
+	for _, ref := range []string{"aurago-cyd-builder:dev", "aurago-cyd-builder-stub:test", "ghcr.io/antibyte/aurago-cyd-builder-stub:1",
+		"ghcr.io/antibyte/aurago:1", "ghcr.io/other/aurago-cyd-builder:1", ""} {
+		if IsCYDCreatorImageReference(ref, "") {
+			t.Fatalf("unrelated image %q was recognized as the builder image", ref)
+		}
+	}
+	if !IsCYDCreatorImageReference("docker.io/library/aurago-cyd-builder:other", "aurago-cyd-builder:dev") ||
+		!IsCYDCreatorImageReference("registry.local/cyd:2", "registry.local/cyd:1") ||
+		IsCYDCreatorImageReference("aurago-cyd-builder-stub:test", "aurago-cyd-builder:dev") {
+		t.Fatal("the configured builder image repository is not matched exactly")
 	}
 }

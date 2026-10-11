@@ -36,6 +36,14 @@ func TestDockerRenameContainerRejectsReservedManagedNames(t *testing.T) {
 	}
 }
 
+// The agent and Compose refuse dockerutil's builder repository; the CYD Creator
+// configuration defaults to it. They must stay the same repository.
+func TestCYDCreatorImageRepositoryMatchesTheConfigDefault(t *testing.T) {
+	if got := dockerutil.ImageRepository(config.DefaultCYDCreatorBuilderImage); got != dockerutil.CYDCreatorImageRepository {
+		t.Fatalf("config.DefaultCYDCreatorBuilderImage repository = %q, dockerutil.CYDCreatorImageRepository = %q", got, dockerutil.CYDCreatorImageRepository)
+	}
+}
+
 // The agent and Compose protections use dockerutil's name; the Garage
 // manager uses config's. They must stay the same name.
 func TestManagedGarageContainerNameMatchesDockerutil(t *testing.T) {

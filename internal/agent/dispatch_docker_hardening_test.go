@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -127,6 +128,21 @@ func TestDispatchDockerCreateRunHardeningBlocksBeforeDocker(t *testing.T) {
 		{
 			name: "reserved cyd builder name with case and spaces",
 			call: ToolCall{Action: "docker", Operation: "create", Name: " AURAGO-CYD-BUILDER ", Image: "alpine:latest"},
+			code: "docker_managed_cyd_creator_resource",
+		},
+		{
+			name: "cyd builder image run",
+			call: ToolCall{Action: "docker", Operation: "run", Name: "job", Image: "ghcr.io/antibyte/aurago-cyd-builder:1"},
+			code: "docker_managed_cyd_creator_resource",
+		},
+		{
+			name: "cyd builder image pull by digest",
+			call: ToolCall{Action: "docker", Operation: "pull", Image: "ghcr.io/antibyte/aurago-cyd-builder@sha256:" + strings.Repeat("d", 64)},
+			code: "docker_managed_cyd_creator_resource",
+		},
+		{
+			name: "cyd builder image forced removal",
+			call: ToolCall{Action: "docker", Operation: "remove_image", Image: "GHCR.IO/antibyte/aurago-cyd-builder:latest", Force: true},
 			code: "docker_managed_cyd_creator_resource",
 		},
 		{
@@ -480,5 +496,72 @@ func TestDispatchDockerBlocksTheCYDCreatorBuilderAndVolumes(t *testing.T) {
 	got := dockerComposeOwnerDenial(dockerutil.CYDCreatorOwner)
 	if !strings.Contains(got, code) || !strings.Contains(got, "Use the CYD Creator app") {
 		t.Fatalf("compose CYD Creator denial = %s, want %s", got, code)
+	}
+}
+
+// I2: a configured local builder image (aurago-cyd-builder:dev) is reserved like
+// the published one; without that setting the tag is an ordinary image.
+func TestDispatchDockerRefusesTheConfiguredCYDCreatorImage(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Docker.Enabled = true
+	cfg.Docker.ReadOnly = true // an allowed call stops at the read-only gate, before Docker
+	cfg.Docker.Host = "tcp://127.0.0.1:1"
+	cfg.Directories.WorkspaceDir = t.TempDir()
+	calls := []ToolCall{
+		{Action: "docker", Operation: "run", Name: "job", Image: "aurago-cyd-builder:dev"},
+		{Action: "docker", Operation: "pull", Image: "docker.io/library/aurago-cyd-builder:other"},
+		{Action: "docker", Operation: "rmi", Image: "aurago-cyd-builder:dev", Force: true},
+	}
+	for _, configured := range []string{"", "aurago-cyd-builder:dev"} {
+		cfg.CYDCreator.BuilderImage = configured
+		for _, call := range calls {
+			output, ok := dispatchServices(context.Background(), call, &DispatchContext{Cfg: cfg, Logger: testLogger})
+			if !ok {
+				t.Fatal("expected docker operation to be handled")
+			}
+			refused := strings.Contains(output, `"code":"docker_managed_cyd_creator_resource"`)
+			if refused != (configured != "") {
+				t.Fatalf("configured %q, %s %s = %s", configured, call.Operation, call.Image, output)
+			}
+		}
+	}
+}
+
+// I1: the agent's create/run path cannot share another container's network,
+// PID or IPC namespace or its volumes: dispatch sets none of these keys, even
+// when the call carries them.
+func TestDispatchDockerCreateNeverJoinsAnotherContainer(t *testing.T) {
+	var body map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/version":
+			_, _ = w.Write([]byte(`{"ApiVersion":"1.45","MinAPIVersion":"1.25"}`))
+		case strings.HasSuffix(r.URL.Path, "/containers/create"):
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"Id":"bbbbbbbbbbbb2222"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+	cfg := &config.Config{}
+	cfg.Docker.Enabled = true
+	cfg.Docker.Host = "tcp://" + strings.TrimPrefix(server.URL, "http://")
+	cfg.Directories.WorkspaceDir = t.TempDir()
+	useRuntimePermissionsForTest(t, cfg)
+	call := ToolCall{Action: "docker", Operation: "create", Name: "job", Image: "alpine:latest", Params: map[string]interface{}{
+		"network_mode": "container:aurago-cyd-builder", "pid_mode": "container:aurago-cyd-builder", "ipc_mode": "container:aurago",
+		"pid": "container:cccccccccccc", "volumes_from": []interface{}{"aurago-cyd-builder"},
+	}}
+	output, ok := dispatchServices(context.Background(), call, &DispatchContext{Cfg: cfg, Logger: testLogger})
+	if !ok || strings.Contains(output, `"status":"error"`) {
+		t.Fatalf("create = %s", output)
+	}
+	host, _ := body["HostConfig"].(map[string]any)
+	for _, key := range []string{"NetworkMode", "PidMode", "IpcMode", "VolumesFrom", "UTSMode", "UsernsMode", "CgroupnsMode"} {
+		if _, set := host[key]; set {
+			t.Fatalf("create body sets HostConfig.%s: %v", key, host)
+		}
 	}
 }

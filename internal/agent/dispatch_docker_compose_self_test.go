@@ -271,6 +271,11 @@ func TestDockerComposePolicyRefusesTheSecurityProxyContainerName(t *testing.T) {
 	if got := policy("ps"); got != "" {
 		t.Fatalf("ps refused: %s", got)
 	}
+	// The container reference is resolved through Docker; the proxy's owner is
+	// not one that Compose may not join.
+	stubDockerComposeReferenceOwnership(t, func(string) (map[string]bool, error) {
+		return map[string]bool{}, nil
+	})
 	model = `{"name":"edge","services":{"edge":{"image":"caddy:2","network_mode":"container:aurago-security-proxy"}}}`
 	if got := policy("up -d"); got != "" {
 		t.Fatalf("a stack joining the proxy's namespace was newly refused: %s", got)

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -187,7 +188,8 @@ func dockerComposeKeepEnd(text string, limit int) string {
 // homepage image repository, named and bind volume sources, local bind volume
 // devices, volumes_from and container: namespace references. Owners: acestep.Owner, dockerutil.LocalLLMOwner,
 // BoringGarageOwner, HomepageOwner, AppOwner and CYDCreatorOwner (the exact
-// builder container name and its two exact volume names). The app container matches only
+// builder container name, its two exact volume names and the published builder
+// image as a service image or build tag). The app container matches only
 // its exact name "aurago" or the aurago-app owner label: this tier also binds
 // grandfathered configs, and user stacks name containers like "dev-aurago".
 func DockerComposeModelOwner(model DockerComposeModel) string {
@@ -201,6 +203,11 @@ func DockerComposeModelOwner(model DockerComposeModel) string {
 		}
 		if dockerutil.IsHomepageImageReference(service.Image) {
 			return dockerutil.HomepageOwner
+		}
+		if dockerComposeServiceUsesImage(service, func(ref string) bool { return dockerutil.IsCYDCreatorImageReference(ref, "") }) {
+			// build would tag (and pull, push or down --rmi would touch) the
+			// published builder image.
+			return dockerutil.CYDCreatorOwner
 		}
 		for _, mount := range service.Volumes {
 			if owner := dockerComposeMountOwner(model, mount); owner != "" {
@@ -245,6 +252,73 @@ func DockerComposeModelOwner(model DockerComposeModel) string {
 		}
 	}
 	return ""
+}
+
+// dockerComposeServiceUsesImage reports whether matches accepts the service's
+// image or one of its build tags.
+func dockerComposeServiceUsesImage(service DockerComposeService, matches func(string) bool) bool {
+	if matches(service.Image) {
+		return true
+	}
+	if service.Build != nil {
+		for _, tag := range service.Build.Tags {
+			if matches(tag) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// DockerComposeModelUsesImage reports whether a service of the model uses an
+// image reference that matches accepts (image or build tag); the agent passes
+// the configured CYD Creator builder image.
+func DockerComposeModelUsesImage(model DockerComposeModel, matches func(string) bool) bool {
+	for _, name := range sortedDockerComposeKeys(model.Services) {
+		if dockerComposeServiceUsesImage(model.Services[name], matches) {
+			return true
+		}
+	}
+	return false
+}
+
+// DockerComposeContainerReferences returns the containers outside the project
+// that the model's services reach into: container: targets of network_mode,
+// pid and ipc, and volumes_from entries that are container: references or name
+// no service of the model. Docker resolves such a target as a name, a full ID
+// or an ID prefix, so the agent asks Docker who owns each one
+// (DockerContainerOwnership); the name rules of DockerComposeModelOwner alone
+// miss an ID or a renamed container. Sorted and deduplicated.
+func DockerComposeContainerReferences(model DockerComposeModel) []string {
+	seen := map[string]bool{}
+	var targets []string
+	add := func(target string) {
+		target = strings.TrimSpace(target)
+		if target != "" && !seen[target] {
+			seen[target] = true
+			targets = append(targets, target)
+		}
+	}
+	for _, name := range sortedDockerComposeKeys(model.Services) {
+		service := model.Services[name]
+		for _, mode := range []string{service.NetworkMode, service.Pid, service.Ipc} {
+			if target, ok := strings.CutPrefix(strings.TrimSpace(mode), "container:"); ok {
+				add(target)
+			}
+		}
+		for _, ref := range service.VolumesFrom {
+			target := strings.TrimSpace(ref)
+			isContainer := strings.HasPrefix(target, "container:")
+			target = strings.TrimPrefix(target, "container:")
+			target = strings.TrimSuffix(strings.TrimSuffix(target, ":ro"), ":rw")
+			if _, sameProject := model.Services[target]; sameProject && !isContainer {
+				continue
+			}
+			add(target)
+		}
+	}
+	sort.Strings(targets)
+	return targets
 }
 
 // dockerComposeLabelOwner reports the AuraGo owner named by canonical or legacy

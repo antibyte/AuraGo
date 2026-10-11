@@ -302,6 +302,8 @@ type DockerComposeBuild struct {
 	// Network is the network mode of the build's RUN steps ("host" shares
 	// the host network).
 	Network DockerComposeString `json:"network"`
+	// Tags are the extra image references the build tags next to image.
+	Tags DockerComposeList `json:"tags"`
 }
 
 // DockerComposeNamedVolume is a resolved top-level volume.

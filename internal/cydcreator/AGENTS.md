@@ -351,6 +351,14 @@ turns a project into the complete PlatformIO tree. Later plans add storage and t
   `aurago.managed=cyd-creator`; names in `internal/dockerutil`) belong to the CYD Creator app only: the agent docker
   tool, agent Compose and the admin Containers API protect them (`internal/tools/AGENTS.md`), so tests and CI use
   other names (`aurago-cyd-*-it`, `cyd-ci-*`).
+- Image provenance (`internal/server/cyd_creator_builder.go`, `cydImageProvenanceProblem`): before every acquire the
+  builder inspects `builder_image`; a reference with a registry host needs a `RepoDigests` entry of its own repository
+  (a digest-pinned one exactly its digest), a reference without one (`aurago-cyd-builder:dev`/`:ci`, development and
+  CI) is used as it is. The container is created from the verified image ID, which is part of the fingerprint (a new
+  pull recreates the container); a failed check is `CYD_IMAGE_MISSING` with a generic text (log has the details) and
+  Status reports the image as not present, so the app offers the pull. On the containerd image store (Docker 29
+  default) a local build gets a digest of its tag's repository too: there only a digest-pinned `builder_image` proves
+  the origin, and the agent-side image refusal is the barrier.
 - Publishing: `.github/workflows/cyd-builder.yml` builds each architecture natively and smoke-tests it offline
   (amd64 all profiles, arm64 one). The amd64 job then compiles ten builds of the nine golden cases (`all_widgets` on
   two boards, `all_widgets_portrait` and the seven `theme_*` cases) strictly with `TestGenerateCompilesInBuilder`
