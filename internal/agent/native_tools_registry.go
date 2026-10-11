@@ -45,6 +45,7 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 	tools = appendMemoryToolSchemas(tools, ff)
 	tools = appendPlannerToolSchemas(tools, ff)
 	tools = appendIntegrationToolSchemas(tools, ff)
+	tools = appendGogSchemas(tools, ff)
 	tools = appendGameMakerToolSchemas(tools, ff)
 	tools = replaceMegaToolSchemasWithFocused(tools, ff)
 	tools = appendContentToolSchemas(tools, ff)
@@ -72,7 +73,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		AnsibleEnabled: true, InvasionControlEnabled: true, GitHubEnabled: true, HuggingFaceEnabled: true, MQTTEnabled: true, CydEnabled: true, NotificationEnabled: true,
 		AdGuardEnabled: true, UptimeKumaEnabled: true, GrafanaEnabled: true, MCPEnabled: true, ComposioEnabled: true, ManusEnabled: true, EvomapEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
 		HomepageEnabled: true, NetlifyEnabled: true, HereNowEnabled: true, TregEnabled: true, VercelEnabled: true, FirewallEnabled: true, EmailEnabled: true, AgentMailEnabled: true,
-		CloudflareTunnelEnabled: true, GoogleWorkspaceEnabled: true, OneDriveEnabled: true, WebDAVEnabled: true,
+		CloudflareTunnelEnabled: true, GoogleWorkspaceEnabled: true, GogEnabled: true, OneDriveEnabled: true, WebDAVEnabled: true,
 		VirusTotalEnabled: true, GolangciLintEnabled: true, ImageGenerationEnabled: true, MusicGenerationEnabled: true, VideoGenerationEnabled: true, TTSEnabled: true, RemoteControlEnabled: true, PackageManagerEnabled: true,
 		AllowShell: true, AllowPython: true, AllowFilesystemWrite: true, AllowNetworkRequests: true,
 		AllowRemoteShell: true, AllowSelfUpdate: true, HomepageAllowLocalServer: true,
@@ -164,6 +165,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("agentmail", ff.AgentMailEnabled)
 	appendToolFeatureKeyPart("cloudflare_tunnel", ff.CloudflareTunnelEnabled)
 	appendToolFeatureKeyPart("google_workspace", ff.GoogleWorkspaceEnabled)
+	appendToolFeatureKeyPart("gog", ff.GogEnabled)
 	appendToolFeatureKeyPart("onedrive", ff.OneDriveEnabled)
 	appendToolFeatureKeyPart("webdav", ff.WebDAVEnabled)
 	appendToolFeatureKeyPart("virustotal", ff.VirusTotalEnabled)

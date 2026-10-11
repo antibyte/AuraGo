@@ -571,5 +571,7 @@
   "config.section.here_now.label": "here.now",
   "config.section.here_now.desc": "Geverifieerde permanente Sites publiceren en beheren",
   "config.section.cyd.label": "Cheap Yellow Display",
-  "config.section.cyd.desc": "ESP32 2,8\" mini-dashboard voor systeemstatus en agentmeldingen"
+  "config.section.cyd.desc": "ESP32 2,8\" mini-dashboard voor systeemstatus en agentmeldingen",
+  "config.section.gog.label": "Google Workspace via gog",
+  "config.section.gog.desc": "Gebruik afzonderlijke Google-accounts naast de ingebouwde integratie."
 }

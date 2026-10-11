@@ -2094,3 +2094,9 @@ security_proxy:
         enabled: false
         allowed_countries: []               # ISO 3166-1 alpha-2 codes
     additional_routes: []
+
+# Optional managed Google Workspace CLI; secrets and OAuth tokens live in the Vault.
+gog:
+  enabled: false
+  readonly: true
+  accounts: [] # Add accounts and per-service grants in the configuration UI.

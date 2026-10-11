@@ -64,6 +64,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/python-tool-bridge/tools", handlePythonToolBridgeTools(s))
 
 	// OAuth2 Authorization Code flow endpoints
+	mux.Handle("/api/gog/", requireAdmin(s, handleGog(s)))
 	mux.HandleFunc("/api/oauth/start", handleOAuthStart(s))
 	mux.HandleFunc("/api/oauth/callback", handleOAuthCallback(s))
 	mux.HandleFunc("/api/oauth/manual", handleOAuthManual(s))

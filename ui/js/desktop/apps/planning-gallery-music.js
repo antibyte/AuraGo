@@ -109,6 +109,7 @@
         host.innerHTML = `<div class="vd-todo-frame"><div class="vd-todo"><aside class="vd-todo-sidebar">
             ${['all', 'open', 'in_progress', 'done'].map(status => `<button type="button" data-filter="${status}" class="${host.dataset.todoFilter === status ? 'active' : ''}">${esc(t('desktop.todo_' + status))}</button>`).join('')}
         </aside><main class="vd-todo-main"><form class="vd-todo-add"><input placeholder="${esc(t('desktop.todo_title_placeholder'))}"${todoAddDisabled}><select${todoAddDisabled}><option value="low">${esc(t('desktop.todo_priority_low'))}</option><option value="medium" selected>${esc(t('desktop.todo_priority_medium'))}</option><option value="high">${esc(t('desktop.todo_priority_high'))}</option></select><button class="vd-button vd-button-primary"${todoAddDisabled}>${esc(t('desktop.todo_add'))}</button></form><div class="vd-todo-list">${esc(t('desktop.loading'))}</div></main><section class="vd-todo-detail"><div class="vd-empty">${esc(t('desktop.todo_select_task'))}</div></section></div></div>`;
+        registerWindowCleanup(id, window.AuraGogDesktop?.attachSources(host, 'tasks', { t }) || (() => {}));
         if (host._todoTimer) clearInterval(host._todoTimer);
         async function runTodoAction(action) {
             try {

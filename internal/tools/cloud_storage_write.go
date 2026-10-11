@@ -14,6 +14,9 @@ import (
 
 // Put creates a file unless an observed version explicitly authorizes replacement.
 func (c CloudStorage) Put(ctx context.Context, loc StorageLocation, body io.Reader, version string) (StorageEntry, error) {
+	if loc.Provider == "gog" {
+		return c.Gog.Put(ctx, loc, body, version)
+	}
 	if loc.Path == "" {
 		return StorageEntry{}, fmt.Errorf("cannot write storage root")
 	}
@@ -58,6 +61,9 @@ func (c CloudStorage) Put(ctx context.Context, loc StorageLocation, body io.Read
 }
 
 func (c CloudStorage) Mkdir(ctx context.Context, loc StorageLocation) error {
+	if loc.Provider == "gog" {
+		return c.Gog.Mkdir(ctx, loc)
+	}
 	if loc.Path == "" {
 		return fmt.Errorf("cannot create storage root")
 	}
@@ -77,6 +83,9 @@ func (c CloudStorage) Mkdir(ctx context.Context, loc StorageLocation) error {
 
 // Remove can conditionally delete a copied source; unsafe cleanup retains it.
 func (c CloudStorage) Remove(ctx context.Context, loc StorageLocation, version string, onlyEmpty bool) error {
+	if loc.Provider == "gog" {
+		return ErrStorageSourceRetained
+	}
 	if loc.Path == "" {
 		return fmt.Errorf("cannot delete storage root")
 	}
@@ -103,6 +112,9 @@ func (c CloudStorage) Remove(ctx context.Context, loc StorageLocation, version s
 }
 
 func (c CloudStorage) Move(ctx context.Context, from, to StorageLocation, version string) error {
+	if from.Provider == "gog" && to.Provider == "gog" && from.AccountID == to.AccountID {
+		return c.Gog.Move(ctx, from, to, version)
+	}
 	if from.Provider != to.Provider || from.MountID != to.MountID || from.Path == "" || to.Path == "" {
 		return fmt.Errorf("invalid storage move")
 	}

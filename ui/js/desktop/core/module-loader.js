@@ -12,7 +12,7 @@
         'code-studio': '/js/desktop/bundles/code-studio.bundle.js',
         'desktop-sounds': '/js/desktop/bundles/desktop-sounds.bundle.js'
     };
-    const commonAppStyles = ['/css/desktop-app-common.css'];
+    const commonAppStyles = ['/css/desktop-app-common.css', '/css/desktop-gog.css'];
 
     function appStyles(...styles) {
         return commonAppStyles.concat(styles);

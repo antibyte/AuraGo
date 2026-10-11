@@ -438,6 +438,8 @@ func matchPromptCondition(cond string, flags *ContextFlags) bool {
 		return flags.NetworkSharesEnabled
 	case "coagent_enabled":
 		return flags.CoAgentEnabled
+	case "gog_enabled":
+		return flags.GogEnabled
 	case "google_workspace_enabled":
 		return flags.GoogleWorkspaceEnabled
 	case "onedrive_enabled":

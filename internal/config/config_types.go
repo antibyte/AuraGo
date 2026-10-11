@@ -974,6 +974,7 @@ type NetworkSharesConfig struct {
 }
 
 type Config struct {
+	Gog GogConfig `yaml:"gog" json:"gog"`
 	// RegisterEvomapNode is server-owned and serializes registration with config/Vault writes.
 	RegisterEvomapNode func(context.Context) (nodeID, claimURL string, secretConfigured bool, err error) `yaml:"-" json:"-"`
 	// AuthorizationSnapshots preserves publication identity across scoped copies.

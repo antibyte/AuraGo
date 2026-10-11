@@ -179,6 +179,7 @@ type ContextFlags struct {
 	BluetoothEnabled         bool
 	NetworkSharesEnabled     bool
 	CoAgentEnabled           bool
+	GogEnabled               bool
 	GoogleWorkspaceEnabled   bool
 	OneDriveEnabled          bool
 	TelegramEnabled          bool
@@ -2555,6 +2556,16 @@ var enabledIntegrationDescriptors = []enabledIntegrationDescriptor{
 	{"email", "email", func(f *ContextFlags) bool { return f.EmailEnabled }},
 	{"cloudflare_tunnel", "cloudflare_tunnel", func(f *ContextFlags) bool { return f.CloudflareTunnelEnabled }},
 	{"google_workspace", "google_workspace", func(f *ContextFlags) bool { return f.GoogleWorkspaceEnabled }},
+	{"gog_accounts", "gog_accounts", func(f *ContextFlags) bool { return f.GogEnabled }},
+	{"gog_gmail", "gog_gmail", func(f *ContextFlags) bool { return f.GogEnabled }},
+	{"gog_calendar", "gog_calendar", func(f *ContextFlags) bool { return f.GogEnabled }},
+	{"gog_drive", "gog_drive", func(f *ContextFlags) bool { return f.GogEnabled }},
+	{"gog_docs", "gog_docs", func(f *ContextFlags) bool { return f.GogEnabled }},
+	{"gog_sheets", "gog_sheets", func(f *ContextFlags) bool { return f.GogEnabled }},
+	{"gog_slides", "gog_slides", func(f *ContextFlags) bool { return f.GogEnabled }},
+	{"gog_contacts", "gog_contacts", func(f *ContextFlags) bool { return f.GogEnabled }},
+	{"gog_tasks", "gog_tasks", func(f *ContextFlags) bool { return f.GogEnabled }},
+
 	{"onedrive", "onedrive", func(f *ContextFlags) bool { return f.OneDriveEnabled }},
 	{"virustotal", "virustotal", func(f *ContextFlags) bool { return f.VirusTotalEnabled }},
 	{"brave_search", "brave_search", func(f *ContextFlags) bool { return f.BraveSearchEnabled }},

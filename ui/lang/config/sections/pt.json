@@ -571,5 +571,7 @@
   "config.section.here_now.label": "here.now",
   "config.section.here_now.desc": "Publicar e gerir Sites permanentes autenticados",
   "config.section.cyd.label": "Cheap Yellow Display",
-  "config.section.cyd.desc": "Mini painel ESP32 de 2,8\" para estado do sistema e avisos do agente"
+  "config.section.cyd.desc": "Mini painel ESP32 de 2,8\" para estado do sistema e avisos do agente",
+  "config.section.gog.label": "Google Workspace através do gog",
+  "config.section.gog.desc": "Usa contas Google separadas em conjunto com a integração nativa."
 }

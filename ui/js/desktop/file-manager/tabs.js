@@ -22,7 +22,7 @@
         const tabItems = fm.tabs.map((tab, idx) => {
             const active = idx === fm.activeTabIndex ? ' active' : '';
             const sourceName = storageName({ ...fm, storage: tab.storage });
-            const title = tab.path ? (tab.storage?.provider !== 'local' ? sourceName + ' · ' : '') + tab.path.split('/').pop() : sourceName;
+            const title = tab.path ? (tab.storage?.provider !== 'local' ? sourceName + ' · ' : '') + (tab.storage?.name || tab.path.split('/').pop()) : sourceName;
             return `<div class="fm-tab${active}" data-tab-index="${idx}" draggable="true" role="tab" aria-selected="${idx === fm.activeTabIndex ? 'true' : 'false'}">
                 <span class="fm-tab-icon">${iconMarkup('folder', 'F', 'fm-tab-folder-icon', 12)}</span>
                 <span class="fm-tab-title" title="${esc(tab.path || '/')}">${esc(title)}</span>
@@ -42,7 +42,7 @@
         const newTab = {
             id: 'tab-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9),
             path: location.path,
-            storage: { provider: location.provider, mount_id: location.mount_id },
+            storage: { ...location },
             history: [location],
             historyIndex: 0,
             selectedPaths: new Set(),

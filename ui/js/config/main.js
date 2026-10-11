@@ -169,6 +169,7 @@ const SECTIONS = [
         items: [
             { key: 'github', icon: '🐙', label: t('config.section.github.label'), desc: t('config.section.github.desc') },
             { key: 'google_workspace', icon: '📊', label: t('config.section.google_workspace.label'), desc: t('config.section.google_workspace.desc') },
+            { key: 'gog', icon: '📊', label: t('config.section.gog.label'), desc: t('config.section.gog.desc') },
             { key: 'paperless_ngx', icon: '📄', label: t('config.section.paperless_ngx.label'), desc: t('config.section.paperless_ngx.desc') },
             { key: 'obsidian', icon: '📝', label: t('config.section.obsidian.label'), desc: t('config.section.obsidian.desc') },
             { key: 'yepapi', icon: '🌐', label: t('config.section.yepapi.label'), desc: t('config.section.yepapi.desc') }
@@ -3331,6 +3332,7 @@ const SECTION_MODULES = {
     firewall: { m: 'firewall', fn: 'renderFirewallSection' },
     github: { m: 'github', fn: 'renderGitHubSection' },
     google_workspace: { m: 'google_workspace', fn: 'renderGoogleWorkspaceSection' },
+    gog: { m: 'gog', fn: 'renderGogSection' },
     ai_gateway: { m: 'ai_gateway', fn: 'renderAIGatewaySection' },
     composio: { m: 'composio', fn: 'renderComposioSection' },
     manus: { m: 'manus', fn: 'renderManusSection' },

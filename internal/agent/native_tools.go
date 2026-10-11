@@ -165,6 +165,7 @@ type ToolFeatureFlags struct {
 	AgentMailEnabled        bool
 	CloudflareTunnelEnabled bool
 	GoogleWorkspaceEnabled  bool
+	GogEnabled              bool
 	OneDriveEnabled         bool
 	WebDAVEnabled           bool
 	VirusTotalEnabled       bool

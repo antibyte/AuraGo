@@ -164,6 +164,8 @@ if errorlevel 1 (
 )
 
 node scripts\build-ui-bundles.js || exit /b 1
+REM Build the approved optional helper before embedding its checksums.
+go run ./scripts/build-gog.go -out deploy/gog || exit /b 1
 go run ./cmd/assetpack -out deploy -stage "%TMPSTAGE%\assets\web" -release "!VERSION!" || exit /b 1
 set /p ASSET_LDFLAGS=<deploy\web-assets.ldflags
 set /p ASSET_ARCHIVE=<deploy\web-assets.name
@@ -234,6 +236,7 @@ echo     [OK] deploy\install.sh
 echo     [OK] deploy\update.sh
 
 for %%F in (
+    "deploy\gog\gog-*.zip"
     "deploy\resources.dat"
     "deploy\!ASSET_ARCHIVE!"
     "deploy\install.sh"
@@ -274,6 +277,7 @@ powershell -nologo -noprofile -command ^
   "  'deploy\\aurago-remote_windows_amd64.exe'," ^
   "  'deploy\\aurago-remote_windows_arm64.exe'" ^
   ");" ^
+  "$files += @(Get-ChildItem -LiteralPath deploy/gog -Filter 'gog-*.zip' | ForEach-Object { $_.FullName });" ^
   "$out = foreach ($file in $files) { if (Test-Path $file) { $hash = Get-Sha256Hex $file; '{0}  {1}' -f $hash, [IO.Path]::GetFileName($file) } };" ^
   "[IO.File]::WriteAllText((Join-Path (Get-Location).Path 'deploy\\SHA256SUMS'), ((@($out) -join [char]10) + [char]10), (New-Object System.Text.UTF8Encoding($false)))"
 if errorlevel 1 (
@@ -362,6 +366,7 @@ if not "!GH_RELEASE_RC!"=="0" (
 
 echo     Uploading release assets...
 for %%F in (
+    "deploy\gog\gog-*.zip"
     "deploy\resources.dat"
     "deploy\!ASSET_ARCHIVE!"
     "deploy\SHA256SUMS"

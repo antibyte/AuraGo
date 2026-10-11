@@ -87,6 +87,13 @@ func (d *desktopStorageSession) authorize(loc tools.StorageLocation, write bool)
 		return tools.ErrStorageReadOnly
 	}
 	switch loc.Provider {
+	case "gog":
+		a, ok := cfg.Gog.Account(loc.AccountID)
+		g := a.Services["drive"]
+		if !cfg.Gog.Enabled || !ok || !a.Enabled || !a.DesktopAccess || !g.Read || write && (cfg.Gog.ReadOnly || !g.Create && !g.Update && !g.Delete) {
+			return tools.ErrStorageReadOnly
+		}
+		return nil
 	case "local":
 		return nil
 	case "webdav":
@@ -141,10 +148,11 @@ func handleDesktopStorage(s *Server) http.HandlerFunc {
 		}
 		action := strings.TrimPrefix(r.URL.Path, "/api/desktop/storage/")
 		if action == "sources" && r.Method == http.MethodGet {
-			writeJSON(w, map[string]interface{}{"webdav": cfg.WebDAV.Enabled && cfg.WebDAV.ShowInFileManager, "koofr": cfg.Koofr.Enabled && cfg.Koofr.ShowInFileManager, "readonly": cfg.VirtualDesktop.ReadOnly, "webdav_readonly": cfg.WebDAV.ReadOnly, "koofr_readonly": cfg.Koofr.ReadOnly})
+			writeJSON(w, map[string]interface{}{"gog": cfg.Gog.Enabled, "gog_accounts": tools.GogStorageAccounts(cfg), "gog_readonly": cfg.Gog.ReadOnly, "webdav": cfg.WebDAV.Enabled && cfg.WebDAV.ShowInFileManager, "koofr": cfg.Koofr.Enabled && cfg.Koofr.ShowInFileManager, "readonly": cfg.VirtualDesktop.ReadOnly, "webdav_readonly": cfg.WebDAV.ReadOnly, "koofr_readonly": cfg.Koofr.ReadOnly})
 			return
 		}
 		cloud := desktopStorageCloud(cfg)
+		cloud.Gog = &tools.GogStorage{Service: s.gogService()}
 		if action == "mounts" && r.Method == http.MethodGet {
 			if !cfg.Koofr.Enabled || !cfg.Koofr.ShowInFileManager {
 				storageError(w, tools.ErrStorageReadOnly)
@@ -167,7 +175,7 @@ func handleDesktopStorage(s *Server) http.HandlerFunc {
 		var req desktopStorageRequest
 		q := r.URL.Query()
 		if r.Method == http.MethodGet || action == "upload" {
-			req.Location = tools.StorageLocation{Provider: q.Get("provider"), MountID: q.Get("mount_id"), Path: q.Get("path")}
+			req.Location = tools.StorageLocation{Provider: q.Get("provider"), MountID: q.Get("mount_id"), Path: q.Get("path"), AccountID: q.Get("account_id"), ItemID: q.Get("item_id"), ParentID: q.Get("parent_id"), Name: q.Get("name")}
 			req.Version = r.Header.Get("If-Match")
 		} else if err = decodeDesktopJSON(w, r, &req, desktopSmallJSONBodyLimit); err != nil {
 			storageError(w, err)
@@ -230,6 +238,8 @@ func handleDesktopStorage(s *Server) http.HandlerFunc {
 			}
 			if req.Location.Provider == "local" {
 				err = svc.DeletePath(ctx, req.Location.Path, "desktop")
+			} else if req.Location.Provider == "gog" {
+				err = cloud.Gog.Trash(ctx, req.Location)
 			} else {
 				err = cloud.Remove(ctx, req.Location, req.Version, false)
 			}

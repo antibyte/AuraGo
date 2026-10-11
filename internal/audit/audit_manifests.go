@@ -21,6 +21,15 @@ type ToolPermission struct {
 
 func ToolPermissionMatrix() []ToolPermission {
 	return []ToolPermission{
+		{Name: "gog_accounts", ConfigGate: "gog.enabled + account.agent_access", Capabilities: []Capability{CapabilityRead}},
+		{Name: "gog_gmail", ConfigGate: "gog.enabled + account.agent_access + per-service grants including send + shell/network runtime", ReadOnlyGate: "gog.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityExecute, CapabilityNetwork}},
+		{Name: "gog_calendar", ConfigGate: "gog.enabled + account.agent_access + per-service grants + shell/network runtime", ReadOnlyGate: "gog.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityExecute, CapabilityNetwork}},
+		{Name: "gog_drive", ConfigGate: "gog.enabled + account.agent_access + per-service grants + shell/network runtime", ReadOnlyGate: "gog.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityExecute, CapabilityNetwork}},
+		{Name: "gog_docs", ConfigGate: "gog.enabled + account.agent_access + per-service grants + shell/network runtime", ReadOnlyGate: "gog.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityExecute, CapabilityNetwork}},
+		{Name: "gog_sheets", ConfigGate: "gog.enabled + account.agent_access + per-service grants + shell/network runtime", ReadOnlyGate: "gog.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityExecute, CapabilityNetwork}},
+		{Name: "gog_slides", ConfigGate: "gog.enabled + account.agent_access + per-service grants + shell/network runtime", ReadOnlyGate: "gog.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityExecute, CapabilityNetwork}},
+		{Name: "gog_contacts", ConfigGate: "gog.enabled + account.agent_access + per-service grants + shell/network runtime", ReadOnlyGate: "gog.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityExecute, CapabilityNetwork}},
+		{Name: "gog_tasks", ConfigGate: "gog.enabled + account.agent_access + per-service grants + shell/network runtime", ReadOnlyGate: "gog.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityExecute, CapabilityNetwork}},
 		{Name: "treg_catalog", ConfigGate: "treg.enabled + agent.allow_network_requests", Capabilities: []Capability{CapabilityRead, CapabilityNetwork}},
 		{Name: "treg_call", ConfigGate: "treg.enabled + agent.allow_network_requests + treg.allowed_endpoints + treg_token", ReadOnlyGate: "treg.readonly + stored action class", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityNetwork}},
 		{Name: "treg_status", ConfigGate: "treg.enabled + agent.allow_network_requests + continuation grant", Capabilities: []Capability{CapabilityRead, CapabilityNetwork}},
@@ -75,6 +84,7 @@ type HomeLabIntegration struct {
 
 func HomeLabIntegrationMatrix() []HomeLabIntegration {
 	return []HomeLabIntegration{
+		{Name: "gog", ConfigGate: "gog.enabled + account/source/service grants + shell/network runtime", CredentialSource: "vault", ReadOnlyGate: "gog.readonly", HasWriteOrDelete: true, HasTestEndpoint: true},
 		{Name: "adguard", ConfigGate: "adguard.enabled", CredentialSource: "config/vault", AllowsLocalNetwork: true, HasTestEndpoint: true},
 		{Name: "chromecast", ConfigGate: "tools.chromecast.enabled", CredentialSource: "none", AllowsLocalNetwork: true},
 		{Name: "dograh", ConfigGate: "dograh.enabled", CredentialSource: "vault", AllowsLocalNetwork: true, ReadOnlyGate: "dograh.readonly", HasWriteOrDelete: true, HasTestEndpoint: true},
@@ -105,6 +115,8 @@ type RouteContract struct {
 
 func RouteContractManifest() []RouteContract {
 	return []RouteContract{
+		{Pattern: "/api/gog/", Methods: []string{"GET", "POST"}, Auth: "session-admin", Category: "integration", ContentTypes: []string{"application/json"}},
+		{Pattern: "/api/desktop/integrations/gog/", Methods: []string{"GET", "POST"}, Auth: "session-or-desktop-admin-token", Category: "desktop", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/auth/", Methods: []string{"GET", "POST", "DELETE"}, Auth: "public-bootstrap", Category: "auth"},
 		{Pattern: "/api/setup", Methods: []string{"GET", "POST"}, Auth: "public-bootstrap", Category: "setup", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/i18n", Methods: []string{"GET"}, Auth: "public", Category: "i18n"},
@@ -197,6 +209,7 @@ type NetworkClientUse struct {
 
 func NetworkClientInventory() []NetworkClientUse {
 	return []NetworkClientUse{
+		{Path: "internal/gog/", Classification: "fixed-google-oauth-same-origin-and-checksummed-release-download", RequiresSSRF: true, Credentialed: true},
 		{Path: "internal/tools/treg.go", Classification: "fixed-treg-api-public-only-no-redirects-no-replay", RequiresSSRF: true, Credentialed: true},
 		{Path: "internal/tools/treg_media.go", Classification: "public-media-download-without-credentials", RequiresSSRF: true},
 		{Path: "internal/tools/treg_tasks.go", Classification: "server-bound-treg-continuation-public-host-validation", RequiresSSRF: true},

@@ -478,12 +478,24 @@
             const response=await responseOK(await fetch('/api/desktop/office/export?format='+format,{method:'POST',headers:{'Content-Type':MIME},body:bytes,signal:documentLife.signal}));
             download(await response.arrayBuffer(),response.headers.get('Content-Type'),basename(path).replace(/\.docx$/i,'.'+format));
         }
+        async function gogOffice(mode) {
+            if(fileOperation||disposed)return;
+            try {
+                if(mode==='import'&&!await guard())return;
+                if(mode==='export'){if(!queue)return;if(!etag&&!queue.dirty)queue.changed();await queue.save();if(queue.dirty)throw Error(tr('unsaved'));}
+                const result=await window.AuraGogDesktop.office(ctx,'docs',mode,path,lifecycle.signal);
+                if(result?.file?.path&&!disposed)await load(result.file.path);
+            }catch(error){fail(error);}
+        }
         function setMenus() {
             const item=(id,label,shortcut,disabled)=>({id,label:tr(label),icon:actionIcons[id] || id,shortcut,disabled,action:()=>act(id)});
             ctx.setWindowMenus?.(windowId,[
                 {id:'file',labelKey:'desktop.menu_file',items:[
                     item('new','new','Ctrl+N',ctx.readonly),item('open','open','Ctrl+O'),
                     item('save','save','Ctrl+S',ctx.readonly || !editor),item('saveAs','save_as',null,ctx.readonly || !editor),
+                    {type:'separator'},
+                    {id:'gog-import',label:ctx.t('desktop.gog.import'),disabled:ctx.readonly,action:()=>gogOffice('import')},
+                    {id:'gog-export',label:ctx.t('desktop.gog.export'),disabled:ctx.readonly||!editor,action:()=>gogOffice('export')},
                     {type:'separator'},item('docx','download_docx',null,!editor),item('html','export_html',null,!editor),item('md','export_md',null,!editor),item('txt','export_txt',null,!editor),
                     {type:'separator'},item('print','print','Ctrl+P',!editor)]},
                 {id:'edit',labelKey:'desktop.menu_edit',items:[

@@ -53,6 +53,7 @@ func classifyToolOutput(action string) toolOutputTrust {
 		"github",
 		"google_calendar",
 		"google_workspace",
+		"gog_accounts", "gog_gmail", "gog_calendar", "gog_drive", "gog_docs", "gog_sheets", "gog_slides", "gog_contacts", "gog_tasks",
 		"gworkspace",
 		"home_assistant",
 		"here_now_site",

@@ -342,6 +342,7 @@ func Load(path string) (*Config, error) {
 	ApplySIPDefaults(&cfg.SIP)
 	cfg.HereNow.ReadOnly = true
 	cfg.Treg = DefaultTregConfig()
+	cfg.Gog.ReadOnly = true
 	cfg.ModelCatalog.Enabled = true
 	cfg.ModelCatalog.CatalogOnlyVisible = true
 	// Tools section defaults: all tools are enabled by default (opt-in to disable).
@@ -996,6 +997,9 @@ func Load(path string) (*Config, error) {
 		return nil, err
 	}
 	if err := NormalizeNewspaperConfig(&cfg.Newspaper); err != nil {
+		return nil, err
+	}
+	if err := ValidateGogConfig(cfg.Gog); err != nil {
 		return nil, err
 	}
 	if err := ValidateLLMRouterConfig(&cfg, false); err != nil {

@@ -343,7 +343,10 @@ func meshCentralPowerActionType(req meshCentralArgs) (int, string, error) {
 // dispatchServices handles media, infrastructure management, and platform tool calls
 // (vision, transcribe, meshcentral, docker, homepage, webdav, home_assistant).
 func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (string, bool) {
-	if result, handled := dispatchGog(ctx, tc, dc); handled { return result, true }
+	switch tc.Action {
+	case "gog_accounts", "gog_gmail", "gog_calendar", "gog_drive", "gog_docs", "gog_sheets", "gog_slides", "gog_contacts", "gog_tasks":
+		return dispatchGog(ctx, tc, dc)
+	}
 	cfg := dc.Cfg
 	logger := dc.Logger
 	vault := dc.Vault

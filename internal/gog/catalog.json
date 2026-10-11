@@ -1,0 +1,1858 @@
+[
+  {
+    "service": "gmail",
+    "operation": "search",
+    "grant": "read",
+    "command": "gmail.messages.search",
+    "fields": [
+      {
+        "name": "query",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Search query"
+      },
+      {
+        "name": "max",
+        "type": "integer",
+        "flag": "max",
+        "description": "Max results"
+      },
+      {
+        "name": "page",
+        "type": "string",
+        "flag": "page",
+        "description": "Page token"
+      }
+    ]
+  },
+  {
+    "service": "gmail",
+    "operation": "read",
+    "grant": "read",
+    "command": "gmail.get",
+    "fields": [
+      {
+        "name": "message_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Message ID"
+      },
+      {
+        "name": "format",
+        "type": "string",
+        "flag": "format",
+        "description": "Message format: full|metadata|raw"
+      }
+    ]
+  },
+  {
+    "service": "gmail",
+    "operation": "attachment",
+    "grant": "read",
+    "command": "gmail.attachment",
+    "fields": [
+      {
+        "name": "message_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Message ID"
+      },
+      {
+        "name": "attachment_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Attachment ID, or a 0-based index with --use-indexed-attachment-ids"
+      }
+    ],
+    "output": true
+  },
+  {
+    "service": "gmail",
+    "operation": "drafts",
+    "grant": "read",
+    "command": "gmail.drafts.list",
+    "fields": [
+      {
+        "name": "max",
+        "type": "integer",
+        "flag": "max",
+        "description": "Max results"
+      },
+      {
+        "name": "page",
+        "type": "string",
+        "flag": "page",
+        "description": "Page token"
+      }
+    ]
+  },
+  {
+    "service": "gmail",
+    "operation": "draft",
+    "grant": "read",
+    "command": "gmail.drafts.get",
+    "fields": [
+      {
+        "name": "draft_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Draft ID"
+      }
+    ]
+  },
+  {
+    "service": "gmail",
+    "operation": "create_draft",
+    "grant": "create",
+    "command": "gmail.drafts.create",
+    "fields": [
+      {
+        "name": "to",
+        "type": "string",
+        "flag": "to",
+        "description": "Recipients (comma-separated)"
+      },
+      {
+        "name": "cc",
+        "type": "string",
+        "flag": "cc",
+        "description": "CC recipients (comma-separated)"
+      },
+      {
+        "name": "bcc",
+        "type": "string",
+        "flag": "bcc",
+        "description": "BCC recipients (comma-separated)"
+      },
+      {
+        "name": "subject",
+        "type": "string",
+        "flag": "subject",
+        "description": "Subject (required)",
+        "required": true
+      },
+      {
+        "name": "body",
+        "type": "string",
+        "flag": "body",
+        "description": "Body (plain text; required unless --body-html is set)",
+        "required": true
+      }
+    ]
+  },
+  {
+    "service": "gmail",
+    "operation": "update_draft",
+    "grant": "update",
+    "command": "gmail.drafts.update",
+    "fields": [
+      {
+        "name": "draft_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Draft ID"
+      },
+      {
+        "name": "to",
+        "type": "string",
+        "flag": "to",
+        "description": "Recipients (comma-separated; omit to keep existing)"
+      },
+      {
+        "name": "cc",
+        "type": "string",
+        "flag": "cc",
+        "description": "CC recipients (comma-separated)"
+      },
+      {
+        "name": "bcc",
+        "type": "string",
+        "flag": "bcc",
+        "description": "BCC recipients (comma-separated)"
+      },
+      {
+        "name": "subject",
+        "type": "string",
+        "flag": "subject",
+        "description": "Subject (required)"
+      },
+      {
+        "name": "body",
+        "type": "string",
+        "flag": "body",
+        "description": "Body (plain text; required unless --body-html is set)"
+      }
+    ]
+  },
+  {
+    "service": "gmail",
+    "operation": "delete_draft",
+    "grant": "delete",
+    "command": "gmail.drafts.delete",
+    "fields": [
+      {
+        "name": "draft_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Draft ID"
+      }
+    ]
+  },
+  {
+    "service": "gmail",
+    "operation": "send",
+    "grant": "send",
+    "command": "gmail.send",
+    "fields": [
+      {
+        "name": "to",
+        "type": "string",
+        "flag": "to",
+        "description": "Recipients (comma-separated; required unless --reply-all is used)",
+        "required": true
+      },
+      {
+        "name": "cc",
+        "type": "string",
+        "flag": "cc",
+        "description": "CC recipients (comma-separated)"
+      },
+      {
+        "name": "bcc",
+        "type": "string",
+        "flag": "bcc",
+        "description": "BCC recipients (comma-separated)"
+      },
+      {
+        "name": "subject",
+        "type": "string",
+        "flag": "subject",
+        "description": "Subject (required unless replying; inherited with Re: for replies)",
+        "required": true
+      },
+      {
+        "name": "body",
+        "type": "string",
+        "flag": "body",
+        "description": "Body (plain text; required unless --body-html is set)",
+        "required": true
+      }
+    ]
+  },
+  {
+    "service": "gmail",
+    "operation": "send_draft",
+    "grant": "send",
+    "command": "gmail.drafts.send",
+    "fields": [
+      {
+        "name": "draft_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Draft ID"
+      }
+    ]
+  },
+  {
+    "service": "gmail",
+    "operation": "labels",
+    "grant": "read",
+    "command": "gmail.labels.list",
+    "fields": []
+  },
+  {
+    "service": "gmail",
+    "operation": "create_label",
+    "grant": "create",
+    "command": "gmail.labels.create",
+    "fields": [
+      {
+        "name": "name",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Label name"
+      }
+    ]
+  },
+  {
+    "service": "gmail",
+    "operation": "rename_label",
+    "grant": "update",
+    "command": "gmail.labels.rename",
+    "fields": [
+      {
+        "name": "label_id_or_name",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Current label ID or name"
+      },
+      {
+        "name": "new_name",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "New label name"
+      }
+    ]
+  },
+  {
+    "service": "gmail",
+    "operation": "delete_label",
+    "grant": "delete",
+    "command": "gmail.labels.delete",
+    "fields": [
+      {
+        "name": "label_id_or_name",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Label ID or name"
+      }
+    ]
+  },
+  {
+    "service": "gmail",
+    "operation": "label",
+    "grant": "update",
+    "command": "gmail.messages.modify",
+    "fields": [
+      {
+        "name": "message_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Message ID"
+      },
+      {
+        "name": "add",
+        "type": "array",
+        "flag": "add",
+        "description": "Labels to add (comma-separated or repeated; name or ID)"
+      },
+      {
+        "name": "remove",
+        "type": "array",
+        "flag": "remove",
+        "description": "Labels to remove (comma-separated or repeated; name or ID)"
+      }
+    ]
+  },
+  {
+    "service": "gmail",
+    "operation": "archive",
+    "grant": "update",
+    "command": "gmail.archive",
+    "fields": [
+      {
+        "name": "message_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Message IDs to archive, or thread IDs with --thread"
+      }
+    ]
+  },
+  {
+    "service": "gmail",
+    "operation": "trash",
+    "grant": "delete",
+    "command": "gmail.trash",
+    "fields": [
+      {
+        "name": "message_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Message IDs to trash"
+      }
+    ]
+  },
+  {
+    "service": "calendar",
+    "operation": "calendars",
+    "grant": "read",
+    "command": "calendar.calendars",
+    "fields": [
+      {
+        "name": "max",
+        "type": "integer",
+        "flag": "max",
+        "description": "Max results"
+      },
+      {
+        "name": "page",
+        "type": "string",
+        "flag": "page",
+        "description": "Page token"
+      }
+    ]
+  },
+  {
+    "service": "calendar",
+    "operation": "events",
+    "grant": "read",
+    "command": "calendar.events",
+    "fields": [
+      {
+        "name": "calendar_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Calendar ID (default: primary); optional leading list/ls selector is accepted for compatibility"
+      },
+      {
+        "name": "from",
+        "type": "string",
+        "flag": "from",
+        "description": "Start time (RFC3339 with timezone, date, or relative: now, today, tomorrow, monday)"
+      },
+      {
+        "name": "to",
+        "type": "string",
+        "flag": "to",
+        "description": "End time (RFC3339 with timezone, date, or relative: now, today, tomorrow, monday)"
+      },
+      {
+        "name": "max",
+        "type": "integer",
+        "flag": "max",
+        "description": "Max results"
+      },
+      {
+        "name": "page",
+        "type": "string",
+        "flag": "page",
+        "description": "Page token"
+      },
+      {
+        "name": "timezone",
+        "type": "string",
+        "flag": "timezone",
+        "description": "Display timezone for event times (IANA name, e.g. America/New_York, or 'local' for the system timezone). Default: each event's timezone, then its calendar's timezone"
+      }
+    ]
+  },
+  {
+    "service": "calendar",
+    "operation": "get",
+    "grant": "read",
+    "command": "calendar.event",
+    "fields": [
+      {
+        "name": "calendar_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Calendar ID"
+      },
+      {
+        "name": "event_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Event ID"
+      },
+      {
+        "name": "timezone",
+        "type": "string",
+        "flag": "timezone",
+        "description": "Display timezone for event times (IANA name, e.g. America/New_York, or 'local' for the system timezone). Default: the event's timezone, then its calendar's timezone"
+      }
+    ]
+  },
+  {
+    "service": "calendar",
+    "operation": "create",
+    "grant": "create",
+    "command": "calendar.create",
+    "fields": [
+      {
+        "name": "calendar_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Calendar ID"
+      },
+      {
+        "name": "summary",
+        "type": "string",
+        "flag": "summary",
+        "description": "Event summary/title",
+        "required": true
+      },
+      {
+        "name": "description",
+        "type": "string",
+        "flag": "description",
+        "description": "Description"
+      },
+      {
+        "name": "location",
+        "type": "string",
+        "flag": "location",
+        "description": "Location"
+      },
+      {
+        "name": "from",
+        "type": "string",
+        "flag": "from",
+        "description": "Start time (RFC3339)",
+        "required": true
+      },
+      {
+        "name": "to",
+        "type": "string",
+        "flag": "to",
+        "description": "End time (RFC3339)",
+        "required": true
+      },
+      {
+        "name": "all_day",
+        "type": "boolean",
+        "flag": "all-day",
+        "description": "All-day event (use date-only in --from/--to)"
+      },
+      {
+        "name": "start_timezone",
+        "type": "string",
+        "flag": "start-timezone",
+        "description": "IANA timezone metadata for --from (e.g., Europe/Rome)"
+      },
+      {
+        "name": "end_timezone",
+        "type": "string",
+        "flag": "end-timezone",
+        "description": "IANA timezone metadata for --to (e.g., America/New_York)"
+      },
+      {
+        "name": "rrule",
+        "type": "array",
+        "flag": "rrule",
+        "description": "Recurrence rules (e.g., 'RRULE:FREQ=MONTHLY;BYMONTHDAY=11'). Can be repeated."
+      }
+    ]
+  },
+  {
+    "service": "calendar",
+    "operation": "update",
+    "grant": "update",
+    "command": "calendar.update",
+    "fields": [
+      {
+        "name": "calendar_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Calendar ID"
+      },
+      {
+        "name": "event_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Event ID"
+      },
+      {
+        "name": "summary",
+        "type": "string",
+        "flag": "summary",
+        "description": "New summary/title (set empty to clear)"
+      },
+      {
+        "name": "description",
+        "type": "string",
+        "flag": "description",
+        "description": "New description (set empty to clear)"
+      },
+      {
+        "name": "location",
+        "type": "string",
+        "flag": "location",
+        "description": "New location (set empty to clear)"
+      },
+      {
+        "name": "from",
+        "type": "string",
+        "flag": "from",
+        "description": "New start time (RFC3339; set empty to clear)"
+      },
+      {
+        "name": "to",
+        "type": "string",
+        "flag": "to",
+        "description": "New end time (RFC3339; set empty to clear)"
+      },
+      {
+        "name": "all_day",
+        "type": "boolean",
+        "flag": "all-day",
+        "description": "All-day event (use date-only in --from/--to)"
+      },
+      {
+        "name": "start_timezone",
+        "type": "string",
+        "flag": "start-timezone",
+        "description": "IANA timezone metadata for --from (e.g., Europe/Rome)"
+      },
+      {
+        "name": "end_timezone",
+        "type": "string",
+        "flag": "end-timezone",
+        "description": "IANA timezone metadata for --to (e.g., America/New_York)"
+      },
+      {
+        "name": "scope",
+        "type": "string",
+        "flag": "scope",
+        "description": "For recurring events: single, future, all",
+        "required": true,
+        "enum": [
+          "single",
+          "future",
+          "all"
+        ]
+      },
+      {
+        "name": "original_start",
+        "type": "string",
+        "flag": "original-start",
+        "description": "Original start time of instance (required for scope=single,future)"
+      },
+      {
+        "name": "rrule",
+        "type": "array",
+        "flag": "rrule",
+        "description": "Recurrence rules (e.g., 'RRULE:FREQ=MONTHLY;BYMONTHDAY=11'). Can be repeated. Set empty to clear."
+      }
+    ]
+  },
+  {
+    "service": "calendar",
+    "operation": "delete",
+    "grant": "delete",
+    "command": "calendar.delete",
+    "fields": [
+      {
+        "name": "calendar_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Calendar ID"
+      },
+      {
+        "name": "event_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Event ID"
+      },
+      {
+        "name": "scope",
+        "type": "string",
+        "flag": "scope",
+        "description": "For recurring events: single, future, all",
+        "required": true,
+        "enum": [
+          "single",
+          "future",
+          "all"
+        ]
+      },
+      {
+        "name": "original_start",
+        "type": "string",
+        "flag": "original-start",
+        "description": "Original start time of instance (required for scope=single,future)"
+      }
+    ]
+  },
+  {
+    "service": "calendar",
+    "operation": "freebusy",
+    "grant": "read",
+    "command": "calendar.freebusy",
+    "fields": [
+      {
+        "name": "calendar_ids",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Comma-separated calendar IDs, names, or indices from 'calendar calendars'"
+      },
+      {
+        "name": "from",
+        "type": "string",
+        "flag": "from",
+        "description": "Start time (RFC3339 with timezone, date, or relative: now, today, tomorrow, monday)",
+        "required": true
+      },
+      {
+        "name": "to",
+        "type": "string",
+        "flag": "to",
+        "description": "End time (RFC3339 with timezone, date, or relative: now, today, tomorrow, monday)",
+        "required": true
+      }
+    ]
+  },
+  {
+    "service": "drive",
+    "operation": "list",
+    "grant": "read",
+    "command": "drive.ls",
+    "fields": [
+      {
+        "name": "parent",
+        "type": "string",
+        "flag": "parent",
+        "description": "Folder ID to list (default: root)"
+      },
+      {
+        "name": "max",
+        "type": "integer",
+        "flag": "max",
+        "description": "Max results"
+      },
+      {
+        "name": "page",
+        "type": "string",
+        "flag": "page",
+        "description": "Page token"
+      }
+    ]
+  },
+  {
+    "service": "drive",
+    "operation": "search",
+    "grant": "read",
+    "command": "drive.search",
+    "fields": [
+      {
+        "name": "query",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Search query"
+      },
+      {
+        "name": "max",
+        "type": "integer",
+        "flag": "max",
+        "description": "Max results"
+      },
+      {
+        "name": "page",
+        "type": "string",
+        "flag": "page",
+        "description": "Page token"
+      }
+    ]
+  },
+  {
+    "service": "drive",
+    "operation": "get",
+    "grant": "read",
+    "command": "drive.get",
+    "fields": [
+      {
+        "name": "file_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "File ID"
+      }
+    ]
+  },
+  {
+    "service": "drive",
+    "operation": "upload",
+    "grant": "create",
+    "command": "drive.upload",
+    "fields": [
+      {
+        "name": "parent",
+        "type": "string",
+        "flag": "parent",
+        "description": "Destination folder ID (create only)"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "flag": "name",
+        "description": "Override filename (create) or rename target (replace)"
+      },
+      {
+        "name": "mime_type",
+        "type": "string",
+        "flag": "mime-type",
+        "description": "Override MIME type inference"
+      }
+    ],
+    "input": true
+  },
+  {
+    "service": "drive",
+    "operation": "replace",
+    "grant": "update",
+    "command": "drive.upload",
+    "fields": [
+      {
+        "name": "replace",
+        "type": "string",
+        "flag": "replace",
+        "description": "Replace the content of an existing Drive file ID (preserves shared link/permissions; unconditional unless --if-version is set)",
+        "required": true
+      },
+      {
+        "name": "if_version",
+        "type": "integer",
+        "flag": "if-version",
+        "description": "Replace only if the current Drive version matches; uses an atomic precondition and reports a conflict if the file changes (requires --replace; re-read and reapply on conflict)",
+        "required": true
+      },
+      {
+        "name": "mime_type",
+        "type": "string",
+        "flag": "mime-type",
+        "description": "Override MIME type inference"
+      }
+    ],
+    "input": true
+  },
+  {
+    "service": "drive",
+    "operation": "import_office",
+    "grant": "create",
+    "command": "drive.upload",
+    "fields": [
+      {
+        "name": "parent",
+        "type": "string",
+        "flag": "parent",
+        "description": "Destination folder ID (create only)"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "flag": "name",
+        "description": "Override filename (create) or rename target (replace)"
+      },
+      {
+        "name": "convert_to",
+        "type": "string",
+        "flag": "convert-to",
+        "description": "Convert to a specific Google format: doc|sheet|slides (create only)",
+        "required": true,
+        "enum": [
+          "doc",
+          "sheet",
+          "slides"
+        ]
+      }
+    ],
+    "input": true
+  },
+  {
+    "service": "drive",
+    "operation": "download",
+    "grant": "read",
+    "command": "drive.download",
+    "fields": [
+      {
+        "name": "file_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "File ID"
+      },
+      {
+        "name": "format",
+        "type": "string",
+        "flag": "format",
+        "description": "Export format for Google Docs files: pdf|csv|xlsx|pptx|txt|png|docx|md (default: inferred)"
+      }
+    ],
+    "output": true
+  },
+  {
+    "service": "drive",
+    "operation": "mkdir",
+    "grant": "create",
+    "command": "drive.mkdir",
+    "fields": [
+      {
+        "name": "name",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Folder name"
+      },
+      {
+        "name": "parent",
+        "type": "string",
+        "flag": "parent",
+        "description": "Parent folder ID"
+      }
+    ]
+  },
+  {
+    "service": "drive",
+    "operation": "copy",
+    "grant": "create",
+    "command": "drive.copy",
+    "fields": [
+      {
+        "name": "file_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "File ID"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "New file name"
+      },
+      {
+        "name": "parent",
+        "type": "string",
+        "flag": "parent",
+        "description": "Destination folder ID"
+      }
+    ]
+  },
+  {
+    "service": "drive",
+    "operation": "move",
+    "grant": "update",
+    "command": "drive.move",
+    "fields": [
+      {
+        "name": "file_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "File ID"
+      },
+      {
+        "name": "parent",
+        "type": "string",
+        "flag": "parent",
+        "description": "New parent folder ID (required)"
+      }
+    ]
+  },
+  {
+    "service": "drive",
+    "operation": "rename",
+    "grant": "update",
+    "command": "drive.rename",
+    "fields": [
+      {
+        "name": "file_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "File ID"
+      },
+      {
+        "name": "new_name",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "New name"
+      }
+    ]
+  },
+  {
+    "service": "drive",
+    "operation": "trash",
+    "grant": "delete",
+    "command": "drive.delete",
+    "fields": [
+      {
+        "name": "file_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "File ID"
+      }
+    ]
+  },
+  {
+    "service": "docs",
+    "operation": "read",
+    "grant": "read",
+    "command": "docs.cat",
+    "fields": [
+      {
+        "name": "doc_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Doc ID"
+      }
+    ]
+  },
+  {
+    "service": "docs",
+    "operation": "info",
+    "grant": "read",
+    "command": "docs.info",
+    "fields": [
+      {
+        "name": "doc_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Doc ID"
+      }
+    ]
+  },
+  {
+    "service": "docs",
+    "operation": "create",
+    "grant": "create",
+    "command": "docs.create",
+    "fields": [
+      {
+        "name": "title",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Doc title"
+      },
+      {
+        "name": "parent",
+        "type": "string",
+        "flag": "parent",
+        "description": "Destination folder ID"
+      }
+    ]
+  },
+  {
+    "service": "docs",
+    "operation": "replace_text",
+    "grant": "update",
+    "command": "docs.find-replace",
+    "fields": [
+      {
+        "name": "doc_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Doc ID"
+      },
+      {
+        "name": "find",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Text to find"
+      },
+      {
+        "name": "replace",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Replacement text (omit when using --content-file)"
+      },
+      {
+        "name": "first",
+        "type": "boolean",
+        "flag": "first",
+        "description": "Replace only the first occurrence instead of all."
+      },
+      {
+        "name": "match_case",
+        "type": "boolean",
+        "flag": "match-case",
+        "description": "Case-sensitive matching"
+      },
+      {
+        "name": "tab",
+        "type": "string",
+        "flag": "tab",
+        "description": "Target a specific tab by title or ID (see docs list-tabs)"
+      }
+    ]
+  },
+  {
+    "service": "docs",
+    "operation": "export",
+    "grant": "read",
+    "command": "docs.export",
+    "fields": [
+      {
+        "name": "doc_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Doc ID"
+      },
+      {
+        "name": "format",
+        "type": "string",
+        "flag": "format",
+        "description": "Export format: pdf|docx|txt|md|html"
+      }
+    ],
+    "output": true
+  },
+  {
+    "service": "sheets",
+    "operation": "read",
+    "grant": "read",
+    "command": "sheets.get",
+    "fields": [
+      {
+        "name": "spreadsheet_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Spreadsheet ID"
+      },
+      {
+        "name": "range",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Range (A1 notation or named range name; e.g. Sheet1!A1:B10 or MyNamedRange)"
+      },
+      {
+        "name": "render",
+        "type": "string",
+        "flag": "render",
+        "description": "Value render option: FORMATTED_VALUE, UNFORMATTED_VALUE, or FORMULA"
+      },
+      {
+        "name": "dimension",
+        "type": "string",
+        "flag": "dimension",
+        "description": "Major dimension: ROWS or COLUMNS"
+      }
+    ]
+  },
+  {
+    "service": "sheets",
+    "operation": "info",
+    "grant": "read",
+    "command": "sheets.metadata",
+    "fields": [
+      {
+        "name": "spreadsheet_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Spreadsheet ID"
+      }
+    ]
+  },
+  {
+    "service": "sheets",
+    "operation": "create",
+    "grant": "create",
+    "command": "sheets.create",
+    "fields": [
+      {
+        "name": "title",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Spreadsheet title"
+      },
+      {
+        "name": "parent",
+        "type": "string",
+        "flag": "parent",
+        "description": "Destination folder ID"
+      },
+      {
+        "name": "sheets",
+        "type": "string",
+        "flag": "sheets",
+        "description": "Comma-separated sheet names to create"
+      }
+    ]
+  },
+  {
+    "service": "sheets",
+    "operation": "update",
+    "grant": "update",
+    "command": "sheets.update",
+    "fields": [
+      {
+        "name": "spreadsheet_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Spreadsheet ID"
+      },
+      {
+        "name": "range",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Range (A1 notation or named range name; e.g. Sheet1!A1:B2 or MyNamedRange)"
+      },
+      {
+        "name": "values_json",
+        "type": "string",
+        "flag": "values-json",
+        "description": "Values as a JSON 2D array, @file, or @- for stdin",
+        "required": true
+      },
+      {
+        "name": "input",
+        "type": "string",
+        "flag": "input",
+        "description": "Value input option: RAW or USER_ENTERED"
+      }
+    ]
+  },
+  {
+    "service": "sheets",
+    "operation": "append",
+    "grant": "update",
+    "command": "sheets.append",
+    "fields": [
+      {
+        "name": "spreadsheet_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Spreadsheet ID"
+      },
+      {
+        "name": "range",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Range (A1 notation or named range name; e.g. Sheet1!A:C or MyNamedRange)"
+      },
+      {
+        "name": "values_json",
+        "type": "string",
+        "flag": "values-json",
+        "description": "Values as JSON 2D array",
+        "required": true
+      },
+      {
+        "name": "input",
+        "type": "string",
+        "flag": "input",
+        "description": "Value input option: RAW or USER_ENTERED"
+      },
+      {
+        "name": "insert",
+        "type": "string",
+        "flag": "insert",
+        "description": "Insert data option: OVERWRITE or INSERT_ROWS"
+      }
+    ]
+  },
+  {
+    "service": "sheets",
+    "operation": "export",
+    "grant": "read",
+    "command": "sheets.export",
+    "fields": [
+      {
+        "name": "spreadsheet_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Spreadsheet ID"
+      },
+      {
+        "name": "format",
+        "type": "string",
+        "flag": "format",
+        "description": "Export format: pdf|xlsx|csv"
+      }
+    ],
+    "output": true
+  },
+  {
+    "service": "slides",
+    "operation": "read",
+    "grant": "read",
+    "command": "slides.info",
+    "fields": [
+      {
+        "name": "presentation_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Presentation ID"
+      }
+    ]
+  },
+  {
+    "service": "slides",
+    "operation": "list",
+    "grant": "read",
+    "command": "slides.list-slides",
+    "fields": [
+      {
+        "name": "presentation_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Presentation ID"
+      }
+    ]
+  },
+  {
+    "service": "slides",
+    "operation": "read_slide",
+    "grant": "read",
+    "command": "slides.read-slide",
+    "fields": [
+      {
+        "name": "presentation_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Presentation ID"
+      },
+      {
+        "name": "slide_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Slide object ID (use 'slides list-slides' to find IDs)"
+      }
+    ]
+  },
+  {
+    "service": "slides",
+    "operation": "create",
+    "grant": "create",
+    "command": "slides.create-from-markdown",
+    "fields": [
+      {
+        "name": "title",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Presentation title"
+      },
+      {
+        "name": "content",
+        "type": "string",
+        "flag": "content",
+        "description": "Markdown content (inline)",
+        "required": true
+      },
+      {
+        "name": "parent",
+        "type": "string",
+        "flag": "parent",
+        "description": "Destination folder ID"
+      }
+    ]
+  },
+  {
+    "service": "slides",
+    "operation": "replace_text",
+    "grant": "update",
+    "command": "slides.replace-text",
+    "fields": [
+      {
+        "name": "presentation_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Presentation ID"
+      },
+      {
+        "name": "find",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Substring to find"
+      },
+      {
+        "name": "replacement",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Replacement text"
+      },
+      {
+        "name": "object",
+        "type": "string",
+        "flag": "object",
+        "description": "Restrict replacement to a single shape text object ID"
+      },
+      {
+        "name": "match_case",
+        "type": "boolean",
+        "flag": "match-case",
+        "description": "Case-sensitive match (default: false)"
+      }
+    ]
+  },
+  {
+    "service": "slides",
+    "operation": "export",
+    "grant": "read",
+    "command": "slides.export",
+    "fields": [
+      {
+        "name": "presentation_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Presentation ID"
+      },
+      {
+        "name": "format",
+        "type": "string",
+        "flag": "format",
+        "description": "Export format: pdf|pptx"
+      }
+    ],
+    "output": true
+  },
+  {
+    "service": "contacts",
+    "operation": "list",
+    "grant": "read",
+    "command": "contacts.list",
+    "fields": [
+      {
+        "name": "max",
+        "type": "integer",
+        "flag": "max",
+        "description": "Max results"
+      },
+      {
+        "name": "page",
+        "type": "string",
+        "flag": "page",
+        "description": "Page token"
+      }
+    ]
+  },
+  {
+    "service": "contacts",
+    "operation": "search",
+    "grant": "read",
+    "command": "contacts.search",
+    "fields": [
+      {
+        "name": "query",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Search query"
+      },
+      {
+        "name": "max",
+        "type": "integer",
+        "flag": "max",
+        "description": "Max results"
+      }
+    ]
+  },
+  {
+    "service": "contacts",
+    "operation": "get",
+    "grant": "read",
+    "command": "contacts.get",
+    "fields": [
+      {
+        "name": "resource_name",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Resource name (people/...) or email"
+      }
+    ]
+  },
+  {
+    "service": "contacts",
+    "operation": "create",
+    "grant": "create",
+    "command": "contacts.create",
+    "fields": [
+      {
+        "name": "given",
+        "type": "string",
+        "flag": "given",
+        "description": "Given name (required)",
+        "required": true
+      },
+      {
+        "name": "family",
+        "type": "string",
+        "flag": "family",
+        "description": "Family name"
+      },
+      {
+        "name": "email",
+        "type": "string",
+        "flag": "email",
+        "description": "Email address"
+      },
+      {
+        "name": "phone",
+        "type": "string",
+        "flag": "phone",
+        "description": "Phone number"
+      },
+      {
+        "name": "org",
+        "type": "string",
+        "flag": "org",
+        "description": "Organization/company name"
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "flag": "title",
+        "description": "Job title"
+      },
+      {
+        "name": "note",
+        "type": "string",
+        "flag": "note",
+        "description": "Note/biography"
+      }
+    ]
+  },
+  {
+    "service": "contacts",
+    "operation": "update",
+    "grant": "update",
+    "command": "contacts.update",
+    "fields": [
+      {
+        "name": "resource_name",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Resource name (people/...)"
+      },
+      {
+        "name": "given",
+        "type": "string",
+        "flag": "given",
+        "description": "Given name"
+      },
+      {
+        "name": "family",
+        "type": "string",
+        "flag": "family",
+        "description": "Family name"
+      },
+      {
+        "name": "email",
+        "type": "string",
+        "flag": "email",
+        "description": "Email address (empty clears)"
+      },
+      {
+        "name": "phone",
+        "type": "string",
+        "flag": "phone",
+        "description": "Phone number (empty clears)"
+      },
+      {
+        "name": "org",
+        "type": "string",
+        "flag": "org",
+        "description": "Organization/company name (empty clears)"
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "flag": "title",
+        "description": "Job title (empty clears)"
+      },
+      {
+        "name": "notes",
+        "type": "string",
+        "flag": "notes",
+        "description": "Notes (stored as People API biography; empty clears)"
+      },
+      {
+        "name": "birthday",
+        "type": "string",
+        "flag": "birthday",
+        "description": "Birthday in YYYY-MM-DD (empty clears)"
+      }
+    ]
+  },
+  {
+    "service": "contacts",
+    "operation": "delete",
+    "grant": "delete",
+    "command": "contacts.delete",
+    "fields": [
+      {
+        "name": "resource_name",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Resource name (people/...)"
+      }
+    ]
+  },
+  {
+    "service": "tasks",
+    "operation": "lists",
+    "grant": "read",
+    "command": "tasks.lists.list",
+    "fields": [
+      {
+        "name": "max",
+        "type": "integer",
+        "flag": "max",
+        "description": "Max results (max allowed: 1000)"
+      },
+      {
+        "name": "page",
+        "type": "string",
+        "flag": "page",
+        "description": "Page token"
+      }
+    ]
+  },
+  {
+    "service": "tasks",
+    "operation": "create_list",
+    "grant": "create",
+    "command": "tasks.lists.create",
+    "fields": [
+      {
+        "name": "title",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Task list title"
+      }
+    ]
+  },
+  {
+    "service": "tasks",
+    "operation": "list",
+    "grant": "read",
+    "command": "tasks.list",
+    "fields": [
+      {
+        "name": "tasklist_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Task list ID"
+      },
+      {
+        "name": "max",
+        "type": "integer",
+        "flag": "max",
+        "description": "Max results (max allowed: 100)"
+      },
+      {
+        "name": "page",
+        "type": "string",
+        "flag": "page",
+        "description": "Page token"
+      },
+      {
+        "name": "show_completed",
+        "type": "boolean",
+        "flag": "show-completed",
+        "description": "Include completed tasks (requires --show-hidden for some clients)"
+      }
+    ]
+  },
+  {
+    "service": "tasks",
+    "operation": "get",
+    "grant": "read",
+    "command": "tasks.get",
+    "fields": [
+      {
+        "name": "tasklist_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Task list ID"
+      },
+      {
+        "name": "task_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Task ID"
+      }
+    ]
+  },
+  {
+    "service": "tasks",
+    "operation": "create",
+    "grant": "create",
+    "command": "tasks.add",
+    "fields": [
+      {
+        "name": "tasklist_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Task list ID"
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "flag": "title",
+        "description": "Task title (required)",
+        "required": true
+      },
+      {
+        "name": "notes",
+        "type": "string",
+        "flag": "notes",
+        "description": "Task notes/description"
+      },
+      {
+        "name": "due",
+        "type": "string",
+        "flag": "due",
+        "description": "Due date (RFC3339 or YYYY-MM-DD; time may be ignored by Google Tasks)"
+      },
+      {
+        "name": "parent",
+        "type": "string",
+        "flag": "parent",
+        "description": "Parent task ID (create as subtask)"
+      }
+    ]
+  },
+  {
+    "service": "tasks",
+    "operation": "update",
+    "grant": "update",
+    "command": "tasks.update",
+    "fields": [
+      {
+        "name": "tasklist_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Task list ID"
+      },
+      {
+        "name": "task_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Task ID"
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "flag": "title",
+        "description": "New title (set empty to clear)"
+      },
+      {
+        "name": "notes",
+        "type": "string",
+        "flag": "notes",
+        "description": "New notes (set empty to clear)"
+      },
+      {
+        "name": "due",
+        "type": "string",
+        "flag": "due",
+        "description": "New due date (RFC3339 or YYYY-MM-DD; time may be ignored; set empty to clear)"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "flag": "status",
+        "description": "New status: needsAction|completed (set empty to clear)"
+      }
+    ]
+  },
+  {
+    "service": "tasks",
+    "operation": "complete",
+    "grant": "update",
+    "command": "tasks.done",
+    "fields": [
+      {
+        "name": "tasklist_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Task list ID"
+      },
+      {
+        "name": "task_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Task ID"
+      }
+    ]
+  },
+  {
+    "service": "tasks",
+    "operation": "reopen",
+    "grant": "update",
+    "command": "tasks.undo",
+    "fields": [
+      {
+        "name": "tasklist_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Task list ID"
+      },
+      {
+        "name": "task_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Task ID"
+      }
+    ]
+  },
+  {
+    "service": "tasks",
+    "operation": "delete",
+    "grant": "delete",
+    "command": "tasks.delete",
+    "fields": [
+      {
+        "name": "tasklist_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Task list ID"
+      },
+      {
+        "name": "task_id",
+        "type": "string",
+        "positional": true,
+        "required": true,
+        "description": "Task ID"
+      }
+    ]
+  }
+]

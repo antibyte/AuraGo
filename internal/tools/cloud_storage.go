@@ -12,17 +12,24 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/security"
 )
 
 // StorageLocation never treats a remote path as a local filename or a URL.
 type StorageLocation struct {
-	Provider string `json:"provider"`
-	MountID  string `json:"mount_id,omitempty"`
-	Path     string `json:"path"`
+	AccountID string `json:"account_id,omitempty"`
+	ItemID    string `json:"item_id,omitempty"`
+	ParentID  string `json:"parent_id,omitempty"`
+	Name      string `json:"name,omitempty"`
+	Provider  string `json:"provider"`
+	MountID   string `json:"mount_id,omitempty"`
+	Path      string `json:"path"`
 }
 
 type StorageEntry struct {
+	ItemID      string `json:"item_id,omitempty"`
+	ParentID    string `json:"parent_id,omitempty"`
 	Name        string `json:"name"`
 	Path        string `json:"path"`
 	Type        string `json:"type"`
@@ -49,11 +56,25 @@ var ErrStorageSourceRetained = errors.New("storage_source_retained")
 // CloudStorage supplies typed, bounded binary operations alongside the agent tools.
 // The server owns configuration, mount authorization and live revocation.
 type CloudStorage struct {
+	Gog    *GogStorage
 	WebDAV WebDAVConfig
 	Koofr  KoofrConfig
 }
 
 func ValidateStorageLocation(loc StorageLocation) error {
+	if loc.Provider == "gog" {
+		if !config.ValidGogAccountID(loc.AccountID) || loc.MountID != "" || loc.ItemID != "" && !validGogObjectID(loc.ItemID) || loc.ParentID != "" && !validGogObjectID(loc.ParentID) {
+			return fmt.Errorf("invalid Google storage reference")
+		}
+		if strings.HasPrefix(loc.Path, "/") || strings.Contains(loc.Path, ":") {
+			return fmt.Errorf("invalid Google storage path")
+		}
+		_, err := webdavPathSuffix(loc.Path)
+		return err
+	}
+	if loc.AccountID != "" || loc.ItemID != "" || loc.ParentID != "" {
+		return fmt.Errorf("unexpected Google storage identity")
+	}
 	if loc.Provider != "local" && loc.Provider != "webdav" && loc.Provider != "koofr" {
 		return fmt.Errorf("invalid storage provider")
 	}
@@ -197,6 +218,9 @@ func (c CloudStorage) Mounts(ctx context.Context) ([]StorageMount, error) {
 }
 
 func (c CloudStorage) List(ctx context.Context, loc StorageLocation) ([]StorageEntry, error) {
+	if loc.Provider == "gog" {
+		return c.Gog.List(ctx, loc)
+	}
 	if loc.Provider == "webdav" {
 		return c.davEntries(ctx, loc, "1")
 	}
@@ -236,6 +260,9 @@ func (c CloudStorage) List(ctx context.Context, loc StorageLocation) ([]StorageE
 }
 
 func (c CloudStorage) Stat(ctx context.Context, loc StorageLocation) (StorageEntry, error) {
+	if loc.Provider == "gog" {
+		return c.Gog.Stat(ctx, loc)
+	}
 	if loc.Provider == "webdav" {
 		entries, err := c.davEntries(ctx, loc, "0")
 		if err != nil {
@@ -289,6 +316,9 @@ func (f koofrStorageEntry) entry(p string, readonly bool) StorageEntry {
 }
 
 func (c CloudStorage) Open(ctx context.Context, loc StorageLocation, version string) (io.ReadCloser, error) {
+	if loc.Provider == "gog" {
+		return c.Gog.Open(ctx, loc, version)
+	}
 	headers := map[string]string{}
 	if loc.Provider == "webdav" && version != "" {
 		headers["If-Match"] = version

@@ -187,6 +187,11 @@ Write-Host ""
 
 $env:CGO_ENABLED = "0"
 
+# Build the pinned helper and embed its reviewed checksums before AuraGo.
+go run ./scripts/build-gog.go -out deploy/gog
+if ($LASTEXITCODE -ne 0) { throw "Managed gog build failed" }
+$gogPackages = @(Get-ChildItem -LiteralPath (Join-Path $scriptDir 'deploy/gog') -Filter 'gog-*.zip')
+if ($gogPackages.Count -ne 6) { throw "Expected six gog platform packages" }
 # Helper function for building
 function Build-Binary {
     param(
@@ -297,6 +302,7 @@ $checksumFiles = @(
     "deploy\aurago-remote_windows_amd64.exe",
     "deploy\aurago-remote_windows_arm64.exe"
 )
+$checksumFiles += @($gogPackages | ForEach-Object { 'deploy\gog\' + $_.Name })
 $checksumLines = foreach ($file in $checksumFiles) {
     $fullPath = Join-Path $scriptDir $file
     if (Test-Path $fullPath) {
@@ -361,6 +367,7 @@ $assetPaths = @(
     "deploy\update.sh"
 )
 
+$assetPaths += @($gogPackages | ForEach-Object { 'deploy\gog\' + $_.Name })
 foreach ($path in $assetPaths) {
     $fullPath = Join-Path $scriptDir $path
     if (Test-Path $fullPath) {

@@ -28,6 +28,10 @@ func desktopIntegrationHandler(s *Server, routes http.Handler) http.HandlerFunc 
 		}
 		rel := strings.TrimPrefix(r.URL.Path, prefix)
 		root, _, _ := strings.Cut(rel, "/")
+		if root == "gog" {
+			handleDesktopGog(s)(w, r)
+			return
+		}
 		if !desktopIntegrationRoots[root] || strings.ContainsAny(rel, "\\%\x00") || path.Clean(rel) != strings.TrimSuffix(rel, "/") {
 			http.NotFound(w, r)
 			return

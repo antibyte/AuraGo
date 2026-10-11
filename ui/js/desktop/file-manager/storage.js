@@ -2,17 +2,33 @@
     const STORAGE_DRAG_TYPE = 'application/x-aurago-storage-files';
 
     function storageLocation(path = fm.currentPath, instance = fm) {
-        if (path && typeof path === 'object') return { provider: path.provider || 'local', mount_id: path.mount_id || '', path: String(path.path || '') };
-        return { provider: instance.storage?.provider || 'local', mount_id: instance.storage?.mount_id || '', path: String(path || '') };
+        const value = path && typeof path === 'object' ? path : { ...instance.storage, path: String(path || '') };
+        const loc = { provider: value.provider || 'local', mount_id: value.mount_id || '', path: String(value.path || '') };
+        if (loc.provider === 'gog') {
+            loc.account_id = value.account_id || '';
+            const known = instance.gogLocations?.get(loc.account_id + '/' + loc.path);
+            const same = typeof path === 'object' || loc.path === instance.currentPath;
+            loc.item_id = typeof path === 'object' && Object.hasOwn(value, 'item_id') ? value.item_id : known?.item_id || (same ? value.item_id : '') || loc.path.split('/').pop() || 'root';
+            loc.parent_id = known?.parent_id || (same ? value.parent_id : '') || '';
+            loc.name = known?.name || (same ? value.name : '') || '';
+        }
+        return loc;
+    }
+
+    function storageChildLocation(parent, name) {
+        const child = { ...parent, path: joinPath(parent.path, name) };
+        if (parent.provider === 'gog') Object.assign(child, { item_id: '', parent_id: parent.item_id || 'root', name });
+        return child;
     }
 
     function localLocation(path = '') { return { provider: 'local', mount_id: '', path }; }
     function isRemote(instance = fm) { return !!instance.storage && instance.storage.provider !== 'local'; }
-    function locationKey(loc) { return JSON.stringify([loc.provider || 'local', loc.mount_id || '', loc.path || '']); }
+    function locationKey(loc) { return JSON.stringify([loc.provider || 'local', loc.mount_id || '', loc.account_id || '', loc.item_id || loc.path || '']); }
     function savedLocation(value) { return typeof value === 'string' ? localLocation(value) : storageLocation(value); }
     function storageURL(action, loc) { return '/api/desktop/storage/' + action + '?' + new URLSearchParams(loc).toString(); }
     function storageName(instance = fm) {
         if (!isRemote(instance)) return t('desktop.fm.workspace_root');
+        if (instance.storage.provider === 'gog') return 'Google Drive · ' + (instance.storagePolicy?.gog_accounts?.find(a => a.id === instance.storage.account_id)?.name || instance.storage.account_id);
         return instance.storage.provider === 'webdav' ? 'WebDAV' : 'Koofr · ' + (instance.storageMounts?.find(m => m.id === instance.storage.mount_id)?.name || instance.storage.mount_id);
     }
     function storageReadonly(instance = fm) {
@@ -20,6 +36,7 @@
         if (p.readonly) return true;
         if (!isRemote(instance)) return false;
         if (!p[instance.storage.provider] || p[instance.storage.provider + '_readonly']) return true;
+        if (instance.storage.provider === 'gog') return !p.gog_accounts?.find(a => a.id === instance.storage.account_id)?.write;
         if (instance.storage.provider === 'koofr') {
             const mount = instance.storageMounts?.find(m => m.id === instance.storage.mount_id);
             return !mount || !mount.write || mount.online === false;
@@ -34,7 +51,7 @@
             const policy = response.ok ? await response.json() : {};
             if (!isLiveInstance(instance) || instance.storagePolicyGeneration !== generation) return;
             const previous = instance.storagePolicy || {};
-            const changed = refresh && ['webdav', 'koofr', 'readonly', 'webdav_readonly', 'koofr_readonly'].some(key => !!previous[key] !== !!policy[key]);
+            const changed = refresh && ['webdav', 'koofr', 'readonly', 'webdav_readonly', 'koofr_readonly', 'gog', 'gog_readonly'].some(key => !!previous[key] !== !!policy[key]) || refresh && JSON.stringify(previous.gog_accounts) !== JSON.stringify(policy.gog_accounts);
             if (changed) {
                 instance.storageBusy?.abort();
                 if (isRemote(instance)) instance.quickLookOverlay?.remove();
@@ -80,9 +97,9 @@
 
     function renderStorageSidebar() {
         const policy = fm.storagePolicy || {};
-        const button = (provider, mount, name, disabled, status) => `<button type="button" class="fm-sidebar-item${fm.storage?.provider === provider && (fm.storage.mount_id || '') === mount ? ' active' : ''}" data-storage-provider="${esc(provider)}" data-storage-mount="${esc(mount)}" ${disabled ? 'disabled' : ''} title="${esc(status || name)}">${iconMarkup('cloud', '☁', 'fm-sidebar-icon', 18)}<span class="fm-sidebar-label">${esc(name)}${status ? `<small class="fm-storage-status">${esc(status)}</small>` : ''}</span></button>`;
+        const button = (provider, mount, name, disabled, status) => `<button type="button" class="fm-sidebar-item${fm.storage?.provider === provider && (fm.storage.account_id || fm.storage.mount_id || '') === mount ? ' active' : ''}" data-storage-provider="${esc(provider)}" data-storage-mount="${esc(mount)}" ${disabled ? 'disabled' : ''} title="${esc(status || name)}">${iconMarkup('cloud', '☁', 'fm-sidebar-icon', 18)}<span class="fm-sidebar-label">${esc(name)}${status ? `<small class="fm-storage-status">${esc(status)}</small>` : ''}</span></button>`;
         const mounts = fm.storageMountsLoading ? `<div class="fm-sidebar-empty" role="status">${esc(t('desktop.fm.loading'))}</div>` : (fm.storageMounts || []).map(m => button('koofr', m.id, m.name, m.online === false || !m.read, m.online === false ? t('desktop.fm.storage_offline') : (!m.write || policy.koofr_readonly ? t('desktop.fm.storage_readonly') : t('desktop.fm.storage_writable')))).join('');
-        return `<div class="fm-sidebar-section">${button('local', '', t('desktop.fm.workspace_root'), false, '')}${policy.webdav ? button('webdav', '', 'WebDAV', false, policy.webdav_readonly ? t('desktop.fm.storage_readonly') : '') : ''}${policy.koofr ? `<button type="button" class="fm-sidebar-item" data-storage-group aria-expanded="${!!fm.storageMountsOpen}">${iconMarkup('cloud', '☁', 'fm-sidebar-icon', 18)}<span class="fm-sidebar-label">Koofr</span><span>${fm.storageMountsOpen ? '−' : '+'}</span></button>${fm.storageMountsOpen ? mounts || `<div class="fm-sidebar-empty">${esc(t('desktop.fm.empty_folder'))}</div>` : ''}` : ''}</div>`;
+        return `<div class="fm-sidebar-section">${button('local', '', t('desktop.fm.workspace_root'), false, '')}${(policy.gog_accounts || []).map(a => button('gog', a.id, 'Google Drive · ' + a.name, false, a.write ? '' : t('desktop.fm.storage_readonly'))).join('')}${policy.webdav ? button('webdav', '', 'WebDAV', false, policy.webdav_readonly ? t('desktop.fm.storage_readonly') : '') : ''}${policy.koofr ? `<button type="button" class="fm-sidebar-item" data-storage-group aria-expanded="${!!fm.storageMountsOpen}">${iconMarkup('cloud', '☁', 'fm-sidebar-icon', 18)}<span class="fm-sidebar-label">Koofr</span><span>${fm.storageMountsOpen ? '−' : '+'}</span></button>${fm.storageMountsOpen ? mounts || `<div class="fm-sidebar-empty">${esc(t('desktop.fm.empty_folder'))}</div>` : ''}` : ''}</div>`;
     }
 
     function attachStorageEvents(root) {
@@ -91,7 +108,7 @@
             const paneName = target.closest('.fm-pane')?.dataset.pane;
             const pane = (paneName === 'right' ? instance.rightPane : paneName === 'left' ? instance.leftPane : null) || instance;
             const button = target.closest('[data-storage-provider]');
-            if (button) return { provider: button.dataset.storageProvider, mount_id: button.dataset.storageMount, path: '' };
+            if (button) return { provider: button.dataset.storageProvider, mount_id: button.dataset.storageProvider === 'gog' ? '' : button.dataset.storageMount, account_id: button.dataset.storageProvider === 'gog' ? button.dataset.storageMount : '', item_id: button.dataset.storageProvider === 'gog' ? 'root' : '', path: '' };
             const directory = target.closest('[data-type="directory"], [data-breadcrumb-path]');
             return storageLocation(directory?.dataset.breadcrumbPath ?? directory?.dataset.path ?? pane.currentPath, pane);
         };
@@ -104,7 +121,7 @@
         root.querySelector('[data-storage-group]')?.addEventListener('click', () => openStorageMounts(instance));
         root.querySelectorAll('[data-storage-provider]').forEach(button => button.addEventListener('click', () => withInstance(instance, () => {
             instance.sidebarOpen = false;
-            navigate({ provider: button.dataset.storageProvider, mount_id: button.dataset.storageMount, path: '' });
+            navigate({ provider: button.dataset.storageProvider, mount_id: button.dataset.storageProvider === 'gog' ? '' : button.dataset.storageMount, account_id: button.dataset.storageProvider === 'gog' ? button.dataset.storageMount : '', item_id: button.dataset.storageProvider === 'gog' ? 'root' : '', path: '' });
         })));
         // Capture remote payloads before legacy local-only file and window drop handlers.
         root.addEventListener('dragover', event => {
@@ -169,6 +186,7 @@
                 else {
                     if (++copy > 999) throw err;
                     destination = { ...destination, path: storageCopyPath(original, copy) };
+                    if (destination.provider === 'gog') Object.assign(destination, { item_id: '', name: baseName(destination.path) });
                     version = '';
                 }
             }
@@ -232,7 +250,7 @@
 
     function storageTransferSelection(instance, entries, destination, mode, clipboard) {
         return storageOperation(instance, async (signal, progress) => {
-            for (const entry of entries) await storageTransfer(instance, savedLocation(entry), { ...destination, path: joinPath(destination.path, baseName(entry.path)) }, mode, signal, progress);
+            for (const entry of entries) await storageTransfer(instance, savedLocation(entry), storageChildLocation(destination, entry.name || baseName(entry.path)), mode, signal, progress);
             if (mode === 'move' && clipboard && window.AuraDesktopFileClipboard === clipboard) window.AuraDesktopFileClipboard = null;
         });
     }

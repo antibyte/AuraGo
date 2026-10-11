@@ -571,5 +571,7 @@
   "config.section.here_now.label": "here.now",
   "config.section.here_now.desc": "Publikování a správa ověřených trvalých Sites",
   "config.section.cyd.label": "Cheap Yellow Display",
-  "config.section.cyd.desc": "Mini dashboard ESP32 2,8\" se stavem systému a oznámeními agenta"
+  "config.section.cyd.desc": "Mini dashboard ESP32 2,8\" se stavem systému a oznámeními agenta",
+  "config.section.gog.label": "Google Workspace přes gog",
+  "config.section.gog.desc": "Používej samostatné účty Google vedle nativní integrace."
 }

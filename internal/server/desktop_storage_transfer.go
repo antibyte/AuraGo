@@ -24,7 +24,7 @@ type storageTransferItem struct {
 }
 
 func sameStorage(a, b tools.StorageLocation) bool {
-	return a.Provider == b.Provider && a.MountID == b.MountID
+	return a.Provider == b.Provider && a.MountID == b.MountID && a.AccountID == b.AccountID
 }
 
 func (d *desktopStorageSession) transferPlan(req desktopStorageRequest) ([]storageTransferItem, error) {
@@ -81,9 +81,18 @@ func (d *desktopStorageSession) transferPlan(req desktopStorageRequest) ([]stora
 				return err
 			}
 			for _, child := range children {
+				if from.Provider == "gog" && !storageTransferNameSafe(child.Name) {
+					return fmt.Errorf("Google file name cannot be represented safely in this transfer")
+				}
 				f, t := from, to
 				f.Path = child.Path
-				t.Path = path.Join(to.Path, path.Base(child.Path))
+				f.ItemID = child.ItemID
+				f.ParentID = child.ParentID
+				f.Name = child.Name
+				t.Path = path.Join(to.Path, child.Name)
+				t.ItemID = ""
+				t.ParentID = ""
+				t.Name = child.Name
 				if err = walk(f, t, depth+1); err != nil {
 					return err
 				}
@@ -93,6 +102,10 @@ func (d *desktopStorageSession) transferPlan(req desktopStorageRequest) ([]stora
 	}
 	err := walk(req.Location, req.Destination, 0)
 	return items, err
+}
+
+func storageTransferNameSafe(name string) bool {
+	return name != "" && name != "." && name != ".." && !strings.ContainsAny(name, "/\\\x00")
 }
 
 func (d *desktopStorageSession) serveTransfer(w http.ResponseWriter, r *http.Request, req desktopStorageRequest) {
@@ -188,6 +201,10 @@ func (d *desktopStorageSession) transfer(req desktopStorageRequest, items []stor
 	for i, item := range items {
 		if item.entry.Type == "directory" {
 			if err := d.mkdir(item.to); err != nil {
+				return err
+			}
+		} else if req.Mode == "copy" && item.from.Provider == "gog" && sameStorage(item.from, item.to) && item.targetVersion == "" {
+			if err := d.cloud.Gog.Copy(d.ctx, item.from, item.to, item.entry.Version); err != nil {
 				return err
 			}
 		} else if err := d.copyStorageFile(&items[i]); err != nil {

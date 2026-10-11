@@ -1,0 +1,38 @@
+diff --git a/internal/cmd/drive_upload.go b/internal/cmd/drive_upload.go
+index 813aef8..115f485 100644
+--- a/internal/cmd/drive_upload.go
++++ b/internal/cmd/drive_upload.go
+@@ -310,7 +310,7 @@ func runDriveCreateUpload(ctx context.Context, svc *drive.Service, file io.Reade
+ 
+ 	call := svc.Files.Create(meta).
+ 		SupportsAllDrives(true).
+-		Media(file, gapi.ContentType(opts.mimeType)).
++		Media(file, gapi.ContentType(opts.mimeType), gapi.ChunkSize(0)).
+ 		Fields("id, name, mimeType, size, webViewLink").
+ 		Context(ctx)
+ 	if opts.keepRevisionForever {
+@@ -344,7 +344,7 @@ func runDriveReplaceUpload(ctx context.Context, svc *drive.Service, file io.Read
+ 
+ 	call := svc.Files.Update(opts.replaceFileID, meta).
+ 		SupportsAllDrives(true).
+-		Media(file, gapi.ContentType(opts.mimeType)).
++		Media(file, gapi.ContentType(opts.mimeType), gapi.ChunkSize(0)).
+ 		Fields("id, name, mimeType, size, webViewLink").
+ 		Context(ctx)
+ 	if opts.keepRevisionForever {
+diff --git a/internal/googleapi/transport.go b/internal/googleapi/transport.go
+index 30325e3..846c17a 100644
+--- a/internal/googleapi/transport.go
++++ b/internal/googleapi/transport.go
+@@ -76,6 +76,11 @@ func NewRetryTransport(base http.RoundTripper) *RetryTransport {
+ 
+ // RoundTrip implements http.RoundTripper with retry logic.
+ func (t *RetryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
++	// AuraGo: mutations must never be replayed, including reauthentication.
++	if req.Method != http.MethodGet && req.Method != http.MethodHead && req.Method != http.MethodOptions {
++		return t.Base.RoundTrip(req)
++	}
++
+ 	if t.CircuitBreaker != nil && t.CircuitBreaker.IsOpen() {
+ 		if req.Body != nil {
+ 			_ = req.Body.Close()

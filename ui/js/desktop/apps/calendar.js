@@ -93,6 +93,7 @@
         calendarSessions.set(id, session);
 
         host.innerHTML = calendarShellHTML(session);
+        session.disposeGog = window.AuraGogDesktop?.attachSources(host, 'calendar', { t });
         wireCalendarShell(session);
         // Bound once per host: the handler resolves the live session so re-renders keep working.
         wireContextMenuBoundary(host, { onContextMenu: event => showCalendarContextMenu(calendarSessions.get(id), event) });
@@ -106,6 +107,7 @@
     }
 
     function disposeCalendarSession(session) {
+        session.disposeGog?.();
         session.timers.forEach(timer => clearInterval(timer));
         session.timers = [];
         Array.from(session.pendingDeletes.keys()).forEach(id => { commitCalendarDelete(session, id); });

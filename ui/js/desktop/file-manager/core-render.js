@@ -252,7 +252,7 @@
         const instance = fm;
         const location = storageLocation(path);
         closeContextMenu();
-        instance.storage = { provider: location.provider, mount_id: location.mount_id };
+        instance.storage = { ...location };
         path = location.path;
         instance.storageNavigation?.abort();
         instance.storageNavigation = new AbortController();
@@ -278,7 +278,12 @@
             if (!isLiveInstance(instance) || instance.navigationGeneration !== generation) return;
             withInstance(instance, () => {
                 fm.files = Array.isArray(result.files) ? result.files : [];
-                if (isRemote(instance)) fm.files = fm.files.map(file => ({ ...file, mime_type: file.content_type, storage: location }));
+                if (isRemote(instance)) fm.files = fm.files.map(file => ({ ...file, mime_type: file.content_type, storage: location.provider === 'gog' ? { ...location, path: file.path, item_id: file.item_id, parent_id: file.parent_id, name: file.name } : location }));
+                if (location.provider === 'gog') {
+                    instance.gogLocations ||= new Map();
+                    instance.gogLocations.set(location.account_id + '/' + location.path, location);
+                    fm.files.forEach(file => instance.gogLocations.set(location.account_id + '/' + file.path, file.storage));
+                }
                 fm.loading = false;
                 applyFilter();
                 renderAll();
@@ -903,7 +908,7 @@
         const segments = parts.map((part, index) => {
             accumulated = joinPath(accumulated, part);
             const isLast = index === parts.length - 1;
-            return `<span class="fm-breadcrumb-segment${isLast ? ' current' : ''}" data-breadcrumb-path="${esc(accumulated)}" role="button" tabindex="0">${esc(part)}</span>`;
+            return `<span class="fm-breadcrumb-segment${isLast ? ' current' : ''}" data-breadcrumb-path="${esc(accumulated)}" role="button" tabindex="0">${esc(fm.storage?.provider === 'gog' ? fm.gogLocations?.get(fm.storage.account_id + '/' + accumulated)?.name || part : part)}</span>`;
         });
         return (isRemote() ? `<span class="fm-breadcrumb-segment" data-breadcrumb-path="" role="button" tabindex="0">${esc(storageName())}</span><span class="fm-breadcrumb-separator">/</span>` : '') + segments.join(`<span class="fm-breadcrumb-separator">/</span>`);
     }
