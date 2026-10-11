@@ -474,6 +474,7 @@ async function dialSounds(profile, muted, setup, until) {
     const createdInGesture = audioLog.contexts;
     if (!until) await sleep(1400);
     for (const end = Date.now() + 6000; until && !until() && Date.now() < end;) await sleep(20);
+    if (until && !until()) console.log('timed out: the dial sounds this check waits for did not come within 6 s');
     unit.skip();
     const resolved = await result;
     unit.dispose();

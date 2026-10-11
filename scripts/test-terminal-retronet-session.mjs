@@ -2,9 +2,10 @@
 // Runs ui/js/desktop/apps/terminal-retronet-session.js (after terminal-text.js) in Node with a fake WebSocket and a
 // fake xterm: entry-ID URL, binary and JSON frames, the three echo modes of Telnet world entries (line editing with
 // echo, hidden line editing without echo or history, character mode) and their transitions, cell-accurate erasing
-// through TerminalText (CJK two cells, emoji one), history, multi-line paste, raw control keys, resize and host-key
-// frames, hang-up, remote close, bbs entries, that server text never reaches the screen through the module and
-// the host-key answer parser (localized letters of all 16 locales, ASCII y/n, case-insensitive).
+// through TerminalText (CJK two cells, emoji one), history, multi-line paste, raw control keys, host-key frames (the
+// grid goes out in the URL only, never as a resize frame), hang-up, remote close, bbs entries, that server text never
+// reaches the screen through the module and the host-key answer parser (localized letters of all 16 locales, ASCII
+// y/n, case-insensitive).
 // Usage: node scripts/test-terminal-retronet-session.mjs
 import fs from 'node:fs';
 import path from 'node:path';
@@ -163,10 +164,8 @@ session.send('Z');
 same('keys go out at once', ws.sent.slice(before), ['bin:Q', 'bin:Z']);
 same('no local echo in character mode', screen.out, '');
 
-// 8. Resize, host key, hang-up.
-session.resize(100, 30);
-session.resize(120, 40);
-same('resize sends one JSON frame per change', ws.sent.at(-1), 'txt:{"type":"resize","cols":120,"rows":40}');
+// 8. Host key, hang-up; the session has no resize (every Retro-Net grid is pinned).
+same('the session offers no resize', typeof session.resize, 'undefined');
 session.hostKeyDecision(true);
 same('host-key decision frame', ws.sent.at(-1), 'txt:{"type":"hostkey_decision","accept":true}');
 session.hangup();
@@ -270,18 +269,17 @@ editor.send('\r');
 same('buffer and screen stay in step', lastSent(), 'bin:\r');
 editor.dispose();
 
-// 13. Before the socket opens: resizes wait for open, input is dropped (the coordinator forwards keys only
-// after the connected control, i.e. on an open socket), dispose closes quietly.
+// 13. Before the socket opens: input is dropped (the coordinator forwards keys only after the connected control,
+// i.e. on an open socket), opening sends nothing (the grid went out in the URL), dispose closes quietly.
 FakeSocket.initialState = 0;
 const early = Session.open({ term: screen, entry: { id: 'discworld', protocol: 'telnet', kind: 'world' }, cols: 80, rows: 25, onClose: () => closes.push('early') });
 const earlySocket = sockets.at(-1);
 screen.out = '';
-early.resize(100, 40);
 early.send('look\r');
 same('nothing is sent or echoed while connecting', [earlySocket.sent, screen.out], [[], '']);
 earlySocket.readyState = 1;
-earlySocket.onopen();
-same('the latest size is sent on open', earlySocket.sent, ['txt:{"type":"resize","cols":100,"rows":40}']);
+if (typeof earlySocket.onopen === 'function') earlySocket.onopen();
+same('opening sends nothing: the grid went out in the URL', [earlySocket.sent, /[?&]cols=80&rows=25$/.test(earlySocket.url)], [[], true]);
 early.send('look\r');
 same('input flows once the socket is open', earlySocket.sent.at(-1), 'bin:look\r');
 early.dispose();

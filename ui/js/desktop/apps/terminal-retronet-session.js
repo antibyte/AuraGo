@@ -107,8 +107,8 @@
         const onClose = typeof opts.onClose === 'function' ? opts.onClose : function () {};
         const encoder = new TextEncoder();
         const lineCapable = entry.protocol === 'telnet' && entry.kind === 'world';
+        // The grid the session opens with; every Retro-Net grid is pinned, so it never changes during the call.
         const initial = { cols: positive(opts.cols, 80), rows: positive(opts.rows, 25) };
-        const size = { cols: initial.cols, rows: initial.rows };
         const history = [];
         let remoteEcho = false; // echo.remote: character mode, every key goes out at once
         let hiddenEcho = false; // echo.hidden: line mode without local echo (password prompts)
@@ -306,15 +306,6 @@
             }
         }
 
-        function resize(cols, rows) {
-            const nextCols = positive(cols, size.cols);
-            const nextRows = positive(rows, size.rows);
-            if (nextCols === size.cols && nextRows === size.rows) return;
-            size.cols = nextCols;
-            size.rows = nextRows;
-            sendControl({ type: 'resize', cols: nextCols, rows: nextRows });
-        }
-
         function hostKeyDecision(accept) {
             sendControl({ type: 'hostkey_decision', accept: accept === true });
         }
@@ -345,12 +336,6 @@
             }
         }
 
-        ws.onopen = function () {
-            if (closed) return;
-            if (size.cols !== initial.cols || size.rows !== initial.rows) {
-                sendControl({ type: 'resize', cols: size.cols, rows: size.rows });
-            }
-        };
         ws.onmessage = function (event) {
             if (closed) return;
             if (event.data instanceof ArrayBuffer) {
@@ -377,7 +362,7 @@
             onClose(event);
         };
 
-        return { send: send, resize: resize, hostKeyDecision: hostKeyDecision, hangup: shutdown, dispose: shutdown };
+        return { send: send, hostKeyDecision: hostKeyDecision, hangup: shutdown, dispose: shutdown };
     }
 
     window.TerminalRetroNetSession = { open: open, hostKeyAnswer: hostKeyAnswer, c64ColorKey: c64ColorKey };

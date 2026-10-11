@@ -84,8 +84,10 @@ follow the window as before.
 - **Text worlds** (MUDs, Telehack, MapSCII, the Star Wars animation and the
   other classics) and SSH entries, your own included, use an 80×24 screen like
   a VT100 terminal, in your terminal style's font. The characters get as large
-  as the 80 columns allow, and the lines move apart (up to double spacing) until
-  the 24 rows fill the height, like the raster of a picture tube. In a wide,
+  as the 80 columns allow, and in the retro styles the lines move apart (up to
+  double spacing) until the 24 rows fill the height, like the raster of a picture
+  tube. The Modern style, and a retro style whose graphics acceleration failed,
+  keeps single spacing so that box and block graphics stay closed. In a wide,
   short window, which includes the default window and a maximized one, the rows
   set the size instead and bars remain at the sides. The service learns 80×24
   when the call starts and the size never changes: resizing the window or picking

@@ -358,6 +358,8 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		// Screen geometry lives in terminal-geometry.js (Contract C): fit, the 80x24 VT screen, 80x25 BBS, 40x25 C64.
 		"window.TerminalGeometry.create({",
 		"getProfile: currentProfile,",
+		// 'vt' spaces rows only while the WebGL addon (custom block and box glyphs) is loaded.
+		"canSpace: function () { return !!canvasAddon; },",
 		"if (geometry) geometry.set(next);",
 		// Every Retro-Net session runs on a pinned grid (Telnet worlds and SSH on 'vt') and opens with it.
 		"const pinned = c64 ? 'c64' : entry.protocol === 'telnet' && entry.kind === 'bbs' ? 'bbs' : 'vt';",
@@ -476,7 +478,7 @@ func TestDesktopTerminalGeometryContract(t *testing.T) {
 		"if (spec.font) return { family: spec.font, load: spec.load };",
 		"return { family: family, load: (profile.fontSize || 16) + 'px ' + first };",
 		"if (spec.font) term.options.lineHeight = 1;",
-		"if (!spec.font) term.options.lineHeight = fitted.lineHeight;",
+		"if (!spec.font) term.options.lineHeight = canSpace() ? fitted.lineHeight : 1;",
 		"return { width: screenEl.offsetWidth, height: screenEl.offsetHeight };",
 		"set: set,",
 		"mode: function () { return current; },",
@@ -503,13 +505,22 @@ func TestDesktopTerminalGeometryContract(t *testing.T) {
 		"let size = step(scales ? term.options.fontSize : ems);",
 		"const expected = scales ? step(size * Math.min(width / box.width, room.height / box.height)) : size;",
 		"const next = !scales ? size : Math.min(expected > size ? expected : size + 0.5, bad - 0.5);",
-		"const box = await measure(size, 0, scales ? 1 : 0);",
+		// 'vt' measures at the current line height (no collapse on screen) and judges the grid at line height 1.
+		"const measured = await measure(size, 0, scales && !spaceRows ? 1 : 0);",
+		"const base = Math.ceil(Math.round(box.height * dpr / spec.rows) / (term.options.lineHeight || 1) - 1e-6);",
 		// 'vt' spaces its rows to fill the glass height: the largest device px cell height that fits, as a line
 		// height over the cell at line height 1, at most MAX_LINE_HEIGHT; an unchanged glass keeps its fit.
 		"const MAX_LINE_HEIGHT = 2;",
-		"const base = Math.round(rect.height * dpr / spec.rows);",
-		"for (let cell = Math.floor((room.height + 0.5) * dpr / spec.rows), tries = 0; cell > base && tries < 3 && !spaced; cell -= 1, tries += 1) {",
-		"const box = await measure(good.size, 0, Math.min(MAX_LINE_HEIGHT, (cell + 0.5) / base));",
+		// Rows are spaced only where the renderer's custom glyphs fill the spaced cell (WebGL: canSpace).
+		"const spaceRows = scales && canSpace();",
+		"const target = spaceRows && good ? Math.floor((room.height + 0.5) * dpr / spec.rows) : 0;",
+		"const box = await measure(good.size, 0, Math.min(MAX_LINE_HEIGHT, (cell + 0.5) / good.base));",
+		// A fit that changed the cell re-syncs xterm's viewport (scroll position in the new cell height).
+		"if (resized && spec.scrollback) syncViewport();",
+		"viewport._latestYDisp = undefined;",
+		"viewport.queueSync();",
+		// The grid is centred in the glass; the scrollbar strip comes out of the right letterbox.
+		"const extraLeft = Math.min(spare, (spare + bar) / 2);",
 		"if (box.width === ceiling.width && box.height === ceiling.height) rect = box;",
 		// The per-axis glass border of 'vt' and 'bbs' (the C64 grid keeps the style padding, a share of the width).
 		"const GLASS_X = 0.02;",
@@ -1128,7 +1139,6 @@ func TestDesktopTerminalRetroNetSessionContract(t *testing.T) {
 		"ws.binaryType = 'arraybuffer'",
 		"new TextEncoder()",
 		"event.data instanceof ArrayBuffer",
-		"type: 'resize'",
 		"type: 'hostkey_decision'",
 		"control.type === 'echo'",
 		"setEchoMode(control.remote === true, control.hidden === true)",
@@ -1144,7 +1154,7 @@ func TestDesktopTerminalRetroNetSessionContract(t *testing.T) {
 		"function hostKeyAnswer(input, yes, no)",
 		"if (key === 'y') return true",
 		"if (key === 'n') return false",
-		"return { send: send, resize: resize, hostKeyDecision: hostKeyDecision, hangup: shutdown, dispose: shutdown }",
+		"return { send: send, hostKeyDecision: hostKeyDecision, hangup: shutdown, dispose: shutdown }",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("terminal-retronet-session.js missing %q", want)

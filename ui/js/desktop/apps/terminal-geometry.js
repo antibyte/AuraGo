@@ -51,6 +51,10 @@
         const fit = opts.fit && typeof opts.fit.fit === 'function' ? opts.fit : null;
         const getProfile = typeof opts.getProfile === 'function' ? opts.getProfile : function () { return null; };
         const onFitted = typeof opts.onFitted === 'function' ? opts.onFitted : function () {};
+        // Whether 'vt' may space its rows: only xterm's WebGL renderer draws block elements and box drawing over the
+        // whole spaced cell (custom glyphs); the DOM renderer (modern style, a lost WebGL context) draws them from
+        // the font, and spaced rows would open gaps in box and block art.
+        const canSpace = typeof opts.canSpace === 'function' ? opts.canSpace : function () { return true; };
         let current = 'fit';
         let revision = 0;
         let frame = 0;
@@ -87,7 +91,18 @@
             if (!withSize) return;
             term.options.fontSize = fitted.fontSize;
             term.options.letterSpacing = fitted.letterSpacing;
-            if (!spec.font) term.options.lineHeight = fitted.lineHeight;
+            if (!spec.font) term.options.lineHeight = canSpace() ? fitted.lineHeight : 1;
+        }
+
+        // xterm 6.0 syncs its viewport (scrollbar size, scroll position) only on buffer resize and scroll events:
+        // after a font or line height change the scroll position stays in the old cell height and the next wheel
+        // tick jumps by many lines. Sync it the way xterm does after a buffer switch (forget the last synced line,
+        // queue a sync for the next render); a private part of the vendored xterm, so guarded.
+        function syncViewport() {
+            const viewport = term._core && term._core._viewport;
+            if (!viewport || typeof viewport.queueSync !== 'function') return;
+            viewport._latestYDisp = undefined;
+            viewport.queueSync();
         }
 
         function cancelFrame() {
@@ -160,7 +175,8 @@
                 return { width: screenEl.offsetWidth, height: screenEl.offsetHeight };
             }
             const scales = !spec.cell;
-            const key = [term.options.fontFamily, dpr, width, room.height].join('|');
+            const spaceRows = scales && canSpace();
+            const key = [term.options.fontFamily, dpr, width, room.height, spaceRows].join('|');
             let rect = null;
             // An unchanged glass whose cells measure as at the last 'vt' fit keeps that fit: one probe, no writes.
             if (scales && ceiling && ceiling.key === key && ceiling.size === term.options.fontSize && ceiling.lineHeight === term.options.lineHeight) {
@@ -185,59 +201,71 @@
                 if (got[0] === cell && got[1] === cell && fits(box)) rect = box;
             }
             // 0.5 px steps down until the grid fits (MIN_FONT_SIZE at the least, clipped there), from the size the
-            // font's em cell allows. Without an em cell ('vt': the style's font, at line height 1 here) the search
+            // font's em cell allows. Without an em cell ('vt': the style's font, judged at line height 1) the search
             // starts at the current size and moves to the size the measured cells scale to, between the largest
             // size that fit and the smallest that did not; a size that fits and expects no larger one still tries the
             // next step (xterm's whole device px cells keep their size over some steps), so it ends with the two one
             // step apart: the font of the 80 columns in the glass width, or of the rows where they do not fit the
-            // height even at line height 1 (a wide, short glass; the sides take the rest).
+            // height even at line height 1 (a wide, short glass; the sides take the rest). It measures at the current
+            // line height, so the rows do not collapse and spread again on screen: xterm's cell is floor(base *
+            // lineHeight) device px, so the font's box `base` is the one whole number with that floor (line height 1
+            // where rows may not be spaced).
             const step = function (value) { return Math.max(MIN_FONT_SIZE, Math.floor(value * 2) / 2); };
+            const flat = function (box) {
+                const base = Math.ceil(Math.round(box.height * dpr / spec.rows) / (term.options.lineHeight || 1) - 1e-6);
+                return { width: box.width, height: Math.round(spec.rows * base / dpr), base: base };
+            };
             let size = step(scales ? term.options.fontSize : ems);
             let good = null;
             let bad = Infinity;
             for (let attempt = 0; attempt < FIT_ATTEMPTS && !rect; attempt += 1) {
-                const box = await measure(size, 0, scales ? 1 : 0);
+                const measured = await measure(size, 0, scales && !spaceRows ? 1 : 0);
                 if (disposed || mine !== revision) return;
+                const box = scales ? flat(measured) : measured;
                 const last = attempt === FIT_ATTEMPTS - 1;
                 const expected = scales ? step(size * Math.min(width / box.width, room.height / box.height)) : size;
                 if (fits(box)) {
-                    good = { size: size, box: box };
+                    good = { size: size, box: measured, base: box.base };
                     const next = !scales ? size : Math.min(expected > size ? expected : size + 0.5, bad - 0.5);
                     if (next > size && !last) size = next;
-                    else rect = box;
+                    else rect = measured;
                     continue;
                 }
                 bad = size;
                 if (good && size - 0.5 <= good.size) rect = await measure(good.size, 0);
-                else if (size <= MIN_FONT_SIZE || last) rect = good ? await measure(good.size, 0) : box;
+                else if (size <= MIN_FONT_SIZE || last) rect = good ? await measure(good.size, 0) : measured;
                 else size = Math.max(good ? good.size + 0.5 : MIN_FONT_SIZE, Math.min(expected, size - 0.5));
                 if (disposed || mine !== revision) return;
             }
-            // 'vt' then spaces its rows like a CRT's raster to fill the glass height: the largest device px cell
-            // height whose rows fit, as a line height over the font's box (the cell at line height 1; xterm floors
-            // the product), MAX_LINE_HEIGHT at the most (a tall glass keeps a letterbox). A height xterm does not
-            // give (another renderer) is retried a px lower, twice, else line height 1 stays.
-            if (scales && fresh && good) {
-                const base = Math.round(rect.height * dpr / spec.rows);
+            // 'vt' then spaces its rows like a CRT's raster to fill the glass height, where it may (canSpace): the
+            // largest device px cell height whose rows fit, as a line height over the font's box (xterm floors the
+            // product), MAX_LINE_HEIGHT at the most (a tall glass keeps a letterbox). A height xterm does not give is
+            // retried a px lower, twice, else line height 1 stays.
+            if (scales && fresh) {
                 let spaced = false;
-                for (let cell = Math.floor((room.height + 0.5) * dpr / spec.rows), tries = 0; cell > base && tries < 3 && !spaced; cell -= 1, tries += 1) {
-                    const box = await measure(good.size, 0, Math.min(MAX_LINE_HEIGHT, (cell + 0.5) / base));
+                const target = spaceRows && good ? Math.floor((room.height + 0.5) * dpr / spec.rows) : 0;
+                for (let cell = target, tries = 0; good && cell > good.base && tries < 3 && !spaced; cell -= 1, tries += 1) {
+                    const box = await measure(good.size, 0, Math.min(MAX_LINE_HEIGHT, (cell + 0.5) / good.base));
                     if (disposed || mine !== revision) return;
                     spaced = fits(box);
                     if (spaced) rect = box;
                 }
-                if (!spaced && term.options.lineHeight !== 1) rect = await measure(good.size, 0, 1);
+                if (!spaced && term.options.lineHeight !== 1) rect = await measure(term.options.fontSize, 0, 1);
                 if (disposed || mine !== revision) return;
             }
             if (scales && fresh) ceiling = good ? { key: key, size: term.options.fontSize, lineHeight: term.options.lineHeight, width: rect.width, height: rect.height } : null;
             const now = { fontSize: term.options.fontSize, letterSpacing: term.options.letterSpacing, lineHeight: term.options.lineHeight };
             const resized = Object.keys(now).some(function (key) { return now[key] !== fitted[key]; });
             fitted = now;
-            const extraX = Math.max(0, (width - rect.width) / 2);
+            if (resized && spec.scrollback) syncViewport();
+            // The grid is centred in the glass; the scrollbar strip comes out of the right letterbox where that is
+            // wide enough, else the grid moves left by what is missing.
+            const spare = Math.max(0, width - rect.width);
+            const extraLeft = Math.min(spare, (spare + bar) / 2);
             const extraY = Math.max(0, (room.height - rect.height) / 2);
             const next = {
-                paddingLeft: px(room.pad.left + extraX),
-                paddingRight: px(room.pad.right + extraX),
+                paddingLeft: px(room.pad.left + extraLeft),
+                paddingRight: px(room.pad.right + spare - extraLeft),
                 paddingTop: px(room.pad.top + extraY),
                 paddingBottom: px(room.pad.bottom + extraY)
             };

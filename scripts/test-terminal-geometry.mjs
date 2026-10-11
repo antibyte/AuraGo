@@ -123,7 +123,9 @@ function setup() {
         heights: [],
         options: { fontFamily: 'ui-monospace', lineHeight: 1.2, scrollback: 1000, allowTransparency: false, theme: { background: '#123456' } },
         resize(cols, rows) { this.cols = cols; this.rows = rows; this.resizes.push(cols + 'x' + rows); },
-        element: { style: styleBox(), querySelector: (selector) => (selector === '.xterm-screen' ? grid : null) }
+        element: { style: styleBox(), querySelector: (selector) => (selector === '.xterm-screen' ? grid : null) },
+        // xterm's viewport (private): queueSync counts the syncs the module asks for.
+        _core: { _viewport: { _latestYDisp: 0, syncs: 0, queueSync() { this.syncs += 1; } } }
     };
     // Every font size and letter spacing written, in order (xterm measures or rebuilds on each change).
     let fontSize = 13;
@@ -160,12 +162,15 @@ function setup() {
     };
     const events = { fitted: 0 };
     const style = { id: 'amber' };
+    // canSpace: whether rows may be spaced (terminal.js: while the WebGL addon is loaded).
+    const flags = { canSpace: true };
     const geometry = Geometry.create({
         term, screen, root, fit: fitAddon,
         getProfile: () => Styles.profile(style.id),
+        canSpace: () => flags.canSpace,
         onFitted: () => { events.fitted += 1; }
     });
-    return { attrs, screen, grid, term, fitAddon, events, geometry, style };
+    return { attrs, screen, grid, term, fitAddon, events, geometry, style, flags };
 }
 const padding = (style) => [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft];
 
@@ -407,7 +412,7 @@ const whole = (fit, dpr, cell) => Math.abs(fit.size * dpr - cell) < 1e-9 && cell
 // font is the largest 0.5 px step whose grid fits at line height 1 (from the width, or from the height where the
 // rows do not fit at line height 1); the rows are then spaced to fill the height, line height 2 at the most.
 // The expectation tries every 0.5 px step against the fake's cells (styleFontBox) and every device px of row height.
-function vtExpect(width, height) {
+function vtExpect(width, height, spaced = true) {
     const dpr = window.devicePixelRatio;
     const bx = Math.min(20, Math.max(12, 0.02 * width));
     const by = Math.min(20, Math.max(12, 0.03 * height));
@@ -418,13 +423,17 @@ function vtExpect(width, height) {
     for (let s = 6; s <= 80; s += 0.5) if (fits(styleFontBox(s, 1, 80, 24))) size = s;
     const base = Math.ceil(1.2 * size * dpr);
     let lineHeight = 1;
-    for (let row = base + 1; row <= 2 * base; row += 1) {
+    for (let row = base + 1; spaced && row <= 2 * base; row += 1) {
         const lh = Math.min(2, (row + 0.5) / base);
         if (fits(styleFontBox(size, lh, 80, 24))) lineHeight = lh;
     }
     const box = styleFontBox(size, lineHeight, 80, 24);
-    const pad = (border, room, used) => Math.round((border + Math.max(0, (room - used) / 2)) * 100) / 100 + 'px';
-    return { size, lineHeight, box, padding: [pad(by, H, box.height), pad(bx, W, box.width), pad(by, H, box.height), pad(bx, W, box.width)] };
+    // Centred in the glass: the 14px scrollbar strip comes out of the right letterbox where it is wide enough.
+    const spare = Math.max(0, W - box.width);
+    const left = Math.min(spare, (spare + 14) / 2);
+    const px = (value) => Math.round(value * 100) / 100 + 'px';
+    const top = px(by + Math.max(0, (H - box.height) / 2));
+    return { size, lineHeight, box, padding: [top, px(bx + spare - left), top, px(bx + left)] };
 }
 async function vtFit(dpr, width, height) {
     window.devicePixelRatio = dpr;
@@ -551,6 +560,45 @@ window.devicePixelRatio = 1;
     }
     geometry.dispose();
     window.devicePixelRatio = 1;
+}
+
+// 8e. Rows are spaced only while the renderer draws block and box glyphs over the spaced cell (canSpace: the WebGL
+// addon); the DOM renderer (modern style, a lost WebGL context) keeps line height 1. A fit that changes the cell
+// re-syncs xterm's viewport, an unchanged one leaves it alone, and refits measure at the current line height, so
+// the rows never collapse to line height 1 on the way.
+{
+    const { geometry, term, screen, flags } = await vtFit(1, 900, 1000);
+    const viewport = term._core._viewport;
+    check('a tall glass spaces its rows', term.options.lineHeight > 1, String(term.options.lineHeight));
+    check('the fit re-synced xterm\'s viewport (last synced line forgotten)', viewport.syncs >= 1 && viewport._latestYDisp === undefined, JSON.stringify(viewport));
+    term.heights.length = 0;
+    viewport.syncs = 0;
+    viewport._latestYDisp = 7;
+    screen.clientWidth = 860;
+    screen.clientHeight = 1040;
+    geometry.refit();
+    await settle();
+    let want = vtExpect(860, 1040);
+    same('a refit between two tall glasses lands on the expected fit', [term.options.fontSize, term.options.lineHeight], [want.size, want.lineHeight]);
+    check('and never collapses the rows to line height 1 on the way', term.heights.length > 0 && term.heights.every((n) => n > 1), JSON.stringify(term.heights));
+    same('a changed cell re-syncs the viewport', [viewport.syncs >= 1, viewport._latestYDisp], [true, undefined]);
+    viewport.syncs = 0;
+    viewport._latestYDisp = 7;
+    geometry.refit();
+    await settle();
+    same('an unchanged refit leaves the viewport alone', [viewport.syncs, viewport._latestYDisp], [0, 7]);
+    flags.canSpace = false;
+    geometry.refit();
+    same('without WebGL the pinned options drop to line height 1 at once', term.options.lineHeight, 1);
+    await settle();
+    want = vtExpect(860, 1040, false);
+    same('then the font fits at line height 1 and the rows stay unspaced', [term.options.fontSize, term.options.lineHeight, padding(term.element.style)], [want.size, 1, want.padding]);
+    flags.canSpace = true;
+    geometry.refit();
+    await settle();
+    want = vtExpect(860, 1040);
+    same('with WebGL back the rows are spaced again', [term.options.fontSize, term.options.lineHeight], [want.size, want.lineHeight]);
+    geometry.dispose();
 }
 
 if (failures) {

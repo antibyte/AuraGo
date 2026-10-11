@@ -2925,8 +2925,8 @@ registration lives in `internal/desktop/types.go`.
   The directory and the shell use `fit`. Every Retro-Net session gets a pinned classic screen:
   `bbs` entries 80×25, `c64` entries 40×25, Telnet `world` entries and all SSH entries (catalog
   and own) the 80×24 VT screen `vt`. The grid is pinned synchronously, so the session URL
-  carries it (the server's first NAWS and SSH PTY size) and no `resize` frame ever follows;
-  `onTermResize` only redraws the directory.
+  carries it (the server's first NAWS and SSH PTY size) and no `resize` frame ever follows
+  (`TerminalRetroNetSession` has no resize); `onTermResize` only redraws the directory.
   `bbs` entries use a fixed 80×25 grid with the vendored `Aura VGA` font
   (Px437 IBM VGA 8x16, CC BY-SA 4.0, `ui/fonts/Px437-LICENSE.txt`), `c64`
   entries 40×25 with the vendored `Aura C64` font (C64 Pro Mono by Style,
@@ -2970,8 +2970,10 @@ registration lives in `internal/desktop/types.go`.
   own: it takes the style's font family (loaded at the style's size; the
   style's line height is not used), keeps the 1000-line scrollback (MUD
   players read back) with xterm's 14 px scrollbar in a strip right of the
-  grid, and its letterbox shows the style's background (xterm's viewport, or
-  the CRT's theme background). Font: the largest 0.5 px step whose grid fits
+  grid, taken from the right letterbox where that is wide enough (the grid
+  stays centred in the glass; a narrower letterbox moves the grid left by the
+  difference), and its letterbox shows the style's background (xterm's
+  viewport, or the CRT's theme background). Font: the largest 0.5 px step whose grid fits
   at line height 1, i.e. whose 80 columns fit the width, or whose rows fit the
   height where they do not at line height 1 (a wide, short glass: the sides
   take the rest; the 960×720 window and a maximized one are such glass for
@@ -2979,21 +2981,31 @@ registration lives in `internal/desktop/types.go`.
   size the measured cells scale to, between the largest size that fit and the
   smallest that did not; after a fit it tries one step more (whole device px
   cells keep their size over some 0.5 px steps). `MIN_FONT_SIZE` 6 at the
-  least, clipped below that. Rows: then spaced like a CRT raster to fill the
+  least, clipped below that. The search measures at the current line height,
+  so rows do not collapse and spread again on screen: xterm's cell is
+  `floor(base × lineHeight)` device px, so the font's box `base` is
+  `ceil(cell / lineHeight)`. Rows: then spaced like a CRT raster to fill the
   height: the largest device px cell height whose 24 rows fit, as
-  `lineHeight = (cell + 0.5) / base` over the cell at line height 1 (xterm
-  floors the product), at most `MAX_LINE_HEIGHT` 2, where a tall glass keeps a
-  letterbox above and below; a height xterm does not give is retried a px
-  lower, twice, else line height 1 stays. xterm's custom glyphs
-  (`customGlyphs`, default on) draw block elements and box drawing over the
-  whole spaced cell, so they still join; text glyphs sit centred in the cell.
-  `ceiling` keeps the last fit (glass, font, size, line height, grid): an
-  unchanged glass whose cells measure the same takes one probe and writes
-  nothing (every option written re-measures and rebuilds the WebGL atlas). A
-  resize or style change changes font and line height, never 80×24; the style
-  select stays enabled and a new style re-pins with its font. Known limitation: xterm 6.0 resizes
-  its scrollbar only on scroll and resize events, so after a font-only refit
-  the scrollbar keeps its old height until the next scroll.
+  `lineHeight = (cell + 0.5) / base` (xterm floors the product), at most
+  `MAX_LINE_HEIGHT` 2, where a tall glass keeps a letterbox above and below;
+  a height xterm does not give is retried a px lower, twice, else line height
+  1 stays. Only while the WebGL addon is loaded (`canSpace`, `!!canvasAddon`
+  in terminal.js): its custom glyphs (`customGlyphs`, default on) draw block
+  elements and box drawing over the whole spaced cell, so they still join
+  (text glyphs sit centred in the cell). xterm's DOM renderer (modern style,
+  a lost WebGL context) draws them from the font, so `vt` keeps line height 1
+  there; the context-loss refit drops the spacing. `ceiling` keeps the last
+  fit (glass, font, spacing allowed, size, line height, grid): an unchanged
+  glass whose cells measure the same takes one probe and writes nothing
+  (every option written re-measures and rebuilds the WebGL atlas). A resize or
+  style change changes font and line height, never 80×24; the style select
+  stays enabled and a new style re-pins with its font. xterm 6.0 syncs its
+  viewport (scrollbar, scroll position) only on buffer resize and scroll
+  events, so after a fit that changed the cell the scroll position would stay
+  in the old cell height and the next wheel tick would jump by
+  `ydisp × (1 − old / new)` lines: the geometry re-syncs it the way xterm does
+  after a buffer switch (`term._core._viewport`: `_latestYDisp` cleared, then
+  `queueSync()`; private, guarded).
   `fit` uses the fit addon at the style's font. A pinned grid stays through
   the result; `set('fit')` (directory, shell, policy switch, directory 403)
   restores the style's font, size and line height, which are never changed or
@@ -3102,9 +3114,12 @@ registration lives in `internal/desktop/types.go`.
   rows filling at least 95 % of the height inside the glass border at 960×720
   and 1600×994, a tall 600×840 window taking its font from the width with
   spaced rows, a pixel readback of full and half blocks, a vertical and a
-  horizontal line across spaced rows without a gap, a larger font in the larger
-  window, towel-style 19-row frames without stale rows, a style change, no
-  resize frame and the style font after leaving; the C64
+  horizontal line across spaced rows without a gap (also at DPR 1.25), line
+  height 1 with rows edge to edge after a lost WebGL context and in the modern
+  style, one wheel tick in the scrollback moving as far after a refit as
+  before, a larger font in the larger window, towel-style 19-row frames
+  without stale rows, a style change, no resize frame and the style font after
+  leaving; the C64
   grid also at DPR 1.25 and 1.5, each with a pixel readback of half-block art
   from xterm's WebGL canvas that fails on seams; all use
   `ui/desktop_terminal_harness_test.go`, the Retro-Net fixture is

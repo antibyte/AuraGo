@@ -24,21 +24,58 @@ func TestDesktopTerminalRetroNetBrowser(t *testing.T) {
 			runTerminalRetroNetBrowser(t, browser, srv.URL, motion)
 		})
 	}
+	// DPR 1.25: the block and box glyph readback across spaced rows, then the renderers that must not space rows,
+	// because xterm's DOM renderer draws block and box glyphs from the font: a lost WebGL context and the modern
+	// style. Their rows stay at line height 1, edge to edge.
+	t.Run("dpr-1.25", func(t *testing.T) {
+		page := newTerminalBrowser(t, "1.25").MustPage().Timeout(120 * time.Second)
+		defer page.Close()
+		page.MustSetViewport(1280, 850, 1.25, false)
+		page.MustNavigate(srv.URL + "/fixture?motion=reduce").MustWaitLoad()
+		page.MustEval(`async()=>{await fixtureReady;}`)
+		c := terminalChecks{t: t, page: page}
+		c.wait("directory rendered", `async()=>(await fixtureText()).includes('Telehack')`)
+		c.run(`()=>{Object.assign(document.querySelector('.vd-window').style,{left:'20px',top:'0px',width:'600px',height:'840px'});}`)
+		c.run(`async()=>{fixtureTerm().focus();await fixtureInput('0');await fixtureInput('1');await fixtureInput('\r');}`)
+		c.wait("the world session opens on the VT screen", `()=>fixtureSocket().readyState===1&&fixtureRoot().dataset.terminalGeometry==='vt'`)
+		c.run(`()=>{fixtureControl({type:'connected',protocol:'telnet',kind:'world',charset:'utf8'});fixtureControl({type:'echo',remote:true,hidden:false});}`)
+		c.wait("the session is live", `()=>fixtureRoot().dataset.terminalMode==='retro'`)
+		c.wait("the tall glass takes the font from its width and spaces the rows at DPR 1.25", `async()=>(await (`+terminalVTFills+`)())&&(`+terminalVTFillsWidth+`)()`)
+		c.run(`()=>fixtureData(` + terminalVTGlyphScreen + `)`)
+		c.check("block and box glyphs join across spaced rows at DPR 1.25", terminalVTGlyphGaps)
+		c.run(`()=>{const gl=[...fixtureTerm().element.querySelectorAll('.xterm-screen canvas')].find(c=>!c.classList.contains('xterm-link-layer'));
+			gl.getContext('webgl2').getExtension('WEBGL_lose_context').loseContext();}`)
+		c.wait("a lost WebGL context unspaces the rows (DOM renderer)", `async()=>fixtureRoot().dataset.terminalFallback==='css'&&fixtureTerm().options.lineHeight===1&&
+			(`+terminalVTDomRows+`)()&&await (`+terminalVTFills+`)()`)
+		c.run(`()=>fixtureStyle('modern')`)
+		c.wait("the modern style keeps the VT rows at line height 1, edge to edge", `async()=>fixtureRoot().dataset.terminalStyle==='modern'&&fixtureTerm().options.lineHeight===1&&
+			(`+terminalVTDomRows+`)()&&await (`+terminalVTFills+`)()`)
+		c.check("no browser errors", `()=>fixtureErrors.length===0`)
+	})
 }
 
 // The VT screen of a Telnet world or SSH session: 80x24 in the style's font at a 0.5 px size with line height 1 to 2,
-// centred inside the per-axis glass border (2 % of the glass width left and right, 3 % of its height top and bottom,
-// 12px at the least, at most the style's clamp(16px, 3 %, 30px)) with xterm's 14px scrollbar strip on the right.
-// Unless the line height is clamped at 2, the rows fill the height inside the border: less than one device px per
-// row is left and at least 95 % is covered (cell sizes from the drawn grid).
+// inside the per-axis glass border of retro styles (2 % of the glass width left and right, 3 % of its height top and
+// bottom, 12px at the least, at most the style's clamp(16px, 3 %, 30px); none in modern), centred in the glass with
+// xterm's 14px scrollbar strip taken from the right letterbox (where that is narrower than the strip, the grid sits
+// left by the difference). With xterm's WebGL renderer, and unless the line height is clamped at 2, the rows fill the
+// height inside the border: less than one device px per row is left over and at least 95 % is covered (cell sizes
+// from the drawn grid). The DOM renderer (its rows are elements) keeps line height 1.
 const terminalVTFills = `async()=>{await new Promise(r=>setTimeout(r,300));
 	const term=fixtureTerm(),root=fixtureRoot(),dpr=devicePixelRatio,g=root.querySelector('.vd-terminal-screen').getBoundingClientRect(),
-		s=term.element.querySelector('.xterm-screen').getBoundingClientRect(),own=Math.min(30,Math.max(16,0.03*g.width)),
-		bx=Math.min(own,Math.max(12,0.02*g.width)),by=Math.min(own,Math.max(12,0.03*g.height)),inner={width:g.width-2*bx-14,height:g.height-2*by},
-		lh=term.options.lineHeight,left=s.left-g.left,right=g.right-s.right,top=s.top-g.top,bottom=g.bottom-s.bottom;
+		s=term.element.querySelector('.xterm-screen').getBoundingClientRect(),own=root.dataset.terminalStyle==='modern'?0:Math.min(30,Math.max(16,0.03*g.width)),
+		bx=own&&Math.min(own,Math.max(12,0.02*g.width)),by=own&&Math.min(own,Math.max(12,0.03*g.height)),inner={width:g.width-2*bx-14,height:g.height-2*by},
+		lh=term.options.lineHeight,left=s.left-g.left,right=g.right-s.right,top=s.top-g.top,bottom=g.bottom-s.bottom,spare=inner.width-s.width,
+		dom=term.element.querySelectorAll('.xterm-rows > div').length>0;
 	return root.dataset.terminalGeometry==='vt'&&term.cols===80&&term.rows===24&&Number.isInteger(term.options.fontSize*2)&&lh>=1&&lh<=2&&
-		s.width<=inner.width+0.5&&s.height<=inner.height+0.5&&left>=bx-1&&top>=by-1&&Math.abs(top-bottom)<=2&&Math.abs(right-left-14)<=2&&
-		(lh===2||(s.height>=0.95*inner.height&&inner.height-s.height<24/dpr+1));}`
+		s.width<=inner.width+0.5&&s.height<=inner.height+0.5&&left>=bx-1&&top>=by-1&&Math.abs(top-bottom)<=2&&Math.abs(right-left-Math.max(0,14-spare))<=2&&
+		(dom?lh===1:lh===2||(s.height>=0.95*inner.height&&inner.height-s.height<24/dpr+1));}`
+
+// xterm's DOM renderer (modern style, a lost WebGL context) draws block and box glyphs from the font, so its 24 rows
+// must sit edge to edge at line height 1: each row one cell high (test-only access to the cell), no gap between.
+const terminalVTDomRows = `()=>{const term=fixtureTerm(),rows=[...term.element.querySelectorAll('.xterm-rows > div')],h=term._core._renderService.dimensions.css.cell.height;
+	return term.options.lineHeight===1&&rows.length===24&&rows.every((r,i)=>{const b=r.getBoundingClientRect();
+		return Math.abs(b.height-h)<0.6&&(i===0||Math.abs(b.top-rows[i-1].getBoundingClientRect().bottom)<0.6);});}`
 
 // A tall glass takes the font from its width (the next 0.5 px step would not fit 80 columns) and spaces the rows.
 const terminalVTFillsWidth = `()=>{const term=fixtureTerm(),dpr=devicePixelRatio,g=fixtureRoot().querySelector('.vd-terminal-screen').getBoundingClientRect(),
@@ -332,10 +369,29 @@ func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion
 	wait("the frames never scroll: no stale text above them", `async()=>{await fixtureFlush();const term=fixtureTerm(),lines=fixtureLines();
 		return term.buffer.active.baseY===fixtureBaseY&&lines.slice(0,7).every(l=>!l.trim())&&lines[7].includes('A LONG TIME AGO')&&
 			lines.filter(l=>l.includes('A LONG TIME AGO')).length===1;}`)
+	// Scrollback across a refit: xterm 6 syncs its viewport only on buffer resize and scroll, so the geometry
+	// re-syncs it when the cell changes. One wheel tick back then moves as far as before the refit (the same
+	// pixels in the new cell height), not by hundreds of pixels of stale scroll position.
+	run(`async()=>{fixtureData('\r\n'+Array.from({length:300},(_,i)=>'scrollback line '+i).join('\r\n'));await fixtureFlush();}`)
+	wheel := func() {
+		t.Helper()
+		at := page.MustEval(`()=>{const r=fixtureTerm().element.querySelector('.xterm-screen').getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2};}`)
+		page.Mouse.MustMoveTo(at.Get("x").Num(), at.Get("y").Num())
+		page.Mouse.MustScroll(0, -120)
+		time.Sleep(700 * time.Millisecond)
+	}
+	run(`()=>{window.fixtureScroll={y0:fixtureTerm().buffer.active.viewportY,h0:fixtureTerm()._core._renderService.dimensions.css.cell.height};}`)
+	wheel()
+	check("a wheel tick scrolls back into the scrollback", `()=>{const b=fixtureTerm().buffer.active;fixtureScroll.tick=fixtureScroll.y0-b.viewportY;return fixtureScroll.tick>=1&&b.viewportY<b.baseY;}`)
 	run(`()=>{const w=document.querySelector('.vd-window');Object.assign(w.style,{left:'0px',top:'0px',width:'1600px',height:'994px'});}`)
 	wait("a large window gets larger characters on the same 80x24 screen", `async()=>{await new Promise(r=>setTimeout(r,300));const term=fixtureTerm();
 		return term.options.fontSize>fixtureSmallFont&&term.cols===80&&term.rows===24;}`)
 	wait("the VT screen fills the large window's glass", terminalVTFills)
+	run(`()=>{Object.assign(fixtureScroll,{y1:fixtureTerm().buffer.active.viewportY,h1:fixtureTerm()._core._renderService.dimensions.css.cell.height});}`)
+	wheel()
+	check("after the refit one wheel tick moves about as far as before, without a jump", `()=>{const s=fixtureScroll,moved=s.y1-fixtureTerm().buffer.active.viewportY;
+		return s.h1!==s.h0&&moved>=1&&Math.abs(moved-s.tick*s.h0/s.h1)<=2;}`)
+	run(`()=>fixtureTerm().scrollToBottom()`)
 	// A style change re-pins the screen with the new style's font (its fit sets the line height); the select stays enabled.
 	run(`()=>{window.fixtureVTStyle=fixtureRoot().dataset.terminalStyle;window.fixtureLargeFont=fixtureTerm().options.fontSize;fixtureStyle('apple2');}`)
 	wait("the apple2 style re-pins the VT screen in its pixel font", `async()=>{const term=fixtureTerm(),root=fixtureRoot(),apple=TerminalStyles.profile('apple2');

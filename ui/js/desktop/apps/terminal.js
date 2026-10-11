@@ -986,6 +986,8 @@
                 root: root,
                 fit: fit,
                 getProfile: currentProfile,
+                // Spaced 'vt' rows only with the WebGL addon, whose custom glyphs fill the spaced cell.
+                canSpace: function () { return !!canvasAddon; },
                 onFitted: function () { if (crt) crt.resize(); }
             });
         }
