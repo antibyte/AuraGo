@@ -74,13 +74,21 @@ type Service struct {
 	lifecycleCancel context.CancelFunc
 	wg              sync.WaitGroup
 
+	// openMu serializes store opens so the slow OpenStore runs outside mu
+	// (Enabled, Status and the sync bookkeeping never wait for the disk).
+	openMu sync.Mutex
+
 	mu              sync.Mutex
 	settings        Settings
+	closed          bool
 	store           *Store
 	storeDir        string
 	run             *syncRun
 	progress        map[string]SourceProgress
 	lastAutoFailure time.Time
+	// freshUntil is the first instant a source can become stale, learned from
+	// the last freshness check; until then ensureFresh skips the database read.
+	freshUntil time.Time
 }
 
 // NewService builds a passive service: no disk or network access until used.
@@ -117,11 +125,13 @@ func sleepContext(ctx context.Context, d time.Duration) error {
 }
 
 // Configure applies new settings. Disabling (or moving the data directory)
-// cancels a running sync, waits for it and closes the store.
+// cancels a running sync, waits for it and closes the store. After Shutdown it
+// only records the settings: a shut-down service never opens anything again.
 func (s *Service) Configure(next Settings) {
 	next.DataDir = strings.TrimSpace(next.DataDir)
 	s.mu.Lock()
 	s.settings = next
+	s.freshUntil = time.Time{}
 	var run *syncRun
 	var st *Store
 	if !next.Enabled || (s.store != nil && s.storeDir != next.DataDir) {
@@ -145,43 +155,115 @@ func (s *Service) Configure(next Settings) {
 	}
 }
 
-// Enabled reports whether the integration is on.
+// Enabled reports whether the integration is on. A shut-down service is off.
 func (s *Service) Enabled() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.settings.Enabled
+	return s.settings.Enabled && !s.closed
 }
 
 // AgentAccess reports whether the agent tool may use the service.
 func (s *Service) AgentAccess() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.settings.Enabled && s.settings.AgentAccess
+	return s.settings.Enabled && !s.closed && s.settings.AgentAccess
 }
 
-func (s *Service) openStore() (*Store, error) {
+// disabledLocked returns the error that refuses work, or nil while the
+// service is on. s.mu must be held.
+func (s *Service) disabledLocked() error {
+	if s.closed {
+		return fmt.Errorf("%w: service is shut down", ErrDisabled)
+	}
+	if !s.settings.Enabled {
+		return ErrDisabled
+	}
+	return nil
+}
+
+// storeErr turns a store failure into ErrDisabled when the service was
+// disabled or shut down while the request was running (the store handle is
+// then closed and the raw error would only say "database is closed").
+func (s *Service) storeErr(err error) error {
+	if err == nil {
+		return nil
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.openStoreLocked()
+	if derr := s.disabledLocked(); derr != nil {
+		return derr
+	}
+	return err
 }
 
-func (s *Service) openStoreLocked() (*Store, error) {
-	if !s.settings.Enabled {
-		return nil, ErrDisabled
+// openedStoreLocked returns the open store, or the directory to open. s.mu
+// must be held.
+func (s *Service) openedStoreLocked() (*Store, string, error) {
+	if err := s.disabledLocked(); err != nil {
+		return nil, "", err
 	}
 	if s.store != nil {
-		return s.store, nil
+		return s.store, "", nil
 	}
 	if s.settings.DataDir == "" {
-		return nil, errors.New("retrogames: no data directory configured")
+		return nil, "", fmt.Errorf("%w: no data directory configured", ErrDisabled)
 	}
-	st, err := OpenStore(s.settings.DataDir, s.logger)
+	return nil, s.settings.DataDir, nil
+}
+
+// openStore returns the index, opening it on first use. The database is
+// opened without holding s.mu; openMu keeps concurrent callers from opening
+// it twice.
+func (s *Service) openStore() (*Store, error) {
+	s.mu.Lock()
+	st, dir, err := s.openedStoreLocked()
+	s.mu.Unlock()
+	if st != nil || err != nil {
+		return st, err
+	}
+
+	s.openMu.Lock()
+	defer s.openMu.Unlock()
+	// Another caller may have opened it while this one waited.
+	s.mu.Lock()
+	st, dir, err = s.openedStoreLocked()
+	s.mu.Unlock()
+	if st != nil || err != nil {
+		return st, err
+	}
+
+	opened, err := OpenStore(dir, s.logger)
 	if err != nil {
 		return nil, err
 	}
-	s.store = st
-	s.storeDir = s.settings.DataDir
-	return st, nil
+
+	s.mu.Lock()
+	if derr := s.disabledLocked(); derr != nil {
+		s.mu.Unlock()
+		s.closeStore(opened)
+		return nil, derr
+	}
+	if s.settings.DataDir != dir {
+		s.mu.Unlock()
+		s.closeStore(opened)
+		return nil, fmt.Errorf("%w: data directory changed while opening the index", ErrDisabled)
+	}
+	if s.store != nil {
+		existing := s.store
+		s.mu.Unlock()
+		s.closeStore(opened)
+		return existing, nil
+	}
+	s.store = opened
+	s.storeDir = dir
+	s.mu.Unlock()
+	return opened, nil
+}
+
+func (s *Service) closeStore(st *Store) {
+	if err := st.Close(); err != nil {
+		s.logger.Warn("retro games could not close the index", "error", err)
+	}
 }
 
 // StartSync starts a manual sync of every source. It ignores the automatic
@@ -191,18 +273,27 @@ func (s *Service) StartSync() error {
 }
 
 func (s *Service) startSync(srcs []Source, manual bool) error {
+	// The store is opened before the single-flight section so the slow open
+	// never runs under s.mu.
+	st, err := s.openStore()
+	if err != nil {
+		return err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if !s.settings.Enabled {
-		return ErrDisabled
+	// Re-check: the service may have been disabled, shut down or moved to
+	// another data directory while the store was opening. Shutdown sets
+	// closed under s.mu before it waits, so wg.Add below never races Wait.
+	if err := s.disabledLocked(); err != nil {
+		return err
+	}
+	if s.store != st {
+		return fmt.Errorf("%w: index changed while starting the sync", ErrDisabled)
 	}
 	if s.run != nil {
 		return ErrSyncRunning
 	}
-	st, err := s.openStoreLocked()
-	if err != nil {
-		return err
-	}
+	s.freshUntil = time.Time{}
 	ctx, cancel := context.WithCancel(s.lifecycleCtx)
 	run := &syncRun{cancel: cancel, done: make(chan struct{})}
 	s.run = run
@@ -258,30 +349,46 @@ func (s *Service) ensureFresh(ctx context.Context) {
 	if err != nil {
 		return
 	}
+	now := s.now()
 	s.mu.Lock()
 	busy := s.run != nil
-	held := !s.lastAutoFailure.IsZero() && s.now().Sub(s.lastAutoFailure) < autoRetryHoldOff
+	held := !s.lastAutoFailure.IsZero() && now.Sub(s.lastAutoFailure) < autoRetryHoldOff
+	fresh := !s.freshUntil.IsZero() && now.Before(s.freshUntil)
 	s.mu.Unlock()
-	if busy || held {
+	if busy || held || fresh {
 		return
 	}
 	states, err := st.SyncStates(ctx)
 	if err != nil {
-		s.logger.Warn("retro games could not check index freshness", "error", err)
+		// A canceled request or a service that was switched off meanwhile is
+		// not worth a warning.
+		if ctx.Err() == nil && !errors.Is(s.storeErr(err), ErrDisabled) {
+			s.logger.Warn("retro games could not check index freshness", "error", err)
+		}
 		return
 	}
-	now := s.now()
 	var stale []Source
+	var oldest time.Time
 	for _, src := range Sources() {
 		state, ok := states[src.Key]
 		if !ok || state.LastSuccessAt.IsZero() || now.Sub(state.LastSuccessAt) > staleAfter {
 			stale = append(stale, src)
+			continue
+		}
+		if oldest.IsZero() || state.LastSuccessAt.Before(oldest) {
+			oldest = state.LastSuccessAt
 		}
 	}
 	if len(stale) == 0 {
+		// Nothing can turn stale before the oldest source ages out.
+		s.mu.Lock()
+		if s.store == st {
+			s.freshUntil = oldest.Add(staleAfter)
+		}
+		s.mu.Unlock()
 		return
 	}
-	if err := s.startSync(stale, false); err != nil && !errors.Is(err, ErrSyncRunning) {
+	if err := s.startSync(stale, false); err != nil && !errors.Is(err, ErrSyncRunning) && !errors.Is(err, ErrDisabled) {
 		s.logger.Warn("retro games could not start the index sync", "error", err)
 	}
 }
@@ -303,8 +410,14 @@ func (s *Service) WaitIdle(ctx context.Context) error {
 	}
 }
 
-// Shutdown cancels a running sync and closes the store.
+// Shutdown cancels a running sync and closes the store. The service is closed
+// for good: every later call is refused with ErrDisabled and nothing is opened.
 func (s *Service) Shutdown(ctx context.Context) error {
+	// closed is set before waiting, so no sync can start (and wg.Add) once
+	// wg.Wait is running.
+	s.mu.Lock()
+	s.closed = true
+	s.mu.Unlock()
 	s.lifecycleCancel()
 	done := make(chan struct{})
 	go func() {
@@ -333,21 +446,32 @@ func (s *Service) Status(ctx context.Context) (Status, error) {
 		return Status{Platforms: []PlatformStatus{}, Systems: []CountEntry{}}, nil
 	}
 	s.ensureFresh(ctx)
+	disabled := Status{Platforms: []PlatformStatus{}, Systems: []CountEntry{}}
 	st, err := s.openStore()
+	if errors.Is(err, ErrDisabled) {
+		return disabled, nil
+	}
 	if err != nil {
+		return Status{}, err
+	}
+	// Switched off while the request ran: report the disabled state, as above.
+	fail := func(err error) (Status, error) {
+		if err = s.storeErr(err); errors.Is(err, ErrDisabled) {
+			return disabled, nil
+		}
 		return Status{}, err
 	}
 	counts, err := st.PlatformCounts(ctx)
 	if err != nil {
-		return Status{}, err
+		return fail(err)
 	}
 	systems, err := st.SystemCounts(ctx, PlatformConsole)
 	if err != nil {
-		return Status{}, err
+		return fail(err)
 	}
 	states, err := st.SyncStates(ctx)
 	if err != nil {
-		return Status{}, err
+		return fail(err)
 	}
 	s.mu.Lock()
 	syncing := s.run != nil
@@ -387,7 +511,11 @@ func (s *Service) Search(ctx context.Context, q Query) (SearchResult, error) {
 	if err != nil {
 		return SearchResult{}, err
 	}
-	return st.Search(ctx, q)
+	res, err := st.Search(ctx, q)
+	if err != nil {
+		return SearchResult{}, s.storeErr(err)
+	}
+	return res, nil
 }
 
 // HallOfFame returns the curated list, optionally for one platform.
@@ -417,7 +545,7 @@ func (s *Service) Game(ctx context.Context, id string) (Game, error) {
 	}
 	g, ok, err := st.Game(ctx, id)
 	if err != nil {
-		return Game{}, err
+		return Game{}, s.storeErr(err)
 	}
 	if ok {
 		return g, nil
@@ -436,11 +564,11 @@ func (s *Service) Library(ctx context.Context) (Library, error) {
 	}
 	lib, err := st.Library(ctx)
 	if err != nil {
-		return Library{}, err
+		return Library{}, s.storeErr(err)
 	}
 	states, err := st.SyncStates(ctx)
 	if err != nil {
-		return Library{}, err
+		return Library{}, s.storeErr(err)
 	}
 	mark := func(entries []LibraryEntry) {
 		for i := range entries {
@@ -493,7 +621,7 @@ func (s *Service) mutateLibrary(ctx context.Context, id string, on bool, apply f
 		if errors.Is(err, ErrUnknownGame) {
 			snap, ok, snapErr := st.Snapshot(ctx, id)
 			if snapErr != nil {
-				return snapErr
+				return s.storeErr(snapErr)
 			}
 			if !ok {
 				return ErrUnknownGame
@@ -504,5 +632,5 @@ func (s *Service) mutateLibrary(ctx context.Context, id string, on bool, apply f
 			return err
 		}
 	}
-	return apply(st, g)
+	return s.storeErr(apply(st, g))
 }
