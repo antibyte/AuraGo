@@ -44,6 +44,25 @@ func TestSourcesReturnsCopies(t *testing.T) {
 	}
 }
 
+func TestSourceByKeyReturnsCopies(t *testing.T) {
+	src, ok := SourceByKey(PlatformAmiga)
+	if !ok {
+		t.Fatal("amiga source missing")
+	}
+	want := src.Collections[0]
+	src.Collections[0] = "mutated"
+	again, ok := SourceByKey(PlatformAmiga)
+	if !ok {
+		t.Fatal("amiga source missing on second lookup")
+	}
+	if again.Collections[0] != want {
+		t.Fatalf("SourceByKey exposes the internal table: Collections[0] = %q, want %q", again.Collections[0], want)
+	}
+	if _, ok := SourceByKey("nope"); ok {
+		t.Fatal("SourceByKey(\"nope\") ok = true, want false")
+	}
+}
+
 func TestSystemFor(t *testing.T) {
 	cases := []struct{ platform, emulator, want string }{
 		{PlatformConsole, "genesis", "Mega Drive / Genesis"},
@@ -63,13 +82,13 @@ func TestSystemFor(t *testing.T) {
 }
 
 func TestValidIdentifier(t *testing.T) {
-	valid := []string{"msdos_Prince_of_Persia_1990", "Gunstar_Heroes_USA.md", "chips_challenge_windows_3.x", "Speedball_2_Brutal_Deluxe_v1.00_1991-01-07_Image_Works_cr_CLS_RZR", "a"}
+	valid := []string{"msdos_Prince_of_Persia_1990", "Gunstar_Heroes_USA.md", "chips_challenge_windows_3.x", "Speedball_2_Brutal_Deluxe_v1.00_1991-01-07_Image_Works_cr_CLS_RZR", "a", strings.Repeat("a", 100)}
 	for _, id := range valid {
 		if !ValidIdentifier(id) {
 			t.Errorf("ValidIdentifier(%q) = false", id)
 		}
 	}
-	invalid := []string{"", "..", ".hidden", "-x", "a/b", "a b", "a?b", "ä", strings.Repeat("a", 101)}
+	invalid := []string{"", "..", ".hidden", "-x", "a/b", "a b", "a?b", "ä", strings.Repeat("a", 101), "a\n", "a%2e", "a\\b", "a\x00"}
 	for _, id := range invalid {
 		if ValidIdentifier(id) {
 			t.Errorf("ValidIdentifier(%q) = true", id)

@@ -41,20 +41,26 @@ var sources = []Source{
 	{Key: PlatformWin3, Label: "Windows 3.x", Collections: []string{"softwarelibrary_win3_games"}},
 }
 
+// copySource returns s with its own Collections slice, so callers cannot
+// mutate the internal table.
+func copySource(s Source) Source {
+	return Source{Key: s.Key, Label: s.Label, Collections: append([]string(nil), s.Collections...)}
+}
+
 // Sources returns a copy of the source table in display order.
 func Sources() []Source {
 	out := make([]Source, len(sources))
 	for i, src := range sources {
-		out[i] = Source{Key: src.Key, Label: src.Label, Collections: append([]string(nil), src.Collections...)}
+		out[i] = copySource(src)
 	}
 	return out
 }
 
-// SourceByKey looks up a source by its platform key.
+// SourceByKey looks up a source by its platform key. Only the match is copied.
 func SourceByKey(key string) (Source, bool) {
-	for _, src := range Sources() {
+	for _, src := range sources {
 		if src.Key == key {
-			return src, true
+			return copySource(src), true
 		}
 	}
 	return Source{}, false
