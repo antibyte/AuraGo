@@ -24,6 +24,7 @@
   "config.sandbox.docker_host_label": "Hostitel Dockeru",
   "config.sandbox.timeout_label_full": "Timeout (sekundy)",
   "config.sandbox.pool_size_label": "Velikost poolu",
+  "config.sandbox.pool_size_unavailable": "Sdružování kontejnerů zatím není k dispozici. Každá hodnota se ignoruje.",
   "config.sandbox.auto_install_label": "Automaticky nainstalovat llm-sandbox",
   "config.shell_sandbox.title": "Shellový sandbox (Landlock)",
   "config.shell_sandbox.desc": "Omezit příkazy shellu pomocí izolace souborového systému Linux Landlock a limitů prostředků. Pouze Linux (Jádro 5.13+).",

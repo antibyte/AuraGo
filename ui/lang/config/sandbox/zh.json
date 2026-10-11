@@ -24,6 +24,7 @@
   "config.sandbox.docker_host_label": "Docker 主机",
   "config.sandbox.timeout_label_full": "超时 (秒)",
   "config.sandbox.pool_size_label": "池大小",
+  "config.sandbox.pool_size_unavailable": "容器池尚不可用。任何数值都会被忽略。",
   "config.sandbox.auto_install_label": "自动安装 llm-sandbox",
   "config.shell_sandbox.title": "Shell沙箱 (Landlock)",
   "config.shell_sandbox.desc": "使用Linux Landlock文件系统隔离和资源限制来限制Shell命令。仅限Linux（内核5.13+）。",

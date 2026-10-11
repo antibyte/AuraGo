@@ -24,6 +24,7 @@
   "config.sandbox.docker_host_label": "डॉकर होस्ट",
   "config.sandbox.timeout_label_full": "टाइमआउट (सेकंड)",
   "config.sandbox.pool_size_label": "पूल का आकार",
+  "config.sandbox.pool_size_unavailable": "पूलिंग अभी उपलब्ध नहीं है। हर मान अनदेखा होता है।",
   "config.sandbox.auto_install_label": "एलएलएम-सैंडबॉक्स स्वतः स्थापित करें",
   "config.shell_sandbox.title": "शेल सैंडबॉक्स (Landlock)",
   "config.shell_sandbox.desc": "Linux Landlock फ़ाइल सिस्टम अलगाव और संसाधन सीमाओं के साथ शेल कमांड प्रतिबंधित करें। केवल Linux (कर्नेल 5.13+)।",

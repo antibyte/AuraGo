@@ -24,6 +24,7 @@
   "config.sandbox.docker_host_label": "ドッカーホスト",
   "config.sandbox.timeout_label_full": "タイムアウト (秒)",
   "config.sandbox.pool_size_label": "プールのサイズ",
+  "config.sandbox.pool_size_unavailable": "プールはまだ使えません。値は無視されます。",
   "config.sandbox.auto_install_label": "llm-sandbox の自動インストール",
   "config.shell_sandbox.title": "シェルサンドボックス (Landlock)",
   "config.shell_sandbox.desc": "Linuxのlandlockファイルシステム分離とリソース制限でシェルコマンドを制限します。Linuxのみ（カーネル5.13以上）。",

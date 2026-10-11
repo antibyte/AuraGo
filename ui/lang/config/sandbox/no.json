@@ -24,6 +24,7 @@
   "config.sandbox.docker_host_label": "Docker-vert",
   "config.sandbox.timeout_label_full": "Timeout (sekunder)",
   "config.sandbox.pool_size_label": "Pool Størrelse",
+  "config.sandbox.pool_size_unavailable": "Pooling er ikke tilgjengelig ennå. Alle verdier ignoreres.",
   "config.sandbox.auto_install_label": "Installer llm-sandbox automatisk",
   "config.shell_sandbox.title": "Shell-sandkasse (Landlock)",
   "config.shell_sandbox.desc": "Begrens skallkommandoer med Linux Landlock-filsystemisolasjon og ressursgrenser. Bare Linux (Kernel 5.13+).",

@@ -24,6 +24,7 @@
   "config.sandbox.docker_host_label": "Host Docker",
   "config.sandbox.timeout_label_full": "Timeout (segundos)",
   "config.sandbox.pool_size_label": "Tamanho do Pool",
+  "config.sandbox.pool_size_unavailable": "O pool ainda não está disponível. Qualquer valor é ignorado.",
   "config.sandbox.auto_install_label": "Auto-Instalar llm-sandbox",
   "config.shell_sandbox.title": "Sandbox Shell (Landlock)",
   "config.shell_sandbox.desc": "Restrinja comandos shell com isolamento do sistema de arquivos Linux Landlock e limites de recursos. Somente Linux (Kernel 5.13+).",

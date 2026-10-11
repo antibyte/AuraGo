@@ -2304,11 +2304,11 @@ type Config struct {
 		Enabled                  bool   `yaml:"enabled"`
 		Backend                  string `yaml:"backend"`                     // "docker" (default), "podman"
 		DockerHost               string `yaml:"docker_host"`                 // override; empty = inherit from docker.host or auto-detect
-		Image                    string `yaml:"image"`                       // container image (default: "python:3.11-slim")
+		Image                    string `yaml:"image"`                       // one image reference passed to llm-sandbox
 		AutoInstall              bool   `yaml:"auto_install"`                // auto-install llm-sandbox Python package (default: true)
-		PoolSize                 int    `yaml:"pool_size"`                   // pre-warmed container pool size (0 = no pooling)
+		PoolSize                 int    `yaml:"pool_size"`                   // ignored; container pooling is not implemented
 		TimeoutSeconds           int    `yaml:"timeout_seconds"`             // execution timeout per run (default: 30)
-		NetworkEnabled           bool   `yaml:"network_enabled"`             // allow sandbox containers to access the network
+		NetworkEnabled           bool   `yaml:"network_enabled"`             // false means Docker network_mode=none
 		KeepAlive                bool   `yaml:"keep_alive"`                  // keep sandbox MCP server running between calls
 		AllowLocalPythonFallback bool   `yaml:"allow_local_python_fallback"` // allow unsandboxed Python fallback if sandbox execution fails (default: false)
 	} `yaml:"sandbox"`
@@ -2317,7 +2317,7 @@ type Config struct {
 		AllowUnsafeFallback bool `yaml:"allow_unsafe_fallback"` // allow unsandboxed shell execution when Landlock is unavailable (default: false)
 		MaxMemoryMB         int  `yaml:"max_memory_mb"`         // RLIMIT_AS in MiB (default: 1024)
 		MaxCPUSeconds       int  `yaml:"max_cpu_seconds"`       // RLIMIT_CPU in seconds (default: 30)
-		MaxProcesses        int  `yaml:"max_processes"`         // RLIMIT_NPROC (default: 50)
+		MaxProcesses        int  `yaml:"max_processes"`         // ignored; Linux counts RLIMIT_NPROC per user
 		MaxFileSizeMB       int  `yaml:"max_file_size_mb"`      // RLIMIT_FSIZE in MiB (default: 100)
 		AllowedPaths        []struct {
 			Path     string `yaml:"path"`

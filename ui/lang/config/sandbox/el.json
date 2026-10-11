@@ -24,6 +24,7 @@
   "config.sandbox.docker_host_label": "Κεντρικός υπολογιστής Docker",
   "config.sandbox.timeout_label_full": "Timeout (δευτερόλεπτα)",
   "config.sandbox.pool_size_label": "Μέγεθος Pool",
+  "config.sandbox.pool_size_unavailable": "Η ομαδοποίηση δεν είναι ακόμα διαθέσιμη. Κάθε τιμή αγνοείται.",
   "config.sandbox.auto_install_label": "Αυτόματη-Εγκατάσταση llm-sandbox",
   "config.shell_sandbox.title": "Περιβάλλον απομόνωσης shell (Landlock)",
   "config.shell_sandbox.desc": "Περιορισμός εντολών shell με απομόνωση συστήματος αρχείων Linux Landlock και ορια πόρων. Μόνο Linux (Πυρήνας 5.13+).",

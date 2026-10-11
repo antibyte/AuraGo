@@ -104,8 +104,8 @@ async function renderSandboxSection(section) {
     </label>`;
 
     html += `<label class="sb-field-label">
-        <span class="sb-field-caption">${t('config.sandbox.pool_size_label')} <small class="sb-field-hint">(0 = ${t('config.sandbox.no_pooling')})</small></span>
-        <input type="number" class="field-input sb-field-input" data-path="sandbox.pool_size" value="${sbCfg.pool_size || 0}" min="0" max="20"
+        <span class="sb-field-caption">${t('config.sandbox.pool_size_label')} <small class="sb-field-hint">${t('config.sandbox.pool_size_unavailable')}</small></span>
+        <input type="number" class="field-input sb-field-input" data-path="sandbox.pool_size" value="${sbCfg.pool_size || 0}" min="0" max="20" disabled
             onchange="setNestedValue(configData,'sandbox.pool_size',parseInt(this.value)||0);setDirty(true)">
     </label>`;
 

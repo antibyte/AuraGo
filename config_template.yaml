@@ -1904,11 +1904,11 @@ sandbox:
     enabled: false
     backend: docker
     docker_host: ""
-    image: ""
+    image: ""                                           # one image reference passed to llm-sandbox
     auto_install: true
-    pool_size: 0
+    pool_size: 0                                        # ignored; container pooling is not implemented
     timeout_seconds: 30
-    network_enabled: false
+    network_enabled: false                              # false means Docker network_mode=none
     keep_alive: false
     allow_local_python_fallback: false
 shell_sandbox:
@@ -1916,7 +1916,7 @@ shell_sandbox:
     allow_unsafe_fallback: false
     max_memory_mb: 1024
     max_cpu_seconds: 30
-    max_processes: 50
+    max_processes: 50                                   # ignored; Linux counts RLIMIT_NPROC per user
     max_file_size_mb: 100
     allowed_paths: []
 ai_gateway:
