@@ -239,6 +239,47 @@ func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion
 	run(`async()=>{delete fixtureTerm().write;await fixtureInput('\x1d');await fixtureDismiss('q');}`)
 	wait("back in the directory after the flood", backInDirectory)
 
+	// 10d. Classic services keep at least 80x24 (towel.blinkenlights.nl draws 19-row frames without erasing). The
+	// window height is computed from xterm's cell so that today's fit at the style's font gives 18 rows.
+	run(`async()=>{const term=fixtureTerm(),w=document.querySelector('.vd-window'),cell=term._core._renderService.dimensions.css.cell.height;
+		window.fixtureWindowSize=[w.style.width,w.style.height];window.fixtureWindowRows=term.rows;window.fixtureStyleSize=TerminalStyles.profile(fixtureRoot().dataset.terminalStyle).fontSize;
+		w.style.height=Math.round(w.getBoundingClientRect().height-(term.rows-18)*cell)+'px';}`)
+	wait("a small window: today's fit at the style font gives fewer than 24 rows", `async()=>{const term=fixtureTerm();await new Promise(r=>requestAnimationFrame(r));
+		return fixtureRoot().dataset.terminalMode==='directory'&&term.options.fontSize===fixtureStyleSize&&term.rows>=16&&term.rows<=20&&(await fixtureText()).includes('Telehack');}`)
+	run(`async()=>{await fixtureInput('0');await fixtureInput('2');await fixtureInput('\r');}`)
+	wait("the Star Wars session opens", `()=>fixtureSockets.length===5&&fixtureSocket().readyState===1&&new URL(fixtureSocket().url).searchParams.get('entry')==='towel'`)
+	check("the world session shrinks the font to keep at least 80x24 and opens with that grid", `()=>{const term=fixtureTerm(),u=new URL(fixtureSocket().url),cols=Number(u.searchParams.get('cols')),rows=Number(u.searchParams.get('rows'));
+		return term.cols>=80&&term.rows>=24&&term.options.fontSize<fixtureStyleSize&&term.options.fontSize>=6&&Number.isInteger(term.options.fontSize*2)&&
+			cols===term.cols&&rows===term.rows&&!fixtureRoot().hasAttribute('data-terminal-geometry')&&!fixtureSent(fixtureSocket()).some(f=>f.startsWith('txt:'));}`)
+	run(`()=>{fixtureControl({type:'connected',protocol:'telnet',kind:'world',charset:'utf8'});fixtureControl({type:'echo',remote:true,hidden:false});}`)
+	if full {
+		run(`async()=>{await fixtureInput('x');}`)
+	}
+	wait("the Star Wars session is live", `async()=>fixtureRoot().dataset.terminalMode==='retro'&&(await fixtureText()).includes('CONNECT')`)
+	// Two frames as the service sends them: ESC[H, six bare CR LF rows, 13 rows of 73 padded cells, the last one
+	// without a newline (19 rows); the second frame moves the first frame's top text one row down.
+	run(`async()=>{await fixtureFlush();window.fixtureBaseY=fixtureTerm().buffer.active.baseY;
+		const frame=top=>'\x1b[H'+'\r\n'.repeat(6)+Array.from({length:13},(_,i)=>(i===top?'      A LONG TIME AGO IN A GALAXY FAR, FAR AWAY':'').padEnd(73,' ')).join('\r\n');
+		fixtureData('\x1b[H\x1b[J'+frame(0));fixtureData(frame(1));await fixtureFlush();}`)
+	wait("the frames never scroll: no stale text above them", `async()=>{await fixtureFlush();const term=fixtureTerm(),lines=fixtureLines();
+		return term.buffer.active.baseY===fixtureBaseY&&lines.slice(0,7).every(l=>!l.trim())&&lines[7].includes('A LONG TIME AGO')&&
+			lines.filter(l=>l.includes('A LONG TIME AGO')).length===1;}`)
+	// Narrower, so that the session's font would give 70 columns (xterm floors cell widths in device px, so a lower
+	// window alone can keep the same grid at a smaller font and rightly send no resize).
+	run(`async()=>{const term=fixtureTerm(),w=document.querySelector('.vd-window'),cell=term._core._renderService.dimensions.css.cell.width;window.fixtureSessionFont=term.options.fontSize;
+		w.style.width=Math.round(w.getBoundingClientRect().width-(term.cols-70)*cell)+'px';}`)
+	wait("a narrower window shrinks the font again and resizes the session to at least 80x24", `()=>{const term=fixtureTerm(),sizes=fixtureSent(fixtureSocket()).filter(f=>f.startsWith('txt:')).map(f=>JSON.parse(f.slice(4))).filter(m=>m.type==='resize');
+		return term.options.fontSize<fixtureSessionFont&&term.cols>=80&&term.rows>=24&&sizes.length>0&&sizes.every(m=>m.cols>=80&&m.rows>=24)&&
+			sizes.at(-1).cols===term.cols&&sizes.at(-1).rows===term.rows;}`)
+	run(`async()=>{window.fixtureSessionFont=fixtureTerm().options.fontSize;await fixtureInput('\x1d');}`)
+	wait("the result keeps the session's grid", `async()=>{const term=fixtureTerm();return fixtureRoot().dataset.terminalMode==='result'&&(await fixtureText()).includes('NO CARRIER')&&
+		term.options.fontSize===fixtureSessionFont&&term.rows>=24;}`)
+	run(`async()=>{await fixtureDismiss('q');}`)
+	wait("the directory restores the style font and today's fit", `async()=>{const term=fixtureTerm();await new Promise(r=>requestAnimationFrame(r));
+		return fixtureRoot().dataset.terminalMode==='directory'&&term.options.fontSize===fixtureStyleSize&&term.rows<24&&fixtureLive().length===0&&(await fixtureText()).includes('Telehack');}`)
+	run(`()=>{const w=document.querySelector('.vd-window');[w.style.width,w.style.height]=fixtureWindowSize;}`)
+	wait("back at the earlier window size", `async()=>{await new Promise(r=>requestAnimationFrame(r));return fixtureTerm().rows===fixtureWindowRows&&fixtureRoot().dataset.terminalMode==='directory';}`)
+
 	// 11. BBS: fixed 80x25 grid with the VGA font.
 	run(`async()=>{await fixtureInput('0');await fixtureInput('3');await fixtureInput('\r');}`)
 	wait("a BBS dials with a fixed 80x25 grid", `()=>{const s=fixtureSocket(),u=new URL(s.url),term=fixtureTerm();return u.searchParams.get('entry')==='vertrauen'&&

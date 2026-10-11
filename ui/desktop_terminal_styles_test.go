@@ -356,8 +356,10 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		// Screen geometry lives in terminal-geometry.js (Contract C): fit, 80x25 BBS, 40x25 C64.
 		"window.TerminalGeometry.create({",
 		"getProfile: currentProfile,",
-		"if (geometry) geometry.set(next);",
-		"setGeometry(pinned);",
+		"if (geometry) geometry.set(next, minimum);",
+		// Classic services on 'fit' (Telnet world, SSH) keep at least 80x24; the session opens with that grid.
+		"const CLASSIC_GRID = { minCols: 80, minRows: 24 };",
+		"setGeometry(pinned, pinned === 'fit' ? CLASSIC_GRID : null);",
 		"const c64 = entry.kind === 'c64';",
 		"cols: grid ? grid.cols : term.cols,",
 		"if (retro && retro.session && (!geometry || geometry.mode() === 'fit')) retro.session.resize(size.cols, size.rows);",
@@ -446,7 +448,8 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 	}
 }
 
-// Screen geometry (Contract C): fit, 80x25 BBS with the VGA font, 40x25 C64 with the C64 font; one fit at a time.
+// Screen geometry (Contract C): fit (optionally with a minimum grid), 80x25 BBS with the VGA font, 40x25 C64 with
+// the C64 font; one fit at a time.
 // Behaviour is covered by scripts/test-terminal-geometry.mjs.
 func TestDesktopTerminalGeometryContract(t *testing.T) {
 	t.Parallel()
@@ -483,6 +486,13 @@ func TestDesktopTerminalGeometryContract(t *testing.T) {
 		"again = true;",
 		"if (disposed || mine !== revision) return;",
 		"screenEl.style.background = (term.options.theme && term.options.theme.background) || '';",
+		// 'fit' with a minimum grid: the style's size or the largest 0.5 px step below it whose fit keeps the
+		// minimum, synchronously, MIN_FONT_SIZE at the least; 'fit' without one restores the style's size.
+		"function set(mode, options) {",
+		"minimum = next === 'fit' ? gridMinimum(options) : null;",
+		"const sizeAt = function (step) { return Math.max(MIN_FONT_SIZE, base - step / 2); };",
+		"dims = fit.proposeDimensions();",
+		"else if (restore) term.options.fontSize = styleSize();",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("terminal-geometry.js missing %q", want)

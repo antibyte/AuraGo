@@ -28,9 +28,17 @@
         return Math.round(value * 100) / 100 + 'px';
     }
 
-    // One geometry per Terminal window: 'fit' follows the window through the fit addon; 'bbs' and 'c64' pin the
-    // grid, load the font, size it to the glass (c64 by whole device pixels, otherwise in 0.5 px steps) and centre
-    // it with inline padding (letterbox).
+    // A minimum grid for 'fit' from { minCols, minRows } (a missing one is 1), or null.
+    function gridMinimum(options) {
+        if (!options) return null;
+        const cols = Math.floor(Number(options.minCols)) || 0;
+        const rows = Math.floor(Number(options.minRows)) || 0;
+        return cols > 0 || rows > 0 ? { cols: Math.max(1, cols), rows: Math.max(1, rows) } : null;
+    }
+
+    // One geometry per Terminal window: 'fit' follows the window through the fit addon, optionally keeping a
+    // minimum grid by shrinking the style's font; 'bbs' and 'c64' pin the grid, load the font, size it to the glass
+    // (c64 by whole device pixels, otherwise in 0.5 px steps) and centre it with inline padding (letterbox).
     function create(options) {
         const opts = options || {};
         const term = opts.term;
@@ -47,6 +55,7 @@
         let fitted = { fontSize: 16, letterSpacing: 0 };
         let disposed = false;
         let dprQuery = null;
+        let minimum = null;
 
         // Font, line height 1, scrollback and glyph atlas of the pinned grid; the fitted size and letter spacing only
         // outside a running fit, which owns them. Pixel fonts get xterm's alpha atlas: the opaque one antialiases
@@ -165,6 +174,54 @@
             if (resized || moved) onFitted();
         }
 
+        // The style's font size: 'fit' uses it, and a minimum grid shrinks from it.
+        function styleSize() {
+            const profile = getProfile();
+            return profile && profile.fontSize > 0 ? profile.fontSize : term.options.fontSize;
+        }
+
+        // 'fit' with a minimum grid (classic Retro-Net services: 80x24) keeps the style's font size when the fit
+        // addon gets at least minimum.cols x minimum.rows from it, otherwise takes the largest size below it in
+        // 0.5 px steps that does, MIN_FONT_SIZE at the least: a glass too small even for that keeps MIN_FONT_SIZE
+        // and whatever grid fits. The fit addon then fills the glass, so the grid may exceed the minimum. Each probe
+        // sets the size and asks the fit addon; xterm measures the cell synchronously on the option change, so the
+        // grid is final when set() or refit() returns (the size a session opens with). A hidden glass keeps the
+        // style's size.
+        function shrinkToMinimum() {
+            const base = styleSize();
+            const sizeAt = function (step) { return Math.max(MIN_FONT_SIZE, base - step / 2); };
+            let dims = null;
+            const fits = function (step) {
+                term.options.fontSize = sizeAt(step);
+                dims = fit.proposeDimensions();
+                return !dims || (dims.cols >= minimum.cols && dims.rows >= minimum.rows);
+            };
+            let step = 0;
+            if (screen.clientWidth > 0 && screen.clientHeight > 0 && !fits(0)) {
+                // Cells scale with the font: a first guess from the grid at the style's size, then 0.5 px steps up
+                // while the next size still fits, or down until one fits.
+                const guess = base * Math.min((dims.cols + 1) / minimum.cols, (dims.rows + 1) / minimum.rows);
+                step = Math.max(1, Math.ceil((base - guess) * 2));
+                if (fits(step)) {
+                    while (step > 1 && fits(step - 1)) step -= 1;
+                } else {
+                    do { step += 1; } while (!fits(step) && sizeAt(step) > MIN_FONT_SIZE);
+                }
+            }
+            term.options.fontSize = sizeAt(step);
+        }
+
+        // The fit addon outside pinned modes, with the minimum grid's font size or (`restore`, the minimum was
+        // dropped) the style's again; reported when the font size changed.
+        function fitWindow(restore) {
+            if (!fit) return;
+            const before = term.options.fontSize;
+            if (minimum) shrinkToMinimum();
+            else if (restore) term.options.fontSize = styleSize();
+            fit.fit();
+            if (term.options.fontSize !== before) onFitted();
+        }
+
         // One fit at a time: a request during a fit reruns it once afterwards, so an older, slower fit never leaves
         // its padding behind.
         function runFit() {
@@ -232,24 +289,31 @@
             term.options.letterSpacing = 0;
             term.options.allowTransparency = false;
             window.TerminalStyles.applyXterm(term, getProfile());
+            if (fit && minimum) shrinkToMinimum();
             if (fit) fit.fit();
             onFitted();
         }
 
         // 'fit' | 'bbs' | 'c64' (anything else is 'fit'); entering a pinned mode again restarts it (font and fit).
-        function set(mode) {
+        // `options` count for 'fit' only: { minCols, minRows } keeps at least that grid (shrinkToMinimum); 'fit'
+        // without them drops a minimum and restores the style's font size. Pinned modes drop it too.
+        function set(mode, options) {
             if (disposed || !term) return;
             const next = pinned(mode);
+            const had = minimum;
+            minimum = next === 'fit' ? gridMinimum(options) : null;
             if (next !== 'fit') enter(next);
             else if (current !== 'fit') leave();
+            else if (minimum || had) fitWindow(true);
         }
 
-        // ResizeObserver and style changes: the fit addon outside pinned modes; otherwise the pinned font at once
-        // (a style change replaced it) and a fit on the next frame.
+        // ResizeObserver and style changes: the fit addon outside pinned modes (re-evaluating a minimum grid from
+        // the style's size); otherwise the pinned font at once (a style change replaced it) and a fit on the next
+        // frame.
         function refit() {
             if (disposed || !term) return;
             if (current === 'fit') {
-                if (fit) fit.fit();
+                fitWindow(false);
                 return;
             }
             pin(!fitting);
@@ -270,10 +334,12 @@
             schedule();
         }
 
+        // A minimum's font size is never saved: it goes with the terminal, a new window starts at the style's size.
         function dispose() {
             disposed = true;
             revision += 1;
             again = false;
+            minimum = null;
             cancelFrame();
             watchDpr();
         }

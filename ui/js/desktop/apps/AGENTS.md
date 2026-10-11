@@ -2920,8 +2920,9 @@ registration lives in `internal/desktop/types.go`.
   the Hayes code plus `desktop.terminal_retronet_result_<reason>` (also the
   browser-only `local_hangup` and `lost`), and keys in the first 400 ms after a
   result are ignored. Screen geometry lives in `terminal-geometry.js`
-  (`window.TerminalGeometry`: `MODES`, `create` → `set`/`mode`/`refit`/`dispose`;
-  modes `fit`, `bbs`, `c64`; terminal.js switches only through `setGeometry()`).
+  (`window.TerminalGeometry`: `MODES`, `create` → `set(mode, options)`/`mode`/`refit`/`dispose`;
+  modes `fit`, `bbs`, `c64`; `options` count for `fit` only; terminal.js switches only through
+  `setGeometry(next, minimum)`).
   `bbs` entries use a fixed 80×25 grid with the vendored `Aura VGA` font
   (Px437 IBM VGA 8x16, CC BY-SA 4.0, `ui/fonts/Px437-LICENSE.txt`), `c64`
   entries 40×25 with the vendored `Aura C64` font (C64 Pro Mono by Style,
@@ -2952,7 +2953,23 @@ registration lives in `internal/desktop/types.go`.
   Windows, also on a plain canvas) softens vertical glyph edges with a faint
   one-px halo on each side; block art stays seamless.
   `fit` uses the fit addon. `world`/SSH entries fit the window and
-  send `resize`. Retro sessions set `convertEol=false`, the shell restores `true`.
+  send `resize`, with a minimum grid: every Retro-Net session on `fit` passes
+  `CLASSIC_GRID` (`set('fit', { minCols: 80, minRows: 24 })`; classic services
+  assume a VT100, and towel.blinkenlights.nl draws 19-row frames that a shorter
+  screen scrolls into stale rows). When the fit addon gets fewer cols or rows at
+  the style's font size, the font shrinks to the largest 0.5 px step below it
+  that keeps 80×24 (`MIN_FONT_SIZE` 6 at the least; a glass too small even then
+  keeps 6 px and whatever fits); the fit addon then fills the glass, so the grid
+  may exceed 80×24. The search probes through `proposeDimensions()` (xterm
+  re-measures synchronously on a font change), so `set()`/`refit()` return with
+  the final grid: the session URL, which the server uses for the first NAWS and
+  the SSH PTY, already carries it and no resize follows. Resizes and style
+  changes re-evaluate from the style's size; a hidden (zero-size) glass keeps
+  it. The minimum stays through the result, like a pinned grid; `set('fit')`
+  without options (directory, shell, policy switch, directory 403) and pinned
+  modes drop it and restore the style's size, which is never changed or saved.
+  The directory and the shell have no minimum: the directory redraws for any
+  grid. Retro sessions set `convertEol=false`, the shell restores `true`.
   C64 calls put on the `commodore64` style with `persist=false`
   (never saved; dispose drops it), lock the style select (disabled, `title`
   and an `aria-describedby` screen-reader note with
@@ -3049,7 +3066,9 @@ registration lives in `internal/desktop/types.go`.
   cases inside the app without changing xterm's measured screen padding.
   Browser verification is
   `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run 'TestDesktopTerminalRetro(Net(C64)?)?Browser' -count=1 -v`
-  (styles/CRT, Retro-Net and the C64 call, each in both motion modes, the C64
+  (styles/CRT, Retro-Net and the C64 call, each in both motion modes; the
+  Retro-Net run also checks the 80×24 minimum with towel-style frames in a
+  window computed for 18 rows at the style's font; the C64
   grid also at DPR 1.25 and 1.5, each with a pixel readback of half-block art
   from xterm's WebGL canvas that fails on seams; all use
   `ui/desktop_terminal_harness_test.go`, the Retro-Net fixture is
