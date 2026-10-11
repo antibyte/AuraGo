@@ -8,7 +8,8 @@ import (
 
 // ONNX protobuf field numbers (onnx/onnx.proto v1.17.0, proto2).
 const (
-	modelGraphField = 7
+	modelGraphField        = 7
+	modelTrainingInfoField = 20
 
 	graphNodeField        = 1
 	graphInitializerField = 5
@@ -18,7 +19,6 @@ const (
 
 	nodeInputField     = 1
 	nodeOutputField    = 2
-	nodeNameField      = 3
 	nodeOpTypeField    = 4
 	nodeAttributeField = 5
 	nodeDomainField    = 7
@@ -77,9 +77,9 @@ func parseWireFields(data []byte) ([]wireField, error) {
 }
 
 type onnxNode struct {
-	name, opType, domain string
-	inputs, outputs      []string
-	hasSubgraph          bool // a graph-valued attribute (If, Loop, Scan …)
+	opType, domain  string
+	inputs, outputs []string
+	hasSubgraph     bool // a graph-valued attribute (If, Loop, Scan …)
 }
 
 func parseNode(data []byte) (onnxNode, error) {
@@ -97,8 +97,6 @@ func parseNode(data []byte) (onnxNode, error) {
 			node.inputs = append(node.inputs, string(field.bytes))
 		case nodeOutputField:
 			node.outputs = append(node.outputs, string(field.bytes))
-		case nodeNameField:
-			node.name = string(field.bytes)
 		case nodeOpTypeField:
 			node.opType = string(field.bytes)
 		case nodeDomainField:
@@ -224,15 +222,20 @@ func appendBytesField(out []byte, number protowire.Number, value []byte) []byte 
 //
 // Only operators of the default ONNX domain count, the initializer name must
 // be unique and must not be declared as a graph input, output or value_info,
-// and a graph with subgraphs (If, Loop, Scan …) is left unchanged because
-// names used inside a subgraph are consumers this rewrite cannot see.
+// and a model with subgraphs (If, Loop, Scan …) or training_info is left
+// unchanged because names used inside those graphs are consumers this rewrite
+// cannot see.
 func PatchVectorMatMuls(model []byte) (patched []byte, count int, err error) {
 	modelFields, err := parseWireFields(model)
 	if err != nil {
 		return nil, 0, fmt.Errorf("parse ONNX model: %w", err)
 	}
 	graphIndex := -1
+	hasTrainingInfo := false
 	for i, field := range modelFields {
+		if field.number == modelTrainingInfoField {
+			hasTrainingInfo = true
+		}
 		if field.number != modelGraphField {
 			continue
 		}
@@ -294,7 +297,7 @@ func PatchVectorMatMuls(model []byte) (patched []byte, count int, err error) {
 			}
 		}
 	}
-	if hasSubgraph {
+	if hasSubgraph || hasTrainingInfo {
 		return model, 0, nil
 	}
 
