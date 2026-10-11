@@ -576,10 +576,12 @@ func prepareDesktopAgentTurn(ctx context.Context, s *Server, message string, cha
 	if isHomepageStudioChatContext(chatContext) {
 		messageSource = homepageStudioMessageSource
 	}
-	return prepareDesktopAgentTurnWithOptions(ctx, s, message, chatContext, stream, desktopAgentTurnOptions{
+	turn, err := prepareDesktopAgentTurnWithOptions(ctx, s, message, chatContext, stream, desktopAgentTurnOptions{
 		SessionID:     desktopChatSessionID,
 		MessageSource: messageSource,
 	})
+	turn.runCfg.SuppressOperationalNotices = strings.EqualFold(strings.TrimSpace(chatContext.Source), "code-studio")
+	return turn, err
 }
 
 func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message string, chatContext desktopChatContext, stream bool, opts desktopAgentTurnOptions) (preparedDesktopAgentTurn, error) {

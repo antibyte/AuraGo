@@ -257,6 +257,8 @@ Server-owned HTTP and cross-component integration contracts.
 - An empty `github.allowed_repos` list permits only repositories recorded in the protected `directories.data_dir/github_trust.json` ledger after successful creation. Grants bind API base and canonical repository identity. Workspace `agent_created` markers never grant access; existing markers expose `trust_migration_required` until an administrator explicitly selects the repository in the allowlist.
 - `github.allow_delete` defaults off and is required in addition to repository access and disabled read-only mode. Revoke the protected grant before deletion. Preserve the last valid ledger with a synced atomic replacement and private backup; do not automatically import legacy markers.
 - Manual `track_project` entries are local inventory only and must never grant remote repository access.
+- Config allowlist edits merge the visible page into entries that were not listed. Matching is case-insensitive. A bare name selects only the configured owner's repository.
+- Dashboard and `/api/github/repos` list through the paged `GitHubListRepos` helper with no slice limit.
 
 ### Homepage Managed Website Ledger
 - Quick tunnels use active registry identities and a private static snapshot through the shared Cloudflare publication boundary. The config UI selects `cloudflare_tunnel.quick_project_dir` from registered projects. Explicit tool/API ports and the former in-container arbitrary-port entry point fail closed. Disable/read-only, workspace/registry changes and project selection changes revoke active quick publication; shutdown cannot be blocked by agent read-only grants. Named/token tunnels remain separate.

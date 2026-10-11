@@ -2,6 +2,7 @@ package server
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/url"
@@ -26,7 +27,9 @@ import (
 // Provides data for the /dashboard metrics page.
 // All endpoints are guarded by WebConfig.Enabled in server.go route registration.
 
-var githubListReposForServer = tools.GitHubListRepos
+var githubListReposForServer = func(ctx context.Context, cfg tools.GitHubConfig, owner string) string {
+	return tools.GitHubListRepos(ctx, cfg, owner, 0)
+}
 
 // handleDashboardSystem returns system metrics (CPU, RAM, Disk, Network, SSE clients, uptime).
 func handleDashboardSystem(s *Server, sse *SSEBroadcaster, startedAt time.Time) http.HandlerFunc {
@@ -454,7 +457,7 @@ func handleDashboardGitHubRepos(s *Server) http.HandlerFunc {
 			TrustedRepos: trustedRepos,
 		}
 
-		raw := githubListReposForServer(ghCfg, "")
+		raw := githubListReposForServer(r.Context(), ghCfg, "")
 		var result map[string]interface{}
 		if err := json.Unmarshal([]byte(raw), &result); err != nil {
 			jsonError(w, "failed to parse GitHub response", http.StatusInternalServerError)
@@ -546,7 +549,7 @@ func handleGitHubReposForUI(s *Server) http.HandlerFunc {
 			ListReposUnrestricted: true,
 		}
 
-		raw := githubListReposForServer(ghCfg, "")
+		raw := githubListReposForServer(r.Context(), ghCfg, "")
 		var result map[string]interface{}
 		if err := json.Unmarshal([]byte(raw), &result); err != nil {
 			json.NewEncoder(w).Encode(map[string]interface{}{

@@ -1142,6 +1142,9 @@ type RunConfig struct {
 	MissionID            string // mission ID for logging/tracking
 	MessageSource        string // origin channel: "web_chat", "telegram", "discord", "a2a", "sms", "mission"
 	VoiceOutputActive    bool   // true when the user's speaker toggle is on
+	// SuppressOperationalNotices leaves the daily notice for ordinary chat
+	// instead of interrupting an embedded app assistant.
+	SuppressOperationalNotices bool
 	// SuppressTurnSideEffects disables derived memory, personality, journal,
 	// activity and reuse-first work for privacy-sensitive transient sessions.
 	// It preserves the historical behavior when false.
