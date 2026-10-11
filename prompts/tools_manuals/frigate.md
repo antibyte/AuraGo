@@ -5,7 +5,7 @@ Query Frigate NVR cameras, object detection events, review summaries, snapshots,
 | Operation | Description | Key parameters |
 |---|---|---|
 | `status` / `health` | Frigate stats and health check via `/api/stats` | none |
-| `cameras` | Configured cameras and capabilities | none |
+| `cameras` | Redacted cameras object from the processed config | none |
 | `events` | Search detection events | `camera`, `label`, `zone`, `after`, `before`, `min_score`, `has_clip`, `has_snapshot`, `limit`, `offset` |
 | `event` | Get one event | `event_id` |
 | `event_snapshot` | Fetch and, when `frigate.store_media` is enabled, store an event snapshot | `event_id` |
@@ -42,4 +42,4 @@ Notes:
 - Stored media responses include `local_path`, `web_path`, `sha256`, and `media_id` when the media registry is available.
 - `event_relay` and `review_relay` subscribe to Frigate MQTT event/review topics when MQTT is enabled.
 
-Configuration reads expose structure and allowlisted numeric/boolean settings only. String values and credential-bearing sections are redacted locally, including config_raw. Unparseable or unsupported configuration is withheld; no raw fallback is returned.
+Configuration reads expose structure and allowlisted numeric/boolean settings only. String values and credential-bearing sections are redacted locally, including config_raw. `cameras` returns only the redacted `cameras` object as `{"status":"ok","cameras":...}`; a missing key is `{}`. Other top-level fields stay on `config` and `config_raw`. Unparseable or unsupported configuration is withheld; no raw fallback is returned.

@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -91,6 +92,58 @@ func TestFrigateConfigRedactsBeforeReturningEitherFormat(t *testing.T) {
 	defer srv.Close()
 	if out := FrigateConfigRead(context.Background(), FrigateConfig{URL: srv.URL}, true); strings.Contains(out, "fixture-error-secret") || !strings.Contains(out, `"status":"error"`) {
 		t.Fatalf("raw error forwarded: %s", out)
+	}
+}
+
+func TestFrigateCameras(t *testing.T) {
+	const fixture = `{"mqtt":{"password":"mqtt-secret"},"cameras":{"front":{"detect":{"enabled":true,"width":1920},"ffmpeg":{"inputs":[{"path":"rtsp://user:camera-secret@camera/live"}]}}},"custom_token":"unknown-secret"}`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/config" {
+			http.NotFound(w, r)
+			return
+		}
+		fmt.Fprint(w, fixture)
+	}))
+	defer srv.Close()
+
+	out := FrigateCameras(context.Background(), FrigateConfig{URL: srv.URL})
+	for _, secret := range []string{"mqtt-secret", "camera-secret", "unknown-secret", "custom_token", `"mqtt"`} {
+		if strings.Contains(out, secret) {
+			t.Fatalf("configuration leaked %s: %s", secret, out)
+		}
+	}
+	var parsed struct {
+		Status  string                     `json:"status"`
+		Cameras map[string]json.RawMessage `json:"cameras"`
+	}
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Fatalf("decode: %v (%s)", err, out)
+	}
+	if parsed.Status != "ok" || len(parsed.Cameras) != 1 {
+		t.Fatalf("unexpected cameras payload: %s", out)
+	}
+	front := string(parsed.Cameras["front"])
+	if !strings.Contains(front, "1920") || !strings.Contains(front, "REDACTED") {
+		t.Fatalf("camera projection missing: %s", out)
+	}
+
+	missing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"mqtt":{"password":"mqtt-secret"}}`)
+	}))
+	defer missing.Close()
+	out = FrigateCameras(context.Background(), FrigateConfig{URL: missing.URL})
+	if out != `{"status":"ok","cameras":{}}` {
+		t.Fatalf("missing cameras key: %s", out)
+	}
+
+	failed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "fixture-error-secret")
+	}))
+	defer failed.Close()
+	out = FrigateCameras(context.Background(), FrigateConfig{URL: failed.URL})
+	if strings.Contains(out, "fixture-error-secret") || !strings.Contains(out, "HTTP 400") || !strings.Contains(out, `"status":"error"`) {
+		t.Fatalf("upstream error forwarded: %s", out)
 	}
 }
 

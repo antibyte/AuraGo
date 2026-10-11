@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"crypto/tls"
@@ -270,9 +271,47 @@ func FrigateStatus(ctx context.Context, cfg FrigateConfig) string {
 	return frigateGetJSON(ctx, cfg, "/api/stats")
 }
 
-// FrigateCameras lists configured cameras and capabilities.
+// FrigateCameras returns only the redacted cameras object from /api/config.
 func FrigateCameras(ctx context.Context, cfg FrigateConfig) string {
-	return frigateGetJSON(ctx, cfg, "/api/config")
+	data, code, err := frigateRequest(ctx, cfg, http.MethodGet, "/api/config")
+	if err != nil {
+		return frigateJSONError("Frigate configuration request failed: %s", security.Scrub(err.Error()))
+	}
+	if code < 200 || code >= 300 {
+		return frigateJSONError("Frigate configuration returned HTTP %d", code)
+	}
+	redacted, err := redactFrigateConfig(data, false)
+	if err != nil {
+		return frigateJSONError("Frigate configuration could not be safely redacted")
+	}
+	cameras, err := frigateCamerasObject(redacted)
+	if err != nil {
+		return frigateJSONError("Frigate configuration could not be safely redacted")
+	}
+	out, err := json.Marshal(struct {
+		Status  string          `json:"status"`
+		Cameras json.RawMessage `json:"cameras"`
+	}{Status: "ok", Cameras: cameras})
+	if err != nil {
+		return frigateJSONError("Frigate configuration could not be safely redacted")
+	}
+	return string(out)
+}
+
+func frigateCamerasObject(redacted []byte) (json.RawMessage, error) {
+	var doc map[string]json.RawMessage
+	if err := json.Unmarshal(redacted, &doc); err != nil {
+		return nil, err
+	}
+	raw, ok := doc["cameras"]
+	if !ok || len(bytes.TrimSpace(raw)) == 0 || string(bytes.TrimSpace(raw)) == "null" {
+		return json.RawMessage(`{}`), nil
+	}
+	trimmed := bytes.TrimSpace(raw)
+	if trimmed[0] != '{' {
+		return nil, fmt.Errorf("cameras is not an object")
+	}
+	return json.RawMessage(trimmed), nil
 }
 
 // FrigateEvents searches events with filters.
