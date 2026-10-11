@@ -1123,6 +1123,9 @@ func validRouteBearer(s *Server, token, path, method string) bool {
 		if isFlowsAPIPath(path) {
 			return desktopTokenHasScope(s, token, flowsRequiredScope(method, flowsPathParts(path)))
 		}
+		if isCYDCreatorAPIPath(path) {
+			return desktopTokenHasScope(s, token, cydCreatorBearerScope(method, path))
+		}
 		return desktopTokenHasScope(s, token, desktopMethodScope(method))
 	}
 	if strings.HasPrefix(path, "/api/go2rtc/") {
