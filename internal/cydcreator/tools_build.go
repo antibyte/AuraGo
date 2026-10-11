@@ -55,48 +55,24 @@ func (s *Service) BuildForJob(ctx context.Context, jobID string) (JobBuildResult
 	return out, nil
 }
 
-// libraryHint reports cyd-build's note that names a curated library to enable
-// for a missing header ("... enable <id> in the project settings (update_layout
-// op set_settings, "libraries") ...").
-func libraryHint(d Diagnostic) bool {
-	return d.Severity == SeverityNote && strings.Contains(d.Message, "op set_settings")
-}
-
 // OrderAgentDiagnostics orders build findings for a bounded agent answer: the
 // first error, the library notes, the other errors, warnings, other notes
-// (each group in build order). keep counts the leading entries (first error
-// and library notes) a shortened list must never drop. Ordering an ordered
-// list changes nothing.
+// (each group in build order; the classes of capDiagnostics). keep counts the
+// leading entries (first error and library notes) a shortened list must never
+// drop. Ordering an ordered list changes nothing.
 func OrderAgentDiagnostics(diags []Diagnostic) (ordered []Diagnostic, keep int) {
-	first := -1
-	for i, d := range diags {
-		if d.Severity == SeverityError {
-			first = i
-			break
-		}
-	}
+	first := firstError(diags)
 	ordered = make([]Diagnostic, 0, len(diags))
 	if first >= 0 {
 		ordered = append(ordered, diags[first])
 	}
-	groups := []func(Diagnostic) bool{
-		libraryHint,
-		func(d Diagnostic) bool { return d.Severity == SeverityError },
-		func(d Diagnostic) bool { return d.Severity == SeverityWarning },
-		func(Diagnostic) bool { return true },
-	}
-	placed := make([]bool, len(diags))
-	if first >= 0 {
-		placed[first] = true
-	}
-	for g, in := range groups {
+	for class := 0; class < diagClasses; class++ {
 		for i, d := range diags {
-			if !placed[i] && in(d) {
-				placed[i] = true
+			if i != first && diagnosticClass(d) == class {
 				ordered = append(ordered, d)
 			}
 		}
-		if g == 0 {
+		if class == diagLibraryNote {
 			keep = len(ordered)
 		}
 	}

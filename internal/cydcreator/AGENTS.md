@@ -176,8 +176,10 @@ publication, revisions, the job chat and the agent tool implementations. Plan 5 
   project or in `.pio/`, keeps errors anywhere, maps linker `undefined reference`/`multiple definition` lines to
   file-less errors, skips indented lines (gcc and ld start every diagnostic in column 0; excerpts and `from`
   continuations are indented), clips `File` (a `#line` directive can name any path) and `Message` with
-  `clipReason`, deduplicates and returns at most 200 entries in log order. The cap is linear: errors get the budget
-  first, then warnings, then notes, and inside a severity the earliest entries win. `Generated` is decided from the
+  `clipReason`, deduplicates and returns at most 200 entries in log order. The cap is linear: the first error gets
+  the budget first, then up to 16 cyd-build library notes (also exempt from the notes' collection limit), the
+  other errors, warnings and other notes, and inside a class the earliest entries win. `capDiagnostics` and
+  `OrderAgentDiagnostics` share these classes (`diagnosticClass`). `Generated` is decided from the
   full path before clipping; `Generated` diagnostics are generator bugs (`CYD_GENERATOR_ERROR`) and never go to the
   agent for repair.
 - `IsGeneratedPath` classifies `src/generated/**`, `lib/cyd_template/**`, `include/**`, `platformio.ini` and

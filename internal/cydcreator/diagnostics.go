@@ -35,14 +35,15 @@ var (
 //   - ANSI colors and CR are stripped; indented lines (source excerpts, caret
 //     lines, "from" continuations) are skipped because gcc and ld start every
 //     diagnostic in column 0; duplicates are removed; at most 200 entries are
-//     returned (notes are dropped first, then warnings).
+//     returned (capDiagnostics: the first error and up to 16 cyd-build
+//     library notes always stay; other notes go first, then warnings).
 //   - File is clipped with clipReason because a #line directive lets a source
 //     file name any path; Generated is decided from the full path first.
 func ParseDiagnostics(log string, workRoot string) []Diagnostic {
 	root := strings.TrimSuffix(strings.ReplaceAll(workRoot, "\\", "/"), "/")
 	var out []Diagnostic
 	seen := map[Diagnostic]bool{}
-	var collected [3]int // per severity rank; no severity can ever keep more than maxDiagnostics
+	var collected [diagClasses]int // per class; no class can ever keep more than capDiagnostics allows it
 	for _, raw := range strings.Split(log, "\n") {
 		line := strings.TrimRight(ansiEscape.ReplaceAllString(raw, ""), "\r")
 		if line == "" || line[0] == ' ' || line[0] == '\t' || strings.HasPrefix(line, "In file included from") {
@@ -55,12 +56,15 @@ func ParseDiagnostics(log string, workRoot string) []Diagnostic {
 		if !ok {
 			continue
 		}
-		rank := severityRank(d.Severity)
-		if collected[rank] >= maxDiagnostics || seen[d] {
+		class, limit := diagnosticClass(d), maxDiagnostics
+		if class == diagLibraryNote {
+			limit = maxLibraryNotes
+		}
+		if collected[class] >= limit || seen[d] {
 			continue
 		}
 		seen[d] = true
-		collected[rank]++
+		collected[class]++
 		out = append(out, d)
 	}
 	return capDiagnostics(out)
@@ -121,39 +125,86 @@ func isAbsPath(p string) bool {
 	return strings.HasPrefix(p, "/") || (len(p) > 2 && p[1] == ':' && p[2] == '/')
 }
 
-// severityRank orders severities by importance: error 0, warning 1, note 2.
-func severityRank(sev string) int {
-	switch sev {
-	case SeverityError:
-		return 0
-	case SeverityWarning:
-		return 1
+// maxLibraryNotes bounds the library notes a capped list keeps ahead of the
+// errors (cyd-build writes one per missing curated header).
+const maxLibraryNotes = 16
+
+// libraryHint reports cyd-build's note that names a curated library to enable
+// for a missing header ("... enable <id> in the project settings (update_layout
+// op set_settings, "libraries") ...").
+func libraryHint(d Diagnostic) bool {
+	return d.Severity == SeverityNote && strings.Contains(d.Message, "op set_settings")
+}
+
+// Diagnostic classes for bounded lists, in priority order after the first
+// error. capDiagnostics (stored builds) and OrderAgentDiagnostics (agent
+// answers) share them so the two cannot drift.
+const (
+	diagLibraryNote = iota
+	diagError
+	diagWarning
+	diagOtherNote
+	diagClasses
+)
+
+func diagnosticClass(d Diagnostic) int {
+	switch {
+	case libraryHint(d):
+		return diagLibraryNote
+	case d.Severity == SeverityError:
+		return diagError
+	case d.Severity == SeverityWarning:
+		return diagWarning
 	}
-	return 2
+	return diagOtherNote
+}
+
+// firstError is the index of the first error, -1 without one.
+func firstError(list []Diagnostic) int {
+	for i, d := range list {
+		if d.Severity == SeverityError {
+			return i
+		}
+	}
+	return -1
 }
 
 // capDiagnostics keeps at most maxDiagnostics entries in log order. The budget
-// goes to errors first, then warnings, then notes; inside a severity the
+// goes to the first error, the library notes (at most maxLibraryNotes), the
+// other errors, warnings and other notes, in this order; inside a class the
 // earliest entries win (later ones are dropped from the end). It counts first
 // and filters once, so it is linear however large the input is.
 func capDiagnostics(list []Diagnostic) []Diagnostic {
 	if len(list) <= maxDiagnostics {
 		return list
 	}
-	var total, keep, kept [3]int
-	for _, d := range list {
-		total[severityRank(d.Severity)]++
+	first := firstError(list)
+	var total, keep, kept [diagClasses]int
+	for i, d := range list {
+		if i != first {
+			total[diagnosticClass(d)]++
+		}
 	}
 	left := maxDiagnostics
-	for rank := range keep {
-		keep[rank] = min(total[rank], left)
-		left -= keep[rank]
+	if first >= 0 {
+		left--
+	}
+	for class := range keep {
+		limit := left
+		if class == diagLibraryNote {
+			limit = min(left, maxLibraryNotes)
+		}
+		keep[class] = min(total[class], limit)
+		left -= keep[class]
 	}
 	out := make([]Diagnostic, 0, maxDiagnostics)
-	for _, d := range list {
-		rank := severityRank(d.Severity)
-		if kept[rank] < keep[rank] {
-			kept[rank]++
+	for i, d := range list {
+		if i == first {
+			out = append(out, d)
+			continue
+		}
+		if class := diagnosticClass(d); kept[class] < keep[class] {
+			kept[class]++
 			out = append(out, d)
 		}
 	}

@@ -169,6 +169,63 @@ func TestParseDiagnosticsLinearCap(t *testing.T) {
 	}
 }
 
+// cyd-build's library note (one per missing curated header) survives the cap
+// and the collection limit even when it comes last after 250 findings.
+func TestCapDiagnosticsKeepsTheFirstErrorAndLibraryNotes(t *testing.T) {
+	libNote := func(i int) Diagnostic {
+		return Diagnostic{File: "src/app/s.cpp", Line: i, Severity: SeverityNote,
+			Message: fmt.Sprintf(`H%d.h is in the curated library lib%d, which this project does not enable: enable lib%d in the project settings (update_layout op set_settings, "libraries"); builds cannot install libraries`, i, i, i)}
+	}
+	var list []Diagnostic
+	for i := 0; i < 100; i++ {
+		list = append(list, Diagnostic{Severity: SeverityNote, Message: fmt.Sprintf("note%d", i)})
+	}
+	for i := 0; i < 100; i++ {
+		list = append(list, Diagnostic{Severity: SeverityWarning, Message: fmt.Sprintf("warning%d", i)})
+	}
+	for i := 0; i < 49; i++ {
+		list = append(list, Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("error%d", i)})
+	}
+	list = append(list, libNote(1))
+	got := capDiagnostics(list)
+	counts := map[int]int{}
+	for _, d := range got {
+		counts[diagnosticClass(d)]++
+	}
+	if len(got) != maxDiagnostics || got[len(got)-1] != libNote(1) || counts[diagError] != 49 || counts[diagWarning] != 100 ||
+		counts[diagOtherNote] != 50 || got[50].Message != "warning0" || got[150].Message != "error0" {
+		t.Fatalf("kept %d entries %v, last %+v", len(got), counts, got[len(got)-1])
+	}
+
+	// Library notes are bounded; the first error stays even when the errors
+	// budget is gone.
+	list = nil
+	list = append(list, Diagnostic{Severity: SeverityError, Message: "first"})
+	for i := 0; i < 300; i++ {
+		list = append(list, libNote(i))
+	}
+	got = capDiagnostics(list)
+	if len(got) != 1+maxLibraryNotes || got[0].Message != "first" || got[1] != libNote(0) || got[maxLibraryNotes] != libNote(maxLibraryNotes-1) {
+		t.Fatalf("kept %d entries, first %+v", len(got), got[0])
+	}
+
+	// ParseDiagnostics does not drop the note while collecting 250 notes before it.
+	var log strings.Builder
+	for i := 1; i <= 250; i++ {
+		fmt.Fprintf(&log, "/work/b1/src/app/a.cpp:%d:1: note: candidate %d\n", i, i)
+	}
+	log.WriteString("/work/b1/src/app/s.cpp:1:10: fatal error: DHT.h: No such file or directory\n")
+	log.WriteString(`/work/b1/src/app/s.cpp:1:10: note: DHT.h is in the curated library dht, which this project does not enable: enable dht in the project settings (update_layout op set_settings, "libraries"); builds cannot install libraries` + "\n")
+	parsed := ParseDiagnostics(log.String(), "/work/b1")
+	if len(parsed) != maxDiagnostics || parsed[len(parsed)-1].Severity != SeverityNote || !libraryHint(parsed[len(parsed)-1]) ||
+		parsed[len(parsed)-2].Severity != SeverityError {
+		t.Fatalf("parsed %d entries, last two %+v", len(parsed), parsed[len(parsed)-2:])
+	}
+	if ordered, keep := OrderAgentDiagnostics(parsed); keep != 2 || ordered[0].Severity != SeverityError || !libraryHint(ordered[1]) {
+		t.Fatalf("agent order keep %d: %+v %+v", keep, ordered[0], ordered[1])
+	}
+}
+
 func TestCapDiagnosticsPriority(t *testing.T) {
 	var list []Diagnostic
 	add := func(sev string, n int) {
