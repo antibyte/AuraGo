@@ -2,11 +2,14 @@ package config
 
 import (
 	"bytes"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
+
+	"aurago/internal/cydcreator"
 
 	"gopkg.in/yaml.v3"
 )
@@ -157,6 +160,157 @@ func TestCYDCreatorTemplateMatchesLoadDefaults(t *testing.T) {
 	var paths map[string]string
 	if err := sqlite.Decode(&paths); err != nil || paths["cyd_creator_path"] != "./data/cyd_creator.db" {
 		t.Fatalf("sqlite.cyd_creator_path in the template = %q, %v", paths["cyd_creator_path"], err)
+	}
+}
+
+// TestCYDCreatorPublicURLMatchesDeviceRule pins cyd_creator.ota.public_url
+// against the device URL rule of the config blob: a URL a config save accepts
+// must mint a device (EncodeDeviceConfig), and load-time normalisation blanks
+// every URL a save would reject.
+func TestCYDCreatorPublicURLMatchesDeviceRule(t *testing.T) {
+	cases := []struct {
+		url   string
+		valid bool
+	}{
+		{url: "http://192.168.1.10:8088", valid: true},
+		{url: "https://aurago.example.com", valid: true},
+		{url: "https://aurago.example.com/", valid: true},
+		{url: "http://aurago.lan:8088/a&b", valid: true},
+		{url: "https://x/aurago/base", valid: true},
+		{url: "http://x:1", valid: true},
+		{url: "http://x:65535", valid: true},
+		{url: "HTTPS://x"},
+		{url: "Http://x"},
+		{url: "ftp://x"},
+		{url: "http://[::1]:8088"},
+		{url: "https://[fe80::1]"},
+		{url: "http://a[b]"},
+		{url: "http://x:99999"},
+		{url: "http://x:65536"},
+		{url: "http://x:0"},
+		{url: "http://x:"},
+		{url: "http://:8080"},
+		{url: "http:///path"},
+		{url: "http://"},
+		{url: "https://"},
+		{url: "http://x?"},
+		{url: "https://x/#"},
+		{url: "https://x/?a=1"},
+		{url: "https://x/#frag"},
+		{url: "https://x/a b"},
+		{url: "http://x\t/"},
+		{url: "http://x/\"q"},
+		{url: "http://x/a\\b"},
+		{url: "http://b\xc3\xbccher.de"},
+		{url: "https://u:p@x"},
+		{url: "https://u@x"},
+	}
+	for _, tc := range cases {
+		c := DefaultCYDCreatorConfig()
+		c.OTA.PublicURL = tc.url
+		err := ValidateCYDCreatorConfig(c)
+		if tc.valid && err != nil {
+			t.Errorf("%q: valid URL rejected: %v", tc.url, err)
+		}
+		if !tc.valid && err == nil {
+			t.Errorf("%q: invalid URL accepted", tc.url)
+		}
+
+		NormalizeCYDCreatorConfig(&c)
+		want := ""
+		if tc.valid {
+			want = strings.TrimRight(tc.url, "/")
+		}
+		if c.OTA.PublicURL != want {
+			t.Errorf("%q: normalized to %q, want %q", tc.url, c.OTA.PublicURL, want)
+		}
+
+		device := cydcreator.DeviceConfig{URL: tc.url, DeviceID: "ccd_1", Token: "t"}
+		if strings.HasPrefix(tc.url, "https://") {
+			device.CertSHA256 = strings.Repeat("a", 64)
+		}
+		_, deviceErr := cydcreator.EncodeDeviceConfig(device)
+		if tc.valid && deviceErr != nil {
+			t.Errorf("%q: config accepts a URL the device rule rejects: %v", tc.url, deviceErr)
+		}
+		if !tc.valid && deviceErr == nil {
+			t.Errorf("%q: config rejects a URL the device rule accepts", tc.url)
+		}
+	}
+
+	loaded := loadCYDCreatorYAML(t, "cyd_creator:\n  ota:\n    public_url: \"https://u:p@aurago.example.com/\"\n").CYDCreator
+	if loaded.OTA.PublicURL != "" {
+		t.Fatalf("a public_url with credentials survived Load: %q", loaded.OTA.PublicURL)
+	}
+}
+
+func TestCYDCreatorCPUCoresRejectsNaNAndInf(t *testing.T) {
+	for _, value := range []string{".nan", ".inf", "-.inf"} {
+		cfg := loadCYDCreatorYAML(t, "cyd_creator:\n  cpu_cores: "+value+"\n").CYDCreator
+		if cfg.CPUCores != DefaultCYDCreatorConfig().CPUCores {
+			t.Errorf("cpu_cores %s loaded as %v, want the default", value, cfg.CPUCores)
+		}
+	}
+	for _, value := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
+		c := DefaultCYDCreatorConfig()
+		c.CPUCores = value
+		if err := ValidateCYDCreatorConfig(c); err == nil {
+			t.Errorf("cpu_cores %v accepted", value)
+		}
+	}
+}
+
+func TestCYDCreatorBuilderImageReferences(t *testing.T) {
+	digest := "@sha256:" + strings.Repeat("a", 64)
+	valid := []string{
+		DefaultCYDCreatorBuilderImage,
+		"ghcr.io/antibyte/aurago-cyd-builder" + digest,
+		"ghcr.io/antibyte/aurago-cyd-builder:1" + digest,
+		"ghcr.io/antibyte/aurago-cyd-builder:1.0.0",
+		"aurago-cyd-builder:dev",
+		"aurago-cyd-builder:ci",
+		"aurago-cyd-builder:dev1c",
+		"aurago-cyd-builder-stub:test",
+		"docker.io/library/aurago-cyd-builder:dev",
+		"registry.local:5000/me/cyd:dev",
+		"localhost:5000/cyd",
+		"a:_x",
+		strings.Repeat("a", 251) + ":tag", // exactly 255 bytes
+	}
+	invalid := []string{
+		"a//b",
+		"a/../b",
+		"a:-tag",
+		"a:1:2",
+		"x/",
+		"/a",
+		"a.",
+		"a:",
+		"A/b",
+		"a b",
+		"a@sha256:abc",
+		"not an image!",
+		strings.Repeat("a", 252) + ":tag", // 256 bytes
+	}
+	for _, image := range valid {
+		c := DefaultCYDCreatorConfig()
+		c.BuilderImage = image
+		if err := ValidateCYDCreatorConfig(c); err != nil {
+			t.Errorf("%q: valid image rejected: %v", image, err)
+		}
+		if NormalizeCYDCreatorConfig(&c); c.BuilderImage != image {
+			t.Errorf("%q: normalized to %q", image, c.BuilderImage)
+		}
+	}
+	for _, image := range invalid {
+		c := DefaultCYDCreatorConfig()
+		c.BuilderImage = image
+		if err := ValidateCYDCreatorConfig(c); err == nil {
+			t.Errorf("%q: invalid image accepted", image)
+		}
+		if NormalizeCYDCreatorConfig(&c); c.BuilderImage != DefaultCYDCreatorBuilderImage {
+			t.Errorf("%q: invalid image kept as %q", image, c.BuilderImage)
+		}
 	}
 }
 
