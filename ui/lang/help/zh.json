@@ -4,7 +4,7 @@
   "help.agent.output_compression.reversible.enabled": "归档原始输出；独立于压缩总开关。检索需要当前作用域中的归档读取器。默认：开启。",
   "help.agent.output_compression.reversible.max_age_hours": "在此保留期之后删除已过期的归档输出。默认：24 小时。",
   "help.agent.output_compression.reversible.primary_output_vault": "存储大型结果，且仅当此次运行能够读取该归档时才返回有界引用。",
-  "help.agent.output_compression.reversible.max_inline_chars": "超过此 UTF-8 字节大小时，优先使用归档引用。一般输出限制仍然具有约束力。默认：6000。",
+  "help.agent.output_compression.reversible.max_inline_chars": "超过此 UTF-8 字节大小的工具结果会被归档；智能体只看到预览和引用。0 = 自动（默认）：约为模型上下文的 3%，6000–32000 字节；同时运行多个工具时每次调用会更少。填写数字可固定此上限。一般输出限制仍然有效。",
   "help.agent.output_compression.smart_crusher.enabled": "当输出压缩已启用时，压缩大型 JSON 表格。默认：开启。",
   "help.agent.output_compression.smart_crusher.max_rows": "表格压缩所保留的最大行数。默认：50。",
   "help.tools.skill_manager.allowed_script_languages": "适用于 SKILL.md 包脚本。运行时权限、包作用域和安全检查仍然必需。",

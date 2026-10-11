@@ -58,7 +58,7 @@ agent:
             enabled: true                 # archive original outputs so compact views can be expanded later
             max_age_hours: 24             # cleanup age for archived outputs
             primary_output_vault: true    # store large native outputs as compact views plus output_ref
-            max_inline_chars: 6000        # inline outputs up to this size before preferring the vault view
+            max_inline_chars: 0           # bytes inlined before the vault view; 0 = automatic: 3% of the model's input context, 6000-32000 (6000 when unknown)
 
     # ── History Compaction ── compacts older native tool rounds in the live
     #    request while preserving recent full tool-call groups.

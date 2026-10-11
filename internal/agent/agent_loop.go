@@ -215,6 +215,16 @@ type agentLoopState struct {
 	nativeSchemaSnapshot     *nativeToolSchemaSnapshot
 	turnSnapshot             *turnContextSnapshot
 	gameMakerDuplicateBlocks int
+	// toolBatchCalls counts the tool calls of the model response being
+	// executed; their results share the next request (inlineBudgetBasis).
+	toolBatchCalls int
+}
+
+// inlineBudgetBasis is what the automatic inline budget of the current tool
+// calls scales with: the tightest route of the current request and the
+// number of calls in the response.
+func (s *agentLoopState) inlineBudgetBasis() inlineBudgetBasis {
+	return inlineBudgetBasis{InputTokens: s.requestBudget.minInputLimit(), BatchCalls: s.toolBatchCalls}
 }
 
 // makeDispatchContext builds a DispatchContext from the current loop state.
@@ -222,6 +232,7 @@ func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *Dispat
 	return &DispatchContext{
 		MemoryCorrections:    s.correctionRun(),
 		ToolDetailFits:       toolDetailBudgetCheck(s.requestBudget, s.req),
+		inlineBasis:          s.inlineBudgetBasis(),
 		DiscoveryRunID:       s.runCfg.DiscoveryRunID,
 		ExecutionHooks:       s.runCfg.ExecutionHooks,
 		Cfg:                  s.runCfg.Config,

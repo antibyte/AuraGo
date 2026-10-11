@@ -224,6 +224,19 @@ func (b *RequestBudget) inputLimit(limits llm.ModelLimits) int {
 	return limits.ContextWindow - b.CompletionReserve - b.SafetyMargin
 }
 
+// minInputLimit is the input capacity in tokens of the tightest route; 0 for
+// a nil budget, which callers treat as an unknown context.
+func (b *RequestBudget) minInputLimit() int {
+	if b == nil || len(b.Routes) == 0 {
+		return 0
+	}
+	limit := b.inputLimit(b.Routes[0].Limits)
+	for _, route := range b.Routes[1:] {
+		limit = min(limit, b.inputLimit(route.Limits))
+	}
+	return max(limit, 0)
+}
+
 func (b *RequestBudget) tokenUsage(messages []openai.ChatCompletionMessage, tools []openai.Tool, cache *tokenCountCache) []RequestTokenUsage {
 	if b == nil {
 		return nil

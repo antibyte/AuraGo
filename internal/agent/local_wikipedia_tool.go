@@ -12,7 +12,7 @@ import (
 // to the inline budget so the output vault never archives it.
 func dispatchLocalWikipedia(ctx context.Context, tc ToolCall, dc *DispatchContext) string {
 	req := decodeLocalWikipediaArgs(tc)
-	req.OutputBudget = toolResultInlineBudget(dc.Cfg)
+	req.OutputBudget = toolResultInlineBudget(dc)
 	if dc.Logger != nil {
 		dc.Logger.Info("LLM requested local Wikipedia", "operation", req.Operation)
 	}

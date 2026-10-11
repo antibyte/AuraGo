@@ -85,9 +85,15 @@ func TestLocalWikipediaAnswersStayInline(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer stm.Close()
-	for _, maxInline := range []int{6000, 12000} {
-		cfg := outputVaultTestConfig(maxInline)
-		dc := &DispatchContext{Cfg: cfg, Logger: testLogger, Guardian: security.NewGuardian(nil), SessionID: t.Name()}
+	for _, size := range []struct{ maxInline, inputTokens int }{
+		{6000, 0},
+		{12000, 0},
+		{0, 122_624},   // automatic: 128k context, about 14.7 KB
+		{0, 1_000_000}, // automatic: the 32 KB ceiling
+	} {
+		cfg := outputVaultTestConfig(size.maxInline)
+		dc := &DispatchContext{Cfg: cfg, Logger: testLogger, Guardian: security.NewGuardian(nil), SessionID: t.Name(), inlineBasis: inlineBudgetBasis{InputTokens: size.inputTokens}}
+		maxInline := primaryOutputVaultMaxInline(cfg, inlineBudgetBasis{InputTokens: size.inputTokens})
 		for i, params := range []map[string]interface{}{
 			{"operation": "search", "query": "भारत"},
 			{"operation": "search", "query": "भारत", "limit": float64(10)},
@@ -103,7 +109,7 @@ func TestLocalWikipediaAnswersStayInline(t *testing.T) {
 			if len(dispatched.Output) > maxInline {
 				t.Fatalf("%v at %d: dispatch output is %d bytes", params, maxInline, len(dispatched.Output))
 			}
-			result := finalizeToolExecution(context.Background(), tc, dispatched.Output, false, cfg, stm, t.Name(), nil, nil, testLogger, AgentTelemetryScope{}, "", 0, RunConfig{})
+			result := finalizeToolExecution(context.Background(), tc, dispatched.Output, false, cfg, stm, t.Name(), nil, nil, testLogger, AgentTelemetryScope{}, "", 0, RunConfig{}, inlineBudgetBasis{InputTokens: size.inputTokens})
 			if result.OutputRef != "" || strings.Contains(result.Content, "Full output archived") {
 				t.Fatalf("%v at %d: archived (%d bytes)", params, maxInline, len(dispatched.Output))
 			}
@@ -119,23 +125,28 @@ func TestLocalWikipediaAnswersStayInline(t *testing.T) {
 
 func TestToolResultInlineBudget(t *testing.T) {
 	if got := toolResultInlineBudget(nil); got != 6000 {
-		t.Fatalf("nil config budget = %d", got)
+		t.Fatalf("nil dispatch budget = %d", got)
 	}
 	cfg := outputVaultTestConfig(0)
-	if got := toolResultInlineBudget(cfg); got != 6000 {
-		t.Fatalf("unset max_inline_chars budget = %d", got)
+	dc := &DispatchContext{Cfg: cfg}
+	if got := toolResultInlineBudget(dc); got != 6000 {
+		t.Fatalf("automatic budget without a known context = %d", got)
+	}
+	dc.inlineBasis.InputTokens = 247_552 // a 256k context minus an 8k completion reserve
+	if got := toolResultInlineBudget(dc); got != 29706 {
+		t.Fatalf("automatic budget for a 256k context = %d", got)
 	}
 	cfg.Agent.OutputCompression.Reversible.MaxInlineChars = 9000
-	if got := toolResultInlineBudget(cfg); got != 9000 {
-		t.Fatalf("max_inline_chars budget = %d", got)
+	if got := toolResultInlineBudget(dc); got != 9000 {
+		t.Fatalf("explicit max_inline_chars budget = %d", got)
 	}
 	cfg.Agent.ToolOutputLimit = 4000
-	if got := toolResultInlineBudget(cfg); got != 4000 {
+	if got := toolResultInlineBudget(dc); got != 4000 {
 		t.Fatalf("tool_output_limit below the vault threshold: budget = %d", got)
 	}
 	cfg.Agent.ToolOutputLimit = 0
 	cfg.Agent.OutputCompression.Reversible.PrimaryOutputVault = false
-	if got := toolResultInlineBudget(cfg); got != 50000 {
+	if got := toolResultInlineBudget(dc); got != 50000 {
 		t.Fatalf("vault off: budget = %d, want the tool output limit", got)
 	}
 }

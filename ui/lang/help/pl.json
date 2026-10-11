@@ -4,7 +4,7 @@
   "help.agent.output_compression.reversible.enabled": "Archiwizuje oryginalne dane wyjściowe; niezależnie od głównego przełącznika kompresji. Pobranie wymaga czytnika archiwum w bieżącym zakresie. Domyślnie: włączone.",
   "help.agent.output_compression.reversible.max_age_hours": "Usuwa wygasłe zarchiwizowane dane wyjściowe po tym okresie przechowywania. Domyślnie: 24 godziny.",
   "help.agent.output_compression.reversible.primary_output_vault": "Zapisuje duże wyniki i zwraca ograniczone odwołanie tylko wtedy, gdy to uruchomienie może odczytać archiwum.",
-  "help.agent.output_compression.reversible.max_inline_chars": "Powyżej tego rozmiaru w bajtach UTF-8 preferuj odwołanie do archiwum. Ogólny limit danych wyjściowych pozostaje wiążący. Domyślnie: 6000.",
+  "help.agent.output_compression.reversible.max_inline_chars": "Wyniki narzędzi powyżej tego rozmiaru w bajtach UTF-8 są archiwizowane; agent widzi podgląd i odwołanie. 0 = automatycznie (domyślnie): około 3% kontekstu modelu, 6000–32000 bajtów, mniej na wywołanie, gdy działa kilka narzędzi naraz. Liczba ustala stały limit. Ogólny limit danych wyjściowych pozostaje wiążący.",
   "help.agent.output_compression.smart_crusher.enabled": "Kompresuje duże tabele JSON, gdy kompresja danych wyjściowych jest włączona. Domyślnie: włączone.",
   "help.agent.output_compression.smart_crusher.max_rows": "Maksymalna liczba wierszy zachowywanych przez kompresję tabel. Domyślnie: 50.",
   "help.tools.skill_manager.allowed_script_languages": "Dotyczy skryptów pakietów SKILL.md. Uprawnienia środowiska uruchomieniowego, zakres pakietu i kontrole bezpieczeństwa pozostają wymagane.",

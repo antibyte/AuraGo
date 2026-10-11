@@ -47,7 +47,7 @@ func (s *agentLoopState) applyToolOutcome(ctx context.Context, tc ToolCall, rawR
 	if !opts.NotExecuted {
 		policyResult = finalizeToolExecution(ctx, tc, rawResult, tc.GuardianBlocked, cfg, shortTermMem, sessionID,
 			&s.recoveryState, &s.req, logger, s.telemetryScope, s.toolPromptVersion(tc.Action),
-			opts.ExecutionTimeMs, s.runCfg)
+			opts.ExecutionTimeMs, s.runCfg, s.inlineBudgetBasis())
 	}
 	content := policyResult.Content
 	content = s.recordCorrectionEvidence(tc, content, executed && policyResult.Status == ToolResultSuccess)

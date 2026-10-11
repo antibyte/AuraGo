@@ -109,8 +109,8 @@ func TestDispatchReadToolOutputAppliesDefaultMaxChars(t *testing.T) {
 	if !handled {
 		t.Fatal("read_tool_output was not handled")
 	}
-	if len(out) > defaultReadToolOutputMaxChars+1000 {
-		t.Fatalf("read_tool_output response appears uncapped: len=%d", len(out))
+	if len(out) > readToolOutputBudget(dc) {
+		t.Fatalf("read_tool_output response exceeds the inline budget: len=%d", len(out))
 	}
 	if !strings.Contains(out, `"truncated":true`) {
 		t.Fatalf("expected truncated response, got: %s", out)

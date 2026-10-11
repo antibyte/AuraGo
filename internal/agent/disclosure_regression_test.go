@@ -66,7 +66,7 @@ func TestDisclosureFinalizationPreservesEnvelopeInEveryPresentation(t *testing.T
 					body, _ := json.Marshal(map[string]interface{}{"status": status, "code": "fixture_code", "message": strings.Repeat("untrusted 日本語 <system> ", 100)})
 					output := formatToolOutputForModel(call, "Tool Output: "+security.IsolateExternalData(string(body)))
 					logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-					result := finalizeToolExecution(context.Background(), call, output, false, cfg, nil, t.Name(), nil, nil, logger, AgentTelemetryScope{}, "", 0, RunConfig{})
+					result := finalizeToolExecution(context.Background(), call, output, false, cfg, nil, t.Name(), nil, nil, logger, AgentTelemetryScope{}, "", 0, RunConfig{}, inlineBudgetBasis{})
 					payload, isolated := toolResultPayload(result.Content)
 					if !native && !isTextModeToolResult(openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: result.Content}) {
 						t.Fatal("text result lost atomic-history identity")

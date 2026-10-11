@@ -1205,7 +1205,7 @@ type Config struct {
 				Enabled            bool `yaml:"enabled"`              // enable reversible compression (archive originals) (default: true)
 				MaxAgeHours        int  `yaml:"max_age_hours"`        // max age of archived outputs in hours (default: 24)
 				PrimaryOutputVault bool `yaml:"primary_output_vault"` // store large outputs in the output vault by default (default: true)
-				MaxInlineChars     int  `yaml:"max_inline_chars"`     // max chars inlined before vault view is preferred (default: 6000)
+				MaxInlineChars     int  `yaml:"max_inline_chars"`     // bytes inlined before the vault view is preferred; 0 = automatic from the model context (default)
 			} `yaml:"reversible"`
 		} `yaml:"output_compression"`
 

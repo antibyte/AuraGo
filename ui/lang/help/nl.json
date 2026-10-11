@@ -4,7 +4,7 @@
   "help.agent.output_compression.reversible.enabled": "Archiveert oorspronkelijke uitvoer; onafhankelijk van de hoofdschakelaar voor compressie. Ophalen vereist de archieflezer in de huidige scope. Standaard: aan.",
   "help.agent.output_compression.reversible.max_age_hours": "Verwijdert verlopen gearchiveerde uitvoer na deze bewaartermijn. Standaard: 24 uur.",
   "help.agent.output_compression.reversible.primary_output_vault": "Slaat grote resultaten op en geeft een begrensde verwijzing terug, alleen wanneer deze run het archief kan lezen.",
-  "help.agent.output_compression.reversible.max_inline_chars": "Geef de voorkeur aan een archiefverwijzing boven deze UTF-8-bytegrootte. De algemene uitvoerlimiet blijft bindend. Standaard: 6000.",
+  "help.agent.output_compression.reversible.max_inline_chars": "Toolresultaten boven deze grootte in UTF-8-bytes worden gearchiveerd; de agent ziet een voorvertoning en een verwijzing. 0 = automatisch (standaard): ongeveer 3% van de modelcontext, 6000–32000 bytes, minder per aanroep als meerdere tools tegelijk draaien. Een getal legt de limiet vast. De algemene uitvoerlimiet blijft bindend.",
   "help.agent.output_compression.smart_crusher.enabled": "Comprimeert grote JSON-tabellen wanneer uitvoercompressie is ingeschakeld. Standaard: aan.",
   "help.agent.output_compression.smart_crusher.max_rows": "Maximum aantal rijen dat tabelcompressie behoudt. Standaard: 50.",
   "help.tools.skill_manager.allowed_script_languages": "Geldt voor scripts van SKILL.md-pakketten. Runtime-machtigingen, pakket-scope en veiligheidscontroles blijven vereist.",

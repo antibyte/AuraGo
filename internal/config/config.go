@@ -1880,8 +1880,9 @@ func Load(path string) (*Config, error) {
 	if !yamlHasPath(data, "agent", "output_compression", "reversible", "primary_output_vault") {
 		cfg.Agent.OutputCompression.Reversible.PrimaryOutputVault = true
 	}
-	if cfg.Agent.OutputCompression.Reversible.MaxInlineChars <= 0 {
-		cfg.Agent.OutputCompression.Reversible.MaxInlineChars = 6000
+	// 0 (the default) sizes the inline limit from the model context at run time.
+	if cfg.Agent.OutputCompression.Reversible.MaxInlineChars < 0 {
+		cfg.Agent.OutputCompression.Reversible.MaxInlineChars = 0
 	}
 	// Enable all headroom features by default — validated in production.
 	if !yamlHasPath(data, "agent", "output_compression", "smart_crusher", "enabled") {

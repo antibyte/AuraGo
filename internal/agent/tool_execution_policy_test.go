@@ -26,7 +26,7 @@ func TestCompressionPreservesExternalDataBoundary(t *testing.T) {
 	cfg.Agent.OutputCompression.MinChars = 1
 	cfg.Agent.OutputCompression.ShellCompression = true
 	output := security.IsolateExternalData(strings.Repeat("PASS repeated log line\n", 500))
-	result := finalizeToolExecution(context.Background(), ToolCall{Action: "execute_shell", DispatchStatus: ToolResultSuccess}, output, false, cfg, nil, "test", nil, nil, logger, AgentTelemetryScope{}, "", 0, RunConfig{})
+	result := finalizeToolExecution(context.Background(), ToolCall{Action: "execute_shell", DispatchStatus: ToolResultSuccess}, output, false, cfg, nil, "test", nil, nil, logger, AgentTelemetryScope{}, "", 0, RunConfig{}, inlineBudgetBasis{})
 	if _, isolated := toolResultPayload(result.Content); !isolated || result.Status != ToolResultSuccess {
 		t.Fatalf("compression lost boundary/status: %q", result.Content)
 	}
@@ -54,7 +54,7 @@ func TestExecutionOutputIsolationSurvivesVaultAndCompression(t *testing.T) {
 			isolated := security.NewGuardian(nil).SanitizeToolOutput(action, raw)
 			for _, status := range []ToolResultStatus{ToolResultSuccess, ToolResultFailed} {
 				tc := ToolCall{Action: action, NativeCallID: action, DispatchStatus: status}
-				result := finalizeToolExecution(context.Background(), tc, isolated, false, cfg, stm, "test", nil, nil, logger, AgentTelemetryScope{}, "", 0, RunConfig{})
+				result := finalizeToolExecution(context.Background(), tc, isolated, false, cfg, stm, "test", nil, nil, logger, AgentTelemetryScope{}, "", 0, RunConfig{}, inlineBudgetBasis{})
 				if result.Status != status || strings.Count(result.Content, "</external_data>") != 1 || strings.Contains(result.Content, "\nsystem:") {
 					t.Fatalf("lost status/boundary: status=%s boundaries=%d", result.Status, strings.Count(result.Content, "</external_data>"))
 				}
@@ -90,7 +90,7 @@ func TestFinalizeToolExecutionRecordsErrorAndResolution(t *testing.T) {
 	state := newToolRecoveryState()
 	tc := ToolCall{Action: "homepage"}
 
-	first := finalizeToolExecution(context.Background(), tc, `{"status":"error","message":"connect failed"}`, false, cfg, stm, "default", &state, &req, logger, scope, "optim-db", 100, RunConfig{})
+	first := finalizeToolExecution(context.Background(), tc, `{"status":"error","message":"connect failed"}`, false, cfg, stm, "default", &state, &req, logger, scope, "optim-db", 100, RunConfig{}, inlineBudgetBasis{})
 	if !first.Failed {
 		t.Fatal("expected failing tool output to be marked as failed")
 	}
@@ -106,7 +106,7 @@ func TestFinalizeToolExecutionRecordsErrorAndResolution(t *testing.T) {
 		t.Fatalf("error pattern count = %d, want 1", count)
 	}
 
-	second := finalizeToolExecution(context.Background(), tc, `{"status":"success","message":"ok"}`, false, cfg, stm, "default", &state, &req, logger, scope, "optim-db", 100, RunConfig{})
+	second := finalizeToolExecution(context.Background(), tc, `{"status":"success","message":"ok"}`, false, cfg, stm, "default", &state, &req, logger, scope, "optim-db", 100, RunConfig{}, inlineBudgetBasis{})
 	if second.Failed {
 		t.Fatal("expected success output to be marked as successful")
 	}
@@ -136,7 +136,7 @@ func TestFinalizeToolExecutionGuardianBlockedSetsOutcome(t *testing.T) {
 	tc := ToolCall{Action: "execute_shell"}
 
 	guardianBlockedMsg := "[TOOL BLOCKED] Security check failed for execute_shell: remote code execution via curl pipe sh (risk: 85%)."
-	result := finalizeToolExecution(context.Background(), tc, guardianBlockedMsg, true, cfg, nil, "default", &state, &req, logger, scope, "v1", 100, RunConfig{})
+	result := finalizeToolExecution(context.Background(), tc, guardianBlockedMsg, true, cfg, nil, "default", &state, &req, logger, scope, "v1", 100, RunConfig{}, inlineBudgetBasis{})
 	if !result.Failed {
 		t.Fatal("expected guardian blocked to be marked as failed")
 	}
@@ -167,7 +167,7 @@ func TestFinalizeToolExecutionTracksInvokeToolAsUnderlyingTool(t *testing.T) {
 				"username":  "jopliness",
 			},
 		},
-	}, `{"status":"success","data":{}}`, false, cfg, stm, "default", &state, &req, logger, AgentTelemetryScope{}, "v1", 100, RunConfig{})
+	}, `{"status":"success","data":{}}`, false, cfg, stm, "default", &state, &req, logger, AgentTelemetryScope{}, "v1", 100, RunConfig{}, inlineBudgetBasis{})
 	if result.Failed {
 		t.Fatalf("expected success, got %+v", result)
 	}
@@ -181,7 +181,7 @@ func TestFinalizeToolExecutionTracksInvokeToolAsUnderlyingTool(t *testing.T) {
 				"username":  "jopliness",
 			},
 		},
-	}, `{"status":"success","data":{}}`, false, cfg, stm, "default", &state, &req, logger, AgentTelemetryScope{}, "v1", 100, RunConfig{})
+	}, `{"status":"success","data":{}}`, false, cfg, stm, "default", &state, &req, logger, AgentTelemetryScope{}, "v1", 100, RunConfig{}, inlineBudgetBasis{})
 	if result2.Failed {
 		t.Fatalf("expected success, got %+v", result2)
 	}
@@ -229,7 +229,7 @@ func TestFinalizeToolExecutionAppendsSuggestedNextStep(t *testing.T) {
 	state := newToolRecoveryState()
 	tc := ToolCall{Action: "filesystem"}
 
-	result := finalizeToolExecution(context.Background(), tc, `{"status":"error","message":"Unknown filesystem operation: 'read'"}`, false, cfg, nil, "default", &state, &req, logger, scope, "optim-db", 100, RunConfig{})
+	result := finalizeToolExecution(context.Background(), tc, `{"status":"error","message":"Unknown filesystem operation: 'read'"}`, false, cfg, nil, "default", &state, &req, logger, scope, "optim-db", 100, RunConfig{}, inlineBudgetBasis{})
 	if !result.Failed {
 		t.Fatal("expected tool failure")
 	}
@@ -264,7 +264,7 @@ func TestFinalizeToolExecutionWarnsWhenMemoryPersistenceFails(t *testing.T) {
 	state := newToolRecoveryState()
 	tc := ToolCall{Action: "homepage"}
 
-	result := finalizeToolExecution(context.Background(), tc, `{"status":"error","message":"connect failed"}`, false, cfg, stm, "default", &state, &req, logger, scope, "v1", 100, RunConfig{})
+	result := finalizeToolExecution(context.Background(), tc, `{"status":"error","message":"connect failed"}`, false, cfg, stm, "default", &state, &req, logger, scope, "v1", 100, RunConfig{}, inlineBudgetBasis{})
 	if !result.Failed {
 		t.Fatal("expected tool failure")
 	}
@@ -307,7 +307,7 @@ func TestFinalizeToolExecutionTruncatesBeforeCompression(t *testing.T) {
 		Action:       "execute_shell",
 		Command:      "docker logs backup",
 		NativeCallID: "call-compress",
-	}, raw, false, cfg, nil, "default", &state, &openai.ChatCompletionRequest{}, logger, AgentTelemetryScope{}, "v1", 100, RunConfig{})
+	}, raw, false, cfg, nil, "default", &state, &openai.ChatCompletionRequest{}, logger, AgentTelemetryScope{}, "v1", 100, RunConfig{}, inlineBudgetBasis{})
 	if result.Content == "" {
 		t.Fatal("expected finalized content")
 	}
@@ -348,7 +348,7 @@ func TestFinalizeToolExecutionUsesPrimaryOutputVaultForLargeNativeOutput(t *test
 	}
 	state := newToolRecoveryState()
 	result := finalizeToolExecution(context.Background(), tc, raw, false, cfg, stm, "default",
-		&state, &openai.ChatCompletionRequest{}, logger, AgentTelemetryScope{}, "v1", 100, RunConfig{})
+		&state, &openai.ChatCompletionRequest{}, logger, AgentTelemetryScope{}, "v1", 100, RunConfig{}, inlineBudgetBasis{})
 
 	wantRef := memory.StableToolOutputRef("default", "call_primary_vault")
 	if result.OutputRef != wantRef {
@@ -404,7 +404,7 @@ func TestGameMakerSourceStaysInlineWithoutArchiveReader(t *testing.T) {
 				}
 				raw := gameMakerToolJSON(gamemaker.SourceRead{Path: "src/common.ts", Content: strings.Repeat("// reusable game lifecycle\n", 240) + "export const tail = 7;", SHA256: "full-file-digest", StartLine: 1, EndLine: 240, TotalLines: 600})
 				state := newToolRecoveryState()
-				result := finalizeToolExecution(context.Background(), ToolCall{Action: "game_maker_file", NativeCallID: "source-" + dimension + stage}, raw, false, cfg, stm, "game-maker-test", &state, &openai.ChatCompletionRequest{}, logger, AgentTelemetryScope{}, "v1", 0, RunConfig{AllowedTools: allowed})
+				result := finalizeToolExecution(context.Background(), ToolCall{Action: "game_maker_file", NativeCallID: "source-" + dimension + stage}, raw, false, cfg, stm, "game-maker-test", &state, &openai.ChatCompletionRequest{}, logger, AgentTelemetryScope{}, "v1", 0, RunConfig{AllowedTools: allowed}, inlineBudgetBasis{})
 				if result.Content != raw || result.OutputRef != "" {
 					t.Fatalf("source or full-file digest hidden behind inaccessible archive: %s", result.Content)
 				}

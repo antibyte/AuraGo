@@ -4,7 +4,7 @@
   "help.agent.output_compression.reversible.enabled": "Arquiva as saídas originais; independente do interruptor principal da compressão. A recuperação requer o leitor do arquivo no âmbito atual. Predefinição: ligado.",
   "help.agent.output_compression.reversible.max_age_hours": "Elimina as saídas arquivadas expiradas após este período de retenção. Predefinição: 24 horas.",
   "help.agent.output_compression.reversible.primary_output_vault": "Armazena resultados grandes e devolve uma referência delimitada apenas quando esta execução pode ler o arquivo.",
-  "help.agent.output_compression.reversible.max_inline_chars": "Prefere uma referência ao arquivo acima deste tamanho em bytes UTF-8. O limite geral de saída permanece vinculativo. Predefinição: 6000.",
+  "help.agent.output_compression.reversible.max_inline_chars": "Resultados de ferramentas acima deste tamanho em bytes UTF-8 são arquivados; o agente vê uma pré-visualização e uma referência. 0 = automático (predefinição): cerca de 3% do contexto do modelo, 6000–32000 bytes, menos por chamada quando várias ferramentas correm em simultâneo. Um número fixa o limite. O limite geral de saída permanece vinculativo.",
   "help.agent.output_compression.smart_crusher.enabled": "Comprime tabelas JSON grandes quando a compressão de saída está ativada. Predefinição: ligado.",
   "help.agent.output_compression.smart_crusher.max_rows": "Máximo de linhas retidas pela compressão de tabelas. Predefinição: 50.",
   "help.tools.skill_manager.allowed_script_languages": "Aplica-se aos scripts dos pacotes SKILL.md. As permissões de tempo de execução, o âmbito do pacote e as verificações de segurança continuam a ser obrigatórios.",

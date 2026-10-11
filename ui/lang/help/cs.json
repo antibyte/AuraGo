@@ -4,7 +4,7 @@
   "help.agent.output_compression.reversible.enabled": "Archivuje původní výstupy; nezávisle na hlavním přepínači komprese. Načtení vyžaduje čtečku archivu v aktuálním rozsahu. Výchozí: zapnuto.",
   "help.agent.output_compression.reversible.max_age_hours": "Maže expirované archivované výstupy po uplynutí této doby uchování. Výchozí: 24 hodin.",
   "help.agent.output_compression.reversible.primary_output_vault": "Ukládá velké výsledky a vrací ohraničený odkaz pouze tehdy, když tento běh může číst archiv.",
-  "help.agent.output_compression.reversible.max_inline_chars": "Nad touto velikostí v bajtech UTF-8 se upřednostňuje odkaz na archiv. Obecný limit výstupu zůstává závazný. Výchozí: 6000.",
+  "help.agent.output_compression.reversible.max_inline_chars": "Výsledky nástrojů nad touto velikostí v bajtech UTF-8 se archivují; agent vidí náhled a odkaz. 0 = automaticky (výchozí): asi 3 % kontextu modelu, 6000–32000 bajtů, méně na volání, když běží více nástrojů najednou. Číslo limit pevně nastaví. Obecný limit výstupu zůstává závazný.",
   "help.agent.output_compression.smart_crusher.enabled": "Komprimuje velké tabulky JSON, když je zapnutá komprese výstupu. Výchozí: zapnuto.",
   "help.agent.output_compression.smart_crusher.max_rows": "Maximální počet řádků ponechaných kompresí tabulek. Výchozí: 50.",
   "help.tools.skill_manager.allowed_script_languages": "Platí pro skripty balíčků SKILL.md. Oprávnění za běhu, rozsah balíčku a bezpečnostní kontroly zůstávají vyžadovány.",

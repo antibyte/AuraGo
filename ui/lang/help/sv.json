@@ -4,7 +4,7 @@
   "help.agent.output_compression.reversible.enabled": "Arkiverar ursprungliga utdata; oberoende av komprimeringens huvudbrytare. Hämtning kräver arkivläsaren i den aktuella omfattningen. Standard: på.",
   "help.agent.output_compression.reversible.max_age_hours": "Tar bort utgångna arkiverade utdata efter denna kvarhållningsperiod. Standard: 24 timmar.",
   "help.agent.output_compression.reversible.primary_output_vault": "Lagrar stora resultat och returnerar en avgränsad referens endast när denna körning kan läsa arkivet.",
-  "help.agent.output_compression.reversible.max_inline_chars": "Föredra en arkivreferens över denna UTF-8-bytestorlek. Den allmänna utdatagränsen förblir bindande. Standard: 6000.",
+  "help.agent.output_compression.reversible.max_inline_chars": "Verktygsresultat över denna storlek i UTF-8-byte arkiveras; agenten ser en förhandsvisning och en referens. 0 = automatiskt (standard): ungefär 3 % av modellens kontext, 6000–32000 byte, mindre per anrop när flera verktyg körs samtidigt. Ett tal låser gränsen. Den allmänna utdatagränsen förblir bindande.",
   "help.agent.output_compression.smart_crusher.enabled": "Komprimerar stora JSON-tabeller när utdatakomprimering är aktiverad. Standard: på.",
   "help.agent.output_compression.smart_crusher.max_rows": "Maximalt antal rader som behålls vid tabellkomprimering. Standard: 50.",
   "help.tools.skill_manager.allowed_script_languages": "Gäller skript i SKILL.md-paket. Körningsbehörigheter, paketomfattning och säkerhetskontroller förblir obligatoriska.",

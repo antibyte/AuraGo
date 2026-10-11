@@ -151,6 +151,10 @@ func executeAgentToolTurn(
 		s.pendingTCs = nil
 		return openai.ChatCompletionResponse{}, stopErr, false
 	}
+	s.toolBatchCalls = 1 + len(s.pendingTCs)
+	if useNativePath {
+		s.toolBatchCalls = max(len(nativeAssistantMsg.ToolCalls), 1)
+	}
 	tc = prepareToolCall(tc, s.makeDispatchContext(s.currentLogger))
 	cfg := s.runCfg.Config
 	shortTermMem := s.runCfg.ShortTermMem

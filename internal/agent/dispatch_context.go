@@ -28,7 +28,11 @@ const MessageSourceFlow = "flow"
 type DispatchContext struct {
 	MemoryCorrections *memoryCorrectionRun
 	// ToolDetailFits checks a complete discovery detail against every route.
-	ToolDetailFits       func(string) bool
+	ToolDetailFits func(string) bool
+	// inlineBasis sizes the automatic inline budget of this dispatch
+	// (toolResultInlineBudget); zero when no model request is known
+	// (standalone tool bridges).
+	inlineBasis          inlineBudgetBasis
 	DiscoveryRunID       string
 	ExecutionHooks       *ExecutionHooks
 	Cfg                  *config.Config

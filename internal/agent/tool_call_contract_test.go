@@ -94,7 +94,7 @@ func TestToolResultStatusSurvivesPresentation(t *testing.T) {
 		}
 		cfg := &config.Config{}
 		cfg.Agent.ToolOutputLimit = 40
-		result := finalizeToolExecution(context.Background(), ToolCall{Action: "fixture", DispatchStatus: status}, strings.Repeat("presentation ", 50), false, cfg, nil, t.Name(), nil, nil, logger, AgentTelemetryScope{}, "", 0, RunConfig{})
+		result := finalizeToolExecution(context.Background(), ToolCall{Action: "fixture", DispatchStatus: status}, strings.Repeat("presentation ", 50), false, cfg, nil, t.Name(), nil, nil, logger, AgentTelemetryScope{}, "", 0, RunConfig{}, inlineBudgetBasis{})
 		if result.Status != status || result.Failed != status.IsError() {
 			t.Fatalf("status changed: %+v", result)
 		}

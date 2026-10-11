@@ -40,7 +40,7 @@ func finalizeExecutionTestOutput(t *testing.T, action string, status ToolResultS
 	cfg.Agent.OutputCompression.Reversible.PrimaryOutputVault = false
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	state := newToolRecoveryState()
-	return finalizeToolExecution(context.Background(), ToolCall{Action: action, DispatchStatus: status}, output, false, cfg, nil, "test", &state, nil, logger, AgentTelemetryScope{}, "", 0, RunConfig{})
+	return finalizeToolExecution(context.Background(), ToolCall{Action: action, DispatchStatus: status}, output, false, cfg, nil, "test", &state, nil, logger, AgentTelemetryScope{}, "", 0, RunConfig{}, inlineBudgetBasis{})
 }
 
 func executionTestTail(s string) string {

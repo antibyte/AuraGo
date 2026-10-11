@@ -158,7 +158,7 @@ agent:
         reversible:
             enabled: true
             primary_output_vault: true
-            max_inline_chars: 6000
+            max_inline_chars: 0      # 0 = automatic from the model context (6000-32000 bytes)
 ```
 
 > See [output_compression.md](output_compression.md) for details.

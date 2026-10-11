@@ -4,7 +4,7 @@
   "help.agent.output_compression.reversible.enabled": "मूल आउटपुट संग्रहित करता है; संपीड़न मास्टर स्विच से स्वतंत्र। पुनर्प्राप्ति के लिए वर्तमान स्कोप में आर्काइव रीडर आवश्यक है। डिफ़ॉल्ट: चालू।",
   "help.agent.output_compression.reversible.max_age_hours": "इस प्रतिधारण अवधि के बाद समाप्त हो चुके संग्रहित आउटपुट हटाता है। डिफ़ॉल्ट: 24 घंटे।",
   "help.agent.output_compression.reversible.primary_output_vault": "बड़े परिणाम संग्रहित करता है और परिबद्ध संदर्भ केवल तभी लौटाता है जब यह रन आर्काइव पढ़ सकता हो।",
-  "help.agent.output_compression.reversible.max_inline_chars": "इस UTF-8 बाइट आकार से ऊपर आर्काइव संदर्भ को प्राथमिकता दें। सामान्य आउटपुट सीमा बाध्यकारी बनी रहती है। डिफ़ॉल्ट: 6000।",
+  "help.agent.output_compression.reversible.max_inline_chars": "इस UTF-8 बाइट आकार से बड़े टूल परिणाम आर्काइव किए जाते हैं; एजेंट को एक पूर्वावलोकन और संदर्भ दिखता है। 0 = स्वचालित (डिफ़ॉल्ट): मॉडल के संदर्भ का लगभग 3%, 6000–32000 बाइट, एक साथ कई टूल चलने पर प्रति कॉल कम। कोई संख्या सीमा को स्थिर कर देती है। सामान्य आउटपुट सीमा बाध्यकारी बनी रहती है।",
   "help.agent.output_compression.smart_crusher.enabled": "आउटपुट संपीड़न सक्षम होने पर बड़ी JSON तालिकाओं को संपीड़ित करता है। डिफ़ॉल्ट: चालू।",
   "help.agent.output_compression.smart_crusher.max_rows": "तालिका संपीड़न द्वारा रखी जाने वाली अधिकतम पंक्तियाँ। डिफ़ॉल्ट: 50।",
   "help.tools.skill_manager.allowed_script_languages": "SKILL.md पैकेज स्क्रिप्ट पर लागू होता है। रनटाइम अनुमतियाँ, पैकेज स्कोप और सुरक्षा जाँच आवश्यक बनी रहती हैं।",

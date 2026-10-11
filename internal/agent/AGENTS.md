@@ -81,6 +81,37 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   them. Page text stays inside that wrapper. `ExecuteBrowserAutomation` still
   returns the raw JSON for non-model callers such as Detective session close.
 
+- Tool-result inline budget: the primary output vault archives a successful
+  native result above the inline limit. A positive `max_inline_chars` fixes
+  it; `0` (default) is `autoToolResultInlineBudget`: 3% of the tightest
+  route's input capacity (`RequestBudget.minInputLimit`) at 4 bytes per token,
+  at most 32000, divided by the square root of the calls declared in the
+  response, at least 6000 (also for an unknown context). `executeAgentToolTurn`
+  sets the batch size before dispatch; `agentLoopState.inlineBudgetBasis` and
+  the minimal loop's per-round basis feed both `DispatchContext.inlineBasis`
+  and `finalizeToolExecution`, so answers sized with `toolResultInlineBudget(dc)`
+  (local_wikipedia, CYD Creator) are never archived. Standalone dispatch (tool
+  bridge, MCP, flows) has no basis and uses 6000. Old configs keep their
+  explicit `6000`; no migration rewrites it.
+- Vault replies (`fitOutputVaultReply`) fill the inline limit. The view comes
+  from the readable payload (`vaultReadablePayload`: presentation prefixes and
+  isolation removed, escaping decoded): head and tail of output with at least
+  12 lines, else a UTF-8-safe prefix. The message keeps "Full output archived"
+  and names the exact `read_tool_output` continuation (`range` lines or
+  `offset`). An isolated original stays isolated, escaped once; the trailing
+  Guardian suffix survives.
+- `read_tool_output` keeps the schema argument `ref` (the agotrain training
+  contracts pin it); the handler also accepts `output_ref` and `limit` for
+  `max_chars`. The default view is `full`; views read the readable payload, so
+  grep and jsonpath see the tool's own text. Replies page from `offset` with
+  `next_offset`, fit `readToolOutputBudget` measured after Guardian isolation,
+  and a `tail` without offset keeps the end. grep on a long line returns a
+  window around each match. The Guardian isolates every reply (external tool
+  output); without a Guardian the handler re-isolates an isolated source.
+  Verify `TestAutoToolResultInlineBudget`, `TestOutputVaultView*`,
+  `TestReadToolOutputArgumentsAndViews`, `TestToolResultInlineBudget` and
+  `TestLocalWikipediaAnswersStayInline`.
+
 - Strict schemas are a separate immutable snapshot projection: every object is
   closed, all properties are required, and originally optional values accept
   null without losing enums or constraints. Keep normalization idempotent.
