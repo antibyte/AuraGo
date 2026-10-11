@@ -24,6 +24,7 @@ import (
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 	"aurago/internal/vaultprompt"
+	"aurago/internal/webhooks"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -1117,6 +1118,7 @@ type RunConfig struct {
 	Manifest           *tools.Manifest
 	CronManager        *tools.CronManager
 	MissionManagerV2   *tools.MissionManagerV2
+	WebhookManager     *webhooks.Manager
 	CoAgentRegistry    *CoAgentRegistry
 	BudgetTracker      *budget.Tracker
 	DaemonSupervisor   *tools.DaemonSupervisor

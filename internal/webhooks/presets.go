@@ -48,7 +48,7 @@ func Presets() []Preset {
 				},
 				SignatureHeader: "X-Gitlab-Token",
 				SignatureAlgo:   "plain",
-				Description:     "GitLab webhook events.",
+				Description:     "GitLab webhook events. X-Gitlab-Token is checked in addition to the bearer token and does not replace it.",
 			},
 			PromptHint: "[GitLab Event: {{webhook_name}}]\nProject: {{field.project}}\nType: {{field.event_type}}\nUser: {{field.user}}",
 		},

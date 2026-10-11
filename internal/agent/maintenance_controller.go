@@ -14,6 +14,7 @@ import (
 	"aurago/internal/planner"
 	"aurago/internal/security"
 	"aurago/internal/tools"
+	"aurago/internal/webhooks"
 
 	"github.com/tiendc/go-deepcopy"
 )
@@ -37,6 +38,7 @@ type MaintenanceControllerDependencies struct {
 	PlannerDB        *sql.DB
 	CheatsheetDB     *sql.DB
 	MissionManagerV2 *tools.MissionManagerV2
+	WebhookManager   *webhooks.Manager
 	Guardian         *security.LLMGuardian
 	DaemonSupervisor *tools.DaemonSupervisor
 }
@@ -151,7 +153,7 @@ func newMaintenanceController(ctx context.Context, cfg *config.Config, deps Main
 			if runCfg == nil {
 				return
 			}
-			runMaintenanceTask(runCtx, runCfg, deps.Logger, deps.LLMClient, deps.Vault, deps.Registry, deps.Manifest, deps.CronManager, deps.LongTermMem, deps.ShortTermMem, deps.HistoryManager, deps.KG, deps.InventoryDB, deps.ContactsDB, deps.PlannerDB, deps.CheatsheetDB, deps.MissionManagerV2, deps.Guardian, deps.DaemonSupervisor)
+			runMaintenanceTask(runCtx, runCfg, deps.Logger, deps.LLMClient, deps.Vault, deps.Registry, deps.Manifest, deps.CronManager, deps.LongTermMem, deps.ShortTermMem, deps.HistoryManager, deps.KG, deps.InventoryDB, deps.ContactsDB, deps.PlannerDB, deps.CheatsheetDB, deps.MissionManagerV2, deps.Guardian, deps.DaemonSupervisor, deps.WebhookManager)
 			runConsolidationCatchup(runCtx, runCfg, deps.Logger, deps.LLMClient, deps.ShortTermMem, deps.LongTermMem, deps.KG)
 		}
 	}

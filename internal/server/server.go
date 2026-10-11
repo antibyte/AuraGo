@@ -852,7 +852,6 @@ func Start(opts StartOptions) error {
 		agent.Loopback(hbRunCfg, prompt, agent.NoopBroker{})
 		recordHeartbeatAuditFinish(shortTermMem, correlationID, memory.AuditStatusSuccess, "Heartbeat wake-up completed", "", time.Since(started))
 	})
-	s.HeartbeatScheduler.Start()
 	s.restartUptimeKumaPoller()
 
 	// Initialize Skill Manager and Agent Skills (classic manager gated by config)
@@ -1030,6 +1029,8 @@ func Start(opts StartOptions) error {
 			logger.Info("Webhook system initialized", "max_webhooks", webhooks.MaxWebhooks)
 		}
 	}
+	hbRunCfg.WebhookManager = s.WebhookManager
+	s.HeartbeatScheduler.Start()
 
 	// Start MissionManagerV2 with enhanced callback that reports completion
 	missionCallbackV2 := func(prompt string, missionID string) {
@@ -1484,18 +1485,19 @@ func Start(opts StartOptions) error {
 	if cfg.A2A.Server.Enabled || cfg.A2A.Client.Enabled {
 		if cfg.A2A.Server.Enabled {
 			a2aDeps := &a2apkg.ExecutorDeps{
-				Config:       cfg,
-				Logger:       logger,
-				LLMClient:    llmClient,
-				ShortTermMem: shortTermMem,
-				LongTermMem:  longTermMem,
-				Vault:        vault,
-				Guardian:     s.Guardian,
-				Registry:     registry,
-				Manifest:     tools.NewManifest(cfg.Directories.ToolsDir),
-				KG:           kg,
-				InventoryDB:  inventoryDB,
-				Budget:       s.BudgetTracker,
+				Config:         cfg,
+				Logger:         logger,
+				LLMClient:      llmClient,
+				ShortTermMem:   shortTermMem,
+				LongTermMem:    longTermMem,
+				Vault:          vault,
+				Guardian:       s.Guardian,
+				Registry:       registry,
+				Manifest:       tools.NewManifest(cfg.Directories.ToolsDir),
+				KG:             kg,
+				InventoryDB:    inventoryDB,
+				Budget:         s.BudgetTracker,
+				WebhookManager: s.WebhookManager,
 			}
 			s.A2AServer = a2apkg.NewServer(cfg, logger, a2aDeps)
 			s.A2AServer.StartCleanup(serverCtx)

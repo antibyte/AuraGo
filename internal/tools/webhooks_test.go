@@ -5,9 +5,11 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"aurago/internal/config"
@@ -55,6 +57,8 @@ webhooks:
 		[]interface{}{map[string]interface{}{"name": "service", "type": "string", "description": "Service", "required": true}},
 		cfg,
 		vault,
+		false,
+		false,
 	)
 
 	if !strings.Contains(result, `"status":"success"`) || !strings.Contains(result, `"persisted": true`) {
@@ -108,6 +112,8 @@ func TestManageOutgoingWebhooksReadOnlyBlocksMutations(t *testing.T) {
 		nil,
 		cfg,
 		nil,
+		false,
+		false,
 	)
 
 	if !strings.Contains(result, `"status":"error"`) || !strings.Contains(result, "Read-Only") {
@@ -130,7 +136,7 @@ func TestManageOutgoingWebhooksListMasksSecrets(t *testing.T) {
 		BodyTemplate: `{"token":"secret-token"}`,
 	}}
 
-	result := ManageOutgoingWebhooks("list", "", "", "", "", "", "", "", nil, nil, cfg, nil)
+	result := ManageOutgoingWebhooks("list", "", "", "", "", "", "", "", nil, nil, cfg, nil, false, false)
 
 	if strings.Contains(result, "secret-token") {
 		t.Fatalf("list output leaked secret: %s", result)
@@ -238,5 +244,110 @@ func TestExecuteOutgoingWebhookSendsRuntimeSecretHeaders(t *testing.T) {
 	}
 	if statusCode != http.StatusNoContent {
 		t.Fatalf("statusCode = %d, want %d", statusCode, http.StatusNoContent)
+	}
+}
+
+func TestManageOutgoingWebhooksUpdateKeepsOmittedFields(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+server:
+  ui_language: en
+auth:
+  enabled: false
+personality:
+  core_personality: neutral
+webhooks:
+  enabled: true
+  readonly: false
+  outgoing: []
+`
+	if err := config.WriteFileAtomic(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	vault, err := security.NewVault(strings.Repeat("b", 64), filepath.Join(tmpDir, "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault() error = %v", err)
+	}
+	created := ManageOutgoingWebhooks(
+		"create", "hook_keep", "Alarm", "ring", "PUT", "https://example.test/alarm",
+		"custom", `{"room":"{{room}}"}`,
+		map[string]string{"Authorization": "Bearer secret", "X-Plain": "visible"},
+		[]interface{}{map[string]interface{}{"name": "room", "type": "string", "required": true}},
+		cfg, vault, true, true,
+	)
+	if !strings.Contains(created, `"status":"success"`) {
+		t.Fatalf("create: %s", created)
+	}
+	updated := ManageOutgoingWebhooks(
+		"update", "hook_keep", "Renamed", "", "", "", "", "",
+		nil, nil, cfg, vault, false, false,
+	)
+	if !strings.Contains(updated, `"status":"success"`) {
+		t.Fatalf("update: %s", updated)
+	}
+	hook := cfg.Webhooks.Outgoing[0]
+	if hook.Name != "Renamed" || hook.Method != "PUT" || hook.URL != "https://example.test/alarm" {
+		t.Fatalf("name/method/url = %#v", hook)
+	}
+	if hook.BodyTemplate != `{"room":"{{room}}"}` {
+		t.Fatalf("body = %q", hook.BodyTemplate)
+	}
+	if hook.SecretHeaders["Authorization"] != "Bearer secret" {
+		t.Fatalf("secret header = %#v", hook.SecretHeaders)
+	}
+	if hook.Headers["X-Plain"] != "visible" {
+		t.Fatalf("public headers = %#v", hook.Headers)
+	}
+	if len(hook.Parameters) != 1 || hook.Parameters[0].Name != "room" {
+		t.Fatalf("parameters = %#v", hook.Parameters)
+	}
+
+	cleared := ManageOutgoingWebhooks(
+		"update", "hook_keep", "", "", "", "", "", "",
+		map[string]string{}, nil, cfg, vault, true, false,
+	)
+	if !strings.Contains(cleared, `"status":"success"`) {
+		t.Fatalf("clear headers: %s", cleared)
+	}
+	hook = cfg.Webhooks.Outgoing[0]
+	if len(hook.SecretHeaders) != 0 || len(hook.Headers) != 0 {
+		t.Fatalf("headers were kept: public=%#v secret=%#v", hook.Headers, hook.SecretHeaders)
+	}
+	if hook.Method != "PUT" || hook.URL != "https://example.test/alarm" {
+		t.Fatalf("clearing headers changed the hook: %#v", hook)
+	}
+}
+
+func TestExecuteOutgoingWebhookDoesNotFollowCrossOriginRedirect(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+	var hits atomic.Int32
+	second := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		if r.Header.Get("Authorization") != "" {
+			t.Errorf("second host saw Authorization")
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer second.Close()
+	first := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, second.URL+"/landed", http.StatusTemporaryRedirect)
+	}))
+	defer first.Close()
+
+	_, _, err := ExecuteOutgoingWebhook(context.Background(), config.OutgoingWebhook{
+		Method:        http.MethodPost,
+		URL:           first.URL,
+		SecretHeaders: map[string]string{"Authorization": "Bearer secret"},
+	}, nil)
+	if err == nil {
+		t.Fatal("expected cross-origin redirect to fail")
+	}
+	if hits.Load() != 0 {
+		t.Fatalf("second host saw %d requests", hits.Load())
 	}
 }

@@ -14,7 +14,7 @@ import (
 // Lyria), a webhook-configured token header and an arbitrary secret header.
 var ssrfRedirectCredentialHeaders = []string{
 	"Authorization", "Proxy-Authorization", "Cookie", "X-Api-Key", "X-Auth-Token",
-	"X-Goog-Api-Key", "X-Webhook-Token", "My-Secret",
+	"X-Goog-Api-Key", "X-Webhook-Token", "My-Secret", "X-Password",
 }
 
 var ssrfRedirectPlainHeaders = []string{"Accept", "Content-Type"}

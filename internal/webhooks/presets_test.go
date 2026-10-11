@@ -1,6 +1,9 @@
 package webhooks
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestPresetsIncludeDograhCallback(t *testing.T) {
 	var found *Preset
@@ -22,5 +25,13 @@ func TestPresetsIncludeDograhCallback(t *testing.T) {
 	}
 	if found.PromptHint == "" {
 		t.Fatal("Dograh preset must include a prompt hint")
+	}
+	for _, preset := range Presets() {
+		if preset.Key != "gitlab" {
+			continue
+		}
+		if !strings.Contains(preset.Format.Description, "X-Gitlab-Token is checked in addition to the bearer token and does not replace it.") {
+			t.Fatalf("GitLab description = %q", preset.Format.Description)
+		}
 	}
 }

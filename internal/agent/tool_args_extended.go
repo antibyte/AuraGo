@@ -14,16 +14,18 @@ type webhookParameterArgs struct {
 }
 
 type manageOutgoingWebhooksArgs struct {
-	Operation    string
-	ID           string
-	Name         string
-	Description  string
-	Method       string
-	URL          string
-	PayloadType  string
-	BodyTemplate string
-	Headers      map[string]string
-	Parameters   []webhookParameterArgs
+	Operation     string
+	ID            string
+	Name          string
+	Description   string
+	Method        string
+	URL           string
+	PayloadType   string
+	BodyTemplate  string
+	Headers       map[string]string
+	HeadersSet    bool
+	Parameters    []webhookParameterArgs
+	ParametersSet bool
 }
 
 type createSkillFromTemplateArgs struct {
@@ -489,25 +491,50 @@ func decodeManageOutgoingWebhooksArgs(tc ToolCall) manageOutgoingWebhooksArgs {
 		PayloadType:  firstNonEmptyToolString(tc.PayloadType, toolArgString(tc.Params, "payload_type")),
 		BodyTemplate: firstNonEmptyToolString(tc.BodyTemplate, toolArgString(tc.Params, "body_template")),
 	}
-	if len(tc.Headers) > 0 {
-		req.Headers = make(map[string]string, len(tc.Headers))
-		for key, value := range tc.Headers {
-			req.Headers[key] = value
-		}
-	} else {
-		req.Headers = toolArgStringMap(tc.Params, "headers")
-	}
-	if req.Headers == nil {
-		req.Headers = map[string]string{}
-	}
-	req.Parameters = toolArgWebhookParameters(tc.Params, "parameters")
-	if len(req.Parameters) == 0 {
-		switch raw := tc.Parameters.(type) {
-		case []interface{}:
-			req.Parameters = toolArgWebhookParameters(map[string]interface{}{"parameters": raw}, "parameters")
-		}
-	}
+	req.Headers, req.HeadersSet = decodeOutgoingWebhookHeaders(tc)
+	req.Parameters, req.ParametersSet = decodeOutgoingWebhookParameters(tc)
 	return req
+}
+
+func decodeOutgoingWebhookHeaders(tc ToolCall) (map[string]string, bool) {
+	if tc.Headers != nil {
+		copied := make(map[string]string, len(tc.Headers))
+		for key, value := range tc.Headers {
+			copied[key] = value
+		}
+		return copied, true
+	}
+	if tc.Params == nil {
+		return nil, false
+	}
+	raw, ok := tc.Params["headers"]
+	if !ok || raw == nil {
+		return nil, false
+	}
+	parsed := toolArgStringMap(tc.Params, "headers")
+	if parsed != nil {
+		return parsed, true
+	}
+	switch raw.(type) {
+	case map[string]string, map[string]interface{}:
+		return map[string]string{}, true
+	default:
+		return nil, false
+	}
+}
+
+func decodeOutgoingWebhookParameters(tc ToolCall) ([]webhookParameterArgs, bool) {
+	if tc.Params != nil {
+		if raw, ok := tc.Params["parameters"]; ok && raw != nil {
+			return toolArgWebhookParameters(tc.Params, "parameters"), true
+		}
+	}
+	switch raw := tc.Parameters.(type) {
+	case []interface{}:
+		return toolArgWebhookParameters(map[string]interface{}{"parameters": raw}, "parameters"), true
+	default:
+		return nil, false
+	}
 }
 
 func (req manageOutgoingWebhooksArgs) rawParameters() []interface{} {

@@ -21,7 +21,7 @@ func TestProcessUpdateReturnsBeforeStorageWhenAlreadyCanceled(t *testing.T) {
 	cancel()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	processUpdate(ctx, nil, tgbotapi.Update{}, nil, logger, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	processUpdate(ctx, nil, tgbotapi.Update{}, nil, logger, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 }
 
 func TestConvertOggToMp3ContextReturnsCanceledBeforeStarting(t *testing.T) {

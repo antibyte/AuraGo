@@ -230,6 +230,7 @@ func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *Dispat
 		Manifest:             s.runCfg.Manifest,
 		CronManager:          s.runCfg.CronManager,
 		MissionManagerV2:     s.runCfg.MissionManagerV2,
+		WebhookManager:       s.runCfg.WebhookManager,
 		LongTermMem:          s.runCfg.LongTermMem,
 		ShortTermMem:         s.runCfg.ShortTermMem,
 		KG:                   s.runCfg.KG,

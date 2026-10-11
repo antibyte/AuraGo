@@ -48,7 +48,7 @@ func TestMaintenanceDisabledPhasesPrecedeBudgetAndBacklog(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.CircuitBreaker.MaintenanceTimeoutMinutes = 1
 	cfg.Directories.PromptsDir = t.TempDir()
-	runMaintenanceTask(context.Background(), cfg, logger, nil, nil, nil, nil, nil, &hierarchyVectorDB{}, stm, nil, nil, nil, nil, db, nil, nil, nil, nil)
+	runMaintenanceTask(context.Background(), cfg, logger, nil, nil, nil, nil, nil, &hierarchyVectorDB{}, stm, nil, nil, nil, nil, db, nil, nil, nil, nil, nil)
 	run, err := stm.GetLatestMaintenanceRun()
 	if err != nil || run == nil {
 		t.Fatalf("run=%v err=%v", run, err)
@@ -86,7 +86,7 @@ func TestMaintenanceCheatsheetAndRetentionErrorsAreReported(t *testing.T) {
 	_ = closed.Close()
 	cfg := &config.Config{}
 	cfg.Directories.PromptsDir = t.TempDir()
-	runMaintenanceTask(context.Background(), cfg, logger, nil, nil, nil, nil, nil, nil, stm, nil, nil, nil, nil, nil, closed, nil, nil, nil)
+	runMaintenanceTask(context.Background(), cfg, logger, nil, nil, nil, nil, nil, nil, stm, nil, nil, nil, nil, nil, closed, nil, nil, nil, nil)
 	run, err := stm.GetLatestMaintenanceRun()
 	if err != nil {
 		t.Fatal(err)

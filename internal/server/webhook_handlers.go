@@ -395,37 +395,22 @@ func handleDeleteWebhook(s *Server, mgr *webhooks.Manager) http.HandlerFunc {
 			jsonError(w, "missing webhook id", http.StatusBadRequest)
 			return
 		}
-		if _, err := mgr.Get(id); err != nil {
-			jsonError(w, "Webhook not found", http.StatusNotFound)
-			return
-		}
-		vaultKey := webhooks.SignatureSecretVaultKey(id)
-		var previousSecret string
-		previousSecretExists := false
-		if s.Vault != nil {
-			var readErr error
-			previousSecret, readErr = s.Vault.ReadSecret(vaultKey)
-			if readErr != nil && !isMissingVaultSecretError(readErr) {
+		if err := mgr.DeleteWithSignatureSecret(s.Vault, id); err != nil {
+			switch {
+			case errors.Is(err, webhooks.ErrSignatureVaultUnavailable):
 				jsonError(w, "Vault unavailable for webhook signature secret", http.StatusServiceUnavailable)
-				return
-			}
-			previousSecretExists = readErr == nil
-			if err := s.Vault.DeleteSecret(vaultKey); err != nil {
+			case errors.Is(err, webhooks.ErrSignatureSecretDelete):
 				jsonError(w, "Failed to delete webhook signature secret", http.StatusServiceUnavailable)
-				return
-			}
-		}
-		if err := mgr.Delete(id); err != nil {
-			if previousSecretExists {
-				if restoreErr := s.Vault.WriteSecret(vaultKey, previousSecret); restoreErr != nil {
-					if s.Logger != nil {
-						s.Logger.Error("Failed to restore webhook signature secret after delete rollback", "webhook_id", id, "error", restoreErr)
-					}
-					jsonError(w, "Failed to delete webhook and restore its signature secret", http.StatusInternalServerError)
-					return
+			case errors.Is(err, webhooks.ErrWebhookDeleteRestore):
+				if s.Logger != nil {
+					s.Logger.Error("Failed to restore webhook signature secret after delete rollback", "webhook_id", id, "error", err)
 				}
+				jsonError(w, "Failed to delete webhook and restore its signature secret", http.StatusInternalServerError)
+			case strings.Contains(err.Error(), "webhook not found"):
+				jsonError(w, "Webhook not found", http.StatusNotFound)
+			default:
+				jsonError(w, "Failed to delete webhook", http.StatusInternalServerError)
 			}
-			jsonError(w, "Failed to delete webhook", http.StatusInternalServerError)
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)

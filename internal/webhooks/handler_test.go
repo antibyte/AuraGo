@@ -774,3 +774,78 @@ func TestNewManagerFlagsLoadedSHA1WebhooksForDeprecationWarning(t *testing.T) {
 		t.Fatal("loading a sha1 webhook did not emit the deprecation warning")
 	}
 }
+
+func TestDeliverMessageRetriesTransportFailure(t *testing.T) {
+	var calls int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if calls == 1 {
+			hj, ok := w.(http.Hijacker)
+			if !ok {
+				t.Fatal("response cannot be hijacked")
+			}
+			conn, _, err := hj.Hijack()
+			if err != nil {
+				t.Fatal(err)
+			}
+			conn.Close()
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	parsed, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("url.Parse() error = %v", err)
+	}
+	_, portStr, err := net.SplitHostPort(parsed.Host)
+	if err != nil {
+		t.Fatalf("SplitHostPort() error = %v", err)
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		t.Fatalf("Atoi() error = %v", err)
+	}
+	cfg := &config.Config{}
+	cfg.Server.Port = port
+	handler := NewHandler(nil, nil, nil, nil, nil, cfg, slog.Default(), port, 4096, 0)
+	if err := handler.deliverMessage("hello", "internal-secret"); err != nil {
+		t.Fatalf("deliverMessage() error = %v", err)
+	}
+	if calls != 2 {
+		t.Fatalf("calls = %d, want 2", calls)
+	}
+}
+
+func TestDeliverMessageDoesNotRetryHTTPStatus(t *testing.T) {
+	var calls int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		http.Error(w, "nope", http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	parsed, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("url.Parse() error = %v", err)
+	}
+	_, portStr, err := net.SplitHostPort(parsed.Host)
+	if err != nil {
+		t.Fatalf("SplitHostPort() error = %v", err)
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		t.Fatalf("Atoi() error = %v", err)
+	}
+	cfg := &config.Config{}
+	cfg.Server.Port = port
+	handler := NewHandler(nil, nil, nil, nil, nil, cfg, slog.Default(), port, 4096, 0)
+	err = handler.deliverMessage("hello", "")
+	if err == nil || !strings.Contains(err.Error(), "agent returned status 500") {
+		t.Fatalf("error = %v, want status 500", err)
+	}
+	if calls != 1 {
+		t.Fatalf("calls = %d, want 1", calls)
+	}
+}

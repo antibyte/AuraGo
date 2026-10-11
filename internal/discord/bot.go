@@ -25,6 +25,7 @@ import (
 	"aurago/internal/security"
 	"aurago/internal/telegram"
 	"aurago/internal/tools"
+	"aurago/internal/webhooks"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/sashabaranov/go-openai"
@@ -160,7 +161,7 @@ func setErrorForTest(errText string) {
 }
 
 // StartBot initializes the Discord bot and begins listening for messages.
-func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker) {
+func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker, webhookManager *webhooks.Manager) {
 	if cfg == nil || !cfg.Discord.Enabled {
 		setStatus(statusFromConfig(cfg, BotStatus{Status: "disabled", Connected: false}))
 		return
@@ -193,7 +194,7 @@ func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, sh
 	dg.Identify.Intents = discordgo.IntentsGuildMessages | discordgo.IntentsDirectMessages | discordgo.IntentsMessageContent
 
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
-		handleMessage(s, m, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2, remoteHub, guardian, budgetTrackerSnapshot)
+		handleMessage(s, m, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2, remoteHub, guardian, budgetTrackerSnapshot, webhookManager)
 	})
 
 	if err := dg.Open(); err != nil {
@@ -478,7 +479,7 @@ func shouldHandleDiscordMessage(botUserID string, m *discordgo.MessageCreate, cf
 	return messageDecision{Reason: "not_mentioned"}
 }
 
-func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker) {
+func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker, webhookManager *webhooks.Manager) {
 	botUserID := ""
 	if s != nil && s.State != nil && s.State.User != nil {
 		botUserID = s.State.User.ID
@@ -593,7 +594,7 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 	if budgetTrackerSnapshot != nil {
 		budgetTracker = budgetTrackerSnapshot()
 	}
-	processDiscordMessage(s, m, inputText, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, kg, inventoryDB, missionManagerV2, remoteHub, budgetTracker)
+	processDiscordMessage(s, m, inputText, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, kg, inventoryDB, missionManagerV2, remoteHub, budgetTracker, webhookManager)
 	stopTyping()
 }
 
@@ -689,7 +690,7 @@ func processDiscordAttachment(att *discordgo.MessageAttachment, inputText string
 	return fileNote
 }
 
-func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inputText string, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, budgetTracker *budget.Tracker) {
+func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inputText string, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, budgetTracker *budget.Tracker, webhookManager *webhooks.Manager) {
 	manifest := tools.NewManifest(cfg.Directories.ToolsDir)
 	sessionID := discordConversationID(m)
 
@@ -716,6 +717,7 @@ func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inp
 		Manifest:           manifest,
 		CronManager:        cronManager,
 		MissionManagerV2:   missionManagerV2,
+		WebhookManager:     webhookManager,
 		CoAgentRegistry:    nil,
 		BudgetTracker:      budgetTracker,
 		PreparationService: nil,

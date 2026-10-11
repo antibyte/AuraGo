@@ -14,6 +14,7 @@ import (
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 	"aurago/internal/vaultprompt"
+	"aurago/internal/webhooks"
 )
 
 // MessageSourceFlow is the MessageSource of a tool call made by an EasyDrag flow node
@@ -37,6 +38,7 @@ type DispatchContext struct {
 	Manifest             *tools.Manifest
 	CronManager          *tools.CronManager
 	MissionManagerV2     *tools.MissionManagerV2
+	WebhookManager       *webhooks.Manager
 	LongTermMem          memory.VectorDB
 	ShortTermMem         *memory.SQLiteMemory
 	KG                   *memory.KnowledgeGraph

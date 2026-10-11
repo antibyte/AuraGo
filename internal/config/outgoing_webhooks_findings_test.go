@@ -234,3 +234,15 @@ func TestPersistOutgoingWebhooksRestoresEarlierRemovedBundlesWhenLaterDeleteFail
 		t.Fatalf("failed bundle changed: got %q, want %q", got, bundle2)
 	}
 }
+
+func TestPrepareOutgoingWebhooksRejectsDuplicateNames(t *testing.T) {
+	t.Parallel()
+
+	_, err := PrepareOutgoingWebhooks([]OutgoingWebhook{
+		{ID: "hook_1", Name: "Alarm", Method: "POST", URL: "https://example.test/a"},
+		{ID: "hook_2", Name: "alarm", Method: "POST", URL: "https://example.test/b"},
+	}, nil)
+	if err == nil || !strings.Contains(err.Error(), "duplicate outgoing webhook name") {
+		t.Fatalf("error = %v, want duplicate name", err)
+	}
+}

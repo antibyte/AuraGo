@@ -22,19 +22,20 @@ import (
 	"aurago/internal/security"
 	"aurago/internal/services"
 	"aurago/internal/tools"
+	"aurago/internal/webhooks"
 
 	"github.com/sashabaranov/go-openai"
 )
 
 // StartMaintenanceLoop spawns a background goroutine that runs daily at the configured time.
-func StartMaintenanceLoop(ctx context.Context, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, cheatsheetDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, guardian *security.LLMGuardian, daemonSupervisor *tools.DaemonSupervisor) *MaintenanceController {
+func StartMaintenanceLoop(ctx context.Context, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, cheatsheetDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, guardian *security.LLMGuardian, daemonSupervisor *tools.DaemonSupervisor, webhookManager *webhooks.Manager) *MaintenanceController {
 	return StartMaintenanceController(ctx, cfg, MaintenanceControllerDependencies{
 		Logger: logger, LLMClient: llmClient, Vault: vault, Registry: registry,
 		Manifest: manifest, CronManager: cronManager, LongTermMem: longTermMem,
 		ShortTermMem: shortTermMem, HistoryManager: historyMgr, KG: kg,
 		InventoryDB: inventoryDB, ContactsDB: contactsDB, PlannerDB: plannerDB,
 		CheatsheetDB: cheatsheetDB, MissionManagerV2: missionManagerV2,
-		Guardian: guardian, DaemonSupervisor: daemonSupervisor,
+		WebhookManager: webhookManager, Guardian: guardian, DaemonSupervisor: daemonSupervisor,
 	})
 }
 
@@ -57,7 +58,7 @@ func parseTime(t string) (int, int, error) {
 	return hour, minute, nil
 }
 
-func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, cheatsheetDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, guardian *security.LLMGuardian, daemonSupervisor *tools.DaemonSupervisor) {
+func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, cheatsheetDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, guardian *security.LLMGuardian, daemonSupervisor *tools.DaemonSupervisor, webhookManager *webhooks.Manager) {
 	startedAt := maintenanceRunStartedAt(ctx)
 	if startedAt.IsZero() {
 		startedAt = time.Now()
@@ -550,6 +551,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		Manifest:         manifest,
 		CronManager:      cronManager,
 		MissionManagerV2: missionManagerV2,
+		WebhookManager:   webhookManager,
 		CoAgentRegistry:  nil,
 		BudgetTracker:    nil,
 		SessionID:        sessionID,

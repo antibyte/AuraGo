@@ -524,6 +524,7 @@ func buildLooperRuntime(s *Server, providerID, model string) (*config.Config, ll
 		Manifest:           manifest,
 		CronManager:        s.CronManager,
 		MissionManagerV2:   s.MissionManagerV2,
+		WebhookManager:     s.WebhookManager,
 		LongTermMem:        s.LongTermMem,
 		ShortTermMem:       s.ShortTermMem,
 		KG:                 s.KG,

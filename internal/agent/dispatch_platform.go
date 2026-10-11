@@ -19,7 +19,6 @@ import (
 	"aurago/internal/inventory"
 	"aurago/internal/security"
 	"aurago/internal/tools"
-	"aurago/internal/webhooks"
 )
 
 var _ = (*slog.Logger)(nil)
@@ -364,7 +363,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					OutputSchema: req.OutputSchema,
 				}
 				id, state, err := SpawnCoAgent(cfg, ctx, logger, coAgentRegistry,
-					shortTermMem, longTermMem, vault, registry, manifest, kg, inventoryDB, dc.CheatsheetDB, coReq, budgetTracker, nil)
+					shortTermMem, longTermMem, vault, registry, manifest, kg, inventoryDB, dc.CheatsheetDB, coReq, budgetTracker, nil, dc.WebhookManager)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
@@ -393,7 +392,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					OutputSchema: req.OutputSchema,
 				}
 				id, state, err := SpawnCoAgent(cfg, ctx, logger, coAgentRegistry,
-					shortTermMem, longTermMem, vault, registry, manifest, kg, inventoryDB, dc.CheatsheetDB, coReq, budgetTracker, nil)
+					shortTermMem, longTermMem, vault, registry, manifest, kg, inventoryDB, dc.CheatsheetDB, coReq, budgetTracker, nil, dc.WebhookManager)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
@@ -567,13 +566,10 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					return `Tool Output: {"status":"error","message":"Webhooks are in read-only mode. Disable webhooks.read_only to allow changes."}`
 				}
 			}
-			whFilePath := filepath.Join(cfg.Directories.DataDir, "webhooks.json")
-			whLogPath := filepath.Join(cfg.Directories.DataDir, "webhook_log.json")
-			whMgr, whErr := webhooks.NewManager(whFilePath, whLogPath)
-			if whErr != nil {
-				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Failed to load webhook manager: %s"}`, whErr)
+			if dc.WebhookManager == nil {
+				return `Tool Output: {"status":"error","message":"Webhook receiver is not running. Enable webhooks and restart AuraGo."}`
 			}
-			return handleWebhookToolCall(req, whMgr, logger)
+			return handleWebhookToolCall(req, dc.WebhookManager, dc.Vault, logger)
 
 		case "proxmox", "proxmox_ve":
 			if !cfg.Proxmox.Enabled {

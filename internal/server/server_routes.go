@@ -278,7 +278,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 
 	// Phase 68: Start the daily maintenance loop
 	manifest := tools.NewManifest(s.Cfg.Directories.ToolsDir)
-	s.MaintenanceScheduler = agent.StartMaintenanceLoop(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.Vault, s.Registry, manifest, s.CronManager, s.LongTermMem, s.ShortTermMem, s.HistoryManager, s.KG, s.InventoryDB, s.ContactsDB, s.PlannerDB, s.CheatsheetDB, s.MissionManagerV2, s.LLMGuardian, s.DaemonSupervisor)
+	s.MaintenanceScheduler = agent.StartMaintenanceLoop(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.Vault, s.Registry, manifest, s.CronManager, s.LongTermMem, s.ShortTermMem, s.HistoryManager, s.KG, s.InventoryDB, s.ContactsDB, s.PlannerDB, s.CheatsheetDB, s.MissionManagerV2, s.LLMGuardian, s.DaemonSupervisor, s.WebhookManager)
 
 	// Start Planner Notifier for appointment reminders with agent wake-up
 	if s.PlannerDB != nil && s.Cfg.Tools.Planner.Enabled {
@@ -315,6 +315,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				Registry:           s.Registry,
 				CronManager:        s.CronManager,
 				MissionManagerV2:   s.MissionManagerV2,
+				WebhookManager:     s.WebhookManager,
 				CoAgentRegistry:    s.CoAgentRegistry,
 				BudgetTracker:      s.BudgetTracker,
 				DaemonSupervisor:   s.DaemonSupervisor,
@@ -693,10 +694,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// ── Integration bots (disabled in egg mode — eggs are headless workers) ──
 	if !s.Cfg.EggMode.Enabled {
 		// Phase 35.2: Start the Telegram Long Polling loop
-		telegram.StartLongPolling(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.PlannerDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.budgetTrackerSnapshot)
+		telegram.StartLongPolling(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.PlannerDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.budgetTrackerSnapshot, s.WebhookManager)
 
 		// Discord Bot: listen for messages and relay to the agent
-		discord.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.budgetTrackerSnapshot)
+		discord.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.budgetTrackerSnapshot, s.WebhookManager)
 
 		// Email Watcher: poll IMAP for new messages and wake the agent
 		s.EmailWatcher = tools.StartEmailWatcherContext(serverCtx, s.Cfg, s.Logger, s.Guardian, s.LLMGuardian, s.internalToken, s.CheatsheetDB)
@@ -765,6 +766,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 					Registry:           s.Registry,
 					CronManager:        s.CronManager,
 					MissionManagerV2:   s.MissionManagerV2,
+					WebhookManager:     s.WebhookManager,
 					CoAgentRegistry:    s.CoAgentRegistry,
 					BudgetTracker:      s.BudgetTracker,
 					DaemonSupervisor:   s.DaemonSupervisor,
