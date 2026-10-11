@@ -9,6 +9,8 @@ on:
       - deploy/docker/cyd-builder/**
       - internal/cydcreator/template/**
       - internal/cydcreator/testdata/reference/**
+      - internal/cydcreator/testdata/golden/**
+      - internal/cydcreator/generate*.go
       - internal/cydcreator/boards/**
       - .github/workflows/cyd-builder.yml
   pull_request:
@@ -17,6 +19,8 @@ on:
       - deploy/docker/cyd-builder/**
       - internal/cydcreator/template/**
       - internal/cydcreator/testdata/reference/**
+      - internal/cydcreator/testdata/golden/**
+      - internal/cydcreator/generate*.go
       - internal/cydcreator/boards/**
       - .github/workflows/cyd-builder.yml
   workflow_dispatch:
@@ -83,6 +87,20 @@ jobs:
             --cap-drop ALL --security-opt no-new-privileges:true \
             --memory 2g --cpus 2 --pids-limit 512 \
             aurago-cyd-builder:ci cyd-selftest ${{ matrix.smoke }}
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: matrix.arch == 'amd64'
+        with:
+          go-version-file: go.mod
+      - name: Compile the generator goldens with the same container settings (plan 1c)
+        if: matrix.arch == 'amd64'
+        env:
+          CYD_BUILDER_IT: '1'
+          CYD_BUILDER_IMAGE: aurago-cyd-builder:ci
+          CYD_BUILDER_IT_ONLY: all_widgets,theme_
+          CYD_BUILDER_IT_STRICT: '1'
+          CYD_BUILDER_WORK_VOLUME: cyd-ci-work
+          CYD_BUILDER_CACHE_VOLUME: cyd-ci-cache
+        run: go test -count=1 ./internal/cydcreator/ -run TestGenerateCompilesInBuilder -v -timeout 60m
       - name: Image size
         run: |
           docker image ls aurago-cyd-builder:ci
