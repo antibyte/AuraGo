@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 	"unsafe"
 
@@ -133,29 +134,21 @@ func applyLandlock() error {
 	}
 	defer unix.Close(int(rulesetFd))
 
-	// Read-write paths
-	rwPaths := splitPaths(os.Getenv("AURAGO_SBX_RW"))
+	// Read-write paths. landlock_restrict_self runs only after every required
+	// path was added; a failure here returns before that call.
 	rwAccess := handledAccess // full access
-
-	for _, p := range rwPaths {
-		if err := landlockAddPath(int(rulesetFd), p, rwAccess); err != nil {
-			// Non-existent paths are silently skipped (e.g. /usr/lib64 on some distros)
-			continue
-		}
+	if err := addSandboxPaths(int(rulesetFd), os.Getenv("AURAGO_SBX_RW"), os.Getenv("AURAGO_SBX_RW_REQUIRED"), rwAccess); err != nil {
+		return err
 	}
 
 	// Read-only paths
-	roPaths := splitPaths(os.Getenv("AURAGO_SBX_RO"))
 	roAccess := uint64(
 		unix.LANDLOCK_ACCESS_FS_EXECUTE |
 			unix.LANDLOCK_ACCESS_FS_READ_FILE |
 			unix.LANDLOCK_ACCESS_FS_READ_DIR,
 	)
-
-	for _, p := range roPaths {
-		if err := landlockAddPath(int(rulesetFd), p, roAccess); err != nil {
-			continue
-		}
+	if err := addSandboxPaths(int(rulesetFd), os.Getenv("AURAGO_SBX_RO"), os.Getenv("AURAGO_SBX_RO_REQUIRED"), roAccess); err != nil {
+		return err
 	}
 
 	// Restrict self
@@ -202,9 +195,82 @@ func landlockHandledAccessForABI(abi int) uint64 {
 	return access
 }
 
+// sandboxPath is one entry from a colon-separated Landlock path list.
+type sandboxPath struct {
+	Path     string
+	Required bool
+}
+
+// splitSandboxPaths splits a colon-separated path list. Newline and NUL are
+// rejected. Required stays false until the caller matches the required list.
+func splitSandboxPaths(value string) ([]sandboxPath, error) {
+	if strings.ContainsAny(value, "\n\x00") {
+		return nil, fmt.Errorf("sandbox path list contains a newline or NUL")
+	}
+	if value == "" {
+		return nil, nil
+	}
+	var paths []sandboxPath
+	for _, path := range strings.Split(value, ":") {
+		path = strings.TrimSpace(path)
+		if path == "" {
+			continue
+		}
+		paths = append(paths, sandboxPath{Path: path})
+	}
+	return paths, nil
+}
+
+// addSandboxPaths adds every path in list. Paths named in requiredList abort
+// the helper on any error. An optional path is skipped only when it is missing.
+func addSandboxPaths(rulesetFd int, list, requiredList string, access uint64) error {
+	paths, err := splitSandboxPaths(list)
+	if err != nil {
+		return err
+	}
+	requiredPaths, err := splitSandboxPaths(requiredList)
+	if err != nil {
+		return err
+	}
+	required := make(map[string]struct{}, len(requiredPaths))
+	for _, path := range requiredPaths {
+		required[path.Path] = struct{}{}
+	}
+	seen := make(map[string]struct{}, len(paths))
+	for i := range paths {
+		if _, ok := required[paths[i].Path]; ok {
+			paths[i].Required = true
+		}
+		seen[paths[i].Path] = struct{}{}
+	}
+	for _, path := range requiredPaths {
+		if _, ok := seen[path.Path]; ok {
+			continue
+		}
+		path.Required = true
+		paths = append(paths, path)
+	}
+	for _, path := range paths {
+		err := landlockAddPath(rulesetFd, path.Path, access)
+		if err == nil {
+			continue
+		}
+		if !path.Required && os.IsNotExist(err) {
+			continue
+		}
+		return fmt.Errorf("landlock path %s: %w", path.Path, err)
+	}
+	return nil
+}
+
+// openLandlockPath opens a ruleset path without following a final symlink.
+func openLandlockPath(path string) (int, error) {
+	return unix.Open(path, unix.O_PATH|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+}
+
 // landlockAddPath adds a path-beneath rule to the ruleset.
 func landlockAddPath(rulesetFd int, path string, access uint64) error {
-	fd, err := unix.Open(path, unix.O_PATH|unix.O_CLOEXEC, 0)
+	fd, err := openLandlockPath(path)
 	if err != nil {
 		return err
 	}

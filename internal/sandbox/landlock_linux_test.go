@@ -4,6 +4,8 @@ package sandbox
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -78,5 +80,44 @@ func TestLandlockPrepareExecCommandBlocksWhenSelfExecutableUnavailable(t *testin
 
 	if !strings.Contains(strings.Join(cmd.Args, " "), "AuraGo refused unsandboxed shell execution") {
 		t.Fatalf("PrepareExecCommand() args = %#v, want blocking command", cmd.Args)
+	}
+}
+
+func TestCanonicalSandboxPathRejectsColonAndFollowsSymlink(t *testing.T) {
+	if _, err := canonicalSandboxPath("/tmp/has:colon"); err == nil {
+		t.Fatal("expected colon rejection")
+	}
+	dir := t.TempDir()
+	target := filepath.Join(dir, "real")
+	if err := os.Mkdir(target, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "link")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+	got, err := canonicalSandboxPath(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := filepath.EvalSymlinks(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("canonical = %q, want %q", got, want)
+	}
+}
+
+func TestLandlockOpenUsesNoFollow(t *testing.T) {
+	dir := t.TempDir()
+	link := filepath.Join(dir, "link")
+	if err := os.Symlink(dir, link); err != nil {
+		t.Fatal(err)
+	}
+	fd, err := openLandlockPath(link)
+	if err == nil {
+		unix.Close(fd)
+		t.Fatal("symlink path must fail with O_NOFOLLOW")
 	}
 }
