@@ -100,6 +100,36 @@ func (h *RemoteHub) refreshDevicePolicy(id string) {
 	}
 }
 
+// ApplyDevicePolicy keeps metadata-only saves and masked preferences from interrupting work.
+func (h *RemoteHub) ApplyDevicePolicy(previous, device DeviceRecord) error {
+	policy := h.RuntimePolicy()
+	signature := func(d DeviceRecord) string {
+		paths := cleanAllowedPaths(d.AllowedPaths)
+		if IsAgodeskDevice(d) {
+			paths = nil // AgoDesk manages paths locally.
+		} else if len(paths) == 0 {
+			paths = policy.AllowedPaths
+		}
+		return policySignature(d.ReadOnly || policy.ReadOnly, paths, policy.MaxFileSizeMB)
+	}
+	if signature(previous) == signature(device) {
+		if conn := h.GetConnection(device.ID); conn != nil {
+			conn.mu.Lock()
+			conn.ReadOnly = device.ReadOnly
+			conn.AllowedPaths = append([]string{}, device.AllowedPaths...)
+			conn.mu.Unlock()
+		}
+		return nil
+	}
+	h.InvalidateDevicePolicy(device.ID)
+	if h.GetConnection(device.ID) == nil {
+		return nil // Active work and alternate transports were disconnected by invalidation.
+	}
+	return h.SendConfigUpdate(device.ID, ConfigUpdatePayload{
+		ReadOnly: &device.ReadOnly, AllowedPaths: append([]string{}, device.AllowedPaths...), MaxFileSizeMB: &policy.MaxFileSizeMB,
+	})
+}
+
 // InvalidateDevicePolicy revokes admission before a potentially blocked config write.
 func (h *RemoteHub) InvalidateDevicePolicy(deviceID string) {
 	if conn := h.GetConnection(deviceID); conn != nil {

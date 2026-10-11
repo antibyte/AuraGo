@@ -17,5 +17,8 @@ func preserveFilePermissions(source, target *os.File) error {
 			return err
 		}
 	}
+	if err := preserveFileACL(source, target); err != nil {
+		return err
+	}
 	return target.Chmod(info.Mode())
 }

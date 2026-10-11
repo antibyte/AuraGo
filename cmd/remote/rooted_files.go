@@ -131,11 +131,33 @@ func (r *checkedReader) Read(p []byte) (int, error) {
 	}
 	return n, err
 }
+
+func openRegularRootFile(root *os.Root, path string) (*os.File, error) {
+	info, err := root.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("only regular files are supported")
+	}
+	// A FIFO substituted after Stat must not block before the descriptor can be checked.
+	f, err := root.OpenFile(path, regularFileReadFlags, 0)
+	if err != nil {
+		return nil, err
+	}
+	opened, err := f.Stat()
+	if err != nil || !opened.Mode().IsRegular() || !os.SameFile(info, opened) {
+		f.Close()
+		return nil, fmt.Errorf("file changed or is not a regular file")
+	}
+	return f, nil
+}
+
 func (e *fileOperation) openRead(path string) (io.ReadCloser, error) {
 	if err := e.ctx.Err(); err != nil {
 		return nil, err
 	}
-	f, err := e.root.Open(path)
+	f, err := openRegularRootFile(e.root, path)
 	if err != nil {
 		return nil, err
 	}
@@ -174,12 +196,16 @@ func (e *fileOperation) writeFile(path string, data []byte, mode os.FileMode) er
 		if !info.Mode().IsRegular() {
 			return fmt.Errorf("write target must be a regular file, not a symlink")
 		}
-		mode = info.Mode().Perm()
-		original, err = parent.Open(name)
+		original, err = openRegularRootFile(parent, name)
 		if err != nil {
 			return err
 		}
 		defer original.Close()
+		opened, err := original.Stat()
+		if err != nil || !os.SameFile(info, opened) {
+			return fmt.Errorf("write target changed during preparation")
+		}
+		mode = opened.Mode()
 	} else if !os.IsNotExist(err) {
 		return err
 	}
@@ -189,14 +215,18 @@ func (e *fileOperation) writeFile(path string, data []byte, mode os.FileMode) er
 		return err
 	}
 	defer parent.Remove(temp)
-	if _, err = f.Write(data); err == nil {
-		if chmodErr := f.Chmod(mode.Perm()); chmodErr != nil {
-			err = fmt.Errorf("set prepared file mode: %w", chmodErr)
-		}
-	}
-	if err == nil && original != nil {
+	// Replace inherited ACLs before the temporary file contains any private data.
+	if original != nil {
 		if aclErr := preserveFilePermissions(original, f); aclErr != nil {
 			err = fmt.Errorf("preserve file permissions: %w", aclErr)
+		}
+	}
+	if err == nil {
+		_, err = f.Write(data)
+	}
+	if err == nil {
+		if chmodErr := f.Chmod(mode); chmodErr != nil {
+			err = fmt.Errorf("set prepared file mode: %w", chmodErr)
 		}
 	}
 	if err == nil {

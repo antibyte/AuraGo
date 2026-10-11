@@ -56,6 +56,8 @@ available if migration fails. An explicit `--config PATH` selects another
 protected configuration. Existing service identities are retained on reinstall.
 Pending replacement enrollment keeps its target in `enrollment_url`; the
 previous `supervisor_url`, device ID and key remain together until success.
+On restart, the stored endpoint takes precedence over the original download's
+embedded URL; explicit command-line options still override it.
 Directories use mode 0700 and files 0600 on Unix; Windows grants access only to
 the installing user, Administrators and SYSTEM. Do not place this configuration
 in a shared or synchronized directory.
@@ -84,10 +86,13 @@ classic-client paths.
 Saving settings and confirming their application are separate states. Classic
 clients ACK the exact configuration message on the current connection. Pending
 settings block new work; a missing or failed ACK closes the connection after at
-most ten seconds and appears as an error. Changed policies cancel active
+most ten seconds and appears as an error. Changed effective policies cancel active
 classic commands by closing their transport before reconnecting with the new
-policy. AgoDesk changes close its session; its state is labelled **server
+policy. AgoDesk policy changes close its session; its state is labelled **server
 enforced**, never falsely labelled as client-confirmed.
+Saving names, tags or unchanged effective device rights preserves the connection,
+active work and existing acknowledgement. Device preferences masked by global
+restrictions are still saved for later use. AgoDesk path settings remain local.
 
 ## Execution and file limits
 
@@ -110,8 +115,11 @@ enforced**, never falsely labelled as client-confirmed.
   final saved content. WebSocket frame limits account for JSON/base64 overhead.
 - Edits are serialized per file, staged, synced and atomically published through
   the shared file replacement helper. Cancellation, permission loss and write
-  failures preserve the original. Existing Unix mode/ownership and Windows
-  DACLs are retained. Shell working-directory validation is not an OS sandbox;
+  failures preserve the original. Existing Unix mode/ownership, Linux POSIX ACLs,
+  macOS ACLs and Windows DACLs are retained. ACL errors abort replacement; an
+  inherited grant must not replace an existing restriction. Special files such
+  as FIFOs are refused without blocking, including if swapped in during an open.
+  Shell working-directory validation is not an OS sandbox;
   grant shell access only to devices intended for arbitrary commands.
 - CPU, memory, disk and uptime come from gopsutil. `metrics_available` identifies
   measured values; unavailable metrics are JSON `null`, rather than zero.

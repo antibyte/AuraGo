@@ -172,6 +172,7 @@ func handleRemoteDevice(s *Server) http.HandlerFunc {
 				return
 			}
 
+			previous := device
 			if update.Name != nil {
 				device.Name = *update.Name
 			}
@@ -194,16 +195,8 @@ func handleRemoteDevice(s *Server) http.HandlerFunc {
 				return
 			}
 
-			// Push config update to connected device
-			if s.RemoteHub.IsConnected(deviceID) {
-				s.RemoteHub.InvalidateDevicePolicy(deviceID)
-				ro := device.ReadOnly
-				maxFileSizeMB := s.RemoteHub.RuntimePolicy().MaxFileSizeMB
-				_ = s.RemoteHub.SendConfigUpdate(deviceID, remote.ConfigUpdatePayload{
-					ReadOnly:      &ro,
-					AllowedPaths:  append([]string{}, device.AllowedPaths...),
-					MaxFileSizeMB: &maxFileSizeMB,
-				})
+			if err := s.RemoteHub.ApplyDevicePolicy(previous, device); err != nil {
+				s.Logger.Error("Remote settings delivery failed", "device_id", deviceID, "error", err)
 			}
 
 			writeJSON(w, struct {
