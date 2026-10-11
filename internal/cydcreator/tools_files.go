@@ -89,16 +89,40 @@ type JobFile struct {
 	Generated bool   `json:"generated"`
 }
 
-// ReadJobFile reads an app file of the working copy, or a generated file
-// rendered from the working copy (read-only). App paths are exact-case like
-// ReadFile: a letter-case variant is CYD_NOT_FOUND.
+// jobReadonlyPathError is readonlyPathError with the model's raw path clipped
+// in the details (it is echoed before any path validation).
+func jobReadonlyPathError(rel string) error {
+	err := readonlyPathError(rel)
+	var typed *Error
+	if errors.As(err, &typed) && typed.Details != nil {
+		typed.Details["path"] = clipEcho(rel)
+	}
+	return err
+}
+
+// ReadJobFile reads an app file of the working copy, a generated file
+// rendered from the working copy, or the working copy's layout file
+// (cyd.project.json); the latter two are read-only. App paths are exact-case
+// like ReadFile: a letter-case variant is CYD_NOT_FOUND. The agent dispatcher
+// pages the content into the tool output budget.
 func (s *Service) ReadJobFile(ctx context.Context, jobID, rel string) (JobFile, error) {
 	run, err := s.jobTool(jobID, ToolReadFile)
 	if err != nil {
 		return JobFile{}, err
 	}
-	notFound := NewError(CodeNotFound, "file not found", map[string]any{"path": rel})
+	notFound := NewError(CodeNotFound, "file not found", map[string]any{"path": clipEcho(rel)})
 	switch {
+	case rel == ProjectFile:
+		root, err := os.OpenRoot(run.stage)
+		if err != nil {
+			return JobFile{}, s.internalError("read file", err)
+		}
+		defer root.Close()
+		data, err := rootReadFile(root, ProjectFile, MaxLayoutBytes)
+		if err != nil {
+			return JobFile{}, s.internalError("read file", layoutFileError(ProjectFile, err))
+		}
+		return JobFile{Path: rel, Content: string(data), SHA256: sha256Hex(data)}, nil
 	case IsEditablePath(rel):
 		root, err := os.OpenRoot(run.stage)
 		if err != nil {
@@ -136,7 +160,7 @@ func (s *Service) ReadJobFile(ctx context.Context, jobID, rel string) (JobFile, 
 		}
 		return JobFile{Path: rel, Content: string(data), SHA256: sha256Hex(data), Generated: true}, nil
 	}
-	return JobFile{}, readonlyPathError(rel)
+	return JobFile{}, jobReadonlyPathError(rel)
 }
 
 // WriteJobFile writes an app file of the working copy with the rules of an
@@ -149,7 +173,7 @@ func (s *Service) WriteJobFile(ctx context.Context, jobID, rel, content string) 
 	}
 	data := []byte(content)
 	if !IsEditablePath(rel) {
-		return "", readonlyPathError(rel)
+		return "", jobReadonlyPathError(rel)
 	}
 	if !utf8.Valid(data) || bytes.IndexByte(data, 0) >= 0 {
 		return "", NewError(CodeBadRequest, "source files must be UTF-8 text", map[string]any{"path": rel})
@@ -210,7 +234,7 @@ func (s *Service) DeleteJobFile(ctx context.Context, jobID, rel string) error {
 		return err
 	}
 	if !IsEditablePath(rel) {
-		return readonlyPathError(rel)
+		return jobReadonlyPathError(rel)
 	}
 	root, err := os.OpenRoot(run.stage)
 	if err != nil {

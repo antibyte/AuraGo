@@ -243,6 +243,42 @@ func TestSubmitPlanAndFinishValidateInput(t *testing.T) {
 	}
 }
 
+// The agent reads the working copy's layout file (read-only) to page large
+// layouts; raw model paths are clipped where errors echo them.
+func TestReadJobFileReadsTheLayoutAndClipsEchoedPaths(t *testing.T) {
+	env, runner, p := newJobEnv(t)
+	var layout JobFile
+	errs := map[string]error{}
+	missing := "src/generated/" + strings.Repeat("m", 500) + ".h"
+	bad := strings.Repeat("b", 500) + ".txt"
+	inPhase(t, env, runner, p, PhaseCoding, func(ctx context.Context, jobID string) {
+		layout, errs["layout"] = env.svc.ReadJobFile(ctx, jobID, ProjectFile)
+		_, errs["write layout"] = env.svc.WriteJobFile(ctx, jobID, ProjectFile, "{}")
+		_, errs["read missing"] = env.svc.ReadJobFile(ctx, jobID, missing)
+		_, errs["read bad"] = env.svc.ReadJobFile(ctx, jobID, bad)
+		_, errs["write bad"] = env.svc.WriteJobFile(ctx, jobID, bad, "x")
+		errs["delete bad"] = env.svc.DeleteJobFile(ctx, jobID, bad)
+	})
+	if errs["layout"] != nil || layout.Path != ProjectFile || layout.Generated || layout.SHA256 != sha256Hex([]byte(layout.Content)) {
+		t.Fatalf("layout = %+v, %v", layout, errs["layout"])
+	}
+	if parsed, err := ParseProject([]byte(layout.Content)); err != nil || parsed.Name != p.Name {
+		t.Fatalf("layout content: %v", err)
+	}
+	want := map[string]string{"write layout": CodeFileReadOnly, "read missing": CodeNotFound, "read bad": CodeBadRequest,
+		"write bad": CodeBadRequest, "delete bad": CodeBadRequest}
+	for name, code := range want {
+		var typed *Error
+		if !errors.As(errs[name], &typed) || typed.Code != code {
+			t.Errorf("%s: err = %v, want %s", name, errs[name], code)
+			continue
+		}
+		if path, _ := typed.Details["path"].(string); name != "write layout" && (len(path) > maxEchoBytes+len("…") || !strings.HasSuffix(path, "…")) {
+			t.Errorf("%s echoes %d bytes of the path", name, len(path))
+		}
+	}
+}
+
 // The working-copy tools apply the live project's file rules: exact-case
 // paths, regular files only and the size limit on reads.
 func TestJobFileToolsKeepExactCaseAndRegularFiles(t *testing.T) {

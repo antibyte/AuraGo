@@ -101,7 +101,7 @@ func cydCreatorLayoutOpSchema() map[string]interface{} {
 func cydCreatorToolSchemas() []openai.Tool {
 	return []openai.Tool{
 		tool(cydcreator.ToolReadProject,
-			"Read the job's working copy: layout JSON with validation issues, the src/app file list, board capabilities, the accepted plan and what the user changed since the last job.",
+			"Read the job's working copy: layout JSON with validation issues, the src/app file list, board capabilities, the accepted plan and what the user changed since the last job. A layout too large for one result is left out (truncated, layout_summary): then page cyd.project.json with cyd_creator_read_file.",
 			schema(map[string]interface{}{})),
 		tool(cydcreator.ToolAPIReference,
 			"Read reference text: overview (rules and budgets), cyd (template API cyd.h and runtime notes), lvgl (LVGL 9 usage), widgets (generated handles, hooks, screens, series and fonts of this project), libraries (allowed libraries), board (features and budgets).",
@@ -127,8 +127,12 @@ func cydCreatorToolSchemas() []openai.Tool {
 				"ops": map[string]interface{}{"type": "array", "minItems": 1, "maxItems": 64, "items": cydCreatorLayoutOpSchema()},
 			}, "ops")),
 		tool(cydcreator.ToolReadFile,
-			"Read a source file of the working copy (src/app/**) with its sha256, or a generated file (src/generated/**, include/**, platformio.ini) as read-only text.",
-			schema(map[string]interface{}{"path": prop("string", "Project-relative path, e.g. src/app/app_main.cpp")}, "path")),
+			"Read a source file of the working copy (src/app/**) with its sha256, or a generated file (src/generated/**, include/**, platformio.ini) or the layout cyd.project.json as read-only text. One call returns one page of whole lines (at most about 32 KiB) with start_line, end_line, total_lines and truncated; read longer files range by range with start_line/end_line.",
+			schema(map[string]interface{}{
+				"path":       prop("string", "Project-relative path, e.g. src/app/app_main.cpp"),
+				"start_line": prop("integer", "First line, 1-based; default 1"),
+				"end_line":   prop("integer", "Last line, inclusive; default: as many lines as fit one page"),
+			}, "path")),
 		tool(cydcreator.ToolWriteFile,
 			"Write a complete source file below src/app/ (.cpp .h .hpp .c; at most 256 KiB per file, 64 files, 2 MiB in total). Generated files are read-only.",
 			schema(map[string]interface{}{
