@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"os/exec"
 	"runtime"
+	"strings"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/sandbox"
@@ -14,6 +16,51 @@ import (
 
 // shellKillWait is the time to wait after kill before giving up (for shell).
 const shellKillWait = 8 * time.Second
+
+// shellSandboxDockerHost is the configured Docker endpoint published at
+// startup. It is not a global Landlock rule.
+var shellSandboxDockerHost atomic.Value
+
+// SetShellSandboxDockerHost records the Docker host commands may receive.
+// An empty host disables the grant.
+func SetShellSandboxDockerHost(host string) {
+	shellSandboxDockerHost.Store(host)
+}
+
+func currentShellSandboxDockerHost() string {
+	host, _ := shellSandboxDockerHost.Load().(string)
+	return host
+}
+
+// ApplyShellSandboxDockerGrant appends DOCKER_HOST when Docker permission
+// allows it and the command already has an environment. A unix:// host also
+// appends its socket to AURAGO_SBX_RW and AURAGO_SBX_RW_REQUIRED. A nil
+// environment stays nil so a later ensureFilteredShellEnv can install the
+// filtered process environment. A tcp host sets DOCKER_HOST and adds no
+// filesystem path.
+func ApplyShellSandboxDockerGrant(cmd *exec.Cmd) {
+	if cmd == nil || cmd.Env == nil {
+		return
+	}
+	host := currentShellSandboxDockerHost()
+	if host == "" || requireDockerPermission() != nil {
+		return
+	}
+	if !shellEnvHasKey(cmd.Env, "DOCKER_HOST") {
+		cmd.Env = append(cmd.Env, "DOCKER_HOST="+host)
+	}
+	cmd.Env = sandbox.AddUnixSocketGrant(cmd.Env)
+}
+
+func shellEnvHasKey(env []string, key string) bool {
+	prefix := key + "="
+	for _, kv := range env {
+		if strings.HasPrefix(kv, prefix) {
+			return true
+		}
+	}
+	return false
+}
 
 // Security notes for shell execution:
 //
@@ -79,6 +126,7 @@ func ExecuteShell(command, workspaceDir string) (string, string, error) {
 	}
 
 	cmd.Dir = absWorkDir
+	ApplyShellSandboxDockerGrant(cmd)
 	ensureFilteredShellEnv(cmd)
 	SetupCmd(cmd)
 
@@ -123,6 +171,7 @@ func ExecuteShellBackground(command, workspaceDir string, registry *ProcessRegis
 	}
 
 	cmd.Dir = absWorkDir
+	ApplyShellSandboxDockerGrant(cmd)
 	ensureFilteredShellEnv(cmd)
 	SetupCmd(cmd)
 

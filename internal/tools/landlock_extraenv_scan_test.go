@@ -14,11 +14,10 @@ import (
 	"aurago/internal/config"
 )
 
-// The Landlock sandbox gets its Docker endpoint from the ExtraEnv slice built
-// in cmd/aurago/main.go. The unsandboxed shell filter must hide every name that
-// slice injects, under the same gate: main.go injects only inside
-// `if cfg.Docker.Enabled`, and RuntimePermissionsFromConfig copies that flag
-// into the DockerEnabled field requireDockerPermission reads.
+// main.go publishes the host through SetShellSandboxDockerHost and does not
+// put DOCKER_HOST in ExtraEnv. The unsandboxed shell filter must hide every
+// name that slice still injects. RuntimePermissionsFromConfig copies
+// cfg.Docker.Enabled into the DockerEnabled field requireDockerPermission reads.
 func TestDockerClientEnvNamesCoverTheLandlockExtraEnvVariable(t *testing.T) {
 	mainPath := filepath.Join("..", "..", "cmd", "aurago", "main.go")
 	fset := token.NewFileSet()
@@ -38,8 +37,8 @@ func TestDockerClientEnvNamesCoverTheLandlockExtraEnvVariable(t *testing.T) {
 			t.Errorf("main.go injects %s into the Landlock sandbox; add it to dockerClientEnvNames so unsandboxed shells hide it under the same gate", name)
 		}
 	}
-	if strings.Join(scan.injected, ",") != "DOCKER_HOST" {
-		t.Fatalf("Landlock ExtraEnv injects %v; expected only DOCKER_HOST (update dockerClientEnvNames and this test together)", scan.injected)
+	if len(scan.injected) != 0 {
+		t.Fatalf("Landlock ExtraEnv injects %v; main.go publishes the host through SetShellSandboxDockerHost and does not put DOCKER_HOST in ExtraEnv", scan.injected)
 	}
 
 	cfg := &config.Config{}

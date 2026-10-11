@@ -26,6 +26,7 @@ func protectPlatformCommand(cmd *exec.Cmd, roots []string) (*exec.Cmd, error) {
 		prepared.Stdin, prepared.Stdout, prepared.Stderr = cmd.Stdin, cmd.Stdout, cmd.Stderr
 		prepared.SysProcAttr = cmd.SysProcAttr
 	}
+	prepared.Env = AddUnixSocketGrant(prepared.Env)
 	rw := ""
 	for _, env := range prepared.Env {
 		if strings.HasPrefix(env, "AURAGO_SBX_RW=") {

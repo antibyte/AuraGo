@@ -851,30 +851,18 @@ func main() {
 			})
 		}
 
-		// If Docker is enabled, grant the sandbox access to the Docker socket so
-		// that docker CLI commands (docker ps, docker images, etc.) work inside
-		// the sandbox.  The socket path is a Unix domain socket -- Landlock's
-		// LANDLOCK_ACCESS_FS_MAKE_SOCK right controls access to it, so the socket
-		// path must be explicitly added to the ruleset.
-		// We also inject DOCKER_HOST so the docker CLI can find the socket even
-		// with the stripped minimal environment built by buildEnv().
+		// The global sandbox env has no Docker client variables and no socket
+		// path. ApplyShellSandboxDockerGrant adds the configured host and unix
+		// socket only when the command is allowed to use Docker.
 		var extraEnv []string
+		dockerHost := ""
 		if cfg.Docker.Enabled {
-			dockerHost := cfg.Docker.Host
+			dockerHost = cfg.Docker.Host
 			if dockerHost == "" {
 				dockerHost = dockerutil.DefaultHost()
 			}
-			// Pass DOCKER_HOST into the sandboxed process environment
-			extraEnv = append(extraEnv, "DOCKER_HOST="+dockerHost)
-			// Add the Unix socket file itself to the allowed-path ruleset
-			if strings.HasPrefix(dockerHost, "unix://") {
-				socketPath := strings.TrimPrefix(dockerHost, "unix://")
-				allowedPaths = append(allowedPaths, sandbox.PathRule{
-					Path:     socketPath,
-					ReadOnly: false,
-				})
-			}
 		}
+		tools.SetShellSandboxDockerHost(dockerHost)
 
 		sandbox.Init(sandbox.ShellSandboxConfig{
 			Enabled:             cfg.ShellSandbox.Enabled,
