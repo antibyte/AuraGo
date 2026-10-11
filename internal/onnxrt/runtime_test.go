@@ -69,6 +69,13 @@ func TestFindLibraryReturnsAbsolutePathForRelativeRoot(t *testing.T) {
 	if !filepath.IsAbs(found) || filepath.Base(found) != versionedLibraryName() {
 		t.Fatalf("FindLibrary(relative) = %q, want an absolute path to %s", found, versionedLibraryName())
 	}
+	if err := os.Mkdir(filepath.Join(root, "empty"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	_, err = FindLibrary("empty")
+	if err == nil || !strings.Contains(strings.ToLower(err.Error()), strings.ToLower(filepath.Join(root, "empty"))) {
+		t.Fatalf("FindLibrary(relative empty dir) error = %v, want the absolute directory", err)
+	}
 }
 
 func TestFindLibraryReportsMissingLibrary(t *testing.T) {

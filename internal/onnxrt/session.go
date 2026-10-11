@@ -43,6 +43,11 @@ const (
 	ProviderWebGPU = "WebGpuExecutionProvider"
 )
 
+// cpuProviderName is the name Runtime.Providers lists for the CPU provider.
+// ORT always registers it, and its generic append call rejects the name, so
+// SessionOptions treats it as ProviderCPU.
+const cpuProviderName = "CPUExecutionProvider"
+
 const allowSpinningConfigKey = "session.intra_op.allow_spinning"
 
 // appendProviderName is the name passed to SessionOptionsAppendExecutionProvider.
@@ -56,25 +61,70 @@ func appendProviderName(provider string) string {
 	return provider
 }
 
-// SessionOptions configures NewSession.
+// SessionOptions configures NewSession. Strings must not contain NUL bytes.
 type SessionOptions struct {
-	Threads            int               // intra-op threads; 0 = ORT default
-	DisableSpinning    bool              // session config "session.intra_op.allow_spinning" = "0"
-	Optimization       GraphOptimization // zero value = OptimizationAll
-	OptimizedModelPath string            // non-empty: ORT writes the optimized model there
-	Provider           string            // Provider* constant; "" = CPU only
-	ProviderOptions    map[string]string // keys/values for SessionOptionsAppendExecutionProvider
+	Threads         int               // intra-op threads, 0..math.MaxInt32; 0 = ORT default
+	DisableSpinning bool              // session config "session.intra_op.allow_spinning" = "0"
+	Optimization    GraphOptimization // zero value = OptimizationAll
+	// OptimizedModelPath, when non-empty, makes ORT write the optimized model
+	// there. With OptimizationAll or OptimizationExtended the saved model may
+	// contain hardware- and provider-specific optimizations; persist only
+	// OptimizationBasic results for use on other machines.
+	OptimizedModelPath string
+	Provider           string            // Provider* constant; "" or "CPUExecutionProvider" = CPU only
+	ProviderOptions    map[string]string // keys/values for SessionOptionsAppendExecutionProvider; non-CPU providers only
 	ProfilePrefix      string            // non-empty: EnableProfiling with this prefix
 }
 
-// Tensor is a dense tensor; exactly one of Float32 and Int64 is set.
+// prepareSessionOptions validates opts before any native call and returns
+// them with the provider normalized, plus the ORT optimization level.
+func prepareSessionOptions(opts SessionOptions) (SessionOptions, int32, error) {
+	if opts.Threads < 0 || int64(opts.Threads) > math.MaxInt32 {
+		return opts, 0, fmt.Errorf("ONNX intra-op threads must be between 0 and %d, got %d", math.MaxInt32, opts.Threads)
+	}
+	level, err := opts.Optimization.ortLevel()
+	if err != nil {
+		return opts, 0, err
+	}
+	if strings.EqualFold(opts.Provider, cpuProviderName) {
+		opts.Provider = ProviderCPU
+	}
+	if opts.Provider == ProviderCPU && len(opts.ProviderOptions) > 0 {
+		return opts, 0, fmt.Errorf("ONNX provider options need a non-CPU execution provider")
+	}
+	for label, value := range map[string]string{
+		"execution provider":   opts.Provider,
+		"optimized model path": opts.OptimizedModelPath,
+		"profile prefix":       opts.ProfilePrefix,
+	} {
+		if err := rejectNUL(value); err != nil {
+			return opts, 0, fmt.Errorf("ONNX %s: %w", label, err)
+		}
+	}
+	for key, value := range opts.ProviderOptions {
+		if err := rejectNUL(key); err != nil {
+			return opts, 0, fmt.Errorf("ONNX provider option: %w", err)
+		}
+		if err := rejectNUL(value); err != nil {
+			return opts, 0, fmt.Errorf("ONNX provider option %s: %w", key, err)
+		}
+	}
+	return opts, level, nil
+}
+
+// Tensor is a dense tensor; exactly one of Float32 and Int64 is set. Run
+// inputs must have rank >= 1 and only positive dimensions. Outputs may be
+// rank 0 (empty Shape, one value) or zero-size (a zero dimension and an empty,
+// non-nil value slice).
 type Tensor struct {
 	Shape   []int64
 	Float32 []float32
 	Int64   []int64
 }
 
-// Session is one ORT inference session.
+// Session is one ORT inference session. Run may be called concurrently from
+// several goroutines; Close and EndProfiling must not overlap Run or each
+// other.
 type Session struct {
 	runtime      *Runtime
 	handle       uintptr
@@ -90,10 +140,7 @@ func (r *Runtime) NewSession(model []byte, opts SessionOptions) (*Session, error
 	if len(model) == 0 {
 		return nil, fmt.Errorf("ONNX model is empty")
 	}
-	if opts.Threads < 0 {
-		return nil, fmt.Errorf("ONNX intra-op threads must not be negative")
-	}
-	level, err := opts.Optimization.ortLevel()
+	opts, level, err := prepareSessionOptions(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +159,14 @@ func (r *Runtime) NewSession(model []byte, opts SessionOptions) (*Session, error
 		}
 	}
 	if opts.DisableSpinning {
-		key, value := cBytes(allowSpinningConfigKey), cBytes("0")
+		key, err := cBytes(allowSpinningConfigKey)
+		if err != nil {
+			return nil, err
+		}
+		value, err := cBytes("0")
+		if err != nil {
+			return nil, err
+		}
 		status := f.addSessionConfigEntry(options, &key[0], &value[0])
 		goruntime.KeepAlive(key)
 		goruntime.KeepAlive(value)
@@ -121,7 +175,10 @@ func (r *Runtime) NewSession(model []byte, opts SessionOptions) (*Session, error
 		}
 	}
 	if opts.OptimizedModelPath != "" {
-		pointer, keepAlive := ortPath(opts.OptimizedModelPath)
+		pointer, keepAlive, err := ortPath(opts.OptimizedModelPath)
+		if err != nil {
+			return nil, fmt.Errorf("optimized model path: %w", err)
+		}
 		status := f.setOptimizedModelFilePath(options, pointer)
 		goruntime.KeepAlive(keepAlive)
 		if err := r.statusError(status); err != nil {
@@ -134,13 +191,16 @@ func (r *Runtime) NewSession(model []byte, opts SessionOptions) (*Session, error
 		}
 	}
 	if opts.ProfilePrefix != "" {
-		pointer, keepAlive := ortPath(opts.ProfilePrefix)
+		pointer, keepAlive, err := ortPath(opts.ProfilePrefix)
+		if err != nil {
+			return nil, fmt.Errorf("profile prefix: %w", err)
+		}
 		status := f.enableProfiling(options, pointer)
 		goruntime.KeepAlive(keepAlive)
 		if err := r.statusError(status); err != nil {
 			name := opts.Provider
 			if name == ProviderCPU {
-				name = "CPUExecutionProvider"
+				name = cpuProviderName
 			}
 			return nil, fmt.Errorf("enable %s execution profiling: %w", name, err)
 		}
@@ -151,6 +211,7 @@ func (r *Runtime) NewSession(model []byte, opts SessionOptions) (*Session, error
 	if err := r.statusError(status); err != nil {
 		return nil, fmt.Errorf("create ONNX session: %w", err)
 	}
+	r.sessions.Add(1)
 	return session, nil
 }
 
@@ -168,8 +229,12 @@ func (r *Runtime) appendProvider(options uintptr, provider string, providerOptio
 	keyPointers := make([]*byte, len(keys))
 	valuePointers := make([]*byte, len(keys))
 	for i, key := range keys {
-		keyData[i] = cBytes(key)
-		valueData[i] = cBytes(providerOptions[key])
+		if keyData[i], err = cBytes(key); err != nil {
+			return fmt.Errorf("enable %s: provider option: %w", provider, err)
+		}
+		if valueData[i], err = cBytes(providerOptions[key]); err != nil {
+			return fmt.Errorf("enable %s: provider option %s: %w", provider, key, err)
+		}
 		keyPointers[i] = &keyData[i][0]
 		valuePointers[i] = &valueData[i][0]
 	}
@@ -178,7 +243,10 @@ func (r *Runtime) appendProvider(options uintptr, provider string, providerOptio
 		keyArray = &keyPointers[0]
 		valueArray = &valuePointers[0]
 	}
-	name := cBytes(appendProviderName(provider))
+	name, err := cBytes(appendProviderName(provider))
+	if err != nil {
+		return fmt.Errorf("enable %s: %w", provider, err)
+	}
 	status := r.functions.appendExecutionProvider(options, &name[0], keyArray, valueArray, uintptr(len(keys)))
 	goruntime.KeepAlive(name)
 	goruntime.KeepAlive(keyData)
@@ -228,9 +296,11 @@ func validateTensor(name string, tensor Tensor) error {
 	return nil
 }
 
-// createTensor wraps Go memory without copying; the caller keeps the slices
-// alive until the value is released.
-func (r *Runtime) createTensor(tensor Tensor) (uintptr, error) {
+// createTensor wraps Go memory without copying. The data is pinned with
+// pinner, which the caller unpins only after releasing the returned value:
+// ORT keeps the pointer for the value's lifetime and may even return it as an
+// output.
+func (r *Runtime) createTensor(tensor Tensor, pinner *goruntime.Pinner) (uintptr, error) {
 	var data unsafe.Pointer
 	var byteCount uintptr
 	elementType := int32(tensorElementInt64)
@@ -242,6 +312,7 @@ func (r *Runtime) createTensor(tensor Tensor) (uintptr, error) {
 		data = unsafe.Pointer(&tensor.Int64[0])
 		byteCount = uintptr(len(tensor.Int64)) * unsafe.Sizeof(tensor.Int64[0])
 	}
+	pinner.Pin(data)
 	var value uintptr
 	status := r.functions.createTensorWithData(r.memoryInfo, data, byteCount, &tensor.Shape[0], uintptr(len(tensor.Shape)), elementType, &value)
 	goruntime.KeepAlive(tensor.Shape)
@@ -303,8 +374,12 @@ func (r *Runtime) readTensor(value uintptr) (Tensor, error) {
 }
 
 // Run feeds inputs by name and returns the requested outputs copied into Go
-// memory.
+// memory. Names must not contain NUL bytes.
 func (s *Session) Run(inputs map[string]Tensor, outputs []string) (map[string]Tensor, error) {
+	// Deferred first, so it runs after every release below: an output may
+	// alias an input buffer (a graph input that is also a graph output), so
+	// the inputs stay reachable until all outputs are copied and released.
+	defer goruntime.KeepAlive(inputs)
 	if s == nil || s.handle == 0 || s.runtime.closed() {
 		return nil, fmt.Errorf("ONNX session is closed")
 	}
@@ -318,29 +393,44 @@ func (s *Session) Run(inputs map[string]Tensor, outputs []string) (map[string]Te
 	}
 	sort.Strings(names)
 	inputNameData := make([][]byte, len(names))
+	for i, name := range names {
+		if err := validateTensor(name, inputs[name]); err != nil {
+			return nil, err
+		}
+		data, err := cBytes(name)
+		if err != nil {
+			return nil, fmt.Errorf("ONNX input name: %w", err)
+		}
+		inputNameData[i] = data
+	}
+	outputNameData := make([][]byte, len(outputs))
+	for i, name := range outputs {
+		data, err := cBytes(name)
+		if err != nil {
+			return nil, fmt.Errorf("ONNX output name: %w", err)
+		}
+		outputNameData[i] = data
+	}
+
 	inputNames := make([]*byte, len(names))
 	inputValues := make([]uintptr, len(names))
+	var pinner goruntime.Pinner
 	defer func() {
 		for _, value := range inputValues {
 			if value != 0 {
 				r.functions.releaseValue(value)
 			}
 		}
+		pinner.Unpin()
 	}()
 	for i, name := range names {
-		tensor := inputs[name]
-		if err := validateTensor(name, tensor); err != nil {
-			return nil, err
-		}
-		value, err := r.createTensor(tensor)
+		value, err := r.createTensor(inputs[name], &pinner)
 		if err != nil {
 			return nil, fmt.Errorf("create %s tensor: %w", name, err)
 		}
 		inputValues[i] = value
-		inputNameData[i] = cBytes(name)
 		inputNames[i] = &inputNameData[i][0]
 	}
-	outputNameData := make([][]byte, len(outputs))
 	outputNames := make([]*byte, len(outputs))
 	outputValues := make([]uintptr, len(outputs))
 	defer func() {
@@ -350,8 +440,7 @@ func (s *Session) Run(inputs map[string]Tensor, outputs []string) (map[string]Te
 			}
 		}
 	}()
-	for i, name := range outputs {
-		outputNameData[i] = cBytes(name)
+	for i := range outputs {
 		outputNames[i] = &outputNameData[i][0]
 	}
 	status := r.functions.run(
@@ -364,7 +453,6 @@ func (s *Session) Run(inputs map[string]Tensor, outputs []string) (map[string]Te
 		uintptr(len(outputNames)),
 		&outputValues[0],
 	)
-	goruntime.KeepAlive(inputs)
 	goruntime.KeepAlive(inputNameData)
 	goruntime.KeepAlive(outputNameData)
 	if err := r.statusError(status); err != nil {
@@ -418,10 +506,14 @@ func (s *Session) EndProfiling() (string, error) {
 }
 
 // Close releases the session. A profile that was never ended is ended and
-// deleted so profile files cannot accumulate.
+// deleted so profile files cannot accumulate. Closing twice is safe; closing
+// a session whose runtime is already closed is an error.
 func (s *Session) Close() error {
-	if s == nil || s.handle == 0 || s.runtime.closed() {
+	if s == nil || s.handle == 0 {
 		return nil
+	}
+	if s.runtime.closed() {
+		return fmt.Errorf("ONNX Runtime was closed before this session")
 	}
 	if s.profiling && !s.profileEnded {
 		if path, err := s.EndProfiling(); err == nil && path != "" {
@@ -430,5 +522,6 @@ func (s *Session) Close() error {
 	}
 	s.runtime.functions.releaseSession(s.handle)
 	s.handle = 0
+	s.runtime.sessions.Add(-1)
 	return nil
 }

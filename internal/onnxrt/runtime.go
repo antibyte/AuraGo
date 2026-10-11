@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	goruntime "runtime"
 	"strings"
+	"sync/atomic"
 	"unicode/utf16"
 	"unsafe"
 
@@ -110,20 +111,32 @@ type functions struct {
 }
 
 // Runtime is one loaded ONNX Runtime library with its environment and CPU
-// memory info; every Session created from it shares both. Close all sessions
-// before closing the runtime. Native code must only be loaded in worker
-// processes, never in the AuraGo server process.
+// memory info; every Session created from it shares both. Close refuses to
+// unload the library while sessions created from it are still open. Native
+// code must only be loaded in worker processes, never in the AuraGo server
+// process.
+//
+// NewSession and Providers may be called concurrently with each other, but
+// neither may overlap Close.
 type Runtime struct {
 	library    *Library
 	functions  functions
 	env        uintptr
 	memoryInfo uintptr
 	version    string
+	sessions   atomic.Int64 // open sessions created by NewSession
 }
 
 // Load finds the ONNX Runtime library below runtimeRoot, binds C API
 // APIVersion and creates an environment that logs at warning level.
 func Load(runtimeRoot, logID string) (_ *Runtime, resultErr error) {
+	if strings.TrimSpace(logID) == "" {
+		logID = "aurago"
+	}
+	logName, err := cBytes(logID)
+	if err != nil {
+		return nil, fmt.Errorf("ONNX Runtime log ID: %w", err)
+	}
 	libraryPath, err := FindLibrary(runtimeRoot)
 	if err != nil {
 		return nil, err
@@ -162,10 +175,6 @@ func Load(runtimeRoot, logID string) (_ *Runtime, resultErr error) {
 	}
 	r.functions = bindFunctions(apiPointer)
 
-	if strings.TrimSpace(logID) == "" {
-		logID = "aurago"
-	}
-	logName := cBytes(logID)
 	status := r.functions.createEnv(logSeverityWarning, &logName[0], &r.env)
 	goruntime.KeepAlive(logName)
 	if err := r.statusError(status); err != nil {
@@ -250,10 +259,15 @@ func (r *Runtime) Providers() ([]string, error) {
 	return providers, nil
 }
 
-// Close releases the environment and unloads the library.
+// Close releases the environment and unloads the library. It fails, and
+// unloads nothing, while sessions created from this runtime are still open.
+// Closing twice is safe.
 func (r *Runtime) Close() error {
 	if r == nil {
 		return nil
+	}
+	if open := r.sessions.Load(); open > 0 {
+		return fmt.Errorf("ONNX Runtime still has %d open session(s); close them first", open)
 	}
 	if r.memoryInfo != 0 && r.functions.releaseMemoryInfo != nil {
 		r.functions.releaseMemoryInfo(r.memoryInfo)
@@ -326,7 +340,7 @@ func FindLibrary(root string) (string, error) {
 		return "", fmt.Errorf("scan ONNX runtime: %w", err)
 	}
 	if len(matches) == 0 {
-		return "", fmt.Errorf("%s not found below %s", expected, root)
+		return "", fmt.Errorf("%s not found below %s", expected, absoluteRoot)
 	}
 	return matches[0], nil
 }
@@ -342,19 +356,37 @@ func cString(pointer *byte) string {
 	return string(unsafe.Slice(pointer, length))
 }
 
-func cBytes(value string) []byte {
-	return append([]byte(value), 0)
+// cBytes is value as a NUL-terminated C string. A value containing NUL would
+// be silently truncated by C, so it is rejected.
+func cBytes(value string) ([]byte, error) {
+	if err := rejectNUL(value); err != nil {
+		return nil, err
+	}
+	return append([]byte(value), 0), nil
+}
+
+func rejectNUL(value string) error {
+	if strings.IndexByte(value, 0) >= 0 {
+		return fmt.Errorf("%q contains a NUL byte", value)
+	}
+	return nil
 }
 
 // ortPath converts a path to ORTCHAR_T: UTF-16 on Windows, UTF-8 elsewhere.
 // The second result must stay alive until the C call returns.
-func ortPath(path string) (unsafe.Pointer, any) {
+func ortPath(path string) (unsafe.Pointer, any, error) {
+	if err := rejectNUL(path); err != nil {
+		return nil, nil, err
+	}
 	if goruntime.GOOS == "windows" {
 		wide := append(utf16.Encode([]rune(path)), 0)
-		return unsafe.Pointer(&wide[0]), wide
+		return unsafe.Pointer(&wide[0]), wide, nil
 	}
-	narrow := cBytes(path)
-	return unsafe.Pointer(&narrow[0]), narrow
+	narrow, err := cBytes(path)
+	if err != nil {
+		return nil, nil, err
+	}
+	return unsafe.Pointer(&narrow[0]), narrow, nil
 }
 
 func containsFold(values []string, expected string) bool {
