@@ -143,6 +143,8 @@ type Service struct {
 	subscribers map[string]map[*eventSubscriber]struct{}
 	subsClosed  bool // set by Close: Subscribe then hands out a closed channel
 
+	jobs jobRuntime // agent jobs (plan 3)
+
 	buildsMu sync.Mutex
 	queue    []*queuedBuild
 	running  *runningBuild
@@ -264,6 +266,9 @@ var serviceCloseWait = 30 * time.Second
 // owned and closed by the caller.
 func (s *Service) Close() error {
 	s.closeOnce.Do(func() {
+		s.jobs.mu.Lock()
+		s.jobs.closing = true // no new job goroutine joins s.wg after this point
+		s.jobs.mu.Unlock()
 		s.cancel()
 		done := make(chan struct{})
 		go func() { s.wg.Wait(); close(done) }()
