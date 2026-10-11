@@ -57,6 +57,14 @@ type BuildOutput struct {
 // MaxBuildLogBytes caps a stored build log (2 MiB).
 const MaxBuildLogBytes = 2 << 20
 
+// Size caps of artefacts a Builder hands over. The Docker adapter enforces
+// them while it unpacks the container's (untrusted) download; the service
+// applies the same caps when it stores and reads artefacts back.
+const (
+	MaxELFArtifactBytes  = maxELFBytes
+	MaxFontArtifactBytes = maxFontArtifactBytes
+)
+
 // Artefact names written by cyd-build into /work/<build_id>/out/.
 const (
 	ArtifactMergedBin   = "merged.bin"
