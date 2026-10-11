@@ -309,7 +309,7 @@ configuration, the HTTP API and the Docker adapter.
   not resolve Windows junctions or mount points (administrator-made layouts only; `tools.IsProtectedSystemPath` has
   the same blind spot). A refusal or a failed `NewService` leaves a generic reason without paths in
   `Server.cydCreatorProblem`. `shutdownCYDCreator` runs in `Start`'s deferred cleanup after the HTTP drain:
-  `Service.Close` (build worker, database), withdrawing the default service, then `cydDockerBuilder.Close`.
+  `Service.Close` (job runs, build worker, database), withdrawing the default service, then `cydDockerBuilder.Close`.
 - Configuration (`internal/config/cyd_creator.go`): `config.Load` normalizes the section
   (`NormalizeCYDCreatorConfig`, a warning per change): zero means the default (except `max_repair_attempts`, where 0
   is valid: no repair), numbers are clamped (build 60–1800 s,
@@ -333,27 +333,29 @@ configuration, the HTTP API and the Docker adapter.
   `docker.read_only` (the builder creates, starts and execs). API gate (`cydCreatorAvailable`): service present and
   `cyd_creator.enabled`, else 503 `CYD_DISABLED`; switched on without a service it adds `details.problem` (storage
   refusal or failed start) and/or `details.restart_required`.
-- Routes (`cyd_creator_routes.go`, handlers in `cyd_creator_handlers.go` and `cyd_creator_build_handlers.go`):
-  `/api/desktop/cyd-creator/` dispatches through `cydCreatorRoutes(s)` (plans 3 and 5 append tables),
-  `/api/cyd-creator/device/` through `cydCreatorDeviceRoutes(s)` (empty in plan 2). `handleCYDCreatorDevice`
-  authenticates nothing itself: plan 5 authenticates every device route (token hash) before the prefix joins the auth
-  bypass list. Desktop routes check in order: authentication with the route's scope, 405 (with `Allow`, HEAD wherever
-  GET) or 404, `CYD_DISABLED`, a same-origin `Origin` for every session request other than GET/HEAD (403), then
-  `Write` routes answer 403 `CYD_READONLY` while the desktop is read-only and pass
-  `checkDesktopOperation(desktopWrite)`, `Stop` routes (build cancel) pass `checkDesktopOperation(desktopStop)`, which
-  read-only allows. Bearer tokens need `desktop:admin` for `Write` and `Stop` routes and `desktop:read` for the rest
-  (including `POST builds/{id}/decode-backtrace`); `validRouteBearer` uses `cydCreatorBearerScope`. A new mutating
-  route sets `Write` or `Stop` (`TestCYDCreatorEveryMutatingRouteNeedsTheWritePermission`,
+- Routes (`cyd_creator_routes.go`, handlers in `cyd_creator_handlers.go`, `cyd_creator_build_handlers.go` and
+  `cyd_creator_job_handlers.go`): `/api/desktop/cyd-creator/` dispatches through `cydCreatorRoutes(s)` (the plan 2
+  table plus plan 3's `cydCreatorJobRoutes`; plan 5 appends its own), `/api/cyd-creator/device/` through
+  `cydCreatorDeviceRoutes(s)` (empty in plan 2). `handleCYDCreatorDevice` authenticates nothing itself: plan 5
+  authenticates every device route (token hash) before the prefix joins the auth bypass list. Desktop routes check in
+  order: authentication with the route's scope, 405 (with `Allow`, HEAD wherever GET) or 404, `CYD_DISABLED`, a
+  same-origin `Origin` for every session request other than GET/HEAD (403), then `Write` routes answer 403
+  `CYD_READONLY` while the desktop is read-only and pass `checkDesktopOperation(desktopWrite)`, `Stop` routes (build
+  and job cancel) pass `checkDesktopOperation(desktopStop)`, which read-only allows. Bearer tokens need
+  `desktop:admin` for `Write` and `Stop` routes and `desktop:read` for the rest (including
+  `POST builds/{id}/decode-backtrace`); `validRouteBearer` uses `cydCreatorBearerScope`. A new mutating route sets
+  `Write` or `Stop` (`TestCYDCreatorEveryMutatingRouteNeedsTheWritePermission`,
   `TestCYDCreatorBearerScopeMatchesTheRouteTable`).
 - Requests and answers: errors use the flows-style envelope `{"error","code","details"}` with the status table
   `cydCreatorHTTPStatus`; untyped errors and typed `CYD_INTERNAL` are 500 `CYD_INTERNAL` "internal error" without
   details (cause logged, scrubbed), a request the client or the drain cancelled is 503 `CYD_INTERNAL`. JSON bodies
   hold exactly one value without unknown fields or trailing data (400 with a generic text; the layout PUT 422
-  `CYD_INVALID_LAYOUT`) and are capped before reading: 64 KiB (413), the layout `MaxLayoutBytes` + 64 KiB, an app
-  file 256 KiB (413 `CYD_FILE_LIMIT`), the multipart asset upload 2 MiB + 64 KiB (413 `CYD_ASSET_TOO_LARGE`).
-  `If-Match` loses quotes and a `W/` prefix and is lower-cased; the layout PUT needs the version (≥ 1), file PUT and
-  DELETE the SHA-256 or `*`. Assets and artefacts go through `cydServeReader` (`http.ServeContent` with the
-  Content-Type set first, Range/HEAD, the file always closed); every file answer carries
+  `CYD_INVALID_LAYOUT`) and are capped before reading: 64 KiB (413), job start and confirm 192 KiB
+  (`cydJobBodyLimit`: 8000 prompt characters and 16 KiB of attachments even as six-byte escapes), the layout
+  `MaxLayoutBytes` + 64 KiB, an app file 256 KiB (413 `CYD_FILE_LIMIT`), the multipart asset upload 2 MiB + 64 KiB
+  (413 `CYD_ASSET_TOO_LARGE`). `If-Match` loses quotes and a `W/` prefix and is lower-cased; the layout PUT needs the
+  version (≥ 1), file PUT and DELETE the SHA-256 or `*`. Assets and artefacts go through `cydServeReader`
+  (`http.ServeContent` with the Content-Type set first, Range/HEAD, the file always closed); every file answer carries
   `X-Content-Type-Options: nosniff`, artefacts are attachments with `X-CYD-SHA256`. `GET capabilities` overlays the
   service answer: `enabled` from the config, `readonly` when the desktop is read-only or a bearer token lacks
   `desktop:admin`.
@@ -367,6 +369,33 @@ configuration, the HTTP API and the Docker adapter.
   there; the deadline is never cleared. A failed write or flush, a closed subscription (subscriber dropped, project
   deleted, service closed) or the client leaving ends the stream, and the client resumes with `Last-Event-ID`. HEAD answers
   headers only.
+- Agent jobs (plan 3; job rules in `internal/cydcreator/AGENTS.md`): `initCYDCreator` purges leftover
+  `cyd-creator-<job>` short-term-memory sessions (`sweepCYDCreatorAgentSessions` via `memory.TransientSessionIDs`,
+  keeping those of queued or running jobs) and installs the runner (`SetRunner`) before it publishes the default
+  service. `cydCreatorAgentRunner` (`cyd_creator_runner.go`) runs each phase like Game Maker's runner:
+  `agent.ExecuteAgentLoop` under `beginDesktopRun` in session `cyd-creator-<job>` (purged after every phase) with the
+  prepared profile `cyd-creator/v1/{planning,layout,coding}` (repairing uses coding; `cyd_creator_prompt_profile.go`:
+  shared ground rules, every workflow reads API reference topic overview first), `AllowedTools` exactly
+  `agent.CYDCreatorPhaseToolSchemas(phase)`, tool budget `gameMakerToolCallLimit`, Game Maker's `StreamThroughput`,
+  RunComplete hooks `PlanAccepted` (planning) and `JobFinished` (coding, repairing) and the job bound with
+  `cydcreator.WithJobContext`. The phase request is the prompt plus a JSON job context inside `<external_data>`
+  (plan, user changes, attachments, hooks, repair diagnostics, tool budget, seconds left rounded down to 30).
+- `cyd_creator.model` is a provider ID ("" = main provider); an unknown ID or an empty model is `CYD_DISABLED`. The
+  private checkpoint (`Service.SaveAgentContext`) keeps user, assistant and tool messages only, scrubbed, continues
+  from the bounded request view and is capped at 2 MiB (`cydCreatorTrimConversation` drops the oldest rounds); an
+  unreadable one is skipped, reasoning is dropped when provider or model changed. A failed loop returns
+  `cydCreatorAgentFailure`: its text is a generic category (the normal chat's texts, "could not be reached", the
+  quota text), the raw error is logged and stays in the chain; the service scrubs the text again
+  (`ServiceConfig.Scrub` = `security.Scrub`). A tool-limit final response outside planning ends the round normally.
+  The broker forwards nothing: chat text and progress come from the service (`NoteAgentReply` keeps the final
+  answer as the fallback summary).
+- Job routes (`cydCreatorJobRoutes`): `POST projects/{id}/jobs` (Write, 202 `{"job"}`), `GET projects/{id}/jobs`,
+  `GET jobs/{id}`, `POST jobs/{id}/confirm` (Write, 200 `{"job"}`), `POST jobs/{id}/cancel` (Stop, 202 `{"job"}`,
+  409 `CYD_JOB_STATE` once finished), `POST projects/{id}/draft/discard` (Write, 204 also without a draft),
+  `GET projects/{id}/messages`, `GET projects/{id}/revisions`, `GET revisions/{id}/diff`,
+  `POST revisions/{id}/restore` (Write, 200 `{"version","revision"}`). Bodies other than start and confirm are at
+  most 64 KiB and may be empty. Verify `TestCYDCreatorJob*`, `TestCYDCreatorRunner*`, `TestCYDCreatorPromptProfiles`
+  and `TestCYDCreatorStartupSweepPurgesLeftoverAgentSessions`.
 - Builder (`cyd_creator_builder.go`, `cydDockerBuilder`): one container `aurago-cyd-builder`, created from the
   verified image ID (`sleep infinity`, init, user 1000:1000, `HOME=/tmp`, `NetworkMode none`, `CapDrop ALL`,
   `no-new-privileges`, read-only rootfs, tmpfs `/tmp` 1 GiB `rw,exec,nosuid,nodev`, memory = memory-swap and CPUs

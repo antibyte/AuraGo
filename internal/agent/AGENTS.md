@@ -76,7 +76,39 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 - Shell, Python and `run_tool` results always use escaped external-data isolation.
   Capture execution status first and preserve the wrapper through bounding,
   compression and saved-result reads. Copyable source wrappers remain limited
-  to Game Maker. Helper inputs use the same canonical isolation after raw caps.
+  to Game Maker and the CYD Creator read tools. Helper inputs use the same
+  canonical isolation after raw caps.
+- CYD Creator job tools (`cyd_creator_*`, `native_tools_cyd_creator.go`,
+  `agent_dispatch_cyd_creator.go`) are never builtin schemas: no feature flag,
+  category, discovery entry, manual or training catalog entry, so the normal
+  chat cannot see them (`TestCYDCreatorToolsStayOutOfTheNormalCatalog`).
+  `CYDCreatorPhaseToolSchemas(phase)` follows `cydcreator.PhaseTools` (other
+  phases get none) and reaches the model only through the server's prepared
+  profile; `dispatchExec` routes the nine names to `dispatchCYDCreator`
+  (`TestDispatchExecRoutesEveryCYDCreatorTool`). The job comes only from the
+  context (`cydcreator.WithJobContext`, set by the server's runner): without
+  one every call is `policy_denied`, and a `job_id` argument must match it.
+  Every call re-checks `cyd_creator.enabled` (live authorization intersects
+  it); update_layout, write_file, delete_file, build, submit_plan and finish
+  are `policy_denied` while the desktop is read-only. The service checks the
+  phase (`CYD_JOB_STATE`).
+- CYD Creator answers: typed service errors keep code, message and details,
+  a cancelled context is `status: cancelled`, any other error is logged and
+  answered as generic `CYD_INTERNAL` (it can carry host paths).
+  `cyd_creator_build` answers `status` `ok` or `failed` plus `build_status`;
+  write_file needs a string `content` (a missing one never becomes an empty
+  file); submit_plan takes an object or a JSON string and answers counts only.
+  An answer must reach the model whole within `toolResultInlineBudget` minus
+  64 bytes, measured in its largest form (`cydModelBytes`: the escaped
+  `IsolateExternalData` body plus the longer `security.ToolOutputWarning`
+  line). read_file pages whole lines (`start_line`/`end_line`, at most 32 KiB
+  of content, a single longer line is cut with `clipped_line` and a warning
+  `next_action`) and also reads `cyd.project.json` and generated files;
+  read_project replaces an oversized layout with `layout_summary`, then halves
+  the longest lists (`*_total`) and finally the plan summary. A budget below
+  about 1 KB is `CYD_FILE_LIMIT` (`details.limit` `tool_output_limit`,
+  `details.min`). Verify `TestCYDCreator*`, `TestDispatchCYDCreator*`,
+  `TestPageCYDText` and `TestCYDLineArg`.
 
 - Strict schemas are a separate immutable snapshot projection: every object is
   closed, all properties are required, and originally optional values accept

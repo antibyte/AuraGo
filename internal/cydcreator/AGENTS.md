@@ -8,7 +8,8 @@ build diagnostics parser, plus (plan 1b) the embedded device template `cyd_templ
 project and, outside the package, the builder image (`deploy/docker/Dockerfile.cyd-builder`,
 `deploy/docker/cyd-builder/`, `.github/workflows/cyd-builder.yml`), plus (plan 1c) the deterministic generator that
 turns a project into the complete PlatformIO tree, plus (plan 2) the SQLite store, the service (projects, layout,
-app files, assets, events) and the build queue. Plans 3 and 5 add jobs, revisions and devices to this same package.
+app files, assets, events) and the build queue, plus (plan 3) agent jobs with working copies, drafts, the crash-safe
+publication, revisions, the job chat and the agent tool implementations. Plan 5 adds devices to this same package.
 
 ## Ownership
 
@@ -35,6 +36,14 @@ app files, assets, events) and the build queue. Plans 3 and 5 add jobs, revision
   `service_projects.go`, `service_layout.go`, `service_generate.go`, `service_capabilities.go`, `files_root.go`,
   `files.go`, `assets.go`, `events.go`, `builds.go`, `builds_log.go`. The server owns the wiring, the Docker adapter
   and the HTTP API (`internal/server/AGENTS.md`, "CYD Creator").
+- Plan 3: `jobs.go` (job model, plan validation, rows, lock setter, `job_step`), `jobs_start.go` (`StartJob`,
+  resume, `ConfirmJob`, `CancelJob`, `DiscardDraft`), `jobs_run.go` (phase state machine, builds, publication,
+  failure and draft handling), `jobs_recover.go` (startup recovery), `jobs_agent_context.go` (private conversation),
+  `job_context.go`, `runner.go` (`Runner`, `JobRun`, phases, job runtime, timeout), `messages.go`, `revisions.go` +
+  `revisions_diff.go` (blob store, revisions, diff, restore), `staging.go` + `staging_publish.go` (working copies,
+  receipts, fence), `tools_project.go`, `tools_files.go`, `tools_build.go`, `tools_reference.go` (agent tool
+  implementations). The agent schemas and dispatcher live in `internal/agent` (`internal/agent/AGENTS.md`), the
+  runner, prompt profiles and job routes in `internal/server`.
 
 ## Local Contracts
 
@@ -477,7 +486,8 @@ app files, assets, events) and the build queue. Plans 3 and 5 add jobs, revision
   (`dbutil.Open` default: 4 connections, `busy_timeout` 5 s): inside an open write transaction the insert waits for
   the busy timeout and the event is lost while the transaction cannot commit, and open rows hold connections, so an
   exhausted pool blocks every emitter. Commit or close the rows first, then emit.
-- Lock order: project lock → `buildsMu` → `eventsMu` → `subsMu`. `StartBuild` emits the queued `build_status`
+- Lock order: `jobs.mu` (plan 3) → project lock → `buildsMu` → `eventsMu` → `subsMu`; `jobRun.mu` and `fenceMu`
+  are leaves (never take another lock or emit while holding them). `StartBuild` emits the queued `build_status`
   while it holds `buildsMu` (so `queued` always precedes `running`), and that `Emit` needs a pool connection: never
   take `buildsMu` while holding a transaction or open rows.
 - `Close` closes every subscription, and `Subscribe` after `Close` returns an already closed channel: consumers treat
@@ -517,6 +527,125 @@ app files, assets, events) and the build queue. Plans 3 and 5 add jobs, revision
   it runs is a no-op, `CYD_BUSY` during shutdown); `Toolchain`/`Capabilities` show the progress. `Capabilities`
   always says enabled and writable (the HTTP layer overlays both); `active_job` reads `cc_jobs` rows with status
   `queued|running|awaiting_confirmation` (plan 3 writes exactly these).
+
+### Agent jobs (plan 3)
+
+- Slot and lock: one job at a time holds the global agent slot (a `cc_jobs` row with status `queued`, `running` or
+  `awaiting_confirmation`, which `activeJob` reads, plus `jobs.active` in memory) and its project's lock.
+  `setProjectLock` writes `locked_by_job` and emits `lock_changed` under the project mutex (an unknown project is
+  `CYD_NOT_FOUND` without an event; callers serialize through `jobs.mu`); the releases in `abortStart`, `finishJob`
+  and the publication emit under the project mutex too, so lock events keep the order of the lock changes.
+  `StartJob` is `CYD_DISABLED` without a runner and `CYD_BUSY` during shutdown, while another job is active
+  (`details.job_id`, `project_id`), while the slot cannot be read (an `activeJob` error never opens a second slot;
+  `Capabilities` then shows none), while the project is locked, and while it is fenced (`publication_review`,
+  checked again after the lock is set).
+- Requests: prompts and chat messages are at most 8000 runes of UTF-8 without NUL; attachments are kind `log` only,
+  at most 4 and 16 KiB together, and reach the agent as untrusted data. An empty prompt is allowed for a resume,
+  `generate_code` and log attachments (fixed English prompts).
+- Start: the project (with `resume`: the draft) is copied into `<workspace>/.cyd-creator-staging/<job_id>/`
+  (`copyTree`: regular files only, at most 1000 files and 64 MiB, each file synced, `.cyd-write-*` leftovers
+  skipped), the `before_job` revision is recorded and `UserChanges` computed (layout changed, app files and assets
+  added/modified/deleted since the newest `job` revision; nil before the first green job). A tree `snapshotTree`
+  refuses (an app file above 256 KiB, an asset above 2 MiB) refuses the start with that typed error; any failed
+  preparation ends the job `failed` and frees the lock. The phases run in a goroutine joined to `s.wg`; `Close`
+  sets `jobs.closing` before it cancels and waits, so a running job ends `interrupted`.
+- Phases: new = planning, awaiting confirmation, layout, coding, building, (repairing, building)*, done; change and
+  generate_code start at coding (generate_code, unless resumed, refuses a layout with errors: `CYD_INVALID_LAYOUT`
+  with `details.issues`). Planning ends on an accepted `SubmitPlan` (none: "The agent stopped: ..."), coding and
+  repair rounds on `FinishJob` (runner `RunComplete` hooks `PlanAccepted`/`JobFinished`), layout when the model stops
+  calling tools. An accepted plan stores status `awaiting_confirmation` (the phase stays `planning`) and posts the
+  plan summary as the agent's chat message; the job keeps slot and lock but has no run. `ConfirmJob` (`checkLock`
+  with the job's origin, working copy present) continues at layout; an edited prompt replaces the prompt, drops
+  the plan, is stored as a user message and plans again.
+- Building reuses the agent's last build while the working copy fingerprint (content hashes of layout, src/app and
+  assets, never firmware hashes) is unchanged, else builds with `BuildOptions{Origin: JobOrigin(id), Dir: staging}`.
+  Only `CYD_BUILD_FAILED` with non-generated error diagnostics and `CYD_FLASH_BUDGET_EXCEEDED` are repaired, at most
+  `MaxRepairAttempts` times; any other build failure ends the job with the build's code.
+- Publication (`publishJob`): the green working copy replaces the project through the receipt swap
+  (`publishStage`, below); its asset entries pass `checkLayoutAssets` against the stored list. The commit point is
+  the transaction that bumps the version, stores `publish_receipt`, mirrors name/board/theme (`layoutRowMeta`),
+  clears lock, draft and `app_changed_since_job` and stores the job `succeeded`. After it, without the job's
+  cancellation: the `job` revision (a failure is only logged), the project's private conversations are deleted, an
+  older draft is removed, then `project_changed` (layout and files, origin `job:<id>`), `lock_changed`,
+  `job_status` and the agent summary (the `FinishJob` text, else the final reply, else a fixed line). A rename
+  refused by an open file (`CYD_BUSY`, `details.reason` `file_open`) is retried after 0.25, 0.5, 1, 2 and 4 s
+  (`publishRetryDelays`); a cancel or timeout during the wait ends the job. No handle may stay open inside a project
+  directory across a swap (Windows refuses the rename).
+- Ending without publication (`finishJob`): the project stays unchanged. A working copy that differs from the
+  project becomes its single draft (`draft_job`; an older draft's folder and conversation go), otherwise the copy
+  and the job's conversation are removed; the lock is released and a system chat line written. `classifyJobError`
+  decides by the run context's cause, not by the error a waiting step returned: cancel → `cancelled`, timeout →
+  `failed` ("exceeded its time limit"), shutdown → `interrupted`, a typed error → `failed` with its code and
+  message, a Runner error (`agentStopped`) → "The agent stopped: <reason>" (scrubbed with `ServiceConfig.Scrub`, at
+  most 300 runes), anything else → `CYD_INTERNAL` with a generic text (the cause can name host paths; logged).
+- Job rows: `saveJob` emits `job_status` only for a stored state (one retry; it returns the error, a missing row is
+  `CYD_JOB_NOT_FOUND`). Terminal states go through `saveTerminalJob` (further tries after 0.2, 0.5 and 1 s),
+  because a lost terminal write keeps the slot taken until a cancel or restart.
+- `CancelJob` answers `CYD_JOB_STATE` for a stored terminal status first (also while the finishing run still holds
+  the slot); it cancels a running job together with its running build and finishes a job awaiting confirmation at
+  once (under `jobs.mu`, so a concurrent `ConfirmJob` cannot start it).
+- Resume: needs the draft folder and a project equal to the draft job's `before_job` revision (else
+  `CYD_JOB_STATE`: publishing the draft would undo the later changes). The new job (`resume_of`) copies the draft
+  and continues at its phase: queued or planning restart the mode's first phase, layout continues at layout with the
+  draft's plan, later phases at coding with it; the runner loads the draft's conversation. `DiscardDraft` clears
+  `draft_job` and the job's `staging_dir` in one transaction (see startup recovery below), then removes the folder
+  and the conversation; without a draft it changes nothing.
+- Timeout: `JobTimeout` per run segment as a timer (`jobs.newTimer`, nil = real timers; tests install fakes): the
+  context carries no deadline, `JobRun.TimeRemaining` tells the runner what is left. After confirmation the segment
+  gets the budget minus the planning time (at least a quarter; kept in memory, so after a restart nothing is
+  deducted). One grace window `min(budget/2, 15 min)`, announced as a `job_step`, only when the working copy
+  changed within `min(budget/3, 10 min)` during coding, building or repairing.
+- Chat and lists: user lines (start prompt with attachments, edited confirmation), agent lines (plan summary,
+  publication summary) and system lines (job endings, recovery; agent and system texts cut at 8000 runes), a
+  `job_message` event per line. `ListMessages` returns the newest 200 oldest first, `ListJobs` the newest 20; both
+  order by time, then rowid. `cc_messages` and `cc_jobs` have no retention.
+- `ParseJobPlan` is strict (unknown fields, trailing data, more than 64 KiB raw or 32 KiB decoded refused; a JSON
+  string holding the object is accepted): summary 1..1000 runes (newlines allowed), 1..16 screens (120 runes each),
+  up to 64 widgets (160) and 16 data sources (200), each on one line, no control, format or line-separator
+  characters, `wifi` off|optional|required, `aurago_link` needs Wi-Fi, known libraries once each. Errors are
+  `CYD_BAD_REQUEST` with a clipped `details.reason` the agent can act on.
+- Events carry only server-written text: `job_step` kinds layout, file, build, repair, info (others become info),
+  one line of at most 200 runes, never model reasoning, arguments or plan text (`SubmitPlan` reports counts). The
+  private conversation lives in `cc_agent_context`: `SaveAgentContext` only for the running job (at most 16 MiB of
+  JSON), `LoadAgentContext` returns the job's, else the resumed draft's.
+
+### Revisions (plan 3)
+
+- Revisions hold layout, src/app files and assets as SHA-256 blobs in `<data>/cyd_creator/blobs/<aa>/<sha256>`
+  (only through an `os.Root`, deduplicated, synced temporary file renamed into place, hash checked on every read), at
+  most 50 per project (trimmed in the inserting transaction; order by time, then rowid). Unreferenced blobs are
+  pruned only at startup.
+- `RevisionDiff` compares a revision with the project's previous one (the first with nothing): app text files as
+  unified diffs (3 context lines, `\ No newline at end of file`, each at most 64 KiB, about 1 MiB per answer, then
+  "diff omitted"; LCS tables of at most 4 M cells per file and 16 M per answer, beyond that one delete+insert hunk),
+  other app files and assets as a "Binary file, a → b bytes" note (assets from the stored sizes).
+- `RestoreRevision` (origin `restore`: respects lock and fence) writes the revision into a stage (paths or folders
+  that differ only in letter case are `CYD_FILE_CONFLICT`), checks the layout and its asset entries, saves the
+  current project first as a `restore` revision "Before restoring: <label>" when it differs from the newest
+  revision, swaps like a publication (setting `app_changed_since_job`), then adds a `restore` revision (a failure is
+  only logged) and emits `project_changed`. `RecordRevision` records plan 5's `import` revision.
+
+### Agent tools (plan 3)
+
+- Tools change only the job's working copy, through an `os.Root` of it, with the rules of the project's layout and
+  file API. `PhaseTools` is the one phase-to-tool table for the agent schemas and the service checks: every call
+  needs the running job, not ending (cancelled or timed out), in a phase that offers the tool, else
+  `CYD_JOB_STATE`. Planning: read_project, api_reference, submit_plan; layout: read_project, api_reference,
+  update_layout; coding and repairing: all but submit_plan.
+- `UpdateLayoutForJob`: `ApplyOps` (atomic, refuses new validation errors), `checkLayoutAssets`, then a canonical
+  `MarshalProject`/`ParseProject` round trip whose `CYD_INVALID_LAYOUT` reaches the agent typed. Ops cannot change
+  name, board, orientation or the asset list.
+- `ReadJobFile` reads app files (exact case: a variant is `CYD_NOT_FOUND`), generated files rendered from the working
+  copy (`generated: true`) and `cyd.project.json`; the last two are read-only. `WriteJobFile` has the limits of an
+  unconditional `WriteFile` and refuses a case-insensitive clash with another file or folder (`CYD_FILE_CONFLICT`)
+  before the existence check; `DeleteJobFile` removes regular files only and the folders it empties.
+- `BuildForJob` builds the working copy as an agent build and returns at most 50 diagnostics without generated ones
+  plus a `next_action`; `SubmitPlan` stores the parsed plan; `FinishJob` takes a 1..2000-rune summary for the chat.
+- `APIReference` topics (`ReferenceTopics`): overview, cyd (`cyd.h` verbatim from `TemplateFS()` plus runtime notes:
+  no certificate checks, LittleFS not mounted, HTTP worker limits), lvgl (LVGL 9 names, C++11 without RTTI), widgets
+  (the project's generated symbols), libraries, board. `TestAPIReferenceMatchesTheTemplate` pins its facts to the
+  template sources, the generator's version pins, names and font ranges and the curated libraries (each needs a
+  `libraryHeaders` entry): a change there updates `tools_reference.go` in the same commit.
 
 ### Publication fence and startup recovery (plan 3)
 
@@ -573,6 +702,9 @@ app files, assets, events) and the build queue. Plans 3 and 5 add jobs, revision
   (`docker build -f deploy/docker/Dockerfile.cyd-builder --build-context cydcreator=internal/cydcreator -t aurago-cyd-builder:dev deploy/docker/cyd-builder`,
   about 10 minutes: the prewarm compiles all nine profiles and the library check) and run
   `docker run --rm --network none --read-only --tmpfs /tmp:rw,exec,size=1g -e HOME=/tmp --user 1000:1000 -v <work volume>:/work -v <cache volume>:/cache <image> cyd-selftest --all`.
+  Success is exit 0 with nine `== <board> exit 0` lines and the two `== libs:` lines (DHT enabled exit 0, not
+  enabled exit 1); the disabled-library build prints a `fatal error: DHT.h` line and a PlatformIO `[FAILED]` banner
+  on purpose, so "no error lines" is not the criterion.
 - Generator changes: `go test ./internal/cydcreator/ -run TestGenerate`; after an intended output change run
   `go test ./internal/cydcreator/ -run TestGenerateGolden -update`, review the diff and commit it with the code.
   `-update` is a test flag, unlike the `CYD_UPDATE_*` environment variables of the reference and strings tests; it
