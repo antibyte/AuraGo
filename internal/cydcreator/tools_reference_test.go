@@ -86,12 +86,53 @@ func TestAPIReferenceMatchesTheTemplate(t *testing.T) {
 	}
 	all := referenceLVGL + referenceRuntimeNotes + referenceBoard(mustBoard(t, "esp32-2432s028r"), Project{Orientation: "landscape"})
 	// Every API name the reference uses must exist in cyd.h.
-	for _, name := range []string{"ui_async", "get_json_async", "post_json_async", "connected()", "synced()", "format(",
-		"backlight(", "rgb(", "light_level(", "beep(", "RgbLed", "LightSensor", "Speaker", "SdCard",
-		"surface_alt", "text_muted", "on_accent", "success", "warning", "danger", "border_width", "radius",
-		"font_small", "font_normal", "font_large", "font_mono", "bracket_buttons"} {
+	for _, name := range []string{"ui_async", "get_json_async", "post_json_async", "connected()", "on_change", "synced()",
+		"format(", "backlight(", "rgb(", "light_level(", "beep(", "RgbLed", "LightSensor", "Speaker", "SdCard"} {
 		if !strings.Contains(cydH, name) || !strings.Contains(all, name) {
 			t.Errorf("%q must appear in cyd.h and in the reference", name)
+		}
+	}
+	// The ThemeColors fields, exactly and in declaration order.
+	block := regexp.MustCompile(`(?s)struct ThemeColors \{(.*?)\};`).FindStringSubmatch(cydH)
+	if block == nil {
+		t.Fatal("cyd.h has no struct ThemeColors")
+	}
+	var fields []string
+	lastIdent := regexp.MustCompile(`([A-Za-z_][A-Za-z0-9_]*)\s*$`)
+	for _, decl := range strings.Split(block[1], ";") {
+		for _, part := range strings.Split(decl, ",") {
+			if m := lastIdent.FindStringSubmatch(strings.TrimSpace(part)); m != nil {
+				fields = append(fields, m[1])
+			}
+		}
+	}
+	listed := regexp.MustCompile(`ui_theme_colors\(\) returns the theme: ([^\n]*)\.\n`).FindStringSubmatch(referenceLVGL)
+	if listed == nil {
+		t.Fatal("referenceLVGL does not list the ThemeColors fields")
+	}
+	if names := strings.Split(regexp.MustCompile(`\s*\([^)]*\)`).ReplaceAllString(listed[1], ""), ", "); !slices.Equal(names, fields) {
+		t.Errorf("ThemeColors fields: reference %v, cyd.h %v", names, fields)
+	}
+	// Runtime facts, each grepped from the source that defines it.
+	src := map[string]string{
+		"main":    read("lib/cyd_template/src/cyd_main.cpp"),
+		"http":    read("lib/cyd_template/src/cyd_http.cpp"),
+		"wifi":    read("lib/cyd_template/src/cyd_wifi.cpp"),
+		"storage": read("lib/cyd_template/src/cyd_storage.cpp"),
+		"board":   read("lib/cyd_template/src/cyd_board.cpp"),
+		"gen":     genNavigation,
+	}
+	for _, pin := range []struct{ src, code, text string }{
+		{"main", "SET_LOOP_TASK_STACK_SIZE(12 * 1024);", "has a 12 KiB stack"},
+		{"gen", "#define UI__HISTORY 16\n", "a history of 16 screens"},
+		{"http", "if (timeout_ms > 65535) timeout_ms = 65535;", "timeout_ms is capped at 65535"},
+		{"wifi", "  char buf[64];\n  size_t n = strftime(buf, sizeof(buf), strftime_fmt, &tmv);", "longer than 63 bytes"},
+		{"storage", "strlen(key) <= 15) return;", "keys have at most 15 characters"},
+		{"board", "return 100 - (raw * 100) / 4095;", "light_level() returns 0 (dark) to 100 (bright)"},
+		{"board", "#else\n  return -1;\n#endif", "light_level() returns -1"},
+	} {
+		if !strings.Contains(src[pin.src], pin.code) || !strings.Contains(all, pin.text) {
+			t.Errorf("%s source %q / reference %q out of step", pin.src, pin.code, pin.text)
 		}
 	}
 	// HTTP limits of cyd_config.h.

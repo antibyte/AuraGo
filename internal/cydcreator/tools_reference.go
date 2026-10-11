@@ -24,17 +24,17 @@ var libraryHeaders = map[string]string{
 const referenceLVGL = `LVGL 9 in CYD Creator apps (LVGL 9.5.0, LovyanGFX 1.2.30, Arduino-ESP32 2.0.17 on espressif32 6.13.0, GCC 8.4)
 - App code is C++11 (gnu++11) without RTTI: no std::make_unique, auto lambda parameters, std::optional, structured bindings, if constexpr, dynamic_cast or typeid. C files are gnu99.
 - Write LVGL 9 names: lv_button_create, lv_image_create/lv_image_set_src, lv_buttonmatrix_*, lv_obj_add_event_cb, lv_obj_remove_flag, lv_obj_remove_state, lv_display_get_default, lv_screen_active. LVGL 8 code is not supported: a few old names (lv_btn_create, lv_scr_act, lv_obj_clear_flag) still compile through compatibility macros, removed APIs (lv_meter_*, lv_disp_drv_t, lv_disp_draw_buf_t, lv_chart_set_axis_tick) do not, and lv_event_get_target(e) returns void * (C++ does not convert it to lv_obj_t *): use lv_event_get_target_obj(e).
-- LVGL runs on the Arduino loop task only. app_setup(), app_loop(), event hooks, lv_timer callbacks and cyd::http callbacks run there and may call lv_* directly. Code on any other task (FreeRTOS tasks, esp_timer, Wi-Fi event or library callbacks) must wrap UI work in cyd::ui_async([]{ ... }); never call cyd::ui_async from an interrupt handler.
+- LVGL runs on the Arduino loop task only. app_setup(), app_loop(), event hooks, lv_timer callbacks, cyd::http callbacks and cyd::wifi::on_change callbacks run there and may call lv_* directly. Code on any other task (FreeRTOS tasks, esp_timer callbacks, WiFi.onEvent callbacks, library callbacks) must wrap UI work in cyd::ui_async([]{ ... }); never call cyd::ui_async from an interrupt handler.
 - Never block the loop: no delay(), no while-waits, no synchronous HTTP. Use lv_timer_create(cb, period_ms, user_data) or millis() checks in app_loop(). The loop task has a 12 KiB stack: keep large buffers off the stack.
 - Text: lv_label_set_text(ui_x, "..."), lv_label_set_text_fmt(ui_x, "%d °C", v). A button's text is its child label: lv_label_set_text(lv_obj_get_child(ui_btn, 0), "...").
 - Values: lv_slider_set_value(ui_x, v, LV_ANIM_OFF), lv_bar_set_value(ui_x, v, LV_ANIM_ON), lv_arc_set_value(ui_x, v), lv_spinbox_set_value(ui_x, v).
 - Read input: lv_slider_get_value(ui_x), lv_obj_has_state(ui_x, LV_STATE_CHECKED) (switch/checkbox), lv_dropdown_get_selected(ui_x), lv_roller_get_selected(ui_x), lv_textarea_get_text(ui_x), lv_spinbox_get_value(ui_x).
 - State: lv_obj_add_state/lv_obj_remove_state(ui_x, LV_STATE_CHECKED | LV_STATE_DISABLED); visibility: lv_obj_add_flag/lv_obj_remove_flag(ui_x, LV_OBJ_FLAG_HIDDEN) (message boxes: ui_show_<name>()/ui_hide_<name>() instead).
 - Charts: lv_chart_set_next_value(ui_x, ui_x_series[0], v); lv_chart_refresh(ui_x).
-- LEDs: lv_led_on(ui_x), lv_led_off(ui_x), lv_led_set_brightness(ui_x, 0..255), lv_led_set_color(ui_x, lv_color_hex(0x00FF00)).
+- LEDs: lv_led_on(ui_x), lv_led_off(ui_x), lv_led_set_brightness(ui_x, 80..255) (LVGL clamps to LV_LED_BRIGHT_MIN 80, the dim "off" look), lv_led_set_color(ui_x, lv_color_hex(0x00FF00)).
 - Tables: lv_table_set_cell_value(ui_x, row, col, "text"). QR codes: lv_qrcode_update(ui_x, data, len).
 - Colors: lv_color_hex(0xRRGGBB). ui_theme_colors() returns the theme: bg, surface, surface_alt, text, text_muted, accent, on_accent, success, warning, danger, border, focus (lv_color_t), border_width, radius, font_small, font_normal, font_large, font_mono (const lv_font_t *), bracket_buttons.
-- Fonts: use the theme fonts above or the ui_font_<family>_<size> fonts listed in topic widgets; LVGL's lv_font_montserrat_14 is the only built-in font (no other lv_font_* exists). Every converted font holds U+0020-U+007E and U+00A0-U+017F (printable ASCII, Latin-1 Supplement, Latin Extended-A), the LV_SYMBOL_* icons and the characters used in the layout's texts. Other characters your code shows (euro sign, arrows, Greek, Cyrillic, emoji, ...) are not drawn: avoid them or put them into a layout text (a hidden label works).
+- Fonts: use the theme fonts above or the ui_font_<family>_<size> fonts listed in topic widgets (no other ui_font_* exists); LVGL's lv_font_montserrat_14 is the only built-in font (no other lv_font_* exists). Every converted font holds U+0020-U+007E and U+00A0-U+017F (printable ASCII, Latin-1 Supplement, Latin Extended-A), the LV_SYMBOL_* icons and the characters used in the layout's texts. Other characters your code shows (euro sign, arrows, Greek, Cyrillic, emoji, ...) are not drawn: avoid them or put them into a layout text (a hidden label works).
 - Event hooks receive lv_event_t *e: lv_event_get_target_obj(e) is the object the event fired on (for list and message-box hooks the clicked item or button), lv_event_get_code(e) the event. ui_event_index(e) is the 0-based index of the list item, message-box button or keypad key (keys in reading order; row breaks are not keys), else -1.
 - Screens: ui_goto(UI_SCREEN_<NAME>, UI_TR_FADE) (going to the current screen does nothing); ui_back() returns through a history of 16 screens. Message boxes: ui_show_<name>(), ui_hide_<name>().
 - Do not create or delete screens or the generated widgets in code; change the layout with cyd_creator_update_layout instead. Creating extra child objects at runtime (e.g. list rows) is fine, but the generated hooks only fire for widgets and list items of the layout: register your own lv_obj_add_event_cb on objects you create.`
@@ -90,9 +90,9 @@ func templateHeader() (string, error) {
 // referenceRuntimeNotes are facts about the template runtime (plan 1b) every
 // app must respect; the cyd topic appends them to the header.
 const referenceRuntimeNotes = `Runtime notes (template 1.0.0):
-- cyd::http::get_json_async/post_json_async: check cyd::wifi::connected() first. Requests run one at a time on one worker task that the AuraGo link shares (a firmware download delays them); at most 8 wait, a further request fails at once with error "busy". The callback runs on the loop task (status 0 on transport errors). Responses above 32 KiB fail with "response too large"; other errors are "offline", "unsupported url" (only http:// and https://), "http <status>" for a non-2xx answer (doc still holds a JSON body), "invalid json: ..." and "empty response". timeout_ms is capped at 65535.
+- cyd::http::get_json_async/post_json_async: check cyd::wifi::connected() first. Requests run one at a time on one worker task that the AuraGo link shares (a firmware download delays them); at most 8 wait, a further request fails at once with error "busy". The callback runs on the loop task. Responses above 32 KiB fail with "response too large"; transport errors carry HTTPClient's own text with status 0 (e.g. "connection refused", "read Timeout"); other errors are "offline", "unsupported url" (only http:// and https://), "bad url", "worker unavailable" (the worker task could not start), "http <status>" for a non-2xx answer (doc still holds a JSON body), "invalid json: ..." and "empty response". timeout_ms is capped at 65535.
 - https through cyd::http is encrypted but does NOT verify server certificates (no CA bundle on 4 MB boards). Never send passwords, API keys, tokens or other secrets through it; prefer public APIs that need no secret.
-- cyd::time::now() and format() use the project timezone; format() returns "" until cyd::time::synced() is true (NTP after Wi-Fi connects) and for results longer than 63 bytes.
+- cyd::time::now() returns UTC epoch seconds; only format() applies the project timezone. format() returns "" until cyd::time::synced() is true (NTP after Wi-Fi connects; with Wi-Fi off it never becomes true) and for results longer than 63 bytes.
 - cyd::storage (NVS namespace "app", safe from any task): keys have at most 15 characters (longer keys are never stored); every call opens NVS, so write on change, not in a loop.
 - The template does not mount LittleFS. An app that needs files calls LittleFS.begin(true, "/littlefs", 10, "littlefs") once in app_setup() (include <LittleFS.h>). Small settings belong in cyd::storage (NVS).
 - Builds are not byte-for-byte reproducible (every firmware embeds its own build id): judge a build by its status and diagnostics, never by firmware hashes.`
@@ -105,7 +105,7 @@ func referenceOverview(b Board, p Project) string {
 	}
 	flash := fmt.Sprintf("the app slot holds %d bytes", info.AppSlotBytes)
 	if b.FlashMB <= 4 {
-		flash += " and is tight: measured builds use 70-82 % of it (template, LVGL, Wi-Fi/TLS and fonts; 350-550 KB stay free) and every extra font size costs tens of KB, so keep code, tables, fonts and images small"
+		flash += " and is tight: measured builds use 70-82 % of it (template, LVGL, Wi-Fi/TLS and fonts; about 350-600 KB stay free) and every extra font size costs tens of KB, so keep code, tables, fonts and images small"
 	}
 	wifi := ""
 	if p.Settings.WiFi == "off" {
@@ -133,7 +133,7 @@ Topics: cyd (template API and runtime notes), lvgl (LVGL 9 usage), widgets (gene
 // type (generate_ui.go / generate_widgets.go); topic widgets lists the notes of
 // the types its named widgets use.
 var referenceTypeNotes = map[string]string{
-	"button":    "button: the text is the child label: lv_label_set_text(lv_obj_get_child(ui_x, 0), \"...\").",
+	"button":    "button: the text is the child label: lv_label_set_text(lv_obj_get_child(ui_x, 0), \"...\"); bracket themes (ui_theme_colors().bracket_buttons) show button labels as \"[ text ]\", so write the brackets too.",
 	"msgbox":    "msgbox: ui_x is the box, its parent the hidden backdrop on the top layer; show and hide it only with ui_show_x()/ui_hide_x(). Every button closes the box; a clicked hook gets the button index from ui_event_index(e).",
 	"list":      "list: the items are buttons; the clicked hook is registered on the layout's items (index via ui_event_index(e)); rows added with lv_list_add_button at runtime need their own lv_obj_add_event_cb.",
 	"keypad":    "keypad: a button matrix; the value_changed hook gets the key index from ui_event_index(e), the text from lv_buttonmatrix_get_button_text(ui_x, index).",
@@ -144,11 +144,11 @@ var referenceTypeNotes = map[string]string{
 	"roller":    "roller: lv_roller_get_selected(ui_x) (0-based).",
 	"switch":    "switch: lv_obj_has_state(ui_x, LV_STATE_CHECKED).",
 	"checkbox":  "checkbox: lv_obj_has_state(ui_x, LV_STATE_CHECKED).",
-	"led":       "led: lv_led_on/lv_led_off(ui_x), lv_led_set_brightness(ui_x, 0..255), lv_led_set_color(ui_x, color).",
+	"led":       "led: lv_led_on/lv_led_off(ui_x), lv_led_set_brightness(ui_x, 80..255) (LVGL clamps lower values to 80), lv_led_set_color(ui_x, color).",
 	"image":     "image: lv_image_set_src(ui_x, &ui_img_<asset id>).",
 	"qrcode":    "qrcode: lv_qrcode_update(ui_x, text, strlen(text)).",
 	"canvas":    "canvas: an RGB565 buffer of the widget size is allocated at start (from PSRAM when the board has it); draw only when lv_canvas_get_draw_buf(ui_x) != NULL (lv_canvas_set_px, lv_canvas_init_layer/lv_canvas_finish_layer).",
-	"statusbar": "statusbar: the runtime updates its Wi-Fi icon and clock (when shown) every second; a long press opens the Wi-Fi setup unless the layout binds long_pressed.",
+	"statusbar": "statusbar: the runtime updates its Wi-Fi icon and clock (when shown) every second; unless Wi-Fi is off (then there is no Wi-Fi icon and no setup), a long press opens the Wi-Fi setup when the layout binds no long_pressed.",
 }
 
 // referenceWidgets lists the C symbols the generator emits for this layout
@@ -237,22 +237,25 @@ func referenceWidgets(p Project) string {
 		names = append(names, f.symbol())
 	}
 	roles := themeFontRoles(theme)
-	fmt.Fprintf(&b, "\nFonts (const lv_font_t, use &name; no other font exists): %s\nTheme roles in ui_theme_colors(): font_normal %s, font_small %s, font_large %s, font_mono %s\n",
+	fmt.Fprintf(&b, "\nFonts (const lv_font_t, use &name; no other ui_font_* exists, the only built-in font is lv_font_montserrat_14): %s\nTheme roles in ui_theme_colors(): font_normal %s, font_small %s, font_large %s, font_mono %s\n",
 		strings.Join(names, ", "), roles.Normal.symbol(), roles.Small.symbol(), roles.Large.symbol(), roles.Mono.symbol())
 	return b.String()
 }
 
 func referenceLibraries(p Project) string {
 	var b strings.Builder
-	b.WriteString("Curated libraries (offline builds; pinned versions). Only these can be used, and the header of a library that is not enabled does not compile.\n")
+	b.WriteString("Curated libraries (offline builds; pinned versions). Only these can be used. Enable a library before including it; exports and the project settings only carry enabled libraries.\n")
 	for _, l := range Libraries() {
 		state := "not enabled"
-		if slices.Contains(p.Settings.Libraries, l.ID) {
+		switch {
+		case l.ID == "arduinojson":
+			state = "always available (cyd.h includes it)"
+		case slices.Contains(p.Settings.Libraries, l.ID):
 			state = "enabled"
 		}
 		fmt.Fprintf(&b, "- %s: %s %s, #include <%s>, %s\n", l.ID, l.Name, l.Version, libraryHeaders[l.ID], state)
 	}
-	b.WriteString("ArduinoJson (version 7: use JsonDocument; StaticJsonDocument and DynamicJsonDocument are deprecated version 6 names) is always available through cyd.h. Enable another library with update_layout op set_settings, e.g. {\"op\":\"set_settings\",\"set\":{\"libraries\":[\"dht\"]}} (the list replaces the old one).\n")
+	b.WriteString("ArduinoJson is version 7: use JsonDocument (StaticJsonDocument and DynamicJsonDocument are deprecated version 6 names). Enable another library with update_layout op set_settings, e.g. {\"op\":\"set_settings\",\"set\":{\"libraries\":[\"dht\"]}} (the list replaces the old one).\n")
 	return b.String()
 }
 
