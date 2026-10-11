@@ -53,6 +53,7 @@ import (
 	"aurago/internal/planner"
 	"aurago/internal/proxy"
 	"aurago/internal/remote"
+	"aurago/internal/retrogames"
 	"aurago/internal/retronet"
 	"aurago/internal/rocketchat"
 	"aurago/internal/rtlsdr"
@@ -196,6 +197,7 @@ type Server struct {
 	LocalWiki                 *localwiki.Manager
 	localWikiSyncMu           sync.Mutex // one step from reading the config snapshot to configuring LocalWiki
 	localWikiBeforeConfigure  func()     // test seam: runs in syncLocalWikipediaSettings after the snapshot is read
+	RetroGames                *retrogames.Service
 	localLLMLifecycleCtx      context.Context
 	Go2RTCDiscovery           *onvif.Service
 	MeshCore                  *meshcore.Manager
@@ -529,6 +531,11 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 		// the broadcast runs off this (usually CfgMu-locked) path.
 		s.announceLocalWikipediaAvailability()
 	}
+	s.syncRetroGamesSettings(cfg)
+	if previous != nil && previous.RetroGames.Enabled != cfg.RetroGames.Enabled {
+		// The Retro Games Desktop app appears or disappears with the switch.
+		s.announceRetroGamesAvailability()
+	}
 	if s.WarningsRegistry != nil {
 		// Provider metadata probes may perform bounded network I/O. Keep config
 		// publication non-blocking while still reconciling stale warnings.
@@ -739,6 +746,9 @@ func Start(opts StartOptions) error {
 			}
 			wikiCancel()
 		}
+		retroCtx, retroCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		s.shutdownRetroGames(retroCtx)
+		retroCancel()
 		if s.GameMaker != nil {
 			_ = s.GameMaker.Close()
 		}
@@ -1711,6 +1721,7 @@ func newServerFromOptions(opts StartOptions) *Server {
 	tools.SetDefaultGo2RTCManager(s.Go2RTC)
 	s.LocalWiki = newLocalWikipediaManager(cfg, logger)
 	publishLocalWikipediaTool(s.LocalWiki)
+	s.RetroGames = newRetroGamesService(cfg, logger)
 	return s
 }
 
