@@ -746,13 +746,24 @@ func (c *MQTTController) messageHandler(gen *mqttGeneration) pahomqtt.MessageHan
 		c.mu.RLock()
 		active := c.active
 		c.mu.RUnlock()
-		if active != nil && (active.cfg.MQTT.RelayToAgent || FrigateRelayEnabled(&active.cfg)) {
+		if active != nil && relayWantsTopic(&active.cfg, m.Topic) {
 			c.enqueueRelay(gen, m)
 		}
 		for _, trigger := range matchingMissionTriggers(m.Topic, m.Payload) {
 			c.enqueueMission(gen, trigger, m.Topic, m.Payload)
 		}
 	}
+}
+
+// relayWantsTopic reports whether a received topic would become a relay run.
+// RelayToAgent accepts every topic that reached the handler. Otherwise only a
+// Frigate relay kind is queued; other topics stay in the global message buffer.
+func relayWantsTopic(cfg *config.Config, topic string) bool {
+	if cfg != nil && cfg.MQTT.RelayToAgent {
+		return true
+	}
+	_, ok := FrigateRelayKind(cfg, topic)
+	return ok
 }
 
 func (c *MQTTController) runMissionTrigger(gen *mqttGeneration, trigger missionTriggerEntry, topic, payload string) {
