@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 const require=createRequire(import.meta.url);
 const {chromium}=process.env.AURAGO_PLAYWRIGHT?require(process.env.AURAGO_PLAYWRIGHT):require('playwright');
 const locales=['cs','da','de','el','en','es','fr','hi','it','ja','nl','no','pl','pt','sv','zh'];
-let writes=0,readonly=false,offline=false;
+let writes=0,readonly=false,offline=false,source='esp32';
 const server=createServer(async(req,res)=>{
  try{
   const url=new URL(req.url,'http://localhost'),p=url.pathname;
@@ -14,7 +14,7 @@ const server=createServer(async(req,res)=>{
    res.setHeader('Content-Type','application/json');if(req.method==='POST')writes++;
    if(p.endsWith('/firmware'))return res.end(await readFile('internal/ruview/artifacts.json'));
    if(p.endsWith('/nodes'))return res.end(JSON.stringify({nodes:[{node_id:7,csi_status:'active',csi_last_seen_ms:42,csi_sequence:3,rssi_dbm:-51}]}));
-   return res.end(JSON.stringify({enabled:true,readonly,mode:'external',source:'esp32',ready:!offline,fresh:!offline,data_state:offline?'disconnected':'live_unverified',signal:'CSI',observed_at:new Date().toISOString()}));
+   return res.end(JSON.stringify({enabled:true,readonly,mode:'external',source,ready:!offline,fresh:!offline,data_state:offline?'disconnected':'live_unverified',signal:'CSI',observed_at:new Date().toISOString()}));
   }
   if(p==='/'){
    const locale=JSON.parse(await readFile(`ui/lang/ruview/${url.searchParams.get('lang')||'de'}.json`));
@@ -22,8 +22,8 @@ const server=createServer(async(req,res)=>{
   }
   const rel=p.includes('/ui/')?'js/vendor/ruview/'+p.split('/ui/')[1]:p.slice(1);
   if(!rel||rel.includes('..')){res.writeHead(404).end();return;}
-  if(p.includes('/ui/')){res.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'none'");res.setHeader('Permissions-Policy','serial=(), camera=(), microphone=()');}
-  res.setHeader('Content-Type',({'.js':'application/javascript','.mjs':'application/javascript','.css':'text/css','.html':'text/html','.json':'application/json','.svg':'image/svg+xml'})[path.extname(rel)]||'application/octet-stream');res.end(await readFile(path.join('ui',rel)));
+  if(p.includes('/ui/')){res.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'none'");res.setHeader('Permissions-Policy','serial=(), camera=(), microphone=()');}
+  res.setHeader('Content-Type',({'.js':'application/javascript','.mjs':'application/javascript','.css':'text/css','.html':'text/html','.json':'application/json','.svg':'image/svg+xml','.wasm':'application/wasm'})[path.extname(rel)]||'application/octet-stream');res.end(await readFile(path.join('ui',rel)));
  }catch{res.writeHead(404).end();}
 });
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -47,6 +47,13 @@ try{
  readonly=true;await page.evaluate(()=>render());await page.waitForFunction(()=>document.querySelector('[data-action=flash]')?.disabled);assert.equal(await page.locator('[data-action=test]').isDisabled(),false);
  offline=true;await page.evaluate(()=>render());await page.locator('.ruview-summary').waitFor();
  for(const view of ['index.html','observatory.html','pose-fusion.html']){await page.locator(`[data-tab="${view}"]`).click();await page.locator('iframe').waitFor();await page.waitForTimeout(1500);assert.equal(await page.locator('iframe').getAttribute('allow'),"serial 'none'; camera 'none'; microphone 'none'");}
+ const fusion=page.frames().find(f=>f.url().endsWith('/pose-fusion.html'));
+ await fusion.waitForFunction(()=>document.getElementById('status-label')?.textContent==='NO LIVE CSI');
+ await fusion.waitForFunction(()=>document.getElementById('cnn-backend')?.textContent.includes('RuVector WASM'));
+ assert.equal(await fusion.locator('#csi-bar-val').textContent(),'Unavailable');
+ source='simulated';await fusion.waitForFunction(()=>window.auragoRuViewSimulationAllowed());
+ await fusion.waitForFunction(()=>document.getElementById('csi-bar-val')?.textContent!=='Unavailable');
+ source='esp32';await fusion.waitForFunction(()=>document.getElementById('status-label')?.textContent==='NO LIVE CSI');
  await page.evaluate(()=>RuViewApp.dispose('test'));assert.equal(await page.locator('iframe').count(),0);
  assert.deepEqual(errors,[]);
  console.log('RuView: 64 locale/theme/size cases, passive status, wizard cleanup, read-only, offline and iframe disposal passed');

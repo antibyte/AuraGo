@@ -169,7 +169,7 @@ function init() {
       connectWsBtn.textContent = '✓ Live ESP32';
       connectWsBtn.classList.add('active');
     }
-    statusLabel.textContent = 'LIVE CSI';
+    statusLabel.textContent = 'EXPERIMENTAL CSI';
     statusDot.classList.remove('offline');
   };
   withWsTicket(defaultWsUrl).then(u => csiSimulator.connectLive(u)).then(ok => {
@@ -242,6 +242,13 @@ function mainLoop(timestamp) {
   requestAnimationFrame(mainLoop);
 
   if (isPaused) return;
+  if(!csiSimulator.isLive&&!window.auragoRuViewSimulationAllowed?.()){
+    statusLabel.textContent='NO LIVE CSI';statusDot.classList.add('offline');
+    for(const canvas of [skeletonCanvas,csiCanvas,embeddingCanvas])canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+    for(const el of [videoBarVal,csiBarVal,fusedBarVal,rssiValueEl,rssiQualityEl,crossModalEl])if(el)el.textContent='Unavailable';
+    for(const bar of [videoBar,csiBar,fusedBar,rssiBarEl])if(bar)bar.style.width='0%';
+    return;
+  }
 
   try {
   const elapsed = performance.now() / 1000 - startTime;

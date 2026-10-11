@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"aurago/internal/config"
@@ -32,6 +33,7 @@ func TestRuViewRoutesRequireAdminAndWriteOrigin(t *testing.T) {
 	}{
 		{"GET", "status", readToken, "", 403},
 		{"GET", "status", admin, "", 200},
+		{"GET", "ui/pose-fusion/pkg/ruvector-attention/ruvector_attention_wasm_bg.wasm", admin, "", 200},
 		{"GET", "test", admin, "", 405},
 		{"POST", "test", admin, "https://evil.invalid", 403},
 		{"POST", "runtime/start", admin, "http://aurago.test", 403},
@@ -48,6 +50,11 @@ func TestRuViewRoutesRequireAdminAndWriteOrigin(t *testing.T) {
 		handler(w, r)
 		if w.Code != tc.want {
 			t.Errorf("%s %s: %d, want %d: %s", tc.method, tc.route, w.Code, tc.want, w.Body.String())
+		}
+		if strings.HasSuffix(tc.route, ".wasm") {
+			if w.Header().Get("Content-Type") != "application/wasm" || !strings.Contains(w.Header().Get("Content-Security-Policy"), "'wasm-unsafe-eval'") || !strings.HasPrefix(w.Body.String(), "\x00asm") {
+				t.Fatal("pinned WebAssembly is missing or blocked by its response policy")
+			}
 		}
 	}
 }

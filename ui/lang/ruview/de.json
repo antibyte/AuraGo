@@ -91,5 +91,6 @@
   "ruview.unexpected_simulation": "Demo",
   "ruview.invalid_wifi": "WLAN-Netz (SSID): 1–32 UTF-8 B; WLAN-Passwort: 8–63 UTF-8 B.",
   "ruview.invalid_config": "Knoten-ID: 1–255; IPv4 des RuView-Empfängers: 10/8, 172.16/12, 192.168/16; UDP: 1–65535.",
-  "ruview.source_mismatch": "Experimentelle WLAN-Erfassung. RSSI benötigt einen unterstützten Host-Adapter, CSI optionale ESP32-Boards. Demodaten sind gekennzeichnet. Modell- und LoRA-Wechsel sind in diesem Upstream-Stand nicht verfügbar."
+  "ruview.source_mismatch": "Experimentelle WLAN-Erfassung. RSSI benötigt einen unterstützten Host-Adapter, CSI optionale ESP32-Boards. Demodaten sind gekennzeichnet. Modell- und LoRA-Wechsel sind in diesem Upstream-Stand nicht verfügbar.",
+  "ruview.fusion_notice": "Pose-Fusion verwendet untrainierte Beispielmodelle. Darstellung und Konfidenzwerte sind keine validierten Messungen."
 }

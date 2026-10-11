@@ -77,7 +77,7 @@ class WiFiDensePoseApp {
     });
 
     // Detect backend availability and initialize accordingly
-    const useMock = await backendDetector.shouldUseMockServer();
+    const useMock = false;
     
     if (useMock) {
       console.log('🧪 Initializing with mock server for testing');

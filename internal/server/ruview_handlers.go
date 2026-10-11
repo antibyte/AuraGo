@@ -11,7 +11,6 @@ import (
 
 	"aurago/internal/desktop"
 	"aurago/internal/ruview"
-	"aurago/internal/webassets"
 )
 
 func registerRuViewRoutes(mux *http.ServeMux, s *Server) {
@@ -43,12 +42,12 @@ func registerRuViewRoutes(mux *http.ServeMux, s *Server) {
 				http.NotFound(w, r)
 				return
 			}
-			data, err := fs.ReadFile(webassets.Namespace("ui"), "js/vendor/ruview/"+name)
+			data, err := fs.ReadFile(uiFiles, "js/vendor/ruview/"+name)
 			if err != nil {
 				http.NotFound(w, r)
 				return
 			}
-			w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'none'")
+			w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'none'")
 			w.Header().Set("X-Frame-Options", "SAMEORIGIN")
 			w.Header().Set("Permissions-Policy", "serial=(), camera=(), microphone=(), geolocation=()")
 			w.Header().Set("Cache-Control", "no-store")
@@ -57,6 +56,8 @@ func registerRuViewRoutes(mux *http.ServeMux, s *Server) {
 				w.Header().Set("Content-Type", "application/javascript")
 			case ".css":
 				w.Header().Set("Content-Type", "text/css")
+			case ".wasm":
+				w.Header().Set("Content-Type", "application/wasm")
 			case ".html":
 				w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			}

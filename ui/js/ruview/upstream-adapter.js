@@ -4,7 +4,8 @@
     const base = location.pathname.includes('/desktop/integrations/') ? '/api/desktop/integrations/ruview/' : '/api/ruview/';
     const nativeFetch = window.fetch.bind(window), NativeSocket = window.WebSocket;
     const sockets = new Set(), requests = new Set();
-    let readonly=true, enabled=false, policyTimer, observer;
+    let readonly=true, enabled=false, simulation=false, policyTimer, observer;
+    Object.defineProperty(window,'auragoRuViewSimulationAllowed',{value:()=>enabled&&simulation});
     const lifetime=new AbortController();
     const blocked = /\/(?:oauth|auth)(?:\/|$)|\/models\/(?:load|unload|lora\/activate)$|\/model\/sona\/activate$|\/pose\/(?:stats|zones\/summary)$/;
     function routed(input) {
@@ -50,7 +51,7 @@
         document.querySelectorAll('input[type=password]').forEach(input=>{input.disabled=true;input.value='';input.placeholder='Managed by AuraGo';});
     }
     async function policy(){
-        try{const response=await nativeFetch(base+'status',{credentials:'same-origin',signal:lifetime.signal});if(!response.ok)throw Error();const state=await response.json();readonly=state.readonly;enabled=state.enabled;}
+        try{const response=await nativeFetch(base+'status',{credentials:'same-origin',signal:lifetime.signal});if(!response.ok)throw Error();const state=await response.json();readonly=state.readonly;enabled=state.enabled;simulation=state.source==='simulated'&&!state.error;}
         catch{readonly=true;enabled=false;}
         if(!enabled)for(const socket of sockets)socket.close();
         policyControls();

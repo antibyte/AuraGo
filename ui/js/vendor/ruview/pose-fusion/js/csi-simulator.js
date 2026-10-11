@@ -78,7 +78,7 @@ export class CsiSimulator {
   }
 
   /** True only once a real frame has been decoded — not merely on socket open. */
-  get isLive() { return this.mode === 'live' && this.verifiedFrame === true; }
+  get isLive() { return this.mode === 'live' && this.verifiedFrame === true && performance.now()-this.auragoFrameAt<10000; }
 
   /**
    * Update person state from video detection (for correlated demo data).
@@ -305,12 +305,12 @@ export class CsiSimulator {
 
   /** ADR-295: promote from watermarked demo to live once a real frame lands. */
   _markVerifiedFrame() {
-    this.verifiedFrame = true;
+    this.verifiedFrame = true; this.auragoFrameAt = performance.now();
     this.mode = 'live';
     if (typeof this.onVerifiedFrame === 'function') this.onVerifiedFrame();
   }
 
-  _handleJsonFrame(msg) {
+  _handleJsonFrame(msg) { if(msg.source!=='esp32'||msg._simulated){this.verifiedFrame=false;this.mode='demo';return;}
     // Sensing server sends: { type: "sensing_update", nodes: [{ amplitude: [...], subcarrier_count }], classification, features }
     this._liveAmplitude = new Float32Array(this.subcarriers);
     this._livePhase = new Float32Array(this.subcarriers);

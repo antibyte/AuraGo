@@ -91,5 +91,6 @@
   "ruview.unexpected_simulation": "演示",
   "ruview.invalid_wifi": "Wi-Fi 网络（SSID）: 1–32 UTF-8 B; Wi-Fi 密码: 8–63 UTF-8 B.",
   "ruview.invalid_config": "节点 ID: 1–255; RuView 接收端 IPv4: 10/8, 172.16/12, 192.168/16; UDP: 1–65535.",
-  "ruview.source_mismatch": "实验性 Wi-Fi 感知。RSSI 需要受支持的网卡，CSI 需要可选 ESP32 开发板。演示数据会明确标注。此版本不支持切换模型或 LoRA。"
+  "ruview.source_mismatch": "实验性 Wi-Fi 感知。RSSI 需要受支持的网卡，CSI 需要可选 ESP32 开发板。演示数据会明确标注。此版本不支持切换模型或 LoRA。",
+  "ruview.fusion_notice": "Pose-Fusion 使用未经训练的示例模型。其可视化结果和置信度分数不是经过验证的测量值。"
 }

@@ -24,7 +24,7 @@ if (check) {
       if (entry.name.startsWith('.') || ['tests', 'mobile', 'node_modules', 'test-results', 'sw.js', 'package.json', 'package-lock.json'].includes(entry.name)) continue;
       const name = prefix + entry.name, full = path.join(dir, entry.name);
       if (entry.isDirectory()) { await copy(full, `${name}/`); continue; }
-      if (!/\.(js|css|html|svg|png|ico|woff2?|jpg|json)$/.test(name) || /(?:test|spec)\.js$/.test(name)) continue;
+      if (!/\.(js|css|html|svg|png|ico|woff2?|jpg|json|wasm)$/.test(name) || /(?:test|spec)\.js$/.test(name)) continue;
       let bytes = await readFile(full);
       if (/\.(js|css|html)$/.test(name)) {
         let text = bytes.toString('utf8');
@@ -33,8 +33,24 @@ if (check) {
           text = text.replace(/<img\b[^>]*\bsrc="https:[^"]*"[^>]*>/g, '');
           text = text.replace(/<head([^>]*)>/i, '<head$1><script src="./aurago-adapter.js"></script>');
         }
-        if (name === 'app.js') text = text.replace("if ('serviceWorker' in navigator)", 'if (false)');
+        if (name === 'app.js') text = text.replace("if ('serviceWorker' in navigator)", 'if (false)').replace('const useMock = await backendDetector.shouldUseMockServer();','const useMock = false;');
         if (name === 'services/sensing.service.js') text = text.replace(/function clientSimulationAllowed\([^)]*\)\s*\{[\s\S]*?\n\}/, 'function clientSimulationAllowed() { return false; }');
+        if (name === 'pose-fusion/js/csi-simulator.js') {
+          text=text.replace("return this.mode === 'live' && this.verifiedFrame === true;", "return this.mode === 'live' && this.verifiedFrame === true && performance.now()-this.auragoFrameAt<10000;");
+          text=text.replace('this.verifiedFrame = true;', 'this.verifiedFrame = true; this.auragoFrameAt = performance.now();');
+          text=text.replace('_handleJsonFrame(msg) {', "_handleJsonFrame(msg) { if(msg.source!=='esp32'||msg._simulated){this.verifiedFrame=false;this.mode='demo';return;}");
+        }
+        if (name === 'pose-fusion/js/main.js') {
+          text=text.replace('if (isPaused) return;', `if (isPaused) return;
+  if(!csiSimulator.isLive&&!window.auragoRuViewSimulationAllowed?.()){
+    statusLabel.textContent='NO LIVE CSI';statusDot.classList.add('offline');
+    for(const canvas of [skeletonCanvas,csiCanvas,embeddingCanvas])canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+    for(const el of [videoBarVal,csiBarVal,fusedBarVal,rssiValueEl,rssiQualityEl,crossModalEl])if(el)el.textContent='Unavailable';
+    for(const bar of [videoBar,csiBar,fusedBar,rssiBarEl])if(bar)bar.style.width='0%';
+    return;
+  }`);
+          text=text.replace("statusLabel.textContent = 'LIVE CSI';", "statusLabel.textContent = 'EXPERIMENTAL CSI';");
+        }
         bytes = Buffer.from(text);
       }
       await put(name, bytes);

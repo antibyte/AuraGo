@@ -91,5 +91,6 @@
   "ruview.unexpected_simulation": "Demo",
   "ruview.invalid_wifi": "Wi-Fi-netværk (SSID): 1–32 UTF-8 B; Wi-Fi-adgangskode: 8–63 UTF-8 B.",
   "ruview.invalid_config": "Node-id: 1–255; RuView-modtagerens IPv4: 10/8, 172.16/12, 192.168/16; UDP: 1–65535.",
-  "ruview.source_mismatch": "Eksperimentel Wi-Fi-registrering. RSSI kræver en understøttet adapter, CSI valgfrie ESP32-kort. Demodata markeres. Model- og LoRA-skift er ikke tilgængelige her."
+  "ruview.source_mismatch": "Eksperimentel Wi-Fi-registrering. RSSI kræver en understøttet adapter, CSI valgfrie ESP32-kort. Demodata markeres. Model- og LoRA-skift er ikke tilgængelige her.",
+  "ruview.fusion_notice": "Pose-Fusion bruger utrænede eksempelmodeller. Visualiseringen og konfidensværdierne er ikke validerede målinger."
 }

@@ -91,5 +91,6 @@
   "ruview.unexpected_simulation": "Ukázka",
   "ruview.invalid_wifi": "Síť Wi-Fi (SSID): 1–32 UTF-8 B; Heslo Wi-Fi: 8–63 UTF-8 B.",
   "ruview.invalid_config": "ID uzlu: 1–255; IPv4 přijímače RuView: 10/8, 172.16/12, 192.168/16; UDP: 1–65535.",
-  "ruview.source_mismatch": "Experimentální snímání Wi-Fi. RSSI vyžaduje podporovaný adaptér, CSI volitelné desky ESP32. Ukázková data jsou označena. Přepínání modelů a LoRA zde není dostupné."
+  "ruview.source_mismatch": "Experimentální snímání Wi-Fi. RSSI vyžaduje podporovaný adaptér, CSI volitelné desky ESP32. Ukázková data jsou označena. Přepínání modelů a LoRA zde není dostupné.",
+  "ruview.fusion_notice": "Pose-Fusion používá netrénované ukázkové modely. Zobrazení a hodnoty spolehlivosti nejsou ověřená měření."
 }

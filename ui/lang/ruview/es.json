@@ -91,5 +91,6 @@
   "ruview.unexpected_simulation": "Demostración",
   "ruview.invalid_wifi": "Red Wi-Fi (SSID): 1–32 UTF-8 B; Contraseña Wi-Fi: 8–63 UTF-8 B.",
   "ruview.invalid_config": "ID del nodo: 1–255; IPv4 del receptor RuView: 10/8, 172.16/12, 192.168/16; UDP: 1–65535.",
-  "ruview.source_mismatch": "Detección Wi-Fi experimental. RSSI requiere un adaptador compatible; CSI, placas ESP32 opcionales. Los datos de demostración se identifican. El cambio de modelos y LoRA no está disponible."
+  "ruview.source_mismatch": "Detección Wi-Fi experimental. RSSI requiere un adaptador compatible; CSI, placas ESP32 opcionales. Los datos de demostración se identifican. El cambio de modelos y LoRA no está disponible.",
+  "ruview.fusion_notice": "Pose-Fusion usa modelos de ejemplo sin entrenar. La visualización y los valores de confianza no son mediciones validadas."
 }

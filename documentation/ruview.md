@@ -44,7 +44,7 @@ There is no automatic retry after an uncertain flash write. A cancelled operatio
 
 ## Artifact maintenance and release gate
 
-`internal/ruview/artifacts.json` pins source, image digest and every firmware/runtime hash. `scripts/ruview/vendor-ui.mjs` builds the reviewed UI adapter and local dependencies; `npm run build:browser-vendor` bundles the existing esptool-js dependency shared with ESP Web Tools. Preserve all vendored licenses and manifests. No external instance supplies executable UI content, login flows or service workers.
+`internal/ruview/artifacts.json` pins source, image digest and every firmware/runtime hash. `scripts/ruview/vendor-ui.mjs` builds the reviewed UI adapter and local dependencies; `npm run build:browser-vendor` bundles the existing esptool-js dependency shared with ESP Web Tools. Preserve all vendored licenses and manifests. No external instance supplies executable UI content, login flows or service workers. Pose-Fusion includes its pinned WebAssembly modules, expires live CSI after ten seconds, and permits client-generated frames only with AuraGo's explicitly selected demo source. Its untrained upstream fusion/pose visualization remains experimental; displayed confidence is not a calibrated measurement.
 
 The isolated UI uses the upstream-compatible `three-ruview` npm alias at 0.160.0 and `stats-ruview` at 0.17.0; these pins do not replace AuraGo's other Three.js versions. Review their bounds when upgrading RuView. The status `revision` identifies the adapter contract; `revision_verified` is true only for a runtime started from the managed pinned artifacts. An external server's revision is not asserted from its version string.
 
@@ -61,7 +61,7 @@ node scripts/ruview/check-artifacts.mjs --release
 node scripts/ruview/vendor-ui.mjs --check
 node scripts/build-browser-vendor.js --check
 node scripts/build-ui-bundles.js --check
-node --test scripts/ruview/protocol.test.mjs
+node --test scripts/ruview/protocol.test.mjs scripts/ruview/upstream.test.mjs
 ```
 
 The release check intentionally rejects an incomplete platform catalog. Publish the reviewed multi-architecture image as a separate authorized release step, record its real manifest digest and platforms, and rebuild AuraGo and its version-bound resource package. Never substitute a floating tag or invent a digest. The independent artifact names, target profiles, build metadata and hashes support repeat builds; bit-for-bit reproducibility across CI operating-system/toolchain images has not been established.
