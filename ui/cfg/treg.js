@@ -6,18 +6,16 @@ async function renderTregSection(section) {
     const secret = cfgSecretPlaceholder(cfg.token);
     content.innerHTML = `<div class="cfg-section active" id="treg-section">
         <div class="section-header">${escapeHtml(section.label)}</div><div class="section-desc">${escapeHtml(section.desc)}</div>
-        <div class="field-group"><div class="field-grid two-cols">
-            <div class="cfg-toggle-row-compact"><button type="button" class="toggle ${cfg.enabled ? 'on' : ''}" data-path="treg.enabled" aria-label="${tr('enabled')}"></button><span>${tr('enabled')}</span></div>
-            <div class="cfg-toggle-row-compact"><button type="button" class="toggle ${cfg.readonly !== false ? 'on' : ''}" data-path="treg.readonly" aria-label="${tr('readonly')}"></button><span>${tr('readonly')}</span></div>
-        </div><p id="treg-local-status" role="status">${tr('loading')}</p></div>
+        ${AuraConfigForm.toggle({ path: 'treg.enabled', value: cfg.enabled === true, label: tr('enabled') })}
+        ${AuraConfigForm.toggle({ path: 'treg.readonly', value: cfg.readonly !== false, label: tr('readonly') })}
+        <p id="treg-local-status" role="status">${tr('loading')}</p>
         <div class="field-group"><label for="treg-cost">${tr('cost')}</label>
             <input id="treg-cost" class="field-input" inputmode="decimal" value="${(Number(cfg.max_call_cost_micro ?? 1000000) / 1000000).toFixed(6)}" aria-describedby="treg-cost-help">
             <input type="hidden" data-path="treg.max_call_cost_micro" data-type="number" value="${Number(cfg.max_call_cost_micro ?? 1000000)}">
             <p class="field-help" id="treg-cost-help">${tr('cost_help')}</p><p id="treg-cost-error" role="alert"></p></div>
         <div class="field-group"><label for="treg-token">${tr('token')}</label>
             <input id="treg-token" class="field-input" type="password" autocomplete="new-password" placeholder="${escapeAttr(secret)}">
-            <div class="cfg-actions-row"><button type="button" class="btn-save" id="treg-save-token">${tr('save_token')}</button>
-            <button type="button" class="btn-save" id="treg-test-btn">${tr('test')}</button></div>
+            <div class="cfg-actions-row"><button type="button" class="btn-save" id="treg-save-token">${tr('save_token')}</button><button type="button" class="btn-secondary" id="treg-test-btn">${tr('test')}</button></div>
             <p class="field-help">${tr('test_help')}</p><p id="treg-action-status" role="status" aria-live="polite"></p></div>
         <div class="field-group"><div class="field-group-title">${tr('grants')}</div><p class="field-help">${tr('draft_hint')}</p>
             <textarea hidden data-path="treg.allowed_endpoints" data-type="json">${escapeHtml(JSON.stringify(cfg.allowed_endpoints || []))}</textarea>
@@ -27,7 +25,6 @@ async function renderTregSection(section) {
             <p id="treg-search-status" role="status" aria-live="polite"></p><div id="treg-results"></div><div id="treg-details"></div></div>
     </div>`;
     const root = document.getElementById('treg-section');
-    root.querySelectorAll('.toggle').forEach(button => button.addEventListener('click', () => toggleBool(button)));
     const grantsInput = root.querySelector('[data-path="treg.allowed_endpoints"]');
     const grants = () => JSON.parse(grantsInput.value);
     const changeGrants = value => { grantsInput.value = JSON.stringify(value); setDirty(true); renderGrants(); };
@@ -111,7 +108,10 @@ async function renderTregSection(section) {
                 changeGrants([...grants().filter(item => item.endpoint_id !== ep.id), { endpoint_id: ep.id, method: ep.method, path: ep.path, operation: select.value }]);
                 reason.textContent = tr('draft_hint');
             });
-            panel.append(select, approve); status.textContent = '';
+            const actions = document.createElement('div');
+            actions.className = 'cfg-actions-row';
+            actions.append(select, approve);
+            panel.append(actions); status.textContent = '';
         } catch (error) { if (root.isConnected && current === sequence) status.textContent = tr('error') + ': ' + error.message; }
     }
     root.querySelector('#treg-search').addEventListener('click', event => action(event.currentTarget, root.querySelector('#treg-search-status'), async () => {
