@@ -2,7 +2,7 @@
 
 Add or remove critical, permanent facts from `core_memory.md`. This file is injected into your system prompt **every single turn** — each entry costs tokens on every request.
 
-Core Memory is agent-owned. No background maintenance, startup migration, dashboard form, memory analysis, media registry, or tool integration may add or update facts here. Only the agent may write through `manage_memory/core_memory` or `remember` when it deliberately records a durable fact.
+Core Memory is agent-owned. No background maintenance, startup migration, dashboard form, memory analysis, media registry, or tool integration may add or update facts here. The agent writes durable facts through `manage_memory/core_memory` or `remember`; use `correct_memory` for evidenced corrections that preserve history and reconcile copies across stores.
 
 Core Memory is not a task list, maintenance scratchpad, infrastructure inventory, deployment log, or bulk cleanup surface. Use the agent's dedicated notes, planner, journal, inventory, knowledge graph, or internal task list for operational work.
 

@@ -160,6 +160,7 @@ type agentLoopState struct {
 	homepageRuleProjectDir string
 	lastResponseWasTool    bool
 	coreMemDirty           bool
+	memoryCorrections      *memoryCorrectionRun
 	personalityEnabled     bool
 
 	isMaintenance                     bool
@@ -219,6 +220,7 @@ type agentLoopState struct {
 // makeDispatchContext builds a DispatchContext from the current loop state.
 func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *DispatchContext {
 	return &DispatchContext{
+		MemoryCorrections:    s.correctionRun(),
 		ToolDetailFits:       toolDetailBudgetCheck(s.requestBudget, s.req),
 		DiscoveryRunID:       s.runCfg.DiscoveryRunID,
 		ExecutionHooks:       s.runCfg.ExecutionHooks,

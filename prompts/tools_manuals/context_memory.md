@@ -1,6 +1,6 @@
 ## Tool: Context Memory (`context_memory`)
 
-Context-aware memory search across all storage layers. Combines Long-Term Memory (VectorDB), Knowledge Graph, Journal, Notes, and the Planner into a single intelligent query.
+Context-aware memory search across all storage layers. Combines Long-Term Memory (VectorDB), Knowledge Graph, core facts, user profile, Journal, Notes, and the Planner into a single intelligent query.
 
 Use this when `query_memory` is not enough — specifically when you need **relationships, connections, or time-scoped** results rather than isolated facts.
 
@@ -20,7 +20,7 @@ Use this when `query_memory` is not enough — specifically when you need **rela
 |-----------|------|---------|-------------|
 | `query` | string | required | Natural-language search query |
 | `context_depth` | string | `"normal"` | `shallow` / `normal` / `deep` |
-| `sources` | array | `["activity", "journal", "notes", "planner", "core", "kg", "ltm"]` | Which layers to search |
+| `sources` | array | `["activity", "journal", "notes", "planner", "core", "profile", "kg", "ltm"]` | Which layers to search |
 | `time_range` | string | `"all"` | `all` / `today` / `last_week` / `last_month` |
 | `include_related` | boolean | `true` | Expand to connected KG neighbours |
 
@@ -41,6 +41,9 @@ Use this when `query_memory` is not enough — specifically when you need **rela
 | `notes` | Notes / to-dos | Current tasks, bookmarks |
 | `planner` | Structured planner data | Active todos, due work, appointments, agenda |
 | `core` | Core Memory | Preferences, identity facts |
+| `profile` | Current user profile | Structured preferences and communication settings |
+
+Use `query_memory` to obtain exact typed references before a `correct_memory` preview.
 
 ### Examples
 

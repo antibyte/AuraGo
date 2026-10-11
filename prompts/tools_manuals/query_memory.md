@@ -1,5 +1,10 @@
 ## Tool: Unified Memory Query (`query_memory`)
 
+Current core, LTM and graph results include additive typed `references` for
+`correct_memory`. The `user_profile` source is included by default and can also
+be selected explicitly. It returns category/key references. Search hits identify
+targets; they do not provide evidence or authorize changing them.
+
 Search **ALL** memory subsystems at once with a single natural-language query. This is your primary tool for recalling anything — facts, events, preferences, errors, relationships.
 
 ### What it searches (by default: everything)

@@ -169,6 +169,11 @@ func turnSnapshotMutationCategories(call ToolCall) turnSnapshotCategory {
 	action := strings.ToLower(strings.TrimSpace(call.Action))
 	operation := toolCallSnapshotOperation(call)
 	switch action {
+	case "correct_memory":
+		if operation == "apply" {
+			return snapshotMemory
+		}
+		return 0
 	case "remember":
 		category := strings.ToLower(strings.TrimSpace(call.Category))
 		if category == "" && call.Params != nil {

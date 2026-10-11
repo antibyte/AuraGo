@@ -681,6 +681,13 @@ func multiTask(first, second fixtureChoice, language string, sequence int) strin
 }
 
 func naturalTaskClause(choice fixtureChoice, language string) string {
+	if choice.Tool.Name == "correct_memory" {
+		args, _ := json.Marshal(choice.Arguments)
+		if language == "de" {
+			return "Bereite die belegte Gedächtniskorrektur vor, wende die bereits gespeicherte Vorgangs-ID an oder prüfe ihren Status entsprechend den Angaben. Ein Nutzerbeleg gibt meine aktuelle Aussage wortwörtlich wieder; die Zielreferenz stammt aus der vorherigen Suche: " + string(args)
+		}
+		return "Preview the evidenced memory correction, apply the already saved operation ID, or inspect its status as specified. Any user evidence quotes my current statement exactly; the target reference came from the preceding search: " + string(args)
+	}
 	label := humanToolLabel(choice.Tool.Name, language)
 	operation := ""
 	if choice.Value != nil {

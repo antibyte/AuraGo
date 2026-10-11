@@ -124,6 +124,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 	},
 	"memory": {
 		{"manage_memory", "Read and update long-term memory stores"},
+		{"correct_memory", "Preview, apply and verify evidenced corrections across memory stores"},
 		{"query_memory", "Search memory and knowledge snippets"},
 		{"context_memory", "Retrieve contextual memory for the current task"},
 		{"recall_memory", "Read specific long-term memories by ID"},

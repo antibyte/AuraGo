@@ -22,6 +22,7 @@ type SQLiteMemory struct {
 	// ponytail: serialize automatic vector ownership and rollback within one
 	// store; use per-document coordination only if extraction throughput requires it.
 	automaticMemoryMu sync.Mutex
+	correctionMu      sync.Mutex
 
 	auditNotifierMu sync.RWMutex
 	auditNotifier   func(AuditUpdate)
@@ -327,6 +328,10 @@ CREATE INDEX IF NOT EXISTS idx_memory_usage_log_used_at ON memory_usage_log(used
 
 	logger.Info("Initialized SQLite Short-Term Memory", "path", dbPath)
 	stm := &SQLiteMemory{db: db, logger: logger}
+	if err := stm.initMemoryCorrections(); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("initialize memory corrections: %w", err)
+	}
 	if err := stm.initExtractionSources(); err != nil {
 		_ = db.Close()
 		return nil, err

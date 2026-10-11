@@ -26,6 +26,7 @@ const MessageSourceFlow = "flow"
 // It replaces the 30+ individual function parameters that were previously threaded
 // from DispatchToolCall → dispatchInner → dispatchExec/Comm/Services/Infra.
 type DispatchContext struct {
+	MemoryCorrections *memoryCorrectionRun
 	// ToolDetailFits checks a complete discovery detail against every route.
 	ToolDetailFits       func(string) bool
 	DiscoveryRunID       string

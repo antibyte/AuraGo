@@ -187,6 +187,10 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 		return nil, fmt.Errorf("init knowledge graph tables: %w", err)
 	}
 
+	if err := kg.initCorrectionHistory(); err != nil {
+		_ = kg.Close()
+		return nil, fmt.Errorf("initialize graph correction history: %w", err)
+	}
 	if jsonMigratePath != "" {
 		kg.migrateFromJSON(jsonMigratePath)
 	}

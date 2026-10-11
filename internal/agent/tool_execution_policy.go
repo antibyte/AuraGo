@@ -329,7 +329,9 @@ func finalizeToolExecution(
 	}
 
 	if toolFailed && shortTermMem != nil {
-		errMsg := policyResult.ErrorSummary
+		diagnosticTC := trackingTC
+		diagnosticTC.DispatchStatus = status
+		errMsg := correctionDiagnostic(diagnosticTC, policyResult.ErrorSummary)
 		if errMsg != "" {
 			if err := shortTermMem.RecordError(trackingTC.Action, errMsg); err != nil {
 				logToolMemoryWarning(logger, "Failed to persist tool error pattern", trackingTC.Action, err)
@@ -401,7 +403,7 @@ func finalizeToolExecution(
 	circuitBroken := false
 	if (status == ToolResultSuccess || status.IsError()) && recoveryState != nil && req != nil {
 		trackingTC.DispatchStatus = status
-		circuitBroken = recoveryState.updateToolErrorState(trackingTC, resultContent, req, logger, scope, promptVersion, execTimeMs)
+		circuitBroken = recoveryState.updateToolErrorState(trackingTC, correctionDiagnostic(trackingTC, resultContent), req, logger, scope, promptVersion, execTimeMs)
 	}
 
 	// Trigger B: Circuit breaker triggered (≥3 identical consecutive errors) →

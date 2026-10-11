@@ -50,6 +50,9 @@ func (s *agentLoopState) applyToolOutcome(ctx context.Context, tc ToolCall, rawR
 			opts.ExecutionTimeMs, s.runCfg)
 	}
 	content := policyResult.Content
+	content = s.recordCorrectionEvidence(tc, content, executed && policyResult.Status == ToolResultSuccess)
+	diagnosticTC := toolCallForExecutionTracking(tc)
+	diagnosticTC.DispatchStatus = policyResult.Status
 	s.noteGameMakerToolProgress(policyResult.Failed, opts.Blocked)
 	recordVirtualDesktopAppVerification(tc, content, policyResult.Failed, &s.recoveryState)
 	deferredRecoveryMessages := detachNewSystemMessages(&s.req, opts.RecoveryMessageStart)
@@ -63,7 +66,7 @@ func (s *agentLoopState) applyToolOutcome(ctx context.Context, tc ToolCall, rawR
 		// A declared native call still needs one protocol result, but it was
 		// never dispatched and must not create a tool-failure issue.
 	case policyResult.Failed:
-		recordToolFailureOperationalIssue(s.runCfg, tc, content, logger)
+		recordToolFailureOperationalIssue(s.runCfg, tc, correctionDiagnostic(diagnosticTC, content), logger)
 	case policyResult.Status == ToolResultSuccess:
 		resolveToolFailureOperationalIssue(s.runCfg, tc, logger)
 	}
@@ -71,12 +74,14 @@ func (s *agentLoopState) applyToolOutcome(ctx context.Context, tc ToolCall, rawR
 		content = appendControlledRetryReport(content, s.currentToolRoute, tc, s.initialUserMsg, policyResult.Failed)
 	}
 	if opts.Blocked {
-		blockAgentToolAction(logger, opts.ActionLedger, opts.ToolAction, content)
+		blockAgentToolAction(logger, opts.ActionLedger, opts.ToolAction, correctionDiagnostic(diagnosticTC, content))
 	} else {
-		completeAgentToolAction(logger, opts.ActionLedger, opts.ToolAction, policyResult, opts.ExecutionTimeMs)
+		auditResult := policyResult
+		auditResult.Content = correctionDiagnostic(diagnosticTC, policyResult.Content)
+		completeAgentToolAction(logger, opts.ActionLedger, opts.ToolAction, auditResult, opts.ExecutionTimeMs)
 	}
-	trackActivityTool(&s.turnToolNames, &s.turnToolSummaries, tc.Action, content)
-	recordPlanToolProgress(shortTermMem, sessionID, tc, content, logger)
+	trackActivityTool(&s.turnToolNames, &s.turnToolSummaries, tc.Action, correctionDiagnostic(diagnosticTC, content))
+	recordPlanToolProgress(shortTermMem, sessionID, tc, correctionDiagnostic(diagnosticTC, content), logger)
 	if policyResult.Status == ToolResultSuccess || policyResult.Status == ToolResultFailed {
 		recordLearnedRuleOutcome(shortTermMem, s.flags.InjectedLearnedRules, tc.Action, policyResult.Failed, logger)
 	}

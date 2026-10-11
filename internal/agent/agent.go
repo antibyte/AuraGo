@@ -351,6 +351,9 @@ func (s *StringOrJSON) UnmarshalJSON(data []byte) error {
 
 // ToolCall represents a parsed tool invocation from the LLM.
 type ToolCall struct {
+	CorrectionChanges  []memory.MemoryCorrectionChange `json:"changes,omitempty"`
+	CorrectionEvidence []correctionEvidenceRequest     `json:"evidence,omitempty"`
+
 	nativeCall          *openai.ToolCall
 	TransportAction     string                   `json:"-"`
 	PreparationError    string                   `json:"-"`

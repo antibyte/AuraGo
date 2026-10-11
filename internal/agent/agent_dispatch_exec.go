@@ -835,6 +835,8 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Unknown context operation: %s"}`, req.Operation)
 			}
 
+		case "correct_memory":
+			return dispatchMemoryCorrection(ctx, tc, dc)
 		case "manage_memory", "core_memory":
 			req := decodeCoreMemoryArgs(tc)
 			if !cfg.Tools.Memory.Enabled {
