@@ -6,12 +6,20 @@ import (
 	"io"
 	"os"
 	"path"
+	"regexp"
 	"sort"
 	"strings"
 )
 
+// wheelMemberBasePattern keeps flattened member names portable file names:
+// no leading dot, no trailing dot or space (Windows strips them), no ":"
+// (NTFS alternate data streams) and no spaces.
+var wheelMemberBasePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+-]*[A-Za-z0-9]$`)
+
 // validateWheelMembers requires clean, relative, forward-slash member paths
-// with unique base names, because members are flattened on extraction.
+// whose base names are portable and unique ignoring case, because members are
+// flattened on extraction (also on case-insensitive file systems) next to the
+// runtime's .complete.json marker.
 func validateWheelMembers(id string, members []string) error {
 	if len(members) == 0 {
 		return fmt.Errorf("wheel asset %s lists no members", id)
@@ -23,10 +31,17 @@ func validateWheelMembers(id string, members []string) error {
 			return fmt.Errorf("wheel asset %s has invalid member %q", id, member)
 		}
 		base := path.Base(member)
-		if bases[base] {
+		if base == ".complete.json" {
+			return fmt.Errorf("wheel asset %s member %q collides with the runtime marker", id, member)
+		}
+		if !wheelMemberBasePattern.MatchString(base) {
+			return fmt.Errorf("wheel asset %s member %q has a base name that must match %s", id, member, wheelMemberBasePattern)
+		}
+		folded := strings.ToLower(base)
+		if bases[folded] {
 			return fmt.Errorf("wheel asset %s has duplicate member name %q", id, base)
 		}
-		bases[base] = true
+		bases[folded] = true
 	}
 	return nil
 }

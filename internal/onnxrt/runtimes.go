@@ -81,19 +81,21 @@ func lookupRuntime(id string) (AssetSpec, bool) {
 	return spec, true
 }
 
-// CPURuntimeAsset is the official ONNX Runtime 1.26.0 CPU bundle (on macOS it
-// also exposes CoreML).
+// CPURuntimeAsset is the official ONNX Runtime CPU bundle of release
+// CPURuntimeVersion (on macOS it also exposes CoreML).
 func CPURuntimeAsset(goos, goarch string) (AssetSpec, bool) {
 	return lookupRuntime(fmt.Sprintf("ort-%s-%s-cpu", goos, goarch))
 }
 
-// CUDARuntimeAsset is the official ONNX Runtime 1.26.0 GPU (CUDA) bundle.
+// CUDARuntimeAsset is the official ONNX Runtime GPU (CUDA) bundle of release
+// CPURuntimeVersion.
 func CUDARuntimeAsset(goos, goarch string) (AssetSpec, bool) {
 	return lookupRuntime(fmt.Sprintf("ort-%s-%s-cuda", goos, goarch))
 }
 
-// WebGPURuntimeAsset is the onnxruntime-webgpu 1.27.0 wheel; it exists for
-// linux/amd64, windows/amd64 and darwin/arm64 only.
+// WebGPURuntimeAsset is the onnxruntime-webgpu wheel of release
+// WebGPURuntimeVersion; it exists for linux/amd64, windows/amd64 and
+// darwin/arm64 only.
 func WebGPURuntimeAsset(goos, goarch string) (AssetSpec, bool) {
 	return lookupRuntime(fmt.Sprintf("ort-%s-%s-webgpu", goos, goarch))
 }

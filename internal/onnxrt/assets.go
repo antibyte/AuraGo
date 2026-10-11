@@ -324,8 +324,9 @@ func (c *AssetCache) ensureFileUnlocked(ctx context.Context, spec AssetSpec, des
 
 // assetIDPattern keeps asset IDs safe as single path components: RuntimeDir
 // and ArchivePath join them below the cache root. It also rules out "." and
-// "..", and a trailing ".", "-" or "_" (Windows strips trailing dots, so "a."
-// and "a" would share one runtime directory).
+// "..", spaces, and a trailing "." because Windows strips trailing dots and
+// spaces from path components ("a." and "a" would share one runtime
+// directory). Rejecting a trailing "-" or "_" is merely conservative.
 var assetIDPattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$`)
 
 // ValidateAssetSpec requires an ID that is a safe path component, an
@@ -351,8 +352,13 @@ func ValidateAssetSpec(spec AssetSpec) error {
 	if _, err := hex.DecodeString(spec.SHA256); err != nil {
 		return fmt.Errorf("asset %s has invalid SHA-256: %w", spec.ID, err)
 	}
+	if len(spec.Members) > 0 && spec.Kind != AssetWheel {
+		return fmt.Errorf("asset %s lists members but is a %q asset, not a wheel", spec.ID, spec.Kind)
+	}
 	if spec.Kind == AssetWheel {
-		return validateWheelMembers(spec.ID, spec.Members)
+		if err := validateWheelMembers(spec.ID, spec.Members); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -405,6 +411,22 @@ func runtimeManifestMatches(root string, spec AssetSpec) bool {
 			return false
 		}
 		expected[normalized] = file
+	}
+	if spec.Kind == AssetWheel {
+		// A wheel's extracted files depend on Members as well as on the
+		// archive: the marker must list exactly the flattened members.
+		wanted := make(map[string]bool, len(spec.Members))
+		for _, member := range spec.Members {
+			wanted[path.Base(member)] = true
+		}
+		if len(expected) != len(wanted) {
+			return false
+		}
+		for name := range expected {
+			if !wanted[name] {
+				return false
+			}
+		}
 	}
 	seen := make(map[string]bool, len(expected))
 	err = filepath.WalkDir(root, func(entryPath string, entry os.DirEntry, walkErr error) error {
