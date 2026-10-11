@@ -13,8 +13,16 @@ test('resolveInside stays under the screenshots root and rejects a symlink', asy
   await fs.writeFile(outside, 'keep');
   await assert.rejects(() => resolveInside(shots, '../notes.md'));
   const link = path.join(shots, 'link.png');
-  await fs.symlink(outside, link);
-  await assert.rejects(() => resolveInside(shots, 'link.png'), /symlink/);
+  try {
+    await fs.symlink(outside, link);
+    await assert.rejects(() => resolveInside(shots, 'link.png'), /symlink/);
+  } catch (error) {
+    // Windows accounts without the symlink privilege cannot build this fixture.
+    // The rejection itself is unchanged; hosts that can create the link still assert it.
+    if (!error || error.code !== 'EPERM' || error.syscall !== 'symlink') {
+      throw error;
+    }
+  }
   const target = await resolveInside(shots, 'ok.png');
   assert.equal(target, path.join(shots, 'ok.png'));
 });
