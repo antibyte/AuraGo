@@ -255,3 +255,9 @@ func checkCYDCreatorCancelNotReadonly(t *testing.T, name, text, marker string) {
 		t.Errorf("%s has no line with %q", name, marker)
 	}
 }
+
+func TestCYDCreatorCodeModule(t *testing.T) {
+	checkCYDCreatorModule(t, "cyd-creator-code.js",
+		"P.code = { create, HOOK_FILE };", "const HOOK_FILE = 'src/app/app_events.cpp';", "import('/js/vendor/codemirror-bundle.esm.js')",
+		"cm.cpp()", "ensureHook,", "P.autosave.create({", "cyd_creator.code.generated_hint", "view.lineBlockAt(", "dispose() {")
+}
