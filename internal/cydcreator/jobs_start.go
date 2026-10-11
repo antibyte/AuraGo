@@ -433,7 +433,23 @@ func (s *Service) DiscardDraft(ctx context.Context, projectID string) error {
 		unlock()
 		return nil
 	}
-	if _, err := s.db.ExecContext(ctx, `UPDATE cc_projects SET draft_job='' WHERE id=?`, projectID); err != nil {
+	// The job's staging_dir goes too: a working copy whose removal fails (an
+	// open file on Windows) must not be settled as the draft again at the next
+	// start (unsettledInterruptedJobs).
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		unlock()
+		return s.internalError("discard draft", err)
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE cc_projects SET draft_job='' WHERE id=?`, projectID); err == nil {
+		_, err = tx.ExecContext(ctx, `UPDATE cc_jobs SET staging_dir='' WHERE id=?`, row.DraftJob)
+	}
+	if err == nil {
+		err = tx.Commit()
+	} else {
+		_ = tx.Rollback()
+	}
+	if err != nil {
 		unlock()
 		return s.internalError("discard draft", err)
 	}

@@ -435,6 +435,61 @@ func TestRestartCompletesACommittedJobPublication(t *testing.T) {
 	}
 }
 
+// A committed receipt that survived while the server kept running meets a
+// later project state: nothing is recorded or deleted for it (a newer draft
+// keeps its conversation), and the receipt is gone.
+func TestRestartLeavesALaterProjectStateAlone(t *testing.T) {
+	env, _, p := newJobEnv(t)
+	ctx := context.Background()
+	job := Job{ID: "ccj_won", ProjectID: p.ID, Mode: JobModeChange, Status: JobSucceeded, Phase: PhaseDone, Prompt: "blue",
+		StagingDir: stagingRel("ccj_won"), CreatedAt: formatTime(env.svc.now())}
+	if err := env.svc.insertJob(ctx, job); err != nil {
+		t.Fatal(err)
+	}
+	interruptSwap(t, env, p, "publish_ccj_won", true)
+	if _, err := env.svc.db.Exec(`UPDATE cc_projects SET version=version+2 WHERE id=?`, p.ID); err != nil {
+		t.Fatal(err)
+	}
+	finishedDraft(t, env, p, "ccj_later")
+	if _, err := env.svc.db.Exec(`INSERT INTO cc_agent_context(job_id,project_id,data,updated_at) VALUES(?,?,?,?)`,
+		"ccj_later", p.ID, []byte(`{}`), formatTime(env.svc.now())); err != nil {
+		t.Fatal(err)
+	}
+	_ = env.svc.Close()
+
+	env2 := reopenService(t, env)
+	var revisions, contexts int
+	_ = env2.svc.db.QueryRow(`SELECT COUNT(*) FROM cc_revisions WHERE job_id=? AND reason=?`, job.ID, RevisionJob).Scan(&revisions)
+	_ = env2.svc.db.QueryRow(`SELECT COUNT(*) FROM cc_agent_context WHERE job_id='ccj_later'`).Scan(&contexts)
+	if revisions != 0 || contexts != 1 || receiptsLeft(t, env2) != 0 || draftOf(t, env2, p.ID) != "ccj_later" {
+		t.Fatalf("%d job revisions, %d later conversations, %d receipts, draft %q", revisions, contexts, receiptsLeft(t, env2), draftOf(t, env2, p.ID))
+	}
+}
+
+// A discarded draft whose folder could not be removed (an open file on
+// Windows; simulated by recreating it) is not settled as the draft again.
+func TestRestartDoesNotBringBackADiscardedDraft(t *testing.T) {
+	env, _, p := newJobEnv(t)
+	ctx := context.Background()
+	job := crashedJob(t, env, p, "ccj_gone", PhaseCoding)
+	stageCopy(t, env, p, job.ID)
+	_ = env.svc.Close()
+	env2 := reopenService(t, env)
+	if draftOf(t, env2, p.ID) != job.ID {
+		t.Fatal("no draft after the first restart")
+	}
+	if err := env2.svc.DiscardDraft(ctx, p.ID); err != nil {
+		t.Fatal(err)
+	}
+	stageCopy(t, env2, p, job.ID) // the removal "failed"
+	_ = env2.svc.Close()
+
+	env3 := reopenService(t, env2)
+	if got := draftOf(t, env3, p.ID); got != "" || dirExists(env3.svc.stagingPath(job.ID)) {
+		t.Fatalf("draft %q, working copy kept %v", got, dirExists(env3.svc.stagingPath(job.ID)))
+	}
+}
+
 func TestRestartKeepsTheWorkingCopyOfAJobAwaitingConfirmation(t *testing.T) {
 	env, _, p := newJobEnv(t)
 	ctx := context.Background()

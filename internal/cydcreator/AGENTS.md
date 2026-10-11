@@ -529,13 +529,16 @@ app files, assets, events) and the build queue. Plans 3 and 5 add jobs, revision
   worker; nothing can start a job or build before recovery ends, and a recovery failure never fails the start.
   `recoverJobs` (`jobs_recover.go`):
   - `recoverReceipts` lists the folder once: committed receipts finish (and a job publication whose cleanup the
-    crash cut short gets its `job` revision, its private conversations cleared and its events), uncommitted ones
+    crash cut short gets its `job` revision, its private conversations cleared and its events, but only while the
+    project is still at the receipt's `new_version`; a later state is only logged), uncommitted ones
     roll back while the version is still `previous_version`; anything else stays, is logged and fences its project.
     An unreadable folder, more than 1000 entries or a receipt naming no project fences every project.
   - An interrupted job's working copy becomes the draft only when the job got past its preparation (phase not
     `queued` and a `before_job` revision exists) and the copy differs from the project; the older draft is removed
     only after the new one is recorded. A step that fails keeps the copy and fences the project (`recover_<job>`);
-    the next start settles that job again (newest job of its project, interrupted, not the draft, copy present).
+    the next start settles that job again (newest job of its project by rowid, interrupted, not the draft, copy
+    present, `staging_dir` set: `DiscardDraft` clears it, so a discarded draft whose folder could not be removed
+    never comes back).
   - The sweep removes working copies except drafts, jobs awaiting confirmation, stages of receipts left for review
     and copies kept above; it removes nothing when a receipt or the job rows could not be read. A draft whose
     folder is gone is cleared. `pruneOrphanBlobs` runs only here (blob writes dedupe without a lock).

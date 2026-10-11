@@ -195,14 +195,15 @@ func (s *Service) interruptedWork(ctx context.Context, row projectRow, job Job) 
 }
 
 // unsettledInterruptedJobs lists interrupted jobs that are the newest job of
-// their project, are not its draft and still have a working copy: a draft
-// write that failed at an earlier start. While such a project was fenced no
-// newer job could start, so the job is still the newest one.
+// their project (by insertion: rowid, not the clock), are not its draft, were
+// not discarded (DiscardDraft clears staging_dir) and still have a working
+// copy: a draft write that failed at an earlier start. While such a project
+// was fenced no newer job could start, so the job is still the newest one.
 func (s *Service) unsettledInterruptedJobs(ctx context.Context) ([]string, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT j.id FROM cc_jobs j WHERE j.status='interrupted'
-		AND j.rowid = (SELECT j2.rowid FROM cc_jobs j2 WHERE j2.project_id=j.project_id ORDER BY j2.created_at DESC, j2.rowid DESC LIMIT 1)
+	rows, err := s.db.QueryContext(ctx, `SELECT j.id FROM cc_jobs j WHERE j.status='interrupted' AND j.staging_dir<>''
+		AND j.rowid = (SELECT j2.rowid FROM cc_jobs j2 WHERE j2.project_id=j.project_id ORDER BY j2.rowid DESC LIMIT 1)
 		AND j.id NOT IN (SELECT draft_job FROM cc_projects WHERE draft_job<>'')
-		ORDER BY j.created_at, j.id`)
+		ORDER BY j.rowid`)
 	if err != nil {
 		return nil, err
 	}
@@ -234,13 +235,28 @@ func (s *Service) unsettledInterruptedJobs(ctx context.Context) ([]string, error
 // receipt): the "job" revision, the end of the private conversations and the
 // events. The commit itself stored the job as succeeded and released the
 // lock. A crash after the receipt was removed leaves no trace to act on; that
-// job simply has no "job" revision (like a revision write that fails).
+// job simply has no "job" revision (like a revision write that fails). Only
+// a project still at the receipt's new version is completed: a receipt that
+// survived while the server kept running (its removal and the revision write
+// both failed) meets a later project state, whose revision would be wrong and
+// whose later conversations (a newer draft's) must stay; it is only logged
+// (recoverReceipt has removed it as committed).
 func (s *Service) finishCommittedPublication(ctx context.Context, r publishReceipt) {
 	if r.Kind != receiptPublish {
 		return
 	}
 	job, err := s.loadJob(ctx, strings.TrimPrefix(r.ID, receiptPublish+"_"))
 	if err != nil || job.Status != JobSucceeded || job.ProjectID != r.ProjectID {
+		return
+	}
+	row, err := s.loadProjectRow(ctx, r.ProjectID)
+	if err != nil {
+		s.logger.Warn("CYD Creator published job could not be completed after a restart", "job_id", job.ID, "error", err)
+		return
+	}
+	if row.Version != r.NewVersion {
+		s.logger.Warn("CYD Creator published job is not completed after a restart: the project changed since its publication",
+			"job_id", job.ID, "project_id", row.ID, "published_version", r.NewVersion, "version", row.Version)
 		return
 	}
 	var one int
@@ -250,11 +266,6 @@ func (s *Service) finishCommittedPublication(ctx context.Context, r publishRecei
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
 		s.logger.Warn("CYD Creator job revision could not be checked after a restart", "job_id", job.ID, "error", err)
-		return
-	}
-	row, err := s.loadProjectRow(ctx, r.ProjectID)
-	if err != nil {
-		s.logger.Warn("CYD Creator published job could not be completed after a restart", "job_id", job.ID, "error", err)
 		return
 	}
 	if root, err := s.openRoot(row, ""); err == nil {
