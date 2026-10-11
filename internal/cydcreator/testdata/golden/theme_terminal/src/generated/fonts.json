@@ -1,0 +1,48 @@
+{
+  "fonts": [
+    {
+      "symbol": "ui_font_jetbrains_mono_14",
+      "family": "jetbrains_mono",
+      "size": 14,
+      "ranges": [
+        "0x20-0x7E",
+        "0xA0-0x17F"
+      ],
+      "chars": "–…",
+      "lv_symbols": true
+    },
+    {
+      "symbol": "ui_font_jetbrains_mono_16",
+      "family": "jetbrains_mono",
+      "size": 16,
+      "ranges": [
+        "0x20-0x7E",
+        "0xA0-0x17F"
+      ],
+      "chars": "–…",
+      "lv_symbols": true
+    },
+    {
+      "symbol": "ui_font_jetbrains_mono_20",
+      "family": "jetbrains_mono",
+      "size": 20,
+      "ranges": [
+        "0x20-0x7E",
+        "0xA0-0x17F"
+      ],
+      "chars": "–…",
+      "lv_symbols": true
+    },
+    {
+      "symbol": "ui_font_jetbrains_mono_24",
+      "family": "jetbrains_mono",
+      "size": 24,
+      "ranges": [
+        "0x20-0x7E",
+        "0xA0-0x17F"
+      ],
+      "chars": "–…",
+      "lv_symbols": true
+    }
+  ]
+}

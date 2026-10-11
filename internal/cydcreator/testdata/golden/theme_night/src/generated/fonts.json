@@ -1,0 +1,59 @@
+{
+  "fonts": [
+    {
+      "symbol": "ui_font_jetbrains_mono_16",
+      "family": "jetbrains_mono",
+      "size": 16,
+      "ranges": [
+        "0x20-0x7E",
+        "0xA0-0x17F"
+      ],
+      "chars": "–…",
+      "lv_symbols": true
+    },
+    {
+      "symbol": "ui_font_montserrat_14",
+      "family": "montserrat",
+      "size": 14,
+      "ranges": [
+        "0x20-0x7E",
+        "0xA0-0x17F"
+      ],
+      "chars": "–…",
+      "lv_symbols": true
+    },
+    {
+      "symbol": "ui_font_montserrat_16",
+      "family": "montserrat",
+      "size": 16,
+      "ranges": [
+        "0x20-0x7E",
+        "0xA0-0x17F"
+      ],
+      "chars": "–…",
+      "lv_symbols": true
+    },
+    {
+      "symbol": "ui_font_montserrat_20",
+      "family": "montserrat",
+      "size": 20,
+      "ranges": [
+        "0x20-0x7E",
+        "0xA0-0x17F"
+      ],
+      "chars": "–…",
+      "lv_symbols": true
+    },
+    {
+      "symbol": "ui_font_montserrat_24",
+      "family": "montserrat",
+      "size": 24,
+      "ranges": [
+        "0x20-0x7E",
+        "0xA0-0x17F"
+      ],
+      "chars": "–…",
+      "lv_symbols": true
+    }
+  ]
+}
