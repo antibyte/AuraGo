@@ -568,6 +568,16 @@ func TestSandboxProcessEnvClearsImageWhenUnset(t *testing.T) {
 	}
 }
 
+func TestSandboxInstallProbeDoesNotTreatMCPPackageAsSandbox(t *testing.T) {
+	src, err := os.ReadFile("sandbox.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(src), `pip", "show", "mcp"`) || strings.Contains(string(src), "pip show") {
+		t.Fatal("mcp package presence must not count as llm-sandbox installed")
+	}
+}
+
 func TestSandboxMCPLauncherInjectsImageIntoFunctionAndClass(t *testing.T) {
 	python := sandboxLauncherPython(t)
 	_, file, _, ok := runtime.Caller(0)

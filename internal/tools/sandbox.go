@@ -107,16 +107,12 @@ func InitSandboxManager(cfg SandboxConfig, workspaceDir string, logger *slog.Log
 		}
 		mgr.status.DockerAvailable = true
 	} else {
-		// Docker: try ping first, fall back to CLI check
 		host := cfg.DockerHost
 		if err := DockerPing(host); err != nil {
-			// Also try docker CLI as fallback
-			if _, lookErr := exec.LookPath("docker"); lookErr != nil {
-				mgr.status.Error = fmt.Sprintf("Docker unreachable: %v", err)
-				logger.Warn("[Sandbox] Docker not available — sandbox disabled", "error", err)
-				registerSandboxSingleton(mgr)
-				return mgr
-			}
+			mgr.status.Error = err.Error()
+			logger.Warn("[Sandbox] Docker not available — sandbox disabled", "error", err)
+			registerSandboxSingleton(mgr)
+			return mgr
 		}
 		mgr.status.DockerAvailable = true
 	}
@@ -614,12 +610,7 @@ func isSandboxMCPInstalled(pythonBin string) bool {
 	cmd := exec.CommandContext(ctx, pythonBin, "-c",
 		"import llm_sandbox; import llm_sandbox.mcp_server.server; print('ok')")
 	out, err := cmd.CombinedOutput()
-	if err == nil && strings.TrimSpace(string(out)) == "ok" {
-		return true
-	}
-	// Fallback: check pip for the package + mcp extra marker
-	cmd2 := exec.CommandContext(ctx, pythonBin, "-m", "pip", "show", "mcp")
-	return cmd2.Run() == nil
+	return err == nil && strings.TrimSpace(string(out)) == "ok"
 }
 
 // installSandboxPackage installs llm-sandbox with the correct MCP+backend extras.
