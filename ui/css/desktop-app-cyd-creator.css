@@ -26,7 +26,9 @@
     --cc-warn-ink: color-mix(in srgb, var(--cc-warn) 35%, var(--cc-text));
     --cc-danger-ink: color-mix(in srgb, var(--cc-danger) 40%, var(--cc-text));
     --cc-accent-ink: color-mix(in srgb, var(--cc-accent) 35%, var(--cc-text));
+    /* white on accent-deep stays >= 5.5:1 and on accent-deeper >= 7.4:1 for every desktop accent */
     --cc-accent-deep: color-mix(in srgb, var(--cc-accent) 55%, black);
+    --cc-accent-deeper: color-mix(in srgb, var(--cc-accent) 45%, black);
     --cc-on-accent: #ffffff;
     --cc-focus: color-mix(in srgb, var(--cc-accent) 50%, var(--cc-text));
     --cc-overlay: var(--vd-theme-overlay-bg, rgba(0, 0, 0, 0.45));
@@ -44,6 +46,7 @@
     overflow: hidden;
     color: var(--cc-text);
     background: var(--cc-bg);
+    accent-color: var(--cc-accent);
     font-size: 13px;
     container: cc-app / inline-size;
 }
@@ -70,8 +73,8 @@
 }
 .cc-app .cc-btn:hover:not(:disabled) { background: var(--cc-control-hover); }
 .cc-app .cc-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-.cc-app .cc-btn--primary { background: linear-gradient(180deg, var(--cc-accent), var(--cc-accent-deep)); border-color: transparent; color: var(--cc-on-accent); }
-.cc-app .cc-btn--primary:hover:not(:disabled) { background: var(--cc-accent-deep); }
+.cc-app .cc-btn--primary { background: var(--cc-accent-deep); border-color: transparent; color: var(--cc-on-accent); }
+.cc-app .cc-btn--primary:hover:not(:disabled) { background: var(--cc-accent-deeper); }
 .cc-app .cc-btn--danger { background: color-mix(in srgb, var(--cc-danger) 18%, var(--cc-control)); border-color: color-mix(in srgb, var(--cc-danger) 55%, transparent); color: var(--cc-danger-ink); }
 .cc-app .cc-btn--ghost { background: transparent; }
 .cc-app .cc-btn--small { min-height: 26px; padding: 0 9px; font-size: 12px; }
@@ -143,7 +146,7 @@
 .cc-app .cc-form-group legend { padding: 0 0 6px; font-weight: 600; }
 .cc-app .cc-checkline { display: inline-flex; align-items: center; gap: 6px; color: var(--cc-muted); font-size: 12px; }
 .cc-app .cc-dock-spacer { flex: 1 1 auto; }
-.cc-app .cc-progress { width: 180px; height: 8px; accent-color: var(--cc-accent); }
+.cc-app .cc-progress { width: 180px; height: 8px; }
 
 .cc-app .cc-banner {
     display: flex;
@@ -181,7 +184,7 @@
 .cc-app .cc-home { max-width: 980px; margin: 0 auto; padding: 28px 24px 40px; display: grid; gap: 20px; }
 .cc-app .cc-home-title { margin: 0; font-size: 26px; }
 .cc-app .cc-home-lead { margin: 6px 0 0; color: var(--cc-muted); font-size: 14px; max-width: 64ch; }
-.cc-app .cc-home-toolchain .cc-banner { margin: 0; }
+.cc-app .cc-home > .cc-banner, .cc-app .cc-home-toolchain .cc-banner { margin: 0; }
 .cc-app .cc-home-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
 .cc-app .cc-action-card {
     display: grid;
@@ -270,8 +273,25 @@
 .cc-app .cc-project-title { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 28ch; }
 .cc-app .cc-board-chip { color: var(--cc-muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 32ch; }
 .cc-app .cc-segmented { display: inline-flex; padding: 2px; border: 1px solid var(--cc-border); border-radius: var(--cc-radius); background: var(--cc-panel); }
-.cc-app .cc-seg { min-height: 28px; border: 0; background: transparent; }
-.cc-app .cc-seg[aria-pressed="true"] { background: var(--cc-accent-soft); color: var(--cc-accent-ink); }
+/* .cc-seg works alone and together with .cc-btn (it comes later and overrides the button frame) */
+.cc-app .cc-seg {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 28px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: calc(var(--cc-radius) - 3px);
+    background: transparent;
+    color: var(--cc-text);
+    font: inherit;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.cc-app .cc-seg:hover:not(:disabled) { background: var(--cc-control-hover); }
+.cc-app .cc-seg:disabled { opacity: 0.55; cursor: not-allowed; }
+.cc-app .cc-seg[aria-pressed="true"], .cc-app .cc-seg[aria-pressed="true"]:hover:not(:disabled) { background: var(--cc-accent-soft); color: var(--cc-accent-ink); }
 .cc-app .cc-toolchain-slot .cc-banner { margin: 8px 12px 0; }
 
 /* ── workbench ──────────────────────────────────────────────────────────────── */
@@ -345,11 +365,18 @@
 .cc-app .cc-tree-tools { display: inline-flex; opacity: 0; transition: opacity 140ms ease; }
 .cc-app .cc-tree-row:hover .cc-tree-tools, .cc-app .cc-tree-row:focus-within .cc-tree-tools { opacity: 1; }
 .cc-app .cc-tree-tools .cc-icon-btn { width: 24px; height: 24px; font-size: 13px; }
+@media (hover: none) {
+    .cc-app .cc-tree-tools { opacity: 1; }
+}
 .cc-app .cc-code-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .cc-app .cc-code-bar { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 4px 10px; border-bottom: 1px solid var(--cc-border); background: var(--cc-chrome); }
 .cc-app .cc-code-path { font-family: var(--cc-mono); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cc-app .cc-code-hint { margin: 0; padding: 7px 12px; border-bottom: 1px solid var(--cc-border); background: var(--cc-accent-faint); color: var(--cc-accent-ink); }
 .cc-app .cc-code-surface { position: relative; flex: 1 1 auto; min-height: 0; display: flex; }
+/* CodeMirror drops its own outline (&.cm-focused): the ring is an overlay because the editor's
+   background would paint over an inset shadow on the surface itself. */
+.cc-app .cc-code-surface:focus-within::after { content: ''; position: absolute; inset: 0; z-index: 1; box-shadow: inset 0 0 0 2px var(--cc-focus); pointer-events: none; }
+.cc-app .cc-code-fallback:focus-visible { outline: none; }
 .cc-app .cc-code-editor { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; }
 .cc-app .cc-code-editor > .cm-editor { flex: 1 1 auto; min-width: 0; }
 .cc-app .cc-code-fallback { flex: 1 1 auto; border: 0; padding: 10px; background: var(--cc-code-bg); color: var(--cc-text); font-family: var(--cc-mono); font-size: 13px; resize: none; }
@@ -361,7 +388,7 @@
 /* ── dock ───────────────────────────────────────────────────────────────────── */
 .cc-app .cc-dock { position: relative; display: flex; flex-direction: column; height: var(--cc-dock-h); min-height: 0; border-top: 1px solid var(--cc-border); background: var(--cc-panel); }
 .cc-app .cc-dock.is-collapsed { height: auto; }
-.cc-app .cc-dock-handle { position: absolute; left: 0; right: 0; top: -4px; height: 8px; cursor: ns-resize; z-index: 2; }
+.cc-app .cc-dock-handle { position: absolute; left: 0; right: 0; top: -4px; height: 8px; cursor: ns-resize; z-index: 2; touch-action: none; }
 .cc-app .cc-dock.is-collapsed .cc-dock-handle { display: none; }
 .cc-app .cc-dock-bar { display: flex; align-items: center; gap: 4px; padding: 0 6px; border-bottom: 1px solid var(--cc-border); background: var(--cc-chrome); }
 .cc-app .cc-dock-tabs { display: flex; gap: 2px; }
@@ -380,9 +407,6 @@
     cursor: pointer;
 }
 .cc-app .cc-dock-tab[aria-selected="true"] { color: var(--cc-text); border-bottom-color: var(--cc-accent); }
-.cc-app .cc-dock-badge[data-tone="danger"] { background: color-mix(in srgb, var(--cc-danger) 18%, transparent); color: var(--cc-danger-ink); }
-.cc-app .cc-dock-badge[data-tone="warning"] { background: color-mix(in srgb, var(--cc-warn) 18%, transparent); color: var(--cc-warn-ink); }
-.cc-app .cc-dock-badge[data-tone="accent"] { background: var(--cc-accent-soft); color: var(--cc-accent-ink); }
 .cc-app .cc-dock-body { flex: 1 1 auto; min-height: 0; display: flex; }
 .cc-app .cc-dock-panel { flex: 1 1 auto; min-height: 0; min-width: 0; display: flex; flex-direction: column; }
 .cc-app .cc-log, .cc-app .cc-problems { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
@@ -416,9 +440,10 @@
 }
 .cc-app .cc-problem:hover:not(:disabled) { background: var(--cc-control-hover); }
 .cc-app .cc-problem:disabled { cursor: default; }
-.cc-app .cc-problem-icon { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font-size: 11px; font-weight: 800; color: var(--cc-on-accent); background: var(--cc-muted); flex: 0 0 auto; }
-.cc-app .cc-problem[data-severity="error"] .cc-problem-icon { background: var(--cc-danger); }
-.cc-app .cc-problem[data-severity="warning"] .cc-problem-icon { background: var(--cc-warn); }
+/* tag recipe (tinted fill + ink): the dock emits data-severity error | warning | note */
+.cc-app .cc-problem-icon { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font-size: 11px; font-weight: 800; color: var(--cc-muted); background: var(--cc-control); flex: 0 0 auto; }
+.cc-app .cc-problem[data-severity="error"] .cc-problem-icon { background: color-mix(in srgb, var(--cc-danger) 18%, transparent); color: var(--cc-danger-ink); }
+.cc-app .cc-problem[data-severity="warning"] .cc-problem-icon { background: color-mix(in srgb, var(--cc-warn) 18%, transparent); color: var(--cc-warn-ink); }
 .cc-app .cc-problem-text { flex: 1 1 auto; min-width: 0; }
 .cc-app .cc-problem-source { color: var(--cc-muted); font-size: 11px; }
 .cc-app .cc-problem-where { color: var(--cc-muted); font-family: var(--cc-mono); font-size: 11px; }
@@ -463,14 +488,18 @@
 .cc-app .cc-composer-actions { display: flex; align-items: center; gap: 6px; }
 
 /* revisions */
-.cc-app .cc-rev { display: grid; grid-template-columns: minmax(200px, 260px) minmax(0, 1fr); gap: 12px; min-height: 320px; }
-.cc-app .cc-rev-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; align-content: start; max-height: 52vh; overflow: auto; }
+/* The dialog is capped at the window (max-height: 100%); its body row shrinks to what is left
+   (grid fr under a max size), so list and diff scroll inside the window instead of at 52vh. */
+.cc-app .cc-dialog:has(> .cc-dialog-body > .cc-rev) { grid-template-rows: auto minmax(0, 1fr); }
+.cc-app .cc-dialog-body:has(> .cc-rev) { grid-template-rows: minmax(0, 1fr); }
+.cc-app .cc-rev { display: grid; grid-template-columns: minmax(200px, 260px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 12px; min-height: 320px; }
+.cc-app .cc-rev-list { list-style: none; margin: 0; padding: 4px; display: grid; gap: 4px; align-content: start; overflow: auto; }
 .cc-app .cc-rev-item { display: grid; gap: 3px; width: 100%; padding: 8px 10px; border: 1px solid var(--cc-border); border-radius: var(--cc-radius); background: var(--cc-panel); color: var(--cc-text); font: inherit; text-align: left; cursor: pointer; }
 .cc-app .cc-rev-item[aria-pressed="true"] { border-color: var(--cc-accent); background: var(--cc-accent-faint); }
 .cc-app .cc-rev-item time { color: var(--cc-muted); font-size: 11px; }
 .cc-app .cc-rev-item .cc-tag { justify-self: start; }
 .cc-app .cc-rev-label { font-weight: 600; }
-.cc-app .cc-rev-detail { min-width: 0; max-height: 52vh; overflow: auto; }
+.cc-app .cc-rev-detail { min-width: 0; overflow: auto; }
 .cc-app .cc-rev-layout { margin: 0 0 8px; color: var(--cc-muted); }
 .cc-app .cc-diff-file h4 { display: flex; align-items: center; gap: 8px; margin: 10px 0 4px; font-family: var(--cc-mono); font-size: 12px; }
 .cc-app .cc-diff { margin: 0; padding: 8px; border-radius: 6px; background: var(--cc-code-bg); font-family: var(--cc-mono); font-size: 12px; white-space: pre-wrap; word-break: break-word; }
@@ -506,12 +535,12 @@
     .cc-app .cc-code { grid-template-columns: minmax(150px, 190px) minmax(0, 1fr); }
 }
 @container cc-app (max-width: 820px) {
-    .cc-app .cc-workbench, .cc-app[data-cc-mode="code"] .cc-workbench, .cc-app.no-designer .cc-workbench { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(300px, 50%); }
+    .cc-app .cc-workbench, .cc-app[data-cc-mode="code"] .cc-workbench, .cc-app.no-designer .cc-workbench { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 3fr) minmax(0, 2fr); }
     .cc-app .cc-left { display: none; }
     .cc-app .cc-right { border-left: 0; border-top: 1px solid var(--cc-border); }
     .cc-app .cc-code { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
     .cc-app .cc-tree { max-height: 140px; border-right: 0; border-bottom: 1px solid var(--cc-border); }
-    .cc-app .cc-rev { grid-template-columns: minmax(0, 1fr); }
+    .cc-app .cc-rev { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 2fr) minmax(0, 3fr); }
     .cc-app .cc-form-row { grid-template-columns: minmax(0, 1fr); }
     .cc-app .cc-project-title { max-width: 16ch; }
 }

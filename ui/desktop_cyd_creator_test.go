@@ -219,6 +219,20 @@ func TestCYDCreatorStylesheetUsesThemeTokens(t *testing.T) {
 	if hex := regexp.MustCompile(`#[0-9a-fA-F]{3,8}\b`).FindString(shell); hex != "" {
 		t.Fatalf("literal colour %s outside the .cc-app token block", hex)
 	}
+	if fn := regexp.MustCompile(`\b(?:rgba?|hsla?)\(`).FindString(shell); fn != "" {
+		t.Fatalf("literal colour function %s…) outside the .cc-app token block", fn)
+	}
+	// Shell rules only read --cc-* tokens the stylesheet defines (plan 4b's inline --cc-grid/--cc-depth
+	// live in its own section).
+	defined := map[string]bool{}
+	for _, m := range regexp.MustCompile(`(--cc-[a-z0-9-]+)\s*:`).FindAllStringSubmatch(css, -1) {
+		defined[m[1]] = true
+	}
+	for _, m := range regexp.MustCompile(`var\((--cc-[a-z0-9-]+)`).FindAllStringSubmatch(shell, -1) {
+		if !defined[m[1]] {
+			t.Errorf("shell rules use %s but desktop-app-cyd-creator.css never defines it", m[1])
+		}
+	}
 	for _, marker := range []string{
 		"--cc-bg: var(--vd-theme-app-bg", "--cc-panel: var(--vd-theme-panel-bg", "--cc-border: var(--vd-theme-border",
 		"--cc-text: var(--vd-text", "container: cc-app / inline-size;", "@container cc-app (max-width: 820px)",
