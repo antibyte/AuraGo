@@ -23,3 +23,8 @@ test('rejects any DNS answer on a restricted network', async () => {
     { address: '93.184.215.14' }, { address: '10.0.0.5' },
   ]));
 });
+
+test('blocks Oracle Cloud metadata even when that origin is allowlisted', async () => {
+  const allowed = parseAllowedOrigins('["http://192.0.0.192"]');
+  await assert.rejects(validateBrowserTarget('http://192.0.0.192/opc/v2/', allowed, lookup));
+});
