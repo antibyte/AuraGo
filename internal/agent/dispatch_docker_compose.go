@@ -844,8 +844,10 @@ func dockerComposePolicyRun(ctx context.Context, cfg *config.Config, dockerCfg t
 	if denied := dockerComposeOwnerDenial(preflight.protectedOwner(effective)); denied != "" {
 		return denied
 	}
-	if denied := dockerComposeContainerReferenceDenial(dockerCfg, preflight.model, effective.model); denied != "" {
-		return denied
+	if !dockerComposeSkipsContainerReferences(subcommand) {
+		if denied := dockerComposeContainerReferenceDenial(dockerCfg, preflight.model, effective.model); denied != "" {
+			return denied
+		}
 	}
 	if subcommand == "up" || subcommand == "create" {
 		// The security proxy name is reserved for everyone, as for agent
@@ -985,9 +987,13 @@ var dockerComposeReferenceOwnership = tools.DockerContainerOwnership
 // container-targeted docker operations). A shared PID namespace exposes the
 // target's /proc/<pid>/root and environ, so the name rules alone (an ID prefix,
 // a renamed container) are not enough. Targets that do not exist (404) pass:
-// Compose itself fails on them.
+// Compose itself fails on them. A short hex target is also refused when it
+// starts the ID of a protected container (dockerComposeProtectedIDPrefixes),
+// because Docker would resolve it to that container once the container it
+// names now is gone.
 func dockerComposeContainerReferenceDenial(dockerCfg tools.DockerConfig, models ...tools.DockerComposeModel) string {
 	seen := map[string]bool{}
+	prefixes := dockerComposeProtectedIDPrefixes{dockerCfg: dockerCfg}
 	for _, model := range models {
 		for _, target := range tools.DockerComposeContainerReferences(model) {
 			if seen[target] {
@@ -1002,26 +1008,123 @@ func dockerComposeContainerReferenceDenial(dockerCfg tools.DockerConfig, models 
 			}
 			owned, err := dockerComposeReferenceOwnership(dockerCfg, target, dockerComposeReferenceOwners...)
 			for _, owner := range dockerComposeReferenceOwners {
-				if !owned[owner] {
-					continue
+				if owned[owner] {
+					return dockerComposeReferenceOwnerDenial(owner, target)
 				}
-				switch owner {
-				case "go2rtc":
-					return dockerAgentError("docker_managed_go2rtc_resource", "Docker Compose cannot join or read AuraGo's managed go2rtc container.")
-				case "ruview":
-					return dockerAgentError("docker_managed_ruview_resource", "Docker Compose cannot join or read AuraGo's managed RuView container.")
-				}
-				if denied := dockerComposeOwnerDenial(owner); denied != "" {
-					return denied
-				}
-				return dockerAgentError("docker_managed_resource", fmt.Sprintf("Docker Compose cannot join or read container %q: it is managed by AuraGo.", target))
 			}
 			if err != nil {
 				slog.Default().Warn("Docker Compose container reference could not be verified", "container", target, "error", err)
 				return dockerAgentError("docker_ownership_unverified", fmt.Sprintf(
 					"Docker did not answer the ownership check for container %q, which this Compose file joins or reads (network_mode, pid, ipc or volumes_from), so nothing was run. Retry when the Docker API is reachable.", target))
 			}
+			if !dockerComposeShortIDReference(target) {
+				continue
+			}
+			owner, listErr := prefixes.owner(target)
+			if listErr != "" {
+				slog.Default().Warn("Docker Compose container ID prefix could not be checked", "container", target, "error", listErr)
+				return dockerAgentError("docker_ownership_unverified", fmt.Sprintf(
+					"Docker did not list its containers for the ID prefix check of container %q, which this Compose file joins or reads (network_mode, pid, ipc or volumes_from), so nothing was run. Use the full container ID, or retry when the Docker API is reachable.", target))
+			}
+			if owner != "" {
+				return dockerAgentError("docker_compose_container_reference_ambiguous", fmt.Sprintf(
+					"Container reference %q, which this Compose file joins or reads (network_mode, pid, ipc or volumes_from), also starts the ID of a container AuraGo manages (%s), so Docker could resolve it to that container. Use the full container ID or a container name that is not only hex digits.", target, owner))
+			}
 		}
 	}
 	return ""
+}
+
+// dockerComposeSkipsContainerReferences reports the subcommands that start,
+// join and read no container (config, convert, version): they skip the
+// container reference lookup, so they still work while Docker is down. Every
+// other subcommand, also one hidden behind a leading global flag, is checked.
+func dockerComposeSkipsContainerReferences(subcommand string) bool {
+	switch subcommand {
+	case "config", "convert", "version":
+		return true
+	}
+	return false
+}
+
+// dockerComposeReferenceOwnerDenial is the refusal of a Compose container
+// reference that owner manages.
+func dockerComposeReferenceOwnerDenial(owner, target string) string {
+	switch owner {
+	case "go2rtc":
+		return dockerAgentError("docker_managed_go2rtc_resource", "Docker Compose cannot join or read AuraGo's managed go2rtc container.")
+	case "ruview":
+		return dockerAgentError("docker_managed_ruview_resource", "Docker Compose cannot join or read AuraGo's managed RuView container.")
+	}
+	if denied := dockerComposeOwnerDenial(owner); denied != "" {
+		return denied
+	}
+	return dockerAgentError("docker_managed_resource", fmt.Sprintf("Docker Compose cannot join or read container %q: it is managed by AuraGo.", target))
+}
+
+// dockerComposeShortIDReference reports a target Docker may resolve as an ID
+// prefix: hex digits only and shorter than a full 64-digit ID (a full ID
+// starts no other container's ID).
+func dockerComposeShortIDReference(target string) bool {
+	if target == "" || len(target) >= 64 {
+		return false
+	}
+	for _, r := range target {
+		if !('0' <= r && r <= '9' || 'a' <= r && r <= 'f' || 'A' <= r && r <= 'F') {
+			return false
+		}
+	}
+	return true
+}
+
+// dockerComposeReferenceContainers lists every container (all=true) for the ID
+// prefix check; on failure it returns the error JSON. Tests replace it.
+var dockerComposeReferenceContainers = func(dockerCfg tools.DockerConfig) ([]tools.DockerContainerListEntry, string) {
+	return tools.DockerListContainerEntries(dockerCfg, true)
+}
+
+// dockerComposeProtectedIDPrefixes answers the ID prefix check of one policy
+// run from a single container list, made on the first short hex target.
+type dockerComposeProtectedIDPrefixes struct {
+	dockerCfg tools.DockerConfig
+	listed    bool
+	failure   string
+	protected []dockerComposeProtectedID
+}
+
+type dockerComposeProtectedID struct {
+	id, owner string
+}
+
+// owner returns the owner of a protected container whose full ID starts with
+// prefix (case-insensitive), with the name and label rules of
+// DockerContainerOwnership (DockerContainerOwnersFromMetadata), or the list
+// failure.
+func (p *dockerComposeProtectedIDPrefixes) owner(prefix string) (string, string) {
+	if !p.listed {
+		p.listed = true
+		entries, failure := dockerComposeReferenceContainers(p.dockerCfg)
+		if failure != "" {
+			p.failure = dockerutil.SanitizeOneLine(failure, 300)
+		}
+		for _, entry := range entries {
+			owned := tools.DockerContainerOwnersFromMetadata(entry.Names, entry.Labels, dockerComposeReferenceOwners...)
+			for _, owner := range dockerComposeReferenceOwners {
+				if owned[owner] {
+					p.protected = append(p.protected, dockerComposeProtectedID{id: strings.ToLower(strings.TrimSpace(entry.FullID)), owner: owner})
+					break
+				}
+			}
+		}
+	}
+	if p.failure != "" {
+		return "", p.failure
+	}
+	prefix = strings.ToLower(prefix)
+	for _, container := range p.protected {
+		if container.id != "" && strings.HasPrefix(container.id, prefix) {
+			return container.owner, ""
+		}
+	}
+	return "", ""
 }

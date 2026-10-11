@@ -283,14 +283,17 @@ func TestDockerComposeContainerReferencesListsOutsideContainers(t *testing.T) {
 		"b":{"image":"x","network_mode":"service:db","pid":"host","ipc":"shareable","volumes_from":["db","db:ro","container:vpn:rw","other"]},
 		"c":{"image":"x","network_mode":"container:cccccccccccc"},
 		"d":{"image":"x","network_mode":"container:/renamed","pid":"container://double","ipc":"container:/cccc"},
-		"e":{"image":"x","volumes_from":["container:/vpn:ro","container:/slashed:rw"]}}}`)
+		"e":{"image":"x","volumes_from":["container:/vpn:ro","container:/slashed:rw"]},
+		"f":{"image":"x","volumes_from":["container:zmode:z","rocomma:ro,z","cachedone:cached","container:/bigz:Z","db:z"]}}}`)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Docker resolves "/name" like "name": one leading slash is dropped, so a
 	// slashed label-only target is still resolved; "//double" keeps one slash
-	// and the agent refuses it as no valid name.
-	want := []string{"/double", "cccc", "cccccccccccc", strings.Repeat("c", 64), "other", "renamed", "slashed", "vpn"}
+	// and the agent refuses it as no valid name. Every volumes_from mode after
+	// the first ':' is dropped (":z", ":Z", ":ro,z", ":cached"), not only
+	// ":ro"/":rw".
+	want := []string{"/double", "bigz", "cachedone", "cccc", "cccccccccccc", strings.Repeat("c", 64), "other", "renamed", "rocomma", "slashed", "vpn", "zmode"}
 	if got := DockerComposeContainerReferences(model); strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("references = %q, want %q", got, want)
 	}
@@ -337,6 +340,10 @@ func TestDockerComposeModelOwnerFindsStructuredReferences(t *testing.T) {
 		"app container name":         {`{"services":{"w":{"container_name":"aurago"}}}`, dockerutil.AppOwner},
 		"app owner label":            {`{"services":{"w":{"labels":{"aurago.managed":"aurago-app"}}}}`, dockerutil.AppOwner},
 		"volumes_from app container": {`{"services":{"w":{"volumes_from":["container:aurago"]}}}`, dockerutil.AppOwner},
+		"volumes_from app with :z":   {`{"services":{"w":{"volumes_from":["container:aurago:z"]}}}`, dockerutil.AppOwner},
+		"volumes_from llm ro,z":      {`{"services":{"w":{"volumes_from":["aurago-local-llm:ro,z"]}}}`, dockerutil.LocalLLMOwner},
+		"volumes_from garage cached": {`{"services":{"w":{"volumes_from":["aurago-boring-garage:cached"]}}}`, dockerutil.BoringGarageOwner},
+		"same-project mode :Z":       {`{"services":{"aurago":{"image":"x"},"w":{"volumes_from":["aurago:Z"]}}}`, ""},
 		"user name ending in aurago": {`{"services":{"w":{"container_name":"dev-aurago"}}}`, ""},
 		"user name with aurago":      {`{"services":{"w":{"container_name":"my-aurago-1"}}}`, ""},
 		"same-project volumes_from":  {`{"services":{"aurago":{"image":"x"},"w":{"volumes_from":["aurago"]}}}`, ""},
