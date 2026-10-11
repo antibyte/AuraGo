@@ -518,6 +518,40 @@ app files, assets, events) and the build queue. Plans 3 and 5 add jobs, revision
   always says enabled and writable (the HTTP layer overlays both); `active_job` reads `cc_jobs` rows with status
   `queued|running|awaiting_confirmation` (plan 3 writes exactly these).
 
+### Publication fence and startup recovery (plan 3)
+
+- A project directory swap (job publication, revision restore) writes a synced receipt
+  `<data>/cyd_creator/transactions/<receipt id>.json` first (`project_id`, `slug`, `stage`, `previous_version`,
+  `new_version`); the commit stores the receipt id in `cc_projects.publish_receipt`. While a swap of a project is
+  unresolved the project is fenced in memory: every write, `StartJob` and `ConfirmJob` refuse with `CYD_BUSY`
+  (`details.reason` `publication_review`) and `ProjectSummary.publish_review` is true, until a start resolves it.
+- `NewService` order: `unfinishedJobIDs` → `recoverStore` → `discardPartialArtifacts` → `recoverJobs` → build
+  worker; nothing can start a job or build before recovery ends, and a recovery failure never fails the start.
+  `recoverJobs` (`jobs_recover.go`):
+  - `recoverReceipts` lists the folder once: committed receipts finish (and a job publication whose cleanup the
+    crash cut short gets its `job` revision, its private conversations cleared and its events), uncommitted ones
+    roll back while the version is still `previous_version`; anything else stays, is logged and fences its project.
+    An unreadable folder, more than 1000 entries or a receipt naming no project fences every project.
+  - An interrupted job's working copy becomes the draft only when the job got past its preparation (phase not
+    `queued` and a `before_job` revision exists) and the copy differs from the project; the older draft is removed
+    only after the new one is recorded. A step that fails keeps the copy and fences the project (`recover_<job>`);
+    the next start settles that job again (newest job of its project, interrupted, not the draft, copy present).
+  - The sweep removes working copies except drafts, jobs awaiting confirmation, stages of receipts left for review
+    and copies kept above; it removes nothing when a receipt or the job rows could not be read. A draft whose
+    folder is gone is cleared. `pruneOrphanBlobs` runs only here (blob writes dedupe without a lock).
+- A staging folder (`.cyd-creator-staging`) that is a link or junction is never followed: `StartJob`,
+  `RestoreRevision`, `removeStaging` and the sweep refuse. `DeleteProject` removes its jobs' working copies.
+- Resolving a fenced project by hand (server log: "CYD Creator receipt needs review" with the receipt and project,
+  or "receipts could not all be checked"):
+  1. Stop AuraGo. Read the receipt: the project tree is `<workspace>/CYD/<slug>`, the tree before the swap
+     `<workspace>/CYD/<slug>.cyd-backup-<receipt id>`, the new tree (when not in place)
+     `<workspace>/.cyd-creator-staging/<stage>`.
+  2. Leave the tree you want as `CYD/<slug>` and move the other one out of the workspace (or delete it). Do not edit
+     the database.
+  3. Delete the receipt file, and any file in `transactions/` that is not a receipt (each one fences every
+     project). Start AuraGo; a backup without a receipt is swept at the start.
+  A `recover_<job>` fence needs no action: restart AuraGo and the job is settled again.
+
 ## Work Guidance
 
 - Table-driven tests live beside the source; golden files belong to the generator under `testdata/golden/`.

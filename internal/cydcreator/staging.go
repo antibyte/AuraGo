@@ -102,10 +102,22 @@ func copyTree(src, dst string) error {
 	})
 }
 
+// checkStagingRoot refuses a staging folder that is a link or another reparse
+// point: removing or writing below it would follow the link out of the
+// workspace.
+func (s *Service) checkStagingRoot() error {
+	return rejectLinkedComponents(s.workspaceDir, stagingDirName)
+}
+
 // removeStaging deletes a job's working copy (only well-formed job ids, so
-// the path never leaves the staging folder).
+// the path never leaves the staging folder; nothing while the staging folder
+// is a link).
 func (s *Service) removeStaging(jobID string) {
 	if !validElementID(jobID) {
+		return
+	}
+	if err := s.checkStagingRoot(); err != nil {
+		s.logger.Warn("CYD Creator working copy was not removed", "job_id", jobID, "error", err)
 		return
 	}
 	if err := os.RemoveAll(s.stagingPath(jobID)); err != nil {

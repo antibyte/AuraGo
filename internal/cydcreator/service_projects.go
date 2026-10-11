@@ -32,9 +32,13 @@ type ProjectSummary struct {
 	Version     int64  `json:"version"`
 	LockedByJob string `json:"locked_by_job"`
 	HasDraft    bool   `json:"has_draft"`
-	LastBuild   *Build `json:"last_build"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	// PublishReview is set while the project is fenced (an unresolved
+	// publication or a failed startup recovery): every write refuses with
+	// CYD_BUSY, reason publication_review, until a restart resolves it.
+	PublishReview bool   `json:"publish_review"`
+	LastBuild     *Build `json:"last_build"`
+	CreatedAt     string `json:"created_at"`
+	UpdatedAt     string `json:"updated_at"`
 }
 
 // CreateProjectInput is the body of POST /projects. Theme defaults to
@@ -193,7 +197,7 @@ func (s *Service) CreateProject(ctx context.Context, in CreateProjectInput) (Pro
 func (s *Service) summary(ctx context.Context, row projectRow) ProjectSummary {
 	out := ProjectSummary{ID: row.ID, Slug: row.Slug, Name: row.Name, Board: row.Board, Theme: row.Theme,
 		Version: row.Version, LockedByJob: row.LockedByJob, HasDraft: row.DraftJob != "",
-		CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt}
+		PublishReview: s.publicationFence(row.ID) != "", CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt}
 	if row.LastBuild != "" {
 		if b, err := s.loadBuild(ctx, row.LastBuild); err == nil {
 			out.LastBuild = &b

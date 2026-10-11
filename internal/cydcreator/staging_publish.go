@@ -277,96 +277,126 @@ func (s *Service) publishStage(ctx context.Context, row projectRow, stage, kind,
 	return r.NewVersion, nil
 }
 
+// receiptRecovery is what recoverReceipts found.
+type receiptRecovery struct {
+	// Listed is false when the receipts folder could not be read or held more
+	// than maxReceipts entries: then no receipt was resolved.
+	Listed bool
+	// Complete is false when a receipt left for review names no project or
+	// no valid stage, so its project is unknown.
+	Complete bool
+	// Stages are the stage folders of the receipts left for review.
+	Stages map[string]bool
+	// Committed are receipts of committed swaps whose cleanup was cut short
+	// by the crash; they are resolved now.
+	Committed []publishReceipt
+}
+
 // recoverReceipts finishes or rolls back swaps interrupted by a crash, then
 // removes backups whose receipt is gone. Receipts that need review are kept
 // and logged, the project stays as found and is fenced until the next start.
-func (s *Service) recoverReceipts(ctx context.Context) {
+// The folder is listed once; the result tells the caller what is left.
+func (s *Service) recoverReceipts(ctx context.Context) receiptRecovery {
+	out := receiptRecovery{Stages: map[string]bool{}}
 	entries, err := os.ReadDir(s.receiptsDir())
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		s.logger.Error("CYD Creator receipts could not be listed", "error", err)
-		return
+		return out
 	}
 	if len(entries) > maxReceipts {
 		s.logger.Error("CYD Creator has too many receipts; recovery skipped", "count", len(entries))
-		return
+		return out
 	}
+	out.Listed, out.Complete = true, true
 	for _, e := range entries {
 		p := filepath.Join(s.receiptsDir(), e.Name())
 		if strings.Contains(e.Name(), ".json.tmp") || strings.HasPrefix(e.Name(), ".") {
 			_ = os.Remove(p) // an unfinished receipt write: no swap started
 			continue
 		}
-		r, err := s.recoverReceipt(ctx, p)
+		r, committed, err := s.recoverReceipt(ctx, p)
 		if err != nil {
 			if r.ProjectID != "" {
 				s.setPublicationFence(r.ProjectID, r.ID)
 			}
+			if r.ProjectID == "" || !stagePattern.MatchString(r.Stage) {
+				out.Complete = false
+			} else {
+				out.Stages[r.Stage] = true
+			}
 			s.logger.Error("CYD Creator receipt needs review", "receipt", e.Name(), "project_id", r.ProjectID, "error", err)
+			continue
+		}
+		if committed {
+			out.Committed = append(out.Committed, r)
 		}
 	}
 	s.sweepOrphanBackups()
+	return out
 }
 
-// recoverReceipt resolves one receipt file. It returns the parsed receipt
-// (empty when the file is unreadable) so the caller can fence its project.
-func (s *Service) recoverReceipt(ctx context.Context, p string) (publishReceipt, error) {
+// recoverReceipt resolves one receipt file and reports whether it was a
+// committed swap. It returns the parsed receipt (empty when the file is
+// unreadable or misnamed) so the caller can fence its project.
+func (s *Service) recoverReceipt(ctx context.Context, p string) (publishReceipt, bool, error) {
 	info, err := os.Lstat(p)
 	if err != nil || !info.Mode().IsRegular() || info.Size() > 16<<10 || !strings.HasSuffix(p, ".json") {
-		return publishReceipt{}, errors.New("unrecognized receipt file")
+		return publishReceipt{}, false, errors.New("unrecognized receipt file")
 	}
 	data, err := os.ReadFile(p)
 	if err != nil {
-		return publishReceipt{}, err
+		return publishReceipt{}, false, err
 	}
 	var r publishReceipt
 	if err := json.Unmarshal(data, &r); err != nil {
-		return publishReceipt{}, err
+		return publishReceipt{}, false, err
 	}
 	if filepath.Base(p) != r.ID+".json" {
-		return publishReceipt{}, errors.New("receipt name mismatch")
+		return publishReceipt{}, false, errors.New("receipt name mismatch")
 	}
 	target, backup, stage, err := s.receiptPaths(r)
 	if err != nil {
-		return r, err
+		return r, false, err
 	}
 	var version int64
 	var slug, committed string
 	if err := s.db.QueryRowContext(ctx, `SELECT version, slug, publish_receipt FROM cc_projects WHERE id=?`, r.ProjectID).
 		Scan(&version, &slug, &committed); err != nil {
-		return r, fmt.Errorf("read project: %w", err)
+		return r, false, fmt.Errorf("read project: %w", err)
 	}
 	if slug != r.Slug {
-		return r, errors.New("the project directory changed")
+		return r, false, errors.New("the project directory changed")
 	}
 	switch {
 	case committed == r.ID:
 		// Committed; saves after the commit do not matter.
 		if !dirExists(target) {
-			return r, errors.New("the committed project directory is missing")
+			return r, false, errors.New("the committed project directory is missing")
 		}
 		if err := os.RemoveAll(backup); err != nil {
-			return r, err
+			return r, false, err
 		}
+		return r, true, os.Remove(p)
 	case version == r.PreviousVersion:
 		// Not committed, and nothing was saved since (a commit always bumps
 		// the version): put the old directory back.
 		if dirExists(backup) {
 			if dirExists(target) {
 				if dirExists(stage) {
-					return r, errors.New("both the stage and the new project directory exist")
+					return r, false, errors.New("both the stage and the new project directory exist")
 				}
 				if err := fileutil.Rename(target, stage); err != nil {
-					return r, err
+					return r, false, err
 				}
 			}
 			if err := fileutil.Rename(backup, target); err != nil {
-				return r, err
+				return r, false, err
 			}
 		}
 	default:
-		return r, fmt.Errorf("the receipt is not committed but the project version moved from %d to %d", r.PreviousVersion, version)
+		return r, false, fmt.Errorf("the receipt is not committed but the project version moved from %d to %d", r.PreviousVersion, version)
 	}
-	return r, os.Remove(p)
+	return r, false, os.Remove(p)
 }
 
 // sweepOrphanBackups removes <slug>.cyd-backup-<receipt> directories whose

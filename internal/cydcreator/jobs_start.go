@@ -122,6 +122,10 @@ func (s *Service) StartJob(ctx context.Context, projectID string, in StartJobInp
 		return Job{}, publicationReviewError()
 	}
 	stage := s.stagingPath(job.ID)
+	if err := s.checkStagingRoot(); err != nil {
+		s.abortStart(job, err)
+		return Job{}, s.internalError("start job", err)
+	}
 	_ = os.RemoveAll(stage)
 	userChanges, err := s.prepareJob(ctx, row, job, copyFrom, stage)
 	if err != nil {
@@ -337,6 +341,15 @@ func (s *Service) ConfirmJob(ctx context.Context, jobID, prompt string) (Job, er
 	}
 	if s.jobs.closing || s.ctx.Err() != nil {
 		return Job{}, NewError(CodeBusy, "CYD Creator is shutting down", nil)
+	}
+	// A fresh row: a project fenced by an unresolved publication (or a failed
+	// startup recovery) refuses the confirmation like any other write.
+	row, err := s.loadProjectRow(ctx, job.ProjectID)
+	if err != nil {
+		return Job{}, s.internalError("confirm job", err)
+	}
+	if err := checkLock(row, JobOrigin(job.ID)); err != nil {
+		return Job{}, err
 	}
 	stage := s.stagingPath(job.ID)
 	if !dirExists(stage) {

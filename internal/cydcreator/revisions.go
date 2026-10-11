@@ -684,7 +684,12 @@ func (s *Service) RestoreRevision(ctx context.Context, revisionID string) (int64
 	stageName := "restore-" + r.ID + "-" + hex.EncodeToString(suffix[:])
 	stage := filepath.Join(s.stagingRoot(), stageName)
 	fail := func(err error) (int64, Revision, error) {
-		_ = os.RemoveAll(stage)
+		if s.checkStagingRoot() == nil {
+			_ = os.RemoveAll(stage)
+		}
+		return 0, Revision{}, s.internalError("restore revision", err)
+	}
+	if err := s.checkStagingRoot(); err != nil {
 		return 0, Revision{}, s.internalError("restore revision", err)
 	}
 	if err := s.materializeRevision(ctx, r, stage); err != nil {
