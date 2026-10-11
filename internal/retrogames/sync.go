@@ -15,9 +15,10 @@ const (
 	maxPagesPerSource = 20
 	// maxItemsPerSource bounds the memory of one source sync. A normalized
 	// Game costs up to ~4 KB (title, creator, system and tags are all
-	// capped), so the cap is ~400 MB in the worst case; real sources hold
-	// 20-30 MB.
-	maxItemsPerSource = 100000
+	// capped), so the cap is ~200 MB in the worst case; real sources hold
+	// 20-30 MB. The largest source (console) listed about 24,300 games on
+	// 2026-10-11, so the cap leaves room to double.
+	maxItemsPerSource = 50000
 	maxRetryWait      = 60 * time.Second
 )
 

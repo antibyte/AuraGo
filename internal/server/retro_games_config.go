@@ -24,7 +24,7 @@ func retroGamesSettingsFromConfig(cfg *config.Config) retrogames.Settings {
 	// Without a data directory the service refuses to open its index; joining
 	// onto "" would put it in ./retrogames, relative to the working directory.
 	if dataDir := strings.TrimSpace(cfg.Directories.DataDir); dataDir != "" {
-		settings.DataDir = filepath.Join(dataDir, "retrogames")
+		settings.DataDir = filepath.Join(dataDir, config.RetroGamesDirName)
 	}
 	return settings
 }

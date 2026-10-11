@@ -488,12 +488,26 @@ func (s *Service) Shutdown(ctx context.Context) error {
 	return nil
 }
 
-// Status reports the index state. It never fails because of a disabled service.
+// Status reports the index state and, like a search, starts the automatic
+// sync of stale or never-synced sources. It never fails because of a disabled
+// service.
 func (s *Service) Status(ctx context.Context) (Status, error) {
+	return s.status(ctx, true)
+}
+
+// StatusPassive reports the same state as Status but never starts a sync: a
+// settings page can show the index without triggering the first download.
+func (s *Service) StatusPassive(ctx context.Context) (Status, error) {
+	return s.status(ctx, false)
+}
+
+func (s *Service) status(ctx context.Context, refresh bool) (Status, error) {
 	if !s.Enabled() {
 		return Status{Platforms: []PlatformStatus{}, Systems: []CountEntry{}}, nil
 	}
-	s.ensureFresh(ctx)
+	if refresh {
+		s.ensureFresh(ctx)
+	}
 	disabled := Status{Platforms: []PlatformStatus{}, Systems: []CountEntry{}}
 	st, err := s.openStore()
 	if errors.Is(err, ErrDisabled) {

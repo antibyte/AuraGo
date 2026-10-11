@@ -101,6 +101,43 @@ func TestServiceLazySyncOnFirstSearch(t *testing.T) {
 	}
 }
 
+func TestServiceStatusPassiveStartsNoSync(t *testing.T) {
+	// Disabled: the same disabled answer as Status, and nothing on disk.
+	dir := t.TempDir()
+	off := NewService(Deps{Logger: discardLogger(), Fetcher: newFakeFetcher()})
+	off.Configure(Settings{Enabled: false, DataDir: dir})
+	if st, err := off.StatusPassive(context.Background()); err != nil || st.Enabled || st.Platforms == nil || st.Systems == nil {
+		t.Fatalf("disabled passive status = %+v err=%v", st, err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, dbFileName)); !os.IsNotExist(err) {
+		t.Fatalf("disabled passive status created the DB: %v", err)
+	}
+
+	f := newFakeFetcher()
+	f.fallback = onePerSource
+	svc, _, _ := newTestService(t, f)
+	ctx := context.Background()
+	st, err := svc.StatusPassive(ctx)
+	if err != nil || !st.Enabled || st.Syncing || st.TotalGames != 0 || len(st.Platforms) != len(Sources()) {
+		t.Fatalf("passive status on an empty index = %+v err=%v", st, err)
+	}
+	waitIdle(t, svc)
+	if n := f.callCount(); n != 0 {
+		t.Fatalf("passive status fetched %d pages", n)
+	}
+
+	// The regular status still starts the first sync; the passive one then
+	// reports it like Status does.
+	if _, err := svc.Status(ctx); err != nil {
+		t.Fatal(err)
+	}
+	waitIdle(t, svc)
+	st, err = svc.StatusPassive(ctx)
+	if err != nil || st.TotalGames != len(Sources()) || st.Platforms[0].LastSuccessAt != testNow.Unix() {
+		t.Fatalf("passive status after the sync = %+v err=%v", st, err)
+	}
+}
+
 func TestServiceSingleFlight(t *testing.T) {
 	f := newFakeFetcher()
 	f.fallback = onePerSource

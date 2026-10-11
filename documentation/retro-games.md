@@ -56,6 +56,8 @@ enabled for the app.
 - If SQLite reports the index file as corrupt, AuraGo moves it aside (`retrogames.db.corrupt-<UTC time as
   YYYYMMDD-HHMMSS>`, with its `-wal` and `-shm` files) and builds a new one; favorites and history start empty
   in that case. Other open errors never move the file.
+- **Backups:** favorites, history and "Doesn't start" marks live in `retrogames.db` together with the game
+  index, so AuraGo backups include that file (a consistent snapshot, about 30 MB with a full index).
 
 ## Related
 

@@ -73,7 +73,13 @@ func (s *Server) handleRetroGames(w http.ResponseWriter, r *http.Request) {
 			retroGamesMethodNotAllowed(w, "GET, HEAD")
 			return
 		}
-		status, err := svc.Status(ctx)
+		// passive=1 only reports: the first status request otherwise starts
+		// the initial download, which a settings page must not trigger.
+		statusOf := svc.Status
+		if p := r.URL.Query().Get("passive"); p == "1" || p == "true" {
+			statusOf = svc.StatusPassive
+		}
+		status, err := statusOf(ctx)
 		if err != nil {
 			s.writeRetroGamesError(w, err)
 			return

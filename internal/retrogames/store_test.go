@@ -239,6 +239,38 @@ func TestOpenStoreMovesCorruptDatabaseAside(t *testing.T) {
 	}
 }
 
+func TestOpenStoreNeverMovesTheFileOnOtherOpenErrors(t *testing.T) {
+	// A directory where the database file belongs cannot be opened on any
+	// platform, and it is not corruption: the error is returned and the path
+	// stays exactly as it was.
+	dir := t.TempDir()
+	path := filepath.Join(dir, dbFileName)
+	if err := os.Mkdir(path, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(path, "keep.txt")
+	if err := os.WriteFile(marker, []byte("user data"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	st, err := OpenStore(dir, discardLogger())
+	if err == nil {
+		_ = st.Close()
+		t.Fatal("OpenStore must fail when the database path is a directory")
+	}
+	if isCorruptDB(err) {
+		t.Fatalf("a directory was classified as corruption: %v", err)
+	}
+	if info, statErr := os.Stat(path); statErr != nil || !info.IsDir() {
+		t.Fatalf("database path changed: info=%v err=%v", info, statErr)
+	}
+	if data, readErr := os.ReadFile(marker); readErr != nil || string(data) != "user data" {
+		t.Fatalf("directory contents changed: %q err=%v", data, readErr)
+	}
+	if moved, _ := filepath.Glob(filepath.Join(dir, dbFileName+"*.corrupt-*")); len(moved) != 0 {
+		t.Fatalf("an open error that is not corruption moved files aside: %v", moved)
+	}
+}
+
 func TestOpenStoreRejectsNewerSchema(t *testing.T) {
 	dir := t.TempDir()
 	st, err := OpenStore(dir, discardLogger())

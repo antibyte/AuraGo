@@ -122,6 +122,35 @@ func TestRetroGamesAPIStatusSearchAndHallOfFame(t *testing.T) {
 	}
 }
 
+func TestRetroGamesAPIPassiveStatusStartsNoSync(t *testing.T) {
+	h := newRetroGamesHarness(t)
+	f := &retrogamestest.Fetcher{}
+	h.s.RetroGames = retrogamestest.NewService(t, f)
+	for _, path := range []string{"status?passive=1", "status?passive=true"} {
+		w, body := h.do(http.MethodGet, path, h.readToken)
+		total, _ := body["total_games"].(float64)
+		platforms, _ := body["platforms"].([]any)
+		if w.Code != http.StatusOK || body["enabled"] != true || body["syncing"] != false || total != 0 || len(platforms) != len(retrogames.Sources()) || w.Header().Get("Cache-Control") != "no-store" {
+			t.Fatalf("GET %s: %d %v", path, w.Code, body)
+		}
+	}
+	if w, _ := h.do(http.MethodHead, "status?passive=1", h.readToken); w.Code != http.StatusOK {
+		t.Fatalf("HEAD passive status: %d", w.Code)
+	}
+	h.waitIdle()
+	if f.Calls != 0 {
+		t.Fatalf("passive status on an empty index fetched %d pages", f.Calls)
+	}
+	// The regular status still starts the first sync.
+	if w, _ := h.do(http.MethodGet, "status", h.readToken); w.Code != http.StatusOK {
+		t.Fatalf("status: %d", w.Code)
+	}
+	h.waitIdle()
+	if f.Calls == 0 {
+		t.Fatal("the regular status did not start the first sync")
+	}
+}
+
 func TestRetroGamesAPIGames(t *testing.T) {
 	h := newRetroGamesHarness(t)
 	w, body := h.do(http.MethodGet, "games/arcade_tron", h.readToken)

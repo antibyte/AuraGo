@@ -3,6 +3,7 @@ package retrogames
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -131,6 +132,25 @@ func TestSyncStopsAtPageLimit(t *testing.T) {
 	src, _ := SourceByKey(PlatformC64)
 	if _, err := sy.syncSource(context.Background(), src); err == nil || !strings.Contains(err.Error(), "pages") {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestSyncStopsAtItemLimit(t *testing.T) {
+	// One more unique game than a source may hold (50,000) fails the source
+	// before anything is written.
+	items := make([]Item, 50001)
+	for i := range items {
+		items[i] = testItem(fmt.Sprintf("big_%06d", i), "Big", "dosbox", 1990, 1)
+	}
+	f := newFakeFetcher()
+	f.add(PlatformMSDOS, "", Page{Items: items}, nil)
+	sy, st, _ := newTestSyncer(t, f)
+	src, _ := SourceByKey(PlatformMSDOS)
+	if _, err := sy.syncSource(context.Background(), src); err == nil || !strings.Contains(err.Error(), "exceeded 50000 items") {
+		t.Fatalf("err = %v", err)
+	}
+	if n := countGames(t, st, PlatformMSDOS); n != 0 {
+		t.Fatalf("a source over the limit stored %d games", n)
 	}
 }
 

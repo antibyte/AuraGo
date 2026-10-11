@@ -33,6 +33,11 @@
   inside the gate never waits. Callers `defer release()` (idempotent); `commit` works once and frees the lock;
   a ctx that ends while waiting returns `ctx.Err()` (the handler maps `context.Canceled` to 403
   `desktop_readonly`). Teardown never needs the lock: a sync waiting for it ends with its context.
+- `Status` (and searches) may start the automatic sync; `StatusPassive` (`status?passive=1`) never does.
+- Backups: `config.SQLiteDatabasePaths` lists `<data_dir>/retrogames/retrogames.db` (favorites, plays and
+  broken markers are user data); keep `config.RetroGamesDirName`/`RetroGamesDBFilename` in step with
+  `dbFileName`.
+- A source may hold at most 50,000 games (`maxItemsPerSource`, ~200 MB worst case while syncing).
 - Scrape pages are stream-decoded with a cap of 10,000 elements; `FlexText` stream-decodes with depth 3 / 64
   values.
 - Identifiers must match `^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$` everywhere (API paths, embed URLs).

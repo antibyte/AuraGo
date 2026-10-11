@@ -29,6 +29,8 @@ func TestSQLiteDatabasePathsIncludesConfiguredAndDataDirDatabases(t *testing.T) 
 		filepath.Join(dataDir, GalaxaDBFilename):       true,
 		filepath.Join(dataDir, DesktopStoreDBFilename): true,
 		filepath.Join(dataDir, TresorDBFilename):       true,
+		// Retro Games keeps favorites, plays and broken markers in its index.
+		filepath.Join(dataDir, "retrogames", "retrogames.db"): true,
 	}
 
 	for _, path := range got {

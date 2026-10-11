@@ -15,6 +15,11 @@ const (
 	// FlowsDBFilename is the EasyDrag flow store. It has no sqlite setting of its own and
 	// lives next to sqlite.game_maker_path (FlowsDBPath).
 	FlowsDBFilename = "flows.db"
+	// RetroGamesDirName/RetroGamesDBFilename locate the Retro Games index
+	// (<data_dir>/retrogames/retrogames.db). Besides the rebuildable game index
+	// it holds the user's favorites, plays and broken markers.
+	RetroGamesDirName    = "retrogames"
+	RetroGamesDBFilename = "retrogames.db"
 )
 
 // FlowsDBPath returns where the EasyDrag flow store lives: next to the Game Maker
@@ -67,6 +72,7 @@ func SQLiteDatabasePaths(cfg *Config) []string {
 			filepath.Join(dataDir, GalaxaDBFilename),
 			filepath.Join(dataDir, DesktopStoreDBFilename),
 			filepath.Join(dataDir, TresorDBFilename),
+			filepath.Join(dataDir, RetroGamesDirName, RetroGamesDBFilename),
 		)
 	}
 

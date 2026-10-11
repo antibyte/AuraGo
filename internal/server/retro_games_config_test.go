@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
@@ -27,6 +28,41 @@ func TestRetroGamesSettingsFromConfig(t *testing.T) {
 	}
 	if got := retroGamesSettingsFromConfig(nil); got.Enabled {
 		t.Fatalf("nil config must disable: %+v", got)
+	}
+}
+
+// The favorites, plays and broken markers live in the index database, so the
+// backup list (and the agent's protected files) must name the file the store
+// really opens.
+func TestRetroGamesIndexIsInTheSQLiteBackupList(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = t.TempDir()
+	cfg.RetroGames.Enabled = true
+	svc := retrogames.NewService(retrogames.Deps{Logger: slog.Default(), Fetcher: &retrogamestest.Fetcher{}})
+	svc.Configure(retroGamesSettingsFromConfig(cfg))
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = svc.Shutdown(ctx)
+	})
+	// Reading the library opens (creates) the index without syncing.
+	if _, err := svc.Library(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	var listed string
+	for _, path := range config.SQLiteDatabasePaths(cfg) {
+		if filepath.Base(path) == "retrogames.db" {
+			listed = path
+		}
+	}
+	if listed == "" {
+		t.Fatalf("backups miss retrogames.db: %v", config.SQLiteDatabasePaths(cfg))
+	}
+	if info, err := os.Stat(listed); err != nil || info.IsDir() {
+		t.Fatalf("the listed %s is not the store's database: info=%v err=%v", listed, info, err)
+	}
+	if protected := config.SQLiteProtectedPaths(cfg); !containsString(protected, listed) || !containsString(protected, listed+"-wal") {
+		t.Fatalf("protected paths miss the index: %v", protected)
 	}
 }
 
