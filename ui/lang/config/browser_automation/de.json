@@ -22,11 +22,13 @@
   "config.browser_automation.cloak_human_preset_label": "Verhaltens-Preset",
   "help.browser_automation.cloak_human_preset": "Simulationsgeschwindigkeit: 'default' (normal) oder 'careful' (langsamer, vorsichtiger).",
   "config.browser_automation.cloak_proxy_label": "Proxy-URL",
-  "help.browser_automation.cloak_proxy": "Erforderliche Adresse des filternden Proxys im isolierten Netz.",
+  "help.browser_automation.cloak_proxy": "Lass das leer. Der Sidecar startet seinen eigenen Filter auf 127.0.0.1. Eine URL hier ersetzt den Filter nicht und blockiert den Start.",
   "config.browser_automation.cloak_fingerprint_seed_label": "Fingerprint-Seed",
   "help.browser_automation.cloak_fingerprint_seed": "Fester Seed für deterministischen Browser-Fingerprint. Nützlich für konsistente Identität über Sessions hinweg.",
   "config.browser_automation.egress_network_label": "Isoliertes Docker-Netz",
   "help.browser_automation.egress_network": "Internes Docker-Netz für den Browser; ohne dieses Netz startet der Dienst nicht.",
+  "config.browser_automation.outbound_network_label": "Docker-Netz mit Außenroute",
+  "help.browser_automation.outbound_network": "Docker-Netz mit einer Route ins Internet. Der Sidecar hängt zusätzlich zum isolierten Netz daran, damit sein Filter Verbindungen aufbauen kann. Der Browser nutzt weiter den Filter auf 127.0.0.1.",
   "config.browser_automation.private_origins_label": "Erlaubte lokale Ursprünge",
   "help.browser_automation.private_origins": "Eine exakte HTTP(S)- oder WS(S)-Adresse pro Zeile. Dieselbe Liste im Proxy einstellen."
 }

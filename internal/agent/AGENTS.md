@@ -77,6 +77,9 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   Capture execution status first and preserve the wrapper through bounding,
   compression and saved-result reads. Copyable source wrappers remain limited
   to Game Maker. Helper inputs use the same canonical isolation after raw caps.
+- `browser_automation` results use `externalToolOutput` before the model sees
+  them. Page text stays inside that wrapper. `ExecuteBrowserAutomation` still
+  returns the raw JSON for non-model callers such as Detective session close.
 
 - Strict schemas are a separate immutable snapshot projection: every object is
   closed, all properties are required, and originally optional values accept

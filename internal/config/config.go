@@ -469,6 +469,7 @@ func Load(path string) (*Config, error) {
 	cfg.BrowserAutomation.ReadOnly = false
 	cfg.BrowserAutomation.ScreenshotsDir = "browser_screenshots"
 	cfg.BrowserAutomation.CloakHumanPreset = "default"
+	cfg.BrowserAutomation.OutboundNetwork = "bridge"
 
 	// go2rtc defaults: disabled, proxy-first, and managed as a hardened sidecar.
 	cfg.Go2RTC.AutoStart = true

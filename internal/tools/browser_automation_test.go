@@ -8,12 +8,14 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/dockerutil"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -84,6 +86,23 @@ func TestExecuteBrowserAutomationReadOnlyBlocksMutation(t *testing.T) {
 	}
 }
 
+func TestExecuteBrowserAutomationReadOnlyBlocksNavigation(t *testing.T) {
+	cfg := browserAutomationTestConfig(t, "http://127.0.0.1:7331")
+	cfg.BrowserAutomation.ReadOnly = true
+	for _, req := range []BrowserAutomationRequest{
+		{Operation: "navigate", SessionID: "ba_123", URL: "https://example.com"},
+		{Operation: "create_session", URL: "https://example.com"},
+	} {
+		result := decodeBrowserAutomationResult(t, ExecuteBrowserAutomation(context.Background(), cfg, req, nil))
+		if got, _ := result["status"].(string); got != "error" {
+			t.Fatalf("%s status = %q, want error", req.Operation, got)
+		}
+		if !strings.Contains(result["message"].(string), "read-only") {
+			t.Fatalf("%s message = %q, want read-only", req.Operation, result["message"])
+		}
+	}
+}
+
 func TestExecuteBrowserAutomationRejectsUploadOutsideWorkspace(t *testing.T) {
 	cfg := browserAutomationTestConfig(t, "http://127.0.0.1:7331")
 
@@ -99,6 +118,55 @@ func TestExecuteBrowserAutomationRejectsUploadOutsideWorkspace(t *testing.T) {
 	}
 	if !strings.Contains(result["message"].(string), "inside workspace") {
 		t.Fatalf("message = %q, want workspace validation error", result["message"])
+	}
+}
+
+func TestExecuteBrowserAutomationRejectsScreenshotOutsideScreenshotsDir(t *testing.T) {
+	cfg := browserAutomationTestConfig(t, "http://127.0.0.1:7331")
+	result := decodeBrowserAutomationResult(t, ExecuteBrowserAutomation(context.Background(), cfg, BrowserAutomationRequest{
+		Operation:  "screenshot",
+		SessionID:  "ba_123",
+		OutputPath: "notes/secret.md",
+	}, nil))
+	if got, _ := result["status"].(string); got != "error" {
+		t.Fatalf("status = %q, want error", got)
+	}
+	if !strings.Contains(result["message"].(string), "screenshots directory") {
+		t.Fatalf("message = %q, want screenshots directory", result["message"])
+	}
+}
+
+func TestExecuteBrowserAutomationRejectsProtectedUpload(t *testing.T) {
+	cfg := browserAutomationTestConfig(t, "http://127.0.0.1:7331")
+	if strings.TrimSpace(cfg.Directories.DataDir) == "" {
+		cfg.Directories.DataDir = filepath.Join(t.TempDir(), "outside-data")
+	}
+	if err := os.MkdirAll(cfg.Directories.WorkspaceDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	envPath := filepath.Join(cfg.Directories.WorkspaceDir, ".env")
+	if err := os.WriteFile(envPath, []byte("TOKEN=secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result := decodeBrowserAutomationResult(t, ExecuteBrowserAutomation(context.Background(), cfg, BrowserAutomationRequest{
+		Operation: "upload_file",
+		SessionID: "ba_123",
+		Selector:  "input[type=file]",
+		FilePath:  ".env",
+	}, nil))
+	if got, _ := result["status"].(string); got != "error" {
+		t.Fatalf("status = %q, want error", got)
+	}
+	if !strings.Contains(strings.ToLower(result["message"].(string)), "protected") {
+		t.Fatalf("message = %q, want protected", result["message"])
+	}
+}
+
+func TestBrowserAutomationDownloadDirMustStayInWorkspace(t *testing.T) {
+	cfg := browserAutomationTestConfig(t, "http://127.0.0.1:7331")
+	cfg.BrowserAutomation.AllowedDownloadDir = filepath.Join("..", "data")
+	if _, err := browserAutomationSidecarConfig(cfg); err == nil {
+		t.Fatal("expected download directory outside the workspace to fail")
 	}
 }
 
@@ -245,6 +313,44 @@ func TestExecuteBrowserAutomationMapsScreenshotAndDownloads(t *testing.T) {
 	}
 }
 
+func TestExecuteBrowserAutomationDropsSidecarScreenshotPathOnClick(t *testing.T) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"status":"success","policy_version":"egress-v1","egress_isolated":true}`))
+			return
+		}
+		if r.URL.Path != "/automation" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"status":"success",
+			"operation":"click",
+			"session_id":"ba_123",
+			"screenshot_rel_path":"notes/secret.md",
+			"screenshot_web_path":"/files/notes/secret.md"
+		}`))
+	}))
+	defer srv.Close()
+
+	cfg := browserAutomationTestConfig(t, srv.URL)
+	result := decodeBrowserAutomationResult(t, ExecuteBrowserAutomation(context.Background(), cfg, BrowserAutomationRequest{
+		Operation: "click",
+		SessionID: "ba_123",
+		Selector:  "#submit",
+	}, nil))
+	if got, _ := result["status"].(string); got != "success" {
+		t.Fatalf("status = %q, want success", got)
+	}
+	for _, key := range []string{"screenshot_rel_path", "screenshot_path", "screenshot_web_path"} {
+		if _, ok := result[key]; ok {
+			t.Fatalf("result[%q] = %#v, want absent", key, result[key])
+		}
+	}
+}
+
 func TestBrowserAutomationHealthReadsSidecarEndpoint(t *testing.T) {
 	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/health" {
@@ -289,7 +395,7 @@ func TestBrowserAutomationHealthReturnsErrorPayloadForNonSuccessStatus(t *testin
 	}
 }
 
-func TestBrowserAutomationSidecarRequestRetriesTransientFailures(t *testing.T) {
+func TestBrowserAutomationSidecarRequestDoesNotRetry(t *testing.T) {
 	attempts := 0
 	httpClient := &http.Client{
 		Timeout: 2 * time.Second,
@@ -313,15 +419,15 @@ func TestBrowserAutomationSidecarRequestRetriesTransientFailures(t *testing.T) {
 		URL:        "http://127.0.0.1:7331",
 		AuthToken:  "test-token",
 		HTTPClient: httpClient,
-	}, map[string]interface{}{"operation": "current_state"})
-	if err != nil {
-		t.Fatalf("browserAutomationSidecarRequest() error = %v", err)
+	}, map[string]interface{}{"operation": "click"})
+	if err == nil {
+		t.Fatal("expected connection failure not to be retried")
 	}
-	if got, _ := result["status"].(string); got != "success" {
-		t.Fatalf("status = %q, want success", got)
+	if result != nil {
+		t.Fatalf("result = %#v, want nil", result)
 	}
-	if attempts != 2 {
-		t.Fatalf("attempts = %d, want 2", attempts)
+	if attempts != 1 {
+		t.Fatalf("attempts = %d, want 1", attempts)
 	}
 }
 
@@ -462,3 +568,139 @@ func TestBrowserAutomationEffectiveContainerName(t *testing.T) {
 		}
 	}
 }
+
+func TestBrowserAutomationRejectsOperatorCloakProxy(t *testing.T) {
+	cfg := browserAutomationTestConfig(t, "http://127.0.0.1:7331")
+	cfg.BrowserAutomation.CloakProxy = "http://127.0.0.1:9"
+	result := decodeBrowserAutomationResult(t, ExecuteBrowserAutomation(context.Background(), cfg, BrowserAutomationRequest{
+		Operation: "current_state",
+		SessionID: "ba_123",
+	}, nil))
+	if got, _ := result["status"].(string); got != "error" {
+		t.Fatalf("status = %q, want error", got)
+	}
+	if !strings.Contains(result["message"].(string), "cloak_proxy") {
+		t.Fatalf("message = %q, want cloak_proxy", result["message"])
+	}
+}
+
+func TestBrowserAutomationContainerMatchesRequiredSpec(t *testing.T) {
+	cfg := BrowserAutomationSidecarConfig{
+		Image:                 "aurago-browser-automation:latest",
+		EgressNetwork:         "aurago_browser_egress",
+		OutboundNetwork:       "bridge",
+		WorkspaceDir:          "/host/workspace",
+		DownloadDir:           "/host/workspace/browser_downloads",
+		ReadOnly:              true,
+		AllowUploads:          false,
+		AllowDownloads:        false,
+		Headless:              true,
+		AuthToken:             "token-value",
+		AllowedPrivateOrigins: []string{"http://192.168.1.10:8123"},
+	}
+	env := []interface{}{
+		"AURAGO_BROWSER_EGRESS_ISOLATED=true",
+		"AURAGO_BROWSER_EGRESS_PROXY=http://127.0.0.1:7332",
+		"AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS=" + browserAutomationPrivateOriginsValue(cfg.AllowedPrivateOrigins),
+		"AURAGO_BROWSER_AUTOMATION_TOKEN=token-value",
+		"READ_ONLY=true",
+		"ALLOW_FILE_UPLOADS=false",
+		"ALLOW_FILE_DOWNLOADS=false",
+		"HEADLESS=true",
+	}
+	info := map[string]interface{}{
+		"Config": map[string]interface{}{
+			"Image": cfg.Image,
+			"Env":   env,
+		},
+		"HostConfig": map[string]interface{}{
+			"NetworkMode": cfg.OutboundNetwork,
+			"Binds": []interface{}{
+				dockerutil.FormatBindMount(cfg.WorkspaceDir, browserAutomationWorkspaceDir),
+				dockerutil.FormatBindMount(cfg.DownloadDir, browserAutomationDownloadsDir),
+			},
+		},
+		"NetworkSettings": map[string]interface{}{
+			"Networks": map[string]interface{}{
+				cfg.OutboundNetwork: map[string]interface{}{},
+				cfg.EgressNetwork:   map[string]interface{}{},
+			},
+		},
+	}
+	if !browserAutomationContainerMatches(info, cfg) {
+		t.Fatal("expected matching container")
+	}
+	env[1] = "AURAGO_BROWSER_EGRESS_PROXY=http://evil.example"
+	if browserAutomationContainerMatches(info, cfg) {
+		t.Fatal("expected drifted proxy to fail the match")
+	}
+	env[1] = "AURAGO_BROWSER_EGRESS_PROXY=http://127.0.0.1:7332"
+	env[2] = "AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS=[]"
+	if browserAutomationContainerMatches(info, cfg) {
+		t.Fatal("expected a stale private-origin allowlist to fail the match")
+	}
+}
+
+func TestBrowserAutomationEndpointConfigUsesRoutablePrimary(t *testing.T) {
+	mode, endpoints := browserAutomationEndpointConfig(BrowserAutomationSidecarConfig{
+		EgressNetwork:   "aurago-app",
+		OutboundNetwork: "bridge",
+	}, "browser-automation")
+	if mode != "bridge" {
+		t.Fatalf("network mode = %q, want bridge", mode)
+	}
+	if _, ok := endpoints["bridge"]; !ok {
+		t.Fatal("outbound network missing from endpoints")
+	}
+	egress, _ := endpoints["aurago-app"].(map[string]interface{})
+	aliases, _ := egress["Aliases"].([]string)
+	if len(aliases) != 1 || aliases[0] != "browser-automation" {
+		t.Fatalf("aliases = %#v, want browser-automation", egress["Aliases"])
+	}
+
+	loopbackMode, loopbackEndpoints := browserAutomationEndpointConfig(BrowserAutomationSidecarConfig{
+		EgressNetwork:   "aurago-app",
+		OutboundNetwork: "bridge",
+	}, "127.0.0.1")
+	if loopbackMode != "bridge" {
+		t.Fatalf("loopback network mode = %q, want bridge", loopbackMode)
+	}
+	loopbackEgress, _ := loopbackEndpoints["aurago-app"].(map[string]interface{})
+	if _, ok := loopbackEgress["Aliases"]; ok {
+		t.Fatalf("loopback publish must not set an alias, got %#v", loopbackEgress["Aliases"])
+	}
+}
+
+func TestEnsureBrowserAutomationSidecarRejectsInternalOutboundNetwork(t *testing.T) {
+	var creates int
+	dockerHost := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/"+dockerAPIVersion)
+		switch {
+		case r.Method == http.MethodGet && path == "/networks/aurago-app":
+			_, _ = w.Write([]byte(`{"Internal":true}`))
+		case r.Method == http.MethodGet && path == "/networks/bridge":
+			_, _ = w.Write([]byte(`{"Internal":true}`))
+		case r.Method == http.MethodPost && strings.Contains(path, "/containers/create"):
+			creates++
+			w.WriteHeader(http.StatusCreated)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	})
+	EnsureBrowserAutomationSidecarRunning(dockerHost, BrowserAutomationSidecarConfig{
+		URL:             "http://browser-automation:7331",
+		AuthToken:       "token",
+		EgressNetwork:   "aurago-app",
+		OutboundNetwork: "bridge",
+		Image:           "aurago-browser-automation:latest",
+	}, browserAutomationSilentLogger{})
+	if creates != 0 {
+		t.Fatalf("creates = %d, want 0", creates)
+	}
+}
+
+type browserAutomationSilentLogger struct{}
+
+func (browserAutomationSilentLogger) Info(string, ...any)  {}
+func (browserAutomationSilentLogger) Warn(string, ...any)  {}
+func (browserAutomationSilentLogger) Error(string, ...any) {}

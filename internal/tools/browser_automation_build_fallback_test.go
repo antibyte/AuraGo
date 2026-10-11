@@ -633,6 +633,8 @@ func TestEnsureBrowserAutomationSidecarRunningBuildsOnConfiguredEngine(t *testin
 		switch {
 		case r.Method == http.MethodGet && path == "/networks/browser-egress":
 			_, _ = w.Write([]byte(`{"Internal":true}`))
+		case r.Method == http.MethodGet && path == "/networks/bridge":
+			_, _ = w.Write([]byte(`{"Internal":false}`))
 		case r.Method == http.MethodGet && (strings.HasPrefix(path, "/containers/") || strings.HasPrefix(path, "/images/")):
 			w.WriteHeader(http.StatusNotFound)
 		default:
@@ -641,16 +643,17 @@ func TestEnsureBrowserAutomationSidecarRunningBuildsOnConfiguredEngine(t *testin
 	})
 
 	sidecarCfg := BrowserAutomationSidecarConfig{
-		URL:           "http://127.0.0.1:7331",
-		Image:         "aurago-browser:test",
-		ContainerName: "aurago-browser-test",
-		AuthToken:     "test-token",
-		AutoBuild:     true,
-		DockerfileDir: browserAutomationBuildContextDir(t),
-		CloakProxy:    "http://proxy:3128",
-		EgressNetwork: "browser-egress",
-		WorkspaceDir:  t.TempDir(),
-		DownloadDir:   t.TempDir(),
+		URL:             "http://127.0.0.1:7331",
+		Image:           "aurago-browser:test",
+		ContainerName:   "aurago-browser-test",
+		AuthToken:       "test-token",
+		AutoBuild:       true,
+		DockerfileDir:   browserAutomationBuildContextDir(t),
+		CloakProxy:      "",
+		EgressNetwork:   "browser-egress",
+		OutboundNetwork: "bridge",
+		WorkspaceDir:    t.TempDir(),
+		DownloadDir:     t.TempDir(),
 	}
 	EnsureBrowserAutomationSidecarRunning(dockerHost, sidecarCfg, &recordingBuildLogger{})
 
