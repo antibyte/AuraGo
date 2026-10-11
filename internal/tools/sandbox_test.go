@@ -698,3 +698,19 @@ print(json.dumps({
     "class_override": calls["class"][1],
 }))
 `
+
+func TestSandboxReady(t *testing.T) {
+	sandboxMgrMu.Lock()
+	old := globalSandboxMgr
+	globalSandboxMgr = nil
+	sandboxMgrMu.Unlock()
+	t.Cleanup(func() {
+		sandboxMgrMu.Lock()
+		globalSandboxMgr = old
+		sandboxMgrMu.Unlock()
+	})
+
+	if SandboxReady() {
+		t.Fatal("SandboxReady() = true, want false")
+	}
+}

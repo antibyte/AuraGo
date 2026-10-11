@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -60,7 +61,7 @@ func dispatchShellWithContext(ctx context.Context, tc ToolCall, dc *DispatchCont
 		logger.Info("LLM requested sandbox execution", "language", lang, "code_len", len(req.Code), "libraries", len(req.Libraries))
 		result, err := sandboxExecuteCodeFunc(codeToRun, lang, req.Libraries, cfg.Sandbox.TimeoutSeconds, logger)
 		if err != nil {
-			if cfg.Sandbox.AllowLocalPythonFallback && cfg.Agent.AllowPython && lang == "python" {
+			if errors.Is(err, tools.ErrSandboxUnavailable) && cfg.Sandbox.AllowLocalPythonFallback && cfg.Agent.AllowPython && lang == "python" {
 				logger.Warn("Sandbox execution failed, explicit local Python fallback enabled", "error", err)
 				var stdout, stderr string
 				var pyErr error

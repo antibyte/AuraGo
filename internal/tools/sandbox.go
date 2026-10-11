@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -78,6 +79,10 @@ var (
 	globalSandboxMgr *SandboxManager
 	sandboxMgrMu     sync.RWMutex
 )
+
+// ErrSandboxUnavailable marks a missing, not-ready, or failed-to-start sandbox.
+// Timeouts and code-execution errors stay outside this sentinel.
+var ErrSandboxUnavailable = errors.New("sandbox unavailable")
 
 // InitSandboxManager creates and starts the sandbox MCP server.
 // Call once at startup. On failure the manager is still stored but status.Ready == false,
@@ -211,12 +216,12 @@ func InitSandboxManager(cfg SandboxConfig, workspaceDir string, logger *slog.Log
 
 func (m *SandboxManager) openConn() (sandboxConn, error) {
 	if m.connFactory == nil {
-		return nil, fmt.Errorf("sandbox connection factory not configured")
+		return nil, fmt.Errorf("sandbox connection factory not configured: %w", ErrSandboxUnavailable)
 	}
 
 	conn, err := m.connFactory()
 	if err != nil {
-		return nil, fmt.Errorf("failed to start sandbox MCP server: %w", err)
+		return nil, fmt.Errorf("failed to start sandbox MCP server: %w: %w", err, ErrSandboxUnavailable)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), mcpCallToolTimeout)
 	defer cancel()
@@ -233,6 +238,15 @@ func (m *SandboxManager) openConn() (sandboxConn, error) {
 	return conn, nil
 }
 
+// wrapSandboxOpenError keeps ErrSandboxUnavailable on process-start failures.
+// Handshake errors after the process starts stay unwrapped.
+func wrapSandboxOpenError(err error) error {
+	if err == nil || !errors.Is(err, ErrSandboxUnavailable) {
+		return err
+	}
+	return fmt.Errorf("%w", err)
+}
+
 func (m *SandboxManager) borrowConn() (sandboxConn, func(), error) {
 	m.mu.RLock()
 	ready := m.status.Ready
@@ -245,13 +259,13 @@ func (m *SandboxManager) borrowConn() (sandboxConn, func(), error) {
 		if errMsg == "" {
 			errMsg = "sandbox not ready"
 		}
-		return nil, nil, fmt.Errorf("sandbox not ready: %s", errMsg)
+		return nil, nil, fmt.Errorf("sandbox not ready: %s: %w", errMsg, ErrSandboxUnavailable)
 	}
 
 	if !keepAlive {
 		conn, err := m.openConn()
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, wrapSandboxOpenError(err)
 		}
 		return conn, func() { conn.close() }, nil
 	}
@@ -272,7 +286,7 @@ func (m *SandboxManager) borrowConn() (sandboxConn, func(), error) {
 		conn, err := m.openConn()
 		if err != nil {
 			cleanup()
-			return nil, nil, err
+			return nil, nil, wrapSandboxOpenError(err)
 		}
 		m.conn = conn
 	}
@@ -315,6 +329,12 @@ func GetSandboxManager() *SandboxManager {
 	sandboxMgrMu.RLock()
 	defer sandboxMgrMu.RUnlock()
 	return globalSandboxMgr
+}
+
+// SandboxReady reports whether a manager exists and its sandbox is operational.
+func SandboxReady() bool {
+	mgr := GetSandboxManager()
+	return mgr != nil && mgr.IsReady()
 }
 
 // ShutdownSandboxManager gracefully stops the sandbox.
@@ -474,7 +494,7 @@ func (m *SandboxManager) fetchLanguagesFromConn(conn sandboxConn) []string {
 func SandboxExecuteCode(code, language string, libraries []string, timeoutSecs int, logger *slog.Logger) (string, error) {
 	mgr := GetSandboxManager()
 	if mgr == nil {
-		return "", fmt.Errorf("sandbox manager not initialized")
+		return "", fmt.Errorf("sandbox manager not initialized: %w", ErrSandboxUnavailable)
 	}
 	return mgr.ExecuteCode(code, language, libraries, timeoutSecs)
 }
