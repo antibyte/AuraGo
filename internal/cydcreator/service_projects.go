@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -318,9 +317,7 @@ func (s *Service) DeleteProject(ctx context.Context, id string) error {
 	if err := tx.Commit(); err != nil {
 		return s.internalError("delete project", err)
 	}
-	for _, buildID := range buildIDs {
-		_ = os.RemoveAll(filepath.Join(s.artifactsDir, buildID))
-	}
+	s.removeBuildArtifacts(buildIDs)
 	if err := os.RemoveAll(s.projectDir(row.Slug)); err != nil {
 		s.logger.Warn("CYD Creator project directory could not be removed", "project_id", id, "error", err)
 	}

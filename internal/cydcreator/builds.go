@@ -24,6 +24,11 @@ const (
 	maxELFBytes     = 128 << 20
 	maxBacktrace    = 64
 	buildIDPrefix   = "ccb_"
+	// maxFontArtifactBytes bounds one kept font file: lv_font_conv writes at
+	// most about 7 bytes of C text per byte of font data, and a font's data
+	// must fit the largest app slot (0x640000, 16 MB flash) or the build fails
+	// the flash budget before any font is kept.
+	maxFontArtifactBytes = 7 * 0x640000
 )
 
 var (
@@ -315,7 +320,9 @@ func (s *Service) classifyBuild(b Build, out BuildOutput, err error, cancelled, 
 			b.ErrorCode = CodeBuildFailed
 		}
 		b.Status = BuildFailed
-		b.Diagnostics = append(ParseDiagnostics(logText, "/work/"+b.ID), Diagnostic{Severity: SeverityNote, Message: note})
+		// The builder failed (e.g. the artefact download after an OOM-killed
+		// compiler): errors of the partial log are not agent-repairable.
+		b.Diagnostics = append(demoteErrors(ParseDiagnostics(logText, "/work/"+b.ID)), Diagnostic{Severity: SeverityNote, Message: note})
 		return b
 	}
 	b.Diagnostics = ParseDiagnostics(logText, "/work/"+b.ID)
@@ -367,10 +374,10 @@ func (s *Service) classifyBuild(b Build, out BuildOutput, err error, cancelled, 
 }
 
 // demoteErrors turns error diagnostics into notes. cyd-build exit code 2 (a
-// compiler killed by the OOM killer, a tooling or build-tree failure) and
-// unknown exit codes are never agent-repairable, but plan 3 repairs a
-// CYD_BUILD_FAILED build that carries error diagnostics; the lines stay
-// visible as notes.
+// compiler killed by the OOM killer, a tooling or build-tree failure),
+// unknown exit codes and builder failures are never agent-repairable, but
+// plan 3 repairs a CYD_BUILD_FAILED build that carries error diagnostics; the
+// lines stay visible as notes.
 func demoteErrors(diags []Diagnostic) []Diagnostic {
 	for i := range diags {
 		if diags[i].Severity == SeverityError {
@@ -495,6 +502,9 @@ func storeFonts(root *os.Root, dir string, out BuildOutput) error {
 		if !ok || want.SHA256 != sha256Hex(data) {
 			return fmt.Errorf("font artefact %s does not match the checksum in result.json", name)
 		}
+		if len(data) > maxFontArtifactBytes {
+			return fmt.Errorf("font artefact %s is larger than %d bytes", name, maxFontArtifactBytes)
+		}
 		if err := root.WriteFile(filepath.Join(fontsDir, name), data, 0o640); err != nil {
 			return err
 		}
@@ -534,9 +544,11 @@ func (s *Service) finishBuild(b Build) {
 
 // applyRetention keeps the newest KeepBuildsPerProject finished builds of a
 // project and deletes older rows and artefacts, except builds a device still
-// runs or targets and the project's last_build. It also drops events of
-// deleted projects: an Emit that raced DeleteProject can store one after the
-// delete committed (the statement recoverStore runs at startup).
+// runs or targets, the project's last_build and its newest succeeded build
+// (so failed builds never prune the only good firmware that exports and OTA
+// use). It also drops events of deleted projects: an Emit that raced
+// DeleteProject can store one after the delete committed (the statement
+// recoverStore runs at startup).
 func (s *Service) applyRetention(projectID string) {
 	if _, err := s.db.Exec(`DELETE FROM cc_events WHERE project_id NOT IN (SELECT id FROM cc_projects)`); err != nil {
 		s.logger.Warn("CYD Creator orphaned events could not be dropped", "error", err)
@@ -545,12 +557,13 @@ func (s *Service) applyRetention(projectID string) {
 	rows, err := s.db.Query(`SELECT b.id FROM cc_builds b WHERE b.project_id=? AND b.status NOT IN ('queued','running')
 		AND b.id NOT IN (SELECT build_id FROM cc_devices WHERE project_id=? UNION SELECT target_build_id FROM cc_devices WHERE project_id=?)
 		AND b.id <> (SELECT last_build FROM cc_projects WHERE id=?)
-		ORDER BY b.created_at DESC, b.id DESC`, projectID, projectID, projectID, projectID)
+		AND b.id <> COALESCE((SELECT id FROM cc_builds WHERE project_id=? AND status=? ORDER BY created_at DESC, id DESC LIMIT 1), '')
+		ORDER BY b.created_at DESC, b.id DESC`, projectID, projectID, projectID, projectID, projectID, BuildSucceeded)
 	if err != nil {
 		s.logger.Warn("CYD Creator build retention failed", "project_id", projectID, "error", err)
 		return
 	}
-	var stale []any
+	var stale []string
 	n := 0
 	for rows.Next() {
 		var id string
@@ -571,27 +584,104 @@ func (s *Service) applyRetention(projectID string) {
 	if len(stale) == 0 {
 		return
 	}
-	if _, err := s.db.Exec(`DELETE FROM cc_builds WHERE id IN (`+sqlPlaceholders(len(stale))+`)`, stale...); err != nil {
+	args := make([]any, len(stale))
+	for i, id := range stale {
+		args[i] = id
+	}
+	if _, err := s.db.Exec(`DELETE FROM cc_builds WHERE id IN (`+sqlPlaceholders(len(stale))+`)`, args...); err != nil {
 		s.logger.Warn("CYD Creator old builds could not be deleted", "project_id", projectID, "error", err)
 		return
 	}
+	s.removeBuildArtifacts(stale)
+}
+
+// removeBuildArtifacts removes the artefact directories of builds through
+// the artefact root. An id that fails validBuildID (a damaged row) is skipped
+// with a warning, so "" or "../x" never reaches RemoveAll; a directory whose
+// removal fails is swept at the next start (discardPartialArtifacts).
+func (s *Service) removeBuildArtifacts(ids []string) {
+	var root *os.Root
+	defer func() {
+		if root != nil {
+			_ = root.Close()
+		}
+	}()
+	for _, id := range ids {
+		if !validBuildID(id) {
+			s.logger.Warn("CYD Creator build id is malformed; its artefacts are left alone", "build_id", clipEcho(id))
+			continue
+		}
+		if root == nil {
+			var err error
+			if root, err = s.artifactsRoot(false); err != nil {
+				if !errors.Is(err, fs.ErrNotExist) {
+					s.logger.Warn("CYD Creator artefacts could not be removed", "error", err)
+				}
+				return
+			}
+		}
+		if err := root.RemoveAll(id); err != nil {
+			s.logger.Warn("CYD Creator artefacts of a build could not be removed", "build_id", id, "error", err)
+		}
+	}
+}
+
+// discardPartialArtifacts runs at startup, through the artefact root: it
+// removes the artefact directories of interrupted builds, staging
+// directories ("<id>.tmp") left by a crash and directories named like a build
+// that has no cc_builds row any more (a removal that failed, e.g. while a file
+// was open on Windows). Other entries are left alone.
+func (s *Service) discardPartialArtifacts(recovered []recoveredBuild) {
+	ids := make([]string, 0, len(recovered))
+	for _, b := range recovered {
+		ids = append(ids, b.ID)
+	}
+	s.removeBuildArtifacts(ids)
+	known, err := s.allBuildIDs()
+	if err != nil {
+		s.logger.Warn("CYD Creator builds could not be listed; orphaned artefacts are kept", "error", err)
+	}
 	root, err := s.artifactsRoot(false)
 	if err != nil {
-		if !errors.Is(err, fs.ErrNotExist) {
-			s.logger.Warn("CYD Creator artefacts of old builds could not be removed", "project_id", projectID, "error", err)
-		}
 		return
 	}
 	defer root.Close()
-	for _, v := range stale {
-		id := v.(string)
-		if !validBuildID(id) {
+	entries, err := fs.ReadDir(root.FS(), ".")
+	if err != nil {
+		s.logger.Warn("CYD Creator artefact directory could not be listed", "error", err)
+		return
+	}
+	for _, e := range entries {
+		name := e.Name()
+		orphan := known != nil && e.IsDir() && validBuildID(name) && !known[name]
+		if !strings.HasSuffix(name, ".tmp") && !orphan {
 			continue
 		}
-		if err := root.RemoveAll(id); err != nil {
-			s.logger.Warn("CYD Creator artefacts of an old build could not be removed", "build_id", id, "error", err)
+		if err := root.RemoveAll(name); err != nil {
+			s.logger.Warn("CYD Creator stale artefacts could not be removed", "name", name, "error", err)
 		}
 	}
+}
+
+// allBuildIDs returns the id of every stored build.
+func (s *Service) allBuildIDs() (map[string]bool, error) {
+	rows, err := s.db.Query(`SELECT id FROM cc_builds`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	ids := map[string]bool{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids[id] = true
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return ids, nil
 }
 
 // activeBuilds counts queued and running builds.
@@ -765,9 +855,8 @@ func (s *Service) BuildFonts(ctx context.Context, buildID string) (string, map[s
 		return "", nil, s.internalError("read build fonts", err)
 	}
 	defer root.Close()
-	fsys := root.FS()
 	dir := path.Join(buildID, ArtifactFontsDir)
-	entries, err := fs.ReadDir(fsys, dir)
+	entries, err := fs.ReadDir(root.FS(), dir)
 	if errors.Is(err, fs.ErrNotExist) {
 		return "", nil, nil
 	}
@@ -781,7 +870,7 @@ func (s *Service) BuildFonts(ctx context.Context, buildID string) (string, map[s
 		if !e.Type().IsRegular() || !FontArtifactName(name) {
 			continue
 		}
-		data, err := fs.ReadFile(fsys, path.Join(dir, name))
+		data, err := rootReadFile(root, path.Join(dir, name), maxFontArtifactBytes)
 		if err != nil {
 			return "", nil, s.internalError("read build fonts", err)
 		}

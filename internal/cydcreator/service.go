@@ -253,23 +253,6 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 	return s, nil
 }
 
-// discardPartialArtifacts removes artefact directories of interrupted builds
-// and staging directories ("<id>.tmp") left by a crash.
-func (s *Service) discardPartialArtifacts(recovered []recoveredBuild) {
-	for _, b := range recovered {
-		_ = os.RemoveAll(filepath.Join(s.artifactsDir, b.ID))
-	}
-	entries, err := os.ReadDir(s.artifactsDir)
-	if err != nil {
-		return
-	}
-	for _, e := range entries {
-		if strings.HasSuffix(e.Name(), ".tmp") {
-			_ = os.RemoveAll(filepath.Join(s.artifactsDir, e.Name()))
-		}
-	}
-}
-
 // serviceCloseWait bounds how long Close waits for the build worker.
 var serviceCloseWait = 30 * time.Second
 

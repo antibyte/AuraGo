@@ -800,28 +800,41 @@ func TestStartBuildKeepsTypedProjectTreeErrors(t *testing.T) {
 }
 
 // TestBuildFailuresTheAgentMustNotRepair: cyd-build exit code 2 (OOM kill,
-// tooling or build-tree failure) carries no error diagnostics, so plan 3 never
-// treats it as repairable, and a compile failure without a parsable diagnostic
-// still says where to look.
+// tooling or build-tree failure), an unknown exit code and a builder failure
+// after a partial log carry no error diagnostics (the lines stay as notes), so
+// plan 3 never treats them as repairable, and a compile failure without a
+// parsable diagnostic still says where to look.
 func TestBuildFailuresTheAgentMustNotRepair(t *testing.T) {
-	appError := "/work/%s/src/app/app_main.cpp:7:3: error: 'foo' was not declared in this scope\n" +
-		"xtensa-esp32-elf-g++: fatal error: Killed signal terminated program cc1plus\n"
+	appError := "/work/%s/src/app/app_main.cpp:7:3: error: 'foo' was not declared in this scope"
+	killed := "xtensa-esp32-elf-g++: fatal error: Killed signal terminated program cc1plus"
+	streamed := func(code int, fail error) func(BuildRequest, func(string)) (BuildOutput, error) {
+		return func(req BuildRequest, onLog func(string)) (BuildOutput, error) {
+			onLog(fmt.Sprintf(appError, req.BuildID))
+			onLog(killed)
+			return BuildOutput{ExitCode: code}, fail
+		}
+	}
 	for _, tc := range []struct {
-		name string
-		out  func(req BuildRequest) BuildOutput
-		note string
+		name    string
+		run     func(req BuildRequest, onLog func(string)) (BuildOutput, error)
+		code    string
+		note    string
+		demoted bool
 	}{
-		{"killed compiler", func(req BuildRequest) BuildOutput {
-			return BuildOutput{ExitCode: BuildExitToolingError, Log: fmt.Sprintf(appError, req.BuildID)}
-		}, "exit code 2"},
-		{"unattributed link error", func(req BuildRequest) BuildOutput {
-			return BuildOutput{ExitCode: BuildExitCompileError, Log: "region `dram0_0_seg' overflowed by 1234 bytes\n"}
-		}, ArtifactBuildLog},
+		{"killed compiler", streamed(BuildExitToolingError, nil), CodeBuildFailed, "exit code 2", true},
+		{"unknown exit code", streamed(137, nil), CodeBuildFailed, "exit code 137", true},
+		{"untyped builder failure after a partial log", streamed(0, errors.New("download artefacts: unexpected EOF")),
+			CodeBuildFailed, "server log", true},
+		{"typed builder failure after a partial log", streamed(0, NewError(CodeDockerUnavailable, "the Docker Engine went away", nil)),
+			CodeDockerUnavailable, "Docker Engine went away", true},
+		{"unattributed link error", func(BuildRequest, func(string)) (BuildOutput, error) {
+			return BuildOutput{ExitCode: BuildExitCompileError, Log: "region `dram0_0_seg' overflowed by 1234 bytes\n"}, nil
+		}, CodeBuildFailed, ArtifactBuildLog, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			env := newTestService(t)
-			env.builder.build = func(_ context.Context, req BuildRequest, _ func(string)) (BuildOutput, error) {
-				return tc.out(req), nil
+			env.builder.build = func(_ context.Context, req BuildRequest, onLog func(string)) (BuildOutput, error) {
+				return tc.run(req, onLog)
 			}
 			p := env.createProject(t, "Tooling")
 			b, err := env.svc.StartBuild(context.Background(), p.ID, BuildOptions{})
@@ -829,21 +842,180 @@ func TestBuildFailuresTheAgentMustNotRepair(t *testing.T) {
 				t.Fatal(err)
 			}
 			done := waitBuild(t, env.svc, b.ID)
-			if done.Status != BuildFailed || done.ErrorCode != CodeBuildFailed {
-				t.Fatalf("build = %s/%s", done.Status, done.ErrorCode)
+			if done.Status != BuildFailed || done.ErrorCode != tc.code {
+				t.Fatalf("build = %s/%s, want %s/%s", done.Status, done.ErrorCode, BuildFailed, tc.code)
 			}
-			note := false
+			note, demoted := false, false
 			for _, d := range done.Diagnostics {
 				if d.Severity == SeverityError {
 					t.Fatalf("diagnostic %+v would make the build agent-repairable", d)
 				}
 				note = note || d.Severity == SeverityNote && strings.Contains(d.Message, tc.note)
+				demoted = demoted || d.Severity == SeverityNote && d.File == "src/app/app_main.cpp"
 			}
 			if !note {
 				t.Fatalf("diagnostics %+v lack a note containing %q", done.Diagnostics, tc.note)
 			}
+			if demoted != tc.demoted {
+				t.Fatalf("diagnostics %+v: compile error kept as a note = %v, want %v", done.Diagnostics, demoted, tc.demoted)
+			}
 		})
 	}
+}
+
+func TestMaxFontArtifactBytesFollowsTheLargestAppSlot(t *testing.T) {
+	slot, err := AppSlotSize(16)
+	if err != nil || maxFontArtifactBytes != 7*slot {
+		t.Fatalf("maxFontArtifactBytes = %d, want 7 x the 16 MB app slot %d (%v)", maxFontArtifactBytes, slot, err)
+	}
+}
+
+// TestRetentionKeepsTheNewestSucceededBuild: failed builds beyond the limit
+// never prune the project's only good firmware.
+func TestRetentionKeepsTheNewestSucceededBuild(t *testing.T) {
+	env := newTestService(t, testServiceOptions{limits: ServiceLimits{KeepBuildsPerProject: 2}})
+	ctx := context.Background()
+	p := env.createProject(t, "Good")
+	var ids []string
+	for i := 0; i < 4; i++ {
+		if i == 1 {
+			env.builder.build = func(context.Context, BuildRequest, func(string)) (BuildOutput, error) {
+				return BuildOutput{ExitCode: BuildExitCompileError, Log: "src/app/app_main.cpp:1:1: error: boom\n"}, nil
+			}
+		}
+		b, err := env.svc.StartBuild(ctx, p.ID, BuildOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		waitBuild(t, env.svc, b.ID)
+		ids = append(ids, b.ID)
+	}
+	artifacts := filepath.Join(env.cfg.DataDir, "cyd_creator", "artifacts")
+	for i, id := range ids {
+		b, err := env.svc.GetBuild(ctx, id)
+		_, statErr := os.Stat(filepath.Join(artifacts, id))
+		keep := i != 1 // newest succeeded (0), last_build (3) and the newest other (2)
+		if keep && (err != nil || statErr != nil) {
+			t.Errorf("build %d (%s, %s) should be kept: %v / %v", i, id, b.Status, err, statErr)
+		}
+		if !keep && (ErrorCode(err) != CodeNotFound || !os.IsNotExist(statErr)) {
+			t.Errorf("build %d (%s) should be deleted: %v / %v", i, id, err, statErr)
+		}
+	}
+	if _, _, err := env.svc.OpenArtifact(ctx, ids[0], ArtifactMergedBin); err != nil {
+		t.Fatalf("the good firmware is gone: %v", err)
+	}
+}
+
+// TestArtifactCleanupIgnoresMalformedBuildIDs: damaged rows with an empty or
+// escaping id never make DeleteProject or the startup recovery remove the
+// artefact directory or anything outside it.
+func TestArtifactCleanupIgnoresMalformedBuildIDs(t *testing.T) {
+	dir := t.TempDir()
+	env := newTestService(t, testServiceOptions{dir: dir})
+	p := env.createProject(t, "Damaged Rows")
+	for _, id := range []string{"", "../x"} {
+		if _, err := env.svc.db.Exec(`INSERT INTO cc_builds(id,project_id,origin,status,board,project_version,created_at)
+			VALUES(?,?,'user','queued','esp32-2432s028r',1,'2026-10-10T08:00:00.000Z')`, id, p.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	artifacts := filepath.Join(env.cfg.DataDir, "cyd_creator", "artifacts")
+	inside := filepath.Join(artifacts, "keep.txt")
+	outside := filepath.Join(env.cfg.DataDir, "cyd_creator", "x", "keep.txt")
+	for _, f := range []string{inside, outside} {
+		if err := os.MkdirAll(filepath.Dir(f), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(f, []byte("keep"), 0o640); err != nil {
+			t.Fatal(err)
+		}
+	}
+	check := func(when string) {
+		t.Helper()
+		for _, f := range []string{inside, outside} {
+			if _, err := os.Stat(f); err != nil {
+				t.Fatalf("%s removed %s: %v", when, f, err)
+			}
+		}
+	}
+	if err := env.svc.Close(); err != nil {
+		t.Fatal(err)
+	}
+	restarted, err := NewService(env.cfg) // recovers both rows as interrupted
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restarted.Close()
+	check("the startup recovery")
+	if err := restarted.DeleteProject(context.Background(), p.ID); err != nil {
+		t.Fatal(err)
+	}
+	check("DeleteProject")
+}
+
+// TestStartupSweepsOrphanedArtifacts: an artefact directory named like a
+// build without a cc_builds row (a removal that failed) is removed at the next
+// start; directories of stored builds and other entries stay.
+func TestStartupSweepsOrphanedArtifacts(t *testing.T) {
+	dir := t.TempDir()
+	env := newTestService(t, testServiceOptions{dir: dir})
+	p := env.createProject(t, "Sweep")
+	b, err := env.svc.StartBuild(context.Background(), p.ID, BuildOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitBuild(t, env.svc, b.ID)
+	artifacts := filepath.Join(env.cfg.DataDir, "cyd_creator", "artifacts")
+	for _, f := range []string{"ccb_orphan/merged.bin", "ccb_9999.tmp/build.log", "notes/keep.txt"} {
+		path := filepath.Join(artifacts, filepath.FromSlash(f))
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("x"), 0o640); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := env.svc.Close(); err != nil {
+		t.Fatal(err)
+	}
+	restarted, err := NewService(env.cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restarted.Close()
+	for name, want := range map[string]bool{b.ID: true, "notes": true, "ccb_orphan": false, "ccb_9999.tmp": false} {
+		_, err := os.Stat(filepath.Join(artifacts, name))
+		if exists := err == nil; exists != want {
+			t.Errorf("%s exists = %v, want %v (%v)", name, exists, want, err)
+		}
+	}
+}
+
+// TestPullAndClose: Close waits for a running pull, and a pull after Close is
+// refused.
+func TestPullAndClose(t *testing.T) {
+	env := newTestService(t)
+	var finished atomic.Bool
+	started := make(chan struct{})
+	env.builder.pull = func(ctx context.Context) error {
+		close(started)
+		<-ctx.Done()
+		time.Sleep(50 * time.Millisecond)
+		finished.Store(true)
+		return ctx.Err()
+	}
+	if err := env.svc.PullToolchain(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	<-started
+	if err := env.svc.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if !finished.Load() {
+		t.Fatal("Close returned before the running pull ended")
+	}
+	wantCode(t, env.svc.PullToolchain(context.Background()), CodeBusy)
 }
 
 func TestClipBuildLogKeepsTheCap(t *testing.T) {
