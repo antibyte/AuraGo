@@ -303,4 +303,12 @@ func TestCYDCreatorAgentModule(t *testing.T) {
 		"P.agent = { create, tailBytes };", "attachLog(text)", "inst.setPanelBadge('agent', active)", "ccAgentAction: 'confirm'",
 		"ccAgentAction: 'resume'", "ccAgentAction: 'discard'", "inst.api.restoreRevision(", "dispose() {")
 	checkCYDCreatorCancelNotReadonly(t, "cyd-creator-agent.js", text, "ccAgentAction: 'cancel'")
+	// Review fixes: finished jobs stay final, restore flushes first, the dialog has an owner, the
+	// publication-review reason is shown and a reloading stream reloads the panel.
+	for _, marker := range []string{"TERMINAL.has(previous.status) && !TERMINAL.has(job.status)) return;", "inst.flushAll()", "owner: b,",
+		"job.error_reason === 'publication_review'", "inst.bus.on('sse:stream_ready'"} {
+		if !strings.Contains(text, marker) {
+			t.Errorf("cyd-creator-agent.js misses %q", marker)
+		}
+	}
 }

@@ -10,20 +10,38 @@
     const ACTIVE = new Set(['queued', 'running', 'awaiting_confirmation']);
     const TERMINAL = new Set(['succeeded', 'failed', 'cancelled', 'interrupted']);
     const LOG_MAX_BYTES = 16 * 1024;
+    const MAX_STEPS = 200;
     const STEP_ICONS = { layout: '▦', file: '✎', build: '⚙', repair: '↻', info: '•' };
 
     function byteLength(text) {
         return new TextEncoder().encode(String(text)).length;
     }
 
-    // tailBytes keeps the end of text within max UTF-8 bytes, starting at a line break when possible.
+    // utf8Size is the encoded size of one code point (a lone surrogate encodes as U+FFFD: 3 bytes).
+    function utf8Size(cp) {
+        return cp < 0x80 ? 1 : (cp < 0x800 ? 2 : (cp < 0x10000 ? 3 : 4));
+    }
+
+    // tailBytes keeps the longest end of text within max UTF-8 bytes (never half a surrogate pair),
+    // starting at a line break when possible.
     function tailBytes(text, max) {
-        let s = String(text || '');
-        const excess = byteLength(s) - max;
-        if (excess <= 0) return s;
-        // Every character has at least one byte, so dropping `excess` characters is always enough.
-        s = s.slice(excess);
-        if (/^[\uDC00-\uDFFF]/.test(s)) s = s.slice(1);
+        const full = String(text || '');
+        if (byteLength(full) <= max) return full;
+        let start = full.length;
+        let used = 0;
+        while (start > 0) {
+            let i = start - 1;
+            const unit = full.charCodeAt(i);
+            if (unit >= 0xDC00 && unit <= 0xDFFF && i > 0) {
+                const high = full.charCodeAt(i - 1);
+                if (high >= 0xD800 && high <= 0xDBFF) i--;
+            }
+            const size = utf8Size(full.codePointAt(i));
+            if (used + size > max) break;
+            used += size;
+            start = i;
+        }
+        const s = full.slice(start);
         const nl = s.indexOf('\n');
         return nl >= 0 && nl < s.length - 1 ? s.slice(nl + 1) : s;
     }
@@ -34,24 +52,26 @@
         const b = bag();
         const state = {
             messages: new Map(),
-            order: [],
-            steps: [],
+            // entries is the log in display order: {kind: 'msg', id, node} or {kind: 'step', step, node}.
+            entries: [],
             job: null,
             jobs: [],
             attachment: '',
             sending: false,
+            confirming: false,
             loaded: false,
             replanOpen: false,
+            replanText: null,
             ticker: 0,
             disposed: false
         };
 
         // ── DOM ──
         const revisionsBtn = el('button', { type: 'button', class: 'cc-btn cc-btn--small cc-btn--ghost', dataset: { ccAgentAction: 'revisions' }, text: t('cyd_creator.revisions.open') });
+        const resumeBtn = el('button', { type: 'button', class: 'cc-btn cc-btn--small', dataset: { ccAgentAction: 'resume' }, text: t('cyd_creator.agent.draft_resume') });
+        const discardBtn = el('button', { type: 'button', class: 'cc-btn cc-btn--small cc-btn--ghost', dataset: { ccAgentAction: 'discard' }, text: t('cyd_creator.agent.draft_discard') });
         const draftBanner = el('div', { class: 'cc-banner cc-banner--warn', dataset: { ccDraft: '' }, hidden: true },
-            el('span', { class: 'cc-banner-text', text: t('cyd_creator.agent.draft_text') }),
-            el('button', { type: 'button', class: 'cc-btn cc-btn--small', dataset: { ccAgentAction: 'resume' }, text: t('cyd_creator.agent.draft_resume') }),
-            el('button', { type: 'button', class: 'cc-btn cc-btn--small cc-btn--ghost', dataset: { ccAgentAction: 'discard' }, text: t('cyd_creator.agent.draft_discard') }));
+            el('span', { class: 'cc-banner-text', text: t('cyd_creator.agent.draft_text') }), resumeBtn, discardBtn);
         const log = el('div', { class: 'cc-agent-log', role: 'log', 'aria-live': 'polite', 'aria-label': t('cyd_creator.agent.history'), dataset: { ccAgentLog: '' } });
         const emptyNote = el('p', { class: 'cc-empty cc-agent-empty', text: t('cyd_creator.agent.empty') });
         const jobCard = el('section', { class: 'cc-job', dataset: { ccJob: '' }, hidden: true });
@@ -89,33 +109,81 @@
             if (atEnd) log.scrollTop = log.scrollHeight;
         }
 
+        function entryNode(entry) {
+            if (!entry.node) entry.node = entry.kind === 'msg' ? messageNode(state.messages.get(entry.id)) : stepNode(entry.step);
+            return entry.node;
+        }
+
+        // renderLog draws the whole log once (the first load). Later changes insert, swap or remove
+        // single nodes, so the live region announces only what is new.
         function renderLog() {
-            stickToEnd(() => {
-                const nodes = state.order.map(id => messageNode(state.messages.get(id)));
-                state.steps.forEach(step => nodes.push(stepNode(step)));
-                log.replaceChildren(...nodes);
-            });
-            emptyNote.hidden = state.order.length > 0 || state.steps.length > 0;
+            stickToEnd(() => { log.replaceChildren(...state.entries.map(entryNode)); });
+            emptyNote.hidden = state.entries.length > 0;
+        }
+
+        // place puts entry at index; with render it also inserts the node at the same place.
+        function place(entry, index, render) {
+            const next = state.entries[index];
+            state.entries.splice(index, 0, entry);
+            if (render === false) return;
+            const before = next && next.node && next.node.parentNode === log ? next.node : null;
+            stickToEnd(() => { log.insertBefore(entryNode(entry), before); });
+            emptyNote.hidden = true;
+        }
+
+        function dropEntry(entry) {
+            const index = state.entries.indexOf(entry);
+            if (index >= 0) state.entries.splice(index, 1);
+            if (entry.node) entry.node.remove();
+            emptyNote.hidden = state.entries.length > 0;
+        }
+
+        function isPending(entry) { return entry.kind === 'msg' && !!state.messages.get(entry.id).pending; }
+
+        // messageIndex keeps server messages in time order (a reload can deliver older ones late);
+        // a pending bubble goes last.
+        function messageIndex(message) {
+            if (message.pending) return state.entries.length;
+            const at = String(message.created_at || '9');
+            const later = state.entries.findIndex(e => e.kind === 'msg' && !isPending(e) && String(state.messages.get(e.id).created_at || '9') > at);
+            if (later >= 0) return later;
+            const pending = state.entries.findIndex(isPending);
+            return pending >= 0 ? pending : state.entries.length;
         }
 
         function addMessage(message, render) {
-            if (!message || !message.id) return;
+            if (!message || !message.id || state.messages.has(message.id)) return;
             if (message.role === 'user') {
-                const pending = state.order.find(id => state.messages.get(id).pending && state.messages.get(id).text === message.text);
-                if (pending) { state.messages.delete(pending); state.order = state.order.filter(id => id !== pending); }
+                const pending = state.entries.find(e => isPending(e) && state.messages.get(e.id).text === message.text);
+                if (pending) {
+                    // The server's copy of a sent prompt takes the place of its pending bubble.
+                    state.messages.delete(pending.id);
+                    state.messages.set(message.id, message);
+                    const old = pending.node;
+                    pending.id = message.id;
+                    pending.node = null;
+                    if (render !== false && old && old.parentNode === log) {
+                        log.insertBefore(entryNode(pending), old);
+                        old.remove();
+                    }
+                    return;
+                }
             }
-            if (!state.messages.has(message.id)) state.order.push(message.id);
             state.messages.set(message.id, message);
-            state.order.sort((x, y) => String(state.messages.get(x).created_at || '9').localeCompare(String(state.messages.get(y).created_at || '9')));
-            if (render !== false) renderLog();
+            place({ kind: 'msg', id: message.id, node: null }, messageIndex(message), render);
+        }
+
+        function removeMessage(id) {
+            const entry = state.entries.find(e => e.kind === 'msg' && e.id === id);
+            state.messages.delete(id);
+            if (entry) dropEntry(entry);
         }
 
         function addStep(step) {
             if (!step || !state.job || step.job_id !== state.job.id) return;
-            state.steps.push(step);
-            if (state.steps.length > 200) state.steps.shift();
-            stickToEnd(() => { log.appendChild(stepNode(step)); });
-            emptyNote.hidden = true;
+            place({ kind: 'step', step, node: null }, state.entries.length, true);
+            const steps = state.entries.filter(e => e.kind === 'step');
+            if (steps.length > MAX_STEPS) dropEntry(steps[0]);
         }
 
         // ── job ──
@@ -147,14 +215,15 @@
                     return lib ? lib.name : id;
                 }).join(', ')]
             ].filter(row => row[1]);
-            const replanInput = el('textarea', { class: 'cc-input', rows: '4', 'aria-label': t('cyd_creator.agent.replan_label'), dataset: { ccReplanInput: '' } });
-            replanInput.value = lastUserPrompt(job.id);
+            // The edited description survives re-renders (opening/closing the box, a finished request).
+            const replanInput = el('textarea', { class: 'cc-input', rows: '4', 'aria-label': t('cyd_creator.agent.replan_label'), dataset: { ccReplanInput: '' }, onInput: () => { state.replanText = replanInput.value; } });
+            replanInput.value = state.replanText == null ? lastUserPrompt(job.id) : state.replanText;
+            // Confirm and re-plan change the project and wait for one answer; Cancel stays usable for
+            // read-only viewers (the server allows the cancel routes in read-only mode).
+            const disabled = inst.readonly || state.confirming;
             const replanBox = el('div', { class: 'cc-replan', hidden: !state.replanOpen },
                 el('label', { class: 'cc-form-field' }, el('span', { text: t('cyd_creator.agent.replan_label') }), replanInput),
-                el('button', { type: 'button', class: 'cc-btn cc-btn--primary', dataset: { ccAgentAction: 'replan-send' }, text: t('cyd_creator.agent.replan_send'), onClick: () => confirmJob(replanInput.value.trim()) }));
-            // Confirm and re-plan change the project; Cancel stays usable for read-only viewers (the
-            // server allows the cancel routes in read-only mode).
-            const disabled = inst.readonly;
+                el('button', { type: 'button', class: 'cc-btn cc-btn--primary', dataset: { ccAgentAction: 'replan-send' }, disabled, text: t('cyd_creator.agent.replan_send'), onClick: () => replan(replanInput) }));
             return el('article', { class: 'cc-plan-card', dataset: { ccPlan: job.id } },
                 el('h3', { text: t('cyd_creator.agent.plan_title') }),
                 plan.summary ? el('p', { class: 'cc-plan-summary', text: plan.summary }) : null,
@@ -167,12 +236,32 @@
                 replanBox);
         }
 
+        // replan asks for a new plan. An empty prompt would confirm the plan as it is, so it needs text.
+        function replan(field) {
+            const prompt = field.value.trim();
+            if (!prompt) { field.focus(); return; }
+            confirmJob(prompt);
+        }
+
         function lastUserPrompt(jobId) {
-            for (let i = state.order.length - 1; i >= 0; i--) {
-                const m = state.messages.get(state.order[i]);
-                if (m.role === 'user' && (!jobId || m.job_id === jobId || m.pending)) return String(m.text || '');
+            for (let i = state.entries.length - 1; i >= 0; i--) {
+                const entry = state.entries[i];
+                const m = entry.kind === 'msg' ? state.messages.get(entry.id) : null;
+                if (m && m.role === 'user' && (!jobId || m.job_id === jobId || m.pending)) return String(m.text || '');
             }
             return '';
+        }
+
+        // jobError is the sentence for a failed or interrupted job. A publication fenced for review ends
+        // CYD_BUSY with error_reason publication_review; without a recorded reason the project summary
+        // (publish_review) tells. Other CYD_BUSY endings keep the server's sentence.
+        function jobError(job) {
+            const project = inst.project || {};
+            if (job.error_reason === 'publication_review' || (!job.error_reason && job.error_code === 'CYD_BUSY' && project.publish_review)) {
+                return t('cyd_creator.error.publication_review');
+            }
+            if (job.error_code === 'CYD_BUSY') return job.error_message || t('cyd_creator.error.CYD_BUSY');
+            return job.error_code && t.has('cyd_creator.error.' + job.error_code) ? t('cyd_creator.error.' + job.error_code) : (job.error_message || t('cyd_creator.error.generic'));
         }
 
         function elapsed(job) {
@@ -191,7 +280,7 @@
                 jobCard.hidden = false;
                 const statusText = t('cyd_creator.job.status_' + job.status);
                 const error = job.error_code || job.error_message
-                    ? el('p', { class: 'cc-job-error', role: 'alert', text: job.error_code && t.has('cyd_creator.error.' + job.error_code) ? t('cyd_creator.error.' + job.error_code) : (job.error_message || t('cyd_creator.error.generic')) })
+                    ? el('p', { class: 'cc-job-error', role: 'alert', text: jobError(job) })
                     : null;
                 // replaceChildren turns null into the text "null": pass real nodes only.
                 jobCard.replaceChildren(...[
@@ -207,7 +296,7 @@
             }
             const active = isActive(job);
             inst.setPanelBadge('agent', active);
-            if (active && !state.ticker) {
+            if (active && !state.ticker && !state.disposed) {
                 state.ticker = setInterval(() => {
                     const node = jobCard.querySelector('[data-cc-job-elapsed]');
                     if (node && state.job) node.textContent = elapsed(state.job);
@@ -221,13 +310,17 @@
         }
 
         function applyJob(job, silent) {
-            if (!job || !job.id) return;
+            if (!job || !job.id || state.disposed) return;
             const previous = state.job;
+            // A finished job stays finished: a snapshot taken before its end (the POST answer, the
+            // GET /jobs list) can arrive after the job_status event that ended it.
+            if (previous && previous.id === job.id && TERMINAL.has(previous.status) && !TERMINAL.has(job.status)) return;
             if (previous && previous.id !== job.id) {
                 // Only a newer job replaces the shown one (backlog replays can deliver older ones).
                 if (String(job.created_at || '') < String(previous.created_at || '')) return;
-                state.steps = [];
+                state.entries.filter(e => e.kind === 'step').forEach(dropEntry);
                 state.replanOpen = false;
+                state.replanText = null;
             }
             state.job = job;
             const index = state.jobs.findIndex(j => j.id === job.id);
@@ -277,16 +370,19 @@
                 applyJob(job);
                 return job;
             } catch (err) {
-                if (pendingId) { state.messages.delete(pendingId); state.order = state.order.filter(id => id !== pendingId); renderLog(); }
+                if (state.disposed) return null;
+                if (pendingId) removeMessage(pendingId);
                 inst.notify('error', P.errors.message(t, err));
                 return null;
             } finally {
                 state.sending = false;
-                renderComposer();
+                if (!state.disposed) renderComposer();
             }
         }
 
         async function send(mode) {
+            // Ctrl+Enter reaches this while the buttons are disabled.
+            if (inst.readonly || isActive(state.job) || state.sending) return;
             const prompt = input.value.trim();
             if (mode === 'change' && !prompt && !state.attachment) { input.focus(); return; }
             const body = { prompt, mode, resume: false };
@@ -299,45 +395,69 @@
             }
         }
 
+        // setConfirming disables Build it / Change plan / Plan again in place while one confirm request
+        // runs (a re-render would move the focus); Cancel stays usable.
+        function setConfirming(on) {
+            state.confirming = on;
+            jobCard.querySelectorAll('[data-cc-agent-action="confirm"],[data-cc-agent-action="replan"],[data-cc-agent-action="replan-send"]')
+                .forEach(button => { button.disabled = inst.readonly || on; });
+        }
+
         async function confirmJob(prompt) {
-            if (!state.job) return;
+            const job = state.job;
+            if (!job || job.status !== 'awaiting_confirmation' || state.confirming || inst.readonly) return;
+            setConfirming(true);
             try {
-                const job = await inst.api.confirmJob(state.job.id, prompt);
+                const answer = await inst.api.confirmJob(job.id, prompt);
+                if (state.disposed) return;
                 state.replanOpen = false;
-                applyJob(job);
+                state.replanText = null;
+                // The answer applies only while the job still waits: a job_status event may already
+                // have moved it on (running, or a fast failure).
+                if (state.job && state.job.id === answer.id && state.job.status === 'awaiting_confirmation') applyJob(answer);
             } catch (err) {
-                inst.notify('error', P.errors.message(t, err));
+                if (!state.disposed) inst.notify('error', P.errors.message(t, err));
+            } finally {
+                if (!state.disposed) setConfirming(false);
             }
         }
 
         async function cancelJob() {
             if (!state.job) return;
+            const id = state.job.id;
             const ok = await inst.confirm({ titleKey: 'cyd_creator.agent.cancel_title', bodyKey: 'cyd_creator.agent.cancel_body', okKey: 'cyd_creator.agent.cancel', danger: true });
-            if (!ok) return;
-            try { await inst.api.cancelJob(state.job.id); } catch (err) { inst.notify('error', P.errors.message(t, err)); }
+            if (!ok || state.disposed) return;
+            try { await inst.api.cancelJob(id); } catch (err) { if (!state.disposed) inst.notify('error', P.errors.message(t, err)); }
         }
 
         // ── draft ──
         function renderDraft() {
             const project = inst.project || {};
             draftBanner.hidden = !(project.has_draft && !isActive(state.job));
-            draftBanner.querySelectorAll('button').forEach(button => { button.disabled = inst.readonly; });
+            // A project fenced for publication review refuses a resume; discarding the draft stays allowed.
+            const fenced = !!project.publish_review;
+            resumeBtn.disabled = inst.readonly || fenced;
+            if (fenced) resumeBtn.setAttribute('title', t('cyd_creator.error.publication_review'));
+            else resumeBtn.removeAttribute('title');
+            discardBtn.disabled = inst.readonly;
         }
 
         async function resumeDraft() {
+            if (inst.readonly || (inst.project && inst.project.publish_review)) return;
             const last = state.jobs[0];
             await startJob({ prompt: '', mode: (last && last.mode) || 'change', resume: true });
         }
 
         async function discardDraft() {
             const ok = await inst.confirm({ titleKey: 'cyd_creator.agent.draft_discard', bodyKey: 'cyd_creator.agent.draft_discard_body', okKey: 'cyd_creator.agent.draft_discard', danger: true });
-            if (!ok) return;
+            if (!ok || state.disposed) return;
             try {
                 await inst.api.discardDraft(inst.projectId);
+                if (state.disposed) return;
                 if (inst.project) inst.project.has_draft = false;
                 renderDraft();
             } catch (err) {
-                inst.notify('error', P.errors.message(t, err));
+                if (!state.disposed) inst.notify('error', P.errors.message(t, err));
             }
         }
 
@@ -357,29 +477,51 @@
             const detail = el('div', { class: 'cc-rev-detail', dataset: { ccRevisionDiff: '' } }, el('p', { class: 'cc-empty', text: t('cyd_creator.revisions.pick') }));
             let selected = null;
             let token = 0;
+            let restoreBtn = null;
+            // Restore follows the selection, read-only and the project lock while the dialog is open.
+            function syncRestore() {
+                if (!restoreBtn) return;
+                const off = !selected || inst.readonly || inst.isLocked();
+                restoreBtn.dataset.locked = off ? '1' : '';
+                restoreBtn.disabled = off;
+            }
             const d = P.dialog.open(inst.root, {
                 title: t('cyd_creator.revisions.title'),
                 className: 'cc-dialog--wide',
                 body: el('div', { class: 'cc-rev' }, list, detail),
                 actions: [{ id: 'close', label: t('cyd_creator.app.close') }, { id: 'restore', label: t('cyd_creator.revisions.restore'), kind: 'danger', disabled: true }],
+                owner: b,
                 async onAction(id, dialog) {
                     if (id !== 'restore') { dialog.close(null); return; }
+                    syncRestore();
                     if (!selected || inst.readonly || inst.isLocked()) return;
-                    const ok = await inst.confirm({ titleKey: 'cyd_creator.revisions.restore', bodyKey: 'cyd_creator.revisions.restore_confirm', vars: { label: selected.label }, okKey: 'cyd_creator.revisions.restore', danger: true });
-                    if (!ok) return;
+                    const target = selected;
+                    const ok = await inst.confirm({ titleKey: 'cyd_creator.revisions.restore', bodyKey: 'cyd_creator.revisions.restore_confirm', vars: { label: target.label }, okKey: 'cyd_creator.revisions.restore', danger: true });
+                    if (!ok || d.closed) return;
                     dialog.setBusy(true);
+                    // Unsaved layout and code edits are saved first: the restore would drop them, and the
+                    // "Before restoring" revision should contain them.
+                    if (!(await inst.flushAll()) && !(await inst.confirm({ titleKey: 'cyd_creator.app.unsaved_title', bodyKey: 'cyd_creator.app.unsaved_body', okKey: 'cyd_creator.revisions.restore', danger: true }))) {
+                        if (!d.closed) dialog.setBusy(false);
+                        return;
+                    }
+                    if (d.closed) return;
                     try {
-                        await inst.api.restoreRevision(selected.id);
+                        await inst.api.restoreRevision(target.id);
                         dialog.close('restored');
+                        if (state.disposed) return;
                         inst.notify('info', t('cyd_creator.revisions.restored'));
                         await inst.reloadProject();
                     } catch (err) {
+                        if (d.closed) return;
                         dialog.setBusy(false);
                         dialog.setError(P.errors.message(t, err));
                     }
                 }
             });
-            const restoreBtn = d.el.querySelector('[data-cc-dialog-action="restore"]');
+            restoreBtn = d.el.querySelector('[data-cc-dialog-action="restore"]');
+            const offLock = inst.bus.on('lock:changed', syncRestore);
+            d.promise.then(() => offLock());
             try {
                 const revisions = await inst.api.listRevisions(inst.projectId);
                 if (d.closed) return;
@@ -391,9 +533,8 @@
                         el('time', { datetime: rev.created_at, text: P.format.time(rev.created_at) }));
                     button.addEventListener('click', async () => {
                         selected = rev;
-                        list.querySelectorAll('.cc-rev-item').forEach(node => node.setAttribute('aria-pressed', node === button ? 'true' : 'false'));
-                        restoreBtn.dataset.locked = inst.readonly || inst.isLocked() ? '1' : '';
-                        restoreBtn.disabled = inst.readonly || inst.isLocked();
+                        list.querySelectorAll('[data-cc-revision]').forEach(node => node.setAttribute('aria-pressed', node === button ? 'true' : 'false'));
+                        syncRestore();
                         const mine = ++token;
                         detail.replaceChildren(el('p', { class: 'cc-empty', text: t('cyd_creator.app.loading') }));
                         try {
@@ -415,13 +556,17 @@
         }
 
         // ── loading and wiring ──
+        // load reads the history and the jobs. The first load draws the log once; a reload (stream_ready
+        // with reload) only inserts what is missing: messages are deduplicated by id, and a stale job
+        // snapshot never reopens a finished job.
         async function load() {
+            const first = !state.loaded;
             try {
                 const [messages, jobs] = await Promise.all([inst.api.listMessages(inst.projectId), inst.api.listJobs(inst.projectId)]);
                 if (state.disposed) return;
-                messages.forEach(m => addMessage(m, false));
+                messages.forEach(m => addMessage(m, !first));
                 state.jobs = jobs.slice();
-                renderLog();
+                if (first) renderLog();
                 if (jobs[0]) applyJob(jobs[0], true);
                 else renderJob();
                 state.loaded = true;
@@ -436,12 +581,15 @@
         });
         b.on(generateBtn, 'click', () => send('generate_code'));
         b.on(revisionsBtn, 'click', openRevisions);
-        b.on(draftBanner.querySelector('[data-cc-agent-action="resume"]'), 'click', resumeDraft);
-        b.on(draftBanner.querySelector('[data-cc-agent-action="discard"]'), 'click', discardDraft);
+        b.on(resumeBtn, 'click', resumeDraft);
+        b.on(discardBtn, 'click', discardDraft);
         b.add(inst.bus.on('job:status', job => applyJob(job)));
         b.add(inst.bus.on('sse:job_step', step => addStep(step)));
         b.add(inst.bus.on('sse:job_message', data => addMessage(data && data.message)));
-        b.add(inst.bus.on('project:updated', () => renderDraft()));
+        b.add(inst.bus.on('sse:stream_ready', data => { if (data && data.reload) load(); }));
+        // The summary carries has_draft and publish_review (draft banner, error text of a finished job).
+        // An active job's card does not depend on it and is not rebuilt (the re-plan field keeps focus).
+        b.add(inst.bus.on('project:updated', () => { if (isActive(state.job)) renderDraft(); else renderJob(); }));
         b.add(inst.bus.on('lock:changed', () => renderComposer()));
         b.add(() => { if (state.ticker) clearInterval(state.ticker); });
 

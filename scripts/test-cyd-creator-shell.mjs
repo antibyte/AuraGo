@@ -1058,6 +1058,221 @@ async function makeCode(initial) {
 }
 console.warn = consoleWarn;
 
+// ── agent panel (cyd-creator-agent.js) on the fake DOM ──
+sandbox.TextEncoder = TextEncoder;
+{
+    const full = path.join(apps, 'cyd-creator-agent.js');
+    vm.runInContext(fs.readFileSync(full, 'utf8'), sandbox, { filename: full });
+}
+{
+    const tail = P.agent.tailBytes;
+    const bytes = s => new TextEncoder().encode(s).length;
+    eq('tailBytes keeps short text', tail('a\nb', 16), 'a\nb');
+    const lines = Array.from({ length: 50 }, (_, i) => 'line ' + i).join('\n');
+    const cut = tail(lines, 64);
+    check('tailBytes keeps the end within the limit and starts at a line', bytes(cut) <= 64 && cut.startsWith('line ') && lines.endsWith(cut), JSON.stringify(cut));
+    const emoji = tail('\u{1F600}'.repeat(40), 30);
+    check('tailBytes never starts inside a surrogate pair', bytes(emoji) <= 30 && emoji.length > 0 && !/^[\uDC00-\uDFFF]/.test(emoji), JSON.stringify(emoji));
+    const umlauts = tail('ä'.repeat(20), 9);
+    check('tailBytes counts UTF-8 bytes', bytes(umlauts) <= 9 && /^ä+$/.test(umlauts), JSON.stringify(umlauts));
+}
+function agentJob(id, status, minute, extra) {
+    return Object.assign({
+        id, project_id: 'ccp_1', mode: 'change', status, phase: status === 'awaiting_confirmation' ? 'planning' : 'coding', repair_attempt: 0,
+        plan: null, error_code: '', error_message: '', created_at: '2026-10-12T10:' + String(minute).padStart(2, '0') + ':00.000Z'
+    }, extra || {});
+}
+function deferred() {
+    let resolve;
+    const promise = new Promise(r => { resolve = r; });
+    return { promise, resolve };
+}
+const agentPlan = { summary: 'A clock', screens: ['home'], widgets: ['label'], data_sources: [], wifi: 'off', aurago_link: false, libraries: [] };
+// makeAgent mounts an agent panel like the app; opts: messages, jobs, project, readonly, revisions, flushOk,
+// confirms (answers of inst.confirm in order, default yes), startJob(body) and confirmJob(prompt) promises.
+async function makeAgent(opts) {
+    const o = opts || {};
+    const calls = { start: [], confirm: [], restore: [], order: [], listMessages: 0, badge: [] };
+    const confirms = o.confirms || [];
+    let locked = false;
+    const inst = {
+        t: P.i18n({}), bus: P.createBus(), projectId: 'ccp_1', root: attachedHost(), readonly: !!o.readonly, caps: { libraries: [] },
+        project: Object.assign({ id: 'ccp_1', has_draft: false, publish_review: false }, o.project || {}),
+        isLocked: () => locked,
+        api: {
+            listMessages: () => { calls.listMessages++; return Promise.resolve((o.messages || []).slice()); },
+            listJobs: () => Promise.resolve((o.jobs || []).slice()),
+            startJob: (id, body) => { calls.start.push(body); return o.startJob ? o.startJob(body) : Promise.resolve(agentJob('ccj_new', 'queued', 30)); },
+            confirmJob: (id, prompt) => { calls.confirm.push(prompt); return o.confirmJob ? o.confirmJob(prompt) : Promise.resolve(agentJob(id, 'running', 2)); },
+            cancelJob: () => Promise.resolve(true),
+            discardDraft: () => Promise.resolve(true),
+            listRevisions: () => Promise.resolve(o.revisions || []),
+            revisionDiff: () => Promise.resolve({ layout_changed: false, files: [] }),
+            restoreRevision: id => { calls.order.push('restore'); calls.restore.push(id); return Promise.resolve({}); }
+        },
+        confirm: () => Promise.resolve(confirms.length ? confirms.shift() : true),
+        flushAll: () => { calls.order.push('flush'); return Promise.resolve(o.flushOk !== false); },
+        notify() {}, setPanelBadge: (id, on) => calls.badge.push(on), showPanel() {}, refreshProject() {}, reloadProject: () => Promise.resolve()
+    };
+    const agent = P.agent.create(inst);
+    const host = attachedHost();
+    await agent.mount(host);
+    await settle();
+    const byData = (name, value) => findNode(agent.el, n => n.dataset && n.dataset[name] !== undefined && (value === undefined || n.dataset[name] === value));
+    const inDialog = (name, value) => findNode(inst.root, n => n.dataset && n.dataset[name] === value);
+    return {
+        agent, inst, calls, byData, inDialog, confirms,
+        log: () => byData('ccAgentLog'),
+        errorText: () => { const n = findNode(agent.el, x => x.className === 'cc-job-error'); return n ? n.textContent : null; },
+        setLocked(v) { locked = v; },
+        dispose() { agent.dispose(); host.remove(); inst.root.remove(); }
+    };
+}
+{
+    // A fast failure: the job_status event that ends the job arrives before the POST answer.
+    const answer = deferred();
+    const a = await makeAgent({ jobs: [agentJob('ccj_old', 'succeeded', 1)], startJob: () => answer.promise });
+    a.byData('ccAgentInput').value = 'Add a clock';
+    a.byData('ccComposer').dispatch('submit');
+    a.inst.bus.emit('job:status', agentJob('ccj_new', 'failed', 30, { error_code: 'CYD_INTERNAL' }));
+    answer.resolve(agentJob('ccj_new', 'queued', 30));
+    await settle();
+    eq('a stale POST answer does not reopen a job that already failed',
+        [a.agent.job().status, a.agent.isBusy(), a.calls.badge[a.calls.badge.length - 1], a.byData('ccAgentAction', 'send').disabled], ['failed', false, false, false]);
+    a.inst.bus.emit('job:status', agentJob('ccj_new', 'running', 30));
+    eq('a replayed earlier state of a finished job is ignored', a.agent.job().status, 'failed');
+    a.dispose();
+}
+{
+    const answer = deferred();
+    const a = await makeAgent({ jobs: [agentJob('ccj_p', 'awaiting_confirmation', 2, { plan: agentPlan })], confirmJob: () => answer.promise });
+    a.byData('ccAgentAction', 'confirm').click();
+    a.byData('ccAgentAction', 'confirm').click();
+    eq('Build it sends one request and disables the plan actions but not Cancel',
+        [a.calls.confirm.length, a.byData('ccAgentAction', 'confirm').disabled, a.byData('ccAgentAction', 'replan').disabled, a.byData('ccAgentAction', 'cancel').disabled],
+        [1, true, true, false]);
+    a.inst.bus.emit('job:status', agentJob('ccj_p', 'failed', 2, { error_code: 'CYD_INTERNAL' }));
+    answer.resolve(agentJob('ccj_p', 'running', 2));
+    await settle();
+    eq('the confirm answer does not reopen a job that failed meanwhile', a.agent.job().status, 'failed');
+    a.dispose();
+    const later = deferred();
+    const b = await makeAgent({ jobs: [agentJob('ccj_q', 'awaiting_confirmation', 2, { plan: agentPlan })], confirmJob: () => later.promise });
+    b.byData('ccAgentAction', 'confirm').click();
+    b.inst.bus.emit('job:status', agentJob('ccj_q', 'running', 2, { phase: 'building' }));
+    later.resolve(agentJob('ccj_q', 'running', 2, { phase: 'layout' }));
+    await settle();
+    eq('the confirm answer applies only while the job still waits', b.agent.job().phase, 'building');
+    b.dispose();
+}
+{
+    const a = await makeAgent({ jobs: [agentJob('ccj_p', 'awaiting_confirmation', 2, { plan: agentPlan })] });
+    a.byData('ccAgentAction', 'replan').click();
+    const field = a.byData('ccReplanInput');
+    field.value = '   ';
+    a.byData('ccAgentAction', 'replan-send').click();
+    eq('Plan again with an empty description sends nothing and focuses the field', [a.calls.confirm.length, sandbox.document.activeElement === field], [0, true]);
+    field.value = 'Bigger digits';
+    field.dispatch('input');
+    a.inst.bus.emit('project:updated', a.inst.project);
+    eq('an update keeps the edited description and the field', [a.byData('ccReplanInput') === field, field.value], [true, 'Bigger digits']);
+    a.byData('ccAgentAction', 'replan-send').click();
+    await settle();
+    eq('Plan again sends the trimmed description', a.calls.confirm, ['Bigger digits']);
+    a.dispose();
+}
+{
+    const ro = await makeAgent({ readonly: true });
+    ro.byData('ccAgentInput').value = 'x';
+    ro.byData('ccAgentInput').dispatch('keydown', { key: 'Enter', ctrlKey: true });
+    const busy = await makeAgent({ jobs: [agentJob('ccj_r', 'running', 3)] });
+    busy.byData('ccAgentInput').value = 'x';
+    busy.byData('ccAgentInput').dispatch('keydown', { key: 'Enter', ctrlKey: true });
+    await settle();
+    eq('Ctrl+Enter starts nothing while read-only or while a job runs', [ro.calls.start.length, busy.calls.start.length], [0, 0]);
+    ro.dispose();
+    busy.dispose();
+}
+{
+    const answer = deferred();
+    const first = { id: 'msg_1', role: 'agent', text: 'Hello', job_id: 'ccj_old', created_at: '2026-10-12T10:01:00.000Z' };
+    const a = await makeAgent({ messages: [first], startJob: () => answer.promise });
+    const log = a.log();
+    const n1 = log.childNodes[0];
+    let redraws = 0;
+    const replaceChildren = log.replaceChildren.bind(log);
+    log.replaceChildren = (...nodes) => { redraws++; replaceChildren(...nodes); };
+    a.byData('ccAgentInput').value = 'Add a clock';
+    a.byData('ccComposer').dispatch('submit');
+    const pending = log.childNodes[1];
+    a.inst.bus.emit('sse:job_message', { message: { id: 'msg_2', role: 'user', text: 'Add a clock', job_id: 'ccj_new', created_at: '2026-10-12T10:05:00.000Z' } });
+    eq('the server copy replaces the pending bubble in place',
+        [log.childNodes.length, log.childNodes[0] === n1, pending.parentNode, log.childNodes[1].dataset.ccMessage, pending.className.includes('is-pending'), redraws],
+        [2, true, null, 'msg_2', true, 0]);
+    answer.resolve(agentJob('ccj_new', 'running', 5));
+    await settle();
+    a.inst.bus.emit('sse:job_step', { job_id: 'ccj_new', kind: 'file', text: 'Wrote src/app/app_main.cpp' });
+    a.inst.bus.emit('sse:job_message', { message: { id: 'msg_3', role: 'agent', text: 'Done', job_id: 'ccj_new', created_at: '2026-10-12T10:06:00.000Z' } });
+    eq('new lines are appended without redrawing the log',
+        [log.childNodes.length, log.childNodes[0] === n1, log.childNodes[2].dataset.ccStep, log.childNodes[3].dataset.ccMessage, redraws], [4, true, 'file', 'msg_3', 0]);
+    a.inst.bus.emit('sse:stream_ready', { after: 9 });
+    await settle();
+    eq('a plain stream_ready does not reload', a.calls.listMessages, 1);
+    a.inst.bus.emit('sse:stream_ready', { reload: true, after: 9 });
+    await settle();
+    eq('stream_ready with reload reloads without duplicating or redrawing lines', [a.calls.listMessages, log.childNodes.length, log.childNodes[0] === n1, redraws], [2, 4, true, 0]);
+    a.dispose();
+}
+{
+    const a = await makeAgent({
+        jobs: [agentJob('ccj_f', 'failed', 3, { error_code: 'CYD_BUSY', error_reason: 'publication_review', error_message: 'an interrupted publication needs review' })],
+        project: { has_draft: true, publish_review: true }
+    });
+    const resume = a.byData('ccAgentAction', 'resume');
+    const review = a.inst.t('cyd_creator.error.publication_review');
+    eq('a fenced publication shows the review text and blocks only Resume',
+        [a.errorText(), a.byData('ccDraft').hidden, resume.disabled, resume.getAttribute('title'), a.byData('ccAgentAction', 'discard').disabled],
+        [review, false, true, review, false]);
+    a.dispose();
+    const b = await makeAgent({ jobs: [agentJob('ccj_b', 'failed', 3, { error_code: 'CYD_BUSY', error_message: 'Another job is active.' })], project: { has_draft: true } });
+    const before = b.errorText();
+    b.inst.project.publish_review = true;
+    b.inst.bus.emit('project:updated', b.inst.project);
+    eq('without a reason CYD_BUSY keeps the server text until the summary reports the fence',
+        [before, b.errorText(), b.byData('ccAgentAction', 'resume').disabled], ['Another job is active.', b.inst.t('cyd_creator.error.publication_review'), true]);
+    b.dispose();
+}
+{
+    const rev = { id: 'ccr_1', label: 'v1', reason: 'job', created_at: '2026-10-12T10:00:00.000Z' };
+    const a = await makeAgent({ revisions: [rev], flushOk: false, confirms: [true, false] });
+    a.agent.openRevisions();
+    await settle();
+    a.inDialog('ccRevision', 'ccr_1').click();
+    await settle();
+    const restore = a.inDialog('ccDialogAction', 'restore');
+    const enabled = !restore.disabled;
+    a.setLocked(true);
+    a.inst.bus.emit('lock:changed', true, 'ccj_x');
+    const lockedNow = restore.disabled;
+    a.setLocked(false);
+    a.inst.bus.emit('lock:changed', false, '');
+    eq('Restore follows the selection and the lock', [enabled, lockedNow, restore.disabled], [true, true, false]);
+    restore.click();
+    await settle();
+    eq('unsaved edits that cannot be saved stop the restore unless confirmed', [a.calls.order, restore.disabled], [['flush'], false]);
+    a.confirms.push(true, true);
+    restore.click();
+    await settle();
+    eq('the restore runs after the flush attempt', [a.calls.order, a.calls.restore], [['flush', 'flush', 'restore'], ['ccr_1']]);
+    a.agent.openRevisions();
+    await settle();
+    const open = a.inst.root.childNodes.length;
+    a.agent.dispose();
+    await settle();
+    eq('disposing the panel closes its revisions dialog', [open, a.inst.root.childNodes.length, docKeys.length], [1, 0, 0]);
+    a.inst.root.remove();
+}
+
 if (failures) {
     console.log(failures + ' check(s) failed');
     process.exit(1);
