@@ -47,6 +47,9 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
 	rawCfg = normalizeConfigYAMLMap(rawCfg)
+	// The cyd_creator values before the merge: the save validates only the
+	// values it changes (validateCYDCreatorSave).
+	previousCYDCreator := cydCreatorSectionFromRaw(rawCfg)
 
 	// Move any sensitive credentials into the vault before merging.
 	if s.Vault != nil {
@@ -82,7 +85,7 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 	if err := config.NormalizeVideoStudioConfig(&validateCfg.VideoStudio); err != nil {
 		return nil, err
 	}
-	if err := config.ValidateCYDCreatorConfig(validateCfg.CYDCreator); err != nil {
+	if err := validateCYDCreatorSave(previousCYDCreator, validateCfg.CYDCreator); err != nil {
 		return nil, err
 	}
 	if err := config.NormalizeNewspaperConfig(&validateCfg.Newspaper); err != nil {

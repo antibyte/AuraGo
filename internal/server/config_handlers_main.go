@@ -497,6 +497,8 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		// The local_wikipedia values before the merge: the save validates
 		// only the values it changes (validateLocalWikipediaSave).
 		previousLocalWikipedia := localWikipediaSectionFromRaw(rawCfg)
+		// Same rule for cyd_creator (validateCYDCreatorSave).
+		previousCYDCreator := cydCreatorSectionFromRaw(rawCfg)
 
 		// Deep merge the patch into the existing config, skipping masked password values.
 		// Before merging, extract any secrets from the patch and write them to the vault
@@ -560,7 +562,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if err := config.ValidateCYDCreatorConfig(validateCfg.CYDCreator); err != nil {
+		if err := validateCYDCreatorSave(previousCYDCreator, validateCfg.CYDCreator); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -873,13 +875,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				needsRestart = true
 				restartReasons = append(restartReasons, "Game Maker service")
 			}
-			if cydCreatorRuntimeConfigChanged(oldCfg.CYDCreator, newCfg.CYDCreator) {
+			if reason := s.cydCreatorRestartReason(&oldCfg, newCfg); reason != "" {
 				needsRestart = true
-				restartReasons = append(restartReasons, "CYD Creator builder")
-			}
-			if s.CYDCreator == nil && newCfg.CYDCreator.Enabled {
-				needsRestart = true
-				restartReasons = append(restartReasons, "CYD Creator service")
+				restartReasons = append(restartReasons, reason)
 			}
 			if flowsRuntimeConfigChanged(oldCfg.Flows, newCfg.Flows) {
 				needsRestart = true

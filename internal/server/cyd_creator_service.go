@@ -121,9 +121,36 @@ func cydPathWithin(root, candidate string) bool {
 	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }
 
+// cydCreatorStartFailed is the generic cydCreatorProblem of a service that
+// could not be created (database, directories); the cause is in the log.
+const cydCreatorStartFailed = "CYD Creator could not start; the server log has the details"
+
+// cydCreatorRestartReason is the restart reason a config save adds for CYD
+// Creator, "" for none. While the service runs, the builder settings and
+// docker.host are read only at startup. Without a service, switching the
+// feature on needs a restart, unless the new configuration would be refused
+// again (cydCreatorStorageProblem): a restart cannot help then, and the
+// capabilities report cydCreatorProblem instead.
+func (s *Server) cydCreatorRestartReason(oldCfg, newCfg *config.Config) string {
+	if s == nil || oldCfg == nil || newCfg == nil {
+		return ""
+	}
+	if s.CYDCreator != nil {
+		if cydCreatorRuntimeConfigChanged(oldCfg.CYDCreator, newCfg.CYDCreator) || oldCfg.Docker.Host != newCfg.Docker.Host {
+			return "CYD Creator builder"
+		}
+		return ""
+	}
+	if newCfg.CYDCreator.Enabled && cydCreatorStorageProblem(newCfg, desktop.ConfigFromAuraConfig(newCfg).WorkspaceDir) == "" {
+		return "CYD Creator service"
+	}
+	return ""
+}
+
 // initCYDCreator creates the CYD Creator service when cyd_creator.enabled is
 // on. Projects live in the virtual desktop workspace (<workspace>/CYD/),
-// artefacts in <data>/cyd_creator/. A failure leaves the feature off.
+// artefacts in <data>/cyd_creator/. A failure leaves the feature off and
+// records a generic reason (no paths) in cydCreatorProblem.
 func (s *Server) initCYDCreator() {
 	if s == nil || s.Cfg == nil || !s.Cfg.CYDCreator.Enabled {
 		return
@@ -131,6 +158,7 @@ func (s *Server) initCYDCreator() {
 	cfg := s.Cfg
 	desktopCfg := desktop.ConfigFromAuraConfig(cfg)
 	if problem := cydCreatorStorageProblem(cfg, desktopCfg.WorkspaceDir); problem != "" {
+		s.cydCreatorProblem = problem
 		if s.Logger != nil {
 			s.Logger.Error("CYD Creator stays off: the agent could write next to its database; move sqlite.cyd_creator_path out of the agent and desktop workspaces and restart",
 				"reason", problem, "path", cfg.SQLite.CYDCreatorPath)
@@ -149,13 +177,14 @@ func (s *Server) initCYDCreator() {
 		Logger:       s.Logger,
 	})
 	if err != nil {
+		s.cydCreatorProblem = cydCreatorStartFailed
 		if s.Logger != nil {
 			s.Logger.Error("Failed to initialize CYD Creator", "error", err)
 		}
 		builder.Close()
 		return
 	}
-	s.CYDCreator, s.cydBuilder = service, builder
+	s.CYDCreator, s.cydBuilder, s.cydCreatorProblem = service, builder, ""
 	cydcreator.SetDefaultService(service)
 	if s.Logger != nil {
 		s.Logger.Info("CYD Creator initialized", "builder_image", cfg.CYDCreator.BuilderImage)
@@ -163,7 +192,8 @@ func (s *Server) initCYDCreator() {
 }
 
 // shutdownCYDCreator stops the build worker (a running build ends as
-// interrupted), closes the database and stops the builder container.
+// interrupted), closes the database, then stops and removes the builder
+// container (cydDockerBuilder.Close; the cache volume stays).
 func (s *Server) shutdownCYDCreator() {
 	if s == nil {
 		return
@@ -191,8 +221,9 @@ func (s *Server) cydCreatorAvailable() bool {
 }
 
 // cydCreatorCapability backs the desktop capability "cyd_creator": the API is
-// available and Docker is configured.
+// available and Docker is configured and writable (the builder creates,
+// starts and execs into its container; docker.readonly refuses that).
 func (s *Server) cydCreatorCapability() bool {
 	cfg := s.ConfigSnapshot()
-	return s.cydCreatorAvailable() && cfg.Docker.Enabled
+	return s.cydCreatorAvailable() && cfg.Docker.Enabled && !cfg.Docker.ReadOnly
 }

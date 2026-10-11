@@ -274,6 +274,7 @@ type Server struct {
 	GameMaker                 *gamemaker.Service
 	CYDCreator                *cydcreator.Service // nil unless cyd_creator.enabled was on at startup
 	cydBuilder                *cydDockerBuilder
+	cydCreatorProblem         string // generic reason (no paths) initCYDCreator left an enabled feature off
 	Detective                 *detective.Service
 	Newspaper                 *newspaper.Service
 	Flows                     *flows.Service
