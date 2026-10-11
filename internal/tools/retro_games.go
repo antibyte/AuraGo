@@ -141,7 +141,7 @@ func retroGamesPlay(ctx context.Context, cfg *config.Config, svc *retrogames.Ser
 	if !cfg.VirtualDesktop.Enabled {
 		return retroGamesFailure("error", "desktop_unavailable", "The virtual desktop is switched off, so no game can be opened.")
 	}
-	if !cfg.VirtualDesktop.AllowAgentControl {
+	if !cfg.VirtualDesktop.AllowAgentControl || !cfg.Tools.VirtualDesktop.Enabled {
 		return retroGamesFailure("policy_denied", "desktop_agent_control_disabled", "The user has not allowed the agent to control the desktop, so the game cannot be opened.")
 	}
 	g, err := svc.Game(ctx, strings.TrimSpace(req.Identifier))

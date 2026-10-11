@@ -22,6 +22,7 @@ func retroGamesToolConfig() *config.Config {
 	cfg.RetroGames.AgentAccess = true
 	cfg.VirtualDesktop.Enabled = true
 	cfg.VirtualDesktop.AllowAgentControl = true
+	cfg.Tools.VirtualDesktop.Enabled = true
 	return cfg
 }
 
@@ -338,7 +339,22 @@ func TestRetroGamesToolPlayNeedsAgentDesktopControl(t *testing.T) {
 		t.Fatalf("agent control off: %s event=%+v", exec.Output, exec.Event)
 	}
 
+	// The virtual_desktop tool switch gates play like the control switch does,
+	// exactly as it gates the desktop notes tool.
+	cfg = retroGamesToolConfig()
+	cfg.Tools.VirtualDesktop.Enabled = false
+	exec = ExecuteRetroGames(context.Background(), cfg, RetroGamesRequest{Operation: "play", Identifier: "arcade_tron"})
+	m = decodeRetroGamesOutput(t, exec.Output)
+	if exec.Event != nil || m["status"] != "policy_denied" || m["code"] != "desktop_agent_control_disabled" {
+		t.Fatalf("virtual_desktop tool off: %s event=%+v", exec.Output, exec.Event)
+	}
+	exec = ExecuteRetroGames(context.Background(), cfg, RetroGamesRequest{Operation: "search", Platform: "arcade"})
+	if m := decodeRetroGamesOutput(t, exec.Output); exec.Event != nil || m["status"] != "success" {
+		t.Fatalf("search with the virtual_desktop tool off: %s", exec.Output)
+	}
+
 	// A switched-off desktop is reported as such, whatever the control switch says.
+	cfg.VirtualDesktop.AllowAgentControl = false
 	cfg.VirtualDesktop.Enabled = false
 	if exec := ExecuteRetroGames(context.Background(), cfg, RetroGamesRequest{Operation: "play", Identifier: "arcade_tron"}); exec.Event != nil || decodeRetroGamesOutput(t, exec.Output)["code"] != "desktop_unavailable" {
 		t.Fatalf("desktop and control off: %s", exec.Output)
