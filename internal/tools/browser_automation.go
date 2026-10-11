@@ -17,6 +17,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -777,6 +778,50 @@ func ExecuteBrowserAutomation(ctx context.Context, cfg *config.Config, req Brows
 	return browserAutomationJSON(resp)
 }
 
+func browserAutomationContainerMatches(info map[string]interface{}, sidecarCfg BrowserAutomationSidecarConfig) bool {
+	configMap, _ := info["Config"].(map[string]interface{})
+	host, _ := info["HostConfig"].(map[string]interface{})
+	if configMap["Image"] != sidecarCfg.Image || host["NetworkMode"] != sidecarCfg.EgressNetwork {
+		return false
+	}
+	env := map[string]string{}
+	if raw, ok := configMap["Env"].([]interface{}); ok {
+		for _, item := range raw {
+			text, _ := item.(string)
+			key, value, found := strings.Cut(text, "=")
+			if found {
+				env[key] = value
+			}
+		}
+	}
+	if env["AURAGO_BROWSER_EGRESS_ISOLATED"] != "true" ||
+		env["AURAGO_BROWSER_EGRESS_PROXY"] != browserAutomationLoopbackProxy ||
+		env["AURAGO_BROWSER_AUTOMATION_TOKEN"] != sidecarCfg.AuthToken ||
+		env["READ_ONLY"] != strconv.FormatBool(sidecarCfg.ReadOnly) ||
+		env["ALLOW_FILE_UPLOADS"] != strconv.FormatBool(sidecarCfg.AllowUploads) ||
+		env["ALLOW_FILE_DOWNLOADS"] != strconv.FormatBool(sidecarCfg.AllowDownloads) ||
+		env["HEADLESS"] != strconv.FormatBool(sidecarCfg.Headless) {
+		return false
+	}
+	binds, _ := host["Binds"].([]interface{})
+	needed := map[string]bool{
+		dockerutil.FormatBindMount(sidecarCfg.WorkspaceDir, browserAutomationWorkspaceDir): false,
+		dockerutil.FormatBindMount(sidecarCfg.DownloadDir, browserAutomationDownloadsDir):  false,
+	}
+	for _, item := range binds {
+		text, _ := item.(string)
+		if _, ok := needed[text]; ok {
+			needed[text] = true
+		}
+	}
+	for _, present := range needed {
+		if !present {
+			return false
+		}
+	}
+	return true
+}
+
 func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg BrowserAutomationSidecarConfig, logger interface {
 	Info(string, ...any)
 	Warn(string, ...any)
@@ -815,28 +860,27 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 	}
 	if code == 200 {
 		var info map[string]interface{}
-		if json.Unmarshal(data, &info) == nil {
-			host, _ := info["HostConfig"].(map[string]interface{})
-			if host["NetworkMode"] != sidecarCfg.EgressNetwork {
-				logger.Error("[BrowserAutomation] Existing sidecar uses an untrusted network")
-				return
-			}
+		if json.Unmarshal(data, &info) == nil && info != nil && browserAutomationContainerMatches(info, sidecarCfg) {
 			if state, ok := info["State"].(map[string]interface{}); ok {
 				if running, _ := state["Running"].(bool); running {
 					logger.Info("[BrowserAutomation] Sidecar container already running")
 					return
 				}
 			}
-		}
-		_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+containerName+"/start", "")
-		if startErr != nil || (startCode != 204 && startCode != 304) {
-			logger.Error("[BrowserAutomation] Failed to start existing sidecar container", "code", startCode, "error", startErr)
+			_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+containerName+"/start", "")
+			if startErr != nil || (startCode != 204 && startCode != 304) {
+				logger.Error("[BrowserAutomation] Failed to start existing sidecar container", "code", startCode, "error", startErr)
+				return
+			}
+			logger.Info("[BrowserAutomation] Sidecar container started")
 			return
 		}
-		logger.Info("[BrowserAutomation] Sidecar container started")
-		return
-	}
-	if code != 404 {
+		logger.Warn("[BrowserAutomation] Managed sidecar spec drifted; recreating",
+			"network", sidecarCfg.EgressNetwork,
+			"image", image,
+			"container", containerName)
+		StopBrowserAutomationSidecar(dockerHost, sidecarCfg, logger)
+	} else if code != 404 {
 		logger.Warn("[BrowserAutomation] Unexpected Docker inspect response, skipping auto-start", "code", code)
 		return
 	}

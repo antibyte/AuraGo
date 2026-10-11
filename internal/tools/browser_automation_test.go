@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/dockerutil"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -580,5 +581,47 @@ func TestBrowserAutomationRejectsOperatorCloakProxy(t *testing.T) {
 	}
 	if !strings.Contains(result["message"].(string), "cloak_proxy") {
 		t.Fatalf("message = %q, want cloak_proxy", result["message"])
+	}
+}
+
+func TestBrowserAutomationContainerMatchesRequiredSpec(t *testing.T) {
+	cfg := BrowserAutomationSidecarConfig{
+		Image:          "aurago-browser-automation:latest",
+		EgressNetwork:  "aurago_browser_egress",
+		WorkspaceDir:   "/host/workspace",
+		DownloadDir:    "/host/workspace/browser_downloads",
+		ReadOnly:       true,
+		AllowUploads:   false,
+		AllowDownloads: false,
+		Headless:       true,
+		AuthToken:      "token-value",
+	}
+	info := map[string]interface{}{
+		"Config": map[string]interface{}{
+			"Image": cfg.Image,
+			"Env": []interface{}{
+				"AURAGO_BROWSER_EGRESS_ISOLATED=true",
+				"AURAGO_BROWSER_EGRESS_PROXY=http://127.0.0.1:7332",
+				"AURAGO_BROWSER_AUTOMATION_TOKEN=token-value",
+				"READ_ONLY=true",
+				"ALLOW_FILE_UPLOADS=false",
+				"ALLOW_FILE_DOWNLOADS=false",
+				"HEADLESS=true",
+			},
+		},
+		"HostConfig": map[string]interface{}{
+			"NetworkMode": cfg.EgressNetwork,
+			"Binds": []interface{}{
+				dockerutil.FormatBindMount(cfg.WorkspaceDir, browserAutomationWorkspaceDir),
+				dockerutil.FormatBindMount(cfg.DownloadDir, browserAutomationDownloadsDir),
+			},
+		},
+	}
+	if !browserAutomationContainerMatches(info, cfg) {
+		t.Fatal("expected matching container")
+	}
+	info["Config"].(map[string]interface{})["Env"] = []interface{}{"AURAGO_BROWSER_EGRESS_PROXY=http://evil.example"}
+	if browserAutomationContainerMatches(info, cfg) {
+		t.Fatal("expected drifted proxy to fail the match")
 	}
 }
