@@ -131,12 +131,25 @@ async function renderGitHubSection(section) {
     attachChangeListeners();
 }
 
+function githubRepoChecked(fullName, shortName, repoOwner, allowedRepos, configuredOwner) {
+    const allowed = new Set((allowedRepos || []).map(entry => String(entry).trim().toLowerCase()).filter(Boolean));
+    const full = String(fullName || '').trim().toLowerCase();
+    const owner = String(configuredOwner || '').trim().toLowerCase();
+    const repo = String(repoOwner || '').trim().toLowerCase();
+    if (full && allowed.has(full)) return true;
+    const bare = String(shortName || '').trim().toLowerCase();
+    return bare !== '' && allowed.has(bare) && owner !== '' && repo === owner;
+}
+
 function githubBuildRepoList(repos, allowedRepos) {
     if (!repos || repos.length === 0) {
         return `<div class="gh-empty-state">${t('config.github.no_repos_found')}</div>`;
     }
 
-    const allowedSet = new Set(Array.isArray(allowedRepos) ? allowedRepos : []);
+    const ownerInput = document.querySelector('[data-path="github.owner"]');
+    const configuredOwner = ownerInput
+        ? ownerInput.value
+        : ((typeof configData !== 'undefined' && configData.github && configData.github.owner) || '');
     let html = '';
     repos.forEach(repo => {
         const name = repo.name || '';
@@ -145,7 +158,7 @@ function githubBuildRepoList(repos, allowedRepos) {
         const isPrivate = repo.private === true;
         const stars = repo.stargazers_count || 0;
         const isAgentCreated = repo.agent_created === true;
-        const isAllowed = isAgentCreated || allowedSet.has(fullName) || allowedSet.has(name);
+        const isAllowed = isAgentCreated || githubRepoChecked(fullName, name, String(fullName).split('/')[0] || '', allowedRepos, configuredOwner);
         const privBadge = isPrivate
             ? `<span class="gh-badge gh-badge-private">🔒 ${t('config.github.badge_private')}</span>`
             : `<span class="gh-badge gh-badge-public">${t('config.github.badge_public')}</span>`;
@@ -214,25 +227,44 @@ async function githubFetchRepos() {
 
 function githubUpdateAllowedRepos() {
     const listEl = document.getElementById('github-repos-list');
-    if (!listEl) return;
-
-    const checkedRepos = [];
-    const boxes = listEl.querySelectorAll('input[type="checkbox"]');
-    boxes.forEach(cb => {
-        if (cb.checked && !cb.disabled) {
-            const nameEl = cb.closest('label').querySelector('span[data-repo-name]');
-            if (nameEl) checkedRepos.push(nameEl.dataset.repoFullName || nameEl.dataset.repoName);
+    const hiddenInput = document.getElementById('github-allowed-repos-input');
+    if (!listEl || !hiddenInput) return;
+    const ownerInput = document.querySelector('[data-path="github.owner"]');
+    const configuredOwner = (ownerInput && ownerInput.value || '').trim().toLowerCase();
+    const previous = hiddenInput.value.split(',').map(entry => entry.trim()).filter(Boolean);
+    const visible = [];
+    listEl.querySelectorAll('input[type="checkbox"]').forEach(box => {
+        const nameEl = box.closest('label') && box.closest('label').querySelector('span[data-repo-name]');
+        if (!nameEl) return;
+        const fullName = nameEl.dataset.repoFullName || nameEl.dataset.repoName;
+        const shortName = nameEl.dataset.repoName || '';
+        const repoOwner = String(fullName).includes('/') ? String(fullName).split('/')[0] : configuredOwner;
+        visible.push({ fullName, shortName, repoOwner, checked: box.checked, disabled: box.disabled });
+    });
+    const represented = new Set();
+    visible.forEach(repo => {
+        represented.add(String(repo.fullName).toLowerCase());
+        if (String(repo.repoOwner).toLowerCase() === configuredOwner) {
+            represented.add(String(repo.shortName).toLowerCase());
         }
     });
-
-    const hiddenInput = document.getElementById('github-allowed-repos-input');
-    if (hiddenInput) {
-        hiddenInput.value = checkedRepos.join(', ');
-        markDirty();
+    const merged = [];
+    const seen = new Set();
+    function pushUnique(value) {
+        const key = String(value).trim().toLowerCase();
+        if (!key || seen.has(key)) return;
+        seen.add(key);
+        merged.push(String(value).trim());
     }
-
-    const total = _githubReposData ? _githubReposData.length : checkedRepos.length;
-    githubUpdateAllowedCount(total, checkedRepos.length);
+    previous.forEach(entry => {
+        if (!represented.has(entry.toLowerCase())) pushUnique(entry);
+    });
+    visible.forEach(repo => {
+        if (repo.checked && !repo.disabled) pushUnique(repo.fullName);
+    });
+    hiddenInput.value = merged.join(', ');
+    markDirty();
+    githubUpdateAllowedCount(_githubReposData ? _githubReposData.length : visible.length, merged.length);
 }
 
 function githubUpdateAllowedCount(total, allowedCount) {

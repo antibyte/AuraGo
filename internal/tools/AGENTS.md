@@ -23,6 +23,13 @@ Agent filesystem, external service and Docker tool safety boundaries.
 ### GitHub repository trust
 - Workspace project metadata, including `AgentCreated`, is inventory only. Runtime trust comes from explicit administrator allowlists or the protected, API-bound `github_trust.json` ledger. Legacy inventory requires visible administrator approval. Preserve a private backup and atomically replace ledger updates; malformed ledgers fail closed without being overwritten.
 - Repository deletion requires `github.allow_delete` (default false), repository access and writable mode. A create response followed by a ledger failure reports the created repository plus a migration warning; never suggest retrying the creation.
+- Project directories are a single `github/<name>` segment inside the workspace, created through `os.Root` before `projects.json` is saved. Names must match `githubIdentityPart`.
+- `GitHubSearchRepos` keeps public hits and drops private hits unless `GitHubRepoAllowed`.
+- `GitHubCreateRepo` looks up `/user` and posts to `/orgs/{owner}/repos` when the configured owner is a different account. A failed lookup does not create a repository.
+- `GitHubGetFileContent` decodes base64 text up to 256 KiB and lists directory arrays. `GitHubCreateOrUpdateFile` base64-encodes plain text and preserves round-trip base64.
+- `GitHubListRepos` follows same-origin `Link: rel="next"` for at most 10 pages. A positive limit slices after filtering.
+- `GitHubDeleteRepo` revokes an existing grant before `DELETE`. A non-204 response restores that grant. A transport error leaves it revoked and reports `trust_revoked`.
+- GitHub HTTP uses `NewSSRFProtectedHTTPClientSameOrigin` and the caller context.
 
 ### treg catalog gateway
 - `treg_catalog`, `treg_call` and `treg_status` use the fixed public-only treg transport. Never accept model-supplied origins, authentication, cost headers or polling URLs. Already-sent calls are not replayed after ambiguous failures.

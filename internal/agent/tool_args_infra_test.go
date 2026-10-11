@@ -47,6 +47,18 @@ func TestDecodeGitHubArgsUsesParamsFallback(t *testing.T) {
 	}
 }
 
+func TestGitHubIssueBodyPrefersBodyThenDescription(t *testing.T) {
+	if got := githubIssueBody("from description", ""); got != "from description" {
+		t.Fatalf("description fallback = %q", got)
+	}
+	if got := githubIssueBody("from description", "from body"); got != "from body" {
+		t.Fatalf("body precedence = %q", got)
+	}
+	if got := githubIssueBody("from description", "   "); got != "from description" {
+		t.Fatalf("blank body should fall back, got %q", got)
+	}
+}
+
 func TestDecodeCoAgentArgsUsesFallbacks(t *testing.T) {
 	tc := ToolCall{
 		Action: "co_agent",
