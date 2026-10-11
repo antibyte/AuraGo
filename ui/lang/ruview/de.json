@@ -1,4 +1,8 @@
 {
+  "ruview.readonly_notice": "Nur lesen ist aktiv: Installieren, Starten, Aufnahmen starten und Boards einrichten sind gesperrt.",
+  "ruview.receiver_purpose": "Im verwalteten Docker-Betrieb verbindet AuraGo den RuView-Dienst automatisch. Die IP wird nur für ESP32-Boards benötigt: Sie senden an die LAN-Adresse des RuView-Rechners, nicht an eine Container-IP.",
+  "ruview.use_receiver": "LAN-Adresse {ip} übernehmen",
+  "ruview.receiver_suggestion_help": "Vorschlag aus Deinen Einstellungen oder der Browser-URL. Prüfe, ob das Board diesen Rechner im WLAN erreicht. Bei Proxy- oder Tunnelzugriff kann eine andere LAN-Adresse nötig sein.",
   "ruview.permissions": "Berechtigungen",
   "ruview.close": "Schließen",
   "ruview.firmware": "Firmware",
@@ -109,6 +113,6 @@
   "ruview.udp_help": "Erlaubt Sensordaten von Deinen Boards. Wähle dafür die lokale LAN-Adresse und die zugelassenen Board-Adressen.",
   "ruview.udp_allow_help": "Board-Adressen mit Kommas trennen. Ein ganzes Netz ist ebenfalls möglich, z. B. 192.168.1.0/24.",
   "ruview.enable_first": "Aktiviere RuView und speichere die Einstellungen, bevor Du fortfährst.",
-  "ruview.write_first": "Schalte unter Berechtigungen „Nur lesen“ aus und speichere, um ein Board einzurichten.",
+  "ruview.write_first": "Schalte oben „Nur lesen“ aus und speichere, um ein Board einzurichten.",
   "ruview.wifi_mode": "Host-WLAN benötigt eine native oder externe Instanz. Wähle diese Betriebsart oder eine andere Datenquelle."
 }

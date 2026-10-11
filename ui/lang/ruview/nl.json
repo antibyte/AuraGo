@@ -1,4 +1,8 @@
 {
+  "ruview.readonly_notice": "Alleen-lezen is actief: installeren, starten, opnamen starten en borden instellen zijn geblokkeerd.",
+  "ruview.receiver_purpose": "In beheerde Docker-modus verbindt AuraGo automatisch met de RuView-dienst. Alleen ESP32-borden hebben het IP nodig: ze sturen naar het LAN-adres van de RuView-computer, niet naar een container-IP.",
+  "ruview.use_receiver": "LAN-adres {ip} gebruiken",
+  "ruview.receiver_suggestion_help": "Voorstel uit je instellingen of de browser-URL. Controleer of het bord deze computer via Wi-Fi kan bereiken. Een proxy of tunnel kan een ander LAN-adres vereisen.",
   "ruview.permissions": "Machtigingen",
   "ruview.close": "Sluiten",
   "ruview.firmware": "Firmware",
@@ -109,6 +113,6 @@
   "ruview.udp_help": "Staat sensorgegevens van je borden toe. Kies het lokale LAN-adres en de toegestane bordadressen.",
   "ruview.udp_allow_help": "Scheid bordadressen met komma’s. Een volledig netwerk is ook mogelijk, bijvoorbeeld 192.168.1.0/24.",
   "ruview.enable_first": "Schakel RuView in en sla de instellingen op voordat je verdergaat.",
-  "ruview.write_first": "Schakel Alleen-lezen uit onder Machtigingen en sla op om een bord in te stellen.",
+  "ruview.write_first": "Schakel Alleen-lezen hierboven uit en sla op om een bord in te stellen.",
   "ruview.wifi_mode": "Host-Wi-Fi vereist een native of externe instantie. Kies die bedrijfsmodus of een andere gegevensbron."
 }

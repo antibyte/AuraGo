@@ -1,4 +1,8 @@
 {
+  "ruview.readonly_notice": "読み取り専用が有効です。インストール、起動、記録の開始、ボードの設定はできません。",
+  "ruview.receiver_purpose": "管理対象Dockerモードでは、AuraGoがRuViewサービスに自動接続します。IPが必要なのはESP32ボードだけです。コンテナーのIPではなく、RuViewコンピューターのLANアドレスへ送信します。",
+  "ruview.use_receiver": "LANアドレス {ip} を使用",
+  "ruview.receiver_suggestion_help": "設定またはブラウザーのURLからの候補です。ボードがWi-Fiでこのコンピューターに到達できるか確認してください。プロキシやトンネル経由の場合、別のLANアドレスが必要なことがあります。",
   "ruview.permissions": "権限",
   "ruview.close": "閉じる",
   "ruview.firmware": "ファームウェア",
@@ -109,6 +113,6 @@
   "ruview.udp_help": "ボードからのセンサーデータを許可します。ローカルLANアドレスと許可するボードのアドレスを選びます。",
   "ruview.udp_allow_help": "ボードのアドレスをカンマで区切ります。192.168.1.0/24など、ネットワーク全体も指定できます。",
   "ruview.enable_first": "続行する前にRuViewを有効にして設定を保存してください。",
-  "ruview.write_first": "ボードを設定するには、権限で読み取り専用をオフにして保存してください。",
+  "ruview.write_first": "ボードを設定するには、上の読み取り専用をオフにして保存してください。",
   "ruview.wifi_mode": "ホストのWi-Fiにはネイティブまたは外部インスタンスが必要です。その動作モードか別のデータソースを選んでください。"
 }

@@ -8,7 +8,9 @@ Wi-Fi sensing is experimental. Readiness does not prove measurements, presence o
 
 Open **Configuration → RuView**, enable the integration, select a runtime and source, then save. Start and agent access are disabled by default; read-only starts enabled. Connection tests are explicit administrative POST actions using the saved target and Vault token. Merely opening AuraGo's overview never probes a service. Opening an upstream view or requesting an agent read retrieves data.
 
-The configuration shows external credentials only for external instances, and board networking only for ESP32 sensing. Switching modes preserves unsaved fields. Permissions contains the read-only and agent switches; Advanced contains the managed HTTP port and storage budget. Save before testing or setting up a board. Disabled actions explain the missing step. Use **Open RuView** to install or start a managed runtime, and **Set up board** for USB firmware and Wi-Fi provisioning.
+The configuration shows external credentials only for external instances, and board networking only for ESP32 sensing. Switching modes preserves unsaved fields. Read-only stays visible under Operation, with a notice explaining the blocked actions; Permissions contains the agent switch. Advanced contains the managed HTTP port and storage budget. Save before testing or setting up a board. Disabled actions explain the missing step. Use **Open RuView** to install or start a managed runtime, and **Set up board** for USB firmware and Wi-Fi provisioning.
+
+Managed Docker connects to RuView automatically; the receiver IP is only for optional ESP32 boards sending UDP over the LAN. The form offers a private IPv4 address from the LAN binding, configured endpoint or browser URL when available. Confirm that it is the RuView host reachable from the board, particularly behind a proxy or tunnel. Accepting the suggestion fills empty receiver and managed LAN-bind fields in the draft; it does not overwrite existing values, enable UDP, grant write access, save or test a connection.
 
 | Runtime | Intended use |
 | --- | --- |

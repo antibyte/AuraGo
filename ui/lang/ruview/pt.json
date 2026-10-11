@@ -1,4 +1,8 @@
 {
+  "ruview.readonly_notice": "Só leitura está ativo: a instalação, o arranque, o início de gravações e a configuração de placas estão bloqueados.",
+  "ruview.receiver_purpose": "No modo Docker gerido, o AuraGo liga-se automaticamente ao serviço RuView. Só as placas ESP32 precisam do IP: enviam para o endereço LAN do computador RuView, não para o IP de um contentor.",
+  "ruview.use_receiver": "Usar endereço LAN {ip}",
+  "ruview.receiver_suggestion_help": "Sugestão das definições ou do URL do navegador. Verifica se a placa alcança este computador por Wi-Fi. Um proxy ou túnel pode exigir outro endereço LAN.",
   "ruview.permissions": "Permissões",
   "ruview.close": "Fechar",
   "ruview.firmware": "Firmware",
@@ -109,6 +113,6 @@
   "ruview.udp_help": "Permite dados dos sensores das tuas placas. Escolhe o endereço LAN local e os endereços das placas permitidas.",
   "ruview.udp_allow_help": "Separa os endereços por vírgulas. Também podes permitir uma rede inteira, por exemplo, 192.168.1.0/24.",
   "ruview.enable_first": "Ativa o RuView e guarda as definições antes de continuar.",
-  "ruview.write_first": "Desativa Só leitura em Permissões e guarda para configurar uma placa.",
+  "ruview.write_first": "Desativa Só leitura acima e guarda para configurar uma placa.",
   "ruview.wifi_mode": "O Wi-Fi do computador requer uma instância nativa ou externa. Escolhe esse modo ou outra fonte de dados."
 }

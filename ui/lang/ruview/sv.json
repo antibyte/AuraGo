@@ -1,4 +1,8 @@
 {
+  "ruview.readonly_notice": "Skrivskyddad är aktivt: installation, start, start av inspelningar och konfiguration av kort är blockerade.",
+  "ruview.receiver_purpose": "I hanterat Docker-läge ansluter AuraGo automatiskt till RuView-tjänsten. Bara ESP32-kort behöver IP-adressen: de skickar till RuView-datorns LAN-adress, inte en container-IP.",
+  "ruview.use_receiver": "Använd LAN-adressen {ip}",
+  "ruview.receiver_suggestion_help": "Förslag från dina inställningar eller webbläsarens URL. Kontrollera att kortet kan nå datorn via Wi-Fi. En proxy eller tunnel kan kräva en annan LAN-adress.",
   "ruview.permissions": "Behörigheter",
   "ruview.close": "Stäng",
   "ruview.firmware": "Fast programvara",
@@ -109,6 +113,6 @@
   "ruview.udp_help": "Tillåter sensordata från dina kort. Välj lokal LAN-adress och tillåtna kortadresser.",
   "ruview.udp_allow_help": "Separera kortadresser med kommatecken. Ett helt nätverk går också bra, t.ex. 192.168.1.0/24.",
   "ruview.enable_first": "Aktivera RuView och spara inställningarna innan du fortsätter.",
-  "ruview.write_first": "Stäng av Skrivskyddad under Behörigheter och spara för att konfigurera ett kort.",
+  "ruview.write_first": "Stäng av Skrivskyddad ovan och spara för att konfigurera ett kort.",
   "ruview.wifi_mode": "Värdens Wi-Fi kräver en inbyggd eller extern instans. Välj det driftläget eller en annan datakälla."
 }

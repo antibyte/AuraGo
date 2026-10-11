@@ -1,4 +1,8 @@
 {
+  "ruview.readonly_notice": "Read only is active: installing, starting, starting recordings and setting up boards are blocked.",
+  "ruview.receiver_purpose": "In managed Docker mode, AuraGo connects to the RuView service automatically. Only ESP32 boards need the IP: they send to the RuView computer's LAN address, not a container IP.",
+  "ruview.use_receiver": "Use LAN address {ip}",
+  "ruview.receiver_suggestion_help": "Suggested from your settings or browser URL. Check that the board can reach this computer over Wi-Fi. A proxy or tunnel may require a different LAN address.",
   "ruview.permissions": "Permissions",
   "ruview.close": "Close",
   "ruview.firmware": "Firmware",
@@ -109,6 +113,6 @@
   "ruview.udp_help": "Allows sensor data from your boards. Choose the local LAN address and the allowed board addresses.",
   "ruview.udp_allow_help": "Separate board addresses with commas. A whole network is also supported, e.g. 192.168.1.0/24.",
   "ruview.enable_first": "Enable RuView and save your settings before continuing.",
-  "ruview.write_first": "Turn off Read only under Permissions and save to set up a board.",
+  "ruview.write_first": "Turn off Read only above and save to set up a board.",
   "ruview.wifi_mode": "Host Wi-Fi requires a native or external instance. Choose that runtime or another data source."
 }

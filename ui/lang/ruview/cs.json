@@ -1,4 +1,8 @@
 {
+  "ruview.readonly_notice": "Režim Pouze čtení je aktivní: instalace, spuštění, zahájení záznamu a nastavení desek jsou zablokovány.",
+  "ruview.receiver_purpose": "Ve spravovaném režimu Docker se AuraGo ke službě RuView připojí automaticky. IP potřebují pouze desky ESP32: odesílají na adresu LAN počítače s RuView, ne na IP kontejneru.",
+  "ruview.use_receiver": "Použít adresu LAN {ip}",
+  "ruview.receiver_suggestion_help": "Návrh z nastavení nebo adresy v prohlížeči. Ověř, že deska tento počítač dosáhne přes Wi-Fi. Proxy nebo tunel může vyžadovat jinou adresu LAN.",
   "ruview.permissions": "Oprávnění",
   "ruview.close": "Zavřít",
   "ruview.firmware": "Firmware",
@@ -109,6 +113,6 @@
   "ruview.udp_help": "Povolí data ze senzorů desek. Vyber místní adresu LAN a povolené adresy desek.",
   "ruview.udp_allow_help": "Adresy desek odděl čárkami. Lze povolit i celou síť, např. 192.168.1.0/24.",
   "ruview.enable_first": "Než budeš pokračovat, zapni RuView a ulož nastavení.",
-  "ruview.write_first": "Pro nastavení desky vypni v Oprávněních režim Pouze čtení a ulož změny.",
+  "ruview.write_first": "Pro nastavení desky vypni výše režim Pouze čtení a ulož změny.",
   "ruview.wifi_mode": "Wi-Fi hostitele vyžaduje nativní nebo externí instanci. Zvol takový režim nebo jiný zdroj dat."
 }

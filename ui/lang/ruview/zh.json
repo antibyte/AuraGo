@@ -1,4 +1,8 @@
 {
+  "ruview.readonly_notice": "只读模式已启用：安装、启动、开始录制和配置开发板均被禁止。",
+  "ruview.receiver_purpose": "在托管 Docker 模式下，AuraGo 会自动连接 RuView 服务。只有 ESP32 开发板需要 IP：它们发送到 RuView 计算机的 LAN 地址，而不是容器 IP。",
+  "ruview.use_receiver": "使用 LAN 地址 {ip}",
+  "ruview.receiver_suggestion_help": "此建议来自设置或浏览器 URL。请确认开发板能通过 Wi-Fi 访问这台计算机。使用代理或隧道时，可能需要其他 LAN 地址。",
   "ruview.permissions": "权限",
   "ruview.close": "关闭",
   "ruview.firmware": "固件",
@@ -109,6 +113,6 @@
   "ruview.udp_help": "允许接收开发板的传感器数据。选择本地 LAN 地址和允许的开发板地址。",
   "ruview.udp_allow_help": "用逗号分隔开发板地址。也可以允许整个网段，例如 192.168.1.0/24。",
   "ruview.enable_first": "继续前请启用 RuView 并保存设置。",
-  "ruview.write_first": "要配置开发板，请在权限中关闭只读模式并保存。",
+  "ruview.write_first": "要配置开发板，请关闭上方的只读模式并保存。",
   "ruview.wifi_mode": "主机 Wi-Fi 需要本机或外部实例。请选择相应运行方式或其他数据源。"
 }

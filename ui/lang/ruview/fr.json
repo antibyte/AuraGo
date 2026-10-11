@@ -1,4 +1,8 @@
 {
+  "ruview.readonly_notice": "Lecture seule est actif : l’installation, le démarrage, le lancement d’enregistrements et la configuration des cartes sont bloqués.",
+  "ruview.receiver_purpose": "En mode Docker géré, AuraGo se connecte automatiquement au service RuView. Seules les cartes ESP32 ont besoin de l’IP : elles envoient à l’adresse LAN de l’ordinateur RuView, pas à l’IP d’un conteneur.",
+  "ruview.use_receiver": "Utiliser l’adresse LAN {ip}",
+  "ruview.receiver_suggestion_help": "Suggestion issue de tes réglages ou de l’URL du navigateur. Vérifie que la carte peut joindre cet ordinateur par Wi-Fi. Un proxy ou tunnel peut nécessiter une autre adresse LAN.",
   "ruview.permissions": "Autorisations",
   "ruview.close": "Fermer",
   "ruview.firmware": "Micrologiciel",
@@ -109,6 +113,6 @@
   "ruview.udp_help": "Autorise les données des capteurs de tes cartes. Choisis l’adresse LAN locale et les adresses de cartes autorisées.",
   "ruview.udp_allow_help": "Sépare les adresses par des virgules. Un réseau entier est aussi possible, par ex. 192.168.1.0/24.",
   "ruview.enable_first": "Active RuView et enregistre les réglages avant de continuer.",
-  "ruview.write_first": "Désactive Lecture seule dans Autorisations et enregistre pour configurer une carte.",
+  "ruview.write_first": "Désactive Lecture seule ci-dessus et enregistre pour configurer une carte.",
   "ruview.wifi_mode": "Le Wi-Fi de l’ordinateur nécessite une instance native ou externe. Choisis ce mode ou une autre source de données."
 }

@@ -1,4 +1,8 @@
 {
+  "ruview.readonly_notice": "Tryb Tylko odczyt jest aktywny: instalacja, uruchamianie, rozpoczynanie nagrań i konfiguracja płytek są zablokowane.",
+  "ruview.receiver_purpose": "W zarządzanym trybie Docker AuraGo łączy się z usługą RuView automatycznie. IP potrzebują tylko płytki ESP32: wysyłają na adres LAN komputera z RuView, a nie na IP kontenera.",
+  "ruview.use_receiver": "Użyj adresu LAN {ip}",
+  "ruview.receiver_suggestion_help": "Propozycja z ustawień lub adresu przeglądarki. Sprawdź, czy płytka może dotrzeć do tego komputera przez Wi-Fi. Proxy lub tunel może wymagać innego adresu LAN.",
   "ruview.permissions": "Uprawnienia",
   "ruview.close": "Zamknij",
   "ruview.firmware": "Oprogramowanie układowe",
@@ -109,6 +113,6 @@
   "ruview.udp_help": "Zezwala na dane czujników z płytek. Wybierz lokalny adres LAN i dozwolone adresy płytek.",
   "ruview.udp_allow_help": "Oddziel adresy przecinkami. Możesz też dopuścić całą sieć, np. 192.168.1.0/24.",
   "ruview.enable_first": "Włącz RuView i zapisz ustawienia przed kontynuowaniem.",
-  "ruview.write_first": "Wyłącz Tylko odczyt w Uprawnieniach i zapisz, aby skonfigurować płytkę.",
+  "ruview.write_first": "Wyłącz powyżej Tylko odczyt i zapisz, aby skonfigurować płytkę.",
   "ruview.wifi_mode": "Wi-Fi hosta wymaga instancji natywnej lub zewnętrznej. Wybierz ten tryb albo inne źródło danych."
 }

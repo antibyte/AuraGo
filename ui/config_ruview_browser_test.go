@@ -47,6 +47,12 @@ func TestRuViewConfigBrowser(t *testing.T) {
 	 !performance.getEntriesByType('resource').some(entry => entry.name.includes('/api/ruview/'))`).Bool() {
 		t.Fatal("opening the form must stay clean, passive and disabled until enabled")
 	}
+	if !page.MustEval(`() => {
+	 const control=document.querySelector('[data-path="ruview.readonly"]');
+	 return control.checkVisibility() && !control.closest('details') && document.getElementById('ruview-readonly-notice').checkVisibility();
+	}`).Bool() {
+		t.Fatal("read-only and its consequences must be visible without opening advanced permissions")
+	}
 	page.MustEval(`() => {
 	 window.ruviewRequests=[]; window.ruviewErrors=[];
 	 window.addEventListener('error', event => window.ruviewErrors.push(event.message));
@@ -68,7 +74,8 @@ func TestRuViewConfigBrowser(t *testing.T) {
 	page.MustElement("#ruview-url").MustInput("http://192.168.1.20:3000")
 	page.MustElement("#ruview-api_token").MustInput("fixture-only-token")
 	clickToggle("allow_private")
-	page.MustElement("#ruview-receiver_ip").MustInput("192.168.1.20")
+	waitForJSBool(t, page, `() => !document.getElementById('ruview-receiver-suggestion').hidden`)
+	page.MustElement("#ruview-use-receiver").MustClick()
 	page.MustEval(`async () => { await ruviewConfigTest(); await ruviewConfigFlash(); }`)
 	if !page.MustEval(`() => {
 	 const patch=AuraConfigState.buildPatch().ruview;
@@ -107,8 +114,10 @@ func TestRuViewConfigBrowser(t *testing.T) {
 	 !document.getElementById('ruview-check').disabled`).Bool() {
 		t.Fatal("failed connection test must expose the failure and release its button")
 	}
-	page.MustElement("#ruview-config details > summary").MustClick()
 	clickToggle("readonly")
+	if !page.MustEval(`() => document.getElementById('ruview-readonly-notice').hidden`).Bool() {
+		t.Fatal("read-only notice must follow the visible switch")
+	}
 	page.MustElement("#btnSave").MustClick()
 	waitForJSBool(t, page, `() => !hasUnsavedConfigChanges() && !document.getElementById('ruview-setup').disabled`)
 	page.MustElement("#ruview-setup").MustClick()
@@ -158,6 +167,60 @@ func TestRuViewConfigBrowser(t *testing.T) {
 	page.Keyboard.MustType(input.Space)
 	if !page.MustEval(`() => !AuraConfigState.get('ruview.enabled') && hasUnsavedConfigChanges()`).Bool() {
 		t.Fatal("shared toggle must remain keyboard accessible")
+	}
+}
+
+func TestRuViewConfigReceiverHintsBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	browser := newSmokeBrowser(t)
+	page := browser.MustPage(configRefreshFixtureOrigin(t, "de", false) + "/config#ruview").Timeout(60 * time.Second)
+	defer func() {
+		page.MustEval(`() => window.removeEventListener('beforeunload', handleConfigBeforeUnload)`)
+		page.MustClose()
+	}()
+	waitForJSBool(t, page, `() => !!document.getElementById('ruview-use-receiver')`)
+	for _, tc := range []struct{ mode, endpoint, bind, want string }{
+		{"docker", "tcp://10.2.0.3:2375", "", "10.2.0.3"},
+		{"docker", "tcp://10.2.0.3:2375", "192.168.4.2", "192.168.4.2"},
+		{"docker", "unix:///var/run/docker.sock", "", ""},
+		{"docker", "tcp://10.2.0.999:2375", "", ""},
+		{"native", "tcp://10.2.0.3:2375", "", ""},
+		{"external", "http://172.16.4.2:3000", "192.168.4.2", "172.16.4.2"},
+		{"external", "http://127.0.0.1:3000", "192.168.4.2", ""},
+		{"external", "http://8.8.8.8:3000", "192.168.4.2", ""},
+		{"external", "http://ruview.local:3000", "192.168.4.2", ""},
+	} {
+		page.MustEval(`(mode,endpoint,bind) => {
+		 const set=(id,value)=>{const el=document.getElementById('ruview-'+id);el.value=value;el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));};
+		 AuraConfigState.set('docker.host',endpoint);
+		 set('mode',mode);set('url',endpoint);set('udp_bind',bind);set('receiver_ip','');
+		}`, tc.mode, tc.endpoint, tc.bind)
+		if tc.want != "" {
+			waitForJSBool(t, page, `() => !document.getElementById('ruview-receiver-suggestion').hidden`)
+			if got := page.MustElement("#ruview-use-receiver").MustAttribute("data-address"); got == nil || *got != tc.want {
+				t.Fatalf("%s/%s: wrong receiver suggestion", tc.mode, tc.endpoint)
+			}
+			if page.MustElement("#ruview-receiver_ip").MustProperty("value").Str() != "" {
+				t.Fatal("a suggestion must not silently change the receiver")
+			}
+			page.MustElement("#ruview-use-receiver").MustClick()
+			if !page.MustEval(`want => AuraConfigState.get('ruview.receiver_ip')===want && AuraConfigState.get('ruview.readonly') &&
+			 !AuraConfigState.get('ruview.udp_enabled') && document.getElementById('ruview-receiver-suggestion').hidden`, tc.want).Bool() {
+				t.Fatal("accepting an address must update the draft without granting write or UDP access")
+			}
+			wantBind := tc.bind
+			if tc.mode != "external" && wantBind == "" {
+				wantBind = tc.want
+			}
+			if page.MustElement("#ruview-udp_bind").MustProperty("value").Str() != wantBind {
+				t.Fatal("existing bindings must survive; only an empty managed binding may inherit the receiver")
+			}
+		} else if !page.MustEval(`() => document.getElementById('ruview-receiver-suggestion').hidden`).Bool() {
+			t.Fatalf("%s/%s must not suggest a loopback, public or unresolved address", tc.mode, tc.endpoint)
+		}
+	}
+	if page.MustEval(`() => performance.getEntriesByType('resource').some(entry=>entry.name.includes('/api/ruview/'))`).Bool() {
+		t.Fatal("receiver suggestions must not trigger runtime or network probes")
 	}
 }
 

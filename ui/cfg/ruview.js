@@ -19,10 +19,12 @@ function renderRuViewSection(section) {
         groups: [
             { titleKey: 'config.refresh.operation', content:
                 toggle('enabled', 'enabled') +
+                toggle('readonly', 'readonly', 'readonly_help') +
+                '<div id="ruview-readonly-notice" class="cfg-note is-warning" role="status">' + escapeHtml(tr('readonly_notice')) + '</div>' +
                 '<div class="field-grid two-cols">' + select('mode', ['docker', 'external', 'native']) + select('source', ['esp32', 'wifi', 'simulated']) + '</div>' +
                 '<div id="ruview-mode-notice" class="cfg-note is-warning" role="status" hidden></div>' +
                 form.disclosure({ title: tr('permissions'), content:
-                    toggle('readonly', 'readonly', 'readonly_help') + toggle('agent_access', 'agent_access', 'agent_help')
+                    toggle('agent_access', 'agent_access', 'agent_help')
                 })
             },
             { titleKey: 'config.refresh.connection', content:
@@ -44,9 +46,14 @@ function renderRuViewSection(section) {
                 '<div id="ruview-result" class="pw-status" role="status" aria-live="polite" hidden></div>'
             },
             { title: tr('configure'), desc: tr('setup_help'), className: 'ruview-board-panel', content:
+                form.note({ text: tr('receiver_purpose') }) +
                 '<div class="field-grid two-cols">' +
                     field('receiver_ip', 'receiver', { help: tr('receiver_help'), placeholder: '192.168.1.20' }) +
                     field('udp_port', 'udp_port', { type: 'number', min: 1024, max: 65535, step: 1 }) +
+                '</div>' +
+                '<div id="ruview-receiver-suggestion" hidden>' +
+                    form.actions([{ html: button('use-receiver', 'use_receiver') }]) +
+                    '<p class="field-help">' + escapeHtml(tr('receiver_suggestion_help')) + '</p>' +
                 '</div>' +
                 '<div id="ruview-managed-udp">' + toggle('udp_enabled', 'udp_enabled', 'udp_help') +
                     '<div id="ruview-udp-fields">' +
@@ -66,11 +73,13 @@ function renderRuViewSection(section) {
     root.querySelector('#ruview-api_token').dataset.path = 'ruview.api_token';
     root.querySelector('#ruview-api_token').autocomplete = 'new-password';
 
+    let privateIPv4;
     // Keep conditional fields mounted so changing modes never loses a draft or its bindings.
     const sync = () => {
         const mode = root.querySelector('#ruview-mode').value;
         const source = root.querySelector('#ruview-source').value;
         const external = mode === 'external';
+        root.querySelector('#ruview-readonly-notice').hidden = !root.querySelector('[data-path="ruview.readonly"]').classList.contains('on');
         root.querySelector('#ruview-external-fields').hidden = !external;
         root.querySelector('#ruview-managed-fields').hidden = external;
         root.querySelector('.ruview-board-panel').hidden = source !== 'esp32';
@@ -82,6 +91,17 @@ function renderRuViewSection(section) {
         const notice = root.querySelector('#ruview-mode-notice');
         notice.hidden = mode !== 'docker' || source !== 'wifi';
         notice.textContent = tr('wifi_mode');
+        let endpointHost = '';
+        try {
+            const endpoint = external ? root.querySelector('#ruview-url').value : window.AuraConfigState.get('docker.host');
+            endpointHost = new URL(endpoint).hostname;
+        } catch (_) { /* Socket endpoints have no IP address. */ }
+        const candidates = external ? [endpointHost] : [root.querySelector('#ruview-udp_bind').value, ...(mode === 'docker' ? [endpointHost] : []), location.hostname];
+        const address = candidates.find(ip => privateIPv4?.(ip)) || '';
+        root.querySelector('#ruview-receiver-suggestion').hidden = !address || !!root.querySelector('#ruview-receiver_ip').value;
+        const useReceiver = root.querySelector('#ruview-use-receiver');
+        useReceiver.dataset.address = address;
+        useReceiver.textContent = tr('use_receiver').replace('{ip}', address);
         for (const action of ['check', 'setup']) {
             const reason = ruviewConfigActionReason(action);
             const control = root.querySelector('#ruview-' + action);
@@ -97,6 +117,21 @@ function renderRuViewSection(section) {
     window.addEventListener('cfg:section-leave', () => lifecycle.abort(), { once: true, signal: lifecycle.signal });
     root.querySelector('#ruview-check').addEventListener('click', ruviewConfigTest);
     root.querySelector('#ruview-setup').addEventListener('click', ruviewConfigFlash);
+    root.querySelector('#ruview-use-receiver').addEventListener('click', event => {
+        const address = event.currentTarget.dataset.address;
+        if (!privateIPv4?.(address)) return;
+        for (const key of root.querySelector('#ruview-mode').value === 'external' ? ['receiver_ip'] : ['receiver_ip', 'udp_bind']) {
+            const input = root.querySelector('#ruview-' + key);
+            if (input.value) continue;
+            input.value = address;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    });
+    import('/js/ruview/protocol.mjs?v=' + encodeURIComponent(CONFIG_ASSET_VERSION)).then(module => {
+        if (!root.isConnected) return;
+        privateIPv4 = module.privateIPv4;
+        sync();
+    }).catch(() => { /* Manual address entry remains available if the optional suggestion cannot load. */ });
     sync();
 }
 
