@@ -4,15 +4,18 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"aurago/internal/httporigin"
 	"aurago/internal/security"
 )
 
@@ -27,7 +30,10 @@ type ProxmoxConfig struct {
 	AllowDestructive bool   // allow stop/shutdown/reboot/suspend/reset actions
 }
 
-var proxmoxClientCache sync.Map
+var (
+	proxmoxClientCache sync.Map
+	proxmoxNodePattern = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$`)
+)
 
 func getProxmoxClient(cfg ProxmoxConfig) *http.Client {
 	cacheKey := cfg.URL + "|" + cfg.TokenID + "|" + strconv.FormatBool(cfg.Insecure)
@@ -40,11 +46,44 @@ func getProxmoxClient(cfg ProxmoxConfig) *http.Client {
 		InsecureSkipVerify: cfg.Insecure,
 	}
 	client := &http.Client{
-		Timeout:   30 * time.Second,
-		Transport: transport,
+		Timeout:       30 * time.Second,
+		Transport:     transport,
+		CheckRedirect: httporigin.SameOriginRedirect,
 	}
 	actual, _ := proxmoxClientCache.LoadOrStore(cacheKey, client)
 	return actual.(*http.Client)
+}
+
+func proxmoxNodePath(node string) (string, error) {
+	node = strings.TrimSpace(node)
+	if node == "" {
+		return "", errors.New("node is required")
+	}
+	if !proxmoxNodePattern.MatchString(node) {
+		return "", fmt.Errorf("invalid node %q", node)
+	}
+	return url.PathEscape(node), nil
+}
+
+func proxmoxRequireNode(cfg ProxmoxConfig, node string) (string, string, error) {
+	node = strings.TrimSpace(node)
+	if node == "" {
+		node = strings.TrimSpace(cfg.Node)
+	}
+	segment, err := proxmoxNodePath(node)
+	return node, segment, err
+}
+
+func proxmoxStatusError(err error) string {
+	return fmt.Sprintf(`{"status":"error","message":%s}`, proxmoxJSONStr(err.Error()))
+}
+
+func proxmoxBaseURL(raw string) (string, error) {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || (parsed.Path != "" && parsed.Path != "/") {
+		return "", errors.New("invalid proxmox url: only an https origin is supported")
+	}
+	return "https://" + parsed.Host, nil
 }
 
 // proxmoxJSONStr produces a JSON-safe quoted string (unlike %q which uses Go escaping).
@@ -71,21 +110,18 @@ func proxmoxDestructiveActionError(cfg ProxmoxConfig, action string) string {
 }
 
 // proxmoxRequest performs a generic HTTP request against the Proxmox VE API.
-func proxmoxRequest(cfg ProxmoxConfig, method, endpoint string, body string) ([]byte, int, error) {
+func proxmoxRequest(ctx context.Context, cfg ProxmoxConfig, method, endpoint, body string) ([]byte, int, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	// Prevent Proxmox API credentials from leaking into logs or LLM output
 	security.RegisterSensitive(cfg.Secret)
 	security.RegisterSensitive(cfg.TokenID)
-	baseURL := strings.TrimRight(cfg.URL, "/")
-	parsedURL, err := url.Parse(baseURL)
+	baseURL, err := proxmoxBaseURL(cfg.URL)
 	if err != nil {
-		return nil, 0, fmt.Errorf("invalid proxmox url %q: %w", cfg.URL, err)
+		return nil, 0, err
 	}
-	if parsedURL.Scheme != "https" {
-		return nil, 0, fmt.Errorf("invalid proxmox url scheme %q: only https is supported", parsedURL.Scheme)
-	}
-	if parsedURL.Host == "" {
-		return nil, 0, fmt.Errorf("invalid proxmox url %q: host is required", cfg.URL)
-	}
+	cfg.URL = baseURL
 	requestURL := baseURL + "/api2/json" + endpoint
 
 	var reqBody io.Reader
@@ -102,7 +138,7 @@ func proxmoxRequest(cfg ProxmoxConfig, method, endpoint string, body string) ([]
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	req = req.WithContext(ctx)
 	resp, err := getProxmoxClient(cfg).Do(req)
@@ -129,12 +165,12 @@ func proxmoxExtractData(raw []byte) json.RawMessage {
 	return raw
 }
 
-func proxmoxGetClusterResourceList(cfg ProxmoxConfig, resType string) ([]map[string]interface{}, int, error) {
+func proxmoxGetClusterResourceList(ctx context.Context, cfg ProxmoxConfig, resType string) ([]map[string]interface{}, int, error) {
 	endpoint := "/cluster/resources"
 	if resType != "" {
 		endpoint += "?type=" + url.QueryEscape(resType)
 	}
-	data, code, err := proxmoxRequest(cfg, "GET", endpoint, "")
+	data, code, err := proxmoxRequest(ctx, cfg, "GET", endpoint, "")
 	if err != nil {
 		return nil, code, err
 	}
@@ -292,8 +328,8 @@ func proxmoxBuildNodeSummary(items []map[string]interface{}) map[string]interfac
 }
 
 // ProxmoxListNodes returns all nodes in the cluster.
-func ProxmoxListNodes(cfg ProxmoxConfig) string {
-	data, code, err := proxmoxRequest(cfg, "GET", "/nodes", "")
+func ProxmoxListNodes(ctx context.Context, cfg ProxmoxConfig) string {
+	data, code, err := proxmoxRequest(ctx, cfg, "GET", "/nodes", "")
 	if err != nil {
 		return errJSON("Failed to list nodes: %v", err)
 	}
@@ -304,12 +340,17 @@ func ProxmoxListNodes(cfg ProxmoxConfig) string {
 }
 
 // ProxmoxListVMs returns all QEMU VMs on a node.
-func ProxmoxListVMs(cfg ProxmoxConfig, node string) string {
+func ProxmoxListVMs(ctx context.Context, cfg ProxmoxConfig, node string) string {
+	node = strings.TrimSpace(node)
 	if node == "" {
-		node = cfg.Node
+		node = strings.TrimSpace(cfg.Node)
 	}
 	if node != "" {
-		data, code, err := proxmoxRequest(cfg, "GET", fmt.Sprintf("/nodes/%s/qemu", node), "")
+		segment, err := proxmoxNodePath(node)
+		if err != nil {
+			return proxmoxStatusError(err)
+		}
+		data, code, err := proxmoxRequest(ctx, cfg, "GET", "/nodes/"+segment+"/qemu", "")
 		if err != nil {
 			return errJSON("Failed to list VMs: %v", err)
 		}
@@ -318,21 +359,22 @@ func ProxmoxListVMs(cfg ProxmoxConfig, node string) string {
 			if err := json.Unmarshal(proxmoxExtractData(data), &raw); err != nil {
 				return errJSON("Failed to parse VMs: %v", err)
 			}
-			if len(raw) > 0 {
-				normalized := proxmoxNormalizeResourceList(raw, "qemu", node)
-				summary := proxmoxBuildStateSummary(normalized)
-				rawOut, _ := json.Marshal(raw)
-				normalizedOut, _ := json.Marshal(normalized)
-				summaryOut, _ := json.Marshal(summary)
-				return fmt.Sprintf(`{"status":"ok","scope":"node","node":%s,"vms":%s,"monitoring":%s,"summary":%s}`, proxmoxJSONStr(node), rawOut, normalizedOut, summaryOut)
+			if raw == nil {
+				raw = []map[string]interface{}{}
 			}
+			normalized := proxmoxNormalizeResourceList(raw, "qemu", node)
+			summary := proxmoxBuildStateSummary(normalized)
+			rawOut, _ := json.Marshal(raw)
+			normalizedOut, _ := json.Marshal(normalized)
+			summaryOut, _ := json.Marshal(summary)
+			return fmt.Sprintf(`{"status":"ok","scope":"node","node":%s,"vms":%s,"monitoring":%s,"summary":%s}`, proxmoxJSONStr(node), rawOut, normalizedOut, summaryOut)
 		}
 		if code != http.StatusForbidden {
 			return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 		}
 	}
 
-	resources, _, err := proxmoxGetClusterResourceList(cfg, "qemu")
+	resources, _, err := proxmoxGetClusterResourceList(ctx, cfg, "qemu")
 	if err != nil {
 		if node == "" {
 			return `{"status":"error","message":"No node specified. Set proxmox.node in config or provide node parameter."}`
@@ -353,12 +395,17 @@ func ProxmoxListVMs(cfg ProxmoxConfig, node string) string {
 }
 
 // ProxmoxListContainers returns all LXC containers on a node.
-func ProxmoxListContainers(cfg ProxmoxConfig, node string) string {
+func ProxmoxListContainers(ctx context.Context, cfg ProxmoxConfig, node string) string {
+	node = strings.TrimSpace(node)
 	if node == "" {
-		node = cfg.Node
+		node = strings.TrimSpace(cfg.Node)
 	}
 	if node != "" {
-		data, code, err := proxmoxRequest(cfg, "GET", fmt.Sprintf("/nodes/%s/lxc", node), "")
+		segment, err := proxmoxNodePath(node)
+		if err != nil {
+			return proxmoxStatusError(err)
+		}
+		data, code, err := proxmoxRequest(ctx, cfg, "GET", "/nodes/"+segment+"/lxc", "")
 		if err != nil {
 			return errJSON("Failed to list containers: %v", err)
 		}
@@ -367,21 +414,22 @@ func ProxmoxListContainers(cfg ProxmoxConfig, node string) string {
 			if err := json.Unmarshal(proxmoxExtractData(data), &raw); err != nil {
 				return errJSON("Failed to parse containers: %v", err)
 			}
-			if len(raw) > 0 {
-				normalized := proxmoxNormalizeResourceList(raw, "lxc", node)
-				summary := proxmoxBuildStateSummary(normalized)
-				rawOut, _ := json.Marshal(raw)
-				normalizedOut, _ := json.Marshal(normalized)
-				summaryOut, _ := json.Marshal(summary)
-				return fmt.Sprintf(`{"status":"ok","scope":"node","node":%s,"containers":%s,"monitoring":%s,"summary":%s}`, proxmoxJSONStr(node), rawOut, normalizedOut, summaryOut)
+			if raw == nil {
+				raw = []map[string]interface{}{}
 			}
+			normalized := proxmoxNormalizeResourceList(raw, "lxc", node)
+			summary := proxmoxBuildStateSummary(normalized)
+			rawOut, _ := json.Marshal(raw)
+			normalizedOut, _ := json.Marshal(normalized)
+			summaryOut, _ := json.Marshal(summary)
+			return fmt.Sprintf(`{"status":"ok","scope":"node","node":%s,"containers":%s,"monitoring":%s,"summary":%s}`, proxmoxJSONStr(node), rawOut, normalizedOut, summaryOut)
 		}
 		if code != http.StatusForbidden {
 			return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 		}
 	}
 
-	resources, _, err := proxmoxGetClusterResourceList(cfg, "lxc")
+	resources, _, err := proxmoxGetClusterResourceList(ctx, cfg, "lxc")
 	if err != nil {
 		if node == "" {
 			return `{"status":"error","message":"No node specified."}`
@@ -421,23 +469,24 @@ func proxmoxValidateVMID(vmid string) error {
 }
 
 // ProxmoxGetStatus returns the status of a VM or container.
-func ProxmoxGetStatus(cfg ProxmoxConfig, node string, vmType string, vmid string) string {
-	if node == "" {
-		node = cfg.Node
-	}
+func ProxmoxGetStatus(ctx context.Context, cfg ProxmoxConfig, node string, vmType string, vmid string) string {
 	if vmid == "" {
 		return `{"status":"error","message":"vmid is required."}`
 	}
 	var err error
 	vmType, err = proxmoxValidateVMType(vmType)
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":%s}`, proxmoxJSONStr(err.Error()))
+		return proxmoxStatusError(err)
 	}
 	if err = proxmoxValidateVMID(vmid); err != nil {
-		return fmt.Sprintf(`{"status":"error","message":%s}`, proxmoxJSONStr(err.Error()))
+		return proxmoxStatusError(err)
 	}
-	endpoint := fmt.Sprintf("/nodes/%s/%s/%s/status/current", url.PathEscape(node), url.PathEscape(vmType), url.PathEscape(vmid))
-	data, code, err := proxmoxRequest(cfg, "GET", endpoint, "")
+	node, segment, err := proxmoxRequireNode(cfg, node)
+	if err != nil {
+		return proxmoxStatusError(err)
+	}
+	endpoint := "/nodes/" + segment + "/" + url.PathEscape(vmType) + "/" + url.PathEscape(vmid) + "/status/current"
+	data, code, err := proxmoxRequest(ctx, cfg, "GET", endpoint, "")
 	if err != nil {
 		return errJSON("Failed to get status: %v", err)
 	}
@@ -448,7 +497,7 @@ func ProxmoxGetStatus(cfg ProxmoxConfig, node string, vmType string, vmid string
 		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 	}
 
-	resources, _, err := proxmoxGetClusterResourceList(cfg, vmType)
+	resources, _, err := proxmoxGetClusterResourceList(ctx, cfg, vmType)
 	if err != nil {
 		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 	}
@@ -461,15 +510,12 @@ func ProxmoxGetStatus(cfg ProxmoxConfig, node string, vmType string, vmid string
 }
 
 // ProxmoxVMAction performs start/stop/shutdown/reboot/suspend/resume on a VM or container.
-func ProxmoxVMAction(cfg ProxmoxConfig, node string, vmType string, vmid string, action string) string {
+func ProxmoxVMAction(ctx context.Context, cfg ProxmoxConfig, node string, vmType string, vmid string, action string) string {
 	if denied := proxmoxReadOnlyMutationError(cfg); denied != "" {
 		return denied
 	}
 	if denied := proxmoxDestructiveActionError(cfg, action); denied != "" {
 		return denied
-	}
-	if node == "" {
-		node = cfg.Node
 	}
 	if vmid == "" {
 		return `{"status":"error","message":"vmid is required."}`
@@ -477,10 +523,10 @@ func ProxmoxVMAction(cfg ProxmoxConfig, node string, vmType string, vmid string,
 	var err error
 	vmType, err = proxmoxValidateVMType(vmType)
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":%s}`, proxmoxJSONStr(err.Error()))
+		return proxmoxStatusError(err)
 	}
 	if err = proxmoxValidateVMID(vmid); err != nil {
-		return fmt.Sprintf(`{"status":"error","message":%s}`, proxmoxJSONStr(err.Error()))
+		return proxmoxStatusError(err)
 	}
 	validActions := map[string]bool{
 		"start": true, "stop": true, "shutdown": true,
@@ -489,8 +535,12 @@ func ProxmoxVMAction(cfg ProxmoxConfig, node string, vmType string, vmid string,
 	if !validActions[action] {
 		return errJSON("Invalid action '%s'. Use: start, stop, shutdown, reboot, suspend, resume, reset", action)
 	}
-	endpoint := fmt.Sprintf("/nodes/%s/%s/%s/status/%s", url.PathEscape(node), url.PathEscape(vmType), url.PathEscape(vmid), url.PathEscape(action))
-	data, code, err := proxmoxRequest(cfg, "POST", endpoint, "")
+	_, segment, err := proxmoxRequireNode(cfg, node)
+	if err != nil {
+		return proxmoxStatusError(err)
+	}
+	endpoint := "/nodes/" + segment + "/" + url.PathEscape(vmType) + "/" + url.PathEscape(vmid) + "/status/" + url.PathEscape(action)
+	data, code, err := proxmoxRequest(ctx, cfg, "POST", endpoint, "")
 	if err != nil {
 		return errJSON("Action failed: %v", err)
 	}
@@ -501,14 +551,12 @@ func ProxmoxVMAction(cfg ProxmoxConfig, node string, vmType string, vmid string,
 }
 
 // ProxmoxNodeStatus returns resource usage for a node.
-func ProxmoxNodeStatus(cfg ProxmoxConfig, node string) string {
-	if node == "" {
-		node = cfg.Node
+func ProxmoxNodeStatus(ctx context.Context, cfg ProxmoxConfig, node string) string {
+	node, segment, err := proxmoxRequireNode(cfg, node)
+	if err != nil {
+		return proxmoxStatusError(err)
 	}
-	if node == "" {
-		return `{"status":"error","message":"No node specified."}`
-	}
-	data, code, err := proxmoxRequest(cfg, "GET", fmt.Sprintf("/nodes/%s/status", url.PathEscape(node)), "")
+	data, code, err := proxmoxRequest(ctx, cfg, "GET", "/nodes/"+segment+"/status", "")
 	if err != nil {
 		return errJSON("Failed to get node status: %v", err)
 	}
@@ -519,7 +567,7 @@ func ProxmoxNodeStatus(cfg ProxmoxConfig, node string) string {
 		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 	}
 
-	resources, _, err := proxmoxGetClusterResourceList(cfg, "node")
+	resources, _, err := proxmoxGetClusterResourceList(ctx, cfg, "node")
 	if err != nil {
 		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 	}
@@ -533,8 +581,8 @@ func ProxmoxNodeStatus(cfg ProxmoxConfig, node string) string {
 
 // ProxmoxOverview returns a monitoring-oriented overview of nodes, VMs, and containers.
 // Uses a single unfiltered /cluster/resources call instead of two separate calls.
-func ProxmoxOverview(cfg ProxmoxConfig, node string) string {
-	allResources, _, err := proxmoxGetClusterResourceList(cfg, "")
+func ProxmoxOverview(ctx context.Context, cfg ProxmoxConfig, node string) string {
+	allResources, _, err := proxmoxGetClusterResourceList(ctx, cfg, "")
 	if err != nil {
 		return errJSON("Failed to get cluster overview: %v", err)
 	}
@@ -567,12 +615,12 @@ func ProxmoxOverview(cfg ProxmoxConfig, node string) string {
 }
 
 // ProxmoxClusterResources returns a unified list of all resources (VMs, CTs, storage, nodes).
-func ProxmoxClusterResources(cfg ProxmoxConfig, resType string) string {
+func ProxmoxClusterResources(ctx context.Context, cfg ProxmoxConfig, resType string) string {
 	endpoint := "/cluster/resources"
 	if resType != "" {
 		endpoint += "?type=" + url.QueryEscape(resType)
 	}
-	data, code, err := proxmoxRequest(cfg, "GET", endpoint, "")
+	data, code, err := proxmoxRequest(ctx, cfg, "GET", endpoint, "")
 	if err != nil {
 		return errJSON("Failed to get resources: %v", err)
 	}
@@ -583,14 +631,12 @@ func ProxmoxClusterResources(cfg ProxmoxConfig, resType string) string {
 }
 
 // ProxmoxGetStorage returns storage info for a node.
-func ProxmoxGetStorage(cfg ProxmoxConfig, node string) string {
-	if node == "" {
-		node = cfg.Node
+func ProxmoxGetStorage(ctx context.Context, cfg ProxmoxConfig, node string) string {
+	_, segment, err := proxmoxRequireNode(cfg, node)
+	if err != nil {
+		return proxmoxStatusError(err)
 	}
-	if node == "" {
-		return `{"status":"error","message":"No node specified."}`
-	}
-	data, code, err := proxmoxRequest(cfg, "GET", fmt.Sprintf("/nodes/%s/storage", url.PathEscape(node)), "")
+	data, code, err := proxmoxRequest(ctx, cfg, "GET", "/nodes/"+segment+"/storage", "")
 	if err != nil {
 		return errJSON("Failed to get storage: %v", err)
 	}
@@ -601,15 +647,16 @@ func ProxmoxGetStorage(cfg ProxmoxConfig, node string) string {
 }
 
 // ProxmoxGetTaskLog returns the log for a specific task (UPID).
-func ProxmoxGetTaskLog(cfg ProxmoxConfig, node string, upid string) string {
-	if node == "" {
-		node = cfg.Node
-	}
-	if upid == "" {
+func ProxmoxGetTaskLog(ctx context.Context, cfg ProxmoxConfig, node string, upid string) string {
+	if strings.TrimSpace(upid) == "" {
 		return `{"status":"error","message":"upid is required."}`
 	}
-	endpoint := fmt.Sprintf("/nodes/%s/tasks/%s/log", url.PathEscape(node), url.PathEscape(upid))
-	data, code, err := proxmoxRequest(cfg, "GET", endpoint, "")
+	_, segment, err := proxmoxRequireNode(cfg, node)
+	if err != nil {
+		return proxmoxStatusError(err)
+	}
+	endpoint := "/nodes/" + segment + "/tasks/" + url.PathEscape(upid) + "/log"
+	data, code, err := proxmoxRequest(ctx, cfg, "GET", endpoint, "")
 	if err != nil {
 		return errJSON("Failed to get task log: %v", err)
 	}
@@ -620,12 +667,9 @@ func ProxmoxGetTaskLog(cfg ProxmoxConfig, node string, upid string) string {
 }
 
 // ProxmoxCreateSnapshot creates a snapshot of a VM or container.
-func ProxmoxCreateSnapshot(cfg ProxmoxConfig, node, vmType, vmid, snapName, description string) string {
+func ProxmoxCreateSnapshot(ctx context.Context, cfg ProxmoxConfig, node, vmType, vmid, snapName, description string) string {
 	if denied := proxmoxReadOnlyMutationError(cfg); denied != "" {
 		return denied
-	}
-	if node == "" {
-		node = cfg.Node
 	}
 	if vmid == "" {
 		return `{"status":"error","message":"vmid is required."}`
@@ -633,10 +677,14 @@ func ProxmoxCreateSnapshot(cfg ProxmoxConfig, node, vmType, vmid, snapName, desc
 	var err error
 	vmType, err = proxmoxValidateVMType(vmType)
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":%s}`, proxmoxJSONStr(err.Error()))
+		return proxmoxStatusError(err)
 	}
 	if err = proxmoxValidateVMID(vmid); err != nil {
-		return fmt.Sprintf(`{"status":"error","message":%s}`, proxmoxJSONStr(err.Error()))
+		return proxmoxStatusError(err)
+	}
+	_, segment, err := proxmoxRequireNode(cfg, node)
+	if err != nil {
+		return proxmoxStatusError(err)
 	}
 	if snapName == "" {
 		snapName = fmt.Sprintf("snap_%d", time.Now().Unix())
@@ -645,8 +693,8 @@ func ProxmoxCreateSnapshot(cfg ProxmoxConfig, node, vmType, vmid, snapName, desc
 	if description != "" {
 		body += "&description=" + url.QueryEscape(description)
 	}
-	endpoint := fmt.Sprintf("/nodes/%s/%s/%s/snapshot", url.PathEscape(node), url.PathEscape(vmType), url.PathEscape(vmid))
-	data, code, err := proxmoxRequest(cfg, "POST", endpoint, body)
+	endpoint := "/nodes/" + segment + "/" + url.PathEscape(vmType) + "/" + url.PathEscape(vmid) + "/snapshot"
+	data, code, err := proxmoxRequest(ctx, cfg, "POST", endpoint, body)
 	if err != nil {
 		return errJSON("Snapshot failed: %v", err)
 	}
@@ -661,23 +709,24 @@ func ProxmoxCreateSnapshot(cfg ProxmoxConfig, node, vmType, vmid, snapName, desc
 }
 
 // ProxmoxListSnapshots lists all snapshots of a VM or container.
-func ProxmoxListSnapshots(cfg ProxmoxConfig, node, vmType, vmid string) string {
-	if node == "" {
-		node = cfg.Node
-	}
+func ProxmoxListSnapshots(ctx context.Context, cfg ProxmoxConfig, node, vmType, vmid string) string {
 	if vmid == "" {
 		return `{"status":"error","message":"vmid is required."}`
 	}
 	var err error
 	vmType, err = proxmoxValidateVMType(vmType)
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":%s}`, proxmoxJSONStr(err.Error()))
+		return proxmoxStatusError(err)
 	}
 	if err = proxmoxValidateVMID(vmid); err != nil {
-		return fmt.Sprintf(`{"status":"error","message":%s}`, proxmoxJSONStr(err.Error()))
+		return proxmoxStatusError(err)
 	}
-	endpoint := fmt.Sprintf("/nodes/%s/%s/%s/snapshot", url.PathEscape(node), url.PathEscape(vmType), url.PathEscape(vmid))
-	data, code, err := proxmoxRequest(cfg, "GET", endpoint, "")
+	_, segment, err := proxmoxRequireNode(cfg, node)
+	if err != nil {
+		return proxmoxStatusError(err)
+	}
+	endpoint := "/nodes/" + segment + "/" + url.PathEscape(vmType) + "/" + url.PathEscape(vmid) + "/snapshot"
+	data, code, err := proxmoxRequest(ctx, cfg, "GET", endpoint, "")
 	if err != nil {
 		return errJSON("Failed to list snapshots: %v", err)
 	}

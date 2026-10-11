@@ -1,14 +1,16 @@
 package tools
 
 import (
-	"aurago/internal/testutil"
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"net/http"
 	"strings"
 	"sync"
 	"testing"
+
+	"aurago/internal/testutil"
 )
 
 func TestGetProxmoxClient_CacheIsolatedByInsecureFlag(t *testing.T) {
@@ -23,7 +25,7 @@ func TestGetProxmoxClient_CacheIsolatedByInsecureFlag(t *testing.T) {
 }
 
 func TestProxmoxRequest_RejectsNonHTTPSURL(t *testing.T) {
-	_, _, err := proxmoxRequest(ProxmoxConfig{
+	_, _, err := proxmoxRequest(context.Background(), ProxmoxConfig{
 		URL:     "http://example.com:8006",
 		TokenID: "user@pam!token",
 		Secret:  "secret",
@@ -34,7 +36,7 @@ func TestProxmoxRequest_RejectsNonHTTPSURL(t *testing.T) {
 }
 
 func TestProxmoxRequest_RejectsHTTPSWithoutHost(t *testing.T) {
-	_, _, err := proxmoxRequest(ProxmoxConfig{
+	_, _, err := proxmoxRequest(context.Background(), ProxmoxConfig{
 		URL:     "https://",
 		TokenID: "user@pam!token",
 		Secret:  "secret",
@@ -55,9 +57,9 @@ func TestProxmoxRequestRejectsOversizeResponse(t *testing.T) {
 
 	client := server.Client()
 	client.Transport = &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
-	proxmoxClientCache.Store(server.URL+"|insecure", client)
+	proxmoxClientCache.Store(server.URL+"|user@pam!token|true", client)
 
-	_, _, err := proxmoxRequest(ProxmoxConfig{
+	_, _, err := proxmoxRequest(context.Background(), ProxmoxConfig{
 		URL:      server.URL,
 		TokenID:  "user@pam!token",
 		Secret:   "secret",
@@ -75,8 +77,8 @@ func TestProxmoxDirectActionsRespectReadOnly(t *testing.T) {
 	cfg := ProxmoxConfig{ReadOnly: true, AllowDestructive: true}
 
 	for name, got := range map[string]string{
-		"start":           ProxmoxVMAction(cfg, "pve", "qemu", "101", "start"),
-		"create_snapshot": ProxmoxCreateSnapshot(cfg, "pve", "qemu", "101", "before-update", "test"),
+		"start":           ProxmoxVMAction(context.Background(), cfg, "pve", "qemu", "101", "start"),
+		"create_snapshot": ProxmoxCreateSnapshot(context.Background(), cfg, "pve", "qemu", "101", "before-update", "test"),
 	} {
 		t.Run(name, func(t *testing.T) {
 			if !strings.Contains(got, "read-only mode") {
@@ -91,7 +93,7 @@ func TestProxmoxDirectActionsRespectDestructiveToggle(t *testing.T) {
 
 	for _, action := range []string{"stop", "shutdown", "reboot", "suspend", "reset"} {
 		t.Run(action, func(t *testing.T) {
-			got := ProxmoxVMAction(cfg, "pve", "qemu", "101", action)
+			got := ProxmoxVMAction(context.Background(), cfg, "pve", "qemu", "101", action)
 			if !strings.Contains(got, "allow_destructive") {
 				t.Fatalf("response = %s, want allow_destructive denial", got)
 			}
@@ -127,9 +129,9 @@ func TestProxmoxGetStatus_FallsBackToClusterResourcesOn403(t *testing.T) {
 	client.Transport = &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
-	proxmoxClientCache.Store(server.URL+"|insecure", client)
+	proxmoxClientCache.Store(server.URL+"|user@pam!token|true", client)
 
-	got := ProxmoxGetStatus(ProxmoxConfig{
+	got := ProxmoxGetStatus(context.Background(), ProxmoxConfig{
 		URL:      server.URL,
 		TokenID:  "user@pam!token",
 		Secret:   "secret",
@@ -176,9 +178,9 @@ func TestProxmoxNodeStatus_FallsBackToClusterResourcesOn403(t *testing.T) {
 	client.Transport = &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
-	proxmoxClientCache.Store(server.URL+"|insecure", client)
+	proxmoxClientCache.Store(server.URL+"|user@pam!token|true", client)
 
-	got := ProxmoxNodeStatus(ProxmoxConfig{
+	got := ProxmoxNodeStatus(context.Background(), ProxmoxConfig{
 		URL:      server.URL,
 		TokenID:  "user@pam!token",
 		Secret:   "secret",
@@ -220,9 +222,9 @@ func TestProxmoxListVMs_IncludesMonitoringSummary(t *testing.T) {
 	client.Transport = &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
-	proxmoxClientCache.Store(server.URL+"|insecure", client)
+	proxmoxClientCache.Store(server.URL+"|user@pam!token|true", client)
 
-	got := ProxmoxListVMs(ProxmoxConfig{
+	got := ProxmoxListVMs(context.Background(), ProxmoxConfig{
 		URL:      server.URL,
 		TokenID:  "user@pam!token",
 		Secret:   "secret",
@@ -278,7 +280,7 @@ func TestProxmoxOverview_ReturnsCombinedMonitoringData(t *testing.T) {
 	}))
 	defer server.Close()
 
-	got := ProxmoxOverview(ProxmoxConfig{
+	got := ProxmoxOverview(context.Background(), ProxmoxConfig{
 		URL:      server.URL,
 		TokenID:  "user@pam!token",
 		Secret:   "secret",

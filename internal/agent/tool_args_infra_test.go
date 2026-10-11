@@ -168,6 +168,11 @@ func TestDecodeProxmoxArgsUsesFallbackHelpers(t *testing.T) {
 	if req.Operation != "task_log" {
 		t.Fatalf("Operation = %q, want task_log", req.Operation)
 	}
+	if req.node() != "" {
+		t.Fatalf("node = %q, want empty when only name is set", req.node())
+	}
+	tc.Params["node"] = "pve-node-1"
+	req = decodeProxmoxArgs(tc)
 	if req.node() != "pve-node-1" {
 		t.Fatalf("node = %q, want pve-node-1", req.node())
 	}

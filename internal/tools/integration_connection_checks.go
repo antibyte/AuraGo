@@ -70,11 +70,11 @@ func CheckProxmoxConnection(ctx context.Context, cfg ProxmoxConfig) error {
 	if strings.TrimSpace(cfg.TokenID) == "" || strings.TrimSpace(cfg.Secret) == "" {
 		return errors.New("Proxmox API credentials are not configured")
 	}
-	baseURL := strings.TrimRight(strings.TrimSpace(cfg.URL), "/")
-	parsed, err := url.Parse(baseURL)
-	if err != nil || parsed.Host == "" || parsed.Scheme != "https" {
+	baseURL, err := proxmoxBaseURL(cfg.URL)
+	if err != nil {
 		return errors.New("Proxmox URL is invalid; HTTPS is required")
 	}
+	cfg.URL = baseURL
 	security.RegisterSensitive(cfg.TokenID)
 	security.RegisterSensitive(cfg.Secret)
 

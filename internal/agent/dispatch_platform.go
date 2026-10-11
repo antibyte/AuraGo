@@ -605,42 +605,42 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			switch req.Operation {
 			case "overview":
 				logger.Info("LLM requested Proxmox overview", "node", node)
-				return "Tool Output: " + tools.ProxmoxOverview(pxCfg, node)
+				return "Tool Output: " + tools.ProxmoxOverview(ctx, pxCfg, node)
 			case "list_nodes":
 				logger.Info("LLM requested Proxmox list_nodes")
-				return "Tool Output: " + tools.ProxmoxListNodes(pxCfg)
+				return "Tool Output: " + tools.ProxmoxListNodes(ctx, pxCfg)
 			case "list_vms", "vms":
 				logger.Info("LLM requested Proxmox list_vms", "node", node)
-				return "Tool Output: " + tools.ProxmoxListVMs(pxCfg, node)
+				return "Tool Output: " + tools.ProxmoxListVMs(ctx, pxCfg, node)
 			case "list_containers", "lxc":
 				logger.Info("LLM requested Proxmox list_containers", "node", node)
-				return "Tool Output: " + tools.ProxmoxListContainers(pxCfg, node)
+				return "Tool Output: " + tools.ProxmoxListContainers(ctx, pxCfg, node)
 			case "status":
 				logger.Info("LLM requested Proxmox status", "vmid", vmid, "type", vmType)
-				return "Tool Output: " + tools.ProxmoxGetStatus(pxCfg, node, vmType, vmid)
+				return "Tool Output: " + tools.ProxmoxGetStatus(ctx, pxCfg, node, vmType, vmid)
 			case "start", "stop", "shutdown", "reboot", "suspend", "resume", "reset":
 				logger.Info("LLM requested Proxmox action", "action", req.Operation, "vmid", vmid)
-				return "Tool Output: " + tools.ProxmoxVMAction(pxCfg, node, vmType, vmid, req.Operation)
+				return "Tool Output: " + tools.ProxmoxVMAction(ctx, pxCfg, node, vmType, vmid, req.Operation)
 			case "node_status":
 				logger.Info("LLM requested Proxmox node_status", "node", node)
-				return "Tool Output: " + tools.ProxmoxNodeStatus(pxCfg, node)
+				return "Tool Output: " + tools.ProxmoxNodeStatus(ctx, pxCfg, node)
 			case "cluster_resources", "resources":
 				resType := req.ResourceType
 				logger.Info("LLM requested Proxmox cluster_resources", "type", resType)
-				return "Tool Output: " + tools.ProxmoxClusterResources(pxCfg, resType)
+				return "Tool Output: " + tools.ProxmoxClusterResources(ctx, pxCfg, resType)
 			case "storage":
 				logger.Info("LLM requested Proxmox storage", "node", node)
-				return "Tool Output: " + tools.ProxmoxGetStorage(pxCfg, node)
+				return "Tool Output: " + tools.ProxmoxGetStorage(ctx, pxCfg, node)
 			case "create_snapshot", "snapshot":
 				logger.Info("LLM requested Proxmox create_snapshot", "vmid", vmid, "name", req.Name)
-				return "Tool Output: " + tools.ProxmoxCreateSnapshot(pxCfg, node, vmType, vmid, req.Name, req.Description)
+				return "Tool Output: " + tools.ProxmoxCreateSnapshot(ctx, pxCfg, node, vmType, vmid, req.Name, req.Description)
 			case "list_snapshots", "snapshots":
 				logger.Info("LLM requested Proxmox list_snapshots", "vmid", vmid)
-				return "Tool Output: " + tools.ProxmoxListSnapshots(pxCfg, node, vmType, vmid)
+				return "Tool Output: " + tools.ProxmoxListSnapshots(ctx, pxCfg, node, vmType, vmid)
 			case "task_log":
 				upid := req.upid()
 				logger.Info("LLM requested Proxmox task_log", "upid", upid)
-				return "Tool Output: " + tools.ProxmoxGetTaskLog(pxCfg, node, upid)
+				return "Tool Output: " + tools.ProxmoxGetTaskLog(ctx, pxCfg, node, upid)
 			default:
 				return `Tool Output: {"status":"error","message":"Unknown proxmox operation. Use: overview, list_nodes, list_vms, list_containers, status, start, stop, shutdown, reboot, node_status, cluster_resources, storage, create_snapshot, list_snapshots, task_log"}`
 			}

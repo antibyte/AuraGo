@@ -13,13 +13,14 @@ import (
 
 func TestProxmoxErrorsAreValidJSON(t *testing.T) {
 	cfg := ProxmoxConfig{URL: "http://invalid.test/\"quoted\"", Node: "node", AllowDestructive: true}
+	ctx := context.Background()
 	results := []string{
-		ProxmoxListNodes(cfg), ProxmoxListVMs(cfg, "node"), ProxmoxListContainers(cfg, "node"),
-		ProxmoxGetStatus(cfg, "node", "qemu", "101"), ProxmoxVMAction(cfg, "node", "qemu", "101", "start"),
-		ProxmoxVMAction(cfg, "node", "qemu", "101", "bad\"action\n"), ProxmoxNodeStatus(cfg, "node"),
-		ProxmoxOverview(cfg, "node"), ProxmoxClusterResources(cfg, "vm"), ProxmoxGetStorage(cfg, "node"),
-		ProxmoxGetTaskLog(cfg, "node", "task"), ProxmoxCreateSnapshot(cfg, "node", "qemu", "101", "snapshot", ""),
-		ProxmoxListSnapshots(cfg, "node", "qemu", "101"),
+		ProxmoxListNodes(ctx, cfg), ProxmoxListVMs(ctx, cfg, "node"), ProxmoxListContainers(ctx, cfg, "node"),
+		ProxmoxGetStatus(ctx, cfg, "node", "qemu", "101"), ProxmoxVMAction(ctx, cfg, "node", "qemu", "101", "start"),
+		ProxmoxVMAction(ctx, cfg, "node", "qemu", "101", "bad\"action\n"), ProxmoxNodeStatus(ctx, cfg, "node"),
+		ProxmoxOverview(ctx, cfg, "node"), ProxmoxClusterResources(ctx, cfg, "vm"), ProxmoxGetStorage(ctx, cfg, "node"),
+		ProxmoxGetTaskLog(ctx, cfg, "node", "task"), ProxmoxCreateSnapshot(ctx, cfg, "node", "qemu", "101", "snapshot", ""),
+		ProxmoxListSnapshots(ctx, cfg, "node", "qemu", "101"),
 	}
 	for i, result := range results {
 		var decoded map[string]any
