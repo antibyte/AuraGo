@@ -457,18 +457,37 @@
     // ── in-window dialog ────────────────────────────────────────────────────
 
     // Open dialogs, oldest first. One capturing keydown listener serves them all: the newest dialog
-    // whose host holds the focus (the newest one when nothing has focus) handles Escape and Tab, so
-    // a confirm stacked over another dialog closes alone and focus elsewhere on the desktop is left
-    // alone. A dialog whose host left the document without closing it is closed on the next key.
+    // whose host holds the focus handles Escape and Tab, so a confirm stacked over another dialog
+    // closes alone and focus elsewhere on the desktop is left alone. When nothing has focus, the
+    // newest dialog takes the key only while its window is shown (not minimised or hidden). A dialog
+    // whose host left the document without closing it is closed on the next key.
     const openDialogs = [];
     function dialogForKey() {
         openDialogs.slice().forEach(entry => { if (!document.contains(entry.backdrop)) entry.api.close(null); });
         const active = document.activeElement;
-        const free = !active || active === document.body || active === document.documentElement;
+        if (!active || active === document.body || active === document.documentElement) {
+            const newest = openDialogs[openDialogs.length - 1];
+            return newest && newest.host.getClientRects().length > 0 ? newest : null;
+        }
         for (let i = openDialogs.length - 1; i >= 0; i--) {
-            if (free || openDialogs[i].host.contains(active)) return openDialogs[i];
+            if (openDialogs[i].host.contains(active)) return openDialogs[i];
         }
         return null;
+    }
+
+    // Each owner bag gets one cleanup that closes its open dialogs; a dialog leaves the set when it
+    // closes, so a long-lived owner keeps no closed dialog alive.
+    const ownedDialogs = new WeakMap();
+    function adoptDialog(owner, api) {
+        if (owner.disposed) { api.close(null); return () => {}; }
+        let open = ownedDialogs.get(owner);
+        if (!open) {
+            open = new Set();
+            ownedDialogs.set(owner, open);
+            owner.add(() => { ownedDialogs.delete(owner); Array.from(open).forEach(d => d.close(null)); });
+        }
+        open.add(api);
+        return () => open.delete(api);
     }
     function onDialogKey(event) {
         const entry = dialogForKey();
@@ -500,11 +519,13 @@
         const backdrop = util.el('div', { class: 'cc-modal-backdrop' }, dialog);
         let closed = false;
         let entry = null;
+        let release = () => {};
         const api = {
             el: dialog,
             close(value) {
                 if (closed) return;
                 closed = true;
+                release();
                 const index = openDialogs.indexOf(entry);
                 if (index >= 0) openDialogs.splice(index, 1);
                 if (!openDialogs.length) document.removeEventListener('keydown', onDialogKey, true);
@@ -561,11 +582,11 @@
         entry = { api, host, backdrop, onKey };
         if (!openDialogs.length) document.addEventListener('keydown', onDialogKey, true);
         openDialogs.push(entry);
-        if (s.owner && typeof s.owner.add === 'function') s.owner.add(() => api.close(null));
         host.appendChild(backdrop);
         const first = dialog.querySelector('[autofocus]') || focusables()[0];
         if (first) first.focus();
         api.promise = promise;
+        if (s.owner && typeof s.owner.add === 'function') release = adoptDialog(s.owner, api);
         return api;
     }
 

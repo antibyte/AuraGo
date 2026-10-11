@@ -833,6 +833,23 @@ function attachedHost() {
     const event = pressKey('Escape');
     eq('a dialog whose window is gone closes on the next key without taking it', [orphan.closed, event.defaultPrevented, docKeys.length], [true, false, 0]);
 }
+{
+    const host = attachedHost();
+    const owner = { hooks: [], add(fn) { this.hooks.push(fn); return fn; } };
+    for (let i = 0; i < 3; i++) testDialog(host, 'closed ' + i, owner).close('a');
+    const open = testDialog(host, 'open', owner);
+    owner.hooks.forEach(fn => fn());
+    eq('an owner keeps one hook for all its dialogs, not one per dialog', [owner.hooks.length, open.closed, docKeys.length], [1, true, 0]);
+    const minimised = testDialog(host, 'minimised');
+    host.hidden = true;
+    sandbox.document.activeElement = sandbox.document.body;
+    const hiddenEvent = pressKey('Escape');
+    host.hidden = false;
+    const shownEvent = pressKey('Escape');
+    eq('with nothing focused, Escape reaches the newest dialog only while its window is shown',
+        [hiddenEvent.defaultPrevented, shownEvent.defaultPrevented, minimised.closed], [false, true, true]);
+    host.remove();
+}
 
 // ── code editor (cyd-creator-code.js) on the fake DOM with the textarea fallback ──
 sandbox.requestAnimationFrame = fn => fakeSetTimeout(fn, 16);
@@ -858,7 +875,8 @@ console.warn = (...args) => { if (!String(args[0]).includes('CodeMirror failed t
     eq('hookLine finds definitions, not calls or comments', ['on_btn_clicked', 'on_other_clicked', 'on_note_clicked', 'on_spaced_pressed', 'on_btn_click'].map(fn => P.code.hookLine(hooks, fn)), [3, 0, 0, 7, 0]);
 }
 // codeBackend answers like plan 2's file routes: If-Match "*" creates only, a sha must match an
-// existing file, a second spelling of a name is a conflict. gates delay an answer, fail fails once.
+// existing file, a second spelling of a name is a conflict. gates delay an answer, fail fails once
+// (an error) or per call in order (an array; null lets that call through).
 function codeBackend(initial) {
     const files = new Map(Object.entries(initial));
     const calls = [];
@@ -866,7 +884,13 @@ function codeBackend(initial) {
     const fail = {};
     let n = 0;
     const E = P.api.ApiError;
-    const failOnce = name => { if (fail[name]) { const e = fail[name]; delete fail[name]; throw e; } };
+    const failOnce = name => {
+        const f = fail[name];
+        if (!f) return;
+        const e = Array.isArray(f) ? f.shift() : f;
+        if (!Array.isArray(f) || !f.length) delete fail[name];
+        if (e) throw e;
+    };
     const api = {
         async listFiles() {
             calls.push(['list']);
@@ -902,15 +926,17 @@ function codeBackend(initial) {
             return true;
         }
     };
-    return { files, calls, gates, fail, api, changes: () => calls.filter(x => x[0] === 'write' || x[0] === 'delete').map(x => x[0] + ' ' + x[1]) };
+    // changes lists writes and deletes; the random temporary name of a case-only rename reads TMP.h.
+    const changes = () => calls.filter(x => x[0] === 'write' || x[0] === 'delete').map(x => x[0] + ' ' + x[1].replace(/cyd_rename_[0-9a-f]{12}\.h$/, 'TMP.h'));
+    return { files, calls, gates, fail, api, changes };
 }
 async function makeCode(initial) {
     const be = codeBackend(initial);
     const host = attachedHost();
-    const seen = { state: [], notes: [] };
+    const seen = { state: [], notes: [], confirms: 0 };
     const inst = {
         t: P.i18n({}), bus: P.createBus(), projectId: 'ccp_1', root: host, readonly: false, isLocked: () => false,
-        notify: (kind, text) => seen.notes.push(text), confirm: () => Promise.resolve(true), setMode() {}, api: be.api
+        notify: (kind, text) => seen.notes.push(text), confirm: () => { seen.confirms++; return Promise.resolve(true); }, setMode() {}, api: be.api
     };
     inst.bus.on('code:state', s => seen.state.push(s));
     const code = P.code.create(inst);
@@ -1011,8 +1037,8 @@ async function makeCode(initial) {
     c.input().value = 'App.cpp';
     c.action('ok').click();
     await settle();
-    eq('a case-only rename deletes first, then writes', [c.be.changes(), Array.from(c.be.files.keys()).sort()],
-        [['delete src/app/app.cpp', 'write src/app/App.cpp'], ['src/app/App.cpp', 'src/app/b.cpp']]);
+    eq('a case-only rename goes through a temporary .h copy', [c.be.changes(), Array.from(c.be.files.keys()).sort()],
+        [['write src/app/TMP.h', 'delete src/app/app.cpp', 'write src/app/App.cpp', 'delete src/app/TMP.h'], ['src/app/App.cpp', 'src/app/b.cpp']]);
     c.be.calls.length = 0;
     c.be.fail.delete = new P.api.ApiError(500, 'CYD_INTERNAL', 'boom');
     c.tool('rename', 'src/app/b.cpp').click();
@@ -1054,6 +1080,53 @@ async function makeCode(initial) {
     c.code.setProblems([]);
     const active = sandbox.document.activeElement;
     check('a rebuilt tree keeps the focus on the same file', active && active.dataset.ccFile === 'src/app/b.cpp' && c.code.el.contains(active));
+    c.dispose();
+}
+{
+    // Case-only rename of the open file while the project gets locked between the requests: the new
+    // name and the restore both fail, the temporary copy keeps the text on the server and opens.
+    const c = await makeCode({ 'src/app/app.cpp': { text: 'int a;\n', sha: 'a1' } });
+    await c.code.openFile('src/app/app.cpp');
+    const locked = new P.api.ApiError(423, 'CYD_PROJECT_LOCKED', 'locked');
+    c.be.fail.write = [null, locked, locked];
+    c.tool('rename', 'src/app/app.cpp').click();
+    c.input().value = 'App.cpp';
+    c.action('ok').click();
+    await settle();
+    const tmp = Array.from(c.be.files.keys()).find(p => /cyd_rename_[0-9a-f]{12}\.h$/.test(p));
+    eq('when both names fail the text stays on the server in the temporary copy',
+        [c.be.changes(), tmp && c.be.files.get(tmp).text, c.be.files.has('src/app/app.cpp'), c.seen.notes.slice(-1)],
+        [['write src/app/TMP.h', 'delete src/app/app.cpp', 'write src/app/App.cpp', 'write src/app/app.cpp'], 'int a;\n', false, [P.errors.message(codeT, locked)]]);
+    eq('the kept copy opens in the editor', [c.code.openPath(), c.area().value], [tmp, 'int a;\n']);
+    c.type('int a = 2;\n');
+    await advance(1000);
+    eq('the kept copy saves like any file', [c.be.files.get(tmp).text, c.last()], ['int a = 2;\n', 'saved']);
+    c.dispose();
+}
+{
+    // A missed deletion surfaces while another file opens: "Load saved version" closes the deleted
+    // file, and the switch goes on without asking to discard anything.
+    const c = await makeCode({ 'src/app/a.cpp': { text: 'a\n', sha: 'a1' }, 'src/app/b.cpp': { text: 'b\n', sha: 'b1' } });
+    await c.code.openFile('src/app/a.cpp');
+    c.type('a2\n');
+    c.be.files.delete('src/app/a.cpp');
+    const opening = c.code.openFile('src/app/b.cpp');
+    await settle();
+    c.action('reload').click();
+    eq('after the saved version of a deleted file the switch needs no discard confirm', [await opening, c.code.openPath(), c.seen.confirms], [true, 'src/app/b.cpp', 0]);
+    c.dispose();
+}
+{
+    const c = await makeCode({ 'src/app/net/a.cpp': { text: 'a\n', sha: 'a1' } });
+    c.tool('new').click();
+    c.input().value = 'Net/b.cpp';
+    c.action('ok').click();
+    const folderClash = c.dialogError();
+    c.input().value = 'net/b.cpp';
+    c.action('ok').click();
+    await settle();
+    eq('a folder spelled differently is refused in the dialog, the same folder is fine',
+        [folderClash, !!c.dialog(), c.be.files.has('src/app/net/b.cpp')], [codeT('cyd_creator.code.file_exists'), false, true]);
     c.dispose();
 }
 console.warn = consoleWarn;

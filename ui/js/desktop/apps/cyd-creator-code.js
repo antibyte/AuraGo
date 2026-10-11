@@ -71,6 +71,14 @@
         return m ? s.slice(0, m.index).split('\n').length : 0;
     }
 
+    // folderPrefixes('src/app/a/b/x.cpp') → ['src/app/a/', 'src/app/a/b/'].
+    function folderPrefixes(rel) {
+        const parts = String(rel).split('/');
+        const out = [];
+        for (let i = 3; i < parts.length; i++) out.push(parts.slice(0, i).join('/') + '/');
+        return out;
+    }
+
     // severityOf maps a diagnostic like the dock does: error, warning, everything else a note.
     function severityOf(d) {
         return d.severity === 'error' ? 'error' : (d.severity === 'warning' ? 'warning' : 'note');
@@ -485,8 +493,11 @@
         }
 
         // flush saves the open file now. False when it could not be saved (offline, conflict, locked).
+        // A conflict answered with the saved version of a deleted file closes the document: then
+        // nothing is left to save.
         function flush() {
-            return state.saver ? state.saver.flush() : Promise.resolve(true);
+            if (!state.saver) return Promise.resolve(true);
+            return state.saver.flush().then(ok => ok || !state.saver);
         }
 
         async function leaveCurrent() {
@@ -526,12 +537,17 @@
         }
 
         // ── file actions ──
-        // nameError checks a new name against the server's rules; existing names compare without
-        // letter case (the server refuses a second spelling), ignoring the renamed file itself.
+        // nameError checks a new name against the server's rules; existing names and their folders
+        // compare without letter case (the server refuses a second spelling of either), ignoring the
+        // renamed file itself.
         function nameError(path, ignorePath) {
             if (!isEditablePath(path)) return t('cyd_creator.code.file_name_invalid');
+            const others = state.files.map(f => String(f.path)).filter(p => p !== ignorePath);
             const lower = path.toLowerCase();
-            if (state.files.some(f => f.path !== ignorePath && String(f.path).toLowerCase() === lower)) return t('cyd_creator.code.file_exists');
+            const folders = new Map();
+            others.forEach(p => folderPrefixes(p).forEach(d => folders.set(d.toLowerCase(), d)));
+            const folderClash = folderPrefixes(path).some(d => folders.has(d.toLowerCase()) && folders.get(d.toLowerCase()) !== d);
+            if (folderClash || others.some(p => p.toLowerCase() === lower)) return t('cyd_creator.code.file_exists');
             return '';
         }
 
@@ -570,26 +586,39 @@
         }
 
         // renameFile copies and deletes (the API has no rename) and undoes the first step when the
-        // second fails. A change of letter case only deletes first: the server refuses a second
-        // spelling of an existing name.
+        // second fails. The server refuses a second spelling of an existing name, so a change of
+        // letter case goes through a temporary copy: the server holds the text at every step, even
+        // if the browser goes away meanwhile. The copy is a .h file, which a build running meanwhile
+        // never compiles (no duplicate symbols). It stays, and opens, if neither name can be written.
         async function renameFile(info) {
             const target = await nameDialog('cyd_creator.code.rename', info.path.slice(APP_DIR.length), info.path);
             if (!target || target === info.path) return;
             const id = inst.projectId;
             const wasOpen = state.openPath === info.path;
             let renamed = false;
+            let kept = '';
             if (wasOpen) setSwitching(true);
             try {
                 if (wasOpen && !(await flush())) return;
                 const current = await inst.api.readFile(id, info.path);
                 if (target.toLowerCase() === info.path.toLowerCase()) {
-                    await inst.api.deleteFile(id, info.path, current.sha);
+                    const tmp = APP_DIR + P.util.uid('cyd_rename') + '.h';
+                    const tmpSha = await inst.api.writeFile(id, tmp, current.text, '*');
+                    try {
+                        await inst.api.deleteFile(id, info.path, current.sha);
+                    } catch (err) {
+                        await inst.api.deleteFile(id, tmp, tmpSha).catch(() => {});
+                        throw err;
+                    }
                     try {
                         await inst.api.writeFile(id, target, current.text, '*');
                     } catch (err) {
-                        await inst.api.writeFile(id, info.path, current.text, '*').catch(() => {});
+                        const restored = await inst.api.writeFile(id, info.path, current.text, '*').then(() => true, () => false);
+                        if (restored) await inst.api.deleteFile(id, tmp, tmpSha).catch(() => {});
+                        else kept = tmp;
                         throw err;
                     }
+                    await inst.api.deleteFile(id, tmp, tmpSha).catch(() => {});
                 } else {
                     const sha = await inst.api.writeFile(id, target, current.text, '*');
                     try {
@@ -608,6 +637,7 @@
             }
             await refreshFiles();
             if (renamed && wasOpen && !state.openPath) await openFile(target, 1);
+            else if (kept && !state.openPath) await openFile(kept, 1);
         }
 
         async function deleteFile(info) {
@@ -686,13 +716,11 @@
                 const top = block.top + view.documentTop - box.top;
                 if (top + block.height < 0 || top > box.height) return;
                 const severity = severityOf(d);
-                // Notes stay quiet (muted edge, no fill) instead of looking like an error.
-                const look = severity === 'note' ? { borderLeftColor: 'var(--cc-muted)', background: 'transparent' } : {};
                 markers.appendChild(el('div', {
                     class: 'cc-code-marker is-' + severity,
                     title: (d.line ? d.line + ': ' : '') + String(d.message || ''),
                     dataset: { ccMarker: String(line), severity },
-                    style: Object.assign({ top: top + 'px', height: block.height + 'px' }, look)
+                    style: { top: top + 'px', height: block.height + 'px' }
                 }));
             });
         }

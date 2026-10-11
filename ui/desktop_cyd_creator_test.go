@@ -296,6 +296,11 @@ func TestCYDCreatorCodeModule(t *testing.T) {
 		"return { action: 'overwrite', token: '*' };", "owner: b", "function isEditablePath(rel)",
 		"cm.EditorView.contentAttributes.of({ 'aria-label': t('cyd_creator.code.editor_label') })",
 		`new RegExp('\\bvoid\\s+' + fn + '\\s*\\(')`)
+	// Second fix round: a case-only rename keeps a server copy at every step, a closed document has
+	// nothing left to flush, folder spellings clash like file spellings.
+	checkCYDCreatorModule(t, "cyd-creator-code.js",
+		"const tmp = APP_DIR + P.util.uid('cyd_rename') + '.h';", "else if (kept && !state.openPath) await openFile(kept, 1);",
+		"return state.saver.flush().then(ok => ok || !state.saver);", "folderPrefixes(path).some(")
 }
 
 func TestCYDCreatorAgentModule(t *testing.T) {
