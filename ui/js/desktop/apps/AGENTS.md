@@ -2920,9 +2920,13 @@ registration lives in `internal/desktop/types.go`.
   the Hayes code plus `desktop.terminal_retronet_result_<reason>` (also the
   browser-only `local_hangup` and `lost`), and keys in the first 400 ms after a
   result are ignored. Screen geometry lives in `terminal-geometry.js`
-  (`window.TerminalGeometry`: `MODES`, `create` → `set(mode, options)`/`mode`/`refit`/`dispose`;
-  modes `fit`, `bbs`, `c64`; `options` count for `fit` only; terminal.js switches only through
-  `setGeometry(next, minimum)`).
+  (`window.TerminalGeometry`: `MODES`, `create` → `set(mode)`/`mode`/`refit`/`dispose`;
+  modes `fit`, `vt`, `bbs`, `c64`; terminal.js switches only through `setGeometry(next)`).
+  The directory and the shell use `fit`. Every Retro-Net session gets a pinned classic screen:
+  `bbs` entries 80×25, `c64` entries 40×25, Telnet `world` entries and all SSH entries (catalog
+  and own) the 80×24 VT screen `vt`. The grid is pinned synchronously, so the session URL
+  carries it (the server's first NAWS and SSH PTY size) and no `resize` frame ever follows;
+  `onTermResize` only redraws the directory.
   `bbs` entries use a fixed 80×25 grid with the vendored `Aura VGA` font
   (Px437 IBM VGA 8x16, CC BY-SA 4.0, `ui/fonts/Px437-LICENSE.txt`), `c64`
   entries 40×25 with the vendored `Aura C64` font (C64 Pro Mono by Style,
@@ -2932,9 +2936,11 @@ registration lives in `internal/desktop/types.go`.
   charge, so never link or offer the
   `.woff` as a download); both fonts are credited in `THIRD_PARTY_LIBRARIES.md`.
   Pinned grids set `data-terminal-geometry`, wait for their font (then change
-  the size once so xterm measures the loaded font) before the first fit, centre
-  the grid with letterbox padding and keep no scrollback; `bbs` takes the
-  largest size in 0.5 px steps that fits the glass. `c64` (`pixels: 8`) scales
+  the size once so xterm measures the loaded font) before the first fit and
+  centre the grid with letterbox padding inside the style's own `.xterm`
+  padding (`clamp(16px, 3%, 30px)` for retro styles, the only fixed border);
+  `bbs` and `c64` keep no scrollback. `bbs` takes the largest size in 0.5 px
+  steps, down from the size its em cell allows, that fits the glass. `c64` (`pixels: 8`) scales
   by whole device pixels: font size 8k/DPR for the largest k whose grid fits,
   so a C64 pixel is k device px. The WebGL renderer floors the measured
   advance in device px: a width one px short gets `letterSpacing` 1 (the DOM
@@ -2952,33 +2958,29 @@ registration lives in `internal/desktop/types.go`.
   Known limitation: the browser's greyscale antialiasing (seen in Chrome on
   Windows, also on a plain canvas) softens vertical glyph edges with a faint
   one-px halo on each side; block art stays seamless.
-  `fit` uses the fit addon. `world`/SSH entries fit the window and
-  send `resize`, with a minimum grid: every Retro-Net session on `fit` passes
-  `CLASSIC_GRID` (`set('fit', { minCols: 80, minRows: 24 })`; classic services
-  assume a VT100, and towel.blinkenlights.nl draws 19-row frames that a shorter
-  screen scrolls into stale rows). When the fit addon gets fewer cols or rows at
-  the style's font size, the font shrinks to the largest 0.5 px step below it
-  that keeps 80×24 (`MIN_FONT_SIZE` 6 at the least; a glass too small even then
-  keeps 6 px and whatever fits); the fit addon then fills the glass, so the grid
-  may exceed 80×24. The search probes through `proposeDimensions()` (xterm
-  re-measures synchronously on a font change), so `set()`/`refit()` return with
-  the final grid: the session URL, which the server uses for the first NAWS and
-  the SSH PTY, already carries it and no resize follows. Every font size written
-  re-measures, clears and rebuilds the WebGL atlas, so the search starts at the
-  current size (its probe writes nothing) and writes only where the font must
-  change: a size that fits stays unless the style's size or a larger step is
-  expected to fit (the fit addon's room over the cell xterm drew), so a drag
-  within one size writes nothing; otherwise the expected size is probed, then
-  0.5 px steps towards one that fits. A style change starts at the new style's
-  size. A hidden (zero-size) glass keeps its current font size and grid (no
-  probe, no fit) until it has a size again. Dialing before the style's font has
-  loaded measures the fallback font; the style's refit then corrects the grid
-  with one resize after the session has opened. The minimum stays through the
-  result, like a pinned grid; `set('fit')` without options (directory, shell,
-  policy switch, directory 403) and pinned modes drop it and restore the
-  style's size, which is never changed or saved.
-  The directory and the shell have no minimum: the directory redraws for any
-  grid. Retro sessions set `convertEol=false`, the shell restores `true`.
+  `vt` (classic services assume a VT100; towel.blinkenlights.nl draws 19-row
+  frames that a shorter screen scrolls into stale rows) has no font of its
+  own: it takes the style's font family and line height (loaded at the style's
+  size), keeps the 1000-line scrollback (MUD players read back) with xterm's
+  14 px scrollbar in a strip right of the grid, and its letterbox shows the
+  style's background (xterm's viewport, or the CRT's theme background). Its
+  search starts at the current size (a probe that writes nothing) and moves to
+  the size the measured cells scale to, between the largest size that fit and
+  the smallest that did not; after a fit it tries one step more (whole device
+  px cells keep their size over some 0.5 px steps), so it ends at the largest
+  0.5 px step that fits (`MIN_FONT_SIZE` 6 at the least, clipped below that).
+  It remembers the smallest size that did not fit (`ceiling`): an unchanged
+  glass with unchanged cells measures once and writes no font size (every
+  size written re-measures and rebuilds the WebGL atlas). A resize or style
+  change only changes the font, never 80×24; the style select stays enabled
+  and a new style re-pins with its font. Known limitation: xterm 6.0 resizes
+  its scrollbar only on scroll and resize events, so after a font-only refit
+  the scrollbar keeps its old height until the next scroll.
+  `fit` uses the fit addon at the style's font. A pinned grid stays through
+  the result; `set('fit')` (directory, shell, policy switch, directory 403)
+  restores the style's font, size and line height, which are never changed or
+  saved. The directory redraws for any grid. Retro sessions set
+  `convertEol=false`, the shell restores `true`.
   C64 calls put on the `commodore64` style with `persist=false`
   (never saved; dispose drops it), lock the style select (disabled, `title`
   and an `aria-describedby` screen-reader note with
@@ -3076,8 +3078,10 @@ registration lives in `internal/desktop/types.go`.
   Browser verification is
   `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run 'TestDesktopTerminalRetro(Net(C64)?)?Browser' -count=1 -v`
   (styles/CRT, Retro-Net and the C64 call, each in both motion modes; the
-  Retro-Net run also checks the 80×24 minimum with towel-style frames in a
-  window computed for 18 rows at the style's font; the C64
+  Retro-Net run also checks the 80×24 VT screen: 80×24 in the session URL, a
+  larger font in a large window than in a small one, at least 85 % of the
+  glass covered in the limiting axis, towel-style 19-row frames without stale
+  rows, a style change, no resize frame and the style font after leaving; the C64
   grid also at DPR 1.25 and 1.5, each with a pixel readback of half-block art
   from xterm's WebGL canvas that fails on seams; all use
   `ui/desktop_terminal_harness_test.go`, the Retro-Net fixture is

@@ -26,6 +26,16 @@ func TestDesktopTerminalRetroNetBrowser(t *testing.T) {
 	}
 }
 
+// The VT screen of a Telnet world or SSH session: 80x24 in the style's font at a 0.5 px size, inside the glass and
+// covering at least 85 % of it in the limiting axis (cell size from the drawn grid), centred with xterm's 14px
+// scrollbar strip on the right: only the aspect-ratio letterbox remains.
+const terminalVTFills = `async()=>{await new Promise(r=>setTimeout(r,300));
+	const term=fixtureTerm(),root=fixtureRoot(),g=root.querySelector('.vd-terminal-screen').getBoundingClientRect(),s=term.element.querySelector('.xterm-screen').getBoundingClientRect(),
+		cell=[s.width/term.cols,s.height/term.rows],cover=Math.max(term.cols*cell[0]/g.width,term.rows*cell[1]/g.height),
+		left=s.left-g.left,right=g.right-s.right,top=s.top-g.top,bottom=g.bottom-s.bottom;
+	return root.dataset.terminalGeometry==='vt'&&term.cols===80&&term.rows===24&&Number.isInteger(term.options.fontSize*2)&&cell[0]>0&&cell[1]>0&&
+		s.width<=g.width+0.5&&s.height<=g.height+0.5&&cover>=0.85&&Math.abs(top-bottom)<=2&&Math.abs(right-left-14)<=2;}`
+
 func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion string) {
 	page := browser.MustPage().Timeout(240 * time.Second)
 	defer page.Close()
@@ -124,9 +134,9 @@ func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion
 	wait("a quick second tap dials", `()=>fixtureSockets.length===1`)
 
 	// 4. Dialing: modem transcript, buffering, CONNECT.
-	check("dial opens one Retro-Net socket keyed by entry ID", `()=>{const s=fixtureSocket(),u=new URL(s.url),term=fixtureTerm(),root=fixtureRoot(),btn=root.querySelector('[data-terminal-retronet-action]');
-		return u.pathname==='/api/desktop/retronet/connect'&&u.searchParams.get('entry')==='telehack'&&u.searchParams.get('cols')===String(term.cols)&&
-		u.searchParams.get('rows')===String(term.rows)&&[...u.searchParams.keys()].sort().join(',')==='cols,entry,rows'&&
+	check("dial opens one Retro-Net socket keyed by entry ID, with the 80x24 VT screen", `()=>{const s=fixtureSocket(),u=new URL(s.url),term=fixtureTerm(),root=fixtureRoot(),btn=root.querySelector('[data-terminal-retronet-action]');
+		return u.pathname==='/api/desktop/retronet/connect'&&u.searchParams.get('entry')==='telehack'&&u.searchParams.get('cols')==='80'&&
+		u.searchParams.get('rows')==='24'&&term.cols===80&&term.rows===24&&root.dataset.terminalGeometry==='vt'&&[...u.searchParams.keys()].sort().join(',')==='cols,entry,rows'&&
 		s.binaryType==='arraybuffer'&&root.dataset.terminalMode==='dialing'&&root.dataset.terminalState==='desktop.terminal_dialing'&&
 		fixtureLive().length===1&&localStorage.getItem('aurago.desktop.terminal.retronet.last')==='telehack'&&!btn.hidden&&
 		btn.textContent===t('desktop.terminal_retronet_hangup');}`)
@@ -170,11 +180,15 @@ func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion
 		f.byteLength<=16384)&&frames.reduce((n,f)=>n+f.byteLength,0)===40000&&fixtureSent(fixtureSocket()).slice(8).join('')==='bin:'+'A'.repeat(16384)+'bin:'+'A'.repeat(16384)+'bin:'+'A'.repeat(40000-32768);}`)
 	run(`()=>fixtureControl({type:'echo',remote:false,hidden:false})`)
 
-	// 6. Service data and world resizes.
+	// 6. Service data; a resize refits the VT font and keeps 80x24 (the 960x720 window is limited by its height).
 	run(`()=>fixtureData('\r\nWillkommen in Überwald\r\n')`)
 	wait("service output reaches xterm", `async()=>(await fixtureText()).includes('Willkommen in Überwald')`)
-	run(`async()=>{const w=document.querySelector('.vd-window');w.style.width='820px';}`)
-	wait("a world resize goes out as a JSON frame", `()=>fixtureSent(fixtureSocket()).some(f=>{if(!f.startsWith('txt:'))return false;const m=JSON.parse(f.slice(4));return m.type==='resize'&&m.cols===fixtureTerm().cols&&m.rows===fixtureTerm().rows;})`)
+	wait("the VT screen fills the glass", terminalVTFills)
+	run(`()=>{window.fixtureWorldFont=fixtureTerm().options.fontSize;document.querySelector('.vd-window').style.height='560px';}`)
+	wait("a lower window gets a smaller VT font, still 80x24, and sends no resize", `async()=>{await new Promise(r=>setTimeout(r,200));const term=fixtureTerm();
+		return term.options.fontSize<fixtureWorldFont&&term.cols===80&&term.rows===24&&!fixtureSent(fixtureSocket()).some(f=>f.startsWith('txt:'));}`)
+	run(`()=>{document.querySelector('.vd-window').style.height='720px';}`)
+	wait("the 720px window gets the earlier VT font back", `()=>fixtureTerm().options.fontSize===fixtureWorldFont`)
 
 	// 7. Baud throttle.
 	run(`()=>{const s=fixtureRoot().querySelector('select[data-terminal-baud]');s.value='300';s.dispatchEvent(new Event('change'));fixtureData('\r\n'+'#'.repeat(600)+'\r\nEND-OF-BLOCK\r\n');}`)
@@ -239,20 +253,21 @@ func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion
 	run(`async()=>{delete fixtureTerm().write;await fixtureInput('\x1d');await fixtureDismiss('q');}`)
 	wait("back in the directory after the flood", backInDirectory)
 
-	// 10d. Classic services keep at least 80x24 (towel.blinkenlights.nl draws 19-row frames without erasing, so a
-	// screen of 18 rows or fewer scrolls every frame). The window height is computed from xterm's cell so that
-	// today's fit at the style's font gives 16 or 17 rows (17 minus half a cell of margin).
-	run(`async()=>{const term=fixtureTerm(),w=document.querySelector('.vd-window'),cell=term._core._renderService.dimensions.css.cell.height;
-		window.fixtureWindowSize=[w.style.width,w.style.height];window.fixtureWindowRows=term.rows;window.fixtureStyleSize=TerminalStyles.profile(fixtureRoot().dataset.terminalStyle).fontSize;
-		w.style.height=Math.round(w.getBoundingClientRect().height-(term.rows-17+0.5)*cell)+'px';}`)
-	wait("a small window: today's fit at the style font gives at most 18 rows, where a 19-row frame scrolls", `async()=>{const term=fixtureTerm();await new Promise(r=>requestAnimationFrame(r));
-		return fixtureRoot().dataset.terminalMode==='directory'&&term.options.fontSize===fixtureStyleSize&&term.rows>=12&&term.rows<=18&&(await fixtureText()).includes('Telehack');}`)
+	// 10d. Telnet worlds and SSH run on the 80x24 VT screen (towel.blinkenlights.nl draws 19-row frames for a VT100,
+	// which a shorter screen would scroll into stale rows): the style's font at the largest size whose grid fits, so
+	// a larger window gets larger characters, not more of them. The session opens with 80x24 and never resizes.
+	run(`()=>{const w=document.querySelector('.vd-window'),term=fixtureTerm();window.fixtureWindowBox=[w.style.left,w.style.top,w.style.width,w.style.height];
+		window.fixtureDirectoryGrid=[term.cols,term.rows];window.fixtureStyleSize=TerminalStyles.profile(fixtureRoot().dataset.terminalStyle).fontSize;
+		Object.assign(w.style,{left:'20px',top:'20px',width:'600px',height:'600px'});}`)
+	wait("a small window in the directory keeps the style font", `async()=>{await new Promise(r=>requestAnimationFrame(r));
+		return fixtureRoot().dataset.terminalMode==='directory'&&fixtureTerm().options.fontSize===fixtureStyleSize&&(await fixtureText()).includes('Telehack');}`)
 	run(`async()=>{await fixtureInput('0');await fixtureInput('2');await fixtureInput('\r');}`)
 	wait("the Star Wars session opens", `()=>fixtureSockets.length===5&&fixtureSocket().readyState===1&&new URL(fixtureSocket().url).searchParams.get('entry')==='towel'`)
-	check("the world session shrinks the font to keep at least 80x24 and opens with that grid", `()=>{const term=fixtureTerm(),u=new URL(fixtureSocket().url),cols=Number(u.searchParams.get('cols')),rows=Number(u.searchParams.get('rows'));
-		return term.cols>=80&&term.rows>=24&&term.options.fontSize<fixtureStyleSize&&term.options.fontSize>=6&&Number.isInteger(term.options.fontSize*2)&&
-			cols===term.cols&&rows===term.rows&&!fixtureRoot().hasAttribute('data-terminal-geometry')&&!fixtureSent(fixtureSocket()).some(f=>f.startsWith('txt:'));}`)
-	run(`()=>{fixtureControl({type:'connected',protocol:'telnet',kind:'world',charset:'utf8'});fixtureControl({type:'echo',remote:true,hidden:false});}`)
+	check("the world session opens with the pinned 80x24 VT screen in the style font", `()=>{const term=fixtureTerm(),root=fixtureRoot(),u=new URL(fixtureSocket().url),style=TerminalStyles.profile(root.dataset.terminalStyle);
+		return root.dataset.terminalGeometry==='vt'&&term.cols===80&&term.rows===24&&u.searchParams.get('cols')==='80'&&u.searchParams.get('rows')==='24'&&
+			term.options.scrollback===1000&&term.options.fontFamily===style.fontFamily&&term.options.lineHeight===style.lineHeight;}`)
+	wait("the VT screen fills the small window's glass", terminalVTFills)
+	run(`()=>{window.fixtureSmallFont=fixtureTerm().options.fontSize;fixtureControl({type:'connected',protocol:'telnet',kind:'world',charset:'utf8'});fixtureControl({type:'echo',remote:true,hidden:false});}`)
 	if full {
 		run(`async()=>{await fixtureInput('x');}`)
 	}
@@ -265,21 +280,31 @@ func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion
 	wait("the frames never scroll: no stale text above them", `async()=>{await fixtureFlush();const term=fixtureTerm(),lines=fixtureLines();
 		return term.buffer.active.baseY===fixtureBaseY&&lines.slice(0,7).every(l=>!l.trim())&&lines[7].includes('A LONG TIME AGO')&&
 			lines.filter(l=>l.includes('A LONG TIME AGO')).length===1;}`)
-	// Narrower, so that the session's font would give 70 columns (xterm floors cell widths in device px, so a lower
-	// window alone can keep the same grid at a smaller font and rightly send no resize).
-	run(`async()=>{const term=fixtureTerm(),w=document.querySelector('.vd-window'),cell=term._core._renderService.dimensions.css.cell.width;window.fixtureSessionFont=term.options.fontSize;
-		w.style.width=Math.round(w.getBoundingClientRect().width-(term.cols-70)*cell)+'px';}`)
-	wait("a narrower window shrinks the font again and resizes the session to at least 80x24", `()=>{const term=fixtureTerm(),sizes=fixtureSent(fixtureSocket()).filter(f=>f.startsWith('txt:')).map(f=>JSON.parse(f.slice(4))).filter(m=>m.type==='resize');
-		return term.options.fontSize<fixtureSessionFont&&term.cols>=80&&term.rows>=24&&sizes.length>0&&sizes.every(m=>m.cols>=80&&m.rows>=24)&&
-			sizes.at(-1).cols===term.cols&&sizes.at(-1).rows===term.rows;}`)
-	run(`async()=>{window.fixtureSessionFont=fixtureTerm().options.fontSize;await fixtureInput('\x1d');}`)
-	wait("the result keeps the session's grid", `async()=>{const term=fixtureTerm();return fixtureRoot().dataset.terminalMode==='result'&&(await fixtureText()).includes('NO CARRIER')&&
-		term.options.fontSize===fixtureSessionFont&&term.rows>=24;}`)
+	run(`()=>{const w=document.querySelector('.vd-window');w.style.width='1240px';w.style.height='800px';}`)
+	wait("a large window gets larger characters on the same 80x24 screen", `async()=>{await new Promise(r=>setTimeout(r,300));const term=fixtureTerm();
+		return term.options.fontSize>fixtureSmallFont&&term.cols===80&&term.rows===24;}`)
+	wait("the VT screen fills the large window's glass", terminalVTFills)
+	// A style change re-pins the screen with the new style's font and line height; the select stays enabled.
+	run(`()=>{window.fixtureVTStyle=fixtureRoot().dataset.terminalStyle;window.fixtureLargeFont=fixtureTerm().options.fontSize;fixtureStyle('apple2');}`)
+	wait("the apple2 style re-pins the VT screen in its pixel font", `async()=>{const term=fixtureTerm(),root=fixtureRoot(),apple=TerminalStyles.profile('apple2');
+		return root.dataset.terminalStyle==='apple2'&&term.options.fontFamily===apple.fontFamily&&term.options.lineHeight===apple.lineHeight&&
+			!root.querySelector('select[data-terminal-style]').disabled&&await (`+terminalVTFills+`)();}`)
+	run(`()=>fixtureStyle(fixtureVTStyle)`)
+	wait("the previous style comes back with its font size on the VT screen", `async()=>{const term=fixtureTerm();
+		return fixtureRoot().dataset.terminalStyle===fixtureVTStyle&&term.options.fontFamily===TerminalStyles.profile(fixtureVTStyle).fontFamily&&
+			term.options.fontSize===fixtureLargeFont&&await (`+terminalVTFills+`)();}`)
+	check("the VT screen never sends a resize", `()=>!fixtureSent(fixtureSocket()).some(f=>f.startsWith('txt:'))`)
+	run(`async()=>{await fixtureInput('\x1d');}`)
+	wait("the result keeps the VT screen", `async()=>{const term=fixtureTerm();return fixtureRoot().dataset.terminalMode==='result'&&(await fixtureText()).includes('NO CARRIER')&&
+		fixtureRoot().dataset.terminalGeometry==='vt'&&term.options.fontSize===fixtureLargeFont&&term.cols===80&&term.rows===24;}`)
 	run(`async()=>{await fixtureDismiss('q');}`)
-	wait("the directory restores the style font and today's fit", `async()=>{const term=fixtureTerm();await new Promise(r=>requestAnimationFrame(r));
-		return fixtureRoot().dataset.terminalMode==='directory'&&term.options.fontSize===fixtureStyleSize&&term.rows<=18&&fixtureLive().length===0&&(await fixtureText()).includes('Telehack');}`)
-	run(`()=>{const w=document.querySelector('.vd-window');[w.style.width,w.style.height]=fixtureWindowSize;}`)
-	wait("back at the earlier window size", `async()=>{await new Promise(r=>requestAnimationFrame(r));return fixtureTerm().rows===fixtureWindowRows&&fixtureRoot().dataset.terminalMode==='directory';}`)
+	wait("the directory restores the style font and today's fit", `async()=>{const term=fixtureTerm(),root=fixtureRoot(),style=TerminalStyles.profile(root.dataset.terminalStyle);
+		await new Promise(r=>requestAnimationFrame(r));
+		return root.dataset.terminalMode==='directory'&&!root.hasAttribute('data-terminal-geometry')&&term.options.fontSize===fixtureStyleSize&&
+			term.options.fontFamily===style.fontFamily&&!term.element.style.paddingLeft&&term.cols>80&&fixtureLive().length===0&&(await fixtureText()).includes('Telehack');}`)
+	run(`()=>{const w=document.querySelector('.vd-window');[w.style.left,w.style.top,w.style.width,w.style.height]=fixtureWindowBox;}`)
+	wait("back at the earlier window size", `async()=>{await new Promise(r=>requestAnimationFrame(r));const term=fixtureTerm();
+		return term.cols===fixtureDirectoryGrid[0]&&term.rows===fixtureDirectoryGrid[1]&&fixtureRoot().dataset.terminalMode==='directory';}`)
 
 	// 11. BBS: fixed 80x25 grid with the VGA font.
 	run(`async()=>{await fixtureInput('0');await fixtureInput('3');await fixtureInput('\r');}`)
@@ -325,7 +350,8 @@ func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion
 
 	// 12. SSH first contact for an own entry.
 	run(`async()=>{await fixtureInput('3');await fixtureInput('7');await fixtureInput('\r');}`)
-	wait("an own SSH entry dials by ID", `()=>{const u=new URL(fixtureSocket().url);return u.searchParams.get('entry')==='own-fresh0000001'&&fixtureSocket().readyState===1&&!fixtureRoot().hasAttribute('data-terminal-geometry');}`)
+	wait("an own SSH entry dials by ID on the 80x24 VT screen", `()=>{const u=new URL(fixtureSocket().url);return u.searchParams.get('entry')==='own-fresh0000001'&&fixtureSocket().readyState===1&&
+		fixtureRoot().dataset.terminalGeometry==='vt'&&u.searchParams.get('cols')==='80'&&u.searchParams.get('rows')==='24';}`)
 	run(`()=>fixtureControl({type:'hostkey_prompt',key_type:'ssh-ed25519',fingerprint:'SHA256:'+'C'.repeat(43)})`)
 	wait("first contact shows the fingerprint and a localized question", `async()=>{const flat=await fixtureFlat();return flat.includes(t('desktop.terminal_retronet_hostkey_title'))&&flat.includes('ssh-ed25519')&&
 		flat.includes('SHA256:'+'C'.repeat(43))&&flat.includes('('+t('desktop.terminal_retronet_hostkey_yes')+'/'+t('desktop.terminal_retronet_hostkey_no')+')')&&

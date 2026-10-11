@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 // Runs ui/js/desktop/apps/terminal-geometry.js (after terminal-styles.js) in Node with a fake xterm, glass and
-// animation frames: the three modes of Contract C (fit, bbs 80x25 "Aura VGA", c64 40x25 "Aura C64"), the font
-// load before the first fit, the 0.5 px fit loop and its centring padding, the C64 grid scaled by whole device
-// pixels at several DPRs (with xterm's rounded cell corrected or stepped down) and its 0.5 px fallback, the refit
-// on a DPR change, one fit at a time, the pinned font re-applied at once after a style change, the return to the
-// fit addon with the style's options, dispose, and 'fit' with a minimum grid (80x24 for classic Retro-Net services:
-// the style's font shrunk in 0.5 px steps, at once, MIN_FONT_SIZE at the least, restored on leaving).
+// animation frames: the four modes of Contract C (fit, vt 80x24 in the style's font, bbs 80x25 "Aura VGA", c64
+// 40x25 "Aura C64"), the font load before the first fit, the 0.5 px fit loop and its centring padding, the C64 grid
+// scaled by whole device pixels at several DPRs (with xterm's rounded cell corrected or stepped down) and its 0.5 px
+// fallback, the refit on a DPR change, one fit at a time, the pinned font re-applied at once after a style change,
+// the return to the fit addon with the style's options, dispose, and the VT screen (the largest 0.5 px size of the
+// style's font that fits, from small to large glass at DPR 1, 1.25 and 2, with scrollback and a scrollbar strip,
+// re-pinned with the new style's font after a style change, MIN_FONT_SIZE at the least).
 // Usage: node scripts/test-terminal-geometry.mjs
 import fs from 'node:fs';
 import path from 'node:path';
@@ -93,9 +94,20 @@ function c64Box(term, slack, dom) {
     return { width: Math.round(term.cols * w / dpr), height: Math.round(term.rows * h / dpr) };
 }
 
-// xterm stand-in: the C64 font per c64Box; other fonts measure cols x cell width and rows x line height of the
-// current font size, with `slack` pixels per row, like a font whose measured cell is taller than its em. The
-// module reads offsetWidth/Height; getBoundingClientRect is scaled by `transform` (a window animation).
+// The styles' fonts (the VT screen): xterm's WebGL cell for a 0.6 em advance and a 1.2 em font box, the advance
+// floored and the box ceiled in device px, the line height applied to the box (floored), `slack` device px per row,
+// and the canvas size rounded back to CSS px. Cells do not scale exactly with the font size.
+function styleFontBox(size, lineHeight, cols, rows, slack = 0) {
+    const dpr = window.devicePixelRatio;
+    const w = Math.floor(0.6 * size * dpr);
+    const h = Math.floor(Math.ceil(1.2 * size * dpr) * lineHeight) + slack;
+    return { width: Math.round(cols * w / dpr), height: Math.round(rows * h / dpr) };
+}
+
+// xterm stand-in: the C64 font per c64Box, the VGA font measures cols x cell width and rows x line height of the
+// current font size, with `slack` pixels per row, like a font whose measured cell is taller than its em; other
+// fonts per styleFontBox. The module reads offsetWidth/Height; getBoundingClientRect is scaled by `transform` (a
+// window animation).
 function setup() {
     const attrs = new Map();
     const root = { setAttribute: (name, value) => attrs.set(name, String(value)), removeAttribute: (name) => attrs.delete(name) };
@@ -119,8 +131,8 @@ function setup() {
     const box = () => {
         const family = term.options.fontFamily;
         if (family.startsWith('"Aura C64"')) return c64Box(term, grid.slack, grid.dom);
-        const em = family.startsWith('"Aura VGA"') ? 0.5 : 0.6;
-        return { width: term.cols * em * term.options.fontSize, height: term.rows * (term.options.fontSize * term.options.lineHeight + grid.slack) };
+        if (!family.startsWith('"Aura VGA"')) return styleFontBox(term.options.fontSize, term.options.lineHeight, term.cols, term.rows, grid.slack);
+        return { width: term.cols * 0.5 * term.options.fontSize, height: term.rows * (term.options.fontSize * term.options.lineHeight + grid.slack) };
     };
     Object.defineProperty(grid, 'offsetWidth', { get: () => Math.round(box().width) });
     Object.defineProperty(grid, 'offsetHeight', { get: () => Math.round(box().height) });
@@ -154,8 +166,9 @@ function setup() {
 const padding = (style) => [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft];
 
 // 1. The mode table.
-same('modes', Object.keys(Geometry.MODES), ['fit', 'bbs', 'c64']);
+same('modes', Object.keys(Geometry.MODES), ['fit', 'vt', 'bbs', 'c64']);
 same('fit has no pinned grid', Geometry.MODES.fit, null);
+same('vt is 80x24 with scrollback and no font or em cell of its own', [Geometry.MODES.vt.cols, Geometry.MODES.vt.rows, Geometry.MODES.vt.scrollback, Geometry.MODES.vt.font, Geometry.MODES.vt.cell], [80, 24, 1000, undefined, undefined]);
 same('bbs is 80x25 in the VGA font', [Geometry.MODES.bbs.cols, Geometry.MODES.bbs.rows, Geometry.MODES.bbs.font.split(',')[0]], [80, 25, '"Aura VGA"']);
 same('c64 is 40x25 in the C64 font', [Geometry.MODES.c64.cols, Geometry.MODES.c64.rows, Geometry.MODES.c64.font.split(',')[0]], [40, 25, '"Aura C64"']);
 same('the module exposes only its contract', Object.keys(Geometry), ['MODES', 'create']);
@@ -383,117 +396,120 @@ const whole = (fit, dpr, cell) => Math.abs(fit.size * dpr - cell) < 1e-9 && cell
     same('a zero-sized glass gets no padding', hidden.term.element.style.padding, '');
 }
 
-// 8. 'fit' with a minimum grid (classic Retro-Net services, 80x24): the style's font size when the fit addon gets
-// at least 80x24 from it, else the largest 0.5 px step below it that does, MIN_FONT_SIZE at the least; at once,
-// so a session opens with the final grid, and starting at the current size so that a font size is written only
-// where the font must change. The fake fit addon measures amber (17 px, line height 1.15, 0.6 em cells) in the
-// glass minus 40px padding and the 14px scrollbar.
-const CLASSIC = { minCols: 80, minRows: 24 };
-const fitsAt = (size, setupState) => {
-    const { term, fitAddon } = setupState;
-    const kept = term.options.fontSize;
-    term.options.fontSize = size;
-    const dims = fitAddon.proposeDimensions();
-    term.options.fontSize = kept;
-    return dims.cols >= 80 && dims.rows >= 24;
-};
-function inFitWindow(width, height) {
+// 8. vt: the 80x24 VT screen of classic Retro-Net services in the style's font and line height (amber: "Aura
+// Terminal" at 17 px, 1.15), with scrollback and a 14px scrollbar strip beside the grid, at the largest 0.5 px size
+// whose grid fits (cells per styleFontBox), MIN_FONT_SIZE at the least. The largest size is found by trying every
+// step against the fake's cells: the glass minus the style's 40px padding and the scrollbar.
+function largestVt(width, height, lineHeight) {
+    let best = 6;
+    for (let size = 6; size <= 80; size += 0.5) {
+        const box = styleFontBox(size, lineHeight, 80, 24);
+        if (box.width <= width - 40 - 14 + 0.5 && box.height <= height - 40 + 0.5) best = size;
+    }
+    return best;
+}
+async function vtFit(dpr, width, height) {
+    window.devicePixelRatio = dpr;
     const state = setup();
     state.screen.clientWidth = width;
     state.screen.clientHeight = height;
     Styles.applyXterm(state.term, Styles.profile('amber'));
-    state.fitAddon.fit();
+    state.geometry.set('vt');
+    await settle();
     return state;
 }
 {
-    const state = inFitWindow(760, 420);
-    const { geometry, term, fitAddon, attrs, events } = state;
-    same('a small window: today\'s fit at 17 px gives 69x19', [term.options.fontSize, term.cols, term.rows], [17, 69, 19]);
-    const before = events.fitted;
-    const proposals = fitAddon.proposals;
-    term.sizes.length = 0;
-    geometry.set('fit', CLASSIC);
-    same('the minimum grid shrinks the font to 13.5 px at once (no frame): 87x24', [term.options.fontSize, term.cols, term.rows], [13.5, 87, 24]);
-    same('one font write: the current 17 px is probed as it is, then the expected 13.5 px, then the fit', [fitAddon.proposals - proposals, term.sizes], [3, [13.5]]);
-    check('13.5 px is the largest 0.5 px step that keeps 80x24', fitsAt(13.5, state) && !fitsAt(14, state));
-    same('fit mode stays fit, no pinned attribute, scrollback kept', [geometry.mode(), attrs.has('data-terminal-geometry'), term.options.scrollback], ['fit', false, 1000]);
-    same('the changed size is reported', events.fitted, before + 1);
-    await settle();
-    same('nothing follows on a later frame', [term.options.fontSize, term.cols, term.rows], [13.5, 87, 24]);
-    // Drag-resizing: each ResizeObserver tick refits; a font size is written only where the font must change.
-    const tick = (width, height) => {
-        state.screen.clientWidth = width;
-        state.screen.clientHeight = height;
-        term.sizes.length = 0;
-        const calls = fitAddon.calls;
-        geometry.refit();
-        return [term.sizes.slice(), term.options.fontSize, term.cols, term.rows, fitAddon.calls - calls];
-    };
-    same('a refit in the same glass writes no font size', tick(760, 420), [[], 13.5, 87, 24, 1]);
-    same('5px taller: 13.5 px still fits and 14 px is not expected to, so nothing is written', tick(760, 425), [[], 13.5, 87, 24, 1]);
-    same('10px taller: 14 px is expected to fit and does, one write', tick(760, 430), [[14], 14, 84, 24, 1]);
-    same('back to 420px: one write down to 13.5 px', tick(760, 420), [[13.5], 13.5, 87, 24, 1]);
-    same('a hidden (zero-size) glass keeps the size and grid: no write, no fit', tick(0, 420), [[], 13.5, 87, 24, 0]);
-    same('shown again at its size: nothing to write', tick(760, 420), [[], 13.5, 87, 24, 1]);
-    same('a large glass gets the style\'s 17 px back with more rows, one write', tick(1400, 900), [[17], 17, 131, 43, 1]);
-    same('a large glass that keeps the style\'s size writes nothing', tick(1400, 880), [[], 17, 131, 42, 1]);
-    same('shrinking the window shrinks the font again, one write', tick(760, 420), [[13.5], 13.5, 87, 24, 1]);
-    state.style.id = 'modern';
-    Styles.applyXterm(term, Styles.profile('modern'));
-    geometry.refit();
-    same('a style change re-evaluates: modern (13 px, line height 1.2) keeps its size at 90x24', [term.options.fontSize, term.cols, term.rows], [13, 90, 24]);
-    state.style.id = 'amber';
-    Styles.applyXterm(term, Styles.profile('amber'));
-    geometry.refit();
-    same('back to amber shrinks to 13.5 px again', term.options.fontSize, 13.5);
+    fontLoads.length = 0;
+    const { geometry, term, attrs, grid, events, screen } = await vtFit(1, 1000, 600);
+    const amber = Styles.profile('amber');
+    same('vt marks the root', attrs.get('data-terminal-geometry'), 'vt');
+    same('vt pins 80x24 in the style font and line height, with scrollback and the opaque atlas',
+        [term.resizes, term.options.fontFamily, term.options.lineHeight, term.options.scrollback, term.options.allowTransparency],
+        [['80x24'], amber.fontFamily, 1.15, 1000, false]);
+    same('the style font is loaded at its size before the first fit', fontLoads, ['17px "Aura Terminal"']);
+    same('960x560 at DPR 1: 16.5 px, the largest step whose 720x552 grid fits beside the scrollbar', [term.options.fontSize, largestVt(1000, 600, 1.15)], [16.5, 16.5]);
+    same('grid and scrollbar strip are centred; the letterbox shows the style background', [padding(term.element.style), grid.style.background], [['24px', '133px', '24px', '133px'], amber.theme.background]);
+    check('a changed fit is reported', events.fitted >= 1, String(events.fitted));
     const fitted = events.fitted;
-    geometry.set('fit');
-    same('leaving (directory, shell) restores the style font and today\'s fit', [term.options.fontSize, term.cols, term.rows, events.fitted], [17, 69, 19, fitted + 1]);
+    term.sizes.length = 0;
     geometry.refit();
-    same('without a minimum a refit keeps the style font', [term.options.fontSize, term.rows], [17, 19]);
-}
-{
-    const { geometry, term } = inFitWindow(1400, 900);
-    geometry.set('fit', CLASSIC);
-    same('a large window keeps the style font and gets more than 80x24', [term.options.fontSize, term.cols, term.rows], [17, 131, 43]);
-    geometry.set('fit');
-    same('leaving a minimum that never shrank changes nothing', [term.options.fontSize, term.cols, term.rows], [17, 131, 43]);
-}
-{
-    const { geometry, term } = inFitWindow(300, 200);
-    geometry.set('fit', CLASSIC);
-    same('a tiny window clamps at MIN_FONT_SIZE (6 px) with whatever fits', [term.options.fontSize, term.cols, term.rows], [6, 68, 23]);
-    geometry.set('fit');
-    same('leaving restores the style font', term.options.fontSize, 17);
-}
-{
-    // Cells 8 px shorter per row than the font scales (not proportional): the first guess is too small, so the
-    // search steps up to the largest size that still fits.
-    const state = inFitWindow(1000, 240);
-    state.grid.slack = -8;
-    state.geometry.set('fit', CLASSIC);
-    same('a low first guess steps up to the largest size that fits (14 px, not 12.5)', state.term.options.fontSize, 14);
-    check('14 px keeps 80x24 and 14.5 px does not', fitsAt(14, state) && !fitsAt(14.5, state));
-}
-{
-    const { geometry, term, attrs, screen } = inFitWindow(760, 420);
-    geometry.set('fit', CLASSIC);
-    geometry.set('bbs');
-    same('a pinned mode drops the minimum', [attrs.get('data-terminal-geometry'), term.cols, term.rows], ['bbs', 80, 25]);
     await settle();
-    geometry.set('fit', CLASSIC);
-    same('leaving a pinned mode for fit with a minimum applies it', [attrs.has('data-terminal-geometry'), term.options.fontSize, term.cols, term.rows], [false, 13.5, 87, 24]);
-    geometry.set('fit', {});
-    same('empty options are no minimum: the style font returns', term.options.fontSize, 17);
-    screen.clientWidth = 0;
-    geometry.set('fit', CLASSIC);
-    same('entering the minimum with a hidden glass keeps the current (style) font', term.options.fontSize, 17);
-    screen.clientWidth = 760;
-    geometry.set('fit', CLASSIC);
-    geometry.dispose();
+    same('an unchanged refit writes no other size and reports nothing', [term.options.fontSize, term.sizes.every((n) => n === 16.5), events.fitted], [16.5, true, fitted]);
+    // A resize refits the font from the current size; the grid stays 80x24.
+    const resize = async (width, height) => {
+        term.sizes.length = 0;
+        screen.clientWidth = width;
+        screen.clientHeight = height;
+        geometry.refit();
+        await settle();
+        return [term.options.fontSize, term.cols, term.rows, term.resizes.length];
+    };
+    same('a larger window gets a larger font, still 80x24', await resize(1700, 1000), [largestVt(1700, 1000, 1.15), 80, 24, 1]);
+    check('the larger font is larger', term.options.fontSize > 16.5, String(term.options.fontSize));
+    // Font changes: the expected size, then steps up while they fit, one that does not, and back.
+    check('a resize settles in a few font changes', term.sizes.filter((n, i, all) => n !== (i ? all[i - 1] : 16.5)).length <= 4, JSON.stringify(term.sizes));
+    same('a smaller window gets a smaller font, still 80x24', await resize(700, 420), [largestVt(700, 420, 1.15), 80, 24, 1]);
+}
+
+// 8b. The largest size for small, medium and large glass at DPR 1, 1.25 and 2 (cells that do not scale exactly).
+for (const dpr of [1, 1.25, 2]) {
+    for (const [name, width, height] of [['small', 560, 340], ['medium', 1000, 600], ['large', 1740, 1060]]) {
+        const { term, geometry } = await vtFit(dpr, width, height);
+        const want = largestVt(width, height, 1.15);
+        same(name + ' glass ' + width + 'x' + height + ' at DPR ' + dpr + ': the largest step that fits (' + want + ' px), 80x24',
+            [term.options.fontSize, term.cols, term.rows], [want, 80, 24]);
+        geometry.dispose();
+    }
+}
+window.devicePixelRatio = 1;
+
+// 8c. A style change during a vt session re-pins with the new style's font and line height (terminal.js applies
+// the style's options, then refits); a tiny window keeps MIN_FONT_SIZE; leaving restores the style font and fit.
+{
+    const { geometry, term, style, fitAddon, attrs, grid, screen } = await vtFit(1, 1000, 600);
+    style.id = 'apple2';
+    const apple2 = Styles.profile('apple2');
+    Styles.applyXterm(term, apple2);
     geometry.refit();
+    same('the new style font and line height at once, the grid kept', [term.options.fontFamily, term.options.lineHeight, term.cols, term.rows, term.resizes], [apple2.fontFamily, 1.35, 80, 24, ['80x24']]);
+    await settle();
+    same('then the largest size of the new font that fits', term.options.fontSize, largestVt(1000, 600, 1.35));
+    same('the letterbox follows the new style background', grid.style.background, apple2.theme.background);
+    screen.clientWidth = 200;
+    screen.clientHeight = 150;
+    geometry.refit();
+    await settle();
+    same('a glass too small even at MIN_FONT_SIZE keeps 6 px and 80x24 (clipped)', [term.options.fontSize, term.cols, term.rows], [6, 80, 24]);
+    screen.clientWidth = 1000;
+    screen.clientHeight = 600;
+    const calls = fitAddon.calls;
     geometry.set('fit');
-    same('after dispose nothing changes the font', term.options.fontSize, 13.5);
+    same('leaving restores the style font, size and line height, scrollback and the fit addon',
+        [attrs.has('data-terminal-geometry'), term.options.fontFamily, term.options.fontSize, term.options.lineHeight, term.options.scrollback, fitAddon.calls - calls, term.element.style.padding],
+        [false, apple2.fontFamily, apple2.fontSize, 1.35, 1000, 1, '']);
+}
+
+// 8d. vt after other grids: bbs drops the scrollback and vt brings it back; a C64 size off the 0.5 px steps
+// (19.2 px at DPR 1.25) is not kept: vt lands on a 0.5 px step again.
+{
+    window.devicePixelRatio = 1.25;
+    const { geometry, term } = setup();
+    geometry.set('c64');
+    await settle();
+    same('the C64 grid at DPR 1.25 fits 19.2 px', term.options.fontSize, 19.2);
+    geometry.set('vt');
+    same('vt drops the C64 letter spacing and atlas at once', [term.options.letterSpacing, term.options.allowTransparency, term.options.scrollback], [0, false, 1000]);
+    await settle();
+    check('vt lands on a 0.5 px step', Number.isInteger(term.options.fontSize * 2), String(term.options.fontSize));
+    same('and on the largest that fits', term.options.fontSize, largestVt(1000, 600, Styles.profile('amber').lineHeight));
+    geometry.set('bbs');
+    same('bbs keeps no scrollback', [term.options.scrollback, term.cols, term.rows], [0, 80, 25]);
+    await settle();
+    geometry.set('vt');
+    same('vt brings it back with 80x24', [term.options.scrollback, term.cols, term.rows], [1000, 80, 24]);
+    await settle();
+    geometry.dispose();
+    window.devicePixelRatio = 1;
 }
 
 if (failures) {

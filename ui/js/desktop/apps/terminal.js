@@ -15,9 +15,6 @@
     // After CONNECT of a C64 call the Telnet notice and the key hint stay readable this long: board output waits
     // (queued) until then, a key (also a colour key) or a full queue.
     const C64_HINT_HOLD_MS = 2000;
-    // Classic services on the fit geometry (Telnet world, SSH) assume a VT100: a small window shrinks the font to
-    // keep at least 80x24 (towel.blinkenlights.nl draws 19-row frames that a shorter screen scrolls into a smear).
-    const CLASSIC_GRID = { minCols: 80, minRows: 24 };
     // Normal screen buffer, then DECSTR (attributes, cursor, scroll region, wrap, insert, focus and paste
     // reporting) and mouse reporting off: after a session only real keys reach the result prompt.
     const PLAIN_SCREEN = '\x1b[?1047l\x1b[!p\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l';
@@ -534,9 +531,11 @@
             resetScreen();
             term.options.convertEol = false;
             const c64 = entry.kind === 'c64';
-            const pinned = c64 ? 'c64' : entry.protocol === 'telnet' && entry.kind === 'bbs' ? 'bbs' : 'fit';
-            // Synchronous for 'fit': the session below opens with the final grid, the server's first NAWS/PTY size.
-            setGeometry(pinned, pinned === 'fit' ? CLASSIC_GRID : null);
+            // Every service gets a fixed classic screen: BBS 80x25, C64 40x25, Telnet worlds and SSH an 80x24 VT
+            // screen (towel.blinkenlights.nl draws 19-row frames for a VT100). The grid is pinned at once, so the
+            // session opens with it (the server's first NAWS / SSH PTY size) and never resizes.
+            const pinned = c64 ? 'c64' : entry.protocol === 'telnet' && entry.kind === 'bbs' ? 'bbs' : 'vt';
+            setGeometry(pinned);
             const grid = window.TerminalGeometry.MODES[pinned];
             setMode('dialing');
             setStatus('desktop.terminal_dialing');
@@ -561,8 +560,8 @@
             run.session = window.TerminalRetroNetSession.open({
                 term: term,
                 entry: entry,
-                cols: grid ? grid.cols : term.cols,
-                rows: grid ? grid.rows : term.rows,
+                cols: grid.cols,
+                rows: grid.rows,
                 t: ctx.t,
                 onControl: function (control) { onRetroControl(run, control); },
                 onData: function (bytes) { onRetroData(run, bytes); },
@@ -806,12 +805,9 @@
             if (audio && retro && retro.c64 && mode === 'retro') audio.beep();
         }
 
-        function onTermResize(size) {
-            if (mode === 'directory' && directory) {
-                directory.render();
-                return;
-            }
-            if (retro && retro.session && (!geometry || geometry.mode() === 'fit')) retro.session.resize(size.cols, size.rows);
+        // Only the directory follows the grid: Retro-Net sessions run on pinned grids and never resize.
+        function onTermResize() {
+            if (mode === 'directory' && directory) directory.render();
         }
 
         // Explicit readonly true, enabled false or retronet_enabled false switch Retro-Net off; retronet_enabled
@@ -873,11 +869,10 @@
             applyStyle(look.style, false);
         }
 
-        // 'fit' | 'bbs' | 'c64' for the next screen; the C64 look belongs to 'c64' only. `minimum` (CLASSIC_GRID)
-        // only for Retro-Net sessions on 'fit'; the directory and the shell pass none, restoring the style's size.
-        function setGeometry(next, minimum) {
+        // 'fit' | 'vt' | 'bbs' | 'c64' for the next screen; the C64 look belongs to 'c64' only.
+        function setGeometry(next) {
             if (next !== 'c64') leaveC64Look();
-            if (geometry) geometry.set(next, minimum);
+            if (geometry) geometry.set(next);
             if (next === 'c64') enterC64Look();
         }
 

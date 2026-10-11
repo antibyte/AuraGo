@@ -353,16 +353,18 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		"if (remote && run.connected && !run.live && !run.hostKey) {",
 		// Dispose removes own-entry dialogs without close(), which would reopen a dialog with a pending save.
 		"root.querySelectorAll('dialog[data-terminal-retronet-dialog]').forEach(function (dialog) { dialog.remove(); })",
-		// Screen geometry lives in terminal-geometry.js (Contract C): fit, 80x25 BBS, 40x25 C64.
+		// Screen geometry lives in terminal-geometry.js (Contract C): fit, the 80x24 VT screen, 80x25 BBS, 40x25 C64.
 		"window.TerminalGeometry.create({",
 		"getProfile: currentProfile,",
-		"if (geometry) geometry.set(next, minimum);",
-		// Classic services on 'fit' (Telnet world, SSH) keep at least 80x24; the session opens with that grid.
-		"const CLASSIC_GRID = { minCols: 80, minRows: 24 };",
-		"setGeometry(pinned, pinned === 'fit' ? CLASSIC_GRID : null);",
+		"if (geometry) geometry.set(next);",
+		// Every Retro-Net session runs on a pinned grid (Telnet worlds and SSH on 'vt') and opens with it.
+		"const pinned = c64 ? 'c64' : entry.protocol === 'telnet' && entry.kind === 'bbs' ? 'bbs' : 'vt';",
+		"setGeometry(pinned);",
 		"const c64 = entry.kind === 'c64';",
-		"cols: grid ? grid.cols : term.cols,",
-		"if (retro && retro.session && (!geometry || geometry.mode() === 'fit')) retro.session.resize(size.cols, size.rows);",
+		"cols: grid.cols,",
+		"rows: grid.rows,",
+		// Only the directory follows the grid; sessions never resize.
+		"if (mode === 'directory' && directory) directory.render();",
 		// C64 sessions: the commodore64 style without saving it, a locked style select, cursor, screen and border.
 		"const next = persist === false ? styles.normalize(id) : styles.save(id);",
 		"applyStyle('commodore64', false);",
@@ -411,7 +413,8 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		}
 	}
 	for _, forbidden := range []string{"function printable", "function cellWidth", "function fitToCells", "key === 'y'", "dialog.close(); dialog.remove()", "ctx.t(key, params)",
-		"bbsMode", "fitBbsFont", "VGA_FONT", "function wrapHints", "styles.save('commodore64')", "forEach(writeDim)", "function wrapWords", "function sentences"} {
+		"bbsMode", "fitBbsFont", "VGA_FONT", "function wrapHints", "styles.save('commodore64')", "forEach(writeDim)", "function wrapWords", "function sentences",
+		"CLASSIC_GRID", "retro.session.resize("} {
 		if strings.Contains(source, forbidden) {
 			t.Fatalf("terminal.js must use the shared TerminalText/session helpers; found %q", forbidden)
 		}
@@ -448,8 +451,8 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 	}
 }
 
-// Screen geometry (Contract C): fit (optionally with a minimum grid), 80x25 BBS with the VGA font, 40x25 C64 with
-// the C64 font; one fit at a time.
+// Screen geometry (Contract C): fit, the 80x24 VT screen in the style's font, 80x25 BBS with the VGA font, 40x25
+// C64 with the C64 font; one fit at a time.
 // Behaviour is covered by scripts/test-terminal-geometry.mjs.
 func TestDesktopTerminalGeometryContract(t *testing.T) {
 	t.Parallel()
@@ -458,6 +461,7 @@ func TestDesktopTerminalGeometryContract(t *testing.T) {
 	for _, want := range []string{
 		"window.TerminalGeometry = { MODES: MODES, create: create }",
 		"fit: null,",
+		"vt: { cols: 80, rows: 24, scrollback: FIT_SCROLLBACK },",
 		`bbs: { cols: 80, rows: 25, font: '"Aura VGA", "Aura Terminal", ui-monospace, monospace', load: '16px "Aura VGA"', cell: [0.5, 1] }`,
 		`c64: { cols: 40, rows: 25, font: '"Aura C64", "Aura Terminal", ui-monospace, monospace', load: '16px "Aura C64"', cell: [1, 1], pixels: 8 }`,
 		// C64: whole device pixels (font size pixels * k / dpr) from xterm's alpha glyph atlas, refit on a DPR change.
@@ -465,8 +469,11 @@ func TestDesktopTerminalGeometryContract(t *testing.T) {
 		"term.options.allowTransparency = !!spec.pixels;",
 		"term.options.allowTransparency = false;",
 		"window.matchMedia('(resolution: ' + (window.devicePixelRatio || 1) + 'dppx)')",
-		// Line height stays 1 (a nudge moves glyphs); sizes ignore the CSS transforms of window animations.
-		"term.options.lineHeight = 1;",
+		// Pixel grids keep line height 1 (a nudge moves glyphs), 'vt' the style's font and line height; sizes ignore
+		// the CSS transforms of window animations.
+		"if (spec.font) return { family: spec.font, lineHeight: 1, load: spec.load };",
+		"return { family: family, lineHeight: profile.lineHeight || 1, load: (profile.fontSize || 16) + 'px ' + first };",
+		"term.options.lineHeight = look.lineHeight;",
 		"return { width: screenEl.offsetWidth, height: screenEl.offsetHeight };",
 		"set: set,",
 		"mode: function () { return current; },",
@@ -475,36 +482,35 @@ func TestDesktopTerminalGeometryContract(t *testing.T) {
 		"root.setAttribute('data-terminal-geometry', mode);",
 		"root.removeAttribute('data-terminal-geometry');",
 		"term.resize(spec.cols, spec.rows);",
-		"document.fonts.load(spec.load)",
-		"term.options.scrollback = 0;",
+		"document.fonts.load(face(spec).load)",
+		// 'vt' keeps the scrollback and leaves xterm's scrollbar a strip beside the grid; bbs and c64 keep none.
+		"term.options.scrollback = spec.scrollback || 0;",
 		"term.options.scrollback = FIT_SCROLLBACK;",
+		"const bar = spec.scrollback ? (term.options.overviewRuler && term.options.overviewRuler.width) || 14 : 0;",
 		"const FIT_SCROLLBACK = 1000;",
 		"window.TerminalStyles.applyXterm(term, getProfile());",
-		"Math.floor(ems * 2) / 2",
+		"const step = function (value) { return Math.max(MIN_FONT_SIZE, Math.floor(value * 2) / 2); };",
 		// One fit at a time: a request during a fit reruns it once afterwards.
 		"if (fitting) {",
 		"again = true;",
 		"if (disposed || mine !== revision) return;",
 		"screenEl.style.background = (term.options.theme && term.options.theme.background) || '';",
-		// 'fit' with a minimum grid: the style's size or the largest 0.5 px step below it whose fit keeps the
-		// minimum, synchronously, MIN_FONT_SIZE at the least; 'fit' without one restores the style's size.
-		"function set(mode, options) {",
-		"minimum = next === 'fit' ? gridMinimum(options) : null;",
-		"const sizeAt = function (step) { return Math.max(MIN_FONT_SIZE, base - step / 2); };",
-		"dims = fit.proposeDimensions();",
-		"else if (restore) term.options.fontSize = styleSize();",
-		// The search starts at the current size and writes a font size only when it changes; a zero-size glass
-		// (hidden window) keeps the minimum's size and grid.
-		"if (term.options.fontSize !== sizeAt(step)) term.options.fontSize = sizeAt(step);",
-		"if (!fit || (minimum && !hasGlass())) return;",
+		// The 0.5 px search: down from the em cell's size; 'vt' from the current size to the size its measured cells
+		// scale to, bracketed, one step tried beyond, and an unchanged glass remembered in `ceiling`.
+		"let size = step(scales ? term.options.fontSize : ems);",
+		"const expected = scales ? step(size * Math.min(width / box.width, room.height / box.height)) : size;",
+		"const next = !scales ? size : Math.min(expected > size ? expected : size + 0.5, bad - 0.5);",
+		"if (scales && !attempt && known) bad = ceiling.bad;",
+		"function set(mode) {",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("terminal-geometry.js missing %q", want)
 		}
 	}
-	for _, forbidden := range []string{"new WebSocket", "innerHTML", "localStorage", "ctx.t(", "TerminalRetroNet", "getBoundingClientRect", "lineHeight = withSize"} {
+	for _, forbidden := range []string{"new WebSocket", "innerHTML", "localStorage", "ctx.t(", "TerminalRetroNet", "getBoundingClientRect", "lineHeight = withSize",
+		"minCols", "shrinkToMinimum", "proposeDimensions"} {
 		if strings.Contains(source, forbidden) {
-			t.Fatalf("terminal-geometry.js only sizes the grid, by offset sizes and with line height 1; found %q", forbidden)
+			t.Fatalf("terminal-geometry.js only sizes the grid, by offset sizes, with pinned grids only; found %q", forbidden)
 		}
 	}
 	// A lost WebGL context switches xterm to the DOM renderer, whose cells differ: the pinned grid fits again.

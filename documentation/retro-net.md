@@ -70,23 +70,30 @@ does.
 
 ## Display modes
 
+Every service runs on a fixed classic screen that fills the window: the
+characters get the largest size at which the whole screen fits, so a larger
+window shows larger characters, not more of them. Only a small border remains,
+plus bars at the sides or at the top and bottom where the window's shape differs
+from the screen's. The directory and the local shell follow the window as before.
+
 - **Mailboxes** (type Mailbox, including the door-game boards under Games) use
-  a fixed 80×25 grid with the IBM VGA font, scaled to the window, like a DOS
-  or Amiga terminal. Catalog mailboxes use CP437 or Latin-1; own Mailbox
-  entries can choose UTF-8, CP437 or Latin-1.
-- **Text worlds** (MUDs, Telehack, MapSCII and the other classics) and SSH
-  entries follow the window size and report every resize to the service.
-  These classic services get a screen of at least 80×24 where the window
-  allows, as on a VT100 terminal: when the window is too small for that, the
-  font gets smaller (down to 6 px) instead of the screen, and the font size of
-  your style comes back once you return to the directory or the shell. While a
+  a fixed 80×25 screen with the IBM VGA font, like a DOS or Amiga terminal.
+  Catalog mailboxes use CP437 or Latin-1; own Mailbox entries can choose UTF-8,
+  CP437 or Latin-1.
+- **Text worlds** (MUDs, Telehack, MapSCII, the Star Wars animation and the
+  other classics) and SSH entries, your own included, use an 80×24 screen like
+  a VT100 terminal, in your terminal style's font. The service learns 80×24 when
+  the call starts and the size never changes: resizing the window or picking
+  another style only changes the size of the characters. You can scroll back
+  through the last 1000 lines. Your style's font size comes back once you
+  return to the directory or the shell. While a
   Telnet text world does not echo, you type a whole line locally
   (Backspace edits, Up/Down recall the last 50 lines) and Enter sends it. At a
   password prompt the MUD takes over echo: you still type a whole line, but
   nothing is shown and the line is not kept in the history. When a service
   switches to character mode, and always over SSH, every key is sent at once.
-- **Commodore 64 boards** use a fixed 40×25 C64 screen; see
-  [Commodore 64 boards](#commodore-64-boards).
+- **Commodore 64 boards** use a fixed 40×25 C64 screen scaled by whole pixels;
+  see [Commodore 64 boards](#commodore-64-boards).
 
 ## Commodore 64 boards
 

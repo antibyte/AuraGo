@@ -1,18 +1,21 @@
 (function () {
     'use strict';
 
-    // Pinned grids (Contract C). `cell` is the font's cell in em, width and height (Px437 8x16: half an em wide
-    // and one em high; C64 Pro Mono: one em square), so both 80x25 and 40x25 need 40em x 25em. `load` is the
-    // font face the first fit waits for; `pixels` (C64 Pro Mono: 8 per em) scales the grid by whole device pixels.
-    const MODES = {
-        fit: null,
-        bbs: { cols: 80, rows: 25, font: '"Aura VGA", "Aura Terminal", ui-monospace, monospace', load: '16px "Aura VGA"', cell: [0.5, 1] },
-        c64: { cols: 40, rows: 25, font: '"Aura C64", "Aura Terminal", ui-monospace, monospace', load: '16px "Aura C64"', cell: [1, 1], pixels: 8 }
-    };
     const MIN_FONT_SIZE = 6;
     const FIT_ATTEMPTS = 12;
     const FIT_SCROLLBACK = 1000;
     const SIDES = ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'];
+    // Pinned grids (Contract C). `cell` is the font's cell in em, width and height (Px437 8x16: half an em wide
+    // and one em high; C64 Pro Mono: one em square), so both 80x25 and 40x25 need 40em x 25em. `load` is the
+    // font face the first fit waits for; `pixels` (C64 Pro Mono: 8 per em) scales the grid by whole device pixels.
+    // 'vt' (the 80x24 screen of classic services) has no font of its own: it takes the style's font and line
+    // height, keeps the scrollback and measures its cell.
+    const MODES = {
+        fit: null,
+        vt: { cols: 80, rows: 24, scrollback: FIT_SCROLLBACK },
+        bbs: { cols: 80, rows: 25, font: '"Aura VGA", "Aura Terminal", ui-monospace, monospace', load: '16px "Aura VGA"', cell: [0.5, 1] },
+        c64: { cols: 40, rows: 25, font: '"Aura C64", "Aura Terminal", ui-monospace, monospace', load: '16px "Aura C64"', cell: [1, 1], pixels: 8 }
+    };
 
     function pinned(mode) {
         return Object.prototype.hasOwnProperty.call(MODES, mode) && MODES[mode] ? mode : 'fit';
@@ -28,17 +31,9 @@
         return Math.round(value * 100) / 100 + 'px';
     }
 
-    // A minimum grid for 'fit' from { minCols, minRows } (a missing one is 1), or null.
-    function gridMinimum(options) {
-        if (!options) return null;
-        const cols = Math.floor(Number(options.minCols)) || 0;
-        const rows = Math.floor(Number(options.minRows)) || 0;
-        return cols > 0 || rows > 0 ? { cols: Math.max(1, cols), rows: Math.max(1, rows) } : null;
-    }
-
-    // One geometry per Terminal window: 'fit' follows the window through the fit addon, optionally keeping a
-    // minimum grid by shrinking the style's font; 'bbs' and 'c64' pin the grid, load the font, size it to the glass
-    // (c64 by whole device pixels, otherwise in 0.5 px steps) and centre it with inline padding (letterbox).
+    // One geometry per Terminal window: 'fit' follows the window through the fit addon; 'vt', 'bbs' and 'c64' pin
+    // the grid, load the font, size it to the glass (c64 by whole device pixels, otherwise in 0.5 px steps) and
+    // centre it with inline padding (letterbox).
     function create(options) {
         const opts = options || {};
         const term = opts.term;
@@ -55,19 +50,31 @@
         let fitted = { fontSize: 16, letterSpacing: 0 };
         let disposed = false;
         let dprQuery = null;
-        let minimum = null;
+        // The last 'vt' fit: glass and face (`key`), the size and its grid, and the smallest size that did not fit.
+        let ceiling = null;
 
-        // Font, line height 1, scrollback and glyph atlas of the pinned grid; the fitted size and letter spacing only
+        // A grid's face: its own font at line height 1 (pixel rows edge to edge, a nudge moves glyphs), or for 'vt'
+        // the style's font family and line height, loaded at the style's size like a style change does.
+        function face(spec) {
+            if (spec.font) return { family: spec.font, lineHeight: 1, load: spec.load };
+            const profile = getProfile() || {};
+            const family = profile.fontFamily || term.options.fontFamily;
+            const first = String(family || '').split(',')[0].trim() || 'monospace';
+            return { family: family, lineHeight: profile.lineHeight || 1, load: (profile.fontSize || 16) + 'px ' + first };
+        }
+
+        // Font, line height, scrollback and glyph atlas of the pinned grid; the fitted size and letter spacing only
         // outside a running fit, which owns them. Pixel fonts get xterm's alpha atlas: the opaque one antialiases
         // for LCD, and each glyph's colour fringe overwrites the edge column of the cell before it, a dark seam in
         // solid blocks. xterm rebuilds its atlas on any option change but redraws the rows only on font changes,
         // which always follow here (the family, and the size change once the font has loaded).
         function pin(withSize) {
             const spec = MODES[current];
+            const look = face(spec);
             term.options.allowTransparency = !!spec.pixels;
-            term.options.fontFamily = spec.font;
-            term.options.lineHeight = 1;
-            term.options.scrollback = 0;
+            term.options.fontFamily = look.family;
+            term.options.lineHeight = look.lineHeight;
+            term.options.scrollback = spec.scrollback || 0;
             if (!withSize) return;
             term.options.fontSize = fitted.fontSize;
             term.options.letterSpacing = fitted.letterSpacing;
@@ -108,7 +115,8 @@
         // context, does not floor, so the spacing goes back to 0). The rounded font box is ceiled and never
         // corrected: a line height above 1 moves every glyph a device px down, a seam per row; such a k is skipped.
         // Without an exact k (a tiny glass; some DPRs) and for other grids: the largest size in 0.5 px steps that
-        // fits. Sizes come from offsetWidth/Height (CSS transforms of window animations do not count). Centred via
+        // fits (see below). Sizes come from offsetWidth/Height (CSS transforms of window animations do not count).
+        // A grid with scrollback leaves xterm's scrollbar (as the fit addon does) a strip beside it. Centred via
         // padding, written only when it changes.
         async function fitFont() {
             const spec = MODES[current];
@@ -119,12 +127,13 @@
             if (!screenEl) return;
             pin(false);
             const room = space(element);
-            if (room.width <= 0 || room.height <= 0) return;
-            const ems = Math.min(room.width / (spec.cols * spec.cell[0]), room.height / (spec.rows * spec.cell[1]));
+            const bar = spec.scrollback ? (term.options.overviewRuler && term.options.overviewRuler.width) || 14 : 0;
+            const width = room.width - bar;
+            if (width <= 0 || room.height <= 0) return;
             const dpr = window.devicePixelRatio || 1;
-            const fits = function (box) { return box.width <= room.width + 0.5 && box.height <= room.height + 0.5; };
+            const fits = function (box) { return box.width <= width + 0.5 && box.height <= room.height + 0.5; };
             const cellOf = function (box) { return [Math.round(box.width * dpr / spec.cols), Math.round(box.height * dpr / spec.rows)]; };
-            // Unchanged options (a refit at the same k) change nothing in xterm: no atlas rebuild, no frame of other cells.
+            // Unchanged options (a refit at the same k or size) change nothing in xterm: no atlas rebuild, no frame of other cells.
             async function measure(size, letterSpacing) {
                 term.options.fontSize = size;
                 term.options.letterSpacing = letterSpacing;
@@ -132,6 +141,7 @@
                 return { width: screenEl.offsetWidth, height: screenEl.offsetHeight };
             }
             let rect = null;
+            const ems = spec.cell ? Math.min(width / (spec.cols * spec.cell[0]), room.height / (spec.rows * spec.cell[1])) : 0;
             for (let k = spec.pixels ? Math.floor(ems * dpr / spec.pixels) : 0; k >= 1 && !rect; k -= 1) {
                 const cell = spec.pixels * k;
                 const spacing = term.options.letterSpacing || 0;
@@ -146,17 +156,44 @@
                 }
                 if (got[0] === cell && got[1] === cell && fits(box)) rect = box;
             }
-            let size = Math.max(MIN_FONT_SIZE, Math.floor(ems * 2) / 2);
+            // 0.5 px steps down until the grid fits (MIN_FONT_SIZE at the least, clipped there), from the size the
+            // font's em cell allows. Without an em cell ('vt': the style's font) the search starts at the current
+            // size, whose probe writes nothing, and moves to the size the measured cells scale to, between the
+            // largest size that fit and the smallest that did not; a size that fits and expects no larger one still
+            // tries the next step (xterm's whole device px cells keep their size over some steps), so it ends with
+            // the two one step apart. `ceiling` keeps the smallest size that did not fit: a glass and cells unchanged
+            // since the last fit measure once and write nothing.
+            const step = function (value) { return Math.max(MIN_FONT_SIZE, Math.floor(value * 2) / 2); };
+            const scales = !spec.cell;
+            const key = [term.options.fontFamily, term.options.lineHeight, dpr, width, room.height].join('|');
+            let size = step(scales ? term.options.fontSize : ems);
+            let good = null;
+            let bad = Infinity;
             for (let attempt = 0; attempt < FIT_ATTEMPTS && !rect; attempt += 1) {
                 const box = await measure(size, 0);
                 if (disposed || mine !== revision) return;
-                if (fits(box) || size <= MIN_FONT_SIZE || attempt === FIT_ATTEMPTS - 1) rect = box;
-                size -= 0.5;
+                const last = attempt === FIT_ATTEMPTS - 1;
+                const known = ceiling && ceiling.key === key && ceiling.size === size && ceiling.width === box.width && ceiling.height === box.height;
+                if (scales && !attempt && known) bad = ceiling.bad;
+                const expected = scales ? step(size * Math.min(width / box.width, room.height / box.height)) : size;
+                if (fits(box)) {
+                    good = { size: size, box: box };
+                    const next = !scales ? size : Math.min(expected > size ? expected : size + 0.5, bad - 0.5);
+                    if (next > size && !last) size = next;
+                    else rect = box;
+                    continue;
+                }
+                bad = size;
+                if (good && size - 0.5 <= good.size) rect = await measure(good.size, 0);
+                else if (size <= MIN_FONT_SIZE || last) rect = good ? await measure(good.size, 0) : box;
+                else size = Math.max(good ? good.size + 0.5 : MIN_FONT_SIZE, Math.min(expected, size - 0.5));
+                if (disposed || mine !== revision) return;
             }
+            if (scales) ceiling = good ? { key: key, size: good.size, width: rect.width, height: rect.height, bad: bad } : null;
             const now = { fontSize: term.options.fontSize, letterSpacing: term.options.letterSpacing };
             const resized = Object.keys(now).some(function (key) { return now[key] !== fitted[key]; });
             fitted = now;
-            const extraX = Math.max(0, (room.width - rect.width) / 2);
+            const extraX = Math.max(0, (width - rect.width) / 2);
             const extraY = Math.max(0, (room.height - rect.height) / 2);
             const next = {
                 paddingLeft: px(room.pad.left + extraX),
@@ -172,82 +209,6 @@
             });
             screenEl.style.background = (term.options.theme && term.options.theme.background) || '';
             if (resized || moved) onFitted();
-        }
-
-        // The style's font size: 'fit' uses it, and a minimum grid shrinks from it.
-        function styleSize() {
-            const profile = getProfile();
-            return profile && profile.fontSize > 0 ? profile.fontSize : term.options.fontSize;
-        }
-
-        // A hidden or minimized window has a zero-size glass, which no grid fits.
-        function hasGlass() {
-            return screen.clientWidth > 0 && screen.clientHeight > 0;
-        }
-
-        // 'fit' with a minimum grid (classic Retro-Net services: 80x24) uses the style's font size or a size below it
-        // in 0.5 px steps (MIN_FONT_SIZE at the least) at which the fit addon gets at least minimum.cols x
-        // minimum.rows; a glass too small even for MIN_FONT_SIZE keeps that and whatever grid fits. The fit addon
-        // then fills the glass, so the grid may exceed the minimum. Every font size written makes xterm re-measure,
-        // clear and rebuild its WebGL atlas, so the search starts at the current size, whose probe writes nothing,
-        // and writes a size only where the font must change: a size that fits stays unless the style's size or a
-        // larger step is expected to fit (cells scale with the font; the fit addon's room over the cell xterm drew),
-        // so drag-resizing within one size writes nothing. Otherwise the expected size is probed, then the 0.5 px
-        // steps towards a size that fits; after a smaller window, sizes up are probed only while expected to fit too
-        // (cells that do not scale). xterm measures synchronously on the option change, so the grid is final when
-        // set() or refit() returns: the size a session opens with.
-        function shrinkToMinimum() {
-            const base = styleSize();
-            const last = Math.max(0, Math.ceil((base - MIN_FONT_SIZE) * 2));
-            const sizeAt = function (step) { return Math.max(MIN_FONT_SIZE, base - step / 2); };
-            const room = space(term.element);
-            room.width -= term.options.scrollback === 0 ? 0 : (term.options.overviewRuler && term.options.overviewRuler.width) || 14;
-            const screenEl = term.element.querySelector('.xterm-screen');
-            let dims = null;
-            const fits = function (step) {
-                if (term.options.fontSize !== sizeAt(step)) term.options.fontSize = sizeAt(step);
-                dims = fit.proposeDimensions();
-                return !dims || (dims.cols >= minimum.cols && dims.rows >= minimum.rows);
-            };
-            // The step of the largest size expected to fit, from the last probe: the room over the cell xterm drew
-            // (its screen over the grid), else the whole cells the fit addon counted plus one.
-            const expected = function () {
-                const cell = screenEl ? [screenEl.offsetWidth / term.cols, screenEl.offsetHeight / term.rows] : [0, 0];
-                const fill = cell[0] > 0 && cell[1] > 0
-                    ? Math.min(room.width / (cell[0] * minimum.cols), room.height / (cell[1] * minimum.rows))
-                    : Math.min((dims.cols + 1) / minimum.cols, (dims.rows + 1) / minimum.rows);
-                return Math.min(last, Math.max(0, Math.ceil((base - term.options.fontSize * fill) * 2)));
-            };
-            // The current size when it is one of the steps (after a style change it is the new style's size).
-            const now = (base - term.options.fontSize) * 2;
-            const from = Number.isInteger(now) && now >= 0 && now <= last ? now : 0;
-            let step = from;
-            if (!fits(from)) {
-                if (from < last) {
-                    // A smaller window: the size expected to fit, then down until one does.
-                    step = Math.max(from + 1, expected());
-                    let ok = fits(step);
-                    while (!ok && step < last) ok = fits(++step);
-                    while (ok && step - 1 > from && expected() < step && fits(step - 1)) step -= 1;
-                }
-            } else if (dims && from > 0) {
-                // A larger window: the largest size expected to fit, then down towards the current size, which fits.
-                const target = expected();
-                for (step = Math.min(target, from); step < from && !fits(step);) step += 1;
-            }
-            if (term.options.fontSize !== sizeAt(step)) term.options.fontSize = sizeAt(step);
-        }
-
-        // The fit addon outside pinned modes, with the minimum grid's font size or (`restore`, the minimum was
-        // dropped) the style's again; reported when the font size changed. With a minimum, a zero-size glass keeps
-        // its font size and grid (no probe, no fit) until the window has a size again.
-        function fitWindow(restore) {
-            if (!fit || (minimum && !hasGlass())) return;
-            const before = term.options.fontSize;
-            if (minimum) shrinkToMinimum();
-            else if (restore) term.options.fontSize = styleSize();
-            fit.fit();
-            if (term.options.fontSize !== before) onFitted();
         }
 
         // One fit at a time: a request during a fit reruns it once afterwards, so an older, slower fit never leaves
@@ -281,10 +242,11 @@
             });
         }
 
+        // The grid is pinned at once (a session opens with it); the fit follows once the font has loaded.
         function enter(mode) {
             const spec = MODES[mode];
             if (current !== 'fit') clearLetterbox();
-            // Another grid's letter spacing never carries over (the VGA grid has none).
+            // Another grid's letter spacing never carries over (only the C64 grid has any).
             if (mode !== current) fitted.letterSpacing = 0;
             current = mode;
             revision += 1;
@@ -294,7 +256,7 @@
             pin(true);
             term.resize(spec.cols, spec.rows);
             const ready = document.fonts && typeof document.fonts.load === 'function'
-                ? document.fonts.load(spec.load).catch(function () { return []; })
+                ? document.fonts.load(face(spec).load).catch(function () { return []; })
                 : Promise.resolve([]);
             ready.then(function () {
                 if (disposed || mine !== revision) return;
@@ -317,31 +279,25 @@
             term.options.letterSpacing = 0;
             term.options.allowTransparency = false;
             window.TerminalStyles.applyXterm(term, getProfile());
-            if (fit && minimum && hasGlass()) shrinkToMinimum();
             if (fit) fit.fit();
             onFitted();
         }
 
-        // 'fit' | 'bbs' | 'c64' (anything else is 'fit'); entering a pinned mode again restarts it (font and fit).
-        // `options` count for 'fit' only: { minCols, minRows } keeps at least that grid (shrinkToMinimum); 'fit'
-        // without them drops a minimum and restores the style's font size. Pinned modes drop it too.
-        function set(mode, options) {
+        // 'fit' | 'vt' | 'bbs' | 'c64' (anything else is 'fit'); entering a pinned mode again restarts it (font and
+        // fit); 'fit' restores the style's font and size.
+        function set(mode) {
             if (disposed || !term) return;
             const next = pinned(mode);
-            const had = minimum;
-            minimum = next === 'fit' ? gridMinimum(options) : null;
             if (next !== 'fit') enter(next);
             else if (current !== 'fit') leave();
-            else if (minimum || had) fitWindow(true);
         }
 
-        // ResizeObserver and style changes: the fit addon outside pinned modes (re-evaluating a minimum grid from
-        // the style's size); otherwise the pinned font at once (a style change replaced it) and a fit on the next
-        // frame.
+        // ResizeObserver and style changes: the fit addon outside pinned modes; otherwise the pinned font at once
+        // (a style change replaced it; 'vt' takes the new style's font) and a fit on the next frame.
         function refit() {
             if (disposed || !term) return;
             if (current === 'fit') {
-                fitWindow(false);
+                if (fit) fit.fit();
                 return;
             }
             pin(!fitting);
@@ -362,12 +318,11 @@
             schedule();
         }
 
-        // A minimum's font size is never saved: it goes with the terminal, a new window starts at the style's size.
+        // The fitted size is never saved: it goes with the terminal, and leaving a pinned grid restores the style's.
         function dispose() {
             disposed = true;
             revision += 1;
             again = false;
-            minimum = null;
             cancelFrame();
             watchDpr();
         }

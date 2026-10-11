@@ -117,7 +117,9 @@ Operator docs: `documentation/retro-net.md`.
   `remote_closed`, and cancellation closes the connection at once, so no PTY
   or shell is requested for a browser that is gone. BBS sessions stay 80x25
   and C64 sessions 40x25 (`sessionSize`); other sizes clamp to
-  cols 20-400, rows 5-200. Every write to the service is bounded by 10 s:
+  cols 20-400, rows 5-200 (the Desktop Terminal opens world and SSH sessions
+  at 80x24 and never resizes them; the server still follows a resize within
+  these limits). Every write to the service is bounded by 10 s:
   Telnet through the TCP write deadline, SSH writes and window changes through
   an abort timer that closes the connection.
 - Reason → Hayes code mapping lives only in `CodeFor`; the browser translates
