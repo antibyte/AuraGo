@@ -202,7 +202,10 @@ type sandboxPath struct {
 }
 
 // splitSandboxPaths splits a colon-separated path list. Newline and NUL are
-// rejected. Required stays false until the caller matches the required list.
+// rejected. Entries keep the exact bytes the parent already canonicalized.
+// A whitespace-only entry stays that string and is not rewritten to the
+// working directory. Empty segments from the colon split are dropped.
+// Required stays false until the caller matches the required list.
 func splitSandboxPaths(value string) ([]sandboxPath, error) {
 	if strings.ContainsAny(value, "\n\x00") {
 		return nil, fmt.Errorf("sandbox path list contains a newline or NUL")
@@ -212,7 +215,6 @@ func splitSandboxPaths(value string) ([]sandboxPath, error) {
 	}
 	var paths []sandboxPath
 	for _, path := range strings.Split(value, ":") {
-		path = strings.TrimSpace(path)
 		if path == "" {
 			continue
 		}
@@ -264,8 +266,24 @@ func addSandboxPaths(rulesetFd int, list, requiredList string, access uint64) er
 }
 
 // openLandlockPath opens a ruleset path without following a final symlink.
+// Linux O_PATH|O_NOFOLLOW succeeds and returns the symlink inode. Fstat
+// rejects that inode, closes the descriptor, and returns an error so a
+// required path aborts the helper. O_DIRECTORY is not used: defaults include files.
 func openLandlockPath(path string) (int, error) {
-	return unix.Open(path, unix.O_PATH|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	fd, err := unix.Open(path, unix.O_PATH|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return -1, err
+	}
+	var stat unix.Stat_t
+	if err := unix.Fstat(fd, &stat); err != nil {
+		unix.Close(fd)
+		return -1, err
+	}
+	if stat.Mode&unix.S_IFMT == unix.S_IFLNK {
+		unix.Close(fd)
+		return -1, fmt.Errorf("landlock path %q is a symlink", path)
+	}
+	return fd, nil
 }
 
 // landlockAddPath adds a path-beneath rule to the ruleset.
