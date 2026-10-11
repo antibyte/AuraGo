@@ -23,6 +23,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/cydcreator"
 	"aurago/internal/dockerutil"
@@ -75,7 +76,18 @@ const (
 	cydDockerUnreachable = "Docker is not reachable; the server log has the details"
 )
 
-var cydBuildIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_]{0,63}$`)
+// Arguments the adapter passes to the container are checked here too
+// (defence in depth; cyd-build and cyd-addr2line check them again): the
+// PlatformIO env is a board id, the cache key follows cyd-build's ID_RE and
+// addresses cyd-addr2line's ADDR_RE (32-bit, at most 64).
+var (
+	cydBuildIDPattern  = regexp.MustCompile(`^[a-z0-9][a-z0-9_]{0,63}$`)
+	cydPIOEnvPattern   = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,47}$`)
+	cydCacheKeyPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$`)
+	cydAddressPattern  = regexp.MustCompile(`^0x[0-9a-fA-F]{1,8}$`)
+)
+
+const cydBuilderMaxAddresses = 64
 
 // cydBuilderSettings are read from cyd_creator at startup.
 type cydBuilderSettings struct {
@@ -99,6 +111,7 @@ type cydDockerBuilder struct {
 	busy      int
 	idleTimer *time.Timer
 	closed    bool
+	claimed   bool // this process created, restarted or checked the container
 
 	pullMu   sync.Mutex
 	pulling  bool
@@ -323,7 +336,10 @@ func cydPullReason(status int, text string) string {
 	switch {
 	case strings.HasPrefix(lower, "cancelled: "):
 		return "the pull was cancelled or timed out"
-	case has("unauthorized", "authentication required", "denied"):
+	case has("permission denied"):
+		// A local file or socket permission of the Docker host, not the registry.
+		return "the Docker host refused a local operation (permission denied); the server log has the details"
+	case has("unauthorized", "authentication required", "access denied", "access to the resource is denied"):
 		return "the registry refused access (unauthorized)"
 	case has("manifest unknown", "not found", "does not exist"):
 		return "the image or tag does not exist"
@@ -549,13 +565,25 @@ func (b *cydDockerBuilder) ensureContainer(ctx context.Context) (string, error) 
 	if err != nil {
 		return "", err
 	}
-	if info != nil && info.Config.Labels["aurago.fingerprint"] != b.fingerprint() {
+	if info != nil && !info.managed() {
+		return "", b.foreignContainer(info)
+	}
+	// A running container found by the first use in this process belongs to
+	// an earlier (maybe crashed) AuraGo: an orphan cyd-build could still hold
+	// the container lock and its /work and /tmp state must not leak into new
+	// builds, so it is discarded rather than reused.
+	stale := info != nil && info.State.Running && !b.claimed
+	if info != nil && (stale || info.Config.Labels["aurago.fingerprint"] != b.fingerprint()) {
+		if stale {
+			b.stopContainer(info.ID)
+		}
 		if err := b.removeContainer(info.ID); err != nil {
 			return "", b.dockerUnavailable("container remove", err)
 		}
 		info = nil
 	}
 	if info != nil {
+		b.claimed = true
 		if !info.State.Running {
 			if err := b.startOrRemove(ctx, info.ID); err != nil {
 				return "", err
@@ -592,8 +620,23 @@ func (b *cydDockerBuilder) ensureContainer(ctx context.Context) (string, error) 
 	if err := b.startOrRemove(ctx, created.ID); err != nil {
 		return "", err
 	}
+	b.claimed = true
 	b.cleanupWork(ctx, created.ID)
 	return created.ID, nil
+}
+
+// managed reports whether the container carries the CYD Creator labels.
+func (i *cydContainerInspect) managed() bool {
+	return dockerutil.ManagedBy(i.Config.Labels, cydBuilderOwner)
+}
+
+// foreignContainer refuses to touch a container that uses the builder's
+// name without AuraGo's labels (it is never stopped or removed).
+func (b *cydDockerBuilder) foreignContainer(info *cydContainerInspect) error {
+	b.logger.Warn("CYD Creator builder: a container with the builder's name is not managed by AuraGo; it is left alone",
+		"container", b.containerName, "id", info.ID)
+	return cydcreator.NewError(cydcreator.CodeDockerUnavailable,
+		"another container already uses the builder container name; the server log has the details", nil)
 }
 
 // startOrRemove starts the container; one that cannot start is removed so
@@ -612,7 +655,7 @@ func (b *cydDockerBuilder) startOrRemove(ctx context.Context, id string) error {
 // stopped build.
 func (b *cydDockerBuilder) cleanupWork(ctx context.Context, id string) {
 	if _, _, err := b.execCapture(ctx, id, []string{"sh", "-c", "rm -rf /work/ccb_* /work/a2l_*"}, 0); err != nil {
-		b.logger.Debug("CYD Creator work cleanup failed", "error", err)
+		b.logger.Warn("CYD Creator work cleanup failed", "error", err)
 	}
 }
 
@@ -630,6 +673,9 @@ func (b *cydDockerBuilder) acquire(ctx context.Context) (string, error) {
 	}
 	id, err := b.ensureContainer(ctx)
 	if err != nil {
+		// The idle timer was stopped above: a container that is still up
+		// (started by this attempt or before) must not run forever.
+		b.armIdleLocked()
 		return "", err
 	}
 	b.busy++
@@ -641,7 +687,13 @@ func (b *cydDockerBuilder) release() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.busy--
-	if b.busy > 0 || b.closed || b.settings.IdleStop <= 0 {
+	b.armIdleLocked()
+}
+
+// armIdleLocked starts the idle stop timer when nothing uses the container.
+// Callers hold mu.
+func (b *cydDockerBuilder) armIdleLocked() {
+	if b.busy > 0 || b.closed || b.settings.IdleStop <= 0 || b.idleTimer != nil {
 		return
 	}
 	b.idleTimer = time.AfterFunc(b.settings.IdleStop, b.idleStop)
@@ -657,7 +709,7 @@ func (b *cydDockerBuilder) idleStop() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	info, err := b.inspectContainer(ctx)
-	if err != nil || info == nil || !info.State.Running {
+	if err != nil || info == nil || !info.managed() || !info.State.Running {
 		return
 	}
 	b.stopContainer(info.ID)
@@ -679,7 +731,7 @@ func (b *cydDockerBuilder) Close() {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if info, err := b.inspectContainer(ctx); err == nil && info != nil {
+	if info, err := b.inspectContainer(ctx); err == nil && info != nil && info.managed() {
 		b.discardContainer(info.ID)
 	}
 }
@@ -748,7 +800,8 @@ func (b *cydDockerBuilder) putArchive(ctx context.Context, id string, archive []
 }
 
 // cydLineWriter splits a byte stream into lines (CR stripped, overlong lines
-// cut at cydBuilderMaxLogLine, so the pending line never grows beyond it).
+// cut at cydBuilderMaxLogLine on a UTF-8 rune boundary, so the pending line
+// never grows beyond it).
 type cydLineWriter struct {
 	partial []byte
 	emit    func(string)
@@ -766,8 +819,17 @@ func (w *cydLineWriter) Write(p []byte) (int, error) {
 		if len(w.partial) > cydBuilderMaxLogLine {
 			k := 0
 			for len(w.partial)-k > cydBuilderMaxLogLine {
-				w.emit(string(w.partial[k : k+cydBuilderMaxLogLine]))
-				k += cydBuilderMaxLogLine
+				cut := cydBuilderMaxLogLine
+				// Back off to the start of a rune (at most 3 bytes); bytes
+				// that are no UTF-8 at all are cut at the limit.
+				for back := 0; back < utf8.UTFMax-1 && cut > 1 && !utf8.RuneStart(w.partial[k+cut]); back++ {
+					cut--
+				}
+				if !utf8.RuneStart(w.partial[k+cut]) {
+					cut = cydBuilderMaxLogLine
+				}
+				w.emit(string(w.partial[k : k+cut]))
+				k += cut
 			}
 			w.partial = append(w.partial[:0], w.partial[k:]...)
 		}
@@ -942,6 +1004,32 @@ func (c *cappedBuffer) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// cydBuildLogTruncated ends a build log that reached MaxBuildLogBytes (the
+// service's marker text); its length is reserved, so the log including it
+// never exceeds the cap.
+const cydBuildLogTruncated = "[cyd-creator] log truncated\n"
+
+// cydBuildLog keeps whole lines of the build log up to MaxBuildLogBytes and
+// then the truncation marker. Lines come from cydLineWriter, so the cut is
+// always on a line (and rune) boundary.
+type cydBuildLog struct {
+	buf       strings.Builder
+	truncated bool
+}
+
+func (l *cydBuildLog) add(line string) {
+	if l.truncated {
+		return
+	}
+	if l.buf.Len()+len(line)+1 > cydcreator.MaxBuildLogBytes-len(cydBuildLogTruncated) {
+		l.buf.WriteString(cydBuildLogTruncated)
+		l.truncated = true
+		return
+	}
+	l.buf.WriteString(line)
+	l.buf.WriteByte('\n')
+}
+
 // execCapture runs a short command and returns its stdout and stderr.
 func (b *cydDockerBuilder) execCapture(ctx context.Context, id string, cmd []string, timeout time.Duration) ([]byte, int, error) {
 	if timeout <= 0 {
@@ -965,7 +1053,7 @@ func (b *cydDockerBuilder) removeWorkDir(id, dir string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if _, _, err := b.execCapture(ctx, id, []string{"rm", "-rf", "--", path.Join(cydBuilderWorkDir, dir)}, 0); err != nil {
-		b.logger.Debug("CYD Creator work directory could not be removed", "dir", dir, "error", err)
+		b.logger.Warn("CYD Creator work directory could not be removed", "dir", dir, "error", err)
 	}
 }
 
@@ -1110,7 +1198,7 @@ func extractArtifactsWithin(archive []byte, limits cydArtifactLimits) (map[strin
 // cancelled or expired ctx (or req.Timeout) and a broken output stream stop
 // and remove the container, which kills cyd-build.
 func (b *cydDockerBuilder) Build(ctx context.Context, req cydcreator.BuildRequest, onLog func(line string)) (cydcreator.BuildOutput, error) {
-	if !cydBuildIDPattern.MatchString(req.BuildID) || req.Env == "" || req.CacheKey == "" {
+	if !cydBuildIDPattern.MatchString(req.BuildID) || !cydPIOEnvPattern.MatchString(req.Env) || !cydCacheKeyPattern.MatchString(req.CacheKey) {
 		return cydcreator.BuildOutput{}, fmt.Errorf("invalid build request")
 	}
 	if req.Timeout > 0 {
@@ -1137,12 +1225,12 @@ func (b *cydDockerBuilder) Build(ctx context.Context, req cydcreator.BuildReques
 		}
 	}()
 
-	logBuf := &cappedBuffer{max: cydcreator.MaxBuildLogBytes}
+	logBuf := &cydBuildLog{}
 	var logMu sync.Mutex
 	emit := func(line string) {
 		logMu.Lock()
 		defer logMu.Unlock()
-		_, _ = logBuf.Write([]byte(line + "\n"))
+		logBuf.add(line)
 		if onLog != nil {
 			onLog(line)
 		}
@@ -1187,6 +1275,14 @@ func (b *cydDockerBuilder) Build(ctx context.Context, req cydcreator.BuildReques
 func (b *cydDockerBuilder) Addr2Line(ctx context.Context, req cydcreator.Addr2LineRequest) ([]cydcreator.Frame, error) {
 	if req.Chip != cydcreator.ChipESP32 && req.Chip != cydcreator.ChipESP32S3 {
 		return nil, cydcreator.NewError(cydcreator.CodeBadRequest, "unknown chip "+req.Chip, nil)
+	}
+	if len(req.Addresses) == 0 || len(req.Addresses) > cydBuilderMaxAddresses {
+		return nil, cydcreator.NewError(cydcreator.CodeBadRequest, fmt.Sprintf("decode 1 to %d addresses", cydBuilderMaxAddresses), nil)
+	}
+	for _, addr := range req.Addresses {
+		if !cydAddressPattern.MatchString(addr) {
+			return nil, cydcreator.NewError(cydcreator.CodeBadRequest, "backtrace addresses look like 0x400d1234", nil)
+		}
 	}
 	id, err := b.acquire(ctx)
 	if err != nil {

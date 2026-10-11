@@ -20,8 +20,10 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/cydcreator"
+	"aurago/internal/dockerutil"
 	"aurago/internal/tools"
 )
 
@@ -47,7 +49,10 @@ type fakeCYDEngine struct {
 	nextExec     int
 	failStart    bool          // POST /start answers 500
 	archiveGone  bool          // GET /archive answers 404 "No such container"
+	inspectFail  bool          // GET /containers/{name}/json answers 500
 	blockBuild   chan struct{} // when set, cyd-build blocks until it is closed or the request ends
+	blockUpload  chan struct{} // when set, PUT /archive closes uploadSeen and blocks until the request ends
+	uploadSeen   chan struct{}
 }
 
 type fakeExec struct {
@@ -117,6 +122,11 @@ func (e *fakeCYDEngine) serve(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusCreated)
 		_, _ = io.WriteString(w, `{}`)
 	case r.Method == http.MethodGet && p == "/containers/aurago-cyd-builder/json", r.Method == http.MethodGet && p == "/containers/ctr1/json":
+		if e.inspectFail {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = io.WriteString(w, `{"message":"engine busy"}`)
+			return
+		}
 		if e.container == nil {
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = io.WriteString(w, `{"message":"No such container"}`)
@@ -161,6 +171,17 @@ func (e *fakeCYDEngine) serve(w http.ResponseWriter, r *http.Request) {
 	case r.Method == http.MethodPut && p == "/containers/ctr1/archive":
 		if r.URL.Query().Get("path") != "/work" || r.Header.Get("Content-Type") != "application/x-tar" {
 			e.t.Errorf("archive upload %s (%s)", r.URL.RawQuery, r.Header.Get("Content-Type"))
+		}
+		if block := e.blockUpload; block != nil {
+			close(e.uploadSeen)
+			e.mu.Unlock()
+			select {
+			case <-block:
+			case <-r.Context().Done():
+			}
+			e.mu.Lock()
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 		tr := tar.NewReader(r.Body)
 		for {
@@ -351,6 +372,13 @@ func TestCYDBuilderBuildCreatesAHardenedContainerAndStreamsTheLog(t *testing.T) 
 		"home":            fmt.Sprint(spec["Env"]) == "[HOME=/tmp]",
 		"managed label":   engine.labels["aurago.managed"] == "cyd-creator" && engine.labels["aurago.fingerprint"] != "",
 		"volumes":         strings.Contains(fmt.Sprint(host["Mounts"]), "Source:aurago-cyd-cache Target:/cache") && strings.Contains(fmt.Sprint(host["Mounts"]), "Source:aurago-cyd-work Target:/work"),
+		// Pin the exact spec: any added key (Privileged, Binds, PidMode,
+		// IpcMode, CapAdd, Devices, ...) or a changed value fails here.
+		"exact mounts":      fmt.Sprint(host["Mounts"]) == "[map[Source:aurago-cyd-cache Target:/cache Type:volume] map[Source:aurago-cyd-work Target:/work Type:volume]]",
+		"restart policy":    fmt.Sprint(host["RestartPolicy"]) == "map[Name:no]",
+		"exact host keys":   strings.Join(sortedAnyKeys(host), ",") == "CapDrop,Init,Memory,MemorySwap,Mounts,NanoCpus,NetworkMode,PidsLimit,ReadonlyRootfs,RestartPolicy,SecurityOpt,Tmpfs",
+		"exact spec keys":   strings.Join(sortedAnyKeys(spec), ",") == "Cmd,Env,HostConfig,Image,Labels,User,WorkingDir",
+		"image and workdir": spec["Image"] == "ghcr.io/antibyte/aurago-cyd-builder:1" && spec["WorkingDir"] == "/work",
 	}
 	for name, ok := range checks {
 		if !ok {
@@ -394,7 +422,7 @@ func TestCYDBuilderExitCodesAndMissingArtefacts(t *testing.T) {
 func TestCYDBuilderReusesAndRecreatesTheContainer(t *testing.T) {
 	engine, cfg := newFakeCYDEngine(t)
 	b := newTestCYDBuilder(cfg, 0)
-	req := cydcreator.BuildRequest{BuildID: "ccb_0001", Env: "e", CacheKey: "k", Tree: stubTree(0, 0)}
+	req := cydcreator.BuildRequest{BuildID: "ccb_0001", Env: "esp32-2432s028r", CacheKey: "k", Tree: stubTree(0, 0)}
 	if _, err := b.Build(context.Background(), req, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -432,7 +460,7 @@ func TestCYDBuilderCancelStopsTheContainer(t *testing.T) {
 	var once sync.Once
 	errCh := make(chan error, 1)
 	go func() {
-		_, err := b.Build(ctx, cydcreator.BuildRequest{BuildID: "ccb_0009", Env: "e", CacheKey: "k", Tree: stubTree(0, 0)},
+		_, err := b.Build(ctx, cydcreator.BuildRequest{BuildID: "ccb_0009", Env: "esp32-2432s028r", CacheKey: "k", Tree: stubTree(0, 0)},
 			func(string) { once.Do(func() { close(started) }) })
 		errCh <- err
 	}()
@@ -459,13 +487,17 @@ func TestCYDBuilderCancelStopsTheContainer(t *testing.T) {
 func TestCYDBuilderIdleStop(t *testing.T) {
 	engine, cfg := newFakeCYDEngine(t)
 	b := newTestCYDBuilder(cfg, 50*time.Millisecond)
-	if _, err := b.Build(context.Background(), cydcreator.BuildRequest{BuildID: "ccb_0001", Env: "e", CacheKey: "k", Tree: stubTree(0, 0)}, nil); err != nil {
+	if _, err := b.Build(context.Background(), cydcreator.BuildRequest{BuildID: "ccb_0001", Env: "esp32-2432s028r", CacheKey: "k", Tree: stubTree(0, 0)}, nil); err != nil {
 		t.Fatal(err)
 	}
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
 		engine.mu.Lock()
 		stopped := engine.stops == 1 && !engine.running
+		if engine.removes != 0 {
+			engine.mu.Unlock()
+			t.Fatalf("the idle stop removed the container (removes %d), want a stop only", engine.removes)
+		}
 		engine.mu.Unlock()
 		if stopped {
 			return
@@ -486,7 +518,7 @@ func TestCYDBuilderStatusPullAndMissingImage(t *testing.T) {
 	if !st.DockerAvailable || st.Present || st.Image != "ghcr.io/antibyte/aurago-cyd-builder:1" {
 		t.Fatalf("status before pull = %+v", st)
 	}
-	_, err := b.Build(context.Background(), cydcreator.BuildRequest{BuildID: "ccb_0001", Env: "e", CacheKey: "k", Tree: stubTree(0, 0)}, nil)
+	_, err := b.Build(context.Background(), cydcreator.BuildRequest{BuildID: "ccb_0001", Env: "esp32-2432s028r", CacheKey: "k", Tree: stubTree(0, 0)}, nil)
 	if cydcreator.ErrorCode(err) != cydcreator.CodeImageMissing {
 		t.Fatalf("build without image = %v, want CYD_IMAGE_MISSING", err)
 	}
@@ -804,7 +836,7 @@ func TestCYDBuilderTimeoutRemovesTheContainer(t *testing.T) {
 	engine.blockBuild = make(chan struct{})
 	defer close(engine.blockBuild)
 	b := newTestCYDBuilder(cfg, 0)
-	_, err := b.Build(context.Background(), cydcreator.BuildRequest{BuildID: "ccb_0010", Env: "e", CacheKey: "k",
+	_, err := b.Build(context.Background(), cydcreator.BuildRequest{BuildID: "ccb_0010", Env: "esp32-2432s028r", CacheKey: "k",
 		Tree: stubTree(0, 0), Timeout: 300 * time.Millisecond}, nil)
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("Build after its timeout = %v", err)
@@ -821,7 +853,7 @@ func TestCYDBuilderBrokenStreamRemovesTheContainer(t *testing.T) {
 	b := newTestCYDBuilder(cfg, 0)
 	tree := stubTree(0, 0)
 	tree["stub.json"] = []byte(`{"exit":0,"badframe":true}`)
-	_, err := b.Build(context.Background(), cydcreator.BuildRequest{BuildID: "ccb_0011", Env: "e", CacheKey: "k", Tree: tree}, nil)
+	_, err := b.Build(context.Background(), cydcreator.BuildRequest{BuildID: "ccb_0011", Env: "esp32-2432s028r", CacheKey: "k", Tree: tree}, nil)
 	if err == nil || errors.Is(err, context.Canceled) {
 		t.Fatalf("Build with a stdin frame = %v, want a stream error", err)
 	}
@@ -836,7 +868,7 @@ func TestCYDBuilderMissingContainerIsNotAnEmptyResult(t *testing.T) {
 	engine, cfg := newFakeCYDEngine(t)
 	engine.archiveGone = true
 	b := newTestCYDBuilder(cfg, 0)
-	out, err := b.Build(context.Background(), cydcreator.BuildRequest{BuildID: "ccb_0012", Env: "e", CacheKey: "k", Tree: stubTree(0, 0)}, nil)
+	out, err := b.Build(context.Background(), cydcreator.BuildRequest{BuildID: "ccb_0012", Env: "esp32-2432s028r", CacheKey: "k", Tree: stubTree(0, 0)}, nil)
 	if err == nil {
 		t.Fatalf("Build whose container vanished = %+v, want an error", out)
 	}
@@ -846,7 +878,7 @@ func TestCYDBuilderFailedStartRemovesTheContainer(t *testing.T) {
 	engine, cfg := newFakeCYDEngine(t)
 	engine.failStart = true
 	b := newTestCYDBuilder(cfg, 0)
-	if _, err := b.Build(context.Background(), cydcreator.BuildRequest{BuildID: "ccb_0013", Env: "e", CacheKey: "k", Tree: stubTree(0, 0)}, nil); err == nil {
+	if _, err := b.Build(context.Background(), cydcreator.BuildRequest{BuildID: "ccb_0013", Env: "esp32-2432s028r", CacheKey: "k", Tree: stubTree(0, 0)}, nil); err == nil {
 		t.Fatal("Build with a container that cannot start succeeded")
 	}
 	engine.mu.Lock()
@@ -859,7 +891,7 @@ func TestCYDBuilderFailedStartRemovesTheContainer(t *testing.T) {
 func TestCYDBuilderCloseRemovesTheContainer(t *testing.T) {
 	engine, cfg := newFakeCYDEngine(t)
 	b := newTestCYDBuilder(cfg, time.Hour)
-	if _, err := b.Build(context.Background(), cydcreator.BuildRequest{BuildID: "ccb_0014", Env: "e", CacheKey: "k", Tree: stubTree(0, 0)}, nil); err != nil {
+	if _, err := b.Build(context.Background(), cydcreator.BuildRequest{BuildID: "ccb_0014", Env: "esp32-2432s028r", CacheKey: "k", Tree: stubTree(0, 0)}, nil); err != nil {
 		t.Fatal(err)
 	}
 	b.Close()
@@ -869,7 +901,7 @@ func TestCYDBuilderCloseRemovesTheContainer(t *testing.T) {
 	if !removed {
 		t.Fatal("Close left the builder container behind")
 	}
-	_, err := b.Build(context.Background(), cydcreator.BuildRequest{BuildID: "ccb_0015", Env: "e", CacheKey: "k", Tree: stubTree(0, 0)}, nil)
+	_, err := b.Build(context.Background(), cydcreator.BuildRequest{BuildID: "ccb_0015", Env: "esp32-2432s028r", CacheKey: "k", Tree: stubTree(0, 0)}, nil)
 	if cydcreator.ErrorCode(err) != cydcreator.CodeDockerUnavailable {
 		t.Fatalf("Build after Close = %v", err)
 	}
@@ -888,7 +920,7 @@ func TestCYDBuilderErrorsStayGeneric(t *testing.T) {
 	if st := b.Status(context.Background()); st.DockerAvailable || st.Error != cydDockerUnreachable {
 		t.Fatalf("status of an unreachable engine = %+v", st)
 	}
-	_, err = b.Build(context.Background(), cydcreator.BuildRequest{BuildID: "ccb_0016", Env: "e", CacheKey: "k", Tree: stubTree(0, 0)}, nil)
+	_, err = b.Build(context.Background(), cydcreator.BuildRequest{BuildID: "ccb_0016", Env: "esp32-2432s028r", CacheKey: "k", Tree: stubTree(0, 0)}, nil)
 	if cydcreator.ErrorCode(err) != cydcreator.CodeDockerUnavailable || strings.Contains(err.Error(), "127.0.0.1") {
 		t.Fatalf("build on an unreachable engine = %v", err)
 	}
@@ -919,5 +951,233 @@ func TestCYDBuilderDefaultsMissingLimits(t *testing.T) {
 	host := b.containerSpec()["HostConfig"].(map[string]any)
 	if host["Memory"] != int64(2048<<20) || host["MemorySwap"] != int64(2048<<20) || host["NanoCpus"] != int64(2e9) {
 		t.Fatalf("host config without settings = %v", host)
+	}
+}
+
+func sortedAnyKeys(m map[string]any) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	return keys
+}
+
+// presetContainer puts an existing aurago-cyd-builder container into the
+// fake engine, as left behind by an earlier process or someone else.
+func (e *fakeCYDEngine) presetContainer(labels map[string]string, running bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.container = map[string]any{"Labels": labels}
+	e.labels = labels
+	e.running = running
+}
+
+func TestCYDBuilderDiscardsARunningContainerOfAnEarlierProcess(t *testing.T) {
+	engine, cfg := newFakeCYDEngine(t)
+	b := newTestCYDBuilder(cfg, 0)
+	engine.presetContainer(dockerutil.ManagedLabels("cyd-creator", "cyd-creator", "builder", b.fingerprint()), true)
+	req := cydcreator.BuildRequest{BuildID: "ccb_0020", Env: "esp32-2432s028r", CacheKey: "k", Tree: stubTree(0, 0)}
+	if _, err := b.Build(context.Background(), req, nil); err != nil {
+		t.Fatal(err)
+	}
+	engine.mu.Lock()
+	if engine.stops != 1 || engine.removes != 1 || engine.starts != 1 || engine.container == nil {
+		engine.mu.Unlock()
+		t.Fatalf("stops %d removes %d starts %d: the first use must discard the running container and create a fresh one",
+			engine.stops, engine.removes, engine.starts)
+	}
+	engine.mu.Unlock()
+	req.BuildID = "ccb_0021"
+	if _, err := b.Build(context.Background(), req, nil); err != nil {
+		t.Fatal(err)
+	}
+	engine.mu.Lock()
+	defer engine.mu.Unlock()
+	if engine.removes != 1 || engine.starts != 1 {
+		t.Fatalf("removes %d starts %d: this process's own container must be reused", engine.removes, engine.starts)
+	}
+}
+
+func TestCYDBuilderLeavesAForeignContainerAlone(t *testing.T) {
+	engine, cfg := newFakeCYDEngine(t)
+	engine.presetContainer(map[string]string{"com.example.app": "mine"}, true)
+	b := newTestCYDBuilder(cfg, 0)
+	_, err := b.Build(context.Background(), cydcreator.BuildRequest{BuildID: "ccb_0022", Env: "esp32-2432s028r", CacheKey: "k", Tree: stubTree(0, 0)}, nil)
+	if cydcreator.ErrorCode(err) != cydcreator.CodeDockerUnavailable || strings.Contains(err.Error(), "ctr1") {
+		t.Fatalf("build next to a foreign container = %v", err)
+	}
+	b.Close()
+	engine.mu.Lock()
+	defer engine.mu.Unlock()
+	if engine.removes != 0 || engine.stops != 0 || !engine.running || len(engine.execOrder) != 0 {
+		t.Fatalf("removes %d stops %d running %v execs %v: a foreign container must not be touched",
+			engine.removes, engine.stops, engine.running, engine.execOrder)
+	}
+}
+
+func TestCYDBuilderRearmsTheIdleStopAfterAFailedAcquire(t *testing.T) {
+	engine, cfg := newFakeCYDEngine(t)
+	b := newTestCYDBuilder(cfg, time.Hour)
+	defer b.Close()
+	req := cydcreator.BuildRequest{BuildID: "ccb_0023", Env: "esp32-2432s028r", CacheKey: "k", Tree: stubTree(0, 0)}
+	if _, err := b.Build(context.Background(), req, nil); err != nil {
+		t.Fatal(err)
+	}
+	engine.mu.Lock()
+	engine.inspectFail = true
+	engine.mu.Unlock()
+	req.BuildID = "ccb_0024"
+	if _, err := b.Build(context.Background(), req, nil); err == nil {
+		t.Fatal("Build with a failing container inspect succeeded")
+	}
+	b.mu.Lock()
+	armed, busy := b.idleTimer != nil, b.busy
+	b.mu.Unlock()
+	if !armed || busy != 0 {
+		t.Fatalf("idle timer armed %v busy %d after a failed acquire, want the idle stop re-armed", armed, busy)
+	}
+}
+
+func TestCYDBuilderReturnsTheContextErrorDuringAcquireAndUpload(t *testing.T) {
+	engine, cfg := newFakeCYDEngine(t)
+	b := newTestCYDBuilder(cfg, 0)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := b.Build(ctx, cydcreator.BuildRequest{BuildID: "ccb_0025", Env: "esp32-2432s028r", CacheKey: "k", Tree: stubTree(0, 0)}, nil)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Build with an ended context during acquire = %v", err)
+	}
+
+	engine.mu.Lock()
+	engine.blockUpload, engine.uploadSeen = make(chan struct{}), make(chan struct{})
+	engine.mu.Unlock()
+	defer close(engine.blockUpload)
+	ctx, cancel = context.WithCancel(context.Background())
+	defer cancel()
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := b.Build(ctx, cydcreator.BuildRequest{BuildID: "ccb_0026", Env: "esp32-2432s028r", CacheKey: "k", Tree: stubTree(0, 0)}, nil)
+		errCh <- err
+	}()
+	select {
+	case <-engine.uploadSeen:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the upload never started")
+	}
+	cancel()
+	select {
+	case err := <-errCh:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("Build cancelled during the upload = %v", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("Build did not return after cancel during the upload")
+	}
+	engine.mu.Lock()
+	defer engine.mu.Unlock()
+	for _, cmd := range engine.execOrder {
+		if cmd[0] == "cyd-build" {
+			t.Fatalf("cyd-build ran after the upload was cancelled: %v", engine.execOrder)
+		}
+	}
+}
+
+func TestCYDBuilderValidatesContainerArguments(t *testing.T) {
+	engine, cfg := newFakeCYDEngine(t)
+	b := newTestCYDBuilder(cfg, 0)
+	for _, req := range []cydcreator.BuildRequest{
+		{BuildID: "ccb_0027", Env: "--clean", CacheKey: "k"},
+		{BuildID: "ccb_0027", Env: "e", CacheKey: "k"},
+		{BuildID: "ccb_0027", Env: "ESP32", CacheKey: "k"},
+		{BuildID: "ccb_0027", Env: "esp32-2432s028r", CacheKey: "../k"},
+		{BuildID: "ccb_0027", Env: "esp32-2432s028r", CacheKey: "-k"},
+		{BuildID: "ccb_0027", Env: "esp32-2432s028r", CacheKey: strings.Repeat("k", 65)},
+		{BuildID: "../x", Env: "esp32-2432s028r", CacheKey: "k"},
+	} {
+		if _, err := b.Build(context.Background(), req, nil); err == nil {
+			t.Errorf("Build(%q, %q, %q) was accepted", req.BuildID, req.Env, req.CacheKey)
+		}
+	}
+	for _, addrs := range [][]string{
+		nil,
+		{"0x123456789"},
+		{"400d1234"},
+		{"0x400d1234; rm -rf /"},
+		{"0x400d1234", "--elf=/etc/passwd"},
+		slices.Repeat([]string{"0x400d1234"}, 65),
+	} {
+		_, err := b.Addr2Line(context.Background(), cydcreator.Addr2LineRequest{BuildID: "ccb_1", Chip: "esp32", ELF: []byte("ELF"), Addresses: addrs})
+		if cydcreator.ErrorCode(err) != cydcreator.CodeBadRequest {
+			t.Errorf("Addr2Line(%q) = %v, want CYD_BAD_REQUEST", addrs, err)
+		}
+	}
+	engine.mu.Lock()
+	defer engine.mu.Unlock()
+	if engine.container != nil || len(engine.execOrder) != 0 {
+		t.Fatalf("invalid arguments reached Docker: container %v execs %v", engine.container != nil, engine.execOrder)
+	}
+}
+
+func TestCYDBuildLogEndsWithAMarkerAtTheCap(t *testing.T) {
+	var l cydBuildLog
+	line := strings.Repeat("é", 1000) // 2000 bytes, multi-byte runes
+	for i := 0; i < cydcreator.MaxBuildLogBytes/len(line)+10; i++ {
+		l.add(line)
+	}
+	text := l.buf.String()
+	if len(text) > cydcreator.MaxBuildLogBytes || !strings.HasSuffix(text, cydBuildLogTruncated) || !utf8.ValidString(text) || !l.truncated {
+		t.Fatalf("log of %d bytes, marker %v, valid %v", len(text), strings.HasSuffix(text, cydBuildLogTruncated), utf8.ValidString(text))
+	}
+	l.add("late line")
+	if l.buf.String() != text {
+		t.Fatal("a truncated log still grows")
+	}
+}
+
+func TestCYDLineWriterKeepsRunesWhole(t *testing.T) {
+	var lines []string
+	w := &cydLineWriter{emit: func(s string) { lines = append(lines, s) }}
+	_, _ = w.Write([]byte(strings.Repeat("a", cydBuilderMaxLogLine-1) + "é" + "b\n"))
+	if len(lines) != 2 || lines[0] != strings.Repeat("a", cydBuilderMaxLogLine-1) || lines[1] != "éb" {
+		t.Fatalf("lines = %d, last %q", len(lines), lines[len(lines)-1])
+	}
+	lines = nil
+	_, _ = w.Write([]byte(strings.Repeat("€", 3000) + "\n")) // 9000 bytes of 3-byte runes
+	total := 0
+	for _, s := range lines {
+		if !utf8.ValidString(s) || len(s) > cydBuilderMaxLogLine {
+			t.Fatalf("chunk of %d bytes, valid %v", len(s), utf8.ValidString(s))
+		}
+		total += len(s)
+	}
+	if total != 9000 {
+		t.Fatalf("chunks hold %d bytes, want 9000", total)
+	}
+	lines = nil
+	_, _ = w.Write(append(bytes.Repeat([]byte{0x80}, 5000), '\n')) // no UTF-8 at all: cut at the limit
+	if len(lines) != 2 || len(lines[0]) != cydBuilderMaxLogLine || len(lines[1]) != 5000-cydBuilderMaxLogLine {
+		t.Fatalf("invalid bytes split into %d lines", len(lines))
+	}
+}
+
+func TestCYDPullReasonStaysGeneric(t *testing.T) {
+	cases := []struct {
+		status    int
+		text      string
+		want, not string
+	}{
+		{0, "unauthorized: authentication required", "unauthorized", ""},
+		{404, "pull access denied for x, repository does not exist or may require 'docker login': denied: requested access to the resource is denied", "unauthorized", ""},
+		{500, "open /var/lib/docker/tmp/GetImageBlob123: permission denied", "permission denied", "unauthorized"},
+		{0, "manifest unknown: manifest unknown", "does not exist", ""},
+		{403, "<html><body><h1>403 Forbidden</h1></body></html>", "socket proxy", ""},
+		{0, "write /var/lib/docker/overlay2/x: no space left on device", "disk space", ""},
+	}
+	for _, c := range cases {
+		got := cydPullReason(c.status, c.text)
+		if !strings.Contains(got, c.want) || (c.not != "" && strings.Contains(got, c.not)) || strings.Contains(got, "/var/lib") {
+			t.Errorf("cydPullReason(%d, %q) = %q, want %q", c.status, c.text, got, c.want)
+		}
 	}
 }
