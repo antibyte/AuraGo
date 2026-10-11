@@ -7,15 +7,17 @@ import {randomBytes} from 'node:crypto';
 const require=createRequire(import.meta.url);
 const {chromium}=process.env.AURAGO_PLAYWRIGHT?require(process.env.AURAGO_PLAYWRIGHT):require('playwright');
 const locales=['cs','da','de','el','en','es','fr','hi','it','ja','nl','no','pl','pt','sv','zh'];
-let writes=0,readonly=false,offline=false,source='esp32';
+let writes=0,readonly=false,offline=false,source='esp32',failure='',statusError='',firmwareError=false;
 const server=createServer(async(req,res)=>{
  try{
   const url=new URL(req.url,'http://localhost'),p=url.pathname;
   if(p.startsWith('/api/')&&!p.includes('/ui/')){
    res.setHeader('Content-Type','application/json');if(req.method==='POST')writes++;
+   if(failure&&req.method==='POST'){res.statusCode=502;return res.end(failure==='html'?'<html>upstream unavailable</html>':JSON.stringify({[failure]:'RuView image pull returned HTTP 403: registry denied <img src=x onerror="window.ruviewInjected=1">'}));}
+   if(firmwareError&&p.endsWith('/firmware')){res.statusCode=503;return res.end(JSON.stringify({error:'Firmware catalog unavailable'}));}
    if(p.endsWith('/firmware'))return res.end(await readFile('internal/ruview/artifacts.json'));
    if(p.endsWith('/nodes'))return res.end(JSON.stringify({nodes:[{node_id:7,csi_status:'active',csi_last_seen_ms:42,csi_sequence:3,rssi_dbm:-51}]}));
-   return res.end(JSON.stringify({enabled:true,readonly,mode:'external',source,ready:!offline,fresh:!offline,data_state:offline?'disconnected':'live_unverified',signal:'CSI',observed_at:new Date().toISOString()}));
+   return res.end(JSON.stringify({enabled:true,readonly,mode:'external',source,ready:!offline,fresh:!offline,data_state:offline?'disconnected':'live_unverified',signal:'CSI',observed_at:new Date().toISOString(),error:statusError||undefined}));
   }
   if(p==='/'){
    const locale=JSON.parse(await readFile(`ui/lang/ruview/${url.searchParams.get('lang')||'de'}.json`));
@@ -46,6 +48,19 @@ try{
  await page.locator('dialog input[name=ssid]').fill('memory-only');await page.locator('dialog input[name=password]').fill('memory-password');await page.locator('dialog button[value=close]').click();await page.locator('dialog').waitFor({state:'detached'});
  assert.equal(await page.evaluate(()=>localStorage.length),0);
  await page.locator('[data-tab=overview]').click();await page.locator('[data-action=test]').click();assert.equal(writes,1);
+ for(failure of ['error','message','html']){
+  await page.locator('[data-action=test]').click();
+  const detail=failure==='html'?'HTTP 502':'registry denied';
+  await page.waitForFunction(detail=>document.querySelector('.ruview-feedback')?.textContent.includes(detail),detail);
+  assert.equal(await page.locator('.ruview-feedback img').count(),0,'backend errors must remain text');
+  await page.waitForTimeout(3200);
+  assert.ok((await page.locator('.ruview-feedback').innerText()).includes(detail),'passive status polling must preserve the action failure');
+ }
+ failure='';statusError='RuView service could not be reached';offline=true;
+ await page.evaluate(()=>render());await page.waitForFunction(()=>document.querySelector('.ruview-feedback')?.textContent.includes('could not be reached'));
+ firmwareError=true;await page.locator('[data-action=flash]').click();await page.locator('dialog').waitFor();
+ await page.waitForFunction(()=>document.querySelector('dialog [role=status]')?.textContent.includes('Firmware catalog unavailable'));
+ await page.locator('dialog button[value=close]').click();firmwareError=false;statusError='';
  readonly=true;await page.evaluate(()=>render());await page.waitForFunction(()=>document.querySelector('[data-action=flash]')?.disabled);assert.equal(await page.locator('[data-action=test]').isDisabled(),false);
  offline=true;await page.evaluate(()=>render());await page.locator('.ruview-summary').waitFor();
  for(const view of ['index.html','observatory.html','pose-fusion.html']){
@@ -80,5 +95,5 @@ try{
  source='esp32';await fusion.waitForFunction(()=>document.querySelector('#viz-container > canvas')?.style.visibility==='hidden');
  await page.evaluate(()=>RuViewApp.dispose('test'));assert.equal(await page.locator('iframe').count(),0);
  assert.deepEqual(errors,[]);
- console.log('RuView: 64 locale/theme/size cases, passive status, wizard cleanup, read-only, offline and iframe disposal passed');
+ console.log('RuView: 64 locale/theme/size cases, API error details, persistent action failures, wizard errors/cleanup, passive status, read-only, offline and iframe disposal passed');
 }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}

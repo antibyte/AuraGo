@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 )
 
 func TestRuViewDockerOwnershipAndBoundedResources(t *testing.T) {
@@ -95,6 +96,41 @@ func TestRuViewDockerOwnershipAndBoundedResources(t *testing.T) {
 	stopped = false
 	if err := m.Stop(context.Background()); err != nil || !stopped {
 		t.Fatalf("owned container could not be stopped after manager restart: %v", err)
+	}
+}
+
+func TestRuViewDockerPullReportsBoundedScrubbedReason(t *testing.T) {
+	c := &config.Config{RuView: config.DefaultRuViewConfig()}
+	c.Docker.Enabled = true
+	c.Directories.DataDir = t.TempDir()
+	const secret = "RuView-fixture-registry-secret"
+	security.RegisterSensitive(secret)
+	pulls := 0
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := regexp.MustCompile(`^/v[0-9.]+/`).ReplaceAllString(r.URL.Path, "/")
+		switch {
+		case path == "/version":
+			io.WriteString(w, `{"ApiVersion":"1.51","MinAPIVersion":"1.24"}`)
+		case path == "/containers/aurago-ruview/json", strings.HasPrefix(path, "/images/") && path != "/images/create":
+			w.WriteHeader(http.StatusNotFound)
+		case path == "/images/create":
+			pulls++
+			w.WriteHeader(http.StatusForbidden)
+			json.NewEncoder(w).Encode(map[string]string{"message": "registry denied\n\u202e " + secret + strings.Repeat("x", 1024)})
+		default:
+			t.Errorf("unexpected Docker request %s %s", r.Method, path)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}))
+	defer api.Close()
+	c.Docker.Host = "tcp://" + strings.TrimPrefix(api.URL, "http://")
+	m := New(func() *config.Config { return c }, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	err := m.startDocker(context.Background(), c, c.Directories.DataDir, "fixture-secret")
+	if err == nil || !strings.Contains(err.Error(), "HTTP 403: registry denied") || pulls != 1 {
+		t.Fatalf("missing pull failure or unexpected retry: %v (pulls=%d)", err, pulls)
+	}
+	if text := err.Error(); len(text) > 560 || strings.ContainsAny(text, "\n\r\u202e") || strings.Contains(text, secret) {
+		t.Fatal("pull failure was not bounded, sanitized and scrubbed")
 	}
 }
 

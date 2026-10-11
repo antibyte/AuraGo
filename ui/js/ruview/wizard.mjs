@@ -14,12 +14,12 @@ export async function openWizard({base='/api/ruview/',t,receiverIP='',port=5005}
     (document.fullscreenElement||document.body).append(dialog);dialog.showModal();
     const get=n=>dialog.querySelector(`[name="${n}"]`),message=dialog.querySelector('[role="status"]'),buttons=[...dialog.querySelectorAll('[data-action]')];
     const feedback=(key,detail='')=>{message.textContent=tr(key)+(detail?' · '+detail:'');};
-    const explain=error=>{const code=({NotFoundError:'cancelled',SecurityError:'serial_unsupported',InvalidStateError:'serial_timeout',NetworkError:'serial_disconnected'})[error.name]||error.message;const key='ruview.'+code,value=t(key);return value===key?tr('verification_failed'):value;};
+    const explain=error=>{if(error.fromAPI)return error.message;const code=({NotFoundError:'cancelled',SecurityError:'serial_unsupported',InvalidStateError:'serial_timeout',NetworkError:'serial_disconnected'})[error.name]||error.message;const key='ruview.'+code,value=t(key);return value===key?tr('verification_failed'):value;};
     const completed=index=>{const step=dialog.querySelectorAll('.ruview-steps li')[index];step.classList.add('complete');step.setAttribute('aria-label',step.textContent+' ✓');};
     const cleanup=()=>{stopped=true;controller.abort();serial?.close();get('ssid').value='';get('password').value='';identity=null;expected=null;clearInterval(policyTimer);window.removeEventListener('aurago:auth-ended',close);window.removeEventListener('aurago:desktop-policy',policy);dialog.remove();};
     const close=()=>dialog.close();const policy=e=>{if(e.detail?.readonly||e.detail?.read_only)close();};
     dialog.addEventListener('close',cleanup,{once:true});window.addEventListener('aurago:auth-ended',close);window.addEventListener('aurago:desktop-policy',policy);
-    async function request(route,method='GET') {const response=await fetch(base+route,{method,signal:controller.signal});const body=await response.json();if(!response.ok)throw Error(body.message||'request_failed');return body;}
+    async function request(route,method='GET') {const response=await fetch(base+route,{method,signal:controller.signal});const body=await response.json().catch(()=>({}));if(!response.ok){const error=Error(body.error||body.message||('HTTP '+response.status));error.fromAPI=true;throw error;}return body;}
     async function allowed(){const status=await request('status');if(!status.enabled||status.readonly)throw Error('readonly');return status;}
     const policyTimer=setInterval(()=>allowed().catch(()=>{if(!stopped)close();}),3000);
     let catalog;

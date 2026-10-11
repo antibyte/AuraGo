@@ -223,7 +223,8 @@ func (m *Manager) startDocker(ctx context.Context, c *config.Config, dir, token 
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode != 200 {
-			return fmt.Errorf("RuView image pull returned HTTP %d", resp.StatusCode)
+			detail := dockerutil.SanitizeOneLine(security.Scrub(dockerutil.EngineErrorMessage(dockerutil.ReadErrorBody(resp.Body))), 512)
+			return fmt.Errorf("RuView image pull returned HTTP %d: %s", resp.StatusCode, detail)
 		}
 		if err = dockerutil.DrainJSONMessages(resp.Body); err != nil {
 			return fmt.Errorf("pull RuView image: %w", err)

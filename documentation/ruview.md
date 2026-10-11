@@ -12,6 +12,8 @@ The configuration shows external credentials only for external instances, and bo
 
 Managed Docker connects to RuView automatically; the receiver IP is only for optional ESP32 boards sending UDP over the LAN. The form offers a private IPv4 address from the LAN binding, configured endpoint or browser URL when available. Confirm that it is the RuView host reachable from the board, particularly behind a proxy or tunnel. Accepting the suggestion fills empty receiver and managed LAN-bind fields in the draft; it does not overwrite existing values, enable UDP, grant write access, save or test a connection.
 
+If starting Docker fails, the overview retains the concrete Engine error across status refreshes. A registry `denied` response means the pinned image is inaccessible; changing the receiver IP does not fix it. The reviewed image must be published and readable by AuraGo before managed Docker can start. Failed connection checks remain disconnected; only previously observed live measurements become stale. The timestamp records the last check, not proof of a received sensor frame.
+
 | Runtime | Intended use |
 | --- | --- |
 | Managed Docker | Linux sensing server for ESP32 CSI or explicit demo; AuraGo creates and stops its own labelled container. |

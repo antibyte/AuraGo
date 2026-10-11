@@ -112,13 +112,10 @@ func (m *Manager) Status() Status {
 		s.DataState = "disabled"
 		return s
 	}
-	if !observed.IsZero() {
-		elapsed := time.Since(observed).Milliseconds()
-		if s.FrameAgeMS != nil {
-			age := *s.FrameAgeMS + elapsed
-			s.FrameAgeMS = &age
-		}
-		if elapsed > 10000 || (s.FrameAgeMS != nil && *s.FrameAgeMS > 10000) {
+	if !observed.IsZero() && s.FrameAgeMS != nil && *s.FrameAgeMS >= 0 {
+		age := *s.FrameAgeMS + time.Since(observed).Milliseconds()
+		s.FrameAgeMS = &age
+		if s.DataState == "live_unverified" && age > 10000 {
 			s.Fresh = false
 			s.DataState = "stale"
 		}

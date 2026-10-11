@@ -90,6 +90,41 @@ func TestSourceStatesAndWiFiPrivacy(t *testing.T) {
 	}
 }
 
+func TestStatusAgingPreservesMissingDataAndFailures(t *testing.T) {
+	for _, tc := range []struct {
+		name, body, state string
+		failed            bool
+	}{
+		{"connection failure", "", "disconnected", true},
+		{"disconnected sensor", `{"status":"ready","source":"esp32","source_state":"disconnected"}`, "disconnected", false},
+		{"waiting for first frame", `{"status":"ready","source":"esp32","source_state":"live_unverified","waiting_for_frames":true}`, "live_unverified", false},
+		{"unknown frame age", `{"status":"ready","source":"esp32","source_state":"live_unverified","last_frame_age_ms":-1}`, "live_unverified", false},
+		{"explicit demo", `{"status":"ready","source":"simulated","source_state":"synthetic"}`, "synthetic", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m, c := fixture(t, func(w http.ResponseWriter, r *http.Request) {
+				if tc.failed {
+					w.WriteHeader(http.StatusServiceUnavailable)
+					return
+				}
+				io.WriteString(w, tc.body)
+			})
+			if tc.name == "explicit demo" {
+				c.RuView.Source = "simulated"
+			}
+			before, err := m.Test(context.Background())
+			if (err != nil) != tc.failed {
+				t.Fatalf("test error: %v", err)
+			}
+			m.observed = time.Now().Add(-11 * time.Second)
+			after := m.Status()
+			if after.DataState != tc.state || after.Fresh || after.Error != before.Error || after.Ready != before.Ready {
+				t.Fatalf("missing measurements became stale readings: %+v", after)
+			}
+		})
+	}
+}
+
 func TestReadOnlyProxyAndRequestBoundaries(t *testing.T) {
 	var calls atomic.Int32
 	m, c := fixture(t, func(w http.ResponseWriter, r *http.Request) {
