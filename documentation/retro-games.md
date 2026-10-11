@@ -21,7 +21,7 @@ Fame of 46 classics is the start page.
   can take up to 40 seconds while the emulator downloads. Click into the screen to play with the keyboard;
   click outside to release it. The 🔊/🔇 button switches the sound; the choice is remembered in this browser.
   If the browser blocks sound, the game shows "Click for sound" — one click into the screen turns it on.
-  In-game saves are not kept between sessions.
+  In-game saves are not kept between sessions. If a game freezes after it started, use ⟲ (restart).
 - **Doesn't start:** not every archived title runs. Mark such a game with ⚠ (the button on the game screen,
   or "Mark as not starting" in the context menu of a game card). It then no longer shows up in search results
   — in the app and for the agent — and appears dimmed in the Hall of Fame, Recently played and Favorites. The
