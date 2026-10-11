@@ -109,6 +109,24 @@ func TestCanonicalSandboxPathRejectsColonAndFollowsSymlink(t *testing.T) {
 	}
 }
 
+func TestCanonicalSandboxPathRejectsSymlinkToColonFile(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "evil:name")
+	if err := os.WriteFile(target, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "safe-link")
+	if strings.ContainsAny(link, ":\n\x00") {
+		t.Fatalf("symlink path %q must not contain a list separator", link)
+	}
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := canonicalSandboxPath(link); err == nil {
+		t.Fatal("expected rejection of a resolved path containing a colon")
+	}
+}
+
 func TestLandlockOpenUsesNoFollow(t *testing.T) {
 	dir := t.TempDir()
 	link := filepath.Join(dir, "link")

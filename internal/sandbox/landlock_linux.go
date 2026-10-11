@@ -203,11 +203,13 @@ func (s *LandlockSandbox) buildEnv(workDir string, extra []string) ([]string, er
 // canonicalSandboxPath rejects an empty path and any path that cannot be
 // stored in a colon-separated list. An existing path is resolved through
 // filepath.EvalSymlinks. A missing path keeps its cleaned absolute form so an
-// optional built-in default can be skipped later on ENOENT.
+// optional built-in default can be skipped later on ENOENT. The string placed
+// in the list is rejected again when it contains ':', a newline, or NUL.
 func canonicalSandboxPath(path string) (string, error) {
 	if path == "" || strings.ContainsAny(path, ":\n\x00") {
 		return "", fmt.Errorf("rejected sandbox path %q", path)
 	}
+	var resolved string
 	if _, err := os.Lstat(path); err != nil {
 		if !os.IsNotExist(err) {
 			return "", fmt.Errorf("sandbox path %q: %w", path, err)
@@ -216,11 +218,16 @@ func canonicalSandboxPath(path string) (string, error) {
 		if absErr != nil {
 			return "", fmt.Errorf("sandbox path %q: %w", path, absErr)
 		}
-		return filepath.Clean(abs), nil
+		resolved = filepath.Clean(abs)
+	} else {
+		var err error
+		resolved, err = filepath.EvalSymlinks(path)
+		if err != nil {
+			return "", fmt.Errorf("sandbox path %q: %w", path, err)
+		}
 	}
-	resolved, err := filepath.EvalSymlinks(path)
-	if err != nil {
-		return "", fmt.Errorf("sandbox path %q: %w", path, err)
+	if strings.ContainsAny(resolved, ":\n\x00") {
+		return "", fmt.Errorf("rejected sandbox path %q", resolved)
 	}
 	return resolved, nil
 }
