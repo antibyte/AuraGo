@@ -166,7 +166,7 @@ func toolSearchAliases(name string) []string {
 	case "local_wikipedia":
 		return []string{"lokale Wikipedia", "Wikipedia offline", "offline encyclopedia", "Lexikon", "Enzyklopädie"}
 	case "retro_games":
-		return []string{"Retro-Spiele", "Retrospiel spielen", "DOS-Spiel", "Arcade-Spiel", "Spielhalle", "retro games", "play an old game", "archive.org games"}
+		return []string{"Retro-Spiele", "Retrospiel spielen", "DOS-Spiel", "Arcade-Spiel", "Spielhalle", "retro games", "old game", "archive.org games"}
 	case "system_metrics":
 		return []string{
 			"cpu temperature", "cpu temperatures", "cpu temperatur",

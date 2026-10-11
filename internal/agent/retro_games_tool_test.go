@@ -109,12 +109,21 @@ func TestRetroGamesFeatureNeedsPublishedService(t *testing.T) {
 }
 
 func TestRetroGamesIntentIsAdditive(t *testing.T) {
-	for _, q := range []string{"Lass uns ein Retro-Spiel spielen", "play an old DOS game", "Starte etwas aus der Spielhalle", "Hast du Amiga Spiele?"} {
+	for _, q := range []string{
+		"Lass uns ein Retro-Spiel spielen", "play an old DOS game", "Starte etwas aus der Spielhalle", "Hast du Amiga Spiele?",
+		"ich will ein altes Spiel spielen", "C64er Spiele", "Amigas", "show me a classic game", "gibt es Spieleklassiker?",
+	} {
 		if got := adaptiveAdditiveToolsForQuery(q); !containsString(got, "retro_games") {
 			t.Errorf("%q: additive = %v", q, got)
 		}
 	}
-	for _, q := range []string{"Wie wird das Wetter morgen?", "schreib eine Mail an Anna"} {
+	// Terms match at a word start only: hex digests, architectures and
+	// unrelated words that merely contain a console or computer name stay out.
+	for _, q := range []string{
+		"Wie wird das Wetter morgen?", "schreib eine Mail an Anna",
+		"starte den Android Emulator", "sha256:3fc64a9d image digest", "ppc64le build",
+		"schick mir den archive.org Link", "omega drive backup", "ddos game server logs",
+	} {
 		if got := adaptiveAdditiveToolsForQuery(q); containsString(got, "retro_games") {
 			t.Errorf("%q: unexpected retro_games", q)
 		}
@@ -158,5 +167,15 @@ func TestRetroGamesAliasesRankTheToolOnlyWhileItIsOn(t *testing.T) {
 	}
 	if found == 0 {
 		t.Fatal("no retro_games alias registered")
+	}
+}
+
+// TestRetroGamesDiscoverySurfaces: the tool is a media tool, not a misc one.
+func TestRetroGamesDiscoverySurfaces(t *testing.T) {
+	if got := classifyToolFamily("retro_games"); got != "media" {
+		t.Fatalf("family = %q, want media", got)
+	}
+	if got := ToolCategoryForName("retro_games"); got != "media" {
+		t.Fatalf("category = %q, want media", got)
 	}
 }

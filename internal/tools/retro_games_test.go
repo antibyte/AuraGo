@@ -399,6 +399,12 @@ func TestRetroGamesToolPlay(t *testing.T) {
 	if payload["app_id"] != "retro-games" || payload["game"] != "arcade_tron" {
 		t.Fatalf("event payload = %v", payload)
 	}
+	// The tool only asks the desktop to open the app: channels without a
+	// desktop never open it, so the result must not claim it did.
+	message, _ := m["message"].(string)
+	if !strings.HasPrefix(message, "Asked the Retro Games app on the virtual desktop to open ") || !strings.Contains(message, "power button") || strings.Contains(message, "Opened") {
+		t.Fatalf("play message = %q", message)
+	}
 	if exec := ExecuteRetroGames(context.Background(), cfg, RetroGamesRequest{Operation: "play", Identifier: "nope_nope"}); exec.Event != nil || decodeRetroGamesOutput(t, exec.Output)["code"] != "game_not_found" {
 		t.Fatalf("unknown game: %s", exec.Output)
 	}
@@ -464,5 +470,21 @@ func TestWithdrawRetroGamesServiceOnlyOwn(t *testing.T) {
 	WithdrawRetroGamesService(a)
 	if currentRetroGamesService() != nil {
 		t.Fatal("own service must be withdrawn")
+	}
+}
+
+// The platform key is lower case on the index side; a model that writes "C64"
+// or pads the value must still reach the platform.
+func TestRetroGamesToolPlatformIsCaseInsensitive(t *testing.T) {
+	useRetroGamesService(t, &retrogamestest.Fetcher{Err: errors.New("offline")})
+	cfg := retroGamesToolConfig()
+	for platform, prefix := range map[string]string{" ZX ": "zx_", "Arcade": "arcade_", "C64": "d64_"} {
+		m := decodeRetroGamesOutput(t, ExecuteRetroGames(context.Background(), cfg, RetroGamesRequest{Operation: "search", Platform: platform, Limit: 20}).Output)
+		if m["status"] != "success" || m["source"] != "hall_of_fame" || !strings.Contains(retroGamesText(t, m, "results"), prefix) {
+			t.Errorf("platform %q: %v", platform, m)
+		}
+	}
+	if m := decodeRetroGamesOutput(t, ExecuteRetroGames(context.Background(), cfg, RetroGamesRequest{Operation: "search", Platform: "playstation"}).Output); m["code"] != "invalid_request" {
+		t.Fatalf("an unknown platform must stay invalid: %v", m)
 	}
 }

@@ -2219,7 +2219,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				},
 				"format":      prop("string", "Export format for export_file, e.g. docx, html, md, txt, xlsx, csv."),
 				"output_path": prop("string", "Workspace-relative target path for export_file."),
-				"app_id":      prop("string", "Desktop app ID for open_app, open_in_app, get_app, diagnose_app, or widget ownership. Built-in open targets include editor for plain text workspace files, writer for word-processing documents, sheets for spreadsheets, code-studio for code work, and retro-games for the Retro Games arcade (use the retro_games tool to open a specific game). For generated apps, use the generated app id itself (for example space-invaders) when you want to run it."),
+				"app_id":      prop("string", "Desktop app ID for open_app, open_in_app, get_app, diagnose_app, or widget ownership. Built-in open targets include editor for plain text workspace files, writer for word-processing documents, sheets for spreadsheets, code-studio for code work, and retro-games for the Retro Games arcade when enabled (use the retro_games tool to open a specific game). For generated apps, use the generated app id itself (for example space-invaders) when you want to run it."),
 				"widget_id":   prop("string", "Desktop widget ID for get_widget or diagnose_widget. Also accepted as 'id' alias."),
 				"pet_id":      prop("string", "Desktop pet ID for set_pet or pet identifier for list_pets results."),
 				"reaction": map[string]interface{}{

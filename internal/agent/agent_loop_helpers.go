@@ -772,10 +772,19 @@ func adaptiveAdditiveToolsForQuery(userQuery string) []string {
 }
 
 // isRetroGamesIntent offers the retro_games tool when the user talks about
-// retro or arcade games, emulators or classic home computers and consoles.
+// retro or arcade games, old or classic games, or classic home computers and
+// consoles. A term matches only at the start of a word, so hex digests
+// ("3fc64a9d"), architectures ("ppc64le") and words such as "omega drive" or
+// "ddos game" stay out. A bare "retro" is not a term: AuraGo has an unrelated
+// Retro-Net app.
 func isRetroGamesIntent(normalizedQuery string) bool {
-	for _, term := range []string{"retro spiel", "retrospiel", "retro game", "retrogame", "arcade", "spielhalle", "emulator", "dos game", "dos spiel", "c64", "commodore", "amiga", "atari", "zx spectrum", "mega drive", "megadrive", "archive org"} {
-		if strings.Contains(normalizedQuery, term) {
+	padded := " " + normalizedQuery
+	for _, term := range []string{
+		"retro spiel", "retrospiel", "retro game", "retrogame", "arcade", "spielhalle",
+		"old game", "classic game", "alte spiele", "altes spiel", "spieleklassiker", "klassiker spiel",
+		"dos game", "dos spiel", "c64", "commodore", "amiga", "atari", "zx spectrum", "mega drive", "megadrive",
+	} {
+		if strings.Contains(padded, " "+term) {
 			return true
 		}
 	}

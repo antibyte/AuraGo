@@ -106,19 +106,21 @@ func retroGamesSearch(ctx context.Context, svc *retrogames.Service, req RetroGam
 		limit = retroGamesMaxLimit
 	}
 	query := strings.TrimSpace(req.Query)
-	normalized, err := (retrogames.Query{Text: query, Platform: req.Platform, Decade: req.Decade}).Normalize()
+	// The index keys platforms in lower case; a model may write "C64".
+	platform := strings.ToLower(strings.TrimSpace(req.Platform))
+	normalized, err := (retrogames.Query{Text: query, Platform: platform, Decade: req.Decade}).Normalize()
 	if err != nil {
 		return retroGamesErrorFor(err)
 	}
 	if query == "" {
-		games, err := svc.HallOfFame(ctx, req.Platform)
+		games, err := svc.HallOfFame(ctx, platform)
 		if err != nil {
 			return retroGamesErrorFor(err)
 		}
 		games = retroGamesDecade(games, req.Decade)
 		return retroGamesList("hall_of_fame", len(games), retroGamesHead(games, limit), "")
 	}
-	res, err := svc.Search(ctx, retrogames.Query{Text: query, Platform: req.Platform, Decade: req.Decade, Limit: limit})
+	res, err := svc.Search(ctx, retrogames.Query{Text: query, Platform: platform, Decade: req.Decade, Limit: limit})
 	if err != nil {
 		return retroGamesErrorFor(err)
 	}
@@ -126,7 +128,7 @@ func retroGamesSearch(ctx context.Context, svc *retrogames.Service, req RetroGam
 		if status, statusErr := svc.Status(ctx); statusErr == nil {
 			// An index that holds no games at all falls back to the Hall of Fame.
 			if status.TotalGames == 0 {
-				hof, hofErr := svc.HallOfFame(ctx, req.Platform)
+				hof, hofErr := svc.HallOfFame(ctx, platform)
 				if hofErr != nil {
 					return retroGamesErrorFor(hofErr)
 				}
@@ -175,7 +177,7 @@ func retroGamesPlay(ctx context.Context, cfg *config.Config, svc *retrogames.Ser
 		"identifier": g.Identifier,
 		"title":      security.IsolateExternalData(retroGamesClip(g.Title, retroGamesTitleRunes)),
 		"system":     g.System,
-		"message":    "Opened in the Retro Games desktop app. The user starts the emulator with the power button on the game screen.",
+		"message":    "Asked the Retro Games app on the virtual desktop to open this game. The user starts the emulator with the power button on the game screen.",
 	}, event)
 }
 
