@@ -39,6 +39,7 @@
   "config.shell_sandbox.max_memory": "Max. paměť (MB)",
   "config.shell_sandbox.max_cpu": "Max. čas CPU (sekundy)",
   "config.shell_sandbox.max_procs": "Max. procesy",
+  "config.shell_sandbox.max_procs_note": "Nepoužije se. Linux počítá tento limit na uživatele, včetně vláken AuraGo.",
   "config.shell_sandbox.max_fsize": "Max. velikost souboru (MB)",
   "config.shell_sandbox.system_caps": "Systémové schopnosti",
   "config.shell_sandbox.in_docker": "Docker detekován",

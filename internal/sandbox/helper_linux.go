@@ -28,8 +28,12 @@ func RunHelper(command string) {
 		os.Exit(126)
 	}
 
-	// Apply resource limits (before Landlock, so /proc is still accessible)
-	applyRlimits()
+	// Apply resource limits (before Landlock, so /proc is still accessible).
+	// A failed limit exits before Landlock, same as a Landlock error.
+	if err := applyRlimits(); err != nil {
+		fmt.Fprintf(os.Stderr, "sandbox: %v\n", err)
+		os.Exit(126)
+	}
 
 	// Apply Landlock filesystem restrictions
 	if err := applyLandlock(); err != nil {
@@ -61,7 +65,10 @@ func RunExecHelper() {
 		os.Exit(126)
 	}
 
-	applyRlimits()
+	if err := applyRlimits(); err != nil {
+		fmt.Fprintf(os.Stderr, "sandbox: %v\n", err)
+		os.Exit(126)
+	}
 
 	if err := applyLandlock(); err != nil {
 		fmt.Fprintf(os.Stderr, "sandbox: landlock: %v\n", err)
@@ -225,47 +232,51 @@ func landlockAddPath(rulesetFd int, path string, access uint64) error {
 
 // ── Resource Limits ────────────────────────────────────────────────────────
 
-// applyRlimits sets resource limits on the current process based on env vars.
-// Errors are written to stderr rather than silently ignored so that sandbox
-// security misconfigurations are visible in the process output.
-func applyRlimits() {
-	if v := envInt("AURAGO_SBX_MEM"); v > 0 {
-		lim := &unix.Rlimit{
-			Cur: uint64(v) * 1024 * 1024,
-			Max: uint64(v) * 1024 * 1024,
-		}
-		if err := unix.Setrlimit(unix.RLIMIT_AS, lim); err != nil {
-			fmt.Fprintf(os.Stderr, "sandbox: setrlimit(RLIMIT_AS, %dMB): %v\n", v, err)
-		}
+// plannedRlimits returns the resource ids applyRlimits will set.
+// RLIMIT_NPROC is never included: Linux counts that limit per user, including
+// AuraGo's own threads, so AURAGO_SBX_PROCS is ignored.
+func plannedRlimits() []int {
+	var resources []int
+	if envInt("AURAGO_SBX_MEM") > 0 {
+		resources = append(resources, unix.RLIMIT_AS)
 	}
+	if envInt("AURAGO_SBX_CPU") > 0 {
+		resources = append(resources, unix.RLIMIT_CPU)
+	}
+	if envInt("AURAGO_SBX_FSIZE") > 0 {
+		resources = append(resources, unix.RLIMIT_FSIZE)
+	}
+	return resources
+}
 
-	if v := envInt("AURAGO_SBX_CPU"); v > 0 {
-		lim := &unix.Rlimit{
-			Cur: uint64(v),
-			Max: uint64(v),
+// applyRlimits sets memory, CPU, and file-size limits on the current process.
+// A failed setrlimit is returned so the helper exits before Landlock.
+func applyRlimits() error {
+	for _, resource := range plannedRlimits() {
+		var lim unix.Rlimit
+		var label string
+		switch resource {
+		case unix.RLIMIT_AS:
+			v := envInt("AURAGO_SBX_MEM")
+			bytes := uint64(v) * 1024 * 1024
+			lim = unix.Rlimit{Cur: bytes, Max: bytes}
+			label = fmt.Sprintf("RLIMIT_AS, %dMB", v)
+		case unix.RLIMIT_CPU:
+			v := envInt("AURAGO_SBX_CPU")
+			seconds := uint64(v)
+			lim = unix.Rlimit{Cur: seconds, Max: seconds}
+			label = fmt.Sprintf("RLIMIT_CPU, %ds", v)
+		case unix.RLIMIT_FSIZE:
+			v := envInt("AURAGO_SBX_FSIZE")
+			bytes := uint64(v) * 1024 * 1024
+			lim = unix.Rlimit{Cur: bytes, Max: bytes}
+			label = fmt.Sprintf("RLIMIT_FSIZE, %dMB", v)
+		default:
+			return fmt.Errorf("unsupported rlimit %d", resource)
 		}
-		if err := unix.Setrlimit(unix.RLIMIT_CPU, lim); err != nil {
-			fmt.Fprintf(os.Stderr, "sandbox: setrlimit(RLIMIT_CPU, %ds): %v\n", v, err)
+		if err := unix.Setrlimit(resource, &lim); err != nil {
+			return fmt.Errorf("setrlimit(%s): %w", label, err)
 		}
 	}
-
-	if v := envInt("AURAGO_SBX_PROCS"); v > 0 {
-		lim := &unix.Rlimit{
-			Cur: uint64(v),
-			Max: uint64(v),
-		}
-		if err := unix.Setrlimit(unix.RLIMIT_NPROC, lim); err != nil {
-			fmt.Fprintf(os.Stderr, "sandbox: setrlimit(RLIMIT_NPROC, %d): %v\n", v, err)
-		}
-	}
-
-	if v := envInt("AURAGO_SBX_FSIZE"); v > 0 {
-		lim := &unix.Rlimit{
-			Cur: uint64(v) * 1024 * 1024,
-			Max: uint64(v) * 1024 * 1024,
-		}
-		if err := unix.Setrlimit(unix.RLIMIT_FSIZE, lim); err != nil {
-			fmt.Fprintf(os.Stderr, "sandbox: setrlimit(RLIMIT_FSIZE, %dMB): %v\n", v, err)
-		}
-	}
+	return nil
 }

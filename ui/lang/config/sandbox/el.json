@@ -39,6 +39,7 @@
   "config.shell_sandbox.max_memory": "Μέγ. Μνήμη (MB)",
   "config.shell_sandbox.max_cpu": "Μέγ. Χρόνος CPU (δευτ.)",
   "config.shell_sandbox.max_procs": "Μέγ. Διεργασίες",
+  "config.shell_sandbox.max_procs_note": "Δεν εφαρμόζεται. Το Linux μετρά το όριο ανά χρήστη, μαζί με τα νήματα του AuraGo.",
   "config.shell_sandbox.max_fsize": "Μέγ. Μέγεθος Αρχείου (MB)",
   "config.shell_sandbox.system_caps": "Δυνατότητες Συστήματος",
   "config.shell_sandbox.in_docker": "Docker εντοπίστηκε",

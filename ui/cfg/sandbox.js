@@ -266,6 +266,7 @@ async function renderSandboxSection(section) {
             <span class="sb-field-caption">${t('config.shell_sandbox.max_procs')}</span>
             <input type="number" class="field-input sb-field-input" data-path="shell_sandbox.max_processes" value="${shCfg.max_processes || 50}" min="5" max="500"
                 onchange="setNestedValue(configData,'shell_sandbox.max_processes',parseInt(this.value)||50);setDirty(true)">
+            <small class="sb-field-hint">${t('config.shell_sandbox.max_procs_note')}</small>
         </label>`;
 
         html += `<label class="sb-field-label">

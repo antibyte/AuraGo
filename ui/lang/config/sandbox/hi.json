@@ -39,6 +39,7 @@
   "config.shell_sandbox.max_memory": "अधिकतम मेमोरी (MB)",
   "config.shell_sandbox.max_cpu": "अधिकतम CPU समय (सेकंड)",
   "config.shell_sandbox.max_procs": "अधिकतम प्रक्रियाएं",
+  "config.shell_sandbox.max_procs_note": "लागू नहीं होता। Linux इसे प्रति उपयोगकर्ता गिनता है, AuraGo के थ्रेड सहित।",
   "config.shell_sandbox.max_fsize": "अधिकतम फ़ाइल आकार (MB)",
   "config.shell_sandbox.system_caps": "सिस्टम क्षमताएं",
   "config.shell_sandbox.in_docker": "Docker पहचाना गया",

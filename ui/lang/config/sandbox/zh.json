@@ -39,6 +39,7 @@
   "config.shell_sandbox.max_memory": "最大内存（MB）",
   "config.shell_sandbox.max_cpu": "最大CPU时间（秒）",
   "config.shell_sandbox.max_procs": "最大进程数",
+  "config.shell_sandbox.max_procs_note": "不会应用。Linux 按用户计算此限制，并计入 AuraGo 自己的线程。",
   "config.shell_sandbox.max_fsize": "最大文件大小（MB）",
   "config.shell_sandbox.system_caps": "系统功能",
   "config.shell_sandbox.in_docker": "检测到Docker",

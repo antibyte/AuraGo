@@ -39,6 +39,7 @@
   "config.shell_sandbox.max_memory": "Max Memory (MB)",
   "config.shell_sandbox.max_cpu": "Max CPU Time (seconds)",
   "config.shell_sandbox.max_procs": "Max Processes",
+  "config.shell_sandbox.max_procs_note": "Not applied. Linux counts this limit per user, including AuraGo's own threads.",
   "config.shell_sandbox.max_fsize": "Max File Size (MB)",
   "config.shell_sandbox.system_caps": "System Capabilities",
   "config.shell_sandbox.in_docker": "Docker detected",

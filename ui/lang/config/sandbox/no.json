@@ -39,6 +39,7 @@
   "config.shell_sandbox.max_memory": "Maks. minne (MB)",
   "config.shell_sandbox.max_cpu": "Maks CPU tid (sekunder)",
   "config.shell_sandbox.max_procs": "Maks. prosesser",
+  "config.shell_sandbox.max_procs_note": "Brukes ikke. Linux teller grensen per bruker, inkludert AuraGo sine tråder.",
   "config.shell_sandbox.max_fsize": "Maks. filstørrelse (MB)",
   "config.shell_sandbox.system_caps": "Systemegenskaper",
   "config.shell_sandbox.in_docker": "Docker oppdaget",
