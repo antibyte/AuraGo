@@ -3,6 +3,7 @@ package persondetect
 import (
 	"fmt"
 	"runtime"
+	"slices"
 
 	"aurago/internal/onnxrt"
 )
@@ -45,20 +46,22 @@ func detectPixels(eng engine, pixels []float32, size int, minScore float64) ([]B
 	return DecodePersons(logits.Float32, boxes.Float32, queries, classes, dfinePersonClass, minScore), nil
 }
 
-// outputLayout validates logits [1,Q,C] and boxes [1,Q,4] and returns Q and C.
+// outputLayout requires exactly the pinned D-FINE outputs, logits
+// [1,300,80] and boxes [1,300,4] with matching float32 data, and returns the
+// query and class counts.
 func outputLayout(logits, boxes onnxrt.Tensor) (queries, classes int, err error) {
 	if logits.Float32 == nil || boxes.Float32 == nil {
 		return 0, 0, fmt.Errorf("D-FINE outputs must be float32")
 	}
-	if len(logits.Shape) != 3 || len(boxes.Shape) != 3 || logits.Shape[0] != 1 || boxes.Shape[0] != 1 ||
-		boxes.Shape[2] != 4 || boxes.Shape[1] != logits.Shape[1] {
-		return 0, 0, fmt.Errorf("unexpected D-FINE output shapes %v and %v", logits.Shape, boxes.Shape)
+	if !slices.Equal(logits.Shape, []int64{1, dfineQueries, dfineClasses}) || !slices.Equal(boxes.Shape, []int64{1, dfineQueries, 4}) {
+		return 0, 0, fmt.Errorf("unexpected D-FINE output shapes %v and %v (want [1 %d %d] and [1 %d 4])",
+			logits.Shape, boxes.Shape, dfineQueries, dfineClasses, dfineQueries)
 	}
-	queries, classes = int(logits.Shape[1]), int(logits.Shape[2])
-	if queries <= 0 || classes <= dfinePersonClass || len(logits.Float32) != queries*classes || len(boxes.Float32) != queries*4 {
-		return 0, 0, fmt.Errorf("D-FINE outputs do not match shapes %v and %v", logits.Shape, boxes.Shape)
+	if len(logits.Float32) != dfineQueries*dfineClasses || len(boxes.Float32) != dfineQueries*4 {
+		return 0, 0, fmt.Errorf("D-FINE outputs hold %d and %d values for shapes %v and %v",
+			len(logits.Float32), len(boxes.Float32), logits.Shape, boxes.Shape)
 	}
-	return queries, classes, nil
+	return dfineQueries, dfineClasses, nil
 }
 
 // cpuThreads is the CPU path's intra-op thread count: min(4, max(1, NumCPU/2)).

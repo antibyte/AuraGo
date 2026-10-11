@@ -6,6 +6,8 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -97,20 +99,22 @@ func (f *fakeEngine) Close() error {
 	return nil
 }
 
-// newFakeEngine returns D-FINE-shaped outputs with two classes; scores are
-// person probabilities, one cx/cy/w/h box per score.
+// newFakeEngine returns D-FINE-shaped outputs (logits [1,300,80], pred_boxes
+// [1,300,4]): the first queries carry the given person probabilities and
+// cx/cy/w/h boxes, every other query and class scores 0.001 with an empty box.
 func newFakeEngine(scores []float64, boxes [][4]float32) *fakeEngine {
-	queries := len(scores)
-	logits := make([]float32, queries*2)
-	flat := make([]float32, queries*4)
+	logits := make([]float32, dfineQueries*dfineClasses)
+	for i := range logits {
+		logits[i] = logit(0.001)
+	}
+	flat := make([]float32, dfineQueries*4)
 	for i, score := range scores {
-		logits[i*2] = logit(score)
-		logits[i*2+1] = logit(0.01)
+		logits[i*dfineClasses+dfinePersonClass] = logit(score)
 		copy(flat[i*4:], boxes[i][:])
 	}
 	return &fakeEngine{
-		logits: onnxrt.Tensor{Shape: []int64{1, int64(queries), 2}, Float32: logits},
-		boxes:  onnxrt.Tensor{Shape: []int64{1, int64(queries), 4}, Float32: flat},
+		logits: onnxrt.Tensor{Shape: []int64{1, dfineQueries, dfineClasses}, Float32: logits},
+		boxes:  onnxrt.Tensor{Shape: []int64{1, dfineQueries, 4}, Float32: flat},
 	}
 }
 
@@ -124,15 +128,25 @@ func TestDetectPixelsDecodesEngineOutputs(t *testing.T) {
 
 func TestOutputLayoutRejectsBadShapes(t *testing.T) {
 	good := newFakeEngine([]float64{0.9}, [][4]float32{{0.5, 0.5, 0.2, 0.2}})
-	if queries, classes, err := outputLayout(good.logits, good.boxes); err != nil || queries != 1 || classes != 2 {
+	if queries, classes, err := outputLayout(good.logits, good.boxes); err != nil || queries != dfineQueries || classes != dfineClasses {
 		t.Fatalf("outputLayout = %d, %d, %v", queries, classes, err)
 	}
+	zeros := func(shape ...int64) onnxrt.Tensor {
+		return onnxrt.Tensor{Shape: shape, Float32: make([]float32, shape[0]*shape[1]*shape[2])}
+	}
 	cases := map[string][2]onnxrt.Tensor{
-		"int64 logits":   {{Shape: []int64{1, 1, 2}, Int64: []int64{1, 2}}, good.boxes},
-		"rank":           {{Shape: []int64{1, 2}, Float32: []float32{1, 2}}, good.boxes},
-		"box width":      {good.logits, {Shape: []int64{1, 1, 3}, Float32: []float32{1, 2, 3}}},
-		"query mismatch": {good.logits, {Shape: []int64{1, 2, 4}, Float32: make([]float32, 8)}},
-		"length":         {{Shape: []int64{1, 1, 2}, Float32: []float32{1}}, good.boxes},
+		"int64 logits":    {{Shape: []int64{1, dfineQueries, dfineClasses}, Int64: make([]int64, dfineQueries*dfineClasses)}, good.boxes},
+		"rank":            {{Shape: []int64{dfineQueries, dfineClasses}, Float32: make([]float32, dfineQueries*dfineClasses)}, good.boxes},
+		"box width":       {good.logits, zeros(1, dfineQueries, 3)},
+		"query mismatch":  {good.logits, zeros(1, dfineQueries-1, 4)},
+		"length":          {{Shape: []int64{1, dfineQueries, dfineClasses}, Float32: make([]float32, dfineQueries*dfineClasses-1)}, good.boxes},
+		"box length":      {good.logits, {Shape: []int64{1, dfineQueries, 4}, Float32: make([]float32, dfineQueries*4+1)}},
+		"batch 2":         {zeros(2, dfineQueries, dfineClasses), zeros(2, dfineQueries, 4)},
+		"zero queries":    {{Shape: []int64{1, 0, dfineClasses}, Float32: []float32{}}, {Shape: []int64{1, 0, 4}, Float32: []float32{}}},
+		"zero classes":    {{Shape: []int64{1, dfineQueries, 0}, Float32: []float32{}}, good.boxes},
+		"wrong queries":   {zeros(1, 100, dfineClasses), zeros(1, 100, 4)},
+		"wrong classes":   {zeros(1, dfineQueries, 2), good.boxes},
+		"negative shapes": {{Shape: []int64{1, -dfineQueries, dfineClasses}, Float32: []float32{}}, good.boxes},
 	}
 	for name, pair := range cases {
 		if _, _, err := outputLayout(pair[0], pair[1]); err == nil {
@@ -213,5 +227,130 @@ func TestCompareReferenceDetections(t *testing.T) {
 	}
 	if _, err := compareReferenceDetections(nil, nil); err == nil || !strings.Contains(err.Error(), "no person with score >= 0.5") {
 		t.Fatalf("two empty sets accepted: %v", err)
+	}
+}
+
+func TestWriteFileAtomicLeavesNoTempOnRenameFailure(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "model.onnx")
+	// A non-empty directory at the target path makes the final rename fail
+	// on every platform.
+	if err := os.MkdirAll(filepath.Join(path, "keep"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeFileAtomic(path, []byte("model"), 0o640); err == nil || !strings.Contains(err.Error(), "activate model.onnx") {
+		t.Fatalf("writeFileAtomic over a directory: %v", err)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil || len(entries) != 1 || entries[0].Name() != "model.onnx" || !entries[0].IsDir() {
+		t.Fatalf("directory after the failed write: %v, %v", entries, err)
+	}
+}
+
+// A killed prepare leaves <out>.folded-<hex>.onnx and <out>.tmp-<hex> next to
+// the output; the next prepare of the same output removes exactly those.
+func TestSweepStalePrepareFiles(t *testing.T) {
+	// "[" would be a pattern character for filepath.Glob.
+	dir := filepath.Join(t.TempDir(), "data [cam]", "standard")
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	output := filepath.Join(dir, "model.webgpu-1.27.0.onnx")
+	stale := []string{
+		"model.webgpu-1.27.0.onnx.folded-0123456789abcdef.onnx",
+		"model.webgpu-1.27.0.onnx.tmp-0123456789abcdef",
+	}
+	kept := []string{
+		"model.onnx",
+		"model.onnx.tmp-0123456789abcdef",
+		"model.webgpu-1.27.0.onnx",
+		"model.webgpu-1.27.0.json",
+		"model.webgpu-1.27.0.json.tmp-0123456789abcdef",
+		"model.webgpu-1.27.0.onnx.part",
+	}
+	for _, name := range append(append([]string(nil), stale...), kept...) {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(name), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Mkdir(filepath.Join(dir, "model.webgpu-1.27.0.onnx.tmp-dir"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	kept = append(kept, "model.webgpu-1.27.0.onnx.tmp-dir")
+
+	sweepStalePrepareFiles(output)
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+	slices.Sort(names)
+	slices.Sort(kept)
+	if !slices.Equal(names, kept) {
+		t.Fatalf("after the sweep:\n got %q\nwant %q", names, kept)
+	}
+	// A missing directory is not an error.
+	sweepStalePrepareFiles(filepath.Join(dir, "missing", "model.onnx"))
+}
+
+func TestPrepareRejectsExtraArguments(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := RunWorker([]string{"prepare", "--runtime", "rt", "--in", "in.onnx", "--out", "out.onnx", "extra"}, strings.NewReader(""), &stdout, &stderr)
+	lines := decodeLines(t, stdout.Bytes())
+	if code != 2 || len(lines) != 1 || lines[0]["type"] != "error" || !strings.Contains(lines[0]["error"].(string), `unexpected argument(s) ["extra"]`) {
+		t.Fatalf("code %d, lines %v", code, lines)
+	}
+}
+
+func TestPrepareRejectsSameInputAndOutput(t *testing.T) {
+	dir := t.TempDir()
+	model := filepath.Join(dir, "model.onnx")
+	if err := os.WriteFile(model, []byte("model"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	aliases := []string{model, filepath.Join(dir, ".", "sub", "..", "model.onnx")}
+	if runtime.GOOS == "windows" {
+		aliases = append(aliases, filepath.Join(dir, "MODEL.ONNX"))
+	}
+	for _, alias := range aliases {
+		var stdout, stderr bytes.Buffer
+		code := RunWorker([]string{"prepare", "--runtime", dir, "--in", model, "--out", alias}, strings.NewReader(""), &stdout, &stderr)
+		lines := decodeLines(t, stdout.Bytes())
+		if code != 2 || len(lines) != 1 || lines[0]["type"] != "error" || lines[0]["error"] != "--in and --out must name different files" {
+			t.Fatalf("--out %s: code %d, lines %v", alias, code, lines)
+		}
+	}
+	raw, err := os.ReadFile(model)
+	if err != nil || string(raw) != "model" {
+		t.Fatalf("input changed: %q, %v", raw, err)
+	}
+}
+
+// A panic inside a worker command is an error line with exit code 1; exit
+// code 2 keeps meaning "usage error".
+func TestRecoverWorkerPanic(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := func() (code int) {
+		defer recoverWorkerPanic(&stdout, &stderr, &code)
+		panic("boom")
+	}()
+	lines := decodeLines(t, stdout.Bytes())
+	if code != 1 || len(lines) != 1 || lines[0]["type"] != "error" || lines[0]["error"] != "person detection worker panic: boom" {
+		t.Fatalf("code %d, lines %v", code, lines)
+	}
+	if !strings.Contains(stderr.String(), "goroutine") {
+		t.Fatalf("stderr has no stack: %q", stderr.String())
+	}
+	stdout.Reset()
+	code = func() (code int) {
+		defer recoverWorkerPanic(&stdout, &stderr, &code)
+		return 0
+	}()
+	if code != 0 || stdout.Len() != 0 {
+		t.Fatalf("no panic: code %d, stdout %q", code, stdout.String())
 	}
 }
