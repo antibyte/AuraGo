@@ -173,8 +173,9 @@ func TestPreprocessRejectsOversizedFrames(t *testing.T) {
 
 func TestValidateFrameSize(t *testing.T) {
 	// The limits themselves are part of the memory bound: x/image/draw's scaler
-	// needs width x source-height x 32 B, the progressive decoder allocates per
-	// block before it reads scans.
+	// needs destination width x source height x 32 B, the progressive decoder
+	// allocates its coefficient buffers before it reads scans. 1<<24 is
+	// 16,777,216 px.
 	if maxFrameSide != 8192 || maxFramePixels != 1<<24 {
 		t.Fatalf("limits changed: side %d, pixels %d", maxFrameSide, maxFramePixels)
 	}
@@ -214,6 +215,10 @@ func TestValidateFrameSize(t *testing.T) {
 		if !tc.ok && (err == nil || !strings.Contains(err.Error(), "not supported")) {
 			t.Errorf("%dx%d error = %v", tc.width, tc.height, err)
 		}
+	}
+	// The message states the exact limits, not rounded units.
+	if err := validateFrameSize(4097, 4096); err == nil || !strings.Contains(err.Error(), "8192 px per side") || !strings.Contains(err.Error(), "16777216 px in total") {
+		t.Errorf("error does not state the exact limits: %v", err)
 	}
 }
 
@@ -811,12 +816,20 @@ func TestSameConfidentDetectionsRejectsNonFiniteInput(t *testing.T) {
 		}
 	}
 	for name, params := range map[string][3]float64{
-		"NaN threshold": {nan, 0.9, 0.02},
-		"NaN minIoU":    {0.3, nan, 0.02},
-		"NaN margin":    {0.3, 0.9, nan},
-		"Inf threshold": {inf, 0.9, 0.02},
-		"Inf margin":    {0.3, 0.9, inf},
-		"negative diff": {0.3, 0.9, -0.02},
+		"NaN threshold":    {nan, 0.9, 0.02},
+		"NaN minIoU":       {0.3, nan, 0.02},
+		"NaN margin":       {0.3, 0.9, nan},
+		"Inf threshold":    {inf, 0.9, 0.02},
+		"-Inf threshold":   {-inf, 0.9, 0.02},
+		"Inf margin":       {0.3, 0.9, inf},
+		"negative diff":    {0.3, 0.9, -0.02},
+		"Inf minIoU":       {0.3, inf, 0.02},
+		"-Inf minIoU":      {0.3, -inf, 0.02},
+		"zero minIoU":      {0.3, 0, 0.02},
+		"negative minIoU":  {0.3, -0.5, 0.02},
+		"minIoU above one": {0.3, 1.0000001, 0.02},
+		"minIoU of 1.5":    {0.3, 1.5, 0.02},
+		"overflowing cut":  {math.MaxFloat64, 0.9, math.MaxFloat64},
 	} {
 		// Vacuous truth must never leak through bad parameters: even two empty sets fail.
 		for _, sets := range [][2][]Box{{good, good}, {nil, nil}} {
@@ -824,6 +837,19 @@ func TestSameConfidentDetectionsRejectsNonFiniteInput(t *testing.T) {
 				t.Errorf("%s: %v / %v = %v, %q", name, sets[0], sets[1], ok, reason)
 			}
 		}
+	}
+}
+
+func TestSameConfidentDetectionsAcceptsMinIoUInRange(t *testing.T) {
+	box := []Box{stripe(0.4, 0.8)}
+	// minIoU 1 is the strictest valid value: identical boxes still match exactly.
+	for _, minIoU := range []float64{1e-9, 0.5, 0.9, 1} {
+		if ok, reason := SameConfidentDetections(box, box, confThreshold, minIoU, confMaxDiff); !ok || !strings.HasPrefix(reason, "matched 1 confident detection (") {
+			t.Errorf("minIoU %v rejected identical boxes: %q", minIoU, reason)
+		}
+	}
+	if ok, _ := SameConfidentDetections(box, []Box{stripe(0.401, 0.8)}, confThreshold, 1, confMaxDiff); ok {
+		t.Error("minIoU 1 accepted shifted boxes")
 	}
 }
 

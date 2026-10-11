@@ -22,12 +22,19 @@ type Box struct {
 
 // Frame limits, checked on the JPEG header before anything is decoded. A pixel
 // cap alone does not bound memory: x/image/draw's kernel scaler allocates
-// width × source height × 32 B per Scale (a 610×65535 grey JPEG has only
-// 40 Mpx but needed 1.39 GB), and the progressive decoder allocates per block
-// before it reads any scan data (611×65450 needed 1.95 GB). With at most 8192 px
-// per side and 16 Mpx (4K UHD is 8.3 Mpx) the worst case for the 640 px model
-// input is a 2048×8192 frame: about 170 MB for the scaler plus 25 MB for the
-// decoded frame (measured 200 MB allocated).
+// destination width × source height × 32 B per Scale (a 610×65535 grey JPEG
+// has only 40 Mpx but needed 1.39 GB), and the progressive decoder allocates
+// its coefficient buffers before it reads any scan data (611×65450 needed
+// 1.95 GB). Frames are limited to 8192 px per side and 1<<24 = 16,777,216 px
+// (16 Mi px; 4K UHD has 8,294,400 px).
+//
+// Even within the limits a frame is not cheap. Measured allocations of
+// Preprocess(…, 640) for the worst accepted shape, 2048×8192: about 200 MB
+// for a baseline 4:2:0 colour JPEG, 309 MB for a baseline CMYK JPEG, 426 MB for
+// a progressive 4:4:4 JPEG and 577 MB for a progressive CMYK JPEG (about
+// 270 MB coefficients + 64 MB frame + 168 MB scaler). The decoder allocates
+// before it reads the scans, so a progressive CMYK file truncated to 8 KB
+// still costs about 336 MB before it fails.
 const (
 	maxFrameSide   = 8192
 	maxFramePixels = 1 << 24
@@ -36,8 +43,8 @@ const (
 func validateFrameSize(width, height int) error {
 	if width <= 0 || height <= 0 || width > maxFrameSide || height > maxFrameSide ||
 		int64(width)*int64(height) > maxFramePixels {
-		return fmt.Errorf("JPEG size %dx%d is not supported (at most %d px per side and %d Mpx)",
-			width, height, maxFrameSide, maxFramePixels>>20)
+		return fmt.Errorf("JPEG size %dx%d is not supported (at most %d px per side and %d px in total)",
+			width, height, maxFrameSide, maxFramePixels)
 	}
 	return nil
 }
@@ -192,14 +199,18 @@ func SameDetections(a, b []Box, minIoU, maxScoreDiff float64) (bool, string) {
 // exists.
 //
 // On success the reason reports the matched count and the worst IoU and score
-// difference over the matched pairs. On failure it names the first confident
-// box without a partner ("set a" and "set b" are the arguments) and its
-// closest candidate. Two sets without confident boxes are the same ("no
+// difference over the union of the two per-direction matchings; these numbers
+// are diagnostic only (another maximum matching could pair differently) and
+// the verdict does not depend on them. On failure it names the first
+// confident box without a partner ("set a" and "set b" are the arguments) and
+// its closest candidate. Two sets without confident boxes are the same ("no
 // confident detections in either set"): callers decide separately whether
-// that is enough. Non-finite boxes and invalid parameters never pass.
+// that is enough. Non-finite boxes never pass, and neither do invalid
+// parameters: a non-finite threshold, a negative or non-finite maxScoreDiff,
+// or a minIoU outside (0, 1].
 func SameConfidentDetections(a, b []Box, threshold, minIoU, maxScoreDiff float64) (bool, string) {
 	cutoff := threshold + maxScoreDiff
-	if !finite(threshold) || !finite(minIoU) || !finite(maxScoreDiff) || maxScoreDiff < 0 || !finite(cutoff) {
+	if !finite(threshold) || !(minIoU > 0 && minIoU <= 1) || !finite(maxScoreDiff) || maxScoreDiff < 0 || !finite(cutoff) {
 		return false, fmt.Sprintf("invalid comparison parameters (threshold %v, min IoU %v, max score diff %v)", threshold, minIoU, maxScoreDiff)
 	}
 	for _, set := range []struct {
