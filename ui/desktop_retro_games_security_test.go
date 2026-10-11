@@ -293,9 +293,11 @@ func TestDesktopRetroGamesPlayerHasAMuteToggle(t *testing.T) {
 }
 
 // functionBody returns the source of the function that starts at signature up
-// to its closing brace at the same indentation.
+// to its closing brace at the same indentation. Windows checkouts with
+// core.autocrlf have CRLF line endings, so they are normalized first.
 func functionBody(t *testing.T, src, signature string) string {
 	t.Helper()
+	src = strings.ReplaceAll(src, "\r\n", "\n")
 	start := strings.Index(src, signature)
 	if start < 0 {
 		t.Fatalf("player has no %q", signature)
