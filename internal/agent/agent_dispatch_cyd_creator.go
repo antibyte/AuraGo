@@ -124,7 +124,9 @@ func decodeCYDLayoutOps(raw any) ([]cydcreator.LayoutOp, error) {
 const (
 	// cydReadPageBytes caps the content of one cyd_creator_read_file page.
 	cydReadPageBytes = 32 << 10
-	// cydMinPageBytes keeps pages usable when the inline budget is tiny.
+	// cydMinPageBytes is the smallest page budget; an inline budget that
+	// leaves less (a tool_output_limit or vault inline limit below about
+	// 1 KB) gets a CYD_FILE_LIMIT error naming the minimum instead.
 	cydMinPageBytes = 256
 	// cydBudgetSlack absorbs the few bytes the dispatch pipeline may add.
 	cydBudgetSlack = 64
@@ -135,16 +137,30 @@ const (
 // cydCreatorOutputBudget is the largest answer, in cydModelBytes, that reaches
 // the model whole: the agent's inline budget (tool_output_limit and, while the
 // primary output vault is on, its archive threshold), like local_wikipedia.
-// A bigger answer would be replaced by a bare truncation stub.
+// A bigger answer would be replaced by a bare truncation stub, or archived
+// where a CYD Creator run cannot read it back.
 func cydCreatorOutputBudget(dc *DispatchContext) int {
 	return toolResultInlineBudget(dc.Cfg) - cydBudgetSlack
 }
 
-// cydModelBytes measures an answer in its largest form after the Guardian's
-// source isolation: the escaped IsolateExternalData fallback (used for
-// injection-shaped source) is never shorter than the copyable form, so an
-// answer that fits here fits either way.
-func cydModelBytes(out string) int { return len(security.IsolateExternalData(out)) }
+// cydModelBytes measures an answer as the Guardian hands it to the model, in
+// its largest form: the escaped IsolateExternalData fallback (used for
+// injection-shaped source) is never shorter than the copyable form, plus the
+// longer of the "[SECURITY WARNING: ...]" lines either form would get.
+func cydModelBytes(out string) int {
+	escaped := security.IsolateExternalData(out)
+	warning := max(len(security.ToolOutputWarning(escaped)), len(security.ToolOutputWarning(security.IsolateSourceData(out))))
+	return len(escaped) + warning
+}
+
+// cydOutputLimitError reports an inline budget too small for the smallest
+// answer of a tool; needed is that answer's size in cydModelBytes.
+func cydOutputLimitError(needed int) error {
+	minimum := needed + cydBudgetSlack
+	return cydcreator.NewError(cydcreator.CodeFileLimit,
+		fmt.Sprintf("the agent's tool output limit is too small for this CYD Creator result; agent.tool_output_limit (and the output vault's inline limit) must be at least %d bytes", minimum),
+		map[string]any{"limit": "tool_output_limit", "min": minimum})
+}
 
 // cydEscapedLen is the share of s in cydModelBytes when s is a JSON string
 // value: JSON escaping (without HTML escaping) followed by HTML escaping. Both
@@ -298,17 +314,33 @@ func cydReadFileAnswer(file cydcreator.JobFile, page cydFilePage) map[string]any
 
 // cydReadFilePage pages file into budget: the envelope is measured with the
 // largest counters first, then the content gets the rest (at most
-// cydReadPageBytes).
+// cydReadPageBytes). Flagged phrases add a security warning line that grows
+// with the page, so the measured answer shrinks the page until it fits.
 func cydReadFilePage(file cydcreator.JobFile, start, end, budget int) (map[string]any, error) {
 	big := cydFilePage{StartLine: cydMaxLineArg, EndLine: cydMaxLineArg - 1, TotalLines: cydMaxLineArg, Truncated: true,
 		Clipped: true, ClippedBytes: cydMaxLineArg, LineBytes: cydMaxLineArg}
 	envelope := cydModelBytes(cydCreatorToolJSON(cydReadFileAnswer(file, big)))
-	contentBudget := max(min(cydReadPageBytes, budget-envelope), cydMinPageBytes)
-	page, err := pageCYDText(file.Content, start, end, contentBudget)
-	if err != nil {
-		return nil, err
+	contentBudget := min(cydReadPageBytes, budget-envelope)
+	if contentBudget < cydMinPageBytes {
+		return nil, cydOutputLimitError(envelope + cydMinPageBytes)
 	}
-	return cydReadFileAnswer(file, page), nil
+	for {
+		page, err := pageCYDText(file.Content, start, end, contentBudget)
+		if err != nil {
+			return nil, err
+		}
+		answer := cydReadFileAnswer(file, page)
+		over := cydModelBytes(cydCreatorToolJSON(answer)) - budget
+		if over <= 0 {
+			return answer, nil
+		}
+		if contentBudget <= 1 {
+			return nil, cydOutputLimitError(budget + over)
+		}
+		// Warnings grow with the flagged lines on the page: scale the page
+		// down by the overflow ratio (the envelope makes this conservative).
+		contentBudget = max(min(contentBudget-1, contentBudget*budget/(budget+over)), 1)
+	}
 }
 
 // cydLayoutSummary lists the screens of a layout that is too large to show.
@@ -328,11 +360,13 @@ func cydLayoutSummary(p cydcreator.Project) map[string]any {
 
 // cydReadProjectAnswer returns the working copy view; when it does not fit
 // budget the layout is replaced by a summary (page cyd.project.json with
-// cyd_creator_read_file) and the longest lists are halved until it fits.
-func cydReadProjectAnswer(view cydcreator.JobProjectView, budget int) map[string]any {
+// cyd_creator_read_file), then the longest lists (including the plan's) are
+// halved and finally the plan summary is shortened until it fits. A budget
+// too small even for that gets CYD_FILE_LIMIT with the minimum.
+func cydReadProjectAnswer(view cydcreator.JobProjectView, budget int) (map[string]any, error) {
 	answer := map[string]any{"status": "ok", "project": view}
 	if cydModelBytes(cydCreatorToolJSON(answer)) <= budget {
-		return answer
+		return answer, nil
 	}
 	layoutBytes := 0
 	if data, err := cydcreator.MarshalProject(view.Layout); err == nil {
@@ -346,6 +380,10 @@ func cydReadProjectAnswer(view cydcreator.JobProjectView, budget int) map[string
 	var changes []cydcreator.UserFileChange
 	if view.UserChanges != nil {
 		changes = view.UserChanges.Files
+	}
+	var plan cydcreator.JobPlan // clipped copy of view.Plan
+	if view.Plan != nil {
+		plan = *view.Plan
 	}
 	build := func() map[string]any {
 		summary["screens"] = screens
@@ -361,28 +399,54 @@ func cydReadProjectAnswer(view cydcreator.JobProjectView, budget int) map[string
 		if len(screens) < len(view.Layout.Screens) {
 			project["screens_total"] = len(view.Layout.Screens)
 		}
+		if view.Plan != nil {
+			clipped := plan
+			project["plan"] = &clipped
+			for key, n := range map[string][2]int{"plan_screens_total": {len(plan.Screens), len(view.Plan.Screens)},
+				"plan_widgets_total":      {len(plan.Widgets), len(view.Plan.Widgets)},
+				"plan_data_sources_total": {len(plan.DataSources), len(view.Plan.DataSources)}} {
+				if n[0] < n[1] {
+					project[key] = n[1]
+				}
+			}
+			if plan.Summary != view.Plan.Summary {
+				project["plan_summary_clipped"] = true
+			}
+		}
 		return map[string]any{"status": "ok", "project": project, "truncated": true, "total_bytes": layoutBytes,
 			"next_action": fmt.Sprintf("The layout (%d bytes) does not fit one tool result and is left out (layout_summary instead); read cyd.project.json with cyd_creator_read_file, page by page with start_line/end_line. Lists ending early show their *_total.", layoutBytes)}
 	}
 	answer = build()
-	for cydModelBytes(cydCreatorToolJSON(answer)) > budget {
-		longest := max(len(issues), len(files), len(changes), len(screens))
-		if longest == 0 {
-			break // nothing left to clip; the agent's bound handles the rest
-		}
-		switch longest {
-		case len(issues):
+	for size := cydModelBytes(cydCreatorToolJSON(answer)); size > budget; size = cydModelBytes(cydCreatorToolJSON(answer)) {
+		longest := max(len(issues), len(files), len(changes), len(screens), len(plan.Screens), len(plan.Widgets), len(plan.DataSources))
+		switch {
+		case longest == 0 && plan.Summary == "":
+			return nil, cydOutputLimitError(size)
+		case longest == 0:
+			// The plan summary (up to 1000 characters) goes last.
+			if runes := []rune(plan.Summary); len(runes) < 32 {
+				plan.Summary = ""
+			} else {
+				plan.Summary = string(runes[:len(runes)/2]) + "…"
+			}
+		case longest == len(issues):
 			issues = issues[:len(issues)/2]
-		case len(files):
+		case longest == len(files):
 			files = files[:len(files)/2]
-		case len(changes):
+		case longest == len(changes):
 			changes = changes[:len(changes)/2]
-		default:
+		case longest == len(screens):
 			screens = screens[:len(screens)/2]
+		case longest == len(plan.Widgets):
+			plan.Widgets = plan.Widgets[:len(plan.Widgets)/2]
+		case longest == len(plan.DataSources):
+			plan.DataSources = plan.DataSources[:len(plan.DataSources)/2]
+		default:
+			plan.Screens = plan.Screens[:len(plan.Screens)/2]
 		}
 		answer = build()
 	}
-	return answer
+	return answer, nil
 }
 
 func isCYDCreatorTool(name string) bool { return slices.Contains(cydcreator.ToolNames(), name) }
@@ -422,7 +486,11 @@ func dispatchCYDCreator(ctx context.Context, tc ToolCall, dc *DispatchContext) (
 		if err != nil {
 			return toolError(err), true
 		}
-		return cydCreatorToolJSON(cydReadProjectAnswer(view, cydCreatorOutputBudget(dc))), true
+		answer, err := cydReadProjectAnswer(view, cydCreatorOutputBudget(dc))
+		if err != nil {
+			return toolError(err), true
+		}
+		return cydCreatorToolJSON(answer), true
 	case cydcreator.ToolAPIReference:
 		topic := toolArgString(tc.Params, "topic")
 		if topic == "" {
@@ -438,15 +506,27 @@ func dispatchCYDCreator(ctx context.Context, tc ToolCall, dc *DispatchContext) (
 		if !ok || raw == nil {
 			return cydCreatorToolJSON(map[string]any{"status": "error", "message": "plan is required"}), true
 		}
-		data, err := json.Marshal(raw)
-		if err != nil {
-			return toolError(err), true
+		// A string is passed as is and an object is encoded without HTML
+		// escaping: < escapes would push a valid plan over its size cap.
+		var data []byte
+		if s, isString := raw.(string); isString {
+			data = []byte(s)
+		} else {
+			var buf bytes.Buffer
+			encoder := json.NewEncoder(&buf)
+			encoder.SetEscapeHTML(false)
+			if err := encoder.Encode(raw); err != nil {
+				return toolError(err), true
+			}
+			data = bytes.TrimSpace(buf.Bytes())
 		}
 		plan, err := service.SubmitPlan(ctx, jobID, data)
 		if err != nil {
 			return toolError(err), true
 		}
-		return cydCreatorToolJSON(map[string]any{"status": "ok", "plan": plan,
+		// Counts only: echoing a maximal plan would exceed the output budget.
+		return cydCreatorToolJSON(map[string]any{"status": "ok", "plan_accepted": map[string]int{"screens": len(plan.Screens),
+			"widgets": len(plan.Widgets), "data_sources": len(plan.DataSources), "libraries": len(plan.Libraries)},
 			"next_action": "Plan accepted. Stop now: the user confirms the plan before anything is built."}), true
 	case cydcreator.ToolUpdateLayout:
 		ops, err := decodeCYDLayoutOps(tc.Params["ops"])

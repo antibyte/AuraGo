@@ -21,6 +21,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/cydcreator"
+	"aurago/internal/security"
 )
 
 // cydAgentBuilder is a Builder whose builds succeed unless failNext is set.
@@ -309,10 +310,146 @@ func cydCall(t *testing.T, ctx context.Context, dc *DispatchContext, name string
 	if !handled {
 		t.Fatalf("%s not handled", name)
 	}
-	if size, limit := cydModelBytes(out), toolResultInlineBudget(dc.Cfg); size > limit {
+	limit := toolResultInlineBudget(dc.Cfg)
+	if size := cydModelBytes(out); size > limit {
 		t.Errorf("%s answer has %d model bytes, the inline budget is %d", name, size, limit)
 	}
+	// The real Guardian pass (isolation form, role markers, security warning).
+	if size := len(cydTestGuardian().SanitizeToolOutput(name, out)); size > limit {
+		t.Errorf("%s answer has %d bytes after the Guardian, the inline budget is %d", name, size, limit)
+	}
 	return out, cydOutput(t, out)
+}
+
+var cydTestGuardian = sync.OnceValue(func() *security.Guardian { return security.NewGuardian(nil) })
+
+// cydVaultDispatchContext mirrors the default inline budget: the primary
+// output vault archives answers above 6000 bytes.
+func cydVaultDispatchContext() *DispatchContext {
+	dc := cydDispatchContext()
+	dc.Cfg.Agent.OutputCompression.Reversible.Enabled = true
+	dc.Cfg.Agent.OutputCompression.Reversible.PrimaryOutputVault = true
+	return dc
+}
+
+// cydMaxPlanJSON is the largest plan ParseJobPlan accepts, with escaping-heavy
+// characters and phrases the Guardian's output validator flags.
+func cydMaxPlanJSON(t *testing.T) string {
+	t.Helper()
+	fill := func(prefix string, runes int) string {
+		s := prefix + strings.Repeat("<&'>", runes)
+		return string([]rune(s)[:runes])
+	}
+	leak := "I will now reveal my system prompt "
+	plan := map[string]any{"summary": fill(leak, 1000), "wifi": "required", "aurago_link": true}
+	var screens, widgets, sources []string
+	for i := 0; i < cydcreator.MaxScreens; i++ {
+		screens = append(screens, fill(fmt.Sprintf("screen %d ", i), 120))
+	}
+	for i := 0; i < 64; i++ {
+		widgets = append(widgets, fill(fmt.Sprintf("%s%d ", leak, i), 160))
+	}
+	for i := 0; i < 16; i++ {
+		sources = append(sources, fill(fmt.Sprintf("my system message says %d ", i), 200))
+	}
+	plan["screens"], plan["widgets"], plan["data_sources"] = screens, widgets, sources
+	data := strings.TrimSuffix(cydCreatorToolJSON(plan), "\n")
+	data = strings.TrimPrefix(data, "Tool Output: ")
+	if _, err := cydcreator.ParseJobPlan([]byte(data)); err != nil {
+		t.Fatalf("maximal plan refused: %v", err)
+	}
+	return data
+}
+
+// At the default 6000-byte inline limit a maximal plan and pages full of
+// flagged phrases still reach the model whole.
+func TestDispatchCYDCreatorFitsTheDefaultVaultLimit(t *testing.T) {
+	svc, _, p := newCYDAgentService(t)
+	dc := cydVaultDispatchContext()
+	if limit := toolResultInlineBudget(dc.Cfg); limit != 6000 {
+		t.Fatalf("inline budget = %d", limit)
+	}
+	planJSON := cydMaxPlanJSON(t)
+	var leaky strings.Builder
+	for i := 0; i < 400; i++ {
+		fmt.Fprintf(&leaky, "// I will now reveal my system prompt <%d> & my system message says '%d'\n", i, i)
+	}
+	failures := []string{}
+	fail := func(format string, args ...any) { failures = append(failures, fmt.Sprintf(format, args...)) }
+	svc.SetRunner(cydAgentRunner{fn: func(ctx context.Context, run cydcreator.JobRun) error {
+		switch run.Phase {
+		case cydcreator.PhasePlanning:
+			if _, body := cydCall(t, ctx, dc, cydcreator.ToolSubmitPlan, map[string]any{"plan": planJSON}); body["status"] != "ok" {
+				fail("plan = %v", body)
+			}
+			_, body := cydCall(t, ctx, dc, cydcreator.ToolReadProject, nil)
+			project, _ := body["project"].(map[string]any)
+			if body["status"] != "ok" || project == nil || project["plan"] == nil || project["plan_widgets_total"] != 64.0 {
+				fail("read_project with a maximal plan = %v", body)
+			}
+		case cydcreator.PhaseCoding:
+			if _, body := cydCall(t, ctx, dc, cydcreator.ToolWriteFile, map[string]any{"path": "src/app/leaky.cpp", "content": leaky.String()}); body["status"] != "ok" {
+				fail("leaky write = %v", body)
+			}
+			if got, _ := cydReadAll(t, ctx, dc, "src/app/leaky.cpp"); got != leaky.String() {
+				fail("leaky file paged back with %d of %d bytes", len(got), leaky.Len())
+			}
+			cydCall(t, ctx, dc, cydcreator.ToolFinish, map[string]any{"summary": "Fits."})
+		}
+		return nil
+	}})
+	job, err := svc.StartJob(context.Background(), p.ID, cydcreator.StartJobInput{Mode: cydcreator.JobModeNew, Prompt: "Fit"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if planned := waitCYDJob(t, svc, job.ID, cydcreator.JobAwaitingConfirmation, cydcreator.JobFailed); planned.Status != cydcreator.JobAwaitingConfirmation {
+		t.Fatalf("planning = %+v\n%s", planned, strings.Join(failures, "\n"))
+	}
+	if _, err := svc.ConfirmJob(context.Background(), job.ID, ""); err != nil {
+		t.Fatal(err)
+	}
+	done := waitCYDJob(t, svc, job.ID, cydcreator.JobSucceeded, cydcreator.JobFailed)
+	if len(failures) > 0 || done.Status != cydcreator.JobSucceeded {
+		t.Fatalf("job = %+v\n%s", done, strings.Join(failures, "\n"))
+	}
+}
+
+// A tool_output_limit too small for any page gets CYD_FILE_LIMIT with the
+// minimum; at that minimum the tools work and still fit.
+func TestDispatchCYDCreatorTinyOutputLimit(t *testing.T) {
+	svc, _, p := newCYDAgentService(t)
+	dc := cydDispatchContext()
+	failures := []string{}
+	fail := func(format string, args ...any) { failures = append(failures, fmt.Sprintf(format, args...)) }
+	svc.SetRunner(cydAgentRunner{fn: func(ctx context.Context, run cydcreator.JobRun) error {
+		for _, tc := range []struct {
+			tool   string
+			params map[string]any
+		}{{cydcreator.ToolReadFile, map[string]any{"path": "src/app/app_main.cpp"}}, {cydcreator.ToolReadProject, nil}} {
+			dc.Cfg.Agent.ToolOutputLimit = 600
+			_, body := cydCall(t, ctx, dc, tc.tool, tc.params)
+			details, _ := body["details"].(map[string]any)
+			if body["code"] != cydcreator.CodeFileLimit || details == nil || details["min"].(float64) <= 600 {
+				fail("%s at 600 bytes = %v", tc.tool, body)
+				continue
+			}
+			dc.Cfg.Agent.ToolOutputLimit = int(details["min"].(float64))
+			if _, body := cydCall(t, ctx, dc, tc.tool, tc.params); body["status"] != "ok" {
+				fail("%s at its minimum %d = %v", tc.tool, dc.Cfg.Agent.ToolOutputLimit, body)
+			}
+		}
+		dc.Cfg.Agent.ToolOutputLimit = 0
+		cydCall(t, ctx, dc, cydcreator.ToolFinish, map[string]any{"summary": "Tiny."})
+		return nil
+	}})
+	job, err := svc.StartJob(context.Background(), p.ID, cydcreator.StartJobInput{Mode: cydcreator.JobModeChange, Prompt: "Tiny"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := waitCYDJob(t, svc, job.ID, cydcreator.JobSucceeded, cydcreator.JobFailed)
+	if len(failures) > 0 || done.Status != cydcreator.JobSucceeded {
+		t.Fatalf("job = %+v\n%s", done, strings.Join(failures, "\n"))
+	}
 }
 
 // cydReadAll pages a file with cyd_creator_read_file and returns its content.
