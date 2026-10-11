@@ -191,6 +191,7 @@ type ContextFlags struct {
 	RTLSDREnabled            bool
 	LayerlingEnabled         bool
 	LocalWikipediaEnabled    bool
+	RetroGamesEnabled        bool
 	ThreeDPrinterEnabled     bool
 	OllamaEnabled            bool
 	TailscaleEnabled         bool
@@ -2575,6 +2576,7 @@ var enabledIntegrationDescriptors = []enabledIntegrationDescriptor{
 	{"obsidian", "obsidian", func(f *ContextFlags) bool { return f.ObsidianEnabled }},
 	{"layerling", "layerling (open Desktop CAD editors)", func(f *ContextFlags) bool { return f.LayerlingEnabled }},
 	{"local_wikipedia", "local_wikipedia (offline Wikipedia)", func(f *ContextFlags) bool { return f.LocalWikipediaEnabled }},
+	{"retro_games", "retro_games (archive.org retro games on the desktop)", func(f *ContextFlags) bool { return f.RetroGamesEnabled }},
 	{"ollama", "ollama", func(f *ContextFlags) bool { return f.OllamaEnabled }},
 	{"sandbox", "sandbox", func(f *ContextFlags) bool { return f.SandboxEnabled }},
 	{"webhooks", "webhooks", func(f *ContextFlags) bool { return f.WebhooksEnabled }},

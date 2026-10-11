@@ -135,6 +135,7 @@ type ToolFeatureFlags struct {
 	RTLSDREnabled           bool
 	LayerlingEnabled        bool
 	LocalWikipediaEnabled   bool
+	RetroGamesEnabled       bool
 	ThreeDPrinterEnabled    bool
 	OllamaEnabled           bool
 	TailscaleEnabled        bool

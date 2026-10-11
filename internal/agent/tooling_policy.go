@@ -371,6 +371,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		RTLSDREnabled:              cfg.RTLSDR.Enabled && cfg.RTLSDR.AllowAgent && cfg.VirtualDesktop.Enabled,
 		LayerlingEnabled:           cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.Layerling.Enabled && cfg.VirtualDesktop.AllowAgentControl && cfg.Tools.VirtualDesktop.Enabled && (cfg.VirtualDesktop.Layerling.AgentAccess == "read" || cfg.VirtualDesktop.Layerling.AgentAccess == "write"),
 		LocalWikipediaEnabled:      cfg.LocalWikipedia.Enabled && cfg.LocalWikipedia.AgentAccess,
+		RetroGamesEnabled:          cfg.RetroGames.Enabled && cfg.RetroGames.AgentAccess,
 		ThreeDPrinterEnabled:       cfg.ThreeDPrinters.Enabled,
 		OllamaEnabled:              cfg.Ollama.Enabled,
 		TailscaleEnabled:           cfg.Tailscale.Enabled,
@@ -504,6 +505,8 @@ func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToo
 	toolFlags.MemoryAnalysisEnabled = resolveMemoryAnalysisSettings(cfg, runCfg.ShortTermMem).Enabled
 	// The tool and its prompt hints exist only while an edition is open.
 	toolFlags.LocalWikipediaEnabled = toolFlags.LocalWikipediaEnabled && tools.LocalWikipediaAvailable()
+	// The tool exists only while the server publishes an enabled service.
+	toolFlags.RetroGamesEnabled = toolFlags.RetroGamesEnabled && tools.RetroGamesAvailable()
 
 	return resolvedToolFeatureState{
 		ToolFlags:           toolFlags,
@@ -559,6 +562,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		RTLSDREnabled:            flags.RTLSDREnabled,
 		LayerlingEnabled:         flags.LayerlingEnabled,
 		LocalWikipediaEnabled:    flags.LocalWikipediaEnabled,
+		RetroGamesEnabled:        flags.RetroGamesEnabled,
 		ThreeDPrinterEnabled:     flags.ThreeDPrinterEnabled,
 		OllamaEnabled:            flags.OllamaEnabled,
 		TailscaleEnabled:         flags.TailscaleEnabled,

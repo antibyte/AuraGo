@@ -760,10 +760,26 @@ func adaptiveRefreshExcludedTools(initFiltered bool, requested map[string]bool) 
 // tool and token caps and can push out a tool the query offered before the
 // optional tool existed, while an additive tool never does.
 func adaptiveAdditiveToolsForQuery(userQuery string) []string {
-	if isEncyclopediaIntent(normalizeAdaptiveIntentText(userQuery)) {
-		return []string{"local_wikipedia"}
+	normalized := normalizeAdaptiveIntentText(userQuery)
+	var out []string
+	if isEncyclopediaIntent(normalized) {
+		out = append(out, "local_wikipedia")
 	}
-	return nil
+	if isRetroGamesIntent(normalized) {
+		out = append(out, "retro_games")
+	}
+	return out
+}
+
+// isRetroGamesIntent offers the retro_games tool when the user talks about
+// retro or arcade games, emulators or classic home computers and consoles.
+func isRetroGamesIntent(normalizedQuery string) bool {
+	for _, term := range []string{"retro spiel", "retrospiel", "retro game", "retrogame", "arcade", "spielhalle", "emulator", "dos game", "dos spiel", "c64", "commodore", "amiga", "atari", "zx spectrum", "mega drive", "megadrive", "archive org"} {
+		if strings.Contains(normalizedQuery, term) {
+			return true
+		}
+	}
+	return false
 }
 
 // isEncyclopediaIntent offers the offline Wikipedia tool when the user asks

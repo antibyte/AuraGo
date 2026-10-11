@@ -48,6 +48,10 @@ var discoverToolNameAliases = map[string]string{
 	"offline wikipedia": "local_wikipedia",
 	"lokale wikipedia":  "local_wikipedia",
 	"kiwix":             "local_wikipedia",
+	"retro games":       "retro_games",
+	"retro spiele":      "retro_games",
+	"retrospiele":       "retro_games",
+	"spielhalle":        "retro_games",
 }
 
 func resolveDiscoverToolName(name string) string {
@@ -203,6 +207,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"bluetooth", "Discover Bluetooth devices and play audio on paired speakers"},
 		{"media_registry", "Manage and search local media files"},
 		{"jellyfin", "Control Jellyfin media server (libraries, playback, users)"},
+		{"retro_games", "Search archive.org retro games and open one in the Retro Games desktop app"},
 	},
 	"smart_home": {
 		{"home_assistant", "Control Home Assistant devices (lights, switches, sensors, etc.)"},

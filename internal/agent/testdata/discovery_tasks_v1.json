@@ -144,6 +144,18 @@
       "expected": [
         "composio_call"
       ]
+    },
+    {
+      "query": "Retro-Spiel spielen",
+      "expected": [
+        "retro_games"
+      ]
+    },
+    {
+      "query": "play an old arcade game",
+      "expected": [
+        "retro_games"
+      ]
     }
   ],
   "negative": [

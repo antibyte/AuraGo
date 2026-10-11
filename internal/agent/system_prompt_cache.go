@@ -459,6 +459,9 @@ func collectEnabledTools(flags *prompts.ContextFlags) []string {
 	if flags.LocalWikipediaEnabled {
 		tools = append(tools, "local_wikipedia")
 	}
+	if flags.RetroGamesEnabled {
+		tools = append(tools, "retro_games")
+	}
 	if flags.ThreeDPrinterEnabled {
 		tools = append(tools, "three_d_printer")
 	}

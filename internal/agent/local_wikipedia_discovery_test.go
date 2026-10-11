@@ -240,7 +240,10 @@ func TestLocalWikipediaAliasesKeepTheCatalogRanking(t *testing.T) {
 	onSchemas := BuildNativeToolSchemas(t.TempDir(), nil, onFlags, nil)
 	aliases := discoverToolNameAliases
 	t.Cleanup(func() { discoverToolNameAliases = aliases })
-	for alias := range aliases {
+	for alias, target := range aliases {
+		if target != "local_wikipedia" {
+			continue // the retro_games aliases are covered by TestRetroGamesAliasesRankTheToolOnlyWhileItIsOn
+		}
 		withAlias := catalogNames(BuildToolCatalog(offSchemas, offSchemas, "").Search(alias))
 		discoverToolNameAliases = nil
 		before := catalogNames(BuildToolCatalog(offSchemas, offSchemas, "").Search(alias))
@@ -282,8 +285,15 @@ func TestAdaptiveRefreshExcludesIntentOnlyToolsOnlyWithoutAFirstSelection(t *tes
 	if got := adaptiveRefreshExcludedTools(false, nil); !slices.Equal(got, adaptiveIntentOnlyTools) {
 		t.Fatalf("without a first selection the refresh excludes %v", got)
 	}
-	if got := adaptiveRefreshExcludedTools(false, map[string]bool{"local_wikipedia": true}); len(got) != 0 {
-		t.Fatalf("a tool discover_tools requested stays excluded: %v", got)
+	requested := map[string]bool{}
+	for _, name := range adaptiveIntentOnlyTools {
+		requested[name] = true
+	}
+	if got := adaptiveRefreshExcludedTools(false, requested); len(got) != 0 {
+		t.Fatalf("tools discover_tools requested stay excluded: %v", got)
+	}
+	if got := adaptiveRefreshExcludedTools(false, map[string]bool{"local_wikipedia": true}); slices.Contains(got, "local_wikipedia") || !slices.Contains(got, "retro_games") {
+		t.Fatalf("requesting one tool must free only that tool: %v", got)
 	}
 }
 

@@ -100,7 +100,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		YepAPIScrapingEnabled: true, YepAPIYouTubeEnabled: true,
 		YepAPITikTokEnabled: true, YepAPIInstagramEnabled: true,
 		YepAPIAmazonEnabled: true,
-		DaemonSkillsEnabled: true, PaperlessNGXEnabled: true, LocalWikipediaEnabled: true, LayerlingEnabled: true,
+		DaemonSkillsEnabled: true, PaperlessNGXEnabled: true, LocalWikipediaEnabled: true, RetroGamesEnabled: true, LayerlingEnabled: true,
 	}
 }
 
@@ -134,6 +134,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("rtl_sdr", ff.RTLSDREnabled)
 	appendToolFeatureKeyPart("layerling", ff.LayerlingEnabled)
 	appendToolFeatureKeyPart("local_wikipedia", ff.LocalWikipediaEnabled)
+	appendToolFeatureKeyPart("retro_games", ff.RetroGamesEnabled)
 	appendToolFeatureKeyPart("three_d_printer", ff.ThreeDPrinterEnabled)
 	appendToolFeatureKeyPart("ollama", ff.OllamaEnabled)
 	appendToolFeatureKeyPart("tailscale", ff.TailscaleEnabled)
