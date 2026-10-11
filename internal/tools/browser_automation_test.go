@@ -699,6 +699,44 @@ func TestEnsureBrowserAutomationSidecarRejectsInternalOutboundNetwork(t *testing
 	}
 }
 
+func TestEnsureBrowserAutomationSidecarLeavesComposeContainer(t *testing.T) {
+	var creates, deletes int
+	dockerHost := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/"+dockerAPIVersion)
+		switch {
+		case r.Method == http.MethodGet && path == "/networks/aurago-app":
+			_, _ = w.Write([]byte(`{"Internal":true}`))
+		case r.Method == http.MethodGet && path == "/networks/bridge":
+			_, _ = w.Write([]byte(`{"Internal":false}`))
+		case r.Method == http.MethodGet && path == "/containers/browser-automation/json":
+			_, _ = w.Write([]byte(`{
+				"Config":{"Labels":{"com.docker.compose.project":"aurago","com.docker.compose.service":"browser-automation"}},
+				"State":{"Running":true},
+				"HostConfig":{"NetworkMode":"aurago_default"}
+			}`))
+		case r.Method == http.MethodPost && strings.Contains(path, "/containers/create"):
+			creates++
+			w.WriteHeader(http.StatusCreated)
+		case r.Method == http.MethodDelete && strings.Contains(path, "/containers/"):
+			deletes++
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	})
+	EnsureBrowserAutomationSidecarRunning(dockerHost, BrowserAutomationSidecarConfig{
+		URL:              "http://browser-automation:7331",
+		AuthToken:        "token",
+		EgressNetwork:    "aurago-app",
+		OutboundNetwork:  "bridge",
+		Image:            "aurago-browser-automation:latest",
+		RuntimeIsDocker:  true,
+	}, browserAutomationSilentLogger{})
+	if creates != 0 || deletes != 0 {
+		t.Fatalf("creates = %d, deletes = %d, want 0 and 0", creates, deletes)
+	}
+}
+
 type browserAutomationSilentLogger struct{}
 
 func (browserAutomationSilentLogger) Info(string, ...any)  {}

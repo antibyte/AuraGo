@@ -830,12 +830,19 @@ func browserAutomationContainerMatches(info map[string]interface{}, sidecarCfg B
 	return true
 }
 
+func browserAutomationComposeOwned(info map[string]interface{}) bool {
+	configMap, _ := info["Config"].(map[string]interface{})
+	labels, _ := configMap["Labels"].(map[string]interface{})
+	project, _ := labels["com.docker.compose.project"].(string)
+	return strings.TrimSpace(project) != ""
+}
+
 func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg BrowserAutomationSidecarConfig, logger interface {
 	Info(string, ...any)
 	Warn(string, ...any)
 	Error(string, ...any)
 }) {
-	managedHost := browserAutomationManagedURLHost(sidecarCfg.URL, sidecarCfg.ContainerName, browserAutomationRunsInDocker())
+	managedHost := browserAutomationManagedURLHost(sidecarCfg.URL, sidecarCfg.ContainerName, sidecarCfg.RuntimeIsDocker || browserAutomationRunsInDocker())
 	if managedHost == "" {
 		logger.Info("[BrowserAutomation] Skipping auto-start because sidecar URL points to an external/container service", "url", sidecarCfg.URL)
 		return
@@ -873,20 +880,35 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 	}
 	if code == 200 {
 		var info map[string]interface{}
-		if json.Unmarshal(data, &info) == nil && info != nil && browserAutomationContainerMatches(info, sidecarCfg) {
-			if state, ok := info["State"].(map[string]interface{}); ok {
-				if running, _ := state["Running"].(bool); running {
-					logger.Info("[BrowserAutomation] Sidecar container already running")
-					return
+		if json.Unmarshal(data, &info) == nil && info != nil {
+			if browserAutomationComposeOwned(info) {
+				logger.Info("[BrowserAutomation] Compose owns this sidecar; leaving its networks and command in place", "container", containerName)
+				if state, ok := info["State"].(map[string]interface{}); ok {
+					if running, _ := state["Running"].(bool); running {
+						return
+					}
 				}
-			}
-			_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+containerName+"/start", "")
-			if startErr != nil || (startCode != 204 && startCode != 304) {
-				logger.Error("[BrowserAutomation] Failed to start existing sidecar container", "code", startCode, "error", startErr)
+				_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+containerName+"/start", "")
+				if startErr != nil || (startCode != 204 && startCode != 304) {
+					logger.Error("[BrowserAutomation] Failed to start Compose sidecar container", "code", startCode, "error", startErr)
+				}
 				return
 			}
-			logger.Info("[BrowserAutomation] Sidecar container started")
-			return
+			if browserAutomationContainerMatches(info, sidecarCfg) {
+				if state, ok := info["State"].(map[string]interface{}); ok {
+					if running, _ := state["Running"].(bool); running {
+						logger.Info("[BrowserAutomation] Sidecar container already running")
+						return
+					}
+				}
+				_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+containerName+"/start", "")
+				if startErr != nil || (startCode != 204 && startCode != 304) {
+					logger.Error("[BrowserAutomation] Failed to start existing sidecar container", "code", startCode, "error", startErr)
+					return
+				}
+				logger.Info("[BrowserAutomation] Sidecar container started")
+				return
+			}
 		}
 		logger.Warn("[BrowserAutomation] Managed sidecar spec drifted; recreating",
 			"network", sidecarCfg.EgressNetwork,
