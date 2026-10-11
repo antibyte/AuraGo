@@ -8,15 +8,15 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// processCPUTime is this process's kernel + user CPU time (all threads). It
-// advances in scheduler ticks (≈15.6 ms by default), so callers measure
-// intervals that span several inferences.
-func processCPUTime() time.Duration {
+// processCPUTime is this process's kernel + user CPU time (all threads); ok is
+// false when it cannot be read. It advances in scheduler ticks (≈15.6 ms by
+// default), so callers measure intervals that span several inferences.
+func processCPUTime() (time.Duration, bool) {
 	var creation, exit, kernel, user windows.Filetime
 	if err := windows.GetProcessTimes(windows.CurrentProcess(), &creation, &exit, &kernel, &user); err != nil {
-		return 0
+		return 0, false
 	}
-	return filetimeDuration(kernel) + filetimeDuration(user)
+	return filetimeDuration(kernel) + filetimeDuration(user), true
 }
 
 // filetimeDuration converts a FILETIME interval of 100 ns ticks.

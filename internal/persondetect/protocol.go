@@ -1,5 +1,11 @@
 package persondetect
 
+// maxFrameBytes bounds one JPEG frame (16 MiB): the worker rejects larger
+// detect requests and bounds its request lines by the base64 size of such a
+// frame. The detector client (Task 12) reuses this constant for its own check
+// and must not define another one.
+const maxFrameBytes = 16 << 20
+
 // SelfTest is the worker's startup check on ReferenceImage(): 1 warm-up and 3
 // measured runs per session, wall time and process CPU time per run.
 type SelfTest struct {

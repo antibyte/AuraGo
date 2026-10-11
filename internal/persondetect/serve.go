@@ -2,6 +2,8 @@ package persondetect
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -21,12 +23,21 @@ const (
 	selfTestRuns    = 3
 )
 
+// maxRequestLineBytes bounds one request line: a maxFrameBytes JPEG in base64
+// plus the JSON envelope.
+var maxRequestLineBytes = base64.StdEncoding.EncodedLen(maxFrameBytes) + 1024
+
+// processCPUClock reads the process CPU time; tests replace it.
+var processCPUClock = processCPUTime
+
+var errCPUTimeUnavailable = errors.New("process CPU time unavailable")
+
 // runServeCommand runs `serve --runtime <dir> --model <file> --provider
 // cpu|webgpu --threads N`: it loads the session (spinning disabled; the
 // WebGPU provider for webgpu, where --model is the patched model), plus for
 // webgpu a CPU comparison session of the same model with cpuThreads(), runs
-// the self-test, releases the comparison session, prints the hello line and
-// answers JSON-line requests until close or EOF.
+// the self-test (runSelfTest), releases the comparison session, prints the
+// hello line and answers JSON-line requests (serveLoop) until close or EOF.
 //
 // Every line on stdout is JSON. Usage errors and load failures are a hello
 // line with "error" set (exit 2 / 1). A Go panic anywhere in the command is
@@ -34,6 +45,10 @@ const (
 // line (exit 1), possibly after the hello line and some results: clients treat
 // an id-less error line as a fatal worker error. A native crash in ONNX
 // Runtime ends the process without a line.
+//
+// In the hello's self_test, gpu_cpu_ms may legitimately be 0 (less than one
+// Windows scheduler tick over selfTestRuns runs) and is then omitted
+// (omitempty): clients read a missing GPU CPU time as 0.
 func runServeCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	flags := flag.NewFlagSet("person-detect-worker serve", flag.ContinueOnError)
 	flags.SetOutput(stderr)
@@ -62,7 +77,7 @@ func runServeCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) i
 	if err != nil {
 		return serveFailure(stdout, err)
 	}
-	// Runs after primary.Close (deferred later): Close refuses to unload the
+	// Runs after the sessions' deferred closes: Close refuses to unload the
 	// library while a session is open.
 	defer rt.Close()
 	providers, err := rt.Providers()
@@ -79,6 +94,16 @@ func runServeCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) i
 	}
 	primary := &ortEngine{session: session}
 	defer primary.Close()
+	var comparison *ortEngine
+	// Deferred as well, so a panic inside the self-test cannot leave the
+	// comparison session open (rt.Close would then refuse to unload).
+	releaseComparison := func() {
+		if comparison != nil {
+			_ = comparison.Close()
+			comparison = nil
+		}
+	}
+	defer releaseComparison()
 	var compare engine
 	if *provider == "webgpu" {
 		// The comparison session measures what the CPU path would cost, so it
@@ -87,12 +112,11 @@ func runServeCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) i
 		if err != nil {
 			return serveFailure(stdout, fmt.Errorf("load CPU comparison session: %w", err))
 		}
-		compare = &ortEngine{session: cpuSession}
+		comparison = &ortEngine{session: cpuSession}
+		compare = comparison
 	}
 	selfTest := runSelfTest(primary, compare)
-	if compare != nil {
-		_ = compare.Close()
-	}
+	releaseComparison()
 	hello := helloMessage{Type: "hello", Version: rt.Version(), Providers: providers, Provider: *provider, SelfTest: &selfTest}
 	if err := writeJSONLine(stdout, hello); err != nil {
 		fmt.Fprintf(stderr, "write worker hello: %v\n", err)
@@ -115,15 +139,35 @@ func serveFailure(stdout io.Writer, err error) int {
 	return 1
 }
 
+// measurement is one measureEngine result: the detections of the last run
+// and the wall and process CPU milliseconds per measured run.
+type measurement struct {
+	boxes         []Box
+	wallMS, cpuMS float64
+}
+
 // runSelfTest measures the primary engine (and, for WebGPU, the CPU comparison
 // engine) on the reference image and decides whether the worker is usable
-// (overview C3). Detections are decoded at decodeMinScore. CPU worker
-// (compare == nil): at least one person with score ≥ referenceMinScore.
-// WebGPU worker: SameConfidentDetections(gpu, cpu, compareMinScore,
-// sameMinIoU, sameMaxScoreDiff) and at least one person ≥ referenceMinScore
-// found by the CPU session, so two empty sets never pass. ReferencePersons
-// counts the persons ≥ referenceMinScore of the reference side (the CPU
-// session for WebGPU, the session itself for CPU).
+// (overview C3). Detections are decoded at decodeMinScore.
+//
+// CPU worker (compare == nil): warm-up + measurement; it passes with at least
+// one person with score ≥ referenceMinScore.
+//
+// WebGPU worker: GPU warm-up + measurement, CPU warm-up + measurement, then a
+// second GPU measurement without another warm-up. GPUWallMS/GPUCPUMS come from
+// the GPU measurement with the lower CPU time (the first one on a tie): on a
+// cold start, shader and pipeline work can keep running on background threads
+// after the warm-up and inflate the first measurement (a first start on an
+// Intel Arc B580 measured exactly 50 % of the CPU path, later starts 5–14 %).
+// The comparison uses the first GPU measurement's detections (the runs are
+// deterministic). It passes when SameConfidentDetections(gpu, cpu,
+// compareMinScore, sameMinIoU, sameMaxScoreDiff) holds and the CPU session
+// finds at least one person ≥ referenceMinScore, so two empty sets never
+// pass.
+//
+// ReferencePersons counts the persons ≥ referenceMinScore of the reference
+// side (the CPU session for WebGPU, the session itself for CPU). A process
+// CPU time that cannot be read fails the self-test.
 func runSelfTest(primary, compare engine) SelfTest {
 	var result SelfTest
 	pixels, _, _, err := Preprocess(ReferenceImage(), dfineInputSize)
@@ -131,31 +175,46 @@ func runSelfTest(primary, compare engine) SelfTest {
 		result.Reason = "preprocess reference image: " + err.Error()
 		return result
 	}
-	primaryBoxes, wallMS, cpuMS, err := measureEngine(primary, pixels)
+	if compare == nil {
+		measured, err := measureEngine(primary, pixels, selfTestWarmups)
+		if err != nil {
+			result.Reason = selfTestFailure("inference failed: ", err)
+			return result
+		}
+		result.CPUWallMS, result.CPUCPUMS = measured.wallMS, measured.cpuMS
+		result.ReferencePersons = countAtLeast(measured.boxes, referenceMinScore)
+		return referenceVerdict(result)
+	}
+	gpuFirst, err := measureEngine(primary, pixels, selfTestWarmups)
 	if err != nil {
-		result.Reason = "inference failed: " + err.Error()
+		result.Reason = selfTestFailure("GPU inference failed: ", err)
 		return result
 	}
-	referenceBoxes := primaryBoxes
-	if compare == nil {
-		result.CPUWallMS, result.CPUCPUMS = wallMS, cpuMS
-	} else {
-		result.GPUWallMS, result.GPUCPUMS = wallMS, cpuMS
-		compareBoxes, compareWallMS, compareCPUMS, err := measureEngine(compare, pixels)
-		if err != nil {
-			result.Reason = "CPU comparison failed: " + err.Error()
-			return result
-		}
-		result.CPUWallMS, result.CPUCPUMS = compareWallMS, compareCPUMS
-		referenceBoxes = compareBoxes
+	result.GPUWallMS, result.GPUCPUMS = gpuFirst.wallMS, gpuFirst.cpuMS
+	cpu, err := measureEngine(compare, pixels, selfTestWarmups)
+	if err != nil {
+		result.Reason = selfTestFailure("CPU comparison failed: ", err)
+		return result
 	}
-	result.ReferencePersons = countAtLeast(referenceBoxes, referenceMinScore)
-	if compare != nil {
-		if same, reason := SameConfidentDetections(primaryBoxes, referenceBoxes, compareMinScore, sameMinIoU, sameMaxScoreDiff); !same {
-			result.Reason = "GPU/CPU detections differ (set a = GPU, set b = CPU): " + reason
-			return result
-		}
+	result.CPUWallMS, result.CPUCPUMS = cpu.wallMS, cpu.cpuMS
+	result.ReferencePersons = countAtLeast(cpu.boxes, referenceMinScore)
+	gpuSecond, err := measureEngine(primary, pixels, 0)
+	if err != nil {
+		result.Reason = selfTestFailure("GPU inference failed: ", err)
+		return result
 	}
+	if gpuSecond.cpuMS < gpuFirst.cpuMS {
+		result.GPUWallMS, result.GPUCPUMS = gpuSecond.wallMS, gpuSecond.cpuMS
+	}
+	if same, reason := SameConfidentDetections(gpuFirst.boxes, cpu.boxes, compareMinScore, sameMinIoU, sameMaxScoreDiff); !same {
+		result.Reason = "GPU/CPU detections differ (set a = GPU, set b = CPU): " + reason
+		return result
+	}
+	return referenceVerdict(result)
+}
+
+// referenceVerdict passes a self-test whose reference side found a person.
+func referenceVerdict(result SelfTest) SelfTest {
 	if result.ReferencePersons < 1 {
 		result.Reason = "no person with score >= 0.5 on the reference image"
 		return result
@@ -164,55 +223,94 @@ func runSelfTest(primary, compare engine) SelfTest {
 	return result
 }
 
-// measureEngine runs selfTestWarmups + selfTestRuns inferences and returns the
-// detections of the last run (decoded at decodeMinScore) with the wall and
-// process CPU milliseconds per measured run. The warm-ups are not measured,
-// and the measured runs are timed as one interval divided by selfTestRuns:
-// Windows process CPU time advances in ≈15.6 ms ticks, so per-run samples
-// would mostly read 0 or one tick.
-func measureEngine(eng engine, pixels []float32) ([]Box, float64, float64, error) {
-	for i := 0; i < selfTestWarmups; i++ {
+func selfTestFailure(prefix string, err error) string {
+	if errors.Is(err, errCPUTimeUnavailable) {
+		return errCPUTimeUnavailable.Error()
+	}
+	return prefix + err.Error()
+}
+
+// measureEngine runs warmups unmeasured inferences and then selfTestRuns
+// measured ones, timed as one interval divided by selfTestRuns: Windows
+// process CPU time advances in ≈15.6 ms ticks, so per-run samples would
+// mostly read 0 or one tick. It returns errCPUTimeUnavailable when the
+// process CPU time cannot be read or runs backwards.
+func measureEngine(eng engine, pixels []float32, warmups int) (measurement, error) {
+	for i := 0; i < warmups; i++ {
 		if _, err := detectPixels(eng, pixels, dfineInputSize, decodeMinScore); err != nil {
-			return nil, 0, 0, err
+			return measurement{}, err
 		}
 	}
+	cpuStart, ok := processCPUClock()
+	if !ok {
+		return measurement{}, errCPUTimeUnavailable
+	}
+	wallStart := time.Now()
 	var boxes []Box
-	cpuStart, wallStart := processCPUTime(), time.Now()
 	for i := 0; i < selfTestRuns; i++ {
 		var err error
 		boxes, err = detectPixels(eng, pixels, dfineInputSize, decodeMinScore)
 		if err != nil {
-			return nil, 0, 0, err
+			return measurement{}, err
 		}
 	}
-	wall, cpu := time.Since(wallStart), processCPUTime()-cpuStart
-	return boxes, durationMS(wall) / selfTestRuns, durationMS(cpu) / selfTestRuns, nil
+	wall := time.Since(wallStart)
+	cpuEnd, ok := processCPUClock()
+	if !ok || cpuEnd < cpuStart {
+		return measurement{}, errCPUTimeUnavailable
+	}
+	return measurement{
+		boxes:  boxes,
+		wallMS: durationMS(wall) / selfTestRuns,
+		cpuMS:  durationMS(cpuEnd-cpuStart) / selfTestRuns,
+	}, nil
 }
 
 func durationMS(d time.Duration) float64 {
 	return float64(d.Microseconds()) / 1000
 }
 
-// serveLoop answers JSON-line requests until close or EOF. It returns an
-// error only for an unreadable request stream or a failed write; a bad
-// request gets an error result with its id.
+// serveLoop answers JSON-line requests until close or EOF. Each line may hold
+// at most maxRequestLineBytes bytes; blank lines are skipped. A line that is
+// valid JSON with a readable id but a bad field (wrong type, invalid base64
+// jpeg, …) is answered with {"id":N,"type":"result","error":"invalid request:
+// …"} and the loop continues, as for every other bad request. Only an
+// unreadable stream, an over-long line, a line that is not valid JSON or has
+// no readable id, and a failed write end the loop with an error (the worker
+// exits 1 and reports it on stderr).
 func serveLoop(input io.Reader, output io.Writer, eng engine) error {
-	decoder := json.NewDecoder(bufio.NewReaderSize(input, 1<<20))
+	return serveLines(input, output, eng, maxRequestLineBytes)
+}
+
+func serveLines(input io.Reader, output io.Writer, eng engine, maxLineBytes int) error {
+	reader := bufio.NewReaderSize(input, 64<<10)
 	encoder := json.NewEncoder(output)
 	for {
-		var request workerRequest
-		if err := decoder.Decode(&request); err != nil {
-			if errors.Is(err, io.EOF) {
-				return nil
-			}
-			return fmt.Errorf("decode request: %w", err)
+		line, err := readRequestLine(reader, maxLineBytes)
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if len(bytes.TrimSpace(line)) == 0 {
+			continue
+		}
+		request, failure, err := parseRequest(line)
+		if err != nil {
+			return err
 		}
 		var response any
-		switch request.Command {
-		case "detect":
+		switch {
+		case failure != nil:
+			response = *failure
+		case request.Command == "detect":
 			response = handleDetect(eng, request)
-		case "close":
-			return encoder.Encode(closeResponse{ID: request.ID, Type: "result"})
+		case request.Command == "close":
+			if err := encoder.Encode(closeResponse{ID: request.ID, Type: "result"}); err != nil {
+				return fmt.Errorf("write response: %w", err)
+			}
+			return nil
 		default:
 			response = errorResponse{ID: request.ID, Type: "result", Error: "unsupported worker command"}
 		}
@@ -222,16 +320,70 @@ func serveLoop(input io.Reader, output io.Writer, eng engine) error {
 	}
 }
 
+// readRequestLine returns the next line including its "\n" (a last line
+// without one at EOF is returned as is; io.EOF follows). A line whose content
+// exceeds maxLineBytes is an error, detected after buffering at most
+// maxLineBytes plus one reader buffer.
+func readRequestLine(reader *bufio.Reader, maxLineBytes int) ([]byte, error) {
+	var line []byte
+	for {
+		chunk, err := reader.ReadSlice('\n')
+		line = append(line, chunk...)
+		content := len(line)
+		if content > 0 && line[content-1] == '\n' {
+			content--
+		}
+		if content > maxLineBytes {
+			return nil, fmt.Errorf("request line exceeds %d bytes", maxLineBytes)
+		}
+		switch {
+		case err == nil:
+			return line, nil
+		case errors.Is(err, bufio.ErrBufferFull):
+			continue
+		case errors.Is(err, io.EOF) && len(line) > 0:
+			return line, nil
+		case errors.Is(err, io.EOF):
+			return nil, io.EOF
+		default:
+			return nil, fmt.Errorf("read request: %w", err)
+		}
+	}
+}
+
+// parseRequest decodes one request line. A field error in a line that is
+// valid JSON with a readable id returns an error response for that id; any
+// other decoding failure is fatal.
+func parseRequest(line []byte) (workerRequest, *errorResponse, error) {
+	var request workerRequest
+	err := json.Unmarshal(line, &request)
+	if err == nil {
+		return request, nil, nil
+	}
+	var head struct {
+		ID *uint64 `json:"id"`
+	}
+	if !json.Valid(line) || json.Unmarshal(line, &head) != nil || head.ID == nil {
+		return workerRequest{}, nil, fmt.Errorf("decode request: %w", err)
+	}
+	return workerRequest{}, &errorResponse{ID: *head.ID, Type: "result", Error: "invalid request: " + err.Error()}, nil
+}
+
 // handleDetect answers one detect request. wall_ms and cpu_ms cover decoding,
-// preprocessing and inference; on Windows cpu_ms has ≈15.6 ms resolution.
+// preprocessing and inference; cpu_ms has ≈15.6 ms resolution on Windows and
+// is 0 when the process CPU time cannot be read.
 func handleDetect(eng engine, request workerRequest) any {
 	if len(request.JPEG) == 0 {
 		return errorResponse{ID: request.ID, Type: "result", Error: "jpeg is required"}
 	}
+	if len(request.JPEG) > maxFrameBytes {
+		return errorResponse{ID: request.ID, Type: "result", Error: fmt.Sprintf("jpeg has %d bytes, limit %d", len(request.JPEG), maxFrameBytes)}
+	}
 	if !(request.MinScore > 0 && request.MinScore <= 1) {
 		return errorResponse{ID: request.ID, Type: "result", Error: "min_score must be in (0, 1]"}
 	}
-	cpuStart, wallStart := processCPUTime(), time.Now()
+	cpuStart, cpuStartOK := processCPUClock()
+	wallStart := time.Now()
 	pixels, width, height, err := Preprocess(request.JPEG, dfineInputSize)
 	if err != nil {
 		return errorResponse{ID: request.ID, Type: "result", Error: err.Error()}
@@ -243,13 +395,18 @@ func handleDetect(eng engine, request workerRequest) any {
 	if boxes == nil {
 		boxes = []Box{}
 	}
+	wallMS := durationMS(time.Since(wallStart))
+	cpuMS := 0.0
+	if cpuEnd, ok := processCPUClock(); ok && cpuStartOK && cpuEnd >= cpuStart {
+		cpuMS = durationMS(cpuEnd - cpuStart)
+	}
 	return detectResponse{
 		ID:     request.ID,
 		Type:   "result",
 		Boxes:  boxes,
 		Width:  width,
 		Height: height,
-		WallMS: durationMS(time.Since(wallStart)),
-		CPUMS:  durationMS(processCPUTime() - cpuStart),
+		WallMS: wallMS,
+		CPUMS:  cpuMS,
 	}
 }

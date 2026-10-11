@@ -2,8 +2,10 @@ package persondetect
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"image/color"
 	"io"
 	"math"
@@ -12,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"aurago/internal/onnxrt"
 )
 
 var (
@@ -132,8 +136,10 @@ func TestRunSelfTestWebGPU(t *testing.T) {
 	if !result.Passed || result.Reason != "" || result.ReferencePersons != 2 || result.GPUWallMS < 0 || result.CPUWallMS < 0 {
 		t.Fatalf("self-test = %+v", result)
 	}
-	if want := selfTestWarmups + selfTestRuns; gpu.runs != want || cpu.runs != want {
-		t.Fatalf("runs gpu=%d cpu=%d, want %d each", gpu.runs, cpu.runs, want)
+	// GPU: warm-up + measurement, then a second measurement after the CPU
+	// comparison (no second warm-up); CPU: warm-up + measurement.
+	if wantGPU, wantCPU := selfTestWarmups+2*selfTestRuns, selfTestWarmups+selfTestRuns; gpu.runs != wantGPU || cpu.runs != wantCPU {
+		t.Fatalf("runs gpu=%d cpu=%d, want %d and %d", gpu.runs, cpu.runs, wantGPU, wantCPU)
 	}
 	// A confident CPU detection without a GPU partner fails the comparison.
 	differing := runSelfTest(newFakeEngine([]float64{0.9}, oneTestBox), newFakeEngine([]float64{0.9, 0.6}, twoTestBoxes))
@@ -169,17 +175,206 @@ func TestRunSelfTestWebGPU(t *testing.T) {
 	if compareBroken.Passed || compareBroken.Reason != "CPU comparison failed: boom" || compareBroken.GPUWallMS < 0 {
 		t.Fatalf("broken comparison self-test = %+v", compareBroken)
 	}
+	gpuBroken := runSelfTest(&fakeEngine{err: errors.New("boom")}, newFakeEngine([]float64{0.9}, oneTestBox))
+	if gpuBroken.Passed || gpuBroken.Reason != "GPU inference failed: boom" {
+		t.Fatalf("broken GPU self-test = %+v", gpuBroken)
+	}
+}
+
+// flakyEngine fails from its failAt-th run on (1-based).
+type flakyEngine struct {
+	*fakeEngine
+	failAt int
+}
+
+func (f *flakyEngine) Run(pixels []float32, size int) (onnxrt.Tensor, onnxrt.Tensor, error) {
+	logits, boxes, err := f.fakeEngine.Run(pixels, size)
+	if f.runs >= f.failAt {
+		return onnxrt.Tensor{}, onnxrt.Tensor{}, errors.New("device lost")
+	}
+	return logits, boxes, err
+}
+
+// scriptCPUClock replaces processCPUClock with readings of the given
+// cumulative process CPU times (ok=false once they run out).
+func scriptCPUClock(t *testing.T, readings ...time.Duration) {
+	t.Helper()
+	previous := processCPUClock
+	t.Cleanup(func() { processCPUClock = previous })
+	processCPUClock = func() (time.Duration, bool) {
+		if len(readings) == 0 {
+			return 0, false
+		}
+		value := readings[0]
+		readings = readings[1:]
+		return value, true
+	}
+}
+
+func TestRunSelfTestReportsTheLowerGPUMeasurement(t *testing.T) {
+	ms := time.Millisecond
+	// Readings per measurement (start, end), each over selfTestRuns runs:
+	// GPU first 300 ms (100 per run, cold start), CPU 600 ms (200 per run),
+	// GPU again 30 ms (10 per run).
+	scriptCPUClock(t, 0, 300*ms, 300*ms, 900*ms, 900*ms, 930*ms)
+	result := runSelfTest(newFakeEngine([]float64{0.9}, oneTestBox), newFakeEngine([]float64{0.9}, oneTestBox))
+	if !result.Passed || result.GPUCPUMS != 10 || result.CPUCPUMS != 200 {
+		t.Fatalf("self-test = %+v, want GPU CPU 10 ms and CPU CPU 200 ms", result)
+	}
+	// A slower second GPU measurement does not replace the first one.
+	scriptCPUClock(t, 0, 60*ms, 60*ms, 660*ms, 660*ms, 960*ms)
+	result = runSelfTest(newFakeEngine([]float64{0.9}, oneTestBox), newFakeEngine([]float64{0.9}, oneTestBox))
+	if !result.Passed || result.GPUCPUMS != 20 || result.CPUCPUMS != 200 {
+		t.Fatalf("self-test = %+v, want GPU CPU 20 ms and CPU CPU 200 ms", result)
+	}
+	// The second GPU measurement failing fails the self-test.
+	scriptCPUClock(t, 0, 30*ms, 30*ms, 630*ms, 630*ms, 660*ms)
+	gpu := &flakyEngine{fakeEngine: newFakeEngine([]float64{0.9}, oneTestBox), failAt: selfTestWarmups + selfTestRuns + 1}
+	result = runSelfTest(gpu, newFakeEngine([]float64{0.9}, oneTestBox))
+	if result.Passed || result.Reason != "GPU inference failed: device lost" {
+		t.Fatalf("self-test = %+v", result)
+	}
+}
+
+func TestRunSelfTestNeedsProcessCPUTime(t *testing.T) {
+	scriptCPUClock(t)
+	if result := runSelfTest(newFakeEngine([]float64{0.9}, oneTestBox), nil); result.Passed || result.Reason != "process CPU time unavailable" {
+		t.Fatalf("CPU self-test = %+v", result)
+	}
+	// A clock running backwards is unavailable too, never a negative time.
+	scriptCPUClock(t, 0, 30*time.Millisecond, 600*time.Millisecond, 300*time.Millisecond)
+	result := runSelfTest(newFakeEngine([]float64{0.9}, oneTestBox), newFakeEngine([]float64{0.9}, oneTestBox))
+	if result.Passed || result.Reason != "process CPU time unavailable" || result.CPUCPUMS < 0 || result.GPUCPUMS < 0 {
+		t.Fatalf("WebGPU self-test = %+v", result)
+	}
 }
 
 func TestProcessCPUTimeAdvances(t *testing.T) {
-	start := processCPUTime()
+	start, ok := processCPUTime()
+	if !ok {
+		t.Fatal("process CPU time unavailable")
+	}
 	deadline := time.Now().Add(200 * time.Millisecond)
 	value := 0.0
 	for time.Now().Before(deadline) {
 		value += math.Sqrt(value + 1)
 	}
-	if processCPUTime() <= start {
-		t.Fatalf("process CPU time did not advance (%v, %v)", start, value)
+	if end, ok := processCPUTime(); !ok || end <= start {
+		t.Fatalf("process CPU time did not advance (%v, %v, %v)", start, end, value)
+	}
+}
+
+func TestServeLoopAnswersFieldErrorsWithID(t *testing.T) {
+	eng := newFakeEngine([]float64{0.9}, oneTestBox)
+	frame, err := json.Marshal(testFrame(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := strings.Join([]string{
+		`{"id":5,"command":"detect","jpeg":"!!!!","min_score":0.5}`,
+		`{"id":6,"command":"detect","jpeg":` + string(frame) + `,"min_score":"high"}`,
+		``,
+		`{"id":7,"command":"detect","jpeg":` + string(frame) + `,"min_score":0.5}`,
+		`{"id":8,"command":"close"}`,
+	}, "\n")
+	var output bytes.Buffer
+	if err := serveLoop(strings.NewReader(input), &output, eng); err != nil {
+		t.Fatal(err)
+	}
+	lines := decodeLines(t, output.Bytes())
+	if len(lines) != 4 {
+		t.Fatalf("lines = %v", lines)
+	}
+	for i, fragment := range []string{"illegal base64 data", "min_score"} {
+		message, _ := lines[i]["error"].(string)
+		if lines[i]["id"] != float64(5+i) || lines[i]["type"] != "result" || !strings.HasPrefix(message, "invalid request: ") || !strings.Contains(message, fragment) {
+			t.Fatalf("line %d = %v, want an error with %q", i, lines[i], fragment)
+		}
+	}
+	if lines[2]["id"] != float64(7) || lines[2]["error"] != nil || lines[3]["id"] != float64(8) || eng.runs != 1 {
+		t.Fatalf("lines = %v, engine runs %d", lines, eng.runs)
+	}
+}
+
+func TestServeLoopFailsOnUnreadableLines(t *testing.T) {
+	for name, line := range map[string]string{
+		"not json":   `{"id":1,"command":"detect"`,
+		"no id":      `{"command":"detect","jpeg":5}`,
+		"string id":  `{"id":"1","command":"close"}`,
+		"negative":   `{"id":-1,"command":"close"}`,
+		"array":      `[1,2,3]`,
+		"bare value": `"close"`,
+	} {
+		var output bytes.Buffer
+		err := serveLoop(strings.NewReader(line+"\n"+`{"id":9,"command":"close"}`+"\n"), &output, newFakeEngine(nil, nil))
+		if err == nil || output.Len() != 0 {
+			t.Errorf("%s: err %v, output %q", name, err, output.String())
+		}
+	}
+}
+
+func TestServeLoopBoundsRequestLines(t *testing.T) {
+	if maxFrameBytes != 16<<20 || maxRequestLineBytes != base64.StdEncoding.EncodedLen(maxFrameBytes)+1024 {
+		t.Fatalf("limits changed: frame %d, line %d", maxFrameBytes, maxRequestLineBytes)
+	}
+	closeLine := `{"id":2,"command":"close"}`
+	// A line of exactly the limit is read (and answered); one byte more is
+	// fatal before it is parsed.
+	exact := `{"id":1,"command":"noop","pad":"` + strings.Repeat("x", 40) + `"}`
+	limit := len(exact)
+	var output bytes.Buffer
+	if err := serveLines(strings.NewReader(exact+"\n"+closeLine+"\n"), &output, newFakeEngine(nil, nil), limit); err != nil {
+		t.Fatalf("line at the limit: %v", err)
+	}
+	if lines := decodeLines(t, output.Bytes()); len(lines) != 2 || lines[0]["error"] != "unsupported worker command" {
+		t.Fatalf("lines = %v", lines)
+	}
+	output.Reset()
+	long := `{"id":1,"command":"noop","pad":"` + strings.Repeat("x", 41) + `"}`
+	err := serveLines(strings.NewReader(long+"\n"+closeLine+"\n"), &output, newFakeEngine(nil, nil), limit)
+	if err == nil || !strings.Contains(err.Error(), "exceeds") || output.Len() != 0 {
+		t.Fatalf("over-long line: err %v, output %q", err, output.String())
+	}
+	// Longer than the reader's buffer, without a final newline.
+	output.Reset()
+	big := `{"id":3,"command":"noop","pad":"` + strings.Repeat("y", 200<<10) + `"}`
+	if err := serveLines(strings.NewReader(big), &output, newFakeEngine(nil, nil), len(big)); err != nil || !strings.Contains(output.String(), `"id":3`) {
+		t.Fatalf("big last line: err %v, output %q", err, output.String())
+	}
+}
+
+func TestHandleDetectRejectsOversizedFrame(t *testing.T) {
+	eng := newFakeEngine([]float64{0.9}, oneTestBox)
+	response := handleDetect(eng, workerRequest{ID: 4, Command: "detect", JPEG: make([]byte, maxFrameBytes+1), MinScore: 0.5})
+	failure, ok := response.(errorResponse)
+	if !ok || failure.ID != 4 || failure.Error != fmt.Sprintf("jpeg has %d bytes, limit %d", maxFrameBytes+1, maxFrameBytes) || eng.runs != 0 {
+		t.Fatalf("response = %+v, engine runs %d", response, eng.runs)
+	}
+}
+
+func TestServeLoopReportsEngineErrors(t *testing.T) {
+	eng := &fakeEngine{err: errors.New("device lost")}
+	lines := runServeLines(t, eng, []workerRequest{
+		{ID: 1, Command: "detect", JPEG: testFrame(t), MinScore: 0.5},
+		{ID: 2, Command: "close"},
+	})
+	if len(lines) != 2 || lines[0] != `{"id":1,"type":"result","error":"inference failed: device lost"}` || lines[1] != `{"id":2,"type":"result"}` {
+		t.Fatalf("lines = %q", lines)
+	}
+}
+
+type failingWriter struct{}
+
+func (failingWriter) Write([]byte) (int, error) { return 0, errors.New("pipe closed") }
+
+func TestServeLoopFailsOnWriteError(t *testing.T) {
+	for _, input := range []string{
+		`{"id":1,"command":"noop"}` + "\n",
+		`{"id":1,"command":"close"}` + "\n",
+	} {
+		if err := serveLoop(strings.NewReader(input), failingWriter{}, newFakeEngine(nil, nil)); err == nil || !strings.Contains(err.Error(), "pipe closed") {
+			t.Fatalf("%s: err = %v", strings.TrimSpace(input), err)
+		}
 	}
 }
 
