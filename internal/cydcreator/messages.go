@@ -27,7 +27,7 @@ type Message struct {
 }
 
 // AddUserMessage stores a user chat message (with optional log attachments)
-// and emits job_message.
+// and emits job_message. A message needs text or a non-blank attachment.
 func (s *Service) AddUserMessage(ctx context.Context, projectID, jobID, text string, attachments []Attachment) (Message, error) {
 	text, err := validPrompt(text)
 	if err != nil {
@@ -36,6 +36,9 @@ func (s *Service) AddUserMessage(ctx context.Context, projectID, jobID, text str
 	attachments, err = validAttachments(attachments)
 	if err != nil {
 		return Message{}, err
+	}
+	if text == "" && len(attachments) == 0 {
+		return Message{}, NewError(CodeBadRequest, "the message is empty", nil)
 	}
 	if _, err := s.loadProjectRow(ctx, projectID); err != nil {
 		return Message{}, s.internalError("add message", err)
@@ -72,13 +75,15 @@ func (s *Service) postMessage(projectID, jobID, role, text string) {
 	}
 }
 
-// ListMessages returns the newest 200 chat messages of a project, oldest first.
+// ListMessages returns the newest 200 chat messages of a project, oldest
+// first. Messages of the same millisecond keep their insertion order (rowid),
+// not the order of their random ids.
 func (s *Service) ListMessages(ctx context.Context, projectID string) ([]Message, error) {
 	if _, err := s.loadProjectRow(ctx, projectID); err != nil {
 		return nil, s.internalError("list messages", err)
 	}
 	rows, err := s.db.QueryContext(ctx, `SELECT id,job_id,role,text,attachments,created_at FROM (
-		SELECT * FROM cc_messages WHERE project_id=? ORDER BY created_at DESC, id DESC LIMIT ?) ORDER BY created_at, id`,
+		SELECT rowid AS rid, * FROM cc_messages WHERE project_id=? ORDER BY created_at DESC, rowid DESC LIMIT ?) ORDER BY created_at, rid`,
 		projectID, maxListedMessages)
 	if err != nil {
 		return nil, s.internalError("list messages", err)

@@ -8,8 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"slices"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 )
@@ -141,21 +143,46 @@ func validAttachments(list []Attachment) ([]Attachment, error) {
 	return out, nil
 }
 
+// Plan size limits: the decoded plan object, and the raw input before a
+// string-wrapped plan is unwrapped (escaping at most doubles the object).
+const (
+	maxPlanBytes      = 32 << 10
+	maxPlanInputBytes = 64 << 10
+)
+
+// planRuneNotAllowed reports a character plan text must not contain: control
+// characters (newline only where allowNewline is set), format characters
+// (bidirectional overrides, zero-width marks, BOM: the "Trojan Source"
+// family) and Unicode line or paragraph separators. This is the set cComment
+// folds; the plan rejects it instead, so the agent corrects its text.
+func planRuneNotAllowed(r rune, allowNewline bool) bool {
+	if r == '\n' {
+		return !allowNewline
+	}
+	return unicode.IsControl(r) || unicode.In(r, unicode.Cf, unicode.Zl, unicode.Zp)
+}
+
 // planText checks one plan string entry.
 func planText(field, value string, maxRunes int) error {
-	if strings.TrimSpace(value) == "" || utf8.RuneCountInString(value) > maxRunes || strings.IndexFunc(value, unicode.IsControl) >= 0 {
-		return fmt.Errorf("%s entries must be 1..%d characters on one line", field, maxRunes)
+	if strings.TrimSpace(value) == "" || utf8.RuneCountInString(value) > maxRunes ||
+		strings.IndexFunc(value, func(r rune) bool { return planRuneNotAllowed(r, false) }) >= 0 {
+		return fmt.Errorf("%s entries must be 1..%d characters on one line without control or format characters", field, maxRunes)
 	}
 	return nil
 }
 
 // ParseJobPlan strictly decodes and validates a submitted plan. Errors are
-// *Error CYD_BAD_REQUEST with details.reason, so the agent can correct them.
+// *Error CYD_BAD_REQUEST with details.reason (clipped, it can echo model
+// input), so the agent can correct them.
 func ParseJobPlan(data []byte) (JobPlan, error) {
 	fail := func(reason string) (JobPlan, error) {
+		reason = clipReason(reason)
 		return JobPlan{}, NewError(CodeBadRequest, "the plan is invalid: "+reason, map[string]any{"reason": reason})
 	}
 	data = bytes.TrimSpace(data)
+	if len(data) > maxPlanInputBytes {
+		return fail("plan must be a JSON object of at most 32 KiB")
+	}
 	if len(data) > 0 && data[0] == '"' {
 		var encoded string
 		if err := json.Unmarshal(data, &encoded); err != nil {
@@ -163,7 +190,7 @@ func ParseJobPlan(data []byte) (JobPlan, error) {
 		}
 		data = bytes.TrimSpace([]byte(encoded))
 	}
-	if len(data) == 0 || data[0] != '{' || len(data) > 32<<10 {
+	if len(data) == 0 || data[0] != '{' || len(data) > maxPlanBytes {
 		return fail("plan must be a JSON object of at most 32 KiB")
 	}
 	var plan JobPlan
@@ -176,8 +203,9 @@ func ParseJobPlan(data []byte) (JobPlan, error) {
 		return fail("trailing data after the plan")
 	}
 	plan.Summary = strings.TrimSpace(plan.Summary)
-	if plan.Summary == "" || utf8.RuneCountInString(plan.Summary) > 1000 {
-		return fail("summary must be 1..1000 characters")
+	if plan.Summary == "" || utf8.RuneCountInString(plan.Summary) > 1000 ||
+		strings.IndexFunc(plan.Summary, func(r rune) bool { return planRuneNotAllowed(r, true) }) >= 0 {
+		return fail("summary must be 1..1000 characters without control or format characters (newlines are allowed)")
 	}
 	checks := []struct {
 		field    string
@@ -207,9 +235,16 @@ func ParseJobPlan(data []byte) (JobPlan, error) {
 	if plan.AuraGoLink && plan.WiFi == "off" {
 		return fail("aurago_link needs wifi optional or required")
 	}
-	for _, id := range plan.Libraries {
+	// Duplicates are refused, so a list longer than the catalog is invalid.
+	if catalog := len(Libraries()); len(plan.Libraries) > catalog {
+		return fail(fmt.Sprintf("libraries must have 0..%d entries", catalog))
+	}
+	for i, id := range plan.Libraries {
 		if _, ok := libraryByID(id); !ok {
-			return fail(fmt.Sprintf("unknown library %q", id))
+			return fail(fmt.Sprintf("unknown library %q", clipEcho(id)))
+		}
+		if slices.Contains(plan.Libraries[:i], id) {
+			return fail(fmt.Sprintf("library %q is listed twice", id))
 		}
 	}
 	plan.Screens, plan.Widgets = nonNil(plan.Screens), nonNil(plan.Widgets)
@@ -228,7 +263,12 @@ func scanJob(row rowScanner) (Job, error) {
 	}
 	if plan != "" {
 		var p JobPlan
-		if json.Unmarshal([]byte(plan), &p) == nil {
+		if err := json.Unmarshal([]byte(plan), &p); err != nil {
+			// Written only by the service: a damaged row. Log the job id and the
+			// error's type (a decoder message can quote content) and read no plan.
+			slog.Warn("CYD Creator job record has an unreadable plan; reading it as null",
+				"job_id", j.ID, "error_type", fmt.Sprintf("%T", err))
+		} else {
 			j.Plan = &p
 		}
 	}
@@ -266,14 +306,42 @@ func (s *Service) insertJob(ctx context.Context, j Job) error {
 	return nil
 }
 
-// saveJob writes the mutable job fields and emits job_status.
-func (s *Service) saveJob(j Job) {
-	if _, err := s.db.Exec(`UPDATE cc_jobs SET status=?, phase=?, prompt=?, plan=?, repair_attempt=?, error_code=?, error_message=?,
-		build_id=?, started_at=?, finished_at=? WHERE id=?`, j.Status, j.Phase, j.Prompt, planJSON(j.Plan), j.RepairAttempt,
-		j.ErrorCode, j.ErrorMessage, j.BuildID, j.StartedAt, j.FinishedAt, j.ID); err != nil {
-		s.logger.Warn("CYD Creator job state could not be stored", "job_id", j.ID, "error", err)
+// jobSaveRetryDelay is the pause before saveJob retries a failed UPDATE.
+const jobSaveRetryDelay = 100 * time.Millisecond
+
+// saveJob writes the mutable job fields and emits job_status. A failed UPDATE
+// is retried once; job_status is emitted only for a stored state, so the UI
+// never shows a state that cc_jobs (and so activeJob) does not have. The
+// error is logged and returned (CYD_JOB_NOT_FOUND when the row is gone);
+// callers that cannot act on it may ignore it.
+func (s *Service) saveJob(j Job) error {
+	var res sql.Result
+	var err error
+	for attempt := 0; attempt < 2; attempt++ {
+		if attempt > 0 {
+			time.Sleep(jobSaveRetryDelay)
+		}
+		res, err = s.db.Exec(`UPDATE cc_jobs SET status=?, phase=?, prompt=?, plan=?, repair_attempt=?, error_code=?, error_message=?,
+			build_id=?, started_at=?, finished_at=? WHERE id=?`, j.Status, j.Phase, j.Prompt, planJSON(j.Plan), j.RepairAttempt,
+			j.ErrorCode, j.ErrorMessage, j.BuildID, j.StartedAt, j.FinishedAt, j.ID)
+		if err == nil {
+			break
+		}
+	}
+	var n int64
+	if err == nil {
+		n, err = res.RowsAffected()
+	}
+	if err != nil {
+		s.logger.Warn("CYD Creator job state could not be stored", "job_id", j.ID, "status", j.Status, "error", err)
+		return fmt.Errorf("store cyd creator job state: %w", err)
+	}
+	if n == 0 {
+		s.logger.Warn("CYD Creator job state was not stored: the job no longer exists", "job_id", j.ID, "status", j.Status)
+		return NewError(CodeJobNotFound, "job not found", map[string]any{"job_id": j.ID})
 	}
 	s.Emit(j.ProjectID, EventJobStatus, j.ID, "", map[string]any{"job": j})
+	return nil
 }
 
 // GetJob returns one job.
@@ -282,12 +350,14 @@ func (s *Service) GetJob(ctx context.Context, id string) (Job, error) {
 	return j, s.internalError("read job", err)
 }
 
-// ListJobs returns the newest 20 jobs of a project, newest first.
+// ListJobs returns the newest 20 jobs of a project, newest first. Jobs created
+// in the same millisecond are ordered by insertion (rowid), not by their
+// random ids.
 func (s *Service) ListJobs(ctx context.Context, projectID string) ([]Job, error) {
 	if _, err := s.loadProjectRow(ctx, projectID); err != nil {
 		return nil, s.internalError("list jobs", err)
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT `+jobColumns+` FROM cc_jobs WHERE project_id=? ORDER BY created_at DESC, id DESC LIMIT ?`,
+	rows, err := s.db.QueryContext(ctx, `SELECT `+jobColumns+` FROM cc_jobs WHERE project_id=? ORDER BY created_at DESC, rowid DESC LIMIT ?`,
 		projectID, maxListedJobs)
 	if err != nil {
 		return nil, s.internalError("list jobs", err)
@@ -305,13 +375,23 @@ func (s *Service) ListJobs(ctx context.Context, projectID string) ([]Job, error)
 }
 
 // setProjectLock sets or clears cc_projects.locked_by_job under the project
-// mutex (so no user write is half done) and emits lock_changed.
+// mutex (so no user write is half done) and emits lock_changed while still
+// holding it (lock order project lock → eventsMu), so lock events of one
+// project are stored in the order the lock changed. An unknown project is
+// *Error CYD_NOT_FOUND and emits nothing.
 func (s *Service) setProjectLock(ctx context.Context, projectID, jobID string) error {
 	unlock := s.lockProject(projectID)
-	_, err := s.db.ExecContext(ctx, `UPDATE cc_projects SET locked_by_job=? WHERE id=?`, jobID, projectID)
-	unlock()
+	defer unlock()
+	res, err := s.db.ExecContext(ctx, `UPDATE cc_projects SET locked_by_job=? WHERE id=?`, jobID, projectID)
 	if err != nil {
 		return fmt.Errorf("set cyd creator project lock: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("set cyd creator project lock: %w", err)
+	}
+	if n == 0 {
+		return NewError(CodeNotFound, "project not found", map[string]any{"project_id": projectID})
 	}
 	s.Emit(projectID, EventLockChanged, jobID, "", map[string]any{"locked_by_job": jobID})
 	return nil
