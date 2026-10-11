@@ -5851,6 +5851,8 @@
   "desktop.retro_games_load_failed": "Listen kunne ikke indlæses.",
   "desktop.retro_games_disabled": "Retro Games er slået fra i indstillingerne.",
   "desktop.retro_games_action_failed": "Det virkede ikke. Prøv igen.",
+  "desktop.retro_games_library_full": "Listen er fuld (500 spil). Fjern nogle først.",
+  "desktop.retro_games_readonly": "Skrivebordet er skrivebeskyttet; denne ændring blev ikke gemt.",
   "desktop.retro_games_unknown_game": "Dette spil findes ikke i indekset.",
   "desktop.retro_games_back": "Tilbage til spillehallen",
   "desktop.retro_games_fullscreen": "Fuld skærm",

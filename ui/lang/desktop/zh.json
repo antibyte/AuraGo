@@ -5851,6 +5851,8 @@
   "desktop.retro_games_load_failed": "无法加载此列表。",
   "desktop.retro_games_disabled": "Retro Games 在设置中已关闭。",
   "desktop.retro_games_action_failed": "操作没有成功。请重试。",
+  "desktop.retro_games_library_full": "此列表已满（500 款游戏）。请先移除一些。",
+  "desktop.retro_games_readonly": "桌面为只读模式；此更改未保存。",
   "desktop.retro_games_unknown_game": "索引中没有这款游戏。",
   "desktop.retro_games_back": "返回游戏厅",
   "desktop.retro_games_fullscreen": "全屏",

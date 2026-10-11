@@ -18,6 +18,12 @@ type retroGamesFixture struct {
 	mu        sync.Mutex
 	favorites map[string]bool
 	plays     map[string]int
+	// reject, when set, answers every favorite PUT with that refusal code.
+	reject string
+	// disabled answers every request like a switched-off Retro Games (503).
+	disabled bool
+	// statusQueries records the raw query of every status request.
+	statusQueries []string
 }
 
 var retroGamesFixtureGames = map[string]map[string]any{
@@ -34,6 +40,24 @@ func (f *retroGamesFixture) isFavorite(id string) bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.favorites[id]
+}
+
+func (f *retroGamesFixture) rejectFavorites(code string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.reject = code
+}
+
+func (f *retroGamesFixture) setDisabled(on bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.disabled = on
+}
+
+func (f *retroGamesFixture) statusLog() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.statusQueries...)
 }
 
 func (f *retroGamesFixture) playCount(id string) int {
@@ -57,6 +81,13 @@ func (f *retroGamesFixture) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			out[k] = v
 		}
 		return out
+	}
+	if path == "status" {
+		f.statusQueries = append(f.statusQueries, r.URL.RawQuery)
+	}
+	if f.disabled {
+		write(http.StatusServiceUnavailable, map[string]any{"error": "Retro Games is switched off", "code": "disabled"})
+		return
 	}
 	switch {
 	case path == "status":
@@ -97,6 +128,14 @@ func (f *retroGamesFixture) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		write(http.StatusOK, map[string]any{"favorites": favorites, "recent": recent, "broken": []any{}})
 	case strings.HasPrefix(path, "favorites/"):
 		id := strings.TrimPrefix(path, "favorites/")
+		if f.reject != "" && r.Method == http.MethodPut {
+			status := http.StatusConflict
+			if f.reject == "desktop_readonly" {
+				status = http.StatusForbidden
+			}
+			write(status, map[string]any{"error": f.reject, "code": f.reject})
+			return
+		}
 		f.favorites[id] = r.Method == http.MethodPut
 		write(http.StatusOK, map[string]any{"favorite": f.favorites[id]})
 	case strings.HasPrefix(path, "plays/"):
@@ -172,6 +211,26 @@ func TestDesktopRetroGamesBrowser(t *testing.T) {
 	page.MustEval(`()=>{const input=document.querySelector('.rg-search');input.value='prince';input.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))}`)
 	page.MustWait(`()=>document.querySelector('.rg-nav-item[data-view="all"]').getAttribute('aria-current')==='page'&&document.querySelectorAll('.rg-card').length===1`)
 
+	// A refused favorite is explained with its own notice and the heart goes
+	// back to the state the server holds.
+	german := readMergedLangMap(t, "de")
+	for _, refusal := range []struct{ code, key string }{
+		{"library_full", "desktop.retro_games_library_full"},
+		{"desktop_readonly", "desktop.retro_games_readonly"},
+	} {
+		if german[refusal.key] == "" {
+			t.Fatalf("de lacks %s", refusal.key)
+		}
+		fixture.rejectFavorites(refusal.code)
+		page.MustEval(`()=>document.querySelector('.rg-card-fav').click()`)
+		page.MustWait(`(text)=>{const n=document.querySelector('.rg-notice');return !!n&&!n.hidden&&n.textContent===text}`, german[refusal.key])
+		page.MustWait(`()=>document.querySelector('.rg-card-fav').getAttribute('aria-pressed')==='false'`)
+		if fixture.isFavorite("msdos_Prince_of_Persia_1990") {
+			t.Fatalf("%s: the refused favorite was stored", refusal.code)
+		}
+	}
+	fixture.rejectFavorites("")
+
 	// Favorite: optimistic UI plus API call.
 	page.MustEval(`()=>document.querySelector('.rg-card-fav').click()`)
 	page.MustWait(`()=>document.querySelector('.rg-card-fav').getAttribute('aria-pressed')==='true'`)
@@ -237,4 +296,48 @@ func TestDesktopRetroGamesBrowser(t *testing.T) {
 			page.MustScreenshot(filepath.Join(dir, name+".png"))
 		}
 	}
+}
+
+// TestDesktopRetroGamesRecoversWhenReenabled switches the fake API off and on
+// again: an open window shows the disabled message, keeps polling the status
+// without ever starting a sync (passive=1) and brings the games back by itself.
+func TestDesktopRetroGamesRecoversWhenReenabled(t *testing.T) {
+	fixture := newRetroGamesFixture()
+	page := desktopAuditBrowserWithAPI(t, map[string]http.Handler{"/api/desktop/retro-games/": fixture})
+	router := page.HijackRequests()
+	router.MustAdd("*archive.org*", func(ctx *rod.Hijack) {
+		ctx.Response.SetHeader("Content-Type", "image/gif")
+		ctx.Response.SetBody("")
+	})
+	go router.Run()
+	defer router.MustStop()
+	german := readMergedLangMap(t, "de")
+
+	// The slow disabled poll (30 s) is shortened so the test does not wait for it.
+	page.MustEval(`()=>{const real=window.setTimeout.bind(window);window.setTimeout=(fn,ms,...args)=>real(fn,ms===30000?200:ms,...args);auditTest.openApp('retro-games')}`)
+	page.MustWait(`()=>document.querySelectorAll('.rg-card').length===2`)
+
+	// A request answered with 503 "disabled" switches the window off.
+	fixture.setDisabled(true)
+	marker := len(fixture.statusLog())
+	page.MustEval(`()=>{const input=document.querySelector('.rg-search');input.value='tron';input.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))}`)
+	page.MustWait(`(text)=>{const e=document.querySelector('.rg-empty');return !!e&&!e.hidden&&e.textContent===text&&document.querySelectorAll('.rg-card').length===0}`, german["desktop.retro_games_disabled"])
+
+	// While off it keeps asking, passively.
+	retroGamesWaitFor(t, "two passive status polls", func() bool { return len(fixture.statusLog()) >= marker+2 })
+	whileOff := fixture.statusLog()[marker:]
+	fixture.setDisabled(false)
+	reenabledAt := marker + len(whileOff)
+	for i, query := range whileOff {
+		if query != "passive=1" {
+			t.Fatalf("status request %d while disabled = %q, want passive=1", i, query)
+		}
+	}
+
+	// Back on: the same path as the first open fills the list again.
+	page.MustWait(`()=>{const e=document.querySelector('.rg-empty');return e.hidden&&document.querySelectorAll('.rg-card').length===1}`)
+	retroGamesWaitFor(t, "status refresh after re-enabling", func() bool {
+		log := fixture.statusLog()
+		return len(log) > reenabledAt && log[len(log)-1] == ""
+	})
 }

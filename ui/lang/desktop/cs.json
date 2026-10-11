@@ -5851,6 +5851,8 @@
   "desktop.retro_games_load_failed": "Tento seznam se nepodařilo načíst.",
   "desktop.retro_games_disabled": "Retro Games je v nastavení vypnuto.",
   "desktop.retro_games_action_failed": "To se nepovedlo. Zkuste to znovu.",
+  "desktop.retro_games_library_full": "Tento seznam je plný (500 her). Nejdřív některé odeberte.",
+  "desktop.retro_games_readonly": "Plocha je jen pro čtení; tato změna nebyla uložena.",
   "desktop.retro_games_unknown_game": "Tato hra není v indexu.",
   "desktop.retro_games_back": "Zpět do herny",
   "desktop.retro_games_fullscreen": "Celá obrazovka",

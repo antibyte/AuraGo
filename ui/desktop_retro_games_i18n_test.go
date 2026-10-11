@@ -27,8 +27,14 @@ func TestDesktopRetroGamesTranslations(t *testing.T) {
 			keys = append(keys, key)
 		}
 	}
-	if len(keys) != 75 {
-		t.Fatalf("desktop.retro_games_* keys = %d, want 75", len(keys))
+	if len(keys) != 77 {
+		t.Fatalf("desktop.retro_games_* keys = %d, want 77", len(keys))
+	}
+	// The specific refusals of a library change (409 library_full, 403 desktop_readonly).
+	for _, key := range []string{"desktop.retro_games_library_full", "desktop.retro_games_readonly"} {
+		if _, ok := english[key]; !ok {
+			t.Errorf("en: %s missing", key)
+		}
 	}
 	keys = append(keys, "desktop.app_retro_games")
 	placeholders := []string{"{count}", "{date}", "{title}", "{decade}", "{platform}", "{done}", "{total}"}

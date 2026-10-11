@@ -5851,6 +5851,8 @@
   "desktop.retro_games_load_failed": "Deze lijst kon niet worden geladen.",
   "desktop.retro_games_disabled": "Retro Games staat uit in de instellingen.",
   "desktop.retro_games_action_failed": "Dat is niet gelukt. Probeer het opnieuw.",
+  "desktop.retro_games_library_full": "Deze lijst is vol (500 spellen). Verwijder er eerst een paar.",
+  "desktop.retro_games_readonly": "Het bureaublad is alleen-lezen; deze wijziging is niet opgeslagen.",
   "desktop.retro_games_unknown_game": "Dit spel staat niet in de index.",
   "desktop.retro_games_back": "Terug naar de speelhal",
   "desktop.retro_games_fullscreen": "Volledig scherm",

@@ -11,7 +11,7 @@ import (
 var retroGamesConfigKeys = []string{
 	"config.retro_games.title", "config.retro_games.help", "config.retro_games.enabled", "config.retro_games.agent_access",
 	"config.retro_games.check", "config.retro_games.checking", "config.retro_games.status_ready", "config.retro_games.status_empty",
-	"config.retro_games.unavailable", "config.retro_games.save_first",
+	"config.retro_games.unavailable", "config.retro_games.save_first", "config.retro_games.status_building",
 }
 
 func TestConfigRetroGamesBlockIsWired(t *testing.T) {
@@ -25,11 +25,15 @@ func TestConfigRetroGamesBlockIsWired(t *testing.T) {
 		"function vdCfgRetroGames()",
 		"'retro_games.enabled'",
 		"'retro_games.agent_access'",
-		"fetch('/api/desktop/retro-games/status'",
+		// A plain status request would start the first index download.
+		"fetch('/api/desktop/retro-games/status?passive=1'",
 	} {
 		if !strings.Contains(src, marker) {
 			t.Errorf("virtual_desktop.js lacks %q", marker)
 		}
+	}
+	if strings.Contains(src, "retro-games/status'") || strings.Contains(src, "retro-games/status\"") {
+		t.Error("virtual_desktop.js requests the Retro Games status without passive=1")
 	}
 	for _, key := range retroGamesConfigKeys {
 		suffix := strings.TrimPrefix(key, "config.retro_games.")

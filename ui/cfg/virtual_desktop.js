@@ -208,7 +208,8 @@ async function vdCfgTestRetroGames(button) {
     result.className = 'dc-test-result';
     result.textContent = t(prefix + 'checking');
     try {
-        const response = await fetch('/api/desktop/retro-games/status', { signal: AbortSignal.timeout(15000) });
+        // passive=1: a plain status request would start the first index download.
+        const response = await fetch('/api/desktop/retro-games/status?passive=1', { signal: AbortSignal.timeout(15000) });
         const status = await response.json();
         if (!result.isConnected) return;
         if (!response.ok || !status.enabled) {
@@ -217,9 +218,8 @@ async function vdCfgTestRetroGames(button) {
             return;
         }
         const total = Number(status.total_games) || 0;
-        result.textContent = total > 0
-            ? t(prefix + 'status_ready').replace('{count}', total.toLocaleString(document.documentElement.lang || undefined))
-            : t(prefix + 'status_empty');
+        if (total > 0) result.textContent = t(prefix + 'status_ready').replace('{count}', total.toLocaleString(document.documentElement.lang || undefined));
+        else result.textContent = t(prefix + (status.syncing ? 'status_building' : 'status_empty'));
         result.className = 'dc-test-result is-success';
     } catch (_) {
         if (result.isConnected) {

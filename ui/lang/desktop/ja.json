@@ -5851,6 +5851,8 @@
   "desktop.retro_games_load_failed": "このリストを読み込めませんでした。",
   "desktop.retro_games_disabled": "Retro Games は設定でオフになっています。",
   "desktop.retro_games_action_failed": "うまくいきませんでした。もう一度お試しください。",
+  "desktop.retro_games_library_full": "このリストはいっぱいです（500 件のゲーム）。先にいくつか削除してください。",
+  "desktop.retro_games_readonly": "デスクトップは読み取り専用のため、この変更は保存されませんでした。",
   "desktop.retro_games_unknown_game": "このゲームはインデックスにありません。",
   "desktop.retro_games_back": "アーケードに戻る",
   "desktop.retro_games_fullscreen": "全画面表示",

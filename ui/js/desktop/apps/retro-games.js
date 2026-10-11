@@ -8,12 +8,18 @@
     const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
     const POLL_MS = 1500;
     const POLL_RETRY_MS = 5000;
+    const DISABLED_POLL_MS = 30000;
     const MAX_STATUS_FAILURES = 5;
     const SEARCH_DELAY_MS = 250;
     const PAGE_SIZE = 60;
     const NOTICE_MS = 6000;
     const NAV_KEYS = { hall: 'nav_hall_of_fame', all: 'nav_all', recent: 'nav_recent', favorites: 'nav_favorites', broken: 'nav_broken' };
     const EMPTY_KEYS = { all: 'empty_results', hall: 'empty_hall', recent: 'empty_recent', favorites: 'empty_favorites', broken: 'empty_broken' };
+    // Refusals of a library change that deserve their own message.
+    const ERROR_NOTICES = {
+        library_full: 'desktop.retro_games_library_full',
+        desktop_readonly: 'desktop.retro_games_readonly'
+    };
     const TOGGLES = {
         favorite: { path: '/favorites/', apply: setFavoriteState, view: 'favorites' },
         broken: { path: '/broken/', apply: setBrokenState, view: 'broken' }
@@ -87,11 +93,12 @@
 
     function handleError(st, err, key) {
         if (st.disposed || isAbort(err)) return;
-        if (errorCode(err) === 'disabled') {
+        const code = errorCode(err);
+        if (code === 'disabled') {
             showDisabled(st);
             return;
         }
-        notice(st, key || 'desktop.retro_games_load_failed');
+        notice(st, ERROR_NOTICES[code] || key || 'desktop.retro_games_load_failed');
     }
 
     function notice(st, key, params) {
@@ -110,10 +117,49 @@
         st.ui.stage.hidden = true;
         st.ui.browse.hidden = false;
         st.ui.grid.textContent = '';
+        st.ui.count.textContent = '';
         st.ui.more.hidden = true;
         st.ui.banner.hidden = true;
         st.ui.empty.textContent = st.t('desktop.retro_games_disabled');
         st.ui.empty.hidden = false;
+        pollDisabled(st);
+    }
+
+    // While Retro Games is switched off the window keeps one slow, passive
+    // status poll (it never starts a sync) so it can come back by itself once
+    // the setting is on again. It shares st.pollTimer with the normal status
+    // poll, so there is only ever one timer, and dispose clears it.
+    function pollDisabled(st) {
+        clearTimeout(st.pollTimer);
+        if (st.disposed || !st.disabled) return;
+        st.pollTimer = setTimeout(() => checkReenabled(st), DISABLED_POLL_MS);
+    }
+
+    function checkReenabled(st) {
+        if (st.disposed || !st.disabled) return;
+        request(st, '/status?passive=1').then(status => {
+            if (st.disposed || !st.disabled) return;
+            if (status && status.enabled) reenable(st);
+            else pollDisabled(st);
+        }).catch(err => {
+            // Still off (503) or a transient failure: keep waiting quietly.
+            if (!st.disposed && !isAbort(err)) pollDisabled(st);
+        });
+    }
+
+    // Same path as the first open: library, status and the current list.
+    function reenable(st) {
+        st.disabled = false;
+        st.status = null;
+        st.wasSyncing = false;
+        st.statusFailures = 0;
+        st.bannerKey = '';
+        st.ui.empty.hidden = true;
+        loadLibrary(st).then(() => {
+            if (st.disposed || st.disabled) return;
+            refreshStatus(st);
+            showView(st, st.view);
+        });
     }
 
     function wire(st) {
@@ -366,10 +412,11 @@
     }
 
     function refreshStatus(st) {
-        clearTimeout(st.pollTimer);
+        // Never touch the timer while disabled: it then belongs to pollDisabled.
         if (st.disposed || st.disabled) return;
+        clearTimeout(st.pollTimer);
         request(st, '/status').then(status => {
-            if (st.disposed) return;
+            if (st.disposed || st.disabled) return;
             if (!status.enabled) {
                 showDisabled(st);
                 return;
@@ -392,6 +439,7 @@
             showDisabled(st);
             return;
         }
+        if (st.disabled) return;
         st.statusFailures += 1;
         if (st.wasSyncing && st.statusFailures < MAX_STATUS_FAILURES) {
             st.pollTimer = setTimeout(() => refreshStatus(st), POLL_RETRY_MS);
@@ -517,7 +565,12 @@
         });
         request(st, '/plays/' + encodeURIComponent(game.identifier), { method: 'POST' })
             .then(() => loadLibrary(st))
-            .catch(err => handleError(st, err, 'desktop.retro_games_action_failed'));
+            .catch(err => {
+                // A read-only desktop does not record plays; the game still runs
+                // and that is no reason to interrupt it with a notice.
+                if (errorCode(err) === 'desktop_readonly') return;
+                handleError(st, err, 'desktop.retro_games_action_failed');
+            });
     }
 
     function stopPlayer(st) {
@@ -610,14 +663,21 @@
                 return undefined;
             }
             st.pending.delete(entry.key);
-            return loadLibrary(st).then(() => {
-                if (!st.disposed && st.view === cfg.view && !st.player) reloadList(st);
-            });
+            return refreshAfterToggle(st, cfg);
         }).catch(err => {
             if (st.disposed || isAbort(err)) return;
             st.pending.delete(entry.key);
             cfg.apply(st, entry.id, entry.confirmed);
             handleError(st, err, 'desktop.retro_games_action_failed');
+            // Show what the server really holds (a refused change may mean the
+            // list differs from what this window believed).
+            if (!st.disabled) refreshAfterToggle(st, cfg);
+        });
+    }
+
+    function refreshAfterToggle(st, cfg) {
+        return loadLibrary(st).then(() => {
+            if (!st.disposed && st.view === cfg.view && !st.player) reloadList(st);
         });
     }
 

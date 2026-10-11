@@ -5851,6 +5851,8 @@
   "desktop.retro_games_load_failed": "No se pudo cargar esta lista.",
   "desktop.retro_games_disabled": "Retro Games está desactivado en los ajustes.",
   "desktop.retro_games_action_failed": "No ha funcionado. Inténtalo de nuevo.",
+  "desktop.retro_games_library_full": "Esta lista está llena (500 juegos). Quita algunos primero.",
+  "desktop.retro_games_readonly": "El escritorio es de solo lectura; este cambio no se guardó.",
   "desktop.retro_games_unknown_game": "Este juego no está en el índice.",
   "desktop.retro_games_back": "Volver a la sala de juegos",
   "desktop.retro_games_fullscreen": "Pantalla completa",

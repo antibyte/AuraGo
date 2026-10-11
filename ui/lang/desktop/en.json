@@ -5851,6 +5851,8 @@
   "desktop.retro_games_load_failed": "This list couldn't be loaded.",
   "desktop.retro_games_disabled": "Retro Games is switched off in the settings.",
   "desktop.retro_games_action_failed": "That didn't work. Try again.",
+  "desktop.retro_games_library_full": "This list is full (500 games). Remove some first.",
+  "desktop.retro_games_readonly": "The desktop is read-only; this change was not saved.",
   "desktop.retro_games_unknown_game": "This game isn't in the index.",
   "desktop.retro_games_back": "Back to the arcade",
   "desktop.retro_games_fullscreen": "Fullscreen",

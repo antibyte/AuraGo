@@ -200,7 +200,7 @@
 - `retro-games-views.js`, `retro-games-player.js` and `retro-games.js` load in this
   order with `desktop-app-retro-games.css`. The builtin `retro-games` app ("Retro
   Games", icon `arcade` → `run`, category `games`) requires the `retro_games`
-  capability. Strings are `desktop.app_retro_games` and 75 `desktop.retro_games_*`
+  capability. Strings are `desktop.app_retro_games` and 77 `desktop.retro_games_*`
   keys in all sixteen locales.
 - The app owns a scoped dark skin (`.rg-*`, neon browser + cabinet player) that is
   identical under Standard and Fruity; fonts are the bundled Press Start 2P and
@@ -218,6 +218,18 @@
 - Launch argument `game` (validated `^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$`) opens the
   player directly: `openApp('retro-games', { game })`, the existing-window hook
   `RetroGamesApp.open`, and the `open_app` desktop event (agent tool `retro_games`).
+- Refused library changes get their own notice through `ERROR_NOTICES` in `handleError`:
+  409 `library_full` -> `desktop.retro_games_library_full`, 403 `desktop_readonly` ->
+  `desktop.retro_games_readonly` (favorites, broken markers and the sync button). A failed
+  toggle reverts, shows the notice and reloads the library and the current list. Recording a
+  play never shows `desktop_readonly` (the game still runs).
+- `showDisabled` keeps one slow passive poll (`status?passive=1`, every 30 s, on the shared
+  `st.pollTimer`, so there is only ever one timer and `dispose` clears it). When the status
+  answers enabled again, `reenable` clears the disabled state and runs the first-open path
+  (library, status, current view). Never start a sync from that poll, and never touch
+  `st.pollTimer` from `refreshStatus` while `st.disabled`.
+- The config page's "Check index" uses `status?passive=1` too: a plain status request starts
+  the first index download.
 - Verify `TestDesktopRetroGamesTranslations`, `TestDesktopRetroGamesRegistration`,
   `TestDesktopRetroGamesViewsNeverRenderHTML`, `TestDesktopRetroGamesPlayerFrameIsLockedDown`,
   `TestDesktopRetroGamesAppLifecycle` and, with `AURAGO_RUN_BROWSER_SMOKE=1`,

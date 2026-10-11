@@ -5851,6 +5851,8 @@
   "desktop.retro_games_load_failed": "यह सूची लोड नहीं हो सकी।",
   "desktop.retro_games_disabled": "Retro Games सेटिंग्स में बंद है।",
   "desktop.retro_games_action_failed": "यह नहीं हो पाया। फिर से कोशिश करें।",
+  "desktop.retro_games_library_full": "यह सूची भर गई है (500 गेम)। पहले कुछ हटाएं।",
+  "desktop.retro_games_readonly": "डेस्कटॉप केवल-पठन है; यह बदलाव सहेजा नहीं गया।",
   "desktop.retro_games_unknown_game": "यह गेम इंडेक्स में नहीं है।",
   "desktop.retro_games_back": "आर्केड पर वापस",
   "desktop.retro_games_fullscreen": "पूर्ण स्क्रीन",

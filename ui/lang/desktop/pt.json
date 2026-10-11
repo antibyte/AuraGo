@@ -5851,6 +5851,8 @@
   "desktop.retro_games_load_failed": "Não foi possível carregar esta lista.",
   "desktop.retro_games_disabled": "O Retro Games está desativado nas configurações.",
   "desktop.retro_games_action_failed": "Não funcionou. Tente novamente.",
+  "desktop.retro_games_library_full": "Esta lista está cheia (500 jogos). Remova alguns primeiro.",
+  "desktop.retro_games_readonly": "O desktop está em modo somente leitura; esta alteração não foi salva.",
   "desktop.retro_games_unknown_game": "Este jogo não está no índice.",
   "desktop.retro_games_back": "Voltar ao arcade",
   "desktop.retro_games_fullscreen": "Tela cheia",

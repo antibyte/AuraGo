@@ -5851,6 +5851,8 @@
   "desktop.retro_games_load_failed": "Listan kunde inte läsas in.",
   "desktop.retro_games_disabled": "Retro Games är avstängt i inställningarna.",
   "desktop.retro_games_action_failed": "Det fungerade inte. Försök igen.",
+  "desktop.retro_games_library_full": "Den här listan är full (500 spel). Ta bort några först.",
+  "desktop.retro_games_readonly": "Skrivbordet är skrivskyddat; ändringen sparades inte.",
   "desktop.retro_games_unknown_game": "Det här spelet finns inte i indexet.",
   "desktop.retro_games_back": "Tillbaka till spelhallen",
   "desktop.retro_games_fullscreen": "Helskärm",

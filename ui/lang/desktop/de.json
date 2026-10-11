@@ -5851,6 +5851,8 @@
   "desktop.retro_games_load_failed": "Diese Liste konnte nicht geladen werden.",
   "desktop.retro_games_disabled": "Retro Games ist in den Einstellungen ausgeschaltet.",
   "desktop.retro_games_action_failed": "Das hat nicht geklappt. Versuch es noch einmal.",
+  "desktop.retro_games_library_full": "Diese Liste ist voll (500 Spiele). Entferne zuerst einige.",
+  "desktop.retro_games_readonly": "Der Desktop ist schreibgeschützt; diese Änderung wurde nicht gespeichert.",
   "desktop.retro_games_unknown_game": "Dieses Spiel ist nicht im Index.",
   "desktop.retro_games_back": "Zurück zur Spielhalle",
   "desktop.retro_games_fullscreen": "Vollbild",

@@ -5851,6 +5851,8 @@
   "desktop.retro_games_load_failed": "Δεν ήταν δυνατή η φόρτωση αυτής της λίστας.",
   "desktop.retro_games_disabled": "Το Retro Games είναι απενεργοποιημένο στις ρυθμίσεις.",
   "desktop.retro_games_action_failed": "Δεν λειτούργησε. Δοκιμάστε ξανά.",
+  "desktop.retro_games_library_full": "Αυτή η λίστα είναι γεμάτη (500 παιχνίδια). Αφαιρέστε πρώτα μερικά.",
+  "desktop.retro_games_readonly": "Η επιφάνεια εργασίας είναι μόνο για ανάγνωση· αυτή η αλλαγή δεν αποθηκεύτηκε.",
   "desktop.retro_games_unknown_game": "Αυτό το παιχνίδι δεν υπάρχει στο ευρετήριο.",
   "desktop.retro_games_back": "Πίσω στο arcade",
   "desktop.retro_games_fullscreen": "Πλήρης οθόνη",
