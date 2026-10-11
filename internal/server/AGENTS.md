@@ -311,7 +311,8 @@ configuration, the HTTP API and the Docker adapter.
   `Server.cydCreatorProblem`. `shutdownCYDCreator` runs in `Start`'s deferred cleanup after the HTTP drain:
   `Service.Close` (build worker, database), withdrawing the default service, then `cydDockerBuilder.Close`.
 - Configuration (`internal/config/cyd_creator.go`): `config.Load` normalizes the section
-  (`NormalizeCYDCreatorConfig`, a warning per change): zero means the default, numbers are clamped (build 60–1800 s,
+  (`NormalizeCYDCreatorConfig`, a warning per change): zero means the default (except `max_repair_attempts`, where 0
+  is valid: no repair), numbers are clamped (build 60–1800 s,
   cold 60–3600 s and at least build, memory 512–16384 MB, CPUs 0.5–16 with NaN/±Inf the default 2, idle stop
   1–1440 min, repairs 0–10, job 5–120 min, kept builds 1–50, heartbeat 30–600 s), an invalid `builder_image`
   (`[host[:port]/]path[:tag][@sha256:<hex>]`, lowercase path components, at most 255 bytes) becomes the default and
@@ -323,8 +324,9 @@ configuration, the HTTP API and the Docker adapter.
   defaults through `injectCYDCreatorDefaults`; `cyd_creator.model` is a provider reference
   (`provider_references.go`).
 - Restart and live changes (`cydCreatorRestartReason`): with a running service a change of builder image, memory,
-  CPUs, idle stop or `docker.host` is "CYD Creator builder"; without one, switching the feature on is "CYD Creator
-  service" unless the new configuration would be refused again (`cydCreatorStorageProblem`). Timeouts, retention,
+  CPUs, idle stop or `docker.host` is "CYD Creator builder"; without one (switched on since startup, or a failed or
+  refused start), every save that leaves `cyd_creator.enabled` on adds "CYD Creator service", unless the new
+  configuration would be refused again (`cydCreatorStorageProblem`). Timeouts, retention,
   model and OTA apply live: `replaceConfigSnapshot` calls `Service.UpdateLimits(cydCreatorLimits(…))`, which
   normalizes a copy first.
 - Capability `cyd_creator` (`cydCreatorCapability`): the API is available, `docker.enabled` and not
@@ -359,9 +361,11 @@ configuration, the HTTP API and the Docker adapter.
   of 500 and drops live events with a seq it already sent (ephemeral events, seq 0, have no `id:`), then
   `event: stream_ready` without id, live events and `: ping` every 15 s. `stream_ready` carries `{"reload":true}`
   when events after the resume point were pruned or the resume point lies above the project's newest event (forged,
-  or a restored or reset database; the stream continues from the newest). Every frame gets a 30 s write deadline
-  that is never cleared; a failed write or flush, a closed subscription (subscriber dropped, project deleted,
-  service closed) or the client leaving ends the stream, and the client resumes with `Last-Event-ID`. HEAD answers
+  or a restored or reset database; the stream continues from the newest). `armCYDSSEWrite` sets a 30 s write
+  deadline before each frame; on the API listeners `httpstream.WithWriteTimeout` renews it to its own budget
+  (`agentHTTPWriteTimeout`, 40 min, on the main listener) on every write and flush, so a stuck client times out
+  there; the deadline is never cleared. A failed write or flush, a closed subscription (subscriber dropped, project
+  deleted, service closed) or the client leaving ends the stream, and the client resumes with `Last-Event-ID`. HEAD answers
   headers only.
 - Builder (`cyd_creator_builder.go`, `cydDockerBuilder`): one container `aurago-cyd-builder`, created from the
   verified image ID (`sleep infinity`, init, user 1000:1000, `HOME=/tmp`, `NetworkMode none`, `CapDrop ALL`,

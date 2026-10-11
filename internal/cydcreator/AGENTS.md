@@ -353,8 +353,8 @@ app files, assets, events) and the build queue. Plans 3 and 5 add jobs, revision
   and `lv_font_conv` an allowlisted environment and runs offline on a read-only root file system as uid 1000
   (writes only `/work`, `/cache`, `/tmp`). Compiling untrusted C++ can still read every file the container can read:
   keep secrets out of the image, `/work` and `/cache`. All projects share the one builder container and both volumes,
-  so app code can `#include` other projects' cached objects: fine for a single-owner install, no boundary between
-  users.
+  so app code can read other projects' cached build output (e.g. via `#include` or `.incbin`): fine for a
+  single-owner install, no boundary between users.
 - The live builder resources (container `aurago-cyd-builder`, volumes `aurago-cyd-work` and `aurago-cyd-cache`, label
   `aurago.managed=cyd-creator`; names in `internal/dockerutil`) belong to the CYD Creator app only: the agent docker
   tool, agent Compose and the admin Containers API protect them (`internal/tools/AGENTS.md`), so tests and CI use
@@ -395,12 +395,12 @@ app files, assets, events) and the build queue. Plans 3 and 5 add jobs, revision
   newer than the code refuses the start. Times are fixed-width RFC 3339 UTC (`timeLayout`), so SQL order is
   chronological.
 - Startup (`NewService`): one transaction (`recoverStore`) turns queued/running builds into `interrupted`
-  (`CYD_BUILD_INTERRUPTED`, a `build_status` event each) and queued/running jobs into `interrupted`, releases locks
-  of jobs that are no longer active (only `awaiting_confirmation` stays) and drops events of deleted projects. Then,
+  (`CYD_BUILD_INTERRUPTED`, a `build_status` event each) and queued/running jobs into `interrupted` and releases
+  locks of jobs that are no longer active (only `awaiting_confirmation` stays). Then,
   before the worker starts, `discardPartialArtifacts` removes the interrupted builds' artefacts, `*.tmp` staging
   directories and directories named like a build without a `cc_builds` row (so a fresh or restored database sweeps
   old artefacts). `Close` stops the worker (the running and the queued builds end `interrupted`; it waits at most
-  30 s), closes every subscription, then the database; the caller owns and closes the `Builder`.
+  30 s), then closes the database; the caller owns and closes the `Builder`.
 - Service methods return `*Error` (or a context error); unexpected failures become `CYD_INTERNAL` (`CodeInternal`,
   HTTP 500, generic message) with the cause logged (`internalError`). Writes and consistent reads take the
   per-project mutex (`lockProject`; the map never shrinks, accepted at homelab scale).
@@ -485,14 +485,14 @@ app files, assets, events) and the build queue. Plans 3 and 5 add jobs, revision
 - Outcome (`classifyBuild`): exit 0 needs non-empty merged.bin, firmware.bin and firmware.elf whose hashes match
   result.json (a mismatch fails the build with a note); 1 is `CYD_BUILD_FAILED`, or `CYD_GENERATOR_ERROR` when only
   generated paths have errors, plus a note pointing at `build.log` when no diagnostic names a file (a region
-  overflow); 2 (toolchain, OOM kill, tree shape) and unknown codes are `CYD_BUILD_FAILED` with every error
-  diagnostic demoted to a note plus a toolchain note, and so is a failed `Builder.Build` (its typed code or
-  `CYD_BUILD_FAILED`, a generic note; Docker text stays in the server log), so plan 3 never tries to repair them;
-  3 is `CYD_FLASH_BUDGET_EXCEEDED`.
+  overflow); 2 (toolchain, OOM kill, tree shape) is `CYD_BUILD_FAILED` with every error diagnostic demoted to a
+  note plus a toolchain note, an unknown code the same with the note "cyd-build ended with exit code N", and so is
+  a failed `Builder.Build` (its typed code or `CYD_BUILD_FAILED`, a generic note; Docker text stays in the server
+  log), so plan 3 never tries to repair them; 3 is `CYD_FLASH_BUDGET_EXCEEDED`.
 - Artefacts live in `<data>/cyd_creator/artifacts/<build_id>/` (staged in `<id>.tmp`, then renamed) and are only
   touched through an `os.Root` of the artefact directory, after `validBuildID` (`ccb_` plus element id characters).
-  A succeeded build keeps merged.bin, firmware.bin and firmware.elf, every finished build `build.log` (and
-  result.json when cyd-build wrote one). Downloadable are merged.bin, firmware.bin, result.json and build.log
+  A succeeded build keeps merged.bin, firmware.bin and firmware.elf, every finished build except an interrupted one
+  (which stores no artefacts) `build.log` (and result.json when cyd-build wrote one). Downloadable are merged.bin, firmware.bin, result.json and build.log
   (`OpenArtifact` returns an open file the caller closes); `firmware.elf` stays internal for `DecodeBacktrace` (1–64
   `0x` addresses, succeeded builds only, two-minute limit). A succeeded build also keeps cyd-build's `out/fonts/`
   (converted fonts and `fonts.json`, hash-checked, each at most `maxFontArtifactBytes` = 7 × 0x640000, unlisted) in
@@ -543,7 +543,8 @@ app files, assets, events) and the build queue. Plans 3 and 5 add jobs, revision
   (`docker build --label aurago.cyd-plan=1 -t aurago-cyd-builder-stub:test internal/server/testdata/cyd_builder_stub`),
   then `CYD_BUILDER_STUB_IMAGE=aurago-cyd-builder-stub:test go test ./internal/server -run TestCYDBuilderStubMechanicsLive`;
   `CYD_BUILDER_IT=1 CYD_BUILDER_IT_IMAGE=aurago-cyd-builder:dev go test ./internal/server -run TestCYDBuilderIntegration -timeout 60m`
-  compiles every board through the adapter (without `CYD_BUILDER_IT_IMAGE` it pulls the published image).
+  compiles every board through the adapter (without `CYD_BUILDER_IT_IMAGE` it uses the published image and pulls it
+  only when `Status` reports it missing or untrusted).
 - `gofmt -l internal/cydcreator` prints nothing; `-race` needs gcc (run it on aurago-test).
 
 ## Child DOX Index
