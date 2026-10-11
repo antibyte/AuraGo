@@ -26,15 +26,64 @@ func TestDesktopTerminalRetroNetBrowser(t *testing.T) {
 	}
 }
 
-// The VT screen of a Telnet world or SSH session: 80x24 in the style's font at a 0.5 px size, inside the glass and
-// covering at least 85 % of it in the limiting axis (cell size from the drawn grid), centred with xterm's 14px
-// scrollbar strip on the right: only the aspect-ratio letterbox remains.
+// The VT screen of a Telnet world or SSH session: 80x24 in the style's font at a 0.5 px size with line height 1 to 2,
+// centred inside the per-axis glass border (2 % of the glass width left and right, 3 % of its height top and bottom,
+// 12px at the least, at most the style's clamp(16px, 3 %, 30px)) with xterm's 14px scrollbar strip on the right.
+// Unless the line height is clamped at 2, the rows fill the height inside the border: less than one device px per
+// row is left and at least 95 % is covered (cell sizes from the drawn grid).
 const terminalVTFills = `async()=>{await new Promise(r=>setTimeout(r,300));
-	const term=fixtureTerm(),root=fixtureRoot(),g=root.querySelector('.vd-terminal-screen').getBoundingClientRect(),s=term.element.querySelector('.xterm-screen').getBoundingClientRect(),
-		cell=[s.width/term.cols,s.height/term.rows],cover=Math.max(term.cols*cell[0]/g.width,term.rows*cell[1]/g.height),
-		left=s.left-g.left,right=g.right-s.right,top=s.top-g.top,bottom=g.bottom-s.bottom;
-	return root.dataset.terminalGeometry==='vt'&&term.cols===80&&term.rows===24&&Number.isInteger(term.options.fontSize*2)&&cell[0]>0&&cell[1]>0&&
-		s.width<=g.width+0.5&&s.height<=g.height+0.5&&cover>=0.85&&Math.abs(top-bottom)<=2&&Math.abs(right-left-14)<=2;}`
+	const term=fixtureTerm(),root=fixtureRoot(),dpr=devicePixelRatio,g=root.querySelector('.vd-terminal-screen').getBoundingClientRect(),
+		s=term.element.querySelector('.xterm-screen').getBoundingClientRect(),own=Math.min(30,Math.max(16,0.03*g.width)),
+		bx=Math.min(own,Math.max(12,0.02*g.width)),by=Math.min(own,Math.max(12,0.03*g.height)),inner={width:g.width-2*bx-14,height:g.height-2*by},
+		lh=term.options.lineHeight,left=s.left-g.left,right=g.right-s.right,top=s.top-g.top,bottom=g.bottom-s.bottom;
+	return root.dataset.terminalGeometry==='vt'&&term.cols===80&&term.rows===24&&Number.isInteger(term.options.fontSize*2)&&lh>=1&&lh<=2&&
+		s.width<=inner.width+0.5&&s.height<=inner.height+0.5&&left>=bx-1&&top>=by-1&&Math.abs(top-bottom)<=2&&Math.abs(right-left-14)<=2&&
+		(lh===2||(s.height>=0.95*inner.height&&inner.height-s.height<24/dpr+1));}`
+
+// A tall glass takes the font from its width (the next 0.5 px step would not fit 80 columns) and spaces the rows.
+const terminalVTFillsWidth = `()=>{const term=fixtureTerm(),dpr=devicePixelRatio,g=fixtureRoot().querySelector('.vd-terminal-screen').getBoundingClientRect(),
+	s=term.element.querySelector('.xterm-screen').getBoundingClientRect(),own=Math.min(30,Math.max(16,0.03*g.width)),bx=Math.min(own,Math.max(12,0.02*g.width));
+	return term.options.lineHeight>1.2&&g.width-2*bx-14-s.width<160/dpr+1;}`
+
+// Full blocks (U+2588) in rows 2-4, lower half blocks (U+2584) in row 6 over upper half blocks (U+2580) in row 7, a
+// vertical line (U+2502) in rows 9-11 and a horizontal line (U+2500) in row 13, white on black.
+const terminalVTGlyphScreen = `(()=>{const E='\x1b[',at=(r,c)=>E+r+';'+c+'H';
+	return E+'2J'+E+'38;2;255;255;255m'+E+'48;2;0;0;0m'+at(2,2)+'\u2588'.repeat(10)+at(3,2)+'\u2588'.repeat(10)+at(4,2)+'\u2588'.repeat(10)+
+		at(6,2)+'\u2584'.repeat(10)+at(7,2)+'\u2580'.repeat(10)+at(9,5)+'\u2502'+at(10,5)+'\u2502'+at(11,5)+'\u2502'+
+		at(13,2)+'\u2500'.repeat(20)+E+'0m'+at(24,1);})()`
+
+// Reads terminalVTGlyphScreen back from xterm's WebGL canvas in device px (test-only access to the device cell):
+// with row spacing, xterm's custom glyphs must still fill the whole spaced cell, so the full blocks are lit through
+// all three rows, the half blocks form one band across the row boundary, the vertical line runs through its three
+// rows and the horizontal line through its twenty cells, without a single unlit pixel. The grid starts at the
+// canvas top, or one row lower when the canvas is a px taller (WebGL anchors at the bottom). Read once the fit
+// has settled (font size, line height and letterbox unchanged for 150 ms).
+const terminalVTGlyphGaps = `async()=>{
+	for(let i=0,last='';i<20;i++){const t=fixtureTerm(),now=[t.options.fontSize,t.options.lineHeight,t.element.style.padding].join();
+		if(now===last)break;last=now;await new Promise(r=>setTimeout(r,150));}
+	await fixtureFlush();
+	await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(r,150))));
+	const term=fixtureTerm(),dev=term._core._renderService.dimensions.device.cell,w=dev.width,h=dev.height,problems=[];
+	const gl=[...term.element.querySelectorAll('.xterm-screen canvas')].find(c=>!c.classList.contains('xterm-link-layer'));
+	const copy=document.createElement('canvas');copy.width=gl.width;copy.height=gl.height;
+	const ctx=copy.getContext('2d');ctx.drawImage(gl,0,0);
+	const data=ctx.getImageData(0,0,gl.width,gl.height).data,lit=(x,y)=>data[(y*gl.width+x)*4+1]>128;
+	let top=0;while(top<gl.height&&!lit(Math.floor(3.5*w),top))top++;
+	const y0=top-h,row=r=>y0+r*h,col=c=>c*w,unlit=(x,a,b)=>{const out=[];for(let y=a;y<b;y++)if(!lit(x,y))out.push(y-a);return out;};
+	if(y0!==0&&y0!==gl.height-24*h)problems.push('grid top at '+y0+' of '+gl.height);
+	for(const x of [col(1)+1,Math.floor(6.5*w),col(11)-2]){
+		const gaps=unlit(x,row(1),row(4));if(gaps.length)problems.push('full blocks x='+x+' unlit rows '+gaps.slice(0,6));
+		let first=-1,last=-1;for(let y=row(5);y<row(7);y++)if(lit(x,y)){if(first<0)first=y;last=y;}
+		const band=first<0?['none']:unlit(x,first,last+1);
+		if(band.length||last-first+1<h-2)problems.push('half blocks x='+x+' band '+(first-row(5))+'-'+(last-row(5))+' gaps '+band.slice(0,6));}
+	let vx=-1;for(let x=col(4);x<col(5)&&vx<0;x++)if(lit(x,row(9)+Math.floor(h/2)))vx=x;
+	if(vx<0)problems.push('no vertical line');else{const gaps=unlit(vx,row(8),row(11));if(gaps.length)problems.push('vertical line unlit rows '+gaps.slice(0,6));}
+	let hy=-1;for(let y=row(12);y<row(13)&&hy<0;y++)if(lit(col(5)+1,y))hy=y;
+	if(hy<0)problems.push('no horizontal line');else{const out=[];for(let x=col(1);x<col(21);x++)if(!lit(x,hy))out.push(x-col(1));
+		if(out.length)problems.push('horizontal line unlit columns '+out.slice(0,6));}
+	if(problems.length)fixtureErrors.push('VT glyph gaps at line height '+term.options.lineHeight+', '+w+'x'+h+' cells: '+problems.join('; '));
+	return problems.length===0;
+}`
 
 func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion string) {
 	page := browser.MustPage().Timeout(240 * time.Second)
@@ -258,20 +307,23 @@ func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion
 	// a larger window gets larger characters, not more of them. The session opens with 80x24 and never resizes.
 	run(`()=>{const w=document.querySelector('.vd-window'),term=fixtureTerm();window.fixtureWindowBox=[w.style.left,w.style.top,w.style.width,w.style.height];
 		window.fixtureDirectoryGrid=[term.cols,term.rows];window.fixtureStyleSize=TerminalStyles.profile(fixtureRoot().dataset.terminalStyle).fontSize;
-		Object.assign(w.style,{left:'20px',top:'20px',width:'600px',height:'600px'});}`)
+		Object.assign(w.style,{left:'20px',top:'0px',width:'600px',height:'840px'});}`)
 	wait("a small window in the directory keeps the style font", `async()=>{await new Promise(r=>requestAnimationFrame(r));
 		return fixtureRoot().dataset.terminalMode==='directory'&&fixtureTerm().options.fontSize===fixtureStyleSize&&(await fixtureText()).includes('Telehack');}`)
 	run(`async()=>{await fixtureInput('0');await fixtureInput('2');await fixtureInput('\r');}`)
 	wait("the Star Wars session opens", `()=>fixtureSockets.length===5&&fixtureSocket().readyState===1&&new URL(fixtureSocket().url).searchParams.get('entry')==='towel'`)
-	check("the world session opens with the pinned 80x24 VT screen in the style font", `()=>{const term=fixtureTerm(),root=fixtureRoot(),u=new URL(fixtureSocket().url),style=TerminalStyles.profile(root.dataset.terminalStyle);
+	check("the world session opens with the pinned 80x24 VT screen in the style font (its own line height)", `()=>{const term=fixtureTerm(),root=fixtureRoot(),u=new URL(fixtureSocket().url),style=TerminalStyles.profile(root.dataset.terminalStyle);
 		return root.dataset.terminalGeometry==='vt'&&term.cols===80&&term.rows===24&&u.searchParams.get('cols')==='80'&&u.searchParams.get('rows')==='24'&&
-			term.options.scrollback===1000&&term.options.fontFamily===style.fontFamily&&term.options.lineHeight===style.lineHeight;}`)
-	wait("the VT screen fills the small window's glass", terminalVTFills)
+			term.options.scrollback===1000&&term.options.fontFamily===style.fontFamily&&term.options.lineHeight>=1&&term.options.lineHeight<=2;}`)
+	wait("the VT screen fills the small, tall window's glass", terminalVTFills)
+	check("the tall glass takes the font from its width and spaces the rows", terminalVTFillsWidth)
 	run(`()=>{window.fixtureSmallFont=fixtureTerm().options.fontSize;fixtureControl({type:'connected',protocol:'telnet',kind:'world',charset:'utf8'});fixtureControl({type:'echo',remote:true,hidden:false});}`)
 	if full {
 		run(`async()=>{await fixtureInput('x');}`)
 	}
 	wait("the Star Wars session is live", `async()=>fixtureRoot().dataset.terminalMode==='retro'&&(await fixtureText()).includes('CONNECT')`)
+	run(`()=>fixtureData(` + terminalVTGlyphScreen + `)`)
+	check("block and box glyphs join across spaced rows without gaps", terminalVTGlyphGaps)
 	// Two frames as the service sends them: ESC[H, six bare CR LF rows, 13 rows of 73 padded cells, the last one
 	// without a newline (19 rows); the second frame moves the first frame's top text one row down.
 	run(`async()=>{await fixtureFlush();window.fixtureBaseY=fixtureTerm().buffer.active.baseY;
@@ -280,14 +332,14 @@ func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion
 	wait("the frames never scroll: no stale text above them", `async()=>{await fixtureFlush();const term=fixtureTerm(),lines=fixtureLines();
 		return term.buffer.active.baseY===fixtureBaseY&&lines.slice(0,7).every(l=>!l.trim())&&lines[7].includes('A LONG TIME AGO')&&
 			lines.filter(l=>l.includes('A LONG TIME AGO')).length===1;}`)
-	run(`()=>{const w=document.querySelector('.vd-window');w.style.width='1240px';w.style.height='800px';}`)
+	run(`()=>{const w=document.querySelector('.vd-window');Object.assign(w.style,{left:'0px',top:'0px',width:'1600px',height:'994px'});}`)
 	wait("a large window gets larger characters on the same 80x24 screen", `async()=>{await new Promise(r=>setTimeout(r,300));const term=fixtureTerm();
 		return term.options.fontSize>fixtureSmallFont&&term.cols===80&&term.rows===24;}`)
 	wait("the VT screen fills the large window's glass", terminalVTFills)
-	// A style change re-pins the screen with the new style's font and line height; the select stays enabled.
+	// A style change re-pins the screen with the new style's font (its fit sets the line height); the select stays enabled.
 	run(`()=>{window.fixtureVTStyle=fixtureRoot().dataset.terminalStyle;window.fixtureLargeFont=fixtureTerm().options.fontSize;fixtureStyle('apple2');}`)
 	wait("the apple2 style re-pins the VT screen in its pixel font", `async()=>{const term=fixtureTerm(),root=fixtureRoot(),apple=TerminalStyles.profile('apple2');
-		return root.dataset.terminalStyle==='apple2'&&term.options.fontFamily===apple.fontFamily&&term.options.lineHeight===apple.lineHeight&&
+		return root.dataset.terminalStyle==='apple2'&&term.options.fontFamily===apple.fontFamily&&
 			!root.querySelector('select[data-terminal-style]').disabled&&await (`+terminalVTFills+`)();}`)
 	run(`()=>fixtureStyle(fixtureVTStyle)`)
 	wait("the previous style comes back with its font size on the VT screen", `async()=>{const term=fixtureTerm();

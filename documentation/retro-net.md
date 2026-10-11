@@ -72,9 +72,10 @@ does.
 
 Every service runs on a fixed classic screen that fills the window: the
 characters get the largest size at which the whole screen fits, so a larger
-window shows larger characters, not more of them. Only a small border remains,
-plus bars at the sides or at the top and bottom where the window's shape differs
-from the screen's. The directory and the local shell follow the window as before.
+window shows larger characters, not more of them. Only a small border inside
+the tube remains, plus bars at the sides or at the top and bottom where the
+window's shape differs from the screen's. The directory and the local shell
+follow the window as before.
 
 - **Mailboxes** (type Mailbox, including the door-game boards under Games) use
   a fixed 80×25 screen with the IBM VGA font, like a DOS or Amiga terminal.
@@ -82,9 +83,13 @@ from the screen's. The directory and the local shell follow the window as before
   CP437 or Latin-1.
 - **Text worlds** (MUDs, Telehack, MapSCII, the Star Wars animation and the
   other classics) and SSH entries, your own included, use an 80×24 screen like
-  a VT100 terminal, in your terminal style's font. The service learns 80×24 when
-  the call starts and the size never changes: resizing the window or picking
-  another style only changes the size of the characters. You can scroll back
+  a VT100 terminal, in your terminal style's font. The characters get as large
+  as the 80 columns allow, and the lines move apart (up to double spacing) until
+  the 24 rows fill the height, like the raster of a picture tube. In a wide,
+  short window, which includes the default window and a maximized one, the rows
+  set the size instead and bars remain at the sides. The service learns 80×24
+  when the call starts and the size never changes: resizing the window or picking
+  another style only changes the characters and their spacing. You can scroll back
   through the last 1000 lines. Your style's font size comes back once you
   return to the directory or the shell. While a
   Telnet text world does not echo, you type a whole line locally

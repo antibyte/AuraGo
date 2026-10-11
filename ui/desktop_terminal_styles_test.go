@@ -469,11 +469,12 @@ func TestDesktopTerminalGeometryContract(t *testing.T) {
 		"term.options.allowTransparency = !!spec.pixels;",
 		"term.options.allowTransparency = false;",
 		"window.matchMedia('(resolution: ' + (window.devicePixelRatio || 1) + 'dppx)')",
-		// Pixel grids keep line height 1 (a nudge moves glyphs), 'vt' the style's font and line height; sizes ignore
-		// the CSS transforms of window animations.
-		"if (spec.font) return { family: spec.font, lineHeight: 1, load: spec.load };",
-		"return { family: family, lineHeight: profile.lineHeight || 1, load: (profile.fontSize || 16) + 'px ' + first };",
-		"term.options.lineHeight = look.lineHeight;",
+		// Grids with their own font keep line height 1 (VGA blocks come from the font, a C64 nudge moves glyphs); 'vt'
+		// takes the style's font and its fit owns the line height. Sizes ignore the CSS transforms of window animations.
+		"if (spec.font) return { family: spec.font, load: spec.load };",
+		"return { family: family, load: (profile.fontSize || 16) + 'px ' + first };",
+		"if (spec.font) term.options.lineHeight = 1;",
+		"if (!spec.font) term.options.lineHeight = fitted.lineHeight;",
 		"return { width: screenEl.offsetWidth, height: screenEl.offsetHeight };",
 		"set: set,",
 		"mode: function () { return current; },",
@@ -500,7 +501,20 @@ func TestDesktopTerminalGeometryContract(t *testing.T) {
 		"let size = step(scales ? term.options.fontSize : ems);",
 		"const expected = scales ? step(size * Math.min(width / box.width, room.height / box.height)) : size;",
 		"const next = !scales ? size : Math.min(expected > size ? expected : size + 0.5, bad - 0.5);",
-		"if (scales && !attempt && known) bad = ceiling.bad;",
+		"const box = await measure(size, 0, scales ? 1 : 0);",
+		// 'vt' spaces its rows to fill the glass height: the largest device px cell height that fits, as a line
+		// height over the cell at line height 1, at most MAX_LINE_HEIGHT; an unchanged glass keeps its fit.
+		"const MAX_LINE_HEIGHT = 2;",
+		"const base = Math.round(rect.height * dpr / spec.rows);",
+		"for (let cell = Math.floor((room.height + 0.5) * dpr / spec.rows), tries = 0; cell > base && tries < 3 && !spaced; cell -= 1, tries += 1) {",
+		"const box = await measure(good.size, 0, Math.min(MAX_LINE_HEIGHT, (cell + 0.5) / base));",
+		"if (box.width === ceiling.width && box.height === ceiling.height) rect = box;",
+		// The per-axis glass border of 'vt' and 'bbs' (the C64 grid keeps the style padding, a share of the width).
+		"const GLASS_X = 0.02;",
+		"const GLASS_Y = 0.03;",
+		"const GLASS_MIN = 12;",
+		"return glass && own > 0 ? Math.min(own, Math.max(GLASS_MIN, share * size)) : own;",
+		"const room = space(element, !spec.pixels);",
 		"function set(mode) {",
 	} {
 		if !strings.Contains(source, want) {

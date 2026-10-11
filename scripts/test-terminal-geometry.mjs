@@ -4,9 +4,10 @@
 // 40x25 "Aura C64"), the font load before the first fit, the 0.5 px fit loop and its centring padding, the C64 grid
 // scaled by whole device pixels at several DPRs (with xterm's rounded cell corrected or stepped down) and its 0.5 px
 // fallback, the refit on a DPR change, one fit at a time, the pinned font re-applied at once after a style change,
-// the return to the fit addon with the style's options, dispose, and the VT screen (the largest 0.5 px size of the
-// style's font that fits, from small to large glass at DPR 1, 1.25 and 2, with scrollback and a scrollbar strip,
-// re-pinned with the new style's font after a style change, MIN_FONT_SIZE at the least).
+// the return to the fit addon with the style's options, dispose, the per-axis glass border of vt and bbs, and the
+// VT screen (the largest 0.5 px size of the style's font whose grid fits at line height 1, rows spaced up to line
+// height 2 to fill the height, centred, for small, large, tall and wide glass at DPR 1, 1.25 and 2, with scrollback
+// and a scrollbar strip, re-pinned with the new style's font after a style change, MIN_FONT_SIZE at the least).
 // Usage: node scripts/test-terminal-geometry.mjs
 import fs from 'node:fs';
 import path from 'node:path';
@@ -119,6 +120,7 @@ function setup() {
         resizes: [],
         sizes: [],
         spacings: [],
+        heights: [],
         options: { fontFamily: 'ui-monospace', lineHeight: 1.2, scrollback: 1000, allowTransparency: false, theme: { background: '#123456' } },
         resize(cols, rows) { this.cols = cols; this.rows = rows; this.resizes.push(cols + 'x' + rows); },
         element: { style: styleBox(), querySelector: (selector) => (selector === '.xterm-screen' ? grid : null) }
@@ -128,6 +130,8 @@ function setup() {
     let letterSpacing = 0;
     Object.defineProperty(term.options, 'fontSize', { enumerable: true, get: () => fontSize, set: (value) => { fontSize = value; term.sizes.push(value); } });
     Object.defineProperty(term.options, 'letterSpacing', { enumerable: true, get: () => letterSpacing, set: (value) => { letterSpacing = value; term.spacings.push(value); } });
+    let lineHeight = term.options.lineHeight;
+    Object.defineProperty(term.options, 'lineHeight', { enumerable: true, get: () => lineHeight, set: (value) => { lineHeight = value; term.heights.push(value); } });
     const box = () => {
         const family = term.options.fontFamily;
         if (family.startsWith('"Aura C64"')) return c64Box(term, grid.slack, grid.dom);
@@ -195,16 +199,17 @@ same('the module exposes only its contract', Object.keys(Geometry), ['MODES', 'c
     same('bbs pins 80x25 with the VGA font, no scrollback and the opaque atlas', [term.resizes, term.options.fontFamily.split(',')[0], term.options.lineHeight, term.options.scrollback, term.options.allowTransparency], [['80x25'], '"Aura VGA"', 1, 0, false]);
     same('the VGA font is loaded before the first fit', fontLoads, ['16px "Aura VGA"']);
     await settle();
-    same('largest 0.5 px size that fits 960x560 for 40em x 25em', term.options.fontSize, 22);
-    same('the grid is centred with inline padding', padding(term.element.style), ['25px', '60px', '25px', '60px']);
+    // The per-axis glass border: 2% of the 1000px glass (20px) left and right, 3% of 600px (18px) top and bottom.
+    same('largest 0.5 px size that fits the 960x564 room for 40em x 25em', term.options.fontSize, 22.5);
+    same('the grid is centred with inline padding', padding(term.element.style), ['18.5px', '50px', '18.5px', '50px']);
     same('the screen paints the theme background', grid.style.background, '#123456');
     check('a changed fit is reported', events.fitted >= 1, String(events.fitted));
     const fitted = events.fitted;
     Styles.applyXterm(term, Styles.profile('green'));
     geometry.refit();
-    same('a style change gets the pinned font and fitted size back at once', [term.options.fontFamily.split(',')[0], term.options.fontSize, term.options.lineHeight], ['"Aura VGA"', 22, 1]);
+    same('a style change gets the pinned font and fitted size back at once', [term.options.fontFamily.split(',')[0], term.options.fontSize, term.options.lineHeight], ['"Aura VGA"', 22.5, 1]);
     await settle();
-    same('an unchanged refit writes nothing and reports nothing', [padding(term.element.style), events.fitted], [['25px', '60px', '25px', '60px'], fitted]);
+    same('an unchanged refit writes nothing and reports nothing', [padding(term.element.style), events.fitted], [['18.5px', '50px', '18.5px', '50px'], fitted]);
     same('the theme background follows the style', grid.style.background, Styles.profile('green').theme.background);
 }
 
@@ -281,7 +286,7 @@ const whole = (fit, dpr, cell) => Math.abs(fit.size * dpr - cell) < 1e-9 && cell
     fit = await c64Fit(1, 260, 160);
     same('a glass below 320x200 at DPR 1 (k = 1 does not fit) falls back to the 0.5 px loop', [fit.size, fit.padding], [6, ['25px', '30px', '25px', '30px']]);
     fit = await c64Fit(1.25, 960, 560, 'bbs');
-    same('bbs keeps its 0.5 px loop at any DPR', [fit.size, fit.lineHeight, fit.letterSpacing], [22, 1, 0]);
+    same('bbs keeps its 0.5 px loop at any DPR', [fit.size, fit.lineHeight, fit.letterSpacing], [22.5, 1, 0]);
 }
 
 // 4c. A DPR change refits a pinned grid: the module watches (resolution: <dpr>dppx), re-arms for the new ratio,
@@ -396,17 +401,30 @@ const whole = (fit, dpr, cell) => Math.abs(fit.size * dpr - cell) < 1e-9 && cell
     same('a zero-sized glass gets no padding', hidden.term.element.style.padding, '');
 }
 
-// 8. vt: the 80x24 VT screen of classic Retro-Net services in the style's font and line height (amber: "Aura
-// Terminal" at 17 px, 1.15), with scrollback and a 14px scrollbar strip beside the grid, at the largest 0.5 px size
-// whose grid fits (cells per styleFontBox), MIN_FONT_SIZE at the least. The largest size is found by trying every
-// step against the fake's cells: the glass minus the style's 40px padding and the scrollbar.
-function largestVt(width, height, lineHeight) {
-    let best = 6;
-    for (let size = 6; size <= 80; size += 0.5) {
-        const box = styleFontBox(size, lineHeight, 80, 24);
-        if (box.width <= width - 40 - 14 + 0.5 && box.height <= height - 40 + 0.5) best = size;
+// 8. vt: the 80x24 VT screen of classic Retro-Net services in the style's font (amber: "Aura Terminal", loaded at
+// 17 px), with scrollback and a 14px scrollbar strip beside the grid, inside the per-axis glass border (2% of the
+// glass width left and right, 3% of its height top and bottom, 12px at the least, at most the style's 20px). The
+// font is the largest 0.5 px step whose grid fits at line height 1 (from the width, or from the height where the
+// rows do not fit at line height 1); the rows are then spaced to fill the height, line height 2 at the most.
+// The expectation tries every 0.5 px step against the fake's cells (styleFontBox) and every device px of row height.
+function vtExpect(width, height) {
+    const dpr = window.devicePixelRatio;
+    const bx = Math.min(20, Math.max(12, 0.02 * width));
+    const by = Math.min(20, Math.max(12, 0.03 * height));
+    const W = width - 2 * bx - 14;
+    const H = height - 2 * by;
+    const fits = (box) => box.width <= W + 0.5 && box.height <= H + 0.5;
+    let size = 6;
+    for (let s = 6; s <= 80; s += 0.5) if (fits(styleFontBox(s, 1, 80, 24))) size = s;
+    const base = Math.ceil(1.2 * size * dpr);
+    let lineHeight = 1;
+    for (let row = base + 1; row <= 2 * base; row += 1) {
+        const lh = Math.min(2, (row + 0.5) / base);
+        if (fits(styleFontBox(size, lh, 80, 24))) lineHeight = lh;
     }
-    return best;
+    const box = styleFontBox(size, lineHeight, 80, 24);
+    const pad = (border, room, used) => Math.round((border + Math.max(0, (room - used) / 2)) * 100) / 100 + 'px';
+    return { size, lineHeight, box, padding: [pad(by, H, box.height), pad(bx, W, box.width), pad(by, H, box.height), pad(bx, W, box.width)] };
 }
 async function vtFit(dpr, width, height) {
     window.devicePixelRatio = dpr;
@@ -422,64 +440,76 @@ async function vtFit(dpr, width, height) {
     fontLoads.length = 0;
     const { geometry, term, attrs, grid, events, screen } = await vtFit(1, 1000, 600);
     const amber = Styles.profile('amber');
+    const want = vtExpect(1000, 600);
     same('vt marks the root', attrs.get('data-terminal-geometry'), 'vt');
-    same('vt pins 80x24 in the style font and line height, with scrollback and the opaque atlas',
-        [term.resizes, term.options.fontFamily, term.options.lineHeight, term.options.scrollback, term.options.allowTransparency],
-        [['80x24'], amber.fontFamily, 1.15, 1000, false]);
+    same('vt pins 80x24 in the style font, with scrollback and the opaque atlas',
+        [term.resizes, term.options.fontFamily, term.options.scrollback, term.options.allowTransparency], [['80x24'], amber.fontFamily, 1000, false]);
     same('the style font is loaded at its size before the first fit', fontLoads, ['17px "Aura Terminal"']);
-    same('960x560 at DPR 1: 16.5 px, the largest step whose 720x552 grid fits beside the scrollbar', [term.options.fontSize, largestVt(1000, 600, 1.15)], [16.5, 16.5]);
-    same('grid and scrollbar strip are centred; the letterbox shows the style background', [padding(term.element.style), grid.style.background], [['24px', '133px', '24px', '133px'], amber.theme.background]);
+    same('a glass of the grid\'s shape (946x564 inside the border): 19 px at line height 1 fills both axes',
+        [term.options.fontSize, term.options.lineHeight, want.size, want.lineHeight], [19, 1, 19, 1]);
+    same('the grid is centred inside the per-axis border; the letterbox shows the style background', [padding(term.element.style), grid.style.background], [want.padding, amber.theme.background]);
     check('a changed fit is reported', events.fitted >= 1, String(events.fitted));
     const fitted = events.fitted;
     term.sizes.length = 0;
+    term.heights.length = 0;
     geometry.refit();
     await settle();
-    same('an unchanged refit writes no other size and reports nothing', [term.options.fontSize, term.sizes.every((n) => n === 16.5), events.fitted], [16.5, true, fitted]);
-    // A resize refits the font from the current size; the grid stays 80x24.
+    same('an unchanged refit writes no other size or line height and reports nothing',
+        [term.sizes.every((n) => n === 19), term.heights.every((n) => n === 1), events.fitted], [true, true, fitted]);
+    // A resize refits font and line height from the current size; the grid stays 80x24.
     const resize = async (width, height) => {
-        term.sizes.length = 0;
         screen.clientWidth = width;
         screen.clientHeight = height;
         geometry.refit();
         await settle();
-        return [term.options.fontSize, term.cols, term.rows, term.resizes.length];
+        const expect = vtExpect(width, height);
+        return [term.options.fontSize, term.options.lineHeight, term.cols, term.rows, padding(term.element.style), expect.size, expect.lineHeight, expect.padding];
     };
-    same('a larger window gets a larger font, still 80x24', await resize(1700, 1000), [largestVt(1700, 1000, 1.15), 80, 24, 1]);
-    check('the larger font is larger', term.options.fontSize > 16.5, String(term.options.fontSize));
-    // Font changes: the expected size, then steps up while they fit, one that does not, and back.
-    check('a resize settles in a few font changes', term.sizes.filter((n, i, all) => n !== (i ? all[i - 1] : 16.5)).length <= 4, JSON.stringify(term.sizes));
-    same('a smaller window gets a smaller font, still 80x24', await resize(700, 420), [largestVt(700, 420, 1.15), 80, 24, 1]);
+    let got = await resize(900, 1000);
+    same('a tall glass: the font from the width, the rows spaced to fill the height', got.slice(0, 5), got.slice(5, 7).concat([80, 24], [got[7]]));
+    check('the tall glass spaces its rows (line height between 1 and 2)', got[1] > 1 && got[1] < 2, String(got[1]));
+    got = await resize(700, 1500);
+    same('a very tall glass: line height 2 at the most, the rest as a letterbox above and below', got.slice(0, 5), got.slice(5, 7).concat([80, 24], [got[7]]));
+    check('the very tall glass is clamped at line height 2', got[1] === 2, String(got[1]));
+    got = await resize(1700, 600);
+    same('a wide, short glass: line height 1, the font from the height, the sides take the rest', got.slice(0, 5), got.slice(5, 7).concat([80, 24], [got[7]]));
+    check('the wide glass keeps line height 1 and side bars', got[1] === 1 && parseFloat(got[4][1]) > 100, JSON.stringify(got));
+    same('the grid stayed 80x24 throughout', term.resizes, ['80x24']);
 }
 
-// 8b. The largest size for small, medium and large glass at DPR 1, 1.25 and 2 (cells that do not scale exactly).
+// 8b. Small, medium, large, tall and wide glass at DPR 1, 1.25 and 2 (cells that do not scale exactly).
 for (const dpr of [1, 1.25, 2]) {
-    for (const [name, width, height] of [['small', 560, 340], ['medium', 1000, 600], ['large', 1740, 1060]]) {
+    for (const [name, width, height] of [['small', 560, 340], ['medium', 1000, 600], ['large', 1740, 1060], ['tall', 820, 1000], ['wide', 1600, 520]]) {
         const { term, geometry } = await vtFit(dpr, width, height);
-        const want = largestVt(width, height, 1.15);
-        same(name + ' glass ' + width + 'x' + height + ' at DPR ' + dpr + ': the largest step that fits (' + want + ' px), 80x24',
-            [term.options.fontSize, term.cols, term.rows], [want, 80, 24]);
+        const want = vtExpect(width, height);
+        same(name + ' glass ' + width + 'x' + height + ' at DPR ' + dpr + ': ' + want.size + ' px, line height ' + Math.round(want.lineHeight * 1000) / 1000 + ', centred, 80x24',
+            [term.options.fontSize, term.options.lineHeight, padding(term.element.style), term.cols, term.rows], [want.size, want.lineHeight, want.padding, 80, 24]);
         geometry.dispose();
     }
 }
 window.devicePixelRatio = 1;
 
-// 8c. A style change during a vt session re-pins with the new style's font and line height (terminal.js applies
-// the style's options, then refits); a tiny window keeps MIN_FONT_SIZE; leaving restores the style font and fit.
+// 8c. A style change during a vt session re-pins with the new style's font and keeps the fitted line height
+// (terminal.js applies the style's options, then refits); a tiny window keeps MIN_FONT_SIZE; leaving restores the
+// style font, size and line height and the fit addon.
 {
-    const { geometry, term, style, fitAddon, attrs, grid, screen } = await vtFit(1, 1000, 600);
+    const { geometry, term, style, fitAddon, attrs, grid, screen } = await vtFit(1, 900, 1000);
+    const spaced = term.options.lineHeight;
     style.id = 'apple2';
     const apple2 = Styles.profile('apple2');
     Styles.applyXterm(term, apple2);
     geometry.refit();
-    same('the new style font and line height at once, the grid kept', [term.options.fontFamily, term.options.lineHeight, term.cols, term.rows, term.resizes], [apple2.fontFamily, 1.35, 80, 24, ['80x24']]);
+    same('the new style font at once with the fitted size and line height, the grid kept',
+        [term.options.fontFamily, term.options.lineHeight, term.cols, term.rows, term.resizes], [apple2.fontFamily, spaced, 80, 24, ['80x24']]);
     await settle();
-    same('then the largest size of the new font that fits', term.options.fontSize, largestVt(1000, 600, 1.35));
+    const want = vtExpect(900, 1000);
+    same('then the fit of the new font (same cells in this fake)', [term.options.fontSize, term.options.lineHeight], [want.size, want.lineHeight]);
     same('the letterbox follows the new style background', grid.style.background, apple2.theme.background);
     screen.clientWidth = 200;
     screen.clientHeight = 150;
     geometry.refit();
     await settle();
-    same('a glass too small even at MIN_FONT_SIZE keeps 6 px and 80x24 (clipped)', [term.options.fontSize, term.cols, term.rows], [6, 80, 24]);
+    same('a glass too small even at MIN_FONT_SIZE keeps 6 px, line height 1 and 80x24 (clipped)', [term.options.fontSize, term.options.lineHeight, term.cols, term.rows], [6, 1, 80, 24]);
     screen.clientWidth = 1000;
     screen.clientHeight = 600;
     const calls = fitAddon.calls;
@@ -489,8 +519,8 @@ window.devicePixelRatio = 1;
         [false, apple2.fontFamily, apple2.fontSize, 1.35, 1000, 1, '']);
 }
 
-// 8d. vt after other grids: bbs drops the scrollback and vt brings it back; a C64 size off the 0.5 px steps
-// (19.2 px at DPR 1.25) is not kept: vt lands on a 0.5 px step again.
+// 8d. vt after other grids: bbs keeps line height 1 and no scrollback, vt brings both back; a C64 size off the
+// 0.5 px steps (19.2 px at DPR 1.25) is not kept: vt lands on a 0.5 px step again.
 {
     window.devicePixelRatio = 1.25;
     const { geometry, term } = setup();
@@ -501,13 +531,24 @@ window.devicePixelRatio = 1;
     same('vt drops the C64 letter spacing and atlas at once', [term.options.letterSpacing, term.options.allowTransparency, term.options.scrollback], [0, false, 1000]);
     await settle();
     check('vt lands on a 0.5 px step', Number.isInteger(term.options.fontSize * 2), String(term.options.fontSize));
-    same('and on the largest that fits', term.options.fontSize, largestVt(1000, 600, Styles.profile('amber').lineHeight));
-    geometry.set('bbs');
-    same('bbs keeps no scrollback', [term.options.scrollback, term.cols, term.rows], [0, 80, 25]);
-    await settle();
-    geometry.set('vt');
-    same('vt brings it back with 80x24', [term.options.scrollback, term.cols, term.rows], [1000, 80, 24]);
-    await settle();
+    same('and on the fit the rule expects', [term.options.fontSize, term.options.lineHeight], [vtExpect(1000, 600).size, vtExpect(1000, 600).lineHeight]);
+    {
+        const state = setup();
+        state.screen.clientWidth = 900;
+        state.screen.clientHeight = 1000;
+        state.geometry.set('vt');
+        await settle();
+        check('a tall vt glass spaces its rows', state.term.options.lineHeight > 1, String(state.term.options.lineHeight));
+        state.geometry.set('bbs');
+        same('bbs keeps line height 1 and no scrollback', [state.term.options.lineHeight, state.term.options.scrollback, state.term.cols, state.term.rows], [1, 0, 80, 25]);
+        await settle();
+        same('bbs stays at line height 1 after its fit', state.term.options.lineHeight, 1);
+        state.geometry.set('vt');
+        same('vt brings back the scrollback and 80x24 at once', [state.term.options.scrollback, state.term.cols, state.term.rows], [1000, 80, 24]);
+        await settle();
+        check('and spaces its rows again after the fit', state.term.options.lineHeight > 1, String(state.term.options.lineHeight));
+        state.geometry.dispose();
+    }
     geometry.dispose();
     window.devicePixelRatio = 1;
 }
