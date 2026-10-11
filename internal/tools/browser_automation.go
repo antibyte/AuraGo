@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -70,6 +71,7 @@ type BrowserAutomationSidecarConfig struct {
 	ReadOnly              bool
 	WorkspaceDir          string
 	DownloadDir           string
+	ScreenshotsDir        string
 	ViewportWidth         int
 	ViewportHeight        int
 	CloakHumanize         bool
@@ -170,34 +172,117 @@ func browserAutomationResolveWorkspaceRoot(cfg *config.Config) (string, error) {
 	return filepath.Abs(cfg.Directories.WorkspaceDir)
 }
 
-func browserAutomationResolveDownloadsRoot(cfg *config.Config, workspaceRoot string) (string, error) {
-	target := strings.TrimSpace(cfg.BrowserAutomation.AllowedDownloadDir)
+func browserAutomationDirectoryInsideWorkspace(workspaceRoot, configured, fallback, label string) (string, error) {
+	target := strings.TrimSpace(configured)
 	if target == "" {
-		target = "browser_downloads"
+		target = fallback
 	}
-	if !filepath.IsAbs(target) {
-		target = filepath.Join(workspaceRoot, target)
+	if filepath.IsAbs(target) {
+		return "", fmt.Errorf("%s must be a workspace-relative directory", label)
 	}
-	abs, err := filepath.Abs(target)
+	abs, err := filepath.Abs(filepath.Join(workspaceRoot, target))
 	if err != nil {
 		return "", err
+	}
+	rel, err := filepath.Rel(workspaceRoot, abs)
+	if err != nil {
+		return "", err
+	}
+	rel = filepath.Clean(rel)
+	if rel == "." || strings.HasPrefix(rel, "..") {
+		return "", fmt.Errorf("%s must stay inside workspace", label)
 	}
 	return abs, nil
 }
 
+func browserAutomationResolveDownloadsRoot(cfg *config.Config, workspaceRoot string) (string, error) {
+	return browserAutomationDirectoryInsideWorkspace(workspaceRoot, cfg.BrowserAutomation.AllowedDownloadDir, "browser_downloads", "download directory")
+}
+
 func browserAutomationResolveScreenshotsRoot(cfg *config.Config, workspaceRoot string) (string, error) {
-	target := strings.TrimSpace(cfg.BrowserAutomation.ScreenshotsDir)
-	if target == "" {
-		target = "browser_screenshots"
-	}
-	if !filepath.IsAbs(target) {
-		target = filepath.Join(workspaceRoot, target)
-	}
-	abs, err := filepath.Abs(target)
+	return browserAutomationDirectoryInsideWorkspace(workspaceRoot, cfg.BrowserAutomation.ScreenshotsDir, "browser_screenshots", "screenshots directory")
+}
+
+func browserAutomationRejectSymlinks(root, full string) error {
+	rel, err := filepath.Rel(root, full)
 	if err != nil {
-		return "", err
+		return err
 	}
-	return abs, nil
+	if strings.HasPrefix(filepath.Clean(rel), "..") {
+		return fmt.Errorf("path escapes allowed root")
+	}
+	current := root
+	for _, part := range strings.Split(rel, string(filepath.Separator)) {
+		if part == "" || part == "." {
+			continue
+		}
+		current = filepath.Join(current, part)
+		info, err := os.Lstat(current)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("path must not use a symlink")
+		}
+	}
+	return nil
+}
+
+// browserAutomationScreenshotIsBareName reports whether candidate is a single
+// file name. Nested paths must already resolve inside the screenshots directory.
+func browserAutomationScreenshotIsBareName(candidate string) bool {
+	if candidate == "" || filepath.IsAbs(candidate) {
+		return false
+	}
+	if strings.ContainsAny(candidate, `/\`) {
+		return false
+	}
+	cleaned := filepath.Clean(candidate)
+	return cleaned != "." && cleaned != ".." && !strings.ContainsRune(cleaned, filepath.Separator)
+}
+
+func browserAutomationScreenshotTarget(workspace, screenshotsRoot, candidate string) (withinRel, workspaceRel, abs string, err error) {
+	candidate = strings.TrimSpace(candidate)
+	if candidate == "" {
+		return "", "", "", fmt.Errorf("path is required")
+	}
+	try := func(base, name string) (string, error) {
+		if filepath.IsAbs(name) {
+			return filepath.Abs(name)
+		}
+		return filepath.Abs(filepath.Join(base, name))
+	}
+	abs, err = try(workspace, candidate)
+	if err != nil {
+		return "", "", "", err
+	}
+	within, relErr := filepath.Rel(screenshotsRoot, abs)
+	if relErr != nil || within == "." || strings.HasPrefix(filepath.Clean(within), "..") {
+		// A path that misses the screenshots directory is an error. Only a bare
+		// name is tried again relative to that directory.
+		if !browserAutomationScreenshotIsBareName(candidate) {
+			return "", "", "", fmt.Errorf("screenshot path must stay inside the screenshots directory")
+		}
+		abs, err = try(screenshotsRoot, candidate)
+		if err != nil {
+			return "", "", "", err
+		}
+		within, relErr = filepath.Rel(screenshotsRoot, abs)
+		if relErr != nil || within == "." || strings.HasPrefix(filepath.Clean(within), "..") {
+			return "", "", "", fmt.Errorf("screenshot path must stay inside the screenshots directory")
+		}
+	}
+	workspaceRel, err = filepath.Rel(workspace, abs)
+	if err != nil || strings.HasPrefix(filepath.Clean(workspaceRel), "..") {
+		return "", "", "", fmt.Errorf("screenshot path must stay inside workspace")
+	}
+	if err := browserAutomationRejectSymlinks(workspace, abs); err != nil {
+		return "", "", "", err
+	}
+	return filepath.ToSlash(filepath.Clean(within)), filepath.ToSlash(filepath.Clean(workspaceRel)), abs, nil
 }
 
 func browserAutomationRelFromWorkspace(workspaceRoot, candidate string) (string, string, error) {
@@ -525,6 +610,10 @@ func browserAutomationSidecarConfig(cfg *config.Config) (BrowserAutomationSideca
 	if err != nil {
 		return BrowserAutomationSidecarConfig{}, fmt.Errorf("resolve download dir: %w", err)
 	}
+	screenshotsRoot, err := browserAutomationResolveScreenshotsRoot(cfg, workspaceRoot)
+	if err != nil {
+		return BrowserAutomationSidecarConfig{}, fmt.Errorf("resolve screenshots dir: %w", err)
+	}
 	runningInDocker := cfg.Runtime.IsDocker || browserAutomationRunsInDocker()
 	return BrowserAutomationSidecarConfig{
 		URL:                   config.NormalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", browserAutomationContainerPort),
@@ -541,6 +630,7 @@ func browserAutomationSidecarConfig(cfg *config.Config) (BrowserAutomationSideca
 		ReadOnly:              cfg.BrowserAutomation.ReadOnly,
 		WorkspaceDir:          workspaceRoot,
 		DownloadDir:           downloadsRoot,
+		ScreenshotsDir:        screenshotsRoot,
 		ViewportWidth:         cfg.BrowserAutomation.Viewport.Width,
 		ViewportHeight:        cfg.BrowserAutomation.Viewport.Height,
 		CloakHumanize:         cfg.BrowserAutomation.CloakHumanize,
@@ -603,22 +693,38 @@ func ExecuteBrowserAutomation(ctx context.Context, cfg *config.Config, req Brows
 		"max_elements": req.MaxElements,
 	}
 
+	var screenshotWorkspaceRel, screenshotAbs string
 	if op == "screenshot" {
+		screenshotsRoot, screenshotsErr := browserAutomationResolveScreenshotsRoot(cfg, workspaceRoot)
+		if screenshotsErr != nil {
+			return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": screenshotsErr.Error()})
+		}
 		outputPath := strings.TrimSpace(req.OutputPath)
 		if outputPath == "" {
 			outputPath = browserAutomationDefaultScreenshotRel(req)
 		}
-		relPath, _, relErr := browserAutomationRelFromWorkspace(workspaceRoot, outputPath)
-		if relErr != nil {
-			return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": relErr.Error()})
+		withinRel, workspaceRel, abs, shotErr := browserAutomationScreenshotTarget(workspaceRoot, screenshotsRoot, outputPath)
+		if shotErr != nil {
+			return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": shotErr.Error()})
 		}
-		payload["output_path"] = relPath
+		if IsProtectedSystemPath(abs, workspaceRoot, cfg) {
+			return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": "path refers to protected AuraGo configuration, credential or database state"})
+		}
+		screenshotWorkspaceRel = workspaceRel
+		screenshotAbs = abs
+		payload["output_path"] = withinRel
 	}
 
 	if op == "upload_file" {
-		relPath, _, relErr := browserAutomationRelFromWorkspace(workspaceRoot, req.FilePath)
+		relPath, abs, relErr := browserAutomationRelFromWorkspace(workspaceRoot, req.FilePath)
 		if relErr != nil {
 			return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": relErr.Error()})
+		}
+		if linkErr := browserAutomationRejectSymlinks(workspaceRoot, abs); linkErr != nil {
+			return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": linkErr.Error()})
+		}
+		if IsProtectedSystemPath(abs, workspaceRoot, cfg) {
+			return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": "path refers to protected AuraGo configuration, credential or database state"})
 		}
 		payload["file_path"] = relPath
 	}
@@ -635,7 +741,15 @@ func ExecuteBrowserAutomation(ctx context.Context, cfg *config.Config, req Brows
 		return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": err.Error()})
 	}
 
-	if screenshotRel, ok := resp["screenshot_rel_path"].(string); ok && screenshotRel != "" {
+	if op == "screenshot" {
+		resp["screenshot_rel_path"] = screenshotWorkspaceRel
+		resp["screenshot_path"] = screenshotAbs
+		if webPath := browserAutomationWebPath(workspaceRoot, screenshotAbs); webPath != "" {
+			resp["screenshot_web_path"] = webPath
+		} else {
+			delete(resp, "screenshot_web_path")
+		}
+	} else if screenshotRel, ok := resp["screenshot_rel_path"].(string); ok && screenshotRel != "" {
 		abs := filepath.Join(workspaceRoot, filepath.FromSlash(screenshotRel))
 		resp["screenshot_path"] = abs
 		if webPath := browserAutomationWebPath(workspaceRoot, abs); webPath != "" {
@@ -644,10 +758,18 @@ func ExecuteBrowserAutomation(ctx context.Context, cfg *config.Config, req Brows
 	}
 
 	if downloadRel, ok := resp["download_rel_path"].(string); ok && downloadRel != "" {
-		abs := filepath.Join(downloadsRoot, filepath.FromSlash(downloadRel))
-		resp["downloaded_file"] = abs
-		if webPath := browserAutomationWebPath(workspaceRoot, abs); webPath != "" {
-			resp["downloaded_file_web_path"] = webPath
+		if rel, abs, relErr := browserAutomationRelFromRoot(downloadsRoot, downloadRel); relErr == nil {
+			resp["download_rel_path"] = rel
+			resp["downloaded_file"] = abs
+			if webPath := browserAutomationWebPath(workspaceRoot, abs); webPath != "" {
+				resp["downloaded_file_web_path"] = webPath
+			} else {
+				delete(resp, "downloaded_file_web_path")
+			}
+		} else {
+			delete(resp, "download_rel_path")
+			delete(resp, "downloaded_file")
+			delete(resp, "downloaded_file_web_path")
 		}
 	}
 
@@ -661,10 +783,20 @@ func ExecuteBrowserAutomation(ctx context.Context, cfg *config.Config, req Brows
 			if relPath == "" {
 				continue
 			}
-			abs := filepath.Join(downloadsRoot, filepath.FromSlash(relPath))
+			rel, abs, relErr := browserAutomationRelFromRoot(downloadsRoot, relPath)
+			if relErr != nil {
+				delete(entry, "rel_path")
+				delete(entry, "local_path")
+				delete(entry, "web_path")
+				delete(entry, "downloaded_file")
+				continue
+			}
+			entry["rel_path"] = rel
 			entry["local_path"] = abs
 			if webPath := browserAutomationWebPath(workspaceRoot, abs); webPath != "" {
 				entry["web_path"] = webPath
+			} else {
+				delete(entry, "web_path")
 			}
 		}
 	}
@@ -752,6 +884,15 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 
 	_ = os.MkdirAll(sidecarCfg.WorkspaceDir, 0o750)
 	_ = os.MkdirAll(sidecarCfg.DownloadDir, 0o750)
+	screenshotsRel := "browser_screenshots"
+	if shots := strings.TrimSpace(sidecarCfg.ScreenshotsDir); shots != "" {
+		if rel, relErr := filepath.Rel(sidecarCfg.WorkspaceDir, shots); relErr == nil {
+			rel = filepath.ToSlash(filepath.Clean(rel))
+			if rel != "." && rel != "" && !strings.HasPrefix(rel, "..") {
+				screenshotsRel = rel
+			}
+		}
+	}
 	env := []string{
 		"PORT=7331",
 		"AURAGO_BROWSER_AUTOMATION_TOKEN=" + sidecarCfg.AuthToken,
@@ -763,6 +904,7 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 		fmt.Sprintf("READ_ONLY=%t", sidecarCfg.ReadOnly),
 		"WORKSPACE_ROOT=" + browserAutomationWorkspaceDir,
 		"DOWNLOAD_ROOT=" + browserAutomationDownloadsDir,
+		"SCREENSHOTS_ROOT=" + path.Join(browserAutomationWorkspaceDir, screenshotsRel),
 		fmt.Sprintf("VIEWPORT_WIDTH=%d", max(320, sidecarCfg.ViewportWidth)),
 		fmt.Sprintf("VIEWPORT_HEIGHT=%d", max(240, sidecarCfg.ViewportHeight)),
 		fmt.Sprintf("CLOAK_HUMANIZE=%t", sidecarCfg.CloakHumanize),

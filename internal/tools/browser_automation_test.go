@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -99,6 +100,55 @@ func TestExecuteBrowserAutomationRejectsUploadOutsideWorkspace(t *testing.T) {
 	}
 	if !strings.Contains(result["message"].(string), "inside workspace") {
 		t.Fatalf("message = %q, want workspace validation error", result["message"])
+	}
+}
+
+func TestExecuteBrowserAutomationRejectsScreenshotOutsideScreenshotsDir(t *testing.T) {
+	cfg := browserAutomationTestConfig(t, "http://127.0.0.1:7331")
+	result := decodeBrowserAutomationResult(t, ExecuteBrowserAutomation(context.Background(), cfg, BrowserAutomationRequest{
+		Operation:  "screenshot",
+		SessionID:  "ba_123",
+		OutputPath: "notes/secret.md",
+	}, nil))
+	if got, _ := result["status"].(string); got != "error" {
+		t.Fatalf("status = %q, want error", got)
+	}
+	if !strings.Contains(result["message"].(string), "screenshots directory") {
+		t.Fatalf("message = %q, want screenshots directory", result["message"])
+	}
+}
+
+func TestExecuteBrowserAutomationRejectsProtectedUpload(t *testing.T) {
+	cfg := browserAutomationTestConfig(t, "http://127.0.0.1:7331")
+	if strings.TrimSpace(cfg.Directories.DataDir) == "" {
+		cfg.Directories.DataDir = filepath.Join(t.TempDir(), "outside-data")
+	}
+	if err := os.MkdirAll(cfg.Directories.WorkspaceDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	envPath := filepath.Join(cfg.Directories.WorkspaceDir, ".env")
+	if err := os.WriteFile(envPath, []byte("TOKEN=secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result := decodeBrowserAutomationResult(t, ExecuteBrowserAutomation(context.Background(), cfg, BrowserAutomationRequest{
+		Operation: "upload_file",
+		SessionID: "ba_123",
+		Selector:  "input[type=file]",
+		FilePath:  ".env",
+	}, nil))
+	if got, _ := result["status"].(string); got != "error" {
+		t.Fatalf("status = %q, want error", got)
+	}
+	if !strings.Contains(strings.ToLower(result["message"].(string)), "protected") {
+		t.Fatalf("message = %q, want protected", result["message"])
+	}
+}
+
+func TestBrowserAutomationDownloadDirMustStayInWorkspace(t *testing.T) {
+	cfg := browserAutomationTestConfig(t, "http://127.0.0.1:7331")
+	cfg.BrowserAutomation.AllowedDownloadDir = filepath.Join("..", "data")
+	if _, err := browserAutomationSidecarConfig(cfg); err == nil {
+		t.Fatal("expected download directory outside the workspace to fail")
 	}
 }
 

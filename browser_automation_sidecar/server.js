@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const fs = require('fs/promises');
 const path = require('path');
 const { parseAllowedOrigins, validateBrowserTarget } = require('./egress_policy');
+const { resolveInside } = require('./path_policy');
 
 const PORT = parseInt(process.env.PORT || '7331', 10);
 const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT || '/workspace';
@@ -42,7 +43,7 @@ const MAX_DOWNLOAD_BYTES = Math.max(1024 * 1024, parseInt(process.env.MAX_DOWNLO
 const MAX_SCREENSHOT_BYTES = Math.max(256 * 1024, parseInt(process.env.MAX_SCREENSHOT_BYTES || String(25 * 1024 * 1024), 10));
 const MAX_DOWNLOAD_RECORDS = Math.max(1, parseInt(process.env.MAX_DOWNLOAD_RECORDS || '25', 10));
 const FILE_RETENTION_MS = Math.max(SESSION_TTL_MS, parseInt(process.env.FILE_RETENTION_MINUTES || String(Math.ceil((SESSION_TTL_MS * 2) / 60000)), 10) * 60 * 1000);
-const DEFAULT_SCREENSHOT_DIR = path.join(WORKSPACE_ROOT, 'browser_screenshots');
+const SCREENSHOTS_ROOT = process.env.SCREENSHOTS_ROOT || path.join(WORKSPACE_ROOT, 'browser_screenshots');
 const CLOAK_HUMANIZE = process.env.CLOAK_HUMANIZE === 'true';
 const CLOAK_HUMAN_PRESET = String(process.env.CLOAK_HUMAN_PRESET || 'default').trim();
 const CLOAK_PROXY = EGRESS_PROXY;
@@ -167,7 +168,7 @@ async function cleanupOldEntries(root, maxAgeMs) {
 
 async function cleanupStaleArtifacts() {
   await cleanupOldEntries(DOWNLOAD_ROOT, FILE_RETENTION_MS);
-  await cleanupOldEntries(DEFAULT_SCREENSHOT_DIR, FILE_RETENTION_MS);
+  await cleanupOldEntries(SCREENSHOTS_ROOT, FILE_RETENTION_MS);
 }
 
 function pushDownloadEntry(session, entry) {
@@ -215,7 +216,19 @@ async function destroySession(id) {
     console.warn(`Failed to close browser automation session ${id}:`, error && error.message ? error.message : error);
   }
   for (const screenshotPath of session.screenshots || []) {
-    await fs.unlink(screenshotPath).catch(() => {});
+    try {
+      const checked = resolveUnder(SCREENSHOTS_ROOT, relFromRoot(SCREENSHOTS_ROOT, screenshotPath));
+      if (checked !== screenshotPath) {
+        continue;
+      }
+      const info = await fs.lstat(screenshotPath);
+      if (!info.isFile()) {
+        continue;
+      }
+      await fs.unlink(screenshotPath);
+    } catch (_) {
+      // Leave a symlink, or any path outside the screenshots root, in place.
+    }
   }
   await fs.rm(path.join(DOWNLOAD_ROOT, session.id), { recursive: true, force: true }).catch(() => {});
 }
@@ -488,16 +501,18 @@ async function handleAutomation(body) {
     }
     case 'screenshot': {
       const relPath = String(body.output_path || '');
-      const target = resolveUnder(WORKSPACE_ROOT, relPath);
+      const target = await resolveInside(SCREENSHOTS_ROOT, relPath);
       await ensureDir(path.dirname(target));
       await page.screenshot({ path: target, fullPage: body.full_page === true });
       await ensureFileWithinLimit(target, MAX_SCREENSHOT_BYTES, 'screenshot');
       session.screenshots.push(target);
-      return { status: 'success', operation, session_id: session.id, url: page.url(), title: await page.title(), screenshot_rel_path: relFromRoot(WORKSPACE_ROOT, target), message: `screenshot saved to ${relPath}` };
+      const workspaceRel = relFromRoot(WORKSPACE_ROOT, target);
+      return { status: 'success', operation, session_id: session.id, url: page.url(), title: await page.title(), screenshot_rel_path: workspaceRel, message: `screenshot saved to ${workspaceRel}` };
     }
     case 'upload_file': {
       if (!ALLOW_FILE_UPLOADS) return { status: 'error', operation, session_id: session.id, message: 'file uploads are disabled', http_status: 400 };
       const relPath = String(body.file_path || '');
+      await resolveInside(WORKSPACE_ROOT, relPath);
       const target = resolveUnder(WORKSPACE_ROOT, relPath);
       await page.locator(selector).setInputFiles(target, { timeout: timeoutMs });
       return { status: 'success', operation, session_id: session.id, url: page.url(), title: await page.title(), message: `uploaded file ${relPath}` };
@@ -664,7 +679,7 @@ async function shutdown(signal) {
 async function boot() {
   await ensureDir(WORKSPACE_ROOT);
   await ensureDir(DOWNLOAD_ROOT);
-  await ensureDir(DEFAULT_SCREENSHOT_DIR);
+  await ensureDir(SCREENSHOTS_ROOT);
   await cleanupStaleArtifacts();
   server.listen(PORT, '0.0.0.0');
 }
