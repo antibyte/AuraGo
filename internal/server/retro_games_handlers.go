@@ -147,6 +147,14 @@ func (s *Server) handleRetroGames(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		retroGamesJSON(w, http.StatusOK, map[string]any{"game": g})
+	case route == "player" && id == "":
+		// The isolated page that runs archive.org's emulators
+		// (retro_games_player.go); the identifier is a query parameter.
+		if !retroGamesReadMethod(r) {
+			retroGamesMethodNotAllowed(w, "GET, HEAD")
+			return
+		}
+		ServeRetroGamesPlayer(w, r)
 	case (route == "favorites" || route == "broken") && id != "":
 		on := r.Method == http.MethodPut
 		if !on && r.Method != http.MethodDelete {

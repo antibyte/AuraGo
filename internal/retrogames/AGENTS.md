@@ -41,6 +41,13 @@
 - Scrape pages are stream-decoded with a cap of 10,000 elements; `FlexText` stream-decodes with depth 3 / 64
   values.
 - Identifiers must match `^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$` everywhere (API paths, embed URLs).
+- Trust boundary: archive.org's code (Emularity `loader.js`, BrowserFS, the emulators) runs only in the
+  player page `GET|HEAD /api/desktop/retro-games/player` (`internal/server/retro_games_player.go`). Its CSP
+  sandbox (no `allow-same-origin`, mirrored by the app's iframe sandbox) gives it an opaque origin, so it
+  never reaches AuraGo cookies, storage, DOM or APIs; `script-src` (per-response nonce) and `connect-src`
+  name archive.org hosts only. The page is self-contained (no AuraGo URL), takes id/muted/label from
+  server-rendered values, never from `location`, and talks to the app only via `postMessage` with `rg: 1`.
+  Widening the sandbox or the CSP to `'self'` breaks that boundary; `TestRetroGamesPlayerCSPIsolation` pins it.
 - User input never reaches FTS5 syntax: `BuildMatch` keeps letters and digits only and quotes each term.
 - Hall of Fame ids were verified live on 2026-10-11; re-verify (metadata API: exists, mediatype software,
   emulator set) before adding or swapping entries. The opt-in live test is
