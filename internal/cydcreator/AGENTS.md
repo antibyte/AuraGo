@@ -323,7 +323,14 @@ app files, assets, events) and the build queue. Plans 3 and 5 add jobs, revision
   ArduinoJson 7.4.3) and every `Libraries()` spec. The packages are installed before the platform so PlatformIO never
   resolves a range against the registry of the day, and a drift check after the prewarm fails the image build when
   the installed platform/package set differs from the pinned one. A pin change touches the Dockerfile, `Libraries()`,
-  the reference `platformio.ini` files and the version tag `CYD_BUILDER_VERSION`.
+  `CURATED_LIBS` in `cyd-build` (and `DHT_LIB_DEPS` in `cyd-selftest` for the DHT/Unified Sensor pins), the
+  reference `platformio.ini` files and the version tag `CYD_BUILDER_VERSION`.
+- `cyd-build` makes the env's libdeps folder (`/tmp/cyd-pio/libdeps/<env>`) anew for every build, with links into
+  `/opt/cyd/libs` for exactly the env's `lib_deps` (read with PlatformIO's own parser, each checked against the
+  library's `.piopm`): an entry outside `CURATED_LIBS` is exit 2, and app code that includes a library the project
+  does not enable fails to compile (exit 1, "No such file or directory"), as it would in the export.
+  `TestBuilderLibrariesMatchTheGenerator` pins `CURATED_LIBS`, the Dockerfile's `--library` list and the generator's
+  specs to one set; `cyd-selftest --all` (and `--libs`) checks the gate on the classic CYD.
 - `cyd-build` passes `CYD_BUILD_ID` through `include/cyd_build_id.h` (never a `-D` flag: flag changes wipe the
   PlatformIO build cache) and keeps the PlatformIO project checksum stable across work directories. It passes
   `--jobs` (the allowed CPUs, capped by the CPU quota and by one compiler per 512 MiB of the container memory limit
@@ -332,8 +339,8 @@ app files, assets, events) and the build queue. Plans 3 and 5 add jobs, revision
   or a linker diagnostic (undefined reference, multiple definition, region overflow) and no killed compiler, so the
   agent can repair `src/app`); `2` tooling or internal error (a compiler
   killed by the OOM killer, PlatformIO failing without a code diagnostic, a missing package or `cannot find -l`, a
-  cancel, a symlink or special file in the work tree, an invalid `fonts.json`, a bootloader whose chip differs from
-  `board_config.h`); `3` flash budget exceeded. `2` is never agent-repairable. `out/result.json` is always written
+  cancel, a symlink or special file in the work tree, an invalid `fonts.json`, a `lib_deps` entry that is not a
+  curated library, a bootloader whose chip differs from `board_config.h`); `3` flash budget exceeded. `2` is never agent-repairable. `out/result.json` is always written
   (also when the log reader hangs up), and `files`/`fonts` are empty on a non-zero exit.
 - Cache layout: PlatformIO build directory `/cache/build/<builder version>/<cache key>` (the version comes from
   `/opt/cyd/builder-version`, so a new image never reuses objects of an older toolchain), converted fonts in
@@ -524,7 +531,7 @@ app files, assets, events) and the build queue. Plans 3 and 5 add jobs, revision
 - `go vet ./internal/cydcreator/...`
 - Template or builder changes: build the image
   (`docker build -f deploy/docker/Dockerfile.cyd-builder --build-context cydcreator=internal/cydcreator -t aurago-cyd-builder:dev deploy/docker/cyd-builder`,
-  about 10 minutes: the prewarm compiles all nine profiles) and run
+  about 10 minutes: the prewarm compiles all nine profiles and the library check) and run
   `docker run --rm --network none --read-only --tmpfs /tmp:rw,exec,size=1g -e HOME=/tmp --user 1000:1000 -v <work volume>:/work -v <cache volume>:/cache <image> cyd-selftest --all`.
 - Generator changes: `go test ./internal/cydcreator/ -run TestGenerate`; after an intended output change run
   `go test ./internal/cydcreator/ -run TestGenerateGolden -update`, review the diff and commit it with the code.

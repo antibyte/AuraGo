@@ -8,7 +8,8 @@ stdout/stderr: human build log (streamed; PlatformIO output is echoed up to
 4 MiB, then one "[cyd-build] log truncated" line - parsing still sees all of it)
 exit: 0 ok, 1 compile error (a compiler/linker diagnostic in the code),
       2 tooling/internal error (also: a compiler was killed, e.g. out of
-      memory; PlatformIO failed without a code diagnostic; cancelled),
+      memory; PlatformIO failed without a code diagnostic; a lib_deps entry
+      that is not a curated library; cancelled),
       3 flash budget exceeded
 writes <work>/out/{merged.bin, firmware.bin, firmware.elf, result.json} and, on
 success, out/fonts/{<symbol>.c..., fonts.json} (the converted LVGL fonts)
@@ -23,6 +24,11 @@ are cached by content in /cache/fonts (a hit refreshes the entry's mtime, so
 the oldest entries are the ones to evict). A closed log reader (broken pipe)
 does not stop the build: the exit code and result.json stay correct.
 
+Libraries: PlatformIO's library folder of the env (/tmp/cyd-pio/libdeps/<env>)
+is made anew for every build and links only the curated libraries the env's
+lib_deps names, so app code that includes a library the project does not
+enable fails to compile (exit 1) instead of building here and nowhere else.
+
 Trust boundary: the arguments and the image are trusted (the server chooses
 them). The build tree below --work is not: src/app/** is written by users and
 the agent; platformio.ini, partitions.csv, include/, lib/ and src/generated/
@@ -35,6 +41,7 @@ read every file the container can read (#include, .incbin): keep secrets out
 of the image, /work and /cache, and the container off the network.
 """
 import argparse
+import contextlib
 import fcntl
 import hashlib
 import json
@@ -64,6 +71,28 @@ CONTAINER_LOCK = "/tmp/cyd-build.lock"
 TMP = "/tmp/cyd-pio"
 CACHE = "/cache"
 WORK_ROOT = "/work"
+
+# Every curated library of the image, spelled exactly as the generator writes
+# lib_deps entries (genTemplateLibDeps and the PIOSpec/Depends of Libraries() in
+# internal/cydcreator). The Dockerfile installs exactly these into LIBS, where
+# PlatformIO names each folder after the library and records owner, name and
+# version in its .piopm. TestBuilderLibrariesMatchTheGenerator pins the three
+# lists to each other.
+CURATED_LIBS = (
+    "lvgl/lvgl@9.5.0",
+    "lovyan03/LovyanGFX@1.2.30",
+    "tzapu/WiFiManager@2.0.17",
+    "bblanchon/ArduinoJson@7.4.3",
+    "knolleary/PubSubClient@2.8",
+    "paulstoffregen/OneWire@2.3.8",
+    "milesburton/DallasTemperature@4.0.6",
+    "adafruit/DHT sensor library@1.4.7",
+    "adafruit/Adafruit BME280 Library@2.3.0",
+    "adafruit/Adafruit BMP280 Library@3.0.0",
+    "adafruit/Adafruit NeoPixel@1.15.5",
+    "adafruit/Adafruit Unified Sensor@1.1.15",
+    "adafruit/Adafruit BusIO@1.17.4",
+)
 
 ESPTOOL = PIO_SHARED + "/packages/tool-esptoolpy/esptool.py"
 BOOT_APP0 = PIO_SHARED + "/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin"
@@ -243,19 +272,97 @@ def ensure_symlink(target, link):
                 raise
 
 
-def prepare_pio_dirs(env_name):
+def prepare_pio_dirs():
     """PlatformIO writes lock files next to its package folders and an
     integrity file into every libdeps folder; with a read-only /opt these
-    live in /tmp and point at the shared, pre-installed trees."""
+    live in /tmp and point at the shared, pre-installed trees (the libdeps
+    folder: link_libraries)."""
     os.makedirs(TMP, exist_ok=True)
     for sub in ("platforms", "packages"):
         ensure_symlink(os.path.join(PIO_SHARED, sub), os.path.join(TMP, sub))
-    libdeps = os.path.join(TMP, "libdeps", env_name)
-    os.makedirs(libdeps, exist_ok=True)
-    for name in sorted(os.listdir(LIBS)):
-        ensure_symlink(os.path.join(LIBS, name), os.path.join(libdeps, name))
     os.makedirs(os.path.join(TMP, "core"), exist_ok=True)
     os.makedirs(os.path.join(TMP, "home"), exist_ok=True)
+
+
+def version_parts(version):
+    """PlatformIO records the version "2.8" of a spec as "2.8.0"."""
+    parts = str(version).split(".")
+    return parts + ["0"] * (3 - len(parts))
+
+
+def curated_library_dirs():
+    """{spec: folder in LIBS} for every CURATED_LIBS entry, after checking
+    that the image holds exactly that library there; a mismatch fails every
+    build (and so the image build's prewarm)."""
+    dirs = {}
+    for spec in CURATED_LIBS:
+        owner, rest = spec.split("/", 1)
+        name, version = rest.rsplit("@", 1)
+        path = os.path.join(LIBS, name)
+        try:
+            with open(os.path.join(path, ".piopm"), encoding="utf-8") as f:
+                meta = json.load(f)
+            ok = (isinstance(meta, dict) and meta.get("type") == "library" and meta.get("name") == name
+                  and isinstance(meta.get("spec"), dict) and meta["spec"].get("owner") == owner
+                  and version_parts(meta.get("version")) == version_parts(version))
+        except (OSError, ValueError) as exc:
+            raise ToolError("the image has no library %s in %s: %s" % (spec, path, exc)) from exc
+        if not ok:
+            raise ToolError("%s/.piopm does not describe %s" % (path, spec))
+        dirs[spec] = path
+    return dirs
+
+
+@contextlib.contextmanager
+def pio_config(work, env):
+    """PlatformIO's own parser for <work>/platformio.ini, used with the
+    build's environment and working directory (both restored afterwards)."""
+    saved_env, saved_cwd = dict(os.environ), os.getcwd()
+    os.environ.clear()
+    os.environ.update(env)
+    try:
+        os.chdir(work)
+        from platformio.project.config import ProjectConfig
+        yield ProjectConfig.get_instance(os.path.join(work, "platformio.ini"))
+    finally:
+        os.chdir(saved_cwd)
+        os.environ.clear()
+        os.environ.update(saved_env)
+
+
+def project_lib_deps(work, env_name, env):
+    """The lib_deps of [env:<env_name>] as PlatformIO itself reads them
+    (comments, [env] defaults and extends included)."""
+    with pio_config(work, env) as cfg:
+        if env_name not in cfg.envs():
+            raise ToolError("platformio.ini has no [env:%s] section" % env_name)
+        return cfg.get("env:" + env_name, "lib_deps")
+
+
+def link_libraries(env_name, lib_deps):
+    """Make the env's libdeps folder anew with links to exactly the curated
+    libraries in lib_deps. PlatformIO's library finder uses whatever that
+    folder holds, so a library the project does not enable must not be in it:
+    its #include fails to compile (exit 1) instead of building here and
+    breaking the export, which only carries the enabled libraries. A fresh
+    folder also keeps an earlier build's links and integrity file out (with
+    the latter PlatformIO would try to uninstall from the read-only /opt)."""
+    dirs = curated_library_dirs()
+    links = {}
+    for spec in lib_deps:
+        if spec not in dirs:
+            raise ToolError("platformio.ini [env:%s] lib_deps entry %.120r is not a curated library of this image"
+                            % (env_name, spec))
+        links[os.path.basename(dirs[spec])] = dirs[spec]
+    libdeps = os.path.join(TMP, "libdeps", env_name)
+    if os.path.islink(libdeps) or os.path.isfile(libdeps):
+        os.unlink(libdeps)
+    elif os.path.isdir(libdeps):
+        shutil.rmtree(libdeps)  # unlinks the links, never follows them
+    os.makedirs(libdeps)
+    for name, target in sorted(links.items()):
+        os.symlink(target, os.path.join(libdeps, name))
+    say("libraries: " + ", ".join(sorted(links)))
 
 
 def base_environment():
@@ -296,22 +403,12 @@ def keep_build_cache(work, env):
     (config + absolute source paths) changes, which is every build here
     because each build has its own /work/<build_id>. SCons tracks file
     contents itself, so write the checksum PlatformIO will expect."""
-    saved_env, saved_cwd = dict(os.environ), os.getcwd()
-    os.environ.clear()
-    os.environ.update(env)
-    try:
-        os.chdir(work)
-        from platformio.project.config import ProjectConfig
+    with pio_config(work, env) as cfg:
         from platformio.project.helpers import compute_project_checksum
-        cfg = ProjectConfig.get_instance(os.path.join(work, "platformio.ini"))
         build_dir = cfg.get("platformio", "build_dir")
         os.makedirs(build_dir, exist_ok=True)
         with open(os.path.join(build_dir, "project.checksum"), "w", encoding="utf-8") as f:
             f.write(compute_project_checksum(cfg))
-    finally:
-        os.chdir(saved_cwd)
-        os.environ.clear()
-        os.environ.update(saved_env)
 
 
 def font_file_sha256(name):
@@ -610,8 +707,9 @@ def main():
         build_dir = os.path.join(CACHE, "build", builder_version(), args.cache_key)
         if args.clean:
             shutil.rmtree(build_dir, ignore_errors=True)
-        prepare_pio_dirs(args.env)
+        prepare_pio_dirs()
         env = pio_environment(build_dir)
+        link_libraries(args.env, project_lib_deps(args.work, args.env, env))
         write_build_id(args.work, args.build_id)
         convert_fonts(args.work)
         keep_build_cache(args.work, env)

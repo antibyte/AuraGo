@@ -1,15 +1,41 @@
 #!/bin/bash
-# cyd-selftest [--all | <board_id>...] - compile the embedded reference sample
+# cyd-selftest [--all | --libs | <board_id>...] - compile the embedded reference sample
 # (internal/cydcreator/testdata/reference/basic + template/lib/cyd_template)
 # for board profiles with cyd-build. Used to prewarm the image at build time
-# and as the offline smoke test in CI. Exit 0 only when every build succeeds.
+# and as the offline smoke test in CI. --all (the default) builds every profile
+# and then runs the library check (--libs runs only the check): on the classic
+# CYD, app code that includes <DHT.h> must fail with a compiler diagnostic
+# (exit 1, "DHT.h: No such file or directory") while the project does not
+# enable the library, and must build once lib_deps has the generator's lines
+# for it. Exit 0 only when every build ends as expected.
 set -euo pipefail
 
 REF=/opt/cyd/selftest/reference
 TPL=/opt/cyd/selftest/cyd_template
+LIBS_BOARD=esp32-2432s028r
+# The lib_deps lines the generator adds when a project enables "dht"
+# (genLibDeps; TestBuilderLibrariesMatchTheGenerator pins them).
+DHT_LIB_DEPS=(
+  "adafruit/Adafruit Unified Sensor@1.1.15"
+  "adafruit/DHT sensor library@1.4.7"
+)
 
+# prepare <board_id> <work>: a fresh copy of the reference for one profile.
+prepare() {
+  rm -rf "$2"
+  mkdir -p "$2/lib" "$2/src"
+  cp -r "$TPL" "$2/lib/cyd_template"
+  cp -r "$REF/src/." "$2/src/"
+  cp -r "$REF/profiles/$1/." "$2/"
+}
+
+libs=0
 if [ "$#" -eq 0 ] || [ "$1" = "--all" ]; then
   set -- $(ls "$REF/profiles")
+  libs=1
+elif [ "$1" = "--libs" ]; then
+  set --
+  libs=1
 fi
 
 fail=0
@@ -19,11 +45,7 @@ for id in "$@"; do
     exit 2
   fi
   work="/work/selftest-$id"
-  rm -rf "$work"
-  mkdir -p "$work/lib" "$work/src"
-  cp -r "$TPL" "$work/lib/cyd_template"
-  cp -r "$REF/src/." "$work/src/"
-  cp -r "$REF/profiles/$id/." "$work/"
+  prepare "$id" "$work"
   rc=0
   cyd-build --work "$work" --env "$id" --build-id "selftest-$id" --cache-key "selftest-$id" || rc=$?
   echo "== $id exit $rc: $(cat "$work/out/result.json" 2>/dev/null || echo '{}')"
@@ -31,4 +53,49 @@ for id in "$@"; do
     fail=1
   fi
 done
+
+if [ "$libs" -eq 1 ]; then
+  # Same cache key as the profile build: a project's lib_deps change between its builds.
+  id=$LIBS_BOARD
+  work=/work/selftest-libs
+  log=/work/selftest-libs.log
+  prepare "$id" "$work"
+  cat > "$work/src/app/selftest_libs.cpp" <<'EOF'
+// cyd-selftest library check: app code that uses a curated library.
+#include <DHT.h>
+
+static DHT g_dht(22, DHT22);
+
+float selftest_dht_read() {
+  g_dht.begin();
+  return g_dht.readTemperature();
+}
+EOF
+  set +e
+  cyd-build --work "$work" --env "$id" --build-id selftest-libs-off --cache-key "selftest-$id" 2>&1 | tee "$log"
+  rc=${PIPESTATUS[0]}
+  set -e
+  echo "== libs: DHT not enabled, exit $rc (want 1): $(cat "$work/out/result.json" 2>/dev/null || echo '{}')"
+  if [ "$rc" -ne 1 ] || ! grep -q "DHT.h: No such file or directory" "$log"; then
+    echo "cyd-selftest: an app including <DHT.h> must not build while the project does not enable the library" >&2
+    fail=1
+  fi
+  # Enable it: the generator appends the library's specs to the template's lib_deps.
+  awk -v add="$(printf '  %s\n' "${DHT_LIB_DEPS[@]}")" '
+    inlib && !/^  / { print add; inlib = 0 }
+    { print }
+    /^lib_deps =$/ { inlib = 1 }
+  ' "$work/platformio.ini" > "$work.ini"
+  mv "$work.ini" "$work/platformio.ini"
+  for dep in "${DHT_LIB_DEPS[@]}"; do
+    grep -qxF "  $dep" "$work/platformio.ini" || { echo "cyd-selftest: cannot enable $dep" >&2; exit 2; }
+  done
+  rc=0
+  cyd-build --work "$work" --env "$id" --build-id selftest-libs-on --cache-key "selftest-$id" || rc=$?
+  echo "== libs: DHT enabled, exit $rc (want 0): $(cat "$work/out/result.json" 2>/dev/null || echo '{}')"
+  if [ "$rc" -ne 0 ]; then
+    fail=1
+  fi
+  rm -f "$log"
+fi
 exit "$fail"

@@ -244,7 +244,7 @@ func referenceWidgets(p Project) string {
 
 func referenceLibraries(p Project) string {
 	var b strings.Builder
-	b.WriteString("Curated libraries (offline builds; pinned versions). Only these can be used. Enable a library before including it; exports and the project settings only carry enabled libraries.\n")
+	b.WriteString("Curated libraries (offline builds; pinned versions). Only these can be used. Enable a library before including it: builds, exports and the project settings only carry enabled libraries, so an #include of a library that is not enabled fails with \"No such file or directory\".\n")
 	for _, l := range Libraries() {
 		state := "not enabled"
 		switch {

@@ -5,6 +5,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -243,5 +244,59 @@ func TestGenLibDepsHaveNoVersionConflicts(t *testing.T) {
 	}
 	if c := libDepConflicts(genLibDeps(all)); len(c) != 0 {
 		t.Errorf("all libraries together: conflicting lib_deps %q", c)
+	}
+}
+
+// cyd-build links only the lib_deps entries of a build into PlatformIO's
+// library folder and refuses every entry outside its CURATED_LIBS table, so
+// that table, the libraries the Dockerfile installs and every spec the
+// generator can write must be one set; cyd-selftest's library check enables
+// "dht" with exactly the lines genLibDeps adds for it.
+func TestBuilderLibrariesMatchTheGenerator(t *testing.T) {
+	read := func(rel string) string {
+		t.Helper()
+		raw, err := os.ReadFile(filepath.FromSlash(rel))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return strings.ReplaceAll(string(raw), "\r\n", "\n")
+	}
+	quoted := regexp.MustCompile(`"([^"\n]+)"`)
+	list := func(src, what string, block *regexp.Regexp) []string {
+		t.Helper()
+		m := block.FindStringSubmatch(src)
+		if m == nil {
+			t.Fatalf("%s not found", what)
+		}
+		var out []string
+		for _, q := range quoted.FindAllStringSubmatch(m[1], -1) {
+			out = append(out, q[1])
+		}
+		return out
+	}
+	want := slices.Clone(genTemplateLibDeps)
+	for _, lib := range Libraries() {
+		for _, spec := range append([]string{lib.PIOSpec}, lib.Depends...) {
+			if !slices.Contains(want, spec) {
+				want = append(want, spec)
+			}
+		}
+	}
+	slices.Sort(want)
+	var installed []string
+	for _, m := range regexp.MustCompile(`--library "([^"\n]+)"`).FindAllStringSubmatch(read("../../deploy/docker/Dockerfile.cyd-builder"), -1) {
+		installed = append(installed, m[1])
+	}
+	curated := list(read("../../deploy/docker/cyd-builder/cyd-build"), "CURATED_LIBS in cyd-build",
+		regexp.MustCompile(`(?s)\nCURATED_LIBS = \((.*?)\n\)`))
+	for what, got := range map[string][]string{"Dockerfile --library": installed, "cyd-build CURATED_LIBS": curated} {
+		if sorted := slices.Sorted(slices.Values(got)); !slices.Equal(sorted, want) {
+			t.Errorf("%s =\n%q\nwant the generator's specs\n%q", what, sorted, want)
+		}
+	}
+	dht := list(read("../../deploy/docker/cyd-builder/cyd-selftest"), "DHT_LIB_DEPS in cyd-selftest",
+		regexp.MustCompile(`(?s)\nDHT_LIB_DEPS=\((.*?)\n\)`))
+	if wantDHT := genLibDeps([]string{"dht"})[len(genTemplateLibDeps):]; !slices.Equal(dht, wantDHT) {
+		t.Errorf("cyd-selftest DHT_LIB_DEPS = %q, want the generator's lines %q", dht, wantDHT)
 	}
 }
