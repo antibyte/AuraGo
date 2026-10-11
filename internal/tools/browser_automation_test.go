@@ -250,6 +250,47 @@ func TestExecuteBrowserAutomationValidatesOperationInputsBeforeSidecarRequest(t 
 	}
 }
 
+func TestExecuteBrowserAutomationDefaultScreenshotUsesConfiguredDir(t *testing.T) {
+	var sentPath string
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"status":"success","policy_version":"egress-v1","egress_isolated":true}`))
+			return
+		}
+		body, _ := io.ReadAll(r.Body)
+		var payload map[string]interface{}
+		_ = json.Unmarshal(body, &payload)
+		sentPath, _ = payload["output_path"].(string)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"success","operation":"screenshot"}`))
+	}))
+	defer srv.Close()
+
+	cfg := browserAutomationTestConfig(t, srv.URL)
+	cfg.BrowserAutomation.ScreenshotsDir = "shots"
+	result := decodeBrowserAutomationResult(t, ExecuteBrowserAutomation(context.Background(), cfg, BrowserAutomationRequest{
+		Operation: "screenshot",
+		SessionID: "ba_123",
+	}, nil))
+	if got, _ := result["status"].(string); got != "success" {
+		t.Fatalf("status = %q, want success", got)
+	}
+	if strings.ContainsAny(sentPath, `/\`) {
+		t.Fatalf("sent output_path = %q, want file name relative to screenshots root (no slash)", sentPath)
+	}
+	if !strings.HasSuffix(sentPath, ".png") || !strings.Contains(sentPath, "ba_123") {
+		t.Fatalf("sent output_path = %q, want ba_123*.png under screenshots root", sentPath)
+	}
+	if strings.Contains(sentPath, "browser_screenshots") {
+		t.Fatalf("sent output_path = %q, want the configured shots directory", sentPath)
+	}
+	webPath, _ := result["screenshot_web_path"].(string)
+	if !strings.HasPrefix(webPath, "/files/shots/") || !strings.HasSuffix(webPath, ".png") {
+		t.Fatalf("screenshot_web_path = %q, want /files/shots/<file>.png", webPath)
+	}
+}
+
 func TestExecuteBrowserAutomationMapsScreenshotAndDownloads(t *testing.T) {
 	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/health" {
@@ -591,6 +632,10 @@ func TestBrowserAutomationContainerMatchesRequiredSpec(t *testing.T) {
 		OutboundNetwork:       "bridge",
 		WorkspaceDir:          "/host/workspace",
 		DownloadDir:           "/host/workspace/browser_downloads",
+		ScreenshotsDir:        "/host/workspace/shots",
+		ViewportWidth:         800,
+		ViewportHeight:        600,
+		SessionTTL:            15,
 		ReadOnly:              true,
 		AllowUploads:          false,
 		AllowDownloads:        false,
@@ -607,6 +652,10 @@ func TestBrowserAutomationContainerMatchesRequiredSpec(t *testing.T) {
 		"ALLOW_FILE_UPLOADS=false",
 		"ALLOW_FILE_DOWNLOADS=false",
 		"HEADLESS=true",
+		"SCREENSHOTS_ROOT=/workspace/shots",
+		"VIEWPORT_WIDTH=800",
+		"VIEWPORT_HEIGHT=600",
+		"SESSION_TTL_MINUTES=15",
 	}
 	info := map[string]interface{}{
 		"Config": map[string]interface{}{
@@ -638,6 +687,21 @@ func TestBrowserAutomationContainerMatchesRequiredSpec(t *testing.T) {
 	env[2] = "AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS=[]"
 	if browserAutomationContainerMatches(info, cfg) {
 		t.Fatal("expected a stale private-origin allowlist to fail the match")
+	}
+	env[2] = "AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS=" + browserAutomationPrivateOriginsValue(cfg.AllowedPrivateOrigins)
+	env[len(env)-4] = "SCREENSHOTS_ROOT=/workspace/browser_screenshots"
+	if browserAutomationContainerMatches(info, cfg) {
+		t.Fatal("expected a stale screenshots root to fail the match")
+	}
+	env[len(env)-4] = "SCREENSHOTS_ROOT=/workspace/shots"
+	env[len(env)-3] = "VIEWPORT_WIDTH=1280"
+	if browserAutomationContainerMatches(info, cfg) {
+		t.Fatal("expected a stale viewport to fail the match")
+	}
+	env[len(env)-3] = "VIEWPORT_WIDTH=800"
+	env[len(env)-1] = "SESSION_TTL_MINUTES=30"
+	if browserAutomationContainerMatches(info, cfg) {
+		t.Fatal("expected a stale session TTL to fail the match")
 	}
 }
 
@@ -696,6 +760,44 @@ func TestEnsureBrowserAutomationSidecarRejectsInternalOutboundNetwork(t *testing
 	}, browserAutomationSilentLogger{})
 	if creates != 0 {
 		t.Fatalf("creates = %d, want 0", creates)
+	}
+}
+
+func TestEnsureBrowserAutomationSidecarLeavesComposeContainer(t *testing.T) {
+	var creates, deletes int
+	dockerHost := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/"+dockerAPIVersion)
+		switch {
+		case r.Method == http.MethodGet && path == "/networks/aurago-app":
+			_, _ = w.Write([]byte(`{"Internal":true}`))
+		case r.Method == http.MethodGet && path == "/networks/bridge":
+			_, _ = w.Write([]byte(`{"Internal":false}`))
+		case r.Method == http.MethodGet && path == "/containers/browser-automation/json":
+			_, _ = w.Write([]byte(`{
+				"Config":{"Labels":{"com.docker.compose.project":"aurago","com.docker.compose.service":"browser-automation"}},
+				"State":{"Running":true},
+				"HostConfig":{"NetworkMode":"aurago_default"}
+			}`))
+		case r.Method == http.MethodPost && strings.Contains(path, "/containers/create"):
+			creates++
+			w.WriteHeader(http.StatusCreated)
+		case r.Method == http.MethodDelete && strings.Contains(path, "/containers/"):
+			deletes++
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	})
+	EnsureBrowserAutomationSidecarRunning(dockerHost, BrowserAutomationSidecarConfig{
+		URL:              "http://browser-automation:7331",
+		AuthToken:        "token",
+		EgressNetwork:    "aurago-app",
+		OutboundNetwork:  "bridge",
+		Image:            "aurago-browser-automation:latest",
+		RuntimeIsDocker:  true,
+	}, browserAutomationSilentLogger{})
+	if creates != 0 || deletes != 0 {
+		t.Fatalf("creates = %d, deletes = %d, want 0 and 0", creates, deletes)
 	}
 }
 

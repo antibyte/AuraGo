@@ -582,6 +582,8 @@ browser_automation:
   allowed_private_origins: []      # exakte Home-Lab-Origin-URLs, die die Policy erlaubt
 ```
 
+Ein älteres Compose-Profil hat einen eigenen Container `browser-egress` gestartet. Aktuelle Versionen starten ihn nicht. Wenn `docker ps -a --filter name=browser-egress` diesen Container noch zeigt, entferne ihn mit `docker rm -f` und dem angezeigten Namen. Der Sidecar betreibt den Filter jetzt selbst.
+
 ### Host-Ausführung ohne Isolation
 
 Windows-Shell und jeder Host-Python-Pfad — inklusive Agent-Skill-Skripten und Hintergrund-Python-Jobs — brauchen zusätzlich zum bestehenden Tool-Gate `agent.allow_unsafe_host_execution: true`. Jede erlaubte Ausführung erzeugt eine Audit-Warnung im Log. Die Linux-/macOS-Host-Shell ohne wirksame Sandbox braucht `agent.allow_unsandboxed_shell: true` oder `agent.allow_unsafe_host_execution: true`; Updates über `update.sh` und Docker schreiben `allow_unsandboxed_shell` (`true` für Konfigurationen, in denen die Shell bereits aktiviert war, sonst `false`). Konfigurationen, die nie durch den config-merger laufen und in denen der Schlüssel nie geschrieben wurde, bleiben auch dann freigestellt, wenn die Shell später aktiviert wird; schreibe `agent.allow_unsandboxed_shell` ausdrücklich, damit die Entscheidung dauerhaft gilt. Desktop-Notes-Schutz und Datei-Jails gelten unabhängig davon.

@@ -275,6 +275,8 @@ browser_automation:
   allowed_private_origins: []      # exact home-lab origin URLs allowed by the policy
 ```
 
+An older Compose profile started a separate `browser-egress` container. Current releases do not start it. If `docker ps -a --filter name=browser-egress` still shows that container, remove it with `docker rm -f` on that container name. The sidecar now runs the filter itself.
+
 ### Host execution without isolation
 
 Windows shell and every host Python path — including Agent Skill scripts and background Python jobs — need `agent.allow_unsafe_host_execution: true` in addition to the existing tool gate. Every allowed execution emits an audit warning in the log. The Linux/macOS host shell without an effective sandbox needs `agent.allow_unsandboxed_shell: true` or `agent.allow_unsafe_host_execution: true`; updates via `update.sh` and Docker write `allow_unsandboxed_shell` (`true` for configurations that already had the shell enabled, `false` otherwise). Configurations that never run config-merger and never had the key written are grandfathered even if the shell is enabled later; write `agent.allow_unsandboxed_shell` explicitly to make the decision durable. Desktop Notes protection and file jails apply regardless.

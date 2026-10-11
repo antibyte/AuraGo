@@ -1174,6 +1174,37 @@ func TestLoadBrowserAutomationDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadBrowserAutomationClearsRetiredCloakProxy(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name  string
+		value string
+		want  string
+	}{
+		{name: "retired template", value: "http://browser-egress:7332", want: ""},
+		{name: "retired with slash", value: "http://browser-egress:7332/", want: ""},
+		{name: "custom proxy stays", value: "http://127.0.0.1:9", want: "http://127.0.0.1:9"},
+		{name: "empty stays empty", value: "", want: ""},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "config.yaml")
+			raw := "server:\n  ui_language: en\nbrowser_automation:\n  cloak_proxy: \"" + tt.value + "\"\n"
+			if err := os.WriteFile(path, []byte(raw), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := Load(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if cfg.BrowserAutomation.CloakProxy != tt.want {
+				t.Fatalf("cloak_proxy = %q, want %q", cfg.BrowserAutomation.CloakProxy, tt.want)
+			}
+		})
+	}
+}
+
 func TestLoadSpaceAgentDefaults(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")
