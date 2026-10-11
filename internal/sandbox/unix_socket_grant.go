@@ -4,10 +4,13 @@ import "strings"
 
 // AddUnixSocketGrant appends the unix:// socket from DOCKER_HOST onto the
 // sandbox read-write lists. It does not read Docker permission. A tcp host
-// adds no filesystem path. A socket path containing ':', a newline, or NUL is
-// omitted so the colon-separated lists are not split. The read-write list is
-// extended only when it already exists; the required list is created when
-// the socket is granted and that list is absent.
+// adds no filesystem path. On Linux the socket is canonicalized with the
+// Landlock path rule before it is appended, so a final symlink is not opened
+// as a symlink. A missing path keeps its cleaned absolute form. Windows keeps
+// the raw socket string. A path that still contains ':', a newline, or NUL
+// after that step is omitted so the colon-separated lists are not split. The
+// read-write list is extended only when it already exists; the required list
+// is created when the socket is granted and that list is absent.
 func AddUnixSocketGrant(env []string) []string {
 	path, ok := unixSocketGrantPath(env)
 	if !ok || !envHasKey(env, "AURAGO_SBX_RW") {
@@ -15,6 +18,23 @@ func AddUnixSocketGrant(env []string) []string {
 	}
 	env = appendSandboxGrantPath(env, "AURAGO_SBX_RW", path)
 	return appendSandboxGrantPath(env, "AURAGO_SBX_RW_REQUIRED", path)
+}
+
+// AddRequiredReadOnlyGrant appends a canonical path to the read-only lists.
+// It does not make the path writable. A path that is empty or still contains
+// ':', a newline, or NUL after canonicalization is skipped. The read-only
+// list is extended only when it already exists; the required list is created
+// when the path is granted and that list is absent.
+func AddRequiredReadOnlyGrant(env []string, path string) []string {
+	if strings.TrimSpace(path) == "" || !envHasKey(env, "AURAGO_SBX_RO") {
+		return env
+	}
+	resolved, ok := canonicalizeUnixSocketGrantPath(path)
+	if !ok || resolved == "" || strings.ContainsAny(resolved, ":\n\x00") {
+		return env
+	}
+	env = appendSandboxGrantPath(env, "AURAGO_SBX_RO", resolved)
+	return appendSandboxGrantPath(env, "AURAGO_SBX_RO_REQUIRED", resolved)
 }
 
 func unixSocketGrantPath(env []string) (string, bool) {
@@ -30,7 +50,11 @@ func unixSocketGrantPath(env []string) (string, bool) {
 		if path == "" || strings.ContainsAny(path, ":\n\x00") {
 			return "", false
 		}
-		return path, true
+		resolved, ok := canonicalizeUnixSocketGrantPath(path)
+		if !ok || resolved == "" || strings.ContainsAny(resolved, ":\n\x00") {
+			return "", false
+		}
+		return resolved, true
 	}
 	return "", false
 }

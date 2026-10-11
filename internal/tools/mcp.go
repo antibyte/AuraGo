@@ -345,6 +345,9 @@ func newMCPConn(name, command string, args []string, env map[string]string, logg
 			cmdEnv = append(cmdEnv, k+"="+v)
 		}
 	}
+	if grant, ok := containerSandboxLandlockFrom(ctx); ok {
+		cmdEnv = applyContainerSandboxLandlockGrant(name, cmdEnv, grant.workspace, grant.dockerHost)
+	}
 	cmd.Env = cmdEnv
 
 	stdinPipe, err := cmd.StdinPipe()

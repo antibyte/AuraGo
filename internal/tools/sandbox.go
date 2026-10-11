@@ -157,7 +157,7 @@ func InitSandboxManager(cfg SandboxConfig, workspaceDir string, logger *slog.Log
 	if isSandboxMCPInstalled(pythonBin) {
 		mgr.status.PackageInstalled = true
 	} else {
-		mgr.status.Error = "llm-sandbox MCP extras not installed (set sandbox.auto_install: true or run: pip install 'llm-sandbox[mcp-docker]')"
+		mgr.status.Error = sandboxNotInstalledStatus(cfg.Backend)
 		logger.Warn("[Sandbox] llm-sandbox MCP dependencies not found", "python", pythonBin)
 		registerSandboxSingleton(mgr)
 		return mgr
@@ -184,7 +184,8 @@ func InitSandboxManager(cfg SandboxConfig, workspaceDir string, logger *slog.Log
 	mgr.launchScript = scriptPath
 	args := []string{scriptPath}
 	mgr.connFactory = func() (sandboxConn, error) {
-		return newMCPConn("llm-sandbox", mgr.pythonBin, args, mgr.env, logger, "local", "", "")
+		ctx := withContainerSandboxLandlock(context.Background(), mgr.workspaceDir, mgr.cfg.DockerHost)
+		return newMCPConn("llm-sandbox", mgr.pythonBin, args, mgr.env, logger, "local", "", "", ctx)
 	}
 
 	// 5. Validate the MCP server and optionally keep it warm.

@@ -557,6 +557,7 @@ func ansibleRunCmd(cfg AnsibleLocalConfig, name string, args ...string) (string,
 	cmd := sb.PrepareExecCommand(binary, stagedArgs, staging)
 	ensureFilteredEnv(cmd)
 	cmd.Env = append(cmd.Env, "ANSIBLE_HOST_KEY_CHECKING=True", "ANSIBLE_CONFIG="+filepath.Join(staging, "_safe.cfg"), "ANSIBLE_INVENTORY_ENABLED=ini,yaml")
+	ApplyShellSandboxDockerGrant(cmd)
 	SetupCmd(cmd)
 	runner := NewForegroundRunner(cmd, ForegroundOptions{Timeout: time.Duration(cfg.Timeout) * time.Second, Graceful: true, KillWait: shellKillWait})
 	return runner.Run(ctx)

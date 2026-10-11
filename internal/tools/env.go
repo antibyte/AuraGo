@@ -20,9 +20,9 @@ func ensureFilteredEnv(cmd *exec.Cmd) {
 
 // dockerClientEnvNames select the Docker Engine endpoint and its credentials.
 // Operator shells and host Python only see them while the Docker tool is
-// permitted, mirroring the Landlock ExtraEnv rule in cmd/aurago/main.go that
-// passes DOCKER_HOST into the sandbox only when Docker is enabled. Names are
-// upper case; lookups upper-case the variable name like sandbox.FilterEnv.
+// permitted. The global sandbox env has no Docker client variables;
+// ApplyShellSandboxDockerGrant adds them only when Docker permission allows it.
+// Names are upper case; lookups upper-case the variable name like sandbox.FilterEnv.
 var dockerClientEnvNames = map[string]bool{
 	"DOCKER_HOST":        true,
 	"DOCKER_CONFIG":      true,
