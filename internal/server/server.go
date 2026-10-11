@@ -426,6 +426,14 @@ func (s *Server) newRemoteHub(db *sql.DB, vault *security.Vault, logger *slog.Lo
 	hub.AutoApprove = cfg.RemoteControl.AutoApprove
 	hub.MaxFileSizeMB = cfg.RemoteControl.MaxFileSizeMB
 	hub.AuditLogEnabled = cfg.RemoteControl.AuditLog
+	hub.Policy = func() remote.RuntimePolicy {
+		snapshot := s.ConfigSnapshot()
+		if snapshot == nil {
+			snapshot = cfg
+		}
+		rc := snapshot.RemoteControl
+		return remote.RuntimePolicy{ReadOnly: rc.ReadOnly, AutoApprove: rc.AutoApprove, AuditLog: rc.AuditLog, MaxFileSizeMB: rc.MaxFileSizeMB, AllowedPaths: rc.AllowedPaths}
+	}
 	hub.DefaultAllowedPaths = func() []string {
 		if snapshot := s.ConfigSnapshot(); snapshot != nil {
 			return snapshot.RemoteControl.AllowedPaths
@@ -476,9 +484,11 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	s.cfgSnapshot.Store(cfg)
 	s.finishVideoStudioConfigChange()
 	if hub := s.RemoteHub; hub != nil && previous != nil &&
-		!slices.Equal(previous.RemoteControl.AllowedPaths, cfg.RemoteControl.AllowedPaths) {
-		// The hub already evaluates the new default for shell checks; agents
-		// without their own list get it pushed. Socket writes stay off the
+		(!slices.Equal(previous.RemoteControl.AllowedPaths, cfg.RemoteControl.AllowedPaths) ||
+			previous.RemoteControl.ReadOnly != cfg.RemoteControl.ReadOnly || previous.RemoteControl.MaxFileSizeMB != cfg.RemoteControl.MaxFileSizeMB) {
+		hub.InvalidatePolicy(previous.RemoteControl.ReadOnly != cfg.RemoteControl.ReadOnly)
+		// The hub already enforces the new policy; agents receive a complete
+		// effective snapshot. Socket writes stay off the
 		// config publication path. Nothing else recovers a panic on this
 		// goroutine, so it is logged here instead of ending the process.
 		logger := s.Logger
@@ -487,7 +497,7 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 		}
 		push := s.pushRemoteAllowedPaths
 		if push == nil {
-			push = (*remote.RemoteHub).PushDefaultAllowedPaths
+			push = (*remote.RemoteHub).RefreshPolicy
 		}
 		go func() {
 			defer func() {

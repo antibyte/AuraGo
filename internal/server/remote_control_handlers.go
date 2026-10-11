@@ -31,6 +31,10 @@ var remoteUpgrader = websocket.Upgrader{
 
 func handleRemoteWebSocket(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !IsSecureRequest(r) {
+			jsonError(w, "WSS_REQUIRED: remote connections require TLS", http.StatusUpgradeRequired)
+			return
+		}
 		if s.RemoteHub == nil || !s.RemoteHub.Enabled() {
 			jsonError(w, "Remote Control not available", http.StatusServiceUnavailable)
 			return
@@ -81,7 +85,7 @@ func handleRemoteWebSocket(s *Server) http.HandlerFunc {
 			// Not registered (pending approval, rejected, etc.)
 			return
 		}
-		wsConn.SetReadLimit(int64(s.RemoteHub.MaxFileSizeMB+1) << 21)
+		wsConn.SetReadLimit(remote.FrameLimit(s.RemoteHub.RuntimePolicy().MaxFileSizeMB))
 
 		// Block on message handling
 		s.RemoteHub.HandleMessages(conn)
@@ -106,13 +110,15 @@ func handleRemoteDevices(s *Server) http.HandlerFunc {
 			// Enrich with connection status
 			type deviceView struct {
 				remote.DeviceRecord
+				remote.DeviceRuntime
 				IsConnected bool `json:"is_connected"`
 			}
 			views := make([]deviceView, len(devices))
 			for i, d := range devices {
 				views[i] = deviceView{
-					DeviceRecord: d,
-					IsConnected:  s.RemoteHub.IsConnected(d.ID),
+					DeviceRecord:  d,
+					DeviceRuntime: s.RemoteHub.DeviceRuntime(d),
+					IsConnected:   s.RemoteHub.IsConnected(d.ID),
 				}
 			}
 			writeJSON(w, views)
@@ -143,7 +149,10 @@ func handleRemoteDevice(s *Server) http.HandlerFunc {
 				jsonError(w, "device not found", http.StatusNotFound)
 				return
 			}
-			writeJSON(w, device)
+			writeJSON(w, struct {
+				remote.DeviceRecord
+				remote.DeviceRuntime
+			}{device, s.RemoteHub.DeviceRuntime(device)})
 
 		case http.MethodPut:
 			var update struct {
@@ -187,8 +196,9 @@ func handleRemoteDevice(s *Server) http.HandlerFunc {
 
 			// Push config update to connected device
 			if s.RemoteHub.IsConnected(deviceID) {
+				s.RemoteHub.InvalidateDevicePolicy(deviceID)
 				ro := device.ReadOnly
-				maxFileSizeMB := s.Cfg.RemoteControl.MaxFileSizeMB
+				maxFileSizeMB := s.RemoteHub.RuntimePolicy().MaxFileSizeMB
 				_ = s.RemoteHub.SendConfigUpdate(deviceID, remote.ConfigUpdatePayload{
 					ReadOnly:      &ro,
 					AllowedPaths:  append([]string{}, device.AllowedPaths...),
@@ -196,12 +206,25 @@ func handleRemoteDevice(s *Server) http.HandlerFunc {
 				})
 			}
 
-			writeJSON(w, device)
+			writeJSON(w, struct {
+				remote.DeviceRecord
+				remote.DeviceRuntime
+			}{device, s.RemoteHub.DeviceRuntime(device)})
 
 		case http.MethodDelete:
-			// Revoke if connected
-			if s.RemoteHub.IsConnected(deviceID) {
-				_ = s.RemoteHub.SendRevoke(deviceID)
+			if err := s.RemoteHub.SendRevoke(deviceID); err != nil {
+				if isRemoteRegistryNotFound(err) {
+					jsonError(w, "device not found", http.StatusNotFound)
+					return
+				}
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to revoke device", "Failed to revoke device before deletion", err)
+				return
+			}
+			if s.Vault != nil {
+				if err := s.Vault.DeleteSecret("remote_shared_key_" + deviceID); err != nil {
+					jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to delete device credentials", "Failed to delete revoked remote credentials", err, "device_id", deviceID)
+					return
+				}
 			}
 			if err := remote.DeleteDevice(s.RemoteHub.DB(), deviceID); err != nil {
 				if isRemoteRegistryNotFound(err) {
@@ -210,10 +233,6 @@ func handleRemoteDevice(s *Server) http.HandlerFunc {
 				}
 				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to delete device", "Failed to delete remote device", err, "device_id", deviceID)
 				return
-			}
-			// Clean up vault secret
-			if s.Vault != nil {
-				_ = s.Vault.DeleteSecret("remote_shared_key_" + deviceID)
 			}
 			writeJSON(w, map[string]string{"status": "deleted"})
 
@@ -277,10 +296,7 @@ func handleRemoteDeviceRevoke(s *Server) http.HandlerFunc {
 		}
 
 		deviceID := extractRemoteDeviceID(r.URL.Path, "/revoke")
-		if s.RemoteHub.IsConnected(deviceID) {
-			_ = s.RemoteHub.SendRevoke(deviceID)
-		}
-		if err := remote.UpdateDeviceStatus(s.RemoteHub.DB(), deviceID, "revoked"); err != nil {
+		if err := s.RemoteHub.SendRevoke(deviceID); err != nil {
 			if isRemoteRegistryNotFound(err) {
 				jsonError(w, "device not found", http.StatusNotFound)
 				return
@@ -338,6 +354,7 @@ func handleRemoteEnrollmentCreate(s *Server) http.HandlerFunc {
 
 func handleRemoteDownload(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		cfg := s.ConfigSnapshot()
 		if r.Method != http.MethodGet {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -349,7 +366,7 @@ func handleRemoteDownload(s *Server) http.HandlerFunc {
 
 		// Rate-limit failed unauthenticated download requests to prevent enrollment
 		// token flooding without locking out legitimate repeated downloads.
-		clientIP := ClientIP(r, s.Cfg.Server.HTTPS.BehindProxy)
+		clientIP := ClientIP(r, cfg.Server.HTTPS.BehindProxy)
 		rateKey := loginScopeKey("remote_download", clientIP)
 		recordDownloadFailure := func() { RecordFailedLogin(rateKey, 5, 10) }
 		if IsLockedOut(rateKey) {
@@ -396,6 +413,13 @@ func handleRemoteDownload(s *Server) http.HandlerFunc {
 			return
 		}
 
+		supervisorURL, err := remoteDownloadSupervisorURL(s, r)
+		if err != nil {
+			recordDownloadFailure()
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
 		// Generate enrollment token for this download
 		rawToken, err := generateRemoteToken()
 		if err != nil {
@@ -413,13 +437,6 @@ func handleRemoteDownload(s *Server) http.HandlerFunc {
 		if err != nil {
 			recordDownloadFailure()
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Enrollment creation failed", "Failed to create download enrollment", err, "platform", platform)
-			return
-		}
-
-		supervisorURL, err := remoteDownloadSupervisorURL(s, r)
-		if err != nil {
-			recordDownloadFailure()
-			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -529,63 +546,45 @@ func hashSHA256(s string) string {
 }
 
 func remoteDownloadSupervisorURL(s *Server, r *http.Request) (string, error) {
-	mode := strings.ToLower(strings.TrimSpace(s.Cfg.RemoteControl.ConnectionMode))
+	cfg := s.ConfigSnapshot()
+	mode := strings.ToLower(strings.TrimSpace(cfg.RemoteControl.ConnectionMode))
 	if mode == "" {
 		mode = "auto"
 	}
 	switch mode {
 	case "manual":
-		return normalizeRemoteSupervisorURL(s.Cfg.RemoteControl.SupervisorURL, false, s.Cfg.Server.Port)
+		return normalizeRemoteSupervisorURL(cfg.RemoteControl.SupervisorURL, false, cfg.Server.Port)
 	case "tailscale":
-		return normalizeRemoteSupervisorURL(s.Cfg.RemoteControl.TailscaleAddress, true, s.Cfg.Server.Port)
+		return normalizeRemoteSupervisorURL(cfg.RemoteControl.TailscaleAddress, true, cfg.Server.Port)
 	case "auto":
-		return autoRemoteDownloadSupervisorURL(s, r), nil
+		endpoint := autoRemoteDownloadSupervisorURL(s, r)
+		if endpoint == "" {
+			return "", fmt.Errorf("WSS_REQUIRED: configure TLS or an explicit WSS supervisor URL")
+		}
+		return endpoint, nil
 	default:
 		return "", fmt.Errorf("remote_control.connection_mode must be auto, tailscale, or manual")
 	}
 }
 
 func autoRemoteDownloadSupervisorURL(s *Server, r *http.Request) string {
-	// r.Host contains the hostname (and port) the client used to reach this
-	// server. Strip any port and re-attach the server's listener port so the
-	// WebSocket URL is always correct regardless of proxies or port forwarding.
-	hostname := r.Host
-	if h, _, err := net.SplitHostPort(hostname); err == nil {
-		hostname = h
+	cfg := s.ConfigSnapshot()
+	host := requestHost(r)
+	if !validRequestAuthority(host) {
+		return ""
 	}
-	hostname = strings.TrimSuffix(strings.TrimPrefix(hostname, "["), "]")
-	plainRequest := r.TLS == nil && r.Header.Get("X-Forwarded-Proto") != "https"
-
-	// With HTTPS on, a plain request from and to loopback came through the
-	// internal listener (normally server.port): an agent on this host keeps ws
-	// there, which also works with a self-signed certificate. That listener
-	// binds tcp4 127.0.0.1 only, so the URL names that address whatever
-	// loopback name the Host header used.
-	loopbackPort := 0
-	if s.Cfg.Server.HTTPS.Enabled && plainRequest && hostname != "" &&
-		isLoopbackHostname(hostname) && isLoopbackRemoteAddr(r.RemoteAddr) {
-		loopbackPort = DedicatedInternalLoopbackPort(s.Cfg)
-	}
-
-	scheme, port := "ws", s.Cfg.Server.Port
-	switch {
-	case loopbackPort > 0:
-		hostname, port = "127.0.0.1", loopbackPort
-	case s.Cfg.Server.HTTPS.Enabled:
-		// AuraGo serves HTTPS itself: agents get wss on the TLS listener
-		// (https_port) whatever scheme this request arrived with; server.port
-		// is then only the internal loopback listener.
-		scheme, port = "wss", s.Cfg.Server.HTTPS.HTTPSPort
+	if !IsSecureRequest(r) {
+		if !cfg.Server.HTTPS.Enabled {
+			return ""
+		}
+		u := &url.URL{Host: host}
+		port := cfg.Server.HTTPS.HTTPSPort
 		if port <= 0 {
 			port = 443
 		}
-	case !plainRequest:
-		scheme = "wss"
+		host = net.JoinHostPort(u.Hostname(), strconv.Itoa(port))
 	}
-	if hostname == "" {
-		hostname = "localhost"
-	}
-	return fmt.Sprintf("%s://%s/api/remote/ws", scheme, net.JoinHostPort(hostname, strconv.Itoa(port)))
+	return "wss://" + host + "/api/remote/ws"
 }
 
 func isLoopbackHostname(hostname string) bool {
@@ -614,35 +613,23 @@ func normalizeRemoteSupervisorURL(raw string, preferTailscale bool, serverPort i
 		return "", fmt.Errorf("remote_control.supervisor_url is required when connection_mode is manual")
 	}
 
-	if strings.Contains(raw, "://") {
-		u, err := url.Parse(raw)
-		if err != nil || u.Host == "" {
-			return "", fmt.Errorf("invalid remote_control supervisor URL")
-		}
-		switch u.Scheme {
-		case "http":
-			u.Scheme = "ws"
-		case "https":
-			u.Scheme = "wss"
-		case "ws", "wss":
-		default:
-			return "", fmt.Errorf("remote_control supervisor URL must use ws, wss, http, or https")
-		}
-		if u.Path == "" || u.Path == "/" {
-			u.Path = "/api/remote/ws"
-		}
-		return u.String(), nil
+	if !strings.Contains(raw, "://") {
+		raw = "wss://" + raw
 	}
-
-	address := strings.TrimRight(raw, "/")
-	lower := strings.ToLower(address)
-	scheme := "ws"
-	if preferTailscale && strings.Contains(lower, ".ts.net") {
-		scheme = "wss"
-	} else if serverPort > 0 && !remoteAddressHasExplicitPort(address) {
-		address = fmt.Sprintf("%s:%d", address, serverPort)
+	u, err := url.Parse(raw)
+	if err != nil || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+		return "", fmt.Errorf("invalid remote_control supervisor URL")
 	}
-	return fmt.Sprintf("%s://%s/api/remote/ws", scheme, address), nil
+	if u.Scheme == "https" {
+		u.Scheme = "wss"
+	}
+	if u.Scheme != "wss" {
+		return "", fmt.Errorf("WSS_REQUIRED: supervisor URL must use wss or https")
+	}
+	if u.Path == "" || u.Path == "/" {
+		u.Path = "/api/remote/ws"
+	}
+	return u.String(), nil
 }
 
 func remoteAddressHasExplicitPort(address string) bool {

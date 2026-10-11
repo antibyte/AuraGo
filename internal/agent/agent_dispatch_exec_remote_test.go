@@ -160,7 +160,7 @@ func TestRemoteDesktopScreenshotStoresImageDataByDefault(t *testing.T) {
 	cfg.RemoteControl.Enabled = true
 	cfg.Directories.WorkspaceDir = t.TempDir()
 
-	out := handleRemoteControl(ToolCall{
+	out := handleRemoteControl(context.Background(), ToolCall{
 		Operation: "desktop_screenshot",
 		DeviceID:  deviceID,
 		Params: map[string]interface{}{
@@ -226,7 +226,7 @@ func TestRemoteDesktopScreenshotErrorsWhenImageDataMissing(t *testing.T) {
 	cfg.RemoteControl.Enabled = true
 	cfg.Directories.WorkspaceDir = t.TempDir()
 
-	out := handleRemoteControl(ToolCall{
+	out := handleRemoteControl(context.Background(), ToolCall{
 		Operation: "desktop_screenshot",
 		DeviceID:  deviceID,
 		Params: map[string]interface{}{
@@ -265,7 +265,7 @@ func TestRemoteDesktopInputMapsInputActionToClientAction(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.RemoteControl.Enabled = true
 
-	out := handleRemoteControl(ToolCall{
+	out := handleRemoteControl(context.Background(), ToolCall{
 		Operation: "desktop_input",
 		DeviceID:  deviceID,
 		Params: map[string]interface{}{
@@ -393,7 +393,7 @@ func TestRemoteDesktopInputBlockedByGlobalReadOnly(t *testing.T) {
 	cfg.RemoteControl.ReadOnly = true
 	hub := remote.NewRemoteHub(nil, nil, slog.Default())
 
-	out := handleRemoteControl(ToolCall{
+	out := handleRemoteControl(context.Background(), ToolCall{
 		Operation: "desktop_input",
 		DeviceID:  "agodesk-1",
 		Params: map[string]interface{}{
@@ -470,7 +470,7 @@ func TestRemoteControlShellSessionOpsDispatchToRemoteHub(t *testing.T) {
 		{"shell_session_list", map[string]interface{}{"limit": float64(10)}, remote.OpShellSessionList},
 	}
 	for _, tc := range calls {
-		out := handleRemoteControl(ToolCall{
+		out := handleRemoteControl(context.Background(), ToolCall{
 			Action:    "remote_control_shell",
 			Operation: tc.operation,
 			DeviceID:  deviceID,
@@ -522,7 +522,7 @@ func TestRemoteControlFilePatchDefaultsDryRunAndPreservesErrorCode(t *testing.T)
 	cfg := &config.Config{}
 	cfg.RemoteControl.Enabled = true
 
-	out := handleRemoteControl(ToolCall{
+	out := handleRemoteControl(context.Background(), ToolCall{
 		Action:    "remote_control_files",
 		Operation: "file_patch",
 		DeviceID:  deviceID,
@@ -562,7 +562,7 @@ func TestRemoteControlFilePatchRequiresExpectedSHA256(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.RemoteControl.Enabled = true
 	hub := remote.NewRemoteHub(nil, nil, slog.Default())
-	out := handleRemoteControl(ToolCall{
+	out := handleRemoteControl(context.Background(), ToolCall{
 		Action:    "remote_control_files",
 		Operation: "file_patch",
 		DeviceID:  "agodesk-1",
@@ -607,7 +607,7 @@ func TestRemoteControlComputerUseReadOnlyPolicy(t *testing.T) {
 	cfg.RemoteControl.ReadOnly = true
 
 	for _, blocked := range []string{"desktop_ui_action", "desktop_browser_action"} {
-		out := handleRemoteControl(ToolCall{
+		out := handleRemoteControl(context.Background(), ToolCall{
 			Operation: blocked,
 			DeviceID:  deviceID,
 			Params: map[string]interface{}{
@@ -624,7 +624,7 @@ func TestRemoteControlComputerUseReadOnlyPolicy(t *testing.T) {
 		t.Fatalf("read-only action operations should not dispatch, calls = %#v", transport.calls)
 	}
 
-	out := handleRemoteControl(ToolCall{
+	out := handleRemoteControl(context.Background(), ToolCall{
 		Operation: "desktop_ui_tree",
 		DeviceID:  deviceID,
 		Params: map[string]interface{}{
@@ -647,7 +647,7 @@ func TestRemoteControlComputerUseActionOperationsRequireAction(t *testing.T) {
 	hub := remote.NewRemoteHub(nil, nil, slog.Default())
 
 	for _, op := range []string{"desktop_ui_action", "desktop_browser_action"} {
-		out := handleRemoteControl(ToolCall{
+		out := handleRemoteControl(context.Background(), ToolCall{
 			Operation: op,
 			DeviceID:  "agodesk-1",
 			Params: map[string]interface{}{
@@ -704,7 +704,7 @@ func TestRemoteControlComputerUseOperationsForwardParams(t *testing.T) {
 		{toolOperation: "desktop_browser_action", remoteOp: remote.OpDesktopBrowserAction, params: map[string]interface{}{"selector": "#name", "action": "fill", "value": "Ada"}},
 		{toolOperation: "desktop_browser_disconnect", remoteOp: remote.OpDesktopBrowserDisconnect},
 	} {
-		out := handleRemoteControl(ToolCall{
+		out := handleRemoteControl(context.Background(), ToolCall{
 			Operation: tc.toolOperation,
 			DeviceID:  deviceID,
 			Params:    tc.params,
@@ -749,7 +749,7 @@ func TestRemoteFileOperationsForwardAgoDeskRootID(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.RemoteControl.Enabled = true
 
-	out := handleRemoteControl(ToolCall{
+	out := handleRemoteControl(context.Background(), ToolCall{
 		Operation: "read_file",
 		DeviceID:  deviceID,
 		Path:      "src/main.go",
@@ -796,7 +796,7 @@ func TestRemoteReadFileUsesNestedAgoDeskFileParams(t *testing.T) {
 	cfg.RemoteControl.Enabled = true
 
 	remotePath := "Baf\u00f6g_Johannes_08.2019/01_Baf\u00f6g_Bewilligungsbescheid.pdf"
-	out := handleRemoteControl(ToolCall{
+	out := handleRemoteControl(context.Background(), ToolCall{
 		Action:    "remote_control",
 		Operation: "read_file",
 		DeviceID:  deviceID,
@@ -853,7 +853,7 @@ func TestRemoteListFilesUsesNestedAgoDeskFileParams(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.RemoteControl.Enabled = true
 
-	out := handleRemoteControl(ToolCall{
+	out := handleRemoteControl(context.Background(), ToolCall{
 		Action:    "remote_control",
 		Operation: "list_files",
 		DeviceID:  deviceID,
@@ -914,7 +914,7 @@ func TestRemoteFileSearchUsesNestedAgoDeskSearchOperation(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.RemoteControl.Enabled = true
 
-	out := handleRemoteControl(ToolCall{
+	out := handleRemoteControl(context.Background(), ToolCall{
 		Action:    "remote_control",
 		Operation: "file_search",
 		DeviceID:  deviceID,
@@ -965,7 +965,9 @@ func (t *agentRecordingTransport) IsConnected(deviceID string) bool {
 	return t.connected[deviceID]
 }
 
-func (t *agentRecordingTransport) SendCommand(deviceID string, cmd remote.CommandPayload, timeout time.Duration) (remote.ResultPayload, error) {
+func (t *agentRecordingTransport) Disconnect(string) {}
+
+func (t *agentRecordingTransport) SendCommand(ctx context.Context, deviceID string, cmd remote.CommandPayload, timeout time.Duration) (remote.ResultPayload, error) {
 	t.calls = append(t.calls, cmd)
 	status := t.status
 	if status == "" {

@@ -1078,7 +1078,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			return handleInvasionControl(tc, cfg, invasionDB, vault, logger)
 
 		case "remote_control", "remote_control_devices", "remote_control_shell", "remote_control_files", "remote_control_desktop":
-			return handleRemoteControl(tc, cfg, remoteHub, logger)
+			return handleRemoteControl(ctx, tc, cfg, remoteHub, logger)
 
 		case "mcp_call":
 			// Two-gate security: allow_mcp (Danger Zone) AND mcp.enabled

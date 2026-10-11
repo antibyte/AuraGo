@@ -206,9 +206,9 @@ func TestAgodeskWebSocketAllowsExplicitLoopbackDevChat(t *testing.T) {
 func TestAgodeskWebSocketQueryOnlyKeepsNormalPairing(t *testing.T) {
 	s := newAgodeskHandlerTestServer()
 	s.agodeskDevToken = agodeskTestDevToken
-	srv := httptest.NewServer(handleAgodeskWebSocket(s))
+	srv := httptest.NewTLSServer(handleAgodeskWebSocket(s))
 	defer srv.Close()
-	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(srv.URL, "http")+"/api/agodesk/ws?insecure_loopback=1", nil)
+	conn, _, err := remoteTLSTestDialer(srv).Dial("ws"+strings.TrimPrefix(srv.URL, "http")+"/api/agodesk/ws?insecure_loopback=1", nil)
 	if err != nil {
 		t.Fatalf("dial query-only websocket: %v", err)
 	}
@@ -330,12 +330,12 @@ func TestAgodeskAttachmentPrepareUploadAndTextlessChatMessage(t *testing.T) {
 	}
 	t.Cleanup(func() { agodeskAgentChatRunner = oldRunner })
 
-	httpSrv := httptest.NewServer(agodeskAttachmentTestMux(s))
+	httpSrv := httptest.NewTLSServer(agodeskAttachmentTestMux(s))
 	defer httpSrv.Close()
 	s.agodeskDevToken = agodeskTestDevToken
 	header := http.Header{}
 	header.Set(agodeskDevTokenHeader, agodeskTestDevToken)
-	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(httpSrv.URL, "http")+"/api/agodesk/ws?insecure_loopback=1", header)
+	conn, _, err := remoteTLSTestDialer(httpSrv).Dial("ws"+strings.TrimPrefix(httpSrv.URL, "http")+"/api/agodesk/ws?insecure_loopback=1", header)
 	if err != nil {
 		t.Fatalf("dial agodesk websocket: %v", err)
 	}
@@ -375,7 +375,7 @@ func TestAgodeskAttachmentPrepareUploadAndTextlessChatMessage(t *testing.T) {
 		t.Fatalf("prepared payload = %+v", prepared)
 	}
 
-	uploadStatus, uploadPayload := postAgodeskAttachmentTestUpload(t, httpSrv.URL+prepared.UploadURL, "file", "note.txt", body)
+	uploadStatus, uploadPayload := postAgodeskAttachmentTestUploadWithClient(t, httpSrv.Client(), httpSrv.URL+prepared.UploadURL, "file", "note.txt", body)
 	if uploadStatus != http.StatusCreated {
 		t.Fatalf("upload status = %d payload = %s", uploadStatus, uploadPayload)
 	}
@@ -386,7 +386,7 @@ func TestAgodeskAttachmentPrepareUploadAndTextlessChatMessage(t *testing.T) {
 	if err := json.Unmarshal([]byte(uploadPayload), &uploadResp); err != nil {
 		t.Fatalf("unmarshal upload response: %v", err)
 	}
-	downloadResp, err := http.Get(httpSrv.URL + uploadResp.Path)
+	downloadResp, err := httpSrv.Client().Get(httpSrv.URL + uploadResp.Path)
 	if err != nil {
 		t.Fatalf("download uploaded attachment: %v", err)
 	}
@@ -3557,7 +3557,7 @@ func pairAgodeskTestClientWithFileAccess(t *testing.T, s *Server, token string, 
 
 func dialAgodeskTestWebSocket(t *testing.T, s *Server, path string) (*websocket.Conn, func()) {
 	t.Helper()
-	srv := httptest.NewServer(handleAgodeskWebSocket(s))
+	srv := httptest.NewTLSServer(handleAgodeskWebSocket(s))
 	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + path
 	header := http.Header{}
 	if strings.Contains(path, "insecure_loopback=1") {
@@ -3566,7 +3566,7 @@ func dialAgodeskTestWebSocket(t *testing.T, s *Server, path string) (*websocket.
 		}
 		header.Set(agodeskDevTokenHeader, s.agodeskDevToken)
 	}
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
+	conn, _, err := remoteTLSTestDialer(srv).Dial(wsURL, header)
 	if err != nil {
 		srv.Close()
 		t.Fatalf("dial agodesk websocket: %v", err)
@@ -3585,7 +3585,7 @@ func agodeskAttachmentTestMux(s *Server) http.Handler {
 	return mux
 }
 
-func postAgodeskAttachmentTestUpload(t *testing.T, uploadURL, fieldName, filename string, data []byte) (int, string) {
+func postAgodeskAttachmentTestUploadWithClient(t *testing.T, client *http.Client, uploadURL, fieldName, filename string, data []byte) (int, string) {
 	t.Helper()
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
@@ -3604,7 +3604,7 @@ func postAgodeskAttachmentTestUpload(t *testing.T, uploadURL, fieldName, filenam
 		t.Fatalf("NewRequest upload: %v", err)
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatalf("upload request: %v", err)
 	}
@@ -3644,7 +3644,7 @@ type agodeskBrokerTestEvent struct {
 func readAgodeskBrokerEventEnvelopes(t *testing.T, state *agodeskConnectionState, feedback agent.FeedbackBroker, events ...agodeskBrokerTestEvent) []agodesk.Envelope {
 	t.Helper()
 	ready := make(chan struct{})
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, err := agodeskUpgrader.Upgrade(w, r, nil)
 		if err != nil {
 			t.Errorf("upgrade broker websocket: %v", err)
@@ -3667,7 +3667,7 @@ func readAgodeskBrokerEventEnvelopes(t *testing.T, state *agodeskConnectionState
 	}))
 	defer srv.Close()
 	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	conn, _, err := remoteTLSTestDialer(srv).Dial(wsURL, nil)
 	if err != nil {
 		t.Fatalf("dial broker websocket: %v", err)
 	}
@@ -3691,7 +3691,7 @@ func readAgodeskBrokerEventEnvelopes(t *testing.T, state *agodeskConnectionState
 func readAgodeskBrokerTypedEventEnvelopes(t *testing.T, state *agodeskConnectionState, events ...agent.AgentActionEvent) []agodesk.Envelope {
 	t.Helper()
 	ready := make(chan struct{})
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, err := agodeskUpgrader.Upgrade(w, r, nil)
 		if err != nil {
 			t.Errorf("upgrade broker websocket: %v", err)
@@ -3713,7 +3713,7 @@ func readAgodeskBrokerTypedEventEnvelopes(t *testing.T, state *agodeskConnection
 	}))
 	defer srv.Close()
 	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	conn, _, err := remoteTLSTestDialer(srv).Dial(wsURL, nil)
 	if err != nil {
 		t.Fatalf("dial broker websocket: %v", err)
 	}
@@ -3812,4 +3812,8 @@ func agodeskTestContainsString(values []string, want string) bool {
 		}
 	}
 	return false
+}
+
+func postAgodeskAttachmentTestUpload(t *testing.T, uploadURL, field, filename string, content []byte) (int, string) {
+	return postAgodeskAttachmentTestUploadWithClient(t, http.DefaultClient, uploadURL, field, filename, content)
 }

@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -14,7 +15,7 @@ import (
 	"aurago/internal/remote"
 )
 
-func handleRemoteControl(tc ToolCall, cfg *config.Config, hub *remote.RemoteHub, logger *slog.Logger) string {
+func handleRemoteControl(ctx context.Context, tc ToolCall, cfg *config.Config, hub *remote.RemoteHub, logger *slog.Logger) string {
 	if !cfg.RemoteControl.Enabled || hub == nil {
 		return `Tool Output: {"status":"error","message":"Remote Control is disabled. Set remote_control.enabled=true in config.yaml."}`
 	}
@@ -31,59 +32,59 @@ func handleRemoteControl(tc ToolCall, cfg *config.Config, hub *remote.RemoteHub,
 	case "device_status":
 		return remoteDeviceStatus(hub, tc, logger)
 	case "execute_command":
-		return remoteExecuteCommand(hub, tc, logger)
+		return remoteExecuteCommand(ctx, hub, tc, logger)
 	case "shell_session_start", "shell_session_read", "shell_session_input", "shell_session_stop", "shell_session_list":
-		return remoteShellSessionCommand(hub, tc, logger)
+		return remoteShellSessionCommand(ctx, hub, tc, logger)
 	case "read_file":
-		return remoteReadFile(hub, tc, logger)
+		return remoteReadFile(ctx, hub, tc, logger)
 	case "write_file":
-		return remoteWriteFile(cfg, hub, tc, logger)
+		return remoteWriteFile(ctx, cfg, hub, tc, logger)
 	case "file_patch":
-		return remoteFilePatch(cfg, hub, tc, logger)
+		return remoteFilePatch(ctx, cfg, hub, tc, logger)
 	case "list_files":
-		return remoteListFiles(hub, tc, logger)
+		return remoteListFiles(ctx, hub, tc, logger)
 	case "sysinfo":
-		return remoteSysinfo(hub, tc, logger)
+		return remoteSysinfo(ctx, hub, tc, logger)
 	case "revoke_device":
 		return remoteRevokeDevice(hub, tc, logger)
 	case "edit_file":
-		return remoteEditFile(hub, tc, logger)
+		return remoteEditFile(ctx, hub, tc, logger)
 	case "json_edit":
-		return remoteJsonEdit(hub, tc, logger)
+		return remoteJsonEdit(ctx, hub, tc, logger)
 	case "yaml_edit":
-		return remoteYamlEdit(hub, tc, logger)
+		return remoteYamlEdit(ctx, hub, tc, logger)
 	case "xml_edit":
-		return remoteXmlEdit(hub, tc, logger)
+		return remoteXmlEdit(ctx, hub, tc, logger)
 	case "file_search":
-		return remoteFileSearch(hub, tc, logger)
+		return remoteFileSearch(ctx, hub, tc, logger)
 	case "file_read_advanced":
-		return remoteFileReadAdvanced(hub, tc, logger)
+		return remoteFileReadAdvanced(ctx, hub, tc, logger)
 	case "desktop_screenshot":
-		return remoteDesktopScreenshot(cfg, hub, tc, logger)
+		return remoteDesktopScreenshot(ctx, cfg, hub, tc, logger)
 	case "desktop_permission_request":
-		return remoteDesktopPermissionRequest(hub, tc, logger)
+		return remoteDesktopPermissionRequest(ctx, hub, tc, logger)
 	case "desktop_input":
-		return remoteDesktopInput(hub, tc, logger)
+		return remoteDesktopInput(ctx, hub, tc, logger)
 	case "desktop_list_displays":
-		return remoteDesktopJSONCommand(hub, tc, remote.OpDesktopListDisplays, 15*time.Second, false)
+		return remoteDesktopJSONCommand(ctx, hub, tc, remote.OpDesktopListDisplays, 15*time.Second, false)
 	case "desktop_list_windows":
-		return remoteDesktopJSONCommand(hub, tc, remote.OpDesktopListWindows, 15*time.Second, false)
+		return remoteDesktopJSONCommand(ctx, hub, tc, remote.OpDesktopListWindows, 15*time.Second, false)
 	case "desktop_active_window":
-		return remoteDesktopJSONCommand(hub, tc, remote.OpDesktopActiveWindow, 15*time.Second, false)
+		return remoteDesktopJSONCommand(ctx, hub, tc, remote.OpDesktopActiveWindow, 15*time.Second, false)
 	case "desktop_host_info":
-		return remoteDesktopJSONCommand(hub, tc, remote.OpDesktopHostInfo, 15*time.Second, false)
+		return remoteDesktopJSONCommand(ctx, hub, tc, remote.OpDesktopHostInfo, 15*time.Second, false)
 	case "desktop_ui_tree":
-		return remoteDesktopJSONCommand(hub, tc, remote.OpDesktopUITree, 30*time.Second, false)
+		return remoteDesktopJSONCommand(ctx, hub, tc, remote.OpDesktopUITree, 30*time.Second, false)
 	case "desktop_ui_action":
-		return remoteDesktopJSONCommand(hub, tc, remote.OpDesktopUIAction, 15*time.Second, true)
+		return remoteDesktopJSONCommand(ctx, hub, tc, remote.OpDesktopUIAction, 15*time.Second, true)
 	case "desktop_browser_connect":
-		return remoteDesktopJSONCommand(hub, tc, remote.OpDesktopBrowserConnect, 30*time.Second, false)
+		return remoteDesktopJSONCommand(ctx, hub, tc, remote.OpDesktopBrowserConnect, 30*time.Second, false)
 	case "desktop_browser_snapshot":
-		return remoteDesktopJSONCommand(hub, tc, remote.OpDesktopBrowserSnapshot, 30*time.Second, false)
+		return remoteDesktopJSONCommand(ctx, hub, tc, remote.OpDesktopBrowserSnapshot, 30*time.Second, false)
 	case "desktop_browser_action":
-		return remoteDesktopJSONCommand(hub, tc, remote.OpDesktopBrowserAction, 15*time.Second, true)
+		return remoteDesktopJSONCommand(ctx, hub, tc, remote.OpDesktopBrowserAction, 15*time.Second, true)
 	case "desktop_browser_disconnect":
-		return remoteDesktopJSONCommand(hub, tc, remote.OpDesktopBrowserDisconnect, 15*time.Second, false)
+		return remoteDesktopJSONCommand(ctx, hub, tc, remote.OpDesktopBrowserDisconnect, 15*time.Second, false)
 	default:
 		return toolErrorf("Unknown remote_control operation '%s'. Use: list_devices, device_status, execute_command, shell_session_start, shell_session_read, shell_session_input, shell_session_stop, shell_session_list, read_file, write_file, file_patch, list_files, sysinfo, revoke_device, edit_file, json_edit, yaml_edit, xml_edit, file_search, file_read_advanced, desktop_screenshot, desktop_permission_request, desktop_input, desktop_list_displays, desktop_list_windows, desktop_active_window, desktop_host_info, desktop_ui_tree, desktop_ui_action, desktop_browser_connect, desktop_browser_snapshot, desktop_browser_action, desktop_browser_disconnect", tc.Operation)
 	}
@@ -186,17 +187,21 @@ func remoteDeviceStatus(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger)
 		"tags":          device.Tags,
 	}
 
+	runtime := hub.DeviceRuntime(device)
+	info["effective_read_only"] = runtime.EffectiveReadOnly
+	info["capabilities"] = runtime.Capabilities
+	info["config_state"] = runtime.ConfigState
 	// Add live telemetry if connected
 	conn := hub.GetConnection(device.ID)
 	if conn != nil {
-		info["telemetry"] = conn.Telemetry
+		info["telemetry"] = conn.TelemetrySnapshot()
 	}
 
 	data, _ := json.Marshal(info)
 	return "Tool Output: " + string(data)
 }
 
-func remoteExecuteCommand(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+func remoteExecuteCommand(ctx context.Context, hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
 		return toolErrorJSON(err.Error())
@@ -212,7 +217,7 @@ func remoteExecuteCommand(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logge
 		return `Tool Output: {"status":"error","message":"'command' is required for execute_command"}`
 	}
 
-	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
+	result, err := hub.SendCommandContext(ctx, deviceID, remote.CommandPayload{
 		Operation: remote.OpShellExec,
 		Args: map[string]interface{}{
 			"command": command,
@@ -222,16 +227,10 @@ func remoteExecuteCommand(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logge
 		return toolErrorJSON(err.Error())
 	}
 
-	data, _ := json.Marshal(map[string]interface{}{
-		"status":      "ok",
-		"output":      result.Output,
-		"error":       result.Error,
-		"duration_ms": result.DurationMs,
-	})
-	return "Tool Output: " + string(data)
+	return remoteCommandResultOutput(result, "output")
 }
 
-func remoteShellSessionCommand(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+func remoteShellSessionCommand(ctx context.Context, hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
 		return toolErrorJSON(err.Error())
@@ -282,7 +281,7 @@ func remoteShellSessionCommand(hub *remote.RemoteHub, tc ToolCall, logger *slog.
 	default:
 		return toolErrorf("unsupported shell session operation %q", operation)
 	}
-	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
+	result, err := hub.SendCommandContext(ctx, deviceID, remote.CommandPayload{
 		Operation: remoteOp,
 		Args:      args,
 	}, remoteShellSessionTimeout(params))
@@ -348,7 +347,7 @@ func remoteCommandResultOutput(result remote.ResultPayload, resultKey string) st
 		return "Tool Output: " + string(raw)
 	}
 	data := map[string]interface{}{
-		"status": status,
+		"status": status, "truncated": result.Truncated,
 	}
 	if result.Output != "" {
 		data[resultKey] = result.Output
@@ -360,7 +359,7 @@ func remoteCommandResultOutput(result remote.ResultPayload, resultKey string) st
 	return "Tool Output: " + string(raw)
 }
 
-func remoteReadFile(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+func remoteReadFile(ctx context.Context, hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
 		return toolErrorJSON(err.Error())
@@ -379,15 +378,15 @@ func remoteReadFile(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 		args["root_id"] = rootID
 	}
 
-	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
+	result, err := hub.SendCommandContext(ctx, deviceID, remote.CommandPayload{
 		Operation: remote.OpFileRead,
 		Args:      args,
 	}, 30*time.Second)
 	if err != nil {
 		return toolErrorJSON(err.Error())
 	}
-	if result.Error != "" {
-		return toolErrorJSON(result.Error)
+	if result.Error != "" || result.Status != "ok" {
+		return remoteCommandResultOutput(result, "output")
 	}
 
 	data, _ := json.Marshal(map[string]interface{}{
@@ -398,7 +397,7 @@ func remoteReadFile(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 	return "Tool Output: " + string(data)
 }
 
-func remoteWriteFile(cfg *config.Config, hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+func remoteWriteFile(ctx context.Context, cfg *config.Config, hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
 		return toolErrorJSON(err.Error())
@@ -426,15 +425,15 @@ func remoteWriteFile(cfg *config.Config, hub *remote.RemoteHub, tc ToolCall, log
 		args["root_id"] = rootID
 	}
 
-	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
+	result, err := hub.SendCommandContext(ctx, deviceID, remote.CommandPayload{
 		Operation: remote.OpFileWrite,
 		Args:      args,
 	}, 30*time.Second)
 	if err != nil {
 		return toolErrorJSON(err.Error())
 	}
-	if result.Error != "" {
-		return toolErrorJSON(result.Error)
+	if result.Error != "" || result.Status != "ok" {
+		return remoteCommandResultOutput(result, "output")
 	}
 
 	data, _ := json.Marshal(map[string]interface{}{
@@ -444,7 +443,7 @@ func remoteWriteFile(cfg *config.Config, hub *remote.RemoteHub, tc ToolCall, log
 	return "Tool Output: " + string(data)
 }
 
-func remoteFilePatch(cfg *config.Config, hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+func remoteFilePatch(ctx context.Context, cfg *config.Config, hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	params := nestedRemoteToolParams(tc.Params)
 	path := firstNonEmptyToolString(toolArgString(params, "path", "file_path"), tc.Path, tc.FilePath)
 	if path == "" {
@@ -481,7 +480,7 @@ func remoteFilePatch(cfg *config.Config, hub *remote.RemoteHub, tc ToolCall, log
 	if rootID := strings.TrimSpace(toolArgString(params, "root_id")); rootID != "" {
 		args["root_id"] = rootID
 	}
-	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
+	result, err := hub.SendCommandContext(ctx, deviceID, remote.CommandPayload{
 		Operation: remote.OpFilePatch,
 		Args:      args,
 	}, 30*time.Second)
@@ -522,7 +521,7 @@ func validateRemotePatchPayloadSize(cfg *config.Config, patches interface{}) err
 	return nil
 }
 
-func remoteListFiles(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+func remoteListFiles(ctx context.Context, hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
 		return toolErrorJSON(err.Error())
@@ -546,15 +545,15 @@ func remoteListFiles(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) st
 		args["recursive"] = true
 	}
 
-	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
+	result, err := hub.SendCommandContext(ctx, deviceID, remote.CommandPayload{
 		Operation: remote.OpFileList,
 		Args:      args,
 	}, 30*time.Second)
 	if err != nil {
 		return toolErrorJSON(err.Error())
 	}
-	if result.Error != "" {
-		return toolErrorJSON(result.Error)
+	if result.Error != "" || result.Status != "ok" {
+		return remoteCommandResultOutput(result, "output")
 	}
 
 	data, _ := json.Marshal(map[string]interface{}{
@@ -565,7 +564,7 @@ func remoteListFiles(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) st
 	return "Tool Output: " + string(data)
 }
 
-func remoteSysinfo(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+func remoteSysinfo(ctx context.Context, hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
 		return toolErrorJSON(err.Error())
@@ -574,14 +573,14 @@ func remoteSysinfo(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) stri
 		return toolErrorf("device %s is not connected", deviceID)
 	}
 
-	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
+	result, err := hub.SendCommandContext(ctx, deviceID, remote.CommandPayload{
 		Operation: remote.OpSysinfo,
 	}, 15*time.Second)
 	if err != nil {
 		return toolErrorJSON(err.Error())
 	}
-	if result.Error != "" {
-		return toolErrorJSON(result.Error)
+	if result.Error != "" || result.Status != "ok" {
+		return remoteCommandResultOutput(result, "output")
 	}
 
 	data, _ := json.Marshal(map[string]interface{}{
@@ -591,7 +590,7 @@ func remoteSysinfo(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) stri
 	return "Tool Output: " + string(data)
 }
 
-func remoteDesktopScreenshot(cfg *config.Config, hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+func remoteDesktopScreenshot(ctx context.Context, cfg *config.Config, hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	args := map[string]interface{}{}
 	if displayID := strings.TrimSpace(toolArgString(tc.Params, "display_id")); displayID != "" {
 		args["display_id"] = displayID
@@ -607,7 +606,7 @@ func remoteDesktopScreenshot(cfg *config.Config, hub *remote.RemoteHub, tc ToolC
 	}
 	includeData, _ := toolArgBool(tc.Params, "include_data_base64")
 
-	result, err := remoteDesktopCommand(hub, tc, remote.OpDesktopScreenshot, args, 30*time.Second)
+	result, err := remoteDesktopCommand(ctx, hub, tc, remote.OpDesktopScreenshot, args, 30*time.Second)
 	if err != nil {
 		return remoteToolError(err.Error())
 	}
@@ -623,8 +622,8 @@ func remoteDesktopScreenshot(cfg *config.Config, hub *remote.RemoteHub, tc ToolC
 	return "Tool Output: " + string(respData)
 }
 
-func remoteDesktopPermissionRequest(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
-	result, err := remoteDesktopCommand(hub, tc, remote.OpDesktopPermissionRequest, copyRemoteDesktopParams(tc.Params), 15*time.Second)
+func remoteDesktopPermissionRequest(ctx context.Context, hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+	result, err := remoteDesktopCommand(ctx, hub, tc, remote.OpDesktopPermissionRequest, copyRemoteDesktopParams(tc.Params), 15*time.Second)
 	if err != nil {
 		return remoteToolError(err.Error())
 	}
@@ -637,7 +636,7 @@ func remoteDesktopPermissionRequest(hub *remote.RemoteHub, tc ToolCall, logger *
 	return "Tool Output: " + string(respData)
 }
 
-func remoteDesktopInput(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+func remoteDesktopInput(ctx context.Context, hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	args := copyRemoteDesktopParams(tc.Params)
 	if strings.TrimSpace(toolArgString(args, "kind")) == "" {
 		return `Tool Output: {"status":"error","message":"'kind' is required for desktop_input"}`
@@ -648,7 +647,7 @@ func remoteDesktopInput(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger)
 		}
 		delete(args, "input_action")
 	}
-	result, err := remoteDesktopCommand(hub, tc, remote.OpDesktopInput, args, 10*time.Second)
+	result, err := remoteDesktopCommand(ctx, hub, tc, remote.OpDesktopInput, args, 10*time.Second)
 	if err != nil {
 		return remoteToolError(err.Error())
 	}
@@ -661,7 +660,7 @@ func remoteDesktopInput(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger)
 	return "Tool Output: " + string(respData)
 }
 
-func remoteDesktopJSONCommand(hub *remote.RemoteHub, tc ToolCall, operation string, timeout time.Duration, requireAction bool) string {
+func remoteDesktopJSONCommand(ctx context.Context, hub *remote.RemoteHub, tc ToolCall, operation string, timeout time.Duration, requireAction bool) string {
 	args := copyRemoteDesktopParams(tc.Params)
 	if tc.Action != "" && strings.TrimSpace(toolArgString(args, "action")) == "" {
 		args["action"] = tc.Action
@@ -669,7 +668,7 @@ func remoteDesktopJSONCommand(hub *remote.RemoteHub, tc ToolCall, operation stri
 	if requireAction && strings.TrimSpace(toolArgString(args, "action")) == "" {
 		return toolErrorf("'action' is required for %s", operation)
 	}
-	result, err := remoteDesktopCommand(hub, tc, operation, args, timeout)
+	result, err := remoteDesktopCommand(ctx, hub, tc, operation, args, timeout)
 	if err != nil {
 		return remoteToolError(err.Error())
 	}
@@ -682,7 +681,7 @@ func remoteDesktopJSONCommand(hub *remote.RemoteHub, tc ToolCall, operation stri
 	return "Tool Output: " + string(respData)
 }
 
-func remoteDesktopCommand(hub *remote.RemoteHub, tc ToolCall, operation string, args map[string]interface{}, timeout time.Duration) (remote.ResultPayload, error) {
+func remoteDesktopCommand(ctx context.Context, hub *remote.RemoteHub, tc ToolCall, operation string, args map[string]interface{}, timeout time.Duration) (remote.ResultPayload, error) {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
 		return remote.ResultPayload{}, err
@@ -690,7 +689,7 @@ func remoteDesktopCommand(hub *remote.RemoteHub, tc ToolCall, operation string, 
 	if !hub.IsConnected(deviceID) {
 		return remote.ResultPayload{}, fmt.Errorf("device %s is not connected", deviceID)
 	}
-	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
+	result, err := hub.SendCommandContext(ctx, deviceID, remote.CommandPayload{
 		Operation: operation,
 		Args:      args,
 	}, timeout)
@@ -829,7 +828,7 @@ func remoteRevokeDevice(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger)
 	return "Tool Output: " + string(data)
 }
 
-func remoteEditFile(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+func remoteEditFile(ctx context.Context, hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
 		return toolErrorJSON(err.Error())
@@ -869,15 +868,15 @@ func remoteEditFile(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 		args["end_line"] = endLine
 	}
 
-	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
+	result, err := hub.SendCommandContext(ctx, deviceID, remote.CommandPayload{
 		Operation: remote.OpFileEdit,
 		Args:      args,
 	}, 30*time.Second)
 	if err != nil {
 		return toolErrorJSON(err.Error())
 	}
-	if result.Error != "" {
-		return toolErrorJSON(result.Error)
+	if result.Error != "" || result.Status != "ok" {
+		return remoteCommandResultOutput(result, "output")
 	}
 
 	data, _ := json.Marshal(map[string]interface{}{
@@ -887,7 +886,7 @@ func remoteEditFile(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 	return "Tool Output: " + string(data)
 }
 
-func remoteJsonEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+func remoteJsonEdit(ctx context.Context, hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
 		return toolErrorJSON(err.Error())
@@ -915,15 +914,15 @@ func remoteJsonEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 		args["set_value"] = setValue
 	}
 
-	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
+	result, err := hub.SendCommandContext(ctx, deviceID, remote.CommandPayload{
 		Operation: remote.OpJsonEdit,
 		Args:      args,
 	}, 30*time.Second)
 	if err != nil {
 		return toolErrorJSON(err.Error())
 	}
-	if result.Error != "" {
-		return toolErrorJSON(result.Error)
+	if result.Error != "" || result.Status != "ok" {
+		return remoteCommandResultOutput(result, "output")
 	}
 
 	data, _ := json.Marshal(map[string]interface{}{
@@ -933,7 +932,7 @@ func remoteJsonEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 	return "Tool Output: " + string(data)
 }
 
-func remoteYamlEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+func remoteYamlEdit(ctx context.Context, hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
 		return toolErrorJSON(err.Error())
@@ -961,15 +960,15 @@ func remoteYamlEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 		args["set_value"] = setValue
 	}
 
-	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
+	result, err := hub.SendCommandContext(ctx, deviceID, remote.CommandPayload{
 		Operation: remote.OpYamlEdit,
 		Args:      args,
 	}, 30*time.Second)
 	if err != nil {
 		return toolErrorJSON(err.Error())
 	}
-	if result.Error != "" {
-		return toolErrorJSON(result.Error)
+	if result.Error != "" || result.Status != "ok" {
+		return remoteCommandResultOutput(result, "output")
 	}
 
 	data, _ := json.Marshal(map[string]interface{}{
@@ -979,7 +978,7 @@ func remoteYamlEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 	return "Tool Output: " + string(data)
 }
 
-func remoteXmlEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+func remoteXmlEdit(ctx context.Context, hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
 		return toolErrorJSON(err.Error())
@@ -1010,15 +1009,15 @@ func remoteXmlEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) stri
 		args["set_value"] = setValue
 	}
 
-	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
+	result, err := hub.SendCommandContext(ctx, deviceID, remote.CommandPayload{
 		Operation: remote.OpXmlEdit,
 		Args:      args,
 	}, 30*time.Second)
 	if err != nil {
 		return toolErrorJSON(err.Error())
 	}
-	if result.Error != "" {
-		return toolErrorJSON(result.Error)
+	if result.Error != "" || result.Status != "ok" {
+		return remoteCommandResultOutput(result, "output")
 	}
 
 	respData, _ := json.Marshal(map[string]interface{}{
@@ -1028,7 +1027,7 @@ func remoteXmlEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) stri
 	return "Tool Output: " + string(respData)
 }
 
-func remoteFileSearch(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+func remoteFileSearch(ctx context.Context, hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
 		return toolErrorJSON(err.Error())
@@ -1058,7 +1057,7 @@ func remoteFileSearch(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) s
 		args["output_mode"] = outputMode
 	}
 
-	cmdResult, err := hub.SendCommand(deviceID, remote.CommandPayload{
+	cmdResult, err := hub.SendCommandContext(ctx, deviceID, remote.CommandPayload{
 		Operation: remote.OpFileSearch,
 		Args:      args,
 	}, 30*time.Second)
@@ -1121,7 +1120,7 @@ func isRemoteFileSearchOperation(op string) bool {
 	}
 }
 
-func remoteFileReadAdvanced(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+func remoteFileReadAdvanced(ctx context.Context, hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
 		return toolErrorJSON(err.Error())
@@ -1156,7 +1155,7 @@ func remoteFileReadAdvanced(hub *remote.RemoteHub, tc ToolCall, logger *slog.Log
 		args["line_count"] = lineCount
 	}
 
-	cmdResult, err := hub.SendCommand(deviceID, remote.CommandPayload{
+	cmdResult, err := hub.SendCommandContext(ctx, deviceID, remote.CommandPayload{
 		Operation: remote.OpFileReadAdv,
 		Args:      args,
 	}, 30*time.Second)

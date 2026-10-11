@@ -1,12 +1,18 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"text/template"
+
+	"aurago/internal/fileutil"
 )
 
 const systemdUnit = `[Unit]
@@ -16,11 +22,12 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart="{{.ExePath}}" --foreground
+ExecStart={{.ExePath}} --foreground --config {{.ConfigPath}}
 Restart=always
 RestartSec=10
 User={{.User}}
 WorkingDirectory={{.WorkDir}}
+UMask=0077
 
 [Install]
 WantedBy=multi-user.target
@@ -33,9 +40,9 @@ func getInstallPath() (string, error) {
 func installService(exePath string) error {
 	exePath, _ = filepath.Abs(exePath)
 
-	user := os.Getenv("USER")
-	if user == "" {
-		user = "root"
+	account, err := user.Current()
+	if err != nil {
+		return fmt.Errorf("current service account: %w", err)
 	}
 
 	unitPath := "/etc/systemd/system/aurago-remote.service"
@@ -44,43 +51,49 @@ func installService(exePath string) error {
 		return err
 	}
 
-	f, err := os.Create(unitPath)
-	if err != nil {
-		return fmt.Errorf("failed to create unit file (run as root?): %w", err)
-	}
-	defer f.Close()
+	var buffer bytes.Buffer
 
 	data := struct {
-		ExePath string
-		User    string
-		WorkDir string
+		ExePath    string
+		ConfigPath string
+		User       string
+		WorkDir    string
 	}{
-		ExePath: exePath,
-		User:    user,
-		WorkDir: filepath.Dir(exePath),
+		ExePath:    strconv.Quote(strings.ReplaceAll(exePath, "%", "%%")),
+		ConfigPath: strconv.Quote(strings.ReplaceAll(configPath(), "%", "%%")),
+		User:       account.Username,
+		WorkDir:    strconv.Quote(strings.ReplaceAll(filepath.Dir(exePath), "%", "%%")),
 	}
-	if err := tmpl.Execute(f, data); err != nil {
+	if err := tmpl.Execute(&buffer, data); err != nil {
 		return err
 	}
 
+	if err := fileutil.WriteFileContext(context.Background(), unitPath, buffer.Bytes(), 0644); err != nil {
+		return err
+	}
 	if err := exec.Command("systemctl", "daemon-reload").Run(); err != nil {
 		return fmt.Errorf("systemctl daemon-reload failed: %w", err)
 	}
 	if err := exec.Command("systemctl", "enable", "aurago-remote").Run(); err != nil {
 		return fmt.Errorf("systemctl enable failed: %w", err)
 	}
-	if err := exec.Command("systemctl", "start", "aurago-remote").Run(); err != nil {
+	if err := exec.Command("systemctl", "restart", "aurago-remote").Run(); err != nil {
 		return fmt.Errorf("systemctl start failed: %w", err)
 	}
 	return nil
 }
 
 func uninstallService() error {
-	_ = exec.Command("systemctl", "stop", "aurago-remote").Run()
-	_ = exec.Command("systemctl", "disable", "aurago-remote").Run()
-	_ = os.Remove("/etc/systemd/system/aurago-remote.service")
-	_ = exec.Command("systemctl", "daemon-reload").Run()
-	return nil
+	if err := exec.Command("systemctl", "stop", "aurago-remote").Run(); err != nil {
+		return fmt.Errorf("stop service: %w", err)
+	}
+	if err := exec.Command("systemctl", "disable", "aurago-remote").Run(); err != nil {
+		return fmt.Errorf("disable service: %w", err)
+	}
+	if err := os.Remove("/etc/systemd/system/aurago-remote.service"); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return exec.Command("systemctl", "daemon-reload").Run()
 }
 
 func isRunningAsService() bool {
@@ -100,4 +113,11 @@ func parentProcessName(pid int) string {
 		return ""
 	}
 	return strings.TrimSpace(string(data))
+}
+
+func stopInstalledService() error {
+	if err := exec.Command("systemctl", "is-active", "--quiet", "aurago-remote").Run(); err != nil {
+		return nil
+	}
+	return exec.Command("systemctl", "stop", "aurago-remote").Run()
 }

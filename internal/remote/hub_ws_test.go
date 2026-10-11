@@ -77,7 +77,7 @@ func TestHandleEnrollmentRejectsRevokedDeviceReconnectOverWebSocket(t *testing.T
 	}
 	defer clientConn.Close()
 
-	authMsg, err := NewMessage(MsgAuth, deviceID, sharedKey, 1, AuthPayload{
+	authMsg, err := NewMessage(MsgAuth, deviceID, sharedKey, 1, AuthPayload{SecurityRevision: ClientSecurityRevision, Capabilities: ClassicCapabilities(),
 		DeviceID: deviceID,
 		Version:  "test",
 		Hostname: "revoked-host",

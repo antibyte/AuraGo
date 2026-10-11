@@ -336,7 +336,7 @@ func TestVersion2FramesRoundTrip(t *testing.T) {
 	if ok, err := VerifyMessage(decoded, key); err != nil || !ok {
 		t.Fatalf("decoded v2 frame must verify: ok=%v err=%v", ok, err)
 	}
-	unsigned, err := NewMessage(MsgAuth, "", "", 1, AuthPayload{Hostname: "h"})
+	unsigned, err := NewMessage(MsgAuth, "", "", 1, AuthPayload{SecurityRevision: ClientSecurityRevision, Capabilities: ClassicCapabilities(), Hostname: "h"})
 	if err != nil || unsigned.Version != FrameVersion {
 		t.Fatalf("unsigned frames carry the version too: %+v, %v", unsigned, err)
 	}
@@ -402,7 +402,7 @@ func TestNewMessageSigned(t *testing.T) {
 }
 
 func TestNewMessageUnsigned(t *testing.T) {
-	msg, err := NewMessage(MsgAuth, "dev-enroll", "", 0, AuthPayload{Version: "1.0"})
+	msg, err := NewMessage(MsgAuth, "dev-enroll", "", 0, AuthPayload{SecurityRevision: ClientSecurityRevision, Capabilities: ClassicCapabilities(), Version: "1.0"})
 	if err != nil {
 		t.Fatalf("NewMessage: %v", err)
 	}

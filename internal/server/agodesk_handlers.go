@@ -19,6 +19,7 @@ import (
 	pathpkg "path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -136,6 +137,10 @@ type agodeskDesktopCommandResult struct {
 
 func handleAgodeskWebSocket(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !IsSecureRequest(r) {
+			jsonError(w, "WSS_REQUIRED: remote connections require TLS", http.StatusUpgradeRequired)
+			return
+		}
 		conn, err := agodeskUpgrader.Upgrade(w, r, nil)
 		if err != nil {
 			if s != nil && s.Logger != nil {
@@ -445,7 +450,7 @@ func handleAgodeskEnvelope(s *Server, r *http.Request, conn *websocket.Conn, sta
 			return true
 		}
 		broker := ensureAgodeskDesktopBroker(s)
-		if broker == nil || !broker.HandleResult(deviceID, payload) {
+		if broker == nil || !broker.HandleResult(deviceID, state, payload) {
 			if s != nil && s.Logger != nil {
 				s.Logger.Warn("Unknown agodesk desktop result", "device_id", deviceID, "command_id", payload.CommandID)
 			}
@@ -797,6 +802,18 @@ func validateAgodeskTransportSession(s *Server, conn *websocket.Conn, state *ago
 	if !paired {
 		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorPairingRequired, "Pairing is required before "+messageName+" is accepted.")
 		return "", false
+	}
+	deviceID, _ := agodeskStateDevice(state)
+	if s != nil && s.RemoteHub != nil && deviceID != "" {
+		broker := currentAgodeskDesktopBroker(s)
+		if broker == nil || !broker.ownsSession(deviceID, state) {
+			return "", false
+		}
+		device, err := remote.GetDevice(s.RemoteHub.DB(), deviceID)
+		if err != nil || device.Status == "revoked" || !s.RemoteHub.Enabled() {
+			broker.disconnectSession(deviceID, state)
+			return "", false
+		}
 	}
 	sessionID := strings.TrimSpace(payloadSessionID)
 	if sessionID == "" {
@@ -1664,7 +1681,7 @@ func acceptAgodeskSessionStart(s *Server, r *http.Request, requestID string, pay
 	if enrollment.Used {
 		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorAuthFailed, "pairing token has already been used"
 	}
-	if expiry, err := time.Parse(time.RFC3339, enrollment.ExpiresAt); err == nil && time.Now().After(expiry) {
+	if expiry, err := time.Parse(time.RFC3339, enrollment.ExpiresAt); err != nil || time.Now().After(expiry) {
 		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorAuthFailed, "pairing token expired"
 	}
 
@@ -1679,7 +1696,7 @@ func acceptAgodeskSessionStart(s *Server, r *http.Request, requestID string, pay
 	if name == "" {
 		name = "agodesk"
 	}
-	readOnly := s.RemoteHub.DefaultReadOnly
+	readOnly := s.RemoteHub.RuntimePolicy().ReadOnly
 	serverCapabilities := agodeskServerCapabilitiesForDevice(s, readOnly)
 	deviceID, err := remote.CreateDevice(s.RemoteHub.DB(), remote.DeviceRecord{
 		Name:          name,
@@ -1688,9 +1705,10 @@ func acceptAgodeskSessionStart(s *Server, r *http.Request, requestID string, pay
 		Arch:          strings.TrimSpace(payload.Host.Arch),
 		IPAddress:     agodeskClientIP(r, payload.Host.IP),
 		Status:        "approved",
-		ReadOnly:      readOnly,
+		ReadOnly:      false,
 		SharedKeyHash: hashSHA256(sharedKey),
 		Tags:          []string{"agodesk", "desktop-client"},
+		Version:       strings.TrimSpace(payload.ClientVersion),
 	})
 	if err != nil {
 		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorInternal, "failed to register agodesk device"
@@ -1706,8 +1724,15 @@ func acceptAgodeskSessionStart(s *Server, r *http.Request, requestID string, pay
 		_ = remote.DeleteDevice(s.RemoteHub.DB(), deviceID)
 		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorInternal, "failed to store agodesk shared key"
 	}
-	_ = remote.MarkEnrollmentUsed(s.RemoteHub.DB(), enrollment.ID, deviceID)
-	s.RemoteHub.DiscardEnrollmentKey(enrollment.ID)
+	if err := s.RemoteHub.FinalizeEnrollment(enrollment.ID, deviceID); err != nil {
+		if cleanupErr := s.Vault.DeleteSecret("remote_shared_key_" + deviceID); cleanupErr != nil {
+			s.Logger.Error("Failed to remove rejected AgoDesk key", "device_id", deviceID, "error", cleanupErr)
+		}
+		if cleanupErr := remote.DeleteDevice(s.RemoteHub.DB(), deviceID); cleanupErr != nil {
+			s.Logger.Error("Failed to remove rejected AgoDesk device", "device_id", deviceID, "error", cleanupErr)
+		}
+		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorAuthFailed, "pairing token is no longer available"
+	}
 	advertised := agodesk.NegotiateCapabilities(payload.ClientCapabilities, serverCapabilities)
 	return agodesk.SessionAcceptedPayload{
 		SessionID:              "agodesk:" + deviceID,
@@ -1758,19 +1783,21 @@ func acceptAgodeskDeviceReconnect(s *Server, requestID string, payload agodesk.S
 	if !agodesk.VerifySharedKeyProof(sharedKey, requestID, deviceID, *payload.SharedKeyProof, time.Now().UTC(), 5*time.Minute) {
 		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorAuthFailed, "invalid shared key proof"
 	}
-	serverCapabilities := agodeskServerCapabilitiesForDevice(s, device.ReadOnly)
+	readOnly := device.ReadOnly || s.RemoteHub.RuntimePolicy().ReadOnly
+	serverCapabilities := agodeskServerCapabilitiesForDevice(s, readOnly)
+	device.Version = strings.TrimSpace(payload.ClientVersion)
 	device.Hostname = strings.TrimSpace(payload.Host.Hostname)
 	device.OS = strings.TrimSpace(payload.Host.OS)
 	device.Arch = strings.TrimSpace(payload.Host.Arch)
-	if err := remote.UpdateDevice(s.RemoteHub.DB(), device); err != nil && s.Logger != nil {
-		s.Logger.Warn("Failed to update agodesk reconnect device metadata", "device_id", deviceID, "error", err)
+	if err := remote.UpdateDeviceMetadata(s.RemoteHub.DB(), device); err != nil {
+		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorAuthFailed, "device is unavailable"
 	}
 	advertised := agodesk.NegotiateCapabilities(payload.ClientCapabilities, serverCapabilities)
 	return agodesk.SessionAcceptedPayload{
 		SessionID:              "agodesk:" + deviceID,
 		DeviceID:               deviceID,
 		Approved:               true,
-		ReadOnly:               device.ReadOnly,
+		ReadOnly:               readOnly,
 		Capabilities:           serverCapabilities,
 		AdvertisedCapabilities: advertised,
 		AttachmentLimits:       agodeskAttachmentLimitsForAccepted(s, advertised),
@@ -2738,9 +2765,6 @@ func registerAgodeskDesktopSession(s *Server, conn *websocket.Conn, state *agode
 		return
 	}
 	broker.RegisterSession(accepted.DeviceID, conn, state, accepted.AdvertisedCapabilities)
-	if s != nil && s.RemoteHub != nil && s.RemoteHub.DB() != nil {
-		_ = remote.UpdateDeviceStatus(s.RemoteHub.DB(), accepted.DeviceID, "connected")
-	}
 }
 
 func cleanupAgodeskConnection(s *Server, state *agodeskConnectionState) {
@@ -2764,12 +2788,8 @@ func cleanupAgodeskConnection(s *Server, state *agodeskConnectionState) {
 	if !paired || deviceID == "" {
 		return
 	}
-	removed := false
 	if broker := ensureAgodeskDesktopBroker(s); broker != nil {
-		removed = broker.UnregisterSession(deviceID, state)
-	}
-	if removed && s != nil && s.RemoteHub != nil && s.RemoteHub.DB() != nil {
-		_ = remote.UpdateDeviceStatus(s.RemoteHub.DB(), deviceID, "offline")
+		broker.UnregisterSession(deviceID, state)
 	}
 }
 
@@ -2968,6 +2988,25 @@ func (b *agodeskDesktopBroker) RegisterSession(deviceID string, conn *websocket.
 	}
 	var old *agodeskDesktopSession
 	b.mu.Lock()
+	if b.hub != nil {
+		device, err := remote.GetDevice(b.hub.DB(), deviceID)
+		state.mu.RLock()
+		readOnly := state.readOnly
+		state.mu.RUnlock()
+		if err != nil || readOnly != (device.ReadOnly || b.hub.RuntimePolicy().ReadOnly) {
+			b.mu.Unlock()
+			b.closeSession(session)
+			return
+		}
+	}
+	if b.hub != nil && (!b.hub.Enabled() || remote.UpdateDeviceStatus(b.hub.DB(), deviceID, "connected") != nil) {
+		b.mu.Unlock()
+		state.mu.Lock()
+		state.paired = false
+		state.mu.Unlock()
+		_ = conn.Close()
+		return
+	}
 	if b.sessions == nil {
 		b.sessions = make(map[string]*agodeskDesktopSession)
 	}
@@ -2985,10 +3024,7 @@ func (b *agodeskDesktopBroker) RegisterSession(deviceID string, conn *websocket.
 			}
 			manager.DisconnectTransport(sessionID, transportID)
 		}
-		old.failPending(fmt.Errorf("agodesk session replaced"))
-		if old.conn != nil && old.conn != conn {
-			_ = old.conn.Close()
-		}
+		b.closeSession(old)
 	}
 }
 
@@ -3002,6 +3038,9 @@ func (b *agodeskDesktopBroker) UnregisterSession(deviceID string, state *agodesk
 	if current != nil && (state == nil || current.state == state) {
 		session = current
 		delete(b.sessions, deviceID)
+		if b.hub != nil {
+			_ = remote.UpdateDeviceStatus(b.hub.DB(), deviceID, "offline")
+		}
 	}
 	b.mu.Unlock()
 	if session != nil {
@@ -3015,19 +3054,71 @@ func (b *agodeskDesktopBroker) IsConnected(deviceID string) bool {
 	return b.session(deviceID) != nil
 }
 
-func (b *agodeskDesktopBroker) SendCommand(deviceID string, cmd remote.CommandPayload, timeout time.Duration) (remote.ResultPayload, error) {
+func (b *agodeskDesktopBroker) Disconnect(deviceID string) {
+	b.disconnectSession(deviceID, nil)
+}
+
+func (b *agodeskDesktopBroker) disconnectSession(deviceID string, expected *agodeskConnectionState) {
+	if b == nil {
+		return
+	}
+	var sessions []*agodeskDesktopSession
+	b.mu.Lock()
+	for id, session := range b.sessions {
+		if (deviceID == "" || id == deviceID) && (expected == nil || session.state == expected) {
+			sessions = append(sessions, session)
+			delete(b.sessions, id)
+			if b.hub != nil {
+				_ = remote.UpdateDeviceStatus(b.hub.DB(), id, "offline")
+			}
+		}
+	}
+	b.mu.Unlock()
+	for _, session := range sessions {
+		b.closeSession(session)
+	}
+}
+
+func (b *agodeskDesktopBroker) closeSession(session *agodeskDesktopSession) {
+	state := session.state
+	state.mu.Lock()
+	state.paired = false
+	cancel := state.cancelTransport
+	state.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+	state.activeMu.Lock()
+	for _, run := range state.activeRuns {
+		if run.cancel != nil {
+			run.cancel()
+		}
+	}
+	state.activeMu.Unlock()
+	session.failPending(fmt.Errorf("agodesk session revoked or disconnected"))
+	_ = session.conn.Close()
+	cleanupAgodeskConnection(b.server, state)
+}
+
+func (b *agodeskDesktopBroker) SendCommand(ctx context.Context, deviceID string, cmd remote.CommandPayload, timeout time.Duration) (remote.ResultPayload, error) {
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	session := b.session(deviceID)
 	if session == nil {
 		return remote.ResultPayload{}, fmt.Errorf("no active agodesk session for device %s", deviceID)
 	}
 	if cmd.Operation == remote.OpAgoDeskChatMessage {
-		return session.sendChatMessage(cmd)
+		return session.sendChatMessage(ctx, cmd)
 	}
 	requiredCapability := agodeskDesktopCapabilityForOperation(cmd.Operation)
 	if requiredCapability == "" {
 		return remote.ResultPayload{
 			CommandID: cmd.CommandID,
 			Status:    "error",
+			ErrorCode: "UNSUPPORTED_CAPABILITY",
 			Error:     fmt.Sprintf("%s: agodesk desktop transport does not support operation %q", agodesk.ErrorUnsupportedCapability, cmd.Operation),
 		}, nil
 	}
@@ -3035,6 +3126,7 @@ func (b *agodeskDesktopBroker) SendCommand(deviceID string, cmd remote.CommandPa
 		return remote.ResultPayload{
 			CommandID: cmd.CommandID,
 			Status:    "error",
+			ErrorCode: "UNSUPPORTED_CAPABILITY",
 			Error:     fmt.Sprintf("%s: agodesk client does not advertise %s for %s", agodesk.ErrorUnsupportedCapability, requiredCapability, cmd.Operation),
 		}, nil
 	}
@@ -3049,7 +3141,7 @@ func (b *agodeskDesktopBroker) SendCommand(deviceID string, cmd remote.CommandPa
 	session.pendingMu.Unlock()
 	defer session.removePending(cmd.CommandID)
 
-	if err := writeAgodeskEnvelopeLocked(session.conn, session.state, agodesk.TypeDesktopCommand, agodesk.DesktopCommandPayload{
+	if err := writeAgodeskEnvelopeLockedContext(ctx, session.conn, session.state, agodesk.TypeDesktopCommand, agodesk.DesktopCommandPayload{
 		CommandID: cmd.CommandID,
 		Operation: cmd.Operation,
 		Params:    cmd.Args,
@@ -3065,7 +3157,11 @@ func (b *agodeskDesktopBroker) SendCommand(deviceID string, cmd remote.CommandPa
 			return remote.ResultPayload{CommandID: cmd.CommandID, Status: "error", Error: result.err.Error()}, nil
 		}
 		return agodeskDesktopResultToRemoteResult(cmd.CommandID, result.payload), nil
+	case <-ctx.Done():
+		b.disconnectSession(deviceID, session.state)
+		return remote.ResultPayload{}, ctx.Err()
 	case <-timer.C:
+		b.disconnectSession(deviceID, session.state)
 		return remote.ResultPayload{
 			CommandID: cmd.CommandID,
 			Status:    "timeout",
@@ -3194,9 +3290,9 @@ func exceedsAgodeskPatchLimit(patches interface{}, limit int64) bool {
 	return int64(len(raw)) > limit
 }
 
-func (b *agodeskDesktopBroker) HandleResult(deviceID string, payload agodesk.DesktopResultPayload) bool {
+func (b *agodeskDesktopBroker) HandleResult(deviceID string, state *agodeskConnectionState, payload agodesk.DesktopResultPayload) bool {
 	session := b.session(deviceID)
-	if session == nil || strings.TrimSpace(payload.CommandID) == "" {
+	if session == nil || session.state != state || strings.TrimSpace(payload.CommandID) == "" {
 		return false
 	}
 	session.pendingMu.Lock()
@@ -3210,6 +3306,11 @@ func (b *agodeskDesktopBroker) HandleResult(deviceID string, payload agodesk.Des
 	default:
 	}
 	return true
+}
+
+func (b *agodeskDesktopBroker) ownsSession(deviceID string, state *agodeskConnectionState) bool {
+	session := b.session(deviceID)
+	return session != nil && session.state == state
 }
 
 func (b *agodeskDesktopBroker) session(deviceID string) *agodeskDesktopSession {
@@ -3245,7 +3346,7 @@ func agodeskSessionTransportID(session *agodeskDesktopSession) string {
 	return strings.TrimSpace(session.state.sessionID)
 }
 
-func (s *agodeskDesktopSession) sendChatMessage(cmd remote.CommandPayload) (remote.ResultPayload, error) {
+func (s *agodeskDesktopSession) sendChatMessage(ctx context.Context, cmd remote.CommandPayload) (remote.ResultPayload, error) {
 	rawMessage, ok := cmd.Args["message"]
 	if !ok {
 		return remote.ResultPayload{CommandID: cmd.CommandID, Status: "error", Error: "message is required"}, nil
@@ -3258,6 +3359,7 @@ func (s *agodeskDesktopSession) sendChatMessage(cmd remote.CommandPayload) (remo
 		return remote.ResultPayload{
 			CommandID: cmd.CommandID,
 			Status:    "error",
+			ErrorCode: "UNSUPPORTED_CAPABILITY",
 			Error:     fmt.Sprintf("%s: agodesk client does not advertise chat.full_response", agodesk.ErrorUnsupportedCapability),
 		}, nil
 	}
@@ -3274,7 +3376,7 @@ func (s *agodeskDesktopSession) sendChatMessage(cmd remote.CommandPayload) (remo
 	if conversationID == "<nil>" {
 		conversationID = ""
 	}
-	if err := writeAgodeskEnvelopeLocked(s.conn, s.state, agodesk.TypeChatResponse, agodesk.ChatResponsePayload{
+	if err := writeAgodeskEnvelopeLockedContext(ctx, s.conn, s.state, agodesk.TypeChatResponse, agodesk.ChatResponsePayload{
 		SessionID:      sessionID,
 		ConversationID: conversationID,
 		RequestID:      cmd.CommandID,
@@ -3440,7 +3542,7 @@ func writeAgodeskErrorLocked(conn *websocket.Conn, state *agodeskConnectionState
 }
 
 func writeAgodeskEnvelope(conn *websocket.Conn, messageType agodesk.MessageType, payload interface{}) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	return writeAgodeskEnvelopeContext(ctx, conn, messageType, payload)
 }
@@ -3455,6 +3557,13 @@ func writeAgodeskEnvelopeContext(ctx context.Context, conn *websocket.Conn, mess
 	}
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
+	defer stop()
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 	if deadline, ok := ctx.Deadline(); ok {
 		if err := conn.SetWriteDeadline(deadline); err != nil {
@@ -3472,7 +3581,7 @@ func writeAgodeskEnvelopeContext(ctx context.Context, conn *websocket.Conn, mess
 }
 
 func writeAgodeskEnvelopeLocked(conn *websocket.Conn, state *agodeskConnectionState, messageType agodesk.MessageType, payload interface{}) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	return writeAgodeskEnvelopeLockedContext(ctx, conn, state, messageType, payload)
 }
@@ -3484,6 +3593,8 @@ func writeAgodeskEnvelopeLockedContext(ctx context.Context, conn *websocket.Conn
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	for {
 		if state.writeMu.TryLock() {
 			break
@@ -3556,4 +3667,17 @@ func agodeskClientIP(r *http.Request, fallback string) string {
 		return host
 	}
 	return r.RemoteAddr
+}
+
+func (b *agodeskDesktopBroker) Capabilities(deviceID string) []string {
+	session := b.session(deviceID)
+	if session == nil {
+		return []string{}
+	}
+	out := make([]string, 0, len(session.capabilities))
+	for capability := range session.capabilities {
+		out = append(out, capability)
+	}
+	slices.Sort(out)
+	return out
 }

@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -27,9 +28,10 @@ type Executor struct {
 	maxFileSizeBytes int64
 	commandResults   map[string]*commandExecutionRecord
 	commandOrder     []string
+	active           int
+	running          sync.WaitGroup
+	fileLocks        map[string]*remoteFileLock
 }
-
-const maxCachedCommandResults = 1024
 
 type commandExecutionRecord struct {
 	done      chan struct{}
@@ -51,107 +53,7 @@ func NewExecutor(logger *slog.Logger, maxFileSizeMB int) *Executor {
 	return e
 }
 
-// Execute runs a command and returns the result.
-func (e *Executor) Execute(cmd remote.CommandPayload, readOnly bool, allowedPaths []string) remote.ResultPayload {
-	commandID := strings.TrimSpace(cmd.CommandID)
-	if commandID == "" {
-		return e.executeOnce(cmd, readOnly, allowedPaths)
-	}
-
-	record, owner := e.claimCommandExecution(commandID)
-	if !owner {
-		<-record.done
-		return record.result
-	}
-
-	result := e.executeOnce(cmd, readOnly, allowedPaths)
-	e.finishCommandExecution(commandID, record, result)
-	return result
-}
-
-func (e *Executor) claimCommandExecution(commandID string) (*commandExecutionRecord, bool) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	if e.commandResults == nil {
-		e.commandResults = make(map[string]*commandExecutionRecord)
-	}
-	if record, ok := e.commandResults[commandID]; ok {
-		return record, false
-	}
-	record := &commandExecutionRecord{done: make(chan struct{})}
-	e.commandResults[commandID] = record
-	e.commandOrder = append(e.commandOrder, commandID)
-	return record, true
-}
-
-func (e *Executor) finishCommandExecution(commandID string, record *commandExecutionRecord, result remote.ResultPayload) {
-	e.mu.Lock()
-	record.result = result
-	record.closeDone()
-	e.trimCommandResultCacheLocked(commandID)
-	e.mu.Unlock()
-}
-
-func (e *Executor) trimCommandResultCacheLocked(currentID string) {
-	if len(e.commandOrder) <= maxCachedCommandResults {
-		return
-	}
-
-	targetRemovals := len(e.commandOrder) - maxCachedCommandResults
-	removed := 0
-	kept := e.commandOrder[:0]
-	for _, commandID := range e.commandOrder {
-		if removed >= targetRemovals {
-			kept = append(kept, commandID)
-			continue
-		}
-		if commandID == currentID {
-			kept = append(kept, commandID)
-			continue
-		}
-		record := e.commandResults[commandID]
-		if record == nil {
-			removed++
-			continue
-		}
-		select {
-		case <-record.done:
-			delete(e.commandResults, commandID)
-			removed++
-		default:
-			kept = append(kept, commandID)
-		}
-	}
-
-	// Hard limit: if cache still exceeds max after skipping running entries,
-	// forcibly trim the oldest non-current entries to prevent unbounded growth.
-	if len(kept) > maxCachedCommandResults {
-		forcedRemovals := len(kept) - maxCachedCommandResults
-		newKept := kept[:0]
-		for _, commandID := range kept {
-			if forcedRemovals <= 0 {
-				newKept = append(newKept, commandID)
-				continue
-			}
-			if commandID == currentID {
-				newKept = append(newKept, commandID)
-				continue
-			}
-			record := e.commandResults[commandID]
-			if record != nil {
-				record.closeDone()
-				delete(e.commandResults, commandID)
-			}
-			forcedRemovals--
-		}
-		kept = newKept
-	}
-
-	e.commandOrder = kept
-}
-
-func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowedPaths []string) remote.ResultPayload {
+func (e *fileOperation) executeOnce(cmd remote.CommandPayload, readOnly bool, allowedPaths []string) remote.ResultPayload {
 	result := remote.ResultPayload{
 		CommandID: cmd.CommandID,
 		Status:    "ok",
@@ -180,18 +82,18 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 
 	case remote.OpFileRead:
 		path, _ := cmd.Args["path"].(string)
-		resolvedPath, err := e.resolveAllowedPath(path, allowedPaths)
+		resolvedPath, err := e.relativePath(path)
 		if err != nil {
 			result.Status = "denied"
 			result.Error = err.Error()
 			return result
 		}
-		if err := e.validateFileReadSize(resolvedPath); err != nil {
+		if err := e.validateReadSize(resolvedPath); err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
 			return result
 		}
-		data, err := os.ReadFile(resolvedPath)
+		data, err := e.readFile(resolvedPath)
 		if err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
@@ -207,7 +109,7 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 		if modeRaw > 0 {
 			mode = os.FileMode(int(modeRaw))
 		}
-		resolvedPath, err := e.resolveAllowedPath(path, allowedPaths)
+		resolvedPath, err := e.relativePath(path)
 		if err != nil {
 			result.Status = "denied"
 			result.Error = err.Error()
@@ -230,12 +132,12 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 			return result
 		}
 		// Ensure parent directory exists
-		if err := os.MkdirAll(filepath.Dir(resolvedPath), 0755); err != nil {
+		if err := e.root.MkdirAll(filepath.Dir(resolvedPath), 0755); err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
 			return result
 		}
-		if err := os.WriteFile(resolvedPath, decoded, mode); err != nil {
+		if err := e.writeFile(resolvedPath, decoded, mode); err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
 			return result
@@ -245,7 +147,7 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 	case remote.OpFileList:
 		path, _ := cmd.Args["path"].(string)
 		recursive, _ := cmd.Args["recursive"].(bool)
-		resolvedPath, err := e.resolveAllowedPath(path, allowedPaths)
+		resolvedPath, err := e.relativePath(path)
 		if err != nil {
 			result.Status = "denied"
 			result.Error = err.Error()
@@ -262,13 +164,13 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 
 	case remote.OpFileDelete:
 		path, _ := cmd.Args["path"].(string)
-		resolvedPath, err := e.resolveAllowedPath(path, allowedPaths)
+		resolvedPath, err := e.relativePath(path)
 		if err != nil {
 			result.Status = "denied"
 			result.Error = err.Error()
 			return result
 		}
-		if err := os.Remove(resolvedPath); err != nil {
+		if err := e.remove(resolvedPath); err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
 			return result
@@ -291,7 +193,7 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 			}
 			workDir = resolvedWorkDir
 		}
-		output, err := e.shellExec(command, workDir, timeout)
+		output, err := e.shellExecContext(e.ctx, command, workDir, timeout)
 		if err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
@@ -300,7 +202,7 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 
 	case remote.OpFileEdit:
 		path, _ := cmd.Args["path"].(string)
-		resolvedPath, err := e.resolveAllowedPath(path, allowedPaths)
+		resolvedPath, err := e.relativePath(path)
 		if err != nil {
 			result.Status = "denied"
 			result.Error = err.Error()
@@ -322,7 +224,7 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 
 	case remote.OpJsonEdit:
 		path, _ := cmd.Args["path"].(string)
-		resolvedPath, err := e.resolveAllowedPath(path, allowedPaths)
+		resolvedPath, err := e.relativePath(path)
 		if err != nil {
 			result.Status = "denied"
 			result.Error = err.Error()
@@ -340,7 +242,7 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 
 	case remote.OpYamlEdit:
 		path, _ := cmd.Args["path"].(string)
-		resolvedPath, err := e.resolveAllowedPath(path, allowedPaths)
+		resolvedPath, err := e.relativePath(path)
 		if err != nil {
 			result.Status = "denied"
 			result.Error = err.Error()
@@ -358,7 +260,7 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 
 	case remote.OpXmlEdit:
 		path, _ := cmd.Args["path"].(string)
-		resolvedPath, err := e.resolveAllowedPath(path, allowedPaths)
+		resolvedPath, err := e.relativePath(path)
 		if err != nil {
 			result.Status = "denied"
 			result.Error = err.Error()
@@ -385,7 +287,7 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 			result.Error = "path is required for file_search operations"
 			return result
 		}
-		resolvedPath, err := e.resolveAllowedPath(path, allowedPaths)
+		resolvedPath, err := e.relativePath(path)
 		if err != nil {
 			result.Status = "denied"
 			result.Error = err.Error()
@@ -400,13 +302,13 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 
 	case remote.OpFileReadAdv:
 		path, _ := cmd.Args["path"].(string)
-		resolvedPath, err := e.resolveAllowedPath(path, allowedPaths)
+		resolvedPath, err := e.relativePath(path)
 		if err != nil {
 			result.Status = "denied"
 			result.Error = err.Error()
 			return result
 		}
-		if err := e.validateFileReadSize(resolvedPath); err != nil {
+		if err := e.validateReadSize(resolvedPath); err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
 			return result
@@ -450,18 +352,7 @@ func normalizeMaxFileSizeMB(maxFileSizeMB int) int {
 	if maxFileSizeMB <= 0 {
 		return remote.DefaultMaxFileSizeMB
 	}
-	return maxFileSizeMB
-}
-
-func (e *Executor) validateFileReadSize(path string) error {
-	info, err := os.Stat(path)
-	if err != nil {
-		return err
-	}
-	if info.Size() > e.maxFileSizeBytesSnapshot() {
-		return fmt.Errorf("file exceeds configured max_file_size_mb limit")
-	}
-	return nil
+	return min(maxFileSizeMB, 500)
 }
 
 func (e *Executor) validateEncodedWriteSize(content string) error {
@@ -478,17 +369,6 @@ func (e *Executor) validateDecodedWriteSize(size int) error {
 	return nil
 }
 
-// CollectSysinfo gathers system information for heartbeats.
-func (e *Executor) CollectSysinfo() remote.HeartbeatPayload {
-	hostname, _ := os.Hostname()
-	return remote.HeartbeatPayload{
-		Hostname: hostname,
-		OS:       runtime.GOOS,
-		Arch:     runtime.GOARCH,
-	}
-}
-
-// validatePath checks that a path is within the allowed paths.
 func (e *Executor) validatePath(path string, allowedPaths []string) error {
 	_, err := e.resolveAllowedPath(path, allowedPaths)
 	return err
@@ -586,48 +466,39 @@ type fileEntry struct {
 	ModTime string `json:"mod_time"`
 }
 
-func (e *Executor) listDir(path string, recursive bool) ([]fileEntry, error) {
-	var entries []fileEntry
-
-	if !recursive {
-		dirEntries, err := os.ReadDir(path)
+func (e *fileOperation) listDir(path string, recursive bool) ([]fileEntry, error) {
+	entries := []fileEntry{}
+	size := 0
+	err := e.walk(path, func(p string, info os.FileInfo, err error) error {
 		if err != nil {
-			return nil, err
+			return err
 		}
-		for _, de := range dirEntries {
-			info, err := de.Info()
-			if err != nil {
-				continue
-			}
-			entries = append(entries, fileEntry{
-				Name:    de.Name(),
-				Path:    filepath.Join(path, de.Name()),
-				IsDir:   de.IsDir(),
-				Size:    info.Size(),
-				ModTime: info.ModTime().UTC().Format(time.RFC3339),
-			})
+		if p == path {
+			return nil
 		}
-		return entries, nil
-	}
-
-	_ = filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
+		entry := fileEntry{Name: info.Name(), Path: filepath.Join(e.root.Name(), p), IsDir: info.IsDir(), Size: info.Size(), ModTime: info.ModTime().UTC().Format(time.RFC3339)}
+		data, err := json.Marshal(entry)
 		if err != nil {
-			return nil // skip errors
+			return err
 		}
-		entries = append(entries, fileEntry{
-			Name:    info.Name(),
-			Path:    p,
-			IsDir:   info.IsDir(),
-			Size:    info.Size(),
-			ModTime: info.ModTime().UTC().Format(time.RFC3339),
-		})
+		size += len(data) + 1
+		if size > remote.MaxTextOutputBytes-2 {
+			return fmt.Errorf("directory listing exceeds output limit; select a smaller directory")
+		}
+		entries = append(entries, entry)
+		if !recursive && info.IsDir() {
+			return filepath.SkipDir
+		}
 		return nil
 	})
-
-	return entries, nil
+	return entries, err
 }
 
 func (e *Executor) shellExec(command, workDir string, timeout time.Duration) (string, error) {
+	return e.shellExecContext(context.Background(), command, workDir, timeout)
+}
+
+func (e *Executor) shellExecContext(ctx context.Context, command, workDir string, timeout time.Duration) (string, error) {
 	if command == "" {
 		return "", fmt.Errorf("command is required")
 	}
@@ -641,7 +512,7 @@ func (e *Executor) shellExec(command, workDir string, timeout time.Duration) (st
 	// Log every command execution for audit trail
 	e.logger.Info("[shellExec] executing remote command", "command", command, "workDir", workDir, "timeout", timeout)
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	var cmd *exec.Cmd
@@ -656,15 +527,18 @@ func (e *Executor) shellExec(command, workDir string, timeout time.Duration) (st
 		cmd.Dir = workDir
 	}
 
-	output, err := cmd.CombinedOutput()
+	output := &boundedOutput{}
+	cmd.Stdout, cmd.Stderr = output, output
+	configureProcessCancellation(cmd)
+	err := cmd.Run()
 	if ctx.Err() == context.DeadlineExceeded {
-		return "", fmt.Errorf("command timed out after %v", timeout)
+		return output.String(), fmt.Errorf("command timed out after %v", timeout)
 	}
-	return string(output), err
+	return output.String(), err
 }
 
 // fileEdit performs a file editing operation on the remote device.
-func (e *Executor) fileEdit(path, operation, old, new_, marker, content string, startLine, endLine int) (string, error) {
+func (e *fileOperation) fileEdit(path, operation, old, new_, marker, content string, startLine, endLine int) (string, error) {
 	switch operation {
 	case "str_replace":
 		return e.fileStrReplace(path, old, new_, false)
@@ -685,11 +559,11 @@ func (e *Executor) fileEdit(path, operation, old, new_, marker, content string, 
 	}
 }
 
-func (e *Executor) fileStrReplace(path, old, new_ string, replaceAll bool) (string, error) {
+func (e *fileOperation) fileStrReplace(path, old, new_ string, replaceAll bool) (string, error) {
 	if old == "" {
 		return "", fmt.Errorf("'old' text is required")
 	}
-	data, err := os.ReadFile(path)
+	data, err := e.readFile(path)
 	if err != nil {
 		return "", err
 	}
@@ -701,26 +575,29 @@ func (e *Executor) fileStrReplace(path, old, new_ string, replaceAll bool) (stri
 	if !replaceAll && count > 1 {
 		return "", fmt.Errorf("text found %d times, must be unique for str_replace", count)
 	}
+	if int64(len(text))+int64(count)*int64(len(new_)-len(old)) > e.limit {
+		return "", fmt.Errorf("file exceeds configured max_file_size_mb limit")
+	}
 	var result string
 	if replaceAll {
 		result = strings.ReplaceAll(text, old, new_)
 	} else {
 		result = strings.Replace(text, old, new_, 1)
 	}
-	if err := os.WriteFile(path, []byte(result), 0644); err != nil {
+	if err := e.writeFile(path, []byte(result), 0644); err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("replaced %d occurrence(s)", count), nil
 }
 
-func (e *Executor) fileInsertRelative(path, marker, content string, after bool) (string, error) {
+func (e *fileOperation) fileInsertRelative(path, marker, content string, after bool) (string, error) {
 	if marker == "" {
 		return "", fmt.Errorf("'marker' is required")
 	}
 	if content == "" {
 		return "", fmt.Errorf("'content' is required")
 	}
-	data, err := os.ReadFile(path)
+	data, err := e.readFile(path)
 	if err != nil {
 		return "", err
 	}
@@ -746,7 +623,7 @@ func (e *Executor) fileInsertRelative(path, marker, content string, after bool) 
 	newLines = append(newLines, lines[:insertIdx]...)
 	newLines = append(newLines, insertLines...)
 	newLines = append(newLines, lines[insertIdx:]...)
-	if err := os.WriteFile(path, []byte(strings.Join(newLines, "\n")), 0644); err != nil {
+	if err := e.writeFile(path, []byte(strings.Join(newLines, "\n")), 0644); err != nil {
 		return "", err
 	}
 	pos := "after"
@@ -756,14 +633,14 @@ func (e *Executor) fileInsertRelative(path, marker, content string, after bool) 
 	return fmt.Sprintf("inserted %d line(s) %s marker", len(insertLines), pos), nil
 }
 
-func (e *Executor) fileAppendPrepend(path, content string, appendMode bool) (string, error) {
+func (e *fileOperation) fileAppendPrepend(path, content string, appendMode bool) (string, error) {
 	if content == "" {
 		return "", fmt.Errorf("'content' is required")
 	}
-	data, err := os.ReadFile(path)
+	data, err := e.readFile(path)
 	if err != nil {
 		if os.IsNotExist(err) && appendMode {
-			if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			if err := e.writeFile(path, []byte(content), 0644); err != nil {
 				return "", err
 			}
 			return "file created", nil
@@ -783,7 +660,7 @@ func (e *Executor) fileAppendPrepend(path, content string, appendMode bool) (str
 		}
 		result = content + text
 	}
-	if err := os.WriteFile(path, []byte(result), 0644); err != nil {
+	if err := e.writeFile(path, []byte(result), 0644); err != nil {
 		return "", err
 	}
 	op := "appended"
@@ -793,14 +670,14 @@ func (e *Executor) fileAppendPrepend(path, content string, appendMode bool) (str
 	return fmt.Sprintf("%s content to file", op), nil
 }
 
-func (e *Executor) fileDeleteLines(path string, startLine, endLine int) (string, error) {
+func (e *fileOperation) fileDeleteLines(path string, startLine, endLine int) (string, error) {
 	if startLine < 1 {
 		return "", fmt.Errorf("start_line must be >= 1")
 	}
 	if endLine < startLine {
 		return "", fmt.Errorf("end_line must be >= start_line")
 	}
-	data, err := os.ReadFile(path)
+	data, err := e.readFile(path)
 	if err != nil {
 		return "", err
 	}
@@ -814,14 +691,14 @@ func (e *Executor) fileDeleteLines(path string, startLine, endLine int) (string,
 	newLines := make([]string, 0, len(lines)-(endLine-startLine+1))
 	newLines = append(newLines, lines[:startLine-1]...)
 	newLines = append(newLines, lines[endLine:]...)
-	if err := os.WriteFile(path, []byte(strings.Join(newLines, "\n")), 0644); err != nil {
+	if err := e.writeFile(path, []byte(strings.Join(newLines, "\n")), 0644); err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("deleted %d line(s)", endLine-startLine+1), nil
 }
 
 // fileSearch performs file search operations on the remote device.
-func (e *Executor) fileSearch(op, pattern, filePath, globPattern, outputMode, baseDir string) (string, error) {
+func (e *fileOperation) fileSearch(op, pattern, filePath, globPattern, outputMode, baseDir string) (string, error) {
 	switch op {
 	case "grep":
 		if filePath == "" {
@@ -831,7 +708,7 @@ func (e *Executor) fileSearch(op, pattern, filePath, globPattern, outputMode, ba
 		if err != nil {
 			return "", fmt.Errorf("invalid regex: %w", err)
 		}
-		matches, err := grepFileRemote(filePath, re, filePath)
+		matches, err := e.grepFile(filePath, re, filepath.Join(e.root.Name(), filePath))
 		if err != nil {
 			return "", err
 		}
@@ -857,7 +734,7 @@ func (e *Executor) fileSearch(op, pattern, filePath, globPattern, outputMode, ba
 		}
 		var allMatches []match
 		maxResults := 500
-		filepath.Walk(baseDir, func(path string, info os.FileInfo, walkErr error) error {
+		walkErr := e.walk(baseDir, func(path string, info os.FileInfo, walkErr error) error {
 			if walkErr != nil || info.IsDir() {
 				if info != nil && info.IsDir() {
 					base := info.Name()
@@ -867,7 +744,7 @@ func (e *Executor) fileSearch(op, pattern, filePath, globPattern, outputMode, ba
 				}
 				return nil
 			}
-			if info.Size() > 10*1024*1024 {
+			if !info.Mode().IsRegular() || info.Size() > e.limit {
 				return nil
 			}
 			matched, _ := filepath.Match(globPattern, info.Name())
@@ -875,15 +752,19 @@ func (e *Executor) fileSearch(op, pattern, filePath, globPattern, outputMode, ba
 				return nil
 			}
 			relPath, _ := filepath.Rel(baseDir, path)
-			fileMatches, _ := grepFileRemote(path, re, filepath.ToSlash(relPath))
+			fileMatches, _ := e.grepFile(path, re, filepath.ToSlash(relPath))
+			fileMatches = fileMatches[:min(len(fileMatches), maxResults-len(allMatches))]
 			for _, m := range fileMatches {
 				allMatches = append(allMatches, match{File: m.File, Line: m.Line, Content: m.Content})
 			}
 			if len(allMatches) >= maxResults {
-				return fmt.Errorf("max")
+				return fs.SkipAll
 			}
 			return nil
 		})
+		if walkErr != nil {
+			return "", walkErr
+		}
 		if outputMode == "count" {
 			out, _ := json.Marshal(map[string]interface{}{"count": len(allMatches)})
 			return string(out), nil
@@ -896,7 +777,7 @@ func (e *Executor) fileSearch(op, pattern, filePath, globPattern, outputMode, ba
 			return "", fmt.Errorf("glob pattern required for find (passed as 'pattern')")
 		}
 		var files []string
-		filepath.Walk(baseDir, func(path string, info os.FileInfo, err error) error {
+		walkErr := e.walk(baseDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil || info.IsDir() {
 				if info != nil && info.IsDir() {
 					base := info.Name()
@@ -912,10 +793,13 @@ func (e *Executor) fileSearch(op, pattern, filePath, globPattern, outputMode, ba
 				files = append(files, filepath.ToSlash(relPath))
 			}
 			if len(files) >= 1000 {
-				return fmt.Errorf("max")
+				return fs.SkipAll
 			}
 			return nil
 		})
+		if walkErr != nil {
+			return "", walkErr
+		}
 		out, _ := json.Marshal(map[string]interface{}{"count": len(files), "files": files})
 		return string(out), nil
 
@@ -930,8 +814,8 @@ type remoteGrepMatch struct {
 	Content string `json:"content"`
 }
 
-func grepFileRemote(absPath string, re *regexp.Regexp, displayPath string) ([]remoteGrepMatch, error) {
-	f, err := os.Open(absPath)
+func (e *fileOperation) grepFile(absPath string, re *regexp.Regexp, displayPath string) ([]remoteGrepMatch, error) {
+	f, err := e.openRead(absPath)
 	if err != nil {
 		return nil, err
 	}
@@ -944,6 +828,9 @@ func grepFileRemote(absPath string, re *regexp.Regexp, displayPath string) ([]re
 		line := scanner.Text()
 		if re.MatchString(line) {
 			matches = append(matches, remoteGrepMatch{File: displayPath, Line: lineNum, Content: line})
+			if len(matches) >= 500 {
+				break
+			}
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -953,7 +840,7 @@ func grepFileRemote(absPath string, re *regexp.Regexp, displayPath string) ([]re
 }
 
 // fileReadAdvanced performs advanced file reading on the remote device.
-func (e *Executor) fileReadAdvanced(path, op, pattern string, startLine, endLine, lineCount int) (string, error) {
+func (e *fileOperation) fileReadAdvanced(path, op, pattern string, startLine, endLine, lineCount int) (string, error) {
 	switch op {
 	case "read_lines":
 		if startLine < 1 {
@@ -962,7 +849,7 @@ func (e *Executor) fileReadAdvanced(path, op, pattern string, startLine, endLine
 		if endLine < startLine {
 			return "", fmt.Errorf("end_line must be >= start_line")
 		}
-		f, err := os.Open(path)
+		f, err := e.openRead(path)
 		if err != nil {
 			return "", err
 		}
@@ -993,7 +880,7 @@ func (e *Executor) fileReadAdvanced(path, op, pattern string, startLine, endLine
 		if lineCount <= 0 {
 			lineCount = 20
 		}
-		f, err := os.Open(path)
+		f, err := e.openRead(path)
 		if err != nil {
 			return "", err
 		}
@@ -1013,7 +900,7 @@ func (e *Executor) fileReadAdvanced(path, op, pattern string, startLine, endLine
 		if lineCount <= 0 {
 			lineCount = 20
 		}
-		data, err := os.ReadFile(path)
+		data, err := e.readFile(path)
 		if err != nil {
 			return "", err
 		}
@@ -1027,7 +914,7 @@ func (e *Executor) fileReadAdvanced(path, op, pattern string, startLine, endLine
 		return string(out), nil
 
 	case "count_lines":
-		f, err := os.Open(path)
+		f, err := e.openRead(path)
 		if err != nil {
 			return "", err
 		}
@@ -1040,7 +927,7 @@ func (e *Executor) fileReadAdvanced(path, op, pattern string, startLine, endLine
 		if err := scanner.Err(); err != nil {
 			return "", err
 		}
-		info, _ := os.Stat(path)
+		info, _ := e.root.Stat(path)
 		var size int64
 		if info != nil {
 			size = info.Size()
@@ -1059,7 +946,7 @@ func (e *Executor) fileReadAdvanced(path, op, pattern string, startLine, endLine
 		if err != nil {
 			return "", fmt.Errorf("invalid regex: %w", err)
 		}
-		data, err := os.ReadFile(path)
+		data, err := e.readFile(path)
 		if err != nil {
 			return "", err
 		}
@@ -1069,6 +956,7 @@ func (e *Executor) fileReadAdvanced(path, op, pattern string, startLine, endLine
 			Content   string `json:"content"`
 		}
 		var results []ctxResult
+		outputBytes := 0
 		for i, line := range allLines {
 			if re.MatchString(line) {
 				start := i - lineCount
@@ -1079,8 +967,10 @@ func (e *Executor) fileReadAdvanced(path, op, pattern string, startLine, endLine
 				if end >= len(allLines) {
 					end = len(allLines) - 1
 				}
-				results = append(results, ctxResult{MatchLine: i + 1, Content: strings.Join(allLines[start:end+1], "\n")})
-				if len(results) >= 50 {
+				content := strings.Join(allLines[start:end+1], "\n")
+				outputBytes += len(content)
+				results = append(results, ctxResult{MatchLine: i + 1, Content: content})
+				if len(results) >= 50 || outputBytes >= remote.MaxTextOutputBytes {
 					break
 				}
 			}

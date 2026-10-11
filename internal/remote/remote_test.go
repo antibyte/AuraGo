@@ -188,7 +188,9 @@ func (t *recordingCommandTransport) IsConnected(deviceID string) bool {
 	return t.connected[deviceID]
 }
 
-func (t *recordingCommandTransport) SendCommand(deviceID string, cmd CommandPayload, timeout time.Duration) (ResultPayload, error) {
+func (t *recordingCommandTransport) Disconnect(string) {}
+
+func (t *recordingCommandTransport) SendCommand(ctx context.Context, deviceID string, cmd CommandPayload, timeout time.Duration) (ResultPayload, error) {
 	t.calls = append(t.calls, cmd)
 	result := t.result
 	result.CommandID = cmd.CommandID

@@ -69,6 +69,8 @@ func TestRemoteDownloadRequiresSessionAndDoesNotCreateEnrollment(t *testing.T) {
 	cfg.Auth.PasswordHash = "configured"
 	cfg.Auth.SessionSecret = "remote-download-session-secret"
 	cfg.Server.Port = 8088
+	cfg.Server.HTTPS.Enabled = true
+	cfg.Server.HTTPS.Enabled = true
 	s := &Server{
 		Cfg:       cfg,
 		Logger:    slog.Default(),
@@ -190,6 +192,7 @@ func TestRemoteDownloadSuccessDoesNotIncrementLoginLockout(t *testing.T) {
 
 	cfg := &config.Config{}
 	cfg.Server.Port = 8088
+	cfg.Server.HTTPS.Enabled = true
 	s := &Server{
 		Cfg:       cfg,
 		Logger:    slog.Default(),

@@ -41,7 +41,7 @@ func TestLegacyHMACDataMatchesPreUpgradeForm(t *testing.T) {
 	}
 }
 
-// A legacy refusal carries only status, message and a well-formed request
+// A legacy refusal carries only fixed status, error code, message and a well-formed request
 // nonce: old agents apply bootstrap settings before checking the status, and
 // a malformed nonce would put requester-chosen bytes under the signature.
 func TestLegacyRefusalCarriesOnlyFixedFieldsAndWellFormedNonces(t *testing.T) {
@@ -70,7 +70,7 @@ func TestLegacyRefusalCarriesOnlyFixedFieldsAndWellFormedNonces(t *testing.T) {
 			t.Fatalf("%s: request_nonce = %q, want %q", name, got, wantNonce)
 		}
 		delete(payload, "request_nonce")
-		if len(payload) != 2 || payload["status"] != "rejected" || payload["message"] != "fixed reason" {
+		if len(payload) != 3 || payload["status"] != "rejected" || payload["error_code"] != ClientUpgradeRequired || payload["message"] != "fixed reason" {
 			t.Fatalf("%s: legacy refusal payload = %s", name, refusal.Payload)
 		}
 		if refusal.Version != 0 || !verifiesLegacy(*refusal, key) {

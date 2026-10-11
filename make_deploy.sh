@@ -297,7 +297,7 @@ for target in "${REMOTE_TARGETS[@]}"; do
 
   OUT="$DEPLOY_DIR/aurago-remote_${OS}_${ARCH}${EXT}"
   echo "    → $OUT"
-  CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -trimpath -ldflags="-s -w" -o "$OUT" ./cmd/remote/
+  CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -trimpath -ldflags="-s -w -X main.BuildVersion=$BUILD_ID" -o "$OUT" ./cmd/remote/
   # Linux remotes also live in bin/ for update.sh / install.sh compatibility.
   if [ "$OS" = "linux" ] && [ "$ARCH" = "amd64" ]; then
     mkdir -p bin

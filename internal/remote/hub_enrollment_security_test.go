@@ -123,7 +123,7 @@ func issueTestEnrollment(t *testing.T, hub *RemoteHub, token string) string {
 // lookup hash in the clear, signed with the separately derived MAC key.
 func enrollmentFrame(t *testing.T, token string, seq uint64) *RemoteMessage {
 	t.Helper()
-	message, err := NewMessage(MsgAuth, "", DeriveEnrollmentAuthKey(token), seq, AuthPayload{
+	message, err := NewMessage(MsgAuth, "", DeriveEnrollmentAuthKey(token), seq, AuthPayload{SecurityRevision: ClientSecurityRevision, Capabilities: ClassicCapabilities(),
 		KDF:       EnrollmentKDFVersion,
 		TokenHash: DeriveEnrollmentLookupHash(token),
 		Hostname:  "test",
@@ -198,7 +198,7 @@ func TestManualApprovalIssuesOneTimeToken(t *testing.T) {
 	hub, db, vault := newEnrollmentTestHub(t)
 	hub.AutoApprove = true
 	exchange := enrollmentTestSocket(t, hub)
-	unauthenticated, _ := NewMessage(MsgAuth, "", "", 1, AuthPayload{Hostname: "pending"})
+	unauthenticated, _ := NewMessage(MsgAuth, "", "", 1, AuthPayload{SecurityRevision: ClientSecurityRevision, Capabilities: ClassicCapabilities(), Hostname: "pending"})
 	pending := exchange(unauthenticated)
 	if pending.Status != "pending" {
 		t.Fatalf("address authenticated a device: %+v", pending)
@@ -298,7 +298,7 @@ func TestEnrollmentTokenSingleUseAndReconnectReplay(t *testing.T) {
 		t.Fatalf("devices after consumed token = %d, %v", len(devices), err)
 	}
 
-	reconnect, err := NewMessage(MsgAuth, first.DeviceID, first.SharedKey, 3, AuthPayload{DeviceID: first.DeviceID, Hostname: "test"})
+	reconnect, err := NewMessage(MsgAuth, first.DeviceID, first.SharedKey, 3, AuthPayload{SecurityRevision: ClientSecurityRevision, Capabilities: ClassicCapabilities(), DeviceID: first.DeviceID, Hostname: "test"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -319,7 +319,7 @@ func TestEnrollmentRequiresAuthKeyNotLookupHash(t *testing.T) {
 	id := issueTestEnrollment(t, hub, token)
 
 	lookup := DeriveEnrollmentLookupHash(token)
-	forged, err := NewMessage(MsgAuth, "", lookup, 1, AuthPayload{KDF: EnrollmentKDFVersion, TokenHash: lookup, Hostname: "attacker"})
+	forged, err := NewMessage(MsgAuth, "", lookup, 1, AuthPayload{SecurityRevision: ClientSecurityRevision, Capabilities: ClassicCapabilities(), KDF: EnrollmentKDFVersion, TokenHash: lookup, Hostname: "attacker"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -396,11 +396,11 @@ func TestEnrollmentRejectsFrameWithoutKDF(t *testing.T) {
 	token := "fresh-admin-token"
 	id := issueTestEnrollment(t, hub, token)
 
-	preUpgrade, err := NewMessage(MsgAuth, "", plainSHA256Hex(token), 1, AuthPayload{TokenHash: plainSHA256Hex(token), Hostname: "old-agent"})
+	preUpgrade, err := NewMessage(MsgAuth, "", plainSHA256Hex(token), 1, AuthPayload{SecurityRevision: ClientSecurityRevision, Capabilities: ClassicCapabilities(), TokenHash: plainSHA256Hex(token), Hostname: "old-agent"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	withoutKDF, err := NewMessage(MsgAuth, "", DeriveEnrollmentAuthKey(token), 2, AuthPayload{TokenHash: DeriveEnrollmentLookupHash(token), Hostname: "test"})
+	withoutKDF, err := NewMessage(MsgAuth, "", DeriveEnrollmentAuthKey(token), 2, AuthPayload{SecurityRevision: ClientSecurityRevision, Capabilities: ClassicCapabilities(), TokenHash: DeriveEnrollmentLookupHash(token), Hostname: "test"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -494,7 +494,7 @@ func TestReconnectRefusalsAreUnsignedUntilVerifiedAndEchoOnlyValidNonces(t *test
 	}
 	hub.Unregister(enrolled.DeviceID)
 
-	forged, err := NewMessage(MsgAuth, enrolled.DeviceID, strings.Repeat("ef", 32), 2, AuthPayload{DeviceID: enrolled.DeviceID})
+	forged, err := NewMessage(MsgAuth, enrolled.DeviceID, strings.Repeat("ef", 32), 2, AuthPayload{SecurityRevision: ClientSecurityRevision, Capabilities: ClassicCapabilities(), DeviceID: enrolled.DeviceID})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -513,7 +513,7 @@ func TestReconnectRefusalsAreUnsignedUntilVerifiedAndEchoOnlyValidNonces(t *test
 		"uppercase": strings.ToUpper("abcdef" + valid[6:]),
 		"33 chars":  valid + "0",
 	} {
-		frame, err := NewMessage(MsgAuth, enrolled.DeviceID, enrolled.SharedKey, 3, AuthPayload{DeviceID: enrolled.DeviceID})
+		frame, err := NewMessage(MsgAuth, enrolled.DeviceID, enrolled.SharedKey, 3, AuthPayload{SecurityRevision: ClientSecurityRevision, Capabilities: ClassicCapabilities(), DeviceID: enrolled.DeviceID})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -548,7 +548,7 @@ func TestAuthResponsesEchoRequestNonce(t *testing.T) {
 		t.Fatalf("enrolled answer must be signed: ok=%v err=%v", ok, err)
 	}
 
-	reconnect, err := NewMessage(MsgAuth, enrolled.DeviceID, enrolled.SharedKey, 2, AuthPayload{DeviceID: enrolled.DeviceID, Hostname: "test"})
+	reconnect, err := NewMessage(MsgAuth, enrolled.DeviceID, enrolled.SharedKey, 2, AuthPayload{SecurityRevision: ClientSecurityRevision, Capabilities: ClassicCapabilities(), DeviceID: enrolled.DeviceID, Hostname: "test"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -624,7 +624,7 @@ func TestHandleEnrollmentRefusesPreUpgradeFrames(t *testing.T) {
 	id := issueTestEnrollment(t, hub, token)
 
 	plainHash := plainSHA256Hex(token)
-	oldEnroll, err := NewMessage(MsgAuth, "", plainHash, 1, AuthPayload{TokenHash: plainHash, Hostname: "old-agent"})
+	oldEnroll, err := NewMessage(MsgAuth, "", plainHash, 1, AuthPayload{SecurityRevision: ClientSecurityRevision, Capabilities: ClassicCapabilities(), TokenHash: plainHash, Hostname: "old-agent"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -636,8 +636,8 @@ func TestHandleEnrollmentRefusesPreUpgradeFrames(t *testing.T) {
 		t.Fatalf("pre-upgrade enrollment = %+v", refused)
 	}
 	var rawRefusal map[string]any
-	if err := json.Unmarshal(response.Payload, &rawRefusal); err != nil || len(rawRefusal) != 3 {
-		t.Fatalf("a legacy refusal carries only status, message and request_nonce: %s", response.Payload)
+	if err := json.Unmarshal(response.Payload, &rawRefusal); err != nil || len(rawRefusal) != 4 || rawRefusal["error_code"] != ClientUpgradeRequired {
+		t.Fatalf("a legacy refusal carries only status, error_code, message and request_nonce: %s", response.Payload)
 	}
 	if response.Version != 0 || !verifiesLegacy(response, plainHash) || !ValidNonce(response.Nonce) || ValidateTimestamp(response.Timestamp) != nil {
 		t.Fatalf("the refusal must be a fresh frame an old agent can verify: %+v", response)
@@ -658,7 +658,7 @@ func TestHandleEnrollmentRefusesPreUpgradeFrames(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	oldReconnect, err := NewMessage(MsgAuth, enrolled.DeviceID, enrolled.SharedKey, 3, AuthPayload{DeviceID: enrolled.DeviceID, Hostname: "old-agent"})
+	oldReconnect, err := NewMessage(MsgAuth, enrolled.DeviceID, enrolled.SharedKey, 3, AuthPayload{SecurityRevision: ClientSecurityRevision, Capabilities: ClassicCapabilities(), DeviceID: enrolled.DeviceID, Hostname: "old-agent"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -690,7 +690,7 @@ func TestHandleEnrollmentRefusesPreUpgradeFrames(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, deviceID := range map[string]string{"unknown": "no-such-device", "revoked": revokedID} {
-		frame, err := NewMessage(MsgAuth, deviceID, strings.Repeat("cd", 32), 4, AuthPayload{DeviceID: deviceID})
+		frame, err := NewMessage(MsgAuth, deviceID, strings.Repeat("cd", 32), 4, AuthPayload{SecurityRevision: ClientSecurityRevision, Capabilities: ClassicCapabilities(), DeviceID: deviceID})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -700,7 +700,7 @@ func TestHandleEnrollmentRefusesPreUpgradeFrames(t *testing.T) {
 		}
 	}
 
-	oldKnock, err := NewMessage(MsgAuth, "", "", 4, AuthPayload{Hostname: "old-knock"})
+	oldKnock, err := NewMessage(MsgAuth, "", "", 4, AuthPayload{SecurityRevision: ClientSecurityRevision, Capabilities: ClassicCapabilities(), Hostname: "old-knock"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -729,7 +729,7 @@ func TestHandleEnrollmentRejectsSequenceShiftedNonce(t *testing.T) {
 		t.Fatalf("original enrollment after rejected shift = %+v", enrolled)
 	}
 
-	reconnect, err := NewMessage(MsgAuth, enrolled.DeviceID, enrolled.SharedKey, 12, AuthPayload{DeviceID: enrolled.DeviceID, Hostname: "test"})
+	reconnect, err := NewMessage(MsgAuth, enrolled.DeviceID, enrolled.SharedKey, 12, AuthPayload{SecurityRevision: ClientSecurityRevision, Capabilities: ClassicCapabilities(), DeviceID: enrolled.DeviceID, Hostname: "test"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -769,7 +769,7 @@ func TestUnsignedEnrollmentFrameRefusedBeforeVaultRead(t *testing.T) {
 	if _, err := CreateEnrollment(db, EnrollmentRecord{TokenHash: DeriveEnrollmentLookupHash(token), ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}); err != nil {
 		t.Fatal(err)
 	}
-	unsigned, err := NewMessage(MsgAuth, "", "", 1, AuthPayload{KDF: EnrollmentKDFVersion, TokenHash: DeriveEnrollmentLookupHash(token)})
+	unsigned, err := NewMessage(MsgAuth, "", "", 1, AuthPayload{SecurityRevision: ClientSecurityRevision, Capabilities: ClassicCapabilities(), KDF: EnrollmentKDFVersion, TokenHash: DeriveEnrollmentLookupHash(token)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -816,7 +816,7 @@ func TestEnrollmentVaultFailureLeavesTokenUnused(t *testing.T) {
 	defer cleanup()
 	done := make(chan error, 1)
 	go func() {
-		done <- hub.completeEnrollment(serverConn, strings.Repeat("0", 32), AuthPayload{Hostname: "test"}, id, "test", DeriveEnrollmentAuthKey(token))
+		done <- hub.completeEnrollment(serverConn, strings.Repeat("0", 32), AuthPayload{SecurityRevision: ClientSecurityRevision, Capabilities: ClassicCapabilities(), Hostname: "test"}, id, "test", DeriveEnrollmentAuthKey(token))
 	}()
 	var response RemoteMessage
 	_ = clientConn.SetReadDeadline(time.Now().Add(5 * time.Second))

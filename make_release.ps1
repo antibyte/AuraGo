@@ -195,7 +195,9 @@ function Build-Binary {
     )
     $fullOutput = Join-Path $scriptDir $Output
     Write-Host "    -> $Output" -ForegroundColor Green
-    go build -trimpath -ldflags="-s -w" -o $fullOutput $Target
+    $binaryFlags = "-s -w"
+    if ($Target -eq "./cmd/remote/") { $binaryFlags += " -X main.BuildVersion=$Version" }
+    go build -trimpath -ldflags=$binaryFlags -o $fullOutput $Target
     if ($LASTEXITCODE -ne 0) {
         throw "Build failed for $Output"
     }

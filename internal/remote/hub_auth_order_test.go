@@ -54,7 +54,7 @@ func TestAuthResponsePrecedesWritesToThePublishedConnection(t *testing.T) {
 	}
 
 	reconnect, err := NewMessage(MsgAuth, enrolled.DeviceID, enrolled.SharedKey, 2,
-		AuthPayload{DeviceID: enrolled.DeviceID, Hostname: "test"})
+		AuthPayload{SecurityRevision: ClientSecurityRevision, Capabilities: ClassicCapabilities(), DeviceID: enrolled.DeviceID, Hostname: "test"})
 	if err != nil {
 		t.Fatal(err)
 	}
