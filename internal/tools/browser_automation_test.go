@@ -273,8 +273,14 @@ func TestExecuteBrowserAutomationDefaultScreenshotUsesConfiguredDir(t *testing.T
 		Operation: "screenshot",
 		SessionID: "ba_123",
 	}, nil))
-	if got, _ := result["status"].(string); got != "error" && !strings.HasPrefix(sentPath, "shots/") {
-		t.Fatalf("sent output_path = %q, status = %#v, want a shots/ path", sentPath, result["status"])
+	if got, _ := result["status"].(string); got != "success" {
+		t.Fatalf("status = %q, want success", got)
+	}
+	if strings.ContainsAny(sentPath, `/\`) {
+		t.Fatalf("sent output_path = %q, want file name relative to screenshots root (no slash)", sentPath)
+	}
+	if !strings.HasSuffix(sentPath, ".png") || !strings.Contains(sentPath, "ba_123") {
+		t.Fatalf("sent output_path = %q, want ba_123*.png under screenshots root", sentPath)
 	}
 	if strings.Contains(sentPath, "browser_screenshots") {
 		t.Fatalf("sent output_path = %q, want the configured shots directory", sentPath)

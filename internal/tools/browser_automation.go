@@ -679,11 +679,7 @@ func ExecuteBrowserAutomation(ctx context.Context, cfg *config.Config, req Brows
 		}
 		screenshotWorkspaceRel = workspaceRel
 		screenshotAbs = abs
-		sidecarOutputPath := withinRel
-		if usedDefaultScreenshotPath {
-			sidecarOutputPath = workspaceRel
-		}
-		payload["output_path"] = sidecarOutputPath
+		payload["output_path"] = withinRel
 	}
 
 	if op == "upload_file" {
