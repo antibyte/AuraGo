@@ -105,7 +105,7 @@ func browserAutomationJSON(result map[string]interface{}) string {
 
 func browserAutomationReadOnlyBlocked(op string) bool {
 	switch op {
-	case "click", "type", "select", "press", "upload_file":
+	case "click", "type", "select", "press", "upload_file", "navigate":
 		return true
 	default:
 		return false
@@ -610,6 +610,9 @@ func ExecuteBrowserAutomation(ctx context.Context, cfg *config.Config, req Brows
 		return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": validationErr.Error()})
 	}
 	if cfg.BrowserAutomation.ReadOnly && browserAutomationReadOnlyBlocked(op) {
+		return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": "browser_automation is in read-only mode"})
+	}
+	if cfg.BrowserAutomation.ReadOnly && op == "create_session" && strings.TrimSpace(req.URL) != "" {
 		return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": "browser_automation is in read-only mode"})
 	}
 	if op == "upload_file" && !cfg.BrowserAutomation.AllowFileUploads {

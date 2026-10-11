@@ -409,6 +409,9 @@ async function registerDownload(session, download) {
 }
 
 async function createSession(targetURL) {
+	if (READ_ONLY && targetURL) {
+		return { status: 'error', operation: 'create_session', message: 'browser automation sidecar is in read-only mode' };
+	}
 	if (targetURL) await validateBrowserTarget(targetURL, ALLOWED_PRIVATE_ORIGINS);
   await enforceSessionLimit();
   const browser = await getBrowser();
@@ -472,7 +475,7 @@ async function handleAutomation(body) {
   if (!operation) {
     return { status: 'error', message: 'operation is required' };
   }
-  if (READ_ONLY && ['click', 'type', 'select', 'press', 'upload_file'].includes(operation)) {
+  if (READ_ONLY && ['click', 'type', 'select', 'press', 'upload_file', 'navigate'].includes(operation)) {
     return { status: 'error', operation, message: 'browser automation sidecar is in read-only mode' };
   }
 

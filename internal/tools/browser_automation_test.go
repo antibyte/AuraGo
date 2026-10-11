@@ -85,6 +85,23 @@ func TestExecuteBrowserAutomationReadOnlyBlocksMutation(t *testing.T) {
 	}
 }
 
+func TestExecuteBrowserAutomationReadOnlyBlocksNavigation(t *testing.T) {
+	cfg := browserAutomationTestConfig(t, "http://127.0.0.1:7331")
+	cfg.BrowserAutomation.ReadOnly = true
+	for _, req := range []BrowserAutomationRequest{
+		{Operation: "navigate", SessionID: "ba_123", URL: "https://example.com"},
+		{Operation: "create_session", URL: "https://example.com"},
+	} {
+		result := decodeBrowserAutomationResult(t, ExecuteBrowserAutomation(context.Background(), cfg, req, nil))
+		if got, _ := result["status"].(string); got != "error" {
+			t.Fatalf("%s status = %q, want error", req.Operation, got)
+		}
+		if !strings.Contains(result["message"].(string), "read-only") {
+			t.Fatalf("%s message = %q, want read-only", req.Operation, result["message"])
+		}
+	}
+}
+
 func TestExecuteBrowserAutomationRejectsUploadOutsideWorkspace(t *testing.T) {
 	cfg := browserAutomationTestConfig(t, "http://127.0.0.1:7331")
 
