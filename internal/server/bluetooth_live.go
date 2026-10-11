@@ -22,6 +22,8 @@ func (c desktopCapabilities) HasCapability(name string) bool {
 		return c.s.flowsAvailable()
 	case "local_wikipedia":
 		return c.s.localWikipediaAvailable()
+	case "cyd_creator":
+		return c.s.cydCreatorCapability()
 	default:
 		return false
 	}

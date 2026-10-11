@@ -125,6 +125,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		injectGo2RTCConfig(rawCfg, s.Cfg, s.Vault)
 		injectGameMakerDefaults(rawCfg, s.Cfg)
 		injectLocalWikipediaDefaults(rawCfg, s.Cfg)
+		injectCYDCreatorDefaults(rawCfg, s.Cfg)
 		injectHereNowDefaults(rawCfg, s.Cfg)
 		injectMQTTRelayDefaults(rawCfg, s.ConfigSnapshot())
 		injectTregDefaults(rawCfg, s.Cfg)
@@ -559,6 +560,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if err := config.ValidateCYDCreatorConfig(validateCfg.CYDCreator); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		if err := config.NormalizeNewspaperConfig(&validateCfg.Newspaper); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
@@ -867,6 +872,14 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			if s.GameMaker == nil && newCfg.GameMaker.Enabled {
 				needsRestart = true
 				restartReasons = append(restartReasons, "Game Maker service")
+			}
+			if cydCreatorRuntimeConfigChanged(oldCfg.CYDCreator, newCfg.CYDCreator) {
+				needsRestart = true
+				restartReasons = append(restartReasons, "CYD Creator builder")
+			}
+			if s.CYDCreator == nil && newCfg.CYDCreator.Enabled {
+				needsRestart = true
+				restartReasons = append(restartReasons, "CYD Creator service")
 			}
 			if flowsRuntimeConfigChanged(oldCfg.Flows, newCfg.Flows) {
 				needsRestart = true

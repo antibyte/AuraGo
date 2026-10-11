@@ -82,6 +82,9 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 	if err := config.NormalizeVideoStudioConfig(&validateCfg.VideoStudio); err != nil {
 		return nil, err
 	}
+	if err := config.ValidateCYDCreatorConfig(validateCfg.CYDCreator); err != nil {
+		return nil, err
+	}
 	if err := config.NormalizeNewspaperConfig(&validateCfg.Newspaper); err != nil {
 		return nil, err
 	}

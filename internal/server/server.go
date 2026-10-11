@@ -30,6 +30,7 @@ import (
 	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/cyd"
+	"aurago/internal/cydcreator"
 	"aurago/internal/desktop"
 	"aurago/internal/desktopstore"
 	"aurago/internal/detective"
@@ -271,6 +272,8 @@ type Server struct {
 	VirtualComputersDB        *virtualcomputers.Ledger
 	VirtualWorkspaceManager   *virtualcomputers.WorkspaceManager
 	GameMaker                 *gamemaker.Service
+	CYDCreator                *cydcreator.Service // nil unless cyd_creator.enabled was on at startup
+	cydBuilder                *cydDockerBuilder
 	Detective                 *detective.Service
 	Newspaper                 *newspaper.Service
 	Flows                     *flows.Service
@@ -453,6 +456,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	}
 	if s.GameMaker != nil {
 		s.GameMaker.UpdatePolicy(gameMakerPolicy(cfg.GameMaker, cfg.VirtualDesktop.ReadOnly))
+	}
+	if s.CYDCreator != nil {
+		s.CYDCreator.UpdateLimits(cydCreatorLimits(cfg.CYDCreator))
 	}
 	if svc := s.desktopPolicyService.Load(); svc != nil {
 		svc.SetReadOnly(cfg.VirtualDesktop.ReadOnly)
@@ -741,6 +747,7 @@ func Start(opts StartOptions) error {
 		if gamemaker.DefaultService() == s.GameMaker {
 			gamemaker.SetDefaultService(nil)
 		}
+		s.shutdownCYDCreator()
 		if s.Go2RTC != nil {
 			s.Go2RTC.Close()
 		}
@@ -858,6 +865,7 @@ func Start(opts StartOptions) error {
 	// Initialize Skill Manager and Agent Skills (classic manager gated by config)
 	installedSkills := s.initSkillManagers(serverCtx, installDir)
 	s.initGameMaker()
+	s.initCYDCreator()
 	s.initDetective()
 	s.initNewspaper()
 	s.initPersonalRadio()
