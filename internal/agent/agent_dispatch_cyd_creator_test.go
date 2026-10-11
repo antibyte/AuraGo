@@ -112,7 +112,10 @@ func cydOutput(t *testing.T, out string) map[string]any {
 
 func waitCYDJob(t *testing.T, svc *cydcreator.Service, jobID string, statuses ...string) cydcreator.Job {
 	t.Helper()
-	deadline := time.Now().Add(10 * time.Second)
+	// Generous: under -race the paging tests run their whole job (dozens of
+	// tool calls) in about 10 s, and a timeout here closes the service under
+	// the still-running job.
+	deadline := time.Now().Add(60 * time.Second)
 	for {
 		j, err := svc.GetJob(context.Background(), jobID)
 		for _, s := range statuses {
