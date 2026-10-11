@@ -789,6 +789,28 @@ func ExecuteBrowserAutomation(ctx context.Context, cfg *config.Config, req Brows
 	return browserAutomationJSON(resp)
 }
 
+func browserAutomationScreenshotsContainerPath(sidecarCfg BrowserAutomationSidecarConfig) string {
+	rel := "browser_screenshots"
+	if shots := strings.TrimSpace(sidecarCfg.ScreenshotsDir); shots != "" {
+		if parsed, err := filepath.Rel(sidecarCfg.WorkspaceDir, shots); err == nil {
+			parsed = filepath.ToSlash(filepath.Clean(parsed))
+			if parsed != "." && parsed != "" && !strings.HasPrefix(parsed, "..") {
+				rel = parsed
+			}
+		}
+	}
+	return path.Join(browserAutomationWorkspaceDir, rel)
+}
+
+func browserAutomationRuntimeEnv(sidecarCfg BrowserAutomationSidecarConfig) map[string]string {
+	return map[string]string{
+		"SCREENSHOTS_ROOT":    browserAutomationScreenshotsContainerPath(sidecarCfg),
+		"VIEWPORT_WIDTH":      strconv.Itoa(max(320, sidecarCfg.ViewportWidth)),
+		"VIEWPORT_HEIGHT":     strconv.Itoa(max(240, sidecarCfg.ViewportHeight)),
+		"SESSION_TTL_MINUTES": strconv.Itoa(max(1, sidecarCfg.SessionTTL)),
+	}
+}
+
 func browserAutomationContainerMatches(info map[string]interface{}, sidecarCfg BrowserAutomationSidecarConfig) bool {
 	configMap, _ := info["Config"].(map[string]interface{})
 	host, _ := info["HostConfig"].(map[string]interface{})
@@ -819,6 +841,11 @@ func browserAutomationContainerMatches(info map[string]interface{}, sidecarCfg B
 		env["ALLOW_FILE_DOWNLOADS"] != strconv.FormatBool(sidecarCfg.AllowDownloads) ||
 		env["HEADLESS"] != strconv.FormatBool(sidecarCfg.Headless) {
 		return false
+	}
+	for key, want := range browserAutomationRuntimeEnv(sidecarCfg) {
+		if env[key] != want {
+			return false
+		}
 	}
 	binds, _ := host["Binds"].([]interface{})
 	needed := map[string]bool{
@@ -944,19 +971,9 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 
 	_ = os.MkdirAll(sidecarCfg.WorkspaceDir, 0o750)
 	_ = os.MkdirAll(sidecarCfg.DownloadDir, 0o750)
-	screenshotsRel := "browser_screenshots"
-	if shots := strings.TrimSpace(sidecarCfg.ScreenshotsDir); shots != "" {
-		if rel, relErr := filepath.Rel(sidecarCfg.WorkspaceDir, shots); relErr == nil {
-			rel = filepath.ToSlash(filepath.Clean(rel))
-			if rel != "." && rel != "" && !strings.HasPrefix(rel, "..") {
-				screenshotsRel = rel
-			}
-		}
-	}
 	env := []string{
 		"PORT=7331",
 		"AURAGO_BROWSER_AUTOMATION_TOKEN=" + sidecarCfg.AuthToken,
-		fmt.Sprintf("SESSION_TTL_MINUTES=%d", max(1, sidecarCfg.SessionTTL)),
 		fmt.Sprintf("MAX_SESSIONS=%d", max(1, sidecarCfg.MaxSessions)),
 		fmt.Sprintf("HEADLESS=%t", sidecarCfg.Headless),
 		fmt.Sprintf("ALLOW_FILE_UPLOADS=%t", sidecarCfg.AllowUploads),
@@ -964,11 +981,11 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 		fmt.Sprintf("READ_ONLY=%t", sidecarCfg.ReadOnly),
 		"WORKSPACE_ROOT=" + browserAutomationWorkspaceDir,
 		"DOWNLOAD_ROOT=" + browserAutomationDownloadsDir,
-		"SCREENSHOTS_ROOT=" + path.Join(browserAutomationWorkspaceDir, screenshotsRel),
-		fmt.Sprintf("VIEWPORT_WIDTH=%d", max(320, sidecarCfg.ViewportWidth)),
-		fmt.Sprintf("VIEWPORT_HEIGHT=%d", max(240, sidecarCfg.ViewportHeight)),
 		fmt.Sprintf("CLOAK_HUMANIZE=%t", sidecarCfg.CloakHumanize),
 		fmt.Sprintf("CLOAK_HUMAN_PRESET=%s", sidecarCfg.CloakHumanPreset),
+	}
+	for key, value := range browserAutomationRuntimeEnv(sidecarCfg) {
+		env = append(env, key+"="+value)
 	}
 	env = append(env,
 		"AURAGO_BROWSER_EGRESS_ISOLATED=true",
