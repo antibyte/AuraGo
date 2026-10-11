@@ -386,7 +386,9 @@ func (s *Service) ConfirmJob(ctx context.Context, jobID, prompt string) (Job, er
 }
 
 // CancelJob stops a queued or running job (its working copy becomes the
-// draft when it has changes) or ends a job waiting for confirmation.
+// draft when it has changes) or ends a job waiting for confirmation. A stored
+// terminal status is final, also while the finishing run still holds the
+// agent slot (the status is written before the slot is released).
 func (s *Service) CancelJob(ctx context.Context, jobID string) error {
 	s.jobs.mu.Lock()
 	job, err := s.loadJob(ctx, jobID)
@@ -394,9 +396,11 @@ func (s *Service) CancelJob(ctx context.Context, jobID string) error {
 		s.jobs.mu.Unlock()
 		return s.internalError("cancel job", err)
 	}
-	run := s.jobs.active
-	switch {
-	case run != nil && run.jobID == jobID:
+	if !isActiveJobStatus(job.Status) {
+		s.jobs.mu.Unlock()
+		return NewError(CodeJobState, "the job has already finished", map[string]any{"status": job.Status})
+	}
+	if run := s.jobs.active; run != nil && run.jobID == jobID {
 		run.cancel(errJobCancelled)
 		run.mu.Lock()
 		buildID := run.buildID
@@ -406,16 +410,13 @@ func (s *Service) CancelJob(ctx context.Context, jobID string) error {
 			_ = s.CancelBuild(context.WithoutCancel(ctx), buildID)
 		}
 		return nil
-	case isActiveJobStatus(job.Status):
-		// Waiting for confirmation (or left over without a run): finish it
-		// while holding jobs.mu, so a concurrent ConfirmJob cannot start a run
-		// of a job that is being cancelled.
-		delete(s.jobs.planningUsed, jobID)
-		defer s.jobs.mu.Unlock()
-		return s.internalError("cancel job", s.finishJob(job, JobCancelled, "", ""))
 	}
-	s.jobs.mu.Unlock()
-	return NewError(CodeJobState, "the job has already finished", map[string]any{"status": job.Status})
+	// Waiting for confirmation (or left over without a run): finish it while
+	// holding jobs.mu, so a concurrent ConfirmJob cannot start a run of a job
+	// that is being cancelled.
+	delete(s.jobs.planningUsed, jobID)
+	defer s.jobs.mu.Unlock()
+	return s.internalError("cancel job", s.finishJob(job, JobCancelled, "", ""))
 }
 
 // DiscardDraft deletes the project's saved draft (working copy and private

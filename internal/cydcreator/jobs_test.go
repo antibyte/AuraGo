@@ -321,6 +321,50 @@ func TestCancelAwaitingJobLeavesNoDraft(t *testing.T) {
 	}
 }
 
+// A job stores its terminal status before its run leaves the agent slot. A
+// cancel in that finishing window is CYD_JOB_STATE and leaves the run alone;
+// the window is reproduced by storing the terminal status while the run
+// still holds the slot.
+func TestCancelInTheFinishingWindowIsAJobStateError(t *testing.T) {
+	env, runner, p := newJobEnv(t)
+	started, release := make(chan struct{}), make(chan struct{})
+	releaseRun := sync.OnceFunc(func() { close(release) })
+	t.Cleanup(releaseRun) // before the service closes (cleanups run last-in first-out)
+	runner.on(PhaseCoding, func(ctx context.Context, run JobRun) error {
+		close(started)
+		<-release
+		return ctx.Err()
+	})
+	ctx := context.Background()
+	job, err := env.svc.StartJob(ctx, p.ID, StartJobInput{Mode: JobModeChange, Prompt: "x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitClosed(t, started, "the coding round")
+	run := env.svc.activeRun()
+	if run == nil || run.jobID != job.ID {
+		t.Fatalf("active run = %+v", run)
+	}
+	if _, err := env.svc.db.Exec(`UPDATE cc_jobs SET status=? WHERE id=?`, JobSucceeded, job.ID); err != nil {
+		t.Fatal(err)
+	}
+	wantCode(t, env.svc.CancelJob(ctx, job.ID), CodeJobState)
+	if run.ctx.Err() != nil {
+		t.Fatalf("the finishing run was cancelled: %v", context.Cause(run.ctx))
+	}
+	// Still running: the cancel reaches the run again.
+	if _, err := env.svc.db.Exec(`UPDATE cc_jobs SET status=? WHERE id=?`, JobRunning, job.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := env.svc.CancelJob(ctx, job.ID); err != nil {
+		t.Fatal(err)
+	}
+	releaseRun()
+	if done := waitJob(t, env, job.ID, JobCancelled, JobSucceeded, JobFailed); done.Status != JobCancelled {
+		t.Fatalf("job = %+v", done)
+	}
+}
+
 func TestProjectIsLockedWhileAJobRuns(t *testing.T) {
 	env, runner, p := newJobEnv(t)
 	release := make(chan struct{})

@@ -6,8 +6,10 @@ import (
 	"aurago/internal/cydcreator"
 )
 
-// cydJobBodyLimit fits a prompt (8000 characters) plus 16 KiB of attachments.
-const cydJobBodyLimit = 128 << 10
+// cydJobBodyLimit fits every request the service accepts, even with
+// worst-case JSON escaping: 8000 prompt characters and 16 KiB of attachments
+// as six-byte escapes are about 143 KiB.
+const cydJobBodyLimit = 192 << 10
 
 // cydCreatorJobRoutes are the plan 3 routes: agent jobs, chat messages and
 // revisions (overview "HTTP API"). Job cancel is a Stop route: allowed while

@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
+	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"aurago/internal/cydcreator"
@@ -66,9 +69,9 @@ func TestCYDCreatorJobAPI(t *testing.T) {
 	if done.Status != cydcreator.JobSucceeded {
 		t.Fatalf("job = %+v", done)
 	}
-	// The final status is stored before the "job" revision, the chat summary
-	// and the release of the agent slot; a cancel before the release still
-	// reaches the finishing run. JobFinished holds until the run leaves the slot.
+	// The final status is stored before the "job" revision and the chat
+	// summary; JobFinished holds until the run has written both and left the
+	// agent slot, so the revision and message counts below are complete.
 	waitCYD(t, "the released agent slot", func() bool { return !f.svc.JobFinished(started.Job.ID) })
 	wantCYDError(t, f.do(f.admin, http.MethodPost, "jobs/"+started.Job.ID+"/confirm", strings.NewReader(`{}`), nil),
 		http.StatusConflict, cydcreator.CodeJobState)
@@ -128,6 +131,133 @@ func TestCYDCreatorJobBodiesAreCappedAndStrict(t *testing.T) {
 		wantCYDError(t, f.do(f.admin, http.MethodPost, route.path, strings.NewReader(padded), nil), http.StatusRequestEntityTooLarge, cydcreator.CodeBadRequest)
 		wantCYDError(t, f.do(f.admin, http.MethodPost, route.path, strings.NewReader(`{}{}`), nil), http.StatusBadRequest, cydcreator.CodeBadRequest)
 	}
+}
+
+func TestCYDCreatorJobRequestsAreValidated(t *testing.T) {
+	f := newCYDTestServer(t)
+	f.svc.SetRunner(cydScriptRunner(func(ctx context.Context, run cydcreator.JobRun) error { return nil }))
+	p := f.createProject(t, "Requests")
+	start := func(prompt string, attachments ...string) *httptest.ResponseRecorder {
+		list := []map[string]string{}
+		for _, text := range attachments {
+			list = append(list, map[string]string{"kind": "log", "text": text})
+		}
+		body, err := json.Marshal(map[string]any{"prompt": prompt, "mode": "change", "attachments": list})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return f.do(f.admin, http.MethodPost, "projects/"+p.ID+"/jobs", strings.NewReader(string(body)), nil)
+	}
+	wantCYDError(t, start("x", "a", "b", "c", "d", "e"), http.StatusBadRequest, cydcreator.CodeBadRequest)
+	wantCYDError(t, start("x", strings.Repeat("a", cydcreator.MaxAttachmentBytes+1)), http.StatusBadRequest, cydcreator.CodeBadRequest)
+	wantCYDError(t, f.do(f.read, http.MethodGet, "revisions/ccr_missing/diff", nil, nil), http.StatusNotFound, cydcreator.CodeNotFound)
+	wantCYDError(t, f.do(f.admin, http.MethodPost, "revisions/ccr_missing/restore", nil, nil), http.StatusNotFound, cydcreator.CodeNotFound)
+
+	// The largest request the service accepts fits the body cap even when
+	// every character is a six-byte JSON escape.
+	w := start(strings.Repeat("\x01", cydcreator.MaxPromptRunes), strings.Repeat("\x01", cydcreator.MaxAttachmentBytes))
+	var started struct {
+		Job cydcreator.Job `json:"job"`
+	}
+	if w.Code != http.StatusAccepted || json.Unmarshal(w.Body.Bytes(), &started) != nil {
+		t.Fatalf("largest accepted request = %d %s", w.Code, w.Body.String())
+	}
+	waitCYDServerJob(t, f, started.Job.ID, cydcreator.JobSucceeded, cydcreator.JobFailed)
+}
+
+func TestCYDCreatorConfirmWithAnEditedPromptPlansAgain(t *testing.T) {
+	f := newCYDTestServer(t)
+	var plannings atomic.Int32
+	f.svc.SetRunner(cydScriptRunner(func(ctx context.Context, run cydcreator.JobRun) error {
+		if run.Phase != cydcreator.PhasePlanning {
+			return nil
+		}
+		plannings.Add(1)
+		_, err := f.svc.SubmitPlan(ctx, run.Job.ID, []byte(`{"summary":"Clock","screens":["home"],"wifi":"optional"}`))
+		return err
+	}))
+	p := f.createProject(t, "Replan")
+	var out struct {
+		Job cydcreator.Job `json:"job"`
+	}
+	f.json(t, f.admin, http.MethodPost, "projects/"+p.ID+"/jobs", `{"prompt":"A clock","mode":"new"}`, nil, http.StatusAccepted, &out)
+	waitCYDServerJob(t, f, out.Job.ID, cydcreator.JobAwaitingConfirmation)
+	var confirmed struct {
+		Job cydcreator.Job `json:"job"`
+	}
+	f.json(t, f.admin, http.MethodPost, "jobs/"+out.Job.ID+"/confirm", `{"prompt":"A bigger clock"}`, nil, http.StatusOK, &confirmed)
+	if confirmed.Job.Status != cydcreator.JobRunning || confirmed.Job.Plan != nil {
+		t.Fatalf("confirmed = %+v", confirmed.Job)
+	}
+	waitCYD(t, "the second plan", func() bool {
+		j, err := f.svc.GetJob(context.Background(), out.Job.ID)
+		return err == nil && j.Status == cydcreator.JobAwaitingConfirmation && plannings.Load() == 2
+	})
+	var messages struct {
+		Messages []cydcreator.Message `json:"messages"`
+	}
+	f.json(t, f.read, http.MethodGet, "projects/"+p.ID+"/messages", "", nil, http.StatusOK, &messages)
+	if !slices.ContainsFunc(messages.Messages, func(m cydcreator.Message) bool {
+		return m.Role == cydcreator.MessageRoleUser && m.Text == "A bigger clock"
+	}) {
+		t.Fatalf("messages = %+v", messages.Messages)
+	}
+	f.json(t, f.admin, http.MethodPost, "jobs/"+out.Job.ID+"/cancel", "", nil, http.StatusAccepted, nil)
+	waitCYDServerJob(t, f, out.Job.ID, cydcreator.JobCancelled)
+}
+
+func TestCYDCreatorDraftDiscardAndRestoreGates(t *testing.T) {
+	f := newCYDTestServer(t)
+	wrote := make(chan struct{})
+	f.svc.SetRunner(cydScriptRunner(func(ctx context.Context, run cydcreator.JobRun) error {
+		if _, err := f.svc.WriteJobFile(ctx, run.Job.ID, "src/app/extra.cpp", "int x;\n"); err != nil {
+			return err
+		}
+		close(wrote)
+		<-ctx.Done()
+		return ctx.Err()
+	}))
+	p := f.createProject(t, "Draft")
+	var out struct {
+		Job cydcreator.Job `json:"job"`
+	}
+	f.json(t, f.admin, http.MethodPost, "projects/"+p.ID+"/jobs", `{"prompt":"x","mode":"change"}`, nil, http.StatusAccepted, &out)
+	<-wrote
+	f.json(t, f.admin, http.MethodPost, "jobs/"+out.Job.ID+"/cancel", "", nil, http.StatusAccepted, nil)
+	waitCYDServerJob(t, f, out.Job.ID, cydcreator.JobCancelled)
+	var project struct {
+		Project cydcreator.ProjectSummary `json:"project"`
+	}
+	waitCYD(t, "the draft", func() bool {
+		f.json(t, f.read, http.MethodGet, "projects/"+p.ID, "", nil, http.StatusOK, &project)
+		return project.Project.HasDraft
+	})
+	if w := f.do(f.admin, http.MethodPost, "projects/"+p.ID+"/draft/discard", nil, nil); w.Code != http.StatusNoContent {
+		t.Fatalf("discard = %d %s", w.Code, w.Body.String())
+	}
+	f.json(t, f.read, http.MethodGet, "projects/"+p.ID, "", nil, http.StatusOK, &project)
+	if project.Project.HasDraft {
+		t.Fatalf("project after discard = %+v", project.Project)
+	}
+
+	var revisions struct {
+		Revisions []cydcreator.Revision `json:"revisions"`
+	}
+	f.json(t, f.read, http.MethodGet, "projects/"+p.ID+"/revisions", "", nil, http.StatusOK, &revisions)
+	if len(revisions.Revisions) != 1 {
+		t.Fatalf("revisions = %+v", revisions.Revisions)
+	}
+	restore := "revisions/" + revisions.Revisions[0].ID + "/restore"
+	cydLockProjectForTest(t, f, p.ID, "ccj_other")
+	locked := wantCYDError(t, f.do(f.admin, http.MethodPost, restore, nil, nil), http.StatusLocked, cydcreator.CodeProjectLocked)
+	if locked.Details["job_id"] != "ccj_other" {
+		t.Fatalf("locked details = %v", locked.Details)
+	}
+	cydLockProjectForTest(t, f, p.ID, "")
+	f.s.Cfg.VirtualDesktop.ReadOnly = true
+	wantCYDError(t, f.do(f.admin, http.MethodPost, restore, nil, nil), http.StatusForbidden, cydcreator.CodeReadOnly)
+	f.s.Cfg.VirtualDesktop.ReadOnly = false
+	f.json(t, f.admin, http.MethodPost, restore, "", nil, http.StatusOK, nil)
 }
 
 func TestCYDCreatorJobCancelWorksWhileReadOnly(t *testing.T) {
