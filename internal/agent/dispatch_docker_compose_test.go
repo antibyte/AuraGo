@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/dockerutil"
 	"aurago/internal/tools"
 )
 
@@ -119,6 +122,181 @@ func TestDockerComposePolicyAllowsUserContainerNamesEndingInAurago(t *testing.T)
 		if got != "" {
 			t.Fatalf("%s: container_name dev-aurago was blocked: %s", command, got)
 		}
+	}
+}
+
+// stubDockerComposeReferenceOwnership answers the Docker ownership lookups of
+// container references.
+func stubDockerComposeReferenceOwnership(t *testing.T, resolve func(target string) (map[string]bool, error)) {
+	t.Helper()
+	original := dockerComposeReferenceOwnership
+	t.Cleanup(func() { dockerComposeReferenceOwnership = original })
+	dockerComposeReferenceOwnership = func(_ tools.DockerConfig, target string, _ ...string) (map[string]bool, error) {
+		return resolve(target)
+	}
+}
+
+// network_mode, pid and ipc "container:" targets (and volumes_from) are
+// resolved through Docker like the Engine resolves them: an ID prefix, a full
+// ID, a name and a renamed container with AuraGo's label all name their owner.
+// A shared PID namespace would expose the app container's environ and
+// /proc/<pid>/root; a shared network namespace its loopback services.
+func TestDockerComposePolicyResolvesContainerReferencesThroughDocker(t *testing.T) {
+	appID := strings.Repeat("a", 64)
+	llmID := strings.Repeat("b", 64)
+	vpnID := strings.Repeat("e", 64)
+	var failing bool
+	var lookups []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		switch {
+		case path == "/version":
+			_, _ = w.Write([]byte(`{"ApiVersion":"1.45","MinAPIVersion":"1.25"}`))
+			return
+		case failing:
+			http.Error(w, `{"message":"refused by the socket proxy"}`, http.StatusForbidden)
+			return
+		case strings.HasSuffix(path, "/containers/json"):
+			_, _ = w.Write([]byte(`[]`))
+			return
+		}
+		target := strings.TrimSuffix(path[strings.Index(path, "/containers/")+len("/containers/"):], "/json")
+		lookups = append(lookups, target)
+		switch {
+		case strings.HasPrefix(appID, target) || target == "renamed-app":
+			_, _ = w.Write([]byte(`{"Id":"` + appID + `","Name":"/renamed-app","Config":{"Labels":{"aurago.managed":"aurago-app"}}}`))
+		case strings.HasPrefix(llmID, target) || target == "renamed-llm":
+			_, _ = w.Write([]byte(`{"Id":"` + llmID + `","Name":"/renamed-llm","Config":{"Labels":{"aurago.managed":"local-llm"}}}`))
+		case strings.HasPrefix(vpnID, target) || target == "gluetun":
+			_, _ = w.Write([]byte(`{"Id":"` + vpnID + `","Name":"/gluetun","Config":{"Labels":{"com.docker.compose.service":"gluetun"}}}`))
+		default:
+			http.Error(w, `{"message":"No such container"}`, http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "ns/compose.yml", "services:\n  web:\n    image: alpine\n")
+	dockerCfg := tools.DockerConfig{WorkspaceDir: workspace, Host: "tcp://" + strings.TrimPrefix(server.URL, "http://")}
+	cfg := &config.Config{}
+	cfg.Docker.Enabled = true
+	useRuntimePermissionsForTest(t, cfg)
+	policy := func(resolved, command string) string {
+		stubDockerComposeResolver(t, func(string) (string, error) { return resolved, nil })
+		return dockerComposePolicy(context.Background(), cfg, dockerCfg, dockerArgs{Operation: "compose", File: "ns/compose.yml", Command: command})
+	}
+	service := func(field, target string) string {
+		return `{"services":{"web":{"image":"alpine","` + field + `":"container:` + target + `"}}}`
+	}
+	for _, field := range []string{"pid", "network_mode", "ipc"} {
+		// Docker resolves "/name" like "name".
+		for _, target := range []string{appID[:12], appID, "renamed-app", "/renamed-app", "/" + appID[:12]} {
+			for _, command := range []string{"up -d", "ps"} {
+				if got := policy(service(field, target), command); !strings.Contains(got, `"code":"docker_managed_aurago_resource"`) {
+					t.Fatalf("%s container:%s, %s = %s, want the AuraGo app refusal", field, target, command, got)
+				}
+			}
+		}
+		for _, target := range []string{llmID[:12], llmID, "renamed-llm", "/renamed-llm", "/" + llmID[:16]} {
+			for _, command := range []string{"up -d", "ps"} {
+				if got := policy(service(field, target), command); !strings.Contains(got, "managed local LLM") {
+					t.Fatalf("%s container:%s, %s = %s, want the local LLM refusal", field, target, command, got)
+				}
+			}
+		}
+		// Containers that belong to nobody protected stay usable.
+		for _, target := range []string{"gluetun", "/gluetun", vpnID[:12], "ghost"} {
+			if got := policy(service(field, target), "ps"); got != "" {
+				t.Fatalf("%s container:%s = %s, want it allowed", field, target, got)
+			}
+		}
+		// A target that is no checkable name fails closed instead of owning
+		// nothing.
+		for _, target := range []string{"//renamed-app", "bad name", "-renamed", "a..b", "x$y"} {
+			if got := policy(service(field, target), "ps"); !strings.Contains(got, `"code":"docker_ownership_unverified"`) {
+				t.Fatalf("%s container:%s = %s, want docker_ownership_unverified", field, target, got)
+			}
+		}
+	}
+	// Services of the same project are no Docker lookup.
+	lookups = nil
+	if got := policy(`{"services":{"vpn":{"image":"alpine"},"web":{"image":"alpine","network_mode":"service:vpn","pid":"service:vpn","ipc":"service:vpn"}}}`, "ps"); got != "" || len(lookups) != 0 {
+		t.Fatalf("same-project namespaces = %s (lookups %v), want allowed without a lookup", got, lookups)
+	}
+	// Docker did not answer: fail closed.
+	failing = true
+	if got := policy(service("pid", "deadbeef"), "up -d"); !strings.Contains(got, `"code":"docker_ownership_unverified"`) {
+		t.Fatalf("unverifiable pid target = %s, want docker_ownership_unverified", got)
+	}
+}
+
+// volumes_from of another container is resolved too: by ID, by a name that is
+// no service of the project and with a leading slash. (The older text check
+// already refuses every volumes_from in a Compose file; the references still
+// name them.)
+func TestDockerComposeContainerReferenceDenialCoversVolumesFrom(t *testing.T) {
+	appID := strings.Repeat("a", 12)
+	stubDockerComposeReferenceOwnership(t, func(target string) (map[string]bool, error) {
+		return map[string]bool{
+			dockerutil.AppOwner:      target == appID,
+			dockerutil.LocalLLMOwner: target == "renamed-llm",
+		}, nil
+	})
+	cases := map[string]struct {
+		resolved, want string
+	}{
+		"app container by ID":            {`{"services":{"db":{"image":"x"},"web":{"image":"alpine","volumes_from":["db","container:` + appID + `:ro"]}}}`, `"code":"docker_managed_aurago_resource"`},
+		"local LLM by name":              {`{"services":{"web":{"image":"alpine","volumes_from":["renamed-llm"]}}}`, "managed local LLM"},
+		"local LLM with a leading slash": {`{"services":{"web":{"image":"alpine","volumes_from":["container:/renamed-llm:rw"]}}}`, "managed local LLM"},
+		"no checkable name":              {`{"services":{"web":{"image":"alpine","volumes_from":["container://renamed-llm"]}}}`, `"code":"docker_ownership_unverified"`},
+		"unrelated container":            {`{"services":{"web":{"image":"alpine","volumes_from":["container:gluetun:ro"]}}}`, ""},
+		"same-project service":           {`{"services":{"db":{"image":"x"},"web":{"image":"alpine","volumes_from":["db:ro"]}}}`, ""},
+	}
+	for name, tc := range cases {
+		model, err := tools.ParseDockerComposeModel(tc.resolved)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		got := dockerComposeContainerReferenceDenial(tools.DockerConfig{}, model)
+		if tc.want == "" && got != "" || tc.want != "" && !strings.Contains(got, tc.want) {
+			t.Fatalf("%s = %s, want %q", name, got, tc.want)
+		}
+	}
+}
+
+// Every owner the agent docker tool keeps exec away from is refused as a
+// Compose container reference with a coded error; the security proxy is not
+// one of them (the agent keeps its access there).
+func TestDockerComposeContainerReferenceDenialRefusesEveryProtectedOwner(t *testing.T) {
+	model, err := tools.ParseDockerComposeModel(`{"services":{"web":{"image":"alpine","pid":"container:target"}}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	codes := map[string]string{
+		"go2rtc":                     `"code":"docker_managed_go2rtc_resource"`,
+		"ruview":                     `"code":"docker_managed_ruview_resource"`,
+		dockerutil.HomepageOwner:     `"code":"docker_managed_homepage_resource"`,
+		dockerutil.BoringGarageOwner: `"code":"docker_managed_garage_resource"`,
+		dockerutil.AppOwner:          `"code":"docker_managed_aurago_resource"`,
+		dockerutil.LocalLLMOwner:     "managed local LLM",
+	}
+	for _, owner := range dockerComposeReferenceOwners {
+		if owner == dockerutil.SecurityProxyOwner {
+			t.Fatal("the security proxy must stay joinable")
+		}
+		stubDockerComposeReferenceOwnership(t, func(string) (map[string]bool, error) { return map[string]bool{owner: true}, nil })
+		got := dockerComposeContainerReferenceDenial(tools.DockerConfig{}, model)
+		if !strings.Contains(got, `"status":"error"`) {
+			t.Fatalf("owner %s = %q, want a refusal", owner, got)
+		}
+		if want, ok := codes[owner]; ok && !strings.Contains(got, want) {
+			t.Fatalf("owner %s = %s, want %s", owner, got, want)
+		}
+	}
+	stubDockerComposeReferenceOwnership(t, func(string) (map[string]bool, error) {
+		return map[string]bool{dockerutil.SecurityProxyOwner: true}, nil
+	})
+	if got := dockerComposeContainerReferenceDenial(tools.DockerConfig{}, model); got != "" {
+		t.Fatalf("the security proxy container was refused: %s", got)
 	}
 }
 

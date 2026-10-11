@@ -844,6 +844,9 @@ func dockerComposePolicyRun(ctx context.Context, cfg *config.Config, dockerCfg t
 	if denied := dockerComposeOwnerDenial(preflight.protectedOwner(effective)); denied != "" {
 		return denied
 	}
+	if denied := dockerComposeContainerReferenceDenial(dockerCfg, preflight.model, effective.model); denied != "" {
+		return denied
+	}
 	if subcommand == "up" || subcommand == "create" {
 		// The security proxy name is reserved for everyone, as for agent
 		// create/run; managed sidecar names only without host access.
@@ -956,6 +959,69 @@ func dockerComposeOwnerDenial(owner string) string {
 		return dockerAgentError("docker_managed_homepage_resource", "Docker Compose access to AuraGo-managed homepage resources is blocked. Use homepage_project, homepage_file, or homepage_deploy.")
 	case dockerutil.AppOwner:
 		return dockerAgentError("docker_managed_aurago_resource", "Docker Compose access to AuraGo's application container is blocked.")
+	}
+	return ""
+}
+
+// dockerComposeReferenceOwners are the owners whose containers no Compose
+// service may join or read through network_mode/pid/ipc "container:" or
+// volumes_from: the owners whose exec the agent docker tool refuses
+// (dispatchServices). The security proxy is not listed: the agent keeps its
+// exec access there.
+var dockerComposeReferenceOwners = []string{
+	acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "ruview", dockerutil.LocalLLMOwner,
+	dockerutil.BoringGarageOwner, dockerutil.AppOwner,
+}
+
+// dockerComposeReferenceOwnership resolves a container reference like Docker
+// does (name, full ID or ID prefix; labels for renamed containers). Tests
+// replace it.
+var dockerComposeReferenceOwnership = tools.DockerContainerOwnership
+
+// dockerComposeContainerReferenceDenial resolves every container outside the
+// project that a service joins or reads (tools.DockerComposeContainerReferences)
+// and refuses a protected owner, a reference that is no checkable container
+// name, and a target Docker did not answer for (fail closed, as for
+// container-targeted docker operations). A shared PID namespace exposes the
+// target's /proc/<pid>/root and environ, so the name rules alone (an ID prefix,
+// a renamed container) are not enough. Targets that do not exist (404) pass:
+// Compose itself fails on them.
+func dockerComposeContainerReferenceDenial(dockerCfg tools.DockerConfig, models ...tools.DockerComposeModel) string {
+	seen := map[string]bool{}
+	for _, model := range models {
+		for _, target := range tools.DockerComposeContainerReferences(model) {
+			if seen[target] {
+				continue
+			}
+			seen[target] = true
+			if !tools.DockerNameValid(target) {
+				// DockerContainerOwnership owns nothing for an invalid name,
+				// while Docker may still resolve it: fail closed.
+				return dockerAgentError("docker_ownership_unverified", fmt.Sprintf(
+					"Container %q, which this Compose file joins or reads (network_mode, pid, ipc or volumes_from), is not a container name or ID AuraGo can check, so nothing was run.", target))
+			}
+			owned, err := dockerComposeReferenceOwnership(dockerCfg, target, dockerComposeReferenceOwners...)
+			for _, owner := range dockerComposeReferenceOwners {
+				if !owned[owner] {
+					continue
+				}
+				switch owner {
+				case "go2rtc":
+					return dockerAgentError("docker_managed_go2rtc_resource", "Docker Compose cannot join or read AuraGo's managed go2rtc container.")
+				case "ruview":
+					return dockerAgentError("docker_managed_ruview_resource", "Docker Compose cannot join or read AuraGo's managed RuView container.")
+				}
+				if denied := dockerComposeOwnerDenial(owner); denied != "" {
+					return denied
+				}
+				return dockerAgentError("docker_managed_resource", fmt.Sprintf("Docker Compose cannot join or read container %q: it is managed by AuraGo.", target))
+			}
+			if err != nil {
+				slog.Default().Warn("Docker Compose container reference could not be verified", "container", target, "error", err)
+				return dockerAgentError("docker_ownership_unverified", fmt.Sprintf(
+					"Docker did not answer the ownership check for container %q, which this Compose file joins or reads (network_mode, pid, ipc or volumes_from), so nothing was run. Retry when the Docker API is reachable.", target))
+			}
+		}
 	}
 	return ""
 }

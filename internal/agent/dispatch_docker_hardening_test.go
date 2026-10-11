@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -345,6 +346,46 @@ func TestDispatchDockerKeepsSecurityProxyContainerAccess(t *testing.T) {
 	for _, name := range []string{"caddy", "security-proxy", "aurago-security-proxy-test"} {
 		if dockerRequestCreatesReservedSecurityProxyName(decodeDockerArgs(ToolCall{Action: "docker", Operation: "run", Name: name, Image: "caddy:latest"})) {
 			t.Fatalf("generic name %q was treated as the reserved security proxy name", name)
+		}
+	}
+}
+
+// The agent's create/run path cannot share another container's network, PID
+// or IPC namespace or its volumes: dispatch sets none of these keys, even when
+// the call carries them. Compose references are resolved by
+// dockerComposeContainerReferenceDenial instead.
+func TestDispatchDockerCreateNeverJoinsAnotherContainer(t *testing.T) {
+	var body map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/version":
+			_, _ = w.Write([]byte(`{"ApiVersion":"1.45","MinAPIVersion":"1.25"}`))
+		case strings.HasSuffix(r.URL.Path, "/containers/create"):
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"Id":"bbbbbbbbbbbb2222"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+	cfg := &config.Config{}
+	cfg.Docker.Enabled = true
+	cfg.Docker.Host = "tcp://" + strings.TrimPrefix(server.URL, "http://")
+	cfg.Directories.WorkspaceDir = t.TempDir()
+	useRuntimePermissionsForTest(t, cfg)
+	call := ToolCall{Action: "docker", Operation: "create", Name: "job", Image: "alpine:latest", Params: map[string]interface{}{
+		"network_mode": "container:aurago-local-llm", "pid_mode": "container:aurago", "ipc_mode": "container:aurago",
+		"pid": "container:aaaaaaaaaaaa", "volumes_from": []interface{}{"aurago-local-llm"},
+	}}
+	output, ok := dispatchServices(context.Background(), call, &DispatchContext{Cfg: cfg, Logger: testLogger})
+	if !ok || strings.Contains(output, `"status":"error"`) {
+		t.Fatalf("create = %s", output)
+	}
+	host, _ := body["HostConfig"].(map[string]any)
+	for _, key := range []string{"NetworkMode", "PidMode", "IpcMode", "VolumesFrom", "UTSMode", "UsernsMode", "CgroupnsMode"} {
+		if _, set := host[key]; set {
+			t.Fatalf("create body sets HostConfig.%s: %v", key, host)
 		}
 	}
 }

@@ -274,6 +274,51 @@ func TestParseDockerComposeModelRejectsEmptyAndNonJSON(t *testing.T) {
 	}
 }
 
+// DockerComposeContainerReferences names every container outside the project
+// that a service joins or reads; the agent resolves each through Docker.
+func TestDockerComposeContainerReferencesListsOutsideContainers(t *testing.T) {
+	model, err := ParseDockerComposeModel(`{"services":{
+		"db":{"image":"x"},
+		"a":{"image":"x","network_mode":"container:cccccccccccc","pid":"container:` + strings.Repeat("c", 64) + `","ipc":"container:renamed"},
+		"b":{"image":"x","network_mode":"service:db","pid":"host","ipc":"shareable","volumes_from":["db","db:ro","container:vpn:rw","other"]},
+		"c":{"image":"x","network_mode":"container:cccccccccccc"},
+		"d":{"image":"x","network_mode":"container:/renamed","pid":"container://double","ipc":"container:/cccc"},
+		"e":{"image":"x","volumes_from":["container:/vpn:ro","container:/slashed:rw"]}}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Docker resolves "/name" like "name": one leading slash is dropped, so a
+	// slashed label-only target is still resolved; "//double" keeps one slash
+	// and the agent refuses it as no valid name.
+	want := []string{"/double", "cccc", "cccccccccccc", strings.Repeat("c", 64), "other", "renamed", "slashed", "vpn"}
+	if got := DockerComposeContainerReferences(model); strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("references = %q, want %q", got, want)
+	}
+	// service: references stay inside the project and need no lookup.
+	internal, err := ParseDockerComposeModel(`{"services":{"vpn":{"image":"x"},"web":{"image":"x","network_mode":"service:vpn","pid":"service:vpn","ipc":"service:vpn","volumes_from":["vpn:ro","service:vpn:rw"]}}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := DockerComposeContainerReferences(internal); len(got) != 0 {
+		t.Fatalf("same-project references = %q, want none", got)
+	}
+}
+
+// DockerNameValid is the check DockerContainerOwnership applies before any
+// request; names it rejects own nothing there.
+func TestDockerNameValidMatchesTheOwnershipNameCheck(t *testing.T) {
+	for _, name := range []string{"aurago", "aurago-local-llm", strings.Repeat("a", 12), "project_app.1"} {
+		if !DockerNameValid(name) {
+			t.Fatalf("DockerNameValid(%q) = false", name)
+		}
+	}
+	for _, name := range []string{"", "/aurago", "-x", "bad name", "a..b", "x$y", strings.Repeat("a", maxDockerNameLength+1)} {
+		if DockerNameValid(name) {
+			t.Fatalf("DockerNameValid(%q) = true", name)
+		}
+	}
+}
+
 func TestDockerComposeModelOwnerFindsStructuredReferences(t *testing.T) {
 	cases := map[string]struct {
 		resolved string

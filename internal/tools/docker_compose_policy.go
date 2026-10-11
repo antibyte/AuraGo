@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -244,6 +245,51 @@ func DockerComposeModelOwner(model DockerComposeModel) string {
 		}
 	}
 	return ""
+}
+
+// DockerComposeContainerReferences returns the containers outside the project
+// that the model's services reach into: container: targets of network_mode,
+// pid and ipc, and volumes_from entries that are container: references or name
+// no service of the model. Docker resolves such a target as a name, a full ID
+// or an ID prefix, so the agent asks Docker who owns each one
+// (DockerContainerOwnership); the name rules of DockerComposeModelOwner alone
+// miss an ID or a renamed container. Sorted and deduplicated.
+func DockerComposeContainerReferences(model DockerComposeModel) []string {
+	seen := map[string]bool{}
+	var targets []string
+	add := func(target string) {
+		// Docker resolves "/name" like "name"; a target that is still no
+		// valid name afterwards ("//x") is refused by the agent, never skipped.
+		target = strings.TrimPrefix(strings.TrimSpace(target), "/")
+		if target != "" && !seen[target] {
+			seen[target] = true
+			targets = append(targets, target)
+		}
+	}
+	for _, name := range sortedDockerComposeKeys(model.Services) {
+		service := model.Services[name]
+		for _, mode := range []string{service.NetworkMode, service.Pid, service.Ipc} {
+			if target, ok := strings.CutPrefix(strings.TrimSpace(mode), "container:"); ok {
+				add(target)
+			}
+		}
+		for _, ref := range service.VolumesFrom {
+			target := strings.TrimSpace(ref)
+			if strings.HasPrefix(target, "service:") {
+				// A service of this project, like network_mode "service:".
+				continue
+			}
+			isContainer := strings.HasPrefix(target, "container:")
+			target = strings.TrimPrefix(target, "container:")
+			target = strings.TrimSuffix(strings.TrimSuffix(target, ":ro"), ":rw")
+			if _, sameProject := model.Services[target]; sameProject && !isContainer {
+				continue
+			}
+			add(target)
+		}
+	}
+	sort.Strings(targets)
+	return targets
 }
 
 // dockerComposeLabelOwner reports the AuraGo owner named by canonical or legacy
