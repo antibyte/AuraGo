@@ -838,14 +838,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + tools.FrigateRecordingsSummary(ctx, frCfg, mediaParams)
 			case "event_snapshot", "event_clip", "latest_frame", "export_recording":
 				logger.Info("LLM requested Frigate media", "operation", req.Operation)
-				data, contentType, err := tools.FrigateMedia(ctx, frCfg, req.Operation, mediaParams)
-				if err != nil {
-					return "Tool Output: " + tools.ErrorJSON(security.Scrub(err.Error()))
-				}
-				if !cfg.Frigate.StoreMedia {
-					return fmt.Sprintf(`Tool Output: {"status":"ok","content_type":%q,"bytes":%d,"stored":false,"message":"Media fetched successfully but frigate.store_media is disabled."}`, contentType, len(data))
-				}
-				result, err := tools.StoreFrigateMedia(cfg.Directories.DataDir, dc.MediaRegistryDB, req.Operation, mediaParams, data, contentType)
+				result, err := tools.FrigateMedia(ctx, frCfg, req.Operation, mediaParams, cfg.Directories.DataDir, dc.MediaRegistryDB, cfg.Frigate.StoreMedia)
 				if err != nil {
 					return "Tool Output: " + tools.ErrorJSON(security.Scrub(err.Error()))
 				}

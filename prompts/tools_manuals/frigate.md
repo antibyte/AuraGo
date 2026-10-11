@@ -40,6 +40,7 @@ Notes:
 - `offset` paginates `events` and `reviews` together with `limit`.
 - `reviews` uses Frigate's current `cameras`, `labels`, `zones`, `reviewed`, and `severity` filters. A single `camera` value is converted to `cameras`.
 - Stored media responses include `local_path`, `web_path`, `sha256`, and `media_id` when the media registry is available.
+- Media downloads stream to disk with a 256 MiB cap. Allowed types are `image/jpeg`, `image/png`, `image/webp`, and `video/mp4`. `application/octet-stream` is kept only for `event_clip` and `export_recording` when the file starts with an ftyp box. Any other type is discarded. With `frigate.store_media` disabled, the download is counted and then deleted.
 - `event_relay` and `review_relay` subscribe to Frigate MQTT event/review topics when MQTT is enabled.
 
 Configuration reads expose structure and allowlisted numeric/boolean settings only. String values and credential-bearing sections are redacted locally, including config_raw. `cameras` returns only the redacted `cameras` object as `{"status":"ok","cameras":...}`; a missing key is `{}`. Other top-level fields stay on `config` and `config_raw`. Unparseable or unsupported configuration is withheld; no raw fallback is returned.
