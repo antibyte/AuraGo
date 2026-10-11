@@ -15,10 +15,13 @@ Fame of 46 classics is the start page.
   hour before it tries again. "Update index" in the app refreshes everything at once. A platform is replaced
   in one step, and an empty answer from archive.org (or one with less than half of the known games) keeps the
   old list. Nothing is downloaded while Retro Games is off.
-- **Playing:** games run in archive.org's own emulator (DOSBox, MAME, VICE, SAE and others) inside the
-  window. Click the power button on the game screen to start; the first start of an arcade or console
-  game can take up to 40 seconds while the emulator downloads. Click into the screen to play with the
-  keyboard; click outside to release it.
+- **Playing:** a game starts as soon as you open it. AuraGo serves a small player page of its own that runs
+  archive.org's emulators (Emularity: DOSBox, MAME, VICE, SAE and others) and loads the game files from
+  archive.org; the picture is always scaled to fit the window. The first start of an arcade or console game
+  can take up to 40 seconds while the emulator downloads. Click into the screen to play with the keyboard;
+  click outside to release it. The 🔊/🔇 button switches the sound; the choice is remembered in this browser.
+  If the browser blocks sound, the game shows "Click for sound" — one click into the screen turns it on.
+  In-game saves are not kept between sessions.
 - **Doesn't start:** not every archived title runs. Mark such a game with ⚠ (the button on the game screen,
   or "Mark as not starting" in the context menu of a game card). It then no longer shows up in search results
   — in the app and for the agent — and appears dimmed in the Hall of Fame, Recently played and Favorites. The
@@ -50,9 +53,11 @@ enabled for the app.
 ## Privacy and rights
 
 - AuraGo talks only to `archive.org` (search API over HTTPS, no redirects, no private addresses).
-  Thumbnails and the emulator load directly from archive.org in your browser, so archive.org sees your
-  IP address while you browse and play.
-- AuraGo does not download, host or redistribute game files; it only embeds archive.org's player.
+  Thumbnails, the emulators and the game files load directly from archive.org in your browser, so
+  archive.org sees your IP address while you browse and play.
+- The player page runs archive.org's emulator code in an isolated sandbox: it has no access to AuraGo's
+  cookies, storage, pages or API and may only connect to archive.org hosts.
+- AuraGo does not download, host or redistribute game files; the player loads them from archive.org.
   Availability on archive.org does not mean you may redistribute a game.
 - If SQLite reports the index file as corrupt, AuraGo moves it aside (`retrogames.db.corrupt-<UTC time as
   YYYYMMDD-HHMMSS>`, with its `-wal` and `-shm` files) and builds a new one; favorites and history start empty

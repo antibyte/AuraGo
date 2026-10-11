@@ -40,7 +40,7 @@
 - A source may hold at most 50,000 games (`maxItemsPerSource`, ~200 MB worst case while syncing).
 - Scrape pages are stream-decoded with a cap of 10,000 elements; `FlexText` stream-decodes with depth 3 / 64
   values.
-- Identifiers must match `^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$` everywhere (API paths, embed URLs).
+- Identifiers must match `^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$` everywhere (API paths, the player page, archive.org links).
 - Trust boundary: archive.org's code (Emularity `loader.js`, BrowserFS, the emulators) runs only in the
   player page `GET|HEAD /api/desktop/retro-games/player` (`internal/server/retro_games_player.go`).
   Protected is AuraGo's origin: the CSP sandbox (no `allow-same-origin`, mirrored by the app's iframe
