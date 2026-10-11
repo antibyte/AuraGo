@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -58,5 +59,112 @@ func TestCYDCreatorManifestAndIcons(t *testing.T) {
 		if words["desktop.app_cyd_creator"] != "CYD Creator" {
 			t.Errorf("lang/desktop/%s.json: desktop.app_cyd_creator = %q", lang, words["desktop.app_cyd_creator"])
 		}
+	}
+}
+
+var cydCreatorKeyLiteral = regexp.MustCompile(`'(cyd_creator\.[A-Za-z0-9_.]*)'(\s*\+)?`)
+
+func readCYDCreatorShellLang(t *testing.T, lang string) map[string]string {
+	t.Helper()
+	out := map[string]string{}
+	if err := json.Unmarshal([]byte(rawDesktopAssetText(t, "lang/cyd_creator/"+lang+".json")), &out); err != nil {
+		t.Fatalf("lang/cyd_creator/%s.json: %v", lang, err)
+	}
+	return out
+}
+
+// TestCYDCreatorKeysExistInAllLocales scans the plan-4a shell modules present for full
+// "cyd_creator.…" key literals; dynamic families (a literal ending in "_" or "." or followed by "+")
+// need a member list here. All sixteen locales carry every used key and exactly the English key set.
+func TestCYDCreatorKeysExistInAllLocales(t *testing.T) {
+	errorCodes := []string{"CYD_DISABLED", "CYD_DOCKER_UNAVAILABLE", "CYD_IMAGE_MISSING", "CYD_IMAGE_PULL_FAILED", "CYD_BAD_REQUEST",
+		"CYD_NOT_FOUND", "CYD_READONLY", "CYD_BUSY", "CYD_PROJECT_LOCKED", "CYD_PROJECT_CONFLICT", "CYD_INVALID_LAYOUT",
+		"CYD_FILE_READONLY", "CYD_FILE_CONFLICT", "CYD_FILE_LIMIT", "CYD_ASSET_TOO_LARGE", "CYD_GENERATOR_ERROR", "CYD_BUILD_FAILED",
+		"CYD_BUILD_TIMEOUT", "CYD_BUILD_CANCELLED", "CYD_BUILD_INTERRUPTED", "CYD_FLASH_BUDGET_EXCEEDED", "CYD_JOB_NOT_FOUND",
+		"CYD_JOB_STATE", "CYD_DEVICE_NOT_FOUND", "CYD_UNAUTHORIZED", "CYD_RATE_LIMITED", "CYD_OTA_DISABLED", "CYD_IMPORT_INVALID",
+		"CYD_TEMPLATE_TOO_NEW", "CYD_FLASH_WRONG_CHIP", "CYD_FLASH_PORT_BUSY", "CYD_FLASH_DISCONNECTED", "CYD_SERIAL_UNSUPPORTED",
+		"CYD_INTERNAL", "network", "generic"}
+	families := map[string][]string{
+		"cyd_creator.agent.wifi_":       {"off", "optional", "required"},
+		"cyd_creator.build.status_":     {"queued", "running", "succeeded", "failed", "cancelled", "interrupted"},
+		"cyd_creator.code.group_":       {"app", "generated", "template"},
+		"cyd_creator.code.state_":       {"saved", "dirty", "saving", "offline", "failed", "conflict", "locked"},
+		"cyd_creator.dock.":             {"log", "problems"},
+		"cyd_creator.dock.source_":      {"layout", "build"},
+		"cyd_creator.home.board_hint_":  {"verified", "community"},
+		"cyd_creator.error.":            errorCodes,
+		"cyd_creator.job.phase_":        {"queued", "planning", "layout", "coding", "building", "repairing", "done"},
+		"cyd_creator.job.status_":       {"queued", "running", "awaiting_confirmation", "succeeded", "failed", "cancelled", "interrupted"},
+		"cyd_creator.orientation.":      {"landscape", "portrait", "landscape_flipped", "portrait_flipped"},
+		"cyd_creator.revisions.reason_": {"before_job", "job", "restore", "import", "template_upgrade"},
+		"cyd_creator.revisions.status_": {"added", "modified", "deleted"},
+	}
+	// The key prefix itself and the families plan 4b owns (issue codes, theme names, board states) are
+	// not 4a's: the shell reads them with t.has/t.or fallbacks, the designer's own test covers them.
+	ignored := map[string]bool{"cyd_creator.": true, "cyd_creator.issue.": true, "cyd_creator.theme.": true, "cyd_creator.board.status_": true}
+	// Only the shell modules: the designer modules of plan 4b and the device modules of plan 5 carry
+	// their own key tests.
+	shell := map[string]bool{"cyd-creator-core.js": true, "cyd-creator-api.js": true, "cyd-creator-events.js": true, "cyd-creator-dock.js": true,
+		"cyd-creator-code.js": true, "cyd-creator-agent.js": true, "cyd-creator-home.js": true, "cyd-creator-app.js": true}
+	used := map[string]bool{}
+	files, err := filepath.Glob(filepath.Join("js", "desktop", "apps", "cyd-creator-*.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range files {
+		if !shell[filepath.Base(file)] {
+			continue
+		}
+		data, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, m := range cydCreatorKeyLiteral.FindAllStringSubmatch(string(data), -1) {
+			key := m[1]
+			if m[2] != "" || strings.HasSuffix(key, "_") || strings.HasSuffix(key, ".") {
+				if ignored[key] {
+					continue
+				}
+				if _, ok := families[key]; !ok {
+					t.Errorf("dynamic key family %s (in %s) has no member list in this test", key, file)
+				}
+				continue
+			}
+			used[key] = true
+		}
+	}
+	for prefix, members := range families {
+		for _, member := range members {
+			used[prefix+member] = true
+		}
+	}
+	en := readCYDCreatorShellLang(t, "en")
+	for _, lang := range cydCreatorLocales {
+		words := readCYDCreatorShellLang(t, lang)
+		for key := range used {
+			if strings.TrimSpace(words[key]) == "" {
+				t.Errorf("lang/cyd_creator/%s.json misses %s", lang, key)
+			}
+		}
+		for key := range en {
+			if _, ok := words[key]; !ok {
+				t.Errorf("lang/cyd_creator/%s.json misses %s (present in en)", lang, key)
+			}
+		}
+		for key := range words {
+			if _, ok := en[key]; !ok {
+				t.Errorf("lang/cyd_creator/%s.json has %s, which en lacks", lang, key)
+			}
+		}
+	}
+	de := readCYDCreatorShellLang(t, "de")
+	formal := regexp.MustCompile(`\b(Sie|Ihnen|Ihre[nmrs]?)\b`)
+	for key := range used {
+		if value := de[key]; formal.MatchString(value) {
+			t.Errorf("de %s addresses the user formally: %q", key, value)
+		}
+	}
+	if !strings.Contains(de["cyd_creator.app.close"], "ß") || !strings.Contains(de["cyd_creator.code.conflict_overwrite"], "Ü") {
+		t.Error("German strings must use real umlauts and ß")
 	}
 }
