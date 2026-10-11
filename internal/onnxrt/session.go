@@ -123,8 +123,8 @@ type Tensor struct {
 }
 
 // Session is one ORT inference session. Run may be called concurrently from
-// several goroutines; Close and EndProfiling must not overlap Run or each
-// other.
+// several goroutines; Close and EndProfiling must not run concurrently with
+// any other call on the same Session, including another Close.
 type Session struct {
 	runtime      *Runtime
 	handle       uintptr

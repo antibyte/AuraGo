@@ -198,7 +198,11 @@ func TestCPURuntimeIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer rt.Close()
+	t.Cleanup(func() {
+		if err := rt.Close(); err != nil {
+			t.Error(err)
+		}
+	})
 	if rt.Version() != CPURuntimeVersion {
 		t.Fatalf("version = %q", rt.Version())
 	}
@@ -261,7 +265,11 @@ func TestCPURuntimeIntegrationOutputs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer rt.Close()
+	t.Cleanup(func() {
+		if err := rt.Close(); err != nil {
+			t.Error(err)
+		}
+	})
 	open := func(t *testing.T, model []byte, opts SessionOptions) *Session {
 		t.Helper()
 		session, err := rt.NewSession(model, opts)
@@ -364,7 +372,11 @@ func TestWebGPURuntimeIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer rt.Close()
+	t.Cleanup(func() {
+		if err := rt.Close(); err != nil {
+			t.Error(err)
+		}
+	})
 	if rt.Version() != WebGPURuntimeVersion {
 		t.Fatalf("version = %q", rt.Version())
 	}
@@ -376,6 +388,10 @@ func TestWebGPURuntimeIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer session.Close()
+	t.Cleanup(func() {
+		if err := session.Close(); err != nil {
+			t.Error(err)
+		}
+	})
 	runIdentity(t, session)
 }
