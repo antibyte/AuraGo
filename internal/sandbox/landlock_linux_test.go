@@ -109,6 +109,30 @@ func TestCanonicalSandboxPathRejectsColonAndFollowsSymlink(t *testing.T) {
 	}
 }
 
+func TestCanonicalSandboxPathAbsolutesRelativeExistingDirectory(t *testing.T) {
+	parent := t.TempDir()
+	name := "ruledir"
+	dir := filepath.Join(parent, name)
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(parent)
+	got, err := canonicalSandboxPath(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !filepath.IsAbs(got) {
+		t.Fatalf("canonical = %q, want absolute path", got)
+	}
+	want, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("canonical = %q, want %q", got, want)
+	}
+}
+
 func TestCanonicalSandboxPathRejectsSymlinkToColonFile(t *testing.T) {
 	dir := t.TempDir()
 	target := filepath.Join(dir, "evil:name")
