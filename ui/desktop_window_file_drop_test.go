@@ -236,7 +236,7 @@ func TestFileManagerExportsMultiFileWindowDrop(t *testing.T) {
 	for _, marker := range []string{
 		"async function dropDesktopFiles(windowId, paths, destPath)",
 		"await moveDroppedDesktopFilesToFolder(paths, destPath == null ? fm.currentPath : destPath)",
-		"window.FileManager = { render, navigateTo, dropDesktopFiles, dispose }",
+		"window.FileManager = { render, navigateTo, dropDesktopFiles, dispose,",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("file manager window drop export missing marker %q", marker)

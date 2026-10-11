@@ -37,7 +37,7 @@ func TestDesktopAppsExposeDisposeLifecycle(t *testing.T) {
 			"instances.set(windowId, instance)",
 			"function dispose(windowId)",
 			"instances.delete(windowId)",
-			"window.FileManager = { render, navigateTo, dropDesktopFiles, dispose }",
+			"window.FileManager = { render, navigateTo, dropDesktopFiles, dispose,",
 		},
 		"ui/js/desktop/apps/sheets.js": {
 			"window.SheetsApp={render,dispose,instances}", "documentLife.abort()", "engine?.dispose()", "queue?.dispose()", "resize.disconnect()",
