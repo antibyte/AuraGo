@@ -283,7 +283,9 @@ func TestDesktopTerminalAudioContract(t *testing.T) {
 		"const BELL = { type: 'square'",
 		// One tone per BELL_GAP_MS however many BELs arrive, never queued against a suspended clock.
 		"const BELL_GAP_MS = 150;",
-		"if (at - lastBell < BELL_GAP_MS) return;",
+		"if (clock() - lastBell < BELL_GAP_MS) return;",
+		// The gap counts from the tone: a slow first AudioContext must not let BELs queued behind it add a tone.
+		"lastBell = clock();",
 		"return audio.state === 'running' ? audio : null;",
 		"return { setProfile, setMuted, playKey, beep, dispose }",
 	} {

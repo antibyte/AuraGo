@@ -3018,7 +3018,9 @@ registration lives in `internal/desktop/types.go`.
   (`TerminalRetroNetSession.c64ColorKey`), prevent the browser default and never
   reach xterm. BEL in a C64 call beeps through `TerminalAudio.beep` under the
   key-click rules, at most one tone per 150 ms and only on a running
-  AudioContext. The directory marks `c64` entries `[C]` (never checked) and
+  AudioContext. The gap counts from the tone itself: the first BEL creates
+  the context, whose constructor can block the page for 100-200 ms, and BELs
+  parsed behind that stall add no tone. The directory marks `c64` entries `[C]` (never checked) and
   explains the marker in its help when one is listed.
   `world` entries edit lines locally while `echo.remote` is false and suppress
   local echo and history while `echo.hidden` is true. Input leaves in UTF-8

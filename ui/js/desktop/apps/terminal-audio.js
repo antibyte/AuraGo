@@ -108,14 +108,15 @@
         }
 
         // The terminal bell of C64 sessions (BEL from the board): a short square tone under the key-click rules,
-        // at most one per BELL_GAP_MS and only against a running clock.
+        // at most one per BELL_GAP_MS and only against a running clock. The gap counts from the tone itself: the
+        // first BEL creates the AudioContext, whose constructor can block the page for 100-200 ms while the audio
+        // device opens, and BELs parsed behind that stall must not add a second tone.
         function beep() {
             if (!retro || muted || shouldSilence()) return;
-            const at = clock();
-            if (at - lastBell < BELL_GAP_MS) return;
+            if (clock() - lastBell < BELL_GAP_MS) return;
             const audio = runningCtx();
             if (!audio) return;
-            lastBell = at;
+            lastBell = clock();
             sound(audio, BELL.type, BELL.freq, BELL.gain, BELL.dur, BELL.release);
         }
 

@@ -463,13 +463,17 @@ function installAudio(options = {}) {
         this.close = () => Promise.resolve();
     };
 }
-async function dialSounds(profile, muted, setup, expected = 'skipped') {
+// The dial types ATZ and ATDT for about a second before its first digit and then sends a digit every 160 ms.
+// Checks that need tones wait for `until` (at most 6 s, so that timer delays under load cannot fail them);
+// silent ones let the whole first 1.4 s of the dial pass.
+async function dialSounds(profile, muted, setup, until) {
     motion(true);
     if (setup) setup();
     const unit = modem.create({ term: screen(), getProfile: () => profile, isMuted: () => muted });
     const result = unit.dial('a.b', 'x');
     const createdInGesture = audioLog.contexts;
-    await sleep(1400);
+    if (!until) await sleep(1400);
+    for (const end = Date.now() + 6000; until && !until() && Date.now() < end;) await sleep(20);
     unit.skip();
     const resolved = await result;
     unit.dispose();
@@ -477,7 +481,7 @@ async function dialSounds(profile, muted, setup, expected = 'skipped') {
 }
 {
     installAudio();
-    const loud = await dialSounds({ retro: true }, false);
+    const loud = await dialSounds({ retro: true }, false, null, () => audioLog.started >= 2);
     same('retro + unmuted creates the AudioContext synchronously in dial()', loud.createdInGesture, 1);
     check('retro + unmuted plays DTMF digits', loud.contexts === 1 && loud.started >= 2, JSON.stringify(loud));
     check('skip stops scheduled tones', loud.stopped >= 1, JSON.stringify(loud));
@@ -493,13 +497,13 @@ async function dialSounds(profile, muted, setup, expected = 'skipped') {
     delete window.TerminalAudio;
     check('TerminalAudio.shouldSilence wins', silenced.contexts === 0 && silenced.started === 0, JSON.stringify(silenced));
     installAudio();
-    const reduced = await dialSounds({ retro: true }, false, () => { window.matchMedia = () => ({ matches: true }); }, 'done');
+    const reduced = await dialSounds({ retro: true }, false, () => { window.matchMedia = () => ({ matches: true }); });
     check('reduced motion is silent and finishes at once', reduced.resolved === 'done' && reduced.contexts === 0 && reduced.started === 0, JSON.stringify(reduced));
     installAudio({ state: 'suspended' });
-    const resumed = await dialSounds({ retro: true }, false);
+    const resumed = await dialSounds({ retro: true }, false, null, () => audioLog.started >= 2);
     check('a suspended context is resumed and then plays', resumed.createdInGesture === 1 && resumed.resumed >= 1 && resumed.started >= 2, JSON.stringify(resumed));
     installAudio({ state: 'suspended', resumes: false });
-    const frozen = await dialSounds({ retro: true }, false);
+    const frozen = await dialSounds({ retro: true }, false, null, () => audioLog.resumed >= 2);
     check('no tones are scheduled while the context stays suspended', frozen.resumed >= 2 && frozen.started === 0, JSON.stringify(frozen));
     delete window.AudioContext;
 }
@@ -517,7 +521,9 @@ async function dialSounds(profile, muted, setup, expected = 'skipped') {
     const bellDocument = { body: { dataset: { animations: 'true' } } };
     let contextState = 'running';
     let resumeTo = 'running';
+    let startDelay = 0;
     bellWindow.AudioContext = function () {
+        clock += startDelay;
         this.state = contextState;
         this.currentTime = 0;
         this.destination = {};
@@ -582,6 +588,22 @@ async function dialSounds(profile, muted, setup, expected = 'skipped') {
     quiet.beep();
     same('and plays once they allow it', bellLog.started, 4);
     quiet.dispose();
+    // The first BEL creates the context, whose constructor can block the page while the audio device opens (here
+    // 200 ms): BELs the terminal parses right behind that stall are within 150 ms of the tone and add none.
+    clock += 1000;
+    startDelay = 200;
+    const slow = Audio.create();
+    slow.setProfile(c64);
+    slow.beep();
+    startDelay = 0;
+    clock += 1;
+    slow.beep();
+    slow.beep();
+    same('BELs parsed right behind a slow first AudioContext add no tone', bellLog.started, 5);
+    clock += 160;
+    slow.beep();
+    same('the next BEL 160 ms after the tone plays', bellLog.started, 6);
+    slow.dispose();
 }
 
 if (failures) {
