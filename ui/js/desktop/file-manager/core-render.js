@@ -291,7 +291,7 @@
         } catch (err) {
             if (!isLiveInstance(instance) || instance.navigationGeneration !== generation) return;
             withInstance(instance, () => {
-                showNotification({ type: 'error', message: t('desktop.fm.error_load') + ': ' + (err.message || String(err)) });
+                showNotification({ type: 'error', message: t('desktop.fm.error_load') + ': ' + storageErrorMessage(err) });
                 fm.files = [];
                 fm.loading = false;
                 applyFilter();

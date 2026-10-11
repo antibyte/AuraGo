@@ -1,6 +1,8 @@
 {
   "desktop.fm.storage_offline": "利用不可",
   "desktop.fm.storage_readonly": "読み取り専用",
+  "desktop.fm.storage_access_denied": "ストレージ提供元がアクセスを拒否しました。連携アカウントを含め、提供元でログイン状態と権限を確認してください。",
+  "desktop.fm.storage_unavailable": "現在ストレージを利用できません。提供元で状態を確認してから、一覧を再読み込みしてください。",
   "desktop.fm.storage_writable": "読み書き可能",
   "desktop.fm.storage_cancelled": "キャンセルしました。コピー済みのファイルは転送先に残る場合があります。",
   "desktop.fm.storage_partial": "転送が完了していません。転送先に作成されたファイルを確認してください。",

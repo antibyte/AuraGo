@@ -58,6 +58,17 @@ readonly, visibility/activation and Koofr mount permissions all apply. Revoking
 an integration or Desktop grant cancels in-flight storage requests. New requests
 recheck current policy; provider permissions are checked before each operation.
 
+Provider authentication or permission failures are reported separately from
+read-only storage. Provider HTTP 401/403 returns Desktop HTTP 403 with
+`storage_access_denied`; provider HTTP 429/5xx and offline mounts return HTTP 503
+with `storage_unavailable`. Provider HTTP status numbers remain visible in the
+translated error message. Failed mutations are never automatically retried.
+
+If a connected OneDrive or Google Drive account reports an expired token in
+Koofr, reconnect that account in Koofr. If Koofr is updating its file list, wait
+for the update to finish and refresh the location in File Manager. Turning off
+AuraGo's read-only setting does not repair these provider states.
+
 ## Implementation and verification
 
 Admin-only routes under `/api/desktop/storage/` provide `sources`, `mounts`,

@@ -1,6 +1,8 @@
 {
   "desktop.fm.storage_offline": "Nicht verfügbar",
   "desktop.fm.storage_readonly": "Nur lesen",
+  "desktop.fm.storage_access_denied": "Der Speicheranbieter verweigert den Zugriff. Prüfe dort die Anmeldung und Berechtigungen, auch für verbundene Konten.",
+  "desktop.fm.storage_unavailable": "Der Speicher ist derzeit nicht verfügbar. Prüfe den Status beim Anbieter und lade die Liste anschließend neu.",
   "desktop.fm.storage_writable": "Lesen und schreiben",
   "desktop.fm.storage_cancelled": "Abgebrochen. Bereits kopierte Dateien können am Ziel verbleiben.",
   "desktop.fm.storage_partial": "Übertragung unvollständig. Prüfe die bereits erstellten Zieldateien.",

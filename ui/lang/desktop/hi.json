@@ -1,6 +1,8 @@
 {
   "desktop.fm.storage_offline": "उपलब्ध नहीं",
   "desktop.fm.storage_readonly": "केवल पढ़ने के लिए",
+  "desktop.fm.storage_access_denied": "स्टोरेज प्रदाता ने पहुँच अस्वीकार कर दी है। प्रदाता के यहाँ साइन-इन और अनुमतियाँ जाँचें, जुड़े हुए खातों की भी।",
+  "desktop.fm.storage_unavailable": "स्टोरेज अभी उपलब्ध नहीं है। प्रदाता के यहाँ उसकी स्थिति जाँचें, फिर सूची दोबारा लोड करें।",
   "desktop.fm.storage_writable": "पढ़ना और लिखना",
   "desktop.fm.storage_cancelled": "रद्द किया गया। पहले से कॉपी की गई फ़ाइलें गंतव्य पर रह सकती हैं।",
   "desktop.fm.storage_partial": "स्थानांतरण अधूरा है। गंतव्य पर पहले से बनाई गई फ़ाइलों की जाँच करें।",

@@ -1,6 +1,8 @@
 {
   "desktop.fm.storage_offline": "Niedostępne",
   "desktop.fm.storage_readonly": "Tylko odczyt",
+  "desktop.fm.storage_access_denied": "Dostawca pamięci odmówił dostępu. Sprawdź u niego logowanie i uprawnienia, także dla połączonych kont.",
+  "desktop.fm.storage_unavailable": "Pamięć jest obecnie niedostępna. Sprawdź jej stan u dostawcy, a następnie ponownie wczytaj listę.",
   "desktop.fm.storage_writable": "Odczyt i zapis",
   "desktop.fm.storage_cancelled": "Anulowano. Już skopiowane pliki mogą pozostać w miejscu docelowym.",
   "desktop.fm.storage_partial": "Transfer nieukończony. Sprawdź pliki utworzone już w miejscu docelowym.",

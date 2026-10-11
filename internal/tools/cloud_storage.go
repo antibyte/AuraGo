@@ -50,6 +50,8 @@ type StorageMount struct {
 
 var ErrStorageConflict = errors.New("storage_conflict")
 var ErrStorageReadOnly = errors.New("storage_readonly")
+var ErrStorageAccessDenied = errors.New("storage_access_denied")
+var ErrStorageUnavailable = errors.New("storage_unavailable")
 var ErrStorageNotFound = errors.New("storage_not_found")
 var ErrStorageSourceRetained = errors.New("storage_source_retained")
 
@@ -98,8 +100,11 @@ func storageHTTPError(code int) error {
 	case 409, 412:
 		return ErrStorageConflict
 	case 401, 403:
-		return ErrStorageReadOnly
+		return fmt.Errorf("%w (HTTP %d)", ErrStorageAccessDenied, code)
 	default:
+		if code == http.StatusTooManyRequests || code >= 500 {
+			return fmt.Errorf("%w (HTTP %d)", ErrStorageUnavailable, code)
+		}
 		return fmt.Errorf("storage provider returned HTTP %d", code)
 	}
 }

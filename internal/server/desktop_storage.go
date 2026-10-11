@@ -109,11 +109,17 @@ func (d *desktopStorageSession) authorize(loc tools.StorageLocation, write bool)
 			return err
 		}
 		for _, m := range mounts {
-			if m.ID == loc.MountID && m.Read && (!write || m.Write) && (m.Online == nil || *m.Online) {
+			if m.ID == loc.MountID && m.Read {
+				if m.Online != nil && !*m.Online {
+					return tools.ErrStorageUnavailable
+				}
+				if write && !m.Write {
+					return tools.ErrStorageReadOnly
+				}
 				return nil
 			}
 		}
-		return tools.ErrStorageReadOnly
+		return tools.ErrStorageAccessDenied
 	}
 	return nil
 }
@@ -258,8 +264,11 @@ func handleDesktopStorage(s *Server) http.HandlerFunc {
 
 func storageError(w http.ResponseWriter, err error) {
 	status := http.StatusBadRequest
-	if errors.Is(err, tools.ErrStorageReadOnly) {
+	if errors.Is(err, tools.ErrStorageReadOnly) || errors.Is(err, tools.ErrStorageAccessDenied) {
 		status = http.StatusForbidden
+	}
+	if errors.Is(err, tools.ErrStorageUnavailable) {
+		status = http.StatusServiceUnavailable
 	}
 	if errors.Is(err, tools.ErrStorageNotFound) || errors.Is(err, os.ErrNotExist) {
 		status = http.StatusNotFound

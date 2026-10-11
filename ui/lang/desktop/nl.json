@@ -1,6 +1,8 @@
 {
   "desktop.fm.storage_offline": "Niet beschikbaar",
   "desktop.fm.storage_readonly": "Alleen lezen",
+  "desktop.fm.storage_access_denied": "De opslagprovider weigert toegang. Controleer daar de aanmelding en machtigingen, ook voor gekoppelde accounts.",
+  "desktop.fm.storage_unavailable": "De opslag is momenteel niet beschikbaar. Controleer de status bij de provider en laad daarna de lijst opnieuw.",
   "desktop.fm.storage_writable": "Lezen en schrijven",
   "desktop.fm.storage_cancelled": "Geannuleerd. Reeds gekopieerde bestanden kunnen op de bestemming blijven staan.",
   "desktop.fm.storage_partial": "Overdracht onvolledig. Controleer de bestanden die al op de bestemming zijn gemaakt.",

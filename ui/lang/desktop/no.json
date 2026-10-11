@@ -1,6 +1,8 @@
 {
   "desktop.fm.storage_offline": "Ikke tilgjengelig",
   "desktop.fm.storage_readonly": "Bare lesing",
+  "desktop.fm.storage_access_denied": "Lagringsleverandøren avviste tilgangen. Kontroller innlogging og tillatelser hos leverandøren, også for tilknyttede kontoer.",
+  "desktop.fm.storage_unavailable": "Lagringen er utilgjengelig akkurat nå. Kontroller statusen hos leverandøren, og last deretter inn listen på nytt.",
   "desktop.fm.storage_writable": "Lesing og skriving",
   "desktop.fm.storage_cancelled": "Avbrutt. Filer som allerede er kopiert, kan bli liggende på målet.",
   "desktop.fm.storage_partial": "Overføringen er ufullstendig. Kontroller filene som allerede er opprettet på målet.",

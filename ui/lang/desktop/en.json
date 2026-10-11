@@ -1,6 +1,8 @@
 {
   "desktop.fm.storage_offline": "Unavailable",
   "desktop.fm.storage_readonly": "Read only",
+  "desktop.fm.storage_access_denied": "The storage provider denied access. Check sign-in and permissions with the provider, including connected accounts.",
+  "desktop.fm.storage_unavailable": "Storage is currently unavailable. Check its status with the provider, then reload the list.",
   "desktop.fm.storage_writable": "Read and write",
   "desktop.fm.storage_cancelled": "Cancelled. Files already copied may remain at the destination.",
   "desktop.fm.storage_partial": "Transfer incomplete. Check the files already created at the destination.",

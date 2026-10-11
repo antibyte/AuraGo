@@ -1,6 +1,8 @@
 {
   "desktop.fm.storage_offline": "Inte tillgänglig",
   "desktop.fm.storage_readonly": "Skrivskyddad",
+  "desktop.fm.storage_access_denied": "Lagringsleverantören nekade åtkomst. Kontrollera inloggning och behörigheter hos leverantören, även för anslutna konton.",
+  "desktop.fm.storage_unavailable": "Lagringen är inte tillgänglig just nu. Kontrollera statusen hos leverantören och läs sedan in listan igen.",
   "desktop.fm.storage_writable": "Läsa och skriva",
   "desktop.fm.storage_cancelled": "Avbrutet. Filer som redan kopierats kan finnas kvar på målplatsen.",
   "desktop.fm.storage_partial": "Överföringen är ofullständig. Kontrollera filerna som redan skapats på målplatsen.",

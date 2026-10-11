@@ -1,6 +1,8 @@
 {
   "desktop.fm.storage_offline": "Indisponible",
   "desktop.fm.storage_readonly": "Lecture seule",
+  "desktop.fm.storage_access_denied": "Le fournisseur de stockage refuse l’accès. Vérifie auprès de lui la connexion et les autorisations, y compris celles des comptes connectés.",
+  "desktop.fm.storage_unavailable": "Le stockage est actuellement indisponible. Vérifie son état auprès du fournisseur, puis recharge la liste.",
   "desktop.fm.storage_writable": "Lecture et écriture",
   "desktop.fm.storage_cancelled": "Annulé. Les fichiers déjà copiés peuvent rester à destination.",
   "desktop.fm.storage_partial": "Transfert incomplet. Vérifiez les fichiers déjà créés à destination.",

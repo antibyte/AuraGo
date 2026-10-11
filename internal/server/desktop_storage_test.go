@@ -268,7 +268,13 @@ func TestDesktopStorageLimitsAndRights(t *testing.T) {
 	for _, mount := range []string{"readonly", "offline", "denied", "unknown"} {
 		loc := storageTestLocation("koofr", "a")
 		loc.MountID = mount
-		if err := d.authorize(loc, true); !errors.Is(err, tools.ErrStorageReadOnly) {
+		want := tools.ErrStorageAccessDenied
+		if mount == "readonly" {
+			want = tools.ErrStorageReadOnly
+		} else if mount == "offline" {
+			want = tools.ErrStorageUnavailable
+		}
+		if err := d.authorize(loc, true); !errors.Is(err, want) {
 			t.Fatalf("mount %s: %v", mount, err)
 		}
 	}

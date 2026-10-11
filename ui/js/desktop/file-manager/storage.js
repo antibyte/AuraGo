@@ -154,9 +154,21 @@
         }, true);
     }
 
+    function storageErrorMessage(err) {
+        const message = err.message || String(err);
+        const code = message.split(' ', 1)[0];
+        const keys = {
+            storage_access_denied: 'desktop.fm.storage_access_denied',
+            storage_unavailable: 'desktop.fm.storage_unavailable',
+            storage_readonly: 'desktop.fm.storage_readonly',
+            storage_source_retained: 'desktop.fm.storage_retained'
+        };
+        return Object.hasOwn(keys, code) ? t(keys[code]) + message.slice(code.length) : message;
+    }
+
     function storageNotify(instance, err) {
         if (!isLiveInstance(instance)) return;
-        withInstance(instance, () => showNotification({ type: 'error', message: err.name === 'AbortError' ? t('desktop.fm.storage_cancelled') : (err.partial ? t('desktop.fm.storage_partial') + ' ' : '') + (err.message === 'storage_source_retained' ? t('desktop.fm.storage_retained') : err.message || String(err)) }));
+        withInstance(instance, () => showNotification({ type: 'error', message: err.name === 'AbortError' ? t('desktop.fm.storage_cancelled') : (err.partial ? t('desktop.fm.storage_partial') + ' ' : '') + storageErrorMessage(err) }));
     }
 
     async function storageJSON(url, options = {}) {

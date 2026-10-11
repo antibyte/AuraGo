@@ -14,6 +14,8 @@ Server-owned HTTP and cross-component integration contracts.
   partial completion. Revalidate source size and metadata before staging is
   published; incomplete download bodies must abort the HTTP response. Revocation
   must also interrupt a paused upload's blocking request-body read.
+  Provider authentication/permission failures and unavailability are distinct
+  from readonly; preserve the provider HTTP status without forwarding its body.
   See `documentation/desktop-cloud-storage.md` and
   `TestDesktopStorage*`.
 
