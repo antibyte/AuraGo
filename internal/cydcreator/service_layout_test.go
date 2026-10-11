@@ -115,7 +115,7 @@ func seedLayoutAsset(t *testing.T, env *testEnv, projectID string, a Asset) {
 	}
 }
 
-func TestPutLayoutKeepsTheAssetListServerOwned(t *testing.T) {
+func TestPutLayoutGuardsAssetEntries(t *testing.T) {
 	env := newTestService(t)
 	ctx := context.Background()
 	p := env.createProject(t, "Bilder")
@@ -139,9 +139,11 @@ func TestPutLayoutKeepsTheAssetListServerOwned(t *testing.T) {
 		"other asset file":  {sun, {ID: "a_moon", File: "assets/sun.png", W: 8, H: 8, Alpha: true}},
 		"renamed file":      {sun, {ID: "a_moon", File: "assets/luna.png", W: 8, H: 8, Alpha: true}},
 		"changed size":      {sun, {ID: "a_moon", File: "assets/moon.png", W: 9, H: 8, Alpha: true}},
-		"new asset":         {sun, moon, {ID: "a_star", File: "assets/star.png", W: 8, H: 8}},
+		"changed alpha":     {sun, {ID: "a_moon", File: "assets/moon.png", W: 8, H: 8}},
 		"listed twice":      {sun, moon, sun},
 		"new id, same file": {sun, {ID: "a_moon2", File: "assets/moon.png", W: 8, H: 8, Alpha: true}},
+		"new id, bad file":  {sun, moon, {ID: "a_star", File: "src/app/star.png", W: 8, H: 8}},
+		"new ids share":     {sun, moon, {ID: "a_star", File: "assets/star.png", W: 8, H: 8}, {ID: "a_star2", File: "assets/star.png", W: 8, H: 8}},
 	} {
 		_, _, err := env.svc.PutLayout(ctx, p.ID, with(assets...), version, OriginUser)
 		typed := wantCode(t, err, CodeInvalidLayout)
@@ -158,8 +160,29 @@ func TestPutLayoutKeepsTheAssetListServerOwned(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PutLayout with unchanged assets: %v", err)
 	}
-	if _, _, err := env.svc.PutLayout(ctx, p.ID, with(moon), next, OriginUser); err != nil {
+	next, _, err = env.svc.PutLayout(ctx, p.ID, with(moon), next, OriginUser)
+	if err != nil {
 		t.Fatalf("PutLayout dropping an asset entry: %v", err)
+	}
+	// Redo after undo (or a second tab overwriting) lists the dropped entry
+	// again; a new entry may name a file that does not exist yet.
+	next, _, err = env.svc.PutLayout(ctx, p.ID, with(sun, moon), next, OriginUser)
+	if err != nil {
+		t.Fatalf("PutLayout re-adding the dropped entry: %v", err)
+	}
+	star := Asset{ID: "a_star", File: "assets/star.png", W: 8, H: 8}
+	_, issues, err := env.svc.PutLayout(ctx, p.ID, with(sun, moon, star), next, OriginUser)
+	if err != nil {
+		t.Fatalf("PutLayout with a new entry: %v", err)
+	}
+	stored, _, _, _ = env.svc.GetLayout(ctx, p.ID)
+	if len(stored.Assets) != 3 || stored.Assets[0] != sun || stored.Assets[2] != star {
+		t.Fatalf("stored assets = %+v", stored.Assets)
+	}
+	for _, is := range issues {
+		if is.Severity == SeverityError && is.Code != IssueAssetMissing {
+			t.Fatalf("unexpected error issue %+v", is)
+		}
 	}
 }
 

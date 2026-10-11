@@ -68,15 +68,21 @@ func validateLayout(p Project) []Issue {
 	return issues
 }
 
-// checkLayoutAssets keeps the asset list server-owned. PutAsset adds images
-// and DeleteAsset removes them together with their files; a layout save may
-// keep or drop entries of the stored layout but never add or change one, so
-// no entry can point DeleteAsset, OpenAsset or the generator at another file.
-// Every kept file must still match the asset file rule and be listed once.
+// checkLayoutAssets keeps asset entries pointing at their own image. PutAsset
+// adds images and DeleteAsset removes them together with their files. A layout
+// save may keep or drop stored entries but never change one (File, W, H,
+// Alpha), and may list an entry the stored layout lacks (designer undo/redo,
+// a second tab overwriting) only when its File belongs to no other stored
+// entry; the file need not exist (Validate/Generate report a missing image).
+// Every entry must match the asset file rule, and each ID and File is listed
+// once, so no entry can point DeleteAsset, OpenAsset or the generator at the
+// layout, app sources or another entry's image.
 func checkLayoutAssets(stored, incoming []Asset) error {
 	known := make(map[string]Asset, len(stored))
+	storedFiles := make(map[string]string, len(stored))
 	for _, a := range stored {
 		known[a.ID] = a
+		storedFiles[a.File] = a.ID
 	}
 	ids := make(map[string]bool, len(incoming))
 	files := make(map[string]bool, len(incoming))
@@ -91,7 +97,10 @@ func checkLayoutAssets(stored, incoming []Asset) error {
 		ids[a.ID], files[a.File] = true, true
 		old, ok := known[a.ID]
 		if !ok {
-			return layoutError("images are added through the asset upload, not by saving the layout", details)
+			if owner, used := storedFiles[a.File]; used && owner != a.ID {
+				return layoutError("the asset file belongs to another image", details)
+			}
+			continue
 		}
 		if old != a {
 			return layoutError("asset entries cannot be changed by saving the layout", details)
