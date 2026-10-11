@@ -891,9 +891,12 @@ func TestDesktopRetroGamesPlayerBrowserFailure(t *testing.T) {
 		return page.MustEval(`()=>document.activeElement===document.querySelector('.rg-frame')`).Bool()
 	})
 
-	// Restart from the hint: back to the loading bar, then the same failure again.
+	// Restart from the hint: back to the loading bar (held there, so the test can
+	// look at it), then the same failure again once the loader answers.
+	archive.hold()
 	page.MustElement(".rg-overlay-restart").MustClick()
-	page.MustWait(`()=>{const o=document.querySelector('.rg-overlay');return !o.hidden&&!o.classList.contains('is-stalled')}`)
+	page.MustWait(`()=>{const o=document.querySelector('.rg-overlay');return !o.hidden&&!o.classList.contains('is-stalled')&&o.querySelector('.rg-overlay-actions').hidden}`)
+	archive.release()
 	page.MustWait(`()=>document.querySelector('.rg-overlay').classList.contains('is-stalled')`)
 	assertRetroGamesHintIsCompact(t, page, failedText)
 
