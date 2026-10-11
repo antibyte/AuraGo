@@ -304,6 +304,10 @@ func configRefreshFixtureOrigin(t *testing.T, locale string, populated bool) str
 			_ = json.NewEncoder(w).Encode(map[string]any{"status": "error", "error": "fixture_unavailable", "message": "Service unavailable in local preview"})
 			return
 		}
+		// Match registerUIRoutes instead of inheriting Windows' .mjs text/plain association.
+		if strings.HasSuffix(r.URL.Path, ".mjs") {
+			w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		}
 		http.FileServer(http.Dir(".")).ServeHTTP(w, r)
 	}))
 	t.Cleanup(server.Close)

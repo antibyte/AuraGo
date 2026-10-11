@@ -8,6 +8,8 @@ Wi-Fi sensing is experimental. Readiness does not prove measurements, presence o
 
 Open **Configuration → RuView**, enable the integration, select a runtime and source, then save. Start and agent access are disabled by default; read-only starts enabled. Connection tests are explicit administrative POST actions using the saved target and Vault token. Merely opening AuraGo's overview never probes a service. Opening an upstream view or requesting an agent read retrieves data.
 
+The configuration shows external credentials only for external instances, and board networking only for ESP32 sensing. Switching modes preserves unsaved fields. Permissions contains the read-only and agent switches; Advanced contains the managed HTTP port and storage budget. Save before testing or setting up a board. Disabled actions explain the missing step. Use **Open RuView** to install or start a managed runtime, and **Set up board** for USB firmware and Wi-Fi provisioning.
+
 | Runtime | Intended use |
 | --- | --- |
 | Managed Docker | Linux sensing server for ESP32 CSI or explicit demo; AuraGo creates and stops its own labelled container. |
