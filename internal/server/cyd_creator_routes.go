@@ -42,7 +42,7 @@ func registerCYDCreatorRoutes(mux *http.ServeMux, s *Server) {
 // cydCreatorRoutes is the desktop route table. Plan 3 appends its job,
 // message and revision routes, plan 5 its device and transfer routes.
 func cydCreatorRoutes(s *Server) []cydRoute {
-	return slices.Concat(cydCreatorCoreRoutes(s))
+	return slices.Concat(cydCreatorCoreRoutes(s), cydCreatorJobRoutes(s))
 }
 
 // cydCreatorDeviceRoutes is the device table (/api/cyd-creator/device/,
