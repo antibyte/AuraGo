@@ -265,6 +265,14 @@ func validateDockerName(name string) error {
 	return nil
 }
 
+// DockerNameValid reports whether name passes the container name/ID check that
+// every docker helper applies before a request. DockerContainerOwnership owns
+// nothing for an invalid name, so a caller that resolves names it will not pass
+// through such a helper (Compose container references) must refuse them.
+func DockerNameValid(name string) bool {
+	return validateDockerName(name) == nil
+}
+
 // dockerRequest performs a request against the Docker Engine API.
 func dockerRequest(cfg DockerConfig, method, endpoint string, body string) ([]byte, int, error) {
 	if dockerMethodMutates(method) {

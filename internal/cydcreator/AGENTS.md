@@ -356,12 +356,14 @@ turns a project into the complete PlatformIO tree. Later plans add storage and t
   (`cydImageProvenanceProblem`); a digest-pinned one needs exactly its digest and nothing else. An unpinned one must
   also have the image ID that AuraGo's own pull recorded for exactly this reference (`cydTrustedImage`, written
   atomically after a successful `Pull` to `cyd_builder_image.json` next to `cyd_creator.db`, `cydBuilderTrustFile`;
-  the data directory is out of reach of agent file tools): on the containerd image store (Docker 29 default) a local
+  the data directory is out of reach of agent file tools; when the pull stream names the registry digest, the image
+  must carry exactly that repository digest to be recorded): on the containerd image store (Docker 29 default) a local
   build under the tag gets a repository digest too, so only the record tells it from the pulled image. No record, a
   different ID (re-tagged or replaced locally) or a changed `builder_image` is `CYD_IMAGE_MISSING` with a generic
   text (the server log has the reason) and Status reports the image as not present, so the app offers the pull,
-  which re-establishes trust. A reference without a registry host (`aurago-cyd-builder:dev`/`:ci`) is a local-only
-  tag the administrator configured for development, the integration test and CI: it needs no digest and no record.
+  which re-establishes trust. A single-component reference without '/' (`aurago-cyd-builder:dev`/`:ci`,
+  `cydImageLocalOnly`) is a local-only tag the administrator configured for development, the integration test and CI:
+  it needs no digest and no record. Any reference with '/' (also Docker Hub `user/repo:tag`) is a registry reference.
   The container is created from the verified image ID, which is part of the fingerprint (a new pull recreates it).
   Task 12 wiring must set `TrustFile`; empty keeps the record in memory only (tests).
 - Publishing: `.github/workflows/cyd-builder.yml` builds each architecture natively and smoke-tests it offline

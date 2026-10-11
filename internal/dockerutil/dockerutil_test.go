@@ -232,18 +232,6 @@ func TestCYDCreatorImageReference(t *testing.T) {
 			t.Fatalf("ImageRepository(%q) = %q, want %q", ref, got, want)
 		}
 	}
-	for ref, want := range map[string]bool{
-		"ghcr.io/antibyte/aurago-cyd-builder:1":    true,
-		"localhost/aurago-cyd-builder:dev":         true,
-		"registry:5000/x":                          true,
-		"docker.io/library/aurago-cyd-builder:dev": true,
-		"aurago-cyd-builder:dev":                   false,
-		"antibyte/aurago-cyd-builder:1":            false,
-	} {
-		if got := ImageReferenceHasRegistry(ref); got != want {
-			t.Fatalf("ImageReferenceHasRegistry(%q) = %v, want %v", ref, got, want)
-		}
-	}
 	if got := ImageReferenceDigest("ghcr.io/antibyte/aurago-cyd-builder:1@SHA256:ABC"); got != "sha256:abc" || ImageReferenceDigest("x:1") != "" {
 		t.Fatalf("ImageReferenceDigest = %q", got)
 	}

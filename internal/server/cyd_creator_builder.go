@@ -280,19 +280,30 @@ func (b *cydDockerBuilder) inspectImage(ctx context.Context) (*cydImageInspect, 
 	return &img, nil
 }
 
+// cydImageLocalOnly reports a local-only tag: a reference of a single path
+// component (aurago-cyd-builder:dev or :ci, as development, the integration
+// test and CI configure it). Any reference with a '/' is pulled from a
+// registry (Docker Hub when it names no host, user/repo:tag) and gets the
+// digest and pull-record checks. A single-component Docker Hub image (nginx)
+// counts as local-only too; the builder image is never one.
+func cydImageLocalOnly(configured string) bool {
+	ref := strings.TrimSpace(configured)
+	if at := strings.IndexByte(ref, '@'); at >= 0 {
+		ref = ref[:at]
+	}
+	return !strings.Contains(ref, "/")
+}
+
 // cydImageProvenanceProblem applies the image rule and returns "" when the
-// image may be used. A configured reference without a registry host
-// (dockerutil.ImageReferenceHasRegistry: aurago-cyd-builder:dev or :ci, as
-// development and CI configure it) is a local-only tag the administrator chose
-// and is used as it is. Any other reference must carry a repository digest of
-// its own repository (the registry's content address that a pull records), a
-// digest-pinned reference exactly its digest: a locally built or re-tagged
-// image has none on the classic image store. On the containerd image store
-// (Docker 29 default) a local build also gets a digest of its tag's
-// repository, so there only a digest-pinned builder_image is proof; the agent
-// docker tool and Compose refuse the builder image for that reason.
+// image may be used. A local-only tag (cydImageLocalOnly) is one the
+// administrator chose and is used as it is. Any other reference must carry a
+// repository digest of its own repository (the registry's content address
+// that a pull records), a digest-pinned reference exactly its digest: a
+// locally built or re-tagged image has none on the classic image store. On the
+// containerd image store (Docker 29 default) a local build also gets a digest
+// of its tag's repository, so imageTrustProblem also requires the pull record.
 func cydImageProvenanceProblem(configured string, repoDigests []string) string {
-	if !dockerutil.ImageReferenceHasRegistry(configured) {
+	if cydImageLocalOnly(configured) {
 		return ""
 	}
 	repository := dockerutil.ImageRepository(configured)
@@ -422,7 +433,7 @@ func (b *cydDockerBuilder) pull(ctx context.Context) error {
 		}
 		return b.pullFailed(0, dockerutil.SanitizeOneLine(err.Error(), 300))
 	}
-	if err := b.recordPulledImage(ctx); err != nil {
+	if err := b.recordPulledImage(ctx, tracker.digest); err != nil {
 		return err
 	}
 	b.pullMu.Lock()
@@ -432,9 +443,11 @@ func (b *cydDockerBuilder) pull(ctx context.Context) error {
 }
 
 // recordPulledImage stores the image the pull just installed as the trusted
-// image of the configured reference (cydTrustedImage). A pull that cannot be
-// recorded fails, because builds would not use the image.
-func (b *cydDockerBuilder) recordPulledImage(ctx context.Context) error {
+// image of the configured reference (cydTrustedImage). When the pull stream
+// named the registry's digest ("Digest: sha256:…"), the image must carry
+// exactly that repository digest. A pull that cannot be recorded fails,
+// because builds would not use the image.
+func (b *cydDockerBuilder) recordPulledImage(ctx context.Context, pulledDigest string) error {
 	img, err := b.inspectImage(ctx)
 	if err == nil && img == nil {
 		err = errors.New("the pulled image is not installed")
@@ -444,9 +457,18 @@ func (b *cydDockerBuilder) recordPulledImage(ctx context.Context) error {
 			err = errors.New(problem)
 		}
 	}
+	repoDigest := ""
 	if err == nil {
-		err = b.saveTrustedImage(ctx, cydTrustedImage{Reference: b.settings.Image, ID: img.ID,
-			RepoDigest: cydMatchingRepoDigest(b.settings.Image, img.RepoDigests)})
+		repoDigest = cydMatchingRepoDigest(b.settings.Image, img.RepoDigests)
+		if pulledDigest != "" && !cydImageLocalOnly(b.settings.Image) {
+			repoDigest = cydMatchingRepoDigest(dockerutil.ImageRepository(b.settings.Image)+"@"+pulledDigest, img.RepoDigests)
+			if repoDigest == "" {
+				err = fmt.Errorf("the image carries no repository digest %s from the pull", pulledDigest)
+			}
+		}
+	}
+	if err == nil {
+		err = b.saveTrustedImage(ctx, cydTrustedImage{Reference: b.settings.Image, ID: img.ID, RepoDigest: repoDigest})
 	}
 	if err != nil {
 		b.logger.Warn("CYD Creator builder: the pulled toolchain image could not be recorded", "image", b.settings.Image, "error", err)
@@ -538,11 +560,11 @@ func cydMatchingRepoDigest(configured string, repoDigests []string) string {
 }
 
 // cydImageNeedsPullRecord reports whether configured is trusted only through
-// the pull record: a reference with a registry host and no digest pin. A
-// digest pin proves the content by itself, a local-only tag is accepted as it
-// is (development and CI).
+// the pull record: a registry reference (not cydImageLocalOnly) without a
+// digest pin. A digest pin proves the content by itself, a local-only tag is
+// accepted as it is (development and CI).
 func cydImageNeedsPullRecord(configured string) bool {
-	return dockerutil.ImageReferenceHasRegistry(configured) && dockerutil.ImageReferenceDigest(configured) == ""
+	return !cydImageLocalOnly(configured) && dockerutil.ImageReferenceDigest(configured) == ""
 }
 
 // imageTrustProblem returns "" when builds may use img: it passes
@@ -617,7 +639,11 @@ type cydPullProgress struct {
 	current map[string]int64
 	total   map[string]int64
 	report  func(float64)
+	digest  string // the registry digest of the "Digest: sha256:…" status line
 }
+
+// cydPullDigestPattern is the digest status line of an Engine pull stream.
+var cydPullDigestPattern = regexp.MustCompile(`^Digest: (sha256:[0-9a-f]{64})$`)
 
 func (p *cydPullProgress) Write(data []byte) (int, error) {
 	n := len(data)
@@ -645,7 +671,13 @@ func (p *cydPullProgress) observe(line []byte) {
 			Total   int64 `json:"total"`
 		} `json:"progressDetail"`
 	}
-	if json.Unmarshal(bytes.TrimSpace(line), &ev) != nil || ev.ID == "" {
+	if json.Unmarshal(bytes.TrimSpace(line), &ev) != nil {
+		return
+	}
+	if m := cydPullDigestPattern.FindStringSubmatch(strings.TrimSpace(ev.Status)); m != nil {
+		p.digest = m[1]
+	}
+	if ev.ID == "" {
 		return
 	}
 	if p.current == nil {

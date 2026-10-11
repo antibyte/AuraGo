@@ -160,19 +160,6 @@ func ImageRepository(reference string) string {
 	return reference
 }
 
-// ImageReferenceHasRegistry reports whether reference names a registry host,
-// with Docker's rule: the first path component contains '.' or ':' or is
-// "localhost". "aurago-cyd-builder:dev" names none (a local-only tag),
-// "ghcr.io/antibyte/aurago-cyd-builder:1" names ghcr.io.
-func ImageReferenceHasRegistry(reference string) bool {
-	reference = strings.ToLower(strings.TrimSpace(reference))
-	first, _, ok := strings.Cut(reference, "/")
-	if !ok {
-		return false
-	}
-	return strings.ContainsAny(first, ".:") || first == "localhost"
-}
-
 // ImageReferenceDigest returns the "sha256:…" digest of a digest-pinned
 // reference (lowercase), or "".
 func ImageReferenceDigest(reference string) string {

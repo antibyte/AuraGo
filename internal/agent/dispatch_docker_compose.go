@@ -1014,6 +1014,12 @@ func dockerComposeContainerReferenceDenial(dockerCfg tools.DockerConfig, models 
 				continue
 			}
 			seen[target] = true
+			if !tools.DockerNameValid(target) {
+				// DockerContainerOwnership owns nothing for an invalid name,
+				// while Docker may still resolve it: fail closed.
+				return dockerAgentError("docker_ownership_unverified", fmt.Sprintf(
+					"Container %q, which this Compose file joins or reads (network_mode, pid, ipc or volumes_from), is not a container name or ID AuraGo can check, so nothing was run.", target))
+			}
 			owned, err := dockerComposeReferenceOwnership(dockerCfg, target, dockerComposeReferenceOwners...)
 			for _, owner := range dockerComposeReferenceOwners {
 				if !owned[owner] {

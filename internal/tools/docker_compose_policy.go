@@ -293,7 +293,9 @@ func DockerComposeContainerReferences(model DockerComposeModel) []string {
 	seen := map[string]bool{}
 	var targets []string
 	add := func(target string) {
-		target = strings.TrimSpace(target)
+		// Docker resolves "/name" like "name"; a target that is still no
+		// valid name afterwards ("//x") is refused by the agent, never skipped.
+		target = strings.TrimPrefix(strings.TrimSpace(target), "/")
 		if target != "" && !seen[target] {
 			seen[target] = true
 			targets = append(targets, target)

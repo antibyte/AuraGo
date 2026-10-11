@@ -1216,6 +1216,11 @@ func TestCYDImageProvenanceRule(t *testing.T) {
 		{"docker.io/library/aurago-cyd-builder:dev", nil, false},
 		{"aurago-cyd-builder:dev", nil, true}, // local-only tag explicitly configured (development, CI)
 		{"aurago-cyd-builder:ci", []string{}, true},
+		// Docker Hub user/repo and registries without a dot are registry
+		// references, not local-only tags.
+		{"someuser/aurago-cyd-builder:1", nil, false},
+		{"someuser/aurago-cyd-builder:1", []string{"someuser/aurago-cyd-builder@sha256:" + strings.Repeat("f", 64)}, true},
+		{"localhost:5000/cyd:dev", nil, false},
 	}
 	for _, c := range cases {
 		if problem := cydImageProvenanceProblem(c.configured, c.digests); (problem == "") != c.ok {
@@ -1410,6 +1415,31 @@ func TestCYDBuilderTrustsOnlyTheImageItPulled(t *testing.T) {
 	engine.imageDigests = []string{fakeCYDRepoDigest}
 	engine.mu.Unlock()
 	wantMissing(newBuilder("ghcr.io/antibyte/aurago-cyd-builder:1"), "invalid record")
+}
+
+// When the pull stream names the registry digest, only an image carrying that
+// repository digest is recorded.
+func TestCYDBuilderRecordsOnlyTheDigestThePullReported(t *testing.T) {
+	engine, cfg := newFakeCYDEngine(t)
+	b := newCYDDockerBuilder(cfg, cydBuilderSettings{Image: "ghcr.io/antibyte/aurago-cyd-builder:1"}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	b.stopGrace = 0
+	engine.pullBody = `{"status":"Pulling from antibyte/aurago-cyd-builder","id":"1"}` + "\n" +
+		`{"status":"Digest: sha256:` + strings.Repeat("e", 64) + `"}` + "\n"
+	if err := b.Pull(context.Background()); cydcreator.ErrorCode(err) != cydcreator.CodeImagePullFailed {
+		t.Fatalf("pull whose digest the image does not carry = %v, want CYD_IMAGE_PULL_FAILED", err)
+	}
+	if rec := b.trustedImage(); rec != nil {
+		t.Fatalf("a mismatching pull was recorded: %+v", rec)
+	}
+	engine.mu.Lock()
+	engine.pullBody = `{"status":"Digest: sha256:` + strings.Repeat("d", 64) + `"}` + "\n" + `{"status":"Status: Downloaded newer image"}` + "\n"
+	engine.mu.Unlock()
+	if err := b.Pull(context.Background()); err != nil {
+		t.Fatalf("Pull: %v", err)
+	}
+	if rec := b.trustedImage(); rec == nil || rec.ID != fakeCYDImageID || rec.RepoDigest != fakeCYDRepoDigest {
+		t.Fatalf("record = %+v, want the pulled digest", rec)
+	}
 }
 
 func TestCYDBuilderTrustFileLivesNextToTheDatabase(t *testing.T) {

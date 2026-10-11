@@ -305,11 +305,16 @@ func TestDockerComposeContainerReferencesListsOutsideContainers(t *testing.T) {
 		"db":{"image":"x"},
 		"a":{"image":"x","network_mode":"container:cccccccccccc","pid":"container:` + strings.Repeat("c", 64) + `","ipc":"container:renamed"},
 		"b":{"image":"x","network_mode":"service:db","pid":"host","ipc":"shareable","volumes_from":["db","db:ro","container:vpn:rw","other"]},
-		"c":{"image":"x","network_mode":"container:cccccccccccc"}}}`)
+		"c":{"image":"x","network_mode":"container:cccccccccccc"},
+		"d":{"image":"x","network_mode":"container:/renamed","pid":"container://double","ipc":"container:/cccc"},
+		"e":{"image":"x","volumes_from":["container:/vpn:ro","container:/slashed:rw"]}}}`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"cccccccccccc", strings.Repeat("c", 64), "other", "renamed", "vpn"}
+	// Docker resolves "/name" like "name": one leading slash is dropped, so a
+	// slashed label-only target is still resolved; "//double" keeps one slash
+	// and the agent refuses it as no valid name.
+	want := []string{"/double", "cccc", "cccccccccccc", strings.Repeat("c", 64), "other", "renamed", "slashed", "vpn"}
 	if got := DockerComposeContainerReferences(model); strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("references = %q, want %q", got, want)
 	}

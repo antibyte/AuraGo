@@ -225,7 +225,8 @@ func TestDockerComposePolicyResolvesContainerReferencesThroughDocker(t *testing.
 		return `{"services":{"web":{"image":"alpine","` + field + `":"container:` + target + `"}}}`
 	}
 	for _, field := range []string{"pid", "network_mode", "ipc"} {
-		for _, target := range []string{builderID[:12], builderID, "renamed-builder"} {
+		// Docker resolves "/name" like "name".
+		for _, target := range []string{builderID[:12], builderID, "renamed-builder", "/renamed-builder", "/" + builderID[:12]} {
 			for _, command := range []string{"up -d", "ps"} {
 				if got := policy(service(field, target), command); !strings.Contains(got, `"code":"docker_managed_cyd_creator_resource"`) {
 					t.Fatalf("%s container:%s, %s = %s, want the CYD Creator refusal", field, target, command, got)
@@ -236,9 +237,16 @@ func TestDockerComposePolicyResolvesContainerReferencesThroughDocker(t *testing.
 			t.Fatalf("%s container:<app ID prefix> = %s, want the AuraGo app refusal", field, got)
 		}
 		// Containers that belong to nobody protected stay usable.
-		for _, target := range []string{"gluetun", vpnID[:12], "ghost"} {
+		for _, target := range []string{"gluetun", "/gluetun", vpnID[:12], "ghost"} {
 			if got := policy(service(field, target), "ps"); got != "" {
 				t.Fatalf("%s container:%s = %s, want it allowed", field, target, got)
+			}
+		}
+		// A target that is no checkable name fails closed instead of owning
+		// nothing.
+		for _, target := range []string{"//renamed-builder", "bad name", "-renamed", "a..b", "x$y"} {
+			if got := policy(service(field, target), "ps"); !strings.Contains(got, `"code":"docker_ownership_unverified"`) {
+				t.Fatalf("%s container:%s = %s, want docker_ownership_unverified", field, target, got)
 			}
 		}
 	}
