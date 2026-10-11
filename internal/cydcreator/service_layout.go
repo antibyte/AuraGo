@@ -2,17 +2,48 @@ package cydcreator
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 )
 
 // readLayout reads and strictly parses cyd.project.json from a project tree.
+// A missing, oversized or non-regular file is CYD_INVALID_LAYOUT like
+// unparsable content (details.reason missing, too_large or not_regular).
 func readLayout(root *os.Root) (Project, error) {
 	data, err := rootReadFile(root, ProjectFile, MaxLayoutBytes+1)
 	if err != nil {
-		return Project{}, fmt.Errorf("read %s: %w", ProjectFile, err)
+		return Project{}, layoutFileError(ProjectFile, fmt.Errorf("read %s: %w", ProjectFile, err))
 	}
 	return ParseProject(data)
+}
+
+// layoutFileError maps a damaged project tree to CYD_INVALID_LAYOUT; other
+// errors are returned unchanged (internal).
+func layoutFileError(what string, err error) error {
+	var reason, problem string
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		reason, problem = "missing", "is missing"
+	case errors.Is(err, errFileTooLarge):
+		reason, problem = "too_large", fmt.Sprintf("exceeds %d bytes", MaxLayoutBytes)
+	case errors.Is(err, errNotRegularFile):
+		reason, problem = "not_regular", "is not a regular file"
+	default:
+		return err
+	}
+	return NewError(CodeInvalidLayout, fmt.Sprintf("invalid layout: %s %s", what, problem), map[string]any{"reason": reason})
+}
+
+// openProjectRoot opens the project directory; a missing directory is
+// CYD_INVALID_LAYOUT (details.reason missing).
+func (s *Service) openProjectRoot(row projectRow) (*os.Root, error) {
+	root, err := s.openRoot(row, "")
+	if err != nil {
+		return nil, layoutFileError("the project directory", err)
+	}
+	return root, nil
 }
 
 // layoutAssetSizes returns the decoded LVGL size of every listed asset
@@ -37,8 +68,41 @@ func validateLayout(p Project) []Issue {
 	return issues
 }
 
+// checkLayoutAssets keeps the asset list server-owned. PutAsset adds images
+// and DeleteAsset removes them together with their files; a layout save may
+// keep or drop entries of the stored layout but never add or change one, so
+// no entry can point DeleteAsset, OpenAsset or the generator at another file.
+// Every kept file must still match the asset file rule and be listed once.
+func checkLayoutAssets(stored, incoming []Asset) error {
+	known := make(map[string]Asset, len(stored))
+	for _, a := range stored {
+		known[a.ID] = a
+	}
+	ids := make(map[string]bool, len(incoming))
+	files := make(map[string]bool, len(incoming))
+	for _, a := range incoming {
+		details := map[string]any{"asset": clipEcho(a.ID)}
+		if !assetFileRegex.MatchString(a.File) {
+			return layoutError("asset file must match assets/<name>.png, .jpg or .jpeg", details)
+		}
+		if ids[a.ID] || files[a.File] {
+			return layoutError("an asset is listed twice", details)
+		}
+		ids[a.ID], files[a.File] = true, true
+		old, ok := known[a.ID]
+		if !ok {
+			return layoutError("images are added through the asset upload, not by saving the layout", details)
+		}
+		if old != a {
+			return layoutError("asset entries cannot be changed by saving the layout", details)
+		}
+	}
+	return nil
+}
+
 // saveLayoutLocked writes the canonical layout, bumps the version and mirrors
-// name, board and theme into the row. Callers hold the project lock.
+// name, board and theme into the row (a value that Validate reports as
+// invalid keeps the row's previous one). Callers hold the project lock.
 func (s *Service) saveLayoutLocked(ctx context.Context, root *os.Root, row projectRow, p Project) (int64, error) {
 	data, err := MarshalProject(p)
 	if err != nil {
@@ -51,9 +115,31 @@ func (s *Service) saveLayoutLocked(ctx context.Context, root *os.Root, row proje
 	if err := rootWriteFile(ctx, root, ProjectFile, data); err != nil {
 		return 0, err
 	}
+	name, board, theme := row.Name, row.Board, row.Theme
+	if projectNameProblem(p.Name) == "" {
+		name = p.Name
+	}
+	if _, err := BoardByID(p.Board); err == nil {
+		board = p.Board
+	}
+	if _, err := ThemeByID(p.Theme); err == nil {
+		theme = p.Theme
+	}
+	// The file is published: finish the version bump even if the request is
+	// cancelled now. The lock makes row.Version current; the CAS only guards it.
 	version := row.Version + 1
-	if _, err := s.db.ExecContext(ctx, `UPDATE cc_projects SET version=?, name=?, board=?, theme=?, updated_at=? WHERE id=?`,
-		version, p.Name, p.Board, p.Theme, formatTime(s.now()), row.ID); err != nil {
+	res, err := s.db.ExecContext(context.WithoutCancel(ctx),
+		`UPDATE cc_projects SET version=?, name=?, board=?, theme=?, updated_at=? WHERE id=? AND version=?`,
+		version, name, board, theme, formatTime(s.now()), row.ID, row.Version)
+	if err == nil {
+		var n int64
+		if n, err = res.RowsAffected(); err == nil && n != 1 {
+			err = fmt.Errorf("project version is no longer %d", row.Version)
+		}
+	}
+	if err != nil {
+		s.logger.Warn("CYD Creator layout file was written but the project version was not bumped",
+			"project_id", row.ID, "version", row.Version, "error", err)
 		return 0, fmt.Errorf("update project version: %w", err)
 	}
 	return version, nil
@@ -67,7 +153,7 @@ func (s *Service) GetLayout(ctx context.Context, id string) (Project, int64, []I
 	if err != nil {
 		return Project{}, 0, nil, s.internalError("read layout", err)
 	}
-	root, err := s.openRoot(row, "")
+	root, err := s.openProjectRoot(row)
 	if err != nil {
 		return Project{}, 0, nil, s.internalError("read layout", err)
 	}
@@ -81,7 +167,8 @@ func (s *Service) GetLayout(ctx context.Context, id string) (Project, int64, []I
 
 // PutLayout saves a parsed layout when ifVersion equals the stored version
 // (else CYD_PROJECT_CONFLICT with details.version). Semantic issues do not
-// block saving; they are returned with the new version.
+// block saving; they are returned with the new version. The asset list must
+// follow checkLayoutAssets (CYD_INVALID_LAYOUT with details.asset).
 func (s *Service) PutLayout(ctx context.Context, id string, p Project, ifVersion int64, origin string) (int64, []Issue, error) {
 	unlock := s.lockProject(id)
 	defer unlock()
@@ -99,11 +186,26 @@ func (s *Service) PutLayout(ctx context.Context, id string, p Project, ifVersion
 	if p.Format != ProjectFormat {
 		return 0, nil, layoutError(fmt.Sprintf("unsupported format %d (want %d)", p.Format, ProjectFormat), nil)
 	}
-	root, err := s.openRoot(row, "")
+	root, err := s.openProjectRoot(row)
 	if err != nil {
 		return 0, nil, s.internalError("save layout", err)
 	}
 	defer root.Close()
+	// A damaged stored layout lists no assets the save could keep, so a save
+	// without assets can replace it.
+	var storedAssets []Asset
+	stored, err := readLayout(root)
+	var typed *Error
+	switch {
+	case err == nil:
+		storedAssets = stored.Assets
+	case errors.As(err, &typed) && typed.Code == CodeInvalidLayout:
+	default:
+		return 0, nil, s.internalError("save layout", err)
+	}
+	if err := checkLayoutAssets(storedAssets, p.Assets); err != nil {
+		return 0, nil, err
+	}
 	version, err := s.saveLayoutLocked(ctx, root, row, p)
 	if err != nil {
 		return 0, nil, s.internalError("save layout", err)

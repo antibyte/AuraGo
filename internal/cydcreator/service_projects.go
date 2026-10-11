@@ -64,7 +64,9 @@ func asciiFold(s string) string {
 }
 
 // slugify turns a project name into a directory name of [a-z0-9-], at most
-// maxSlugBytes long; names without usable characters become "project".
+// maxSlugBytes long; names without usable characters become "project". A
+// Windows device name (nul, con, com1, ...) gets "-project" appended: on
+// Windows os.Mkdir("nul") succeeds without creating anything.
 func slugify(name string) string {
 	var b strings.Builder
 	dash := false
@@ -87,12 +89,16 @@ func slugify(name string) string {
 	if slug == "" {
 		slug = "project"
 	}
+	if windowsReserved(slug) {
+		slug += "-project"
+	}
 	return slug
 }
 
 func validProjectName(name string) (string, error) {
 	name = strings.TrimSpace(name)
-	if name == "" || utf8.RuneCountInString(name) > maxProjectNameRunes || strings.IndexFunc(name, unicode.IsControl) >= 0 {
+	if name == "" || !utf8.ValidString(name) || utf8.RuneCountInString(name) > maxProjectNameRunes ||
+		strings.IndexFunc(name, unicode.IsControl) >= 0 {
 		return "", NewError(CodeBadRequest,
 			fmt.Sprintf("project name must be 1..%d characters without control characters", maxProjectNameRunes), nil)
 	}
@@ -103,6 +109,10 @@ func validProjectName(name string) (string, error) {
 // the slug. Callers hold createMu.
 func (s *Service) allocateProjectDir(ctx context.Context, name string) (string, error) {
 	base := slugify(name)
+	// <workspace>/CYD may have been deleted since NewService created it.
+	if err := os.MkdirAll(s.projectsDir, 0o750); err != nil {
+		return "", fmt.Errorf("create projects directory: %w", err)
+	}
 	for n := 1; n <= maxSlugAttempts; n++ {
 		slug := base
 		if n > 1 {
@@ -243,7 +253,7 @@ func (s *Service) RenameProject(ctx context.Context, id, name string) (ProjectSu
 	if err := checkLock(row, OriginUser); err != nil {
 		return ProjectSummary{}, err
 	}
-	root, err := s.openRoot(row, "")
+	root, err := s.openProjectRoot(row)
 	if err != nil {
 		return ProjectSummary{}, s.internalError("rename project", err)
 	}
@@ -273,7 +283,11 @@ func (s *Service) DeleteProject(ctx context.Context, id string) error {
 	if err := checkLock(row, OriginUser); err != nil {
 		return err
 	}
-	if s.projectHasActiveBuild(ctx, id) {
+	active, err := s.projectHasActiveBuild(ctx, id)
+	if err != nil {
+		return s.internalError("delete project", err)
+	}
+	if active {
 		return NewError(CodeBusy, "a build of this project is queued or running", map[string]any{"project_id": id})
 	}
 	buildIDs, err := s.projectBuildIDs(ctx, id)
@@ -338,9 +352,15 @@ func projectChange(version int64, origin, what string) map[string]any {
 
 // projectHasActiveBuild reports a queued or running build of the project.
 // StartBuild inserts its row under the same project lock, so the database is
-// authoritative here.
-func (s *Service) projectHasActiveBuild(ctx context.Context, projectID string) bool {
+// authoritative here. A failed query is an error, never "no build".
+func (s *Service) projectHasActiveBuild(ctx context.Context, projectID string) (bool, error) {
 	var one int
 	err := s.db.QueryRowContext(ctx, `SELECT 1 FROM cc_builds WHERE project_id=? AND status IN ('queued','running') LIMIT 1`, projectID).Scan(&one)
-	return err == nil
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("check active builds: %w", err)
+	}
+	return true, nil
 }

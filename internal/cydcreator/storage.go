@@ -164,8 +164,9 @@ type recoveredBuild struct{ ID, ProjectID, JobID string }
 
 // recoverStore runs once at startup: queued and running builds become
 // interrupted (CYD_BUILD_INTERRUPTED), queued and running jobs become
-// interrupted, and project locks held by a job that is no longer active
-// (awaiting_confirmation stays active) are released. Everything runs in one
+// interrupted, project locks held by a job that is no longer active
+// (awaiting_confirmation stays active) are released and events of deleted
+// projects are dropped. Everything runs in one
 // transaction: a crash midway leaves the rows unchanged, so the next start
 // recovers the same builds.
 func recoverStore(ctx context.Context, db *sql.DB, now string) ([]recoveredBuild, error) {
@@ -209,6 +210,11 @@ func recoverStore(ctx context.Context, db *sql.DB, now string) ([]recoveredBuild
 	if _, err := tx.ExecContext(ctx, `UPDATE cc_projects SET locked_by_job=''
 		WHERE locked_by_job<>'' AND locked_by_job NOT IN (SELECT id FROM cc_jobs WHERE status='awaiting_confirmation')`); err != nil {
 		return nil, fmt.Errorf("release stale cyd creator project locks: %w", err)
+	}
+	// An Emit that raced DeleteProject can store an event after the delete
+	// committed; drop events of projects that no longer exist.
+	if _, err := tx.ExecContext(ctx, `DELETE FROM cc_events WHERE project_id NOT IN (SELECT id FROM cc_projects)`); err != nil {
+		return nil, fmt.Errorf("drop orphaned cyd creator events: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit cyd creator recovery: %w", err)

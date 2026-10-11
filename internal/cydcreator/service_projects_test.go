@@ -2,8 +2,10 @@ package cydcreator
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
@@ -144,6 +146,153 @@ func TestDeleteProjectRemovesEverything(t *testing.T) {
 	if _, err := env.svc.GetProject(ctx, keep.ID); err != nil {
 		t.Fatalf("other project lost: %v", err)
 	}
+}
+
+func TestSlugifyAvoidsWindowsDeviceNames(t *testing.T) {
+	for in, want := range map[string]string{
+		"nul": "nul-project", "NUL": "nul-project", "Con": "con-project", "aux": "aux-project", "PRN": "prn-project",
+		"COM1": "com1-project", "Lpt9": "lpt9-project", "con.txt": "con-txt", "console": "console", "com10": "com10",
+	} {
+		if got := slugify(in); got != want {
+			t.Errorf("slugify(%q) = %q, want %q", in, got, want)
+		}
+	}
+	env := newTestService(t)
+	p := env.createProject(t, "NUL")
+	if p.Slug != "nul-project" {
+		t.Fatalf("slug = %q, want nul-project", p.Slug)
+	}
+	if _, err := os.Stat(filepath.Join(env.cfg.WorkspaceDir, "CYD", "nul-project", ProjectFile)); err != nil {
+		t.Fatalf("project file missing: %v", err)
+	}
+}
+
+func TestCreateProjectIsSafeConcurrently(t *testing.T) {
+	env := newTestService(t)
+	const n = 8
+	var wg sync.WaitGroup
+	results := make([]ProjectSummary, n)
+	errs := make([]error, n)
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			results[i], errs[i] = env.svc.CreateProject(context.Background(), CreateProjectInput{Name: "Uhr", Board: "esp32-2432s028r"})
+		}(i)
+	}
+	wg.Wait()
+	slugs, ids := map[string]bool{}, map[string]bool{}
+	for i := 0; i < n; i++ {
+		if errs[i] != nil {
+			t.Fatalf("CreateProject %d: %v", i, errs[i])
+		}
+		slugs[results[i].Slug], ids[results[i].ID] = true, true
+	}
+	if len(slugs) != n || len(ids) != n || !slugs["uhr"] || !slugs[fmt.Sprintf("uhr-%d", n)] {
+		t.Fatalf("slugs = %v, ids = %v; want %d distinct (uhr .. uhr-%d)", slugs, ids, n, n)
+	}
+	list, err := env.svc.ListProjects(context.Background())
+	if err != nil || len(list) != n {
+		t.Fatalf("ListProjects = %d, %v", len(list), err)
+	}
+}
+
+func TestCreateProjectRecreatesTheProjectsFolder(t *testing.T) {
+	env := newTestService(t)
+	if err := os.RemoveAll(filepath.Join(env.cfg.WorkspaceDir, "CYD")); err != nil {
+		t.Fatal(err)
+	}
+	p := env.createProject(t, "Neu")
+	if _, err := os.Stat(filepath.Join(env.cfg.WorkspaceDir, "CYD", p.Slug, ProjectFile)); err != nil {
+		t.Fatalf("project file missing: %v", err)
+	}
+}
+
+func TestProjectWritesHonourTheJobLock(t *testing.T) {
+	env := newTestService(t)
+	ctx := context.Background()
+	p := env.createProject(t, "Gesperrt")
+	layout, version, _, _ := env.svc.GetLayout(ctx, p.ID)
+	env.lockForJob(t, p.ID, "ccj_0001")
+
+	_, err := env.svc.RenameProject(ctx, p.ID, "Anders")
+	wantCode(t, err, CodeProjectLocked)
+	_, _, err = env.svc.PutLayout(ctx, p.ID, layout, version, OriginUser)
+	wantCode(t, err, CodeProjectLocked)
+	_, _, err = env.svc.PutLayout(ctx, p.ID, layout, version, JobOrigin("ccj_0002"))
+	wantCode(t, err, CodeProjectLocked)
+	wantCode(t, env.svc.DeleteProject(ctx, p.ID), CodeProjectLocked)
+
+	next, _, err := env.svc.PutLayout(ctx, p.ID, layout, version, JobOrigin("ccj_0001"))
+	if err != nil || next != version+1 {
+		t.Fatalf("PutLayout by the lock holder = v%d, %v", next, err)
+	}
+	got, err := env.svc.GetProject(ctx, p.ID)
+	if err != nil || got.LockedByJob != "ccj_0001" || got.Name != "Gesperrt" {
+		t.Fatalf("project after locked writes = %+v, %v", got, err)
+	}
+}
+
+func TestDeleteProjectRefusesWhileABuildIsActive(t *testing.T) {
+	env := newTestService(t)
+	ctx := context.Background()
+	p := env.createProject(t, "Baut")
+	if _, err := env.svc.db.Exec(`INSERT INTO cc_builds(id,project_id,origin,status,board,project_version,created_at)
+		VALUES('ccb_0001',?,'user','running','esp32-2432s028r',1,'2026-10-10T08:00:00.000Z')`, p.ID); err != nil {
+		t.Fatal(err)
+	}
+	artifacts := filepath.Join(env.cfg.DataDir, "cyd_creator", "artifacts", "ccb_0001")
+	if err := os.MkdirAll(artifacts, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	wantCode(t, env.svc.DeleteProject(ctx, p.ID), CodeBusy)
+	if _, err := env.svc.GetProject(ctx, p.ID); err != nil {
+		t.Fatalf("refused delete removed the project: %v", err)
+	}
+	if _, err := env.svc.db.Exec(`UPDATE cc_builds SET status='succeeded' WHERE id='ccb_0001'`); err != nil {
+		t.Fatal(err)
+	}
+	if err := env.svc.DeleteProject(ctx, p.ID); err != nil {
+		t.Fatalf("DeleteProject after the build: %v", err)
+	}
+	if _, err := os.Stat(artifacts); !os.IsNotExist(err) {
+		t.Fatalf("artefacts of the deleted project remain: %v", err)
+	}
+	var n int
+	_ = env.svc.db.QueryRow(`SELECT COUNT(*) FROM cc_builds WHERE project_id=?`, p.ID).Scan(&n)
+	if n != 0 {
+		t.Fatalf("%d builds of the deleted project remain", n)
+	}
+}
+
+func TestDeleteProjectFailsSafelyWhenBuildsCannotBeChecked(t *testing.T) {
+	env := newTestService(t)
+	ctx := context.Background()
+	p := env.createProject(t, "Sicher")
+	if _, err := env.svc.db.Exec(`DROP TABLE cc_builds`); err != nil {
+		t.Fatal(err)
+	}
+	wantCode(t, env.svc.DeleteProject(ctx, p.ID), CodeInternal)
+	if _, err := env.svc.GetProject(ctx, p.ID); err != nil {
+		t.Fatalf("failed delete removed the row: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(env.cfg.WorkspaceDir, "CYD", p.Slug)); err != nil {
+		t.Fatalf("failed delete removed the directory: %v", err)
+	}
+}
+
+func TestDeleteProjectWithoutItsDirectory(t *testing.T) {
+	env := newTestService(t)
+	ctx := context.Background()
+	p := env.createProject(t, "Verschwunden")
+	if err := os.RemoveAll(filepath.Join(env.cfg.WorkspaceDir, "CYD", p.Slug)); err != nil {
+		t.Fatal(err)
+	}
+	if err := env.svc.DeleteProject(ctx, p.ID); err != nil {
+		t.Fatalf("DeleteProject without directory: %v", err)
+	}
+	_, err := env.svc.GetProject(ctx, p.ID)
+	wantCode(t, err, CodeNotFound)
 }
 
 func (e *testEnv) createProject(t *testing.T, name string) ProjectSummary {

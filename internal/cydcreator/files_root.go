@@ -14,9 +14,14 @@ import (
 	"aurago/internal/fileutil"
 )
 
-var errFileTooLarge = errors.New("file exceeds the size limit")
+var (
+	errFileTooLarge   = errors.New("file exceeds the size limit")
+	errNotRegularFile = errors.New("not a regular file")
+)
 
-// rootReadFile reads a regular file inside root, at most max bytes.
+// rootReadFile reads a regular file inside root, at most max bytes. A path
+// that leaves root fails (os.Root), a directory or device is
+// errNotRegularFile, a larger file errFileTooLarge.
 func rootReadFile(root *os.Root, rel string, max int64) ([]byte, error) {
 	f, err := root.Open(filepath.FromSlash(rel))
 	if err != nil {
@@ -28,7 +33,7 @@ func rootReadFile(root *os.Root, rel string, max int64) ([]byte, error) {
 		return nil, err
 	}
 	if !info.Mode().IsRegular() {
-		return nil, fmt.Errorf("%s is not a regular file", rel)
+		return nil, fmt.Errorf("%s: %w", rel, errNotRegularFile)
 	}
 	data, err := io.ReadAll(io.LimitReader(f, max+1))
 	if err != nil {

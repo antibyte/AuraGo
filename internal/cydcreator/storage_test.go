@@ -187,6 +187,39 @@ func TestRecoverStoreMarksUnfinishedWorkInterrupted(t *testing.T) {
 	}
 }
 
+func TestRecoverStoreDropsEventsOfDeletedProjects(t *testing.T) {
+	db, _ := openTestStore(t)
+	now := "2026-10-10T08:00:00.000Z"
+	if _, err := db.Exec(`INSERT INTO cc_projects(id,slug,name,board,theme,created_at,updated_at)
+		VALUES('ccp_1','a','A','esp32-2432s028r','clear',?,?)`, now, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO cc_events(project_id,type,data,created_at) VALUES
+		('ccp_1','project_changed','{}',?),('ccp_gone','project_changed','{}',?)`, now, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := recoverStore(context.Background(), db, "2026-10-10T09:00:00.000Z"); err != nil {
+		t.Fatalf("recoverStore: %v", err)
+	}
+	counts := map[string]int{}
+	rows, err := db.Query(`SELECT project_id, COUNT(*) FROM cc_events GROUP BY project_id`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for rows.Next() {
+		var id string
+		var n int
+		if err := rows.Scan(&id, &n); err != nil {
+			t.Fatal(err)
+		}
+		counts[id] = n
+	}
+	_ = rows.Close()
+	if counts["ccp_1"] != 1 || counts["ccp_gone"] != 0 {
+		t.Fatalf("events per project = %v, want ccp_1 kept and ccp_gone dropped", counts)
+	}
+}
+
 func TestRecoverStoreIsAllOrNothing(t *testing.T) {
 	db, _ := openTestStore(t)
 	if _, err := db.Exec(`INSERT INTO cc_builds(id,project_id,origin,status,board,project_version,created_at)
