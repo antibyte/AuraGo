@@ -47,17 +47,15 @@
         const el = v.el;
         let disposed = false;
         let stallTimer = 0;
-        // generation is bumped by start() and restartGame(): a restart that was
-        // overtaken by a newer one (or by start itself) does not load anything.
-        let generation = 0;
+        // The current player iframe. Every start builds a new one (see start()).
+        let frame = null;
         let muted = readMuted();
         // The mute value the current page was started with. The page cannot hear
         // a click that comes before it listens, so it is told again once it says
         // it started (see onPlayerState).
         let urlMuted = muted;
-        // Where the current page is: 'idle' until it posts its first state (what
-        // the frame's previous page still had in flight must not count for the new
-        // one), then 'loading' -> 'running'; 'failed' is final until a restart.
+        // Where the current page is: 'idle' until it posts its first state, then
+        // 'loading' -> 'running'; 'failed' is final until the next start.
         let phase = 'idle';
         stage.textContent = '';
 
@@ -93,14 +91,16 @@
             el('div', { className: 'rg-marquee-actions' }, [fav, broken, mute, restart, full, external])
         ]);
 
-        const frame = el('iframe', {
-            className: 'rg-frame',
-            sandbox: SANDBOX,
-            allow: ALLOW,
-            allowfullscreen: true,
-            referrerpolicy: 'no-referrer',
-            title: t('desktop.retro_games_frame_title', { title: game.title })
-        });
+        function makeFrame() {
+            return el('iframe', {
+                className: 'rg-frame',
+                sandbox: SANDBOX,
+                allow: ALLOW,
+                allowfullscreen: true,
+                referrerpolicy: 'no-referrer',
+                title: t('desktop.retro_games_frame_title', { title: game.title })
+            });
+        }
         // The loading bar and the hints (slow start, failed start) are the same
         // bottom strip. It never takes pointer events itself (only the hint
         // buttons do), so the game stays clickable underneath it.
@@ -111,7 +111,8 @@
             button('rg-overlay-broken', t('desktop.retro_games_mark_broken'), '⚠ ' + t('desktop.retro_games_mark_broken'), returnFocus(call('onMarkBroken')))
         ]);
         const overlay = el('div', { className: 'rg-overlay', role: 'status' }, [overlayText, hintActions]);
-        const screen = el('div', { className: 'rg-screen' }, [frame, overlay]);
+        // The frame goes in front of the strip when the first start() builds it.
+        const screen = el('div', { className: 'rg-screen' }, [overlay]);
         const bezel = el('div', { className: 'rg-bezel' }, [screen]);
         const panel = el('footer', { className: 'rg-panel' }, [
             el('span', { className: 'rg-panel-label', text: t('desktop.retro_games_controls_label') }),
@@ -128,20 +129,20 @@
         // silently, and nothing from a message is ever rendered or logged.
         function onMessage(event) {
             const data = event.data;
-            if (disposed || event.source !== frame.contentWindow || !data || data.rg !== 1) return;
+            if (disposed || !frame.contentWindow || event.source !== frame.contentWindow || !data || data.rg !== 1) return;
             if (data.type === 'state' && PLAYER_STATES.includes(data.state)) {
                 onPlayerState(data.state);
             } else if (data.type === 'audio' && typeof data.blocked === 'boolean') {
                 // Well-formed and deliberately unused: the page shows its own click-for-sound pill.
-                return;
             }
         }
 
-        // A healthy page goes idle -> loading -> running. failed ends it from any
-        // phase, even idle: a script that cannot load (archive.org down or blocked)
-        // fails the page before it reports loading. Repeats, states out of order and
-        // anything after failed change nothing, so a flood of messages cannot
-        // restart the mute handshake or bring a failed game's bar back.
+        // A healthy page goes idle -> loading -> running. failed ends it before it
+        // ran, even from idle: a script that cannot load (archive.org down or
+        // blocked) fails the page before it reports loading. A game that ran never
+        // shows "could not be started". Repeats, states out of order and anything
+        // after failed change nothing, so a flood of messages cannot restart the
+        // mute handshake or bring a failed game's bar back.
         function onPlayerState(state) {
             if (phase === 'failed') return;
             if (state === 'loading') {
@@ -153,6 +154,7 @@
                 phase = 'running';
                 hideOverlay();
             } else if (state === 'failed') {
+                if (phase === 'running') return;
                 phase = 'failed';
                 showHint('desktop.retro_games_player_failed');
             }
@@ -201,23 +203,24 @@
             }, stallMs);
         }
 
+        // Every start gets a fresh iframe element. Re-navigating the old one would
+        // leave its document alive (and posting, through the same window object that
+        // passes the source check in onMessage) until the new response commits, so a
+        // late message of the old page would land on the new start. The old element
+        // is removed: its window is gone and no longer matches frame.contentWindow.
         function start() {
             armOverlay();
-            generation += 1;
             phase = 'idle';
             urlMuted = muted;
-            frame.setAttribute('src', playerURL(game.identifier, muted, t('desktop.retro_games_click_for_sound')));
+            const next = makeFrame();
+            next.setAttribute('src', playerURL(game.identifier, muted, t('desktop.retro_games_click_for_sound')));
+            if (frame) frame.replaceWith(next);
+            else screen.prepend(next);
+            frame = next;
         }
 
         function restartGame() {
-            if (disposed) return;
-            generation += 1;
-            const pending = generation;
-            phase = 'idle';
-            frame.setAttribute('src', 'about:blank');
-            setTimeout(() => {
-                if (!disposed && pending === generation) start();
-            }, 0);
+            if (!disposed) start();
         }
 
         function toggleFullscreen() {
@@ -239,12 +242,12 @@
             broken.title = label;
         }
 
-        // Like the broken marker: the icon shows the state (🔇 = muted = pressed),
-        // the label names what a click does.
+        // The icon shows the state (🔇 = muted), the label names what a click does.
+        // No aria-pressed: a pressed button labelled "Sound on" would read as the opposite.
         function renderMute() {
             const label = muted ? t('desktop.retro_games_sound_on') : t('desktop.retro_games_sound_off');
             mute.textContent = muted ? '🔇' : '🔊';
-            mute.setAttribute('aria-pressed', muted ? 'true' : 'false');
+            mute.classList.toggle('is-muted', muted);
             mute.setAttribute('aria-label', label);
             mute.title = label;
         }

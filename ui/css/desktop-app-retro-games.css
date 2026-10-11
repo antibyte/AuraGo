@@ -217,7 +217,7 @@
 .rg-marquee-meta { font-size: 17px; color: #3a1200; }
 .rg-marquee-actions { display: flex; gap: 6px; }
 .rg-btn { min-width: 34px; height: 32px; padding: 0 10px; border: 2px solid #6b1600; border-radius: 6px; background: #1b0d00; color: #ffcf3f; cursor: pointer; }
-.rg-btn[aria-pressed="true"] { background: #6b1600; color: #fff; }
+.rg-btn[aria-pressed="true"], .rg-mute.is-muted { background: #6b1600; color: #fff; }
 .rg-bezel {
     min-height: 0;
     margin: 12px 14px 0;

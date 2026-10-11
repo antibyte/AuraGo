@@ -264,8 +264,45 @@ globalThis.IALoader = function (canvas, id, cb) {
 type retroGamesArchive struct {
 	mu   sync.Mutex
 	gate chan struct{}
-	down bool
-	seen []string
+	// playerGate, while set, holds back the answer of the player route itself.
+	playerGate chan struct{}
+	down       bool
+	seen       []string
+}
+
+// holdPlayer makes the player route (AuraGo's own page, not archive.org) wait
+// until releasePlayer, so a navigation to it stays pending.
+func (a *retroGamesArchive) holdPlayer() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.playerGate == nil {
+		a.playerGate = make(chan struct{})
+	}
+}
+
+func (a *retroGamesArchive) releasePlayer() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.playerGate != nil {
+		close(a.playerGate)
+		a.playerGate = nil
+	}
+}
+
+// servePlayer serves the real player page, after the hold if there is one.
+func (a *retroGamesArchive) servePlayer(w http.ResponseWriter, r *http.Request) {
+	a.mu.Lock()
+	gate := a.playerGate
+	a.mu.Unlock()
+	if gate != nil {
+		select {
+		case <-gate:
+		case <-r.Context().Done():
+			return
+		case <-time.After(30 * time.Second):
+		}
+	}
+	server.ServeRetroGamesPlayerUngated(w, r)
 }
 
 // setDown makes loader.js answer 404, like archive.org being unreachable or blocked.
@@ -340,25 +377,26 @@ func (a *retroGamesArchive) serve(ctx *rod.Hijack) {
 
 // newRetroGamesPlayerPage opens the real desktop shell with the fake Retro
 // Games API and the real player page (server.ServeRetroGamesPlayerUngated, headers and
-// all). archive.org is answered by the returned fake, so no request leaves the
-// machine. The player runs in a frame with an opaque origin; Chrome puts such a
+// all; the route can be held back through the returned fake). archive.org is
+// answered by the same fake, so no request leaves the machine. The player runs in a frame with an opaque origin; Chrome puts such a
 // frame into its own process by default, and requests of another process never
 // reach the page-level router, so site isolation is switched off for these tests.
 func newRetroGamesPlayerPage(t *testing.T, fixture *retroGamesFixture) (*rod.Page, *retroGamesArchive) {
 	t.Helper()
+	archive := &retroGamesArchive{}
 	page := desktopAuditBrowserWith(t, map[string]http.Handler{
 		"/api/desktop/retro-games/":       fixture,
-		"/api/desktop/retro-games/player": http.HandlerFunc(server.ServeRetroGamesPlayerUngated),
+		"/api/desktop/retro-games/player": http.HandlerFunc(archive.servePlayer),
 	}, func(l *launcher.Launcher) {
 		l.Set("disable-site-isolation-trials").Append("disable-features", "IsolateOrigins", "IsolateSandboxedIframes")
 	})
-	archive := &retroGamesArchive{}
 	router := page.HijackRequests()
 	router.MustAdd("*archive.org*", archive.serve)
 	go router.Run()
-	// Cleanups run last in, first out: the held loader is answered before the router goes away.
+	// Cleanups run last in, first out: held answers are given before the router goes away.
 	t.Cleanup(func() { router.MustStop() })
 	t.Cleanup(archive.release)
+	t.Cleanup(archive.releasePlayer)
 	return page, archive
 }
 
@@ -659,7 +697,7 @@ func TestDesktopRetroGamesPlayerBrowser(t *testing.T) {
 	baseline := page.MustEval(`()=>__rgMessageListeners.size`).Int()
 	listeners := func() int { return page.MustEval(`()=>__rgMessageListeners.size`).Int() - baseline }
 	muteState := func() string {
-		return page.MustEval(`()=>{const b=document.querySelector('.rg-mute');return [b.getAttribute('aria-pressed'),b.getAttribute('aria-label'),b.title,b.textContent,localStorage.getItem('aurago.retroGames.muted')].join('|')}`).Str()
+		return page.MustEval(`()=>{const b=document.querySelector('.rg-mute');return [b.getAttribute('aria-label'),b.title,b.textContent,localStorage.getItem('aurago.retroGames.muted')].join('|')}`).Str()
 	}
 	overlayHidden := func() bool { return page.MustEval(`()=>document.querySelector('.rg-overlay').hidden`).Bool() }
 	frameIsFocused := func() bool {
@@ -685,8 +723,13 @@ func TestDesktopRetroGamesPlayerBrowser(t *testing.T) {
 	if state := page.MustEval(`()=>{const o=document.querySelector('.rg-overlay');return [o.hidden,o.classList.contains('is-stalled'),getComputedStyle(o).pointerEvents,o.querySelector('.rg-overlay-text').textContent,o.querySelector('.rg-overlay-actions').hidden].join('|')}`).Str(); state != "false|false|none|"+loadingText+"|true" {
 		t.Fatalf("loading bar = %q, want a visible, click-through bar saying %q", state, loadingText)
 	}
-	if got := muteState(); got != "false|"+soundOff+"|"+soundOff+"|🔊|" {
+	if got := muteState(); got != soundOff+"|"+soundOff+"|🔊|" {
 		t.Fatalf("mute button before any click = %q", got)
+	}
+	// The label names the click and the icon the state: a pressed state next to "Ton an"
+	// would read as the opposite, so the button has none (the muted look is a class).
+	if page.MustEval(`()=>document.querySelector('.rg-mute').hasAttribute('aria-pressed')`).Bool() {
+		t.Fatal("the mute button carries aria-pressed")
 	}
 	// The app's own window posting {rg:1} is not the player frame: nothing it
 	// says counts, however well-formed.
@@ -698,8 +741,11 @@ func TestDesktopRetroGamesPlayerBrowser(t *testing.T) {
 
 	// Sound toggled while the page still loads (it cannot hear us yet): real click.
 	page.MustElement(".rg-mute").MustClick()
-	if got := muteState(); got != "true|"+soundOn+"|"+soundOn+"|🔇|1" {
+	if got := muteState(); got != soundOn+"|"+soundOn+"|🔇|1" {
 		t.Fatalf("mute button after muting = %q", got)
+	}
+	if !page.MustEval(`()=>document.querySelector('.rg-mute').classList.contains('is-muted')`).Bool() {
+		t.Fatal("the muted button does not look muted")
 	}
 	waitFocus("after the mute button")
 	// 900 ms without a running game: the hint.
@@ -767,17 +813,11 @@ func TestDesktopRetroGamesPlayerBrowser(t *testing.T) {
 	if !overlayHidden() || cabinet() != before {
 		t.Fatalf("a message outside the protocol changed the player (overlay hidden=%v, cabinet nodes %d -> %d)", overlayHidden(), before, cabinet())
 	}
-	// ...while the frame's own {rg:1} state messages do.
-	retroGamesFrame(page).MustEval(`()=>parent.postMessage({rg:1,type:'state',state:'failed'},'*')`)
-	page.MustWait(`()=>{const o=document.querySelector('.rg-overlay');return !o.hidden&&o.classList.contains('is-stalled')}`)
-	if text := page.MustEval(`()=>document.querySelector('.rg-overlay-text').textContent`).Str(); text != german["desktop.retro_games_player_failed"] {
-		t.Fatalf("failed text = %q", text)
-	}
-	// A failure is final until a restart: later states change nothing.
-	retroGamesFrame(page).MustEval(`()=>{for(const state of ['running','loading','running'])parent.postMessage({rg:1,type:'state',state},'*');parent.postMessage({rg:1,type:'state',state:'ping'},'*')}`)
+	// A game that ran can no longer fail to start: a late "failed" and whatever follows change nothing.
+	retroGamesFrame(page).MustEval(`()=>{for(const state of ['failed','running','loading','failed','ping'])parent.postMessage({rg:1,type:'state',state},'*')}`)
 	time.Sleep(300 * time.Millisecond)
-	if text := page.MustEval(`()=>{const o=document.querySelector('.rg-overlay');return o.hidden?'':o.querySelector('.rg-overlay-text').textContent}`).Str(); text != german["desktop.retro_games_player_failed"] {
-		t.Fatalf("a state after failed changed the hint: %q", text)
+	if !overlayHidden() || cabinet() != before {
+		t.Fatalf("a state after running changed the player (overlay hidden=%v, cabinet nodes %d -> %d)", overlayHidden(), before, cabinet())
 	}
 
 	// Restart (real click): focus stays with the game, the remembered sound state
@@ -795,7 +835,7 @@ func TestDesktopRetroGamesPlayerBrowser(t *testing.T) {
 
 	// Sound back on: pressed state, label, storage, the game's master gain and the focus all follow.
 	page.MustElement(".rg-mute").MustClick()
-	if got := muteState(); got != "false|"+soundOff+"|"+soundOff+"|🔊|0" {
+	if got := muteState(); got != soundOff+"|"+soundOff+"|🔊|0" {
 		t.Fatalf("mute button after unmuting = %q", got)
 	}
 	retroGamesWaitForMuted(t, page, "the game to be unmuted", false)
@@ -824,7 +864,7 @@ func TestDesktopRetroGamesPlayerBrowser(t *testing.T) {
 	page.MustEval(`()=>document.querySelector('.rg-card-play').click()`)
 	page.MustWait(`()=>!!document.querySelector('.rg-frame')`)
 	assertRetroGamesPlayerSource(t, page.MustEval(`()=>document.querySelector('.rg-frame').getAttribute('src')`).Str(), "msdos_Prince_of_Persia_1990", true, sound)
-	if got := muteState(); got != "true|"+soundOn+"|"+soundOn+"|🔇|1" {
+	if got := muteState(); got != soundOn+"|"+soundOn+"|🔇|1" {
 		t.Fatalf("mute button of the next player = %q", got)
 	}
 	page.MustWait(`()=>document.querySelector('.rg-overlay').hidden===true`)
@@ -837,8 +877,8 @@ func TestDesktopRetroGamesPlayerBrowser(t *testing.T) {
 	page.MustWait(`()=>!!document.querySelector('.rg-frame')`)
 	assertRetroGamesPlayerSource(t, page.MustEval(`()=>document.querySelector('.rg-frame').getAttribute('src')`).Str(), "msdos_Prince_of_Persia_1990", false, sound)
 	page.MustElement(".rg-mute").MustClick()
-	if pressed := page.MustEval(`()=>document.querySelector('.rg-mute').getAttribute('aria-pressed')`).Str(); pressed != "true" {
-		t.Fatalf("the mute button does not toggle without storage: aria-pressed=%s", pressed)
+	if label := page.MustEval(`()=>document.querySelector('.rg-mute').getAttribute('aria-label')`).Str(); label != soundOn {
+		t.Fatalf("the mute button does not toggle without storage: label=%q, want %q", label, soundOn)
 	}
 	page.MustEval(`()=>{const s=Storage.prototype;s.getItem=window.__realGet;s.setItem=window.__realSet}`)
 	page.MustWait(`()=>document.querySelector('.rg-overlay').hidden===true`)
@@ -929,6 +969,58 @@ func TestDesktopRetroGamesPlayerBrowserFailure(t *testing.T) {
 	page.MustElement(".rg-overlay-restart").MustClick()
 	page.MustWait(`()=>document.querySelector('.rg-overlay').hidden===true`)
 	retroGamesWaitForMuted(t, page, "the recovered game to have sound", false)
+}
+
+// TestDesktopRetroGamesPlayerBrowserRestartIgnoresTheOldPage restarts a running
+// game while its old page is still alive and chatting. Re-navigating the same
+// iframe keeps the old document (and its WindowProxy, which passes the source
+// check) until the new response commits; the app therefore gives every start a
+// fresh iframe element, and what the old page still says never reaches the new
+// start. With the new page's answer held back, an old "failed" every 20 ms
+// must not turn the loading bar into a failure hint, and the game that then
+// starts must end the bar.
+func TestDesktopRetroGamesPlayerBrowserRestartIgnoresTheOldPage(t *testing.T) {
+	fixture := newRetroGamesFixture()
+	page, archive := newRetroGamesPlayerPage(t, fixture)
+	german := readMergedLangMap(t, "de")
+	loadingText := german["desktop.retro_games_player_loading"]
+
+	page.MustEval(`()=>{document.documentElement.lang='de';auditTest.openApp('retro-games')}`)
+	page.MustWait(`()=>document.querySelectorAll('.rg-card').length===2`)
+	page.MustEval(`()=>document.querySelector('.rg-card-play').click()`)
+	page.MustWait(`()=>!!document.querySelector('.rg-frame')`)
+	page.MustWait(`()=>document.querySelector('.rg-overlay').hidden===true`)
+	retroGamesWaitForMuted(t, page, "the first game to have sound", false)
+
+	// Whether the browser commits an about:blank navigation before a following one
+	// supersedes it is a matter of timing; the restart that re-navigates one iframe
+	// is only unlucky when it does not. Zero-delay timers run as microtasks here, so
+	// that unlucky ordering is certain: a restart that sets about:blank and then
+	// "later" the player URL supersedes the first navigation, and the old document
+	// stays alive until the new one commits. (A fresh iframe has no such timer.)
+	page.MustEval(`()=>{const real=window.setTimeout.bind(window);window.setTimeout=(fn,ms,...args)=>{if(!ms&&typeof fn==='function'){queueMicrotask(()=>fn(...args));return 0}return real(fn,ms,...args)}}`)
+	// The old page keeps reporting a failure, as a page can while it is being replaced.
+	retroGamesFrame(page).MustEval(`()=>{window.__stale=setInterval(()=>parent.postMessage({rg:1,type:'state',state:'failed'},'*'),20)}`)
+	archive.holdPlayer()
+	page.MustElement(".rg-restart").MustClick()
+	time.Sleep(600 * time.Millisecond)
+	if state := page.MustEval(`()=>{const o=document.querySelector('.rg-overlay');return [o.hidden,o.classList.contains('is-stalled'),o.querySelector('.rg-overlay-text').textContent].join('|')}`).Str(); state != "false|false|"+loadingText {
+		t.Fatalf("while the new page loads the strip = %q, want the loading bar %q (a message of the old page got through)", state, loadingText)
+	}
+
+	archive.releasePlayer()
+	page.MustWait(`()=>document.querySelector('.rg-overlay').hidden===true`)
+	retroGamesWaitForMuted(t, page, "the restarted game to have sound", false)
+	time.Sleep(300 * time.Millisecond)
+	if state := page.MustEval(`()=>{const o=document.querySelector('.rg-overlay');return [o.hidden,o.classList.contains('is-stalled')].join('|')}`).Str(); state != "true|false" {
+		t.Fatalf("after the restarted game started the strip = %q, want hidden", state)
+	}
+	if !page.MustEval(`()=>document.activeElement===document.querySelector('.rg-frame')`).Bool() {
+		t.Fatal("the restarted game does not hold the keyboard focus")
+	}
+	if n := page.MustEval(`()=>document.querySelectorAll('.rg-frame').length`).Int(); n != 1 {
+		t.Fatalf("frames in the screen = %d, want exactly 1", n)
+	}
 }
 
 // TestDesktopRetroGamesPlayerBrowserHostileMessages lets the game's own code

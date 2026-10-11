@@ -229,9 +229,16 @@
   (`loading`/`running`/`failed`) and a boolean `blocked`: archive.org's code runs in the same realm as the
   page and can post any `{ rg: 1 }` message, so the content is untrusted, nothing from it is rendered or
   logged, and a flood or out-of-order states must change nothing. `phase` enforces that: `idle` -> `loading`
-  (counted once) -> `running`; `failed` ends it from any phase (a script that cannot load fails the page
-  before it reports `loading`) and is final until a restart; `start()` and `restartGame()` reset it, so a
-  `running` the previous page still had in flight is ignored.
+  (counted once) -> `running`; `failed` ends it from `idle` or `loading` (a script that cannot load fails
+  the page before it reports `loading`) and is final until the next start; after `running` it is ignored,
+  because a game that ran never shows "could not be started".
+- Every start (mount and each restart) builds a FRESH iframe (`makeFrame()`, `start()`) and replaces the
+  old element. Re-navigating the same iframe (`about:blank`, then the player URL) does not stop the old
+  document: it stays alive and keeps posting until the new response commits, and its messages pass
+  `event.source === frame.contentWindow` because the window object is the same (measured: dozens of stale
+  messages up to ~300 ms after the restart, a stale `failed` then stuck over the running game). A removed
+  iframe's window no longer matches `frame.contentWindow`, so what it still had queued is dropped. Never
+  restart by changing the `src` of the existing frame; `destroy()` still unloads (`about:blank`, remove).
 - States drive one bottom strip (`.rg-overlay`, `pointer-events: none`, only the hint buttons opt back
   in, so the game stays clickable): the loading bar (`desktop.retro_games_player_loading`) from mount
   until `running`; `failed` or no `running` within `STALL_MS` = 60 s show the hint with restart, open on
@@ -239,8 +246,10 @@
   `desktop.retro_games_player_stalled` (a late `running` retires the stall hint). The frame's `load` event
   and window focus/blur say nothing about the emulator and are not used. `mount(..., { stallMs })` shortens
   the delay for tests only; they wrap `RetroGamesPlayer.mount`.
-- Sound: the mute button (🔊/🔇, `aria-pressed`, label `desktop.retro_games_sound_off` while sound plays,
-  `desktop.retro_games_sound_on` while muted) sits in the marquee actions. The choice is kept in
+- Sound: the mute button (🔊/🔇) sits in the marquee actions. Its label (`aria-label` and `title`) names
+  what a click does: `desktop.retro_games_sound_off` while sound plays, `desktop.retro_games_sound_on`
+  while muted. It has NO `aria-pressed` (a pressed button labelled "Sound on" reads as the opposite); the
+  icon and the `.is-muted` class show the state. The choice is kept in
   `localStorage` key `aurago.retroGames.muted` (read and write in try/catch; blocked storage means sound
   on), goes into the player URL (`muted=1`, also after a restart) and is posted to the running page on
   click. A click before the page listens is repeated once the page reports `loading` (`urlMuted`).
@@ -265,11 +274,14 @@
   the first index download.
 - Verify `TestDesktopRetroGamesTranslations`, `TestDesktopRetroGamesRegistration`,
   `TestDesktopRetroGamesViewsNeverRenderHTML`, `TestDesktopRetroGamesPlayerFrameIsLockedDown`,
-  `TestDesktopRetroGamesPlayerTrustsOnlyItsOwnFrame`, `TestDesktopRetroGamesPlayerHasAMuteToggle`,
+  `TestDesktopRetroGamesPlayerTrustsOnlyItsOwnFrame`, `TestDesktopRetroGamesPlayerGivesEveryStartAFreshFrame`,
+  `TestDesktopRetroGamesPlayerHasAMuteToggle`,
   `TestDesktopRetroGamesAppLifecycle`, `TestDesktopRetroGamesPlayerGivesTheGameTheKeyboard`,
   `TestDesktopRetroGamesStalledHintNeverCoversTheFrame` and, with `AURAGO_RUN_BROWSER_SMOKE=1`,
   `TestDesktopRetroGamesBrowser`, `TestDesktopRetroGamesPlayerBrowser`,
-  `TestDesktopRetroGamesPlayerBrowserFailure`, `TestDesktopRetroGamesPlayerBrowserHostileMessages` and
+  `TestDesktopRetroGamesPlayerBrowserFailure`, `TestDesktopRetroGamesPlayerBrowserHostileMessages`,
+  `TestDesktopRetroGamesPlayerBrowserRestartIgnoresTheOldPage` (holds the player route and makes zero-delay
+  timers microtasks, so the old-document race is certain instead of lucky) and
   `TestDesktopRetroGamesBrowserStalledHint`. They drive the real shell (`desktopAuditBrowserWith`) with the
   REAL player page (`server.ServeRetroGamesPlayerUngated`, headers included); only archive.org's
   `browserfs.min.js` and `loader.js` are hijacked (`page.HijackRequests()`: an empty script and a fake

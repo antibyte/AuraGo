@@ -59,8 +59,6 @@ func TestDesktopRetroGamesPlayerFrameIsLockedDown(t *testing.T) {
 		"frame.setAttribute('src', 'about:blank');",
 		"frame.remove();",
 		"window.RetroGamesPlayer = { mount, playerURL, SANDBOX, ALLOW };",
-		"let generation = 0;",
-		"pending === generation",
 		"call('onMarkBroken')",
 	} {
 		if !strings.Contains(src, marker) {
@@ -75,13 +73,62 @@ func TestDesktopRetroGamesPlayerFrameIsLockedDown(t *testing.T) {
 	if tokens := strings.Fields(sandbox[1]); strings.Join(tokens, ",") != "allow-scripts,allow-pointer-lock" {
 		t.Errorf("SANDBOX tokens = %v, want allow-scripts and allow-pointer-lock only", tokens)
 	}
-	// Neither the player nor the app may point a frame, tab or script at archive.org's embed or an absolute URL.
-	for _, file := range retroGamesAppFiles {
-		for _, line := range strings.Split(rawDesktopAssetText(t, file), "\n") {
-			if strings.Contains(line, "frame.setAttribute('src'") && !strings.Contains(line, "'about:blank'") && !strings.Contains(line, "playerURL(") {
-				t.Errorf("%s sets the frame to something other than the player page or about:blank: %s", file, strings.TrimSpace(line))
-			}
+	// The only addresses the player ever gives a frame: its own player route or about:blank.
+	// (Anything that sets a src, however it spells it, must say playerURL( or about:blank.)
+	for _, line := range strings.Split(src, "\n") {
+		if (strings.Contains(line, ".setAttribute('src'") || regexp.MustCompile(`\.src\s*=`).MatchString(line)) && !strings.Contains(line, "'about:blank'") && !strings.Contains(line, "playerURL(") {
+			t.Errorf("the player sets a src to something other than the player page or about:blank: %s", strings.TrimSpace(line))
 		}
+	}
+	if strings.Count(src, "'about:blank'") != 1 {
+		t.Error("about:blank belongs to destroy alone: a restart must not re-navigate the old frame through it")
+	}
+}
+
+// Every start gets a fresh iframe element. Re-navigating the same iframe leaves
+// the old document alive (and posting, through the same WindowProxy that passes
+// the source check) until the new response commits: a stale "failed" would then
+// land on the new start. A removed iframe's window no longer matches
+// frame.contentWindow, so what it still had queued is dropped.
+func TestDesktopRetroGamesPlayerGivesEveryStartAFreshFrame(t *testing.T) {
+	src := rawDesktopAssetText(t, "js/desktop/apps/retro-games-player.js")
+	if strings.Count(src, "el('iframe'") != 1 {
+		t.Error("the iframe must be built in one place (makeFrame)")
+	}
+	maker := functionBody(t, src, "function makeFrame()")
+	for _, marker := range []string{"el('iframe'", "sandbox: SANDBOX", "allow: ALLOW", "referrerpolicy: 'no-referrer'"} {
+		if !strings.Contains(maker, marker) {
+			t.Errorf("makeFrame lacks %q", marker)
+		}
+	}
+	if strings.Contains(maker, "src") {
+		t.Error("makeFrame must not set a src: start() does, after the frame exists")
+	}
+	start := functionBody(t, src, "function start()")
+	for _, marker := range []string{
+		"armOverlay();",
+		"phase = 'idle';",
+		"urlMuted = muted;",
+		"const next = makeFrame();",
+		"next.setAttribute('src', playerURL(game.identifier, muted, t('desktop.retro_games_click_for_sound')));",
+		"frame.replaceWith(next);",
+		"frame = next;",
+	} {
+		if !strings.Contains(start, marker) {
+			t.Errorf("start() lacks %q", marker)
+		}
+	}
+	restart := functionBody(t, src, "function restartGame()")
+	if !strings.Contains(restart, "start();") {
+		t.Error("restartGame must start a new frame")
+	}
+	for _, banned := range []string{"setTimeout", "about:blank", "setAttribute", "generation"} {
+		if strings.Contains(restart, banned) {
+			t.Errorf("restartGame still re-navigates the old frame (%q)", banned)
+		}
+	}
+	if strings.Contains(src, "generation") {
+		t.Error("the generation counter belonged to the about:blank restart")
 	}
 }
 
@@ -109,12 +156,17 @@ func TestDesktopRetroGamesPlayerTrustsOnlyItsOwnFrame(t *testing.T) {
 		"!data || data.rg !== 1",
 		// archive.org's code shares the page's realm and can post any {rg: 1}
 		// message: only the known types with well-formed values act.
+		"!frame.contentWindow",
 		"data.type === 'state' && PLAYER_STATES.includes(data.state)",
 		"data.type === 'audio' && typeof data.blocked === 'boolean'",
 	} {
 		if !strings.Contains(listener, marker) {
 			t.Errorf("the message listener lacks %q", marker)
 		}
+	}
+	// The well-formed audio message is accepted and deliberately does nothing.
+	if strings.Count(listener, "return;") != 1 {
+		t.Error("the listener has one early return (the guard); the audio branch holds a comment only")
 	}
 	if !strings.Contains(src, "const PLAYER_STATES = ['loading', 'running', 'failed'];") {
 		t.Error("the accepted states are not pinned to loading, running and failed")
@@ -131,10 +183,13 @@ func TestDesktopRetroGamesPlayerTrustsOnlyItsOwnFrame(t *testing.T) {
 	states := functionBody(t, src, "function onPlayerState(state)")
 	for _, marker := range []string{
 		// failed is final until a restart (and may come before loading: a script that cannot
-		// load fails the page first); loading counts once per page; running only follows loading.
+		// load fails the page first, but never after running); loading counts once per page;
+		// running only follows loading.
 		"if (phase === 'failed') return;",
 		"if (phase !== 'idle') return;",
 		"if (phase !== 'loading') return;",
+		// A game that ran never reports "could not be started".
+		"if (phase === 'running') return;",
 		"phase = 'failed';",
 		"hideOverlay();",
 		"showHint('desktop.retro_games_player_failed');",
@@ -197,7 +252,6 @@ func TestDesktopRetroGamesPlayerHasAMuteToggle(t *testing.T) {
 		"window.localStorage.setItem(MUTE_KEY,",
 		"button('rg-mute'",
 		"returnFocus(() => toggleMute())",
-		"'aria-pressed'",
 		"t('desktop.retro_games_sound_off')",
 		"t('desktop.retro_games_sound_on')",
 		"'🔊'",
@@ -210,6 +264,21 @@ func TestDesktopRetroGamesPlayerHasAMuteToggle(t *testing.T) {
 		if !strings.Contains(src, marker) {
 			t.Errorf("player lacks %q", marker)
 		}
+	}
+	// The label names what a click does and the icon shows the state; a pressed state next
+	// to a label like "Sound on" would read as the opposite, so the button has none.
+	render := functionBody(t, src, "function renderMute()")
+	if strings.Contains(render, "aria-pressed") || strings.Contains(render, "ariaPressed") {
+		t.Error("the mute button must not carry aria-pressed: its label already names the action")
+	}
+	for _, marker := range []string{"mute.setAttribute('aria-label', label);", "mute.title = label;", "mute.classList.toggle('is-muted', muted);"} {
+		if !strings.Contains(render, marker) {
+			t.Errorf("renderMute lacks %q", marker)
+		}
+	}
+	css := rawDesktopAssetText(t, "css/desktop-app-retro-games.css")
+	if !strings.Contains(css, ".rg-mute.is-muted {") {
+		t.Error("the muted state needs its own style now that aria-pressed is gone")
 	}
 	for _, accessor := range []string{"function readMuted()", "function writeMuted(on)"} {
 		body := functionBody(t, src, accessor)
@@ -279,7 +348,7 @@ func TestDesktopRetroGamesPlayerGivesTheGameTheKeyboard(t *testing.T) {
 		t.Error("mount does not focus the frame after attaching the cabinet")
 	}
 	// Focus is moved by us alone: no listener watches the window or the frame for it.
-	if strings.Contains(src, "'blur'") || strings.Contains(src, "'focus'") {
+	if strings.Contains(src, "addEventListener('blur'") || strings.Contains(src, "addEventListener('focus'") {
 		t.Error("the player must not listen to focus or blur events")
 	}
 	// Our buttons stay in the tab order.
