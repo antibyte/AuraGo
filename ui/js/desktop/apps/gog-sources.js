@@ -2,11 +2,15 @@
     'use strict';
     const base = '/api/desktop/integrations/gog/';
     const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    async function request(path, body, signal) {
-        const response = await fetch(base + path, { credentials: 'same-origin', cache: 'no-store', signal, ...(body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}) });
-        const result = await response.json();
+    async function request(path, body, signal, writing = false) {
+        let response, result;
+        try {
+            response = await fetch(base + path, { credentials: 'same-origin', cache: 'no-store', signal, ...(body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}) });
+            result = await response.json();
+            if (!result || typeof result !== 'object' || Array.isArray(result)) throw new Error('invalid_response');
+        } catch (error) { error.uncertain = writing; throw error; }
         if (!response.ok || result.status === 'error' || result.status === 'external_status_unknown') {
-            const error = new Error(result.code || result.error || response.statusText); error.uncertain = result.status === 'external_status_unknown'; throw error;
+            const error = new Error(result.code || result.error || response.statusText); error.uncertain = result.status === 'external_status_unknown' || writing && response.status >= 500; throw error;
         }
         return result.data ?? result;
     }
@@ -45,12 +49,18 @@
         host.prepend(bar); host.append(panel);
         const find = s => panel.querySelector(s), status = find('.gog-status'), records = find('.gog-records'), editor = find('.gog-editor'), container = find('[data-container]');
         find('[data-container-label]').hidden = service === 'contacts'; find('[data-search-label]').hidden = service !== 'contacts'; find('[data-list-create]').hidden = service !== 'tasks';
-        let accounts = [], readonly = true, account = '', resource = '', controller, generation = 0, dirty = false, next = '', busy = false, uncertain = false;
+        let accounts = [], readonly = true, account = '', resource = '', controller, generation = 0, dirty = false, next = '', busy = false, writing = false, uncertain = false;
         const grants = () => accounts.find(a => a.id === account)?.services?.[service] || {};
-        function buttons() { find('[data-create]').disabled = busy || readonly || !grants().create || uncertain; find('[data-list-create]').disabled = busy || readonly || !grants().create || uncertain; }
-        function error(e) { if (e.name !== 'AbortError') { uncertain ||= !!e.uncertain; status.textContent = tr(e.uncertain ? 'unknown' : 'error') + ' · ' + e.message; buttons(); } }
-        async function call(operation, args = {}) { return request('call', { account_id: account, service, operation, args }, controller.signal); }
+        function buttons() {
+            picker.disabled = writing; container.disabled = writing;
+            panel.querySelectorAll('[data-refresh], [data-next], [data-search]').forEach(el => el.disabled = writing);
+            records.querySelectorAll('button').forEach(el => el.disabled = busy || writing);
+            find('[data-create]').disabled = busy || writing || readonly || !grants().create || uncertain; find('[data-list-create]').disabled = busy || writing || readonly || !grants().create || uncertain;
+        }
+        function error(e) { if (e.name !== 'AbortError' || e.uncertain) { uncertain ||= !!e.uncertain; status.textContent = tr(e.uncertain ? 'unknown' : 'error') + ' · ' + e.message; buttons(); } }
+        async function call(operation, args = {}, mutation = false) { return request('call', { account_id: account, service, operation, args }, controller.signal, mutation); }
         async function discard() {
+            if (writing) return false;
             if (!dirty) return true;
             return !!await dialog(ctx, tr('unsaved'), body => { const p = document.createElement('p'); p.textContent = tr('discard'); body.append(p); return () => true; }, lifetime.signal);
         }
@@ -58,6 +68,7 @@
         function label(item) { return item.summary || item.title || item.name || item.names?.[0]?.displayName || item.id || item.resource || item.resourceName; }
         function refs(item) { return service === 'calendar' ? { calendar_id: resource, event_id: item.id } : service === 'tasks' ? { tasklist_id: resource, task_id: item.id } : { resource_name: item.resourceName || item.resource }; }
         async function load(page = '') {
+            if (writing) return;
             const token = begin(); status.textContent = tr('loading'); busy = true; buttons();
             try {
                 const args = { max: 100 }; if (page) args.page = page;
@@ -95,9 +106,14 @@
             buttons();
         }
         async function openEditor(item) {
+            if (busy || writing) return;
             if (!await discard()) return;
             const token = generation;
-            if (item && service === 'contacts') { const data = await call('get', refs(item)); if (token !== generation) return; item = data.contact; }
+            if (item && service === 'contacts') {
+                busy = true; buttons();
+                try { const data = await call('get', refs(item)); if (token !== generation) return; item = data.contact; }
+                finally { if (token === generation) { busy = false; buttons(); } }
+            }
             editor.replaceChildren(); dirty = false;
             const form = document.createElement('form'); form.className = 'gog-form'; const controls = {};
             const add = (name, title, value, type, required) => controls[name] = field(form, tr(title), value || '', type || 'text', required);
@@ -112,8 +128,9 @@
             } else if (service === 'tasks') {
                 add('title', 'title', item?.title, 'text', true); add('notes', 'notes', item?.notes, 'textarea'); add('due', 'due', item?.due?.slice(0, 10), 'date');
             } else {
-                add('given', 'given', item?.names?.[0]?.givenName, 'text', true); add('family', 'family', item?.names?.[0]?.familyName); add('email', 'email', item?.emailAddresses?.[0]?.value, 'email'); add('phone', 'phone', item?.phoneNumbers?.[0]?.value, 'tel'); add('org', 'organization', item?.organizations?.[0]?.name); add(item ? 'notes' : 'note', 'notes', item?.biographies?.[0]?.value, 'textarea');
+                add('given', 'given', item?.names?.[0]?.givenName, 'text', !item); add('family', 'family', item?.names?.[0]?.familyName); add('email', 'email', item?.emailAddresses?.[0]?.value, 'email'); add('phone', 'phone', item?.phoneNumbers?.[0]?.value, 'tel'); add('org', 'organization', item?.organizations?.[0]?.name); add(item ? 'notes' : 'note', 'notes', item?.biographies?.[0]?.value, 'textarea');
             }
+            const original = Object.fromEntries(Object.entries(controls).map(([key, input]) => [key, input.value]));
             const actions = document.createElement('footer'); form.append(actions);
             function button(title, action, grant) { const b = document.createElement('button'); b.type = 'button'; b.textContent = tr(title); b.disabled = readonly || !grants()[grant] || uncertain; b.addEventListener('click', () => mutate(action)); actions.append(b); return b; }
             const save = button('save', item ? 'update' : 'create', item ? 'update' : 'create'); save.type = 'submit'; save.replaceWith(save.cloneNode(true));
@@ -123,17 +140,25 @@
             form.addEventListener('input', () => { dirty = true; }); form.addEventListener('change', () => { dirty = true; });
             form.addEventListener('submit', e => { e.preventDefault(); mutate(item ? 'update' : 'create'); });
             async function mutate(operation) {
-                if (busy || uncertain || (operation !== 'delete' && !form.reportValidity())) return;
+                if (busy || writing || uncertain || (operation !== 'delete' && !form.reportValidity())) return;
                 if (operation === 'delete' && !await dialog(ctx, tr('delete'), body => { const p = document.createElement('p'); p.textContent = label(item); body.append(p); return () => true; }, lifetime.signal)) return;
                 const args = item ? refs(item) : service === 'calendar' ? { calendar_id: resource } : service === 'tasks' ? { tasklist_id: resource } : {};
-                if (operation === 'create' || operation === 'update') Object.entries(controls).forEach(([key, input]) => { if (key === 'scope' || key === 'timezone') return; const value = input.type === 'checkbox' ? input.checked : input.value; if (key === 'rrule') { if (value.trim()) args.rrule = value.trim().split('\n'); } else if (key === 'due') { if (value) args.due = value + 'T00:00:00Z'; } else args[key] = value; });
+                if (operation === 'create' || operation === 'update') Object.entries(controls).forEach(([key, input]) => {
+                    if (key === 'scope' || key === 'timezone') return;
+                    const value = input.type === 'checkbox' ? input.checked : input.value;
+                    if (service === 'contacts' && operation === 'update' && value === original[key]) return;
+                    if (key === 'rrule') { if (value.trim() || item && value !== original[key]) args.rrule = value.trim().split('\n'); }
+                    else if (key === 'due') { if (value || item && value !== original[key]) args.due = value ? value + 'T00:00:00Z' : ''; }
+                    else args[key] = value;
+                });
+                if (service === 'contacts' && operation === 'update' && Object.keys(args).length === 1) { dirty = false; editor.replaceChildren(); return; }
                 if (service === 'calendar') {
                     if (item) { if (!controls.scope.value) { controls.scope.reportValidity(); return; } args.scope = controls.scope.value; if (args.scope !== 'all') args.original_start = item.originalStartTime?.dateTime || item.originalStartTime?.date || item.start?.dateTime || item.start?.date; }
                     if (operation !== 'delete') { args.start_timezone = controls.timezone.value; args.end_timezone = controls.timezone.value; }
                 }
-                busy = true; picker.disabled = true; container.disabled = true; buttons(); form.querySelectorAll('button').forEach(b => b.disabled = true);
-                try { await call(operation, args); dirty = false; editor.replaceChildren(); busy = false; picker.disabled = false; container.disabled = false; await load(); }
-                catch (e) { error(e); busy = false; picker.disabled = false; container.disabled = false; buttons(); form.querySelectorAll('button').forEach(b => b.disabled = true); close.disabled = false; }
+                busy = true; writing = true; buttons(); form.querySelectorAll('button').forEach(b => b.disabled = true);
+                try { await call(operation, args, true); dirty = false; editor.replaceChildren(); writing = false; busy = false; await load(); }
+                catch (e) { error(e); writing = false; busy = false; buttons(); form.querySelectorAll('button').forEach(b => b.disabled = true); close.disabled = false; }
             }
             editor.append(form); form.querySelector('input')?.focus();
         }
@@ -144,7 +169,7 @@
         find('[data-create]').addEventListener('click', () => openEditor(null).catch(error));
         find('[data-list-create]').addEventListener('click', async () => {
             const value = await dialog(ctx, tr('new_list'), body => { const title = field(body, tr('title'), '', 'text', true); return () => title.value; }, lifetime.signal); if (!value || busy) return;
-            busy = true; buttons(); try { await call('create_list', { title: value }); await switchAccount(); } catch (e) { error(e); } finally { busy = false; buttons(); }
+            busy = true; writing = true; buttons(); try { await call('create_list', { title: value }, true); writing = false; busy = false; await switchAccount(); } catch (e) { error(e); } finally { writing = false; busy = false; buttons(); }
         });
         async function policy() {
             try { const data = await request('accounts', null, lifetime.signal); accounts = data.accounts.filter(a => a.services?.[service]?.read); readonly = data.readonly; picker.replaceChildren(); [['', tr('local')], ...accounts.map(a => [a.id, 'Google · ' + a.name])].forEach(([id, name]) => { const o = document.createElement('option'); o.value = id; o.textContent = name; picker.append(o); }); picker.value = account; bar.hidden = !accounts.length;

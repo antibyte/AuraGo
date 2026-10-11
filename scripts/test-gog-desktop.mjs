@@ -29,15 +29,18 @@ try {
         const page = await browser.newPage({ viewport: { width, height: 844 } }); const errors = [], calls = [], writes = [];
         page.on('pageerror', e => errors.push(e.message));
         const grants = { read:true, create:true, update:true, delete:true };
-        let readonly = false, unknown = false;
+        let readonly = false, unknown = false, pendingWrite = null, pendingRead = null, failWrite = false, recurrence = [];
         const accounts = ['first','second'].map(id => ({ id, name: id, services: Object.fromEntries(['calendar','tasks','contacts','drive','docs','sheets'].map(s => [s, grants])) }));
         const json = data => ({ contentType:'application/json', body:JSON.stringify(data) });
         await page.route('**/api/desktop/integrations/gog/**', async route => {
             if (route.request().method() === 'GET') { await route.fulfill(json({accounts,readonly})); return; }
             const req = route.request().postDataJSON(); calls.push(req);
             const read = ['calendars','events','lists','list','get','search'].includes(req.operation);
-            if (!read) { writes.push(req); await route.fulfill(json(unknown ? {status:'external_status_unknown',code:'write_outcome_unknown'} : {status:'ok',data:{}})); return; }
+            if (!read) { writes.push(req); if (pendingWrite) await pendingWrite; if (failWrite) { await route.abort('connectionreset'); return; } await route.fulfill(json(unknown ? {status:'external_status_unknown',code:'write_outcome_unknown'} : {status:'ok',data:{}})); return; }
             const data = req.operation === 'calendars' ? {calendars:[{id:'calendar-id',summary:'Team'}]} : req.operation === 'lists' ? {tasklists:[{id:'tasks-id',title:'Project'}]} : req.service === 'calendar' ? {events:[{id:'event-id',summary:'Planning',recurringEventId:'series-id',start:{dateTime:'2026-10-11T10:00:00+02:00',timeZone:'Europe/Berlin'},end:{dateTime:'2026-10-11T11:00:00+02:00'},originalStartTime:{dateTime:'2026-10-11T10:00:00+02:00'}}]} : req.service === 'tasks' ? {tasks:[{id:'task-id',title:'Fixture task',status:'needsAction'}]} : req.operation === 'get' ? {contact:{resourceName:'people/fixture',names:[{givenName:'Example',familyName:'Person'}],emailAddresses:[{value:'fixture@example.invalid'}]}} : {contacts:[{resource:'people/fixture',name:'Example <img src=x onerror=alert(1)>',email:req.account_id+'@example.invalid'}]};
+            if (data.tasks) data.tasks[0].due = '2026-10-12T00:00:00Z';
+            if (data.events && recurrence.length) { data.events[0].recurrence = recurrence; delete data.events[0].recurringEventId; }
+            if (req.operation === 'get' && pendingRead) await pendingRead;
             await route.fulfill(json({status:'ok',data}));
         });
         await page.goto(origin); for (const css of ['/fonts/fonts.css','/shared-variables.css','/shared-utilities.css','/shared-components.css','/css/desktop-shell.bundle.css','/css/desktop-gog.css']) await page.addStyleTag({url:origin+css});
@@ -45,6 +48,13 @@ try {
         await page.evaluate(({locales,theme}) => { document.body.dataset.theme=theme;window.ctx={t:key=>locales[key]||key};window.mount=service=>{window.disposeGog?.();document.querySelector('#host').innerHTML='<div><input id="local-draft" value="Local draft"></div>';window.disposeGog=AuraGogDesktop.attachSources(document.querySelector('#host'),service,ctx);}; }, {locales,theme});
         await page.evaluate(() => mount('contacts')); await page.waitForSelector('.gog-source-bar:not([hidden])'); assert.equal(calls.length,0,'status must not contact Google');
         await page.locator('.gog-source-bar select').selectOption('first'); await page.waitForSelector('.gog-record'); assert.equal(await page.locator('.gog-record img').count(),0);
+        let releaseRead; pendingRead = new Promise(resolve=>{releaseRead=resolve;});
+        const reading = page.waitForRequest(req=>req.method()==='POST'&&req.postDataJSON().operation==='get');
+        await page.locator('.gog-record').click(); await reading;
+        assert(await page.locator('.gog-record').isDisabled(),'contact reads must not race to replace an editor'); releaseRead(); pendingRead=null;
+        await page.getByLabel('Given name',{exact:true}).fill('Changed');
+        await page.getByRole('button',{name:'Save',exact:true}).click(); await page.waitForFunction(()=>!document.querySelector('.gog-editor form'));
+        assert.deepEqual(writes.at(-1).args,{resource_name:'people/fixture',given:'Changed'},'editing a name must not replace unchanged email/phone collections');
         await page.locator('.gog-record').click(); await page.getByLabel('Given name',{exact:true}).fill('Unsaved');
         await page.locator('.gog-source-bar select').selectOption('second'); await page.waitForSelector('dialog[open]'); await page.keyboard.press('Escape'); await page.waitForFunction(()=>document.querySelector('.gog-source-bar select').value==='first');
         assert.equal(await page.locator('.gog-source-bar select').inputValue(),'first'); assert.equal(await page.getByLabel('Given name',{exact:true}).inputValue(),'Unsaved');
@@ -55,8 +65,32 @@ try {
         await page.getByLabel('Edit series',{exact:true}).selectOption('single'); unknown=true; await page.getByRole('button',{name:'Save',exact:true}).click(); await page.waitForFunction(()=>document.querySelector('.gog-status')?.textContent.includes('may have completed'));
         assert.equal(writes.length,before+1); assert.equal(writes.at(-1).args.original_start,'2026-10-11T10:00:00+02:00'); assert.equal(writes.at(-1).account_id,'first'); unknown=false;
         await page.screenshot({path:path.join(report,`calendar-${theme}-${width}.png`)});
+        recurrence=['RRULE:FREQ=WEEKLY']; await page.evaluate(() => mount('calendar')); await page.locator('.gog-source-bar select').selectOption('first'); await page.locator('.gog-record').click();
+        await page.getByLabel('Edit series',{exact:true}).selectOption('all'); await page.getByLabel('Recurrence rules (RRULE, one per line)',{exact:true}).fill('');
+        await page.getByRole('button',{name:'Save',exact:true}).click(); await page.waitForFunction(()=>!document.querySelector('.gog-editor form'));
+        assert.deepEqual(writes.at(-1).args.rrule,[''],'clearing recurrence must send an explicit empty flag'); recurrence=[];
         await page.evaluate(() => mount('tasks')); await page.locator('.gog-source-bar select').selectOption('first'); await page.locator('.gog-record').click(); await page.getByRole('button',{name:'Complete',exact:true}).click(); await page.waitForFunction(()=>!document.querySelector('.gog-editor form'));
         assert.equal(writes.at(-1).operation,'complete'); assert.equal(writes.at(-1).args.tasklist_id,'tasks-id');
+        await page.locator('.gog-record').click(); await page.getByLabel('Due date',{exact:true}).fill('');
+        await page.getByRole('button',{name:'Save',exact:true}).click(); await page.waitForFunction(()=>!document.querySelector('.gog-editor form'));
+        assert.equal(writes.at(-1).args.due,'','clearing a due date must reach Google as an explicit empty value');
+        await page.locator('.gog-record').click();
+        let releaseWrite; pendingWrite = new Promise(resolve => { releaseWrite = resolve; });
+        const started = page.waitForRequest(req=>req.method()==='POST'&&req.postDataJSON().operation==='complete');
+        await page.getByRole('button',{name:'Complete',exact:true}).click(); await started;
+        assert(await page.locator('[data-refresh]').isDisabled(),'refresh must not cancel a pending mutation');
+        assert(await page.locator('.gog-record').isDisabled(),'opening another editor must not overlap a pending mutation');
+        assert(await page.locator('.gog-source-bar select').isDisabled(),'account switch must wait for a pending mutation');
+        failWrite=true; releaseWrite(); pendingWrite=null;
+        await page.waitForFunction(()=>document.querySelector('.gog-status')?.textContent.includes('may have completed'));
+        assert(await page.getByRole('button',{name:'Complete',exact:true}).isDisabled(),'connection loss must not invite a duplicate write'); failWrite=false;
+        await page.locator('[data-refresh]').click(); await page.waitForFunction(()=>!document.querySelector('[data-list-create]').disabled);
+        pendingWrite = new Promise(resolve => { releaseWrite = resolve; });
+        await page.locator('[data-list-create]').click(); await page.getByLabel('Title',{exact:true}).fill('Created list');
+        const listStarted = page.waitForRequest(req=>req.method()==='POST'&&req.postDataJSON().operation==='create_list');
+        await page.getByRole('button',{name:'Continue',exact:true}).click(); await listStarted;
+        assert(await page.locator('[data-refresh]').isDisabled()); assert(await page.locator('.gog-source-bar select').isDisabled(),'list creation must keep its account stable');
+        releaseWrite(); pendingWrite=null; await page.waitForFunction(()=>!document.querySelector('[data-list-create]').disabled);
         readonly=true; await page.evaluate(()=>document.dispatchEvent(new Event('aurago:desktop-policy'))); await page.waitForFunction(()=>document.querySelector('[data-create]').disabled);
         assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'unexpected horizontal page scrolling');
         await page.route('**/api/desktop/integrations/gog/office/import',route=>route.fulfill(json({status:'ok',file:{path:'copies/fixture.docx'}})));
