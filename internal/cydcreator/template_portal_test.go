@@ -38,10 +38,11 @@ func TestPortalScriptShape(t *testing.T) {
 		t.Errorf("text prefix changed: %q", prefix)
 	}
 	// WiFiManager keeps a pointer to the head element and sends it with every
-	// page: keep it small. 1.5 KiB holds the password check and the scan
-	// overlay (the overlay's look lives in the theme CSS).
-	if len(script) > 1536 {
-		t.Errorf("portal script is %d bytes, keep it below 1.5 KiB", len(script))
+	// page: keep it small. 1.75 KiB holds the password check and the scan
+	// overlay with its timeout, tap-to-dismiss and status role (the overlay's
+	// look lives in the theme CSS); 2 KiB is the hard ceiling.
+	if len(script) > 1792 {
+		t.Errorf("portal script is %d bytes, keep it below 1.75 KiB", len(script))
 	}
 	for _, bad := range []string{"</", `\`, "'"} {
 		if strings.Contains(script, bad) {
@@ -63,10 +64,16 @@ function makeEl(attrs, cls) {
   return { attrs: attrs || {}, value: "", focused: false, disabled: false, id: (attrs && attrs.id) || "",
     textContent: "", className: "", style: {}, children: [],
     classList: { contains: c => (cls || []).includes(c) },
-    getAttribute(n) { return n in this.attrs ? this.attrs[n] : null; }, focus() { this.focused = true; },
+    getAttribute(n) { return n in this.attrs ? this.attrs[n] : null; }, setAttribute(n, v) { this.attrs[n] = String(v); },
+    focus() { this.focused = true; },
     appendChild(c) { this.children.push(c); if (c.id) document.elements[c.id] = c; return c; } };
 }
 global.window = { addEventListener(type, fn) { if (type === "pageshow") pageshow = fn; } };
+// Fake timers: the overlay's safety timeout runs only when the test says so.
+const timers = [];
+global.setTimeout = (fn, ms) => { timers.push({ fn, ms }); return timers.length; };
+global.clearTimeout = id => { if (id) timers[id - 1].fn = null; };
+const pending = () => timers.filter(t => t.fn);
 global.document = {
   items: [], elements: {},
   addEventListener(type, fn, c) { if (type === "submit") { listener = fn; capture = c === true; } },
@@ -162,11 +169,24 @@ for (const a of ["/wifi", "/wifi?refresh=1"]) {
   if (submit(action(a))) throw new Error("blocked " + a);
   const o = document.getElementById("cydsc");
   if (!o || o.style.display !== "" || o.children.length !== 2 || o.children[1].textContent !== "SCAN") throw new Error("no overlay for " + a);
+  if (o.getAttribute("role") !== "status") throw new Error("overlay without role status");
   pageshow();
   if (o.style.display !== "none") throw new Error("overlay stays after pageshow");
+  if (pending().length) throw new Error("pageshow left the safety timer running");
 }
 if (document.body.children.length !== 1) throw new Error("overlay created twice");
-for (const a of ["wifisave", "/0wifi", "/exit"]) {
+// A stopped load: the overlay goes after 30 s; a tap hides it at once.
+{
+  submit(action("/wifi"));
+  const o = document.getElementById("cydsc"), t = pending();
+  if (t.length !== 1 || t[0].ms !== 30000) throw new Error("no 30 s safety timer");
+  t[0].fn();
+  if (o.style.display !== "none") throw new Error("overlay stays after the timeout");
+  submit(action("/wifi"));
+  o.onclick();
+  if (o.style.display !== "none" || pending().length) throw new Error("tap does not dismiss the overlay");
+}
+for (const a of ["wifisave", "/wifisave", "/0wifi", "/exit"]) {
   if (submit(action(a))) throw new Error("blocked " + a);
   if (document.getElementById("cydsc").style.display !== "none") throw new Error("overlay for " + a);
 }
