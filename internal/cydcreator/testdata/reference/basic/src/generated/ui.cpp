@@ -116,7 +116,7 @@ static void ui__statusbar_tick(lv_timer_t *timer) {
   lv_label_set_text(ui__sb_details_clock, clock.c_str());
 }
 
-static void ui__ev_statusbar_long_pressed(lv_event_t *e) {
+static void ui__statusbar_open_setup(lv_event_t *e) {
   (void)e;
   cyd::wifi::open_setup();
 }
@@ -131,7 +131,7 @@ static void ui__ev_btn_back_clicked(lv_event_t *e) {
   ui_back();
 }
 
-static void ui__create_home(void) {
+static void ui__scr_home_create(void) {
   ui_scr_home = lv_obj_create(NULL);
   ui__style_screen(ui_scr_home);
 
@@ -151,7 +151,7 @@ static void ui__create_home(void) {
   lv_label_set_text(ui__sb_home_wifi, LV_SYMBOL_WIFI);
   lv_obj_align(ui__sb_home_wifi, LV_ALIGN_RIGHT_MID, -52, 0);
   lv_obj_add_flag(ui_sb_home, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_add_event_cb(ui_sb_home, ui__ev_statusbar_long_pressed, LV_EVENT_LONG_PRESSED, NULL);
+  lv_obj_add_event_cb(ui_sb_home, ui__statusbar_open_setup, LV_EVENT_LONG_PRESSED, NULL);
 
   ui_lbl_temp = lv_label_create(ui_scr_home);
   lv_obj_set_pos(ui_lbl_temp, 20, 40);
@@ -187,7 +187,7 @@ static void ui__create_home(void) {
   lv_obj_add_event_cb(ui_btn_details, ui__ev_btn_details_clicked, LV_EVENT_CLICKED, NULL);
 }
 
-static void ui__create_details(void) {
+static void ui__scr_details_create(void) {
   ui_scr_details = lv_obj_create(NULL);
   ui__style_screen(ui_scr_details);
 
@@ -207,7 +207,7 @@ static void ui__create_details(void) {
   lv_label_set_text(ui__sb_details_wifi, LV_SYMBOL_WIFI);
   lv_obj_align(ui__sb_details_wifi, LV_ALIGN_RIGHT_MID, -52, 0);
   lv_obj_add_flag(ui_sb_details, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_add_event_cb(ui_sb_details, ui__ev_statusbar_long_pressed, LV_EVENT_LONG_PRESSED, NULL);
+  lv_obj_add_event_cb(ui_sb_details, ui__statusbar_open_setup, LV_EVENT_LONG_PRESSED, NULL);
 
   ui_lbl_info = lv_label_create(ui_scr_details);
   lv_obj_set_pos(ui_lbl_info, 20, 40);
@@ -230,8 +230,8 @@ static void ui__create_details(void) {
 
 void ui_init(void) {
   ui__theme_init();
-  ui__create_home();
-  ui__create_details();
+  ui__scr_home_create();
+  ui__scr_details_create();
   ui__current = UI_SCREEN_HOME;
   lv_screen_load(ui_scr_home);
   lv_timer_create(ui__statusbar_tick, 1000, NULL);
