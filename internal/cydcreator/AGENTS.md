@@ -7,7 +7,8 @@
 build diagnostics parser, plus (plan 1b) the embedded device template `cyd_template`, the reference generated
 project and, outside the package, the builder image (`deploy/docker/Dockerfile.cyd-builder`,
 `deploy/docker/cyd-builder/`, `.github/workflows/cyd-builder.yml`), plus (plan 1c) the deterministic generator that
-turns a project into the complete PlatformIO tree. Later plans add storage and the service to this same package.
+turns a project into the complete PlatformIO tree, plus (plan 2) the SQLite store, the service (projects, layout,
+app files, assets, events) and the build queue. Plans 3 and 5 add jobs, revisions and devices to this same package.
 
 ## Ownership
 
@@ -29,6 +30,11 @@ turns a project into the complete PlatformIO tree. Later plans add storage and t
   `include/board_config.h`, `platformio.ini` and `src/generated/*` (`partitions.csv` comes from `PartitionCSV` in
   `partitions.go`). `testdata/golden/<case>/` holds generator inputs (`cyd.project.json`) with their expected
   output. `generate_builder_it_test.go` is the opt-in compile proof (Docker and the builder image).
+- Plan 2: `storage.go` (SQLite schema v1 with every table, migrations, startup recovery), `builder.go` (the
+  `Builder` interface and build record types), `service.go` (lifecycle, limits, locking rule, default service),
+  `service_projects.go`, `service_layout.go`, `service_generate.go`, `service_capabilities.go`, `files_root.go`,
+  `files.go`, `assets.go`, `events.go`, `builds.go`, `builds_log.go`. The server owns the wiring, the Docker adapter
+  and the HTTP API (`internal/server/AGENTS.md`, "CYD Creator").
 
 ## Local Contracts
 
@@ -346,7 +352,9 @@ turns a project into the complete PlatformIO tree. Later plans add storage and t
   `extra_scripts`). `cyd-build` refuses symlinks and special files anywhere in the tree, gives PlatformIO, the compiler
   and `lv_font_conv` an allowlisted environment and runs offline on a read-only root file system as uid 1000
   (writes only `/work`, `/cache`, `/tmp`). Compiling untrusted C++ can still read every file the container can read:
-  keep secrets out of the image, `/work` and `/cache`.
+  keep secrets out of the image, `/work` and `/cache`. All projects share the one builder container and both volumes,
+  so app code can `#include` other projects' cached objects: fine for a single-owner install, no boundary between
+  users.
 - The live builder resources (container `aurago-cyd-builder`, volumes `aurago-cyd-work` and `aurago-cyd-cache`, label
   `aurago.managed=cyd-creator`; names in `internal/dockerutil`) belong to the CYD Creator app only: the agent docker
   tool, agent Compose and the admin Containers API protect them (`internal/tools/AGENTS.md`), so tests and CI use
@@ -365,7 +373,7 @@ turns a project into the complete PlatformIO tree. Later plans add storage and t
   `cydImageLocalOnly`) is a local-only tag the administrator configured for development, the integration test and CI:
   it needs no digest and no record. Any reference with '/' (also Docker Hub `user/repo:tag`) is a registry reference.
   The container is created from the verified image ID, which is part of the fingerprint (a new pull recreates it).
-  Task 12 wiring must set `TrustFile`; empty keeps the record in memory only (tests).
+  `initCYDCreator` sets `TrustFile` (`cydBuilderTrustFile`); empty keeps the record in memory only (tests).
 - Publishing: `.github/workflows/cyd-builder.yml` builds each architecture natively and smoke-tests it offline
   (amd64 all profiles, arm64 one). The amd64 job then compiles ten builds of the nine golden cases (`all_widgets` on
   two boards, `all_widgets_portrait` and the seven `theme_*` cases) strictly with `TestGenerateCompilesInBuilder`
@@ -377,8 +385,80 @@ turns a project into the complete PlatformIO tree. Later plans add storage and t
   `CYD_BUILDER_VERSION` therefore moves only `:1`: bump the version for every pin, template or builder-script change.
   A generator-only push to `main` also runs the workflow and republishes `:1` with unchanged inputs.
 
-### Service and events
+### Storage and service (plan 2)
 
+- One SQLite database (`sqlite.cyd_creator_path`, default `./data/cyd_creator.db`, listed in
+  `config.SQLiteDatabasePaths`; `dbutil.Open`: WAL, foreign keys, busy timeout) with the overview schema: nine `cc_*`
+  tables, `cc_meta.schema_version` 1 and seven indexes, one of them `UNIQUE cc_devices_token(token_hash)` (device
+  fixtures need distinct non-empty hashes). Migrations append to `storeMigrations` (never edit a released step; each
+  step commits with its version); an existing database is first copied with `VACUUM INTO <db>.v<N>.bak`, and a schema
+  newer than the code refuses the start. Times are fixed-width RFC 3339 UTC (`timeLayout`), so SQL order is
+  chronological.
+- Startup (`NewService`): one transaction (`recoverStore`) turns queued/running builds into `interrupted`
+  (`CYD_BUILD_INTERRUPTED`, a `build_status` event each) and queued/running jobs into `interrupted`, releases locks
+  of jobs that are no longer active (only `awaiting_confirmation` stays) and drops events of deleted projects. Then,
+  before the worker starts, `discardPartialArtifacts` removes the interrupted builds' artefacts, `*.tmp` staging
+  directories and directories named like a build without a `cc_builds` row (so a fresh or restored database sweeps
+  old artefacts). `Close` stops the worker (the running and the queued builds end `interrupted`; it waits at most
+  30 s), closes every subscription, then the database; the caller owns and closes the `Builder`.
+- Service methods return `*Error` (or a context error); unexpected failures become `CYD_INTERNAL` (`CodeInternal`,
+  HTTP 500, generic message) with the cause logged (`internalError`). Writes and consistent reads take the
+  per-project mutex (`lockProject`; the map never shrinks, accepted at homelab scale).
+- Locking rule: `PutLayout`, `WriteFile`, `DeleteFile` and `StartBuild` refuse with `CYD_PROJECT_LOCKED` (details
+  `job_id`) while `locked_by_job` is set, unless the origin is `JobOrigin(<that job>)`; `PutAsset`, `DeleteAsset`,
+  `RenameProject` and `DeleteProject` are user-only and always refuse then. Origins: `user`, `job:<id>`, `restore`,
+  `import`; `StartBuild` takes only `user` and `job:<id>`. `DeleteProject` also refuses with `CYD_BUSY` while a build
+  of the project is queued or running; it deletes the project's rows in all nine tables in one transaction, then the
+  artefacts, the directory and the subscriptions.
+
+### Projects, layout, files and assets (plan 2)
+
+- Projects live in `<desktop workspace>/CYD/<slug>/` (slug: ASCII-folded `[a-z0-9-]`, at most 40 bytes, `project`
+  when empty, `-project` appended to a Windows device name such as `nul` (Windows `os.Mkdir("nul")` creates
+  nothing), `-2` … `-999` when taken in the database or on disk) and are accessed only through `os.Root`. A missing
+  project directory or `cyd.project.json`, an oversized or a non-regular one is `CYD_INVALID_LAYOUT` with
+  `details.reason` `missing`, `too_large` or `not_regular`.
+- Every layout write bumps `version` and mirrors name/board/theme into the row (a value `Validate` rejects keeps the
+  previous one); file writes do not bump it. `PutLayout` needs the stored version (else `CYD_PROJECT_CONFLICT` with
+  `details.version`), saves semantically invalid layouts and returns the issues; only a parse/structure failure, a
+  format other than 1 or a refused asset list is `CYD_INVALID_LAYOUT`. A damaged stored layout lists no assets, so a
+  save can replace it.
+- Asset entries of a layout save (`checkLayoutAssets`, `details.asset`): every `file` matches `assetFileRegex`
+  (`assets/[a-z0-9][a-z0-9_-]{0,62}.(png|jpg|jpeg)`), ids and files are listed once, stored entries never change
+  (`file`, `w`, `h`, `alpha`) but may be dropped, and an entry the stored layout lacks (designer undo/redo, a second
+  tab overwriting) is accepted only when its file belongs to no other stored entry; the file need not exist
+  (`Validate`/`Generate` report a missing image).
+- Files: only `IsEditablePath` paths are writable (`CYD_FILE_READONLY` for generated, template, layout and asset
+  paths, `CYD_BAD_REQUEST` otherwise), UTF-8 text without NUL, `If-Match` sha256 / `*` (create) / "" (agent,
+  unconditional; a delete also takes `*`), at most 64 files, 256 KiB each, 2 MiB in total (`CYD_FILE_LIMIT` with
+  `details.limit` `file_bytes|files|total_bytes`). App paths are exact-case, because Windows and macOS open a case
+  variant as the other entry: reading or deleting a variant is `CYD_NOT_FOUND`, writing one next to an existing file
+  or folder is `CYD_FILE_CONFLICT` (`details.existing`). A hand-made file above 256 KiB is listed with an empty
+  `sha256`, reading it is `CYD_FILE_LIMIT`, and only an unconditional write or delete replaces it; a directory, link
+  or device at an app path is `CYD_BAD_REQUEST` (`details.reason` `not_regular`) and is never touched. Writes are
+  atomic (`rootWriteFile`: synced `.cyd-write-*` sibling renamed over the target; one left by a crash is hidden by
+  `IsEditablePath`). User writes set `app_changed_since_job`. Generated paths are listed and read from an on-demand
+  `Generate`.
+- Assets (`PutAsset`): PNG/JPEG by magic bytes, at most 2 MiB (`MaxAssetUploadBytes`). The header is read first
+  (`checkUploadHeader`): an image larger than every board's display is `CYD_ASSET_TOO_LARGE` (`details.reason`
+  `dimensions`) before any pixel is decoded; then it must fit the project's display (either orientation) and the
+  decoded total `AssetBudget` (`budget`). Names are sanitised to the asset file rule with `_2` … suffixes, ids are
+  fresh `a_` ids. Because a hand-edited or imported layout can carry any path, the asset file rule is checked again
+  right before every open, read and remove (`OpenAsset`, `DeleteAsset`, `loadGenerateInput`); `DeleteAsset` keeps a
+  file that a remaining entry still lists. An asset file above 2 MiB fails `Generate`/`StartBuild` with
+  `CYD_ASSET_TOO_LARGE` (`details.asset`, `reason` `file_size`). `OpenAsset` returns an open file the caller closes.
+
+### Events (plan 2)
+
+- `Emit` persists, then fans out under `eventsMu` (seq order); `EmitEphemeral` has seq 0 (the build log is
+  ephemeral) and a live persisted event never carries seq 0. `seq` is global (AUTOINCREMENT over all projects), so
+  gaps are normal. Subscribers get a 256-event buffer and are dropped (channel closed) when full, when their project
+  is deleted and on `Close`. The newest 5000 persisted events per project are kept (`maxEventsPerProject`, pruned
+  after every `eventPruneEvery` = 200 emits of that project); `LatestEventSeq` is the project's newest seq. Events of
+  deleted projects (an `Emit` racing `DeleteProject`) are dropped at startup and by every retention pass.
+- Consumers subscribe before reading `EventsAfter` and drop live events whose seq they already have; a resume point
+  below the project's oldest kept event means events were pruned, one above its newest one cannot come from this
+  database: the client reloads its state (the SSE handler's `stream_ready` `{"reload":true}`).
 - Never call `Emit` or `EmitEphemeral` inside a database transaction or while iterating rows. `Emit` holds
   `eventsMu` (which `EmitEphemeral` also takes) while it inserts through its own connection of the pool
   (`dbutil.Open` default: 4 connections, `busy_timeout` 5 s): inside an open write transaction the insert waits for
@@ -387,10 +467,43 @@ turns a project into the complete PlatformIO tree. Later plans add storage and t
 - Lock order: project lock → `buildsMu` → `eventsMu` → `subsMu`. `StartBuild` emits the queued `build_status`
   while it holds `buildsMu` (so `queued` always precedes `running`), and that `Emit` needs a pool connection: never
   take `buildsMu` while holding a transaction or open rows.
-- Persisted events are pruned per project (`maxEventsPerProject`, checked after every `eventPruneEvery` emits of
-  that project); a live persisted event never carries `seq` 0 (0 marks ephemeral events).
 - `Close` closes every subscription, and `Subscribe` after `Close` returns an already closed channel: consumers treat
   a closed channel as the end of the stream (the SSE client resumes with `Last-Event-ID`).
+
+### Builds (plan 2)
+
+- `StartBuild` checks the builder and the toolchain (`CYD_DOCKER_UNAVAILABLE`; `CYD_IMAGE_MISSING` while the image
+  is missing or being pulled), generates the tree from the project directory or `BuildOptions.Dir` at the current
+  version (typed tree and generator refusals such as `CYD_INVALID_LAYOUT` come back before a build exists) and
+  queues it: at most 8 waiting builds, else `CYD_BUSY` (also during shutdown). One worker runs builds FIFO, one at a
+  time (cyd-build also serializes per container); the cache key is `<project id>-<board>`, the timeout
+  `cold_build_timeout_seconds` until a build of that (project, board) succeeded, then `build_timeout_seconds`
+  (`CYD_BUILD_TIMEOUT`). `CancelBuild` cancels a queued build at once and stops a running one
+  (`CYD_BUILD_CANCELLED`); finished builds are left alone.
+- `build_log` events (ephemeral) carry at most 50 lines, each cut at 4096 bytes, at least 200 ms apart; a "lines
+  skipped" marker replaces overflow. The full log (2 MiB cap, then a truncation marker) is `build.log`.
+- Outcome (`classifyBuild`): exit 0 needs non-empty merged.bin, firmware.bin and firmware.elf whose hashes match
+  result.json (a mismatch fails the build with a note); 1 is `CYD_BUILD_FAILED`, or `CYD_GENERATOR_ERROR` when only
+  generated paths have errors, plus a note pointing at `build.log` when no diagnostic names a file (a region
+  overflow); 2 (toolchain, OOM kill, tree shape) and unknown codes are `CYD_BUILD_FAILED` with every error
+  diagnostic demoted to a note plus a toolchain note, and so is a failed `Builder.Build` (its typed code or
+  `CYD_BUILD_FAILED`, a generic note; Docker text stays in the server log), so plan 3 never tries to repair them;
+  3 is `CYD_FLASH_BUDGET_EXCEEDED`.
+- Artefacts live in `<data>/cyd_creator/artifacts/<build_id>/` (staged in `<id>.tmp`, then renamed) and are only
+  touched through an `os.Root` of the artefact directory, after `validBuildID` (`ccb_` plus element id characters).
+  A succeeded build keeps merged.bin, firmware.bin and firmware.elf, every finished build `build.log` (and
+  result.json when cyd-build wrote one). Downloadable are merged.bin, firmware.bin, result.json and build.log
+  (`OpenArtifact` returns an open file the caller closes); `firmware.elf` stays internal for `DecodeBacktrace` (1–64
+  `0x` addresses, succeeded builds only, two-minute limit). A succeeded build also keeps cyd-build's `out/fonts/`
+  (converted fonts and `fonts.json`, hash-checked, each at most `maxFontArtifactBytes` = 7 × 0x640000, unlisted) in
+  `fonts/`; `BuildFonts` reads them for the ZIP export (plan 5).
+- Retention after every finished build keeps `last_build`, the newest `keep_builds_per_project` − 1 other finished
+  builds, the newest succeeded build (failed builds never prune the only good firmware) and every build a device
+  runs or targets. An artefact directory whose removal failed is swept at the next start.
+- `PullToolchain` runs one pull in the background on the service context (`Close` waits for it; a second call while
+  it runs is a no-op, `CYD_BUSY` during shutdown); `Toolchain`/`Capabilities` show the progress. `Capabilities`
+  always says enabled and writable (the HTTP layer overlays both); `active_job` reads `cc_jobs` rows with status
+  `queued|running|awaiting_confirmation` (plan 3 writes exactly these).
 
 ## Work Guidance
 
@@ -425,6 +538,12 @@ turns a project into the complete PlatformIO tree. Later plans add storage and t
   volumes (defaults `aurago-cyd-work-it` and `aurago-cyd-cache-it`; the live `aurago-cyd-work` and
   `aurago-cyd-cache` are refused because the test deletes build directories). One build gets 15 minutes, the
   container lives at most two hours, and everything stops a minute before the test deadline.
+- Builder adapter against Docker (opt-in, `internal/server`, unique `aurago-cyd-*-it-<hex>` names removed after the
+  test): build the stub once
+  (`docker build --label aurago.cyd-plan=1 -t aurago-cyd-builder-stub:test internal/server/testdata/cyd_builder_stub`),
+  then `CYD_BUILDER_STUB_IMAGE=aurago-cyd-builder-stub:test go test ./internal/server -run TestCYDBuilderStubMechanicsLive`;
+  `CYD_BUILDER_IT=1 CYD_BUILDER_IT_IMAGE=aurago-cyd-builder:dev go test ./internal/server -run TestCYDBuilderIntegration -timeout 60m`
+  compiles every board through the adapter (without `CYD_BUILDER_IT_IMAGE` it pulls the published image).
 - `gofmt -l internal/cydcreator` prints nothing; `-race` needs gcc (run it on aurago-test).
 
 ## Child DOX Index

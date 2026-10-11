@@ -294,6 +294,113 @@ Server-owned HTTP and cross-component integration contracts.
 - Audit: user actions go to the audit timeline (source `mission`) as `flow_create`, `flow_import`, `flow_publish`, `flow_enable`, `flow_disable`, `flow_delete`, `flow_secret_set`, `flow_secret_delete` and `flow_run_cancel`. A new type needs an option in the dashboard's audit type filter (`ui/dashboard.html`) and a `dashboard.audit_type_<type>` label in all 16 `ui/lang/dashboard` files (`TestC17AuditTypesAreRegisteredInTheDashboard`).
 - Verify with `go test ./internal/server -run 'TestFlowsAPI|TestC17'`.
 
+### CYD Creator
+
+Domain, storage, events and build rules live in `internal/cydcreator/AGENTS.md`; this section owns wiring,
+configuration, the HTTP API and the Docker adapter.
+
+- Wiring (`cyd_creator_service.go`): `initCYDCreator` runs after `initGameMaker` only when `cyd_creator.enabled` is
+  on; projects live in the desktop workspace (`desktop.ConfigFromAuraConfig`), artefacts in
+  `<directories.data_dir>/cyd_creator/`, the database at `sqlite.cyd_creator_path`. `cydCreatorStorageProblem` keeps the feature off (the server runs on)
+  when the builder's pull record `cyd_builder_image.json` next to the database (`cydBuilderTrustFile`, passed as
+  `TrustFile`) would lie inside the virtual desktop workspace or the agent's file root (the nearest
+  `agent_workspace` ancestor of `directories.workspace_dir`) outside the protected data directory: an agent-written
+  record would let a locally built image pass as AuraGo's pull. Paths are compared after `EvalSymlinks`, which does
+  not resolve Windows junctions or mount points (administrator-made layouts only; `tools.IsProtectedSystemPath` has
+  the same blind spot). A refusal or a failed `NewService` leaves a generic reason without paths in
+  `Server.cydCreatorProblem`. `shutdownCYDCreator` runs in `Start`'s deferred cleanup after the HTTP drain:
+  `Service.Close` (build worker, database), withdrawing the default service, then `cydDockerBuilder.Close`.
+- Configuration (`internal/config/cyd_creator.go`): `config.Load` normalizes the section
+  (`NormalizeCYDCreatorConfig`, a warning per change): zero means the default, numbers are clamped (build 60–1800 s,
+  cold 60–3600 s and at least build, memory 512–16384 MB, CPUs 0.5–16 with NaN/±Inf the default 2, idle stop
+  1–1440 min, repairs 0–10, job 5–120 min, kept builds 1–50, heartbeat 30–600 s), an invalid `builder_image`
+  (`[host[:port]/]path[:tag][@sha256:<hex>]`, lowercase path components, at most 255 bytes) becomes the default and
+  `ota.public_url` loses trailing `/` and is blanked (warning without the value) when it breaks the device URL rule
+  (`cydPublicURLProblem` mirrors `DeviceConfig.validate`, `TestCYDCreatorPublicURLMatchesDeviceRule`). Config saves
+  (`handleUpdateConfig`, `applyConfigPatch`) run `validateCYDCreatorSave`: `config.ValidateCYDCreatorConfig` on the
+  values the save changes compared with `config.yaml` before it, so a hand-edited value that `Load` clamps never
+  blocks saving other sections; cold ≥ warm is checked when either timeout changes. The config page sees loaded
+  defaults through `injectCYDCreatorDefaults`; `cyd_creator.model` is a provider reference
+  (`provider_references.go`).
+- Restart and live changes (`cydCreatorRestartReason`): with a running service a change of builder image, memory,
+  CPUs, idle stop or `docker.host` is "CYD Creator builder"; without one, switching the feature on is "CYD Creator
+  service" unless the new configuration would be refused again (`cydCreatorStorageProblem`). Timeouts, retention,
+  model and OTA apply live: `replaceConfigSnapshot` calls `Service.UpdateLimits(cydCreatorLimits(…))`, which
+  normalizes a copy first.
+- Capability `cyd_creator` (`cydCreatorCapability`): the API is available, `docker.enabled` and not
+  `docker.read_only` (the builder creates, starts and execs). API gate (`cydCreatorAvailable`): service present and
+  `cyd_creator.enabled`, else 503 `CYD_DISABLED`; switched on without a service it adds `details.problem` (storage
+  refusal or failed start) and/or `details.restart_required`.
+- Routes (`cyd_creator_routes.go`, handlers in `cyd_creator_handlers.go` and `cyd_creator_build_handlers.go`):
+  `/api/desktop/cyd-creator/` dispatches through `cydCreatorRoutes(s)` (plans 3 and 5 append tables),
+  `/api/cyd-creator/device/` through `cydCreatorDeviceRoutes(s)` (empty in plan 2). `handleCYDCreatorDevice`
+  authenticates nothing itself: plan 5 authenticates every device route (token hash) before the prefix joins the auth
+  bypass list. Desktop routes check in order: authentication with the route's scope, 405 (with `Allow`, HEAD wherever
+  GET) or 404, `CYD_DISABLED`, a same-origin `Origin` for every session request other than GET/HEAD (403), then
+  `Write` routes answer 403 `CYD_READONLY` while the desktop is read-only and pass
+  `checkDesktopOperation(desktopWrite)`, `Stop` routes (build cancel) pass `checkDesktopOperation(desktopStop)`, which
+  read-only allows. Bearer tokens need `desktop:admin` for `Write` and `Stop` routes and `desktop:read` for the rest
+  (including `POST builds/{id}/decode-backtrace`); `validRouteBearer` uses `cydCreatorBearerScope`. A new mutating
+  route sets `Write` or `Stop` (`TestCYDCreatorEveryMutatingRouteNeedsTheWritePermission`,
+  `TestCYDCreatorBearerScopeMatchesTheRouteTable`).
+- Requests and answers: errors use the flows-style envelope `{"error","code","details"}` with the status table
+  `cydCreatorHTTPStatus`; untyped errors and typed `CYD_INTERNAL` are 500 `CYD_INTERNAL` "internal error" without
+  details (cause logged, scrubbed), a request the client or the drain cancelled is 503 `CYD_INTERNAL`. JSON bodies
+  hold exactly one value without unknown fields or trailing data (400 with a generic text; the layout PUT 422
+  `CYD_INVALID_LAYOUT`) and are capped before reading: 64 KiB (413), the layout `MaxLayoutBytes` + 64 KiB, an app
+  file 256 KiB (413 `CYD_FILE_LIMIT`), the multipart asset upload 2 MiB + 64 KiB (413 `CYD_ASSET_TOO_LARGE`).
+  `If-Match` loses quotes and a `W/` prefix and is lower-cased; the layout PUT needs the version (≥ 1), file PUT and
+  DELETE the SHA-256 or `*`. Assets and artefacts go through `cydServeReader` (`http.ServeContent` with the
+  Content-Type set first, Range/HEAD, the file always closed); every file answer carries
+  `X-Content-Type-Options: nosniff`, artefacts are attachments with `X-CYD-SHA256`. `GET capabilities` overlays the
+  service answer: `enabled` from the config, `readonly` when the desktop is read-only or a bearer token lacks
+  `desktop:admin`.
+- SSE `GET projects/{id}/events`: subscribes, then sends the backlog after max(`?after=`, `Last-Event-ID`) in pages
+  of 500 and drops live events with a seq it already sent (ephemeral events, seq 0, have no `id:`), then
+  `event: stream_ready` without id, live events and `: ping` every 15 s. `stream_ready` carries `{"reload":true}`
+  when events after the resume point were pruned or the resume point lies above the project's newest event (forged,
+  or a restored or reset database; the stream continues from the newest). Every frame gets a 30 s write deadline
+  that is never cleared; a failed write or flush, a closed subscription (subscriber dropped, project deleted,
+  service closed) or the client leaving ends the stream, and the client resumes with `Last-Event-ID`. HEAD answers
+  headers only.
+- Builder (`cyd_creator_builder.go`, `cydDockerBuilder`): one container `aurago-cyd-builder`, created from the
+  verified image ID (`sleep infinity`, init, user 1000:1000, `HOME=/tmp`, `NetworkMode none`, `CapDrop ALL`,
+  `no-new-privileges`, read-only rootfs, tmpfs `/tmp` 1 GiB `rw,exec,nosuid,nodev`, memory = memory-swap and CPUs
+  from the config, 512 pids, restart `no`, managed labels with a fingerprint of the settings and the image ID that
+  triggers recreation), and the labelled named volumes `aurago-cyd-work` at `/work` (the archive API cannot write
+  into tmpfs or a read-only root) and `aurago-cyd-cache` at `/cache`, shared by all projects. Trees go in with
+  `PUT /archive` (uid/gid 1000), artefacts come back with `tools.DockerGetArchiveContext` (256 MiB cap),
+  `cyd-build`/`cyd-addr2line` run as execs whose multiplexed output is streamed (`tools.DockerStreamContext`). All
+  Engine calls pass the runtime Docker gates (`docker.enabled`; mutations need `docker.read_only` off). The image is
+  only pulled (two-hour limit, progress from the JSON stream), never built; image trust and the pull record:
+  `internal/cydcreator/AGENTS.md` (Builder image).
+- Container output is untrusted: arguments are checked again (board env, cache key, build id, 1–64 addresses of at
+  most 8 hex digits); `extractArtifacts` accepts only the exact `out/` paths (merged.bin and firmware.bin ≤ 16 MiB,
+  firmware.elf ≤ 128 MiB, result.json ≤ 1 MiB, `fonts/ui_font_*.c` and `fonts/fonts.json` at the service's font cap,
+  `build.log` read but not kept; at most 1024 entries and 256 MiB in total, sizes checked before reading) and
+  refuses links, devices, unsafe names, duplicates and unknown entries instead of skipping them; the exec demuxer
+  refuses frames above 1 MiB and stream bytes other than stdout/stderr, raw (TTY) output stops at 8 MiB, log lines
+  are cut at 4096 bytes on a rune boundary. Users see generic errors (`cydPublicDockerError`: operation and HTTP
+  status or "not reachable"; `cydPullReason` for pulls), because `ToolchainStatus.Error` reaches read-only sessions;
+  Engine text, socket paths and addresses go to the server log only.
+- Container lifecycle: the first use in a process replaces a running managed container (an orphan `cyd-build` of an
+  earlier process could hold its lock); a container with the builder's name but without the CYD Creator labels is
+  refused with `CYD_DOCKER_UNAVAILABLE` and never touched. A (re)started container clears `/work/ccb_*` and
+  `/work/a2l_*`; each build removes its work directory. Cancel, timeout and a broken or hostile output stream stop
+  and remove the container (the Engine cannot kill one exec) and the next build creates a fresh one; `Close` stops
+  and removes it too (the volumes stay); the `idle_stop_minutes` timer only stops it. The agent docker tool, agent
+  Compose and the image reservation protect the container, its volumes and the image repository
+  (`internal/tools/AGENTS.md`); the administrator container API lists the owner `cyd-creator` (above).
+- Default socket proxy (`tecnativa/docker-socket-proxy` v0.5.0 with the compose environment; rules read from the
+  pinned image's `haproxy.cfg.template` on 2026-10-11, the builder behind the proxy is not live-tested yet): every
+  non-GET request needs `POST=1`; container inspect, create, start, stop and remove, `PUT`/`GET /archive` and exec
+  create are `/containers` paths (`CONTAINERS=1`), exec start and inspect need `EXEC=1`, image inspect and pull
+  `IMAGES=1`, volume create `VOLUMES=1`, API negotiation `VERSION=1`; `BUILD=0` is fine. HAProxy's
+  `timeout server 10m` ends an exec stream that stays silent for ten minutes (the build fails and the container is
+  discarded).
+- Verify `go test ./internal/server -run '^(TestCYD|TestInitCYDCreator|TestValidateCYDCreatorSave|TestDemuxDocker|TestBuildTar|TestExtractArtifacts)'`;
+  the live adapter checks are opt-in (`internal/cydcreator/AGENTS.md`, Verification).
+
 ### Video Studio Contract
 - Video Studio storage is rooted at `Documents/Video Studio/<project-id>` in the Virtual Desktop workspace; project JSON uses strong `ETag`/`If-Match` writes, and client asset metadata is always reconstructed from the private import manifest. Media uploads stream through the rooted Desktop service and never accept arbitrary host paths.
 - `/api/desktop/video-studio/` routes require Desktop read/write scopes plus both Video Studio and Desktop policy gates. Job IDs remain fetchable without project context. One per-server queue serializes FFmpeg probe, preview and render work; generation is optional, admin-only, budget-checked, and never retried automatically after an uncertain provider outcome.
