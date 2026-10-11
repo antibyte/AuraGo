@@ -46,9 +46,16 @@ func liveCYDBuilder(t *testing.T, image string, idle time.Duration) *cydDockerBu
 			b.idleTimer.Stop()
 		}
 		b.mu.Unlock()
-		_, _, _ = b.request(ctx, http.MethodDelete, "/containers/"+url.PathEscape(b.containerName)+"?force=true", nil)
+		remove := func(endpoint string) {
+			if _, code, err := b.request(ctx, http.MethodDelete, endpoint, nil); err != nil {
+				t.Logf("cleanup DELETE %s: %v", endpoint, err)
+			} else if code != http.StatusNoContent && code != http.StatusNotFound {
+				t.Logf("cleanup DELETE %s: HTTP %d", endpoint, code)
+			}
+		}
+		remove("/containers/" + url.PathEscape(b.containerName) + "?force=true")
 		for _, v := range []string{b.cacheVolume, b.workVolume} {
-			_, _, _ = b.request(ctx, http.MethodDelete, "/volumes/"+url.PathEscape(v)+"?force=true", nil)
+			remove("/volumes/" + url.PathEscape(v) + "?force=true")
 		}
 	})
 	return b
@@ -140,6 +147,10 @@ func TestCYDBuilderStubMechanicsLive(t *testing.T) {
 	case err := <-errCh:
 		cancel()
 		t.Fatalf("slow build ended before its first log line: %v", err)
+	case <-time.After(60 * time.Second):
+		// Fail before the go test timeout, which would skip t.Cleanup.
+		cancel()
+		t.Fatal("slow build logged no line within 60 s")
 	}
 	cancelAt := time.Now()
 	cancel()
@@ -174,6 +185,9 @@ func TestCYDBuilderStubMechanicsLive(t *testing.T) {
 // profile in the real toolchain image and decodes one address. Opt-in:
 // CYD_BUILDER_IT=1; CYD_BUILDER_IT_IMAGE overrides the image (default: the
 // cyd_creator.builder_image default). The image is pulled when missing.
+// Nine boards take about 10 minutes, so run it with -timeout 60m:
+//
+//	CYD_BUILDER_IT=1 CYD_BUILDER_IT_IMAGE=aurago-cyd-builder:dev go test -count=1 -v -timeout 60m -run TestCYDBuilderIntegration ./internal/server/
 func TestCYDBuilderIntegration(t *testing.T) {
 	if os.Getenv("CYD_BUILDER_IT") != "1" {
 		t.Skip("set CYD_BUILDER_IT=1 to compile every board profile in the toolchain image")
@@ -182,7 +196,9 @@ func TestCYDBuilderIntegration(t *testing.T) {
 	if image == "" {
 		image = config.DefaultCYDCreatorBuilderImage
 	}
-	b := liveCYDBuilder(t, image, 0)
+	// The idle stop is a safety net: a go test timeout panic skips t.Cleanup,
+	// and the container must not keep running forever.
+	b := liveCYDBuilder(t, image, 10*time.Minute)
 	ctx := context.Background()
 	if st := b.Status(ctx); !st.DockerAvailable {
 		t.Fatalf("Docker unavailable: %+v", st)
