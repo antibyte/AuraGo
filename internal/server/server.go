@@ -704,6 +704,7 @@ func Start(opts StartOptions) error {
 		if s.LocalWiki != nil {
 			withdrawLocalWikipediaTool(s.LocalWiki)
 		}
+		withdrawRetroGamesTool(s.RetroGames)
 		serverCancel()
 		return err
 	}
@@ -748,6 +749,7 @@ func Start(opts StartOptions) error {
 			}
 			wikiCancel()
 		}
+		withdrawRetroGamesTool(s.RetroGames)
 		retroCtx, retroCancel := context.WithTimeout(context.Background(), 10*time.Second)
 		s.shutdownRetroGames(retroCtx)
 		retroCancel()
@@ -1724,6 +1726,7 @@ func newServerFromOptions(opts StartOptions) *Server {
 	s.LocalWiki = newLocalWikipediaManager(cfg, logger)
 	publishLocalWikipediaTool(s.LocalWiki)
 	s.RetroGames = newRetroGamesService(cfg, logger)
+	publishRetroGamesTool(s.RetroGames)
 	return s
 }
 
