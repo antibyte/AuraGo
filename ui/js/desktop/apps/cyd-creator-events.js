@@ -3,8 +3,9 @@
 // (latest state per job/build/device, every message, the steps of each job) and replayed at
 // stream_ready, so a window does not repaint its whole history. Everything reaches inst.bus as
 // sse:<type>(data, meta); events:state reports connecting | live | reconnecting. stream_ready
-// with data {"reload":true} means the window's state cannot be continued (events after the resume
-// point were pruned, or the database was restored or reset): the app must reload project state.
+// carries {"after":N} (the seq the server continues after); with "reload":true the window's state
+// cannot be continued (events after the resume point were pruned, or the database was restored or
+// reset): the cursor moves to N and the app must reload project state.
 (function () {
     'use strict';
 
@@ -40,7 +41,16 @@
         return Math.min(MAX_BACKOFF_MS, 1000 * Math.pow(2, n));
     }
 
-    // createCatchup coalesces the backlog: drain() returns [type, data] pairs in apply order.
+    // jitter spreads the reconnects of many windows: ms ±20 %, kept within 1–30 s. random() is
+    // Math.random unless a test passes its own.
+    function jitter(ms, random) {
+        const r = typeof random === 'function' ? Number(random()) || 0 : Math.random();
+        return Math.round(Math.min(MAX_BACKOFF_MS, Math.max(1000, ms * (0.8 + 0.4 * r))));
+    }
+
+    // createCatchup coalesces the backlog: drain() returns [type, data] pairs in apply order. Its
+    // size is bounded: the server replays at most the project's retained events (5000), messages
+    // keep the newest MESSAGES_MAX and each job keeps its newest STEPS_PER_JOB steps.
     function createCatchup() {
         let lock = null;
         const projectChanges = new Map(); // what → data with the highest version
@@ -98,7 +108,7 @@
     }
 
     // connect(inst) opens the stream for inst.projectId. opts.EventSource overrides the constructor
-    // (tests). Returns {close(), after}.
+    // and opts.random the jitter source (tests); opts.after is a resume point. Returns {close(), after}.
     function connect(inst, opts) {
         const o = opts || {};
         const cursor = createCursor(o.after || 0);
@@ -110,7 +120,9 @@
         let catching = true;
         // The resume point of the running catch-up. A stream cut off before stream_ready is resumed
         // from the same point, not after the buffered seqs, so the server can still tell that events
-        // after it were pruned; the replayed seqs are dropped by the cursor.
+        // after it were pruned; the replayed seqs are dropped by the cursor. It does not move while
+        // backlogs keep being cut off; each retry then re-reads that backlog, which the server's
+        // retention (5000 events per project) bounds, and the backoff spaces the retries.
         let catchupFrom = cursor.after;
         // Per source: the last lastEventId seen and the highest seq the server sent. A browser
         // EventSource keeps lastEventId for an event without an id line (build_log, stream_ready),
@@ -132,19 +144,27 @@
             return Number.isFinite(seq) && seq > 0 ? seq : 0;
         }
 
+        // continuation is stream_ready's data.after, the seq the server's live loop continues after
+        // (0 when absent, e.g. an older server or a fixture).
+        function continuation(data) {
+            const after = Number(data && data.after);
+            return Number.isFinite(after) && after > 0 ? after : 0;
+        }
+
         function onEvent(current, type, ev) {
             if (closed || current !== source) return;
             const seq = eventSeq(ev);
-            if (seq > streamSeq) streamSeq = seq;
-            if (seq > 0 && !cursor.accept(seq)) return;
             let data = {};
             if (ev.data) {
+                // A malformed frame is dropped before it can move the cursor.
                 try { data = JSON.parse(ev.data); } catch (_) { return; }
             }
+            if (seq > streamSeq) streamSeq = seq;
+            if (seq > 0 && !cursor.accept(seq)) return;
             if (type === 'stream_ready') {
                 attempt = 0;
-                // The server continues after the last event it sent on this stream.
-                if (data && data.reload === true) cursor.reset(streamSeq);
+                // The server continues after data.after (at least the last event it sent here).
+                if (data && data.reload === true) cursor.reset(Math.max(streamSeq, continuation(data)));
                 const backlog = catchup.drain();
                 catchup = createCatchup();
                 catching = false;
@@ -174,7 +194,7 @@
                 current.close();
                 source = null;
                 emitState('reconnecting');
-                timer = setTimeout(open, backoff(attempt));
+                timer = setTimeout(open, jitter(backoff(attempt), o.random));
                 attempt++;
             };
         }

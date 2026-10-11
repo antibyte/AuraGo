@@ -83,7 +83,9 @@ func TestCYDCreatorKeysExistInAllLocales(t *testing.T) {
 		"CYD_BUILD_TIMEOUT", "CYD_BUILD_CANCELLED", "CYD_BUILD_INTERRUPTED", "CYD_FLASH_BUDGET_EXCEEDED", "CYD_JOB_NOT_FOUND",
 		"CYD_JOB_STATE", "CYD_DEVICE_NOT_FOUND", "CYD_UNAUTHORIZED", "CYD_RATE_LIMITED", "CYD_OTA_DISABLED", "CYD_IMPORT_INVALID",
 		"CYD_TEMPLATE_TOO_NEW", "CYD_FLASH_WRONG_CHIP", "CYD_FLASH_PORT_BUSY", "CYD_FLASH_DISCONNECTED", "CYD_SERIAL_UNSUPPORTED",
-		"CYD_INTERNAL", "network", "generic"}
+		"CYD_INTERNAL", "network", "generic",
+		// AuraGo's desktop auth and policy answers (code taken from "error" by cyd-creator-api.js).
+		"desktop_scope_required", "unauthorized", "desktop_readonly"}
 	families := map[string][]string{
 		"cyd_creator.agent.wifi_":       {"off", "optional", "required"},
 		"cyd_creator.build.status_":     {"queued", "running", "succeeded", "failed", "cancelled", "interrupted"},

@@ -87,6 +87,8 @@ sandbox.window.I18N = {
     'cyd_creator.designer.added': '{name} hinzugefügt',
     'cyd_creator.error.CYD_BUSY': 'Beschäftigt',
     'cyd_creator.error.CYD_INTERNAL': 'Interner Fehler',
+    'cyd_creator.error.publication_review': 'Prüfung nötig',
+    'cyd_creator.error.unauthorized': 'Abgemeldet',
     'cyd_creator.error.network': 'Netzwerk',
     'cyd_creator.error.generic': 'Fehler'
 };
@@ -106,6 +108,16 @@ eq('errors.message: unknown codes are generic', P.errors.message(t, new ApiError
 eq('errors.message: CYD_INTERNAL (plan 2, HTTP 500) has its own text', P.errors.message(t, new ApiError(500, 'CYD_INTERNAL', 'db')), 'Interner Fehler');
 eq('a CYD_INTERNAL save failure retries like other 5xx', P.autosave.classify(new ApiError(500, 'CYD_INTERNAL', 'db')), 'offline');
 eq('errors.message: plain errors are generic', P.errors.message(t, new Error('boom')), 'Fehler');
+// CYD_BUSY on a save: file_open (an open file blocked a rename) is retried; the publication fence
+// (publication_review) lasts until an administrator resolves it, so the saver must not retry.
+eq('CYD_BUSY file_open or without a reason retries', [
+    P.autosave.classify(new ApiError(409, 'CYD_BUSY', 'open', { reason: 'file_open' })),
+    P.autosave.classify(new ApiError(409, 'CYD_BUSY', 'busy'))
+], ['offline', 'offline']);
+eq('CYD_BUSY publication_review fails instead of retrying', P.autosave.classify(new ApiError(409, 'CYD_BUSY', 'fenced', { reason: 'publication_review' })), 'failed');
+eq('CYD_BUSY with an unknown reason fails', P.autosave.classify(new ApiError(409, 'CYD_BUSY', 'x', { reason: 'something_new' })), 'failed');
+eq('errors.message: the publication fence has its own text', P.errors.message(t, new ApiError(409, 'CYD_BUSY', 'fenced', { reason: 'publication_review' })), 'Prüfung nötig');
+eq('errors.message: CYD_BUSY file_open keeps the CYD_BUSY text', P.errors.message(t, new ApiError(409, 'CYD_BUSY', 'open', { reason: 'file_open' })), 'Beschäftigt');
 
 // ── API envelope ──
 {
@@ -117,6 +129,14 @@ eq('errors.message: plain errors are generic', P.errors.message(t, new Error('bo
     // Real server (plan 2 Task 13): CYD_DISABLED says why in details (problem or restart_required).
     const disabled = toError(503, { error: 'CYD Creator was switched on; restart AuraGo to start it', code: 'CYD_DISABLED', details: { restart_required: true } });
     eq('toError keeps the CYD_DISABLED details', [disabled.status, disabled.code, disabled.details.restart_required], [503, 'CYD_DISABLED', true]);
+    // AuraGo's desktop auth/policy answers carry the code in "error" (no "code" field).
+    const scope = toError(403, { error: 'desktop_scope_required', message: 'Desktop API scope is required for this endpoint.' });
+    eq('toError takes the code from error when code is missing', [scope.code, scope.message], ['desktop_scope_required', 'Desktop API scope is required for this endpoint.']);
+    const login = toError(401, { error: 'unauthorized', redirect: '/auth/login' });
+    eq('an expired session is code unauthorized', [login.code, login.message, P.errors.message(t, login)], ['unauthorized', 'unauthorized', 'Abgemeldet']);
+    const policy = toError(403, { error: 'desktop_readonly', code: 'desktop_readonly', message: 'The desktop does not allow this action.' });
+    eq('the desktop policy answer keeps its code', [policy.code, P.autosave.classify(policy)], ['desktop_readonly', 'failed']);
+    eq('a sentence in error is not a code', toError(500, { error: 'something went wrong' }).code, '');
 }
 {
     const seen = [];
@@ -240,6 +260,13 @@ function makeSaver(answers, extra) {
     eq('the next change saves again', [calls.length, saver.state()], [2, 'saved']);
 }
 {
+    const { saver, calls } = makeSaver([{ error: new ApiError(409, 'CYD_BUSY', 'fenced', { reason: 'publication_review' }) }]);
+    saver.change('a');
+    await advance(1000);
+    await advance(120000);
+    eq('a fenced project fails once and is not retried', [saver.state(), calls.length, saver.error().details.reason], ['failed', 1, 'publication_review']);
+}
+{
     const conflicts = [];
     const { saver, calls } = makeSaver([{ error: new ApiError(409, 'CYD_PROJECT_CONFLICT', 'stale', { version: 20 }) }, { token: 21 }], {
         onConflict: err => { conflicts.push(err.details.version); return Promise.resolve({ action: 'overwrite', token: err.details.version }); }
@@ -338,7 +365,7 @@ function makeSaver(answers, extra) {
     P.events.TYPES.forEach(type => bus.on('sse:' + type, data => got.push(type + ':' + JSON.stringify(data))));
     const states = [];
     bus.on('events:state', s => states.push(s));
-    const conn = P.events.connect({ projectId: 'ccp_1', bus }, { EventSource: FakeES });
+    const conn = P.events.connect({ projectId: 'ccp_1', bus }, { EventSource: FakeES, random: () => 0.5 });
     eq('the first stream starts without after', streams[0].url, '/api/desktop/cyd-creator/projects/ccp_1/events');
     streams[0].send('job_status', { job: { id: 'j1', status: 'running' } }, 1);
     streams[0].send('job_status', { job: { id: 'j1', status: 'awaiting_confirmation' } }, 2);
@@ -379,9 +406,10 @@ class BrowserES {
     constructor(url) { this.url = url; this.listeners = {}; this.closed = false; this.onerror = null; this.lastEventId = ''; browserStreams.push(this); }
     addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
     close() { this.closed = true; }
-    send(type, data, id) {
+    send(type, data, id) { this.sendRaw(type, JSON.stringify(data), id); }
+    sendRaw(type, raw, id) {
         if (id !== undefined) this.lastEventId = String(id);
-        const ev = { data: JSON.stringify(data), lastEventId: this.lastEventId };
+        const ev = { data: raw, lastEventId: this.lastEventId };
         (this.listeners[type] || []).forEach(fn => fn(ev));
     }
 }
@@ -390,20 +418,20 @@ function browserConnect(after) {
     const got = [];
     const bus = P.createBus();
     P.events.TYPES.forEach(type => bus.on('sse:' + type, (data, meta) => got.push(type + ':' + JSON.stringify(data) + '@' + meta.seq)));
-    const conn = P.events.connect({ projectId: 'ccp_1', bus }, { EventSource: BrowserES, after });
+    const conn = P.events.connect({ projectId: 'ccp_1', bus }, { EventSource: BrowserES, after, random: () => 0.5 });
     return { got, conn, streams: browserStreams };
 }
 {
     const { got, conn, streams } = browserConnect(0);
     streams[0].send('project_changed', { version: 2, what: 'layout' }, 7);
-    streams[0].send('stream_ready', {});
+    streams[0].send('stream_ready', { after: 7 });
     streams[0].send('build_log', { build_id: 'b1', lines: ['a'] });
     streams[0].send('build_log', { build_id: 'b1', lines: ['b'] });
     streams[0].send('job_step', { job_id: 'j1', text: 'x' }, 8);
     streams[0].send('build_log', { build_id: 'b1', lines: ['c'] });
     eq('events without an id line arrive although the browser keeps lastEventId', got, [
         'project_changed:{"version":2,"what":"layout"}@0',
-        'stream_ready:{}@0',
+        'stream_ready:{"after":7}@0',
         'build_log:{"build_id":"b1","lines":["a"]}@0',
         'build_log:{"build_id":"b1","lines":["b"]}@0',
         'job_step:{"job_id":"j1","text":"x"}@8',
@@ -422,11 +450,11 @@ function browserConnect(after) {
     eq('the cut-off catch-up resumes from the same point', streams[1].url, '/api/desktop/cyd-creator/projects/ccp_1/events?after=3');
     streams[1].send('job_message', { message: { id: 'm10' } }, 10);
     streams[1].send('job_status', { job: { id: 'j2', status: 'running' } }, 11);
-    streams[1].send('stream_ready', { reload: true });
+    streams[1].send('stream_ready', { reload: true, after: 11 });
     eq('a pruned resume point delivers the backlog once, then stream_ready with reload', got, [
         'job_status:{"job":{"id":"j2","status":"running"}}@0',
         'job_message:{"message":{"id":"m10"}}@0',
-        'stream_ready:{"reload":true}@0'
+        'stream_ready:{"reload":true,"after":11}@0'
     ]);
     eq('after a pruned reload the cursor is the last event sent', conn.after, 11);
     conn.close();
@@ -435,8 +463,8 @@ function browserConnect(after) {
     const { got, conn, streams } = browserConnect(900);
     // The database was restored: its newest event is 40, so the server continues from there.
     streams[0].send('lock_changed', { locked_by_job: '' }, 41);
-    streams[0].send('stream_ready', { reload: true });
-    eq('stream_ready reload arrives although the backlog lies below the old cursor', got, ['stream_ready:{"reload":true}@0']);
+    streams[0].send('stream_ready', { reload: true, after: 41 });
+    eq('stream_ready reload arrives although the backlog lies below the old cursor', got, ['stream_ready:{"reload":true,"after":41}@0']);
     eq('reload moves the cursor down to the last event the server sent', conn.after, 41);
     streams[0].send('job_step', { job_id: 'j3', text: 'live' }, 42);
     eq('live events after the reload are not dropped as replays', got.slice(1), ['job_step:{"job_id":"j3","text":"live"}@42']);
@@ -446,12 +474,56 @@ function browserConnect(after) {
     conn.close();
 }
 {
+    // No event since the restore: stream_ready's after (the newest event, 40) is the cursor, so a
+    // reconnect does not replay the whole backlog.
+    const { got, conn, streams } = browserConnect(900);
+    streams[0].send('stream_ready', { reload: true, after: 40 });
+    eq('a reload without any event takes the server continuation point', conn.after, 40);
+    streams[0].send('build_status', { build: { id: 'ccb_1', status: 'queued' } }, 41);
+    eq('the next persisted event is accepted', [got.length, conn.after], [2, 41]);
+    streams[0].onerror();
+    await advance(1000);
+    eq('the reconnect after a reload resumes after the server position', streams[1].url, '/api/desktop/cyd-creator/projects/ccp_1/events?after=41');
+    conn.close();
+}
+{
     const { got, conn, streams } = browserConnect(900);
     streams[0].send('stream_ready', { reload: true });
-    eq('a reload without any event forgets the old cursor', conn.after, 0);
+    eq('a reload without after and without any event forgets the old cursor', conn.after, 0);
     streams[0].send('build_status', { build: { id: 'ccb_1', status: 'queued' } }, 5);
-    eq('the next persisted event is accepted', [got.length, conn.after], [2, 5]);
+    eq('then the next persisted event is accepted', [got.length, conn.after], [2, 5]);
     conn.close();
+}
+{
+    const { got, conn, streams } = browserConnect(0);
+    streams[0].send('project_changed', { version: 2, what: 'layout' }, 5);
+    streams[0].send('stream_ready', { after: 5 });
+    streams[0].sendRaw('job_step', '{"job_id":"j1",', 6);
+    eq('a malformed frame is dropped without moving the cursor', [got.length, conn.after], [2, 5]);
+    streams[0].send('build_log', { build_id: 'b1', lines: ['a'] });
+    streams[0].send('job_step', { job_id: 'j1', text: 'ok' }, 7);
+    eq('the stream goes on after a malformed frame', got.slice(2), ['build_log:{"build_id":"b1","lines":["a"]}@0', 'job_step:{"job_id":"j1","text":"ok"}@7']);
+    conn.close();
+}
+{
+    // Reconnect delays: the backoff ±20 % (jitter), kept within 1–30 s.
+    async function reconnectDelays(random, count) {
+        browserStreams.length = 0;
+        const conn = P.events.connect({ projectId: 'ccp_1', bus: P.createBus() }, { EventSource: BrowserES, random });
+        const out = [];
+        for (let i = 0; i < count; i++) {
+            browserStreams[browserStreams.length - 1].onerror();
+            const delay = Array.from(timers.values()).pop().at - now;
+            out.push(delay);
+            await advance(delay);
+        }
+        conn.close();
+        return out;
+    }
+    eq('jitter -20 % never goes below 1 s', await reconnectDelays(() => 0, 3), [1000, 1600, 3200]);
+    eq('jitter +20 % never goes above 30 s', await reconnectDelays(() => 1, 7), [1200, 2400, 4800, 9600, 19200, 30000, 30000]);
+    const spread = await reconnectDelays(undefined, 4);
+    check('the default jitter stays within ±20 % of the backoff', spread.every((d, i) => d >= Math.max(1000, 0.8 * 1000 * 2 ** i) && d <= 1.2 * 1000 * 2 ** i), JSON.stringify(spread));
 }
 
 if (failures) {

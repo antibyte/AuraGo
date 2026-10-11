@@ -241,10 +241,17 @@
         code(err) {
             return err && typeof err.code === 'string' ? err.code : '';
         },
+        // reason is details.reason of a typed error (CYD_BUSY: file_open, publication_review).
+        reason(err) {
+            const details = err && err.details;
+            return details && typeof details.reason === 'string' ? details.reason : '';
+        },
         // message returns the translated sentence for err: error.<CODE> when the code is known,
-        // error.network when the request never reached the server, else error.generic.
+        // error.network when the request never reached the server, else error.generic. A project
+        // fenced after an interrupted publication (CYD_BUSY publication_review) has its own text.
         message(t, err) {
             const code = P.errors.code(err);
+            if (code === 'CYD_BUSY' && P.errors.reason(err) === 'publication_review') return t('cyd_creator.error.publication_review');
             if (code && typeof t.has === 'function' && t.has('cyd_creator.error.' + code)) return t('cyd_creator.error.' + code);
             if (err && err.name === 'ApiError' && Number(err.status) === 0) return t('cyd_creator.error.network');
             return t('cyd_creator.error.generic');
@@ -279,13 +286,19 @@
 
     // ── autosave ────────────────────────────────────────────────────────────
 
-    // classifySaveError maps a failed save to the saver state that follows it.
+    // classifySaveError maps a failed save to the saver state that follows it. CYD_BUSY retries only
+    // for reason file_open (an open file blocked a rename) or no reason; publication_review fences the
+    // project until an administrator resolves an interrupted publication, so retrying never lands.
     function classifySaveError(err) {
         const status = Number(err && err.status) || 0;
         const code = (err && err.code) || '';
         if (code === 'CYD_PROJECT_CONFLICT' || code === 'CYD_FILE_CONFLICT') return 'conflict';
         if (code === 'CYD_PROJECT_LOCKED' || status === 423) return 'locked';
-        if (status === 0 || status === 408 || status === 429 || status >= 500 || code === 'CYD_BUSY') return 'offline';
+        if (code === 'CYD_BUSY') {
+            const reason = P.errors.reason(err);
+            return !reason || reason === 'file_open' ? 'offline' : 'failed';
+        }
+        if (status === 0 || status === 408 || status === 429 || status >= 500) return 'offline';
         return 'failed';
     }
 

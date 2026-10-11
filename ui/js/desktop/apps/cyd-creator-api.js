@@ -16,10 +16,17 @@
         }
     }
 
+    // AuraGo's desktop auth and policy layer answers {"error": "<code>", "message"?} without a code
+    // field (desktop_scope_required, unauthorized, desktop_readonly): such an error is the code.
+    const AURAGO_ERROR_CODE = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
+
     // toError builds the ApiError of a failed response. body is the parsed JSON envelope or the raw
     // text; status 0 means the request never reached the server.
     function toError(status, body) {
         if (body && typeof body === 'object') {
+            if (!body.code && typeof body.error === 'string' && AURAGO_ERROR_CODE.test(body.error)) {
+                return new ApiError(status, body.error, String(body.message || body.error), body.details);
+            }
             return new ApiError(status, String(body.code || ''), String(body.error || body.message || ''), body.details);
         }
         const text = typeof body === 'string' ? body.trim().slice(0, 300) : '';
