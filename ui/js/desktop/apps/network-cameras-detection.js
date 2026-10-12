@@ -472,6 +472,9 @@
 
     function settingsSaved(inst, result) {
         if (result && result.detection && typeof result.detection === 'object') inst.options = Object.assign({}, inst.options, { detectionSettings: result.detection });
+        // reloadAppState remounts the mode, which cancels this quick poll and would wait for
+        // the rest of the 5 s cycle; with no last poll the remount polls at once instead.
+        inst.lastPollAt = 0;
         schedulePoll(inst, 300);
         if (typeof inst.options.reloadAppState === 'function') inst.options.reloadAppState();
     }
