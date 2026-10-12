@@ -127,6 +127,7 @@ worker. Keep packaging, recovery and offline instructions in
 - Chat history loads are session-generation bound through every rendered batch; a late fetch or animation-frame continuation cannot append to a newer session. Store dialogs clear input values and attributes on close/dispose, and late API responses cannot reopen them. Verify `TestChatHistorySwitchDropsLateBatchesBrowser` and `TestSoftwareStoreDisposesSensitiveDialogsBrowser`.
 
 - Radio, Personal Radio, and RTL-SDR use separate icon keys and assets in both Papirus and WhiteSur. Keep the backend app manifests, Desktop mappings, theme manifests, and generated main bundle aligned; verify `TestDesktopRadioAppsHaveDistinctThemeIcons`.
+- Theme manifests reference only their own `img/papirus/icons/` or `img/whitesur/icons/` assets; an app logo such as `img/desktop-icons/layerling.svg` stays `logo_path` metadata. Verify `TestDesktopWhiteSurAssetsAreEmbedded`.
 
 - Tool configuration consumes `_effective_tool_policy` and `_config_migrations`
   as response diagnostics only, through the shared config-response loader on
