@@ -3,8 +3,9 @@
 // snapping and guides, resize/align/distribute maths, the layout store (history, coalescing,
 // origins), every layout op incl. reparenting and tabs (structural mirror of Go ApplyOps), name
 // rules incl. reserved names, a render smoke test of all 26 widget types in every theme through
-// the string serialiser, and the interaction module (gestures, palette drag, keyboard) through the
-// real designer and store on a minimal fake DOM. Capabilities come from
+// the string serialiser, the interaction module (gestures, palette drag, keyboard) through the
+// real designer and store on a minimal fake DOM, and the designer's shell wiring with the real
+// canvas on that fake DOM (fit zoom, one render per change, flashes, live region). Capabilities come from
 // ui/testdata/cyd_creator_designer_caps.json (kept equal to internal/cydcreator by
 // TestCYDCreatorDesignerCapsFixtureMatchesCatalog). P.util comes from the real cyd-creator-core.js
 // (plan 4a), which runs in Node and loads first.
@@ -539,8 +540,17 @@ class El {
         this.style = { setProperty(k, v) { this[k] = String(v); } };
     }
     appendChild(c) { if (c.parent) c.remove(); c.parent = this; this.kids.push(c); return c; }
+    replaceChildren(...nodes) { this.kids.slice().forEach(k => k.remove()); nodes.forEach(n => this.appendChild(n)); }
+    replaceChild(next, old) {
+        if (next.parent) next.remove();
+        const i = this.kids.indexOf(old);
+        if (i < 0) throw new Error('fake DOM: replaceChild of a non-child');
+        this.kids[i] = next; next.parent = this; old.parent = null;
+        return old;
+    }
     remove() { if (this.parent) this.parent.kids.splice(this.parent.kids.indexOf(this), 1); this.parent = null; }
-    setAttribute(k, v) { this.attrs[k] = String(v); }
+    // data-* attributes show in dataset, as in a browser.
+    setAttribute(k, v) { this.attrs[k] = String(v); if (k.startsWith('data-')) this.dataset[k.slice(5).replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = String(v); }
     addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
     removeEventListener(type, fn) { this.listeners[type] = (this.listeners[type] || []).filter(f => f !== fn); }
     setPointerCapture(id) { this.captured.add(id); }
@@ -739,6 +749,189 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     drag(els.w_pnl, [110, 110], [150, 110], { end: null });
     designer.dispose();
     check('dispose cancels a running gesture and releases the capture', !viewport.captured.size && seen.disposed && !(root.listeners.keydown || []).length && !(viewport.listeners.pointerdown || []).length);
+}
+
+// ── designer wiring and the real canvas (cyd-creator-designer.js, cyd-creator-canvas.js) ──
+// The canvas renders into the fake DOM with interact stubbed and manual timers: shell bus events,
+// issue de-duplication, read-only, the selection after remote replaces, the fit zoom, one render
+// per change, flashes across re-renders, the live region and a bounded number of timers.
+{
+    const timers = new Map();
+    let timerSeq = 0;
+    sandbox.setTimeout = fn => { timers.set(++timerSeq, fn); return timerSeq; };
+    sandbox.clearTimeout = id => { timers.delete(id); };
+    // runTimers fires the pending timers and the ones they start (the live region's second step).
+    const runTimers = () => { for (let round = 0; round < 4 && timers.size; round++) Array.from(timers.entries()).forEach(([id, fn]) => { timers.delete(id); fn(); }); };
+    const canvasFile = path.join(apps, 'cyd-creator-canvas.js');
+    vm.runInContext(fs.readFileSync(canvasFile, 'utf8'), sandbox, { filename: canvasFile });
+    const landscape = G.screenSize(caps.boards[0], 'landscape');
+    eq('fitZoom counts stage padding, bezel and label unscaled (800×600 → 2×, 1400×900 → 3×)', [P.designerCanvas.fitZoom(landscape, 800, 600), P.designerCanvas.fitZoom(landscape, 1400, 900)], [2, 3]);
+
+    let aborts = 0;
+    const realInteract = P.designerInteract;
+    P.designerInteract = { attach: () => ({ abort() { aborts++; }, dispose() {} }) };
+    const layout = project();
+    layout.settings.wifi = 'off';
+    layout.settings.statusbar_clock = true;
+    layout.screens[0].title = 'Home Title';
+    layout.screens[0].style = { bg_color: 'url(https://example.invalid/x.png)', bg_opacity: 128 };
+    layout.screens[0].widgets.unshift({ id: 'w_bar', type: 'statusbar', name: 'status_1', x: 0, y: 0, w: 320, h: 24 });
+    layout.screens[0].widgets.push({ id: 'w_odd"\n]', type: 'label', name: 'lbl_odd', x: 'x', y: 1e9, w: 99999, h: -5 });
+    layout.screens[1].style = { bg_color: '#123456', bg_opacity: 128 };
+    const dStore = M.createStore(layout, {});
+    const shellBus = P.createBus();
+    const inst = { t: P.i18n(null), caps, readonly: false, isLocked: () => false, layoutStore: dStore, bus: shellBus, notify() {}, assetUrl: id => '/a/' + id };
+    const designer = P.designer.create(inst);
+    const d = designer.state;
+    const events = [];
+    ['issues', 'lock', 'screen', 'selection', 'project', 'view'].forEach(type => d.bus.on(type, info => events.push(type === 'project' ? 'project:' + !!info.screenChanged : type)));
+    const count = type => events.filter(e => e === type).length;
+    const host = new El('div');
+    designer.mountCanvas(host);
+    const canvas = d.canvas;
+    runTimers();
+    const scr = canvas.screenEl;
+    let renders = 0;
+    const replaceScreen = scr.replaceChildren;
+    scr.replaceChildren = function (...nodes) { renders++; return replaceScreen.apply(this, nodes); };
+    const all = (el, pred, out = []) => { if (pred(el)) out.push(el); el.kids.forEach(k => all(k, pred, out)); return out; };
+    const textOf = el => (el.text !== undefined ? el.text : (el.textContent || '') + el.kids.map(textOf).join(''));
+    const live = all(canvas.root, el => el.attrs['aria-live'] === 'polite')[0];
+    const handles = () => all(canvas.overlay, el => !!el.dataset.ccHandle).length;
+    const tool = cmd => all(canvas.root, el => el.attrs['data-cc-cmd'] === cmd)[0];
+
+    // fit and zoom
+    canvas.viewport.clientWidth = 800; canvas.viewport.clientHeight = 600;
+    canvas.fit(true);
+    const at800 = d.zoom;
+    canvas.viewport.clientWidth = 1400; canvas.viewport.clientHeight = 900;
+    canvas.fit(true);
+    eq('the mounted canvas fits 2× into 800×600 and 3× into 1400×900', [at800, d.zoom], [2, 3]);
+    let views = count('view');
+    let before = renders;
+    canvas.fit(true);
+    canvas.fit(true);
+    d.setZoom(3, true);
+    check('an unchanged zoom (resize ticks) emits nothing and renders nothing', count('view') === views && renders === before);
+    d.setZoom(3);
+    check('the same zoom without auto-fit is a change', count('view') === views + 1 && d.zoomAuto === false);
+    canvas.viewport.clientWidth = 0;
+    d.setZoom(2, true);
+    views = count('view');
+    canvas.fit(true);
+    check('a hidden viewport (Code mode) keeps the zoom', d.zoom === 2 && count('view') === views);
+    canvas.viewport.clientWidth = 1400;
+
+    // rendering of untrusted values
+    const bar = canvas.widgetEl('w_bar');
+    check('the statusbar shows the screen title and follows the clock/Wi-Fi settings', !!bar && textOf(bar).includes('Home Title') && textOf(bar).includes('12:34') && !textOf(bar).includes(R.SYMBOLS.wifi), bar && textOf(bar));
+    const odd = canvas.widgetEl('w_odd"\n]');
+    eq('a widget id with quotes and a newline is found; its box is clamped', odd && [odd.style.left, odd.style.top, odd.style.width, odd.style.height], ['0px', '4096px', '2048px', '1px']);
+    eq('an invalid screen bg_color falls back to the theme bg with the bg_opacity', scr.style.background, 'rgba(15,21,34,0.502)');
+    const tag = all(canvas.root, el => el.attrs.class === 'cc-tag')[0];
+    check('the board status uses the 4a tag with tone and t.or', !!tag && tag.attrs['data-tone'] === 'ok' && textOf(tag) === 'verified', tag && JSON.stringify(tag.attrs));
+    check('the orientation label reuses cyd_creator.orientation.*', textOf(canvas.root).includes('cyd_creator.orientation.landscape'));
+
+    // shell bus: issues, read-only, lock, mode
+    const issues = [{ code: 'NAME_INVALID', severity: 'error', widget: 'w_btn', message: 'x' }];
+    before = renders;
+    shellBus.emit('layout:issues', issues);
+    check('a new issue list emits once and renders', count('issues') === 1 && d.issues.length === 1 && renders === before + 1);
+    shellBus.emit('layout:issues', JSON.parse(JSON.stringify(issues)));
+    check('an identical issue list (after every save) emits and renders nothing', count('issues') === 1 && renders === before + 1);
+    shellBus.emit('layout:issues', []);
+    shellBus.emit('layout:issues', null);
+    check('a changed list emits; null equals the empty list', count('issues') === 2 && d.issues.length === 0);
+    d.select(['w_btn']);
+    check('a single selection shows eight handles', handles() === 8);
+    inst.readonly = true;
+    shellBus.emit('readonly:changed', true);
+    check('readonly:changed aborts the gesture and re-renders disabled', count('lock') === 1 && aborts === 1 && handles() === 0 && canvas.root.classList.contains('is-readonly') && tool('delete').disabled === true);
+    check('commands refuse while read-only', d.readonly() && d.commands.addAtCenter('label') === null);
+    inst.readonly = false;
+    shellBus.emit('readonly:changed', false);
+    check('read-only off re-enables handles and tools', count('lock') === 2 && handles() === 8 && tool('delete').disabled === false);
+    shellBus.emit('lock:changed', true, 'ccj_1');
+    shellBus.emit('mode:changed', 'code');
+    shellBus.emit('mode:changed', 'design');
+    check('lock:changed emits lock and aborts; Code mode aborts a gesture, Design mode does not', count('lock') === 3 && aborts === 4);
+
+    // live region
+    runTimers();
+    d.select(['w_btn', 'w_tabs']);
+    d.select(['w_tabs']);
+    d.select(['w_btn', 'w_tabs']);
+    check('selection messages wait for the selection to settle', live.textContent !== '2 widgets selected');
+    runTimers();
+    eq('the settled selection is spoken once', live.textContent, '2 widgets selected');
+    d.select([]);
+    runTimers();
+    eq('a cleared selection is spoken', live.textContent, 'Selection cleared');
+    d.setScreen('s_two');
+    d.setScreen('s_home');
+    live.textContent = 'unchanged';
+    runTimers();
+    check('screen switches with an empty selection speak nothing', live.textContent === 'unchanged');
+    const added = d.commands.addAtCenter('button');
+    runTimers();
+    check('a command message replaces the pending selection message', !!added && d.selection.join() === added && live.textContent === 'cyd_creator.designer.added', live.textContent);
+    dStore.undo();
+
+    // remote replaces: selection upkeep, one render, flashes
+    d.select(['w_btn', 'w_tabs']);
+    const next = JSON.parse(JSON.stringify(dStore.get()));
+    next.screens[0].widgets = next.screens[0].widgets.filter(w => w.id !== 'w_tabs');
+    next.screens[0].widgets.find(w => w.id === 'w_btn').x = 40;
+    before = renders;
+    dStore.replace(next, { resetHistory: false });
+    eq('a remote replace drops missing ids and keeps the survivors', d.selection, ['w_btn']);
+    check('a remote replace on the same screen renders once and flashes the changed widget', renders === before + 1 && canvas.widgetEl('w_btn').classList.contains('cc-flash'));
+    shellBus.emit('layout:issues', issues);
+    check('a render during the flash keeps it', renders === before + 2 && canvas.widgetEl('w_btn').classList.contains('cc-flash'));
+    runTimers();
+    shellBus.emit('layout:issues', []);
+    check('the flash ends after its timer', !canvas.widgetEl('w_btn').classList.contains('cc-flash'));
+    d.setScreen('s_two');
+    eq('a valid screen bg_color is shown with its bg_opacity', scr.style.background, 'rgba(18,52,86,0.502)');
+    const gone = JSON.parse(JSON.stringify(dStore.get()));
+    gone.screens = gone.screens.filter(s => s.id !== 's_two');
+    events.length = 0;
+    before = renders;
+    dStore.replace(gone, { resetHistory: false });
+    check('a remote replace removing the active screen falls back to the start screen', d.screenId === 's_home' && scr.dataset.ccScreenId === 's_home');
+    check('… and renders once (screen first, project marked screenChanged)', renders === before + 1 && events.join() === 'screen,project:true', events.join() + ' renders ' + (renders - before));
+    const empty = JSON.parse(JSON.stringify(dStore.get()));
+    empty.screens = [];
+    dStore.replace(empty, { resetHistory: false });
+    check('without a screen the stale screen id and background are reset', d.screenId === '' && scr.dataset.ccScreenId === undefined && scr.style.background === '#0F1522' && !scr.kids.length);
+    dStore.replace(layout, { resetHistory: false });
+
+    // toolbar focus: a tool that disables itself (or is disabled by a selection change) hands the
+    // focus to the canvas, never to the page (the desktop's Delete key deletes a selected file icon).
+    d.select(['w_btn']);
+    const del = tool('delete');
+    del.focus();
+    fire(del, 'click');
+    check('Delete from the toolbar removes the widget and moves the focus to the canvas', !M.findWidget(dStore.get(), 'w_btn') && del.disabled === true && fakeDoc.activeElement === canvas.root);
+    dStore.undo();
+    d.select(['w_btn']);
+    tool('align-left').focus();
+    d.select([]);
+    check('a focused tool disabled by a selection change hands the focus to the canvas', tool('align-left').disabled === true && fakeDoc.activeElement === canvas.root);
+
+    // bounded timers, reveal, dispose
+    for (let i = 0; i < 50; i++) { canvas.announce('n' + i); canvas.flash(['w_btn']); d.select([i % 2 ? 'w_btn' : 'w_pnl']); }
+    check('announce, flash and selection messages keep one timer per purpose', timers.size <= 3, String(timers.size));
+    shellBus.emit('designer:reveal', { widget: 'lbl_1' });
+    check('designer:reveal selects by name inside its panel', d.selection.join() === 'w_lbl' && d.screenId === 's_home');
+    shellBus.emit('designer:reveal', { screen: 'details' });
+    check('designer:reveal switches the screen and clears the selection', d.screenId === 's_two' && d.selection.length === 0);
+    designer.dispose();
+    events.length = 0;
+    shellBus.emit('layout:issues', issues);
+    shellBus.emit('readonly:changed', true);
+    check('a disposed designer ignores the shell bus, clears its timers and removes the canvas', !events.length && !timers.size && !host.kids.length);
+    P.designerInteract = realInteract;
 }
 
 console.log((failures ? 'FAILED ' + failures : 'ok') + ' — ' + checks + ' checks');

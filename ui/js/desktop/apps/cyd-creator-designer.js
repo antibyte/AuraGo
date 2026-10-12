@@ -91,7 +91,14 @@
             d.bus.emit('selection', d.selection);
         };
         d.setTab = (id, tab) => { d.tabs.set(id, tab); d.bus.emit('view'); };
-        d.setZoom = (z, auto) => { d.zoom = G.clampZoom(z); d.zoomAuto = !!auto; d.bus.emit('view'); };
+        // setZoom re-renders only on a change (the canvas fits again on every resize tick).
+        d.setZoom = (z, auto) => {
+            const next = G.clampZoom(z);
+            if (next === d.zoom && !!auto === d.zoomAuto) return;
+            d.zoom = next;
+            d.zoomAuto = !!auto;
+            d.bus.emit('view');
+        };
         d.setSnap = s => { d.snap = G.snapStep(s); writeView({ snap: d.snap, grid: d.showGrid }); d.bus.emit('view'); };
         d.setGrid = on => { d.showGrid = !!on; writeView({ snap: d.snap, grid: d.showGrid }); d.bus.emit('view'); };
         d.setPreviewTheme = id => { if (d.previewTheme === (id || '')) return; d.previewTheme = id || ''; d.bus.emit('view'); };
@@ -261,6 +268,9 @@
         d.commands = commands;
 
         // ── store, bus and shell events ─────────────────────────────────────
+        // A store change emits 'project' ({before, label, origin, screenChanged}). When it removed
+        // the active screen, 'screen' comes first and 'project' carries screenChanged: true, so a
+        // part that renders on both renders once.
         let previous = d.project();
         bag.add(store.subscribe((project, info) => {
             const before = previous;
@@ -269,8 +279,9 @@
             pickScreen();
             const kept = d.selection.filter(d.inScreen);
             if (kept.length !== d.selection.length) { d.selection = kept; d.bus.emit('selection', kept); }
-            if (screenBefore !== d.screenId) d.bus.emit('screen', d.screenId);
-            d.bus.emit('project', Object.assign({ before }, info));
+            const screenChanged = screenBefore !== d.screenId;
+            if (screenChanged) d.bus.emit('screen', d.screenId);
+            d.bus.emit('project', Object.assign({ before, screenChanged }, info));
         }));
         const bus = inst.bus;
         // listen subscribes to the shell bus; dispose uses on()'s unsubscribe or off(type, fn).

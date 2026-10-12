@@ -10,10 +10,20 @@
 
     const P = window.CYDCreatorParts = window.CYDCreatorParts || {};
     const BEZEL = 14;
+    // PAD must match the padding of .cc-canvas-stage in the designer CSS section (plan 4b Task 11).
+    const PAD = 24;
     const LABEL_H = 30;
     const MAX_COORD = 4096; // maxCoordinate, internal/cydcreator/limits.go
+    const FLASH_MS = 1300;
+    const SELECTION_SPEAK_MS = 400;
     const ALIGN = ['left', 'hcenter', 'right', 'top', 'vcenter', 'bottom'];
     const ZORDER = ['front', 'forward', 'backward', 'back'];
+
+    // fitZoom is the largest integer zoom (1..4) at which the scaled screen fits into a viewport of
+    // vw × vh CSS px next to the unscaled stage padding, device bezel and device label.
+    function fitZoom(size, vw, vh) {
+        return P.geometry.fitZoom(size, { w: vw - 2 * (BEZEL + PAD), h: vh - 2 * (BEZEL + PAD) - LABEL_H }, 0);
+    }
 
     function mount(d, host) {
         const { h, dom, icon } = P.render;
@@ -22,8 +32,9 @@
         const t = d.t;
         const bag = P.util.bag();
         const refs = {};
+        const tools = new Map(); // command → toolbar button
         const hintId = P.util.uid('cc_hint');
-        const tool = (cmd, name, key, extra) => h('button', Object.assign({ type: 'button', class: 'cc-tool', 'data-cc-cmd': cmd, title: t(key), 'aria-label': t(key) }, extra || {}), icon(name));
+        const tool = (cmd, name, key, extra) => h('button', Object.assign({ type: 'button', class: 'cc-tool', 'data-cc-cmd': cmd, title: t(key), 'aria-label': t(key), ref: el => { tools.set(cmd, el); } }, extra || {}), icon(name));
         const ref = key => el => { refs[key] = el; };
 
         const root = dom(h('div', { class: 'cc-canvas', tabindex: '0', role: 'group', 'aria-roledescription': t('cyd_creator.designer.canvas_role'), 'aria-label': t('cyd_creator.designer.canvas_label'), 'aria-describedby': hintId, ref: ref('root') },
@@ -61,6 +72,19 @@
             h('div', { class: 'cc-sr-only', 'aria-live': 'polite', ref: ref('live') })));
         host.appendChild(root);
 
+        // The elements of the current render by widget id (ids are only checked for duplicates, so
+        // they never go into a selector): the widget element, its preview node and a container's slot.
+        const els = new Map();
+        const views = new Map();
+        const slots = new Map();
+        // Widgets flashing after a remote change; a render within the flash keeps the class.
+        const flashing = new Set();
+        // One timer per purpose (flash, live region, selection message, first fit).
+        const timers = {};
+        function later(key, fn, ms) { clearTimeout(timers[key]); timers[key] = setTimeout(() => { delete timers[key]; fn(); }, ms); }
+        function cancel(key) { clearTimeout(timers[key]); delete timers[key]; }
+        bag.add(() => Object.keys(timers).forEach(cancel));
+
         const z = () => d.zoom || 1;
         function px(v) { return Math.round(v) + 'px'; }
         function place(el, r, scale) {
@@ -77,7 +101,14 @@
             const screen = d.screen();
             return { activeTab: d.activeTab(w.id), screenTitle: screen ? screen.title : '', settings: d.project().settings };
         }
-        function widgetEl(id) { return refs.screen.querySelector('[data-cc-widget-id="' + String(id).replace(/["\\]/g, '') + '"]'); }
+        // screenBackground mirrors the device: the screen's bg_color and bg_opacity overrides when
+        // P.render.colors accepts them, else the theme background.
+        function screenBackground(theme, style) {
+            const bg = (theme.tokens || {}).bg || '';
+            const c = P.render.colors(theme, style);
+            return c.bg || (c.alpha < 1 ? P.render.rgba(bg, c.alpha, bg) : bg);
+        }
+        function widgetEl(id) { return els.get(id) || null; }
 
         // ── rendering ───────────────────────────────────────────────────────
         function renderWidget(w, theme, parent) {
@@ -92,12 +123,17 @@
                 el.classList.add(issues.some(i => i.severity === 'error') ? 'has-error' : 'has-warning');
                 el.title = issues.map(d.issueText).join('\n');
             }
-            el.appendChild(P.render.widget(spec, w, theme, d.inst.assetUrl, renderOpts(w)));
+            const view = P.render.widget(spec, w, theme, d.inst.assetUrl, renderOpts(w));
+            el.appendChild(view);
+            els.set(w.id, el);
+            views.set(w.id, view);
+            if (flashing.has(w.id)) el.classList.add('cc-flash');
             if (spec && spec.container) {
                 const slot = document.createElement('div');
                 slot.className = 'cc-slot';
                 place(slot, M.contentBox(b, spec));
                 el.appendChild(slot);
+                slots.set(w.id, slot);
                 renderList(w.children || [], slot, theme, w);
             }
             if (parent && parent.type === 'tabview') el.dataset.ccPage = String(w.tab || 0);
@@ -125,25 +161,24 @@
             scr.style.fontFamily = P.render.fontFamily(theme.font);
             scr.style.fontSize = (theme.font_size || 16) + 'px';
             scr.style.color = tk.text || '';
+            els.clear(); views.clear(); slots.clear();
             scr.replaceChildren();
             root.classList.toggle('is-readonly', d.readonly());
             root.classList.toggle('is-system', d.isSystem());
-            if (d.isSystem()) {
+            const screen = d.isSystem() ? null : d.screen();
+            if (screen) {
+                scr.dataset.ccScreenId = screen.id;
+                scr.style.background = screenBackground(theme, screen.style);
+                renderList(screen.widgets || [], scr, theme, null);
+            } else {
                 delete scr.dataset.ccScreenId;
                 scr.style.background = tk.bg || '';
-                scr.appendChild(dom(P.render.wifiSetup(theme, size, t)));
-            } else {
-                const screen = d.screen();
-                if (screen) {
-                    scr.dataset.ccScreenId = screen.id;
-                    // The screen's bg_color override only when it is a colour the server accepts.
-                    scr.style.background = P.render.colors(theme, { bg_color: screen.style && screen.style.bg_color }).bg || tk.bg || '';
-                    renderList(screen.widgets || [], scr, theme, null);
-                }
+                if (d.isSystem()) scr.appendChild(dom(P.render.wifiSetup(theme, size, t)));
             }
             const board = d.board();
-            refs.label.replaceChildren(dom(h('span', {}, board ? board.label : d.project().board)),
-                board ? dom(h('span', { class: 'cc-badge cc-badge-' + board.status }, t('cyd_creator.board.status_' + board.status))) : document.createTextNode(''),
+            const status = board ? String(board.status || '') : '';
+            refs.label.replaceChildren(dom(h('span', {}, board ? board.label : String(d.project().board || ''))),
+                board ? dom(h('span', { class: 'cc-tag', 'data-tone': status === 'verified' ? 'ok' : null }, t.or('cyd_creator.board.status_' + status, status))) : document.createTextNode(''),
                 dom(h('span', { class: 'cc-device-size' }, size.w + ' × ' + size.h + ' · ' + t('cyd_creator.orientation.' + (d.project().orientation || 'landscape')))));
             renderOverlay();
             syncBar();
@@ -165,7 +200,7 @@
             if (screen) {
                 M.walk({ screens: [screen] }, w => {
                     const issues = d.issuesFor(w);
-                    if (!issues.length || !widgetEl(w.id)) return true;
+                    if (!issues.length || !els.has(w.id)) return true;
                     const r = M.absRect(p, w.id, env);
                     const dot = document.createElement('div');
                     dot.className = 'cc-issue-dot' + (issues.some(i => i.severity === 'error') ? ' is-error' : ' is-warning');
@@ -183,7 +218,7 @@
                 if (preview && preview.ids && preview.ids.has(id)) r = G.translate(r, preview.delta.x, preview.delta.y);
                 if (preview && preview.rect && preview.rect.id === id) r = preview.rect;
                 const box = document.createElement('div');
-                box.className = 'cc-sel' + (f.widget.locked ? ' is-locked' : '') + (widgetEl(id) ? '' : ' is-hidden');
+                box.className = 'cc-sel' + (f.widget.locked ? ' is-locked' : '') + (els.has(id) ? '' : ' is-hidden');
                 place(box, r, scale);
                 if (single && !f.widget.locked && !d.readonly()) {
                     G.HANDLES.forEach(hd => {
@@ -197,35 +232,37 @@
             });
         }
 
+        // setDisabled moves the focus to the canvas before a focused tool is disabled: the page would
+        // get it, and the next Delete key would reach the desktop (it deletes a selected file icon).
+        function setDisabled(b, off) {
+            if (off && !b.disabled && document.activeElement === b) root.focus({ preventScroll: true });
+            b.disabled = off;
+        }
         function syncBar() {
             const n = d.selection.length;
             const ro = d.readonly() || d.isSystem();
             refs.zoom.textContent = z() + '×';
             refs.snap.value = String(d.snap);
-            const grid = refs.bar.querySelector('[data-cc-cmd="grid"]');
-            grid.setAttribute('aria-pressed', String(d.showGrid));
+            tools.get('grid').setAttribute('aria-pressed', String(d.showGrid));
             const need = { 'distribute-h': 3, 'distribute-v': 3 };
-            refs.bar.querySelectorAll('[data-cc-cmd]').forEach(b => {
-                const cmd = b.dataset.ccCmd;
-                if (/^(align|distribute|z-|lock|hide|delete)/.test(cmd)) b.disabled = ro || n < (need[cmd] || 1);
+            tools.forEach((b, cmd) => {
+                if (/^(align|distribute|z-|lock|hide|delete)/.test(cmd)) setDisabled(b, ro || n < (need[cmd] || 1));
             });
-            refs.bar.querySelector('[data-cc-cmd="zoom-out"]').disabled = z() <= G.ZOOM_MIN;
-            refs.bar.querySelector('[data-cc-cmd="zoom-in"]').disabled = z() >= G.ZOOM_MAX;
+            setDisabled(tools.get('zoom-out'), z() <= G.ZOOM_MIN);
+            setDisabled(tools.get('zoom-in'), z() >= G.ZOOM_MAX);
         }
 
         function fit(auto) {
             const vp = refs.viewport;
             // Code mode hides the canvas (0×0): keep the zoom until it is shown again.
             if (!vp.clientWidth) return;
-            const size = d.screenSize();
-            const zoom = G.fitZoom({ w: size.w + BEZEL * 2, h: size.h + BEZEL * 2 + LABEL_H }, { w: vp.clientWidth, h: vp.clientHeight }, 12);
-            d.setZoom(zoom, !!auto);
+            d.setZoom(fitZoom(d.screenSize(), vp.clientWidth, vp.clientHeight), !!auto);
         }
 
         // ── gesture previews (called by interact) ──────────────────────────
         function previewMove(ids, delta) {
             ids.forEach(id => {
-                const el = widgetEl(id);
+                const el = els.get(id);
                 const f = d.find(id);
                 if (el && f) { const b = boxOf(f.widget); el.style.left = px(b.x + delta.x); el.style.top = px(b.y + delta.y); }
             });
@@ -233,14 +270,17 @@
         }
         function previewResize(id, abs) {
             const f = d.find(id);
-            const el = widgetEl(id);
-            if (!f || !el) return;
+            const el = els.get(id);
+            const old = views.get(id);
+            if (!f || !el || !old) return;
             const o = M.absOrigin(d.project(), id, d.env());
             const w = boxOf(Object.assign({}, f.widget, { x: abs.x - o.x, y: abs.y - o.y, w: abs.w, h: abs.h }));
             const spec = d.spec(w.type);
             place(el, w);
-            el.replaceChild(P.render.widget(spec, w, d.theme(), d.inst.assetUrl, renderOpts(w)), el.firstChild);
-            const slot = el.querySelector(':scope > .cc-slot');
+            const view = P.render.widget(spec, w, d.theme(), d.inst.assetUrl, renderOpts(w));
+            el.replaceChild(view, old);
+            views.set(id, view);
+            const slot = slots.get(id);
             if (slot) place(slot, M.contentBox(w, spec));
             renderOverlay({ rect: Object.assign({ id }, abs) });
         }
@@ -254,13 +294,18 @@
 
         function flash(ids) {
             ids.forEach(id => {
-                const el = widgetEl(id);
+                flashing.add(id);
+                const el = els.get(id);
                 if (!el) return;
                 el.classList.remove('cc-flash');
-                void el.offsetWidth;
+                void el.offsetWidth; // restarts the animation
                 el.classList.add('cc-flash');
-                bag.timeout(() => el.classList.remove('cc-flash'), 1300);
             });
+            if (!flashing.size) return;
+            later('flash', () => {
+                flashing.forEach(id => { const el = els.get(id); if (el) el.classList.remove('cc-flash'); });
+                flashing.clear();
+            }, FLASH_MS);
         }
         function changedIds(before, after) {
             const index = project => { const m = new Map(); if (project) M.walk(project, w => { const copy = Object.assign({}, w); delete copy.children; m.set(w.id, JSON.stringify(copy)); }); return m; };
@@ -268,6 +313,30 @@
             const out = [];
             index(after).forEach((json, id) => { if (a.get(id) !== json) out.push(id); });
             return out;
+        }
+
+        // ── live region ─────────────────────────────────────────────────────
+        function speak(text) {
+            refs.live.textContent = '';
+            later('speak', () => { refs.live.textContent = text; }, 30);
+        }
+        // announce speaks a command's message; it replaces a pending selection message.
+        function announce(text) { cancel('selection'); speak(text); }
+        // Selection changes are spoken once the selection settles (clicks, box select, keys).
+        let spoken = '';
+        function selectionText() {
+            const ids = d.selection;
+            if (!ids.length) return t.or('cyd_creator.designer.selection_none', 'Selection cleared');
+            if (ids.length > 1) return t.or('cyd_creator.designer.selection_many', '{count} widgets selected', { count: ids.length });
+            const f = d.find(ids[0]);
+            const name = f ? (f.widget.name || d.label(f.widget.type)) : '';
+            return t.or('cyd_creator.designer.selection_one', '{name} selected', { name });
+        }
+        function selectionChanged() {
+            const key = d.selection.join(' ');
+            if (key === spoken) return;
+            spoken = key;
+            later('selection', () => speak(selectionText()), SELECTION_SPEAK_MS);
         }
 
         // ── wiring ──────────────────────────────────────────────────────────
@@ -290,10 +359,11 @@
         });
         bag.on(refs.snap, 'change', () => d.setSnap(Number(refs.snap.value)));
         bag.add(d.bus.on('project', info => {
-            render();
+            // A change that switched the screen was rendered by the 'screen' event before it.
+            if (!(info && info.screenChanged)) render();
             if (info && info.origin === 'remote') flash(changedIds(info.before, d.project()));
         }));
-        bag.add(d.bus.on('selection', () => { renderOverlay(); syncBar(); }));
+        bag.add(d.bus.on('selection', () => { renderOverlay(); syncBar(); selectionChanged(); }));
         bag.add(d.bus.on('screen', () => { render(); refs.viewport.scrollTop = 0; }));
         bag.add(d.bus.on('view', render));
         bag.add(d.bus.on('issues', render));
@@ -304,20 +374,19 @@
             bag.add(() => ro.disconnect());
         }
         render();
-        bag.timeout(() => { if (d.zoomAuto) fit(true); }, 0);
+        later('fit', () => { if (d.zoomAuto) fit(true); }, 0);
 
         return {
             root, viewport: refs.viewport, host: refs.host, screenEl: refs.screen, overlay: refs.overlay,
-            render, renderOverlay, fit, widgetEl, previewMove, previewResize, showGuides, flash,
+            render, renderOverlay, fit, widgetEl, previewMove, previewResize, showGuides, flash, announce,
             showMarquee: r => showRect(refs.marquee, r),
             showDrop: r => showRect(refs.drop, r),
             hostRect: () => refs.host.getBoundingClientRect(),
             clientToWorld: (x, y) => G.toWorld({ x, y }, refs.host.getBoundingClientRect(), z()),
-            scrollTo(id) { const el = widgetEl(id); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); },
-            announce(text) { refs.live.textContent = ''; bag.timeout(() => { refs.live.textContent = text; }, 30); },
-            dispose() { bag.dispose(); root.remove(); }
+            scrollTo(id) { const el = els.get(id); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); },
+            dispose() { bag.dispose(); els.clear(); views.clear(); slots.clear(); flashing.clear(); root.remove(); }
         };
     }
 
-    P.designerCanvas = { mount, BEZEL };
+    P.designerCanvas = { mount, fitZoom, BEZEL, PAD, LABEL_H };
 })();

@@ -20,10 +20,19 @@ var cydDesignerMarkers = map[string][]string{
 	"cyd-creator-designer.js":         {"P.designer = { create", "mountCanvas(el)", "mountPalette(el)", "mountScreens(el)", "mountInspector(el)", "reveal(target)", "dispose()", "'layout:issues'", "'lock:changed'", "'readonly:changed'", "'designer:reveal'"},
 }
 
+// cydDesignerForbidden lists tokens a designer module must not contain: "*" applies to every module
+// in cydDesignerScripts (also the ones later tasks add), a file name adds its own. The designer
+// reaches the server only through the shell's seam (inst.uploadAsset, the layout store that the shell
+// autosaves), never through P.api, inst.api or the layout saver, and builds DOM only from nodes and
+// text, never from HTML strings.
+var cydDesignerForbidden = map[string][]string{
+	"*": {"P.api.", "inst.api.", "layoutSaver", "innerHTML", "insertAdjacentHTML"},
+}
+
 // TestCYDCreatorDesignerStaticContracts checks each designer module (one subtest per file) for its
-// entry points and the repository UI rules: no native dialogs and no theme colour literals in the
-// renderer, canvas or interaction code. The css subtest checks the designer section of the app
-// stylesheet with the self-hosted preview fonts.
+// entry points and the repository UI rules: no native dialogs, none of the forbidden tokens and no
+// theme colour literals in the renderer, canvas or interaction code. The css subtest checks the
+// designer section of the app stylesheet with the self-hosted preview fonts.
 func TestCYDCreatorDesignerStaticContracts(t *testing.T) {
 	native := regexp.MustCompile(`\b(alert|confirm|prompt)\s*\(`)
 	hex := regexp.MustCompile(`#[0-9a-fA-F]{6}\b`)
@@ -33,6 +42,11 @@ func TestCYDCreatorDesignerStaticContracts(t *testing.T) {
 			for _, marker := range cydDesignerMarkers[name] {
 				if !strings.Contains(text, marker) {
 					t.Errorf("%s misses %q", name, marker)
+				}
+			}
+			for _, token := range append(append([]string{}, cydDesignerForbidden["*"]...), cydDesignerForbidden[name]...) {
+				if strings.Contains(text, token) {
+					t.Errorf("%s contains the forbidden %q", name, token)
 				}
 			}
 			for _, m := range native.FindAllStringIndex(text, -1) {
