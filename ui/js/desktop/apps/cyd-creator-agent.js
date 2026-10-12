@@ -82,9 +82,12 @@
         const composerHint = el('p', { class: 'cc-form-help', dataset: { ccComposerHint: '' }, hidden: true });
         const composer = el('form', { class: 'cc-agent-composer', dataset: { ccComposer: '' } },
             attachmentsRow, input, composerHint, el('div', { class: 'cc-composer-actions' }, generateBtn, el('span', { class: 'cc-dock-spacer' }), sendBtn));
+        // History and job card scroll together (one scroller): the plan card grows with its facts
+        // and keeps its actions in view (sticky), the composer stays below.
+        const scroller = el('div', { class: 'cc-agent-scroll', dataset: { ccAgentScroll: '' } }, emptyNote, log, jobCard);
         const root = el('div', { class: 'cc-agent', dataset: { ccAgent: '' } },
             el('div', { class: 'cc-agent-head' }, el('span', { class: 'cc-agent-title', text: t('cyd_creator.agent.title') }), el('span', { class: 'cc-dock-spacer' }), revisionsBtn),
-            draftBanner, emptyNote, log, jobCard, composer);
+            draftBanner, scroller, composer);
 
         // ── history ──
         function messageNode(message) {
@@ -104,9 +107,9 @@
         }
 
         function stickToEnd(fn) {
-            const atEnd = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+            const atEnd = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 40;
             fn();
-            if (atEnd) log.scrollTop = log.scrollHeight;
+            if (atEnd) scroller.scrollTop = scroller.scrollHeight;
         }
 
         function entryNode(entry) {
@@ -271,7 +274,25 @@
             return P.format.duration((Number.isFinite(end) ? end : Date.now()) - start);
         }
 
+        // renderJob redraws the job card below the history; a reader at the end stays at the end.
         function renderJob() {
+            stickToEnd(drawJob);
+            const active = isActive(state.job);
+            inst.setPanelBadge('agent', active);
+            if (active && !state.ticker && !state.disposed) {
+                state.ticker = setInterval(() => {
+                    const node = jobCard.querySelector('[data-cc-job-elapsed]');
+                    if (node && state.job) node.textContent = elapsed(state.job);
+                }, 1000);
+            } else if (!active && state.ticker) {
+                clearInterval(state.ticker);
+                state.ticker = 0;
+            }
+            renderComposer();
+            renderDraft();
+        }
+
+        function drawJob() {
             const job = state.job;
             if (!job || (!isActive(job) && job.status !== 'failed' && job.status !== 'interrupted')) {
                 jobCard.hidden = true;
@@ -294,19 +315,6 @@
                     job.status === 'awaiting_confirmation' ? planCard(job) : phaseList(job),
                     error].filter(Boolean));
             }
-            const active = isActive(job);
-            inst.setPanelBadge('agent', active);
-            if (active && !state.ticker && !state.disposed) {
-                state.ticker = setInterval(() => {
-                    const node = jobCard.querySelector('[data-cc-job-elapsed]');
-                    if (node && state.job) node.textContent = elapsed(state.job);
-                }, 1000);
-            } else if (!active && state.ticker) {
-                clearInterval(state.ticker);
-                state.ticker = 0;
-            }
-            renderComposer();
-            renderDraft();
         }
 
         function applyJob(job, silent) {
