@@ -1107,23 +1107,27 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
 }
 
 // ── palette (cyd-creator-palette.js) through the real designer and interact on the fake DOM ──
-// Catalog groups and names (t.or, the catalog ids as fallback), search, a press and a drag through
-// interact, the keyboard add (a click with detail 0), keys forwarded to a palette drag (Escape
-// cancels it) and the designer's lock signal: disabled while read-only, locked by a job or on the
-// Wi-Fi system screen, without dropping the keyboard focus to the page.
+// Catalog groups and names (t.or with the catalog ids as fallback, unknown groups last), glyphs,
+// accessibility attributes, search, a press and a drag through interact (the canvas takes the focus
+// at the press), the keyboard add (a click with detail 0), the designer's keys from an entry, keys
+// forwarded to a palette drag (Escape cancels it), the keys the desktop acts on, and the designer's
+// lock signal: disabled while read-only, locked by a job or on the Wi-Fi system screen, without
+// dropping the keyboard focus to the page.
 {
     const paletteFile = path.join(apps, 'cyd-creator-palette.js');
     vm.runInContext(fs.readFileSync(paletteFile, 'utf8'), sandbox, { filename: paletteFile });
     const realCanvas = P.designerCanvas;
+    const GLYPHS = P.designerPalette.GLYPHS;
     const all = (el, pred, out = []) => { if (pred(el)) out.push(el); el.kids.forEach(k => all(k, pred, out)); return out; };
     const textOf = el => (el.text !== undefined ? el.text : el.kids.map(textOf).join(''));
-    // The stand-in canvas: a 320×240 screen at client (0, 0), zoom 1.
+    // The stand-in canvas: a 320×240 screen at client (0, 0), zoom 1; it records the announcements.
     const croot = new El('div');
     const viewport = croot.appendChild(new El('div'));
     viewport.getBoundingClientRect = () => ({ left: 0, top: 0, right: 600, bottom: 400 });
+    const said = [];
     P.designerCanvas = { mount: () => ({
         root: croot, viewport, render() {}, fit() {}, dispose() {}, previewMove() {}, previewResize() {},
-        showGuides() {}, showMarquee() {}, showDrop() {}, announce() {},
+        showGuides() {}, showMarquee() {}, showDrop() {}, announce(text) { said.push(text); },
         hostRect: () => ({ left: 0, top: 0, right: 320, bottom: 240 }),
         clientToWorld: (x, y) => ({ x, y })
     }) };
@@ -1133,7 +1137,10 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     const shellBus = P.createBus();
     let jobLock = false;
     const inst = { t: P.i18n(null), caps, readonly: false, isLocked: () => jobLock, layoutStore: pStore, bus: shellBus, notify() {}, assetUrl: id => '/a/' + id };
-    sandbox.window.I18N = { 'cyd_creator.widget.button': 'Schaltfläche', 'cyd_creator.group.basic': 'Grundlagen', 'cyd_creator.designer.palette_item_hint': '{name} einfügen' };
+    sandbox.window.I18N = {
+        'cyd_creator.widget.button': 'Schaltfläche', 'cyd_creator.group.basic': 'Grundlagen',
+        'cyd_creator.designer.palette_item_hint': '{name} einfügen', 'cyd_creator.designer.added': '{name} hinzugefügt'
+    };
     const designer = P.designer.create(inst);
     const d = designer.state;
     designer.mountCanvas(new El('div'));
@@ -1147,100 +1154,178 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     const item = type => items().find(el => el.dataset.ccPalette === type);
     const types = () => items().map(el => el.dataset.ccPalette);
     const nameOf = el => textOf(all(el, k => k.attrs.class === 'cc-palette-name')[0]);
+    const glyphOf = el => all(el, k => k.attrs.class === 'cc-palette-glyph')[0];
     const roots = () => pStore.get().screens[0].widgets;
     const ghosts = () => fakeDoc.body.kids.length;
     const used = ev => ev.defaultPrevented && ev.stopped;
     const setSearch = q => { search.value = q; fire(search, 'input', {}); };
+    const press = type => {
+        fire(item(type), 'pointerdown', { pointerId: 2, clientX: 5, clientY: 5 });
+        fire(viewport, 'pointermove', { pointerId: 2, clientX: 200, clientY: 60 });
+    };
 
-    // catalog, names, search
-    eq('every catalog widget has one entry, grouped in catalog order', types(), ['basic', 'input', 'display', 'structure', 'composite'].flatMap(g => caps.widgets.filter(s => s.group === g).map(s => s.type)));
+    // catalog, names, glyphs, accessibility, search
+    const order = ['basic', 'input', 'display', 'structure', 'composite'];
+    eq('every catalog widget has one entry, grouped in catalog order', types(), order.flatMap(g => caps.widgets.filter(s => s.group === g).map(s => s.type)));
+    eq('GLYPHS covers every catalog type', caps.widgets.map(s => s.type).filter(type => !GLYPHS[type]), []);
+    eq('every entry shows its type\'s glyph', items().filter(el => textOf(glyphOf(el)) !== GLYPHS[el.dataset.ccPalette]).map(el => el.dataset.ccPalette), []);
     eq('group headings are translated or fall back to the catalog group id', all(pal, el => el.tagName === 'H4').map(textOf), ['Grundlagen', 'input', 'display', 'structure', 'composite']);
-    check('entry names are translated (t.or) or fall back to the catalog type', nameOf(item('button')) === 'Schaltfläche' && nameOf(item('led')) === 'led' && item('button').attrs.title === 'Schaltfläche einfügen' && item('button').attrs.type === 'button');
+    eq('every group is a role=group labelled like its heading', all(pal, el => el.attrs.class === 'cc-palette-group').map(g => [g.attrs.role, g.attrs['aria-label']]), [['group', 'Grundlagen'], ['group', 'input'], ['group', 'display'], ['group', 'structure'], ['group', 'composite']]);
+    eq('glyphs are hidden from assistive technology', items().filter(el => glyphOf(el).attrs['aria-hidden'] !== 'true').length, 0);
+    eq('the palette is a labelled section', [pal.tagName, pal.attrs['aria-label']], ['SECTION', 'cyd_creator.designer.palette_title']);
+    eq('the search field is a labelled search input', [search.attrs.type, search.attrs['aria-label']], ['search', 'cyd_creator.designer.palette_search']);
+    eq('entries are type=button', items().filter(el => el.attrs.type !== 'button').length, 0);
+    eq('a translated entry name', nameOf(item('button')), 'Schaltfläche');
+    eq('an untranslated entry name falls back to the catalog type', nameOf(item('led')), 'led');
+    eq('the entry hint names the widget', item('button').attrs.title, 'Schaltfläche einfügen');
+    eq('d.label translates with t.or and falls back to the catalog type', [d.label('button'), d.label('led')], ['Schaltfläche', 'led']);
     setSearch('SCHALT');
     eq('search matches the translated name', types(), ['button']);
     setSearch(' Butt ');
     eq('search matches the type id of a translated entry (trimmed, any case)', types(), ['button']);
     setSearch('zzz');
-    check('a search without a match shows the empty hint', !items().length && all(pal, el => el.attrs.class === 'cc-panel-empty').length === 1);
+    eq('a search without a match lists no entry', items().length, 0);
+    eq('… and shows the empty hint', all(pal, el => el.attrs.class === 'cc-panel-empty').length, 1);
     setSearch('');
-    check('clearing the search lists every entry again', items().length === caps.widgets.length);
+    eq('clearing the search lists every entry again', items().length, caps.widgets.length);
 
     // pointer: a press adds in the middle, a drag drops into the container under the pointer
     const n0 = roots().length;
-    const glyph = all(item('button'), el => el.attrs.class === 'cc-palette-glyph')[0];
-    fire(glyph, 'pointerdown', { pointerId: 2, clientX: 5, clientY: 5 });
+    fakeDoc.activeElement = null;
+    fire(glyphOf(item('button')), 'pointerdown', { pointerId: 2, clientX: 5, clientY: 5 });
     check('a press on an entry (also on its glyph) starts a palette drag captured on the canvas viewport', viewport.captured.has(2));
+    check('the canvas takes the focus at the press (where pressed buttons take none, Escape still reaches the gesture)', fakeDoc.activeElement === croot);
     fire(viewport, 'pointerup', { pointerId: 2, clientX: 5, clientY: 5 });
     fire(item('button'), 'click', { detail: 1 });
     const pressed = roots().filter(w => w.type === 'button' && w.id !== 'w_btn');
-    eq('a press without movement adds one widget in the middle, selects it and focuses the canvas (the click after it adds nothing)', [roots().length, pressed.length, pressed[0] && [pressed[0].x, pressed[0].y, pressed[0].w, pressed[0].h], d.selection.join() === (pressed[0] && pressed[0].id), fakeDoc.activeElement === croot], [n0 + 1, 1, [100, 100, 120, 40], true, true]);
-    fire(item('led'), 'pointerdown', { pointerId: 2, clientX: 5, clientY: 5 });
-    fire(viewport, 'pointermove', { pointerId: 2, clientX: 200, clientY: 60 });
-    const ghostShown = ghosts() === 1;
+    eq('a press without movement adds one widget (the mouse click after it adds nothing)', [roots().length, pressed.length], [n0 + 1, 1]);
+    eq('… in the middle with the catalog size', pressed[0] && [pressed[0].x, pressed[0].y, pressed[0].w, pressed[0].h], [100, 100, 120, 40]);
+    check('… selects it', !!pressed[0] && d.selection.join() === pressed[0].id);
+    check('… keeps the focus on the canvas', fakeDoc.activeElement === croot);
+    eq('… and announces it with the translated name', said[said.length - 1], 'Schaltfläche hinzugefügt');
+    press('led');
+    const ghostShown = ghosts();
     fire(viewport, 'pointerup', { pointerId: 2, clientX: 200, clientY: 60 });
     const led = M.findWidget(pStore.get(), d.selection[0]);
-    check('a drag shows the ghost and drops into the panel under the pointer', ghostShown && !ghosts() && !viewport.captured.size && !!led && led.widget.type === 'led' && !!led.parent && led.parent.id === 'w_pnl', JSON.stringify(led && led.widget));
+    eq('a drag shows the ghost', ghostShown, 1);
+    eq('the drop removes the ghost and releases the pointer', [ghosts(), viewport.captured.size], [0, 0]);
+    eq('the widget lands in the panel under the pointer', led && [led.widget.type, led.parent && led.parent.id], ['led', 'w_pnl']);
+    eq('the add is announced with d.label (the catalog type as fallback)', said[said.length - 1], 'led hinzugefügt');
 
-    // keyboard: Enter/Space make a click with detail 0, which adds in the middle
+    // keyboard: Enter/Space make a click with detail 0, which adds in the middle; the designer's keys
+    // work from the entry that keeps the focus; the keys the desktop acts on stop at the palette.
     const n1 = roots().length;
-    const enter = fire(item('switch'), 'keydown', { key: 'Enter' });
-    check('Enter on an entry stops at the palette (the desktop would open its selected icon) but keeps its native click', enter.stopped && !enter.defaultPrevented);
-    check('Ctrl+Enter, Escape and Delete without a gesture bubble on untouched', !fire(item('switch'), 'keydown', { key: 'Enter', ctrlKey: true }).stopped && !fire(item('switch'), 'keydown', { key: 'Escape' }).stopped && !fire(item('switch'), 'keydown', { key: 'Delete' }).defaultPrevented && roots().length === n1);
-    fire(item('switch'), 'click', { detail: 0 });
+    const sw = item('switch');
+    sw.focus();
+    const enter = fire(sw, 'keydown', { key: 'Enter' });
+    eq('Enter on an entry stops at the palette (the desktop would open its selected icon) and keeps its native click', [enter.stopped, enter.defaultPrevented], [true, false]);
+    for (const mod of ['ctrlKey', 'metaKey', 'altKey', 'shiftKey']) {
+        const ev = fire(sw, 'keydown', { key: 'Enter', [mod]: true });
+        eq('Enter with ' + mod + ' stops at the palette too', [ev.stopped, ev.defaultPrevented], [true, false]);
+    }
+    fire(sw, 'click', { detail: 0 });
     const keyed = roots()[roots().length - 1];
-    eq('a keyboard click adds the widget in the middle and selects it', [roots().length, keyed.type, keyed.x, keyed.y, d.selection.join() === keyed.id], [n1 + 1, 'switch', 132, 106, true]);
+    eq('a keyboard click adds one widget in the middle', [roots().length, keyed.type, keyed.x, keyed.y], [n1 + 1, 'switch', 132, 106]);
+    check('… selects it', d.selection.join() === keyed.id);
+    check('… and leaves the focus on the entry', fakeDoc.activeElement === sw);
+    check('Delete on the entry is used by the designer, not passed to the desktop', used(fire(sw, 'keydown', { key: 'Delete' })));
+    check('… and deletes the widget just added', !M.findWidget(pStore.get(), keyed.id));
+    check('Ctrl+Z on the entry is used', used(fire(sw, 'keydown', { key: 'z', ctrlKey: true })));
+    check('… and brings the widget back', !!M.findWidget(pStore.get(), keyed.id));
+    const f2 = fire(sw, 'keydown', { key: 'F2' });
+    eq('F2 on an entry stops at the palette (the desktop would rename its selected icon), nothing to prevent', [f2.stopped, f2.defaultPrevented], [true, false]);
+    const space = fire(sw, 'keydown', { key: ' ' });
+    eq('Space on an entry keeps its native click and bubbles', [space.stopped, space.defaultPrevented], [false, false]);
+    const save = fire(sw, 'keydown', { key: 's', ctrlKey: true });
+    eq('Ctrl+S on an entry bubbles on to the shell', [save.stopped, save.defaultPrevented], [false, false]);
+    const tab = fire(sw, 'keydown', { key: 'Tab' });
+    eq('Tab on an entry stays native', [tab.stopped, tab.defaultPrevented], [false, false]);
+    d.select([keyed.id]);
+    viewport.clientWidth = 0;
+    const hidden = ['Delete', 'Backspace'].map(k => { const ev = fire(sw, 'keydown', { key: k }); return [k, ev.stopped, ev.defaultPrevented]; });
+    viewport.clientWidth = 600;
+    eq('with the canvas hidden (Code mode) Delete and Backspace still stop at the palette, unused', hidden, [['Delete', true, false], ['Backspace', true, false]]);
+    check('… and delete nothing', !!M.findWidget(pStore.get(), keyed.id));
+    search.focus();
+    const typed = ['Delete', 'Backspace', 'Enter', 'F2', 'ArrowLeft', 'Escape'].map(k => { const ev = fire(search, 'keydown', { key: k }); return [k, ev.stopped, ev.defaultPrevented]; });
+    eq('the search field keeps its keys', typed, ['Delete', 'Backspace', 'Enter', 'F2', 'ArrowLeft', 'Escape'].map(k => [k, false, false]));
+    eq('… and they edit nothing', [!!M.findWidget(pStore.get(), keyed.id), M.findWidget(pStore.get(), keyed.id).widget.x, d.selection.join() === keyed.id], [true, 132, true]);
 
-    // keys during a palette drag go to interact.gestureKey
+    // keys during a palette drag go to interact.gestureKey, wherever the focus is
     const kept = JSON.stringify(pStore.get());
-    fire(item('label'), 'pointerdown', { pointerId: 2, clientX: 5, clientY: 5 });
-    fire(viewport, 'pointermove', { pointerId: 2, clientX: 200, clientY: 60 });
-    const del = fire(item('label'), 'keydown', { key: 'Delete' });
-    const esc = fire(item('label'), 'keydown', { key: 'Escape' });
-    check('during a palette drag the palette forwards its keys: Delete is used without running, Escape cancels', used(del) && used(esc) && !ghosts() && !viewport.captured.size && !croot.classList.contains('is-dropping') && JSON.stringify(pStore.get()) === kept);
+    press('label');
+    check('during a palette drag Delete from an entry is used without running', used(fire(item('label'), 'keydown', { key: 'Delete' })));
+    check('… the selected widget stays', JSON.stringify(pStore.get()) === kept);
+    check('Escape from an entry cancels the palette drag', used(fire(item('label'), 'keydown', { key: 'Escape' })));
+    eq('… removes the ghost, releases the pointer and ends the dropping state', [ghosts(), viewport.captured.size, croot.classList.contains('is-dropping')], [0, 0, false]);
     fire(viewport, 'pointerup', { pointerId: 2, clientX: 200, clientY: 60 });
     check('the release after Escape adds nothing', JSON.stringify(pStore.get()) === kept);
-    fire(item('label'), 'pointerdown', { pointerId: 2, clientX: 5, clientY: 5 });
-    fire(viewport, 'pointermove', { pointerId: 2, clientX: 200, clientY: 60 });
-    check('Escape in the search field cancels a palette drag too', used(fire(search, 'keydown', { key: 'Escape' })) && !ghosts() && !viewport.captured.size && JSON.stringify(pStore.get()) === kept);
+    press('label');
+    check('Escape in the search field cancels a palette drag', used(fire(search, 'keydown', { key: 'Escape' })));
+    eq('… removes the ghost and releases the pointer', [ghosts(), viewport.captured.size], [0, 0]);
+    press('label');
+    check('Escape at the canvas (focused at the press) cancels a palette drag', used(fire(croot, 'keydown', { key: 'Escape' })));
+    eq('… removes the ghost and releases the pointer', [ghosts(), viewport.captured.size], [0, 0]);
+    check('cancelled palette drags add nothing', JSON.stringify(pStore.get()) === kept);
 
     // the designer's lock signal: read-only, a job lock and the Wi-Fi system screen disable every entry
     const disabledAll = () => items().length === caps.widgets.length && items().every(el => el.disabled === true);
     const enabledAll = () => items().length === caps.widgets.length && items().every(el => !el.disabled);
-    check('entries start enabled', enabledAll() && !pal.classList.contains('is-readonly'));
+    check('entries start enabled', enabledAll());
+    check('… and the palette is not marked read-only', !pal.classList.contains('is-readonly'));
     item('led').focus();
     inst.readonly = true;
     shellBus.emit('readonly:changed', true);
-    check('read-only disables every entry and marks the palette', disabledAll() && pal.classList.contains('is-readonly'));
+    check('read-only disables every entry', disabledAll());
+    check('… and marks the palette', pal.classList.contains('is-readonly'));
     check('a focused entry that gets disabled hands the focus to the search field, not the page', fakeDoc.activeElement === search);
     fire(item('label'), 'pointerdown', { pointerId: 2, clientX: 5, clientY: 5 });
+    check('read-only: a press starts no drag', !viewport.captured.size);
     fire(viewport, 'pointerup', { pointerId: 2, clientX: 5, clientY: 5 });
     fire(item('label'), 'click', { detail: 0 });
-    check('read-only: neither a press nor a keyboard click adds anything', !viewport.captured.size && JSON.stringify(pStore.get()) === kept);
+    check('read-only: neither a press nor a keyboard click adds anything', JSON.stringify(pStore.get()) === kept);
     inst.readonly = false;
     shellBus.emit('readonly:changed', false);
-    check('read-only off enables the entries again', enabledAll() && !pal.classList.contains('is-readonly'));
-    fire(item('label'), 'pointerdown', { pointerId: 2, clientX: 5, clientY: 5 });
-    fire(viewport, 'pointermove', { pointerId: 2, clientX: 200, clientY: 60 });
-    const dragging = ghosts() === 1;
+    check('read-only off enables the entries again', enabledAll());
+    check('… and unmarks the palette', !pal.classList.contains('is-readonly'));
+    press('label');
+    eq('a palette drag runs before the job lock', [ghosts(), viewport.captured.size], [1, 1]);
     jobLock = true;
     shellBus.emit('lock:changed', true, 'ccj_1');
     fire(viewport, 'pointerup', { pointerId: 2, clientX: 200, clientY: 60 });
-    check('a job lock during a palette drag removes the ghost, adds nothing and disables the entries', dragging && !ghosts() && !viewport.captured.size && JSON.stringify(pStore.get()) === kept && disabledAll());
+    eq('a job lock during a palette drag removes the ghost and releases the pointer', [ghosts(), viewport.captured.size], [0, 0]);
+    check('… adds nothing', JSON.stringify(pStore.get()) === kept);
+    check('… and disables the entries', disabledAll());
     jobLock = false;
     shellBus.emit('lock:changed', false, '');
     check('the released lock enables the entries again', enabledAll());
     const first = items()[0];
     d.setScreen('s_two');
-    check('a switch between ordinary screens keeps the entries (no re-render)', items()[0] === first && enabledAll());
+    check('a switch between ordinary screens re-renders nothing', items()[0] === first);
     d.setScreen(d.SYSTEM_WIFI);
-    check('the Wi-Fi system screen disables the entries (it takes no widgets)', d.isSystem() && disabledAll() && pal.classList.contains('is-system') && !pal.classList.contains('is-readonly'));
+    check('the Wi-Fi system screen disables the entries (it takes no widgets)', d.isSystem() && disabledAll());
+    eq('… and marks the palette as system, not read-only', [pal.classList.contains('is-system'), pal.classList.contains('is-readonly')], [true, false]);
     d.setScreen('s_home');
-    check('another screen enables them again', enabledAll() && !pal.classList.contains('is-system'));
-    check('every palette edit reached the store with origin local', origins.length === 3 && origins.every(o => o === 'local'), origins.join());
+    check('another screen enables them again', enabledAll());
+    check('… and unmarks the palette', !pal.classList.contains('is-system'));
+    eq('every palette edit reached the store (the undo from Ctrl+Z as undo)', origins, ['local', 'local', 'local', 'local', 'undo']);
 
     designer.dispose();
     shellBus.emit('readonly:changed', true);
-    check('dispose removes the palette and its listeners', !host.kids.length && !(search.listeners.input || []).length && !(pal.listeners.keydown || []).length && !items().some(el => el.disabled));
+    eq('dispose removes the palette', host.kids.length, 0);
+    eq('… and its search and key listeners', [(search.listeners.input || []).length, (pal.listeners.keydown || []).length], [0, 0]);
+    check('a disposed palette ignores the lock signal', !items().some(el => el.disabled));
+
+    // an unknown catalog group comes after the known ones, with the fallback glyph and names
+    const extraCaps = Object.assign({}, caps, { widgets: caps.widgets.concat([{ type: 'gizmo', group: 'extra', container: false, default_w: 40, default_h: 40, props: [], events: [] }]) });
+    const other = P.designer.create(Object.assign({}, inst, { caps: extraCaps, readonly: false, isLocked: () => false, layoutStore: M.createStore(project(), {}), bus: P.createBus() }));
+    const host2 = new El('div');
+    other.mountPalette(host2);
+    const pal2 = host2.kids[0];
+    eq('an unknown catalog group is listed after the known ones under its id', all(pal2, el => el.tagName === 'H4').map(textOf), ['Grundlagen'].concat(order.slice(1), ['extra']));
+    const gizmo = all(pal2, el => el.dataset.ccPalette === 'gizmo')[0];
+    eq('its entry has the fallback glyph and its type as the name', gizmo && [textOf(glyphOf(gizmo)), nameOf(gizmo), gizmo.parent.parent.attrs['aria-label']], ['◆', 'gizmo', 'extra']);
+    other.dispose();
     delete sandbox.window.I18N;
     P.designerCanvas = realCanvas;
 }

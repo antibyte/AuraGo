@@ -275,11 +275,14 @@
         // screen adds the widget there (into the container under the pointer); a press without
         // movement adds it in the middle of the screen. The widget itself is built by the add
         // command (P.model.newWidget). The pointer is captured on the canvas viewport, so a palette
-        // that re-renders during the drag does not end it.
+        // that re-renders during the drag does not end it. The canvas takes the focus at the press:
+        // browsers that do not focus a pressed button (Safari, Firefox on macOS) would leave it
+        // elsewhere, and Escape must reach gestureKey to cancel the drag.
         function startPaletteDrag(type, event) {
             const spec = d.spec(type);
             if (!spec || locked() || event.button !== 0 || gesture) return;
             event.preventDefault();
+            canvas.root.focus({ preventScroll: true });
             const start = { x: event.clientX, y: event.clientY };
             const sample = M.newWidget(d.project(), spec, { x: 0, y: 0 }, d.screenSize());
             let moved = false;

@@ -52,7 +52,8 @@
         d.find = id => M.findWidget(d.project(), id);
         d.activeTab = id => d.tabs.get(id) || 0;
         d.announce = text => { if (parts.canvas) parts.canvas.announce(text); };
-        d.label = type => t('cyd_creator.widget.' + type);
+        // A widget type's name: translated, else the catalog's type id.
+        d.label = type => t.or('cyd_creator.widget.' + type, type);
         d.issueText = issue => { const key = 'cyd_creator.issue.' + issue.code; const s = t(key); return s && s !== key ? s : issue.message || issue.code; };
         d.issuesFor = w => d.issues.filter(i => i.widget && (i.widget === w.id || (w.name && i.widget === w.name)));
         d.issuesForScreen = s => d.issues.filter(i => i.screen && (i.screen === s.id || i.screen === s.name));

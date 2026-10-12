@@ -1,7 +1,8 @@
 // CYD Creator designer palette: widget entries grouped like the catalog (inst.caps.widgets), with a
 // search field. Pointer: drag an entry onto the screen (interact.startPaletteDrag); a press without
-// movement adds it in the middle. Keyboard: Enter/Space on an entry adds it in the middle; Escape
-// cancels a running palette drag. While read-only, locked by an agent job (the designer's 'lock'
+// movement adds it in the middle. Keyboard: Enter/Space on an entry adds it in the middle, the
+// designer's keys (Delete, undo, arrows) work from an entry, and Escape cancels a running palette
+// drag. While read-only, locked by an agent job (the designer's 'lock'
 // signal) or on the Wi-Fi system screen (it takes no widgets) every entry is disabled.
 (function () {
     'use strict';
@@ -13,6 +14,7 @@
         dropdown: '▾', roller: '⇕', textarea: '⌨', spinbox: '±', keypad: '⌗', bar: '▬', spinner: '◌', led: '●',
         chart: '∿', gauge: '◔', table: '▦', qrcode: '▣', tabview: '⊟', list: '☰', msgbox: '▤', canvas: '▧', statusbar: '▔'
     };
+    const PAGE_KEYS = new Set(['Enter', 'Delete', 'Backspace', 'F2']);
 
     function mount(d, host) {
         const { h, dom } = P.render;
@@ -21,7 +23,7 @@
         const specs = d.inst.caps.widgets || [];
         const groups = GROUPS.concat(Array.from(new Set(specs.map(s => s.group))).filter(g => !GROUPS.includes(g)));
         // Catalog names: translated, else the catalog's own type and group ids.
-        const label = type => t.or('cyd_creator.widget.' + type, type);
+        const label = d.label;
         const groupLabel = g => t.or('cyd_creator.group.' + g, g);
         const state = () => (d.readonly() ? 'readonly' : '') + (d.isSystem() ? ' system' : '');
         let search = null;
@@ -78,13 +80,16 @@
             if (!item || item.disabled || event.detail !== 0) return;
             d.commands.addAtCenter(item.dataset.ccPalette);
         });
-        // The focus stays here during a palette drag: its keys go to the gesture (Escape cancels it).
-        // Enter on an entry adds it through the button's own click and stops here, so the desktop
-        // does not also open its selected icon.
+        // Keys of the palette: during a palette drag they go to the gesture (Escape cancels it; the
+        // pressed entry may hold the focus). Otherwise the search field keeps its keys and an entry
+        // passes the designer's keys on (after a keyboard add, Delete or Ctrl+Z act on the new
+        // widget). Enter (the entry's own click), Delete, Backspace and F2 never leave the palette:
+        // the desktop opens, deletes or renames its selected icons from them.
         bag.on(root, 'keydown', event => {
-            if (d.interact && d.interact.gestureKey(event)) { event.preventDefault(); event.stopPropagation(); return; }
-            const item = event.target && event.target.closest ? event.target.closest('[data-cc-palette]') : null;
-            if (item && event.key === 'Enter' && !event.ctrlKey && !event.metaKey && !event.altKey) event.stopPropagation();
+            const ix = d.interact;
+            const field = event.target === search;
+            if (ix && (ix.gestureKey(event) || (!field && ix.handleKey(event)))) { event.preventDefault(); event.stopPropagation(); return; }
+            if (!field && PAGE_KEYS.has(event.key)) event.stopPropagation();
         });
         bag.on(search, 'input', render);
         bag.add(d.bus.on('lock', sync));
