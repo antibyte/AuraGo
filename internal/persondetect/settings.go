@@ -136,6 +136,8 @@ const (
 	ArmCheckInterval      = 10 * time.Second // period at which the arming loop evaluates the schedule
 	SweepInterval         = time.Second      // period of the sweep that ends events of cameras without recent hits
 	StorageTargetRatio    = 0.9              // size retention deletes the oldest ended events down to this fraction of the limit
+	DetectorRetryDelay    = 30 * time.Second // first automatic setup after the detector failed for good (ErrDetectorFailed); doubles per further failure
+	MaxDetectorRetryDelay = 15 * time.Minute // upper bound of that delay; a detector that served this long starts the doubling again
 )
 
 // Status values used in the C4 JSON shapes.
@@ -161,6 +163,7 @@ const (
 
 var (
 	ErrDisabled         = errors.New("person detection is disabled")
+	ErrUnavailable      = errors.New("person detection is unavailable") // enabled, but detections.db is not open (the open failed or still runs); not ErrDisabled
 	ErrNotReady         = errors.New("person detector is not ready")
 	ErrUnknownCamera    = errors.New("camera has no person detection")
 	ErrUnknownEvent     = errors.New("detection event not found")
