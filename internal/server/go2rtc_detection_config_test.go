@@ -383,12 +383,14 @@ func TestDecodeGo2RTCStreamDetectionIsStrict(t *testing.T) {
 		{`{"zones":[{"name":"A","points":[[0,0],[1,"0"],[1,1]]}]}`, "detection.zones[0].points[1]", "must be [x, y]"},
 		{`{"zones":[{"name":"A","points":[[0,0],[1,1e400],[1,1]]}]}`, "detection.zones[0].points[1]", "must be [x, y]"},
 		{`{"zones":[{"name":"A","points":"0,0 1,0 1,1"}]}`, "detection.zones[0].points", ""},
-		{`{"zones":[{"name":5,"points":[[0,0],[1,0],[1,1]]}]}`, "detection.zones[0].name", ""},
+		{`{"zones":[{"name":5,"points":[[0,0],[1,0],[1,1]]}]}`, "detection.zones[0].name", "must be text"},
 		{`{"zones":[{"name":"A","points":[[0,0],[1,0],[1,1]],"color":"red"}]}`, "detection.zones[0].color", ""},
 		{`{"zones":[5]}`, "detection.zones[0]", ""},
 		{`{"zones":{"name":"A"}}`, "detection.zones", ""},
 		{`{"interval_seconds":2,"unknown":true}`, "detection.unknown", ""},
 		{`{"Enabled":true}`, "detection.Enabled", ""},
+		{`{"":1}`, "detection", `"" is not a known setting`},
+		{`{"actions":{"":true}}`, "detection.actions", `"" is not a known setting`},
 		{`{"actions":{"desktop":true,"sms":true}}`, "detection.actions.sms", ""},
 		{`{"actions":"all"}`, "detection.actions", ""},
 		{`{"interval_seconds":"2"}`, "detection.interval_seconds", ""},
@@ -437,6 +439,7 @@ func TestGo2RTCDetectionJSONErrorKeepsFieldPaths(t *testing.T) {
 	}
 	for raw, want := range map[string]string{
 		`{"color":"red"}`:                        "detection.color",
+		`{"":1}`:                                 "detection",
 		`{"actions":{"desktop":"yes"}}`:          "detection.actions.desktop",
 		`{"zones":[{"name":"A"},{"name":5}]}`:    "detection.zones[1].name",
 		`{"zones":[{"points":[[0,0],[0,"a"]]}]}`: "detection.zones[0].points[1]",
@@ -548,5 +551,60 @@ func TestSetupSaveRejectsInvalidGo2RTCDetectionWithBadRequest(t *testing.T) {
 	}
 	if string(after) != string(initial) {
 		t.Fatalf("a rejected setup save changed the file:\n%s", after)
+	}
+}
+
+// The first pass of decodeGo2RTCStreamDetection (checkGo2RTCDetectionJSON) descends
+// only into structs, slices and [2]float64 points and reads only direct fields. A
+// detection type that grows another shape must extend that walker first, or null and
+// unknown keys below it would slip through to encoding/json.
+func TestGo2RTCDetectionWalkerCoversDetectionTypes(t *testing.T) {
+	point := reflect.TypeOf([2]float64{})
+	const extend = "extend the first-pass walker checkGo2RTCDetectionJSON in go2rtc_detection_config.go first"
+	seen := map[reflect.Type]bool{}
+	var visit func(typ reflect.Type, path string)
+	visit = func(typ reflect.Type, path string) {
+		if seen[typ] {
+			return
+		}
+		seen[typ] = true
+		switch typ.Kind() {
+		case reflect.Pointer, reflect.Map, reflect.Interface:
+			t.Errorf("%s has kind %s: %s", path, typ.Kind(), extend)
+		case reflect.Array:
+			if typ != point {
+				t.Errorf("%s is %s, the only supported array is [2]float64: %s", path, typ, extend)
+			}
+		case reflect.Slice:
+			visit(typ.Elem(), path+"[]")
+		case reflect.Struct:
+			for i := 0; i < typ.NumField(); i++ {
+				field := typ.Field(i)
+				if field.Anonymous {
+					t.Errorf("%s embeds %s (encoding/json promotes its fields): %s", path, field.Type, extend)
+				}
+				if field.IsExported() {
+					visit(field.Type, path+"."+field.Name)
+				}
+			}
+		}
+	}
+	visit(reflect.TypeOf(config.Go2RTCStreamDetectionConfig{}), "Go2RTCStreamDetectionConfig")
+}
+
+// A duplicate object key reaches the walker only with its last value, while the typed
+// decode merges every occurrence (null into a bool is a no-op there). JSON.stringify
+// never writes duplicate keys, so this pins the behaviour instead of adding a token
+// walker.
+func TestDecodeGo2RTCStreamDetectionDuplicateKeysMergeLikeEncodingJSON(t *testing.T) {
+	decoded, err := decodeGo2RTCStreamDetection(json.RawMessage(`{"actions":{"desktop":null},"actions":{}}`))
+	if err != nil || !reflect.DeepEqual(decoded, config.DefaultGo2RTCStreamDetection(false)) {
+		t.Fatalf("decode(duplicate actions with a null) = %+v, %v; want the default set", decoded, err)
+	}
+	decoded, err = decodeGo2RTCStreamDetection(json.RawMessage(`{"actions":{"desktop":false,"channel":"telegram"},"actions":{"message":true}}`))
+	want := config.DefaultGo2RTCStreamDetection(false)
+	want.Actions = config.Go2RTCDetectionActions{Message: true, Channel: "telegram", Desktop: false}
+	if err != nil || !reflect.DeepEqual(decoded, want) {
+		t.Fatalf("decode(duplicate actions) = %+v, %v; want the union %+v", decoded, err, want)
 	}
 }

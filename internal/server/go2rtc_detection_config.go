@@ -89,6 +89,11 @@ func go2RTCDetectionJSONEnded(decoder *json.Decoder) bool {
 // against the Go type it will be decoded into. It rejects null, unknown or differently
 // cased keys, objects and lists of the wrong shape and points that are not [x, y],
 // with the field path. Scalar types are left to the typed decode.
+//
+// Limit: a duplicate object key reaches the walker only with its last value, while the
+// typed decode merges every occurrence ({"actions":{"desktop":null},"actions":{}} is
+// accepted as the defaults). JSON.stringify never writes duplicate keys, so this is
+// accepted instead of walking tokens.
 func checkGo2RTCDetectionJSON(value interface{}, typ reflect.Type, path string) error {
 	if typ.Kind() == reflect.Array {
 		// The only arrays are zone points ([2]float64).
@@ -121,7 +126,7 @@ func checkGo2RTCDetectionJSON(value interface{}, typ reflect.Type, path string) 
 		for _, key := range keys {
 			fieldType, known := fields[key]
 			if !known {
-				return go2RTCDetectionDecodeError(path+"."+key, "is not a known setting")
+				return go2RTCDetectionUnknownKey(path, key)
 			}
 			if err := checkGo2RTCDetectionJSON(object[key], fieldType, path+"."+key); err != nil {
 				return err
@@ -139,6 +144,15 @@ func checkGo2RTCDetectionJSON(value interface{}, typ reflect.Type, path string) 
 		}
 	}
 	return nil
+}
+
+// go2RTCDetectionUnknownKey reports key of the object at path as unknown; an empty key
+// is named in the message so the path does not end in an empty segment.
+func go2RTCDetectionUnknownKey(path, key string) error {
+	if key == "" {
+		return go2RTCDetectionDecodeError(path, `"" is not a known setting`)
+	}
+	return go2RTCDetectionDecodeError(path+"."+key, "is not a known setting")
 }
 
 // go2RTCDetectionJSONFields maps the JSON names of typ's exported fields to their types.
@@ -184,7 +198,7 @@ func go2RTCDetectionJSONError(err error) error {
 	}
 	if err != nil {
 		if key, found := strings.CutPrefix(err.Error(), `json: unknown field "`); found {
-			return go2RTCDetectionDecodeError("detection."+strings.TrimSuffix(key, `"`), "is not a known setting")
+			return go2RTCDetectionUnknownKey("detection", strings.TrimSuffix(key, `"`))
 		}
 	}
 	return go2RTCDetectionDecodeError("detection", "must be a detection object")
@@ -202,7 +216,7 @@ func go2RTCDetectionTypeMessage(typ reflect.Type) string {
 	case reflect.Float32, reflect.Float64:
 		return "must be a number"
 	case reflect.String:
-		return "must be a text"
+		return "must be text"
 	case reflect.Struct, reflect.Map:
 		return "must be an object"
 	case reflect.Slice, reflect.Array:
