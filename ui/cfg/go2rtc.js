@@ -47,6 +47,7 @@ function renderGo2RTCSection(section) {
     html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
     html += '<div class="cfg-note-banner cfg-note-banner-info">🎥 ' + t('config.go2rtc.proxy_note') + '</div>';
+    html += '<div class="cfg-note-banner cfg-note-banner-info" id="go2rtc-detection-hint">' + t('config.go2rtc.detection_hint') + ' <a href="/desktop?app=network-cameras" target="_blank" rel="noopener">' + t('config.go2rtc.open_camera_app') + '</a></div>';
     html += go2rtcToggle('go2rtc.enabled', data.enabled === true, 'config.go2rtc.enabled', 'help.go2rtc.enabled', true);
     html += go2rtcToggle('go2rtc.auto_start', data.auto_start !== false, 'config.go2rtc.auto_start', 'help.go2rtc.auto_start');
     html += go2rtcToggle('go2rtc.agent_access', data.agent_access !== false, 'config.go2rtc.agent_access', 'help.go2rtc.agent_access');

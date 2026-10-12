@@ -1,5 +1,6 @@
 {
   "config.go2rtc.open_camera_app": "App „Netzwerkkameras“ öffnen",
+  "config.go2rtc.detection_hint": "Die Personenerkennung (Ereignisse, Zonen, Alarme und Scharfschaltung) richtest du in der App „Netzwerkkameras“ unter „Erkennung“ ein; die Einstellungen pro Kamera stehen im Reiter „Personenerkennung“ der Kameraverwaltung.",
   "config.section.go2rtc.label": "go2rtc-Kameras",
   "config.section.go2rtc.desc": "Sicher verwaltete Kamerastreams, Snapshots und Liveansicht",
   "config.go2rtc.proxy_note": "AuraGo hält Kamera-URLs und go2rtc-Zugangsdaten geheim. Die Ansicht läuft über den AuraGo-Proxy; direktes LAN-WebRTC ist optional.",

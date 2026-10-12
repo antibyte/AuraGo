@@ -1,5 +1,6 @@
 {
   "config.go2rtc.open_camera_app": "Otwórz aplikację Kamery sieciowe",
+  "config.go2rtc.detection_hint": "Wykrywanie osób (zdarzenia, strefy, alarmy i uzbrojenie) konfigurujesz w aplikacji Kamery sieciowe w sekcji Wykrywanie; ustawienia poszczególnych kamer są na karcie Wykrywanie osób w zarządzaniu kamerą.",
   "config.section.go2rtc.label": "Kamery go2rtc",
   "config.section.go2rtc.desc": "Bezpiecznie zarządzane strumienie kamer, migawki i podgląd na żywo",
   "config.go2rtc.proxy_note": "AuraGo zachowuje prywatność adresów kamer i danych go2rtc. Podgląd używa proxy AuraGo; bezpośredni WebRTC w LAN jest opcjonalny.",

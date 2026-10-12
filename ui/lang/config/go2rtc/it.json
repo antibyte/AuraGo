@@ -1,5 +1,6 @@
 {
   "config.go2rtc.open_camera_app": "Apri l’app Telecamere di rete",
+  "config.go2rtc.detection_hint": "Il rilevamento persone (eventi, zone, allarmi e inserimento) si configura nell’app Telecamere di rete, alla voce Rilevamento; le impostazioni di ogni telecamera sono nella scheda Rilevamento persone della sua gestione.",
   "config.section.go2rtc.label": "Telecamere go2rtc",
   "config.section.go2rtc.desc": "Flussi, istantanee e visualizzazione live gestiti in sicurezza",
   "config.go2rtc.proxy_note": "AuraGo mantiene private le URL delle telecamere e le credenziali go2rtc. La visualizzazione usa il proxy AuraGo; WebRTC diretto in LAN è facoltativo.",

@@ -1,5 +1,6 @@
 {
   "config.go2rtc.open_camera_app": "Open Network Cameras app",
+  "config.go2rtc.detection_hint": "Person detection (events, zones, alerts and arming) is set up in the Network Cameras app under Detection; per-camera settings are on the Person detection tab of each camera's settings.",
   "config.section.go2rtc.label": "go2rtc Cameras",
   "config.section.go2rtc.desc": "Secure managed camera streams, snapshots, and live viewing",
   "config.go2rtc.proxy_note": "AuraGo keeps camera URLs and go2rtc credentials private. Viewing uses the AuraGo proxy; direct LAN WebRTC is optional.",
