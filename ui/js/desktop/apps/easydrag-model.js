@@ -74,7 +74,21 @@
         d.nodes = Array.isArray(d.nodes) ? d.nodes.filter(isPlainObject) : [];
         d.edges = Array.isArray(d.edges) ? d.edges.filter(e => isPlainObject(e) && isPlainObject(e.source) && isPlainObject(e.target)) : [];
         d.settings = d.settings || {};
-        d.nodes.forEach(n => { n.params = n.params || {}; n.settings = n.settings || {}; n.position = n.position || { x: 0, y: 0 }; });
+        // A damaged emergency copy can repeat an id. node() keeps the first; the canvas card is keyed
+        // by id, so a later copy would be the one on screen. Drop the later copies. Edges stay and
+        // keep pointing at the id that remains. The server still rejects a duplicate id on save.
+        const seen = new Set();
+        d.nodes = d.nodes.filter(n => {
+            if (n.id && seen.has(n.id)) return false;
+            if (n.id) seen.add(n.id);
+            return true;
+        });
+        d.nodes.forEach(n => {
+            n.params = n.params || {};
+            n.settings = n.settings || {};
+            const pos = isPlainObject(n.position) ? n.position : {};
+            n.position = { x: finite(pos.x), y: finite(pos.y) };
+        });
         return d;
     }
 

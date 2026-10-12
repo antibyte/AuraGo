@@ -39,7 +39,10 @@
             const dst = byId ? byId.get(e.target.node) : ed.model.node(e.target.node);
             if (!src || !dst) return null;
             const outs = ed.model.outputs(src);
-            const idx = Math.max(0, outs.indexOf(e.source.port));
+            const idx = outs.indexOf(e.source.port);
+            // An output the node type does not have is not drawn, same as a missing node.
+            // New connections and paste still refuse that port on their own.
+            if (idx < 0) return null;
             return {
                 a: G.portPoint(src.position, 'out', idx, outs.length),
                 b: G.portPoint(dst.position, 'in', 0, ed.model.outputs(dst).length),

@@ -112,6 +112,11 @@
         // createOff: nothing can be created, the desktop is read-only or flows are switched off.
         function createOff() { return !!app.readonly || core.errorCode(loadError) === 'FLOWS_DISABLED'; }
 
+        // reportLoaded tells the shell the list has settled, so the window menu can follow createOff.
+        function reportLoaded() {
+            if (opts && typeof opts.onLoaded === 'function') opts.onLoaded();
+        }
+
         function render() {
             const list = visibleFlows();
             const off = createOff();
@@ -161,6 +166,7 @@
                 flows = [];
                 loadError = err;
                 render();
+                reportLoaded();
                 return;
             }
             if (mine !== loadSeq) return;
@@ -168,6 +174,7 @@
             flows = list.flows || [];
             templates = tpl.templates || [];
             render();
+            reportLoaded();
             focusLeftFlow();
         }
         // Every autosave broadcasts flows_changed "saved", and every live run's end "run_finished";
@@ -341,7 +348,7 @@
 
         render();
         reload();
-        return { el, reload, dispose() { bag.dispose(); el.remove(); } };
+        return { el, reload, createOff, dispose() { bag.dispose(); el.remove(); } };
     }
 
     ED.home = { create, previewSVG };

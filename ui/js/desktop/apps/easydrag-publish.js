@@ -50,6 +50,8 @@
         // openIssues shows the issues popover at anchor. Escape closes it and gives focus back to
         // the anchor; a press outside closes it.
         function openIssues(anchor) {
+            // The run view's model is a stored run. Its issues belong to the draft, so the list stays shut.
+            if (ed.runView) return;
             closeIssues();
             opener = anchor;
             const list = ed.issues || [];
