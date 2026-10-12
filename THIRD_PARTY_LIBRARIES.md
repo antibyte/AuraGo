@@ -2,6 +2,8 @@
 
 Inventory of external libraries, runtimes, fonts, icons, and other third-party assets used by **AuraGo**.
 
+The German compact listing and the license texts that must travel with a redistribution are in [`licences/UEBERSICHT.md`](licences/UEBERSICHT.md).
+
 Layerling 1.57.0 (commit `25f12513802e322cdccecaf138f874ff526f331d`) is an optional
 AGPL-3.0-only browser CAD application, vendored in `ui/js/vendor/layerling`.
 Its license and complete corresponding source archive (including AuraGo's

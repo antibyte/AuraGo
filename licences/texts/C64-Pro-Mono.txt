@@ -1,0 +1,26 @@
+C64 Pro Mono web font (ui/fonts/C64_Pro_Mono-STYLE.woff)
+
+From "C64 TrueType" v1.2.1 by Style (style64.org)
+http://style64.org/c64-truetype
+
+Fonts in this package are (c) 2010-2019 Style.
+
+Source archive: C64_TrueType_v1.2.1-STYLE.zip (downloaded 2026-10-10)
+Source archive SHA-256: b630ff545df6fed324bd9b6dc7336b7b93e8777668f45cbb3679561f9960ef2d
+Source archive entry: C64_TrueType_v1.2.1-STYLE/fonts/C64_Pro_Mono-STYLE.woff
+SHA-256: e4f84e4046c1edededf5cbf3fc5a236de19974a6be72ad2a6fa87f046d91f50e
+
+The font file is distributed unmodified, under its original file name, as part
+of AuraGo, which is provided to end users free of charge. AuraGo embeds it with
+an @font-face rule as the "Aura C64" web font of the Terminal's Retro-Net
+Commodore 64 mode; it is not offered as a separate download.
+
+License (license.txt from the source archive, verbatim):
+
+Fonts in this package are (c) 2010-2019 Style.
+
+This license is applicable to each font file included in this package in all their variants (ttf, otf, eot, woff, woff2, svg).
+
+You MAY NOT: sell this font; include/redistribute the font in any font collection regardless of pricing; provide the font for direct download from any web site, modify or rename the font. You MAY: link to "http://style64.org/c64-truetype" in order for others to download and install the font; embed the font (without any modification or file renaming) for display on any web site using @font-face rules; use this font in static images and vector art; include this font (without any modification or file renaming) as part of a software package but ONLY if said software package is freely provided to end users. You may also contact us to negotiate a (possibly commercial) license for your use outside of these guidelines at "http://style64.org/contact-style".
+
+At all times the most recent version of this license can be found at "http://style64.org/c64-truetype/license".
