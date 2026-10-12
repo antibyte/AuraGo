@@ -709,6 +709,17 @@ func (s *cydDesignerSmoke) keyboardStaysInDesigner() {
 	s.wait(`()=>!!cydFixture.widget('w_gauge')`)
 	s.noPageKeys("canvas")
 
+	// Toolbar buttons sit inside the canvas root: Enter still clicks natively (the grid toggles),
+	// and Enter, F2, Delete and Backspace never reach the document.
+	page.MustEval(`()=>{cydFixture.state.select([]);window.__ccGrid=cydFixture.state.showGrid;document.querySelector('.cc-canvas-bar [data-cc-cmd="grid"]').focus()}`)
+	s.keys(input.Enter)
+	s.wait(`()=>cydFixture.state.showGrid===!window.__ccGrid`)
+	s.keys(input.F2, input.Delete, input.Backspace, input.Enter)
+	s.wait(`()=>cydFixture.state.showGrid===window.__ccGrid`)
+	page.MustEval(`()=>document.querySelector('.cc-canvas-bar [data-cc-cmd="zoom-fit"]').focus()`)
+	s.keys(input.Enter, input.F2, input.Delete, input.Backspace)
+	s.noPageKeys("canvas toolbar")
+
 	page.MustEval(`()=>document.querySelector('[data-cc-palette="label"]').focus()`)
 	s.keys(input.Enter)
 	s.wait(`()=>{const sel=cydFixture.state.selection;return sel.length===1 && cydFixture.widget(sel[0]).type==='label'}`)

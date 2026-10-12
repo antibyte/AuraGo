@@ -9,6 +9,7 @@
     const P = window.CYDCreatorParts = window.CYDCreatorParts || {};
     const THRESHOLD = 3;
     const GUIDE_PX = 6;
+    const PAGE_KEYS = new Set(['Enter', 'Delete', 'Backspace', 'F2']);
 
     // capture follows one pointer on target (pattern: easydrag-core capturePointer). onEnd(event,
     // cancelled) runs once: pointerup (not cancelled), pointercancel, lost capture, a mouse move with
@@ -369,8 +370,15 @@
 
         bag.on(canvas.viewport, 'pointerdown', onPointerDown);
         // A used key stops here, so desktop-wide shortcuts (Delete on a selected desktop icon) do
-        // not run as well; keys the designer does not use (Ctrl+S, Tab) bubble on.
-        bag.on(canvas.root, 'keydown', event => { if (handleKey(event)) { event.preventDefault(); event.stopPropagation(); } });
+        // not run as well; keys the designer does not use (Ctrl+S, Tab) bubble on. Enter, Delete,
+        // Backspace and F2 never leave the canvas, its toolbar included (as in the palette and the
+        // screens panel): the desktop opens, deletes or renames its selected icons from them. A
+        // toolbar button keeps its native Enter click (no preventDefault); form fields (the snap
+        // select) keep theirs and the desktop ignores keys from fields.
+        bag.on(canvas.root, 'keydown', event => {
+            if (handleKey(event)) { event.preventDefault(); event.stopPropagation(); return; }
+            if (PAGE_KEYS.has(event.key) && !isField(event.target)) event.stopPropagation();
+        });
         bag.on(window, 'blur', () => { if (gesture) gesture.abort(); });
         bag.add(d.bus.on('project', info => { if (gesture && info && info.origin !== 'local') gesture.abort(); }));
         bag.add(d.bus.on('screen', () => { if (gesture) gesture.abort(); }));

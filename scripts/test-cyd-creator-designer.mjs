@@ -412,6 +412,30 @@ check('cloneSubtree renews ids and names', copy.id !== 'w_pnl' && copy.name === 
 const nw = M.newWidget(base, specs.get('statusbar'), { x: 40, y: 40 }, { w: 320, h: 240 });
 eq('newWidget statusbar spans the screen', [nw.x, nw.y, nw.w, nw.h, nw.name], [0, 0, 320, 24, 'status_1']);
 
+// ── server mirrors: constants the designer copies from internal/cydcreator, read from the Go sources ──
+// goNum, goList and goPattern read a constant, a []string literal or a regexp.MustCompile pattern by
+// name (whatever gofmt's alignment); jsConst reads a module-private constant of a designer source. A
+// parser that finds nothing yields NaN/null/undefined, so a renamed Go symbol fails here as well.
+const goValidate = fs.readFileSync(path.join(root, 'internal', 'cydcreator', 'validate.go'), 'utf8');
+const goIds = fs.readFileSync(path.join(root, 'internal', 'cydcreator', 'ids.go'), 'utf8');
+const goNum = (src, name) => { const m = src.match(new RegExp('\\b' + name + '\\s*=\\s*([\\d_]+)(?:\\s*<<\\s*(\\d+))?')); return m ? Number(m[1].replace(/_/g, '')) * 2 ** Number(m[2] || 0) : NaN; };
+const goList = (src, name) => { const m = src.match(new RegExp('\\b' + name + '\\s*=\\s*\\[\\]string\\{([^}]*)\\}')); return m ? Array.from(m[1].matchAll(/"([^"]*)"/g), x => x[1]) : null; };
+const goPattern = (src, name) => (src.match(new RegExp('\\b' + name + '\\s*=\\s*regexp\\.MustCompile\\(`([^`]*)`\\)')) || [])[1];
+const jsConst = (file, name) => (fs.readFileSync(path.join(apps, file), 'utf8').match(new RegExp('\\bconst ' + name + ' = ([^;]+);')) || [])[1];
+eq('model LIMITS mirror limits.go (MaxScreens, MaxWidgetsPerScreen, MaxNesting, MaxTextBytes, MaxHintRunes)',
+    [M.LIMITS.screens, M.LIMITS.widgetsPerScreen, M.LIMITS.nesting, M.LIMITS.textBytes, M.LIMITS.hintRunes],
+    ['MaxScreens', 'MaxWidgetsPerScreen', 'MaxNesting', 'MaxTextBytes', 'MaxHintRunes'].map(n => goNum(goLimits, n)));
+eq('name rule and reserved names mirror validate.go (namePattern, reservedNames, reservedNamePrefixes, reservedNameSuffixes)',
+    [M.NAME_RE.source, M.RESERVED_NAMES, M.RESERVED_PREFIXES, M.RESERVED_SUFFIXES],
+    [goPattern(goValidate, 'namePattern'), goList(goValidate, 'reservedNames'), goList(goValidate, 'reservedNamePrefixes'), goList(goValidate, 'reservedNameSuffixes')]);
+eq('model enumerations mirror validate.go (transitions, actionTypes, orientations, wifiModes)',
+    [M.TRANSITIONS, M.ACTIONS, M.ORIENTATIONS, M.WIFI_MODES],
+    ['transitions', 'actionTypes', 'orientations', 'wifiModes'].map(n => goList(goValidate, n)));
+eq('render constants mirror the server (HEX colorPattern, ELEMENT_ID elementIDPattern, MAX_SIDE maxWidgetSide, MAX_TEXT MaxTextBytes)',
+    ['HEX', 'ELEMENT_ID', 'MAX_SIDE', 'MAX_TEXT'].map(n => jsConst('cyd-creator-render.js', n)),
+    ['/' + goPattern(goValidate, 'colorPattern') + '/', '/' + goPattern(goIds, 'elementIDPattern') + '/', String(goNum(goLimits, 'maxWidgetSide')), String(goNum(goLimits, 'MaxTextBytes'))]);
+eq('canvas MAX_COORD mirrors maxCoordinate', jsConst('cyd-creator-canvas.js', 'MAX_COORD'), String(goNum(goLimits, 'maxCoordinate')));
+
 // ── render ──
 check('renderer for every catalog type', caps.widgets.every(s => R.TYPES.includes(s.type)), R.TYPES.join(','));
 eq('font sizes mirror the catalog (statusbar small font)', R.FONT_SIZES, caps.fonts.sizes);
@@ -1350,7 +1374,7 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     const goNumber = (src, name) => Number(((src.match(new RegExp(name + '\\s*=\\s*([\\d_]+)')) || [])[1] || '').replace(/_/g, ''));
     const validateGo = fs.readFileSync(path.join(root, 'internal', 'cydcreator', 'validate.go'), 'utf8');
     eq('inspector limits mirror the server (maxCoordinate, intPropLimit, maxTimezoneBytes)', [LIM.coord, LIM.intProp, LIM.timezoneBytes], [goNumber(goLimits, 'maxCoordinate'), goNumber(goLimits, 'intPropLimit'), goNumber(validateGo, 'maxTimezoneBytes')]);
-    check('the colour check is validate.go colorPattern', validateGo.includes('colorPattern   = regexp.MustCompile(`' + FD.HEX.source + '`)'), FD.HEX.source);
+    check('the colour check is validate.go colorPattern', goPattern(validateGo, 'colorPattern') === FD.HEX.source, FD.HEX.source);
     eq('clampInt rounds, clamps and refuses empty or non-numeric input', [FD.clampInt('12.6', 0, 10), FD.clampInt('', 0, 10), FD.clampInt('x'), FD.clampInt(-5, 1, 2048), FD.clampInt('1e9', -4096, 4096), FD.clampInt(-0.4), FD.clampInt(true)], [10, null, null, 1, 4096, 0, null]);
     eq('utf8Bytes counts like Go len() (a lone surrogate arrives as U+FFFD)', ['abc', 'ä', '€', '😀', String.fromCharCode(0xd800)].map(FD.utf8Bytes), [3, 2, 3, 4, 3]);
     eq('textIssue mirrors textProblem', [FD.textIssue('a'.repeat(1024), 1024), FD.textIssue('ä'.repeat(513), 1024), FD.textIssue('a' + String.fromCharCode(0), 1024)], ['', 'TEXT_TOO_LONG', 'PROP_INVALID']);
