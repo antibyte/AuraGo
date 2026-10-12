@@ -239,7 +239,7 @@ Flows that you build in the **EasyDrag** desktop app appear in Mission Control a
 - When a step reads a file that another step created in the documents folder (a new PDF, for example), AuraGo copies it to `.easydrag/<run>/` in the workspace for that one call and removes the copy afterwards.
 - Email steps: a retry starts only after the previous attempt has ended, so two attempts never overlap. If the mail server accepted a mail but its answer got lost, the retry sends the mail a second time. A run that is cancelled during a send may still deliver the mail in the background.
 - Telegram steps with a file: when the text went out but the file failed, the step is not tried again, so the text is not sent twice.
-- A foreground shell step ends with the run. Cancelling the run ends its process tree. A shell step with `background: true` stays registered until the command ends on its own, in a flow and in chat.
+- A foreground shell step ends with the run. Cancelling the run ends its process tree. The shell also ends when the step's own timeout cancels the same context. Both limits apply; the shorter one wins. A shell step with `background: true` stays registered until the command ends on its own, in a flow and in chat.
 
 #### Flow secrets
 

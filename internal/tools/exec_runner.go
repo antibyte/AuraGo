@@ -64,6 +64,14 @@ func (r *ForegroundRunner) Run(ctx context.Context) (string, string, error) {
 	r.cmd.Stdout = r.stdout
 	r.cmd.Stderr = r.stderr
 
+	// A context that is already done must not start a process. Nil stays the
+	// caller's problem: the select below panics on it, as it did before.
+	if ctx != nil {
+		if err := ctx.Err(); err != nil {
+			return "", "", err
+		}
+	}
+
 	if err := r.cmd.Start(); err != nil {
 		return "", "", err
 	}

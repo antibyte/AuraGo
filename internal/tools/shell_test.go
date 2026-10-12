@@ -134,6 +134,37 @@ func TestExecuteShellStopsWhenContextEnds(t *testing.T) {
 	}
 }
 
+func TestExecuteShellDoesNotStartWhenContextAlreadyEnded(t *testing.T) {
+	skipIfWindowsPowerShellUnavailable(t)
+
+	workspaceDir := t.TempDir()
+	pidPath := filepath.Join(workspaceDir, "pid.txt")
+	var command string
+	if runtime.GOOS == "windows" {
+		command = "Set-Content -LiteralPath 'pid.txt' -Value $PID -Encoding ascii"
+	} else {
+		command = "echo $$ > pid.txt"
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, _, err := ExecuteShell(ctx, command, workspaceDir)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("ExecuteShell error = %v, want context.Canceled", err)
+	}
+	// A process that started despite the cancelled context would write the file.
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if _, statErr := os.Stat(pidPath); statErr == nil {
+			t.Fatal("pid.txt was created after a context that was already cancelled")
+		} else if !os.IsNotExist(statErr) {
+			t.Fatalf("stat pid.txt: %v", statErr)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
 func shellProcessStillRunning(pid int) bool {
 	if pid <= 0 {
 		return false
