@@ -1546,7 +1546,7 @@ function appBackend(opts) {
         writeFile: call('writeFile', () => 's2'),
         listBuilds: call('listBuilds', () => []),
         listMessages: call('listMessages', () => []),
-        listJobs: call('listJobs', () => []),
+        listJobs: call('listJobs', () => (o.jobs || []).map(job => Object.assign({}, job))),
         startJob: call('startJob', (id, body) => ({ id: 'ccj_1', project_id: id, mode: body.mode, status: 'queued', phase: 'queued', created_at: '2026-10-12T10:00:00.000Z' }))
     };
     Object.keys(answers).forEach(name => { saved[name] = P.api[name]; P.api[name] = answers[name]; });
@@ -1687,6 +1687,33 @@ const appT = P.i18n({});
     a.dispose();
 }
 {
+    // A fenced project blocks Build with the reason. The server keeps the fence in memory: a restart
+    // clears it without an event and its stream_ready has no reload, so the first stream_ready after
+    // a failure re-reads the summary (a stream_ready without a failure before it reads nothing).
+    const a = await makeApp({ projectId: 'ccp_1', project: { publish_review: true } });
+    const build = a.find('ccAction', 'build');
+    eq('a fenced project blocks Build and says why', [build.disabled, build.title], [true, appT('cyd_creator.error.publication_review')]);
+    browserStreams[0].send('stream_ready', { after: 4 });
+    await settle();
+    a.be.calls.length = 0;
+    a.be.project.publish_review = false;
+    browserStreams[0].send('stream_ready', { after: 4 });
+    await settle();
+    eq('a stream_ready without a failure before it reads nothing', a.be.calls, []);
+    browserStreams[browserStreams.length - 1].onerror();
+    await settle();
+    await advance(1500);
+    browserStreams[browserStreams.length - 1].send('stream_ready', { after: 4 });
+    await settle();
+    eq('the stream back after a failure re-reads the summary: banner and Build follow the cleared fence',
+        [a.be.calls.filter(c => c === 'getProject').length, a.find('ccPublishReview').hidden, build.disabled], [1, true, false]);
+    a.be.calls.length = 0;
+    browserStreams[browserStreams.length - 1].send('stream_ready', { after: 4 });
+    await settle();
+    eq('only the first stream_ready after the failure reads it', a.be.calls, []);
+    a.dispose();
+}
+{
     // Every agent job starts from the saved project.
     const a = await makeApp({ projectId: 'ccp_1' });
     a.inst.layoutSaver.change({ name: 'Clock', orientation: 'portrait', screens: [] });
@@ -1747,6 +1774,28 @@ const appT = P.i18n({});
     h.dispose();
     ro.dispose();
     eq('disposed windows leave no policy listener behind', policyListeners.length, 0);
+}
+{
+    // Read-only switched by the desktop policy while a job is active reaches the agent panel at once:
+    // the plan's Confirm and Change plan and the composer lock, Cancel stays usable.
+    const plan = { summary: 'A clock', screens: ['home'], widgets: [], data_sources: [], wifi: 'off', aurago_link: false, libraries: [] };
+    const a = await makeApp({ projectId: 'ccp_1', project: { locked_by_job: 'ccj_w' },
+        jobs: [{ id: 'ccj_w', project_id: 'ccp_1', mode: 'new', status: 'awaiting_confirmation', phase: 'planning', plan, created_at: '2026-10-12T10:00:00.000Z' }] });
+    const planButtons = () => ['confirm', 'replan', 'cancel'].map(id => findNode(a.find('ccPlan'), n => n.dataset && n.dataset.ccAgentAction === id).disabled);
+    const before = planButtons();
+    policyListeners.slice().forEach(fn => fn({ detail: { readonly: true } }));
+    await settle();
+    eq('a read-only policy during a waiting plan locks Confirm, Change plan and the composer, not Cancel',
+        [before, planButtons(), a.find('ccAgentInput').disabled, a.find('ccAgentAction', 'send').disabled], [[false, false, false], [true, true, false], true, true]);
+    policyListeners.slice().forEach(fn => fn({ detail: { readonly: false } }));
+    await settle();
+    eq('lifting it during the plan enables them again', [planButtons(), a.find('ccAgentInput').disabled], [[false, false, false], false]);
+    a.inst.bus.emit('job:status', { id: 'ccj_w', project_id: 'ccp_1', mode: 'new', status: 'running', phase: 'coding', created_at: '2026-10-12T10:00:00.000Z' });
+    policyListeners.slice().forEach(fn => fn({ detail: { readonly: true } }));
+    await settle();
+    const cancel = findNode(a.find('ccJob'), n => n.dataset && n.dataset.ccAgentAction === 'cancel');
+    eq('a read-only policy during a running job locks the composer and keeps Cancel', [a.find('ccAgentInput').disabled, !!cancel && cancel.disabled], [true, false]);
+    a.dispose();
 }
 {
     // uploadAsset (the designer's image upload): pending edits are saved first, and edits made while

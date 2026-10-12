@@ -591,6 +591,9 @@
         // An active job's card does not depend on it and is not rebuilt (the re-plan field keeps focus).
         b.add(inst.bus.on('project:updated', () => { if (isActive(state.job)) renderDraft(); else renderJob(); }));
         b.add(inst.bus.on('lock:changed', () => renderComposer()));
+        // Read-only switched by the desktop policy: the plan actions, the composer and the draft
+        // buttons follow at once, also while a job runs (Cancel stays usable).
+        b.add(inst.bus.on('readonly:changed', () => renderJob()));
         b.add(() => { if (state.ticker) clearInterval(state.ticker); });
 
         renderLog();

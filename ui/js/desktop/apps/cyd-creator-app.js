@@ -187,6 +187,8 @@
     function buildBlocker(inst) {
         const tc = toolchain(inst);
         if (inst.readonly) return 'cyd_creator.app.readonly_hint';
+        // A fenced project refuses builds (CYD_BUSY publication_review) until the fence is resolved.
+        if (inst.project && inst.project.publish_review) return 'cyd_creator.error.publication_review';
         if (inst.isLocked()) return 'cyd_creator.app.locked_banner';
         if (!tc.docker_available) return 'cyd_creator.error.CYD_DOCKER_UNAVAILABLE';
         if (!tc.present) return 'cyd_creator.error.CYD_IMAGE_MISSING';
@@ -604,6 +606,8 @@
         const bus = inst.bus;
         const b = inst.projectBag;
         let codeFailureChecked = false;
+        // resumed: the stream failed since its last stream_ready (a lost connection, a server restart).
+        let resumed = false;
         b.add(bus.on('sse:project_changed', data => onProjectChanged(inst, data || {})));
         b.add(bus.on('sse:lock_changed', data => setLock(inst, (data && data.locked_by_job) || '')));
         b.add(bus.on('sse:build_status', data => {
@@ -615,8 +619,17 @@
         b.add(bus.on('sse:device_changed', data => { if (data && data.device) bus.emit('device:changed', data.device); }));
         // The stream cannot continue the window's state (pruned events, a restored database): reload
         // it. The agent panel reloads itself, the dock re-reads a running build's log.
-        b.add(bus.on('sse:stream_ready', data => { if (data && data.reload) reloadProject(inst, { keepEdits: true }); }));
-        b.add(bus.on('events:failed', failures => { if (failures >= STREAM_PROBE_AFTER) probeStream(inst); }));
+        // A stream back after a failure re-reads the summary: state the server keeps in memory ends
+        // without an event (a restart clears the publication fence, and its stream_ready has no reload).
+        b.add(bus.on('sse:stream_ready', data => {
+            if (data && data.reload) reloadProject(inst, { keepEdits: true });
+            else if (resumed) refreshProject(inst);
+            resumed = false;
+        }));
+        b.add(bus.on('events:failed', failures => {
+            resumed = true;
+            if (failures >= STREAM_PROBE_AFTER) probeStream(inst);
+        }));
         b.add(bus.on('events:state', state => { if (inst.view) inst.view.streamChip.hidden = state !== 'reconnecting'; }));
         b.add(bus.on('code:state', state => {
             inst.codeState = state || 'saved';
