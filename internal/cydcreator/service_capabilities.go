@@ -11,21 +11,21 @@ import (
 // Capabilities is the GET /capabilities answer (overview "JSON shapes").
 // Enabled and ReadOnly are set by the HTTP layer from the configuration.
 type Capabilities struct {
-	Enabled         bool             `json:"enabled"`
-	ReadOnly        bool             `json:"readonly"`
-	TemplateVersion string           `json:"template_version"`
-	Toolchain       ToolchainStatus  `json:"toolchain"`
-	ActiveJob       *ActiveJob       `json:"active_job"`
-	BuildQueue      int              `json:"build_queue"`
-	Boards          []Board          `json:"boards"`
-	Themes          []Theme          `json:"themes"`
-	Widgets         []WidgetSpec     `json:"widgets"`
-	Fonts           FontCatalog      `json:"fonts"`
-	Symbols         []string         `json:"symbols"`
-	Libraries       []Library        `json:"libraries"`
-	Languages       []string         `json:"languages"`
-	OTA             OTACapability    `json:"ota"`
-	Limits          CapabilityLimits `json:"limits"`
+	Enabled         bool              `json:"enabled"`
+	ReadOnly        bool              `json:"readonly"`
+	TemplateVersion string            `json:"template_version"`
+	Toolchain       ToolchainStatus   `json:"toolchain"`
+	ActiveJob       *ActiveJob        `json:"active_job"`
+	BuildQueue      int               `json:"build_queue"`
+	Boards          []CapabilityBoard `json:"boards"`
+	Themes          []Theme           `json:"themes"`
+	Widgets         []WidgetSpec      `json:"widgets"`
+	Fonts           FontCatalog       `json:"fonts"`
+	Symbols         []string          `json:"symbols"`
+	Libraries       []Library         `json:"libraries"`
+	Languages       []string          `json:"languages"`
+	OTA             OTACapability     `json:"ota"`
+	Limits          CapabilityLimits  `json:"limits"`
 }
 
 // ActiveJob is the job that holds the global agent slot.
@@ -34,6 +34,14 @@ type ActiveJob struct {
 	ProjectID string `json:"project_id"`
 	Phase     string `json:"phase"`
 	Status    string `json:"status"`
+}
+
+// CapabilityBoard is a board profile plus the flash offset of its cydcc config
+// partition (ConfigPartitionOffset for the board's flash size): the flasher
+// writes the device config blob there, or erases it when a flash carries none.
+type CapabilityBoard struct {
+	Board
+	ConfigOffset int `json:"config_offset"`
 }
 
 // FontCatalog lists the font families and sizes of the designer.
@@ -79,7 +87,7 @@ func (s *Service) Capabilities(ctx context.Context) Capabilities {
 		Toolchain:       toolchain,
 		ActiveJob:       active,
 		BuildQueue:      s.activeBuilds(),
-		Boards:          nonNil(boards),
+		Boards:          s.capabilityBoards(boards),
 		Themes:          nonNil(themes),
 		Widgets:         WidgetCatalog(),
 		Fonts:           FontCatalog{Families: append([]string(nil), FontFamilies...), Sizes: append([]int(nil), FontSizes...)},
@@ -124,6 +132,21 @@ func (s *Service) activeJob(ctx context.Context) (*ActiveJob, error) {
 		return nil, fmt.Errorf("read the active cyd creator job: %w", err)
 	}
 	return &j, nil
+}
+
+// capabilityBoards adds each board's config partition offset. A board whose
+// flash size has no partition table is logged and left at 0 (the flasher
+// refuses a missing offset instead of writing at 0x0).
+func (s *Service) capabilityBoards(boards []Board) []CapabilityBoard {
+	out := make([]CapabilityBoard, 0, len(boards))
+	for _, b := range boards {
+		offset, err := ConfigPartitionOffset(b.FlashMB)
+		if err != nil {
+			s.logger.Error("CYD Creator board has no config partition", "board", b.ID, "error", err)
+		}
+		out = append(out, CapabilityBoard{Board: b, ConfigOffset: offset})
+	}
+	return out
 }
 
 func nonNil[T any](list []T) []T {

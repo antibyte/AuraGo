@@ -248,12 +248,19 @@ function fakeEsptool(plan) {
             if (plan.mainError) throw plan.mainError;
             return 'ESP32-D0WD-V3 (revision v3.1)';
         }
+        async flashMd5sum(addr, size) {
+            calls.md5sum = [addr, size];
+            if (plan.md5sumError) throw plan.md5sumError;
+            return plan.partTable ? createHash('md5').update(plan.partTable).digest('hex').toUpperCase() : 'ffffffffffffffffffffffffffffffff';
+        }
         async writeFlash(options) {
             calls.files = options.fileArray.map(f => [f.address, f.data.length]);
             calls.data = options.fileArray.map(f => f.data);
             calls.md5 = typeof options.calculateMD5Hash === 'function';
+            calls.writes = (calls.writes || 0) + 1;
             if (plan.failAt && plan.failAt.includes(this.o.baudrate)) throw new Error('Timeout waiting for packet header');
             options.fileArray.forEach((f, i) => { options.reportProgress(i, 0, 10); options.reportProgress(i, 5, 10); options.reportProgress(i, 10, 10); });
+            if (plan.failAfter) throw new Error('MD5 of file does not match data in flash!');
         }
         async after(mode) { calls.after.push(mode); }
     }
@@ -267,7 +274,7 @@ async function flashWith(plan, extra) {
     const progress = [];
     const run = P.flasher.runFlash(Object.assign({
         manager, load: async () => fake.module, image: new Uint8Array(1000), blob: new Uint8Array(4096), blobOffset: 0x3D0000,
-        chip: 'esp32', monitor: true, onProgress: f => progress.push(f), onLog: () => {}
+        configOffset: 0x3D0000, chip: 'esp32', monitor: true, onProgress: f => progress.push(f), onLog: () => {}
     }, extra || {}));
     return { run, fake, progress, manager };
 }
@@ -283,7 +290,8 @@ async function flashWith(plan, extra) {
 
     const plain = await flashWith({}, { monitor: false, blob: null });
     await plain.run;
-    eq('without the monitor esptool hard-resets; no blob without a link', [plain.fake.calls.after, plain.fake.calls.files], [['hard_reset'], [[0, 1000]]]);
+    eq('without the monitor esptool hard-resets; without a link the config partition is erased', [plain.fake.calls.after, plain.fake.calls.files], [['hard_reset'], [[0, 1000], [0x3D0000, 4096]]]);
+    check('I4: the erased config partition is 4 KiB 0xFF', plain.fake.calls.data[1].every(b => b === 0xff));
 
     const fallback = await flashWith({ failAt: [921600] });
     eq('a failed write falls back to 460800 baud', [(await fallback.run).baud, fallback.fake.calls.attempts, fallback.fake.calls.disconnects], [460800, [921600, 460800], 2]);
@@ -309,13 +317,17 @@ async function flashWith(plan, extra) {
     const mon = await manager.acquire('monitor', { revocable: true, onRevoke: async () => { paused = true; } });
     await mon.open(115200);
     const fake = fakeEsptool({});
-    await P.flasher.runFlash({ manager, load: async () => fake.module, image: new Uint8Array(10), chip: 'esp32', monitor: true });
+    await P.flasher.runFlash({ manager, load: async () => fake.module, image: new Uint8Array(10), configOffset: 0x3D0000, chip: 'esp32', monitor: true });
     const back = await manager.acquire('monitor', { revocable: true });
     await back.open(115200);
     eq('owner handoff monitor → flasher → monitor', [paused, manager.owner(), port.log], [true, 'monitor', ['open 115200', 'close', 'open 115200']]);
 }
 
 // ── D1: install modes ──
+// merged.bin with a recognisable partition table at 0x8000 (the auto check compares its MD5 with the board's).
+const partTable = Uint8Array.from({ length: 0xC00 }, (_, i) => (i * 7 + 3) & 0xff);
+const mergedImage = new Uint8Array(0x9000);
+mergedImage.set(partTable, 0x8000);
 {
     const keep = await flashWith({ mac: 'AA:BB:CC:DD:EE:01' }, { mode: 'keep', app: new Uint8Array(700) });
     const result = await keep.run;
@@ -338,27 +350,111 @@ async function flashWith(plan, extra) {
     ], [true, false, false, false, false, false]);
 
     const chosen = [];
-    const autoKnown = await flashWith({ mac: 'aa:bb:cc:dd:ee:01', failAt: [921600] }, { mode: 'auto', app: new Uint8Array(700), isKnownBoard: known, onMode: m => chosen.push(m) });
+    const autoKnown = await flashWith({ mac: 'aa:bb:cc:dd:ee:01', failAt: [921600], partTable }, { mode: 'auto', image: mergedImage, app: new Uint8Array(700), isKnownBoard: known, onMode: m => chosen.push(m) });
     await autoKnown.run;
     eq('D1 automatic keeps the settings of a board this project flashed, decided once across retries', [chosen, autoKnown.fake.calls.files[0], autoKnown.fake.calls.attempts], [['keep'], [0x10000, 700], [921600, 460800]]);
-    const autoNew = await flashWith({ mac: 'aa:bb:cc:dd:ee:02' }, { mode: 'auto', app: new Uint8Array(700), isKnownBoard: known });
-    eq('D1 automatic does a full install on a board new to the project', [(await autoNew.run).mode, autoNew.fake.calls.files], ['full', [[0, 1000], [0x3D0000, 4096]]]);
-    const forcedFull = await flashWith({ mac: 'aa:bb:cc:dd:ee:01' }, { mode: 'full', app: new Uint8Array(700), isKnownBoard: known });
+    eq('I1 automatic reads the partition table MD5 from 0x8000 (3 KiB)', autoKnown.fake.calls.md5sum, [0x8000, 0xC00]);
+    const autoNew = await flashWith({ mac: 'aa:bb:cc:dd:ee:02', partTable }, { mode: 'auto', image: mergedImage, app: new Uint8Array(700), isKnownBoard: known });
+    eq('D1 automatic does a full install on a board new to the project', [(await autoNew.run).mode, autoNew.fake.calls.files], ['full', [[0, 0x9000], [0x3D0000, 4096]]]);
+    const forcedFull = await flashWith({ mac: 'aa:bb:cc:dd:ee:01', partTable }, { mode: 'full', image: mergedImage, app: new Uint8Array(700), isKnownBoard: known });
     eq('D1 the user can force a full install on a known board', (await forcedFull.run).mode, 'full');
+
+    // I1: a record that outlived the layout (another tool, a failed full install) must not keep the settings.
+    const otherTable = Uint8Array.from(partTable, b => b ^ 0x55);
+    const foreign = await flashWith({ mac: 'aa:bb:cc:dd:ee:01', partTable: otherTable }, { mode: 'auto', image: mergedImage, app: new Uint8Array(700), isKnownBoard: known });
+    eq('I1 automatic falls back to a full install when the partition table on the board differs', [(await foreign.run).mode, foreign.fake.calls.files[0]], ['full', [0, 0x9000]]);
+    const unreadable = await flashWith({ mac: 'aa:bb:cc:dd:ee:01', md5sumError: new Error('timeout') }, { mode: 'auto', image: mergedImage, app: new Uint8Array(700), isKnownBoard: known });
+    eq('I1 an unreadable partition table counts as different', (await unreadable.run).mode, 'full');
+    const shortImage = await flashWith({ mac: 'aa:bb:cc:dd:ee:01', partTable }, { mode: 'auto', app: new Uint8Array(700), isKnownBoard: known });
+    eq('I1 a merged.bin without a partition table counts as different', (await shortImage.run).mode, 'full');
+
+    // I1 + device rows: a full write drops the board from every project's records first; the earlier
+    // device of this project is revoked only after the new flash succeeded.
+    P.flasher.rememberBoard('ccp_r', { mac: 'aa:bb:cc:dd:ee:07', chip: 'esp32', board: 'b1', device: 'ccd_old' });
+    P.flasher.rememberBoard('ccp_s', { mac: 'aa:bb:cc:dd:ee:07', chip: 'esp32', board: 'b1', device: 'ccd_s' });
+    eq('I1 a keep write leaves the records and reports the earlier device', [P.flasher.prepareWrite('ccp_r', 'keep', 'aa:bb:cc:dd:ee:07'), P.flasher.knownBoard('ccp_r', { mac: 'aa:bb:cc:dd:ee:07', chip: 'esp32', board: 'b1' })], ['ccd_old', true]);
+    const previous = P.flasher.prepareWrite('ccp_r', 'full', 'aa:bb:cc:dd:ee:07');
+    eq('I1 a full write forgets the board in every project before it starts', [previous,
+        P.flasher.knownBoard('ccp_r', { mac: 'aa:bb:cc:dd:ee:07', chip: 'esp32', board: 'b1' }),
+        P.flasher.knownBoard('ccp_s', { mac: 'aa:bb:cc:dd:ee:07', chip: 'esp32', board: 'b1' })], ['ccd_old', false, false]);
+    const revoked = [];
+    const revoke = async id => { revoked.push(id); };
+    const recorded = P.flasher.recordFlash({ projectId: 'ccp_r', buildId: 'ccb_2', result: { mac: 'aa:bb:cc:dd:ee:07' }, chip: 'esp32', board: 'b1', device: 'ccd_new', previousDevice: previous, revoke });
+    await tick();
+    eq('device rows: a successful flash re-adds the record and revokes the earlier device', [recorded, revoked, P.flasher.boardRecord('ccp_r', 'AA:BB:CC:DD:EE:07').device, P.flasher.lastFlashed('ccp_r')], ['ccd_old', ['ccd_old'], 'ccd_new', 'ccb_2']);
+    revoked.length = 0;
+    P.flasher.recordFlash({ projectId: 'ccp_r', buildId: 'ccb_3', result: { mac: 'aa:bb:cc:dd:ee:07' }, chip: 'esp32', board: 'b1', device: 'ccd_new', previousDevice: 'ccd_new', revoke });
+    await tick();
+    eq('device rows: the device just written is never revoked', revoked, []);
+    const failedMode = [];
+    const failing = await flashWith({ mac: 'aa:bb:cc:dd:ee:08', failAt: [921600, 460800, 115200] }, { onMode: (m, info) => failedMode.push(P.flasher.prepareWrite('ccp_r', m, info.mac)) });
+    try { await failing.run; } catch (_) { /* expected */ }
+    eq('device rows: a failed flash records nothing (no revoke path runs)', [failedMode.length, P.flasher.boardRecord('ccp_r', 'aa:bb:cc:dd:ee:08')], [1, null]);
 }
 
-// ── a window closed mid-flash aborts the flash cleanly ──
+// ── I4: the config partition always gets rewritten, and only at a valid offset ──
+{
+    const enc = new TextEncoder();
+    const linked = new Uint8Array(4096);
+    linked.set(enc.encode('...' + '/api/cyd-creator/device/heartbeat' + '\0'), 1000);
+    eq('I4 the build image tells whether it has the AuraGo link', [P.flasher.hasLink(linked), P.flasher.hasLink(new Uint8Array(4096)), P.flasher.hasLink(enc.encode('/api/cyd-creator/device/heartbea')), P.flasher.hasLink(null)], [true, false, false, false]);
+    await rejects('I4 a blob without a config offset is refused (0 would hit the bootloader)', (await flashWith({}, { blobOffset: 0 })).run, 'FLASH_FAILED');
+    await rejects('I4 an erase without the board config offset is refused', (await flashWith({}, { blob: null, configOffset: undefined })).run, 'FLASH_FAILED');
+    const zero = await flashWith({}, { blob: null, configOffset: 0 });
+    await rejects('I4 a zero board config offset is refused before anything is written', zero.run, 'FLASH_FAILED');
+    eq('…nothing was written', zero.fake.calls.files, null);
+    const keepErase = await flashWith({}, { mode: 'keep', app: new Uint8Array(700), blob: null, configOffset: 0xC90000 });
+    await keepErase.run;
+    eq('I4 keep settings without a link erases the config partition too', keepErase.fake.calls.files, [[0x10000, 700], [0xE000, 0x2000], [0xC90000, 4096]]);
+}
+
+// ── I2/I3: a window closed mid-flash, and the board never stays in the flasher stub ──
 {
     let closed = false;
     const torn = await flashWith({}, {
         aborted: () => closed,
         onProgress: (fraction, phase) => { if (phase === 'write' && fraction > 0) closed = true; }
     });
-    await rejects('closing the window mid-write aborts the flash', torn.run, 'FLASH_ABORTED');
-    eq('an aborted flash does not retry or reset and frees the port', [torn.fake.calls.attempts, torn.fake.calls.after, torn.fake.calls.disconnects, torn.manager.owner()], [[921600], [], 1, '']);
+    const tornResult = await torn.run;
+    eq('I3 closing the window mid-write finishes the write, hard-resets and frees the port', [tornResult.after, torn.fake.calls.files.length, torn.fake.calls.after, torn.manager.owner()], ['hard_reset', 2, ['hard_reset'], '']);
+    let closedLate = false;
+    const retry = await flashWith({ failAt: [921600] }, {
+        aborted: () => closedLate,
+        onProgress: (fraction, phase) => { if (phase === 'write') closedLate = true; }
+    });
+    eq('I3 a started write is completed at the next baud rate even after the window closed', [(await retry.run).baud, retry.fake.calls.writes], [460800, 2]);
     const early = await flashWith({}, { aborted: () => true });
     await rejects('a flash whose window is already gone never connects', early.run, 'FLASH_ABORTED');
     eq('…and releases the port without an attempt', [early.fake.calls.attempts, early.manager.owner()], [[], '']);
+    let afterConnect = false;
+    const beforeWrite = await flashWith({}, { aborted: () => afterConnect, onProgress: (f, phase) => { if (phase === 'connect') afterConnect = true; } });
+    await rejects('a window closed before the first write stops the flash', beforeWrite.run, 'FLASH_ABORTED');
+    eq('…without writing anything', beforeWrite.fake.calls.files, null);
+
+    const late = await flashWith({ failAfter: true, failAt: [] });
+    try { await late.run; check('I3 a failure after the blob transfer reports blobWritten', false, 'resolved'); } catch (err) {
+        check('I3 a failure after the blob transfer reports blobWritten (the device is kept)', err.blobWritten === true, JSON.stringify(err.blobWritten));
+    }
+    const before = await flashWith({ failAt: [921600, 460800, 115200] });
+    try { await before.run; } catch (err) {
+        check('I3 a failure before the transfer does not report blobWritten (the device is revoked)', err.blobWritten === false, JSON.stringify(err.blobWritten));
+    }
+
+    // I2: the hand-off resets the board whenever the monitor cannot take over.
+    const handOffWith = async (opts) => {
+        const port = new FakePort();
+        const manager = P.serial.createManager(okEnv(fakeSerial(port)));
+        await manager.request();
+        const how = await P.flasher.handOff(Object.assign({ result: { after: 'no_reset_stub' }, aborted: () => false, manager }, opts));
+        return [how, port.signals.length, port.opened, manager.owner()];
+    };
+    const monitorOk = { connect: async () => true };
+    const dock = { show() {} };
+    eq('I2 the monitor takes the board over when it can', await handOffWith({ monitor: monitorOk, dock }), ['monitor', 0, false, '']);
+    eq('I2 no monitor: one RTS reset through a short lease', await handOffWith({ monitor: null, dock }), ['reset', 3, false, '']);
+    eq('I2 the monitor failed to connect: one RTS reset', await handOffWith({ monitor: { connect: async () => false }, dock }), ['reset', 3, false, '']);
+    eq('I2 the window closed after the write: one RTS reset, the monitor is not touched', await handOffWith({ monitor: { connect: async () => { throw new Error('touched'); } }, dock, aborted: () => true }), ['reset', 3, false, '']);
+    eq('I2 a hard-reset flash needs no hand-off', await handOffWith({ result: { after: 'hard_reset' }, monitor: null, dock: null }), ['', 0, false, '']);
 }
 
 // ── devices: the rollback hint; transfer: a refused ZIP import names its reason ──

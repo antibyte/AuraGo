@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -52,6 +53,17 @@ func TestCapabilitiesMatchTheOverviewShape(t *testing.T) {
 	if len(caps.Boards) == 0 || len(caps.Themes) != 7 || len(caps.Widgets) == 0 || len(caps.Libraries) == 0 ||
 		len(caps.Languages) != 16 || len(caps.Symbols) == 0 {
 		t.Fatalf("catalogs incomplete: %d boards, %d themes, %d widgets", len(caps.Boards), len(caps.Themes), len(caps.Widgets))
+	}
+	// The flasher writes (or erases) the config partition at boards[].config_offset.
+	var boards []map[string]json.RawMessage
+	if err := json.Unmarshal(top["boards"], &boards); err != nil || len(boards) != len(caps.Boards) {
+		t.Fatalf("boards JSON: %v", err)
+	}
+	for i, b := range caps.Boards {
+		want, err := ConfigPartitionOffset(b.FlashMB)
+		if err != nil || b.ConfigOffset != want || string(boards[i]["config_offset"]) != strconv.Itoa(want) || string(boards[i]["id"]) != strconv.Quote(b.ID) {
+			t.Fatalf("board %s: config_offset %d (JSON %s), want %d (%v)", b.ID, b.ConfigOffset, boards[i]["config_offset"], want, err)
+		}
 	}
 
 	p := env.createProject(t, "Job")

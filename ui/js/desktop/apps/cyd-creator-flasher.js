@@ -1,15 +1,21 @@
 // CYD Creator flasher (plan 5): the Flash dialog writes a green build to the board over Web Serial with
 // the vendored esptool-js (ui/js/vendor/esptool-js/, imported lazily). Flow (spec §14): pick a build
-// (default: the latest green one), mint a device + config blob when the project has the AuraGo link and
-// the user may write, choose the port, connect, compare the chip with the board profile, download
-// merged.bin and check its SHA-256 in the browser, write it at 0x0 (+ the blob at config_offset) at
+// (default: the latest green one), choose the port, download merged.bin and check its SHA-256 in the
+// browser, mint a device + config blob when the build has the AuraGo link and the user may write,
+// connect, compare the chip with the board profile, write it at 0x0 (+ the blob at config_offset) at
 // 921600 baud with fallbacks to 460800 and 115200, verify (MD5 read back by esptool), reset and hand the
 // port to the serial monitor. Without Web Serial the dialog offers "Download image". runFlash and the
 // helpers are pure enough for Node; the esptool loader is injectable (P.flasher.setLoader) for tests.
 // Install modes (decision D1): "Full install" writes merged.bin at 0x0 (wipes the NVS: touch calibration
 // and Wi-Fi); "Keep settings" writes firmware.bin at app0 (0x10000) and erases otadata (8 KiB 0xFF at
 // 0xE000, so app0 boots even after an OTA into app1). "Automatic" (default) keeps the settings when this
-// browser's board record says this project flashed the connected board (MAC, chip and board profile).
+// browser's board record says this project flashed the connected board (MAC, chip and board profile)
+// and the board's partition table still matches the build's (MD5 read back from flash); a full write
+// first drops the board's records, so a failed or foreign install is never treated as known.
+// Every flash rewrites the cydcc config partition: the device blob when the BUILD has the AuraGo link
+// (its image carries the link's heartbeat path) and the user may mint, else 4 KiB 0xFF, so no stale
+// token of an earlier flash survives. Once writing began, a closed window no longer stops the flash:
+// it finishes, resets the board and frees the port; the board never stays in the flasher stub.
 (function () {
     'use strict';
 
@@ -20,10 +26,17 @@
     const FLASHED_KEY = 'aurago.cydcreator.flashed.v1';
     const BOARDS_KEY = 'aurago.cydcreator.boards.v1';
     const MAX_BOARDS = 32;
-    // Every CYD Creator partition table (internal/cydcreator/partitions.go) shares these offsets.
+    // Every CYD Creator partition table (internal/cydcreator/partitions.go) shares these offsets; the
+    // cydcc config offset depends on the flash size and comes from caps.boards[].config_offset.
     const APP_OFFSET = 0x10000;
     const OTADATA_OFFSET = 0xE000;
     const OTADATA_SIZE = 0x2000;
+    const CONFIG_SIZE = 0x1000;
+    // The ESP-IDF partition table (default offset, 3 KiB area) inside merged.bin and on the board.
+    const PART_TABLE_OFFSET = 0x8000;
+    const PART_TABLE_SIZE = 0xC00;
+    // Only firmware built with CYD_AURAGO_LINK contains the heartbeat path (template cyd_link.cpp).
+    const LINK_MARKER = '/api/cyd-creator/device/heartbeat';
     const MODES = ['auto', 'keep', 'full'];
     const MODE_LABELS = { auto: 'cyd_creator.flash.mode_auto', keep: 'cyd_creator.flash.mode_keep', full: 'cyd_creator.flash.mode_full' };
     const MODE_HINTS = { auto: 'cyd_creator.flash.mode_hint', keep: 'cyd_creator.flash.mode_keep_hint', full: 'cyd_creator.flash.mode_full_hint' };
@@ -110,8 +123,18 @@
         return 'full';
     }
 
+    // configAddress refuses a missing or implausible cydcc offset: a 0 would overwrite the bootloader.
+    function configAddress(value, what) {
+        const n = Number(value);
+        if (!Number.isInteger(n) || n < APP_OFFSET || n % CONFIG_SIZE !== 0) {
+            throw flashError('FLASH_FAILED', what + ' has no valid config partition offset (' + String(value) + ')');
+        }
+        return n;
+    }
+
     // flashFiles returns esptool's fileArray for mode: keep = firmware.bin at app0 + erased otadata,
-    // full = merged.bin at 0x0; the config blob (AuraGo link) follows at its offset in both.
+    // full = merged.bin at 0x0. The config partition follows in both: the blob (AuraGo link) at
+    // blobOffset, else 4 KiB 0xFF at configOffset, so an earlier blob (another project's token) is gone.
     function flashFiles(mode, o) {
         let files;
         if (mode === 'keep') {
@@ -121,8 +144,34 @@
             if (!o.image || !o.image.length) throw flashError('FLASH_FAILED', 'merged.bin is missing');
             files = [{ data: o.image, address: 0 }];
         }
-        if (o.blob) files.push({ data: o.blob, address: o.blobOffset });
+        if (o.blob) files.push({ data: o.blob, address: configAddress(o.blobOffset, 'the device config') });
+        else files.push({ data: new Uint8Array(CONFIG_SIZE).fill(0xff), address: configAddress(o.configOffset, 'the board profile') });
         return files;
+    }
+
+    // hasLink tells whether a firmware image (firmware.bin or merged.bin) was built with the AuraGo link.
+    function hasLink(bytes) {
+        if (!bytes || !bytes.length) return false;
+        const marker = Array.from(LINK_MARKER, ch => ch.charCodeAt(0));
+        const last = bytes.length - marker.length;
+        for (let i = bytes.indexOf(marker[0]); i >= 0 && i <= last; i = bytes.indexOf(marker[0], i + 1)) {
+            let j = 1;
+            while (j < marker.length && bytes[i + j] === marker[j]) j++;
+            if (j === marker.length) return true;
+        }
+        return false;
+    }
+
+    // samePartitionTable compares the board's partition table (MD5 read back by the stub) with the one
+    // in merged.bin; any doubt (short image, read error) counts as different.
+    async function samePartitionTable(loader, merged) {
+        if (!merged || merged.length < PART_TABLE_OFFSET + PART_TABLE_SIZE || typeof loader.flashMd5sum !== 'function') return false;
+        const want = md5Hex(merged.subarray(PART_TABLE_OFFSET, PART_TABLE_OFFSET + PART_TABLE_SIZE));
+        try {
+            return String(await loader.flashMd5sum(PART_TABLE_OFFSET, PART_TABLE_SIZE)).toLowerCase() === want;
+        } catch (_) {
+            return false;
+        }
     }
 
     async function readMac(loader) {
@@ -158,25 +207,30 @@
         return (P.serial && P.serial.classify(err)) || '';
     }
 
-    // runFlash writes the image (and the optional config blob) through esptool. o: {manager, load,
-    // image (merged.bin), app (firmware.bin), mode ('full' default, 'keep', 'auto'), isKnownBoard({mac,
-    // chip}), onMode(mode, {mac}), blob, blobOffset, chip, monitor, aborted(), onProgress(fraction,
-    // phase, info), onLog(line)}. The mode is decided once, on the first connect (the MAC is known
-    // then). It tries every rate of BAUDS before giving up; a wrong chip, a lost board, a busy port or
-    // aborted() (the window closed) end it at once. The flasher holds the port exclusively and releases
-    // it before it returns. Result: {baud, chip, mode, mac}.
+    // runFlash writes the image and the config partition through esptool. o: {manager, load, image
+    // (merged.bin), app (firmware.bin), mode ('full' default, 'keep', 'auto'), isKnownBoard({mac, chip}),
+    // onMode(mode, {mac}) (once, right before the first write), blob, blobOffset, configOffset, chip,
+    // monitor, aborted(), onProgress(fraction, phase, info), onLog(line)}. The mode is decided once, on
+    // the first connect (MAC and partition table are readable then). It tries every rate of BAUDS before
+    // giving up; a wrong chip, a lost board or a busy port end it at once. aborted() (the window closed)
+    // ends it only before the first write: a started write is finished and hard-reset. The flasher holds
+    // the port exclusively and releases it before it returns. Result: {baud, chip, mode, mac, after}; a
+    // failure carries blobWritten (the device blob was transferred, so its token is on the board).
     async function runFlash(o) {
         const esptool = await (o.load || loadEsptool)();
         const lease = await o.manager.acquire('flasher', { revocable: false });
         const progress = (fraction, phase, info) => { if (typeof o.onProgress === 'function') o.onProgress(fraction, phase, info || {}); };
         const log = line => { if (typeof o.onLog === 'function') o.onLog(String(line)); };
-        const checkAbort = () => { if (typeof o.aborted === 'function' && o.aborted()) throw flashError('FLASH_ABORTED', 'the flash was aborted (window closed)'); };
+        const aborted = () => typeof o.aborted === 'function' && !!o.aborted();
         const terminal = { clean() {}, writeLine: log, write: log };
         let files = null;
         let total = 0;
         let chosen = '';
         let mac = '';
+        let writing = false;
+        let blobWritten = false;
         let lastError = null;
+        const checkAbort = () => { if (!writing && aborted()) throw flashError('FLASH_ABORTED', 'the flash was aborted (window closed)'); };
         try {
             for (let baud = BAUDS[0]; baud; baud = nextBaud(baud)) {
                 try {
@@ -197,29 +251,40 @@
                     }
                     if (!files) {
                         mac = await readMac(loader);
-                        const known = !!o.app && typeof o.isKnownBoard === 'function' && !!mac && !!o.isKnownBoard({ mac, chip: chipName });
+                        let known = !!o.app && typeof o.isKnownBoard === 'function' && !!mac && !!o.isKnownBoard({ mac, chip: chipName });
+                        // A record can outlive the layout (a failed full install, another tool): check it.
+                        if (known && o.mode === 'auto' && !(await samePartitionTable(loader, o.image))) {
+                            known = false;
+                            log('The partition table on the board differs from this build: full install.');
+                        }
                         chosen = pickMode(o.mode, known);
                         files = flashFiles(chosen, o);
                         total = files.reduce((sum, f) => sum + f.data.length, 0);
                         log('Install mode: ' + chosen + (mac ? ' (board ' + mac + ')' : ''));
-                        if (typeof o.onMode === 'function') o.onMode(chosen, { mac });
+                        checkAbort();
+                        if (typeof o.onMode === 'function') {
+                            try { o.onMode(chosen, { mac }); } catch (err) { console.error('cyd-creator flash mode callback failed', err); }
+                        }
                     }
+                    checkAbort();
                     progress(0, 'write', { baud });
+                    writing = true;
                     await loader.writeFlash({
                         fileArray: files, flashMode: 'keep', flashFreq: 'keep', flashSize: 'keep', eraseAll: false, compress: true,
                         calculateMD5Hash: md5Hex,
                         reportProgress: (index, written, size) => {
-                            checkAbort();
+                            if (o.blob && files[index] && files[index].data === o.blob && size > 0 && written >= size) blobWritten = true;
                             const before = files.slice(0, index).reduce((sum, f) => sum + f.data.length, 0);
                             const part = size > 0 ? Math.min(1, written / size) : 0;
                             progress((before + part * files[index].data.length) / total, 'write', { baud });
                         }
                     });
-                    checkAbort();
                     progress(1, 'reset', { baud });
-                    await loader.after(o.monitor ? 'no_reset_stub' : 'hard_reset');
+                    // Without the monitor's hand-off (or once the window is gone) esptool resets the board itself.
+                    const after = o.monitor && !aborted() ? 'no_reset_stub' : 'hard_reset';
+                    await loader.after(after);
                     await safeDisconnect(transport);
-                    return { baud, chip: description, mode: chosen, mac };
+                    return { baud, chip: description, mode: chosen, mac, after };
                 } catch (err) {
                     await safeDisconnect(transport);
                     lastError = err;
@@ -231,8 +296,43 @@
             await lease.release();
         }
         const code = codeOf(lastError);
-        if (code) throw (lastError && lastError.code === code) ? lastError : flashError(code, lastError && lastError.message);
-        throw lastError || flashError('FLASH_FAILED', 'flashing failed');
+        const failure = code && !(lastError && lastError.code === code) ? flashError(code, lastError && lastError.message) : (lastError || flashError('FLASH_FAILED', 'flashing failed'));
+        if (failure && typeof failure === 'object') failure.blobWritten = blobWritten;
+        throw failure;
+    }
+
+    // resetBoard restarts the board into its app once through RTS (DTR released) on a short lease.
+    async function resetBoard(manager, onLog) {
+        let lease = null;
+        try {
+            lease = await manager.acquire('flasher', { revocable: false });
+            await lease.open(ROM_BAUD);
+            await lease.setSignals({ dataTerminalReady: false, requestToSend: false });
+            await lease.reset();
+            return true;
+        } catch (err) {
+            if (typeof onLog === 'function') onLog('Restarting the board failed: ' + ((err && err.message) || err));
+            return false;
+        } finally {
+            if (lease) await lease.release();
+        }
+    }
+
+    // handOff ends a flash that stayed in the stub (after: no_reset_stub): the monitor opens the port
+    // and resets the board; when it cannot (no monitor or dock, the window is gone, connect failed) the
+    // board is reset once here. o: {result, aborted(), monitor, dock, manager, onLog}. Returns
+    // 'monitor', 'reset' or '' (nothing to do or the reset failed).
+    async function handOff(o) {
+        if (!o.result || o.result.after !== 'no_reset_stub') return '';
+        if (!o.aborted() && o.monitor && o.dock) {
+            try {
+                o.dock.show('monitor');
+                if (await o.monitor.connect({ reset: true })) return 'monitor';
+            } catch (err) {
+                console.error('cyd-creator monitor hand-off failed', err);
+            }
+        }
+        return (await resetBoard(o.manager, o.onLog)) ? 'reset' : '';
     }
 
     // ── per-viewer memory of the build on the board (backtrace decoding) ──
@@ -261,10 +361,51 @@
         all[projectId] = Object.fromEntries(newest.map(key => [key, boards[key]]));
         writeStore(BOARDS_KEY, all);
     }
+    function boardRecord(projectId, mac) {
+        const key = normalizeMac(mac);
+        const boards = key ? readStore(BOARDS_KEY)[projectId] : null;
+        const entry = boards && typeof boards === 'object' && Object.prototype.hasOwnProperty.call(boards, key) ? boards[key] : null;
+        return entry && typeof entry === 'object' ? entry : null;
+    }
     function knownBoard(projectId, info) {
-        const mac = normalizeMac(info && info.mac);
-        const entry = mac ? (readStore(BOARDS_KEY)[projectId] || {})[mac] : null;
+        const entry = boardRecord(projectId, info && info.mac);
         return !!entry && entry.chip === normalizeChip(info.chip) && entry.chip !== '' && entry.board === String(info.board || '');
+    }
+    // forgetBoard drops the board from every project's records before a full write: until that write
+    // succeeds, nobody may treat the board's bootloader and partition table as known.
+    function forgetBoard(mac) {
+        const key = normalizeMac(mac);
+        if (!key) return;
+        const all = readStore(BOARDS_KEY);
+        let changed = false;
+        Object.keys(all).forEach(projectId => {
+            const boards = all[projectId];
+            if (boards && typeof boards === 'object' && Object.prototype.hasOwnProperty.call(boards, key)) {
+                delete boards[key];
+                changed = true;
+            }
+        });
+        if (changed) writeStore(BOARDS_KEY, all);
+    }
+
+    // prepareWrite runs right before the first write: it returns the device the board's record of this
+    // project names (revoked once the new flash succeeded) and drops the board's records for a full write.
+    function prepareWrite(projectId, mode, mac) {
+        const previous = (boardRecord(projectId, mac) || {}).device || '';
+        if (mode === 'full') forgetBoard(mac);
+        return previous;
+    }
+
+    // recordFlash stores a successful flash (build for backtrace decoding, board record) and revokes the
+    // board's earlier device of this project: its config partition no longer holds that token, and every
+    // link flash mints a new device. o: {projectId, buildId, result, chip, board, device, previousDevice,
+    // revoke(id)}. Returns the revoked device id ('' when none).
+    function recordFlash(o) {
+        rememberFlashed(o.projectId, o.buildId);
+        rememberBoard(o.projectId, { mac: o.result && o.result.mac, chip: o.chip, board: o.board, device: o.device });
+        if (!o.previousDevice || o.previousDevice === o.device || typeof o.revoke !== 'function') return '';
+        Promise.resolve().then(() => o.revoke(o.previousDevice)).catch(() => { /* already gone or offline: the row expires with the project */ });
+        return o.previousDevice;
     }
 
     // ── dialog ──
@@ -288,11 +429,13 @@
         const layout = (inst.layout() || {}).project || {};
         const settings = layout.settings || {};
         const board = ((inst.caps && inst.caps.boards) || []).find(b => b.id === (inst.project && inst.project.board)) || {};
+        // The layout's setting only drives the hint; the flash decides from the build's image.
         const wantsLink = !!settings.aurago_link;
         const ota = () => (inst.caps && inst.caps.ota) || {};
-        // The link needs write access and OTA on; both can change while the dialog is open.
-        const linkAllowed = () => wantsLink && !inst.readonly && ota().enabled !== false;
-        const state = { busy: false, minted: null, done: false };
+        // Minting needs write access and OTA on; both can change while the dialog is open.
+        const mayMint = () => !inst.readonly && ota().enabled !== false;
+        const linkAllowed = () => wantsLink && mayMint();
+        const state = { busy: false, minted: null, done: false, previousDevice: '' };
 
         const buildSelect = el('select', { class: 'cc-select', dataset: { ccFlashBuild: '' }, 'aria-label': t('cyd_creator.flash.build') },
             builds.map((b, i) => el('option', { value: b.id, text: buildLabel(inst, b, i, builds.length) })));
@@ -437,44 +580,55 @@
             setBusy(dialog, true);
             state.minted = null;
             state.done = false;
+            state.previousDevice = '';
             try {
                 // requestPort needs the click's user activation: ask for the port first.
                 setPhase('port', {}, 0);
                 const port = await manager.request();
                 if (aborted()) return;
                 if (!port) { setPhase('cancelled', {}, 0); return; }
+                setPhase('download', {}, 0);
+                const images = await fetchImages(build, mode);
+                if (aborted()) throw flashError('FLASH_ABORTED', 'window closed');
+                // The BUILD decides the link (its image), not the layout as it is now.
+                const buildLink = hasLink(images.app || images.merged);
+                appendLog('AuraGo link in this build: ' + (buildLink ? 'yes' : 'no'));
                 let blob = null;
                 let offset = 0;
-                if (linkAllowed()) {
+                if (buildLink && mayMint()) {
                     setPhase('device', {}, 0);
                     state.minted = await P.api.mintDevice(projectId, build.id);
                     if (aborted()) throw flashError('FLASH_ABORTED', 'window closed');
                     blob = base64Bytes(state.minted.config_blob);
-                    offset = Number(state.minted.config_offset) || 0;
+                    offset = configAddress(state.minted.config_offset, 'the device config');
+                    if (board.config_offset && Number(board.config_offset) !== offset) {
+                        throw flashError('FLASH_FAILED', 'the device config offset ' + offset + ' differs from the board profile (' + board.config_offset + ')');
+                    }
                 }
-                setPhase('download', {}, 0);
-                const images = await fetchImages(build, mode);
-                if (aborted()) throw flashError('FLASH_ABORTED', 'window closed');
                 const result = await runFlash({
-                    manager, image: images.merged, app: images.app, mode, blob, blobOffset: offset, chip: board.chip, monitor: monitorBox.checked,
+                    manager, image: images.merged, app: images.app, mode, blob, blobOffset: offset, configOffset: board.config_offset, chip: board.chip,
+                    // The stub hand-off needs a monitor; handOff below resets the board when it cannot happen.
+                    monitor: monitorBox.checked && !!inst.monitor,
                     isKnownBoard: info => knownBoard(projectId, { mac: info.mac, chip: board.chip, board: board.id }),
-                    onMode: chosen => { if (!aborted()) showChosen(chosen); },
+                    onMode: (chosen, info) => {
+                        state.previousDevice = prepareWrite(projectId, chosen, info.mac);
+                        if (!aborted()) showChosen(chosen);
+                    },
                     aborted,
                     onLog: appendLog,
                     onProgress: (fraction, key, info) => { if (!aborted()) setPhase(key, { baud: info.baud, percent: Math.round(fraction * 100) }, fraction); }
                 });
                 state.done = true;
-                rememberFlashed(projectId, build.id);
-                rememberBoard(projectId, { mac: result.mac, chip: board.chip, board: board.id, device: state.minted && state.minted.device ? state.minted.device.id : '' });
-                if (aborted()) return;
-                setPhase('done', {}, 1);
+                recordFlash({
+                    projectId, buildId: build.id, result, chip: board.chip, board: board.id, previousDevice: state.previousDevice,
+                    device: state.minted && state.minted.device ? state.minted.device.id : '', revoke: id => P.api.revokeDevice(id)
+                });
+                if (!aborted()) setPhase('done', {}, 1);
                 // The dock and the monitor belong to the project view; teardown may have removed them.
-                if (monitorBox.checked && inst.monitor && inst.dock) {
-                    inst.dock.show('monitor');
-                    await inst.monitor.connect({ reset: true });
-                }
+                await handOff({ result, aborted, monitor: inst.monitor, dock: inst.dock, manager, onLog: appendLog });
             } catch (err) {
-                if (!state.done && state.minted && state.minted.device) {
+                // A transferred blob means the board holds the new token: keep that device.
+                if (!state.done && !(err && err.blobWritten) && state.minted && state.minted.device) {
                     P.api.revokeDevice(state.minted.device.id).catch(() => {});
                 }
                 if (aborted()) return;
@@ -533,7 +687,8 @@
 
     P.flasher = {
         open, runFlash, setLoader, loadEsptool, nextBaud, normalizeChip, chipMatches, sha256Hex, verifyImage, md5Hex,
-        lastFlashed, rememberFlashed, rememberBoard, knownBoard, pickMode, flashFiles, base64Bytes, BAUDS, ESPTOOL_URL,
-        APP_OFFSET, OTADATA_OFFSET, OTADATA_SIZE
+        lastFlashed, rememberFlashed, rememberBoard, knownBoard, boardRecord, forgetBoard, prepareWrite, recordFlash, pickMode, flashFiles, hasLink,
+        samePartitionTable, resetBoard, handOff, base64Bytes, BAUDS, ESPTOOL_URL, APP_OFFSET, OTADATA_OFFSET, OTADATA_SIZE,
+        CONFIG_SIZE, PART_TABLE_OFFSET, PART_TABLE_SIZE
     };
 })();
