@@ -125,15 +125,16 @@
             }
             const view = P.render.widget(spec, w, theme, d.inst.assetUrl, renderOpts(w));
             el.appendChild(view);
-            els.set(w.id, el);
-            views.set(w.id, view);
+            // A duplicate id (ID_DUPLICATE issue) maps to the first widget, as M.findWidget does.
+            const first = !els.has(w.id);
+            if (first) { els.set(w.id, el); views.set(w.id, view); }
             if (flashing.has(w.id)) el.classList.add('cc-flash');
             if (spec && spec.container) {
                 const slot = document.createElement('div');
                 slot.className = 'cc-slot';
                 place(slot, M.contentBox(b, spec));
                 el.appendChild(slot);
-                slots.set(w.id, slot);
+                if (first) slots.set(w.id, slot);
                 renderList(w.children || [], slot, theme, w);
             }
             if (parent && parent.type === 'tabview') el.dataset.ccPage = String(w.tab || 0);

@@ -1052,6 +1052,19 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     check('without a screen the stale screen id and background are reset', d.screenId === '' && scr.dataset.ccScreenId === undefined && scr.style.background === '#0F1522' && !scr.kids.length);
     dStore.replace(layout, { resetHistory: false });
 
+    // duplicate ids (an ID_DUPLICATE layout): the canvas maps the id to the first widget, like M.findWidget.
+    const dup = JSON.parse(JSON.stringify(layout));
+    dup.screens[0].widgets.push({ id: 'w_dup', type: 'panel', name: 'pnl_dup', x: 10, y: 150, w: 60, h: 40 }, { id: 'w_dup', type: 'label', name: 'lbl_dup', x: 200, y: 150, w: 60, h: 20 });
+    dStore.replace(dup, { resetHistory: false });
+    const dupEls = all(scr, el => el.dataset.ccWidgetId === 'w_dup');
+    check('two elements render for a duplicate id; the first is the one M.findWidget returns', dupEls.length === 2 && M.findWidget(dStore.get(), 'w_dup').widget.name === 'pnl_dup' && canvas.widgetEl('w_dup') === dupEls[0]);
+    canvas.previewMove(['w_dup'], { x: 5, y: 0 });
+    eq('a move preview of a duplicate id moves the first widget only', [dupEls[0].style.left, dupEls[1].style.left], ['15px', '200px']);
+    const dupView = dupEls[0].kids[0];
+    canvas.previewResize('w_dup', { x: 10, y: 150, w: 80, h: 40 });
+    check('a resize preview of a duplicate id redraws the first widget only', dupEls[0].kids[0] !== dupView && dupEls[0].style.width === '80px' && dupEls[1].style.width === '60px');
+    dStore.replace(layout, { resetHistory: false });
+
     // toolbar focus: a tool that disables itself (or is disabled by a selection change) hands the
     // focus to the canvas, never to the page (the desktop's Delete key deletes a selected file icon).
     d.select(['w_btn']);
