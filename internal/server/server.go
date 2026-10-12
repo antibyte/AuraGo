@@ -349,6 +349,7 @@ type Server struct {
 	uptimeKumaMu          sync.Mutex
 	uptimeKuma            atomic.Pointer[uptimeKumaRuntime]
 	uptimeKumaClosed      bool
+	personAlertSlots      personAlertSlots // send slots of person detection messages, per channel
 }
 
 func (s *Server) accessLogger() *slog.Logger {
