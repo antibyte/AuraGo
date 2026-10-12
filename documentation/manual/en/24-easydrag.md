@@ -91,7 +91,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 
 ## When EasyDrag is switched off
 
-EasyDrag needs *Enable flows* and the missions tool (`tools.missions.enabled`, see [Chapter 11](11-missions.md#prerequisites)). When either is off, the EasyDrag icon disappears the next time the desktop loads its app list. When EasyDrag loads while it is off (a new window, **Try again**, or opening a flow), it shows *EasyDrag is switched off* with **Open settings** and **Try again**. The start page shows the same card, with both buttons, in place of your flows the next time it loads its list; New flow, Import and the templates are then disabled. A flow that is already open stays in the editor, and its next save shows *Offline – retrying* until EasyDrag is on again. Flow missions stay in Mission Control but do not run.
+EasyDrag needs *Enable flows* and the missions tool (`tools.missions.enabled`, see [Chapter 11](11-missions.md#prerequisites)). When either is off, the EasyDrag icon disappears the next time the desktop loads its app list. When EasyDrag loads while it is off (a new window, **Try again**, or opening a flow), it shows *EasyDrag is switched off* with **Open settings** and **Try again**. The start page shows the same card, with both buttons, in place of your flows the next time it loads its list; New flow, Import and the templates are then disabled. A flow that is already open stays in the editor, and its next save shows *Offline – retrying* until EasyDrag is on again. Flow missions stay in Mission Control and keep running until the restart. You can still stop a run that is already going.
 
 ## Keyboard shortcuts
 

@@ -58,6 +58,40 @@ func TestFUReadOnlyDesktopStillCancelsFlowRuns(t *testing.T) {
 	waitFlowRunStatus(t, s, token, runID, "cancelled")
 }
 
+func TestFUDisabledFlowsStillCancelRunningRuns(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	runID := fuStartWaitingRun(t, s, token)
+	s.Cfg.Flows.Enabled = false
+
+	if w := flowsCall(t, s, http.MethodGet, "/api/desktop/flows", token, ""); w.Code != http.StatusServiceUnavailable || flowsBody(t, w)["code"] != "FLOWS_DISABLED" {
+		t.Fatalf("list while flows are disabled = %d %s", w.Code, w.Body.String())
+	}
+	if w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/runs/"+runID+"/cancel", token, ""); w.Code != http.StatusAccepted || flowsBody(t, w)["cancelled"] != true {
+		t.Fatalf("cancel while flows are disabled = %d %s", w.Code, w.Body.String())
+	}
+	s.Cfg.Flows.Enabled = true
+	waitFlowRunStatus(t, s, token, runID, "cancelled")
+
+	svc := s.Flows
+	s.Flows = nil
+	w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/runs/"+runID+"/cancel", token, "")
+	s.Flows = svc
+	if w.Code != http.StatusServiceUnavailable || flowsBody(t, w)["code"] != "FLOWS_DISABLED" {
+		t.Fatalf("cancel without a flow service = %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestFUDisabledFlowsKeepReadOnlyMissionCancelRefusal(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	runID := fuStartWaitingRun(t, s, token)
+	s.Cfg.Flows.Enabled = false
+	s.Cfg.Tools.Missions.ReadOnly = true
+	w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/runs/"+runID+"/cancel", token, "")
+	if w.Code != http.StatusForbidden || flowsBody(t, w)["code"] != "FLOW_PERMISSION_DENIED" {
+		t.Fatalf("cancel while disabled and missions are read-only = %d %s", w.Code, w.Body.String())
+	}
+}
+
 func TestFUReadOnlyMissionsRefuseFlowRunCancel(t *testing.T) {
 	s, token := newFlowsTestServer(t)
 	runID := fuStartWaitingRun(t, s, token)

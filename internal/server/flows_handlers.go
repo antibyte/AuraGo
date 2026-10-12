@@ -377,7 +377,11 @@ func (s *Server) handleFlows(w http.ResponseWriter, r *http.Request) {
 		flowsError(w, http.StatusForbidden, "FLOW_PERMISSION_DENIED", "same-origin request required")
 		return
 	}
-	if !s.flowsAvailable() {
+	// flowsAvailable is the app and API lock. A run cancel stops work that published
+	// triggers can still start until restart, so it passes this lock while the service
+	// exists. It stays FLOWS_DISABLED when the service was never created. Read-only
+	// missions still refuse it below.
+	if !s.flowsAvailable() && !(s.Flows != nil && flowsIsRunCancel(r.Method, parts)) {
 		flowsError(w, http.StatusServiceUnavailable, "FLOWS_DISABLED", "EasyDrag flows are disabled")
 		return
 	}
