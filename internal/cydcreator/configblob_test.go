@@ -3,6 +3,7 @@ package cydcreator
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -178,6 +179,74 @@ func TestEncodeDeviceConfigRejects(t *testing.T) {
 			t.Errorf("%s: err = %q, want it to mention %q", name, err, tc.want)
 		}
 	}
+}
+
+// TestValidateDeviceURLIsTheConfigBlobRule pins that the device URL check of
+// MintDevice and the HTTP layer is exactly the rule the cydcc blob enforces:
+// same verdict, same problem text, plus the field and the public_url hint.
+func TestValidateDeviceURLIsTheConfigBlobRule(t *testing.T) {
+	pin := strings.Repeat("ab", 32)
+	cases := []struct{ url, cert, reason string }{
+		{"https://aurago.lan:8443/base", pin, ""},
+		{"http://192.168.1.10:8088", "", ""},
+		{"http://x.example:1", "", ""},
+		{"http://x.example:65535", "", ""},
+		{"http://aurago.lan:8088/a&b", "", ""},
+		{"", "", "device_url"},
+		{"ftp://x.example", "", "device_url"},
+		{"ftp://x.example", pin, "device_url"}, // the URL is checked before the pin
+		{"/api", "", "device_url"},
+		{"HTTPS://x.example", pin, "device_url"},
+		{"https:///base", pin, "device_url"},
+		{`https://x.example/"`, pin, "device_url"},
+		{"https://x.example/a b", pin, "device_url"},
+		{"https://x.example/ä", pin, "device_url"},
+		{"https://x.example/?", pin, "device_url"},
+		{"https://x.example/#f", pin, "device_url"},
+		{"https://@x.example", pin, "device_url"},
+		{"https://[::1]:8443", pin, "device_url"},
+		{"http://[fd00::5]:8088", "", "device_url"},
+		{"https://x.example:0", pin, "device_url"},
+		{"https://x.example:65536", pin, "device_url"},
+		{"http://x.example:", "", "device_url"},
+		{"http://:80", "", "device_url"},
+		{"https://x.example", "", "cert_sha256"},
+		{"https://x.example", "abcd", "cert_sha256"},
+		{"https://x.example", strings.Repeat("AB", 32), "cert_sha256"},
+		{"http://x.example", pin, "cert_sha256"},
+	}
+	for _, tc := range cases {
+		err := ValidateDeviceURL(tc.url, tc.cert)
+		_, blobErr := EncodeDeviceConfig(DeviceConfig{URL: tc.url, DeviceID: "ccd_1", Token: "t", CertSHA256: tc.cert})
+		if (err == nil) != (blobErr == nil) {
+			t.Errorf("%q/%q: ValidateDeviceURL = %v, EncodeDeviceConfig = %v: the rules differ", tc.url, tc.cert, err, blobErr)
+			continue
+		}
+		if tc.reason == "" {
+			if err != nil {
+				t.Errorf("%q/%q rejected: %v", tc.url, tc.cert, err)
+			}
+			continue
+		}
+		var typed, blobTyped *Error
+		if !errors.As(err, &typed) || typed.Code != CodeBadRequest || typed.Details["reason"] != tc.reason ||
+			typed.Details["hint"] != "cyd_creator.ota.public_url" {
+			t.Errorf("%q/%q: err = %v (details %v), want CYD_BAD_REQUEST reason %s with the public_url hint",
+				tc.url, tc.cert, err, detailsOf(typed), tc.reason)
+			continue
+		}
+		if !errors.As(blobErr, &blobTyped) ||
+			strings.TrimPrefix(typed.Message, "device URL: ") != strings.TrimPrefix(blobTyped.Message, "device config: ") {
+			t.Errorf("%q/%q: problem %q, the blob says %v", tc.url, tc.cert, typed.Message, blobErr)
+		}
+	}
+}
+
+func detailsOf(e *Error) map[string]any {
+	if e == nil {
+		return nil
+	}
+	return e.Details
 }
 
 // blobWithPayload returns a valid cydcc blob header around an arbitrary payload.

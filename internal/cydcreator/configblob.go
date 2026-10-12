@@ -65,42 +65,12 @@ var (
 	configCertPattern  = regexp.MustCompile(`^[0-9a-f]{64}$`)
 )
 
-// validate is the single gate for the encoder and the decoder. The firmware
-// builds request URLs by string joining, checks the literal prefix "https://",
-// splits host and port with lastIndexOf(':') and casts the port to uint16, so a
-// URL is only accepted when it is plain ASCII, has no credentials, query or
-// fragment, no IPv6 literal and a port in 1..65535.
+// validate is the single gate for the encoder and the decoder. The URL and
+// pin checks are deviceURLProblem and deviceCertProblem, which
+// ValidateDeviceURL shares, so a device URL accepted anywhere always encodes.
 func (c DeviceConfig) validate() error {
-	https := strings.HasPrefix(c.URL, "https://")
-	if !https && !strings.HasPrefix(c.URL, "http://") {
-		return configError("url must start with http:// or https://")
-	}
-	for i := 0; i < len(c.URL); i++ {
-		if b := c.URL[i]; b < 0x21 || b > 0x7E || b == '"' || b == '\\' {
-			return configError("url must be printable ASCII without quotes or backslashes")
-		}
-	}
-	u, err := url.Parse(c.URL)
-	if err != nil || u.Host == "" {
-		return configError("url must be an absolute http(s) URL with a host")
-	}
-	if u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Opaque != "" ||
-		u.ForceQuery || strings.ContainsAny(c.URL, "?#") {
-		return configError("url must not contain credentials, a query or a fragment")
-	}
-	if strings.HasPrefix(u.Host, "[") {
-		return configError("url must not use an IPv6 literal host")
-	}
-	if u.Hostname() == "" { // "http://:80": url.Parse accepts it, the device cannot connect to it
-		return configError("url must have a host name")
-	}
-	if strings.HasSuffix(u.Host, ":") {
-		return configError("url port must be 1..65535")
-	}
-	if port := u.Port(); port != "" {
-		if n, err := strconv.Atoi(port); err != nil || n < 1 || n > 65535 {
-			return configError("url port must be 1..65535")
-		}
+	if problem := deviceURLProblem(c.URL); problem != "" {
+		return configError(problem)
 	}
 	if !validElementID(c.DeviceID) {
 		return configError("device_id is invalid")
@@ -108,16 +78,90 @@ func (c DeviceConfig) validate() error {
 	if !configTokenPattern.MatchString(c.Token) {
 		return configError("token is empty or contains characters outside [A-Za-z0-9._~+/=-]")
 	}
-	if c.CertSHA256 != "" && !configCertPattern.MatchString(c.CertSHA256) {
-		return configError("cert_sha256 must be empty or 64 lowercase hex characters")
-	}
-	if https && c.CertSHA256 == "" {
-		return configError("an https URL needs cert_sha256")
-	}
-	if !https && c.CertSHA256 != "" {
-		return configError("cert_sha256 must be empty for an http:// URL")
+	if problem := deviceCertProblem(c.URL, c.CertSHA256); problem != "" {
+		return configError(problem)
 	}
 	return nil
+}
+
+// deviceURLProblem returns why rawURL cannot be a device's base URL, or "".
+// The firmware builds request URLs by string joining, checks the literal
+// prefix "https://", splits host and port with lastIndexOf(':') and casts the
+// port to uint16, so a URL is only accepted when it is plain ASCII, has no
+// credentials, query or fragment, no IPv6 literal and a port in 1..65535.
+func deviceURLProblem(rawURL string) string {
+	if !strings.HasPrefix(rawURL, "https://") && !strings.HasPrefix(rawURL, "http://") {
+		return "url must start with http:// or https://"
+	}
+	for i := 0; i < len(rawURL); i++ {
+		if b := rawURL[i]; b < 0x21 || b > 0x7E || b == '"' || b == '\\' {
+			return "url must be printable ASCII without quotes or backslashes"
+		}
+	}
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Host == "" {
+		return "url must be an absolute http(s) URL with a host"
+	}
+	if u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Opaque != "" ||
+		u.ForceQuery || strings.ContainsAny(rawURL, "?#") {
+		return "url must not contain credentials, a query or a fragment"
+	}
+	if strings.HasPrefix(u.Host, "[") {
+		return "url must not use an IPv6 literal host"
+	}
+	if u.Hostname() == "" { // "http://:80": url.Parse accepts it, the device cannot connect to it
+		return "url must have a host name"
+	}
+	if strings.HasSuffix(u.Host, ":") {
+		return "url port must be 1..65535"
+	}
+	if port := u.Port(); port != "" {
+		if n, err := strconv.Atoi(port); err != nil || n < 1 || n > 65535 {
+			return "url port must be 1..65535"
+		}
+	}
+	return ""
+}
+
+// deviceCertProblem returns why certSHA256 cannot be the pin of a device
+// using rawURL, or "": https needs the lowercase hex SHA-256 of the DER leaf
+// certificate, http must not carry one.
+func deviceCertProblem(rawURL, certSHA256 string) string {
+	https := strings.HasPrefix(rawURL, "https://")
+	if certSHA256 != "" && !configCertPattern.MatchString(certSHA256) {
+		return "cert_sha256 must be empty or 64 lowercase hex characters"
+	}
+	if https && certSHA256 == "" {
+		return "an https URL needs cert_sha256"
+	}
+	if !https && certSHA256 != "" {
+		return "cert_sha256 must be empty for an http:// URL"
+	}
+	return ""
+}
+
+// deviceURLHint names the setting that fixes a device URL AuraGo derived but a
+// device cannot use (for example an IPv6 address or a wildcard bind).
+const deviceURLHint = "cyd_creator.ota.public_url"
+
+// ValidateDeviceURL checks the base URL a device is flashed with and its
+// certificate pin by exactly the rule the cydcc blob enforces
+// (DeviceConfig.validate shares both checks), so minting never fails later
+// inside EncodeDeviceConfig. A violation is CYD_BAD_REQUEST with
+// details.reason "device_url" or "cert_sha256" and details.hint
+// "cyd_creator.ota.public_url".
+func ValidateDeviceURL(rawURL, certSHA256 string) error {
+	if problem := deviceURLProblem(rawURL); problem != "" {
+		return deviceURLError("device_url", problem)
+	}
+	if problem := deviceCertProblem(rawURL, certSHA256); problem != "" {
+		return deviceURLError("cert_sha256", problem)
+	}
+	return nil
+}
+
+func deviceURLError(reason, problem string) *Error {
+	return NewError(CodeBadRequest, "device URL: "+problem, map[string]any{"reason": reason, "hint": deviceURLHint})
 }
 
 func configError(reason string) *Error {
