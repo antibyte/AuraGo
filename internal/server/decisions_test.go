@@ -39,7 +39,8 @@ type fakeDecisions struct {
 }
 
 // decisionsStartGate blocks the first Start after publishing a transitional
-// status. Later Start calls return lifecycle_busy. Status stays readable.
+// status. A later Start returns nil and leaves that status alone, so a second
+// HTTP handler that observed it would answer 202. Status stays readable.
 type decisionsStartGate struct {
 	mu      sync.Mutex
 	release chan struct{}
@@ -107,7 +108,7 @@ func (f *fakeDecisions) Start(context.Context) error {
 		return nil
 	}
 	f.startGate.mu.Unlock()
-	return decisions.NewError(decisions.CodeLifecycleBusy, nil)
+	return nil
 }
 func (f *fakeDecisions) Stop(context.Context) error     { return nil }
 func (f *fakeDecisions) Shutdown(context.Context) error { return nil }
@@ -140,15 +141,22 @@ func TestDecisionsStartRejectsASecondStart(t *testing.T) {
 	})
 	mux := http.NewServeMux()
 	registerDecisionsRoutes(mux, s)
-	post := func() *httptest.ResponseRecorder {
-		r := httptest.NewRequest(http.MethodPost, "http://localhost/api/decisions/start", nil)
+	post := func(action string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(http.MethodPost, "http://localhost/api/decisions/"+action, nil)
 		r.Header.Set("Origin", "http://localhost")
 		w := httptest.NewRecorder()
 		mux.ServeHTTP(w, r)
 		return w
 	}
 	firstDone := make(chan *httptest.ResponseRecorder, 1)
-	go func() { firstDone <- post() }()
+	go func() { firstDone <- post("start") }()
+	deadline := time.Now().Add(2 * time.Second)
+	for fake.Status().State != "starting" {
+		if time.Now().After(deadline) {
+			t.Fatal("first start did not publish a transitional state")
+		}
+		time.Sleep(time.Millisecond)
+	}
 	var first *httptest.ResponseRecorder
 	select {
 	case first = <-firstDone:
@@ -158,16 +166,29 @@ func TestDecisionsStartRejectsASecondStart(t *testing.T) {
 	if first.Code != http.StatusAccepted || strings.TrimSpace(first.Body.String()) != `{"status":"accepted"}` {
 		t.Fatalf("first start = %d %s", first.Code, first.Body.String())
 	}
-	second := post()
-	if second.Code != http.StatusConflict {
-		t.Fatalf("second start = %d %s, want 409", second.Code, second.Body.String())
+	if fake.Status().State != "starting" {
+		t.Fatalf("status before the second start = %q, want starting", fake.Status().State)
 	}
-	var body map[string]string
-	if err := json.Unmarshal(second.Body.Bytes(), &body); err != nil {
-		t.Fatal(err)
+	// The first Start is still blocked and the status a poll would accept is
+	// already visible. A second handler must not turn that into 202.
+	for _, action := range []string{"start", "install"} {
+		second := post(action)
+		if second.Code != http.StatusConflict {
+			t.Fatalf("second %s = %d %s, want 409", action, second.Code, second.Body.String())
+		}
+		var body map[string]string
+		if err := json.Unmarshal(second.Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		if body["code"] != decisions.CodeLifecycleBusy {
+			t.Fatalf("second %s code = %q, want lifecycle_busy", action, body["code"])
+		}
 	}
-	if body["code"] != decisions.CodeLifecycleBusy {
-		t.Fatalf("second start code = %q, want lifecycle_busy", body["code"])
+	fake.startGate.mu.Lock()
+	calls := fake.startGate.calls
+	fake.startGate.mu.Unlock()
+	if calls != 1 {
+		t.Fatalf("admission lock started %d Start calls, want 1", calls)
 	}
 }
 

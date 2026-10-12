@@ -17,7 +17,9 @@ Server-owned HTTP and cross-component integration contracts.
   Session mutations require an exact same-origin Origin; validated admin bearer
   tokens use the existing scope boundary. Bound request bodies, preserve context
   cancellation, and expose stable error codes rather than process output or
-  paths. Install/start may outlive the request, never the server.
+  paths. Install/start may outlive the request, never the server. One HTTP
+  install or start is admitted at a time; another returns `lifecycle_busy`
+  without starting a second operation.
 - `decisions_media.go` resolves registered media or existing authorized outgoing
   attachment paths to rooted regular-file handles. Never accept caller URLs as
   download authority. Enforce eight images, 12 MiB each, 24 MiB total, and 32

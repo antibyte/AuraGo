@@ -55,12 +55,18 @@ func handleDecisions(s *Server, action string) http.HandlerFunc {
 				writeDecisionsError(w, "service_disabled", http.StatusConflict)
 				return
 			}
+			// One HTTP install or start is admitted. A second request must not
+			// treat the first call's transitional status as its own acceptance.
+			if !s.decisionsHTTPAdmission.TryLock() {
+				writeDecisionsError(w, decisions.CodeLifecycleBusy, http.StatusConflict)
+				return
+			}
 			// Installation and model loading outlive the HTTP request, but never the server.
 			// Answer only after a transitional state is visible, or with the
-			// operation's own error if that arrives first. A sibling's busy
-			// status must not hide lifecycle_busy from this call.
+			// operation's own error if that arrives first.
 			errCh := make(chan error, 1)
 			go func() {
+				defer s.decisionsHTTPAdmission.Unlock()
 				ctx, cancel := context.WithTimeout(localLLMLifecycleContext(s), 6*time.Hour)
 				defer cancel()
 				var err error

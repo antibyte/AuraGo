@@ -197,6 +197,7 @@ type Server struct {
 	RuView                    *ruview.Manager
 	LocalLLM                  *localllm.Manager
 	Decisions                 decisionsService
+	decisionsHTTPAdmission    sync.Mutex // one HTTP install or start; not the manager lifecycle mutex
 	LocalMusic                *acestep.Manager
 	LocalWiki                 *localwiki.Manager
 	localWikiSyncMu           sync.Mutex // one step from reading the config snapshot to configuring LocalWiki
