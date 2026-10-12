@@ -10,7 +10,10 @@
 // keys forwarded to a palette drag, disabled by the designer's lock signal), and the inspector with
 // the real designer there (field edits checked like validate.go, refused entries kept across issue
 // lists and store changes, focus and caret across re-renders, events and hooks, uploads through a
-// stubbed inst.uploadAsset that replaces the store, disabled while locked). Capabilities come from
+// stubbed inst.uploadAsset that replaces the store, disabled while locked), and the screens panel
+// with the real designer and interaction module there (screen list ops, inline rename, the Wi-Fi
+// system entry, screen settings, the layer list with its keys, focus kept across store changes,
+// disabled by the lock signal). Capabilities come from
 // ui/testdata/cyd_creator_designer_caps.json (kept equal to internal/cydcreator by
 // TestCYDCreatorDesignerCapsFixtureMatchesCatalog). P.util comes from the real cyd-creator-core.js
 // (plan 4a), which runs in Node and loads first.
@@ -565,6 +568,7 @@ class El {
     contains(n) { for (let x = n; x; x = x.parent) if (x === this) return true; return false; }
     getAttribute(k) { return Object.prototype.hasOwnProperty.call(this.attrs, k) ? this.attrs[k] : null; }
     setSelectionRange(start, end) { this.selectionStart = start; this.selectionEnd = end; }
+    select() { this.setSelectionRange(0, String(this.value == null ? '' : this.value).length); }
     querySelectorAll(sel) {
         const out = [];
         const visit = n => n.kids.forEach(k => { if (k.tagName !== '#TEXT' && k.matches(sel)) out.push(k); visit(k); });
@@ -1627,6 +1631,284 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     designer.dispose();
     d.bus.emit('lock');
     check('dispose removes the inspector', !host.kids.length && d.previewTheme === '');
+}
+
+// ── screens panel and layers (cyd-creator-screens.js) through the real designer and interact ──
+// Screen list (open, add, inline rename with refused names, duplicate, delete through inst.confirm,
+// reorder, start marker, issue count), the Wi-Fi system entry, settings of the active screen, the
+// layer list (order, depth, flags, roving tab stop, list keys before interact's keys), the keys the
+// desktop acts on, one render per change, the focus kept across store changes and the lock signal.
+{
+    const screensFile = path.join(apps, 'cyd-creator-screens.js');
+    vm.runInContext(fs.readFileSync(screensFile, 'utf8'), sandbox, { filename: screensFile });
+    const timers = new Map();
+    let timerSeq = 0;
+    sandbox.setTimeout = fn => { timers.set(++timerSeq, fn); return timerSeq; };
+    sandbox.clearTimeout = id => { timers.delete(id); };
+    const runTimers = () => Array.from(timers.entries()).forEach(([id, fn]) => { timers.delete(id); fn(); });
+    const settle = () => new Promise(resolve => setTimeout(resolve, 0));
+    const realCanvas = P.designerCanvas;
+    const croot = new El('div');
+    const viewport = croot.appendChild(new El('div'));
+    viewport.getBoundingClientRect = () => ({ left: 0, top: 0, right: 600, bottom: 400 });
+    const said = [];
+    P.designerCanvas = { mount: () => ({
+        root: croot, viewport, render() {}, fit() {}, dispose() {}, previewMove() {}, previewResize() {},
+        showGuides() {}, showMarquee() {}, showDrop() {}, announce(text) { said.push(text); },
+        hostRect: () => ({ left: 0, top: 0, right: 320, bottom: 240 }), clientToWorld: (x, y) => ({ x, y })
+    }) };
+    const layout = project();
+    const home = layout.screens[0];
+    home.widgets.find(w => w.id === 'w_tabs').children.push({ id: 'w_tk', type: 'label', name: 'lbl_tk', x: 0, y: 0, w: 40, h: 20, tab: 1 });
+    home.widgets.push({ id: 'w_hid', type: 'label', name: 'lbl_hid', x: 0, y: 0, w: 10, h: 10, hidden: true, locked: true });
+    const sStore = M.createStore(layout, { coalesceMs: 1200 });
+    const origins = [];
+    sStore.subscribe((p, info) => origins.push(info.origin));
+    const shellBus = P.createBus();
+    let jobLock = false;
+    let answer = false;
+    const asked = [];
+    const notes = [];
+    const inst = {
+        t: P.i18n(null), caps, readonly: false, isLocked: () => jobLock, layoutStore: sStore, bus: shellBus, assetUrl: id => '/a/' + id,
+        notify: (kind, text) => notes.push(kind + ': ' + text),
+        confirm: async spec => { asked.push(spec); return typeof answer === 'function' ? answer() : answer; }
+    };
+    sandbox.window.I18N = { 'cyd_creator.designer.screens_title': 'Bildschirme' };
+    const designer = P.designer.create(inst);
+    const d = designer.state;
+    designer.mountCanvas(new El('div'));
+    const host = new El('div');
+    fakeDoc.activeElement = null;
+    designer.mountScreens(host);
+    const scr = host.kids[0];
+    let renders = 0;
+    const replaceRoot = scr.replaceChildren;
+    scr.replaceChildren = function (...nodes) { renders++; return replaceRoot.apply(this, nodes); };
+    const all = (el, pred, out = []) => { if (pred(el)) out.push(el); el.kids.forEach(k => all(k, pred, out)); return out; };
+    const textOf = el => (el.text !== undefined ? el.text : el.kids.map(textOf).join(''));
+    const byKey = key => all(scr, el => el.attrs['data-cc-focus'] === key)[0];
+    const rows = () => all(scr, el => el.dataset.ccScreenId !== undefined);
+    const rowOf = id => rows().find(el => el.dataset.ccScreenId === id);
+    const renameInput = () => all(scr, el => el.dataset.ccRename !== undefined)[0];
+    const layerSel = () => all(scr, el => el.dataset.ccLayerId !== undefined);
+    const layer = id => layerSel().find(el => el.dataset.ccLayerId === id);
+    const tabStops = () => layerSel().filter(el => el.attrs.tabindex === '0').map(el => el.dataset.ccLayerId);
+    const screenIds = () => sStore.get().screens.map(s => s.id);
+    const screenOf = id => sStore.get().screens.find(s => s.id === id);
+    const type = (el, value) => { el.value = value; fire(el, 'input', {}); return el; };
+    const key = (el, k, mods) => fire(el, 'keydown', Object.assign({ key: k }, mods));
+    const used = ev => ev.defaultPrevented && ev.stopped;
+    const tools = () => all(scr, el => !!el.attrs['data-cc-cmd'] && el.attrs['data-cc-cmd'] !== 'screen-open');
+
+    // structure: screens in order with the system entry, start marker, active entry, names, issue counts
+    eq('screen rows in layout order, then the Wi-Fi system entry (Wi-Fi is not off)', rows().map(el => el.dataset.ccScreenId), ['s_home', 's_two', d.SYSTEM_WIFI]);
+    check('only the start screen carries the start marker', all(rowOf('s_home'), el => el.attrs.class === 'cc-start').length === 1 && all(rowOf('s_two'), el => el.attrs.class === 'cc-start').length === 0);
+    eq('the active screen\'s entry is aria-current', [byKey('open:s_home').attrs['aria-current'], byKey('open:s_two').attrs['aria-current']], ['true', undefined]);
+    check('translated headings and English fallbacks', textOf(scr).includes('Bildschirme') && byKey('screen-add').attrs['aria-label'] === 'Add screen' && textOf(scr).includes('Layers'));
+    shellBus.emit('layout:issues', [{ code: 'SCREEN_NAME_INVALID', severity: 'error', screen: 's_two', message: 'x' }, { code: 'NAME_INVALID', severity: 'error', widget: 'w_btn', message: 'bad name' }]);
+    eq('a screen\'s issue count shows on its entry', all(rowOf('s_two'), el => el.attrs.class === 'cc-count is-error').map(textOf), ['1']);
+    check('a widget issue marks its layer with the issue text', all(layer('w_btn').parent, el => el.attrs.class === 'cc-issue-mark is-error' && el.attrs.title === 'bad name').length === 1);
+
+    // layers: front-most first, nested by depth, states in the accessible name, one tab stop
+    eq('layers list front-most first, children after their container', layerSel().map(el => el.dataset.ccLayerId), ['w_hid', 'w_tabs', 'w_tk', 'w_pnl', 'w_lbl', 'w_btn']);
+    eq('… indented by depth', layerSel().map(el => el.parent.style['--cc-depth']), ['0', '0', '1', '0', '1', '0']);
+    eq('the accessible name holds name, type and state', [layer('w_hid').attrs['aria-label'], layer('w_tk').attrs['aria-label']], ['lbl_hid, label, locked, hidden', 'lbl_tk, label, tab 2']);
+    eq('one tab stop: the first layer while nothing is selected', tabStops(), ['w_hid']);
+    let before = renders;
+    fire(all(layer('w_lbl'), el => el.attrs.class === 'cc-layer-name')[0], 'click', {});
+    check('a click on a layer (also on its text) selects the widget and renders once', d.selection.join() === 'w_lbl' && renders === before + 1);
+    check('… marks it pressed and makes it the tab stop', layer('w_lbl').attrs['aria-pressed'] === 'true' && layer('w_lbl').parent.attrs.class.includes('is-selected') && tabStops().join() === 'w_lbl');
+    fire(layer('w_btn'), 'click', { shiftKey: true });
+    eq('Shift+click adds to the selection', d.selection, ['w_lbl', 'w_btn']);
+
+    // layer flags keep the focus on the flag
+    byKey('layer-lock:w_btn').focus();
+    fire(byKey('layer-lock:w_btn'), 'click', {});
+    check('the lock flag locks the widget and keeps the focus on the (new) flag', M.findWidget(sStore.get(), 'w_btn').widget.locked === true && fakeDoc.activeElement === byKey('layer-lock:w_btn') && byKey('layer-lock:w_btn').attrs['aria-pressed'] === 'true');
+    fire(byKey('layer-lock:w_btn'), 'click', {});
+    fire(byKey('layer-hide:w_btn'), 'click', {});
+    check('the hide flag hides it; unlock worked', M.findWidget(sStore.get(), 'w_btn').widget.hidden === true && !M.findWidget(sStore.get(), 'w_btn').widget.locked && layer('w_btn').parent.attrs.class.includes('is-hidden'));
+    fire(byKey('layer-hide:w_btn'), 'click', {});
+
+    // layer keys: the list keys move the focus (they win over nudging), the others go to interact
+    d.select(['w_btn']);
+    layer('w_hid').focus();
+    const down = key(layer('w_hid'), 'ArrowDown');
+    check('ArrowDown moves the focus to the next layer and makes it the tab stop', down.defaultPrevented && fakeDoc.activeElement === layer('w_tabs') && tabStops().join() === 'w_tabs');
+    key(layer('w_tabs'), 'End');
+    check('End goes to the last layer', fakeDoc.activeElement === layer('w_btn'));
+    key(layer('w_btn'), 'Home');
+    key(layer('w_hid'), 'ArrowUp', { shiftKey: true });
+    check('Home goes to the first; (Shift+)ArrowUp at the top stays there', fakeDoc.activeElement === layer('w_hid') && tabStops().join() === 'w_hid');
+    eq('list keys nudge nothing', M.findWidget(sStore.get(), 'w_btn').widget.x, 10);
+    layer('w_btn').focus();
+    check('ArrowRight on a layer goes to interact and nudges the selection', used(key(layer('w_btn'), 'ArrowRight')) && M.findWidget(sStore.get(), 'w_btn').widget.x === 11);
+    const enter = key(layer('w_btn'), 'Enter');
+    const f2 = key(layer('w_btn'), 'F2');
+    eq('Enter (native click) and F2 on a layer stop at the panel without being prevented', [enter.stopped, enter.defaultPrevented, f2.stopped, f2.defaultPrevented], [true, false, true, false]);
+    check('Ctrl+S on a layer bubbles on to the shell', !key(layer('w_btn'), 's', { ctrlKey: true }).stopped);
+    check('Delete on a layer is used by interact', used(key(layer('w_btn'), 'Delete')) && !M.findWidget(sStore.get(), 'w_btn'));
+    check('… and the focus moves to the layer tab stop, not the page', fakeDoc.activeElement === layer('w_hid') && tabStops().join() === 'w_hid');
+    check('Ctrl+Z on a layer is used and brings the widget back', used(key(layer('w_hid'), 'z', { ctrlKey: true })) && !!M.findWidget(sStore.get(), 'w_btn'));
+    d.select([]);
+
+    // inline rename: Enter commits, refused names stay with the reason, Escape cancels, blur commits
+    fire(byKey('screen-rename:s_home'), 'click', {});
+    const ri = renameInput();
+    check('the rename tool opens the field with the name selected and focused', !!ri && ri.value === 'home' && fakeDoc.activeElement === ri && ri.selectionStart === 0 && ri.selectionEnd === 4);
+    type(renameInput(), 'Main Screen');
+    const bad = key(renameInput(), 'Enter');
+    check('an invalid name is refused with the reason; the field keeps entry and focus', screenOf('s_home').name === 'home' && renameInput().value === 'Main Screen' && renameInput().attrs['aria-invalid'] === 'true' && fakeDoc.activeElement === renameInput() && textOf(all(scr, el => el.attrs.role === 'alert')[0]).startsWith('Screen names use'));
+    eq('… Enter stops at the panel (the desktop would open its selected icon)', [bad.stopped, bad.defaultPrevented], [true, true]);
+    type(renameInput(), 'details');
+    key(renameInput(), 'Enter');
+    check('a duplicate screen name is refused', screenOf('s_home').name === 'home' && textOf(all(scr, el => el.attrs.role === 'alert')[0]) === 'Another screen already uses this name.');
+    type(renameInput(), ' main ');
+    key(renameInput(), 'Enter');
+    check('a valid name is stored trimmed; the focus returns to the screen\'s entry', screenOf('s_home').name === 'main' && !renameInput() && fakeDoc.activeElement === byKey('open:s_home'));
+    const f2open = key(byKey('open:s_home'), 'F2');
+    check('F2 on a screen entry renames it and stops at the panel', used(f2open) && !!renameInput() && fakeDoc.activeElement === renameInput());
+    type(renameInput(), 'zzz');
+    const esc = key(renameInput(), 'Escape');
+    check('Escape cancels the rename, stops there and refocuses the entry', used(esc) && screenOf('s_home').name === 'main' && !renameInput() && fakeDoc.activeElement === byKey('open:s_home'));
+    fire(byKey('screen-rename:s_home'), 'click', {});
+    type(renameInput(), 'kept');
+    fire(renameInput(), 'focusout', {});
+    shellBus.emit('layout:issues', []);
+    runTimers();
+    check('a re-render keeps the rename (entry, focus) and its blur commits nothing', !!renameInput() && renameInput().value === 'kept' && fakeDoc.activeElement === renameInput() && screenOf('s_home').name === 'main');
+    const remote = JSON.parse(JSON.stringify(sStore.get()));
+    remote.screens[1].title = 'Remote';
+    sStore.replace(remote, { resetHistory: false });
+    check('a remote store change keeps the rename entry and its focus', !!renameInput() && renameInput().value === 'kept' && fakeDoc.activeElement === renameInput());
+    croot.focus();
+    fire(renameInput(), 'focusout', {});
+    runTimers();
+    check('a blur commits the name and leaves the focus where the user put it', screenOf('s_home').name === 'kept' && !renameInput() && fakeDoc.activeElement === croot);
+    fire(byKey('screen-rename:s_home'), 'click', {});
+    type(renameInput(), '9x');
+    croot.focus();
+    fire(renameInput(), 'focusout', {});
+    runTimers();
+    check('a blur with an invalid name keeps the field with the reason without taking the focus back', !!renameInput() && renameInput().attrs['aria-invalid'] === 'true' && fakeDoc.activeElement === croot && screenOf('s_home').name === 'kept');
+    key(renameInput(), 'Escape');
+
+    // add, duplicate, reorder, start screen
+    fire(byKey('screen-add'), 'click', {});
+    const added = sStore.get().screens[2];
+    check('add appends a proposed name, opens it and announces it', !!added && added.name === 'screen_1' && d.screenId === added.id && said[said.length - 1] === 'Screen added');
+    before = renders;
+    d.setScreen('s_home');
+    check('a screen switch renders once (screen, then an unchanged selection)', renders === before + 1 && byKey('open:s_home').attrs['aria-current'] === 'true');
+    const n0 = screenIds().length;
+    fire(byKey('screen-duplicate:s_home'), 'click', {});
+    const copy = sStore.get().screens[1];
+    const origIds = []; const origNames = []; M.walk({ screens: [screenOf('s_home')] }, w => { origIds.push(w.id); origNames.push(w.name); });
+    const copyIds = []; const copyNames = []; M.walk({ screens: [copy] }, w => { copyIds.push(w.id); copyNames.push(w.name); });
+    check('duplicate inserts the copy right after the original and opens it', screenIds().length === n0 + 1 && copy.name === 'kept_1' && d.screenId === copy.id && copy.title === 'Start');
+    check('… with fresh widget ids and names', copyIds.length === origIds.length && copyIds.every(id => !origIds.includes(id)) && copyNames.every(n => !origNames.includes(n)));
+    sStore.undo();
+    check('… as one undo step', screenIds().length === n0 && d.screenId === 's_home');
+    byKey('open:s_home').focus();
+    const altDown = key(byKey('open:s_home'), 'ArrowDown', { altKey: true });
+    check('Alt+ArrowDown moves the screen down and keeps the focus on its entry', used(altDown) && screenIds().indexOf('s_home') === 1 && fakeDoc.activeElement === byKey('open:s_home'));
+    const workspace = key(byKey('open:s_home'), 'ArrowDown', { altKey: true, ctrlKey: true });
+    check('Ctrl+Alt+ArrowDown stays with the desktop', !workspace.defaultPrevented && !workspace.stopped && screenIds().indexOf('s_home') === 1);
+    check('the move tools are disabled at the edges', byKey('screen-up:' + screenIds()[0]).disabled === true && byKey('screen-down:' + screenIds()[screenIds().length - 1]).disabled === true);
+    byKey('screen-up:s_home').focus();
+    fire(byKey('screen-up:s_home'), 'click', {});
+    check('a tool that disables itself hands the focus to its screen\'s entry', screenIds()[0] === 's_home' && byKey('screen-up:s_home').disabled === true && fakeDoc.activeElement === byKey('open:s_home'));
+    fire(byKey('screen-start:s_two'), 'click', {});
+    check('the star makes a screen the start screen (by id) and is disabled there', sStore.get().start_screen === 's_two' && byKey('screen-start:s_two').disabled === true && all(rowOf('s_two'), el => el.attrs.class === 'cc-start').length === 1);
+
+    // delete through inst.confirm
+    fire(byKey('open:s_two'), 'click', {});
+    byKey('screen-delete:s_two').focus();
+    fire(byKey('screen-delete:s_two'), 'click', {});
+    await settle();
+    eq('delete asks through inst.confirm', asked[0], { titleKey: 'cyd_creator.designer.screen_delete_title', bodyKey: 'cyd_creator.designer.screen_delete_body', vars: { name: 'details' }, okKey: 'cyd_creator.designer.delete', danger: true });
+    check('… a cancelled dialog deletes nothing', !!screenOf('s_two'));
+    answer = true;
+    before = renders;
+    fire(byKey('screen-delete:s_two'), 'click', {});
+    await settle();
+    check('a confirmed delete removes the screen and moves the start screen', !screenOf('s_two') && sStore.get().start_screen === screenIds()[0] && d.screenId === screenIds()[0]);
+    check('… renders once (screen first, project marked screenChanged) and focuses the active entry', renders === before + 1 && fakeDoc.activeElement === byKey('open:' + d.screenId), 'renders ' + (renders - before));
+    answer = () => { const next = JSON.parse(JSON.stringify(sStore.get())); next.screens = next.screens.filter(s => s.id !== added.id); sStore.replace(next, { resetHistory: false }); return true; };
+    fire(byKey('screen-delete:' + added.id), 'click', {});
+    await settle();
+    check('a screen removed elsewhere during the dialog is skipped without an error', notes.length === 0 && screenIds().join() === 's_home');
+    check('the last screen cannot be deleted', byKey('screen-delete:s_home').disabled === true);
+    answer = false;
+
+    // settings of the active screen
+    const titleEl = byKey('screen-title');
+    titleEl.focus();
+    type(titleEl, 'Hello');
+    type(titleEl, 'Hello!');
+    check('the title is stored while typing without re-rendering the field', screenOf('s_home').title === 'Hello!' && byKey('screen-title') === titleEl && fakeDoc.activeElement === titleEl);
+    fire(titleEl, 'change', {});
+    check('… and the entry shows it after the change', textOf(rowOf('s_home')).includes('Hello!'));
+    const tr = byKey('screen-transition');
+    tr.value = 'slide_left'; fire(tr, 'change', {});
+    byKey('screen-transition').value = 'zoom'; fire(byKey('screen-transition'), 'change', {});
+    eq('a transition comes from the list; others are ignored', screenOf('s_home').transition, 'slide_left');
+    const bgEl = byKey('screen-bg');
+    type(bgEl, '#12ab34');
+    type(bgEl, 'red');
+    eq('the background is stored as #RRGGBB; anything else is ignored', screenOf('s_home').style, { bg_color: '#12AB34' });
+    fire(bgEl, 'change', {});
+    fire(byKey('screen-bg-reset'), 'click', {});
+    check('"Use theme" removes the background and shows the chip pressed', !screenOf('s_home').style.bg_color && byKey('screen-bg-reset').attrs['aria-pressed'] === 'true');
+
+    // the Wi-Fi system entry: a locked, view-only screen
+    before = renders;
+    fire(byKey('open:system'), 'click', {});
+    check('the system entry opens the Wi-Fi setup screen with one render', d.isSystem() && renders === before + 1);
+    check('… without screen settings and with the system hint instead of layers', !byKey('screen-title') && !layerSel().length && textOf(scr).includes('cannot be edited'));
+    check('… and without tools on its entry', all(rowOf(d.SYSTEM_WIFI), el => !!el.attrs['data-cc-cmd'] && el.attrs['data-cc-cmd'] !== 'screen-open').length === 0);
+    check('F2 on it renames nothing but stops at the panel', key(byKey('open:system'), 'F2').stopped && !renameInput());
+    const del = key(byKey('open:s_home'), 'Delete');
+    check('Delete on a screen entry stops at the panel and deletes nothing', del.stopped && !del.defaultPrevented && screenIds().join() === 's_home');
+    before = renders;
+    d.commands.run('settings', [{ op: 'set_settings', set: { wifi: 'off' } }]);
+    check('Wi-Fi off removes the system entry and returns to the start screen with one render', !byKey('open:system') && d.screenId === 's_home' && renders === before + 1);
+    d.commands.run('settings', [{ op: 'set_settings', set: { wifi: 'optional' } }]);
+
+    // the lock signal: read-only and a job lock disable tools, fields and flags; opening and selecting stay
+    fire(byKey('screen-rename:s_home'), 'click', {});
+    const frozen = () => JSON.stringify(sStore.get());
+    inst.readonly = true;
+    shellBus.emit('readonly:changed', true);
+    check('read-only ends a rename and hands the focus to the screen\'s entry', !renameInput() && fakeDoc.activeElement === byKey('open:s_home'));
+    check('… disables every tool, flag and field and marks the panel', tools().every(el => el.disabled === true) && all(scr, el => el.tagName === 'FIELDSET')[0].disabled === true && scr.classList.contains('is-readonly'));
+    check('… while screens still open and layers still select', !byKey('open:s_home').disabled && layerSel().every(el => !el.disabled));
+    const kept = frozen();
+    key(byKey('open:s_home'), 'F2');
+    fire(byKey('screen-add'), 'click', {});
+    fire(byKey('screen-duplicate:s_home'), 'click', {});
+    d.select(['w_btn']);
+    key(layer('w_btn'), 'Delete');
+    type(byKey('screen-title'), 'ro');
+    check('read-only: F2, tools, Delete and fields change nothing', frozen() === kept && !renameInput() && d.selection.join() === 'w_btn');
+    inst.readonly = false;
+    shellBus.emit('readonly:changed', false);
+    check('read-only off enables them again', tools().filter(el => el.disabled).every(el => /^screen-(up|down|delete|start):/.test(el.attrs['data-cc-focus'])) && !scr.classList.contains('is-readonly'));
+    byKey('screen-add').focus();
+    jobLock = true;
+    shellBus.emit('lock:changed', true, 'ccj_1');
+    check('a job lock disables the tools and moves the focus off a disabled one', byKey('screen-add').disabled === true && fakeDoc.activeElement === byKey('open:s_home'));
+    jobLock = false;
+    shellBus.emit('lock:changed', false, '');
+    check('the released lock enables them again', !byKey('screen-add').disabled);
+    check('every panel edit reached the store as local (remote: the test replaces; undo: Ctrl+Z and the duplicate check)', origins.filter(o => o !== 'local').join() === 'undo,remote,undo,remote', origins.join());
+
+    designer.dispose();
+    shellBus.emit('layout:issues', [{ code: 'X', severity: 'error', screen: 's_home' }]);
+    check('dispose removes the panel and its listeners', !host.kids.length && !(scr.listeners.keydown || []).length && !timers.size);
+    delete sandbox.window.I18N;
+    P.designerCanvas = realCanvas;
 }
 
 console.log((failures ? 'FAILED ' + failures : 'ok') + ' — ' + checks + ' checks');
