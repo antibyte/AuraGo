@@ -63,6 +63,11 @@ Broker configuration, subscriptions, relays, and mission dispatch.
   and config-merger grandfather every enabled anonymous broker without the key
   to `true`; `mqtt_relay_no_auth` reports it as critical. `config.Load` and
   config-merger also grandfather a missing `mqtt.allow_untrusted_transport`.
+  `mqtt_relay_untrusted_transport` is critical whenever the gate is open over
+  plaintext or skipped certificate verification, including when
+  `allow_unauthenticated_relay` is the switch that opens it despite a broker
+  login. The warning for a closed gate says AuraGo does not start agent runs
+  and does not say an observer can start them.
 - Build direct runtime gates with `tools.RuntimePermissionsFromConfig` at
   startup, reload and agent dispatch. MQTT bridge/CYD gates resolve the live
   server snapshot independently of earlier agent turns; dispatch also retains

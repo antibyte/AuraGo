@@ -655,17 +655,25 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 	}
 
 	// 24d. mqtt_relay_untrusted_transport — a broker login over plaintext or
-	// skipped certificate verification. Critical when allow_untrusted_transport
-	// is what opens the relay gate. Warning when a relay or Frigate relay is
-	// on and the gate stays closed because the transport is untrusted.
-	if cfg.MQTT.Enabled && config.MQTTBrokerAuthenticated(cfg) && !config.MQTTRelayTransportTrusted(cfg) && !cfg.MQTT.AllowUnauthenticatedRelay {
-		if cfg.MQTT.AllowUntrustedTransport {
+	// skipped certificate verification. Critical whenever the relay gate is
+	// open on that transport, including when allow_unauthenticated_relay is
+	// the switch that opens it. Warning when a relay or Frigate relay is on
+	// and the gate stays closed. The warning does not say an observer can
+	// start agent runs: the gate is closed, so broker traffic does not.
+	if cfg.MQTT.Enabled && config.MQTTBrokerAuthenticated(cfg) && !config.MQTTRelayTransportTrusted(cfg) {
+		if mqttRelayAuthorized(cfg) {
+			description := "mqtt.allow_unauthenticated_relay is true and a broker login is set, but the broker transport is plaintext or skips TLS certificate verification. " +
+				"An observer on the path can start agent runs through relay_to_agent, the Frigate relays and MQTT-triggered missions. " +
+				"Use mqtts or wss with a verified certificate chain. Set allow_unauthenticated_relay to false unless allow_untrusted_transport: true is an intentional choice to keep the insecure path."
+			if cfg.MQTT.AllowUntrustedTransport {
+				description = "mqtt.allow_untrusted_transport is true and the broker transport is plaintext or skips TLS certificate verification. " +
+					"An observer on the path can start agent runs through relay_to_agent, the Frigate relays and MQTT-triggered missions. " +
+					"Use mqtts or wss with a verified certificate chain; allow_untrusted_transport: true accepts the insecure path."
+			}
 			hints = append(hints, SecurityHint{
 				ID: "mqtt_relay_untrusted_transport", Severity: SevCritical,
-				Title: "MQTT: agent runs accepted over an untrusted transport",
-				Description: "mqtt.allow_untrusted_transport is true and the broker transport is plaintext or skips TLS certificate verification. " +
-					"An observer on the path can start agent runs through relay_to_agent, the Frigate relays and MQTT-triggered missions. " +
-					"Use mqtts or wss with a verified certificate chain; allow_untrusted_transport: true accepts the insecure path.",
+				Title:       "MQTT: agent runs accepted over an untrusted transport",
+				Description: description,
 				AutoFixable: false,
 			})
 		} else if cfg.MQTT.RelayToAgent || mqtt.FrigateRelayEnabled(cfg) {
@@ -674,7 +682,6 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 				Title: "MQTT: relay refused over an untrusted transport",
 				Description: "relay_to_agent or a Frigate relay is enabled, but the broker transport is plaintext or skips TLS certificate verification " +
 					"and mqtt.allow_untrusted_transport is false, so AuraGo does not start agent runs from broker messages. " +
-					"An observer on the path can start agent runs over that transport. " +
 					"Use mqtts or wss with a verified certificate chain; allow_untrusted_transport: true accepts the insecure path.",
 				AutoFixable: false,
 			})

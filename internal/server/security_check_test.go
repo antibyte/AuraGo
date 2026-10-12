@@ -883,6 +883,28 @@ func TestCheckSecurityUntrustedMQTTTransport(t *testing.T) {
 	if strings.Contains(hint.Description, "client.crt") || strings.Contains(hint.Description, skipped.MQTT.Broker) {
 		t.Fatalf("hint names a path or the broker: %s", hint.Description)
 	}
+
+	viaAnonymous := anonymousMQTTBrokerConfig()
+	viaAnonymous.MQTT.Username = "iot"
+	viaAnonymous.MQTT.RelayToAgent = true
+	viaAnonymous.MQTT.AllowUnauthenticatedRelay = true
+	if !mqttRelayAuthorized(viaAnonymous) {
+		t.Fatal("allow_unauthenticated_relay must open the gate even with a username on plaintext")
+	}
+	hint = findSecurityHint(CheckSecurity(viaAnonymous), "mqtt_relay_untrusted_transport")
+	if hint == nil || hint.Severity != SevCritical {
+		t.Fatalf("username plus allow_unauthenticated_relay on plaintext = %#v, want critical", hint)
+	}
+	assertUntrustedTransportHint(t, hint, viaAnonymous.MQTT.Broker)
+	if strings.Contains(hint.Description, "allow_untrusted_transport is true") {
+		t.Fatalf("anonymous switch must not be described as allow_untrusted_transport: %s", hint.Description)
+	}
+	if !strings.Contains(hint.Description, "allow_unauthenticated_relay is true") {
+		t.Fatalf("description must name the switch that opened the gate: %s", hint.Description)
+	}
+	if hasSecurityHint(CheckSecurity(viaAnonymous), "mqtt_relay_no_auth") {
+		t.Fatal("a username must not also report mqtt_relay_no_auth")
+	}
 }
 
 func loadSecurityConfig(t *testing.T, yaml string) *config.Config {
@@ -903,10 +925,17 @@ func assertUntrustedTransportHint(t *testing.T, hint *SecurityHint, broker strin
 	if hint.AutoFixable || len(hint.FixPatch) != 0 {
 		t.Fatalf("mqtt_relay_untrusted_transport must stay a manual hint, got %#v", hint)
 	}
-	for _, want := range []string{"plaintext", "certificate", "observer on the path", "mqtts", "wss", "allow_untrusted_transport: true"} {
+	for _, want := range []string{"plaintext", "certificate", "mqtts", "wss", "allow_untrusted_transport: true"} {
 		if !strings.Contains(hint.Description, want) {
 			t.Fatalf("description must mention %q: %s", want, hint.Description)
 		}
+	}
+	if hint.Severity == SevCritical {
+		if !strings.Contains(hint.Description, "observer on the path") {
+			t.Fatalf("open gate must say an observer can start runs: %s", hint.Description)
+		}
+	} else if strings.Contains(hint.Description, "observer on the path") || !strings.Contains(hint.Description, "does not start agent runs") {
+		t.Fatalf("closed gate must say runs do not start and must not blame an observer: %s", hint.Description)
 	}
 	if strings.Contains(hint.Description, broker) || strings.Contains(hint.Description, "://") {
 		t.Fatalf("hint must not contain a broker URL: %s", hint.Description)
