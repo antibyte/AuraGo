@@ -304,7 +304,7 @@ const (
 type Go2RTCDetectionWindow struct {
 	Days []string `yaml:"days" json:"days"` // mon tue wed thu fri sat sun
 	From string   `yaml:"from" json:"from"` // HH:MM
-	To   string   `yaml:"to" json:"to"`     // HH:MM; To <= From crosses midnight
+	To   string   `yaml:"to" json:"to"`     // HH:MM; To <= From crosses midnight (To == From: 24 hours)
 }
 
 // Go2RTCDetectionConfig holds the global person-detection settings (go2rtc.detection).
@@ -321,6 +321,9 @@ type Go2RTCDetectionConfig struct {
 type Go2RTCDetectionZone struct {
 	Name   string       `yaml:"name" json:"name"`
 	Points [][2]float64 `yaml:"points" json:"points"`
+	// badPoint is 1 + the index of the first YAML point that did not have exactly
+	// two values (0: none); UnmarshalYAML sets it, validation reports it.
+	badPoint int
 }
 
 // Go2RTCDetectionActions selects the alerts of one camera.

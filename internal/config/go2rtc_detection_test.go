@@ -102,6 +102,7 @@ func TestGo2RTCDetectionLoadRejectsInvalidValues(t *testing.T) {
 		"model":     {"go2rtc:\n  detection:\n    model: huge\n", "go2rtc.detection.model"},
 		"schedule":  {"go2rtc:\n  detection:\n    schedule:\n      - days: [mon]\n        from: \"25:00\"\n        to: \"06:00\"\n", "go2rtc.detection.schedule[0].from"},
 		"min score": {"go2rtc:\n  streams:\n    - id: cam\n      detection:\n        interval_seconds: 2\n        min_score: 0.2\n        actions:\n          channel: all\n", "go2rtc.streams[cam].detection.min_score"},
+		"day index": {"go2rtc:\n  detection:\n    schedule:\n      - days: [mon, mon, xyz]\n        from: \"22:00\"\n        to: \"06:00\"\n", "go2rtc.detection.schedule[0].days[2]"},
 	} {
 		_, err := loadGo2RTCDetectionYAML(t, tc.yaml)
 		var fieldErr *Go2RTCDetectionFieldError
@@ -133,7 +134,7 @@ func TestValidateGo2RTCStreamDetectionFields(t *testing.T) {
 		mutate func(*Go2RTCStreamDetectionConfig)
 		field  string
 	}{
-		"interval zero":     {func(d *Go2RTCStreamDetectionConfig) { d.IntervalSeconds = 0 }, "interval_seconds"},
+		"interval negative": {func(d *Go2RTCStreamDetectionConfig) { d.IntervalSeconds = -1 }, "interval_seconds"},
 		"interval high":     {func(d *Go2RTCStreamDetectionConfig) { d.IntervalSeconds = 31 }, "interval_seconds"},
 		"min score low":     {func(d *Go2RTCStreamDetectionConfig) { d.MinScore = 0.29 }, "min_score"},
 		"min score high":    {func(d *Go2RTCStreamDetectionConfig) { d.MinScore = 0.96 }, "min_score"},
@@ -175,11 +176,70 @@ func TestValidateGo2RTCStreamDetectionFields(t *testing.T) {
 	if err := ValidateGo2RTCStreamDetection(edge); err != nil {
 		t.Fatalf("lower bounds rejected: %v", err)
 	}
-	for _, channel := range Go2RTCDetectionChannels {
+	for _, channel := range Go2RTCDetectionChannels() {
 		d := validStreamDetection()
 		d.Actions.Channel = channel
 		if err := ValidateGo2RTCStreamDetection(d); err != nil {
 			t.Fatalf("channel %q rejected: %v", channel, err)
+		}
+	}
+}
+
+func TestGo2RTCDetectionChannelsReturnsACopy(t *testing.T) {
+	channels := Go2RTCDetectionChannels()
+	if len(channels) != 8 || channels[len(channels)-1] != "all" {
+		t.Fatalf("channels = %v", channels)
+	}
+	channels[0] = "sms"
+	if got := Go2RTCDetectionChannels()[0]; got != "ntfy" {
+		t.Fatalf("callers can change the channel list: first = %q", got)
+	}
+	d := validStreamDetection()
+	d.Actions.Channel = "sms"
+	if err := ValidateGo2RTCStreamDetection(d); err == nil {
+		t.Fatal("a mutated copy widened the accepted channels")
+	}
+}
+
+func TestValidateGo2RTCDetectionZoneNames(t *testing.T) {
+	zone := func(name string) Go2RTCDetectionZone {
+		return Go2RTCDetectionZone{Name: name, Points: [][2]float64{{0, 0}, {1, 0}, {1, 1}}}
+	}
+	for name, tc := range map[string]struct {
+		first, second string
+		duplicate     bool
+	}{
+		"ascii case":        {"Porch", "PORCH", true},
+		"greek final sigma": {"ΟΔΟΣ", "οδος", true},
+		"nfc and nfd":       {"Caf" + string(rune(0x00e9)), "Cafe" + string(rune(0x0301)), true},
+		// strings.EqualFold uses simple case folding: ß does not fold to SS,
+		// so these two names stay distinct zones.
+		"sharp s":   {"Straße", "STRASSE", false},
+		"different": {"Porch", "Garage", false},
+	} {
+		d := validStreamDetection()
+		d.Zones = []Go2RTCDetectionZone{zone(tc.first), zone(tc.second)}
+		err := ValidateGo2RTCStreamDetection(d)
+		var fieldErr *Go2RTCDetectionFieldError
+		switch {
+		case tc.duplicate && (!errors.As(err, &fieldErr) || fieldErr.Field != "zones[1].name"):
+			t.Errorf("%s: err = %v, want duplicate at zones[1].name", name, err)
+		case !tc.duplicate && err != nil:
+			t.Errorf("%s: distinct names rejected: %v", name, err)
+		}
+	}
+	for name, bad := range map[string]string{
+		"bidi override":   "Drive" + string(rune(0x202e)) + "way",
+		"zero width":      "Drive" + string(rune(0x200b)) + "way",
+		"byte order mark": string(rune(0xfeff)) + "Porch",
+		"invalid utf-8":   "Drive\xffway",
+	} {
+		d := validStreamDetection()
+		d.Zones = []Go2RTCDetectionZone{zone(bad)}
+		err := ValidateGo2RTCStreamDetection(d)
+		var fieldErr *Go2RTCDetectionFieldError
+		if !errors.As(err, &fieldErr) || fieldErr.Field != "zones[0].name" {
+			t.Errorf("%s: err = %v, want zones[0].name", name, err)
 		}
 	}
 }
@@ -222,13 +282,134 @@ func TestValidateGo2RTCDetectionSettingsFields(t *testing.T) {
 	}
 	edge := valid()
 	edge.RetentionDays, edge.MaxStorageMB = 365, 1_000_000
-	edge.Schedule[0].From, edge.Schedule[0].To = "08:00", "08:00"
+	edge.Schedule[0].From, edge.Schedule[0].To = "00:00", "23:59"
 	if err := ValidateGo2RTCDetectionSettings(edge); err != nil {
 		t.Fatalf("upper bounds rejected: %v", err)
 	}
 	edge.RetentionDays, edge.MaxStorageMB, edge.Model, edge.Backend = 1, 100, "accurate", "gpu"
 	if err := ValidateGo2RTCDetectionSettings(edge); err != nil {
 		t.Fatalf("lower bounds rejected: %v", err)
+	}
+	allDay := valid()
+	allDay.Schedule[0].From, allDay.Schedule[0].To = "08:00", "08:00"
+	if err := ValidateGo2RTCDetectionSettings(allDay); err != nil {
+		t.Fatalf("To == From (a 24-hour window) rejected: %v", err)
+	}
+}
+
+func TestGo2RTCDetectionFieldPathsUseOriginalPositions(t *testing.T) {
+	cfg := Go2RTCConfig{
+		Detection: Go2RTCDetectionConfig{Schedule: []Go2RTCDetectionWindow{{Days: []string{"mon", "Mon", "xyz"}, From: "22:00", To: "06:00"}}},
+	}
+	NormalizeGo2RTCDetection(&cfg)
+	var fieldErr *Go2RTCDetectionFieldError
+	if err := ValidateGo2RTCDetection(cfg); !errors.As(err, &fieldErr) || fieldErr.Field != "go2rtc.detection.schedule[0].days[2]" {
+		t.Fatalf("err = %v, want go2rtc.detection.schedule[0].days[2]", err)
+	}
+
+	bad := Go2RTCStreamDetectionConfig{IntervalSeconds: 2, MinScore: 0.2}
+	cfg = Go2RTCConfig{Streams: []Go2RTCStreamConfig{{ID: "front"}, {ID: " ", Detection: bad}}}
+	NormalizeGo2RTCDetection(&cfg)
+	if err := ValidateGo2RTCDetection(cfg); !errors.As(err, &fieldErr) || fieldErr.Field != "go2rtc.streams[#1].detection.min_score" {
+		t.Fatalf("err = %v, want go2rtc.streams[#1].detection.min_score", err)
+	}
+	cfg.Streams[1].ID = "back"
+	if err := ValidateGo2RTCDetection(cfg); !errors.As(err, &fieldErr) || fieldErr.Field != "go2rtc.streams[back].detection.min_score" {
+		t.Fatalf("err = %v, want go2rtc.streams[back].detection.min_score", err)
+	}
+}
+
+func TestGo2RTCDetectionLoadReportsPointArityAsFieldError(t *testing.T) {
+	for name, points := range map[string]string{
+		"three values": "[[0.1, 0.5], [0.9, 0.5, 0.3], [0.9, 1.0]]",
+		"one value":    "[[0.1, 0.5], [0.9], [0.9, 1.0]]",
+	} {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "config.yaml")
+		content := "go2rtc:\n  streams:\n    - id: cam\n      detection:\n        interval_seconds: 2\n        zones:\n          - name: Porch\n            points: " + points + "\n"
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		_, err := Load(path)
+		var fieldErr *Go2RTCDetectionFieldError
+		if !errors.As(err, &fieldErr) || fieldErr.Field != "go2rtc.streams[cam].detection.zones[0].points[1]" || fieldErr.Message != "must be [x, y]" {
+			t.Errorf("%s: err = %v, want go2rtc.streams[cam].detection.zones[0].points[1]: must be [x, y]", name, err)
+		}
+		entries, _ := os.ReadDir(dir)
+		for _, entry := range entries {
+			if strings.Contains(entry.Name(), ".corrupted.") {
+				t.Errorf("%s: a validation error wrote %s", name, entry.Name())
+			}
+		}
+	}
+}
+
+func TestNormalizeGo2RTCStreamDetectionKeepsPartialBlocks(t *testing.T) {
+	porch := func() []Go2RTCDetectionZone {
+		return []Go2RTCDetectionZone{{Name: "Porch", Points: [][2]float64{{0, 0}, {1, 0}, {1, 1}}}}
+	}
+	for name, tc := range map[string]struct{ in, want Go2RTCStreamDetectionConfig }{
+		"never configured": {
+			in:   Go2RTCStreamDetectionConfig{Enabled: true},
+			want: DefaultGo2RTCStreamDetection(true),
+		},
+		"zones and actions without interval": {
+			in: Go2RTCStreamDetectionConfig{Enabled: true, Zones: porch(), Actions: Go2RTCDetectionActions{Message: true, Channel: " Telegram "}},
+			want: Go2RTCStreamDetectionConfig{Enabled: true, IntervalSeconds: 2, MinScore: 0.5, CooldownSeconds: 0, Zones: porch(),
+				Actions: Go2RTCDetectionActions{Message: true, Channel: "telegram"}},
+		},
+		"only interval": {
+			in:   Go2RTCStreamDetectionConfig{IntervalSeconds: 7},
+			want: Go2RTCStreamDetectionConfig{IntervalSeconds: 7, MinScore: 0.5, Zones: []Go2RTCDetectionZone{}, Actions: Go2RTCDetectionActions{Channel: "all"}},
+		},
+		"cooldown zero kept": {
+			in:   Go2RTCStreamDetectionConfig{IntervalSeconds: 4, MinScore: 0.6, CooldownSeconds: 0, Actions: Go2RTCDetectionActions{Channel: "ntfy", Desktop: true}},
+			want: Go2RTCStreamDetectionConfig{IntervalSeconds: 4, MinScore: 0.6, Zones: []Go2RTCDetectionZone{}, Actions: Go2RTCDetectionActions{Channel: "ntfy", Desktop: true}},
+		},
+		"desktop false kept": {
+			in:   Go2RTCStreamDetectionConfig{MinScore: 0.8, CooldownSeconds: 60, Actions: Go2RTCDetectionActions{Agent: true, Desktop: false}},
+			want: Go2RTCStreamDetectionConfig{IntervalSeconds: 2, MinScore: 0.8, CooldownSeconds: 60, Zones: []Go2RTCDetectionZone{}, Actions: Go2RTCDetectionActions{Agent: true, Channel: "all"}},
+		},
+	} {
+		got := NormalizeGo2RTCStreamDetection(tc.in)
+		if !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("%s: normalized = %+v, want %+v", name, got, tc.want)
+		}
+		if err := ValidateGo2RTCStreamDetection(got); err != nil {
+			t.Errorf("%s: normalized block rejected: %v", name, err)
+		}
+	}
+}
+
+func TestGo2RTCDetectionLoadKeepsPartialCameraBlocks(t *testing.T) {
+	cfg, err := loadGo2RTCDetectionYAML(t, `go2rtc:
+  streams:
+    - id: porch
+      detection:
+        enabled: true
+        zones:
+          - name: Porch
+            points: [[0, 0], [1, 0], [1, 1]]
+        actions:
+          message: true
+          channel: ntfy
+    - id: yard
+      detection:
+        interval_seconds: 4
+`)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	porch := cfg.Go2RTC.Streams[0].Detection
+	if !porch.Enabled || porch.IntervalSeconds != 2 || porch.MinScore != 0.5 || porch.CooldownSeconds != 0 || len(porch.Zones) != 1 || porch.Zones[0].Name != "Porch" {
+		t.Fatalf("porch detection = %+v", porch)
+	}
+	if porch.Actions != (Go2RTCDetectionActions{Message: true, Channel: "ntfy"}) {
+		t.Fatalf("porch actions = %+v", porch.Actions)
+	}
+	yard := cfg.Go2RTC.Streams[1].Detection
+	if yard.IntervalSeconds != 4 || yard.MinScore != 0.5 || yard.CooldownSeconds != 0 || yard.Actions != (Go2RTCDetectionActions{Channel: "all"}) {
+		t.Fatalf("yard detection = %+v", yard)
 	}
 }
 
