@@ -6,6 +6,7 @@ import (
 	"aurago/internal/push"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -176,7 +177,7 @@ func sendNtfy(cfg *config.Config, title, message, priority string) error {
 
 	req, err := http.NewRequest("POST", url, strings.NewReader(message))
 	if err != nil {
-		return fmt.Errorf("failed to create ntfy request: %w", err)
+		return ntfyURLFreeError("failed to create ntfy request", err)
 	}
 	req.Header.Set("Title", title)
 	req.Header.Set("Tags", "robot")
@@ -200,7 +201,7 @@ func sendNtfy(cfg *config.Config, title, message, priority string) error {
 
 	resp, err := notifyHTTPClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("ntfy request failed: %w", err)
+		return ntfyURLFreeError("ntfy request failed", err)
 	}
 	defer resp.Body.Close()
 
@@ -212,6 +213,18 @@ func sendNtfy(cfg *config.Config, title, message, priority string) error {
 		return fmt.Errorf("ntfy returned HTTP %d: %s", resp.StatusCode, string(body))
 	}
 	return nil
+}
+
+// ntfyURLFreeError wraps an error of building or sending an ntfy request without the
+// request URL. The URL ends in the topic, which works like a password (whoever knows it can
+// read and publish), and may carry credentials; a *url.Error (url.Parse, http.Client.Do)
+// prints it in full, and SendNotification logs and returns the error text.
+func ntfyURLFreeError(what string, err error) error {
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		return fmt.Errorf("%s: %w", what, urlErr.Err)
+	}
+	return fmt.Errorf("%s: %w", what, err)
 }
 
 // ── Pushover ────────────────────────────────────────────────────────────────
