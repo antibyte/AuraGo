@@ -352,6 +352,75 @@
   `TestDesktopEasyDragBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`, screenshots in
   `reports/easydrag/`). Backend: `internal/flows`, `internal/server/flows_*.go`.
 
+## CYD Creator
+- Builtin app `cyd-creator` (category dev, `Requires: cyd_creator`, opens maximized). It must stay a builtin
+  loaded into the `/desktop` document, never an iframe app: flashing needs Web Serial there. Server contracts
+  (HTTP API, SSE, step and message codes): `internal/server/AGENTS.md` (CYD Creator) and
+  `internal/cydcreator/AGENTS.md`. The `inst` object and the 4a↔4b seam are also specified in the local plan
+  overview `docs/superpowers/plans/2026-10-10-cyd-creator-overview.md` (git-ignored).
+- Modules share `window.CYDCreatorParts` and load in the order of `DESKTOP_APP_ASSETS['cyd-creator']`:
+  core, api, events, the ten designer modules of plan 4b (directly after events, above the "plan 4b"
+  marker comment), code, dock, agent, home, the modules of plan 5 below the "plan 5" marker comment,
+  `cyd-creator-app.js` last. Keep both marker comments. The shell finds
+  `window.CYDCreatorApp = { render, dispose, instances }` through `appGlobalName`.
+- `cyd-creator-app.js` builds one `inst` per window and composes dock, code, agent, home and, when
+  `P.designer` exists, the designer. `inst.flushAll()` → Promise<boolean> saves layout and code. `inst.api` is
+  `Object.create(P.api)` whose `startJob` flushes first and throws the save error when that fails (override
+  single methods, never replace `P.api`); `uploadAsset` flushes the layout first too. `inst.confirm` and every
+  `P.dialog.open` pass `owner` (a `P.util.bag`), so dialogs close with their window or project; `inst.notify`
+  stays safe after dispose. Async work checks `inst.projectSeq` (`isCurrent`) before touching the window.
+- `P.api` wraps every endpoint and throws `ApiError {status, code, message, details}` (status 0: the
+  request never reached AuraGo); `P.errors.message(t, err)` shows `cyd_creator.error.<CODE>` (`CYD_BUSY`
+  with `details.reason` `publication_review` has its own sentence).
+- Event stream (`cyd-creator-events.js`): resumes with `?after=<last seq>`, coalesces the backlog until
+  `stream_ready` and reconnects with 1–30 s backoff (±20 % jitter); parts listen to `sse:<type>` or the
+  semantic bus events of the `inst` contract. An event without an id line (the browser keeps the previous
+  `lastEventId`) counts as seq 0. `stream_ready` carries `{after}`; with `reload: true` the cursor moves to
+  `after` and the window reloads (`reloadProject({keepEdits: true})`: unsaved layout edits stay and meet the
+  new version through the conflict choice). A stream cut off during the catch-up resumes from the catch-up's
+  start (`resumeFrom`, not `after`). Each failure in a row emits `events:failed(n)`; after 3 the app probes
+  `GET /projects/{id}`: 404 returns to the start screen, 401, `unauthorized`, `desktop_scope_required` and
+  `CYD_DISABLED` stop the stream with a banner and Retry (`data-cc-stream-stopped`,
+  `data-cc-action="reconnect"`), anything else keeps reconnecting. The first `stream_ready` after a failure
+  re-reads the summary: a server restart ends in-memory state (the publication fence) without an event.
+- Publication review: a project with `publish_review` shows the danger banner (`data-cc-publish-review`,
+  `cyd_creator.error.publication_review`) and Build stays disabled; a layout or code save refused for
+  `publication_review` re-reads the summary, so the banner appears.
+- `P.autosave` serialises saves (1 s debounce, If-Match version for the layout, sha for files). A 409
+  asks Keep editing / Load saved version / Overwrite and never overwrites silently; while that choice is
+  open, `flush()` returns it instead of sending the stale version again. 423 waits for the unlock;
+  network/408/429/5xx and `CYD_BUSY` without a reason or with `file_open` retry after 5 s doubling to 60 s,
+  `CYD_BUSY` `publication_review` fails at once. Home and window close flush first and ask
+  before changes are lost. The layout autosave also saves layouts with validation issues (the designer
+  applies edits without a gate; the server answers with `issues`, the shell emits `layout:issues`); only a
+  422 for an unparseable layout counts as failed. The project lock (`lock_changed`) makes layout and code
+  read-only.
+- Read-only: `inst.readonly` is the desktop policy (`ctx.readonly`, then `aurago:desktop-policy` events on
+  `document`) or `caps.readonly`; a change re-renders toolbar, code editor, agent panel and start screen and
+  emits `readonly:changed(bool)`. Read-only viewers can still cancel a job or a build (the server allows the
+  cancel routes in read-only mode), so never gate a Cancel button on `inst.readonly`.
+- The agent panel never moves the focus or switches the right panel by itself; a running job only shows
+  the dot on its tab. Without plan 4b (`P.designer` absent) Design mode shows a placeholder. Job steps and
+  system chat lines render `cyd_creator.step.<code>` / `cyd_creator.msg.<code>` with their `vars` (server
+  table `internal/cydcreator/texts.go`; an `error_code` var shows that error's sentence), else the server's
+  English `text`.
+- Code uses full `cyd_creator.*` key literals (the i18n lint tests read them); strings live in
+  `ui/lang/cyd_creator/<16>.json`. Plan 4b owns the families `theme.*`, `board.status_*`, `widget.*`,
+  `group.*`, `prop.*`, `event.*`, `action.*`, `transition.*`, `issue.*` and `designer.*`; shell code reads
+  them with `t.or(key, fallback)` / `t.has` (the dock falls back to the English Issue message). `t(key,
+  vars)` fills `{{name}}` and `{name}`. Shell CSS classes stay distinct from the designer's global ones
+  (`.cc-tag`, `.cc-pill`, `.cc-form-*` here; `.cc-badge`, `.cc-chip`, `.cc-field*` belong to 4b), and the
+  designer rules live in the delimited "plan 4b" section at the end of the stylesheet. No
+  alert/confirm/prompt: `P.dialog` (core) and `inst.confirm` render inside the window, and one shared key
+  listener lets only the newest dialog in the focused window handle Escape and Tab.
+- Config section `ui/cfg/cyd_creator.js` (strings in `ui/lang/config/cyd_creator/`): `cyd_creator.model` is a
+  provider ID from the shared provider dropdown ("" = main LLM); its sidebar icon is slot 121 of the 11×12
+  sprite (`ui/AGENTS.md`).
+- Verify: `npm run test:cyd-creator-shell`, `go test ./ui -run '(?i)CYDCreator'` and the opt-in
+  `TestDesktopCYDCreatorShellBrowser` and `TestConfigCYDCreatorSectionBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`,
+  screenshots in `reports/cyd-creator/`, backend `ui/testdata/cyd-creator-fixture.js`, whose EventSource keeps
+  `lastEventId` like a browser).
+
 ## Purpose
 
 This subtree owns built-in virtual desktop app modules that are loaded lazily by

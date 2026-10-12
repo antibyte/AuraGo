@@ -297,7 +297,8 @@ Server-owned HTTP and cross-component integration contracts.
 ### CYD Creator
 
 Domain, storage, events and build rules live in `internal/cydcreator/AGENTS.md`; this section owns wiring,
-configuration, the HTTP API and the Docker adapter.
+configuration, the HTTP API and the Docker adapter. The desktop client (`ui/js/desktop/apps/cyd-creator-*.js`)
+depends on the API, SSE and error contracts below; its side is in `ui/js/desktop/apps/AGENTS.md` (CYD Creator).
 
 - Wiring (`cyd_creator_service.go`): `initCYDCreator` runs after `initGameMaker` only when `cyd_creator.enabled` is
   on; projects live in the desktop workspace (`desktop.ConfigFromAuraConfig`), artefacts in
