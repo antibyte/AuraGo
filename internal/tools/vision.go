@@ -373,8 +373,18 @@ func NormalizeVisionAnalysis(prompt, raw string) (string, bool) {
 
 func visionPromptRequestsObjectCount(prompt string) bool {
 	lower := strings.ToLower(strings.TrimSpace(prompt))
+	hasCount := false
 	for _, marker := range []string{"wie viele", "anzahl", "zähle", "zähl", "how many", "count ", "number of"} {
 		if strings.Contains(lower, marker) {
+			hasCount = true
+			break
+		}
+	}
+	if !hasCount {
+		return false
+	}
+	for _, token := range []string{"pkw", "fahrzeug", "fahrzeuge", "auto", "autos", "car", "cars", "vehicle", "vehicles"} {
+		if strings.Contains(lower, token) {
 			return true
 		}
 	}

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"aurago/internal/config"
@@ -114,5 +115,29 @@ func TestAnalyzeImageURLWithPromptSendsPublicURLUnchanged(t *testing.T) {
 	}
 	if imageURL != "https://cdn.example.test/image.png?signature=keep-me" {
 		t.Fatalf("payload image URL = %q", imageURL)
+	}
+}
+
+func TestPrepareVisionPromptLeavesGeneralCountsAlone(t *testing.T) {
+	for _, prompt := range []string{
+		"how many people are in the room",
+		"wie viele Äpfel",
+	} {
+		got, structured := PrepareVisionPrompt(prompt)
+		if structured || got != prompt {
+			t.Fatalf("general count prompt changed: got %q structured=%v", got, structured)
+		}
+	}
+}
+
+func TestPrepareVisionPromptStillStructuresVehicleCounts(t *testing.T) {
+	for _, prompt := range []string{
+		"Wie viele PKW sind sichtbar?",
+		"how many cars",
+	} {
+		got, structured := PrepareVisionPrompt(prompt)
+		if !structured || !strings.Contains(got, visionCountSchemaMarker) {
+			t.Fatalf("vehicle count prompt not structured: %q structured=%v", got, structured)
+		}
 	}
 }
