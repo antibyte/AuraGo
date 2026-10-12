@@ -53,7 +53,7 @@ async function renderDograhSection(section) {
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + dograhText('config.section.dograh.label', section.label) + '</div>';
     html += '<div class="section-desc">' + dograhText('config.section.dograh.desc', section.desc) + '</div>';
-    html += dograhToggleRow('config.dograh.enabled_label', 'help.dograh.enabled', enabled, 'dograh.enabled', "dograhToggleEnabled(this.classList.contains('on'))");
+    html += dograhToggleRow('config.dograh.enabled_label', 'help.dograh.enabled', enabled, 'dograh.enabled', "dograhToggleEnabled(this)");
 
     if (!enabled) {
         html += '<div class="wh-notice"><span>▧</span><div><strong>' + dograhText('config.dograh.disabled_notice') + '</strong><br>';
@@ -183,8 +183,12 @@ function dograhActionLoadingText(action) {
     return dograhText(map[action] || 'config.dograh.status_prefix') || action;
 }
 
-function dograhToggleEnabled(currentlyOn) {
-    setNestedValue(configData, 'dograh.enabled', !currentlyOn);
+function dograhToggleEnabled(el) {
+    const enabled = !el.classList.contains('on');
+    // Flip the clicked switch first: state sync still reads it, so a stale one reverts the draft.
+    el.classList.toggle('on', enabled);
+    el.setAttribute('aria-checked', String(enabled));
+    setNestedValue(configData, 'dograh.enabled', enabled);
     setDirty(true);
     renderDograhSection(null);
 }

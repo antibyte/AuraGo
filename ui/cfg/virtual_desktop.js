@@ -27,7 +27,7 @@ function renderVirtualDesktopSection(section) {
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
-    html += vdCfgToggleRow('config.virtual_desktop.enabled_label', 'help.virtual_desktop.enabled', enabled, 'virtual_desktop.enabled', "vdCfgToggleEnabled(this.classList.contains('on'))");
+    html += vdCfgToggleRow('config.virtual_desktop.enabled_label', 'help.virtual_desktop.enabled', enabled, 'virtual_desktop.enabled', "vdCfgToggleEnabled(this)");
     html += vdCfgHiddenToggle('tools.virtual_desktop.enabled', data.allow_agent_control === true);
 
     if (!enabled) {
@@ -43,7 +43,7 @@ function renderVirtualDesktopSection(section) {
 
     html += '<div class="cfg-note-banner cfg-note-banner-info">▣ ' + t('config.virtual_desktop.first_party_note') + '</div>';
     html += vdCfgToggleRow('config.virtual_desktop.readonly_label', 'help.virtual_desktop.readonly', data.readonly === true, 'virtual_desktop.readonly');
-    html += vdCfgToggleRow('config.virtual_desktop.agent_control_label', 'help.virtual_desktop.allow_agent_control', data.allow_agent_control === true, 'virtual_desktop.allow_agent_control', "vdCfgToggleAgentControl(this.classList.contains('on'))");
+    html += vdCfgToggleRow('config.virtual_desktop.agent_control_label', 'help.virtual_desktop.allow_agent_control', data.allow_agent_control === true, 'virtual_desktop.allow_agent_control', "vdCfgToggleAgentControl(this)");
     html += vdCfgToggleRow('config.virtual_desktop.generated_apps_label', 'help.virtual_desktop.allow_generated_apps', data.allow_generated_apps !== false, 'virtual_desktop.allow_generated_apps');
     html += vdCfgToggleRow('config.virtual_desktop.python_jobs_label', 'help.virtual_desktop.allow_python_jobs', data.allow_python_jobs === true, 'virtual_desktop.allow_python_jobs');
     html += vdCfgToggleRow('config.virtual_desktop.serial_browser_label', 'help.virtual_desktop.serial_browser_enabled', data.serial_browser_enabled === true, 'virtual_desktop.serial_browser_enabled');
@@ -116,16 +116,24 @@ function vdCfgField(labelKey, helpKey, inputHtml) {
     return html;
 }
 
-function vdCfgToggleEnabled(isOn) {
+// Flip the clicked switch first: state sync still reads it, so a stale one reverts the draft.
+function vdCfgFlipToggle(el) {
+    const on = !el.classList.contains('on');
+    el.classList.toggle('on', on);
+    el.setAttribute('aria-checked', String(on));
+    return on;
+}
+
+function vdCfgToggleEnabled(el) {
     const data = vdCfgEnsureData();
-    data.enabled = !isOn;
+    data.enabled = vdCfgFlipToggle(el);
     setDirty(true);
     renderVirtualDesktopSection(null);
 }
 
-function vdCfgToggleAgentControl(isOn) {
+function vdCfgToggleAgentControl(el) {
     const data = vdCfgEnsureData();
-    data.allow_agent_control = !isOn;
+    data.allow_agent_control = vdCfgFlipToggle(el);
     configData.tools.virtual_desktop.enabled = data.allow_agent_control === true;
     setDirty(true);
     renderVirtualDesktopSection(null);

@@ -76,6 +76,7 @@ worker. Keep packaging, recovery and offline instructions in
 
 - Escape text before every Markdown fallback. Generic image/audio/video sources use the shared same-origin media allowlist; external images become deliberate links. Preview iframes retain sandboxing. Logout sends same-origin POST.
 - Config saves bind to the sent snapshot and retain edits made while requests are in flight. Chat HTTP/SSE/recovery responses bind to session and request generation. All close gestures await the window's asynchronous guard; file dialogs remain pending while a write is in flight.
+- A Config switch handler that re-renders `#content` first sets the clicked `.toggle` to its new value (`on`, `aria-checked`), before `AuraConfigState.set`, `setDirty` or `markDirty`: their `syncFromDOM` and the bubbling document click listener still read that switch, even once detached, so a stale one reverts the draft. Deferring the re-render does not help. Verify `TestConfigRerenderingTogglesKeepDraftBrowser` with `AURAGO_RUN_BROWSER_SMOKE=1`.
 - Shared modals queue independent promises. Vault prompts have bounded expiry and cancellation, clear sensitive drafts on close, and never let late results close a newer prompt. Highlight original text nodes rather than escaped HTML.
 - Verify `TestCodeQualityBrowserBoundaries` with `AURAGO_RUN_BROWSER_SMOKE=1`, existing chat/config/Tresor browser checks and rebuilt bundles.
 

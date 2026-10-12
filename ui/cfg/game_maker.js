@@ -101,6 +101,11 @@ function gmCfgField(labelKey, inputHtml) {
 
 function gmCfgToggleEnabled(el) {
     const nextEnabled = !(el && el.classList && el.classList.contains('on'));
+    // Flip the clicked switch first: state sync still reads it, so a stale one reverts the draft.
+    if (el && el.classList) {
+        el.classList.toggle('on', nextEnabled);
+        el.setAttribute('aria-checked', String(nextEnabled));
+    }
     const data = gmCfgEnsureData();
     data.enabled = nextEnabled;
     setNestedValue(configData, 'game_maker.enabled', nextEnabled);

@@ -40,7 +40,7 @@ async function renderOmniRouteSection(section) {
     html += '<div class="section-header">' + omniRouteText('config.section.omniroute.label', section.label) + '</div>';
     html += '<div class="section-desc">' + omniRouteText('config.section.omniroute.desc', section.desc) + '</div>';
 
-    html += omniRouteToggleRow('config.omniroute.enabled_label', 'help.omniroute.enabled', enabled, 'omniroute.enabled', "omniRouteToggleEnabled(this.classList.contains('on'))");
+    html += omniRouteToggleRow('config.omniroute.enabled_label', 'help.omniroute.enabled', enabled, 'omniroute.enabled', "omniRouteToggleEnabled(this)");
 
     if (!enabled) {
         html += '<div class="wh-notice"><span>◎</span><div>';
@@ -184,9 +184,13 @@ function omniRouteSecretField(labelKey, helpKey, id, path, placeholder) {
         '<div class="password-wrap"><input class="field-input" type="password" id="' + id + '" value="' + escapeAttr(cfgSecretValue(path.split('.').reduce((o,k)=>o&&o[k], configData))) + '" placeholder="' + escapeAttr(placeholder) + '" data-path="' + path + '" autocomplete="off"><button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button></div>');
 }
 
-function omniRouteToggleEnabled(isOn) {
+function omniRouteToggleEnabled(el) {
+    const enabled = !el.classList.contains('on');
+    // Flip the clicked switch first: the bubbling state listener still reads it after the re-render.
+    el.classList.toggle('on', enabled);
+    el.setAttribute('aria-checked', String(enabled));
     const data = omniRouteEnsureData();
-    data.enabled = !isOn;
+    data.enabled = enabled;
     renderOmniRouteSection(null);
     markDirty();
 }
