@@ -1,9 +1,13 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"image"
+	"image/color"
+	"image/jpeg"
 	"io"
 	"log/slog"
 	"net/http"
@@ -749,6 +753,17 @@ func TestFileIndexerRecordsDisabledVectorDBScanStatus(t *testing.T) {
 	}
 }
 
+func tinyIndexerJPEG(t *testing.T) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 2, 2))
+	img.Set(0, 0, color.RGBA{R: 12, G: 34, B: 56, A: 255})
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 90}); err != nil {
+		t.Fatalf("encode jpeg: %v", err)
+	}
+	return buf.Bytes()
+}
+
 func TestFileIndexerSkipsUnchangedImageBeforeVisionCall(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	stm, err := memory.NewSQLiteMemory(":memory:", logger)
@@ -767,7 +782,7 @@ func TestFileIndexerSkipsUnchangedImageBeforeVisionCall(t *testing.T) {
 
 	dir := t.TempDir()
 	path := filepath.Join(dir, "photo.jpg")
-	if err := os.WriteFile(path, []byte("not really a jpeg, but enough bytes for the provider payload"), 0o644); err != nil {
+	if err := os.WriteFile(path, tinyIndexerJPEG(t), 0o644); err != nil {
 		t.Fatalf("WriteFile image: %v", err)
 	}
 	modTime := time.Now().UTC().Add(-time.Minute).Truncate(time.Second)
