@@ -55,10 +55,15 @@ func (b *c16PlainBridge) SyncFlowMission(missionID, name string, bindings []Trig
 type c16Bridge struct {
 	c16PlainBridge
 	afterSnapshot func()
+	unreadable    bool
 }
 
 func (b *c16Bridge) FlowMissions() map[string]string {
 	b.mu.Lock()
+	if b.unreadable {
+		b.mu.Unlock()
+		return nil
+	}
 	out := map[string]string{}
 	for id, m := range b.missions {
 		out[id] = m.flowID
@@ -482,6 +487,41 @@ func TestC16ReconcileTimersFollowTheMissionSwitch(t *testing.T) {
 	}
 	if tm := c16Timers(t, s, pub.ID); len(tm) != 0 {
 		t.Fatalf("timers of a disabled flow after reconcile: %+v", tm)
+	}
+}
+
+func TestC16ReconcileLeavesTimersWhenMissionControlIsUnreadable(t *testing.T) {
+	logs := &c16Logs{}
+	bridge := newC16Bridge()
+	s := c16Service(t, newFakeClock(time.Date(2026, 10, 3, 7, 0, 0, 0, time.UTC)), bridge, logs.logger())
+	ctx := context.Background()
+	doc, _, when, _ := scheduleFlow("Plan")
+	pub := c16Publish(t, s, doc)
+	if err := s.SetEnabled(ctx, pub.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	before := c16Timers(t, s, pub.ID)
+	if len(before) != 1 || before[0].NodeID != when {
+		t.Fatalf("timers after enable: %+v", before)
+	}
+
+	bridge.setEnabled(pub.MissionID, false)
+	bridge.mu.Lock()
+	bridge.unreadable = true
+	bridge.mu.Unlock()
+	if bridge.FlowMissions() != nil || bridge.FlowMissionEnabled(pub.MissionID) {
+		t.Fatal("the unreadable bridge must look disabled and return no snapshot")
+	}
+
+	if err := s.ReconcileMissions(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if tm := c16Timers(t, s, pub.ID); len(tm) != 1 || !tm[0].FireAt.Equal(before[0].FireAt) {
+		t.Fatalf("unreadable snapshot changed timers: %+v", tm)
+	}
+	out := logs.String()
+	if !strings.Contains(out, "Mission Control is not readable; timers were left as they are") || !strings.Contains(out, "timers_cleared=0") {
+		t.Fatalf("log:\n%s", out)
 	}
 }
 

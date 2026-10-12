@@ -421,7 +421,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   `MissionReconciler` bridge extension reports it in sync) and makes the timers follow Mission Control's enabled
   switch and the live revision (clear when disabled; when enabled re-arm only stale timers, `staleTimers`: a
   node or repeat the live revision lacks, or a trigger without its timer; matching timers keep their fire time,
-  a due one-off too). It deletes nothing: it warns about a flow without its mission and, with the extension, a
+  a due one-off too). An unreadable snapshot (`FlowMissions` returns nil) leaves that flow's mission entry and
+  timers unchanged and warns; only a readable disabled flow loses its timers. It deletes nothing: it warns about a flow without its mission and, with the extension, a
   flow mission without its flow that Mission Control still holds at report time.
   `Publish` never recreates a missing mission (the sync fails after the store published). `Shutdown` waits for a
   reconciliation in progress and ends its lock waits. Limit: `staleTimers` compares node ids and repeat kinds
