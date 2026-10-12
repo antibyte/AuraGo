@@ -8,7 +8,7 @@ import (
 
 func isAutonomousMessageSource(source string) bool {
 	switch strings.ToLower(strings.TrimSpace(source)) {
-	case "heartbeat", "planner_notification", "uptime_kuma", "space_agent_bridge", "follow_up", "cron", "cron_prompt", "mqtt", "frigate":
+	case "heartbeat", "planner_notification", "uptime_kuma", "space_agent_bridge", "follow_up", "cron", "cron_prompt", "mqtt", "frigate", "camera_detection":
 		return true
 	default:
 		return false

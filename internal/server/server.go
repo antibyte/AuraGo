@@ -349,7 +349,8 @@ type Server struct {
 	uptimeKumaMu          sync.Mutex
 	uptimeKuma            atomic.Pointer[uptimeKumaRuntime]
 	uptimeKumaClosed      bool
-	personAlertSlots      personAlertSlots // send slots of person detection messages, per channel
+	personAlertSlots      personAlertSlots      // send slots of person detection messages, per channel
+	personAlertAgents     personAlertAgentQueue // agent wake-ups of person detection alerts
 }
 
 func (s *Server) accessLogger() *slog.Logger {
@@ -737,6 +738,7 @@ func Start(opts StartOptions) error {
 		}
 		withdrawRetroGamesTool(s.RetroGames)
 		s.shutdownPersonDetection(context.Background())
+		s.personAlertAgents.stop()
 		serverCancel()
 		return err
 	}
@@ -746,6 +748,8 @@ func Start(opts StartOptions) error {
 	// Person detection pulls frames through the go2rtc manager started above and
 	// follows the config snapshot from here on.
 	s.startPersonDetection()
+	// Person detection alerts wake the agent through this queue; it ends with serverCtx.
+	s.personAlertAgents.start(serverCtx, s.deliverPersonAlertPrompt)
 	if s.RuView != nil {
 		s.RuView.StartBackground(serverCtx)
 	}
@@ -807,6 +811,7 @@ func Start(opts StartOptions) error {
 		detectCtx, detectCancel := context.WithTimeout(context.Background(), 15*time.Second)
 		s.shutdownPersonDetection(detectCtx)
 		detectCancel()
+		s.personAlertAgents.stop()
 		if s.Go2RTC != nil {
 			s.Go2RTC.Close()
 		}
@@ -1975,6 +1980,9 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 			}
 		}
 		s.stopUptimeKumaPoller()
+		// Like the Uptime Kuma relay: join a running camera detection wake-up before
+		// closeRuntimeResources closes what it uses. Later alerts are skipped.
+		s.personAlertAgents.stop()
 		if s.AgentMailService != nil {
 			s.AgentMailService.Stop(ctx)
 		}

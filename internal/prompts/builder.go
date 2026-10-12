@@ -1059,6 +1059,8 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 			label = "Planner notification (automated)"
 		case "uptime_kuma":
 			label = "Uptime Kuma (automated)"
+		case "camera_detection":
+			label = "Camera person detection (automated)"
 		case "follow_up":
 			label = "Follow-up (automated)"
 		case "cron":

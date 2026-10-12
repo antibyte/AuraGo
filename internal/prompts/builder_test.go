@@ -1217,6 +1217,14 @@ func TestBuildSystemPromptLabelsAgoDeskChatSource(t *testing.T) {
 	}
 }
 
+func TestBuildSystemPromptLabelsCameraDetectionSource(t *testing.T) {
+	flags := ContextFlags{SystemLanguage: "en", MessageSource: "camera_detection"}
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+	if !strings.Contains(prompt, "> **Channel:** Camera person detection (automated)") {
+		t.Fatalf("prompt should label camera_detection, got:\n%s", prompt)
+	}
+}
+
 func TestBuildSystemPromptNativeModeOmitsLegacyToolSyntaxExamples(t *testing.T) {
 	flags := ContextFlags{
 		Tier:               "full",

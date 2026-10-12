@@ -29,6 +29,7 @@ func TestIsAutonomousAgentRunRecognizesHeartbeat(t *testing.T) {
 		{name: "cron source", runCfg: RunConfig{MessageSource: "cron"}, sessionID: "default", want: true},
 		{name: "mqtt relay source", runCfg: RunConfig{MessageSource: "mqtt"}, sessionID: "mqtt", want: true},
 		{name: "frigate relay source", runCfg: RunConfig{MessageSource: "frigate"}, sessionID: "frigate", want: true},
+		{name: "camera detection source", runCfg: RunConfig{MessageSource: "camera_detection", SuppressTurnSideEffects: true}, sessionID: "camera_detection", want: true},
 		{name: "web chat default", runCfg: RunConfig{MessageSource: "web_chat"}, sessionID: "default", want: false},
 		{name: "mission is autonomous", runCfg: RunConfig{MessageSource: "mission", IsMission: true}, sessionID: "mission-1", want: true},
 	}
@@ -63,6 +64,9 @@ func TestShouldRunTurnSideEffectsBlocksHeartbeatArtifacts(t *testing.T) {
 	}
 	if shouldRunTurnSideEffects(RunConfig{MessageSource: "frigate"}, "frigate", prompts.ContextFlags{}) {
 		t.Fatal("Frigate relay runs must not write shared chat side effects")
+	}
+	if shouldRunTurnSideEffects(RunConfig{MessageSource: "camera_detection"}, "camera_detection", prompts.ContextFlags{}) {
+		t.Fatal("camera detection runs must not write normal chat side effects")
 	}
 	if shouldRunTurnSideEffects(RunConfig{IsMission: true, MessageSource: "mission"}, "mission-1", prompts.ContextFlags{IsMission: true}) {
 		t.Fatal("mission runs must not write normal chat side effects")
