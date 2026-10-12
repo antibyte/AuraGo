@@ -313,7 +313,7 @@ func TestC12SpendingOperationsAreDropped(t *testing.T) {
 		params, keeps []string // parameters dropped with the operations, and shared ones that stay
 	}{
 		{"smart_file_read", "analyze", []string{"summarize"}, []string{"query"}, []string{"file_path"}},
-		{"go2rtc", "status", []string{"analyze_snapshot"}, []string{"prompt"}, []string{"stream_id"}},
+		{"go2rtc", "status", []string{"analyze_snapshot", "analyze_detection_event"}, []string{"prompt"}, []string{"stream_id"}},
 		{"three_d_printer", "status", []string{"analyze_camera"}, []string{"prompt"}, []string{"printer_id"}},
 		{"video_download", "search", []string{"transcribe"}, nil, []string{"url"}},
 		{"fritzbox_telephony", "get_call_list", []string{"transcribe_tam_message"}, nil, []string{"tam_index"}},

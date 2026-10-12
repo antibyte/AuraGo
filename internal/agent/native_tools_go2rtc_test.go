@@ -28,7 +28,7 @@ func TestGo2RTCToolSchemaIsGatedAndReadOnly(t *testing.T) {
 			t.Fatalf("go2rtc schema exposes forbidden property %q: %#v", forbidden, properties)
 		}
 	}
-	for _, required := range []string{"operation", "stream_id", "width", "height", "rotate", "cache_seconds", "prompt"} {
+	for _, required := range []string{"operation", "stream_id", "width", "height", "rotate", "cache_seconds", "prompt", "mode", "event_id", "since", "until", "limit"} {
 		if _, ok := properties[required]; !ok {
 			t.Fatalf("go2rtc schema missing property %q: %#v", required, properties)
 		}
@@ -37,7 +37,8 @@ func TestGo2RTCToolSchemaIsGatedAndReadOnly(t *testing.T) {
 	if !ok {
 		t.Fatalf("operation schema = %#v", properties["operation"])
 	}
-	for _, required := range []string{"status", "list_streams", "stream_status", "snapshot", "analyze_snapshot", "show_live_stream"} {
+	for _, required := range []string{"status", "list_streams", "stream_status", "snapshot", "analyze_snapshot", "show_live_stream",
+		"detection_status", "set_arm_mode", "list_detection_events", "analyze_detection_event", "show_detection_event"} {
 		if !containsInterfaceString(operation["enum"], required) {
 			t.Fatalf("go2rtc operation enum missing %q: %#v", required, operation["enum"])
 		}

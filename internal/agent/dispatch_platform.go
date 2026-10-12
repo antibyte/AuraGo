@@ -690,6 +690,9 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if operation == "" {
 				operation = strings.ToLower(strings.TrimSpace(toolArgString(tc.Params, "operation")))
 			}
+			if isGo2RTCDetectionOperation(operation) {
+				return dispatchGo2RTCDetection(ctx, operation, tc, dc)
+			}
 			streamID := strings.TrimSpace(toolArgString(tc.Params, "stream_id"))
 			encode := func(value interface{}) string {
 				raw, err := json.Marshal(value)
@@ -803,7 +806,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				return encode(map[string]interface{}{"status": "ok", "stream_id": streamID, "viewer_path": viewerPath})
 			default:
-				return `Tool Output: {"status":"error","message":"Unknown go2rtc operation. Use: status, list_streams, stream_status, snapshot, analyze_snapshot, show_live_stream"}`
+				return `Tool Output: {"status":"error","message":"Unknown go2rtc operation. Use: status, list_streams, stream_status, snapshot, analyze_snapshot, show_live_stream, detection_status, set_arm_mode, list_detection_events, analyze_detection_event, show_detection_event"}`
 			}
 
 		case "frigate":

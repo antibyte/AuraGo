@@ -1074,19 +1074,25 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	}
 	if ff.Go2RTCEnabled {
 		tools = append(tools, tool("go2rtc",
-			"Observe configured go2rtc camera streams, create or analyze safe snapshots, and show a same-origin live viewer. This tool never accepts source URLs and cannot change service or stream configuration.",
+			"Observe configured go2rtc camera streams, create or analyze safe snapshots, show a same-origin live viewer, and use person detection: detector and arm status, arming, detection events and their pictures. This tool never accepts source URLs and cannot change service or stream configuration.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
-					"description": "Read-only operation to perform",
-					"enum":        []string{"status", "list_streams", "stream_status", "snapshot", "analyze_snapshot", "show_live_stream"},
+					"description": "Operation to perform. Only set_arm_mode changes state (person detection alerts off, on or by schedule).",
+					"enum": []string{"status", "list_streams", "stream_status", "snapshot", "analyze_snapshot", "show_live_stream",
+						"detection_status", "set_arm_mode", "list_detection_events", "analyze_detection_event", "show_detection_event"},
 				},
-				"stream_id":     prop("string", "Configured stable stream ID. Required for stream-specific operations."),
+				"stream_id":     prop("string", "Configured stable stream ID. Required for stream-specific operations; optional camera filter for list_detection_events."),
 				"width":         prop("integer", "Optional snapshot width in pixels, up to 7680."),
 				"height":        prop("integer", "Optional snapshot height in pixels, up to 4320."),
 				"rotate":        prop("integer", "Optional clockwise rotation: 0, 90, 180, or 270."),
 				"cache_seconds": prop("integer", "Optional snapshot cache duration from 0 to 3600 seconds."),
-				"prompt":        prop("string", "Optional vision prompt for analyze_snapshot."),
+				"prompt":        prop("string", "Optional vision prompt for analyze_snapshot and analyze_detection_event."),
+				"mode":          prop("string", "set_arm_mode: off, on or schedule."),
+				"event_id":      prop("integer", "Detection event ID from list_detection_events; required for analyze_detection_event and show_detection_event."),
+				"since":         prop("string", "list_detection_events: start, RFC 3339 time or YYYY-MM-DD (server local day)."),
+				"until":         prop("string", "list_detection_events: end, RFC 3339 time or YYYY-MM-DD (the whole day)."),
+				"limit":         prop("integer", "list_detection_events: 1-50, default 10."),
 			}, "operation"),
 		))
 	}

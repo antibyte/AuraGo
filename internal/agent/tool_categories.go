@@ -240,7 +240,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"docker", "Manage Docker containers (list, start, stop, logs, exec, compose)"},
 		{"proxmox", "Manage Proxmox VMs and containers (list, start, stop, snapshots)"},
 		{"frigate", "Query Frigate NVR cameras, detection events, reviews, media, and health"},
-		{"go2rtc", "Inspect configured camera streams, snapshots, analysis, and live viewers"},
+		{"go2rtc", "Inspect configured camera streams, snapshots, analysis, live viewers and person detection events"},
 		{"ruview", "Read Wi-Fi RSSI/CSI sensing status, nodes, measurements, models and recordings"},
 		{"three_d_printer", "Inspect and control configured 3D printers, camera snapshots, and live streams"},
 		{"tailscale", "Manage Tailscale VPN network (devices, routes, ACL)"},

@@ -168,14 +168,14 @@ var genericDroppedOperations = map[string]struct{ ops, params []string }{
 	"netlify":        {ops: []string{"set_env"}, params: []string{"env_value"}},
 	"vercel":         {ops: []string{"set_env"}, params: []string{"env_value"}},
 	// spending outside the flow budget
-	"smart_file_read":    {ops: []string{"summarize"}, params: []string{"query"}},         // summary model
-	"go2rtc":             {ops: []string{"analyze_snapshot"}, params: []string{"prompt"}}, // vision model
-	"three_d_printer":    {ops: []string{"analyze_camera"}, params: []string{"prompt"}},   // vision model
-	"video_download":     {ops: []string{"transcribe"}},                                   // speech-to-text
-	"fritzbox_telephony": {ops: []string{"transcribe_tam_message"}},                       // speech-to-text
-	"rtl_sdr":            {ops: []string{"transcribe"}, params: []string{"transcribe"}},   // speech-to-text
-	"knowledge_graph":    {ops: []string{"optimize", "optimize_graph"}},                   // a model call per memory compressed
-	"sip_phone":          {ops: []string{"dial"}, params: []string{"target"}},             // starts the telephone agent (STT, LLM, TTS)
+	"smart_file_read":    {ops: []string{"summarize"}, params: []string{"query"}},                                    // summary model
+	"go2rtc":             {ops: []string{"analyze_snapshot", "analyze_detection_event"}, params: []string{"prompt"}}, // vision model
+	"three_d_printer":    {ops: []string{"analyze_camera"}, params: []string{"prompt"}},                              // vision model
+	"video_download":     {ops: []string{"transcribe"}},                                                              // speech-to-text
+	"fritzbox_telephony": {ops: []string{"transcribe_tam_message"}},                                                  // speech-to-text
+	"rtl_sdr":            {ops: []string{"transcribe"}, params: []string{"transcribe"}},                              // speech-to-text
+	"knowledge_graph":    {ops: []string{"optimize", "optimize_graph"}},                                              // a model call per memory compressed
+	"sip_phone":          {ops: []string{"dial"}, params: []string{"target"}},                                        // starts the telephone agent (STT, LLM, TTS)
 	// legacy boringd-LLM tasks; command stays (exec uses it)
 	"virtual_computers": {ops: []string{"run_shell_task", "run_desktop_task"}, params: []string{"instruction"}},
 }
