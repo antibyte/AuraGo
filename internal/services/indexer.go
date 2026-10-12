@@ -517,6 +517,10 @@ type fileIndexOutcome struct {
 	err       error
 }
 
+func indexImagePrompt(name string) string {
+	return "Analysiere dieses Bild detailliert. Beschreibe den Inhalt, erkennbare Texte, Objekte und relevante Details. Dateiname: " + name
+}
+
 func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path string, info os.FileInfo) fileIndexOutcome {
 	ext := strings.ToLower(filepath.Ext(info.Name()))
 	isImage := IsImageFile(ext)
@@ -606,10 +610,7 @@ func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path 
 			outcome.noContent = true
 			return outcome
 		}
-		prompt := fmt.Sprintf(
-			"Analysiere dieses Bild detailliert. Beschreibe den Inhalt, erkennbare Texte, Objekte und relevante Details. "+
-				"Dateiname: %s, Pfad: %s", info.Name(), relPath,
-		)
+		prompt := indexImagePrompt(info.Name())
 		var analysis string
 		var visionErr error
 		for attempt := 1; attempt <= indexingRetryMaxAttempts; attempt++ {
