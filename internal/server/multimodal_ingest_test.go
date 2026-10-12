@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"image"
 	"image/png"
 	"os"
@@ -25,9 +26,19 @@ func TestPromoteUploadedImagesToMultiContent(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	auto := false
 	cfg := &config.Config{}
 	cfg.LLM.Multimodal = true
+	cfg.LLM.Provider = "main"
 	cfg.LLM.ProviderType = "openrouter"
+	cfg.Providers = []config.ProviderEntry{{
+		ID:   "main",
+		Type: "openrouter",
+		Capabilities: config.ProviderCapabilities{
+			Auto:       &auto,
+			Multimodal: true,
+		},
+	}}
 
 	in := openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleUser,
@@ -65,9 +76,19 @@ func TestPromoteUploadedImagesToMultiContentAllowsNestedAgoDeskAttachmentPaths(t
 		t.Fatal(err)
 	}
 
+	auto := false
 	cfg := &config.Config{}
 	cfg.LLM.Multimodal = true
+	cfg.LLM.Provider = "main"
 	cfg.LLM.ProviderType = "openrouter"
+	cfg.Providers = []config.ProviderEntry{{
+		ID:   "main",
+		Type: "openrouter",
+		Capabilities: config.ProviderCapabilities{
+			Auto:       &auto,
+			Multimodal: true,
+		},
+	}}
 
 	agentPath := "agent_workspace/workdir/attachments/agodesk/sess-1/att-1/diagram.png"
 	in := openai.ChatCompletionMessage{
@@ -353,5 +374,181 @@ func TestAgnesMainProviderAllowsOnlyPublicImageURLs(t *testing.T) {
 	}}
 	if err := validateMainProviderImageParts(cfg, privateMessage); err == nil {
 		t.Fatal("expected private Agnes image URL rejection")
+	}
+}
+
+func kimiInlineConfig() *config.Config {
+	cfg := &config.Config{}
+	cfg.LLM.Multimodal = true
+	cfg.LLM.ProviderType = "ollama"
+	cfg.LLM.Model = "kimi-k2.6"
+	return cfg
+}
+
+func TestPromoteRequestImagesSkipsOlderUserAttachments(t *testing.T) {
+	dir := t.TempDir()
+	attachDir := filepath.Join(dir, "attachments")
+	if err := os.MkdirAll(attachDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), []byte{0x89, 0x50, 0x4e, 0x47}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	path := "agent_workspace/workdir/attachments/img.png"
+	older := openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: "first " + path}
+	latest := openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: "second " + path}
+	out := promoteRequestImages(kimiInlineConfig(), []openai.ChatCompletionMessage{older, latest}, dir, nil)
+	if len(out) != 2 {
+		t.Fatalf("expected 2 messages, got %d", len(out))
+	}
+	if out[0].Content != older.Content || len(out[0].MultiContent) != 0 {
+		t.Fatalf("older user turn was changed: %+v", out[0])
+	}
+	if len(out[1].MultiContent) < 2 {
+		t.Fatalf("expected the latest user turn to gain an image part, got %+v", out[1])
+	}
+}
+
+func TestPromoteUploadedImagesKeepsUnsentPaths(t *testing.T) {
+	dir := t.TempDir()
+	attachDir := filepath.Join(dir, "attachments")
+	if err := os.MkdirAll(attachDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(attachDir, "ok.png"), []byte{0x89, 0x50, 0x4e, 0x47}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	big := make([]byte, (10<<20)+1)
+	copy(big, []byte{0x89, 0x50, 0x4e, 0x47})
+	if err := os.WriteFile(filepath.Join(attachDir, "huge.png"), big, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	in := openai.ChatCompletionMessage{
+		Role:    openai.ChatMessageRoleUser,
+		Content: "see agent_workspace/workdir/attachments/ok.png and agent_workspace/workdir/attachments/huge.png",
+	}
+	out := promoteUploadedImagesToMultiContent(kimiInlineConfig(), in, dir, nil)
+	var images int
+	for _, part := range out.MultiContent {
+		if part.Type == openai.ChatMessagePartTypeImageURL {
+			images++
+		}
+	}
+	if images != 1 {
+		t.Fatalf("expected one image part, got %d (%+v)", images, out.MultiContent)
+	}
+	joined := out.Content
+	for _, part := range out.MultiContent {
+		if part.Type == openai.ChatMessagePartTypeText {
+			joined += "\n" + part.Text
+		}
+	}
+	if strings.Contains(joined, "attachments/ok.png") {
+		t.Fatalf("sent path still present: %q", joined)
+	}
+	if !strings.Contains(joined, "Image huge.png was not sent: larger than 10 MiB.") {
+		t.Fatalf("missing skip line, got %q", joined)
+	}
+}
+
+func TestFallbackVisionUsesTheUserQuestion(t *testing.T) {
+	dir := t.TempDir()
+	attachDir := filepath.Join(dir, "attachments")
+	if err := os.MkdirAll(attachDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), []byte{0x89, 0x50, 0x4e, 0x47}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var gotPrompt string
+	orig := analyzeImageForFallback
+	analyzeImageForFallback = func(filePath, prompt string, cfg *config.Config) (string, int, int, error) {
+		gotPrompt = prompt
+		return "stub-analysis", 1, 1, nil
+	}
+	defer func() { analyzeImageForFallback = orig }()
+
+	cfg := &config.Config{}
+	cfg.LLM.Multimodal = true
+	cfg.LLM.ProviderType = "ollama"
+	in := openai.ChatCompletionMessage{
+		Role:    openai.ChatMessageRoleUser,
+		Content: "How many red cars? agent_workspace/workdir/attachments/img.png",
+	}
+	promoteUploadedImagesToMultiContent(cfg, in, dir, nil)
+	if !strings.Contains(gotPrompt, "How many red cars?") {
+		t.Fatalf("expected the user question in the fallback prompt, got %q", gotPrompt)
+	}
+	if strings.Contains(gotPrompt, "Describe this image in detail") {
+		t.Fatalf("expected the user question instead of the fixed describe sentence, got %q", gotPrompt)
+	}
+}
+
+func TestFallbackVisionReportsWhenAnalysisFails(t *testing.T) {
+	dir := t.TempDir()
+	attachDir := filepath.Join(dir, "attachments")
+	if err := os.MkdirAll(attachDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), []byte{0x89, 0x50, 0x4e, 0x47}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	orig := analyzeImageForFallback
+	analyzeImageForFallback = func(filePath, prompt string, cfg *config.Config) (string, int, int, error) {
+		return "", 0, 0, errors.New("vision unavailable")
+	}
+	defer func() { analyzeImageForFallback = orig }()
+
+	cfg := &config.Config{}
+	cfg.LLM.Multimodal = true
+	cfg.LLM.ProviderType = "ollama"
+	in := openai.ChatCompletionMessage{
+		Role:    openai.ChatMessageRoleUser,
+		Content: "What is this? agent_workspace/workdir/attachments/img.png",
+	}
+	out := promoteUploadedImagesToMultiContent(cfg, in, dir, nil)
+	if len(out.MultiContent) != 0 {
+		t.Fatalf("expected no MultiContent when analysis fails, got %+v", out.MultiContent)
+	}
+	if !strings.Contains(out.Content, "The attached image could not be analyzed.") {
+		t.Fatalf("expected analysis failure note, got %q", out.Content)
+	}
+	if !strings.Contains(out.Content, "What is this?") {
+		t.Fatalf("expected the user text to remain, got %q", out.Content)
+	}
+}
+
+func TestLegacyOpenAIFlagDoesNotInlineWithoutImageCapability(t *testing.T) {
+	dir := t.TempDir()
+	attachDir := filepath.Join(dir, "attachments")
+	if err := os.MkdirAll(attachDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), []byte{0x89, 0x50, 0x4e, 0x47}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	orig := analyzeImageForFallback
+	analyzeImageForFallback = func(filePath, prompt string, cfg *config.Config) (string, int, int, error) {
+		return "", 0, 0, errors.New("vision unavailable")
+	}
+	defer func() { analyzeImageForFallback = orig }()
+
+	cfg := &config.Config{}
+	cfg.LLM.Multimodal = true
+	cfg.LLM.ProviderType = "openai"
+	cfg.LLM.Model = "text-only-unknown"
+	in := openai.ChatCompletionMessage{
+		Role:    openai.ChatMessageRoleUser,
+		Content: "look at agent_workspace/workdir/attachments/img.png",
+	}
+	out := promoteUploadedImagesToMultiContent(cfg, in, dir, nil)
+	if len(out.MultiContent) != 0 {
+		t.Fatalf("expected text content without image parts, got %+v", out)
+	}
+	if strings.TrimSpace(out.Content) == "" {
+		t.Fatal("expected content to stay text")
+	}
+	if strings.Contains(out.Content, "data:image") {
+		t.Fatalf("expected no inlined image data, got %q", out.Content)
 	}
 }

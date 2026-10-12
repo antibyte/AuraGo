@@ -560,9 +560,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			return
 		}
 		workspaceDir := runCfg.Config.Directories.WorkspaceDir
-		for i := range finalMessages {
-			finalMessages[i] = promoteUploadedImagesToMultiContent(cfg, finalMessages[i], workspaceDir, s.Logger)
-		}
+		finalMessages = promoteRequestImages(cfg, finalMessages, workspaceDir, s.Logger)
 
 		req.Messages = finalMessages
 		if err := agent.ValidateMinimumRequestBudget(r.Context(), req, runCfg); err != nil {

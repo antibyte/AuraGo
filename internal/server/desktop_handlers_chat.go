@@ -725,9 +725,7 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 	recentMessages := recentMessagesForRequest(sessionID, "", []openai.ChatCompletionMessage{currentRequestMessage}, nil, sessionMessages)
 	recentMessages = replaceDesktopCurrentRequestMessage(recentMessages, persistedPrompt, currentRequestMessage)
 	if strings.TrimSpace(chatContext.ImageBase64) == "" {
-		for i, msg := range recentMessages {
-			recentMessages[i] = promoteUploadedImagesToMultiContent(&cfg, msg, cfg.Directories.WorkspaceDir, s.Logger)
-		}
+		recentMessages = promoteRequestImages(&cfg, recentMessages, cfg.Directories.WorkspaceDir, s.Logger)
 	}
 	sanitizedMessages, droppedToolMessages := agent.SanitizeToolMessages(recentMessages)
 	if droppedToolMessages > 0 && s.Logger != nil {

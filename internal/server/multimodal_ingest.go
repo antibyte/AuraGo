@@ -59,6 +59,8 @@ func promoteUploadedImagesToMultiContent(cfg *config.Config, msg openai.ChatComp
 	}
 
 	var imageParts []openai.ChatMessagePart
+	sent := map[string]struct{}{}
+	var skips []string
 	for _, m := range matches {
 		if len(m) < 2 {
 			continue
@@ -79,12 +81,22 @@ func promoteUploadedImagesToMultiContent(cfg *config.Config, msg openai.ChatComp
 		}
 		info, err := os.Stat(fullPath)
 		if err != nil {
+			reason := err.Error()
+			if os.IsNotExist(err) {
+				reason = "missing"
+			}
+			skips = append(skips, imageNotSent(relativeAttachmentPath, reason))
 			if logger != nil {
 				logger.Warn("Attachment referenced but missing on disk", "path", fullPath, "error", err)
 			}
 			continue
 		}
 		if info.Size() <= 0 || info.Size() > maxInlineBytes {
+			reason := "empty"
+			if info.Size() > maxInlineBytes {
+				reason = "larger than 10 MiB"
+			}
+			skips = append(skips, imageNotSent(relativeAttachmentPath, reason))
 			if logger != nil {
 				logger.Warn("Attachment too large to inline as multimodal input", "path", fullPath, "size", info.Size(), "max", maxInlineBytes)
 			}
@@ -92,6 +104,7 @@ func promoteUploadedImagesToMultiContent(cfg *config.Config, msg openai.ChatComp
 		}
 		data, err := os.ReadFile(fullPath)
 		if err != nil {
+			skips = append(skips, imageNotSent(relativeAttachmentPath, err.Error()))
 			if logger != nil {
 				logger.Warn("Failed to read attachment for multimodal input", "path", fullPath, "error", err)
 			}
@@ -99,11 +112,13 @@ func promoteUploadedImagesToMultiContent(cfg *config.Config, msg openai.ChatComp
 		}
 		dataURI, err := buildOptimizedImageDataURI(data, ext, mime, maxDecodedPixels, maxDim, logger)
 		if err != nil {
+			skips = append(skips, imageNotSent(relativeAttachmentPath, err.Error()))
 			if logger != nil {
 				logger.Warn("Failed to build optimized image data URI; skipping attachment", "path", fullPath, "error", err)
 			}
 			continue
 		}
+		sent[relativeAttachmentPath] = struct{}{}
 		imageParts = append(imageParts, openai.ChatMessagePart{
 			Type: openai.ChatMessagePartTypeImageURL,
 			ImageURL: &openai.ChatMessageImageURL{
@@ -113,13 +128,20 @@ func promoteUploadedImagesToMultiContent(cfg *config.Config, msg openai.ChatComp
 	}
 
 	if len(imageParts) == 0 {
-		return msg
+		if len(skips) == 0 {
+			return msg
+		}
+		out := msg
+		out.MultiContent = nil
+		out.Content = appendImageSkipNotes(msg.Content, skips)
+		return out
 	}
 
-	cleanText := stripAttachmentPaths(msg.Content)
+	cleanText := stripSentAttachmentPaths(msg.Content, sent)
 	if strings.TrimSpace(cleanText) == "" {
 		cleanText = "Please analyze the attached image(s)."
 	}
+	cleanText = appendImageSkipNotes(cleanText, skips)
 
 	parts := make([]openai.ChatMessagePart, 0, 1+len(imageParts))
 	parts = append(parts, openai.ChatMessagePart{Type: openai.ChatMessagePartTypeText, Text: cleanText})
@@ -176,31 +198,43 @@ func mainProviderSupportsInlineImageData(cfg *config.Config) bool {
 	return !mainProviderRequiresPublicImageURL(cfg) && mainProviderSupportsImageMultimodal(cfg)
 }
 
+func promoteRequestImages(cfg *config.Config, messages []openai.ChatCompletionMessage, workspaceDir string, logger *slog.Logger) []openai.ChatCompletionMessage {
+	if len(messages) == 0 {
+		return messages
+	}
+	last := -1
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Role == openai.ChatMessageRoleUser {
+			last = i
+			break
+		}
+	}
+	if last < 0 {
+		return messages
+	}
+	out := append([]openai.ChatCompletionMessage(nil), messages...)
+	out[last] = promoteUploadedImagesToMultiContent(cfg, out[last], workspaceDir, logger)
+	return out
+}
+
 func mainProviderSupportsImageMultimodal(cfg *config.Config) bool {
 	if cfg == nil {
 		return false
 	}
-	effectiveCaps := llm.ResolveConfigProviderCapabilities(cfg)
-	if effectiveCaps.Multimodal && effectiveCaps.Source != llm.CapabilitySourceLegacyFallback {
+	caps := llm.ResolveConfigProviderCapabilities(cfg)
+	if caps.Image {
 		return true
 	}
+	if caps.Source != llm.CapabilitySourceLegacyFallback {
+		return false
+	}
 	pt := strings.ToLower(strings.TrimSpace(cfg.LLM.ProviderType))
-	model := strings.ToLower(strings.TrimSpace(cfg.LLM.Model))
 	for _, extra := range cfg.LLM.MultimodalProviderTypesExtra {
 		if strings.ToLower(strings.TrimSpace(extra)) == pt && pt != "" {
 			return true
 		}
 	}
-	if modelSupportsImageMultimodal(model) {
-		return true
-	}
-
-	switch pt {
-	case "openai", "openrouter", "anthropic", "google", "custom", "workers-ai":
-		return true
-	default:
-		return false
-	}
+	return modelSupportsImageMultimodal(strings.ToLower(strings.TrimSpace(cfg.LLM.Model)))
 }
 
 func modelSupportsImageMultimodal(model string) bool {
@@ -221,14 +255,15 @@ func fallbackVisionAnalysis(cfg *config.Config, msg openai.ChatCompletionMessage
 	if cfg == nil || analyzeImageForFallback == nil {
 		return msg
 	}
-	cleanText := stripAttachmentPaths(msg.Content)
-	if strings.TrimSpace(cleanText) == "" {
-		cleanText = "Please analyze the attached image(s)."
+	userText := strings.TrimSpace(stripAttachmentPaths(msg.Content))
+	prefix := userText
+	if prefix == "" {
+		prefix = "Please analyze the attached image(s)."
 	}
-	prompt := "Describe this image in detail. What do you see? If there is text, transcribe it. If there are people, describe their actions."
+	prompt := fallbackVisionPrompt(userText)
 
 	var b strings.Builder
-	b.WriteString(cleanText)
+	b.WriteString(prefix)
 	b.WriteString("\n\n[IMAGE ANALYSIS]\n")
 	added := 0
 	for _, m := range matches {
@@ -263,7 +298,17 @@ func fallbackVisionAnalysis(cfg *config.Config, msg openai.ChatCompletionMessage
 		b.WriteString("\n")
 	}
 	if added == 0 {
-		return msg
+		const note = "The attached image could not be analyzed."
+		content := userText
+		if content == "" {
+			content = note
+		} else {
+			content = content + "\n" + note
+		}
+		out := msg
+		out.MultiContent = nil
+		out.Content = content
+		return out
 	}
 
 	out := msg
@@ -400,6 +445,84 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func imageNotSent(relative string, reason string) string {
+	return fmt.Sprintf("Image %s was not sent: %s.", filepath.Base(relative), reason)
+}
+
+func appendImageSkipNotes(content string, notes []string) string {
+	if len(notes) == 0 {
+		return content
+	}
+	var b strings.Builder
+	b.WriteString(strings.TrimRight(content, "\n"))
+	for _, note := range notes {
+		if b.Len() > 0 {
+			b.WriteByte('\n')
+		}
+		b.WriteString(note)
+	}
+	return b.String()
+}
+
+func fallbackVisionPrompt(userText string) string {
+	text := strings.TrimSpace(userText)
+	if text == "" {
+		return "Describe this image in detail. What do you see? If there is text, transcribe it. If there are people, describe their actions."
+	}
+	runes := []rune(text)
+	if len(runes) > 2000 {
+		return string(runes[:2000])
+	}
+	return text
+}
+
+func replaceSentAttachmentPaths(s string, sent map[string]struct{}) string {
+	return attachmentPathRe.ReplaceAllStringFunc(s, func(match string) string {
+		sub := attachmentPathRe.FindStringSubmatch(match)
+		if len(sub) < 2 {
+			return match
+		}
+		cleaned := cleanMatchedAttachmentPath(sub[1])
+		if cleaned == "" {
+			return match
+		}
+		if _, ok := sent[cleaned]; ok {
+			return ""
+		}
+		return match
+	})
+}
+
+func stripSentAttachmentPaths(s string, sent map[string]struct{}) string {
+	if len(sent) == 0 {
+		return s
+	}
+	if strings.Contains(s, "<agodesk_attachments>") {
+		return stripSentAttachmentPathsOutsideAgodeskBlocks(s, sent)
+	}
+	return compactAttachmentPromptText(replaceSentAttachmentPaths(s, sent))
+}
+
+func stripSentAttachmentPathsOutsideAgodeskBlocks(s string, sent map[string]struct{}) string {
+	matches := agodeskAttachmentBlockPattern.FindAllStringIndex(s, -1)
+	if len(matches) == 0 {
+		return compactAttachmentPromptText(replaceSentAttachmentPaths(s, sent))
+	}
+	var b strings.Builder
+	last := 0
+	for _, loc := range matches {
+		if loc[0] > last {
+			appendAttachmentPromptText(&b, replaceSentAttachmentPaths(s[last:loc[0]], sent))
+		}
+		appendAttachmentPromptText(&b, s[loc[0]:loc[1]])
+		last = loc[1]
+	}
+	if last < len(s) {
+		appendAttachmentPromptText(&b, replaceSentAttachmentPaths(s[last:], sent))
+	}
+	return compactAttachmentPromptText(b.String())
 }
 
 func stripAttachmentPaths(s string) string {
