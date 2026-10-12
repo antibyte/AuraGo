@@ -3,11 +3,13 @@
 package tools
 
 import (
-	"os"
+	"errors"
 	"os/exec"
 	"strconv"
 	"syscall"
 	"time"
+
+	"golang.org/x/sys/windows"
 )
 
 // SetupCmd applies Windows-specific process attributes.
@@ -44,36 +46,48 @@ func KillProcessTree(pid int) {
 // Stage 1: taskkill /T (terminate tree, no /F) - gives processes a chance to clean up
 // Stage 2: taskkill /F /T (force) if still alive after grace period
 // Default grace period is 2 seconds.
+// The grace wait polls the process. os.Process.Wait would block until exit, ignore
+// the grace deadline, and race with the runner's own Wait.
 func KillProcessTreeGraceful(pid int, gracePeriodSeconds int) {
 	if gracePeriodSeconds <= 0 {
 		gracePeriodSeconds = 2
 	}
 
-	// Stage 1: Graceful termination (no /F flag)
+	// A rejected graceful taskkill (typical for a console process) falls through
+	// to the force kill. An accepted one waits out the grace period first.
 	err := exec.Command("taskkill", "/T", "/PID", strconv.Itoa(pid)).Run()
 	if err == nil {
-		// Wait for process to die gracefully
 		deadline := time.Now().Add(time.Duration(gracePeriodSeconds) * time.Second)
 		for time.Now().Before(deadline) {
-			// Check if process still exists
-			proc, err := os.FindProcess(pid)
-			if err != nil || proc == nil {
-				return
-			}
-			// On Windows, we can't easily check if process is still running
-			// without a syscall. Try to get the exit code - if process is
-			// gone, this will fail.
-			_, err = proc.Wait()
-			if err != nil {
-				// Process exited (or error - either way it's gone)
+			if !windowsProcessRunning(pid) {
 				return
 			}
 			time.Sleep(100 * time.Millisecond)
 		}
 	}
 
-	// Stage 2: Force kill
 	_ = exec.Command("taskkill", "/F", "/T", "/PID", strconv.Itoa(pid)).Run()
+}
+
+// windowsProcessRunning reports whether pid is still active. A missing process
+// is not running. Any other open failure counts as running so the force kill
+// still happens.
+func windowsProcessRunning(pid int) bool {
+	if pid <= 0 {
+		return false
+	}
+	handle, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, uint32(pid))
+	if err != nil {
+		return !errors.Is(err, windows.ERROR_INVALID_PARAMETER)
+	}
+	defer windows.CloseHandle(handle)
+	var code uint32
+	if err := windows.GetExitCodeProcess(handle, &code); err != nil {
+		return true
+	}
+	// 259 is the Win32 STILL_ACTIVE code. x/sys/windows does not export it.
+	const stillActive uint32 = 259
+	return code == stillActive
 }
 
 // applyDaemonLimits is a no-op on Windows (no POSIX rlimits).

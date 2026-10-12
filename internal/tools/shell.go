@@ -95,11 +95,16 @@ func shellEnvHasKey(env []string, key string) bool {
 //   - Using landlock-based sandbox on Linux (requires kernel >= 5.13).
 
 // ExecuteShell runs a command in the shell (PS on Windows, sh on Unix) and returns stdout/stderr.
+// ctx is forwarded to the foreground runner. When it ends, the process tree is killed the same
+// way the runner's own timeout kills it. A nil ctx means context.Background.
 // Uses a manual timer + KillProcessTree to reliably terminate the full process subtree on timeout,
 // avoiding the Windows issue where exec.CommandContext only kills the parent shell but not grandchildren
 // (e.g., an ssh process spawned by powershell that holds pipes open indefinitely).
-func ExecuteShell(command, workspaceDir string) (string, string, error) {
-	if err := requireHostShellExecutionContext(context.Background()); err != nil {
+func ExecuteShell(ctx context.Context, command, workspaceDir string) (string, string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := requireHostShellExecutionContext(ctx); err != nil {
 		return "", "", err
 	}
 	// Security: Check for dangerous commands before execution
@@ -139,7 +144,7 @@ func ExecuteShell(command, workspaceDir string) (string, string, error) {
 		ErrMsg:   "TIMEOUT: shell command exceeded %s limit",
 	})
 
-	return runner.Run(context.Background())
+	return runner.Run(ctx)
 }
 
 // ExecuteShellBackground starts a command in the shell in the background and registers it.

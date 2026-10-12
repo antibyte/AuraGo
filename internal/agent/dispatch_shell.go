@@ -141,7 +141,7 @@ func dispatchShellWithContext(ctx context.Context, tc ToolCall, dc *DispatchCont
 			setToolOutcome(ctx, ToolResultSuccess)
 			return backgroundProcessStartedOutput("Shell process", pid)
 		}
-		stdout, stderr, err := tools.ExecuteShell(req.Command, cfg.Directories.WorkspaceDir)
+		stdout, stderr, err := tools.ExecuteShell(ctx, req.Command, cfg.Directories.WorkspaceDir)
 		stdout = security.Scrub(stdout)
 		stderr = security.Scrub(stderr)
 

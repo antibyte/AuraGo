@@ -222,6 +222,7 @@ Flows, die du in der Desktop-App **EasyDrag** baust, erscheinen in Mission Contr
 - Liest ein Schritt eine Datei, die ein anderer Schritt im Dokumente-Ordner erzeugt hat (etwa ein neues PDF), kopiert AuraGo sie für diesen einen Aufruf nach `.easydrag/<lauf>/` im Workspace und entfernt die Kopie danach.
 - E-Mail-Schritte: Ein neuer Versuch startet erst, wenn der vorige beendet ist; zwei Versuche überschneiden sich also nie. Hat der Mailserver eine Mail angenommen, aber seine Antwort ging verloren, sendet der neue Versuch die Mail ein zweites Mal. Ein Lauf, der während des Sendens abgebrochen wird, kann die Mail im Hintergrund trotzdem noch zustellen.
 - Telegram-Schritte mit Datei: Ist der Text rausgegangen, die Datei aber gescheitert, versucht AuraGo den Schritt nicht erneut, damit der Text nicht doppelt ankommt.
+- Ein Vordergrund-Shell-Schritt endet mit dem Lauf. Bricht der Lauf ab, beendet AuraGo den Prozessbaum. Ein Shell-Schritt mit `background: true` bleibt registriert, bis er selbst endet, im Flow wie im Chat.
 
 #### Flow-Geheimnisse
 
