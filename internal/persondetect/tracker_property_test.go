@@ -56,12 +56,24 @@ func (m *trackerModel) finish() time.Time {
 }
 
 func (m *trackerModel) observe(f AnalyzedFrame) (out modelStep) {
-	if m.open {
-		if gap := f.At.Sub(m.lastHit()); gap < 0 || gap >= m.endAfter {
+	// A frame earlier than the previous one is a clock break, open event or not.
+	clockStep := len(m.log) > 0 && f.At.Before(m.log[len(m.log)-1].At)
+	if clockStep || (m.open && f.At.Sub(m.lastHit()) >= m.endAfter) {
+		if m.open {
 			out.ended, out.endedAt = true, m.finish()
 		}
-	} else if n := len(m.log); n > 0 && f.At.Before(m.log[n-1].At) {
-		m.log = nil // the clock stepped back: older frames are no part of the window
+		m.log = nil
+	}
+	if !m.open {
+		// Frames at least endAfter older than this one are dropped for good, so a later
+		// SetEndAfter does not bring them back.
+		kept := m.log[:0:0]
+		for _, old := range m.log {
+			if f.At.Sub(old.At) < m.endAfter {
+				kept = append(kept, old)
+			}
+		}
+		m.log = kept
 	}
 	m.log = append(m.log, f)
 	if m.open {

@@ -50,12 +50,18 @@ type pendingHit struct {
 	frame AnalyzedFrame
 }
 
+// windowFrame is one analyzed frame in the start window.
+type windowFrame struct {
+	at  time.Time
+	hit bool
+}
+
 // tracker is the per-camera event state machine. It is not safe for concurrent use.
 type tracker struct {
 	endAfter   time.Duration
 	seq        int
 	lastAt     time.Time // At of the previous observed frame, to notice a clock step back
-	recent     []bool
+	recent     []windowFrame
 	pending    []pendingHit
 	open       bool
 	startedAt  time.Time
@@ -89,27 +95,27 @@ func (t *tracker) Open() bool { return t.open }
 // f.At is wall-clock time: the service clock truncates timestamps to
 // milliseconds UTC, which strips Go's monotonic reading, so a step of the system
 // clock (NTP, a manual change, a VM restore) is visible here. A frame earlier
-// than the last hit of the open event (a negative gap) is therefore a clock
-// break, not "a hit 30 s ago": the open event ends at its last hit and the
-// frame is a fresh candidate for the next one. With no event open, a frame
-// earlier than the previous one empties the start window, so hits from before
-// and after a step never start an event together.
+// than the previous frame is therefore a clock break, not a quick succession of
+// frames: an open event ends at its last hit (the step may hide inside the no-hit
+// tail, so the last hit is not the reference), and the frame is a fresh
+// candidate for the next event. With no event open, the start window is emptied,
+// so hits from before and after a step never start an event together.
+//
+// The start window is bounded by age as well as by count: a window frame or
+// pending hit that is at least the end-after time older than f no longer counts
+// toward a start and is dropped. Had an event been open at that hit, it would
+// have ended before f anyway, and the gap comes from fetch backoff, a busy
+// detector or a forward clock step, not from a person who stayed.
 func (t *tracker) Observe(f AnalyzedFrame) trackStep {
 	var step trackStep
-	if t.open {
-		if gap := f.At.Sub(t.lastHit); gap < 0 || gap >= t.endAfter {
+	if clockStep := f.At.Before(t.lastAt); clockStep || (t.open && f.At.Sub(t.lastHit) >= t.endAfter) {
+		if t.open {
 			step.Ended, step.EndedAt = true, t.lastHit
-			t.reset()
 		}
-	} else if f.At.Before(t.lastAt) {
 		t.reset()
 	}
 	t.lastAt = f.At
 	t.seq++
-	t.recent = append(t.recent, f.IsHit())
-	if len(t.recent) > EventStartWindow {
-		t.recent = t.recent[len(t.recent)-EventStartWindow:]
-	}
 	if t.open {
 		if !f.IsHit() {
 			return step
@@ -127,19 +133,22 @@ func (t *tracker) Observe(f AnalyzedFrame) trackStep {
 		}
 		return step
 	}
-	t.prunePending()
+	t.updateWindow(f)
+	t.prunePending(f.At)
 	if !f.IsHit() {
 		return step
 	}
 	t.pending = append(t.pending, pendingHit{seq: t.seq, frame: f})
+	// Cannot trigger today: two hits within the window start an event, so at most one
+	// hit is pending between frames. It guards the buffer if the start rule changes.
 	if drop := len(t.pending) - EventPendingHitFrames; drop > 0 {
 		n := copy(t.pending, t.pending[drop:])
 		clear(t.pending[n:])
 		t.pending = t.pending[:n]
 	}
 	hits := 0
-	for _, hit := range t.recent {
-		if hit {
+	for _, w := range t.recent {
+		if w.hit {
 			hits++
 		}
 	}
@@ -163,12 +172,26 @@ func (t *tracker) Observe(f AnalyzedFrame) trackStep {
 	return step
 }
 
-// prunePending drops the pending hits that left the start window and clears
-// their slots, so the buffer does not keep their JPEGs alive.
-func (t *tracker) prunePending() {
+// updateWindow adds f to the start window: the last EventStartWindow frames that
+// are less than the end-after time older than f.
+func (t *tracker) updateWindow(f AnalyzedFrame) {
+	old := 0
+	for old < len(t.recent) && f.At.Sub(t.recent[old].at) >= t.endAfter {
+		old++
+	}
+	t.recent = append(t.recent[old:], windowFrame{at: f.At, hit: f.IsHit()})
+	if len(t.recent) > EventStartWindow {
+		t.recent = t.recent[len(t.recent)-EventStartWindow:]
+	}
+}
+
+// prunePending drops the pending hits that left the start window, by count or by
+// age (now is the current frame's time), and clears their slots, so the buffer
+// does not keep their JPEGs alive.
+func (t *tracker) prunePending(now time.Time) {
 	kept := t.pending[:0]
 	for _, p := range t.pending {
-		if t.seq-p.seq < EventStartWindow {
+		if t.seq-p.seq < EventStartWindow && now.Sub(p.frame.At) < t.endAfter {
 			kept = append(kept, p)
 		}
 	}

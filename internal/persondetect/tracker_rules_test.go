@@ -281,3 +281,113 @@ func TestTrackerPendingBufferDoesNotRetainDroppedFrames(t *testing.T) {
 		}
 	}
 }
+
+func TestTrackerStepBackInsideTheNoHitTailIsAClockBreak(t *testing.T) {
+	// The event's last hit is at 0 s and empty frames follow up to 28 s. A step back of 20 s
+	// then reads 30 s as 10 s: that is later than the last hit, so only the previous frame
+	// (28 s) shows the step.
+	const stepBack = 20 * time.Second
+	openWithTail := func() *tracker {
+		tr := newTracker()
+		tr.Observe(trackHit(0, 0.9))
+		for s := 2; s <= 28; s += 2 {
+			tr.Observe(trackEmpty(time.Duration(s) * time.Second))
+		}
+		return tr
+	}
+	t.Run("empty frames, then a new person", func(t *testing.T) {
+		tr := openWithTail()
+		ends := 0
+		for real := 30; real <= 44; real += 2 {
+			s := tr.Observe(trackEmpty(time.Duration(real)*time.Second - stepBack))
+			if s.Ended {
+				ends++
+				if real != 30 || !s.EndedAt.Equal(trackT0) {
+					t.Fatalf("real %d s: step = %+v, want the end at the last hit on the first frame after the step", real, s)
+				}
+			}
+		}
+		if ends != 1 || tr.Open() {
+			t.Fatalf("ends = %d open = %v, want one end and no open event", ends, tr.Open())
+		}
+		s := tr.Observe(trackHit(46*time.Second-stepBack, 0.95))
+		if s.Ended || !s.Started || !s.StartedAt.Equal(trackT0.Add(26*time.Second)) {
+			t.Fatalf("step = %+v, want a new event for the person 46 real seconds after the last hit", s)
+		}
+	})
+	t.Run("a person on the first frame after the step", func(t *testing.T) {
+		tr := openWithTail()
+		s := tr.Observe(trackHit(30*time.Second-stepBack, 0.95))
+		if !s.Ended || !s.EndedAt.Equal(trackT0) || !s.Started || !s.StartedAt.Equal(trackT0.Add(10*time.Second)) || len(s.Store) != 1 {
+			t.Fatalf("step = %+v, want the old event ended at 0 s and a new one started at 10 s", s)
+		}
+	})
+}
+
+func TestTrackerStartWindowIsBoundedByAge(t *testing.T) {
+	cases := []struct {
+		name      string
+		endAfter  time.Duration // 0 keeps the default
+		gap       time.Duration
+		between   bool // an empty frame between the hits
+		wantStart bool
+	}{
+		{"within the end time", 0, 29999 * time.Millisecond, false, true},
+		{"exactly the end time", 0, EventEndAfter, false, false},
+		{"minutes apart", 0, 600 * time.Second, false, false},
+		{"an empty frame in between", 0, 36 * time.Second, true, false},
+		{"a longer end time admits 60 s", time.Duration(65) * time.Second, 60 * time.Second, false, true},
+		{"a longer end time has a limit too", time.Duration(65) * time.Second, 65 * time.Second, false, false},
+		{"the default end time rejects 60 s", 0, 60 * time.Second, false, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			tr := newTracker()
+			if c.endAfter > 0 {
+				tr.SetEndAfter(c.endAfter)
+			}
+			tr.Observe(trackHit(0, 0.6))
+			if c.between {
+				tr.Observe(trackEmpty(c.gap / 2))
+			}
+			s := tr.Observe(trackHit(c.gap, 0.6))
+			if s.Started != c.wantStart {
+				t.Fatalf("hits %v apart: step = %+v, want started = %v", c.gap, s, c.wantStart)
+			}
+			if c.wantStart {
+				if len(s.Store) != 2 || !s.StartedAt.Equal(trackT0) {
+					t.Fatalf("step = %+v, want a start at 0 s storing both hits", s)
+				}
+				return
+			}
+			// The late hit is the first of a new window: the next one starts the event, without the old hit.
+			s = tr.Observe(trackHit(c.gap+time.Second, 0.6))
+			if !s.Started || len(s.Store) != 2 || !s.StartedAt.Equal(trackT0.Add(c.gap)) {
+				t.Fatalf("step = %+v, want a start at %v storing the two recent hits", s, c.gap)
+			}
+		})
+	}
+}
+
+func TestTrackerStrongStartDropsHitsOlderThanTheEndTime(t *testing.T) {
+	cases := []struct {
+		gap        time.Duration
+		wantStored int
+	}{
+		{40 * time.Second, 1},
+		{EventEndAfter, 1},
+		{EventEndAfter - time.Millisecond, 2},
+	}
+	for _, c := range cases {
+		tr := newTracker()
+		tr.Observe(trackHit(0, 0.6))
+		s := tr.Observe(trackHit(c.gap, 0.85))
+		wantStart := trackT0.Add(c.gap)
+		if c.wantStored == 2 {
+			wantStart = trackT0
+		}
+		if !s.Started || len(s.Store) != c.wantStored || !s.StartedAt.Equal(wantStart) {
+			t.Fatalf("strong hit %v after a weak one: started %v store %d startedAt %v, want %d stored from %v", c.gap, s.Started, len(s.Store), s.StartedAt, c.wantStored, wantStart)
+		}
+	}
+}
