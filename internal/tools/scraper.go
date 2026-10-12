@@ -95,7 +95,7 @@ func executeWebScraperAuto(rawURL, waitForSelector string, contexts ...context.C
 	ctx := requestContext(contexts)
 	contentType, body, err := security.GetPublic(ctx, rawURL)
 	if err != nil {
-		return formatError(fmt.Sprintf("scrape failed: %v", err))
+		return formatScrapeError(err)
 	}
 	if rssResponseLooksLikeFeed(contentType, body) {
 		if feed, parseErr := parseRSSOrAtom(body); parseErr == nil {
@@ -105,7 +105,7 @@ func executeWebScraperAuto(rawURL, waitForSelector string, contexts ...context.C
 	s := scraper.New(scraperGuardian).WithContext(ctx)
 	result, err := s.ScrapeHTML(rawURL, body)
 	if err != nil {
-		return formatError(fmt.Sprintf("scrape failed: %v", err))
+		return formatScrapeError(err)
 	}
 	if scrapeResultLooksThin(result) {
 		dynamic, dynErr := s.FetchDynamic(rawURL, waitForSelector)
@@ -123,7 +123,7 @@ func executeWebScraperStatic(rawURL, mode string, contexts ...context.Context) s
 	s := scraper.New(scraperGuardian).WithContext(requestContext(contexts))
 	result, err := s.FetchStatic(rawURL)
 	if err != nil {
-		return formatError(fmt.Sprintf("scrape failed: %v", err))
+		return formatScrapeError(err)
 	}
 	return formatScrapeResult(mode, result, "")
 }
@@ -132,12 +132,15 @@ func executeWebScraperDynamic(rawURL, waitForSelector string, contexts ...contex
 	s := scraper.New(scraperGuardian).WithContext(requestContext(contexts))
 	result, err := s.FetchDynamic(rawURL, waitForSelector)
 	if err != nil {
-		return formatError(fmt.Sprintf("dynamic scrape failed: %v", err))
+		return formatScrapeError(err)
 	}
 	return formatScrapeResult("dynamic", result, "")
 }
 
 func formatScrapeResult(mode string, result *scraper.ScrapeResult, warning string) string {
+	if result.ReadabilityError != "" && strings.TrimSpace(result.Markdown) == "" {
+		return formatError("readable text extraction failed")
+	}
 	out := map[string]interface{}{
 		"status":  "success",
 		"mode":    mode,
@@ -157,7 +160,7 @@ func formatScrapeResult(mode string, result *scraper.ScrapeResult, warning strin
 func executeWebScraperRSS(rawURL string, contexts ...context.Context) string {
 	feed, err := fetchRSSFeed(rawURL, false, contexts...)
 	if err != nil {
-		return formatError(fmt.Sprintf("rss scrape failed: %v", err))
+		return formatScrapeError(err)
 	}
 	return formatRSSFeedResult(rawURL, feed)
 }
@@ -363,7 +366,7 @@ func executeWebScraperStructured(rawURL string, options WebScraperOptions, dynam
 		result, err = s.FetchStatic(rawURL)
 	}
 	if err != nil {
-		return formatError(fmt.Sprintf("scrape failed: %v", err))
+		return formatScrapeError(err)
 	}
 	mode := "static"
 	if dynamic {
@@ -376,7 +379,7 @@ func executeWebScraperStructuredAuto(rawURL string, options WebScraperOptions) s
 	s := scraper.New(scraperGuardian).WithContext(requestContext([]context.Context{options.Context}))
 	result, err := s.FetchStatic(rawURL)
 	if err != nil {
-		return formatError(fmt.Sprintf("scrape failed: %v", err))
+		return formatScrapeError(err)
 	}
 	if scrapeResultLooksThin(result) {
 		dynamic, dynErr := s.FetchDynamic(rawURL, options.WaitForSelector)
@@ -639,6 +642,14 @@ func isolateTableRows(rawURL string, rows [][]string) [][]string {
 		rows[i] = isolateStrings(rawURL, row)
 	}
 	return rows
+}
+
+func formatScrapeError(err error) string {
+	msg := err.Error()
+	if strings.Contains(msg, "SSRF") || strings.Contains(msg, "internal address") || strings.Contains(msg, "URL not allowed") {
+		return formatError("URL not allowed")
+	}
+	return formatError(fmt.Sprintf("scrape failed: %v", err))
 }
 
 func formatError(msg string) string {

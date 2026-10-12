@@ -26,10 +26,11 @@ import (
 
 // ScrapeResult holds the structured output of a scrape operation.
 type ScrapeResult struct {
-	Title    string   // Page title extracted by readability
-	Markdown string   // Main article content converted to Markdown
-	RawHTML  string   // Full raw HTML as received from the server
-	Links    []string // All absolute href links found on the page
+	Title            string   // Page title extracted by readability
+	Markdown         string   // Main article content converted to Markdown
+	RawHTML          string   // Full raw HTML as received from the server
+	Links            []string // All absolute href links found on the page
+	ReadabilityError string   // Set when readable text extraction fails; empty means success
 }
 
 // Scraper is the interface that both static and dynamic scrapers satisfy.
@@ -210,12 +211,19 @@ func processForLLM(result *ScrapeResult, rawURL string, g *security.Guardian) er
 		return fmt.Errorf("parse url: %w", err)
 	}
 
+	// Non-HTML bodies are a readability failure even when the library wraps them.
+	if !strings.Contains(result.RawHTML, "<") {
+		result.ReadabilityError = "readable text extraction failed"
+		return nil
+	}
+
 	article, err := readability.FromReader(
 		strings.NewReader(result.RawHTML),
 		parsedURL,
 	)
 	if err != nil {
-		return fmt.Errorf("readability: %w", err)
+		result.ReadabilityError = "readable text extraction failed"
+		return nil
 	}
 
 	result.Title = article.Title()
@@ -223,7 +231,8 @@ func processForLLM(result *ScrapeResult, rawURL string, g *security.Guardian) er
 	// Convert the readability-cleaned HTML to Markdown.
 	var cleanedHTML strings.Builder
 	if err := article.RenderHTML(&cleanedHTML); err != nil {
-		return fmt.Errorf("render readability html: %w", err)
+		result.ReadabilityError = "readable text extraction failed"
+		return nil
 	}
 	var md string
 	converted, err := htmltomarkdown.ConvertString(cleanedHTML.String())
@@ -231,7 +240,8 @@ func processForLLM(result *ScrapeResult, rawURL string, g *security.Guardian) er
 		// Fall back to plain text excerpt if conversion fails.
 		var plainText strings.Builder
 		if renderErr := article.RenderText(&plainText); renderErr != nil {
-			return fmt.Errorf("render readability text: %w", renderErr)
+			result.ReadabilityError = "readable text extraction failed"
+			return nil
 		}
 		md = plainText.String()
 	} else {
