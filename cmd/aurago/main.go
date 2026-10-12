@@ -72,9 +72,12 @@ func resolveInitialPassword(passwordFlag, passwordFile string) (string, error) {
 	return strings.TrimRight(string(raw), "\r\n"), nil
 }
 
-// runIsolatedWorker dispatches the native-runtime worker modes. They run
-// before any AuraGo initialization so a native crash stays in the child
-// process.
+// runIsolatedWorker dispatches the native-runtime worker modes. Each runs as
+// its own process, so a crash in the native library stays in the child.
+// main calls it first, before any other initialization: stdout then carries
+// only the worker's JSON protocol (no config, log or database setup can print
+// to it) and a worker starts without loading the AuraGo configuration or
+// opening the databases.
 func runIsolatedWorker(args []string, stdin io.Reader, stdout, stderr io.Writer) (int, bool) {
 	if len(args) < 2 {
 		return 0, false
@@ -82,7 +85,7 @@ func runIsolatedWorker(args []string, stdin io.Reader, stdout, stderr io.Writer)
 	switch args[1] {
 	case "--embedding-worker":
 		return embeddings.RunONNXWorker(args[2:], stdin, stdout, stderr), true
-	case "--person-detect-worker":
+	case persondetect.WorkerFlag:
 		return persondetect.RunWorker(args[2:], stdin, stdout, stderr), true
 	default:
 		return 0, false

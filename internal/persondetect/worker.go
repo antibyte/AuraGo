@@ -17,8 +17,13 @@ import (
 	"aurago/internal/onnxrt"
 )
 
+// WorkerFlag is the first command-line argument that selects the person
+// detection worker (`aurago --person-detect-worker prepare|serve`). cmd/aurago
+// dispatches on it and the detector client starts workers with it, so both
+// sides share this one constant.
+const WorkerFlag = "--person-detect-worker"
+
 const (
-	workerFlag  = "--person-detect-worker"
 	workerLogID = "aurago-persondetect"
 
 	// Detection-set comparison on the reference image (overview C3): raw

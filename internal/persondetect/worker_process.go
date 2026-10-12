@@ -67,7 +67,7 @@ type workerProcess struct {
 }
 
 func startWorkerProcess(launch workerLaunch) (*workerProcess, error) {
-	command := exec.Command(launch.executable, append([]string{workerFlag}, launch.args...)...)
+	command := exec.Command(launch.executable, append([]string{WorkerFlag}, launch.args...)...)
 	onnxrt.ConfigureWorkerCommand(command, launch.runtimeRoot)
 	command.WaitDelay = workerWaitDelay
 	stdin, err := command.StdinPipe()
@@ -326,7 +326,7 @@ func startServeWorker(ctx context.Context, launch workerLaunch, timeout time.Dur
 func runPrepare(ctx context.Context, executable, runtimeRoot, input, output string, timeout time.Duration) (int, error) {
 	prepareCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	command := exec.CommandContext(prepareCtx, executable, workerFlag, "prepare", "--runtime", runtimeRoot, "--in", input, "--out", output)
+	command := exec.CommandContext(prepareCtx, executable, WorkerFlag, "prepare", "--runtime", runtimeRoot, "--in", input, "--out", output)
 	onnxrt.ConfigureWorkerCommand(command, runtimeRoot)
 	command.WaitDelay = workerWaitDelay
 	stdout := newTailBuffer(64 << 10)

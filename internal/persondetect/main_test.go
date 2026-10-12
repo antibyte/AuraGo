@@ -22,7 +22,7 @@ const (
 // DetectorOptions.Executable at os.Executable(). With AURAGO_PDFAKE_MODE set
 // it is a scripted fake, otherwise the real worker (integration tests).
 func TestMain(m *testing.M) {
-	if len(os.Args) > 1 && os.Args[1] == workerFlag {
+	if len(os.Args) > 1 && os.Args[1] == WorkerFlag {
 		if mode, ok := os.LookupEnv(fakeModeEnv); ok {
 			os.Exit(runFakeWorker(mode, os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
 		}

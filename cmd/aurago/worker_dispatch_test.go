@@ -27,7 +27,16 @@ func TestRunIsolatedWorkerDispatchesWorkerModes(t *testing.T) {
 		t.Fatalf("embedding-worker without flags: handled %v, code %d, stderr %q", handled, code, stderr.String())
 	}
 
-	for _, args := range [][]string{{"aurago"}, {"aurago", "-config", "config.yaml"}} {
+	// Near misses of the worker flags stay with the normal start-up (the flag
+	// must match exactly; single-dash and "=value" spellings are not workers).
+	for _, args := range [][]string{
+		{"aurago"},
+		{"aurago", "-config", "config.yaml"},
+		{"aurago", "-person-detect-worker"},
+		{"aurago", "--person-detect-worker=serve"},
+		{"aurago", "-embedding-worker"},
+		{"aurago", "serve", "--person-detect-worker"},
+	} {
 		if _, handled := runIsolatedWorker(args, strings.NewReader(""), &stdout, &stderr); handled {
 			t.Fatalf("runIsolatedWorker handled %v", args)
 		}
