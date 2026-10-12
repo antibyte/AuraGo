@@ -249,9 +249,13 @@ func injectGo2RTCConfig(rawCfg map[string]interface{}, cfg *config.Config, vault
 		} else {
 			entry["source"] = ""
 		}
+		// A config save replaces go2rtc.streams wholesale (mergeConfigArrayValue);
+		// without the detection object, saving the shown streams would erase it.
+		entry["detection"] = go2RTCDetectionProjection(config.NormalizeGo2RTCStreamDetection(configured.Detection))
 		streams = append(streams, entry)
 	}
 	section["streams"] = streams
+	section["detection"] = go2RTCDetectionProjection(config.NormalizeGo2RTCDetectionSettings(cfg.Go2RTC.Detection))
 }
 
 func injectDefaultToolPermissions(rawCfg map[string]interface{}, cfg *config.Config) {
@@ -1778,6 +1782,11 @@ func validateManagedDockerBackends(cfg config.Config, rt config.Runtime) error {
 }
 
 func validateGo2RTCSettings(cfg config.Go2RTCConfig, rt config.Runtime, vault *security.Vault) error {
+	// Detection settings are validated even while go2rtc is off: config.Load
+	// rejects invalid ones unconditionally.
+	if err := validateGo2RTCDetectionSettings(cfg); err != nil {
+		return err
+	}
 	if !cfg.Enabled {
 		return nil
 	}
