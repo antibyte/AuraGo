@@ -199,12 +199,17 @@ func TestDetectorReportsCleanWorkerExit(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("worker did not exit after its hello")
 	}
-	_, err := detectFrame(detector)
-	if !errors.Is(err, ErrWorkerRestarting) || !strings.HasSuffix(err.Error(), ": worker exited unexpectedly (exit status 0)") {
-		t.Fatalf("Detect on an exited worker = %v", err)
+	// No frame was pending: the Detect that finds the worker gone sends
+	// nothing and only learns that a restart is pending; the exit goes to the
+	// log.
+	if _, err := detectFrame(detector); !restartPending(err) {
+		t.Fatalf("Detect on an exited worker = %v, want ErrWorkerRestarting", err)
 	}
 	if f.calls("detect") != 0 {
 		t.Fatal("a frame was sent to an exited worker")
+	}
+	if logs := f.logs.String(); !strings.Contains(logs, "error=\"worker exited unexpectedly (exit status 0)\"") {
+		t.Fatalf("logs:\n%s", logs)
 	}
 	deadline := time.Now().Add(15 * time.Second)
 	for {
@@ -315,6 +320,71 @@ func TestDetectorBoundsWorkerLogInErrors(t *testing.T) {
 	}
 	// The slog warning carries the whole tail.
 	if logs := f.logs.String(); !strings.Contains(logs, "worker_log=") || !strings.Contains(logs, "flood line 0") || !strings.Contains(logs, "flood line 99") {
+		t.Fatalf("logs:\n%s", logs)
+	}
+}
+
+func TestDetectorReportsNativeCrashHeader(t *testing.T) {
+	f := newDetectorFixture(t, "native_crash", BackendCPU)
+	f.deps.backoffBase, f.deps.backoffMax = 3*time.Second, 3*time.Second
+	detector := f.start(t)
+	_, err := detectFrame(detector)
+	if !errors.Is(err, ErrWorkerRestarting) ||
+		err.Error() != "person detector worker is restarting in 3s: worker exited unexpectedly (exit status 2); crash report: Exception 0xc0000005 0x8 0x10 0x10" {
+		t.Fatalf("Detect = %v", err)
+	}
+	// The slog warning keeps the head (with the header) and the tail (with
+	// the register dump) of the 5 KB crash output.
+	logs := f.logs.String()
+	if !strings.Contains(logs, "worker_log=") || !strings.Contains(logs, "Exception 0xc0000005 0x8 0x10 0x10\\nPC=0x10") ||
+		!strings.Contains(logs, "bytes skipped") || !strings.Contains(logs, "gs      0x2b") {
+		t.Fatalf("logs:\n%s", logs)
+	}
+}
+
+func TestDetectorDoesNotBlameARecoveredPanicForAnExit(t *testing.T) {
+	f := newDetectorFixture(t, "recover_then_exit", BackendCPU)
+	f.deps.backoffBase, f.deps.backoffMax = 3*time.Second, 3*time.Second
+	detector := f.start(t)
+	frame := testFrame(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	_, err := detector.Detect(ctx, frame, 0.5)
+	if err == nil || errors.Is(err, ErrWorkerRestarting) || err.Error() != "detect: internal error: runtime error: index out of range [3] with length 0" {
+		t.Fatalf("Detect hitting a recovered panic = %v", err)
+	}
+	// The worker then exits for an unrelated reason: the error names the
+	// recovered panic's one-line message, never a stale stack frame.
+	_, err = detector.Detect(ctx, frame, 0.5)
+	if !errors.Is(err, ErrWorkerRestarting) ||
+		!strings.HasSuffix(err.Error(), ": worker exited unexpectedly (exit status 0); last log line: panic: runtime error: index out of range [3] with length 0 [recovered: request 1 answered with an error]") {
+		t.Fatalf("Detect after the exit = %v", err)
+	}
+}
+
+func TestDetectorRestartsWorkerThatExitedAfterAnswering(t *testing.T) {
+	// The worker answers one frame and exits. Whichever Detect notices the
+	// exit, no Detect fails without sending its frame: the next one only
+	// learns that a restart is pending.
+	f := newDetectorFixture(t, "exit_after_answer", BackendCPU)
+	f.deps.backoffBase, f.deps.backoffMax = 3*time.Second, 3*time.Second
+	detector := f.start(t)
+	worker := currentWorker(t, detector)
+	if result, err := detectFrame(detector); err != nil || len(result.Boxes) != 1 {
+		t.Fatalf("Detect = %+v, %v", result, err)
+	}
+	select {
+	case <-worker.done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("worker did not exit after answering")
+	}
+	if _, err := detectFrame(detector); !restartPending(err) {
+		t.Fatalf("Detect after the exit = %v, want ErrWorkerRestarting", err)
+	}
+	if f.calls("detect") != 1 {
+		t.Fatalf("frames sent = %d, want 1", f.calls("detect"))
+	}
+	if logs := f.logs.String(); strings.Count(logs, "Person detection worker failed") != 1 || !strings.Contains(logs, "worker exited unexpectedly (exit status 0)") {
 		t.Fatalf("logs:\n%s", logs)
 	}
 }

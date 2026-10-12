@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"runtime/debug"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -399,7 +400,8 @@ func truncateText(s string, limit int) string {
 // preprocessing and inference; cpu_ms has ≈15.6 ms resolution on Windows and
 // is 0 when the process CPU time cannot be read. A Go panic while the frame
 // is handled (a decoder or post-processing bug hit by one frame) is answered
-// as the frame's error, "internal error: …", with the stack on diagnostics;
+// as the frame's error, "internal error: …", with the stack and then the
+// line "panic: … [recovered: request N answered with an error]" on diagnostics;
 // the worker keeps serving.
 func handleDetect(eng engine, request workerRequest, diagnostics io.Writer) (response any) {
 	defer func() {
@@ -407,8 +409,12 @@ func handleDetect(eng engine, request workerRequest, diagnostics io.Writer) (res
 		if value == nil {
 			return
 		}
-		fmt.Fprintf(diagnostics, "person detection worker: panic while handling request %d: %v\n%s", request.ID, value, debug.Stack())
-		response = errorResponse{ID: request.ID, Type: "result", Error: truncateText(fmt.Sprintf("internal error: %v", value), maxRequestErrorBytes)}
+		// The stack first and the one-line message last: the parent reports a
+		// worker's last log line, which must not be a stale stack frame.
+		message := strings.Join(strings.Fields(fmt.Sprint(value)), " ")
+		fmt.Fprintf(diagnostics, "person detection worker: recovered from a panic while handling request %d:\n%s", request.ID, debug.Stack())
+		fmt.Fprintf(diagnostics, "panic: %s [recovered: request %d answered with an error]\n", truncateText(message, maxWorkerErrorBytes), request.ID)
+		response = errorResponse{ID: request.ID, Type: "result", Error: truncateText("internal error: "+message, maxRequestErrorBytes)}
 	}()
 	if len(request.JPEG) == 0 {
 		return errorResponse{ID: request.ID, Type: "result", Error: "jpeg is required"}

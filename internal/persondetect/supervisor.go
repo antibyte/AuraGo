@@ -2,6 +2,7 @@ package persondetect
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -15,8 +16,8 @@ import (
 // worker's time budget (deps.detectTimeout), also across Detect calls whose
 // caller gave up early, so a hung worker is killed once its oldest request is
 // overdue, whatever the callers' contexts. A request line is only written
-// after the previous one was taken by the worker, so at most one write is
-// pending.
+// after the previous write returned, so at most one write is pending (lines
+// may still queue in the pipe; the budget bounds that).
 type workerDetector struct {
 	logger *slog.Logger
 	launch workerLaunch
@@ -104,7 +105,7 @@ func (d *workerDetector) Detect(ctx context.Context, jpegData []byte, minScore f
 		var previousDone <-chan struct{}
 		if write == nil {
 			if previous != nil && !previous.finished() {
-				// The worker has not taken the previous line yet.
+				// The previous write has not returned yet.
 				previousDone = previous.done
 			} else {
 				if previous != nil && previous.err != nil {
@@ -136,10 +137,10 @@ func (d *workerDetector) Detect(ctx context.Context, jpegData []byte, minScore f
 			if message.Type != "result" {
 				continue
 			}
-			d.answeredLocked(message.ID)
 			if write != nil && message.ID == id {
-				return d.finishLocked(message)
+				return d.finishAnswerLocked(worker, message)
 			}
+			d.answeredLocked(message.ID)
 			// An answer to an abandoned frame: the budget now runs from the
 			// oldest request still unanswered.
 			timer.Reset(time.Until(d.deadlineLocked()))
@@ -151,8 +152,7 @@ func (d *workerDetector) Detect(ctx context.Context, jpegData []byte, minScore f
 				if isWorkerError(message) {
 					return DetectResult{}, d.failLocked(workerError(message))
 				}
-				d.answeredLocked(message.ID)
-				return d.finishLocked(message)
+				return d.finishAnswerLocked(worker, message)
 			}
 			return DetectResult{}, d.failLocked(d.exitCause(worker))
 		case <-timer.C:
@@ -167,7 +167,9 @@ func (d *workerDetector) Detect(ctx context.Context, jpegData []byte, minScore f
 
 // collectLocked takes the answers worker printed while no Detect was waiting
 // (to frames whose callers gave up) and fails the worker when it printed an
-// error line or exited.
+// error line or exited. A worker that exited with every frame answered is
+// reported in the log only: the calling Detect, which has sent nothing, gets
+// the plain ErrWorkerRestarting.
 func (d *workerDetector) collectLocked(worker *workerProcess) error {
 	for {
 		select {
@@ -187,7 +189,12 @@ func (d *workerDetector) collectLocked(worker *workerProcess) error {
 			if len(worker.messages) > 0 {
 				continue
 			}
-			return d.failLocked(d.exitCause(worker))
+			idle := len(d.pending) == 0
+			err := d.failLocked(d.exitCause(worker))
+			if idle && errors.Is(err, ErrWorkerRestarting) {
+				return ErrWorkerRestarting
+			}
+			return err
 		default:
 			return nil
 		}
@@ -224,14 +231,30 @@ func (d *workerDetector) exitCause(worker *workerProcess) error {
 }
 
 // writeError describes a failed request write. The write fails because the
-// worker went away, so its exit is reported when it follows within a second.
+// worker went away, so its exit is reported when it follows within a second
+// (Close does not wait for that).
 func (d *workerDetector) writeError(worker *workerProcess, err error) error {
 	select {
 	case <-worker.done:
 		return d.exitCause(worker)
 	case <-time.After(time.Second):
-		return fmt.Errorf("send frame: %w", err)
+	case <-d.ctx.Done():
 	}
+	return fmt.Errorf("send frame: %w", err)
+}
+
+// finishAnswerLocked returns the answer to the calling Detect's frame. A
+// worker that has exited already is failed right away (logged, counted, its
+// restart scheduled), so the next Detect does not find it dead.
+func (d *workerDetector) finishAnswerLocked(worker *workerProcess, message workerMessage) (DetectResult, error) {
+	d.answeredLocked(message.ID)
+	result, err := d.finishLocked(message)
+	select {
+	case <-worker.done:
+		_ = d.failLocked(d.exitCause(worker))
+	default:
+	}
+	return result, err
 }
 
 // finishLocked turns the worker's answer into a result. A frame-level error

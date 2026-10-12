@@ -42,6 +42,11 @@ func TestMain(m *testing.M) {
 //     (the first start never reads stdin), ignore_close (never reads stdin,
 //     never exits by itself), noise, stderr_flood (100 stderr lines and a
 //     1 KB last line before the hello)
+//   - native_crash: every detect prints syntheticNativeCrash on stderr and
+//     exits 2, like the Go runtime after an access violation in native code
+//   - recover_then_exit: the first detect panics inside the real handleDetect
+//     (answered as a frame error), the second one exits 0
+//   - exit_after_answer: exits 0 right after answering a detect
 //   - detect: crash_detect, crash_first_detect (first start only),
 //     crash_second_detect (per start), hang_detect, panic_detect, frame_error,
 //     detect_sleep_ms=N, echo_id (answers with width = request id and height =
@@ -94,6 +99,25 @@ func fakeCallCount(dir, name string) int {
 		return 0
 	}
 	return strings.Count(string(raw), "\n")
+}
+
+// syntheticNativeCrash mirrors what the Go runtime prints on Windows when
+// native code (ONNX Runtime) hits an access violation: a log line, the
+// "Exception 0x…" header, ≈5 KB of goroutine traces and a register dump that
+// ends in "gs 0x2b". The header is outside the last 4 KiB.
+func syntheticNativeCrash() string {
+	var text strings.Builder
+	text.WriteString("[W:onnxruntime:aurago-persondetect] Some nodes were not assigned to the preferred execution providers\n")
+	text.WriteString("Exception 0xc0000005 0x8 0x10 0x10\nPC=0x10\n\n")
+	text.WriteString("runtime.cgocall(0x7ff6d864e980, 0x7ff6d87ce0d0)\n\tC:/Program Files/Go/src/runtime/cgocall.go:167 +0x3e fp=0x7d954455e18 sp=0x7d954455db8 pc=0x7ff6d86b6d7e\n")
+	for i := 2; i < 40; i++ {
+		fmt.Fprintf(&text, "\ngoroutine %d gp=0x7d95444e780 m=nil [GC sweep wait]:\nruntime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)\n\tC:/Program Files/Go/src/runtime/proc.go:474 +0xca fp=0x7d954451fa8 sp=0x7d954451f88 pc=0x7ff6d86b88ea\n", i)
+	}
+	for _, register := range []string{"rax", "rbx", "rcx", "rdx", "rdi", "rsi", "rbp", "rsp", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15", "rip", "rflags", "cs", "fs"} {
+		fmt.Fprintf(&text, "%-8s0x10\n", register)
+	}
+	text.WriteString("gs      0x2b\n")
+	return text.String()
 }
 
 // fakeNoise writes what native libraries print around the protocol: an ONNX
@@ -192,6 +216,18 @@ func runFakeWorker(mode string, args []string, stdin io.Reader, stdout, stderr i
 			case "detect":
 				detects++
 				recordFakeCall("detect")
+				if settings.has("native_crash") {
+					fmt.Fprint(stderr, syntheticNativeCrash())
+					return 2
+				}
+				if settings.has("recover_then_exit") {
+					if detects > 1 {
+						return 0
+					}
+					eng := &panickingEngine{inner: newFakeEngine([]float64{0.9}, [][4]float32{{0.3, 0.5, 0.1, 0.4}})}
+					_ = writeJSONLine(stdout, handleDetect(eng, request, stderr))
+					continue
+				}
 				if settings.has("detect_sleep_ms") {
 					time.Sleep(time.Duration(settings.float("detect_sleep_ms", 0)) * time.Millisecond)
 				}
@@ -221,6 +257,9 @@ func runFakeWorker(mode string, args []string, stdin io.Reader, stdout, stderr i
 					ID: request.ID, Type: "result", Boxes: []Box{{X1: 0.1, Y1: 0.2, X2: 0.3, Y2: 0.4, Score: 0.9}},
 					Width: 64, Height: 48, WallMS: 5, CPUMS: 4,
 				})
+				if settings.has("exit_after_answer") {
+					return 0
+				}
 			case "close":
 				_ = writeJSONLine(stdout, closeResponse{ID: request.ID, Type: "result"})
 				return 0

@@ -436,7 +436,11 @@ func TestServeLoopAnswersDetectPanicsAsFrameErrors(t *testing.T) {
 	if lines[1]["id"] != float64(2) || lines[1]["error"] != nil || lines[2]["id"] != float64(3) || eng.inner.runs != 1 {
 		t.Fatalf("lines after the panic = %v, engine runs %d", lines[1:], eng.inner.runs)
 	}
-	if log := diagnostics.String(); !strings.Contains(log, "panic while handling request 1: runtime error: index out of range") || !strings.Contains(log, "goroutine") {
+	// The stack comes first and a one-line panic message last, so the
+	// parent's "last log line" names the panic, not a stack frame.
+	log := strings.TrimSpace(diagnostics.String())
+	lastLine := log[strings.LastIndexByte(log, '\n')+1:]
+	if !strings.Contains(log, "goroutine") || lastLine != "panic: runtime error: index out of range [3] with length 0 [recovered: request 1 answered with an error]" {
 		t.Fatalf("diagnostics = %q", log)
 	}
 }
