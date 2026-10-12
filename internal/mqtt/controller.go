@@ -161,6 +161,10 @@ type MQTTController struct {
 	workerDone   chan struct{}
 	stopped      bool
 	legacyBridge bool
+
+	// reconcileHook replaces reconcileGenerationSubscriptions when non-nil.
+	// Production leaves it nil. Tests observe the broker wait from OnConnect.
+	reconcileHook func(*mqttGeneration, *config.Config)
 }
 
 const defaultControllerRelayQueueSize = 100
@@ -472,22 +476,27 @@ func (c *MQTTController) startGeneration(snapshot *mqttSnapshot, revision uint64
 		if !c.enterGenerationCallback(gen) {
 			return
 		}
-		defer gen.callbackMu.Unlock()
-		c.manualOpMu.Lock()
-		defer c.manualOpMu.Unlock()
 		c.mu.RLock()
 		currentSnapshot := c.active
 		c.mu.RUnlock()
 		if currentSnapshot == nil || !c.generationCurrent(gen) {
+			gen.callbackMu.Unlock()
 			return
 		}
+		gen.callbackMu.Unlock()
+		c.manualOpMu.Lock()
 		resetGenerationAcknowledgements(gen)
+		c.manualOpMu.Unlock()
 		if log != nil {
 			log.Info("[MQTT] Connected to broker")
 		}
 		recordConnected()
 		publishAvailability(pahoClient, currentSnapshot.config(), log)
-		c.reconcileGenerationSubscriptions(gen, currentSnapshot.config())
+		if c.reconcileHook != nil {
+			c.reconcileHook(gen, currentSnapshot.config())
+		} else {
+			c.reconcileGenerationSubscriptions(gen, currentSnapshot.config())
+		}
 		c.mu.Lock()
 		if c.generationCurrentLocked(gen) {
 			c.state = "connected"
