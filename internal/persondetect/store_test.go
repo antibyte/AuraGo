@@ -3,13 +3,18 @@ package persondetect
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -30,45 +35,85 @@ func newTestEventStore(t *testing.T) *EventStore {
 	return st
 }
 
-func TestOpenEventStoreLayoutAndPermissions(t *testing.T) {
-	dir := t.TempDir()
-	st, err := OpenEventStore(dir, pdTestLogger())
-	if err != nil {
-		t.Fatalf("OpenEventStore: %v", err)
-	}
-	defer st.Close()
-	dbPath, root := DetectionsPaths(dir)
-	if dbPath != filepath.Join(dir, "go2rtc", "detections.db") || root != filepath.Join(dir, "go2rtc", "detections") || st.Root() != root {
-		t.Fatalf("paths = %s, %s, root %s", dbPath, root, st.Root())
-	}
-	if st.Cursor() != 0 {
-		t.Fatalf("fresh cursor = %d", st.Cursor())
-	}
-	// A write makes SQLite create its WAL and SHM files, which take the
-	// database file's mode.
-	if _, err := st.CreateEvent(context.Background(), NewEvent{CameraID: "cam", CameraName: "Cam", StartedAt: storeT0}); err != nil {
-		t.Fatalf("CreateEvent: %v", err)
-	}
-	if runtime.GOOS != "windows" {
-		for _, path := range []string{dbPath, dbPath + "-wal", dbPath + "-shm"} {
-			if info, err := os.Stat(path); err != nil || info.Mode().Perm() != 0o640 {
-				t.Fatalf("%s mode = %v, %v; want 0640", filepath.Base(path), modeOf(info), err)
-			}
-		}
-		if info, err := os.Stat(root); err != nil || info.Mode().Perm() != 0o750 {
-			t.Fatalf("image root mode = %v, %v; want 0750", modeOf(info), err)
-		}
-	}
-	if _, err := OpenEventStore("  ", pdTestLogger()); err == nil {
-		t.Fatal("empty data directory accepted")
-	}
-}
-
 func modeOf(info os.FileInfo) os.FileMode {
 	if info == nil {
 		return 0
 	}
 	return info.Mode().Perm()
+}
+
+// requireModeWithin fails when path has permission bits beyond limit. A umask
+// can only remove bits, so this holds under 022 and 077 alike.
+func requireModeWithin(t *testing.T, path string, limit os.FileMode) {
+	t.Helper()
+	info, err := os.Stat(path)
+	if err != nil || info.Mode().Perm()&^limit != 0 {
+		t.Fatalf("%s mode = %v, %v; want no bits beyond %v", filepath.Base(path), modeOf(info), err, limit)
+	}
+}
+
+func TestOpenEventStoreLayoutAndPermissions(t *testing.T) {
+	dir := t.TempDir()
+	dbPath, root := DetectionsPaths(dir)
+	// An empty image root from before is reused, not moved aside.
+	if err := os.MkdirAll(root, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	before := time.Now().UnixMilli()
+	st, err := OpenEventStore(dir, pdTestLogger())
+	after := time.Now().UnixMilli()
+	if err != nil {
+		t.Fatalf("OpenEventStore: %v", err)
+	}
+	defer st.Close()
+	if dbPath != filepath.Join(dir, "go2rtc", "detections.db") || root != filepath.Join(dir, "go2rtc", "detections") || st.Root() != root {
+		t.Fatalf("paths = %s, %s, root %s", dbPath, root, st.Root())
+	}
+	var version int
+	if err := st.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != eventStoreSchemaVersion {
+		t.Fatalf("user_version = %d, %v; want %d", version, err, eventStoreSchemaVersion)
+	}
+	// A fresh database starts its ids and revisions at the creation time in ms,
+	// so they never repeat ids or revisions of a database that was reset.
+	seed := st.Cursor()
+	if seed < before || seed > after {
+		t.Fatalf("fresh cursor = %d, want the creation time in ms (%d..%d)", seed, before, after)
+	}
+	ctx := context.Background()
+	// A write makes SQLite create its WAL and SHM files, which take the
+	// database file's mode.
+	id, err := st.CreateEvent(ctx, NewEvent{CameraID: "cam", CameraName: "Cam", StartedAt: storeT0})
+	if err != nil {
+		t.Fatalf("CreateEvent: %v", err)
+	}
+	frameID, err := st.AddFrame(ctx, id, StoredFrame{Seq: 1, Path: "a.jpg", ThumbPath: "a_t.jpg", Size: 1, CapturedAt: storeT0, Score: 0.9})
+	if err != nil {
+		t.Fatalf("AddFrame: %v", err)
+	}
+	if err := st.RecordArm(ctx, armRecord{Mode: ArmOn, Armed: true, ChangedAt: storeT0, ChangedBy: ActorUser}); err != nil {
+		t.Fatalf("RecordArm: %v", err)
+	}
+	entries, err := st.ArmLogLatest(ctx, st.Cursor(), 1)
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("ArmLogLatest = %+v, %v", entries, err)
+	}
+	for name, v := range map[string]int64{"event id": id, "frame id": frameID, "arm log id": entries[0].ID, "cursor": st.Cursor()} {
+		if v <= seed || v >= 1<<53 {
+			t.Fatalf("%s = %d, want above the seed %d and below 2^53", name, v, seed)
+		}
+	}
+	if runtime.GOOS != "windows" {
+		for _, path := range []string{dbPath, dbPath + "-wal", dbPath + "-shm"} {
+			requireModeWithin(t, path, 0o640)
+		}
+		requireModeWithin(t, root, 0o750)
+	}
+	if orphaned, _ := filepath.Glob(root + ".orphaned-*"); len(orphaned) != 0 {
+		t.Fatalf("an empty image root was moved aside: %v", orphaned)
+	}
+	if _, err := OpenEventStore("  ", pdTestLogger()); err == nil {
+		t.Fatal("empty data directory accepted")
+	}
 }
 
 func TestOpenEventStoreRecoversOnlyCorruptDatabases(t *testing.T) {
@@ -89,9 +134,7 @@ func TestOpenEventStoreRecoversOnlyCorruptDatabases(t *testing.T) {
 		t.Fatalf("corrupt database moved aside as %v, want one .corrupt-<time> file", moved)
 	}
 	if runtime.GOOS != "windows" {
-		if info, err := os.Stat(dbPath); err != nil || info.Mode().Perm() != 0o640 {
-			t.Fatalf("recreated database mode = %v, %v; want 0640", modeOf(info), err)
-		}
+		requireModeWithin(t, dbPath, 0o640)
 	}
 	if _, err := st.CreateEvent(context.Background(), NewEvent{CameraID: "cam", CameraName: "Cam", StartedAt: storeT0}); err != nil {
 		t.Fatalf("CreateEvent on the fresh database: %v", err)
@@ -111,6 +154,748 @@ func TestOpenEventStoreRecoversOnlyCorruptDatabases(t *testing.T) {
 	}
 	if _, err := os.Stat(dbPath); err != nil {
 		t.Fatalf("the newer database must stay: %v", err)
+	}
+}
+
+// A database that exists but cannot be used is an error and stays where it is:
+// only real corruption moves a database aside.
+func TestOpenEventStoreLeavesUnusableDatabasesInPlace(t *testing.T) {
+	requireInPlace := func(t *testing.T, dbPath string) {
+		t.Helper()
+		if moved, _ := filepath.Glob(dbPath + "*.corrupt-*"); len(moved) != 0 {
+			t.Fatalf("moved aside: %v", moved)
+		}
+		if _, err := os.Lstat(dbPath); err != nil {
+			t.Fatalf("the database must stay: %v", err)
+		}
+	}
+	newStoreWithEvent := func(t *testing.T) (string, string) {
+		t.Helper()
+		dir := t.TempDir()
+		st, err := OpenEventStore(dir, pdTestLogger())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := st.CreateEvent(context.Background(), NewEvent{CameraID: "cam", CameraName: "Cam", StartedAt: storeT0}); err != nil {
+			t.Fatal(err)
+		}
+		if err := st.Close(); err != nil {
+			t.Fatal(err)
+		}
+		dbPath, _ := DetectionsPaths(dir)
+		return dir, dbPath
+	}
+
+	t.Run("directory", func(t *testing.T) {
+		dir := t.TempDir()
+		dbPath, _ := DetectionsPaths(dir)
+		if err := os.MkdirAll(dbPath, 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := OpenEventStore(dir, pdTestLogger()); err == nil {
+			t.Fatal("a directory in place of the database was accepted")
+		}
+		requireInPlace(t, dbPath)
+		if info, err := os.Stat(dbPath); err != nil || !info.IsDir() {
+			t.Fatalf("the directory must stay: %v", err)
+		}
+	})
+
+	t.Run("unreadable", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("Windows has no POSIX read permission to take away")
+		}
+		if os.Geteuid() == 0 {
+			t.Skip("root reads every file")
+		}
+		dir, dbPath := newStoreWithEvent(t)
+		if err := os.Chmod(dbPath, 0); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.Chmod(dbPath, 0o640) })
+		if _, err := OpenEventStore(dir, pdTestLogger()); err == nil {
+			t.Fatal("an unreadable database was opened")
+		}
+		requireInPlace(t, dbPath)
+		if info, err := os.Stat(dbPath); err != nil || info.Mode().Perm() != 0 {
+			t.Fatalf("the unreadable database's mode changed: %v, %v", modeOf(info), err)
+		}
+	})
+
+	t.Run("locked", func(t *testing.T) {
+		previous := eventStoreBusyTimeoutMS
+		eventStoreBusyTimeoutMS = 200
+		t.Cleanup(func() { eventStoreBusyTimeoutMS = previous })
+		dir, dbPath := newStoreWithEvent(t)
+		ctx := context.Background()
+		holder, err := sql.Open("sqlite", dbPath+"?_pragma=busy_timeout(100)")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer holder.Close()
+		holder.SetMaxOpenConns(1)
+		conn, err := holder.Conn(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer conn.Close()
+		for _, stmt := range []string{`PRAGMA locking_mode=EXCLUSIVE`, `BEGIN EXCLUSIVE`} {
+			if _, err := conn.ExecContext(ctx, stmt); err != nil {
+				t.Fatalf("%s: %v", stmt, err)
+			}
+		}
+		start := time.Now()
+		if st, err := OpenEventStore(dir, pdTestLogger()); err == nil {
+			_ = st.Close()
+			t.Fatal("a database locked by another connection was opened")
+		}
+		if took := time.Since(start); took > 3*time.Second {
+			t.Fatalf("open of a locked database took %v", took)
+		}
+		requireInPlace(t, dbPath)
+		if _, err := conn.ExecContext(ctx, `ROLLBACK`); err != nil {
+			t.Fatal(err)
+		}
+		_ = conn.Close()
+		_ = holder.Close()
+		st, err := OpenEventStore(dir, pdTestLogger())
+		if err != nil {
+			t.Fatalf("open after the lock was released: %v", err)
+		}
+		defer st.Close()
+		if page, err := st.Events(ctx, EventQuery{}); err != nil || len(page.Events) != 1 {
+			t.Fatalf("events after the lock = %+v, %v", page.Events, err)
+		}
+	})
+}
+
+// Existing files and directories with wider modes are tightened on open (never
+// widened): <data>/go2rtc is mounted into the go2rtc container, so a restored
+// 0644 database would be readable there.
+func TestOpenEventStoreTightensExistingModes(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX modes")
+	}
+	dir := t.TempDir()
+	st, err := OpenEventStore(dir, pdTestLogger())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
+	dbPath, root := DetectionsPaths(dir)
+	// SQLite treats empty WAL and SHM files as no WAL and an uninitialized index.
+	for _, path := range []string{dbPath + "-wal", dbPath + "-shm"} {
+		if err := os.WriteFile(path, nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for path, mode := range map[string]os.FileMode{dbPath: 0o644, dbPath + "-wal": 0o666, dbPath + "-shm": 0o644, root: 0o755} {
+		if err := os.Chmod(path, mode); err != nil {
+			t.Fatal(err)
+		}
+	}
+	st, err = OpenEventStore(dir, pdTestLogger())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.CreateEvent(context.Background(), NewEvent{CameraID: "cam", CameraName: "Cam", StartedAt: storeT0}); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{dbPath, dbPath + "-wal", dbPath + "-shm"} {
+		requireModeWithin(t, path, 0o640)
+		if info, _ := os.Stat(path); info.Mode().Perm()&0o600 != 0o600 {
+			t.Fatalf("%s lost its owner bits: %v", filepath.Base(path), info.Mode().Perm())
+		}
+	}
+	requireModeWithin(t, root, 0o750)
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
+	// A tighter mode stays as it is.
+	if err := os.Chmod(dbPath, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	st, err = OpenEventStore(dir, pdTestLogger())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if info, err := os.Stat(dbPath); err != nil || info.Mode().Perm() != 0o600 {
+		t.Fatalf("a 0600 database became %v, %v", modeOf(info), err)
+	}
+	if info, err := os.Stat(root); err != nil || info.Mode().Perm() != 0o700 {
+		t.Fatalf("a 0700 image root became %v, %v", modeOf(info), err)
+	}
+}
+
+// fillStoreForReset stores events with frames, image files and arm-log rows and
+// returns the highest event and frame ids, the cursor and the image paths.
+func fillStoreForReset(t *testing.T, st *EventStore) (lastEvent, lastFrame, cursor int64, images []string) {
+	t.Helper()
+	ctx := context.Background()
+	for i := 0; i < 3; i++ {
+		id, err := st.CreateEvent(ctx, NewEvent{CameraID: "front-door", CameraName: "Front", StartedAt: storeT0})
+		if err != nil {
+			t.Fatal(err)
+		}
+		rel := fmt.Sprintf("2026/10/11/front-door/%d_1.jpg", id)
+		thumb := fmt.Sprintf("2026/10/11/front-door/%d_1_thumb.jpg", id)
+		for _, p := range []string{rel, thumb} {
+			full := filepath.Join(st.Root(), filepath.FromSlash(p))
+			if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(full, []byte("old image"), 0o640); err != nil {
+				t.Fatal(err)
+			}
+		}
+		frameID, err := st.AddFrame(ctx, id, StoredFrame{Seq: 1, Path: rel, ThumbPath: thumb, Size: 18, CapturedAt: storeT0, Score: 0.9})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := st.RecordArm(ctx, armRecord{Mode: ArmOn, Armed: true, ChangedAt: storeT0, ChangedBy: ActorUser}); err != nil {
+			t.Fatal(err)
+		}
+		lastEvent, lastFrame = id, frameID
+		images = append(images, rel, thumb)
+	}
+	return lastEvent, lastFrame, st.Cursor(), images
+}
+
+// waitPastMillis waits until the wall clock in ms is beyond v. A database reset
+// seeds ids and revisions from the clock; in practice far more time passes
+// between a database's creation and its reset than it has writes.
+func waitPastMillis(t *testing.T, v int64) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().UnixMilli() <= v {
+		if time.Now().After(deadline) {
+			t.Fatalf("the clock did not pass %d", v)
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
+// requireResetAfter checks a store opened after a database reset: ids and the
+// cursor continue above the old ones, and the old images were moved aside to
+// one detections.orphaned-<time> directory, untouched, behind a fresh empty root.
+func requireResetAfter(t *testing.T, st *EventStore, lastEvent, lastFrame, cursor int64, images []string, logs string) {
+	t.Helper()
+	ctx := context.Background()
+	if st.Cursor() <= cursor {
+		t.Fatalf("cursor after the reset = %d, want above %d", st.Cursor(), cursor)
+	}
+	id, err := st.CreateEvent(ctx, NewEvent{CameraID: "front-door", CameraName: "Front", StartedAt: storeT0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rel := fmt.Sprintf("2026/10/11/front-door/%d_1.jpg", id)
+	frameID, err := st.AddFrame(ctx, id, StoredFrame{Seq: 1, Path: rel, ThumbPath: rel + "_t", Size: 5, CapturedAt: storeT0, Score: 0.9})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id <= lastEvent || frameID <= lastFrame {
+		t.Fatalf("ids after the reset: event %d (before %d), frame %d (before %d)", id, lastEvent, frameID, lastFrame)
+	}
+	for _, old := range images {
+		if old == rel {
+			t.Fatalf("the new frame path %s collides with an old image", rel)
+		}
+	}
+	root := st.Root()
+	orphaned, _ := filepath.Glob(root + ".orphaned-*")
+	if len(orphaned) != 1 {
+		t.Fatalf("orphaned image roots = %v, want one", orphaned)
+	}
+	for _, p := range images {
+		data, err := os.ReadFile(filepath.Join(orphaned[0], filepath.FromSlash(p)))
+		if err != nil || string(data) != "old image" {
+			t.Fatalf("old image %s in %s: %q, %v", p, orphaned[0], data, err)
+		}
+	}
+	if entries, err := os.ReadDir(root); err != nil || len(entries) != 0 {
+		t.Fatalf("the new image root holds %v, %v; want it empty", entries, err)
+	}
+	if runtime.GOOS != "windows" {
+		requireModeWithin(t, root, 0o750)
+	}
+	if total, err := st.TotalBytes(ctx); err != nil || total != 5 {
+		t.Fatalf("TotalBytes = %d, %v; want only the new frame", total, err)
+	}
+	if !strings.Contains(logs, "level=WARN") || !strings.Contains(logs, filepath.Base(orphaned[0])) {
+		t.Fatalf("the move of the old images must be logged as a warning with its path:\n%s", logs)
+	}
+}
+
+func TestEventStoreIDsKeepIncreasingAfterCorruptionRecovery(t *testing.T) {
+	dir := t.TempDir()
+	st, err := OpenEventStore(dir, pdTestLogger())
+	if err != nil {
+		t.Fatal(err)
+	}
+	lastEvent, lastFrame, cursor, images := fillStoreForReset(t, st)
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
+	dbPath, _ := DetectionsPaths(dir)
+	if err := os.WriteFile(dbPath, bytes.Repeat([]byte("garbage!"), 1000), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	waitPastMillis(t, cursor)
+	var logs bytes.Buffer
+	st, err = OpenEventStore(dir, slog.New(slog.NewTextHandler(&logs, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	corrupt, _ := filepath.Glob(dbPath + ".corrupt-*")
+	if len(corrupt) != 1 {
+		t.Fatalf("corrupt files = %v", corrupt)
+	}
+	if !strings.Contains(logs.String(), filepath.Base(corrupt[0])) {
+		t.Fatalf("the corruption log must name the moved file %s:\n%s", filepath.Base(corrupt[0]), logs.String())
+	}
+	requireResetAfter(t, st, lastEvent, lastFrame, cursor, images, logs.String())
+}
+
+func TestEventStoreDeletedDatabaseMovesOrphanedImagesAside(t *testing.T) {
+	dir := t.TempDir()
+	st, err := OpenEventStore(dir, pdTestLogger())
+	if err != nil {
+		t.Fatal(err)
+	}
+	lastEvent, lastFrame, cursor, images := fillStoreForReset(t, st)
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
+	dbPath, _ := DetectionsPaths(dir)
+	for _, suffix := range []string{"", "-wal", "-shm"} {
+		if err := os.Remove(dbPath + suffix); err != nil && !errors.Is(err, os.ErrNotExist) {
+			t.Fatal(err)
+		}
+	}
+	waitPastMillis(t, cursor)
+	var logs bytes.Buffer
+	st, err = OpenEventStore(dir, slog.New(slog.NewTextHandler(&logs, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if corrupt, _ := filepath.Glob(dbPath + "*.corrupt-*"); len(corrupt) != 0 {
+		t.Fatalf("nothing was corrupt, yet %v", corrupt)
+	}
+	requireResetAfter(t, st, lastEvent, lastFrame, cursor, images, logs.String())
+}
+
+func TestEventStoreReopenKeepsIDsAndImages(t *testing.T) {
+	dir := t.TempDir()
+	st, err := OpenEventStore(dir, pdTestLogger())
+	if err != nil {
+		t.Fatal(err)
+	}
+	lastEvent, lastFrame, cursor, images := fillStoreForReset(t, st)
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
+	var logs bytes.Buffer
+	st, err = OpenEventStore(dir, slog.New(slog.NewTextHandler(&logs, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if st.Cursor() != cursor {
+		t.Fatalf("cursor after reopen = %d, want %d", st.Cursor(), cursor)
+	}
+	ctx := context.Background()
+	id, err := st.CreateEvent(ctx, NewEvent{CameraID: "cam", CameraName: "Cam", StartedAt: storeT0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	frameID, err := st.AddFrame(ctx, id, StoredFrame{Seq: 1, Path: "n.jpg", ThumbPath: "n_t.jpg", Size: 1, CapturedAt: storeT0, Score: 0.9})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id != lastEvent+1 || frameID != lastFrame+1 || st.Cursor() != cursor+2 {
+		t.Fatalf("after reopen: event %d (want %d), frame %d (want %d), cursor %d (want %d)", id, lastEvent+1, frameID, lastFrame+1, st.Cursor(), cursor+2)
+	}
+	for _, p := range images {
+		if _, err := os.Stat(filepath.Join(st.Root(), filepath.FromSlash(p))); err != nil {
+			t.Fatalf("image %s after reopen: %v", p, err)
+		}
+	}
+	if orphaned, _ := filepath.Glob(st.Root() + ".orphaned-*"); len(orphaned) != 0 {
+		t.Fatalf("a reopen moved images aside: %v", orphaned)
+	}
+	if logs.Len() != 0 {
+		t.Fatalf("a normal reopen logged:\n%s", logs.String())
+	}
+}
+
+// Schema steps run only from a database's own version on, in one transaction
+// together with the user_version update.
+func TestEventStoreMigrationsAreGatedAndAtomic(t *testing.T) {
+	production := eventStoreMigrations
+	t.Cleanup(func() { eventStoreMigrations = production })
+	now := time.Now()
+	openRaw := func(t *testing.T) *sql.DB {
+		t.Helper()
+		dbPath, _ := DetectionsPaths(t.TempDir())
+		if err := os.MkdirAll(filepath.Dir(dbPath), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		db, err := openDetectionsDB(dbPath, pdTestLogger())
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = db.Close() })
+		return db
+	}
+	userVersion := func(t *testing.T, db *sql.DB) int {
+		t.Helper()
+		var v int
+		if err := db.QueryRow(`PRAGMA user_version`).Scan(&v); err != nil {
+			t.Fatal(err)
+		}
+		return v
+	}
+	tableExists := func(t *testing.T, db *sql.DB, name string) bool {
+		t.Helper()
+		var n int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, name).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n == 1
+	}
+
+	// A failing later step rolls back the earlier steps and the version.
+	db := openRaw(t)
+	eventStoreMigrations = []func(*sql.Tx, time.Time) error{
+		migrateEventStoreV1,
+		func(*sql.Tx, time.Time) error { return errors.New("step 2 failed") },
+	}
+	if err := migrateEventStore(db, 0, now); err == nil || !strings.Contains(err.Error(), "step 2 failed") {
+		t.Fatalf("migration with a failing step = %v", err)
+	}
+	if v := userVersion(t, db); v != 0 || tableExists(t, db, "events") {
+		t.Fatalf("after a failed migration: user_version %d, events table %v", v, tableExists(t, db, "events"))
+	}
+
+	// A database at version 1 runs only the steps after it.
+	eventStoreMigrations = production
+	db = openRaw(t)
+	if err := migrateEventStore(db, 0, now); err != nil || userVersion(t, db) != 1 {
+		t.Fatalf("migration to version 1 = %v, user_version %d", err, userVersion(t, db))
+	}
+	ranV2 := false
+	eventStoreMigrations = []func(*sql.Tx, time.Time) error{
+		func(*sql.Tx, time.Time) error { return errors.New("step 1 ran again") },
+		func(tx *sql.Tx, _ time.Time) error {
+			ranV2 = true
+			_, err := tx.Exec(`CREATE TABLE v2_marker (x INTEGER)`)
+			return err
+		},
+	}
+	if err := migrateEventStore(db, 1, now); err != nil || !ranV2 || userVersion(t, db) != 2 || !tableExists(t, db, "v2_marker") {
+		t.Fatalf("migration from version 1 = %v, step 2 ran %v, user_version %d", err, ranV2, userVersion(t, db))
+	}
+}
+
+// A write waits for the write lock only as long as its context allows: a delete
+// whose client went away must not queue behind a long retention pass.
+func TestEventStoreWritesGiveUpWhenTheContextEnds(t *testing.T) {
+	st := newTestEventStore(t)
+	bg := context.Background()
+	id, err := st.CreateEvent(bg, NewEvent{CameraID: "cam", CameraName: "Cam", StartedAt: storeT0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	unlock, err := st.lockWrites(bg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cancelled, cancel := context.WithCancel(bg)
+	cancel()
+	if _, err := st.RemoveEvent(cancelled, id); !errors.Is(err, context.Canceled) {
+		t.Fatalf("RemoveEvent with a cancelled context = %v", err)
+	}
+	short, cancelShort := context.WithTimeout(bg, 50*time.Millisecond)
+	defer cancelShort()
+	start := time.Now()
+	if _, err := st.CreateEvent(short, NewEvent{CameraID: "cam", CameraName: "Cam", StartedAt: storeT0}); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("CreateEvent behind the lock = %v", err)
+	}
+	if took := time.Since(start); took > 2*time.Second {
+		t.Fatalf("CreateEvent waited %v behind the lock", took)
+	}
+	// A context that is already done is refused even when the lock is free.
+	unlock()
+	unlock() // idempotent
+	if err := st.EndEvent(cancelled, id, storeT0); !errors.Is(err, context.Canceled) {
+		t.Fatalf("EndEvent with a cancelled context = %v", err)
+	}
+	if _, err := st.RemoveEvent(bg, id); err != nil {
+		t.Fatalf("RemoveEvent after the lock was released: %v", err)
+	}
+}
+
+// Event reads the summary and the frames in one snapshot, so frame_count always
+// matches the frames returned, also while frames are being added.
+func TestEventStoreEventReadsOneSnapshot(t *testing.T) {
+	st := newTestEventStore(t)
+	ctx := context.Background()
+	id, err := st.CreateEvent(ctx, NewEvent{CameraID: "cam", CameraName: "Cam", StartedAt: storeT0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		for seq := 1; seq <= 300; seq++ {
+			if _, err := st.AddFrame(ctx, id, StoredFrame{Seq: seq, Path: fmt.Sprintf("%d.jpg", seq), ThumbPath: "t.jpg", Size: 1, CapturedAt: storeT0, Score: 0.5}); err != nil {
+				done <- err
+				return
+			}
+		}
+		done <- nil
+	}()
+	reads, mismatches := 0, 0
+	var writeErr error
+	for running := true; running; {
+		select {
+		case writeErr = <-done:
+			running = false
+		default:
+		}
+		d, err := st.Event(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		reads++
+		if d.FrameCount != len(d.Frames) {
+			mismatches++
+		}
+	}
+	if writeErr != nil {
+		t.Fatal(writeErr)
+	}
+	if mismatches > 0 {
+		t.Fatalf("%d of %d reads returned frame_count != len(frames)", mismatches, reads)
+	}
+}
+
+// storeFeedClient emulates Service.Changes with a cursor (Task 15) at a small
+// row limit and keeps the newest version of every row it was sent.
+type storeFeedClient struct {
+	limit  int
+	cursor int64
+	events map[int64]EventSummary
+	arm    map[int64]ArmLogEntry
+}
+
+func (c *storeFeedClient) poll(ctx context.Context, st *EventStore) error {
+	status := st.Cursor()
+	if c.cursor >= status {
+		return nil
+	}
+	events, eventsLast, eventsFull, err := st.EventsBetween(ctx, c.cursor, status, c.limit)
+	if err != nil {
+		return err
+	}
+	armLog, armLast, armFull, err := st.ArmLogBetween(ctx, c.cursor, status, c.limit)
+	if err != nil {
+		return err
+	}
+	next := status
+	if eventsFull && eventsLast < next {
+		next = eventsLast
+	}
+	if armFull && armLast < next {
+		next = armLast
+	}
+	if next <= c.cursor {
+		return fmt.Errorf("cursor did not advance: %d -> %d (status %d)", c.cursor, next, status)
+	}
+	for _, ev := range events {
+		c.events[ev.ID] = ev
+	}
+	for _, e := range armLog {
+		c.arm[e.ID] = e
+	}
+	c.cursor = next
+	return nil
+}
+
+// Concurrent pipeline, retention and arming writes (CloseOpenEvents stamps
+// several rows with one revision) while clients poll at small limits: once the
+// writers stop and the clients drain, every client holds the final version of
+// every event and arm-log row.
+func TestEventStoreFeedDeliversEveryRow(t *testing.T) {
+	st := newTestEventStore(t)
+	ctx := context.Background()
+	stop := make(chan struct{})
+	var wg sync.WaitGroup
+	errs := make(chan error, 32)
+	fail := func(where string, err error) {
+		select {
+		case errs <- fmt.Errorf("%s: %w", where, err):
+		default:
+		}
+	}
+	for cam := 0; cam < 4; cam++ {
+		wg.Add(1)
+		go func(cam int) {
+			defer wg.Done()
+			rng := rand.New(rand.NewSource(int64(cam) + 1))
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+				}
+				id, err := st.CreateEvent(ctx, NewEvent{CameraID: fmt.Sprint("cam", cam), CameraName: "Cam", StartedAt: storeT0.Add(time.Duration(rng.Intn(100000)) * time.Millisecond)})
+				if err != nil {
+					fail("create", err)
+					return
+				}
+				frames := 1 + rng.Intn(4)
+				for seq := 1; seq <= frames; seq++ {
+					if _, err := st.AddFrame(ctx, id, StoredFrame{Seq: seq, Path: fmt.Sprintf("x/%d_%d.jpg", id, seq), ThumbPath: "t", Size: int64(10 + rng.Intn(100)), CapturedAt: storeT0, Score: rng.Float64()}); err != nil && !errors.Is(err, ErrUnknownEvent) {
+						fail("frame", err)
+					}
+					if err := st.UpdateEventStats(ctx, id, EventStats{MaxScore: rng.Float64(), MaxPersons: rng.Intn(5), Zones: []string{fmt.Sprint("z", rng.Intn(3))}}); err != nil && !errors.Is(err, ErrUnknownEvent) {
+						fail("stats", err)
+					}
+					if rng.Intn(3) == 0 {
+						if err := st.SetAlertResult(ctx, id, ActionAgent, AlertResult{Status: AlertSent, Detail: fmt.Sprint(rng.Intn(1000))}); err != nil && !errors.Is(err, ErrUnknownEvent) {
+							fail("alert", err)
+						}
+					}
+				}
+				if rng.Intn(2) == 0 { // the other half is left for CloseOpenEvents
+					if err := st.EndEvent(ctx, id, storeT0.Add(time.Hour)); err != nil {
+						fail("end", err)
+					}
+				}
+			}
+		}(cam)
+	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		rng := rand.New(rand.NewSource(99))
+		modes := []ArmMode{ArmOn, ArmOff, ArmSchedule}
+		for i := 0; ; i++ {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			switch rng.Intn(3) {
+			case 0:
+				if _, err := st.CloseOpenEvents(ctx); err != nil {
+					fail("close open events", err)
+				}
+			case 1:
+				if err := st.RecordArm(ctx, armRecord{Mode: modes[rng.Intn(3)], Armed: rng.Intn(2) == 0, ChangedAt: storeT0.Add(time.Duration(i) * time.Second), ChangedBy: ActorUser}); err != nil {
+					fail("arm", err)
+				}
+			case 2:
+				ids, err := st.oldestEndedEventIDs(ctx, 2)
+				if err != nil {
+					fail("oldest", err)
+					break
+				}
+				for _, id := range ids {
+					if _, err := st.RemoveEvent(ctx, id); err != nil && !errors.Is(err, ErrUnknownEvent) {
+						fail("remove", err)
+					}
+				}
+			}
+			time.Sleep(time.Millisecond)
+		}
+	}()
+	clients := []*storeFeedClient{{limit: 1}, {limit: 2}, {limit: 7}}
+	for _, c := range clients {
+		c.events, c.arm = map[int64]EventSummary{}, map[int64]ArmLogEntry{}
+		wg.Add(1)
+		go func(c *storeFeedClient) {
+			defer wg.Done()
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+				}
+				if err := c.poll(ctx, st); err != nil {
+					fail(fmt.Sprintf("poll at limit %d", c.limit), err)
+					return
+				}
+			}
+		}(c)
+	}
+	time.Sleep(1500 * time.Millisecond)
+	close(stop)
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Error(err)
+	}
+	if t.Failed() {
+		return
+	}
+	final := st.Cursor()
+	for _, c := range clients {
+		for polls := 0; c.cursor < final; polls++ {
+			if polls > 100000 {
+				t.Fatalf("client at limit %d did not drain", c.limit)
+			}
+			if err := c.poll(ctx, st); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	truthEvents, err := st.EventsLatest(ctx, final, 1<<30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	truthArm, err := st.ArmLogLatest(ctx, final, 1<<30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(truthEvents) == 0 || len(truthArm) == 0 {
+		t.Fatalf("the run wrote %d events and %d arm-log rows", len(truthEvents), len(truthArm))
+	}
+	for _, c := range clients {
+		missing, stale := 0, 0
+		var sample []string
+		for _, ev := range truthEvents {
+			got, ok := c.events[ev.ID]
+			switch {
+			case !ok:
+				missing++
+			case !reflect.DeepEqual(got, ev):
+				stale++
+			default:
+				continue
+			}
+			if len(sample) < 3 {
+				sample = append(sample, fmt.Sprintf("event %d: client %+v, store %+v", ev.ID, got, ev))
+			}
+		}
+		for _, e := range truthArm {
+			if got, ok := c.arm[e.ID]; !ok {
+				missing++
+			} else if got != e {
+				stale++
+			}
+		}
+		if missing+stale > 0 {
+			t.Fatalf("client at limit %d: %d missing, %d stale rows of %d events and %d arm-log rows; %v", c.limit, missing, stale, len(truthEvents), len(truthArm), sample)
+		}
 	}
 }
 
@@ -379,14 +1164,17 @@ func TestEventStoreLatestRows(t *testing.T) {
 func TestEventStorePagingAndFilters(t *testing.T) {
 	st := newTestEventStore(t)
 	ctx := context.Background()
+	var created []int64
 	for i := 0; i < 5; i++ {
 		camera := "a"
 		if i%2 == 1 {
 			camera = "b"
 		}
-		if _, err := st.CreateEvent(ctx, NewEvent{CameraID: camera, CameraName: camera, StartedAt: storeT0.Add(time.Duration(i) * time.Minute)}); err != nil {
+		id, err := st.CreateEvent(ctx, NewEvent{CameraID: camera, CameraName: camera, StartedAt: storeT0.Add(time.Duration(i) * time.Minute)})
+		if err != nil {
 			t.Fatal(err)
 		}
+		created = append(created, id)
 	}
 	ids := func(page EventPage) []int64 {
 		out := []int64{}
@@ -396,21 +1184,21 @@ func TestEventStorePagingAndFilters(t *testing.T) {
 		return out
 	}
 	page, err := st.Events(ctx, EventQuery{Limit: 2})
-	if err != nil || !reflect.DeepEqual(ids(page), []int64{5, 4}) || page.NextBefore == nil || *page.NextBefore != 4 {
+	if err != nil || !reflect.DeepEqual(ids(page), []int64{created[4], created[3]}) || page.NextBefore == nil || *page.NextBefore != created[3] {
 		t.Fatalf("page 1 = %v next %v err %v", ids(page), page.NextBefore, err)
 	}
-	page, _ = st.Events(ctx, EventQuery{Limit: 2, Before: 4})
-	if !reflect.DeepEqual(ids(page), []int64{3, 2}) || page.NextBefore == nil || *page.NextBefore != 2 {
+	page, _ = st.Events(ctx, EventQuery{Limit: 2, Before: created[3]})
+	if !reflect.DeepEqual(ids(page), []int64{created[2], created[1]}) || page.NextBefore == nil || *page.NextBefore != created[1] {
 		t.Fatalf("page 2 = %v next %v", ids(page), page.NextBefore)
 	}
-	page, _ = st.Events(ctx, EventQuery{Limit: 2, Before: 2})
-	if !reflect.DeepEqual(ids(page), []int64{1}) || page.NextBefore != nil {
+	page, _ = st.Events(ctx, EventQuery{Limit: 2, Before: created[1]})
+	if !reflect.DeepEqual(ids(page), []int64{created[0]}) || page.NextBefore != nil {
 		t.Fatalf("page 3 = %v next %v", ids(page), page.NextBefore)
 	}
-	if page, _ := st.Events(ctx, EventQuery{CameraID: "a"}); !reflect.DeepEqual(ids(page), []int64{5, 3, 1}) {
+	if page, _ := st.Events(ctx, EventQuery{CameraID: "a"}); !reflect.DeepEqual(ids(page), []int64{created[4], created[2], created[0]}) {
 		t.Fatalf("camera filter = %v", ids(page))
 	}
-	if page, _ := st.Events(ctx, EventQuery{From: storeT0.Add(time.Minute), To: storeT0.Add(3 * time.Minute)}); !reflect.DeepEqual(ids(page), []int64{3, 2}) {
+	if page, _ := st.Events(ctx, EventQuery{From: storeT0.Add(time.Minute), To: storeT0.Add(3 * time.Minute)}); !reflect.DeepEqual(ids(page), []int64{created[2], created[1]}) {
 		t.Fatalf("time filter = %v", ids(page))
 	}
 	if page, _ := st.Events(ctx, EventQuery{Limit: 500}); len(page.Events) != 5 {
@@ -610,6 +1398,7 @@ func TestEventStoreArmStateDefaultsOffAndPersists(t *testing.T) {
 	if err := st.RecordArm(ctx, armRecord{Mode: ArmSchedule, Armed: true, ChangedAt: storeT0, ChangedBy: ActorAgent}); err != nil {
 		t.Fatal(err)
 	}
+	cursor := st.Cursor()
 	if err := st.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -622,8 +1411,8 @@ func TestEventStoreArmStateDefaultsOffAndPersists(t *testing.T) {
 	if err != nil || rec.Mode != ArmSchedule || !rec.Armed || !rec.ChangedAt.Equal(storeT0) || rec.ChangedBy != ActorAgent {
 		t.Fatalf("reloaded arm state = %+v, %v", rec, err)
 	}
-	if st.Cursor() == 0 {
-		t.Fatal("the cursor must survive a reopen")
+	if st.Cursor() != cursor {
+		t.Fatalf("the cursor must survive a reopen: %d, want %d", st.Cursor(), cursor)
 	}
 }
 
@@ -660,12 +1449,24 @@ func TestEventStoreCloseOpenEventsAndRemove(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := st.AddFrame(ctx, id, StoredFrame{Seq: 1, Path: rel, ThumbPath: thumb, Size: 8, CapturedAt: storeT0, Score: 0.9}); err != nil {
+	frameID, err := st.AddFrame(ctx, id, StoredFrame{Seq: 1, Path: rel, ThumbPath: thumb, Size: 8, CapturedAt: storeT0, Score: 0.9})
+	if err != nil {
 		t.Fatal(err)
 	}
 	freed, err := st.RemoveEvent(ctx, id)
 	if err != nil || freed != 8 {
 		t.Fatalf("RemoveEvent = %d, %v", freed, err)
+	}
+	// The frames went with their event (ON DELETE CASCADE).
+	var frames int
+	if err := st.db.QueryRow(`SELECT COUNT(*) FROM frames WHERE event_id = ?`, id).Scan(&frames); err != nil || frames != 0 {
+		t.Fatalf("frames of the removed event = %d, %v", frames, err)
+	}
+	if _, _, err := st.Frame(ctx, frameID); !errors.Is(err, ErrUnknownEvent) {
+		t.Fatalf("Frame of a removed event err = %v", err)
+	}
+	if _, err := st.Event(ctx, withFrame); err != nil {
+		t.Fatalf("the other events must stay: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(st.Root(), "2026")); !os.IsNotExist(err) {
 		t.Fatalf("empty date directories must be removed: %v", err)

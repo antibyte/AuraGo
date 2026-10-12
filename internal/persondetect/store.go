@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,15 +22,28 @@ import (
 )
 
 const (
-	eventStoreSchemaVersion = 1
-	detectionsParentDir     = "go2rtc"
-	detectionsDBFile        = "detections.db"
-	detectionsDirName       = "detections"
-	eventPageDefault        = 50
-	eventPageMax            = 100
+	detectionsParentDir = "go2rtc"
+	detectionsDBFile    = "detections.db"
+	detectionsDirName   = "detections"
+	detectionsDBMode    = 0o640 // the database and its WAL and SHM files
+	detectionsRootMode  = 0o750 // the image root
+	eventPageDefault    = 50
+	eventPageMax        = 100
 )
 
-var eventStoreSchema = []string{
+// eventStoreMigrations[v] upgrades the schema from version v to v+1. The steps a
+// database needs run in order inside one transaction together with the
+// user_version update, so a database is always at exactly one version. Append new
+// steps; never change an existing one.
+var eventStoreMigrations = []func(tx *sql.Tx, now time.Time) error{
+	migrateEventStoreV1,
+}
+
+// eventStoreSchemaVersion is the schema version this build writes.
+var eventStoreSchemaVersion = len(eventStoreMigrations)
+
+// eventStoreSchemaV1 creates the version 1 tables.
+var eventStoreSchemaV1 = []string{
 	`CREATE TABLE IF NOT EXISTS rev_seq (id INTEGER PRIMARY KEY CHECK (id = 1), value INTEGER NOT NULL)`,
 	`INSERT OR IGNORE INTO rev_seq(id, value) VALUES (1, 0)`,
 	`CREATE TABLE IF NOT EXISTS events (
@@ -93,14 +107,19 @@ const (
 //
 // Every list it returns is non-nil (events, frames, boxes, zones and the alerts
 // map), and every timestamp is UTC truncated to milliseconds, which is how the
-// store keeps them. AUTOINCREMENT ids are never reused, so image URLs that name a
-// frame id can be cached as immutable.
+// store keeps them. Ids and revisions never repeat, also across a database that
+// is recreated (see migrateEventStoreV1), so image URLs that name a frame id can
+// be cached as immutable.
 type EventStore struct {
-	db      *sql.DB
-	root    string
-	writeMu sync.Mutex
-	rev     atomic.Int64
+	db       *sql.DB
+	root     string
+	writeSem chan struct{} // the write lock, see lockWrites
+	rev      atomic.Int64
 }
+
+// eventStoreBusyTimeoutMS is how long a database connection waits for a lock
+// held by another connection; tests shorten it.
+var eventStoreBusyTimeoutMS = 5000
 
 // NewEvent is the initial record of an event.
 type NewEvent struct {
@@ -149,9 +168,19 @@ func DetectionsPaths(dataDir string) (dbPath, root string) {
 }
 
 // OpenEventStore opens or creates <dataDir>/go2rtc/detections.db and the image
-// root. Only a database that is really corrupt is moved aside (to
+// root.
+//
+// Only a database that is really corrupt is moved aside (to
 // .corrupt-<timestamp>) and replaced by a fresh one; any other open error, and a
-// database from a newer schema, is returned with the file left untouched.
+// database from a newer schema, is returned with the file left untouched. When
+// the schema is created fresh (after corruption, or because the database was
+// deleted) and the image root still holds images, the root is moved aside to
+// detections.orphaned-<timestamp> and a new empty one is created: the new
+// database has no rows for the old images, so retention would neither count nor
+// delete them. Old images are never deleted here.
+//
+// On Unix an existing database, its WAL and SHM files and the image root lose any
+// permission bits beyond 0640 and 0750 (no bits are added).
 func OpenEventStore(dataDir string, logger *slog.Logger) (*EventStore, error) {
 	dataDir = strings.TrimSpace(dataDir)
 	if dataDir == "" {
@@ -160,17 +189,20 @@ func OpenEventStore(dataDir string, logger *slog.Logger) (*EventStore, error) {
 	if logger == nil {
 		logger = slog.Default()
 	}
+	now := time.Now()
 	dbPath, root := DetectionsPaths(dataDir)
-	if err := os.MkdirAll(root, 0o750); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dbPath), detectionsRootMode); err != nil {
 		return nil, fmt.Errorf("persondetect: create detections directory: %w", err)
 	}
-	db, err := openDetectionsDB(dbPath)
+	db, err := openDetectionsDB(dbPath, logger)
 	if err != nil && isCorruptDatabase(err) {
-		logger.Error("Person detection database is corrupt; starting a fresh one", "path", dbPath, "error", err)
-		if moveErr := moveCorruptDatabaseAside(dbPath, time.Now().UTC()); moveErr != nil {
+		moved, moveErr := moveCorruptDatabaseAside(dbPath, now)
+		if moveErr != nil {
+			logger.Error("Person detection database is corrupt and could not be moved aside", "path", dbPath, "error", err, "move_error", moveErr)
 			return nil, fmt.Errorf("persondetect: move corrupt detections database aside: %w", moveErr)
 		}
-		db, err = openDetectionsDB(dbPath)
+		logger.Error("Person detection database is corrupt; moved it aside and starting a fresh one", "path", dbPath, "moved_to", moved, "error", err)
+		db, err = openDetectionsDB(dbPath, logger)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("persondetect: open detections database: %w", err)
@@ -184,19 +216,32 @@ func OpenEventStore(dataDir string, logger *slog.Logger) (*EventStore, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("persondetect: detections database was created by a newer AuraGo (schema %d)", version)
 	}
-	for _, stmt := range eventStoreSchema {
-		if _, err := db.Exec(stmt); err != nil {
+	if version == 0 {
+		// Before the schema transaction: when the move fails, the next open
+		// still sees version 0 and tries again.
+		orphaned, err := moveOrphanedImages(root, now)
+		if err != nil {
 			_ = db.Close()
-			return nil, fmt.Errorf("persondetect: create schema: %w", err)
+			return nil, fmt.Errorf("persondetect: move the images of a previous database aside: %w", err)
 		}
+		if orphaned != "" {
+			logger.Warn("Person detection database is new; moved the images of the previous one aside", "root", root, "moved_to", orphaned)
+		}
+	}
+	if err := os.MkdirAll(root, detectionsRootMode); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("persondetect: create detections directory: %w", err)
+	}
+	if err := tightenMode(root, detectionsRootMode); err != nil {
+		logger.Warn("Person detection could not restrict the permissions of its image directory", "path", root, "error", err)
 	}
 	if version < eventStoreSchemaVersion {
-		if err := dbutil.SetUserVersion(db, eventStoreSchemaVersion); err != nil {
+		if err := migrateEventStore(db, version, now); err != nil {
 			_ = db.Close()
-			return nil, fmt.Errorf("persondetect: set schema version: %w", err)
+			return nil, fmt.Errorf("persondetect: migrate detections database: %w", err)
 		}
 	}
-	st := &EventStore{db: db, root: root}
+	st := &EventStore{db: db, root: root, writeSem: make(chan struct{}, 1)}
 	var rev int64
 	if err := db.QueryRow(`SELECT value FROM rev_seq WHERE id = 1`).Scan(&rev); err != nil {
 		_ = db.Close()
@@ -206,17 +251,99 @@ func OpenEventStore(dataDir string, logger *slog.Logger) (*EventStore, error) {
 	return st, nil
 }
 
-// openDetectionsDB creates the database file with mode 0640 when it is missing
-// and opens it. SQLite gives its WAL and SHM files the database file's mode, and
+// migrateEventStore runs the migration steps from schema version from to the
+// current one and sets user_version, all in one transaction (SQLite keeps
+// user_version in the database header, which the transaction covers).
+func migrateEventStore(db *sql.DB, from int, now time.Time) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	for v := from; v < len(eventStoreMigrations); v++ {
+		if err := eventStoreMigrations[v](tx, now); err != nil {
+			return fmt.Errorf("schema version %d to %d: %w", v, v+1, err)
+		}
+	}
+	if _, err := tx.Exec(fmt.Sprintf(`PRAGMA user_version = %d`, len(eventStoreMigrations))); err != nil {
+		return fmt.Errorf("set schema version: %w", err)
+	}
+	return tx.Commit()
+}
+
+// migrateEventStoreV1 creates the tables and seeds the AUTOINCREMENT sequences
+// of events, frames and arm_log and the revision sequence with the creation time
+// in Unix milliseconds. A database that is recreated (after corruption, or
+// deleted by hand) thus continues above the ids and revisions of the previous
+// one, as long as the clock moved on: image URLs naming an id are cached as
+// immutable, and clients may still hold a cursor of the previous database.
+// Unix milliseconds stay far below 2^53, so ids and revisions remain exact JSON
+// numbers.
+func migrateEventStoreV1(tx *sql.Tx, now time.Time) error {
+	for _, stmt := range eventStoreSchemaV1 {
+		if _, err := tx.Exec(stmt); err != nil {
+			return err
+		}
+	}
+	seed := max(now.UnixMilli(), 0)
+	if _, err := tx.Exec(`UPDATE rev_seq SET value = MAX(value, ?) WHERE id = 1`, seed); err != nil {
+		return err
+	}
+	for _, table := range []string{"events", "frames", "arm_log"} {
+		res, err := tx.Exec(`UPDATE sqlite_sequence SET seq = MAX(seq, ?) WHERE name = ?`, seed, table)
+		if err != nil {
+			return err
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			if _, err := tx.Exec(`INSERT INTO sqlite_sequence(name, seq) VALUES (?, ?)`, table, seed); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// openDetectionsDB creates the database file with mode 0640 when it is missing,
+// tightens the modes of an existing one and of its WAL and SHM files, and opens
+// it. SQLite gives new WAL and SHM files the database file's mode, and
 // <data>/go2rtc is bind-mounted (read-only) into the go2rtc container, so none of
 // the three may be readable by other users.
-func openDetectionsDB(dbPath string) (*sql.DB, error) {
-	file, err := os.OpenFile(dbPath, os.O_RDWR|os.O_CREATE, 0o640)
+func openDetectionsDB(dbPath string, logger *slog.Logger) (*sql.DB, error) {
+	file, err := os.OpenFile(dbPath, os.O_RDWR|os.O_CREATE, detectionsDBMode)
 	if err != nil {
 		return nil, err
 	}
 	_ = file.Close()
-	return dbutil.Open(dbPath)
+	for _, suffix := range []string{"", "-wal", "-shm"} {
+		if err := tightenMode(dbPath+suffix, detectionsDBMode); err != nil {
+			logger.Warn("Person detection could not restrict the permissions of its database", "path", dbPath+suffix, "error", err)
+		}
+	}
+	return dbutil.Open(dbPath, dbutil.WithBusyTimeout(eventStoreBusyTimeoutMS))
+}
+
+// tightenMode removes the permission bits of path beyond limit; it never adds
+// any. It does nothing on Windows, which has no POSIX modes, or when path does
+// not exist.
+func tightenMode(path string, limit os.FileMode) error {
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+	if perm := info.Mode().Perm(); perm&^limit != 0 {
+		return os.Chmod(path, perm&limit)
+	}
+	return nil
 }
 
 // isCorruptDatabase reports whether an open error means the file is no usable
@@ -235,38 +362,108 @@ func isCorruptDatabase(err error) bool {
 	return strings.Contains(msg, "database integrity check failed") || strings.Contains(msg, "file is not a database")
 }
 
+// asideStamp returns now as YYYYMMDD-HHMMSS in UTC, with -2, -3 … appended
+// while a name made of one of the prefixes and the stamp exists, so a second
+// move within the same second never replaces the first.
+func asideStamp(now time.Time, prefixes ...string) string {
+	base := now.UTC().Format("20060102-150405")
+	stamp := base
+	for n := 2; n < 1000 && asideTaken(stamp, prefixes); n++ {
+		stamp = base + "-" + strconv.Itoa(n)
+	}
+	return stamp
+}
+
+func asideTaken(stamp string, prefixes []string) bool {
+	for _, prefix := range prefixes {
+		if _, err := os.Lstat(prefix + stamp); !errors.Is(err, os.ErrNotExist) {
+			return true
+		}
+	}
+	return false
+}
+
 // moveCorruptDatabaseAside renames the database and its WAL/SHM companions that
-// exist to <name>.corrupt-<timestamp>.
-func moveCorruptDatabaseAside(path string, now time.Time) error {
-	stamp := now.Format("20060102-150405")
-	for _, suffix := range []string{"", "-wal", "-shm"} {
+// exist to <name>.corrupt-<timestamp> and returns the new paths.
+func moveCorruptDatabaseAside(path string, now time.Time) ([]string, error) {
+	suffixes := []string{"", "-wal", "-shm"}
+	prefixes := make([]string, 0, len(suffixes))
+	for _, suffix := range suffixes {
+		prefixes = append(prefixes, path+suffix+".corrupt-")
+	}
+	stamp := asideStamp(now, prefixes...)
+	var moved []string
+	for _, suffix := range suffixes {
 		src := path + suffix
 		if _, err := os.Stat(src); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				continue
 			}
-			return err
+			return moved, err
 		}
-		if err := os.Rename(src, src+".corrupt-"+stamp); err != nil {
-			return err
+		target := src + ".corrupt-" + stamp
+		if err := os.Rename(src, target); err != nil {
+			return moved, err
 		}
+		moved = append(moved, target)
 	}
-	return nil
+	return moved, nil
+}
+
+// moveOrphanedImages moves an image root that holds anything aside to
+// <root>.orphaned-<timestamp> and returns that path ("" when the root is missing
+// or empty).
+func moveOrphanedImages(root string, now time.Time) (string, error) {
+	entries, err := os.ReadDir(root)
+	if errors.Is(err, os.ErrNotExist) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	if len(entries) == 0 {
+		return "", nil
+	}
+	target := root + ".orphaned-" + asideStamp(now, root+".orphaned-")
+	if err := os.Rename(root, target); err != nil {
+		return "", err
+	}
+	return target, nil
 }
 
 // Close closes the database.
 func (st *EventStore) Close() error { return st.db.Close() }
 
-// Root is the absolute image root.
+// Root is the image root (absolute when dataDir is).
 func (st *EventStore) Root() string { return st.root }
 
 // Cursor is the revision of the last committed write.
 func (st *EventStore) Cursor() int64 { return st.rev.Load() }
 
+// lockWrites takes the store's write lock, waiting at most until ctx ends (a
+// done ctx is refused even when the lock is free), so a request whose client went
+// away does not queue behind a long retention pass. The returned unlock is
+// idempotent: a second call never frees a lock taken by someone else.
+func (st *EventStore) lockWrites(ctx context.Context) (unlock func(), err error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	select {
+	case st.writeSem <- struct{}{}:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	var once sync.Once
+	return func() { once.Do(func() { <-st.writeSem }) }, nil
+}
+
 // write runs fn in one transaction that owns the next revision.
 func (st *EventStore) write(ctx context.Context, fn func(tx *sql.Tx, rev int64) error) error {
-	st.writeMu.Lock()
-	defer st.writeMu.Unlock()
+	unlock, err := st.lockWrites(ctx)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	tx, err := st.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -620,16 +817,23 @@ func (st *EventStore) Events(ctx context.Context, q EventQuery) (EventPage, erro
 	return page, nil
 }
 
-// Event returns one event with its frames.
+// Event returns one event with its frames. Both are read in one read
+// transaction, which in WAL mode is one snapshot, so FrameCount always matches
+// the frames returned.
 func (st *EventStore) Event(ctx context.Context, id int64) (EventDetail, error) {
-	summary, err := scanEventSummary(st.db.QueryRowContext(ctx, `SELECT `+eventSummaryColumns+` FROM events WHERE id = ?`, id))
+	tx, err := st.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return EventDetail{}, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	summary, err := scanEventSummary(tx.QueryRowContext(ctx, `SELECT `+eventSummaryColumns+` FROM events WHERE id = ?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return EventDetail{}, unknownEventError(id)
 	}
 	if err != nil {
 		return EventDetail{}, err
 	}
-	rows, err := st.db.QueryContext(ctx, `SELECT id, seq, captured_at, score, width, height, boxes FROM frames WHERE event_id = ? ORDER BY seq`, id)
+	rows, err := tx.QueryContext(ctx, `SELECT id, seq, captured_at, score, width, height, boxes FROM frames WHERE event_id = ? ORDER BY seq`, id)
 	if err != nil {
 		return EventDetail{}, err
 	}
@@ -773,6 +977,11 @@ func (st *EventStore) RemoveEvent(ctx context.Context, id int64) (int64, error) 
 				return err
 			}
 			files = append(files, path, thumb)
+		}
+		// A failed read must not delete the rows whose files were not listed.
+		if err := rows.Err(); err != nil {
+			_ = rows.Close()
+			return err
 		}
 		if err := rows.Close(); err != nil {
 			return err
