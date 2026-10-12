@@ -2,7 +2,8 @@
 // with ?after=<last seq>, reconnected with backoff. The backlog before stream_ready is coalesced
 // (latest state per job/build/device, every message, the steps of each job) and replayed at
 // stream_ready, so a window does not repaint its whole history. Everything reaches inst.bus as
-// sse:<type>(data, meta); events:state reports connecting | live | reconnecting. stream_ready
+// sse:<type>(data, meta); events:state reports connecting | live | reconnecting, events:failed(n)
+// the number of failures in a row. stream_ready
 // carries {"after":N} (the seq the server continues after); with "reload":true the window's state
 // cannot be continued (events after the resume point were pruned, or the database was restored or
 // reset): the cursor moves to N and the app must reload project state.
@@ -196,6 +197,10 @@
                 emitState('reconnecting');
                 timer = setTimeout(open, jitter(backoff(attempt), o.random));
                 attempt++;
+                // events:failed(n): n stream failures in a row since the last stream_ready. The app
+                // asks the API after a few whether reconnecting can work at all (deleted project,
+                // expired session, CYD Creator switched off) and then calls close().
+                inst.bus.emit('events:failed', attempt);
             };
         }
 

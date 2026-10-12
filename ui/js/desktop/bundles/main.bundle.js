@@ -397,6 +397,7 @@
         'store-commandcode': 'commandcode',
         looper: 'looper',
         easydrag: 'easydrag',
+        'cyd-creator': 'cyd-creator',
         'system-info': 'monitor',
         'log-viewer': 'text',
         'virtual-computers': 'desktop',
@@ -853,6 +854,7 @@
             'viewer-3d': 'Viewer3DApp',
             'mission-control': 'MissionControlApp',
             'game-maker-studio': 'GameMakerStudioApp',
+            'cyd-creator': 'CYDCreatorApp',
             settings: 'SettingsApp',
             calculator: 'CalculatorApp',
             gallery: 'GalleryApp',
@@ -17570,6 +17572,20 @@ if (appId === 'pixel') {
                 return window.GameMakerStudioApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                     esc, api, t, iconMarkup, notify: showDesktopNotification,
                     readonly: desktopReadonly(), openApp, confirmDialog, promptDialog
+                }));
+            }
+        }
+        if (appId === 'cyd-creator') {
+            if (!window.CYDCreatorApp) {
+                window.AuraDesktopModules.loadAppScript('cyd-creator').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.CYDCreatorApp.render === 'function') {
+                return window.CYDCreatorApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                    esc, api, t, iconMarkup, notify: showDesktopNotification,
+                    readonly: desktopReadonly(), openApp, confirmDialog,
+                    setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                    isActive: () => state.activeWindowId === id
                 }));
             }
         }

@@ -1454,6 +1454,227 @@ function rejectable() {
     eq('a disposed start screen does not refresh', h.calls.list, lists);
 }
 
+// ── window (cyd-creator-app.js) on the fake DOM: the real modules against a stubbed P.api ──
+{
+    const full = path.join(apps, 'cyd-creator-app.js');
+    vm.runInContext(fs.readFileSync(full, 'utf8'), sandbox, { filename: full });
+}
+sandbox.window.EventSource = BrowserES;
+// The window shows real sentences: the English bundle (it also proves the keys exist).
+Object.assign(sandbox.window.I18N, JSON.parse(fs.readFileSync(path.join(here, '..', 'ui', 'lang', 'cyd_creator', 'en.json'), 'utf8')));
+console.warn = (...args) => { if (!String(args[0]).includes('CodeMirror failed to load')) consoleWarn(...args); };
+// The desktop dispatches aurago:desktop-policy on document when read-only changes.
+const policyListeners = [];
+{
+    const add = sandbox.document.addEventListener;
+    const remove = sandbox.document.removeEventListener;
+    sandbox.document.addEventListener = (type, fn, opts) => { if (type === 'aurago:desktop-policy') policyListeners.push(fn); else add(type, fn, opts); };
+    sandbox.document.removeEventListener = (type, fn, opts) => {
+        if (type !== 'aurago:desktop-policy') { remove(type, fn, opts); return; }
+        const i = policyListeners.indexOf(fn);
+        if (i >= 0) policyListeners.splice(i, 1);
+    };
+}
+const App = sandbox.window.CYDCreatorApp;
+// appBackend replaces the P.api wrappers the window and its parts call. calls lists them in order;
+// fail.<name> = ApiError makes that call throw (until cleared); project is the stored summary.
+function appBackend(opts) {
+    const o = opts || {};
+    const calls = [];
+    const fail = {};
+    const saved = {};
+    const project = Object.assign({ id: 'ccp_1', name: 'Clock', board: 'cyd_2432s028r', theme: 'dark_sun', version: 3, locked_by_job: '', has_draft: false, publish_review: false }, o.project || {});
+    const layout = { name: 'Clock', orientation: 'landscape', screens: [] };
+    let version = 3;
+    const call = (name, fn) => async (...args) => {
+        calls.push(name);
+        if (fail[name]) throw fail[name];
+        return fn(...args);
+    };
+    const answers = {
+        capabilities: call('capabilities', () => ({
+            enabled: true, readonly: !!o.capsReadonly, languages: ['en'],
+            boards: [{ id: 'cyd_2432s028r', label: 'CYD 2.8"', status: 'verified', chip: 'esp32', display: { width: 320, height: 240, driver: 'ili9341' } }],
+            themes: [{ id: 'dark_sun', tokens: {} }],
+            toolchain: { docker_available: true, present: true, pulling: false, progress: 1, error: '' }
+        })),
+        listProjects: call('listProjects', () => []),
+        getProject: call('getProject', () => Object.assign({}, project)),
+        getLayout: call('getLayout', () => ({ version, project: Object.assign({}, layout), issues: [] })),
+        putLayout: call('putLayout', (id, next) => { version++; Object.assign(layout, next); return { version, issues: [] }; }),
+        listFiles: call('listFiles', () => []),
+        listBuilds: call('listBuilds', () => []),
+        listMessages: call('listMessages', () => []),
+        listJobs: call('listJobs', () => []),
+        startJob: call('startJob', (id, body) => ({ id: 'ccj_1', project_id: id, mode: body.mode, status: 'queued', phase: 'queued', created_at: '2026-10-12T10:00:00.000Z' }))
+    };
+    Object.keys(answers).forEach(name => { saved[name] = P.api[name]; P.api[name] = answers[name]; });
+    return { calls, fail, project, layout, restore() { Object.keys(saved).forEach(name => { P.api[name] = saved[name]; }); } };
+}
+let appWindows = 0;
+// makeApp renders a window like the desktop shell; opts: projectId (open it right away), readonly,
+// capsReadonly, project (summary fields).
+async function makeApp(opts) {
+    const o = opts || {};
+    const be = appBackend(o);
+    browserStreams.length = 0;
+    const host = attachedHost();
+    const notes = [];
+    const windowId = 'win-' + (++appWindows);
+    const inst = App.render(host, windowId, { notify: n => notes.push(n.message), readonly: !!o.readonly, projectId: o.projectId || '', setWindowBeforeClose() {} });
+    await settle();
+    const find = (name, value) => findNode(inst.root, n => n.dataset && n.dataset[name] !== undefined && (value === undefined || n.dataset[name] === value));
+    return { inst, be, notes, windowId, find, dispose() { App.dispose(windowId); host.remove(); be.restore(); } };
+}
+const appT = P.i18n({});
+{
+    const a = await makeApp({ projectId: 'ccp_1' });
+    const design = a.find('ccAction', 'mode-design');
+    const code = a.find('ccAction', 'mode-code');
+    eq('the Design/Code buttons keep the button frame and are segments', [design.className, code.className], ['cc-btn cc-seg', 'cc-btn cc-seg']);
+    code.click();
+    await settle();
+    eq('the mode toggle presses one segment and mounts the editor', [design.getAttribute('aria-pressed'), code.getAttribute('aria-pressed'), a.inst.root.dataset.ccMode, !!a.find('ccCode')],
+        ['false', 'true', 'code', true]);
+    a.inst.bus.emit('code:state', 'conflict');
+    eq('the save chip shows the worse of layout and code', a.find('ccSaveState').dataset.state, 'conflict');
+    a.inst.bus.emit('code:state', 'saved');
+    a.be.calls.length = 0;
+    browserStreams[0].send('job_status', { job: { id: 'ccj_0', status: 'succeeded', created_at: '2026-10-12T09:00:00.000Z' } }, 7);
+    browserStreams[0].send('stream_ready', { after: 7 });
+    await settle();
+    eq('a plain stream_ready reloads nothing', a.be.calls, []);
+    browserStreams[0].send('stream_ready', { reload: true, after: 7 });
+    await settle();
+    eq('stream_ready with reload reloads summary, layout, files and builds (the agent reloads itself)', a.be.calls.slice().sort(),
+        ['getLayout', 'getProject', 'listBuilds', 'listFiles', 'listJobs', 'listMessages']);
+    a.inst.layoutSaver.change({ name: 'Clock', orientation: 'portrait', screens: [] });
+    a.be.calls.length = 0;
+    browserStreams[0].send('stream_ready', { reload: true, after: 7 });
+    await settle();
+    check('a reload keeps a layout with unsaved edits (its save meets the If-Match conflict)', !a.be.calls.includes('getLayout') && a.be.calls.includes('getProject'), JSON.stringify(a.be.calls));
+    a.dispose();
+}
+{
+    // SSE give-up: after three failures in a row the window probes GET /projects/{id}.
+    const a = await makeApp({ projectId: 'ccp_1' });
+    browserStreams[0].send('job_status', { job: { id: 'ccj_0', status: 'succeeded', created_at: '2026-10-12T09:00:00.000Z' } }, 9);
+    browserStreams[0].send('stream_ready', { after: 9 });
+    const fail = async () => { browserStreams[browserStreams.length - 1].onerror(); await settle(); };
+    const probes = () => a.be.calls.filter(c => c === 'getProject').length;
+    const before = probes();
+    a.be.fail.getProject = new P.api.ApiError(401, 'unauthorized', 'Unauthorized', {});
+    await fail();
+    await advance(1500);
+    await fail();
+    eq('two failures in a row do not probe yet', probes(), before);
+    await advance(3000);
+    await fail();
+    const banner = a.find('ccStreamStopped');
+    eq('the third failure probes and an expired session stops the stream with its message', [probes(), banner.hidden, banner.childNodes[0].textContent],
+        [before + 1, false, appT('cyd_creator.error.unauthorized')]);
+    const streams = browserStreams.length;
+    await advance(60000);
+    eq('a stopped stream does not reconnect', browserStreams.length, streams);
+    delete a.be.fail.getProject;
+    a.find('ccAction', 'reconnect').click();
+    eq('Retry resumes after the last applied event and hides the banner', [browserStreams.length, browserStreams[browserStreams.length - 1].url, banner.hidden],
+        [streams + 1, '/api/desktop/cyd-creator/projects/ccp_1/events?after=9', true]);
+    a.be.fail.getProject = new P.api.ApiError(503, 'CYD_DISABLED', 'CYD Creator is not available', { problem: 'storage refused' });
+    for (let i = 0; i < 3; i++) { await fail(); await advance(30000); }
+    eq('CYD_DISABLED stops the stream with its text and details.problem',
+        [banner.hidden, banner.childNodes.map(n => n.textContent).slice(0, 2)], [false, [appT('cyd_creator.error.CYD_DISABLED'), 'storage refused']]);
+    a.dispose();
+}
+{
+    const a = await makeApp({ projectId: 'ccp_1' });
+    const fail = async () => { browserStreams[browserStreams.length - 1].onerror(); await settle(); await advance(30000); };
+    a.be.fail.getProject = new P.api.ApiError(0, '', 'network error', {});
+    for (let i = 0; i < 3; i++) await fail();
+    eq('a network failure keeps reconnecting', [browserStreams.length, a.find('ccStreamStopped').hidden], [4, true]);
+    a.be.fail.getProject = new P.api.ApiError(404, 'CYD_NOT_FOUND', 'not found', {});
+    await fail();
+    eq('a deleted project returns to the start screen with a notice', [a.inst.root.dataset.ccView, a.notes[a.notes.length - 1], a.inst.events],
+        ['home', appT('cyd_creator.error.CYD_NOT_FOUND'), null]);
+    a.dispose();
+}
+{
+    const a = await makeApp({ projectId: 'ccp_1', project: { publish_review: true } });
+    const banner = a.find('ccPublishReview');
+    eq('a fenced project shows the publication review banner', [banner.hidden, banner.textContent, banner.className], [false, appT('cyd_creator.error.publication_review'), 'cc-banner cc-banner--danger']);
+    a.be.project.publish_review = false;
+    await a.inst.refreshProject();
+    eq('the banner disappears once the summary no longer reports the fence', banner.hidden, true);
+    a.be.fail.putLayout = new P.api.ApiError(409, 'CYD_BUSY', 'needs review', { reason: 'publication_review' });
+    a.be.project.publish_review = true;
+    a.inst.layoutSaver.change({ name: 'Clock', orientation: 'portrait', screens: [] });
+    const saved = await a.inst.flushAll();
+    await settle();
+    eq('a save refused by the fence reloads the summary and shows the banner', [saved, a.find('ccSaveState').dataset.state, banner.hidden], [false, 'failed', false]);
+    a.dispose();
+}
+{
+    // Every agent job starts from the saved project.
+    const a = await makeApp({ projectId: 'ccp_1' });
+    a.inst.layoutSaver.change({ name: 'Clock', orientation: 'portrait', screens: [] });
+    a.be.calls.length = 0;
+    a.find('ccAgentInput').value = 'Add a clock';
+    a.find('ccComposer').dispatch('submit');
+    await settle();
+    eq('the composer saves unsaved edits before the job starts', a.be.calls.filter(c => c === 'putLayout' || c === 'startJob'), ['putLayout', 'startJob']);
+    a.dispose();
+    const b = await makeApp({ projectId: 'ccp_1' });
+    b.be.fail.putLayout = new P.api.ApiError(0, '', 'network error', {});
+    b.inst.layoutSaver.change({ name: 'Clock', orientation: 'portrait', screens: [] });
+    b.find('ccAgentInput').value = 'Add a clock';
+    b.find('ccComposer').dispatch('submit');
+    await settle();
+    eq('edits that cannot be saved stop the job with the save error', [b.be.calls.includes('startJob'), b.notes[b.notes.length - 1], b.find('ccAgentInput').value, !!b.find('ccMessage')],
+        [false, appT('cyd_creator.error.network'), 'Add a clock', false]);
+    b.dispose();
+    const c = await makeApp({});
+    c.be.calls.length = 0;
+    await c.inst.openProject('ccp_1', { orientation: 'portrait', prompt: 'A clock' });
+    await settle();
+    eq('a new project saves its orientation, then starts the agent from the description',
+        [c.be.calls.filter(x => x === 'putLayout' || x === 'startJob'), c.be.layout.orientation, c.find('ccPanel', 'agent').getAttribute('aria-selected')],
+        [['putLayout', 'startJob'], 'portrait', 'true']);
+    c.dispose();
+}
+{
+    // inst.confirm belongs to the window: closing the window closes the dialog and answers no.
+    const a = await makeApp({});
+    let answer = 'pending';
+    a.inst.confirm({ titleKey: 'cyd_creator.app.unsaved_title', bodyKey: 'cyd_creator.app.unsaved_body' }).then(v => { answer = v; });
+    const open = !!a.find('ccDialogAction', 'ok');
+    App.dispose(a.windowId);
+    await settle();
+    eq('the window owns its confirm dialogs', [open, answer, docKeys.length], [true, false, 0]);
+    a.inst.notify('error', 'late');
+    eq('notify still works after the window is gone', a.notes[a.notes.length - 1], 'late');
+    a.dispose();
+}
+{
+    const a = await makeApp({ projectId: 'ccp_1' });
+    policyListeners.slice().forEach(fn => fn({ detail: { readonly: true } }));
+    await settle();
+    eq('a read-only policy reaches the toolbar and the agent panel',
+        [a.inst.readonly, a.find('ccAction', 'build').disabled, a.find('ccAgentAction', 'send').disabled, a.find('ccAgentInput').disabled], [true, true, true, true]);
+    policyListeners.slice().forEach(fn => fn({ detail: { readonly: false } }));
+    eq('lifting it enables them again', [a.inst.readonly, a.find('ccAgentAction', 'send').disabled], [false, false]);
+    a.dispose();
+    const h = await makeApp({});
+    policyListeners.slice().forEach(fn => fn({ detail: { readonly: true } }));
+    await settle();
+    eq('the start screen follows read-only', [h.find('ccAction', 'new-agent').disabled, h.find('ccAction', 'new-designer').disabled], [true, true]);
+    const ro = await makeApp({ capsReadonly: true });
+    eq('a read-scoped token (capabilities readonly) makes the window read-only', [ro.inst.readonly, ro.find('ccAction', 'new-agent').disabled], [true, true]);
+    h.dispose();
+    ro.dispose();
+    eq('disposed windows leave no policy listener behind', policyListeners.length, 0);
+}
+console.warn = consoleWarn;
+
 if (failures) {
     console.log(failures + ' check(s) failed');
     process.exit(1);

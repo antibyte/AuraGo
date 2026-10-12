@@ -329,3 +329,158 @@ func TestCYDCreatorHomeModule(t *testing.T) {
 		"if (dialog.closed) { inst.notify('error', P.errors.message(t, err)); return; }", "button.disabled = true;",
 		"if (state.disposed || seq !== state.seq) return;")
 }
+
+// cydCreatorShellModules are the plan-4a modules in loader order. Plan 4b inserts its ten designer
+// modules directly after cyd-creator-events.js (in the loader above the "plan 4b" marker, here after
+// "cyd-creator-events.js"), plan 5 its modules below the "plan 5" marker (between home and app);
+// both markers stay in place. The tests check relative order only, so inserted modules are fine.
+var cydCreatorShellModules = []string{
+	"cyd-creator-core.js", "cyd-creator-api.js", "cyd-creator-events.js",
+	"cyd-creator-code.js", "cyd-creator-dock.js", "cyd-creator-agent.js", "cyd-creator-home.js",
+	"cyd-creator-app.js",
+}
+
+const (
+	cydCreator4bMarker = "// CYD Creator plan 4b inserts geometry, model, render, canvas, interact, palette, inspector-fields, inspector, screens, designer above this line."
+	cydCreator5Marker  = "// CYD Creator plan 5 inserts serial, flasher, monitor, devices, transfer here."
+)
+
+func TestCYDCreatorAppModule(t *testing.T) {
+	checkCYDCreatorModule(t, "cyd-creator-app.js",
+		"window.CYDCreatorApp = { render, dispose, instances };",
+		"P.model.createStore(payload.project, { limit: 300, coalesceMs: 1200 })",
+		"P.designer.create(inst)", "inst.bus.emit('layout:issues'", "inst.bus.emit('designer:reveal', spec || {})",
+		"inst.bus.emit('lock:changed'", "P.flasher && typeof P.flasher.open === 'function'",
+		"P.devices && typeof P.devices.open === 'function'", "P.transfer && typeof P.transfer.exportProject === 'function'")
+	var all strings.Builder
+	for _, name := range cydCreatorShellModules {
+		all.WriteString(rawDesktopAssetText(t, "js/desktop/apps/"+name))
+	}
+	for _, hook := range []string{"new-agent", "new-designer", "import", "open", "build", "flash", "ota", "export", "mode-design", "mode-code"} {
+		if !strings.Contains(all.String(), "'"+hook+"'") {
+			t.Errorf("stable test hook data-cc-action=%q is missing", hook)
+		}
+	}
+	for _, panel := range []string{"ccPanel: 'properties'", "ccPanel: 'agent'"} {
+		if !strings.Contains(all.String(), panel) {
+			t.Errorf("right panel tab hook %q is missing", panel)
+		}
+	}
+}
+
+func TestCYDCreatorShellWiring(t *testing.T) {
+	foundation := rawDesktopAssetText(t, "js/desktop/core/desktop-foundation.js")
+	routing := rawDesktopAssetText(t, "js/desktop/core/menus-and-routing.js")
+	bundle := rawDesktopAssetText(t, "js/desktop/bundles/main.bundle.js")
+	for _, check := range []struct{ name, source, marker string }{
+		{"icon key", foundation, "'cyd-creator': 'cyd-creator'"},
+		{"global name", foundation, "'cyd-creator': 'CYDCreatorApp'"},
+		{"routing", routing, "if (appId === 'cyd-creator') {"},
+		{"routing lazy load", routing, "window.AuraDesktopModules.loadAppScript('cyd-creator')"},
+		{"routing render", routing, "window.CYDCreatorApp.render(contentEl(id), id,"},
+		{"bundle global name", bundle, "'cyd-creator': 'CYDCreatorApp'"},
+		{"bundle routing", bundle, "if (appId === 'cyd-creator') {"},
+	} {
+		if !strings.Contains(check.source, check.marker) {
+			t.Errorf("%s misses %q", check.name, check.marker)
+		}
+	}
+}
+
+func cydCreatorLoaderBlock(t *testing.T) string {
+	t.Helper()
+	loader := strings.ReplaceAll(rawDesktopAssetText(t, "js/desktop/core/module-loader.js"), "\r\n", "\n")
+	start := strings.Index(loader, "'cyd-creator': {")
+	if start < 0 {
+		t.Fatal("module-loader.js has no cyd-creator entry")
+	}
+	end := strings.Index(loader[start:], "]\n        }")
+	if end < 0 {
+		t.Fatal("cyd-creator entry is not closed")
+	}
+	return loader[start : start+end]
+}
+
+func TestCYDCreatorAssetsLoadInOverviewOrder(t *testing.T) {
+	block := cydCreatorLoaderBlock(t)
+	if !strings.Contains(block, "styles: appStyles('/css/desktop-app-cyd-creator.css')") {
+		t.Fatalf("cyd-creator assets miss the stylesheet:\n%s", block)
+	}
+	position := func(needle string) int {
+		idx := strings.Index(block, needle)
+		if idx < 0 {
+			t.Fatalf("cyd-creator assets miss %s", needle)
+		}
+		return idx
+	}
+	last := -1
+	for _, name := range cydCreatorShellModules {
+		idx := position("'/js/desktop/apps/" + name + "'")
+		if idx < last {
+			t.Fatalf("%s loads before a module it depends on", name)
+		}
+		last = idx
+	}
+	m4b, m5 := position(cydCreator4bMarker), position(cydCreator5Marker)
+	if !(position("'/js/desktop/apps/cyd-creator-events.js'") < m4b && m4b < position("'/js/desktop/apps/cyd-creator-code.js'")) {
+		t.Fatal("the plan 4b marker must sit between events and code")
+	}
+	if !(position("'/js/desktop/apps/cyd-creator-home.js'") < m5 && m5 < position("'/js/desktop/apps/cyd-creator-app.js'")) {
+		t.Fatal("the plan 5 marker must sit between home and app")
+	}
+	if !strings.Contains(rawDesktopAssetText(t, "js/desktop/core/module-loader.js"), "'cyd-creator': ['cyd_creator']") {
+		t.Fatal("APP_I18N_SECTIONS must load the cyd_creator section")
+	}
+}
+
+func TestCYDCreatorUsesNoNativeDialogs(t *testing.T) {
+	native := regexp.MustCompile(`(^|[^.\w])(alert|confirm|prompt)\s*\(|window\.(alert|confirm|prompt)\s*\(`)
+	for _, name := range cydCreatorShellModules {
+		for i, line := range strings.Split(rawDesktopAssetText(t, "js/desktop/apps/"+name), "\n") {
+			if strings.HasPrefix(strings.TrimSpace(line), "//") {
+				continue
+			}
+			if native.MatchString(line) {
+				t.Errorf("%s:%d uses a native dialog: %s", name, i+1, strings.TrimSpace(line))
+			}
+		}
+	}
+}
+
+func TestCYDCreatorDisposeLifecycle(t *testing.T) {
+	app := rawDesktopAssetText(t, "js/desktop/apps/cyd-creator-app.js")
+	for _, marker := range []string{
+		"function dispose(windowId)", "inst.disposed = true;", "instances.delete(windowId);",
+		"if (inst.events) { inst.events.close(); inst.events = null; }",
+		"['designer', 'agent', 'code', 'dock'].forEach(name => {", "inst.bag.dispose();", "inst.bus.clear();",
+		"if (inst.pullTimer) clearInterval(inst.pullTimer);", "inst.ctx.setWindowBeforeClose(windowId, null)",
+	} {
+		if !strings.Contains(app, marker) {
+			t.Errorf("cyd-creator-app.js misses %q", marker)
+		}
+	}
+	for _, name := range []string{"cyd-creator-dock.js", "cyd-creator-code.js", "cyd-creator-agent.js", "cyd-creator-home.js"} {
+		if text := rawDesktopAssetText(t, "js/desktop/apps/"+name); !strings.Contains(text, "dispose() {") || !strings.Contains(text, "b.dispose();") {
+			t.Errorf("%s must release its listeners in dispose()", name)
+		}
+	}
+	if !strings.Contains(rawDesktopAssetText(t, "js/desktop/bundles/main.bundle.js"), "'cyd-creator': 'CYDCreatorApp'") {
+		t.Error("the shell must find CYDCreatorApp.dispose through appGlobalName")
+	}
+}
+
+// TestCYDCreatorAppCarriesTheModuleContracts pins what the reviewed modules need from the window
+// (behaviour: scripts/test-cyd-creator-shell.mjs): dialogs with an owner, the reload after
+// stream_ready, the stream give-up probe, the publication review banner, saving before every agent
+// job, the segment buttons and the read-only propagation.
+func TestCYDCreatorAppCarriesTheModuleContracts(t *testing.T) {
+	checkCYDCreatorModule(t, "cyd-creator-app.js",
+		"owner: inst.bag", "owner: inst.projectBag || inst.bag",
+		"if (data && data.reload) reloadProject(inst, { keepEdits: true });", "inst.dock ? inst.dock.builds.load() : null",
+		"inst.code ? inst.code.refreshFiles() : null", "inst.dock.trackBuild(build);",
+		"bus.on('events:failed'", "await P.api.getProject(inst.projectId);", "stopStream(inst, err);",
+		"dataset: { ccPublishReview: '' }", "v.reviewBanner.hidden = !project.publish_review;",
+		"if (!(await flushAll(inst))) throw unsavedError(inst);", "class: 'cc-btn cc-seg'",
+		"'aurago:desktop-policy'", "if (inst.code) inst.code.updateReadOnly();", "if (inst.home) inst.home.refresh();")
+	checkCYDCreatorModule(t, "cyd-creator-events.js", "inst.bus.emit('events:failed', attempt);")
+}

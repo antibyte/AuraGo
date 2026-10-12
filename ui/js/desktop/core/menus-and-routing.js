@@ -1869,6 +1869,20 @@ if (appId === 'pixel') {
                 }));
             }
         }
+        if (appId === 'cyd-creator') {
+            if (!window.CYDCreatorApp) {
+                window.AuraDesktopModules.loadAppScript('cyd-creator').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.CYDCreatorApp.render === 'function') {
+                return window.CYDCreatorApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                    esc, api, t, iconMarkup, notify: showDesktopNotification,
+                    readonly: desktopReadonly(), openApp, confirmDialog,
+                    setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                    isActive: () => state.activeWindowId === id
+                }));
+            }
+        }
         if (appId === 'pet-picker') {
             if (!window.PetPickerApp) {
                 window.AuraDesktopModules.loadAppScript('pet-picker').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));

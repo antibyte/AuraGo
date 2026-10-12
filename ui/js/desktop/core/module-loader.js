@@ -220,6 +220,21 @@
                 '/js/desktop/apps/game-maker-studio.js'
             ]
         },
+        'cyd-creator': {
+            styles: appStyles('/css/desktop-app-cyd-creator.css'),
+            scripts: [
+                '/js/desktop/apps/cyd-creator-core.js',
+                '/js/desktop/apps/cyd-creator-api.js',
+                '/js/desktop/apps/cyd-creator-events.js',
+                // CYD Creator plan 4b inserts geometry, model, render, canvas, interact, palette, inspector-fields, inspector, screens, designer above this line.
+                '/js/desktop/apps/cyd-creator-code.js',
+                '/js/desktop/apps/cyd-creator-dock.js',
+                '/js/desktop/apps/cyd-creator-agent.js',
+                '/js/desktop/apps/cyd-creator-home.js',
+                // CYD Creator plan 5 inserts serial, flasher, monitor, devices, transfer here.
+                '/js/desktop/apps/cyd-creator-app.js'
+            ]
+        },
         'sip-phone': {
             styles: appStyles('/css/desktop-app-sip-phone.css'),
             scripts: ['/js/desktop/apps/sip-phone.js']
@@ -530,6 +545,7 @@
     const APP_I18N_SECTIONS = {
         'agent-chat': ['chat'],
         'cheater': ['cheater'],
+        'cyd-creator': ['cyd_creator'],
         'easydrag': ['easydrag'],
         'chess': [],
         'code-studio': ['codeStudio'],
