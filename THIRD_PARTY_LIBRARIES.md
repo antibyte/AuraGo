@@ -263,16 +263,26 @@ Not third-party, listed for completeness:
 | 3D models | `ui/3d/*.glb` | Project models |
 | Sample media | `assets/media_samples/`, `assets/*_samples/` | Bundled samples |
 
+### Embedded third-party media
+
+| Asset | Path | License | Source |
+|---|---|---|---|
+| "Pedestrians using crosswalk (Unsplash)" by Peter Miranda (800 px resize, JPEG q85), self-test photo of the person detector | `internal/persondetect/selftest_reference.jpg` (`go:embed`) | CC0 1.0 Universal | https://commons.wikimedia.org/wiki/File:Pedestrians_using_crosswalk_(Unsplash).jpg |
+
 ---
 
 ## 8. On-demand / optional runtimes
 
-Documented in `THIRD_PARTY_NOTICES.md`. **Not** embedded in the default source tree/binary. The embedding runtime is downloaded when `embeddings.provider` is `local-granite`; a Wikipedia edition is downloaded only when an administrator installs one under Local Wikipedia. Both are verified by size + SHA-256.
+Documented in `THIRD_PARTY_NOTICES.md`. **Not** embedded in the default source tree/binary. The embedding runtime is downloaded when `embeddings.provider` is `local-granite`; a Wikipedia edition is downloaded only when an administrator installs one under Local Wikipedia; the Network Cameras person detector downloads its D-FINE model and its ONNX Runtime when a detector starts for the first time. All are verified by size + SHA-256.
 
 | Component | Use | License | Project |
 |---|---|---|---|
 | IBM Granite Embedding 97M Multilingual R2 | Local embeddings model | Apache-2.0 | https://huggingface.co/ibm-granite/granite-embedding-97m-multilingual-r2 |
 | ONNX Runtime 1.26.0 (native) | ONNX inference | MIT | https://github.com/microsoft/onnxruntime |
+| ONNX Runtime WebGPU 1.27.0 (`onnxruntime-webgpu` wheel, native; linux/amd64, windows/amd64, darwin/arm64) | GPU/iGPU inference for person detection | MIT (the wheel also lists Dawn: BSD-3-Clause, and LLVM-derived code: University of Illinois/NCSA) | https://pypi.org/project/onnxruntime-webgpu/ |
+| DirectX Shader Compiler `dxcompiler.dll` 1.9.0.1 / `dxil.dll` 1.8.2502.11 (Windows wheel only) | Shader compilation of the WebGPU provider (Direct3D 12) | University of Illinois/NCSA (upstream project); Microsoft-signed binaries, extracted unmodified from the wheel and not redistributed by AuraGo | https://github.com/microsoft/DirectXShaderCompiler |
+| D-FINE-N ONNX (AnnotateIt export of `ustc-community/dfine-nano-coco`, revision 571d3971bfb4) | Person detection, "standard" model | Apache-2.0 | https://huggingface.co/AnnotateIt/dfine-nano-coco-onnx |
+| D-FINE-S ONNX (onnx-community conversion of `ustc-community/dfine-small-coco`, revision a3cf03147a9b) | Person detection, "accurate" model | Apache-2.0 (original weights; the conversion repository declares no license) | https://huggingface.co/onnx-community/dfine_s_coco-ONNX |
 | llama.cpp (pinned build) | GGUF embedding server / sidecars | MIT | https://github.com/ggml-org/llama.cpp |
 | Ebitengine PureGo | CGO-free native calls | Apache-2.0 | https://github.com/ebitengine/purego |
 | dlclark/regexp2 | Tokenizer regex | MIT | https://github.com/dlclark/regexp2 |

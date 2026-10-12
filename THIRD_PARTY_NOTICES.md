@@ -1,11 +1,16 @@
 # Third-party notices
 
-AuraGo links the listed Go modules or retrieves the listed optional model/runtime artifacts. When `embeddings.provider` is `local-granite`, native runtimes and model weights are downloaded on demand and verified by exact size and SHA-256 rather than embedded in the primary binary.
+AuraGo links the listed Go modules or retrieves the listed optional model/runtime artifacts. When `embeddings.provider` is `local-granite`, native runtimes and model weights are downloaded on demand and verified by exact size and SHA-256 rather than embedded in the primary binary. The person-detection mode of the Network Cameras app downloads its detector model and ONNX Runtime the same way (see "Person detection models and runtime" below).
 
 | Component | Use | License |
 |---|---|---|
 | IBM Granite Embedding 97M Multilingual R2 | Base embedding model, ONNX conversion, and GGUF quantization | Apache License 2.0 |
 | ONNX Runtime 1.26.0 | Native ONNX inference runtime | MIT License |
+| ONNX Runtime WebGPU 1.27.0 (`onnxruntime-webgpu` wheel from PyPI) | GPU/iGPU inference runtime of the person detector (linux/amd64, windows/amd64, darwin/arm64); only its runtime libraries are extracted | MIT License (the wheel also lists Dawn: BSD 3-Clause License, and LLVM-derived code: University of Illinois/NCSA Open Source License) |
+| DirectX Shader Compiler `dxcompiler.dll` 1.9.0.1 and `dxil.dll` 1.8.2502.11 (inside the Windows WebGPU wheel) | Shader compilation of the WebGPU provider on Windows (Direct3D 12) | University of Illinois/NCSA Open Source License (upstream project); Microsoft-signed binaries, see "Person detection models and runtime" |
+| D-FINE-N, ONNX export `AnnotateIt/dfine-nano-coco-onnx` of `ustc-community/dfine-nano-coco` (revision 571d3971bfb4) | Person detector, "standard" model | Apache License 2.0 |
+| D-FINE-S, ONNX conversion `onnx-community/dfine_s_coco-ONNX` (revision a3cf03147a9b) of `ustc-community/dfine-small-coco` | Person detector, "accurate" model | Apache License 2.0 (the original weights; the conversion repository itself declares no license) |
+| "Pedestrians using crosswalk (Unsplash)" by Peter Miranda | Embedded self-test photo of the person detector (`internal/persondetect/selftest_reference.jpg`) | CC0 1.0 Universal |
 | llama.cpp b9994 | GGUF embedding server and published Docker sidecars | MIT License |
 | Ebitengine PureGo | CGO-free dynamic calls from Go into ONNX Runtime | Apache License 2.0 |
 | dlclark/regexp2 | Go tokenizer regular-expression compatibility | MIT License |
@@ -20,6 +25,15 @@ The upstream projects and their complete license texts remain authoritative:
 
 - https://huggingface.co/ibm-granite/granite-embedding-97m-multilingual-r2
 - https://github.com/microsoft/onnxruntime
+- https://pypi.org/project/onnxruntime-webgpu/
+- https://github.com/microsoft/DirectXShaderCompiler
+- https://dawn.googlesource.com/dawn
+- https://huggingface.co/AnnotateIt/dfine-nano-coco-onnx
+- https://huggingface.co/ustc-community/dfine-nano-coco
+- https://huggingface.co/onnx-community/dfine_s_coco-ONNX
+- https://huggingface.co/ustc-community/dfine-small-coco
+- https://arxiv.org/abs/2410.13842
+- https://commons.wikimedia.org/wiki/File:Pedestrians_using_crosswalk_(Unsplash).jpg
 - https://github.com/ggml-org/llama.cpp
 - https://github.com/emiago/diago
 - https://github.com/emiago/sipgo
@@ -153,3 +167,56 @@ certifi.
   request the corresponding source.
 - All components of the image and their licences:
   [THIRD_PARTY_LIBRARIES.md, section 8](THIRD_PARTY_LIBRARIES.md#8-on-demand--optional-runtimes).
+
+## Person detection models and runtime
+
+The person-detection mode of the Network Cameras app (`internal/persondetect`,
+`internal/onnxrt`) runs a D-FINE object detector in an isolated worker process.
+AuraGo does not ship the models or the ONNX Runtime libraries in its source tree,
+binary or web resources. They are downloaded on demand from the HTTPS URLs pinned
+in `internal/persondetect/model.go` and `internal/onnxrt/runtimes.go` and are
+verified by exact size and SHA-256 before use.
+
+- **Models.** D-FINE (arXiv 2410.13842) is Apache License 2.0 software. The
+  "standard" model is the ONNX export `AnnotateIt/dfine-nano-coco-onnx` (pinned
+  revision `571d3971bfb47dc5ddd3746134dd464954bc9df0`) of
+  `ustc-community/dfine-nano-coco`; that repository declares Apache-2.0 and ships a
+  `LICENSE` file. The "accurate" model is the ONNX conversion
+  `onnx-community/dfine_s_coco-ONNX` (pinned revision
+  `a3cf03147a9b86c78475139115c8ac142577352d`) of the Apache-2.0 weights
+  `ustc-community/dfine-small-coco`; the conversion repository has no license
+  field of its own, so AuraGo relies on the license of the converted weights.
+  Both were trained on COCO (the Hugging Face model tags name the dataset). On
+  disk AuraGo only derives a local WebGPU copy (`model.webgpu-1.27.0.onnx`: constant
+  folding and one reshaped weight, see `internal/persondetect/gpuprep.go`); it is
+  never redistributed.
+- **ONNX Runtime WebGPU 1.27.0.** The `onnxruntime-webgpu` wheel for the platform is
+  downloaded from PyPI, kept unmodified in the downloads cache, and only the
+  runtime libraries are extracted from it (linux/amd64: `libonnxruntime.so.1.27.0`,
+  `libonnxruntime_providers_shared.so`; windows/amd64: `onnxruntime.dll`,
+  `onnxruntime_providers_shared.dll`, `dxcompiler.dll`, `dxil.dll`; darwin/arm64:
+  `libonnxruntime.1.27.0.dylib`). The Windows wheel's `onnxruntime/LICENSE` is the MIT
+  License, "Copyright (c) Microsoft Corporation". Its `onnxruntime/ThirdPartyNotices.txt`
+  lists, among many others, Dawn (BSD 3-Clause License, "Copyright 2017-2023 The Dawn
+  & Tint Authors") and The LLVM Compiler Infrastructure (University of Illinois/NCSA
+  Open Source License, "Copyright (c) 2003-2017 University of Illinois at
+  Urbana-Champaign"). The CPU path uses the ONNX Runtime 1.26.0 bundles listed above.
+- **DirectX Shader Compiler (Windows only).** `dxcompiler.dll` (file version
+  1.9.0.1) and `dxil.dll` (file version 1.8.2502.11) are Microsoft-signed binaries
+  whose version information reads "DirectX Compiler - Out Of Band", "(c) Microsoft
+  Corporation. All rights reserved." AuraGo does not redistribute them: they are
+  extracted on the user's machine from the PyPI wheel, unmodified, and loaded by the
+  WebGPU provider. The upstream project (https://github.com/microsoft/DirectXShaderCompiler)
+  states that it is distributed under the University of Illinois/NCSA Open Source
+  License (its `LICENSE.TXT` and `README.md`), and the wheel's `ThirdPartyNotices.txt`
+  carries that license text under the LLVM entry; the wheel has no separate
+  DirectX Shader Compiler entry, and neither the wheel nor the upstream README or
+  `LICENSE.TXT` states redistribution terms specific to the signed `dxil.dll` binary.
+  The upstream licenses remain authoritative.
+- **Self-test photo.** `internal/persondetect/selftest_reference.jpg` is
+  "Pedestrians using crosswalk (Unsplash).jpg" by Peter Miranda, released under
+  CC0 1.0 Universal (public domain dedication) on Wikimedia Commons
+  (https://commons.wikimedia.org/wiki/File:Pedestrians_using_crosswalk_(Unsplash).jpg).
+  AuraGo embeds a 1280 px thumbnail resized to 800 px wide (LANCZOS, JPEG quality
+  85) to check every detector start. Attribution is not required by CC0 and is given
+  here for provenance.
