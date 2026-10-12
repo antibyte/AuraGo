@@ -295,10 +295,11 @@
         state.heldJob = job;
     }
 
-    // jobBuild is the job's own build in the building phase (origin job, job_id set): it succeeds.
+    // jobBuild is the job's own build in the building phase (origin agent like the server's
+    // BuildOriginAgent, job_id set): it succeeds.
     async function jobBuild(job) {
         const project = state.projects.get(job.project_id);
-        const build = { id: nextID('ccb'), project_id: job.project_id, job_id: job.id, origin: 'job', status: 'queued', board: project.board, project_version: project.version, error_code: '', diagnostics: [], usage: {}, artifacts: [], created_at: iso(), started_at: '', finished_at: '' };
+        const build = { id: nextID('ccb'), project_id: job.project_id, job_id: job.id, origin: 'agent', status: 'queued', board: project.board, project_version: project.version, error_code: '', diagnostics: [], usage: {}, artifacts: [], created_at: iso(), started_at: '', finished_at: '' };
         state.builds.set(build.id, build);
         emit(job.project_id, 'build_status', { build });
         await wait(30);

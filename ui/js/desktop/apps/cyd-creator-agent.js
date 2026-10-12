@@ -64,6 +64,8 @@
             loaded: false,
             replanOpen: false,
             replanText: null,
+            // planShown is the id of the job whose plan card is shown (opened at its top once).
+            planShown: '',
             ticker: 0,
             disposed: false
         };
@@ -123,10 +125,12 @@
                 el('span', { class: 'cc-step-text', text: serverText('cyd_creator.step.', step) }));
         }
 
+        // stickToEnd runs fn and keeps a reader who was at the end there; it returns whether they were.
         function stickToEnd(fn) {
             const atEnd = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 40;
             fn();
             if (atEnd) scroller.scrollTop = scroller.scrollHeight;
+            return atEnd;
         }
 
         function entryNode(entry) {
@@ -296,9 +300,21 @@
             return P.format.duration((Number.isFinite(end) ? end : Date.now()) - start);
         }
 
-        // renderJob redraws the job card below the history; a reader at the end stays at the end.
+        // renderJob redraws the job card below the history; a reader at the end stays at the end. When
+        // a job's plan card appears, a reader at the end sees it from its top (status, heading, summary)
+        // instead of at its actions; redraws of the same card (read-only, confirm in flight) keep the
+        // scroll position. A new plan of the same job (re-plan) opens at its top again.
         function renderJob() {
-            stickToEnd(drawJob);
+            const job = state.job;
+            const atEnd = stickToEnd(drawJob);
+            if (job && job.status === 'awaiting_confirmation') {
+                if (state.planShown !== job.id) {
+                    state.planShown = job.id;
+                    if (atEnd) scroller.scrollTop += jobCard.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 8;
+                }
+            } else {
+                state.planShown = '';
+            }
             const active = isActive(state.job);
             inst.setPanelBadge('agent', active);
             if (active && !state.ticker && !state.disposed) {

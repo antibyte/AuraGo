@@ -1390,6 +1390,44 @@ async function makeAgent(opts) {
     Object.keys(words).forEach(key => { delete sandbox.window.I18N[key]; });
 }
 {
+    // The plan card opens at its top for a reader at the end, once per shown plan: the scroller is
+    // 300 px high with 1000 px of content, the card starts 600 px into it.
+    function geometry(a) {
+        const scroller = a.byData('ccAgentScroll');
+        const card = a.byData('ccJob');
+        Object.defineProperty(scroller, 'scrollHeight', { get: () => 1000 });
+        scroller.clientHeight = 300;
+        scroller.getBoundingClientRect = () => ({ top: 100, left: 0, width: 400, height: 300 });
+        card.getBoundingClientRect = () => ({ top: 100 + 600 - scroller.scrollTop, left: 0, width: 400, height: 500 });
+        return scroller;
+    }
+    const planned = id => agentJob(id, 'awaiting_confirmation', 2, { plan: agentPlan });
+    const a = await makeAgent({ jobs: [agentJob('ccj_p', 'running', 2, { phase: 'planning' })] });
+    const scroller = geometry(a);
+    scroller.scrollTop = 700;
+    a.inst.bus.emit('job:status', planned('ccj_p'));
+    const opened = scroller.scrollTop;
+    a.inst.readonly = true;
+    a.inst.bus.emit('readonly:changed', true);
+    a.inst.readonly = false;
+    a.inst.bus.emit('readonly:changed', false);
+    eq('the plan card opens at its top and later redraws keep the position', [opened, scroller.scrollTop], [592, 592]);
+    a.inst.bus.emit('job:status', agentJob('ccj_p', 'running', 2, { phase: 'planning' }));
+    scroller.scrollTop = 700;
+    a.inst.bus.emit('job:status', planned('ccj_p'));
+    eq('a new plan of the same job opens at its top again', scroller.scrollTop, 592);
+    a.dispose();
+    const b = await makeAgent({ jobs: [agentJob('ccj_q', 'running', 2, { phase: 'planning' })] });
+    const away = geometry(b);
+    away.scrollTop = 200;
+    b.inst.bus.emit('job:status', planned('ccj_q'));
+    const kept = away.scrollTop;
+    away.scrollTop = 700;
+    b.inst.bus.emit('readonly:changed', false);
+    eq('a reader scrolled up stays put, and the shown card does not jump later', [kept, away.scrollTop], [200, 1000]);
+    b.dispose();
+}
+{
     const rev = { id: 'ccr_1', label: 'v1', reason: 'job', created_at: '2026-10-12T10:00:00.000Z' };
     const a = await makeAgent({ revisions: [rev], flushOk: false, confirms: [true, false] });
     a.agent.openRevisions();

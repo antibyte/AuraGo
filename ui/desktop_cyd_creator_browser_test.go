@@ -181,7 +181,7 @@ func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 	page.MustEval(`()=>` + fmt.Sprintf(policy, false))
 	s.wait(`()=>!document.querySelector('[data-cc-agent-input]').disabled`)
 	page.MustEval(`()=>cydFixture.finishJob()`)
-	// The job builds before it publishes: its build (origin job) is the job's build_id and shows in the dock.
+	// The job builds before it publishes: its build (origin agent) is the job's build_id and shows in the dock.
 	s.wait(`()=>{const j=[...cydFixture.state.jobs.values()].at(-1);return j.status==='succeeded' && !!j.build_id && cydFixture.inst().dock.builds.list().some(b=>b.id===j.build_id && b.job_id===j.id && b.status==='succeeded')}`)
 	s.wait(`()=>document.querySelector('[data-cc-lock]').hidden && document.querySelector('[data-cc-agent-dot]').hidden && document.querySelector('.cc-code-editor .cm-content').getAttribute('contenteditable')==='true'`)
 	s.wait(`()=>document.querySelector('[data-cc-panel="properties"]').getAttribute('aria-selected')==='true'`)
