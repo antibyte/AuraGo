@@ -467,54 +467,28 @@ export class SensingService {
    * hardware or simulation. Called once on WebSocket open.
    */
   async _detectServerSource() {
-    // ADR-295 (issue #1526): an unreachable or unauthorized status endpoint is
-    // an *unknown* state — it must NOT collapse to "live". Prefer the canonical
-    // `source_state` the server now returns; on any error stay conservative
-    // (server-simulated) until a real frame's `source` field promotes us.
-    //
-    // Send the bearer token via `apiService.getHeaders()` so the probe can
-    // actually succeed under the documented secure posture (API auth
-    // enabled) instead of always 401ing and relying solely on the
-    // conservative fallback below (issue #1526, suggested fix #1).
+    const epoch = this._connectEpoch, previous = this._lastMessage;
+    const current = () => this._connectEpoch === epoch && this._state === 'connected' && this._lastMessage === previous;
     try {
       const resp = await fetch('/api/v1/status', { headers: apiService.getHeaders() });
-      if (resp.ok) {
-        const json = await resp.json();
-        this._applyServerSource(json.source, json.source_state);
-      } else {
-        this._setDataSource('server-simulated');
-      }
+      if (!resp.ok) throw new Error('Source status unavailable');
+      const json = await resp.json();
+      if (current()) this._applyServerSource(json.source, json.source_state || 'disconnected');
     } catch {
-      this._setDataSource('server-simulated');
+      if (current()) this._setDataSource('waiting');
     }
   }
 
-  /**
-   * Map a raw server source string (and optional canonical ADR-295
-   * `source_state`) to the UI data-source label.
-   */
   _applyServerSource(rawSource, sourceState) {
     this._serverSource = rawSource;
-    // ADR-295: only the verified/unverified live states may show "live"; any
-    // synthetic/stale/disconnected state must not.
     if (sourceState) {
-      if (sourceState === 'live_verified' || sourceState === 'live_unverified') {
-        this._setDataSource('live');
-      } else if (sourceState === 'synthetic') {
-        this._setDataSource('server-simulated');
-      } else {
-        this._setDataSource('server-simulated');
-      }
+      const states = {live_verified:'live', live_unverified:'live', synthetic:'server-simulated', stale:'stale'};
+      this._setDataSource(Object.hasOwn(states, sourceState) ? states[sourceState] : 'waiting');
       return;
     }
-    if (rawSource === 'esp32' || rawSource === 'wifi' || rawSource === 'live') {
-      this._setDataSource('live');
-    } else if (rawSource === 'simulated' || rawSource === 'simulate') {
-      this._setDataSource('server-simulated');
-    } else {
-      // Unknown source — show as server-simulated to be safe
-      this._setDataSource('server-simulated');
-    }
+    // Only an arriving frame may establish live data without canonical status.
+    const real = ['esp32', 'wifi', 'live'].includes(rawSource) || String(rawSource).startsWith('wifi:');
+    this._setDataSource(real ? 'live' : ['simulated', 'simulate'].includes(rawSource) ? 'server-simulated' : 'waiting');
   }
 
   /** @return {string|null} Raw server source (e.g. "esp32", "simulated") */
@@ -530,10 +504,7 @@ export class SensingService {
     // Track the server's source field from each frame so the UI
     // can react if the server switches between esp32 ↔ simulated at runtime.
     if (data.source && this._state === 'connected') {
-      const raw = data.source;
-      if (raw !== this._serverSource) {
-        this._applyServerSource(raw);
-      }
+      this._applyServerSource(data._simulated ? 'simulated' : data.source, data._simulated ? 'synthetic' : data.source_state);
     }
 
     // Update RSSI history for sparkline
@@ -581,9 +552,16 @@ export class SensingService {
   /**
    * Update the dataSource label and notify state listeners so the UI can
    * react without needing a separate subscription.
-   * @param {'live'|'server-simulated'|'reconnecting'|'unreachable'|'simulated'|'auth-required'} source
+   * @param {'live'|'server-simulated'|'waiting'|'stale'|'reconnecting'|'unreachable'|'simulated'|'auth-required'} source
    */
   _setDataSource(source) {
+    clearTimeout(this._freshnessTimer);
+    if (source === 'live' || source === 'server-simulated') {
+      const epoch = this._connectEpoch;
+      this._freshnessTimer = setTimeout(() => {
+        if (epoch === this._connectEpoch && this._state === 'connected') this._setDataSource('stale');
+      }, 10000);
+    }
     if (source === this._dataSource) return;
     this._dataSource = source;
     // Re-use the same state-listener channel — listeners receive the
@@ -594,6 +572,7 @@ export class SensingService {
   }
 
   _clearTimers() {
+    clearTimeout(this._freshnessTimer);
     this._stopSimulation();
     if (this._reconnectTimer) {
       clearTimeout(this._reconnectTimer);

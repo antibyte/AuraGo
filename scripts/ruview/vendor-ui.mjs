@@ -38,7 +38,82 @@ if (check) {
           text = text.replace(/<head([^>]*)>/i, '<head$1><script src="./aurago-adapter.js"></script>');
         }
         if (name === 'app.js') text = text.replace("if ('serviceWorker' in navigator)", 'if (false)').replace('const useMock = await backendDetector.shouldUseMockServer();','const useMock = false;');
-        if (name === 'services/sensing.service.js') text = text.replace(/function clientSimulationAllowed\([^)]*\)\s*\{[\s\S]*?\n\}/, 'function clientSimulationAllowed() { return false; }');
+        if (name === 'services/sensing.service.js') {
+          text = text.replace(/function clientSimulationAllowed\([^)]*\)\s*\{[\s\S]*?\n\}/, 'function clientSimulationAllowed() { return false; }');
+          const start=text.indexOf('  async _detectServerSource() {'),end=text.indexOf('  /** @return {string|null} Raw server source');
+          if(start<0||end<start)throw Error('Pinned sensing source detection changed');
+          text=patch(text,text.slice(start,end),`  async _detectServerSource() {
+    const epoch = this._connectEpoch, previous = this._lastMessage;
+    const current = () => this._connectEpoch === epoch && this._state === 'connected' && this._lastMessage === previous;
+    try {
+      const resp = await fetch('/api/v1/status', { headers: apiService.getHeaders() });
+      if (!resp.ok) throw new Error('Source status unavailable');
+      const json = await resp.json();
+      if (current()) this._applyServerSource(json.source, json.source_state || 'disconnected');
+    } catch {
+      if (current()) this._setDataSource('waiting');
+    }
+  }
+
+  _applyServerSource(rawSource, sourceState) {
+    this._serverSource = rawSource;
+    if (sourceState) {
+      const states = {live_verified:'live', live_unverified:'live', synthetic:'server-simulated', stale:'stale'};
+      this._setDataSource(Object.hasOwn(states, sourceState) ? states[sourceState] : 'waiting');
+      return;
+    }
+    // Only an arriving frame may establish live data without canonical status.
+    const real = ['esp32', 'wifi', 'live'].includes(rawSource) || String(rawSource).startsWith('wifi:');
+    this._setDataSource(real ? 'live' : ['simulated', 'simulate'].includes(rawSource) ? 'server-simulated' : 'waiting');
+  }
+
+`);
+          text=patch(text,`      const raw = data.source;
+      if (raw !== this._serverSource) {
+        this._applyServerSource(raw);
+      }`, `      this._applyServerSource(data._simulated ? 'simulated' : data.source, data._simulated ? 'synthetic' : data.source_state);`);
+          text=patch(text,'  _setDataSource(source) {',`  _setDataSource(source) {
+    clearTimeout(this._freshnessTimer);
+    if (source === 'live' || source === 'server-simulated') {
+      const epoch = this._connectEpoch;
+      this._freshnessTimer = setTimeout(() => {
+        if (epoch === this._connectEpoch && this._state === 'connected') this._setDataSource('stale');
+      }, 10000);
+    }`);
+          text=patch(text,'  _clearTimers() {','  _clearTimers() {\n    clearTimeout(this._freshnessTimer);');
+          text=patch(text,"'live'|'server-simulated'|'reconnecting'", "'live'|'server-simulated'|'waiting'|'stale'|'reconnecting'");
+        }
+        if (name === 'utils/data-source-banner.js') {
+          text=patch(text,'const CONFIG = {',`const CONFIG = {
+  waiting: {text: 'WAITING FOR SENSOR DATA — server connected, no current measurements', bg: '#33302a', fg: '#e8dcc0'},
+  stale: {text: 'STALE SENSOR DATA — no fresh measurements received', bg: '#33302a', fg: '#e8dcc0'},`);
+        }
+        if (name === 'utils/connection-status.js') {
+          text=patch(text,"      const label = source === 'live' ? 'Live' :",`      const label = source === 'waiting' ? 'Waiting for data' :
+                    source === 'stale' ? 'Stale data' : source === 'live' ? 'Live' :`);
+          text=patch(text,"      this.setStatus('connected', label);", "      this.setStatus(source === 'waiting' || source === 'stale' ? 'reconnecting' : 'connected', label);");
+        }
+        if (name === 'components/DashboardTab.js') {
+          text=patch(text,"      'server-simulated':",`      'waiting': {text: 'NO DATA', status: 'degraded', msg: 'Server connected; waiting for sensor data'},
+      'stale': {text: 'STALE', status: 'degraded', msg: 'No fresh sensor data'},
+      'server-simulated':`);
+        }
+        if (name === 'components/SensingTab.js') {
+          text=patch(text,"        'server-simulated':",`        'waiting': {text: 'WAITING FOR SENSOR DATA', cls: 'sensing-source-reconnecting'},
+        'stale': {text: 'STALE SENSOR DATA', cls: 'sensing-source-reconnecting'},
+        'server-simulated':`);
+        }
+        if (name === 'components/LiveDemoTab.js') {
+          text=patch(text,"    if (ds === 'unreachable')",`    if (ds === 'waiting') return 'Waiting for sensor data';
+    if (ds === 'stale') return 'No fresh sensor data';
+    if (ds === 'unreachable')`);
+          text=patch(text,"      'server-simulated':",`      'waiting': {text: 'WAITING FOR SENSOR DATA', cls: 'demo-source-reconnecting'},
+      'stale': {text: 'STALE SENSOR DATA', cls: 'demo-source-reconnecting'},
+      'server-simulated':`);
+          text=patch(text,"        'server-simulated':",`        'waiting': 'Connected — waiting for sensor data',
+        'stale': 'Connected — no fresh sensor data',
+        'server-simulated':`);
+        }
         if (name === 'pose-fusion/js/csi-simulator.js') {
           text=text.replace("return this.mode === 'live' && this.verifiedFrame === true;", "return this.mode === 'live' && this.verifiedFrame === true && performance.now()-this.auragoFrameAt<10000;");
           text=text.replace('this.verifiedFrame = true;', 'this.verifiedFrame = true; this.auragoFrameAt = performance.now();');

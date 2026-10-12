@@ -227,6 +227,8 @@ export class SensingTab {
       const dataSource = sensingService.dataSource;
       const bannerConfig = {
         'live':              { text: 'LIVE \u2014 ESP32 HARDWARE',           cls: 'sensing-source-live' },
+        'waiting': {text: 'WAITING FOR SENSOR DATA', cls: 'sensing-source-reconnecting'},
+        'stale': {text: 'STALE SENSOR DATA', cls: 'sensing-source-reconnecting'},
         'server-simulated':  { text: 'SIMULATED \u2014 NO HARDWARE',        cls: 'sensing-source-server-sim' },
         'reconnecting':      { text: 'RECONNECTING...',                    cls: 'sensing-source-reconnecting' },
         'unreachable':       { text: 'NO DATA \u2014 SERVER UNREACHABLE',   cls: 'sensing-source-simulated' },

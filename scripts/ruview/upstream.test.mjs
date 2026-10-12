@@ -3,6 +3,50 @@ import assert from 'node:assert/strict';
 import {CsiSimulator} from '../../ui/js/vendor/ruview/pose-fusion/js/csi-simulator.js';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+
+function sensingFixture(fetch = async()=>({ok:true,json:async()=>({source:'esp32',source_state:'disconnected'})})) {
+ const source=readFileSync('ui/js/vendor/ruview/services/sensing.service.js','utf8').replace(/^import .*;\r?\n/gm,'').replaceAll('export ','');
+ const timers=new Map();let next=0;
+ const Service=vm.runInNewContext(source+'\nSensingService',{fetch,apiService:{getHeaders:()=>({})},console,
+  setTimeout(fn){const id=++next;timers.set(id,fn);return id},clearTimeout(id){timers.delete(id)},clearInterval(){}});
+ const service=new Service();service._setState('connected');return {service,timers};
+}
+
+test('connected ESP32 without measurements waits instead of claiming synthetic data',async()=>{
+ const {service}=sensingFixture();await service._detectServerSource();assert.equal(service.dataSource,'waiting');
+ for(const [state,expected] of [['stale','stale'],['synthetic','server-simulated'],['live_verified','live'],['live_unverified','live'],['unknown','waiting'],['__proto__','waiting']]){
+  service._applyServerSource('esp32',state);assert.equal(service.dataSource,expected,state);
+ }
+ for(const fetch of [async()=>({ok:false}),async()=>{throw Error('offline')},async()=>({ok:true,json:async()=>({source:'esp32'})})]){
+  const {service}=sensingFixture(fetch);await service._detectServerSource();assert.equal(service.dataSource,'waiting');
+ }
+});
+
+test('frames recover an unchanged source and expire without inventing data',async()=>{
+ const {service,timers}=sensingFixture();await service._detectServerSource();
+ service._handleData({source:'esp32'});assert.equal(service.dataSource,'live');assert.equal(timers.size,1);
+ const expire=[...timers.values()][0];expire();assert.equal(service.dataSource,'stale');
+ service._handleData({source:'esp32'});assert.equal(service.dataSource,'live');
+ service._handleData({source:'simulated'});assert.equal(service.dataSource,'server-simulated');
+ service._handleData({source:'wifi:wlan0'});assert.equal(service.dataSource,'live');
+ service.stop();assert.equal(timers.size,0);expire();assert.notEqual(service.dataSource,'stale');
+});
+
+test('live source status without arriving frames also expires',async()=>{
+ const {service,timers}=sensingFixture(async()=>({ok:true,json:async()=>({source:'esp32',source_state:'live_unverified'})}));
+ await service._detectServerSource();assert.equal(service.dataSource,'live');
+ [...timers.values()][0]();assert.equal(service.dataSource,'stale');service.stop();assert.equal(timers.size,0);
+});
+
+test('late source probes cannot overwrite a new frame or a stopped connection',async()=>{
+ let resolve;const {service}=sensingFixture(()=>new Promise(r=>{resolve=r}));
+ const probe=service._detectServerSource();service._handleData({source:'esp32'});
+ resolve({ok:true,json:async()=>({source:'esp32',source_state:'disconnected'})});await probe;
+ assert.equal(service.dataSource,'live');
+ const stopped=service._detectServerSource();service.stop();
+ resolve({ok:true,json:async()=>({source:'simulated',source_state:'synthetic'})});await stopped;
+ assert.notEqual(service.dataSource,'server-simulated');
+});
 test('Pose-Fusion requires real CSI and expires live frames',()=>{
  const c=new CsiSimulator();assert.equal(c.isLive,false);
  c._handleJsonFrame({source:'simulated',nodes:[{amplitude:[1,2,3]}]});assert.equal(c.isLive,false);

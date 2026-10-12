@@ -125,6 +125,34 @@ func TestStatusAgingPreservesMissingDataAndFailures(t *testing.T) {
 	}
 }
 
+func TestDashboardHealthEndpointsAreReadOnly(t *testing.T) {
+	var calls atomic.Int32
+	m, _ := fixture(t, func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		if r.Header.Get("Authorization") != "Bearer test-ruview-private-token" {
+			t.Error("health request missing managed authorization")
+		}
+		io.WriteString(w, `{"status":"ok"}`)
+	})
+	paths := []string{"/health", "/health/health", "/health/live", "/health/ready", "/health/metrics", "/health/version"}
+	for _, path := range paths {
+		for _, method := range []string{http.MethodGet, http.MethodPost, http.MethodDelete} {
+			w := httptest.NewRecorder()
+			m.Proxy(w, httptest.NewRequest(method, "/", nil), path)
+			want := http.StatusNotFound
+			if method == http.MethodGet {
+				want = http.StatusOK
+			}
+			if w.Code != want {
+				t.Errorf("%s %s: got %d, want %d", method, path, w.Code, want)
+			}
+		}
+	}
+	if int(calls.Load()) != len(paths) {
+		t.Fatalf("expected only the %d read requests upstream, got %d", len(paths), calls.Load())
+	}
+}
+
 func TestReadOnlyProxyAndRequestBoundaries(t *testing.T) {
 	var calls atomic.Int32
 	m, c := fixture(t, func(w http.ResponseWriter, r *http.Request) {

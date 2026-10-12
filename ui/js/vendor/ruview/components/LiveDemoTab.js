@@ -1318,6 +1318,8 @@ export class LiveDemoTab {
     const ds = sensingService.dataSource;
     if (ds === 'live') return 'Active \u2014 ESP32 Live';
     if (ds === 'server-simulated') return 'Active \u2014 Simulated Data';
+    if (ds === 'waiting') return 'Waiting for sensor data';
+    if (ds === 'stale') return 'No fresh sensor data';
     if (ds === 'unreachable') return 'No Data \u2014 Server Unreachable';
     if (ds === 'simulated') return 'INVENTED DATA \u2014 Not Measured';
     if (ds === 'auth-required') return 'API Token Required';
@@ -1331,6 +1333,8 @@ export class LiveDemoTab {
     const ds = sensingService.dataSource;
     const config = {
       'live':             { text: 'LIVE \u2014 ESP32 Hardware Connected',           cls: 'demo-source-live' },
+      'waiting': {text: 'WAITING FOR SENSOR DATA', cls: 'demo-source-reconnecting'},
+      'stale': {text: 'STALE SENSOR DATA', cls: 'demo-source-reconnecting'},
       'server-simulated': { text: 'SIMULATED DATA \u2014 No Hardware Detected',     cls: 'demo-source-sim' },
       'reconnecting':     { text: 'RECONNECTING TO SERVER...',                      cls: 'demo-source-reconnecting' },
       'unreachable':      { text: 'NO DATA \u2014 Server Unreachable, Display Is Stale', cls: 'demo-source-offline' },
@@ -1373,6 +1377,8 @@ export class LiveDemoTab {
       const ds = sensingService.dataSource;
       const dsLabels = {
         'live':              'Connected \u2014 ESP32',
+        'waiting': 'Connected — waiting for sensor data',
+        'stale': 'Connected — no fresh sensor data',
         'server-simulated':  'Connected \u2014 Simulated',
         'reconnecting':      'Reconnecting...',
         'simulated':         'Offline \u2014 Simulated',

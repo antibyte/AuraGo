@@ -17,6 +17,8 @@ const STYLE_ID = 'ruview-data-source-banner-style';
 const BAR_ID = 'ruview-data-source-banner';
 
 const CONFIG = {
+  waiting: {text: 'WAITING FOR SENSOR DATA — server connected, no current measurements', bg: '#33302a', fg: '#e8dcc0'},
+  stale: {text: 'STALE SENSOR DATA — no fresh measurements received', bg: '#33302a', fg: '#e8dcc0'},
   // 'live' is intentionally absent: no banner is shown for trustworthy data.
   'server-simulated': {
     text: 'SYNTHETIC DATA — the server is generating this, no hardware is being read',

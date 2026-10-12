@@ -4,6 +4,8 @@ AuraGo integrates [RuView v3122](https://github.com/ruvnet/RuView/tree/a71634ae8
 
 Wi-Fi sensing is experimental. Readiness does not prove measurements, presence or pose accuracy. RSSI is a connected host Wi-Fi signal; CSI requires supported sensor hardware. Demo frames remain labelled synthetic, stale frames lose their fresh status, and disconnections never enable client simulation. Missing models are reported by RuView. Model loading/unloading, SONA/LoRA activation and hard-coded pose statistics/demo-zone endpoints are unavailable in this revision; AuraGo blocks them.
 
+The embedded Dashboard distinguishes service health from sensor data. A connected ESP32 source with no frames shows **Waiting for sensor data**, not simulation; failed source probes also make no simulation claim. Only an explicit synthetic source is labelled simulated. New frames restore the live indicator even when the source name is unchanged, and a stream without fresh frames becomes stale after ten seconds. Health, liveness and metrics endpoints remain read-only through AuraGo's authenticated proxy.
+
 ## Setup
 
 Open **Configuration → RuView**, enable the integration, select a runtime and source, then save. Start and agent access are disabled by default; read-only starts enabled. Connection tests are explicit administrative POST actions using the saved target and Vault token. Merely opening AuraGo's overview never probes a service. Opening an upstream view or requesting an agent read retrieves data.

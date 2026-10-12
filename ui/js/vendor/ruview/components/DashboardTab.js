@@ -113,6 +113,8 @@ export class DashboardTab {
     const statusMsg  = el.querySelector('.status-message');
     const config = {
       'live':              { text: 'ESP32',     status: 'healthy', msg: 'Real hardware connected' },
+      'waiting': {text: 'NO DATA', status: 'degraded', msg: 'Server connected; waiting for sensor data'},
+      'stale': {text: 'STALE', status: 'degraded', msg: 'No fresh sensor data'},
       'server-simulated':  { text: 'SIMULATED', status: 'warning', msg: 'Server running without hardware' },
       'reconnecting':      { text: 'RECONNECTING', status: 'degraded', msg: 'Attempting to connect...' },
       'unreachable':       { text: 'NO DATA',   status: 'unhealthy', msg: 'Server unreachable — readings below are stale' },

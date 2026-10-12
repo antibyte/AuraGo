@@ -672,6 +672,14 @@ worker. Keep packaging, recovery and offline instructions in
   No additional render loop. Keep matching full-scene fallback posters current.
 
 
+- RuView's pinned upstream UI is regenerated through `scripts/ruview/vendor-ui.mjs`;
+  never edit vendor outputs without updating that adapter and its provenance hashes.
+  Connected services without frames show waiting, never synthetic data. Only explicit
+  synthetic sources show simulation; fresh frames recover the live state and expire
+  after ten seconds. Source probes and timers must respect connection disposal.
+  Verify `scripts/ruview/upstream.test.mjs`, `scripts/ruview/browser.test.mjs` and
+  backend `TestDashboardHealthEndpointsAreReadOnly`; keep `documentation/ruview.md` aligned.
+
 ## Work Guidance
 
 - `cfg/treg.js` keeps endpoint grants in the shared draft until Save, with no
