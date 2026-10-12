@@ -139,3 +139,8 @@ func truncateUTF8Bytes(value string, maxBytes int) string {
 	}
 	return truncated
 }
+
+// TruncateUTF8Bytes shortens value to at most maxBytes without splitting a UTF-8 sequence.
+func TruncateUTF8Bytes(value string, maxBytes int) string {
+	return truncateUTF8Bytes(value, maxBytes)
+}
