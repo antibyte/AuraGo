@@ -81,6 +81,7 @@
     "dompurify": "3.4.16",
     "esbuild": "0.28.2",
     "esp-web-tools": "10.4.0",
+    "esptool-js": "0.7.0",
     "force-graph": "1.52.0",
     "headroom-ai": "^0.39.1",
     "hls.js": "1.7.3",

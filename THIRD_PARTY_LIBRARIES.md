@@ -135,6 +135,7 @@ Browser packages and SHA-256 checksums are recorded in `ui/js/vendor/manifest.js
 | force-graph | `ui/js/vendor/force-graph.min.js` | MIT | https://github.com/vasturiano/force-graph |
 | qrcode | `ui/js/vendor/qrcode.min.js` | MIT | https://github.com/davidshimjs/qrcodejs (common embed lineage) |
 | noVNC | `ui/js/vendor/novnc.min.js` | MPL-2.0 | https://github.com/novnc/noVNC |
+| esptool-js 0.7.0 | `ui/js/vendor/esptool-js/esptool-js.min.mjs` (bundles pako and atob-lite; CYD Creator flasher) | Apache-2.0 (pako: MIT AND Zlib, atob-lite: MIT) | https://github.com/espressif/esptool-js |
 
 ### 3D / graphics
 

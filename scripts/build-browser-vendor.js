@@ -75,6 +75,9 @@ for (const [name, dir] of [['GLTFLoader', 'loaders'], ['STLLoader', 'loaders'], 
 await bundle('3d-force-graph', "import ForceGraph3D from '3d-force-graph'; window.ForceGraph3D=ForceGraph3D;", vendor + '3d-force-graph.min.js', [sharedThree]);
 await bundle('mermaid', "import mermaid from 'mermaid'; window.mermaid=mermaid;", vendor + 'mermaid.min.js');
 await bundle('@novnc/novnc', "import RFB from '@novnc/novnc'; window.RFB=RFB;", vendor + 'novnc.min.js', [], 'esm');
+// CYD Creator flasher: an ES module the flasher imports lazily (pako and atob-lite are bundled in).
+await bundle('esptool-js', "export * from 'esptool-js';", vendor + 'esptool-js/esptool-js.min.mjs', [], 'esm');
+await copy('esptool-js', 'LICENSE', vendor + 'esptool-js/LICENSE.txt');
 
 // Await module initialization before Desktop loads the app that consumes it.
 outputs.set(vendor + 'pdf.min.js', Buffer.from(`const source = new URL(import.meta.url);
@@ -103,6 +106,10 @@ for (const [name, target, assets] of [
         ...(name === '3d-force-graph' ? { shared_three: '0.186.1' } : {}), files,
     }, null, 2) + '\n'));
 }
+outputs.set(vendor + 'esptool-js/README.md', Buffer.from(
+    `Vendored [esptool-js](https://github.com/espressif/esptool-js) ${lock.packages['node_modules/esptool-js'].version} (ES module bundle of \`lib/index.js\` with pako and atob-lite).\n` +
+    'Used by the CYD Creator flasher, which imports it lazily. Apache-2.0, see LICENSE.txt.\n' +
+    'Regenerate with `npm run build:browser-vendor`.\n'));
 outputs.set(vendor + 'esp-web-tools/README.md', Buffer.from(
     `Vendored [ESP Web Tools](https://github.com/esphome/esp-web-tools) ${lock.packages['node_modules/esp-web-tools'].version} (\`dist/web\`).\n` +
     'Used by the Cheap Yellow Display config flasher. Apache-2.0, see LICENSE.txt.\n' +
