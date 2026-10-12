@@ -300,11 +300,12 @@ func TestMissionMQTTAdapterGatesTriggersOnLiveConfig(t *testing.T) {
 	}
 }
 
-// Both registration entry points install the gated callback in the mqtt
-// package, never the mission manager's raw callback.
+// Both registration entry points install admit plus the mission callback.
+// A closed gate refuses through admit and does not call that callback.
 func TestMissionMQTTAdapterRegistersGatedCallbacks(t *testing.T) {
 	type registration struct {
 		key      string
+		admit    func(topic, payload string) bool
 		callback func(topic, payload string)
 	}
 	var installed []registration
@@ -313,8 +314,8 @@ func TestMissionMQTTAdapterRegistersGatedCallbacks(t *testing.T) {
 	adapter := &missionMQTTAdapter{
 		logger: logger,
 		config: func() *config.Config { return current },
-		register: func(key, _, _ string, _ int, callback func(topic, payload string)) {
-			installed = append(installed, registration{key: key, callback: callback})
+		register: func(key, _, _ string, _ int, admit func(topic, payload string) bool, callback func(topic, payload string)) {
+			installed = append(installed, registration{key: key, admit: admit, callback: callback})
 		},
 	}
 	fired := 0
@@ -323,10 +324,21 @@ func TestMissionMQTTAdapterRegistersGatedCallbacks(t *testing.T) {
 	if len(installed) != 2 || installed[0].key != "mission-1|mqtt_message" || installed[1].key != "" {
 		t.Fatalf("installed registrations = %+v", installed)
 	}
-
 	for _, reg := range installed {
-		reg.callback("home/door", "open")
+		if reg.admit == nil || reg.callback == nil {
+			t.Fatal("gated registration missing admit or mission callback")
+		}
 	}
+
+	deliver := func(topic, payload string) {
+		for _, reg := range installed {
+			if !reg.admit(topic, payload) {
+				continue
+			}
+			reg.callback(topic, payload)
+		}
+	}
+	deliver("home/door", "open")
 	if fired != 0 {
 		t.Fatalf("anonymous broker started %d missions through registered triggers", fired)
 	}
@@ -334,13 +346,21 @@ func TestMissionMQTTAdapterRegistersGatedCallbacks(t *testing.T) {
 		t.Fatalf("refusal logged %d times, want once", got)
 	}
 
+	// admit owns the refusal. The stored callback is the mission function,
+	// so a closed gate must not already be wrapped around it.
+	for _, reg := range installed {
+		reg.callback("home/door", "open")
+	}
+	if fired != 2 {
+		t.Fatalf("stored callback still wrapped the mission while the gate was closed, fired=%d", fired)
+	}
+	fired = 0
+
 	authorized := current.Clone()
 	authorized.MQTT.Broker = "mqtts://broker.lan:8883"
 	authorized.MQTT.TLS.CertFile = "client.crt"
 	current = authorized
-	for _, reg := range installed {
-		reg.callback("home/door", "open")
-	}
+	deliver("home/door", "open")
 	if fired != 2 {
 		t.Fatalf("broker with client certificate over TLS started %d missions, want 2", fired)
 	}
