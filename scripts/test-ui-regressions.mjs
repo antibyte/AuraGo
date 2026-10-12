@@ -1954,7 +1954,7 @@ function testNetworkCamerasDetectionViews() {
 
   const square = [[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
   const valid = ncd.cameraPayload(Object.assign(ncd.cameraDefaults({}), { zones: [{ name: ' Einfahrt ', points: square }] }));
-  assert.equal(valid.zones[0].name, 'Einfahrt', 'zone names are trimmed in the payload');
+  assert.equal(valid.zones[0].name, ' Einfahrt ', 'stored zone names go out untouched (the server normalizes them; the editor trims edited names)');
   assert.equal(ncd.validateCameraSettings(valid), null);
   const invalid = (patch, key) => assert.equal((ncd.validateCameraSettings(Object.assign({}, valid, patch)) || {}).key, key, key);
   invalid({ interval_seconds: 0 }, 'invalid_interval');
@@ -2043,11 +2043,11 @@ function testNetworkCamerasDetectionViews() {
   assert.match(strip, /self-test: &lt;x&gt;/);
   assert.match(ncd.stripMarkup(ctx, { canManage: true, status: { enabled: true, arm: { mode: 'schedule', armed: true }, detector: { state: 'error', error: 'boom' }, cameras: [] } }), /data-arm="schedule"[^>]*aria-pressed="true"[\s\S]*data-ncd-action="retry"/);
 
-  const cameraForm = ncd.cameraSettingsMarkup({ id: 'front"door', detection: { enabled: true, interval_seconds: 3, min_score: 0.6, cooldown_seconds: 60, zones: [{ name: hostile, points: square }], actions: { message: false, channel: 'all', agent: false, agent_instruction: '</textarea><script>', desktop: true } } }, ctx);
+  const cameraForm = ncd.cameraSettingsMarkup({ id: 'front"door', detection: { enabled: true, interval_seconds: 3, min_score: 0.6, cooldown_seconds: 60, zones: [{ name: hostile, points: square }], actions: { message: false, channel: 'all', agent: false, agent_instruction: '</textarea><script>', desktop: true } } }, ctx, { windowKey: 'win"1' });
   assert.doesNotMatch(cameraForm, /<script>|<img src=x|front"door/);
   assert.match(cameraForm, /thumbnail\/front%22door\.jpg\?width=1280&amp;height=720&amp;cache=0/);
   assert.match(cameraForm, /data-cam-field="actions.channel" disabled/, 'the channel only applies to messages');
-  assert.match(cameraForm, /data-cam-field="enabled" aria-describedby="ncd-restart-hint-frontdoor"[\s\S]*<p class="ncd-hint ncd-restart-hint" id="ncd-restart-hint-frontdoor">desktop\.network_cameras\.detection\.cam_restart_hint<\/p>/, 'the detection switch carries the go2rtc restart hint');
+  assert.match(cameraForm, /data-cam-field="enabled" aria-describedby="ncd-restart-hint-win1-frontdoor"[\s\S]*<p class="ncd-hint ncd-restart-hint" id="ncd-restart-hint-win1-frontdoor">desktop\.network_cameras\.detection\.cam_restart_hint<\/p>/, 'the detection switch carries the go2rtc restart hint');
   assert.deepEqual(JSON.parse(JSON.stringify(ncd.launchTarget({ event_id: 7, camera_id: 'front-door' }))), { eventId: 7, camera: 'front-door' });
   assert.deepEqual(JSON.parse(JSON.stringify(ncd.launchTarget({ event_id: 7, camera_id: 'Front Door' }))), { eventId: 7, camera: '' });
   assert.equal(ncd.launchTarget({ event_id: '7"><x' }), null);
@@ -2088,6 +2088,29 @@ function testNetworkCamerasDetectionViews() {
   assert.match(ncd.settingsMarkup(ctx, { windowKey: 'w1', dialog: { values: ncd.globalDefaults({}), busy: false, error: '' }, status: { arm: scheduleArm(localOffset) } }), /schedule_server_zone\{&quot;zone&quot;:&quot;XST, UTC[+-]\d{2}:\d{2}&quot;\}/, 'the schedule editor names the server zone');
   assert.doesNotMatch(ncd.detailMarkup(ctx, { windowKey: 'w1"><x', selectedId: null }), /"><x/, 'window keys are sanitized');
   assert.doesNotMatch(ncd.settingsMarkup(ctx, { windowKey: 'w1"><x', dialog: { values: ncd.globalDefaults({}), busy: false, error: '' }, status: null }), /"><x/);
+
+  // Batch 4A review add-ons (fixed in batch 4B).
+  const sameInstant = '2026-10-11T10:00:00Z';
+  const tieEvents = [{ id: 5, camera_id: 'a', started_at: sameInstant }, { id: 6, camera_id: 'a', started_at: sameInstant }];
+  const tieArm = [{ id: 7, at: sameInstant, mode: 'on', armed: true, actor: 'user' }, { id: 8, at: sameInstant, mode: 'off', armed: false, actor: 'user' }];
+  const tieOrder = (list, arm) => Array.from(ncd.timelineEntries(list, arm, { camera: '', day: '' }, false), entry => entry.kind + entry.item.id).join(',');
+  assert.equal(tieOrder(tieEvents, tieArm), 'event6,event5,arm8,arm7', 'rows of the same instant sort by id (add-on 2)');
+  assert.equal(tieOrder(tieEvents.slice().reverse(), tieArm.slice().reverse()), 'event6,event5,arm8,arm7', 'the order does not depend on the input order');
+  assert.equal(ncd.validateCameraSettings(Object.assign({}, valid, { zones: [{ name: 'Hof', points: square }, { name: 'Hof ', points: square }] })), null, 'stored names that differ only in whitespace do not block a save (add-on 3)');
+  assert.doesNotMatch(ncd.zoneListMarkup(ctx, [{ name: 'Hof', points: square }], -1), /maxlength/, 'no UTF-16 maxlength on zone names (add-on 4)');
+  assert.match(ncd.zoneListMarkup(ctx, [{ name: '😀'.repeat(49), points: square }], -1), /aria-invalid="true"/, 'a name over 48 runes is marked invalid');
+  assert.match(ncd.zoneListMarkup(ctx, [{ name: '😀'.repeat(48), points: square }], -1), /aria-invalid="false"/, '48 emoji are 48 runes, not 96 units');
+  const perWindow = ['w1', 'w2'].map(windowKey => ncd.cameraSettingsMarkup({ id: 'front', detection: {} }, ctx, { windowKey }));
+  assert.match(perWindow[0], /id="ncd-zone-help-w1-front"[\s\S]*/, 'zone help ids carry the window key (add-on 5)');
+  assert.match(perWindow[1], /id="ncd-restart-hint-w2-front"/);
+  assert.doesNotMatch(perWindow[1], /-w1-/);
+  assert.equal(ncd.serverZone({ time_zone: 'UTC', utc_offset: '+00:00' }).label, 'UTC', 'a UTC server reads UTC (add-on 10)');
+  assert.equal(ncd.serverZone({ time_zone: 'CET', utc_offset: '+01:00' }).label, 'CET, UTC+01:00');
+  assert.equal(ncd.isFlatZone([[0.5, 0.5], [0.51, 0.5], [0.5, 0.51]]), true, 'a 1 % x 1 % triangle is too small (add-on 11)');
+  assert.match(JSON.parse(read('ui/lang/desktop/en.json'))['desktop.network_cameras.detection.zone_flat'], /too small or flat/, 'the warning names tiny zones too');
+  for (const [field, key] of [['detection.interval_seconds', 'invalid_interval'], ['detection.min_score', 'invalid_min_score'], ['detection.cooldown_seconds', 'invalid_cooldown'], ['detection.zones', 'zone_limit'], ['detection.zones[2].name', 'invalid_zone_name'], ['detection.zones[0].points[3]', 'invalid_zone_points'], ['detection.actions.agent_instruction', 'invalid_instruction'], ['detection.actions.channel', ''], [undefined, '']]) {
+    assert.equal(ncd.fieldErrorKey(field), key, `400 field ${field} maps to a localized text (add-on 8)`);
+  }
 }
 
 function testNetworkCamerasDetectionZones() {
@@ -2106,7 +2129,20 @@ function testNetworkCamerasDetectionZones() {
   // localized test errors.
   assert.match(zones, /const pointFromEvent = event => normalizedPoint\(event\.clientX, event\.clientY, svg\.getBoundingClientRect\(\)\);/, 'every editor point passes the 0.015 edge snap');
   assert.match(zones, /if \(isFlatZone\(zone\.points\)\) setStatus\(T\(ctx, 'zone_flat', \{ name: zone\.name \}\), true\);/, 'a zone on one line gets a warning');
-  assert.match(zones, /code === 'detection_disabled' \? T\(ctx, 'test_disabled'\)/, 'test mode explains a disabled detector');
+  assert.match(zones, /if \(code === 'detection_disabled'\) return T\(ctx, 'test_disabled'\);/, 'test mode explains a disabled detector');
+  // Batch 4A review add-ons (fixed in batch 4B).
+  assert.match(zones, /if \(code === 'detection_unavailable' \|\| \(error && error\.status === 503\)\) return T\(ctx, 'test_unavailable'\);/, 'a 503 test is localized (add-on 8)');
+  assert.match(zones, /if \(code === 'stream_not_found'\) return T\(ctx, 'test_stream_not_found'\);/, 'a 404 test is localized');
+  assert.match(zones, /const key = fieldErrorKey\(body\.field\);\s*return key \? T\(ctx, key\) : T\(ctx, 'test_failed'\);/, '400 field errors are localized');
+  assert.match(zones, /if \(!svg \|\| event\.isPrimary === false \|\| ed\.drag \|\|/, 'only the primary pointer edits (add-on 6)');
+  assert.match(zones, /moved: false, pointerId: event\.pointerId \}/);
+  assert.match(zones, /listen\(stage, 'pointermove', event => \{\s*if \(!ed\.drag \|\| event\.pointerId !== ed\.drag\.pointerId\) return;/, 'a drag moves only with its own pointer');
+  assert.match(zones, /const endDrag = event => \{\s*if \(!ed\.drag \|\| event\.pointerId !== ed\.drag\.pointerId\) return;/, 'a drag ends only with its own pointer');
+  assert.match(zones, /const clearTestBoxes = \(\) => \{\s*ed\.revision \+= 1;\s*if \(!ed\.boxes\.length\) return;\s*ed\.boxes = \[\];\s*redraw\(\);/, 'stale test boxes are cleared (add-on 7)');
+  assert.ok((zones.match(/clearTestBoxes\(\);/g) || []).length >= 4, 'adding, deleting and moving zones and changing the score clear the test boxes');
+  assert.match(zones, /ed\.boxes = revision === ed\.revision && Array\.isArray/, 'a test that ran on older zones draws no boxes');
+  assert.match(zones, /zone\.name = event\.target\.value\.trim\(\);/, 'only edited names are trimmed (add-on 3)');
+  assert.match(zones, /remove\.setAttribute\('aria-label', T\(ctx, 'zone_delete'\) \+ ': ' \+ zone\.name\)/, 'the delete button follows a rename (add-on 9)');
 }
 
 function testNetworkCamerasDetectionRuntime() {

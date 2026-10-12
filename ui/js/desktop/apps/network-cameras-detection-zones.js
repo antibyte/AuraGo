@@ -20,6 +20,8 @@
         percent,
         cameraDefaults,
         cameraPayload,
+        validZoneName,
+        fieldErrorKey,
         zoneEditorSvg,
         nextZoneName,
         normalizedPoint,
@@ -38,7 +40,7 @@
         const ed = {
             draft: cameraDefaults(stream && stream.detection),
             drawing: null, selected: -1, drag: null, boxes: [], width: 1280, height: 720,
-            testing: false, controller: null, disposed: false, listeners: [], lastDownAt: 0
+            testing: false, controller: null, disposed: false, listeners: [], lastDownAt: 0, revision: 0
         };
         const streamID = String(stream && stream.id || '');
         const stage = container.querySelector('[data-zone-stage]');
@@ -66,6 +68,14 @@
         };
         const renderList = () => {
             if (list) list.innerHTML = zoneListMarkup(ctx, ed.draft.zones, ed.selected);
+        };
+        // Test boxes show what counted with the zones and score of that test; any change to
+        // them makes the boxes stale, so they go (and a test still running draws none).
+        const clearTestBoxes = () => {
+            ed.revision += 1;
+            if (!ed.boxes.length) return;
+            ed.boxes = [];
+            redraw();
         };
         const updateTools = () => {
             const close = container.querySelector('[data-zone-action="close"]');
@@ -95,7 +105,10 @@
                 const value = target.value !== '' && Number.isFinite(raw) ? clamp(raw, limits[0], limits[1]) : limits[2];
                 draft[field] = value;
                 if (committed && String(value) !== target.value) target.value = String(value);
-            } else if (field === 'min_score') draft.min_score = round4(clamp(finite(target.value, 0.5), 0.3, 0.95));
+            } else if (field === 'min_score') {
+                draft.min_score = round4(clamp(finite(target.value, 0.5), 0.3, 0.95));
+                clearTestBoxes();
+            }
             else if (field === 'actions.channel') draft.actions.channel = CHANNELS.includes(target.value) ? target.value : 'all';
             else if (field === 'actions.agent_instruction') draft.actions.agent_instruction = Array.from(target.value).slice(0, MAX_INSTRUCTION).join('');
             else if (field === 'actions.message' || field === 'actions.agent' || field === 'actions.desktop') draft.actions[field.slice(8)] = target.checked;
@@ -114,6 +127,7 @@
             const zone = { name, points: ed.drawing.slice(0, MAX_POINTS) };
             ed.draft.zones.push(zone);
             ed.drawing = null;
+            clearTestBoxes();
             ed.selected = ed.draft.zones.length - 1;
             redraw();
             renderList();
@@ -150,6 +164,22 @@
             }
             redraw();
         };
+        // Test errors are shown in the UI language: known codes and C5 field paths map to
+        // their texts; only an unknown failure (e.g. the network) keeps its own message.
+        const testErrorMessage = error => {
+            const body = error && error.body && typeof error.body === 'object' ? error.body : {};
+            const code = body.code;
+            if (code === 'detection_disabled') return T(ctx, 'test_disabled');
+            if (code === 'detection_unavailable' || (error && error.status === 503)) return T(ctx, 'test_unavailable');
+            if (code === 'stream_not_found') return T(ctx, 'test_stream_not_found');
+            if (code === 'detector_not_ready') return T(ctx, 'test_not_ready');
+            if (code === 'frame_unavailable') return T(ctx, 'test_no_frame');
+            if (code === 'invalid_request' || (error && error.status === 400)) {
+                const key = fieldErrorKey(body.field);
+                return key ? T(ctx, key) : T(ctx, 'test_failed');
+            }
+            return (error && error.message) || T(ctx, 'test_failed');
+        };
         const runTest = async () => {
             if (ed.testing || !streamID) return;
             ed.testing = true;
@@ -157,20 +187,19 @@
             setStatus(T(ctx, 'testing'));
             const controller = new AbortController();
             ed.controller = controller;
+            const revision = ed.revision;
             try {
                 const result = await ctx.api(API + 'test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stream_id: streamID, detection: cameraPayload(ed.draft) }), signal: controller.signal });
                 if (ed.disposed) return;
                 const image = String(result && result.image || '');
-                ed.boxes = Array.isArray(result && result.boxes) ? result.boxes : [];
+                ed.boxes = revision === ed.revision && Array.isArray(result && result.boxes) ? result.boxes : [];
                 if (background && JPEG_DATA_URL.test(image)) background.src = image;
                 redraw();
                 const counted = ed.boxes.filter(box => box && box.counts === true).length;
                 setStatus(T(ctx, 'test_result', { counted, ignored: ed.boxes.length - counted, backend: String(result && result.backend || '').toUpperCase(), ms: Math.round(finite(result && result.wall_ms, 0)) }));
             } catch (error) {
                 if (ed.disposed || isAbort(error)) return;
-                const code = error && error.body && error.body.code;
-                const message = code === 'detection_disabled' ? T(ctx, 'test_disabled') : code === 'detector_not_ready' ? T(ctx, 'test_not_ready') : code === 'frame_unavailable' ? T(ctx, 'test_no_frame') : ((error && error.message) || T(ctx, 'test_failed'));
-                setStatus(message, true);
+                setStatus(testErrorMessage(error), true);
             } finally {
                 ed.testing = false;
                 ed.controller = null;
@@ -184,10 +213,12 @@
             if (event.target && event.target.dataset && event.target.dataset.camField) applyField(event.target, true);
         });
         listen(stage, 'pointerdown', event => {
-            if (!svg || (event.pointerType === 'mouse' && event.button !== 0)) return;
+            // A second finger (or a pen while a finger is down) neither sets points nor
+            // steals a running drag: only the primary pointer edits.
+            if (!svg || event.isPrimary === false || ed.drag || (event.pointerType === 'mouse' && event.button !== 0)) return;
             const handle = event.target && event.target.closest ? event.target.closest('[data-point], [data-drawing-point]') : null;
             if (handle && handle.hasAttribute('data-point') && !ed.drawing) {
-                ed.drag = { zone: Number(handle.getAttribute('data-zone')), point: Number(handle.getAttribute('data-point')), moved: false };
+                ed.drag = { zone: Number(handle.getAttribute('data-zone')), point: Number(handle.getAttribute('data-point')), moved: false, pointerId: event.pointerId };
                 try { stage.setPointerCapture(event.pointerId); } catch (_) {}
                 event.preventDefault();
                 return;
@@ -225,7 +256,7 @@
             setStatus(T(ctx, 'zone_points', { count: ed.drawing.length }));
         });
         listen(stage, 'pointermove', event => {
-            if (!ed.drag) return;
+            if (!ed.drag || event.pointerId !== ed.drag.pointerId) return;
             const zone = ed.draft.zones[ed.drag.zone];
             if (!zone || !zone.points[ed.drag.point]) return;
             zone.points[ed.drag.point] = pointFromEvent(event);
@@ -233,17 +264,19 @@
             redraw();
         });
         const endDrag = event => {
-            if (!ed.drag) return;
+            if (!ed.drag || event.pointerId !== ed.drag.pointerId) return;
             const { moved, zone } = ed.drag;
             ed.drag = null;
             try { stage.releasePointerCapture(event.pointerId); } catch (_) {}
             if (!moved) return;
+            clearTestBoxes();
             const dragged = ed.draft.zones[zone];
             if (dragged) warnIfFlat(dragged);
             emit();
         };
         listen(stage, 'pointerup', endDrag);
         listen(stage, 'pointercancel', endDrag);
+        listen(stage, 'lostpointercapture', endDrag);
         listen(stage, 'dblclick', event => {
             event.preventDefault();
             closeZone();
@@ -265,9 +298,14 @@
             }
         });
         listen(list, 'input', event => {
-            const zone = ed.draft.zones[Number(event.target && event.target.dataset ? event.target.dataset.zoneName : NaN)];
+            const index = Number(event.target && event.target.dataset ? event.target.dataset.zoneName : NaN);
+            const zone = ed.draft.zones[index];
             if (!zone) return;
-            zone.name = event.target.value;
+            // Only a name the user edits is trimmed; stored names go out untouched.
+            zone.name = event.target.value.trim();
+            event.target.setAttribute('aria-invalid', String(!validZoneName(zone.name)));
+            const remove = list.querySelector('[data-zone-delete="' + index + '"]');
+            if (remove) remove.setAttribute('aria-label', T(ctx, 'zone_delete') + ': ' + zone.name);
             emit();
         });
         listen(list, 'click', event => {
@@ -288,6 +326,7 @@
                 ed.draft.zones.splice(index, 1);
                 if (ed.selected === index) ed.selected = -1;
                 else if (ed.selected > index) ed.selected -= 1;
+                clearTestBoxes();
                 redraw();
                 renderList();
                 setStatus(T(ctx, 'zone_deleted', { name: zone.name }));

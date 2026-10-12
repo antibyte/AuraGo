@@ -81,9 +81,11 @@
     }
 
     // zoneNameFold mirrors the server's NFC + case-folding comparison closely enough;
-    // the server stays authoritative.
+    // the server stays authoritative. It does not trim: stored names come trimmed from
+    // the server and edited names are trimmed by the editor, so two stored names that
+    // differ only in surrounding whitespace never block a save on the client.
     function zoneNameFold(name) {
-        const text = String(name == null ? '' : name).trim();
+        const text = String(name == null ? '' : name);
         return (typeof text.normalize === 'function' ? text.normalize('NFC') : text).toLowerCase();
     }
 
@@ -107,6 +109,8 @@
         if (!match) return null;
         const minutes = (match[1] === '-' ? -1 : 1) * (Number(match[2]) * 60 + Number(match[3]));
         const name = typeof arm.time_zone === 'string' && ZONE_ABBREVIATION.test(arm.time_zone) ? arm.time_zone : '';
+        // A UTC server reads "UTC", not "UTC, UTC+00:00".
+        if (name === 'UTC' && minutes === 0) return { minutes, label: 'UTC' };
         return { minutes, label: (name ? name + ', ' : '') + 'UTC' + arm.utc_offset };
     }
 
@@ -201,8 +205,10 @@
             interval_seconds: Number(source.interval_seconds),
             min_score: round4(Number(source.min_score)),
             cooldown_seconds: Number(source.cooldown_seconds),
+            // Names go out as they are: stored names stay untouched (the server normalizes
+            // them) and the editor trims a name only when the user edits it.
             zones: (Array.isArray(source.zones) ? source.zones : []).map(zone => ({
-                name: String(zone && zone.name || '').trim(),
+                name: String(zone && zone.name || ''),
                 points: (Array.isArray(zone && zone.points) ? zone.points : []).map(point => [round4(Number(point[0])), round4(Number(point[1]))])
             })),
             actions: {
@@ -239,6 +245,20 @@
         }
         if (runeLength(d.actions && d.actions.agent_instruction || '') > MAX_INSTRUCTION) return { key: 'invalid_instruction' };
         return null;
+    }
+
+    // fieldErrorKey maps the field path of a 400 invalid_request (camera detection
+    // settings, C5 validation) to the matching localized validation text, or ''.
+    function fieldErrorKey(field) {
+        const path = String(field == null ? '' : field).replace(/^detection\./, '');
+        if (path === 'interval_seconds') return 'invalid_interval';
+        if (path === 'min_score') return 'invalid_min_score';
+        if (path === 'cooldown_seconds') return 'invalid_cooldown';
+        if (path === 'zones') return 'zone_limit';
+        if (/^zones\[\d+\]\.name$/.test(path)) return 'invalid_zone_name';
+        if (/^zones\[\d+\]\.points(?:\[\d+\])?$/.test(path)) return 'invalid_zone_points';
+        if (path === 'actions.agent_instruction') return 'invalid_instruction';
+        return '';
     }
 
     function globalDefaults(settings) {
@@ -393,7 +413,9 @@
                 entries.push({ kind: 'arm', at, item: row });
             }
         }
-        entries.sort((a, b) => (b.at - a.at) || (a.kind === 'event' ? -1 : 1));
+        // Newest first; at the same instant events before arm rows, then the higher id first,
+        // so the order never depends on the input order.
+        entries.sort((a, b) => (b.at - a.at) || (a.kind === b.kind ? idOf(b.item.id) - idOf(a.item.id) : (a.kind === 'event' ? -1 : 1)));
         return entries;
     }
 
@@ -495,9 +517,11 @@
         return [round4(snapEdge(clamp((clientX - left) / width, 0, 1))), round4(snapEdge(clamp((clientY - top) / height, 0, 1)))];
     }
 
-    // isFlatZone flags a zone whose points (nearly) lie on one line, which no person
-    // can stand in. It sums the unsigned fan triangles from the first point, so a
-    // self-crossing zone (filled by the nonzero rule) is never mistaken for flat.
+    // isFlatZone flags a zone whose points (nearly) lie on one line or that covers less
+    // than 0.01 % of the frame (a 1 % × 1 % triangle included), which a person's feet
+    // will hardly ever land in; the warning says "too small or flat". It sums the
+    // unsigned fan triangles from the first point, so a self-crossing zone (filled by
+    // the nonzero rule) is never mistaken for flat.
     function isFlatZone(points) {
         const list = validPoints(points).map(point => [Number(point[0]), Number(point[1])]);
         let area = 0;
@@ -747,19 +771,22 @@
             '<button type="button" class="nc-primary" data-ncd-action="save-settings" data-focus-key="save-settings"' + (dialog.busy || !values ? ' disabled' : '') + '>' + ctx.esc(ctx.t('desktop.network_cameras.save')) + '</button></footer></section></div>';
     }
 
+    // No maxlength on the name: it counts UTF-16 units, the server counts runes (an emoji
+    // is two units); the editor marks a name over 48 runes with aria-invalid instead.
     function zoneListMarkup(ctx, zones, selected) {
         return (zones || []).map((zone, index) => '<li class="ncd-zone-item" data-zone-item="' + index + '"><span class="ncd-swatch ncd-zone-c' + (index % ZONE_COLORS) + '" aria-hidden="true"></span>' +
-            '<input type="text" maxlength="48" data-zone-name="' + index + '" value="' + ctx.esc(zone.name) + '" aria-label="' + ctx.esc(T(ctx, 'zone_name_label', { n: index + 1 })) + '">' +
+            '<input type="text" data-zone-name="' + index + '" value="' + ctx.esc(zone.name) + '" aria-label="' + ctx.esc(T(ctx, 'zone_name_label', { n: index + 1 })) + '" aria-invalid="' + !validZoneName(zone.name) + '">' +
             '<small>' + ctx.esc(T(ctx, 'zone_points', { count: validPoints(zone.points).length })) + '</small>' +
             '<button type="button" class="ncd-button" data-zone-select="' + index + '" aria-pressed="' + (index === selected) + '">' + ctx.esc(T(ctx, 'zone_select')) + '</button>' +
             '<button type="button" class="ncd-button is-danger" data-zone-delete="' + index + '" aria-label="' + ctx.esc(T(ctx, 'zone_delete') + ': ' + zone.name) + '">' + ctx.iconMarkup('trash', '×', 'vd-sprite-icon nc-glyph', 14) + '</button></li>').join('');
     }
 
-    function cameraSettingsMarkup(stream, ctx) {
+    // options.windowKey keeps the DOM ids unique when two windows edit the same camera.
+    function cameraSettingsMarkup(stream, ctx, options) {
         const draft = cameraDefaults(stream && stream.detection);
         const actions = draft.actions;
         const id = String(stream && stream.id || '');
-        const idKey = id.replace(/[^A-Za-z0-9_-]/g, '') || 'camera';
+        const idKey = domKey(options && options.windowKey) + '-' + (id.replace(/[^A-Za-z0-9_-]/g, '') || 'camera');
         const helpId = 'ncd-zone-help-' + idKey;
         const restartId = 'ncd-restart-hint-' + idKey;
         let html = '<div class="nc-form ncd-cam" data-ncd-camera-settings>';
@@ -845,6 +872,7 @@
         cameraDefaults,
         cameraPayload,
         validateCameraSettings,
+        fieldErrorKey,
         globalDefaults,
         settingsPayload,
         validateGlobalSettings,
