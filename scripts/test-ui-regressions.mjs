@@ -2090,6 +2090,25 @@ function testNetworkCamerasDetectionViews() {
   assert.doesNotMatch(ncd.settingsMarkup(ctx, { windowKey: 'w1"><x', dialog: { values: ncd.globalDefaults({}), busy: false, error: '' }, status: null }), /"><x/);
 }
 
+function testNetworkCamerasDetectionZones() {
+  const zones = read('ui/js/desktop/apps/network-cameras-detection-zones.js');
+  assert.match(zones, /window\.NetworkCamerasDetectionZones = Object\.freeze\(\{ bindCameraSettings \}\)/);
+  assert.match(zones, /\} = window\.NetworkCamerasDetectionViews;/, 'zones reuse the shared views helpers');
+  assert.match(zones, /stage\.setPointerCapture\(event\.pointerId\)/, 'dragging uses pointer capture for mouse and touch');
+  assert.match(zones, /if \(background && JPEG_DATA_URL\.test\(image\)\) background\.src = image;/, 'only JPEG data URLs from the test endpoint become the editor background');
+  assert.match(zones, /event\.key === 'Enter' && ed\.drawing[\s\S]*event\.key === 'Escape' && ed\.drawing[\s\S]*event\.key === 'Backspace'/, 'Enter closes, Escape cancels, Backspace removes the last point');
+  assert.doesNotMatch(zones, /\b(?:alert|confirm|prompt)\s*\(/);
+  assert.doesNotMatch(zones, /eval\(|new Function|document\.write|outerHTML|insertAdjacentHTML|localStorage/);
+  for (const line of zones.split('\n').filter(entry => entry.includes('.innerHTML ='))) {
+    assert.match(line.trim(), /^(?:svg\.innerHTML = zoneEditorSvg\(|if \(list\) list\.innerHTML = zoneListMarkup\()/, `unexpected innerHTML assignment: ${line.trim()}`);
+  }
+  // Adaptations (controller notes): edge snap through the shared helper, flat-zone warning,
+  // localized test errors.
+  assert.match(zones, /const pointFromEvent = event => normalizedPoint\(event\.clientX, event\.clientY, svg\.getBoundingClientRect\(\)\);/, 'every editor point passes the 0.015 edge snap');
+  assert.match(zones, /if \(isFlatZone\(zone\.points\)\) setStatus\(T\(ctx, 'zone_flat', \{ name: zone\.name \}\), true\);/, 'a zone on one line gets a warning');
+  assert.match(zones, /code === 'detection_disabled' \? T\(ctx, 'test_disabled'\)/, 'test mode explains a disabled detector');
+}
+
 async function testManusCatalogFailuresStayIsolatedAndActionsRequireReadyStatus() {
   const source = read('ui/cfg/manus.js');
   const catalogSource = sourceBetween(source, 'async function manusLoadCatalogs(showErrors)', 'async function manusLoadProjectSkills(projectIDs, showErrors)');
@@ -4206,6 +4225,7 @@ const tests = [
   ['remote embedding status never renders Granite CPU state', testRemoteEmbeddingStatusNeverRendersGraniteCPUState],
   ['Network Cameras desktop contracts', testNetworkCamerasDesktopContracts],
   ['Network Cameras person detection views', testNetworkCamerasDetectionViews],
+  ['Network Cameras person detection zone editor', testNetworkCamerasDetectionZones],
   ['Manus catalog failures stay isolated and actions require ready status', testManusCatalogFailuresStayIsolatedAndActionsRequireReadyStatus],
   ['Speech Lab recorder resumes audio and routes fallbacks safely', testSpeechLabRecorderLifecycleAndFallbacks],
   ['Quick Connect SFTP navigator ignores stale listings', testQuickConnectSFTPNavigatorIgnoresStaleListings],
