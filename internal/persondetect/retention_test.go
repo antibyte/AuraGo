@@ -3,10 +3,12 @@ package persondetect
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -148,6 +150,46 @@ func lstatExists(p string) bool {
 	return err == nil
 }
 
+// setRetentionProgress replaces the retention test hook until the test ends.
+func setRetentionProgress(t *testing.T, fn func(step, detail string)) {
+	t.Helper()
+	previous := retentionProgress
+	t.Cleanup(func() { retentionProgress = previous })
+	retentionProgress = fn
+}
+
+// makeUndeletable keeps the file p from being deleted until release is called:
+// Windows holds it open (Go opens files without FILE_SHARE_DELETE, so the delete
+// fails with a sharing violation), elsewhere its directory loses the write
+// permission. The test is skipped where neither takes effect (root).
+func makeUndeletable(t *testing.T, p string) (release func()) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		f, err := os.Open(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var once sync.Once
+		release = func() { once.Do(func() { _ = f.Close() }) }
+		t.Cleanup(release)
+		if err := os.Remove(p); err == nil {
+			t.Skip("an open file can be deleted here")
+		}
+		return release
+	}
+	dir := filepath.Dir(p)
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	release = func() { _ = os.Chmod(dir, 0o750) }
+	t.Cleanup(release)
+	if probe := filepath.Join(dir, "probe"); os.WriteFile(probe, nil, 0o600) == nil {
+		_ = os.Remove(probe)
+		t.Skip("directory permissions are not enforced here (running as root?)")
+	}
+	return release
+}
+
 func TestApplyRetentionRemovesStaleFrameTemporariesAndTheDirectoriesTheyLeaveEmpty(t *testing.T) {
 	st := newTestEventStore(t)
 	root := st.Root()
@@ -176,8 +218,8 @@ func TestApplyRetentionRemovesStaleFrameTemporariesAndTheDirectoriesTheyLeaveEmp
 	if err != nil {
 		t.Fatalf("applyRetention: %v", err)
 	}
-	if res.StaleTemporaries != 4 {
-		t.Fatalf("result = %+v, want 4 stale temporaries removed", res)
+	if res.StaleTemporaries != 4 || res.StaleTemporaryFailures != 0 || res.StaleTemporaryError != nil {
+		t.Fatalf("result = %+v, want 4 stale temporaries removed and no failure", res)
 	}
 	gone := []string{
 		"2026/10/11/cam-a/.frame-1.tmp", "2026/10/11/cam-a", // emptied camera directory
@@ -206,12 +248,205 @@ func TestApplyRetentionRemovesStaleFrameTemporariesAndTheDirectoriesTheyLeaveEmp
 		t.Fatalf("second pass = %+v, %v", res, err)
 	}
 	// The temporary that was fresh becomes stale with time.
-	if res, err := applyRetention(ctx, st, now.Add(time.Hour), 14, 2048<<20); err != nil || res.StaleTemporaries != 1 {
-		t.Fatalf("pass an hour later = %+v, %v", res, err)
+	sweep, err := st.removeStaleFrameTemporaries(ctx, now.Add(time.Hour))
+	if err != nil || sweep.Removed != 1 || sweep.Failures != 0 {
+		t.Fatalf("sweep an hour later = %+v, %v", sweep, err)
 	}
 	if lstatExists(at("2026/10/12")) {
 		t.Error("the directories of the aged temporary were not pruned")
 	}
+}
+
+func TestApplyRetentionSweepsOnTheWallClockNotTheServiceClock(t *testing.T) {
+	// File times come from the file system's clock. A service clock that is ahead
+	// of it (a forward step, a test harness) must not make the temporaries of
+	// writes that are running right now look stale.
+	st := newTestEventStore(t)
+	root := st.Root()
+	ctx := context.Background()
+	wall := time.Now()
+	inFlight := writeAgedFile(t, root, "2026/10/12/cam/.frame-live.tmp", wall.Add(-time.Minute))
+	crashed := writeAgedFile(t, root, "2026/10/12/cam/.frame-crashed.tmp", wall.Add(-2*time.Hour))
+
+	res, err := applyRetention(ctx, st, wall.Add(72*time.Hour), 14, 2048<<20)
+	if err != nil {
+		t.Fatalf("applyRetention: %v", err)
+	}
+	if res.StaleTemporaries != 1 || !lstatExists(inFlight) || lstatExists(crashed) {
+		t.Fatalf("service clock 72 h ahead: result = %+v, in-flight exists %v, crashed exists %v", res, lstatExists(inFlight), lstatExists(crashed))
+	}
+
+	// And a service clock far behind does not keep an old temporary alive.
+	crashedAgain := writeAgedFile(t, root, "2026/10/12/cam/.frame-crashed-again.tmp", wall.Add(-3*time.Hour))
+	res, err = applyRetention(ctx, st, wall.Add(-72*time.Hour), 14, 2048<<20)
+	if err != nil || res.StaleTemporaries != 1 || lstatExists(crashedAgain) || !lstatExists(inFlight) {
+		t.Fatalf("service clock 72 h behind: result = %+v, %v", res, err)
+	}
+}
+
+func TestApplyRetentionSweepFailureDoesNotFailThePass(t *testing.T) {
+	// The caller applies TotalBytes only for a pass without an error, so one
+	// temporary that cannot be deleted (antivirus, wrong owner, a read-only
+	// remount) must not take the byte count of the event steps with it.
+	st := newTestEventStore(t)
+	ctx := context.Background()
+	now := time.Now()
+	oldStart := now.Add(-20 * 24 * time.Hour)
+	oldEnd := oldStart.Add(time.Minute)
+	expired := addRetentionEvent(t, st, oldStart, &oldEnd, 100)
+	recentStart := now.Add(-time.Hour)
+	recentEnd := recentStart.Add(time.Minute)
+	recent := addRetentionEvent(t, st, recentStart, &recentEnd, 100)
+	temp := writeAgedFile(t, st.Root(), "2031/03/11/locked/.frame-1.tmp", now.Add(-2*time.Hour))
+	release := makeUndeletable(t, temp)
+
+	res, err := applyRetention(ctx, st, now, 14, 2048<<20)
+	if err != nil {
+		t.Fatalf("a temporary that cannot be deleted failed the pass: %v", err)
+	}
+	if res.DeletedEvents != 1 || res.FreedBytes != 100 || res.TotalBytes != 100 {
+		t.Fatalf("event results = %+v, want 1 deletion freeing 100 bytes and 100 bytes left", res)
+	}
+	if res.StaleTemporaries != 0 || res.StaleTemporaryFailures != 1 || res.StaleTemporaryError == nil {
+		t.Fatalf("sweep results = %+v, want one failure and its error", res)
+	}
+	cause := res.StaleTemporaryError
+	var pathErr *fs.PathError
+	if !strings.Contains(cause.Error(), temp) || !errors.As(cause, &pathErr) {
+		t.Fatalf("failure %q does not name the path and wrap the cause", cause)
+	}
+	if runtime.GOOS != "windows" && !errors.Is(cause, fs.ErrPermission) {
+		t.Fatalf("failure %q does not wrap the permission error", cause)
+	}
+	t.Logf("reported cause: %v", cause)
+	if _, err := st.Event(ctx, expired); !errors.Is(err, ErrUnknownEvent) {
+		t.Fatalf("the expired event survived: %v", err)
+	}
+	if _, err := st.Event(ctx, recent); err != nil {
+		t.Fatalf("the recent event was deleted: %v", err)
+	}
+
+	// The failure is not remembered: once the file can be deleted, the next pass does.
+	release()
+	res, err = applyRetention(ctx, st, now, 14, 2048<<20)
+	if err != nil || res.StaleTemporaries != 1 || res.StaleTemporaryFailures != 0 || res.StaleTemporaryError != nil || lstatExists(temp) {
+		t.Fatalf("pass after the release = %+v, %v; temporary exists %v", res, err, lstatExists(temp))
+	}
+}
+
+func TestApplyRetentionReadsTheTotalAgainAfterTheSizeStep(t *testing.T) {
+	// Frames are added to open events while retention runs. The total the size
+	// step computes by subtraction cannot know about them.
+	st := newTestEventStore(t)
+	ctx := context.Background()
+	for i := 0; i < 3; i++ {
+		start := retentionNow.Add(time.Duration(i-10) * time.Hour)
+		end := start.Add(time.Minute)
+		addRetentionEvent(t, st, start, &end, 300)
+	}
+	open := addRetentionEvent(t, st, retentionNow.Add(-20*time.Hour), nil, 300)
+	var hooked bool
+	setRetentionProgress(t, func(step, _ string) {
+		if step != retentionBeforeTotal {
+			return
+		}
+		hooked = true
+		if _, err := st.AddFrame(ctx, open, StoredFrame{Seq: 2, Path: "x/2.jpg", ThumbPath: "x/2_thumb.jpg", Size: 50, CapturedAt: retentionNow, Width: 1, Height: 1}); err != nil {
+			t.Errorf("AddFrame: %v", err)
+		}
+	})
+	res, err := applyRetention(ctx, st, retentionNow, 14, 1000)
+	if err != nil {
+		t.Fatalf("applyRetention: %v", err)
+	}
+	stored, err := st.TotalBytes(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 4 x 300 = 1200 > 1000: one deletion down to 900, plus the 50 bytes added meanwhile.
+	if !hooked || res.DeletedEvents != 1 || stored != 950 || res.TotalBytes != stored {
+		t.Fatalf("hooked %v, result = %+v, stored %d; want the stored 950 bytes", hooked, res, stored)
+	}
+}
+
+func TestApplyRetentionStopsOnCancellationWithPartialResults(t *testing.T) {
+	cancelAfter := func(cancel context.CancelFunc, step string, n int) func(step, detail string) {
+		seen := 0
+		return func(got, _ string) {
+			if got == step {
+				if seen++; seen == n {
+					cancel()
+				}
+			}
+		}
+	}
+	t.Run("age step", func(t *testing.T) {
+		st := newTestEventStore(t)
+		var ids []int64
+		for i := 0; i < 5; i++ {
+			start := retentionNow.Add(-time.Duration(30-i) * 24 * time.Hour)
+			end := start.Add(time.Minute)
+			ids = append(ids, addRetentionEvent(t, st, start, &end, 100))
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		setRetentionProgress(t, cancelAfter(cancel, retentionEventRemoved, 2))
+		res, err := applyRetention(ctx, st, retentionNow, 14, 2048<<20)
+		if !errors.Is(err, context.Canceled) || res.DeletedEvents != 2 || res.FreedBytes != 200 {
+			t.Fatalf("result = %+v, %v; want 2 deletions and context.Canceled", res, err)
+		}
+		for i, id := range ids {
+			_, err := st.Event(context.Background(), id)
+			if i < 2 && !errors.Is(err, ErrUnknownEvent) || i >= 2 && err != nil {
+				t.Fatalf("event %d after the cancelled pass: %v", i, err)
+			}
+		}
+	})
+	t.Run("size step", func(t *testing.T) {
+		st := newTestEventStore(t)
+		for i := 0; i < 5; i++ {
+			start := retentionNow.Add(time.Duration(i-10) * time.Hour)
+			end := start.Add(time.Minute)
+			addRetentionEvent(t, st, start, &end, 300)
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		setRetentionProgress(t, cancelAfter(cancel, retentionEventRemoved, 1))
+		res, err := applyRetention(ctx, st, retentionNow, 14, 1000)
+		if !errors.Is(err, context.Canceled) || res.DeletedEvents != 1 || res.FreedBytes != 300 {
+			t.Fatalf("result = %+v, %v; want 1 deletion and context.Canceled", res, err)
+		}
+	})
+	t.Run("sweep", func(t *testing.T) {
+		// The events are done when the walk is cut short and stay counted.
+		st := newTestEventStore(t)
+		now := time.Now()
+		oldStart := now.Add(-20 * 24 * time.Hour)
+		oldEnd := oldStart.Add(time.Minute)
+		addRetentionEvent(t, st, oldStart, &oldEnd, 100)
+		recentStart := now.Add(-time.Hour)
+		recentEnd := recentStart.Add(time.Minute)
+		addRetentionEvent(t, st, recentStart, &recentEnd, 100)
+		first := writeAgedFile(t, st.Root(), "2031/03/11/cam/.frame-1.tmp", now.Add(-2*time.Hour))
+		second := writeAgedFile(t, st.Root(), "2031/03/12/cam/.frame-2.tmp", now.Add(-2*time.Hour))
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		setRetentionProgress(t, func(step, detail string) {
+			if step == retentionSweepDirectory && strings.HasSuffix(filepath.ToSlash(detail), "/2031/03/12") {
+				cancel()
+			}
+		})
+		res, err := applyRetention(ctx, st, now, 14, 2048<<20)
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("err = %v, want context.Canceled", err)
+		}
+		if res.DeletedEvents != 1 || res.TotalBytes != 100 || res.StaleTemporaries != 1 {
+			t.Fatalf("result = %+v, want the event results filled and the one temporary removed before the cut", res)
+		}
+		if lstatExists(first) || !lstatExists(second) {
+			t.Fatalf("first exists %v, second exists %v; the walk should have stopped between them", lstatExists(first), lstatExists(second))
+		}
+	})
 }
 
 func TestApplyRetentionStaleSweepNeverEntersOrDeletesLinks(t *testing.T) {
@@ -239,17 +474,19 @@ func TestApplyRetentionStaleSweepNeverEntersOrDeletesLinks(t *testing.T) {
 	fileLink := filepath.Join(deep, ".frame-filelink.tmp")
 	if err := os.Symlink(victim, fileLink); err == nil { // needs a privilege on Windows
 		links = append(links, fileLink)
+	} else {
+		t.Logf("file symlinks are not available here (%v); a link to a file named like a temporary is not exercised", err)
 	}
 	// The sweep goes on past the links.
 	realTemp := writeAgedFile(t, root, "2026/10/11/cam-real/.frame-real.tmp", old)
 
 	// Three hours on, every file made just now is stale, the links included.
-	res, err := applyRetention(ctx, st, time.Now().Add(3*time.Hour), 14, 2048<<20)
+	sweep, err := st.removeStaleFrameTemporaries(ctx, time.Now().Add(3*time.Hour))
 	if err != nil {
-		t.Fatalf("applyRetention: %v", err)
+		t.Fatalf("removeStaleFrameTemporaries: %v", err)
 	}
-	if res.StaleTemporaries != 1 {
-		t.Fatalf("result = %+v, want only the real temporary removed", res)
+	if sweep.Removed != 1 || sweep.Failures != 0 {
+		t.Fatalf("sweep = %+v, want only the real temporary removed", sweep)
 	}
 	if lstatExists(realTemp) {
 		t.Error("the stale temporary next to the links survived")
@@ -306,34 +543,105 @@ func TestRemoveStaleFrameTemporariesStopsWhenTheContextEnds(t *testing.T) {
 	temp := writeAgedFile(t, st.Root(), "2026/10/11/cam/.frame-1.tmp", time.Now().Add(-2*time.Hour))
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	removed, err := st.removeStaleFrameTemporaries(ctx, time.Now())
-	if !errors.Is(err, context.Canceled) || removed != 0 || !lstatExists(temp) {
-		t.Fatalf("removed %d, %v; want nothing removed and context.Canceled", removed, err)
+	sweep, err := st.removeStaleFrameTemporaries(ctx, time.Now())
+	if !errors.Is(err, context.Canceled) || sweep.Removed != 0 || !lstatExists(temp) {
+		t.Fatalf("sweep = %+v, %v; want nothing removed and context.Canceled", sweep, err)
 	}
 }
 
-func TestRemoveStaleFrameTemporariesReportsWhatItCouldNotRemove(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("directory permissions do not keep a file from being deleted on Windows")
+// modeInfo is an fs.FileInfo that has nothing but a mode.
+type modeInfo struct{ mode fs.FileMode }
+
+func (m modeInfo) Name() string       { return "entry" }
+func (m modeInfo) Size() int64        { return 0 }
+func (m modeInfo) Mode() fs.FileMode  { return m.mode }
+func (m modeInfo) ModTime() time.Time { return time.Time{} }
+func (m modeInfo) IsDir() bool        { return m.mode.IsDir() }
+func (m modeInfo) Sys() any           { return nil }
+
+func TestSweepClassifiesEntriesLikeCheckElement(t *testing.T) {
+	// Go reports a Windows junction as ModeIrregular without ModeDir, a
+	// symlink as ModeSymlink, and a reparse-point directory that is no link
+	// (OneDrive placeholder, tiered storage) as ModeDir|ModeIrregular, which
+	// checkElement lets through. Only the links stay out of the sweep.
+	cases := []struct {
+		name       string
+		mode       fs.FileMode
+		link       bool
+		descends   bool
+		removeable bool
+	}{
+		{"directory", fs.ModeDir | 0o750, false, true, false},
+		{"placeholder directory", fs.ModeDir | fs.ModeIrregular | 0o750, false, true, false},
+		{"directory symlink", fs.ModeSymlink | 0o777, true, false, false},
+		{"symlink that reports a directory bit", fs.ModeSymlink | fs.ModeDir, true, false, false},
+		{"junction", fs.ModeIrregular, true, false, false},
+		{"regular file", 0o640, false, false, true},
+		{"file symlink", fs.ModeSymlink | 0o777, true, false, false},
+		{"irregular file", fs.ModeIrregular | 0o640, true, false, false},
+		{"named pipe", fs.ModeNamedPipe | 0o640, false, false, false},
+		{"socket", fs.ModeSocket | 0o640, false, false, false},
 	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			info := modeInfo{c.mode}
+			if got := isLinkLike(c.mode); got != c.link {
+				t.Errorf("isLinkLike = %v, want %v", got, c.link)
+			}
+			if got := sweepDescendsInto("p", info); got != c.descends {
+				t.Errorf("sweepDescendsInto = %v, want %v", got, c.descends)
+			}
+			if got := sweepRemovableType("p", info); got != c.removeable {
+				t.Errorf("sweepRemovableType = %v, want %v", got, c.removeable)
+			}
+		})
+	}
+}
+
+func TestRemoveFileErrNamesWhyAFileStayed(t *testing.T) {
 	st := newTestEventStore(t)
-	old := time.Now().Add(-2 * time.Hour)
-	locked := writeAgedFile(t, st.Root(), "2026/10/11/locked/.frame-1.tmp", old)
-	writable := writeAgedFile(t, st.Root(), "2026/10/11/open/.frame-2.tmp", old)
-	lockedDir := filepath.Dir(locked)
-	if err := os.Chmod(lockedDir, 0o500); err != nil {
+	root := st.Root()
+	if err := writeImageAtomic(root, "2026/10/11/cam/1_1.jpg", []byte("x")); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.Chmod(lockedDir, 0o750) })
-	if probe := filepath.Join(lockedDir, "probe"); os.WriteFile(probe, nil, 0o600) == nil {
-		_ = os.Remove(probe)
-		t.Skip("directory permissions are not enforced here (running as root?)")
+	if err := st.removeFileErr("2026/10/11/cam/1_1.jpg"); err != nil {
+		t.Fatalf("removing a file: %v", err)
 	}
-	removed, err := st.removeStaleFrameTemporaries(context.Background(), time.Now())
-	if removed != 1 || err == nil || !strings.Contains(err.Error(), "could not be removed") {
-		t.Fatalf("removed %d, %v; want the writable one removed and an error for the locked one", removed, err)
+	if lstatExists(filepath.Join(root, "2026")) {
+		t.Error("the emptied directories were not pruned")
 	}
-	if !lstatExists(locked) || lstatExists(writable) {
-		t.Fatal("the sweep did not leave exactly the locked temporary behind")
+	if err := st.removeFileErr("2026/10/11/cam/1_1.jpg"); err != nil {
+		t.Fatalf("a file that is already gone is no error: %v", err)
+	}
+	if err := st.removeFileErr("../escape.jpg"); err == nil {
+		t.Fatal("a path outside the root was accepted")
+	}
+	outside := t.TempDir()
+	victim := writeAgedFile(t, outside, "cam/1_1.jpg", time.Now())
+	if err := os.MkdirAll(filepath.Join(root, "2026"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	symlinkOrSkip(t, outside, filepath.Join(root, "2026", "10"))
+	if err := st.removeFileErr("2026/10/cam/1_1.jpg"); err == nil || !lstatExists(victim) {
+		t.Fatalf("a path through a link: err = %v, victim exists %v; want an error and the file kept", err, lstatExists(victim))
+	}
+	if runtime.GOOS != "windows" {
+		locked := writeAgedFile(t, root, "2027/01/01/cam/2_1.jpg", time.Now())
+		dir := filepath.Dir(locked)
+		if err := os.Chmod(dir, 0o500); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.Chmod(dir, 0o750) })
+		if probe := filepath.Join(dir, "probe"); os.WriteFile(probe, nil, 0o600) == nil {
+			_ = os.Remove(probe)
+			return // permissions are not enforced here (root)
+		}
+		if err := st.removeFileErr("2027/01/01/cam/2_1.jpg"); !errors.Is(err, fs.ErrPermission) {
+			t.Fatalf("remove below a read-only directory: %v, want a permission error", err)
+		}
+		st.removeFile("2027/01/01/cam/2_1.jpg") // the old entry point keeps ignoring it
+		if !lstatExists(locked) {
+			t.Fatal("removeFile deleted a file in a read-only directory")
+		}
 	}
 }

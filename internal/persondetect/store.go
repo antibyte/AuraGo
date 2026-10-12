@@ -1040,17 +1040,26 @@ func (st *EventStore) RemoveEvent(ctx context.Context, id int64) (int64, error) 
 // directories (each one is lstat-ed first, so a link is never removed) and stops
 // at the first one that is not empty.
 func (st *EventStore) removeFile(rel string) {
+	_ = st.removeFileErr(rel)
+}
+
+// removeFileErr is removeFile that says why a file stayed: it returns the error of
+// the refused path, of the link check or of os.Remove (a *fs.PathError that names
+// the file and the cause, such as EACCES, EROFS or a Windows sharing violation).
+// A file that is already gone is not an error, and a failure to prune the empty
+// directories above it is not reported.
+func (st *EventStore) removeFileErr(rel string) error {
 	target := filepath.Join(st.root, filepath.FromSlash(rel))
 	if !pathInside(st.root, target) {
-		return
+		return fmt.Errorf("path %q escapes the detections root", rel)
 	}
 	if dir := filepath.Dir(target); pathInside(st.root, dir) {
 		if err := requireNoLinksBelow(st.root, dir, false); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return
+			return err
 		}
 	}
 	if err := os.Remove(target); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return
+		return err
 	}
 	for dir := filepath.Dir(target); pathInside(st.root, dir); dir = filepath.Dir(dir) {
 		info, err := os.Lstat(dir)
@@ -1061,6 +1070,7 @@ func (st *EventStore) removeFile(rel string) {
 			break
 		}
 	}
+	return nil
 }
 
 // TotalBytes is the sum of all stored frame and thumbnail bytes.
