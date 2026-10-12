@@ -141,3 +141,32 @@ func TestAnnotateJPEGRefusesFramesBeyondTheFrameLimits(t *testing.T) {
 		t.Fatalf("a 1x%d frame must be refused", maxFrameSide+1)
 	}
 }
+
+// Add-on: a frame larger than alertPhotoMaxSide comes out scaled down (aspect kept), still a
+// JPEG, with the box drawn at the photo's own scale.
+func TestAnnotateJPEGScalesLargeFramesDown(t *testing.T) {
+	out, err := AnnotateJPEG(annotateTestJPEG(t, 8192, 2048), []Box{{X1: 0.25, Y1: 0.25, X2: 0.75, Y2: 0.75, Score: 0.9}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	img, err := jpeg.Decode(bytes.NewReader(out))
+	if err != nil {
+		t.Fatalf("scaled output is not a JPEG: %v", err)
+	}
+	if b := img.Bounds(); b.Dx() != alertPhotoMaxSide || b.Dy() != 480 {
+		t.Fatalf("photo size = %v, want %dx480", b, alertPhotoMaxSide)
+	}
+	// The box is (480,120)-(1440,360) on the 1920×480 photo: stroke from x 480, outline at 479.
+	if r, _, b, _ := img.At(481, 240).RGBA(); annotateTestLuma(img.At(481, 240)) < 170 || int(r>>8)-int(b>>8) < 60 {
+		t.Fatalf("stroke pixel = %v, want the yellow stroke", img.At(481, 240))
+	}
+	if luma := annotateTestLuma(img.At(478, 240)); luma < 0x80-12 || luma > 0x80+12 {
+		t.Fatalf("pixel left of the outline luma = %d, want the background", luma)
+	}
+	if luma := annotateTestLuma(img.At(960, 240)); luma < 0x80-12 || luma > 0x80+12 {
+		t.Fatalf("box center luma = %d, want the background", luma)
+	}
+	if w, h := alertPhotoSize(1280, 720); w != 1280 || h != 720 {
+		t.Fatalf("a 1280x720 frame must keep its size, got %dx%d", w, h)
+	}
+}

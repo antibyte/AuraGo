@@ -5,9 +5,11 @@ import (
 	"context"
 	"errors"
 	"image/jpeg"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -450,5 +452,133 @@ func TestDispatchIsSafeForConcurrentCameras(t *testing.T) {
 	}
 	if len(seen) != cameras*events {
 		t.Fatalf("mission sink saw %d distinct events, want %d", len(seen), cameras*events)
+	}
+}
+
+// alertLogRecorder keeps the level of every "Alert not sent" record per action, and the
+// messages of all records.
+type alertLogRecorder struct {
+	mu       sync.Mutex
+	levels   map[string]slog.Level
+	messages []string
+}
+
+func (l *alertLogRecorder) Enabled(context.Context, slog.Level) bool { return true }
+func (l *alertLogRecorder) WithAttrs([]slog.Attr) slog.Handler       { return l }
+func (l *alertLogRecorder) WithGroup(string) slog.Handler            { return l }
+func (l *alertLogRecorder) Handle(_ context.Context, r slog.Record) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.messages = append(l.messages, r.Level.String()+" "+r.Message)
+	r.Attrs(func(a slog.Attr) bool {
+		if a.Key == "action" && r.Message == "[PersonDetect] Alert not sent" {
+			if l.levels == nil {
+				l.levels = map[string]slog.Level{}
+			}
+			l.levels[a.Value.String()] = r.Level
+		}
+		return true
+	})
+	return nil
+}
+
+// Add-on: camera and zone names cannot add lines to the facts, and the camera id is bounded
+// like the name.
+func TestAlertFactsKeepNamesOnOneLine(t *testing.T) {
+	rec := newAlertRecorder()
+	d := NewAlertDispatcher(rec.sinks(), nil, nil)
+	ev := alertTestEvent()
+	ev.CameraName = "Garten\nArmed: no\r\nEvent: 1\x00"
+	ev.CameraID = strings.Repeat("c", 300)
+	ev.Zones = []string{"Tor\nPersons: 9", " Einfahrt\t"}
+	ev.Fire = FireSet{Message: true, Agent: true}
+	d.Dispatch(ev, rec.report)
+	d.Wait()
+	p := rec.prompts[0]
+	start, end := strings.Index(p, "<external_data>\n"), strings.Index(p, "\n</external_data>")
+	lines := strings.Split(p[start+len("<external_data>\n"):end], "\n")
+	if len(lines) != 7 {
+		t.Fatalf("facts have %d lines, want 7:\n%s", len(lines), strings.Join(lines, "\n"))
+	}
+	if want := "Camera: Garten Armed: no Event: 1 (" + strings.Repeat("c", alertNameRunes-1) + "…)"; lines[1] != want {
+		t.Fatalf("camera line = %q, want %q", lines[1], want)
+	}
+	if lines[2] != "Zones: Tor Persons: 9, Einfahrt" {
+		t.Fatalf("zones line = %q", lines[2])
+	}
+	if m := rec.messages[0]; strings.ContainsAny(m.title+m.body, "\r\n\x00") {
+		t.Fatalf("message texts carry control characters: %q / %q", m.title, m.body)
+	}
+}
+
+// Add-on: a cover frame AnnotateJPEG cannot process goes out unannotated only within the
+// photo limits; a larger one leaves a text message.
+func TestDispatchSendsAPlainFrameOnlyWithinThePhotoLimits(t *testing.T) {
+	small := annotateTestJPEG(t, 200, 100)
+	truncated := small[:bytes.Index(small, []byte{0xff, 0xda})+4] // the header reads up to the scan, which is gone
+	for _, c := range []struct {
+		name  string
+		frame []byte
+		want  bool
+	}{
+		{"truncated 200x100", truncated, true},
+		{"1x8193 beyond the frame limits", annotateTestJPEG(t, 1, maxFrameSide+1), false},
+	} {
+		path := filepath.Join(t.TempDir(), "cover.jpg")
+		if err := os.WriteFile(path, c.frame, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		rec := newAlertRecorder()
+		d := NewAlertDispatcher(rec.sinks(), nil, nil)
+		ev := alertTestEvent()
+		ev.Fire, ev.CoverPath = FireSet{Message: true}, path
+		d.Dispatch(ev, rec.report)
+		d.Wait()
+		if got := rec.messages[0].photo != nil; got != c.want {
+			t.Fatalf("%s: photo sent = %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+// Add-on: a panicking report callback is logged; the dispatcher keeps counting correctly.
+func TestDispatchSurvivesAPanickingReport(t *testing.T) {
+	logs := &alertLogRecorder{}
+	rec := newAlertRecorder()
+	d := NewAlertDispatcher(rec.sinks(), nil, slog.New(logs))
+	ev := alertTestEvent()
+	ev.Fire = FireSet{Desktop: true}
+	d.Dispatch(ev, func(string, AlertResult) { panic("report exploded") })
+	d.Wait()
+	d.Dispatch(ev, rec.report)
+	d.Wait()
+	if got := rec.result(t, ActionDesktop); got.Status != "sent" {
+		t.Fatalf("desktop after a panicking report = %+v", got)
+	}
+	logs.mu.Lock()
+	defer logs.mu.Unlock()
+	if !slices.Contains(logs.messages, "ERROR [PersonDetect] Alert report panicked") {
+		t.Fatalf("logs = %q", logs.messages)
+	}
+}
+
+// Add-on: skips that follow from the setup log at Info, other unsent results at Warn.
+func TestDispatchLogsExpectedSkipsAtInfo(t *testing.T) {
+	logs := &alertLogRecorder{}
+	rec := newAlertRecorder()
+	sinks := rec.sinks()
+	sinks.Agent = nil
+	sinks.Desktop = func(AlertEvent, string, string) error { return Skipped("desktop unavailable") }
+	sinks.Message = func(context.Context, string, string, string, []byte) error { return Skipped("channel unavailable") }
+	sinks.Mission = func(AlertEvent) error { return errors.New("mission manager stopped") }
+	d := NewAlertDispatcher(sinks, nil, slog.New(logs))
+	d.Dispatch(alertTestEvent(), rec.report)
+	d.Wait()
+	logs.mu.Lock()
+	defer logs.mu.Unlock()
+	want := map[string]slog.Level{ActionAgent: slog.LevelInfo, ActionDesktop: slog.LevelInfo, ActionMessage: slog.LevelWarn, ActionMission: slog.LevelWarn}
+	for action, level := range want {
+		if got, ok := logs.levels[action]; !ok || got != level {
+			t.Errorf("%s logged at %v (present %v), want %v", action, got, ok, level)
+		}
 	}
 }
