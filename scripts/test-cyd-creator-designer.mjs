@@ -1471,7 +1471,7 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     check('an invalid name is refused: the layout keeps the last valid name, the field keeps the entry', widget('w_btn').name === 'btn_1' && refused(nameEl) && nameEl.value === 'Bad Name' && textOf(noteOf(nameEl)).startsWith('Names use lowercase'));
     shellBus.emit('layout:issues', [{ code: 'PROP_INVALID', severity: 'error', widget: 'w_btn', message: 'x' }]);
     check('an issue list after a save keeps the field and the half-typed name', field('name') === nameEl && nameEl.value === 'Bad Name' && all(insp, el => el.attrs.class === 'cc-issue is-error').length === 1);
-    check('a changed issue list of the shown panel is announced', announced[announced.length - 1] === '1 problems', announced.join(' | '));
+    check('a changed issue list of the shown panel is announced', announced[announced.length - 1] === 'Issues: 1', announced.join(' | '));
     const spokenBefore = announced.length;
     shellBus.emit('layout:issues', [{ code: 'PROP_INVALID', severity: 'error', widget: 'w_btn', message: 'x' }, { code: 'NAME_INVALID', severity: 'error', widget: 'w_img', message: 'y' }]);
     check('issues of other widgets change nothing on this panel and are not announced', announced.length === spokenBefore && field('name') === nameEl);
@@ -1483,7 +1483,7 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     d.select(['w_btn']);
     check('another panel drops refused entries', field('name').value === 'btn_1' && field('name').attrs['aria-invalid'] !== 'true');
     shellBus.emit('layout:issues', []);
-    check('an emptied issue list is announced too', announced[announced.length - 1] === 'No problems left.' && !all(insp, el => el.attrs.class === 'cc-issue is-error').length);
+    check('an emptied issue list is announced too', announced[announced.length - 1] === 'No issues left.' && !all(insp, el => el.attrs.class === 'cc-issue is-error').length);
     type('name', 'lbl_1');
     check('a duplicate name is refused', widget('w_btn').name === 'btn_1' && textOf(noteOf(field('name'))).startsWith('Another widget'));
     type('name', 'init');

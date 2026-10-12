@@ -21,7 +21,7 @@ func readCYDCreatorLang(t *testing.T, lang string) map[string]string {
 }
 
 var cydDesignerKeyLiteral = regexp.MustCompile(`'(cyd_creator\.[A-Za-z0-9_.]*)'(\s*\+)?`)
-var cydPlaceholder = regexp.MustCompile(`\{[a-z]+\}`)
+var cydPlaceholder = regexp.MustCompile(`\{[a-z_]+\}`)
 
 // cydDesignerFallback matches t.or('cyd_creator.…', 'English fallback' with a plain string literal.
 var cydDesignerFallback = regexp.MustCompile(`t\.or\('(cyd_creator\.[A-Za-z0-9_.]+)',\s*'((?:[^'\\]|\\.)*)'`)
@@ -31,17 +31,12 @@ var cydDesignerFallback = regexp.MustCompile(`t\.or\('(cyd_creator\.[A-Za-z0-9_.
 var cydDesignerOwnedPrefixes = []string{"cyd_creator.designer.", "cyd_creator.widget.", "cyd_creator.group.", "cyd_creator.prop.",
 	"cyd_creator.event.", "cyd_creator.action.", "cyd_creator.transition.", "cyd_creator.theme.", "cyd_creator.board.status_", "cyd_creator.issue."}
 
-// cydDesignerFallbackExceptions lists t.or fallbacks that may differ from the English bundle: the
-// screens panel and the inspector share designer.issue_count, the bundle carries the screens wording.
-var cydDesignerFallbackExceptions = map[string][]string{
-	"cyd_creator.designer.issue_count": {"{count} problems"},
-}
-
 // TestCYDCreatorDesignerKeysExistInAllLocales checks every literal key of the designer modules and
 // every member of the dynamic key families (catalog types, groups, props, events, enum options,
 // themes, board states, issue codes) in all sixteen locales, with the same placeholders as English,
-// and German without the formal address. The reverse check keeps no designer-owned key the modules
-// no longer use, and every literal t.or fallback equals the English bundle.
+// and German without the formal address. The reverse checks keep no family the modules no longer
+// build and no designer-owned key they no longer use; every literal t.or fallback equals the English
+// bundle.
 func TestCYDCreatorDesignerKeysExistInAllLocales(t *testing.T) {
 	used := map[string]bool{}
 	prefixes := map[string]bool{}
@@ -82,7 +77,6 @@ func TestCYDCreatorDesignerKeysExistInAllLocales(t *testing.T) {
 		"cyd_creator.orientation.":    {"landscape", "portrait", "landscape_flipped", "portrait_flipped"},
 		"cyd_creator.designer.align_": {"left", "hcenter", "right", "top", "vcenter", "bottom"},
 		"cyd_creator.designer.z_":     {"front", "forward", "backward", "back"},
-		"cyd_creator.designer.geo_":   {"x", "y", "w", "h"},
 		"cyd_creator.designer.font_":  cydcreator.FontFamilies,
 		"cyd_creator.designer.wifi_":  {"off", "optional", "required"},
 		"cyd_creator.designer.opt_":   {},
@@ -107,6 +101,9 @@ func TestCYDCreatorDesignerKeysExistInAllLocales(t *testing.T) {
 		}
 	}
 	for prefix, members := range families {
+		if !prefixes[prefix] {
+			t.Errorf("key family %s is listed in this test, but no designer module builds keys from it", prefix)
+		}
 		for _, member := range members {
 			used[prefix+member] = true
 		}
@@ -146,7 +143,7 @@ func TestCYDCreatorDesignerKeysExistInAllLocales(t *testing.T) {
 	}
 	for key, list := range fallbacks {
 		for _, fallback := range list {
-			if fallback != en[key] && !slices.Contains(cydDesignerFallbackExceptions[key], fallback) {
+			if fallback != en[key] {
 				t.Errorf("t.or fallback of %s is %q, the English bundle has %q", key, fallback, en[key])
 			}
 		}

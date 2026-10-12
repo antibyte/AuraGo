@@ -127,7 +127,7 @@
             ui.issueKey = key;
             const node = issueList(list);
             live.issues.replaceChildren(...(node ? [dom(node)] : []));
-            d.announce(list.length ? t.or('cyd_creator.designer.issue_count', '{count} problems', { count: list.length }) : t.or('cyd_creator.designer.issues_none', 'No problems left.'));
+            d.announce(list.length ? t.or('cyd_creator.designer.issue_count', 'Issues: {count}', { count: list.length }) : t.or('cyd_creator.designer.issues_none', 'No issues left.'));
         }
 
         // ── project settings ────────────────────────────────────────────────
