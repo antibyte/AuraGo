@@ -216,6 +216,8 @@ Self-hosted under `ui/fonts/` (see `ui/fonts/fonts.css`).
 | Schoolbell | SIL Open Font License 1.1 | https://fonts.google.com/specimen/Schoolbell |
 | Shadows Into Light Two | SIL Open Font License 1.1 | https://fonts.google.com/specimen/Shadows+Into+Light+Two |
 | Press Start 2P | SIL Open Font License 1.1 | https://fonts.google.com/specimen/Press+Start+2P |
+| Montserrat | SIL Open Font License 1.1 | https://github.com/JulietaUla/Montserrat · npm `@fontsource/montserrat@5.3.0` (weight 500, latin + latin-ext; CYD Creator designer preview, `Montserrat-LICENSE.txt`) |
+| JetBrains Mono | SIL Open Font License 1.1 | https://github.com/JetBrains/JetBrainsMono · npm `@fontsource/jetbrains-mono@5.3.0` (weight 400, latin + latin-ext; CYD Creator designer preview, `JetBrainsMono-LICENSE.txt`) |
 | Datatype | Check upstream (self-hosted specialty face) | Vendor/original foundry for the Datatype files in `ui/fonts/` |
 | Px437 IBM VGA 8x16 (The Ultimate Oldschool PC Font Pack, VileR) | CC BY-SA 4.0 | https://int10h.org/oldschool-pc-fonts/ · `ui/fonts/Px437_IBM_VGA_8x16.woff`, unmodified (attribution: `ui/fonts/Px437-LICENSE.txt`) |
 
