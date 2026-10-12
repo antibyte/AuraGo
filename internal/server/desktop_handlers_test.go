@@ -4,8 +4,12 @@ import (
 	"aurago/internal/llm"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/color"
+	"image/jpeg"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -525,10 +529,11 @@ func TestPrepareDesktopAgentTurnSanitizesOrphanedToolMessages(t *testing.T) {
 func TestPrepareDesktopAgentTurnDoesNotPersistCameraBase64(t *testing.T) {
 	t.Parallel()
 
+	_, imagePayload := tinyCameraJPEG(t)
 	s := newTestDesktopChatServer(t)
-	s.Cfg.LLM.Multimodal = true
 	s.Cfg.LLM.ProviderType = "openai"
-	imagePayload := "abc123desktopcamera"
+	s.Cfg.LLM.Model = "gpt-4o"
+	pinDesktopImageCapability(s, true)
 
 	turn, err := prepareDesktopAgentTurn(context.Background(), s, "what is in the image?", desktopChatContext{
 		ImageBase64: imagePayload,
@@ -542,13 +547,13 @@ func TestPrepareDesktopAgentTurnDoesNotPersistCameraBase64(t *testing.T) {
 			t.Fatalf("prepared multimodal request should not duplicate camera base64 in text content: %#v", msg)
 		}
 		for _, part := range msg.MultiContent {
-			if part.ImageURL != nil && strings.Contains(part.ImageURL.URL, imagePayload) {
+			if part.ImageURL != nil && strings.HasPrefix(part.ImageURL.URL, "data:image/jpeg;base64,") && !strings.Contains(part.ImageURL.URL, imagePayload) {
 				sawMultimodalImage = true
 			}
 		}
 	}
 	if !sawMultimodalImage {
-		t.Fatal("prepared multimodal request should carry camera image as image_url data URI")
+		t.Fatal("prepared multimodal request should carry the normalized camera image as image_url data URI")
 	}
 
 	history, err := s.ShortTermMem.GetSessionMessages(desktopChatSessionID)
@@ -582,6 +587,183 @@ func TestPrepareDesktopAgentTurnRejectsCameraBase64ForAgnes(t *testing.T) {
 	}
 	if len(history) != 0 {
 		t.Fatalf("rejected camera turn was persisted: %#v", history)
+	}
+}
+
+func TestDesktopCameraPhotoFallsBackWhenTheProviderCannotTakeImages(t *testing.T) {
+	jpegBytes, imagePayload := tinyCameraJPEG(t)
+	s := newTestDesktopChatServer(t)
+	s.Cfg.LLM.ProviderType = "ollama"
+	s.Cfg.LLM.Model = "llama3"
+	pinDesktopImageCapability(s, false)
+
+	const userMessage = "what is in the camera photo?"
+	const analysis = "camera-fallback-analysis"
+	orig := analyzeImageForFallback
+	var sawFile bool
+	analyzeImageForFallback = func(filePath, prompt string, cfg *config.Config) (string, int, int, error) {
+		if prompt != userMessage {
+			t.Errorf("fallback prompt = %q, want the user message", prompt)
+		}
+		got, err := os.ReadFile(filePath)
+		if err != nil {
+			t.Errorf("read private camera file: %v", err)
+		} else if !bytes.Equal(got, jpegBytes) {
+			t.Errorf("private camera file = %d bytes, want decoded JPEG", len(got))
+		} else {
+			sawFile = true
+		}
+		return analysis, 1, 1, nil
+	}
+	t.Cleanup(func() { analyzeImageForFallback = orig })
+
+	turn, err := prepareDesktopAgentTurn(context.Background(), s, userMessage, desktopChatContext{
+		ImageBase64: imagePayload,
+	}, true)
+	if err != nil {
+		t.Fatalf("prepareDesktopAgentTurn: %v", err)
+	}
+	if !sawFile {
+		t.Fatal("fallback did not read the decoded camera bytes")
+	}
+	var sawAnalysis bool
+	for _, msg := range turn.req.Messages {
+		if msg.Role != openai.ChatMessageRoleUser {
+			continue
+		}
+		if strings.Contains(msg.Content, imagePayload) || strings.Contains(msg.Content, "data:") {
+			t.Fatalf("outgoing user text leaked camera bytes or a data URL: %q", msg.Content)
+		}
+		if strings.Contains(msg.Content, analysis) {
+			sawAnalysis = true
+		}
+		for _, part := range msg.MultiContent {
+			if part.ImageURL != nil && strings.Contains(part.ImageURL.URL, "data:") {
+				t.Fatalf("fallback set an image data URL: %q", part.ImageURL.URL)
+			}
+			if strings.Contains(part.Text, "data:") {
+				t.Fatalf("fallback text part contains a data URL: %q", part.Text)
+			}
+		}
+	}
+	if !sawAnalysis {
+		t.Fatal("outgoing user message should contain the fallback analysis")
+	}
+	assertCameraPayloadAbsentFromHistory(t, s, imagePayload)
+}
+
+func TestDesktopCameraPhotoInlinesANormalizedJPEG(t *testing.T) {
+	jpegBytes, imagePayload := tinyCameraJPEG(t)
+	wantURL, err := tools.PrepareVisionDataURL(jpegBytes, "")
+	if err != nil {
+		t.Fatalf("PrepareVisionDataURL: %v", err)
+	}
+	s := newTestDesktopChatServer(t)
+	s.Cfg.LLM.ProviderType = "openai"
+	s.Cfg.LLM.Model = "gpt-4o"
+	pinDesktopImageCapability(s, true)
+
+	turn, err := prepareDesktopAgentTurn(context.Background(), s, "what is in the camera photo?", desktopChatContext{
+		ImageBase64: imagePayload,
+	}, true)
+	if err != nil {
+		t.Fatalf("prepareDesktopAgentTurn: %v", err)
+	}
+	var imageURLs []string
+	for _, msg := range turn.req.Messages {
+		if msg.Role != openai.ChatMessageRoleUser {
+			continue
+		}
+		for _, part := range msg.MultiContent {
+			if part.Type == openai.ChatMessagePartTypeImageURL && part.ImageURL != nil {
+				imageURLs = append(imageURLs, part.ImageURL.URL)
+			}
+		}
+	}
+	if len(imageURLs) != 1 {
+		t.Fatalf("image parts = %d (%q), want 1", len(imageURLs), imageURLs)
+	}
+	if !strings.HasPrefix(imageURLs[0], "data:image/jpeg;base64,") {
+		t.Fatalf("image URL = %q, want a normalized JPEG data URL", imageURLs[0])
+	}
+	if imageURLs[0] != wantURL {
+		t.Fatalf("image URL was not the normalized vision data URL")
+	}
+	if imageURLs[0] == "data:image/jpeg;base64,"+imagePayload {
+		t.Fatal("image URL wrapped the raw client string instead of normalized bytes")
+	}
+	assertCameraPayloadAbsentFromHistory(t, s, imagePayload)
+}
+
+func TestDesktopCameraPhotoRejectsUndecodedBytes(t *testing.T) {
+	s := newTestDesktopChatServer(t)
+	s.Cfg.LLM.ProviderType = "openai"
+	s.Cfg.LLM.Model = "gpt-4o"
+	pinDesktopImageCapability(s, true)
+
+	orig := analyzeImageForFallback
+	analyzeImageForFallback = func(filePath, prompt string, cfg *config.Config) (string, int, int, error) {
+		t.Errorf("model fallback ran for undecodable camera bytes")
+		return "", 0, 0, nil
+	}
+	t.Cleanup(func() { analyzeImageForFallback = orig })
+
+	_, err := prepareDesktopAgentTurn(context.Background(), s, "what is in the camera photo?", desktopChatContext{
+		ImageBase64: "not-an-image",
+	}, true)
+	if err == nil {
+		t.Fatal("expected an error for camera bytes that are not an image")
+	}
+	history, historyErr := s.ShortTermMem.GetSessionMessages(desktopChatSessionID)
+	if historyErr != nil {
+		t.Fatal(historyErr)
+	}
+	if len(history) != 0 {
+		t.Fatalf("rejected camera turn was persisted: %#v", history)
+	}
+}
+
+func tinyCameraJPEG(t *testing.T) ([]byte, string) {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 2, 2))
+	img.Set(0, 0, color.RGBA{R: 200, G: 10, B: 10, A: 255})
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 80}); err != nil {
+		t.Fatal(err)
+	}
+	raw := append([]byte(nil), buf.Bytes()...)
+	return raw, base64.StdEncoding.EncodeToString(raw)
+}
+
+func pinDesktopImageCapability(s *Server, imageCapable bool) {
+	auto := false
+	providerType := s.Cfg.LLM.ProviderType
+	model := s.Cfg.LLM.Model
+	s.Cfg.Providers = []config.ProviderEntry{{
+		ID:    "camera-main",
+		Type:  providerType,
+		Model: model,
+		Capabilities: config.ProviderCapabilities{
+			Auto:       &auto,
+			Multimodal: imageCapable,
+		},
+	}}
+	s.Cfg.LLM.Provider = "camera-main"
+}
+
+func assertCameraPayloadAbsentFromHistory(t *testing.T, s *Server, imagePayload string) {
+	t.Helper()
+	history, err := s.ShortTermMem.GetSessionMessages(desktopChatSessionID)
+	if err != nil {
+		t.Fatalf("GetSessionMessages: %v", err)
+	}
+	if len(history) == 0 {
+		t.Fatal("camera turn was not persisted")
+	}
+	for _, msg := range history {
+		if strings.Contains(msg.Content, imagePayload) {
+			t.Fatalf("camera base64 leaked into SQLite history message: %q", msg.Content)
+		}
 	}
 }
 

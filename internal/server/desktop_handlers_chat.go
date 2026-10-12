@@ -2,9 +2,11 @@ package server
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -672,11 +674,37 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 		persistedPrompt = opts.PersistedMessage
 	}
 	requestPrompt := message
-	if strings.TrimSpace(chatContext.ImageBase64) != "" {
+	var cameraDataURL string
+	if cameraPayload := strings.TrimSpace(chatContext.ImageBase64); cameraPayload != "" {
+		decoded, err := base64.StdEncoding.DecodeString(cameraPayload)
+		if err != nil {
+			return turn, fmt.Errorf("decode camera photo: %w", err)
+		}
+		dataURL, err := tools.PrepareVisionDataURL(decoded, "")
+		if err != nil {
+			return turn, err
+		}
 		if mainProviderSupportsInlineImageData(&cfg) {
-			requestPrompt = message
+			cameraDataURL = dataURL
 		} else {
-			requestPrompt = message + "\n\nThe user attached a Camera app photo for this turn, but the selected provider is not configured for multimodal image input. The raw image data is intentionally not stored in chat history."
+			photo, err := os.CreateTemp("", "aurago-desktop-camera-*")
+			if err != nil {
+				return turn, fmt.Errorf("create camera photo file: %w", err)
+			}
+			photoPath := photo.Name()
+			defer os.Remove(photoPath)
+			if _, err := photo.Write(decoded); err != nil {
+				_ = photo.Close()
+				return turn, fmt.Errorf("write camera photo: %w", err)
+			}
+			if err := photo.Close(); err != nil {
+				return turn, fmt.Errorf("close camera photo: %w", err)
+			}
+			analysis, _, _, err := analyzeImageForFallback(photoPath, message, &cfg)
+			if err != nil {
+				return turn, err
+			}
+			requestPrompt = message + "\n\n" + analysis
 		}
 	}
 
@@ -707,7 +735,7 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 		Role:    openai.ChatMessageRoleUser,
 		Content: requestPrompt,
 	}
-	if strings.TrimSpace(chatContext.ImageBase64) != "" && mainProviderSupportsInlineImageData(&cfg) {
+	if cameraDataURL != "" {
 		currentRequestMessage = openai.ChatCompletionMessage{
 			Role: openai.ChatMessageRoleUser,
 			MultiContent: []openai.ChatMessagePart{
@@ -715,7 +743,7 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 				{
 					Type: openai.ChatMessagePartTypeImageURL,
 					ImageURL: &openai.ChatMessageImageURL{
-						URL: "data:image/jpeg;base64," + strings.TrimSpace(chatContext.ImageBase64),
+						URL: cameraDataURL,
 					},
 				},
 			},
