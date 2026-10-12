@@ -102,11 +102,22 @@ const (
 	EventStartWindow      = 3                // analyzed frames considered by the start rule
 	EventStartHits        = 2                // hits within the window that start an event
 	EventSingleHitScore   = 0.8              // a single hit at or above this score starts an event
-	EventEndAfter         = 30 * time.Second // an event ends after this long without a hit
+	EventEndAfter         = 30 * time.Second // an event ends after this long without a hit (minimum; slow cameras wait longer, see EventEndAfterFor)
 	EventFrameInterval    = 5 * time.Second  // at most one stored frame per interval while hits continue
 	EventMaxFrames        = 20               // stored frames per event
 	EventPendingHitFrames = 2                // hit frames kept in memory until the start decision
 )
+
+// EventEndAfterFor is the time without a hit after which an event of a camera
+// that analyzes every interval ends: EventEndAfter, or two intervals plus 5 s
+// when that is longer. With the plain 30 s a person in view of a camera that
+// analyzes every 30 s would start and end an event on every other frame, and one
+// missed detection would end the event of a camera at 15 s. The two intervals
+// plus 5 s allow one missed detection and the fetch time in between; the value
+// is EventEndAfter for intervals up to 12.5 s.
+func EventEndAfterFor(interval time.Duration) time.Duration {
+	return max(EventEndAfter, 2*interval+5*time.Second)
+}
 
 // Service defaults and timings.
 const (
