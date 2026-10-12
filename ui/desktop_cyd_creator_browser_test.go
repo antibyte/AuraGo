@@ -24,7 +24,8 @@ import (
 // and the restart that clears it, build with streamed log and problems, a cancelled change job that
 // leaves a draft, the agent job with plan confirmation over the fake SSE stream, read-only from the
 // desktop policy, the locked state, revisions and the event stream's give-up (401, deleted project).
-// Without plan 4b the Design mode shows its placeholder.
+// Design mode holds the designer (plan 4b): a palette add goes through the layout store into the
+// autosave (PUT with If-Match); TestDesktopCYDCreatorDesignerBrowser covers the designer itself.
 func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	s := startCYDCreatorSmoke(t)
@@ -47,8 +48,8 @@ func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 	page.MustElement(`.cc-dialog [data-cc-field="name"]`).MustInput("Thermometer")
 	page.MustEval(`()=>{document.querySelector('.cc-dialog [data-cc-field="orientation"]').value='portrait';}`)
 	page.MustElement(`.cc-dialog [data-cc-dialog-action="create"]`).MustClick()
-	// Plan 4b replaces the placeholder with the designer canvas; accept either so the smoke passes before and after 4b.
-	s.wait(`()=>document.querySelector('[data-cc-project-title]')?.textContent==='Thermometer' && !!document.querySelector('[data-cc-designer-placeholder], .cc-canvas')`)
+	// Design mode shows the designer (plan 4b), not the placeholder of a shell without it.
+	s.wait(`()=>document.querySelector('[data-cc-project-title]')?.textContent==='Thermometer' && !!document.querySelector('.cc-canvas') && !document.querySelector('[data-cc-designer-placeholder]')`)
 	// The orientation is not part of POST /projects: the layout is saved once with If-Match 1.
 	s.wait(`()=>cydFixture.state.layoutPuts.some(p=>p.version===2 && p.project.orientation==='portrait')`)
 	// Plan 5 modules are absent: Flash, OTA and Export are hidden; Build is ready; Design is active.
@@ -58,6 +59,15 @@ func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 	s.noRawKeys("project")
 	s.shot("project-design")
 	s.failOnPageErrors("new project")
+
+	// Store → autosave: a palette entry pressed without moving adds a label in the middle of the
+	// screen; the save chip goes dirty, the layout is saved once with If-Match of the version it
+	// replaces, and the chip shows saved.
+	page.MustEval(`()=>{const chip=document.querySelector('[data-cc-save-state]');window.__ccChip=[];new MutationObserver(()=>window.__ccChip.push(chip.dataset.state)).observe(chip,{attributes:true,attributeFilter:['data-state']});window.__ccPuts=cydFixture.state.layoutPuts.length;window.__ccVersion=cydFixture.inst().layout().version;}`)
+	page.MustElement(`[data-cc-palette="label"]`).MustClick()
+	s.wait(`()=>{const p=cydFixture.state.layoutPuts,last=p.at(-1);return p.length===window.__ccPuts+1 && last.ifMatch===String(window.__ccVersion) && last.version===window.__ccVersion+1 && last.project.screens[0].widgets.some(w=>w.type==='label') && cydFixture.inst().layout().version===last.version}`)
+	s.wait(`()=>window.__ccChip.includes('dirty') && document.querySelector('[data-cc-save-state]').dataset.state==='saved' && window.__ccChip.at(-1)==='saved'`)
+	s.failOnPageErrors("designer autosave")
 
 	// Code mode: your files and the generated group; edit app_main.cpp, autosave with If-Match.
 	page.MustElement(`[data-cc-action="mode-code"]`).MustClick()

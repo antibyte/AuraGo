@@ -57,6 +57,8 @@
             { id: 'synthwave', font: 'montserrat', font_size: 16, button_style: 'filled', tokens: tokens('#1b0d2e', '#2a1446', '#f7e8ff', '#ff3fb4') },
             { id: 'high_contrast', font: 'montserrat', font_size: 20, button_style: 'outline', tokens: tokens('#000000', '#000000', '#ffffff', '#ffe600') }
         ],
+        // The designer's widget catalog (generated from internal/cydcreator, see
+        // TestCYDCreatorDesignerCapsFixtureMatchesCatalog) arrives before the first capabilities answer.
         widgets: [],
         fonts: { families: ['montserrat', 'inter', 'jetbrains_mono'], sizes: [12, 14, 16, 20, 24, 28, 32, 40, 48] },
         symbols: ['ok', 'close', 'home', 'wifi'],
@@ -65,6 +67,11 @@
         ota: { enabled: true, public_url: 'https://aurago.test', insecure: false },
         limits: { max_screens: 16, max_widgets_per_screen: 200, max_app_files: 64, max_app_file_bytes: 262144, asset_budget_bytes: 262144 }
     };
+
+    const designerWidgets = previousFetch('/testdata/cyd_creator_designer_caps.json')
+        .then(r => r.json())
+        .then(designer => { caps.widgets = designer.widgets; })
+        .catch(err => { if (Array.isArray(window.fixtureErrors)) window.fixtureErrors.push('cyd-creator-fixture: designer caps: ' + err.message); });
 
     const APP_MAIN = '#include <cyd.h>\n#include "../generated/ui.h"\n\nvoid app_setup() {\n}\n\nvoid app_loop() {\n}\n';
     const GENERATED = {
@@ -373,7 +380,7 @@
 
         // An expired session: AuraGo's auth layer answers {"error":"unauthorized"} without a code.
         if (state.streamDown === 'unauthorized') return reply({ error: 'unauthorized' }, 401);
-        if (head === 'capabilities' && method === 'GET') return reply(state.caps);
+        if (head === 'capabilities' && method === 'GET') { await designerWidgets; return reply(state.caps); }
         if (head === 'toolchain' && id === 'pull' && method === 'POST') return reply({ toolchain: state.caps.toolchain }, 202);
         if (head === 'projects' && !id) {
             if (method === 'GET') return reply({ projects: Array.from(state.projects.values()).map(clone) });
@@ -398,7 +405,7 @@
                     layout.version += 1;
                     layout.project = body().project;
                     project.version = layout.version;
-                    state.layoutPuts.push({ version: layout.version, project: clone(layout.project) });
+                    state.layoutPuts.push({ version: layout.version, ifMatch: String(ifMatch), project: clone(layout.project) });
                     emit(id, 'project_changed', { version: layout.version, origin: 'user', what: 'layout' });
                     return reply({ version: layout.version, issues: [{ severity: 'warning', code: 'PARTLY_OUT_OF_BOUNDS', message: 'widget lbl_demo is partly outside the screen', screen: 'home', widget: 'lbl_demo' }] });
                 }
