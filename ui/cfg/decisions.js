@@ -67,14 +67,14 @@ function renderDecisionsSection(section) {
     node('p', 'cfg-note-banner', 'Jeff-2B · Q4_K_M · ' + tr('uncalibrated'));
 
     const lifetime = new AbortController();
-    let status, busy = false, timer, statusRequest;
+    let status, busy = false, activeAction = '', actionRevision = 0, timer, statusRequest;
     const attached = () => !lifetime.signal.aborted && root.isConnected;
     const dirty = () => typeof hasUnsavedConfigChanges === 'function' && hasUnsavedConfigChanges();
     const updateButtons = () => {
         if (!attached()) return;
         const changing = ['installing', 'downloading', 'starting', 'stopping'].includes(status?.state);
         for (const [action, button] of Object.entries(buttons)) {
-            button.disabled = action === 'stop' ? busy : busy || changing || dirty() || !status?.enabled || (action === 'test' && !status?.ready);
+            button.disabled = action === 'stop' ? busy && activeAction !== 'test' : busy || changing || dirty() || !status?.enabled || (action === 'test' && !status?.ready);
         }
     };
     const reason = code => {
@@ -125,9 +125,11 @@ function renderDecisionsSection(section) {
         }
     };
     const run = async action => {
-        if (busy || !attached()) return;
+        if (!attached() || (busy && !(action === 'stop' && activeAction === 'test'))) return;
         if (action !== 'stop' && dirty()) { result.textContent = t('config.local_llm.save_first'); return; }
+        const revision = ++actionRevision;
         busy = true;
+        activeAction = action;
         updateButtons();
         result.textContent = t('config.local_llm.working');
         const request = new AbortController();
@@ -137,16 +139,19 @@ function renderDecisionsSection(section) {
         try {
             const response = await fetch('/api/decisions/' + action, {method: 'POST', credentials: 'same-origin', signal: request.signal});
             const body = await response.json();
-            if (!attached()) return;
+            if (!attached() || revision !== actionRevision) return;
             result.textContent = response.ok ? (action === 'test' ? tr('test_passed') : '') : reason(body.code || 'request_failed');
             await refresh();
         } catch (error) {
-            if (attached()) result.textContent = tr('failed');
+            if (attached() && revision === actionRevision) result.textContent = tr('failed');
         } finally {
             clearTimeout(timeout);
             lifetime.signal.removeEventListener('abort', abort);
-            busy = false;
-            updateButtons();
+            if (revision === actionRevision) {
+                busy = false;
+                activeAction = '';
+                updateButtons();
+            }
         }
     };
     const dispose = () => { lifetime.abort(); statusRequest?.abort(); clearTimeout(timer); observer.disconnect(); };

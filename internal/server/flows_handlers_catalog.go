@@ -106,9 +106,10 @@ const flowNodeTypesCacheLangs = 17
 //
 //   - Key: the registry's Generation, read before describing (see
 //     flows.Registry.Generation), and the configuration snapshot (tool availability
-//     follows it; saving the configuration swaps the pointer). Nothing else that an
-//     answer holds changes at run time: translations, trigger samples and definitions are
-//     fixed once registered.
+//     follows it; saving the configuration swaps the pointer). Each answer also retains
+//     the Decisions availability it describes, which serveFlowNodeTypes revalidates
+//     independently of configuration changes. Translations, trigger samples and
+//     definitions are fixed once registered.
 //   - A put for another key drops every cached language. A put for an older generation,
 //     or for a configuration that is no longer the current one, is not kept, so a slow
 //     request cannot replace a newer answer with its stale one.
@@ -127,8 +128,9 @@ type flowNodeTypesCache struct {
 
 // flowNodeTypesAnswer is an encoded palette answer and its entity tag.
 type flowNodeTypesAnswer struct {
-	body []byte
-	etag string
+	body      []byte
+	etag      string
+	decisions flows.Availability
 }
 
 // get returns the cached answer of lang for the key (gen, cfg).
@@ -178,13 +180,20 @@ func (c *flowNodeTypesCache) put(gen uint64, cfg, current *config.Config, lang s
 func flowNodeTypesBody(reg *flows.Registry, lang string) (flowNodeTypesAnswer, error) {
 	tr := flowsTranslator(lang)
 	infos := flows.DescribeNodeTypes(reg, tr)
+	var decisionsAvailability flows.Availability
+	for _, info := range infos {
+		if info.Type == flows.TypeAIDecision {
+			decisionsAvailability = info.Availability
+			break
+		}
+	}
 	data, err := json.Marshal(map[string]any{"node_types": infos, "categories": flowCategories(infos, tr)})
 	if err != nil {
 		return flowNodeTypesAnswer{}, err
 	}
 	data = append(data, '\n')
 	sum := sha256.Sum256(data)
-	return flowNodeTypesAnswer{body: data, etag: `W/"` + hex.EncodeToString(sum[:16]) + `"`}, nil
+	return flowNodeTypesAnswer{body: data, etag: `W/"` + hex.EncodeToString(sum[:16]) + `"`, decisions: decisionsAvailability}, nil
 }
 
 // serveFlowNodeTypes answers GET /node-types from flowNodeTypesCache, with an ETag and
@@ -197,7 +206,7 @@ func (s *Server) serveFlowNodeTypes(w http.ResponseWriter, r *http.Request, lang
 	gen := reg.Generation() // before the registry is described
 	cfg := s.ConfigSnapshot()
 	answer, ok := s.flowNodeTypesCache.get(gen, cfg, lang)
-	if !ok {
+	if !ok || (s.flowsCatalog != nil && answer.decisions != s.flowsCatalog.DecisionAvailability()) {
 		var err error
 		if answer, err = s.flowNodeTypesCache.build(reg, lang); err != nil {
 			s.Logger.Warn("The flow node catalog could not be encoded", "lang", lang, "error", flowsErrorText(err))

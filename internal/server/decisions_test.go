@@ -365,6 +365,8 @@ func TestDecisionsDisabledCancellationAndTechnicalErrors(t *testing.T) {
 		status int
 	}{
 		{errDecisionImage, 400}, {context.DeadlineExceeded, 504}, {decisions.NewError("queue_full", nil), 429}, {fake.err, 503},
+		{decisions.NewError(decisions.CodeCancelled, context.DeadlineExceeded), 504},
+		{decisions.NewError(decisions.CodeCancelled, context.Canceled), 408},
 		{decisions.NewError(decisions.CodeCandidateNotScorable, nil), 400},
 	} {
 		w := httptest.NewRecorder()

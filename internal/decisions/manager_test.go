@@ -2,6 +2,7 @@ package decisions
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -201,10 +202,241 @@ func validTestSession() *testSession {
 	return &testSession{metadataValue: metadata, closed: make(chan struct{})}
 }
 
+type lifecycleRaceBlockingSession struct {
+	*testSession
+	closeEntered chan struct{}
+	releaseClose chan struct{}
+	closeOnce    sync.Once
+}
+
+func (session *lifecycleRaceBlockingSession) Close(ctx context.Context) error {
+	session.closeOnce.Do(func() { close(session.closeEntered) })
+	select {
+	case <-session.releaseClose:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	return session.testSession.Close(ctx)
+}
+
+type factoryWithSession struct {
+	*testFactory
+	session *testSession
+}
+
+func (factory factoryWithSession) start(context.Context, string, runtimeDevice, modelPaths, config.DecisionsConfig, RuntimeAccess, string) (runtimeSession, error) {
+	return factory.session, nil
+}
+
+type cancelDuringStartFactory struct {
+	*testFactory
+	entered chan struct{}
+}
+
+func (factory *cancelDuringStartFactory) start(ctx context.Context, _ string, _ runtimeDevice, _ modelPaths, _ config.DecisionsConfig, _ RuntimeAccess, _ string) (runtimeSession, error) {
+	close(factory.entered)
+	<-ctx.Done()
+	return nil, NewError(CodeRuntimeStartFailed, errors.New("fake launch failed after cancellation"))
+}
+
+type captureStartContextFactory struct {
+	*testFactory
+	startedCtx chan context.Context
+}
+
+func (factory *captureStartContextFactory) start(ctx context.Context, _ string, device runtimeDevice, _ modelPaths, _ config.DecisionsConfig, _ RuntimeAccess, _ string) (runtimeSession, error) {
+	factory.startedCtx <- ctx
+	return &testSession{metadataValue: metadataForDevice(device), closed: make(chan struct{})}, nil
+}
+
+type deadlineMetadataSession struct {
+	*testSession
+}
+
+func (session *deadlineMetadataSession) metadata(ctx context.Context) (runtimeMetadata, error) {
+	<-ctx.Done()
+	return runtimeMetadata{}, ctx.Err()
+}
+
 func testDecisionRequest() Request {
 	return Request{State: map[string]any{"x": 1}, Questions: []Question{{
 		ID: "q", Type: "choice", Options: []Option{{ID: "a", Label: "A"}, {ID: "b", Label: "B"}},
 	}}}
+}
+
+func TestStopFencesLifecycleOperationAlreadyClosingSession(t *testing.T) {
+	for _, operation := range []string{"start", "install"} {
+		t.Run(operation, func(t *testing.T) {
+			old := &lifecycleRaceBlockingSession{
+				testSession: validTestSession(), closeEntered: make(chan struct{}), releaseClose: make(chan struct{}),
+			}
+			factory := &testFactory{devices: []runtimeDevice{{ID: "cuda0", Name: "GPU", Backend: "cuda", Type: "GPU", BinarySHA: strings.Repeat("a", 64)}}}
+			if operation == "start" {
+				factoryWithReplacement := factoryWithSession{testFactory: factory, session: validTestSession()}
+				manager := startManagerForTest(t, config.DecisionsConfig{Enabled: true, Deployment: config.DecisionsDeploymentNative}, factory)
+				manager.factory = factoryWithReplacement
+				manager.session = old
+				manager.sessionStop = func() {}
+				manager.activeDeployment = config.DecisionsDeploymentNative
+				manager.status = statusFromMetadata(manager.cfg, manager.activeDeployment, old.metadataValue, false)
+				runStopRace(t, manager, old, operation, factory)
+				return
+			}
+			manager := NewManager(config.DecisionsConfig{Enabled: true, Deployment: config.DecisionsDeploymentNative}, t.TempDir())
+			manager.factory = factory
+			manager.session = old
+			manager.sessionStop = func() {}
+			manager.activeDeployment = config.DecisionsDeploymentNative
+			manager.status = statusFromMetadata(manager.cfg, manager.activeDeployment, old.metadataValue, false)
+			runStopRace(t, manager, old, operation, factory)
+		})
+	}
+}
+
+func runStopRace(t *testing.T, manager *Manager, old *lifecycleRaceBlockingSession, operation string, factory *testFactory) {
+	t.Helper()
+	operationResult := make(chan error, 1)
+	go func() {
+		if operation == "start" {
+			operationResult <- manager.Start(context.Background())
+		} else {
+			operationResult <- manager.Install(context.Background())
+		}
+	}()
+	select {
+	case <-old.closeEntered:
+	case <-time.After(time.Second):
+		t.Fatal("lifecycle operation did not block closing the current session")
+	}
+
+	stopResult := make(chan error, 1)
+	go func() { stopResult <- manager.Stop(context.Background()) }()
+	deadline := time.Now().Add(time.Second)
+	for {
+		manager.mu.RLock()
+		stopPublished := manager.policyGeneration > 0
+		manager.mu.RUnlock()
+		if stopPublished {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("Stop did not publish its generation revocation")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	close(old.releaseClose)
+	select {
+	case err := <-operationResult:
+		if ErrorCode(err) != CodeLifecycleBusy {
+			t.Fatalf("overlapping %s returned %v, want lifecycle_busy", operation, err)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("overlapping %s did not finish after Stop revoked it", operation)
+	}
+	select {
+	case err := <-stopResult:
+		if err != nil {
+			t.Fatalf("Stop: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Stop did not finish after the lifecycle operation released its lock")
+	}
+	manager.mu.RLock()
+	session := manager.session
+	status := manager.status
+	manager.mu.RUnlock()
+	if session != nil || status.Ready || status.State != "stopped" {
+		t.Fatalf("Stop left session=%T with status=%+v; want no session and stopped", session, status)
+	}
+	if operation == "install" && factory.installRuns != 0 {
+		t.Fatalf("Install ran %d provisioning calls after Stop revoked it", factory.installRuns)
+	}
+}
+
+func TestStartPreservesCancellationDuringRuntimeLaunch(t *testing.T) {
+	factory := &cancelDuringStartFactory{
+		testFactory: &testFactory{devices: []runtimeDevice{{ID: "cuda0", Name: "GPU", Backend: "cuda", Type: "GPU", BinarySHA: strings.Repeat("a", 64)}}},
+		entered:     make(chan struct{}),
+	}
+	manager := NewManager(config.DecisionsConfig{Enabled: true, Deployment: config.DecisionsDeploymentNative}, t.TempDir())
+	manager.factory = factory
+	manager.resolveModelPaths = func(string) (modelPaths, error) {
+		return modelPaths{Model: "managed-model.gguf", Projector: "managed-mmproj.gguf"}, nil
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	result := make(chan error, 1)
+	go func() { result <- manager.Start(ctx) }()
+	select {
+	case <-factory.entered:
+	case <-time.After(time.Second):
+		t.Fatal("Start did not reach the fake runtime launch")
+	}
+	cancel()
+	select {
+	case err := <-result:
+		if ErrorCode(err) != CodeCancelled || !errors.Is(err, context.Canceled) {
+			t.Fatalf("canceled Start error = %v (cause %v), want canceled", err, errors.Unwrap(err))
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Start did not stop after its caller canceled")
+	}
+}
+
+func TestSuccessfulStartOutlivesCallerContext(t *testing.T) {
+	factory := &captureStartContextFactory{
+		testFactory: &testFactory{devices: []runtimeDevice{{ID: "cuda0", Name: "GPU", Backend: "cuda", Type: "GPU", BinarySHA: strings.Repeat("a", 64)}}},
+		startedCtx:  make(chan context.Context, 1),
+	}
+	manager := NewManager(config.DecisionsConfig{Enabled: true, Deployment: config.DecisionsDeploymentNative}, t.TempDir())
+	manager.factory = factory
+	manager.resolveModelPaths = func(string) (modelPaths, error) {
+		return modelPaths{Model: "managed-model.gguf", Projector: "managed-mmproj.gguf"}, nil
+	}
+	callerCtx, cancel := context.WithCancel(context.Background())
+	if err := manager.Start(callerCtx); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	runtimeCtx := <-factory.startedCtx
+	cancel()
+	select {
+	case <-runtimeCtx.Done():
+		t.Fatal("successful Start retained the caller's cancellation lifetime")
+	case <-time.After(25 * time.Millisecond):
+	}
+	status := manager.Status()
+	if !status.Ready || status.State != "ready" {
+		t.Fatalf("caller cancellation stopped the runtime: %+v", status)
+	}
+	if err := manager.Shutdown(context.Background()); err != nil {
+		t.Fatalf("Shutdown: %v", err)
+	}
+}
+
+func TestEvaluatePreservesDeadlineCauseFromMetadataAndScoring(t *testing.T) {
+	t.Run("metadata", func(t *testing.T) {
+		session := &deadlineMetadataSession{testSession: validTestSession()}
+		manager := readyManagerForTest(t, session.testSession)
+		manager.session = session
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+		_, err := manager.Evaluate(ctx, testDecisionRequest())
+		if ErrorCode(err) != CodeCancelled || !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("metadata deadline error = %v (cause %v), want cancelled with deadline cause", err, errors.Unwrap(err))
+		}
+	})
+
+	t.Run("scoring", func(t *testing.T) {
+		session := validTestSession()
+		session.wait = true
+		session.started = make(chan struct{}, 1)
+		manager := readyManagerForTest(t, session)
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+		_, err := manager.Evaluate(ctx, testDecisionRequest())
+		if ErrorCode(err) != CodeCancelled || !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("scoring deadline error = %v (cause %v), want cancelled with deadline cause", err, errors.Unwrap(err))
+		}
+	})
 }
 
 func TestEvaluateBoundsQueueAndDoesNotRebindCancelledWaiters(t *testing.T) {

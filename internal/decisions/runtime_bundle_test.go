@@ -10,12 +10,15 @@ import (
 	"testing"
 )
 
-func writeTestRuntimeBundle(t *testing.T, directory, backend string) string {
+func writeTestRuntimeBundle(t *testing.T, directory, backend string, executable ...[]byte) string {
 	t.Helper()
 	if err := os.MkdirAll(directory, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	binary := []byte("local pinned runtime test executable")
+	if len(executable) > 0 {
+		binary = executable[0]
+	}
 	binaryPath := filepath.Join(directory, executableName(runtime.GOOS))
 	if err := os.WriteFile(binaryPath, binary, 0o700); err != nil {
 		t.Fatal(err)

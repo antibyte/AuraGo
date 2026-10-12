@@ -376,6 +376,7 @@
   number. The nested question and image-reference forms preserve order, stable IDs, templates
   for instructions/media references, and the server caps; the JSON state field can switch to a
   template. Its detail error-policy picker follows `error_modes` from the catalog.
+  Converting `score` to `choice` removes option values while retaining IDs, labels and wires.
 - Keyboard model of the canvas: the canvas is one tab stop, the zoom bar follows. Arrow keys move
   the selection between steps (announced through the live region, `core.announcer`), Enter opens
   the detail view, Delete/D/Ctrl+D/C act on the selection, Tab adds a step. A card's tool buttons

@@ -57,12 +57,18 @@ func (factory *managedRuntimeFactory) start(ctx context.Context, deployment stri
 }
 
 func discoverNativeDevices(ctx context.Context, managedRoot, sourceRoot, modelPath string) ([]runtimeDevice, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, NewError(CodeCancelled, err)
+	}
 	devices := make([]runtimeDevice, 0)
 	checked := false
 	managedTarget := filepath.Join(managedRoot, runtimeTarget(runtime.GOOS, runtime.GOARCH))
 	_, managedErr := os.Stat(managedTarget)
 	searchManaged := managedErr == nil
 	for _, backend := range runtimeBackends(runtime.GOOS) {
+		if err := ctx.Err(); err != nil {
+			return nil, NewError(CodeCancelled, err)
+		}
 		candidates := []string{filepath.Join(sourceRoot, "bin", "decisions-runtime", runtimeTarget(runtime.GOOS, runtime.GOARCH), backend)}
 		if searchManaged {
 			candidates = []string{filepath.Join(managedTarget, backend)}
@@ -77,6 +83,9 @@ func discoverNativeDevices(ctx context.Context, managedRoot, sourceRoot, modelPa
 			configureHiddenProcess(command)
 			command.Stdout = nil
 			output, err := command.Output()
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return nil, NewError(CodeCancelled, ctxErr)
+			}
 			if err != nil || len(output) > 1<<20 {
 				continue
 			}
@@ -112,6 +121,9 @@ func discoverNativeDevices(ctx context.Context, managedRoot, sourceRoot, modelPa
 			}
 			break
 		}
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, NewError(CodeCancelled, err)
 	}
 	if len(devices) == 0 && !checked {
 		return nil, NewError(CodeRuntimeArtifactMissing, fmt.Errorf("no verified native runtime bundles are installed"))

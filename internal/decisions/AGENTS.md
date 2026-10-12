@@ -38,10 +38,16 @@ attestation, request validation, candidate-logit normalization, and status.
   stops accepting work before config save returns. Status snapshots must be
   detached copies. `PrepareReconfigure` is the fast policy-publication half:
   it cancels active work, revokes the old session, and returns cleanup for the
-  caller to run after releasing broad config locks. Pending cleanup gates new
-  Start/Install operations, and AutoStart waits/retries bounded lifecycle-busy
-  windows so a replacement cannot race old runtime teardown. The synchronous
-  `Reconfigure` wrapper is only for callers that do not hold broad locks.
+  caller to run after releasing broad config locks. Pending reconfigure
+  cleanup gates new Start/Install operations. Stop also publishes a lifecycle
+  barrier before releasing the manager lock and holds it through teardown, so a Start/Install
+  already between its initial check and operation registration cannot publish
+  a replacement afterward. AutoStart waits/retries bounded lifecycle-busy
+  windows so a replacement cannot race old runtime teardown. Evaluation and
+  Start preserve caller cancellation causes, including deadlines, while a
+  successful Start detaches the resident process lifetime from the caller.
+  The synchronous `Reconfigure` wrapper is only for callers that do not hold
+  broad locks.
   Explicit Install also stops an active generation before runtime files can
   be provisioned or replaced; user-facing install controls should make that
   effect clear.

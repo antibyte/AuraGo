@@ -44,6 +44,7 @@ type Manager struct {
 	policyGeneration  uint64
 	generation        uint64
 	cleanupPending    int
+	stopPending       int
 	cleanupChanged    chan struct{}
 	closed            bool
 	status            Status
@@ -280,11 +281,15 @@ func (manager *Manager) Install(ctx context.Context) error {
 	if err := manager.stopLocked(ctx); err != nil {
 		return err
 	}
+	callerCtx := ctx
 	ctx, operationCancel, operationID, stopParent, err := manager.beginOperation(ctx)
 	if err != nil {
 		return err
 	}
 	defer manager.finishOperation(operationCancel, operationID, stopParent, false)
+	if err := ctx.Err(); err != nil {
+		return NewError(CodeCancelled, cancellationCause(callerCtx))
+	}
 	manager.mu.RLock()
 	cfg := manager.cfg
 	manager.mu.RUnlock()
@@ -320,7 +325,7 @@ func (manager *Manager) Install(ctx context.Context) error {
 	manager.mu.Lock()
 	if ctx.Err() != nil || manager.closed || !manager.cfg.Enabled || manager.operationID != operationID || manager.operationCancel == nil {
 		manager.mu.Unlock()
-		return NewError(CodeCancelled, context.Canceled)
+		return NewError(CodeCancelled, cancellationCause(callerCtx))
 	}
 	manager.status.Installed = true
 	manager.status.State = "installed"
@@ -406,12 +411,16 @@ func (manager *Manager) Start(ctx context.Context) error {
 	if err := manager.stopLocked(ctx); err != nil {
 		return err
 	}
+	callerCtx := ctx
 	ctx, operationCancel, operationID, stopParent, err := manager.beginOperation(ctx)
 	if err != nil {
 		return err
 	}
 	keepSession := false
 	defer func() { manager.finishOperation(operationCancel, operationID, stopParent, keepSession) }()
+	if err := ctx.Err(); err != nil {
+		return NewError(CodeCancelled, cancellationCause(callerCtx))
+	}
 	manager.mu.RLock()
 	startPolicyGeneration := manager.policyGeneration
 	manager.mu.RUnlock()
@@ -437,6 +446,9 @@ func (manager *Manager) Start(ctx context.Context) error {
 	}
 	manager.setState("discovering_devices", "", Progress{})
 	devices, err := manager.factory.discover(ctx, deployment, access, paths, manager.dataDir)
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return NewError(CodeCancelled, cancellationCause(callerCtx))
+	}
 	if err != nil {
 		manager.setRuntimeError(err)
 		return err
@@ -464,12 +476,29 @@ func (manager *Manager) Start(ctx context.Context) error {
 	var cpuActive bool
 	startCandidate := func(device runtimeDevice) bool {
 		if err := ctx.Err(); err != nil {
-			lastErr = NewError(CodeCancelled, err)
+			lastErr = NewError(CodeCancelled, cancellationCause(callerCtx))
 			return false
 		}
 		candidateSession, startErr := manager.factory.start(ctx, deployment, device, paths, cfg, access, manager.dataDir)
+		closeCandidate := func() {
+			if candidateSession != nil {
+				closeCtx, closeCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				_ = candidateSession.Close(closeCtx)
+				closeCancel()
+			}
+		}
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			closeCandidate()
+			lastErr = NewError(CodeCancelled, cancellationCause(callerCtx))
+			return false
+		}
 		if startErr == nil {
 			candidateMetadata, metadataErr := candidateSession.metadata(ctx)
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				closeCandidate()
+				lastErr = NewError(CodeCancelled, cancellationCause(callerCtx))
+				return false
+			}
 			if metadataErr == nil {
 				metadataErr = validateRuntimeMetadata(candidateMetadata, device, deployment, cfg.CPUFallbackAllowed)
 			}
@@ -478,9 +507,7 @@ func (manager *Manager) Start(ctx context.Context) error {
 				return true
 			}
 			startErr = NewError(CodeRuntimeAttestationFailed, metadataErr)
-			closeCtx, closeCancel := context.WithTimeout(context.Background(), 5*time.Second)
-			_ = candidateSession.Close(closeCtx)
-			closeCancel()
+			closeCandidate()
 		}
 		lastErr = startErr
 		return false
@@ -525,6 +552,9 @@ func (manager *Manager) Start(ctx context.Context) error {
 			if startCandidate(device) {
 				break
 			}
+			if ErrorCode(lastErr) == CodeCancelled {
+				return lastErr
+			}
 		}
 	}
 	if session == nil {
@@ -539,6 +569,13 @@ func (manager *Manager) Start(ctx context.Context) error {
 		return lastErr
 	}
 	manager.mu.Lock()
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		manager.mu.Unlock()
+		closeCtx, closeCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_ = session.Close(closeCtx)
+		closeCancel()
+		return NewError(CodeCancelled, cancellationCause(callerCtx))
+	}
 	if manager.closed || !manager.cfg.Enabled || manager.policyGeneration != startPolicyGeneration || (cpuActive && !manager.cfg.CPUFallbackAllowed) {
 		manager.mu.Unlock()
 		closeCtx, closeCancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -606,6 +643,7 @@ func hybridLayerAttempts(total int) []int {
 // Stop revokes the active generation before waiting for the process/container.
 func (manager *Manager) Stop(ctx context.Context) error {
 	manager.mu.Lock()
+	manager.stopPending++
 	opCancel := manager.operationCancel
 	manager.operationCancel = nil
 	evalCancel := manager.activeEvalCancel
@@ -622,6 +660,11 @@ func (manager *Manager) Stop(ctx context.Context) error {
 		manager.status.State = "disabled"
 	}
 	manager.mu.Unlock()
+	defer func() {
+		manager.mu.Lock()
+		manager.stopPending--
+		manager.mu.Unlock()
+	}()
 	if opCancel != nil {
 		opCancel()
 	}
@@ -793,7 +836,7 @@ func (manager *Manager) Evaluate(ctx context.Context, request Request) (Response
 	if manager.session != session || manager.generation != generation || !manager.cfg.Enabled || manager.closed || manager.cfg.CPUFallbackAllowed != cpuAllowed {
 		manager.mu.Unlock()
 		cancelEvaluation()
-		return Response{}, NewError(CodeCancelled, context.Canceled)
+		return Response{}, NewError(CodeCancelled, cancellationCause(ctx))
 	}
 	manager.activeEvalID++
 	evaluationID := manager.activeEvalID
@@ -811,7 +854,7 @@ func (manager *Manager) Evaluate(ctx context.Context, request Request) (Response
 	metadata, err := session.metadata(ctx)
 	if err != nil {
 		if ctx.Err() != nil || !manager.evaluationCurrent(session, generation, cpuAllowed) {
-			return Response{}, NewError(CodeCancelled, context.Canceled)
+			return Response{}, NewError(CodeCancelled, cancellationCause(ctx))
 		}
 		failure := NewError(CodeRuntimeUnavailable, err)
 		manager.retireUnhealthyRuntime(session, generation, failure)
@@ -834,7 +877,7 @@ func (manager *Manager) Evaluate(ctx context.Context, request Request) (Response
 			return Response{}, NewError(CodeCancelled, err)
 		}
 		if !manager.evaluationCurrent(session, generation, cpuAllowed) {
-			return Response{}, NewError(CodeCancelled, context.Canceled)
+			return Response{}, NewError(CodeCancelled, cancellationCause(ctx))
 		}
 		options := optionsForQuestion(question)
 		candidates, err := candidatesForOptions(options)
@@ -849,7 +892,7 @@ func (manager *Manager) Evaluate(ctx context.Context, request Request) (Response
 		if err != nil {
 			code := ErrorCode(err)
 			if ctx.Err() != nil || !manager.evaluationCurrent(session, generation, cpuAllowed) {
-				return Response{}, NewError(CodeCancelled, context.Canceled)
+				return Response{}, NewError(CodeCancelled, cancellationCause(ctx))
 			}
 			failure := NewError(code, err)
 			manager.retireUnhealthyRuntime(session, generation, failure)
@@ -861,7 +904,7 @@ func (manager *Manager) Evaluate(ctx context.Context, request Request) (Response
 			return Response{}, failure
 		}
 		if !manager.evaluationCurrent(session, generation, cpuAllowed) {
-			return Response{}, NewError(CodeCancelled, context.Canceled)
+			return Response{}, NewError(CodeCancelled, cancellationCause(ctx))
 		}
 		if score.usage.PromptTokens < 0 || score.usage.ImageTokens < 0 || score.usage.ContextTokens != score.usage.PromptTokens+score.usage.ImageTokens || score.usage.ContextTokens < 0 || score.usage.ContextTokens > remaining {
 			failure := NewError(CodeInvalidRuntimeResponse, fmt.Errorf("runtime returned invalid token accounting"))
@@ -882,7 +925,7 @@ func (manager *Manager) Evaluate(ctx context.Context, request Request) (Response
 		remaining -= score.usage.ContextTokens
 	}
 	if !manager.evaluationCurrent(session, generation, cpuAllowed) {
-		return Response{}, NewError(CodeCancelled, context.Canceled)
+		return Response{}, NewError(CodeCancelled, cancellationCause(ctx))
 	}
 	return result, nil
 }
@@ -1021,7 +1064,7 @@ func (manager *Manager) beginOperation(parent context.Context) (context.Context,
 		stopParent()
 		return nil, nil, 0, nil, NewError(CodeServiceDisabled, nil)
 	}
-	if manager.cleanupPending > 0 {
+	if manager.cleanupPending > 0 || manager.stopPending > 0 {
 		manager.mu.Unlock()
 		cancel()
 		stopParent()
@@ -1037,9 +1080,16 @@ func (manager *Manager) beginOperation(parent context.Context) (context.Context,
 
 func (manager *Manager) cleanupIsPending() bool {
 	manager.mu.RLock()
-	pending := manager.cleanupPending > 0
+	pending := manager.cleanupPending > 0 || manager.stopPending > 0
 	manager.mu.RUnlock()
 	return pending
+}
+
+func cancellationCause(ctx context.Context) error {
+	if ctx != nil && ctx.Err() != nil {
+		return ctx.Err()
+	}
+	return context.Canceled
 }
 
 func (manager *Manager) waitForCleanup(ctx context.Context) error {

@@ -489,6 +489,12 @@
                     ];
                     else if (type === 'noul' || !Array.isArray(question.options) || question.options.length < 2) {
                         question.options = [{ id: 'option_a', label: '' }, { id: 'option_b', label: '' }];
+                    } else if (question.type === 'choice') {
+                        // Score-only values are invalid for choice questions; keep the option IDs,
+                        // labels, and their stable output ports when switching back to routing.
+                        question.options.forEach(option => {
+                            if (option && typeof option === 'object' && !Array.isArray(option)) delete option.value;
+                        });
                     }
                     emit(); render();
                 });

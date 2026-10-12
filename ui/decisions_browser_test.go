@@ -34,14 +34,22 @@ func TestDecisionsConfigBrowser(t *testing.T) {
 	defer page.MustClose()
 	waitForJSBool(t, page, `()=>!!document.querySelector('.pw-overview-card')`)
 	page.MustEval(`async()=>{
-        window.decisionActions=[];window.decisionStatus={enabled:false,installed:false,ready:false,state:'disabled',deployment:'native',code:'service_disabled'};
+        window.decisionActions=[];window.holdDecisionTest=false;window.holdDecisionStop=false;window.decisionStatus={enabled:false,installed:false,ready:false,state:'disabled',deployment:'native',code:'service_disabled'};
         const previous=window.fetch;
         window.fetch=async(url,options)=>{
             if(url==='/api/decisions/status') {
                 if(window.holdDecisionStatus) return new Promise(resolve=>window.resolveDecisionStatus=resolve);
                 return new Response(JSON.stringify(window.decisionStatus));
             }
-            if(url.startsWith('/api/decisions/')) {window.decisionActions.push(url);return new Response('{}');}
+            if(url==='/api/decisions/test'&&window.holdDecisionTest) return new Promise(resolve=>window.resolveDecisionTest=resolve);
+            if(url.startsWith('/api/decisions/')) {
+                window.decisionActions.push(url);
+                if(url==='/api/decisions/stop') {
+                    window.decisionStatus={enabled:true,installed:true,ready:false,state:'stopped',deployment:'native'};
+                    if(window.holdDecisionStop) return new Promise(resolve=>window.resolveDecisionStop=resolve);
+                }
+                return new Response('{}');
+            }
             return previous(url,options);
         };
         await selectSection('decisions',{scrollBehavior:'auto'});
@@ -66,6 +74,27 @@ func TestDecisionsConfigBrowser(t *testing.T) {
 	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-result]')?.textContent.includes('Entscheidungstest abgeschlossen')`)
 	if page.MustEval(`()=>decisionActions.length`).Int() != 1 {
 		t.Fatal("test made unexpected requests")
+	}
+	// Stop must interrupt a pending test, and its late response must not replace Stop's result.
+	page.MustEval(`()=>{decisionActions=[];window.holdDecisionTest=true;window.holdDecisionStop=true;document.querySelector('[data-decisions-action="test"]').click();}`)
+	waitForJSBool(t, page, `()=>typeof resolveDecisionTest==='function'`)
+	if page.MustEval(`()=>document.querySelector('[data-decisions-action="stop"]').disabled`).Bool() {
+		t.Fatal("Stop was disabled while a test was running")
+	}
+	page.MustEval(`()=>document.querySelector('[data-decisions-action="stop"]').click()`)
+	waitForJSBool(t, page, `()=>typeof resolveDecisionStop==='function'`)
+	page.MustEval(`()=>document.querySelector('[data-decisions-action="stop"]').click()`)
+	if !page.MustEval(`()=>document.querySelector('[data-decisions-action="stop"]').disabled && decisionActions.filter(url=>url==='/api/decisions/stop').length===1`).Bool() {
+		t.Fatal("pending Stop was not disabled or issued a duplicate request")
+	}
+	page.MustEval(`async()=>{window.holdDecisionTest=false;resolveDecisionTest(new Response('{}'));await new Promise(resolve=>setTimeout(resolve,30));}`)
+	if !page.MustEval(`()=>document.querySelector('[data-decisions-action="stop"]').disabled && document.querySelector('[data-decisions-result]')?.textContent.includes('Wird ausgeführt') && decisionActions.filter(url=>url==='/api/decisions/stop').length===1`).Bool() {
+		t.Fatal("late test response changed or unlocked a pending Stop")
+	}
+	page.MustEval(`()=>{window.holdDecisionStop=false;resolveDecisionStop(new Response('{}'));}`)
+	waitForJSBool(t, page, `()=>!document.querySelector('[data-decisions-action="stop"]').disabled && document.querySelector('[data-decisions-result]')?.textContent===''`)
+	if page.MustEval(`()=>document.querySelector('[data-decisions-result]')?.textContent.includes('Entscheidungstest abgeschlossen')`).Bool() {
+		t.Fatal("late test response overwrote the completed Stop result")
 	}
 	page.MustEval(`()=>document.querySelector('[data-path="decisions.cpu_fallback_allowed"]').click()`)
 	if !page.MustEval(`async()=>{await saveConfig();const config=await(await fetch('/api/config')).json();return config.decisions.cpu_fallback_allowed===false;}`).Bool() {

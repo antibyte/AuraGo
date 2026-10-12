@@ -7,12 +7,12 @@ param(
     [string]$Generator = ''
 )
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'decisions-runtime-target.ps1')
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $source = Join-Path $repo 'decisions_runtime'
 if (-not $Target) {
     $os = if ($IsWindows -or $env:OS -eq 'Windows_NT') { 'windows' } elseif ($IsMacOS) { 'darwin' } else { 'linux' }
-    $arch = if ([Environment]::Is64BitOperatingSystem) { 'amd64' } else { '386' }
-    if ($env:PROCESSOR_ARCHITECTURE -match 'ARM64') { $arch = 'arm64' }
+    $arch = Get-DecisionsRuntimeArchitecture
     $Target = "$os-$arch"
 }
 $runtimeDir = Join-Path $repo "bin/decisions-runtime/$Target/$Backend"

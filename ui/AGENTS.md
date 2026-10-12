@@ -758,7 +758,8 @@ worker. Keep packaging, recovery and offline instructions in
 - `cfg/decisions.js` uses the shared saved/draft state for activation, deployment,
   and explicit CPU/mixed-offload permission. Its status polling is passive,
   bounded, cancelled on disposal, and cannot repaint another section. Install,
-  start, and test require saved settings; stop remains available for containment.
+  start, and test require saved settings; stop remains available for containment,
+  including while a test is pending. A superseded test response must not replace the stop result.
   Keep `config.decisions.*` in all sixteen locales aligned and verify
   `TestDecisionsConfigBrowser` and `TestDecisionsLocaleKeys`. The backend and
   hardware acceptance contract lives in `../internal/decisions/AGENTS.md`.
