@@ -32,7 +32,6 @@ func EnsureOllamaManagedRunning(cfg *config.Config, logger interface {
 	if port <= 0 {
 		port = 11434
 	}
-	portStr := fmt.Sprintf("%d", port)
 
 	// Detect GPU if requested
 	var gpu GPUInfo
@@ -47,127 +46,22 @@ func EnsureOllamaManagedRunning(cfg *config.Config, logger interface {
 	}
 
 	image := ollamaImageForGPU(gpu)
-
-	// Check if ANY ollama container is already serving on our port
-	listData, listCode, listErr := dockerRequest(dockerCfg, "GET",
-		fmt.Sprintf(`/containers/json?filters={"status":["running"],"ancestor":[%q]}`, image), "")
-	if listErr == nil && listCode == 200 {
-		var containers []map[string]interface{}
-		if json.Unmarshal(listData, &containers) == nil && len(containers) > 0 && ollamaContainerListHasHostPort(listData, port) {
-			logger.Info("[Ollama Managed] Container already running (external)", "count", len(containers))
-			waitForOllamaReady(port, logger)
-			pullManagedModels(port, mi.DefaultModels, logger)
-			return
-		}
-	}
-
-	// Inspect our managed container
-	data, code, err := dockerRequest(dockerCfg, "GET", "/containers/"+ollamaManagedContainerName+"/json", "")
+	payload, err := ollamaManagedCreatePayload(port, mi.VolumePath, mi.MemoryLimit, gpu, mi.UseHostGPU)
 	if err != nil {
-		logger.Warn("[Ollama Managed] Docker unavailable, skipping auto-start", "error", err)
+		logger.Error("[Ollama Managed] Failed to build container payload", "error", err)
 		return
 	}
-
-	if code == 200 {
-		if ollamaContainerNeedsRecreateForHostDevices(data) {
-			logger.Warn("[Ollama Managed] Existing container references missing host GPU devices; recreating")
-			removeOllamaContainerBestEffort(dockerCfg, ollamaManagedContainerName)
-			code = 404
-		} else {
-			// Container exists — check if running
-			var info map[string]interface{}
-			if json.Unmarshal(data, &info) == nil {
-				if state, ok := info["State"].(map[string]interface{}); ok {
-					if running, _ := state["Running"].(bool); running {
-						logger.Info("[Ollama Managed] Container already running")
-						waitForOllamaReady(port, logger)
-						pullManagedModels(port, mi.DefaultModels, logger)
-						return
-					}
-				}
-			}
-			// Exists but stopped — start it
-			startData, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+ollamaManagedContainerName+"/start", "")
-			if startErr != nil || (startCode != 204 && startCode != 304) {
-				logger.Error("[Ollama Managed] Failed to start existing container", "code", startCode, "error", startErr, "docker_error", dockerBodyMessage(startCode, startData))
-				return
-			}
-			logger.Info("[Ollama Managed] Container started")
-			waitForOllamaReady(port, logger)
-			pullManagedModels(port, mi.DefaultModels, logger)
-			return
-		}
-	}
-
-	if code != 404 {
-		logger.Warn("[Ollama Managed] Unexpected Docker inspect response, skipping", "code", code)
-		return
-	}
-
-	// Container does not exist — create and start
-	hostConfig := map[string]interface{}{
-		"RestartPolicy": map[string]interface{}{"Name": "unless-stopped"},
-		"PortBindings": map[string]interface{}{
-			"11434/tcp": []map[string]string{{"HostIp": "127.0.0.1", "HostPort": portStr}},
-		},
-	}
-
-	// Memory limit
-	if mi.MemoryLimit != "" {
-		if memBytes, ok := parseMemoryLimit(mi.MemoryLimit); ok {
-			hostConfig["Memory"] = memBytes
-		}
-	}
-
-	// Persistent volume for model storage
-	var binds []string
-	if mi.VolumePath != "" {
-		binds = append(binds, mi.VolumePath+":/root/.ollama")
-	}
-	if len(binds) > 0 {
-		hostConfig["Binds"] = binds
-	}
-
-	// GPU passthrough
-	applyGPUConfig(gpu, hostConfig)
-
-	payload := map[string]interface{}{
-		"Image":      image,
-		"HostConfig": hostConfig,
-		"ExposedPorts": map[string]interface{}{
-			"11434/tcp": struct{}{},
-		},
-	}
-	// Pass backend-specific environment variables (e.g. OLLAMA_GPU_BACKEND=vulkan).
-	if len(gpu.Env) > 0 {
-		payload["Env"] = gpu.Env
-	}
-	body, _ := json.Marshal(payload)
-	createData, createCode, createErr := dockerRequest(dockerCfg, "POST", "/containers/create?name="+ollamaManagedContainerName, string(body))
-	if createCode == 404 {
-		// Image not present locally — pull it, then retry the create once.
-		logger.Info("[Ollama Managed] Image not found locally, pulling...", "image", image)
-		if pullErr := pullDockerImage(dockerCfg, image); pullErr != nil {
-			logger.Error("[Ollama Managed] Image pull failed", "image", image, "error", pullErr)
-			return
-		}
-		logger.Info("[Ollama Managed] Image pulled successfully", "image", image)
-		createData, createCode, createErr = dockerRequest(dockerCfg, "POST", "/containers/create?name="+ollamaManagedContainerName, string(body))
-	}
-	if createErr != nil || createCode != 201 {
-		logger.Error("[Ollama Managed] Failed to create container", "code", createCode, "error", createErr, "docker_error", dockerBodyMessage(createCode, createData))
-		return
-	}
-
-	startData, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+ollamaManagedContainerName+"/start", "")
-	if startErr != nil || (startCode != 204 && startCode != 304) {
-		logger.Error("[Ollama Managed] Failed to start new container", "code", startCode, "error", startErr, "docker_error", dockerBodyMessage(startCode, startData))
-		return
-	}
-	logger.Info("[Ollama Managed] Container created and started", "image", image, "port", port, "gpu", gpu.Backend)
-
-	waitForOllamaReady(port, logger)
-	pullManagedModels(port, mi.DefaultModels, logger)
+	reconcileNamedOllamaContainer(ollamaReconcile{
+		Label:         "Ollama Managed",
+		ContainerName: ollamaManagedContainerName,
+		Port:          port,
+		Image:         image,
+		GPUBackend:    gpu.Backend,
+		Payload:       payload,
+		Docker:        dockerCfg,
+		Logger:        logger,
+		Models:        mi.DefaultModels,
+	})
 }
 
 func ollamaContainerNeedsRecreateForHostDevices(data []byte) bool {
@@ -222,20 +116,25 @@ func removeOllamaContainerBestEffort(dockerCfg DockerConfig, containerName strin
 	_, _, _ = dockerRequest(dockerCfg, "DELETE", "/containers/"+containerName+"?force=true", "")
 }
 
+// RemoveOllamaManagedContainer stops and deletes aurago_ollama_managed.
+func RemoveOllamaManagedContainer(dockerHost string) {
+	removeOllamaContainerBestEffort(DockerConfig{Host: dockerHost}, ollamaManagedContainerName)
+}
+
 // StopOllamaManagedContainer stops the managed Ollama container.
 func StopOllamaManagedContainer(dockerHost string) string {
 	dockerCfg := DockerConfig{Host: dockerHost}
 	_, code, err := dockerRequest(dockerCfg, "POST", "/containers/"+ollamaManagedContainerName+"/stop", "")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Docker unavailable: %s"}`, err)
+		return ollamaErrJSON("Docker unavailable: " + err.Error())
 	}
 	if code == 204 || code == 304 {
 		return `{"status":"ok","message":"Container stopped."}`
 	}
 	if code == 404 {
-		return `{"status":"error","message":"Managed Ollama container not found."}`
+		return ollamaErrJSON("Managed Ollama container not found.")
 	}
-	return fmt.Sprintf(`{"status":"error","message":"Unexpected response code: %d"}`, code)
+	return ollamaErrJSON(fmt.Sprintf("Unexpected response code: %d", code))
 }
 
 // StartOllamaManagedContainer starts a previously stopped managed Ollama container.
@@ -243,15 +142,15 @@ func StartOllamaManagedContainer(dockerHost string) string {
 	dockerCfg := DockerConfig{Host: dockerHost}
 	_, code, err := dockerRequest(dockerCfg, "POST", "/containers/"+ollamaManagedContainerName+"/start", "")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Docker unavailable: %s"}`, err)
+		return ollamaErrJSON("Docker unavailable: " + err.Error())
 	}
 	if code == 204 || code == 304 {
 		return `{"status":"ok","message":"Container started."}`
 	}
 	if code == 404 {
-		return `{"status":"error","message":"Managed Ollama container not found."}`
+		return ollamaErrJSON("Managed Ollama container not found.")
 	}
-	return fmt.Sprintf(`{"status":"error","message":"Unexpected response code: %d"}`, code)
+	return ollamaErrJSON(fmt.Sprintf("Unexpected response code: %d", code))
 }
 
 // RestartOllamaManagedContainer restarts the managed Ollama container.
@@ -259,15 +158,15 @@ func RestartOllamaManagedContainer(dockerHost string) string {
 	dockerCfg := DockerConfig{Host: dockerHost}
 	_, code, err := dockerRequest(dockerCfg, "POST", "/containers/"+ollamaManagedContainerName+"/restart", "")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Docker unavailable: %s"}`, err)
+		return ollamaErrJSON("Docker unavailable: " + err.Error())
 	}
 	if code == 204 {
 		return `{"status":"ok","message":"Container restarted."}`
 	}
 	if code == 404 {
-		return `{"status":"error","message":"Managed Ollama container not found."}`
+		return ollamaErrJSON("Managed Ollama container not found.")
 	}
-	return fmt.Sprintf(`{"status":"error","message":"Unexpected response code: %d"}`, code)
+	return ollamaErrJSON(fmt.Sprintf("Unexpected response code: %d", code))
 }
 
 // OllamaManagedContainerStatus returns the status of the managed Ollama container.
@@ -275,17 +174,21 @@ func OllamaManagedContainerStatus(dockerHost string) string {
 	dockerCfg := DockerConfig{Host: dockerHost}
 	data, code, err := dockerRequest(dockerCfg, "GET", "/containers/"+ollamaManagedContainerName+"/json", "")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Docker unavailable: %s"}`, err)
+		return ollamaErrJSON("Docker unavailable: " + err.Error())
 	}
 	if code == 404 {
-		return `{"status":"not_found","message":"Managed Ollama container does not exist."}`
+		out, marshalErr := json.Marshal(map[string]string{"status": "not_found", "message": "Managed Ollama container does not exist."})
+		if marshalErr != nil {
+			return ollamaErrJSON("internal error")
+		}
+		return string(out)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","message":"Unexpected response code: %d"}`, code)
+		return ollamaErrJSON(fmt.Sprintf("Unexpected response code: %d", code))
 	}
 	var info map[string]interface{}
 	if json.Unmarshal(data, &info) != nil {
-		return `{"status":"error","message":"Failed to parse container info."}`
+		return ollamaErrJSON("Failed to parse container info.")
 	}
 	state, _ := info["State"].(map[string]interface{})
 	running, _ := state["Running"].(bool)
@@ -309,13 +212,13 @@ func OllamaManagedContainerLogs(dockerHost string, tail int) string {
 	data, code, err := dockerRequest(dockerCfg, "GET",
 		fmt.Sprintf("/containers/%s/logs?stdout=true&stderr=true&tail=%d", ollamaManagedContainerName, tail), "")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Docker unavailable: %s"}`, err)
+		return ollamaErrJSON("Docker unavailable: " + err.Error())
 	}
 	if code == 404 {
-		return `{"status":"error","message":"Managed Ollama container not found."}`
+		return ollamaErrJSON("Managed Ollama container not found.")
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","message":"Unexpected response code: %d"}`, code)
+		return ollamaErrJSON(fmt.Sprintf("Unexpected response code: %d", code))
 	}
 	// Docker log stream has 8-byte header per frame; strip for readability
 	logs := stripDockerLogHeaders(data)
@@ -338,7 +241,7 @@ func pullManagedModels(port int, models []string, logger interface {
 		if model == "" {
 			continue
 		}
-		pullModelIfNeeded(port, model, logger)
+		startOllamaModelPull(port, model, logger)
 	}
 }
 

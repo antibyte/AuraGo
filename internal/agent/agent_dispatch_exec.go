@@ -1315,8 +1315,8 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			req := decodeAPIRequestArgs(tc)
 			logger.Info("LLM requested generic API request", "url", req.URL)
 			apiOpts := tools.APIRequestOptions{}
-			// Flows never get the local Ollama exception: it skips the SSRF check for
-			// loopback Ollama paths, the admin ones (/api/delete, /api/pull) included.
+			// Flows never get the local Ollama exception. The exception is inference
+			// and read paths on the configured loopback URL only.
 			if dc.MessageSource != MessageSourceFlow {
 				apiOpts.AllowedLocalOllamaBaseURL = cfg.Ollama.URL
 			}

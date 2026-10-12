@@ -1572,7 +1572,7 @@ ollama:
         gpu_backend: "auto"            # "auto", "nvidia", "amd", "intel", "vulkan" — use "vulkan" for older iGPUs/APUs without ROCm support
         default_models: []             # models to auto-pull after start, e.g. ["llama3", "mistral"]
         memory_limit: ""               # Docker memory limit, e.g. "8g" (empty = unlimited)
-        volume_path: ""                # host path for persistent model storage (empty = Docker volume)
+        volume_path: ""                # host path for /root/.ollama; empty uses named volume aurago_ollama_managed_models
 personality:
     core_personality: friend           # active personality profile, e.g. 'neutral', 'punk', 'zen'
     engine: true                       # enable personality engine (mood, micro-traits)

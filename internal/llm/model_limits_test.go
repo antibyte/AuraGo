@@ -2,6 +2,7 @@ package llm
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -173,6 +174,16 @@ func TestProviderMetadataPrecedesLegacyContextPrefix(t *testing.T) {
 		if r.URL.Path != "/api/show" {
 			t.Errorf("probe path = %q, want /api/show", r.URL.Path)
 		}
+		body, err := io.ReadAll(io.LimitReader(r.Body, 4096))
+		if err != nil {
+			t.Errorf("read probe body: %v", err)
+		}
+		var req map[string]json.RawMessage
+		if json.Unmarshal(body, &req) != nil {
+			t.Errorf("probe body = %s", body)
+		} else if _, ok := req["name"]; ok || len(req["model"]) == 0 {
+			t.Errorf("probe body = %s, want model", body)
+		}
 		fmt.Fprint(w, `{"model_info":{"llama.context_length":8192}}`)
 	}))
 	defer server.Close()
@@ -195,6 +206,21 @@ func TestProviderMetadataPrecedesLegacyContextPrefix(t *testing.T) {
 	overridden.ContextWindowOverride = 16384
 	if got := ResolveModelLimits(context.Background(), overridden, 0, nil); got.ContextWindow != 16384 || got.ContextSource != "provider_override" {
 		t.Fatalf("provider override lost to smaller probe metadata: %+v", got)
+	}
+}
+
+func TestOllamaProbeUsesTheSmallerNumCtx(t *testing.T) {
+	InvalidateModelLimitCache()
+	defer InvalidateModelLimitCache()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"model_info":{"llama.context_length":8192},"parameters":"num_ctx 2048"}`)
+	}))
+	defer server.Close()
+
+	route := ModelRoute{ProviderType: "ollama", BaseURL: server.URL + "/v1", Model: "llama3-numctx", Primary: true}
+	limits := ResolveModelLimits(context.Background(), route, 0, nil)
+	if limits.ContextWindow != 2048 || limits.ContextSource != "provider_probe" {
+		t.Fatalf("num_ctx did not cap context metadata: %+v", limits)
 	}
 }
 

@@ -1914,7 +1914,7 @@ type Config struct {
 			GPUBackend    string   `yaml:"gpu_backend"`    // "auto", "nvidia", "amd", "intel", "vulkan" (default: "auto")
 			DefaultModels []string `yaml:"default_models"` // models to auto-pull after container start
 			MemoryLimit   string   `yaml:"memory_limit"`   // Docker memory limit, e.g. "8g" (empty = unlimited)
-			VolumePath    string   `yaml:"volume_path"`    // host path for persistent model storage (empty = Docker volume)
+			VolumePath    string   `yaml:"volume_path"`    // host path for /root/.ollama; empty uses named volume aurago_ollama_managed_models
 		} `yaml:"managed_instance"`
 	} `yaml:"ollama"`
 	RocketChat struct {

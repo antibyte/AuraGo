@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -162,11 +161,11 @@ func detectVulkan() (GPUInfo, bool) {
 func ollamaImageForGPU(gpu GPUInfo) string {
 	switch gpu.Backend {
 	case "amd":
-		return "ollama/ollama:rocm"
+		return "ollama/ollama:" + ollamaImageTag + "-rocm"
 	default:
 		// NVIDIA, Intel, Vulkan, and CPU all work with the standard image.
 		// Vulkan uses OLLAMA_GPU_BACKEND=vulkan env var (set in GPUInfo.Env).
-		return "ollama/ollama:latest"
+		return "ollama/ollama:" + ollamaImageTag
 	}
 }
 
@@ -188,7 +187,6 @@ func EnsureOllamaEmbeddingsRunning(cfg *config.Config, logger interface {
 	if port <= 0 {
 		port = 11435
 	}
-	portStr := fmt.Sprintf("%d", port)
 
 	// Detect GPU if requested
 	var gpu GPUInfo
@@ -203,111 +201,26 @@ func EnsureOllamaEmbeddingsRunning(cfg *config.Config, logger interface {
 	}
 
 	image := ollamaImageForGPU(gpu)
-
-	// Check if ANY ollama container is already serving on our port
-	listData, listCode, listErr := dockerRequest(dockerCfg, "GET",
-		fmt.Sprintf(`/containers/json?filters={"status":["running"],"ancestor":[%q]}`, image), "")
-	if listErr == nil && listCode == 200 {
-		var containers []map[string]interface{}
-		if json.Unmarshal(listData, &containers) == nil && len(containers) > 0 && ollamaContainerListHasHostPort(listData, port) {
-			logger.Info("[Ollama Embeddings] Container already running (external)", "count", len(containers))
-			waitForOllamaReady(port, logger)
-			pullModelIfNeeded(port, lo.Model, logger)
-			return
-		}
-	}
-
-	// Inspect our managed container
-	data, code, err := dockerRequest(dockerCfg, "GET", "/containers/"+ollamaEmbContainerName+"/json", "")
+	payload, err := ollamaEmbeddingsCreatePayload(port, gpu)
 	if err != nil {
-		logger.Warn("[Ollama Embeddings] Docker unavailable, skipping auto-start", "error", err)
+		logger.Error("[Ollama Embeddings] Failed to build container payload", "error", err)
 		return
 	}
-
-	if code == 200 {
-		if ollamaContainerNeedsRecreateForHostDevices(data) {
-			logger.Warn("[Ollama Embeddings] Existing container references missing host GPU devices; recreating")
-			removeOllamaContainerBestEffort(dockerCfg, ollamaEmbContainerName)
-			code = 404
-		} else {
-			// Container exists — check if running
-			var info map[string]interface{}
-			if json.Unmarshal(data, &info) == nil {
-				if state, ok := info["State"].(map[string]interface{}); ok {
-					if running, _ := state["Running"].(bool); running {
-						logger.Info("[Ollama Embeddings] Container already running")
-						waitForOllamaReady(port, logger)
-						pullModelIfNeeded(port, lo.Model, logger)
-						return
-					}
-				}
-			}
-			// Exists but stopped — start it
-			_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+ollamaEmbContainerName+"/start", "")
-			if startErr != nil || (startCode != 204 && startCode != 304) {
-				logger.Error("[Ollama Embeddings] Failed to start existing container", "code", startCode, "error", startErr)
-				return
-			}
-			logger.Info("[Ollama Embeddings] Container started")
-			waitForOllamaReady(port, logger)
-			pullModelIfNeeded(port, lo.Model, logger)
-			return
-		}
+	model := strings.TrimSpace(lo.Model)
+	if model == "" {
+		model = "nomic-embed-text"
 	}
-
-	if code != 404 {
-		logger.Warn("[Ollama Embeddings] Unexpected Docker inspect response, skipping", "code", code)
-		return
-	}
-
-	// Container does not exist — create and start
-	hostConfig := map[string]interface{}{
-		"RestartPolicy": map[string]interface{}{"Name": "unless-stopped"},
-		"PortBindings": map[string]interface{}{
-			"11434/tcp": []map[string]string{{"HostIp": "127.0.0.1", "HostPort": portStr}},
-		},
-	}
-
-	// GPU passthrough
-	applyGPUConfig(gpu, hostConfig)
-
-	payload := map[string]interface{}{
-		"Image":      image,
-		"HostConfig": hostConfig,
-		"ExposedPorts": map[string]interface{}{
-			"11434/tcp": struct{}{},
-		},
-	}
-	// Pass backend-specific environment variables (e.g. OLLAMA_GPU_BACKEND=vulkan).
-	if len(gpu.Env) > 0 {
-		payload["Env"] = gpu.Env
-	}
-	body, _ := json.Marshal(payload)
-	_, createCode, createErr := dockerRequest(dockerCfg, "POST", "/containers/create?name="+ollamaEmbContainerName, string(body))
-	if createCode == 404 {
-		// Image not present locally — pull it, then retry the create once.
-		logger.Info("[Ollama Embeddings] Image not found locally, pulling...", "image", image)
-		if pullErr := pullDockerImage(dockerCfg, image); pullErr != nil {
-			logger.Error("[Ollama Embeddings] Image pull failed", "image", image, "error", pullErr)
-			return
-		}
-		logger.Info("[Ollama Embeddings] Image pulled successfully", "image", image)
-		_, createCode, createErr = dockerRequest(dockerCfg, "POST", "/containers/create?name="+ollamaEmbContainerName, string(body))
-	}
-	if createErr != nil || createCode != 201 {
-		logger.Error("[Ollama Embeddings] Failed to create container", "code", createCode, "error", createErr)
-		return
-	}
-
-	_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+ollamaEmbContainerName+"/start", "")
-	if startErr != nil || (startCode != 204 && startCode != 304) {
-		logger.Error("[Ollama Embeddings] Failed to start new container", "code", startCode, "error", startErr)
-		return
-	}
-	logger.Info("[Ollama Embeddings] Container created and started", "image", image, "port", port, "gpu", gpu.Backend)
-
-	waitForOllamaReady(port, logger)
-	pullModelIfNeeded(port, lo.Model, logger)
+	reconcileNamedOllamaContainer(ollamaReconcile{
+		Label:         "Ollama Embeddings",
+		ContainerName: ollamaEmbContainerName,
+		Port:          port,
+		Image:         image,
+		GPUBackend:    gpu.Backend,
+		Payload:       payload,
+		Docker:        dockerCfg,
+		Logger:        logger,
+		Models:        []string{model},
+	})
 }
 
 // hostGroupIDs resolves group names to their numeric GIDs from the host's
@@ -337,71 +250,31 @@ func hostGroupIDs(names []string) []string {
 	return ids
 }
 
-// applyGPUConfig adds GPU-specific HostConfig fields based on the detected GPU.
-func applyGPUConfig(gpu GPUInfo, hostConfig map[string]interface{}) {
-	switch gpu.Backend {
-	case "nvidia":
-		// Docker Engine DeviceRequests for nvidia-container-toolkit
-		hostConfig["DeviceRequests"] = []map[string]interface{}{
-			{
-				"Driver":       "nvidia",
-				"Count":        -1, // all GPUs
-				"Capabilities": [][]string{{"gpu"}},
-			},
-		}
-	case "amd":
-		// AMD ROCm: bind /dev/kfd + /dev/dri/* as devices, set group_add for video/render
-		var devices []map[string]string
-		for _, d := range gpu.Devices {
-			devices = append(devices, map[string]string{
-				"PathOnHost":        d,
-				"PathInContainer":   d,
-				"CgroupPermissions": "rwm",
-			})
-		}
-		hostConfig["Devices"] = devices
-		if gids := hostGroupIDs([]string{"video", "render"}); len(gids) > 0 {
-			hostConfig["GroupAdd"] = gids
-		}
-	case "intel":
-		// Intel iGPU/Arc: bind /dev/dri/* as devices
-		var devices []map[string]string
-		for _, d := range gpu.Devices {
-			devices = append(devices, map[string]string{
-				"PathOnHost":        d,
-				"PathInContainer":   d,
-				"CgroupPermissions": "rwm",
-			})
-		}
-		hostConfig["Devices"] = devices
-		if gids := hostGroupIDs([]string{"video", "render"}); len(gids) > 0 {
-			hostConfig["GroupAdd"] = gids
-		}
-	case "vulkan":
-		// Vulkan compute: bind DRI devices, no vendor-specific toolkit needed.
-		// The OLLAMA_GPU_BACKEND=vulkan env var is passed via GPUInfo.Env.
-		var devices []map[string]string
-		for _, d := range gpu.Devices {
-			devices = append(devices, map[string]string{
-				"PathOnHost":        d,
-				"PathInContainer":   d,
-				"CgroupPermissions": "rwm",
-			})
-		}
-		if len(devices) > 0 {
-			hostConfig["Devices"] = devices
-		}
-		if gids := hostGroupIDs([]string{"video", "render"}); len(gids) > 0 {
-			hostConfig["GroupAdd"] = gids
-		}
+// StopOllamaEmbeddingsContainer stops aurago_ollama_embeddings.
+func StopOllamaEmbeddingsContainer(dockerHost string) string {
+	dockerCfg := DockerConfig{Host: dockerHost}
+	_, code, err := dockerRequest(dockerCfg, "POST", "/containers/"+ollamaEmbContainerName+"/stop", "")
+	if err != nil {
+		return ollamaErrJSON("Docker unavailable: " + err.Error())
 	}
+	if code == 204 || code == 304 {
+		return `{"status":"ok","message":"Container stopped."}`
+	}
+	if code == 404 {
+		return ollamaErrJSON("Ollama embeddings container not found.")
+	}
+	return ollamaErrJSON(fmt.Sprintf("Unexpected response code: %d", code))
 }
 
 // waitForOllamaReady polls the Ollama API until it responds or times out.
-func waitForOllamaReady(port int, logger interface {
+func waitForOllamaReady(port int, label string, logger interface {
 	Info(string, ...any)
 	Warn(string, ...any)
 }) {
+	if strings.TrimSpace(label) == "" {
+		label = "Ollama"
+	}
+	prefix := "[" + label + "] "
 	url := fmt.Sprintf("http://127.0.0.1:%d/", port)
 	deadline := time.Now().Add(60 * time.Second)
 	client := &http.Client{Timeout: 2 * time.Second}
@@ -411,13 +284,13 @@ func waitForOllamaReady(port int, logger interface {
 		if err == nil {
 			resp.Body.Close()
 			if resp.StatusCode == 200 {
-				logger.Info("[Ollama Embeddings] Container ready")
+				logger.Info(prefix + "Container ready")
 				return
 			}
 		}
 		time.Sleep(2 * time.Second)
 	}
-	logger.Warn("[Ollama Embeddings] Container did not become ready within 60s")
+	logger.Warn(prefix + "Container did not become ready within 60s")
 }
 
 // pullModelIfNeeded ensures the configured embedding model is available in the Ollama instance.

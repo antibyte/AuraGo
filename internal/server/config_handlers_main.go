@@ -1293,9 +1293,20 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			if newCfg.Docker.Enabled && newCfg.Embeddings.LocalOllama.Enabled && !oldCfg.Embeddings.LocalOllama.Enabled {
 				go tools.EnsureOllamaEmbeddingsRunning(newCfg, s.Logger)
 			}
+			if oldCfg.Embeddings.LocalOllama.Enabled && !newCfg.Embeddings.LocalOllama.Enabled {
+				if !newCfg.Docker.Enabled {
+					s.Logger.Info("[Config UI] Docker is disabled; skipping Ollama embeddings container stop")
+				} else {
+					go func() {
+						tools.StopOllamaEmbeddingsContainer(newCfg.Docker.Host)
+						s.Logger.Info("[Config UI] Ollama embeddings container stopped")
+					}()
+				}
+			}
 
-			// Auto-start managed Ollama container if just enabled
-			if newCfg.Docker.Enabled && newCfg.Ollama.ManagedInstance.Enabled && !oldCfg.Ollama.ManagedInstance.Enabled {
+			// Reconcile the managed container when it is enabled and its port, GPU, memory, volume, or model list changed.
+			if newCfg.Docker.Enabled && newCfg.Ollama.ManagedInstance.Enabled &&
+				(!oldCfg.Ollama.ManagedInstance.Enabled || ollamaManagedInputsChanged(&oldCfg, newCfg)) {
 				go tools.EnsureOllamaManagedRunning(newCfg, s.Logger)
 			}
 			// Stop managed Ollama container if just disabled

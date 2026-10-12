@@ -289,12 +289,14 @@ func normalizedURLPort(u *url.URL) string {
 }
 
 func isOllamaAPIPath(path string) bool {
+	// Inference and read paths only. load/unload share POST /api/generate with
+	// inference, so api_request can still send keep_alive; the ollama tool's
+	// readonly flag covers those dedicated operations.
 	switch path {
 	case "/api/generate", "/api/chat", "/api/embed", "/api/embeddings", "/api/tags",
-		"/api/show", "/api/ps", "/api/version", "/api/create", "/api/copy",
-		"/api/delete", "/api/pull", "/api/push", "/v1/chat/completions",
+		"/api/show", "/api/ps", "/api/version", "/v1/chat/completions",
 		"/v1/completions", "/v1/embeddings", "/v1/models":
 		return true
 	}
-	return strings.HasPrefix(path, "/api/blobs/sha256:")
+	return false
 }
