@@ -5,7 +5,8 @@
 // cap, and the flasher's baud fallback, chip check, SHA-256 image check, MD5 and runFlash with a fake esptool.
 // Coordinator decisions: D1 install modes (keep settings / full install / automatic by board record) and
 // D2 desktop serial policy gating (virtual_desktop.serial_browser_enabled, read-only desktop), plus a
-// flash aborted because its window closed.
+// flash aborted because its window closed. Devices/transfer: the rollback hint of a stored last_error and
+// the sentences of a refused ZIP import (CYD_IMPORT_INVALID details.reason).
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -24,7 +25,7 @@ const sandbox = {
 };
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
-for (const file of ['cyd-creator-core.js', 'cyd-creator-api.js', 'cyd-creator-serial.js', 'cyd-creator-flasher.js', 'cyd-creator-monitor.js']) {
+for (const file of ['cyd-creator-core.js', 'cyd-creator-api.js', 'cyd-creator-serial.js', 'cyd-creator-flasher.js', 'cyd-creator-monitor.js', 'cyd-creator-devices.js', 'cyd-creator-transfer.js']) {
     const full = path.join(apps, file);
     vm.runInContext(fs.readFileSync(full, 'utf8'), sandbox, { filename: full });
 }
@@ -358,6 +359,53 @@ async function flashWith(plan, extra) {
     const early = await flashWith({}, { aborted: () => true });
     await rejects('a flash whose window is already gone never connects', early.run, 'FLASH_ABORTED');
     eq('…and releases the port without an attempt', [early.fake.calls.attempts, early.manager.owner()], [[], '']);
+}
+
+// ── devices: the rollback hint; transfer: a refused ZIP import names its reason ──
+{
+    const words = {
+        'cyd_creator.devices.error_rolled_back': 'Rolled back.',
+        'cyd_creator.devices.rollback_hint': 'Same build again needs a restart.',
+        'cyd_creator.devices.error_failed': 'Failed: {{reason}}',
+        'cyd_creator.transfer.importing': 'Importing {{name}}',
+        'cyd_creator.transfer.limit_asset_bytes': 'Images over {{size}}.',
+        'cyd_creator.transfer.limit_app_files': 'Too many source files.',
+        'cyd_creator.error.CYD_IMPORT_INVALID': 'Not an export.',
+        'cyd_creator.error.CYD_TEMPLATE_TOO_NEW': 'Too new.'
+    };
+    Object.assign(sandbox.window.I18N, words);
+    const t = P.i18n({});
+    eq('a rollback explains that re-picking the failed build waits for a restart',
+        P.devices.errorText(t, 'rolled_back: rolled back from ccb_2'), 'Rolled back. (rolled back from ccb_2) Same build again needs a restart.');
+    eq('a rollback without detail still carries the hint', P.devices.errorText(t, 'rolled_back'), 'Rolled back. Same build again needs a restart.');
+    eq('a failed download has no rollback hint', P.devices.errorText(t, 'failed: http 404'), 'Failed: http 404');
+
+    const notes = [];
+    const inst = { t, readonly: false, notify: (kind, text) => notes.push([kind, text]) };
+    const realImport = P.api.importZip;
+    const realPick = P.transfer.pickFile;
+    P.transfer.pickFile = async () => ({ name: 'wetter.zip' });
+    const refuse = async details => {
+        P.api.importZip = async () => { throw new P.api.ApiError(422, 'CYD_IMPORT_INVALID', 'refused', details); };
+        notes.length = 0;
+        const result = await P.transfer.importZip(inst);
+        return [result, notes.at(-1)];
+    };
+    eq('import: images over the asset budget name the limit', await refuse({ reason: 'asset', limit: 'asset_bytes', max: 16 * 1024 * 1024, path: 'assets/big.png' }),
+        [null, ['error', 'Images over 16.00 MiB.']]);
+    eq('import: too many source files use the src/app limit sentence', await refuse({ reason: 'app_files', limit: 64 }), [null, ['error', 'Too many source files.']]);
+    eq('import: a letter-case clash names the path', await refuse({ reason: 'app_files', path: 'src/app/Lib/a.cpp', existing: 'src/app/lib' }),
+        [null, ['error', 'Not an export. (src/app/Lib/a.cpp)']]);
+    eq('import: an unknown board names the board', await refuse({ reason: 'board', board: 'esp32-foo' }), [null, ['error', 'Not an export. (esp32-foo)']]);
+    eq('import: not a ZIP shows the generic sentence', await refuse({ reason: 'not_zip' }), [null, ['error', 'Not an export.']]);
+    P.api.importZip = async () => { throw new P.api.ApiError(422, 'CYD_TEMPLATE_TOO_NEW', 'too new', {}); };
+    await rejects('import: other refusals reach the caller', P.transfer.importZip(inst), 'CYD_TEMPLATE_TOO_NEW');
+    P.api.importZip = async file => ({ id: 'ccp_9', name: file.name });
+    eq('import: a good archive returns the new project', [await P.transfer.importZip(inst), notes.at(-1)], [{ id: 'ccp_9', name: 'wetter.zip' }, ['info', 'Importing wetter.zip']]);
+    await rejects('import: read-only users cannot import', P.transfer.importZip(Object.assign({}, inst, { readonly: true })), 'CYD_READONLY');
+    P.api.importZip = realImport;
+    P.transfer.pickFile = realPick;
+    Object.keys(words).forEach(key => delete sandbox.window.I18N[key]);
 }
 
 if (failures) {
