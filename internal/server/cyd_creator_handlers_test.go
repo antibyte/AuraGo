@@ -461,6 +461,41 @@ func cydTestProjectDir(f *cydTestFixture, slug string) string {
 	return filepath.Join(filepath.Dir(filepath.Dir(f.dbPath)), "desktop", "CYD", slug)
 }
 
+// TestCYDCreatorCapabilitiesNeverProbeTheDevicePin: GET capabilities (any
+// desktop:read caller) reports the device URL without reading a certificate
+// or dialling out; only minting resolves the pin.
+func TestCYDCreatorCapabilitiesNeverProbeTheDevicePin(t *testing.T) {
+	f := newCYDTestServer(t)
+	probes := 0
+	saved := cydTLSProbe
+	cydTLSProbe = func(context.Context, string, string) ([]byte, error) {
+		probes++
+		return nil, errors.New("no dial in tests")
+	}
+	t.Cleanup(func() { cydTLSProbe = saved })
+	for _, setup := range []func(){
+		func() { f.s.Cfg.CYDCreator.OTA.PublicURL = "https://cyd.example.test:8443" },
+		func() {
+			f.s.Cfg.CYDCreator.OTA.PublicURL = ""
+			f.s.Cfg.Server.Host = "cyd.example.test"
+			f.s.Cfg.Server.HTTPS.Enabled = true
+			f.s.Cfg.Server.HTTPS.HTTPSPort = 8443
+			f.s.Cfg.Server.HTTPS.CertMode = "custom"
+			f.s.Cfg.Server.HTTPS.CertFile = filepath.Join(t.TempDir(), "missing.pem")
+		},
+	} {
+		setup()
+		var caps cydcreator.Capabilities
+		f.json(t, f.read, http.MethodGet, "capabilities", "", nil, http.StatusOK, &caps)
+		if caps.OTA.PublicURL != "https://cyd.example.test:8443" || caps.OTA.Insecure {
+			t.Fatalf("capabilities ota = %+v", caps.OTA)
+		}
+	}
+	if probes != 0 {
+		t.Fatalf("capabilities probed the TLS pin %d times", probes)
+	}
+}
+
 func TestCYDCreatorCapabilitiesOverlayConfigSessionAndProblem(t *testing.T) {
 	f := newCYDTestServer(t)
 	var caps cydcreator.Capabilities

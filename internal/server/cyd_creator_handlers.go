@@ -109,9 +109,11 @@ func (s *Server) cydCapabilities(w http.ResponseWriter, r *http.Request, _ map[s
 	if raw, isBearer := bearerCredential(r.Header.Get("Authorization")); isBearer && !desktopTokenHasScope(s, raw, desktopScopeAdmin) {
 		caps.ReadOnly = true
 	}
+	// Only the URL (device URL rule, no pin): capabilities never read a
+	// certificate or dial out; minting resolves the pin (cydMintDevice).
 	if caps.OTA.Enabled {
-		if endpoint, err := cydCreatorDeviceEndpoint(r.Context(), cfg); err == nil {
-			cydCreatorOTACapability(&caps, endpoint.URL)
+		if base, err := cydCreatorDeviceBaseURL(cfg); err == nil && cydCheckDeviceURL(base) == nil {
+			cydCreatorOTACapability(&caps, base)
 		}
 	}
 	cydWriteJSON(w, http.StatusOK, caps)
