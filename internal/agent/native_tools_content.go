@@ -80,7 +80,7 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 				"output_format": map[string]interface{}{
 					"type":        "string",
 					"description": "Output shape when selector is set. auto picks rows if fields is set, list if attribute is set, otherwise text.",
-					"enum":        []string{"auto", "text", "html", "rows", "table"},
+					"enum":        []string{"auto", "text", "html", "list", "rows", "table"},
 				},
 				"attribute": prop("string", "Attribute to extract when output_format is list (e.g. 'href', 'src')."),
 				"limit":     map[string]interface{}{"type": "integer", "description": "Maximum matches to return when selector is set (1-1000, default: 50)"},

@@ -397,6 +397,17 @@ func TestBuiltinToolSchemasExposeWebScraperModes(t *testing.T) {
 				t.Fatalf("expected web_scraper %q property, got properties: %#v", want, properties)
 			}
 		}
+		outputFormat, ok := properties["output_format"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected web_scraper output_format property, got properties: %#v", properties)
+		}
+		formatEnum, ok := outputFormat["enum"].([]string)
+		if !ok {
+			t.Fatalf("web_scraper output_format enum type = %T, want []string", outputFormat["enum"])
+		}
+		if strings.Join(formatEnum, ",") != "auto,text,html,list,rows,table" {
+			t.Fatalf("web_scraper output_format enum = %#v", formatEnum)
+		}
 		return
 	}
 	t.Fatal("expected web_scraper schema when WebScraperEnabled is true")
