@@ -24,25 +24,17 @@ import (
 func ConfigureWorkerCommand(cmd *exec.Cmd, runtimeRoots ...string) {
 	hideWindow(cmd)
 	if len(runtimeRoots) == 0 {
-		cmd.Env = filterEnvironment(os.Environ())
+		cmd.Env = sandbox.FilterEnv(os.Environ())
 		return
 	}
 	cmd.Env = runtimeEnvironment(goruntime.GOOS, runtimeRoots...)
 }
 
-// filterEnvironment is sandbox.FilterEnv with a non-nil result: exec.Cmd
-// treats a nil Env as "inherit the whole environment", which would hand the
-// secrets back to the worker when every variable was filtered out.
-func filterEnvironment(environment []string) []string {
-	filtered := sandbox.FilterEnv(environment)
-	if filtered == nil {
-		filtered = []string{}
-	}
-	return filtered
-}
-
+// runtimeEnvironment relies on sandbox.FilterEnv never returning nil:
+// exec.Cmd treats a nil Env as "inherit the whole environment", which would
+// hand the secrets back to the worker when every variable was filtered out.
 func runtimeEnvironment(goos string, runtimeRoots ...string) []string {
-	return prependLibraryDirectories(goos, filterEnvironment(os.Environ()), runtimeDirectories(runtimeRoots))
+	return prependLibraryDirectories(goos, sandbox.FilterEnv(os.Environ()), runtimeDirectories(runtimeRoots))
 }
 
 // runtimeDirectories lists every directory below the roots as absolute

@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"aurago/internal/sandbox"
 )
 
 var listSeparator = string(os.PathListSeparator)
@@ -134,7 +136,7 @@ func TestRuntimeEnvironmentIgnoresRootsWithoutDirectories(t *testing.T) {
 		if got := environmentValue(goruntime.GOOS, environment, "DYLD_LIBRARY_PATH"); got != "/opt/keep-dyld" {
 			t.Errorf("%s DYLD_LIBRARY_PATH = %q", name, got)
 		}
-		if want := filterEnvironment(os.Environ()); !slices.Equal(environment, want) {
+		if want := sandbox.FilterEnv(os.Environ()); !slices.Equal(environment, want) {
 			t.Errorf("%s changed the environment although no directory was found", name)
 		}
 
@@ -287,12 +289,13 @@ func TestConfigureWorkerCommandReplacesEnv(t *testing.T) {
 
 // exec.Cmd treats a nil Env as "inherit everything", secrets included, so a
 // filtered environment that ends up empty must stay a non-nil empty slice.
+// ConfigureWorkerCommand relies on sandbox.FilterEnv guaranteeing that.
 func TestFilterEnvironmentNeverFallsBackToInheritance(t *testing.T) {
-	filtered := filterEnvironment([]string{"OPENAI_API_KEY=api-secret", "AURAGO_MASTER_KEY=master-secret"})
+	filtered := sandbox.FilterEnv([]string{"OPENAI_API_KEY=api-secret", "AURAGO_MASTER_KEY=master-secret"})
 	if filtered == nil || len(filtered) != 0 {
 		t.Fatalf("filtered = %#v, want a non-nil empty slice", filtered)
 	}
-	if got := filterEnvironment([]string{"KEEP=1", "OPENAI_API_KEY=api-secret"}); len(got) != 1 || got[0] != "KEEP=1" {
+	if got := sandbox.FilterEnv([]string{"KEEP=1", "OPENAI_API_KEY=api-secret"}); len(got) != 1 || got[0] != "KEEP=1" {
 		t.Fatalf("filtered = %#v", got)
 	}
 }
