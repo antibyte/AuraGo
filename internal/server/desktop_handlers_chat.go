@@ -704,6 +704,9 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 			if err != nil {
 				return turn, err
 			}
+			if strings.TrimSpace(analysis) == "" {
+				return turn, fmt.Errorf("camera photo could not be analyzed")
+			}
 			requestPrompt = message + "\n\n" + analysis
 		}
 	}

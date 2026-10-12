@@ -652,6 +652,45 @@ func TestDesktopCameraPhotoFallsBackWhenTheProviderCannotTakeImages(t *testing.T
 	assertCameraPayloadAbsentFromHistory(t, s, imagePayload)
 }
 
+func TestDesktopCameraPhotoEmptyFallbackAnalysisFailsBeforeInsert(t *testing.T) {
+	_, imagePayload := tinyCameraJPEG(t)
+	s := newTestDesktopChatServer(t)
+	s.Cfg.LLM.ProviderType = "ollama"
+	s.Cfg.LLM.Model = "llama3"
+	pinDesktopImageCapability(s, false)
+
+	const userMessage = "what is in the camera photo?"
+	orig := analyzeImageForFallback
+	analyzeImageForFallback = func(filePath, prompt string, cfg *config.Config) (string, int, int, error) {
+		return "", 0, 0, nil
+	}
+	t.Cleanup(func() { analyzeImageForFallback = orig })
+
+	turn, err := prepareDesktopAgentTurn(context.Background(), s, userMessage, desktopChatContext{
+		ImageBase64: imagePayload,
+	}, true)
+	if err == nil {
+		t.Fatal("empty camera analysis returned success")
+	}
+	history, historyErr := s.ShortTermMem.GetSessionMessages(desktopChatSessionID)
+	if historyErr != nil {
+		t.Fatal(historyErr)
+	}
+	if len(history) != 0 {
+		t.Fatalf("empty camera analysis was persisted: %#v", history)
+	}
+	for _, msg := range turn.req.Messages {
+		if strings.Contains(msg.Content, "data:") {
+			t.Fatalf("empty analysis sent a data URL in text: %q", msg.Content)
+		}
+		for _, part := range msg.MultiContent {
+			if part.ImageURL != nil && strings.Contains(part.ImageURL.URL, "data:") {
+				t.Fatalf("empty analysis sent an image data URL: %q", part.ImageURL.URL)
+			}
+		}
+	}
+}
+
 func TestDesktopCameraPhotoInlinesANormalizedJPEG(t *testing.T) {
 	jpegBytes, imagePayload := tinyCameraJPEG(t)
 	wantURL, err := tools.PrepareVisionDataURL(jpegBytes, "")
