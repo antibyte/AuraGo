@@ -125,6 +125,37 @@ func (a *AgentScraper) ScrapeHTML(rawURL string, body []byte) (*ScrapeResult, er
 	return result, nil
 }
 
+// dynamicScrapeSlot allows one in-process dynamic scrape at a time.
+var dynamicScrapeSlot = make(chan struct{}, 1)
+
+// newScraperLauncher builds the headless Rod launcher without forcing --no-sandbox.
+// Rod's New already sets that flag when running in a container.
+func newScraperLauncher(ctx context.Context) *launcher.Launcher {
+	return launcher.New().Context(ctx).Headless(true).
+		Set("force-webrtc-ip-handling-policy", "disable_non_proxied_udp")
+}
+
+func acquireDynamicScrape(ctx context.Context) error {
+	select {
+	case dynamicScrapeSlot <- struct{}{}:
+		return nil
+	default:
+	}
+	select {
+	case dynamicScrapeSlot <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("dynamic scrape is busy")
+	}
+}
+
+func releaseDynamicScrape() {
+	select {
+	case <-dynamicScrapeSlot:
+	default:
+	}
+}
+
 // FetchDynamic launches a headless Chromium instance, navigates to the URL, optionally
 // waits for a CSS selector, then captures the fully-rendered HTML.
 func (a *AgentScraper) FetchDynamic(rawURL string, waitForSelector string) (*ScrapeResult, error) {
@@ -134,25 +165,29 @@ func (a *AgentScraper) FetchDynamic(rawURL string, waitForSelector string) (*Scr
 		return nil, fmt.Errorf("URL not allowed: %w", err)
 	}
 
-	// Launch a headless browser; prefer a system Chrome/Chromium installation,
-	// fall back to rod's auto-download mechanism.
-	l := launcher.New().Context(a.ctx).
-		Headless(true).
-		NoSandbox(true) // Required in containerised / CI environments.
+	if err := acquireDynamicScrape(a.ctx); err != nil {
+		return nil, err
+	}
+	defer releaseDynamicScrape()
+
+	ctx, cancel := context.WithTimeout(a.ctx, 30*time.Second)
+	defer cancel()
+
+	l := newScraperLauncher(ctx)
 	u, err := l.Launch()
 	if err != nil {
 		return nil, fmt.Errorf("rod launcher: %w", err)
 	}
 	defer func() { l.Kill(); l.Cleanup() }()
 
-	browser := rod.New().Context(a.ctx).ControlURL(u)
+	browser := rod.New().Context(ctx).ControlURL(u)
 	if err := browser.Connect(); err != nil {
 		return nil, fmt.Errorf("rod connect: %w", err)
 	}
 	defer func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
-		_ = browser.Context(ctx).Close()
+		closeCtx, closeCancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer closeCancel()
+		_ = browser.Context(closeCtx).Close()
 	}()
 
 	page, err := security.OpenRodPageWithSSRF(browser, rawURL)
@@ -165,11 +200,9 @@ func (a *AgentScraper) FetchDynamic(rawURL string, waitForSelector string) (*Scr
 		return nil, fmt.Errorf("rod wait load: %w", err)
 	}
 
-	// If a specific selector is requested, wait until it is visible.
 	if waitForSelector != "" {
 		if err := page.WaitElementsMoreThan(waitForSelector, 0); err != nil {
-			// Log but don't abort — page may still be usable.
-			_ = fmt.Errorf("rod wait selector %q: %w", waitForSelector, err)
+			return nil, fmt.Errorf("rod wait selector %q: %w", waitForSelector, err)
 		}
 	}
 

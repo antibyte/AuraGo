@@ -3,10 +3,13 @@ package scraper
 import (
 	"aurago/internal/security"
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/go-rod/rod/lib/launcher"
 )
 
 func TestFetchStaticRejectsSSRF(t *testing.T) {
@@ -117,4 +120,33 @@ func TestProcessForLLMRecordsUnreadableHTML(t *testing.T) {
 	if result.RawHTML != raw {
 		t.Fatalf("RawHTML changed: got %q", result.RawHTML)
 	}
+}
+
+func TestScraperLauncherKeepsRodSandboxDefault(t *testing.T) {
+	baseline := launcher.New()
+	got := newScraperLauncher(context.Background())
+	if baseline.Has("no-sandbox") != got.Has("no-sandbox") {
+		t.Fatalf("no-sandbox present = %v, want %v", got.Has("no-sandbox"), baseline.Has("no-sandbox"))
+	}
+	if got.Get("force-webrtc-ip-handling-policy") != "disable_non_proxied_udp" {
+		t.Fatalf("force-webrtc-ip-handling-policy = %q, want %q", got.Get("force-webrtc-ip-handling-policy"), "disable_non_proxied_udp")
+	}
+}
+
+func TestDynamicScrapeSlotRejectsASecondHolder(t *testing.T) {
+	if err := acquireDynamicScrape(context.Background()); err != nil {
+		t.Fatalf("first acquire: %v", err)
+	}
+	t.Cleanup(releaseDynamicScrape)
+	busyCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err := acquireDynamicScrape(busyCtx)
+	if err == nil || err.Error() != "dynamic scrape is busy" {
+		t.Fatalf("second acquire = %v, want dynamic scrape is busy", err)
+	}
+	releaseDynamicScrape()
+	if err := acquireDynamicScrape(context.Background()); err != nil {
+		t.Fatalf("acquire after release: %v", err)
+	}
+	releaseDynamicScrape()
 }
