@@ -124,9 +124,36 @@ func randomSchedule(r *rand.Rand) []Window {
 	return windows
 }
 
+// transitionSchedules returns, for every clock change in [from, to), two daily
+// schedules whose boundary lies in the middle of the skipped or repeated range:
+// one window ends there, the other starts there. The random schedules only hit
+// those minutes by chance, so these pin the path of every zone deterministically.
+func transitionSchedules(from, to time.Time) [][]Window {
+	allDays := []time.Weekday{time.Sunday, time.Monday, time.Tuesday, time.Wednesday, time.Thursday, time.Friday, time.Saturday}
+	minuteOfDay := func(key int64) int { return int((key%1440 + 1440) % 1440) }
+	var schedules [][]Window
+	for at := from; ; {
+		_, change := at.ZoneBounds()
+		if change.IsZero() || !change.Before(to) {
+			return schedules
+		}
+		// The wall clock shows oldKey just before the change would take effect and
+		// newKey just after; the range between them is skipped or repeated.
+		oldKey, newKey := wallKey(change.Add(-time.Minute))+1, wallKey(change)
+		low, high := min(oldKey, newKey), max(oldKey, newKey)
+		inside := minuteOfDay(low + (high-low)/2)
+		schedules = append(schedules,
+			[]Window{{Days: allDays, From: minuteOfDay(low - 90), To: inside}},
+			[]Window{{Days: allDays, From: inside, To: minuteOfDay(high + 90)}})
+		at = change
+	}
+}
+
 // TestArmingMatchesBruteForce scans nine days minute by minute and compares
 // ScheduleArmed with the oracle, then compares EffectiveArmed (armed state and
-// next_change) at the minutes around every change plus a few random ones.
+// next_change) at the minutes around every change plus a few random ones. Each
+// zone runs seeded random schedules plus the transitionSchedules of its clock
+// changes.
 func TestArmingMatchesBruteForce(t *testing.T) {
 	const (
 		schedules   = 6
@@ -148,6 +175,10 @@ func TestArmingMatchesBruteForce(t *testing.T) {
 		{"santiago spring", "America/Santiago", 2026, time.September, 3},
 		{"lord howe fall", "Australia/Lord_Howe", 2026, time.April, 2},
 		{"lord howe spring", "Australia/Lord_Howe", 2026, time.October, 1},
+		// Zones west of UTC: time.Date normalises a skipped time backward and
+		// returns the first occurrence of a repeated one (the opposite of Berlin).
+		{"new york fall", "America/New_York", 2026, time.October, 29},
+		{"new york spring", "America/New_York", 2026, time.March, 5},
 	}
 	for index, scenario := range scenarios {
 		scenario, seed := scenario, int64(index+1)
@@ -158,9 +189,15 @@ func TestArmingMatchesBruteForce(t *testing.T) {
 			oracle := newArmingOracle(loc, base.Add(-leadDays*24*time.Hour), oracleTicks)
 			first, last := leadDays*24*60, (leadDays+scanDays)*24*60
 			r := rand.New(rand.NewSource(seed))
+			crafted := transitionSchedules(base, base.Add(scanDays*24*time.Hour))
 			flipsNearTransition := 0
-			for n := 0; n < schedules; n++ {
-				windows := randomSchedule(r)
+			for n := 0; n < schedules+len(crafted); n++ {
+				var windows []Window
+				if n < schedules {
+					windows = randomSchedule(r)
+				} else {
+					windows = crafted[n-schedules]
+				}
 				armed := oracle.paint(windows)
 				describe := func(i int) string {
 					return fmt.Sprintf("%s (%s) with %v", oracle.tick(i).Format("Mon 2006-01-02 15:04 MST"), oracle.tick(i).UTC().Format("15:04Z"), windows)
@@ -206,7 +243,7 @@ func TestArmingMatchesBruteForce(t *testing.T) {
 				}
 			}
 			if scenario.zone != "UTC" && flipsNearTransition == 0 {
-				t.Error("the generated schedules never change near a clock change; adjust the seed so the test covers the transition hours")
+				t.Error("no schedule changes near a clock change, so the transition hours are not covered")
 			}
 		})
 	}
