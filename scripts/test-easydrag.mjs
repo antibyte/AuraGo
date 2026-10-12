@@ -1016,6 +1016,7 @@ await guardAsync('c1d03 review core helpers', async () => {
     const core = modalHarness().core;
     eq('c1d03 duration rounds to whole seconds before splitting', [119999, 59999, 61000, 12345, 1500].map(core.fmt.duration), ['2:00 min', '1:00 min', '1:01 min', '12 s', '1.5 s']);
     eq('c1d03 icon reads own entries only and escapes the class', [core.icon('constructor').includes(core.ICONS.tool), core.icon('x', 'a"><b').includes('class="ed-icon a&quot;&gt;&lt;b"')], [true, true]);
+    eq('person detection trigger has its camera icon', [typeof core.ICONS.camera, core.icon('camera').includes(core.ICONS.camera)], ['string', true]);
     const em = core.emitter();
     const seen = [];
     let offSecond = null;

@@ -15,6 +15,7 @@
         'broadcast': '<path d="M18.4 18.4a9 9 0 1 0-12.8 0"/><path d="M15.5 15.5a5 5 0 1 0-7 0"/><circle cx="12" cy="12" r="1"/>',
         'home-signal': '<path d="M5 12H3l9-9 9 9h-2"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/><path d="M10 13.5a3 3 0 0 1 4 0M8.5 11.5a5 5 0 0 1 7 0"/><circle cx="12" cy="16" r=".5"/>',
         'device-desktop': '<rect x="3" y="4" width="18" height="12" rx="1"/><path d="M7 20h10M9 16v4M15 16v4"/>',
+        'camera': '<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/>',
         'phone-incoming': '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/><path d="M15 9l5-5M15 5v4h4"/>',
         'calendar-event': '<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M16 3v4M8 3v4M4 11h16"/><rect x="8" y="15" width="2" height="2"/>',
         'power': '<path d="M7 6a7.75 7.75 0 1 0 10 0"/><path d="M12 4v8"/>',

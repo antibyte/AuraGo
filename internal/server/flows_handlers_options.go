@@ -77,6 +77,9 @@ func (s *Server) flowOptions(ctx context.Context, source, lang string) ([]flowOp
 //     "manual", "scheduled", "triggered"), "agent" for an older agent mission without one.
 //     A flow's own mission is offered too: publishing refuses it as its own trigger.
 //   - ha_entities: flowHAEntities.
+//   - cameras: "any camera", then the enabled go2rtc streams; the hint is the stream id and
+//     says when person detection is off for that camera, by its own switch or by the
+//     go2rtc or detection switch (its person_detected trigger then never fires).
 func (s *Server) flowOptionList(ctx context.Context, source, lang string) (flowOptionList, error) {
 	cfg := s.ConfigSnapshot()
 	if cfg == nil {
@@ -157,6 +160,24 @@ func (s *Server) flowOptionList(ctx context.Context, source, lang string) (flowO
 				}
 				out = append(out, flowOption{Value: m.ID, Label: label, Hint: kind})
 			}
+		}
+	case "cameras":
+		out = append(out, flowOption{Value: "", Label: tr("easydrag.option.camera_any")})
+		detectionOff := tr("easydrag.option.camera_detection_off")
+		detecting := cfg.Go2RTC.Enabled && cfg.Go2RTC.Detection.Enabled
+		for _, stream := range cfg.Go2RTC.Streams {
+			if !stream.Enabled {
+				continue
+			}
+			label := strings.TrimSpace(stream.Name)
+			if label == "" {
+				label = stream.ID
+			}
+			hint := stream.ID
+			if !detecting || !stream.Detection.Enabled {
+				hint += " · " + detectionOff
+			}
+			out = append(out, flowOption{Value: stream.ID, Label: label, Hint: hint})
 		}
 	case "ha_entities":
 		// Bounded once, before it was cached; the options are shared and read-only.
