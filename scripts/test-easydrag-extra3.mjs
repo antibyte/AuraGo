@@ -1088,6 +1088,103 @@ export async function run(env) {
             overlaps, [[false, 1, 'editor:f1', []], [true, 1, 'editor:f2', []]]);
     });
 
+    await guardAsync('c1d07 a context menu blocks Save and Test until it closes', async () => {
+        // Save and Test each get a fresh editor: Test's dialog would itself block the next Save.
+        async function probe(which) {
+            const h = sandbox(req => (req.method === 'PUT' ? { draft_revision: 4, issues: [] } : undefined));
+            const editor = openEditor(h);
+            await settle();
+            let saves = 0;
+            const save = editor.ed.saver.save;
+            editor.ed.saver.save = function () { saves++; return save.apply(this, arguments); };
+            const item = () => h.menus.flatMap(m => m.items).find(i => i.id === which);
+            const menu = h.body.appendChild(new h.dom.El('div', { class: 'vd-context-menu' }));
+            item().action();
+            await settle();
+            const blocked = which === 'save' ? saves : h.dialogs.length;
+            menu.remove();
+            item().action();
+            await settle();
+            const ran = which === 'save' ? saves : h.dialogs.length;
+            const logged = h.logged.slice();
+            editor.dispose();
+            return [blocked, ran, logged];
+        }
+        eq('c1d07 Save and Test do nothing while a context menu is open and run once it closes',
+            [await probe('save'), await probe('test')], [[0, 1, []], [0, 1, []]]);
+    });
+
+    await guardAsync('c1d07 the start page menu follows FLOWS_DISABLED after the list loads', async () => {
+        let listAnswer = () => { throw apiError('FLOWS_DISABLED'); };
+        const answer = req => {
+            if (req.url.startsWith('/api/desktop/flows/node-types')) return { node_types: Array.from(types.values()), categories: [] };
+            if (req.url === '/api/desktop/flows') return listAnswer();
+            if (req.url.startsWith('/api/desktop/flows/templates')) return { templates: [] };
+            return undefined;
+        };
+        const flags = menus => menus.find(m => m.id === 'flow').items.filter(i => i.id).map(i => i.id + ':' + !!i.disabled);
+        const h = sandbox(answer);
+        const host = h.body.appendChild(new h.dom.El('div', {}));
+        h.win.EasyDragApp.render(host, 'w-home', Object.assign({}, h.ctx, { api: h.transport, readonly: false }));
+        await settle();
+        const disabled = flags(h.menus);
+        listAnswer = () => ({ flows: [{ id: 'f1', name: 'One', triggers: [], preview: [] }] });
+        h.menus.find(m => m.id === 'flow').items.find(i => i.id === 'reload').action();
+        await settle();
+        const enabled = flags(h.menus);
+        h.win.EasyDragApp.dispose('w-home');
+        const ro = sandbox(req => {
+            if (req.url.startsWith('/api/desktop/flows/node-types')) return { node_types: Array.from(types.values()), categories: [] };
+            if (req.url === '/api/desktop/flows') return { flows: [] };
+            if (req.url.startsWith('/api/desktop/flows/templates')) return { templates: [] };
+            return undefined;
+        });
+        const roHost = ro.body.appendChild(new ro.dom.El('div', {}));
+        ro.win.EasyDragApp.render(roHost, 'w-ro', Object.assign({}, ro.ctx, { api: ro.transport, readonly: true }));
+        await settle();
+        const readonly = flags(ro.menus);
+        ro.win.EasyDragApp.dispose('w-ro');
+        eq('c1d07 New and Import turn off after FLOWS_DISABLED, come back after a good list, and stay off when the desktop is read-only; Reload stays on',
+            [disabled, enabled, readonly, h.logged, ro.logged],
+            [['new:true', 'import:true', 'reload:false'], ['new:false', 'import:false', 'reload:false'], ['new:true', 'import:true', 'reload:false'], [], []]);
+    });
+
+    await guardAsync('c1d07 the issues command does nothing in the run view', async () => {
+        const h = sandbox(req => {
+            if (req.url === '/api/desktop/flows/runs/r1?include=doc') {
+                return { run: { id: 'r1', status: 'success', mode: 'test', started_at: '2026-10-06T10:00:00Z', revision: 2 }, steps: [], doc: flowDoc('Run') };
+            }
+            if (req.method === 'PUT') return { draft_revision: 4, issues: [] };
+            return undefined;
+        });
+        const editor = openEditor(h);
+        await settle();
+        const opened = [];
+        editor.ed.bus.on('open-detail', payload => opened.push(payload));
+        editor.ed.issues = [{ severity: 'error', code: 'X', node_id: A }];
+        editor.showRun('r1');
+        await settle();
+        h.flushFrames();
+        const btn = () => editor.el.querySelector('[data-ed-cmd="issues"]');
+        const pop = () => !!editor.el.querySelector('.ed-issues-popover');
+        const before = btn().getAttribute('aria-disabled');
+        btn().fire('click');
+        const issue = editor.el.querySelector('[data-ed-issue]');
+        if (issue) issue.fire('click');
+        const blocked = [before, pop(), opened.length];
+        btn().removeAttribute('aria-disabled');
+        btn().fire('click');
+        const leaked = editor.el.querySelector('[data-ed-issue]');
+        if (leaked) leaked.fire('click');
+        const still = [pop(), opened.length];
+        editor.el.querySelector('[data-ed-cmd="exit-run-view"]').fire('click');
+        const cleared = btn().getAttribute('aria-disabled');
+        btn().fire('click');
+        eq('c1d07 the issues command opens nothing in the run view and works again after leaving it',
+            [blocked, still, cleared, pop(), opened.length, h.logged], [['true', false, 0], [false, 0], null, true, 0, []]);
+        editor.dispose();
+    });
+
     // The FF2 and a1008 checks (test-easydrag-extra5.mjs, -extra6.mjs) build on this sandbox.
     return { sandbox, openEditor, desktopMenus };
 }

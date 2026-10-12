@@ -417,20 +417,29 @@
   per 500 ms while changes keep coming (a drag); a held-back change is written by a later change,
   `saver.flushCopy()` (the interact bus event `gesture-end`, `pagehide`, a `visibilitychange`
   to hidden), the next save, `flush()`, `dispose()`, and at the latest by a trailing write
-  500 ms later, so a crash loses less than 500 ms; never once the draft is saved. Model change
+  500 ms later, so a crash loses less than 500 ms; never once the draft is saved. A failed
+  `storage.set` leaves the copy pending (`copyPending` stays, `copyAt` does not move) so those
+  same paths try again. `dispose` writes before it marks itself disposed when the model is newer
+  than the saved version, including while an older save is still in flight. Model change
   sets and `model.node` look ids up in Maps (`node` rebuilds its Map after each write of the
   node list); `test-easydrag-extra5.mjs` guards a 200-step drag and the 100-to-400-step scaling.
 - Run view: `ed.model` is the stored run's document there, `ed.draftModel` always the draft. The
   hints (`publish.refreshIssues`) validate the draft, wait while the run view shows and run again
-  on exit; a live run that starts meanwhile is parked (`runs.attach`) and followed on exit.
+  on exit; a live run that starts meanwhile is parked (`runs.attach`) and followed on exit. The
+  issues foot button is `aria-disabled` in the run view and `openIssues` returns at once there;
+  leaving the view renders the button again so it works.
 - Dialog holds (`holdAction`, a 429's Retry-After) are kept per button and end when the dialog
   closes; a tree drag's document listeners (`dragend`, `drop`) end with the drag or the next one.
 - Window menus pass canonical keys ("Ctrl+S"); the shell dispatches a `shortcut` item before the
   editor sees the key, a `shortcutHint` ("?") is only drawn. Mod+S is always prevented in the
   editor and saves only when no EasyDrag dialog is open. The step dialog (`ed.detail`,
   aria-modal) counts as a dialog: Ctrl+S, Ctrl+Enter, Ctrl+K and the menu items behind
-  `unlessModal` (`modalOpen`) wait for it as for `.ed-modal-backdrop`. Under either, Ctrl+Enter
-  and Ctrl+K are prevented too (the browser would take Ctrl+K to its address bar).
+  `unlessModal` (`modalOpen`) wait for it as for `.ed-modal-backdrop`. A `.vd-context-menu` blocks
+  `unlessModal` the same way: Save, Test, Search and the other items behind it do nothing while
+  that menu is open. Under a dialog, Ctrl+Enter and Ctrl+K are prevented too (the browser would
+  take Ctrl+K to its address bar). The start page's window menu disables New and Import when the
+  desktop is read-only or the list came back `FLOWS_DISABLED`; Reload stays enabled, and a later
+  list that succeeds enables New and Import again unless the desktop is read-only.
 - `editor.leave()` aborts a drag, writes a note still pending in the step dialog
   (`ed.detail.flushNote`; `pagehide` and a hidden page do so before the emergency copy),
   flushes the saver and shares one in-flight promise. Sessions

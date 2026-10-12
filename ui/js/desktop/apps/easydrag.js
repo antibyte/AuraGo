@@ -60,12 +60,16 @@
     // cannot tell).
     function windowActive(inst) { return typeof inst.ctx.isActive !== 'function' || inst.ctx.isActive(); }
 
+    // setHomeMenus follows the start page. New and Import are off when the desktop is read-only
+    // or the list came back FLOWS_DISABLED (createOff). Reload stays on, so a later list can
+    // turn them back on.
     function setHomeMenus(inst) {
         if (typeof inst.ctx.setWindowMenus !== 'function') return;
+        const blocked = !!(inst.ctx.readonly || (inst.screen && typeof inst.screen.createOff === 'function' && inst.screen.createOff()));
         inst.ctx.setWindowMenus(inst.windowId, [{
             id: 'flow', labelKey: 'easydrag.ui.menu_flow', items: [
-                { id: 'new', labelKey: 'easydrag.ui.home_new', icon: 'plus', disabled: !!inst.ctx.readonly, action: () => clickHome(inst, '[data-ed-new]') },
-                { id: 'import', labelKey: 'easydrag.ui.home_import', icon: 'upload', disabled: !!inst.ctx.readonly, action: () => clickHome(inst, '[data-ed-import]') },
+                { id: 'new', labelKey: 'easydrag.ui.home_new', icon: 'plus', disabled: blocked, action: () => clickHome(inst, '[data-ed-new]') },
+                { id: 'import', labelKey: 'easydrag.ui.home_import', icon: 'upload', disabled: blocked, action: () => clickHome(inst, '[data-ed-import]') },
                 { type: 'separator' },
                 { id: 'reload', labelKey: 'easydrag.ui.reload', icon: 'refresh', action: () => inst.screen && inst.screen.reload && inst.screen.reload() }
             ]
@@ -87,7 +91,14 @@
         inst.nav += 1;
         clearScreen(inst);
         inst.lastRoute = {};
-        inst.screen = ED.home.create(inst.app, { focusFlow: left });
+        const screen = ED.home.create(inst.app, {
+            focusFlow: left,
+            onLoaded() {
+                if (!alive(inst) || inst.screen !== screen) return;
+                setHomeMenus(inst);
+            }
+        });
+        inst.screen = screen;
         inst.root.appendChild(inst.screen.el);
         const add = inst.screen.el.querySelector('[data-ed-new]');
         if (add && !add.disabled && windowActive(inst)) add.focus({ preventScroll: true });
