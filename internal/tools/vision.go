@@ -3,7 +3,6 @@ package tools
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -116,8 +115,10 @@ func analyzeLocalImageWithPromptContext(ctx context.Context, filePath, prompt st
 		mimeType = "image/bmp"
 	}
 
-	encodedImage := base64.StdEncoding.EncodeToString(imageData)
-	dataURL := fmt.Sprintf("data:%s;base64,%s", mimeType, encodedImage)
+	dataURL, err := PrepareVisionDataURL(imageData, mimeType)
+	if err != nil {
+		return "", 0, 0, err
+	}
 	return analyzeImageReferenceWithPromptContext(ctx, dataURL, prompt, cfg)
 }
 

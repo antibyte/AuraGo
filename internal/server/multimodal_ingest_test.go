@@ -22,7 +22,7 @@ func TestPromoteUploadedImagesToMultiContent(t *testing.T) {
 	if err := os.MkdirAll(attachDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), []byte{0x89, 0x50, 0x4e, 0x47}, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), tinyOpaquePNG(t), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -72,7 +72,7 @@ func TestPromoteUploadedImagesToMultiContentAllowsNestedAgoDeskAttachmentPaths(t
 	if err := os.MkdirAll(nestedDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(nestedDir, "diagram.png"), []byte{0x89, 0x50, 0x4e, 0x47}, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(nestedDir, "diagram.png"), tinyOpaquePNG(t), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -117,7 +117,7 @@ func TestPromoteUploadedImagesToMultiContent_Disabled(t *testing.T) {
 	if err := os.MkdirAll(attachDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), []byte{0x89, 0x50, 0x4e, 0x47}, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), tinyOpaquePNG(t), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -143,7 +143,7 @@ func TestPromoteUploadedImagesToMultiContent_UsesProviderMultimodalCapability(t 
 	if err := os.MkdirAll(attachDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), []byte{0x89, 0x50, 0x4e, 0x47}, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), tinyOpaquePNG(t), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -183,7 +183,7 @@ func TestPromoteUploadedImagesToMultiContent_UsesProviderMultimodalCapability(t 
 func TestBuildOptimizedImageDataURI_DownscalesAndEncodesJPEG(t *testing.T) {
 	// Create a large image with alpha variation so the encoder takes the JPEG path
 	// (PNG-with-alpha would be huge; we flatten and encode JPEG).
-	w, h := 2500, 1800
+	w, h := 2000, 1800
 	img := image.NewNRGBA(image.Rect(0, 0, w, h))
 	for y := 0; y < h; y++ {
 		for x := 0; x < w; x++ {
@@ -222,6 +222,22 @@ func TestBuildOptimizedImageDataURI_DownscalesAndEncodesJPEG(t *testing.T) {
 	}
 }
 
+func tinyOpaquePNG(t *testing.T) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 2, 2))
+	for i := 0; i < len(img.Pix); i += 4 {
+		img.Pix[i] = 20
+		img.Pix[i+1] = 40
+		img.Pix[i+2] = 60
+		img.Pix[i+3] = 255
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
 func min(a, b int) int {
 	if a < b {
 		return a
@@ -235,7 +251,7 @@ func TestPromoteUploadedImagesToMultiContent_FallbackToVisionWhenProviderUnsuppo
 	if err := os.MkdirAll(attachDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), []byte{0x89, 0x50, 0x4e, 0x47}, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), tinyOpaquePNG(t), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -272,7 +288,7 @@ func TestPromoteUploadedImagesToMultiContent_ProviderExtraAllowlist(t *testing.T
 	if err := os.MkdirAll(attachDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), []byte{0x89, 0x50, 0x4e, 0x47}, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), tinyOpaquePNG(t), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -300,7 +316,7 @@ func TestPromoteUploadedImagesToMultiContent_KimiK26ModelAllowlist(t *testing.T)
 	if err := os.MkdirAll(attachDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), []byte{0x89, 0x50, 0x4e, 0x47}, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), tinyOpaquePNG(t), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -391,7 +407,7 @@ func TestPromoteRequestImagesSkipsOlderUserAttachments(t *testing.T) {
 	if err := os.MkdirAll(attachDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), []byte{0x89, 0x50, 0x4e, 0x47}, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), tinyOpaquePNG(t), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	path := "agent_workspace/workdir/attachments/img.png"
@@ -415,7 +431,7 @@ func TestPromoteUploadedImagesKeepsUnsentPaths(t *testing.T) {
 	if err := os.MkdirAll(attachDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(attachDir, "ok.png"), []byte{0x89, 0x50, 0x4e, 0x47}, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(attachDir, "ok.png"), tinyOpaquePNG(t), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	big := make([]byte, (10<<20)+1)
@@ -457,7 +473,7 @@ func TestFallbackVisionUsesTheUserQuestion(t *testing.T) {
 	if err := os.MkdirAll(attachDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), []byte{0x89, 0x50, 0x4e, 0x47}, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), tinyOpaquePNG(t), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	var gotPrompt string
@@ -490,7 +506,7 @@ func TestFallbackVisionReportsWhenAnalysisFails(t *testing.T) {
 	if err := os.MkdirAll(attachDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), []byte{0x89, 0x50, 0x4e, 0x47}, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), tinyOpaquePNG(t), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	orig := analyzeImageForFallback
@@ -524,7 +540,7 @@ func TestLegacyOpenAIFlagDoesNotInlineWithoutImageCapability(t *testing.T) {
 	if err := os.MkdirAll(attachDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), []byte{0x89, 0x50, 0x4e, 0x47}, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), tinyOpaquePNG(t), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	orig := analyzeImageForFallback
