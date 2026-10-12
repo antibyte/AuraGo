@@ -753,6 +753,7 @@ var authBypassSubtrees = []string{
 	"/api/agodesk/knowledge/upload/", // signed AgoDesk knowledge uploads authenticate inside the handler
 	"/api/game-maker/preview/",       // short-lived project-scoped token is validated by the preview handler
 	"/api/cyd/speak/",                // CYD sanoTTS PCM — Bearer scope cyd
+	"/api/cyd-creator/device/",       // CYD Creator device endpoints — device token checked by every handler
 	"/webhook/",                      // webhook receiver — per-webhook bound token or HMAC signature
 	"/css/",
 	"/fonts/",

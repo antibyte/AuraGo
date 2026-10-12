@@ -109,6 +109,11 @@ func (s *Server) cydCapabilities(w http.ResponseWriter, r *http.Request, _ map[s
 	if raw, isBearer := bearerCredential(r.Header.Get("Authorization")); isBearer && !desktopTokenHasScope(s, raw, desktopScopeAdmin) {
 		caps.ReadOnly = true
 	}
+	if caps.OTA.Enabled {
+		if endpoint, err := cydCreatorDeviceEndpoint(r.Context(), cfg); err == nil {
+			cydCreatorOTACapability(&caps, endpoint.URL)
+		}
+	}
 	cydWriteJSON(w, http.StatusOK, caps)
 }
 

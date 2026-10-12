@@ -42,13 +42,13 @@ func registerCYDCreatorRoutes(mux *http.ServeMux, s *Server) {
 // cydCreatorRoutes is the desktop route table. Plan 3 appends its job,
 // message and revision routes, plan 5 its device and transfer routes.
 func cydCreatorRoutes(s *Server) []cydRoute {
-	return slices.Concat(cydCreatorCoreRoutes(s), cydCreatorJobRoutes(s))
+	return slices.Concat(cydCreatorCoreRoutes(s), cydCreatorJobRoutes(s), cydCreatorDeviceDesktopRoutes(s))
 }
 
 // cydCreatorDeviceRoutes is the device table (/api/cyd-creator/device/,
-// device-token auth, plan 5). Plan 2 has none.
+// device-token auth, plan 5).
 func cydCreatorDeviceRoutes(s *Server) []cydRoute {
-	return nil
+	return cydCreatorDeviceEndpointRoutes(s)
 }
 
 var (
@@ -240,8 +240,17 @@ func (s *Server) handleCYDCreator(w http.ResponseWriter, r *http.Request) {
 	route.Handler(w, r, params)
 }
 
-// handleCYDCreatorDevice serves the device endpoints of plan 5.
+// handleCYDCreatorDevice serves the device endpoints of plan 5. The prefix
+// bypasses session auth, so a request without a device token
+// (Authorization: Bearer ccdt_<64 hex>) is refused with 401 first: before the
+// route lookup, the feature gate and any body read. Session cookies and API
+// tokens never reach a device handler; the handlers authenticate the token
+// itself through the service (hash lookup, binding, failure limit).
 func (s *Server) handleCYDCreatorDevice(w http.ResponseWriter, r *http.Request) {
+	if !cydDeviceTokenPresent(r) {
+		cydWriteError(w, http.StatusUnauthorized, cydcreator.CodeUnauthorized, "a device token is required", nil)
+		return
+	}
 	rel := strings.TrimPrefix(r.URL.Path, cydCreatorDevicePrefix)
 	route, params, ok, pathFound := findCYDRoute(cydCreatorDeviceRoutes(s), r.Method, rel)
 	switch {

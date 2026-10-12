@@ -65,7 +65,7 @@ func gzipRequestEligible(r *http.Request) bool {
 	}
 	// Keep the device protocol uncompressed, including JSON errors and snapshots.
 	// The glass expects raw bodies with Content-Length, not gzip or chunked data.
-	if strings.HasPrefix(p, "/api/cyd/") {
+	if strings.HasPrefix(p, "/api/cyd/") || strings.HasPrefix(p, "/api/cyd-creator/device/") {
 		return false
 	}
 	return true

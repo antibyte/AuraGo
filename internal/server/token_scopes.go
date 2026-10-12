@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"aurago/internal/cydcreator"
 )
 
 // tokenScopeCYD is the on-glass display scope. CYD tokens are short so the
@@ -40,10 +42,14 @@ func isKnownTokenScope(scope string) bool {
 	return false
 }
 
-// validateTokenScopes rejects scopes the server never checks and the cyd scope
-// mixed with anything else.
+// validateTokenScopes rejects scopes the server never checks, the CYD Creator
+// device scope (minted per device by CYD Creator, never through this API) and
+// the cyd scope mixed with anything else.
 func validateTokenScopes(scopes []string) error {
 	for _, s := range scopes {
+		if s == cydcreator.TokenScopeDevice {
+			return errors.New("the cyd_creator_device scope is minted by CYD Creator for one flashed device and cannot be created here")
+		}
 		if !isKnownTokenScope(s) {
 			return fmt.Errorf("unknown token scope %q", s)
 		}
