@@ -18,6 +18,9 @@ func TestMQTTConfigModuleUsesTypedControlsAndPreservesSecrets(t *testing.T) {
 		`data-path="mqtt.allow_unauthenticated_relay"`,
 		"config.mqtt.allow_unauthenticated_relay_label",
 		"help.mqtt.allow_unauthenticated_relay",
+		`data-path="mqtt.allow_untrusted_transport"`,
+		"config.mqtt.allow_untrusted_transport_label",
+		"help.mqtt.allow_untrusted_transport",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("mqtt.js missing %q", marker)
@@ -37,11 +40,17 @@ func TestMQTTConfigModuleUsesTypedControlsAndPreservesSecrets(t *testing.T) {
 			t.Fatalf("lang/config/mqtt/%s.json is not JSON: %v", lang, err)
 		}
 		help := mustReadJSONMap(t, "lang/help/"+lang+".json")
-		for file, entry := range map[string][2]string{
-			"lang/config/mqtt/" + lang + ".json": {"config.mqtt.allow_unauthenticated_relay_label", values["config.mqtt.allow_unauthenticated_relay_label"]},
-			"lang/help/" + lang + ".json":        {"help.mqtt.allow_unauthenticated_relay", help["help.mqtt.allow_unauthenticated_relay"]},
+		for _, entry := range []struct {
+			file string
+			key  string
+			text string
+		}{
+			{"lang/config/mqtt/" + lang + ".json", "config.mqtt.allow_unauthenticated_relay_label", values["config.mqtt.allow_unauthenticated_relay_label"]},
+			{"lang/help/" + lang + ".json", "help.mqtt.allow_unauthenticated_relay", help["help.mqtt.allow_unauthenticated_relay"]},
+			{"lang/config/mqtt/" + lang + ".json", "config.mqtt.allow_untrusted_transport_label", values["config.mqtt.allow_untrusted_transport_label"]},
+			{"lang/help/" + lang + ".json", "help.mqtt.allow_untrusted_transport", help["help.mqtt.allow_untrusted_transport"]},
 		} {
-			key, text := entry[0], entry[1]
+			file, key, text := entry.file, entry.key, entry.text
 			if strings.TrimSpace(text) == "" || text == key {
 				t.Fatalf("%s missing %s", file, key)
 			}

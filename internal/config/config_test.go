@@ -4113,6 +4113,115 @@ func TestLoadTemplateDoesNotGrandfatherUnauthenticatedMQTTRelay(t *testing.T) {
 	}
 }
 
+// A broker login on plaintext or with certificate verification skipped keeps
+// starting relay runs until mqtt.allow_untrusted_transport is written. A null
+// value counts as unwritten. A written false or true ends that.
+func TestLoadGrandfathersUntrustedMQTTTransport(t *testing.T) {
+	const auth = "mqtt:\n  enabled: true\n  username: iot\n  broker: mqtt://broker.lan:1883\n"
+	cases := []struct {
+		name string
+		yaml string
+		want bool
+	}{
+		{"username on mqtt, key absent", auth, true},
+		{"username on tcp, key absent", "mqtt:\n  enabled: true\n  username: iot\n  broker: tcp://broker.lan:1883\n", true},
+		{"key null", auth + "  allow_untrusted_transport:\n", true},
+		{"key false", auth + "  allow_untrusted_transport: false\n", false},
+		{"key true", auth + "  allow_untrusted_transport: true\n", true},
+		{"mqtts without skip, key absent", "mqtt:\n  enabled: true\n  username: iot\n  broker: mqtts://broker.lan:8883\n", false},
+		{"wss without skip, key absent", "mqtt:\n  enabled: true\n  username: iot\n  broker: wss://broker.lan:443\n", false},
+		{"mqtts skip verify, key absent", "mqtt:\n  enabled: true\n  username: iot\n  broker: mqtts://broker.lan:8883\n  tls:\n    insecure_skip_verify: true\n", true},
+		{"ws, key absent", "mqtt:\n  enabled: true\n  username: iot\n  broker: ws://broker.lan:80\n", true},
+		{"client certificate over mqtts, key absent", "mqtt:\n  enabled: true\n  broker: mqtts://broker.lan:8883\n  tls:\n    cert_file: client.crt\n    key_file: client.key\n", false},
+		{"client certificate over mqtts with skip, key absent", "mqtt:\n  enabled: true\n  broker: mqtts://broker.lan:8883\n  tls:\n    cert_file: client.crt\n    insecure_skip_verify: true\n", true},
+		{"anonymous plaintext, key absent", "mqtt:\n  enabled: true\n  broker: mqtt://broker.lan:1883\n", false},
+		{"blank username", "mqtt:\n  enabled: true\n  username: \"  \"\n  broker: mqtt://broker.lan:1883\n", false},
+		{"mqtt disabled", "mqtt:\n  enabled: false\n  username: iot\n  broker: mqtt://broker.lan:1883\n", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			configPath := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(configPath, []byte(tc.yaml), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := Load(configPath)
+			if err != nil {
+				t.Fatalf("Load() error = %v", err)
+			}
+			if cfg.MQTT.AllowUntrustedTransport != tc.want {
+				t.Fatalf("AllowUntrustedTransport = %v, want %v", cfg.MQTT.AllowUntrustedTransport, tc.want)
+			}
+		})
+	}
+}
+
+func TestLoadWarnsAboutGrandfatheredUntrustedMQTTTransportOncePerProcess(t *testing.T) {
+	var logs strings.Builder
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+	mqttUntrustedTransportGrandfatherWarning = sync.Once{}
+
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte("mqtt:\n  enabled: true\n  username: iot\n  broker: mqtt://broker.lan:1883\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 3; i++ {
+		cfg, err := Load(configPath)
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if !cfg.MQTT.AllowUntrustedTransport {
+			t.Fatal("username on mqtt:// must stay grandfathered on every load")
+		}
+	}
+	const want = "untrusted MQTT transport grandfathered"
+	if got := strings.Count(logs.String(), want); got != 1 {
+		t.Fatalf("grandfather warning logged %d times, want once:\n%s", got, logs.String())
+	}
+	if strings.Contains(logs.String(), "broker.lan") || strings.Contains(logs.String(), "mqtt://") {
+		t.Fatalf("grandfather warning must not name the broker:\n%s", logs.String())
+	}
+}
+
+// The template writes allow_untrusted_transport: false. Enabling a username
+// on mqtt:// later must not lift that false.
+func TestLoadTemplateDoesNotGrandfatherUntrustedMQTTTransport(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "config_template.yaml"))
+	if err != nil {
+		t.Fatalf("read config_template.yaml: %v", err)
+	}
+	if !yamlHasValue(data, "mqtt", "allow_untrusted_transport") {
+		t.Fatal("config_template.yaml must write mqtt.allow_untrusted_transport explicitly")
+	}
+	tmpl := strings.ReplaceAll(string(data), "\r\n", "\n")
+	const written = "    allow_untrusted_transport: false"
+	if !strings.Contains(tmpl, written) {
+		t.Fatalf("config_template.yaml mqtt block no longer contains %q", written)
+	}
+	const header = "mqtt:\n    enabled: false\n    broker: \"\""
+	tmpl = strings.Replace(tmpl, header, "mqtt:\n    enabled: true\n    broker: mqtt://broker.lan:1883", 1)
+	const userLine = "    client_id: aurago\n    username: \"\""
+	if !strings.Contains(tmpl, userLine) {
+		t.Fatalf("config_template.yaml mqtt block no longer contains %q", userLine)
+	}
+	tmpl = strings.Replace(tmpl, userLine, "    client_id: aurago\n    username: iot", 1)
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte(tmpl), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load(template with username on mqtt): %v", err)
+	}
+	if !cfg.MQTT.Enabled || cfg.MQTT.Username != "iot" || cfg.MQTT.Broker != "mqtt://broker.lan:1883" {
+		t.Fatalf("fixture = enabled %v username %q broker %q", cfg.MQTT.Enabled, cfg.MQTT.Username, cfg.MQTT.Broker)
+	}
+	if cfg.MQTT.AllowUntrustedTransport {
+		t.Fatal("template allow_untrusted_transport: false must not be grandfathered to true")
+	}
+}
+
 func TestLoadGrandfathersDockerHostAccessOnlyWhenKeyAbsent(t *testing.T) {
 	cases := []struct {
 		name string

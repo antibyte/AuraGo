@@ -41,6 +41,7 @@ type missionTriggerEntry struct {
 	payloadContains string
 	minInterval     time.Duration
 	lastFired       time.Time
+	admit           func(topic, payload string) bool
 	callback        func(topic, payload string)
 }
 
@@ -49,16 +50,23 @@ var nextMissionTriggerID uint64
 // RegisterMissionTrigger registers a callback that fires when a message matches
 // the given topic filter and optional payload substring.
 func RegisterMissionTrigger(topicFilter string, payloadContains string, minIntervalSeconds int, callback func(topic, payload string)) {
-	registerMissionTrigger("", topicFilter, payloadContains, minIntervalSeconds, callback)
+	registerMissionTrigger("", topicFilter, payloadContains, minIntervalSeconds, nil, callback)
 }
 
 // RegisterMissionTriggerForKey registers or replaces a mission trigger callback
-// associated with a stable key.
+// associated with a stable key. It stays ungated and claims directly.
 func RegisterMissionTriggerForKey(key string, topicFilter string, payloadContains string, minIntervalSeconds int, callback func(topic, payload string)) {
-	registerMissionTrigger(key, topicFilter, payloadContains, minIntervalSeconds, callback)
+	registerMissionTrigger(key, topicFilter, payloadContains, minIntervalSeconds, nil, callback)
 }
 
-func registerMissionTrigger(key string, topicFilter string, payloadContains string, minIntervalSeconds int, callback func(topic, payload string)) {
+// RegisterGatedMissionTriggerForKey registers or replaces a mission trigger
+// whose delivery closure calls admit before claiming the interval. A false
+// admit returns without a claim. An empty key is stored as its own trigger.
+func RegisterGatedMissionTriggerForKey(key, topicFilter, payloadContains string, minIntervalSeconds int, admit func(topic, payload string) bool, callback func(topic, payload string)) {
+	registerMissionTrigger(key, topicFilter, payloadContains, minIntervalSeconds, admit, callback)
+}
+
+func registerMissionTrigger(key string, topicFilter string, payloadContains string, minIntervalSeconds int, admit func(topic, payload string) bool, callback func(topic, payload string)) {
 	if err := validateTopicFilter(topicFilter); err != nil {
 		if logger != nil {
 			logger.Warn("[MQTT] Mission trigger rejected invalid topic filter", "topic_filter", topicFilter, "error", err)
@@ -76,6 +84,7 @@ func registerMissionTrigger(key string, topicFilter string, payloadContains stri
 		topicFilter:     topicFilter,
 		payloadContains: payloadContains,
 		minInterval:     minInterval,
+		admit:           admit,
 		callback:        callback,
 	}
 	if key != "" {
@@ -262,9 +271,13 @@ func matchingMissionTriggers(topic, payload string) []missionTriggerEntry {
 			continue
 		}
 		triggerID := trigger.id
+		triggerAdmit := trigger.admit
 		triggerCallback := trigger.callback
 		entry := *trigger
 		entry.callback = func(matchedTopic, matchedPayload string) {
+			if triggerAdmit != nil && !triggerAdmit(matchedTopic, matchedPayload) {
+				return
+			}
 			if !claimMissionTrigger(triggerID, nowUTC()) {
 				return
 			}

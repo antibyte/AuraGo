@@ -3,7 +3,9 @@ package server
 import (
 	"aurago/internal/config"
 	"aurago/internal/sandbox"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -788,6 +790,135 @@ func TestCheckSecurityMQTTRelayNoAuthAbsentWhenAuthenticatedOrIdle(t *testing.T)
 				t.Fatal("did not expect mqtt_relay_no_auth")
 			}
 		})
+	}
+}
+
+func TestCheckSecurityUntrustedMQTTTransport(t *testing.T) {
+	const old = "mqtt:\n  enabled: true\n  username: iot\n  broker: mqtt://broker.lan:1883\n  relay_to_agent: true\n"
+	cfg := loadSecurityConfig(t, old)
+	if !cfg.MQTT.AllowUntrustedTransport {
+		t.Fatal("missing allow_untrusted_transport must load true")
+	}
+	if !mqttRelayAuthorized(cfg) {
+		t.Fatal("grandfathered untrusted transport must authorize the relay")
+	}
+	hint := findSecurityHint(CheckSecurity(cfg), "mqtt_relay_untrusted_transport")
+	if hint == nil {
+		t.Fatal("expected mqtt_relay_untrusted_transport")
+	}
+	if hint.Severity != SevCritical {
+		t.Fatalf("severity = %q, want %q", hint.Severity, SevCritical)
+	}
+	assertUntrustedTransportHint(t, hint, cfg.MQTT.Broker)
+	if findSecurityHint(CheckSecurity(cfg), "mqtt_relay_password_missing") == nil {
+		t.Fatal("empty resolved password on an open gate must warn")
+	}
+
+	closed := loadSecurityConfig(t, old+"  allow_untrusted_transport: false\n")
+	if closed.MQTT.AllowUntrustedTransport || mqttRelayAuthorized(closed) {
+		t.Fatal("explicit false must load false and close the gate")
+	}
+	hint = findSecurityHint(CheckSecurity(closed), "mqtt_relay_untrusted_transport")
+	if hint == nil || hint.Severity != SevWarning {
+		t.Fatalf("closed relay hint = %#v, want warning", hint)
+	}
+	assertUntrustedTransportHint(t, hint, closed.MQTT.Broker)
+	if hasSecurityHint(CheckSecurity(closed), "mqtt_relay_password_missing") {
+		t.Fatal("a closed gate must not warn about a missing password")
+	}
+	frigateOnly := loadSecurityConfig(t, "mqtt:\n  enabled: true\n  username: iot\n  broker: tcp://broker.lan:1883\n  allow_untrusted_transport: false\nfrigate:\n  enabled: true\n  event_relay: true\n")
+	if mqttRelayAuthorized(frigateOnly) {
+		t.Fatal("Frigate relay over plaintext must stay closed without the switch")
+	}
+	hint = findSecurityHint(CheckSecurity(frigateOnly), "mqtt_relay_untrusted_transport")
+	if hint == nil || hint.Severity != SevWarning {
+		t.Fatalf("Frigate-only hint = %#v, want warning", hint)
+	}
+	missionOnly := loadSecurityConfig(t, "mqtt:\n  enabled: true\n  username: iot\n  broker: mqtt://broker.lan:1883\n  relay_to_agent: false\n  allow_untrusted_transport: false\n")
+	if hasSecurityHint(CheckSecurity(missionOnly), "mqtt_relay_untrusted_transport") {
+		t.Fatal("a closed gate with no relay and no Frigate relay must not warn")
+	}
+
+	trusted := loadSecurityConfig(t, "mqtt:\n  enabled: true\n  username: iot\n  broker: mqtts://broker.lan:8883\n  relay_to_agent: true\n")
+	trusted.MQTT.Password = "resolved-secret"
+	if trusted.MQTT.AllowUntrustedTransport || !mqttRelayAuthorized(trusted) {
+		t.Fatal("username over checked mqtts must stay authorized without the untrusted switch")
+	}
+	hints := CheckSecurity(trusted)
+	if hasSecurityHint(hints, "mqtt_relay_untrusted_transport") {
+		t.Fatal("checked mqtts must not report mqtt_relay_untrusted_transport")
+	}
+	if hasSecurityHint(hints, "mqtt_relay_password_missing") {
+		t.Fatal("a resolved password must not report mqtt_relay_password_missing")
+	}
+	assertHintsOmitSecret(t, hints, "resolved-secret")
+
+	trusted.MQTT.Password = ""
+	passwordHint := findSecurityHint(CheckSecurity(trusted), "mqtt_relay_password_missing")
+	if passwordHint == nil || passwordHint.Severity != SevWarning {
+		t.Fatalf("cleared password hint = %#v, want warning", passwordHint)
+	}
+	assertHintsOmitSecret(t, CheckSecurity(trusted), "resolved-secret")
+
+	trusted.MQTT.Password = " "
+	if hasSecurityHint(CheckSecurity(trusted), "mqtt_relay_password_missing") {
+		t.Fatal("whitespace is a password and must not warn")
+	}
+
+	skipped := trusted
+	skipped.MQTT.Password = "resolved-secret"
+	skipped.MQTT.TLS.InsecureSkipVerify = true
+	skipped.MQTT.AllowUntrustedTransport = false
+	if mqttRelayAuthorized(skipped) {
+		t.Fatal("insecure_skip_verify must close the gate without the switch")
+	}
+	skipped.MQTT.AllowUntrustedTransport = true
+	if !mqttRelayAuthorized(skipped) {
+		t.Fatal("insecure_skip_verify must need allow_untrusted_transport")
+	}
+	hint = findSecurityHint(CheckSecurity(skipped), "mqtt_relay_untrusted_transport")
+	if hint == nil || hint.Severity != SevCritical {
+		t.Fatalf("skip verify hint = %#v, want critical", hint)
+	}
+	if strings.Contains(hint.Description, "client.crt") || strings.Contains(hint.Description, skipped.MQTT.Broker) {
+		t.Fatalf("hint names a path or the broker: %s", hint.Description)
+	}
+}
+
+func loadSecurityConfig(t *testing.T, yaml string) *config.Config {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte(yaml), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	return cfg
+}
+
+func assertUntrustedTransportHint(t *testing.T, hint *SecurityHint, broker string) {
+	t.Helper()
+	if hint.AutoFixable || len(hint.FixPatch) != 0 {
+		t.Fatalf("mqtt_relay_untrusted_transport must stay a manual hint, got %#v", hint)
+	}
+	for _, want := range []string{"plaintext", "certificate", "observer on the path", "mqtts", "wss", "allow_untrusted_transport: true"} {
+		if !strings.Contains(hint.Description, want) {
+			t.Fatalf("description must mention %q: %s", want, hint.Description)
+		}
+	}
+	if strings.Contains(hint.Description, broker) || strings.Contains(hint.Description, "://") {
+		t.Fatalf("hint must not contain a broker URL: %s", hint.Description)
+	}
+}
+
+func assertHintsOmitSecret(t *testing.T, hints []SecurityHint, secret string) {
+	t.Helper()
+	for _, hint := range hints {
+		if strings.Contains(hint.Description, secret) || strings.Contains(hint.Title, secret) {
+			t.Fatalf("hint %s contains the broker password", hint.ID)
+		}
 	}
 }
 

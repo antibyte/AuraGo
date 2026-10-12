@@ -165,12 +165,12 @@ func injectHereNowDefaults(rawCfg map[string]interface{}, cfg *config.Config) {
 	section["default_account"] = cfg.HereNow.DefaultAccount
 }
 
-// injectMQTTRelayDefaults exposes the effective mqtt.allow_unauthenticated_relay.
-// A config the merger has not rewritten yet lacks the key while config.Load
-// grandfathers it to true for an enabled anonymous broker; showing the raw
-// absence as "off" would make the next MQTT save write false and refuse
-// relays that were running. The effective value equals an explicit key and
-// otherwise matches what config-merger writes.
+// injectMQTTRelayDefaults exposes the effective mqtt.allow_unauthenticated_relay
+// and mqtt.allow_untrusted_transport. A config the merger has not rewritten yet
+// lacks a key while config.Load grandfathers it; showing the raw absence as
+// "off" would make the next MQTT save write false and refuse relays that were
+// running. Each effective value equals an explicit key and otherwise matches
+// what config-merger writes.
 func injectMQTTRelayDefaults(rawCfg map[string]interface{}, cfg *config.Config) {
 	if cfg == nil {
 		return
@@ -181,6 +181,7 @@ func injectMQTTRelayDefaults(rawCfg map[string]interface{}, cfg *config.Config) 
 		rawCfg["mqtt"] = section
 	}
 	section["allow_unauthenticated_relay"] = cfg.MQTT.AllowUnauthenticatedRelay
+	section["allow_untrusted_transport"] = cfg.MQTT.AllowUntrustedTransport
 }
 
 // injectRetroNetDefault exposes the effective virtual_desktop.retronet_enabled

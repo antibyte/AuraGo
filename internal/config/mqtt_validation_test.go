@@ -87,6 +87,7 @@ func TestValidateMQTTPatchRequiresTypedMQTTValues(t *testing.T) {
 		"topics":                      []interface{}{"home/#", "sensors/+"},
 		"qos":                         float64(0),
 		"allow_unauthenticated_relay": true,
+		"allow_untrusted_transport":   false,
 	}}
 	if err := ValidateMQTTPatch(valid); err != nil {
 		t.Fatalf("valid typed patch rejected: %v", err)
@@ -95,6 +96,7 @@ func TestValidateMQTTPatchRequiresTypedMQTTValues(t *testing.T) {
 		{"mqtt": map[string]interface{}{"topics": "home/#"}},
 		{"mqtt": map[string]interface{}{"qos": "0"}},
 		{"mqtt": map[string]interface{}{"allow_unauthenticated_relay": "true"}},
+		{"mqtt": map[string]interface{}{"allow_untrusted_transport": "false"}},
 		{"mqtt": map[string]interface{}{"tls": map[string]interface{}{"enabled": "true"}}},
 		{"mqtt": map[string]interface{}{"buffer": map[string]interface{}{"max_payload_bytes": float64(5)}}},
 	} {
@@ -190,5 +192,39 @@ func TestMQTTBrokerAuthenticatedNeedsUsernameOrCertificateOverTLS(t *testing.T) 
 	}
 	if MQTTBrokerAuthenticated(nil) {
 		t.Fatal("a missing config must not count as authenticated")
+	}
+}
+
+func TestMQTTRelayTransportTrusted(t *testing.T) {
+	if MQTTRelayTransportTrusted(nil) {
+		t.Fatal("a missing config must not count as a trusted transport")
+	}
+	tests := []struct {
+		name       string
+		broker     string
+		tlsEnabled bool
+		skipVerify bool
+		want       bool
+	}{
+		{name: "tcp", broker: "tcp://broker.lan:1883"},
+		{name: "mqtt", broker: "mqtt://broker.lan:1883"},
+		{name: "ws", broker: "ws://broker.lan:80"},
+		{name: "empty broker"},
+		{name: "tls flag on tcp", broker: "tcp://broker.lan:1883", tlsEnabled: true},
+		{name: "mqtts", broker: "mqtts://broker.lan:8883", want: true},
+		{name: "wss", broker: "wss://broker.lan:443", want: true},
+		{name: "ssl", broker: "ssl://broker.lan:8883", want: true},
+		{name: "mqtts skips verification", broker: "mqtts://broker.lan:8883", skipVerify: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &Config{}
+			cfg.MQTT.Broker = tc.broker
+			cfg.MQTT.TLS.Enabled = tc.tlsEnabled
+			cfg.MQTT.TLS.InsecureSkipVerify = tc.skipVerify
+			if got := MQTTRelayTransportTrusted(cfg); got != tc.want {
+				t.Fatalf("MQTTRelayTransportTrusted = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }
