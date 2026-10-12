@@ -7,7 +7,10 @@
 // real designer and store on a minimal fake DOM, and the designer's shell wiring with the real
 // canvas on that fake DOM (fit zoom, one render per change, flashes, live region), and the palette
 // with the real designer and interaction module there (names, search, press/drag/keyboard adds,
-// keys forwarded to a palette drag, disabled by the designer's lock signal). Capabilities come from
+// keys forwarded to a palette drag, disabled by the designer's lock signal), and the inspector with
+// the real designer there (field edits checked like validate.go, refused entries kept across issue
+// lists and store changes, focus and caret across re-renders, events and hooks, uploads through a
+// stubbed inst.uploadAsset that replaces the store, disabled while locked). Capabilities come from
 // ui/testdata/cyd_creator_designer_caps.json (kept equal to internal/cydcreator by
 // TestCYDCreatorDesignerCapsFixtureMatchesCatalog). P.util comes from the real cyd-creator-core.js
 // (plan 4a), which runs in Node and loads first.
@@ -560,6 +563,14 @@ class El {
     releasePointerCapture(id) { this.captured.delete(id); }
     focus() { fakeDoc.activeElement = this; }
     contains(n) { for (let x = n; x; x = x.parent) if (x === this) return true; return false; }
+    getAttribute(k) { return Object.prototype.hasOwnProperty.call(this.attrs, k) ? this.attrs[k] : null; }
+    setSelectionRange(start, end) { this.selectionStart = start; this.selectionEnd = end; }
+    querySelectorAll(sel) {
+        const out = [];
+        const visit = n => n.kids.forEach(k => { if (k.tagName !== '#TEXT' && k.matches(sel)) out.push(k); visit(k); });
+        visit(this);
+        return out;
+    }
     // Selectors: tag, [attr], [attr="v"], [attr]:not([attr="v"]), comma lists.
     matches(sel) {
         return sel.split(',').some(part => {
@@ -1232,6 +1243,305 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     check('dispose removes the palette and its listeners', !host.kids.length && !(search.listeners.input || []).length && !(pal.listeners.keydown || []).length && !items().some(el => el.disabled));
     delete sandbox.window.I18N;
     P.designerCanvas = realCanvas;
+}
+
+// ── inspector (cyd-creator-inspector-fields.js, cyd-creator-inspector.js) through the real designer ──
+// Fields edit the store (origin local) with values validate.go accepts; refused entries stay in their
+// field across issue lists and store changes; focus and caret survive re-renders; events and hooks use
+// the shapes the server accepts; uploads go through inst.uploadAsset, stubbed like app.js (it replaces
+// the store remotely before it answers), with the de-duplicating push as fallback; the designer's lock
+// signal disables the panel.
+{
+    for (const file of ['cyd-creator-inspector-fields.js', 'cyd-creator-inspector.js']) {
+        const full = path.join(apps, file);
+        vm.runInContext(fs.readFileSync(full, 'utf8'), sandbox, { filename: full });
+    }
+    const FD = P.designerFields;
+    const LIM = P.designerInspector.LIMITS;
+    const goNumber = (src, name) => Number(((src.match(new RegExp(name + '\\s*=\\s*([\\d_]+)')) || [])[1] || '').replace(/_/g, ''));
+    const validateGo = fs.readFileSync(path.join(root, 'internal', 'cydcreator', 'validate.go'), 'utf8');
+    eq('inspector limits mirror the server (maxCoordinate, intPropLimit, maxTimezoneBytes)', [LIM.coord, LIM.intProp, LIM.timezoneBytes], [goNumber(goLimits, 'maxCoordinate'), goNumber(goLimits, 'intPropLimit'), goNumber(validateGo, 'maxTimezoneBytes')]);
+    check('the colour check is validate.go colorPattern', validateGo.includes('colorPattern   = regexp.MustCompile(`' + FD.HEX.source + '`)'), FD.HEX.source);
+    eq('clampInt rounds, clamps and refuses empty or non-numeric input', [FD.clampInt('12.6', 0, 10), FD.clampInt('', 0, 10), FD.clampInt('x'), FD.clampInt(-5, 1, 2048), FD.clampInt('1e9', -4096, 4096), FD.clampInt(-0.4), FD.clampInt(true)], [10, null, null, 1, 4096, 0, null]);
+    eq('utf8Bytes counts like Go len() (a lone surrogate arrives as U+FFFD)', ['abc', 'ä', '€', '😀', String.fromCharCode(0xd800)].map(FD.utf8Bytes), [3, 2, 3, 4, 3]);
+    eq('textIssue mirrors textProblem', [FD.textIssue('a'.repeat(1024), 1024), FD.textIssue('ä'.repeat(513), 1024), FD.textIssue('a' + String.fromCharCode(0), 1024)], ['', 'TEXT_TOO_LONG', 'PROP_INVALID']);
+    eq('listItems: one item per line, empty lines are row breaks only for keys', [FD.listItems('a\n\n b \n', false), FD.listItems('1\n\n2', true)], [['a', 'b'], ['1', '\n', '2']]);
+
+    const layout = project();
+    const home = layout.screens[0];
+    home.widgets.push(
+        { id: 'w_img', type: 'image', name: 'img_1', x: 10, y: 60, w: 32, h: 32 },
+        { id: 'w_msg', type: 'msgbox', name: 'msg_1', x: 0, y: 0, w: 200, h: 100 },
+        { id: 'w_led', type: 'led', name: 'led_1', x: 40, y: 60, w: 20, h: 20 },
+        { id: 'w_plain', type: 'label', x: 60, y: 60, w: 60, h: 20 });
+    home.widgets.find(w => w.id === 'w_tabs').children.push({ id: 'w_tabkid', type: 'label', name: 'lbl_tab', x: 0, y: 0, w: 50, h: 20 });
+    const iStore = M.createStore(layout, { coalesceMs: 1200 });
+    const origins = [];
+    iStore.subscribe((p, info) => origins.push(info.origin));
+    const shellBus = P.createBus();
+    let jobLock = false;
+    const notes = [];
+    const hooks = [];
+    const inst = {
+        t: P.i18n(null), caps, readonly: false, isLocked: () => jobLock, layoutStore: iStore, bus: shellBus, assetUrl: id => '/a/' + id,
+        notify: (kind, text) => notes.push(kind + ': ' + text),
+        code: { ensureHook: async spec => { hooks.push(spec); return true; } }
+    };
+    const designer = P.designer.create(inst);
+    const d = designer.state;
+    const host = new El('div');
+    designer.mountInspector(host);
+    const insp = host.kids[0];
+    const all = (el, pred, out = []) => { if (pred(el)) out.push(el); el.kids.forEach(k => all(k, pred, out)); return out; };
+    const textOf = el => (el.text !== undefined ? el.text : el.kids.map(textOf).join(''));
+    const field = key => all(insp, el => el.attrs['data-cc-focus'] === key)[0];
+    const panel = () => insp.kids[0] && insp.kids[0].dataset.ccInspect;
+    const noteOf = el => all(insp, x => !!x.attrs.id && x.attrs.id === String(el.attrs['aria-describedby'] || '').split(' ')[0])[0];
+    const type = (key, value) => { const el = field(key); el.value = value; fire(el, 'input', {}); return el; };
+    const pick = (key, value) => { const el = field(key); el.value = value; fire(el, 'change', {}); return el; };
+    const tick = (key, on) => { const el = field(key); el.checked = on; fire(el, 'change', {}); return el; };
+    const click = key => fire(field(key), 'click', {});
+    const widget = id => M.findWidget(iStore.get(), id).widget;
+    const settings = () => iStore.get().settings;
+    const fieldset = () => all(insp, el => el.tagName === 'FIELDSET')[0];
+    const refused = el => el.attrs['aria-invalid'] === 'true' && !!noteOf(el) && noteOf(el).attrs.class === 'cc-field-error';
+    const settle = () => new Promise(resolve => setTimeout(resolve, 0));
+
+    // project settings
+    check('with nothing selected the inspector shows the project with English fallbacks', panel() === 'project' && textOf(insp).includes('Device language') && textOf(insp).includes('Language and time'));
+    click('theme:clear');
+    eq('a theme swatch sets the theme', iStore.get().theme, 'clear');
+    const grid = all(insp, el => el.attrs.role === 'radiogroup')[0];
+    fire(field('theme:synthwave'), 'pointerenter', {});
+    const previewed = d.previewTheme;
+    fire(grid, 'pointerleave', {});
+    check('hovering a swatch previews its theme; leaving the grid ends the preview', previewed === 'synthwave' && d.previewTheme === '');
+    field('theme:clear').focus();
+    fire(field('theme:clear'), 'keydown', { key: 'ArrowRight' });
+    check('an arrow key picks the next theme and focuses its swatch', iStore.get().theme === 'night' && fakeDoc.activeElement === field('theme:night'));
+    fire(field('theme:night'), 'blur', {});
+    const range = type('backlight', '55');
+    const output = all(insp, el => el.tagName === 'OUTPUT')[0];
+    eq('the backlight slider stores integers within 10..100 and updates its output in place', [settings().backlight, textOf(output), field('backlight') === range], [55, '55 %', true]);
+    type('backlight', '7');
+    eq('a backlight below 10 is clamped', settings().backlight, 10);
+    pick('orientation', 'portrait');
+    pick('language', 'fr');
+    eq('orientation and language go through set_project', [iStore.get().orientation, iStore.get().language], ['portrait', 'fr']);
+    const tz = type('timezone', 'Zürich');
+    check('a time zone with non-ASCII characters is refused and stays in the field', refused(tz) && iStore.get().timezone === 'CET-1CEST,M3.5.0,M10.5.0/3' && tz.value === 'Zürich');
+    type('timezone', '   ');
+    check('an empty time zone is refused', iStore.get().timezone === 'CET-1CEST,M3.5.0,M10.5.0/3' && refused(field('timezone')));
+    type('timezone', ' UTC0 ');
+    check('a valid time zone is stored trimmed and clears the message', iStore.get().timezone === 'UTC0' && field('timezone').attrs['aria-invalid'] === 'false');
+    tick('lib:onewire', true);
+    tick('lib:arduinojson', true);
+    eq('libraries are stored in catalog order', settings().libraries, ['arduinojson', 'onewire']);
+    tick('aurago_link', true);
+    pick('wifi', 'off');
+    check('Wi-Fi off also switches the AuraGo link off and disables it', settings().wifi === 'off' && settings().aurago_link === false && field('aurago_link').disabled === true);
+    shellBus.emit('layout:issues', [{ code: 'LIBRARY_UNKNOWN', severity: 'error', path: 'settings/libraries/0', message: 'unknown library' }]);
+    check('a new issue list replaces only the issue list (the fields stay)', all(insp, el => el.attrs.class === 'cc-issue is-error').length === 1 && field('timezone') === all(insp, el => el.attrs['data-cc-focus'] === 'timezone')[0]);
+    const nvBoard = Object.assign({}, caps.boards[0], { display: Object.assign({}, caps.boards[0].display, { driver: 'NV3041A', native_orientation: 'landscape' }) });
+    inst.caps = Object.assign({}, caps, { boards: [nvBoard] });
+    d.bus.emit('lock');
+    const orientationOptions = all(field('orientation'), el => el.tagName === 'OPTION');
+    eq('an NV3041A board offers only its native orientation family (the stored portrait stays selectable)', orientationOptions.filter(o => o.disabled).map(o => o.value), ['portrait_flipped']);
+    inst.caps = caps;
+    pick('orientation', 'landscape');
+
+    // widget: name, refused entries, focus and caret
+    d.select(['w_btn']);
+    check('one selected widget shows its panel', panel() === 'w_btn');
+    const nameEl = type('name', 'Bad Name');
+    check('an invalid name is refused: the layout keeps the last valid name, the field keeps the entry', widget('w_btn').name === 'btn_1' && refused(nameEl) && nameEl.value === 'Bad Name' && textOf(noteOf(nameEl)).startsWith('Names use lowercase'));
+    shellBus.emit('layout:issues', [{ code: 'PROP_INVALID', severity: 'error', widget: 'w_btn', message: 'x' }]);
+    check('an issue list after a save keeps the field and the half-typed name', field('name') === nameEl && nameEl.value === 'Bad Name' && all(insp, el => el.attrs.class === 'cc-issue is-error').length === 1);
+    const moved = JSON.parse(JSON.stringify(iStore.get()));
+    moved.screens[0].widgets.find(w => w.id === 'w_btn').y = 12;
+    iStore.replace(moved, { resetHistory: false });
+    check('a store change re-renders but keeps the refused name with its message', field('name') !== nameEl && field('name').value === 'Bad Name' && refused(field('name')) && field('geo:y').value === '12');
+    d.select(['w_img']);
+    d.select(['w_btn']);
+    check('another panel drops refused entries', field('name').value === 'btn_1' && field('name').attrs['aria-invalid'] !== 'true');
+    type('name', 'lbl_1');
+    check('a duplicate name is refused', widget('w_btn').name === 'btn_1' && textOf(noteOf(field('name'))).startsWith('Another widget'));
+    type('name', 'init');
+    type('name', 'scr_x');
+    check('reserved names are refused', widget('w_btn').name === 'btn_1' && refused(field('name')));
+    const renamed = type('name', 'go_btn');
+    check('a valid name is stored without re-rendering the panel', widget('w_btn').name === 'go_btn' && field('name') === renamed && renamed.attrs['aria-invalid'] === 'false');
+    const txt = field('prop:text');
+    txt.focus();
+    txt.selectionStart = 2;
+    txt.selectionEnd = 4;
+    d.commands.nudge(1, 0);
+    check('a store change from elsewhere re-renders and keeps the focus and the caret', field('prop:text') !== txt && fakeDoc.activeElement === field('prop:text') && field('prop:text').selectionStart === 2 && field('prop:text').selectionEnd === 4 && field('geo:x').value === '11');
+    const typed = type('prop:text', 'Go');
+    check('own edits do not re-render the panel (the caret stays)', widget('w_btn').props.text === 'Go' && field('prop:text') === typed && fakeDoc.activeElement === typed);
+    type('prop:text', 'ä'.repeat(513));
+    check('a text over 1024 UTF-8 bytes is refused', widget('w_btn').props.text === 'Go' && refused(field('prop:text')) && textOf(noteOf(field('prop:text'))).includes('1024'));
+    type('prop:text', 'Button');
+    check('the catalog default removes the prop', !widget('w_btn').props);
+    type('geo:w', '5000');
+    fire(field('geo:w'), 'change', {});
+    type('geo:x', '-9999');
+    type('geo:y', '12.7');
+    type('geo:h', '0');
+    type('geo:h', 'abc');
+    eq('geometry is stored as integers within the server limits', [widget('w_btn').w, field('geo:w').value, widget('w_btn').x, widget('w_btn').y, widget('w_btn').h], [2048, '2048', -4096, 13, 1]);
+    tick('locked', true);
+    eq('lock is a widget flag', widget('w_btn').locked, true);
+    pick('prop:symbol', 'ok');
+    eq('a symbol comes from the catalog list', widget('w_btn').props.symbol, 'ok');
+
+    // props of other kinds and style overrides
+    d.select(['w_tabs']);
+    type('prop:bar_size', '200');
+    pick('prop:bar_position', 'left');
+    eq('int props clamp to the catalog range; enums take catalog options', [widget('w_tabs').props.bar_size, widget('w_tabs').props.bar_position], [80, 'left']);
+    type('prop:tabs', '');
+    check('a tabview keeps at least one tab', !widget('w_tabs').props.tabs && refused(field('prop:tabs')));
+    type('prop:tabs', Array.from({ length: 9 }, (_, i) => 'T' + i).join('\n'));
+    check('more items than max_len are refused', !widget('w_tabs').props.tabs && textOf(noteOf(field('prop:tabs'))).includes('8'));
+    type('prop:tabs', 'A\n\nB\n');
+    eq('a list stores one trimmed item per non-empty line', widget('w_tabs').props.tabs, ['A', 'B']);
+    d.select(['w_msg']);
+    type('prop:buttons', '\n');
+    check('a message box keeps at least one button (ApplyOps refuses an empty list)', !(widget('w_msg').props && widget('w_msg').props.buttons) && refused(field('prop:buttons')));
+    type('prop:buttons', 'OK\nCancel');
+    eq('message box buttons', widget('w_msg').props.buttons, ['OK', 'Cancel']);
+    d.select(['w_led']);
+    const led = field('prop:color');
+    led.value = '#12ab34';
+    fire(led, 'input', {});
+    led.value = 'red';
+    fire(led, 'input', {});
+    check('a picked colour is stored as #RRGGBB; anything else is ignored', widget('w_led').props.color === '#12AB34' && textOf(all(insp, el => el.attrs.class === 'cc-color-value')[0]) === '#12AB34');
+    click('prop:color:reset');
+    check('"Use theme" removes the colour', !widget('w_led').props);
+    const bg = field('style:bg_color');
+    bg.value = '#ff0000';
+    fire(bg, 'input', {});
+    type('style:radius', '99');
+    type('style:bg_opacity', '-3');
+    const sorted = o => Object.fromEntries(Object.keys(o || {}).sort().map(k => [k, o[k]]));
+    eq('style overrides: colours #RRGGBB, numbers clamped to validate.go ranges', sorted(widget('w_led').style), { bg_color: '#FF0000', bg_opacity: 0, radius: 64 });
+    type('style:radius', '');
+    click('style:bg_color:reset');
+    eq('clearing an optional number or "Use theme" removes the override', widget('w_led').style, { bg_opacity: 0 });
+    d.select(['w_lbl']);
+    pick('prop:size', '20');
+    pick('prop:font', 'inter');
+    eq('font size is stored as a number, font as a catalog family', [widget('w_lbl').props.size, widget('w_lbl').props.font], [20, 'inter']);
+    d.select(['w_tabkid']);
+    pick('tab', '1');
+    check('the tab page select moves the widget and shows that page', widget('w_tabkid').tab === 1 && d.activeTab('w_tabs') === 1);
+
+    // events and hooks
+    d.select(['w_plain']);
+    click('event:add');
+    const plain = widget('w_plain');
+    check('adding an event to an unnamed widget proposes a name (NAME_REQUIRED)', /^lbl_\d+$/.test(plain.name || '') && JSON.stringify(plain.events) === '[{"on":"clicked","action":{"type":"logic","hint":""}}]', JSON.stringify(plain));
+    type('event:0:hint', 'x'.repeat(501));
+    check('a hint over 500 characters is refused', widget('w_plain').events[0].action.hint === '' && refused(field('event:0:hint')));
+    type('event:0:hint', 'Reload the weather');
+    eq('the logic hint is stored', widget('w_plain').events[0].action.hint, 'Reload the weather');
+    click('event:0:hook');
+    await settle();
+    eq('"Create hook" calls inst.code.ensureHook({name, event})', hooks, [{ name: widget('w_plain').name, event: 'clicked' }]);
+    type('name', 'temp_lbl');
+    check('a new name updates the hook row in place', textOf(all(insp, el => el.attrs.class === 'cc-hook-name')[0]) === 'on_temp_lbl_clicked()');
+    type('name', '');
+    check('a widget with events cannot lose its name', widget('w_plain').name === 'temp_lbl' && textOf(noteOf(field('name'))).startsWith('Widgets with events'));
+    const wifiOption = all(field('event:0:action'), el => el.tagName === 'OPTION' && el.value === 'open_wifi_setup')[0];
+    check('open_wifi_setup is disabled while Wi-Fi is off', !!wifiOption && wifiOption.disabled === true);
+    pick('event:0:action', 'goto_screen');
+    eq('goto_screen targets another screen by id', widget('w_plain').events[0].action, { type: 'goto_screen', screen: 's_two' });
+    pick('event:0:transition', 'fade');
+    pick('event:0:screen', 's_home');
+    eq('target and transition', widget('w_plain').events[0].action, { type: 'goto_screen', screen: 's_home', transition: 'fade' });
+    pick('event:0:transition', '');
+    eq('the screen default transition drops the key', widget('w_plain').events[0].action, { type: 'goto_screen', screen: 's_home' });
+    pick('event:0:action', 'back');
+    eq('back has no other keys', widget('w_plain').events[0].action, { type: 'back' });
+    click('event:add');
+    check('a second event takes the next free one; then "Add event" is disabled', widget('w_plain').events[1].on === 'long_pressed' && field('event:add').disabled === true);
+    pick('event:1:on', 'clicked');
+    check('an event bound already cannot be picked twice (its option is disabled, a pick is refused)', all(field('event:1:on'), el => el.tagName === 'OPTION' && el.value === 'clicked')[0].disabled === true && widget('w_plain').events.map(e => e.on).join() === 'clicked,long_pressed');
+    click('event:0:remove');
+    eq('removing an event', widget('w_plain').events.map(e => e.on), ['long_pressed']);
+    check('every action uses only the keys validate.go knows', (widget('w_plain').events || []).every(e => Object.keys(e).join() === 'on,action' && Object.keys(e.action).every(k => ['type', 'screen', 'transition', 'hint'].includes(k))));
+    check('Enter and Delete stop at the inspector; Ctrl+S reaches the window', fire(field('event:add'), 'keydown', { key: 'Enter' }).stopped && fire(field('name'), 'keydown', { key: 'Delete' }).stopped && !fire(field('name'), 'keydown', { key: 's', ctrlKey: true }).stopped);
+
+    // uploads through inst.uploadAsset
+    d.select(['w_img']);
+    const sun = { id: 'a_sun', file: 'assets/sun.png', w: 48, h: 40, alpha: true };
+    let busyShown = false;
+    const before = origins.length;
+    inst.uploadAsset = async file => {
+        busyShown = textOf(insp).includes('Uploading…') && field('prop:asset:upload').disabled === true && file.name === 'sun.png';
+        const cur = iStore.get();
+        iStore.replace(Object.assign({}, cur, { assets: (cur.assets || []).concat([sun]) }), { resetHistory: false });
+        return sun;
+    };
+    const upload = (name, typeName) => { const input = field('prop:asset:upload'); input.files = [{ name, type: typeName }]; fire(input, 'change', {}); return input; };
+    const uploadInput = upload('sun.png', 'image/png');
+    await settle();
+    const img = widget('w_img');
+    check('an upload shows its progress and clears the file input', busyShown && uploadInput.value === '' && !textOf(insp).includes('Uploading…'));
+    eq('the uploaded asset is set on the image, which takes its size; the asset is listed once', [img.props.asset, img.w, img.h, iStore.get().assets.filter(a => a.id === 'a_sun').length], ['a_sun', 48, 40, 1]);
+    eq('the shell replaced the store (remote), the prop is one local edit', origins.slice(before), ['remote', 'local']);
+    check('the asset select shows the new asset', all(field('prop:asset'), el => el.tagName === 'OPTION' && el.selected === true)[0].value === 'a_sun');
+    inst.uploadAsset = async () => ({ id: 'a_moon', file: 'assets/moon.png', w: 10, h: 12, alpha: false, size: 999 });
+    upload('moon.png', 'image/png');
+    await settle();
+    upload('moon.png', 'image/png');
+    await settle();
+    eq('fallback: an asset missing from the store is added once with only the Asset fields', iStore.get().assets.filter(a => a.id === 'a_moon'), [{ id: 'a_moon', file: 'assets/moon.png', w: 10, h: 12, alpha: false }]);
+    inst.uploadAsset = async () => { throw Object.assign(new Error('too large'), { name: 'ApiError', status: 413, code: 'CYD_ASSET_TOO_LARGE' }); };
+    notes.length = 0;
+    upload('big.png', 'image/png');
+    await settle();
+    check('a failed upload is reported and the field is usable again', notes.length === 1 && notes[0].startsWith('error: ') && field('prop:asset:upload').disabled !== true && widget('w_img').props.asset === 'a_moon', notes.join());
+    pick('prop:asset', '');
+    check('"No image" removes the asset prop', !widget('w_img').props);
+
+    // read-only, job lock, multi selection, the Wi-Fi system screen
+    field('name').focus();
+    inst.readonly = true;
+    shellBus.emit('readonly:changed', true);
+    check('read-only disables the fields and hands the focus to the panel', fieldset().disabled === true && insp.classList.contains('is-readonly') && fakeDoc.activeElement === insp);
+    const frozen = JSON.stringify(iStore.get());
+    type('name', 'ro_name');
+    type('geo:x', '3');
+    let roUploads = 0;
+    inst.uploadAsset = async () => { roUploads++; return sun; };
+    upload('sun.png', 'image/png');
+    await settle();
+    check('read-only: edits and uploads change nothing', JSON.stringify(iStore.get()) === frozen && roUploads === 0);
+    inst.readonly = false;
+    shellBus.emit('readonly:changed', false);
+    check('read-only off enables the fields again', fieldset().disabled !== true && !insp.classList.contains('is-readonly'));
+    jobLock = true;
+    shellBus.emit('lock:changed', true, 'ccj_1');
+    const lockedSet = fieldset().disabled === true;
+    type('geo:x', '3');
+    check('a job lock disables the fields and refuses edits', lockedSet && JSON.stringify(iStore.get()) === frozen);
+    jobLock = false;
+    shellBus.emit('lock:changed', false, '');
+    check('the released lock enables them again', fieldset().disabled !== true);
+    d.select(['w_btn', 'w_img']);
+    check('a multi selection lists the widgets', panel() === 'multi' && all(insp, el => el.tagName === 'LI').length === 2);
+    d.commands.run('settings', [{ op: 'set_settings', set: { wifi: 'optional' } }]);
+    d.setScreen(d.SYSTEM_WIFI);
+    check('the Wi-Fi system screen shows its hint', panel() === 'system' && !fieldset());
+    d.setScreen('s_home');
+    check('every inspector edit reached the store with origin local (remote: the test replace and the upload)', origins.filter(o => o !== 'local').join() === 'remote,remote', origins.join());
+
+    designer.dispose();
+    d.bus.emit('lock');
+    check('dispose removes the inspector', !host.kids.length && d.previewTheme === '');
 }
 
 console.log((failures ? 'FAILED ' + failures : 'ok') + ' — ' + checks + ' checks');
