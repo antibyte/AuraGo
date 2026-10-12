@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 func loadGo2RTCDetectionYAML(t *testing.T, content string) (*Config, error) {
@@ -381,35 +383,118 @@ func TestNormalizeGo2RTCStreamDetectionKeepsPartialBlocks(t *testing.T) {
 	}
 }
 
-func TestGo2RTCDetectionLoadKeepsPartialCameraBlocks(t *testing.T) {
-	cfg, err := loadGo2RTCDetectionYAML(t, `go2rtc:
-  streams:
-    - id: porch
-      detection:
-        enabled: true
-        zones:
-          - name: Porch
-            points: [[0, 0], [1, 0], [1, 1]]
-        actions:
-          message: true
-          channel: ntfy
-    - id: yard
-      detection:
-        interval_seconds: 4
-`)
+func TestGo2RTCDetectionLoadDefaultsMissingCameraKeys(t *testing.T) {
+	porch := func() []Go2RTCDetectionZone {
+		return []Go2RTCDetectionZone{{Name: "Porch", Points: [][2]float64{{0, 0}, {1, 0}, {1, 1}}}}
+	}
+	withDefaults := func(mutate func(*Go2RTCStreamDetectionConfig)) Go2RTCStreamDetectionConfig {
+		d := DefaultGo2RTCStreamDetection(false)
+		mutate(&d)
+		return d
+	}
+	for name, tc := range map[string]struct {
+		block string
+		want  Go2RTCStreamDetectionConfig
+	}{
+		"absent block": {"", DefaultGo2RTCStreamDetection(false)},
+		"null block":   {"      detection:\n", DefaultGo2RTCStreamDetection(false)},
+		"empty block":  {"      detection: {}\n", DefaultGo2RTCStreamDetection(false)},
+		"only enabled": {"      detection:\n        enabled: true\n", DefaultGo2RTCStreamDetection(true)},
+		"zones only": {
+			"      detection:\n        zones:\n          - name: Porch\n            points: [[0, 0], [1, 0], [1, 1]]\n",
+			withDefaults(func(d *Go2RTCStreamDetectionConfig) { d.Zones = porch() }),
+		},
+		"only interval": {
+			"      detection:\n        interval_seconds: 4\n",
+			withDefaults(func(d *Go2RTCStreamDetectionConfig) { d.IntervalSeconds = 4 }),
+		},
+		"message only keeps desktop": {
+			"      detection:\n        actions: {message: true}\n",
+			withDefaults(func(d *Go2RTCStreamDetectionConfig) { d.Actions.Message = true }),
+		},
+		"explicit cooldown 0 and desktop false alone": {
+			"      detection:\n        cooldown_seconds: 0\n        actions:\n          desktop: false\n",
+			withDefaults(func(d *Go2RTCStreamDetectionConfig) { d.CooldownSeconds, d.Actions.Desktop = 0, false }),
+		},
+		"explicit cooldown 0 and desktop false with other keys": {
+			"      detection:\n        enabled: true\n        interval_seconds: 5\n        cooldown_seconds: 0\n        zones:\n          - name: Porch\n            points: [[0, 0], [1, 0], [1, 1]]\n        actions:\n          message: true\n          channel: ntfy\n          desktop: false\n",
+			Go2RTCStreamDetectionConfig{Enabled: true, IntervalSeconds: 5, MinScore: 0.5, CooldownSeconds: 0, Zones: porch(),
+				Actions: Go2RTCDetectionActions{Message: true, Channel: "ntfy"}},
+		},
+	} {
+		cfg, err := loadGo2RTCDetectionYAML(t, "go2rtc:\n  streams:\n    - id: cam\n"+tc.block)
+		if err != nil {
+			t.Errorf("%s: Load: %v", name, err)
+			continue
+		}
+		if got := cfg.Go2RTC.Streams[0].Detection; !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("%s: detection = %+v, want %+v", name, got, tc.want)
+		}
+	}
+}
+
+func TestGo2RTCStreamDetectionUnmarshalYAMLPrefillsDefaults(t *testing.T) {
+	var d Go2RTCStreamDetectionConfig
+	if err := yaml.Unmarshal([]byte("actions: {message: true}\n"), &d); err != nil {
+		t.Fatal(err)
+	}
+	want := DefaultGo2RTCStreamDetection(false)
+	want.Actions.Message = true
+	if !reflect.DeepEqual(d, want) {
+		t.Fatalf("decoded = %+v, want %+v (nested actions keep their defaults)", d, want)
+	}
+
+	var withZone Go2RTCStreamDetectionConfig
+	if err := yaml.Unmarshal([]byte("zones:\n  - name: Porch\n    points: [[0, 0], [1], [1, 1]]\n"), &withZone); err != nil {
+		t.Fatalf("a short point must not fail decoding: %v", err)
+	}
+	var fieldErr *Go2RTCDetectionFieldError
+	if err := ValidateGo2RTCStreamDetection(NormalizeGo2RTCStreamDetection(withZone)); !errors.As(err, &fieldErr) || fieldErr.Field != "zones[0].points[1]" {
+		t.Fatalf("err = %v, want zones[0].points[1]", err)
+	}
+
+	// A null block never reaches UnmarshalYAML: it stays zero and normalization
+	// applies the defaults.
+	var holder struct {
+		Detection Go2RTCStreamDetectionConfig `yaml:"detection"`
+	}
+	if err := yaml.Unmarshal([]byte("detection:\n"), &holder); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(holder.Detection, Go2RTCStreamDetectionConfig{}) {
+		t.Fatalf("null block decoded as %+v", holder.Detection)
+	}
+}
+
+func TestGo2RTCDetectionSaveLoadKeepsExplicitZeros(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	content := "go2rtc:\n  streams:\n    - id: front\n      enabled: true\n      detection:\n        enabled: true\n        interval_seconds: 5\n        cooldown_seconds: 0\n        actions:\n          desktop: false\n    - id: back\n      detection:\n        zones:\n          - name: Porch\n            points: [[0, 0], [1, 0], [1, 1]]\n"
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	first, err := Load(path)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	porch := cfg.Go2RTC.Streams[0].Detection
-	if !porch.Enabled || porch.IntervalSeconds != 2 || porch.MinScore != 0.5 || porch.CooldownSeconds != 0 || len(porch.Zones) != 1 || porch.Zones[0].Name != "Porch" {
-		t.Fatalf("porch detection = %+v", porch)
+	if err := first.Save(path); err != nil {
+		t.Fatalf("Save: %v", err)
 	}
-	if porch.Actions != (Go2RTCDetectionActions{Message: true, Channel: "ntfy"}) {
-		t.Fatalf("porch actions = %+v", porch.Actions)
+	second, err := Load(path)
+	if err != nil {
+		raw, _ := os.ReadFile(path)
+		t.Fatalf("reload: %v\n%s", err, raw)
 	}
-	yard := cfg.Go2RTC.Streams[1].Detection
-	if yard.IntervalSeconds != 4 || yard.MinScore != 0.5 || yard.CooldownSeconds != 0 || yard.Actions != (Go2RTCDetectionActions{Channel: "all"}) {
-		t.Fatalf("yard detection = %+v", yard)
+	for i := range first.Go2RTC.Streams {
+		if !reflect.DeepEqual(second.Go2RTC.Streams[i].Detection, first.Go2RTC.Streams[i].Detection) {
+			t.Errorf("stream %d: reloaded %+v, want %+v", i, second.Go2RTC.Streams[i].Detection, first.Go2RTC.Streams[i].Detection)
+		}
+	}
+	front := second.Go2RTC.Streams[0].Detection
+	if front.CooldownSeconds != 0 || front.Actions.Desktop || front.IntervalSeconds != 5 {
+		t.Fatalf("explicit zeros lost in the round trip: %+v", front)
+	}
+	if back := second.Go2RTC.Streams[1].Detection; back.CooldownSeconds != 300 || !back.Actions.Desktop || len(back.Zones) != 1 {
+		t.Fatalf("defaults lost in the round trip: %+v", back)
 	}
 }
 

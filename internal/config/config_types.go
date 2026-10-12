@@ -336,7 +336,9 @@ type Go2RTCDetectionActions struct {
 }
 
 // Go2RTCStreamDetectionConfig is the per-camera person-detection setting
-// (go2rtc.streams[].detection). IntervalSeconds == 0 means "never configured".
+// (go2rtc.streams[].detection). YAML: missing key → default, explicit value kept
+// (UnmarshalYAML). A block that sets nothing except Enabled (absent or null in YAML,
+// or built in code) means "never configured" and normalizes to the default set.
 type Go2RTCStreamDetectionConfig struct {
 	Enabled         bool                   `yaml:"enabled" json:"enabled"`
 	IntervalSeconds int                    `yaml:"interval_seconds" json:"interval_seconds"`

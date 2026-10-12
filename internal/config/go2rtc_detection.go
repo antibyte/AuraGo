@@ -141,9 +141,12 @@ func go2RTCStreamDetectionUnset(d Go2RTCStreamDetectionConfig) bool {
 
 // NormalizeGo2RTCStreamDetection applies the per-camera rule: a block that sets nothing
 // except Enabled was never configured and yields the whole default set (Enabled kept).
-// Otherwise only values whose zero is never valid are filled (interval, min score,
-// channel); cooldown, zones and the action switches stay exactly as written, and names,
-// channel and instruction get canonical spelling. It never shares slices with d.
+// That covers absent or null YAML blocks and blocks built in code; YAML keys are
+// presence-aware already (missing key → default, explicit value kept; see
+// UnmarshalYAML). Otherwise only values whose zero is never valid are filled as a
+// tolerant fallback for explicit zeros (interval, min score, channel); cooldown, zones
+// and the action switches stay exactly as given, and names, channel and instruction get
+// canonical spelling. It never shares slices with d.
 func NormalizeGo2RTCStreamDetection(d Go2RTCStreamDetectionConfig) Go2RTCStreamDetectionConfig {
 	if go2RTCStreamDetectionUnset(d) {
 		return DefaultGo2RTCStreamDetection(d.Enabled)
@@ -166,6 +169,21 @@ func NormalizeGo2RTCStreamDetection(d Go2RTCStreamDetectionConfig) Go2RTCStreamD
 		out.Zones = append(out.Zones, Go2RTCDetectionZone{Name: strings.TrimSpace(zone.Name), Points: points, badPoint: zone.badPoint})
 	}
 	return out
+}
+
+// UnmarshalYAML pre-fills the per-camera default set before decoding, so a missing
+// YAML key keeps its default (interval 2, min_score 0.5, cooldown 300, channel all,
+// desktop true) and an explicit value is kept, including cooldown_seconds: 0 and
+// desktop: false. yaml.v3 does not call it for a null block; that block stays zero and
+// NormalizeGo2RTCStreamDetection applies the defaults.
+func (d *Go2RTCStreamDetectionConfig) UnmarshalYAML(value *yaml.Node) error {
+	type plain Go2RTCStreamDetectionConfig
+	decoded := plain(DefaultGo2RTCStreamDetection(false))
+	if err := value.Decode(&decoded); err != nil {
+		return err
+	}
+	*d = Go2RTCStreamDetectionConfig(decoded)
+	return nil
 }
 
 // UnmarshalYAML decodes points of any length, so a point that is not [x, y] becomes a
