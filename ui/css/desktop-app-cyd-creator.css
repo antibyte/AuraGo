@@ -561,3 +561,279 @@
     .cc-app .cc-spinner, .cc-app .cc-dot { animation: none; }
     .cc-app .cc-action-card, .cc-app .cc-tree-tools { transition: none; }
 }
+
+/* ==== CYD Creator designer (plan 4b) — begin ============================================== */
+/* Canvas, palette, screens and layers, inspector and the palette drag ghost. Chrome reads the --cc-*
+   tokens of the shell block above (status text through the *-ink tokens, solid fills through
+   --cc-accent-deep / --cc-on-accent); the device preview takes its colours from the API themes only
+   (inline styles set by cyd-creator-render.js). Literal colours live in the designer token block
+   below only. Every rule is scoped to .cc-app except the drag ghost, which hangs in document.body. */
+@font-face {
+    font-family: 'CYD Montserrat';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('/fonts/montserrat-latin-500-normal.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+    font-family: 'CYD Montserrat';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('/fonts/montserrat-latin-ext-500-normal.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+    font-family: 'CYD JetBrains Mono';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/fonts/jetbrains-mono-latin-400-normal.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+    font-family: 'CYD JetBrains Mono';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/fonts/jetbrains-mono-latin-ext-400-normal.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* ── designer tokens ────────────────────────────────────────────────────────── */
+/* Marks drawn over the device preview must read on light and dark device themes alike, so they
+   do not follow the desktop theme. The ghost lives outside .cc-app and gets the same tokens. */
+.cc-app, .cc-drag-ghost {
+    --cc-guide: #ff4fd8;
+    --cc-grid-line: rgba(127, 127, 127, 0.28);
+    --cc-halo: rgba(0, 0, 0, 0.45);
+    --cc-bezel: linear-gradient(160deg, #2b2f36, #15171b);
+    --cc-bezel-shadow: 0 12px 32px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+    --cc-ghost-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+}
+
+/* ── shared ─────────────────────────────────────────────────────────────────── */
+.cc-app .cc-sr-only { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+.cc-app .cc-icon { width: 16px; height: 16px; flex: none; }
+.cc-app .cc-palette, .cc-app .cc-screens, .cc-app .cc-inspector { padding: 10px; }
+/* The shell's focus ring (outline, offset 2px) is drawn inside these filling boxes instead. */
+.cc-app .cc-canvas:focus-visible, .cc-app .cc-screens:focus-visible, .cc-app .cc-inspector:focus-visible { outline-offset: -2px; }
+
+/* ── canvas ─────────────────────────────────────────────────────────────────── */
+.cc-app .cc-canvas { position: relative; display: flex; flex-direction: column; flex: 1 1 auto; width: 100%; min-width: 0; min-height: 0; background: var(--cc-bg); }
+.cc-app .cc-canvas-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; min-height: 36px; padding: 2px 8px; border-bottom: 1px solid var(--cc-border); background: var(--cc-chrome); }
+.cc-app .cc-tool-group { display: flex; align-items: center; gap: 2px; }
+.cc-app .cc-tool { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--cc-text); font: inherit; cursor: pointer; }
+.cc-app .cc-tool-sm { width: 26px; height: 26px; }
+.cc-app .cc-tool:hover:not(:disabled) { background: var(--cc-control-hover); }
+.cc-app .cc-tool:disabled { opacity: 0.4; cursor: not-allowed; }
+/* a pressed toggle (grid) is a solid fill: accent-ink on the soft tint over the darker chrome of
+   light themes drops below 4.5:1 for light accents */
+.cc-app .cc-tool[aria-pressed="true"] { background: var(--cc-accent-deep); color: var(--cc-on-accent); }
+.cc-app .cc-tool[aria-pressed="true"]:hover:not(:disabled) { background: var(--cc-accent-deeper); }
+.cc-app .cc-zoom-label { min-width: 3.2em; text-align: center; font-variant-numeric: tabular-nums; }
+.cc-app .cc-snap { display: inline-flex; align-items: center; gap: 6px; color: var(--cc-muted); }
+.cc-app .cc-snap select { min-height: 28px; padding: 2px 6px; border: 1px solid var(--cc-border); border-radius: 6px; background: var(--cc-control); color: var(--cc-text); font: inherit; }
+.cc-app .cc-canvas-viewport { position: relative; flex: 1 1 auto; min-height: 0; overflow: auto; touch-action: none; }
+/* fitZoom (cyd-creator-canvas.js) subtracts PAD = the stage padding and BEZEL = the frame padding:
+   change them together (TestCYDCreatorDesignerStaticContracts/css pins both). */
+.cc-app .cc-canvas-stage { display: flex; flex-direction: column; align-items: center; justify-content: center; width: max-content; min-width: 100%; min-height: 100%; padding: 24px; }
+.cc-app .cc-device-frame { padding: 14px; border-radius: 18px; background: var(--cc-bezel); box-shadow: var(--cc-bezel-shadow); }
+.cc-app .cc-screen-host { position: relative; overflow: hidden; }
+.cc-app .cc-screen { position: absolute; left: 0; top: 0; overflow: hidden; transform-origin: 0 0; user-select: none; -webkit-user-select: none; line-height: 1.2; }
+.cc-app .cc-screen img, .cc-drag-ghost img { image-rendering: pixelated; }
+.cc-app .cc-w { position: absolute; }
+.cc-app .cc-canvas:not(.is-readonly):not(.is-system) .cc-w { cursor: move; }
+.cc-app .cc-canvas .cc-w.is-locked, .cc-app .cc-canvas.is-readonly .cc-w { cursor: default; }
+.cc-app .cc-canvas.is-dragging, .cc-app .cc-canvas.is-dragging * { cursor: grabbing; }
+.cc-app .cc-canvas.is-dropping, .cc-app .cc-canvas.is-dropping * { cursor: copy; }
+.cc-app .cc-canvas:is(.is-dragging, .is-resizing, .is-dropping) { user-select: none; -webkit-user-select: none; }
+.cc-app .cc-slot { position: absolute; overflow: hidden; }
+.cc-app .cc-wv-modal { outline: 1px dashed var(--cc-muted); outline-offset: 2px; }
+.cc-wv .cc-glyph, .cc-app .cc-palette-glyph, .cc-app .cc-layer-glyph, .cc-app .cc-insp-glyph { font-variant-emoji: text; }
+.cc-app .cc-w.cc-flash { animation: cc-flash 1.2s ease-out; }
+@keyframes cc-flash { from { outline: 3px solid var(--cc-accent); outline-offset: 2px; } to { outline: 3px solid transparent; outline-offset: 8px; } }
+.cc-app .cc-overlay { position: absolute; inset: 0; pointer-events: none; }
+.cc-app .cc-overlay.has-grid { background-image: linear-gradient(to right, var(--cc-grid-line) 1px, transparent 1px), linear-gradient(to bottom, var(--cc-grid-line) 1px, transparent 1px); background-size: var(--cc-grid, 8px) var(--cc-grid, 8px); }
+.cc-app .cc-overlay-sel, .cc-app .cc-guides { position: absolute; inset: 0; }
+.cc-app .cc-sel { position: absolute; border: 1px solid var(--cc-accent); box-shadow: 0 0 0 1px var(--cc-halo); }
+.cc-app .cc-sel.is-locked { border-style: dashed; }
+.cc-app .cc-sel.is-hidden { border-style: dotted; opacity: 0.7; }
+.cc-app .cc-handle { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border: 1px solid var(--cc-accent-deep); border-radius: 2px; background: var(--cc-on-accent); pointer-events: auto; touch-action: none; }
+.cc-app .cc-handle-nw { left: 0; top: 0; cursor: nwse-resize; }
+.cc-app .cc-handle-n { left: 50%; top: 0; cursor: ns-resize; }
+.cc-app .cc-handle-ne { left: 100%; top: 0; cursor: nesw-resize; }
+.cc-app .cc-handle-e { left: 100%; top: 50%; cursor: ew-resize; }
+.cc-app .cc-handle-se { left: 100%; top: 100%; cursor: nwse-resize; }
+.cc-app .cc-handle-s { left: 50%; top: 100%; cursor: ns-resize; }
+.cc-app .cc-handle-sw { left: 0; top: 100%; cursor: nesw-resize; }
+.cc-app .cc-handle-w { left: 0; top: 50%; cursor: ew-resize; }
+.cc-app .cc-guide { position: absolute; background: var(--cc-guide); }
+.cc-app .cc-guide-v { top: 0; bottom: 0; width: 1px; }
+.cc-app .cc-guide-h { left: 0; right: 0; height: 1px; }
+.cc-app .cc-marquee { position: absolute; border: 1px dashed var(--cc-accent); background: color-mix(in srgb, var(--cc-accent) 12%, transparent); }
+.cc-app .cc-drop { position: absolute; outline: 2px dashed var(--cc-ok); outline-offset: -2px; background: color-mix(in srgb, var(--cc-ok) 14%, transparent); }
+.cc-app .cc-issue-dot { position: absolute; width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 2px var(--cc-halo); }
+.cc-app .cc-issue-dot.is-error { background: var(--cc-danger); }
+.cc-app .cc-issue-dot.is-warning { background: var(--cc-warn); }
+/* LABEL_H (cyd-creator-canvas.js) = margin-top + min-height. */
+.cc-app .cc-device-label { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; min-height: 20px; margin-top: 10px; color: var(--cc-muted); font-size: 12px; }
+/* tag recipe of the shell (tinted fill + ink): board states verified | community */
+.cc-app .cc-badge { display: inline-flex; align-items: center; min-height: 18px; padding: 0 7px; border-radius: 999px; background: var(--cc-control); color: var(--cc-muted); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.cc-app .cc-badge-verified { background: color-mix(in srgb, var(--cc-ok) 18%, transparent); color: var(--cc-ok-ink); }
+.cc-app .cc-badge-community { background: color-mix(in srgb, var(--cc-warn) 18%, transparent); color: var(--cc-warn-ink); }
+
+/* ── drag ghost ─────────────────────────────────────────────────────────────── */
+/* The palette ghost hangs in document.body, outside .cc-app: no --cc-* aliases, no box-sizing
+   reset and no .cc-screen line-height reach it, so it sets them itself (font family and size come
+   inline from cyd-creator-interact.js). */
+.cc-drag-ghost { position: fixed; left: 0; top: 0; z-index: 2147483000; overflow: hidden; pointer-events: none; opacity: 0.88; box-shadow: var(--cc-ghost-shadow); line-height: 1.2; letter-spacing: normal; text-align: left; text-transform: none; white-space: normal; user-select: none; -webkit-user-select: none; }
+.cc-drag-ghost, .cc-drag-ghost *, .cc-drag-ghost *::before, .cc-drag-ghost *::after { box-sizing: border-box; }
+.cc-drag-ghost [hidden] { display: none !important; }
+.cc-drag-ghost.is-outside { opacity: 0.45; }
+.cc-drag-ghost-inner { position: relative; transform-origin: 0 0; }
+
+/* ── panels (palette, screens, layers, inspector) ───────────────────────────── */
+.cc-app .cc-palette, .cc-app .cc-palette-list, .cc-app .cc-screens, .cc-app .cc-inspector, .cc-app .cc-insp, .cc-app .cc-screen-section, .cc-app .cc-screen-props, .cc-app .cc-layers { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.cc-app .cc-screens { gap: 14px; }
+.cc-app .cc-panel-head, .cc-app .cc-insp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 26px; }
+.cc-app .cc-panel-head h3, .cc-app .cc-insp-head h3, .cc-app .cc-screen-props h3 { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--cc-muted); }
+.cc-app .cc-panel-hint, .cc-app .cc-panel-empty { margin: 0; font-size: 12px; color: var(--cc-muted); }
+.cc-app .cc-palette-group h4, .cc-app .cc-insp-section h4 { margin: 4px 0; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--cc-muted); }
+/* read-only, locked or on the Wi-Fi system screen every entry is disabled: the drag hint does not apply */
+.cc-app .cc-palette:is(.is-readonly, .is-system) .cc-panel-hint { display: none; }
+/* one entry per row in the shell's left column: long catalog names (German compounds such as
+   "Kontrollkästchen") do not fit half of it; wider hosts get columns */
+.cc-app .cc-palette-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px; }
+.cc-app .cc-palette-item { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 32px; padding: 5px 7px; border: 1px solid var(--cc-border); border-radius: 6px; background: var(--cc-control); color: var(--cc-text); font: inherit; text-align: left; cursor: grab; touch-action: none; }
+.cc-app .cc-palette-item:hover:not(:disabled) { background: var(--cc-control-hover); }
+.cc-app .cc-palette-item:disabled { opacity: 0.45; cursor: not-allowed; }
+.cc-app .cc-palette-glyph { flex: none; width: 18px; text-align: center; }
+.cc-app .cc-palette-name { min-width: 0; line-height: 1.15; overflow-wrap: anywhere; }
+.cc-app .cc-palette-search, .cc-app .cc-screen-rename, .cc-app .cc-field :is(input[type="text"], input[type="number"], select, textarea) { width: 100%; min-height: 30px; padding: 5px 8px; border: 1px solid var(--cc-border); border-radius: 6px; background: var(--cc-control); color: var(--cc-text); font: inherit; }
+.cc-app :is(.cc-palette-search, .cc-screen-rename, .cc-field input, .cc-field textarea)::placeholder { color: var(--cc-muted); opacity: 1; }
+.cc-app .cc-field textarea { min-height: 58px; resize: vertical; line-height: 1.4; }
+.cc-app .cc-field :is(input, textarea)[aria-invalid="true"], .cc-app .cc-screen-rename[aria-invalid="true"] { border-color: var(--cc-danger); }
+/* Read-only keeps the values readable (the shell shows the read-only chip); a dashed frame marks them. */
+.cc-app .cc-fieldset:disabled :is(input, select, textarea) { border-style: dashed; opacity: 1; cursor: default; }
+
+/* screens */
+.cc-app .cc-screen-list, .cc-app .cc-layer-list, .cc-app .cc-issues, .cc-app .cc-multi-list { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.cc-app .cc-screen-row { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; border-radius: 6px; }
+.cc-app .cc-screen-row.is-active { background: var(--cc-control); box-shadow: inset 2px 0 0 var(--cc-accent); }
+.cc-app .cc-screen-row.is-renaming { flex-direction: column; align-items: stretch; gap: 4px; padding: 4px; }
+.cc-app .cc-screen-open, .cc-app .cc-layer-select { display: flex; flex: 1 1 120px; align-items: center; gap: 6px; min-width: 0; min-height: 30px; padding: 4px 6px; border: 0; border-radius: 6px; background: transparent; color: var(--cc-text); font: inherit; text-align: left; cursor: pointer; }
+.cc-app .cc-screen-open:hover, .cc-app .cc-layer-select:hover { background: var(--cc-control-hover); }
+.cc-app .cc-screen-name, .cc-app .cc-screen-title, .cc-app .cc-layer-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-app .cc-screen-name { font-weight: 600; }
+.cc-app .cc-screen-title { color: var(--cc-muted); font-size: 12px; }
+.cc-app .cc-screen-title:empty { display: none; }
+.cc-app .cc-screen-row.is-system .cc-screen-open { color: var(--cc-muted); }
+.cc-app .cc-screen-open :is(.cc-badge, .cc-start, .cc-count, .cc-icon) { flex: none; }
+.cc-app .cc-row-tools { display: flex; flex: none; gap: 1px; margin-left: auto; }
+/* Hover devices show the tools of the active, hovered or focused row; touch devices always do. */
+@media (hover: hover) {
+    .cc-app .cc-screen-row:not(.is-active):not(:hover):not(:focus-within) .cc-row-tools { display: none; }
+}
+.cc-app .cc-screens.is-readonly .cc-row-tools { display: none; }
+.cc-app .cc-start { display: inline-flex; color: var(--cc-warn-ink); }
+.cc-app .cc-count, .cc-app .cc-issue-mark { min-width: 18px; padding: 0 5px; border-radius: 999px; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
+/* tinted fill mixed with the opaque panel colour: the same contrast on active, hovered and selected rows */
+.cc-app .cc-count.is-error, .cc-app .cc-issue-mark.is-error { background: color-mix(in srgb, var(--cc-danger) 18%, var(--cc-panel)); color: var(--cc-danger-ink); }
+.cc-app .cc-issue-mark.is-warning { background: color-mix(in srgb, var(--cc-warn) 18%, var(--cc-panel)); color: var(--cc-warn-ink); }
+
+/* layers */
+.cc-app .cc-layer { display: flex; align-items: center; gap: 2px; padding-left: calc(var(--cc-depth, 0) * 14px); border-radius: 6px; }
+.cc-app .cc-layer.is-selected { background: var(--cc-accent-soft); }
+.cc-app .cc-layer.is-selected :is(.cc-layer-name, .cc-layer-type) { color: var(--cc-accent-ink); }
+.cc-app .cc-layer.is-hidden .cc-layer-name { color: var(--cc-muted); text-decoration: line-through; }
+.cc-app .cc-layer-type { margin-left: auto; color: var(--cc-muted); font-size: 11px; white-space: nowrap; }
+.cc-app .cc-layer-flag { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--cc-muted); cursor: pointer; }
+.cc-app .cc-layer-flag:hover:not(:disabled) { background: var(--cc-control-hover); }
+.cc-app .cc-layer-flag:disabled { opacity: 0.45; cursor: not-allowed; }
+.cc-app .cc-layer-flag[aria-pressed="true"] { color: var(--cc-accent-ink); }
+
+/* inspector */
+.cc-app .cc-insp-head { justify-content: flex-start; }
+.cc-app .cc-insp-sub, .cc-app .cc-insp-id { min-width: 0; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--cc-muted); font-size: 11px; }
+.cc-app .cc-insp-id { font-family: var(--cc-mono); }
+.cc-app .cc-insp-issues:empty { display: none; }
+.cc-app .cc-insp-section { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; border-top: 1px solid var(--cc-border); }
+.cc-app .cc-fieldset { display: flex; flex-direction: column; gap: 10px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.cc-app .cc-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.cc-app .cc-field-label { font-size: 12px; color: var(--cc-muted); overflow-wrap: anywhere; }
+.cc-app .cc-field-hint, .cc-app .cc-field-count { font-size: 11px; color: var(--cc-muted); }
+.cc-app .cc-field-count { align-self: flex-end; font-variant-numeric: tabular-nums; }
+.cc-app .cc-field-error { font-size: 11px; color: var(--cc-danger-ink); }
+.cc-app .cc-grid-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.cc-app .cc-check-field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cc-app .cc-check { display: flex; align-items: center; gap: 8px; min-height: 24px; cursor: pointer; }
+.cc-app .cc-check input { flex: none; width: 16px; height: 16px; margin: 0; }
+.cc-app .cc-check > span { min-width: 0; overflow-wrap: anywhere; }
+.cc-app .cc-check-field > .cc-field-hint { padding-left: 24px; }
+.cc-app .cc-check.is-disabled { opacity: 0.55; cursor: not-allowed; }
+.cc-app .cc-check-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.cc-app .cc-color-row, .cc-app .cc-range-row, .cc-app .cc-asset-row, .cc-app .cc-hook-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.cc-app .cc-color-row input[type="color"] { width: 38px; height: 30px; padding: 2px; border: 1px solid var(--cc-border); border-radius: 6px; background: var(--cc-control); cursor: pointer; }
+.cc-app .cc-color-value { flex: 1 1 auto; min-width: 0; color: var(--cc-muted); font-family: var(--cc-mono); font-size: 11px; }
+.cc-app .cc-range-row input { flex: 1 1 auto; min-width: 0; }
+.cc-app .cc-range-row output { min-width: 3.5em; text-align: right; font-variant-numeric: tabular-nums; }
+.cc-app .cc-chip { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 4px 10px; border: 1px solid var(--cc-border); border-radius: 999px; background: var(--cc-control); color: var(--cc-text); font: inherit; font-size: 12px; cursor: pointer; }
+.cc-app .cc-chip:hover:not(:disabled) { background: var(--cc-control-hover); }
+.cc-app .cc-chip[aria-pressed="true"], .cc-app .cc-chip[aria-pressed="true"]:hover:not(:disabled) { border-color: var(--cc-accent); background: var(--cc-accent-soft); color: var(--cc-accent-ink); }
+.cc-app .cc-chip:disabled { opacity: 0.45; cursor: not-allowed; }
+/* The file input is visually hidden: its label (a chip) shows the keyboard focus. */
+.cc-app .cc-upload:has(input:focus-visible) { outline: 2px solid var(--cc-focus); outline-offset: 2px; }
+.cc-app .cc-upload.is-busy { opacity: 0.7; cursor: progress; }
+.cc-app .cc-hook-name { min-width: 0; color: var(--cc-muted); font-family: var(--cc-mono); font-size: 11px; overflow-wrap: anywhere; }
+.cc-app .cc-event { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--cc-border); border-radius: 8px; background: var(--cc-panel-strong); }
+.cc-app .cc-event-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: 6px; }
+.cc-app .cc-event-body { display: flex; flex-direction: column; gap: 6px; }
+.cc-app .cc-issue { padding: 6px 8px; border-left: 3px solid var(--cc-warn); border-radius: 6px; background: color-mix(in srgb, var(--cc-warn) 12%, transparent); font-size: 12px; }
+.cc-app .cc-issue.is-error { border-left-color: var(--cc-danger); background: color-mix(in srgb, var(--cc-danger) 12%, transparent); }
+.cc-app .cc-theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 6px; }
+.cc-app .cc-theme-swatch { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 4px; border: 1px solid var(--cc-border); border-radius: 8px; background: transparent; color: var(--cc-text); font: inherit; font-size: 11px; cursor: pointer; }
+.cc-app .cc-theme-swatch:hover:not(:disabled) { background: var(--cc-control-hover); }
+.cc-app .cc-theme-swatch[aria-checked="true"] { border-color: var(--cc-accent); box-shadow: 0 0 0 1px var(--cc-accent); }
+/* device colours: inline from the API theme (background, text, border) */
+.cc-app .cc-swatch { position: relative; display: flex; align-items: flex-end; height: 42px; padding: 4px 6px; overflow: hidden; border: 1px solid; border-radius: 5px; font-size: 14px; font-weight: 600; }
+.cc-app .cc-swatch-surface { position: absolute; top: 6px; right: 6px; width: 22px; height: 14px; border-radius: 3px; }
+.cc-app .cc-swatch-accent { position: absolute; right: 6px; bottom: 6px; width: 22px; height: 8px; border-radius: 3px; }
+.cc-app .cc-theme-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-app .cc-board { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; }
+.cc-app .cc-multi-list li { display: flex; gap: 8px; min-width: 0; }
+
+/* ── touch ──────────────────────────────────────────────────────────────────── */
+@media (pointer: coarse) {
+    .cc-app .cc-tool { width: 40px; height: 40px; }
+    .cc-app .cc-tool-sm, .cc-app .cc-layer-flag { width: 36px; height: 36px; }
+    .cc-app .cc-screen-open, .cc-app .cc-layer-select, .cc-app .cc-palette-item { min-height: 40px; }
+    /* a 26 px hit area around the 10 px resize handle */
+    .cc-app .cc-handle::after { content: ''; position: absolute; inset: -9px; }
+}
+
+/* ── narrow windows ─────────────────────────────────────────────────────────── */
+/* The shell hides .cc-left at ≤ 820 px (Code mode needs no left column). In Design mode screens,
+   layers and palette stay reachable: the left column becomes a slim column beside the canvas over
+   both rows and the properties panel moves under the canvas; at ≤ 560 px it becomes a strip above
+   the canvas with screens and palette side by side. Code mode keeps the shell layout. */
+@container cc-app (max-width: 820px) {
+    .cc-app:not(.no-designer):not([data-cc-mode="code"]) .cc-workbench { grid-template-columns: minmax(150px, 190px) minmax(0, 1fr); grid-template-rows: minmax(0, 3fr) minmax(0, 2fr); }
+    .cc-app:not(.no-designer):not([data-cc-mode="code"]) .cc-left { display: grid; grid-column: 1; grid-row: 1 / span 2; }
+    .cc-app:not(.no-designer):not([data-cc-mode="code"]) .cc-center { grid-column: 2; grid-row: 1; }
+    .cc-app:not(.no-designer):not([data-cc-mode="code"]) .cc-right { grid-column: 2; grid-row: 2; }
+    .cc-app .cc-canvas-bar { gap: 2px 6px; padding: 2px 4px; }
+}
+@container cc-app (max-width: 560px) {
+    .cc-app:not(.no-designer):not([data-cc-mode="code"]) .cc-workbench { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 2fr) minmax(0, 3fr) minmax(0, 2fr); }
+    .cc-app:not(.no-designer):not([data-cc-mode="code"]) .cc-left { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); grid-row: 1; border-right: 0; border-bottom: 1px solid var(--cc-border); }
+    .cc-app:not(.no-designer):not([data-cc-mode="code"]) .cc-left-screens { border-bottom: 0; border-right: 1px solid var(--cc-border); }
+    .cc-app:not(.no-designer):not([data-cc-mode="code"]) .cc-center { grid-column: 1; grid-row: 2; }
+    .cc-app:not(.no-designer):not([data-cc-mode="code"]) .cc-right { grid-column: 1; grid-row: 3; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cc-app .cc-w.cc-flash { animation: none; outline: 2px solid var(--cc-accent); }
+}
+/* ==== CYD Creator designer (plan 4b) — end ================================================ */
