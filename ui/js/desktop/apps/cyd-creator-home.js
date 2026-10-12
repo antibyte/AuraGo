@@ -10,6 +10,7 @@
     const NAME_MAX = 64;
     const DESCRIPTION_MAX = 4000;
     const CET = 'CET-1CEST,M3.5.0,M10.5.0/3';
+    // Keys are IANA names plus the ICU legacy names Chrome and Edge report (Asia/Calcutta).
     const ZONES = {
         'Europe/Berlin': CET, 'Europe/Vienna': CET, 'Europe/Zurich': CET, 'Europe/Amsterdam': CET, 'Europe/Brussels': CET,
         'Europe/Paris': CET, 'Europe/Rome': CET, 'Europe/Madrid': CET, 'Europe/Stockholm': CET, 'Europe/Oslo': CET,
@@ -18,7 +19,7 @@
         'Europe/Athens': 'EET-2EEST,M3.5.0/3,M10.5.0/4', 'Europe/Helsinki': 'EET-2EEST,M3.5.0/3,M10.5.0/4',
         'America/New_York': 'EST5EDT,M3.2.0,M11.1.0', 'America/Chicago': 'CST6CDT,M3.2.0,M11.1.0',
         'America/Denver': 'MST7MDT,M3.2.0,M11.1.0', 'America/Los_Angeles': 'PST8PDT,M3.2.0,M11.1.0',
-        'Asia/Tokyo': 'JST-9', 'Asia/Shanghai': 'CST-8', 'Asia/Kolkata': 'IST-5:30', 'UTC': 'UTC0', 'Etc/UTC': 'UTC0'
+        'Asia/Tokyo': 'JST-9', 'Asia/Shanghai': 'CST-8', 'Asia/Kolkata': 'IST-5:30', 'Asia/Calcutta': 'IST-5:30', 'UTC': 'UTC0', 'Etc/UTC': 'UTC0'
     };
 
     // posixTimezone maps the browser's IANA zone to the POSIX TZ string the device firmware needs.
@@ -55,7 +56,7 @@
         const { el, bag } = P.util;
         const t = inst.t;
         const b = bag();
-        const state = { projects: [], loading: false, disposed: false };
+        const state = { projects: [], seq: 0, disposed: false };
 
         function actionCard(action, titleKey, textKey) {
             return el('button', { type: 'button', class: 'cc-action-card', dataset: { ccAction: action } },
@@ -105,7 +106,7 @@
                     type: 'button', class: 'cc-icon-btn', dataset: { ccAction: 'delete-project', ccProjectId: project.id },
                     disabled: inst.readonly || !!project.locked_by_job, 'aria-label': t('cyd_creator.home.delete_project', { name: project.name }), title: t('cyd_creator.home.delete'), text: '×'
                 });
-                del.addEventListener('click', () => deleteProject(project));
+                del.addEventListener('click', () => deleteProject(project, del));
                 return el('li', { class: 'cc-project-row' }, open, del);
             }));
         }
@@ -119,29 +120,32 @@
             importCard.disabled = ro;
         }
 
+        // refresh applies only the newest list answer: an older request that arrives late is dropped.
         async function refresh() {
-            state.loading = true;
+            if (state.disposed) return;
+            const seq = ++state.seq;
             renderActions();
             inst.renderToolchain(toolchainHost);
             try {
                 const projects = await inst.api.listProjects();
-                if (state.disposed) return;
+                if (state.disposed || seq !== state.seq) return;
                 state.projects = projects.slice().sort((x, y) => String(y.updated_at || '').localeCompare(String(x.updated_at || '')));
                 renderProjects();
             } catch (err) {
-                if (!state.disposed) inst.notify('error', P.errors.message(t, err));
-            } finally {
-                state.loading = false;
+                if (!state.disposed && seq === state.seq) inst.notify('error', P.errors.message(t, err));
             }
         }
 
-        async function deleteProject(project) {
+        // deleteProject keeps the row's button disabled while the DELETE runs, so it is sent once.
+        async function deleteProject(project, button) {
             const ok = await inst.confirm({ titleKey: 'cyd_creator.home.delete', bodyKey: 'cyd_creator.home.delete_confirm', vars: { name: project.name }, okKey: 'cyd_creator.home.delete', danger: true });
             if (!ok) return;
+            button.disabled = true;
             try {
                 await inst.api.deleteProject(project.id);
                 await refresh();
             } catch (err) {
+                button.disabled = !!inst.readonly || !!project.locked_by_job;
                 inst.notify('error', P.errors.message(t, err));
             }
         }
@@ -206,11 +210,16 @@
                     if (!board || !theme) { dialog.setError(t('cyd_creator.home.board_required')); return; }
                     dialog.setError('');
                     dialog.setBusy(true);
+                    // Escape or the backdrop may close the dialog while the create runs: the new project
+                    // then only shows up in the list (nothing opens, no agent job starts) and a failure
+                    // becomes a notification.
                     try {
                         const project = await inst.api.createProject({ name, board, theme, language: languageSelect.value, timezone: posixTimezone(browserZone()) });
+                        if (dialog.closed) { if (!state.disposed) refresh(); return; }
                         dialog.close(project);
                         await inst.openProject(project.id, { orientation: orientationSelect.value, prompt: mode === 'agent' ? description : '' });
                     } catch (err) {
+                        if (dialog.closed) { inst.notify('error', P.errors.message(t, err)); return; }
                         dialog.setBusy(false);
                         dialog.setError(P.errors.message(t, err));
                     }

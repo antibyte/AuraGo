@@ -322,4 +322,10 @@ func TestCYDCreatorHomeModule(t *testing.T) {
 	checkCYDCreatorModule(t, "cyd-creator-home.js",
 		"P.home = { create, posixTimezone };", "P.transfer && typeof P.transfer.importZip === 'function'", "ccAction: action",
 		"'cyd_creator.board.status_' + board.status", "dispose() {")
+	// Review fixes: the ICU zone alias, a create dismissed in flight opens nothing, one DELETE per
+	// row and only the newest list answer is applied (behaviour: scripts/test-cyd-creator-shell.mjs).
+	checkCYDCreatorModule(t, "cyd-creator-home.js",
+		"'Asia/Calcutta': 'IST-5:30'", "if (dialog.closed) { if (!state.disposed) refresh(); return; }",
+		"if (dialog.closed) { inst.notify('error', P.errors.message(t, err)); return; }", "button.disabled = true;",
+		"if (state.disposed || seq !== state.seq) return;")
 }

@@ -593,13 +593,14 @@ class FakeNode {
     addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
     removeEventListener(type, fn) { this.listeners[type] = (this.listeners[type] || []).filter(f => f !== fn); }
     dispatch(type, extra) { (this.listeners[type] || []).slice().forEach(fn => fn(Object.assign({ preventDefault() {}, button: 0 }, extra))); }
-    // Simple selectors only: tag, [attr], [attr="v"], tag[attr], :not([tabindex="-1"]), comma lists.
+    // Simple selectors only: tag, [attr], [attr="v"], tag[attr], :not([tabindex="-1"]), :checked, comma lists.
     matches(selector) {
         return selector.split(',').some(part => {
-            const m = /^([a-z]+)?(?:\[([a-z-]+)(?:="([^"]*)")?\])?(:not\(\[tabindex="-1"\]\))?$/.exec(part.trim());
+            const m = /^([a-z]+)?(?:\[([a-z-]+)(?:="([^"]*)")?\])?(:not\(\[tabindex="-1"\]\))?(:checked)?$/.exec(part.trim());
             if (!m) throw new Error('fake DOM: unsupported selector ' + part);
-            const [, tag, attr, want, notMinus] = m;
+            const [, tag, attr, want, notMinus, checked] = m;
             if (tag && this.tagName !== tag.toUpperCase()) return false;
+            if (checked && !this.checked) return false;
             if (!attr) return true;
             let value;
             if (attr.startsWith('data-')) value = this.dataset[attr.slice(5).replace(/-([a-z])/g, (_, c) => c.toUpperCase())];
@@ -1344,6 +1345,113 @@ async function makeAgent(opts) {
     await settle();
     eq('disposing the panel closes its revisions dialog', [open, a.inst.root.childNodes.length, docKeys.length], [1, 0, 0]);
     a.inst.root.remove();
+}
+
+// ── start screen (cyd-creator-home.js) on the fake DOM ──
+{
+    const full = path.join(apps, 'cyd-creator-home.js');
+    vm.runInContext(fs.readFileSync(full, 'utf8'), sandbox, { filename: full });
+}
+{
+    const tz = P.home.posixTimezone;
+    eq('posixTimezone maps IANA zones and the ICU legacy Asia/Calcutta', [tz('Europe/Berlin'), tz('Asia/Kolkata'), tz('Asia/Calcutta'), tz('Mars/Olympus')],
+        ['CET-1CEST,M3.5.0,M10.5.0/3', 'IST-5:30', 'IST-5:30', 'UTC0']);
+}
+function homeProject(id, minute) {
+    return { id, name: 'Project ' + id, board: 'cyd_2432s028r', theme: 'dark_sun', updated_at: '2026-10-12T10:' + String(minute).padStart(2, '0') + ':00Z' };
+}
+// makeHome mounts a start screen like the app; opts: list(n) → promise of the n-th listProjects answer,
+// create(body) and del(id) → promises of the API answers.
+async function makeHome(opts) {
+    const o = opts || {};
+    const calls = { list: 0, create: [], open: [], del: [], notify: [] };
+    const inst = {
+        t: P.i18n({}), bus: P.createBus(), root: attachedHost(), readonly: false,
+        caps: {
+            boards: [{ id: 'cyd_2432s028r', label: 'CYD 2.8"', status: 'verified', chip: 'esp32', display: { width: 320, height: 240, driver: 'ili9341' } }],
+            themes: [{ id: 'dark_sun', tokens: {} }], languages: ['en', 'de']
+        },
+        domId: suffix => 'cc_home_test_' + suffix,
+        renderToolchain() {},
+        api: {
+            listProjects: () => { calls.list++; return o.list ? o.list(calls.list) : Promise.resolve([]); },
+            createProject: body => { calls.create.push(body); return o.create ? o.create(body) : Promise.resolve({ id: 'ccp_new' }); },
+            deleteProject: id => { calls.del.push(id); return o.del ? o.del(id) : Promise.resolve(true); }
+        },
+        confirm: () => Promise.resolve(true),
+        openProject: (id, options) => { calls.open.push(id); void options; return Promise.resolve(); },
+        notify: kind => calls.notify.push(kind)
+    };
+    const home = P.home.create(inst);
+    await home.mount(attachedHost());
+    await settle();
+    const inDialog = (name, value) => findNode(inst.root, n => n.dataset && n.dataset[name] === value);
+    return { home, inst, calls, inDialog };
+}
+function rejectable() {
+    let reject;
+    const promise = new Promise((_, r) => { reject = r; });
+    return { promise, reject };
+}
+{
+    const pending = deferred();
+    const h = await makeHome({ create: () => pending.promise });
+    const result = h.home.openNewProject('agent');
+    h.inDialog('ccField', 'name').value = 'Clock';
+    h.inDialog('ccField', 'description').value = 'Shows the time';
+    h.inDialog('ccDialogAction', 'create').click();
+    await settle();
+    pressKey('Escape');
+    await settle();
+    const lists = h.calls.list;
+    pending.resolve({ id: 'ccp_late' });
+    await settle();
+    eq('a create dismissed in flight opens nothing, starts no job and refreshes the list',
+        [h.calls.create.length, h.calls.open, h.calls.list - lists, await result, h.inst.root.childNodes.length], [1, [], 1, null, 0]);
+    h.home.dispose();
+}
+{
+    const pending = rejectable();
+    const h = await makeHome({ create: () => pending.promise });
+    h.home.openNewProject('designer');
+    h.inDialog('ccField', 'name').value = 'Clock';
+    h.inDialog('ccDialogAction', 'create').click();
+    await settle();
+    pressKey('Escape');
+    await settle();
+    pending.reject(new P.api.ApiError(503, 'CYD_DISABLED', 'off', {}));
+    await settle();
+    eq('a create that fails after the dialog closed becomes a notification', [h.calls.open, h.calls.notify, h.inst.root.childNodes.length], [[], ['error'], 0]);
+    h.home.dispose();
+}
+{
+    const pending = rejectable();
+    const h = await makeHome({ list: () => Promise.resolve([homeProject('ccp_1', 1)]), del: () => pending.promise });
+    const del = findNode(h.home.el, n => n.dataset && n.dataset.ccAction === 'delete-project');
+    del.click();
+    await settle();
+    const during = del.disabled;
+    pending.reject(new P.api.ApiError(500, 'CYD_INTERNAL', 'db', {}));
+    await settle();
+    eq('the delete button stays disabled while its DELETE runs and returns after a failure', [during, h.calls.del, del.disabled, h.calls.notify], [true, ['ccp_1'], false, ['error']]);
+    h.home.dispose();
+}
+{
+    const answers = [];
+    const h = await makeHome({ list: n => { if (n === 1) return Promise.resolve([]); const d = deferred(); answers.push(d); return d.promise; } });
+    const older = h.home.refresh();
+    const newer = h.home.refresh();
+    answers[1].resolve([homeProject('ccp_new', 2)]);
+    await settle();
+    answers[0].resolve([homeProject('ccp_old', 1)]);
+    await Promise.all([older, newer]);
+    await settle();
+    const shown = () => h.home.el.querySelectorAll('[data-cc-project-id]').filter(n => n.dataset.ccAction === 'open').map(n => n.dataset.ccProjectId);
+    eq('an older list answer that arrives late never replaces the newer one', shown(), ['ccp_new']);
+    h.home.dispose();
+    const lists = h.calls.list;
+    await h.home.refresh();
+    eq('a disposed start screen does not refresh', h.calls.list, lists);
 }
 
 if (failures) {
