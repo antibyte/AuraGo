@@ -36,14 +36,45 @@ func writeGo2RTCMutationFailure(w http.ResponseWriter, err error) {
 	code := "save_failed"
 	message := "The camera configuration could not be saved"
 	var mutationErr *go2RTCMutationError
-	if errors.As(err, &mutationErr) {
+	var fieldErr *config.Go2RTCDetectionFieldError
+	switch {
+	case errors.As(err, &mutationErr):
 		status = mutationErr.Status
 		code = mutationErr.Code
 		message = mutationErr.Message
+	case errors.As(err, &fieldErr):
+		// An invalid detection setting is the request's fault, not a save failure.
+		writeGo2RTCJSONStatus(w, http.StatusBadRequest, map[string]interface{}{
+			"status": "error", "code": "invalid_request", "message": security.Scrub(fieldErr.Message), "field": fieldErr.Field, "saved": false,
+		})
+		return
 	}
 	writeGo2RTCJSONStatus(w, status, map[string]interface{}{
 		"status": "error", "code": code, "message": security.Scrub(message), "saved": false,
 	})
+}
+
+// go2RTCAppStream is a stream entry of the app state; managers also see its detection settings.
+type go2RTCAppStream struct {
+	tools.Go2RTCStreamStatus
+	Detection *config.Go2RTCStreamDetectionConfig `json:"detection,omitempty"`
+}
+
+func go2RTCAppStreams(streams []tools.Go2RTCStreamStatus, cfg config.Go2RTCConfig, canManage bool) []go2RTCAppStream {
+	detections := make(map[string]config.Go2RTCStreamDetectionConfig, len(cfg.Streams))
+	for _, stream := range cfg.Streams {
+		detections[stream.ID] = stream.Detection
+	}
+	out := make([]go2RTCAppStream, 0, len(streams))
+	for _, stream := range streams {
+		entry := go2RTCAppStream{Go2RTCStreamStatus: stream}
+		if detection, ok := detections[stream.ID]; ok && canManage {
+			normalized := config.NormalizeGo2RTCStreamDetection(detection)
+			entry.Detection = &normalized
+		}
+		out = append(out, entry)
+	}
+	return out
 }
 
 func writeGo2RTCMutationResult(w http.ResponseWriter, successStatus int, result go2RTCConfigUpdateResult, payload map[string]interface{}) {
@@ -109,9 +140,10 @@ func handleGo2RTCAppState(s *Server) http.HandlerFunc {
 			"webrtc_enabled":    cfg.WebRTC.Enabled,
 			"can_manage":        canManage,
 			"discovery":         map[string]interface{}{"available": available, "reason": reason, "reason_code": reasonCode},
-			"streams":           streams,
+			"streams":           go2RTCAppStreams(streams, cfg, canManage),
 			"web_ui_enabled":    cfg.WebUIEnabled,
 			"thumbnail_refresh": 5,
+			"detection_enabled": cfg.Enabled && cfg.Detection.Enabled,
 		}
 		if canManage {
 			disabled := make([]map[string]interface{}, 0)
@@ -122,6 +154,7 @@ func handleGo2RTCAppState(s *Server) http.HandlerFunc {
 				disabled = append(disabled, map[string]interface{}{
 					"id": stream.ID, "name": stream.Name, "enabled": false,
 					"source_configured": stream.SourceConfigured || strings.TrimSpace(stream.Source) != "",
+					"detection":         config.NormalizeGo2RTCStreamDetection(stream.Detection),
 				})
 			}
 			response["disabled_streams"] = disabled
@@ -440,6 +473,9 @@ func handleGo2RTCStreamMutation(s *Server) http.HandlerFunc {
 		Name    *string `json:"name"`
 		Enabled *bool   `json:"enabled"`
 		Source  *string `json:"source"`
+		// Detection is merged into the camera's saved block (absent keys keep their
+		// values; a zones list replaces the whole list). JSON null is rejected.
+		Detection json.RawMessage `json:"detection"`
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPatch && r.Method != http.MethodDelete {
@@ -481,9 +517,19 @@ func handleGo2RTCStreamMutation(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if payload.Name == nil && payload.Enabled == nil && payload.Source == nil {
+		hasDetection := payload.Detection != nil
+		if payload.Name == nil && payload.Enabled == nil && payload.Source == nil && !hasDetection {
 			jsonError(w, "At least one stream field is required", http.StatusBadRequest)
 			return
+		}
+		if hasDetection {
+			// Malformed objects (null, unknown or differently cased keys, wrong types,
+			// points that are not [x, y]) fail here, before the config transaction; the
+			// merge and the range checks need the saved block and run inside it.
+			if _, err := decodeGo2RTCStreamDetection(payload.Detection); err != nil {
+				writeGo2RTCMutationFailure(w, err)
+				return
+			}
 		}
 		var changes []go2RTCSourceChange
 		if payload.Source != nil && strings.TrimSpace(*payload.Source) != "" {
@@ -513,6 +559,21 @@ func handleGo2RTCStreamMutation(s *Server) http.HandlerFunc {
 				if payload.Enabled != nil {
 					value.Streams[index].Enabled = *payload.Enabled
 				}
+				if hasDetection {
+					merged, err := mergeGo2RTCStreamDetection(payload.Detection, value.Streams[index].Detection)
+					if err == nil {
+						merged = config.NormalizeGo2RTCStreamDetection(merged)
+						if validationErr := config.ValidateGo2RTCStreamDetection(merged); validationErr != nil {
+							err = config.PrefixGo2RTCDetectionField(validationErr, "detection")
+						}
+					}
+					if err != nil {
+						return err
+					}
+					// The streams slice is a shallow copy of the published snapshot:
+					// replace the block as a whole (merged shares no slice with it).
+					value.Streams[index].Detection = merged
+				}
 				return nil
 			}
 			return &go2RTCMutationError{Status: http.StatusNotFound, Code: "stream_not_found", Message: fmt.Sprintf("stream %q was not found", streamID)}
@@ -531,6 +592,7 @@ func safeGo2RTCStream(cfg config.Go2RTCConfig, streamID string) map[string]inter
 			return map[string]interface{}{
 				"id": stream.ID, "name": stream.Name, "enabled": stream.Enabled,
 				"source_configured": stream.SourceConfigured || strings.TrimSpace(stream.Source) != "",
+				"detection":         config.NormalizeGo2RTCStreamDetection(stream.Detection),
 			}
 		}
 	}

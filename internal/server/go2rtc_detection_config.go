@@ -55,6 +55,26 @@ func go2RTCDetectionDecodeError(field, message string) error {
 // arrives as null), as are unknown fields, wrong types and trailing data, and each zone
 // point must be exactly [x, y] (encoding/json would silently pad or cut a [2]float64).
 func decodeGo2RTCStreamDetection(raw json.RawMessage) (config.Go2RTCStreamDetectionConfig, error) {
+	return decodeGo2RTCStreamDetectionOnto(raw, config.DefaultGo2RTCStreamDetection(false))
+}
+
+// mergeGo2RTCStreamDetection decodes a per-camera detection object that updates
+// current (PATCH): it pre-fills a deep copy of current instead of the defaults, so
+// a missing key keeps the camera's value, also in nested actions. A zones list in
+// the object replaces the whole list. The strict checks are those of
+// decodeGo2RTCStreamDetection; the result shares no slice with current.
+func mergeGo2RTCStreamDetection(raw json.RawMessage, current config.Go2RTCStreamDetectionConfig) (config.Go2RTCStreamDetectionConfig, error) {
+	base := current
+	base.Zones = make([]config.Go2RTCDetectionZone, 0, len(current.Zones))
+	for _, zone := range current.Zones {
+		zone.Points = append([][2]float64(nil), zone.Points...)
+		base.Zones = append(base.Zones, zone)
+	}
+	return decodeGo2RTCStreamDetectionOnto(raw, base)
+}
+
+// decodeGo2RTCStreamDetectionOnto runs the strict checks and decodes raw over out.
+func decodeGo2RTCStreamDetectionOnto(raw json.RawMessage, out config.Go2RTCStreamDetectionConfig) (config.Go2RTCStreamDetectionConfig, error) {
 	var generic interface{}
 	pre := json.NewDecoder(bytes.NewReader(raw))
 	pre.UseNumber()
@@ -64,9 +84,15 @@ func decodeGo2RTCStreamDetection(raw json.RawMessage) (config.Go2RTCStreamDetect
 	if err := checkGo2RTCDetectionJSON(generic, reflect.TypeOf(config.Go2RTCStreamDetectionConfig{}), "detection"); err != nil {
 		return config.Go2RTCStreamDetectionConfig{}, err
 	}
-	// The default set's zone slice is empty and new, so decoding cannot merge into or
-	// alias zones of another configuration.
-	out := config.DefaultGo2RTCStreamDetection(false)
+	// encoding/json decodes a list into the existing slice element by element, so a
+	// zone of the object would be merged with the pre-filled zone at its index (and
+	// write through its backing array). A zones list therefore starts from a new,
+	// empty slice; the checker above accepts only the exact key "zones".
+	if object, ok := generic.(map[string]interface{}); ok {
+		if _, present := object["zones"]; present {
+			out.Zones = []config.Go2RTCDetectionZone{}
+		}
+	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&out); err != nil {
