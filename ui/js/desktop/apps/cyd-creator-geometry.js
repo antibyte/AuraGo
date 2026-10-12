@@ -10,12 +10,15 @@
     const ZOOM_MIN = 1;
     const ZOOM_MAX = 4;
     const SNAP_STEPS = [0, 4, 8];
-    const GUIDE_RADIUS = 4; // device px at zoom 1; the canvas divides screen px by the zoom
+    const GUIDE_RADIUS = 4; // default snap radius in device px when the caller passes none; the canvas passes its own (screen px / zoom)
     const MIN_SIZE = 4;
+    const MAX_SIDE = 2048; // largest widget side the server accepts (maxWidgetSide, internal/cydcreator/limits.go)
     const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
 
     function int(v) { return Math.round(Number(v) || 0); }
     function rect(x, y, w, h) { return { x: int(x), y: int(y), w: int(w), h: int(h) }; }
+    // edges builds a rect from rounded edges, so rounding never moves the opposite edge.
+    function edges(x1, y1, x2, y2) { const x = int(x1), y = int(y1); return { x, y, w: int(x2) - x, h: int(y2) - y }; }
     function clampZoom(z) { const n = Math.round(Number(z)); return Number.isFinite(n) ? Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, n)) : ZOOM_MIN; }
     function snapStep(v) { const n = Number(v); return SNAP_STEPS.includes(n) ? n : 0; }
 
@@ -101,43 +104,57 @@
     }
 
     // resizeRect applies a pointer delta to the edges a handle owns. keepRatio (corner handles)
-    // keeps the start rect's aspect ratio. Sizes never fall below MIN_SIZE; the opposite edge stays.
+    // keeps the start rect's aspect ratio. A side never falls below MIN_SIZE (or below its start
+    // size when that is already smaller, so small widgets keep their size) and never exceeds
+    // MAX_SIDE; the opposite edge stays. Moved edges are rounded before the size is derived.
     function resizeRect(start, handle, dx, dy, opts) {
         const o = opts || {};
         const min = o.min || MIN_SIZE;
+        const minW = Math.min(min, start.w);
+        const minH = Math.min(min, start.h);
         let x1 = start.x, y1 = start.y, x2 = right(start), y2 = bottom(start);
-        if (handle.includes('w')) x1 = Math.min(x2 - min, start.x + dx);
-        if (handle.includes('e')) x2 = Math.max(x1 + min, right(start) + dx);
-        if (handle.includes('n')) y1 = Math.min(y2 - min, start.y + dy);
-        if (handle.includes('s')) y2 = Math.max(y1 + min, bottom(start) + dy);
+        if (handle.includes('w')) x1 = Math.max(x2 - MAX_SIDE, Math.min(x2 - minW, int(start.x + dx)));
+        if (handle.includes('e')) x2 = Math.min(x1 + MAX_SIDE, Math.max(x1 + minW, int(right(start) + dx)));
+        if (handle.includes('n')) y1 = Math.max(y2 - MAX_SIDE, Math.min(y2 - minH, int(start.y + dy)));
+        if (handle.includes('s')) y2 = Math.min(y1 + MAX_SIDE, Math.max(y1 + minH, int(bottom(start) + dy)));
         if (o.keepRatio && handle.length === 2 && start.w > 0 && start.h > 0) {
             const ratio = start.h / start.w;
-            const w = x2 - x1;
-            const h = Math.max(min, Math.round(w * ratio));
+            let h = Math.max(minH, Math.round((x2 - x1) * ratio));
+            if (h > MAX_SIDE) {
+                // The height hit the limit: shorten the width so the ratio still holds.
+                h = MAX_SIDE;
+                const w = Math.max(minW, Math.round(h / ratio));
+                if (handle.includes('w')) x1 = x2 - w; else x2 = x1 + w;
+            }
             if (handle.includes('n')) y1 = y2 - h; else y2 = y1 + h;
         }
-        return rect(x1, y1, x2 - x1, y2 - y1);
+        return edges(x1, y1, x2, y2);
     }
 
-    // snapResize moves only the edges the handle owns onto guides (within radius) or the grid.
+    // snapResize moves only the edges the handle owns onto guides (within radius) or the grid,
+    // within the same per-axis minimum and MAX_SIDE as resizeRect. A guide is listed only when the
+    // edge really ends on it after those limits.
     function snapResize(r, handle, targets, opts) {
         const o = opts || {};
         const step = snapStep(o.step);
         const radius = o.radius == null ? GUIDE_RADIUS : o.radius;
         const origin = o.origin || { x: 0, y: 0 };
         const min = o.min || MIN_SIZE;
+        const minW = Math.min(min, r.w);
+        const minH = Math.min(min, r.h);
         let x1 = r.x, y1 = r.y, x2 = right(r), y2 = bottom(r);
         const guides = { x: [], y: [] };
-        const pick = (value, list, axis, base) => {
+        const snap = (value, list, axis, base, limit) => {
             const g = o.guides === false ? null : nearest([value], list || [], radius);
-            if (g) { guides[axis].push(g.line); return g.line; }
-            return snapValue(value - base, step) + base;
+            const v = limit(g ? g.line : snapValue(value - base, step) + base);
+            if (g && v === g.line) guides[axis].push(g.line);
+            return v;
         };
-        if (handle.includes('w')) x1 = Math.min(x2 - min, pick(x1, targets.x, 'x', origin.x));
-        if (handle.includes('e')) x2 = Math.max(x1 + min, pick(x2, targets.x, 'x', origin.x));
-        if (handle.includes('n')) y1 = Math.min(y2 - min, pick(y1, targets.y, 'y', origin.y));
-        if (handle.includes('s')) y2 = Math.max(y1 + min, pick(y2, targets.y, 'y', origin.y));
-        return Object.assign(rect(x1, y1, x2 - x1, y2 - y1), { guides });
+        if (handle.includes('w')) x1 = snap(x1, targets.x, 'x', origin.x, v => Math.max(x2 - MAX_SIDE, Math.min(x2 - minW, v)));
+        if (handle.includes('e')) x2 = snap(x2, targets.x, 'x', origin.x, v => Math.min(x1 + MAX_SIDE, Math.max(x1 + minW, v)));
+        if (handle.includes('n')) y1 = snap(y1, targets.y, 'y', origin.y, v => Math.max(y2 - MAX_SIDE, Math.min(y2 - minH, v)));
+        if (handle.includes('s')) y2 = snap(y2, targets.y, 'y', origin.y, v => Math.min(y1 + MAX_SIDE, Math.max(y1 + minH, v)));
+        return Object.assign(edges(x1, y1, x2, y2), { guides });
     }
 
     // align returns the new rects for mode left|hcenter|right|top|vcenter|bottom. The reference is
@@ -158,7 +175,8 @@
     }
 
     // distribute spaces three or more rects with equal gaps along axis "h" or "v"; the first and the
-    // last rect (by position) stay. The result keeps the input order.
+    // last rect (by position) stay. The result keeps the input order. Rects wider than their span
+    // (a negative gap) stay unchanged, so no rect is pushed outside the selection.
     function distribute(rects, axis) {
         if (rects.length < 3) return rects.map(r => Object.assign({}, r));
         const pos = axis === 'v' ? 'y' : 'x';
@@ -169,6 +187,7 @@
         const total = order.reduce((sum, o) => sum + o.r[size], 0);
         const gap = (last[pos] + last[size] - first[pos] - total) / (order.length - 1);
         const out = rects.map(r => Object.assign({}, r));
+        if (gap < 0) return out;
         let cursor = first[pos];
         order.forEach(o => {
             out[o.i][pos] = Math.round(cursor);
@@ -203,7 +222,7 @@
     }
 
     P.geometry = {
-        ZOOM_MIN, ZOOM_MAX, SNAP_STEPS, GUIDE_RADIUS, MIN_SIZE, HANDLES,
+        ZOOM_MIN, ZOOM_MAX, SNAP_STEPS, GUIDE_RADIUS, MIN_SIZE, MAX_SIDE, HANDLES,
         rect, clampZoom, snapStep, fitZoom, screenSize, snapValue, contains, intersects, normalizeRect, translate,
         insideAll, bounds, lines, guideTargets, snapMove, resizeRect, snapResize, align, distribute, hitTest, inBox,
         nudgeDelta, toWorld, clampInto

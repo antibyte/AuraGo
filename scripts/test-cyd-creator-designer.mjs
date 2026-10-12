@@ -97,6 +97,50 @@ eq('inBox', G.inBox(items, { x: 60, y: 60, w: 5, h: 5 }), ['b']);
 eq('nudge', [G.nudgeDelta('ArrowLeft', false), G.nudgeDelta('ArrowDown', true), G.nudgeDelta('a', false)], [{ x: -1, y: 0 }, { x: 0, y: 8 }, null]);
 eq('toWorld', G.toWorld({ x: 125, y: 63 }, { left: 20, top: 10 }, 2), { x: 52, y: 26 });
 eq('clampInto', G.clampInto({ x: 300, y: -5, w: 40, h: 20 }, { x: 0, y: 0, w: 320, h: 240 }), { x: 280, y: 0, w: 40, h: 20 });
+// edge cases: small widgets, server limits, rounding, ties
+const goLimits = fs.readFileSync(path.join(root, 'internal', 'cydcreator', 'limits.go'), 'utf8');
+eq('MAX_SIDE mirrors the server maxWidgetSide', G.MAX_SIDE, Number((goLimits.match(/maxWidgetSide\s*=\s*(\d+)/) || [])[1]));
+eq('fitZoom with a 0x0 viewport', G.fitZoom({ w: 320, h: 240 }, { w: 0, h: 0 }, 24), 1);
+const one = { x: [100], y: [] };
+eq('snapMove radius is inclusive', [G.snapMove({ x: 96, y: 0, w: 30, h: 10 }, one, { step: 0, radius: 4 }).x, G.snapMove({ x: 95, y: 0, w: 30, h: 10 }, one, { step: 0, radius: 4 }).x], [100, 95]);
+eq('snapMove fractional radius', [G.snapMove({ x: 98, y: 0, w: 30, h: 10 }, one, { step: 0, radius: 1.5 }).x, G.snapMove({ x: 99, y: 0, w: 30, h: 10 }, one, { step: 0, radius: 1.5 }).x, G.snapMove({ x: 98, y: 0, w: 30, h: 10 }, one, { step: 0, radius: 2 }).x], [98, 100, 100]);
+const tie = G.snapMove({ x: 98, y: 0, w: 30, h: 10 }, { x: [96, 100], y: [] }, { step: 0, radius: 4 });
+eq('snapMove tie keeps the first line', [tie.x, tie.guides.x], [96, [96]]);
+const neg = G.snapMove({ x: -13, y: -12, w: 10, h: 10 }, { x: [], y: [] }, { step: 8 });
+eq('snapMove negative grid positions', [neg.x, neg.y], [-16, -8]);
+eq('resize keeps a widget below MIN_SIZE (zero delta)', G.resizeRect({ x: 10, y: 10, w: 120, h: 2 }, 'se', 0, 0), { x: 10, y: 10, w: 120, h: 2 });
+eq('resize keeps a small side while the other grows', G.resizeRect({ x: 10, y: 10, w: 120, h: 2 }, 'se', 5, 0), { x: 10, y: 10, w: 125, h: 2 });
+eq('resize never shrinks a small side further', G.resizeRect({ x: 10, y: 10, w: 120, h: 2 }, 's', 0, -5), { x: 10, y: 10, w: 120, h: 2 });
+eq('resize keep ratio ne', G.resizeRect({ x: 0, y: 10, w: 40, h: 20 }, 'ne', 20, 0, { keepRatio: true }), { x: 0, y: 0, w: 60, h: 30 });
+eq('resize keep ratio nw', G.resizeRect({ x: 20, y: 20, w: 40, h: 20 }, 'nw', -20, 0, { keepRatio: true }), { x: 0, y: 10, w: 60, h: 30 });
+eq('resize keep ratio with the min clamp', G.resizeRect({ x: 0, y: 0, w: 40, h: 10 }, 'se', -38, 0, { keepRatio: true }), { x: 0, y: 0, w: 4, h: 4 });
+eq('resize keep ratio from below MIN_SIZE', G.resizeRect({ x: 0, y: 0, w: 120, h: 2 }, 'se', -60, 0, { keepRatio: true }), { x: 0, y: 0, w: 60, h: 2 });
+eq('resize caps sides at MAX_SIDE', [G.resizeRect({ x: 0, y: 0, w: 2000, h: 20 }, 'e', 100, 0), G.resizeRect({ x: 100, y: 0, w: 2000, h: 20 }, 'w', -100, 0), G.resizeRect({ x: 0, y: 0, w: 20, h: 2000 }, 's', 0, 500).h],
+    [{ x: 0, y: 0, w: 2048, h: 20 }, { x: 52, y: 0, w: 2048, h: 20 }, 2048]);
+eq('resize keep ratio caps at MAX_SIDE and keeps the ratio', G.resizeRect({ x: 0, y: 0, w: 100, h: 200 }, 'se', 1000, 0, { keepRatio: true }), { x: 0, y: 0, w: 1024, h: 2048 });
+eq('resize fractional delta keeps the opposite edges', G.resizeRect({ x: 10, y: 10, w: 40, h: 20 }, 'nw', 0.5, 0.5), { x: 11, y: 11, w: 39, h: 19 });
+const srw = G.snapResize({ x: 98, y: 10, w: 42, h: 20 }, 'w', targets, { step: 8, radius: 4 });
+eq('snapResize w edge to guide', [srw.x, srw.w, srw.guides.x], [100, 40, [100]]);
+const srn = G.snapResize({ x: 10, y: 47, w: 20, h: 30 }, 'n', targets, { step: 8, radius: 4 });
+eq('snapResize n edge to guide', [srn.y, srn.h, srn.guides.y], [50, 27, [50]]);
+const sro = G.snapResize({ x: 10, y: 10, w: 20, h: 13 }, 'se', { x: [], y: [] }, { step: 8, origin: { x: 2, y: 2 } });
+eq('snapResize grid relative to the parent origin', [sro.x, sro.y, sro.w, sro.h], [10, 10, 24, 16]);
+const srOff = G.snapResize({ x: 10, y: 10, w: 88, h: 21 }, 'se', targets, { step: 8, guides: false });
+eq('snapResize without guides (Alt)', [srOff.w, srOff.h, srOff.guides], [86, 22, { x: [], y: [] }]);
+const srMin = G.snapResize({ x: 98, y: 0, w: 6, h: 10 }, 'e', one, { step: 0, radius: 4 });
+eq('snapResize lists no guide the clamped edge misses', [srMin.w, srMin.guides.x], [4, []]);
+eq('snapResize caps sides at MAX_SIDE', G.snapResize({ x: 6, y: 0, w: 2048, h: 10 }, 'e', { x: [], y: [] }, { step: 8 }).w, 2048);
+eq('align top several', G.align([{ x: 0, y: 10, w: 10, h: 10 }, { x: 20, y: 30, w: 10, h: 20 }, { x: 40, y: 5, w: 10, h: 5 }], 'top').map(r => r.y), [5, 5, 5]);
+eq('align vcenter several', G.align([{ x: 0, y: 10, w: 10, h: 10 }, { x: 20, y: 30, w: 10, h: 20 }, { x: 40, y: 5, w: 10, h: 5 }], 'vcenter').map(r => r.y), [23, 18, 25]);
+eq('align hcenter rounds odd gaps up', G.align([{ x: 0, y: 0, w: 10, h: 10 }, { x: 41, y: 0, w: 20, h: 10 }], 'hcenter').map(r => r.x), [26, 21]);
+eq('align widget larger than its frame', G.align([{ x: 5, y: 5, w: 151, h: 10 }], 'hcenter', { x: 0, y: 0, w: 100, h: 50 })[0].x, -25);
+eq('align empty list', [G.align([], 'left', { x: 0, y: 0, w: 320, h: 240 }), G.align([], 'top')], [[], []]);
+eq('distribute fractional gap', G.distribute([{ x: 0, y: 0, w: 10, h: 10 }, { x: 20, y: 0, w: 10, h: 10 }, { x: 80, y: 0, w: 10, h: 10 }, { x: 101, y: 0, w: 10, h: 10 }], 'h').map(r => r.x), [0, 34, 67, 101]);
+const crowded = [{ x: 0, y: 0, w: 10, h: 10 }, { x: 5, y: 0, w: 200, h: 10 }, { x: 50, y: 0, w: 10, h: 10 }];
+eq('distribute leaves rects wider than their span unchanged', G.distribute(crowded, 'h'), crowded);
+eq('clampInto rect larger than the frame', G.clampInto({ x: 50, y: 50, w: 400, h: 300 }, { x: 0, y: 0, w: 320, h: 240 }), { x: 0, y: 0, w: 400, h: 300 });
+eq('clampInto frame with an offset origin', [G.clampInto({ x: 0, y: 60, w: 20, h: 20 }, { x: 10, y: 20, w: 100, h: 50 }), G.clampInto({ x: 30, y: 30, w: 200, h: 10 }, { x: 10, y: 20, w: 100, h: 50 })],
+    [{ x: 10, y: 50, w: 20, h: 20 }, { x: 10, y: 30, w: 200, h: 10 }]);
 
 // ── store ──
 function project() {
