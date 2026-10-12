@@ -52,7 +52,7 @@
   "config.web_scraper.disabled_notice": "Web Scraper jest wyłączony",
   "config.web_scraper.empty_main_llm": "puste = główny LLM",
   "config.web_scraper.enabled_label": "Web Scraper włączony:",
-  "config.web_scraper.summary_desc": "Zeskrobane strony internetowe są podsumowywane przez centralnego Asystenta LLM, gdy jest włączony. Agent otrzymuje oczyszczone podsumowanie zamiast pełnej zawartości strony.<br><strong>Korzyści:</strong> oszczędza tokeny, zmniejsza duplikaty wywołań asystenta i wzmacnia system przed wstrzykiwaniem promptów z zewnętrznej zawartości.",
+  "config.web_scraper.summary_desc": "Zeskrobane strony internetowe są podsumowywane przez centralnego Asystenta LLM, gdy jest włączony. Agent otrzymuje oczyszczone podsumowanie zamiast pełnej zawartości strony.<br><strong>Korzyści:</strong> oszczędza tokeny, zmniejsza duplikaty wywołań asystenta i wzmacnia system przed wstrzykiwaniem promptów z zewnętrznej zawartości. Jeśli pomocniczy LLM nie jest skonfigurowany lub podsumowanie się nie powiedzie, otrzymasz izolowaną treść strony.",
   "config.web_scraper.summary_mode": "Tryb podsumowania",
   "config.web_scraper.summary_provider": "Pomocniczy LLM",
   "config.web_scraper.use_main_llm": "— Użyj głównego LLM —",

@@ -21,6 +21,11 @@ Agent filesystem, external service and Docker tool safety boundaries.
 
 - `local_wikipedia` (`local_wikipedia.go`) is read-only. The server publishes the edition manager with `SetLocalWikipediaSource` and withdraws it with nil; `ExecuteLocalWikipedia` gates on `local_wikipedia.enabled` and `agent_access`, holds one refcounted library handle per call, isolates every article text field with `IsolateExternalData` and maps library errors to fixed messages, so archive error text never reaches the model. `LocalWikipediaAvailable` drives schema, prompt and MCP visibility. Verify `TestLocalWikipedia*`.
 
+### Web scraper and site crawler
+- `web_scraper` and `site_crawler` share `tools.web_scraper.enabled`. Public fetches use `security.MaxSSRFResponseBytes`. Dynamic mode uses `newScraperLauncher` and one process-wide slot.
+- `web_scraper` static, RSS, and auto share that single GET. Auto returns RSS when `rssResponseLooksLikeFeed` and `parseRSSOrAtom` both succeed; otherwise it passes the same body to `AgentScraper.ScrapeHTML` and does not GET again. A thin HTML result may still call `FetchDynamic`. `internal/tools` does not export the GET helper. `FetchStatic` does not use Colly.
+- `site_crawler` honors robots.txt, applies `selector` via goquery, cuts previews at 500 runes, skips a body whose length equals `MaxSSRFResponseBytes` with the preview `page skipped because it exceeds 5 MiB`, and isolates title and preview with `ScanExternalContent`.
+
 ### GitHub repository trust
 - Workspace project metadata, including `AgentCreated`, is inventory only. Runtime trust comes from explicit administrator allowlists or the protected, API-bound `github_trust.json` ledger. Legacy inventory requires visible administrator approval. Preserve a private backup and atomically replace ledger updates; malformed ledgers fail closed without being overwritten.
 - Repository deletion requires `github.allow_delete` (default false), repository access and writable mode. A create response followed by a ledger failure reports the created repository plus a migration warning; never suggest retrying the creation.

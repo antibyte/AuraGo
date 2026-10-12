@@ -52,7 +52,7 @@
   "config.web_scraper.disabled_notice": "Web Scraper je zakázán",
   "config.web_scraper.empty_main_llm": "prázdné = hlavní LLM",
   "config.web_scraper.enabled_label": "Web Scraper povolen:",
-  "config.web_scraper.summary_desc": "Scrapeované webové stránky jsou shrnuty prostřednictvím centrálního Helper LLM, pokud je povolen. Agent místo úplného obsahu stránky obdrží vyčištěné shrnutí.<br><strong>Výhody:</strong> šetří tokeny, snižuje duplicitní volání helperu a posiluje systém proti prompt injection z externího obsahu.",
+  "config.web_scraper.summary_desc": "Scrapeované webové stránky jsou shrnuty prostřednictvím centrálního Helper LLM, pokud je povolen. Agent místo úplného obsahu stránky obdrží vyčištěné shrnutí.<br><strong>Výhody:</strong> šetří tokeny, snižuje duplicitní volání helperu a posiluje systém proti prompt injection z externího obsahu. Pokud pomocné LLM není nastavené nebo shrnutí selže, dostanete izolovaný obsah stránky.",
   "config.web_scraper.summary_mode": "Režim shrnutí",
   "config.web_scraper.summary_provider": "Pomocné LLM",
   "config.web_scraper.use_main_llm": "— Použít hlavní LLM —",

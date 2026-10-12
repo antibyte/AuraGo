@@ -52,7 +52,7 @@
   "config.web_scraper.disabled_notice": "Web Scraper er deaktiveret",
   "config.web_scraper.empty_main_llm": "tom = hoved-LLM",
   "config.web_scraper.enabled_label": "Web Scraper aktiveret:",
-  "config.web_scraper.summary_desc": "Scrapede websider opsummeres via det centrale Helper-LLM, når det er aktiveret. Agenten modtager den rensede opsummering i stedet for det fulde sideindhold.<br><strong>Fordele:</strong> sparer tokens, reducerer duplikerede helper-kald og hærder systemet mod prompt-injektion fra eksternt indhold.",
+  "config.web_scraper.summary_desc": "Scrapede websider opsummeres via det centrale Helper-LLM, når det er aktiveret. Agenten modtager den rensede opsummering i stedet for det fulde sideindhold.<br><strong>Fordele:</strong> sparer tokens, reducerer duplikerede helper-kald og hærder systemet mod prompt-injektion fra eksternt indhold. Hvis hjælpe-LLM'en ikke er konfigureret, eller opsummeringen mislykkes, får du det isolerede sideindhold.",
   "config.web_scraper.summary_mode": "Opsummeringstilstand",
   "config.web_scraper.summary_provider": "Hjælpe-LLM",
   "config.web_scraper.use_main_llm": "— Brug hoved-LLM —",
