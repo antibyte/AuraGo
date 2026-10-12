@@ -48,6 +48,15 @@
         const locked = () => d.readonly() || d.isSystem();
         const radius = () => Math.max(2, GUIDE_PX / (d.zoom || 1));
         const far = (a, ev) => Math.hypot(ev.clientX - a.x, ev.clientY - a.y) >= THRESHOLD;
+        // world is a pointer's unrounded device position: measured against the screen host, so a
+        // viewport scrolled during a gesture keeps the widget under the pointer.
+        function world(ev) {
+            const r = canvas.hostRect();
+            const z = d.zoom || 1;
+            return { x: (ev.clientX - r.left) / z, y: (ev.clientY - r.top) / z };
+        }
+        // worldDelta is the whole device-pixel distance between two world positions.
+        const worldDelta = (a, b) => ({ x: Math.round(b.x - a.x), y: Math.round(b.y - a.y) });
 
         function visibleIn(parent, w) {
             return !w.hidden && (!parent || parent.type !== 'tabview' || (w.tab || 0) === d.activeTab(parent.id));
@@ -92,21 +101,22 @@
             const abs0 = G.bounds(ids.map(x => M.absRect(p, x, env)));
             const frame = d.frameOf(found);
             const targets = G.guideTargets(siblingRects(found, moving), frame);
+            const parentId = found.parent ? found.parent.id : '';
             const start = { x: event.clientX, y: event.clientY };
+            const from = world(event);
             let moved = false;
             let delta = { x: 0, y: 0 };
             let drop = null;
             gesture = capture(canvas.viewport, event, ev => {
                 if (!moved && !far(start, ev)) return;
                 if (!moved) { moved = true; canvas.root.classList.add('is-dragging'); }
-                const scale = d.zoom || 1;
-                const raw = G.translate(abs0, Math.round((ev.clientX - start.x) / scale), Math.round((ev.clientY - start.y) / scale));
+                const step = worldDelta(from, world(ev));
+                const raw = G.translate(abs0, step.x, step.y);
                 const snapped = ev.altKey ? Object.assign({ guides: { x: [], y: [] } }, raw) : G.snapMove(raw, targets, { step: d.snap, radius: radius(), origin: frame });
                 delta = { x: snapped.x - abs0.x, y: snapped.y - abs0.y };
                 canvas.previewMove(ids, delta);
                 canvas.showGuides(snapped.guides);
                 drop = containerAt(canvas.clientToWorld(ev.clientX, ev.clientY), moving);
-                const parentId = found.parent ? found.parent.id : '';
                 canvas.showDrop(drop && drop.widget.id !== parentId ? drop.rect : null);
             }, (ev, cancelled) => {
                 gesture = null;
@@ -115,29 +125,33 @@
                 canvas.showDrop(null);
                 if (!moved) return;
                 if (cancelled) { canvas.render(); return; }
-                commitMove(ids, delta, drop);
+                commitMove(ids, delta, drop, parentId);
             });
         }
 
-        function commitMove(ids, delta, drop) {
+        // commitMove saves a move as one undo step. Dropped where the pressed widget already lives
+        // (parentId), every widget moves in place, so a selection spanning parents keeps them;
+        // dropped elsewhere, every widget goes into the drop target (or the screen root).
+        function commitMove(ids, delta, drop, parentId) {
             const p = d.project();
             const env = d.env();
             const screen = d.screen();
             const dropId = drop ? drop.widget.id : '';
+            const inPlace = dropId === parentId;
+            // Layout ops take integers only (the server rejects anything else): every coordinate is rounded.
             const ops = ids.map(id => {
                 const f = d.find(id);
-                if ((f.parent ? f.parent.id : '') === dropId) return { op: 'move_widget', id, x: f.widget.x + delta.x, y: f.widget.y + delta.y };
+                if (inPlace || (f.parent ? f.parent.id : '') === dropId) return { op: 'move_widget', id, x: Math.round(f.widget.x + delta.x), y: Math.round(f.widget.y + delta.y) };
                 const abs = G.translate(M.absRect(p, id, env), delta.x, delta.y);
                 const origin = drop ? drop.rect : { x: 0, y: 0 };
-                // Layout ops take integers only; a container box from an odd tab bar size may not be one.
                 const op = { op: 'move_widget', id, screen: screen.id, x: Math.round(abs.x - origin.x), y: Math.round(abs.y - origin.y) };
                 if (drop) { op.parent = dropId; if (drop.widget.type === 'tabview') op.tab = drop.tab; }
                 return op;
             });
             const reparent = ops.some(op => op.screen);
-            if (d.commands.run(reparent ? 'reparent' : 'move', ops) && reparent) {
-                d.announce(drop ? t('cyd_creator.designer.moved_into', { name: drop.widget.name || d.label(drop.widget.type) }) : t('cyd_creator.designer.moved_to_screen'));
-            }
+            // A refused change (read-only, an impossible op) leaves the stored layout: drop the preview.
+            if (!d.commands.run(reparent ? 'reparent' : 'move', ops)) { canvas.render(); return; }
+            if (reparent) d.announce(drop ? t('cyd_creator.designer.moved_into', { name: drop.widget.name || d.label(drop.widget.type) }) : t('cyd_creator.designer.moved_to_screen'));
         }
 
         // ── resize ──────────────────────────────────────────────────────────
@@ -145,19 +159,22 @@
             const id = d.selection.length === 1 ? d.selection[0] : '';
             const found = id ? d.find(id) : null;
             if (!found || found.widget.locked) return;
+            // Not stopped: the window manager still sees the press and raises the window.
             event.preventDefault();
-            event.stopPropagation();
             const abs0 = M.absRect(d.project(), id, d.env());
             const frame = d.frameOf(found);
             const targets = G.guideTargets(siblingRects(found, new Set([id])), frame);
             const start = { x: event.clientX, y: event.clientY };
+            const from = world(event);
             let last = abs0;
             let moved = false;
             canvas.root.classList.add('is-resizing');
             gesture = capture(canvas.viewport, event, ev => {
+                // A click on a handle is no resize: the edges move only after a real drag.
+                if (!moved && !far(start, ev)) return;
                 moved = true;
-                const scale = d.zoom || 1;
-                let r = G.resizeRect(abs0, handle, Math.round((ev.clientX - start.x) / scale), Math.round((ev.clientY - start.y) / scale), { keepRatio: ev.shiftKey });
+                const step = worldDelta(from, world(ev));
+                let r = G.resizeRect(abs0, handle, step.x, step.y, { keepRatio: ev.shiftKey });
                 if (!ev.altKey && !ev.shiftKey) {
                     const s = G.snapResize(r, handle, targets, { step: d.snap, radius: radius(), origin: frame });
                     canvas.showGuides(s.guides);
@@ -172,7 +189,8 @@
                 if (!moved) return;
                 if (cancelled) { canvas.render(); return; }
                 const o = M.absOrigin(d.project(), id, d.env());
-                d.commands.run('resize', [{ op: 'update_widget', id, set: { x: Math.round(last.x - o.x), y: Math.round(last.y - o.y), w: last.w, h: last.h } }]);
+                const set = { x: Math.round(last.x - o.x), y: Math.round(last.y - o.y), w: Math.round(last.w), h: Math.round(last.h) };
+                if (!d.commands.run('resize', [{ op: 'update_widget', id, set }])) canvas.render();
             });
         }
 
@@ -253,10 +271,12 @@
             return ghost;
         }
 
-        // startPaletteDrag follows a pointer from a palette entry: dropping on the screen adds the
-        // widget there (into the container under the pointer); a press without movement adds it in
-        // the middle of the screen. The widget itself is built by the add command (P.model.newWidget).
-        function startPaletteDrag(type, event, source) {
+        // startPaletteDrag follows a pointer pressed on a palette entry: dropping on the visible
+        // screen adds the widget there (into the container under the pointer); a press without
+        // movement adds it in the middle of the screen. The widget itself is built by the add
+        // command (P.model.newWidget). The pointer is captured on the canvas viewport, so a palette
+        // that re-renders during the drag does not end it.
+        function startPaletteDrag(type, event) {
             const spec = d.spec(type);
             if (!spec || locked() || event.button !== 0 || gesture) return;
             event.preventDefault();
@@ -266,13 +286,15 @@
             let ghost = null;
             let point = null;
             let drop = null;
-            gesture = capture(source, event, ev => {
+            gesture = capture(canvas.viewport, event, ev => {
                 if (!moved && !far(start, ev)) return;
                 if (!moved) { moved = true; ghost = ghostFor(spec, sample); document.body.appendChild(ghost); canvas.root.classList.add('is-dropping'); }
                 const scale = d.zoom || 1;
                 ghost.style.transform = 'translate(' + Math.round(ev.clientX - sample.w * scale / 2) + 'px,' + Math.round(ev.clientY - sample.h * scale / 2) + 'px)';
+                // Only the part of the screen the viewport shows (it clips a zoomed screen) takes drops.
                 const r = canvas.hostRect();
-                const inside = ev.clientX >= r.left && ev.clientX < r.right && ev.clientY >= r.top && ev.clientY < r.bottom;
+                const v = canvas.viewport.getBoundingClientRect();
+                const inside = ev.clientX >= Math.max(r.left, v.left) && ev.clientX < Math.min(r.right, v.right) && ev.clientY >= Math.max(r.top, v.top) && ev.clientY < Math.min(r.bottom, v.bottom);
                 ghost.classList.toggle('is-outside', !inside);
                 point = inside ? canvas.clientToWorld(ev.clientX, ev.clientY) : null;
                 drop = point ? containerAt(point, new Set()) : null;
@@ -289,38 +311,57 @@
         }
 
         // ── keyboard ────────────────────────────────────────────────────────
+        // shortcut maps a key to the designer command it runs, or null for the keys the designer
+        // leaves alone: Ctrl/Meta+S (the shell saves), Alt combinations (the desktop), Tab, typing.
+        // Ctrl/Meta shortcuts take no Alt and Shift only for redo (Ctrl+Shift+Z).
+        function shortcut(event) {
+            const key = event.key;
+            const c = d.commands;
+            const lower = key.length === 1 ? key.toLowerCase() : key;
+            if (event.ctrlKey || event.metaKey) {
+                if (event.altKey) return null;
+                if (lower === 'z') return event.shiftKey ? c.redo : c.undo;
+                if (event.shiftKey) return null;
+                return { y: c.redo, c: c.copy, x: c.cut, v: c.paste, d: c.duplicate, a: c.selectAll }[lower] || null;
+            }
+            if (event.altKey) return null;
+            if (key === 'Delete' || key === 'Backspace') return c.remove;
+            // The desktop opens (Enter) or renames (F2) its selected icons from these keys; on the
+            // canvas they do nothing.
+            if ((key === 'Enter' || key === 'F2') && event.target === canvas.root) return () => {};
+            if (key === 'Escape') return d.selection.length ? () => d.select([]) : null;
+            // Arrows nudge 1 px (Shift: 8 px); the store joins a burst into one undo step.
+            const delta = G.nudgeDelta(key, event.shiftKey);
+            if (delta) return d.selection.length || gesture ? () => c.nudge(delta.x, delta.y) : null;
+            if (key === '+' || key === '=') return () => d.setZoom((d.zoom || 1) + 1);
+            if (key === '-') return () => d.setZoom((d.zoom || 1) - 1);
+            if (key === '0') return () => canvas.fit(true);
+            return null;
+        }
+
+        // gestureKey handles a key while a gesture runs (false otherwise): Escape cancels it, the
+        // designer's other keys are used without running (so neither the gesture's preview nor the
+        // desktop sees them), anything else stays native. The palette forwards its keys here.
+        function gestureKey(event) {
+            if (!gesture || event.defaultPrevented || typeof event.key !== 'string') return false;
+            if (event.key === 'Escape') { gesture.abort(); return true; }
+            return !isField(event.target) && !!shortcut(event);
+        }
+
         // handleKey runs a designer shortcut; it returns true when the key was used. It gets only the
         // keys of the canvas (its listener) and of the designer panels that pass theirs on, never
         // those of the code editor, dialogs or other windows. Form fields and Space/Enter on buttons
-        // keep their native behaviour; nothing runs while the canvas is hidden (Code mode). During a
-        // gesture only Escape (cancel) is used.
+        // keep their native behaviour; nothing runs while the canvas is hidden (Code mode).
         function handleKey(event) {
-            if (event.defaultPrevented || typeof event.key !== 'string' || isField(event.target)) return false;
-            if (!canvas.viewport.clientWidth) return false;
-            const key = event.key;
+            if (event.defaultPrevented || typeof event.key !== 'string') return false;
+            if (gesture) return gestureKey(event);
+            if (isField(event.target) || !canvas.viewport.clientWidth) return false;
             const target = event.target;
-            if ((key === ' ' || key === 'Enter') && target && target.closest && target.closest('button')) return false;
-            if (gesture) { if (key !== 'Escape') return false; gesture.abort(); return true; }
-            const mod = event.ctrlKey || event.metaKey;
-            const lower = key.length === 1 ? key.toLowerCase() : key;
-            const c = d.commands;
-            if (mod && lower === 'z') { if (event.shiftKey) c.redo(); else c.undo(); return true; }
-            if (mod && lower === 'y') { c.redo(); return true; }
-            if (mod && lower === 'c') { c.copy(); return true; }
-            if (mod && lower === 'x') { c.cut(); return true; }
-            if (mod && lower === 'v') { c.paste(); return true; }
-            if (mod && lower === 'd') { c.duplicate(); return true; }
-            if (mod && lower === 'a') { c.selectAll(); return true; }
-            if (mod || event.altKey) return false;
-            if (key === 'Delete' || key === 'Backspace') { c.remove(); return true; }
-            if (key === 'Escape') { if (!d.selection.length) return false; d.select([]); return true; }
-            // Arrows nudge 1 px (Shift: 8 px); the store joins a burst into one undo step.
-            const delta = G.nudgeDelta(key, event.shiftKey);
-            if (delta) { if (!d.selection.length) return false; c.nudge(delta.x, delta.y); return true; }
-            if (key === '+' || key === '=') { d.setZoom((d.zoom || 1) + 1); return true; }
-            if (key === '-') { d.setZoom((d.zoom || 1) - 1); return true; }
-            if (key === '0') { canvas.fit(true); return true; }
-            return false;
+            if ((event.key === ' ' || event.key === 'Enter') && target && target.closest && target.closest('button')) return false;
+            const run = shortcut(event);
+            if (!run) return false;
+            run();
+            return true;
         }
 
         bag.on(canvas.viewport, 'pointerdown', onPointerDown);
@@ -334,7 +375,7 @@
         bag.add(() => { if (gesture) gesture.abort(); });
 
         return {
-            startPaletteDrag, handleKey, containerAt,
+            startPaletteDrag, handleKey, gestureKey, containerAt,
             abort() { if (gesture) gesture.abort(); },
             dispose() { bag.dispose(); }
         };
