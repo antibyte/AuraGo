@@ -238,6 +238,15 @@
 
     // ── errors ──────────────────────────────────────────────────────────────
 
+    // CYD_FILE_LIMIT details.limit → sentence; the src/app limits share one.
+    const FILE_LIMIT_KEYS = {
+        asset_bytes: 'cyd_creator.transfer.limit_asset_bytes',
+        export_bytes: 'cyd_creator.transfer.limit_export_bytes',
+        file_bytes: 'cyd_creator.transfer.limit_app_files',
+        files: 'cyd_creator.transfer.limit_app_files',
+        total_bytes: 'cyd_creator.transfer.limit_app_files'
+    };
+
     P.errors = {
         code(err) {
             return err && typeof err.code === 'string' ? err.code : '';
@@ -249,10 +258,17 @@
         },
         // message returns the translated sentence for err: error.<CODE> when the code is known,
         // error.network when the request never reached the server, else error.generic. A project
-        // fenced after an interrupted publication (CYD_BUSY publication_review) has its own text.
+        // fenced after an interrupted publication (CYD_BUSY publication_review) has its own text;
+        // CYD_FILE_LIMIT names its limit (details.limit, {{size}} = details.max) and CYD_BUSY export
+        // the busy export slots (plan 5 transfer strings, when present).
         message(t, err) {
             const code = P.errors.code(err);
             if (code === 'CYD_BUSY' && P.errors.reason(err) === 'publication_review') return t('cyd_creator.error.publication_review');
+            const has = key => typeof t.has === 'function' && t.has(key);
+            if (code === 'CYD_BUSY' && P.errors.reason(err) === 'export' && has('cyd_creator.transfer.busy_export')) return t('cyd_creator.transfer.busy_export');
+            const details = (err && err.details) || {};
+            const limitKey = code === 'CYD_FILE_LIMIT' && Object.prototype.hasOwnProperty.call(FILE_LIMIT_KEYS, details.limit) ? FILE_LIMIT_KEYS[details.limit] : '';
+            if (limitKey && has(limitKey)) return t(limitKey, { size: P.format.bytes(details.max) });
             if (code && typeof t.has === 'function' && t.has('cyd_creator.error.' + code)) return t('cyd_creator.error.' + code);
             if (err && err.name === 'ApiError' && Number(err.status) === 0) return t('cyd_creator.error.network');
             return t('cyd_creator.error.generic');

@@ -16,6 +16,7 @@
     "test:sheets": "node scripts/test-sheets-data.mjs",
     "test:easydrag": "node scripts/test-easydrag.mjs",
     "test:cyd-creator-shell": "node scripts/test-cyd-creator-shell.mjs",
+    "test:cyd-creator-flash": "node scripts/test-cyd-creator-flash.mjs",
     "test:cyd-creator-designer": "node scripts/test-cyd-creator-designer.mjs",
     "test:local-wikipedia-config": "node scripts/test-local-wikipedia-config.mjs",
     "test:mission-control": "node scripts/test-mission-control-schedule.mjs && node scripts/test-mission-control-flows.mjs",
