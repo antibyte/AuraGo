@@ -1965,6 +1965,37 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     runTimers();
     check('a press outside the panel commits at once', screenOf('s_home').name === 'outside' && !renameInput());
     winFire('pointerup', croot);
+    // A click on another screen's rename tool while renaming: the press defers the first commit,
+    // the click starts the second rename, which commits the first one before (or keeps it, refused).
+    const renameOther = () => {
+        const tool = byKey('screen-rename:s_two');
+        winFire('pointerdown', tool);
+        tool.focus();
+        fire(renameInput(), 'focusout', {});
+        runTimers();
+        winFire('pointerup', tool);
+        fire(tool, 'click', {});
+        runTimers();
+    };
+    fire(byKey('screen-rename:s_home'), 'click', {});
+    type(renameInput(), 'first');
+    renameOther();
+    check('a click on another screen\'s rename tool commits the first rename and starts the second', screenOf('s_home').name === 'first' && renameInput() && renameInput().dataset.ccRename === 's_two' && fakeDoc.activeElement === renameInput());
+    key(renameInput(), 'Escape');
+    fire(byKey('screen-rename:s_home'), 'click', {});
+    type(renameInput(), 'Bad Name');
+    renameOther();
+    check('… a refused first name keeps its field with the reason; the second does not start', screenOf('s_home').name === 'first' && all(scr, el => el.dataset.ccRename !== undefined).map(el => el.dataset.ccRename).join() === 's_home' && renameInput().value === 'Bad Name' && renameInput().attrs['aria-invalid'] === 'true' && screenOf('s_two').name === 'details');
+    // A press whose release never arrives (released outside the browser) ends when the window loses
+    // the focus: a later keyboard blur commits at once.
+    renameInput().focus();
+    type(renameInput(), 'held');
+    winFire('pointerdown', byKey('screen-add'));
+    winFire('blur', sandbox.window);
+    croot.focus();
+    fire(renameInput(), 'focusout', {});
+    runTimers();
+    check('leaving the window ends a press: the next blur commits without waiting', screenOf('s_home').name === 'held' && !renameInput());
     fire(byKey('screen-rename:s_home'), 'click', {});
     type(renameInput(), 'pressed');
     key(renameInput(), 'Enter');

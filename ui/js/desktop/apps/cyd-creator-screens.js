@@ -233,9 +233,13 @@
             if (ok && screens.length > 1 && screens.some(s => s.id === f.screen.id)) d.commands.run('delete-screen', [{ op: 'delete_screen', id: f.screen.id }]);
             keepFocus('screen-delete:' + f.screen.id);
         }
+        // startRename opens the name field of a screen. A rename of another screen still open (its
+        // blur commit waits for the click that got here) is committed first; when its name is
+        // refused, its field stays with the reason and this one does not start.
         function startRename(id) {
             const f = M.findScreen(d.project(), id);
             if (!f || d.readonly()) return;
+            if (renaming && renaming !== f.screen.id) { commitRename(false, true); if (renaming) return; }
             renaming = f.screen.id; draft = str(f.screen.name); renameError = '';
             render();
             const input = byFocus('rename:' + renaming);
@@ -408,6 +412,8 @@
         bag.on(window, 'pointerdown', event => { held = !!event.target && root.contains(event.target); }, true);
         bag.on(window, 'pointerup', release, true);
         bag.on(window, 'pointercancel', release, true);
+        // A release outside the browser may never arrive: leaving the window ends the press too.
+        bag.on(window, 'blur', release);
         bag.add(() => clearTimeout(blurTimer));
         // A store change that switched the screen rendered on 'screen' already; a selection already
         // shown (the 'selection' after 'screen') renders nothing.
