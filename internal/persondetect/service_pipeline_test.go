@@ -685,3 +685,62 @@ func TestServiceRetentionCancelledAtShutdownIsNotAWarning(t *testing.T) {
 		t.Fatalf("a cancelled retention pass logged a failure:\n%s", logs.String())
 	}
 }
+
+// An alert whose start frames were still being stored is not sent when its event
+// was deleted meanwhile, nor when detection was switched off; in the second case
+// the fired actions are recorded as skipped.
+func TestServiceDropsAlertsOfDeletedEventsAndAfterSwitchingOff(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		stale  func(h *svcHarness, eventID int64)
+		record bool
+	}{
+		{"deleted", func(h *svcHarness, eventID int64) {
+			if err := h.svc.DeleteEvent(context.Background(), eventID); err != nil {
+				h.t.Fatalf("DeleteEvent: %v", err)
+			}
+		}, false},
+		{"switched off", func(h *svcHarness, _ int64) {
+			off := h.settings(svcCamera("front-door"))
+			off.Enabled = false
+			h.svc.Configure(off)
+		}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newSvcHarness(t, true)
+			release := make(chan struct{})
+			var once sync.Once
+			unblock := func() { once.Do(func() { close(release) }) }
+			h.svc.SetThumbnailerForTest(func([]byte) ([]byte, error) {
+				<-release
+				return persondetecttest.JPEG(320, 180), nil
+			})
+			t.Cleanup(unblock)
+			h.start(svcCamera("front-door"))
+			h.factory.Script.SetBoxes(svcPerson(0.9))
+			h.frames.Set("front-door", persondetecttest.JPEG(640, 360))
+			h.svc.FetchOnceForTest(context.Background(), "front-door")
+			h.svc.ProcessOneForTest(context.Background()) // the event row exists; its frame waits for the thumbnail
+			events := h.eventList()
+			if len(events) != 1 {
+				t.Fatalf("events = %+v", events)
+			}
+			tc.stale(h, events[0].ID)
+			unblock()
+			h.waitStorage()
+			if sent := h.alerts.Events(); len(sent) != 0 {
+				t.Fatalf("a stale alert was dispatched: %+v", sent)
+			}
+			if !tc.record {
+				return
+			}
+			page, err := h.svc.Events(context.Background(), persondetect.EventQuery{})
+			if err != nil || len(page.Events) != 1 {
+				t.Fatalf("events after switching off = %+v, %v", page.Events, err)
+			}
+			if got := page.Events[0].Alerts[persondetect.ActionMission]; got != (persondetect.AlertResult{Status: persondetect.AlertSkipped, Detail: "detection off"}) {
+				t.Fatalf("mission after switching off = %+v", got)
+			}
+		})
+	}
+}

@@ -407,3 +407,31 @@ func TestServiceArmStateNamesTheServerTimeZone(t *testing.T) {
 		t.Fatalf("winter arm state = %+v, %v", state, err)
 	}
 }
+
+// Switching detection off ends the open event at its last hit; the change feed
+// still delivers that end, and a snapshot while off includes the arm history.
+func TestServiceChangesDeliverRowsWhileDetectionIsOff(t *testing.T) {
+	h := newSvcHarness(t, false)
+	h.start(svcCamera("front-door"))
+	ctx := context.Background()
+	if _, err := h.svc.SetArmMode(ctx, persondetect.ArmOn, persondetect.ActorUser); err != nil {
+		t.Fatal(err)
+	}
+	h.analyze("front-door", svcPerson(0.9))
+	r := h.svc.Status().Cursor
+	off := h.settings(svcCamera("front-door"))
+	off.Enabled = false
+	h.svc.Configure(off)
+	if !h.svc.WaitBackgroundForTest(5 * time.Second) {
+		t.Fatal("background work did not finish")
+	}
+	changes, err := h.svc.Changes(ctx, r)
+	if err != nil || changes.Status.Enabled || len(changes.Events) != 1 || changes.Events[0].EndedAt == nil ||
+		!changes.Events[0].EndedAt.Equal(svcStart) || changes.Cursor <= r || changes.Cursor != changes.Status.Cursor {
+		t.Fatalf("changes after switching off = %+v, %v (cursor before %d)", changes, err, r)
+	}
+	snapshot, err := h.svc.Changes(ctx, 0)
+	if err != nil || len(snapshot.ArmLog) != 1 || snapshot.ArmLog[0].Mode != persondetect.ArmOn || len(snapshot.Events) != 1 || snapshot.Cursor != changes.Cursor {
+		t.Fatalf("snapshot while off = %+v, %v", snapshot, err)
+	}
+}

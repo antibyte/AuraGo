@@ -808,7 +808,7 @@ func (s *Service) endEventLocked(ctx context.Context, cameraID string, at time.T
 	if id == 0 || st == nil {
 		return
 	}
-	if err := st.EndEvent(ctx, id, at); err != nil {
+	if err := st.EndEvent(ctx, id, at); err != nil && !s.noteStorageFull(err) {
 		s.logger.Warn("[PersonDetect] Could not end an event", "event_id", id, "error", err)
 	}
 }

@@ -171,8 +171,10 @@ worker. ONNX Runtime is loaded only in worker subprocesses; the one in-process l
   `(cursor, status.cursor]`, about 200 per list; a page never splits a revision (one write can stamp
   several rows), and when a list was capped the cursor is its last delivered revision, so the next call
   continues there. There are no deletion tombstones: clients treat a 404 on a listed event as deleted.
-  `Changes` fails only on a database read error; while detection is off or the database is not open it
-  returns the status with empty lists.
+  `Changes` fails only on a database read error. It is not limited to a running service: a switched-off
+  service with an open database returns its rows (the end written to open events when detection is
+  switched off, late alert results, the arm history); without a database it returns the status with
+  empty lists and cursor 0.
 - JSON (`api_types.go`): every list is `[]`, never `null`; optional values (pointer fields such as
   `ended_at`, `cover_frame_id`, `next_change`) are JSON `null`; timestamps are UTC truncated to
   milliseconds, in memory and in the store; ids are numbers.
@@ -190,7 +192,9 @@ worker. ONNX Runtime is loaded only in worker subprocesses; the one in-process l
   readable.
 - `Configure` is idempotent; the detector is rebuilt only when `Enabled`, `Model` or `Backend` change.
   The schedule is evaluated in `Settings.Location` (the server's `time.Local`). Cooldowns are per camera
-  and per action since that action's last sent alert, in memory only.
+  and per action since that action's last sent alert, in memory only. An event start's alert is
+  dispatched after its start frames are stored; it is dropped when the event was deleted meanwhile, and
+  recorded as skipped `detection off` when detection was switched off or shut down.
 
 ## Work Guidance
 

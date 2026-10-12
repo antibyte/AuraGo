@@ -31,17 +31,18 @@ func (s *Service) running() bool {
 // written after it; when a list was capped, Cursor is the last delivered revision,
 // so the next call continues there (rows may repeat; clients merge by id).
 //
-// While detection is off or its database is not open, Changes returns the status,
-// which says why, with empty lists; only a failing database read is an error.
+// Changes is not limited to a running service: a switched-off service with an
+// open database returns its rows like Events does, so the end that switching
+// detection off writes to open events, late alert results and the arm history
+// still reach clients. Without a database (ErrDisabled, ErrUnavailable) it returns
+// the status, which says why, with empty lists and Cursor = Status.Cursor (0);
+// only a failing database read is an error.
 func (s *Service) Changes(ctx context.Context, cursor int64) (Changes, error) {
 	if cursor < 0 {
 		cursor = 0
 	}
 	status := s.Status()
 	out := Changes{Status: status, Events: []EventSummary{}, ArmLog: []ArmLogEntry{}, Cursor: status.Cursor}
-	if !s.running() {
-		return out, nil
-	}
 	st, err := s.apiStore()
 	if err != nil {
 		return out, nil // ErrDisabled or ErrUnavailable: the status reports it

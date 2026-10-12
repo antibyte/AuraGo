@@ -349,8 +349,34 @@ func (s *Service) runStoreJob(job storeJob) {
 	if job.alert != nil {
 		alert := *job.alert
 		alert.CoverPath, alert.CoverBoxes = coverPath, coverBoxes
-		s.dispatch(alert)
+		s.dispatchIfCurrent(alert)
 	}
+}
+
+// dispatchIfCurrent dispatches the alert of an event start unless it went stale
+// while the start frames were stored: the event was deleted (nothing is left to
+// alert about), or detection was switched off or shut down (each fired action is
+// recorded as skipped "detection off"). When the check itself fails the alert is
+// dispatched: a missed alert costs more than a doubtful one.
+func (s *Service) dispatchIfCurrent(ev AlertEvent) {
+	st := s.storeRef()
+	if st == nil {
+		return
+	}
+	exists, err := st.eventExists(context.Background(), ev.EventID)
+	if err != nil {
+		s.logger.Warn("[PersonDetect] Could not check an event before its alert", "event_id", ev.EventID, "error", err)
+	} else if !exists {
+		s.logger.Debug("[PersonDetect] Alert dropped: its event was deleted", "event_id", ev.EventID)
+		return
+	}
+	if !s.running() {
+		for _, action := range ev.Fire.Fired() {
+			s.recordAlert(ev.EventID, ev.CameraID, action, AlertResult{Status: AlertSkipped, Detail: "detection off"})
+		}
+		return
+	}
+	s.dispatch(ev)
 }
 
 // storeFrame writes one frame with its thumbnail and records it; it returns the

@@ -987,6 +987,16 @@ func (st *EventStore) Frame(ctx context.Context, frameID int64) (string, string,
 	return path, thumb, err
 }
 
+// eventExists reports whether an event is stored.
+func (st *EventStore) eventExists(ctx context.Context, id int64) (bool, error) {
+	var one int
+	err := st.db.QueryRowContext(ctx, `SELECT 1 FROM events WHERE id = ?`, id).Scan(&one)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
 // RemoveEvent deletes an event with its frames and image files and returns the freed bytes.
 func (st *EventStore) RemoveEvent(ctx context.Context, id int64) (int64, error) {
 	var files []string
