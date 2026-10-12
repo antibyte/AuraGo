@@ -456,7 +456,8 @@
   widget})` opens the tab pages on the path, scrolls and flashes. Parts talk over the designer bus `d.bus`
   (`selection`, `screen`, `project`, `view`, `issues`, `lock`). A store change emits `project` `{before, label,
   origin, screenChanged}`; when it took the active screen away (deleted, Wi-Fi off), `screen` fires first and
-  `screenChanged: true` lets a part that renders on both render once. Non-local changes end a gesture, remote ones flash the changed widgets.
+  `screenChanged: true` lets a part that renders on both render once. Non-local changes end a gesture, remote
+  ones flash the changed widgets.
 - Uploads go only through `inst.uploadAsset(file)` (the static test forbids `P.api.`, `inst.api.`, `layoutSaver`,
   `innerHTML` and `insertAdjacentHTML` in every designer module). It saves pending edits, the server adds the asset
   to the layout and the window replaces the store remotely (`resetHistory: false`) before it answers; the
@@ -473,36 +474,46 @@
   arrows nudge 1/8 px, Ctrl+Z/Y/Shift+Z/C/X/V/D/A, `+` `-` `0` zoom, Escape); `interact.gestureKey(e)` takes the
   keys while a gesture runs (Escape cancels, other designer keys are swallowed). The canvas listens itself;
   palette, screens panel and layer list forward their keys and on true call `preventDefault()` and
-  `stopPropagation()`. Enter, Delete, Backspace and F2 never leave canvas, palette or screens panel, and the
-  inspector stops Enter, Delete and F2 without Ctrl/Cmd/Alt: the desktop's document handler
-  (`core/sdk-events-bootstrap.js`) opens, deletes or renames its selected desktop icons from them. Ctrl/Cmd+S,
-  Alt combinations and Tab bubble on. The canvas is one tab stop with a live announcer and a shortcut hint; the
-  layer list reaches every widget with a roving tab stop (ArrowUp/Down, Home/End win over nudging); Enter/Space
-  on a palette entry adds the widget in the middle; F2 renames and Alt+ArrowUp/Down moves the focused screen.
+  `stopPropagation()`. Enter, Delete, Backspace and F2 outside form fields never leave the canvas (toolbar
+  included), the palette or the screens panel, and the inspector stops Enter, Delete and F2 without
+  Ctrl/Cmd/Alt; a button's native Enter click still runs (no `preventDefault()`). They keep the desktop from
+  opening, deleting or renaming its selected icons; the desktop itself ignores keys from app windows since main's
+  3ff6eed26, so after that lands this is belt-and-braces. Ctrl/Cmd+S, Alt combinations and Tab bubble on. The
+  canvas is one tab stop with a live announcer and a shortcut hint; the layer list reaches every widget with a
+  roving tab stop (ArrowUp/Down, Home/End win over nudging); Enter/Space on a palette entry adds the widget in the
+  middle; F2 renames and Alt+ArrowUp/Down moves the focused screen. The browser smoke presses Enter, F2 and Delete
+  (on the toolbar also Backspace) in the canvas, its toolbar, palette, layers, screens and inspector and checks
+  that none reaches the document.
 - Names match `^[a-z][a-z0-9_]{0,31}$`, are unique and not reserved (`P.model.RESERVED_NAMES`, prefixes and the
   `_series` suffix mirror `validate.go`); proposals (`btn_1` …) skip reserved names. The inspector keeps an
   invalid name visible with its message and stores only valid names.
 - Layout values are untrusted (agent-written or imported), so `P.render` validates its input itself: colours reach
   CSS only through `hexOr` (`#RRGGBB`, `validate.go` `colorPattern`), numbers clamp to the catalog and
   `validate.go` ranges, widget sides to 1–2048 (`maxWidgetSide`), strings and lists to their limits, enums to
-  their options; texts are text nodes. The canvas draws only through `P.render.widget(spec, w, theme, assetUrl,
-  {activeTab, screenTitle, settings})` and `P.render.colors`, never with its own style writes; device colours come
-  only from `inst.caps.themes` and style overrides (no hex literal in render, canvas or interact).
-  `P.geometry.MAX_SIDE`, `P.designerInspector.LIMITS`, `P.designerFields.HEX` and `MAX_UPLOAD_BYTES` mirror the
-  server and are pinned by the Node test, which reads `limits.go`, `validate.go` and `assets.go`;
-  `P.model.LIMITS` mirrors the exported `Max*` constants of `limits.go`.
-- CSS: the designer section ends at `/* ==== CYD Creator designer (plan 4b) — end`.
-  `TestCYDCreatorDesignerStaticContracts/css` checks that every selector starts at `.cc-app` or the body-level
-  `.cc-drag-ghost`; that literal colours stand only in its token block `.cc-app, .cc-drag-ghost {…}` (marks over
-  the device preview that read on every device theme) and everything else reads defined `--cc-*` tokens (status
-  text via `*-ink`, solid fills `--cc-accent-deep`/`--cc-on-accent`, no `--ccd-*`); that the `.cc-canvas-stage`
-  padding is `PAD` (24), the `.cc-device-frame` padding `BEZEL` (14) and the `.cc-device-label` margin-top +
-  min-height `LABEL_H` (the `cyd-creator-canvas.js` constants `fitZoom` subtracts); that screen-row tools shown on
-  hover or focus change only `visibility`; that no rule sets the dock's height (`cyd-creator-dock.js` limits only
-  its first, unsaved Design-mode height to 30 %); and that `@container cc-app` (820 px, 560 px) keeps screens,
-  layers and palette reachable in Design mode. `@media (forced-colors: active)` keeps the device preview's own
-  colours and marks selection, handles, pressed tools and chips and the shell's Design/Code switch with
-  `Highlight`.
+  their options; texts are text nodes. In the canvas, widget visuals come only from `P.render.widget(spec, w,
+  theme, assetUrl, {activeTab, screenTitle, settings})`, the screen colour only through `P.render.colors`, and
+  widget boxes reach CSS as finite integers clamped like the renderer clamps them. Device colours come only from
+  `inst.caps.themes` and style overrides (no hex literal in render, canvas or interact). The Node test reads
+  `limits.go`, `validate.go`, `ids.go` and `assets.go` and pins the mirrored values: `P.model` `LIMITS`,
+  `NAME_RE`, `RESERVED_NAMES`/`_PREFIXES`/`_SUFFIXES`, `TRANSITIONS`, `ACTIONS`, `ORIENTATIONS`, `WIFI_MODES`;
+  render's `HEX`, `ELEMENT_ID`, `MAX_SIDE`, `MAX_TEXT`; canvas `MAX_COORD`; `P.geometry.MAX_SIDE`;
+  `P.designerInspector.LIMITS`; `P.designerFields.HEX` and `MAX_UPLOAD_BYTES`. Hand mirrors without a source
+  check: render's inline style clamps (the values of the pinned `LIMITS.style`), `P.model.STYLE_KEYS` and the op
+  semantics of `patch.go` (behaviour tests only).
+- CSS: the designer section ends at `/* ==== CYD Creator designer (plan 4b) — end`; keep that end marker, plan
+  5's CSS test requires it before its own section. `TestCYDCreatorDesignerStaticContracts/css` checks: every
+  selector starts at `.cc-app` or the body-level `.cc-drag-ghost`; literal colours (hex, `rgb()`/`hsl()`, named)
+  stand only in the token block `.cc-app, .cc-drag-ghost {…}` (marks over the device preview that read on every
+  device theme); every `var()` in the section is a `--cc-*` token the stylesheet defines, and the file has no
+  `--ccd-*`; `.cc-canvas-stage` padding = `PAD` (24), `.cc-device-frame` padding = `BEZEL` (14) and
+  `.cc-device-label` margin-top + min-height = `LABEL_H` (the `cyd-creator-canvas.js` constants `fitZoom`
+  subtracts); non-active screen rows stay on one line and their tools change only `visibility` on hover or focus;
+  no rule sets the dock's height (`cyd-creator-dock.js` limits only its first, unsaved Design-mode height to
+  30 %); the `@container cc-app (max-width: 820px)` rule shows `.cc-left` again in Design mode. Conventions
+  without a test: status text through the `*-ink` tokens, solid fills `--cc-accent-deep`/`--cc-on-accent`; at
+  560 px the left column becomes a strip above the canvas (Code mode keeps the shell layout); `@media
+  (forced-colors: active)` keeps the device preview's own colours and marks selection, handles, pressed tools and
+  chips and the shell's Design/Code switch with `Highlight`.
 - Preview fonts `CYD Montserrat` 500 and `CYD JetBrains Mono` 400 (latin and latin-ext `woff2`, fontsource 5.3.0)
   live in `ui/fonts/` with their OFL texts (`Montserrat-LICENSE.txt`, `JetBrainsMono-LICENSE.txt`), are listed in
   `THIRD_PARTY_LIBRARIES.md` §6 and are declared in the designer section (loaded only with the app); Inter comes
@@ -510,10 +521,12 @@
 - Strings: `cyd_creator.designer.*`, the families `widget.`, `group.`, `prop.`, `event.`, `action.`,
   `transition.`, `theme.`, `board.status_`, `issue.` and `designer.align_`, `designer.z_`, `designer.font_`,
   `designer.wifi_`, `designer.opt_<prop>_<option>`; orientation labels reuse plan 4a's `cyd_creator.orientation.*`.
-  `TestCYDCreatorDesignerKeysExistInAllLocales` takes the literal keys and `'prefix' +` families from the modules
-  and the family members from the Go catalog, checks all 16 locales (English placeholders, German without the
-  formal address) and runs in reverse (a family no module builds or a designer-owned key no module uses fails).
-  Every literal `t.or(key, 'fallback')` must equal `en.json`: change both together.
+  `TestCYDCreatorDesignerKeysExistInAllLocales` takes the literal keys and `'prefix' +` families from the designer
+  modules and the family members from the Go catalog, checks all 16 locales (English placeholders, German without
+  the formal address) and runs in reverse: a family no designer module builds fails, and so does any key under the
+  designer-owned prefixes (`designer.`, `widget.`, `group.`, `prop.`, `event.`, `action.`, `transition.`,
+  `theme.`, `board.status_`, `issue.`) that no designer module uses, so plan 5 modules add no keys there. Every
+  literal `t.or(key, 'fallback')` must equal `en.json`: change both together.
 - Verify: `npm run test:cyd-creator-designer` (pure modules, then the DOM parts with the real designer on a fake
   DOM), `go test ./ui -run '(?i)CYDCreatorDesigner'` (`TestCYDCreatorDesignerStaticContracts`, load order, keys,
   fonts, capabilities fixture) and, with `AURAGO_RUN_BROWSER_SMOKE=1`, `TestDesktopCYDCreatorDesignerBrowser` (real

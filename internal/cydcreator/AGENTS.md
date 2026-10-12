@@ -732,12 +732,16 @@ publication, revisions, the job chat and the agent tool implementations. Plan 5 
 - The browser designer mirrors this package (`ui/js/desktop/apps/AGENTS.md`, "CYD Creator designer"). A catalog,
   theme, font, symbol, library, language or classic-CYD board change regenerates
   `ui/testdata/cyd_creator_designer_caps.json` (`go test ./ui -run TestCYDCreatorDesignerCapsFixtureMatchesCatalog
-  -args -update-cyd-designer-caps`); a new widget type, group, prop, enum option, event, theme, board state or
-  issue code needs its `cyd_creator.*` key in all 16 `ui/lang/cyd_creator` files
-  (`TestCYDCreatorDesignerKeysExistInAllLocales` derives them from `WidgetCatalog()`, `Themes()`, `IssueCodes()`
-  and `FontFamilies`). `npm run test:cyd-creator-designer` reads `limits.go`, `validate.go` (`colorPattern`,
-  `maxTimezoneBytes`, backlight and style ranges) and `assets.go` (`MaxAssetUploadBytes`) for the values the
-  designer mirrors.
+  -args -update-cyd-designer-caps`). A new widget type, group, prop, enum option, event, theme, font family, board
+  state or issue code needs its `cyd_creator.*` key in all 16 `ui/lang/cyd_creator` files
+  (`TestCYDCreatorDesignerKeysExistInAllLocales` derives them from `WidgetCatalog()`, `Themes()`, `IssueCodes()`,
+  `FontFamilies` for `designer.font_*` and `BoardVerified`/`BoardCommunity` for `board.status_*`). Changing
+  `reservedNames` (or its prefixes and suffixes), `namePattern`, `colorPattern`, `elementIDPattern`, `MaxScreens`,
+  `MaxWidgetsPerScreen`, `MaxNesting`, `MaxTextBytes`, `MaxHintRunes`, `maxWidgetSide`, `maxCoordinate`,
+  `intPropLimit`, `maxTimezoneBytes`, the backlight or style ranges, `transitions`, `actionTypes`,
+  `orientations`, `wifiModes` or `MaxAssetUploadBytes` needs the designer's JS mirrors updated:
+  `npm run test:cyd-creator-designer` reads them from `limits.go`, `validate.go`, `ids.go` and `assets.go` and
+  fails until they match.
 
 ## Verification
 
