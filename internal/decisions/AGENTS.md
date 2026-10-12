@@ -15,7 +15,10 @@ attestation, request validation, candidate-logit normalization, and status.
 - Native process and Docker deployment must use private loopback/service
   transports with generated credentials. Model/projector files are read-only
   in the runtime. Never accept arbitrary runtime URLs or model paths from the
-  decision request.
+  decision request. Docker host config caps every Decisions container at 8 GiB
+  of host RAM with MemorySwap equal to Memory; CUDA still requests every
+  visible GPU and Vulkan still receives /dev/dri because the discover JSON has
+  no stable Docker device id.
 - GPU/iGPU backends are preferred in the fixed order for the platform, with
   discrete devices before integrated devices. Try full accelerator placement
   across all discovered devices first. Only persistent explicit

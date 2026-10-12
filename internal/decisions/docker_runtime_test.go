@@ -43,6 +43,9 @@ func TestDockerCreatePayloadKeepsReadOnlyMountsAndGPUAccessInHostConfig(t *testi
 	if _, ok := hostConfig["DeviceRequests"]; !ok {
 		t.Fatal("CUDA container did not request accelerator access")
 	}
+	if hostConfig["Memory"] != int64(8<<30) || hostConfig["MemorySwap"] != int64(8<<30) {
+		t.Fatalf("CUDA HostConfig memory cap = Memory %v MemorySwap %v, want %d", hostConfig["Memory"], hostConfig["MemorySwap"], int64(8<<30))
+	}
 	if _, ok := hostConfig["PortBindings"]; !ok {
 		t.Fatal("loopback port binding is missing")
 	}
@@ -82,6 +85,9 @@ func TestDockerCreatePayloadUsesVulkanDeviceMapping(t *testing.T) {
 	devices, ok := hostConfig["Devices"].([]map[string]string)
 	if !ok || len(devices) != 1 || devices[0]["PathOnHost"] != "/dev/dri" || devices[0]["PathInContainer"] != "/dev/dri" {
 		t.Fatalf("Vulkan device access = %#v", hostConfig["Devices"])
+	}
+	if hostConfig["Memory"] != int64(8<<30) || hostConfig["MemorySwap"] != int64(8<<30) {
+		t.Fatalf("Vulkan HostConfig memory cap = Memory %v MemorySwap %v, want %d", hostConfig["Memory"], hostConfig["MemorySwap"], int64(8<<30))
 	}
 }
 
