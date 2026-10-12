@@ -35,6 +35,7 @@ import (
 	"aurago/internal/localllm"
 	"aurago/internal/logger"
 	"aurago/internal/memory"
+	"aurago/internal/persondetect"
 	"aurago/internal/planner"
 	promptspkg "aurago/internal/prompts"
 	"aurago/internal/push"
@@ -71,12 +72,29 @@ func resolveInitialPassword(passwordFlag, passwordFile string) (string, error) {
 	return strings.TrimRight(string(raw), "\r\n"), nil
 }
 
+// runIsolatedWorker dispatches the native-runtime worker modes. They run
+// before any AuraGo initialization so a native crash stays in the child
+// process.
+func runIsolatedWorker(args []string, stdin io.Reader, stdout, stderr io.Writer) (int, bool) {
+	if len(args) < 2 {
+		return 0, false
+	}
+	switch args[1] {
+	case "--embedding-worker":
+		return embeddings.RunONNXWorker(args[2:], stdin, stdout, stderr), true
+	case "--person-detect-worker":
+		return persondetect.RunWorker(args[2:], stdin, stdout, stderr), true
+	default:
+		return 0, false
+	}
+}
+
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "--update-maintenance" {
 		os.Exit(upkeep.RunCLI(os.Args[2:], os.Stdout, os.Stderr))
 	}
-	if len(os.Args) > 1 && os.Args[1] == "--embedding-worker" {
-		os.Exit(embeddings.RunONNXWorker(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
+	if code, handled := runIsolatedWorker(os.Args, os.Stdin, os.Stdout, os.Stderr); handled {
+		os.Exit(code)
 	}
 	if printHomepageDockerfile(os.Args, os.Stdout) {
 		return
