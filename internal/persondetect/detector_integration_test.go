@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"aurago/internal/onnxrt"
 )
 
 func newIntegrationDetector(t *testing.T, backend Backend) Detector {
@@ -61,7 +63,7 @@ func TestDetectorIntegrationCPU(t *testing.T) {
 	requireIntegration(t)
 	detector := newIntegrationDetector(t, BackendCPU)
 	info := detector.Info()
-	if info.Active != BackendCPU || !info.SelfTest.Passed || info.Runtime != "onnxruntime 1.26.0" {
+	if info.Active != BackendCPU || !info.SelfTest.Passed || info.Runtime != "onnxruntime "+onnxrt.CPURuntimeVersion {
 		t.Fatalf("info = %+v", info)
 	}
 	result := detectReference(t, detector)
@@ -78,7 +80,7 @@ func TestDetectorIntegrationGPU(t *testing.T) {
 	if info.Active != BackendGPU {
 		t.Fatalf("GPU path not active: %s (self-test %+v)", info.FallbackReason, info.SelfTest)
 	}
-	if !info.SelfTest.Passed || info.Runtime != "onnxruntime 1.27.0" {
+	if !info.SelfTest.Passed || info.Runtime != "onnxruntime "+onnxrt.WebGPURuntimeVersion {
 		t.Fatalf("info = %+v", info)
 	}
 	result := detectReference(t, detector)
