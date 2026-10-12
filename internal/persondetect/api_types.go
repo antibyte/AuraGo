@@ -6,6 +6,14 @@ import (
 	"aurago/internal/onnxrt"
 )
 
+// The types in this file are the JSON bodies of the detection HTTP API and the
+// agent tool. They share these rules, which the service and the store uphold:
+//
+//   - every list is a JSON array (`[]`), never `null`;
+//   - an optional value (a pointer field) is JSON `null` when unset;
+//   - timestamps are UTC, truncated to milliseconds, and encoded as RFC 3339;
+//   - ids and counters are JSON numbers.
+
 // Status is the service state shown by the app and the agent tool.
 type Status struct {
 	Enabled  bool           `json:"enabled"`
@@ -63,6 +71,13 @@ type StorageStatus struct {
 }
 
 // Changes are the rows written after a cursor plus the current status.
+//
+// Changes(0) is a snapshot, not a replay: the newest events and the newest arm-log
+// rows (at most 200 each, ascending), with Cursor equal to Status.Cursor. A cursor
+// above 0 is incremental: it returns the rows with a higher revision, at most 200 per
+// list; when a list was capped, Cursor is the last delivered revision, so the next
+// call continues there (rows may repeat; clients merge by id). Deleted events leave
+// no tombstone; a client treats a 404 on a listed event as deleted.
 type Changes struct {
 	Status Status         `json:"status"`
 	Events []EventSummary `json:"events"`
@@ -70,7 +85,10 @@ type Changes struct {
 	Cursor int64          `json:"cursor"`
 }
 
-// EventSummary is one detection event. EndedAt is nil while the event is open.
+// EventSummary is one detection event. EndedAt is nil (JSON null) while the event
+// is open, CoverFrameID is nil (null) while no frame is stored, and Zones is never
+// null. Alerts maps the fired actions (message, agent, desktop, mission) to their
+// outcome and is `{}` when none fired.
 type EventSummary struct {
 	ID           int64                  `json:"id"`
 	CameraID     string                 `json:"camera_id"`
@@ -86,7 +104,11 @@ type EventSummary struct {
 	Alerts       map[string]AlertResult `json:"alerts"`
 }
 
-// EventFrame is one stored frame of an event with all boxes at or above the camera threshold.
+// EventFrame is one stored frame of an event. Boxes holds only the boxes that
+// count: person boxes at or above the camera threshold whose foot point lies in a
+// zone, or every box at or above the threshold when the camera has no zones. This
+// keeps the boxes consistent with Score and with the alert photo. Boxes is never
+// null.
 type EventFrame struct {
 	ID         int64     `json:"id"`
 	Seq        int       `json:"seq"`

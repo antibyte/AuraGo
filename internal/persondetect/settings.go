@@ -43,7 +43,8 @@ type Zone struct {
 }
 
 // Window is a weekly arming window. Days are the weekdays the window starts on;
-// From and To are minutes since midnight; To <= From crosses midnight.
+// From and To are minutes since midnight; To < From crosses midnight and
+// To == From covers 24 hours.
 type Window struct {
 	Days     []time.Weekday
 	From, To int
@@ -58,7 +59,11 @@ type Actions struct {
 	Desktop          bool
 }
 
-// Camera is one go2rtc stream whose stream and detection are both enabled.
+// Camera is one go2rtc stream whose stream and detection are both enabled. Those
+// are the cameras in Settings.Cameras. Service.Test additionally accepts a Camera
+// as an override (zones and threshold) for a stream that has no detection enabled
+// yet, so the zone editor can try a layout before it is saved; without an override
+// the camera must be one of Settings.Cameras.
 type Camera struct {
 	ID, Name string
 	Interval time.Duration
@@ -75,12 +80,16 @@ type Settings struct {
 	Model         ModelTier
 	Backend       Backend
 	RetentionDays int
-	MaxStorageMB  int
+	MaxStorageMB  int // MiB, see MaxStorageBytes
 	Schedule      []Window
 	Cameras       []Camera
 	Location      *time.Location // server local time
 	Language      string         // cfg.Server.UILanguage, for alert texts
 }
+
+// MaxStorageBytes is the size limit of stored frames in bytes. MaxStorageMB is
+// MiB (1 MiB = 1<<20 bytes), not megabytes.
+func (s Settings) MaxStorageBytes() int64 { return int64(s.MaxStorageMB) << 20 }
 
 // FrameSource delivers the current JPEG frame of a camera.
 type FrameSource interface {
@@ -100,21 +109,21 @@ const (
 
 // Service defaults and timings.
 const (
-	DefaultCameraInterval = 2 * time.Second
-	DefaultCameraMinScore = 0.5
-	DefaultRetentionDays  = 14
-	DefaultMaxStorageMB   = 2048
-	MaxFetchBackoff       = 60 * time.Second
-	FrameFetchTimeout     = 15 * time.Second
-	TestMinScore          = 0.3
-	TimingAverageWindow   = 20
-	ThumbnailWidth        = 320
-	ThumbnailQuality      = 80
-	RetentionInterval     = time.Hour
-	ArmLogMinAge          = 24 * time.Hour
-	ArmCheckInterval      = 10 * time.Second
-	SweepInterval         = time.Second
-	StorageTargetRatio    = 0.9
+	DefaultCameraInterval = 2 * time.Second  // analysis interval of a camera that sets none (or a value <= 0)
+	DefaultCameraMinScore = 0.5              // person score threshold of a camera that sets none
+	DefaultRetentionDays  = 14               // days ended events are kept when retention is unset
+	DefaultMaxStorageMB   = 2048             // MiB of stored frames kept when the limit is unset
+	MaxFetchBackoff       = 60 * time.Second // upper bound of the frame-fetch backoff (interval x 2^failures)
+	FrameFetchTimeout     = 15 * time.Second // timeout of one FrameSource.Frame request
+	TestMinScore          = 0.3              // threshold of Service.Test: every box from this score up is returned and judged
+	TimingAverageWindow   = 20               // detections averaged into DetectorStatus.WallMS and CPUMS
+	ThumbnailWidth        = 320              // width in pixels of stored thumbnails (never scaled up)
+	ThumbnailQuality      = 80               // JPEG quality of stored thumbnails
+	RetentionInterval     = time.Hour        // period of the retention pass (it also runs at start and when the disk is full)
+	ArmLogMinAge          = 24 * time.Hour   // arm-log rows younger than this are never pruned
+	ArmCheckInterval      = 10 * time.Second // period at which the arming loop evaluates the schedule
+	SweepInterval         = time.Second      // period of the sweep that ends events of cameras without recent hits
+	StorageTargetRatio    = 0.9              // size retention deletes the oldest ended events down to this fraction of the limit
 )
 
 // Status values used in the C4 JSON shapes.

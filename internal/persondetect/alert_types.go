@@ -41,14 +41,16 @@ type AlertEvent struct {
 	Persons    int
 	Armed      bool
 	StartedAt  time.Time
-	CoverPath  string // absolute path of the cover frame
+	CoverPath  string // absolute path of the cover frame; empty when no start frame could be written (for example, disk full)
 	CoverBoxes []Box
 	Actions    Actions
 	Fire       FireSet
 	Language   string
 }
 
-// AlertResult is the outcome of one action.
+// AlertResult is the outcome of one action. For ActionMission, "sent" means the
+// event was handed to the mission manager; whether a mission then runs is up to
+// the mission's own filters.
 type AlertResult struct {
 	Status string `json:"status"` // sent | failed | skipped
 	Detail string `json:"detail,omitempty"`
@@ -56,6 +58,9 @@ type AlertResult struct {
 
 // AlertDispatcher delivers alerts (slice 3).
 type AlertDispatcher interface {
-	// Dispatch must not block; report is called once per fired action, from any goroutine.
+	// Dispatch must not block; report is called once per fired action, from any
+	// goroutine. A report that arrives after Service.Shutdown is dropped, so after a
+	// restart the stored event may lack the result of an action that was still in
+	// flight.
 	Dispatch(ev AlertEvent, report func(action string, result AlertResult))
 }
