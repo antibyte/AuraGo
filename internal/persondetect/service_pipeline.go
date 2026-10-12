@@ -527,14 +527,12 @@ func (s *Service) sweep(clock func() time.Time) {
 	}
 }
 
-// retentionLoop runs retention at start, hourly and when a full disk asks for it.
+// retentionLoop runs retention right after detections.db was opened, hourly and
+// when a full disk asks for it, until ctx ends (Shutdown), whether detection is on
+// or off. Each pass uses the current settings' retention values.
 func (s *Service) retentionLoop(ctx context.Context) {
 	defer s.wg.Done()
-	// The first pass needs detections.db, which is opened in the background; a
-	// failed open is reported by the detector setup.
-	if _, err := s.ensureStore(ctx); err == nil {
-		_, _ = s.runRetention(ctx)
-	}
+	_, _ = s.runRetention(ctx)
 	ticker := time.NewTicker(RetentionInterval)
 	defer ticker.Stop()
 	for {

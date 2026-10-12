@@ -744,3 +744,40 @@ func TestServiceDropsAlertsOfDeletedEventsAndAfterSwitchingOff(t *testing.T) {
 		})
 	}
 }
+
+// Retention runs whenever the database is open: a service that starts with
+// detection off still removes expired events and their frames.
+func TestServiceRetentionRunsWhileDetectionIsOff(t *testing.T) {
+	h := newSvcHarness(t, false)
+	h.start(svcCamera("front-door"))
+	ctx := context.Background()
+	h.analyze("front-door", svcPerson(0.9))
+	h.clock.Advance(31 * time.Second)
+	h.analyze("front-door")
+	ev := h.eventList()[0]
+	path, err := h.svc.FrameFile(ctx, *ev.CoverFrameID, false)
+	if err != nil || ev.EndedAt == nil {
+		t.Fatalf("event = %+v, frame %q, %v", ev, path, err)
+	}
+	if err := h.svc.Shutdown(ctx); err != nil {
+		t.Fatal(err)
+	}
+	h.clock.Advance(15 * 24 * time.Hour)
+	svc := persondetect.NewService(persondetect.Deps{Logger: svcDiscardLogger(), Now: h.clock.Now})
+	persondetecttest.StopOnCleanup(t, svc)
+	svc.Configure(persondetect.Settings{DataDir: h.dataDir, RetentionDays: 14, Location: time.UTC})
+	// The pass sets the stored bytes at its end, after the rows and files are gone.
+	persondetecttest.WaitFor(t, 5*time.Second, "retention while detection is off", func() bool {
+		if svc.StoreErrForTest() != nil || svc.Status().Storage.Bytes != 0 {
+			return false
+		}
+		page, err := svc.Events(ctx, persondetect.EventQuery{})
+		return err == nil && len(page.Events) == 0
+	})
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("frame of the expired event survived: %v", err)
+	}
+	if svc.Status().Enabled {
+		t.Fatal("detection reports enabled")
+	}
+}

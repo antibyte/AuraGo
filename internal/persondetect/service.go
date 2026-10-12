@@ -92,6 +92,8 @@ type Service struct {
 	storeErr     error         // outcome of the latest failed open; nil after a successful one
 	runCtx       context.Context
 	runCancel    context.CancelFunc
+	lifeCtx      context.Context // ends at Shutdown; the retention loop runs on it
+	lifeCancel   context.CancelFunc
 	closed       bool
 	manual       bool // tests: no background loops (export_service_test.go)
 	det          Detector
@@ -142,8 +144,10 @@ func NewService(deps Deps) *Service {
 	if clock == nil {
 		clock = time.Now
 	}
+	lifeCtx, lifeCancel := context.WithCancel(context.Background())
 	return &Service{
 		logger: logger, frames: deps.Frames, alerts: deps.Alerts, newDetector: newDetector,
+		lifeCtx: lifeCtx, lifeCancel: lifeCancel,
 		now:          func() time.Time { return millisUTC(clock()) },
 		storeOpener:  OpenEventStore,
 		settings:     normalizeSettings(Settings{}),
@@ -478,6 +482,15 @@ func (s *Service) publishStoreLocked(o openedStore) {
 		}
 	}
 	pokeChannel(s.armNow)
+	// Retention runs whenever the database is open, also while detection is off,
+	// so retention_days and max_storage_mb hold for frames recorded earlier. It is
+	// started once (the store stays open) and stops only at Shutdown. The caller is
+	// a spawned goroutine and the service is not closed, so adding to the wait
+	// group cannot race with Shutdown's wait.
+	if !s.manual {
+		s.wg.Add(1)
+		go s.retentionLoop(s.lifeCtx)
+	}
 }
 
 func (s *Service) startLocked() {
@@ -486,9 +499,8 @@ func (s *Service) startLocked() {
 	if s.manual {
 		return
 	}
-	s.wg.Add(3)
+	s.wg.Add(2)
 	go s.detectLoop(ctx)
-	go s.retentionLoop(ctx)
 	go s.armLoop(ctx)
 }
 
@@ -897,6 +909,7 @@ func (s *Service) Shutdown(ctx context.Context) error {
 	if s.runCancel != nil {
 		s.stopLocked()
 	}
+	s.lifeCancel()
 	s.mu.Unlock()
 	done := make(chan struct{})
 	go func() {

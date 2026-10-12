@@ -118,7 +118,7 @@ func handleGo2RTCAppState(s *Server) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
 		status := manager.Status(ctx)
-		cfg := manager.Config()
+		cfg := withPublishedStreamDetection(manager.Config(), s.ConfigSnapshot())
 		streams := configuredGo2RTCStreamStatus(cfg.Streams)
 		if status.APIUsable {
 			if live, err := manager.ListStreams(ctx); err == nil {
@@ -161,6 +161,30 @@ func handleGo2RTCAppState(s *Server) http.HandlerFunc {
 		}
 		writeGo2RTCJSON(w, response)
 	}
+}
+
+// withPublishedStreamDetection returns cfg with each stream's detection block
+// taken from the published config. After a config-page save the manager is
+// reconfigured in a goroutine, so its copy can briefly lag behind and the zone
+// editor would load stale zones. A stream the published config does not list
+// keeps the manager's block; everything else stays the manager's.
+func withPublishedStreamDetection(cfg config.Go2RTCConfig, published *config.Config) config.Go2RTCConfig {
+	if published == nil {
+		return cfg
+	}
+	detections := make(map[string]config.Go2RTCStreamDetectionConfig, len(published.Go2RTC.Streams))
+	for _, stream := range published.Go2RTC.Streams {
+		detections[stream.ID] = stream.Detection
+	}
+	streams := make([]config.Go2RTCStreamConfig, len(cfg.Streams))
+	for i, stream := range cfg.Streams {
+		if detection, ok := detections[stream.ID]; ok {
+			stream.Detection = detection
+		}
+		streams[i] = stream
+	}
+	cfg.Streams = streams
+	return cfg
 }
 
 func configuredGo2RTCStreamStatus(streams []config.Go2RTCStreamConfig) []tools.Go2RTCStreamStatus {

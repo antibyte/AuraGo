@@ -435,3 +435,35 @@ func TestServiceChangesDeliverRowsWhileDetectionIsOff(t *testing.T) {
 		t.Fatalf("snapshot while off = %+v, %v", snapshot, err)
 	}
 }
+
+// Switching detection off (for privacy, say) must not keep recorded frames from
+// being deleted: DeleteEvent needs only the open database.
+func TestServiceDeletesEventsWhileDetectionIsOff(t *testing.T) {
+	h := newSvcHarness(t, false)
+	h.start(svcCamera("front-door"))
+	ctx := context.Background()
+	h.analyze("front-door", svcPerson(0.9))
+	ev := h.eventList()[0]
+	path, err := h.svc.FrameFile(ctx, *ev.CoverFrameID, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	off := h.settings(svcCamera("front-door"))
+	off.Enabled = false
+	h.svc.Configure(off)
+	if !h.svc.WaitBackgroundForTest(5 * time.Second) {
+		t.Fatal("background work did not finish")
+	}
+	if err := h.svc.DeleteEvent(ctx, ev.ID); err != nil {
+		t.Fatalf("DeleteEvent while off: %v", err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("frame file survived: %v", err)
+	}
+	if _, err := h.svc.Event(ctx, ev.ID); !errors.Is(err, persondetect.ErrUnknownEvent) {
+		t.Fatalf("deleted event still readable: %v", err)
+	}
+	if st := h.svc.Status(); st.Enabled || st.Storage.Bytes != 0 {
+		t.Fatalf("status after delete = %+v", st)
+	}
+}

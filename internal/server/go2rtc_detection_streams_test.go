@@ -204,3 +204,48 @@ func TestGo2RTCAppStateShowsDetectionToManagersOnly(t *testing.T) {
 		t.Fatalf("state with detection off = %s", off.Body.String())
 	}
 }
+
+// The manager is reconfigured in a goroutine after a config-page save, so app/state
+// takes each stream's detection block from the published config, not from the
+// manager's possibly older copy.
+func TestGo2RTCAppStateReadsDetectionFromThePublishedConfig(t *testing.T) {
+	stale := config.DefaultGo2RTCStreamDetection(true)
+	stale.MinScore = 0.7
+	stale.Zones = []config.Go2RTCDetectionZone{{Name: "Old", Points: [][2]float64{{0, 0}, {1, 0}, {1, 1}}}}
+	fresh := stale
+	fresh.MinScore = 0.8
+	fresh.Zones = []config.Go2RTCDetectionZone{{Name: "Driveway", Points: [][2]float64{{0, 0.5}, {1, 0.5}, {1, 1}}}}
+	build := func(detection config.Go2RTCStreamDetectionConfig) *config.Config {
+		cfg := &config.Config{}
+		cfg.Go2RTC = config.Go2RTCConfig{
+			Enabled: true, URL: "http://127.0.0.1:1", APIHostPort: 1,
+			Detection: config.Go2RTCDetectionConfig{Enabled: true},
+			Streams: []config.Go2RTCStreamConfig{
+				{ID: "front-door", Name: "Front door", Enabled: true, Source: "rtsp://192.168.1.20/live", SourceConfigured: true, Detection: detection},
+				{ID: "garage", Name: "Garage", Source: "rtsp://192.168.1.21/live", SourceConfigured: true, Detection: detection},
+			},
+		}
+		return cfg
+	}
+	server := &Server{Cfg: build(fresh), Go2RTC: tools.NewGo2RTCManager(build(stale), nil, nil, nil)}
+	var state struct {
+		Streams []struct {
+			Detection *config.Go2RTCStreamDetectionConfig `json:"detection"`
+		} `json:"streams"`
+		Disabled []struct {
+			Detection config.Go2RTCStreamDetectionConfig `json:"detection"`
+		} `json:"disabled_streams"`
+	}
+	recorder := httptest.NewRecorder()
+	handleGo2RTCAppState(server).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/go2rtc/app/state", nil))
+	if err := json.Unmarshal(recorder.Body.Bytes(), &state); err != nil {
+		t.Fatalf("decode: %v (%s)", err, recorder.Body.String())
+	}
+	if len(state.Streams) != 1 || state.Streams[0].Detection == nil || state.Streams[0].Detection.MinScore != 0.8 ||
+		len(state.Streams[0].Detection.Zones) != 1 || state.Streams[0].Detection.Zones[0].Name != "Driveway" {
+		t.Fatalf("enabled stream detection = %s", recorder.Body.String())
+	}
+	if len(state.Disabled) != 1 || state.Disabled[0].Detection.MinScore != 0.8 || len(state.Disabled[0].Detection.Zones) != 1 || state.Disabled[0].Detection.Zones[0].Name != "Driveway" {
+		t.Fatalf("disabled stream detection = %s", recorder.Body.String())
+	}
+}

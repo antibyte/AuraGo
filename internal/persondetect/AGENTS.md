@@ -189,7 +189,9 @@ worker. ONNX Runtime is loaded only in worker subprocesses; the one in-process l
   runs, or after it failed, an enabled service answers the store-backed calls with `ErrUnavailable`
   (HTTP 503 `detection_unavailable`), never `ErrDisabled` ("switched off"); `Retry` and the next
   `Configure` try again. A switched-off service still opens an existing database, so stored events stay
-  readable.
+  readable and deletable (`DeleteEvent` needs only the database), and retention keeps enforcing
+  `retention_days` and `max_storage_mb`: its loop starts when the database is published and stops only
+  at `Shutdown`, not when detection is switched off.
 - `Configure` is idempotent; the detector is rebuilt only when `Enabled`, `Model` or `Backend` change.
   The schedule is evaluated in `Settings.Location` (the server's `time.Local`). Cooldowns are per camera
   and per action since that action's last sent alert, in memory only. An event start's alert is

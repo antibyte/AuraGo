@@ -176,14 +176,12 @@ func (s *Service) evaluateArming(ctx context.Context, now time.Time) {
 	s.logger.Info("[PersonDetect] Schedule changed the arm state", "armed", armed)
 }
 
-// DeleteEvent deletes an event with its frames and files. A matching open event
-// is closed in its tracker first, so the next hit starts a new event. A frame of
-// the event that is still being written is dropped when its record finds the
-// event gone.
+// DeleteEvent deletes an event with its frames and files whenever the database
+// is open, also while detection is off: switching detection off for privacy must
+// not keep recorded frames from being deleted. A matching open event is closed in
+// its tracker first, so the next hit starts a new event. A frame of the event that
+// is still being written is dropped when its record finds the event gone.
 func (s *Service) DeleteEvent(ctx context.Context, id int64) error {
-	if !s.running() {
-		return ErrDisabled
-	}
 	st, err := s.apiStore()
 	if err != nil {
 		return err
