@@ -20,9 +20,10 @@ import (
 
 // TestDesktopCYDCreatorShellBrowser drives the CYD Creator shell (plan 4a) inside the real desktop
 // shell against the in-memory backend of testdata/cyd-creator-fixture.js: start screen, new project,
-// toolbar, Design/Code switch, code edit + autosave + conflict, the publication-review fence, build
-// with streamed log and problems, the agent job with plan confirmation over the fake SSE stream, the
-// locked state, revisions and the event stream's give-up after failed reconnects.
+// toolbar, Design/Code switch, code edit + autosave + reload + conflict, the publication-review fence
+// and the restart that clears it, build with streamed log and problems, a cancelled change job that
+// leaves a draft, the agent job with plan confirmation over the fake SSE stream, read-only from the
+// desktop policy, the locked state, revisions and the event stream's give-up (401, deleted project).
 // Without plan 4b the Design mode shows its placeholder.
 func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
@@ -76,31 +77,36 @@ func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 	s.wait(`()=>{const h=document.querySelector('[data-cc-code-hint]');return !h.hidden && h.textContent===t('cyd_creator.code.generated_hint') && document.querySelector('.cc-code-editor .cm-content').getAttribute('contenteditable')==='false'}`)
 	s.shot("code-generated")
 
-	// A file changed elsewhere: the save conflicts, Overwrite saves with the server's sha.
+	// A change made elsewhere reaches the clean editor through project_changed: it reloads silently.
 	page.MustElement(`[data-cc-file="src/app/app_main.cpp"]`).MustClick()
 	s.wait(`()=>document.querySelector('.cc-code-editor .cm-content').textContent.includes('// Temperatur')`)
-	page.MustEval(`()=>cydFixture.touchFile(cydFixture.inst().projectId,'src/app/app_main.cpp','// changed elsewhere\n')`)
+	page.MustEval(`()=>{const i=cydFixture.inst();window.__ccElsewhere='// changed elsewhere\n'+cydFixture.state.files.get(i.projectId).get('src/app/app_main.cpp').text;cydFixture.touchFile(i.projectId,'src/app/app_main.cpp',window.__ccElsewhere)}`)
+	s.wait(`()=>document.querySelector('.cc-code-editor .cm-content').textContent.startsWith('// changed elsewhere') && !document.querySelector('.cc-dialog') && document.querySelector('[data-cc-code-state]').dataset.state==='saved'`)
+	// The same file changed elsewhere while it has unsaved edits: the save conflicts, Overwrite saves
+	// with the server's sha.
 	page.MustElement(`.cc-code-editor .cm-content`).MustClick()
 	page.MustInsertText(" mine")
+	page.MustEval(`()=>{const i=cydFixture.inst();window.__ccAgain='// changed again\n'+window.__ccElsewhere;cydFixture.touchFile(i.projectId,'src/app/app_main.cpp',window.__ccAgain)}`)
 	s.wait(`()=>!!document.querySelector('.cc-dialog [data-cc-dialog-action="overwrite"]')`)
 	s.noRawKeys("conflict")
 	s.shot("code-conflict")
 	page.MustElement(`.cc-dialog [data-cc-dialog-action="overwrite"]`).MustClick()
-	s.wait(`()=>{const p=cydFixture.state.filePuts.at(-1);return p.text.includes(' mine') && p.ifMatch===cydFixture.sha('// changed elsewhere\n') && document.querySelector('[data-cc-code-state]').dataset.state==='saved'}`)
+	s.wait(`()=>{const p=cydFixture.state.filePuts.at(-1);return p.text.includes(' mine') && !p.text.includes('// changed again') && p.ifMatch===cydFixture.sha(window.__ccAgain) && document.querySelector('[data-cc-code-state]').dataset.state==='saved'}`)
 	s.failOnPageErrors("code")
 
 	// A project fenced after an interrupted publication refuses saves with CYD_BUSY publication_review:
-	// the save fails (no offline retry), the chip names the reason and the window shows its banner
-	// until the summary no longer reports publish_review; Save now then lands.
-	page.MustEval(`()=>cydFixture.fence(cydFixture.inst().projectId,true)`)
+	// the save fails (no offline retry), the chip names the reason, the window shows its banner and
+	// Build is blocked with the reason. The fence lives in the server's memory: a restart clears it
+	// without an event, and the window re-reads the summary when its stream comes back.
+	page.MustEval(`()=>cydFixture.fence(cydFixture.inst().projectId)`)
 	page.MustElement(`.cc-code-editor .cm-content`).MustClick()
 	page.MustInsertText(" fenced")
 	s.wait(`()=>{const c=document.querySelector('[data-cc-code-state]');return c.dataset.state==='failed' && c.title===t('cyd_creator.error.publication_review') && document.querySelector('[data-cc-save-state]').dataset.state==='failed'}`)
-	s.wait(`()=>{const b=document.querySelector('[data-cc-publish-review]');return !b.hidden && b.textContent===t('cyd_creator.error.publication_review')}`)
+	s.wait(`()=>{const b=document.querySelector('[data-cc-publish-review]'),build=document.querySelector('[data-cc-action="build"]');return !b.hidden && b.textContent===t('cyd_creator.error.publication_review') && build.disabled && build.title===t('cyd_creator.error.publication_review')}`)
 	s.noRawKeys("publication review")
 	s.shot("publication-review")
-	page.MustEval(`()=>cydFixture.fence(cydFixture.inst().projectId,false)`)
-	s.wait(`()=>document.querySelector('[data-cc-publish-review]').hidden`)
+	page.MustEval(`()=>cydFixture.restart()`)
+	s.waitFor(`()=>document.querySelector('[data-cc-publish-review]').hidden && !document.querySelector('[data-cc-action="build"]').disabled && cydFixture.state.streams.at(-1).ready`, 10*time.Second)
 	page.MustElement(`[data-cc-code-action="save"]`).MustClick()
 	s.wait(`()=>{const p=cydFixture.state.filePuts.at(-1);return p.text.includes(' fenced') && document.querySelector('[data-cc-code-state]').dataset.state==='saved'}`)
 	s.failOnPageErrors("publication review")
@@ -118,6 +124,23 @@ func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 	s.shot("problem-marker")
 	s.failOnPageErrors("build")
 
+	// A change job from the composer saves the unsaved code edit first (PUT before POST /jobs). Its
+	// cancel answers 202 while the job still runs; the job then ends cancelled with a system line,
+	// and the work it already wrote stays as the draft (resume / discard).
+	page.MustElement(`.cc-code-editor .cm-content`).MustClick()
+	page.MustInsertText(" // vor dem Job")
+	page.MustElement(`[data-cc-panel="agent"]`).MustClick()
+	page.MustElement(`[data-cc-agent-input]`).MustInput("Zeige zusätzlich die Uhrzeit.")
+	page.MustElement(`[data-cc-agent-action="send"]`).MustClick()
+	s.wait(`()=>{const r=cydFixture.state.requests,id=cydFixture.inst().projectId,put=r.lastIndexOf('PUT /api/desktop/cyd-creator/projects/'+id+'/files/src/app/app_main.cpp'),post=r.lastIndexOf('POST /api/desktop/cyd-creator/projects/'+id+'/jobs');return put>=0 && post>put && cydFixture.state.filePuts.at(-1).text.includes('// vor dem Job') && cydFixture.state.jobBodies.at(-1).mode==='change'}`)
+	s.wait(`()=>cydFixture.state.heldJob!==null && !document.querySelector('[data-cc-lock]').hidden && !!document.querySelector('.cc-job [data-cc-agent-action="cancel"]')`)
+	page.MustElement(`.cc-job [data-cc-agent-action="cancel"]`).MustClick()
+	page.MustElement(`.cc-dialog [data-cc-dialog-action="ok"]`).MustClick()
+	s.wait(`()=>{const sys=[...document.querySelectorAll('[data-cc-message][data-role="system"]')].map(m=>m.textContent).join(' ');return document.querySelector('[data-cc-lock]').hidden && !document.querySelector('[data-cc-draft]').hidden && sys.includes('cancelled') && sys.includes('draft') && !document.querySelector('[data-cc-agent-input]').disabled}`)
+	s.noRawKeys("cancelled")
+	s.shot("agent-cancelled-draft")
+	s.failOnPageErrors("cancel")
+
 	// Agent: a new app from a description plans first; the plan waits for a confirmation.
 	page.MustElement(`[data-cc-action="home"]`).MustClick()
 	s.wait(`()=>document.querySelectorAll('.cc-project-row').length===2`)
@@ -130,6 +153,13 @@ func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 	s.wait(`()=>{const p=document.querySelector('[data-cc-plan]')?.textContent||'';return p.includes('verlauf') && p.includes('ArduinoJson')}`)
 	s.noRawKeys("plan")
 	s.shot("agent-plan")
+	// The desktop policy switches read-only on while the plan waits: Confirm and Change plan lock at
+	// once, Cancel stays usable (plan 2 allows the cancel routes), and lifting it enables them again.
+	const policy = `document.dispatchEvent(new CustomEvent('aurago:desktop-policy',{detail:{readonly:%t}}))`
+	page.MustEval(`()=>` + fmt.Sprintf(policy, true))
+	s.wait(`()=>{const q=a=>document.querySelector('[data-cc-plan] [data-cc-agent-action="'+a+'"]');return q('confirm').disabled && q('replan').disabled && !q('cancel').disabled && document.querySelector('[data-cc-agent-input]').disabled}`)
+	page.MustEval(`()=>` + fmt.Sprintf(policy, false))
+	s.wait(`()=>{const q=a=>document.querySelector('[data-cc-plan] [data-cc-agent-action="'+a+'"]');return !q('confirm').disabled && !q('replan').disabled && !document.querySelector('[data-cc-agent-input]').disabled}`)
 
 	// Confirm, then look at Properties: the job locks the project, shows its dot, never switches tabs.
 	page.MustElement(`[data-cc-agent-action="confirm"]`).MustClick()
@@ -142,11 +172,13 @@ func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 	s.noRawKeys("locked")
 	s.shot("locked")
 	// A read-only viewer can still cancel the running job (plan 2 allows the cancel routes in read-only mode).
-	page.MustEval(`()=>{const i=cydFixture.inst();i.readonly=true;cydFixture.emit(i.projectId,'job_status',{job:cydFixture.state.heldJob},false)}`)
+	page.MustEval(`()=>` + fmt.Sprintf(policy, true))
 	s.wait(`()=>{const c=document.querySelector('.cc-job [data-cc-agent-action="cancel"]');return !!c && !c.disabled && document.querySelector('[data-cc-agent-input]').disabled}`)
-	page.MustEval(`()=>{const i=cydFixture.inst();i.readonly=false;cydFixture.emit(i.projectId,'job_status',{job:cydFixture.state.heldJob},false)}`)
+	page.MustEval(`()=>` + fmt.Sprintf(policy, false))
 	s.wait(`()=>!document.querySelector('[data-cc-agent-input]').disabled`)
 	page.MustEval(`()=>cydFixture.finishJob()`)
+	// The job builds before it publishes: its build (origin job) is the job's build_id and shows in the dock.
+	s.wait(`()=>{const j=[...cydFixture.state.jobs.values()].at(-1);return j.status==='succeeded' && !!j.build_id && cydFixture.inst().dock.builds.list().some(b=>b.id===j.build_id && b.job_id===j.id && b.status==='succeeded')}`)
 	s.wait(`()=>document.querySelector('[data-cc-lock]').hidden && document.querySelector('[data-cc-agent-dot]').hidden && document.querySelector('.cc-code-editor .cm-content').getAttribute('contenteditable')==='true'`)
 	s.wait(`()=>document.querySelector('[data-cc-panel="properties"]').getAttribute('aria-selected')==='true'`)
 	// The job's layout change reached the window (project_changed with origin job:<id>).
@@ -168,13 +200,14 @@ func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 
 	// The stream gives up: after three failed connects in a row GET /projects/{id} answers 401, the
 	// window stops reconnecting and shows why; Retry resumes after the last applied event.
+	// The reconnects back off 1 s and 2 s (±20 %), so the probe comes 2.4–3.6 s after the first failure.
 	page.MustEval(`()=>cydFixture.breakStream('unauthorized')`)
 	s.wait(`()=>cydFixture.state.streamErrors>=1 && !document.querySelector('[data-cc-stream-state]').hidden`)
-	s.wait(`()=>{const b=document.querySelector('[data-cc-stream-stopped]');return !b.hidden && b.textContent.includes(t('cyd_creator.error.unauthorized')) && !!b.querySelector('[data-cc-action="reconnect"]') && cydFixture.state.streams.every(es=>es.closed)}`)
+	s.waitFor(`()=>{const b=document.querySelector('[data-cc-stream-stopped]');return !b.hidden && b.textContent.includes(t('cyd_creator.error.unauthorized')) && !!b.querySelector('[data-cc-action="reconnect"]') && cydFixture.state.streams.every(es=>es.closed)}`, 10*time.Second)
 	s.noRawKeys("stream stopped")
 	s.shot("stream-stopped")
 	page.MustEval(`()=>{cydFixture.state.streamDown='';document.querySelector('[data-cc-stream-stopped] [data-cc-action="reconnect"]').click()}`)
-	s.wait(`()=>{const es=cydFixture.state.streams.at(-1);return es.ready && !es.closed && Number(new URL(es.url,location.origin).searchParams.get('after'))>0 && document.querySelector('[data-cc-stream-stopped]').hidden && document.querySelector('[data-cc-stream-state]').hidden}`)
+	s.wait(`()=>{const es=cydFixture.state.streams.at(-1),last=cydFixture.state.events.get(cydFixture.inst().projectId).at(-1).seq;return es.ready && !es.closed && Number(new URL(es.url,location.origin).searchParams.get('after'))===last && document.querySelector('[data-cc-stream-stopped]').hidden && document.querySelector('[data-cc-stream-state]').hidden}`)
 	s.failOnPageErrors("stream")
 
 	// Both desktop themes keep the chrome readable; the editor follows a light theme (no One Dark).
@@ -192,6 +225,14 @@ func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 	s.wait(`()=>{const a=document.querySelector('.cc-app');return a.scrollWidth<=a.clientWidth+1 && getComputedStyle(document.querySelector('.cc-workbench')).gridTemplateRows.split(' ').length===2}`)
 	s.shot("project-narrow")
 	page.MustSetViewport(1440, 900, 1, false)
+
+	// A project deleted in another window: its stream ends, the reconnects fail, the probe answers 404
+	// and the window returns to the start screen with a notice.
+	page.MustEval(`()=>cydFixture.deleteElsewhere(cydFixture.inst().projectId)`)
+	s.waitFor(`()=>!!document.querySelector('.cc-home') && document.querySelectorAll('.cc-project-row').length===2 && [...document.querySelectorAll('.vd-toast')].some(x=>x.textContent.includes(t('cyd_creator.error.CYD_NOT_FOUND')))`, 10*time.Second)
+	s.noRawKeys("deleted elsewhere")
+	s.shot("deleted-elsewhere")
+	s.failOnPageErrors("deleted elsewhere")
 
 	// Closing the window disposes the instance and its event stream.
 	page.MustEval(`()=>fixtureCloseAll()`)
@@ -287,6 +328,17 @@ func (s *cydCreatorSmoke) wait(expr string) {
 	waitForJSBool(s.t, s.page, expr)
 }
 
+// waitFor is wait with its own deadline, for steps bound to the event stream's reconnect backoff.
+func (s *cydCreatorSmoke) waitFor(expr string, timeout time.Duration) {
+	s.t.Helper()
+	for deadline := time.Now().Add(timeout); time.Now().Before(deadline); time.Sleep(25 * time.Millisecond) {
+		if s.page.MustEval(expr).Bool() {
+			return
+		}
+	}
+	s.t.Fatalf("condition did not become true within %s: %s", timeout, expr)
+}
+
 // shot saves a screenshot once two frames and a short pause let the layout settle.
 func (s *cydCreatorSmoke) shot(name string) {
 	s.t.Helper()
@@ -307,18 +359,20 @@ func (s *cydCreatorSmoke) failOnPageErrors(step string) {
 	}
 }
 
-// noRawKeys fails when the CYD Creator window shows an untranslated cyd_creator.* key in its text or
-// in a title, label or placeholder.
+// noRawKeys fails when the CYD Creator window or a desktop notification shows an untranslated
+// cyd_creator.* key in its text or in a title, label or placeholder.
 func (s *cydCreatorSmoke) noRawKeys(step string) {
 	s.t.Helper()
 	found := s.page.MustEval(`()=>{
 		const out=new Set();
-		document.querySelectorAll('.cc-app').forEach(app=>{
-			const win=app.closest('.vd-window')||app;
-			const texts=[win.innerText];
-			win.querySelectorAll('[title],[aria-label],[placeholder]').forEach(n=>['title','aria-label','placeholder'].forEach(a=>texts.push(n.getAttribute(a)||'')));
-			texts.forEach(text=>(String(text).match(/cyd_creator\.[A-Za-z0-9_.]+/g)||[]).forEach(k=>out.add(k)));
-		});
+		const texts=[];
+		const scan=node=>{
+			texts.push(node.innerText);
+			node.querySelectorAll('[title],[aria-label],[placeholder]').forEach(n=>['title','aria-label','placeholder'].forEach(a=>texts.push(n.getAttribute(a)||'')));
+		};
+		document.querySelectorAll('.cc-app').forEach(app=>scan(app.closest('.vd-window')||app));
+		document.querySelectorAll('.vd-toast').forEach(scan);
+		texts.forEach(text=>(String(text).match(/cyd_creator\.[A-Za-z0-9_.]+/g)||[]).forEach(k=>out.add(k)));
 		return JSON.stringify([...out]);
 	}`).Str()
 	if found != "[]" {

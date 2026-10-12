@@ -13,7 +13,8 @@
     const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8' };
     const reply = (data, status, headers) => new Response(JSON.stringify(data), { status: status || 200, headers: Object.assign({}, JSON_HEADERS, headers || {}) });
     const empty = status => new Response(null, { status: status || 204 });
-    const fail = (status, code, error, details) => reply({ error: error || code, code, details: details || {} }, status);
+    // The plan-2 envelope: {error, code} plus details only when there are some.
+    const fail = (status, code, error, details) => reply(Object.assign({ error: error || code, code }, details && Object.keys(details).length ? { details } : {}), status);
     // A project fenced after an interrupted publication refuses every write like the plan-2 server.
     const fenced = () => fail(409, 'CYD_BUSY', 'an interrupted publication of this project needs review; restart AuraGo or see the server log', { reason: 'publication_review' });
     const iso = offset => new Date(Date.now() + (offset || 0)).toISOString();
@@ -92,6 +93,8 @@
         filePuts: [],
         jobBodies: [],
         heldJob: null,
+        // cancelled: running jobs whose cancel was accepted; their run stops at its next step.
+        cancelled: new Set(),
         buildOutcome: 'failed',
         // streamDown: 'unauthorized' answers every request with the desktop auth layer's 401 and makes
         // every event stream fail (breakStream); streamErrors counts the failed streams.
@@ -177,12 +180,13 @@
             if (this.closed) return;
             const u = new URL(this.url, location.origin);
             const match = /^\/api\/desktop\/cyd-creator\/projects\/([^/]+)\/events$/.exec(u.pathname);
-            if (!match || !state.projects.has(decodeURIComponent(match[1]))) {
+            if (!match) {
                 unrouted('GET', u.pathname + u.search);
                 if (typeof this.onerror === 'function') this.onerror({ type: 'error' });
                 return;
             }
-            if (state.streamDown) { this.fail(); return; }
+            // A deleted project (404) or an expired session (401) ends in an error like a refused stream.
+            if (state.streamDown || !state.projects.has(decodeURIComponent(match[1]))) { this.fail(); return; }
             const projectId = decodeURIComponent(match[1]);
             const events = state.events.get(projectId);
             const newest = events.length ? events[events.length - 1].seq : 0;
@@ -253,9 +257,11 @@
     // also the agent's chat message); change and generate_code start coding right away.
     async function runJob(job) {
         await wait(60);
+        if (state.cancelled.has(job.id)) return;
         if (job.mode === 'new') {
             setJob(job, { status: 'running', phase: 'planning', started_at: job.started_at || iso() });
             await wait(60);
+            if (state.cancelled.has(job.id)) return;
             emit(job.project_id, 'job_step', { job_id: job.id, kind: 'info', text: 'Plan drafted' });
             setJob(job, {
                 status: 'awaiting_confirmation', phase: 'planning',
@@ -270,8 +276,10 @@
     // work runs a job from startPhase (layout after a confirmed plan, else coding) and holds it in
     // coding until cydFixture.finishJob().
     async function work(job, startPhase) {
+        if (state.cancelled.has(job.id)) return;
         setJob(job, { status: 'running', phase: startPhase, started_at: job.started_at || iso() });
         await wait(60);
+        if (state.cancelled.has(job.id)) return;
         if (startPhase === 'layout') {
             emit(job.project_id, 'job_step', { job_id: job.id, kind: 'layout', text: '2 widgets added' });
             setJob(job, { phase: 'coding' });
@@ -280,14 +288,38 @@
         state.heldJob = job;
     }
 
-    // finishJob builds and publishes the held job in the plan-3 order: project_changed (layout and
-    // files, origin job:<id>), lock_changed, job_status succeeded/done, then the agent's summary.
+    // jobBuild is the job's own build in the building phase (origin job, job_id set): it succeeds.
+    async function jobBuild(job) {
+        const project = state.projects.get(job.project_id);
+        const build = { id: nextID('ccb'), project_id: job.project_id, job_id: job.id, origin: 'job', status: 'queued', board: project.board, project_version: project.version, error_code: '', diagnostics: [], usage: {}, artifacts: [], created_at: iso(), started_at: '', finished_at: '' };
+        state.builds.set(build.id, build);
+        emit(job.project_id, 'build_status', { build });
+        await wait(30);
+        Object.assign(build, { status: 'running', started_at: iso() });
+        emit(job.project_id, 'build_status', { build });
+        const line = 'Linking .pio/build/firmware.elf';
+        state.logs.set(build.id, [line]);
+        emit(job.project_id, 'build_log', { build_id: build.id, lines: [line] }, false);
+        await wait(30);
+        Object.assign(build, {
+            status: 'succeeded', finished_at: iso(),
+            usage: { flash_used: 1250000, flash_total: 1966080, ram_used: 82000, ram_total: 327680, duration_ms: 3900, warnings: 0 },
+            artifacts: [{ name: 'merged.bin', size: 1310000, sha256: 'ef' }, { name: 'firmware.bin', size: 1240000, sha256: '01' }]
+        });
+        project.last_build = clone(build);
+        emit(job.project_id, 'build_status', { build });
+        return build;
+    }
+
+    // finishJob builds and publishes the held job in the plan-3 order: the job's build, then
+    // project_changed (layout and files, origin job:<id>), lock_changed, job_status succeeded/done
+    // with build_id, then the agent's summary.
     async function finishJob() {
         const job = state.heldJob;
         if (!job) return false;
         state.heldJob = null;
         setJob(job, { phase: 'building' });
-        await wait(40);
+        const build = await jobBuild(job);
         const projectId = job.project_id;
         const project = state.projects.get(projectId);
         const layout = state.layouts.get(projectId);
@@ -296,7 +328,8 @@
         project.version = layout.version;
         project.locked_by_job = '';
         project.has_draft = false;
-        state.revisions.get(projectId).unshift({ id: nextID('ccr'), label: 'Job abgeschlossen', reason: 'job', job_id: job.id, build_id: '', created_at: iso() });
+        job.build_id = build.id;
+        state.revisions.get(projectId).unshift({ id: nextID('ccr'), label: 'Job abgeschlossen', reason: 'job', job_id: job.id, build_id: build.id, created_at: iso() });
         const origin = 'job:' + job.id;
         emit(projectId, 'project_changed', { version: layout.version, origin, what: 'layout' });
         emit(projectId, 'project_changed', { version: layout.version, origin, what: 'files' });
@@ -304,6 +337,18 @@
         setJob(job, { status: 'succeeded', phase: 'done', finished_at: iso() });
         message(projectId, job.id, 'agent', 'Fertig: Die Temperatur steht groß auf dem Startscreen.');
         return true;
+    }
+
+    // cancelJob ends a job like the plan-3 finishJob: lock released, job_status cancelled, a system
+    // line; a job that already wrote files (layout, coding, building) leaves its work as the draft.
+    function cancelJob(job) {
+        const project = state.projects.get(job.project_id);
+        const keep = ['layout', 'coding', 'building'].includes(job.phase);
+        if (state.heldJob === job) state.heldJob = null;
+        if (keep) project.has_draft = true;
+        if (project.locked_by_job === job.id) setLock(job.project_id, '');
+        setJob(job, { status: 'cancelled', finished_at: iso() });
+        message(job.project_id, job.id, 'system', 'The job was cancelled. The project is unchanged.' + (keep ? " The agent's work is kept as a draft you can resume or discard." : ''));
     }
 
     // ── routes ──
@@ -378,7 +423,12 @@
                 }
             }
             if (sub === 'builds') {
-                if (method === 'GET') return reply({ builds: Array.from(state.builds.values()).filter(b => b.project_id === id).map(clone) });
+                // Newest first like the server (created_at DESC, id DESC).
+                if (method === 'GET') {
+                    const list = Array.from(state.builds.values()).filter(b => b.project_id === id)
+                        .sort((x, y) => String(y.created_at).localeCompare(String(x.created_at)) || String(y.id).localeCompare(String(x.id)));
+                    return reply({ builds: list.map(clone) });
+                }
                 if (method === 'POST') {
                     if (project.publish_review) return fenced();
                     if (locked) return fail(423, 'CYD_PROJECT_LOCKED', 'locked');
@@ -417,7 +467,7 @@
             if (!build) return fail(404, 'CYD_NOT_FOUND', 'build not found');
             if (!sub && method === 'GET') return reply({ build: clone(build) });
             if (sub === 'log' && method === 'GET') return new Response((state.logs.get(id) || []).join('\n'), { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
-            if (sub === 'cancel' && method === 'POST') return reply({}, 202);
+            if (sub === 'cancel' && method === 'POST') return reply({ build: clone(build) }, 202);
         }
         if (head === 'jobs' && id) {
             const job = state.jobs.get(id);
@@ -438,10 +488,17 @@
                 return reply({ job: clone(job) });
             }
             if (sub === 'cancel' && method === 'POST') {
-                if (state.projects.get(job.project_id).locked_by_job === job.id) setLock(job.project_id, '');
-                setJob(job, { status: 'cancelled', finished_at: iso() });
-                state.heldJob = null;
-                return reply({}, 202);
+                if (!['queued', 'running', 'awaiting_confirmation'].includes(job.status)) return fail(409, 'CYD_JOB_STATE', 'the job has already finished', { status: job.status });
+                // A waiting job ends at once; a running one is signalled and ends shortly after the
+                // answer, which still shows it running.
+                if (job.status === 'awaiting_confirmation') {
+                    cancelJob(job);
+                    return reply({ job: clone(job) }, 202);
+                }
+                state.cancelled.add(job.id);
+                const answer = clone(job);
+                setTimeout(() => cancelJob(job), 40);
+                return reply({ job: answer }, 202);
             }
         }
         if (head === 'revisions' && id) {
@@ -470,22 +527,34 @@
             const all = window.CYDCreatorApp ? Array.from(window.CYDCreatorApp.instances.values()) : [];
             return all[all.length - 1] || null;
         },
-        // touchFile changes a file server-side (another window, the agent) so the next save conflicts.
+        // touchFile changes a file server-side (another window) and announces it like the server
+        // (project_changed files): a clean editor reloads, one with unsaved edits meets the conflict.
         touchFile(projectId, path, text) {
             state.files.get(projectId).set(path, { text, editable: true });
+            emit(projectId, 'project_changed', { version: state.projects.get(projectId).version, origin: 'user', what: 'files' });
         },
-        // fence sets or clears the publication-review fence. Clearing it announces a meta change, so
-        // the window re-reads the summary.
-        fence(projectId, on) {
-            const project = state.projects.get(projectId);
-            project.publish_review = !!on;
-            if (!on) emit(projectId, 'project_changed', { version: project.version, origin: 'user', what: 'meta' });
+        // fence sets the publication-review fence. The server keeps it in memory and announces
+        // nothing; only a restart clears it.
+        fence(projectId) {
+            state.projects.get(projectId).publish_review = true;
+        },
+        // restart models a server restart: every open stream ends (the windows reconnect) and the
+        // in-memory fences are gone; no event says so.
+        restart() {
+            state.projects.forEach(project => { project.publish_review = false; });
+            state.streams.filter(es => !es.closed).forEach(es => es.fail());
         },
         // breakStream fails the open event streams and every new one (reason 'unauthorized' also
         // answers every request with 401) until state.streamDown is cleared.
         breakStream(reason) {
             state.streamDown = reason || 'unauthorized';
             state.streams.filter(es => !es.closed).forEach(es => es.fail());
+        },
+        // deleteElsewhere deletes a project from another window: its streams end and every later
+        // request for it answers 404.
+        deleteElsewhere(projectId) {
+            state.projects.delete(projectId);
+            state.streams.filter(es => !es.closed && es.url.includes('/projects/' + encodeURIComponent(projectId) + '/')).forEach(es => es.fail());
         }
     };
 
