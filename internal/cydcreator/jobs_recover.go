@@ -154,20 +154,20 @@ func (s *Service) settleInterruptedJob(ctx context.Context, id string, announce 
 	}
 	if !announce {
 		if draft {
-			s.postMessage(job.ProjectID, job.ID, MessageRoleSystem, "The agent's work of the interrupted job is now kept as a draft you can resume or discard.")
+			s.postSystemMessage(job.ProjectID, job.ID, "draft_kept", nil)
 		}
 		return
 	}
 	s.Emit(job.ProjectID, EventLockChanged, job.ID, "", map[string]any{"locked_by_job": ""})
 	s.Emit(job.ProjectID, EventJobStatus, job.ID, "", map[string]any{"job": job})
-	text := "The server restarted while the job was running. The project is unchanged."
+	code := "server_restarted"
 	if s.publicationFence(row.ID) != "" {
-		text = "The server restarted while the job was running. The project needs a review before it can be changed again; see the server log."
+		code = "server_restarted_review"
 	}
 	if draft {
-		text += " The agent's work is kept as a draft you can resume or discard."
+		code += draftCodeSuffix
 	}
-	s.postMessage(job.ProjectID, job.ID, MessageRoleSystem, text)
+	s.postSystemMessage(job.ProjectID, job.ID, code, nil)
 }
 
 // interruptedWork reports whether the working copy of an interrupted job is
@@ -282,7 +282,7 @@ func (s *Service) finishCommittedPublication(ctx context.Context, r publishRecei
 	s.Emit(row.ID, EventProjectChanged, job.ID, "", projectChange(row.Version, origin, "files"))
 	s.Emit(row.ID, EventLockChanged, job.ID, "", map[string]any{"locked_by_job": ""})
 	s.Emit(row.ID, EventJobStatus, job.ID, "", map[string]any{"job": job})
-	s.postMessage(row.ID, job.ID, MessageRoleSystem, "The app was built and published just before the server restarted.")
+	s.postSystemMessage(row.ID, job.ID, "published_before_restart", nil)
 }
 
 // fenceForRecovery fences the project of an interrupted job whose state could

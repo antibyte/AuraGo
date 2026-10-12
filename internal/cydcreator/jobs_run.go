@@ -58,7 +58,7 @@ func (s *Service) awaitConfirmation(run *jobRun) {
 	run.job.Status = JobAwaitingConfirmation
 	if err := s.saveJob(run.job); err != nil {
 		delete(s.jobs.planningUsed, run.jobID)
-		_ = s.finishJob(run.job, jobEnding{status: JobFailed, message: "The plan could not be stored."})
+		_ = s.finishJob(run.job, jobEnding{status: JobFailed, message: "The plan could not be stored.", msg: "plan_not_stored"})
 		return
 	}
 	if s.jobs.planningUsed == nil {
@@ -116,7 +116,7 @@ func (s *Service) driveJob(run *jobRun) runOutcome {
 		case PhaseCoding, PhaseRepairing:
 			s.setJobPhase(run, phase)
 			if phase == PhaseRepairing {
-				s.emitStep(run.projectID, run.jobID, StepRepair, fmt.Sprintf("Repair %d/%d started", run.job.RepairAttempt, limits.MaxRepairAttempts))
+				s.emitStep(run.projectID, run.jobID, StepRepair, "repair_started", map[string]any{"attempt": run.job.RepairAttempt, "max": limits.MaxRepairAttempts})
 			}
 			if err := s.runAgent(run, phase); err != nil {
 				return runOutcome{err: err}
@@ -303,28 +303,38 @@ func (s *Service) jobBuild(ctx context.Context, run *jobRun) (Build, error) {
 	run.mu.Lock()
 	run.lastBuild, run.lastBuildFP = &final, fp
 	run.mu.Unlock()
-	s.emitStep(run.projectID, run.jobID, StepBuild, buildStepText(n, final))
+	s.emitBuildStep(run, n, final)
 	return final, nil
 }
 
-// buildStepText is the short job_step line of a build.
-func buildStepText(n int, b Build) string {
+// emitBuildStep is the job_step of the job's n-th build: success (with the
+// flash share when known), else the first error outside generated files
+// (with its place when it has a file), else the build's error code.
+func (s *Service) emitBuildStep(run *jobRun, n int, b Build) {
 	if b.Status == BuildSucceeded {
 		if b.Usage.FlashTotal > 0 {
-			return fmt.Sprintf("Build %d succeeded (flash %d%%)", n, b.Usage.FlashUsed*100/b.Usage.FlashTotal)
+			s.emitStep(run.projectID, run.jobID, StepBuild, "build_succeeded_flash", map[string]any{"n": n, "percent": b.Usage.FlashUsed * 100 / b.Usage.FlashTotal})
+			return
 		}
-		return fmt.Sprintf("Build %d succeeded", n)
+		s.emitStep(run.projectID, run.jobID, StepBuild, "build_succeeded", map[string]any{"n": n})
+		return
 	}
 	for _, d := range b.Diagnostics {
-		if d.Severity == SeverityError && !d.Generated {
-			where := d.File
-			if d.Line > 0 {
-				where = fmt.Sprintf("%s:%d", d.File, d.Line)
-			}
-			return strings.TrimSpace(fmt.Sprintf("Build %d failed: %s %s", n, where, d.Message))
+		if d.Severity != SeverityError || d.Generated {
+			continue
 		}
+		if d.File == "" {
+			s.emitStep(run.projectID, run.jobID, StepBuild, "build_failed_error", map[string]any{"n": n, "message": d.Message})
+			return
+		}
+		location := d.File
+		if d.Line > 0 {
+			location = fmt.Sprintf("%s:%d", d.File, d.Line)
+		}
+		s.emitStep(run.projectID, run.jobID, StepBuild, "build_failed_at", map[string]any{"n": n, "location": location, "message": d.Message})
+		return
 	}
-	return fmt.Sprintf("Build %d failed (%s)", n, b.ErrorCode)
+	s.emitStep(run.projectID, run.jobID, StepBuild, "build_failed", map[string]any{"n": n, "error_code": b.ErrorCode})
 }
 
 // publishRetryDelays are the pauses before a publication is tried again after
@@ -350,7 +360,7 @@ func (s *Service) publishJob(run *jobRun, b Build) error {
 			return err
 		}
 		delay := publishRetryDelays[attempt]
-		s.emitStep(run.projectID, run.jobID, StepInfo, fmt.Sprintf("A project file is open; publishing again in %s.", delay))
+		s.emitStep(run.projectID, run.jobID, StepInfo, "publish_retry", map[string]any{"delay": delay.String()})
 		timer := time.NewTimer(delay)
 		select {
 		case <-run.ctx.Done():
@@ -446,10 +456,13 @@ func (s *Service) publishOnce(run *jobRun, b Build) error {
 }
 
 // jobEnding is how a job that did not publish ends: its status, the typed
-// error's code and details.reason (empty for untyped endings) and the English
-// message shown in the chat.
+// error's code and details.reason (empty for untyped endings), the English
+// job error message and the code and vars of its system chat line (msg, a
+// messageTexts key with a draft variant; finishJob posts msg or msg+"_draft").
 type jobEnding struct {
 	status, code, reason, message string
+	msg                           string
+	vars                          map[string]any
 }
 
 // jobErrorReasonPattern accepts the identifier-shaped details.reason values
@@ -473,17 +486,24 @@ func (s *Service) classifyJobError(run *jobRun, err error) jobEnding {
 	var agent agentStopped
 	switch {
 	case errors.Is(err, errJobCancelled):
-		return jobEnding{status: JobCancelled}
+		return jobEnding{status: JobCancelled, msg: "job_cancelled"}
 	case errors.Is(err, errJobTimeout):
-		return jobEnding{status: JobFailed, message: fmt.Sprintf("The job exceeded its time limit of %s.", formatBudget(run.budget))}
+		return jobEnding{status: JobFailed, message: fmt.Sprintf("The job exceeded its time limit of %s.", formatBudget(run.budget)),
+			msg: "job_timeout", vars: map[string]any{"limit": formatBudget(run.budget)}}
 	case s.ctx.Err() != nil:
-		return jobEnding{status: JobInterrupted, message: "The server stopped while the job was running."}
+		return jobEnding{status: JobInterrupted, message: "The server stopped while the job was running.", msg: "job_interrupted"}
 	case errors.As(err, &typed):
 		reason, _ := typed.Details["reason"].(string)
 		if !jobErrorReasonPattern.MatchString(reason) {
 			reason = ""
 		}
-		return jobEnding{status: JobFailed, code: typed.Code, reason: reason, message: typed.Message}
+		// The client shows its own sentence for the code (and reason); the
+		// English message is the fallback.
+		vars := map[string]any{"error_code": typed.Code, "error": typed.Message}
+		if reason != "" {
+			vars["error_reason"] = reason
+		}
+		return jobEnding{status: JobFailed, code: typed.Code, reason: reason, message: typed.Message, msg: "job_failed", vars: vars}
 	case errors.As(err, &agent):
 		s.logger.Warn("CYD Creator agent run failed", "job_id", run.jobID, "error", err)
 		reason := err.Error()
@@ -496,12 +516,13 @@ func (s *Service) classifyJobError(run *jobRun, err error) jobEnding {
 		if utf8.RuneCountInString(message) > 300 {
 			message = string([]rune(message)[:299]) + "…"
 		}
-		return jobEnding{status: JobFailed, message: message}
+		return jobEnding{status: JobFailed, message: message, msg: "agent_stopped",
+			vars: map[string]any{"reason": strings.TrimPrefix(message, "The agent stopped: ")}}
 	}
 	// An orchestrator failure (file system, database): the cause can name
 	// host paths, so it stays in the server log.
 	s.logger.Warn("CYD Creator job failed", "job_id", run.jobID, "error", err)
-	return jobEnding{status: JobFailed, code: CodeInternal, message: "The job failed because of an internal error; the server log has the details."}
+	return jobEnding{status: JobFailed, code: CodeInternal, message: "The job failed because of an internal error; the server log has the details.", msg: "job_failed_internal"}
 }
 
 // terminalSaveDelays are the pauses between further attempts to store a
@@ -579,16 +600,10 @@ func (s *Service) finishJob(job Job, end jobEnding) error {
 		_, _ = s.db.Exec(`DELETE FROM cc_agent_context WHERE job_id=?`, job.ID)
 	}
 	saveErr := s.saveTerminalJob(job)
-	text := end.message
-	switch end.status {
-	case JobCancelled:
-		text = "The job was cancelled. The project is unchanged."
-	case JobFailed, JobInterrupted:
-		text += " The project is unchanged."
-	}
+	code := end.msg
 	if keep {
-		text += " The agent's work is kept as a draft you can resume or discard."
+		code += draftCodeSuffix
 	}
-	s.postMessage(row.ID, job.ID, MessageRoleSystem, strings.TrimSpace(text))
+	s.postSystemMessage(row.ID, job.ID, code, end.vars)
 	return saveErr
 }

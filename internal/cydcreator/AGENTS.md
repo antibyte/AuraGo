@@ -42,7 +42,7 @@ publication, revisions, the job chat and the agent tool implementations. Plan 5 
   conversation), `job_context.go`, `runner.go` (`Runner`, `JobRun`, job runtime, timeout), `messages.go`, `revisions.go` +
   `revisions_diff.go` (blob store, revisions, diff, restore), `staging.go` + `staging_publish.go` (working copies,
   receipts, fence), `tools_project.go`, `tools_files.go`, `tools_build.go`, `tools_reference.go` (agent tool
-  implementations). The agent schemas and dispatcher live in `internal/agent` (`internal/agent/AGENTS.md`), the
+  implementations), `texts.go` (translation codes and English templates of job steps and system chat lines). The agent schemas and dispatcher live in `internal/agent` (`internal/agent/AGENTS.md`), the
   runner, prompt profiles and job routes in `internal/server`.
 
 ## Local Contracts
@@ -415,7 +415,8 @@ publication, revisions, the job chat and the agent tool implementations. Plan 5 
   tables, `cc_meta.schema_version` 1 and seven indexes, one of them `UNIQUE cc_devices_token(token_hash)` (device
   fixtures need distinct non-empty hashes); `cc_projects.publish_receipt` (plan 3, added before v1 was released) is the
   receipt id of the last committed directory swap; `cc_jobs.error_reason` (plan 4a review, also added to the unreleased
-  v1) keeps a failed job's `details.reason`. Migrations append to `storeMigrations` (never edit a released step; each
+  v1) keeps a failed job's `details.reason`; `cc_messages.code` and `vars` (plan 4a review, also in the unreleased v1)
+  keep a system line's translation code and its vars as JSON (`''` for none). Migrations append to `storeMigrations` (never edit a released step; each
   step commits with its version); an existing database is first copied with `VACUUM INTO <db>.v<N>.bak`, and a schema
   newer than the code refuses the start. Times are fixed-width RFC 3339 UTC (`timeLayout`), so SQL order is
   chronological.
@@ -580,7 +581,8 @@ publication, revisions, the job chat and the agent tool implementations. Plan 5 
   directory across a swap (Windows refuses the rename).
 - Ending without publication (`finishJob`): the project stays unchanged. A working copy that differs from the
   project becomes its single draft (`draft_job`; an older draft's folder and conversation go), otherwise the copy
-  and the job's conversation are removed; the lock is released and a system chat line written. `classifyJobError`
+  and the job's conversation are removed; the lock is released and a system chat line written (the ending's `msg`
+  code, with the `_draft` variant when a draft was kept). `classifyJobError`
   decides by the run context's cause, not by the error a waiting step returned: cancel → `cancelled`, timeout →
   `failed` ("exceeded its time limit"), shutdown → `interrupted`, a typed error → `failed` with its code, message
   and an identifier-shaped `details.reason` (`^[a-z][a-z0-9_]{0,63}$`, e.g. `publication_review`, `file_open`; free
@@ -608,8 +610,10 @@ publication, revisions, the job chat and the agent tool implementations. Plan 5 
   changed within `min(budget/3, 10 min)` during coding, building or repairing.
 - Chat and lists: user lines (start prompt with attachments, edited confirmation), agent lines (plan summary,
   publication summary) and system lines (job endings, recovery; agent and system texts cut at 8000 runes), a
-  `job_message` event per line. `ListMessages` returns the newest 200 oldest first, `ListJobs` the newest 20; both
-  order by time, then rowid. `cc_messages` and `cc_jobs` have no retention.
+  `job_message` event per line. System lines go through `postSystemMessage` only and carry `code` and `vars`
+  (message JSON, omitted on user and agent lines); `postMessage` writes agent lines. `ListMessages` returns the
+  newest 200 oldest first (vars decoded with exact numbers; unreadable vars drop the code), `ListJobs` the newest 20;
+  both order by time, then rowid. `cc_messages` and `cc_jobs` have no retention.
 - `ParseJobPlan` is strict (unknown fields, trailing data, more than 64 KiB raw or 32 KiB decoded refused; a JSON
   string holding the object is accepted): summary 1..1000 runes (newlines allowed), 1..16 screens (120 runes each),
   up to 64 widgets (160) and 16 data sources (200), each on one line, no control, format or line-separator
@@ -617,7 +621,16 @@ publication, revisions, the job chat and the agent tool implementations. Plan 5 
   `CYD_BAD_REQUEST` with a clipped `details.reason` the agent can act on.
 - Events carry only server-written text: `job_step` kinds layout, file, build, repair, info (others become info),
   one line of at most 200 runes from a server template (with clipped widget and screen names, app paths and compiler
-  messages), never model prose, reasoning or plan text (`SubmitPlan` reports counts). The
+  messages), never model prose, reasoning or plan text (`SubmitPlan` reports counts).
+- Translation codes (`texts.go`): every `job_step` carries `code` (a `stepTexts` key) and `vars`, every system line
+  a `messageTexts` code and its vars; the English `text` is always rendered from the code's template
+  (`renderText`: `{{name}}` filled in one pass), so text and code cannot drift. Codes match
+  `^[a-z][a-z0-9_]{0,63}$`; vars are identifier names with strings (one line, at most 160 runes for steps and 300
+  for messages) or integers (`textVars`). Counts are phrased without plural forms ("screens: 2"). Every job ending
+  (`jobEnding.msg`) has a `_draft` variant that adds exactly the draft sentence. A new step or system line adds its
+  code to the table and its `cyd_creator.step.*`/`cyd_creator.msg.*` key to all 16 `ui/lang/cyd_creator` files
+  (`en.json` equals the template, checked by `TextKeys` in the ui key test); `TestEveryStepAndSystemLineUsesATableCode`
+  checks every call site. An unknown code is logged and emits nothing. The
   private conversation lives in `cc_agent_context`: `SaveAgentContext` only for the running job (at most 16 MiB of
   JSON), `LoadAgentContext` returns the job's, else the resumed draft's.
 

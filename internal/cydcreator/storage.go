@@ -114,6 +114,8 @@ func migrateStore(db *sql.DB, path string) error {
 // cc_projects.publish_receipt (plan 3, added before schema v1 was released)
 // holds the receipt id of the project's last committed directory swap, the
 // commit marker startup recovery compares a leftover receipt with.
+// cc_messages.code and vars (also added before v1 was released) hold a system
+// line's translation code and its vars as JSON ("" for none).
 func migrateStoreV1(tx *sql.Tx) error {
 	const schema = `
 CREATE TABLE cc_projects (
@@ -140,7 +142,8 @@ CREATE TABLE cc_jobs (
 CREATE INDEX cc_jobs_project ON cc_jobs(project_id, created_at);
 CREATE TABLE cc_messages (
   id TEXT PRIMARY KEY, project_id TEXT NOT NULL, job_id TEXT NOT NULL DEFAULT '', role TEXT NOT NULL,
-  text TEXT NOT NULL, attachments TEXT NOT NULL DEFAULT '[]', created_at TEXT NOT NULL);
+  text TEXT NOT NULL, attachments TEXT NOT NULL DEFAULT '[]', code TEXT NOT NULL DEFAULT '', vars TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL);
 CREATE INDEX cc_messages_project ON cc_messages(project_id, created_at);
 CREATE TABLE cc_agent_context (job_id TEXT PRIMARY KEY, project_id TEXT NOT NULL, data BLOB NOT NULL, updated_at TEXT NOT NULL);
 CREATE TABLE cc_revisions (

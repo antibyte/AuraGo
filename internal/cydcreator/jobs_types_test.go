@@ -137,7 +137,7 @@ func TestMessagesAreStoredAndListed(t *testing.T) {
 	if err != nil || m.Text != "Show the weather" || m.Role != MessageRoleUser || len(m.Attachments) != 1 {
 		t.Fatalf("message = %+v, %v", m, err)
 	}
-	env.svc.postMessage(p.ID, "ccj_1", MessageRoleSystem, "The job was cancelled.")
+	env.svc.postSystemMessage(p.ID, "ccj_1", "job_cancelled", nil)
 	env.svc.postMessage(p.ID, "ccj_1", MessageRoleAgent, "   ")
 	list, err := env.svc.ListMessages(ctx, p.ID)
 	if err != nil || len(list) != 2 || list[0].ID != m.ID || list[1].Role != MessageRoleSystem || list[1].Attachments == nil {
@@ -197,7 +197,7 @@ func TestJobAndMessageListsAreCappedAndKeepInsertionOrder(t *testing.T) {
 
 	var msgIDs []string
 	for i := 0; i < maxListedMessages+5; i++ {
-		m, err := env.svc.addMessage(ctx, p.ID, "", MessageRoleSystem, "line", nil)
+		m, err := env.svc.addMessage(ctx, p.ID, "", MessageRoleSystem, "line", nil, "", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -312,15 +312,22 @@ func TestEmitStepIsBounded(t *testing.T) {
 	env, p := newProjectEnv(t)
 	events, cancel := env.svc.Subscribe(p.ID)
 	defer cancel()
-	env.svc.emitStep(p.ID, "ccj_1", "reasoning", "line one\nline two "+strings.Repeat("x", 300))
+	// An unknown code emits nothing; the next step is the first event.
+	env.svc.emitStep(p.ID, "ccj_1", StepInfo, "no_such_code", nil)
+	env.svc.emitStep(p.ID, "ccj_1", "reasoning", "build_failed_at", map[string]any{"n": 1,
+		"location": "src/app/" + strings.Repeat("a", 300), "message": "line one\nline two " + strings.Repeat("x", 300)})
 	ev := collectEvents(t, events, 1, 2*time.Second, EventJobStep)[0]
 	var d struct {
-		JobID string `json:"job_id"`
-		Kind  string `json:"kind"`
-		Text  string `json:"text"`
+		JobID string         `json:"job_id"`
+		Kind  string         `json:"kind"`
+		Code  string         `json:"code"`
+		Vars  map[string]any `json:"vars"`
+		Text  string         `json:"text"`
 	}
 	_ = json.Unmarshal(ev.Data, &d)
-	if d.JobID != "ccj_1" || d.Kind != StepInfo || strings.Contains(d.Text, "\n") || len([]rune(d.Text)) != 200 || !strings.HasPrefix(d.Text, "line one line two") {
+	message, _ := d.Vars["message"].(string)
+	if d.JobID != "ccj_1" || d.Kind != StepInfo || d.Code != "build_failed_at" || strings.Contains(d.Text, "\n") || len([]rune(d.Text)) != 200 ||
+		!strings.HasPrefix(d.Text, "Build 1 failed: src/app/aaa") || !strings.HasPrefix(message, "line one line two") || len([]rune(message)) != maxStepVarRunes {
 		t.Fatalf("step = %+v", d)
 	}
 }

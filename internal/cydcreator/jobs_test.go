@@ -968,7 +968,7 @@ func TestPlanStepCarriesNoModelText(t *testing.T) {
 			if strings.Contains(data, "Weather display") {
 				t.Fatalf("job_step carries the model's plan summary: %s", data)
 			}
-			if strings.Contains(data, "Plan submitted: 2 screen(s), 1 widget(s)") {
+			if strings.Contains(data, `"code":"plan_submitted"`) && strings.Contains(data, "Plan submitted · screens: 2 · widgets: 1") {
 				planStep = true
 			}
 		case EventJobMessage:

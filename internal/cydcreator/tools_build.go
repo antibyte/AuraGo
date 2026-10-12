@@ -2,7 +2,6 @@ package cydcreator
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"unicode/utf8"
 )
@@ -95,8 +94,8 @@ func (s *Service) SubmitPlan(ctx context.Context, jobID string, data []byte) (Jo
 	run.mu.Lock()
 	run.plan, run.planAccepted = &plan, true
 	run.mu.Unlock()
-	s.emitStep(run.projectID, run.jobID, StepInfo, fmt.Sprintf("Plan submitted: %d screen(s), %d widget(s), %d data source(s)",
-		len(plan.Screens), len(plan.Widgets), len(plan.DataSources)))
+	s.emitStep(run.projectID, run.jobID, StepInfo, "plan_submitted",
+		map[string]any{"screens": len(plan.Screens), "widgets": len(plan.Widgets), "data_sources": len(plan.DataSources)})
 	return plan, nil
 }
 

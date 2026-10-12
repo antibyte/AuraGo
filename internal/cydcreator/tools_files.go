@@ -73,11 +73,11 @@ func (s *Service) UpdateLayoutForJob(ctx context.Context, jobID string, ops []La
 		}
 		summaries = append(summaries, r.Summary)
 	}
-	text := fmt.Sprintf("%d layout change(s): %s", len(results), strings.Join(summaries, "; "))
+	changes := strings.Join(summaries, "; ")
 	if len(results) > 3 {
-		text += "; …"
+		changes += "; …"
 	}
-	s.emitStep(run.projectID, run.jobID, StepLayout, text)
+	s.emitStep(run.projectID, run.jobID, StepLayout, "layout_updated", map[string]any{"count": len(results), "changes": changes})
 	return LayoutUpdate{Results: results, Issues: validateLayout(next)}, nil
 }
 
@@ -222,7 +222,7 @@ func (s *Service) WriteJobFile(ctx context.Context, jobID, rel, content string) 
 		return "", s.internalError("write file", err)
 	}
 	run.touch()
-	s.emitStep(run.projectID, run.jobID, StepFile, fmt.Sprintf("Wrote %s (%d lines)", rel, strings.Count(content, "\n")+1))
+	s.emitStep(run.projectID, run.jobID, StepFile, "file_written", map[string]any{"path": rel, "lines": strings.Count(content, "\n") + 1})
 	return sha256Hex(data), nil
 }
 
@@ -260,6 +260,6 @@ func (s *Service) DeleteJobFile(ctx context.Context, jobID, rel string) error {
 		}
 	}
 	run.touch()
-	s.emitStep(run.projectID, run.jobID, StepFile, "Deleted "+rel)
+	s.emitStep(run.projectID, run.jobID, StepFile, "file_deleted", map[string]any{"path": rel})
 	return nil
 }

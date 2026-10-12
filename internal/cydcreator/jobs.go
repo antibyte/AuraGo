@@ -412,15 +412,27 @@ const (
 
 var stepKinds = []string{StepLayout, StepFile, StepBuild, StepRepair, StepInfo}
 
-// emitStep records a short English progress line. Only allowlisted kinds and
-// server-written text reach the event; model output never does.
-func (s *Service) emitStep(projectID, jobID, kind, text string) {
+// emitStep records a progress line: its code (a stepTexts key, which the
+// client translates), the vars of the code's template and the English text
+// rendered from both (one line, at most 200 runes). Only allowlisted kinds
+// and server-written text reach the event; model output never does. An
+// unknown code is a programming error: it is logged and nothing is emitted.
+func (s *Service) emitStep(projectID, jobID, kind, code string, vars map[string]any) {
+	template, ok := stepTexts[code]
+	if !ok {
+		s.logger.Error("CYD Creator job step without a text for its code", "code", code, "job_id", jobID)
+		return
+	}
 	if !slices.Contains(stepKinds, kind) {
 		kind = StepInfo
 	}
-	text = strings.Join(strings.Fields(text), " ")
+	vars = textVars(vars, maxStepVarRunes)
+	text := strings.Join(strings.Fields(renderText(template, vars)), " ")
 	if utf8.RuneCountInString(text) > 200 {
 		text = string([]rune(text)[:199]) + "…"
 	}
-	s.Emit(projectID, EventJobStep, jobID, "", map[string]any{"job_id": jobID, "kind": kind, "text": text})
+	if vars == nil {
+		vars = map[string]any{}
+	}
+	s.Emit(projectID, EventJobStep, jobID, "", map[string]any{"job_id": jobID, "kind": kind, "code": code, "vars": vars, "text": text})
 }

@@ -126,7 +126,7 @@ func TestRestartTurnsAnInterruptedJobIntoADraft(t *testing.T) {
 		sawStatus = sawStatus || (ev.Type == EventJobStatus && ev.JobID == job.ID && strings.Contains(string(ev.Data), `"interrupted"`))
 	}
 	msgs, _ := env2.svc.ListMessages(ctx, p.ID)
-	if !sawStatus || len(msgs) == 0 || !strings.Contains(msgs[len(msgs)-1].Text, "restarted") {
+	if !sawStatus || len(msgs) == 0 || !strings.Contains(msgs[len(msgs)-1].Text, "restarted") || msgs[len(msgs)-1].Code != "server_restarted_draft" {
 		t.Fatalf("status event %v, messages %+v", sawStatus, msgs)
 	}
 	runner := newFakeRunner()
@@ -362,7 +362,7 @@ func TestRestartRetriesADraftThatCouldNotBeRecorded(t *testing.T) {
 	msgs, _ := env3.svc.ListMessages(ctx, p.ID)
 	var retried bool
 	for _, m := range msgs {
-		retried = retried || strings.Contains(m.Text, "now kept as a draft")
+		retried = retried || (strings.Contains(m.Text, "now kept as a draft") && m.Code == "draft_kept")
 	}
 	if !retried {
 		t.Fatalf("messages %+v", msgs)
@@ -430,7 +430,7 @@ func TestRestartCompletesACommittedJobPublication(t *testing.T) {
 		t.Fatalf("%d job revisions, %d conversations, %d receipts", revisions, contexts, receiptsLeft(t, env2))
 	}
 	msgs, _ := env2.svc.ListMessages(ctx, p.ID)
-	if len(msgs) == 0 || !strings.Contains(msgs[len(msgs)-1].Text, "published") {
+	if len(msgs) == 0 || !strings.Contains(msgs[len(msgs)-1].Text, "published") || msgs[len(msgs)-1].Code != "published_before_restart" {
 		t.Fatalf("messages %+v", msgs)
 	}
 }

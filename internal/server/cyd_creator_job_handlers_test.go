@@ -3,12 +3,14 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"aurago/internal/cydcreator"
 )
@@ -286,5 +288,70 @@ func TestCYDCreatorJobCancelWorksWhileReadOnly(t *testing.T) {
 	}
 	if done := waitCYDServerJob(t, f, out.Job.ID, cydcreator.JobCancelled); done.Status != cydcreator.JobCancelled {
 		t.Fatalf("job = %+v", done)
+	}
+}
+
+// TestCYDCreatorStepsAndSystemLinesCarryTheirCode: job_step events and the
+// system chat line reach the SSE stream with code and vars, and the messages
+// API returns the stored code and vars; user lines carry none.
+func TestCYDCreatorStepsAndSystemLinesCarryTheirCode(t *testing.T) {
+	f := newCYDTestServer(t)
+	f.svc.SetRunner(cydScriptRunner(func(ctx context.Context, run cydcreator.JobRun) error {
+		if _, err := f.svc.WriteJobFile(ctx, run.Job.ID, "src/app/app_main.cpp", "// a\n// b\n"); err != nil {
+			return err
+		}
+		return errors.New("the model gave up")
+	}))
+	p := f.createProject(t, "Codes")
+	srv := httptest.NewServer(http.HandlerFunc(f.s.handleCYDCreator))
+	t.Cleanup(srv.Close)
+	stream, _ := openCYDEvents(t, srv, f.read, "projects/"+p.ID+"/events?after=0", "")
+	readSSE(t, stream, 5*time.Second, func(fr sseFrame) bool { return fr.event == cydcreator.EventStreamReady })
+
+	var out struct {
+		Job cydcreator.Job `json:"job"`
+	}
+	f.json(t, f.admin, http.MethodPost, "projects/"+p.ID+"/jobs", `{"prompt":"x","mode":"change"}`, nil, http.StatusAccepted, &out)
+	if done := waitCYDServerJob(t, f, out.Job.ID, cydcreator.JobFailed); done.Status != cydcreator.JobFailed {
+		t.Fatalf("job = %+v", done)
+	}
+	frames := readSSE(t, stream, 10*time.Second, func(fr sseFrame) bool {
+		return fr.event == cydcreator.EventJobMessage && strings.Contains(fr.data, `"role":"system"`)
+	})
+	var step struct {
+		Code string         `json:"code"`
+		Vars map[string]any `json:"vars"`
+		Text string         `json:"text"`
+	}
+	for _, fr := range frames {
+		if fr.event == cydcreator.EventJobStep {
+			_ = json.Unmarshal([]byte(fr.data), &step)
+		}
+	}
+	if step.Code != "file_written" || step.Vars["path"] != "src/app/app_main.cpp" || step.Vars["lines"] != float64(3) || step.Text != "Wrote src/app/app_main.cpp (lines: 3)" {
+		t.Fatalf("job_step = %+v", step)
+	}
+	var event struct {
+		Message cydcreator.Message `json:"message"`
+	}
+	_ = json.Unmarshal([]byte(frames[len(frames)-1].data), &event)
+	want := "The agent stopped: the model gave up The project is unchanged. The agent's work is kept as a draft you can resume or discard."
+	if event.Message.Code != "agent_stopped_draft" || event.Message.Vars["reason"] != "the model gave up" || event.Message.Text != want {
+		t.Fatalf("job_message = %s", frames[len(frames)-1].data)
+	}
+
+	var messages struct {
+		Messages []cydcreator.Message `json:"messages"`
+	}
+	f.json(t, f.read, http.MethodGet, "projects/"+p.ID+"/messages", "", nil, http.StatusOK, &messages)
+	if len(messages.Messages) != 2 {
+		t.Fatalf("messages = %+v", messages.Messages)
+	}
+	user, system := messages.Messages[0], messages.Messages[1]
+	if user.Role != cydcreator.MessageRoleUser || user.Code != "" || user.Vars != nil {
+		t.Fatalf("user message = %+v", user)
+	}
+	if system.Code != "agent_stopped_draft" || len(system.Vars) != 1 || system.Vars["reason"] != "the model gave up" || system.Text != want {
+		t.Fatalf("system message = %+v", system)
 	}
 }

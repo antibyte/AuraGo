@@ -312,7 +312,7 @@ func (s *Service) launchRun(run *jobRun) {
 		window := min(run.budget/3, 10*time.Minute)
 		return !run.lastChange.IsZero() && time.Since(run.lastChange) <= window
 	}, func(grace time.Duration) {
-		s.emitStep(run.projectID, run.jobID, StepInfo, fmt.Sprintf("Recent changes are still being built; the job gets %s more to finish.", formatBudget(grace)))
+		s.emitStep(run.projectID, run.jobID, StepInfo, "grace_extended", map[string]any{"duration": formatBudget(grace)})
 	})
 	s.jobs.active = run
 	s.wg.Add(1)
@@ -416,7 +416,7 @@ func (s *Service) CancelJob(ctx context.Context, jobID string) error {
 	// that is being cancelled.
 	delete(s.jobs.planningUsed, jobID)
 	defer s.jobs.mu.Unlock()
-	return s.internalError("cancel job", s.finishJob(job, jobEnding{status: JobCancelled}))
+	return s.internalError("cancel job", s.finishJob(job, jobEnding{status: JobCancelled, msg: "job_cancelled"}))
 }
 
 // DiscardDraft deletes the project's saved draft (working copy and private
