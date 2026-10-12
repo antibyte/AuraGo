@@ -13,8 +13,16 @@ const (
 	MaxAppTotalBytes    = 2 << 20
 	AssetBudget4MB      = 256 << 10
 	AssetBudgetLarge    = 4 << 20
-	MaxImportBytes      = 20 << 20
-	MaxImportEntries    = 500
+	// MaxAssetTotalBytes caps the stored image originals of one project. The
+	// decoded budget alone does not bound them (a 1x1 PNG costs 2 bytes of it
+	// but may be a 2 MiB file). 16 MiB is twice what the largest budget needs
+	// as originals: AssetBudgetLarge (4 MiB, the image share of an 8/16 MB
+	// board's app slot, at most 6.25 MiB) holds 2 megapixels in RGB565, and those
+	// pixels as an incompressible 8-bit RGBA PNG are 8 MiB. Generate, builds
+	// and the export read every original into memory.
+	MaxAssetTotalBytes = 16 << 20
+	MaxImportBytes     = 20 << 20
+	MaxImportEntries   = 500
 )
 
 // Internal bounds that are not part of the cross-plan contract.

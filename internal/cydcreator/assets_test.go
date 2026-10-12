@@ -3,6 +3,9 @@ package cydcreator
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
+	"fmt"
+	"hash/crc32"
 	"io"
 	"os"
 	"path/filepath"
@@ -21,6 +24,11 @@ func TestSanitizeAssetBase(t *testing.T) {
 		".png":                           "image",
 		"":                               "image",
 		strings.Repeat("x", 80) + ".png": strings.Repeat("x", 58),
+		"aux.png":                        "aux_",
+		"CON.jpg":                        "con_",
+		"com1.png":                       "com1_",
+		"Lpt9 .png":                      "lpt9_",
+		"console.png":                    "console",
 	}
 	for in, want := range cases {
 		got := sanitizeAssetBase(in)
@@ -288,6 +296,79 @@ func TestDamagedAssetFiles(t *testing.T) {
 	if typed := wantCode(t, err, CodeAssetTooLarge); typed.Details["asset"] != "a_big" || typed.Details["reason"] != "file_size" {
 		t.Fatalf("details = %v", typed.Details)
 	}
+}
+
+// paddedPNG returns a valid 1x1 PNG of exactly size bytes: a private
+// ancillary chunk, which decoders skip, carries the padding.
+func paddedPNG(t *testing.T, size int) []byte {
+	t.Helper()
+	base := pngBytes(t, 1, 1, false)
+	iend := len(base) - 12 // length, "IEND", CRC
+	pad := size - len(base) - 12
+	if pad < 0 {
+		t.Fatalf("a %d-byte PNG cannot be padded to %d bytes", len(base), size)
+	}
+	chunk := binary.BigEndian.AppendUint32(make([]byte, 0, 12+pad), uint32(pad))
+	chunk = append(chunk, "prVt"...)
+	chunk = append(chunk, make([]byte, pad)...)
+	chunk = binary.BigEndian.AppendUint32(chunk, crc32.ChecksumIEEE(chunk[4:]))
+	out := append(append(append([]byte{}, base[:iend]...), chunk...), base[iend:]...)
+	if len(out) != size {
+		t.Fatalf("padded PNG has %d bytes, want %d", len(out), size)
+	}
+	return out
+}
+
+// TestAssetOriginalsShareOneProjectCap: a 1x1 image costs 2 bytes of the
+// decoded budget but may be a 2 MiB file, so the stored originals of a
+// project are capped together (MaxAssetTotalBytes). PutAsset refuses the
+// upload that would cross it; Generate, StartBuild and the export refuse a
+// hand-made project above it before they read any image.
+func TestAssetOriginalsShareOneProjectCap(t *testing.T) {
+	if MaxAssetTotalBytes != 16<<20 {
+		t.Fatalf("MaxAssetTotalBytes = %d", MaxAssetTotalBytes)
+	}
+	env := newTestService(t)
+	ctx := context.Background()
+	p := env.createProject(t, "Viele")
+	dir := filepath.Join(env.cfg.WorkspaceDir, "CYD", "viele", "assets")
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	place := func(n int, data []byte) {
+		t.Helper()
+		name := fmt.Sprintf("fill_%d.png", n)
+		if err := os.WriteFile(filepath.Join(dir, name), data, 0o640); err != nil {
+			t.Fatal(err)
+		}
+		rawAssetEntry(t, env, p.ID, Asset{ID: fmt.Sprintf("a_fill%d", n), File: "assets/" + name, W: 1, H: 1})
+	}
+	// Seven hand-placed originals of the upload limit plus one upload of the
+	// upload limit reach the cap exactly.
+	for n := 1; n <= 7; n++ {
+		place(n, bytes.Repeat([]byte{0}, MaxAssetUploadBytes))
+	}
+	if _, _, err := env.svc.PutAsset(ctx, p.ID, "pixel.png", paddedPNG(t, MaxAssetUploadBytes)); err != nil {
+		t.Fatalf("an upload that reaches the cap exactly: %v", err)
+	}
+	_, _, err := env.svc.PutAsset(ctx, p.ID, "one_more.png", pngBytes(t, 1, 1, false))
+	if typed := wantCode(t, err, CodeFileLimit); typed.Details["limit"] != "asset_bytes" || typed.Details["max"] != MaxAssetTotalBytes {
+		t.Fatalf("PutAsset details = %v", typed.Details)
+	}
+	layout, _, _, err := env.svc.GetLayout(ctx, p.ID)
+	if err != nil || len(layout.Assets) != 8 {
+		t.Fatalf("the refused upload changed the layout: %d assets, %v", len(layout.Assets), err)
+	}
+
+	place(9, []byte("x"))
+	_, err = env.svc.Generate(ctx, p.ID, "")
+	if typed := wantCode(t, err, CodeFileLimit); typed.Details["limit"] != "asset_bytes" {
+		t.Fatalf("Generate details = %v", typed.Details)
+	}
+	_, err = env.svc.StartBuild(ctx, p.ID, BuildOptions{})
+	wantCode(t, err, CodeFileLimit)
+	_, _, err = env.svc.ExportProject(ctx, p.ID)
+	wantCode(t, err, CodeFileLimit)
 }
 
 // TestPutAssetKeepsTheImageOfAPublishedLayout: when the version bump fails

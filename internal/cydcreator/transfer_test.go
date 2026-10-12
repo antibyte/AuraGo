@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -229,8 +230,191 @@ func TestExportProjectWithAnUnknownBoardKeepsTheSources(t *testing.T) {
 	if err != nil || exported.Board != "no-such-board" {
 		t.Fatalf("exported layout board = %q, %v", exported.Board, err)
 	}
-	if readme := string(files["fremd/README.md"]); !strings.Contains(readme, "pio run -e esp32-2432s028r") {
+	// Without generated files the README has no PlatformIO instructions.
+	if readme := string(files["fremd/README.md"]); !strings.Contains(readme, "(`esp32-2432s028r`)") ||
+		strings.Contains(readme, "pio run") || strings.Contains(readme, "pinned") {
 		t.Fatalf("README:\n%s", readme)
+	}
+}
+
+// A generator failure (a bug, CYD_GENERATOR_ERROR) does not cost the user the
+// backup either.
+func TestExportProjectWithAGeneratorFailureKeepsTheSources(t *testing.T) {
+	env, _ := newDeviceEnv(t)
+	ctx := context.Background()
+	p := env.createProject(t, "Bug")
+	env.svc.generate = func(GenerateInput) (GenerateOutput, error) { return GenerateOutput{}, errors.New("boom") }
+	data, _, err := env.svc.ExportProject(ctx, p.ID)
+	if err != nil {
+		t.Fatalf("export: %v", err)
+	}
+	files := unzipForTest(t, data)
+	if _, ok := files["bug/src/app/app_main.cpp"]; !ok || files["bug/platformio.ini"] != nil {
+		t.Fatalf("entries: %v", sortedKeys(files))
+	}
+}
+
+// TestExportProjectArchivesTheRealGeneratorOutput: with the real generator
+// the archive is exactly its tree plus cyd_build_id.h, the layout, the image
+// and the README; no generated or template path is skipped.
+func TestExportProjectArchivesTheRealGeneratorOutput(t *testing.T) {
+	env, _ := newDeviceEnv(t)
+	env.svc.generate = Generate
+	ctx := context.Background()
+	p := env.createProject(t, "Echt")
+	asset, _, err := env.svc.PutAsset(ctx, p.ID, "Sonne.png", pngBytes(t, 24, 24, true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tree, err := env.svc.Generate(ctx, p.ID, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, _, err := env.svc.ExportProject(ctx, p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files := unzipForTest(t, data)
+	want := map[string][]byte{"echt/" + exportBuildIDFile: []byte(exportBuildIDContent)}
+	for rel, content := range tree {
+		want["echt/"+rel] = content
+	}
+	for name, content := range want {
+		if got, ok := files[name]; !ok || !bytes.Equal(got, content) {
+			t.Errorf("%s differs from the generator output (present %v)", name, ok)
+		}
+	}
+	for _, extra := range []string{"echt/" + ProjectFile, "echt/" + ExportReadme, "echt/" + asset.File} {
+		if _, ok := files[extra]; !ok {
+			t.Errorf("%s missing", extra)
+		}
+		want[extra] = nil
+	}
+	if len(files) != len(want) {
+		t.Errorf("archive has %d entries, want %d: %v", len(files), len(want), sortedKeys(files))
+	}
+	if strings.Contains(string(files["echt/"+ExportReadme]), "Not exported") {
+		t.Errorf("README lists skipped files:\n%s", files["echt/"+ExportReadme])
+	}
+}
+
+// TestExportProjectListsUnsafeNamesInTheReadme: a hand-placed image named
+// after a Windows device stays out of the archive and the README says so.
+func TestExportProjectListsUnsafeNamesInTheReadme(t *testing.T) {
+	env, _ := newDeviceEnv(t)
+	ctx := context.Background()
+	p := env.createProject(t, "Geraet")
+	dir := filepath.Join(env.cfg.WorkspaceDir, "CYD", p.Slug, "assets")
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "aux.png"), pngBytes(t, 4, 4, false), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	rawAssetEntry(t, env, p.ID, Asset{ID: "a_aux", File: "assets/aux.png", W: 4, H: 4})
+	data, _, err := env.svc.ExportProject(ctx, p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files := unzipForTest(t, data)
+	if _, ok := files["geraet/assets/aux.png"]; ok {
+		t.Fatal("assets/aux.png must not be exported")
+	}
+	readme := string(files["geraet/README.md"])
+	if !strings.Contains(readme, "## Not exported") || !strings.Contains(readme, `- "assets/aux.png"`) {
+		t.Fatalf("README:\n%s", readme)
+	}
+}
+
+// TestExportProjectNeverFollowsLinks: a link in the project pointing outside
+// it is neither an app file nor an image of the archive.
+func TestExportProjectNeverFollowsLinks(t *testing.T) {
+	env, _ := newDeviceEnv(t)
+	env.svc.generate = Generate
+	ctx := context.Background()
+	p := env.createProject(t, "Links")
+	secret := filepath.Join(env.dir, "secret.png")
+	if err := os.WriteFile(secret, append(pngBytes(t, 4, 4, false), "SECRET-OUTSIDE"...), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(env.cfg.WorkspaceDir, "CYD", p.Slug)
+	if err := os.Symlink(secret, filepath.Join(dir, "src", "app", "leak.cpp")); err != nil {
+		t.Skipf("symbolic links are not available here: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "assets"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(secret, filepath.Join(dir, "assets", "leak.png")); err != nil {
+		t.Fatal(err)
+	}
+	rawAssetEntry(t, env, p.ID, Asset{ID: "a_leak", File: "assets/leak.png", W: 4, H: 4})
+	data, _, err := env.svc.ExportProject(ctx, p.ID)
+	if err != nil {
+		t.Fatalf("export: %v", err)
+	}
+	files := unzipForTest(t, data)
+	for name, content := range files {
+		if bytes.Contains(content, []byte("SECRET-OUTSIDE")) {
+			t.Fatalf("%s holds the linked file", name)
+		}
+	}
+	for _, rel := range []string{"links/src/app/leak.cpp", "links/assets/leak.png"} {
+		if _, ok := files[rel]; ok {
+			t.Fatalf("%s was exported", rel)
+		}
+	}
+}
+
+// A missing project directory is CYD_INVALID_LAYOUT (reason missing), like
+// Generate reports it, not an internal error.
+func TestExportProjectWithoutItsDirectory(t *testing.T) {
+	env, _ := newDeviceEnv(t)
+	p := env.createProject(t, "Weg")
+	if err := os.RemoveAll(filepath.Join(env.cfg.WorkspaceDir, "CYD", p.Slug)); err != nil {
+		t.Fatal(err)
+	}
+	_, _, err := env.svc.ExportProject(context.Background(), p.ID)
+	if e := wantCode(t, err, CodeInvalidLayout); e.Details["reason"] != "missing" {
+		t.Fatalf("details = %v", e.Details)
+	}
+}
+
+func TestExportProjectRunsAtMostTwoAtATime(t *testing.T) {
+	env, _ := newDeviceEnv(t)
+	ctx := context.Background()
+	p := env.createProject(t, "Schlange")
+	if cap(exportSlots) != 2 {
+		t.Fatalf("export slots = %d", cap(exportSlots))
+	}
+	held := 0
+	t.Cleanup(func() {
+		for ; held > 0; held-- {
+			<-exportSlots
+		}
+	})
+	for len(exportSlots) < cap(exportSlots) {
+		exportSlots <- struct{}{}
+		held++
+	}
+	_, _, err := env.svc.ExportProject(ctx, p.ID)
+	if e := wantCode(t, err, CodeBusy); e.Details["reason"] != "export" {
+		t.Fatalf("busy details = %v", e.Details)
+	}
+	<-exportSlots
+	held--
+	if _, _, err := env.svc.ExportProject(ctx, p.ID); err != nil {
+		t.Fatalf("export with a free slot: %v", err)
+	}
+	if len(exportSlots) != held {
+		t.Fatalf("the export kept its slot: %d in use, %d held by the test", len(exportSlots), held)
+	}
+}
+
+// maxExportBytes is derived from the project limits (see its comment).
+func TestMaxExportBytesCoversTheProjectLimits(t *testing.T) {
+	inputs := int64(MaxLayoutBytes + 2*MaxAppTotalBytes + MaxAssetTotalBytes + 6*AssetBudgetLarge + maxFontArtifactBytes)
+	if inputs >= maxExportBytes || maxExportBytes != 128<<20 {
+		t.Fatalf("limits need %d bytes, maxExportBytes = %d", inputs, maxExportBytes)
 	}
 }
 
@@ -321,12 +505,15 @@ func TestExportProjectRefusesFencedProjectsAndOversizedArchives(t *testing.T) {
 }
 
 func TestSafeArchivePath(t *testing.T) {
-	for _, ok := range []string{"cyd.project.json", "src/app/a.cpp", "assets/sun_2.png", "lib/cyd_template/src/cyd.h"} {
+	for _, ok := range []string{"cyd.project.json", "src/app/a.cpp", "assets/sun_2.png", "lib/cyd_template/src/cyd.h",
+		"assets/aux_.png", "src/app/console.h", strings.Repeat("a", 240)} {
 		if !safeArchivePath(ok) {
 			t.Errorf("%q should be safe", ok)
 		}
 	}
-	for _, bad := range []string{"", "/etc/passwd", "../x", "a/../b", "a//b", ".pio/x", "a\\b", "c:x", "a/\x01", "./a"} {
+	for _, bad := range []string{"", "/etc/passwd", "../x", "a/../b", "a//b", ".pio/x", "a\\b", "c:x", "a/\x01", "./a",
+		strings.Repeat("a", 241), "a\x7fb", "assets/aux.png", "src/app/CON", "src/app/com1.h", "lpt9/x", "nul",
+		"src/app/a.", "src/app./a.cpp", "src/app/a ", "a<b", "a>b", `a"b`, "a|b", "a?b", "a*b"} {
 		if safeArchivePath(bad) {
 			t.Errorf("%q should be unsafe", bad)
 		}

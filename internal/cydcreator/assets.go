@@ -81,10 +81,54 @@ func layoutListsAsset(root *os.Root, a Asset) bool {
 	return false
 }
 
+// assetFileSize returns the size of the regular file at a listed asset path
+// without following links (ok false: missing, a link, a directory or a
+// device; such an entry is never read).
+func assetFileSize(root *os.Root, file string) (size int64, ok bool, err error) {
+	info, err := root.Lstat(filepath.FromSlash(file))
+	if errors.Is(err, fs.ErrNotExist) {
+		return 0, false, nil
+	}
+	if err != nil {
+		return 0, false, err
+	}
+	if !info.Mode().IsRegular() {
+		return 0, false, nil
+	}
+	return info.Size(), true, nil
+}
+
+// assetTotalError refuses image originals above MaxAssetTotalBytes.
+func assetTotalError() error {
+	return NewError(CodeFileLimit, fmt.Sprintf("the images of a project may have at most %d bytes in total", MaxAssetTotalBytes),
+		map[string]any{"limit": "asset_bytes", "max": MaxAssetTotalBytes})
+}
+
+// storedAssetBytes sums the files the layout's asset entries name (each
+// entry counts, like loadGenerateInput reads it; entries outside the asset
+// file rule are never read and count nothing).
+func storedAssetBytes(root *os.Root, p Project) (int64, error) {
+	var total int64
+	for _, a := range p.Assets {
+		if !assetFileRegex.MatchString(a.File) {
+			continue
+		}
+		size, ok, err := assetFileSize(root, a.File)
+		if err != nil {
+			return 0, err
+		}
+		if ok {
+			total += size
+		}
+	}
+	return total, nil
+}
+
 // sanitizeAssetBase turns an upload file name into the base of
 // assets/[a-z0-9][a-z0-9_-]{0,62}.(png|jpg|jpeg): folded to ASCII, other
 // characters become "_", leading "_"/"-" are removed, empty names become
-// "image".
+// "image" and a Windows device name gets a "_" ("aux" → "aux_"), so the
+// file unpacks on Windows (export, checkout).
 func sanitizeAssetBase(name string) string {
 	base := path.Base(strings.ReplaceAll(name, "\\", "/"))
 	if dot := strings.LastIndexByte(base, '.'); dot >= 0 {
@@ -108,6 +152,9 @@ func sanitizeAssetBase(name string) string {
 	out = strings.TrimRight(out, "_-")
 	if out == "" {
 		out = "image"
+	}
+	if windowsReserved(out) {
+		out += "_"
 	}
 	return out
 }
@@ -137,7 +184,9 @@ func uniqueAssetFile(root *os.Root, p Project, base, ext string) (string, error)
 
 // PutAsset stores an uploaded PNG/JPEG under assets/, adds it to the layout
 // and returns the asset and the new layout version. Limits: 2 MiB per file,
-// image within the display, decoded total within AssetBudget.
+// image within the display, decoded total within AssetBudget, stored
+// originals within MaxAssetTotalBytes (CYD_FILE_LIMIT, details.limit
+// asset_bytes).
 func (s *Service) PutAsset(ctx context.Context, id string, name string, data []byte) (Asset, int64, error) {
 	if len(data) == 0 {
 		return Asset{}, 0, NewError(CodeBadRequest, "the image is empty", nil)
@@ -191,6 +240,13 @@ func (s *Service) PutAsset(ctx context.Context, id string, name string, data []b
 	if budget := AssetBudget(board.FlashMB); used+decoded > budget {
 		return Asset{}, 0, NewError(CodeAssetTooLarge, fmt.Sprintf("the images would need %d bytes, the budget is %d", used+decoded, budget),
 			map[string]any{"reason": "budget", "budget": budget, "used": used, "needed": decoded})
+	}
+	stored, err := storedAssetBytes(root, p)
+	if err != nil {
+		return Asset{}, 0, s.internalError("store asset", err)
+	}
+	if stored+int64(len(data)) > MaxAssetTotalBytes {
+		return Asset{}, 0, assetTotalError()
 	}
 	file, err := uniqueAssetFile(root, p, sanitizeAssetBase(name), ext)
 	if err != nil {

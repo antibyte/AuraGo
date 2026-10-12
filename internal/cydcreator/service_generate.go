@@ -9,9 +9,12 @@ import (
 )
 
 // loadGenerateInput reads the layout, the app files and the asset originals
-// of a project tree. Assets whose file is missing (or not a regular file) are
-// left out (the generator reports them); an entry whose file breaks the asset
-// file rule is refused before anything is read.
+// of a project tree. Assets whose file is missing (or not a regular file, a
+// link included) are left out (the generator reports them); an entry whose
+// file breaks the asset file rule is refused before anything is read. The
+// image files are measured before any is read: one above
+// MaxAssetUploadBytes is CYD_ASSET_TOO_LARGE, all together above
+// MaxAssetTotalBytes CYD_FILE_LIMIT (details.limit asset_bytes).
 func loadGenerateInput(row projectRow, root *os.Root) (GenerateInput, error) {
 	p, err := readLayout(root)
 	if err != nil {
@@ -21,25 +24,52 @@ func loadGenerateInput(row projectRow, root *os.Root) (GenerateInput, error) {
 	if err != nil {
 		return GenerateInput{}, err
 	}
-	assets := make(map[string][]byte, len(p.Assets))
+	toRead := make([]Asset, 0, len(p.Assets))
+	var total int64
 	for _, a := range p.Assets {
 		if !assetFileRegex.MatchString(a.File) {
 			return GenerateInput{}, assetFileError(a.ID)
 		}
+		size, ok, err := assetFileSize(root, a.File)
+		if err != nil {
+			return GenerateInput{}, fmt.Errorf("stat asset %s: %w", a.File, err)
+		}
+		if !ok {
+			continue
+		}
+		if size > MaxAssetUploadBytes {
+			return GenerateInput{}, assetFileTooLarge(a.ID)
+		}
+		if total += size; total > MaxAssetTotalBytes {
+			return GenerateInput{}, assetTotalError()
+		}
+		toRead = append(toRead, a)
+	}
+	assets := make(map[string][]byte, len(toRead))
+	var read int64
+	for _, a := range toRead {
 		data, err := rootReadFile(root, a.File, MaxAssetUploadBytes)
 		if errors.Is(err, fs.ErrNotExist) || errors.Is(err, errNotRegularFile) {
 			continue
 		}
 		if errors.Is(err, errFileTooLarge) {
-			return GenerateInput{}, NewError(CodeAssetTooLarge, fmt.Sprintf("asset %s: the image file is larger than %d bytes", a.ID, MaxAssetUploadBytes),
-				map[string]any{"asset": a.ID, "reason": "file_size", "max": MaxAssetUploadBytes})
+			return GenerateInput{}, assetFileTooLarge(a.ID)
 		}
 		if err != nil {
 			return GenerateInput{}, fmt.Errorf("read asset %s: %w", a.File, err)
 		}
+		// A file that grew after it was measured still counts what was read.
+		if read += int64(len(data)); read > MaxAssetTotalBytes {
+			return GenerateInput{}, assetTotalError()
+		}
 		assets[a.ID] = data
 	}
 	return GenerateInput{Project: p, ProjectID: row.ID, AppFiles: appFiles, Assets: assets}, nil
+}
+
+func assetFileTooLarge(assetID string) error {
+	return NewError(CodeAssetTooLarge, fmt.Sprintf("asset %s: the image file is larger than %d bytes", assetID, MaxAssetUploadBytes),
+		map[string]any{"asset": assetID, "reason": "file_size", "max": MaxAssetUploadBytes})
 }
 
 // runGenerate calls the generator. A panic or an untyped failure becomes
