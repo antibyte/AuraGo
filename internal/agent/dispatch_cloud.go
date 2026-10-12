@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"aurago/internal/security"
 	"aurago/internal/tools"
 )
 
@@ -176,7 +177,8 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				}
 			}
 			logger.Info("LLM requested Hugging Face operation", "operation", req.Operation)
-			return "Tool Output: " + tools.RunHuggingFace(ctx, cfg.HuggingFace, token, cfg.Directories.WorkspaceDir, cfg.Directories.DataDir, req)
+			security.RegisterSensitive(token)
+			return externalToolOutput(ctx, tools.RunHuggingFace(ctx, cfg.HuggingFace, token, cfg.Directories.WorkspaceDir, cfg.Directories.DataDir, req))
 
 		case "here_now_sites", "here_now_site":
 			if !cfg.HereNow.Enabled {

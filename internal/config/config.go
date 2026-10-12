@@ -1113,6 +1113,9 @@ func Load(path string) (*Config, error) {
 	if cfg.HuggingFace.MaxDownloadMB <= 0 {
 		cfg.HuggingFace.MaxDownloadMB = 512
 	}
+	if cfg.HuggingFace.MaxDownloadMB > 2048 {
+		cfg.HuggingFace.MaxDownloadMB = 2048
+	}
 	if cfg.HuggingFace.MaxUploadMB <= 0 {
 		cfg.HuggingFace.MaxUploadMB = 10
 	}

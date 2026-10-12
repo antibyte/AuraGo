@@ -607,7 +607,7 @@ Zugang zum Hugging Face Hub für Modelle, Datasets, Papers und Jobs. Ermöglicht
 ```yaml
 huggingface:
   enabled: false                 # Integration aktivieren
-  read_only: true                # Standard: Nur Lesen erlaubt
+  read_only: true                # Standard: Nur Lesen erlaubt; download_file bleibt erlaubt
   allow_writes: false            # Repository-Erstellung und Uploads
   allow_delete: false            # Löschen von Ressourcen
   allow_jobs: false              # Job-Ausführung
@@ -615,15 +615,17 @@ huggingface:
   allow_job_token_injection: false # Explizite HF_TOKEN-Injektion in nicht vertrauenswürdigen Job-Code
   allowed_namespaces: []         # Explizite Namespaces
   allowed_repos: []             # Explizite Repositorys
-  allowed_hardware: []           # Erlaubte Hardware-Typen
-  max_download_mb: 100           # Max. Download-Größe in MB
+  allowed_hardware: [cpu-basic]  # Erlaubte Hardware-Typen
+  max_download_mb: 512           # Max. Download-Größe in MB; Werte über 2048 werden gekappt
   max_upload_mb: 10              # Nur kleine JSON-Uploads; kein LFS/Xet-Support
-  max_dataset_rows: 10000        # Max. Dataset-Zeilen
-  job_default_timeout_minutes: 60
-  job_max_runtime_minutes: 300
-  request_timeout_seconds: 120
-  max_result_bytes: 1048576     # 1MB
+  max_dataset_rows: 100          # Max. Dataset-Zeilen
+  job_default_timeout_minutes: 30
+  job_max_runtime_minutes: 120
+  request_timeout_seconds: 60
+  max_result_bytes: 524288
   hub_base_url: "https://huggingface.co"
+  dataset_base_url: "https://datasets-server.huggingface.co"
+  jobs_base_url: "https://huggingface.co/api/jobs"
   job_namespace: ""              # Optional; leer wird per whoami ermittelt
 ```
 
@@ -638,11 +640,11 @@ huggingface:
 | `dataset_rows` | Dataset-Inhalte abrufen | `{"action": "huggingface", "operation": "dataset_rows", "dataset": "user/dataset", "config": "default", "split": "train", "offset": 0, "length": 100}` |
 | `search_papers` | Suche nach Papers | `{"action": "huggingface", "operation": "search_papers", "query": "transformers"}` |
 | `daily_papers` | Tägliche Paper-Updates | `{"action": "huggingface", "operation": "daily_papers"}` |
-| `get_paper` | Paper-Details | `{"action": "huggingface", "operation": "get_paper", "id": "paper_id"}` |
+| `get_paper` | Paper-Details | `{"action": "huggingface", "operation": "get_paper", "paper_id": "paper_id"}` |
 | `jobs_list` | Liste aller Jobs | `{"action": "huggingface", "operation": "jobs_list"}` |
 | `job_run_python` | Python-Skript ausführen | `{"action": "huggingface", "operation": "job_run_python", "script": "print('ok')"}` |
 
-> 🔒 **Sicherheit:** Standardmäßig ist HuggingFace deaktiviert. Leere Repository- und Namespace-Allowlists sperren alle Schreibvorgänge. Job-Code ist nicht vertrauenswürdig; `HF_TOKEN` wird nur injiziert, wenn Administrator und einzelner Tool-Aufruf zustimmen.
+> 🔒 **Sicherheit:** Standardmäßig ist HuggingFace deaktiviert. Leere Repository- und Namespace-Allowlists sperren alle Schreibvorgänge und lassen benannte Lesezugriffe öffentlich. Ein benannter Lesezugriff sendet das Vault-Token nur, wenn mindestens eine Allowlist gesetzt ist und die kanonische ID darin erlaubt ist; Suche, Papers und Daily Papers senden das Token nie. `download_file` bleibt im Read-Only-Modus erlaubt. Job-Code ist nicht vertrauenswürdig; `HF_TOKEN` wird nur injiziert, wenn Administrator und einzelner Tool-Aufruf zustimmen.
 
 ## MeshCentral
 

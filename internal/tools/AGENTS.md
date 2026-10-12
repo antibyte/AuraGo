@@ -186,6 +186,14 @@ Agent filesystem, external service and Docker tool safety boundaries.
 - Hugging Face repository IDs are validated by the shared canonical validator
   before permission checks and HTTP path construction. Mutations require an
   explicit namespace/repository. Encoded/traversal identities never grant access.
+  Named Hub and dataset reads send the Vault token only when at least one of
+  `allowed_repos` and `allowed_namespaces` is non-empty and the canonical id
+  passes that allowlist. Empty allowlists keep those reads public. Search,
+  papers, and daily papers never send the token. `download_file` stays allowed
+  while `read_only` is true. Download publication and upload reads use
+  `os.OpenRoot` on the evaluated workspace. The client download returns a
+  private temp file and does not create the caller destination. `max_download_mb`
+  below 1 becomes 512 and above 2048 becomes 2048.
 - Composio execution requires successfully fetched matching tool metadata.
   Global or toolkit read-only gates override tool allowlists. Custom API keys
   remain at their configured origin across redirects; validate base URL syntax.

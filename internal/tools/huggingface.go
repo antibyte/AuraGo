@@ -12,6 +12,7 @@ import (
 
 	"aurago/internal/config"
 	hf "aurago/internal/huggingface"
+	"aurago/internal/security"
 )
 
 type HuggingFaceRequest struct {
@@ -59,7 +60,16 @@ func EvaluateHuggingFacePolicy(cfg config.HuggingFaceConfig, req HuggingFaceRequ
 	if !cfg.Enabled {
 		return fmt.Errorf("Hugging Face integration is not enabled. Set huggingface.enabled=true in config.yaml")
 	}
-	if id := requestRepoID(req); id != "" && (isHFWriteOperation(op) || op == "get_model" || op == "get_dataset" || op == "get_space" || op == "list_files" || op == "download_file") {
+	if id, named := hfNamedReadIdentity(op, req); named {
+		if _, err := hf.CanonicalRepoID(id); err != nil {
+			return err
+		}
+		if huggingfaceAllowlistConfigured(cfg) {
+			if err := checkHFRepoAllowlist(cfg, id); err != nil {
+				return err
+			}
+		}
+	} else if id := requestRepoID(req); id != "" && isHFWriteOperation(op) {
 		if _, err := hf.CanonicalRepoID(id); err != nil {
 			return err
 		}
@@ -146,7 +156,7 @@ func RunHuggingFace(ctx context.Context, cfg config.HuggingFaceConfig, token, wo
 		DatasetBaseURL:        cfg.DatasetBaseURL,
 		JobsBaseURL:           cfg.JobsBaseURL,
 		JobNamespace:          cfg.JobNamespace,
-		Token:                 token,
+		Token:                 huggingfaceAuthorizationToken(cfg, req, token),
 		MaxDatasetRows:        cfg.MaxDatasetRows,
 		MaxDownloadMB:         cfg.MaxDownloadMB,
 		MaxUploadMB:           cfg.MaxUploadMB,
@@ -179,11 +189,7 @@ func executeHuggingFaceOperation(ctx context.Context, client *hf.Client, cfg con
 	case "list_files":
 		return client.ListFiles(ctx, hf.RepoOptions{RepoType: req.RepoType, RepoID: requestRepoID(req), Revision: req.Revision})
 	case "download_file":
-		dest, err := huggingFaceDownloadDestination(workspaceDir, req)
-		if err != nil {
-			return nil, err
-		}
-		return client.DownloadFile(ctx, hf.DownloadFileOptions{RepoType: req.RepoType, RepoID: requestRepoID(req), Revision: req.Revision, Path: req.Path, Destination: dest})
+		return publishHuggingFaceDownload(ctx, client, workspaceDir, dataDir, req)
 	case "dataset_splits":
 		return client.DatasetSplits(ctx, req.Dataset)
 	case "dataset_rows":
@@ -230,11 +236,7 @@ func executeHuggingFaceOperation(ctx context.Context, client *hf.Client, cfg con
 	case "create_repo":
 		return client.CreateRepo(ctx, hf.CreateRepoOptions{RepoID: requestRepoID(req), Type: req.RepoType, Private: req.Private})
 	case "upload_file":
-		localPath, err := validateHuggingFaceUploadSource(workspaceDir, req.LocalPath, cfg.MaxUploadMB)
-		if err != nil {
-			return nil, err
-		}
-		return client.UploadFile(ctx, hf.UploadFileOptions{RepoType: req.RepoType, RepoID: requestRepoID(req), Revision: req.Revision, Path: req.Path, LocalPath: localPath, Message: req.Message})
+		return uploadHuggingFaceWorkspaceFile(ctx, client, cfg, workspaceDir, dataDir, req)
 	case "create_discussion":
 		return client.CreateDiscussion(ctx, hf.DiscussionOptions{RepoType: req.RepoType, RepoID: requestRepoID(req), Title: req.Title, Body: req.Body})
 	case "comment_discussion":
@@ -289,11 +291,11 @@ func recordHuggingFaceJob(ctx context.Context, dataDir, operation, hardware stri
 		Hardware:     hardware,
 		Status:       hfFirstStringFromMap(result, "status", "state"),
 		RequestJSON:  huggingFaceLedgerRequest(req),
-		ResponseJSON: hf.EncodeLedgerPayload(result),
+		ResponseJSON: security.Scrub(hf.EncodeLedgerPayload(result)),
 	}
 	if runErr != nil {
 		rec.Status = "error"
-		rec.LastError = runErr.Error()
+		rec.LastError = security.Scrub(runErr.Error())
 	}
 	return store.RecordJob(ctx, rec)
 }
@@ -320,15 +322,158 @@ func huggingFaceLedgerRequest(req HuggingFaceRequest) string {
 	return hf.EncodeLedgerPayload(redacted)
 }
 
-func huggingFaceDownloadDestination(workspaceDir string, req HuggingFaceRequest) (string, error) {
-	if strings.TrimSpace(workspaceDir) == "" {
-		workspaceDir = filepath.Join("agent_workspace", "workdir")
-	}
+func huggingFaceDownloadRelative(req HuggingFaceRequest) string {
 	dest := strings.TrimSpace(req.Destination)
 	if dest == "" {
 		dest = filepath.Join("huggingface", safeHFPathSegment(req.RepoType), safeHFPathSegment(requestRepoID(req)), filepath.FromSlash(strings.TrimLeft(req.Path, "/")))
 	}
-	return resolveHuggingFaceWorkspaceFile(workspaceDir, dest)
+	return dest
+}
+
+func publishHuggingFaceDownload(ctx context.Context, client *hf.Client, workspaceDir, dataDir string, req HuggingFaceRequest) (hf.DownloadResult, error) {
+	rootPath, rel, resolved, err := huggingFacePublishTarget(workspaceDir, huggingFaceDownloadRelative(req))
+	if err != nil {
+		return hf.DownloadResult{}, err
+	}
+	if err := refuseHuggingFaceProtectedPath(resolved, workspaceDir, dataDir); err != nil {
+		return hf.DownloadResult{}, err
+	}
+	result, err := client.DownloadFile(ctx, hf.DownloadFileOptions{
+		RepoType: req.RepoType, RepoID: requestRepoID(req), Revision: req.Revision, Path: req.Path,
+	})
+	if err != nil {
+		return hf.DownloadResult{}, err
+	}
+	tempPath := result.Path
+	defer os.Remove(tempPath)
+	src, err := os.Open(tempPath)
+	if err != nil {
+		return hf.DownloadResult{}, err
+	}
+	defer src.Close()
+	root, err := os.OpenRoot(rootPath)
+	if err != nil {
+		return hf.DownloadResult{}, fmt.Errorf("open Hugging Face workspace: %w", err)
+	}
+	defer root.Close()
+	if err := writeRootFromReaderAtomic(root, rel, src, 0o600, false); err != nil {
+		return hf.DownloadResult{}, err
+	}
+	result.Path = resolved
+	return result, nil
+}
+
+func uploadHuggingFaceWorkspaceFile(ctx context.Context, client *hf.Client, cfg config.HuggingFaceConfig, workspaceDir, dataDir string, req HuggingFaceRequest) (map[string]interface{}, error) {
+	resolved, err := validateHuggingFaceUploadSource(workspaceDir, req.LocalPath, cfg.MaxUploadMB)
+	if err != nil {
+		return nil, err
+	}
+	if err := refuseHuggingFaceProtectedPath(resolved, workspaceDir, dataDir); err != nil {
+		return nil, err
+	}
+	rootPath, rel, _, err := huggingFacePublishTarget(workspaceDir, req.LocalPath)
+	if err != nil {
+		return nil, err
+	}
+	root, err := os.OpenRoot(rootPath)
+	if err != nil {
+		return nil, fmt.Errorf("open Hugging Face workspace: %w", err)
+	}
+	defer root.Close()
+	file, err := root.Open(rel)
+	if err != nil {
+		return nil, fmt.Errorf("open Hugging Face upload source: %w", err)
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("stat Hugging Face upload source: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("Hugging Face upload source must be a regular file")
+	}
+	return client.UploadFile(ctx, hf.UploadFileOptions{
+		RepoType: req.RepoType,
+		RepoID:   requestRepoID(req),
+		Revision: req.Revision,
+		Path:     req.Path,
+		Body:     file,
+		Size:     info.Size(),
+		Message:  req.Message,
+	})
+}
+
+func refuseHuggingFaceProtectedPath(resolved, workspaceDir, dataDir string) error {
+	snapshot := &config.Config{}
+	snapshot.Directories.DataDir = dataDir
+	if IsProtectedSystemPath(resolved, workspaceDir, snapshot) {
+		return fmt.Errorf("Hugging Face path refers to protected AuraGo state")
+	}
+	return nil
+}
+
+func huggingFacePublishTarget(workspaceDir, requestedPath string) (rootPath, rel, resolved string, err error) {
+	resolved, err = resolveHuggingFaceWorkspaceFile(workspaceDir, requestedPath)
+	if err != nil {
+		return "", "", "", err
+	}
+	rootPath, err = huggingFaceWorkspaceRoot(workspaceDir)
+	if err != nil {
+		return "", "", "", err
+	}
+	rel, err = filepath.Rel(rootPath, resolved)
+	if err != nil || !filepath.IsLocal(rel) {
+		return "", "", "", fmt.Errorf("Hugging Face path must stay inside the AuraGo workspace")
+	}
+	return rootPath, rel, resolved, nil
+}
+
+func huggingfaceAllowlistConfigured(cfg config.HuggingFaceConfig) bool {
+	return len(cfg.AllowedRepos) > 0 || len(cfg.AllowedNamespaces) > 0
+}
+
+func huggingfaceAuthorizationToken(cfg config.HuggingFaceConfig, req HuggingFaceRequest, token string) string {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return ""
+	}
+	op := normalizeHFOperation(req.Operation)
+	if op == "whoami" || isHFJobReadOperation(op) || isHFJobMutationOperation(op) || isHFWriteOperation(op) {
+		return token
+	}
+	if _, named := hfNamedReadIdentity(op, req); named && huggingfaceAllowlistConfigured(cfg) {
+		return token
+	}
+	return ""
+}
+
+func hfNamedReadIdentity(op string, req HuggingFaceRequest) (string, bool) {
+	switch op {
+	case "get_model", "get_dataset", "get_space", "list_files", "download_file":
+		return requestRepoID(req), true
+	case "dataset_splits", "dataset_rows", "dataset_search", "dataset_filter", "dataset_parquet", "dataset_statistics":
+		return req.Dataset, true
+	default:
+		return "", false
+	}
+}
+
+func huggingFaceWorkspaceRoot(workspaceDir string) (string, error) {
+	if strings.TrimSpace(workspaceDir) == "" {
+		workspaceDir = filepath.Join("agent_workspace", "workdir")
+	}
+	workspaceRoot, err := filepath.EvalSymlinks(workspaceDir)
+	if err != nil {
+		workspaceRoot, err = filepath.Abs(workspaceDir)
+		if err != nil {
+			return "", fmt.Errorf("resolve Hugging Face workspace: %w", err)
+		}
+	}
+	workspaceRoot, err = filepath.Abs(workspaceRoot)
+	if err != nil {
+		return "", fmt.Errorf("resolve Hugging Face workspace: %w", err)
+	}
+	return workspaceRoot, nil
 }
 
 func resolveHuggingFaceWorkspaceFile(workspaceDir, requestedPath string) (string, error) {
@@ -347,16 +492,9 @@ func resolveHuggingFaceWorkspaceFile(workspaceDir, requestedPath string) (string
 			return "", fmt.Errorf("Hugging Face paths must not contain traversal components")
 		}
 	}
-	workspaceRoot, err := filepath.EvalSymlinks(workspaceDir)
+	workspaceRoot, err := huggingFaceWorkspaceRoot(workspaceDir)
 	if err != nil {
-		workspaceRoot, err = filepath.Abs(workspaceDir)
-		if err != nil {
-			return "", fmt.Errorf("resolve Hugging Face workspace: %w", err)
-		}
-	}
-	workspaceRoot, err = filepath.Abs(workspaceRoot)
-	if err != nil {
-		return "", fmt.Errorf("resolve Hugging Face workspace: %w", err)
+		return "", err
 	}
 	resolved, err := secureResolveFinalPath(filepath.Join(workspaceRoot, filepath.Clean(requestedPath)))
 	if err != nil {

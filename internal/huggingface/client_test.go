@@ -118,9 +118,14 @@ func TestDownloadFilePublishesCompleteFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DownloadFile() error = %v", err)
 	}
-	data, err := os.ReadFile(destination)
-	if err != nil || string(data) != "downloaded" || result.Bytes != int64(len(data)) {
+	t.Cleanup(func() { _ = os.Remove(result.Path) })
+	data, err := os.ReadFile(result.Path)
+	if err != nil || string(data) != "downloaded" || result.Bytes != int64(len(data)) || result.Path == destination {
 		t.Fatalf("download result = %#v, data=%q, err=%v", result, data, err)
+	}
+	kept, err := os.ReadFile(destination)
+	if err != nil || string(kept) != "old" {
+		t.Fatalf("caller destination changed: %q %v", kept, err)
 	}
 }
 
@@ -288,7 +293,16 @@ func TestHubWritePayloadsMatchOfficialAPI(t *testing.T) {
 	if _, err := client.CreateRepo(context.Background(), CreateRepoOptions{RepoID: "alice/repo", Type: "model", Private: true}); err != nil {
 		t.Fatalf("CreateRepo() error = %v", err)
 	}
-	if _, err := client.UploadFile(context.Background(), UploadFileOptions{RepoType: "model", RepoID: "alice/repo", Path: "README.md", LocalPath: localPath}); err != nil {
+	upload, err := os.Open(localPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer upload.Close()
+	info, err := upload.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.UploadFile(context.Background(), UploadFileOptions{RepoType: "model", RepoID: "alice/repo", Path: "README.md", Body: upload, Size: info.Size()}); err != nil {
 		t.Fatalf("UploadFile() error = %v", err)
 	}
 	if !uploadWasStreamed {
@@ -327,20 +341,22 @@ func TestHubWritePayloadsNormalizePluralRepoTypes(t *testing.T) {
 }
 
 func TestUploadFileRejectsFilesThatRequireLFS(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "large.bin")
-	file, err := os.Create(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := file.Truncate(10*1024*1024 + 1); err != nil {
-		t.Fatal(err)
-	}
-	_ = file.Close()
-
 	client := NewClient(ClientConfig{MaxUploadMB: 512})
-	_, err = client.UploadFile(context.Background(), UploadFileOptions{RepoID: "alice/repo", Path: "large.bin", LocalPath: path})
+	_, err := client.UploadFile(context.Background(), UploadFileOptions{RepoID: "alice/repo", Path: "large.bin", Size: 10*1024*1024 + 1})
 	if err == nil || !strings.Contains(err.Error(), "LFS/Xet") {
 		t.Fatalf("expected small-upload limit error, got %v", err)
+	}
+}
+
+func TestNewClientClampsMaxDownloadMB(t *testing.T) {
+	if got := NewClient(ClientConfig{MaxDownloadMB: 99999}).cfg.MaxDownloadMB; got != 2048 {
+		t.Fatalf("MaxDownloadMB = %d, want 2048", got)
+	}
+	if got := NewClient(ClientConfig{MaxDownloadMB: 0}).cfg.MaxDownloadMB; got != 512 {
+		t.Fatalf("MaxDownloadMB = %d, want 512", got)
+	}
+	if got := NewClient(ClientConfig{MaxDownloadMB: 100}).cfg.MaxDownloadMB; got != 100 {
+		t.Fatalf("MaxDownloadMB = %d, want 100", got)
 	}
 }
 

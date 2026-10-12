@@ -48,7 +48,7 @@ async function renderHuggingFaceSection(section) {
     html += '<div id="huggingface-token-status" class="adg-test-result"></div></div>';
 
     html += '<div class="field-grid two-cols">';
-    html += huggingFaceNumber('max_download_mb', 'config.huggingface.max_download_mb', 'help.huggingface.max_download_mb', cfg.max_download_mb);
+    html += huggingFaceNumber('max_download_mb', 'config.huggingface.max_download_mb', 'help.huggingface.max_download_mb', cfg.max_download_mb, 2048);
     html += huggingFaceNumber('max_upload_mb', 'config.huggingface.max_upload_mb', 'help.huggingface.max_upload_mb', cfg.max_upload_mb, 10);
     html += huggingFaceNumber('max_dataset_rows', 'config.huggingface.max_dataset_rows', 'help.huggingface.max_dataset_rows', cfg.max_dataset_rows);
     html += huggingFaceNumber('job_default_timeout_minutes', 'config.huggingface.job_default_timeout', 'help.huggingface.job_default_timeout', cfg.job_default_timeout_minutes);

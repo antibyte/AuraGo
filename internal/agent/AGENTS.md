@@ -120,6 +120,9 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 - `browser_automation` results use `externalToolOutput` before the model sees
   them. Page text stays inside that wrapper. `ExecuteBrowserAutomation` still
   returns the raw JSON for non-model callers such as Detective session close.
+- `huggingface` results use `externalToolOutput` before the model sees them.
+  Dispatch registers the resolved Vault token with `security.RegisterSensitive`
+  first. `RunHuggingFace` still returns the raw JSON for non-model callers.
 
 - Tool-result inline budget: the primary output vault archives a successful
   native result above the inline limit. A positive `max_inline_chars` fixes
