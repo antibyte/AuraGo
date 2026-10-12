@@ -348,9 +348,10 @@ func TestClassifyContainerForActionUsesInspect(t *testing.T) {
 		"web":          {},
 		"missing":      {},
 		// A 404 still names the owner of a reserved name, like the error path.
-		"aurago-boring-garage": {Owner: dockerutil.BoringGarageOwner},
-		"broken":               {Unverified: true},
-		"aurago-local-llm":     {Owner: dockerutil.LocalLLMOwner, Unverified: true},
+		"aurago-boring-garage":         {Owner: dockerutil.BoringGarageOwner},
+		"broken":                       {Unverified: true},
+		"aurago-local-llm":             {Owner: dockerutil.LocalLLMOwner, Unverified: true},
+		"aurago-decisions-runtime-abc": {Owner: dockerutil.DecisionsOwner, Unverified: true},
 	} {
 		if got := classifyContainerForAction(ctx, s, cfg, id); got != want {
 			t.Fatalf("classify %q = %+v, want %+v", id, got, want)

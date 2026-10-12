@@ -84,6 +84,21 @@ func TestManagedByRecognizesCanonicalAndLegacyLabels(t *testing.T) {
 	}
 }
 
+func TestIsDecisionsContainerName(t *testing.T) {
+	t.Parallel()
+
+	for _, name := range []string{"aurago-decisions-runtime-abc", "/aurago-decisions-discover-cuda-abc"} {
+		if !IsDecisionsContainerName(name) {
+			t.Fatalf("IsDecisionsContainerName(%q) = false", name)
+		}
+	}
+	for _, name := range []string{"aurago-decisions-runtime", "aurago-local-llm", ""} {
+		if IsDecisionsContainerName(name) {
+			t.Fatalf("IsDecisionsContainerName(%q) = true", name)
+		}
+	}
+}
+
 func TestLocalLLMReservedNames(t *testing.T) {
 	t.Parallel()
 

@@ -44,6 +44,7 @@ var containerProtectedOwners = []string{
 	dockerutil.LocalLLMOwner,
 	dockerutil.BoringGarageOwner,
 	dockerutil.CYDCreatorOwner,
+	dockerutil.DecisionsOwner,
 	dockerutil.SecurityProxyOwner,
 }
 

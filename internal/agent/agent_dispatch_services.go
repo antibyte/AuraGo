@@ -675,7 +675,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			// checked: the agent keeps its access to the proxy container, and
 			// dockerRequestCreatesReservedSecurityProxyName refuses create/run.
 			owned, ownershipErr := tools.DockerContainerOwnership(dockerCfg, containerID,
-				acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "ruview", "local-llm", dockerutil.BoringGarageOwner, dockerutil.CYDCreatorOwner, dockerutil.AppOwner, dockerutil.SecurityProxyOwner)
+				acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "ruview", "local-llm", dockerutil.BoringGarageOwner, dockerutil.CYDCreatorOwner, dockerutil.AppOwner, dockerutil.SecurityProxyOwner, dockerutil.DecisionsOwner)
 			if !localLLMDockerOperationSafe(req.Operation) && owned["ruview"] {
 				return dockerAgentError("docker_managed_ruview_resource", "Managed RuView resources are private. Use the read-only ruview tool or administrator RuView settings.")
 			}
@@ -690,6 +690,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			}
 			if !localLLMDockerOperationSafe(req.Operation) && owned["local-llm"] {
 				return `Tool Output: {"status":"error","message":"Direct inspection, lifecycle, log, file, or process access to AuraGo's managed local LLM container is blocked. Use the administrator Local LLM API."}`
+			}
+			if !localLLMDockerOperationSafe(req.Operation) && owned[dockerutil.DecisionsOwner] {
+				return dockerAgentError("docker_managed_decisions_resource", "Direct inspection, lifecycle, log, file, or process access to AuraGo's managed Decisions runtime is blocked. Use the administrator Decisions API.")
 			}
 			if !localLLMDockerOperationSafe(req.Operation) && owned[dockerutil.BoringGarageOwner] {
 				return dockerAgentError("docker_managed_garage_resource", "Direct inspection, lifecycle, log, file, or process access to AuraGo's managed Boring Computers Garage container is blocked. Use the Virtual Computers administrator API.")
@@ -760,7 +763,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			switch req.Operation {
 			case "list_containers", "ps":
 				logger.Info("LLM requested Docker list_containers", "all", req.All)
-				return "Tool Output: " + tools.DockerListContainers(dockerCfg, req.All, acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner, dockerutil.AppOwner, dockerutil.CYDCreatorOwner)
+				return "Tool Output: " + tools.DockerListContainers(dockerCfg, req.All, acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner, dockerutil.AppOwner, dockerutil.CYDCreatorOwner, dockerutil.DecisionsOwner)
 			case "inspect", "inspect_container":
 				logger.Info("LLM requested Docker inspect", "container_id", containerID)
 				return "Tool Output: " + tools.DockerInspectContainer(dockerCfg, containerID)
