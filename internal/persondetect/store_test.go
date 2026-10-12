@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -382,9 +383,11 @@ func waitPastMillis(t *testing.T, v int64) {
 }
 
 // requireResetAfter checks a store opened after a database reset: ids and the
-// cursor continue above the old ones, and the old images were moved aside to
-// one detections.orphaned-<time> directory, untouched, behind a fresh empty root.
-func requireResetAfter(t *testing.T, st *EventStore, lastEvent, lastFrame, cursor int64, images []string, logs string) {
+// cursor continue above the old ones, and the old images were moved, untouched,
+// to one orphaned-<time> directory. That is detections.orphaned-<time> next to a
+// fresh empty root, or, when inPlace, <root>/orphaned-<time> inside the root that
+// was kept; kept names the root entries that could not be moved.
+func requireResetAfter(t *testing.T, st *EventStore, lastEvent, lastFrame, cursor int64, images []string, logs string, inPlace bool, kept ...string) {
 	t.Helper()
 	ctx := context.Background()
 	if st.Cursor() <= cursor {
@@ -408,9 +411,14 @@ func requireResetAfter(t *testing.T, st *EventStore, lastEvent, lastFrame, curso
 		}
 	}
 	root := st.Root()
-	orphaned, _ := filepath.Glob(root + ".orphaned-*")
-	if len(orphaned) != 1 {
-		t.Fatalf("orphaned image roots = %v, want one", orphaned)
+	renamed, _ := filepath.Glob(root + ".orphaned-*")
+	inside, _ := filepath.Glob(filepath.Join(root, "orphaned-*"))
+	orphaned, stray := renamed, inside
+	if inPlace {
+		orphaned, stray = inside, renamed
+	}
+	if len(orphaned) != 1 || len(stray) != 0 {
+		t.Fatalf("orphaned image directories = %v (in place %v), unexpected %v", orphaned, inPlace, stray)
 	}
 	for _, p := range images {
 		data, err := os.ReadFile(filepath.Join(orphaned[0], filepath.FromSlash(p)))
@@ -418,8 +426,22 @@ func requireResetAfter(t *testing.T, st *EventStore, lastEvent, lastFrame, curso
 			t.Fatalf("old image %s in %s: %q, %v", p, orphaned[0], data, err)
 		}
 	}
-	if entries, err := os.ReadDir(root); err != nil || len(entries) != 0 {
-		t.Fatalf("the new image root holds %v, %v; want it empty", entries, err)
+	want := append([]string{}, kept...)
+	if inPlace {
+		want = append(want, filepath.Base(orphaned[0]))
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := []string{}
+	for _, e := range entries {
+		got = append(got, e.Name())
+	}
+	sort.Strings(got)
+	sort.Strings(want)
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("the image root holds %v, want %v", got, want)
 	}
 	if runtime.GOOS != "windows" {
 		requireModeWithin(t, root, 0o750)
@@ -460,7 +482,7 @@ func TestEventStoreIDsKeepIncreasingAfterCorruptionRecovery(t *testing.T) {
 	if !strings.Contains(logs.String(), filepath.Base(corrupt[0])) {
 		t.Fatalf("the corruption log must name the moved file %s:\n%s", filepath.Base(corrupt[0]), logs.String())
 	}
-	requireResetAfter(t, st, lastEvent, lastFrame, cursor, images, logs.String())
+	requireResetAfter(t, st, lastEvent, lastFrame, cursor, images, logs.String(), false)
 }
 
 func TestEventStoreDeletedDatabaseMovesOrphanedImagesAside(t *testing.T) {
@@ -489,7 +511,130 @@ func TestEventStoreDeletedDatabaseMovesOrphanedImagesAside(t *testing.T) {
 	if corrupt, _ := filepath.Glob(dbPath + "*.corrupt-*"); len(corrupt) != 0 {
 		t.Fatalf("nothing was corrupt, yet %v", corrupt)
 	}
-	requireResetAfter(t, st, lastEvent, lastFrame, cursor, images, logs.String())
+	requireResetAfter(t, st, lastEvent, lastFrame, cursor, images, logs.String(), false)
+}
+
+// reopenAfterDeletedDatabase fills a store in dir, deletes its database files
+// and opens it again (after prepare) with a logger that writes to the returned
+// buffer.
+func reopenAfterDeletedDatabase(t *testing.T, dir string, prepare func()) (st *EventStore, lastEvent, lastFrame, cursor int64, images []string, logs *bytes.Buffer) {
+	t.Helper()
+	st, err := OpenEventStore(dir, pdTestLogger())
+	if err != nil {
+		t.Fatal(err)
+	}
+	lastEvent, lastFrame, cursor, images = fillStoreForReset(t, st)
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
+	dbPath, _ := DetectionsPaths(dir)
+	for _, suffix := range []string{"", "-wal", "-shm"} {
+		if err := os.Remove(dbPath + suffix); err != nil && !errors.Is(err, os.ErrNotExist) {
+			t.Fatal(err)
+		}
+	}
+	if prepare != nil {
+		prepare()
+	}
+	waitPastMillis(t, cursor)
+	logs = &bytes.Buffer{}
+	st, err = OpenEventStore(dir, slog.New(slog.NewTextHandler(logs, nil)))
+	if err != nil {
+		t.Fatalf("open after the database was deleted: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	return st, lastEvent, lastFrame, cursor, images, logs
+}
+
+// An image root that is a symlink (to another disk) stays a symlink to the same
+// directory: renaming the link would silently undo the relocation. The old
+// entries move into <target>/orphaned-<time> instead.
+func TestEventStoreOrphanedImagesStayBehindASymlinkedRoot(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(t.TempDir(), "other-disk", "detections")
+	if err := os.MkdirAll(target, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	_, root := DetectionsPaths(dir)
+	if err := os.MkdirAll(filepath.Dir(root), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, root); err != nil {
+		t.Skipf("symlinks are not permitted here: %v", err)
+	}
+	st, lastEvent, lastFrame, cursor, images, logs := reopenAfterDeletedDatabase(t, dir, nil)
+	requireResetAfter(t, st, lastEvent, lastFrame, cursor, images, logs.String(), true)
+	info, err := os.Lstat(root)
+	if err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("the image root is no longer a symlink: %v, %v", modeOf(info), err)
+	}
+	rootInfo, err := os.Stat(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	targetInfo, err := os.Stat(target)
+	if err != nil || !os.SameFile(rootInfo, targetInfo) {
+		t.Fatalf("the image root no longer points to %s: %v", target, err)
+	}
+	orphaned, _ := filepath.Glob(filepath.Join(target, "orphaned-*"))
+	if len(orphaned) != 1 {
+		t.Fatalf("orphaned directories in the symlink target = %v", orphaned)
+	}
+	for _, p := range images {
+		if _, err := os.Stat(filepath.Join(orphaned[0], filepath.FromSlash(p))); err != nil {
+			t.Fatalf("old image %s is not in the target's orphaned directory: %v", p, err)
+		}
+	}
+}
+
+// A root that cannot be renamed (a mount point answers EBUSY or EXDEV) stays in
+// place: its entries move into <root>/orphaned-<time>, an entry that cannot be
+// moved either stays with a warning, and the open succeeds in both cases.
+func TestEventStoreOrphanedImagesMoveInsideARootThatCannotBeRenamed(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		stuck string
+	}{
+		{name: "root rename fails"},
+		{name: "an entry cannot be moved either", stuck: "keep-me.txt"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			_, root := DetectionsPaths(dir)
+			previous := orphanRename
+			t.Cleanup(func() { orphanRename = previous })
+			orphanRename = func(from, to string) error {
+				if from == root {
+					return &os.LinkError{Op: "rename", Old: from, New: to, Err: errors.New("device or resource busy (simulated mount point)")}
+				}
+				if tc.stuck != "" && filepath.Base(from) == tc.stuck {
+					return &os.LinkError{Op: "rename", Old: from, New: to, Err: errors.New("permission denied (simulated)")}
+				}
+				return os.Rename(from, to)
+			}
+			prepare := func() {
+				if tc.stuck != "" {
+					if err := os.WriteFile(filepath.Join(root, tc.stuck), []byte("stuck"), 0o640); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			st, lastEvent, lastFrame, cursor, images, logs := reopenAfterDeletedDatabase(t, dir, prepare)
+			var kept []string
+			if tc.stuck != "" {
+				kept = []string{tc.stuck}
+			}
+			requireResetAfter(t, st, lastEvent, lastFrame, cursor, images, logs.String(), true, kept...)
+			if tc.stuck != "" {
+				if !strings.Contains(logs.String(), tc.stuck) {
+					t.Fatalf("the entry that could not be moved must be named in a warning:\n%s", logs.String())
+				}
+				if data, err := os.ReadFile(filepath.Join(root, tc.stuck)); err != nil || string(data) != "stuck" {
+					t.Fatalf("the stuck entry = %q, %v", data, err)
+				}
+			}
+		})
+	}
 }
 
 func TestEventStoreReopenKeepsIDsAndImages(t *testing.T) {

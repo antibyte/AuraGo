@@ -174,10 +174,10 @@ func DetectionsPaths(dataDir string) (dbPath, root string) {
 // .corrupt-<timestamp>) and replaced by a fresh one; any other open error, and a
 // database from a newer schema, is returned with the file left untouched. When
 // the schema is created fresh (after corruption, or because the database was
-// deleted) and the image root still holds images, the root is moved aside to
-// detections.orphaned-<timestamp> and a new empty one is created: the new
-// database has no rows for the old images, so retention would neither count nor
-// delete them. Old images are never deleted here.
+// deleted) and the image root still holds images, they are moved aside (see
+// moveOrphanedImages): the new database has no rows for the old images, so
+// retention would neither count nor delete them. Old images are never deleted
+// here, and a root that is a symlink or a mount point stays in place.
 //
 // On Unix an existing database, its WAL and SHM files and the image root lose any
 // permission bits beyond 0640 and 0750 (no bits are added).
@@ -217,16 +217,7 @@ func OpenEventStore(dataDir string, logger *slog.Logger) (*EventStore, error) {
 		return nil, fmt.Errorf("persondetect: detections database was created by a newer AuraGo (schema %d)", version)
 	}
 	if version == 0 {
-		// Before the schema transaction: when the move fails, the next open
-		// still sees version 0 and tries again.
-		orphaned, err := moveOrphanedImages(root, now)
-		if err != nil {
-			_ = db.Close()
-			return nil, fmt.Errorf("persondetect: move the images of a previous database aside: %w", err)
-		}
-		if orphaned != "" {
-			logger.Warn("Person detection database is new; moved the images of the previous one aside", "root", root, "moved_to", orphaned)
-		}
+		moveOrphanedImages(root, now, logger)
 	}
 	if err := os.MkdirAll(root, detectionsRootMode); err != nil {
 		_ = db.Close()
@@ -410,25 +401,66 @@ func moveCorruptDatabaseAside(path string, now time.Time) ([]string, error) {
 	return moved, nil
 }
 
-// moveOrphanedImages moves an image root that holds anything aside to
-// <root>.orphaned-<timestamp> and returns that path ("" when the root is missing
-// or empty).
-func moveOrphanedImages(root string, now time.Time) (string, error) {
-	entries, err := os.ReadDir(root)
+// orphanRename renames for moveOrphanedImages; tests replace it to simulate a
+// root that cannot be renamed (a mount point) or an entry that cannot be moved.
+var orphanRename = os.Rename
+
+// moveOrphanedImages moves the images of a previous database out of the image
+// root and returns where they went ("" when the root is missing or empty, or
+// nothing could be moved). It never fails the open: the seeded ids already keep
+// new image names apart from the old ones, so it logs what it could not do.
+//
+// A plain directory is renamed to <root>.orphaned-<timestamp>. A root that is a
+// symlink (or another reparse point) stays, because renaming the link would
+// silently undo a relocation to another disk, and so does a root that cannot be
+// renamed, such as a mount point (EBUSY, EXDEV). Their top-level entries move into
+// <root>/orphaned-<timestamp> instead, which no frame path (YYYY/…) can collide
+// with; an entry that cannot be moved stays with a warning.
+func moveOrphanedImages(root string, now time.Time, logger *slog.Logger) string {
+	giveUp := func(err error) string {
+		logger.Warn("Person detection could not move the images of the previous database aside; they stay in the image root", "root", root, "error", err)
+		return ""
+	}
+	info, err := os.Lstat(root)
 	if errors.Is(err, os.ErrNotExist) {
-		return "", nil
+		return ""
 	}
 	if err != nil {
-		return "", err
+		return giveUp(err)
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return giveUp(err)
 	}
 	if len(entries) == 0 {
-		return "", nil
+		return ""
 	}
-	target := root + ".orphaned-" + asideStamp(now, root+".orphaned-")
-	if err := os.Rename(root, target); err != nil {
-		return "", err
+	keptBecause := "the image root is a symlink or another link"
+	if info.IsDir() {
+		target := root + ".orphaned-" + asideStamp(now, root+".orphaned-")
+		err := orphanRename(root, target)
+		if err == nil {
+			logger.Warn("Person detection database is new; moved the images of the previous one aside", "root", root, "moved_to", target)
+			return target
+		}
+		keptBecause = err.Error()
 	}
-	return target, nil
+	dir := filepath.Join(root, "orphaned-"+asideStamp(now, filepath.Join(root, "orphaned-")))
+	if err := os.Mkdir(dir, detectionsRootMode); err != nil {
+		return giveUp(err)
+	}
+	moved := 0
+	for _, entry := range entries {
+		from := filepath.Join(root, entry.Name())
+		if err := orphanRename(from, filepath.Join(dir, entry.Name())); err != nil {
+			logger.Warn("Person detection could not move an image entry of the previous database aside", "path", from, "error", err)
+			continue
+		}
+		moved++
+	}
+	logger.Warn("Person detection database is new; moved the images of the previous one into a folder inside the image root",
+		"root", root, "moved_to", dir, "entries_moved", moved, "entries_kept", len(entries)-moved, "root_kept_because", keptBecause)
+	return dir
 }
 
 // Close closes the database.
