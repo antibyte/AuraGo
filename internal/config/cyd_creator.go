@@ -28,12 +28,19 @@ func validCYDImage(image string) bool {
 	return len(image) <= cydImageMaxLen && cydImagePattern.MatchString(image)
 }
 
+// cydPublicHostPattern is the device URL host rule of the CYD Creator config
+// blob (internal/cydcreator deviceHostPattern): host names and IPv4 only.
+var cydPublicHostPattern = regexp.MustCompile(`^[A-Za-z0-9.-]+$`)
+
 // cydPublicURLProblem mirrors the device URL rule of the CYD Creator config
-// blob (internal/cydcreator DeviceConfig.validate; TestCYDCreatorPublicURLMatchesDeviceRule
-// pins both): the firmware joins request URLs as strings, checks the literal
-// "https://" prefix and splits host and port by hand, so a URL only works on a
-// device when it is printable ASCII without credentials, query, fragment or
-// IPv6 literal and any port is 1..65535. It returns "" for a usable URL.
+// blob (internal/cydcreator DeviceConfig.validate and ValidateDeviceURL;
+// TestCYDCreatorPublicURLMatchesDeviceRule pins both to the same verdicts;
+// config cannot import cydcreator): the firmware joins request URLs as
+// strings, checks the literal "https://" prefix and splits host and port by
+// hand, so a URL only works on a device when it is printable ASCII without
+// credentials, query, fragment or IPv6 literal, the host consists of letters,
+// digits, dots and hyphens (no %-escapes) and any port is 1..65535. It
+// returns "" for a usable URL.
 func cydPublicURLProblem(raw string) string {
 	if !strings.HasPrefix(raw, "https://") && !strings.HasPrefix(raw, "http://") {
 		return "must start with lowercase http:// or https://"
@@ -58,6 +65,12 @@ func cydPublicURLProblem(raw string) string {
 	}
 	if u.Hostname() == "" {
 		return "must have a host name"
+	}
+	// Same host rule as the blob (deviceHostPattern): the firmware hands the
+	// raw text to its DNS lookup, so %-escapes and sub-delimiters url.Parse
+	// tolerates must not pass.
+	if !cydPublicHostPattern.MatchString(u.Hostname()) {
+		return "host must be a host name or an IPv4 address (letters, digits, dots and hyphens)"
 	}
 	if strings.HasSuffix(u.Host, ":") {
 		return "port must be 1-65535"
