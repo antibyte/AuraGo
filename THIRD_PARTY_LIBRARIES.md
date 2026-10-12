@@ -265,7 +265,9 @@ Documented in `THIRD_PARTY_NOTICES.md`. **Not** embedded in the default source t
 ### CYD Creator builder image (`ghcr.io/antibyte/aurago-cyd-builder`)
 
 Pulled on demand when CYD Creator is enabled; not part of the AuraGo binary. Firmware built in it links the
-Arduino core and the libraries an app uses.
+Arduino core and the libraries an app uses. The image's notice, `/usr/share/doc/aurago-cyd-builder/NOTICE`
+(source: `deploy/docker/cyd-builder/NOTICE`), names each GPL, LGPL and MPL component with its exact version and
+upstream source.
 
 | Component | Use | License | Project |
 |---|---|---|---|

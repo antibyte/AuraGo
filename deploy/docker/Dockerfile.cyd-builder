@@ -14,11 +14,16 @@
 FROM node:22-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392
 
 ARG CYD_BUILDER_VERSION=1.0.0
+# The licences label names the main licences of what the image ships (AuraGo's
+# scripts are MIT; the toolchains, esptool, the Arduino core, NeoPixel, certifi,
+# Python and the Debian packages bring the rest). The per-component list with
+# exact versions and source URLs is /usr/share/doc/aurago-cyd-builder/NOTICE,
+# generated from cyd-builder/NOTICE below.
 LABEL org.opencontainers.image.title="aurago-cyd-builder" \
-      org.opencontainers.image.description="PlatformIO toolchain for AuraGo CYD Creator (ESP32/ESP32-S3, LVGL 9, LovyanGFX)" \
+      org.opencontainers.image.description="PlatformIO toolchain for AuraGo CYD Creator (ESP32/ESP32-S3, LVGL 9, LovyanGFX). Third-party licences and sources: /usr/share/doc/aurago-cyd-builder/NOTICE" \
       org.opencontainers.image.source="https://github.com/antibyte/AuraGo" \
       org.opencontainers.image.version="${CYD_BUILDER_VERSION}" \
-      org.opencontainers.image.licenses="MIT"
+      org.opencontainers.image.licenses="MIT AND Apache-2.0 AND BSD-3-Clause AND GPL-2.0-or-later AND GPL-3.0-or-later AND LGPL-2.1-or-later AND LGPL-3.0-or-later AND MPL-2.0 AND PSF-2.0 AND OFL-1.1"
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
@@ -161,6 +166,29 @@ sys.exit(0 if got == want else "toolchain drift: expected %s" % want)' \
       "toolchain-riscv32-esp 8.4.0+2021r2-patch5" \
       "toolchain-xtensa-esp32 8.4.0+2021r2-patch5" \
       "toolchain-xtensa-esp32s3 8.4.0+2021r2-patch5"
+
+# Third-party notice: cyd-builder/NOTICE (GPL/LGPL/MPL components, versions,
+# source URLs) plus the installed Debian packages with their source versions.
+# The check fails the build when the notice does not name, as "<name> <version>",
+# every installed PlatformIO platform/package and every GPL/LGPL/MPL Python
+# distribution or curated library - so a pin bump must update the notice.
+RUN --mount=type=bind,source=NOTICE,target=/tmp/cyd-notice.in \
+    mkdir -p /usr/share/doc/aurago-cyd-builder \
+    && { sed "s/@CYD_BUILDER_VERSION@/${CYD_BUILDER_VERSION}/" /tmp/cyd-notice.in \
+      && dpkg-query -W -f '${Package} ${Version} (source: ${source:Package} ${source:Version})\n'; } \
+      > /usr/share/doc/aurago-cyd-builder/NOTICE \
+    && chmod 0644 /usr/share/doc/aurago-cyd-builder/NOTICE \
+    && /opt/cyd/pio-venv/bin/python -I -c 'import glob, json, os, re, sys, importlib.metadata as md; \
+notice = open(sys.argv[1]).read(); copyleft = re.compile(r"\bL?GPL\b|GNU (Lesser )?General Public|Mozilla Public|\bMPL\b"); \
+want = ["%s %s" % (os.path.basename(os.path.dirname(p)), json.load(open(p))["version"]) \
+  for p in glob.glob("/opt/cyd/platformio/platforms/*/platform.json") + glob.glob("/opt/cyd/platformio/packages/*/package.json")]; \
+want += ["%s %s" % (d.metadata["Name"], d.version) for d in md.distributions() \
+  if copyleft.search(" ".join([d.metadata.get("License-Expression") or d.metadata.get("License") or ""] + (d.metadata.get_all("Classifier") or [])))]; \
+want += ["%s %s" % (m["name"], m["version"]) for p, m in ((p, json.load(open(p))) for p in glob.glob("/opt/cyd/libs/*/.piopm")) \
+  if any(copyleft.search(open(f, errors="replace").read()) for f in glob.glob(os.path.join(os.path.dirname(p), "*")) \
+    if re.match(r"(?i)(licen[cs]e|copying)", os.path.basename(f)) and os.path.isfile(f))]; \
+missing = [w for w in want if w not in notice]; print("notice names: " + ", ".join(want)); \
+sys.exit("NOTICE does not name: %s" % missing if missing else 0)' /usr/share/doc/aurago-cyd-builder/NOTICE
 
 ENV PLATFORMIO_CORE_DIR=/tmp/cyd-pio/core \
     PLATFORMIO_PLATFORMS_DIR=/tmp/cyd-pio/platforms \

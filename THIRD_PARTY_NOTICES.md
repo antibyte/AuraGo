@@ -135,3 +135,21 @@ or web resources.
   revisions and the author lists are named in the file headers and on the
   Wikipedia history pages). They are test data only and are never compiled into
   the binary or shipped with a release.
+
+## CYD Creator builder image
+
+CYD Creator compiles firmware in the separately published image
+`ghcr.io/antibyte/aurago-cyd-builder`, which AuraGo pulls on demand; it is not
+part of the AuraGo binary. Besides MIT and other permissive components, the
+image ships GPL and LGPL software (Espressif's Xtensa GCC toolchains, esptool,
+the Arduino-ESP32 core, Adafruit NeoPixel, Debian 12 packages) and MPL-2.0
+certifi.
+
+- The image carries `/usr/share/doc/aurago-cyd-builder/NOTICE`, generated from
+  [`deploy/docker/cyd-builder/NOTICE`](deploy/docker/cyd-builder/NOTICE). It
+  lists each GPL, LGPL and MPL component with its exact version, where its
+  licence text is in the image, and its upstream source. It also lists every
+  installed Debian package with its source package version, and says how to
+  request the corresponding source.
+- All components of the image and their licences:
+  [THIRD_PARTY_LIBRARIES.md, section 8](THIRD_PARTY_LIBRARIES.md#8-on-demand--optional-runtimes).
