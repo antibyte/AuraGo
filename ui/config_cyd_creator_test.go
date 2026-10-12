@@ -13,7 +13,7 @@ func TestConfigCYDCreatorSection(t *testing.T) {
 	mainJS := normalizeAssetText(mustReadUIFile(t, "js/config/main.js"))
 	for _, marker := range []string{
 		"{ key: 'cyd_creator', icon: '◧', label: t('config.section.cyd_creator.label'), desc: t('config.section.cyd_creator.desc') }",
-		"cyd_creator: 121,",
+		"cyd_creator: 123,",
 		"cyd_creator: '<rect",
 		"cyd_creator: { m: 'cyd_creator', fn: 'renderCYDCreatorSection' }",
 	} {

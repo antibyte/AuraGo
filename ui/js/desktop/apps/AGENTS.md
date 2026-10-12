@@ -522,7 +522,7 @@
   alert/confirm/prompt: `P.dialog` (core) and `inst.confirm` render inside the window, and one shared key
   listener lets only the newest dialog in the focused window handle Escape and Tab.
 - Config section `ui/cfg/cyd_creator.js` (strings in `ui/lang/config/cyd_creator/`): `cyd_creator.model` is a
-  provider ID from the shared provider dropdown ("" = main LLM); its sidebar icon is slot 121 of the 11×12
+  provider ID from the shared provider dropdown ("" = main LLM); its sidebar icon is slot 123 of the 11×12
   sprite (`ui/AGENTS.md`).
 - Verify: `npm run test:cyd-creator-shell`, `go test ./ui -run '(?i)CYDCreator'` and, with
   `AURAGO_RUN_BROWSER_SMOKE=1`, `TestDesktopCYDCreatorShellBrowser` (screenshots in `reports/cyd-creator/`,
