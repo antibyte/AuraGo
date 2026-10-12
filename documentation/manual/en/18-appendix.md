@@ -1093,7 +1093,7 @@ AuraGo uses the following open-source components:
 
 | Library | License | Purpose |
 |---------|---------|---------|
-| go-openai | MIT | OpenAI API client |
+| go-openai | Apache-2.0 | OpenAI API client |
 | chromem-go | MPL-2.0 | Vector database |
 | diago | MPL-2.0 | Native SIP dialog and media handling |
 | sipgo | BSD-2-Clause | SIP protocol stack |
@@ -1104,10 +1104,10 @@ AuraGo uses the following open-source components:
 | gopsutil | BSD-3 | System metrics |
 | golang.org/x/crypto | BSD-3 | Cryptography |
 | cron/v3 | MIT | Task scheduling |
-| vishen/go-chromecast | MIT | Chromecast control |
-| yaml.v3 | MIT | YAML parsing |
+| vishen/go-chromecast | Apache-2.0 | Chromecast control |
+| yaml.v3 | MIT AND Apache-2.0 | YAML parsing |
 
-Full license texts are available in the `LICENSES/` directory or at the respective project repositories.
+The compact external-project inventory and the license texts that must travel with a redistribution are in `licences/UEBERSICHT.md`. Upstream repositories remain the source for a pinned image digest.
 
 ### Attribution
 
