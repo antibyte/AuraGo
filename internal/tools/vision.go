@@ -1,27 +1,23 @@
 package tools
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
-	"time"
+
+	"github.com/sashabaranov/go-openai"
 
 	"aurago/internal/config"
-	"aurago/internal/httporigin"
+	"aurago/internal/llm"
 	"aurago/internal/providerutil"
 	"aurago/internal/security"
 )
 
-// visionHTTPClient sends the Vision API key and the image to the configured
-// base URL, so it never follows a redirect to another origin.
-var visionHTTPClient = httporigin.NewClient(60 * time.Second)
 var validatePublicImageURL = security.ValidatePublicHTTPURL
 
 const DefaultVisionModel = "google/gemini-2.0-flash-001"
@@ -160,115 +156,72 @@ func analyzeImageReferenceWithPromptContext(ctx context.Context, imageReference,
 	}
 
 	prompt, _ = PrepareVisionPrompt(prompt)
-
-	// Resolved by config.ResolveProviders (falls back to main LLM)
 	apiKey := strings.TrimSpace(cfg.Vision.APIKey)
-	baseURL := providerutil.NormalizeBaseURL(strings.TrimSpace(cfg.Vision.BaseURL))
-
-	model := strings.TrimSpace(cfg.Vision.Model)
-	if model == "" {
-		model = DefaultVisionModel
-	}
-
 	if apiKey == "" {
 		apiKey = strings.TrimSpace(cfg.LLM.APIKey)
+	}
+	baseURL := providerutil.NormalizeBaseURL(strings.TrimSpace(cfg.Vision.BaseURL))
+	if baseURL == "" {
+		baseURL = providerutil.NormalizeBaseURL(strings.TrimSpace(cfg.LLM.BaseURL))
+	}
+	mainBase := providerutil.NormalizeBaseURL(strings.TrimSpace(cfg.LLM.BaseURL))
+	model := strings.TrimSpace(cfg.Vision.Model)
+	if model == "" && baseURL != "" && baseURL == mainBase {
+		model = strings.TrimSpace(cfg.LLM.Model)
+	}
+	providerType := strings.TrimSpace(cfg.Vision.ProviderType)
+	if providerType == "" {
+		providerType = strings.TrimSpace(cfg.LLM.ProviderType)
+	}
+	if model == "" {
+		switch strings.ToLower(providerType) {
+		case "", "openrouter":
+			model = DefaultVisionModel
+		default:
+			return "", 0, 0, fmt.Errorf("vision model is not configured")
+		}
 	}
 	if apiKey == "" {
 		return "", 0, 0, fmt.Errorf("vision API key is not configured — set vision.provider or vision.api_key in config, or ensure the main LLM API key is set as fallback")
 	}
 	if baseURL == "" {
-		baseURL = providerutil.NormalizeBaseURL(strings.TrimSpace(cfg.LLM.BaseURL))
-	}
-	if baseURL == "" {
 		return "", 0, 0, fmt.Errorf("vision base URL is not configured")
 	}
-
-	// OpenAI-compatible vision payload
-	type ImageURL struct {
-		URL string `json:"url"`
+	accountID := strings.TrimSpace(cfg.LLM.AccountID)
+	if provider := cfg.FindProvider(cfg.Vision.Provider); provider != nil {
+		accountID = strings.TrimSpace(provider.AccountID)
 	}
-	type ContentPart struct {
-		Type     string    `json:"type"`
-		Text     string    `json:"text,omitempty"`
-		ImageURL *ImageURL `json:"image_url,omitempty"`
-	}
-	type Message struct {
-		Role    string        `json:"role"`
-		Content []ContentPart `json:"content"`
-	}
-	type RequestBody struct {
-		Model    string    `json:"model"`
-		Messages []Message `json:"messages"`
-	}
-
-	payload := RequestBody{
+	client := llm.NewClientFromProviderWithConfig(cfg, providerType, baseURL, apiKey, accountID)
+	resp, err := client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
 		Model: model,
-		Messages: []Message{
-			{
-				Role: "user",
-				Content: []ContentPart{
-					{Type: "text", Text: prompt},
-					{Type: "image_url", ImageURL: &ImageURL{URL: imageReference}},
-				},
+		Messages: []openai.ChatCompletionMessage{{
+			Role: openai.ChatMessageRoleUser,
+			MultiContent: []openai.ChatMessagePart{
+				{Type: openai.ChatMessagePartTypeText, Text: prompt},
+				{Type: openai.ChatMessagePartTypeImageURL, ImageURL: &openai.ChatMessageImageURL{URL: imageReference}},
 			},
-		},
-	}
-
-	jsonData, err := json.Marshal(payload)
+		}},
+	})
 	if err != nil {
-		return "", 0, 0, fmt.Errorf("failed to marshal vision payload: %w", err)
-	}
-
-	reqURL := baseURL + "/chat/completions"
-	req, err := http.NewRequestWithContext(ctx, "POST", reqURL, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return "", 0, 0, fmt.Errorf("failed to create vision request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-	req.Header.Set("HTTP-Referer", "https://github.com/antibyte/AuraGo")
-	req.Header.Set("X-Title", "AuraGo")
-
-	resp, err := visionHTTPClient.Do(req)
-	if err != nil {
-		return "", 0, 0, fmt.Errorf("vision request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
-		if err != nil {
-			return "", 0, 0, fmt.Errorf("vision API error (status %d) and failed to read response body: %w", resp.StatusCode, err)
+		var apiErr *openai.APIError
+		var reqErr *openai.RequestError
+		switch {
+		case errors.As(err, &apiErr) && apiErr.HTTPStatusCode != 0:
+			return "", 0, 0, fmt.Errorf("vision API error (status %d)", apiErr.HTTPStatusCode)
+		case errors.As(err, &reqErr) && reqErr.HTTPStatusCode != 0:
+			return "", 0, 0, fmt.Errorf("vision API error (status %d)", reqErr.HTTPStatusCode)
+		default:
+			return "", 0, 0, fmt.Errorf("vision request failed: %w", err)
 		}
-		return "", 0, 0, fmt.Errorf("vision API error (status %d, provider=%s, base_url=%s, auth_present=%t): %s", resp.StatusCode, strings.TrimSpace(cfg.Vision.ProviderType), baseURL, apiKey != "", string(body))
 	}
-
-	var result struct {
-		Choices []struct {
-			Message struct {
-				Content string `json:"content"`
-			} `json:"message"`
-		} `json:"choices"`
-		Usage struct {
-			PromptTokens     int `json:"prompt_tokens"`
-			CompletionTokens int `json:"completion_tokens"`
-		} `json:"usage"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", 0, 0, fmt.Errorf("failed to decode vision response: %w", err)
-	}
-
-	if len(result.Choices) == 0 {
+	if len(resp.Choices) == 0 {
 		return "", 0, 0, fmt.Errorf("no analysis received in vision response")
 	}
-
-	analysis := result.Choices[0].Message.Content
+	analysis := resp.Choices[0].Message.Content
 	if normalized, handled := NormalizeVisionAnalysis(prompt, analysis); handled {
 		analysis = normalized
 	}
-	return analysis, result.Usage.PromptTokens, result.Usage.CompletionTokens, nil
+	return analysis, resp.Usage.PromptTokens, resp.Usage.CompletionTokens, nil
 }
 
 const visionCountSchemaMarker = "AURAGO_STRUCTURED_OBJECT_COUNT_V1"
