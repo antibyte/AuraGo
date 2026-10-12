@@ -240,42 +240,42 @@ func TestConfigUISaveRejectsInvalidGo2RTCDetectionWithFieldPath(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		mutate func(section map[string]interface{})
-		want   string
+		field  string
 	}{
 		{
 			name: "point with one value",
 			mutate: func(section map[string]interface{}) {
 				go2RTCSectionZone(section, 0, 0)["points"] = []interface{}{[]interface{}{0.1, 0.5}, []interface{}{0.9}, []interface{}{0.9, 1.0}}
 			},
-			want: "go2rtc.streams[front-door].detection.zones[0].points[1]: must be [x, y]",
+			field: "go2rtc.streams[front-door].detection.zones[0].points[1]",
 		},
 		{
 			name: "point with three values",
 			mutate: func(section map[string]interface{}) {
 				go2RTCSectionZone(section, 0, 1)["points"] = []interface{}{[]interface{}{0.0, 0.0}, []interface{}{0.25, 0.0}, []interface{}{0.25, 0.25, 0.5}}
 			},
-			want: "go2rtc.streams[front-door].detection.zones[1].points[2]: must be [x, y]",
+			field: "go2rtc.streams[front-door].detection.zones[1].points[2]",
 		},
 		{
 			name: "min score below range",
 			mutate: func(section map[string]interface{}) {
 				go2RTCSectionStreamDetection(section, 2)["min_score"] = 0.1
 			},
-			want: "go2rtc.streams[porch].detection.min_score: must be between 0.30 and 0.95",
+			field: "go2rtc.streams[porch].detection.min_score",
 		},
 		{
 			name: "duplicate zone name",
 			mutate: func(section map[string]interface{}) {
 				go2RTCSectionZone(section, 0, 1)["name"] = "DRIVEWAY"
 			},
-			want: `go2rtc.streams[front-door].detection.zones[1].name: duplicates zone "Driveway"`,
+			field: "go2rtc.streams[front-door].detection.zones[1].name",
 		},
 		{
 			name: "global retention",
 			mutate: func(section map[string]interface{}) {
 				section["detection"].(map[string]interface{})["retention_days"] = 999
 			},
-			want: "go2rtc.detection.retention_days: must be between 1 and 365",
+			field: "go2rtc.detection.retention_days",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -294,8 +294,9 @@ func TestConfigUISaveRejectsInvalidGo2RTCDetectionWithFieldPath(t *testing.T) {
 			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 				t.Fatalf("decode response %q: %v", rec.Body.String(), err)
 			}
-			if rec.Code != http.StatusBadRequest || body.Status != "error" || body.Message != tc.want {
-				t.Fatalf("PUT /api/config = %d %+v, want 400 %q", rec.Code, body, tc.want)
+			message, ok := strings.CutPrefix(body.Message, tc.field+": ")
+			if rec.Code != http.StatusBadRequest || body.Status != "error" || !ok || strings.TrimSpace(message) == "" {
+				t.Fatalf("PUT /api/config = %d %+v, want 400 with message %q", rec.Code, body, tc.field+": <reason>")
 			}
 			after, err := os.ReadFile(path)
 			if err != nil {
@@ -376,18 +377,89 @@ func TestDecodeGo2RTCStreamDetectionIsStrict(t *testing.T) {
 	if err != nil || decoded.IntervalSeconds != 3 || decoded.Zones[0].Points[2] != [2]float64{1, 1} {
 		t.Fatalf("decode = %+v, %v", decoded, err)
 	}
-	var fieldErr *config.Go2RTCDetectionFieldError
-	for raw, field := range map[string]string{
-		`{"zones":[{"name":"A","points":[[0,0],[1,0],[1,1,1]]}]}`: "detection.zones[0].points[2]",
-		`{"zones":[{"name":"A","points":[[0,0],[1],[1,1]]}]}`:     "detection.zones[0].points[1]",
-		`{"interval_seconds":2,"unknown":true}`:                   "detection",
-		`{"actions":{"desktop":true,"sms":true}}`:                 "detection",
-		`{"interval_seconds":"2"}`:                                "detection",
-		`{"enabled":true} {"enabled":false}`:                      "detection",
-		`5`:                                                       "detection",
+	assertGo2RTCDetectionDecodeErrors(t, []go2RTCDetectionDecodeCase{
+		{`{"zones":[{"name":"A","points":[[0,0],[1,0],[1,1,1]]}]}`, "detection.zones[0].points[2]", "must be [x, y]"},
+		{`{"zones":[{"name":"A","points":[[0,0],[1],[1,1]]}]}`, "detection.zones[0].points[1]", "must be [x, y]"},
+		{`{"zones":[{"name":"A","points":[[0,0],[1,"0"],[1,1]]}]}`, "detection.zones[0].points[1]", "must be [x, y]"},
+		{`{"zones":[{"name":"A","points":[[0,0],[1,1e400],[1,1]]}]}`, "detection.zones[0].points[1]", "must be [x, y]"},
+		{`{"zones":[{"name":"A","points":"0,0 1,0 1,1"}]}`, "detection.zones[0].points", ""},
+		{`{"zones":[{"name":5,"points":[[0,0],[1,0],[1,1]]}]}`, "detection.zones[0].name", ""},
+		{`{"zones":[{"name":"A","points":[[0,0],[1,0],[1,1]],"color":"red"}]}`, "detection.zones[0].color", ""},
+		{`{"zones":[5]}`, "detection.zones[0]", ""},
+		{`{"zones":{"name":"A"}}`, "detection.zones", ""},
+		{`{"interval_seconds":2,"unknown":true}`, "detection.unknown", ""},
+		{`{"Enabled":true}`, "detection.Enabled", ""},
+		{`{"actions":{"desktop":true,"sms":true}}`, "detection.actions.sms", ""},
+		{`{"actions":"all"}`, "detection.actions", ""},
+		{`{"interval_seconds":"2"}`, "detection.interval_seconds", ""},
+		{`{"interval_seconds":2.5}`, "detection.interval_seconds", ""},
+		{`{"actions":{"desktop":"yes"}}`, "detection.actions.desktop", ""},
+		{`{"enabled":true} {"enabled":false}`, "detection", ""},
+		{`{"enabled":true} }`, "detection", ""},
+		{`{"enabled":`, "detection", ""},
+		{``, "detection", ""},
+		{`5`, "detection", ""},
+	})
+}
+
+// JSON null never stands for "default" or 0: a NaN from a zone editor becomes null
+// through JSON.stringify and must not be saved as a coordinate of 0.
+func TestDecodeGo2RTCStreamDetectionRejectsNull(t *testing.T) {
+	const points = `[[0,0],[1,0],[1,1]]`
+	assertGo2RTCDetectionDecodeErrors(t, []go2RTCDetectionDecodeCase{
+		{`null`, "detection", "must not be null"},
+		{`{"enabled":null}`, "detection.enabled", "must not be null"},
+		{`{"interval_seconds":null}`, "detection.interval_seconds", "must not be null"},
+		{`{"min_score":null}`, "detection.min_score", "must not be null"},
+		{`{"cooldown_seconds":null}`, "detection.cooldown_seconds", "must not be null"},
+		{`{"zones":null}`, "detection.zones", "must not be null"},
+		{`{"actions":null}`, "detection.actions", "must not be null"},
+		{`{"actions":{"message":null}}`, "detection.actions.message", "must not be null"},
+		{`{"actions":{"channel":null}}`, "detection.actions.channel", "must not be null"},
+		{`{"actions":{"agent":null}}`, "detection.actions.agent", "must not be null"},
+		{`{"actions":{"agent_instruction":null}}`, "detection.actions.agent_instruction", "must not be null"},
+		{`{"actions":{"desktop":null}}`, "detection.actions.desktop", "must not be null"},
+		{`{"zones":[null]}`, "detection.zones[0]", "must not be null"},
+		{`{"zones":[{"name":null,"points":` + points + `}]}`, "detection.zones[0].name", "must not be null"},
+		{`{"zones":[{"name":"A","points":null}]}`, "detection.zones[0].points", "must not be null"},
+		{`{"zones":[{"name":"A","points":[[0,0],[0.5,null],[1,1]]}]}`, "detection.zones[0].points[1]", "must be [x, y]"},
+		{`{"zones":[{"name":"A","points":[[0,0],null,[1,1]]}]}`, "detection.zones[0].points[1]", "must be [x, y]"},
+	})
+}
+
+// The typed decode after the pre-pass reports its errors with field paths too.
+func TestGo2RTCDetectionJSONErrorKeepsFieldPaths(t *testing.T) {
+	decode := func(raw string) error {
+		var out config.Go2RTCStreamDetectionConfig
+		decoder := json.NewDecoder(strings.NewReader(raw))
+		decoder.DisallowUnknownFields()
+		return decoder.Decode(&out)
+	}
+	for raw, want := range map[string]string{
+		`{"color":"red"}`:                        "detection.color",
+		`{"actions":{"desktop":"yes"}}`:          "detection.actions.desktop",
+		`{"zones":[{"name":"A"},{"name":5}]}`:    "detection.zones[1].name",
+		`{"zones":[{"points":[[0,0],[0,"a"]]}]}`: "detection.zones[0].points[1]",
 	} {
-		if _, err := decodeGo2RTCStreamDetection(json.RawMessage(raw)); !errors.As(err, &fieldErr) || fieldErr.Field != field {
-			t.Fatalf("decode(%s) err = %v, want field %q", raw, err, field)
+		err := go2RTCDetectionJSONError(decode(raw))
+		var fieldErr *config.Go2RTCDetectionFieldError
+		if !errors.As(err, &fieldErr) || fieldErr.Field != want || fieldErr.Message == "" || fieldErr.Message == "must be a detection object" {
+			t.Fatalf("go2RTCDetectionJSONError(%s) = %v, want field %q with a specific message", raw, err, want)
+		}
+	}
+}
+
+type go2RTCDetectionDecodeCase struct {
+	raw, field, message string // message "" accepts any non-empty message
+}
+
+func assertGo2RTCDetectionDecodeErrors(t *testing.T, cases []go2RTCDetectionDecodeCase) {
+	t.Helper()
+	for _, tc := range cases {
+		decoded, err := decodeGo2RTCStreamDetection(json.RawMessage(tc.raw))
+		var fieldErr *config.Go2RTCDetectionFieldError
+		if !errors.As(err, &fieldErr) || fieldErr.Field != tc.field || fieldErr.Message == "" || (tc.message != "" && fieldErr.Message != tc.message) {
+			t.Errorf("decode(%s) = %+v, %v; want field %q message %q", tc.raw, decoded, err, tc.field, tc.message)
 		}
 	}
 }
@@ -414,5 +486,67 @@ func TestDecodeGo2RTCStreamDetectionDefaultsMissingKeys(t *testing.T) {
 	}
 	if normalized := config.NormalizeGo2RTCStreamDetection(decoded); normalized.CooldownSeconds != 0 || normalized.Actions.Desktop {
 		t.Fatalf("normalization dropped explicit zeros: %+v", normalized)
+	}
+}
+
+// /api/setup and the local LLM setup save through applyConfigPatch. A detection block
+// config.Load rejects would keep AuraGo from starting, so it is never written.
+func TestApplyConfigPatchRejectsInvalidGo2RTCDetection(t *testing.T) {
+	s, path, _ := newGo2RTCDetectionConfigServer(t)
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = applyConfigPatch(s, map[string]interface{}{"go2rtc": map[string]interface{}{"detection": map[string]interface{}{"retention_days": 999}}})
+	var fieldErr *config.Go2RTCDetectionFieldError
+	if !errors.As(err, &fieldErr) || fieldErr.Field != "go2rtc.detection.retention_days" {
+		t.Fatalf("applyConfigPatch err = %v, want the go2rtc.detection.retention_days field error", err)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(before) {
+		t.Fatalf("a rejected patch changed the file:\n%s", after)
+	}
+}
+
+func TestSetupSaveRejectsInvalidGo2RTCDetectionWithBadRequest(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	initial := []byte("server:\n  host: 127.0.0.1\nauth:\n  enabled: false\n")
+	if err := os.WriteFile(path, initial, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	cfg.ConfigPath = path
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+	if !needsSetup(cfg) {
+		t.Fatal("fixture must still need setup")
+	}
+	addSetupCSRFTokenForTest(s, "detection-setup-token")
+	req := httptest.NewRequest(http.MethodPost, "/api/setup", strings.NewReader(`{"go2rtc":{"detection":{"retention_days":999}}}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-CSRF-Token", "detection-setup-token")
+	withSetupBootstrapToken(s, req)
+	rec := httptest.NewRecorder()
+	handleSetupSave(s).ServeHTTP(rec, req)
+
+	var body struct {
+		Error   string `json:"error"`
+		Details string `json:"details"`
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &body)
+	if rec.Code != http.StatusBadRequest || !strings.HasPrefix(body.Details, "go2rtc.detection.retention_days: ") {
+		t.Fatalf("POST /api/setup = %d %s, want 400 with the go2rtc.detection.retention_days field error", rec.Code, rec.Body.String())
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(initial) {
+		t.Fatalf("a rejected setup save changed the file:\n%s", after)
 	}
 }

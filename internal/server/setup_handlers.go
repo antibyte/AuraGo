@@ -281,7 +281,9 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			// with mismatched quotes). Other errors (read/write/disk) are
 			// server-side and should keep their 500 status.
 			msg := err.Error()
-			isUserError := strings.Contains(msg, "marshal") || strings.Contains(msg, "yaml") || strings.Contains(msg, "unmarshal")
+			var detectionErr *config.Go2RTCDetectionFieldError
+			isUserError := errors.As(err, &detectionErr) ||
+				strings.Contains(msg, "marshal") || strings.Contains(msg, "yaml") || strings.Contains(msg, "unmarshal")
 			status := http.StatusInternalServerError
 			if isUserError {
 				status = http.StatusBadRequest

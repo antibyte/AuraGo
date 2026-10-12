@@ -123,7 +123,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		injectRuntimeDockerDefaults(rawCfg, s.Cfg)
 		injectDockerHostAccessDefault(rawCfg, s.Cfg)
 		injectAIGatewayDefaults(rawCfg, s.Cfg)
-		injectGo2RTCConfig(rawCfg, s.Cfg, s.Vault)
+		injectGo2RTCConfig(rawCfg, s.ConfigSnapshot(), s.Vault)
 		injectGameMakerDefaults(rawCfg, s.Cfg)
 		injectLocalWikipediaDefaults(rawCfg, s.Cfg)
 		injectCYDCreatorDefaults(rawCfg, s.Cfg)

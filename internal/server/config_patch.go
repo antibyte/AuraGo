@@ -76,6 +76,10 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 	if err := yaml.Unmarshal(out, &validateCfg); err != nil {
 		return nil, fmt.Errorf("validate config: %w", err)
 	}
+	// config.Load rejects invalid detection settings, so AuraGo would not start.
+	if err := validateGo2RTCDetectionSettings(validateCfg.Go2RTC); err != nil {
+		return nil, err
+	}
 	if err := config.ValidateCloudflareTunnelConfig(&validateCfg); err != nil {
 		return nil, err
 	}
