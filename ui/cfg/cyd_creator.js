@@ -76,7 +76,7 @@ function renderCYDCreatorSection(section) {
     html += ccCfgToggleRow('config.cyd_creator.enabled_label', 'help.cyd_creator.enabled', enabled, 'cyd_creator.enabled', 'ccCfgToggleEnabled(this)');
 
     if (!enabled) {
-        html += '<div class="wh-notice"><span>i</span><div>';
+        html += '<div class="wh-notice"><span aria-hidden="true">i</span><div>';
         html += '<strong>' + escapeHtml(t('config.cyd_creator.disabled_notice')) + '</strong><br>';
         html += '<small>' + escapeHtml(t('config.cyd_creator.disabled_desc')) + '</small>';
         html += '</div></div></div>';
@@ -124,6 +124,13 @@ function renderCYDCreatorSection(section) {
 
 function ccCfgToggleEnabled(el) {
     const next = !(el && el.classList && el.classList.contains('on'));
+    // The re-render below detaches this switch, but the click still bubbles on to the
+    // AuraConfigState document listener, which reads the clicked element. Give the old switch the
+    // new value first, so that listener cannot write the previous value back into the draft.
+    if (el && el.classList) {
+        el.classList.toggle('on', next);
+        el.setAttribute('aria-checked', next ? 'true' : 'false');
+    }
     const data = ccCfgEnsureData();
     data.enabled = next;
     setNestedValue(configData, 'cyd_creator.enabled', next);
