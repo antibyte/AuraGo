@@ -497,11 +497,16 @@ func (c *MQTTController) startGeneration(snapshot *mqttSnapshot, revision uint64
 		} else {
 			c.reconcileGenerationSubscriptions(gen, currentSnapshot.config())
 		}
+		// ConnectionLost only stores reconnecting under callbackMu and does not
+		// retire the generation. Hold that lock across the open check and the
+		// write so a loss during the broker wait cannot be overwritten.
+		gen.callbackMu.Lock()
 		c.mu.Lock()
-		if c.generationCurrentLocked(gen) {
+		if c.generationCurrentLocked(gen) && pahoClient.IsConnectionOpen() {
 			c.state = "connected"
 		}
 		c.mu.Unlock()
+		gen.callbackMu.Unlock()
 	})
 	opts.SetConnectionLostHandler(func(pahoClient pahomqtt.Client, lostErr error) {
 		if !c.enterGenerationCallback(gen) {
