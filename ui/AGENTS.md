@@ -317,6 +317,9 @@ worker. Keep packaging, recovery and offline instructions in
   matching 128px cell in `img/config-sidebar-icons.svg` and `.json`, and a
   `.config-icon-slot-N` position in `config-workspace.css`. The sidebar draws the
   inline symbol, so a missing one renders blank; it must match the sprite cell.
+  The sprite has 11 columns and 12 rows (slots 0–131; `cyd_creator` took 121):
+  x = column × 10 %, y = row × 100 / 11 %. A thirteenth row needs the same
+  growth in `main.js`, the CSS, the SVG canvas, the metadata and the test.
   Verify `TestConfigSidebarIconSpriteContract`.
 - Config uses one visible card level: named topic cards containing flat fields,
   with a compact variant for independent objects. Reuse `AuraConfigForm` and the shared presentation pass for lazy

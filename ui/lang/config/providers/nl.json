@@ -286,6 +286,7 @@
   "config.providers.role_llm_guardian": "LLM-bewaker",
   "config.providers.role_mission_preparation": "Missievoorbereiding",
   "config.providers.role_flows": "EasyDrag-flows",
+  "config.providers.role_cyd_creator": "CYD Creator",
   "config.providers.role_image_generation": "Beeldgeneratie",
   "config.providers.role_music_generation": "Muziekgeneratie",
   "config.providers.role_video_generation": "Videogeneratie",

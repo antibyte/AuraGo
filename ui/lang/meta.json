@@ -154,6 +154,10 @@
     "provider_ref": true,
     "empty_label_key": "config.flows.ai_provider_main"
   },
+  "help.cyd_creator.model": {
+    "provider_ref": true,
+    "empty_label_key": "config.cyd_creator.model_main"
+  },
   "help.agent.core_memory_cap_mode": {
     "options": [
       "soft",

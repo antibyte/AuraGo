@@ -94,6 +94,7 @@ const SECTIONS = [
             { key: 'space_agent', icon: '🛰️', label: t('config.section.space_agent.label'), desc: t('config.section.space_agent.desc') },
             { key: 'virtual_desktop', icon: '▣', label: t('config.section.virtual_desktop.label'), desc: t('config.section.virtual_desktop.desc') },
             { key: 'game_maker', icon: '🎮', label: t('config.section.game_maker.label'), desc: t('config.section.game_maker.desc') },
+            { key: 'cyd_creator', icon: '◧', label: t('config.section.cyd_creator.label'), desc: t('config.section.cyd_creator.desc') },
             { key: 'detective', icon: '🔎', label: t('config.section.detective.label'), desc: t('config.section.detective.desc') },
             { key: 'newspaper', icon: '▤', label: t('config.section.newspaper.label'), desc: t('config.section.newspaper.desc') },
             { key: 'flows', icon: '⧉', label: t('config.section.flows.label'), desc: t('config.section.flows.desc') },
@@ -564,7 +565,7 @@ function scrollActiveSidebarItemIntoView(behavior = 'smooth', delay = 0) {
     requestAnimationFrame(scrollFn);
 }
 
-const CONFIG_SIDEBAR_ICON_GRID = Object.freeze({ columns: 11, rows: 11, cell: 128 });
+const CONFIG_SIDEBAR_ICON_GRID = Object.freeze({ columns: 11, rows: 12, cell: 128 });
 const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
     overview: 0,
     agent: 1,
@@ -603,6 +604,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
     space_agent: 33,
     virtual_desktop: 34,
     game_maker: 108,
+    cyd_creator: 121,
     detective: 115,
     newspaper: 116,
     flows: 119,
@@ -737,6 +739,7 @@ const CONFIG_SIDEBAR_ICON_SYMBOLS = Object.freeze({
     space_agent: "<path d=\"M55 55 73 73M46 46l-17-8 8 17zM82 82l17 8-8-17zM57 31l40 40M31 57l40 40\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#4f8ee8\"/><circle cx=\"64\" cy=\"64\" r=\"9\" fill=\"#f6cf58\"/>",
     virtual_desktop: "<rect x=\"25\" y=\"31\" width=\"78\" height=\"52\" rx=\"8\" fill=\"#7da3c8\" opacity=\".18\"/><path d=\"M25 31h78v52H25zM53 101h22M64 83v18\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#7da3c8\"/>",
     game_maker: "<path d=\"M38 45h52c10 0 16 8 18 19l4 23c2 10-10 16-17 9L82 83H46L33 96c-7 7-19 1-17-9l4-23c2-11 8-19 18-19z\" fill=\"#9b7cf0\" opacity=\".2\"/><path d=\"M38 45h52c10 0 16 8 18 19l4 23c2 10-10 16-17 9L82 83H46L33 96c-7 7-19 1-17-9l4-23c2-11 8-19 18-19zM39 59v20M29 69h20M82 63h.1M94 76h.1\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#9b7cf0\"/>",
+    cyd_creator: '<rect x="22" y="30" width="84" height="64" rx="10" fill="#f0b54a" opacity=".22"/><rect x="22" y="30" width="84" height="64" rx="10" fill="none" stroke="#f0b54a" stroke-width="6" stroke-linejoin="round"/><rect x="36" y="44" width="42" height="34" rx="4" fill="none" stroke="#35c7d3" stroke-width="5" stroke-linejoin="round"/><path d="M44 56h26M44 66h14" fill="none" stroke="#35c7d3" stroke-width="5" stroke-linecap="round"/><circle cx="92" cy="46" r="4.5" fill="#ef6f78"/>',
     virtual_computers: "<rect x=\"24\" y=\"28\" width=\"80\" height=\"52\" rx=\"9\" fill=\"#7da3c8\" opacity=\".18\"/><path d=\"M24 28h80v52H24zM44 96h40M64 80v16M43 52l10 10-10 10M61 72h24\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#7da3c8\"/><circle cx=\"92\" cy=\"36\" r=\"10\" fill=\"#35c7d3\"/>",
     sandbox: "<path d=\"m64 25 36 20v38l-36 20-36-20V45z\" fill=\"#27b6a9\" opacity=\".2\"/><path d=\"m64 25 36 20v38l-36 20-36-20V45zM28 45l36 20 36-20M64 65v38\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#27b6a9\"/>",
     info_tools: "<circle cx=\"56\" cy=\"56\" r=\"25\" fill=\"#35c7d3\" opacity=\".18\"/><path d=\"M74 74 98 98M56 31a25 25 0 1 0 0 50 25 25 0 0 0 0-50z\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#35c7d3\"/>",
@@ -3288,6 +3291,7 @@ const SECTION_MODULES = {
     space_agent: { m: 'space_agent', fn: 'renderSpaceAgentSection' },
     virtual_desktop: { m: 'virtual_desktop', fn: 'renderVirtualDesktopSection' },
     game_maker: { m: 'game_maker', fn: 'renderGameMakerSection' },
+    cyd_creator: { m: 'cyd_creator', fn: 'renderCYDCreatorSection' },
     detective: { m: 'detective', fn: 'renderDetectiveSection' },
     newspaper: { m: 'newspaper', fn: 'renderNewspaperSection' },
     flows: { m: 'flows', fn: 'renderFlowsSection' },
