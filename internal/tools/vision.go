@@ -170,9 +170,6 @@ func analyzeImageReferenceWithPromptContext(ctx context.Context, imageReference,
 		model = strings.TrimSpace(cfg.LLM.Model)
 	}
 	providerType := strings.TrimSpace(cfg.Vision.ProviderType)
-	if providerType == "" {
-		providerType = strings.TrimSpace(cfg.LLM.ProviderType)
-	}
 	if model == "" {
 		switch strings.ToLower(providerType) {
 		case "", "openrouter":

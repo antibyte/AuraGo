@@ -264,6 +264,49 @@ func TestAnalyzeImageRefusesAnEmptyModelOnAnotherOrigin(t *testing.T) {
 	}
 }
 
+func TestAnalyzeImageEmptyTypeUsesDefaultModelWithoutInheritingAnthropic(t *testing.T) {
+	var method, path, model string
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		var payload struct {
+			Model string `json:"model"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Errorf("decode body: %v", err)
+		}
+		model = payload.Model
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"choices":[{"message":{"content":"seen"}}]}`)
+	}))
+
+	cfg := &config.Config{}
+	cfg.Vision.ProviderType = ""
+	cfg.Vision.APIKey = "sk-vision"
+	cfg.Vision.BaseURL = server.URL
+	cfg.Vision.Model = ""
+	cfg.LLM.ProviderType = "anthropic"
+	cfg.LLM.BaseURL = "https://api.anthropic.com/v1"
+	cfg.LLM.Model = "llava"
+
+	got, _, _, err := analyzeImageReferenceWithPromptContext(context.Background(), analyzeImageTestReference, "Describe it", cfg)
+	if err != nil {
+		t.Fatalf("analyzeImageReferenceWithPromptContext: %v", err)
+	}
+	if got != "seen" {
+		t.Fatalf("content = %q, want seen", got)
+	}
+	if method != http.MethodPost || path != "/chat/completions" {
+		t.Fatalf("request = %s %s, want POST /chat/completions", method, path)
+	}
+	if model != DefaultVisionModel {
+		t.Fatalf("model = %q, want %s", model, DefaultVisionModel)
+	}
+	if model == "llava" {
+		t.Fatal("model inherited the main model llava")
+	}
+}
+
 func TestPrepareVisionPromptLeavesGeneralCountsAlone(t *testing.T) {
 	for _, prompt := range []string{
 		"how many people are in the room",
