@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 )
@@ -28,12 +29,20 @@ type go2RTCLifecycleDocker struct {
 	created, started, stopped, deleted, infoCalls int
 	lastCreate                                    string
 
-	ncpu          int    // NCPU reported by /info
-	infoStatus    int    // 0 = 200
-	inspectStatus int    // 0 = answer from the container state
-	createStatus  int    // 0 = 201
-	createBody    string // body of a failing create
-	deleteStatus  int    // 0 = 204
+	requests      int      // every request that reached the fake
+	inspectNames  []string // container names asked for in inspect calls
+	ncpu          int      // NCPU reported by /info
+	infoStatus    int      // 0 = 200
+	inspectStatus int      // 0 = answer from the container state
+	inspectFail1  int      // number of leading inspect calls answered with 403
+	createStatus  int      // 0 = 201
+	createBody    string   // body of a failing create
+	deleteStatus  int      // 0 = 204
+
+	// stopGate, when set, holds every stop call until it is closed; stopEntered
+	// receives one value as a stop call starts to wait.
+	stopGate    chan struct{}
+	stopEntered chan struct{}
 }
 
 func (f *go2RTCLifecycleDocker) isRunning() bool {
@@ -52,6 +61,7 @@ func (f *go2RTCLifecycleDocker) handler(t *testing.T) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
+		f.requests++
 		path := r.URL.Path
 		switch {
 		case r.Method == http.MethodGet && strings.HasSuffix(path, "/info"):
@@ -62,6 +72,12 @@ func (f *go2RTCLifecycleDocker) handler(t *testing.T) http.HandlerFunc {
 			}
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{"NCPU": f.ncpu})
 		case r.Method == http.MethodGet && strings.Contains(path, "/containers/") && strings.HasSuffix(path, "/json"):
+			f.inspectNames = append(f.inspectNames, strings.TrimSuffix(path[strings.Index(path, "/containers/")+len("/containers/"):], "/json"))
+			if f.inspectFail1 > 0 {
+				f.inspectFail1--
+				http.Error(w, `{"message":"inspect denied"}`, http.StatusForbidden)
+				return
+			}
 			if f.inspectStatus != 0 && f.inspectStatus != http.StatusOK {
 				http.Error(w, `{"message":"inspect denied"}`, f.inspectStatus)
 				return
@@ -103,6 +119,12 @@ func (f *go2RTCLifecycleDocker) handler(t *testing.T) http.HandlerFunc {
 			f.running = true
 			w.WriteHeader(http.StatusNoContent)
 		case r.Method == http.MethodPost && strings.HasSuffix(path, "/stop"):
+			if gate := f.stopGate; gate != nil {
+				f.stopEntered <- struct{}{}
+				f.mu.Unlock()
+				<-gate
+				f.mu.Lock()
+			}
 			f.stopped++
 			f.running = false
 			w.WriteHeader(http.StatusNoContent)
@@ -525,10 +547,11 @@ func TestGo2RTCClampedSidecarIsNotRecreatedByTheNextTick(t *testing.T) {
 func TestGo2RTCCreateErrorCarriesTheDaemonMessage(t *testing.T) {
 	const password = "internal-password"
 	for _, tc := range []struct {
-		name   string
-		body   string
-		want   string
-		forbid string
+		name     string
+		password string // replaces the harness API password when set
+		body     string
+		want     string
+		forbid   string
 	}{
 		{
 			name: "json message",
@@ -541,9 +564,22 @@ func TestGo2RTCCreateErrorCarriesTheDaemonMessage(t *testing.T) {
 			want:   "bad request",
 			forbid: password,
 		},
+		{
+			// Shorter than the scrubber's minimum, so only the explicit replacement
+			// catches it; it must happen before the 300-byte cut or a prefix stays.
+			name:     "unregistered credential across the cut",
+			password: "pw-7chr",
+			body:     strings.Repeat("a", 297) + "pw-7chr" + "-tail",
+			want:     "aaaaaaaaaa",
+			forbid:   "pw-",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			h := newGo2RTCLifecycleHarness(t, true, 0)
+			if tc.password != "" {
+				h.cfg.Go2RTC.APIPassword = tc.password
+				h.manager.Configure(h.cfg)
+			}
 			h.docker.createStatus = http.StatusBadRequest
 			h.docker.createBody = tc.body
 			err := h.manager.StartContainer(context.Background())
@@ -565,4 +601,236 @@ func TestGo2RTCCreateErrorCarriesTheDaemonMessage(t *testing.T) {
 			}
 		})
 	}
+}
+
+// The explicit secrets are replaced before the text is cut to 300 bytes, so a
+// secret that straddles the cut never leaves a prefix behind (raw and JSON body).
+func TestGo2RTCDockerErrorDetailReplacesSecretsBeforeTheCut(t *testing.T) {
+	const secret = "s2t4-unregistered-secret-0123456789abcdef"
+	for offset := 280; offset <= 300; offset++ {
+		for _, body := range []string{
+			strings.Repeat("a", offset) + secret + strings.Repeat("b", 50),
+			`{"message":"` + strings.Repeat("a", offset) + secret + `"}`,
+		} {
+			out := go2RTCDockerErrorDetail([]byte(body), secret)
+			for n := 4; n <= len(secret); n++ {
+				if strings.Contains(out, secret[:n]) {
+					t.Fatalf("offset %d leaks %q: %q", offset, secret[:n], out)
+				}
+			}
+			if len(out) > len(": ")+300+3 {
+				t.Fatalf("offset %d: %d bytes", offset, len(out))
+			}
+		}
+	}
+	out := go2RTCDockerErrorDetail([]byte(strings.Repeat("\u00e4", 200)))
+	if !strings.HasSuffix(out, "...") || !strings.HasPrefix(out, ": \u00e4") {
+		t.Fatalf("multi-byte cut: %q", out)
+	}
+	if got := go2RTCDockerErrorDetail(nil); got != "" {
+		t.Fatalf("empty body: %q", got)
+	}
+}
+
+// An administrator stop holds the lifecycle lock inside its Docker call and sets
+// the manual stop only at the end. A tick that read its flags before the stop
+// began must see the stop once it gets the lock, and neither recreate nor start
+// the container.
+func TestGo2RTCTickDoesNotUndoAnInFlightAdministratorStop(t *testing.T) {
+	for _, tc := range []struct {
+		name                   string
+		autoStart              bool
+		pendingRecreate, start bool
+	}{
+		{"pending recreate retry", false, true, false},
+		{"pending start retry", false, false, true},
+		{"auto start tick", true, false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newGo2RTCLifecycleHarness(t, tc.autoStart, 1)
+			h.seedContainer(true)
+			h.docker.stopGate = make(chan struct{})
+			h.docker.stopEntered = make(chan struct{}, 4)
+			h.manager.SetRuntimeTransitionPending(tc.pendingRecreate, tc.start, false)
+
+			stopDone := make(chan error, 1)
+			go func() { stopDone <- h.manager.StopContainer() }()
+			select {
+			case <-h.docker.stopEntered:
+			case <-time.After(10 * time.Second):
+				t.Fatal("the stop never reached Docker")
+			}
+			tickDone := make(chan struct{})
+			go func() {
+				h.manager.reconcileTick(context.Background())
+				close(tickDone)
+			}()
+			time.Sleep(200 * time.Millisecond) // the tick has read its flags and waits for the lock
+			close(h.docker.stopGate)
+			if err := <-stopDone; err != nil {
+				t.Fatalf("StopContainer: %v", err)
+			}
+			select {
+			case <-tickDone:
+			case <-time.After(10 * time.Second):
+				t.Fatal("the tick never finished")
+			}
+
+			created, started, deleted := h.docker.counts()
+			if created != 0 || started != 0 || deleted != 0 || h.docker.isRunning() {
+				t.Fatalf("created=%d started=%d deleted=%d running=%v: the tick undid the stop", created, started, deleted, h.docker.isRunning())
+			}
+			if !h.manager.ManualStop() {
+				t.Fatal("the tick cleared the administrator's stop")
+			}
+			if recreate, start, stop := h.manager.RuntimeTransitionPending(); recreate || start || stop {
+				t.Fatalf("pending flags survived the stop: recreate=%v start=%v stop=%v", recreate, start, stop)
+			}
+		})
+	}
+}
+
+// When Docker cannot say whether the sidecar runs, an administrator's stop still
+// wins; without one the pre-existing start after a recreate stays.
+func TestGo2RTCStartIntentWhenDockerCannotSay(t *testing.T) {
+	h := newGo2RTCLifecycleHarness(t, false, 1)
+	h.seedContainer(false)
+	h.docker.inspectStatus = http.StatusForbidden
+	for _, tc := range []struct {
+		name                         string
+		autoStart, force, manualStop bool
+		want                         bool
+	}{
+		{"no stop keeps the start after a recreate", false, false, false, true},
+		{"administrator stop wins over an unknown state", false, false, true, false},
+		{"forced start overrides the stop", false, true, true, true},
+		{"auto start without a stop", true, false, false, true},
+		{"auto start with a stop", true, false, true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h.setManualStop(tc.manualStop)
+			if got := h.manager.startIntendedLocked(tc.autoStart, tc.force); got != tc.want {
+				t.Fatalf("startIntendedLocked(auto=%v, force=%v) with manualStop=%v = %v, want %v", tc.autoStart, tc.force, tc.manualStop, got, tc.want)
+			}
+		})
+	}
+}
+
+// A container under the sidecar's name that belongs to someone else is not a
+// verifiably stopped sidecar: the failure must stay visible.
+func TestGo2RTCForeignContainerIsNotVerifiablyStopped(t *testing.T) {
+	h := newGo2RTCLifecycleHarness(t, false, 1)
+	h.seedContainer(false)
+	h.docker.mu.Lock()
+	h.docker.owner = "sha256:another-instance"
+	h.docker.mu.Unlock()
+
+	if running, known := h.manager.sidecarRunning(); running || known {
+		t.Fatalf("sidecarRunning = running %v known %v, want an unknown state for a foreign container", running, known)
+	}
+	if err := h.manager.ApplyConfigured(context.Background(), false); err == nil {
+		t.Fatal("ApplyConfigured reported success next to a container owned by someone else")
+	}
+	h.manager.reconcileTick(context.Background())
+	if h.manager.currentStatus().LastError == "" {
+		t.Fatal("the tick hid a container name collision")
+	}
+}
+
+// The auto_start:false tick shows no error for a sidecar that is verifiably not
+// running, so the status does not flap between the save path and the next tick.
+func TestGo2RTCTickDoesNotReportAVerifiablyStoppedSidecar(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		setup     func(h *go2RTCLifecycleHarness)
+		wantError bool
+	}{
+		{"stopped container", func(h *go2RTCLifecycleHarness) { h.seedContainer(false) }, false},
+		{"no container yet", func(h *go2RTCLifecycleHarness) {}, false},
+		{"Docker cannot say", func(h *go2RTCLifecycleHarness) {
+			h.seedContainer(false)
+			h.docker.inspectStatus = http.StatusForbidden
+		}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newGo2RTCLifecycleHarness(t, false, 1)
+			tc.setup(h)
+			h.manager.reconcileTick(context.Background())
+			status := h.manager.currentStatus()
+			if status.APIUsable {
+				t.Fatalf("status = %+v", status)
+			}
+			if (status.LastError != "") != tc.wantError {
+				t.Fatalf("LastError = %q, want an error: %v", status.LastError, tc.wantError)
+			}
+			if created, started, _ := h.docker.counts(); created != 0 || started != 0 {
+				t.Fatalf("the auto_start:false tick touched the sidecar: created=%d started=%d", created, started)
+			}
+		})
+	}
+}
+
+// A recreate caused by a container-name or Docker-host change removes the old
+// sidecar through the old target and starts nothing when it was stopped.
+func TestGo2RTCReconfigureTargetChangeKeepsStoppedSidecarStopped(t *testing.T) {
+	t.Run("docker host change", func(t *testing.T) {
+		h := newGo2RTCLifecycleHarness(t, false, 1)
+		h.seedContainer(false)
+		h.setManualStop(true)
+		other := &go2RTCLifecycleDocker{}
+		next := h.withDetectingCameras(1)
+		next.Docker.Host = fakeDockerHost(t, other.handler(t))
+
+		if err := h.manager.ReconfigureContainer(context.Background(), h.cfg, next, false); err != nil {
+			t.Fatalf("ReconfigureContainer: %v", err)
+		}
+		created, started, deleted := h.docker.counts()
+		if deleted != 1 || created != 0 || started != 0 {
+			t.Fatalf("old target: created=%d started=%d deleted=%d, want only the removal", created, started, deleted)
+		}
+		other.mu.Lock()
+		requests := other.requests
+		other.mu.Unlock()
+		if requests != 0 {
+			t.Fatalf("the new Docker target received %d requests, want none while the sidecar stays stopped", requests)
+		}
+		h.manager.mu.RLock()
+		host := h.manager.docker.Host
+		h.manager.mu.RUnlock()
+		if host != next.Docker.Host {
+			t.Fatalf("manager Docker target = %q, want the new one %q", host, next.Docker.Host)
+		}
+		if !h.manager.ManualStop() {
+			t.Fatal("the administrator's stop was cleared")
+		}
+	})
+	t.Run("container name change", func(t *testing.T) {
+		h := newGo2RTCLifecycleHarness(t, false, 1)
+		h.seedContainer(false)
+		h.setManualStop(true)
+		next := h.withDetectingCameras(1)
+		next.Go2RTC.ContainerName = "aurago_go2rtc_new"
+
+		if err := h.manager.ReconfigureContainer(context.Background(), h.cfg, next, false); err != nil {
+			t.Fatalf("ReconfigureContainer: %v", err)
+		}
+		created, started, deleted := h.docker.counts()
+		if deleted != 1 || created != 0 || started != 0 {
+			t.Fatalf("created=%d started=%d deleted=%d, want only the removal", created, started, deleted)
+		}
+		h.docker.mu.Lock()
+		names := append([]string(nil), h.docker.inspectNames...)
+		h.docker.mu.Unlock()
+		for _, name := range names {
+			if name != "aurago_go2rtc" {
+				t.Fatalf("inspected %q, want the old container name only (all: %v)", name, names)
+			}
+		}
+		if got := h.manager.Config().ContainerName; got != "aurago_go2rtc_new" {
+			t.Fatalf("manager container name = %q, want the new one", got)
+		}
+		if !h.manager.ManualStop() {
+			t.Fatal("the administrator's stop was cleared")
+		}
+	})
 }

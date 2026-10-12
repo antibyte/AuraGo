@@ -106,8 +106,15 @@ func (f *go2RTCLifecycleDocker) handler(t *testing.T) http.HandlerFunc {
 // Docker engine and a go2rtc API that only answers while the fake container runs.
 func newGo2RTCLifecycleServer(t *testing.T, autoStart, detecting bool) (*Server, *go2RTCLifecycleDocker) {
 	t.Helper()
+	previous, configured := tools.CurrentRuntimePermissionsForTest()
 	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{DockerEnabled: true})
-	t.Cleanup(tools.ClearRuntimePermissionsForTest)
+	t.Cleanup(func() {
+		if configured {
+			tools.ConfigureRuntimePermissions(previous)
+		} else {
+			tools.ClearRuntimePermissionsForTest()
+		}
+	})
 	docker := &go2RTCLifecycleDocker{}
 	dockerAPI := httptest.NewServer(docker.handler(t))
 	t.Cleanup(dockerAPI.Close)

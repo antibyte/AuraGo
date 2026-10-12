@@ -287,19 +287,16 @@ func (m *Go2RTCManager) reconcileTick(ctx context.Context) {
 	}
 	if pendingRecreate || pendingStart {
 		// A retry that was queued for a start must not undo a stop the
-		// administrator pressed after the failed attempt; the stop wins and the
-		// next explicit start builds the container from the then-current config.
-		m.mu.RLock()
-		stopped := m.manualStop
-		m.mu.RUnlock()
-		if stopped {
+		// administrator pressed after the failed attempt: backgroundStart looks at
+		// the stop again under the lifecycle lock, and the stop wins. The next
+		// explicit start builds the container from the then-current config.
+		skipped, err := m.backgroundStart(ctx, pendingRecreate)
+		if skipped {
 			m.clearRuntimeTransitionPending()
 			m.setAPIStatus(false, "", "")
 			return
 		}
-	}
-	if pendingRecreate {
-		if err := m.RestartContainer(ctx); err != nil {
+		if err != nil {
 			m.setAPIStatus(false, "", err.Error())
 			return
 		}
@@ -307,32 +304,28 @@ func (m *Go2RTCManager) reconcileTick(ctx context.Context) {
 		_, _ = m.Test(ctx)
 		return
 	}
-	if pendingStart {
-		if err := m.StartContainer(ctx); err != nil {
-			m.setAPIStatus(false, "", err.Error())
-			return
-		}
-		if _, err := m.ReconcileStreams(ctx); err != nil {
-			m.setAPIStatus(false, "", err.Error())
-			return
-		}
-		m.clearRuntimeTransitionPending()
-		_, _ = m.Test(ctx)
-		return
-	}
-	m.mu.RLock()
-	manualStop := m.manualStop
-	m.mu.RUnlock()
-	if manualStop {
+	// Cheap early exit; backgroundStart checks again under the lifecycle lock.
+	if m.ManualStop() {
 		m.setAPIStatus(false, "", "")
 		return
 	}
 	if cfg.AutoStart {
-		if err := m.StartContainer(ctx); err != nil {
+		skipped, err := m.backgroundStart(ctx, false)
+		if skipped {
+			m.setAPIStatus(false, "", "")
+			return
+		}
+		if err != nil {
 			m.setAPIStatus(false, "", err.Error())
 			return
 		}
-	} else if _, err := m.Test(ctx); err != nil {
+		_, _ = m.Test(ctx)
+		return
+	}
+	if _, err := m.Test(ctx); err != nil {
+		// Nothing to reconcile and nothing to report for a sidecar that is not
+		// running; the save path already shows no error for it.
+		m.clearErrorIfSidecarStopped()
 		return
 	}
 	if _, err := m.ReconcileStreams(ctx); err != nil {

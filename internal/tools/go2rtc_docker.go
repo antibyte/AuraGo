@@ -377,6 +377,30 @@ func (m *Go2RTCManager) RestartContainer(ctx context.Context) error {
 	return err
 }
 
+// backgroundStart is the reconcile tick's way to bring the sidecar up (after
+// removing it first when recreate is set) and reconcile its streams. The tick
+// decides to start before it holds the lifecycle lock, while an administrator
+// stop holds that lock through its Docker call and sets the manual stop only at
+// the end. So the stop is checked again here under the lock: skipped is true when
+// the administrator's stop is in place and nothing was touched.
+func (m *Go2RTCManager) backgroundStart(ctx context.Context, recreate bool) (skipped bool, err error) {
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	if m.ManualStop() {
+		return true, nil
+	}
+	if recreate {
+		if err := m.removeContainer(); err != nil {
+			return false, err
+		}
+	}
+	if err := m.startContainerLocked(ctx); err != nil {
+		return false, err
+	}
+	_, err = m.reconcileStreamsLocked(ctx)
+	return false, err
+}
+
 // Go2RTCReconfigureError is the failure of ReconfigureContainer. StartIntended
 // says whether the sidecar was meant to be running afterwards: a caller queues a
 // background retry only then, because the retry always starts the container. A
@@ -431,11 +455,18 @@ func (m *Go2RTCManager) ReconfigureContainer(ctx context.Context, oldCfg, newCfg
 	return nil
 }
 
-// startIntendedLocked reports whether the sidecar is meant to run: an explicit
-// start, auto start while the administrator has not stopped it, or it runs now
-// (or Docker cannot say, which keeps the pre-existing start-after-recreate).
+// startIntendedLocked reports whether the sidecar is meant to run, in this order:
+// an explicit start; no, when the administrator stopped it (even if Docker
+// cannot say whether it runs); auto start; and otherwise whether it runs now,
+// where an unknown state keeps the pre-existing start-after-recreate.
 func (m *Go2RTCManager) startIntendedLocked(autoStart, forceStart bool) bool {
-	if forceStart || (autoStart && !m.ManualStop()) {
+	if forceStart {
+		return true
+	}
+	if m.ManualStop() {
+		return false
+	}
+	if autoStart {
 		return true
 	}
 	running, known := m.sidecarRunning()
@@ -453,6 +484,18 @@ func (m *Go2RTCManager) sidecarRunning() (running, known bool) {
 	return go2RTCInspectRunning(dockerCfg, cfg.ContainerName, m.go2RTCOwner())
 }
 
+// clearErrorIfSidecarStopped drops the error status of a failed API probe when
+// the sidecar is verifiably not running (no container, or ours and stopped), and
+// reports whether it did. A container under the name that belongs to someone
+// else, or a Docker that cannot say, leave the error in place.
+func (m *Go2RTCManager) clearErrorIfSidecarStopped() bool {
+	if running, known := m.sidecarRunning(); known && !running {
+		m.setAPIStatus(false, "", "")
+		return true
+	}
+	return false
+}
+
 // ApplyConfigured brings the runtime in line with a published config without
 // recreating the container (the soft path of a config change).
 //
@@ -461,6 +504,10 @@ func (m *Go2RTCManager) sidecarRunning() (running, known bool) {
 // its streams reconciled, and a sidecar that is verifiably not running is left
 // alone: nothing needs a running API, the sources are applied at the next start,
 // and no error is reported for it.
+//
+// The probe runs under the lifecycle lock, so a hanging API holds up Stop and
+// Start for up to the client timeout; waitForAPI already holds the lock for up
+// to 20 seconds the same way.
 func (m *Go2RTCManager) ApplyConfigured(ctx context.Context, forceStart bool) error {
 	if m == nil {
 		return fmt.Errorf("go2rtc manager is not initialized")
@@ -472,8 +519,7 @@ func (m *Go2RTCManager) ApplyConfigured(ctx context.Context, forceStart bool) er
 			return err
 		}
 	} else if _, err := m.Test(ctx); err != nil {
-		if running, known := m.sidecarRunning(); known && !running {
-			m.setAPIStatus(false, "", "")
+		if m.clearErrorIfSidecarStopped() {
 			return nil
 		}
 		return err
@@ -819,8 +865,9 @@ func go2RTCContainerRunning(dockerCfg DockerConfig, containerName, owner string)
 
 // go2RTCInspectRunning reports whether the named container is the running
 // sidecar of this owner. known is false when Docker's answer does not settle it
-// (transport error, a status other than 200 or 404, or an undecodable body); a
-// missing container is a known "not running".
+// (transport error, a status other than 200 or 404, an undecodable body, or a
+// container whose labels are not this owner's); a missing container is a known
+// "not running".
 func go2RTCInspectRunning(dockerCfg DockerConfig, containerName, owner string) (running, known bool) {
 	if strings.TrimSpace(containerName) == "" {
 		return false, true
@@ -846,7 +893,10 @@ func go2RTCInspectRunning(dockerCfg DockerConfig, containerName, owner string) (
 	if json.Unmarshal(data, &info) != nil {
 		return false, false
 	}
-	return info.Config.Labels["aurago.managed"] == "go2rtc" &&
-		info.Config.Labels[go2RTCOwnerLabel] == owner &&
-		info.State.Running, true
+	if info.Config.Labels["aurago.managed"] != "go2rtc" || info.Config.Labels[go2RTCOwnerLabel] != owner {
+		// A container under this name that is not ours: the sidecar's state is
+		// unknown (and it is a name collision to report), never "stopped".
+		return false, false
+	}
+	return info.State.Running, true
 }
