@@ -230,11 +230,34 @@ func TestValidateGo2RTCDetectionZoneNames(t *testing.T) {
 			t.Errorf("%s: distinct names rejected: %v", name, err)
 		}
 	}
+	zwnj, zwj := string(rune(0x200c)), string(rune(0x200d))
+	for name, good := range map[string]string{
+		// Devanagari ka + virama + ZWNJ + ssa: the joiner keeps the half form.
+		"hindi with zwnj": string(rune(0x0915)) + string(rune(0x094d)) + zwnj + string(rune(0x0937)),
+		// man ZWJ woman ZWJ girl: one family emoji.
+		"emoji zwj family": string(rune(0x1f468)) + zwj + string(rune(0x1f469)) + zwj + string(rune(0x1f467)),
+	} {
+		d := validStreamDetection()
+		d.Zones = []Go2RTCDetectionZone{zone(good)}
+		if err := ValidateGo2RTCStreamDetection(d); err != nil {
+			t.Errorf("%s: rejected: %v", name, err)
+		}
+	}
 	for name, bad := range map[string]string{
-		"bidi override":   "Drive" + string(rune(0x202e)) + "way",
-		"zero width":      "Drive" + string(rune(0x200b)) + "way",
-		"byte order mark": string(rune(0xfeff)) + "Porch",
-		"invalid utf-8":   "Drive\xffway",
+		"bidi override":      "Drive" + string(rune(0x202e)) + "way",
+		"bidi embedding":     "Drive" + string(rune(0x202a)) + "way",
+		"arabic letter mark": "Drive" + string(rune(0x061c)) + "way",
+		"left-to-right mark": "Drive" + string(rune(0x200e)) + "way",
+		"right-to-left mark": "Drive" + string(rune(0x200f)) + "way",
+		"bidi isolate":       "Drive" + string(rune(0x2066)) + "way" + string(rune(0x2069)),
+		"zero width":         "Drive" + string(rune(0x200b)) + "way",
+		"word joiner":        "Drive" + string(rune(0x2060)) + "way",
+		"soft hyphen":        "Drive" + string(rune(0x00ad)) + "way",
+		"byte order mark":    string(rune(0xfeff)) + "Porch",
+		"invalid utf-8":      "Drive\xffway",
+		"only zwj":           zwj,
+		"joiners and space":  zwj + " " + zwnj,
+		"only spaces":        "   ",
 	} {
 		d := validStreamDetection()
 		d.Zones = []Go2RTCDetectionZone{zone(bad)}
@@ -463,6 +486,21 @@ func TestGo2RTCStreamDetectionUnmarshalYAMLPrefillsDefaults(t *testing.T) {
 	}
 	if !reflect.DeepEqual(holder.Detection, Go2RTCStreamDetectionConfig{}) {
 		t.Fatalf("null block decoded as %+v", holder.Detection)
+	}
+}
+
+func TestGo2RTCDetectionYAMLTypeErrorsNameTheirTypes(t *testing.T) {
+	var holder struct {
+		Detection Go2RTCStreamDetectionConfig `yaml:"detection"`
+	}
+	err := yaml.Unmarshal([]byte("detection: abc\n"), &holder)
+	if err == nil || !strings.Contains(err.Error(), "into config.go2RTCStreamDetectionYAML") {
+		t.Fatalf("detection type error = %v", err)
+	}
+	var d Go2RTCStreamDetectionConfig
+	err = yaml.Unmarshal([]byte("zones: [abc]\n"), &d)
+	if err == nil || !strings.Contains(err.Error(), "into config.go2RTCDetectionZoneYAML") {
+		t.Fatalf("zone type error = %v", err)
 	}
 }
 

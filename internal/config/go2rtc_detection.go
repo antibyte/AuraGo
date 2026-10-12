@@ -40,6 +40,12 @@ func Go2RTCDetectionChannels() []string {
 	return append([]string(nil), go2RTCDetectionChannels...)
 }
 
+// Joiners allowed in zone names although they are format (Cf) characters.
+const (
+	zeroWidthNonJoiner rune = 0x200c
+	zeroWidthJoiner    rune = 0x200d
+)
+
 var go2RTCDetectionDays = map[string]time.Weekday{
 	"sun": time.Sunday, "mon": time.Monday, "tue": time.Tuesday, "wed": time.Wednesday,
 	"thu": time.Thursday, "fri": time.Friday, "sat": time.Saturday,
@@ -177,8 +183,9 @@ func NormalizeGo2RTCStreamDetection(d Go2RTCStreamDetectionConfig) Go2RTCStreamD
 // desktop: false. yaml.v3 does not call it for a null block; that block stays zero and
 // NormalizeGo2RTCStreamDetection applies the defaults.
 func (d *Go2RTCStreamDetectionConfig) UnmarshalYAML(value *yaml.Node) error {
-	type plain Go2RTCStreamDetectionConfig
-	decoded := plain(DefaultGo2RTCStreamDetection(false))
+	// The alias drops this method (no recursion); its name shows up in YAML type errors.
+	type go2RTCStreamDetectionYAML Go2RTCStreamDetectionConfig
+	decoded := go2RTCStreamDetectionYAML(DefaultGo2RTCStreamDetection(false))
 	if err := value.Decode(&decoded); err != nil {
 		return err
 	}
@@ -189,10 +196,12 @@ func (d *Go2RTCStreamDetectionConfig) UnmarshalYAML(value *yaml.Node) error {
 // UnmarshalYAML decodes points of any length, so a point that is not [x, y] becomes a
 // validation error with a field path instead of a YAML decode failure.
 func (z *Go2RTCDetectionZone) UnmarshalYAML(value *yaml.Node) error {
-	var raw struct {
+	// Named so YAML type errors read "into config.go2RTCDetectionZoneYAML".
+	type go2RTCDetectionZoneYAML struct {
 		Name   string      `yaml:"name"`
 		Points [][]float64 `yaml:"points"`
 	}
+	var raw go2RTCDetectionZoneYAML
 	if err := value.Decode(&raw); err != nil {
 		return err
 	}
@@ -331,10 +340,23 @@ func ValidateGo2RTCStreamDetection(d Go2RTCStreamDetectionConfig) error {
 		if n := utf8.RuneCountInString(zone.Name); n < 1 || n > Go2RTCDetectionMaxZoneName {
 			return detectionFieldError(field+".name", "must have 1 to %d characters", Go2RTCDetectionMaxZoneName)
 		}
+		// Format characters (bidi controls, zero-width space, BOM, word joiner, soft
+		// hyphen …) are rejected, except the joiners ZWNJ (U+200C, Indic scripts) and
+		// ZWJ (U+200D, emoji sequences). A name needs one visible rune beyond them.
+		visible := false
 		for _, r := range zone.Name {
+			if r == zeroWidthNonJoiner || r == zeroWidthJoiner {
+				continue
+			}
 			if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
 				return detectionFieldError(field+".name", "contains unsupported characters")
 			}
+			if !unicode.IsSpace(r) {
+				visible = true
+			}
+		}
+		if !visible {
+			return detectionFieldError(field+".name", "needs a visible character")
 		}
 		// Names compare in NFC with simple case folding (strings.EqualFold), so
 		// "ΟΔΟΣ"/"οδος" and composed/decomposed "Café" collide while "Straße" and
