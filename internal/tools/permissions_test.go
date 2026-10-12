@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"runtime"
 	"strings"
 	"testing"
@@ -18,7 +19,7 @@ func TestUnsafeHostExecutionRequiresExplicitGrant(t *testing.T) {
 		t.Fatalf("background Python error = %v", err)
 	}
 	if runtime.GOOS == "windows" {
-		if _, _, err := ExecuteShell("echo blocked", tempSystemTaskDir(t)); err == nil || !strings.Contains(err.Error(), "allow_unsafe_host_execution") {
+		if _, _, err := ExecuteShell(context.Background(), "echo blocked", tempSystemTaskDir(t)); err == nil || !strings.Contains(err.Error(), "allow_unsafe_host_execution") {
 			t.Fatalf("Windows shell error = %v", err)
 		}
 	}
@@ -30,7 +31,7 @@ func TestHighRiskToolsDenyWithoutRuntimePolicy(t *testing.T) {
 		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
 	})
 
-	if _, _, err := ExecuteShell("echo no", tempSystemTaskDir(t)); err == nil || !strings.Contains(err.Error(), "shell execution is disabled") {
+	if _, _, err := ExecuteShell(context.Background(), "echo no", tempSystemTaskDir(t)); err == nil || !strings.Contains(err.Error(), "shell execution is disabled") {
 		t.Fatalf("ExecuteShell error = %v, want permission denial", err)
 	}
 	if _, _, err := ExecutePython("print('no')", tempSystemTaskDir(t), tempSystemTaskDir(t)); err == nil || !strings.Contains(err.Error(), "python execution is disabled") {

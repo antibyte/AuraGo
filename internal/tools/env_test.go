@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -229,7 +230,7 @@ func TestExecuteShellHidesDockerClientEnvWithoutDockerPermission(t *testing.T) {
 	setDockerClientEnvForTest(t)
 
 	configureDockerPermissionForTest(t, false)
-	stdout, stderr, err := ExecuteShell(shellPrintDockerEnvCommand(), t.TempDir())
+	stdout, stderr, err := ExecuteShell(context.Background(), shellPrintDockerEnvCommand(), t.TempDir())
 	if err != nil {
 		t.Fatalf("ExecuteShell() error = %v, stderr = %q", err, stderr)
 	}
@@ -241,7 +242,7 @@ func TestExecuteShellHidesDockerClientEnvWithoutDockerPermission(t *testing.T) {
 	}
 
 	configureDockerPermissionForTest(t, true)
-	stdout, stderr, err = ExecuteShell(shellPrintDockerEnvCommand(), t.TempDir())
+	stdout, stderr, err = ExecuteShell(context.Background(), shellPrintDockerEnvCommand(), t.TempDir())
 	if err != nil {
 		t.Fatalf("ExecuteShell() with Docker permission error = %v, stderr = %q", err, stderr)
 	}

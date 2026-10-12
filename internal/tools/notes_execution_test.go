@@ -1,11 +1,13 @@
 package tools
 
 import (
-	"aurago/internal/sandbox"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"aurago/internal/sandbox"
 )
 
 func TestShellWithNotesAndDisabledIsolation(t *testing.T) {
@@ -25,7 +27,7 @@ func TestShellWithNotesAndDisabledIsolation(t *testing.T) {
 	})
 	perms := RuntimePermissions{AllowShell: true, AllowUnsafeHostExecution: true, AllowFilesystemWrite: true, ProtectedNotesRoots: []string{notes}}
 	ConfigureRuntimePermissions(perms)
-	out, stderr, err := ExecuteShell("echo notes-policy-ok", workspace)
+	out, stderr, err := ExecuteShell(context.Background(), "echo notes-policy-ok", workspace)
 	if err != nil || !strings.Contains(out, "notes-policy-ok") {
 		t.Fatalf("permitted shell failed: stdout=%q stderr=%q err=%v", out, stderr, err)
 	}
@@ -34,7 +36,7 @@ func TestShellWithNotesAndDisabledIsolation(t *testing.T) {
 	}
 	perms.AllowShell = false
 	ConfigureRuntimePermissions(perms)
-	if _, _, err := ExecuteShell("echo must-not-run", workspace); err == nil {
+	if _, _, err := ExecuteShell(context.Background(), "echo must-not-run", workspace); err == nil {
 		t.Fatal("disabled shell permission was bypassed")
 	}
 }
