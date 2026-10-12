@@ -523,7 +523,8 @@
     // uploadAsset saves pending layout edits first (the upload bumps the layout version) and refuses
     // with the save error when they cannot be saved. The new layout replaces the store only while
     // nothing is unsaved: edits made during the upload stay and meet the new version through the
-    // If-Match conflict choice, like a project_changed from elsewhere.
+    // If-Match conflict choice, like a project_changed from elsewhere. An answer older than the
+    // window's version (a save, e.g. an Overwrite, landed while it was on the way) is dropped.
     async function uploadAsset(inst, file) {
         const seq = inst.projectSeq;
         const id = inst.projectId;
@@ -531,6 +532,7 @@
         const res = await P.api.uploadAsset(id, file);
         const payload = await P.api.getLayout(id);
         if (!isCurrent(inst, seq) || !layoutIdle(inst)) return res.asset;
+        if (Number(payload.version) < inst.layoutVersion) return res.asset;
         inst.layoutVersion = Number(payload.version) || inst.layoutVersion;
         inst.layoutSnapshot = P.util.deepFreeze(P.util.deepClone(payload.project));
         if (inst.layoutStore) inst.layoutStore.replace(payload.project, { resetHistory: false });

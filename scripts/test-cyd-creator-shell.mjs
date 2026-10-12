@@ -1782,6 +1782,27 @@ const appT = P.i18n({});
     b.find('ccDialogAction', 'keep').click();
     await saving;
     b.dispose();
+    // The layout answer of the upload is on the way (taken at version 4) while an edit meets the
+    // conflict and is overwritten (version 5): the older answer must not reset the window to 4.
+    const c = await makeApp({ projectId: 'ccp_1' });
+    const backendLayout = P.api.getLayout;
+    let releaseLayout;
+    P.api.getLayout = id => backendLayout(id).then(answer => new Promise(resolve => { releaseLayout = () => resolve(answer); }));
+    const late = c.inst.uploadAsset({ name: 'sun.png' });
+    await settle();
+    P.api.getLayout = backendLayout;
+    c.inst.layoutSaver.change(portrait());
+    const overwriting = c.inst.flushAll();
+    await settle();
+    c.find('ccDialogAction', 'overwrite').click();
+    const overwritten = await overwriting;
+    releaseLayout();
+    await late;
+    eq('an Overwrite while the upload\'s layout answer is on the way keeps the newer version',
+        [overwritten, c.inst.layoutVersion, c.inst.layoutSaver.token(), c.be.version(), c.inst.layout().project.orientation], [true, 5, 5, 5, 'portrait']);
+    c.inst.layoutSaver.change(Object.assign(portrait(), { name: 'Next' }));
+    eq('the next edit saves on that version without a conflict', [await c.inst.flushAll(), !!c.find('ccDialogAction', 'overwrite')], [true, false]);
+    c.dispose();
 }
 {
     // A failed code save that blocks an agent job explains itself with its own error.
