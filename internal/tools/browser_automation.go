@@ -28,12 +28,16 @@ import (
 )
 
 const (
-	browserAutomationContainerName = "aurago_browser_automation"
-	browserAutomationImage         = "aurago-browser-automation:latest"
-	browserAutomationContainerPort = 7331
-	browserAutomationWorkspaceDir  = "/workspace"
-	browserAutomationDownloadsDir  = "/downloads"
-	browserAutomationLoopbackProxy = "http://127.0.0.1:7332"
+	browserAutomationContainerName    = "aurago_browser_automation"
+	browserAutomationImage            = "aurago-browser-automation:latest"
+	browserAutomationContainerPort    = 7331
+	browserAutomationWorkspaceDir     = "/workspace"
+	browserAutomationDownloadsDir     = "/downloads"
+	browserAutomationLoopbackProxy    = "http://127.0.0.1:7332"
+	browserAutomationEgressProxy      = "http://browser-egress:7332"
+	browserAutomationEgressContainer  = "browser-egress"
+	browserAutomationEgressImage      = "aurago-browser-egress:latest"
+	browserAutomationEgressDockerfile = "Dockerfile.browser_egress"
 )
 
 type BrowserAutomationRequest struct {
@@ -530,8 +534,8 @@ func BrowserAutomationHealth(ctx context.Context, cfg *config.Config) map[string
 	if result["policy_version"] != "egress-v1" || result["egress_isolated"] != true {
 		return map[string]interface{}{"status": "error", "message": "sidecar does not attest the required egress policy"}
 	}
-	if proxyAddr, present := result["proxy_addr"]; present && proxyAddr != strings.TrimPrefix(browserAutomationLoopbackProxy, "http://") {
-		return map[string]interface{}{"status": "error", "message": "sidecar egress proxy is not the loopback filter"}
+	if proxyAddr, present := result["proxy_addr"]; present && !browserAutomationKnownProxy(proxyAddr) {
+		return map[string]interface{}{"status": "error", "message": "sidecar egress proxy is not the filtering egress proxy"}
 	}
 	return result
 }
@@ -703,7 +707,7 @@ func ExecuteBrowserAutomation(ctx context.Context, cfg *config.Config, req Brows
 	if strings.TrimSpace(cfg.BrowserAutomation.CloakProxy) != "" {
 		return browserAutomationJSON(map[string]interface{}{
 			"status": "error", "operation": op,
-			"message": "browser_automation.cloak_proxy must be empty; the sidecar runs its own loopback filter",
+			"message": "browser_automation.cloak_proxy must be empty; Chromium uses the egress proxy",
 		})
 	}
 
@@ -816,10 +820,10 @@ func browserAutomationContainerMatches(info map[string]interface{}, sidecarCfg B
 	host, _ := info["HostConfig"].(map[string]interface{})
 	outbound := strings.TrimSpace(sidecarCfg.OutboundNetwork)
 	egress := strings.TrimSpace(sidecarCfg.EgressNetwork)
-	if configMap["Image"] != sidecarCfg.Image || host["NetworkMode"] != outbound {
+	if configMap["Image"] != sidecarCfg.Image || host["NetworkMode"] != egress {
 		return false
 	}
-	if !browserAutomationHasNetworks(info, outbound, egress) {
+	if !browserAutomationHasNetworks(info, egress) || browserAutomationHasNetworks(info, outbound) {
 		return false
 	}
 	env := map[string]string{}
@@ -833,7 +837,7 @@ func browserAutomationContainerMatches(info map[string]interface{}, sidecarCfg B
 		}
 	}
 	if env["AURAGO_BROWSER_EGRESS_ISOLATED"] != "true" ||
-		env["AURAGO_BROWSER_EGRESS_PROXY"] != browserAutomationLoopbackProxy ||
+		env["AURAGO_BROWSER_EGRESS_PROXY"] != browserAutomationEgressProxy ||
 		env["AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS"] != browserAutomationPrivateOriginsValue(sidecarCfg.AllowedPrivateOrigins) ||
 		env["AURAGO_BROWSER_AUTOMATION_TOKEN"] != sidecarCfg.AuthToken ||
 		env["READ_ONLY"] != strconv.FormatBool(sidecarCfg.ReadOnly) ||
@@ -884,7 +888,7 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 		return
 	}
 	if strings.TrimSpace(sidecarCfg.CloakProxy) != "" {
-		logger.Error("[BrowserAutomation] browser_automation.cloak_proxy must be empty; the sidecar runs its own loopback filter")
+		logger.Error("[BrowserAutomation] browser_automation.cloak_proxy must be empty; Chromium uses the egress proxy")
 		return
 	}
 	if sidecarCfg.AuthToken == "" || sidecarCfg.EgressNetwork == "" {
@@ -900,6 +904,9 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 	outbound := strings.TrimSpace(sidecarCfg.OutboundNetwork)
 	if outbound == "" || outbound == strings.TrimSpace(sidecarCfg.EgressNetwork) || !browserAutomationRoutableNetwork(dockerCfg, outbound) {
 		logger.Error("[BrowserAutomation] Outbound network must be a different Docker network that is not internal", "network", outbound)
+		return
+	}
+	if !ensureBrowserEgressProxy(dockerCfg, sidecarCfg, logger) {
 		return
 	}
 
@@ -989,7 +996,7 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 	}
 	env = append(env,
 		"AURAGO_BROWSER_EGRESS_ISOLATED=true",
-		"AURAGO_BROWSER_EGRESS_PROXY="+browserAutomationLoopbackProxy,
+		"AURAGO_BROWSER_EGRESS_PROXY="+browserAutomationEgressProxy,
 		"AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS="+browserAutomationPrivateOriginsValue(sidecarCfg.AllowedPrivateOrigins),
 	)
 	if sidecarCfg.CloakFingerprintSeed != "" {
@@ -1049,17 +1056,166 @@ func browserAutomationHasNetworks(info map[string]interface{}, names ...string) 
 	return true
 }
 
+func browserAutomationKnownProxy(proxyAddr interface{}) bool {
+	text, _ := proxyAddr.(string)
+	switch text {
+	case strings.TrimPrefix(browserAutomationLoopbackProxy, "http://"), strings.TrimPrefix(browserAutomationEgressProxy, "http://"):
+		return true
+	default:
+		return false
+	}
+}
+
 func browserAutomationEndpointConfig(sidecarCfg BrowserAutomationSidecarConfig, managedHost string) (string, map[string]interface{}) {
+	egress := strings.TrimSpace(sidecarCfg.EgressNetwork)
+	endpoint := map[string]interface{}{}
+	if !browserAutomationIsLoopbackHost(managedHost) {
+		endpoint["Aliases"] = []string{managedHost}
+	}
+	return egress, map[string]interface{}{
+		egress: endpoint,
+	}
+}
+
+func ensureBrowserEgressProxy(dockerCfg DockerConfig, sidecarCfg BrowserAutomationSidecarConfig, logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}) bool {
+	name := browserAutomationEgressContainer
 	outbound := strings.TrimSpace(sidecarCfg.OutboundNetwork)
 	egress := strings.TrimSpace(sidecarCfg.EgressNetwork)
-	egressEndpoint := map[string]interface{}{}
-	if !browserAutomationIsLoopbackHost(managedHost) {
-		egressEndpoint["Aliases"] = []string{managedHost}
+	data, code, err := dockerRequest(dockerCfg, "GET", "/containers/"+name+"/json", "")
+	if err != nil {
+		logger.Warn("[BrowserAutomation] Docker unavailable while checking the egress proxy", "error", err)
+		return false
 	}
-	return outbound, map[string]interface{}{
-		outbound: map[string]interface{}{},
-		egress:   egressEndpoint,
+	if code == http.StatusOK {
+		var info map[string]interface{}
+		if json.Unmarshal(data, &info) == nil && browserAutomationEgressMatches(info, sidecarCfg) {
+			if state, ok := info["State"].(map[string]interface{}); ok {
+				if running, _ := state["Running"].(bool); running {
+					return true
+				}
+			}
+			_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+name+"/start", "")
+			if startErr != nil || (startCode != http.StatusNoContent && startCode != http.StatusNotModified) {
+				logger.Error("[BrowserAutomation] Failed to start the egress proxy", "code", startCode, "error", startErr)
+				return false
+			}
+			return true
+		}
+		_, _, _ = dockerRequest(dockerCfg, "DELETE", "/containers/"+name+"?force=true", "")
+	} else if code != http.StatusNotFound {
+		logger.Warn("[BrowserAutomation] Unexpected egress inspect response", "code", code)
+		return false
 	}
+	if !ensureBrowserEgressImage(dockerCfg, sidecarCfg, logger) {
+		return false
+	}
+	hostConfig := hardenManagedSidecarHostConfig(map[string]interface{}{
+		"RestartPolicy":  map[string]interface{}{"Name": "unless-stopped"},
+		"ReadonlyRootfs": true,
+		"NetworkMode":    egress,
+	})
+	payload := map[string]interface{}{
+		"Image": browserAutomationEgressImage,
+		"Env": []string{
+			"PORT=7332",
+			"AURAGO_BROWSER_EGRESS_BIND=internal",
+			"AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS=" + browserAutomationPrivateOriginsValue(sidecarCfg.AllowedPrivateOrigins),
+		},
+		"HostConfig": hostConfig,
+		"NetworkingConfig": map[string]interface{}{
+			"EndpointsConfig": map[string]interface{}{egress: map[string]interface{}{}},
+		},
+	}
+	body, _ := json.Marshal(payload)
+	_, createCode, createErr := dockerRequest(dockerCfg, "POST", "/containers/create?name="+url.QueryEscape(name), string(body))
+	if createErr != nil || createCode != http.StatusCreated {
+		logger.Error("[BrowserAutomation] Failed to create the egress proxy", "code", createCode, "error", createErr)
+		return false
+	}
+	if !connectBrowserContainerToNetwork(dockerCfg, outbound, name, logger) {
+		_, _, _ = dockerRequest(dockerCfg, "DELETE", "/containers/"+name+"?force=true", "")
+		return false
+	}
+	_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+name+"/start", "")
+	if startErr != nil || (startCode != http.StatusNoContent && startCode != http.StatusNotModified) {
+		logger.Error("[BrowserAutomation] Failed to start the egress proxy", "code", startCode, "error", startErr)
+		_, _, _ = dockerRequest(dockerCfg, "DELETE", "/containers/"+name+"?force=true", "")
+		return false
+	}
+	logger.Info("[BrowserAutomation] Egress proxy is running", "container", name, "internal", egress, "outbound", outbound)
+	return true
+}
+
+func browserAutomationEgressMatches(info map[string]interface{}, sidecarCfg BrowserAutomationSidecarConfig) bool {
+	configMap, _ := info["Config"].(map[string]interface{})
+	host, _ := info["HostConfig"].(map[string]interface{})
+	egress := strings.TrimSpace(sidecarCfg.EgressNetwork)
+	outbound := strings.TrimSpace(sidecarCfg.OutboundNetwork)
+	if configMap["Image"] != browserAutomationEgressImage || host["NetworkMode"] != egress {
+		return false
+	}
+	if !browserAutomationHasNetworks(info, egress, outbound) {
+		return false
+	}
+	env := map[string]string{}
+	if raw, ok := configMap["Env"].([]interface{}); ok {
+		for _, item := range raw {
+			text, _ := item.(string)
+			key, value, found := strings.Cut(text, "=")
+			if found {
+				env[key] = value
+			}
+		}
+	}
+	return env["AURAGO_BROWSER_EGRESS_BIND"] == "internal" &&
+		env["PORT"] == "7332" &&
+		env["AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS"] == browserAutomationPrivateOriginsValue(sidecarCfg.AllowedPrivateOrigins)
+}
+
+func connectBrowserContainerToNetwork(dockerCfg DockerConfig, network, container string, logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}) bool {
+	body, _ := json.Marshal(map[string]string{"Container": container})
+	_, code, err := dockerRequest(dockerCfg, "POST", "/networks/"+url.PathEscape(network)+"/connect", string(body))
+	if err != nil || (code != http.StatusOK && code != http.StatusNoContent) {
+		logger.Error("[BrowserAutomation] Failed to attach the outbound network after create", "network", network, "code", code, "error", err)
+		return false
+	}
+	return true
+}
+
+func ensureBrowserEgressImage(dockerCfg DockerConfig, sidecarCfg BrowserAutomationSidecarConfig, logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}) bool {
+	_, imgCode, imgErr := dockerRequest(dockerCfg, "GET", "/images/"+browserAutomationEgressImage+"/json", "")
+	if imgErr == nil && imgCode == http.StatusOK {
+		return true
+	}
+	if !sidecarCfg.AutoBuild {
+		logger.Warn("[BrowserAutomation] Egress image not found locally", "image", browserAutomationEgressImage)
+		return false
+	}
+	if err := buildBrowserEgressImage(sidecarCfg.DockerfileDir, dockerCfg.Host, sidecarCfg.RuntimeIsDocker, logger); err != nil {
+		logger.Error("[BrowserAutomation] Egress image build failed", "error", err)
+		return false
+	}
+	return true
+}
+
+func buildBrowserEgressImage(dockerfileDir, dockerHost string, runtimeIsDocker bool, logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}) error {
+	return buildManagedBrowserImage(browserAutomationEgressImage, dockerfileDir, dockerHost, runtimeIsDocker, browserAutomationEgressDockerfile, logger)
 }
 
 func browserAutomationRoutableNetwork(dockerCfg DockerConfig, name string) bool {
@@ -1332,7 +1488,44 @@ func browserAutomationRemoteBuildEndpoint(dockerHost string, runtimeIsDocker boo
 	return !isLoopbackHostname(parsed.Hostname())
 }
 
+func browserAutomationSelectDockerfile(inv *browserAutomationBuildInvocation, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" || name == browserAutomationDockerfileName {
+		return nil
+	}
+	if strings.Contains(name, "..") || strings.ContainsAny(name, `/\`) {
+		return fmt.Errorf("browser automation dockerfile %q must be a file name in the build context", name)
+	}
+	dockerfile := filepath.Join(inv.ContextDir, name)
+	inv.Dockerfile = dockerfile
+	browserAutomationRewriteDockerfileArg(inv.Args, dockerfile)
+	if inv.Fallback != nil {
+		inv.Fallback.Dockerfile = dockerfile
+		sharedArgs := len(inv.Args) > 0 && len(inv.Fallback.Args) > 0 && &inv.Fallback.Args[0] == &inv.Args[0]
+		if !sharedArgs {
+			browserAutomationRewriteDockerfileArg(inv.Fallback.Args, dockerfile)
+		}
+	}
+	return nil
+}
+
+func browserAutomationRewriteDockerfileArg(args []string, dockerfile string) {
+	for i, arg := range args {
+		if arg == "-f" && i+1 < len(args) {
+			args[i+1] = dockerfile
+		}
+	}
+}
+
 func buildBrowserAutomationImage(image, dockerfileDir, dockerHost string, runtimeIsDocker bool, logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}) error {
+	return buildManagedBrowserImage(image, dockerfileDir, dockerHost, runtimeIsDocker, browserAutomationDockerfileName, logger)
+}
+
+func buildManagedBrowserImage(image, dockerfileDir, dockerHost string, runtimeIsDocker bool, dockerfileName string, logger interface {
 	Info(string, ...any)
 	Warn(string, ...any)
 	Error(string, ...any)
@@ -1344,13 +1537,16 @@ func buildBrowserAutomationImage(image, dockerfileDir, dockerHost string, runtim
 	if err != nil {
 		return err
 	}
+	if err := browserAutomationSelectDockerfile(&inv, dockerfileName); err != nil {
+		return err
+	}
 	if err := browserAutomationCheckBuildContext(inv, image); err != nil {
 		return err
 	}
 	if browserAutomationRemoteBuildEndpoint(inv.DockerHost, runtimeIsDocker) {
 		logger.Warn("[BrowserAutomation] Building on a remote Docker engine over plain TCP; the build context is sent unencrypted", "docker_host", inv.DockerHost, "context", inv.ContextDir)
 	}
-	logger.Info("[BrowserAutomation] Building sidecar image (this may take a few minutes)…", "image", image, "context", inv.ContextDir, "docker_host", inv.DockerHost)
+	logger.Info("[BrowserAutomation] Building image (this may take a few minutes)…", "image", image, "context", inv.ContextDir, "docker_host", inv.DockerHost)
 	ctx, cancel := context.WithTimeout(context.Background(), browserAutomationBuildTimeout)
 	defer cancel()
 

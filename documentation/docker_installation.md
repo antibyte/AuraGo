@@ -67,14 +67,15 @@ That's it!
 - Otherwise AuraGo auto-generates a key and stores it in `/app/data/.env` inside the persistent volume.
 - A default config is generated inside the container from the built-in template.
 - The Docker socket proxy (`docker-proxy`) starts automatically and provides safe, filtered access to the host Docker daemon.
-- The Web UI is now available at `https://<your-server-ip>`.
+- The Web UI is now available at `https://<your-server-ip>:8443`.
 
 Open the Web UI to finish setting up your LLM Provider and API keys!
 
 Fresh configs use an automatically generated local certificate on **container
 port 8443**. Verify the certificate and configure browser/device trust if
-needed. Compose publishes **443** by default. If that host port is busy, set
-`AURAGO_HTTPS_PORT=8443` in the Compose `.env` file, then open
+needed. Compose publishes **8443** by default. Set
+`AURAGO_HTTPS_PORT=443` in the Compose `.env` file only when host port 443 is
+free, then open `https://<your-server-ip>`. Otherwise open
 `https://<your-server-ip>:8443`. Compose does not choose a different host port
 automatically.
 

@@ -974,8 +974,11 @@ func (fi *FileIndexer) cleanupDeletedTrackedFiles(dir, collection string, tracke
 			continue
 		}
 		if requireMissing {
-			if _, err := os.Lstat(trackedPath); err == nil {
-				continue
+			info, err := os.Lstat(trackedPath)
+			if err == nil {
+				if !isSymlink(info) {
+					continue
+				}
 			} else if !os.IsNotExist(err) {
 				errors = append(errors, fmt.Sprintf("verify deleted file %s: %v", trackedPath, err))
 				continue

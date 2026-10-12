@@ -148,7 +148,7 @@ func TestProxmoxListVMsEmptyNodeIsSuccess(t *testing.T) {
 func TestProxmoxRequestRejectsNonOriginURL(t *testing.T) {
 	for _, raw := range []string{
 		"https://user:pass@host:8006/extra?x=1#frag",
-		"https://host:8006/extra",
+		"https://host:8006/pve/../api",
 		"https://host:8006?x=1",
 		"https://host:8006#frag",
 	} {
@@ -165,6 +165,30 @@ func TestProxmoxRequestRejectsNonOriginURL(t *testing.T) {
 				t.Fatalf("error leaked credentials: %v", err)
 			}
 		})
+	}
+}
+
+func TestProxmoxRequestKeepsPathPrefix(t *testing.T) {
+	proxmoxClientCache = sync.Map{}
+	var got string
+	server := testutil.NewHTTPSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[]}`))
+	}))
+	defer server.Close()
+
+	_, _, err := proxmoxRequest(context.Background(), ProxmoxConfig{
+		URL:      server.URL + "/pve/",
+		TokenID:  "user@pam!token",
+		Secret:   "secret",
+		Insecure: true,
+	}, "GET", "/nodes", "")
+	if err != nil {
+		t.Fatalf("proxmoxRequest: %v", err)
+	}
+	if got != "/pve/api2/json/nodes" {
+		t.Fatalf("path = %q, want /pve/api2/json/nodes", got)
 	}
 }
 

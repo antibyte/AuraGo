@@ -645,7 +645,7 @@ func TestBrowserAutomationContainerMatchesRequiredSpec(t *testing.T) {
 	}
 	env := []interface{}{
 		"AURAGO_BROWSER_EGRESS_ISOLATED=true",
-		"AURAGO_BROWSER_EGRESS_PROXY=http://127.0.0.1:7332",
+		"AURAGO_BROWSER_EGRESS_PROXY=http://browser-egress:7332",
 		"AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS=" + browserAutomationPrivateOriginsValue(cfg.AllowedPrivateOrigins),
 		"AURAGO_BROWSER_AUTOMATION_TOKEN=token-value",
 		"READ_ONLY=true",
@@ -663,7 +663,7 @@ func TestBrowserAutomationContainerMatchesRequiredSpec(t *testing.T) {
 			"Env":   env,
 		},
 		"HostConfig": map[string]interface{}{
-			"NetworkMode": cfg.OutboundNetwork,
+			"NetworkMode": cfg.EgressNetwork,
 			"Binds": []interface{}{
 				dockerutil.FormatBindMount(cfg.WorkspaceDir, browserAutomationWorkspaceDir),
 				dockerutil.FormatBindMount(cfg.DownloadDir, browserAutomationDownloadsDir),
@@ -671,8 +671,7 @@ func TestBrowserAutomationContainerMatchesRequiredSpec(t *testing.T) {
 		},
 		"NetworkSettings": map[string]interface{}{
 			"Networks": map[string]interface{}{
-				cfg.OutboundNetwork: map[string]interface{}{},
-				cfg.EgressNetwork:   map[string]interface{}{},
+				cfg.EgressNetwork: map[string]interface{}{},
 			},
 		},
 	}
@@ -683,7 +682,7 @@ func TestBrowserAutomationContainerMatchesRequiredSpec(t *testing.T) {
 	if browserAutomationContainerMatches(info, cfg) {
 		t.Fatal("expected drifted proxy to fail the match")
 	}
-	env[1] = "AURAGO_BROWSER_EGRESS_PROXY=http://127.0.0.1:7332"
+	env[1] = "AURAGO_BROWSER_EGRESS_PROXY=http://browser-egress:7332"
 	env[2] = "AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS=[]"
 	if browserAutomationContainerMatches(info, cfg) {
 		t.Fatal("expected a stale private-origin allowlist to fail the match")
@@ -710,11 +709,11 @@ func TestBrowserAutomationEndpointConfigUsesRoutablePrimary(t *testing.T) {
 		EgressNetwork:   "aurago-app",
 		OutboundNetwork: "bridge",
 	}, "browser-automation")
-	if mode != "bridge" {
-		t.Fatalf("network mode = %q, want bridge", mode)
+	if mode != "aurago-app" {
+		t.Fatalf("network mode = %q, want aurago-app", mode)
 	}
-	if _, ok := endpoints["bridge"]; !ok {
-		t.Fatal("outbound network missing from endpoints")
+	if _, ok := endpoints["bridge"]; ok {
+		t.Fatal("sidecar endpoints must not include the outbound network")
 	}
 	egress, _ := endpoints["aurago-app"].(map[string]interface{})
 	aliases, _ := egress["Aliases"].([]string)
@@ -726,8 +725,8 @@ func TestBrowserAutomationEndpointConfigUsesRoutablePrimary(t *testing.T) {
 		EgressNetwork:   "aurago-app",
 		OutboundNetwork: "bridge",
 	}, "127.0.0.1")
-	if loopbackMode != "bridge" {
-		t.Fatalf("loopback network mode = %q, want bridge", loopbackMode)
+	if loopbackMode != "aurago-app" {
+		t.Fatalf("loopback network mode = %q, want aurago-app", loopbackMode)
 	}
 	loopbackEgress, _ := loopbackEndpoints["aurago-app"].(map[string]interface{})
 	if _, ok := loopbackEgress["Aliases"]; ok {
@@ -772,6 +771,20 @@ func TestEnsureBrowserAutomationSidecarLeavesComposeContainer(t *testing.T) {
 			_, _ = w.Write([]byte(`{"Internal":true}`))
 		case r.Method == http.MethodGet && path == "/networks/bridge":
 			_, _ = w.Write([]byte(`{"Internal":false}`))
+		case r.Method == http.MethodGet && path == "/containers/browser-egress/json":
+			_, _ = w.Write([]byte(`{
+				"Config":{
+					"Image":"aurago-browser-egress:latest",
+					"Env":[
+						"PORT=7332",
+						"AURAGO_BROWSER_EGRESS_BIND=internal",
+						"AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS=null"
+					]
+				},
+				"State":{"Running":true},
+				"HostConfig":{"NetworkMode":"aurago-app"},
+				"NetworkSettings":{"Networks":{"aurago-app":{},"bridge":{}}}
+			}`))
 		case r.Method == http.MethodGet && path == "/containers/browser-automation/json":
 			_, _ = w.Write([]byte(`{
 				"Config":{"Labels":{"com.docker.compose.project":"aurago","com.docker.compose.service":"browser-automation"}},
@@ -789,12 +802,12 @@ func TestEnsureBrowserAutomationSidecarLeavesComposeContainer(t *testing.T) {
 		}
 	})
 	EnsureBrowserAutomationSidecarRunning(dockerHost, BrowserAutomationSidecarConfig{
-		URL:              "http://browser-automation:7331",
-		AuthToken:        "token",
-		EgressNetwork:    "aurago-app",
-		OutboundNetwork:  "bridge",
-		Image:            "aurago-browser-automation:latest",
-		RuntimeIsDocker:  true,
+		URL:             "http://browser-automation:7331",
+		AuthToken:       "token",
+		EgressNetwork:   "aurago-app",
+		OutboundNetwork: "bridge",
+		Image:           "aurago-browser-automation:latest",
+		RuntimeIsDocker: true,
 	}, browserAutomationSilentLogger{})
 	if creates != 0 || deletes != 0 {
 		t.Fatalf("creates = %d, deletes = %d, want 0 and 0", creates, deletes)

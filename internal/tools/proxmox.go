@@ -80,10 +80,34 @@ func proxmoxStatusError(err error) string {
 
 func proxmoxBaseURL(raw string) (string, error) {
 	parsed, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || (parsed.Path != "" && parsed.Path != "/") {
+	if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
 		return "", errors.New("invalid proxmox url: only an https origin is supported")
 	}
-	return "https://" + parsed.Host, nil
+	prefix, err := proxmoxPathPrefix(parsed.EscapedPath())
+	if err != nil {
+		return "", err
+	}
+	return "https://" + parsed.Host + prefix, nil
+}
+
+func proxmoxPathPrefix(escaped string) (string, error) {
+	if escaped == "" || escaped == "/" {
+		return "", nil
+	}
+	decoded, err := url.PathUnescape(escaped)
+	if err != nil || strings.Contains(decoded, "\\") || strings.Contains(decoded, "//") {
+		return "", errors.New("invalid proxmox url: only an https origin is supported")
+	}
+	decoded = strings.TrimRight(decoded, "/")
+	if !strings.HasPrefix(decoded, "/") {
+		return "", errors.New("invalid proxmox url: only an https origin is supported")
+	}
+	for _, segment := range strings.Split(strings.Trim(decoded, "/"), "/") {
+		if segment == "" || segment == "." || segment == ".." {
+			return "", errors.New("invalid proxmox url: only an https origin is supported")
+		}
+	}
+	return decoded, nil
 }
 
 // proxmoxJSONStr produces a JSON-safe quoted string (unlike %q which uses Go escaping).

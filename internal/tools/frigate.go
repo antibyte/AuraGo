@@ -88,18 +88,29 @@ type FrigateMediaStoreResult struct {
 
 var frigateClientCache sync.Map
 
+const frigateJSONTimeout = 30 * time.Second
+const frigateMediaTimeout = 5 * time.Minute
+
 func getFrigateClient(cfg FrigateConfig) *http.Client {
+	return frigateHTTPClient(cfg, frigateJSONTimeout, "json")
+}
+
+func getFrigateMediaClient(cfg FrigateConfig) *http.Client {
+	return frigateHTTPClient(cfg, frigateMediaTimeout, "media")
+}
+
+func frigateHTTPClient(cfg FrigateConfig, timeout time.Duration, kind string) *http.Client {
 	baseURL, err := frigateBaseURL(cfg)
 	if err != nil {
 		baseURL = strings.TrimRight(strings.TrimSpace(cfg.URL), "/")
 	}
-	cacheKey := baseURL + "|" + strconv.FormatBool(cfg.Insecure)
+	cacheKey := baseURL + "|" + strconv.FormatBool(cfg.Insecure) + "|" + kind
 	if cached, ok := frigateClientCache.Load(cacheKey); ok {
 		return cached.(*http.Client)
 	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12, InsecureSkipVerify: cfg.Insecure}
-	client := &http.Client{Timeout: 30 * time.Second, Transport: transport, CheckRedirect: security.SameOriginRedirect}
+	client := &http.Client{Timeout: timeout, Transport: transport, CheckRedirect: security.SameOriginRedirect}
 	actual, _ := frigateClientCache.LoadOrStore(cacheKey, client)
 	return actual.(*http.Client)
 }
@@ -530,7 +541,7 @@ func frigateOpen(ctx context.Context, cfg FrigateConfig, path string) (*http.Res
 		if err := ctx.Err(); err != nil {
 			return nil, nil, err
 		}
-		attemptCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		attemptCtx, cancel := context.WithTimeout(ctx, frigateMediaTimeout)
 		req, err := http.NewRequestWithContext(attemptCtx, http.MethodGet, baseURL+path, nil)
 		if err != nil {
 			cancel()
@@ -539,7 +550,7 @@ func frigateOpen(ctx context.Context, cfg FrigateConfig, path string) (*http.Res
 		if cfg.APIToken != "" && !cfg.InternalPort {
 			req.Header.Set("Authorization", "Bearer "+cfg.APIToken)
 		}
-		resp, err := getFrigateClient(cfg).Do(req)
+		resp, err := getFrigateMediaClient(cfg).Do(req)
 		if err != nil {
 			cancel()
 			lastErr = fmt.Errorf("request failed: %w", err)

@@ -992,7 +992,7 @@ browser_automation:
     screenshots_dir: browser_screenshots
     cloak_humanize: false                                  # simulate human-like mouse, keyboard and scroll behavior
     cloak_human_preset: default                            # behavior preset: default (normal) or careful (slower)
-    cloak_proxy: ""                                        # must stay empty; the sidecar listens on 127.0.0.1:7332
+    cloak_proxy: ""                                        # must stay empty; Chromium uses the egress proxy
     egress_network: aurago-app                             # existing Docker network; must have internal: true
     outbound_network: bridge                               # different Docker network with a route out; must not be internal
     allowed_private_origins: []                            # exact home-lab origins allowed by browser policy

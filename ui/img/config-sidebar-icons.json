@@ -2,7 +2,7 @@
   "asset": "ui/img/config-sidebar-icons.svg",
   "grid": {
     "columns": 11,
-    "rows": 11,
+    "rows": 12,
     "cell_size": 128
   },
   "icons": [
@@ -971,6 +971,22 @@
       "slot": 120,
       "column": 10,
       "row": 10,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "gog",
+      "slot": 121,
+      "column": 0,
+      "row": 11,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "ruview",
+      "slot": 122,
+      "column": 1,
+      "row": 11,
       "source_type": "custom",
       "source": "AuraGo custom Precision sidebar icon set"
     }

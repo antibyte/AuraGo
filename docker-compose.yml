@@ -20,10 +20,11 @@ services:
     container_name: aurago
 
     # --- Port mapping ---
-    # Fresh installs use HTTPS. Set AURAGO_HTTPS_PORT=8443 if host port 443 is busy.
+    # Fresh installs use HTTPS. The published host port defaults to 8443.
+    # Set AURAGO_HTTPS_PORT=443 only when that host port is free.
     # The HTTP mapping preserves existing installations; fresh HTTPS binds HTTP only on loopback.
     ports:
-      - "${AURAGO_HTTPS_PORT:-443}:8443"
+      - "${AURAGO_HTTPS_PORT:-8443}:8443"
       - "8088:8088"
       # Optional native SIP exposure. Publish the selected signaling transport
       # and the complete configured UDP RTP range; native host operation remains
@@ -222,8 +223,8 @@ services:
   # Notes:
   #   - The browser session workspace is shared with AuraGo via the aurago_workdir volume.
   #   - Downloads are stored under /app/agent_workspace/workdir/browser_downloads inside AuraGo.
-  #   - The sidecar starts its own filter on 127.0.0.1:7332. aurago-app stays internal.
-  #     The default network is the route out. Chromium still uses the loopback filter.
+  #   - The sidecar stays on the internal aurago-app network. browser-egress has
+  #     the route out and accepts proxy clients only from that internal subnet.
   # ============================================================================
   browser-automation:
     profiles: ["browser-automation"]
@@ -233,6 +234,9 @@ services:
     image: aurago-browser-automation:latest
     container_name: browser-automation
     restart: unless-stopped
+    depends_on:
+      browser-egress:
+        condition: service_healthy
     environment:
       - PORT=7331
       - WORKSPACE_ROOT=/workspace
@@ -244,8 +248,9 @@ services:
       # Required by default for manually started sidecars. Set a strong random token.
       # Managed AuraGo sidecars receive their token automatically from the backend.
       - AURAGO_BROWSER_AUTOMATION_TOKEN=${AURAGO_BROWSER_AUTOMATION_TOKEN:-}
-      # The sidecar starts its own filter. An operator proxy URL is not read.
+      # Chromium uses the egress container. An operator proxy URL is not read.
       - AURAGO_BROWSER_EGRESS_ISOLATED=true
+      - AURAGO_BROWSER_EGRESS_PROXY=http://browser-egress:7332
       - AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS=${AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS:-[]}
       - SESSION_TTL_MINUTES=30
       - MAX_SESSIONS=3
@@ -255,7 +260,6 @@ services:
       - aurago_workdir:/workspace
     networks:
       - aurago-app
-      - default
     ports:
       - "127.0.0.1:7331:7331"
     shm_size: '512m'
@@ -269,6 +273,39 @@ services:
       timeout: 10s
       retries: 5
       start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  browser-egress:
+    profiles: ["browser-automation"]
+    build:
+      context: .
+      dockerfile: Dockerfile.browser_egress
+    image: aurago-browser-egress:latest
+    container_name: browser-egress
+    restart: unless-stopped
+    environment:
+      - PORT=7332
+      - AURAGO_BROWSER_EGRESS_BIND=internal
+      - AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS=${AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS:-[]}
+    networks:
+      - aurago-app
+      - default
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "node", "-e", "const fs=require('fs');const os=require('os');const {internalInterface}=require('/app/egress_proxy.js');const bind=internalInterface(fs.readFileSync('/proc/net/route','utf8'),os.networkInterfaces());fetch('http://'+bind.address+':7332/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
     logging:
       driver: json-file
       options:

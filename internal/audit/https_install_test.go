@@ -47,7 +47,7 @@ func TestDockerFreshHTTPSAndHealthcheck(t *testing.T) {
 			t.Fatalf("fresh Docker path missing %s", want)
 		}
 	}
-	if !strings.Contains(readRepoFile(t, "docker-compose.yml"), `${AURAGO_HTTPS_PORT:-443}:8443`) {
+	if !strings.Contains(readRepoFile(t, "docker-compose.yml"), `${AURAGO_HTTPS_PORT:-8443}:8443`) {
 		t.Fatal("Compose HTTPS mapping missing")
 	}
 	dockerfile := readRepoFile(t, "Dockerfile")

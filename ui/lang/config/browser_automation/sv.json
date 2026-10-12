@@ -22,13 +22,13 @@
   "config.browser_automation.cloak_human_preset_label": "Beteendepreset",
   "help.browser_automation.cloak_human_preset": "Simuleringshastighet: 'default' (normal) eller 'careful' (långsammare, mer försiktig).",
   "config.browser_automation.cloak_proxy_label": "Proxy-URL",
-  "help.browser_automation.cloak_proxy": "Lämna det här tomt. Sidecaren startar sitt eget filter på 127.0.0.1. En URL här ersätter inte det filtret och blockerar starten.",
+  "help.browser_automation.cloak_proxy": "Lämna det här tomt. Chromium använder den separata egress-proxyn. En URL här blockerar starten.",
   "config.browser_automation.cloak_fingerprint_seed_label": "Fingeravtrycks-seed",
   "help.browser_automation.cloak_fingerprint_seed": "Fast seed för deterministiskt webbläsarfingeravtryck. Användbart för konsekvent identitet över sessioner.",
   "config.browser_automation.egress_network_label": "Isolerat Docker-nätverk",
   "help.browser_automation.egress_network": "Internt Docker-nätverk för webbläsaren; tjänsten startar inte utan det.",
   "config.browser_automation.outbound_network_label": "Utgående Docker-nätverk",
-  "help.browser_automation.outbound_network": "Docker-nätverk med en väg till internet. Sidecaren ansluter till det utöver det isolerade nätverket så att filtret kan öppna anslutningar. Webbläsaren använder fortfarande filtret på 127.0.0.1.",
+  "help.browser_automation.outbound_network": "Docker-nätverk med en väg till internet. Bara egress-proxyn ansluter till det. Webbläsaren stannar på det isolerade nätverket.",
   "config.browser_automation.private_origins_label": "Tillåtna privata ursprung",
   "help.browser_automation.private_origins": "Ett exakt HTTP(S)- eller WS(S)-ursprung per rad. Ange samma lista i proxyn."
 }

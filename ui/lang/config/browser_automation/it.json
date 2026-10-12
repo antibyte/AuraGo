@@ -22,13 +22,13 @@
   "config.browser_automation.cloak_human_preset_label": "Preset comportamento",
   "help.browser_automation.cloak_human_preset": "Velocità simulazione: 'default' (normale) o 'careful' (più lenta, più deliberata).",
   "config.browser_automation.cloak_proxy_label": "URL proxy",
-  "help.browser_automation.cloak_proxy": "Lascialo vuoto. Il sidecar avvia il proprio filtro su 127.0.0.1. Un URL qui non sostituisce quel filtro e blocca l'avvio.",
+  "help.browser_automation.cloak_proxy": "Lascialo vuoto. Chromium usa il proxy di uscita separato. Un URL qui blocca l'avvio.",
   "config.browser_automation.cloak_fingerprint_seed_label": "Seed fingerprint",
   "help.browser_automation.cloak_fingerprint_seed": "Seed fisso per fingerprint del browser deterministico. Utile per identità coerente tra le sessioni.",
   "config.browser_automation.egress_network_label": "Rete Docker isolata",
   "help.browser_automation.egress_network": "Rete Docker interna per il browser; senza di essa il servizio non si avvia.",
   "config.browser_automation.outbound_network_label": "Rete Docker in uscita",
-  "help.browser_automation.outbound_network": "Rete Docker con un percorso verso Internet. Il sidecar vi si collega oltre alla rete isolata, così il suo filtro può aprire connessioni. Il browser continua a usare il filtro su 127.0.0.1.",
+  "help.browser_automation.outbound_network": "Rete Docker con un percorso verso Internet. Vi si collega solo il proxy di uscita. Il browser resta sulla rete isolata.",
   "config.browser_automation.private_origins_label": "Origini private consentite",
   "help.browser_automation.private_origins": "Un’origine HTTP(S) o WS(S) esatta per riga. Imposta lo stesso elenco nel proxy."
 }

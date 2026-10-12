@@ -22,13 +22,13 @@
   "config.browser_automation.cloak_human_preset_label": "動作プリセット",
   "help.browser_automation.cloak_human_preset": "シミュレーション速度: 'default' (通常) または 'careful' (遅く、慎重)。",
   "config.browser_automation.cloak_proxy_label": "プロキシURL",
-  "help.browser_automation.cloak_proxy": "空のままにしてください。サイドカーは 127.0.0.1 で独自のフィルタを起動します。ここに URL を入れると、そのフィルタの代わりにはならず、起動がブロックされます。",
+  "help.browser_automation.cloak_proxy": "空のままにしてください。Chromium は別の egress プロキシを使います。ここに URL を入れると起動がブロックされます。",
   "config.browser_automation.cloak_fingerprint_seed_label": "フィンガープリントシード",
   "help.browser_automation.cloak_fingerprint_seed": "決定論的ブラウザフィンガープリントの固定シード。セッション間で一貫した識別に役立ちます。",
   "config.browser_automation.egress_network_label": "隔離された Docker ネットワーク",
   "help.browser_automation.egress_network": "ブラウザ用の内部 Docker ネットワークです。設定しないとサービスは起動しません。",
   "config.browser_automation.outbound_network_label": "外向きの Docker ネットワーク",
-  "help.browser_automation.outbound_network": "インターネットへの経路を持つ Docker ネットワークです。サイドカーは隔離ネットワークに加えてこのネットワークにも参加し、フィルタが接続できるようにします。ブラウザは引き続き 127.0.0.1 のフィルタを使います。",
+  "help.browser_automation.outbound_network": "インターネットへの経路を持つ Docker ネットワークです。egress プロキシだけが参加します。ブラウザは隔離ネットワークに残ります。",
   "config.browser_automation.private_origins_label": "許可するプライベートオリジン",
   "help.browser_automation.private_origins": "正確な HTTP(S) または WS(S) オリジンを1行に1つ入力します。プロキシにも同じ一覧を設定します。"
 }

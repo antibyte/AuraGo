@@ -14,7 +14,7 @@ it in your browser/device. Self-signed HTTPS does not establish public trust;
 install a trusted certificate or use a trusted HTTPS proxy when appropriate.
 
 Docker uses internal port 8443 for newly generated configs. Compose publishes
-host port 443; `AURAGO_HTTPS_PORT=8443` selects host port 8443. Existing and
+host port 8443; `AURAGO_HTTPS_PORT=443` selects host port 443 when it is free. Existing and
 user-supplied configs are preserved. Match your published ports to any custom
 internal listener. Healthchecks use `aurago --healthcheck`, which checks the
 configured HTTPS or HTTP listener (including HTTP Egg deployments). Internal

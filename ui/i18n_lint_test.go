@@ -460,6 +460,7 @@ func TestFrontend_StaticI18nKeysExistInEnglishBundle(t *testing.T) {
 		"js/desktop/apps/personal-radio.js":          "personalRadio.",
 		"js/desktop/apps/personal-radio-settings.js": "personalRadio.",
 		"js/desktop/apps/rtl-sdr.js":                 "rtlSdr.",
+		"js/desktop/apps/ruview.js":                  "ruview.",
 	}
 	referenced := make(map[string][]string)
 

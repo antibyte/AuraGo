@@ -22,13 +22,13 @@
   "config.browser_automation.cloak_human_preset_label": "Behavior preset",
   "help.browser_automation.cloak_human_preset": "Simulation speed: 'default' (normal) or 'careful' (slower, more deliberate).",
   "config.browser_automation.cloak_proxy_label": "Proxy URL",
-  "help.browser_automation.cloak_proxy": "Leave this empty. The sidecar starts its own filter on 127.0.0.1. A URL here does not replace that filter and blocks startup.",
+  "help.browser_automation.cloak_proxy": "Leave this empty. Chromium uses the separate egress proxy. A URL here blocks startup.",
   "config.browser_automation.cloak_fingerprint_seed_label": "Fingerprint seed",
   "help.browser_automation.cloak_fingerprint_seed": "Fixed seed for deterministic browser fingerprint. Useful for consistent identity across sessions.",
   "config.browser_automation.egress_network_label": "Isolated Docker network",
   "help.browser_automation.egress_network": "Internal Docker network for the browser; the service will not start without it.",
   "config.browser_automation.outbound_network_label": "Outbound Docker network",
-  "help.browser_automation.outbound_network": "Docker network with a route to the internet. The sidecar joins it in addition to the isolated network so its filter can connect. The browser still uses the filter on 127.0.0.1.",
+  "help.browser_automation.outbound_network": "Docker network with a route to the internet. Only the egress proxy joins it. The browser stays on the isolated network.",
   "config.browser_automation.private_origins_label": "Allowed private origins",
   "help.browser_automation.private_origins": "One exact HTTP(S) or WS(S) origin per line. Configure the same list in the proxy."
 }

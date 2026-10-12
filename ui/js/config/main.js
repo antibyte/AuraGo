@@ -566,7 +566,7 @@ function scrollActiveSidebarItemIntoView(behavior = 'smooth', delay = 0) {
     requestAnimationFrame(scrollFn);
 }
 
-const CONFIG_SIDEBAR_ICON_GRID = Object.freeze({ columns: 11, rows: 11, cell: 128 });
+const CONFIG_SIDEBAR_ICON_GRID = Object.freeze({ columns: 11, rows: 12, cell: 128 });
 const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
     overview: 0,
     agent: 1,
@@ -689,11 +689,15 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
     danger_zone: 101,
     manus: 102,
     realtime_speech: 103,
+    gog: 121,
+    ruview: 122,
 });
 
 const CONFIG_SIDEBAR_ICON_SYMBOL_PREFIX = 'config-sidebar-icon-';
 const CONFIG_SIDEBAR_ICON_SYMBOLS = Object.freeze({
     treg: '<rect x="27" y="25" width="74" height="78" rx="10" fill="none" stroke="#35c7d3" stroke-width="6"/><path d="M43 46h42M43 64h42M43 82h26" fill="none" stroke="#7da3c8" stroke-width="6" stroke-linecap="round"/>',
+    gog: '<rect x="22" y="28" width="52" height="40" rx="8" fill="#4285f4" opacity=".2"/><rect x="40" y="46" width="52" height="40" rx="8" fill="#34a853" opacity=".25"/><path d="M22 28h52v40H22zM40 46h52v40H40z" fill="none" stroke="#4285f4" stroke-width="6" stroke-linejoin="round"/><circle cx="66" cy="66" r="7" fill="#f6cf58"/>',
+    ruview: '<path d="M28 78a36 36 0 0 1 72 0M40 78a24 24 0 0 1 48 0M52 78a12 12 0 0 1 24 0" fill="none" stroke="#35c7d3" stroke-width="6" stroke-linecap="round"/><circle cx="64" cy="78" r="6" fill="#6fca8f"/><path d="M64 84v16M52 92l12-8 12 8" fill="none" stroke="#7da3c8" stroke-width="6" stroke-linecap="round"/>',
     llm_router: '<path d="M32 64h25V34h32M57 64h32M57 64v30h32" fill="none" stroke="#35c7d3" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><rect x="18" y="51" width="26" height="26" rx="6" fill="#7da3c8"/><circle cx="94" cy="34" r="11" fill="#6fca8f"/><circle cx="94" cy="64" r="11" fill="#35c7d3"/><circle cx="94" cy="94" r="11" fill="#4f8ee8"/>',
     local_wikipedia: '<path d="M24 36c14-7 28-7 40 3v60c-12-9-26-9-40-3z" fill="#7da3c8" opacity=".2"/><path d="M104 36c-14-7-28-7-40 3v60c12-9 26-9 40-3z" fill="#35c7d3" opacity=".2"/><path d="M24 36c14-7 28-7 40 3 12-10 26-10 40-3v60c-14-6-28-6-40 3-12-9-26-9-40-3zM64 39v60" fill="none" stroke="#7da3c8" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><path d="M33 54l5 18 5-13 5 13 5-18" fill="none" stroke="#35c7d3" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>',
     flows: '<rect x="16" y="26" width="34" height="24" rx="6" fill="#7da3c8"/><rect x="16" y="78" width="34" height="24" rx="6" fill="#6fca8f"/><rect x="78" y="52" width="34" height="24" rx="6" fill="#35c7d3"/><path d="M50 38c18 0 12 26 28 26M50 90c18 0 12-26 28-26" fill="none" stroke="#4f8ee8" stroke-width="6" stroke-linecap="round"/>',

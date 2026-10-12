@@ -265,7 +265,7 @@ An MCP server with network access rejects private destination addresses unless t
 
 ### Browser automation with egress sidecar
 
-Browser automation requires a nonempty sidecar token and an attested sidecar (`egress-v1`). The managed sidecar joins a Docker-internal network and a second network that is not internal. Its own filter listens on `127.0.0.1:7332`, and Chromium uses that filter. A browser that ignores the proxy can dial through the outbound network. `cloak_proxy` stays empty. Navigation, resources, and WebSockets follow the same egress policy.
+Browser automation requires a nonempty sidecar token and an attested sidecar (`egress-v1`). The managed sidecar joins only a Docker-internal network. A separate `browser-egress` container joins that network and the outbound network, accepts proxy clients only from the internal subnet, and carries the route out. Chromium uses `http://browser-egress:7332` and disables non-proxied WebRTC UDP. `cloak_proxy` stays empty. Navigation, resources, and WebSockets follow the same egress policy.
 
 ```yaml
 browser_automation:
@@ -275,7 +275,7 @@ browser_automation:
   allowed_private_origins: []      # exact home-lab origin URLs allowed by the policy
 ```
 
-An older Compose profile started a separate `browser-egress` container. Current releases do not start it. If `docker ps -a --filter name=browser-egress` still shows that container, remove it with `docker rm -f` on that container name. The sidecar now runs the filter itself.
+Compose profile `browser-automation` starts `browser-egress` beside the sidecar. The sidecar has no route of its own.
 
 ### Host execution without isolation
 

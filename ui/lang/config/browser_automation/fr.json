@@ -22,13 +22,13 @@
   "config.browser_automation.cloak_human_preset_label": "Préréglage de comportement",
   "help.browser_automation.cloak_human_preset": "Vitesse de simulation : 'default' (normal) ou 'careful' (plus lent, plus délibéré).",
   "config.browser_automation.cloak_proxy_label": "URL du proxy",
-  "help.browser_automation.cloak_proxy": "Laisse ce champ vide. Le sidecar démarre son propre filtre sur 127.0.0.1. Une URL ici ne remplace pas ce filtre et bloque le démarrage.",
+  "help.browser_automation.cloak_proxy": "Laisse ce champ vide. Chromium utilise le proxy de sortie séparé. Une URL ici bloque le démarrage.",
   "config.browser_automation.cloak_fingerprint_seed_label": "Graine d'empreinte",
   "help.browser_automation.cloak_fingerprint_seed": "Graine fixe pour l'empreinte du navigateur déterministe. Utile pour une identité cohérente entre les sessions.",
   "config.browser_automation.egress_network_label": "Réseau Docker isolé",
   "help.browser_automation.egress_network": "Réseau Docker interne du navigateur ; le service ne démarre pas sans lui.",
   "config.browser_automation.outbound_network_label": "Réseau Docker sortant",
-  "help.browser_automation.outbound_network": "Réseau Docker avec une route vers Internet. Le sidecar s'y joint en plus du réseau isolé pour que son filtre puisse se connecter. Le navigateur continue d'utiliser le filtre sur 127.0.0.1.",
+  "help.browser_automation.outbound_network": "Réseau Docker avec une route vers Internet. Seul le proxy de sortie s'y joint. Le navigateur reste sur le réseau isolé.",
   "config.browser_automation.private_origins_label": "Origines privées autorisées",
   "help.browser_automation.private_origins": "Une origine HTTP(S) ou WS(S) exacte par ligne. Configurez la même liste dans le proxy."
 }

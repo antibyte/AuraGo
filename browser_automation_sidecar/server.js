@@ -17,6 +17,9 @@ const READ_ONLY = process.env.READ_ONLY === 'true';
 const RAW_SIDECAR_TOKEN = String(process.env.AURAGO_BROWSER_AUTOMATION_TOKEN || '').trim();
 const EGRESS_ISOLATED = process.env.AURAGO_BROWSER_EGRESS_ISOLATED === 'true';
 const LOCAL_EGRESS_PROXY = 'http://127.0.0.1:7332';
+const REMOTE_EGRESS_PROXY = 'http://browser-egress:7332';
+const REQUESTED_EGRESS_PROXY = String(process.env.AURAGO_BROWSER_EGRESS_PROXY || '').trim().replace(/\/$/, '');
+const CLOAK_PROXY = REQUESTED_EGRESS_PROXY === REMOTE_EGRESS_PROXY ? REMOTE_EGRESS_PROXY : LOCAL_EGRESS_PROXY;
 const ALLOWED_PRIVATE_ORIGINS = parseAllowedOrigins(process.env.AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS || '[]');
 const PLACEHOLDER_TOKENS = new Set([
   'change_me_please',
@@ -48,7 +51,6 @@ const FILE_RETENTION_MS = Math.max(SESSION_TTL_MS, parseInt(process.env.FILE_RET
 const SCREENSHOTS_ROOT = process.env.SCREENSHOTS_ROOT || path.join(WORKSPACE_ROOT, 'browser_screenshots');
 const CLOAK_HUMANIZE = process.env.CLOAK_HUMANIZE === 'true';
 const CLOAK_HUMAN_PRESET = String(process.env.CLOAK_HUMAN_PRESET || 'default').trim();
-const CLOAK_PROXY = LOCAL_EGRESS_PROXY;
 const CLOAK_FINGERPRINT_SEED = String(process.env.CLOAK_FINGERPRINT_SEED || '').trim();
 
 if (!SIDECAR_TOKEN) {
@@ -61,7 +63,7 @@ if (!EGRESS_ISOLATED) {
 }
 
 async function verifyEgressProxy() {
-  const response = await fetch(LOCAL_EGRESS_PROXY + '/health', { signal: AbortSignal.timeout(5000) });
+  const response = await fetch(CLOAK_PROXY + '/health', { signal: AbortSignal.timeout(5000) });
   if (!response.ok) throw new Error('filtering egress proxy is unavailable');
   const status = await response.json();
   if (status.policy_version !== 'egress-v1' || status.dns_pinned !== true) {
@@ -219,8 +221,9 @@ async function getBrowser() {
     if (CLOAK_PROXY) {
       launchOptions.proxy = CLOAK_PROXY;
     }
+    launchOptions.args = ['--force-webrtc-ip-handling-policy=disable_non_proxied_udp'];
     if (CLOAK_FINGERPRINT_SEED) {
-      launchOptions.args = [`--fingerprint=${CLOAK_FINGERPRINT_SEED}`];
+      launchOptions.args.push(`--fingerprint=${CLOAK_FINGERPRINT_SEED}`);
     }
     browserPromise = loadCloakBrowser()
       .then(({ launch }) => launch(launchOptions))
@@ -650,7 +653,7 @@ const server = http.createServer({ requestTimeout: HTTP_TIMEOUT_MS }, async (req
           browser_version: version
           ,policy_version: 'egress-v1'
           ,egress_isolated: EGRESS_ISOLATED
-          ,proxy_addr: '127.0.0.1:7332'
+          ,proxy_addr: CLOAK_PROXY.replace(/^https?:\/\//, '')
         });
       } catch (error) {
         return json(res, 503, {
@@ -791,7 +794,16 @@ async function boot() {
   await ensureDir(DOWNLOAD_ROOT);
   await ensureDir(SCREENSHOTS_ROOT);
   await cleanupStaleArtifacts();
-  await startLocalEgressProxy({ fatalOnFailure: true });
+  if (CLOAK_PROXY === LOCAL_EGRESS_PROXY) {
+    await startLocalEgressProxy({ fatalOnFailure: true });
+  } else {
+    try {
+      await verifyEgressProxy();
+    } catch (error) {
+      console.error(error && error.message ? error.message : error);
+      process.exit(1);
+    }
+  }
   server.listen(PORT, '0.0.0.0');
 }
 

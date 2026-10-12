@@ -283,7 +283,7 @@ type BrowserAutomationConfig struct {
 	CloakHumanPreset      string                    `yaml:"cloak_human_preset"`      // "default" or "careful"
 	CloakProxy            string                    `yaml:"cloak_proxy"`             // proxy URL for CloakBrowser (optional)
 	EgressNetwork         string                    `yaml:"egress_network"`          // Docker internal network for managed browser
-	OutboundNetwork       string                    `yaml:"outbound_network"`        // non-internal Docker network that gives the loopback filter a route out
+	OutboundNetwork       string                    `yaml:"outbound_network"`        // non-internal Docker network attached only to the egress proxy
 	AllowedPrivateOrigins []string                  `yaml:"allowed_private_origins"` // exact home-lab origins allowed by policy
 	CloakFingerprintSeed  string                    `yaml:"cloak_fingerprint_seed"`  // fixed fingerprint seed for consistent identity (optional)
 }
