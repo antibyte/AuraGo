@@ -649,5 +649,6 @@
   "config.decisions.test_passed": "Teste concluído. Não comprova a qualidade nem a calibração do modelo.",
   "config.decisions.cpu_partial_reason": "O acelerador só consegue executar parte do modelo.",
   "config.decisions.cpu_unavailable_reason": "Não foi possível iniciar um ambiente totalmente acelerado.",
-  "config.decisions.install_help": "A reinstalação interrompe o serviço e cancela os pedidos ativos."
+  "config.decisions.install_help": "A reinstalação interrompe o serviço e cancela os pedidos ativos.",
+  "config.decisions.lifecycle_busy": "Já há uma instalação ou um arranque em curso."
 }

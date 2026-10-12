@@ -649,5 +649,6 @@
   "config.decisions.test_passed": "Test completato. Non dimostra qualità o calibrazione del modello.",
   "config.decisions.cpu_partial_reason": "L’acceleratore può eseguire solo parte del modello.",
   "config.decisions.cpu_unavailable_reason": "Impossibile avviare un ambiente completamente accelerato.",
-  "config.decisions.install_help": "La reinstallazione arresta il servizio e annulla le richieste attive."
+  "config.decisions.install_help": "La reinstallazione arresta il servizio e annulla le richieste attive.",
+  "config.decisions.lifecycle_busy": "Un'installazione o un avvio è già in corso."
 }

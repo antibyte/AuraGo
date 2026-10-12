@@ -649,5 +649,6 @@
   "config.decisions.test_passed": "Beslutningstesten er afsluttet. Den dokumenterer ikke modelkvalitet eller kalibrering.",
   "config.decisions.cpu_partial_reason": "Acceleratoren kan kun køre en del af modellen.",
   "config.decisions.cpu_unavailable_reason": "Et fuldt accelereret miljø kunne ikke startes.",
-  "config.decisions.install_help": "Geninstallation stopper den kørende tjeneste og annullerer aktive anmodninger."
+  "config.decisions.install_help": "Geninstallation stopper den kørende tjeneste og annullerer aktive anmodninger.",
+  "config.decisions.lifecycle_busy": "En installation eller start kører allerede."
 }

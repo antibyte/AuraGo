@@ -649,5 +649,6 @@
   "config.decisions.test_passed": "Decision test completed. This does not establish model quality or calibration.",
   "config.decisions.cpu_partial_reason": "The accelerator can run only part of the model.",
   "config.decisions.cpu_unavailable_reason": "No fully accelerated runtime could be started.",
-  "config.decisions.install_help": "Reinstalling stops the running service and cancels active requests."
+  "config.decisions.install_help": "Reinstalling stops the running service and cancels active requests.",
+  "config.decisions.lifecycle_busy": "Another installation or start is already running."
 }

@@ -649,5 +649,6 @@
   "config.decisions.test_passed": "Test terminé. Il ne prouve ni la qualité ni la calibration du modèle.",
   "config.decisions.cpu_partial_reason": "L’accélérateur ne peut exécuter qu’une partie du modèle.",
   "config.decisions.cpu_unavailable_reason": "Aucun environnement entièrement accéléré n’a pu démarrer.",
-  "config.decisions.install_help": "La réinstallation arrête le service en cours et annule les requêtes actives."
+  "config.decisions.install_help": "La réinstallation arrête le service en cours et annule les requêtes actives.",
+  "config.decisions.lifecycle_busy": "Une installation ou un démarrage est déjà en cours."
 }

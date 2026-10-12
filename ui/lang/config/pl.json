@@ -649,5 +649,6 @@
   "config.decisions.test_passed": "Test zakończony. Nie potwierdza jakości ani kalibracji modelu.",
   "config.decisions.cpu_partial_reason": "Akcelerator może uruchomić tylko część modelu.",
   "config.decisions.cpu_unavailable_reason": "Nie udało się uruchomić środowiska z pełną akceleracją.",
-  "config.decisions.install_help": "Ponowna instalacja zatrzymuje działającą usługę i anuluje aktywne żądania."
+  "config.decisions.install_help": "Ponowna instalacja zatrzymuje działającą usługę i anuluje aktywne żądania.",
+  "config.decisions.lifecycle_busy": "Instalacja lub uruchomienie już trwa."
 }

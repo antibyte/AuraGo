@@ -649,5 +649,6 @@
   "config.decisions.test_passed": "Beslutstestet är klart. Det bevisar inte modellkvalitet eller kalibrering.",
   "config.decisions.cpu_partial_reason": "Acceleratorn kan bara köra en del av modellen.",
   "config.decisions.cpu_unavailable_reason": "En helt accelererad miljö kunde inte startas.",
-  "config.decisions.install_help": "Ominstallation stoppar tjänsten och avbryter aktiva förfrågningar."
+  "config.decisions.install_help": "Ominstallation stoppar tjänsten och avbryter aktiva förfrågningar.",
+  "config.decisions.lifecycle_busy": "En installation eller start pågår redan."
 }

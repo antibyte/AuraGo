@@ -56,6 +56,10 @@ func handleDecisions(s *Server, action string) http.HandlerFunc {
 				return
 			}
 			// Installation and model loading outlive the HTTP request, but never the server.
+			// Answer only after a transitional state is visible, or with the
+			// operation's own error if that arrives first. A sibling's busy
+			// status must not hide lifecycle_busy from this call.
+			errCh := make(chan error, 1)
 			go func() {
 				ctx, cancel := context.WithTimeout(localLLMLifecycleContext(s), 6*time.Hour)
 				defer cancel()
@@ -68,9 +72,40 @@ func handleDecisions(s *Server, action string) http.HandlerFunc {
 				if err != nil && s.Logger != nil {
 					s.Logger.Warn("Decisions action failed", "action", action, "code", decisions.ErrorCode(err))
 				}
+				errCh <- err
 			}()
-			writeDecisionsJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
-			return
+			ticker := time.NewTicker(25 * time.Millisecond)
+			defer ticker.Stop()
+			deadline := time.NewTimer(2 * time.Second)
+			defer deadline.Stop()
+			for {
+				select {
+				case err := <-errCh:
+					writeDecisionsLifecycleAccept(w, err)
+					return
+				case <-deadline.C:
+					select {
+					case err := <-errCh:
+						writeDecisionsLifecycleAccept(w, err)
+						return
+					default:
+					}
+					writeDecisionsJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
+					return
+				case <-ticker.C:
+					select {
+					case err := <-errCh:
+						writeDecisionsLifecycleAccept(w, err)
+						return
+					default:
+					}
+					switch s.Decisions.Status().State {
+					case "installing", "downloading", "starting", "discovering_devices", "stopping":
+						writeDecisionsJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
+						return
+					}
+				}
+			}
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 		defer cancel()
@@ -105,6 +140,14 @@ func handleDecisions(s *Server, action string) http.HandlerFunc {
 		}
 		writeDecisionsJSON(w, http.StatusOK, response)
 	}
+}
+
+func writeDecisionsLifecycleAccept(w http.ResponseWriter, err error) {
+	if err != nil {
+		writeDecisionsFailure(w, err)
+		return
+	}
+	writeDecisionsJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
 }
 
 func writeDecisionsJSON(w http.ResponseWriter, status int, value any) {
@@ -152,6 +195,9 @@ func writeDecisionsFailure(w http.ResponseWriter, err error) {
 	}
 	if code == "request_cancelled" {
 		status = http.StatusRequestTimeout
+	}
+	if code == decisions.CodeLifecycleBusy {
+		status = http.StatusConflict
 	}
 	writeDecisionsError(w, code, status)
 }

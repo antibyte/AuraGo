@@ -649,5 +649,6 @@
   "config.decisions.test_passed": "决策测试已完成。这并不能证明模型质量或校准效果。",
   "config.decisions.cpu_partial_reason": "加速器只能运行模型的一部分。",
   "config.decisions.cpu_unavailable_reason": "无法启动完全加速的运行环境。",
-  "config.decisions.install_help": "重新安装会停止正在运行的服务并取消活动请求。"
+  "config.decisions.install_help": "重新安装会停止正在运行的服务并取消活动请求。",
+  "config.decisions.lifecycle_busy": "已有安装或启动正在进行。"
 }

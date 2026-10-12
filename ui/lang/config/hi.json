@@ -649,5 +649,6 @@
   "config.decisions.test_passed": "निर्णय परीक्षण पूरा हुआ। इससे मॉडल की गुणवत्ता या कैलिब्रेशन प्रमाणित नहीं होता।",
   "config.decisions.cpu_partial_reason": "त्वरक मॉडल का केवल कुछ हिस्सा चला सकता है।",
   "config.decisions.cpu_unavailable_reason": "पूरी तरह त्वरित रनटाइम शुरू नहीं हो सका।",
-  "config.decisions.install_help": "दोबारा इंस्टॉल करने से चल रही सेवा रुक जाती है और सक्रिय अनुरोध रद्द हो जाते हैं।"
+  "config.decisions.install_help": "दोबारा इंस्टॉल करने से चल रही सेवा रुक जाती है और सक्रिय अनुरोध रद्द हो जाते हैं।",
+  "config.decisions.lifecycle_busy": "एक इंस्टॉलेशन या स्टार्ट पहले से चल रहा है।"
 }

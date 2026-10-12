@@ -72,7 +72,7 @@ function renderDecisionsSection(section) {
     const dirty = () => typeof hasUnsavedConfigChanges === 'function' && hasUnsavedConfigChanges();
     const updateButtons = () => {
         if (!attached()) return;
-        const changing = ['installing', 'downloading', 'starting', 'stopping'].includes(status?.state);
+        const changing = ['installing', 'downloading', 'starting', 'stopping', 'discovering_devices'].includes(status?.state);
         for (const [action, button] of Object.entries(buttons)) {
             button.disabled = action === 'stop' ? busy && activeAction !== 'test' : busy || changing || dirty() || !status?.enabled || (action === 'test' && !status?.ready);
         }
@@ -84,7 +84,8 @@ function renderDecisionsSection(section) {
             hardware_unavailable: 'hardware_unavailable', model_not_installed: 'not_installed',
             runtime_unavailable: 'runtime_missing', runtime_artifact_missing: 'runtime_missing', service_not_ready: 'not_ready',
             docker_unavailable: 'docker_unavailable', deployment_denied: 'docker_unavailable',
-            model_integrity_failed: 'integrity_failed', runtime_attestation_failed: 'attestation_failed'
+            model_integrity_failed: 'integrity_failed', runtime_attestation_failed: 'attestation_failed',
+            lifecycle_busy: 'lifecycle_busy'
         };
         return tr(exact[code] || 'failed') + ' (' + code + ')';
     };

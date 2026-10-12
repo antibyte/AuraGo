@@ -43,10 +43,14 @@ attestation, request validation, candidate-logit normalization, and status.
   it cancels active work, revokes the old session, and returns cleanup for the
   caller to run after releasing broad config locks. Pending reconfigure
   cleanup gates new Start/Install operations. Stop also publishes a lifecycle
-  barrier before releasing the manager lock and holds it through teardown, so a Start/Install
-  already between its initial check and operation registration cannot publish
-  a replacement afterward. AutoStart waits/retries bounded lifecycle-busy
-  windows so a replacement cannot race old runtime teardown. Evaluation and
+  barrier before releasing the manager lock and holds it through teardown.
+  After authorization, Start publishes `starting` and Install publishes
+  `installing` before `stopLocked`, with an empty code and Ready false, even
+  while `operationCancel` is still nil. A busy lock or an already-pending
+  cleanup does not publish. If `stopLocked` or operation registration then
+  fails, status becomes `error` with that code unless the code is `cancelled`
+  or an operation is already registered. AutoStart waits/retries bounded
+  lifecycle-busy windows so a replacement cannot race old runtime teardown. Evaluation and
   Start preserve caller cancellation causes, including deadlines, while a
   successful Start detaches the resident process lifetime from the caller.
   The synchronous `Reconfigure` wrapper is only for callers that do not hold

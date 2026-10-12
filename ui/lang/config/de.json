@@ -649,5 +649,6 @@
   "config.decisions.test_passed": "Entscheidungstest abgeschlossen. Modellqualität und Kalibrierung sind damit nicht nachgewiesen.",
   "config.decisions.cpu_partial_reason": "Der Beschleuniger kann nur einen Teil des Modells ausführen.",
   "config.decisions.cpu_unavailable_reason": "Es konnte keine vollständig beschleunigte Laufzeit gestartet werden.",
-  "config.decisions.install_help": "Eine erneute Installation stoppt den laufenden Dienst und bricht aktive Anfragen ab."
+  "config.decisions.install_help": "Eine erneute Installation stoppt den laufenden Dienst und bricht aktive Anfragen ab.",
+  "config.decisions.lifecycle_busy": "Eine Installation oder ein Start läuft bereits."
 }

@@ -649,5 +649,6 @@
   "config.decisions.test_passed": "判断テストが完了しました。モデルの品質や較正を保証するものではありません。",
   "config.decisions.cpu_partial_reason": "アクセラレータではモデルの一部のみを実行できます。",
   "config.decisions.cpu_unavailable_reason": "完全にアクセラレータを使用する実行環境を開始できませんでした。",
-  "config.decisions.install_help": "再インストールすると、実行中のサービスが停止し、処理中のリクエストがキャンセルされます。"
+  "config.decisions.install_help": "再インストールすると、実行中のサービスが停止し、処理中のリクエストがキャンセルされます。",
+  "config.decisions.lifecycle_busy": "インストールまたは開始がすでに実行中です。"
 }

@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -29,11 +30,20 @@ import (
 )
 
 type fakeDecisions struct {
-	status  decisions.Status
-	request decisions.Request
-	err     error
+	status    decisions.Status
+	request   decisions.Request
+	err       error
+	calls     int
+	policy    config.DecisionsConfig
+	startGate *decisionsStartGate
+}
+
+// decisionsStartGate blocks the first Start after publishing a transitional
+// status. Later Start calls return lifecycle_busy. Status stays readable.
+type decisionsStartGate struct {
+	mu      sync.Mutex
+	release chan struct{}
 	calls   int
-	policy  config.DecisionsConfig
 }
 
 func TestDecisionsDockerSelfIdentity(t *testing.T) {
@@ -60,7 +70,13 @@ func TestDecisionsDockerSelfIdentity(t *testing.T) {
 	}
 }
 
-func (f *fakeDecisions) Status() decisions.Status { return f.status }
+func (f *fakeDecisions) Status() decisions.Status {
+	if f.startGate != nil {
+		f.startGate.mu.Lock()
+		defer f.startGate.mu.Unlock()
+	}
+	return f.status
+}
 func (f *fakeDecisions) Evaluate(ctx context.Context, r decisions.Request) (decisions.Response, error) {
 	f.calls++
 	f.request = r
@@ -75,9 +91,26 @@ func (f *fakeDecisions) PrepareReconfigure(c config.DecisionsConfig) (func(conte
 }
 func (f *fakeDecisions) AutoStart(context.Context) error { return nil }
 func (f *fakeDecisions) Install(context.Context) error   { return nil }
-func (f *fakeDecisions) Start(context.Context) error     { return nil }
-func (f *fakeDecisions) Stop(context.Context) error      { return nil }
-func (f *fakeDecisions) Shutdown(context.Context) error  { return nil }
+func (f *fakeDecisions) Start(context.Context) error {
+	if f.startGate == nil {
+		return nil
+	}
+	f.startGate.mu.Lock()
+	f.startGate.calls++
+	if f.startGate.calls == 1 {
+		f.status.State = "starting"
+		f.status.Code = ""
+		f.status.Ready = false
+		release := f.startGate.release
+		f.startGate.mu.Unlock()
+		<-release
+		return nil
+	}
+	f.startGate.mu.Unlock()
+	return decisions.NewError(decisions.CodeLifecycleBusy, nil)
+}
+func (f *fakeDecisions) Stop(context.Context) error     { return nil }
+func (f *fakeDecisions) Shutdown(context.Context) error { return nil }
 
 func decisionsServerFixture(t *testing.T) (*Server, *fakeDecisions) {
 	t.Helper()
@@ -93,6 +126,49 @@ func decisionsServerFixture(t *testing.T) (*Server, *fakeDecisions) {
 	}
 	fake := &fakeDecisions{status: decisions.Status{Enabled: true, Installed: true, Ready: true, State: "ready"}}
 	return &Server{Cfg: cfg, Decisions: fake, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}, fake
+}
+
+func TestDecisionsStartRejectsASecondStart(t *testing.T) {
+	s, fake := decisionsServerFixture(t)
+	fake.startGate = &decisionsStartGate{release: make(chan struct{})}
+	t.Cleanup(func() {
+		select {
+		case <-fake.startGate.release:
+		default:
+			close(fake.startGate.release)
+		}
+	})
+	mux := http.NewServeMux()
+	registerDecisionsRoutes(mux, s)
+	post := func() *httptest.ResponseRecorder {
+		r := httptest.NewRequest(http.MethodPost, "http://localhost/api/decisions/start", nil)
+		r.Header.Set("Origin", "http://localhost")
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, r)
+		return w
+	}
+	firstDone := make(chan *httptest.ResponseRecorder, 1)
+	go func() { firstDone <- post() }()
+	var first *httptest.ResponseRecorder
+	select {
+	case first = <-firstDone:
+	case <-time.After(3 * time.Second):
+		t.Fatal("first start did not answer")
+	}
+	if first.Code != http.StatusAccepted || strings.TrimSpace(first.Body.String()) != `{"status":"accepted"}` {
+		t.Fatalf("first start = %d %s", first.Code, first.Body.String())
+	}
+	second := post()
+	if second.Code != http.StatusConflict {
+		t.Fatalf("second start = %d %s, want 409", second.Code, second.Body.String())
+	}
+	var body map[string]string
+	if err := json.Unmarshal(second.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body["code"] != decisions.CodeLifecycleBusy {
+		t.Fatalf("second start code = %q, want lifecycle_busy", body["code"])
+	}
 }
 
 func TestDecisionsAPIInputAndAccess(t *testing.T) {

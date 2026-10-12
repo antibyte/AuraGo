@@ -649,5 +649,6 @@
   "config.decisions.test_passed": "Beslissingstest voltooid. Dit bewijst geen modelkwaliteit of kalibratie.",
   "config.decisions.cpu_partial_reason": "De versneller kan slechts een deel van het model uitvoeren.",
   "config.decisions.cpu_unavailable_reason": "Er kon geen volledig versnelde omgeving worden gestart.",
-  "config.decisions.install_help": "Opnieuw installeren stopt de actieve dienst en annuleert actieve verzoeken."
+  "config.decisions.install_help": "Opnieuw installeren stopt de actieve dienst en annuleert actieve verzoeken.",
+  "config.decisions.lifecycle_busy": "Er loopt al een installatie of start."
 }

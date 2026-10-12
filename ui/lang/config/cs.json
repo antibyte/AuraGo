@@ -649,5 +649,6 @@
   "config.decisions.test_passed": "Test rozhodnutí dokončen. Neprokazuje kvalitu ani kalibraci modelu.",
   "config.decisions.cpu_partial_reason": "Akcelerátor může spustit jen část modelu.",
   "config.decisions.cpu_unavailable_reason": "Nepodařilo se spustit plně akcelerované prostředí.",
-  "config.decisions.install_help": "Opětovná instalace zastaví běžící službu a zruší aktivní požadavky."
+  "config.decisions.install_help": "Opětovná instalace zastaví běžící službu a zruší aktivní požadavky.",
+  "config.decisions.lifecycle_busy": "Instalace nebo spuštění už probíhá."
 }

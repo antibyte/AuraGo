@@ -649,5 +649,6 @@
   "config.decisions.test_passed": "Beslutningstesten er fullført. Den dokumenterer ikke modellkvalitet eller kalibrering.",
   "config.decisions.cpu_partial_reason": "Akseleratoren kan bare kjøre en del av modellen.",
   "config.decisions.cpu_unavailable_reason": "Et fullt akselerert miljø kunne ikke startes.",
-  "config.decisions.install_help": "Ny installasjon stopper tjenesten og avbryter aktive forespørsler."
+  "config.decisions.install_help": "Ny installasjon stopper tjenesten og avbryter aktive forespørsler.",
+  "config.decisions.lifecycle_busy": "En installasjon eller start kjører allerede."
 }
