@@ -318,7 +318,7 @@ func cydCall(t *testing.T, ctx context.Context, dc *DispatchContext, name string
 	if !handled {
 		t.Fatalf("%s not handled", name)
 	}
-	limit := toolResultInlineBudget(dc.Cfg)
+	limit := toolResultInlineBudget(dc)
 	if size := cydModelBytes(out); size > limit {
 		t.Errorf("%s answer has %d model bytes, the inline budget is %d", name, size, limit)
 	}
@@ -374,7 +374,7 @@ func cydMaxPlanJSON(t *testing.T) string {
 func TestDispatchCYDCreatorFitsTheDefaultVaultLimit(t *testing.T) {
 	svc, _, p := newCYDAgentService(t)
 	dc := cydVaultDispatchContext()
-	if limit := toolResultInlineBudget(dc.Cfg); limit != 6000 {
+	if limit := toolResultInlineBudget(dc); limit != 6000 {
 		t.Fatalf("inline budget = %d", limit)
 	}
 	planJSON := cydMaxPlanJSON(t)

@@ -141,7 +141,7 @@ const (
 // A bigger answer would be replaced by a bare truncation stub, or archived
 // where a CYD Creator run cannot read it back.
 func cydCreatorOutputBudget(dc *DispatchContext) int {
-	return toolResultInlineBudget(dc.Cfg) - cydBudgetSlack
+	return toolResultInlineBudget(dc) - cydBudgetSlack
 }
 
 // cydModelBytes measures an answer as the Guardian hands it to the model, in
