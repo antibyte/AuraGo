@@ -1031,6 +1031,24 @@ function testRedactedMarkerDoesNotConsumeFollowingContent() {
   assert.doesNotMatch(rendered, /redacted-reason/);
 }
 
+// show_detection_event sends /api/go2rtc/detection/images/<frame id> as a chat image; the
+// allow-list accepts exactly that same-origin shape.
+function testChatMediaAllowsDetectionFrames() {
+  const chatCore = read('ui/js/shared/chat-core.js');
+  const helperSource = sourceBetween(chatCore, 'function isSafeMediaSource(value, tag) {', 'function decorateEmojiGlyphs(root) {');
+  const context = { URL, window: { location: { origin: 'https://aurago.test' } } };
+  vm.createContext(context);
+  vm.runInContext(`${helperSource}; globalThis.isSafe = isSafeMediaSource;`, context);
+  for (const ok of ['/api/go2rtc/detection/images/7', '/api/go2rtc/detection/images/123456?thumb=1', 'https://aurago.test/api/go2rtc/detection/images/42']) {
+    assert.equal(context.isSafe(ok, 'img'), true, ok);
+  }
+  for (const bad of ['/api/go2rtc/detection/images/0', '/api/go2rtc/detection/images/abc', '/api/go2rtc/detection/images/7/x',
+    '/api/go2rtc/detection/events/7', 'https://evil.test/api/go2rtc/detection/images/7', '/api/go2rtc/detection/images/%2e%2e']) {
+    assert.equal(context.isSafe(bad, 'img'), false, bad);
+  }
+  assert.equal(context.isSafe('/api/go2rtc/proxy/api/frame.jpeg?src=garden', 'img'), true, 'live camera frames stay allowed');
+}
+
 function testVirtualComputersVNCPreferencesSurviveReconnect() {
   const controller = read('ui/js/desktop/apps/virtual-computers-vnc.js');
   const helperSource = sourceBetween(controller, 'function applyVNCPreferences', 'function mount');
@@ -3998,6 +4016,7 @@ const tests = [
   ['Python skill card ordering matches snapshots', testSkillCardOrderingMatchesSnapshots],
   ['Agent skill card ordering matches snapshots', testAgentSkillCardOrderingMatchesSnapshot],
   ['redacted marker preserves following content', testRedactedMarkerDoesNotConsumeFollowingContent],
+  ['chat media allows person detection frames', testChatMediaAllowsDetectionFrames],
   ['Virtual Computers VNC preferences survive reconnect', testVirtualComputersVNCPreferencesSurviveReconnect],
   ['Virtual Computers VNC expansion stays inside app content', testVirtualComputersVNCExpansionUsesAppContentOnly],
   ['Virtual Computers terminal uses binary I/O and cleans up', testVirtualComputersTerminalBinaryLifecycle],

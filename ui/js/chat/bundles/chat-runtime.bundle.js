@@ -485,6 +485,7 @@
             if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
             return ['/files/', '/tts/', '/cast-media/', '/img/', '/api/media/', '/api/desktop/files/', '/api/agodesk/tts/'].some(prefix => url.pathname.startsWith(prefix)) ||
                 /^\/api\/go2rtc\/proxy\/api\/(?:frame\.jpeg|stream\.mjpeg)$/.test(url.pathname) ||
+                /^\/api\/go2rtc\/detection\/images\/[1-9][0-9]{0,17}$/.test(url.pathname) ||
                 /^\/api\/3d-printers\/[^/]+\/camera\/stream$/.test(url.pathname);
         } catch (_err) { return false; }
     }
