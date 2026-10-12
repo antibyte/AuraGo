@@ -707,7 +707,13 @@ func AppendMissingYouTubeLinks(text string, videos []CapturedYouTubeVideo) strin
 
 // sendTelegramPhoto sends a local image file as a native Telegram photo with optional caption.
 func sendTelegramPhoto(bot *tgbotapi.BotAPI, chatID int64, localPath, caption string) error {
-	photo := tgbotapi.NewPhoto(chatID, tgbotapi.FilePath(localPath))
+	return sendTelegramPhotoFile(bot, chatID, tgbotapi.FilePath(localPath), caption)
+}
+
+// sendTelegramPhotoFile sends file (a local path or in-memory bytes) as a native Telegram
+// photo with optional caption. sendTelegramPhoto and SendPhoto share it.
+func sendTelegramPhotoFile(bot *tgbotapi.BotAPI, chatID int64, file tgbotapi.RequestFileData, caption string) error {
+	photo := tgbotapi.NewPhoto(chatID, file)
 	photo.Caption = caption
 	_, err := bot.Send(photo)
 	return err
