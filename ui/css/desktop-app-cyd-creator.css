@@ -381,7 +381,9 @@
 .cc-app .cc-code-editor > .cm-editor { flex: 1 1 auto; min-width: 0; }
 .cc-app .cc-code-fallback { flex: 1 1 auto; border: 0; padding: 10px; background: var(--cc-code-bg); color: var(--cc-text); font-family: var(--cc-mono); font-size: 13px; resize: none; }
 .cc-app .cc-code-markers { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.cc-app .cc-code-marker { position: absolute; left: 0; right: 0; border-left: 3px solid var(--cc-danger); background: color-mix(in srgb, var(--cc-danger) 12%, transparent); pointer-events: auto; }
+.cc-app .cc-code-marker { position: absolute; left: 0; right: 0; border-left: 3px solid var(--cc-danger); background: color-mix(in srgb, var(--cc-danger) 12%, transparent); pointer-events: none; }
+/* Only the edge takes the pointer (the marker's title shows the message); clicks on the line reach the editor. */
+.cc-app .cc-code-marker::before { content: ''; position: absolute; top: 0; bottom: 0; left: -3px; width: 8px; pointer-events: auto; cursor: help; }
 .cc-app .cc-code-marker.is-warning { border-left-color: var(--cc-warn); background: color-mix(in srgb, var(--cc-warn) 10%, transparent); }
 .cc-app .cc-code-marker.is-note { border-left-color: var(--cc-muted); background: transparent; }
 .cc-app .cc-code-empty { margin: auto; }
