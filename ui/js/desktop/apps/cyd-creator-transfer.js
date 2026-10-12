@@ -68,8 +68,11 @@
     // too_many_entries, unsafe_path, layout_missing, file_type, layout, board, app_files or asset). The
     // size limits have their own sentences: images over the total image budget (asset with limit
     // asset_bytes, {{size}} = details.max) and too many or too large source files (app_files with a
-    // numeric limit). Every other reason shows the "not a CYD Creator export" sentence plus the path or
-    // board the server names.
+    // numeric limit). Every other reason has its own sentence, transfer.import_<reason> ({{path}} for
+    // unsafe_path/file_type, {{board}} for board, {{size}} = details.limit bytes for too_large, {{max}} =
+    // details.limit entries for too_many_entries); app_files and asset name a path only sometimes, so it
+    // follows their sentence in brackets. A reason without a sentence shows the "not a CYD Creator export"
+    // sentence plus the path or board the server names.
     function importErrorText(t, err) {
         const details = (err && err.details) || {};
         const reason = P.errors.reason(err);
@@ -80,8 +83,19 @@
         if (reason === 'app_files' && typeof details.limit === 'number' && has('cyd_creator.transfer.limit_app_files')) {
             return t('cyd_creator.transfer.limit_app_files');
         }
-        const text = P.errors.message(t, err);
         const where = [details.path, details.board].find(v => typeof v === 'string' && v);
+        if (/^[a-z_]+$/.test(reason) && has('cyd_creator.transfer.import_' + reason)) {
+            const limit = Number(details.limit) || 0;
+            const text = t('cyd_creator.transfer.import_' + reason, {
+                path: typeof details.path === 'string' ? details.path : '',
+                board: typeof details.board === 'string' ? details.board : '',
+                size: P.format.bytes(limit),
+                max: String(limit)
+            });
+            const tail = (reason === 'app_files' || reason === 'asset') && typeof details.path === 'string' && details.path;
+            return tail ? text + ' (' + details.path + ')' : text;
+        }
+        const text = P.errors.message(t, err);
         return where ? text + ' (' + where + ')' : text;
     }
 

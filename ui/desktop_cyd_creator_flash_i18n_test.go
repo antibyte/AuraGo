@@ -27,6 +27,8 @@ func TestCYDCreatorFlashKeysExistInAllLocales(t *testing.T) {
 		// CYD_BUSY by details.reason on export.
 		"cyd_creator.transfer.limit_": {"asset_bytes", "export_bytes", "app_files"},
 		"cyd_creator.transfer.busy_":  {"export", "publication_review"},
+		// CYD_IMPORT_INVALID by details.reason (internal/cydcreator/transfer_import.go).
+		"cyd_creator.transfer.import_": {"not_zip", "too_large", "too_many_entries", "unsafe_path", "layout_missing", "file_type", "layout", "board", "app_files", "asset"},
 	}
 	// error.<CODE> is plan 4a's family (every overview code); 4a's key test covers its members.
 	ignored := map[string]bool{"cyd_creator.error.": true}
