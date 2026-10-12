@@ -407,7 +407,7 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.Inventory.Enabled = true
 	cfg.Tools.MemoryMaintenance.Enabled = true
 	cfg.Tools.Journal.Enabled = true
-	cfg.Tools.WebScraper.Enabled = true
+	cfg.Tools.WebScraper.Enabled = false
 	cfg.WorkspaceSearch.Enabled = true
 	cfg.WorkspaceSearch.MaxFileSizeMB = 10
 	cfg.WorkspaceSearch.MaxIndexSizeMB = 256
