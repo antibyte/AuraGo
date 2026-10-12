@@ -2109,6 +2109,25 @@ function testNetworkCamerasDetectionZones() {
   assert.match(zones, /code === 'detection_disabled' \? T\(ctx, 'test_disabled'\)/, 'test mode explains a disabled detector');
 }
 
+function testNetworkCamerasDetectionRuntime() {
+  const runtime = read('ui/js/desktop/apps/network-cameras-detection.js');
+  assert.match(runtime, /window\.NetworkCamerasDetection = \{ mount, unmount, cameraSettingsMarkup, bindCameraSettings, validateCameraSettings \}/);
+  assert.match(runtime, /request\(inst, 'state\?since=0'\)/);
+  assert.match(runtime, /'state\?since=' \+ encodeURIComponent\(String\(inst\.cursor\)\)/);
+  assert.match(runtime, /inst\.ctx\.confirmDialog\(/, 'event deletion asks through the desktop dialog');
+  assert.match(runtime, /role="status" aria-live="polite" data-ncd-live/, 'status changes are announced');
+  assert.match(runtime, /function unmount\(windowId, options\)[\s\S]*stopActivity\(inst\)/, 'unmount stops polling and requests');
+  assert.doesNotMatch(runtime, /\b(?:alert|confirm|prompt)\s*\(/);
+  assert.doesNotMatch(runtime, /eval\(|new Function|document\.write|outerHTML|insertAdjacentHTML|localStorage/);
+  assert.match(runtime, /const launch = launchTarget\(opts\.launch\);[\s\S]*inst\.selectedId = launch\.eventId;/, 'a launch context selects its event');
+  assert.match(runtime, /if \(inst\.selectedId && !inst\.detail && !inst\.detailError\) loadDetail\(inst, inst\.selectedId, false\);/, 'the launched event is fetched even when it is not on the loaded page');
+  assert.match(runtime, /error\.status === 404 \|\| \(error\.body && error\.body\.code === 'event_not_found'\)[\s\S]*inst\.events = inst\.events\.filter[\s\S]*notify\(inst, T\(inst\.ctx, 'event_gone'\)\)/, 'a 404 drops the deleted event and says so');
+  assert.doesNotMatch(runtime, /ctx\.notify\(\s*(?!\{)/, 'ctx.notify takes {title, message, type}');
+  for (const line of runtime.split('\n').filter(entry => entry.includes('.innerHTML ='))) {
+    assert.match(line.trim(), /^(?:region\.innerHTML = html;|inst\.host\.innerHTML = '<div class="ncd-root"[^+]*';)/, `unexpected innerHTML assignment: ${line.trim()}`);
+  }
+}
+
 async function testManusCatalogFailuresStayIsolatedAndActionsRequireReadyStatus() {
   const source = read('ui/cfg/manus.js');
   const catalogSource = sourceBetween(source, 'async function manusLoadCatalogs(showErrors)', 'async function manusLoadProjectSkills(projectIDs, showErrors)');
@@ -4226,6 +4245,7 @@ const tests = [
   ['Network Cameras desktop contracts', testNetworkCamerasDesktopContracts],
   ['Network Cameras person detection views', testNetworkCamerasDetectionViews],
   ['Network Cameras person detection zone editor', testNetworkCamerasDetectionZones],
+  ['Network Cameras person detection mode', testNetworkCamerasDetectionRuntime],
   ['Manus catalog failures stay isolated and actions require ready status', testManusCatalogFailuresStayIsolatedAndActionsRequireReadyStatus],
   ['Speech Lab recorder resumes audio and routes fallbacks safely', testSpeechLabRecorderLifecycleAndFallbacks],
   ['Quick Connect SFTP navigator ignores stale listings', testQuickConnectSFTPNavigatorIgnoresStaleListings],
