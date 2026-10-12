@@ -3480,6 +3480,114 @@ function fakeConfigToggle(markup) {
   };
 }
 
+function decodeConfigAttr(value) {
+  return value.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+}
+
+// #content as data-path controls that keep typed values until the next render,
+// like the browser DOM that AuraConfigState reads.
+function fakeConfigContent() {
+  const content = { controls: [] };
+  let html = '';
+  Object.defineProperty(content, 'innerHTML', {
+    get: () => html,
+    set(value) {
+      html = value;
+      content.controls = [...value.matchAll(/<(?:input|div)\b[^>]*\bdata-path="[^"]*"[^>]*>/g)].map(([tag]) => {
+        const attributes = Object.fromEntries([...tag.matchAll(/([\w-]+)="([^"]*)"/g)].map(match => [match[1], decodeConfigAttr(match[2])]));
+        const classes = new Set((attributes.class || '').split(/\s+/));
+        return {
+          type: attributes.type || '',
+          step: '',
+          value: attributes.value || '',
+          dataset: { path: attributes['data-path'] },
+          classList: { contains: name => classes.has(name) }
+        };
+      });
+    }
+  });
+  content.control = dataPath => content.controls.find(control => control.dataset.path === dataPath);
+  content.querySelectorAll = () => content.controls;
+  return content;
+}
+
+function configGo2RTCContext(go2rtc) {
+  const content = fakeConfigContent();
+  const context = {
+    window: {},
+    content,
+    configData: { go2rtc: JSON.parse(JSON.stringify(go2rtc)) },
+    isDirty: false,
+    t: key => key,
+    document: { getElementById: id => (id === 'content' ? content : null), dispatchEvent() {} },
+    CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init && init.detail; } },
+    attachChangeListeners() {},
+    // Like main.js: marking the page dirty reads every rendered control into the draft.
+    setDirty(dirty) {
+      if (dirty) context.window.AuraConfigState.syncFromDOM(content);
+      context.isDirty = context.window.AuraConfigState.isDirty();
+    }
+  };
+  vm.createContext(context);
+  vm.runInContext(read('ui/js/config/state.js'), context);
+  vm.runInContext(sourceBetween(read('ui/js/config/utils.js'), 'function escapeAttr(', 'function formatKey('), context);
+  vm.runInContext(read('ui/cfg/go2rtc.js'), context);
+  context.window.AuraConfigState.init(context.configData);
+  return context;
+}
+
+// Config section "go2rtc": the server replaces go2rtc.streams wholesale, so a save sends the complete list,
+// including fields the stream cards do not show (detection, source_configured). Adding or removing a camera
+// keeps typed edits and never shifts one camera's fields onto another.
+function testConfigGo2RTCStreamsSaveAsCompleteList() {
+  const plain = value => JSON.parse(JSON.stringify(value));
+  const stream = (id, name) => ({
+    id, name, enabled: true, source: '••••••••', source_configured: true,
+    detection: { enabled: true, zones: [{ name: id + '-zone', points: [[0, 0], [1, 0], [1, 1]] }] }
+  });
+  const context = configGo2RTCContext({
+    enabled: false, auto_start: true, agent_access: true, store_media: true, web_ui_enabled: false,
+    image: 'alexxit/go2rtc:test', container_name: 'aurago_go2rtc', api_host_port: 1984, webrtc: { enabled: false, port: 8555 },
+    streams: [stream('front-door', 'Front door'), stream('garage', 'Garage'), stream('backyard', 'Backyard')]
+  });
+  const state = context.window.AuraConfigState;
+  const patchStreams = message => {
+    const patch = plain(state.buildPatch());
+    assert.deepEqual(Object.keys(patch), ['go2rtc'], message);
+    assert.deepEqual(Object.keys(patch.go2rtc), ['streams'], message);
+    return patch.go2rtc.streams;
+  };
+  const typeName = (index, value) => {
+    context.content.control(`go2rtc.streams.${index}.name`).value = value;
+    state.syncFromDOM(context.content);
+  };
+
+  context.renderGo2RTCSection({ label: 'go2rtc', desc: 'Cameras' });
+  assert.equal(state.isDirty(), false);
+
+  typeName(1, 'Garage side');
+  const edited = [stream('front-door', 'Front door'), stream('garage', 'Garage side'), stream('backyard', 'Backyard')];
+  assert.deepEqual(patchStreams('a field edit'), edited, 'a field edit sends the complete list');
+  assert.deepEqual(plain(state.dirtyPaths()), ['go2rtc.streams'], 'the list counts as one change');
+  typeName(1, 'Garage');
+  assert.equal(state.isDirty(), false, 'typing the saved value back clears the change');
+  typeName(1, 'Garage side');
+
+  context.go2rtcAddStream();
+  state.syncFromDOM(context.content); // saveConfig reads the controls again
+  const added = { id: 'camera-4', name: 'config.go2rtc.stream_name_placeholder', enabled: true, source: '', source_configured: false };
+  assert.equal(context.content.control('go2rtc.streams.1.name').value, 'Garage side', 'the re-render shows the typed edit');
+  assert.deepEqual(patchStreams('an added camera'), [...edited, added], 'an added camera keeps the typed edit and the other cameras');
+
+  context.go2rtcRemoveStream(0);
+  state.syncFromDOM(context.content);
+  assert.deepEqual(patchStreams('a removed camera'), [edited[1], edited[2], added], 'a removed camera does not shift fields onto its neighbour');
+
+  [2, 1, 0].forEach(index => context.go2rtcRemoveStream(index));
+  state.syncFromDOM(context.content);
+  assert.deepEqual(patchStreams('no cameras'), [], 'removing every camera sends an empty list');
+}
+
 // Config section "EasyDrag flows": the provider picker uses the shared choice helpers (unknown ids kept,
 // hint and retry on a failed list), the limits are validated numbers, the link opens EasyDrag, and the
 // agent options (not enforced yet) cannot be switched.
@@ -3737,6 +3845,7 @@ const tests = [
   ['EasyDrag session keeps only valid flow ids', testEasyDragSessionKeepsOnlyValidFlowIds],
   ['EasyDrag flows_changed is forwarded as aurago:flows-changed', testEasyDragFlowsChangedIsForwarded],
   ['Config EasyDrag flows section keeps providers, numbers and locked agent options', testConfigFlowsSection],
+  ['Config go2rtc streams save as the complete list', testConfigGo2RTCStreamsSaveAsCompleteList],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting],
   ['Invasion nest form sends export_nest_secret', testInvasionNestFormSendsExportNestSecret],
   ['Invasion nest secret field hides only without effect', testInvasionNestSecretFieldHidesOnlyWithoutEffect]

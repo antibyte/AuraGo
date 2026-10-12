@@ -480,6 +480,16 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		// Before any Vault write: a sparse stream list would replace the saved one.
+		if err := validateGo2RTCStreamsPatch(patch); err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  "error",
+				"message": err.Error(),
+			})
+			return
+		}
 		// Keep config, Vault extraction, validation, and publication in one
 		// transaction boundary. This prevents a rejected concurrent save from
 		// rolling back stream sources committed by another request.

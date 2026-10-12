@@ -120,6 +120,15 @@ worker. Keep packaging, recovery and offline instructions in
   unknown value stays selected as "(missing)", and a failed list load keeps it as "(list unavailable)" with an
   inline retry that refreshes the options in place. Keys live in `lang/config/common/` for all sixteen
   locales. Verify `TestConfigChoiceSelectsKeepSavedValueWhenListsFailBrowser`.
+- `PUT /api/config` replaces lists wholesale, so a Config section with per-index
+  `data-path` controls (`list.<index>.<field>`) must never patch single indexes.
+  It calls `AuraConfigState.markAtomic('<list>')`, adopts the draft list before
+  rendering or changing it, publishes additions and removals with
+  `AuraConfigState.set('<list>', list)` and re-renders before `setDirty(true)`
+  (which reads every rendered control back). The patch then carries the complete
+  list, including fields the cards do not render. `cfg/go2rtc.js` does this for
+  `go2rtc.streams` (keeping `source_configured` and `detection`). Verify the go2rtc
+  case in `node scripts/test-ui-regressions.mjs`.
 
 - Newspaper is a lazy built-in Desktop reader with a separate editorial paper surface and Config/Dashboard entry. Keep all sixteen Desktop, Config and Dashboard locale keys aligned, both icon manifests registered, and the generated main Desktop bundle current. Config exposes the search cap (32 by default, 1–64 including retries); shared capability responses distinguish setup reasons from last-attempt failures. The reader preserves optional research counters and topic gaps, including legacy runs without them. A bounce-suppression message must not imply that the recipient address is invalid without the original SMTP evidence. Verify `TestNewspaperResearchTranslations`, `TestNewspaperConfigResearchBrowser` and `TestDesktopNewspaperBrowser` at wide/narrow sizes in both themes; backend contracts live in `internal/newspaper/AGENTS.md`.
 

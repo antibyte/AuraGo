@@ -9,6 +9,10 @@
     let boundRoot = null;
     const changed = new Set();
     const listeners = new Set();
+    // Values the server replaces wholesale, such as lists (go2rtc.streams). An
+    // edit inside one marks the whole value, so the patch never carries a
+    // sparse or partial copy that would replace the saved one.
+    const atomicPaths = new Set();
 
     function clone(value) {
         if (typeof structuredClone === 'function') return structuredClone(value);
@@ -44,6 +48,30 @@
         return JSON.stringify(left) === JSON.stringify(right);
     }
 
+    function trackedPath(path) {
+        const keys = parts(path);
+        for (let end = 1; end < keys.length; end++) {
+            const prefix = keys.slice(0, end).join('.');
+            if (atomicPaths.has(prefix)) return prefix;
+        }
+        return keys.join('.');
+    }
+
+    function track(path) {
+        const tracked = trackedPath(path);
+        if (same(read(savedConfig, tracked), read(draftConfig, tracked))) changed.delete(tracked);
+        else changed.add(tracked);
+    }
+
+    function markAtomic(path) {
+        const atomic = parts(path).join('.');
+        if (!atomic || atomicPaths.has(atomic)) return;
+        atomicPaths.add(atomic);
+        const inside = Array.from(changed).filter(entry => entry.startsWith(atomic + '.'));
+        inside.forEach(entry => changed.delete(entry));
+        if (inside.length) track(atomic);
+    }
+
     function notify() {
         const detail = snapshot();
         listeners.forEach(listener => listener(detail));
@@ -72,8 +100,7 @@
         if (!path) return;
         const before = read(draftConfig, path);
         write(draftConfig, path, value);
-        if (same(read(savedConfig, path), read(draftConfig, path))) changed.delete(path);
-        else changed.add(path);
+        track(path);
         if (!same(before, value)) notify();
     }
 
@@ -81,7 +108,7 @@
         if (!path) return;
         write(savedConfig, path, value);
         write(draftConfig, path, value);
-        changed.delete(path);
+        track(path);
         notify();
     }
 
@@ -129,8 +156,7 @@
         const value = controlValue(element);
         const before = read(draftConfig, path);
         write(draftConfig, path, value);
-        if (same(read(savedConfig, path), value)) changed.delete(path);
-        else changed.add(path);
+        track(path);
         return !same(before, value);
     }
 
@@ -193,7 +219,7 @@
         Object.keys(rules).forEach(path => {
             const rule = rules[path] || {};
             // changedOnly rules check edits only; an unchanged saved value is not part of the patch.
-            if (rule.changedOnly && !changed.has(path)) return;
+            if (rule.changedOnly && !changed.has(trackedPath(path))) return;
             const value = read(draftConfig, path);
             const empty = value == null || String(value).trim() === '';
             if (rule.required && empty) {
@@ -260,7 +286,7 @@
         changed.clear();
         edits.forEach(([path, value]) => {
             write(draftConfig, path, value);
-            if (!same(read(savedConfig, path), read(draftConfig, path))) changed.add(path);
+            track(path);
         });
         restoreDOM();
         notify();
@@ -297,6 +323,7 @@
         get: get,
         set: set,
         markSaved: markSaved,
+        markAtomic: markAtomic,
         dirtyPaths: dirtyPaths,
         isDirty: isDirty,
         buildPatch: buildPatch,

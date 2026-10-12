@@ -320,6 +320,7 @@ Server-owned HTTP and cross-component integration contracts.
 - ONVIF discovery is admin-only and available only with `Runtime.BroadcastOK`. Keep candidates and credentials memory-only, private-network scoped, bounded, short-lived, and single-use; never proxy go2rtc's raw `api/onvif` route.
 - Camera tiles must use the non-persistent snapshot-bytes path so `store_media` never registers periodic thumbnails. Viewer access remains `go2rtc.view`; setup and stream mutations remain administrator-only and same-origin.
 - Managed camera mutations publish a fully loaded and validated YAML/Vault desired state before runtime reconciliation. Pre-publication failures roll back Vault changes; post-publication reconciliation failures retain the desired state and return HTTP 202 for background retry. Reserve ONVIF setup tokens until publication and keep private ONVIF SOAP traffic proxy-free.
+- `PUT /api/config` replaces `go2rtc.streams` wholesale. Before any Vault write it rejects, with 400, a value that is not a complete list: `null`, a non-list, a gapped numeric map, or an entry that is empty or lacks a valid, unique id. An explicit `[]` removes every stream. Verify `TestHandleUpdateConfigRejectsIncompleteGo2RTCStreamLists` and `TestHandleUpdateConfigSavesCompleteGo2RTCStreamList`.
 - Enabling go2rtc must actively verify readable Docker container/image endpoints, the network endpoint when AuraGo runs in Docker, and mutation permission through a random nonexistent-container start probe that cannot create a resource.
 
 ### AI Gateway Contract

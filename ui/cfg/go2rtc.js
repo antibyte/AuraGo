@@ -14,11 +14,33 @@ function go2rtcEnsureData() {
     return data;
 }
 
+// The server replaces go2rtc.streams wholesale, so the draft treats the list as
+// one value. Stream cards edit the draft; adopt it before rendering or changing
+// the list so typed edits and fields the cards do not show (detection) survive.
+function go2rtcStreams() {
+    const data = go2rtcEnsureData();
+    const state = window.AuraConfigState;
+    if (state && typeof state.markAtomic === 'function') {
+        state.markAtomic('go2rtc.streams');
+        const draft = state.get('go2rtc.streams');
+        if (Array.isArray(draft)) data.streams = JSON.parse(JSON.stringify(draft));
+    }
+    return data.streams;
+}
+
+function go2rtcSetStreams(streams) {
+    go2rtcEnsureData().streams = streams;
+    if (window.AuraConfigState) window.AuraConfigState.set('go2rtc.streams', streams);
+    // Render first: setDirty reads every rendered control back into the draft.
+    renderGo2RTCSection(null);
+    setDirty(true);
+}
+
 function renderGo2RTCSection(section) {
     if (section) _go2rtcSection = section;
     section = section || _go2rtcSection;
     const data = go2rtcEnsureData();
-    const streams = data.streams;
+    const streams = go2rtcStreams();
 
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.label + '</div>';
@@ -102,22 +124,21 @@ function go2rtcNumber(path, value, labelKey, helpKey, min, max) {
 }
 
 function go2rtcAddStream() {
-    const data = go2rtcEnsureData();
-    let suffix = data.streams.length + 1;
+    const streams = go2rtcStreams();
+    let suffix = streams.length + 1;
     let id = 'camera-' + suffix;
-    while (data.streams.some(stream => stream.id === id)) {
+    while (streams.some(stream => stream.id === id)) {
         suffix += 1;
         id = 'camera-' + suffix;
     }
-    data.streams.push({ id, name: t('config.go2rtc.stream_name_placeholder'), enabled: true, source: '', source_configured: false });
-    setDirty(true);
-    renderGo2RTCSection(null);
+    streams.push({ id, name: t('config.go2rtc.stream_name_placeholder'), enabled: true, source: '', source_configured: false });
+    go2rtcSetStreams(streams);
 }
 
 function go2rtcRemoveStream(index) {
-    go2rtcEnsureData().streams.splice(index, 1);
-    setDirty(true);
-    renderGo2RTCSection(null);
+    const streams = go2rtcStreams();
+    streams.splice(index, 1);
+    go2rtcSetStreams(streams);
 }
 
 function go2rtcSavedOnly(result) {
