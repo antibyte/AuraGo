@@ -71,10 +71,11 @@ window.renderFirewallSection = function (sectionParam) {
                 const banner = document.getElementById('firewallOsBanner');
 
                 if (toggle) {
+                    // Lock the switch but keep showing the saved value: an edit or
+                    // Save syncs every switch in the section into the draft.
                     toggle.disabled = true;
-                    toggle.classList.remove('on');
-                    const label = document.getElementById('fwEnabledLabel');
-                    if (label) label.textContent = t('config.firewall.inactive');
+                    toggle.classList.add('cfg-toggle-disabled');
+                    if (typeof syncToggleA11y === 'function') syncToggleA11y(toggle);
                 }
                 if (options) {
                     options.classList.add('is-disabled', 'is-locked');

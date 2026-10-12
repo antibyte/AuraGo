@@ -269,6 +269,12 @@
         });
     }
 
+    // Locked by any marker syncToggleA11y or toggleBool (main.js) honors.
+    function lockedToggle(element) {
+        return element.disabled === true || element.dataset.disabled === 'true' ||
+            element.getAttribute('aria-disabled') === 'true' || element.classList.contains('cfg-toggle-disabled');
+    }
+
     function bind(root) {
         boundRoot = root || document;
         if (boundRoot.__auraConfigStateBound === true) return;
@@ -278,7 +284,8 @@
             const element = custom ? custom.previousElementSibling : event.target?.closest?.('[data-path]');
             if (!element) return;
             if (custom && element.dataset.path !== custom.dataset.customFor) return;
-            if (event.type === 'click' && !element.classList.contains('toggle')) return;
+            // A locked switch ignores the click, so the value it shows is not an edit.
+            if (event.type === 'click' && (!element.classList.contains('toggle') || lockedToggle(element))) return;
             if (syncElement(element)) notify();
         };
         boundRoot.addEventListener('input', syncEvent);
