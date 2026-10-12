@@ -789,6 +789,9 @@ type flowEvent struct {
 	Title                string
 	SourceMissionID      string
 	Result               string
+	CameraID             string   // person_detected
+	Zones                []string // person_detected
+	Armed                bool     // person_detected
 }
 
 // flowEventMatches mirrors the filters of the Notify* methods for one flow spec.
@@ -813,6 +816,8 @@ func flowEventMatches(spec FlowTriggerSpec, trigger TriggerType, ev flowEvent) b
 	case TriggerMissionCompleted:
 		return cfg.SourceMissionID != "" && cfg.SourceMissionID == ev.SourceMissionID &&
 			(!cfg.RequireSuccess || ev.Result == MissionResultSuccess)
+	case TriggerPersonDetected:
+		return personDetectedMatches(cfg, ev.CameraID, ev.Zones, ev.Armed)
 	default: // system_startup, budget_warning, budget_exceeded: no filters
 		return true
 	}

@@ -66,6 +66,7 @@ const (
 	TriggerPlannerAppointmentDue   TriggerType = "planner_appointment_due"   // Planner appointment reminder due
 	TriggerPlannerTodoOverdue      TriggerType = "planner_todo_overdue"      // Planner todo due date passed
 	TriggerPlannerOperationalIssue TriggerType = "planner_operational_issue" // Planner operational issue recorded
+	TriggerPersonDetected          TriggerType = "person_detected"           // Person detection event started (Network Cameras)
 )
 
 // MissionStatus represents the runtime status of a mission
@@ -133,6 +134,11 @@ type TriggerConfig struct {
 	PlannerTodoID        string `json:"planner_todo_id,omitempty"`        // Filter by todo ID (empty = any)
 	PlannerIssueSource   string `json:"planner_issue_source,omitempty"`   // Filter by operational issue source
 	PlannerIssueSeverity string `json:"planner_issue_severity,omitempty"` // Filter by operational issue severity
+
+	// For TriggerPersonDetected
+	PersonCameraID        string `json:"person_camera_id,omitempty"`        // go2rtc stream ID (empty = any camera)
+	PersonZone            string `json:"person_zone,omitempty"`             // zone name the event hit (empty = any)
+	PersonIncludeDisarmed bool   `json:"person_include_disarmed,omitempty"` // false = only events started while armed
 }
 
 // MissionV2 represents an enhanced mission with trigger support
