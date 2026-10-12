@@ -2,6 +2,7 @@ package ui
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -70,11 +71,13 @@ func TestCYDCreatorDesignerStaticContracts(t *testing.T) {
 			}
 		}
 		begin := strings.Index(css, "/* ==== CYD Creator designer (plan 4b) — begin")
-		if begin < 0 {
-			t.Fatal("the designer section must start with the shell's delimiter comment")
+		end := strings.Index(css, "/* ==== CYD Creator designer (plan 4b) — end")
+		if begin < 0 || end < begin {
+			t.Fatal("the designer section must sit between the delimiter comments \"CYD Creator designer (plan 4b) — begin\" and \"— end\"")
 		}
-		section := css[begin:]
+		section := css[begin:end]
 		checkCYDDesignerSectionTokens(t, css, section)
+		checkCYDDesignerScope(t, section)
 		checkCYDDesignerStageMetrics(t, section)
 		// Narrow windows: the shell hides .cc-left at ≤ 820 px; Design mode must bring screens,
 		// layers and palette back (Code mode keeps the shell layout).
@@ -86,10 +89,64 @@ func TestCYDCreatorDesignerStaticContracts(t *testing.T) {
 	})
 }
 
+// cydCSSRule is one innermost rule of a stylesheet: its selector list (an at-rule's prelude is not
+// part of it) and its declarations.
+type cydCSSRule struct{ selector, body string }
+
+// cydCSSRules returns the innermost rules of css with comments removed: the rules inside @media,
+// @container and @supports blocks, @font-face, and the keyframe selectors of @keyframes.
+func cydCSSRules(css string) []cydCSSRule {
+	clean := regexp.MustCompile(`(?s)/\*.*?\*/`).ReplaceAllString(css, "")
+	var out []cydCSSRule
+	for _, m := range regexp.MustCompile(`([^{}]*)\{([^{}]*)\}`).FindAllStringSubmatch(clean, -1) {
+		out = append(out, cydCSSRule{strings.TrimSpace(m[1]), m[2]})
+	}
+	return out
+}
+
+// cydSelectors splits a selector list at its top-level commas (not inside :is(…) or […]).
+func cydSelectors(list string) []string {
+	var out []string
+	depth, start := 0, 0
+	for i, r := range list {
+		switch r {
+		case '(', '[':
+			depth++
+		case ')', ']':
+			depth--
+		case ',':
+			if depth == 0 {
+				out = append(out, strings.TrimSpace(list[start:i]))
+				start = i + 1
+			}
+		}
+	}
+	return append(out, strings.TrimSpace(list[start:]))
+}
+
+// cydDeclarations returns the property → value pairs of a rule body in order (a repeated property
+// keeps its last value, like the cascade inside one rule).
+func cydDeclarations(body string) [][2]string {
+	var out [][2]string
+	for _, decl := range strings.Split(body, ";") {
+		name, value, ok := strings.Cut(decl, ":")
+		if ok {
+			out = append(out, [2]string{strings.TrimSpace(name), strings.TrimSpace(value)})
+		}
+	}
+	return out
+}
+
+// cydNamedColour matches CSS named colours in a declaration value. System colours of forced-colors
+// mode (Canvas, CanvasText, Highlight, HighlightText, GrayText, …) and transparent / currentColor
+// stay allowed.
+var cydNamedColour = regexp.MustCompile(`(?i)\b(white|black|red|green|blue|yellow|orange|purple|pink|gr[ae]y|silver|maroon|navy|teal|lime|aqua|cyan|magenta|fuchsia|olive|brown|gold|indigo|violet|coral|salmon|crimson|tomato|khaki|beige|ivory|lavender|turquoise|tan|chocolate|orchid|plum|azure|snow|wheat|linen)\b`)
+
 // checkCYDDesignerSectionTokens holds the designer section to the shell's token rules: literal
-// colours only in its own token block (the first rule), chrome colours only from --cc-* tokens the
-// stylesheet defines (plus the inline --cc-grid and --cc-depth the canvas and layers set), and none
-// of the plan's former --ccd-* re-derivations of the desktop theme.
+// colours (hex, colour functions, named colours) only in its own token block (the first rule),
+// chrome colours only from --cc-* tokens the stylesheet defines (plus the inline --cc-grid and
+// --cc-depth the canvas and layers set), and none of the plan's former --ccd-* re-derivations of
+// the desktop theme.
 func checkCYDDesignerSectionTokens(t *testing.T, css, section string) {
 	t.Helper()
 	if strings.Contains(css, "--ccd-") {
@@ -109,6 +166,13 @@ func checkCYDDesignerSectionTokens(t *testing.T, css, section string) {
 		if fn := regexp.MustCompile(`\b(?:rgba?|hsla?)\(`).FindString(text); fn != "" {
 			t.Errorf("literal colour function %s…) in the designer section %s", fn, name)
 		}
+		for _, rule := range cydCSSRules(text) {
+			for _, d := range cydDeclarations(rule.body) {
+				if named := cydNamedColour.FindString(d[1]); named != "" {
+					t.Errorf("named colour %q in the designer section %s (%s { %s: %s })", named, name, rule.selector, d[0], d[1])
+				}
+			}
+		}
 	}
 	defined := map[string]bool{"--cc-grid": true, "--cc-depth": true}
 	for _, m := range regexp.MustCompile(`(--cc-[a-z0-9-]+)\s*:`).FindAllStringSubmatch(css, -1) {
@@ -121,27 +185,95 @@ func checkCYDDesignerSectionTokens(t *testing.T, css, section string) {
 	}
 }
 
+// checkCYDDesignerScope keeps every designer rule inside the CYD Creator window: each selector
+// starts at .cc-app, or at the palette drag ghost that hangs in document.body (@font-face and
+// keyframe selectors aside).
+func checkCYDDesignerScope(t *testing.T, section string) {
+	t.Helper()
+	scoped := regexp.MustCompile(`^\.cc-(?:app|drag-ghost(?:-inner)?)(?:$|[\s.:\[>+~])`)
+	for _, rule := range cydCSSRules(section) {
+		if strings.HasPrefix(rule.selector, "@") || rule.selector == "from" || rule.selector == "to" || strings.HasSuffix(rule.selector, "%") {
+			continue
+		}
+		for _, sel := range cydSelectors(rule.selector) {
+			if !scoped.MatchString(sel) {
+				t.Errorf("designer selector %q is not scoped to .cc-app (or the drag ghost)", sel)
+			}
+		}
+	}
+}
+
+// cydTargets reports whether one of the rule's selectors has class (e.g. "cc-canvas-stage") in its
+// subject, the last compound selector.
+func cydTargets(rule cydCSSRule, class string) bool {
+	subject := regexp.MustCompile(`\.` + regexp.QuoteMeta(class) + `(?:$|[^-\w])`)
+	for _, sel := range cydSelectors(rule.selector) {
+		parts := regexp.MustCompile(`[\s>+~]+`).Split(strings.TrimSpace(sel), -1)
+		if subject.MatchString(parts[len(parts)-1]) {
+			return true
+		}
+	}
+	return false
+}
+
 // checkCYDDesignerStageMetrics pins the canvas geometry that fitZoom in cyd-creator-canvas.js
-// subtracts: the stage padding is PAD and the device frame's padding is BEZEL.
+// subtracts, in every rule of the section: the stage padding is PAD, the device frame's padding is
+// BEZEL, and the device label's margin-top + min-height is LABEL_H.
 func checkCYDDesignerStageMetrics(t *testing.T, section string) {
 	t.Helper()
 	canvas := readDesktopAssetText(t, "js/desktop/apps/cyd-creator-canvas.js")
-	for _, pin := range []struct{ constant, rule string }{{"PAD", ".cc-app .cc-canvas-stage {"}, {"BEZEL", ".cc-app .cc-device-frame {"}} {
-		m := regexp.MustCompile(`const ` + pin.constant + ` = (\d+);`).FindStringSubmatch(canvas)
+	constant := func(name string) string {
+		m := regexp.MustCompile(`const ` + name + ` = (\d+);`).FindStringSubmatch(canvas)
 		if m == nil {
-			t.Errorf("cyd-creator-canvas.js has no const %s", pin.constant)
+			t.Fatalf("cyd-creator-canvas.js has no const %s", name)
+		}
+		return m[1]
+	}
+	rules := cydCSSRules(section)
+	for _, pin := range []struct{ constant, class string }{{"PAD", "cc-canvas-stage"}, {"BEZEL", "cc-device-frame"}} {
+		want := constant(pin.constant) + "px"
+		found := false
+		for _, rule := range rules {
+			if !cydTargets(rule, pin.class) {
+				continue
+			}
+			for _, d := range cydDeclarations(rule.body) {
+				if !strings.HasPrefix(d[0], "padding") {
+					continue
+				}
+				found = true
+				if d[0] != "padding" || d[1] != want {
+					t.Errorf("%s { %s: %s } must be padding: %s (cyd-creator-canvas.js %s, used by fitZoom)", rule.selector, d[0], d[1], want, pin.constant)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("no designer rule gives .%s its padding: %s (cyd-creator-canvas.js %s)", pin.class, want, pin.constant)
+		}
+	}
+	px := regexp.MustCompile(`^(\d+)px$`)
+	label := map[string]int{}
+	for _, rule := range rules {
+		if !cydTargets(rule, "cc-device-label") {
 			continue
 		}
-		at := strings.Index(section, pin.rule)
-		if at < 0 {
-			t.Errorf("the designer section has no rule %q", pin.rule)
-			continue
+		for _, d := range cydDeclarations(rule.body) {
+			switch {
+			case d[0] == "margin-top" || d[0] == "min-height":
+				m := px.FindStringSubmatch(d[1])
+				if m == nil {
+					t.Errorf("%s { %s: %s } must be whole px (LABEL_H)", rule.selector, d[0], d[1])
+					continue
+				}
+				n, _ := strconv.Atoi(m[1])
+				label[d[0]] = n
+			case d[0] == "margin" || strings.HasPrefix(d[0], "margin-block") || d[0] == "height" || d[0] == "max-height" || d[0] == "block-size":
+				t.Errorf("%s { %s: %s }: the device label's height is margin-top + min-height (LABEL_H)", rule.selector, d[0], d[1])
+			}
 		}
-		body := section[at:]
-		body = body[:strings.Index(body, "}")]
-		if !regexp.MustCompile(`(?:^|[;{]\s*)padding: ` + m[1] + `px;`).MatchString(body) {
-			t.Errorf("%s must have padding: %spx (cyd-creator-canvas.js %s, used by fitZoom): %s", pin.rule, m[1], pin.constant, body)
-		}
+	}
+	if got, want := label["margin-top"]+label["min-height"], constant("LABEL_H"); strconv.Itoa(got) != want {
+		t.Errorf(".cc-device-label margin-top %dpx + min-height %dpx = %d, cyd-creator-canvas.js LABEL_H = %s (used by fitZoom)", label["margin-top"], label["min-height"], got, want)
 	}
 }
 
