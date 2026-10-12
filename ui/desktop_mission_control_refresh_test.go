@@ -159,6 +159,9 @@ func TestDesktopMissionControlTriggerModuleContract(t *testing.T) {
 		"'desktop.mc_trigger_group_devices'",
 		"'desktop.mc_trigger_group_planner'",
 		"'desktop.mc_trigger_group_invasion'",
+		"source: 'cameras'",
+		"url: '/api/desktop/integrations/go2rtc/app/state'",
+		"case 'person_detected':",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("mission-control-triggers.js missing marker %q", marker)
@@ -168,6 +171,7 @@ func TestDesktopMissionControlTriggerModuleContract(t *testing.T) {
 		"mission_completed", "email_received", "webhook", "egg_hatched", "nest_cleared", "mqtt_message",
 		"system_startup", "home_assistant_state", "device_connected", "device_disconnected", "fritzbox_call",
 		"budget_warning", "budget_exceeded", "planner_appointment_due", "planner_todo_overdue", "planner_operational_issue",
+		"person_detected",
 	} {
 		if !strings.Contains(source, "key: '"+key+"'") {
 			t.Fatalf("trigger catalog missing %q", key)

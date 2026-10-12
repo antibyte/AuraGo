@@ -124,6 +124,21 @@ eq('summary: schedule, datetime, manual, other; duplicates removed', TR.summary(
 eq('summary: agent missions unchanged', TR.summary(scheduled, t, ctx), S.describe('0 9 * * *', t, 'en'));
 eq('summary: an unknown trigger type is passed on as text (renderers escape it)', TR.summary(flowOdd, t, ctx), '<b>x</b>');
 
+// ── person_detected trigger (person detection) ──
+const person = { execution_type: 'triggered', trigger_type: 'person_detected', trigger_config: { person_camera_id: 'garden', person_zone: 'Einfahrt', min_interval_seconds: 60 } };
+eq('person_detected: summary names camera, zone, armed only and the interval', TR.summary(person, t, ctx),
+    [TR.label(TR.byKey('person_detected'), t), 'missions.trigger_info_person_camera_prefix garden', 'missions.trigger_info_person_zone_prefix "Einfahrt"',
+        'missions.trigger_info_person_armed_only', 'missions.trigger_info_min_interval_prefix desktop.rel_time_seconds {"count":60}'].join(' · '));
+eq('person_detected: any camera, also disarmed', TR.detail({ trigger_type: 'person_detected', trigger_config: { person_include_disarmed: true } }, t),
+    ['missions.trigger_info_person_camera_prefix missions.trigger_info_person_any_camera', 'missions.trigger_info_person_also_disarmed'].join(' · '));
+eq('person_detected: form fields', TR.FIELDS.person_detected.map(f => f.name), ['person_camera_id', 'person_zone', 'person_include_disarmed']);
+check('person_detected: listed with the device triggers and never for remote runners',
+    TR.GROUPS.find(g => g.id === 'devices').triggers.includes('person_detected') && !TR.REMOTE_ALLOWED.has('person_detected'));
+eq('person_detected: a flow trigger shows the trigger label',
+    TR.summary({ execution_type: 'flow', flow_published: true, flow_triggers: [{ node_id: 'p', trigger_type: 'person_detected' }] }, t, ctx),
+    TR.label(TR.byKey('person_detected'), t));
+check('person_detected: the camera icon exists', typeof MN.ICONS.camera === 'string' && MN.ICONS.camera.startsWith('<svg'));
+
 // ── shared predicates ──
 check('isFlow / isUnpublishedFlow', TR.isFlow(flowLive) && !TR.isFlow(agent) && !TR.isFlow(null) && TR.isUnpublishedFlow(flowDraft) && !TR.isUnpublishedFlow(flowLive) && !TR.isUnpublishedFlow(agentPaused));
 eq('upcomingRun: enabled scheduled and flow missions only', [TR.upcomingRun(flowLive), TR.upcomingRun(scheduled), TR.upcomingRun(Object.assign({}, flowLive, { enabled: false })), TR.upcomingRun(Object.assign({}, agent, { next_run: '2026-10-07T09:00:00Z' }))],

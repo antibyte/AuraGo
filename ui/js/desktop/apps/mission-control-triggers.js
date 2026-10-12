@@ -17,6 +17,7 @@
         { key: 'home_assistant_state', icon: 'home', labelKey: 'missions.trigger_home_assistant_state', hintKey: 'missions.trigger_home_assistant_state_hint' },
         { key: 'device_connected', icon: 'plug', labelKey: 'missions.trigger_device_connected', hintKey: 'missions.trigger_device_connected_hint' },
         { key: 'device_disconnected', icon: 'plugOff', labelKey: 'missions.trigger_device_disconnected', hintKey: 'missions.trigger_device_disconnected_hint' },
+        { key: 'person_detected', icon: 'camera', labelKey: 'missions.trigger_person_detected', hintKey: 'missions.trigger_person_detected_hint' },
         { key: 'planner_appointment_due', icon: 'calendar', labelKey: 'missions.trigger_planner_appointment_due', hintKey: 'missions.trigger_planner_appointment_due_hint' },
         { key: 'planner_todo_overdue', icon: 'listCheck', labelKey: 'missions.trigger_planner_todo_overdue', hintKey: 'missions.trigger_planner_todo_overdue_hint' },
         { key: 'planner_operational_issue', icon: 'alert', labelKey: 'missions.trigger_planner_operational_issue', hintKey: 'missions.trigger_planner_operational_issue_hint' },
@@ -27,7 +28,7 @@
     const GROUPS = [
         { id: 'missions', labelKey: 'desktop.mc_trigger_group_missions', triggers: ['mission_completed', 'system_startup', 'budget_warning', 'budget_exceeded'] },
         { id: 'communication', labelKey: 'desktop.mc_trigger_group_communication', triggers: ['email_received', 'webhook', 'fritzbox_call'] },
-        { id: 'devices', labelKey: 'desktop.mc_trigger_group_devices', triggers: ['mqtt_message', 'home_assistant_state', 'device_connected', 'device_disconnected'] },
+        { id: 'devices', labelKey: 'desktop.mc_trigger_group_devices', triggers: ['mqtt_message', 'home_assistant_state', 'device_connected', 'device_disconnected', 'person_detected'] },
         { id: 'planner', labelKey: 'desktop.mc_trigger_group_planner', triggers: ['planner_appointment_due', 'planner_todo_overdue', 'planner_operational_issue'] },
         { id: 'invasion', labelKey: 'desktop.mc_trigger_group_invasion', triggers: ['egg_hatched', 'nest_cleared'] }
     ];
@@ -62,6 +63,12 @@
         ],
         device_connected: [text('device_id', 'missions.trigger_device_id_label'), text('device_name', 'missions.trigger_device_name_label')],
         device_disconnected: [text('device_id', 'missions.trigger_device_id_label'), text('device_name', 'missions.trigger_device_name_label')],
+        // Off = only events started while the system is armed (the server's default).
+        person_detected: [
+            { name: 'person_camera_id', type: 'remote', source: 'cameras', labelKey: 'missions.trigger_person_camera_label', anyKey: 'missions.trigger_info_person_any_camera' },
+            text('person_zone', 'missions.trigger_person_zone_label', { placeholderKey: 'missions.trigger_person_zone_placeholder' }),
+            { name: 'person_include_disarmed', type: 'toggle', labelKey: 'missions.trigger_person_include_disarmed', hintKey: 'missions.trigger_person_include_disarmed_hint' }
+        ],
         fritzbox_call: [{ name: 'call_type', type: 'select', labelKey: 'missions.trigger_fritzbox_call_type_label', options: [{ value: '', labelKey: 'missions.trigger_fritzbox_call_type_any' }, { value: 'call', labelKey: 'missions.trigger_fritzbox_call_type_call' }, { value: 'tam_message', labelKey: 'missions.trigger_fritzbox_call_type_tam' }] }],
         planner_appointment_due: [text('planner_appointment_id', 'missions.trigger_planner_appointment_id_label'), text('planner_title_contains', 'missions.trigger_planner_title_contains_label')],
         planner_todo_overdue: [text('planner_todo_id', 'missions.trigger_planner_todo_id_label'), text('planner_title_contains', 'missions.trigger_planner_title_contains_label')],
@@ -78,7 +85,9 @@
     const SOURCES = {
         webhooks: { url: '/api/desktop/integrations/webhooks', items: (d) => (Array.isArray(d) ? d : []), label: (w) => `${w.name || w.id} (${w.slug || ''})`, name: (w) => w.slug || '' },
         eggs: { url: '/api/desktop/integrations/invasion/eggs', items: (d) => (d && (d.eggs || (Array.isArray(d) ? d : []))) || [], label: (e) => e.name || e.id, name: (e) => e.name || '' },
-        nests: { url: '/api/desktop/integrations/invasion/nests', items: (d) => (d && (d.nests || (Array.isArray(d) ? d : []))) || [], label: (n) => n.name || n.id, name: (n) => n.name || '' }
+        nests: { url: '/api/desktop/integrations/invasion/nests', items: (d) => (d && (d.nests || (Array.isArray(d) ? d : []))) || [], label: (n) => n.name || n.id, name: (n) => n.name || '' },
+        // The Network Cameras app state lists the enabled go2rtc streams (live or from the configuration).
+        cameras: { url: '/api/desktop/integrations/go2rtc/app/state', items: (d) => (d && Array.isArray(d.streams) ? d.streams : []), label: (s) => (s.name && s.name !== s.id ? `${s.name} (${s.id})` : s.id), name: (s) => s.name || '' }
     };
 
     function byKey(key) { return TYPES.find(type => type.key === key) || null; }
@@ -117,6 +126,11 @@
                 break;
             case 'device_connected': parts.push(t('missions.trigger_info_device_connected_prefix') + ' ' + (cfg.device_name || cfg.device_id || t('missions.trigger_info_any_device'))); break;
             case 'device_disconnected': parts.push(t('missions.trigger_info_device_disconnected_prefix') + ' ' + (cfg.device_name || cfg.device_id || t('missions.trigger_info_any_device'))); break;
+            case 'person_detected':
+                parts.push(t('missions.trigger_info_person_camera_prefix') + ' ' + (cfg.person_camera_id || t('missions.trigger_info_person_any_camera')));
+                if (cfg.person_zone) parts.push(t('missions.trigger_info_person_zone_prefix') + ' "' + cfg.person_zone + '"');
+                parts.push(t(cfg.person_include_disarmed ? 'missions.trigger_info_person_also_disarmed' : 'missions.trigger_info_person_armed_only'));
+                break;
             case 'fritzbox_call': parts.push(t('missions.trigger_info_fritzbox_prefix') + ' ' + (cfg.call_type || t('missions.trigger_info_fritzbox_any'))); break;
             case 'budget_warning': parts.push(t('missions.trigger_budget_warning_badge')); break;
             case 'budget_exceeded': parts.push(t('missions.trigger_budget_exceeded_badge')); break;
