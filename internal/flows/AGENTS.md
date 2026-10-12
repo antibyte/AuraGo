@@ -98,6 +98,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 ## Engine semantics
 - One coordinator goroutine per run owns all state; nodes run on workers (at most `parallel`, default 4).
   A node holds its slot until it returns, so a `logic.wait` (up to 1 h) can starve parallel branches.
+  `logic.wait` until looks for the next real minute with that wall-clock time within one hour. Timer rules
+  for the spring gap and the autumn overlap stay as they are (see Timers).
 - Run-start checks: nil flow `FLOW_INVALID`; over the limits `FLOW_TOO_LARGE`; a loop `FLOW_CYCLE`; a
   panicking definition hook `FLOW_NODE_PANIC`. Test runs execute unpublished drafts, so these are the
   guard. Definitions, ports and default ports are computed once per run; a definition is pinned for it.

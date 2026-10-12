@@ -316,15 +316,19 @@ func waitDuration(in ExecInput) (time.Duration, error) {
 		hour, _ := strconv.Atoi(m[1])
 		minute, _ := strconv.Atoi(m[2])
 		now := in.Services.Now().In(in.Services.Loc())
-		target := time.Date(now.Year(), now.Month(), now.Day(), hour, minute, 0, 0, now.Location())
-		if !target.After(now) {
-			target = target.AddDate(0, 0, 1)
+		// Walk the next 60 real minutes. time.Date would pick the later instant
+		// of an autumn overlap and turn a spring-gap time into 03:30.
+		cursor := now.Truncate(time.Minute)
+		if !cursor.After(now) {
+			cursor = cursor.Add(time.Minute)
 		}
-		d := target.Sub(now)
-		if d > maxWait {
-			return 0, NewNodeError("FLOW_WAIT_TOO_LONG", "waiting until %s would take longer than one hour", value)
+		for i := 0; i < 60; i++ {
+			if cursor.Hour() == hour && cursor.Minute() == minute {
+				return cursor.Sub(now), nil
+			}
+			cursor = cursor.Add(time.Minute)
 		}
-		return d, nil
+		return 0, NewNodeError("FLOW_WAIT_TOO_LONG", "waiting until %s would take longer than one hour", value)
 	}
 	// A missing seconds relies on the engine applying the ParamSpec default (60).
 	f, ok := toNumber(in.Params["seconds"])

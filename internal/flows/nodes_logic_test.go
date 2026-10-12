@@ -182,6 +182,52 @@ func TestWaitNode(t *testing.T) {
 	}
 }
 
+func TestWaitNodeUntilFollowsRealMinutesAcrossDST(t *testing.T) {
+	loc, err := time.LoadLocation("Europe/Berlin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstFold := time.Date(2026, 10, 25, 2, 10, 0, 0, time.FixedZone("CEST", 2*3600)).In(loc)
+	if _, offset := firstFold.Zone(); offset != 2*3600 {
+		t.Fatalf("first fold offset = %d", offset)
+	}
+	secondFold := time.Date(2026, 10, 25, 2, 10, 0, 0, loc)
+	if _, offset := secondFold.Zone(); offset != 3600 {
+		t.Fatalf("second fold offset = %d", offset)
+	}
+
+	d, err := waitUntilAt(t, firstFold, loc, "02:30")
+	if err != nil || d != 20*time.Minute {
+		t.Fatalf("first fold until 02:30 = %v, %v", d, err)
+	}
+	d, err = waitUntilAt(t, secondFold, loc, "02:30")
+	if err != nil || d != 20*time.Minute {
+		t.Fatalf("second fold until 02:30 = %v, %v", d, err)
+	}
+
+	spring := time.Date(2026, 3, 29, 1, 50, 0, 0, loc)
+	_, err = waitUntilAt(t, spring, loc, "02:30")
+	if ne := asNodeError(err); ne.Code != "FLOW_WAIT_TOO_LONG" {
+		t.Fatalf("spring gap = %v", err)
+	}
+
+	sameDay := time.Date(2026, 10, 3, 7, 0, 0, 0, time.UTC)
+	_, err = waitUntilAt(t, sameDay, time.UTC, "08:30")
+	if ne := asNodeError(err); ne.Code != "FLOW_WAIT_TOO_LONG" {
+		t.Fatalf("same day beyond an hour = %v", err)
+	}
+	_, err = waitUntilAt(t, sameDay, time.UTC, "06:00")
+	if ne := asNodeError(err); ne.Code != "FLOW_WAIT_TOO_LONG" {
+		t.Fatalf("next day = %v", err)
+	}
+}
+
+func waitUntilAt(t *testing.T, now time.Time, loc *time.Location, until string) (time.Duration, error) {
+	t.Helper()
+	svc := &Services{Clock: newFakeClock(now), Location: loc}
+	return waitDuration(ExecInput{Params: map[string]any{"mode": "until", "until": until}, Services: svc})
+}
+
 func TestLogicNodeValidators(t *testing.T) {
 	reg := NewRegistry()
 	_ = RegisterLogicNodes(reg)
