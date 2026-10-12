@@ -28,6 +28,6 @@
   "help.cyd_creator.cold_build_timeout_seconds": "S’applique tant que le cache de compilation d’un projet et d’une carte est encore vide.",
   "help.cyd_creator.enabled": "Affiche l’appli CYD Creator sur le bureau. La compilation nécessite un hôte Docker configuré.",
   "help.cyd_creator.max_repair_attempts": "Nombre de fois où l’agent peut corriger des erreurs de compilation avant l’échec de la tâche.",
-  "help.cyd_creator.ota_enabled": "Les appareils connectés à AuraGo téléchargent eux-mêmes les nouveaux builds.",
+  "help.cyd_creator.ota_enabled": "Les appareils dotés de la liaison AuraGo téléchargent eux-mêmes les nouveaux builds.",
   "help.cyd_creator.ota_public_url": "URL par laquelle les appareils joignent AuraGo. Vide utilise les réglages du serveur."
 }

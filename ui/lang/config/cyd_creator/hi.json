@@ -28,6 +28,6 @@
   "help.cyd_creator.cold_build_timeout_seconds": "तब लागू होती है जब किसी प्रोजेक्ट और बोर्ड का बिल्ड कैश अभी खाली हो।",
   "help.cyd_creator.enabled": "डेस्कटॉप पर CYD Creator ऐप दिखाता है। बिल्ड के लिए कॉन्फ़िगर किया गया Docker होस्ट चाहिए।",
   "help.cyd_creator.max_repair_attempts": "काम विफल होने से पहले एजेंट कितनी बार कंपाइल त्रुटियाँ ठीक कर सकता है।",
-  "help.cyd_creator.ota_enabled": "AuraGo कनेक्शन वाले डिवाइस नए बिल्ड ख़ुद डाउनलोड करते हैं।",
+  "help.cyd_creator.ota_enabled": "AuraGo लिंक वाले डिवाइस नए बिल्ड ख़ुद डाउनलोड करते हैं।",
   "help.cyd_creator.ota_public_url": "वह URL जिससे डिवाइस AuraGo तक पहुँचते हैं। ख़ाली छोड़ने पर सर्वर सेटिंग उपयोग होती हैं।"
 }

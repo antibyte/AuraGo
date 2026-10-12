@@ -28,6 +28,6 @@
   "help.cyd_creator.cold_build_timeout_seconds": "Geldt zolang de buildcache van een project en board nog leeg is.",
   "help.cyd_creator.enabled": "Toont de app CYD Creator op het bureaublad. Voor bouwen is een geconfigureerde Docker-host nodig.",
   "help.cyd_creator.max_repair_attempts": "Hoe vaak de agent compileerfouten mag herstellen voordat de taak mislukt.",
-  "help.cyd_creator.ota_enabled": "Apparaten met een AuraGo-verbinding downloaden nieuwe builds zelf.",
+  "help.cyd_creator.ota_enabled": "Apparaten met een AuraGo-koppeling downloaden nieuwe builds zelf.",
   "help.cyd_creator.ota_public_url": "URL waarmee de apparaten AuraGo bereiken. Leeg gebruikt de serverinstellingen."
 }

@@ -269,16 +269,20 @@ Arduino core and the libraries an app uses.
 
 | Component | Use | License | Project |
 |---|---|---|---|
+| Base image `node:22-bookworm-slim` | Node.js 22 runtime for lv_font_conv; Debian 12 packages `python3`, `curl`, `tini`, `unzip`, `ca-certificates` | Node.js: MIT; Debian packages: their own licences (`/usr/share/doc/*/copyright` in the image) | https://hub.docker.com/_/node |
 | PlatformIO Core 6.1.19 | Build system | Apache-2.0 | https://github.com/platformio/platformio-core |
+| PlatformIO's Python dependencies (hash-pinned in `deploy/docker/cyd-builder/requirements.txt`) | PlatformIO runtime | MIT (ajsonrpc, anyio, bottle, charset-normalizer, h11, marshmallow, tabulate, urllib3, wsproto, pip, setuptools), BSD-3-Clause (click, colorama, idna, pyserial, starlette, uvicorn), BSD-2-Clause (semantic-version), Apache-2.0 (requests), Apache-2.0 OR BSD-2-Clause (packaging), PSF-2.0 (typing_extensions), MPL-2.0 (certifi), public domain (pyelftools) | https://pypi.org |
+| SCons 4.8.1 (PlatformIO `tool-scons` 4.40801.0) | Build engine | MIT | https://github.com/SCons/scons |
 | PlatformIO espressif32 6.13.0 | ESP32 platform | Apache-2.0 | https://github.com/platformio/platform-espressif32 |
-| Arduino-ESP32 2.0.17 (ESP-IDF 4.4.7 libraries) | Firmware core | LGPL-2.1-or-later (core), Apache-2.0 (IDF) | https://github.com/espressif/arduino-esp32 |
+| Arduino-ESP32 2.0.17 (ESP-IDF 4.4.7 libraries) | Firmware core | LGPL-2.1-or-later (core), Apache-2.0 (IDF; bundled third-party components keep their own licences, e.g. FreeRTOS MIT, lwIP BSD-3-Clause) | https://github.com/espressif/arduino-esp32 |
 | Xtensa GCC toolchains (esp32, esp32s3) 8.4.0 | Compilers | GPL-3.0 with GCC runtime exception | https://github.com/espressif/crosstool-NG |
 | esptool 4.11.0 | merge_bin | GPL-2.0-or-later | https://github.com/espressif/esptool |
 | LVGL 9.5.0 | UI library | MIT | https://github.com/lvgl/lvgl |
 | LovyanGFX 1.2.30 | Display/touch drivers | MIT AND BSD-2-Clause | https://github.com/lovyan03/LovyanGFX |
 | WiFiManager 2.0.17 | Captive portal | MIT | https://github.com/tzapu/WiFiManager |
 | ArduinoJson 7.4.3 | JSON | MIT | https://github.com/bblanchon/ArduinoJson |
-| PubSubClient 2.8, OneWire 2.3.8, DallasTemperature 4.0.6, DHT sensor library 1.4.7, Adafruit BusIO 1.17.4, Adafruit BMP280 3.0.0 | Curated sensor/MQTT libraries | MIT | PlatformIO registry |
+| PubSubClient 2.8, DallasTemperature 4.0.6, DHT sensor library 1.4.7, Adafruit BusIO 1.17.4, Adafruit BMP280 3.0.0 | Curated sensor/MQTT libraries | MIT | PlatformIO registry |
+| OneWire 2.3.8 | 1-Wire bus | MIT-style permissive (Jim Studt notice plus the Dallas Semiconductor/Maxim notice in `OneWire.cpp`) | https://github.com/PaulStoffregen/OneWire |
 | Adafruit BME280 2.3.0 | Sensor library | BSD-3-Clause | https://github.com/adafruit/Adafruit_BME280_Library |
 | Adafruit Unified Sensor 1.1.15 | Sensor abstraction | Apache-2.0 | https://github.com/adafruit/Adafruit_Sensor |
 | Adafruit NeoPixel 1.15.5 | LED library | LGPL-3.0 | https://github.com/adafruit/Adafruit_NeoPixel |
@@ -304,6 +308,8 @@ These use strong or network-relevant copyleft licenses. Redistributors should re
 | noVNC | MPL-2.0 | VNC in virtual computers UI |
 | Arduino-ESP32 core | LGPL-2.1-or-later | CYD Creator builder image; linked into CYD firmware |
 | esptool | GPL-2.0-or-later | CYD Creator builder image (`merge_bin`) |
+| Xtensa GCC toolchains | GPL-3.0 (runtime libraries under the GCC runtime library exception) | CYD Creator builder image (compilers) |
+| certifi | MPL-2.0 | CYD Creator builder image (PlatformIO dependency, unmodified) |
 | Adafruit NeoPixel | LGPL-3.0 | CYD Creator builder image; linked only when an app selects it |
 | Px437 IBM VGA 8x16 font | CC BY-SA 4.0 (share-alike) | Terminal Retro-Net 80×25 BBS mode (`ui/fonts/Px437_IBM_VGA_8x16.woff`) |
 

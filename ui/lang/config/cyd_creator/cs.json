@@ -28,6 +28,6 @@
   "help.cyd_creator.cold_build_timeout_seconds": "Platí, dokud je mezipaměť buildu pro projekt a desku prázdná.",
   "help.cyd_creator.enabled": "Zobrazí aplikaci CYD Creator na ploše. Pro sestavování je potřeba nakonfigurovaný hostitel Docker.",
   "help.cyd_creator.max_repair_attempts": "Kolikrát smí agent opravit chyby kompilace, než úloha selže.",
-  "help.cyd_creator.ota_enabled": "Zařízení se spojením s AuraGo si nové buildy stahují sama.",
+  "help.cyd_creator.ota_enabled": "Zařízení s propojením s AuraGo si nové buildy stahují sama.",
   "help.cyd_creator.ota_public_url": "URL, přes kterou zařízení AuraGo dosáhnou. Prázdné použije nastavení serveru."
 }

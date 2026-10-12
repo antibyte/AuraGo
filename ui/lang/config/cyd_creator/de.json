@@ -8,7 +8,7 @@
   "config.cyd_creator.disabled_desc": "Schalte es ein, um Apps für CYD-Boards zu gestalten und zu bauen. Docker muss konfiguriert sein.",
   "config.cyd_creator.disabled_notice": "CYD Creator ist ausgeschaltet.",
   "config.cyd_creator.enabled_label": "CYD Creator aktivieren",
-  "config.cyd_creator.idle_stop_minutes_label": "Untätigen Container stoppen nach (Minuten)",
+  "config.cyd_creator.idle_stop_minutes_label": "Container im Leerlauf stoppen nach (Minuten)",
   "config.cyd_creator.job_timeout_minutes_label": "Job-Zeitlimit (Minuten)",
   "config.cyd_creator.keep_builds_per_project_label": "Aufbewahrte Builds pro Projekt",
   "config.cyd_creator.max_repair_attempts_label": "Reparaturversuche pro Job",

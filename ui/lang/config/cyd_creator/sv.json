@@ -28,6 +28,6 @@
   "help.cyd_creator.cold_build_timeout_seconds": "Gäller så länge byggcachen för ett projekt och kort fortfarande är tom.",
   "help.cyd_creator.enabled": "Visar appen CYD Creator på skrivbordet. För att bygga krävs en konfigurerad Docker-värd.",
   "help.cyd_creator.max_repair_attempts": "Hur många gånger agenten får rätta kompileringsfel innan jobbet misslyckas.",
-  "help.cyd_creator.ota_enabled": "Enheter med AuraGo-anslutning laddar själva ned nya builds.",
+  "help.cyd_creator.ota_enabled": "Enheter med AuraGo-koppling laddar själva ned nya builds.",
   "help.cyd_creator.ota_public_url": "URL som enheterna använder för att nå AuraGo. Tomt använder serverinställningarna."
 }

@@ -28,6 +28,6 @@
   "help.cyd_creator.cold_build_timeout_seconds": "プロジェクトとボードのビルドキャッシュがまだ空の間に適用されます。",
   "help.cyd_creator.enabled": "デスクトップに CYD Creator アプリを表示します。ビルドには設定済みの Docker ホストが必要です。",
   "help.cyd_creator.max_repair_attempts": "ジョブが失敗するまでに、エージェントがコンパイルエラーを修正できる回数です。",
-  "help.cyd_creator.ota_enabled": "AuraGo 接続を持つデバイスは、新しいビルドを自分でダウンロードします。",
+  "help.cyd_creator.ota_enabled": "AuraGo 連携のあるデバイスは、新しいビルドを自分でダウンロードします。",
   "help.cyd_creator.ota_public_url": "デバイスが AuraGo に接続するための URL です。空欄ならサーバー設定を使います。"
 }
