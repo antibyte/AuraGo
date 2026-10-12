@@ -363,8 +363,8 @@ func TestManualMultimodalEnablesImageOnManagedLocal(t *testing.T) {
 			Auto: &auto,
 		},
 	}, CapabilityFallback{})
-	if caps.Image {
-		t.Fatalf("auto %s set Image: %#v", config.LocalLLMModelAlias, caps)
+	if !caps.Known || !caps.ToolCalling || caps.StructuredOutputs || caps.Reasoning || caps.Image {
+		t.Fatalf("auto %s capabilities = %#v", config.LocalLLMModelAlias, caps)
 	}
 }
 

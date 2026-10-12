@@ -145,6 +145,7 @@ func finishProviderCapabilities(provider config.ProviderEntry, result ProviderCa
 	if !managedLocalProvider(provider) {
 		return result
 	}
+	result.Known = true
 	result.ToolCalling = true
 	result.StructuredOutputs = false
 	result.Reasoning = false
