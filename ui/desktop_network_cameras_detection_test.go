@@ -109,3 +109,27 @@ func TestDesktopNetworkCamerasDetectionTranslations(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopNetworkCamerasDetectionStyles(t *testing.T) {
+	t.Parallel()
+
+	styles := rawDesktopAssetText(t, "css/desktop-app-network-cameras-detection.css")
+	for _, marker := range []string{
+		".ncd-root",
+		"container-type: inline-size",
+		"--ncd-danger: color-mix(in srgb, #e11d48 55%, var(--vd-text, #e5e7eb))",
+		".ncd-zone-stage:focus-visible",
+		"touch-action: none",
+		".nc-modal [data-tab-panel][hidden] { display: none !important; }",
+		"@media (prefers-reduced-motion: reduce)",
+		// Batch 4A/4B: the server time zone label, and test boxes never take the
+		// pointer from the zone editor (vertex drags and new points go to the stage).
+		".ncd-server-zone",
+		".ncd-zone-status.is-error",
+		".ncd-zone-stage .ncd-box,\n.ncd-zone-stage .ncd-box-label { pointer-events: none; }",
+	} {
+		if !strings.Contains(strings.ReplaceAll(styles, "\r\n", "\n"), marker) {
+			t.Errorf("desktop-app-network-cameras-detection.css lacks %q", marker)
+		}
+	}
+}
