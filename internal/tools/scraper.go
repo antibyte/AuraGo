@@ -8,9 +8,6 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"io"
-	"net/http"
-	"path"
 	"regexp"
 	"sort"
 	"strings"
@@ -52,10 +49,10 @@ type webScraperRSSItem struct {
 	GUID        string `json:"guid,omitempty"`
 }
 
-// ExecuteWebScraper fetches a URL using colly + go-readability, converts the main
-// article content to Markdown, then returns a compact JSON result.
-// SSRF protection, prompt-injection scanning, and <external_data> isolation are
-// all handled by the underlying AgentScraper.
+// ExecuteWebScraper fetches a URL, converts the main article content to Markdown,
+// then returns a compact JSON result.
+// Static, RSS, and auto share one SSRF-protected GET. Prompt-injection scanning
+// and <external_data> isolation still wrap text that is returned to the model.
 func ExecuteWebScraper(rawURL string) string {
 	return ExecuteWebScraperWithOptions(rawURL, WebScraperOptions{Mode: "auto"})
 }
@@ -95,11 +92,18 @@ func ExecuteWebScraperWithOptions(rawURL string, options WebScraperOptions) stri
 }
 
 func executeWebScraperAuto(rawURL, waitForSelector string, contexts ...context.Context) string {
-	if rss, ok := executeWebScraperRSSAuto(rawURL, contexts...); ok {
-		return rss
+	ctx := requestContext(contexts)
+	contentType, body, err := security.GetPublic(ctx, rawURL)
+	if err != nil {
+		return formatError(fmt.Sprintf("scrape failed: %v", err))
 	}
-	s := scraper.New(scraperGuardian).WithContext(requestContext(contexts))
-	result, err := s.FetchStatic(rawURL)
+	if rssResponseLooksLikeFeed(contentType, body) {
+		if feed, parseErr := parseRSSOrAtom(body); parseErr == nil {
+			return formatRSSFeedResult(rawURL, feed)
+		}
+	}
+	s := scraper.New(scraperGuardian).WithContext(ctx)
+	result, err := s.ScrapeHTML(rawURL, body)
 	if err != nil {
 		return formatError(fmt.Sprintf("scrape failed: %v", err))
 	}
@@ -156,14 +160,6 @@ func executeWebScraperRSS(rawURL string, contexts ...context.Context) string {
 		return formatError(fmt.Sprintf("rss scrape failed: %v", err))
 	}
 	return formatRSSFeedResult(rawURL, feed)
-}
-
-func executeWebScraperRSSAuto(rawURL string, contexts ...context.Context) (string, bool) {
-	feed, err := fetchRSSFeed(rawURL, !looksLikeFeedURL(rawURL), contexts...)
-	if err != nil {
-		return "", false
-	}
-	return formatRSSFeedResult(rawURL, feed), true
 }
 
 func formatRSSFeedResult(rawURL string, feed parsedRSSFeed) string {
@@ -245,25 +241,11 @@ func fetchRSSFeed(rawURL string, requireFeedResponse bool, contexts ...context.C
 	if err := security.ValidateSSRF(rawURL); err != nil {
 		return parsedRSSFeed{}, fmt.Errorf("URL not allowed: %w", err)
 	}
-	req, err := http.NewRequestWithContext(requestContext(contexts), http.MethodGet, rawURL, nil)
+	contentType, body, err := security.GetPublic(requestContext(contexts), rawURL)
 	if err != nil {
 		return parsedRSSFeed{}, err
 	}
-	req.Header.Set("User-Agent", "AuraGo/1.0 (+https://github.com/antibyte/AuraGo)")
-	req.Header.Set("Accept", "application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.5")
-	resp, err := scraperHTTPClient.Do(req)
-	if err != nil {
-		return parsedRSSFeed{}, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return parsedRSSFeed{}, fmt.Errorf("HTTP %d", resp.StatusCode)
-	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 5<<20))
-	if err != nil {
-		return parsedRSSFeed{}, err
-	}
-	if requireFeedResponse && !rssResponseLooksLikeFeed(resp.Header.Get("Content-Type"), body) {
+	if requireFeedResponse && !rssResponseLooksLikeFeed(contentType, body) {
 		return parsedRSSFeed{}, fmt.Errorf("response is not an RSS/Atom feed")
 	}
 	return parseRSSOrAtom(body)
@@ -360,16 +342,6 @@ func rssItemsContent(items []webScraperRSSItem) string {
 		}
 	}
 	return strings.TrimSpace(sb.String())
-}
-
-func looksLikeFeedURL(rawURL string) bool {
-	u := strings.ToLower(strings.TrimSpace(rawURL))
-	base := path.Base(u)
-	return strings.HasSuffix(base, ".xml") ||
-		strings.HasSuffix(base, ".rss") ||
-		strings.Contains(u, "/rss") ||
-		strings.Contains(u, "/atom") ||
-		strings.Contains(u, "feed")
 }
 
 func scrapeResultLooksThin(result *scraper.ScrapeResult) bool {

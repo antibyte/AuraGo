@@ -1,6 +1,7 @@
 package security
 
 import (
+	"bytes"
 	"net"
 	"strings"
 	"testing"
@@ -24,6 +25,17 @@ func TestIsPrivateIPBlocksLoopbackIPv4MappedIPv6(t *testing.T) {
 	}
 	if !isPrivateIP(ip) {
 		t.Fatal("expected loopback IPv4-mapped IPv6 address to be blocked")
+	}
+}
+
+func TestReadLimitedBodyRejectsOversize(t *testing.T) {
+	payload := bytes.Repeat([]byte("x"), int(MaxSSRFResponseBytes)+1)
+	body, err := ReadLimitedBody(bytes.NewReader(payload), MaxSSRFResponseBytes)
+	if err == nil || err.Error() != "response exceeds 5 MiB" {
+		t.Fatalf("expected response exceeds 5 MiB, got %v", err)
+	}
+	if body != nil {
+		t.Fatalf("oversize body = %q, want nil slice", body)
 	}
 }
 

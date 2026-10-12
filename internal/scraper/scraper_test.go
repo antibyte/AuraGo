@@ -1,6 +1,8 @@
 package scraper
 
 import (
+	"aurago/internal/security"
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -52,14 +54,30 @@ func TestFetchStaticBuildsRequestAndCollectsLinks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FetchStatic returned error: %v", err)
 	}
-	if gotUserAgent == "" {
-		t.Fatal("expected a browser-like user agent")
+	if gotUserAgent != security.ScraperUserAgent {
+		t.Fatalf("user agent = %q, want %q", gotUserAgent, security.ScraperUserAgent)
 	}
 	if len(result.Links) != 1 || result.Links[0] != server.URL+"/next" {
 		t.Fatalf("links = %#v", result.Links)
 	}
 	if !strings.HasPrefix(result.Markdown, "<external_data>\n") {
 		t.Fatalf("markdown was not isolated: %q", result.Markdown)
+	}
+}
+
+func TestFetchStaticRejectsOversizeHTML(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+
+	payload := bytes.Repeat([]byte("x"), int(security.MaxSSRFResponseBytes)+1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write(payload)
+	}))
+	defer server.Close()
+
+	_, err := New(nil).FetchStatic(server.URL + "/page")
+	if err == nil || !strings.Contains(err.Error(), "response exceeds 5 MiB") {
+		t.Fatalf("expected response exceeds 5 MiB, got %v", err)
 	}
 }
 

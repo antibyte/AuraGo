@@ -1,5 +1,5 @@
 // Package scraper provides static and dynamic web scraping for LLM agent tools.
-// Static fetching uses github.com/gocolly/colly/v2 (fast, no JS).
+// Static fetching uses one SSRF-protected GET (no JavaScript).
 // Dynamic fetching uses github.com/go-rod/rod (headless Chromium, JS rendering).
 // Both paths clean and convert the result to Markdown via go-readability + html-to-markdown.
 // All Markdown output is scanned for prompt injection and wrapped in <external_data> isolation
@@ -8,6 +8,7 @@ package scraper
 
 import (
 	"aurago/internal/security"
+	"bytes"
 	"context"
 	"fmt"
 	"net/url"
@@ -16,9 +17,9 @@ import (
 
 	readability "codeberg.org/readeck/go-readability/v2"
 	htmltomarkdown "github.com/JohannesKaufmann/html-to-markdown/v2"
+	"github.com/PuerkitoBio/goquery"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
-	"github.com/gocolly/colly/v2"
 )
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -68,53 +69,58 @@ func (a *AgentScraper) WithContext(ctx context.Context) *AgentScraper {
 	return &copy
 }
 
-// FetchStatic fetches a URL using colly (no JavaScript) and returns a ScrapeResult.
+// FetchStatic fetches a URL with one SSRF-protected GET (no JavaScript) and returns a ScrapeResult.
 func (a *AgentScraper) FetchStatic(rawURL string) (*ScrapeResult, error) {
-	result := &ScrapeResult{}
-	var rawHTML strings.Builder
-	var links []string
-
 	if err := security.ValidateSSRF(rawURL); err != nil {
 		return nil, fmt.Errorf("URL not allowed: %w", err)
 	}
+	_, body, err := security.GetPublic(a.ctx, rawURL)
+	if err != nil {
+		return nil, err
+	}
+	return a.ScrapeHTML(rawURL, body)
+}
 
-	c := colly.NewCollector(
-		colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"),
-		colly.MaxDepth(1),
-	)
-	c.SetClient(security.HTTPClientWithContext(security.NewSSRFProtectedHTTPClient(20*time.Second), a.ctx))
-
-	// Capture the full HTML response body.
-	c.OnResponse(func(r *colly.Response) {
-		rawHTML.Write(r.Body)
-	})
-
-	// Collect all anchor href values and resolve them to absolute URLs.
-	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
-		href := e.Attr("href")
-		abs := e.Request.AbsoluteURL(href)
-		if abs != "" {
-			links = append(links, abs)
+// ScrapeHTML builds a ScrapeResult from HTML already retrieved for rawURL.
+// Links are resolved against rawURL, then deduplicated. Readability and
+// isolation stay on the shared processForLLM path.
+func (a *AgentScraper) ScrapeHTML(rawURL string, body []byte) (*ScrapeResult, error) {
+	result := &ScrapeResult{RawHTML: string(body)}
+	base, err := url.Parse(rawURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse url: %w", err)
+	}
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("parse html: %w", err)
+	}
+	var links []string
+	doc.Find("a[href]").Each(func(_ int, sel *goquery.Selection) {
+		href, ok := sel.Attr("href")
+		if !ok {
+			return
+		}
+		href = strings.TrimSpace(href)
+		if href == "" || strings.HasPrefix(href, "#") {
+			return
+		}
+		ref, parseErr := url.Parse(href)
+		if parseErr != nil {
+			return
+		}
+		abs := base.ResolveReference(ref)
+		abs.Fragment = ""
+		if abs.Scheme != "http" && abs.Scheme != "https" {
+			return
+		}
+		if abs.String() != "" {
+			links = append(links, abs.String())
 		}
 	})
-
-	c.OnError(func(r *colly.Response, err error) {
-		// Error is surfaced via c.Visit return below.
-	})
-
-	if err := c.Visit(rawURL); err != nil {
-		return nil, fmt.Errorf("colly visit %s: %w", rawURL, err)
-	}
-
-	result.RawHTML = rawHTML.String()
 	result.Links = dedupLinks(links)
-
-	// Enrich with readability + markdown conversion, then scan and isolate.
 	if err := processForLLM(result, rawURL, a.guardian); err != nil {
-		// Non-fatal: return raw content with a fallback title.
 		result.Title = rawURL
 	}
-
 	return result, nil
 }
 
