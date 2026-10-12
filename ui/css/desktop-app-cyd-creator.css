@@ -701,7 +701,8 @@
 .cc-app .cc-palette, .cc-app .cc-palette-list, .cc-app .cc-screens, .cc-app .cc-inspector, .cc-app .cc-insp, .cc-app .cc-screen-section, .cc-app .cc-screen-props, .cc-app .cc-layers { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .cc-app .cc-screens { gap: 14px; }
 .cc-app .cc-panel-head, .cc-app .cc-insp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 26px; }
-.cc-app .cc-panel-head h3, .cc-app .cc-insp-head h3, .cc-app .cc-screen-props h3 { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--cc-muted); }
+/* long uppercase headings ("Bildschirmeinstellungen") wrap instead of scrolling a narrow column sideways */
+.cc-app .cc-panel-head h3, .cc-app .cc-insp-head h3, .cc-app .cc-screen-props h3 { min-width: 0; margin: 0; overflow-wrap: anywhere; hyphens: auto; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--cc-muted); }
 .cc-app .cc-panel-hint, .cc-app .cc-panel-empty { margin: 0; font-size: 12px; color: var(--cc-muted); }
 .cc-app .cc-palette-group h4, .cc-app .cc-insp-section h4 { margin: 4px 0; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--cc-muted); }
 /* read-only, locked or on the Wi-Fi system screen every entry is disabled: the drag hint does not apply */
@@ -730,14 +731,23 @@
 .cc-app .cc-screen-open:hover, .cc-app .cc-layer-select:hover { background: var(--cc-control-hover); }
 .cc-app .cc-screen-name, .cc-app .cc-screen-title, .cc-app .cc-layer-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cc-app .cc-screen-name { font-weight: 600; }
-.cc-app .cc-screen-title { color: var(--cc-muted); font-size: 12px; }
+/* the title takes the room the name leaves (the name is what identifies the screen) */
+.cc-app .cc-screen-title { flex: 1 1 0; color: var(--cc-muted); font-size: 12px; }
 .cc-app .cc-screen-title:empty { display: none; }
 .cc-app .cc-screen-row.is-system .cc-screen-open { color: var(--cc-muted); }
 .cc-app .cc-screen-open :is(.cc-badge, .cc-start, .cc-count, .cc-icon) { flex: none; }
 .cc-app .cc-row-tools { display: flex; flex: none; gap: 1px; margin-left: auto; }
-/* Hover devices show the tools of the active, hovered or focused row; touch devices always do. */
+/* Showing tools never moves anything: a press that takes the pointer or the focus out of a row
+   would otherwise shift the rows below between press and release (the click is lost), and tools
+   laid over the entry would catch presses meant for it. The active row shows all six tools on its
+   second line; touch devices show them there in every row. On hover devices every other row stays
+   one line and keeps a slot at its end for Rename and Delete, shown while the row is hovered or
+   focused (hidden by visibility they also leave the tab order); its other tools come with the
+   active row. Six tools never fit beside an entry in the 150–230 px column. */
 @media (hover: hover) {
-    .cc-app .cc-screen-row:not(.is-active):not(:hover):not(:focus-within) .cc-row-tools { display: none; }
+    .cc-app .cc-screen-row:not(.is-active) { flex-wrap: nowrap; }
+    .cc-app .cc-screen-row:not(.is-active) .cc-row-tools > :not([data-cc-cmd="screen-rename"], [data-cc-cmd="screen-delete"]) { display: none; }
+    .cc-app .cc-screen-row:not(.is-active):not(:hover):not(:focus-within) .cc-row-tools { visibility: hidden; }
 }
 .cc-app .cc-screens.is-readonly .cc-row-tools { display: none; }
 .cc-app .cc-start { display: inline-flex; color: var(--cc-warn-ink); }

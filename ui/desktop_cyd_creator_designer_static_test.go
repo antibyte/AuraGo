@@ -79,6 +79,29 @@ func TestCYDCreatorDesignerStaticContracts(t *testing.T) {
 		checkCYDDesignerSectionTokens(t, css, section)
 		checkCYDDesignerScope(t, section)
 		checkCYDDesignerStageMetrics(t, section)
+		// Screen row tools: showing them (hover, focus) must not move anything, or a press that
+		// takes the pointer or the focus out of a row shifts the rows below between press and
+		// release. Rows other than the active one stay on one line, and the rules that show their
+		// tools only change visibility.
+		oneLine := false
+		for _, rule := range cydCSSRules(section) {
+			if cydTargets(rule, "cc-screen-row") && strings.Contains(rule.selector, ":not(.is-active)") {
+				for _, d := range cydDeclarations(rule.body) {
+					oneLine = oneLine || (d[0] == "flex-wrap" && d[1] == "nowrap")
+				}
+			}
+			if !cydTargets(rule, "cc-row-tools") || !regexp.MustCompile(`:hover|:focus`).MatchString(rule.selector) {
+				continue
+			}
+			for _, d := range cydDeclarations(rule.body) {
+				if d[0] != "visibility" {
+					t.Errorf("%s { %s: %s }: row tools shown on hover/focus may only change visibility (a reflow moves the rows)", rule.selector, d[0], d[1])
+				}
+			}
+		}
+		if !oneLine {
+			t.Error("screen rows other than the active one must stay on one line (flex-wrap: nowrap), so showing their tools keeps the row height")
+		}
 		// The dock keeps the height the user drags (cyd-creator-dock.js limits only its first,
 		// unsaved height in Design mode): no designer rule caps or sets it.
 		for _, rule := range cydCSSRules(section) {
