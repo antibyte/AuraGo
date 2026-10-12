@@ -602,6 +602,12 @@
         setupLayout(inst, layout);
         inst.dock = P.dock.create(inst);
         inst.root.appendChild(inst.dock.el);
+        if (P.monitor && typeof P.monitor.attach === 'function') {
+            // Plan 5: the Monitor dock tab and its serial session live as long as the project view.
+            const monitor = P.monitor.attach(inst);
+            inst.monitor = monitor;
+            inst.projectBag.add(() => { monitor.dispose(); if (inst.monitor === monitor) inst.monitor = null; });
+        }
         inst.code = P.code.create(inst);
         inst.codeMounted = false;
         inst.agent = P.agent.create(inst);

@@ -242,6 +242,11 @@
                 '/js/desktop/apps/cyd-creator-agent.js',
                 '/js/desktop/apps/cyd-creator-home.js',
                 // CYD Creator plan 5 inserts serial, flasher, monitor, devices, transfer here.
+                '/js/desktop/apps/cyd-creator-serial.js',
+                '/js/desktop/apps/cyd-creator-flasher.js',
+                '/js/desktop/apps/cyd-creator-monitor.js',
+                '/js/desktop/apps/cyd-creator-devices.js',
+                '/js/desktop/apps/cyd-creator-transfer.js',
                 '/js/desktop/apps/cyd-creator-app.js'
             ]
         },

@@ -31,9 +31,9 @@ func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 	s := startCYDCreatorSmoke(t)
 	page := s.page
 
-	// Start screen: describe / designer entry points, no Import without plan 5, the seeded project.
+	// Start screen: describe / designer entry points, Import (plan 5's transfer module), the seeded project.
 	s.wait(`()=>!!document.querySelector('.cc-home') && document.querySelectorAll('.cc-project-row').length===1`)
-	s.wait(`()=>!!document.querySelector('[data-cc-action="new-agent"]') && !!document.querySelector('[data-cc-action="new-designer"]') && document.querySelector('[data-cc-action="import"]').hidden`)
+	s.wait(`()=>!!document.querySelector('[data-cc-action="new-agent"]') && !!document.querySelector('[data-cc-action="new-designer"]') && !document.querySelector('[data-cc-action="import"]').hidden`)
 	s.noRawKeys("home")
 	s.shot("home")
 
@@ -52,8 +52,8 @@ func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 	s.wait(`()=>document.querySelector('[data-cc-project-title]')?.textContent==='Thermometer' && !!document.querySelector('.cc-canvas') && !document.querySelector('[data-cc-designer-placeholder]')`)
 	// The orientation is not part of POST /projects: the layout is saved once with If-Match 1.
 	s.wait(`()=>cydFixture.state.layoutPuts.some(p=>p.version===2 && p.project.orientation==='portrait')`)
-	// Plan 5 modules are absent: Flash, OTA and Export are hidden; Build is ready; Design is active.
-	s.wait(`()=>{const q=a=>document.querySelector('[data-cc-action="'+a+'"]');return q('flash').hidden && q('ota').hidden && q('export').hidden && !q('build').disabled && q('mode-design').getAttribute('aria-pressed')==='true'}`)
+	// Plan 5 modules are loaded: Flash, OTA and Export are shown; Build is ready; Design is active.
+	s.wait(`()=>{const q=a=>document.querySelector('[data-cc-action="'+a+'"]');return !q('flash').hidden && !q('ota').hidden && !q('export').hidden && !q('build').disabled && q('mode-design').getAttribute('aria-pressed')==='true'}`)
 	// The layout warning of the save answer reaches Problems through layout:issues.
 	s.wait(`()=>document.querySelector('[data-cc-dock-tab="problems"] .cc-dock-badge')?.textContent==='1'`)
 	s.noRawKeys("project")

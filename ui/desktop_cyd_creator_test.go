@@ -402,6 +402,7 @@ var cydCreatorShellModules = []string{
 	"cyd-creator-interact.js", "cyd-creator-palette.js", "cyd-creator-inspector-fields.js",
 	"cyd-creator-inspector.js", "cyd-creator-screens.js", "cyd-creator-designer.js",
 	"cyd-creator-code.js", "cyd-creator-dock.js", "cyd-creator-agent.js", "cyd-creator-home.js",
+	"cyd-creator-serial.js", "cyd-creator-flasher.js", "cyd-creator-monitor.js", "cyd-creator-devices.js", "cyd-creator-transfer.js",
 	"cyd-creator-app.js",
 }
 
