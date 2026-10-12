@@ -39,6 +39,7 @@ func registerGo2RTCRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/go2rtc/snapshot", requireGo2RTCView(s, handleGo2RTCSnapshot(s)))
 	mux.HandleFunc("/api/go2rtc/viewer/", requireGo2RTCView(s, handleGo2RTCViewer(s)))
 	mux.HandleFunc("/api/go2rtc/proxy/", requireGo2RTCView(s, handleGo2RTCProxy(s)))
+	mux.HandleFunc(go2RTCDetectionPrefix, handleGo2RTCDetection(s))
 }
 
 func requireGo2RTCView(s *Server, next http.HandlerFunc) http.HandlerFunc {
