@@ -55,7 +55,7 @@ func TestAPITypesMatchContractJSONShapes(t *testing.T) {
 	}{
 		{"status", Status{}, []string{"arm", "cameras", "cursor", "detector", "enabled", "storage"}},
 		{"detector", DetectorStatus{}, []string{"backend", "cpu_ms", "download", "error", "fallback_reason", "model", "model_name", "phase", "providers", "requested_backend", "runtime", "self_test", "state", "wall_ms"}},
-		{"arm", ArmState{}, []string{"armed", "changed_at", "changed_by", "mode", "next_change"}},
+		{"arm", ArmState{}, []string{"armed", "changed_at", "changed_by", "mode", "next_change", "time_zone", "utc_offset"}},
 		{"camera", CameraStatus{}, []string{"analyses_per_minute", "id", "last_error", "last_event_at", "last_event_id", "name", "state"}},
 		{"storage", StorageStatus{}, []string{"bytes", "limit_bytes", "warning"}},
 		{"changes", Changes{}, []string{"arm_log", "cursor", "events", "status"}},
@@ -89,7 +89,8 @@ func TestAPITypesEncodeExactJSON(t *testing.T) {
 		value interface{}
 		want  string
 	}{
-		{"arm off", ArmState{Mode: ArmOff}, `{"mode":"off","armed":false,"next_change":null,"changed_at":null,"changed_by":""}`},
+		{"arm off", ArmState{Mode: ArmOff}, `{"mode":"off","armed":false,"next_change":null,"changed_at":null,"changed_by":"","time_zone":"","utc_offset":""}`},
+		{"arm berlin", ArmState{Mode: ArmOn, Armed: true, TimeZone: "CET", UTCOffset: "+01:00"}, `{"mode":"on","armed":true,"next_change":null,"changed_at":null,"changed_by":"","time_zone":"CET","utc_offset":"+01:00"}`},
 		{"arm log", ArmLogEntry{ID: 1, At: at, Mode: ArmOn, Armed: true, Actor: ActorUser}, `{"id":1,"at":"2026-10-11T12:00:00Z","mode":"on","armed":true,"actor":"user"}`},
 		{"alert sent", AlertResult{Status: AlertSent}, `{"status":"sent"}`},
 		{"alert failed", AlertResult{Status: AlertFailed, Detail: "telegram: 502"}, `{"status":"failed","detail":"telegram: 502"}`},

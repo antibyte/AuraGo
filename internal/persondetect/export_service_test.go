@@ -157,3 +157,11 @@ func (s *Service) SetStoreReadOnlyForTest(readOnly bool) error {
 	_, err := st.db.Exec(`PRAGMA query_only = ` + value)
 	return err
 }
+
+// EvaluateArmingForTest runs one arming evaluation at now.
+func (s *Service) EvaluateArmingForTest(ctx context.Context, now time.Time) {
+	s.evaluateArming(ctx, now)
+}
+
+// StoreForTest returns the open event store, or nil.
+func (s *Service) StoreForTest() *EventStore { return s.storeRef() }

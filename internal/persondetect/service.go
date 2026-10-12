@@ -486,9 +486,10 @@ func (s *Service) startLocked() {
 	if s.manual {
 		return
 	}
-	s.wg.Add(2)
+	s.wg.Add(3)
 	go s.detectLoop(ctx)
 	go s.retentionLoop(ctx)
+	go s.armLoop(ctx)
 }
 
 func (s *Service) stopLocked() {
@@ -851,8 +852,10 @@ func (s *Service) Status() Status {
 }
 
 func (s *Service) armStateLocked(now time.Time) ArmState {
-	armed, next := EffectiveArmed(now.In(s.locationLocked()), s.arm.mode, s.settings.Schedule)
-	state := ArmState{Mode: s.arm.mode, Armed: armed, ChangedBy: s.arm.changedBy}
+	local := now.In(s.locationLocked())
+	armed, next := EffectiveArmed(local, s.arm.mode, s.settings.Schedule)
+	zone, _ := local.Zone()
+	state := ArmState{Mode: s.arm.mode, Armed: armed, ChangedBy: s.arm.changedBy, TimeZone: zone, UTCOffset: local.Format("-07:00")}
 	if !next.IsZero() {
 		n := millisUTC(next)
 		state.NextChange = &n

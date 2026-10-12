@@ -43,13 +43,18 @@ type DetectorStatus struct {
 	CPUMS            float64               `json:"cpu_ms"`
 }
 
-// ArmState is the arm mode, whether alerts are armed now and the next scheduled change.
+// ArmState is the arm mode, whether alerts are armed now and the next scheduled
+// change. TimeZone and UTCOffset name the server zone the schedule windows are
+// evaluated in, at the current instant (Docker images run in UTC unless TZ is set,
+// while the UI shows next_change in the browser's zone).
 type ArmState struct {
 	Mode       ArmMode    `json:"mode"`
 	Armed      bool       `json:"armed"`
 	NextChange *time.Time `json:"next_change"`
 	ChangedAt  *time.Time `json:"changed_at"`
 	ChangedBy  string     `json:"changed_by"` // user | agent | schedule | ""
+	TimeZone   string     `json:"time_zone"`  // zone abbreviation, e.g. CET
+	UTCOffset  string     `json:"utc_offset"` // e.g. +01:00
 }
 
 // CameraStatus is the runtime state of one detecting camera.
