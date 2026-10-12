@@ -2,6 +2,11 @@
 
 Access files on a WebDAV-compatible cloud storage (Nextcloud, ownCloud, Synology, Box, etc.).
 
+Desktop administrators can separately enable `webdav.show_in_filemanager` (off by
+default) for binary file management and transfers in the File Manager. This does
+not change the agent tool's operations or permissions. See
+`documentation/desktop-cloud-storage.md` for conflicts and safe move limitations.
+
 ## Prerequisites
 - `webdav.enabled: true` in config.yaml
 - Optional: `webdav.readonly: true` allows only read/list/info operations and blocks write/mkdir/delete/move

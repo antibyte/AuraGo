@@ -174,3 +174,87 @@ func TestGenerateVideoGoogleFlow(t *testing.T) {
 		t.Fatalf("file size = %d, want %d", got, len(videoBytes))
 	}
 }
+
+func TestVideoGenerationRejectsInternalImageURLAndKeepsDataURL(t *testing.T) {
+	if err := acceptVideoGenerationImage("https://127.0.0.1/a.png", videoImagePublicOrDataURL); err == nil {
+		t.Fatal("internal image URL was accepted")
+	}
+	payload := "data:image/png;base64," + base64.StdEncoding.EncodeToString([]byte{0x89, 0x50, 0x4e, 0x47})
+	if err := acceptVideoGenerationImage(payload, videoImagePublicOrDataURL); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGenerateVideoKeepsDailySlotWhenProviderSawTheRequest(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hj, ok := w.(http.Hijacker)
+		if !ok {
+			t.Fatal("hijack unavailable")
+		}
+		conn, _, err := hj.Hijack()
+		if err != nil {
+			t.Fatal(err)
+		}
+		conn.Close()
+	}))
+	defer server.Close()
+	before := VideoCounterGet()
+	defer videoCounterRelease()
+	cfg := &config.Config{}
+	cfg.VideoGeneration.ProviderType = "minimax"
+	cfg.VideoGeneration.APIKey = "test-key"
+	cfg.VideoGeneration.BaseURL = server.URL
+	cfg.VideoGeneration.MaxDaily = before + 1
+	cfg.Directories.DataDir = t.TempDir()
+	result := GenerateVideoResult(context.Background(), cfg, nil, slog.Default(), VideoGenParams{Prompt: "a short clip"})
+	if result.Status != "external_status_unknown" {
+		t.Fatalf("status = %q, error = %s", result.Status, result.Error)
+	}
+	if VideoCounterGet() != before+1 {
+		t.Fatalf("counter = %d, want %d", VideoCounterGet(), before+1)
+	}
+}
+
+func TestGenerateVideoKeepsDailySlotWhenCreateSuccessBodyReadFails(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			t.Fatal("flush unavailable")
+		}
+		flusher.Flush()
+		hj, ok := w.(http.Hijacker)
+		if !ok {
+			t.Fatal("hijack unavailable")
+		}
+		conn, _, err := hj.Hijack()
+		if err != nil {
+			t.Fatal(err)
+		}
+		conn.Close()
+	}))
+	defer server.Close()
+	before := VideoCounterGet()
+	defer videoCounterRelease()
+	cfg := &config.Config{}
+	cfg.VideoGeneration.ProviderType = "minimax"
+	cfg.VideoGeneration.APIKey = "test-key"
+	cfg.VideoGeneration.BaseURL = server.URL
+	cfg.VideoGeneration.MaxDaily = before + 1
+	cfg.Directories.DataDir = t.TempDir()
+	result := GenerateVideoResult(context.Background(), cfg, nil, slog.Default(), VideoGenParams{Prompt: "a short clip"})
+	if result.Status != "external_status_unknown" {
+		t.Fatalf("status = %q, error = %s", result.Status, result.Error)
+	}
+	if result.TaskID != "" {
+		t.Fatalf("task id = %q", result.TaskID)
+	}
+	if result.Error != "The video provider received the request and its outcome is unknown." {
+		t.Fatalf("error = %q", result.Error)
+	}
+	if VideoCounterGet() != before+1 {
+		t.Fatalf("counter = %d, want %d", VideoCounterGet(), before+1)
+	}
+}

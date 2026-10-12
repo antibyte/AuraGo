@@ -728,10 +728,7 @@ func decodeProxmoxArgs(tc ToolCall) proxmoxArgs {
 }
 
 func (req proxmoxArgs) node() string {
-	if req.Hostname != "" {
-		return req.Hostname
-	}
-	return req.Name
+	return strings.TrimSpace(req.Hostname)
 }
 
 func (req proxmoxArgs) vmid() string {

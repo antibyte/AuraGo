@@ -64,6 +64,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/python-tool-bridge/tools", handlePythonToolBridgeTools(s))
 
 	// OAuth2 Authorization Code flow endpoints
+	mux.Handle("/api/gog/", requireAdmin(s, handleGog(s)))
 	mux.HandleFunc("/api/oauth/start", handleOAuthStart(s))
 	mux.HandleFunc("/api/oauth/callback", handleOAuthCallback(s))
 	mux.HandleFunc("/api/oauth/manual", handleOAuthManual(s))
@@ -103,7 +104,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	// Creates/starts the managed Ollama container (recovery after manual deletion).
 	mux.HandleFunc("/api/ollama/managed/recreate", handleOllamaManagedRecreate(s))
 	// Tests MeshCentral connectivity using saved or provided credentials.
-	mux.HandleFunc("/api/meshcentral/test", handleMeshCentralTest(s))
+	mux.Handle("/api/meshcentral/test", requireAdmin(s, handleMeshCentralTest(s)))
 	mux.HandleFunc("/api/restart", handleRestart(s))
 	mux.HandleFunc("/api/embeddings/reset", handleEmbeddingsReset(s))
 	mux.HandleFunc("/api/embeddings/test", handleEmbeddingsTest(s))

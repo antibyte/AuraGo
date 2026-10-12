@@ -47,7 +47,7 @@ async function renderManifestSection(section) {
     html += '<div class="section-header">' + manifestText('config.section.manifest.label', section.label) + '</div>';
     html += '<div class="section-desc">' + manifestText('config.section.manifest.desc', section.desc) + '</div>';
 
-    html += manifestToggleRow('config.manifest.enabled_label', 'help.manifest.enabled', enabled, 'manifest.enabled', "manifestToggleEnabled(this.classList.contains('on'))");
+    html += manifestToggleRow('config.manifest.enabled_label', 'help.manifest.enabled', enabled, 'manifest.enabled', "manifestToggleEnabled(this)");
 
     if (!enabled) {
         html += '<div class="wh-notice"><span>▦</span><div>';
@@ -249,9 +249,13 @@ function manifestSecretField(labelKey, helpKey, id, path, placeholder) {
         '<div class="password-wrap"><input class="field-input" type="password" id="' + id + '" value="' + escapeAttr(cfgSecretValue(path.split('.').reduce((o,k)=>o&&o[k], configData))) + '" placeholder="' + escapeAttr(placeholder) + '" data-path="' + path + '" autocomplete="off"><button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button></div>');
 }
 
-function manifestToggleEnabled(isOn) {
+function manifestToggleEnabled(el) {
+    const enabled = !el.classList.contains('on');
+    // Flip the clicked switch first: state sync still reads it, so a stale one reverts the draft.
+    el.classList.toggle('on', enabled);
+    el.setAttribute('aria-checked', String(enabled));
     const data = manifestEnsureData();
-    data.enabled = !isOn;
+    data.enabled = enabled;
     setDirty(true);
     renderManifestSection(null);
 }

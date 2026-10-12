@@ -33,7 +33,7 @@ async function renderSpaceAgentSection(section) {
     html += '<div class="section-desc">' + section.desc + '</div>';
     html += '<div class="cfg-group-title">' + t('config.refresh.operation') + '</div>';
 
-    html += spaceAgentToggleRow('config.space_agent.enabled_label', 'help.space_agent.enabled', enabled, 'space_agent.enabled', "spaceAgentToggleEnabled(this.classList.contains('on'))");
+    html += spaceAgentToggleRow('config.space_agent.enabled_label', 'help.space_agent.enabled', enabled, 'space_agent.enabled', "spaceAgentToggleEnabled(this)");
 
     if (!enabled) {
         html += '<div class="wh-notice"><span>🛰️</span><div>';
@@ -124,9 +124,13 @@ function spaceAgentField(labelKey, helpKey, inputHtml) {
     return html;
 }
 
-function spaceAgentToggleEnabled(isOn) {
+function spaceAgentToggleEnabled(el) {
+    const enabled = !el.classList.contains('on');
+    // Flip the clicked switch first: state sync still reads it, so a stale one reverts the draft.
+    el.classList.toggle('on', enabled);
+    el.setAttribute('aria-checked', String(enabled));
     const data = spaceAgentEnsureData();
-    data.enabled = !isOn;
+    data.enabled = enabled;
     setDirty(true);
     renderSpaceAgentSection(null);
 }

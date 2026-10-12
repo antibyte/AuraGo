@@ -45,6 +45,7 @@ const desktopMainParts = [
   'ui/js/desktop/core/sticky-notes-runtime.js',
   'ui/js/desktop/core/widget-leafy-runtime.js',
   'ui/js/desktop/core/media-keys-runtime.js',
+  'ui/js/desktop/apps/gog-sources.js',
   'ui/js/desktop/apps/calendar-views.js',
   'ui/js/desktop/apps/calendar-editor.js',
   'ui/js/desktop/apps/calendar.js',
@@ -115,6 +116,8 @@ const jsBundles = [
       'ui/js/desktop/file-manager/tabs.js',
       'ui/js/desktop/file-manager/preview-panel.js',
       'ui/js/desktop/file-manager/advanced-actions.js',
+      'ui/js/desktop/file-manager/storage.js',
+      'ui/js/desktop/file-manager/storage-actions.js',
       'ui/js/desktop/file-manager/lifecycle-export.js'
     ]
   },

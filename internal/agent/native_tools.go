@@ -132,8 +132,11 @@ type ToolFeatureFlags struct {
 	ProxmoxEnabled          bool
 	FrigateEnabled          bool
 	Go2RTCEnabled           bool
+	RuViewEnabled           bool
 	RTLSDREnabled           bool
+	LayerlingEnabled        bool
 	LocalWikipediaEnabled   bool
+	RetroGamesEnabled       bool
 	ThreeDPrinterEnabled    bool
 	OllamaEnabled           bool
 	TailscaleEnabled        bool
@@ -163,6 +166,7 @@ type ToolFeatureFlags struct {
 	AgentMailEnabled        bool
 	CloudflareTunnelEnabled bool
 	GoogleWorkspaceEnabled  bool
+	GogEnabled              bool
 	OneDriveEnabled         bool
 	WebDAVEnabled           bool
 	VirusTotalEnabled       bool

@@ -5,11 +5,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	neturl "net/url"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 )
 
 func TestBuildSchemaIncludesRocketChatAuthTokenAsSensitive(t *testing.T) {
@@ -239,6 +241,44 @@ func TestResolveMeshCentralTestURLAllowsConfiguredPrivateURL(t *testing.T) {
 	}
 	if got != "https://192.168.1.20" {
 		t.Fatalf("resolved URL = %q", got)
+	}
+}
+
+func TestHandleMeshCentralTest_DoesNotUseVaultForUnconfiguredHost(t *testing.T) {
+	t.Parallel()
+
+	vaultPath := filepath.Join(t.TempDir(), "vault.bin")
+	vault, err := security.NewVault(strings.Repeat("a", 64), vaultPath)
+	if err != nil {
+		t.Fatalf("failed to create vault: %v", err)
+	}
+	_ = vault.WriteSecret("meshcentral_token", "leaked-token-12345")
+
+	cfg := &config.Config{}
+	cfg.MeshCentral.URL = ""
+
+	s := &Server{
+		Cfg:   cfg,
+		Vault: vault,
+	}
+
+	body := `{"url":"https://8.8.8.8"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/meshcentral/test", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+
+	handleMeshCentralTest(s)(rec, req)
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	if resp["status"] != "error" {
+		t.Fatalf("expected error status, got: %v", resp)
+	}
+	msg, _ := resp["message"].(string)
+	if !strings.Contains(msg, "Username or Login Token is required") {
+		t.Fatalf("expected missing credentials error, got: %q", msg)
 	}
 }
 

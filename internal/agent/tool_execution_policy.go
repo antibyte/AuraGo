@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math"
 	"strings"
 	"time"
 
@@ -51,16 +52,6 @@ type toolExecutionResult struct {
 	OutputRef    string
 	Failed       bool
 	Outcome      ExecutionOutcome
-}
-
-type outputVaultPayload struct {
-	Status        string `json:"status"`
-	OutputRef     string `json:"output_ref"`
-	ToolName      string `json:"tool_name"`
-	Summary       string `json:"summary"`
-	View          string `json:"view"`
-	OriginalChars int    `json:"original_chars"`
-	Message       string `json:"message"`
 }
 
 // suggestedNextStepHeader introduces the recovery hint that
@@ -161,6 +152,7 @@ func finalizeToolExecution(
 	promptVersion string,
 	execTimeMs int64,
 	runCfg RunConfig,
+	inline inlineBudgetBasis,
 ) toolExecutionResult {
 	trackingTC := toolCallForExecutionTracking(tc)
 	status := tc.DispatchStatus
@@ -304,7 +296,7 @@ func finalizeToolExecution(
 	// Keep their bounded inline response rather than advertise an unusable tool.
 	_, canReadOutput := normalizedAllowedToolSet(runCfg.AllowedTools)["read_tool_output"]
 	if !guardianBlocked && (runCfg.AllowedTools == nil || canReadOutput) {
-		if compactContent, ref, ok := maybeStorePrimaryToolOutputVault(ctx, tc, trackingTC, eventContent, resultContent, toolFailed, cfg, shortTermMem, sessionID, logger); ok {
+		if compactContent, ref, ok := maybeStorePrimaryToolOutputVault(ctx, tc, trackingTC, eventContent, resultContent, toolFailed, cfg, shortTermMem, sessionID, logger, inline); ok {
 			resultContent = compactContent
 			outputRef = ref
 			if outcome == ExecutionOutcomeSuccess {
@@ -329,7 +321,9 @@ func finalizeToolExecution(
 	}
 
 	if toolFailed && shortTermMem != nil {
-		errMsg := policyResult.ErrorSummary
+		diagnosticTC := trackingTC
+		diagnosticTC.DispatchStatus = status
+		errMsg := correctionDiagnostic(diagnosticTC, policyResult.ErrorSummary)
 		if errMsg != "" {
 			if err := shortTermMem.RecordError(trackingTC.Action, errMsg); err != nil {
 				logToolMemoryWarning(logger, "Failed to persist tool error pattern", trackingTC.Action, err)
@@ -401,7 +395,7 @@ func finalizeToolExecution(
 	circuitBroken := false
 	if (status == ToolResultSuccess || status.IsError()) && recoveryState != nil && req != nil {
 		trackingTC.DispatchStatus = status
-		circuitBroken = recoveryState.updateToolErrorState(trackingTC, resultContent, req, logger, scope, promptVersion, execTimeMs)
+		circuitBroken = recoveryState.updateToolErrorState(trackingTC, correctionDiagnostic(trackingTC, resultContent), req, logger, scope, promptVersion, execTimeMs)
 	}
 
 	// Trigger B: Circuit breaker triggered (≥3 identical consecutive errors) →
@@ -441,6 +435,7 @@ func maybeStorePrimaryToolOutputVault(
 	shortTermMem *memory.SQLiteMemory,
 	sessionID string,
 	logger *slog.Logger,
+	inline inlineBudgetBasis,
 ) (string, string, bool) {
 	if cfg == nil || shortTermMem == nil || toolFailed || tc.NativeCallID == "" {
 		return "", "", false
@@ -452,14 +447,24 @@ func maybeStorePrimaryToolOutputVault(
 	if tc.Action == "read_tool_output" || tc.Action == "retrieve_original_output" {
 		return "", "", false
 	}
-	maxInline := primaryOutputVaultMaxInline(cfg)
+	maxInline := primaryOutputVaultMaxInline(cfg, inline)
 	if len(originalContent) <= maxInline {
 		return "", "", false
 	}
 
 	outputRef := memory.StableToolOutputRef(sessionID, tc.NativeCallID)
-	summary := summarizeToolOutputForVault(originalContent)
-	view := buildToolOutputVaultView(originalContent, maxInline)
+	status := tc.DispatchStatus
+	if status == "" {
+		status = classifyLegacyToolResult(originalContent)
+	}
+	payload, isolated := vaultReadablePayload(originalContent)
+	content, view := fitOutputVaultReply(outputVaultPayload{
+		Status:        string(status),
+		OutputRef:     outputRef,
+		ToolName:      trackingTC.Action,
+		Summary:       vaultOutputStats(payload),
+		OriginalChars: len(payload),
+	}, payload, isolated, toolResultPresentationSuffix(originalContent), min(maxInline, effectiveToolOutputLimit(cfg)))
 	ratio := 1.0
 	if len(originalContent) > 0 {
 		ratio = float64(len(view)) / float64(len(originalContent))
@@ -471,7 +476,7 @@ func maybeStorePrimaryToolOutputVault(
 		ToolName:          trackingTC.Action,
 		OriginalContent:   originalContent,
 		CompressedContent: contextContent,
-		SummaryContent:    summary,
+		SummaryContent:    summarizeToolOutputForVault(payload),
 		ViewContent:       view,
 		CompressionRatio:  ratio,
 		FilterUsed:        "output-vault",
@@ -480,98 +485,79 @@ func maybeStorePrimaryToolOutputVault(
 		logToolMemoryWarning(logger, "Failed to store primary output vault entry", trackingTC.Action, err)
 		return "", "", false
 	}
-	status := tc.DispatchStatus
-	if status == "" {
-		status = classifyLegacyToolResult(originalContent)
-	}
-	payload := outputVaultPayload{
-		Status:        string(status),
-		OutputRef:     out.OutputRef,
-		ToolName:      trackingTC.Action,
-		Summary:       summary,
-		View:          view,
-		OriginalChars: len(originalContent),
-		Message:       "Full output archived. Use read_tool_output with output_ref for more views.",
-	}
-	b, err := json.Marshal(payload)
-	if err != nil {
-		logToolMemoryWarning(logger, "Failed to encode primary output vault view", trackingTC.Action, err)
-		return "", "", false
-	}
-	content := string(b)
-	if _, isolated := toolResultPayload(originalContent); isolated {
-		// Vault summaries and views still contain untrusted output fragments.
-		content = isolateToolPayload(content, false)
-	}
-	return "Tool Output: " + content, out.OutputRef, true
+	return content, out.OutputRef, true
+}
+
+const (
+	// toolResultInlineFloor is the inline budget in bytes for an unknown or
+	// small model context (the former fixed default).
+	toolResultInlineFloor = 6000
+	// toolResultInlineCeiling caps the automatic budget of a single call; a
+	// larger result goes to the output vault, whose view fills the budget.
+	toolResultInlineCeiling = 32000
+	// One automatic inline result may use this share (percent) of the tightest
+	// route's input capacity, counted at four bytes per token. Escaped
+	// external output measures about 2-2.5 bytes per token, so such a result
+	// takes up to about 5% of the input.
+	toolResultInlinePercent       = 3
+	toolResultInlineBytesPerToken = 4
+)
+
+// inlineBudgetBasis is what the automatic inline budget scales with.
+type inlineBudgetBasis struct {
+	// InputTokens is the input capacity of the tightest route of the current
+	// request; 0 when unknown (standalone tool bridges).
+	InputTokens int
+	// BatchCalls is the number of tool calls the model declared in the
+	// response being executed. Their results share the next request, and
+	// the newest two tool rounds always stay complete.
+	BatchCalls int
 }
 
 // primaryOutputVaultMaxInline is the size in bytes (len of the dispatch
 // output) above which maybeStorePrimaryToolOutputVault archives a successful
-// native tool result: agent.output_compression.reversible.max_inline_chars,
-// 6000 when unset.
-func primaryOutputVaultMaxInline(cfg *config.Config) int {
+// native tool result. A positive
+// agent.output_compression.reversible.max_inline_chars fixes it; 0 (the
+// default) scales it with the current request (autoToolResultInlineBudget).
+func primaryOutputVaultMaxInline(cfg *config.Config, basis inlineBudgetBasis) int {
 	if cfg != nil && cfg.Agent.OutputCompression.Reversible.MaxInlineChars > 0 {
 		return cfg.Agent.OutputCompression.Reversible.MaxInlineChars
 	}
-	return 6000
+	return autoToolResultInlineBudget(basis)
+}
+
+// autoToolResultInlineBudget is 3% of the input capacity at four bytes per
+// token, at most 32000 bytes, divided by the square root of the calls in the
+// batch, and at least 6000 bytes (also for an unknown capacity). A single
+// call gets 6000 bytes for a 32k context, about 14.7 KB for 128k and about
+// 29.7 KB for 256k; three parallel calls on a 256k model get about 17 KB each.
+func autoToolResultInlineBudget(basis inlineBudgetBasis) int {
+	if basis.InputTokens <= 0 {
+		return toolResultInlineFloor
+	}
+	budget := min(basis.InputTokens*toolResultInlineBytesPerToken*toolResultInlinePercent/100, toolResultInlineCeiling)
+	if basis.BatchCalls > 1 {
+		budget = int(float64(budget) / math.Sqrt(float64(basis.BatchCalls)))
+	}
+	return max(budget, toolResultInlineFloor)
 }
 
 // toolResultInlineBudget is the largest dispatch output in bytes that reaches
-// the model whole: at most the tool output limit and, while the primary output
-// vault is on, at most its archive threshold. Tools that page their answers
+// the model whole in this dispatch: at most the tool output limit and, while
+// the primary output vault is on, at most its archive threshold for the
+// current request (dc.inlineBasis). Tools that page their answers
 // (local_wikipedia) size them to it.
-func toolResultInlineBudget(cfg *config.Config) int {
+func toolResultInlineBudget(dc *DispatchContext) int {
+	var cfg *config.Config
+	var basis inlineBudgetBasis
+	if dc != nil {
+		cfg, basis = dc.Cfg, dc.inlineBasis
+	}
 	budget := effectiveToolOutputLimit(cfg)
 	if cfg == nil || (cfg.Agent.OutputCompression.Reversible.Enabled && cfg.Agent.OutputCompression.Reversible.PrimaryOutputVault) {
-		budget = min(budget, primaryOutputVaultMaxInline(cfg))
+		budget = min(budget, primaryOutputVaultMaxInline(cfg, basis))
 	}
 	return budget
-}
-
-func summarizeToolOutputForVault(content string) string {
-	lines := splitOutputLines(content)
-	var nonEmpty []string
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		nonEmpty = append(nonEmpty, line)
-		if len(nonEmpty) >= 5 {
-			break
-		}
-	}
-	prefix := fmt.Sprintf("%d chars", len(content))
-	if len(lines) > 0 {
-		prefix = fmt.Sprintf("%s, %d lines", prefix, len(lines))
-	}
-	if len(nonEmpty) == 0 {
-		return prefix
-	}
-	summary := prefix + ". First lines: " + strings.Join(nonEmpty, " | ")
-	if len(summary) > 800 {
-		summary = truncateUTF8ToLimit(summary, 800, "...")
-	}
-	return summary
-}
-
-func buildToolOutputVaultView(content string, maxInline int) string {
-	if maxInline <= 0 {
-		maxInline = 6000
-	}
-	viewLimit := maxInline
-	if viewLimit > 4000 {
-		viewLimit = 4000
-	}
-	view := selectHeadLines(content, 80)
-	if len(view) > viewLimit {
-		view = truncateUTF8ToLimit(view, viewLimit, "...")
-	}
-	if view == "" {
-		view = truncateUTF8ToLimit(content, viewLimit, "...")
-	}
-	return view
 }
 
 func logToolMemoryWarning(logger *slog.Logger, message string, action string, err error) {

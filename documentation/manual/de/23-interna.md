@@ -1018,7 +1018,7 @@ Das A2A-Protokoll in [`internal/a2a/`](../../../internal/a2a/) ermöglicht Inter
 | S3 | `s3.go` | AWS S3 Buckets und Objekte |
 | TrueNAS | `truenas.go` | Pools, Datasets, Snapshots |
 | Netlify | `netlify.go` | Sites deployen und verwalten |
-| MeshCentral | `meshcentral.go` | Remote Desktop |
+| MeshCentral | `internal/meshcentral` | Control-WebSocket: Inventar, Wake, Strom, MeshAgent-Befehle |
 | Ollama | `ollama.go` | Lokale LLM-Modelle verwalten |
 
 ---

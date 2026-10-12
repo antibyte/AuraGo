@@ -14,6 +14,7 @@ import (
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 	"aurago/internal/vaultprompt"
+	"aurago/internal/webhooks"
 )
 
 // MessageSourceFlow is the MessageSource of a tool call made by an EasyDrag flow node
@@ -25,8 +26,13 @@ const MessageSourceFlow = "flow"
 // It replaces the 30+ individual function parameters that were previously threaded
 // from DispatchToolCall → dispatchInner → dispatchExec/Comm/Services/Infra.
 type DispatchContext struct {
+	MemoryCorrections *memoryCorrectionRun
 	// ToolDetailFits checks a complete discovery detail against every route.
-	ToolDetailFits       func(string) bool
+	ToolDetailFits func(string) bool
+	// inlineBasis sizes the automatic inline budget of this dispatch
+	// (toolResultInlineBudget); zero when no model request is known
+	// (standalone tool bridges).
+	inlineBasis          inlineBudgetBasis
 	DiscoveryRunID       string
 	ExecutionHooks       *ExecutionHooks
 	Cfg                  *config.Config
@@ -37,6 +43,7 @@ type DispatchContext struct {
 	Manifest             *tools.Manifest
 	CronManager          *tools.CronManager
 	MissionManagerV2     *tools.MissionManagerV2
+	WebhookManager       *webhooks.Manager
 	LongTermMem          memory.VectorDB
 	ShortTermMem         *memory.SQLiteMemory
 	KG                   *memory.KnowledgeGraph

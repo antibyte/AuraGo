@@ -21,6 +21,15 @@ type ToolPermission struct {
 
 func ToolPermissionMatrix() []ToolPermission {
 	return []ToolPermission{
+		{Name: "gog_accounts", ConfigGate: "gog.enabled + account.agent_access", Capabilities: []Capability{CapabilityRead}},
+		{Name: "gog_gmail", ConfigGate: "gog.enabled + account.agent_access + per-service grants including send + shell/network runtime", ReadOnlyGate: "gog.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityExecute, CapabilityNetwork}},
+		{Name: "gog_calendar", ConfigGate: "gog.enabled + account.agent_access + per-service grants + shell/network runtime", ReadOnlyGate: "gog.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityExecute, CapabilityNetwork}},
+		{Name: "gog_drive", ConfigGate: "gog.enabled + account.agent_access + per-service grants + shell/network runtime", ReadOnlyGate: "gog.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityExecute, CapabilityNetwork}},
+		{Name: "gog_docs", ConfigGate: "gog.enabled + account.agent_access + per-service grants + shell/network runtime", ReadOnlyGate: "gog.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityExecute, CapabilityNetwork}},
+		{Name: "gog_sheets", ConfigGate: "gog.enabled + account.agent_access + per-service grants + shell/network runtime", ReadOnlyGate: "gog.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityExecute, CapabilityNetwork}},
+		{Name: "gog_slides", ConfigGate: "gog.enabled + account.agent_access + per-service grants + shell/network runtime", ReadOnlyGate: "gog.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityExecute, CapabilityNetwork}},
+		{Name: "gog_contacts", ConfigGate: "gog.enabled + account.agent_access + per-service grants + shell/network runtime", ReadOnlyGate: "gog.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityExecute, CapabilityNetwork}},
+		{Name: "gog_tasks", ConfigGate: "gog.enabled + account.agent_access + per-service grants + shell/network runtime", ReadOnlyGate: "gog.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityExecute, CapabilityNetwork}},
 		{Name: "treg_catalog", ConfigGate: "treg.enabled + agent.allow_network_requests", Capabilities: []Capability{CapabilityRead, CapabilityNetwork}},
 		{Name: "treg_call", ConfigGate: "treg.enabled + agent.allow_network_requests + treg.allowed_endpoints + treg_token", ReadOnlyGate: "treg.readonly + stored action class", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityNetwork}},
 		{Name: "treg_status", ConfigGate: "treg.enabled + agent.allow_network_requests + continuation grant", Capabilities: []Capability{CapabilityRead, CapabilityNetwork}},
@@ -43,9 +52,10 @@ func ToolPermissionMatrix() []ToolPermission {
 		{Name: "invasion_control", ConfigGate: "invasion.enabled", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityExecute, CapabilityNetwork, CapabilityHost}},
 		{Name: "json_editor", ConfigGate: "agent.allow_filesystem_write", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityHost}},
 		{Name: "local_wikipedia", ConfigGate: "local_wikipedia.enabled + local_wikipedia.agent_access + open edition", Capabilities: []Capability{CapabilityRead}},
+		{Name: "retro_games", ConfigGate: "retro_games.enabled + retro_games.agent_access (play: virtual_desktop.allow_agent_control + tools.virtual_desktop.enabled)", Capabilities: []Capability{CapabilityRead, CapabilityChange}},
 		{Name: "manage_outgoing_webhooks", ConfigGate: "webhooks.enabled", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityNetwork}},
 		{Name: "manus", ConfigGate: "manus.enabled + manus_api_key", ReadOnlyGate: "manus.read_only", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityNetwork, CapabilityHost}},
-		{Name: "meshcentral", ConfigGate: "meshcentral.enabled", ReadOnlyGate: "meshcentral.readonly", Capabilities: []Capability{CapabilityRead, CapabilityChange, CapabilityExecute, CapabilityNetwork}},
+		{Name: "meshcentral", ConfigGate: "meshcentral.enabled; wake/power: meshcentral.allow_power_actions; run_command: agent.allow_remote_shell", ReadOnlyGate: "meshcentral.readonly", Capabilities: []Capability{CapabilityRead, CapabilityChange, CapabilityExecute, CapabilityNetwork}},
 		{Name: "netlify", ConfigGate: "netlify.enabled", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityNetwork}},
 		{Name: "remote_execution", ConfigGate: "agent.allow_remote_shell", Capabilities: []Capability{CapabilityExecute, CapabilityNetwork, CapabilityHost}},
 		{Name: "secrets_vault", ConfigGate: "tools.secrets_vault.enabled", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityDelete}},
@@ -74,6 +84,7 @@ type HomeLabIntegration struct {
 
 func HomeLabIntegrationMatrix() []HomeLabIntegration {
 	return []HomeLabIntegration{
+		{Name: "gog", ConfigGate: "gog.enabled + account/source/service grants + shell/network runtime", CredentialSource: "vault", ReadOnlyGate: "gog.readonly", HasWriteOrDelete: true, HasTestEndpoint: true},
 		{Name: "adguard", ConfigGate: "adguard.enabled", CredentialSource: "config/vault", AllowsLocalNetwork: true, HasTestEndpoint: true},
 		{Name: "chromecast", ConfigGate: "tools.chromecast.enabled", CredentialSource: "none", AllowsLocalNetwork: true},
 		{Name: "dograh", ConfigGate: "dograh.enabled", CredentialSource: "vault", AllowsLocalNetwork: true, ReadOnlyGate: "dograh.readonly", HasWriteOrDelete: true, HasTestEndpoint: true},
@@ -83,7 +94,7 @@ func HomeLabIntegrationMatrix() []HomeLabIntegration {
 		{Name: "home_assistant", ConfigGate: "home_assistant.enabled", CredentialSource: "vault", AllowsLocalNetwork: true, ReadOnlyGate: "home_assistant.readonly", HasWriteOrDelete: true, HasTestEndpoint: true},
 		{Name: "jellyfin", ConfigGate: "jellyfin.enabled", CredentialSource: "vault", AllowsLocalNetwork: true, HasTestEndpoint: true},
 		{Name: "local_wikipedia", ConfigGate: "local_wikipedia.enabled", CredentialSource: "none"},
-		{Name: "meshcentral", ConfigGate: "meshcentral.enabled", CredentialSource: "vault", AllowsLocalNetwork: true, ReadOnlyGate: "meshcentral.readonly", HasWriteOrDelete: true, HasTestEndpoint: true},
+		{Name: "meshcentral", ConfigGate: "meshcentral.enabled; wake/power: meshcentral.allow_power_actions", CredentialSource: "vault", AllowsLocalNetwork: true, ReadOnlyGate: "meshcentral.readonly", HasWriteOrDelete: true, HasTestEndpoint: true},
 		{Name: "mqtt", ConfigGate: "mqtt.enabled", CredentialSource: "config/vault", AllowsLocalNetwork: true, ReadOnlyGate: "mqtt.readonly", HasWriteOrDelete: true, HasTestEndpoint: true},
 		{Name: "cyd", ConfigGate: "cyd.enabled", CredentialSource: "token-manager scope cyd", AllowsLocalNetwork: true, HasTestEndpoint: true},
 		{Name: "obsidian", ConfigGate: "obsidian.enabled", CredentialSource: "vault", AllowsLocalNetwork: true, ReadOnlyGate: "obsidian.readonly", HasWriteOrDelete: true, HasTestEndpoint: true},
@@ -104,6 +115,8 @@ type RouteContract struct {
 
 func RouteContractManifest() []RouteContract {
 	return []RouteContract{
+		{Pattern: "/api/gog/", Methods: []string{"GET", "POST"}, Auth: "session-admin", Category: "integration", ContentTypes: []string{"application/json"}},
+		{Pattern: "/api/desktop/integrations/gog/", Methods: []string{"GET", "POST"}, Auth: "session-or-desktop-admin-token", Category: "desktop", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/auth/", Methods: []string{"GET", "POST", "DELETE"}, Auth: "public-bootstrap", Category: "auth"},
 		{Pattern: "/api/setup", Methods: []string{"GET", "POST"}, Auth: "public-bootstrap", Category: "setup", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/i18n", Methods: []string{"GET"}, Auth: "public", Category: "i18n"},
@@ -196,6 +209,7 @@ type NetworkClientUse struct {
 
 func NetworkClientInventory() []NetworkClientUse {
 	return []NetworkClientUse{
+		{Path: "internal/gog/", Classification: "fixed-google-oauth-same-origin-and-checksummed-release-download", RequiresSSRF: true, Credentialed: true},
 		{Path: "internal/tools/treg.go", Classification: "fixed-treg-api-public-only-no-redirects-no-replay", RequiresSSRF: true, Credentialed: true},
 		{Path: "internal/tools/treg_media.go", Classification: "public-media-download-without-credentials", RequiresSSRF: true},
 		{Path: "internal/tools/treg_tasks.go", Classification: "server-bound-treg-continuation-public-host-validation", RequiresSSRF: true},
@@ -219,6 +233,8 @@ func NetworkClientInventory() []NetworkClientUse {
 		{Path: "internal/llm/", Classification: "provider-api", Credentialed: true},
 		{Path: "internal/localllm/", Classification: "fixed-pinned-model-download-docker-control-and-private-loopback-sidecar", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/localwiki/", Classification: "fixed-kiwix-catalog-meta4-and-mirror-download-https-only-redirects"},
+		{Path: "internal/ruview/", Classification: "saved-origin-no-redirects-explicit-lan-and-verified-runtime-download", AllowsLocalNet: true, Credentialed: true},
+		{Path: "internal/retrogames/", Classification: "fixed-archive-org-scrape-api-strict-public-no-redirects", RequiresSSRF: true},
 		{Path: "internal/manus/", Classification: "fixed-manus-api-and-presigned-file-transfer", RequiresSSRF: true, Credentialed: true},
 		{Path: "internal/media/", Classification: "user-requested-media-fetch", RequiresSSRF: true},
 		{Path: "internal/memory/", Classification: "provider-api", Credentialed: true},

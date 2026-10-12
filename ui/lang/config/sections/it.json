@@ -571,5 +571,7 @@
   "config.section.here_now.label": "here.now",
   "config.section.here_now.desc": "Pubblica e gestisci Sites permanenti autenticati",
   "config.section.cyd.label": "Cheap Yellow Display",
-  "config.section.cyd.desc": "Mini dashboard ESP32 da 2,8\" per stato di sistema e notifiche dell'agente"
+  "config.section.cyd.desc": "Mini dashboard ESP32 da 2,8\" per stato di sistema e notifiche dell'agente",
+  "config.section.gog.label": "Google Workspace tramite gog",
+  "config.section.gog.desc": "Usa account Google separati insieme all’integrazione nativa."
 }

@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"log"
 	"maps"
+	"math"
 	"os"
 	"regexp"
 	"sort"
@@ -157,6 +158,9 @@ func mergeUserConfig(tmplMap, srcMap map[string]interface{}) mergeResult {
 	result.merged = deepMerge(tmplMap, srcMap)
 	result.safetyAdjusted = applyUpgradeSafetyDefaults(result.merged, srcMap)
 	result.typeFixed = enforceTemplateTypes(result.merged, tmplMap)
+	if preserveLegacyHTTPS(result.merged, srcMap) {
+		result.safetyAdjusted = true
+	}
 	if applyUpgradeGrandfathers(result.merged, srcMap) {
 		result.safetyAdjusted = true
 	}
@@ -181,11 +185,13 @@ func recoverCorruptedConfig(tmplMap, salvaged map[string]interface{}) map[string
 		merged := deepMerge(tmplMap, nil)
 		grandfatherDockerHostAccess(merged, nil)
 		preserveNewspaperLegacyDefaults(merged, nil)
+		preserveLegacyHTTPS(merged, nil)
 		return merged
 	}
 	merged := deepMerge(tmplMap, salvaged)
 	applyUpgradeSafetyDefaults(merged, salvaged)
 	enforceTemplateTypes(merged, tmplMap)
+	preserveLegacyHTTPS(merged, salvaged)
 	applyUpgradeGrandfathers(merged, salvaged)
 	preserveNewspaperLegacyDefaults(merged, salvaged)
 	sanitizeMergedConfig(merged)
@@ -333,6 +339,7 @@ func applyUpgradeGrandfathers(merged, user map[string]interface{}) bool {
 		grandfatherUnsandboxedShell,
 		grandfatherWebScraperAndWebhookLimit,
 		grandfatherUnauthenticatedMQTTRelay,
+		grandfatherUntrustedMQTTTransport,
 	} {
 		if rule(merged, user) {
 			changed = true
@@ -448,6 +455,64 @@ func grandfatherUnauthenticatedMQTTRelay(merged, user map[string]interface{}) bo
 	return true
 }
 
+// grandfatherUntrustedMQTTTransport mirrors the config.Load grandfather for
+// mqtt.allow_untrusted_transport. A missing or null key becomes true when the
+// user MQTT is enabled, config.MQTTBrokerAuthenticated would be true for those
+// yaml values, and the transport is plaintext, skips certificate verification,
+// or MQTTEffectiveTLS reports an error. Otherwise it becomes false. A written
+// value, including false, stays.
+func grandfatherUntrustedMQTTTransport(merged, user map[string]interface{}) bool {
+	userMQTT, _ := asStringMap(user["mqtt"])
+	if userMQTT["allow_untrusted_transport"] != nil {
+		return false
+	}
+	mqttMap, ok := asStringMap(merged["mqtt"])
+	if !ok {
+		return false
+	}
+	mqttMap = maps.Clone(mqttMap)
+	mqttMap["allow_untrusted_transport"] = mqttRanOnUntrustedTransport(userMQTT)
+	merged["mqtt"] = mqttMap
+	return true
+}
+
+// mqttRanOnUntrustedTransport reports the value config.Load grandfathers for
+// mqtt.allow_untrusted_transport from the raw user mqtt map.
+func mqttRanOnUntrustedTransport(userMQTT map[string]interface{}) bool {
+	if enabled, _ := yamlBoolValue(userMQTT["enabled"]); !enabled {
+		return false
+	}
+	probe := mqttTransportProbe(userMQTT)
+	return config.MQTTBrokerAuthenticated(&probe) && !config.MQTTRelayTransportTrusted(&probe)
+}
+
+// mqttTransportProbe builds the broker, username and TLS fields
+// config.MQTTBrokerAuthenticated and config.MQTTRelayTransportTrusted read.
+func mqttTransportProbe(userMQTT map[string]interface{}) config.Config {
+	var probe config.Config
+	if broker, ok := userMQTT["broker"].(string); ok {
+		probe.MQTT.Broker = broker
+	}
+	if yamlStringSet(userMQTT["username"]) {
+		if username, ok := userMQTT["username"].(string); ok {
+			probe.MQTT.Username = username
+		} else {
+			probe.MQTT.Username = "set"
+		}
+	}
+	userTLS, _ := asStringMap(userMQTT["tls"])
+	probe.MQTT.TLS.Enabled, _ = yamlBoolValue(userTLS["enabled"])
+	probe.MQTT.TLS.InsecureSkipVerify, _ = yamlBoolValue(userTLS["insecure_skip_verify"])
+	if yamlStringSet(userTLS["cert_file"]) {
+		if certFile, ok := userTLS["cert_file"].(string); ok {
+			probe.MQTT.TLS.CertFile = certFile
+		} else {
+			probe.MQTT.TLS.CertFile = "set"
+		}
+	}
+	return probe
+}
+
 // mqttRanAnonymously mirrors the config.Load grandfather for
 // mqtt.allow_unauthenticated_relay: MQTT enabled (in any yaml.v3 bool
 // spelling) with neither a username nor a client certificate over TLS
@@ -519,6 +584,19 @@ func yamlBoolSpelling(s string) (value, ok bool) {
 		return false, true
 	}
 	return false, false
+}
+
+// integralIntValue reports the int a parsed user-config float stands for: a
+// finite float64 without a fractional part inside the int range, as yaml.v3
+// produces for hand-written 1e5 or 100000.0.
+func integralIntValue(v interface{}) (int, bool) {
+	f, ok := v.(float64)
+	// -float64(math.MinInt) is one past math.MaxInt and exact as a float64;
+	// NaN fails the Trunc comparison and the infinities the range check.
+	if !ok || f != math.Trunc(f) || f < float64(math.MinInt) || f >= -float64(math.MinInt) {
+		return 0, false
+	}
+	return int(f), true
 }
 
 // yamlBoolValue reports the bool a parsed user-config value stands for: a
@@ -688,7 +766,8 @@ func truncate(s string, maxLen int) string {
 // against the template. When the template defines a specific type (array, map,
 // bool, int) but the merged value has a different type (typically a string from
 // a corrupted or old-format config), the template default is used instead;
-// bool slots keep strings in a yaml.v3 bool spelling (yamlBoolSpelling).
+// bool slots keep strings in a yaml.v3 bool spelling (yamlBoolSpelling) and
+// int slots keep floats that hold a whole number (integralIntValue).
 // This prevents type mismatches from causing config.Load() unmarshal errors.
 func enforceTemplateTypes(merged, tmpl map[string]interface{}) bool {
 	fixed := false
@@ -740,8 +819,15 @@ func enforceTemplateTypes(merged, tmpl map[string]interface{}) bool {
 			}
 		case int:
 			if _, ok := mergedVal.(int); !ok {
-				log.Printf("enforceTypes: %s should be int, got %T — using template default", key, mergedVal)
-				merged[key] = tmplVal
+				// Float notation for a whole number (1e5, 100000.0) keeps the
+				// owner's value, as config.Load would read it; anything else
+				// falls back to the template.
+				if n, ok := integralIntValue(mergedVal); ok {
+					merged[key] = n
+				} else {
+					merged[key] = tmplVal
+				}
+				log.Printf("enforceTypes: %s should be int, got %T — corrected", key, mergedVal)
 				fixed = true
 			}
 		case float64:

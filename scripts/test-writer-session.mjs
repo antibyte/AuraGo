@@ -30,3 +30,15 @@ const disposed=create({serialize:async()=>[],write:async()=>{throw Error('dispos
 disposed.changed();disposed.dispose();await tick(1000);
 await assert.rejects(disposed.save(),/closed/);
 console.log('Writer sessions: debounce, maximum delay, single-flight, revision acknowledgement, errors, retry and disposal pass');
+const panels={window:{}};
+vm.runInNewContext(readFileSync('ui/js/desktop/apps/writer-panels.js','utf8'),panels);
+const paperSize=panels.window.WriterPanels.paperSize;
+assert.equal(paperSize(12240,15840),'letter');
+assert.equal(paperSize(15840,12240),'letter');
+assert.equal(paperSize(12259,15840),'letter');
+assert.equal(paperSize(12260,15840),'');
+assert.equal(paperSize(11906,16838),'a4');
+assert.equal(paperSize(16838,11906),'a4');
+assert.equal(paperSize(11925,16838),'a4');
+assert.equal(paperSize(9000,9000),'');
+console.log('Writer paper sizes: Letter and A4 match both orientations');

@@ -6,7 +6,8 @@ import (
 	"testing"
 )
 
-// catalogSpec mirrors the spec table (docs/superpowers/specs/2026-10-09-retro-net-terminal-design.md)
+// catalogSpec mirrors the spec tables (docs/superpowers/specs/2026-10-09-retro-net-terminal-design.md,
+// C64 boards: docs/superpowers/specs/2026-10-10-retro-net-c64-mode-design.md, live-selected 2026-10-10)
 // row by row: id, name, category, address, protocol, kind, charset, host key.
 var catalogSpec = []struct {
 	id, name, category, address string
@@ -48,12 +49,22 @@ var catalogSpec = []struct {
 	{"digicom", "Digicom", "games", "bbs.digicombbs.com:2323", ProtocolTelnet, KindBBS, CharsetCP437, ""},
 	{"digital-warfare", "Digital Warfare", "games", "bbs.digital-warfare.net:1337", ProtocolTelnet, KindBBS, CharsetCP437, ""},
 	{"disconnected-by-peer", "Disconnected by Peer", "games", "bbs.disconnected-by-peer.at:23", ProtocolTelnet, KindBBS, CharsetCP437, ""},
+	{"the-oasis", "The Oasis", "commodore", "oasisbbs.hopto.org:6400", ProtocolTelnet, KindC64, CharsetPETSCII, ""},
+	{"the-cabin", "The Cabin", "commodore", "thecabinbbs.com:6400", ProtocolTelnet, KindC64, CharsetPETSCII, ""},
+	{"citadel-64", "Citadel 64", "commodore", "citadel64.thejlab.com:6400", ProtocolTelnet, KindC64, CharsetPETSCII, ""},
+	{"decades", "Decades", "commodore", "decades.freeddns.org:6401", ProtocolTelnet, KindC64, CharsetPETSCII, ""},
+	{"enterprise", "Enterprise", "commodore", "enterprisebbs.ddns.net:1701", ProtocolTelnet, KindC64, CharsetPETSCII, ""},
+	{"high-desert", "High Desert", "commodore", "highdesertbbs.ddns.net:6400", ProtocolTelnet, KindC64, CharsetPETSCII, ""},
+	{"commodore-image", "Commodore Image", "commodore", "cib.dyndns.org:6400", ProtocolTelnet, KindC64, CharsetPETSCII, ""},
+	{"reign-of-fire", "Reign of Fire II", "commodore", "call.rofbbs.com:6400", ProtocolTelnet, KindC64, CharsetPETSCII, ""},
+	{"dead-zone", "The Dead Zone", "commodore", "dzbbs.hopto.org:64128", ProtocolTelnet, KindC64, CharsetPETSCII, ""},
+	{"deepskies", "DeepSkies", "commodore", "bbs.deepskies.com:6400", ProtocolTelnet, KindC64, CharsetPETSCII, ""},
 }
 
 func TestDefaultCatalogMatchesSpecTable(t *testing.T) {
 	catalog := DefaultCatalog()
-	if len(catalog) != 33 || len(catalogSpec) != 33 {
-		t.Fatalf("catalog has %d entries (spec table %d), want 33", len(catalog), len(catalogSpec))
+	if len(catalog) != 43 || len(catalogSpec) != 43 {
+		t.Fatalf("catalog has %d entries (spec table %d), want 43", len(catalog), len(catalogSpec))
 	}
 	for i, want := range catalogSpec {
 		got := catalog[i]
@@ -66,7 +77,7 @@ func TestDefaultCatalogMatchesSpecTable(t *testing.T) {
 
 func TestDefaultCatalogInvariants(t *testing.T) {
 	catalogIDPattern := regexp.MustCompile(`^[a-z0-9-]{2,40}$`)
-	rank := map[string]int{CategoryClassics: 0, CategoryBBS: 1, CategoryMUDs: 2, CategoryGames: 3}
+	rank := map[string]int{CategoryClassics: 0, CategoryBBS: 1, CategoryMUDs: 2, CategoryGames: 3, CategoryCommodore: 4}
 	seen := make(map[string]bool)
 	lastRank := 0
 	for _, e := range DefaultCatalog() {
@@ -90,7 +101,7 @@ func TestDefaultCatalogInvariants(t *testing.T) {
 		if !ok {
 			t.Errorf("%s: unknown category %q", e.ID, e.Category)
 		} else if r < lastRank {
-			t.Errorf("%s: category %q breaks the render order classics, bbs, muds, games", e.ID, e.Category)
+			t.Errorf("%s: category %q breaks the render order classics, bbs, muds, games, commodore", e.ID, e.Category)
 		} else {
 			lastRank = r
 		}
@@ -106,6 +117,9 @@ func TestDefaultCatalogInvariants(t *testing.T) {
 			if !e.Kind.valid() || !e.Charset.valid() {
 				t.Errorf("%s: invalid kind %q or charset %q", e.ID, e.Kind, e.Charset)
 			}
+		}
+		if (e.Category == CategoryCommodore) != (e.Kind == KindC64) {
+			t.Errorf("%s: C64 boards (kind c64) and only they belong in the commodore category", e.ID)
 		}
 	}
 }

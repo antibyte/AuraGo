@@ -13,6 +13,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/security"
 	"aurago/internal/tools"
+	"aurago/internal/webhooks"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -26,6 +27,10 @@ func TestDispatchInfraManageWebhooksUsesActionAlias(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Webhooks.Enabled = true
 	cfg.Directories.DataDir = tmpDir
+	mgr, err := webhooks.NewManager(filepath.Join(tmpDir, "webhooks.json"), filepath.Join(tmpDir, "webhook_log.json"))
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
 
 	out, ok := dispatchInfra(context.Background(), ToolCall{
 		Action: "manage_webhooks",
@@ -35,8 +40,9 @@ func TestDispatchInfraManageWebhooksUsesActionAlias(t *testing.T) {
 			"slug":   "inbox-hook",
 		},
 	}, &DispatchContext{
-		Cfg:    cfg,
-		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Cfg:            cfg,
+		Logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
+		WebhookManager: mgr,
 	})
 	if !ok {
 		t.Fatal("expected dispatchInfra to handle manage_webhooks")
@@ -52,6 +58,117 @@ func TestDispatchInfraManageWebhooksUsesActionAlias(t *testing.T) {
 	}
 	if !strings.Contains(string(data), "inbox-hook") {
 		t.Fatalf("expected webhook file to contain slug, got %s", string(data))
+	}
+	if _, err := mgr.GetBySlug("inbox-hook"); err != nil {
+		t.Fatalf("live manager missing created webhook: %v", err)
+	}
+}
+
+func TestDispatchInfraManageWebhooksRequiresLiveManager(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Webhooks.Enabled = true
+	out, ok := dispatchInfra(context.Background(), ToolCall{
+		Action: "manage_webhooks",
+		Params: map[string]interface{}{"action": "list"},
+	}, &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	if !ok {
+		t.Fatal("expected dispatchInfra to handle manage_webhooks")
+	}
+	if !strings.Contains(out, "Webhook receiver is not running") {
+		t.Fatalf("expected receiver-not-running error, got %s", out)
+	}
+}
+
+func TestDispatchInfraManageWebhooksSurvivesRecordFire(t *testing.T) {
+	tmpDir := t.TempDir()
+	cfg := &config.Config{}
+	cfg.Webhooks.Enabled = true
+	cfg.Directories.DataDir = tmpDir
+	mgr, err := webhooks.NewManager(filepath.Join(tmpDir, "webhooks.json"), filepath.Join(tmpDir, "webhook_log.json"))
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	dc := &DispatchContext{
+		Cfg:            cfg,
+		Logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
+		WebhookManager: mgr,
+	}
+	out, ok := dispatchInfra(context.Background(), ToolCall{
+		Action: "manage_webhooks",
+		Params: map[string]interface{}{"action": "create", "name": "Inbox Hook", "slug": "inbox-hook"},
+	}, dc)
+	if !ok || !strings.Contains(out, `"status":"ok"`) {
+		t.Fatalf("create: ok=%v out=%s", ok, out)
+	}
+	created, err := mgr.GetBySlug("inbox-hook")
+	if err != nil {
+		t.Fatalf("GetBySlug: %v", err)
+	}
+	out, ok = dispatchInfra(context.Background(), ToolCall{
+		Action: "manage_webhooks",
+		Params: map[string]interface{}{"action": "update", "id": created.ID, "name": "Renamed Hook"},
+	}, dc)
+	if !ok || !strings.Contains(out, `"status":"ok"`) {
+		t.Fatalf("update: ok=%v out=%s", ok, out)
+	}
+	mgr.RecordFire(created.ID)
+	reloaded, err := webhooks.NewManager(filepath.Join(tmpDir, "webhooks.json"), filepath.Join(tmpDir, "webhook_log.json"))
+	if err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	stored, err := reloaded.Get(created.ID)
+	if err != nil {
+		t.Fatalf("reloaded Get: %v", err)
+	}
+	if stored.Name != "Renamed Hook" {
+		t.Fatalf("RecordFire dropped the tool update, name=%q", stored.Name)
+	}
+}
+
+func TestDispatchInfraManageWebhooksDeleteRemovesVaultSecret(t *testing.T) {
+	tmpDir := t.TempDir()
+	cfg := &config.Config{}
+	cfg.Webhooks.Enabled = true
+	cfg.Directories.DataDir = tmpDir
+	mgr, err := webhooks.NewManager(filepath.Join(tmpDir, "webhooks.json"), filepath.Join(tmpDir, "webhook_log.json"))
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	created, err := mgr.Create(webhooks.Webhook{
+		Name: "Signed", Slug: "signed-hook", Enabled: true,
+		Delivery: webhooks.DeliveryConfig{Mode: webhooks.DeliveryModeSilent},
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	vault, err := security.NewVault("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", filepath.Join(tmpDir, "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault: %v", err)
+	}
+	key := webhooks.SignatureSecretVaultKey(created.ID)
+	if err := vault.WriteSecret(key, "signature-secret"); err != nil {
+		t.Fatalf("WriteSecret: %v", err)
+	}
+	out, ok := dispatchInfra(context.Background(), ToolCall{
+		Action: "manage_webhooks",
+		Params: map[string]interface{}{"action": "delete", "id": created.ID},
+	}, &DispatchContext{
+		Cfg:            cfg,
+		Logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
+		WebhookManager: mgr,
+		Vault:          vault,
+	})
+	if !ok || !strings.Contains(out, `"status":"ok"`) {
+		t.Fatalf("delete: ok=%v out=%s", ok, out)
+	}
+	if _, err := vault.ReadSecret(key); err == nil {
+		t.Fatal("signature secret still present after tool delete")
+	}
+	if _, err := mgr.Get(created.ID); err == nil {
+		t.Fatal("webhook still present after tool delete")
 	}
 }
 

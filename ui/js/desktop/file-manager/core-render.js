@@ -18,6 +18,10 @@
             host: null,
             callbacks: null,
             currentPath: '',
+            storage: { provider: 'local', mount_id: '' },
+            storagePolicy: {},
+            storageMounts: [],
+            storageLifetime: new AbortController(),
             files: [],
             filteredFiles: null,
             selectedPaths: new Set(),
@@ -102,138 +106,6 @@
             return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) + ' ' +
                    d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
         } catch { return '\u2014'; }
-    }
-
-    function showContextMenu(x, y, items) {
-        if (fm.callbacks && typeof fm.callbacks.showContextMenu === 'function') {
-            // Convert file-manager format {action: string, handler: fn} to main.js format {action: fn}
-            const convertItem = item => {
-                if (item.separator) return item;
-                const converted = {
-                    label: item.label,
-                    icon: item.icon || 'tools',
-                    fallback: contextIconGlyph(item.icon)
-                };
-                if (item.disabled) converted.disabled = true;
-                converted.action = typeof item.handler === 'function' ? item.handler : (typeof item.action === 'function' ? item.action : () => {});
-                if (item.items) {
-                    converted.items = item.items.map(convertItem);
-                } else if (item.children) {
-                    converted.items = item.children.map(convertItem);
-                }
-                return converted;
-            };
-            const converted = items.map(convertItem);
-            fm.callbacks.showContextMenu(x, y, converted);
-            return;
-        }
-        closeContextMenu();
-        const menu = document.createElement('div');
-        menu.className = 'fm-context-menu';
-        menu.style.left = x + 'px';
-        menu.style.top = y + 'px';
-        menu.innerHTML = items.map(item => {
-            if (item.separator) return '<div class="fm-context-separator"></div>';
-            return `<button type="button" class="fm-context-item${item.disabled ? ' disabled' : ''}" data-action="${esc(item.action || '')}">
-                ${item.icon ? iconMarkup(item.icon, item.icon, 'fm-context-icon', 14) : ''}
-                <span>${esc(item.label)}</span>
-                ${item.shortcut ? `<kbd class="fm-context-shortcut">${esc(item.shortcut)}</kbd>` : ''}
-            </button>`;
-        }).join('');
-        document.body.appendChild(menu);
-        const menuRect = menu.getBoundingClientRect();
-        let nextLeft = x;
-        let nextTop = y;
-        if (menuRect.right > window.innerWidth) nextLeft = Math.max(8, window.innerWidth - menuRect.width - 8);
-        if (menuRect.bottom > window.innerHeight) nextTop = Math.max(8, window.innerHeight - menuRect.height - 8);
-        if (menuRect.left < 8) nextLeft = Math.max(8, nextLeft);
-        if (menuRect.top < 8) nextTop = Math.max(8, nextTop);
-        menu.style.left = nextLeft + 'px';
-        menu.style.top = nextTop + 'px';
-        menu.querySelectorAll('.fm-context-item:not(.disabled)').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const action = btn.dataset.action;
-                const item = items.find(i => i.action === action);
-                closeContextMenu();
-                if (item && typeof item.handler === 'function') item.handler();
-            });
-        });
-        setTimeout(() => {
-            const closeHandler = event => {
-                if (!menu.contains(event.target)) {
-                    closeContextMenu();
-                    document.removeEventListener('mousedown', closeHandler);
-                    document.removeEventListener('keydown', escapeHandler);
-                }
-            };
-            const escapeHandler = event => {
-                if (event.key === 'Escape') {
-                    closeContextMenu();
-                    document.removeEventListener('mousedown', closeHandler);
-                    document.removeEventListener('keydown', escapeHandler);
-                }
-            };
-            document.addEventListener('mousedown', closeHandler);
-            document.addEventListener('keydown', escapeHandler);
-        }, 0);
-    }
-
-    function closeContextMenu() {
-        if (fm.callbacks && typeof fm.callbacks.closeContextMenu === 'function') {
-            fm.callbacks.closeContextMenu();
-            return;
-        }
-        document.querySelectorAll('.fm-context-menu').forEach(menu => menu.remove());
-    }
-
-    function promptDialog(title, value) {
-        if (fm.callbacks && typeof fm.callbacks.promptDialog === 'function') {
-            return fm.callbacks.promptDialog(title, value);
-        }
-        return new Promise(resolve => {
-            const overlay = document.createElement('div');
-            overlay.className = 'fm-modal-overlay';
-            overlay.innerHTML = `<form class="fm-modal">
-                <div class="fm-modal-title">${esc(title)}</div>
-                <input type="text" name="value" value="${esc(value || '')}" autocomplete="off" spellcheck="false">
-                <div class="fm-modal-actions">
-                    <button type="button" class="fm-btn" data-cancel>${esc(t('desktop.cancel'))}</button>
-                    <button type="submit" class="fm-btn primary">${esc(t('desktop.ok'))}</button>
-                </div>
-            </form>`;
-            document.body.appendChild(overlay);
-            const input = overlay.querySelector('input');
-            const cleanup = result => { overlay.remove(); resolve(result); };
-            overlay.querySelector('form').addEventListener('submit', e => { e.preventDefault(); cleanup(input.value.trim()); });
-            overlay.querySelector('[data-cancel]').addEventListener('click', () => cleanup(''));
-            overlay.addEventListener('click', e => { if (e.target === overlay) cleanup(''); });
-            input.focus();
-            input.select();
-        });
-    }
-
-    function confirmDialog(title, message) {
-        if (fm.callbacks && typeof fm.callbacks.confirmDialog === 'function') {
-            return fm.callbacks.confirmDialog(title, message);
-        }
-        return new Promise(resolve => {
-            const overlay = document.createElement('div');
-            overlay.className = 'fm-modal-overlay';
-            overlay.innerHTML = `<div class="fm-modal">
-                <div class="fm-modal-title">${esc(title)}</div>
-                <p class="fm-modal-message">${esc(message)}</p>
-                <div class="fm-modal-actions">
-                    <button type="button" class="fm-btn" data-cancel>${esc(t('desktop.cancel'))}</button>
-                    <button type="button" class="fm-btn danger" data-confirm>${esc(t('desktop.delete'))}</button>
-                </div>
-            </div>`;
-            document.body.appendChild(overlay);
-            const cleanup = result => { overlay.remove(); resolve(result); };
-            overlay.querySelector('[data-confirm]').addEventListener('click', () => cleanup(true));
-            overlay.querySelector('[data-cancel]').addEventListener('click', () => cleanup(false));
-            overlay.addEventListener('click', e => { if (e.target === overlay) cleanup(false); });
-            overlay.querySelector('[data-confirm]').focus();
-        });
     }
 
     function showNotification(payload) {
@@ -344,7 +216,8 @@
     }
 
     function addToHistory(path) {
-        if (fm.historyIndex >= 0 && fm.history[fm.historyIndex] === path) return;
+        path = storageLocation(path);
+        if (fm.historyIndex >= 0 && locationKey(savedLocation(fm.history[fm.historyIndex])) === locationKey(path)) return;
         fm.history = fm.history.slice(0, fm.historyIndex + 1);
         fm.history.push(path);
         fm.historyIndex = fm.history.length - 1;
@@ -377,6 +250,12 @@
     async function navigate(path, addHistory = true) {
         if (!path && path !== '') path = '';
         const instance = fm;
+        const location = storageLocation(path);
+        closeContextMenu();
+        instance.storage = { ...location };
+        path = location.path;
+        instance.storageNavigation?.abort();
+        instance.storageNavigation = new AbortController();
         const generation = ++instance.navigationGeneration;
         fm.loading = true;
         fm.currentPath = path;
@@ -389,14 +268,22 @@
         fm.searchQuery = '';
         if (addHistory) addToHistory(path);
         if (fm.callbacks && typeof fm.callbacks.onPathChange === 'function') {
-            fm.callbacks.onPathChange(path);
+            fm.callbacks.onPathChange(path, location);
         }
         renderAll();
         try {
-            const result = await api('/api/desktop/files?path=' + encodeURIComponent(path));
+            const result = isRemote(instance)
+                ? await storageJSON(storageURL('files', location), { signal: instance.storageNavigation.signal })
+                : await api('/api/desktop/files?path=' + encodeURIComponent(path));
             if (!isLiveInstance(instance) || instance.navigationGeneration !== generation) return;
             withInstance(instance, () => {
                 fm.files = Array.isArray(result.files) ? result.files : [];
+                if (isRemote(instance)) fm.files = fm.files.map(file => ({ ...file, mime_type: file.content_type, storage: location.provider === 'gog' ? { ...location, path: file.path, item_id: file.item_id, parent_id: file.parent_id, name: file.name } : location }));
+                if (location.provider === 'gog') {
+                    instance.gogLocations ||= new Map();
+                    instance.gogLocations.set(location.account_id + '/' + location.path, location);
+                    fm.files.forEach(file => instance.gogLocations.set(location.account_id + '/' + file.path, file.storage));
+                }
                 fm.loading = false;
                 applyFilter();
                 renderAll();
@@ -404,7 +291,7 @@
         } catch (err) {
             if (!isLiveInstance(instance) || instance.navigationGeneration !== generation) return;
             withInstance(instance, () => {
-                showNotification({ type: 'error', message: t('desktop.fm.error_load') + ': ' + (err.message || String(err)) });
+                showNotification({ type: 'error', message: t('desktop.fm.error_load') + ': ' + storageErrorMessage(err) });
                 fm.files = [];
                 fm.loading = false;
                 applyFilter();
@@ -441,6 +328,12 @@
         if (typeof fm.callbacks.wireContextMenuBoundary === 'function') fm.callbacks.wireContextMenuBoundary(host);
         loadPreferences();
         bindKeyboard();
+        instance.storagePolicyListener = () => {
+            loadStorageSources(instance, true);
+        };
+        document.addEventListener('aurago:desktop-policy', instance.storagePolicyListener);
+        loadStorageSources(instance);
+        if (initialPath && initialPath.provider === 'koofr') openStorageMounts(instance);
         navigate(initialPath || '');
     }
 
@@ -448,6 +341,7 @@
         if (!fm.host) return;
         const renameInput = fm.renamePath && fm.host.querySelector('[data-rename-input]');
         if (renameInput && renameInput.isConnected) fm.renameDraft = renameInput.value;
+        saveActivePaneState();
         if (typeof syncActiveTab === 'function') syncActiveTab();
         fm.incrementalRenderToken++;
         updateWindowMenus();
@@ -471,6 +365,8 @@
         const hasClipboard = hasSharedFileClipboard();
         const readonly = isReadonly();
         const selectedFile = selected.length === 1 ? selected[0] : null;
+        const instance = fm;
+        const bindMenu = menu => ({ ...menu, action: typeof menu.action === 'function' ? () => withInstance(instance, menu.action) : menu.action, items: menu.items?.map(bindMenu) });
         fm.callbacks.setWindowMenus(fm.windowId, [
             {
                 id: 'file',
@@ -481,7 +377,7 @@
                     { id: 'upload', labelKey: 'desktop.fm.upload', icon: 'upload', disabled: readonly, action: () => uploadFiles() },
                     { type: 'separator' },
                     { id: 'duplicate', labelKey: 'desktop.fm.duplicate', shortcut: 'Ctrl+D', disabled: readonly || !hasSelection, action: () => duplicateSelected() },
-                    { id: 'open-terminal', labelKey: 'desktop.fm.open_terminal', disabled: selected.length > 1, action: () => openTerminalHere(selectedFile && selectedFile.type === 'directory' ? selectedFile.path : fm.currentPath) },
+                    { id: 'open-terminal', labelKey: 'desktop.fm.open_terminal', disabled: isRemote() || selected.length > 1, action: () => openTerminalHere(selectedFile && selectedFile.type === 'directory' ? selectedFile.path : fm.currentPath) },
                     { type: 'separator' },
                     { id: 'download', labelKey: 'desktop.fm.download', icon: 'download', disabled: !selectedFile || selectedFile.type !== 'file', action: () => selectedFile && downloadFile(selectedFile) },
                     { id: 'properties', labelKey: 'desktop.fm.properties', icon: 'info', disabled: !selectedFile, action: () => selectedFile && showProperties(selectedFile) }
@@ -531,7 +427,7 @@
                     }
                 ]
             }
-        ]);
+        ].map(bindMenu));
     }
 
     function focusFileItem(path) {
@@ -685,7 +581,7 @@
         }
 
         return `<div class="file-manager" data-fm-window="${esc(fm.windowId)}" ${fm.sidebarOpen ? 'data-sidebar-open="true"' : ''} ${isReadonly() ? 'data-readonly="true"' : ''} tabindex="-1">
-            <div class="fm-sidebar-backdrop" hidden data-action="sidebar-backdrop-close"></div>
+            <div class="fm-sidebar-backdrop" ${fm.sidebarOpen && isCompactViewportFM() ? '' : 'hidden'} data-action="sidebar-backdrop-close"></div>
             ${tabHtml}
             ${renderToolbarHtml()}
             ${renderSelectionToolbarHtml()}
@@ -712,7 +608,9 @@
 
     function createPaneState(path, history = [], historyIndex = -1) {
         return {
+            storage: { ...fm.storage },
             currentPath: path || '',
+            loading: fm.loading,
             files: [],
             filteredFiles: null,
             selectedPaths: new Set(),
@@ -747,6 +645,7 @@
             const activeState = fm.activePane === 'right' ? fm.rightPane : fm.leftPane;
             fm.splitViewEnabled = false;
             if (activeState) {
+                fm.storage = { ...activeState.storage };
                 fm.currentPath = activeState.currentPath;
                 fm.files = [...activeState.files];
                 fm.filteredFiles = activeState.filteredFiles ? [...activeState.filteredFiles] : null;
@@ -770,6 +669,8 @@
         if (!pane) return;
         
         pane.currentPath = fm.currentPath;
+        pane.storage = { ...fm.storage };
+        pane.loading = fm.loading;
         pane.files = [...fm.files];
         pane.filteredFiles = fm.filteredFiles ? [...fm.filteredFiles] : null;
         pane.selectedPaths = new Set(fm.selectedPaths);
@@ -787,6 +688,8 @@
     function loadPaneState(pane) {
         if (!pane) return;
         fm.currentPath = pane.currentPath;
+        fm.storage = { ...pane.storage };
+        fm.loading = pane.loading;
         fm.files = [...pane.files];
         fm.filteredFiles = pane.filteredFiles ? [...pane.filteredFiles] : null;
         fm.selectedPaths = new Set(pane.selectedPaths);
@@ -803,11 +706,23 @@
 
     function switchActivePane(paneName) {
         if (!fm.splitViewEnabled || fm.activePane === paneName) return;
+        fm.navigationGeneration++;
+        fm.storageNavigation?.abort();
         
         saveActivePaneState();
         fm.activePane = paneName;
         const nextPane = paneName === 'right' ? fm.rightPane : fm.leftPane;
         loadPaneState(nextPane);
+        if (isRemote() && !fm.storagePolicy?.[fm.storage.provider]) {
+            navigate(localLocation(), false);
+            return;
+        }
+        if (fm.loading) {
+            navigate(storageLocation(), false);
+            return;
+        }
+        fm.callbacks.onPathChange?.(fm.currentPath, storageLocation());
+        if (typeof syncActiveTab === 'function') syncActiveTab();
         
         if (fm.host) {
             fm.host.querySelectorAll('.fm-pane').forEach(pane => {
@@ -845,6 +760,11 @@
             }
             
             attachEvents();
+            const root = fm.host.querySelector('.file-manager');
+            if (isReadonly()) root?.setAttribute('data-readonly', 'true');
+            else root?.removeAttribute('data-readonly');
+            updateWindowMenus();
+            updateToolbarState();
         }
     }
 
@@ -950,7 +870,7 @@
 
     function renderSidebarHtml() {
         const items = fm.directories.map(dir => {
-            const isActive = fm.currentPath === dir || fm.currentPath.startsWith(dir + '/');
+            const isActive = !isRemote() && (fm.currentPath === dir || fm.currentPath.startsWith(dir + '/'));
             const iconKey = iconForDirectory(baseName(dir) || dir);
             return `<div class="fm-sidebar-item${isActive ? ' active' : ''}" data-sidebar-path="${esc(dir)}" role="button" tabindex="0">
                 ${iconMarkup(iconKey, '\u25A0', 'fm-sidebar-icon', 18)}
@@ -960,15 +880,17 @@
 
         const favs = fm.favorites || [];
         const favItems = favs.map((fav, idx) => {
-            const isActive = fm.currentPath === fav || fm.currentPath.startsWith(fav + '/');
-            return `<div class="fm-sidebar-item${isActive ? ' active' : ''} fm-favorite-item" data-sidebar-path="${esc(fav)}" draggable="true" data-fav-index="${idx}" role="button" tabindex="0" style="position:relative">
+            const loc = savedLocation(fav);
+            const isActive = locationKey(storageLocation()) === locationKey(loc);
+            return `<div class="fm-sidebar-item${isActive ? ' active' : ''} fm-favorite-item" data-sidebar-path="${esc(loc.path)}" draggable="true" data-fav-index="${idx}" role="button" tabindex="0" style="position:relative">
                 ${iconMarkup('star', '\u2605', 'fm-sidebar-icon', 18)}
-                <span class="fm-sidebar-label">${esc(baseName(fav) || fav)}</span>
-                <button type="button" class="fm-favorite-remove" data-action="remove-favorite" data-path="${esc(fav)}" title="${esc(t('desktop.fm.remove_favorite'))}" style="position:absolute;right:8px;background:none;border:none;color:var(--vd-muted);cursor:pointer;font-size:1rem;line-height:1;display:none;align-items:center;justify-content:center;height:100%;top:0">&times;</button>
+                <span class="fm-sidebar-label">${esc((loc.provider === 'local' ? '' : storageName({ ...fm, storage: loc }) + ' · ') + (baseName(loc.path) || '/'))}</span>
+                <button type="button" class="fm-favorite-remove" data-remove-storage-favorite="${idx}" title="${esc(t('desktop.fm.remove_favorite'))}" style="position:absolute;right:8px;background:none;border:none;color:var(--vd-muted);cursor:pointer;font-size:1rem;line-height:1;display:none;align-items:center;justify-content:center;height:100%;top:0">&times;</button>
             </div>`;
         }).join('');
 
         return `<aside class="fm-sidebar">
+            ${renderStorageSidebar()}
             <div class="fm-sidebar-section">
                 <div class="fm-sidebar-head">${esc(t('desktop.fm.quick_access'))}</div>
                 ${items || `<div class="fm-sidebar-empty">${esc(t('desktop.fm.workspace_root'))}</div>`}
@@ -986,9 +908,9 @@
         const segments = parts.map((part, index) => {
             accumulated = joinPath(accumulated, part);
             const isLast = index === parts.length - 1;
-            return `<span class="fm-breadcrumb-segment${isLast ? ' current' : ''}" data-breadcrumb-path="${esc(accumulated)}" role="button" tabindex="0">${esc(part)}</span>`;
+            return `<span class="fm-breadcrumb-segment${isLast ? ' current' : ''}" data-breadcrumb-path="${esc(accumulated)}" role="button" tabindex="0">${esc(fm.storage?.provider === 'gog' ? fm.gogLocations?.get(fm.storage.account_id + '/' + accumulated)?.name || part : part)}</span>`;
         });
-        return segments.join(`<span class="fm-breadcrumb-separator">/</span>`);
+        return (isRemote() ? `<span class="fm-breadcrumb-segment" data-breadcrumb-path="" role="button" tabindex="0">${esc(storageName())}</span><span class="fm-breadcrumb-separator">/</span>` : '') + segments.join(`<span class="fm-breadcrumb-separator">/</span>`);
     }
 
     function renderContentHtml() {

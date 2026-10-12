@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 var (
@@ -50,6 +51,11 @@ func handleSendYouTubeVideo(req youtubeVideoArgs, logger *slog.Logger) string {
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
 		title = "YouTube video"
+	} else if utf8.RuneCountInString(title) > 120 {
+		return encode(map[string]interface{}{
+			"status":  "error",
+			"message": "title must be at most 120 characters",
+		})
 	}
 	markdown := fmt.Sprintf("[%s](%s)", escapeMarkdownLinkText(title), ref.URL)
 

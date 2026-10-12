@@ -45,7 +45,7 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 
 	case "send_agodesk_chat":
 		req := decodeAgoDeskChatArgs(tc)
-		return "Tool Output: " + sendAgoDeskChatMessage(dc, req), true
+		return "Tool Output: " + sendAgoDeskChatMessage(ctx, dc, req), true
 
 	case "cyd_display":
 		return "Tool Output: " + handleCYDDisplay(dc, decodeCYDDisplayArgs(tc)), true
@@ -251,7 +251,7 @@ func logTelegramDocumentSent(logger *slog.Logger, result string) {
 	}
 }
 
-func sendAgoDeskChatMessage(dc *DispatchContext, req agoDeskChatArgs) string {
+func sendAgoDeskChatMessage(ctx context.Context, dc *DispatchContext, req agoDeskChatArgs) string {
 	encode := func(r map[string]interface{}) string {
 		b, _ := json.Marshal(r)
 		return string(b)
@@ -277,7 +277,7 @@ func sendAgoDeskChatMessage(dc *DispatchContext, req agoDeskChatArgs) string {
 	if conversationID := strings.TrimSpace(req.ConversationID); conversationID != "" {
 		args["conversation_id"] = conversationID
 	}
-	result, err := dc.RemoteHub.SendCommand(deviceID, remote.CommandPayload{
+	result, err := dc.RemoteHub.SendCommandContext(ctx, deviceID, remote.CommandPayload{
 		Operation: remote.OpAgoDeskChatMessage,
 		Args:      args,
 	}, 10*time.Second)

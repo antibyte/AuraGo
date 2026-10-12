@@ -334,6 +334,11 @@ function vcCfgField(labelKey, helpKey, inputHtml) {
 function vcCfgToggleEnabled(el) {
     const isOn = el && el.classList ? el.classList.contains('on') : false;
     const nextEnabled = !isOn;
+    // Flip the clicked switch first: state sync still reads it, so a stale one reverts the draft.
+    if (el && el.classList) {
+        el.classList.toggle('on', nextEnabled);
+        el.setAttribute('aria-checked', String(nextEnabled));
+    }
     const data = vcCfgEnsureData();
     data.enabled = nextEnabled;
     setNestedValue(configData, 'virtual_computers.enabled', data.enabled);

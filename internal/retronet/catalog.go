@@ -48,9 +48,22 @@ var catalogEntries = []Entry{
 	telnetEntry("digicom", "Digicom", CategoryGames, "bbs.digicombbs.com", 2323, KindBBS, CharsetCP437),
 	telnetEntry("digital-warfare", "Digital Warfare", CategoryGames, "bbs.digital-warfare.net", 1337, KindBBS, CharsetCP437),
 	telnetEntry("disconnected-by-peer", "Disconnected by Peer", CategoryGames, "bbs.disconnected-by-peer.at", 23, KindBBS, CharsetCP437),
+
+	// Commodore 64 boards (raw TCP behind tcpser-style bridges, PETSCII, 40x25). They are never
+	// reachability-probed; several have a single line. Live-selected on 2026-10-10.
+	telnetEntry("the-oasis", "The Oasis", CategoryCommodore, "oasisbbs.hopto.org", 6400, KindC64, CharsetPETSCII),
+	telnetEntry("the-cabin", "The Cabin", CategoryCommodore, "thecabinbbs.com", 6400, KindC64, CharsetPETSCII),
+	telnetEntry("citadel-64", "Citadel 64", CategoryCommodore, "citadel64.thejlab.com", 6400, KindC64, CharsetPETSCII),
+	telnetEntry("decades", "Decades", CategoryCommodore, "decades.freeddns.org", 6401, KindC64, CharsetPETSCII),
+	telnetEntry("enterprise", "Enterprise", CategoryCommodore, "enterprisebbs.ddns.net", 1701, KindC64, CharsetPETSCII),
+	telnetEntry("high-desert", "High Desert", CategoryCommodore, "highdesertbbs.ddns.net", 6400, KindC64, CharsetPETSCII),
+	telnetEntry("commodore-image", "Commodore Image", CategoryCommodore, "cib.dyndns.org", 6400, KindC64, CharsetPETSCII),
+	telnetEntry("reign-of-fire", "Reign of Fire II", CategoryCommodore, "call.rofbbs.com", 6400, KindC64, CharsetPETSCII),
+	telnetEntry("dead-zone", "The Dead Zone", CategoryCommodore, "dzbbs.hopto.org", 64128, KindC64, CharsetPETSCII),
+	telnetEntry("deepskies", "DeepSkies", CategoryCommodore, "bbs.deepskies.com", 6400, KindC64, CharsetPETSCII),
 }
 
-// DefaultCatalog returns a fresh copy of the 33 curated entries in display order.
+// DefaultCatalog returns a fresh copy of the 43 curated entries in display order.
 func DefaultCatalog() []Entry {
 	out := make([]Entry, len(catalogEntries))
 	copy(out, catalogEntries)

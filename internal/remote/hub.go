@@ -39,13 +39,24 @@ type RemoteConnection struct {
 	Version       string
 	SeqCounter    uint64
 	mu            sync.Mutex
+	writeMu       sync.Mutex
+	closeOnce     sync.Once
+	initOnce      sync.Once
+	closed        chan struct{}
+	Capabilities  []string
+	configState   string
+	configRef     string
+	configTimer   *time.Timer
+	configPolicy  string
 }
 
 // CommandTransport dispatches RemoteHub commands over non-RemoteMessage
 // transports such as the agodesk desktop companion WebSocket.
 type CommandTransport interface {
 	IsConnected(deviceID string) bool
-	SendCommand(deviceID string, cmd CommandPayload, timeout time.Duration) (ResultPayload, error)
+	SendCommand(ctx context.Context, deviceID string, cmd CommandPayload, timeout time.Duration) (ResultPayload, error)
+	// An empty deviceID disconnects all sessions on shutdown.
+	Disconnect(deviceID string)
 }
 
 // RemoteAuditEvent is a normalized remote-control event emitted to the supervisor audit sink.
@@ -61,16 +72,79 @@ type RemoteAuditEvent struct {
 }
 
 // Send writes a signed message to the remote. The websocket write stays under
-// rc.mu because gorilla/websocket permits only one concurrent writer.
+// rc.writeMu because gorilla/websocket permits only one concurrent writer.
 // Serialization happens first so marshal failures do not hold the write lock.
 func (rc *RemoteConnection) Send(msg *RemoteMessage) error {
+	return rc.SendContext(context.Background(), msg)
+}
+
+func (rc *RemoteConnection) SendContext(ctx context.Context, msg *RemoteMessage) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	data, err := json.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("marshal remote message: %w", err)
 	}
+	stop := context.AfterFunc(ctx, rc.Close)
+	defer stop()
+	for !rc.writeMu.TryLock() {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(5 * time.Millisecond):
+		}
+	}
+	defer rc.writeMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if rc.Conn == nil {
+		return fmt.Errorf("remote socket is closed")
+	}
+	select {
+	case <-rc.done():
+		return fmt.Errorf("remote socket is closed")
+	default:
+	}
+	deadline, _ := ctx.Deadline()
+	if err := rc.Conn.SetWriteDeadline(deadline); err != nil {
+		rc.Close()
+		return err
+	}
+	if err := rc.Conn.WriteMessage(websocket.TextMessage, data); err != nil {
+		rc.Close()
+		return err
+	}
+	return ctx.Err()
+}
+
+func (rc *RemoteConnection) done() <-chan struct{} {
+	rc.initOnce.Do(func() { rc.closed = make(chan struct{}) })
+	return rc.closed
+}
+
+// Close never waits for a writer or the hub lock.
+func (rc *RemoteConnection) Close() {
+	rc.done()
+	rc.closeOnce.Do(func() {
+		close(rc.closed)
+		if rc.Conn != nil {
+			_ = rc.Conn.Close()
+		}
+		rc.mu.Lock()
+		if rc.configTimer != nil {
+			rc.configTimer.Stop()
+		}
+		rc.mu.Unlock()
+	})
+}
+
+func (rc *RemoteConnection) TelemetrySnapshot() HeartbeatPayload {
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
-	return rc.Conn.WriteMessage(websocket.TextMessage, data)
+	hb := rc.Telemetry
+	hb.MetricsAvailable = append([]string{}, hb.MetricsAvailable...)
+	return hb
 }
 
 // NextSeq returns and increments the sequence counter.
@@ -84,6 +158,8 @@ func (rc *RemoteConnection) NextSeq() uint64 {
 // RemoteHub manages all connected remote agents on the supervisor side.
 type RemoteHub struct {
 	mu            sync.RWMutex
+	configStates  map[string]string
+	configMu      sync.Mutex
 	connections   map[string]*RemoteConnection   // device_id → conn
 	connIndex     map[*websocket.Conn]string     // websocket conn → device_id
 	transports    map[string]CommandTransport    // name → alternate command transport
@@ -115,6 +191,8 @@ type RemoteHub struct {
 	// PushDefaultAllowedPaths after it changes so connected agents get it too.
 	// Nil means no default.
 	DefaultAllowedPaths func() []string
+	// Policy is installed before serving and returns an immutable live snapshot.
+	Policy func() RuntimePolicy
 
 	nonceCache *nonceReplayCache
 
@@ -165,12 +243,21 @@ func (h *RemoteHub) Register(deviceID string, conn *RemoteConnection) {
 		}
 		h.mu.Unlock()
 		if conn != nil && conn.Conn != nil {
-			_ = conn.Conn.Close()
+			conn.Close()
 		}
 		return
 	}
 	if h.connections == nil {
 		h.connections = make(map[string]*RemoteConnection)
+	}
+	if h.db != nil {
+		if err := UpdateDeviceStatus(h.db, deviceID, "connected"); err != nil {
+			h.mu.Unlock()
+			if conn != nil && conn.Conn != nil {
+				conn.Close()
+			}
+			return
+		}
 	}
 	if h.connIndex == nil {
 		h.connIndex = make(map[*websocket.Conn]string)
@@ -182,17 +269,18 @@ func (h *RemoteHub) Register(deviceID string, conn *RemoteConnection) {
 			delete(h.connIndex, old.Conn)
 		}
 	}
+	delete(h.configStates, deviceID)
 	h.connections[deviceID] = conn
 	if conn != nil && conn.Conn != nil {
 		h.connIndex[conn.Conn] = deviceID
 	}
 	if h.db != nil {
-		_ = UpdateDeviceStatus(h.db, deviceID, "connected")
+		_, _ = h.db.Exec(`UPDATE remote_devices SET version = ? WHERE id = ? AND status = 'connected'`, conn.Version, deviceID)
 	}
 	h.mu.Unlock()
 
 	if old != nil && old.Conn != nil && (conn == nil || old.Conn != conn.Conn) {
-		_ = old.Conn.Close()
+		old.Close()
 	}
 
 	h.logger.Info("Remote connected", "device_id", deviceID, "name", conn.Name)
@@ -221,6 +309,15 @@ func (h *RemoteHub) unregisterConnection(deviceID string, expected *RemoteConnec
 			h.mu.Unlock()
 			return
 		}
+		conn.mu.Lock()
+		failed := conn.configState == "error"
+		conn.mu.Unlock()
+		if failed {
+			if h.configStates == nil {
+				h.configStates = make(map[string]string)
+			}
+			h.configStates[deviceID] = "error"
+		}
 		delete(h.connections, deviceID)
 		if conn.Conn != nil {
 			delete(h.connIndex, conn.Conn)
@@ -232,9 +329,7 @@ func (h *RemoteHub) unregisterConnection(deviceID string, expected *RemoteConnec
 	h.mu.Unlock()
 
 	if ok {
-		if conn.Conn != nil {
-			_ = conn.Conn.Close()
-		}
+		conn.Close()
 		h.logger.Info("Remote disconnected", "device_id", deviceID, "name", conn.Name)
 
 		h.emitAudit(RemoteAuditEvent{
@@ -329,6 +424,15 @@ func (h *RemoteHub) UnregisterCommandTransport(name string) {
 
 // SendCommand sends a command to a remote and waits for the result.
 func (h *RemoteHub) SendCommand(deviceID string, cmd CommandPayload, timeout time.Duration) (ResultPayload, error) {
+	return h.SendCommandContext(context.Background(), deviceID, cmd, timeout)
+}
+
+func (h *RemoteHub) SendCommandContext(ctx context.Context, deviceID string, cmd CommandPayload, timeout time.Duration) (ResultPayload, error) {
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	h.mu.RLock()
 	disabled, disableCh := h.disabled, h.disableCh
 	h.mu.RUnlock()
@@ -337,6 +441,23 @@ func (h *RemoteHub) SendCommand(deviceID string, cmd CommandPayload, timeout tim
 	}
 	cmd = prepareCommandPayload(cmd, timeout)
 	conn := h.GetConnection(deviceID)
+	if h.db != nil {
+		device, err := GetDevice(h.db, deviceID)
+		if err != nil || device.Status == "revoked" {
+			return ResultPayload{}, fmt.Errorf("remote device is unavailable or revoked")
+		}
+		if device.ReadOnly && !ReadOnlySafe(cmd.Operation) {
+			return ResultPayload{CommandID: cmd.CommandID, Status: "denied", ErrorCode: "REMOTE_READ_ONLY", Error: "device is in read-only mode"}, nil
+		}
+		if conn != nil {
+			conn.mu.Lock()
+			policy := conn.configPolicy
+			conn.mu.Unlock()
+			if policy != "" && policy != h.devicePolicySignature(device) {
+				return ResultPayload{CommandID: cmd.CommandID, Status: "denied", ErrorCode: "CONFIG_PENDING", Error: "updated client settings have not been confirmed"}, nil
+			}
+		}
+	}
 	if h.commandBlockedByReadOnly(deviceID, conn, cmd.Operation) {
 		return ResultPayload{
 			CommandID: cmd.CommandID,
@@ -355,9 +476,29 @@ func (h *RemoteHub) SendCommand(deviceID string, cmd CommandPayload, timeout tim
 	}
 	if conn == nil {
 		if transport := h.connectedCommandTransport(deviceID); transport != nil {
-			return transport.SendCommand(deviceID, cmd, timeout)
+			return transport.SendCommand(ctx, deviceID, cmd, timeout)
 		}
 		return ResultPayload{}, fmt.Errorf("no active connection for device %s", deviceID)
+	}
+	conn.mu.Lock()
+	pendingConfig := conn.configState == "pending" || conn.configState == "error"
+	capabilities := append([]string(nil), conn.Capabilities...)
+	checkCapabilities := conn.Capabilities != nil
+	conn.mu.Unlock()
+	if pendingConfig {
+		return ResultPayload{CommandID: cmd.CommandID, Status: "denied", ErrorCode: "CONFIG_PENDING", Error: "client settings have not been confirmed"}, nil
+	}
+	if checkCapabilities {
+		supported := false
+		for _, capability := range capabilities {
+			if capability == cmd.Operation {
+				supported = true
+				break
+			}
+		}
+		if !supported {
+			return ResultPayload{CommandID: cmd.CommandID, Status: "denied", ErrorCode: "UNSUPPORTED_CAPABILITY", Error: "client does not support this operation"}, nil
+		}
 	}
 
 	msg, err := NewMessage(MsgCommand, deviceID, conn.SharedKey, conn.NextSeq(), cmd)
@@ -383,7 +524,14 @@ func (h *RemoteHub) SendCommand(deviceID string, cmd CommandPayload, timeout tim
 		h.pendingMu.Unlock()
 	}()
 
-	if err := conn.Send(msg); err != nil {
+	// A policy change between admission and pending registration must also block this command.
+	conn.mu.Lock()
+	pendingConfig = conn.configState == "pending" || conn.configState == "error"
+	conn.mu.Unlock()
+	if pendingConfig {
+		return ResultPayload{CommandID: cmd.CommandID, Status: "denied", ErrorCode: "CONFIG_PENDING", Error: "client settings have changed"}, nil
+	}
+	if err := conn.SendContext(ctx, msg); err != nil {
 		return ResultPayload{}, fmt.Errorf("failed to send command: %w", err)
 	}
 
@@ -397,7 +545,11 @@ func (h *RemoteHub) SendCommand(deviceID string, cmd CommandPayload, timeout tim
 		return result, nil
 	case <-disableCh:
 		return ResultPayload{}, fmt.Errorf("remote control was disabled")
-	case <-time.After(timeout):
+	case <-conn.done():
+		return ResultPayload{}, fmt.Errorf("remote connection closed")
+	case <-ctx.Done():
+		// Closing also cancels execution on the client; uncertain writes are not replayed.
+		h.unregisterConnection(deviceID, conn)
 		return ResultPayload{
 			CommandID: cmd.CommandID,
 			Status:    "timeout",
@@ -423,6 +575,9 @@ func prepareCommandPayload(cmd CommandPayload, timeout time.Duration) CommandPay
 func (h *RemoteHub) commandBlockedByReadOnly(deviceID string, conn *RemoteConnection, operation string) bool {
 	if ReadOnlySafe(operation) {
 		return false
+	}
+	if h.RuntimePolicy().ReadOnly {
+		return true
 	}
 	if conn != nil {
 		conn.mu.Lock()
@@ -532,7 +687,7 @@ func (h *RemoteHub) pushDefaultAllowedPathsTo(conn *RemoteConnection) {
 		return
 	}
 	if err := h.SendConfigUpdate(conn.DeviceID, ConfigUpdatePayload{AllowedPaths: []string{}}); err != nil {
-		h.logger.Warn("Failed to push the default allowed paths", "device_id", conn.DeviceID, "error", err)
+		h.logger.Error("Failed to push the default allowed paths", "device_id", conn.DeviceID, "error", err)
 	}
 }
 
@@ -544,10 +699,10 @@ func (h *RemoteHub) effectiveAllowedPaths(devicePaths []string) []string {
 	if paths := cleanAllowedPaths(devicePaths); len(paths) > 0 {
 		return paths
 	}
-	if h == nil || h.DefaultAllowedPaths == nil {
+	if h == nil {
 		return []string{}
 	}
-	return cleanAllowedPaths(h.DefaultAllowedPaths())
+	return cleanAllowedPaths(h.RuntimePolicy().AllowedPaths)
 }
 
 func cleanAllowedPaths(paths []string) []string {
@@ -591,22 +746,20 @@ func (h *RemoteHub) connectedCommandTransport(deviceID string) CommandTransport 
 // device list falls back to DefaultAllowedPaths and only an empty result
 // revokes.
 func (h *RemoteHub) SendConfigUpdate(deviceID string, update ConfigUpdatePayload) error {
+	h.configMu.Lock()
+	defer h.configMu.Unlock()
 	conn := h.GetConnection(deviceID)
 	if conn == nil {
+		if transport := h.connectedCommandTransport(deviceID); transport != nil {
+			transport.Disconnect(deviceID)
+			return nil
+		}
 		return fmt.Errorf("no active connection for device %s", deviceID)
 	}
 	ownPaths := update.AllowedPaths
 	if ownPaths != nil {
 		update.AllowedPaths = h.effectiveAllowedPaths(ownPaths)
 	}
-	msg, err := NewMessage(MsgConfigUpdate, deviceID, conn.SharedKey, conn.NextSeq(), update)
-	if err != nil {
-		return fmt.Errorf("failed to create config_update message: %w", err)
-	}
-	if err := conn.Send(msg); err != nil {
-		return err
-	}
-	// Keep in-memory state in sync so server-side command enforcement reflects the change.
 	conn.mu.Lock()
 	if update.ReadOnly != nil {
 		conn.ReadOnly = *update.ReadOnly
@@ -614,26 +767,66 @@ func (h *RemoteHub) SendConfigUpdate(deviceID string, update ConfigUpdatePayload
 	if ownPaths != nil {
 		conn.AllowedPaths = append([]string{}, ownPaths...)
 	}
+	policy := h.RuntimePolicy()
+	effectiveReadOnly := conn.ReadOnly || policy.ReadOnly
+	paths := cleanAllowedPaths(conn.AllowedPaths)
+	if len(paths) == 0 {
+		paths = cleanAllowedPaths(policy.AllowedPaths)
+	}
+	update = ConfigUpdatePayload{ReadOnly: &effectiveReadOnly, AllowedPaths: paths, MaxFileSizeMB: &policy.MaxFileSizeMB}
+	newPolicy := policySignature(effectiveReadOnly, paths, policy.MaxFileSizeMB)
+	changed := conn.configPolicy != newPolicy
+	conn.configPolicy = newPolicy
+	conn.configState = "pending"
 	conn.mu.Unlock()
+	if changed {
+		h.pendingMu.Lock()
+		active := false
+		for _, owner := range h.pendingOwners {
+			active = active || owner == conn
+		}
+		h.pendingMu.Unlock()
+		if active {
+			h.unregisterConnection(deviceID, conn)
+			return nil
+		}
+	}
+	msg, err := NewMessage(MsgConfigUpdate, deviceID, conn.SharedKey, conn.NextSeq(), update)
+	if err != nil {
+		return fmt.Errorf("failed to create config_update message: %w", err)
+	}
+	h.awaitConfigAck(conn, msg.MessageID)
+	if err := conn.Send(msg); err != nil {
+		conn.mu.Lock()
+		conn.configState = "error"
+		conn.mu.Unlock()
+		h.unregisterConnection(deviceID, conn)
+		return err
+	}
 	return nil
 }
 
 // SendRevoke sends a revoke command and unregisters the device.
 func (h *RemoteHub) SendRevoke(deviceID string) error {
-	conn := h.GetConnection(deviceID)
-	if conn == nil {
-		return fmt.Errorf("no active connection for device %s", deviceID)
-	}
-	msg, err := NewMessage(MsgRevoke, deviceID, conn.SharedKey, conn.NextSeq(), nil)
-	if err != nil {
-		return fmt.Errorf("failed to create revoke message: %w", err)
-	}
-	if err := conn.Send(msg); err != nil {
-		return err
-	}
-	h.Unregister(deviceID)
+	h.mu.Lock()
 	if h.db != nil {
-		_ = UpdateDeviceStatus(h.db, deviceID, "revoked")
+		if err := UpdateDeviceStatus(h.db, deviceID, "revoked"); err != nil {
+			h.mu.Unlock()
+			return err
+		}
+	}
+	transports := make([]CommandTransport, 0, len(h.transports))
+	for _, transport := range h.transports {
+		transports = append(transports, transport)
+	}
+	h.mu.Unlock()
+	conn := h.GetConnection(deviceID)
+	if conn != nil {
+
+		h.unregisterConnection(deviceID, conn)
+	}
+	for _, transport := range transports {
+		transport.Disconnect(deviceID)
 	}
 	return nil
 }
@@ -660,7 +853,7 @@ func (h *RemoteHub) HandleMessages(conn *RemoteConnection) {
 		if badFrames >= maxConsecutiveBadFrames {
 			h.logger.Warn("Closing remote connection after repeated bad frames",
 				"device_id", conn.DeviceID, "count", badFrames)
-			_ = conn.Conn.Close()
+			conn.Close()
 			return false
 		}
 		errMsg, _ := NewMessage(MsgError, conn.DeviceID, conn.SharedKey, conn.NextSeq(),
@@ -737,12 +930,9 @@ func (h *RemoteHub) HandleMessages(conn *RemoteConnection) {
 				conn.Version = hb.Version
 				conn.mu.Unlock()
 
-				h.mu.Lock()
+				h.mu.RLock()
 				current := h.connections[conn.DeviceID] == conn
-				if current && h.db != nil {
-					_ = UpdateDeviceStatus(h.db, conn.DeviceID, "connected")
-				}
-				h.mu.Unlock()
+				h.mu.RUnlock()
 				if !current {
 					continue
 				}
@@ -784,7 +974,7 @@ func (h *RemoteHub) HandleMessages(conn *RemoteConnection) {
 				}
 
 				// Audit log
-				if h.db != nil && h.AuditLogEnabled {
+				if h.db != nil && h.RuntimePolicy().AuditLog {
 					_ = LogAudit(h.db, conn.DeviceID, "result", result.CommandID, result.Status, result.DurationMs)
 				}
 				h.emitAudit(RemoteAuditEvent{
@@ -802,7 +992,28 @@ func (h *RemoteHub) HandleMessages(conn *RemoteConnection) {
 				})
 			}
 		case MsgAck:
-			h.logger.Debug("Ack received from remote", "device_id", conn.DeviceID, "msg_id", msg.MessageID)
+			var ack AckPayload
+			if json.Unmarshal(msg.Payload, &ack) == nil {
+				conn.mu.Lock()
+				matched := conn.configRef != "" && ack.RefID == conn.configRef
+				if matched {
+					if conn.configTimer != nil {
+						conn.configTimer.Stop()
+					}
+					conn.configState = "confirmed"
+					if !ack.Success {
+						conn.configState = "error"
+					}
+				}
+				conn.mu.Unlock()
+				if matched && ack.Success {
+					conn.Conn.SetReadLimit(FrameLimit(h.RuntimePolicy().MaxFileSizeMB))
+				}
+				if matched && !ack.Success {
+					h.unregisterConnection(conn.DeviceID, conn)
+					return
+				}
+			}
 		case MsgError:
 			var errPayload ErrorPayload
 			if err := json.Unmarshal(msg.Payload, &errPayload); err == nil {
@@ -815,7 +1026,7 @@ func (h *RemoteHub) HandleMessages(conn *RemoteConnection) {
 }
 
 func (h *RemoteHub) emitAudit(event RemoteAuditEvent) {
-	if h == nil || h.OnAudit == nil {
+	if h == nil || h.OnAudit == nil || !h.RuntimePolicy().AuditLog {
 		return
 	}
 	h.OnAudit(event)
@@ -838,6 +1049,9 @@ func remoteAuditStatus(status string) string {
 
 // HandleEnrollment processes an auth message from a new or returning remote.
 func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) error {
+	if err := wsConn.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		return err
+	}
 	if !h.Enabled() {
 		return fmt.Errorf("remote control is disabled")
 	}
@@ -890,6 +1104,10 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 		if err := ValidateTimestamp(msg.Timestamp); err != nil || !ValidNonce(msg.Nonce) || h.nonceCache.Seen(device.ID, msg.Nonce, time.Now().UTC()) {
 			return h.sendAuthResponse(wsConn, msg.Nonce, storedKey, "", "", "rejected", "stale or replayed authentication", nil, nil)
 		}
+		if auth.SecurityRevision < ClientSecurityRevision || len(auth.Capabilities) == 0 {
+			_ = UpdateDeviceStatus(h.db, device.ID, "upgrade_required")
+			return h.sendAuthResponse(wsConn, msg.Nonce, storedKey, "", "", "rejected", ClientUpgradeRequired, nil, nil)
+		}
 		if err := UpdateDeviceStatus(h.db, device.ID, "connected"); err != nil {
 			return h.sendAuthResponse(wsConn, msg.Nonce, storedKey, "", "", "rejected", "device status update failed", nil, nil)
 		}
@@ -897,7 +1115,7 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 		// Authenticated — register connection. The connection keeps the
 		// device's own list; the agent receives the effective one.
 		allowedPaths := h.effectiveAllowedPaths(device.AllowedPaths)
-		readOnly := device.ReadOnly
+		readOnly := device.ReadOnly || h.RuntimePolicy().ReadOnly
 		conn := &RemoteConnection{
 			Conn:          wsConn,
 			DeviceID:      device.ID,
@@ -905,9 +1123,10 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 			SharedKey:     storedKey,
 			LastHeartbeat: time.Now(),
 			Status:        "connected",
-			ReadOnly:      readOnly,
+			ReadOnly:      device.ReadOnly,
 			AllowedPaths:  append([]string{}, device.AllowedPaths...),
 			Version:       auth.Version,
+			Capabilities:  append([]string{}, auth.Capabilities...),
 		}
 
 		// Do NOT echo back the shared key — the client already has it (it just used it to sign
@@ -916,7 +1135,7 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 		// written without conn.mu, and once published other goroutines (config
 		// pushes, commands) write through conn.Send. gorilla/websocket allows
 		// one writer at a time.
-		if err := h.sendAuthResponse(wsConn, msg.Nonce, storedKey, "", device.ID, "authenticated", "", &readOnly, allowedPaths); err != nil {
+		if err := h.sendAuthResponse(wsConn, msg.Nonce, storedKey, "", device.ID, "authenticated", "", &readOnly, allowedPaths, conn); err != nil {
 			if h.GetConnection(device.ID) == nil {
 				_ = UpdateDeviceStatus(h.db, device.ID, "offline")
 			}
@@ -974,6 +1193,9 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 			return h.sendAuthResponse(wsConn, msg.Nonce, authKey, "", "", "rejected", "enrollment token expired", nil, nil)
 		}
 
+		if auth.SecurityRevision < ClientSecurityRevision || len(auth.Capabilities) == 0 {
+			return h.sendAuthResponse(wsConn, msg.Nonce, authKey, "", "", "rejected", ClientUpgradeRequired, nil, nil)
+		}
 		return h.completeEnrollment(wsConn, msg.Nonce, auth, enrollment.ID, enrollment.DeviceName, authKey)
 	}
 
@@ -981,6 +1203,9 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 	// A private peer address can be a reverse proxy or NAT. It is not identity.
 	// Tokenless joins always need an explicit administrator-issued token.
 
+	if auth.SecurityRevision < ClientSecurityRevision || len(auth.Capabilities) == 0 {
+		return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", ClientUpgradeRequired, nil, nil)
+	}
 	deviceName := auth.Hostname
 	if deviceName == "" {
 		deviceName = "Unknown Device"
@@ -1010,7 +1235,7 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 		Arch:      auth.Arch,
 		IPAddress: peerHost,
 		Status:    "pending",
-		ReadOnly:  h.DefaultReadOnly,
+		ReadOnly:  false,
 	})
 	if err != nil {
 		return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", "internal error", nil, nil)
@@ -1044,8 +1269,9 @@ func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, requestNonce stri
 		Arch:          auth.Arch,
 		IPAddress:     auth.IP,
 		Status:        "approved",
-		ReadOnly:      h.DefaultReadOnly,
+		ReadOnly:      false,
 		SharedKeyHash: keyHash,
+		Version:       auth.Version,
 	})
 	if err != nil {
 		return h.sendAuthResponse(wsConn, requestNonce, bootstrapSigningKey, "", "", "rejected", "device registration failed", nil, nil)
@@ -1066,7 +1292,7 @@ func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, requestNonce stri
 		return h.sendAuthResponse(wsConn, requestNonce, bootstrapSigningKey, "", "", "rejected", "credential storage failed", nil, nil)
 	}
 
-	if err := finalizeEnrollment(h.db, h.vault, enrollmentID, deviceID); err != nil {
+	if err := h.FinalizeEnrollment(enrollmentID, deviceID); err != nil {
 		h.logger.Error("Failed to finalize remote enrollment", "device_id", deviceID, "error", err)
 		cleanupRejectedEnrollment()
 		return h.sendAuthResponse(wsConn, requestNonce, bootstrapSigningKey, "", "", "rejected", "device registration failed", nil, nil)
@@ -1075,7 +1301,7 @@ func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, requestNonce stri
 	// Register connection. A new device has no list of its own yet, so the
 	// agent receives the global default.
 	allowedPaths := h.effectiveAllowedPaths(nil)
-	readOnly := h.DefaultReadOnly
+	readOnly := h.RuntimePolicy().ReadOnly
 	conn := &RemoteConnection{
 		Conn:          wsConn,
 		DeviceID:      deviceID,
@@ -1083,13 +1309,14 @@ func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, requestNonce stri
 		SharedKey:     sharedKey,
 		LastHeartbeat: time.Now(),
 		Status:        "connected",
-		ReadOnly:      readOnly,
+		ReadOnly:      false,
 		AllowedPaths:  []string{},
 		Version:       auth.Version,
+		Capabilities:  append([]string{}, auth.Capabilities...),
 	}
 	// Answer before Register publishes the connection, as on reconnect: the
 	// answer is written without conn.mu.
-	if err := h.sendAuthResponse(wsConn, requestNonce, bootstrapSigningKey, sharedKey, deviceID, "enrolled", "", &readOnly, allowedPaths); err != nil {
+	if err := h.sendAuthResponse(wsConn, requestNonce, bootstrapSigningKey, sharedKey, deviceID, "enrolled", "", &readOnly, allowedPaths, conn); err != nil {
 		return err
 	}
 	h.Register(deviceID, conn)
@@ -1139,6 +1366,11 @@ func (h *RemoteHub) ApproveDevice(deviceID string) (string, string, error) {
 // created. expiresAt is RFC3339 in any offset; it is stored in UTC.
 func (h *RemoteHub) IssueEnrollmentToken(token, deviceName, expiresAt string) (string, error) {
 	return h.issueEnrollment(token, deviceName, expiresAt, nil)
+}
+
+// FinalizeEnrollment is shared by classic and AgoDesk registration.
+func (h *RemoteHub) FinalizeEnrollment(enrollmentID, deviceID string) error {
+	return finalizeEnrollment(h.db, h.vault, enrollmentID, deviceID)
 }
 
 // SweepExpiredEnrollments removes expired enrollments and every MAC key that
@@ -1281,9 +1513,10 @@ func legacyRefusal(requestNonce, keyHex, message string) (*RemoteMessage, error)
 	}
 	payload, err := json.Marshal(struct {
 		Status       string `json:"status"`
+		ErrorCode    string `json:"error_code"`
 		Message      string `json:"message"`
 		RequestNonce string `json:"request_nonce,omitempty"`
-	}{Status: "rejected", Message: message, RequestNonce: requestNonce})
+	}{Status: "rejected", ErrorCode: ClientUpgradeRequired, Message: message, RequestNonce: requestNonce})
 	if err != nil {
 		return nil, err
 	}
@@ -1329,10 +1562,16 @@ func (h *RemoteHub) RejectDevice(deviceID string) error {
 // answer only for the request it just sent and a captured one cannot be
 // replayed on a later connect. A malformed request nonce is not echoed, so a
 // requester cannot place arbitrary bytes under a signature.
-func (h *RemoteHub) sendAuthResponse(wsConn *websocket.Conn, requestNonce, signingKeyHex, sharedKey, deviceID, status, message string, readOnly *bool, allowedPaths []string) error {
+func (h *RemoteHub) sendAuthResponse(wsConn *websocket.Conn, requestNonce, signingKeyHex, sharedKey, deviceID, status, message string, readOnly *bool, allowedPaths []string, settingsConn ...*RemoteConnection) (sendErr error) {
+	defer func() {
+		if sendErr != nil && len(settingsConn) > 0 {
+			settingsConn[0].Close()
+		}
+	}()
 	if !ValidNonce(requestNonce) {
 		requestNonce = ""
 	}
+	policy := h.RuntimePolicy()
 	resp := AuthResponsePayload{
 		Status:        status,
 		DeviceID:      deviceID,
@@ -1340,11 +1579,31 @@ func (h *RemoteHub) sendAuthResponse(wsConn *websocket.Conn, requestNonce, signi
 		Message:       message,
 		ReadOnly:      readOnly,
 		AllowedPaths:  allowedPaths,
-		MaxFileSizeMB: h.effectiveMaxFileSizeMB(),
+		MaxFileSizeMB: policy.MaxFileSizeMB,
 		RequestNonce:  requestNonce,
+	}
+	if len(settingsConn) > 0 {
+		conn := settingsConn[0]
+		ro := conn.ReadOnly || policy.ReadOnly
+		resp.ReadOnly = &ro
+		resp.AllowedPaths = cleanAllowedPaths(conn.AllowedPaths)
+		if len(resp.AllowedPaths) == 0 {
+			resp.AllowedPaths = cleanAllowedPaths(policy.AllowedPaths)
+		}
+	}
+	if message == ClientUpgradeRequired || message == preUpgradeAgentMessage || message == preUpgradeReconnectMessage || message == "unsupported frame version" {
+		resp.ErrorCode = ClientUpgradeRequired
 	}
 	msg, err := NewAuthResponseMessage(deviceID, signingKeyHex, resp)
 	if err != nil {
+		return err
+	}
+	if len(settingsConn) > 0 {
+		conn := settingsConn[0]
+		conn.configPolicy = policySignature(*resp.ReadOnly, resp.AllowedPaths, resp.MaxFileSizeMB)
+		h.awaitConfigAck(conn, msg.MessageID)
+	}
+	if err := wsConn.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
 		return err
 	}
 	return wsConn.WriteJSON(msg)
@@ -1359,10 +1618,7 @@ func hashTokenSHA256(token string) string {
 }
 
 func (h *RemoteHub) effectiveMaxFileSizeMB() int {
-	if h.MaxFileSizeMB <= 0 {
-		return DefaultMaxFileSizeMB
-	}
-	return h.MaxFileSizeMB
+	return h.RuntimePolicy().MaxFileSizeMB
 }
 
 func isTrustedAutoApproveRemoteAddr(addr net.Addr) bool {
@@ -1393,9 +1649,13 @@ func (h *RemoteHub) SetEnabled(enabled bool) {
 		}
 	}
 	var conns []*RemoteConnection
+	var transports []CommandTransport
 	if !enabled {
 		for _, conn := range h.connections {
 			conns = append(conns, conn)
+		}
+		for _, transport := range h.transports {
+			transports = append(transports, transport)
 		}
 	}
 	h.mu.Unlock()
@@ -1407,6 +1667,9 @@ func (h *RemoteHub) SetEnabled(enabled bool) {
 		}
 		for _, conn := range conns {
 			h.unregisterConnection(conn.DeviceID, conn)
+		}
+		for _, transport := range transports {
+			transport.Disconnect("")
 		}
 	}
 }
@@ -1435,8 +1698,13 @@ func (h *RemoteHub) StartHeartbeatMonitor(interval, maxAge time.Duration) {
 			case <-ticker.C:
 			}
 			h.mu.RLock()
-			var stale []*RemoteConnection
+			conns := make([]*RemoteConnection, 0, len(h.connections))
 			for _, conn := range h.connections {
+				conns = append(conns, conn)
+			}
+			h.mu.RUnlock()
+			var stale []*RemoteConnection
+			for _, conn := range conns {
 				conn.mu.Lock()
 				lastHeartbeat := conn.LastHeartbeat
 				conn.mu.Unlock()
@@ -1444,7 +1712,6 @@ func (h *RemoteHub) StartHeartbeatMonitor(interval, maxAge time.Duration) {
 					stale = append(stale, conn)
 				}
 			}
-			h.mu.RUnlock()
 
 			for _, conn := range stale {
 				h.logger.Warn("Remote heartbeat stale, disconnecting", "device_id", conn.DeviceID)

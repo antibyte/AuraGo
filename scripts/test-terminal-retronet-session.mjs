@@ -2,9 +2,10 @@
 // Runs ui/js/desktop/apps/terminal-retronet-session.js (after terminal-text.js) in Node with a fake WebSocket and a
 // fake xterm: entry-ID URL, binary and JSON frames, the three echo modes of Telnet world entries (line editing with
 // echo, hidden line editing without echo or history, character mode) and their transitions, cell-accurate erasing
-// through TerminalText (CJK two cells, emoji one), history, multi-line paste, raw control keys, resize and host-key
-// frames, hang-up, remote close, bbs entries, that server text never reaches the screen through the module and
-// the host-key answer parser (localized letters of all 16 locales, ASCII y/n, case-insensitive).
+// through TerminalText (CJK two cells, emoji one), history, multi-line paste, raw control keys, host-key frames (the
+// grid goes out in the URL only, never as a resize frame), hang-up, remote close, bbs entries, that server text never
+// reaches the screen through the module and the host-key answer parser (localized letters of all 16 locales, ASCII
+// y/n, case-insensitive).
 // Usage: node scripts/test-terminal-retronet-session.mjs
 import fs from 'node:fs';
 import path from 'node:path';
@@ -163,10 +164,8 @@ session.send('Z');
 same('keys go out at once', ws.sent.slice(before), ['bin:Q', 'bin:Z']);
 same('no local echo in character mode', screen.out, '');
 
-// 8. Resize, host key, hang-up.
-session.resize(100, 30);
-session.resize(120, 40);
-same('resize sends one JSON frame per change', ws.sent.at(-1), 'txt:{"type":"resize","cols":120,"rows":40}');
+// 8. Host key, hang-up; the session has no resize (every Retro-Net grid is pinned).
+same('the session offers no resize', typeof session.resize, 'undefined');
 session.hostKeyDecision(true);
 same('host-key decision frame', ws.sent.at(-1), 'txt:{"type":"hostkey_decision","accept":true}');
 session.hangup();
@@ -270,18 +269,17 @@ editor.send('\r');
 same('buffer and screen stay in step', lastSent(), 'bin:\r');
 editor.dispose();
 
-// 13. Before the socket opens: resizes wait for open, input is dropped (the coordinator forwards keys only
-// after the connected control, i.e. on an open socket), dispose closes quietly.
+// 13. Before the socket opens: input is dropped (the coordinator forwards keys only after the connected control,
+// i.e. on an open socket), opening sends nothing (the grid went out in the URL), dispose closes quietly.
 FakeSocket.initialState = 0;
 const early = Session.open({ term: screen, entry: { id: 'discworld', protocol: 'telnet', kind: 'world' }, cols: 80, rows: 25, onClose: () => closes.push('early') });
 const earlySocket = sockets.at(-1);
 screen.out = '';
-early.resize(100, 40);
 early.send('look\r');
 same('nothing is sent or echoed while connecting', [earlySocket.sent, screen.out], [[], '']);
 earlySocket.readyState = 1;
-earlySocket.onopen();
-same('the latest size is sent on open', earlySocket.sent, ['txt:{"type":"resize","cols":100,"rows":40}']);
+if (typeof earlySocket.onopen === 'function') earlySocket.onopen();
+same('opening sends nothing: the grid went out in the URL', [earlySocket.sent, /[?&]cols=80&rows=25$/.test(earlySocket.url)], [[], true]);
 early.send('look\r');
 same('input flows once the socket is open', earlySocket.sent.at(-1), 'bin:look\r');
 early.dispose();
@@ -305,6 +303,46 @@ for (const file of fs.readdirSync(langDir).filter((name) => name.endsWith('.json
     const no = dict['desktop.terminal_retronet_hostkey_no'];
     same(file + ' host-key letters are answers in both cases', [answer(yes.toLowerCase(), yes, no), answer(yes.toUpperCase(), yes, no), answer(no.toLowerCase(), yes, no), answer(no.toUpperCase(), yes, no)], [true, true, false, false]);
     same(file + ' accepts ASCII y and n', [answer('Y', yes, no), answer('n', yes, no)], [no.toLowerCase() === 'y' ? false : true, yes.toLowerCase() === 'n' ? true : false]);
+}
+
+// 15. C64 colour keys (Contract C): event.code with exact modifiers becomes ESC [ 6 4 ; <PETSCII byte> ~.
+{
+    const colorKey = Session.c64ColorKey;
+    const press = (code, modifiers) => colorKey(Object.assign({ type: 'keydown', code, key: '', ctrlKey: false, altKey: false, shiftKey: false, metaKey: false }, modifiers));
+    const CTRL_SHIFT = { ctrlKey: true, shiftKey: true };
+    const ALT_SHIFT = { altKey: true, shiftKey: true };
+    const digits = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8'];
+    const ctrl = digits.map((code) => press(code, CTRL_SHIFT));
+    const alt = digits.map((code) => press(code, ALT_SHIFT));
+    const reverse = [press('Digit9', CTRL_SHIFT), press('Digit0', CTRL_SHIFT)];
+    same('Ctrl+Shift+1-8: black, white, red, cyan, purple, green, blue, yellow', ctrl,
+        ['\x1b[64;144~', '\x1b[64;5~', '\x1b[64;28~', '\x1b[64;159~', '\x1b[64;156~', '\x1b[64;30~', '\x1b[64;31~', '\x1b[64;158~']);
+    same('Alt+Shift+1-8: orange, brown, light red, dark grey, grey, light green, light blue, light grey', alt,
+        ['\x1b[64;129~', '\x1b[64;149~', '\x1b[64;150~', '\x1b[64;151~', '\x1b[64;152~', '\x1b[64;153~', '\x1b[64;154~', '\x1b[64;155~']);
+    same('Ctrl+Shift+9/0: reverse on/off', reverse, ['\x1b[64;18~', '\x1b[64;146~']);
+    const allowList = [0x90, 0x05, 0x1c, 0x9f, 0x9c, 0x1e, 0x1f, 0x9e, 0x81, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9a, 0x9b, 0x12, 0x92];
+    same('the keys produce exactly the server allow-list (Contract A)', ctrl.concat(alt, reverse).map((seq) => Number(/^\x1b\[64;(\d+)~$/.exec(seq)[1])).sort((a, b) => a - b), allowList.slice().sort((a, b) => a - b));
+    same('event.code counts, not the layout key', colorKey({ type: 'keydown', code: 'Digit3', key: '§', ctrlKey: true, shiftKey: true, altKey: false, metaKey: false }), '\x1b[64;28~');
+    same('keyup of a colour key maps too (the coordinator sends only on keydown)', colorKey({ type: 'keyup', code: 'Digit1', ctrlKey: true, shiftKey: true, altKey: false, metaKey: false }), '\x1b[64;144~');
+    same('other keys and modifier sets are no colour keys', [
+        press('Digit1', { ctrlKey: true }), press('Digit1', { shiftKey: true }), press('Digit1', { ctrlKey: true, altKey: true, shiftKey: true }),
+        press('Digit1', { ctrlKey: true, shiftKey: true, metaKey: true }), press('Digit9', ALT_SHIFT), press('Digit0', ALT_SHIFT),
+        press('KeyA', CTRL_SHIFT), press('Numpad1', CTRL_SHIFT), press('toString', CTRL_SHIFT), colorKey(null)
+    ], ['', '', '', '', '', '', '', '', '', '']);
+}
+
+// 16. C64 entries are character mode at 40x25: keys go out at once and unchanged, nothing is echoed locally.
+{
+    screen.out = '';
+    const c64 = Session.open({ term: screen, entry: { id: 'the-cabin', protocol: 'telnet', kind: 'c64' }, cols: 40, rows: 25 });
+    const socket = sockets.at(-1);
+    same('a C64 call asks for 40x25', socket.url, 'wss://desk.example/api/desktop/retronet/connect?entry=the-cabin&cols=40&rows=25');
+    c64.send('A');
+    c64.send('\x7f');
+    c64.send('\x1b[64;144~');
+    same('keys and colour sequences go out unchanged', socket.sent, ['bin:A', 'bin:\x7f', 'bin:\x1b[64;144~']);
+    same('no local echo', screen.out, '');
+    c64.dispose();
 }
 
 if (failures) {

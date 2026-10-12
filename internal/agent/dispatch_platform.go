@@ -17,9 +17,9 @@ import (
 	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/inventory"
+	"aurago/internal/ruview"
 	"aurago/internal/security"
 	"aurago/internal/tools"
-	"aurago/internal/webhooks"
 )
 
 var _ = (*slog.Logger)(nil)
@@ -244,7 +244,7 @@ func handleThreeDPrinterAnalyzeCamera(ctx context.Context, cfg *config.Config, r
 	if prompt == "" {
 		prompt = "Analyze this 3D printer camera snapshot. Describe print progress, visible issues, adhesion problems, spaghetti failures, and anything that needs attention."
 	}
-	analysis, pTokens, cTokens, err := dispatchAnalyzeImageWithPrompt(snapshot.LocalPath, prompt, cfg)
+	analysis, pTokens, cTokens, err := analyzeManagedImageWithPrompt(snapshot.LocalPath, prompt, cfg)
 	if err != nil {
 		data, _ := json.Marshal(map[string]string{
 			"status":        "error",
@@ -309,6 +309,17 @@ func resolveChromecastTarget(req *chromecastArgs, inventoryDB *sql.DB, logger *s
 	return nil
 }
 
+func frigateReadOnlyOperation(operation string) bool {
+	switch operation {
+	case "status", "health", "cameras", "events", "event",
+		"event_snapshot", "event_clip", "reviews", "review_summary", "review_activity",
+		"latest_frame", "recordings_summary", "export_recording", "config", "config_raw":
+		return true
+	default:
+		return false
+	}
+}
+
 func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (string, bool) {
 	cfg := dc.Cfg
 	logger := dc.Logger
@@ -333,8 +344,12 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			return dispatchNetworkShares(ctx, tc, dc)
 		case "sip_phone":
 			return dispatchSIPPhone(ctx, tc, dc)
+		case "layerling":
+			return dispatchLayerling(ctx, tc, dc)
 		case "local_wikipedia":
 			return dispatchLocalWikipedia(ctx, tc, dc)
+		case "retro_games":
+			return dispatchRetroGames(ctx, tc, dc)
 		case "co_agent", "co_agents":
 			req := decodeCoAgentArgs(tc)
 			if budgetTracker != nil && budgetTracker.IsBlocked("coagent") {
@@ -362,7 +377,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					OutputSchema: req.OutputSchema,
 				}
 				id, state, err := SpawnCoAgent(cfg, ctx, logger, coAgentRegistry,
-					shortTermMem, longTermMem, vault, registry, manifest, kg, inventoryDB, dc.CheatsheetDB, coReq, budgetTracker, nil)
+					shortTermMem, longTermMem, vault, registry, manifest, kg, inventoryDB, dc.CheatsheetDB, coReq, budgetTracker, nil, dc.WebhookManager)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
@@ -391,7 +406,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					OutputSchema: req.OutputSchema,
 				}
 				id, state, err := SpawnCoAgent(cfg, ctx, logger, coAgentRegistry,
-					shortTermMem, longTermMem, vault, registry, manifest, kg, inventoryDB, dc.CheatsheetDB, coReq, budgetTracker, nil)
+					shortTermMem, longTermMem, vault, registry, manifest, kg, inventoryDB, dc.CheatsheetDB, coReq, budgetTracker, nil, dc.WebhookManager)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
@@ -565,13 +580,10 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					return `Tool Output: {"status":"error","message":"Webhooks are in read-only mode. Disable webhooks.read_only to allow changes."}`
 				}
 			}
-			whFilePath := filepath.Join(cfg.Directories.DataDir, "webhooks.json")
-			whLogPath := filepath.Join(cfg.Directories.DataDir, "webhook_log.json")
-			whMgr, whErr := webhooks.NewManager(whFilePath, whLogPath)
-			if whErr != nil {
-				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Failed to load webhook manager: %s"}`, whErr)
+			if dc.WebhookManager == nil {
+				return `Tool Output: {"status":"error","message":"Webhook receiver is not running. Enable webhooks and restart AuraGo."}`
 			}
-			return handleWebhookToolCall(req, whMgr, logger)
+			return handleWebhookToolCall(req, dc.WebhookManager, dc.Vault, logger)
 
 		case "proxmox", "proxmox_ve":
 			if !cfg.Proxmox.Enabled {
@@ -605,42 +617,42 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			switch req.Operation {
 			case "overview":
 				logger.Info("LLM requested Proxmox overview", "node", node)
-				return "Tool Output: " + tools.ProxmoxOverview(pxCfg, node)
+				return "Tool Output: " + tools.ProxmoxOverview(ctx, pxCfg, node)
 			case "list_nodes":
 				logger.Info("LLM requested Proxmox list_nodes")
-				return "Tool Output: " + tools.ProxmoxListNodes(pxCfg)
+				return "Tool Output: " + tools.ProxmoxListNodes(ctx, pxCfg)
 			case "list_vms", "vms":
 				logger.Info("LLM requested Proxmox list_vms", "node", node)
-				return "Tool Output: " + tools.ProxmoxListVMs(pxCfg, node)
+				return "Tool Output: " + tools.ProxmoxListVMs(ctx, pxCfg, node)
 			case "list_containers", "lxc":
 				logger.Info("LLM requested Proxmox list_containers", "node", node)
-				return "Tool Output: " + tools.ProxmoxListContainers(pxCfg, node)
+				return "Tool Output: " + tools.ProxmoxListContainers(ctx, pxCfg, node)
 			case "status":
 				logger.Info("LLM requested Proxmox status", "vmid", vmid, "type", vmType)
-				return "Tool Output: " + tools.ProxmoxGetStatus(pxCfg, node, vmType, vmid)
+				return "Tool Output: " + tools.ProxmoxGetStatus(ctx, pxCfg, node, vmType, vmid)
 			case "start", "stop", "shutdown", "reboot", "suspend", "resume", "reset":
 				logger.Info("LLM requested Proxmox action", "action", req.Operation, "vmid", vmid)
-				return "Tool Output: " + tools.ProxmoxVMAction(pxCfg, node, vmType, vmid, req.Operation)
+				return "Tool Output: " + tools.ProxmoxVMAction(ctx, pxCfg, node, vmType, vmid, req.Operation)
 			case "node_status":
 				logger.Info("LLM requested Proxmox node_status", "node", node)
-				return "Tool Output: " + tools.ProxmoxNodeStatus(pxCfg, node)
+				return "Tool Output: " + tools.ProxmoxNodeStatus(ctx, pxCfg, node)
 			case "cluster_resources", "resources":
 				resType := req.ResourceType
 				logger.Info("LLM requested Proxmox cluster_resources", "type", resType)
-				return "Tool Output: " + tools.ProxmoxClusterResources(pxCfg, resType)
+				return "Tool Output: " + tools.ProxmoxClusterResources(ctx, pxCfg, resType)
 			case "storage":
 				logger.Info("LLM requested Proxmox storage", "node", node)
-				return "Tool Output: " + tools.ProxmoxGetStorage(pxCfg, node)
+				return "Tool Output: " + tools.ProxmoxGetStorage(ctx, pxCfg, node)
 			case "create_snapshot", "snapshot":
 				logger.Info("LLM requested Proxmox create_snapshot", "vmid", vmid, "name", req.Name)
-				return "Tool Output: " + tools.ProxmoxCreateSnapshot(pxCfg, node, vmType, vmid, req.Name, req.Description)
+				return "Tool Output: " + tools.ProxmoxCreateSnapshot(ctx, pxCfg, node, vmType, vmid, req.Name, req.Description)
 			case "list_snapshots", "snapshots":
 				logger.Info("LLM requested Proxmox list_snapshots", "vmid", vmid)
-				return "Tool Output: " + tools.ProxmoxListSnapshots(pxCfg, node, vmType, vmid)
+				return "Tool Output: " + tools.ProxmoxListSnapshots(ctx, pxCfg, node, vmType, vmid)
 			case "task_log":
 				upid := req.upid()
 				logger.Info("LLM requested Proxmox task_log", "upid", upid)
-				return "Tool Output: " + tools.ProxmoxGetTaskLog(pxCfg, node, upid)
+				return "Tool Output: " + tools.ProxmoxGetTaskLog(ctx, pxCfg, node, upid)
 			default:
 				return `Tool Output: {"status":"error","message":"Unknown proxmox operation. Use: overview, list_nodes, list_vms, list_containers, status, start, stop, shutdown, reboot, node_status, cluster_resources, storage, create_snapshot, list_snapshots, task_log"}`
 			}
@@ -655,6 +667,20 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			request.ID = firstNonEmptyToolString(tc.ID, request.ID)
 			request.Name = firstNonEmptyToolString(tc.Name, request.Name)
 			return tools.ExecuteRTLSDR(ctx, cfg, request)
+		case "ruview":
+			manager := ruview.Default()
+			if manager == nil || !cfg.RuView.Enabled || !cfg.RuView.AgentAccess {
+				return `Tool Output: {"status":"error","message":"RuView agent read access is disabled"}`
+			}
+			result, err := manager.Read(ctx, strings.ToLower(strings.TrimSpace(tc.Operation)))
+			if err != nil {
+				result = map[string]string{"status": "error", "message": err.Error()}
+			}
+			data, err := json.Marshal(result)
+			if err != nil {
+				return `Tool Output: {"status":"error","message":"RuView result encoding failed"}`
+			}
+			return "Tool Output: " + string(data)
 		case "go2rtc":
 			manager := tools.DefaultGo2RTCManager()
 			if manager == nil || !cfg.Go2RTC.Enabled || !cfg.Go2RTC.AgentAccess || !manager.Available() {
@@ -680,13 +706,13 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if err != nil {
 					return encode(map[string]interface{}{"status": "error", "message": err.Error()})
 				}
-				return encode(map[string]interface{}{"status": "ok", "streams": streams})
+				return encode(map[string]interface{}{"status": "ok", "streams": streams, "reachability_note": go2RTCReachabilityNote})
 			case "stream_status":
 				stream, err := manager.StreamStatus(ctx, streamID)
 				if err != nil {
 					return encode(map[string]interface{}{"status": "error", "message": err.Error()})
 				}
-				return encode(map[string]interface{}{"status": "ok", "stream": stream})
+				return encode(map[string]interface{}{"status": "ok", "stream": stream, "reachability_note": go2RTCReachabilityNote})
 			case "snapshot", "analyze_snapshot":
 				if operation == "analyze_snapshot" && budgetTracker != nil && budgetTracker.IsBlocked("vision") {
 					return `Tool Output: {"status":"error","message":"Vision analysis is blocked because the daily budget is exceeded."}`
@@ -737,7 +763,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					prompt = "Analyze this camera snapshot. Describe the scene, relevant activity, safety concerns, visible changes, and anything that may need attention."
 				}
 				prompt, _ = tools.PrepareVisionPrompt(prompt)
-				analysis, promptTokens, completionTokens, err := dispatchAnalyzeImageWithPrompt(result.LocalPath, prompt, cfg)
+				analysis, promptTokens, completionTokens, err := analyzeManagedImageWithPrompt(result.LocalPath, prompt, cfg)
 				if err != nil {
 					return encode(map[string]interface{}{"status": "error", "message": "snapshot analysis failed: " + err.Error(), "snapshot": result.WebPath})
 				}
@@ -785,6 +811,9 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status":"error","message":"Frigate integration is not enabled. Set frigate.enabled=true in config.yaml."}`
 			}
 			req := decodeFrigateArgs(tc)
+			if cfg.Frigate.ReadOnly && !frigateReadOnlyOperation(req.Operation) {
+				return "Tool Output: " + tools.ErrorJSON("Frigate is read-only. This write is blocked.")
+			}
 			frCfg := tools.FrigateConfig{
 				URL:           cfg.Frigate.URL,
 				APIToken:      cfg.Frigate.APIToken,
@@ -799,52 +828,45 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			switch req.Operation {
 			case "status", "health":
 				logger.Info("LLM requested Frigate status")
-				return "Tool Output: " + tools.FrigateStatus(frCfg)
+				return "Tool Output: " + tools.FrigateStatus(ctx, frCfg)
 			case "cameras":
 				logger.Info("LLM requested Frigate cameras")
-				return "Tool Output: " + tools.FrigateCameras(frCfg)
+				return "Tool Output: " + tools.FrigateCameras(ctx, frCfg)
 			case "events":
 				logger.Info("LLM requested Frigate events", "camera", req.Camera)
-				return "Tool Output: " + tools.FrigateEvents(frCfg, eventParams)
+				return "Tool Output: " + tools.FrigateEvents(ctx, frCfg, eventParams)
 			case "event":
 				logger.Info("LLM requested Frigate event", "event_id", req.EventID)
-				return "Tool Output: " + tools.FrigateEvent(frCfg, req.EventID)
+				return "Tool Output: " + tools.FrigateEvent(ctx, frCfg, req.EventID)
 			case "reviews":
 				logger.Info("LLM requested Frigate reviews", "camera", req.Camera)
-				return "Tool Output: " + tools.FrigateReviews(frCfg, reviewParams)
+				return "Tool Output: " + tools.FrigateReviews(ctx, frCfg, reviewParams)
 			case "review_summary":
 				logger.Info("LLM requested Frigate review summary")
-				return "Tool Output: " + tools.FrigateReviewSummary(frCfg, reviewParams)
+				return "Tool Output: " + tools.FrigateReviewSummary(ctx, frCfg, reviewParams)
 			case "review_activity":
 				logger.Info("LLM requested Frigate review activity")
-				return "Tool Output: " + tools.FrigateReviewActivity(frCfg, reviewParams)
+				return "Tool Output: " + tools.FrigateReviewActivity(ctx, frCfg, reviewParams)
 			case "recordings_summary":
 				logger.Info("LLM requested Frigate recordings summary", "camera", req.Camera)
-				return "Tool Output: " + tools.FrigateRecordingsSummary(frCfg, mediaParams)
+				return "Tool Output: " + tools.FrigateRecordingsSummary(ctx, frCfg, mediaParams)
 			case "event_snapshot", "event_clip", "latest_frame", "export_recording":
 				logger.Info("LLM requested Frigate media", "operation", req.Operation)
-				data, contentType, err := tools.FrigateMedia(frCfg, req.Operation, mediaParams)
+				result, err := tools.FrigateMedia(ctx, frCfg, req.Operation, mediaParams, cfg.Directories.DataDir, dc.MediaRegistryDB, cfg.Frigate.StoreMedia)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err)
-				}
-				if !cfg.Frigate.StoreMedia {
-					return fmt.Sprintf(`Tool Output: {"status":"ok","content_type":%q,"bytes":%d,"stored":false,"message":"Media fetched successfully but frigate.store_media is disabled."}`, contentType, len(data))
-				}
-				result, err := tools.StoreFrigateMedia(cfg.Directories.DataDir, dc.MediaRegistryDB, req.Operation, mediaParams, data, contentType)
-				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err)
+					return "Tool Output: " + tools.ErrorJSON(security.Scrub(err.Error()))
 				}
 				raw, err := json.Marshal(result)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status":"error","message":"encode Frigate media result: %s"}`, err)
+					return "Tool Output: " + tools.ErrorJSON("encode Frigate media result")
 				}
 				return "Tool Output: " + string(raw)
 			case "config":
 				logger.Info("LLM requested Frigate config")
-				return "Tool Output: " + tools.FrigateConfigRead(frCfg, false)
+				return "Tool Output: " + tools.FrigateConfigRead(ctx, frCfg, false)
 			case "config_raw":
 				logger.Info("LLM requested Frigate raw config")
-				return "Tool Output: " + tools.FrigateConfigRead(frCfg, true)
+				return "Tool Output: " + tools.FrigateConfigRead(ctx, frCfg, true)
 			default:
 				return `Tool Output: {"status":"error","message":"Unknown frigate operation. Use: status, health, cameras, events, event, event_snapshot, event_clip, reviews, review_summary, review_activity, latest_frame, recordings_summary, export_recording, config, config_raw"}`
 			}
@@ -1080,7 +1102,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			return handleInvasionControl(tc, cfg, invasionDB, vault, logger)
 
 		case "remote_control", "remote_control_devices", "remote_control_shell", "remote_control_files", "remote_control_desktop":
-			return handleRemoteControl(tc, cfg, remoteHub, logger)
+			return handleRemoteControl(ctx, tc, cfg, remoteHub, logger)
 
 		case "mcp_call":
 			// Two-gate security: allow_mcp (Danger Zone) AND mcp.enabled

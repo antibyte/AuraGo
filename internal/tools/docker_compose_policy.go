@@ -215,10 +215,7 @@ func DockerComposeModelOwner(model DockerComposeModel) string {
 			}
 		}
 		for _, ref := range service.VolumesFrom {
-			target := strings.TrimSpace(ref)
-			isContainer := strings.HasPrefix(target, "container:")
-			target = strings.TrimPrefix(target, "container:")
-			target = strings.TrimSuffix(strings.TrimSuffix(target, ":ro"), ":rw")
+			target, isContainer := dockerComposeVolumesFromTarget(ref)
 			if _, sameProject := model.Services[target]; sameProject && !isContainer {
 				continue
 			}
@@ -309,10 +306,11 @@ func DockerComposeContainerReferences(model DockerComposeModel) []string {
 			}
 		}
 		for _, ref := range service.VolumesFrom {
-			target := strings.TrimSpace(ref)
-			isContainer := strings.HasPrefix(target, "container:")
-			target = strings.TrimPrefix(target, "container:")
-			target = strings.TrimSuffix(strings.TrimSuffix(target, ":ro"), ":rw")
+			if strings.HasPrefix(strings.TrimSpace(ref), "service:") {
+				// A service of this project, like network_mode "service:".
+				continue
+			}
+			target, isContainer := dockerComposeVolumesFromTarget(ref)
 			if _, sameProject := model.Services[target]; sameProject && !isContainer {
 				continue
 			}
@@ -321,6 +319,17 @@ func DockerComposeContainerReferences(model DockerComposeModel) []string {
 	}
 	sort.Strings(targets)
 	return targets
+}
+
+// dockerComposeVolumesFromTarget returns the service or container a
+// volumes_from entry names and whether it carried the "container:" prefix.
+// Everything after the first ':' is the access mode, which Compose keeps as
+// written (":ro", ":rw", ":z", ":Z", ":ro,z", ":cached") and the Engine accepts;
+// container and service names cannot contain ':'.
+func dockerComposeVolumesFromTarget(ref string) (target string, isContainer bool) {
+	target, isContainer = strings.CutPrefix(strings.TrimSpace(ref), "container:")
+	target, _, _ = strings.Cut(target, ":")
+	return strings.TrimSpace(target), isContainer
 }
 
 // dockerComposeLabelOwner reports the AuraGo owner named by canonical or legacy

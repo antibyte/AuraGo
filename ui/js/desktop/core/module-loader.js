@@ -12,13 +12,14 @@
         'code-studio': '/js/desktop/bundles/code-studio.bundle.js',
         'desktop-sounds': '/js/desktop/bundles/desktop-sounds.bundle.js'
     };
-    const commonAppStyles = ['/css/desktop-app-common.css'];
+    const commonAppStyles = ['/css/desktop-app-common.css', '/css/desktop-gog.css'];
 
     function appStyles(...styles) {
         return commonAppStyles.concat(styles);
     }
 
     const DESKTOP_APP_ASSETS = {
+        'ruview': { styles: appStyles('/css/ruview.css'), scripts: ['/js/desktop/apps/ruview.js'] },
         'ha-switchboard': {
             styles: appStyles('/css/ha-switchboard.css'),
             scripts: ['/js/desktop/apps/ha-switchboard.js']
@@ -59,6 +60,7 @@
             styles: appStyles('/css/desktop-app-gallery.css'),
             scripts: [
                 '/js/desktop/apps/gallery-library.js',
+                '/js/desktop/apps/gallery-metadata.js',
                 '/js/desktop/apps/gallery-view.js',
                 '/js/desktop/apps/gallery-menus.js',
                 '/js/desktop/apps/gallery-lightbox.js',
@@ -119,6 +121,7 @@
                 '/js/desktop/apps/terminal-crt.js',
                 '/js/desktop/apps/terminal-audio.js',
                 '/js/desktop/apps/terminal-text.js',
+                '/js/desktop/apps/terminal-geometry.js',
                 '/js/desktop/apps/terminal-modem.js',
                 '/js/desktop/apps/terminal-retronet-directory.js',
                 '/js/desktop/apps/terminal-retronet-session.js',
@@ -329,6 +332,7 @@
                 '/js/desktop/apps/chess.js'
             ]
         },
+        'layerling': { styles: appStyles('/css/desktop-app-layerling.css'), scripts: ['/js/desktop/apps/writer-session.js', '/js/desktop/apps/layerling.js'] },
         'nasscad': {
             styles: appStyles('/css/desktop-app-nasscad.css'),
             scripts: ['/js/desktop/apps/nasscad.js']
@@ -428,6 +432,10 @@
         'local-wikipedia': {
             styles: appStyles('/css/desktop-app-local-wikipedia.css'),
             scripts: ['/js/desktop/apps/local-wikipedia-views.js', '/js/desktop/apps/local-wikipedia.js']
+        },
+        'retro-games': {
+            styles: appStyles('/css/desktop-app-retro-games.css'),
+            scripts: ['/js/desktop/apps/retro-games-views.js', '/js/desktop/apps/retro-games-player.js', '/js/desktop/apps/retro-games.js']
         },
         'homepage-studio': {
             styles: appStyles('/css/desktop-app-homepage-studio.css', '/css/chat-modules.css', '/css/hljs-github-dark.min.css'),
@@ -558,6 +566,7 @@
     // App id → i18n section prefixes to merge into window.I18N before scripts run.
     // Shell only embeds desktop.*; apps load their own sections on demand.
     const APP_I18N_SECTIONS = {
+        'ruview': ['ruview'],
         'agent-chat': ['chat'],
         'cheater': ['cheater'],
         'cyd-creator': ['cyd_creator'],
@@ -572,6 +581,7 @@
         'mission-control': ['missions'],
         'newspaper': ['newspaper'],
         'personal-radio': ['personalRadio'],
+        'layerling': ['layerling'],
         'synth-studio': ['synthStudio'],
         'video-studio': ['videoStudio'],
         'rtl-sdr': ['rtlSdr'],

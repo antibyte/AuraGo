@@ -283,6 +283,7 @@ type BrowserAutomationConfig struct {
 	CloakHumanPreset      string                    `yaml:"cloak_human_preset"`      // "default" or "careful"
 	CloakProxy            string                    `yaml:"cloak_proxy"`             // proxy URL for CloakBrowser (optional)
 	EgressNetwork         string                    `yaml:"egress_network"`          // Docker internal network for managed browser
+	OutboundNetwork       string                    `yaml:"outbound_network"`        // non-internal Docker network attached only to the egress proxy
 	AllowedPrivateOrigins []string                  `yaml:"allowed_private_origins"` // exact home-lab origins allowed by policy
 	CloakFingerprintSeed  string                    `yaml:"cloak_fingerprint_seed"`  // fixed fingerprint seed for consistent identity (optional)
 }
@@ -410,6 +411,12 @@ type LocalWikipediaConfig struct {
 	Variant     string `yaml:"variant" json:"variant"`
 	DataDir     string `yaml:"data_dir" json:"data_dir"`
 	UpdateCheck bool   `yaml:"update_check" json:"update_check"`
+}
+
+// RetroGamesConfig controls the Retro Games desktop app and its agent tool.
+type RetroGamesConfig struct {
+	Enabled     bool `yaml:"enabled" json:"enabled"`
+	AgentAccess bool `yaml:"agent_access" json:"agent_access"`
 }
 
 // Go2RTCStreamSourceVaultKey returns the per-stream vault key for a go2rtc source.
@@ -571,6 +578,13 @@ type VirtualDesktopConfig struct {
 	RemoteIdleTimeoutMinutes int              `yaml:"remote_idle_timeout_minutes" json:"remote_idle_timeout_minutes"` // idle timeout for SSH/VNC remote sessions
 	CodeStudio               CodeStudioConfig `yaml:"code_studio" json:"code_studio"`                                 // built-in Code Studio development container
 	OpenSCAD                 OpenSCADConfig   `yaml:"openscad" json:"openscad"`                                       // built-in OpenSCAD compiler container
+	Layerling                LayerlingConfig  `yaml:"layerling" json:"layerling"`
+}
+
+// LayerlingConfig controls the local browser CAD editor and its agent bridge.
+type LayerlingConfig struct {
+	Enabled     bool   `yaml:"enabled" json:"enabled"`
+	AgentAccess string `yaml:"agent_access" json:"agent_access"` // off, read or write; unknown values deny access
 }
 
 // GameMakerConfig controls the isolated Virtual Desktop Game Maker Studio.
@@ -986,6 +1000,7 @@ type NetworkSharesConfig struct {
 }
 
 type Config struct {
+	Gog GogConfig `yaml:"gog" json:"gog"`
 	// RegisterEvomapNode is server-owned and serializes registration with config/Vault writes.
 	RegisterEvomapNode func(context.Context) (nodeID, claimURL string, secretConfigured bool, err error) `yaml:"-" json:"-"`
 	// AuthorizationSnapshots preserves publication identity across scoped copies.
@@ -1019,7 +1034,7 @@ type Config struct {
 			CertFile          string   `yaml:"cert_file"`           // custom mode: path to PEM certificate
 			KeyFile           string   `yaml:"key_file"`            // custom mode: path to PEM private key
 			HTTPSPort         int      `yaml:"https_port"`          // default: 443
-			HTTPPort          int      `yaml:"http_port"`           // default: 80 (for redirect)
+			HTTPPort          int      `yaml:"http_port"`           // 0 disables HTTP; 80 for Let's Encrypt HTTP-01
 			BehindProxy       bool     `yaml:"behind_proxy"`        // accept forwarded headers only from configured trusted proxies
 			TrustedProxyCIDRs []string `yaml:"trusted_proxy_cidrs"` // explicit proxy source addresses/CIDRs
 		} `yaml:"https"`
@@ -1216,7 +1231,7 @@ type Config struct {
 				Enabled            bool `yaml:"enabled"`              // enable reversible compression (archive originals) (default: true)
 				MaxAgeHours        int  `yaml:"max_age_hours"`        // max age of archived outputs in hours (default: 24)
 				PrimaryOutputVault bool `yaml:"primary_output_vault"` // store large outputs in the output vault by default (default: true)
-				MaxInlineChars     int  `yaml:"max_inline_chars"`     // max chars inlined before vault view is preferred (default: 6000)
+				MaxInlineChars     int  `yaml:"max_inline_chars"`     // bytes inlined before the vault view is preferred; 0 = automatic from the model context (default)
 			} `yaml:"reversible"`
 		} `yaml:"output_compression"`
 
@@ -1593,13 +1608,15 @@ type Config struct {
 	} `yaml:"telnyx"`
 	MeshCentral struct {
 		Enabled           bool     `yaml:"enabled"`
-		ReadOnly          bool     `yaml:"readonly"`           // true = only list operations, block wake/power/run_command
-		BlockedOperations []string `yaml:"blocked_operations"` // explicit operation deny-list (case-insensitive)
+		ReadOnly          bool     `yaml:"readonly"`            // true = only list operations, block wake/power/run_command
+		AllowPowerActions bool     `yaml:"allow_power_actions"` // wake and power actions; default false, grandfathered on for existing enabled writable configs
+		BlockedOperations []string `yaml:"blocked_operations"`  // explicit operation deny-list (case-insensitive)
 		URL               string   `yaml:"url"`
 		Username          string   `yaml:"username"`
 		Password          string   `yaml:"-" vault:"password" json:"-"`    // vault-only
 		LoginToken        string   `yaml:"-" vault:"login_token" json:"-"` // vault-only
 		Insecure          bool     `yaml:"insecure"`                       // skip TLS certificate verification (default: false)
+		CAFile            string   `yaml:"ca_file"`                        // PEM CA for the MeshCentral certificate; ignored when insecure is true
 	} `yaml:"meshcentral"`
 	Docker struct {
 		Enabled         bool   `yaml:"enabled"`
@@ -1696,20 +1713,22 @@ type Config struct {
 		DefaultCost      ModelCostRates `yaml:"default_cost"`
 	} `yaml:"budget"`
 	WebDAV struct {
-		Enabled  bool   `yaml:"enabled"`
-		ReadOnly bool   `yaml:"readonly"`  // true = only list/read/info, block write/delete/move/mkdir
-		AuthType string `yaml:"auth_type"` // basic | bearer
-		URL      string `yaml:"url"`       // e.g. https://cloud.example.com/remote.php/dav/files/user/
-		Username string `yaml:"username"`
-		Password string `yaml:"-" json:"-"`
-		Token    string `yaml:"-" json:"-"`
+		ShowInFileManager bool   `yaml:"show_in_filemanager"`
+		Enabled           bool   `yaml:"enabled"`
+		ReadOnly          bool   `yaml:"readonly"`  // true = only list/read/info, block write/delete/move/mkdir
+		AuthType          string `yaml:"auth_type"` // basic | bearer
+		URL               string `yaml:"url"`       // e.g. https://cloud.example.com/remote.php/dav/files/user/
+		Username          string `yaml:"username"`
+		Password          string `yaml:"-" json:"-"`
+		Token             string `yaml:"-" json:"-"`
 	} `yaml:"webdav"`
 	Koofr struct {
-		Enabled     bool   `yaml:"enabled"`
-		ReadOnly    bool   `yaml:"readonly"` // true = only list/read, block write/delete/move
-		Username    string `yaml:"username"`
-		AppPassword string `yaml:"-" json:"-"`
-		BaseURL     string `yaml:"base_url"` // default: https://app.koofr.net
+		ShowInFileManager bool   `yaml:"show_in_filemanager"`
+		Enabled           bool   `yaml:"enabled"`
+		ReadOnly          bool   `yaml:"readonly"` // true = only list/read, block write/delete/move
+		Username          string `yaml:"username"`
+		AppPassword       string `yaml:"-" json:"-"`
+		BaseURL           string `yaml:"base_url"` // default: https://app.koofr.net
 	} `yaml:"koofr"`
 	S3 struct {
 		Enabled      bool   `yaml:"enabled"`
@@ -1866,7 +1885,7 @@ type Config struct {
 	} `yaml:"proxmox"`
 	Frigate struct {
 		Enabled         bool   `yaml:"enabled"`
-		ReadOnly        bool   `yaml:"readonly"`            // true = only read events/reviews/stats, block delete/config save
+		ReadOnly        bool   `yaml:"readonly"`            // true blocks operations outside the Frigate read allow-list; store_media stays independent
 		URL             string `yaml:"url"`                 // e.g. "https://frigate.local:8971"
 		APIToken        string `yaml:"-" vault:"api_token"` // Bearer token (vault-only)
 		InternalPort    bool   `yaml:"internal_port"`       // true = use :5000 unauthenticated (Docker-internal only)
@@ -1877,10 +1896,12 @@ type Config struct {
 		StoreMedia      bool   `yaml:"store_media"`         // auto-store snapshots in media registry
 		MQTTTopicPrefix string `yaml:"mqtt_topic_prefix"`   // default: "frigate"
 	} `yaml:"frigate"`
+	RuView         RuViewConfig         `yaml:"ruview" json:"ruview"`
 	Go2RTC         Go2RTCConfig         `yaml:"go2rtc" json:"go2rtc"`
 	RTLSDR         RTLSDRConfig         `yaml:"rtl_sdr" json:"rtl_sdr"`
 	LocalLLM       LocalLLMConfig       `yaml:"local_llm" json:"local_llm"`
 	LocalWikipedia LocalWikipediaConfig `yaml:"local_wikipedia" json:"local_wikipedia"`
+	RetroGames     RetroGamesConfig     `yaml:"retro_games" json:"retro_games"`
 	ThreeDPrinters ThreeDPrintersConfig `yaml:"three_d_printers"`
 	Ollama         struct {
 		Enabled         bool   `yaml:"enabled"`
@@ -2107,6 +2128,7 @@ type Config struct {
 		QoS                       int              `yaml:"qos"`                         // 0, 1, or 2
 		RelayToAgent              bool             `yaml:"relay_to_agent"`              // forward incoming messages to agent
 		AllowUnauthenticatedRelay bool             `yaml:"allow_unauthenticated_relay"` // let relay_to_agent, the Frigate relays and mission triggers run without a broker username or a client certificate over TLS
+		AllowUntrustedTransport   bool             `yaml:"allow_untrusted_transport"`   // let a broker login start those runs over plaintext or skipped certificate verification
 		ConnectTimeout            int              `yaml:"connect_timeout"`             // connection timeout in seconds (default: 15)
 		CleanSession              *bool            `yaml:"clean_session,omitempty"`
 		TriggerMinIntervalSeconds int              `yaml:"trigger_min_interval_seconds"` // minimum seconds between MQTT-triggered mission starts (0 = disabled)
@@ -2317,11 +2339,11 @@ type Config struct {
 		Enabled                  bool   `yaml:"enabled"`
 		Backend                  string `yaml:"backend"`                     // "docker" (default), "podman"
 		DockerHost               string `yaml:"docker_host"`                 // override; empty = inherit from docker.host or auto-detect
-		Image                    string `yaml:"image"`                       // container image (default: "python:3.11-slim")
+		Image                    string `yaml:"image"`                       // one image reference passed to llm-sandbox
 		AutoInstall              bool   `yaml:"auto_install"`                // auto-install llm-sandbox Python package (default: true)
-		PoolSize                 int    `yaml:"pool_size"`                   // pre-warmed container pool size (0 = no pooling)
+		PoolSize                 int    `yaml:"pool_size"`                   // ignored; container pooling is not implemented
 		TimeoutSeconds           int    `yaml:"timeout_seconds"`             // execution timeout per run (default: 30)
-		NetworkEnabled           bool   `yaml:"network_enabled"`             // allow sandbox containers to access the network
+		NetworkEnabled           bool   `yaml:"network_enabled"`             // false means Docker network_mode=none
 		KeepAlive                bool   `yaml:"keep_alive"`                  // keep sandbox MCP server running between calls
 		AllowLocalPythonFallback bool   `yaml:"allow_local_python_fallback"` // allow unsandboxed Python fallback if sandbox execution fails (default: false)
 	} `yaml:"sandbox"`
@@ -2330,7 +2352,7 @@ type Config struct {
 		AllowUnsafeFallback bool `yaml:"allow_unsafe_fallback"` // allow unsandboxed shell execution when Landlock is unavailable (default: false)
 		MaxMemoryMB         int  `yaml:"max_memory_mb"`         // RLIMIT_AS in MiB (default: 1024)
 		MaxCPUSeconds       int  `yaml:"max_cpu_seconds"`       // RLIMIT_CPU in seconds (default: 30)
-		MaxProcesses        int  `yaml:"max_processes"`         // RLIMIT_NPROC (default: 50)
+		MaxProcesses        int  `yaml:"max_processes"`         // ignored; Linux counts RLIMIT_NPROC per user
 		MaxFileSizeMB       int  `yaml:"max_file_size_mb"`      // RLIMIT_FSIZE in MiB (default: 100)
 		AllowedPaths        []struct {
 			Path     string `yaml:"path"`

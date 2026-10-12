@@ -12,7 +12,7 @@ Background services and workspace search.
 
 ### File Indexing
 - File replacement stages the complete generation before changing the active SQLite pointer. The native vector store owns generation receipts and recovery; the indexer keeps the old KG until publication succeeds. Unknown ownership never permits rollback deletion. `internal/memory/AGENTS.md` owns the shared replacement and visibility contract.
-- A failed stat/read during a scan is not proof of deletion. Remove indexed and KG entries only after a confirmed missing-file result. Explicit directory cleanup remains scoped to its requested directory.
+- A failed stat/read during a scan is not proof of deletion. Remove indexed and KG entries only after a confirmed missing-file result, or when the tracked path is now a symlink and therefore no longer an indexable file. Explicit directory cleanup remains scoped to its requested directory.
 
 ### Workspace Search System
 - `internal/services.WorkspaceSearchService` maintains a Pure Go resident index for the full agent workspace derived from `directories.workspace_dir`; it must stay single-binary friendly with no CGO, mmap, FFI, or fsnotify dependency.

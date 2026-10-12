@@ -10,8 +10,10 @@ import (
 )
 
 // local_wikipedia answers are sized to the agent's inline budget: a result
-// above agent.output_compression.reversible.max_inline_chars (measured in
-// bytes) is archived in the output vault and the model sees only its start.
+// above the inline limit of the current request (measured in bytes;
+// agent.output_compression.reversible.max_inline_chars, automatic from the
+// model context by default) is archived in the output vault and the model
+// sees only part of it.
 const (
 	// localWikipediaDefaultBudget is the budget in bytes when the caller passes
 	// none: the agent's default inline limit.

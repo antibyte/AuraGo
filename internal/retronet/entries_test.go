@@ -26,6 +26,15 @@ func telnetJSON(field, raw string) string {
 	return objectJSON(fields, field, raw)
 }
 
+// c64JSON returns a valid Commodore 64 entry with one field replaced (raw JSON value).
+func c64JSON(field, raw string) string {
+	fields := map[string]string{
+		"id": `"own-c64board1"`, "name": `"C64 Board"`, "protocol": `"telnet"`, "host": `"c64.example.org"`,
+		"port": `6400`, "kind": `"c64"`, "charset": `"petscii"`,
+	}
+	return objectJSON(fields, field, raw)
+}
+
 // sshJSON returns a valid ssh entry with one field replaced (raw JSON value).
 func sshJSON(field, raw string) string {
 	fields := map[string]string{
@@ -96,9 +105,11 @@ func TestValidateEntriesDocumentAcceptsValidDocuments(t *testing.T) {
 		"world utf8":               entriesDoc(telnetJSON("kind", `"world"`)),
 		"latin1":                   entriesDoc(telnetJSON("charset", `"latin1"`)),
 		"utf8":                     entriesDoc(telnetJSON("charset", `"utf8"`)),
+		"c64 petscii":              entriesDoc(c64JSON("", "")),
+		"c64 high port":            entriesDoc(c64JSON("port", `64128`)),
 		"ssh without host key":     entriesDoc(sshJSON("", "")),
 		"ssh user punctuation":     entriesDoc(sshJSON("user", `"bbs.user_1-x"`)),
-		"64 entries":               manyEntries(MaxOwnEntries),
+		"50 entries":               manyEntries(50),
 		"document at size limit":   padTo(DefaultEntriesDocument, MaxEntriesDocumentSize),
 		"telnet explicit no user":  entriesDoc(telnetJSON("user", `""`)),
 		"ssh explicit empty kind":  entriesDoc(sshJSON("kind", `""`)),
@@ -126,7 +137,7 @@ func TestValidateEntriesDocumentRejectsInvalidDocuments(t *testing.T) {
 		"missing entries":             `{"version":1}`,
 		"trailing object":             DefaultEntriesDocument + `{}`,
 		"trailing garbage":            DefaultEntriesDocument + `x`,
-		"65 entries":                  manyEntries(MaxOwnEntries + 1),
+		"51 entries":                  manyEntries(51),
 		"document over size limit":    padTo(DefaultEntriesDocument, MaxEntriesDocumentSize+1),
 		"unknown entry field":         entriesDoc(telnetJSON("extra", `1`)),
 		"stored own flag":             entriesDoc(telnetJSON("own", `true`)),
@@ -199,7 +210,16 @@ func TestValidateEntriesDocumentRejectsInvalidDocuments(t *testing.T) {
 		"port string":                 entriesDoc(telnetJSON("port", `"23"`)),
 		"port fraction":               entriesDoc(telnetJSON("port", `23.5`)),
 		"telnet kind missing":         entriesDoc(telnetJSON("kind", "")),
-		"telnet kind c64":             entriesDoc(telnetJSON("kind", `"c64"`)),
+		"c64 with cp437":              entriesDoc(telnetJSON("kind", `"c64"`)),
+		"c64 with utf8":               entriesDoc(c64JSON("charset", `"utf8"`)),
+		"c64 charset missing":         entriesDoc(c64JSON("charset", "")),
+		"c64 charset uppercase":       entriesDoc(c64JSON("charset", `"PETSCII"`)),
+		"c64 kind missing":            entriesDoc(c64JSON("kind", "")),
+		"c64 kind uppercase":          entriesDoc(c64JSON("kind", `"C64"`)),
+		"bbs with petscii":            entriesDoc(telnetJSON("charset", `"petscii"`)),
+		"world with petscii":          entriesDoc(c64JSON("kind", `"world"`)),
+		"ssh with kind c64":           entriesDoc(sshJSON("kind", `"c64"`)),
+		"ssh with petscii":            entriesDoc(sshJSON("charset", `"petscii"`)),
 		"telnet charset missing":      entriesDoc(telnetJSON("charset", "")),
 		"telnet charset ebcdic":       entriesDoc(telnetJSON("charset", `"ebcdic"`)),
 		"telnet with user":            entriesDoc(telnetJSON("user", `"guest"`)),
@@ -275,6 +295,21 @@ func TestParseEntriesDocument(t *testing.T) {
 	}
 	if !reflect.DeepEqual(entries, want) {
 		t.Fatalf("ParseEntriesDocument() = %+v\nwant %+v", entries, want)
+	}
+}
+
+func TestParseAndEncodeC64Entry(t *testing.T) {
+	document := entriesDoc(c64JSON("", ""))
+	entries, err := ParseEntriesDocument(document)
+	if err != nil {
+		t.Fatalf("ParseEntriesDocument() error = %v", err)
+	}
+	want := []Entry{{ID: "own-c64board1", Name: "C64 Board", Category: CategoryOwn, Protocol: ProtocolTelnet, Host: "c64.example.org", Port: 6400, Kind: KindC64, Charset: CharsetPETSCII, Own: true}}
+	if !reflect.DeepEqual(entries, want) {
+		t.Fatalf("ParseEntriesDocument() = %+v\nwant %+v", entries, want)
+	}
+	if got, err := EncodeEntriesDocument(entries); err != nil || got != document {
+		t.Fatalf("EncodeEntriesDocument() = %s, %v; want %s", got, err, document)
 	}
 }
 

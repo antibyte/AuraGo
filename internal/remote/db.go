@@ -235,7 +235,7 @@ func UpdateDevice(db *sql.DB, d DeviceRecord) error {
 	res, err := db.Exec(`
 		UPDATE remote_devices SET
 			name = ?, hostname = ?, os = ?, arch = ?, ip_address = ?,
-			status = ?, read_only = ?, allowed_paths = ?,
+			status = CASE WHEN status = 'revoked' THEN status ELSE ? END, read_only = ?, allowed_paths = ?,
 			shared_key_hash = ?, last_seen = ?, version = ?, tags = ?
 		WHERE id = ?`,
 		d.Name, d.Hostname, d.OS, d.Arch, d.IPAddress,
@@ -255,11 +255,27 @@ func UpdateDevice(db *sql.DB, d DeviceRecord) error {
 	return nil
 }
 
+// UpdateDeviceMetadata refreshes a reconnect without overwriting operator permissions.
+func UpdateDeviceMetadata(db *sql.DB, d DeviceRecord) error {
+	result, err := db.Exec(`UPDATE remote_devices SET hostname = ?, os = ?, arch = ?, version = ? WHERE id = ? AND status <> 'revoked'`, d.Hostname, d.OS, d.Arch, d.Version, d.ID)
+	if err != nil {
+		return fmt.Errorf("update remote metadata: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check remote metadata update: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("remote device unavailable or revoked: %s", d.ID)
+	}
+	return nil
+}
+
 // UpdateDeviceStatus updates just the status and last_seen fields.
 func UpdateDeviceStatus(db *sql.DB, id, status string) error {
 	now := time.Now().UTC().Format(time.RFC3339)
-	res, err := db.Exec(`UPDATE remote_devices SET status = ?, last_seen = ? WHERE id = ?`,
-		status, now, id)
+	res, err := db.Exec(`UPDATE remote_devices SET status = ?, last_seen = ? WHERE id = ? AND (status <> 'revoked' OR ? = 'revoked')`,
+		status, now, id, status)
 	if err != nil {
 		return err
 	}
@@ -408,7 +424,7 @@ func finalizeEnrollment(db *sql.DB, vault *security.Vault, enrollmentID, deviceI
 	}
 	defer tx.Rollback()
 	if enrollmentID != "" {
-		res, err := tx.Exec(`UPDATE remote_enrollments SET used = 1, used_by_device = ? WHERE id = ? AND used = 0`, deviceID, enrollmentID)
+		res, err := tx.Exec(`UPDATE remote_enrollments SET used = 1, used_by_device = ? WHERE id = ? AND used = 0 AND datetime(expires_at) > datetime('now')`, deviceID, enrollmentID)
 		if err != nil {
 			return fmt.Errorf("consume remote enrollment: %w", err)
 		}
@@ -417,7 +433,7 @@ func finalizeEnrollment(db *sql.DB, vault *security.Vault, enrollmentID, deviceI
 			return fmt.Errorf("remote enrollment already used or missing: %s", enrollmentID)
 		}
 	}
-	res, err := tx.Exec(`UPDATE remote_devices SET status = 'connected', last_seen = ? WHERE id = ?`, time.Now().UTC().Format(time.RFC3339), deviceID)
+	res, err := tx.Exec(`UPDATE remote_devices SET status = 'connected', last_seen = ? WHERE id = ? AND status <> 'revoked'`, time.Now().UTC().Format(time.RFC3339), deviceID)
 	if err != nil {
 		return fmt.Errorf("mark enrolled device connected: %w", err)
 	}

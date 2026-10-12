@@ -576,10 +576,12 @@ func prepareDesktopAgentTurn(ctx context.Context, s *Server, message string, cha
 	if isHomepageStudioChatContext(chatContext) {
 		messageSource = homepageStudioMessageSource
 	}
-	return prepareDesktopAgentTurnWithOptions(ctx, s, message, chatContext, stream, desktopAgentTurnOptions{
+	turn, err := prepareDesktopAgentTurnWithOptions(ctx, s, message, chatContext, stream, desktopAgentTurnOptions{
 		SessionID:     desktopChatSessionID,
 		MessageSource: messageSource,
 	})
+	turn.runCfg.SuppressOperationalNotices = strings.EqualFold(strings.TrimSpace(chatContext.Source), "code-studio")
+	return turn, err
 }
 
 func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message string, chatContext desktopChatContext, stream bool, opts desktopAgentTurnOptions) (preparedDesktopAgentTurn, error) {
@@ -826,6 +828,7 @@ func buildDesktopRunConfigForSession(s *Server, cfg *config.Config, llmClient ll
 		Manifest:           tools.NewManifest(cfg.Directories.ToolsDir),
 		CronManager:        s.CronManager,
 		MissionManagerV2:   s.MissionManagerV2,
+		WebhookManager:     s.WebhookManager,
 		CoAgentRegistry:    s.CoAgentRegistry,
 		BudgetTracker:      s.BudgetTracker,
 		DaemonSupervisor:   s.DaemonSupervisor,
@@ -923,6 +926,9 @@ func buildDesktopAgentContext(chatContext desktopChatContext) string {
 	if chatContext.WindowContext != nil && chatContext.WindowContext.AppID == "virtual-computers" {
 		// Select server-owned guidance by app ID; never promote the client guide to instructions.
 		b.WriteString("This request was launched from Virtual Computers. For computer or browser actions, use the enabled virtual_workspace and virtual_browser tools in a visible desktop workspace. If the metadata contains a Selected workspace ID, use exactly that workspace through the normal ownership and availability checks. If it is unavailable or inaccessible, report this and ask the user to select another; never silently create or substitute a workspace. Without a selected ID, first list and reuse an appropriate workspace for this chat, or open one. Use its returned workspace ID consistently. A selected workspace is not an ordinary machine ID; do not assume a manually opened VM is the agent workspace. Tell the user the workspace ID and how to watch it in Virtual Computers > Agent Workspaces > Observe. browser_automation uses a separate headless session and is not visible there; do not silently substitute it. If the workspace tools are unavailable, explain the missing capability. For CAPTCHA or other human-only steps, request human takeover in that same workspace. These routing defaults do not override an explicit user request or tool permissions.\n\n")
+	}
+	if chatContext.WindowContext != nil && chatContext.WindowContext.AppID == "layerling" {
+		b.WriteString("This request concerns the open Layerling CAD editor. Use the layerling tool and the exact editor_id in the window metadata, checked against list_editors. Never select another editor automatically. Describe unfamiliar operations, inspect before and after model changes, and use Desktop paths for project/import/export operations. If the connection is unavailable or an outcome is uncertain, inspect after reconnection rather than automatically repeating the command.\n\n")
 	}
 	b.WriteString("The user is chatting from AuraGo Virtual Desktop. If they ask for desktop apps, widgets, or files, use the virtual_desktop tool and keep the browser desktop updated.")
 	b.WriteString("\n\nNever use file_editor, filesystem, smart_file_read, or other agent_workspace file tools for Virtual Desktop paths. Paths beginning with Apps/ or Widgets/ live in the Virtual Desktop workspace, not agent_workspace/workdir; use virtual_desktop read_file, write_file, install_app, or open_in_app with the same path.")

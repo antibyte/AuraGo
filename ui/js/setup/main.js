@@ -24,6 +24,7 @@ let csrfToken = '';
 const SETUP_BOOTSTRAP_STORAGE_KEY = 'aurago.setupBootstrapToken';
 let setupBootstrapToken = readSetupBootstrapToken();
 let setupOllamaBaseURL = 'http://localhost:11434/v1';
+let setupHTTPS = null;
 
 // Sequence counter for /api/i18n fetches. When the user rapidly switches
 // languages, only the most recent fetch's response should be applied.
@@ -108,6 +109,8 @@ async function checkSetupStatus() {
             return;
         }
         const data = await resp.json();
+        setupHTTPS = data.https || null;
+        renderSetupHTTPSStatus();
         if (!data.needs_setup) {
             window.location.href = '/';
             return;
@@ -154,18 +157,19 @@ function showSetupConnectionWarning(detail) {
     header.parentNode.insertBefore(banner, header.nextSibling);
 }
 
-// ── Security: HTTPS warning ──────────────────
-(function httpsWarning() {
-    const isSecure = location.protocol === 'https:';
-    const isLocal = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
-    if (!isSecure && !isLocal) {
-        const banner = document.getElementById('https-warning');
-        if (banner) {
-            banner.classList.remove('is-hidden');
-            document.body.classList.add('has-https-warning');
-        }
-    }
-})();
+// Show the browser's actual secure-context result, independently of the
+// listener setting (localhost and HTTPS proxies may also qualify).
+function renderSetupHTTPSStatus() {
+    const transport = document.getElementById('setup-https-transport');
+    if (!transport) return;
+    transport.textContent = setupHTTPS ? (setupHTTPS.enabled
+        ? t('setup.https_active').replace('{port}', String(setupHTTPS.port))
+        : t('setup.https_inactive')) : '';
+    document.getElementById('setup-https-certificate')?.classList.toggle('is-hidden', !(setupHTTPS?.enabled && setupHTTPS.cert_mode === 'selfsigned'));
+    const secure = window.isSecureContext === true;
+    document.getElementById('setup-secure-context').textContent = t(secure ? 'setup.secure_ready' : 'setup.secure_unavailable');
+    document.getElementById('setup-https-status').classList.toggle('setup-https-insecure', !secure);
+}
 
 // ── Load Personality Profiles on startup ─────
 (async function loadPersonalities() {
@@ -1633,7 +1637,7 @@ function buildTrustLevelPatch(level) {
         home_assistant:   { readonly: n <= 2 },
         fritzbox:         { readonly: n <= 2 },
         telnyx:           { readonly: n <= 2 },
-        meshcentral:      { readonly: n <= 2 },
+        meshcentral:      { readonly: n <= 2, allow_power_actions: n >= 3 },
         // Docker is useful infrastructure for many integrations. Keep it off
         // only at the lowest trust level, read-only at level 2, and writable
         // once the user explicitly grants broader agent permissions.
@@ -1915,6 +1919,7 @@ function showToast(message, type = 'info') {
 
 // ── i18n: populate text ──
 function applyI18N() {
+    renderSetupHTTPSStatus();
     // Page title
     document.title = t('setup.page_title');
 

@@ -33,6 +33,7 @@ func TestEntryTermType(t *testing.T) {
 	}{
 		{"bbs", Entry{Protocol: ProtocolTelnet, Kind: KindBBS}, "ANSI"},
 		{"world", Entry{Protocol: ProtocolTelnet, Kind: KindWorld}, "XTERM-256COLOR"},
+		{"c64", Entry{Protocol: ProtocolTelnet, Kind: KindC64}, "PETSCII"},
 		{"ssh", Entry{Protocol: ProtocolSSH}, "XTERM-256COLOR"},
 	}
 	for _, tc := range tests {
@@ -53,6 +54,7 @@ func TestEntryEffectiveCharset(t *testing.T) {
 		{"telnet cp437", Entry{Protocol: ProtocolTelnet, Charset: CharsetCP437}, CharsetCP437},
 		{"telnet latin1", Entry{Protocol: ProtocolTelnet, Charset: CharsetLatin1}, CharsetLatin1},
 		{"telnet utf8", Entry{Protocol: ProtocolTelnet, Charset: CharsetUTF8}, CharsetUTF8},
+		{"telnet petscii", Entry{Protocol: ProtocolTelnet, Kind: KindC64, Charset: CharsetPETSCII}, CharsetPETSCII},
 		{"telnet empty", Entry{Protocol: ProtocolTelnet}, CharsetUTF8},
 		{"ssh ignores charset", Entry{Protocol: ProtocolSSH, Charset: CharsetCP437}, CharsetUTF8},
 		{"ssh empty", Entry{Protocol: ProtocolSSH}, CharsetUTF8},
@@ -67,22 +69,22 @@ func TestEntryEffectiveCharset(t *testing.T) {
 }
 
 func TestKindAndCharsetValidity(t *testing.T) {
-	for _, k := range []Kind{KindBBS, KindWorld} {
+	for _, k := range []Kind{KindBBS, KindWorld, KindC64} {
 		if !k.valid() {
 			t.Errorf("Kind %q should be valid", k)
 		}
 	}
-	for _, k := range []Kind{"", "BBS", "c64", "world "} {
+	for _, k := range []Kind{"", "BBS", "C64", "c128", "world "} {
 		if k.valid() {
 			t.Errorf("Kind %q should be invalid", k)
 		}
 	}
-	for _, c := range []Charset{CharsetUTF8, CharsetCP437, CharsetLatin1} {
+	for _, c := range []Charset{CharsetUTF8, CharsetCP437, CharsetLatin1, CharsetPETSCII} {
 		if !c.valid() {
 			t.Errorf("Charset %q should be valid", c)
 		}
 	}
-	for _, c := range []Charset{"", "UTF8", "utf-8", "ebcdic", "petscii"} {
+	for _, c := range []Charset{"", "UTF8", "utf-8", "ebcdic", "PETSCII", "petscii "} {
 		if c.valid() {
 			t.Errorf("Charset %q should be invalid", c)
 		}
@@ -113,6 +115,17 @@ func TestEntryJSONWireShape(t *testing.T) {
 		Charset:     CharsetCP437,
 		Own:         true,
 	}
+	c64 := Entry{
+		ID:             "the-cabin",
+		Name:           "The Cabin",
+		DescriptionKey: "desktop.terminal_retronet_entry_the_cabin",
+		Category:       CategoryCommodore,
+		Protocol:       ProtocolTelnet,
+		Host:           "thecabinbbs.com",
+		Port:           6400,
+		Kind:           KindC64,
+		Charset:        CharsetPETSCII,
+	}
 	tests := []struct {
 		name  string
 		entry Entry
@@ -120,6 +133,7 @@ func TestEntryJSONWireShape(t *testing.T) {
 	}{
 		{"catalog ssh", ssh, `{"id":"sshtron","name":"SSHTron","description_key":"desktop.terminal_retronet_entry_sshtron","category":"games","protocol":"ssh","host":"sshtron.zachlatta.com","port":22,"user":"guest","host_key":"SHA256:cxRrWvXUmeIL3j/fJQclNpLj9sHYFX8cC5P+QhTILRA","own":false}`},
 		{"own telnet", own, `{"id":"own-abcd1234","name":"My BBS","description":"Late night board","category":"own","protocol":"telnet","host":"bbs.example.org","port":2323,"kind":"bbs","charset":"cp437","own":true}`},
+		{"catalog c64", c64, `{"id":"the-cabin","name":"The Cabin","description_key":"desktop.terminal_retronet_entry_the_cabin","category":"commodore","protocol":"telnet","host":"thecabinbbs.com","port":6400,"kind":"c64","charset":"petscii","own":false}`},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

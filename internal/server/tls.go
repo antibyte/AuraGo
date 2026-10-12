@@ -13,8 +13,10 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -39,6 +41,7 @@ const (
 
 // TLSConfig holds TLS configuration
 type TLSConfig struct {
+	Host        string
 	Mode        TLSMode
 	Domain      string
 	Email       string
@@ -62,16 +65,12 @@ func NewTLSConfigFromConfig(cfg *config.Config, dataDir string) *TLSConfig {
 	}
 
 	certDir := filepath.Join(dataDir, "certs")
-	// The HTTP redirect server only makes sense with a real domain; without
-	// one, port 80 (which needs root) is not bound for a useless redirect.
 	httpPort := cfg.Server.HTTPS.HTTPPort
-	if strings.TrimSpace(cfg.Server.HTTPS.Domain) == "" {
-		httpPort = 0
-	}
 
 	switch {
 	case config.NormalizeCertMode(cfg.Server.HTTPS.CertMode) == "custom":
 		return &TLSConfig{
+			Host:      cfg.Server.Host,
 			Mode:      TLSModeCustom,
 			Domain:    cfg.Server.HTTPS.Domain,
 			CertFile:  cfg.Server.HTTPS.CertFile,
@@ -86,6 +85,7 @@ func NewTLSConfigFromConfig(cfg *config.Config, dataDir string) *TLSConfig {
 		// Cloudflare Tunnel, which handles HTTPS at the edge). The egg config
 		// generator pins this certificate by the same rule.
 		return &TLSConfig{
+			Host:      cfg.Server.Host,
 			Mode:      TLSModeSelfSigned,
 			Domain:    cfg.Server.HTTPS.Domain,
 			CertDir:   certDir,
@@ -96,6 +96,7 @@ func NewTLSConfigFromConfig(cfg *config.Config, dataDir string) *TLSConfig {
 		}
 	default: // "auto" or empty, with a domain
 		return &TLSConfig{
+			Host:      cfg.Server.Host,
 			Mode:      TLSModeAuto,
 			Domain:    cfg.Server.HTTPS.Domain,
 			Email:     cfg.Server.HTTPS.Email,
@@ -151,10 +152,6 @@ func setupAutoTLS(tlsCfg *TLSConfig, handler http.Handler, logger Logger) (*http
 	if tlsCfg.Domain == "" {
 		return nil, nil, fmt.Errorf("domain is required for Let's Encrypt auto-TLS")
 	}
-	// ACME HTTP-01 challenge requires port 80. Override 0 with the standard default.
-	if tlsCfg.HTTPPort <= 0 {
-		tlsCfg.HTTPPort = 80
-	}
 
 	certManager := &autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
@@ -165,13 +162,18 @@ func setupAutoTLS(tlsCfg *TLSConfig, handler http.Handler, logger Logger) (*http
 
 	tc := secureTLSConfig()
 	tc.GetCertificate = certManager.GetCertificate
+	// TLS-ALPN-01 remains available on public port 443 when HTTP is disabled.
+	tc.NextProtos = certManager.TLSConfig().NextProtos
 
-	httpsServer := newAgentHTTPServer(fmt.Sprintf(":%d", tlsCfg.HTTPSPort), handler)
+	httpsServer := newAgentHTTPServer(net.JoinHostPort(tlsCfg.Host, strconv.Itoa(tlsCfg.HTTPSPort)), handler)
 	httpsServer.TLSConfig = tc
 
+	if tlsCfg.HTTPPort <= 0 {
+		return httpsServer, nil, nil
+	}
 	httpServer := &http.Server{
-		Addr:         fmt.Sprintf(":%d", tlsCfg.HTTPPort),
-		Handler:      certManager.HTTPHandler(httpRedirectHandler(tlsCfg.Domain)),
+		Addr:         net.JoinHostPort(tlsCfg.Host, strconv.Itoa(tlsCfg.HTTPPort)),
+		Handler:      certManager.HTTPHandler(httpRedirectHandler(tlsCfg.Domain, tlsCfg.HTTPSPort)),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
@@ -193,7 +195,7 @@ func setupCustomTLS(tlsCfg *TLSConfig, handler http.Handler, logger Logger) (*ht
 	tc := secureTLSConfig()
 	tc.Certificates = []tls.Certificate{cert}
 
-	httpsServer := newAgentHTTPServer(fmt.Sprintf(":%d", tlsCfg.HTTPSPort), handler)
+	httpsServer := newAgentHTTPServer(net.JoinHostPort(tlsCfg.Host, strconv.Itoa(tlsCfg.HTTPSPort)), handler)
 	httpsServer.TLSConfig = tc
 
 	// HTTP redirect server is optional for custom certs — skip if HTTPPort is 0.
@@ -201,8 +203,8 @@ func setupCustomTLS(tlsCfg *TLSConfig, handler http.Handler, logger Logger) (*ht
 		return httpsServer, nil, nil
 	}
 	httpServer := &http.Server{
-		Addr:         fmt.Sprintf(":%d", tlsCfg.HTTPPort),
-		Handler:      httpRedirectHandler(tlsCfg.Domain),
+		Addr:         net.JoinHostPort(tlsCfg.Host, strconv.Itoa(tlsCfg.HTTPPort)),
+		Handler:      httpRedirectHandler(tlsCfg.Domain, tlsCfg.HTTPSPort),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
@@ -225,7 +227,7 @@ func setupSelfSignedTLS(tlsCfg *TLSConfig, handler http.Handler, logger Logger) 
 	tc := secureTLSConfig()
 	tc.Certificates = []tls.Certificate{cert}
 
-	httpsServer := newAgentHTTPServer(fmt.Sprintf(":%d", tlsCfg.HTTPSPort), handler)
+	httpsServer := newAgentHTTPServer(net.JoinHostPort(tlsCfg.Host, strconv.Itoa(tlsCfg.HTTPSPort)), handler)
 	httpsServer.TLSConfig = tc
 
 	// HTTP redirect server is optional for self-signed certs — skip if HTTPPort is 0.
@@ -233,8 +235,8 @@ func setupSelfSignedTLS(tlsCfg *TLSConfig, handler http.Handler, logger Logger) 
 		return httpsServer, nil, nil
 	}
 	httpServer := &http.Server{
-		Addr:         fmt.Sprintf(":%d", tlsCfg.HTTPPort),
-		Handler:      httpRedirectHandler(tlsCfg.Domain),
+		Addr:         net.JoinHostPort(tlsCfg.Host, strconv.Itoa(tlsCfg.HTTPPort)),
+		Handler:      httpRedirectHandler(tlsCfg.Domain, tlsCfg.HTTPSPort),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
@@ -381,21 +383,26 @@ func GetCertInfo(certFile string) (map[string]interface{}, error) {
 }
 
 // httpRedirectHandler redirects all HTTP traffic to HTTPS
-func httpRedirectHandler(domain string) http.HandlerFunc {
+func httpRedirectHandler(domain string, httpsPort int) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		target := "https://"
-		if domain != "" {
-			target += domain
-		} else {
-			target += r.Host
+		host := domain
+		if host == "" {
+			host = r.Host
 		}
-		target += r.URL.Path
-		if r.URL.RawQuery != "" {
-			target += "?" + r.URL.RawQuery
+		if name, _, err := net.SplitHostPort(host); err == nil {
+			host = name
 		}
-
+		host = strings.Trim(host, "[]")
+		authority := net.JoinHostPort(host, strconv.Itoa(httpsPort))
+		if httpsPort == 443 {
+			authority = host
+			if strings.Contains(host, ":") {
+				authority = "[" + host + "]"
+			}
+		}
+		target := &url.URL{Scheme: "https", Host: authority, Path: r.URL.Path, RawPath: r.URL.RawPath, RawQuery: r.URL.RawQuery}
 		w.Header().Set("Connection", "close")
-		http.Redirect(w, r, target, http.StatusMovedPermanently)
+		http.Redirect(w, r, target.String(), http.StatusMovedPermanently)
 	}
 }
 

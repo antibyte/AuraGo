@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -24,7 +25,7 @@ type WebDAVConfig struct {
 }
 
 // webdavHTTPClient is a shared HTTP client for WebDAV calls.
-var webdavHTTPClient = security.NewSSRFProtectedHTTPClient(60 * time.Second)
+var webdavHTTPClient = security.NewSSRFProtectedHTTPClientSameOrigin(60 * time.Second)
 
 // ── WebDAV XML types for PROPFIND parsing ────────────────────────────
 
@@ -119,14 +120,20 @@ func webdavHrefPath(raw string) string {
 
 // webdavRequest performs a generic WebDAV HTTP request.
 func webdavRequest(cfg WebDAVConfig, method, url string, body io.Reader, extraHeaders map[string]string) (*http.Response, error) {
-	req, err := http.NewRequest(method, url, body)
+	return webdavRequestContext(context.Background(), cfg, method, url, body, extraHeaders)
+}
+
+func webdavRequestContext(ctx context.Context, cfg WebDAVConfig, method, url string, body io.Reader, extraHeaders map[string]string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 	switch strings.ToLower(strings.TrimSpace(cfg.AuthType)) {
 	case "bearer":
+		security.RegisterSensitive(cfg.Token)
 		req.Header.Set("Authorization", "Bearer "+cfg.Token)
 	default:
+		security.RegisterSensitive(cfg.Password)
 		req.SetBasicAuth(cfg.Username, cfg.Password)
 	}
 	for k, v := range extraHeaders {

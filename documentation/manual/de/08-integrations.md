@@ -646,20 +646,35 @@ huggingface:
 
 ## MeshCentral
 
-Remote-Desktop und Geräteverwaltung über MeshCentral.
+Geräteverwaltung über den MeshCentral-Control-WebSocket. Interaktive Shell und Desktop-Relay bleiben aus.
 
-AuraGo unterstützt die Kernfunktionen für Homelab-Automation: Serverinfos, Gerätegruppen, Gerätelisten, Gerätedetails, Ereignisse, Wake-on-LAN, unterstützte Power-Aktionen (`off`, `reset`, `sleep`, `amt_on`, `amt_off`, `amt_reset`) und MeshAgent-`run_command`.
+AuraGo unterstützt die Kernfunktionen für Homelab-Automation: Serverinfos, Gerätegruppen, Gerätelisten, Gerätedetails, Ereignisse, Wake-on-LAN, unterstützte Stromaktionen (`off`, `reset`, `sleep`, `amt_on`, `amt_off`, `amt_reset`) und MeshAgent-`run_command`.
 
-Die Integration bildet bewusst noch nicht die gesamte MeshCtrl-Oberfläche ab. Benutzer-/Gruppenverwaltung, Datei-Upload/-Download, interaktive Shell, Desktop-Relay, WebRelay, Invite-Links, Device Sharing, Reports und weitere Relay-lastige MeshCentral-Funktionen benötigen zusätzliche Command- oder `meshrelay.ashx`-Unterstützung.
+Wake und Strom brauchen `allow_power_actions: true`. `readonly: true` blockiert sie trotzdem. `run_command` braucht zusätzlich `agent.allow_remote_shell` und läuft als MeshAgent-Dienstkonto (unter Windows SYSTEM, unter Linux root). Befehle über 4096 Byte werden abgelehnt. Antworten über 64 KiB kommen mit `truncated: true` zurück.
 
-**Web-UI:** Config → Integrationen → MeshCentral → URL und Username eingeben. Passwort im Vault speichern.
+Wake und Strom warten 5 Sekunden auf eine passende Antwort. Der Status `unconfirmed` heißt: gesendet, aber nicht bestätigt. Das Gerät kann die Anfrage schon haben. Wiederhole sie nicht blind. Ein Befehls-Timeout trägt dieselbe Warnung, weil der Befehl noch laufen kann.
+
+Im Vault hält `meshcentral_password` das Passwort oder das Token-Geheimnis. `meshcentral_token` hält nur den Token-Namen. Ein Token-Name ohne dieses Geheimnis verbindet sich nicht.
+
+`ca_file` ist eine PEM-Datei für eine eigene CA und gilt nur, wenn `insecure` aus ist. `insecure: true` überspringt die Zertifikatsprüfung und ignoriert `ca_file`. Unverschlüsseltes `http://` bleibt erlaubt und schreibt eine Warnung.
+
+Fehlt `allow_power_actions` in einer schon aktiven, beschreibbaren Konfiguration, bleiben Wake und Strom an und es gibt einmal eine Warnung. Ein geschriebenes `false` schaltet sie ab. Die Vorlage setzt `readonly: true` und `allow_power_actions: false`.
+
+Die Integration bildet bewusst nicht die gesamte MeshCtrl-Oberfläche ab. Benutzer-/Gruppenverwaltung, Datei-Upload/-Download, interaktive Shell, Desktop-Relay, WebRelay, Invite-Links, Device Sharing, Reports und weitere Relay-Funktionen brauchen zusätzliche Command- oder `meshrelay.ashx`-Unterstützung.
+
+**Web-UI:** Config → Integrationen → MeshCentral. URL, Benutzername und entweder Passwort oder Login-Token plus Geheimnis eintragen. Nur-Lesen und Stromaktionen stellst du getrennt ein. Der Verbindungstest ist nur für Administratoren.
 
 ### YAML-Referenz
 ```yaml
 meshcentral:
-  enabled: true
+  enabled: false
+  readonly: true
+  allow_power_actions: false
+  blocked_operations: []
   url: "https://mesh.example.com"
-  username: "admin"
+  username: ""
+  insecure: false
+  ca_file: ""
 ```
 
 ## Ansible Integration
@@ -848,7 +863,9 @@ mcp_server:
 
 > Der MCP-Server teilt sich den Haupt-HTTP-Server — es gibt kein separates `port`-Feld. MCP-Client-Zugriff erfordert zusätzlich **Config → Gefahrenzone** → MCP (`agent.allow_mcp: true`).
 
-`allowed_tools` ist eine explizite serverseitige Allowlist. Leer veröffentlicht keine AuraGo-Tools; `vscode_debug_bridge` nutzt ein eigenes begrenztes Debugging-Preset.
+`allowed_tools` ist eine explizite serverseitige Freigabeliste. Eine leere Liste veröffentlicht keine Tools, auch im IDE-Modus. Das Öffnen der Einstellungen und Umschalten der Bridge ergänzt keine Berechtigungen. Mit **Empfohlene Tools hinzufügen** kannst Du das IDE-Preset des Backends ausdrücklich übernehmen und anschließend speichern. Die Auswahl aller Tools speichert deren aktuelle Namen.
+
+**Kompatibilitätsänderung:** Bestehende IDE-Konfigurationen mit leerer Liste benötigen nach dem Update eine bewusste Tool-Auswahl. Eine automatische Migration zum Preset findet nicht statt. MCP-Client-Freigabelisten behalten ihre getrennte Bedeutung.
 
 ## Composio Integration
 
@@ -1970,14 +1987,14 @@ Videoüberwachung und NVR-Management über Frigate.
 ```yaml
 frigate:
   enabled: true
-  readonly: false
+  readonly: true
   url: "https://frigate.local:8971"
   internal_port: false
   insecure: false
   default_camera: ""
   event_relay: false
   review_relay: false
-  store_media: false
+  store_media: true
   mqtt_topic_prefix: "frigate"
 ```
 

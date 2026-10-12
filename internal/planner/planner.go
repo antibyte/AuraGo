@@ -1,6 +1,7 @@
 package planner
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -199,13 +200,32 @@ func parsePlannerTime(value string) (time.Time, bool) {
 	return time.Time{}, false
 }
 
+func civilDueDate(due string) (year int, month time.Month, day int, ok bool) {
+	due = strings.TrimSpace(due)
+	if !strings.HasSuffix(due, "T00:00:00Z") {
+		return 0, 0, 0, false
+	}
+	parsed, err := time.Parse(time.RFC3339, due)
+	if err != nil {
+		return 0, 0, 0, false
+	}
+	year, month, day = parsed.UTC().Date()
+	return year, month, day, true
+}
+
 func isTodoOpenStatus(status string) bool {
 	return status == "open" || status == "in_progress"
 }
 
 func isTodoOverdue(todo Todo, now time.Time) bool {
-	if !isTodoOpenStatus(todo.Status) {
+	if !isTodoOpenStatus(todo.Status) || strings.TrimSpace(todo.DueDate) == "" {
 		return false
+	}
+	if year, month, day, ok := civilDueDate(todo.DueDate); ok {
+		ty, tm, td := now.In(now.Location()).Date()
+		dueDay := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+		today := time.Date(ty, tm, td, 0, 0, 0, 0, time.UTC)
+		return dueDay.Before(today)
 	}
 	due, ok := parsePlannerTime(todo.DueDate)
 	if !ok {
@@ -388,6 +408,12 @@ func BuildPromptContextText(snapshot PromptSnapshot) string {
 
 // CreateAppointment adds a new appointment and returns its ID.
 func CreateAppointment(db *sql.DB, a Appointment) (string, error) {
+	return insertAppointment(context.Background(), db, a)
+}
+
+func insertAppointment(ctx context.Context, exec interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}, a Appointment) (string, error) {
 	if a.Title == "" {
 		return "", fmt.Errorf("title is required")
 	}
@@ -412,7 +438,7 @@ func CreateAppointment(db *sql.DB, a Appointment) (string, error) {
 	}
 	a.KGNodeID = "appointment_" + a.ID
 
-	_, err := db.Exec(
+	_, err := exec.ExecContext(ctx,
 		`INSERT INTO appointments (id, title, description, date_time, notification_at, wake_agent, agent_instruction, notified, status, kg_node_id, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		a.ID, a.Title, a.Description, a.DateTime, a.NotificationAt,
@@ -423,6 +449,31 @@ func CreateAppointment(db *sql.DB, a Appointment) (string, error) {
 		return "", fmt.Errorf("failed to insert appointment: %w", err)
 	}
 	return a.ID, nil
+}
+
+// CreateAppointments inserts 1 to 30 appointments in one transaction.
+func CreateAppointments(db *sql.DB, items []Appointment) ([]string, error) {
+	if len(items) == 0 || len(items) > 30 {
+		return nil, fmt.Errorf("appointment series must contain 1 to 30 items")
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("begin appointment series: %w", err)
+	}
+	defer tx.Rollback()
+	ctx := context.Background()
+	ids := make([]string, 0, len(items))
+	for _, item := range items {
+		id, err := insertAppointment(ctx, tx, item)
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit appointment series: %w", err)
+	}
+	return ids, nil
 }
 
 // UpdateAppointment modifies an existing appointment.
@@ -678,8 +729,13 @@ func UpdateTodo(db *sql.DB, t Todo) error {
 		}
 	}
 	t.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	requestedStatus := t.Status
 	if err := prepareTodoForPersistence(&t, t.UpdatedAt); err != nil {
 		return err
+	}
+	if requestedStatus != "done" && t.Status == "done" {
+		t.Status = requestedStatus
+		t.CompletedAt = ""
 	}
 
 	tx, err := db.Begin()
@@ -844,7 +900,7 @@ func AddTodoItem(db *sql.DB, todoID string, item TodoItem) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to insert todo item: %w", err)
 	}
-	if err := syncTodoDerivedState(db, todoID, now); err != nil {
+	if err := syncTodoDerivedState(db, todoID, now, item.IsDone); err != nil {
 		return "", err
 	}
 	return item.ID, nil
@@ -859,6 +915,16 @@ func UpdateTodoItem(db *sql.DB, item TodoItem) error {
 		return fmt.Errorf("todo_id is required")
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
+	var previousIsDone int
+	if err := db.QueryRow(
+		`SELECT is_done FROM todo_items WHERE id=? AND todo_id=?`, item.ID, item.TodoID,
+	).Scan(&previousIsDone); err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("todo item not found: %s", item.ID)
+		}
+		return fmt.Errorf("failed to load todo item: %w", err)
+	}
+	previousDone := previousIsDone != 0
 	if err := prepareTodoItem(&item, item.Position, now); err != nil {
 		return err
 	}
@@ -874,7 +940,8 @@ func UpdateTodoItem(db *sql.DB, item TodoItem) error {
 	if n == 0 {
 		return fmt.Errorf("todo item not found: %s", item.ID)
 	}
-	return syncTodoDerivedState(db, item.TodoID, now)
+	allowComplete := !previousDone && item.IsDone
+	return syncTodoDerivedState(db, item.TodoID, now, allowComplete)
 }
 
 // DeleteTodoItem removes a subtask from a todo.
@@ -887,7 +954,7 @@ func DeleteTodoItem(db *sql.DB, todoID, itemID string) error {
 	if n == 0 {
 		return fmt.Errorf("todo item not found: %s", itemID)
 	}
-	return syncTodoDerivedState(db, todoID, time.Now().UTC().Format(time.RFC3339))
+	return syncTodoDerivedState(db, todoID, time.Now().UTC().Format(time.RFC3339), true)
 }
 
 // ReorderTodoItems updates item positions inside a todo.
@@ -908,7 +975,7 @@ func ReorderTodoItems(db *sql.DB, todoID string, itemIDs []string) error {
 			return fmt.Errorf("todo item not found: %s", itemID)
 		}
 	}
-	if err := syncTodoDerivedStateTx(tx, todoID, time.Now().UTC().Format(time.RFC3339)); err != nil {
+	if err := syncTodoDerivedStateTx(tx, todoID, time.Now().UTC().Format(time.RFC3339), false); err != nil {
 		return err
 	}
 	if err := tx.Commit(); err != nil {
@@ -1314,14 +1381,14 @@ func reminderMatchesDay(stored, dayKey string) bool {
 	return false
 }
 
-func syncTodoDerivedState(db *sql.DB, todoID, updatedAt string) error {
+func syncTodoDerivedState(db *sql.DB, todoID, updatedAt string, allowComplete bool) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return fmt.Errorf("begin todo state sync: %w", err)
 	}
 	defer tx.Rollback()
 
-	if err := syncTodoDerivedStateTx(tx, todoID, updatedAt); err != nil {
+	if err := syncTodoDerivedStateTx(tx, todoID, updatedAt, allowComplete); err != nil {
 		return err
 	}
 	if err := tx.Commit(); err != nil {
@@ -1330,7 +1397,7 @@ func syncTodoDerivedState(db *sql.DB, todoID, updatedAt string) error {
 	return nil
 }
 
-func syncTodoDerivedStateTx(tx *sql.Tx, todoID, updatedAt string) error {
+func syncTodoDerivedStateTx(tx *sql.Tx, todoID, updatedAt string, allowComplete bool) error {
 	todo, err := getTodoTx(tx, todoID)
 	if err != nil {
 		return err
@@ -1341,7 +1408,7 @@ func syncTodoDerivedStateTx(tx *sql.Tx, todoID, updatedAt string) error {
 	}
 	todo.Items = items
 	todo.UpdatedAt = updatedAt
-	deriveTodoStateFromChecklist(todo, updatedAt)
+	deriveTodoStateFromChecklist(todo, updatedAt, allowComplete)
 	res, err := tx.Exec(
 		`UPDATE todos SET status=?, completed_at=?, updated_at=? WHERE id=?`,
 		todo.Status, todo.CompletedAt, updatedAt, todoID,
@@ -1369,7 +1436,7 @@ func syncTodoDerivedStateTx(tx *sql.Tx, todoID, updatedAt string) error {
 	return nil
 }
 
-func deriveTodoStateFromChecklist(todo *Todo, updatedAt string) {
+func deriveTodoStateFromChecklist(todo *Todo, updatedAt string, allowComplete bool) {
 	if todo == nil {
 		return
 	}
@@ -1382,13 +1449,13 @@ func deriveTodoStateFromChecklist(todo *Todo, updatedAt string) {
 			}
 		}
 		switch {
-		case doneCount == len(todo.Items):
+		case todo.Status == "done" && doneCount == len(todo.Items):
+			// already done
+		case doneCount == len(todo.Items) && allowComplete:
 			todo.Status = "done"
-		case doneCount > 0:
-			if todo.Status == "done" || todo.Status == "open" {
-				todo.Status = "in_progress"
-			}
-		case todo.Status == "done" || todo.Status == "in_progress":
+		case doneCount > 0 && doneCount < len(todo.Items) && (todo.Status == "open" || todo.Status == "done"):
+			todo.Status = "in_progress"
+		case doneCount == 0 && (todo.Status == "done" || todo.Status == "in_progress"):
 			todo.Status = "open"
 		}
 	}

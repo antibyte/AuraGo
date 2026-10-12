@@ -69,7 +69,7 @@ func TestEnsureMasterKeyLoadsValidEnvFileIntoProcess(t *testing.T) {
 }
 
 func TestEnsureConfigFileCopiesTemplateWhenMissing(t *testing.T) {
-	t.Parallel()
+	// Fresh-config tests probe the same initial HTTPS ports and must run serially.
 
 	installDir := t.TempDir()
 	configPath := filepath.Join(installDir, "config.yaml")
@@ -86,8 +86,26 @@ func TestEnsureConfigFileCopiesTemplateWhenMissing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read config: %v", err)
 	}
+	loaded, err := config.Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !loaded.Server.HTTPS.Enabled || loaded.Server.HTTPS.CertMode != "selfsigned" || loaded.Server.HTTPS.HTTPPort != 0 || loaded.Server.Host != "127.0.0.1" {
+		t.Fatalf("fresh config lacks HTTPS defaults: %s", got)
+	}
+	if loaded.Server.HTTPS.HTTPSPort != 443 && loaded.Server.HTTPS.HTTPSPort != 8443 {
+		t.Fatalf("unexpected initial port: %d", loaded.Server.HTTPS.HTTPSPort)
+	}
+	// Existing installations, including explicit or implicit HTTP, are untouched.
+	if err := os.WriteFile(configPath, template, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := ensureConfigFile(installDir, configPath, slog.Default()); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = os.ReadFile(configPath)
 	if string(got) != string(template) {
-		t.Fatalf("config contents = %q, want %q", string(got), string(template))
+		t.Fatal("existing config changed")
 	}
 }
 
@@ -96,8 +114,6 @@ func TestEnsureConfigFileCopiesTemplateWhenMissing(t *testing.T) {
 // produces a syntactically valid YAML document with a `server` section so the
 // next startup can boot with sensible defaults.
 func TestEnsureConfigFileCreatesMinimalFallbackWithoutTemplate(t *testing.T) {
-	t.Parallel()
-
 	installDir := t.TempDir()
 	configPath := filepath.Join(installDir, "config.yaml")
 
@@ -139,6 +155,10 @@ func TestEnsureConfigFileCreatesMinimalFallbackWithoutTemplate(t *testing.T) {
 	}
 	if _, ok := server["port"]; !ok {
 		t.Errorf("fallback server.port missing: %v", server)
+	}
+	https, ok := server["https"].(map[string]interface{})
+	if !ok || https["enabled"] != true || https["cert_mode"] != "selfsigned" || https["http_port"] != 0 {
+		t.Fatalf("fallback HTTPS defaults: %v", https)
 	}
 }
 
@@ -475,8 +495,6 @@ func TestServiceAlreadyInstalledLinuxFileFallback(t *testing.T) {
 // docker.allow_host_access: false, because an absent key loads as the legacy
 // grandfather (true).
 func TestEnsureConfigFileMinimalFallbackWritesDockerHostAccessFalse(t *testing.T) {
-	t.Parallel()
-
 	installDir := t.TempDir()
 	configPath := filepath.Join(installDir, "config.yaml")
 	if err := ensureConfigFile(installDir, configPath, slog.Default()); err != nil {

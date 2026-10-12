@@ -775,7 +775,9 @@ mcp_server:
 
 The `/mcp` endpoint negotiates MCP `2025-11-25` while retaining `2024-11-05` compatibility. Native clients may omit `Origin`; browser-originated requests must match AuraGo's effective host.
 
-`allowed_tools` is an explicit server-side allowlist. Leave it empty to expose no AuraGo tools; `vscode_debug_bridge` applies its own limited debugging preset.
+`allowed_tools` is an explicit server-side allowlist. An empty list exposes no tools, including in IDE bridge mode. Opening settings or toggling the bridge never adds permissions. Use **Add recommended tools** to explicitly add the backend's IDE preset, then save. Select-all saves the current tool names.
+
+**Compatibility change:** Existing IDE configurations with an empty list must explicitly select tools after upgrading. There is no automatic preset migration. MCP client allowlists retain their separate semantics.
 
 ---
 
@@ -1734,23 +1736,40 @@ webhooks:
 
 ## MeshCentral Integration
 
-Remote device management through MeshCentral.
+Device management through the MeshCentral control WebSocket. Interactive shell and desktop relay stay unavailable.
 
-AuraGo supports the core MeshCentral control operations used for homelab automation: server info, device group listing, device listing, device details, event listing, Wake-on-LAN, supported power actions (`off`, `reset`, `sleep`, `amt_on`, `amt_off`, `amt_reset`), and MeshAgent `run_command`.
+AuraGo supports the core control operations used for homelab automation: server info, device group listing, device listing, device details, event listing, Wake-on-LAN, supported power actions (`off`, `reset`, `sleep`, `amt_on`, `amt_off`, `amt_reset`), and MeshAgent `run_command`.
 
-The integration intentionally does not expose the full MeshCtrl surface yet. User/group administration, file upload/download, interactive shell, desktop relay, WebRelay, invite links, device sharing, reports, and other relay-heavy MeshCentral features require additional command or `meshrelay.ashx` handling.
+Wake and power need `allow_power_actions: true`. `readonly: true` blocks them even then. `run_command` also needs `agent.allow_remote_shell` and runs as the MeshAgent service account (Windows SYSTEM or Linux root). Commands longer than 4096 bytes are rejected. Results larger than 64 KiB are marked truncated.
+
+Wake and power wait 5 seconds for a matching reply. Status `unconfirmed` means the request was sent but not confirmed. It may already have reached the device, so do not retry it blindly. A command timeout has the same warning: the command may still be running.
+
+The Vault key `meshcentral_password` holds the account password or the login-token secret. `meshcentral_token` holds only the token name. A token name without that secret never connects.
+
+`ca_file` is a PEM file for a private CA and is used only when `insecure` is off. `insecure: true` skips certificate checks and ignores `ca_file`. Plain `http://` stays allowed and logs a warning.
+
+An existing enabled, writable config that does not mention `allow_power_actions` keeps wake and power on and logs one warning. Writing `false` turns them off. The template ships with `readonly: true` and `allow_power_actions: false`.
+
+The integration intentionally does not expose the full MeshCtrl surface. User/group administration, file upload/download, interactive shell, desktop relay, WebRelay, invite links, device sharing, reports, and other relay-heavy features need extra command or `meshrelay.ashx` handling.
 
 ### Web UI Setup
 1. Open **Config → Integrations → MeshCentral**.
-2. Enable the integration.
-3. Enter your **Server URL** and credentials.
-4. Save and restart.
+2. Enable the integration and decide read-only mode and power actions separately.
+3. Enter the server URL, username, and either a password or a login token plus its secret.
+4. For a private CA, set `ca_file` and leave `insecure` off.
+5. Save. The connection test is administrator-only.
 
 ### YAML Reference
 ```yaml
 meshcentral:
-    enabled: true
+    enabled: false
+    readonly: true
+    allow_power_actions: false
+    blocked_operations: []
     url: "https://meshcentral.local"
+    username: ""
+    insecure: false
+    ca_file: ""
 ```
 
 ---
@@ -2341,14 +2360,14 @@ Video surveillance and NVR management via Frigate.
 ```yaml
 frigate:
   enabled: true
-  readonly: false
+  readonly: true
   url: "https://frigate.local:8971"
   internal_port: false
   insecure: false
   default_camera: ""
   event_relay: false
   review_relay: false
-  store_media: false
+  store_media: true
   mqtt_topic_prefix: "frigate"
 ```
 

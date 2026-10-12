@@ -1,0 +1,41 @@
+package googleapi
+
+import (
+ "context"
+ "io"
+ "net/http"
+ "net/http/httptest"
+ "strings"
+ "testing"
+ "time"
+
+ "google.golang.org/api/drive/v3"
+ gapi "google.golang.org/api/googleapi"
+ "google.golang.org/api/option"
+)
+
+func TestAuraGoMutationsAreSingleAttempt(t *testing.T) {
+ for _,method:=range []string{"POST","PUT","PATCH","DELETE"} { for _,status:=range []int{429,500,503} {
+  t.Run(method+http.StatusText(status),func(t *testing.T){
+   count:=0
+   server:=httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter,r *http.Request){count++;w.WriteHeader(status);_,_=io.WriteString(w,`{"error":{"code":503,"message":"fixture"}}`)}));defer server.Close()
+   transport:=NewRetryTransport(server.Client().Transport)
+   client:=&http.Client{Transport:transport,Timeout:time.Second}
+   req,_:=http.NewRequest(method,server.URL,strings.NewReader("fixture"))
+   resp,e:=client.Do(req);if e!=nil{t.Fatal(e)};resp.Body.Close()
+   if count!=1 {t.Fatalf("%s made %d attempts",method,count)}
+  })
+ } }
+}
+
+func TestAuraGoSDKUploadIsSingleAttempt(t *testing.T) {
+ for _,replace:=range []bool{false,true} { t.Run(map[bool]string{false:"create",true:"replace"}[replace],func(t *testing.T){
+ count:=0
+ server:=httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter,r *http.Request){count++;w.WriteHeader(503);_,_=io.WriteString(w,`{"error":{"code":503,"message":"fixture"}}`)}));defer server.Close()
+ client:=&http.Client{Transport:NewRetryTransport(server.Client().Transport),Timeout:time.Second}
+ svc,e:=drive.NewService(context.Background(),option.WithHTTPClient(client),option.WithEndpoint(server.URL+"/"));if e!=nil{t.Fatal(e)}
+ body:=strings.NewReader(strings.Repeat("x",10<<20))
+ if replace {_,e=svc.Files.Update("fixture-id",&drive.File{Name:"fixture"}).Media(body,gapi.ChunkSize(0)).Do()} else {_,e=svc.Files.Create(&drive.File{Name:"fixture"}).Media(body,gapi.ChunkSize(0)).Do()}
+ if e==nil||count!=1{t.Fatalf("upload error=%v attempts=%d",e,count)}
+ }) }
+}

@@ -47,6 +47,29 @@ func TestDecodeManageOutgoingWebhooksArgsUsesRawParams(t *testing.T) {
 	if req.Parameters[0].Name != "branch" || !req.Parameters[0].Required {
 		t.Fatalf("decoded parameter = %+v, want branch/required", req.Parameters[0])
 	}
+	if !req.HeadersSet || !req.ParametersSet {
+		t.Fatalf("presence flags = headers %v parameters %v", req.HeadersSet, req.ParametersSet)
+	}
+}
+
+func TestDecodeManageOutgoingWebhooksArgsLeavesMissingHeadersUnset(t *testing.T) {
+	req := decodeManageOutgoingWebhooksArgs(ToolCall{
+		Action: "manage_outgoing_webhooks",
+		Params: map[string]interface{}{"operation": "update", "id": "hook_1", "name": "Renamed"},
+	})
+	if req.HeadersSet || req.Headers != nil {
+		t.Fatalf("missing headers were treated as set: %#v set=%v", req.Headers, req.HeadersSet)
+	}
+	empty := decodeManageOutgoingWebhooksArgs(ToolCall{
+		Action: "manage_outgoing_webhooks",
+		Params: map[string]interface{}{
+			"operation": "update",
+			"headers":   map[string]interface{}{},
+		},
+	})
+	if !empty.HeadersSet || empty.Headers == nil || len(empty.Headers) != 0 {
+		t.Fatalf("empty headers object = %#v set=%v", empty.Headers, empty.HeadersSet)
+	}
 }
 
 func TestDecodeCreateSkillFromTemplateArgsUsesArrayFields(t *testing.T) {

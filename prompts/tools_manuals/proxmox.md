@@ -47,6 +47,7 @@ Manage Proxmox VE virtual machines and containers.
 
 ## Notes
 - `node` defaults to the configured default node if omitted
+- `name` is only the snapshot name and never selects the node
 - `vm_type` defaults to `qemu` (VMs); use `lxc` for containers
 - `overview` is the best default operation for monitoring. It returns normalized node, VM, and container lists plus compact summaries in one read-only call.
 - Agent guidance: for monitoring, health checks, or general environment awareness, prefer `overview` before narrower follow-up calls.

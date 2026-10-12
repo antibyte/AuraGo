@@ -3,6 +3,16 @@ package tools
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"regexp"
+	"strings"
+)
+
+const yepAPIYouTubeMaxLimit = 25
+
+var (
+	yepAPIYouTubeVideoIDRe    = regexp.MustCompile(`^[A-Za-z0-9_-]{11}$`)
+	yepAPIYouTubeResourceIDRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 )
 
 // DispatchYepAPIYouTube handles YouTube data operations via YepAPI.
@@ -14,9 +24,7 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 			return yepAPIFormatError("search operation requires a 'query' string"), nil
 		}
 		payload := map[string]interface{}{"query": query}
-		if limit, ok := args["limit"].(float64); ok && limit > 0 {
-			payload["limit"] = int(limit)
-		}
+		addYouTubePositiveIntArg(payload, args, "limit", "limit")
 		data, err := client.Post(ctx, "/v1/youtube/search", payload)
 		if err != nil {
 			return "", err
@@ -43,8 +51,11 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 		if videoID == "" {
 			return yepAPIFormatError("comments operation requires a 'video_id' string"), nil
 		}
+		if !yepAPIYouTubeVideoIDRe.MatchString(videoID) {
+			return yepAPIFormatError("comments operation requires a valid YouTube video_id"), nil
+		}
 		payload := map[string]interface{}{"videoId": videoID}
-		addPositiveIntArg(payload, args, "limit", "limit")
+		addYouTubePositiveIntArg(payload, args, "limit", "limit")
 		data, err := client.Post(ctx, "/v1/youtube/comments", payload)
 		if err != nil {
 			return "", err
@@ -87,8 +98,11 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 		if query == "" {
 			return yepAPIFormatError("channel_search operation requires a 'query' string"), nil
 		}
+		if !yepAPIYouTubeResourceIDRe.MatchString(channelID) {
+			return yepAPIFormatError("channel_search operation requires a valid YouTube channel_id"), nil
+		}
 		payload := map[string]interface{}{"channelId": channelID, "query": query}
-		addPositiveIntArg(payload, args, "limit", "limit")
+		addYouTubePositiveIntArg(payload, args, "limit", "limit")
 		data, err := client.Post(ctx, "/v1/youtube/channel-search", payload)
 		if err != nil {
 			return "", err
@@ -103,7 +117,7 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 
 	case "trending":
 		payload := youtubeAmbientPayload(args)
-		addPositiveIntArg(payload, args, "limit", "limit")
+		addYouTubePositiveIntArg(payload, args, "limit", "limit")
 		data, err := client.Post(ctx, "/v1/youtube/trending", payload)
 		if err != nil {
 			return "", err
@@ -115,8 +129,11 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 		if videoID == "" {
 			return yepAPIFormatError("related operation requires a 'video_id' string"), nil
 		}
+		if !yepAPIYouTubeVideoIDRe.MatchString(videoID) {
+			return yepAPIFormatError("related operation requires a valid YouTube video_id"), nil
+		}
 		payload := map[string]interface{}{"videoId": videoID}
-		addPositiveIntArg(payload, args, "limit", "limit")
+		addYouTubePositiveIntArg(payload, args, "limit", "limit")
 		data, err := client.Post(ctx, "/v1/youtube/related", payload)
 		if err != nil {
 			return "", err
@@ -132,7 +149,7 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 		if query != "" {
 			payload["query"] = query
 		}
-		addPositiveIntArg(payload, args, "limit", "limit")
+		addYouTubePositiveIntArg(payload, args, "limit", "limit")
 		data, err := client.Post(ctx, "/v1/youtube/shorts", payload)
 		if err != nil {
 			return "", err
@@ -158,8 +175,11 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 		if tag == "" {
 			return yepAPIFormatError("hashtag operation requires a 'tag' string"), nil
 		}
+		if !yepAPIYouTubeResourceIDRe.MatchString(tag) {
+			return yepAPIFormatError("hashtag operation requires a valid tag"), nil
+		}
 		payload := map[string]interface{}{"tag": tag}
-		addPositiveIntArg(payload, args, "limit", "limit")
+		addYouTubePositiveIntArg(payload, args, "limit", "limit")
 		data, err := client.Post(ctx, "/v1/youtube/hashtag", payload)
 		if err != nil {
 			return "", err
@@ -170,6 +190,9 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 		postID := stringArgWithFallback(args, "post_id")
 		if postID == "" {
 			return yepAPIFormatError("post operation requires a 'post_id' string"), nil
+		}
+		if !yepAPIYouTubeResourceIDRe.MatchString(postID) {
+			return yepAPIFormatError("post operation requires a valid post_id"), nil
 		}
 		data, err := client.Post(ctx, "/v1/youtube/post", map[string]interface{}{"postId": postID})
 		if err != nil {
@@ -182,8 +205,11 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 		if postID == "" {
 			return yepAPIFormatError("post_comments operation requires a 'post_id' string"), nil
 		}
+		if !yepAPIYouTubeResourceIDRe.MatchString(postID) {
+			return yepAPIFormatError("post_comments operation requires a valid post_id"), nil
+		}
 		payload := map[string]interface{}{"postId": postID}
-		addPositiveIntArg(payload, args, "limit", "limit")
+		addYouTubePositiveIntArg(payload, args, "limit", "limit")
 		data, err := client.Post(ctx, "/v1/youtube/post-comments", payload)
 		if err != nil {
 			return "", err
@@ -192,7 +218,7 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 
 	case "home":
 		payload := youtubeAmbientPayload(args)
-		addPositiveIntArg(payload, args, "limit", "limit")
+		addYouTubePositiveIntArg(payload, args, "limit", "limit")
 		data, err := client.Post(ctx, "/v1/youtube/home", payload)
 		if err != nil {
 			return "", err
@@ -201,7 +227,7 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 
 	case "hype":
 		payload := youtubeAmbientPayload(args)
-		addPositiveIntArg(payload, args, "limit", "limit")
+		addYouTubePositiveIntArg(payload, args, "limit", "limit")
 		data, err := client.Post(ctx, "/v1/youtube/hype", payload)
 		if err != nil {
 			return "", err
@@ -209,11 +235,15 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 		return yepAPIFormatSuccess(data), nil
 
 	case "resolve":
-		url := stringArgWithFallback(args, "url")
-		if url == "" {
+		rawURL := stringArgWithFallback(args, "url")
+		if rawURL == "" {
 			return yepAPIFormatError("resolve operation requires a 'url' string"), nil
 		}
-		data, err := client.Post(ctx, "/v1/youtube/resolve", map[string]interface{}{"url": url})
+		canonicalURL, resolveErr := yepAPIYouTubeCanonicalResolveURL(rawURL)
+		if resolveErr != "" {
+			return yepAPIFormatError(resolveErr), nil
+		}
+		data, err := client.Post(ctx, "/v1/youtube/resolve", map[string]interface{}{"url": canonicalURL})
 		if err != nil {
 			return "", err
 		}
@@ -229,6 +259,9 @@ func dispatchYouTubeVideoID(ctx context.Context, client *YepAPIClient, endpoint,
 	if videoID == "" {
 		return yepAPIFormatError(fmt.Sprintf("%s operation requires a 'video_id' string", operation)), nil
 	}
+	if !yepAPIYouTubeVideoIDRe.MatchString(videoID) {
+		return yepAPIFormatError(fmt.Sprintf("%s operation requires a valid YouTube video_id", operation)), nil
+	}
 	data, err := client.Post(ctx, endpoint, map[string]interface{}{"videoId": videoID})
 	if err != nil {
 		return "", err
@@ -241,9 +274,12 @@ func dispatchYouTubeChannelID(ctx context.Context, client *YepAPIClient, endpoin
 	if channelID == "" {
 		return yepAPIFormatError(fmt.Sprintf("%s operation requires a 'channel_id' string", operation)), nil
 	}
+	if !yepAPIYouTubeResourceIDRe.MatchString(channelID) {
+		return yepAPIFormatError(fmt.Sprintf("%s operation requires a valid YouTube channel_id", operation)), nil
+	}
 	payload := map[string]interface{}{"channelId": channelID}
 	if withLimit {
-		addPositiveIntArg(payload, args, "limit", "limit")
+		addYouTubePositiveIntArg(payload, args, "limit", "limit")
 	}
 	data, err := client.Post(ctx, endpoint, payload)
 	if err != nil {
@@ -257,9 +293,12 @@ func dispatchYouTubePlaylistID(ctx context.Context, client *YepAPIClient, endpoi
 	if playlistID == "" {
 		return yepAPIFormatError(fmt.Sprintf("%s operation requires a 'playlist_id' string", operation)), nil
 	}
+	if !yepAPIYouTubeResourceIDRe.MatchString(playlistID) {
+		return yepAPIFormatError(fmt.Sprintf("%s operation requires a valid YouTube playlist_id", operation)), nil
+	}
 	payload := map[string]interface{}{"playlistId": playlistID}
 	if withLimit {
-		addPositiveIntArg(payload, args, "limit", "limit")
+		addYouTubePositiveIntArg(payload, args, "limit", "limit")
 	}
 	data, err := client.Post(ctx, endpoint, payload)
 	if err != nil {
@@ -273,4 +312,84 @@ func youtubeAmbientPayload(args map[string]interface{}) map[string]interface{} {
 	addOptionalStringArg(payload, args, "country", "country")
 	addOptionalStringArg(payload, args, "language", "language")
 	return payload
+}
+
+func addYouTubePositiveIntArg(payload map[string]interface{}, args map[string]interface{}, argKey, payloadKey string) {
+	if n, ok := args[argKey].(float64); ok && n > 0 {
+		limit := int(n)
+		if limit > yepAPIYouTubeMaxLimit {
+			limit = yepAPIYouTubeMaxLimit
+		}
+		payload[payloadKey] = limit
+	}
+}
+
+func yepAPIYouTubeCanonicalResolveURL(raw string) (string, string) {
+	clean := strings.TrimSpace(raw)
+	if clean == "" {
+		return "", "resolve operation requires a valid YouTube URL"
+	}
+	if !strings.Contains(clean, "://") && (strings.Contains(clean, "youtube.") || strings.Contains(clean, "youtu.be")) {
+		clean = "https://" + clean
+	}
+
+	parsed, err := url.Parse(clean)
+	if err != nil || parsed.Hostname() == "" {
+		return "", "resolve operation requires a valid YouTube URL"
+	}
+	if parsed.User != nil {
+		return "", "resolve operation requires a valid YouTube URL"
+	}
+	scheme := strings.ToLower(parsed.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return "", "resolve operation requires a valid YouTube URL"
+	}
+
+	host := yepAPIYouTubeNormalizeHost(parsed.Hostname())
+	path := strings.Trim(parsed.EscapedPath(), "/")
+	segments := strings.Split(path, "/")
+	for i, segment := range segments {
+		if decoded, decErr := url.PathUnescape(segment); decErr == nil {
+			segments[i] = decoded
+		}
+	}
+
+	videoID := ""
+	switch host {
+	case "youtu.be":
+		if len(segments) > 0 {
+			videoID = segments[0]
+		}
+	case "youtube.com", "m.youtube.com", "music.youtube.com":
+		videoID = yepAPIYouTubeVideoIDFromPathAndQuery(segments, parsed.Query())
+	case "youtube-nocookie.com":
+		if len(segments) >= 2 && segments[0] == "embed" {
+			videoID = segments[1]
+		}
+	default:
+		return "", "resolve operation requires a valid YouTube URL"
+	}
+
+	if !yepAPIYouTubeVideoIDRe.MatchString(videoID) {
+		return "", "resolve operation requires a valid YouTube URL"
+	}
+	return "https://www.youtube.com/watch?v=" + videoID, ""
+}
+
+func yepAPIYouTubeNormalizeHost(host string) string {
+	host = strings.ToLower(strings.TrimSpace(host))
+	return strings.TrimPrefix(host, "www.")
+}
+
+func yepAPIYouTubeVideoIDFromPathAndQuery(segments []string, query url.Values) string {
+	if len(segments) == 0 || segments[0] == "" || segments[0] == "watch" {
+		return query.Get("v")
+	}
+	switch segments[0] {
+	case "shorts", "embed", "live":
+		if len(segments) >= 2 {
+			return segments[1]
+		}
+	}
+	return ""
 }

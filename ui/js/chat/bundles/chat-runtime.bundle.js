@@ -583,8 +583,10 @@
     }
 
     function parseYouTubeTimeValue(raw) {
-        const value = String(raw || '').trim().toLowerCase();
+        let value = String(raw || '').trim().toLowerCase();
         if (!value) return 0;
+        value = value.replace(/^#?t=/, '');
+        value = value.replace(/^start=/, '');
         if (/^\d+s?$/.test(value)) return parseInt(value, 10) || 0;
         if (value.includes(':')) {
             return value.split(':').reduce((total, part) => {
@@ -625,7 +627,10 @@
                 videoID = segments[1] || '';
             }
             if (!/^[A-Za-z0-9_-]{11}$/.test(videoID)) return null;
-            const startSeconds = parseYouTubeTimeValue(parsed.searchParams.get('start')) || parseYouTubeTimeValue(parsed.searchParams.get('t'));
+            const fragment = parsed.hash ? parsed.hash.replace(/^#/, '') : '';
+            const startSeconds = parseYouTubeTimeValue(parsed.searchParams.get('start'))
+                || parseYouTubeTimeValue(parsed.searchParams.get('t'))
+                || parseYouTubeTimeValue(fragment);
             const canonicalURL = `https://www.youtube.com/watch?v=${videoID}${startSeconds > 0 ? `&t=${startSeconds}s` : ''}`;
             const embedURL = `https://www.youtube-nocookie.com/embed/${videoID}${startSeconds > 0 ? `?start=${startSeconds}` : ''}`;
             return { video_id: videoID, url: canonicalURL, embed_url: embedURL, start_seconds: startSeconds };
@@ -6432,7 +6437,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         { slot: 55, key: 'web_scraper', label: 'Web scraper', row: 5, col: 5, aliases: Object.freeze([]) },
         { slot: 56, key: 'web_capture', label: 'Web capture', row: 5, col: 6, aliases: Object.freeze([]) },
         { slot: 57, key: 'web_performance_audit', label: 'Performance', row: 5, col: 7, aliases: Object.freeze(['web_performance']) },
-        { slot: 58, key: 'browser_automation', label: 'Browser', row: 5, col: 8, aliases: Object.freeze(['space_agent', 'virtual_desktop']) },
+        { slot: 58, key: 'browser_automation', label: 'Browser', row: 5, col: 8, aliases: Object.freeze(['space_agent', 'virtual_desktop', 'retro_games']) },
         { slot: 59, key: 'api_request', label: 'API request', row: 5, col: 9, aliases: Object.freeze(['call_webhook', 'manage_webhooks', 'manage_outgoing_webhooks']) },
         { slot: 60, key: 'brave_search', label: 'Search', row: 6, col: 0, aliases: Object.freeze(['ddg_search']) },
         { slot: 61, key: 'wikipedia_search', label: 'Wikipedia', row: 6, col: 1, aliases: Object.freeze(['local_wikipedia']) },
@@ -7230,8 +7235,10 @@ function parseYouTubeTimeValue(raw) {
     if (window.AuraChatCore && typeof window.AuraChatCore.parseYouTubeTimeValue === 'function') {
         return window.AuraChatCore.parseYouTubeTimeValue(raw);
     }
-    const value = String(raw || '').trim().toLowerCase();
+    let value = String(raw || '').trim().toLowerCase();
     if (!value) return 0;
+    value = value.replace(/^#?t=/, '');
+    value = value.replace(/^start=/, '');
     if (/^\d+s?$/.test(value)) return parseInt(value, 10) || 0;
     if (value.includes(':')) {
         return value.split(':').reduce((total, part) => {
@@ -7275,7 +7282,10 @@ function parseYouTubeVideoLink(raw) {
             videoID = segments[1] || '';
         }
         if (!/^[A-Za-z0-9_-]{11}$/.test(videoID)) return null;
-        const startSeconds = parseYouTubeTimeValue(parsed.searchParams.get('start')) || parseYouTubeTimeValue(parsed.searchParams.get('t'));
+        const fragment = parsed.hash ? parsed.hash.replace(/^#/, '') : '';
+        const startSeconds = parseYouTubeTimeValue(parsed.searchParams.get('start'))
+            || parseYouTubeTimeValue(parsed.searchParams.get('t'))
+            || parseYouTubeTimeValue(fragment);
         const canonicalURL = `https://www.youtube.com/watch?v=${videoID}${startSeconds > 0 ? `&t=${startSeconds}s` : ''}`;
         const embedURL = `https://www.youtube-nocookie.com/embed/${videoID}${startSeconds > 0 ? `?start=${startSeconds}` : ''}`;
         return { video_id: videoID, url: canonicalURL, embed_url: embedURL, start_seconds: startSeconds };

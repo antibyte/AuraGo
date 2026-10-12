@@ -58,6 +58,10 @@ Store app configuration, runtime, assets, and publication.
   A local Docker proxy smoke test should cover successful logs, events and stats
   reads plus denial of Engine mutation methods.
 
+### OpenSCAD catalog image
+
+- The OpenSCAD catalog image is the digest pin `openscad/openscad@sha256:147e48525bec392bcf628d7a6d5ea4ccac71b16251952328f86e1061cbf47c37`, the same reference as Desktop `defaultOpenSCADImage`.
+
 ### God's Eye View Store Contract
 
 - `internal/desktopstore/gods_eye.go` owns app-specific setup for catalog ID

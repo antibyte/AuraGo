@@ -84,6 +84,7 @@ func TestIntegrationTestRoutesRequireAdminSession(t *testing.T) {
 		"/api/home-assistant/test",
 		"/api/proxmox/test",
 		"/api/s3/test",
+		"/api/meshcentral/test",
 		"/api/frigate/test",
 		"/api/ansible/test",
 	}

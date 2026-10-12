@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // Fixed SQLite database filenames stored under directories.data_dir but not
@@ -15,6 +16,11 @@ const (
 	// FlowsDBFilename is the EasyDrag flow store. It has no sqlite setting of its own and
 	// lives next to sqlite.game_maker_path (FlowsDBPath).
 	FlowsDBFilename = "flows.db"
+	// RetroGamesDirName/RetroGamesDBFilename locate the Retro Games index
+	// (<data_dir>/retrogames/retrogames.db). Besides the rebuildable game index
+	// it holds the user's favorites, plays and broken markers.
+	RetroGamesDirName    = "retrogames"
+	RetroGamesDBFilename = "retrogames.db"
 )
 
 // FlowsDBPath returns where the EasyDrag flow store lives: next to the Game Maker
@@ -68,6 +74,7 @@ func SQLiteDatabasePaths(cfg *Config) []string {
 			filepath.Join(dataDir, GalaxaDBFilename),
 			filepath.Join(dataDir, DesktopStoreDBFilename),
 			filepath.Join(dataDir, TresorDBFilename),
+			filepath.Join(dataDir, RetroGamesDirName, RetroGamesDBFilename),
 		)
 	}
 
@@ -78,6 +85,26 @@ func SQLiteDatabasePaths(cfg *Config) []string {
 	}
 
 	return dedupeNonEmptyPaths(paths)
+}
+
+// IsBestEffortSQLiteBackup reports whether path (one of SQLiteDatabasePaths)
+// is backed up only on a best-effort basis: a failed snapshot skips that file
+// instead of failing the whole backup. Only the Retro Games index qualifies:
+// it is rebuildable and opens lazily, so a damaged file can sit unnoticed
+// until Retro Games is used again. Paths are compared cleaned and absolute.
+func IsBestEffortSQLiteBackup(cfg *Config, path string) bool {
+	if cfg == nil || strings.TrimSpace(cfg.Directories.DataDir) == "" || strings.TrimSpace(path) == "" {
+		return false
+	}
+	want, err := filepath.Abs(filepath.Join(cfg.Directories.DataDir, RetroGamesDirName, RetroGamesDBFilename))
+	if err != nil {
+		return false
+	}
+	got, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	return got == want
 }
 
 // SQLiteProtectedPaths returns SQLite database paths plus WAL/SHM sidecars that

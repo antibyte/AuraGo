@@ -40,6 +40,7 @@ var containerProtectedOwners = []string{
 	acestep.Owner,
 	dockerutil.HomepageOwner,
 	"go2rtc",
+	"ruview",
 	dockerutil.LocalLLMOwner,
 	dockerutil.BoringGarageOwner,
 	dockerutil.CYDCreatorOwner,

@@ -26,13 +26,14 @@ func TestWebDAVStatusReportsConfigurationStates(t *testing.T) {
 			name: "missing url",
 			cfg: config.Config{
 				WebDAV: struct {
-					Enabled  bool   `yaml:"enabled"`
-					ReadOnly bool   `yaml:"readonly"`
-					AuthType string `yaml:"auth_type"`
-					URL      string `yaml:"url"`
-					Username string `yaml:"username"`
-					Password string `yaml:"-" json:"-"`
-					Token    string `yaml:"-" json:"-"`
+					ShowInFileManager bool   `yaml:"show_in_filemanager"`
+					Enabled           bool   `yaml:"enabled"`
+					ReadOnly          bool   `yaml:"readonly"`
+					AuthType          string `yaml:"auth_type"`
+					URL               string `yaml:"url"`
+					Username          string `yaml:"username"`
+					Password          string `yaml:"-" json:"-"`
+					Token             string `yaml:"-" json:"-"`
 				}{Enabled: true, AuthType: "basic", Username: "alice", Password: "secret"},
 			},
 			wantStatus: "no_url",
@@ -41,13 +42,14 @@ func TestWebDAVStatusReportsConfigurationStates(t *testing.T) {
 			name: "missing basic credentials",
 			cfg: config.Config{
 				WebDAV: struct {
-					Enabled  bool   `yaml:"enabled"`
-					ReadOnly bool   `yaml:"readonly"`
-					AuthType string `yaml:"auth_type"`
-					URL      string `yaml:"url"`
-					Username string `yaml:"username"`
-					Password string `yaml:"-" json:"-"`
-					Token    string `yaml:"-" json:"-"`
+					ShowInFileManager bool   `yaml:"show_in_filemanager"`
+					Enabled           bool   `yaml:"enabled"`
+					ReadOnly          bool   `yaml:"readonly"`
+					AuthType          string `yaml:"auth_type"`
+					URL               string `yaml:"url"`
+					Username          string `yaml:"username"`
+					Password          string `yaml:"-" json:"-"`
+					Token             string `yaml:"-" json:"-"`
 				}{Enabled: true, AuthType: "basic", URL: "https://dav.example.test/root"},
 			},
 			wantStatus: "no_credentials",
@@ -56,13 +58,14 @@ func TestWebDAVStatusReportsConfigurationStates(t *testing.T) {
 			name: "missing bearer token",
 			cfg: config.Config{
 				WebDAV: struct {
-					Enabled  bool   `yaml:"enabled"`
-					ReadOnly bool   `yaml:"readonly"`
-					AuthType string `yaml:"auth_type"`
-					URL      string `yaml:"url"`
-					Username string `yaml:"username"`
-					Password string `yaml:"-" json:"-"`
-					Token    string `yaml:"-" json:"-"`
+					ShowInFileManager bool   `yaml:"show_in_filemanager"`
+					Enabled           bool   `yaml:"enabled"`
+					ReadOnly          bool   `yaml:"readonly"`
+					AuthType          string `yaml:"auth_type"`
+					URL               string `yaml:"url"`
+					Username          string `yaml:"username"`
+					Password          string `yaml:"-" json:"-"`
+					Token             string `yaml:"-" json:"-"`
 				}{Enabled: true, AuthType: "bearer", URL: "https://dav.example.test/root"},
 			},
 			wantStatus: "no_credentials",

@@ -119,10 +119,11 @@ RUN useradd -m -u 1001 aurago \
 USER aurago
 
 # ----- exposed ports -----
-# 8088 – Web UI + REST API  (matches config.yaml server.port default)
+# 8443 – HTTPS Web UI + REST API for fresh configurations
+# 8088 – Legacy HTTP / internal loopback (config.yaml server.port)
 # 8099 – Egg HTTP server default (used by Invasion Control worker containers)
 # 8089 – Internal TCP bridge (accessed only by the agent itself)
-EXPOSE 8088 8099 8089
+EXPOSE 8443 8088 8099 8089
 
 # ----- volumes -----
 # Mount these from outside to persist state across container restarts:
@@ -132,14 +133,10 @@ EXPOSE 8088 8099 8089
 VOLUME ["/app/data", "/app/agent_workspace/workdir"]
 
 # ----- healthcheck -----
-# Uses Python (already in the image) to read the active config port and probe
-# the ready endpoint. This keeps the same image healthy both as the main AuraGo
-# container (default 8088) and as an Invasion Control egg (default 8099).
-# start-period is generous to allow VectorDB init on slow hosts (can take 3-5 min).
-# The /api/ready endpoint only returns 200 once the server is fully initialized.
-# Increased start-period to 300s (5 min) for very slow hosts or large databases.
+# The CLI probes the effective HTTP/HTTPS listener, including local certificates
+# and Egg configs (HTTP on 8099). Allow slow model/database startup.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=300s --retries=5 \
-  CMD ["python3", "-c", "import pathlib,re,urllib.request; data=pathlib.Path('/app/data/config.yaml').read_text(encoding='utf-8', errors='ignore'); m=re.search(r'(?m)^server:\\s*(?:\\n[ \\t]+[^\\n]*)*?\\n[ \\t]+port:\\s*[\\\"\\']?(\\d+)', data); port=int(m.group(1)) if m else 8088; urllib.request.urlopen('http://127.0.0.1:%d/api/ready' % port, timeout=5)"]
+  CMD ["/app/aurago", "--config", "/app/data/config.yaml", "--healthcheck", "--healthcheck-timeout", "5s"]
 
 # ----- entrypoint -----
 ENTRYPOINT ["/app/docker-entrypoint.sh"]

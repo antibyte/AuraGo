@@ -2,11 +2,8 @@ package tools
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -14,7 +11,7 @@ import (
 )
 
 var (
-	listPreferredMCPTools = MCPListTools
+	listPreferredMCPTools = MCPListToolsContext
 	callPreferredMCPTool  = MCPCallTool
 )
 
@@ -22,11 +19,11 @@ func hasPreferredMCPSelection(sel config.MCPPreferredToolSelection) bool {
 	return strings.TrimSpace(sel.Server) != "" && strings.TrimSpace(sel.Tool) != ""
 }
 
-func findPreferredMCPTool(sel config.MCPPreferredToolSelection, logger *slog.Logger) (*MCPToolInfo, error) {
+func findPreferredMCPTool(ctx context.Context, sel config.MCPPreferredToolSelection, logger *slog.Logger) (*MCPToolInfo, error) {
 	if !hasPreferredMCPSelection(sel) {
 		return nil, nil
 	}
-	tools, err := listPreferredMCPTools(strings.TrimSpace(sel.Server), logger)
+	tools, err := listPreferredMCPTools(ctx, strings.TrimSpace(sel.Server), logger)
 	if err != nil {
 		return nil, err
 	}
@@ -110,50 +107,6 @@ func buildPreferredMCPWebSearchArgs(tool *MCPToolInfo, query string, count int, 
 	return args, nil
 }
 
-func buildPreferredMCPVisionArgs(tool *MCPToolInfo, resolvedPath, prompt string) (map[string]interface{}, error) {
-	args := make(map[string]interface{})
-	props := mcpInputProperties(tool)
-
-	hasImageInput := false
-	if setFirstMatchingMCPArg(args, props, resolvedPath,
-		"file_path", "filePath",
-		"path",
-		"image_path", "imagePath",
-		"image_file", "imageFile",
-		"image_source", "imageSource",
-		"local_path", "localPath",
-		"input_path", "inputPath",
-		"image",
-		"image_url", "imageUrl",
-		"url",
-	) {
-		hasImageInput = true
-	}
-	if !hasImageInput {
-		raw, err := os.ReadFile(resolvedPath)
-		if err != nil {
-			return nil, fmt.Errorf("read image for MCP fallback: %w", err)
-		}
-		encoded := base64.StdEncoding.EncodeToString(raw)
-		if setFirstMatchingMCPArg(args, props, encoded,
-			"image_base64", "imageBase64",
-			"base64_image", "base64Image",
-			"base64",
-			"image_data", "imageData",
-			"data",
-		) {
-			hasImageInput = true
-		}
-	}
-	if !hasImageInput {
-		return nil, fmt.Errorf("preferred MCP vision tool %q does not expose a recognized image input (schema keys: %s)", tool.Name, summarizeMCPInputSchema(tool.InputSchema))
-	}
-
-	setFirstMatchingMCPArg(args, props, prompt, "prompt", "question", "query", "instruction", "text")
-	setFirstMatchingMCPArg(args, props, filepath.Base(resolvedPath), "filename", "file_name", "fileName", "name")
-	return args, nil
-}
-
 // CallPreferredMCPWebSearch routes a web search request through a user-selected MCP tool when configured.
 func CallPreferredMCPWebSearch(ctx context.Context, cfg *config.Config, query string, count int, country, lang string, logger *slog.Logger) (string, bool, error) {
 	if cfg == nil || !cfg.Agent.AllowMCP || !cfg.MCP.Enabled {
@@ -163,7 +116,7 @@ func CallPreferredMCPWebSearch(ctx context.Context, cfg *config.Config, query st
 	if !hasPreferredMCPSelection(selection) {
 		return "", false, nil
 	}
-	toolInfo, err := findPreferredMCPTool(selection, logger)
+	toolInfo, err := findPreferredMCPTool(ctx, selection, logger)
 	if err != nil {
 		return "", true, err
 	}
@@ -171,7 +124,7 @@ func CallPreferredMCPWebSearch(ctx context.Context, cfg *config.Config, query st
 	if err != nil {
 		return "", true, err
 	}
-	result, err := callPreferredMCPTool(ctx, selection.Server, selection.Tool, args, logger)
+	result, err := callDiscoveredMCPTool(ctx, toolInfo, selection, args, logger)
 	if err != nil {
 		return "", true, err
 	}
@@ -180,6 +133,9 @@ func CallPreferredMCPWebSearch(ctx context.Context, cfg *config.Config, query st
 
 // CallPreferredMCPVision routes an image analysis request through a user-selected MCP tool when configured.
 func CallPreferredMCPVision(ctx context.Context, cfg *config.Config, filePath, prompt string, logger *slog.Logger) (string, bool, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if cfg == nil || !cfg.Agent.AllowMCP || !cfg.MCP.Enabled {
 		return "", false, nil
 	}
@@ -187,7 +143,7 @@ func CallPreferredMCPVision(ctx context.Context, cfg *config.Config, filePath, p
 	if !hasPreferredMCPSelection(selection) {
 		return "", false, nil
 	}
-	toolInfo, err := findPreferredMCPTool(selection, logger)
+	toolInfo, err := findPreferredMCPTool(ctx, selection, logger)
 	if err != nil {
 		return "", true, err
 	}
@@ -195,22 +151,24 @@ func CallPreferredMCPVision(ctx context.Context, cfg *config.Config, filePath, p
 	if err != nil {
 		return "", true, err
 	}
-	stagingDir, err := os.MkdirTemp("", "aurago-mcp-vision-*")
-	if err != nil {
-		return "", true, fmt.Errorf("stage MCP vision input: %w", err)
-	}
-	defer os.RemoveAll(stagingDir)
-	stagedPath := filepath.Join(stagingDir, filepath.Base(resolvedPath))
-	if err := stageRootedToolFile(resolvedPath, stagedPath); err != nil {
-		return "", true, fmt.Errorf("stage MCP vision input: %w", err)
-	}
-	args, err := buildPreferredMCPVisionArgs(toolInfo, stagedPath, prompt)
+	args, cleanup, err := buildPreferredMCPVisionArgs(ctx, toolInfo, resolvedPath, prompt)
 	if err != nil {
 		return "", true, err
 	}
-	result, err := callPreferredMCPTool(ctx, selection.Server, selection.Tool, args, logger)
+	defer cleanup()
+	if err := ctx.Err(); err != nil {
+		return "", true, err
+	}
+	result, err := callDiscoveredMCPTool(ctx, toolInfo, selection, args, logger)
 	if err != nil {
 		return "", true, err
 	}
 	return result, true, nil
+}
+
+func callDiscoveredMCPTool(ctx context.Context, tool *MCPToolInfo, selection config.MCPPreferredToolSelection, args map[string]interface{}, logger *slog.Logger) (string, error) {
+	if tool.manager != nil {
+		return tool.manager.callTool(ctx, strings.TrimSpace(selection.Server), strings.TrimSpace(selection.Tool), args, tool.connection)
+	}
+	return callPreferredMCPTool(ctx, selection.Server, selection.Tool, args, logger)
 }

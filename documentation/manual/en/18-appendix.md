@@ -308,9 +308,12 @@ mqtt:
 # -----------------------
 meshcentral:
   enabled: false
+  readonly: true
+  allow_power_actions: false  # wake and power; also blocked while readonly is true
   url: ""
   username: ""
-  readonly: false
+  insecure: false
+  ca_file: ""                 # PEM CA; ignored when insecure is true
   blocked_operations: []      # Operations to block
 
 # Maintenance (Scheduled Tasks)

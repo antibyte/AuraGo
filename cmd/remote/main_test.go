@@ -3,6 +3,8 @@ package main
 import (
 	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -122,7 +124,7 @@ func startScriptedSupervisor(t *testing.T, answer func(auth remote.RemoteMessage
 	t.Helper()
 	frames := make(chan remote.RemoteMessage, 16)
 	upgrader := websocket.Upgrader{}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			return
@@ -144,6 +146,7 @@ func startScriptedSupervisor(t *testing.T, answer func(auth remote.RemoteMessage
 		_, _, _ = conn.ReadMessage()
 	}))
 	t.Cleanup(srv.Close)
+	trustTestSupervisor(t, srv)
 	return "ws" + strings.TrimPrefix(srv.URL, "http"), frames
 }
 
@@ -635,7 +638,7 @@ func TestRunBacksOffAfterShortSessionsAndResetsAfterStableOne(t *testing.T) {
 	// The fake supervisor authenticates every dial with a fresh signed reply
 	// bound to that dial's auth frame and hangs up immediately.
 	upgrader := websocket.Upgrader{}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			return
@@ -654,6 +657,7 @@ func TestRunBacksOffAfterShortSessionsAndResetsAfterStableOne(t *testing.T) {
 		_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 	}))
 	t.Cleanup(srv.Close)
+	trustTestSupervisor(t, srv)
 
 	// Scripted session lengths: short, short, stable, short. Run reads the
 	// clock once when a session starts and once when it ends.
@@ -733,7 +737,10 @@ func TestLoadConfigIgnoresStoredDeviceIDWithoutSharedKey(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg := loadConfig("", "tok", "")
+	cfg, err := loadConfig("", "tok", "")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if cfg.DeviceID != "" || cfg.SharedKey != "" {
 		t.Fatalf("stored device id without shared key must be ignored: %+v", cfg)
 	}
@@ -757,7 +764,10 @@ func TestLoadConfigKeepsStoredDeviceWithSharedKey(t *testing.T) {
 	sharedKey := strings.Repeat("ab", 32)
 	writeStoredConfig(t, clientConfig{SupervisorURL: "ws://supervisor.example/remote", DeviceID: "dev-1", SharedKey: sharedKey})
 
-	cfg := loadConfig("", "", "")
+	cfg, err := loadConfig("", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if cfg.DeviceID != "dev-1" || cfg.SharedKey != sharedKey {
 		t.Fatalf("enrolled device identity must be restored: %+v", cfg)
 	}
@@ -930,7 +940,7 @@ func TestRejectReplayedFrameCacheCoversFullTimestampWindow(t *testing.T) {
 func dialFrameSupervisor(t *testing.T, frames ...*remote.RemoteMessage) *websocket.Conn {
 	t.Helper()
 	upgrader := websocket.Upgrader{}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			return
@@ -946,6 +956,7 @@ func dialFrameSupervisor(t *testing.T, frames ...*remote.RemoteMessage) *websock
 		_, _, _ = conn.ReadMessage()
 	}))
 	t.Cleanup(srv.Close)
+	trustTestSupervisor(t, srv)
 	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(srv.URL, "http"), nil)
 	if err != nil {
 		t.Fatalf("dial fake supervisor: %v", err)
@@ -1168,4 +1179,15 @@ func TestStatusOutput(t *testing.T) {
 			}
 		})
 	}
+}
+
+func trustTestSupervisor(t *testing.T, srv *httptest.Server) {
+	t.Helper()
+	pool := x509.NewCertPool()
+	pool.AddCert(srv.Certificate())
+	previous := websocket.DefaultDialer
+	dialer := *previous
+	dialer.TLSClientConfig = &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}
+	websocket.DefaultDialer = &dialer
+	t.Cleanup(func() { websocket.DefaultDialer = previous })
 }

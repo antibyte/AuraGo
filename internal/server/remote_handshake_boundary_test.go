@@ -11,8 +11,8 @@ import (
 
 	"aurago/internal/remote"
 	"aurago/internal/security"
-	"aurago/internal/testutil"
 	"github.com/gorilla/websocket"
+	"net/http/httptest"
 )
 
 func TestRemoteRejectedHandshakeCannotOwnExistingReader(t *testing.T) {
@@ -39,11 +39,11 @@ func TestRemoteRejectedHandshakeCannotOwnExistingReader(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	hub := remote.NewRemoteHub(db, vault, logger)
 	s := &Server{RemoteHub: hub, Logger: logger}
-	server := testutil.NewHTTPServer(t, handleRemoteWebSocket(s))
+	server := httptest.NewTLSServer(handleRemoteWebSocket(s))
 	defer server.Close()
 	dial := func() *websocket.Conn {
 		t.Helper()
-		c, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(server.URL, "http"), http.Header{})
+		c, _, err := remoteTLSTestDialer(server).Dial("ws"+strings.TrimPrefix(server.URL, "http"), http.Header{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -51,7 +51,7 @@ func TestRemoteRejectedHandshakeCannotOwnExistingReader(t *testing.T) {
 		return c
 	}
 	good := dial()
-	auth, _ := remote.NewMessage(remote.MsgAuth, id, key, 1, remote.AuthPayload{DeviceID: id})
+	auth, _ := remote.NewMessage(remote.MsgAuth, id, key, 1, remote.AuthPayload{SecurityRevision: remote.ClientSecurityRevision, Capabilities: remote.ClassicCapabilities(), DeviceID: id})
 	if err := good.WriteJSON(auth); err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func TestRemoteRejectedHandshakeCannotOwnExistingReader(t *testing.T) {
 		t.Fatal("accepted socket not registered")
 	}
 	bad := dial()
-	invalid, _ := remote.NewMessage(remote.MsgAuth, id, strings.Repeat("b", 64), 1, remote.AuthPayload{DeviceID: id})
+	invalid, _ := remote.NewMessage(remote.MsgAuth, id, strings.Repeat("b", 64), 1, remote.AuthPayload{SecurityRevision: remote.ClientSecurityRevision, Capabilities: remote.ClassicCapabilities(), DeviceID: id})
 	if err := bad.WriteJSON(invalid); err != nil {
 		t.Fatal(err)
 	}

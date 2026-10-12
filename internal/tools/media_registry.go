@@ -247,6 +247,9 @@ func cleanupTTSMediaEntries(db *sql.DB) error {
 
 // RegisterMedia inserts a new media item. Returns the ID. Uses ON CONFLICT for hash deduplication.
 func RegisterMedia(db *sql.DB, item MediaItem) (int64, bool, error) {
+	if item.MediaType == "image" && strings.TrimSpace(item.Description) == "" {
+		item.Description = item.Prompt
+	}
 	if db == nil {
 		return 0, false, fmt.Errorf("media registry DB not initialized")
 	}

@@ -14,12 +14,24 @@ worker. Keep packaging, recovery and offline instructions in
 
 ## Ownership
 
+- File Manager cloud references keep provider, Koofr mount and relative path
+  separate through navigation, split panes, tabs, favorites, window context, clipboard and
+  drag-and-drop. Remote payloads never enter local editor/file APIs. Preserve
+  lazy mount loading, readonly previews, abortable transfers and the shared
+  Replace / Keep copy / Cancel dialog. Config visibility defaults off in all
+  locales. Policy updates preserve allowed listings; only changed storage grants
+  cancel transfers. Drops use the destination pane's identity and permissions.
+  Verify `TestDesktopCloudStorageBrowser`, `TestDesktopCloudStorageReviewBrowser` and existing File Manager
+  instance/clipboard suites; see `documentation/desktop-cloud-storage.md`.
+
 - Desktop file mutations use the shared conflict runtime: strong ETags for
   observed versions, create-only requests for new files, and explicit Replace /
   Keep copy / Cancel after a server conflict. Each editor/SDK client owns the
   version it read; a global path cache must not grant another window an overwrite.
   Adopt the server's returned path after a copy decision. Rebuild Desktop bundles
   and verify `TestDesktopFileConflictBrowser` for changes to this flow.
+  Autor keeps its own DOCX conflict actions, documented in `documentation/autor.md`:
+  Save As and reopen, with create-only rename.
 
 - File Manager paste, archive, extract and batch rename retain their originating
   instance and captured paths across dialogs and requests. Late results cannot
@@ -31,6 +43,14 @@ worker. Keep packaging, recovery and offline instructions in
   The injected receiver supports SDK-less apps and preserves normal keyboard
   events; navigation or frame disposal revokes forwarding. Verify
   `TestDesktopSDKKeyboardBridgeUsesLivePortForSDKAndLegacyApps`.
+- Desktop icon keys (Enter, Delete, F2) act on the selected icon only from the
+  desktop: a focused icon, or the page body after the last pointer press landed
+  on the desktop surface (`trackDesktopKeyboardScope`). Keys from windows,
+  menus, dialogs, widgets or the taskbar, and keys another handler already
+  consumed (`defaultPrevented`), never reach the icon; apps need no
+  `stopPropagation` workaround. Global shell shortcuts (Ctrl+K, F1, F11,
+  Alt+F4, switcher, snap) keep working inside windows. Verify
+  `TestDesktopIconShortcutsStayOnDesktopBrowser`.
 
 - Precision Workspace is an opt-in design system. Operational consumers are
   `config.html`, `dashboard.html`, `plans.html`, `missions_v2.html`,
@@ -56,6 +76,7 @@ worker. Keep packaging, recovery and offline instructions in
 
 - Escape text before every Markdown fallback. Generic image/audio/video sources use the shared same-origin media allowlist; external images become deliberate links. Preview iframes retain sandboxing. Logout sends same-origin POST.
 - Config saves bind to the sent snapshot and retain edits made while requests are in flight. Chat HTTP/SSE/recovery responses bind to session and request generation. All close gestures await the window's asynchronous guard; file dialogs remain pending while a write is in flight.
+- A Config switch handler that re-renders `#content` first sets the clicked `.toggle` to its new value (`on`, `aria-checked`), before `AuraConfigState.set`, `setDirty` or `markDirty`: their `syncFromDOM` and the bubbling document click listener still read that switch, even once detached, so a stale one reverts the draft. Deferring the re-render does not help. Verify `TestConfigRerenderingTogglesKeepDraftBrowser` with `AURAGO_RUN_BROWSER_SMOKE=1`.
 - Shared modals queue independent promises. Vault prompts have bounded expiry and cancellation, clear sensitive drafts on close, and never let late results close a newer prompt. Highlight original text nodes rather than escaped HTML.
 - Verify `TestCodeQualityBrowserBoundaries` with `AURAGO_RUN_BROWSER_SMOKE=1`, existing chat/config/Tresor browser checks and rebuilt bundles.
 
@@ -75,7 +96,7 @@ worker. Keep packaging, recovery and offline instructions in
   configuration translations aligned. See `js/desktop/apps/AGENTS.md` and
   `documentation/quick-connect-serial.md` for lifecycle and hardware acceptance.
 - Retro-Net in the Desktop Terminal follows the live `retronet_enabled` grant
-  (bootstrap and `aurago:desktop-policy`; default off, off when readonly). The
+  (bootstrap and `aurago:desktop-policy`; default on, off when readonly). The
   browser names only directory entry IDs, never a host or port. Keep all
   sixteen `desktop.terminal_retronet_*` and Config toggle translations aligned.
   See `js/desktop/apps/AGENTS.md` (Terminal), `internal/retronet/AGENTS.md`
@@ -180,6 +201,14 @@ worker. Keep packaging, recovery and offline instructions in
   `TestConfigSpeechLabFeedbackBrowser`.
   Browser links remain relative `/speech-lab/`; external mode exposes the separate
   server-side `browser_backend_url` and never links to legacy `advanced_ui_url`.
+
+- Fresh setup displays HTTPS enabled/mode/port and uses `window.isSecureContext`
+  for browser capability guidance; support and device permission remain separate.
+  HTTPS changes belong to installer/Config. Config confirms HTTPS opt-out through
+  the shared modal, preserves drafts on cancel and only persists through Save.
+  Show the restart address and navigate to its protocol/port for direct access;
+  keep proxy and unknown mapped origins. Localize every notice in all 16 locales.
+  Verify `TestHTTPSConfigOptOutBrowser` and `TestSetupHTTPSContextBrowser`.
 
 - Server Config shows reverse-proxy trust independently of local HTTPS mode and
   edits `server.https.trusted_proxy_cidrs` as a list of immediate proxy IPs or
@@ -654,6 +683,14 @@ worker. Keep packaging, recovery and offline instructions in
   Theme exit removes owned nodes/observers/timers; hidden tabs pause the clock.
   No additional render loop. Keep matching full-scene fallback posters current.
 
+
+- RuView's pinned upstream UI is regenerated through `scripts/ruview/vendor-ui.mjs`;
+  never edit vendor outputs without updating that adapter and its provenance hashes.
+  Connected services without frames show waiting, never synthetic data. Only explicit
+  synthetic sources show simulation; fresh frames recover the live state and expire
+  after ten seconds. Source probes and timers must respect connection disposal.
+  Verify `scripts/ruview/upstream.test.mjs`, `scripts/ruview/browser.test.mjs` and
+  backend `TestDashboardHealthEndpointsAreReadOnly`; keep `documentation/ruview.md` aligned.
 
 ## Work Guidance
 

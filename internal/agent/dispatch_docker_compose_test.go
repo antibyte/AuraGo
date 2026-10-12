@@ -125,6 +125,316 @@ func TestDockerComposePolicyAllowsUserContainerNamesEndingInAurago(t *testing.T)
 	}
 }
 
+// stubDockerComposeReferenceOwnership answers the Docker ownership lookups of
+// container references; the container list of the ID prefix check is empty.
+func stubDockerComposeReferenceOwnership(t *testing.T, resolve func(target string) (map[string]bool, error)) {
+	t.Helper()
+	original, originalList := dockerComposeReferenceOwnership, dockerComposeReferenceContainers
+	t.Cleanup(func() {
+		dockerComposeReferenceOwnership = original
+		dockerComposeReferenceContainers = originalList
+	})
+	dockerComposeReferenceOwnership = func(_ tools.DockerConfig, target string, _ ...string) (map[string]bool, error) {
+		return resolve(target)
+	}
+	dockerComposeReferenceContainers = func(tools.DockerConfig) ([]tools.DockerContainerListEntry, string) { return nil, "" }
+}
+
+// network_mode, pid and ipc "container:" targets (and volumes_from) are
+// resolved through Docker like the Engine resolves them: an ID prefix, a full
+// ID, a name and a renamed container with AuraGo's label all name their owner.
+// A shared PID namespace would expose the app container's environ and
+// /proc/<pid>/root; a shared network namespace its loopback services.
+func TestDockerComposePolicyResolvesContainerReferencesThroughDocker(t *testing.T) {
+	appID := strings.Repeat("a", 64)
+	llmID := strings.Repeat("b", 64)
+	vpnID := strings.Repeat("e", 64)
+	var failing bool
+	var lookups []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		switch {
+		case path == "/version":
+			_, _ = w.Write([]byte(`{"ApiVersion":"1.45","MinAPIVersion":"1.25"}`))
+			return
+		case failing:
+			http.Error(w, `{"message":"refused by the socket proxy"}`, http.StatusForbidden)
+			return
+		case strings.HasSuffix(path, "/containers/json"):
+			_, _ = w.Write([]byte(`[]`))
+			return
+		}
+		target := strings.TrimSuffix(path[strings.Index(path, "/containers/")+len("/containers/"):], "/json")
+		lookups = append(lookups, target)
+		switch {
+		case strings.HasPrefix(appID, target) || target == "renamed-app":
+			_, _ = w.Write([]byte(`{"Id":"` + appID + `","Name":"/renamed-app","Config":{"Labels":{"aurago.managed":"aurago-app"}}}`))
+		case strings.HasPrefix(llmID, target) || target == "renamed-llm":
+			_, _ = w.Write([]byte(`{"Id":"` + llmID + `","Name":"/renamed-llm","Config":{"Labels":{"aurago.managed":"local-llm"}}}`))
+		case strings.HasPrefix(vpnID, target) || target == "gluetun":
+			_, _ = w.Write([]byte(`{"Id":"` + vpnID + `","Name":"/gluetun","Config":{"Labels":{"com.docker.compose.service":"gluetun"}}}`))
+		default:
+			http.Error(w, `{"message":"No such container"}`, http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "ns/compose.yml", "services:\n  web:\n    image: alpine\n")
+	dockerCfg := tools.DockerConfig{WorkspaceDir: workspace, Host: "tcp://" + strings.TrimPrefix(server.URL, "http://")}
+	cfg := &config.Config{}
+	cfg.Docker.Enabled = true
+	useRuntimePermissionsForTest(t, cfg)
+	policy := func(resolved, command string) string {
+		stubDockerComposeResolver(t, func(string) (string, error) { return resolved, nil })
+		return dockerComposePolicy(context.Background(), cfg, dockerCfg, dockerArgs{Operation: "compose", File: "ns/compose.yml", Command: command})
+	}
+	service := func(field, target string) string {
+		return `{"services":{"web":{"image":"alpine","` + field + `":"container:` + target + `"}}}`
+	}
+	for _, field := range []string{"pid", "network_mode", "ipc"} {
+		// Docker resolves "/name" like "name".
+		for _, target := range []string{appID[:12], appID, "renamed-app", "/renamed-app", "/" + appID[:12]} {
+			for _, command := range []string{"up -d", "ps"} {
+				if got := policy(service(field, target), command); !strings.Contains(got, `"code":"docker_managed_aurago_resource"`) {
+					t.Fatalf("%s container:%s, %s = %s, want the AuraGo app refusal", field, target, command, got)
+				}
+			}
+		}
+		for _, target := range []string{llmID[:12], llmID, "renamed-llm", "/renamed-llm", "/" + llmID[:16]} {
+			for _, command := range []string{"up -d", "ps"} {
+				if got := policy(service(field, target), command); !strings.Contains(got, "managed local LLM") {
+					t.Fatalf("%s container:%s, %s = %s, want the local LLM refusal", field, target, command, got)
+				}
+			}
+		}
+		// Containers that belong to nobody protected stay usable.
+		for _, target := range []string{"gluetun", "/gluetun", vpnID[:12], "ghost"} {
+			if got := policy(service(field, target), "ps"); got != "" {
+				t.Fatalf("%s container:%s = %s, want it allowed", field, target, got)
+			}
+		}
+		// A target that is no checkable name fails closed instead of owning
+		// nothing.
+		for _, target := range []string{"//renamed-app", "bad name", "-renamed", "a..b", "x$y"} {
+			if got := policy(service(field, target), "ps"); !strings.Contains(got, `"code":"docker_ownership_unverified"`) {
+				t.Fatalf("%s container:%s = %s, want docker_ownership_unverified", field, target, got)
+			}
+		}
+	}
+	// Services of the same project are no Docker lookup.
+	lookups = nil
+	if got := policy(`{"services":{"vpn":{"image":"alpine"},"web":{"image":"alpine","network_mode":"service:vpn","pid":"service:vpn","ipc":"service:vpn"}}}`, "ps"); got != "" || len(lookups) != 0 {
+		t.Fatalf("same-project namespaces = %s (lookups %v), want allowed without a lookup", got, lookups)
+	}
+	// Docker did not answer: fail closed.
+	failing = true
+	if got := policy(service("pid", "deadbeef"), "up -d"); !strings.Contains(got, `"code":"docker_ownership_unverified"`) {
+		t.Fatalf("unverifiable pid target = %s, want docker_ownership_unverified", got)
+	}
+}
+
+// volumes_from of another container is resolved too: by ID, by a name that is
+// no service of the project and with a leading slash. (The older text check
+// already refuses every volumes_from in a Compose file; the references still
+// name them.)
+func TestDockerComposeContainerReferenceDenialCoversVolumesFrom(t *testing.T) {
+	appID := strings.Repeat("a", 12)
+	stubDockerComposeReferenceOwnership(t, func(target string) (map[string]bool, error) {
+		return map[string]bool{
+			dockerutil.AppOwner:      target == appID,
+			dockerutil.LocalLLMOwner: target == "renamed-llm",
+		}, nil
+	})
+	cases := map[string]struct {
+		resolved, want string
+	}{
+		"app container by ID":            {`{"services":{"db":{"image":"x"},"web":{"image":"alpine","volumes_from":["db","container:` + appID + `:ro"]}}}`, `"code":"docker_managed_aurago_resource"`},
+		"local LLM by name":              {`{"services":{"web":{"image":"alpine","volumes_from":["renamed-llm"]}}}`, "managed local LLM"},
+		"local LLM with a leading slash": {`{"services":{"web":{"image":"alpine","volumes_from":["container:/renamed-llm:rw"]}}}`, "managed local LLM"},
+		// Compose keeps every mode as written and the Engine accepts it.
+		"app container by ID with :z": {`{"services":{"web":{"image":"alpine","volumes_from":["container:` + appID + `:z"]}}}`, `"code":"docker_managed_aurago_resource"`},
+		"local LLM with :ro,z":        {`{"services":{"web":{"image":"alpine","volumes_from":["renamed-llm:ro,z"]}}}`, "managed local LLM"},
+		"local LLM with :cached":      {`{"services":{"web":{"image":"alpine","volumes_from":["renamed-llm:cached"]}}}`, "managed local LLM"},
+		"no checkable name":           {`{"services":{"web":{"image":"alpine","volumes_from":["container://renamed-llm"]}}}`, `"code":"docker_ownership_unverified"`},
+		"unrelated container":         {`{"services":{"web":{"image":"alpine","volumes_from":["container:gluetun:ro"]}}}`, ""},
+		"same-project service":        {`{"services":{"db":{"image":"x"},"web":{"image":"alpine","volumes_from":["db:ro"]}}}`, ""},
+	}
+	for name, tc := range cases {
+		model, err := tools.ParseDockerComposeModel(tc.resolved)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		got := dockerComposeContainerReferenceDenial(tools.DockerConfig{}, model)
+		if tc.want == "" && got != "" || tc.want != "" && !strings.Contains(got, tc.want) {
+			t.Fatalf("%s = %s, want %q", name, got, tc.want)
+		}
+	}
+}
+
+// Every owner the agent docker tool keeps exec away from is refused as a
+// Compose container reference with a coded error; the security proxy is not
+// one of them (the agent keeps its access there).
+func TestDockerComposeContainerReferenceDenialRefusesEveryProtectedOwner(t *testing.T) {
+	model, err := tools.ParseDockerComposeModel(`{"services":{"web":{"image":"alpine","pid":"container:target"}}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	codes := map[string]string{
+		"go2rtc":                     `"code":"docker_managed_go2rtc_resource"`,
+		"ruview":                     `"code":"docker_managed_ruview_resource"`,
+		dockerutil.HomepageOwner:     `"code":"docker_managed_homepage_resource"`,
+		dockerutil.BoringGarageOwner: `"code":"docker_managed_garage_resource"`,
+		dockerutil.AppOwner:          `"code":"docker_managed_aurago_resource"`,
+		dockerutil.CYDCreatorOwner:   `"code":"docker_managed_cyd_creator_resource"`,
+		dockerutil.LocalLLMOwner:     "managed local LLM",
+	}
+	for _, owner := range dockerComposeReferenceOwners {
+		if owner == dockerutil.SecurityProxyOwner {
+			t.Fatal("the security proxy must stay joinable")
+		}
+		stubDockerComposeReferenceOwnership(t, func(string) (map[string]bool, error) { return map[string]bool{owner: true}, nil })
+		got := dockerComposeContainerReferenceDenial(tools.DockerConfig{}, model)
+		if !strings.Contains(got, `"status":"error"`) {
+			t.Fatalf("owner %s = %q, want a refusal", owner, got)
+		}
+		if want, ok := codes[owner]; ok && !strings.Contains(got, want) {
+			t.Fatalf("owner %s = %s, want %s", owner, got, want)
+		}
+	}
+	stubDockerComposeReferenceOwnership(t, func(string) (map[string]bool, error) {
+		return map[string]bool{dockerutil.SecurityProxyOwner: true}, nil
+	})
+	if got := dockerComposeContainerReferenceDenial(tools.DockerConfig{}, model); got != "" {
+		t.Fatalf("the security proxy container was refused: %s", got)
+	}
+}
+
+// A short hex target that names an unprotected container today, but also
+// starts the ID of a protected one, is refused: once the unprotected container
+// is gone (between the check and up), Docker resolves it as that ID prefix.
+// One container list answers every short hex target of a call; names and full
+// IDs need no list.
+func TestDockerComposePolicyRefusesShortIDPrefixesOfProtectedContainers(t *testing.T) {
+	appID := "cafe" + strings.Repeat("a", 60)
+	cafeID := strings.Repeat("f", 64)
+	vpnID := "ab12" + strings.Repeat("e", 60)
+	var listFailing bool
+	var listCalls int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		switch {
+		case path == "/version":
+			_, _ = w.Write([]byte(`{"ApiVersion":"1.45","MinAPIVersion":"1.25"}`))
+			return
+		case strings.HasSuffix(path, "/containers/json"):
+			listCalls++
+			if listFailing {
+				http.Error(w, `{"message":"refused by the socket proxy"}`, http.StatusForbidden)
+				return
+			}
+			_, _ = w.Write([]byte(`[{"Id":"` + appID + `","Names":["/prod-app"],"Labels":{"aurago.managed":"aurago-app"}},` +
+				`{"Id":"` + cafeID + `","Names":["/cafe"],"Labels":{}},` +
+				`{"Id":"` + vpnID + `","Names":["/gluetun"],"Labels":{}}]`))
+			return
+		}
+		target := strings.TrimSuffix(path[strings.Index(path, "/containers/")+len("/containers/"):], "/json")
+		switch {
+		case target == "cafe" || strings.HasPrefix(cafeID, target):
+			// An exact name wins over an ID prefix, as in the Engine.
+			_, _ = w.Write([]byte(`{"Id":"` + cafeID + `","Name":"/cafe","Config":{"Labels":{}}}`))
+		case target == appID:
+			_, _ = w.Write([]byte(`{"Id":"` + appID + `","Name":"/prod-app","Config":{"Labels":{"aurago.managed":"aurago-app"}}}`))
+		case target == "gluetun" || strings.HasPrefix(vpnID, target):
+			_, _ = w.Write([]byte(`{"Id":"` + vpnID + `","Name":"/gluetun","Config":{"Labels":{}}}`))
+		default:
+			http.Error(w, `{"message":"No such container"}`, http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "ns/compose.yml", "services:\n  web:\n    image: alpine\n")
+	dockerCfg := tools.DockerConfig{WorkspaceDir: workspace, Host: "tcp://" + strings.TrimPrefix(server.URL, "http://")}
+	cfg := &config.Config{}
+	cfg.Docker.Enabled = true
+	useRuntimePermissionsForTest(t, cfg)
+	policy := func(resolved string) string {
+		stubDockerComposeResolver(t, func(string) (string, error) { return resolved, nil })
+		listCalls = 0
+		return dockerComposePolicy(context.Background(), cfg, dockerCfg, dockerArgs{Operation: "compose", File: "ns/compose.yml", Command: "up -d"})
+	}
+	service := func(field, target string) string {
+		return `{"services":{"web":{"image":"alpine","` + field + `":"container:` + target + `"}}}`
+	}
+	for _, field := range []string{"pid", "network_mode", "ipc"} {
+		if got := policy(service(field, "cafe")); !strings.Contains(got, `"code":"docker_compose_container_reference_ambiguous"`) {
+			t.Fatalf("%s container:cafe (also the app container's ID prefix) = %s, want the ambiguity refusal", field, got)
+		}
+	}
+	// Every volumes_from is refused earlier by the text check; the reference
+	// denial on its own refuses the prefix too.
+	volumesFrom, err := tools.ParseDockerComposeModel(`{"services":{"web":{"image":"alpine","volumes_from":["cafe:ro,z"]}}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := dockerComposeContainerReferenceDenial(dockerCfg, volumesFrom); !strings.Contains(got, `"code":"docker_compose_container_reference_ambiguous"`) {
+		t.Fatalf("volumes_from cafe:ro,z = %s, want the ambiguity refusal", got)
+	}
+	// Short hex targets that start no protected ID pass, with one list for all.
+	if got := policy(`{"services":{"web":{"image":"alpine","pid":"container:ab12","ipc":"container:ffffffffffff"}}}`); got != "" || listCalls != 1 {
+		t.Fatalf("unprotected short IDs = %s (lists %d), want allowed after one list", got, listCalls)
+	}
+	// Names that are not hex and full IDs need no list.
+	for _, target := range []string{"gluetun", cafeID} {
+		if got := policy(service("pid", target)); got != "" || listCalls != 0 {
+			t.Fatalf("pid container:%s = %s (lists %d), want allowed without a list", target, got, listCalls)
+		}
+	}
+	// The list did not answer: a short hex target fails closed, a name passes.
+	listFailing = true
+	if got := policy(service("pid", "ab12")); !strings.Contains(got, `"code":"docker_ownership_unverified"`) {
+		t.Fatalf("short ID without a container list = %s, want docker_ownership_unverified", got)
+	}
+	if got := policy(service("pid", "gluetun")); got != "" {
+		t.Fatalf("pid container:gluetun without a container list = %s, want allowed", got)
+	}
+}
+
+// config, convert and version start, join and read no container, so they skip
+// the container reference lookup and work while Docker is down; every
+// subcommand that runs or touches containers is still checked.
+func TestDockerComposePolicySkipsContainerReferencesOnlyForReadOnlySubcommands(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/version" {
+			_, _ = w.Write([]byte(`{"ApiVersion":"1.45","MinAPIVersion":"1.25"}`))
+			return
+		}
+		http.Error(w, `{"message":"refused by the socket proxy"}`, http.StatusForbidden)
+	}))
+	t.Cleanup(server.Close)
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "ns/compose.yml", "services:\n  web:\n    image: alpine\n")
+	stubDockerComposeResolver(t, func(string) (string, error) {
+		return `{"services":{"web":{"image":"alpine","pid":"container:deadbeef"}}}`, nil
+	})
+	dockerCfg := tools.DockerConfig{WorkspaceDir: workspace, Host: "tcp://" + strings.TrimPrefix(server.URL, "http://")}
+	cfg := &config.Config{}
+	cfg.Docker.Enabled = true
+	useRuntimePermissionsForTest(t, cfg)
+	policy := func(command string) string {
+		return dockerComposePolicy(context.Background(), cfg, dockerCfg, dockerArgs{Operation: "compose", File: "ns/compose.yml", Command: command})
+	}
+	for _, command := range []string{"config", "config --services", "convert", "version"} {
+		if got := policy(command); got != "" {
+			t.Fatalf("%s while Docker is down = %s, want allowed", command, got)
+		}
+	}
+	for _, command := range []string{"up -d", "create", "start", "restart", "run web", "exec web sh", "ps", "logs", "down", "--profile x config"} {
+		if got := policy(command); !strings.Contains(got, `"code":"docker_ownership_unverified"`) {
+			t.Fatalf("%s while Docker is down = %s, want docker_ownership_unverified", command, got)
+		}
+	}
+}
+
 // Compose must not reach the CYD Creator builder or its volumes through any
 // subcommand (down --volumes would delete the shared cache); the test and CI
 // volumes stay usable.
@@ -162,23 +472,12 @@ func TestDockerComposePolicyRefusesTheCYDCreatorBuilderAndVolumes(t *testing.T) 
 	}
 }
 
-// stubDockerComposeReferenceOwnership answers the Docker ownership lookups of
-// container references.
-func stubDockerComposeReferenceOwnership(t *testing.T, resolve func(target string) (map[string]bool, error)) {
-	t.Helper()
-	original := dockerComposeReferenceOwnership
-	t.Cleanup(func() { dockerComposeReferenceOwnership = original })
-	dockerComposeReferenceOwnership = func(_ tools.DockerConfig, target string, _ ...string) (map[string]bool, error) {
-		return resolve(target)
-	}
-}
-
-// I1: network_mode, pid and ipc "container:" targets (and volumes_from) are
+// The CYD Creator builder as a network_mode, pid or ipc "container:" target is
 // resolved through Docker like the Engine resolves them: an ID prefix, a full
 // ID, a name and a renamed container with AuraGo's label all name their owner.
 // A shared PID namespace would expose the builder's /proc/<pid>/root (its
 // /cache) and the app container's environ.
-func TestDockerComposePolicyResolvesContainerReferencesThroughDocker(t *testing.T) {
+func TestDockerComposePolicyResolvesCYDCreatorBuilderReferencesThroughDocker(t *testing.T) {
 	builderID := strings.Repeat("c", 64)
 	appID := strings.Repeat("a", 64)
 	vpnID := strings.Repeat("e", 64)
@@ -262,9 +561,9 @@ func TestDockerComposePolicyResolvesContainerReferencesThroughDocker(t *testing.
 	}
 }
 
-// volumes_from of another container is resolved too (the older text check
-// refuses every volumes_from before; the references still name them).
-func TestDockerComposeContainerReferenceDenialCoversVolumesFrom(t *testing.T) {
+// volumes_from of the CYD Creator builder by ID is resolved too (the older
+// text check refuses every volumes_from before; the references still name them).
+func TestDockerComposeContainerReferenceDenialCoversCYDCreatorVolumesFrom(t *testing.T) {
 	stubDockerComposeReferenceOwnership(t, func(target string) (map[string]bool, error) {
 		return map[string]bool{dockerutil.CYDCreatorOwner: target == "cccccccccccc"}, nil
 	})

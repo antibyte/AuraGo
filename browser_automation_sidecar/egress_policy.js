@@ -15,6 +15,7 @@ for (const [address, prefix] of [
 const neverAllowed = new net.BlockList();
 neverAllowed.addSubnet('0.0.0.0', 8, 'ipv4');
 neverAllowed.addSubnet('169.254.0.0', 16, 'ipv4');
+neverAllowed.addSubnet('192.0.0.0', 24, 'ipv4');
 neverAllowed.addSubnet('224.0.0.0', 4, 'ipv4');
 neverAllowed.addSubnet('240.0.0.0', 4, 'ipv4');
 neverAllowed.addSubnet('::', 128, 'ipv6');

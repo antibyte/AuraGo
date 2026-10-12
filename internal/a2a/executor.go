@@ -16,6 +16,7 @@ import (
 	"aurago/internal/prompts"
 	"aurago/internal/security"
 	"aurago/internal/tools"
+	"aurago/internal/webhooks"
 
 	"github.com/a2aproject/a2a-go/v2/a2a"
 	"github.com/a2aproject/a2a-go/v2/a2asrv"
@@ -24,18 +25,19 @@ import (
 
 // ExecutorDeps holds the shared dependencies for the A2A executor.
 type ExecutorDeps struct {
-	Config       *config.Config
-	Logger       *slog.Logger
-	LLMClient    llm.ChatClient
-	ShortTermMem *memory.SQLiteMemory
-	LongTermMem  memory.VectorDB
-	Vault        *security.Vault
-	Guardian     *security.Guardian
-	Registry     *tools.ProcessRegistry
-	Manifest     *tools.Manifest
-	KG           *memory.KnowledgeGraph
-	InventoryDB  *sql.DB
-	Budget       *budget.Tracker
+	Config         *config.Config
+	Logger         *slog.Logger
+	LLMClient      llm.ChatClient
+	ShortTermMem   *memory.SQLiteMemory
+	LongTermMem    memory.VectorDB
+	Vault          *security.Vault
+	Guardian       *security.Guardian
+	Registry       *tools.ProcessRegistry
+	Manifest       *tools.Manifest
+	KG             *memory.KnowledgeGraph
+	InventoryDB    *sql.DB
+	Budget         *budget.Tracker
+	WebhookManager *webhooks.Manager
 }
 
 // Executor implements a2asrv.AgentExecutor, bridging A2A requests to AuraGo's agent loop.
@@ -128,6 +130,7 @@ func (e *Executor) Execute(ctx context.Context, execCtx *a2asrv.ExecutorContext)
 			IsMaintenance:        false,
 			IsCoAgent:            true,
 			MessageSource:        "a2a",
+			WebhookManager:       e.deps.WebhookManager,
 		}
 
 		broker := &agent.NoopBroker{}

@@ -19,6 +19,8 @@ func TestFileManagerWindowAsyncAndRenameBrowser(t *testing.T) {
 		"js/desktop/file-manager/tabs.js",
 		"js/desktop/file-manager/preview-panel.js",
 		"js/desktop/file-manager/advanced-actions.js",
+		"js/desktop/file-manager/storage.js",
+		"js/desktop/file-manager/storage-actions.js",
 		"js/desktop/file-manager/lifecycle-export.js",
 	}
 	var bundle strings.Builder

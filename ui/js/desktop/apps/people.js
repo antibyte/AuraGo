@@ -102,6 +102,7 @@
             </div>
         </div>`;
 
+        inst.cleanup.push(window.AuraGogDesktop?.attachSources(host, 'contacts', context) || (() => {}));
         wireEvents(inst);
         loadData(inst);
     }

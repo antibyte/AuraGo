@@ -43,6 +43,7 @@ var plaintextSecretVaultPaths = map[string]string{
 	"paperless_ngx.api_token":          "paperless_ngx_api_token",
 	"proxmox.secret":                   "proxmox_secret",
 	"frigate.api_token":                "frigate_api_token",
+	"ruview.api_token":                 "ruview_api_token",
 	"github.token":                     "github_token",
 	"rocketchat.auth_token":            "rocketchat_auth_token",
 	"mqtt.password":                    "mqtt_password",

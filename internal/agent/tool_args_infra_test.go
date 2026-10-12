@@ -47,6 +47,18 @@ func TestDecodeGitHubArgsUsesParamsFallback(t *testing.T) {
 	}
 }
 
+func TestGitHubIssueBodyPrefersBodyThenDescription(t *testing.T) {
+	if got := githubIssueBody("from description", ""); got != "from description" {
+		t.Fatalf("description fallback = %q", got)
+	}
+	if got := githubIssueBody("from description", "from body"); got != "from body" {
+		t.Fatalf("body precedence = %q", got)
+	}
+	if got := githubIssueBody("from description", "   "); got != "from description" {
+		t.Fatalf("blank body should fall back, got %q", got)
+	}
+}
+
 func TestDecodeCoAgentArgsUsesFallbacks(t *testing.T) {
 	tc := ToolCall{
 		Action: "co_agent",
@@ -156,6 +168,11 @@ func TestDecodeProxmoxArgsUsesFallbackHelpers(t *testing.T) {
 	if req.Operation != "task_log" {
 		t.Fatalf("Operation = %q, want task_log", req.Operation)
 	}
+	if req.node() != "" {
+		t.Fatalf("node = %q, want empty when only name is set", req.node())
+	}
+	tc.Params["node"] = "pve-node-1"
+	req = decodeProxmoxArgs(tc)
 	if req.node() != "pve-node-1" {
 		t.Fatalf("node = %q, want pve-node-1", req.node())
 	}

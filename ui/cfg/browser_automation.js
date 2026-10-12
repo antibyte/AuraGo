@@ -145,9 +145,11 @@ async function renderBrowserAutomationSection(section) {
         '</select>');
 
     html += baFieldWithHelp('config.browser_automation.cloak_proxy_label', 'help.browser_automation.cloak_proxy',
-        '<input class="field-input" type="text" value="' + escapeAttr(data.cloak_proxy || '') + '" data-path="browser_automation.cloak_proxy" placeholder="http://browser-egress:7332">');
+        '<input class="field-input" type="text" value="' + escapeAttr(data.cloak_proxy || '') + '" data-path="browser_automation.cloak_proxy" placeholder="">');
     html += baFieldWithHelp('config.browser_automation.egress_network_label', 'help.browser_automation.egress_network',
         '<input class="field-input" type="text" value="' + escapeAttr(data.egress_network || '') + '" data-path="browser_automation.egress_network" placeholder="aurago-app">');
+    html += baFieldWithHelp('config.browser_automation.outbound_network_label', 'help.browser_automation.outbound_network',
+        '<input class="field-input" type="text" value="' + escapeAttr(data.outbound_network || '') + '" data-path="browser_automation.outbound_network" placeholder="bridge">');
     html += baFieldWithHelp('config.browser_automation.private_origins_label', 'help.browser_automation.private_origins',
         '<textarea class="field-input" data-path="browser_automation.allowed_private_origins" data-type="array-lines" rows="3" placeholder="http://192.168.1.10:8123">' + escapeHtml(Array.isArray(data.allowed_private_origins) ? data.allowed_private_origins.join('\n') : '') + '</textarea>');
 

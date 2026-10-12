@@ -1068,6 +1068,15 @@
     gap: 0.75rem;
 }
 
+.pw-page[data-workspace-page="config"] #treg-section .cfg-actions-row {
+    gap: 16px;
+}
+
+.pw-page[data-workspace-page="config"] #treg-section .cfg-actions-row > :is(.field-input, .field-select) {
+    flex: 1 1 12rem;
+    width: auto;
+}
+
 /* Config-local utility classes replacing legacy inline declarations. */
 .pw-page[data-workspace-page="config"] .pw-u-hidden { display: none !important; }
 .pw-page[data-workspace-page="config"] .pw-u-flex-1 { flex: 1 1 auto; }
@@ -1652,3 +1661,5 @@
 .pw-page[data-workspace-page="config"] .config-icon-slot-119 { background-position: 90% 90.909091%; }
 .pw-page[data-workspace-page="config"] .config-icon-slot-120 { background-position: 100% 90.909091%; }
 .pw-page[data-workspace-page="config"] .config-icon-slot-121 { background-position: 0% 100%; }
+.pw-page[data-workspace-page="config"] .config-icon-slot-122 { background-position: 10% 100%; }
+.pw-page[data-workspace-page="config"] .config-icon-slot-123 { background-position: 20% 100%; }

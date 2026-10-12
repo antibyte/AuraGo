@@ -42,7 +42,7 @@ agent:
             enabled: true                 # archive originals for later retrieval
             max_age_hours: 24
             primary_output_vault: true    # use output_ref views for large native outputs
-            max_inline_chars: 6000
+            max_inline_chars: 0           # 0 = automatic from the model context
 ```
 
 ### Fields
@@ -62,7 +62,41 @@ agent:
 | `reversible.enabled` | bool | `true` | Archive original outputs so compacted results can be expanded later. |
 | `reversible.max_age_hours` | int | `24` | Cleanup age for archived original outputs. |
 | `reversible.primary_output_vault` | bool | `true` | Store large native tool results as compact views plus `output_ref` by default. |
-| `reversible.max_inline_chars` | int | `6000` | Inline outputs up to this size before using the primary output vault view. |
+| `reversible.max_inline_chars` | int | `0` | Inline outputs up to this size (UTF-8 bytes) before using the primary output vault view. `0` = automatic (see below); a positive value fixes the limit. |
+
+### Primary output vault and the inline limit
+
+A successful native tool result larger than the inline limit is archived; the
+model receives a vault reply with an `output_ref`, a short size summary and a
+view of the output, and reads more with `read_tool_output`.
+
+- **Automatic limit** (`max_inline_chars: 0`, the default): 3 % of the input
+  capacity of the tightest model route of the current request (context window
+  minus the completion reserve), counted at four bytes per token, clamped to
+  6,000–32,000 bytes. A 32k context or an unknown model stays at 6,000 bytes;
+  128k gives about 14.7 KB; 256k and larger reach about 30–32 KB. When the
+  model calls several tools in one response, each result gets the budget
+  divided by the square root of the number of calls (never below 6,000), so a
+  wide batch cannot crowd out the newest tool rounds. Escaped external output
+  (JSON or HTML wrapped as external data) runs at about 2–2.5 bytes per token,
+  so a full-size result takes up to about 5 % of the input.
+- **Fixed limit**: any positive value. Configurations written by earlier
+  templates contain `max_inline_chars: 6000` and keep that fixed limit; set `0`
+  to switch them to the automatic limit.
+- **Vault view**: the reply uses nearly the whole limit. Output with at least
+  12 lines shows its head and its tail (logs end with their verdict) around an
+  omission line; other output shows a prefix. The reply names the exact
+  `read_tool_output` call for the rest (`view="range"` with line numbers, or
+  `offset`). Views come from the tool's own text, so escaped external data is
+  escaped only once.
+- **`read_tool_output`**: takes the `output_ref` value as `ref` (`output_ref`
+  is accepted too). The default `full` view pages through the output: every
+  reply reports `next_offset` until the end. `grep` returns matching lines and,
+  for long single-line output such as minified JSON, a window around each
+  match; `jsonpath` reads the tool's JSON; `tail` keeps the end. Every reply
+  fits the inline limit; `max_chars` (alias `limit`) shortens it further.
+- Tools that page their own answers (`local_wikipedia`) size them to the same
+  limit, so they are never archived.
 
 ### Relationship to `tool_output_limit`
 

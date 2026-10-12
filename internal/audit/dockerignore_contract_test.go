@@ -21,7 +21,7 @@ func TestRootDockerignoreKeepsSecretsAndWorktreesOutOfTheBuildContext(t *testing
 	// Every Dockerfile built with the repository root as its context
 	// (docker-compose.yml, .github/workflows) must not copy from them.
 	for _, dockerfile := range []string{
-		"Dockerfile", "Dockerfile.ansible", "Dockerfile.browser_automation", "Dockerfile.browser_egress",
+		"Dockerfile", "Dockerfile.ansible", "Dockerfile.browser_automation",
 		"deploy/docker/Dockerfile.code-studio", "deploy/docker/Dockerfile.supertonic",
 		"internal/acestep/runtime/Dockerfile", "internal/acestep/runtime/Dockerfile.vulkan",
 		"internal/rtlsdr/runtime/Dockerfile", "internal/rtlsdr/runtime/Dockerfile.fixtures",

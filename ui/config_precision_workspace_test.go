@@ -526,6 +526,7 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 		`background-image: url('/img/config-sidebar-icons.svg')`,
 		`background-size: 1100% 1200%`,
 		`.pw-page[data-workspace-page="config"] .config-icon-slot-0 { background-position: 0% 0%; }`,
+		`.pw-page[data-workspace-page="config"] .config-icon-slot-110 { background-position: 0% 90.909091%; }`,
 		`.pw-page[data-workspace-page="config"] .config-icon-slot-121 { background-position: 0% 100%; }`,
 	} {
 		if !strings.Contains(css, marker) {

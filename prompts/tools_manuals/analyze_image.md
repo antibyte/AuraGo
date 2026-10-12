@@ -35,7 +35,8 @@ Provide exactly one of `file_path` or `image_url`.
 ```
 
 ### Notes
-- The file must exist on the local filesystem within the workspace
+- The file must exist within the workspace, or match an existing, non-deleted image in AuraGo's Media Registry. Registered images accept their exact local path or `/files/...` web path; never guess paths into the data directory.
+- AuraGo prepares registered data-directory images as bounded private inputs for native and preferred MCP vision. This does not grant filesystem access to other data files.
 - Supported formats: JPEG, PNG, GIF, WebP, BMP
 - Uses the Vision API configured in `config.yaml` (vision section)
 - Large images are base64-encoded and sent directly; keep file sizes reasonable

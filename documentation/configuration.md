@@ -158,7 +158,7 @@ agent:
         reversible:
             enabled: true
             primary_output_vault: true
-            max_inline_chars: 6000
+            max_inline_chars: 0      # 0 = automatic from the model context (6000-32000 bytes)
 ```
 
 > See [output_compression.md](output_compression.md) for details.
@@ -476,7 +476,7 @@ Paths for AuraGo's SQLite databases. Long-term semantic memory is **not** stored
 | `push_path` | `"./data/push.db"` | Push notifications |
 | `launchpad_path` | `"./data/launchpad.db"` | Launchpad apps |
 
-Additional SQLite files under `directories.data_dir` are also backed up when present: `system_tasks.db`, `galaxa.db`, and `desktop_store.db`.
+Additional SQLite files under `directories.data_dir` are also backed up when present: `system_tasks.db`, `galaxa.db`, `desktop_store.db`, `tresor.db`, and `retrogames/retrogames.db` (the Retro Games index with favorites and history).
 
 ---
 

@@ -10,6 +10,13 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 
 ## Local Contracts
 
+- Desktop cloud transfers use `StatStoragePath` for fresh rooted metadata,
+  `CreateStorageDirectory` for exclusive directory creation,
+  `WriteFileStreamConditional` for bounded publication, and
+  `RemoveStorageSource` for versioned file / empty-directory cleanup. Preserve
+  Notes, managed widget and media-mount restrictions. See
+  `documentation/desktop-cloud-storage.md`; verify `TestDesktopStorage*`.
+
 - Archive create/extract use rooted operations and the same read-only/Notes gates as ordinary writes. Preflight every ZIP name, mode, size/count, namespace conflict and existing target before writing; reject escaping symlinks, special files, UNC/drive and traversal names.
 - Archive listing uses the shared 10,000-entry limit before building response entries. ZIP extraction rejects normalized destination type and platform case collisions before any write.
 - Symlink targets are relative to the opened real destination parent. Workspace HTTP serving permits in-root relative or absolute symlinks only after resolving and checking their final target beneath the workspace root.
@@ -20,6 +27,10 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 - `TrashPaths` preflights the whole selection before moving any entry. Notes use `Trash/Notes/<uuid>/<original Notes subpath>` and restore that subpath. Reject root/ancestor and overlapping selections. Generic HTTP moves cannot bypass Notes trash transitions; older ordinary Trash entries keep their existing interpretation.
 - SFTP paths are relative to the remote home: `normalizeSFTPRemotePath` rejects traversal, `~`, sensitive POSIX roots, Windows drive prefixes (`C:`) and UNC hosts (`//server`, `\\server`); a bare `/` or `\\` is the home.
 - On Windows `openFileNoFollow` refuses a symlink at `Lstat`, pins that entry's file ID before opening and refuses a handle that is not the same file; `O_TRUNC` is applied only after that check, so a swap between the check and the open is refused before any truncation (`TestOpenFileNoFollowRefusesEntrySwappedAfterLstat`).
+- OpenSCAD renders one export at a time. The probe container `aurago-openscad` mounts no job tree. Each export container is named `aurago-openscad-<jobID>-<export>`, bind-mounts only that job directory at `/work`, uses network `none`, drops all capabilities, sets `no-new-privileges`, a read-only rootfs, and a `/tmp` tmpfs. Cancel kills that container before `renderMu` is released. The OpenSCAD compiler default is the manifest-list pin `openscad/openscad@sha256:147e48525bec392bcf628d7a6d5ea4ccac71b16251952328f86e1061cbf47c37` (`defaultOpenSCADImage`). Config defaults and `config_template.yaml` use that same reference. A configured `virtual_desktop.openscad.image` overrides it. The image user stays the image default.
+- OpenSCAD output and save reads use `openFileNoFollow` and reject the file when its size exceeds the configured cap, before hashing. The compiler log uses that same no-follow open, reads at most 6000 bytes, and still attaches to a successful export; a symlink or other non-regular log is a short read error and its target is not included. Job-file HTTP responses set `nosniff` and `Content-Security-Policy` with `script-src 'none'`, and they keep inline disposition unless `download=1`.
+- OpenSCAD status and render JSON omit host paths. `max_concurrent_jobs` loads from YAML and the effective queue is 1. One render deadline covers every export in the request.
+- `openscad_render` refuses when the virtual desktop is read-only, with the message `virtual desktop is read-only`, before it compiles.
 
 ## Work Guidance
 

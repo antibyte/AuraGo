@@ -149,6 +149,10 @@ func validateWallpaperBySpace(value string) error {
 }
 
 func validateDesktopSetting(key, value string) error {
+	if key == "gallery.categories" {
+		_, err := parseGalleryCategories(value)
+		return err
+	}
 	for _, def := range DesktopSettingDefinitions() {
 		if def.Key != key {
 			continue

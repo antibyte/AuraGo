@@ -45,6 +45,7 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 	tools = appendMemoryToolSchemas(tools, ff)
 	tools = appendPlannerToolSchemas(tools, ff)
 	tools = appendIntegrationToolSchemas(tools, ff)
+	tools = appendGogSchemas(tools, ff)
 	tools = appendGameMakerToolSchemas(tools, ff)
 	tools = replaceMegaToolSchemasWithFocused(tools, ff)
 	tools = appendContentToolSchemas(tools, ff)
@@ -68,11 +69,12 @@ func builtinToolSchemasCached(ff ToolFeatureFlags) []openai.Tool {
 func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 	return ToolFeatureFlags{
 		HomeAssistantEnabled: true, DockerEnabled: true, CoAgentEnabled: true, SudoEnabled: true,
+		RuViewEnabled: true,
 		WebhooksEnabled: true, ProxmoxEnabled: true, FrigateEnabled: true, Go2RTCEnabled: true, ThreeDPrinterEnabled: true, OllamaEnabled: true, TailscaleEnabled: true,
 		AnsibleEnabled: true, InvasionControlEnabled: true, GitHubEnabled: true, HuggingFaceEnabled: true, MQTTEnabled: true, CydEnabled: true, NotificationEnabled: true,
 		AdGuardEnabled: true, UptimeKumaEnabled: true, GrafanaEnabled: true, MCPEnabled: true, ComposioEnabled: true, ManusEnabled: true, EvomapEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
 		HomepageEnabled: true, NetlifyEnabled: true, HereNowEnabled: true, TregEnabled: true, VercelEnabled: true, FirewallEnabled: true, EmailEnabled: true, AgentMailEnabled: true,
-		CloudflareTunnelEnabled: true, GoogleWorkspaceEnabled: true, OneDriveEnabled: true, WebDAVEnabled: true,
+		CloudflareTunnelEnabled: true, GoogleWorkspaceEnabled: true, GogEnabled: true, OneDriveEnabled: true, WebDAVEnabled: true,
 		VirusTotalEnabled: true, GolangciLintEnabled: true, ImageGenerationEnabled: true, MusicGenerationEnabled: true, VideoGenerationEnabled: true, TTSEnabled: true, RemoteControlEnabled: true, PackageManagerEnabled: true,
 		AllowShell: true, AllowPython: true, AllowFilesystemWrite: true, AllowNetworkRequests: true,
 		AllowRemoteShell: true, AllowSelfUpdate: true, HomepageAllowLocalServer: true,
@@ -86,7 +88,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		OpenSCADEnabled: true, OfficeDocumentEnabled: true, OfficeWorkbookEnabled: true, NetworkPingEnabled: true, WebScraperEnabled: true,
 		S3Enabled: true, NetworkScanEnabled: true, FormAutomationEnabled: true, UPnPScanEnabled: true,
 		MeshCoreEnabled: true,
-		RTLSDREnabled: true,
+		RTLSDREnabled:   true,
 		JellyfinEnabled: true, ChromecastEnabled: true, BluetoothEnabled: true, BluetoothWriteEnabled: true, BluetoothAudioEnabled: true,
 		NetworkSharesEnabled: true, NetworkSharesCreateEnabled: true, NetworkSharesUpdateEnabled: true, NetworkSharesDeleteEnabled: true,
 		SIPPhoneEnabled: true, SIPPhoneDialEnabled: true, SIPPhoneAnswerEnabled: true, SIPPhoneDTMFEnabled: true, SIPPhoneHangupEnabled: true,
@@ -100,7 +102,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		YepAPIScrapingEnabled: true, YepAPIYouTubeEnabled: true,
 		YepAPITikTokEnabled: true, YepAPIInstagramEnabled: true,
 		YepAPIAmazonEnabled: true,
-		DaemonSkillsEnabled: true, PaperlessNGXEnabled: true, LocalWikipediaEnabled: true,
+		DaemonSkillsEnabled: true, PaperlessNGXEnabled: true, LocalWikipediaEnabled: true, RetroGamesEnabled: true, LayerlingEnabled: true,
 	}
 }
 
@@ -131,8 +133,11 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("proxmox", ff.ProxmoxEnabled)
 	appendToolFeatureKeyPart("frigate", ff.FrigateEnabled)
 	appendToolFeatureKeyPart("go2rtc", ff.Go2RTCEnabled)
+	appendToolFeatureKeyPart("ruview", ff.RuViewEnabled)
 	appendToolFeatureKeyPart("rtl_sdr", ff.RTLSDREnabled)
+	appendToolFeatureKeyPart("layerling", ff.LayerlingEnabled)
 	appendToolFeatureKeyPart("local_wikipedia", ff.LocalWikipediaEnabled)
+	appendToolFeatureKeyPart("retro_games", ff.RetroGamesEnabled)
 	appendToolFeatureKeyPart("three_d_printer", ff.ThreeDPrinterEnabled)
 	appendToolFeatureKeyPart("ollama", ff.OllamaEnabled)
 	appendToolFeatureKeyPart("tailscale", ff.TailscaleEnabled)
@@ -162,6 +167,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("agentmail", ff.AgentMailEnabled)
 	appendToolFeatureKeyPart("cloudflare_tunnel", ff.CloudflareTunnelEnabled)
 	appendToolFeatureKeyPart("google_workspace", ff.GoogleWorkspaceEnabled)
+	appendToolFeatureKeyPart("gog", ff.GogEnabled)
 	appendToolFeatureKeyPart("onedrive", ff.OneDriveEnabled)
 	appendToolFeatureKeyPart("webdav", ff.WebDAVEnabled)
 	appendToolFeatureKeyPart("virustotal", ff.VirusTotalEnabled)

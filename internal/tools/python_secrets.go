@@ -43,6 +43,7 @@ var blockedSecretPrefixes = []string{
 	"sip_",
 	"fritzbox_",
 	"go2rtc_",
+	"ruview_",
 	"local_llm_",
 	"acestep_",
 	"mqtt_",

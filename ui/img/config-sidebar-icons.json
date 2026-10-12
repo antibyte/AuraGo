@@ -975,9 +975,25 @@
       "source": "AuraGo custom Precision sidebar icon set"
     },
     {
-      "key": "cyd_creator",
+      "key": "gog",
       "slot": 121,
       "column": 0,
+      "row": 11,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "ruview",
+      "slot": 122,
+      "column": 1,
+      "row": 11,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "cyd_creator",
+      "slot": 123,
+      "column": 2,
       "row": 11,
       "source_type": "custom",
       "source": "AuraGo custom Precision sidebar icon set"

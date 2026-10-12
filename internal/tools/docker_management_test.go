@@ -3,6 +3,7 @@ package tools
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -55,6 +56,46 @@ func TestBuildDockerCreateContainerPayloadAppliesNetworkModeOption(t *testing.T)
 	}
 	if got := hostConfig["NetworkMode"]; got != "none" {
 		t.Fatalf("NetworkMode = %#v, want none", got)
+	}
+}
+
+func TestDockerContainerActionKillUsesEngineKillEndpoint(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, false)
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/"+dockerAPIVersion)
+		if r.Method == http.MethodPost && path == "/containers/aurago-openscad-oscad-job/kill" {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		t.Errorf("unexpected Docker request %s %s", r.Method, r.URL.Path)
+		w.WriteHeader(http.StatusNotFound)
+	})
+	result := DockerContainerAction(DockerConfig{Host: host}, "aurago-openscad-oscad-job", "kill", false)
+	if !strings.Contains(result, `"status":"ok"`) || !strings.Contains(result, `"action":"kill"`) {
+		t.Fatalf("kill result = %s", result)
+	}
+}
+
+func TestBuildDockerCreateContainerPayloadCarriesRootfsHardening(t *testing.T) {
+	with := buildDockerCreateContainerPayloadWithOptions("img", nil, nil, nil, nil, "no", nil, ContainerCreateOptions{
+		ReadonlyRootfs: true,
+		Tmpfs:          map[string]string{"/tmp": "rw,nosuid,size=256m"},
+	})
+	host := with["HostConfig"].(map[string]interface{})
+	if host["ReadonlyRootfs"] != true {
+		t.Fatalf("ReadonlyRootfs = %#v", host["ReadonlyRootfs"])
+	}
+	tmpfs := host["Tmpfs"].(map[string]string)
+	if tmpfs["/tmp"] != "rw,nosuid,size=256m" {
+		t.Fatalf("Tmpfs = %#v", host["Tmpfs"])
+	}
+	without := buildDockerCreateContainerPayloadWithOptions("img", nil, nil, nil, nil, "no", nil, ContainerCreateOptions{})
+	bare := without["HostConfig"].(map[string]interface{})
+	if _, ok := bare["ReadonlyRootfs"]; ok {
+		t.Fatal("ReadonlyRootfs present on the zero options")
+	}
+	if _, ok := bare["Tmpfs"]; ok {
+		t.Fatal("Tmpfs present on the zero options")
 	}
 }
 

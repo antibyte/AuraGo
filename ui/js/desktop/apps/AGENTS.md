@@ -196,6 +196,101 @@
   `desktopAuditBrowserWithAPI`, 4.5:1 text contrast; screenshots in
   `reports/local-wikipedia*/`). Server contract: `internal/localwiki/AGENTS.md`.
 
+## Retro Games
+- `retro-games-views.js`, `retro-games-player.js` and `retro-games.js` load in this
+  order with `desktop-app-retro-games.css`. The builtin `retro-games` app ("Retro
+  Games", icon `arcade` → `run`, category `games`) requires the `retro_games`
+  capability. Strings are `desktop.app_retro_games` and 81 `desktop.retro_games_*`
+  keys in all sixteen locales.
+- The app owns a scoped dark skin (`.rg-*`, neon browser + cabinet player) that is
+  identical under Standard and Fruity; fonts are the bundled Press Start 2P and
+  Px437 IBM VGA ("Retro Games VGA").
+- No `innerHTML` in the three files: archive.org titles and makers reach the DOM
+  only via `textContent`/attributes. Thumbnails load from
+  `https://archive.org/services/img/<id>` with `referrerpolicy="no-referrer"`.
+- The emulator frame is AuraGo's own player page, never archive.org's `/embed/` page (that one starts
+  every emulator muted, is cut off in a small frame and fires `load` long before the emulator runs). Its
+  URL is `PLAYER_BASE + encodeURIComponent(id)` plus `&muted=0|1&sound=<label>` (`playerURL(id, muted,
+  soundLabel)`; the label is `desktop.retro_games_click_for_sound`, rendered by the page as text), with
+  exactly `sandbox="allow-scripts allow-pointer-lock"` and `allow="fullscreen; gamepad; autoplay"` (no
+  clipboard, popups, forms or top navigation). The page (`internal/server/retro_games_player.go`) runs
+  archive.org's Emularity loader. Without `allow-same-origin` (the page's CSP carries the same sandbox) the
+  frame has an opaque origin: archive.org's code cannot read AuraGo cookies, storage, DOM or APIs and can
+  only talk to archive.org hosts. Never add `allow-same-origin`, `allow-top-navigation` or `allow-popups`,
+  and never point the frame at anything but the player route or `about:blank`. Back and window close
+  (`dispose`) point the frame at `about:blank` and remove it. The player mount is the only place that
+  frames it; the "open on archive.org" button still opens `https://archive.org/details/<id>` in a new tab.
+- Message protocol (`{ rg: 1, ... }` both ways, `postMessage` with target `'*'` because the origin is
+  opaque). Page -> app: `{ type: 'state', state: 'loading' | 'running' | 'failed' }` and
+  `{ type: 'audio', blocked: boolean }` (the page shows its own click-for-sound pill; the app ignores it).
+  App -> page: `{ type: 'mute', muted: boolean }` (the page also accepts `{ type: 'focus' }`; the app does
+  not send it). `mount` registers exactly one `message` listener and `destroy` removes it. It accepts
+  only `event.source === frame.contentWindow` with `data.rg === 1`, and then only `PLAYER_STATES`
+  (`loading`/`running`/`failed`) and a boolean `blocked`: archive.org's code runs in the same realm as the
+  page and can post any `{ rg: 1 }` message, so the content is untrusted, nothing from it is rendered or
+  logged, and a flood or out-of-order states must change nothing. `phase` enforces that: `idle` -> `loading`
+  (counted once) -> `running`; `failed` ends it from `idle` or `loading` (a script that cannot load fails
+  the page before it reports `loading`) and is final until the next start; after `running` it is ignored,
+  because a game that ran never shows "could not be started".
+- Every start (mount and each restart) builds a FRESH iframe (`makeFrame()`, `start()`) and replaces the
+  old element. Re-navigating the same iframe (`about:blank`, then the player URL) does not stop the old
+  document: it stays alive and keeps posting until the new response commits, and its messages pass
+  `event.source === frame.contentWindow` because the window object is the same (measured: dozens of stale
+  messages up to ~300 ms after the restart, a stale `failed` then stuck over the running game). A removed
+  iframe's window no longer matches `frame.contentWindow`, so what it still had queued is dropped. Never
+  restart by changing the `src` of the existing frame; `destroy()` still unloads (`about:blank`, remove).
+- States drive one bottom strip (`.rg-overlay`, `pointer-events: none`, only the hint buttons opt back
+  in, so the game stays clickable): the loading bar (`desktop.retro_games_player_loading`) from mount
+  until `running`; `failed` or no `running` within `STALL_MS` = 60 s show the hint with restart, open on
+  archive.org and mark as not starting plus `desktop.retro_games_player_failed` or
+  `desktop.retro_games_player_stalled` (a late `running` retires the stall hint). The frame's `load` event
+  and window focus/blur say nothing about the emulator and are not used. `mount(..., { stallMs })` shortens
+  the delay for tests only; they wrap `RetroGamesPlayer.mount`.
+- Sound: the mute button (🔊/🔇) sits in the marquee actions. Its label (`aria-label` and `title`) names
+  what a click does: `desktop.retro_games_sound_off` while sound plays, `desktop.retro_games_sound_on`
+  while muted. It has NO `aria-pressed` (a pressed button labelled "Sound on" reads as the opposite); the
+  icon and the `.is-muted` class show the state. The choice is kept in
+  `localStorage` key `aurago.retroGames.muted` (read and write in try/catch; blocked storage means sound
+  on), goes into the player URL (`muted=1`, also after a restart) and is posted to the running page on
+  click. A click before the page listens is repeated once the page reports `loading` (`urlMuted`).
+- The keyboard belongs to the game: `mount` focuses the frame (never Back), and restart, fullscreen,
+  favorite, broken, mute and the hint's restart/mark-broken buttons return the focus to it through
+  `focusFrame()` (the external link opens a tab and leaves it); the page moves it on to its canvas. Our
+  buttons stay in the tab order.
+- Launch argument `game` (validated `^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$`) opens the
+  player directly: `openApp('retro-games', { game })`, the existing-window hook
+  `RetroGamesApp.open`, and the `open_app` desktop event (agent tool `retro_games`).
+- Refused library changes get their own notice through `ERROR_NOTICES` in `handleError`:
+  409 `library_full` -> `desktop.retro_games_library_full`, 403 `desktop_readonly` ->
+  `desktop.retro_games_readonly` (favorites, broken markers and the sync button). A failed
+  toggle reverts, shows the notice and reloads the library and the current list. Recording a
+  play never shows `desktop_readonly` (the game still runs).
+- `showDisabled` keeps one slow passive poll (`status?passive=1`, every 30 s, on the shared
+  `st.pollTimer`, so there is only ever one timer and `dispose` clears it). When the status
+  answers enabled again, `reenable` clears the disabled state and runs the first-open path
+  (library, status, current view). Never start a sync from that poll, and never touch
+  `st.pollTimer` from `refreshStatus` while `st.disabled`.
+- The config page's "Check index" uses `status?passive=1` too: a plain status request starts
+  the first index download.
+- Verify `TestDesktopRetroGamesTranslations`, `TestDesktopRetroGamesRegistration`,
+  `TestDesktopRetroGamesViewsNeverRenderHTML`, `TestDesktopRetroGamesPlayerFrameIsLockedDown`,
+  `TestDesktopRetroGamesPlayerTrustsOnlyItsOwnFrame`, `TestDesktopRetroGamesPlayerGivesEveryStartAFreshFrame`,
+  `TestDesktopRetroGamesPlayerHasAMuteToggle`,
+  `TestDesktopRetroGamesAppLifecycle`, `TestDesktopRetroGamesPlayerGivesTheGameTheKeyboard`,
+  `TestDesktopRetroGamesStalledHintNeverCoversTheFrame` and, with `AURAGO_RUN_BROWSER_SMOKE=1`,
+  `TestDesktopRetroGamesBrowser`, `TestDesktopRetroGamesPlayerBrowser`,
+  `TestDesktopRetroGamesPlayerBrowserFailure`, `TestDesktopRetroGamesPlayerBrowserHostileMessages`,
+  `TestDesktopRetroGamesPlayerBrowserRestartIgnoresTheOldPage` (holds the player route and makes zero-delay
+  timers microtasks, so the old-document race is certain instead of lucky) and
+  `TestDesktopRetroGamesBrowserStalledHint`. They drive the real shell (`desktopAuditBrowserWith`) with the
+  REAL player page (`server.ServeRetroGamesPlayerUngated`, headers included); only archive.org's
+  `browserfs.min.js` and `loader.js` are hijacked (`page.HijackRequests()`: an empty script and a fake
+  `IALoader` that draws a test pattern, can be held back, fail or post junk). A sandboxed frame is
+  out-of-process by default and its requests never reach the page-level router, so these tests launch
+  Chrome with site isolation off (`disable-site-isolation-trials`, `disable-features=...IsolateOrigins,
+  IsolateSandboxedIframes`); reach into the frame with `el.MustFrame()`. Screenshots land in
+  `reports/retro-games/`. Server contract: `internal/retrogames/AGENTS.md`.
+
 ## Looper
 - `looper-monitor.js` precedes `looper.js`. The monitor owns the run view
   (`createRunView`), the log-delta merge (`mergeStatus`) and the history views;
@@ -1174,6 +1269,15 @@ buttons and menu popovers remain excluded from those gestures.
 - Readonly omits rename/delete controls and shows the readonly hint instead of
   rendering disabled buttons. There is no upload because media mounts are
   server-side read-only.
+- `gallery-metadata.js` loads after `gallery-library.js` and before the view.
+  Descriptions/tags use the media registry via `/api/desktop/gallery/metadata`;
+  category keyword rules use the validated `gallery.categories` Desktop setting.
+  Keep optimistic version checks, rooted image reads, admin-only explicit vision,
+  vision budget accounting and Desktop revocation gates. Analyze all snapshots
+  the complete Photos library (not the filtered grid), warns above 20 photos,
+  runs sequentially and cancels on Stop/disposal/revocation. Preserve prompts,
+  source tags and unsaved editor drafts. Verify `TestGalleryMetadataBrowser`,
+  `TestDesktopGallery*`, `TestGallery*` and all 16 locales.
 - Width/height/duration are derived client-side from loaded `<img>`/`<video>`
   elements; `FileEntry` carries none. Live refresh listens to `desktop_changed`
   SSE payload paths, polls every 45 s and reloads on `visibilitychange`.
@@ -1500,7 +1604,7 @@ buttons and menu popovers remain excluded from those gestures.
   Opening a DOCX that a Writer window already shows (Files, the agent's
   `open_in_app`) focuses it and calls `reloadIfChanged()`: the window reloads
   when the file's ETag moved since load or the last save, and unsaved edits are
-  never replaced (conflict notice instead). Markdown/HTML/TXT open as a new
+  never replaced (conflict notice with Save As and reopen instead). Markdown/HTML/TXT open as a new
   import copy, so their windows never match a re-open. Verify
   `TestDesktopWriterReloadsChangedFileOnReopen` (`AURAGO_RUN_BROWSER_SMOKE=1`).
 - The Calendar is three continuations inside the shared Desktop IIFE, bundled
@@ -1517,26 +1621,36 @@ buttons and menu popovers remain excluded from those gestures.
 - Calendar contracts: views are `day`, `week`, `month`, `agenda`; view,
   sidebar and completed/cancelled filters persist in localStorage
   `aurago.desktop.calendar.prefs`. Rendering is incremental per session (no
-  full shell re-render); loading uses skeletons, failures use
-  `desktop.load_failed` plus a retry button. Reschedule (drag/drop, 15-minute
-  snap in time columns, time kept on month cells), status changes and deletes
-  are optimistic with rollback and an inline `[data-cal-snackbar]` undo; they
-  never call `showDesktopNotification`. Overdue is server-derived: moving an
-  overdue appointment into the future sends `status: 'upcoming'`. Reminder
-  presets map to `notification_at`; enabling "wake the agent" forces a reminder.
-  Single-click on a day/slot opens the editor; clicking an event opens the peek
-  popover inside `.vd-calendar-shell`. Keyboard: `T`/`Home` today, `N` new,
-  `D`/`W`/`M`/`A` views, `/` search, arrows/PageUp/PageDown navigate, arrows on
-  month cells move the roving selection, `Esc` clears search. Searching
-  switches to the agenda view and restores the previous view when cleared.
-  All shell clicks go through one delegated handler in `wireCalendarShell`
-  that matches `data-cal-*` selectors with `closest`, so the shell element
-  itself must never carry one of those attributes: the active view is exposed
-  as `data-cal-mode` and `data-cal-view` belongs to the toolbar tabs only. The
-  editor is appended to `document.body` as a modal; a document-level
-  capture `keydown` closes it on `Escape` regardless of focus and is removed
-  in `closeCalendarEditor`. The stylesheet keeps `[hidden]` authoritative
-  inside `.vd-calendar-shell`, `.vd-calendar-editor` and `.vd-calendar-peek`
+  full shell re-render); loading uses skeletons. A newer list request wins,
+  and an older response does not paint. While the document is visible, the
+  open calendar reloads at the same 60-second cadence as the current-time
+  line. The first load error shows `desktop.load_failed` and a retry button
+  only. Reschedule (drag/drop, 15-minute snap in time columns, time kept on
+  month cells), status changes and deletes are optimistic with rollback and
+  an inline `[data-cal-snackbar]` undo; they never call
+  `showDesktopNotification`. Delete commits when the undo snack ends, and
+  undo keeps the same appointment id. Overdue is server-derived: moving an
+  overdue appointment into the future sends `status: 'upcoming'`. The agenda
+  keeps overdue days that are before today. Reminder presets map to
+  `notification_at`; enabling "wake the agent" forces a reminder. Repeat
+  create sends one `appointments` array. The server inserts 1 to 30 rows in
+  one transaction. A single object POST is unchanged. A read-only desktop
+  disables create, drag, status and delete, and shows `desktop.cal_readonly`.
+  Single-click on a day/slot opens the editor; clicking an event opens the
+  peek popover inside `.vd-calendar-shell`. Keyboard: `T`/`Home` today,
+  `N` new, `D`/`W`/`M`/`A` views, `/` search, arrows/PageUp/PageDown
+  navigate, arrows on month cells move the roving selection, `Esc` clears
+  search. Searching switches to the agenda view and restores the previous
+  view when cleared. All shell clicks go through one delegated handler in
+  `wireCalendarShell` that matches `data-cal-*` selectors with `closest`, so
+  the shell element itself must never carry one of those attributes: the
+  active view is exposed as `data-cal-mode` and `data-cal-view` belongs to
+  the toolbar tabs only. The editor is appended to `document.body` as a
+  modal; a document-level capture `keydown` closes it on `Escape` regardless
+  of focus and is removed in `closeCalendarEditor`. Closing a window
+  disposes only that session's editor. The clock popup matches the local
+  calendar day. The stylesheet keeps `[hidden]` authoritative inside
+  `.vd-calendar-shell`, `.vd-calendar-editor` and `.vd-calendar-peek`
   because several fields use flex/grid classes. Verify with
   `go test ./ui -run TestDesktopCalendar` (the browser flow needs
   `AURAGO_RUN_BROWSER_SMOKE=1`).
@@ -1903,6 +2017,9 @@ registration lives in `internal/desktop/types.go`.
   window owns its engine/worker, requests, panels, chart canvases, operation
   journal and save queue. Load OfficeSession, data, panels and charts before
   sheets.js. The local vendor build imports only Apache-2.0 Univer OSS 1.0.3.
+- Resolve the engine import and formula worker through `AuraLazyAssets.versionedURL`
+  so both match the desktop build, including after a cached pre-1.0 resource set.
+  Verify `TestDesktopSheetsVersionedAssetsBrowser` alongside the app/recovery checks.
 - Failed workbook loads release the editor/save queue and show New, Open and
   Retry actions with an error status. A confirmed 404 clears the shell's stored
   path; temporary failures retain it for retry. New uses a fresh create-only
@@ -1930,8 +2047,19 @@ registration lives in `internal/desktop/types.go`.
   owns its editor, abort controllers, panels, draft and serial save queue.
   Autosave waits 800 ms, with a five-second ceiling during continuous typing.
   Acknowledgements cover only the captured revision. Suspend the queue during
-  Save As; native writes require ETag preconditions. Keep the async close guard
-  installed until cleanup and never replace failed loads with blank content.
+  Save As and rename. Native writes require ETag preconditions. Save As probes
+  the destination: a missing file uses `If-None-Match: *`, and an existing file
+  is replaced only after confirmation with that file's `If-Match`. A failed copy
+  retries the chosen destination. Rename sends `If-None-Match: *` on
+  `PATCH /api/desktop/file` and then adopts the ETag from GET of the new path.
+  An existing name stays put and uses `desktop.fm.paste_exists`. A conflict
+  notice offers Save As and reopen; reopen confirms before discarding local
+  edits. Retry stays for load failures and transient saves of the open file.
+  A successful save clears conflict and save notices. Format paper recognizes
+  Letter and A4 in both orientations; other sizes show a non-writing custom
+  option. Format indent, hex color, highlight and image fields follow the
+  selection. Keep the async close guard installed until cleanup and never
+  replace failed loads with blank content.
 - Writer exposes New/Open after load failures and clears the persisted window
   path only on a confirmed 404. Transient errors retain it for Retry. Verify
   `TestDesktopFileLoadRecoveryBrowser` alongside the Sheets recovery check.
@@ -2452,10 +2580,15 @@ registration lives in `internal/desktop/types.go`.
   `ui/img/whitesur`, and the backend icon catalog in
   `internal/desktop/types.go`); button icons are retinted via CSS
   `--oscad-icon-filter` so they stay legible on dark glass.
-- OpenSCAD result events must filter on `window_id` when present; without it,
-  idle multi-window instances must ignore global `openscad_result` events.
+- OpenSCAD result events: a present `window_id` still selects that window
+  only. A missing `window_id` is ignored whenever more than one OpenSCAD
+  window exists, including a busy window. OpenSCAD does not listen for
+  `window` `message` events. Preview URLs must match
+  `/api/openscad/jobs/oscad-…/files/…`. SVG preview uses an image element,
+  and PDF preview uses a sandboxed iframe. The more-exports row includes AMF.
 - OpenSCAD readonly mode disables CodeMirror/`textarea` editing, defines
-  inputs, and the agent prompt.
+  inputs, and the agent prompt. Readonly mode does not apply `source_scad`
+  into the editor.
 - OpenSCAD visible UI strings use `desktop.openscad.*` keys in all
   `ui/lang/desktop/*.json` files.
 - `homepage-studio.js`, `homepage-studio-preview.js`,
@@ -2861,9 +2994,14 @@ registration lives in `internal/desktop/types.go`.
   Clear their persisted path only on confirmed 404s, retaining temporary failures
   for Retry. Verify `TestDesktopFileLoadRecoveryBrowser`.
 - `planning-gallery-music.js` - Planner/todo, gallery and Webamp music.
-  Bundled in the main shell. Todo and Gallery empty-state load failures
-  use `desktop.load_failed`. Webamp unsupported-browser errors use
-  `desktop.winamp_unsupported`; launcher `notifyError` maps the
+  Bundled in the main shell. The date field shows the civil day and omits
+  an unchanged `due_date`. Loads keep a generation and refresh every 60
+  seconds while the window is visible. Read-only mode disables edits and
+  shows `desktop.todo_readonly`. An empty filter uses `desktop.todo_empty`.
+  The three columns stack on the todo frame's inline size, not the viewport.
+  Mutation errors use `desktop.request_failed`. Todo and Gallery empty-state
+  load failures use `desktop.load_failed`. Webamp unsupported-browser errors
+  use `desktop.winamp_unsupported`; launcher `notifyError` maps the
   English sentinel and reuses `desktop.load_failed` for other
   load failures. Leave the Webamp skin unchanged. No child DOX
   file needed.
@@ -3096,23 +3234,139 @@ registration lives in `internal/desktop/types.go`.
   (`TerminalModem.MAX_QUEUE_BYTES`, 1 MiB), more skips the animation; results print
   the Hayes code plus `desktop.terminal_retronet_result_<reason>` (also the
   browser-only `local_hangup` and `lost`), and keys in the first 400 ms after a
-  result are ignored. `bbs` entries use a fixed 80×25 grid with the vendored
-  `Aura VGA` font (Px437 IBM VGA 8x16, CC BY-SA 4.0, `ui/fonts/Px437-LICENSE.txt`,
-  credited in `THIRD_PARTY_LIBRARIES.md`), a fitted font size instead of the fit
-  addon and no scrollback; `world`/SSH entries fit the window and send
-  `resize`. Retro sessions set `convertEol=false`, the shell restores `true`.
+  result are ignored. Screen geometry lives in `terminal-geometry.js`
+  (`window.TerminalGeometry`: `MODES`, `create` → `set(mode)`/`mode`/`refit`/`dispose`;
+  modes `fit`, `vt`, `bbs`, `c64`; terminal.js switches only through `setGeometry(next)`).
+  The directory and the shell use `fit`. Every Retro-Net session gets a pinned classic screen:
+  `bbs` entries 80×25, `c64` entries 40×25, Telnet `world` entries and all SSH entries (catalog
+  and own) the 80×24 VT screen `vt`. The grid is pinned synchronously, so the session URL
+  carries it (the server's first NAWS and SSH PTY size) and no `resize` frame ever follows
+  (`TerminalRetroNetSession` has no resize); `onTermResize` only redraws the directory.
+  `bbs` entries use a fixed 80×25 grid with the vendored `Aura VGA` font
+  (Px437 IBM VGA 8x16, CC BY-SA 4.0, `ui/fonts/Px437-LICENSE.txt`), `c64`
+  entries 40×25 with the vendored `Aura C64` font (C64 Pro Mono by Style,
+  `ui/fonts/C64_Pro_Mono-STYLE.woff`, unmodified under its original name,
+  licence and hashes in `ui/fonts/C64_Pro_Mono-LICENSE.txt`; the licence allows
+  `@font-face` embedding only in software provided to end users free of
+  charge, so never link or offer the
+  `.woff` as a download); both fonts are credited in `THIRD_PARTY_LIBRARIES.md`.
+  Pinned grids set `data-terminal-geometry`, wait for their font (then change
+  the size once so xterm measures the loaded font) before the first fit and
+  centre the grid with letterbox padding inside a glass border. Retro styles
+  give the `.xterm` `clamp(16px, 3%, 30px)`, which CSS resolves against the
+  width on every side (the shell keeps it); `vt` and `bbs` use a per-axis
+  border instead: `GLASS_X` 2 % of the glass width left and right, `GLASS_Y`
+  3 % of its height top and bottom, `GLASS_MIN` 12 px at the least, never more
+  than the style's padding and none in modern. It keeps the grid's corners
+  inside the glass's rounded corners (an ellipse of 5 % × 7 %) and the CRT's
+  1.8 % edge fade. `c64` keeps the style's padding. `bbs` and `c64` keep line
+  height 1 (VGA blocks come from the font) and no scrollback. `bbs` takes the
+  largest size in 0.5 px steps, down from the size its em cell allows, that
+  fits the glass. `c64` (`pixels: 8`) scales
+  by whole device pixels: font size 8k/DPR for the largest k whose grid fits,
+  so a C64 pixel is k device px. The WebGL renderer floors the measured
+  advance in device px: a width one px short gets `letterSpacing` 1 (the DOM
+  renderer after a lost WebGL context does not floor; its refit drops it
+  again). The rounded font box (ceiled) is never corrected: `lineHeight`
+  stays 1, any height mismatch tries k−1. At DPR 2 odd k always fails (cells
+  of 42/26 px), so a 960×720 window gets a 640×400 C64 screen at DPR 1 and 2;
+  with no exact k (tiny glass; DPR 1.25 below 24 px, DPR 1.5 below 24 px
+  cells) it falls back to the 0.5 px steps. Sizes come from
+  `offsetWidth`/`offsetHeight` (window animations transform the box); a refit
+  at the same k keeps the spacing, so it changes no xterm option.
+  `c64` uses xterm's alpha glyph atlas (`allowTransparency`; the opaque atlas
+  antialiases for LCD and a glyph's fringe overwrites the previous cell's edge
+  column) and refits on a DPR change (`matchMedia('(resolution: …dppx)')`).
+  Known limitation: the browser's greyscale antialiasing (seen in Chrome on
+  Windows, also on a plain canvas) softens vertical glyph edges with a faint
+  one-px halo on each side; block art stays seamless.
+  `vt` (classic services assume a VT100; towel.blinkenlights.nl draws 19-row
+  frames that a shorter screen scrolls into stale rows) has no font of its
+  own: it takes the style's font family (loaded at the style's size; the
+  style's line height is not used), keeps the 1000-line scrollback (MUD
+  players read back) with xterm's 14 px scrollbar in a strip right of the
+  grid, taken from the right letterbox where that is wide enough (the grid
+  stays centred in the glass; a narrower letterbox moves the grid left by the
+  difference), and its letterbox shows the style's background (xterm's
+  viewport, or the CRT's theme background). Font: the largest 0.5 px step whose grid fits
+  at line height 1, i.e. whose 80 columns fit the width, or whose rows fit the
+  height where they do not at line height 1 (a wide, short glass: the sides
+  take the rest; the 960×720 window and a maximized one are such glass for
+  Share Tech Mono). The search starts at the current size and moves to the
+  size the measured cells scale to, between the largest size that fit and the
+  smallest that did not; after a fit it tries one step more (whole device px
+  cells keep their size over some 0.5 px steps). `MIN_FONT_SIZE` 6 at the
+  least, clipped below that. The search measures at the current line height,
+  so rows do not collapse and spread again on screen: xterm's cell is
+  `floor(base × lineHeight)` device px, so the font's box `base` is
+  `ceil(cell / lineHeight)`. Rows: then spaced like a CRT raster to fill the
+  height: the largest device px cell height whose 24 rows fit, as
+  `lineHeight = (cell + 0.5) / base` (xterm floors the product), at most
+  `MAX_LINE_HEIGHT` 2, where a tall glass keeps a letterbox above and below;
+  a height xterm does not give is retried a px lower, twice, else line height
+  1 stays. Only while the WebGL addon is loaded (`canSpace`, `!!canvasAddon`
+  in terminal.js): its custom glyphs (`customGlyphs`, default on) draw block
+  elements and box drawing over the whole spaced cell, so they still join
+  (text glyphs sit centred in the cell). xterm's DOM renderer (modern style,
+  a lost WebGL context) draws them from the font, so `vt` keeps line height 1
+  there; the context-loss refit drops the spacing. `ceiling` keeps the last
+  fit (glass, font, spacing allowed, size, line height, grid): an unchanged
+  glass whose cells measure the same takes one probe and writes nothing
+  (every option written re-measures and rebuilds the WebGL atlas). A resize or
+  style change changes font and line height, never 80×24; the style select
+  stays enabled and a new style re-pins with its font. xterm 6.0 syncs its
+  viewport (scrollbar, scroll position) only on buffer resize and scroll
+  events, so after a fit that changed the cell the scroll position would stay
+  in the old cell height and the next wheel tick would jump by
+  `ydisp × (1 − old / new)` lines: the geometry re-syncs it the way xterm does
+  after a buffer switch (`term._core._viewport`: `_latestYDisp` cleared, then
+  `queueSync()`; private, guarded).
+  `fit` uses the fit addon at the style's font. A pinned grid stays through
+  the result; `set('fit')` (directory, shell, policy switch, directory 403)
+  restores the style's font, size and line height, which are never changed or
+  saved. The directory redraws for any grid. Retro sessions set
+  `convertEol=false`, the shell restores `true`.
+  C64 calls put on the `commodore64` style with `persist=false`
+  (never saved; dispose drops it), lock the style select (disabled, `title`
+  and an `aria-describedby` screen-reader note with
+  `desktop.terminal_retronet_style_locked`), switch to a blinking block cursor
+  on a black screen and paint the letterbox in the C64 border colour `#706DEB`.
+  The look stays through the result and is left only through `setGeometry()`
+  (directory, shell, policy switch, directory 403), which restores the saved
+  style, cursor and select. `C64_FRESH_SCREEN` (SGR reset, clear, cursor to row
+  25) goes out right before the first board byte, matching the server's PETSCII
+  model; the coordinator writes nothing during the call. After CONNECT the
+  Telnet notice and the C64 key hint (`TerminalText.wrapHints`) stay for
+  `C64_HINT_HOLD_MS` (2 s) while board output waits; a key (colour keys too,
+  forwarded) or a full queue ends the hold early, a local hang-up drops the
+  held output and a remote end shows it before the result. Colour keys
+  (`attachCustomKeyEventHandler`, live C64 calls only): Ctrl+Shift+1–8,
+  Alt+Shift+1–8 and Ctrl+Shift+9/0 by `event.code` send `ESC[64;n~`
+  (`TerminalRetroNetSession.c64ColorKey`), prevent the browser default and never
+  reach xterm. BEL in a C64 call beeps through `TerminalAudio.beep` under the
+  key-click rules, at most one tone per 150 ms and only on a running
+  AudioContext. The gap counts from the tone itself: the first BEL creates
+  the context, whose constructor can block the page for 100-200 ms, and BELs
+  parsed behind that stall add no tone. The directory marks `c64` entries `[C]` (never checked) and
+  explains the marker in its help when one is listed.
   `world` entries edit lines locally while `echo.remote` is false and suppress
   local echo and history while `echo.hidden` is true. Input leaves in UTF-8
   frames of at most 16 KiB (server read limit 64 KiB). The host-key prompt
   takes the localized letters first, then ASCII Y/N (Greek uses Latin Y/N).
   Admins manage own entries in `terminal-retronet-entries.js` (modal,
   `retronet.entries` setting): it re-reads the directory and merges before
-  saving, and also refuses `localhost` names. `terminal-text.js`
-  (`window.TerminalText`: `cellWidth`, `fitToCells(value, width, pad)`,
-  `printable`) is the single display-width source (vendored xterm's Unicode 6
-  table); `printable` strips control characters from API-provided and
-  translated strings (names, descriptions, fingerprints, host, result text)
-  before the coordinator or directory writes them. The coordinator, directory
+  saving, and also refuses `localhost` names; type `c64` always stores charset
+  `petscii` and hides the charset row. `terminal-text.js`
+  (`window.TerminalText`: `cellWidth`, `cells`, `fitToCells(value, width, pad)`,
+  `printable`, `sentences(parts)`, `wrapHints(value, width)`,
+  `wrapWords(value, width)`) is the single display-width source (vendored
+  xterm's Unicode 6 table); `printable` strips control characters
+  from API-provided and translated strings (names, descriptions, fingerprints, host,
+  result text) before the coordinator or directory writes them. The coordinator's dim
+  lines (Telnet notice, results) wrap between words at `term.cols - 1` through
+  `wrapWords` (never cut); key hints pack through `wrapHints`; the CONNECT
+  announcement joins its parts through `sentences` (a full stop only where
+  sentence punctuation, CJK included, is missing). The coordinator, directory
   and entry editor call `t(key)` without params and fill `{{name}}`
   themselves (the shared `t()` uses `replaceAll`, where `$&`/`` $` ``/`$'`
   in names would be patterns). The service's own byte
@@ -3129,10 +3383,19 @@ registration lives in `internal/desktop/types.go`.
   captures every `.xterm-screen` canvas at its CSS offset and scale;
   output is capped at DPR 1.25 and 30 fps, never stretches text to fill the tube),
   CSS bezels, and Web Audio key-clicks in `terminal-audio.js`
-  (`window.TerminalAudio.create` → `setProfile`/`setMuted`/`playKey`/`dispose`).
-  Load order: xterm.css, desktop-app-terminal.css, xterm, fit, WebGL addon,
-  styles, crt, audio, text, modem, retronet-directory, retronet-session,
-  retronet-entries, terminal.js. Scope is this app only. Reduced motion
+  (`window.TerminalAudio.create` → `setProfile`/`setMuted`/`playKey`/`beep`/`dispose`).
+  Load order (`module-loader.js`, mirrored by the browser fixtures): xterm.css,
+  desktop-app-terminal.css, then the 13 scripts `xterm.min.js`,
+  `xterm-addon-fit.min.js`, `xterm-addon-webgl.min.js`, `terminal-styles.js`,
+  `terminal-crt.js`, `terminal-audio.js`, `terminal-text.js`,
+  `terminal-geometry.js`, `terminal-modem.js`, `terminal-retronet-directory.js`,
+  `terminal-retronet-session.js`, `terminal-retronet-entries.js`, `terminal.js`.
+  The baud throttle (`TerminalModem.createThrottle`) counts units: one per code
+  point outside escapes and one per complete escape sequence; a synchronized
+  block `ESC[?2026h`...`ESC[?2026l` (the PETSCII repaints) is one unit; an
+  unterminated block ends as one unit once it holds 64 KiB, or 1 s after the
+  throttle stalled on it; the queue is scanned incrementally (each byte once)
+  and CAN/SUB cancel an escape. Scope is this app only. Reduced motion
   and `dataset.animations === 'false'` disable flicker, burn-in, animated grain, and audio.
   The native Effects dialog applies bounded sliders to the existing renderer,
   without recreating xterm or its socket. Preferences live per style in
@@ -3160,11 +3423,29 @@ registration lives in `internal/desktop/types.go`.
   socket status via `data-terminal-state`; Modern stays frameless. Keep compact
   cases inside the app without changing xterm's measured screen padding.
   Browser verification is
-  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run 'TestDesktopTerminalRetro(Net)?Browser' -count=1`
-  (styles/CRT and Retro-Net; both use `ui/desktop_terminal_harness_test.go`,
-  the Retro-Net fixture is `ui/testdata/terminal-retronet-fixture.js`).
-  Retro-Net module behaviour: `npm run test:terminal-retronet` (four Node
-  scripts, also run by `TestDesktopTerminalBehaviourScripts`).
+  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run 'TestDesktopTerminalRetro(Net(C64)?)?Browser' -count=1 -v`
+  (styles/CRT, Retro-Net and the C64 call, each in both motion modes; the
+  Retro-Net run also checks the 80×24 VT screen: 80×24 in the session URL,
+  rows filling at least 95 % of the height inside the glass border at 960×720
+  and 1600×994, a tall 600×840 window taking its font from the width with
+  spaced rows, a pixel readback of full and half blocks, a vertical and a
+  horizontal line across spaced rows without a gap (also at DPR 1.25), line
+  height 1 with rows edge to edge after a lost WebGL context and in the modern
+  style, one wheel tick in the scrollback moving as far after a refit as
+  before, a larger font in the larger window, towel-style 19-row frames
+  without stale rows, a style change, no resize frame and the style font after
+  leaving; the C64
+  grid also at DPR 1.25 and 1.5, each with a pixel readback of half-block art
+  from xterm's WebGL canvas that fails on seams; all use
+  `ui/desktop_terminal_harness_test.go`, the Retro-Net fixture is
+  `ui/testdata/terminal-retronet-fixture.js` plus
+  `ui/testdata/terminal-retronet-c64-fixture.js`, which keeps the C64 hint
+  hold's timer callback for manual release so hold checks need no deadline).
+  Retro-Net module behaviour: `npm run test:terminal-retronet` (five Node
+  scripts: modem, geometry, directory, session, entries; also run by
+  `TestDesktopTerminalBehaviourScripts`). Static contracts, the C64 font and
+  the Node scripts: `go test ./ui -run TestDesktopTerminal -count=1` (the
+  browser tests skip without `AURAGO_RUN_BROWSER_SMOKE=1`).
   WebGL/canvas failure uses CSS fallback and keeps the WebSocket. Style
   changes wait for `document.fonts.load` before changing xterm options or
   creating the canvas renderer, then fit once. Ignore stale font completions
@@ -3172,8 +3453,9 @@ registration lives in `internal/desktop/types.go`.
   `window.TerminalApp = { render, dispose }` with a per-window instances Map.
   The standalone window opens at 960x720 (4:3 CRT framing), scaling both axes
   together on smaller desktops; saved session bounds, user resizing and mobile
-  maximization remain unchanged. Browser coverage delays the C64 font on first
-  load and checks its measured glyph width as well as constrained opening sizes.
+  maximization remain unchanged. Browser coverage delays the `commodore64`
+  style's pixel font (Press Start 2P) on first load and checks its measured
+  glyph width as well as constrained opening sizes.
   Visible strings use `desktop.terminal_*` plus `desktop.terminal_style*`,
   `desktop.terminal_audio*` and `desktop.terminal_retronet_*` (including one
   description per catalog entry) in all 16 desktop locales. Package contracts:

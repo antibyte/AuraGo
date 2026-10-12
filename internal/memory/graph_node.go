@@ -109,6 +109,9 @@ func (kg *KnowledgeGraph) addNode(ctx context.Context, id, label string, propert
 	}
 	finalProps = sanitizeKnowledgeGraphNodeProperties(finalProps, isProtectedFinal != 0)
 	finalProps = validateNodeSchema(finalProps)
+	if err := checkNodeCorrectionGuards(tx, id, finalLabel, finalProps); err != nil {
+		return err
+	}
 
 	propsJSON, err := json.Marshal(finalProps)
 	if err != nil {
@@ -234,6 +237,9 @@ func (kg *KnowledgeGraph) updateNode(ctx context.Context, id, label string, prop
 		finalProps = sanitizeKnowledgeGraphNodeProperties(finalProps, existingProtected != 0)
 	}
 	finalProps = validateNodeSchema(finalProps)
+	if err := checkNodeCorrectionGuards(tx, id, finalLabel, finalProps); err != nil {
+		return nil, err
+	}
 	propsJSON, err := json.Marshal(finalProps)
 	if err != nil {
 		return nil, fmt.Errorf("marshal updated node properties: %w", err)

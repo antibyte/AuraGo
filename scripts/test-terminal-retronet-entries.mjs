@@ -2,7 +2,7 @@
 // Runs ui/js/desktop/apps/terminal-retronet-entries.js in Node with a minimal fake DOM (no npm packages) and checks the
 // own-entry editor: client-side validation mirroring internal/retronet (name and description runes and invisible
 // categories, RFC 1123 host names, IP literals and restricted ranges, ports, SSH users), the exact keys of the stored
-// document, host keys kept only while the SSH target is unchanged, the 64-entry limit, server errors shown in the
+// document, host keys kept only while the SSH target is unchanged, the 50-entry limit, server errors shown in the
 // dialog, text set only as text, delete, dismissal while a save is pending and focus return.
 // Usage: node scripts/test-terminal-retronet-entries.mjs
 import fs from 'node:fs';
@@ -317,9 +317,9 @@ async function edit(values) {
 
 // 9. Limits and server errors.
 {
-    const many = Array.from({ length: 64 }, (_, i) => ({ id: 'own-' + String(i).padStart(12, '0'), name: 'E' + i, protocol: 'telnet', host: 'bbs.example.net', port: 23, kind: 'bbs', charset: 'cp437', own: true }));
+    const many = Array.from({ length: 50 }, (_, i) => ({ id: 'own-' + String(i).padStart(12, '0'), name: 'E' + i, protocol: 'telnet', host: 'bbs.example.net', port: 23, kind: 'bbs', charset: 'cp437', own: true }));
     const full = await attempt({ name: 'One too many', host: 'bbs.example.net' }, many);
-    same('the 65th entry is refused locally', [full.problem, full.editor.calls.length], [english['desktop.terminal_retronet_error_limit'], 0]);
+    same('the 51st entry is refused locally', [full.problem, full.editor.calls.length], [english['desktop.terminal_retronet_error_limit'], 0]);
     const failing = openEditor({ own: [HOME], respond: () => Promise.reject(Object.assign(new Error('invalid desktop setting value for retronet.entries'), { status: 400 })) });
     failing.set({ name: 'Board', host: 'bbs.example.net' });
     failing.submit();
@@ -459,10 +459,67 @@ async function edit(values) {
     const malformed = await editWith({ own: [HOME], directory: () => Promise.resolve({ status: {} }) }, { name: 'Board', host: 'bbs.example.net' });
     same('a reply without entries saves nothing', [malformed.error.textContent, malformed.calls.length], ['Saving failed: ' + english['desktop.request_failed'], 0]);
     malformed.dialog.close();
-    const stored = Array.from({ length: 64 }, (_, i) => ({ id: 'own-' + String(i).padStart(12, '0'), name: 'E' + i, protocol: 'telnet', host: 'bbs.example.net', port: 23, kind: 'bbs', charset: 'cp437', own: true }));
-    const full = await editWith({ own: stored.slice(0, 63), server: stored }, { name: 'One too many', host: 'bbs.example.net' });
+    const stored = Array.from({ length: 50 }, (_, i) => ({ id: 'own-' + String(i).padStart(12, '0'), name: 'E' + i, protocol: 'telnet', host: 'bbs.example.net', port: 23, kind: 'bbs', charset: 'cp437', own: true }));
+    const full = await editWith({ own: stored.slice(0, 49), server: stored }, { name: 'One too many', host: 'bbs.example.net' });
     same('the limit counts the stored entries', [full.error.textContent, full.calls.length], [english['desktop.terminal_retronet_error_limit'], 0]);
     full.dialog.close();
+}
+
+// 11b. C64 entries (Contract C): type c64 always stores petscii and hides the character set; the UX mirror of the
+// server rule kind c64 <=> charset petscii.
+{
+    const editor = openEditor({});
+    same('the type select offers the C64 type last', editor.field('kind').children.map((option) => [option.getAttribute('value'), option.textContent]), [
+        ['bbs', t('desktop.terminal_retronet_type_bbs')], ['world', t('desktop.terminal_retronet_type_world')], ['c64', t('desktop.terminal_retronet_type_c64')]
+    ]);
+    editor.set({ charset: 'latin1' });
+    editor.set({ kind: 'c64' });
+    same('C64 hides the character set row', editor.field('charset').parent.hidden, true);
+    editor.set({ name: 'The Cabin', host: 'TheCabinBBS.com', port: '6400' });
+    editor.submit();
+    await flush();
+    same('a C64 entry stores petscii, whatever the hidden select holds', { ...editor.calls[0].doc.entries[0], id: '' }, { id: '', name: 'The Cabin', protocol: 'telnet', host: 'thecabinbbs.com', port: 6400, kind: 'c64', charset: 'petscii' });
+}
+{
+    const C64 = { id: 'own-c64board0001', name: 'C64 Board', category: 'own', protocol: 'telnet', host: 'c64.example.net', port: 6400, kind: 'c64', charset: 'petscii', own: true };
+    const editor = openEditor({ entry: C64, own: [C64] });
+    same('a stored C64 entry opens as C64 with the character set row hidden', [editor.field('kind').value, editor.field('charset').parent.hidden], ['c64', true]);
+    editor.set({ kind: 'bbs' });
+    same('switching to a mailbox shows the row with CP437', [editor.field('charset').parent.hidden, editor.field('charset').value], [false, 'cp437']);
+    editor.set({ kind: 'world' });
+    same('a text world still defaults to UTF-8', editor.field('charset').value, 'utf8');
+    editor.set({ kind: 'c64' });
+    editor.set({ protocol: 'ssh' });
+    same('SSH hides type and character set', [editor.field('kind').parent.hidden, editor.field('charset').parent.hidden, editor.field('user').parent.hidden], [true, true, false]);
+    editor.set({ protocol: 'telnet' });
+    same('back on Telnet the C64 type still hides the character set', [editor.field('kind').parent.hidden, editor.field('charset').parent.hidden], [false, true]);
+    editor.set({ kind: 'bbs' });
+    editor.submit();
+    await flush();
+    same('the edited entry is a mailbox again', { ...editor.calls[0].doc.entries[0] }, { id: C64.id, name: 'C64 Board', protocol: 'telnet', host: 'c64.example.net', port: 6400, kind: 'bbs', charset: 'cp437' });
+}
+{
+    const MIXED = { id: 'own-mixedcharset1', name: 'Mixed', protocol: 'telnet', host: 'mixed.example.net', port: 23, kind: 'bbs', charset: 'petscii', own: true };
+    const NOPET = { id: 'own-c64nopetscii', name: 'C64 without petscii', protocol: 'telnet', host: 'c64.example.org', port: 6400, kind: 'c64', charset: 'cp437', own: true };
+    const editor = await editWith({ own: [MIXED, NOPET] }, { name: 'Other', host: 'other.example.net' });
+    same('stored entries follow kind c64 <=> petscii', editor.calls[0].doc.entries.slice(0, 2).map((entry) => entry.kind + '/' + entry.charset), ['bbs/utf8', 'c64/petscii']);
+    editor.dialog.close();
+}
+// Round trips: a stored C64 entry stays c64/petscii when it is edited and when another entry is saved or deleted.
+{
+    const C64 = { id: 'own-c64roundtrip', name: 'C64 Board', category: 'own', protocol: 'telnet', host: 'c64.example.net', port: 6400, kind: 'c64', charset: 'petscii', own: true };
+    const STORED = { id: C64.id, name: C64.name, protocol: 'telnet', host: C64.host, port: 6400, kind: 'c64', charset: 'petscii' };
+    const renamed = await editWith({ entry: C64, own: [C64, MUD] }, { name: 'C64 Board II', description: 'Renamed' });
+    same('editing a C64 entry keeps c64/petscii', renamed.calls[0].doc.entries[0], { id: C64.id, name: 'C64 Board II', description: 'Renamed', protocol: 'telnet', host: C64.host, port: 6400, kind: 'c64', charset: 'petscii' });
+    same('and the saved entry handed to the coordinator is still C64', [renamed.saved[0].entry.kind, renamed.saved[0].entry.charset], ['c64', 'petscii']);
+    const other = await editWith({ entry: MUD, own: [C64, MUD] }, { name: 'Mud II' });
+    same('saving another entry keeps the C64 entry unchanged', other.calls[0].doc.entries[0], STORED);
+    const added = await editWith({ own: [C64] }, { name: 'New', host: 'new.example.net' });
+    same('adding an entry keeps the C64 entry unchanged', added.calls[0].doc.entries[0], STORED);
+    const remover = openEditor({ remove: true, entry: MUD, own: [C64, MUD] });
+    remover.submit();
+    await flush();
+    same('deleting another entry keeps the C64 entry unchanged', remover.calls[0].doc.entries, [STORED]);
 }
 
 // 12. Text reaches the DOM only through textContent and value: the module never parses markup.

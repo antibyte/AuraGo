@@ -2,6 +2,9 @@ package server
 
 import (
 	"aurago/internal/config"
+	"aurago/internal/security"
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -16,8 +19,8 @@ import (
 )
 
 var (
-	initExternalMCPManager     = tools.InitMCPManager
-	shutdownExternalMCPManager = tools.ShutdownMCPManager
+	initExternalMCPManager     = tools.InitMCPManagerGeneration
+	shutdownExternalMCPManager = tools.RevokeMCPManager
 	testExternalMCPServer      = tools.TestMCPServerConnectionContext
 )
 
@@ -26,15 +29,14 @@ type mcpIncomingServerFieldPresence struct {
 	AllowDestructive bool
 }
 
-func syncExternalMCPRuntime(cfg *config.Config, vault config.SecretReader, logger *slog.Logger) {
-	shutdownExternalMCPManager()
+func syncExternalMCPRuntime(cfg *config.Config, vault config.SecretReader, logger *slog.Logger, generation uint64) {
 	if cfg == nil || logger == nil {
 		return
 	}
-	if !cfg.Agent.AllowMCP || !cfg.MCP.Enabled || len(cfg.MCP.Servers) == 0 {
+	if !cfg.Agent.AllowMCP || !cfg.MCP.Enabled {
 		return
 	}
-	initExternalMCPManager(buildRuntimeMCPConfigs(cfg, vault, logger), logger)
+	initExternalMCPManager(buildRuntimeMCPConfigs(cfg, vault, logger), logger, generation)
 }
 
 // handleMCPServers dispatches GET / PUT for /api/mcp-servers.
@@ -72,6 +74,13 @@ func mcpConfigPath(s *Server) string {
 }
 
 func persistMCPSectionUpdate(s *Server, mutate func(map[string]interface{}) error) error {
+	s.CfgSaveMu.Lock()
+	defer s.CfgSaveMu.Unlock()
+	return persistMCPSectionUpdateLocked(s, mutate, nil)
+}
+
+// The caller holds CfgSaveMu through Vault/config publication and runtime replacement.
+func persistMCPSectionUpdateLocked(s *Server, mutate func(map[string]interface{}) error, mutations []vaultMutation) (err error) {
 	configPath := mcpConfigPath(s)
 	if configPath == "" {
 		return os.ErrInvalid
@@ -85,6 +94,9 @@ func persistMCPSectionUpdate(s *Server, mutate func(map[string]interface{}) erro
 	var rawCfg map[string]interface{}
 	if err := yaml.Unmarshal(data, &rawCfg); err != nil {
 		return err
+	}
+	if rawCfg == nil {
+		return fmt.Errorf("MCP configuration must be a mapping")
 	}
 
 	mcpSection, ok := rawCfg["mcp"].(map[string]interface{})
@@ -100,26 +112,56 @@ func persistMCPSectionUpdate(s *Server, mutate func(map[string]interface{}) erro
 	if err != nil {
 		return err
 	}
+	set, restore := make(map[string]string), make(map[string]string)
+	var remove, restoreRemove []string
+	if len(mutations) > 0 && s.Vault == nil {
+		return fmt.Errorf("MCP secrets require an available Vault")
+	}
+	for _, mutation := range mutations {
+		value, readErr := s.Vault.ReadSecret(mutation.key)
+		switch {
+		case readErr == nil:
+			restore[mutation.key] = value
+		case errors.Is(readErr, security.ErrSecretNotFound):
+			restoreRemove = append(restoreRemove, mutation.key)
+		default:
+			return fmt.Errorf("snapshot MCP secret: %w", readErr)
+		}
+		if mutation.delete {
+			remove = append(remove, mutation.key)
+		} else {
+			security.RegisterSensitive(mutation.value)
+			set[mutation.key] = mutation.value
+		}
+	}
+	if len(mutations) > 0 {
+		if err := s.Vault.WriteSecrets(set, remove); err != nil {
+			return fmt.Errorf("store MCP secrets: %w", err)
+		}
+		defer func() {
+			if err != nil {
+				if restoreErr := s.Vault.WriteSecrets(restore, restoreRemove); restoreErr != nil {
+					err = errors.Join(err, fmt.Errorf("restore MCP secrets: %w", restoreErr))
+				}
+			}
+		}()
+	}
 	if err := config.WriteFileAtomic(configPath, out, 0o600); err != nil {
 		return err
 	}
 
-	s.CfgMu.Lock()
 	newCfg, loadErr := config.Load(configPath)
 	if loadErr != nil {
-		s.CfgMu.Unlock()
-		return loadErr
+		return errors.Join(loadErr, config.WriteFileAtomic(configPath, data, 0o600))
 	}
 	newCfg.ConfigPath = configPath
 	newCfg.ApplyVaultSecrets(s.Vault)
 	newCfg.ApplyOAuthTokens(s.Vault)
+	s.CfgMu.Lock()
 	s.replaceConfigSnapshot(newCfg)
-	runtimeMCPConfigs := buildRuntimeMCPConfigs(newCfg, s.Vault, s.Logger)
-	shutdownExternalMCPManager()
-	if newCfg.Agent.AllowMCP && newCfg.MCP.Enabled && len(runtimeMCPConfigs) > 0 {
-		initExternalMCPManager(runtimeMCPConfigs, s.Logger)
-	}
+	generation := shutdownExternalMCPManager()
 	s.CfgMu.Unlock()
+	syncExternalMCPRuntime(newCfg, s.Vault, s.Logger, generation)
 	return nil
 }
 
@@ -161,6 +203,8 @@ func handlePutMCPServers(s *Server, w http.ResponseWriter, r *http.Request) {
 	}
 	fieldPresence := mcpIncomingServerFieldPresenceByName(body)
 
+	s.CfgSaveMu.Lock()
+	defer s.CfgSaveMu.Unlock()
 	s.CfgMu.RLock()
 	existingByName := make(map[string]config.MCPServer, len(s.Cfg.MCP.Servers))
 	for _, srv := range s.Cfg.MCP.Servers {
@@ -172,7 +216,7 @@ func handlePutMCPServers(s *Server, w http.ResponseWriter, r *http.Request) {
 	s.CfgMu.RUnlock()
 
 	// Build servers list for YAML
-	err = persistMCPSectionUpdate(s, func(mcpSection map[string]interface{}) error {
+	err = persistMCPSectionUpdateLocked(s, func(mcpSection map[string]interface{}) error {
 		serversList := make([]interface{}, len(incoming))
 		for i, srv := range incoming {
 			serverName := strings.TrimSpace(srv.Name)
@@ -236,7 +280,7 @@ func handlePutMCPServers(s *Server, w http.ResponseWriter, r *http.Request) {
 			mcpSection["enabled"] = *enabledOverride
 		}
 		return nil
-	})
+	}, nil)
 	if err != nil {
 		s.Logger.Error("Failed to marshal config after mcp-servers update", "error", err)
 		jsonError(w, "Failed to save config", http.StatusInternalServerError)
@@ -346,11 +390,33 @@ func handlePutMCPSecrets(s *Server, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	s.CfgSaveMu.Lock()
+	defer s.CfgSaveMu.Unlock()
 	s.CfgMu.RLock()
 	existing := append([]config.MCPSecret(nil), s.Cfg.MCP.Secrets...)
 	s.CfgMu.RUnlock()
 
-	if err := persistMCPSectionUpdate(s, func(mcpSection map[string]interface{}) error {
+	currentAliases := make(map[string]bool, len(normalized))
+	for _, secret := range normalized {
+		currentAliases[secret.Alias] = true
+	}
+	for _, secret := range existing {
+		alias := normalizeMCPSecretAlias(secret.Alias)
+		if alias != "" && !currentAliases[alias] {
+			deleteValues[alias] = true
+		}
+	}
+	var mutations []vaultMutation
+	for alias, value := range writeValues {
+		if !deleteValues[alias] {
+			mutations = append(mutations, vaultMutation{key: mcpSecretVaultKey(alias), value: value})
+		}
+	}
+	for alias := range deleteValues {
+		mutations = append(mutations, vaultMutation{key: mcpSecretVaultKey(alias), delete: true})
+	}
+
+	if err := persistMCPSectionUpdateLocked(s, func(mcpSection map[string]interface{}) error {
 		secretsList := make([]interface{}, 0, len(normalized))
 		for _, secret := range normalized {
 			entry := map[string]interface{}{
@@ -366,45 +432,11 @@ func handlePutMCPSecrets(s *Server, w http.ResponseWriter, r *http.Request) {
 		}
 		mcpSection["secrets"] = secretsList
 		return nil
-	}); err != nil {
+	}, mutations); err != nil {
 		s.Logger.Error("Failed to save MCP secrets metadata", "error", err)
 		jsonError(w, "Failed to save config", http.StatusInternalServerError)
 		return
 	}
-
-	currentAliases := make(map[string]bool, len(normalized))
-	for _, secret := range normalized {
-		currentAliases[secret.Alias] = true
-	}
-	for _, secret := range existing {
-		alias := normalizeMCPSecretAlias(secret.Alias)
-		if alias != "" && !currentAliases[alias] {
-			deleteValues[alias] = true
-		}
-	}
-	for alias, value := range writeValues {
-		if err := s.Vault.WriteSecret(mcpSecretVaultKey(alias), value); err != nil {
-			s.Logger.Error("Failed to write MCP secret to vault", "alias", alias, "error", err)
-			jsonError(w, "Failed to store secret in vault", http.StatusInternalServerError)
-			return
-		}
-	}
-	for alias := range deleteValues {
-		if err := s.Vault.DeleteSecret(mcpSecretVaultKey(alias)); err != nil {
-			s.Logger.Error("Failed to delete MCP secret from vault", "alias", alias, "error", err)
-			jsonError(w, "Failed to delete secret from vault", http.StatusInternalServerError)
-			return
-		}
-	}
-
-	s.CfgMu.Lock()
-	s.Cfg.MCP.Secrets = normalized
-	runtimeMCPConfigs := buildRuntimeMCPConfigs(s.Cfg, s.Vault, s.Logger)
-	shutdownExternalMCPManager()
-	if s.Cfg.Agent.AllowMCP && s.Cfg.MCP.Enabled && len(runtimeMCPConfigs) > 0 {
-		initExternalMCPManager(runtimeMCPConfigs, s.Logger)
-	}
-	s.CfgMu.Unlock()
 
 	handleGetMCPSecrets(s, w, r)
 }

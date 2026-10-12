@@ -24,6 +24,7 @@ import (
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 	"aurago/internal/vaultprompt"
+	"aurago/internal/webhooks"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -350,6 +351,10 @@ func (s *StringOrJSON) UnmarshalJSON(data []byte) error {
 
 // ToolCall represents a parsed tool invocation from the LLM.
 type ToolCall struct {
+	// Shared wire arguments keep their tool-specific shape in Params.
+	CorrectionChanges  []memory.MemoryCorrectionChange `json:"-"`
+	CorrectionEvidence []correctionEvidenceRequest     `json:"-"`
+
 	nativeCall          *openai.ToolCall
 	TransportAction     string                   `json:"-"`
 	PreparationError    string                   `json:"-"`
@@ -1117,6 +1122,7 @@ type RunConfig struct {
 	Manifest           *tools.Manifest
 	CronManager        *tools.CronManager
 	MissionManagerV2   *tools.MissionManagerV2
+	WebhookManager     *webhooks.Manager
 	CoAgentRegistry    *CoAgentRegistry
 	BudgetTracker      *budget.Tracker
 	DaemonSupervisor   *tools.DaemonSupervisor
@@ -1142,6 +1148,9 @@ type RunConfig struct {
 	MissionID            string // mission ID for logging/tracking
 	MessageSource        string // origin channel: "web_chat", "telegram", "discord", "a2a", "sms", "mission"
 	VoiceOutputActive    bool   // true when the user's speaker toggle is on
+	// SuppressOperationalNotices leaves the daily notice for ordinary chat
+	// instead of interrupting an embedded app assistant.
+	SuppressOperationalNotices bool
 	// SuppressTurnSideEffects disables derived memory, personality, journal,
 	// activity and reuse-first work for privacy-sensitive transient sessions.
 	// It preserves the historical behavior when false.

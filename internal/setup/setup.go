@@ -96,7 +96,7 @@ func Run(logger *slog.Logger) error {
 
 	logger.Info("━━━ Setup complete! ━━━")
 	logger.Info("Next steps:")
-	logger.Info("  1. Edit config.yaml with your LLM API key and preferences")
+	logger.Info("  1. Open the HTTPS address and complete the Setup Wizard; provider keys are stored in the Vault")
 	logger.Info("  2. Set AURAGO_MASTER_KEY from .env in your shell (or the service reads it automatically)")
 	logger.Info("  3. Start AuraGo: ./aurago  or  systemctl start aurago")
 
@@ -110,6 +110,10 @@ func ensureConfigFile(installDir, configPath string, logger *slog.Logger) error 
 
 	templatePath := filepath.Join(installDir, "config_template.yaml")
 	if data, err := os.ReadFile(templatePath); err == nil {
+		data, err = initialHTTPSConfig(data, runningInDocker())
+		if err != nil {
+			return err
+		}
 		if err := config.WriteFileAtomic(configPath, data, 0o600); err != nil {
 			return fmt.Errorf("failed to create config.yaml from template: %w", err)
 		}
@@ -119,7 +123,7 @@ func ensureConfigFile(installDir, configPath string, logger *slog.Logger) error 
 
 	minimalConfig := []byte(fmt.Sprintf(`# AuraGo minimal fallback config — please edit.
 server:
-  host: "0.0.0.0"
+  host: "127.0.0.1"
   port: 8088
   ui_language: en
 indexing:
@@ -131,6 +135,10 @@ indexing:
 docker:
   allow_host_access: false # fresh install; an absent key would load the legacy grandfather (true)
 `, chunking.DefaultStrategy, chunking.DefaultMaxChars, chunking.DefaultOverlapChars, chunking.DefaultMaxChunks))
+	minimalConfig, err := initialHTTPSConfig(minimalConfig, runningInDocker())
+	if err != nil {
+		return err
+	}
 	if err := config.WriteFileAtomic(configPath, minimalConfig, 0o600); err != nil {
 		return fmt.Errorf("failed to create minimal config.yaml: %w", err)
 	}
@@ -426,6 +434,7 @@ EnvironmentFile=-%s
 %s
 ReadWritePaths=%s
 PrivateTmp=true
+AmbientCapabilities=CAP_NET_BIND_SERVICE
 
 [Install]
 WantedBy=multi-user.target

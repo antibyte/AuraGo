@@ -35,6 +35,7 @@ type meshCentralClientConfig struct {
 	password   string
 	loginToken string
 	insecure   bool
+	caFile     string
 }
 
 // autoAddHomepageHistory records a project history entry when a mutating homepage
@@ -244,7 +245,7 @@ func CloseMeshCentralClient() {
 	meshCentralCachedConfigSet = false
 }
 
-func getMeshCentralClient(url, username, password, loginToken string, insecure bool, logger *slog.Logger) *meshcentral.CachedClient {
+func getMeshCentralClient(url, username, password, loginToken string, insecure bool, caFile string, logger *slog.Logger) *meshcentral.CachedClient {
 	meshCentralClientMu.Lock()
 	defer meshCentralClientMu.Unlock()
 
@@ -254,12 +255,14 @@ func getMeshCentralClient(url, username, password, loginToken string, insecure b
 		password:   password,
 		loginToken: loginToken,
 		insecure:   insecure,
+		caFile:     caFile,
 	}
 	if meshCentralCachedClient == nil || !meshCentralCachedConfigSet || meshCentralCachedConfig != cfg {
 		if meshCentralCachedClient != nil {
 			meshCentralCachedClient.Close()
 		}
 		meshCentralCachedClient = meshcentral.NewCachedClient(url, username, password, loginToken, insecure, logger)
+		meshCentralCachedClient.SetCAFile(caFile)
 		meshCentralCachedConfig = cfg
 		meshCentralCachedConfigSet = true
 	} else {
@@ -274,7 +277,7 @@ func meshCentralOutput(fields map[string]interface{}) string {
 	if err != nil {
 		return `Tool Output: {"status":"error","message":"failed to encode MeshCentral tool output"}`
 	}
-	return "Tool Output: " + string(b)
+	return "Tool Output: " + security.Scrub(string(b))
 }
 
 func meshCentralError(message string) string {
@@ -284,6 +287,14 @@ func meshCentralError(message string) string {
 func meshCentralSuccess(fields map[string]interface{}) string {
 	fields["status"] = "success"
 	return meshCentralOutput(fields)
+}
+
+func meshCentralUnconfirmed(err error) string {
+	return meshCentralOutput(map[string]interface{}{
+		"status":  "unconfirmed",
+		"message": "The request was sent, but MeshCentral did not confirm it within 5s. It may already have reached the device. Do not retry blindly.",
+		"detail":  err.Error(),
+	})
 }
 
 func meshCentralReadOnlyAllowed(op string) bool {
@@ -343,6 +354,10 @@ func meshCentralPowerActionType(req meshCentralArgs) (int, string, error) {
 // dispatchServices handles media, infrastructure management, and platform tool calls
 // (vision, transcribe, meshcentral, docker, homepage, webdav, home_assistant).
 func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (string, bool) {
+	switch tc.Action {
+	case "gog_accounts", "gog_gmail", "gog_calendar", "gog_drive", "gog_docs", "gog_sheets", "gog_slides", "gog_contacts", "gog_tasks":
+		return dispatchGog(ctx, tc, dc)
+	}
 	cfg := dc.Cfg
 	logger := dc.Logger
 	vault := dc.Vault
@@ -380,8 +395,16 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				prompt = "Describe this image in detail. What do you see? If there is text, transcribe it. If there are people, describe their actions."
 			}
 			prompt, _ = tools.PrepareVisionPrompt(prompt)
+			visionCfg := cfg
 			if hasFile {
-				if preferredResult, usedPreferred, err := dispatchPreferredMCPVision(ctx, cfg, fpath, prompt, logger); usedPreferred {
+				var cleanup func()
+				var err error
+				fpath, visionCfg, cleanup, err = prepareRegisteredVisionInput(mediaRegistryDB, cfg, fpath)
+				if err != nil {
+					return "Tool Output: " + tools.ErrorJSONf("Vision input failed: %v", err)
+				}
+				defer cleanup()
+				if preferredResult, usedPreferred, err := dispatchPreferredMCPVision(ctx, visionCfg, fpath, prompt, logger); usedPreferred {
 					if err != nil {
 						logger.Warn("[Vision] Preferred MCP vision failed, falling back to native vision", "source", source, "error", err)
 					} else {
@@ -398,10 +421,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if hasURL {
 				result, pTokens, cTokens, err = dispatchAnalyzeImageURLWithPrompt(imageURL, prompt, cfg)
 			} else {
-				result, pTokens, cTokens, err = dispatchAnalyzeImageWithPrompt(fpath, prompt, cfg)
+				result, pTokens, cTokens, err = dispatchAnalyzeImageWithPrompt(fpath, prompt, visionCfg)
 			}
 			if err != nil {
-				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Vision analysis failed: %v"}`, err)
+				return "Tool Output: " + tools.ErrorJSONf("Vision analysis failed: %v", err)
 			}
 			if budgetTracker != nil {
 				vModel := cfg.Vision.Model
@@ -454,6 +477,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if cfg.MeshCentral.ReadOnly && !meshCentralReadOnlyAllowed(op) {
 				return meshCentralError(fmt.Sprintf("MeshCentral operation '%s' blocked: meshcentral.readonly is enabled.", req.Operation))
 			}
+			if (op == "wake" || op == "power_action") && !cfg.MeshCentral.AllowPowerActions {
+				return meshCentralError(fmt.Sprintf("MeshCentral operation '%s' blocked: meshcentral.allow_power_actions is disabled.", req.Operation))
+			}
 			if op == "run_command" && !cfg.Agent.AllowRemoteShell {
 				return meshCentralError("MeshCentral run_command requires agent.allow_remote_shell=true.")
 			}
@@ -486,26 +512,36 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if pass == "" && token == "" && cfg.MeshCentral.Username != "" {
 				return meshCentralError("No password or token found. Please set 'meshcentral_password' or 'meshcentral_token' in the vault.")
 			}
+			if token != "" && pass == "" {
+				return meshCentralError("MeshCentral login token requires meshcentral_password to hold the token secret")
+			}
 
-			mcClient := getMeshCentralClient(cfg.MeshCentral.URL, cfg.MeshCentral.Username, pass, token, cfg.MeshCentral.Insecure, logger)
+			if pass != "" {
+				security.RegisterSensitive(pass)
+			}
+			if token != "" {
+				security.RegisterSensitive(token)
+			}
+
+			mcClient := getMeshCentralClient(cfg.MeshCentral.URL, cfg.MeshCentral.Username, pass, token, cfg.MeshCentral.Insecure, cfg.MeshCentral.CAFile, logger)
 
 			switch op {
 			case "server_info":
-				info, err := mcClient.ServerInfo()
+				info, err := mcClient.ServerInfoContext(ctx)
 				if err != nil {
 					return meshCentralError(fmt.Sprintf("Failed to read server info: %v", err))
 				}
 				return meshCentralSuccess(map[string]interface{}{"server_info": info})
 
 			case "list_groups":
-				meshes, err := mcClient.ListDeviceGroups()
+				meshes, err := mcClient.ListDeviceGroupsContext(ctx)
 				if err != nil {
 					return meshCentralError(fmt.Sprintf("Failed to list device groups: %v", err))
 				}
 				return meshCentralSuccess(map[string]interface{}{"groups": meshes})
 
 			case "list_devices":
-				nodes, err := mcClient.ListDevices(req.MeshID)
+				nodes, err := mcClient.ListDevicesContext(ctx, req.MeshID)
 				if err != nil {
 					return meshCentralError(fmt.Sprintf("Failed to list devices: %v", err))
 				}
@@ -515,7 +551,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if msg := meshCentralValidateNodeID(req.NodeID, "device_info"); msg != "" {
 					return meshCentralError(msg)
 				}
-				info, err := mcClient.DeviceInfo(req.NodeID)
+				info, err := mcClient.DeviceInfoContext(ctx, req.NodeID)
 				if err != nil {
 					return meshCentralError(fmt.Sprintf("Failed to read device info: %v", err))
 				}
@@ -525,7 +561,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if req.NodeID != "" && !strings.HasPrefix(req.NodeID, "node//") {
 					return meshCentralError("invalid node_id: must start with 'node//'")
 				}
-				events, err := mcClient.ListEvents(req.NodeID, req.UserID, req.Limit)
+				events, err := mcClient.ListEventsContext(ctx, req.NodeID, req.UserID, req.Limit)
 				if err != nil {
 					return meshCentralError(fmt.Sprintf("Failed to list events: %v", err))
 				}
@@ -536,8 +572,11 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					return meshCentralError(msg)
 				}
 				logger.Info("MeshCentral wake_on_lan", "node_id", req.NodeID, "session_id", sessionID)
-				result, err := mcClient.WakeOnLan([]string{req.NodeID})
+				result, err := mcClient.WakeOnLanContext(ctx, []string{req.NodeID})
 				if err != nil {
+					if strings.Contains(err.Error(), "meshcentral: unconfirmed") {
+						return meshCentralUnconfirmed(err)
+					}
 					return meshCentralError(fmt.Sprintf("Failed to send wake magic packet: %v", err))
 				}
 				return meshCentralSuccess(map[string]interface{}{"message": result})
@@ -551,8 +590,11 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					return meshCentralError(err.Error())
 				}
 				logger.Info("MeshCentral power_action", "node_id", req.NodeID, "power_action", actionName, "actiontype", actionType, "session_id", sessionID)
-				result, err := mcClient.PowerAction([]string{req.NodeID}, actionType)
+				result, err := mcClient.PowerActionContext(ctx, []string{req.NodeID}, actionType)
 				if err != nil {
+					if strings.Contains(err.Error(), "meshcentral: unconfirmed") {
+						return meshCentralUnconfirmed(err)
+					}
 					return meshCentralError(fmt.Sprintf("Failed to send power action: %v", err))
 				}
 				return meshCentralSuccess(map[string]interface{}{"message": result, "power_action": actionName, "actiontype": actionType})
@@ -564,8 +606,11 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if !strings.HasPrefix(req.NodeID, "node//") {
 					return meshCentralError("invalid node_id: must start with 'node//'")
 				}
+				if len(strings.TrimSpace(req.Command)) > meshcentral.MaxCommandBytes {
+					return meshCentralError(fmt.Sprintf("command exceeds %d bytes", meshcentral.MaxCommandBytes))
+				}
 				logger.Info("MeshCentral run_command", "node_id", req.NodeID, "command_length", len(req.Command), "session_id", sessionID)
-				result, err := mcClient.RunCommand(req.NodeID, req.Command)
+				result, err := mcClient.RunCommandContext(ctx, req.NodeID, req.Command)
 				if err != nil {
 					return meshCentralError(fmt.Sprintf("Failed to run command: %v", err))
 				}
@@ -630,7 +675,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			// checked: the agent keeps its access to the proxy container, and
 			// dockerRequestCreatesReservedSecurityProxyName refuses create/run.
 			owned, ownershipErr := tools.DockerContainerOwnership(dockerCfg, containerID,
-				acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "local-llm", dockerutil.BoringGarageOwner, dockerutil.CYDCreatorOwner, dockerutil.AppOwner, dockerutil.SecurityProxyOwner)
+				acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "ruview", "local-llm", dockerutil.BoringGarageOwner, dockerutil.CYDCreatorOwner, dockerutil.AppOwner, dockerutil.SecurityProxyOwner)
+			if !localLLMDockerOperationSafe(req.Operation) && owned["ruview"] {
+				return dockerAgentError("docker_managed_ruview_resource", "Managed RuView resources are private. Use the read-only ruview tool or administrator RuView settings.")
+			}
 			if !localLLMDockerOperationSafe(req.Operation) && owned[acestep.Owner] {
 				return dockerAgentError("docker_managed_music_resource", "Managed ACE-Step resources are private. Use generate_music or the administrator Music Generation settings.")
 			}

@@ -16,7 +16,7 @@ var desktopIntegrationRoots = map[string]bool{
 	"knowledge-graph": true, "launchpad": true, "meshcore": true, "missions": true,
 	"openscad": true, "operational-issues": true, "people": true, "personalities": true,
 	"providers": true, "radio-browser": true, "realtime-speech": true, "sip": true,
-	"speech-lab": true, "todos": true, "webhooks": true,
+	"speech-lab": true, "todos": true, "webhooks": true, "ruview": true,
 }
 
 func desktopIntegrationHandler(s *Server, routes http.Handler) http.HandlerFunc {
@@ -28,6 +28,10 @@ func desktopIntegrationHandler(s *Server, routes http.Handler) http.HandlerFunc 
 		}
 		rel := strings.TrimPrefix(r.URL.Path, prefix)
 		root, _, _ := strings.Cut(rel, "/")
+		if root == "gog" {
+			handleDesktopGog(s)(w, r)
+			return
+		}
 		if !desktopIntegrationRoots[root] || strings.ContainsAny(rel, "\\%\x00") || path.Clean(rel) != strings.TrimSuffix(rel, "/") {
 			http.NotFound(w, r)
 			return

@@ -1,5 +1,7 @@
+const fs = require('node:fs');
 const http = require('node:http');
 const net = require('node:net');
+const os = require('node:os');
 const { parseAllowedOrigins, resolveBrowserTarget } = require('./egress_policy');
 
 const port = Number(process.env.PORT || 7332);
@@ -28,10 +30,79 @@ function connectPinned(target, onConnect, onFailure) {
   upstream.once('timeout', () => upstream.destroy(new Error('egress dial timeout')));
 }
 
+function normalizeIP(value) {
+  const text = String(value || '').toLowerCase();
+  return text.startsWith('::ffff:') ? text.slice('::ffff:'.length) : text;
+}
+
+function ipv4ToInt(ip) {
+  return ip.split('.').reduce((acc, part) => ((acc << 8) + Number(part)) >>> 0, 0);
+}
+
+function sameIPv4Subnet(ip, address, netmask) {
+  if (!net.isIP(ip) || !net.isIP(address) || !net.isIP(netmask)) return false;
+  const mask = ipv4ToInt(netmask);
+  return (ipv4ToInt(ip) & mask) === (ipv4ToInt(address) & mask);
+}
+
+function defaultRouteInterface(routeText) {
+  for (const line of String(routeText || '').trim().split('\n').slice(1)) {
+    const parts = line.trim().split(/\s+/);
+    if (parts[1] === '00000000') return parts[0];
+  }
+  return '';
+}
+
+function internalInterface(routeText, interfaces) {
+  const outbound = defaultRouteInterface(routeText);
+  for (const [name, addresses] of Object.entries(interfaces || {})) {
+    if (name === 'lo' || name === outbound) continue;
+    for (const address of addresses || []) {
+      if (address && (address.family === 'IPv4' || address.family === 4) && address.address && address.netmask) {
+        return { name, address: address.address, netmask: address.netmask };
+      }
+    }
+  }
+  return null;
+}
+
+function proxyClientAllowed(remoteAddress, options) {
+  if (!options || options.bind !== 'internal') return true;
+  const remote = normalizeIP(remoteAddress);
+  if (remote === '127.0.0.1' || remote === '::1') return false;
+  if (!options.internal) return false;
+  return sameIPv4Subnet(remote, options.internal.address, options.internal.netmask);
+}
+
+let internalBind = null;
+if (process.env.AURAGO_BROWSER_EGRESS_BIND === 'internal') {
+  try {
+    internalBind = internalInterface(fs.readFileSync('/proc/net/route', 'utf8'), os.networkInterfaces());
+  } catch (_) {
+    internalBind = null;
+  }
+  if (!internalBind) {
+    console.error('egress proxy could not find an internal interface beside the default route');
+    process.exit(1);
+  }
+}
+
+function clientMayProxy(socket) {
+  return proxyClientAllowed(socket.remoteAddress, {
+    bind: process.env.AURAGO_BROWSER_EGRESS_BIND,
+    internal: internalBind,
+  });
+}
+
 const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && req.url === '/health') {
     res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
     res.end(JSON.stringify({ status: 'success', policy_version: 'egress-v1', dns_pinned: true }));
+    return;
+  }
+  if (!clientMayProxy(req.socket)) {
+    res.writeHead(403);
+    res.end();
     return;
   }
   try {
@@ -58,6 +129,10 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.on('connect', async (req, socket, head) => {
+  if (!clientMayProxy(socket)) {
+    rejectSocket(socket);
+    return;
+  }
   try {
     if (!req.url || !/^(?:\[[0-9a-f:.]+\]|[^:/?#@]+):[0-9]{1,5}$/i.test(req.url)) {
       throw new Error('invalid CONNECT authority');
@@ -74,6 +149,10 @@ server.on('connect', async (req, socket, head) => {
 });
 
 server.on('upgrade', async (req, socket, head) => {
+  if (!clientMayProxy(socket)) {
+    rejectSocket(socket);
+    return;
+  }
   try {
     const target = await pinnedTarget(req.url);
     if (target.url.protocol !== 'ws:') throw new Error('unsupported WebSocket proxy request');
@@ -93,6 +172,6 @@ server.on('upgrade', async (req, socket, head) => {
   }
 });
 
-if (require.main === module) server.listen(port, '0.0.0.0');
+if (require.main === module) server.listen(port, internalBind ? internalBind.address : '127.0.0.1');
 
-module.exports = { server };
+module.exports = { server, internalInterface, proxyClientAllowed };

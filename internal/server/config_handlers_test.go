@@ -1370,6 +1370,42 @@ func TestInjectMQTTRelayDefaultsExposesEffectiveRelayPermission(t *testing.T) {
 	}
 }
 
+func TestInjectMQTTRelayDefaultsExposesUntrustedTransport(t *testing.T) {
+	cases := []struct {
+		name string
+		yaml string
+		want bool
+	}{
+		{"username on mqtt, key absent", "mqtt:\n  enabled: true\n  username: iot\n  broker: mqtt://broker.lan:1883\n", true},
+		{"explicit false", "mqtt:\n  enabled: true\n  username: iot\n  broker: mqtt://broker.lan:1883\n  allow_untrusted_transport: false\n", false},
+		{"mqtts, key absent", "mqtt:\n  enabled: true\n  username: iot\n  broker: mqtts://broker.lan:8883\n", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(path, []byte(tc.yaml), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := config.Load(path)
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			var raw map[string]interface{}
+			if err := yaml.Unmarshal([]byte(tc.yaml), &raw); err != nil {
+				t.Fatal(err)
+			}
+			injectMQTTRelayDefaults(raw, cfg)
+			section, ok := raw["mqtt"].(map[string]interface{})
+			if !ok {
+				t.Fatalf("mqtt section = %#v", raw["mqtt"])
+			}
+			if got, ok := section["allow_untrusted_transport"].(bool); !ok || got != tc.want {
+				t.Fatalf("mqtt.allow_untrusted_transport = %#v, want %v", section["allow_untrusted_transport"], tc.want)
+			}
+		})
+	}
+}
+
 func TestHandleGetConfigShowsGrandfatheredMQTTRelayPermission(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")

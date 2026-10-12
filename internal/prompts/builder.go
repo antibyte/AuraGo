@@ -179,6 +179,7 @@ type ContextFlags struct {
 	BluetoothEnabled         bool
 	NetworkSharesEnabled     bool
 	CoAgentEnabled           bool
+	GogEnabled               bool
 	GoogleWorkspaceEnabled   bool
 	OneDriveEnabled          bool
 	TelegramEnabled          bool
@@ -188,8 +189,11 @@ type ContextFlags struct {
 	ProxmoxEnabled           bool
 	FrigateEnabled           bool
 	Go2RTCEnabled            bool
+	RuViewEnabled            bool
 	RTLSDREnabled            bool
+	LayerlingEnabled         bool
 	LocalWikipediaEnabled    bool
+	RetroGamesEnabled        bool
 	ThreeDPrinterEnabled     bool
 	OllamaEnabled            bool
 	TailscaleEnabled         bool
@@ -2533,6 +2537,7 @@ var enabledIntegrationDescriptors = []enabledIntegrationDescriptor{
 	{"proxmox", "proxmox", func(f *ContextFlags) bool { return f.ProxmoxEnabled }},
 	{"frigate", "frigate", func(f *ContextFlags) bool { return f.FrigateEnabled }},
 	{"go2rtc", "go2rtc", func(f *ContextFlags) bool { return f.Go2RTCEnabled }},
+	{"ruview", "ruview", func(f *ContextFlags) bool { return f.RuViewEnabled }},
 	{"rtl_sdr", "rtl_sdr", func(f *ContextFlags) bool { return f.RTLSDREnabled }},
 	{"three_d_printer", "three_d_printer", func(f *ContextFlags) bool { return f.ThreeDPrinterEnabled }},
 	{"tailscale", "tailscale", func(f *ContextFlags) bool { return f.TailscaleEnabled }},
@@ -2553,6 +2558,16 @@ var enabledIntegrationDescriptors = []enabledIntegrationDescriptor{
 	{"email", "email", func(f *ContextFlags) bool { return f.EmailEnabled }},
 	{"cloudflare_tunnel", "cloudflare_tunnel", func(f *ContextFlags) bool { return f.CloudflareTunnelEnabled }},
 	{"google_workspace", "google_workspace", func(f *ContextFlags) bool { return f.GoogleWorkspaceEnabled }},
+	{"gog_accounts", "gog_accounts", func(f *ContextFlags) bool { return f.GogEnabled }},
+	{"gog_gmail", "gog_gmail", func(f *ContextFlags) bool { return f.GogEnabled }},
+	{"gog_calendar", "gog_calendar", func(f *ContextFlags) bool { return f.GogEnabled }},
+	{"gog_drive", "gog_drive", func(f *ContextFlags) bool { return f.GogEnabled }},
+	{"gog_docs", "gog_docs", func(f *ContextFlags) bool { return f.GogEnabled }},
+	{"gog_sheets", "gog_sheets", func(f *ContextFlags) bool { return f.GogEnabled }},
+	{"gog_slides", "gog_slides", func(f *ContextFlags) bool { return f.GogEnabled }},
+	{"gog_contacts", "gog_contacts", func(f *ContextFlags) bool { return f.GogEnabled }},
+	{"gog_tasks", "gog_tasks", func(f *ContextFlags) bool { return f.GogEnabled }},
+
 	{"onedrive", "onedrive", func(f *ContextFlags) bool { return f.OneDriveEnabled }},
 	{"virustotal", "virustotal", func(f *ContextFlags) bool { return f.VirusTotalEnabled }},
 	{"brave_search", "brave_search", func(f *ContextFlags) bool { return f.BraveSearchEnabled }},
@@ -2572,7 +2587,9 @@ var enabledIntegrationDescriptors = []enabledIntegrationDescriptor{
 	{"truenas", "truenas", func(f *ContextFlags) bool { return f.TrueNASEnabled }},
 	{"jellyfin", "jellyfin", func(f *ContextFlags) bool { return f.JellyfinEnabled }},
 	{"obsidian", "obsidian", func(f *ContextFlags) bool { return f.ObsidianEnabled }},
+	{"layerling", "layerling (open Desktop CAD editors)", func(f *ContextFlags) bool { return f.LayerlingEnabled }},
 	{"local_wikipedia", "local_wikipedia (offline Wikipedia)", func(f *ContextFlags) bool { return f.LocalWikipediaEnabled }},
+	{"retro_games", "retro_games (archive.org retro games on the desktop)", func(f *ContextFlags) bool { return f.RetroGamesEnabled }},
 	{"ollama", "ollama", func(f *ContextFlags) bool { return f.OllamaEnabled }},
 	{"sandbox", "sandbox", func(f *ContextFlags) bool { return f.SandboxEnabled }},
 	{"webhooks", "webhooks", func(f *ContextFlags) bool { return f.WebhooksEnabled }},

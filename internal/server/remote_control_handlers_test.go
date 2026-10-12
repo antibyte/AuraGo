@@ -1,6 +1,8 @@
 package server
 
 import (
+	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -188,91 +190,43 @@ func TestRemoteDownloadUsesManualSupervisorURL(t *testing.T) {
 	}
 }
 
-func TestRemoteDownloadPrefersWSSWhenServerTLSEnabled(t *testing.T) {
-	cases := []struct {
-		name           string
-		httpsEnabled   bool
-		tlsRequest     bool
-		forwardedProto string
-		host           string // default aurago.lan:8090
-		remoteAddr     string // default httptest's 192.0.2.1:1234
-		httpsPort      int    // default 8443
-		want           string
+func TestRemoteDownloadTransportMatrix(t *testing.T) {
+	for _, tc := range []struct {
+		name, host, proto, want string
+		tls, trusted, serverTLS bool
 	}{
-		// With https_port equal to server.port there is no plain internal
-		// listener, so even a loopback request gets wss.
-		{name: "server TLS on server.port, plain loopback request", httpsEnabled: true, httpsPort: 8090, host: "127.0.0.1:8090", remoteAddr: "127.0.0.1:50000", want: "wss://127.0.0.1:8090/api/remote/ws"},
-		// The TLS listener binds server.https.https_port (8443 here, not
-		// server.port 8090); server.port is only the loopback listener then.
-		{name: "server TLS, plain LAN request", httpsEnabled: true, want: "wss://aurago.lan:8443/api/remote/ws"},
-		{name: "server TLS, TLS request uses https_port", httpsEnabled: true, tlsRequest: true, want: "wss://aurago.lan:8443/api/remote/ws"},
-		// A plain request from and to loopback came through the internal
-		// listener, which binds tcp4 127.0.0.1 only: an agent on the host
-		// itself keeps ws there, whatever loopback name the Host header uses.
-		{name: "server TLS, plain loopback request", httpsEnabled: true, host: "127.0.0.1:8090", remoteAddr: "127.0.0.1:50000", want: "ws://127.0.0.1:8090/api/remote/ws"},
-		{name: "server TLS, plain loopback request via localhost", httpsEnabled: true, host: "localhost:8090", remoteAddr: "127.0.0.1:50000", want: "ws://127.0.0.1:8090/api/remote/ws"},
-		{name: "server TLS, plain loopback request via IPv6 host", httpsEnabled: true, host: "[::1]:8090", remoteAddr: "127.0.0.1:50000", want: "ws://127.0.0.1:8090/api/remote/ws"},
-		{name: "server TLS, localhost host from a LAN peer", httpsEnabled: true, host: "localhost:8090", remoteAddr: "192.168.1.20:50000", want: "wss://localhost:8443/api/remote/ws"},
-		{name: "server TLS, loopback TLS request", httpsEnabled: true, tlsRequest: true, host: "127.0.0.1:8443", remoteAddr: "127.0.0.1:50000", want: "wss://127.0.0.1:8443/api/remote/ws"},
-		{name: "server TLS, IPv6 LAN host", httpsEnabled: true, host: "[fd00::5]:8090", want: "wss://[fd00::5]:8443/api/remote/ws"},
-		{name: "no server TLS, plain request", want: "ws://aurago.lan:8090/api/remote/ws"},
-		{name: "no server TLS, IPv6 host", host: "[fd00::5]:8090", want: "ws://[fd00::5]:8090/api/remote/ws"},
-		{name: "no server TLS, forwarded https", forwardedProto: "https", want: "wss://aurago.lan:8090/api/remote/ws"},
-	}
-	for _, tc := range cases {
+		{name: "TLS public port", host: "public.example:9443", tls: true, want: "wss://public.example:9443/api/remote/ws"},
+		{name: "trusted proxy", host: "public.example:443", proto: "https", trusted: true, want: "wss://public.example:443/api/remote/ws"},
+		{name: "forged proxy", host: "public.example", proto: "https"},
+		{name: "plaintext", host: "public.example:8090"},
+		{name: "loopback still needs TLS", host: "127.0.0.1:8090"},
+		{name: "dedicated TLS", host: "aurago.lan:8090", serverTLS: true, want: "wss://aurago.lan:8443/api/remote/ws"},
+		{name: "IPv6", host: "[fd00::5]:9443", tls: true, want: "wss://[fd00::5]:9443/api/remote/ws"},
+	} {
 		t.Run(tc.name, func(t *testing.T) {
-			s, cleanup := newRemoteDownloadTestServer(t, func(cfg *config.Config) {
-				cfg.Server.Port = 8090
-				cfg.Server.HTTPS.Enabled = tc.httpsEnabled
-				cfg.Server.HTTPS.HTTPSPort = 8443
-				if tc.httpsPort != 0 {
-					cfg.Server.HTTPS.HTTPSPort = tc.httpsPort
-				}
-			})
-			defer cleanup()
-
-			rec := httptest.NewRecorder()
-			target := "/api/remote/download/linux/amd64?name=nas"
-			if tc.tlsRequest {
-				target = "https://aurago.lan:8443" + target
+			cfg := &config.Config{}
+			cfg.Server.Port = 8090
+			cfg.Server.HTTPS.Enabled = tc.serverTLS
+			cfg.Server.HTTPS.HTTPSPort = 8443
+			req := httptest.NewRequest(http.MethodGet, "/api/remote/download/linux/amd64", nil)
+			req.Host = tc.host
+			if tc.tls {
+				req.TLS = &tls.ConnectionState{}
 			}
-			req := httptest.NewRequest(http.MethodGet, target, nil)
-			if tc.tlsRequest && req.TLS == nil {
-				t.Fatal("fixture request is not a TLS request")
+			req.Header.Set("X-Forwarded-Proto", tc.proto)
+			if tc.trusted {
+				req = req.WithContext(context.WithValue(req.Context(), trustedProxyContextKey{}, true))
 			}
-			req.Host = "aurago.lan:8090"
-			if tc.host != "" {
-				req.Host = tc.host
-			}
-			if tc.remoteAddr != "" {
-				req.RemoteAddr = tc.remoteAddr
-			}
-			if tc.forwardedProto != "" {
-				req.Header.Set("X-Forwarded-Proto", tc.forwardedProto)
-			}
-			handleRemoteDownload(s).ServeHTTP(rec, req)
-			if rec.Code != http.StatusOK {
-				t.Fatalf("status = %d, body=%s", rec.Code, rec.Body.String())
-			}
-			trailer, err := remote.ParseBinaryTrailer(rec.Body.Bytes())
-			if err != nil {
-				t.Fatalf("parse personalized binary trailer: %v", err)
-			}
-			if trailer.SupervisorURL != tc.want {
-				t.Fatalf("supervisor_url = %q, want %q", trailer.SupervisorURL, tc.want)
+			got, err := remoteDownloadSupervisorURL(&Server{Cfg: cfg}, req)
+			if got != tc.want || (err != nil) != (tc.want == "") {
+				t.Fatalf("got %q, %v; want %q", got, err, tc.want)
 			}
 		})
 	}
-
-	// Without a request host the fallback also prefers the TLS listener; an
-	// unset https_port means the 443 default.
-	cfg := &config.Config{}
-	cfg.Server.Port = 8090
-	cfg.Server.HTTPS.Enabled = true
-	req := httptest.NewRequest(http.MethodGet, "/api/remote/download/linux/amd64", nil)
-	req.Host = ""
-	if got := autoRemoteDownloadSupervisorURL(&Server{Cfg: cfg}, req); got != "wss://localhost:443/api/remote/ws" {
-		t.Fatalf("fallback supervisor_url = %q, want wss://localhost:443/api/remote/ws", got)
+	for _, raw := range []string{"ws://localhost/ws", "http://private.example/ws"} {
+		if _, err := normalizeRemoteSupervisorURL(raw, false, 8090); err == nil {
+			t.Fatalf("accepted plaintext URL %s", raw)
+		}
 	}
 }
 
@@ -417,6 +371,7 @@ func newRemoteDownloadTestServer(t *testing.T, mutate func(*config.Config)) (*Se
 
 	cfg := &config.Config{}
 	cfg.Server.Port = 8090
+	cfg.Server.HTTPS.Enabled = true
 	if mutate != nil {
 		mutate(cfg)
 	}

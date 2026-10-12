@@ -10,6 +10,9 @@ The document name opens rename and Save As. File menus use the desktop file
 dialogs. New documents use A4 portrait paper with 25 mm margins. The toolbar
 contains paragraph styles, fonts, numeric sizes, common formatting and lists.
 Format provides paragraph spacing, page setup, table and image controls.
+Page setup recognizes A4 and Letter in both orientations. Other sizes stay as
+they are until a listed size is chosen. Indent, color and image controls follow
+the current selection.
 Insert provides tables, images, page breaks, footnotes, headers, footers,
 page numbers and document templates.
 
@@ -38,7 +41,13 @@ any intervening document edit invalidates the proposal.
 
 Autosave starts after 800 ms of inactivity, or after five seconds of continuous
 editing. Only one save runs per document. Conditional writes prevent another
-window's changes from being overwritten. A conflict offers retry and Save As.
+window's changes from being overwritten. A conflict offers Save As and reopen.
+Reopen asks before discarding the local edits. Retry remains for a failed load
+and for a transient save of the open file. A successful save clears that
+conflict or save notice. Save As asks before replacing another file and then
+writes it with that file's ETag. Renaming only creates the new name
+(`If-None-Match: *`) and then uses the ETag returned for that file. An existing
+name stays unchanged.
 
 A local IndexedDB draft supports explicit recovery after failures. Closing or
 opening another document first attempts to save. If saving fails, the user may

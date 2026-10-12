@@ -22,11 +22,13 @@
   "config.browser_automation.cloak_human_preset_label": "Gedragspreset",
   "help.browser_automation.cloak_human_preset": "Simulatiesnelheid: 'default' (normaal) of 'careful' (langzamer, voorzichtiger).",
   "config.browser_automation.cloak_proxy_label": "Proxy-URL",
-  "help.browser_automation.cloak_proxy": "Vereist adres van de filterende proxy op het geïsoleerde netwerk.",
+  "help.browser_automation.cloak_proxy": "Laat dit leeg. Chromium gebruikt de aparte egress-proxy. Een URL hier blokkeert het starten.",
   "config.browser_automation.cloak_fingerprint_seed_label": "Fingerprint-seed",
   "help.browser_automation.cloak_fingerprint_seed": "Vaste seed voor deterministische browser-fingerprint. Handig voor consistente identiteit over sessies heen.",
   "config.browser_automation.egress_network_label": "Geïsoleerd Docker-netwerk",
   "help.browser_automation.egress_network": "Intern Docker-netwerk voor de browser; zonder dit netwerk start de dienst niet.",
+  "config.browser_automation.outbound_network_label": "Uitgaand Docker-netwerk",
+  "help.browser_automation.outbound_network": "Docker-netwerk met een route naar internet. Alleen de egress-proxy komt hierbij. De browser blijft op het geïsoleerde netwerk.",
   "config.browser_automation.private_origins_label": "Toegestane privébronnen",
   "help.browser_automation.private_origins": "Eén exacte HTTP(S)- of WS(S)-bron per regel. Stel dezelfde lijst in de proxy in."
 }

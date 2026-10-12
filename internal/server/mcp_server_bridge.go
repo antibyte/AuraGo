@@ -43,12 +43,6 @@ func mcpEffectiveAllowedTools(cfg *config.Config) []string {
 	if cfg == nil {
 		return nil
 	}
-	if !cfg.MCPServer.VSCodeDebugBridge {
-		return append([]string(nil), cfg.MCPServer.AllowedTools...)
-	}
-	if len(cfg.MCPServer.AllowedTools) == 0 {
-		return append([]string(nil), mcpVSCodeDebugBridgeTools...)
-	}
 	return uniqueStrings(append([]string(nil), cfg.MCPServer.AllowedTools...))
 }
 
@@ -70,11 +64,9 @@ func mcpVSCodeBridgeToolSchema() mcpToolSchema {
 }
 
 func mcpBuildToolCatalog(s *Server) []mcpToolSchema {
-	s.CfgMu.RLock()
-	cfg := s.Cfg
-	s.CfgMu.RUnlock()
+	cfg := s.ConfigSnapshot()
 
-	ff := mcpFeatureFlags(s)
+	ff := mcpFeatureFlagsForConfig(s, cfg)
 	manifest := tools.NewManifest(cfg.Directories.ToolsDir)
 	oaiTools := agent.BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, ff, s.Logger)
 

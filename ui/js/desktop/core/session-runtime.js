@@ -70,6 +70,17 @@
             out[key] = value;
         });
         if (/^[a-f0-9]{64}$/.test(context.conversation_id || '')) out.conversation_id = context.conversation_id;
+        if (context.storage != null) {
+            const loc = context.storage;
+            const path = loc && loc.path;
+            if (['local', 'webdav', 'koofr'].includes(loc?.provider) && typeof path === 'string' && !/[\\\x00-\x1f]/.test(path) && !path.startsWith('/') && !path.split('/').some(part => part === '..' || part === '.') && (loc.provider !== 'koofr' || typeof loc.mount_id === 'string' && !!loc.mount_id)) {
+                out.storage = { provider: loc.provider, mount_id: loc.provider === 'koofr' ? loc.mount_id : '', path };
+                out.path = path;
+            } else {
+                // Invalid remote identities must never reopen as local paths.
+                delete out.path;
+            }
+        }
         return out;
     }
 
@@ -216,7 +227,7 @@
     function defaultAppForExtension(ext) {
         const normalized = String(ext || '').toLowerCase().replace(/^\./, '');
         const map = parseDefaultAppsMap();
-        return map[normalized] || '';
+        return map[normalized] || (normalized === 'lyl' ? 'layerling' : '');
     }
 
     const RECENT_FILES_KEY = 'aurago.desktop.recentFiles.v2';

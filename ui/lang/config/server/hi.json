@@ -74,7 +74,7 @@
   "config.server.host_label": "बाइंड पता",
   "config.server.http_port_label": "HTTP पोर्ट (रीडायरेक्ट)",
   "config.server.https_desc": "स्वचालित, कस्टम, या स्व-हस्ताक्षरित प्रमाणपत्रों के साथ HTTPS सक्षम करें। अन्य सेटिंग्स से स्वतंत्र रूप से काम करता है।",
-  "config.server.https_disabled_desc": "TLS एन्क्रिप्शन से कनेक्शन सुरक्षित करने के लिए HTTPS सक्षम करें। स्वचालित (Let's Encrypt), कस्टम, या स्व-हस्ताक्षरित में से चुनें।",
+  "config.server.https_disabled_desc": "HTTP पर डेस्कटॉप की कई सुविधाएँ, खासकर वॉइस चैट और माइक्रोफ़ोन का उपयोग, काम नहीं कर सकती हैं। रिवर्स प्रॉक्सी के ज़रिए HTTPS और localhost फिर भी सुरक्षित ब्राउज़र संदर्भ दे सकते हैं।",
   "config.server.https_disabled_notice": "HTTPS अक्षम है",
   "config.server.https_enabled_label": "HTTPS सक्षम करें",
   "config.server.https_port_label": "HTTPS पोर्ट",
@@ -101,5 +101,9 @@
   "config.updates.installing": "इंस्टॉल हो रहा है…",
   "config.updates.running": "चल रहा है…",
   "config.web_scraper.summary_mode": "सारांश मोड",
-  "config.webdav.secret_empty": "मान खाली है"
+  "config.webdav.secret_empty": "मान खाली है",
+  "config.server.disable_https_title": "HTTPS बंद करें?",
+  "config.server.disable_https_confirm": "इससे केवल आपका ड्राफ़्ट बदलता है। HTTP उपयोग करने के लिए सहेजें और AuraGo को दोबारा शुरू करें। प्रॉक्सी या मूल डोमेन के HSTS नियम अब भी HTTPS अनिवार्य कर सकते हैं।",
+  "config.server.http_port_hint": "0 HTTP लिसनर बंद करता है। Let’s Encrypt HTTP-01 के लिए 80 चुनें और सार्वजनिक पोर्ट 80 को पहुँच योग्य बनाएँ।",
+  "config.server.restart_address": "दोबारा शुरू होने के बाद खोलें:"
 }

@@ -547,7 +547,8 @@ function mcpCollectServerModalEntry() {
 }
 
 function mcpValidateServerEntry(entry) {
-    if (!entry.name || (entry.transport === 'stdio' && !entry.command) || (entry.transport !== 'stdio' && !entry.url)) {
+    const hasCommand = entry.command || (entry.runtime === 'docker' && entry.docker_command);
+    if (!entry.name || (entry.transport === 'stdio' && !hasCommand) || (entry.transport !== 'stdio' && !entry.url)) {
         showToast(t('config.mcp.name_command_or_url_required'), 'warn');
         return false;
     }

@@ -15,7 +15,7 @@ import (
 	"aurago/internal/security"
 )
 
-var outgoingWebhookHTTPClient = security.NewSSRFProtectedHTTPClient(30 * time.Second)
+var outgoingWebhookHTTPClient = security.NewSSRFProtectedHTTPClientSameOrigin(30 * time.Second)
 
 var outgoingWebhookManageMu sync.Mutex
 
@@ -116,7 +116,7 @@ func ExecuteOutgoingWebhook(ctx context.Context, hook config.OutgoingWebhook, pa
 }
 
 // ManageOutgoingWebhooks provides a way for the LLM to CRUD outgoing webhooks
-func ManageOutgoingWebhooks(tcOperation, webhookID, name, description, method, url, payloadType, bodyTemplate string, headers map[string]string, rawParameters []interface{}, cfg *config.Config, vault *security.Vault) string {
+func ManageOutgoingWebhooks(tcOperation, webhookID, name, description, method, url, payloadType, bodyTemplate string, headers map[string]string, rawParameters []interface{}, cfg *config.Config, vault *security.Vault, headersSet, parametersSet bool) string {
 	outgoingWebhookManageMu.Lock()
 	defer outgoingWebhookManageMu.Unlock()
 
@@ -182,8 +182,7 @@ func ManageOutgoingWebhooks(tcOperation, webhookID, name, description, method, u
 		found := false
 		for i, w := range outgoing {
 			if w.ID == webhookID {
-				// Retain un-provided fields? The agent generally provides full struct
-				outgoing[i] = newHook
+				outgoing[i] = mergeOutgoingWebhookUpdate(w, name, description, method, url, payloadType, bodyTemplate, headers, headersSet, parsedParams, parametersSet)
 				found = true
 				break
 			}
@@ -220,6 +219,53 @@ func ManageOutgoingWebhooks(tcOperation, webhookID, name, description, method, u
 	*cfg = *newCfg
 
 	return fmt.Sprintf(`Tool Output: {"status":"success", "message":"Webhook %sd successfully.", "persisted": true}`, tcOperation)
+}
+
+func mergeOutgoingWebhookUpdate(existing config.OutgoingWebhook, name, description, method, url, payloadType, bodyTemplate string, headers map[string]string, headersSet bool, parameters []config.WebhookParameter, parametersSet bool) config.OutgoingWebhook {
+	merged := existing
+	merged.ID = existing.ID
+	merged.Headers = cloneOutgoingHeaderMap(existing.Headers)
+	merged.SecretHeaders = cloneOutgoingHeaderMap(existing.SecretHeaders)
+	if len(existing.Parameters) > 0 {
+		merged.Parameters = append([]config.WebhookParameter(nil), existing.Parameters...)
+	}
+	if strings.TrimSpace(name) != "" {
+		merged.Name = name
+	}
+	if strings.TrimSpace(description) != "" {
+		merged.Description = description
+	}
+	if strings.TrimSpace(method) != "" {
+		merged.Method = method
+	}
+	if strings.TrimSpace(url) != "" {
+		merged.URL = url
+	}
+	if strings.TrimSpace(payloadType) != "" {
+		merged.PayloadType = payloadType
+	}
+	if strings.TrimSpace(bodyTemplate) != "" {
+		merged.BodyTemplate = bodyTemplate
+	}
+	if headersSet {
+		merged.Headers = headers
+		merged.SecretHeaders = nil
+	}
+	if parametersSet {
+		merged.Parameters = parameters
+	}
+	return merged
+}
+
+func cloneOutgoingHeaderMap(in map[string]string) map[string]string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(in))
+	for key, value := range in {
+		out[key] = value
+	}
+	return out
 }
 
 func maskOutgoingWebhooksForTool(outgoing []config.OutgoingWebhook) []config.OutgoingWebhook {

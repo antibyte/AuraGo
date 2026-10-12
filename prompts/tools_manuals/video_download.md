@@ -13,7 +13,7 @@ Search and metadata lookup are read-only. Download and transcription are separat
 
 ## Backend
 
-- Default: Docker mode runs `ghcr.io/jauderho/yt-dlp:latest` in an ephemeral container.
+- Default: Docker mode runs the digest-pinned image `ghcr.io/jauderho/yt-dlp@sha256:90cd9016efc4451153c8bc35cc7a0d9a8cba0e796818e52f3b4d28b9736ac91c` in an ephemeral container. With `tools.video_download.auto_pull: true` (default), AuraGo pulls that digest before each run.
 - Native mode is optional and requires `yt-dlp` to be installed on the host or configured via `tools.video_download.yt_dlp_path`.
 - `tools.video_download.enabled: true` exposes `search` and `info`.
 - `download` requires `tools.video_download.allow_download: true`.

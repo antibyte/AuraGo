@@ -2,7 +2,10 @@ const http = require('http');
 const crypto = require('crypto');
 const fs = require('fs/promises');
 const path = require('path');
+const { spawn } = require('child_process');
 const { parseAllowedOrigins, validateBrowserTarget } = require('./egress_policy');
+const { noteEgressProxyExit } = require('./egress_supervisor');
+const { resolveInside } = require('./path_policy');
 
 const PORT = parseInt(process.env.PORT || '7331', 10);
 const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT || '/workspace';
@@ -13,7 +16,10 @@ const ALLOW_FILE_DOWNLOADS = process.env.ALLOW_FILE_DOWNLOADS !== 'false';
 const READ_ONLY = process.env.READ_ONLY === 'true';
 const RAW_SIDECAR_TOKEN = String(process.env.AURAGO_BROWSER_AUTOMATION_TOKEN || '').trim();
 const EGRESS_ISOLATED = process.env.AURAGO_BROWSER_EGRESS_ISOLATED === 'true';
-const EGRESS_PROXY = String(process.env.AURAGO_BROWSER_EGRESS_PROXY || '').trim();
+const LOCAL_EGRESS_PROXY = 'http://127.0.0.1:7332';
+const REMOTE_EGRESS_PROXY = 'http://browser-egress:7332';
+const REQUESTED_EGRESS_PROXY = String(process.env.AURAGO_BROWSER_EGRESS_PROXY || '').trim().replace(/\/$/, '');
+const CLOAK_PROXY = REQUESTED_EGRESS_PROXY === REMOTE_EGRESS_PROXY ? REMOTE_EGRESS_PROXY : LOCAL_EGRESS_PROXY;
 const ALLOWED_PRIVATE_ORIGINS = parseAllowedOrigins(process.env.AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS || '[]');
 const PLACEHOLDER_TOKENS = new Set([
   'change_me_please',
@@ -42,29 +48,22 @@ const MAX_DOWNLOAD_BYTES = Math.max(1024 * 1024, parseInt(process.env.MAX_DOWNLO
 const MAX_SCREENSHOT_BYTES = Math.max(256 * 1024, parseInt(process.env.MAX_SCREENSHOT_BYTES || String(25 * 1024 * 1024), 10));
 const MAX_DOWNLOAD_RECORDS = Math.max(1, parseInt(process.env.MAX_DOWNLOAD_RECORDS || '25', 10));
 const FILE_RETENTION_MS = Math.max(SESSION_TTL_MS, parseInt(process.env.FILE_RETENTION_MINUTES || String(Math.ceil((SESSION_TTL_MS * 2) / 60000)), 10) * 60 * 1000);
-const DEFAULT_SCREENSHOT_DIR = path.join(WORKSPACE_ROOT, 'browser_screenshots');
+const SCREENSHOTS_ROOT = process.env.SCREENSHOTS_ROOT || path.join(WORKSPACE_ROOT, 'browser_screenshots');
 const CLOAK_HUMANIZE = process.env.CLOAK_HUMANIZE === 'true';
 const CLOAK_HUMAN_PRESET = String(process.env.CLOAK_HUMAN_PRESET || 'default').trim();
-const CLOAK_PROXY = EGRESS_PROXY;
 const CLOAK_FINGERPRINT_SEED = String(process.env.CLOAK_FINGERPRINT_SEED || '').trim();
 
 if (!SIDECAR_TOKEN) {
   console.error('AURAGO_BROWSER_AUTOMATION_TOKEN is required.');
   process.exit(1);
 }
-if (!EGRESS_ISOLATED || !EGRESS_PROXY) {
+if (!EGRESS_ISOLATED) {
   console.error('Browser automation requires an isolated egress network and a filtering proxy.');
-  process.exit(1);
-}
-const parsedEgressProxy = new URL(EGRESS_PROXY);
-if (parsedEgressProxy.protocol !== 'http:' || parsedEgressProxy.username || parsedEgressProxy.password ||
-    parsedEgressProxy.pathname !== '/' || parsedEgressProxy.search || parsedEgressProxy.hash) {
-  console.error('AURAGO_BROWSER_EGRESS_PROXY must be a credential-free HTTP origin.');
   process.exit(1);
 }
 
 async function verifyEgressProxy() {
-  const response = await fetch(new URL('/health', parsedEgressProxy), { signal: AbortSignal.timeout(5000) });
+  const response = await fetch(CLOAK_PROXY + '/health', { signal: AbortSignal.timeout(5000) });
   if (!response.ok) throw new Error('filtering egress proxy is unavailable');
   const status = await response.json();
   if (status.policy_version !== 'egress-v1' || status.dns_pinned !== true) {
@@ -165,9 +164,43 @@ async function cleanupOldEntries(root, maxAgeMs) {
   }
 }
 
+async function cleanupOldScreenshots(root, maxAgeMs) {
+  let rootInfo;
+  try {
+    rootInfo = await fs.lstat(root);
+  } catch (_) {
+    return;
+  }
+  if (rootInfo.isSymbolicLink() || !rootInfo.isDirectory()) {
+    return;
+  }
+  let entries = [];
+  try {
+    entries = await fs.readdir(root, { withFileTypes: true });
+  } catch (_) {
+    return;
+  }
+  const cutoff = Date.now() - maxAgeMs;
+  for (const entry of entries) {
+    const target = path.join(root, entry.name);
+    try {
+      const info = await fs.lstat(target);
+      if (info.isSymbolicLink() || !info.isFile() || info.mtimeMs >= cutoff) {
+        continue;
+      }
+      const checked = resolveUnder(root, relFromRoot(root, target));
+      if (checked !== target) {
+        continue;
+      }
+      await fs.unlink(target);
+    } catch (_) {
+    }
+  }
+}
+
 async function cleanupStaleArtifacts() {
   await cleanupOldEntries(DOWNLOAD_ROOT, FILE_RETENTION_MS);
-  await cleanupOldEntries(DEFAULT_SCREENSHOT_DIR, FILE_RETENTION_MS);
+  await cleanupOldScreenshots(SCREENSHOTS_ROOT, FILE_RETENTION_MS);
 }
 
 function pushDownloadEntry(session, entry) {
@@ -188,8 +221,9 @@ async function getBrowser() {
     if (CLOAK_PROXY) {
       launchOptions.proxy = CLOAK_PROXY;
     }
+    launchOptions.args = ['--force-webrtc-ip-handling-policy=disable_non_proxied_udp'];
     if (CLOAK_FINGERPRINT_SEED) {
-      launchOptions.args = [`--fingerprint=${CLOAK_FINGERPRINT_SEED}`];
+      launchOptions.args.push(`--fingerprint=${CLOAK_FINGERPRINT_SEED}`);
     }
     browserPromise = loadCloakBrowser()
       .then(({ launch }) => launch(launchOptions))
@@ -215,7 +249,19 @@ async function destroySession(id) {
     console.warn(`Failed to close browser automation session ${id}:`, error && error.message ? error.message : error);
   }
   for (const screenshotPath of session.screenshots || []) {
-    await fs.unlink(screenshotPath).catch(() => {});
+    try {
+      const checked = resolveUnder(SCREENSHOTS_ROOT, relFromRoot(SCREENSHOTS_ROOT, screenshotPath));
+      if (checked !== screenshotPath) {
+        continue;
+      }
+      const info = await fs.lstat(screenshotPath);
+      if (!info.isFile()) {
+        continue;
+      }
+      await fs.unlink(screenshotPath);
+    } catch (_) {
+      // Leave a symlink, or any path outside the screenshots root, in place.
+    }
   }
   await fs.rm(path.join(DOWNLOAD_ROOT, session.id), { recursive: true, force: true }).catch(() => {});
 }
@@ -362,7 +408,10 @@ async function registerDownload(session, download) {
 }
 
 async function createSession(targetURL) {
-	if (targetURL) await validateBrowserTarget(targetURL, ALLOWED_PRIVATE_ORIGINS);
+  if (READ_ONLY && targetURL) {
+    return { status: 'error', operation: 'create_session', message: 'browser automation sidecar is in read-only mode' };
+  }
+  if (targetURL) await validateBrowserTarget(targetURL, ALLOWED_PRIVATE_ORIGINS);
   await enforceSessionLimit();
   const browser = await getBrowser();
   const context = await browser.newContext({
@@ -425,7 +474,7 @@ async function handleAutomation(body) {
   if (!operation) {
     return { status: 'error', message: 'operation is required' };
   }
-  if (READ_ONLY && ['click', 'type', 'select', 'press', 'upload_file'].includes(operation)) {
+  if (READ_ONLY && ['click', 'type', 'select', 'press', 'upload_file', 'navigate'].includes(operation)) {
     return { status: 'error', operation, message: 'browser automation sidecar is in read-only mode' };
   }
 
@@ -488,16 +537,18 @@ async function handleAutomation(body) {
     }
     case 'screenshot': {
       const relPath = String(body.output_path || '');
-      const target = resolveUnder(WORKSPACE_ROOT, relPath);
+      const target = await resolveInside(SCREENSHOTS_ROOT, relPath);
       await ensureDir(path.dirname(target));
       await page.screenshot({ path: target, fullPage: body.full_page === true });
       await ensureFileWithinLimit(target, MAX_SCREENSHOT_BYTES, 'screenshot');
       session.screenshots.push(target);
-      return { status: 'success', operation, session_id: session.id, url: page.url(), title: await page.title(), screenshot_rel_path: relFromRoot(WORKSPACE_ROOT, target), message: `screenshot saved to ${relPath}` };
+      const workspaceRel = relFromRoot(WORKSPACE_ROOT, target);
+      return { status: 'success', operation, session_id: session.id, url: page.url(), title: await page.title(), screenshot_rel_path: workspaceRel, message: `screenshot saved to ${workspaceRel}` };
     }
     case 'upload_file': {
       if (!ALLOW_FILE_UPLOADS) return { status: 'error', operation, session_id: session.id, message: 'file uploads are disabled', http_status: 400 };
       const relPath = String(body.file_path || '');
+      await resolveInside(WORKSPACE_ROOT, relPath);
       const target = resolveUnder(WORKSPACE_ROOT, relPath);
       await page.locator(selector).setInputFiles(target, { timeout: timeoutMs });
       return { status: 'success', operation, session_id: session.id, url: page.url(), title: await page.title(), message: `uploaded file ${relPath}` };
@@ -591,6 +642,7 @@ const server = http.createServer({ requestTimeout: HTTP_TIMEOUT_MS }, async (req
     if (req.method === 'GET' && req.url === '/health') {
       try {
         const browser = await getBrowser();
+        await verifyEgressProxy();
         const version = await browser.version();
         return json(res, 200, {
           status: 'success',
@@ -601,6 +653,7 @@ const server = http.createServer({ requestTimeout: HTTP_TIMEOUT_MS }, async (req
           browser_version: version
           ,policy_version: 'egress-v1'
           ,egress_isolated: EGRESS_ISOLATED
+          ,proxy_addr: CLOAK_PROXY.replace(/^https?:\/\//, '')
         });
       } catch (error) {
         return json(res, 503, {
@@ -655,17 +708,102 @@ async function shutdown(signal) {
       browserPromise = null;
     }
   } finally {
+    if (egressProxyChild && egressProxyChild.exitCode === null) {
+      egressProxyChild.kill();
+    }
     if (signal) {
       process.exit(0);
     }
   }
 }
 
+let egressProxyChild = null;
+let egressProxyReady = null;
+let egressRestarts = 0;
+let egressWindowStart = 0;
+let egressProxyAccepted = false;
+let egressProxyGaveUp = false;
+
+function startLocalEgressProxy(options = {}) {
+  const fatalOnFailure = options.fatalOnFailure !== false;
+  if (egressProxyReady) return egressProxyReady;
+  egressProxyReady = (async () => {
+    const proxyEnv = {
+      ...process.env,
+      PORT: '7332',
+      AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS: process.env.AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS || '[]',
+    };
+    delete proxyEnv.AURAGO_BROWSER_EGRESS_PROXY;
+    delete proxyEnv.AURAGO_BROWSER_AUTOMATION_TOKEN;
+    egressProxyChild = spawn(process.execPath, [path.join(__dirname, 'egress_proxy.js')], {
+      env: proxyEnv,
+      stdio: 'inherit',
+    });
+    const child = egressProxyChild;
+    child.on('error', () => {});
+    child.on('exit', () => {
+      const decision = noteEgressProxyExit({
+        shuttingDown,
+        accepted: egressProxyAccepted,
+        gaveUp: egressProxyGaveUp,
+        restarts: egressRestarts,
+        windowStart: egressWindowStart,
+        now: Date.now(),
+        limit: 3,
+        windowMs: 60000,
+      });
+      egressRestarts = decision.restarts;
+      egressWindowStart = decision.windowStart;
+      egressProxyGaveUp = decision.gaveUp;
+      if (decision.action !== 'restart') {
+        if (decision.action === 'give-up') {
+          console.error('filtering egress proxy exceeded its restart limit');
+        }
+        return;
+      }
+      egressProxyReady = null;
+      egressProxyChild = null;
+      startLocalEgressProxy({ fatalOnFailure: false }).catch((error) => {
+        console.error('filtering egress proxy restart failed', error && error.message ? error.message : error);
+      });
+    });
+    const deadline = Date.now() + 5000;
+    while (Date.now() < deadline) {
+      if (child.exitCode !== null) break;
+      try {
+        await verifyEgressProxy();
+        egressProxyAccepted = true;
+        return;
+      } catch (_) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    }
+    if (child.exitCode === null) child.kill();
+    const failure = new Error('filtering egress proxy did not become ready');
+    console.error(failure.message);
+    if (fatalOnFailure) {
+      process.exit(1);
+    }
+    throw failure;
+  })();
+  return egressProxyReady;
+}
+
 async function boot() {
   await ensureDir(WORKSPACE_ROOT);
   await ensureDir(DOWNLOAD_ROOT);
-  await ensureDir(DEFAULT_SCREENSHOT_DIR);
+  await ensureDir(SCREENSHOTS_ROOT);
   await cleanupStaleArtifacts();
+  if (CLOAK_PROXY === LOCAL_EGRESS_PROXY) {
+    await startLocalEgressProxy({ fatalOnFailure: true });
+  } else {
+    try {
+      await verifyEgressProxy();
+    } catch (error) {
+      console.error(error && error.message ? error.message : error);
+      process.exit(1);
+    }
+  }
   server.listen(PORT, '0.0.0.0');
 }
 

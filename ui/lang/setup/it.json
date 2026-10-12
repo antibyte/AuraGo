@@ -213,8 +213,8 @@
   "setup.profile_agnes_ai_name": "Agnes AI",
   "setup.profile_agnes_ai_pricing": "Utilizzo gratuito disponibile",
   "setup.step0_provider_agnes": "Agnes AI",
-  "setup.step0_provider_hint_agnes": "È possibile usare gratuitamente i modelli Agnes AI per testo, immagini e video."
-  ,"setup.step_label_local_llm": "Modello locale di prova",
+  "setup.step0_provider_hint_agnes": "È possibile usare gratuitamente i modelli Agnes AI per testo, immagini e video.",
+  "setup.step_label_local_llm": "Modello locale di prova",
   "setup.local_llm_backend_cpu": "CPU (sperimentale)",
   "setup.local_llm_mtp_forced": "MTP-2 (sperimentale, forzato)",
   "setup.local_llm_probing": "Verifica di hardware e Docker senza modifiche…",
@@ -223,5 +223,12 @@
   "setup.local_llm_job_running": "{model} viene installato dopo il salvataggio del provider normale.",
   "setup.local_llm_job_complete": "{model} ha superato i test e il ruolo scelto è attivo.",
   "setup.local_llm_job_failed": "Installazione di {model} non riuscita; il provider normale resta principale",
-  "setup.local_llm_job_progress": "Installazione {model}: {progress}%"
+  "setup.local_llm_job_progress": "Installazione {model}: {progress}%",
+  "setup.connection_title": "Connessione e funzioni del browser",
+  "setup.https_active": "HTTPS di AuraGo è attivo sulla porta {port}.",
+  "setup.https_inactive": "HTTPS integrato di AuraGo è disattivato.",
+  "setup.https_selfsigned": "Un certificato locale viene generato automaticamente. Verificalo e aggiungilo ai certificati attendibili del browser o del dispositivo, se necessario.",
+  "setup.secure_ready": "Questo browser segnala un contesto sicuro. Le funzioni del desktop richiedono comunque supporto del browser e autorizzazioni dei dispositivi.",
+  "setup.secure_unavailable": "Questo browser non segnala un contesto sicuro. Molte funzioni del desktop, tra cui la chat vocale e l’accesso al microfono, potrebbero non essere disponibili.",
+  "setup.https_manage": "Modifica HTTPS nell’installatore o in Config → Server dopo la configurazione. Anche HTTPS tramite proxy e localhost possono offrire un contesto sicuro."
 }

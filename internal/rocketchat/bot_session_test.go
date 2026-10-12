@@ -180,7 +180,7 @@ func TestRocketChatProcessMessageKeepsEachSenderInItsOwnSession(t *testing.T) {
 		msg := message{ID: userID + "-" + text, Msg: text}
 		msg.User.ID = userID
 		msg.User.Username = userID
-		processMessage(context.Background(), cfg, logger, client, stm, nil, nil, registry, nil, historyManager, nil, nil, "room-1", msg, nil, nil, nil, nil)
+		processMessage(context.Background(), cfg, logger, client, stm, nil, nil, registry, nil, historyManager, nil, nil, "room-1", msg, nil, nil, nil, nil, nil)
 	}
 
 	const aliceText, bobText = "alice-question-one", "bob-question-two"

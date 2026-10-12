@@ -170,6 +170,7 @@ const SECTIONS = [
         items: [
             { key: 'github', icon: '🐙', label: t('config.section.github.label'), desc: t('config.section.github.desc') },
             { key: 'google_workspace', icon: '📊', label: t('config.section.google_workspace.label'), desc: t('config.section.google_workspace.desc') },
+            { key: 'gog', icon: '📊', label: t('config.section.gog.label'), desc: t('config.section.gog.desc') },
             { key: 'paperless_ngx', icon: '📄', label: t('config.section.paperless_ngx.label'), desc: t('config.section.paperless_ngx.desc') },
             { key: 'obsidian', icon: '📝', label: t('config.section.obsidian.label'), desc: t('config.section.obsidian.desc') },
             { key: 'yepapi', icon: '🌐', label: t('config.section.yepapi.label'), desc: t('config.section.yepapi.desc') }
@@ -201,6 +202,7 @@ const SECTIONS = [
             { key: 'proxmox', icon: '🖥️', label: t('config.section.proxmox.label'), desc: t('config.section.proxmox.desc') },
             { key: 'frigate', icon: '📹', label: t('config.section.frigate.label'), desc: t('config.section.frigate.desc') },
             { key: 'go2rtc', icon: '🎥', label: t('config.section.go2rtc.label'), desc: t('config.section.go2rtc.desc') },
+            { key: 'ruview', icon: '📡', label: 'RuView', desc: t('ruview.quality') },
             { key: 'three_d_printers', icon: '🖨️', label: t('config.section.three_d_printers.label'), desc: t('config.section.three_d_printers.desc') },
             { key: 'remote_control', icon: '📡', label: t('config.section.remote_control.label'), desc: t('config.section.remote_control.desc') },
             { key: 'grafana', icon: '📊', label: t('config.section.grafana.label'), desc: t('config.section.grafana.desc') },
@@ -604,7 +606,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
     space_agent: 33,
     virtual_desktop: 34,
     game_maker: 108,
-    cyd_creator: 121,
+    cyd_creator: 123,
     detective: 115,
     newspaper: 116,
     flows: 119,
@@ -689,11 +691,15 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
     danger_zone: 101,
     manus: 102,
     realtime_speech: 103,
+    gog: 121,
+    ruview: 122,
 });
 
 const CONFIG_SIDEBAR_ICON_SYMBOL_PREFIX = 'config-sidebar-icon-';
 const CONFIG_SIDEBAR_ICON_SYMBOLS = Object.freeze({
     treg: '<rect x="27" y="25" width="74" height="78" rx="10" fill="none" stroke="#35c7d3" stroke-width="6"/><path d="M43 46h42M43 64h42M43 82h26" fill="none" stroke="#7da3c8" stroke-width="6" stroke-linecap="round"/>',
+    gog: '<rect x="22" y="28" width="52" height="40" rx="8" fill="#4285f4" opacity=".2"/><rect x="40" y="46" width="52" height="40" rx="8" fill="#34a853" opacity=".25"/><path d="M22 28h52v40H22zM40 46h52v40H40z" fill="none" stroke="#4285f4" stroke-width="6" stroke-linejoin="round"/><circle cx="66" cy="66" r="7" fill="#f6cf58"/>',
+    ruview: '<path d="M28 78a36 36 0 0 1 72 0M40 78a24 24 0 0 1 48 0M52 78a12 12 0 0 1 24 0" fill="none" stroke="#35c7d3" stroke-width="6" stroke-linecap="round"/><circle cx="64" cy="78" r="6" fill="#6fca8f"/><path d="M64 84v16M52 92l12-8 12 8" fill="none" stroke="#7da3c8" stroke-width="6" stroke-linecap="round"/>',
     llm_router: '<path d="M32 64h25V34h32M57 64h32M57 64v30h32" fill="none" stroke="#35c7d3" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><rect x="18" y="51" width="26" height="26" rx="6" fill="#7da3c8"/><circle cx="94" cy="34" r="11" fill="#6fca8f"/><circle cx="94" cy="64" r="11" fill="#35c7d3"/><circle cx="94" cy="94" r="11" fill="#4f8ee8"/>',
     local_wikipedia: '<path d="M24 36c14-7 28-7 40 3v60c-12-9-26-9-40-3z" fill="#7da3c8" opacity=".2"/><path d="M104 36c-14-7-28-7-40 3v60c12-9 26-9 40-3z" fill="#35c7d3" opacity=".2"/><path d="M24 36c14-7 28-7 40 3 12-10 26-10 40-3v60c-14-6-28-6-40 3-12-9-26-9-40-3zM64 39v60" fill="none" stroke="#7da3c8" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><path d="M33 54l5 18 5-13 5 13 5-18" fill="none" stroke="#35c7d3" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>',
     flows: '<rect x="16" y="26" width="34" height="24" rx="6" fill="#7da3c8"/><rect x="16" y="78" width="34" height="24" rx="6" fill="#6fca8f"/><rect x="78" y="52" width="34" height="24" rx="6" fill="#35c7d3"/><path d="M50 38c18 0 12 26 28 26M50 90c18 0 12-26 28-26" fill="none" stroke="#4f8ee8" stroke-width="6" stroke-linecap="round"/>',
@@ -3052,6 +3058,8 @@ async function saveConfig() {
             if (result.needs_restart) {
                 status.className = 'save-status warning';
                 status.textContent = '⚠ ' + (result.message || t('config.save_bar.restart_needed'));
+                rememberConfigRestart(result);
+                appendConfigRestartLink(status);
             } else {
                 status.className = 'save-status success';
                 status.textContent = result.message || t('config.save_bar.saved');
@@ -3185,6 +3193,40 @@ function setRestartBusy(busy) {
     if (restartBtn) restartBtn.disabled = busy;
 }
 
+// The server supplies an address only for direct access. Require the request
+// origin too, so undeclared TLS-terminating proxies keep their public URL.
+let _configRestart = null;
+
+function configRestartTarget() {
+    try {
+        const state = _configRestart || JSON.parse(sessionStorage.getItem('aurago.config.restart') || 'null');
+        if (state?.from === window.location.origin) return state.url;
+    } catch (_) { /* private browsing can disable storage */ }
+    return window.location.href;
+}
+
+function rememberConfigRestart(result) {
+    _configRestart = null;
+    try { sessionStorage.removeItem('aurago.config.restart'); } catch (_) {}
+    if (!result.restart_url || result.restart_from !== window.location.origin) return;
+    try {
+        const target = new URL(result.restart_url, window.location.href);
+        if (!['http:', 'https:'].includes(target.protocol) || target.hostname !== window.location.hostname) return;
+        _configRestart = { from: window.location.origin, url: target.href };
+        sessionStorage.setItem('aurago.config.restart', JSON.stringify(_configRestart));
+    } catch (_) { /* retain the in-memory address when storage is unavailable */ }
+}
+
+function appendConfigRestartLink(parent) {
+    const url = configRestartTarget();
+    const text = document.createElement('span');
+    text.textContent = ' ' + t('config.server.restart_address');
+    const link = document.createElement('a');
+    link.href = url;
+    link.textContent = url;
+    parent.append(text, document.createTextNode(' '), link);
+}
+
 function showRestartScreen(message, description) {
     const screen = document.createElement('div');
     screen.className = 'cfg-restart-screen';
@@ -3198,6 +3240,7 @@ function showRestartScreen(message, description) {
     desc.className = 'cfg-restart-desc';
     desc.textContent = description || '';
     screen.append(spinner, title, desc);
+    appendConfigRestartLink(desc);
     document.body.replaceChildren(screen);
 }
 
@@ -3205,6 +3248,7 @@ function showRestartDisconnected(message) {
     const node = document.createElement('div');
     node.className = 'cfg-restart-disconnected';
     node.textContent = message || '';
+    appendConfigRestartLink(node);
     document.body.replaceChildren(node);
 }
 
@@ -3247,23 +3291,26 @@ const MAX_RELOAD_RETRIES = 10;
 
 function scheduleReloadWithRetry(delayMs) {
     if (_reloadRetryTimer) return;
-    _reloadRetryTimer = setTimeout(function attemptReload() {
-        const img = new Image();
-        img.onload = img.onerror = function () {
-            // Small image load test - if it works, server is back
-            _reloadRetryCount = 0;
-            _reloadRetryTimer = null;
-            window.location.reload();
-        };
-        img.src = '/favicon.ico?t=' + Date.now(); // Cache-bust
-        // If server not back yet, retry after increasing delay
-        _reloadRetryCount++;
-        if (_reloadRetryCount < MAX_RELOAD_RETRIES) {
-            // Exponential backoff: 8s, 12s, 18s, 27s, 40s, 60s, 90s, ...
-            const nextDelay = Math.min(delayMs * 1.5, 120000);
-            delayMs = nextDelay;
-            _reloadRetryTimer = setTimeout(attemptReload, nextDelay);
+    const target = configRestartTarget();
+    const changedOrigin = new URL(target, location.href).origin !== location.origin;
+    _reloadRetryTimer = setTimeout(async function attemptReload() {
+        _reloadRetryTimer = null;
+        // Cross-origin probes cannot test an HTTP downgrade or an untrusted new
+        // certificate. Navigate once so the browser can show its trust prompt.
+        if (changedOrigin) {
+            try { sessionStorage.removeItem('aurago.config.restart'); } catch (_) {}
+            window.location.assign(target);
+            return;
         }
+        try {
+            const response = await fetch('/api/ready', { cache: 'no-store', signal: AbortSignal.timeout(4000) });
+            if (response.ok) {
+                try { sessionStorage.removeItem('aurago.config.restart'); } catch (_) {}
+                window.location.assign(target);
+                return;
+            }
+        } catch (_) { /* the listener is still restarting */ }
+        if (++_reloadRetryCount < MAX_RELOAD_RETRIES) scheduleReloadWithRetry(Math.min(delayMs * 1.5, 15000));
     }, delayMs);
 }
 
@@ -3313,6 +3360,7 @@ const SECTION_MODULES = {
     uptime_kuma: { m: 'uptime_kuma', fn: 'renderUptimeKumaSection' },
     grafana: { m: 'grafana', fn: 'renderGrafanaSection' },
     go2rtc: { m: 'go2rtc', fn: 'renderGo2RTCSection' },
+    ruview: { m: 'ruview', fn: 'renderRuViewSection' },
     local_llm: { m: 'local_llm', fn: 'renderLocalLLMSection' },
     local_wikipedia: { m: 'local_wikipedia', fn: 'renderLocalWikipediaSection' },
     three_d_printers: { m: 'three_d_printers', fn: 'renderThreeDPrintersSection' },
@@ -3335,6 +3383,7 @@ const SECTION_MODULES = {
     firewall: { m: 'firewall', fn: 'renderFirewallSection' },
     github: { m: 'github', fn: 'renderGitHubSection' },
     google_workspace: { m: 'google_workspace', fn: 'renderGoogleWorkspaceSection' },
+    gog: { m: 'gog', fn: 'renderGogSection' },
     ai_gateway: { m: 'ai_gateway', fn: 'renderAIGatewaySection' },
     composio: { m: 'composio', fn: 'renderComposioSection' },
     manus: { m: 'manus', fn: 'renderManusSection' },

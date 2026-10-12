@@ -155,7 +155,7 @@ func TestDesktopUsedI18nKeysExistInAllLanguages(t *testing.T) {
 					break
 				}
 			}
-			if key == "" || strings.HasSuffix(key, "_") {
+			if key == "" || strings.HasSuffix(key, "_") || strings.HasSuffix(key, ".") {
 				continue
 			}
 			used[key] = true

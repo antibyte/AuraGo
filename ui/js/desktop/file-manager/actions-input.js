@@ -56,6 +56,7 @@
         const instance = fm;
         const root = fm.host.querySelector('.file-manager');
         if (!root) return;
+        attachStorageEvents(root);
 
         root.addEventListener('focusin', activateKeyboardWindow);
         root.addEventListener('pointerdown', activateKeyboardWindow);
@@ -110,12 +111,12 @@
             item.addEventListener('click', e => {
                 if (e.target.closest('[data-action="remove-favorite"]')) return;
                 fm.sidebarOpen = false;
-                navigate(item.dataset.sidebarPath);
+                navigate(item.hasAttribute('data-fav-index') ? savedLocation(fm.favorites[Number(item.dataset.favIndex)]) : localLocation(item.dataset.sidebarPath));
             });
             item.addEventListener('keydown', e => {
                 if (e.key === 'Enter') {
                     fm.sidebarOpen = false;
-                    navigate(item.dataset.sidebarPath);
+                    navigate(item.hasAttribute('data-fav-index') ? savedLocation(fm.favorites[Number(item.dataset.favIndex)]) : localLocation(item.dataset.sidebarPath));
                 }
             });
         });
@@ -296,6 +297,7 @@
     function handleActionClick(e) {
         const action = e.currentTarget.dataset.action;
         if (action === 'sidebar-toggle') handleSidebarToggle();
+        else if (action === 'sidebar-backdrop-close') { fm.sidebarOpen = false; renderAll(); }
         else if (action === 'back') goBack();
         else if (action === 'forward') goForward();
         else if (action === 'up') goUp();
@@ -309,6 +311,7 @@
         else if (action === 'new-folder') createNewFolder();
         else if (action === 'sort-menu') showSortMenu(e);
         else if (action === 'toggle-hidden') { fm.showHidden = !fm.showHidden; renderAll(); }
+        else if (action === 'toggle-preview') { fm.previewOpen = !fm.previewOpen; savePreferences(); renderAll(); }
         else if (action === 'toggle-split') { if (typeof toggleSplitView === 'function') toggleSplitView(); }
         else if (action === 'calc-folder-size') {
             const path = e.currentTarget.dataset.path;
@@ -319,16 +322,6 @@
     function handleSidebarToggle() {
         fm.sidebarOpen = !fm.sidebarOpen;
         renderAll();
-        const backdrop = fm.host.querySelector('.fm-sidebar-backdrop');
-        if (backdrop) {
-            backdrop.hidden = !fm.sidebarOpen || !isCompactViewportFM();
-            if (!backdrop.hidden) {
-                backdrop.addEventListener('click', () => {
-                    fm.sidebarOpen = false;
-                    renderAll();
-                }, { once: true });
-            }
-        }
     }
 
     function isCompactViewportFM() {
@@ -336,8 +329,9 @@
     }
 
     function readonlyGuardItems(items) {
+        if (isRemote()) items = items.filter(item => !['view', 'add-to-chat', 'ask-agent', 'create-symlink', 'compress-zip', 'extract-zip-here', 'extract-zip-to', 'open-terminal', 'batch-rename'].includes(item.action));
         if (!isReadonly()) return items;
-        const blocked = new Set(['cut', 'paste', 'rename', 'delete', 'new-file', 'new-folder', 'restore', 'empty-trash']);
+        const blocked = new Set(['cut', 'paste', 'rename', 'delete', 'new-file', 'new-folder', 'restore', 'empty-trash', 'duplicate']);
         return items.map(item => item.separator || !blocked.has(item.action) ? item : Object.assign({}, item, { disabled: true, handler: () => {} }));
     }
 
@@ -505,7 +499,7 @@
             );
         }
         if (type === 'directory') {
-            const isFav = fm.favorites && fm.favorites.includes(path);
+            const isFav = fm.favorites && fm.favorites.some(fav => locationKey(savedLocation(fav)) === locationKey(storageLocation(path)));
             items.push({
                 label: isFav ? t('desktop.fm.remove_favorite') : t('desktop.fm.add_favorite'),
                 action: isFav ? 'remove-favorite' : 'add-favorite',
@@ -563,6 +557,7 @@
     }
 
     function openFileEntry(file) {
+        if (isRemote()) return storageOpen(file);
         if (!file || file.type === 'directory') return;
         if (isImageFile(file.name) || isMediaFile(file.name)) {
             if (fm.callbacks && typeof fm.callbacks.openMedia === 'function') {
@@ -670,6 +665,7 @@
     }
 
     async function undo() {
+        if (isRemote()) return;
         const instance = fm;
         if (!instance.undoStack.length) {
             showNotification({ type: 'warning', message: t('desktop.fm.nothing_to_undo') });
@@ -703,6 +699,7 @@
     }
 
     async function redo() {
+        if (isRemote()) return;
         const instance = fm;
         if (!instance.redoStack.length) {
             showNotification({ type: 'warning', message: t('desktop.fm.nothing_to_redo') });
@@ -737,6 +734,7 @@
     }
 
     function toggleQuickLook() {
+        const previewLocation = storageLocation();
         if (fm.quickLookOverlay) {
             fm.quickLookOverlay.remove();
             fm.quickLookOverlay = null;
@@ -811,7 +809,7 @@
         
         async function fetchTextPreview(path) {
             try {
-                const res = await fetch('/api/desktop/file-content?path=' + encodeURIComponent(path));
+                const res = await fetch(previewLocation.provider !== 'local' ? storageURL('content', { ...previewLocation, path }) + '&preview=text' : '/api/desktop/file-content?path=' + encodeURIComponent(path), { signal: instance.storageNavigation?.signal });
                 if (!res.ok) throw new Error();
                 const text = await res.text();
                 if (!isLiveInstance(instance)) return;
@@ -854,20 +852,27 @@
     }
 
     function sharedFileClipboard() {
+        if (window.AuraDesktopFileClipboard?.entries?.length) return window.AuraDesktopFileClipboard;
         const ops = sharedFileOps();
         if (ops && typeof ops.getClipboard === 'function') return ops.getClipboard();
         return fm.clipboard && fm.clipboard.paths && fm.clipboard.paths.length ? fm.clipboard : null;
     }
 
     function hasSharedFileClipboard() {
+        if (window.AuraDesktopFileClipboard?.entries?.length) return true;
         const ops = sharedFileOps();
         if (ops && typeof ops.hasClipboard === 'function') return ops.hasClipboard();
         return !!sharedFileClipboard();
     }
 
     function setSharedFileClipboard(mode, paths) {
+        if (isRemote()) {
+            fm.clipboard = window.AuraDesktopFileClipboard = { mode, entries: paths.map(path => storageLocation(path)) };
+            return;
+        }
         const cleanPaths = Array.from(new Set((paths || []).filter(Boolean)));
         fm.clipboard = cleanPaths.length ? { mode, paths: cleanPaths } : null;
+        window.AuraDesktopFileClipboard = fm.clipboard;
         const ops = sharedFileOps();
         if (ops && typeof ops.setClipboard === 'function') ops.setClipboard(mode, cleanPaths);
     }
@@ -886,6 +891,7 @@
     }
 
     async function pasteClipboard(destBase) {
+        if (isRemote() || window.AuraDesktopFileClipboard?.entries?.length) return storagePaste(destBase);
         const instance = fm;
         if (isReadonly()) return;
         const targetBase = destBase == null ? instance.currentPath : destBase;

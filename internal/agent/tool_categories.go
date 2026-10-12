@@ -48,6 +48,10 @@ var discoverToolNameAliases = map[string]string{
 	"offline wikipedia": "local_wikipedia",
 	"lokale wikipedia":  "local_wikipedia",
 	"kiwix":             "local_wikipedia",
+	"retro games":       "retro_games",
+	"retro spiele":      "retro_games",
+	"retrospiele":       "retro_games",
+	"spielhalle":        "retro_games",
 }
 
 func resolveDiscoverToolName(name string) string {
@@ -120,6 +124,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 	},
 	"memory": {
 		{"manage_memory", "Read and update long-term memory stores"},
+		{"correct_memory", "Preview, apply and verify evidenced corrections across memory stores"},
 		{"query_memory", "Search memory and knowledge snippets"},
 		{"context_memory", "Retrieve contextual memory for the current task"},
 		{"recall_memory", "Read specific long-term memories by ID"},
@@ -157,6 +162,15 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"koofr", "Access Koofr cloud storage: list, read, download, upload, move, and copy files"},
 		{"obsidian", "Search and manage Obsidian notes"},
 		{"google_workspace", "Work with Google Drive, Docs, Sheets, and related workspace files"},
+		{"gog_accounts", "List Google Workspace accounts and permissions for gog"},
+		{"gog_gmail", "Search and manage Gmail through gog"},
+		{"gog_calendar", "Read and manage Google Calendar through gog"},
+		{"gog_drive", "Browse and transfer Google Drive files through gog"},
+		{"gog_docs", "Read, create, edit and export Google Docs through gog"},
+		{"gog_sheets", "Read and edit Google Sheets ranges through gog"},
+		{"gog_slides", "Read, create, edit and export Google Slides through gog"},
+		{"gog_contacts", "Manage Google Contacts through gog"},
+		{"gog_tasks", "Manage Google task lists and tasks through gog"},
 		{"onedrive", "Work with OneDrive files and folders"},
 		{"paperless_ngx", "Manage documents in Paperless-ngx"},
 	},
@@ -203,6 +217,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"bluetooth", "Discover Bluetooth devices and play audio on paired speakers"},
 		{"media_registry", "Manage and search local media files"},
 		{"jellyfin", "Control Jellyfin media server (libraries, playback, users)"},
+		{"retro_games", "Search archive.org retro games and open one in the Retro Games desktop app"},
 	},
 	"smart_home": {
 		{"home_assistant", "Control Home Assistant devices (lights, switches, sensors, etc.)"},
@@ -223,9 +238,10 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 	},
 	"infrastructure": {
 		{"docker", "Manage Docker containers (list, start, stop, logs, exec, compose)"},
-		{"proxmox", "Manage Proxmox VMs and containers (list, start, stop, clone, etc.)"},
+		{"proxmox", "Manage Proxmox VMs and containers (list, start, stop, snapshots)"},
 		{"frigate", "Query Frigate NVR cameras, detection events, reviews, media, and health"},
 		{"go2rtc", "Inspect configured camera streams, snapshots, analysis, and live viewers"},
+		{"ruview", "Read Wi-Fi RSSI/CSI sensing status, nodes, measurements, models and recordings"},
 		{"three_d_printer", "Inspect and control configured 3D printers, camera snapshots, and live streams"},
 		{"tailscale", "Manage Tailscale VPN network (devices, routes, ACL)"},
 		{"ansible", "Run Ansible playbooks and manage infrastructure"},
@@ -261,6 +277,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"virtual_browser", "Interactive website navigation in visible Chromium; watch via Virtual Computers Agent Workspaces"},
 		{"office_document", "Create, read, patch, and export virtual desktop Writer documents"},
 		{"office_workbook", "Create, read, edit, evaluate, and export virtual desktop spreadsheets"},
+		{"layerling", "Inspect and edit an open Layerling 3D CAD model in the Desktop"},
 		{"openscad_render", "Render OpenSCAD CAD source to preview and export files"},
 		{"meshcentral", "Manage MeshCentral groups, devices, events, power actions, and commands"},
 		{"remote_control_devices", "List and inspect remote control devices"},

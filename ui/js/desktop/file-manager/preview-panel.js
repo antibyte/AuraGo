@@ -7,18 +7,22 @@
     }
 
     async function loadTextExcerpt(path) {
+        const instance = fm, generation = instance.navigationGeneration;
+        const location = storageLocation(path, instance);
         try {
-            const res = await fetch('/api/desktop/file-content?path=' + encodeURIComponent(path));
+            const res = await fetch(location.provider !== 'local' ? storageURL('content', location) + '&preview=text' : '/api/desktop/file-content?path=' + encodeURIComponent(path), { signal: instance.storageNavigation?.signal });
             if (!res.ok) throw new Error();
             const text = await res.text();
             const excerpt = text.length > 500 ? text.slice(0, 500) + '...' : text;
             
-            const container = fm.host ? fm.host.querySelector(`.fm-preview-text-wrap[data-preview-path="${path.replace(/"/g, '\\"')}"]`) : null;
+            if (!isLiveInstance(instance) || instance.navigationGeneration !== generation) return;
+            const container = Array.from(instance.host.querySelectorAll('.fm-preview-text-wrap')).find(node => node.dataset.previewPath === path);
             if (container) {
                 container.innerHTML = `<pre class="fm-preview-text-pre">${esc(excerpt)}</pre>`;
             }
         } catch (err) {
-            const container = fm.host ? fm.host.querySelector(`.fm-preview-text-wrap[data-preview-path="${path.replace(/"/g, '\\"')}"]`) : null;
+            if (!isLiveInstance(instance) || instance.navigationGeneration !== generation) return;
+            const container = Array.from(instance.host.querySelectorAll('.fm-preview-text-wrap')).find(node => node.dataset.previewPath === path);
             if (container) {
                 container.innerHTML = `<div class="fm-preview-text-error">${esc(t('desktop.fm.preview_unavailable'))}</div>`;
             }
@@ -97,7 +101,7 @@
                     <span class="fm-preview-info-label">${esc(t('desktop.fm.prop_modified'))}:</span>
                     <span class="fm-preview-info-val">${esc(formatDate(file.modified))}</span>
                 </div>
-                ${file.type === 'directory' ? `
+                ${file.type === 'directory' && !isRemote() ? `
                 <div class="fm-preview-info-row">
                     <span class="fm-preview-info-label">${esc(t('desktop.fm.folder_size'))}:</span>
                     <span class="fm-preview-info-val" data-preview-folder-size="${esc(file.path)}">
@@ -108,6 +112,7 @@
         }
         
         const width = fm.previewWidth || 250;
+        if (!header.includes('data-action="toggle-preview"')) header = header.replace('</h3>', `</h3><button type="button" class="fm-preview-close" data-action="toggle-preview" title="${esc(t('desktop.close'))}">&times;</button>`);
         
         return `<div class="fm-preview-panel" style="width: ${width}px" role="complementary">
             <div class="fm-preview-resize" data-resize-handle="preview"></div>

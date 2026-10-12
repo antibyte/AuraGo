@@ -213,8 +213,8 @@
   "setup.profile_agnes_ai_name": "Agnes AI",
   "setup.profile_agnes_ai_pricing": "Utilisation gratuite possible",
   "setup.step0_provider_agnes": "Agnes AI",
-  "setup.step0_provider_hint_agnes": "L’utilisation gratuite des modèles Agnes AI pour le texte, l’image et la vidéo est possible."
-  ,"setup.step_label_local_llm": "Modèle local de test",
+  "setup.step0_provider_hint_agnes": "L’utilisation gratuite des modèles Agnes AI pour le texte, l’image et la vidéo est possible.",
+  "setup.step_label_local_llm": "Modèle local de test",
   "setup.local_llm_backend_cpu": "CPU (expérimental)",
   "setup.local_llm_mtp_forced": "MTP-2 (expérimental, forcé)",
   "setup.local_llm_probing": "Vérification du matériel et de Docker sans modification…",
@@ -223,5 +223,12 @@
   "setup.local_llm_job_running": "{model} est en cours d’installation après l’enregistrement du fournisseur normal.",
   "setup.local_llm_job_complete": "{model} a réussi les tests et le rôle choisi est actif.",
   "setup.local_llm_job_failed": "Échec de l’installation de {model} ; le fournisseur normal reste principal",
-  "setup.local_llm_job_progress": "Installation de {model} : {progress} %"
+  "setup.local_llm_job_progress": "Installation de {model} : {progress} %",
+  "setup.connection_title": "Connexion et fonctions du navigateur",
+  "setup.https_active": "HTTPS est activé dans AuraGo sur le port {port}.",
+  "setup.https_inactive": "Le HTTPS intégré d’AuraGo est désactivé.",
+  "setup.https_selfsigned": "Un certificat local est généré automatiquement. Vérifie-le et ajoute-le aux certificats de confiance du navigateur ou de l’appareil si nécessaire.",
+  "setup.secure_ready": "Ce navigateur signale un contexte sécurisé. Les fonctions du bureau nécessitent toujours la prise en charge du navigateur et les autorisations des appareils.",
+  "setup.secure_unavailable": "Ce navigateur ne signale pas de contexte sécurisé. De nombreuses fonctions du bureau, dont le chat vocal et l’accès au microphone, peuvent être indisponibles.",
+  "setup.https_manage": "Modifie HTTPS dans l’installateur ou dans Config → Serveur après la configuration. HTTPS via un proxy et localhost peuvent aussi fournir un contexte sécurisé."
 }

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"sort"
@@ -234,6 +236,55 @@ func TestDispatchCommCallWebhookUsesWebhookNameFromParams(t *testing.T) {
 	}
 	if !strings.Contains(out, "Webhook 'Deploy Hook' not found") {
 		t.Fatalf("expected fallback webhook name in error, got %s", out)
+	}
+}
+
+func TestDispatchCommCallWebhookReportsHTTPError(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "nope", http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	cfg := &config.Config{}
+	cfg.Webhooks.Enabled = true
+	cfg.Webhooks.Outgoing = []config.OutgoingWebhook{{
+		ID: "hook_1", Name: "Alarm", Method: "POST", URL: server.URL,
+	}}
+	out, ok := dispatchComm(context.Background(), ToolCall{
+		Action: "call_webhook",
+		Params: map[string]interface{}{"webhook_name": "Alarm"},
+	}, &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	if !ok {
+		t.Fatal("expected dispatchComm to handle call_webhook")
+	}
+	if !strings.Contains(out, `"status":"error"`) || !strings.Contains(out, `"http_status_code":500`) {
+		t.Fatalf("expected HTTP error envelope, got %s", out)
+	}
+}
+
+func TestDispatchCommCallWebhookRejectsAmbiguousName(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Webhooks.Enabled = true
+	cfg.Webhooks.Outgoing = []config.OutgoingWebhook{
+		{ID: "hook_a", Name: "Alarm", Method: "POST", URL: "https://example.test/a"},
+		{ID: "hook_b", Name: "alarm", Method: "POST", URL: "https://example.test/b"},
+	}
+	out, ok := dispatchComm(context.Background(), ToolCall{
+		Action: "call_webhook",
+		Params: map[string]interface{}{"webhook_name": "Alarm"},
+	}, &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	if !ok {
+		t.Fatal("expected dispatchComm to handle call_webhook")
+	}
+	if !strings.Contains(out, "hook_a") || !strings.Contains(out, "hook_b") || !strings.Contains(out, `"status":"error"`) {
+		t.Fatalf("expected both IDs in the error, got %s", out)
 	}
 }
 

@@ -4,9 +4,10 @@ import openai "github.com/sashabaranov/go-openai"
 
 func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.Tool {
 	if ff.MemoryEnabled {
+		tools = append(tools, memoryCorrectionToolSchema())
 		tools = append(tools,
 			tool("manage_memory",
-				"Manage permanently stored core memory facts. Use this only for durable identity, preferences, hard constraints, and explicitly permanent facts, not task lists, cleanup scratchpads, session status, deploy/build results, health checks, mission runs, or discovered IPs/ports. Use 'add' to store a new fact, 'update' to correct an existing fact by ID, 'delete' to remove a fact by ID, 'remove' to remove a fact by exact text match, 'list' to read all stored facts. For cleanup, delete at most one clearly identified numeric ID per call and stop after any warning or error.",
+				"Manage permanently stored core memory facts. Use this only for durable identity, preferences, hard constraints, and explicitly permanent facts, not task lists, cleanup scratchpads, session status, deploy/build results, health checks, mission runs, or discovered IPs/ports. For evidenced corrections or retractions use correct_memory to retain history and reconcile copies. Use 'add' to store a new fact, 'update' for legacy editing by ID, 'delete' to remove a fact by ID, 'remove' to remove a fact by exact text match, 'list' to read all stored facts. For cleanup, delete at most one clearly identified numeric ID per call and stop after any warning or error.",
 				schema(map[string]interface{}{
 					"operation": map[string]interface{}{
 						"type":        "string",
@@ -18,13 +19,13 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 				}, "operation"),
 			),
 			tool("query_memory",
-				"Search across ALL memory sources at once: recent activity timeline, vector DB (long-term facts), knowledge graph (entities/relationships), journal (events/milestones), notes (tasks/todos), planner (structured tasks/appointments), core memory (permanent facts), and error patterns (learned failures). By default searches everything — use 'sources' only to narrow results.",
+				"Search across ALL memory sources at once: recent activity timeline, vector DB (long-term facts), knowledge graph (entities/relationships), journal (events/milestones), notes (tasks/todos), planner (structured tasks/appointments), core memory (permanent facts), user profile (structured preferences), and error patterns (learned failures). By default searches everything — use 'sources' only to narrow results.",
 				schema(map[string]interface{}{
 					"query": prop("string", "Natural language search query. Use '*' only for a diagnostic inventory/counts overview, not for semantic recall."),
 					"sources": map[string]interface{}{
 						"type":        "array",
-						"description": "Memory sources to search. Default: all available. Options: conversation, activity, vector_db, knowledge_graph, journal, notes, planner, core_memory, error_patterns",
-						"items":       map[string]interface{}{"type": "string", "enum": []string{"conversation", "activity", "vector_db", "knowledge_graph", "journal", "notes", "planner", "core_memory", "error_patterns"}},
+						"description": "Memory sources to search. Default: all available. Options: conversation, activity, vector_db, knowledge_graph, journal, notes, planner, core_memory, user_profile, error_patterns",
+						"items":       map[string]interface{}{"type": "string", "enum": []string{"conversation", "activity", "vector_db", "knowledge_graph", "journal", "notes", "planner", "core_memory", "user_profile", "error_patterns"}},
 					},
 					"limit": map[string]interface{}{
 						"type":        "integer",
@@ -33,7 +34,7 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 				}, "query"),
 			),
 			tool("context_memory",
-				"Run a context-aware memory query across recent activity, journal, notes, planner, core memory, knowledge graph, and long-term memory. Prefer this when you need a time-scoped overview, connected context, or a multi-source picture of the last days.",
+				"Run a context-aware memory query across recent activity, journal, notes, planner, core memory, user profile, knowledge graph, and long-term memory. Prefer this when you need a time-scoped overview, connected context, or a multi-source picture of the last days.",
 				schema(map[string]interface{}{
 					"query":           prop("string", "Natural language search query"),
 					"context_depth":   map[string]interface{}{"type": "string", "description": "How broad the contextual expansion should be", "enum": []string{"shallow", "normal", "deep"}},
@@ -41,8 +42,8 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 					"include_related": prop("boolean", "Whether related entities/contexts should be expanded where possible"),
 					"sources": map[string]interface{}{
 						"type":        "array",
-						"description": "Sources to include. Default: conversation, activity, journal, notes, planner, core, kg, ltm",
-						"items":       map[string]interface{}{"type": "string", "enum": []string{"conversation", "activity", "journal", "notes", "planner", "core", "kg", "ltm"}},
+						"description": "Sources to include. Default: conversation, activity, journal, notes, planner, core, profile, kg, ltm",
+						"items":       map[string]interface{}{"type": "string", "enum": []string{"conversation", "activity", "journal", "notes", "planner", "core", "profile", "kg", "ltm"}},
 					},
 				}, "query"),
 			),

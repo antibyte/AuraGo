@@ -54,9 +54,11 @@ import (
 	"aurago/internal/planner"
 	"aurago/internal/proxy"
 	"aurago/internal/remote"
+	"aurago/internal/retrogames"
 	"aurago/internal/retronet"
 	"aurago/internal/rocketchat"
 	"aurago/internal/rtlsdr"
+	"aurago/internal/ruview"
 	"aurago/internal/security"
 	"aurago/internal/services"
 	"aurago/internal/sipphone"
@@ -192,11 +194,15 @@ type Server struct {
 	CronManager               *tools.CronManager
 	BackgroundTasks           *tools.BackgroundTaskManager
 	Go2RTC                    *tools.Go2RTCManager
+	RuView                    *ruview.Manager
 	LocalLLM                  *localllm.Manager
 	LocalMusic                *acestep.Manager
 	LocalWiki                 *localwiki.Manager
 	localWikiSyncMu           sync.Mutex // one step from reading the config snapshot to configuring LocalWiki
 	localWikiBeforeConfigure  func()     // test seam: runs in syncLocalWikipediaSettings after the snapshot is read
+	RetroGames                *retrogames.Service
+	retroGamesSyncMu          sync.Mutex // one step from reading the config snapshot to configuring RetroGames
+	retroGamesBeforeConfigure func()     // test seam: runs in syncRetroGamesSettings after the snapshot is read
 	localLLMLifecycleCtx      context.Context
 	Go2RTCDiscovery           *onvif.Service
 	MeshCore                  *meshcore.Manager
@@ -294,6 +300,7 @@ type Server struct {
 	DesktopMu                 sync.Mutex
 	desktopClosed             bool // shutdown closed Desktop storage; guarded by DesktopMu
 	desktopRuns               desktopRunRegistry
+	storageRuns               desktopRunRegistry
 	retroNetOnce              sync.Once              // guards the lazy Retro-Net engine below
 	retroNetManager           *retronet.Manager      // lazy (see retroNet); tests pre-seed it
 	retroNetStatus            *retronet.StatusProber // lazy (see retroNet); tests pre-seed it
@@ -430,6 +437,14 @@ func (s *Server) newRemoteHub(db *sql.DB, vault *security.Vault, logger *slog.Lo
 	hub.AutoApprove = cfg.RemoteControl.AutoApprove
 	hub.MaxFileSizeMB = cfg.RemoteControl.MaxFileSizeMB
 	hub.AuditLogEnabled = cfg.RemoteControl.AuditLog
+	hub.Policy = func() remote.RuntimePolicy {
+		snapshot := s.ConfigSnapshot()
+		if snapshot == nil {
+			snapshot = cfg
+		}
+		rc := snapshot.RemoteControl
+		return remote.RuntimePolicy{ReadOnly: rc.ReadOnly, AutoApprove: rc.AutoApprove, AuditLog: rc.AuditLog, MaxFileSizeMB: rc.MaxFileSizeMB, AllowedPaths: rc.AllowedPaths}
+	}
 	hub.DefaultAllowedPaths = func() []string {
 		if snapshot := s.ConfigSnapshot(); snapshot != nil {
 			return snapshot.RemoteControl.AllowedPaths
@@ -444,6 +459,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 		return
 	}
 	previous := s.ConfigSnapshot()
+	if previous != nil && (previous.WebDAV != cfg.WebDAV || previous.Koofr != cfg.Koofr || previous.VirtualDesktop.ReadOnly != cfg.VirtualDesktop.ReadOnly || previous.VirtualDesktop.Enabled != cfg.VirtualDesktop.Enabled) {
+		s.revokeStorageRequests()
+	}
 	if previous != nil && videoStudioConfigRootsChanged(previous, cfg) {
 		// Cancel before publishing the new roots. A worker may finish an FFmpeg
 		// run after a workspace change, but it must not publish into the new tree.
@@ -481,11 +499,16 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	RegisterLLMSecrets(cfg)
 	s.Cfg = cfg
 	s.cfgSnapshot.Store(cfg)
+	if s.RuView != nil {
+		s.RuView.Configure()
+	}
 	s.finishVideoStudioConfigChange()
 	if hub := s.RemoteHub; hub != nil && previous != nil &&
-		!slices.Equal(previous.RemoteControl.AllowedPaths, cfg.RemoteControl.AllowedPaths) {
-		// The hub already evaluates the new default for shell checks; agents
-		// without their own list get it pushed. Socket writes stay off the
+		(!slices.Equal(previous.RemoteControl.AllowedPaths, cfg.RemoteControl.AllowedPaths) ||
+			previous.RemoteControl.ReadOnly != cfg.RemoteControl.ReadOnly || previous.RemoteControl.MaxFileSizeMB != cfg.RemoteControl.MaxFileSizeMB) {
+		hub.InvalidatePolicy(previous.RemoteControl.ReadOnly != cfg.RemoteControl.ReadOnly)
+		// The hub already enforces the new policy; agents receive a complete
+		// effective snapshot. Socket writes stay off the
 		// config publication path. Nothing else recovers a panic on this
 		// goroutine, so it is logged here instead of ending the process.
 		logger := s.Logger
@@ -494,7 +517,7 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 		}
 		push := s.pushRemoteAllowedPaths
 		if push == nil {
-			push = (*remote.RemoteHub).PushDefaultAllowedPaths
+			push = (*remote.RemoteHub).RefreshPolicy
 		}
 		go func() {
 			defer func() {
@@ -525,6 +548,11 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 		// The Wikipedia Desktop app appears or disappears with the switch;
 		// the broadcast runs off this (usually CfgMu-locked) path.
 		s.announceLocalWikipediaAvailability()
+	}
+	s.syncRetroGamesSettings()
+	if previous != nil && previous.RetroGames.Enabled != cfg.RetroGames.Enabled {
+		// The Retro Games Desktop app appears or disappears with the switch.
+		s.announceRetroGamesAvailability()
 	}
 	if s.WarningsRegistry != nil {
 		// Provider metadata probes may perform bounded network I/O. Keep config
@@ -692,11 +720,15 @@ func Start(opts StartOptions) error {
 		if s.LocalWiki != nil {
 			withdrawLocalWikipediaTool(s.LocalWiki)
 		}
+		withdrawRetroGamesTool(s.RetroGames)
 		serverCancel()
 		return err
 	}
 	if s.Go2RTC != nil {
 		s.Go2RTC.StartBackground(serverCtx)
+	}
+	if s.RuView != nil {
+		s.RuView.StartBackground(serverCtx)
 	}
 	if s.LocalMusic != nil {
 		s.LocalMusic.Start()
@@ -736,6 +768,10 @@ func Start(opts StartOptions) error {
 			}
 			wikiCancel()
 		}
+		withdrawRetroGamesTool(s.RetroGames)
+		retroCtx, retroCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		s.shutdownRetroGames(retroCtx)
+		retroCancel()
 		if s.GameMaker != nil {
 			_ = s.GameMaker.Close()
 		}
@@ -751,6 +787,9 @@ func Start(opts StartOptions) error {
 		s.shutdownCYDCreator()
 		if s.Go2RTC != nil {
 			s.Go2RTC.Close()
+		}
+		if s.RuView != nil {
+			s.RuView.Close()
 		}
 		if tools.DefaultGo2RTCManager() == s.Go2RTC {
 			tools.SetDefaultGo2RTCManager(nil)
@@ -860,7 +899,6 @@ func Start(opts StartOptions) error {
 		agent.Loopback(hbRunCfg, prompt, agent.NoopBroker{})
 		recordHeartbeatAuditFinish(shortTermMem, correlationID, memory.AuditStatusSuccess, "Heartbeat wake-up completed", "", time.Since(started))
 	})
-	s.HeartbeatScheduler.Start()
 	s.restartUptimeKumaPoller()
 
 	// Initialize Skill Manager and Agent Skills (classic manager gated by config)
@@ -1039,6 +1077,8 @@ func Start(opts StartOptions) error {
 			logger.Info("Webhook system initialized", "max_webhooks", webhooks.MaxWebhooks)
 		}
 	}
+	hbRunCfg.WebhookManager = s.WebhookManager
+	s.HeartbeatScheduler.Start()
 
 	// Start MissionManagerV2 with enhanced callback that reports completion
 	missionCallbackV2 := func(prompt string, missionID string) {
@@ -1493,18 +1533,19 @@ func Start(opts StartOptions) error {
 	if cfg.A2A.Server.Enabled || cfg.A2A.Client.Enabled {
 		if cfg.A2A.Server.Enabled {
 			a2aDeps := &a2apkg.ExecutorDeps{
-				Config:       cfg,
-				Logger:       logger,
-				LLMClient:    llmClient,
-				ShortTermMem: shortTermMem,
-				LongTermMem:  longTermMem,
-				Vault:        vault,
-				Guardian:     s.Guardian,
-				Registry:     registry,
-				Manifest:     tools.NewManifest(cfg.Directories.ToolsDir),
-				KG:           kg,
-				InventoryDB:  inventoryDB,
-				Budget:       s.BudgetTracker,
+				Config:         cfg,
+				Logger:         logger,
+				LLMClient:      llmClient,
+				ShortTermMem:   shortTermMem,
+				LongTermMem:    longTermMem,
+				Vault:          vault,
+				Guardian:       s.Guardian,
+				Registry:       registry,
+				Manifest:       tools.NewManifest(cfg.Directories.ToolsDir),
+				KG:             kg,
+				InventoryDB:    inventoryDB,
+				Budget:         s.BudgetTracker,
+				WebhookManager: s.WebhookManager,
 			}
 			s.A2AServer = a2apkg.NewServer(cfg, logger, a2aDeps)
 			s.A2AServer.StartCleanup(serverCtx)
@@ -1702,12 +1743,16 @@ func newServerFromOptions(opts StartOptions) *Server {
 		s.VaultSecretPrompter = vaultprompt.NewManager(opts.Vault, 5*time.Minute)
 	}
 	s.Go2RTC = tools.NewGo2RTCManager(cfg, opts.Vault, opts.MediaRegistryDB, logger)
+	s.RuView = ruview.New(s.ConfigSnapshot, opts.Vault, logger)
+	ruview.SetDefault(s.RuView)
 	s.LocalMusic = acestep.New(cfg, opts.Vault, logger)
 	acestep.SetDefault(s.LocalMusic)
 	s.Go2RTCDiscovery = onvif.NewService(cfg.Runtime.BroadcastOK)
 	tools.SetDefaultGo2RTCManager(s.Go2RTC)
 	s.LocalWiki = newLocalWikipediaManager(cfg, logger)
 	publishLocalWikipediaTool(s.LocalWiki)
+	s.RetroGames = newRetroGamesService(cfg, logger)
+	publishRetroGamesTool(s.RetroGames)
 	return s
 }
 
@@ -1791,7 +1836,7 @@ func (s *Server) syncAgentSkills(ctx context.Context, cfg *config.Config, instal
 
 // runHTTP starts the server in HTTP mode (for local/LAN use)
 func (s *Server) runHTTP(mux *http.ServeMux, ttsServer *http.Server, shutdownCh chan struct{}) error {
-	addr := fmt.Sprintf("%s:%d", s.Cfg.Server.Host, s.Cfg.Server.Port)
+	addr := net.JoinHostPort(s.Cfg.Server.Host, fmt.Sprint(s.Cfg.Server.Port))
 	s.Logger.Info("Starting HTTP server", "host", s.Cfg.Server.Host, "port", s.Cfg.Server.Port, "tls", false)
 
 	// Apply security headers (relaxed for HTTP, but still present).
@@ -1806,11 +1851,8 @@ func (s *Server) runHTTP(mux *http.ServeMux, ttsServer *http.Server, shutdownCh 
 
 // runHTTPS starts the server with auto-TLS (Let's Encrypt)
 func (s *Server) runHTTPS(mux *http.ServeMux, ttsServer *http.Server, tlsCfg *TLSConfig, shutdownCh chan struct{}) error {
-	tlsCfg.HTTPSPort = s.Cfg.Server.HTTPS.HTTPSPort
-	tlsCfg.HTTPPort = s.Cfg.Server.HTTPS.HTTPPort
-
 	// Apply security headers (strict for HTTPS)
-	handler := trustedProxyMiddleware(s, previewHostMiddleware(s, desktopTicketMiddleware(panicRecoveryMiddleware(s.Logger, gzipMiddleware(accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), true, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy))))))
+	handler := trustedProxyMiddleware(s, previewHostMiddleware(s, desktopTicketMiddleware(panicRecoveryMiddleware(s.Logger, gzipMiddleware(accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(s.httpsTransitionMiddleware(authMiddleware(s, mux)), true, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy))))))
 
 	httpsServer, httpServer, err := SetupServers(tlsCfg, handler, s.Logger)
 	if err != nil {
@@ -1818,6 +1860,7 @@ func (s *Server) runHTTPS(mux *http.ServeMux, ttsServer *http.Server, tlsCfg *TL
 	}
 
 	s.Logger.Info("Starting HTTPS servers",
+		"host", tlsCfg.Host,
 		"domain", tlsCfg.Domain,
 		"https_port", tlsCfg.HTTPSPort,
 		"http_port", tlsCfg.HTTPPort,

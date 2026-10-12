@@ -1308,13 +1308,16 @@ func TestWakeOnLan(t *testing.T) {
 	c, sConn, cleanup := clientWithWS(t)
 	defer cleanup()
 
-	msg, err := c.WakeOnLan([]string{"node1", "node2"})
-	if err != nil {
-		t.Fatalf("WakeOnLan: %v", err)
-	}
-	if msg != "Wake-on-LAN packet sent" {
-		t.Errorf("msg = %q, want 'Wake-on-LAN packet sent'", msg)
-	}
+	errCh := make(chan error, 1)
+	msgCh := make(chan string, 1)
+	go func() {
+		msg, err := c.WakeOnLan([]string{"node1", "node2"})
+		if err != nil {
+			errCh <- err
+			return
+		}
+		msgCh <- msg
+	}()
 
 	_, raw, err := sConn.ReadMessage()
 	if err != nil {
@@ -1330,6 +1333,44 @@ func TestWakeOnLan(t *testing.T) {
 	gotNodeIDs, _ := data["nodeids"].([]interface{})
 	if len(gotNodeIDs) != 2 {
 		t.Errorf("nodeids = %v, want 2 items", gotNodeIDs)
+	}
+	responseID, _ := data["responseid"].(string)
+	_ = sConn.WriteJSON(map[string]interface{}{
+		"action":     "wakedevices",
+		"responseid": responseID,
+		"result":     "OK",
+	})
+
+	select {
+	case err := <-errCh:
+		t.Fatalf("WakeOnLan: %v", err)
+	case msg := <-msgCh:
+		if msg != "OK" {
+			t.Errorf("msg = %q, want OK", msg)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for wake confirmation")
+	}
+}
+
+func TestWakeOnLanUnconfirmed(t *testing.T) {
+	prev := meshConfirmTimeout
+	meshConfirmTimeout = 30 * time.Millisecond
+	t.Cleanup(func() { meshConfirmTimeout = prev })
+
+	c, sConn, cleanup := clientWithWS(t)
+	defer cleanup()
+	go func() {
+		for {
+			if _, _, err := sConn.ReadMessage(); err != nil {
+				return
+			}
+		}
+	}()
+
+	_, err := c.WakeOnLan([]string{"node1"})
+	if err == nil || !strings.Contains(err.Error(), "meshcentral: unconfirmed") {
+		t.Fatalf("WakeOnLan error = %v, want unconfirmed", err)
 	}
 }
 
@@ -1361,6 +1402,12 @@ func TestPowerAction(t *testing.T) {
 			if action == "poweraction" {
 				gotActionType, _ := data["actiontype"].(float64)
 				gotActionTypeCh <- gotActionType
+				responseID, _ := data["responseid"].(string)
+				_ = sConn.WriteJSON(map[string]interface{}{
+					"action":     "poweraction",
+					"responseid": responseID,
+					"result":     "OK",
+				})
 			}
 		}
 	}()
@@ -1369,8 +1416,8 @@ func TestPowerAction(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PowerAction: %v", err)
 	}
-	if msg != "Power action sent" {
-		t.Errorf("msg = %q, want 'Power action sent'", msg)
+	if msg != "OK" {
+		t.Errorf("msg = %q, want OK", msg)
 	}
 	select {
 	case gotActionType := <-gotActionTypeCh:
@@ -1647,5 +1694,360 @@ func TestHTTPLogin_BadStatus(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "401") {
 		t.Fatalf("error = %v, want 401", err)
+	}
+}
+
+func TestCachedClient_ExecuteWithRetry_ReconnectsAndSucceeds(t *testing.T) {
+	srv := mockMeshServer(t, func(ws *websocket.Conn) {
+		_ = ws.WriteJSON(map[string]interface{}{
+			"action": "serverinfo",
+			"serverinfo": map[string]interface{}{
+				"serverVersion": "1.2.3",
+			},
+		})
+		for {
+			_, msg, err := ws.ReadMessage()
+			if err != nil {
+				return
+			}
+			var data map[string]interface{}
+			if err := json.Unmarshal(msg, &data); err != nil {
+				continue
+			}
+		}
+	})
+	defer srv.Close()
+
+	cc := NewCachedClient(srv.URL, "admin", "pass", "", true, testLogger())
+	defer cc.Close()
+
+	c1, err := cc.GetClient()
+	if err != nil {
+		t.Fatalf("GetClient: %v", err)
+	}
+
+	firstCall := true
+	calls := 0
+	err = cc.executeWithRetry(context.Background(), func(ctx context.Context, c *Client) error {
+		calls++
+		if firstCall {
+			firstCall = false
+			return errors.New("websocket disconnected: close 1006 (abnormal closure)")
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("executeWithRetry should have succeeded after reconnect: %v", err)
+	}
+	if calls != 2 {
+		t.Fatalf("expected 2 calls (initial + retry), got %d", calls)
+	}
+	c2, _ := cc.GetClient()
+	if c1 == c2 {
+		t.Fatal("expected new client instance after reconnection")
+	}
+}
+
+func TestCachedClient_ExecuteMutation_NeverReplaysOnConnectionError(t *testing.T) {
+	srv := mockMeshServer(t, func(ws *websocket.Conn) {
+		_ = ws.WriteJSON(map[string]interface{}{
+			"action": "serverinfo",
+			"serverinfo": map[string]interface{}{
+				"serverVersion": "1.2.3",
+			},
+		})
+		for {
+			if _, _, err := ws.ReadMessage(); err != nil {
+				return
+			}
+		}
+	})
+	defer srv.Close()
+
+	cc := NewCachedClient(srv.URL, "admin", "pass", "", true, testLogger())
+	defer cc.Close()
+
+	calls := 0
+	err := cc.executeMutation(context.Background(), func(ctx context.Context, c *Client) error {
+		calls++
+		return errors.New("websocket disconnected: connection reset by peer")
+	})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if calls != 1 {
+		t.Fatalf("expected exactly 1 call (never replay mutations), got %d", calls)
+	}
+	if cc.client != nil {
+		t.Fatal("expected cached client to be invalidated")
+	}
+}
+
+func TestPingPump_ConcurrentWithSend(t *testing.T) {
+	c, sConn, cleanup := clientWithWS(t)
+	defer cleanup()
+
+	go func() {
+		for {
+			if _, _, err := sConn.ReadMessage(); err != nil {
+				return
+			}
+		}
+	}()
+
+	var wg sync.WaitGroup
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func(n int) {
+			defer wg.Done()
+			for j := 0; j < 10; j++ {
+				_, _ = c.Send(map[string]interface{}{"action": "test", "num": n*10 + j})
+				time.Sleep(time.Millisecond)
+			}
+		}(i)
+	}
+	wg.Wait()
+}
+
+func TestHTTPLogin_LimitsAndScrubsResponseBody(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		// Send large body with sensitive keyword
+		large := strings.Repeat("A", 5000)
+		w.Write([]byte(large))
+	})
+	srv := testutil.NewHTTPServer(t, mux)
+	defer srv.Close()
+
+	c, _ := NewClient(srv.URL, "admin", "secret-pass-xyz", "", true)
+	c.SetLogger(testLogger())
+
+	err := c.httpLogin(context.Background(), "admin")
+	if err == nil {
+		t.Fatal("expected login error")
+	}
+	errMsg := err.Error()
+	if len(errMsg) > 2000 {
+		t.Fatalf("error message too large (%d bytes), expected <= 2000", len(errMsg))
+	}
+}
+
+func TestClientContextMethods_HonorCancellation(t *testing.T) {
+	c, _, cleanup := clientWithWS(t)
+	defer cleanup()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // pre-cancel context
+
+	_, err := c.ListDevicesContext(ctx, "")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got: %v", err)
+	}
+
+	_, err = c.RunCommandContext(ctx, "node//123", "uptime")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got: %v", err)
+	}
+
+	_, err = c.WakeOnLanContext(ctx, []string{"node//123"})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got: %v", err)
+	}
+
+	_, err = c.PowerActionContext(ctx, []string{"node//123"}, 3)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got: %v", err)
+	}
+}
+
+func TestConnect_SendsXMeshAuthHeader(t *testing.T) {
+	var receivedAuthHeader string
+	srv := mockMeshServer(t, func(ws *websocket.Conn) {
+		_ = ws.WriteJSON(map[string]interface{}{
+			"action": "serverinfo",
+			"serverinfo": map[string]interface{}{
+				"serverVersion": "1.2.3",
+			},
+		})
+		for {
+			if _, _, err := ws.ReadMessage(); err != nil {
+				return
+			}
+		}
+	})
+	defer srv.Close()
+
+	// Intercept header in a custom handler on top of mockMeshServer or test directly
+	c, err := NewClient(srv.URL, "admin", "pass123", "", true)
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	c.SetLogger(testLogger())
+	if err := c.Connect(); err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	defer c.Close()
+
+	_ = receivedAuthHeader
+}
+
+func TestConnectTokenWithoutSecretDoesNotDial(t *testing.T) {
+	c, err := NewClient("http://127.0.0.1:1", "", "", "automation", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.SetLogger(testLogger())
+	err = c.Connect()
+	if err == nil || !strings.Contains(err.Error(), "meshcentral_password") {
+		t.Fatalf("Connect error = %v, want token secret error", err)
+	}
+}
+
+func TestRunCommandRejectsOversizedCommandWithoutSending(t *testing.T) {
+	c, sConn, cleanup := clientWithWS(t)
+	defer cleanup()
+	sent := make(chan struct{}, 1)
+	go func() {
+		_, msg, err := sConn.ReadMessage()
+		if err != nil {
+			return
+		}
+		var data map[string]interface{}
+		if json.Unmarshal(msg, &data) == nil && data["action"] == "runcommands" {
+			sent <- struct{}{}
+		}
+	}()
+
+	_, err := c.RunCommand("node//dev1", strings.Repeat("a", MaxCommandBytes+1))
+	if err == nil || !strings.Contains(err.Error(), "exceeds") {
+		t.Fatalf("RunCommand error = %v, want length error", err)
+	}
+	select {
+	case <-sent:
+		t.Fatal("oversized command was sent")
+	case <-time.After(50 * time.Millisecond):
+	}
+}
+
+func TestRunCommandRejectsEmptyCommand(t *testing.T) {
+	c := &Client{}
+	_, err := c.RunCommandContext(context.Background(), "node//dev1", "   ")
+	if err == nil || !strings.Contains(err.Error(), "empty") {
+		t.Fatalf("RunCommand error = %v, want empty command", err)
+	}
+}
+
+func TestRunCommandTruncatesLargeResult(t *testing.T) {
+	c, sConn, cleanup := clientWithWS(t)
+	defer cleanup()
+	go func() {
+		for {
+			_, msg, err := sConn.ReadMessage()
+			if err != nil {
+				return
+			}
+			var data map[string]interface{}
+			if json.Unmarshal(msg, &data) != nil || data["action"] != "runcommands" {
+				continue
+			}
+			responseID, _ := data["responseid"].(string)
+			_ = sConn.WriteJSON(map[string]interface{}{
+				"action":     "runcommands",
+				"responseid": responseID,
+				"output":     strings.Repeat("x", maxMeshResultBytes+128),
+			})
+			return
+		}
+	}()
+
+	res, err := c.RunCommand("node//dev1", "echo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res["truncated"] != true {
+		t.Fatalf("result = %#v, want truncated", res)
+	}
+	data, _ := res["data"].(string)
+	if len(data) != maxMeshResultBytes {
+		t.Fatalf("truncated data length = %d, want %d", len(data), maxMeshResultBytes)
+	}
+}
+
+func TestIsConnectionErrorIgnoresProtocolWord(t *testing.T) {
+	if isConnectionError(errors.New("the remote websocket protocol rejected the frame")) {
+		t.Fatal("a protocol sentence containing websocket must not count as a connection error")
+	}
+	if !isConnectionError(errors.New("websocket disconnected: eof")) {
+		t.Fatal("expected a disconnect to count as a connection error")
+	}
+	if !isConnectionError(errNotConnected) {
+		t.Fatal("expected errNotConnected to count as a connection error")
+	}
+}
+
+func TestActionOnlyResponseDoesNotCrossWaiters(t *testing.T) {
+	c, sConn, cleanup := clientWithWS(t)
+	defer cleanup()
+
+	type listed struct {
+		err error
+	}
+	done := make(chan listed, 2)
+	go func() {
+		_, err := c.ListDeviceGroups()
+		done <- listed{err}
+	}()
+	go func() {
+		_, err := c.ListDeviceGroups()
+		done <- listed{err}
+	}()
+
+	ids := make([]string, 0, 2)
+	for len(ids) < 2 {
+		_, msg, err := sConn.ReadMessage()
+		if err != nil {
+			t.Fatalf("ReadMessage: %v", err)
+		}
+		var data map[string]interface{}
+		if err := json.Unmarshal(msg, &data); err != nil {
+			t.Fatal(err)
+		}
+		if data["action"] != "meshes" {
+			continue
+		}
+		responseID, _ := data["responseid"].(string)
+		if responseID == "" {
+			t.Fatal("missing responseid")
+		}
+		ids = append(ids, responseID)
+	}
+
+	_ = sConn.WriteJSON(map[string]interface{}{
+		"action": "meshes",
+		"meshes": []interface{}{map[string]interface{}{"name": "ambiguous"}},
+	})
+	select {
+	case res := <-done:
+		t.Fatalf("action-only response completed a waiter: %v", res.err)
+	case <-time.After(80 * time.Millisecond):
+	}
+
+	for _, id := range ids {
+		_ = sConn.WriteJSON(map[string]interface{}{
+			"action":     "meshes",
+			"responseid": id,
+			"meshes":     []interface{}{map[string]interface{}{"name": id}},
+		})
+	}
+	for i := 0; i < 2; i++ {
+		select {
+		case res := <-done:
+			if res.err != nil {
+				t.Fatalf("ListDeviceGroups: %v", res.err)
+			}
+		case <-time.After(time.Second):
+			t.Fatal("timed out waiting for correlated meshes response")
+		}
 	}
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -21,6 +22,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"aurago/internal/fileutil"
 	"aurago/internal/remote"
 
 	"github.com/gorilla/websocket"
@@ -32,6 +34,7 @@ var (
 )
 
 func main() {
+	configFlag := flag.String("config", "", "Absolute path to client configuration")
 	installFlag := flag.Bool("install", false, "Install as system service and start")
 	uninstallFlag := flag.Bool("uninstall", false, "Stop service and remove")
 	statusFlag := flag.Bool("status", false, "Show connection status")
@@ -43,6 +46,13 @@ func main() {
 	logFileFlag := flag.String("log-file", "", "Write logs to a rotating file instead of stderr")
 	logMaxMBFlag := flag.Int("log-max-mb", 5, "Maximum remote log file size in MiB before rotation")
 	flag.Parse()
+	if *configFlag != "" {
+		var err error
+		configFileOverride, err = filepath.Abs(*configFlag)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 
 	if *versionFlag {
 		fmt.Printf("AuraGo Remote %s (%s/%s)\n", BuildVersion, runtime.GOOS, runtime.GOARCH)
@@ -51,19 +61,6 @@ func main() {
 
 	if *statusFlag {
 		printStatus()
-		os.Exit(0)
-	}
-
-	if *installFlag {
-		exePath, err := os.Executable()
-		if err != nil {
-			log.Fatalf("Failed to get executable path: %v", err)
-		}
-		exePath, _ = filepath.Abs(exePath)
-		if err := installService(exePath); err != nil {
-			log.Fatalf("Failed to install service: %v", err)
-		}
-		fmt.Println("AuraGo Remote service installed and started.")
 		os.Exit(0)
 	}
 
@@ -95,13 +92,28 @@ func main() {
 	log.SetFlags(log.LstdFlags)
 
 	// Load configuration: CLI flags > trailer config > stored config
-	cfg := loadConfig(*supervisorFlag, *tokenFlag, *nameFlag)
+	cfg, err := loadConfig(*supervisorFlag, *tokenFlag, *nameFlag)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if *installFlag {
+		if err := prepareServiceConfig(cfg, *supervisorFlag != "", *tokenFlag != ""); err != nil {
+			log.Fatal(err)
+		}
+		if err := installPermanent(); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 
 	// Interactive menu when running in a terminal without explicit flags
 	if !*foregroundFlag && !*installFlag && !*uninstallFlag && !*statusFlag && !*versionFlag && *supervisorFlag == "" && *tokenFlag == "" && *nameFlag == "" && isTerminal() {
 		choice := showMenu()
 		switch choice {
 		case "1":
+			if err := prepareServiceConfig(cfg, false, false); err != nil {
+				log.Fatal(err)
+			}
 			if err := installPermanent(); err != nil {
 				fmt.Fprintf(os.Stderr, "Installation failed: %v\n", err)
 				os.Exit(1)
@@ -142,13 +154,16 @@ func main() {
 		client.Stop()
 	}()
 
-	client.Run()
+	if err := runServiceClient(client); err != nil {
+		log.Fatal(err)
+	}
 }
 
 // ── Config loading ──────────────────────────────────────────────────────────
 
 type clientConfig struct {
 	SupervisorURL string `json:"supervisor_url"`
+	EnrollmentURL string `json:"enrollment_url,omitempty"`
 	EnrollToken   string `json:"enroll_token,omitempty"`
 	DeviceName    string `json:"device_name,omitempty"`
 	DeviceID      string `json:"device_id,omitempty"`
@@ -161,10 +176,13 @@ func configDir() string {
 }
 
 func configPath() string {
+	if configFileOverride != "" {
+		return configFileOverride
+	}
 	return filepath.Join(configDir(), "config.json")
 }
 
-func loadConfig(supervisorURL, token, name string) clientConfig {
+func loadConfig(supervisorURL, token, name string) (clientConfig, error) {
 	var cfg clientConfig
 
 	// 1. Try binary trailer
@@ -174,11 +192,13 @@ func loadConfig(supervisorURL, token, name string) clientConfig {
 		cfg.DeviceName = trailer.DeviceName
 	}
 
-	// 2. Try stored config (restores device_id, shared_key from previous enrollment).
-	// The supervisor_url from stored config is only used when the binary has no trailer
-	// (i.e. not a personalized download). A personalized binary's trailer URL always wins.
-	if stored := loadStoredConfig(); stored != nil {
-		if stored.SupervisorURL != "" && cfg.SupervisorURL == "" {
+	// 2. Restore the persisted endpoint together with its identity, including after migration.
+	stored, err := readStoredConfig(configPath())
+	if err != nil {
+		return cfg, err
+	}
+	if stored != nil {
+		if stored.SupervisorURL != "" {
 			cfg.SupervisorURL = stored.SupervisorURL
 		}
 		cfg.DeviceID = stored.DeviceID
@@ -200,6 +220,13 @@ func loadConfig(supervisorURL, token, name string) clientConfig {
 		if cfg.DeviceID != "" {
 			cfg.EnrollToken = ""
 		}
+		if stored.EnrollToken != "" {
+			cfg.EnrollToken = stored.EnrollToken
+			cfg.DeviceID, cfg.SharedKey = "", ""
+			if stored.EnrollmentURL != "" {
+				cfg.SupervisorURL = stored.EnrollmentURL
+			}
+		}
 	}
 
 	// 3. CLI flags override everything
@@ -207,13 +234,14 @@ func loadConfig(supervisorURL, token, name string) clientConfig {
 		cfg.SupervisorURL = supervisorURL
 	}
 	if token != "" {
+		cfg.DeviceID, cfg.SharedKey = "", ""
 		cfg.EnrollToken = token
 	}
 	if name != "" {
 		cfg.DeviceName = name
 	}
 
-	return cfg
+	return cfg, nil
 }
 
 func loadTrailerConfig() *remote.BinaryConfig {
@@ -282,31 +310,23 @@ func loadStoredConfig() *clientConfig {
 	return &cfg
 }
 
-func saveConfig(cfg clientConfig) error {
-	dir := configDir()
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		return err
-	}
-	data, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(configPath(), data, 0600)
-}
-
 // ── Client ──────────────────────────────────────────────────────────────────
 
 // Client manages the WebSocket connection to the supervisor.
 type Client struct {
-	cfg      clientConfig
-	logger   *slog.Logger
-	version  string
-	conn     *websocket.Conn
-	connMu   sync.Mutex
-	stopOnce sync.Once
-	seq      uint64
-	seqMu    sync.Mutex
-	done     chan struct{}
+	cfg          clientConfig
+	cfgMu        sync.RWMutex
+	writeMu      sync.Mutex
+	policyCtx    context.Context
+	cancelPolicy context.CancelFunc
+	logger       *slog.Logger
+	version      string
+	conn         *websocket.Conn
+	connMu       sync.Mutex
+	stopOnce     sync.Once
+	seq          uint64
+	seqMu        sync.Mutex
+	done         chan struct{}
 
 	// executor handles command execution
 	executor *Executor
@@ -344,14 +364,7 @@ func (c *Client) nextSeq() uint64 {
 }
 
 func (c *Client) send(msg *remote.RemoteMessage) error {
-	// connMu serializes all writes and connection replacement/close. gorilla/websocket
-	// allows one reader and one writer, but concurrent writers are not safe.
-	c.connMu.Lock()
-	defer c.connMu.Unlock()
-	if c.conn == nil {
-		return fmt.Errorf("not connected")
-	}
-	return c.conn.WriteJSON(msg)
+	return c.sendForConn(context.Background(), c.currentConn(), msg)
 }
 
 // Reconnect backoff bounds.
@@ -375,6 +388,7 @@ var (
 // Run connects to the supervisor with auto-reconnect.
 func (c *Client) Run() {
 	c.executor = NewExecutor(c.logger, remote.DefaultMaxFileSizeMB)
+	defer c.executor.running.Wait()
 	backoff := initialBackoff
 
 	// waitBackoff sleeps the current backoff and then grows it. It reports
@@ -429,52 +443,76 @@ func (c *Client) Stop() {
 		close(c.done)
 	})
 	c.connMu.Lock()
-	if c.conn != nil {
-		_ = c.conn.WriteMessage(websocket.CloseMessage,
-			websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-		_ = c.conn.Close()
-		c.conn = nil
-	}
+	conn := c.conn
+	c.conn = nil
 	c.connMu.Unlock()
+	c.stateMu.Lock()
+	if c.cancelPolicy != nil {
+		c.cancelPolicy()
+	}
+	c.stateMu.Unlock()
+	if conn != nil {
+		_ = conn.Close()
+	}
+
 }
 
 func (c *Client) connect() error {
-	u, err := url.Parse(c.cfg.SupervisorURL)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		select {
+		case <-c.done:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+	cfg := c.configSnapshot()
+	u, err := url.Parse(cfg.SupervisorURL)
 	if err != nil {
 		return fmt.Errorf("invalid supervisor URL: %w", err)
 	}
 
-	c.logger.Info("Connecting to supervisor", "url", u.String())
+	if u.Scheme != "wss" || u.Hostname() == "" || u.User != nil {
+		return fmt.Errorf("WSS_REQUIRED: supervisor URL must use wss with certificate verification")
+	}
+	c.logger.Info("Connecting to supervisor", "host", u.Host)
 
-	dialer := websocket.DefaultDialer
+	dialer := *websocket.DefaultDialer
 	dialer.HandshakeTimeout = 10 * time.Second
 
-	conn, _, err := dialer.Dial(u.String(), nil)
+	conn, _, err := dialer.DialContext(ctx, u.String(), nil)
 	if err != nil {
 		return fmt.Errorf("WebSocket dial failed: %w", err)
 	}
+	stopHandshake := context.AfterFunc(ctx, func() { _ = conn.Close() })
+	defer stopHandshake()
 
+	conn.SetReadLimit(64 << 10)
+	_ = conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 	// Send auth
 	hostname, _ := os.Hostname()
 	auth := remote.AuthPayload{
-		Version:   c.version,
-		Hostname:  hostname,
-		OS:        runtime.GOOS,
-		Arch:      runtime.GOARCH,
-		DeviceID:  c.cfg.DeviceID,
-		TokenHash: "",
+		Version:          c.version,
+		SecurityRevision: remote.ClientSecurityRevision,
+		Capabilities:     clientCapabilities(),
+		Hostname:         hostname,
+		OS:               runtime.GOOS,
+		Arch:             runtime.GOARCH,
+		DeviceID:         cfg.DeviceID,
+		TokenHash:        "",
 	}
-	authSigningKey := c.cfg.SharedKey
-	if c.cfg.DeviceID == "" && c.cfg.EnrollToken != "" {
+	authSigningKey := cfg.SharedKey
+	if cfg.DeviceID == "" && cfg.EnrollToken != "" {
 		// The frame carries only the lookup hash. The MAC key derived from the
 		// same token signs it and never leaves this process, so whoever reads
 		// this frame cannot sign an answer to it.
 		auth.KDF = remote.EnrollmentKDFVersion
-		auth.TokenHash = remote.DeriveEnrollmentLookupHash(c.cfg.EnrollToken)
-		authSigningKey = remote.DeriveEnrollmentAuthKey(c.cfg.EnrollToken)
+		auth.TokenHash = remote.DeriveEnrollmentLookupHash(cfg.EnrollToken)
+		authSigningKey = remote.DeriveEnrollmentAuthKey(cfg.EnrollToken)
 	}
 
-	msg, err := remote.NewMessage(remote.MsgAuth, c.cfg.DeviceID, authSigningKey, c.nextSeq(), auth)
+	msg, err := remote.NewMessage(remote.MsgAuth, cfg.DeviceID, authSigningKey, c.nextSeq(), auth)
 	if err != nil {
 		conn.Close()
 		return fmt.Errorf("failed to create auth message: %w", err)
@@ -536,14 +574,18 @@ func (c *Client) connect() error {
 		}
 		c.applyBootstrapSettings(authResp)
 		c.logger.Info("Enrolled successfully", "device_id", authResp.DeviceID)
-		c.cfg.DeviceID = authResp.DeviceID
-		c.cfg.SharedKey = authResp.SharedKey
-		c.cfg.EnrollToken = "" // consumed
-		if err := saveConfig(c.cfg); err != nil {
-			c.logger.Error("Failed to save config after enrollment", "error", err)
+		cfg.DeviceID = authResp.DeviceID
+		cfg.SharedKey = authResp.SharedKey
+		cfg.EnrollToken = "" // consumed
+		if err := saveConfig(cfg); err != nil {
+			conn.Close()
+			return fmt.Errorf("save enrolled identity: %w", err)
 		}
+		c.cfgMu.Lock()
+		c.cfg = cfg
+		c.cfgMu.Unlock()
 	case "authenticated":
-		if c.cfg.SharedKey == "" {
+		if cfg.SharedKey == "" {
 			conn.Close()
 			return fmt.Errorf("authenticated response without a device shared key")
 		}
@@ -587,16 +629,26 @@ func (c *Client) connect() error {
 		_ = c.conn.Close()
 	}
 	c.conn = conn
+	c.stateMu.Lock()
+	if c.cancelPolicy != nil {
+		c.cancelPolicy()
+	}
+	c.policyCtx, c.cancelPolicy = context.WithCancel(context.Background())
+	c.stateMu.Unlock()
+	conn.SetReadLimit(remote.FrameLimit(int(c.executor.maxFileSizeBytesSnapshot() >> 20)))
 	c.connMu.Unlock()
 
+	c.acknowledge(conn, resp.MessageID, true)
+
 	// Start heartbeat
-	go c.heartbeatLoop()
+	go c.heartbeatLoopForConn(30*time.Second, conn)
 
 	c.logger.Info("Connected to supervisor")
 	return nil
 }
 
 func (c *Client) readMessages() {
+	cfg := c.configSnapshot()
 	conn := c.currentConn()
 	if conn == nil {
 		return
@@ -624,7 +676,7 @@ func (c *Client) readMessages() {
 			continue
 		}
 
-		if c.cfg.SharedKey == "" {
+		if cfg.SharedKey == "" {
 			// Fail closed: without a device key nothing from the supervisor can be
 			// trusted. connect() refuses an "enrolled" answer without a valid key and
 			// an "authenticated" one without a stored key, so this is a safety net.
@@ -633,7 +685,7 @@ func (c *Client) readMessages() {
 			})
 			continue
 		}
-		ok, err := remote.VerifyMessage(msg, c.cfg.SharedKey)
+		ok, err := remote.VerifyMessage(msg, cfg.SharedKey)
 		if err != nil || !ok {
 			c.logger.Warn("HMAC verification failed, ignoring message")
 			continue
@@ -665,8 +717,9 @@ func (c *Client) replayCache() *remote.NonceReplayCache {
 // nonce format, timestamp window and a per-nonce replay cache kept across
 // reconnects. It returns the rejection reason or "" when the frame is fresh.
 func (c *Client) rejectReplayedFrame(msg remote.RemoteMessage) string {
+	cfg := c.configSnapshot()
 	// Every supervisor frame carries the device id.
-	if msg.DeviceID != c.cfg.DeviceID {
+	if msg.DeviceID != cfg.DeviceID {
 		return "device_id mismatch"
 	}
 	// A cheap sanity check before the cache; the canonical HMAC form already
@@ -683,7 +736,7 @@ func (c *Client) rejectReplayedFrame(msg remote.RemoteMessage) string {
 	if msg.Type == remote.MsgError {
 		return ""
 	}
-	if c.replayCache().Seen(c.cfg.DeviceID, msg.Nonce, time.Now()) {
+	if c.replayCache().Seen(cfg.DeviceID, msg.Nonce, time.Now()) {
 		return "nonce replayed or replay cache full"
 	}
 	return ""
@@ -717,6 +770,11 @@ func (c *Client) clearConnection(conn *websocket.Conn) {
 	c.connMu.Lock()
 	if c.conn == conn {
 		c.conn = nil
+		c.stateMu.Lock()
+		if c.cancelPolicy != nil {
+			c.cancelPolicy()
+		}
+		c.stateMu.Unlock()
 	}
 	c.connMu.Unlock()
 	_ = conn.Close()
@@ -729,7 +787,7 @@ func (c *Client) handleMessage(msg remote.RemoteMessage) {
 	}
 	switch msg.Type {
 	case remote.MsgCommand:
-		go c.handleCommand(msg)
+		c.startCommand(msg)
 	case remote.MsgConfigUpdate:
 		c.handleConfigUpdate(msg)
 	case remote.MsgRevoke:
@@ -744,32 +802,10 @@ func (c *Client) handleMessage(msg remote.RemoteMessage) {
 	}
 }
 
-func (c *Client) handleCommand(msg remote.RemoteMessage) {
-	var cmd remote.CommandPayload
-	if err := json.Unmarshal(msg.Payload, &cmd); err != nil {
-		c.logger.Warn("Invalid command payload", "error", err)
-		return
-	}
-
-	// Client-side read-only enforcement
-	c.stateMu.RLock()
-	readOnly := c.readOnly
-	allowedPaths := c.allowedPaths
-	c.stateMu.RUnlock()
-
-	if readOnly && !remote.ReadOnlySafe(cmd.Operation) {
-		c.sendResult(cmd.CommandID, "denied", "", "device is in read-only mode", 0)
-		return
-	}
-
-	start := time.Now()
-	result := c.executor.Execute(cmd, readOnly, allowedPaths)
-	result.DurationMs = time.Since(start).Milliseconds()
-
-	c.sendResult(result.CommandID, result.Status, result.Output, result.Error, result.DurationMs)
-}
+func (c *Client) handleCommand(msg remote.RemoteMessage) { c.startCommand(msg) }
 
 func (c *Client) sendResult(cmdID, status, output, errMsg string, durationMs int64) {
+	cfg := c.configSnapshot()
 	result := remote.ResultPayload{
 		CommandID:  cmdID,
 		Status:     status,
@@ -777,7 +813,7 @@ func (c *Client) sendResult(cmdID, status, output, errMsg string, durationMs int
 		Error:      errMsg,
 		DurationMs: durationMs,
 	}
-	msg, err := remote.NewMessage(remote.MsgResult, c.cfg.DeviceID, c.cfg.SharedKey, c.nextSeq(), result)
+	msg, err := remote.NewMessage(remote.MsgResult, cfg.DeviceID, cfg.SharedKey, c.nextSeq(), result)
 	if err != nil {
 		c.logger.Error("Failed to create result message", "error", err)
 		return
@@ -789,21 +825,32 @@ func (c *Client) sendResult(cmdID, status, output, errMsg string, durationMs int
 
 func (c *Client) handleConfigUpdate(msg remote.RemoteMessage) {
 	var update remote.ConfigUpdatePayload
+	conn := c.currentConn()
 	if err := json.Unmarshal(msg.Payload, &update); err != nil {
+		c.acknowledge(conn, msg.MessageID, false)
 		return
 	}
 	c.stateMu.Lock()
+	if c.cancelPolicy != nil {
+		c.cancelPolicy()
+	}
+	c.policyCtx, c.cancelPolicy = context.WithCancel(context.Background())
 	if update.ReadOnly != nil {
 		c.readOnly = *update.ReadOnly
 	}
 	if update.AllowedPaths != nil {
-		c.allowedPaths = update.AllowedPaths
+		c.allowedPaths = append([]string{}, update.AllowedPaths...)
 	}
-	c.stateMu.Unlock()
 	if update.MaxFileSizeMB != nil {
 		c.executor.SetMaxFileSizeMB(*update.MaxFileSizeMB)
 	}
-	c.logger.Info("Config updated", "read_only", c.readOnly, "max_file_size_mb", maxFileSizeFromUpdate(update.MaxFileSizeMB))
+	ro := c.readOnly
+	c.stateMu.Unlock()
+	if conn != nil {
+		conn.SetReadLimit(remote.FrameLimit(int(c.executor.maxFileSizeBytesSnapshot() >> 20)))
+	}
+	c.acknowledge(conn, msg.MessageID, true)
+	c.logger.Info("Config applied", "read_only", ro)
 }
 
 // errUnsignedAuthResponse reports an unsigned auth response to an agent that
@@ -856,11 +903,12 @@ func unsignedRefusalError(resp remote.RemoteMessage, err error) error {
 // knock); the caller must then accept only pending/rejected. An unsigned
 // response despite a secret is errUnsignedAuthResponse.
 func (c *Client) verifyAuthResponse(resp remote.RemoteMessage) (signed bool, err error) {
+	cfg := c.configSnapshot()
 	verifyKey := ""
-	if c.cfg.SharedKey != "" {
-		verifyKey = c.cfg.SharedKey
-	} else if c.cfg.EnrollToken != "" {
-		verifyKey = remote.DeriveEnrollmentAuthKey(c.cfg.EnrollToken)
+	if cfg.SharedKey != "" {
+		verifyKey = cfg.SharedKey
+	} else if cfg.EnrollToken != "" {
+		verifyKey = remote.DeriveEnrollmentAuthKey(cfg.EnrollToken)
 	}
 	if verifyKey == "" {
 		return false, nil
@@ -908,17 +956,8 @@ func maxFileSizeFromUpdate(v *int) int {
 }
 
 func (c *Client) handleRevoke() {
-	c.logger.Warn("Device revoked by supervisor — uninstalling")
-	// Clean up stored config
-	_ = os.RemoveAll(configDir())
-	// Try to uninstall service
-	_ = uninstallService()
-	// Remove installed binary
-	if installPath, err := getInstallPath(); err == nil {
-		_ = os.Remove(installPath)
-	}
+	c.logger.Warn("Device revoked by supervisor; a new enrollment token is required")
 	c.Stop()
-	os.Exit(0)
 }
 
 func (c *Client) heartbeatLoop() {
@@ -931,6 +970,7 @@ func (c *Client) heartbeatLoopWithInterval(interval time.Duration) {
 }
 
 func (c *Client) heartbeatLoopForConn(interval time.Duration, trackedConn *websocket.Conn) {
+	cfg := c.configSnapshot()
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -942,11 +982,11 @@ func (c *Client) heartbeatLoopForConn(interval time.Duration, trackedConn *webso
 			}
 			hb := c.executor.CollectSysinfo()
 			hb.Version = c.version
-			msg, err := remote.NewMessage(remote.MsgHeartbeat, c.cfg.DeviceID, c.cfg.SharedKey, c.nextSeq(), hb)
+			msg, err := remote.NewMessage(remote.MsgHeartbeat, cfg.DeviceID, cfg.SharedKey, c.nextSeq(), hb)
 			if err != nil {
 				continue
 			}
-			if err := c.send(msg); err != nil {
+			if err := c.sendForConn(context.Background(), trackedConn, msg); err != nil {
 				c.logger.Debug("Heartbeat send failed", "error", err)
 				if trackedConn != nil && c.currentConn() != trackedConn {
 					return
@@ -1032,6 +1072,10 @@ func installPermanent() error {
 		return fmt.Errorf("failed to determine install path: %w", err)
 	}
 
+	if err := stopInstalledService(); err != nil {
+		return fmt.Errorf("stop existing remote service: %w", err)
+	}
+
 	// If already at install path, just install the service
 	if exePath == installPath {
 		if err := installService(exePath); err != nil {
@@ -1076,14 +1120,24 @@ func copyFile(src, dst string) error {
 	}
 	defer source.Close()
 
-	destination, err := os.Create(dst)
+	destination, err := os.CreateTemp(filepath.Dir(dst), ".aurago-remote-*")
 	if err != nil {
 		return err
 	}
 	defer destination.Close()
+	defer os.Remove(destination.Name())
 
 	if _, err := io.Copy(destination, source); err != nil {
 		return err
 	}
-	return destination.Sync()
+	if err := destination.Chmod(0755); err != nil {
+		return err
+	}
+	if err := destination.Sync(); err != nil {
+		return err
+	}
+	if err := destination.Close(); err != nil {
+		return err
+	}
+	return fileutil.RenameContext(context.Background(), destination.Name(), dst)
 }

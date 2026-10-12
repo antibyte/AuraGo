@@ -99,6 +99,35 @@ same('pad fills to the width', fitToCells('\u6f22a', 5, true), '\u6f22a  ');
 same('pad after a cut', fitToCells('\u6f22\u5b57\u30c6', 4, true), '\u6f22\u2026 ');
 same('pad of nothing', fitToCells('', 3, true), '   ');
 same('directory exposes only its contract', Object.keys(Directory).join(','), 'LOCAL_SHELL_ID,create');
+same('TerminalText exposes only its contract', Object.keys(sandbox.TerminalText).join(','), 'cellWidth,cells,fitToCells,printable,sentences,wrapHints,wrapWords');
+const { cells, sentences, wrapHints, wrapWords } = sandbox.TerminalText;
+// sentences: parts of one announcement end as sentences; an ASCII full stop only where sentence punctuation is missing.
+same('sentences adds a full stop only where one is missing', sentences(['Telnet sends passwords unencrypted', 'Ctrl+] hang up', 'The style stays locked.']),
+    'Telnet sends passwords unencrypted. Ctrl+] hang up. The style stays locked.');
+same('sentences keeps ASCII ! ? and the ellipsis', sentences(['Busy!', 'Hang up?', 'Dialling…']), 'Busy! Hang up? Dialling…');
+same('sentences keeps CJK and fullwidth punctuation', sentences(['按任意键返回目录。', 'ビジー！', '切断しますか？', 'ＯＫ．']), '按任意键返回目录。 ビジー！ 切断しますか？ ＯＫ．');
+same('sentences keeps the Devanagari danda', sentences(['कुंजी दबाएँ।']), 'कुंजी दबाएँ।');
+same('sentences ends a CJK part without punctuation with a full stop', sentences(['実際のパスワードは使わないでください']), '実際のパスワードは使わないでください.');
+same('sentences strips control characters and trailing spaces', sentences(['a\x1b[2J ', 'b. ']), 'a[2J. b.');
+// wrapWords: text to read (notices, results) wraps at spaces; nothing is cut or dropped, a word wider than a line is
+// split at cell boundaries (CJK two cells each, clusters never split).
+same('wrapWords packs words greedily at spaces', JSON.stringify(wrapWords('The service ended the connection.', 12)), JSON.stringify(['The service', 'ended the', 'connection.']));
+same('wrapWords keeps a line that fits', JSON.stringify(wrapWords('You hung up.', 39)), JSON.stringify(['You hung up.']));
+const german = 'Drücke eine beliebige Taste, um zum Verzeichnis zurückzukehren';
+same('the German line has 62 characters', [...german].length, 62);
+same('wrapWords wraps a German line at 39 cells between words', JSON.stringify(wrapWords(german, 39)), JSON.stringify(['Drücke eine beliebige Taste, um zum', 'Verzeichnis zurückzukehren']));
+same('wrapWords splits CJK without spaces at cell boundaries', JSON.stringify(wrapWords('按任意键返回目录。', 7)), JSON.stringify(['按任意', '键返回', '目录。']));
+same('wrapWords moves a wide character that would straddle the edge to the next line', JSON.stringify(wrapWords('a漢字', 4)), JSON.stringify(['a漢', '字']));
+same('wrapWords hard-splits an over-long word without dropping anything', JSON.stringify(wrapWords('see Donaudampfschifffahrt now', 8)), JSON.stringify(['see', 'Donaudam', 'pfschiff', 'fahrt', 'now']));
+same('wrapWords never splits a cluster', JSON.stringify(wrapWords('ééé', 2)), JSON.stringify(['éé', 'é']));
+same('wrapWords of an empty string is one empty line', JSON.stringify([wrapWords('', 39), wrapWords(null, 39)]), JSON.stringify([[''], ['']]));
+same('wrapWords strips control characters and collapses runs of spaces', JSON.stringify(wrapWords('a\x1b[2J  b ', 39)), JSON.stringify(['a[2J b']));
+same('wrapWords never makes a line narrower than one cell', JSON.stringify(wrapWords('ab 漢', 0)), JSON.stringify(['a', 'b', '漢']));
+same('cells measures display cells of the printable text', JSON.stringify([cells('abc'), cells('漢字'), cells('a\x1b[31mb'), cells('e' + String.fromCharCode(0x301)), cells(null)]), JSON.stringify([3, 4, 6, 1, 0]));
+same('wrapHints packs hints into as few lines as fit', JSON.stringify(wrapHints('a · b · c', 5)), JSON.stringify(['a · b', 'c']));
+same('wrapHints cuts an overlong hint with an ellipsis', JSON.stringify(wrapHints('abcdefgh · x', 5)), JSON.stringify(['abcd…', 'x']));
+same('wrapHints measures cells (CJK is two each)', JSON.stringify([wrapHints('漢字 · 漢', 8), wrapHints('漢字 · 漢', 9)]), JSON.stringify([['漢字', '漢'], ['漢字 · 漢']]));
+same('wrapHints strips control characters', JSON.stringify(wrapHints('a\x1b[31m · b', 20)), JSON.stringify(['a[31m · b']));
 same('printable strips C0, DEL and C1', printable('a\u001b[2Jb\u009b31m\u0007c\u007f\u0000d\r\n\u0085e'), 'a[2Jb31mcde');
 same('fitToCells strips control characters', fitToCells('\u001b]0;x\u0007ok', 10), ']0;xok');
 same('printable keeps zwj and text', printable('\u{1F469}\u200d\u{1F4BB} \u00e9'), '\u{1F469}\u200d\u{1F4BB} \u00e9');
@@ -227,7 +256,7 @@ for (const [cols, rows] of [[80, 30], [120, 30], [52, 32]]) {
 const LANGS = ['cs', 'da', 'de', 'el', 'en', 'es', 'fr', 'hi', 'it', 'ja', 'nl', 'no', 'pl', 'pt', 'sv', 'zh'];
 const CATALOG_PREFIX = 'desktop.terminal_retronet_entry_';
 const catalog = Object.keys(english).filter((key) => key.startsWith(CATALOG_PREFIX)).map((key, index) => ({
-    id: key.slice(CATALOG_PREFIX.length), name: 'Catalog entry ' + index, category: ['classics', 'bbs', 'muds', 'games'][index % 4],
+    id: key.slice(CATALOG_PREFIX.length), name: 'Catalog entry ' + index, category: ['classics', 'bbs', 'muds', 'games', 'commodore'][index % 5],
     description_key: key, protocol: 'telnet', host: 'bbs.example.org', port: 23, kind: 'bbs', charset: 'cp437', own: false
 }));
 const fullPayload = { entries: catalog.concat(payload.entries.filter((entry) => entry.own)), status: payload.status, stale: false, can_edit: true };
@@ -262,8 +291,68 @@ for (const lang of LANGS) {
         const hints = (strings['desktop.terminal_retronet_help'] + ' \u00b7 ' + strings['desktop.terminal_retronet_help_admin']).split(' \u00b7 ');
         const missing = hints.filter((hint) => width(hint) <= cols - 1 && !screen.some((text) => text.includes(hint)));
         check(label + ' every key hint is shown whole', missing.length === 0, missing.join(' | '));
+        const commodore = String(strings['desktop.terminal_retronet_cat_commodore']).toUpperCase();
+        check(label + ' the Commodore 64 heading is shown', screen.some((text) => text.includes(commodore)), commodore);
         check(label + ' announcements carry no control characters', announced.length > 0 && announced.every((text) => !CONTROL.test(text)));
         term.dispose();
+    }
+}
+
+// 4b. C64 boards (Contract C): never checked, so [C] instead of a reachability state (a stale status is ignored),
+// their own category before the own entries, the [C] help line only when C64 boards are listed, and translations
+// that fit: every part of the C64 key hint fits one 40-column line, the [C] help one 80-column line.
+{
+    const cabin = { id: 'the-cabin', name: 'The Cabin', category: 'commodore', description_key: 'desktop.terminal_retronet_entry_the_cabin', protocol: 'telnet', host: 'thecabinbbs.com', port: 6400, kind: 'c64', charset: 'petscii', own: false };
+    const game = { id: 'sshtron', name: 'SSHTron', category: 'games', description_key: 'desktop.terminal_retronet_entry_sshtron', protocol: 'ssh', host: 'sshtron.zachlatta.com', port: 22, user: 'guest', own: false };
+    const mine = { ...own('mybox', 'My C64 Box', '#own c64 board'), kind: 'c64', charset: 'petscii' };
+    const data = { entries: [mine, cabin, payload.entries[0], game], status: { telehack: { state: 'online' }, 'the-cabin': { state: 'offline', last_online_at: hoursAgo } }, stale: false, can_edit: true };
+    const { term, directory, announced } = await renderDirectory(80, 30, t, data);
+    const screen = [];
+    for (let y = 0; y < 30; y += 1) screen.push(term.buffer.active.getLine(y).translateToString(true));
+    const row = (name) => screen.find((text) => text.includes(name)) || '';
+    same('a catalog C64 board shows [C]', row('The Cabin').slice(4, 7), '[C]');
+    same('an own C64 board shows [C]', row('My C64 Box').slice(4, 7), '[C]');
+    check('a status for a C64 board is ignored (no last-reachable time)', !row('The Cabin').includes('last reachable'), row('The Cabin'));
+    const heading = (category) => screen.findIndex((text) => text.trim() === t('desktop.terminal_retronet_cat_' + category).toUpperCase());
+    check('the Commodore 64 category follows Games and precedes the own entries', heading('games') >= 0 && heading('games') < heading('commodore') && heading('commodore') < heading('own'), [heading('games'), heading('commodore'), heading('own')].join(','));
+    const markerRow = screen.indexOf(row('The Cabin'));
+    const marker = term.buffer.active.getLine(markerRow).getCell(5);
+    check('[C] is cyan', marker.getChars() === 'C' && marker.isFgPalette() && marker.getFgColor() === 6);
+    check('the [C] help line is shown', screen.some((text) => text.includes(t('desktop.terminal_retronet_status_c64_help'))));
+    const number = row('The Cabin').slice(1, 3);
+    directory.handleData(number[0]);
+    directory.handleData(number[1]);
+    check('the announcement says the board is not checked', announced.at(-1).includes('The Cabin') && announced.at(-1).includes(t('desktop.terminal_retronet_status_c64')) && !announced.at(-1).includes(t('desktop.terminal_retronet_status_offline')), announced.at(-1));
+    directory.dispose();
+    term.dispose();
+    const plain = await renderDirectory(80, 30);
+    const lines = [];
+    for (let y = 0; y < 30; y += 1) lines.push(plain.term.buffer.active.getLine(y).translateToString(true));
+    check('without C64 boards there is no [C] help', !lines.join('\n').includes('[C]'));
+    plain.directory.dispose();
+    plain.term.dispose();
+    for (const lang of LANGS) {
+        const strings = JSON.parse(read('lang/desktop/' + lang + '.json'));
+        const keys = strings['desktop.terminal_retronet_c64_keys'] || '';
+        const parts = keys.split(' · ');
+        const wide = parts.filter((part) => width(part) > 39);
+        check(lang + ' every C64 key hint part fits a 40-column line', parts.length >= 10 && wide.length === 0, wide.join(' | ') || String(parts.length));
+        const packed = wrapHints(keys, 39);
+        check(lang + ' the packed C64 key hint keeps every part whole', packed.every((line) => width(line) <= 39 && !line.endsWith('…')) && packed.length <= 8, JSON.stringify(packed));
+        const help = strings['desktop.terminal_retronet_status_c64_help'] || '';
+        check(lang + ' the [C] help starts with the marker and fits 79 cells', help.startsWith('[C]') && width(help) <= 79, help);
+        // The coordinator's dim lines on the 40-column C64 screen: whole, inside 39 cells, words kept together.
+        const dim = ['telnet_notice', 'press_key', 'press_key_shell', 'result_remote_closed', 'result_lost', 'result_max_duration']
+            .map((key) => strings['desktop.terminal_retronet_' + key]);
+        const broken = dim.filter((text) => {
+            const wrapped = wrapWords(text, 39);
+            const words = text.split(' ').filter(Boolean);
+            const fits = wrapped.every((line) => width(line) <= 39);
+            const whole = wrapped.join('').replace(/ /g, '') === text.replace(/ /g, '');
+            const unsplit = words.every((word) => width(word) > 39 || wrapped.some((line) => line.split(' ').includes(word)));
+            return !(fits && whole && unsplit);
+        });
+        check(lang + ' the dim C64 lines wrap whole at 39 cells', broken.length === 0, broken.join(' | '));
     }
 }
 

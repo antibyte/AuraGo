@@ -40,7 +40,7 @@ func TestConnectShowsHubEnrollmentRefusals(t *testing.T) {
 	}
 	hub := remote.NewRemoteHub(db, vault, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	upgrader := websocket.Upgrader{}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			return
@@ -53,6 +53,7 @@ func TestConnectShowsHubEnrollmentRefusals(t *testing.T) {
 		_ = hub.HandleEnrollment(conn, auth)
 	}))
 	t.Cleanup(srv.Close)
+	trustTestSupervisor(t, srv)
 	url := "ws" + strings.TrimPrefix(srv.URL, "http")
 	expires := time.Now().Add(time.Hour).UTC().Format(time.RFC3339)
 

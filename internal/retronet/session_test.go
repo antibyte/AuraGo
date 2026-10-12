@@ -50,6 +50,7 @@ func TestControlWireShape(t *testing.T) {
 		want string
 	}{
 		{Control{Type: "connected", Protocol: "telnet", Kind: "bbs", Charset: "cp437"}, `{"type":"connected","protocol":"telnet","kind":"bbs","charset":"cp437"}`},
+		{Control{Type: "connected", Protocol: "telnet", Kind: "c64", Charset: "petscii"}, `{"type":"connected","protocol":"telnet","kind":"c64","charset":"petscii"}`},
 		{Control{Type: "echo", Remote: &no, Hidden: &no}, `{"type":"echo","remote":false,"hidden":false}`},
 		{Control{Type: "echo", Remote: &no, Hidden: &yes}, `{"type":"echo","remote":false,"hidden":true}`},
 		{Control{Type: "echo", Remote: &yes, Hidden: &no}, `{"type":"echo","remote":true,"hidden":false}`},

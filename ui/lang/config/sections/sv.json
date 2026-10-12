@@ -571,5 +571,7 @@
   "config.section.optimizations.group.token_context": "Token och kontext",
   "config.section.optimizations.group.tool_context": "Verktygskontext",
   "config.section.optimizations.group.tool_optimization": "Verktygsoptimering",
-  "config.section.optimizations.group.tool_visibility": "Verktygssynlighet"
+  "config.section.optimizations.group.tool_visibility": "Verktygssynlighet",
+  "config.section.gog.label": "Google Workspace via gog",
+  "config.section.gog.desc": "Använd separata Google-konton tillsammans med den inbyggda integrationen."
 }

@@ -398,6 +398,9 @@ func (s *SQLiteMemory) ApplyMemoryBudgetEnforcement(budget int, ltm VectorDB) (i
 	if budget <= 0 || ltm == nil {
 		return 0, nil
 	}
+	// A correction may archive an eviction candidate while preparing its replacement.
+	s.automaticMemoryMu.Lock()
+	defer s.automaticMemoryMu.Unlock()
 	toEvict, err := s.EnforceMemoryBudget(budget)
 	if err != nil {
 		return 0, err

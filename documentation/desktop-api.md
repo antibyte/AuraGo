@@ -124,3 +124,33 @@ Session v2 adds stable window keys and an active-window reference without
 changing the existing version. Old snapshots fall back to their highest-z
 visible window. Compact mode preserves the logical active space. Layout clamping
 prioritizes reachability when the viewport is smaller than an app's minimum size.
+
+## Retro Games (`/api/desktop/retro-games/`)
+
+Desktop auth: the read scope for GET and HEAD, the write scope plus the desktop write operation for
+PUT/POST/DELETE. Errors are `{"error","code"}` (`error` is a readable message, `code` the stable
+identifier). After authentication the handler answers 503 `desktop_unavailable` while the Desktop is off
+and then 503 `disabled` while `retro_games.enabled` is off. Other codes: 400 `invalid_request` (bad
+search or Hall of Fame parameters) and `invalid_identifier`, 404 `not_found` and `game_not_found`,
+405 `method_not_allowed` (with an `Allow` header), 409 `sync_running` and `library_full`, 503 `timeout`,
+500 `retro_games_failed`. A write on a read-only Desktop (or one revoked while it ran) answers 403
+`desktop_readonly`; `plays` is the exception and answers 200 `{"recorded":false}`. Games are identified
+by `^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$`. Platform keys are `msdos`, `arcade`, `console`, `c64`, `amiga`,
+`apple2`, `zx` and `win3`.
+
+| Method | Path | Answer |
+|---|---|---|
+| GET, HEAD | `status?passive` | `{enabled, syncing, total_games, platforms[{key,label,count,state,page,fetched,last_success_at,last_error}], systems[{name,count}]}`; `state` is `idle`, `pending`, `running`, `done` or `failed`; `page`, `fetched`, `last_success_at` (Unix seconds) and `last_error` are omitted when empty; `systems` lists the console systems, most games first; may start the automatic index sync, except with `passive=1` (or `true`), which only reports (for settings pages) |
+| POST | `sync` | 202 `{started:true}`; 409 `sync_running` |
+| GET, HEAD | `search?q&platform&system&decade&sort&offset&limit&include_broken` | `{games[], total, offset, limit}`; `q` up to 200 characters, `system` an exact system name (up to 60 characters), `decade` 1950 to 2020 in steps of 10, `sort` = `relevance` (default; without `q` it equals `popular`), `popular`, `title`, `year`, `offset` 0 to 100000, `limit` 1 to 60 (default and maximum 60: a missing, zero or larger value becomes 60), `include_broken=1` (or `true`) also lists games marked "doesn't start"; any invalid value answers 400 `invalid_request` |
+| GET, HEAD | `hall-of-fame?platform` | `{games[]}` (the 46 curated games; games marked "doesn't start" are still listed); unknown platform: 400 `invalid_request` |
+| GET, HEAD | `player?id&muted&sound` | HTML player page for the iframe of the Retro Games app (not JSON). It runs archive.org's Emularity loader in an opaque-origin sandbox (`Content-Security-Policy: sandbox allow-scripts allow-pointer-lock; …`, scripts and connections limited to archive.org hosts, `X-Frame-Options: SAMEORIGIN`); `id` as for `games/{id}` (else 400 `invalid_identifier`), `muted=1` starts muted, `sound` is the "click for sound" label (text, at most 60 characters). The page talks to the app only via `postMessage` (`{rg:1,type:'state',state:'loading'|'running'|'failed'}`, `{rg:1,type:'audio',blocked}`; the app sends `{rg:1,type:'mute',muted}` and `{rg:1,type:'focus'}`) |
+| GET, HEAD | `games/{id}` | `{game}` from the index, else from the Hall of Fame; 404 `game_not_found`, 400 `invalid_identifier` |
+| GET, HEAD | `library` | `{favorites[], recent[], broken[]}`; entries are games with `at` (Unix seconds), `play_count` (omitted when 0) and `available` (false once the game left the index); at most 500 favorites, 50 recent, 500 broken |
+| PUT/DELETE | `favorites/{id}` | `{favorite}` (`true` for PUT, `false` for DELETE); PUT: 404 `game_not_found`, 409 `library_full` (500 favorites) |
+| POST | `plays/{id}` | `{recorded}`; `false` on a read-only Desktop; 404 `game_not_found` |
+| PUT/DELETE | `broken/{id}` | `{broken}` (`true` for PUT, `false` for DELETE); PUT: 404 `game_not_found`, 409 `library_full` (500 markers) |
+
+A game is `{identifier, title, year, creator, platform, system, emulator, downloads}`; `year`, `creator`,
+`emulator` and `downloads` are omitted when unknown. Hall of Fame and library entries carry only
+`identifier`, `title`, `year`, `platform` and `system`.

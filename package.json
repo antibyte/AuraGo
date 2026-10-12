@@ -22,7 +22,7 @@
     "test:mission-control": "node scripts/test-mission-control-schedule.mjs && node scripts/test-mission-control-flows.mjs",
     "test:dashboard-cron": "node scripts/test-dashboard-cronjobs.mjs",
     "test:missions-page": "node scripts/test-missions-page-flows.mjs",
-    "test:terminal-retronet": "node scripts/test-terminal-modem.mjs && node scripts/test-terminal-retronet-directory.mjs && node scripts/test-terminal-retronet-session.mjs && node scripts/test-terminal-retronet-entries.mjs",
+    "test:terminal-retronet": "node scripts/test-terminal-modem.mjs && node scripts/test-terminal-geometry.mjs && node scripts/test-terminal-retronet-directory.mjs && node scripts/test-terminal-retronet-session.mjs && node scripts/test-terminal-retronet-entries.mjs",
     "build:ui": "node scripts/build-ui-bundles.js",
     "build:game-maker-3d": "node scripts/build-game-maker-3d.js",
     "test:game-maker-glbs": "node scripts/validate-game-maker-glbs.mjs",
@@ -93,8 +93,10 @@
     "pdfjs-dist": "6.3.289",
     "phaser": "4.2.1",
     "rollup": "^4.63.5",
+    "stats-ruview": "npm:stats.js@0.17.0",
     "stockfish": "19.0.0",
     "three": "0.186.1",
+    "three-ruview": "npm:three@0.160.0",
     "webamp": "2.3.1"
   },
   "devDependencies": {

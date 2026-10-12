@@ -265,10 +265,10 @@ func NewSSRFProtectedHTTPClient(timeout time.Duration) *http.Client {
 var redirectCredentialHeaders = []string{"Authorization", "Proxy-Authorization", "Cookie", "X-Api-Key", "X-Auth-Token", "X-Goog-Api-Key"}
 
 // redirectCredentialHeaderMarkers mark a header as a credential by name
-// (X-Goog-Api-Key, X-Webhook-Token, My-Secret, ...). Dropping a harmless match
+// (X-Goog-Api-Key, X-Webhook-Token, My-Secret, X-Password, ...). Dropping a harmless match
 // such as Idempotency-Key or X-CSRF-Token on a cross-origin hop costs nothing:
 // the new origin could not validate it anyway.
-var redirectCredentialHeaderMarkers = []string{"key", "token", "secret", "auth"}
+var redirectCredentialHeaderMarkers = []string{"key", "token", "secret", "auth", "password"}
 
 func isRedirectCredentialHeader(name string) bool {
 	canonical := http.CanonicalHeaderKey(name)

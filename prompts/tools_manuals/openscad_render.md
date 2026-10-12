@@ -13,4 +13,4 @@ Render OpenSCAD source in the managed Virtual Desktop OpenSCAD container. Use it
 
 ## Safety
 
-The compiler container is offline and has no exposed ports. Do not use generic filesystem paths, remote user paths, or `remote.files.*` to locate OpenSCAD outputs; use the returned job files, download URLs, and saved desktop paths.
+The compiler container is offline and has no exposed ports. Do not use generic filesystem paths, remote user paths, or `remote.files.*` to locate OpenSCAD outputs; use the returned job files, download URLs, and saved desktop paths. Status and render JSON omit host paths.

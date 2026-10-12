@@ -69,20 +69,23 @@
     async function createRecurringAppointments(payload, repeat, count) {
         const total = Math.max(1, Math.min(CAL_REPEAT_LIMIT, Number(count) || 1));
         const start = calendarDate(payload.date_time);
-        if (!start || repeat === 'none' || total <= 1) {
-            await plannerJSON('/api/desktop/integrations/appointments', 'POST', payload);
+        const bodies = [];
+        const repeats = !start || repeat === 'none' || total <= 1 ? 1 : total;
+        const reminderOffset = payload.notification_at && start ? start - new Date(payload.notification_at) : null;
+        for (let index = 0; index < repeats; index += 1) {
+            const when = index === 0 || !start ? start : calendarShiftDate(start, repeat, index);
+            const body = Object.assign({}, payload, when ? { date_time: when.toISOString() } : {});
+            if (reminderOffset !== null) body.notification_at = new Date(when.getTime() - reminderOffset).toISOString();
+            bodies.push(body);
+        }
+        if (bodies.length === 1) {
+            await plannerJSON('/api/desktop/integrations/appointments', 'POST', bodies[0]);
             return 1;
         }
-        const reminderOffset = payload.notification_at ? start - new Date(payload.notification_at) : null;
-        let created = 0;
-        for (let index = 0; index < total; index += 1) {
-            const when = calendarShiftDate(start, repeat, index);
-            const body = Object.assign({}, payload, { date_time: when.toISOString() });
-            if (reminderOffset !== null) body.notification_at = new Date(when.getTime() - reminderOffset).toISOString();
-            await plannerJSON('/api/desktop/integrations/appointments', 'POST', body);
-            created += 1;
-        }
-        return created;
+        const created = await plannerJSON('/api/desktop/integrations/appointments', 'POST', { appointments: bodies });
+        const ids = created && Array.isArray(created.ids) ? created.ids : [];
+        if (ids.length !== bodies.length) throw new Error(t('desktop.request_failed'));
+        return ids.length;
     }
 
     function loadCalendarContacts(session) {
@@ -286,6 +289,7 @@
 
     function openAppointmentEditor(session, options) {
         options = options || {};
+        if (session.readonly()) return;
         const appointment = options.appointment || null;
         closeCalendarEditor(session);
         closeCalendarPeek(session);
@@ -416,12 +420,17 @@
         if (hadFocus && anchor && document.contains(anchor)) anchor.focus({ preventScroll: true });
     }
 
-    function calendarPeekHTML(item) {
+    function calendarPeekHTML(item, session) {
         const date = calendarDate(item.date_time);
         const canComplete = item.status === 'upcoming' || item.status === 'overdue';
         const canCancel = item.status === 'upcoming' || item.status === 'overdue';
         const canReopen = item.status === 'completed' || item.status === 'cancelled';
         const participants = (item.participants || []).map(p => p.name).filter(Boolean);
+        const actions = session.readonly() ? '' : `${canComplete ? `<button type="button" class="vd-button vd-button-primary" data-cal-status-action="completed" data-appt-id="${esc(item.id)}">${iconMarkup('check', 'OK', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.cal_mark_complete'))}</span></button>` : ''}
+                    ${canReopen ? `<button type="button" class="vd-button" data-cal-status-action="upcoming" data-appt-id="${esc(item.id)}">${iconMarkup('undo', 'U', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.cal_reopen'))}</span></button>` : ''}
+                    <button type="button" class="vd-button" data-cal-edit="${esc(item.id)}">${iconMarkup('edit', 'E', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.launchpad_edit'))}</span></button>
+                    ${canCancel ? `<button type="button" class="vd-calendar-icon-button" data-cal-status-action="cancelled" data-appt-id="${esc(item.id)}" title="${esc(t('desktop.cal_cancel_appointment'))}" aria-label="${esc(t('desktop.cal_cancel_appointment'))}">${iconMarkup('x', 'x', 'vd-calendar-action-icon', 14)}</button>` : ''}
+                    <button type="button" class="vd-calendar-icon-button is-danger" data-cal-delete="${esc(item.id)}" title="${esc(t('desktop.delete'))}" aria-label="${esc(t('desktop.delete'))}">${iconMarkup('trash', 'D', 'vd-calendar-action-icon', 14)}</button>`;
         return `<div class="vd-calendar-peek-accent is-${item.status}" aria-hidden="true"></div>
             <div class="vd-calendar-peek-body">
                 <header class="vd-calendar-peek-head">
@@ -433,13 +442,7 @@
                 ${participants.length ? `<p class="vd-calendar-peek-meta">${iconMarkup('users', 'P', 'vd-calendar-mini-icon', 13)}<span>${esc(participants.join(', '))}</span></p>` : ''}
                 ${item.wake_agent ? `<p class="vd-calendar-peek-meta is-agent">${iconMarkup('chat', 'A', 'vd-calendar-mini-icon', 13)}<span>${esc(item.agent_instruction || t('desktop.cal_wake_agent'))}</span></p>` : ''}
                 ${item.description ? `<p class="vd-calendar-peek-description">${esc(item.description)}</p>` : ''}
-                <footer class="vd-calendar-peek-actions">
-                    ${canComplete ? `<button type="button" class="vd-button vd-button-primary" data-cal-status-action="completed" data-appt-id="${esc(item.id)}">${iconMarkup('check', 'OK', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.cal_mark_complete'))}</span></button>` : ''}
-                    ${canReopen ? `<button type="button" class="vd-button" data-cal-status-action="upcoming" data-appt-id="${esc(item.id)}">${iconMarkup('undo', 'U', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.cal_reopen'))}</span></button>` : ''}
-                    <button type="button" class="vd-button" data-cal-edit="${esc(item.id)}">${iconMarkup('edit', 'E', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.launchpad_edit'))}</span></button>
-                    ${canCancel ? `<button type="button" class="vd-calendar-icon-button" data-cal-status-action="cancelled" data-appt-id="${esc(item.id)}" title="${esc(t('desktop.cal_cancel_appointment'))}" aria-label="${esc(t('desktop.cal_cancel_appointment'))}">${iconMarkup('x', 'x', 'vd-calendar-action-icon', 14)}</button>` : ''}
-                    <button type="button" class="vd-calendar-icon-button is-danger" data-cal-delete="${esc(item.id)}" title="${esc(t('desktop.delete'))}" aria-label="${esc(t('desktop.delete'))}">${iconMarkup('trash', 'D', 'vd-calendar-action-icon', 14)}</button>
-                </footer>
+                <footer class="vd-calendar-peek-actions">${actions}</footer>
             </div>`;
     }
 
@@ -450,7 +453,7 @@
         const peek = document.createElement('div');
         peek.className = 'vd-calendar-peek';
         peek.setAttribute('role', 'dialog');
-        peek.innerHTML = calendarPeekHTML(item);
+        peek.innerHTML = calendarPeekHTML(item, session);
         shell.appendChild(peek);
         session.peek = peek;
         peek.__calendarAnchor = anchor || null;

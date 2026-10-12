@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -301,4 +302,90 @@ func TestMQTTControllerRelayHandlerDoesNotBlockIncomingCallbacks(t *testing.T) {
 	stopCtx, stopCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer stopCancel()
 	controller.stopCurrentGeneration(stopCtx)
+}
+
+func TestMQTTRelayQueueSkipsUnroutedTopics(t *testing.T) {
+	t.Run("frigate only", func(t *testing.T) {
+		probe := newRelayQueueProbe(t, false)
+		const discarded = "relay-queue-unrouted-sensors"
+		probe.deliver("sensors/temp", discarded)
+		probe.deliver("frigate/events", "relay-queue-frigate-event")
+		if topics := probe.queuedTopics(); !slices.Equal(topics, []string{"frigate/events"}) {
+			t.Fatalf("relay queue = %#v, want [frigate/events]", topics)
+		}
+		if !mqttBufferHas("sensors/temp", discarded) {
+			t.Fatal("global message buffer lost the unrouted sensors/temp message")
+		}
+	})
+
+	t.Run("relay to agent", func(t *testing.T) {
+		probe := newRelayQueueProbe(t, true)
+		probe.deliver("sensors/temp", "relay-queue-sensor-forwarded")
+		probe.deliver("frigate/events", "relay-queue-frigate-forwarded")
+		if topics := probe.queuedTopics(); !slices.Equal(topics, []string{"sensors/temp", "frigate/events"}) {
+			t.Fatalf("relay queue = %#v, want both topics", topics)
+		}
+	})
+}
+
+type relayQueueProbe struct {
+	controller *MQTTController
+	gen        *mqttGeneration
+}
+
+func newRelayQueueProbe(t *testing.T, relayToAgent bool) relayQueueProbe {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	gen := &mqttGeneration{
+		ctx:    ctx,
+		cancel: cancel,
+		queue:  make(chan tools.MQTTMessage, 100),
+		desiredFilters: map[string]byte{
+			"sensors/temp":   0,
+			"frigate/events": 0,
+		},
+	}
+	if cap(gen.queue) != 100 {
+		t.Fatalf("relay queue depth = %d, want 100", cap(gen.queue))
+	}
+	cfg := &config.Config{}
+	cfg.MQTT.RelayToAgent = relayToAgent
+	cfg.Frigate.Enabled = true
+	cfg.Frigate.MQTTTopicPrefix = "frigate"
+	cfg.Frigate.EventRelay = true
+	controller := &MQTTController{
+		state:   "connected",
+		current: gen,
+		active:  cloneMQTTSnapshot(cfg),
+	}
+	return relayQueueProbe{controller: controller, gen: gen}
+}
+
+func (p relayQueueProbe) deliver(topic, payload string) {
+	p.controller.messageHandler(p.gen)(nil, controllerTestMessage{
+		topic:   topic,
+		payload: []byte(payload),
+	})
+}
+
+func (p relayQueueProbe) queuedTopics() []string {
+	topics := make([]string, 0, len(p.gen.queue))
+	for {
+		select {
+		case msg := <-p.gen.queue:
+			topics = append(topics, msg.Topic)
+		default:
+			return topics
+		}
+	}
+}
+
+func mqttBufferHas(topic, payload string) bool {
+	for _, msg := range GetMessages(topic, defaultMaxBufferMessages) {
+		if msg.Topic == topic && msg.Payload == payload {
+			return true
+		}
+	}
+	return false
 }

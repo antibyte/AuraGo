@@ -127,6 +127,18 @@ func TestFilterEnv(t *testing.T) {
 	}
 }
 
+// exec.Cmd treats a nil Env as "inherit the parent environment", so a fully
+// filtered environment must stay an empty, non-nil slice.
+func TestFilterEnvAllFilteredReturnsEmptyNonNil(t *testing.T) {
+	got := FilterEnv([]string{"AURAGO_MASTER_KEY=x"})
+	if got == nil {
+		t.Fatal("FilterEnv returned nil; exec.Cmd would inherit the parent environment")
+	}
+	if len(got) != 0 {
+		t.Fatalf("FilterEnv = %q, want empty", got)
+	}
+}
+
 func TestEnvInt(t *testing.T) {
 	t.Setenv("TEST_SBX_INT", "42")
 	if v := envInt("TEST_SBX_INT"); v != 42 {

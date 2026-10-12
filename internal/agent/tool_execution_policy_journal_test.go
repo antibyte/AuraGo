@@ -39,7 +39,7 @@ func TestFinalizeToolExecutionSkipsJournalForHeartbeatErrors(t *testing.T) {
 		context.Background(), tc,
 		`{"status":"error","message":"message is required"}`,
 		false, cfg, stm, "heartbeat", &state, &openai.ChatCompletionRequest{},
-		logger, AgentTelemetryScope{}, "v1", 100, runCfg,
+		logger, AgentTelemetryScope{}, "v1", 100, runCfg, inlineBudgetBasis{},
 	)
 
 	entries, err := stm.GetJournalEntries("", "", nil, 10)
@@ -78,14 +78,14 @@ func TestFinalizeToolExecutionDedupesRepeatedJournalErrors(t *testing.T) {
 	_ = finalizeToolExecution(
 		context.Background(), tc, payload,
 		false, cfg, stm, "default", &firstState, &openai.ChatCompletionRequest{},
-		logger, AgentTelemetryScope{}, "v1", 100, runCfg,
+		logger, AgentTelemetryScope{}, "v1", 100, runCfg, inlineBudgetBasis{},
 	)
 
 	secondState := newToolRecoveryState()
 	_ = finalizeToolExecution(
 		context.Background(), tc, payload,
 		false, cfg, stm, "default", &secondState, &openai.ChatCompletionRequest{},
-		logger, AgentTelemetryScope{}, "v1", 100, runCfg,
+		logger, AgentTelemetryScope{}, "v1", 100, runCfg, inlineBudgetBasis{},
 	)
 
 	entries, err := stm.GetJournalEntries("", "", nil, 10)

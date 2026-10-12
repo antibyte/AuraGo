@@ -95,6 +95,7 @@
             pill: root.querySelector('[data-gallery-new]'),
             pillLabel: root.querySelector('[data-gallery-new-label]')
         };
+        const metadata = window.GalleryMetadata.create({ root, g, ctx, t, esc, api, readonly, refresh: () => { applyFilter({ keepScroll: true }); renderInfo(); } });
 
         function persist() {
             L.savePrefs({ tab: g.tab, sort: g.sort, group: g.group, tileIndex: g.tileIndex, infoOpen: g.infoOpen });
@@ -139,11 +140,13 @@
             let limit = pageSize;
             let firstPage = true;
             try {
+                await metadata.load(controller && controller.signal);
+                if (g.disposed || generation !== g.generation) return;
                 for (;;) {
                     const data = await api(listURL(offset, limit), controller ? { signal: controller.signal } : undefined);
                     if (g.disposed || generation !== g.generation) return;
                     const files = Array.isArray(data && data.files) ? data.files : [];
-                    for (const entry of files) if (acceptEntry(entry)) collected.push(entry);
+                    for (const entry of files) if (acceptEntry(entry)) collected.push(metadata.enrich(entry));
                     offset += files.length;
                     if (!silent) {
                         g.items = collected.slice();
@@ -209,7 +212,7 @@
             const opts = options || {};
             const tokens = L.queryTokens(g.query);
             const previousVisible = g.visible;
-            const visible = g.items.filter(item => L.matchesQuery(item, tokens));
+            const visible = g.items.filter(item => L.matchesQuery(item, tokens) && metadata.matches(item));
             visible.sort(L.comparator(g.sort));
             g.visible = visible;
             g.groupCounts = new Map();
@@ -274,7 +277,7 @@
 
         function renderEmpty() {
             el.grid.classList.add('is-empty');
-            el.grid.innerHTML = V.emptyHTML(view, g.query, g.tab);
+            el.grid.innerHTML = V.emptyHTML(view, g.query || metadata.category(), g.tab);
             el.more.hidden = true;
             g.rendered = 0;
         }
@@ -395,6 +398,7 @@
         }
 
         function updateStatus() {
+            metadata.sync();
             if (g.loading && !g.complete) {
                 el.status.textContent = t('desktop.gallery_loading_library', { count: g.items.length });
                 el.root.classList.add('is-loading');
@@ -402,7 +406,7 @@
                 el.root.classList.remove('is-loading');
                 if (g.error) {
                     el.status.textContent = t('desktop.gallery_error_title');
-                } else if (g.query) {
+                } else if (g.query || metadata.category()) {
                     const results = countLabel('desktop.gallery_status_results', g.visible.length);
                     el.status.textContent = g.visible.length ? `${results} · ${fmtBytes(totalSize(g.visible))}` : results;
                 } else {
@@ -822,6 +826,7 @@
 
         function renderInfo() {
             if (!g.infoOpen) return;
+            if (metadata.keepDraft(g.focusPath)) return;
             if (g.selection.size > 1) {
                 const items = selectedItems();
                 el.info.innerHTML = V.infoMultiHTML(view, items.length, fmtBytes(totalSize(items)));
@@ -844,6 +849,7 @@
             if (created && created !== modified) rows.push([t('desktop.gallery_field_created'), created]);
             rows.push([t('desktop.gallery_field_path'), dirOf(item.path) || g.tab]);
             el.info.innerHTML = V.infoItemHTML(view, item, kind, rows, previewURL(item));
+            metadata.sync();
 
             const image = el.info.querySelector('[data-gallery-info-image]');
             if (image) {
@@ -851,7 +857,7 @@
                     if (!image.naturalWidth) return;
                     item._width = image.naturalWidth;
                     item._height = image.naturalHeight;
-                    if (!el.info.querySelector('[data-gallery-dimensions]')) {
+                    if (!el.info.querySelector('[data-gallery-dimensions]') && !rows.some(([label]) => label === t('desktop.gallery_field_dimensions'))) {
                         const list = el.info.querySelector('.vd-gallery-info-list');
                         const row = document.createElement('div');
                         row.dataset.galleryDimensions = '1';
@@ -1051,6 +1057,7 @@
         g.dispose = function dispose() {
             if (g.disposed) return;
             g.disposed = true;
+            metadata.dispose();
             g.generation += 1;
             if (g.abort) g.abort.abort();
             clearInterval(g.timers.poll);

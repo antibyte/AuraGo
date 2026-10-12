@@ -12,13 +12,15 @@
     // CSI, OSC/DCS/SOS/PM/APC strings (BEL or ST terminated), SS3 and two-character escapes (Alt+key).
     const ESCAPES = /\x1b\[[0-?]*[ -/]*[@-~]|\x1b[\]PX^_][\s\S]*?(?:\x07|\x1b\\)|\x1bO[\s\S]|\x1b[\s\S]/g;
 
-    // Display width in xterm cells from the shared Unicode 6 table (emoji are one cell, as in xterm);
-    // a Tab in the line is shown as one space.
-    function cells(text) {
-        let width = 0;
-        for (const ch of String(text || '')) width += ch === '\t' ? 1 : TerminalText.cellWidth(ch.codePointAt(0));
-        return width;
-    }
+    // C64 colour keys (Contract C) by event.code, so every keyboard layout works: Ctrl+Shift+1-8 are the colours 0-7
+    // in C64 keyboard order, Alt+Shift+1-8 the colours 8-15, Ctrl+Shift+9/0 reverse on/off (PETSCII bytes).
+    const C64_CTRL_SHIFT_KEYS = {
+        Digit1: 0x90, Digit2: 0x05, Digit3: 0x1c, Digit4: 0x9f, Digit5: 0x9c,
+        Digit6: 0x1e, Digit7: 0x1f, Digit8: 0x9e, Digit9: 0x12, Digit0: 0x92
+    };
+    const C64_ALT_SHIFT_KEYS = {
+        Digit1: 0x81, Digit2: 0x95, Digit3: 0x96, Digit4: 0x97, Digit5: 0x98, Digit6: 0x99, Digit7: 0x9a, Digit8: 0x9b
+    };
 
     function isRegional(code) {
         return code >= 0x1f1e6 && code <= 0x1f1ff;
@@ -62,6 +64,14 @@
         return code < 0x10000 ? 3 : 4;
     }
 
+    // The private input sequence ESC [ 6 4 ; <PETSCII byte> ~ for a C64 colour key, or '' for any other key
+    // event; the server's PETSCII codec turns it into that byte (and accepts only these bytes).
+    function c64ColorKey(event) {
+        if (!event || !event.shiftKey || event.metaKey || event.ctrlKey === event.altKey) return '';
+        const keys = event.ctrlKey ? C64_CTRL_SHIFT_KEYS : C64_ALT_SHIFT_KEYS;
+        return Object.prototype.hasOwnProperty.call(keys, event.code) ? '\x1b[64;' + keys[event.code] + '~' : '';
+    }
+
     function positive(value, fallback) {
         const number = Math.floor(Number(value));
         return Number.isFinite(number) && number > 0 ? number : fallback;
@@ -97,8 +107,8 @@
         const onClose = typeof opts.onClose === 'function' ? opts.onClose : function () {};
         const encoder = new TextEncoder();
         const lineCapable = entry.protocol === 'telnet' && entry.kind === 'world';
+        // The grid the session opens with; every Retro-Net grid is pinned, so it never changes during the call.
         const initial = { cols: positive(opts.cols, 80), rows: positive(opts.rows, 25) };
-        const size = { cols: initial.cols, rows: initial.rows };
         const history = [];
         let remoteEcho = false; // echo.remote: character mode, every key goes out at once
         let hiddenEcho = false; // echo.hidden: line mode without local echo (password prompts)
@@ -144,9 +154,10 @@
             if (term && text && !hiddenEcho) term.write(TerminalText.printable(text.split('\t').join(' ')));
         }
 
-        // Moves back over `text`, blanks its cells and moves back again (nothing while hidden).
+        // Moves back over `text`, blanks its cells and moves back again (nothing while hidden): the cells echo()
+        // wrote, a Tab as one space (shared Unicode 6 widths, emoji one cell as in xterm).
         function erase(text) {
-            const width = cells(text);
+            const width = TerminalText.cells(String(text || '').split('\t').join(' '));
             if (width > 0 && term && !hiddenEcho) term.write('\b'.repeat(width) + ' '.repeat(width) + '\b'.repeat(width));
         }
 
@@ -295,15 +306,6 @@
             }
         }
 
-        function resize(cols, rows) {
-            const nextCols = positive(cols, size.cols);
-            const nextRows = positive(rows, size.rows);
-            if (nextCols === size.cols && nextRows === size.rows) return;
-            size.cols = nextCols;
-            size.rows = nextRows;
-            sendControl({ type: 'resize', cols: nextCols, rows: nextRows });
-        }
-
         function hostKeyDecision(accept) {
             sendControl({ type: 'hostkey_decision', accept: accept === true });
         }
@@ -334,12 +336,6 @@
             }
         }
 
-        ws.onopen = function () {
-            if (closed) return;
-            if (size.cols !== initial.cols || size.rows !== initial.rows) {
-                sendControl({ type: 'resize', cols: size.cols, rows: size.rows });
-            }
-        };
         ws.onmessage = function (event) {
             if (closed) return;
             if (event.data instanceof ArrayBuffer) {
@@ -366,8 +362,8 @@
             onClose(event);
         };
 
-        return { send: send, resize: resize, hostKeyDecision: hostKeyDecision, hangup: shutdown, dispose: shutdown };
+        return { send: send, hostKeyDecision: hostKeyDecision, hangup: shutdown, dispose: shutdown };
     }
 
-    window.TerminalRetroNetSession = { open: open, hostKeyAnswer: hostKeyAnswer };
+    window.TerminalRetroNetSession = { open: open, hostKeyAnswer: hostKeyAnswer, c64ColorKey: c64ColorKey };
 })();

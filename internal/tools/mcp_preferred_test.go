@@ -32,10 +32,11 @@ func TestCallPreferredMCPWebSearchUsesConfiguredSelection(t *testing.T) {
 		callPreferredMCPTool = oldCall
 	}()
 
-	listPreferredMCPTools = func(serverName string, logger *slog.Logger) ([]MCPToolInfo, error) {
+	listPreferredMCPTools = func(_ context.Context, serverName string, logger *slog.Logger) ([]MCPToolInfo, error) {
 		return []MCPToolInfo{{
-			Server: serverName,
-			Name:   "web_search",
+			connection: &mcpConn{runtime: "local"},
+			Server:     serverName,
+			Name:       "web_search",
 			InputSchema: map[string]interface{}{
 				"properties": map[string]interface{}{
 					"query": map[string]interface{}{"type": "string"},
@@ -83,10 +84,11 @@ func TestCallPreferredMCPVisionUsesResolvedFilePath(t *testing.T) {
 		callPreferredMCPTool = oldCall
 	}()
 
-	listPreferredMCPTools = func(serverName string, logger *slog.Logger) ([]MCPToolInfo, error) {
+	listPreferredMCPTools = func(_ context.Context, serverName string, logger *slog.Logger) ([]MCPToolInfo, error) {
 		return []MCPToolInfo{{
-			Server: serverName,
-			Name:   "vision_tool",
+			connection: &mcpConn{runtime: "local"},
+			Server:     serverName,
+			Name:       "vision_tool",
 			InputSchema: map[string]interface{}{
 				"properties": map[string]interface{}{
 					"image_path": map[string]interface{}{"type": "string"},
@@ -108,7 +110,7 @@ func TestCallPreferredMCPVisionUsesResolvedFilePath(t *testing.T) {
 		t.Fatalf("mkdir workspace: %v", err)
 	}
 	imagePath := filepath.Join(workspaceDir, "image.png")
-	if err := os.WriteFile(imagePath, []byte("png"), 0o644); err != nil {
+	if err := os.WriteFile(imagePath, []byte("\x89PNG\r\n\x1a\nimage"), 0o644); err != nil {
 		t.Fatalf("write image: %v", err)
 	}
 
@@ -144,10 +146,11 @@ func TestCallPreferredMCPVisionSupportsImageURLStyleInputs(t *testing.T) {
 		callPreferredMCPTool = oldCall
 	}()
 
-	listPreferredMCPTools = func(serverName string, logger *slog.Logger) ([]MCPToolInfo, error) {
+	listPreferredMCPTools = func(_ context.Context, serverName string, logger *slog.Logger) ([]MCPToolInfo, error) {
 		return []MCPToolInfo{{
-			Server: "minimax",
-			Name:   "understand_image",
+			connection: &mcpConn{runtime: "local"},
+			Server:     "minimax",
+			Name:       "understand_image",
 			InputSchema: map[string]interface{}{
 				"properties": map[string]interface{}{
 					"image_url": map[string]interface{}{"type": "string"},
@@ -170,7 +173,7 @@ func TestCallPreferredMCPVisionSupportsImageURLStyleInputs(t *testing.T) {
 	cfg.Directories.WorkspaceDir = t.TempDir()
 
 	imgPath := filepath.Join(cfg.Directories.WorkspaceDir, "image.png")
-	if err := os.WriteFile(imgPath, []byte("fake image bytes"), 0o644); err != nil {
+	if err := os.WriteFile(imgPath, []byte("\x89PNG\r\n\x1a\nimage"), 0o644); err != nil {
 		t.Fatalf("write image: %v", err)
 	}
 
@@ -181,7 +184,9 @@ func TestCallPreferredMCPVisionSupportsImageURLStyleInputs(t *testing.T) {
 	if !used {
 		t.Fatal("expected preferred MCP vision to be used")
 	}
-	assertStagedVisionPath(t, gotArgs["image_url"], imgPath)
+	if value, _ := gotArgs["image_url"].(string); !strings.HasPrefix(value, "data:image/png;base64,") {
+		t.Fatal("expected MIME-checked data URL")
+	}
 	if gotArgs["question"] != "What is shown?" {
 		t.Fatalf("question = %v, want %q", gotArgs["question"], "What is shown?")
 	}
@@ -195,10 +200,11 @@ func TestCallPreferredMCPVisionSupportsCamelCaseInputs(t *testing.T) {
 		callPreferredMCPTool = oldCall
 	}()
 
-	listPreferredMCPTools = func(serverName string, logger *slog.Logger) ([]MCPToolInfo, error) {
+	listPreferredMCPTools = func(_ context.Context, serverName string, logger *slog.Logger) ([]MCPToolInfo, error) {
 		return []MCPToolInfo{{
-			Server: "minimax",
-			Name:   "understand_image",
+			connection: &mcpConn{runtime: "local"},
+			Server:     "minimax",
+			Name:       "understand_image",
 			InputSchema: map[string]interface{}{
 				"properties": map[string]interface{}{
 					"imageUrl": map[string]interface{}{"type": "string"},
@@ -222,7 +228,7 @@ func TestCallPreferredMCPVisionSupportsCamelCaseInputs(t *testing.T) {
 	cfg.Directories.WorkspaceDir = t.TempDir()
 
 	imgPath := filepath.Join(cfg.Directories.WorkspaceDir, "image.png")
-	if err := os.WriteFile(imgPath, []byte("fake image bytes"), 0o644); err != nil {
+	if err := os.WriteFile(imgPath, []byte("\x89PNG\r\n\x1a\nimage"), 0o644); err != nil {
 		t.Fatalf("write image: %v", err)
 	}
 
@@ -233,7 +239,9 @@ func TestCallPreferredMCPVisionSupportsCamelCaseInputs(t *testing.T) {
 	if !used {
 		t.Fatal("expected preferred MCP vision to be used")
 	}
-	assertStagedVisionPath(t, gotArgs["imageUrl"], imgPath)
+	if value, _ := gotArgs["imageUrl"].(string); !strings.HasPrefix(value, "data:image/png;base64,") {
+		t.Fatal("expected MIME-checked data URL")
+	}
 	if gotArgs["fileName"] != "image.png" {
 		t.Fatalf("fileName = %v, want %q", gotArgs["fileName"], "image.png")
 	}
@@ -247,10 +255,11 @@ func TestCallPreferredMCPVisionSupportsWrappedSchemaProperties(t *testing.T) {
 		callPreferredMCPTool = oldCall
 	}()
 
-	listPreferredMCPTools = func(serverName string, logger *slog.Logger) ([]MCPToolInfo, error) {
+	listPreferredMCPTools = func(_ context.Context, serverName string, logger *slog.Logger) ([]MCPToolInfo, error) {
 		return []MCPToolInfo{{
-			Server: "minimax",
-			Name:   "understand_image",
+			connection: &mcpConn{runtime: "local"},
+			Server:     "minimax",
+			Name:       "understand_image",
 			InputSchema: map[string]interface{}{
 				"inputSchema": map[string]interface{}{
 					"type": "object",
@@ -276,7 +285,7 @@ func TestCallPreferredMCPVisionSupportsWrappedSchemaProperties(t *testing.T) {
 	cfg.Directories.WorkspaceDir = t.TempDir()
 
 	imgPath := filepath.Join(cfg.Directories.WorkspaceDir, "wrapped.png")
-	if err := os.WriteFile(imgPath, []byte("fake image bytes"), 0o644); err != nil {
+	if err := os.WriteFile(imgPath, []byte("\x89PNG\r\n\x1a\nimage"), 0o644); err != nil {
 		t.Fatalf("write image: %v", err)
 	}
 
@@ -287,7 +296,9 @@ func TestCallPreferredMCPVisionSupportsWrappedSchemaProperties(t *testing.T) {
 	if !used {
 		t.Fatal("expected preferred MCP vision to be used")
 	}
-	assertStagedVisionPath(t, gotArgs["image_url"], imgPath)
+	if value, _ := gotArgs["image_url"].(string); !strings.HasPrefix(value, "data:image/png;base64,") {
+		t.Fatal("expected MIME-checked data URL")
+	}
 	if gotArgs["prompt"] != "Describe it" {
 		t.Fatalf("prompt = %v, want %q", gotArgs["prompt"], "Describe it")
 	}
@@ -301,10 +312,11 @@ func TestCallPreferredMCPVisionSupportsImageSourceInputs(t *testing.T) {
 		callPreferredMCPTool = oldCall
 	}()
 
-	listPreferredMCPTools = func(serverName string, logger *slog.Logger) ([]MCPToolInfo, error) {
+	listPreferredMCPTools = func(_ context.Context, serverName string, logger *slog.Logger) ([]MCPToolInfo, error) {
 		return []MCPToolInfo{{
-			Server: "minimax",
-			Name:   "understand_image",
+			connection: &mcpConn{runtime: "local"},
+			Server:     "minimax",
+			Name:       "understand_image",
 			InputSchema: map[string]interface{}{
 				"properties": map[string]interface{}{
 					"image_source": map[string]interface{}{"type": "string"},
@@ -327,7 +339,7 @@ func TestCallPreferredMCPVisionSupportsImageSourceInputs(t *testing.T) {
 	cfg.Directories.WorkspaceDir = t.TempDir()
 
 	imgPath := filepath.Join(cfg.Directories.WorkspaceDir, "source.png")
-	if err := os.WriteFile(imgPath, []byte("fake image bytes"), 0o644); err != nil {
+	if err := os.WriteFile(imgPath, []byte("\x89PNG\r\n\x1a\nimage"), 0o644); err != nil {
 		t.Fatalf("write image: %v", err)
 	}
 

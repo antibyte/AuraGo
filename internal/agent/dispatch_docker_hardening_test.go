@@ -527,9 +527,10 @@ func TestDispatchDockerRefusesTheConfiguredCYDCreatorImage(t *testing.T) {
 	}
 }
 
-// I1: the agent's create/run path cannot share another container's network,
-// PID or IPC namespace or its volumes: dispatch sets none of these keys, even
-// when the call carries them.
+// The agent's create/run path cannot share another container's network, PID
+// or IPC namespace or its volumes: dispatch sets none of these keys, even when
+// the call carries them. Compose references are resolved by
+// dockerComposeContainerReferenceDenial instead.
 func TestDispatchDockerCreateNeverJoinsAnotherContainer(t *testing.T) {
 	var body map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -551,8 +552,8 @@ func TestDispatchDockerCreateNeverJoinsAnotherContainer(t *testing.T) {
 	cfg.Directories.WorkspaceDir = t.TempDir()
 	useRuntimePermissionsForTest(t, cfg)
 	call := ToolCall{Action: "docker", Operation: "create", Name: "job", Image: "alpine:latest", Params: map[string]interface{}{
-		"network_mode": "container:aurago-cyd-builder", "pid_mode": "container:aurago-cyd-builder", "ipc_mode": "container:aurago",
-		"pid": "container:cccccccccccc", "volumes_from": []interface{}{"aurago-cyd-builder"},
+		"network_mode": "container:aurago-local-llm", "pid_mode": "container:aurago", "ipc_mode": "container:aurago",
+		"pid": "container:aaaaaaaaaaaa", "volumes_from": []interface{}{"aurago-local-llm"},
 	}}
 	output, ok := dispatchServices(context.Background(), call, &DispatchContext{Cfg: cfg, Logger: testLogger})
 	if !ok || strings.Contains(output, `"status":"error"`) {

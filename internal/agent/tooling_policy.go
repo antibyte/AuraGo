@@ -368,8 +368,11 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		ProxmoxEnabled:             cfg.Proxmox.Enabled,
 		FrigateEnabled:             cfg.Frigate.Enabled,
 		Go2RTCEnabled:              cfg.Go2RTC.Enabled && cfg.Go2RTC.AgentAccess,
+		RuViewEnabled:              cfg.RuView.Enabled && cfg.RuView.AgentAccess,
 		RTLSDREnabled:              cfg.RTLSDR.Enabled && cfg.RTLSDR.AllowAgent && cfg.VirtualDesktop.Enabled,
+		LayerlingEnabled:           cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.Layerling.Enabled && cfg.VirtualDesktop.AllowAgentControl && cfg.Tools.VirtualDesktop.Enabled && (cfg.VirtualDesktop.Layerling.AgentAccess == "read" || cfg.VirtualDesktop.Layerling.AgentAccess == "write"),
 		LocalWikipediaEnabled:      cfg.LocalWikipedia.Enabled && cfg.LocalWikipedia.AgentAccess,
+		RetroGamesEnabled:          cfg.RetroGames.Enabled && cfg.RetroGames.AgentAccess,
 		ThreeDPrinterEnabled:       cfg.ThreeDPrinters.Enabled,
 		OllamaEnabled:              cfg.Ollama.Enabled,
 		TailscaleEnabled:           cfg.Tailscale.Enabled,
@@ -401,6 +404,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		AgentMailEnabled:             cfg.AgentMail.Enabled,
 		CloudflareTunnelEnabled:      cfg.CloudflareTunnel.Enabled,
 		GoogleWorkspaceEnabled:       cfg.GoogleWorkspace.Enabled,
+		GogEnabled:                   gogAgentEnabled(cfg),
 		OneDriveEnabled:              cfg.OneDrive.Enabled,
 		WebDAVEnabled:                cfg.WebDAV.Enabled,
 		VirusTotalEnabled:            cfg.VirusTotal.Enabled,
@@ -503,6 +507,8 @@ func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToo
 	toolFlags.MemoryAnalysisEnabled = resolveMemoryAnalysisSettings(cfg, runCfg.ShortTermMem).Enabled
 	// The tool and its prompt hints exist only while an edition is open.
 	toolFlags.LocalWikipediaEnabled = toolFlags.LocalWikipediaEnabled && tools.LocalWikipediaAvailable()
+	// The tool exists only while the server publishes an enabled service.
+	toolFlags.RetroGamesEnabled = toolFlags.RetroGamesEnabled && tools.RetroGamesAvailable()
 
 	return resolvedToolFeatureState{
 		ToolFlags:           toolFlags,
@@ -546,6 +552,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		BluetoothEnabled:         flags.BluetoothEnabled,
 		NetworkSharesEnabled:     flags.NetworkSharesEnabled,
 		CoAgentEnabled:           flags.CoAgentEnabled,
+		GogEnabled:               flags.GogEnabled,
 		GoogleWorkspaceEnabled:   flags.GoogleWorkspaceEnabled,
 		OneDriveEnabled:          flags.OneDriveEnabled,
 		TelegramEnabled:          flags.TelegramEnabled,
@@ -555,8 +562,11 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		ProxmoxEnabled:           flags.ProxmoxEnabled,
 		FrigateEnabled:           flags.FrigateEnabled,
 		Go2RTCEnabled:            flags.Go2RTCEnabled,
+		RuViewEnabled:            flags.RuViewEnabled,
 		RTLSDREnabled:            flags.RTLSDREnabled,
+		LayerlingEnabled:         flags.LayerlingEnabled,
 		LocalWikipediaEnabled:    flags.LocalWikipediaEnabled,
+		RetroGamesEnabled:        flags.RetroGamesEnabled,
 		ThreeDPrinterEnabled:     flags.ThreeDPrinterEnabled,
 		OllamaEnabled:            flags.OllamaEnabled,
 		TailscaleEnabled:         flags.TailscaleEnabled,

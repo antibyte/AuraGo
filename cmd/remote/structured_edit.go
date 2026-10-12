@@ -8,17 +8,21 @@ import (
 	"os"
 	"strings"
 
+	"aurago/internal/remote"
+
 	"github.com/beevik/etree"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"gopkg.in/yaml.v3"
 )
 
+func clientCapabilities() []string { return remote.ClassicCapabilities() }
+
 // jsonEdit performs JSON file operations on the remote device.
-func (e *Executor) jsonEdit(path, op, jsonPath string, setValue interface{}) (string, error) {
+func (e *fileOperation) jsonEdit(path, op, jsonPath string, setValue interface{}) (string, error) {
 	switch op {
 	case "get":
-		data, err := os.ReadFile(path)
+		data, err := e.readFile(path)
 		if err != nil {
 			return "", err
 		}
@@ -39,16 +43,18 @@ func (e *Executor) jsonEdit(path, op, jsonPath string, setValue interface{}) (st
 			return "", fmt.Errorf("json_path is required for set")
 		}
 		var data []byte
-		if _, err := os.Stat(path); err == nil {
-			data, err = os.ReadFile(path)
+		if _, err := e.root.Stat(path); err == nil {
+			data, err = e.readFile(path)
 			if err != nil {
 				return "", err
 			}
 			if !gjson.ValidBytes(data) {
 				return "", fmt.Errorf("file is not valid JSON")
 			}
-		} else {
+		} else if os.IsNotExist(err) {
 			data = []byte("{}")
+		} else {
+			return "", err
 		}
 		updated, err := sjson.SetBytes(data, jsonPath, setValue)
 		if err != nil {
@@ -59,7 +65,7 @@ func (e *Executor) jsonEdit(path, op, jsonPath string, setValue interface{}) (st
 		if err != nil {
 			formatted = updated
 		}
-		if err := os.WriteFile(path, append(formatted, '\n'), 0o644); err != nil {
+		if err := e.writeFile(path, append(formatted, '\n'), 0o644); err != nil {
 			return "", err
 		}
 		return fmt.Sprintf("set '%s' successfully", jsonPath), nil
@@ -68,7 +74,7 @@ func (e *Executor) jsonEdit(path, op, jsonPath string, setValue interface{}) (st
 		if jsonPath == "" {
 			return "", fmt.Errorf("json_path is required for delete")
 		}
-		data, err := os.ReadFile(path)
+		data, err := e.readFile(path)
 		if err != nil {
 			return "", err
 		}
@@ -84,13 +90,13 @@ func (e *Executor) jsonEdit(path, op, jsonPath string, setValue interface{}) (st
 		if err != nil {
 			formatted = updated
 		}
-		if err := os.WriteFile(path, append(formatted, '\n'), 0o644); err != nil {
+		if err := e.writeFile(path, append(formatted, '\n'), 0o644); err != nil {
 			return "", err
 		}
 		return fmt.Sprintf("deleted '%s' successfully", jsonPath), nil
 
 	case "keys":
-		data, err := os.ReadFile(path)
+		data, err := e.readFile(path)
 		if err != nil {
 			return "", err
 		}
@@ -114,7 +120,7 @@ func (e *Executor) jsonEdit(path, op, jsonPath string, setValue interface{}) (st
 		return string(out), nil
 
 	case "validate":
-		data, err := os.ReadFile(path)
+		data, err := e.readFile(path)
 		if err != nil {
 			return "", err
 		}
@@ -124,7 +130,7 @@ func (e *Executor) jsonEdit(path, op, jsonPath string, setValue interface{}) (st
 		return `{"valid":false}`, nil
 
 	case "format":
-		data, err := os.ReadFile(path)
+		data, err := e.readFile(path)
 		if err != nil {
 			return "", err
 		}
@@ -136,7 +142,7 @@ func (e *Executor) jsonEdit(path, op, jsonPath string, setValue interface{}) (st
 		if err != nil {
 			return "", fmt.Errorf("format failed: %w", err)
 		}
-		if err := os.WriteFile(path, append(formatted, '\n'), 0o644); err != nil {
+		if err := e.writeFile(path, append(formatted, '\n'), 0o644); err != nil {
 			return "", err
 		}
 		return "formatted successfully", nil
@@ -147,10 +153,10 @@ func (e *Executor) jsonEdit(path, op, jsonPath string, setValue interface{}) (st
 }
 
 // yamlEdit performs YAML file operations on the remote device.
-func (e *Executor) yamlEdit(path, op, dotPath string, setValue interface{}) (string, error) {
+func (e *fileOperation) yamlEdit(path, op, dotPath string, setValue interface{}) (string, error) {
 	switch op {
 	case "get":
-		data, err := os.ReadFile(path)
+		data, err := e.readFile(path)
 		if err != nil {
 			return "", err
 		}
@@ -173,7 +179,10 @@ func (e *Executor) yamlEdit(path, op, dotPath string, setValue interface{}) (str
 			return "", fmt.Errorf("json_path is required for set")
 		}
 		var root yaml.Node
-		data, _ := os.ReadFile(path)
+		data, readErr := e.readFile(path)
+		if readErr != nil && !os.IsNotExist(readErr) {
+			return "", readErr
+		}
 		if len(data) > 0 {
 			if err := yaml.Unmarshal(data, &root); err != nil {
 				return "", fmt.Errorf("invalid YAML: %w", err)
@@ -190,7 +199,7 @@ func (e *Executor) yamlEdit(path, op, dotPath string, setValue interface{}) (str
 		if err != nil {
 			return "", fmt.Errorf("marshal failed: %w", err)
 		}
-		if err := os.WriteFile(path, out, 0o644); err != nil {
+		if err := e.writeFile(path, out, 0o644); err != nil {
 			return "", err
 		}
 		return fmt.Sprintf("set '%s' successfully", dotPath), nil
@@ -199,7 +208,7 @@ func (e *Executor) yamlEdit(path, op, dotPath string, setValue interface{}) (str
 		if dotPath == "" {
 			return "", fmt.Errorf("json_path is required for delete")
 		}
-		data, err := os.ReadFile(path)
+		data, err := e.readFile(path)
 		if err != nil {
 			return "", err
 		}
@@ -215,13 +224,13 @@ func (e *Executor) yamlEdit(path, op, dotPath string, setValue interface{}) (str
 		if err != nil {
 			return "", fmt.Errorf("marshal failed: %w", err)
 		}
-		if err := os.WriteFile(path, out, 0o644); err != nil {
+		if err := e.writeFile(path, out, 0o644); err != nil {
 			return "", err
 		}
 		return fmt.Sprintf("deleted '%s' successfully", dotPath), nil
 
 	case "keys":
-		data, err := os.ReadFile(path)
+		data, err := e.readFile(path)
 		if err != nil {
 			return "", err
 		}
@@ -249,7 +258,7 @@ func (e *Executor) yamlEdit(path, op, dotPath string, setValue interface{}) (str
 		return string(out), nil
 
 	case "validate":
-		data, err := os.ReadFile(path)
+		data, err := e.readFile(path)
 		if err != nil {
 			return "", err
 		}
@@ -335,14 +344,14 @@ func yamlNodeDeleteRemote(node *yaml.Node, parts []string) error {
 }
 
 // xmlEdit performs XML editing operations on the remote host.
-func (e *Executor) xmlEdit(path, op, xpath string, setValue interface{}) (string, error) {
+func (e *fileOperation) xmlEdit(path, op, xpath string, setValue interface{}) (string, error) {
 	switch op {
 	case "get":
 		if xpath == "" {
 			return "", fmt.Errorf("xpath is required for get")
 		}
 		doc := etree.NewDocument()
-		if err := doc.ReadFromFile(path); err != nil {
+		if err := e.readXML(doc, path); err != nil {
 			return "", fmt.Errorf("failed to parse XML: %w", err)
 		}
 		elements := doc.FindElements(xpath)
@@ -378,7 +387,7 @@ func (e *Executor) xmlEdit(path, op, xpath string, setValue interface{}) (string
 		}
 		text := fmt.Sprintf("%v", setValue)
 		doc := etree.NewDocument()
-		if err := doc.ReadFromFile(path); err != nil {
+		if err := e.readXML(doc, path); err != nil {
 			return "", fmt.Errorf("failed to parse XML: %w", err)
 		}
 		elements := doc.FindElements(xpath)
@@ -389,7 +398,7 @@ func (e *Executor) xmlEdit(path, op, xpath string, setValue interface{}) (string
 			el.SetText(text)
 		}
 		doc.Indent(2)
-		if err := doc.WriteToFile(path); err != nil {
+		if err := e.writeXML(doc, path); err != nil {
 			return "", fmt.Errorf("failed to write XML: %w", err)
 		}
 		out, _ := json.Marshal(map[string]interface{}{"updated": len(elements)})
@@ -409,7 +418,7 @@ func (e *Executor) xmlEdit(path, op, xpath string, setValue interface{}) (string
 		}
 		attrValue := fmt.Sprintf("%v", attrs["value"])
 		doc := etree.NewDocument()
-		if err := doc.ReadFromFile(path); err != nil {
+		if err := e.readXML(doc, path); err != nil {
 			return "", fmt.Errorf("failed to parse XML: %w", err)
 		}
 		elements := doc.FindElements(xpath)
@@ -420,7 +429,7 @@ func (e *Executor) xmlEdit(path, op, xpath string, setValue interface{}) (string
 			el.CreateAttr(attrName, attrValue)
 		}
 		doc.Indent(2)
-		if err := doc.WriteToFile(path); err != nil {
+		if err := e.writeXML(doc, path); err != nil {
 			return "", fmt.Errorf("failed to write XML: %w", err)
 		}
 		out, _ := json.Marshal(map[string]interface{}{"updated": len(elements)})
@@ -439,7 +448,7 @@ func (e *Executor) xmlEdit(path, op, xpath string, setValue interface{}) (string
 			return "", fmt.Errorf("set_value.tag is required for add_element")
 		}
 		doc := etree.NewDocument()
-		if err := doc.ReadFromFile(path); err != nil {
+		if err := e.readXML(doc, path); err != nil {
 			return "", fmt.Errorf("failed to parse XML: %w", err)
 		}
 		parents := doc.FindElements(xpath)
@@ -458,7 +467,7 @@ func (e *Executor) xmlEdit(path, op, xpath string, setValue interface{}) (string
 			}
 		}
 		doc.Indent(2)
-		if err := doc.WriteToFile(path); err != nil {
+		if err := e.writeXML(doc, path); err != nil {
 			return "", fmt.Errorf("failed to write XML: %w", err)
 		}
 		out, _ := json.Marshal(map[string]interface{}{"added_to": len(parents)})
@@ -469,7 +478,7 @@ func (e *Executor) xmlEdit(path, op, xpath string, setValue interface{}) (string
 			return "", fmt.Errorf("xpath is required for delete")
 		}
 		doc := etree.NewDocument()
-		if err := doc.ReadFromFile(path); err != nil {
+		if err := e.readXML(doc, path); err != nil {
 			return "", fmt.Errorf("failed to parse XML: %w", err)
 		}
 		elements := doc.FindElements(xpath)
@@ -484,14 +493,14 @@ func (e *Executor) xmlEdit(path, op, xpath string, setValue interface{}) (string
 			}
 		}
 		doc.Indent(2)
-		if err := doc.WriteToFile(path); err != nil {
+		if err := e.writeXML(doc, path); err != nil {
 			return "", fmt.Errorf("failed to write XML: %w", err)
 		}
 		out, _ := json.Marshal(map[string]interface{}{"deleted": count})
 		return string(out), nil
 
 	case "validate":
-		data, err := os.ReadFile(path)
+		data, err := e.readFile(path)
 		if err != nil {
 			return "", err
 		}
@@ -508,11 +517,11 @@ func (e *Executor) xmlEdit(path, op, xpath string, setValue interface{}) (string
 
 	case "format":
 		doc := etree.NewDocument()
-		if err := doc.ReadFromFile(path); err != nil {
+		if err := e.readXML(doc, path); err != nil {
 			return "", fmt.Errorf("failed to parse XML: %w", err)
 		}
 		doc.Indent(2)
-		if err := doc.WriteToFile(path); err != nil {
+		if err := e.writeXML(doc, path); err != nil {
 			return "", fmt.Errorf("failed to write XML: %w", err)
 		}
 		return `{"formatted":true}`, nil
@@ -520,4 +529,19 @@ func (e *Executor) xmlEdit(path, op, xpath string, setValue interface{}) (string
 	default:
 		return "", fmt.Errorf("unknown xml_editor operation: %s", op)
 	}
+}
+
+func (e *fileOperation) readXML(doc *etree.Document, path string) error {
+	data, err := e.readFile(path)
+	if err != nil {
+		return err
+	}
+	return doc.ReadFromBytes(data)
+}
+func (e *fileOperation) writeXML(doc *etree.Document, path string) error {
+	out := &fileSizeBuffer{limit: e.limit}
+	if _, err := doc.WriteTo(out); err != nil {
+		return err
+	}
+	return e.writeFile(path, out.Bytes(), 0600)
 }

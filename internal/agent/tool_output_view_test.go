@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"aurago/internal/memory"
+	"aurago/internal/security"
 )
 
 func TestRenderToolOutputViewLineModes(t *testing.T) {
@@ -25,10 +26,11 @@ func TestRenderToolOutputViewLineModes(t *testing.T) {
 		{name: "tail", req: toolOutputViewRequest{View: "tail", MaxLines: 2}, want: "delta\nepsilon"},
 		{name: "range", req: toolOutputViewRequest{View: "range", StartLine: 2, EndLine: 4}, want: "beta\ngamma\ndelta"},
 		{name: "grep", req: toolOutputViewRequest{View: "grep", Query: "mm"}, want: "gamma"},
-		{name: "full capped", req: toolOutputViewRequest{View: "full", MaxChars: 5}, want: "alpha\n[TRUNCATED:"},
+		{name: "full", req: toolOutputViewRequest{View: "full"}, want: "alpha\nbeta\ngamma\ndelta\nepsilon"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got, _, err := renderToolOutputView(out, tc.req)
+			payload, _ := vaultReadablePayload(out.OriginalContent)
+			got, err := renderToolOutputView(out, payload, tc.req)
 			if err != nil {
 				t.Fatalf("renderToolOutputView: %v", err)
 			}
@@ -45,7 +47,8 @@ func TestRenderToolOutputViewJSONPath(t *testing.T) {
 		OriginalContent: `{"status":"ok","items":[{"name":"alpha"},{"name":"beta"}]}`,
 	}
 
-	got, _, err := renderToolOutputView(out, toolOutputViewRequest{
+	payload, _ := vaultReadablePayload(out.OriginalContent)
+	got, err := renderToolOutputView(out, payload, toolOutputViewRequest{
 		View:  "jsonpath",
 		Query: "$.items[1].name",
 	})
@@ -54,5 +57,15 @@ func TestRenderToolOutputViewJSONPath(t *testing.T) {
 	}
 	if got != `"beta"` {
 		t.Fatalf("jsonpath view = %q, want %q", got, `"beta"`)
+	}
+
+	// Archived dispatch output carries the presentation prefix and the
+	// escaped isolation; jsonpath reads the tool's JSON inside them.
+	out.OriginalContent = security.IsolateExternalData("Tool Output: " + `{"status":"ok","items":[{"name":"<alpha>"}]}`)
+	payload, isolated := vaultReadablePayload(out.OriginalContent)
+	got, err = renderToolOutputView(out, payload, toolOutputViewRequest{View: "jsonpath", Query: "$.items[0].name"})
+	// JSON re-encodes the angle brackets as unicode escapes.
+	if err != nil || got != "\"\x5cu003calpha\x5cu003e\"" || !isolated {
+		t.Fatalf("jsonpath on isolated output = %q (%v, isolated=%v)", got, err, isolated)
 	}
 }

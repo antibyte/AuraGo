@@ -425,7 +425,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 
 	if ff.MeshCentralEnabled {
 		tools = append(tools, tool("meshcentral",
-			"Manage and inspect devices and groups managed by a MeshCentral server. Supports server info, device and event listing, wake-on-lan, power actions, and running commands.",
+			"Manage and inspect devices managed by a MeshCentral server. Supports server info, device and event listing, wake-on-lan, power actions, and running commands. Wake and power require meshcentral.allow_power_actions. run_command runs as the MeshAgent service account and requires agent.allow_remote_shell.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
@@ -1060,8 +1060,17 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	if ff.RTLSDREnabled {
 		tools = append(tools, rtlSDRSchema())
 	}
+	if ff.LayerlingEnabled {
+		tools = append(tools, layerlingSchema())
+	}
 	if ff.LocalWikipediaEnabled {
 		tools = append(tools, localWikipediaSchema())
+	}
+	if ff.RetroGamesEnabled {
+		tools = append(tools, retroGamesSchema())
+	}
+	if ff.RuViewEnabled {
+		tools = append(tools, tool("ruview", "Read RuView status, nodes, current sensing, model information and recording metadata. Source and time distinguish real and simulated measurements.", schema(map[string]interface{}{"operation": map[string]interface{}{"type": "string", "enum": []string{"status", "nodes", "sensing", "model_info", "recordings"}}}, "operation")))
 	}
 	if ff.Go2RTCEnabled {
 		tools = append(tools, tool("go2rtc",
@@ -2213,7 +2222,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				},
 				"format":      prop("string", "Export format for export_file, e.g. docx, html, md, txt, xlsx, csv."),
 				"output_path": prop("string", "Workspace-relative target path for export_file."),
-				"app_id":      prop("string", "Desktop app ID for open_app, open_in_app, get_app, diagnose_app, or widget ownership. Built-in open targets include editor for plain text workspace files, writer for word-processing documents, sheets for spreadsheets, and code-studio for code work. For generated apps, use the generated app id itself (for example space-invaders) when you want to run it."),
+				"app_id":      prop("string", "Desktop app ID for open_app, open_in_app, get_app, diagnose_app, or widget ownership. Built-in open targets include editor for plain text workspace files, writer for word-processing documents, sheets for spreadsheets, code-studio for code work, and retro-games for the Retro Games arcade when enabled (use the retro_games tool to open a specific game). For generated apps, use the generated app id itself (for example space-invaders) when you want to run it."),
 				"widget_id":   prop("string", "Desktop widget ID for get_widget or diagnose_widget. Also accepted as 'id' alias."),
 				"pet_id":      prop("string", "Desktop pet ID for set_pet or pet identifier for list_pets results."),
 				"reaction": map[string]interface{}{

@@ -31,3 +31,8 @@ func executionHookError(err error) string {
 func ConfiguredToolSchemas(cfg *config.Config, logger *slog.Logger) []openai.Tool {
 	return BuildNativeToolSchemas(cfg.Directories.SkillsDir, tools.NewManifest(cfg.Directories.ToolsDir), buildToolFlagsFromConfig(cfg), logger)
 }
+
+// RuntimeToolFeatureFlags shares chat's runtime prerequisites with trusted tool exporters.
+func RuntimeToolFeatureFlags(runCfg RunConfig) ToolFeatureFlags {
+	return buildToolFeatureFlags(runCfg, ToolingPolicy{})
+}

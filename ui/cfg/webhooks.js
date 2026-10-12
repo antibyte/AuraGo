@@ -723,7 +723,7 @@ function ogShowModal(idx) {
                     </select>
                 </div>
                 <div class="og-col-body"><label>${t('config.webhooks.og_body_template')}</label>
-                    <textarea id="og-f-body" class="field-input wh-textarea" rows="3" placeholder="${t('config.webhooks.og_body_template_placeholder')}" ${payloadType !== 'custom' ? 'disabled' : ''}>${esc(bodyTemplate)}</textarea>
+                    <textarea id="og-f-body" class="field-input wh-textarea" rows="3" data-has-secret="${cfgIsMaskedSecret(bodyTemplate) ? '1' : '0'}" placeholder="${esc(cfgSecretPlaceholder(bodyTemplate, t('config.webhooks.og_body_template_placeholder')))}" ${payloadType !== 'custom' ? 'disabled' : ''}>${esc(cfgSecretValue(bodyTemplate))}</textarea>
                 </div>
             </div>
         </div>
@@ -789,6 +789,8 @@ function ogCollectModal() {
     });
     const urlInput = document.getElementById('og-f-url');
     const urlValue = urlInput?.value?.trim() || '';
+    const bodyInput = document.getElementById('og-f-body');
+    const bodyValue = bodyInput?.value ?? '';
     return {
         id: ogEditingIdx >= 0 ? ogWebhooks[ogEditingIdx].id : 'hook_' + Date.now(),
         name: document.getElementById('og-f-name').value.trim(),
@@ -797,7 +799,7 @@ function ogCollectModal() {
         url: !urlValue && urlInput?.dataset.hasSecret === '1' ? CFG_MASKED_SECRET : urlValue,
         headers, parameters: params,
         payload_type: document.getElementById('og-f-ptype').value,
-        body_template: document.getElementById('og-f-body').value
+        body_template: !bodyValue && bodyInput?.dataset.hasSecret === '1' ? CFG_MASKED_SECRET : bodyValue
     };
 }
 

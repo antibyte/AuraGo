@@ -2,14 +2,18 @@
 
 Retro-Net turns the Virtual Desktop **Terminal** into a dialing directory for
 text services that are still online: Telnet bulletin board systems (BBSes),
-multi-user dungeons (MUDs), Telehack, an ASCII world map, the Star Wars ASCII
-animation, the Free Internet Chess Server and a few anonymous SSH games. You
+Commodore 64 boards, multi-user dungeons (MUDs), Telehack, an ASCII world map,
+the Star Wars ASCII animation, the Free Internet Chess Server and a few
+anonymous SSH games. You
 pick an entry, the terminal "dials" with a short modem sequence, and the
 session runs inside the existing retro terminal styles and CRT effects.
 
-Retro-Net is **disabled by default**. Enable it with
-`virtual_desktop.retronet_enabled` (Config → Virtual Desktop → "Retro-Net in
-the Terminal"). Read-only mode disables it. Every Desktop user with write
+Retro-Net is **enabled by default**: `virtual_desktop.retronet_enabled` is
+`true` in the configuration template and whenever a configuration lacks the
+key, so it is also on after an update of an installation that never set it. A
+configuration that says `retronet_enabled: false` stays off. Switch it off or
+on in Config → Virtual Desktop → "Retro-Net in the Terminal". It needs an
+enabled Desktop, and read-only mode disables it. Every Desktop user with write
 access can dial; only administrators manage own entries.
 
 ## Privacy and safety
@@ -52,25 +56,108 @@ Modern style; with reduced motion or disabled animations the dial text appears
 at once without sound.
 
 Status markers: `[*]` reachable, `[ ]` not reachable (with the last time it was
-reachable, when known), `[?]` not checked yet. A check is a plain TCP
+reachable, when known), `[?]` not checked yet, `[C]` Commodore 64 board (never
+checked, see below). A check is a plain TCP
 connection under the same address rules, 3 seconds per service. Opening the
 directory starts one when the last check is older than 10 minutes or an entry
 was never checked; `R` asks for one at once. Whatever the trigger, a new check
-starts at most once per minute.
+starts at most once per minute. Looking up a service's name has its own time
+limit (5 seconds, one retry), so slow DNS does not cut the connection short.
+While lookups fail, a service is still checked at the address it had within
+the last hour; without one it keeps its marker from the last hour or shows
+`[?]`. A failed lookup never shows `[ ]`, but a name that no longer exists
+does.
 
 ## Display modes
 
+Every service runs on a fixed classic screen that fills the window: the
+characters get the largest size at which the whole screen fits, so a larger
+window shows larger characters, not more of them. Only a small border inside
+the tube remains, plus bars at the sides or at the top and bottom where the
+window's shape differs from the screen's. The directory and the local shell
+follow the window as before.
+
 - **Mailboxes** (type Mailbox, including the door-game boards under Games) use
-  a fixed 80×25 grid with the IBM VGA font, scaled to the window, like a DOS
-  or Amiga terminal. Catalog mailboxes use CP437 or Latin-1; own Mailbox
-  entries can choose UTF-8, CP437 or Latin-1.
-- **Text worlds** (MUDs, Telehack, MapSCII and the other classics) and SSH
-  entries follow the window size and report every resize to the service.
-  While a Telnet text world does not echo, you type a whole line locally
+  a fixed 80×25 screen with the IBM VGA font, like a DOS or Amiga terminal.
+  Catalog mailboxes use CP437 or Latin-1; own Mailbox entries can choose UTF-8,
+  CP437 or Latin-1.
+- **Text worlds** (MUDs, Telehack, MapSCII, the Star Wars animation and the
+  other classics) and SSH entries, your own included, use an 80×24 screen like
+  a VT100 terminal, in your terminal style's font. The characters get as large
+  as the 80 columns allow, and in the retro styles the lines move apart (up to
+  double spacing) until the 24 rows fill the height, like the raster of a picture
+  tube. The Modern style, and a retro style whose graphics acceleration failed,
+  keeps single spacing so that box and block graphics stay closed. In a wide,
+  short window, which includes the default window and a maximized one, the rows
+  set the size instead and bars remain at the sides. The service learns 80×24
+  when the call starts and the size never changes: resizing the window or picking
+  another style only changes the characters and their spacing. You can scroll back
+  through the last 1000 lines. Your style's font size comes back once you
+  return to the directory or the shell. While a
+  Telnet text world does not echo, you type a whole line locally
   (Backspace edits, Up/Down recall the last 50 lines) and Enter sends it. At a
   password prompt the MUD takes over echo: you still type a whole line, but
   nothing is shown and the line is not kept in the history. When a service
   switches to character mode, and always over SSH, every key is sent at once.
+- **Commodore 64 boards** use a fixed 40×25 C64 screen scaled by whole pixels;
+  see [Commodore 64 boards](#commodore-64-boards).
+
+## Commodore 64 boards
+
+The **Commodore 64** category (after Games) lists bulletin boards that run on
+real or emulated C64s and speak PETSCII, the C64's own character set. Which
+boards the catalog offers can change between releases when one goes offline.
+
+- **`[C]` instead of a status:** C64 boards, own entries of this type
+  included, are never checked. Many have a single line, and a check would
+  occupy it and could drop the caller who is on.
+- **The look:** a call shows the board on a 40×25 C64 screen in the C64 font
+  and the 16 C64 colors on black, with a light-blue border and a blinking
+  block cursor, in the Commodore 64 terminal style. Where the window size and
+  display scaling allow, the screen is scaled by whole pixels (every C64 pixel
+  covers the same whole number of screen pixels, so block graphics show no
+  seams) and the border fills the rest of the window (at 100 % and 200 %
+  scaling the default 960×720 window shows a 640×400 screen). The style selector is
+  locked during the call (it says why); your own style comes back when you
+  leave the result screen after the call. The Commodore 64 style is never
+  saved as your choice.
+- **After `CONNECT`** the Telnet reminder and a short list of the C64 keys stay readable
+  for 2 seconds before the board's screen appears. Any key continues at once
+  and still goes to the board.
+- **Graphics detection:** many boards ask you to press DEL or Backspace.
+  Backspace sends the C64 DEL key, which the board takes as "Commodore
+  graphics". Other boards ask whether you use a Commodore graphics terminal;
+  answer `Y`.
+- **Busy and slow boards:** a single-line board that is in use shows `BUSY`
+  and hangs up; try again a few minutes later. Some boards take up to about
+  40 seconds before their first screen, especially right after a previous
+  call; the key list stays until then, and `Ctrl+]` hangs up at any time.
+- Copying text from a C64 screen copies the C64 font's own characters, not
+  readable text, and screen readers cannot read the board's screen.
+
+| Key | C64 key |
+| --- | --- |
+| Backspace, Delete | DEL |
+| Enter | RETURN |
+| Arrow keys | Cursor keys |
+| Home / Shift+Home | HOME / CLR (clear the screen) |
+| Insert | INST |
+| F1–F8 | F1–F8 |
+| Esc, Ctrl+C | RUN/STOP |
+| Ctrl+Shift+1–8 | Colors 1–8, as CTRL+1–8: black, white, red, cyan, purple, green, blue, yellow |
+| Alt+Shift+1–8 | Colors 9–16, as C=+1–8: orange, brown, light red, dark gray, gray, light green, light blue, light gray |
+| Ctrl+Shift+9 / Ctrl+Shift+0 | RVS ON / RVS OFF (reverse text) |
+| `Ctrl+]` | Hang up (never sent to the board) |
+
+Letters are sent as the C64 keyboard sends them: Shift gives capitals in the
+C64's lower/upper-case set and graphics symbols when a board switches to the
+upper-case/graphics set. Characters a C64 keyboard does not have, such as
+`{`, `|` or `~`, are not sent. The color keys work only during a C64 call;
+there the browser does not see them.
+
+The C64 font is C64 Pro Mono by Style (style64.org). AuraGo embeds the font
+file unmodified under its licence, which allows it only in software that is
+given away free of charge; AuraGo never offers the file as a separate download.
 
 ## Results
 
@@ -86,10 +173,11 @@ explanation:
 
 ## Own entries
 
-Administrators can add up to 64 own entries (`N` in the directory): name (1 to
+Administrators can add up to 50 own entries (`N` in the directory): name (1 to
 40 characters), description (up to 80), protocol (Telnet or SSH), host name or
-public IP address and port; for Telnet also the type (Mailbox or MUD/text
-world) and character set (UTF-8, CP437, ISO 8859-1); for SSH a user name (up to
+public IP address and port; for Telnet also the type (Mailbox, MUD/text world
+or Commodore 64 (PETSCII)) and, except for Commodore 64 entries, which always
+use PETSCII, the character set (UTF-8, CP437, ISO 8859-1); for SSH a user name (up to
 32 characters: a–z, 0–9, dot, hyphen, underscore). The form refuses private,
 local and reserved addresses, `localhost` (and any `*.localhost` name) and the
 mail ports, and AuraGo checks the same rules again when the entries are stored,
@@ -109,8 +197,8 @@ and re-create the entry or change its host, port or user.
 
 Own entries are stored in the Desktop setting `retronet.entries`.
 
-There is no free dialing of an arbitrary `host:port`, no LAN target, no real
-SSH login and no C64 (PETSCII) board.
+There is no free dialing of an arbitrary `host:port`, no LAN target and no
+real SSH login.
 
 ## Catalog maintenance
 
@@ -120,6 +208,10 @@ run the live check, which dials every entry and expects readable output:
 ```powershell
 $env:AURAGO_RETRONET_LIVE='1'; go test ./internal/retronet -run TestLiveCatalog -count=1 -v
 ```
+
+Commodore 64 boards pass with at least 10 printable PETSCII characters within
+45 seconds of connecting, or with a `BUSY` banner: a single-line board that is
+in use is reachable.
 
 Entries that stay unreachable are removed (catalog row, description strings in
 all 16 desktop locales, and this guide's examples if they mention them).

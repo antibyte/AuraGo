@@ -312,7 +312,7 @@ func (i *flowToolInvoker) dispatchContext(cfg *config.Config, flowID, action str
 	s := i.s
 	return &agent.DispatchContext{
 		Cfg: cfg, Logger: flowDispatchLogger(s.Logger), LLMClient: s.LLMClient, Vault: s.Vault, Registry: s.Registry,
-		Manifest: tools.NewManifest(cfg.Directories.ToolsDir), CronManager: s.CronManager, MissionManagerV2: s.MissionManagerV2,
+		Manifest: tools.NewManifest(cfg.Directories.ToolsDir), CronManager: s.CronManager, MissionManagerV2: s.MissionManagerV2, WebhookManager: s.WebhookManager,
 		LongTermMem: s.LongTermMem, ShortTermMem: s.ShortTermMem, KG: s.KG,
 		InventoryDB: s.InventoryDB, InvasionDB: s.InvasionDB, CheatsheetDB: s.CheatsheetDB, ImageGalleryDB: s.ImageGalleryDB,
 		MediaRegistryDB: s.MediaRegistryDB, HomepageRegistryDB: s.HomepageRegistryDB, ContactsDB: s.ContactsDB,

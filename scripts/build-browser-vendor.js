@@ -26,9 +26,9 @@ const sharedThree = {
             Object.keys(three).map(name => `export const ${name}=window.THREE.${name};`).join('\n') }));
     },
 };
-async function bundle(name, contents, target, plugins = [], format = 'iife') {
+async function bundle(name, contents, target, plugins = [], format = 'iife', resolveDir = process.cwd()) {
     packages.add(name);
-    const result = await build({ stdin: { contents, resolveDir: process.cwd() }, bundle: true,
+    const result = await build({ stdin: { contents, resolveDir }, bundle: true,
         format, target: 'es2022', minify: true, legalComments: 'inline', write: false,
         metafile: true, plugins, define: { 'process.env.NODE_ENV': '"production"',
             ...(format === 'iife' ? { 'import.meta.url': '__auragoVendorURL' } : {}) },
@@ -66,6 +66,9 @@ for (const [source, target] of [['three.module.js', 'three-0.186.1.module.min.js
 }
 await tree('three', 'examples/jsm/libs/draco/gltf', vendor + 'draco');
 await tree('esp-web-tools', 'dist/web', vendor + 'esp-web-tools');
+// RuView flasher: the esptool-js release ESP Web Tools pins (resolved from its directory, so its nested copy wins
+// over the newer top-level esptool-js the CYD Creator flasher uses).
+await bundle('esptool-js', "export { ESPLoader, Transport } from 'esptool-js';", vendor + 'ruview-esptool.js', [], 'esm', path.resolve('node_modules/esp-web-tools'));
 for (const dir of ['cmaps', 'standard_fonts', 'wasm', 'iccs']) await tree('pdfjs-dist', dir, vendor + 'pdf/' + dir);
 await bundle('three', "import * as THREE from 'three'; window.THREE={...THREE};", vendor + 'three.min.js');
 await bundle('markdown-it', "import markdownit from 'markdown-it'; window.markdownit=markdownit;", vendor + 'markdown-it.min.js');

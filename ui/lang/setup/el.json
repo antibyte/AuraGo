@@ -213,8 +213,8 @@
   "setup.profile_agnes_ai_name": "Agnes AI",
   "setup.profile_agnes_ai_pricing": "Διατίθεται δωρεάν χρήση",
   "setup.step0_provider_agnes": "Agnes AI",
-  "setup.step0_provider_hint_agnes": "Διατίθεται δωρεάν χρήση για τα μοντέλα κειμένου, εικόνας και βίντεο της Agnes AI."
-  ,"setup.step_label_local_llm": "Τοπικό μοντέλο δοκιμής",
+  "setup.step0_provider_hint_agnes": "Διατίθεται δωρεάν χρήση για τα μοντέλα κειμένου, εικόνας και βίντεο της Agnes AI.",
+  "setup.step_label_local_llm": "Τοπικό μοντέλο δοκιμής",
   "setup.local_llm_backend_cpu": "CPU (πειραματικό)",
   "setup.local_llm_mtp_forced": "MTP-2 (πειραματικό, εξαναγκασμένο)",
   "setup.local_llm_probing": "Έλεγχος υλικού και Docker χωρίς αλλαγές…",
@@ -223,5 +223,12 @@
   "setup.local_llm_job_running": "Το {model} εγκαθίσταται αφού αποθηκευτεί ο κανονικός πάροχος.",
   "setup.local_llm_job_complete": "Το {model} πέρασε τους ελέγχους και ο επιλεγμένος ρόλος είναι ενεργός.",
   "setup.local_llm_job_failed": "Η εγκατάσταση {model} απέτυχε· ο κανονικός πάροχος παραμένει κύριος",
-  "setup.local_llm_job_progress": "Εγκατάσταση {model}: {progress}%"
+  "setup.local_llm_job_progress": "Εγκατάσταση {model}: {progress}%",
+  "setup.connection_title": "Σύνδεση και λειτουργίες προγράμματος περιήγησης",
+  "setup.https_active": "Το HTTPS του AuraGo είναι ενεργό στη θύρα {port}.",
+  "setup.https_inactive": "Το ενσωματωμένο HTTPS του AuraGo είναι απενεργοποιημένο.",
+  "setup.https_selfsigned": "Δημιουργείται αυτόματα ένα τοπικό πιστοποιητικό. Επαλήθευσέ το και, αν χρειάζεται, πρόσθεσέ το ως έμπιστο στο πρόγραμμα περιήγησης ή στη συσκευή.",
+  "setup.secure_ready": "Αυτό το πρόγραμμα περιήγησης αναφέρει ασφαλές περιβάλλον. Οι λειτουργίες της επιφάνειας εργασίας εξακολουθούν να απαιτούν υποστήριξη του προγράμματος και άδειες συσκευών.",
+  "setup.secure_unavailable": "Αυτό το πρόγραμμα περιήγησης δεν αναφέρει ασφαλές περιβάλλον. Πολλές λειτουργίες της επιφάνειας εργασίας, όπως η φωνητική συνομιλία και η πρόσβαση στο μικρόφωνο, μπορεί να μην είναι διαθέσιμες.",
+  "setup.https_manage": "Άλλαξε το HTTPS στο πρόγραμμα εγκατάστασης ή στο Config → Διακομιστής μετά τη ρύθμιση. Το HTTPS μέσω διακομιστή μεσολάβησης και το localhost μπορούν επίσης να παρέχουν ασφαλές περιβάλλον."
 }

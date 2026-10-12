@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -1168,6 +1169,40 @@ func TestLoadBrowserAutomationDefaults(t *testing.T) {
 	if cfg.BrowserAutomation.ReadOnly {
 		t.Fatal("expected browser_automation.readonly to default to false")
 	}
+	if cfg.BrowserAutomation.OutboundNetwork != "bridge" {
+		t.Fatalf("outbound_network = %q, want bridge", cfg.BrowserAutomation.OutboundNetwork)
+	}
+}
+
+func TestLoadBrowserAutomationClearsRetiredCloakProxy(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name  string
+		value string
+		want  string
+	}{
+		{name: "retired template", value: "http://browser-egress:7332", want: ""},
+		{name: "retired with slash", value: "http://browser-egress:7332/", want: ""},
+		{name: "custom proxy stays", value: "http://127.0.0.1:9", want: "http://127.0.0.1:9"},
+		{name: "empty stays empty", value: "", want: ""},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "config.yaml")
+			raw := "server:\n  ui_language: en\nbrowser_automation:\n  cloak_proxy: \"" + tt.value + "\"\n"
+			if err := os.WriteFile(path, []byte(raw), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := Load(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if cfg.BrowserAutomation.CloakProxy != tt.want {
+				t.Fatalf("cloak_proxy = %q, want %q", cfg.BrowserAutomation.CloakProxy, tt.want)
+			}
+		})
+	}
 }
 
 func TestLoadSpaceAgentDefaults(t *testing.T) {
@@ -1716,8 +1751,11 @@ func TestLoadVideoDownloadDefaults(t *testing.T) {
 	if cfg.Tools.VideoDownload.DownloadDir != "data/downloads" {
 		t.Fatalf("download_dir = %q, want data/downloads", cfg.Tools.VideoDownload.DownloadDir)
 	}
-	if cfg.Tools.VideoDownload.ContainerImage != "ghcr.io/jauderho/yt-dlp:latest" {
-		t.Fatalf("container_image = %q", cfg.Tools.VideoDownload.ContainerImage)
+	if strings.Contains(cfg.Tools.VideoDownload.ContainerImage, ":latest") {
+		t.Fatalf("container_image = %q, want a digest pin", cfg.Tools.VideoDownload.ContainerImage)
+	}
+	if !regexp.MustCompile(`^ghcr\.io/jauderho/yt-dlp@sha256:[0-9a-f]{64}$`).MatchString(cfg.Tools.VideoDownload.ContainerImage) {
+		t.Fatalf("container_image = %q, want ghcr.io/jauderho/yt-dlp@sha256:<64 hex>", cfg.Tools.VideoDownload.ContainerImage)
 	}
 	if !cfg.Tools.VideoDownload.AutoPull {
 		t.Fatal("expected auto_pull to default to true")
@@ -1801,8 +1839,8 @@ func TestLoadOpenSCADDefaults(t *testing.T) {
 	if !got.Enabled {
 		t.Fatal("OpenSCAD should default enabled")
 	}
-	if got.Image != "openscad/openscad:latest" {
-		t.Fatalf("OpenSCAD image = %q, want openscad/openscad:latest", got.Image)
+	if got.Image != "openscad/openscad@sha256:147e48525bec392bcf628d7a6d5ea4ccac71b16251952328f86e1061cbf47c37" {
+		t.Fatalf("OpenSCAD image = %q, want openscad/openscad@sha256:147e48525bec392bcf628d7a6d5ea4ccac71b16251952328f86e1061cbf47c37", got.Image)
 	}
 	if got.AutoStart {
 		t.Fatal("OpenSCAD auto_start should default false")
@@ -4075,6 +4113,115 @@ func TestLoadTemplateDoesNotGrandfatherUnauthenticatedMQTTRelay(t *testing.T) {
 	}
 }
 
+// A broker login on plaintext or with certificate verification skipped keeps
+// starting relay runs until mqtt.allow_untrusted_transport is written. A null
+// value counts as unwritten. A written false or true ends that.
+func TestLoadGrandfathersUntrustedMQTTTransport(t *testing.T) {
+	const auth = "mqtt:\n  enabled: true\n  username: iot\n  broker: mqtt://broker.lan:1883\n"
+	cases := []struct {
+		name string
+		yaml string
+		want bool
+	}{
+		{"username on mqtt, key absent", auth, true},
+		{"username on tcp, key absent", "mqtt:\n  enabled: true\n  username: iot\n  broker: tcp://broker.lan:1883\n", true},
+		{"key null", auth + "  allow_untrusted_transport:\n", true},
+		{"key false", auth + "  allow_untrusted_transport: false\n", false},
+		{"key true", auth + "  allow_untrusted_transport: true\n", true},
+		{"mqtts without skip, key absent", "mqtt:\n  enabled: true\n  username: iot\n  broker: mqtts://broker.lan:8883\n", false},
+		{"wss without skip, key absent", "mqtt:\n  enabled: true\n  username: iot\n  broker: wss://broker.lan:443\n", false},
+		{"mqtts skip verify, key absent", "mqtt:\n  enabled: true\n  username: iot\n  broker: mqtts://broker.lan:8883\n  tls:\n    insecure_skip_verify: true\n", true},
+		{"ws, key absent", "mqtt:\n  enabled: true\n  username: iot\n  broker: ws://broker.lan:80\n", true},
+		{"client certificate over mqtts, key absent", "mqtt:\n  enabled: true\n  broker: mqtts://broker.lan:8883\n  tls:\n    cert_file: client.crt\n    key_file: client.key\n", false},
+		{"client certificate over mqtts with skip, key absent", "mqtt:\n  enabled: true\n  broker: mqtts://broker.lan:8883\n  tls:\n    cert_file: client.crt\n    insecure_skip_verify: true\n", true},
+		{"anonymous plaintext, key absent", "mqtt:\n  enabled: true\n  broker: mqtt://broker.lan:1883\n", false},
+		{"blank username", "mqtt:\n  enabled: true\n  username: \"  \"\n  broker: mqtt://broker.lan:1883\n", false},
+		{"mqtt disabled", "mqtt:\n  enabled: false\n  username: iot\n  broker: mqtt://broker.lan:1883\n", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			configPath := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(configPath, []byte(tc.yaml), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := Load(configPath)
+			if err != nil {
+				t.Fatalf("Load() error = %v", err)
+			}
+			if cfg.MQTT.AllowUntrustedTransport != tc.want {
+				t.Fatalf("AllowUntrustedTransport = %v, want %v", cfg.MQTT.AllowUntrustedTransport, tc.want)
+			}
+		})
+	}
+}
+
+func TestLoadWarnsAboutGrandfatheredUntrustedMQTTTransportOncePerProcess(t *testing.T) {
+	var logs strings.Builder
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+	mqttUntrustedTransportGrandfatherWarning = sync.Once{}
+
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte("mqtt:\n  enabled: true\n  username: iot\n  broker: mqtt://broker.lan:1883\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 3; i++ {
+		cfg, err := Load(configPath)
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if !cfg.MQTT.AllowUntrustedTransport {
+			t.Fatal("username on mqtt:// must stay grandfathered on every load")
+		}
+	}
+	const want = "untrusted MQTT transport grandfathered"
+	if got := strings.Count(logs.String(), want); got != 1 {
+		t.Fatalf("grandfather warning logged %d times, want once:\n%s", got, logs.String())
+	}
+	if strings.Contains(logs.String(), "broker.lan") || strings.Contains(logs.String(), "mqtt://") {
+		t.Fatalf("grandfather warning must not name the broker:\n%s", logs.String())
+	}
+}
+
+// The template writes allow_untrusted_transport: false. Enabling a username
+// on mqtt:// later must not lift that false.
+func TestLoadTemplateDoesNotGrandfatherUntrustedMQTTTransport(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "config_template.yaml"))
+	if err != nil {
+		t.Fatalf("read config_template.yaml: %v", err)
+	}
+	if !yamlHasValue(data, "mqtt", "allow_untrusted_transport") {
+		t.Fatal("config_template.yaml must write mqtt.allow_untrusted_transport explicitly")
+	}
+	tmpl := strings.ReplaceAll(string(data), "\r\n", "\n")
+	const written = "    allow_untrusted_transport: false"
+	if !strings.Contains(tmpl, written) {
+		t.Fatalf("config_template.yaml mqtt block no longer contains %q", written)
+	}
+	const header = "mqtt:\n    enabled: false\n    broker: \"\""
+	tmpl = strings.Replace(tmpl, header, "mqtt:\n    enabled: true\n    broker: mqtt://broker.lan:1883", 1)
+	const userLine = "    client_id: aurago\n    username: \"\""
+	if !strings.Contains(tmpl, userLine) {
+		t.Fatalf("config_template.yaml mqtt block no longer contains %q", userLine)
+	}
+	tmpl = strings.Replace(tmpl, userLine, "    client_id: aurago\n    username: iot", 1)
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte(tmpl), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load(template with username on mqtt): %v", err)
+	}
+	if !cfg.MQTT.Enabled || cfg.MQTT.Username != "iot" || cfg.MQTT.Broker != "mqtt://broker.lan:1883" {
+		t.Fatalf("fixture = enabled %v username %q broker %q", cfg.MQTT.Enabled, cfg.MQTT.Username, cfg.MQTT.Broker)
+	}
+	if cfg.MQTT.AllowUntrustedTransport {
+		t.Fatal("template allow_untrusted_transport: false must not be grandfathered to true")
+	}
+}
+
 func TestLoadGrandfathersDockerHostAccessOnlyWhenKeyAbsent(t *testing.T) {
 	cases := []struct {
 		name string
@@ -4128,6 +4275,35 @@ func TestLoadDockerHostAccessNullValues(t *testing.T) {
 			}
 			if cfg.Docker.AllowHostAccess != tc.want {
 				t.Fatalf("Docker.AllowHostAccess = %v, want %v", cfg.Docker.AllowHostAccess, tc.want)
+			}
+		})
+	}
+}
+
+func TestLoadGrandfathersMeshCentralPowerOnlyWhenEnabledAndWritable(t *testing.T) {
+	cases := []struct {
+		name string
+		yaml string
+		want bool
+	}{
+		{"enabled writable, key absent", "meshcentral:\n  enabled: true\n  readonly: false\n", true},
+		{"disabled, key absent", "meshcentral:\n  enabled: false\n  readonly: false\n", false},
+		{"readonly, key absent", "meshcentral:\n  enabled: true\n  readonly: true\n", false},
+		{"explicit false", "meshcentral:\n  enabled: true\n  readonly: false\n  allow_power_actions: false\n", false},
+		{"explicit true", "meshcentral:\n  enabled: true\n  readonly: true\n  allow_power_actions: true\n", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			configPath := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(configPath, []byte(tc.yaml), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := Load(configPath)
+			if err != nil {
+				t.Fatalf("Load() error = %v", err)
+			}
+			if cfg.MeshCentral.AllowPowerActions != tc.want {
+				t.Fatalf("AllowPowerActions = %v, want %v", cfg.MeshCentral.AllowPowerActions, tc.want)
 			}
 		})
 	}

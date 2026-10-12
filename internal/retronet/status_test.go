@@ -312,6 +312,32 @@ func TestStatusProberClosesProbeConnections(t *testing.T) {
 	}
 }
 
+// C64 boards are never dialed by the prober and never appear in a status map; they do not make
+// a snapshot stale either.
+func TestStatusProberSkipsC64Entries(t *testing.T) {
+	clock := newProbeClock()
+	d := newProbeDialer(false)
+	p := &StatusProber{Dialer: d.dialer(), Now: clock.Now}
+	c64 := Entry{ID: "c64-board", Name: "C64 Board", Category: CategoryCommodore, Protocol: ProtocolTelnet, Host: "c64.example", Port: 6400, Kind: KindC64, Charset: CharsetPETSCII}
+	entries := append(probeEntries(2), c64)
+
+	statuses, stale := p.Snapshot(entries)
+	if _, listed := statuses[c64.ID]; listed || len(statuses) != 2 || !stale {
+		t.Fatalf("first snapshot = %+v (stale %v), want the 2 probeable entries only, stale", statuses, stale)
+	}
+	statuses = p.Refresh(context.Background(), entries, 5*time.Second) // waits for the run the snapshot started
+	if d.calls.Load() != 2 {
+		t.Fatalf("dials = %d, want 2: the C64 board must never be dialed", d.calls.Load())
+	}
+	if _, listed := statuses[c64.ID]; listed || len(statuses) != 2 {
+		t.Fatalf("refresh = %+v, want no status for the C64 board", statuses)
+	}
+	statuses, stale = p.Snapshot(entries)
+	if _, listed := statuses[c64.ID]; listed || stale {
+		t.Fatalf("snapshot after the run = %+v (stale %v), want fresh and without the C64 board", statuses, stale)
+	}
+}
+
 func TestStatusProberDefaultsMatchTheSpec(t *testing.T) {
 	zero := &StatusProber{}
 	if zero.timeout() != 3*time.Second || zero.concurrency() != 16 || zero.maxAge() != 10*time.Minute || zero.minInterval() != 60*time.Second {

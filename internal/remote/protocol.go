@@ -1,6 +1,6 @@
 // Package remote implements the secure WebSocket communication protocol between
-// the AuraGo supervisor and its deployed remote-control agents. All messages are
-// HMAC-SHA256 signed with a per-device shared key over an mTLS transport layer.
+// the AuraGo supervisor and its deployed remote-control agents. Signed frames use
+// HMAC-SHA256 over certificate-verified WSS; enrolled devices use per-device keys.
 package remote
 
 import (
@@ -131,11 +131,13 @@ type RemoteMessage struct {
 
 // AuthPayload is sent by the remote during enrollment or reconnection.
 type AuthPayload struct {
-	Version  string `json:"version"`
-	Hostname string `json:"hostname,omitempty"`
-	OS       string `json:"os,omitempty"`
-	Arch     string `json:"arch,omitempty"`
-	IP       string `json:"ip,omitempty"`
+	SecurityRevision int      `json:"security_revision"`
+	Capabilities     []string `json:"capabilities,omitempty"`
+	Version          string   `json:"version"`
+	Hostname         string   `json:"hostname,omitempty"`
+	OS               string   `json:"os,omitempty"`
+	Arch             string   `json:"arch,omitempty"`
+	IP               string   `json:"ip,omitempty"`
 	// KDF names the token derivation behind TokenHash and the frame's HMAC
 	// key; enrollment requires EnrollmentKDFVersion.
 	KDF int `json:"kdf,omitempty"`
@@ -147,6 +149,7 @@ type AuthPayload struct {
 
 // AuthResponsePayload is sent by the supervisor after enrollment/auth.
 type AuthResponsePayload struct {
+	ErrorCode     string   `json:"error_code,omitempty"`
 	Status        string   `json:"status"`              // "enrolled", "authenticated", "pending", "rejected"
 	DeviceID      string   `json:"device_id,omitempty"` // assigned device UUID
 	SharedKey     string   `json:"shared_key,omitempty"`
@@ -161,15 +164,16 @@ type AuthResponsePayload struct {
 
 // HeartbeatPayload is sent periodically by the remote.
 type HeartbeatPayload struct {
-	CPUPercent  float64 `json:"cpu_percent"`
-	MemPercent  float64 `json:"mem_percent"`
-	DiskUsedGB  float64 `json:"disk_used_gb"`
-	DiskTotalGB float64 `json:"disk_total_gb"`
-	Uptime      int64   `json:"uptime_seconds"`
-	Hostname    string  `json:"hostname"`
-	OS          string  `json:"os"`
-	Arch        string  `json:"arch"`
-	Version     string  `json:"version"`
+	MetricsAvailable []string `json:"metrics_available,omitempty"`
+	CPUPercent       float64  `json:"cpu_percent"`
+	MemPercent       float64  `json:"mem_percent"`
+	DiskUsedGB       float64  `json:"disk_used_gb"`
+	DiskTotalGB      float64  `json:"disk_total_gb"`
+	Uptime           int64    `json:"uptime_seconds"`
+	Hostname         string   `json:"hostname"`
+	OS               string   `json:"os"`
+	Arch             string   `json:"arch"`
+	Version          string   `json:"version"`
 }
 
 // CommandPayload is sent by the supervisor to execute an operation.
@@ -182,6 +186,7 @@ type CommandPayload struct {
 
 // ResultPayload is sent by the remote after executing a command.
 type ResultPayload struct {
+	Truncated  bool   `json:"truncated,omitempty"`
 	CommandID  string `json:"cmd_id"`
 	Status     string `json:"status"` // "ok", "error", "denied", "timeout"
 	Output     string `json:"output"`

@@ -161,7 +161,7 @@ func handleToolBridgeExecute(s *Server) http.HandlerFunc {
 			ctx, &tc, &agent.DispatchContext{
 				Cfg: cfg, Logger: s.Logger, LLMClient: s.LLMClient, Vault: s.Vault,
 				Registry: s.Registry, Manifest: manifest, CronManager: s.CronManager,
-				MissionManagerV2: s.MissionManagerV2, LongTermMem: s.LongTermMem,
+				MissionManagerV2: s.MissionManagerV2, WebhookManager: s.WebhookManager, LongTermMem: s.LongTermMem,
 				ShortTermMem: s.ShortTermMem, KG: s.KG,
 				InventoryDB: s.InventoryDB, InvasionDB: s.InvasionDB,
 				CheatsheetDB: s.CheatsheetDB, ImageGalleryDB: s.ImageGalleryDB,

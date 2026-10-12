@@ -177,11 +177,7 @@ func (n *Notifier) checkOverdueTodos() {
 	}
 	now := time.Now()
 	for _, todo := range todos {
-		if todo.Status == "done" || todo.DueDate == "" {
-			continue
-		}
-		dueAt, err := time.Parse(time.RFC3339, todo.DueDate)
-		if err != nil || dueAt.After(now) {
+		if !isTodoOverdue(todo, now) {
 			continue
 		}
 		key := fmt.Sprintf("overdue_todo:%x", sha256.Sum256([]byte(todo.ID+"\x00"+todo.DueDate)))

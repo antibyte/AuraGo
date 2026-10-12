@@ -15,7 +15,9 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -26,11 +28,16 @@ import (
 )
 
 const (
-	browserAutomationContainerName = "aurago_browser_automation"
-	browserAutomationImage         = "aurago-browser-automation:latest"
-	browserAutomationContainerPort = 7331
-	browserAutomationWorkspaceDir  = "/workspace"
-	browserAutomationDownloadsDir  = "/downloads"
+	browserAutomationContainerName    = "aurago_browser_automation"
+	browserAutomationImage            = "aurago-browser-automation:latest"
+	browserAutomationContainerPort    = 7331
+	browserAutomationWorkspaceDir     = "/workspace"
+	browserAutomationDownloadsDir     = "/downloads"
+	browserAutomationLoopbackProxy    = "http://127.0.0.1:7332"
+	browserAutomationEgressProxy      = "http://browser-egress:7332"
+	browserAutomationEgressContainer  = "browser-egress"
+	browserAutomationEgressImage      = "aurago-browser-egress:latest"
+	browserAutomationEgressDockerfile = "Dockerfile.browser_egress"
 )
 
 type BrowserAutomationRequest struct {
@@ -70,25 +77,20 @@ type BrowserAutomationSidecarConfig struct {
 	ReadOnly              bool
 	WorkspaceDir          string
 	DownloadDir           string
+	ScreenshotsDir        string
 	ViewportWidth         int
 	ViewportHeight        int
 	CloakHumanize         bool
 	CloakHumanPreset      string
 	CloakProxy            string
 	EgressNetwork         string
+	OutboundNetwork       string
 	AllowedPrivateOrigins []string
 	CloakFingerprintSeed  string
 	RuntimeIsDocker       bool // cfg.Runtime.IsDocker or /.dockerenv; only words the remote-build warning
 }
 
 var browserAutomationDefaultHTTPClient = &http.Client{Timeout: 60 * time.Second}
-
-var browserAutomationRetryDelays = []time.Duration{
-	250 * time.Millisecond,
-	750 * time.Millisecond,
-	1500 * time.Millisecond,
-	3000 * time.Millisecond,
-}
 
 func browserAutomationHTTPClientFor(cfg BrowserAutomationSidecarConfig) *http.Client {
 	base := browserAutomationDefaultHTTPClient
@@ -110,7 +112,7 @@ func browserAutomationJSON(result map[string]interface{}) string {
 
 func browserAutomationReadOnlyBlocked(op string) bool {
 	switch op {
-	case "click", "type", "select", "press", "upload_file":
+	case "click", "type", "select", "press", "upload_file", "navigate":
 		return true
 	default:
 		return false
@@ -170,34 +172,117 @@ func browserAutomationResolveWorkspaceRoot(cfg *config.Config) (string, error) {
 	return filepath.Abs(cfg.Directories.WorkspaceDir)
 }
 
-func browserAutomationResolveDownloadsRoot(cfg *config.Config, workspaceRoot string) (string, error) {
-	target := strings.TrimSpace(cfg.BrowserAutomation.AllowedDownloadDir)
+func browserAutomationDirectoryInsideWorkspace(workspaceRoot, configured, fallback, label string) (string, error) {
+	target := strings.TrimSpace(configured)
 	if target == "" {
-		target = "browser_downloads"
+		target = fallback
 	}
-	if !filepath.IsAbs(target) {
-		target = filepath.Join(workspaceRoot, target)
+	if filepath.IsAbs(target) {
+		return "", fmt.Errorf("%s must be a workspace-relative directory", label)
 	}
-	abs, err := filepath.Abs(target)
+	abs, err := filepath.Abs(filepath.Join(workspaceRoot, target))
 	if err != nil {
 		return "", err
+	}
+	rel, err := filepath.Rel(workspaceRoot, abs)
+	if err != nil {
+		return "", err
+	}
+	rel = filepath.Clean(rel)
+	if rel == "." || strings.HasPrefix(rel, "..") {
+		return "", fmt.Errorf("%s must stay inside workspace", label)
 	}
 	return abs, nil
 }
 
+func browserAutomationResolveDownloadsRoot(cfg *config.Config, workspaceRoot string) (string, error) {
+	return browserAutomationDirectoryInsideWorkspace(workspaceRoot, cfg.BrowserAutomation.AllowedDownloadDir, "browser_downloads", "download directory")
+}
+
 func browserAutomationResolveScreenshotsRoot(cfg *config.Config, workspaceRoot string) (string, error) {
-	target := strings.TrimSpace(cfg.BrowserAutomation.ScreenshotsDir)
-	if target == "" {
-		target = "browser_screenshots"
-	}
-	if !filepath.IsAbs(target) {
-		target = filepath.Join(workspaceRoot, target)
-	}
-	abs, err := filepath.Abs(target)
+	return browserAutomationDirectoryInsideWorkspace(workspaceRoot, cfg.BrowserAutomation.ScreenshotsDir, "browser_screenshots", "screenshots directory")
+}
+
+func browserAutomationRejectSymlinks(root, full string) error {
+	rel, err := filepath.Rel(root, full)
 	if err != nil {
-		return "", err
+		return err
 	}
-	return abs, nil
+	if strings.HasPrefix(filepath.Clean(rel), "..") {
+		return fmt.Errorf("path escapes allowed root")
+	}
+	current := root
+	for _, part := range strings.Split(rel, string(filepath.Separator)) {
+		if part == "" || part == "." {
+			continue
+		}
+		current = filepath.Join(current, part)
+		info, err := os.Lstat(current)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("path must not use a symlink")
+		}
+	}
+	return nil
+}
+
+// browserAutomationScreenshotIsBareName reports whether candidate is a single
+// file name. Nested paths must already resolve inside the screenshots directory.
+func browserAutomationScreenshotIsBareName(candidate string) bool {
+	if candidate == "" || filepath.IsAbs(candidate) {
+		return false
+	}
+	if strings.ContainsAny(candidate, `/\`) {
+		return false
+	}
+	cleaned := filepath.Clean(candidate)
+	return cleaned != "." && cleaned != ".." && !strings.ContainsRune(cleaned, filepath.Separator)
+}
+
+func browserAutomationScreenshotTarget(workspace, screenshotsRoot, candidate string) (withinRel, workspaceRel, abs string, err error) {
+	candidate = strings.TrimSpace(candidate)
+	if candidate == "" {
+		return "", "", "", fmt.Errorf("path is required")
+	}
+	try := func(base, name string) (string, error) {
+		if filepath.IsAbs(name) {
+			return filepath.Abs(name)
+		}
+		return filepath.Abs(filepath.Join(base, name))
+	}
+	abs, err = try(workspace, candidate)
+	if err != nil {
+		return "", "", "", err
+	}
+	within, relErr := filepath.Rel(screenshotsRoot, abs)
+	if relErr != nil || within == "." || strings.HasPrefix(filepath.Clean(within), "..") {
+		// A path that misses the screenshots directory is an error. Only a bare
+		// name is tried again relative to that directory.
+		if !browserAutomationScreenshotIsBareName(candidate) {
+			return "", "", "", fmt.Errorf("screenshot path must stay inside the screenshots directory")
+		}
+		abs, err = try(screenshotsRoot, candidate)
+		if err != nil {
+			return "", "", "", err
+		}
+		within, relErr = filepath.Rel(screenshotsRoot, abs)
+		if relErr != nil || within == "." || strings.HasPrefix(filepath.Clean(within), "..") {
+			return "", "", "", fmt.Errorf("screenshot path must stay inside the screenshots directory")
+		}
+	}
+	workspaceRel, err = filepath.Rel(workspace, abs)
+	if err != nil || strings.HasPrefix(filepath.Clean(workspaceRel), "..") {
+		return "", "", "", fmt.Errorf("screenshot path must stay inside workspace")
+	}
+	if err := browserAutomationRejectSymlinks(workspace, abs); err != nil {
+		return "", "", "", err
+	}
+	return filepath.ToSlash(filepath.Clean(within)), filepath.ToSlash(filepath.Clean(workspaceRel)), abs, nil
 }
 
 func browserAutomationRelFromWorkspace(workspaceRoot, candidate string) (string, string, error) {
@@ -343,12 +428,16 @@ func browserAutomationCurrentContainerNetwork(dockerCfg DockerConfig) (string, e
 	return "", fmt.Errorf("current container has no attached Docker network")
 }
 
-func browserAutomationDefaultScreenshotRel(req BrowserAutomationRequest) string {
+func browserAutomationDefaultScreenshotRel(screenshotsRel string, req BrowserAutomationRequest) string {
+	dir := strings.Trim(filepath.ToSlash(strings.TrimSpace(screenshotsRel)), "/")
+	if dir == "" || dir == "." || strings.HasPrefix(dir, "..") {
+		dir = "browser_screenshots"
+	}
 	sessionPart := strings.TrimSpace(req.SessionID)
 	if sessionPart == "" {
 		sessionPart = "session"
 	}
-	return filepath.ToSlash(filepath.Join("browser_screenshots", fmt.Sprintf("%s_%d.png", sessionPart, time.Now().UnixMilli())))
+	return filepath.ToSlash(filepath.Join(dir, fmt.Sprintf("%s_%d.png", sessionPart, time.Now().UnixMilli())))
 }
 
 func browserAutomationSidecarRequest(ctx context.Context, cfg BrowserAutomationSidecarConfig, payload map[string]interface{}) (map[string]interface{}, error) {
@@ -373,23 +462,11 @@ func browserAutomationSidecarRequest(ctx context.Context, cfg BrowserAutomationS
 		req.Header.Set("X-AuraGo-Sidecar-Token", token)
 	}
 
-	var (
-		resp   *http.Response
-		reqErr error
-	)
-	for attempt := 0; attempt <= len(browserAutomationRetryDelays); attempt++ {
-		clonedReq := req.Clone(ctx)
-		clonedReq.Body = io.NopCloser(bytes.NewReader(data))
-		resp, reqErr = httpClient.Do(clonedReq)
-		if reqErr == nil {
-			break
-		}
-		if attempt == len(browserAutomationRetryDelays) || !browserAutomationRetryableError(reqErr) {
-			return nil, fmt.Errorf("browser automation request failed: %w", reqErr)
-		}
-		if sleepErr := browserAutomationSleepWithContext(ctx, browserAutomationRetryDelays[attempt]); sleepErr != nil {
-			return nil, fmt.Errorf("browser automation request failed: %w", reqErr)
-		}
+	clonedReq := req.Clone(ctx)
+	clonedReq.Body = io.NopCloser(bytes.NewReader(data))
+	resp, reqErr := httpClient.Do(clonedReq)
+	if reqErr != nil {
+		return nil, fmt.Errorf("browser automation request failed: %w", reqErr)
 	}
 	defer resp.Body.Close()
 
@@ -457,40 +534,10 @@ func BrowserAutomationHealth(ctx context.Context, cfg *config.Config) map[string
 	if result["policy_version"] != "egress-v1" || result["egress_isolated"] != true {
 		return map[string]interface{}{"status": "error", "message": "sidecar does not attest the required egress policy"}
 	}
+	if proxyAddr, present := result["proxy_addr"]; present && !browserAutomationKnownProxy(proxyAddr) {
+		return map[string]interface{}{"status": "error", "message": "sidecar egress proxy is not the filtering egress proxy"}
+	}
 	return result
-}
-
-func browserAutomationRetryableError(err error) bool {
-	if err == nil {
-		return false
-	}
-	errText := strings.ToLower(err.Error())
-	for _, marker := range []string{
-		"connection refused",
-		"connection reset",
-		"broken pipe",
-		"eof",
-		"no such host",
-		"server misbehaving",
-		"timeout",
-		"temporarily unavailable",
-	} {
-		if strings.Contains(errText, marker) {
-			return true
-		}
-	}
-	return false
-}
-
-func browserAutomationSleepWithContext(ctx context.Context, delay time.Duration) error {
-	timer := time.NewTimer(delay)
-	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
-		return nil
-	}
 }
 
 func ResolveBrowserAutomationSidecarConfig(cfg *config.Config) (BrowserAutomationSidecarConfig, error) {
@@ -525,6 +572,10 @@ func browserAutomationSidecarConfig(cfg *config.Config) (BrowserAutomationSideca
 	if err != nil {
 		return BrowserAutomationSidecarConfig{}, fmt.Errorf("resolve download dir: %w", err)
 	}
+	screenshotsRoot, err := browserAutomationResolveScreenshotsRoot(cfg, workspaceRoot)
+	if err != nil {
+		return BrowserAutomationSidecarConfig{}, fmt.Errorf("resolve screenshots dir: %w", err)
+	}
 	runningInDocker := cfg.Runtime.IsDocker || browserAutomationRunsInDocker()
 	return BrowserAutomationSidecarConfig{
 		URL:                   config.NormalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", browserAutomationContainerPort),
@@ -541,12 +592,14 @@ func browserAutomationSidecarConfig(cfg *config.Config) (BrowserAutomationSideca
 		ReadOnly:              cfg.BrowserAutomation.ReadOnly,
 		WorkspaceDir:          workspaceRoot,
 		DownloadDir:           downloadsRoot,
+		ScreenshotsDir:        screenshotsRoot,
 		ViewportWidth:         cfg.BrowserAutomation.Viewport.Width,
 		ViewportHeight:        cfg.BrowserAutomation.Viewport.Height,
 		CloakHumanize:         cfg.BrowserAutomation.CloakHumanize,
 		CloakHumanPreset:      cfg.BrowserAutomation.CloakHumanPreset,
 		CloakProxy:            cfg.BrowserAutomation.CloakProxy,
 		EgressNetwork:         cfg.BrowserAutomation.EgressNetwork,
+		OutboundNetwork:       cfg.BrowserAutomation.OutboundNetwork,
 		AllowedPrivateOrigins: cfg.BrowserAutomation.AllowedPrivateOrigins,
 		CloakFingerprintSeed:  cfg.BrowserAutomation.CloakFingerprintSeed,
 		RuntimeIsDocker:       runningInDocker,
@@ -572,6 +625,9 @@ func ExecuteBrowserAutomation(ctx context.Context, cfg *config.Config, req Brows
 		return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": validationErr.Error()})
 	}
 	if cfg.BrowserAutomation.ReadOnly && browserAutomationReadOnlyBlocked(op) {
+		return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": "browser_automation is in read-only mode"})
+	}
+	if cfg.BrowserAutomation.ReadOnly && op == "create_session" && strings.TrimSpace(req.URL) != "" {
 		return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": "browser_automation is in read-only mode"})
 	}
 	if op == "upload_file" && !cfg.BrowserAutomation.AllowFileUploads {
@@ -603,28 +659,56 @@ func ExecuteBrowserAutomation(ctx context.Context, cfg *config.Config, req Brows
 		"max_elements": req.MaxElements,
 	}
 
+	var screenshotWorkspaceRel, screenshotAbs string
 	if op == "screenshot" {
+		screenshotsRoot, screenshotsErr := browserAutomationResolveScreenshotsRoot(cfg, workspaceRoot)
+		if screenshotsErr != nil {
+			return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": screenshotsErr.Error()})
+		}
 		outputPath := strings.TrimSpace(req.OutputPath)
-		if outputPath == "" {
-			outputPath = browserAutomationDefaultScreenshotRel(req)
+		usedDefaultScreenshotPath := outputPath == ""
+		if usedDefaultScreenshotPath {
+			screenshotsRel, relErr := filepath.Rel(workspaceRoot, screenshotsRoot)
+			if relErr != nil {
+				screenshotsRel = "browser_screenshots"
+			}
+			outputPath = browserAutomationDefaultScreenshotRel(filepath.ToSlash(screenshotsRel), req)
 		}
-		relPath, _, relErr := browserAutomationRelFromWorkspace(workspaceRoot, outputPath)
-		if relErr != nil {
-			return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": relErr.Error()})
+		withinRel, workspaceRel, abs, shotErr := browserAutomationScreenshotTarget(workspaceRoot, screenshotsRoot, outputPath)
+		if shotErr != nil {
+			return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": shotErr.Error()})
 		}
-		payload["output_path"] = relPath
+		if IsProtectedSystemPath(abs, workspaceRoot, cfg) {
+			return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": "path refers to protected AuraGo configuration, credential or database state"})
+		}
+		screenshotWorkspaceRel = workspaceRel
+		screenshotAbs = abs
+		payload["output_path"] = withinRel
 	}
 
 	if op == "upload_file" {
-		relPath, _, relErr := browserAutomationRelFromWorkspace(workspaceRoot, req.FilePath)
+		relPath, abs, relErr := browserAutomationRelFromWorkspace(workspaceRoot, req.FilePath)
 		if relErr != nil {
 			return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": relErr.Error()})
+		}
+		if linkErr := browserAutomationRejectSymlinks(workspaceRoot, abs); linkErr != nil {
+			return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": linkErr.Error()})
+		}
+		if IsProtectedSystemPath(abs, workspaceRoot, cfg) {
+			return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": "path refers to protected AuraGo configuration, credential or database state"})
 		}
 		payload["file_path"] = relPath
 	}
 
 	if op == "get_download" {
 		payload["download_name"] = req.DownloadName
+	}
+
+	if strings.TrimSpace(cfg.BrowserAutomation.CloakProxy) != "" {
+		return browserAutomationJSON(map[string]interface{}{
+			"status": "error", "operation": op,
+			"message": "browser_automation.cloak_proxy must be empty; Chromium uses the egress proxy",
+		})
 	}
 
 	if health := BrowserAutomationHealth(ctx, cfg); health["status"] != "success" {
@@ -635,19 +719,40 @@ func ExecuteBrowserAutomation(ctx context.Context, cfg *config.Config, req Brows
 		return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": err.Error()})
 	}
 
-	if screenshotRel, ok := resp["screenshot_rel_path"].(string); ok && screenshotRel != "" {
-		abs := filepath.Join(workspaceRoot, filepath.FromSlash(screenshotRel))
-		resp["screenshot_path"] = abs
-		if webPath := browserAutomationWebPath(workspaceRoot, abs); webPath != "" {
-			resp["screenshot_web_path"] = webPath
+	if op == "screenshot" {
+		status, _ := resp["status"].(string)
+		if status == "" || status == "success" {
+			resp["screenshot_rel_path"] = screenshotWorkspaceRel
+			resp["screenshot_path"] = screenshotAbs
+			if webPath := browserAutomationWebPath(workspaceRoot, screenshotAbs); webPath != "" {
+				resp["screenshot_web_path"] = webPath
+			} else {
+				delete(resp, "screenshot_web_path")
+			}
+		} else {
+			delete(resp, "screenshot_rel_path")
+			delete(resp, "screenshot_path")
+			delete(resp, "screenshot_web_path")
 		}
+	} else {
+		delete(resp, "screenshot_rel_path")
+		delete(resp, "screenshot_path")
+		delete(resp, "screenshot_web_path")
 	}
 
 	if downloadRel, ok := resp["download_rel_path"].(string); ok && downloadRel != "" {
-		abs := filepath.Join(downloadsRoot, filepath.FromSlash(downloadRel))
-		resp["downloaded_file"] = abs
-		if webPath := browserAutomationWebPath(workspaceRoot, abs); webPath != "" {
-			resp["downloaded_file_web_path"] = webPath
+		if rel, abs, relErr := browserAutomationRelFromRoot(downloadsRoot, downloadRel); relErr == nil {
+			resp["download_rel_path"] = rel
+			resp["downloaded_file"] = abs
+			if webPath := browserAutomationWebPath(workspaceRoot, abs); webPath != "" {
+				resp["downloaded_file_web_path"] = webPath
+			} else {
+				delete(resp, "downloaded_file_web_path")
+			}
+		} else {
+			delete(resp, "download_rel_path")
+			delete(resp, "downloaded_file")
+			delete(resp, "downloaded_file_web_path")
 		}
 	}
 
@@ -661,10 +766,20 @@ func ExecuteBrowserAutomation(ctx context.Context, cfg *config.Config, req Brows
 			if relPath == "" {
 				continue
 			}
-			abs := filepath.Join(downloadsRoot, filepath.FromSlash(relPath))
+			rel, abs, relErr := browserAutomationRelFromRoot(downloadsRoot, relPath)
+			if relErr != nil {
+				delete(entry, "rel_path")
+				delete(entry, "local_path")
+				delete(entry, "web_path")
+				delete(entry, "downloaded_file")
+				continue
+			}
+			entry["rel_path"] = rel
 			entry["local_path"] = abs
 			if webPath := browserAutomationWebPath(workspaceRoot, abs); webPath != "" {
 				entry["web_path"] = webPath
+			} else {
+				delete(entry, "web_path")
 			}
 		}
 	}
@@ -678,24 +793,120 @@ func ExecuteBrowserAutomation(ctx context.Context, cfg *config.Config, req Brows
 	return browserAutomationJSON(resp)
 }
 
+func browserAutomationScreenshotsContainerPath(sidecarCfg BrowserAutomationSidecarConfig) string {
+	rel := "browser_screenshots"
+	if shots := strings.TrimSpace(sidecarCfg.ScreenshotsDir); shots != "" {
+		if parsed, err := filepath.Rel(sidecarCfg.WorkspaceDir, shots); err == nil {
+			parsed = filepath.ToSlash(filepath.Clean(parsed))
+			if parsed != "." && parsed != "" && !strings.HasPrefix(parsed, "..") {
+				rel = parsed
+			}
+		}
+	}
+	return path.Join(browserAutomationWorkspaceDir, rel)
+}
+
+func browserAutomationRuntimeEnv(sidecarCfg BrowserAutomationSidecarConfig) map[string]string {
+	return map[string]string{
+		"SCREENSHOTS_ROOT":    browserAutomationScreenshotsContainerPath(sidecarCfg),
+		"VIEWPORT_WIDTH":      strconv.Itoa(max(320, sidecarCfg.ViewportWidth)),
+		"VIEWPORT_HEIGHT":     strconv.Itoa(max(240, sidecarCfg.ViewportHeight)),
+		"SESSION_TTL_MINUTES": strconv.Itoa(max(1, sidecarCfg.SessionTTL)),
+	}
+}
+
+func browserAutomationContainerMatches(info map[string]interface{}, sidecarCfg BrowserAutomationSidecarConfig) bool {
+	configMap, _ := info["Config"].(map[string]interface{})
+	host, _ := info["HostConfig"].(map[string]interface{})
+	outbound := strings.TrimSpace(sidecarCfg.OutboundNetwork)
+	egress := strings.TrimSpace(sidecarCfg.EgressNetwork)
+	if configMap["Image"] != sidecarCfg.Image || host["NetworkMode"] != egress {
+		return false
+	}
+	if !browserAutomationHasNetworks(info, egress) || browserAutomationHasNetworks(info, outbound) {
+		return false
+	}
+	env := map[string]string{}
+	if raw, ok := configMap["Env"].([]interface{}); ok {
+		for _, item := range raw {
+			text, _ := item.(string)
+			key, value, found := strings.Cut(text, "=")
+			if found {
+				env[key] = value
+			}
+		}
+	}
+	if env["AURAGO_BROWSER_EGRESS_ISOLATED"] != "true" ||
+		env["AURAGO_BROWSER_EGRESS_PROXY"] != browserAutomationEgressProxy ||
+		env["AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS"] != browserAutomationPrivateOriginsValue(sidecarCfg.AllowedPrivateOrigins) ||
+		env["AURAGO_BROWSER_AUTOMATION_TOKEN"] != sidecarCfg.AuthToken ||
+		env["READ_ONLY"] != strconv.FormatBool(sidecarCfg.ReadOnly) ||
+		env["ALLOW_FILE_UPLOADS"] != strconv.FormatBool(sidecarCfg.AllowUploads) ||
+		env["ALLOW_FILE_DOWNLOADS"] != strconv.FormatBool(sidecarCfg.AllowDownloads) ||
+		env["HEADLESS"] != strconv.FormatBool(sidecarCfg.Headless) {
+		return false
+	}
+	for key, want := range browserAutomationRuntimeEnv(sidecarCfg) {
+		if env[key] != want {
+			return false
+		}
+	}
+	binds, _ := host["Binds"].([]interface{})
+	needed := map[string]bool{
+		dockerutil.FormatBindMount(sidecarCfg.WorkspaceDir, browserAutomationWorkspaceDir): false,
+		dockerutil.FormatBindMount(sidecarCfg.DownloadDir, browserAutomationDownloadsDir):  false,
+	}
+	for _, item := range binds {
+		text, _ := item.(string)
+		if _, ok := needed[text]; ok {
+			needed[text] = true
+		}
+	}
+	for _, present := range needed {
+		if !present {
+			return false
+		}
+	}
+	return true
+}
+
+func browserAutomationComposeOwned(info map[string]interface{}) bool {
+	configMap, _ := info["Config"].(map[string]interface{})
+	labels, _ := configMap["Labels"].(map[string]interface{})
+	project, _ := labels["com.docker.compose.project"].(string)
+	return strings.TrimSpace(project) != ""
+}
+
 func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg BrowserAutomationSidecarConfig, logger interface {
 	Info(string, ...any)
 	Warn(string, ...any)
 	Error(string, ...any)
 }) {
-	managedHost := browserAutomationManagedURLHost(sidecarCfg.URL, sidecarCfg.ContainerName, browserAutomationRunsInDocker())
+	managedHost := browserAutomationManagedURLHost(sidecarCfg.URL, sidecarCfg.ContainerName, sidecarCfg.RuntimeIsDocker || browserAutomationRunsInDocker())
 	if managedHost == "" {
 		logger.Info("[BrowserAutomation] Skipping auto-start because sidecar URL points to an external/container service", "url", sidecarCfg.URL)
 		return
 	}
-	if sidecarCfg.AuthToken == "" || sidecarCfg.CloakProxy == "" || sidecarCfg.EgressNetwork == "" {
-		logger.Error("[BrowserAutomation] Managed sidecar requires a token, filtering proxy, and internal egress network")
+	if strings.TrimSpace(sidecarCfg.CloakProxy) != "" {
+		logger.Error("[BrowserAutomation] browser_automation.cloak_proxy must be empty; Chromium uses the egress proxy")
+		return
+	}
+	if sidecarCfg.AuthToken == "" || sidecarCfg.EgressNetwork == "" {
+		logger.Error("[BrowserAutomation] Managed sidecar requires a token and an internal egress network")
 		return
 	}
 
 	dockerCfg := DockerConfig{Host: dockerHost}
 	if !browserAutomationInternalNetwork(dockerCfg, sidecarCfg.EgressNetwork) {
 		logger.Error("[BrowserAutomation] Egress network is missing or is not Docker-internal", "network", sidecarCfg.EgressNetwork)
+		return
+	}
+	outbound := strings.TrimSpace(sidecarCfg.OutboundNetwork)
+	if outbound == "" || outbound == strings.TrimSpace(sidecarCfg.EgressNetwork) || !browserAutomationRoutableNetwork(dockerCfg, outbound) {
+		logger.Error("[BrowserAutomation] Outbound network must be a different Docker network that is not internal", "network", outbound)
+		return
+	}
+	if !ensureBrowserEgressProxy(dockerCfg, sidecarCfg, logger) {
 		return
 	}
 
@@ -712,28 +923,43 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 	}
 	if code == 200 {
 		var info map[string]interface{}
-		if json.Unmarshal(data, &info) == nil {
-			host, _ := info["HostConfig"].(map[string]interface{})
-			if host["NetworkMode"] != sidecarCfg.EgressNetwork {
-				logger.Error("[BrowserAutomation] Existing sidecar uses an untrusted network")
+		if json.Unmarshal(data, &info) == nil && info != nil {
+			if browserAutomationComposeOwned(info) {
+				logger.Info("[BrowserAutomation] Compose owns this sidecar; leaving its networks and command in place", "container", containerName)
+				if state, ok := info["State"].(map[string]interface{}); ok {
+					if running, _ := state["Running"].(bool); running {
+						return
+					}
+				}
+				_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+containerName+"/start", "")
+				if startErr != nil || (startCode != 204 && startCode != 304) {
+					logger.Error("[BrowserAutomation] Failed to start Compose sidecar container", "code", startCode, "error", startErr)
+				}
 				return
 			}
-			if state, ok := info["State"].(map[string]interface{}); ok {
-				if running, _ := state["Running"].(bool); running {
-					logger.Info("[BrowserAutomation] Sidecar container already running")
+			if browserAutomationContainerMatches(info, sidecarCfg) {
+				if state, ok := info["State"].(map[string]interface{}); ok {
+					if running, _ := state["Running"].(bool); running {
+						logger.Info("[BrowserAutomation] Sidecar container already running")
+						return
+					}
+				}
+				_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+containerName+"/start", "")
+				if startErr != nil || (startCode != 204 && startCode != 304) {
+					logger.Error("[BrowserAutomation] Failed to start existing sidecar container", "code", startCode, "error", startErr)
 					return
 				}
+				logger.Info("[BrowserAutomation] Sidecar container started")
+				return
 			}
 		}
-		_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+containerName+"/start", "")
-		if startErr != nil || (startCode != 204 && startCode != 304) {
-			logger.Error("[BrowserAutomation] Failed to start existing sidecar container", "code", startCode, "error", startErr)
-			return
-		}
-		logger.Info("[BrowserAutomation] Sidecar container started")
-		return
-	}
-	if code != 404 {
+		logger.Warn("[BrowserAutomation] Managed sidecar spec drifted; recreating",
+			"network", sidecarCfg.EgressNetwork,
+			"outbound", outbound,
+			"image", image,
+			"container", containerName)
+		StopBrowserAutomationSidecar(dockerHost, sidecarCfg, logger)
+	} else if code != 404 {
 		logger.Warn("[BrowserAutomation] Unexpected Docker inspect response, skipping auto-start", "code", code)
 		return
 	}
@@ -755,7 +981,6 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 	env := []string{
 		"PORT=7331",
 		"AURAGO_BROWSER_AUTOMATION_TOKEN=" + sidecarCfg.AuthToken,
-		fmt.Sprintf("SESSION_TTL_MINUTES=%d", max(1, sidecarCfg.SessionTTL)),
 		fmt.Sprintf("MAX_SESSIONS=%d", max(1, sidecarCfg.MaxSessions)),
 		fmt.Sprintf("HEADLESS=%t", sidecarCfg.Headless),
 		fmt.Sprintf("ALLOW_FILE_UPLOADS=%t", sidecarCfg.AllowUploads),
@@ -763,16 +988,16 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 		fmt.Sprintf("READ_ONLY=%t", sidecarCfg.ReadOnly),
 		"WORKSPACE_ROOT=" + browserAutomationWorkspaceDir,
 		"DOWNLOAD_ROOT=" + browserAutomationDownloadsDir,
-		fmt.Sprintf("VIEWPORT_WIDTH=%d", max(320, sidecarCfg.ViewportWidth)),
-		fmt.Sprintf("VIEWPORT_HEIGHT=%d", max(240, sidecarCfg.ViewportHeight)),
 		fmt.Sprintf("CLOAK_HUMANIZE=%t", sidecarCfg.CloakHumanize),
 		fmt.Sprintf("CLOAK_HUMAN_PRESET=%s", sidecarCfg.CloakHumanPreset),
 	}
-	allowedPrivateOrigins, _ := json.Marshal(sidecarCfg.AllowedPrivateOrigins)
+	for key, value := range browserAutomationRuntimeEnv(sidecarCfg) {
+		env = append(env, key+"="+value)
+	}
 	env = append(env,
 		"AURAGO_BROWSER_EGRESS_ISOLATED=true",
-		"AURAGO_BROWSER_EGRESS_PROXY="+sidecarCfg.CloakProxy,
-		"AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS="+string(allowedPrivateOrigins),
+		"AURAGO_BROWSER_EGRESS_PROXY="+browserAutomationEgressProxy,
+		"AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS="+browserAutomationPrivateOriginsValue(sidecarCfg.AllowedPrivateOrigins),
 	)
 	if sidecarCfg.CloakFingerprintSeed != "" {
 		env = append(env, "CLOAK_FINGERPRINT_SEED="+sidecarCfg.CloakFingerprintSeed)
@@ -787,19 +1012,12 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 			fmt.Sprintf("%d/tcp", browserAutomationContainerPort): struct{}{},
 		},
 	}
-	hostConfig["NetworkMode"] = sidecarCfg.EgressNetwork
+	networkMode, endpoints := browserAutomationEndpointConfig(sidecarCfg, managedHost)
+	hostConfig["NetworkMode"] = networkMode
+	payload["NetworkingConfig"] = map[string]interface{}{"EndpointsConfig": endpoints}
 	if browserAutomationIsLoopbackHost(managedHost) {
 		hostConfig["PortBindings"] = map[string]interface{}{
 			fmt.Sprintf("%d/tcp", browserAutomationContainerPort): []map[string]string{{"HostIp": "127.0.0.1", "HostPort": fmt.Sprintf("%d", browserAutomationContainerPort)}},
-		}
-	} else {
-		networkName := sidecarCfg.EgressNetwork
-		payload["NetworkingConfig"] = map[string]interface{}{
-			"EndpointsConfig": map[string]interface{}{
-				networkName: map[string]interface{}{
-					"Aliases": []string{managedHost},
-				},
-			},
 		}
 	}
 	body, _ := json.Marshal(payload)
@@ -814,6 +1032,205 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 		return
 	}
 	logger.Info("[BrowserAutomation] Sidecar container created and started", "image", image, "container", containerName)
+}
+
+func browserAutomationPrivateOriginsValue(origins []string) string {
+	raw, err := json.Marshal(origins)
+	if err != nil {
+		return ""
+	}
+	return string(raw)
+}
+
+func browserAutomationHasNetworks(info map[string]interface{}, names ...string) bool {
+	settings, _ := info["NetworkSettings"].(map[string]interface{})
+	networks, _ := settings["Networks"].(map[string]interface{})
+	for _, name := range names {
+		if strings.TrimSpace(name) == "" {
+			return false
+		}
+		if _, ok := networks[name]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func browserAutomationKnownProxy(proxyAddr interface{}) bool {
+	text, _ := proxyAddr.(string)
+	switch text {
+	case strings.TrimPrefix(browserAutomationLoopbackProxy, "http://"), strings.TrimPrefix(browserAutomationEgressProxy, "http://"):
+		return true
+	default:
+		return false
+	}
+}
+
+func browserAutomationEndpointConfig(sidecarCfg BrowserAutomationSidecarConfig, managedHost string) (string, map[string]interface{}) {
+	egress := strings.TrimSpace(sidecarCfg.EgressNetwork)
+	endpoint := map[string]interface{}{}
+	if !browserAutomationIsLoopbackHost(managedHost) {
+		endpoint["Aliases"] = []string{managedHost}
+	}
+	return egress, map[string]interface{}{
+		egress: endpoint,
+	}
+}
+
+func ensureBrowserEgressProxy(dockerCfg DockerConfig, sidecarCfg BrowserAutomationSidecarConfig, logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}) bool {
+	name := browserAutomationEgressContainer
+	outbound := strings.TrimSpace(sidecarCfg.OutboundNetwork)
+	egress := strings.TrimSpace(sidecarCfg.EgressNetwork)
+	data, code, err := dockerRequest(dockerCfg, "GET", "/containers/"+name+"/json", "")
+	if err != nil {
+		logger.Warn("[BrowserAutomation] Docker unavailable while checking the egress proxy", "error", err)
+		return false
+	}
+	if code == http.StatusOK {
+		var info map[string]interface{}
+		if json.Unmarshal(data, &info) == nil && browserAutomationEgressMatches(info, sidecarCfg) {
+			if state, ok := info["State"].(map[string]interface{}); ok {
+				if running, _ := state["Running"].(bool); running {
+					return true
+				}
+			}
+			_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+name+"/start", "")
+			if startErr != nil || (startCode != http.StatusNoContent && startCode != http.StatusNotModified) {
+				logger.Error("[BrowserAutomation] Failed to start the egress proxy", "code", startCode, "error", startErr)
+				return false
+			}
+			return true
+		}
+		_, _, _ = dockerRequest(dockerCfg, "DELETE", "/containers/"+name+"?force=true", "")
+	} else if code != http.StatusNotFound {
+		logger.Warn("[BrowserAutomation] Unexpected egress inspect response", "code", code)
+		return false
+	}
+	if !ensureBrowserEgressImage(dockerCfg, sidecarCfg, logger) {
+		return false
+	}
+	hostConfig := hardenManagedSidecarHostConfig(map[string]interface{}{
+		"RestartPolicy":  map[string]interface{}{"Name": "unless-stopped"},
+		"ReadonlyRootfs": true,
+		"NetworkMode":    egress,
+	})
+	payload := map[string]interface{}{
+		"Image": browserAutomationEgressImage,
+		"Env": []string{
+			"PORT=7332",
+			"AURAGO_BROWSER_EGRESS_BIND=internal",
+			"AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS=" + browserAutomationPrivateOriginsValue(sidecarCfg.AllowedPrivateOrigins),
+		},
+		"HostConfig": hostConfig,
+		"NetworkingConfig": map[string]interface{}{
+			"EndpointsConfig": map[string]interface{}{egress: map[string]interface{}{}},
+		},
+	}
+	body, _ := json.Marshal(payload)
+	_, createCode, createErr := dockerRequest(dockerCfg, "POST", "/containers/create?name="+url.QueryEscape(name), string(body))
+	if createErr != nil || createCode != http.StatusCreated {
+		logger.Error("[BrowserAutomation] Failed to create the egress proxy", "code", createCode, "error", createErr)
+		return false
+	}
+	if !connectBrowserContainerToNetwork(dockerCfg, outbound, name, logger) {
+		_, _, _ = dockerRequest(dockerCfg, "DELETE", "/containers/"+name+"?force=true", "")
+		return false
+	}
+	_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+name+"/start", "")
+	if startErr != nil || (startCode != http.StatusNoContent && startCode != http.StatusNotModified) {
+		logger.Error("[BrowserAutomation] Failed to start the egress proxy", "code", startCode, "error", startErr)
+		_, _, _ = dockerRequest(dockerCfg, "DELETE", "/containers/"+name+"?force=true", "")
+		return false
+	}
+	logger.Info("[BrowserAutomation] Egress proxy is running", "container", name, "internal", egress, "outbound", outbound)
+	return true
+}
+
+func browserAutomationEgressMatches(info map[string]interface{}, sidecarCfg BrowserAutomationSidecarConfig) bool {
+	configMap, _ := info["Config"].(map[string]interface{})
+	host, _ := info["HostConfig"].(map[string]interface{})
+	egress := strings.TrimSpace(sidecarCfg.EgressNetwork)
+	outbound := strings.TrimSpace(sidecarCfg.OutboundNetwork)
+	if configMap["Image"] != browserAutomationEgressImage || host["NetworkMode"] != egress {
+		return false
+	}
+	if !browserAutomationHasNetworks(info, egress, outbound) {
+		return false
+	}
+	env := map[string]string{}
+	if raw, ok := configMap["Env"].([]interface{}); ok {
+		for _, item := range raw {
+			text, _ := item.(string)
+			key, value, found := strings.Cut(text, "=")
+			if found {
+				env[key] = value
+			}
+		}
+	}
+	return env["AURAGO_BROWSER_EGRESS_BIND"] == "internal" &&
+		env["PORT"] == "7332" &&
+		env["AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS"] == browserAutomationPrivateOriginsValue(sidecarCfg.AllowedPrivateOrigins)
+}
+
+func connectBrowserContainerToNetwork(dockerCfg DockerConfig, network, container string, logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}) bool {
+	body, _ := json.Marshal(map[string]string{"Container": container})
+	_, code, err := dockerRequest(dockerCfg, "POST", "/networks/"+url.PathEscape(network)+"/connect", string(body))
+	if err != nil || (code != http.StatusOK && code != http.StatusNoContent) {
+		logger.Error("[BrowserAutomation] Failed to attach the outbound network after create", "network", network, "code", code, "error", err)
+		return false
+	}
+	return true
+}
+
+func ensureBrowserEgressImage(dockerCfg DockerConfig, sidecarCfg BrowserAutomationSidecarConfig, logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}) bool {
+	_, imgCode, imgErr := dockerRequest(dockerCfg, "GET", "/images/"+browserAutomationEgressImage+"/json", "")
+	if imgErr == nil && imgCode == http.StatusOK {
+		return true
+	}
+	if !sidecarCfg.AutoBuild {
+		logger.Warn("[BrowserAutomation] Egress image not found locally", "image", browserAutomationEgressImage)
+		return false
+	}
+	if err := buildBrowserEgressImage(sidecarCfg.DockerfileDir, dockerCfg.Host, sidecarCfg.RuntimeIsDocker, logger); err != nil {
+		logger.Error("[BrowserAutomation] Egress image build failed", "error", err)
+		return false
+	}
+	return true
+}
+
+func buildBrowserEgressImage(dockerfileDir, dockerHost string, runtimeIsDocker bool, logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}) error {
+	return buildManagedBrowserImage(browserAutomationEgressImage, dockerfileDir, dockerHost, runtimeIsDocker, browserAutomationEgressDockerfile, logger)
+}
+
+func browserAutomationRoutableNetwork(dockerCfg DockerConfig, name string) bool {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return false
+	}
+	data, code, err := dockerRequest(dockerCfg, http.MethodGet, "/networks/"+url.PathEscape(name), "")
+	if err != nil || code != http.StatusOK {
+		return false
+	}
+	var info struct {
+		Internal bool `json:"Internal"`
+	}
+	return json.Unmarshal(data, &info) == nil && !info.Internal
 }
 
 func browserAutomationInternalNetwork(dockerCfg DockerConfig, name string) bool {
@@ -1071,7 +1488,44 @@ func browserAutomationRemoteBuildEndpoint(dockerHost string, runtimeIsDocker boo
 	return !isLoopbackHostname(parsed.Hostname())
 }
 
+func browserAutomationSelectDockerfile(inv *browserAutomationBuildInvocation, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" || name == browserAutomationDockerfileName {
+		return nil
+	}
+	if strings.Contains(name, "..") || strings.ContainsAny(name, `/\`) {
+		return fmt.Errorf("browser automation dockerfile %q must be a file name in the build context", name)
+	}
+	dockerfile := filepath.Join(inv.ContextDir, name)
+	inv.Dockerfile = dockerfile
+	browserAutomationRewriteDockerfileArg(inv.Args, dockerfile)
+	if inv.Fallback != nil {
+		inv.Fallback.Dockerfile = dockerfile
+		sharedArgs := len(inv.Args) > 0 && len(inv.Fallback.Args) > 0 && &inv.Fallback.Args[0] == &inv.Args[0]
+		if !sharedArgs {
+			browserAutomationRewriteDockerfileArg(inv.Fallback.Args, dockerfile)
+		}
+	}
+	return nil
+}
+
+func browserAutomationRewriteDockerfileArg(args []string, dockerfile string) {
+	for i, arg := range args {
+		if arg == "-f" && i+1 < len(args) {
+			args[i+1] = dockerfile
+		}
+	}
+}
+
 func buildBrowserAutomationImage(image, dockerfileDir, dockerHost string, runtimeIsDocker bool, logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}) error {
+	return buildManagedBrowserImage(image, dockerfileDir, dockerHost, runtimeIsDocker, browserAutomationDockerfileName, logger)
+}
+
+func buildManagedBrowserImage(image, dockerfileDir, dockerHost string, runtimeIsDocker bool, dockerfileName string, logger interface {
 	Info(string, ...any)
 	Warn(string, ...any)
 	Error(string, ...any)
@@ -1083,13 +1537,16 @@ func buildBrowserAutomationImage(image, dockerfileDir, dockerHost string, runtim
 	if err != nil {
 		return err
 	}
+	if err := browserAutomationSelectDockerfile(&inv, dockerfileName); err != nil {
+		return err
+	}
 	if err := browserAutomationCheckBuildContext(inv, image); err != nil {
 		return err
 	}
 	if browserAutomationRemoteBuildEndpoint(inv.DockerHost, runtimeIsDocker) {
 		logger.Warn("[BrowserAutomation] Building on a remote Docker engine over plain TCP; the build context is sent unencrypted", "docker_host", inv.DockerHost, "context", inv.ContextDir)
 	}
-	logger.Info("[BrowserAutomation] Building sidecar image (this may take a few minutes)…", "image", image, "context", inv.ContextDir, "docker_host", inv.DockerHost)
+	logger.Info("[BrowserAutomation] Building image (this may take a few minutes)…", "image", image, "context", inv.ContextDir, "docker_host", inv.DockerHost)
 	ctx, cancel := context.WithTimeout(context.Background(), browserAutomationBuildTimeout)
 	defer cancel()
 

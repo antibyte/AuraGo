@@ -10,6 +10,8 @@ function expectStartupFailure(name, env, outputPattern) {
         PORT: '0',
         AURAGO_BROWSER_AUTOMATION_TOKEN: '',
         AURAGO_BROWSER_AUTOMATION_ALLOW_UNAUTH: '',
+        AURAGO_BROWSER_EGRESS_PROXY: '',
+        AURAGO_BROWSER_EGRESS_ISOLATED: '',
         ...env,
       },
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -46,14 +48,23 @@ function expectStartupFailure(name, env, outputPattern) {
 (async () => {
   await expectStartupFailure(
     'missing token',
-    {},
+    { AURAGO_BROWSER_EGRESS_ISOLATED: 'true' },
     /AURAGO_BROWSER_AUTOMATION_TOKEN is required/
   );
 
   await expectStartupFailure(
     'placeholder token',
-    { AURAGO_BROWSER_AUTOMATION_TOKEN: 'change_me_please' },
+    {
+      AURAGO_BROWSER_AUTOMATION_TOKEN: 'change_me_please',
+      AURAGO_BROWSER_EGRESS_ISOLATED: 'true',
+    },
     /known placeholder value/
+  );
+
+  await expectStartupFailure(
+    'isolated egress disabled',
+    { AURAGO_BROWSER_AUTOMATION_TOKEN: 'sidecar-auth-test-token' },
+    /isolated egress network/
   );
 })().catch((error) => {
   console.error(error.message || error);

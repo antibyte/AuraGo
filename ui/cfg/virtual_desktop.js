@@ -27,7 +27,7 @@ function renderVirtualDesktopSection(section) {
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
-    html += vdCfgToggleRow('config.virtual_desktop.enabled_label', 'help.virtual_desktop.enabled', enabled, 'virtual_desktop.enabled', "vdCfgToggleEnabled(this.classList.contains('on'))");
+    html += vdCfgToggleRow('config.virtual_desktop.enabled_label', 'help.virtual_desktop.enabled', enabled, 'virtual_desktop.enabled', "vdCfgToggleEnabled(this)");
     html += vdCfgHiddenToggle('tools.virtual_desktop.enabled', data.allow_agent_control === true);
 
     if (!enabled) {
@@ -43,7 +43,7 @@ function renderVirtualDesktopSection(section) {
 
     html += '<div class="cfg-note-banner cfg-note-banner-info">▣ ' + t('config.virtual_desktop.first_party_note') + '</div>';
     html += vdCfgToggleRow('config.virtual_desktop.readonly_label', 'help.virtual_desktop.readonly', data.readonly === true, 'virtual_desktop.readonly');
-    html += vdCfgToggleRow('config.virtual_desktop.agent_control_label', 'help.virtual_desktop.allow_agent_control', data.allow_agent_control === true, 'virtual_desktop.allow_agent_control', "vdCfgToggleAgentControl(this.classList.contains('on'))");
+    html += vdCfgToggleRow('config.virtual_desktop.agent_control_label', 'help.virtual_desktop.allow_agent_control', data.allow_agent_control === true, 'virtual_desktop.allow_agent_control', "vdCfgToggleAgentControl(this)");
     html += vdCfgToggleRow('config.virtual_desktop.generated_apps_label', 'help.virtual_desktop.allow_generated_apps', data.allow_generated_apps !== false, 'virtual_desktop.allow_generated_apps');
     html += vdCfgToggleRow('config.virtual_desktop.python_jobs_label', 'help.virtual_desktop.allow_python_jobs', data.allow_python_jobs === true, 'virtual_desktop.allow_python_jobs');
     html += vdCfgToggleRow('config.virtual_desktop.serial_browser_label', 'help.virtual_desktop.serial_browser_enabled', data.serial_browser_enabled === true, 'virtual_desktop.serial_browser_enabled');
@@ -77,6 +77,11 @@ function renderVirtualDesktopSection(section) {
     html += '</div>';
 
     html += vdCfgVideoStudio();
+    html += vdCfgRetroGames();
+    const layerling = data.layerling || {};
+    html += '<h3>Layerling</h3>';
+    html += vdCfgToggleRow('config.layerling.enabled', 'config.layerling.help', layerling.enabled === true, 'virtual_desktop.layerling.enabled');
+    html += vdCfgField('config.layerling.access', 'config.layerling.access_help', '<select class="field-select" data-path="virtual_desktop.layerling.agent_access">' + ['off', 'read', 'write'].map(value => '<option value="' + value + '"' + ((layerling.agent_access || 'off') === value ? ' selected' : '') + '>' + t('config.layerling.' + value) + '</option>').join('') + '</select>');
     html += '<div class="field-group">';
     html += '<button class="btn-save dc-test-btn" onclick="vdCfgTestDesktop()" id="vd-cfg-test-btn">▣ ' + t('config.virtual_desktop.test_button') + '</button>';
     html += '<a class="btn-save dc-test-btn" href="/desktop">' + t('config.virtual_desktop.open_button') + '</a>';
@@ -111,16 +116,24 @@ function vdCfgField(labelKey, helpKey, inputHtml) {
     return html;
 }
 
-function vdCfgToggleEnabled(isOn) {
+// Flip the clicked switch first: state sync still reads it, so a stale one reverts the draft.
+function vdCfgFlipToggle(el) {
+    const on = !el.classList.contains('on');
+    el.classList.toggle('on', on);
+    el.setAttribute('aria-checked', String(on));
+    return on;
+}
+
+function vdCfgToggleEnabled(el) {
     const data = vdCfgEnsureData();
-    data.enabled = !isOn;
+    data.enabled = vdCfgFlipToggle(el);
     setDirty(true);
     renderVirtualDesktopSection(null);
 }
 
-function vdCfgToggleAgentControl(isOn) {
+function vdCfgToggleAgentControl(el) {
     const data = vdCfgEnsureData();
-    data.allow_agent_control = !isOn;
+    data.allow_agent_control = vdCfgFlipToggle(el);
     configData.tools.virtual_desktop.enabled = data.allow_agent_control === true;
     setDirty(true);
     renderVirtualDesktopSection(null);
@@ -180,4 +193,48 @@ async function vdCfgTestVideoStudio(button) {
     } catch (_) {
         if (result.isConnected) result.textContent = t(prefix + 'unavailable');
     } finally { button.disabled = false; }
+}
+
+function vdCfgRetroGames() {
+    const data = configData.retro_games || (configData.retro_games = {});
+    if (typeof data.enabled !== 'boolean') data.enabled = true;
+    if (typeof data.agent_access !== 'boolean') data.agent_access = true;
+    const prefix = 'config.retro_games.';
+    let html = '<h3>' + t(prefix + 'title') + '</h3><p class="field-help">' + t(prefix + 'help') + '</p>';
+    html += '<div class="field-grid two-cols">';
+    html += vdCfgToggleRow(prefix + 'enabled', '', data.enabled === true, 'retro_games.enabled');
+    html += vdCfgToggleRow(prefix + 'agent_access', '', data.agent_access === true, 'retro_games.agent_access');
+    html += '</div><div class="field-group"><button type="button" class="btn-save dc-test-btn" onclick="vdCfgTestRetroGames(this)">' + t(prefix + 'check') + '</button><span id="vd-retro-games-result" class="dc-test-result" role="status"></span></div>';
+    return html;
+}
+
+async function vdCfgTestRetroGames(button) {
+    const result = document.getElementById('vd-retro-games-result');
+    const prefix = 'config.retro_games.';
+    if (hasUnsavedConfigChanges()) { result.textContent = t(prefix + 'save_first'); return; }
+    button.disabled = true;
+    result.className = 'dc-test-result';
+    result.textContent = t(prefix + 'checking');
+    try {
+        // passive=1: a plain status request would start the first index download.
+        const response = await fetch('/api/desktop/retro-games/status?passive=1', { signal: AbortSignal.timeout(15000) });
+        const status = await response.json();
+        if (!result.isConnected) return;
+        if (!response.ok || !status.enabled) {
+            result.textContent = t(prefix + 'unavailable');
+            result.className = 'dc-test-result is-danger';
+            return;
+        }
+        const total = Number(status.total_games) || 0;
+        if (total > 0) result.textContent = t(prefix + 'status_ready').replace('{count}', total.toLocaleString(document.documentElement.lang || undefined));
+        else result.textContent = t(prefix + (status.syncing ? 'status_building' : 'status_empty'));
+        result.className = 'dc-test-result is-success';
+    } catch (_) {
+        if (result.isConnected) {
+            result.textContent = t(prefix + 'unavailable');
+            result.className = 'dc-test-result is-danger';
+        }
+    } finally {
+        button.disabled = false;
+    }
 }

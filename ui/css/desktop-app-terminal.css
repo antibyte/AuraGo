@@ -15,6 +15,16 @@
     font-display: block;
 }
 
+/* C64 Pro Mono (c) 2010-2019 Style (style64.org), embedded unmodified under its licence (only in software provided to end users free of charge),
+   see /fonts/C64_Pro_Mono-LICENSE.txt. */
+@font-face {
+    font-family: "Aura C64";
+    src: url('/fonts/C64_Pro_Mono-STYLE.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+    font-display: block;
+}
+
 .vd-terminal-app {
     --vd-term-bezel: transparent;
     --vd-term-ink: #ffc16c;
@@ -546,9 +556,16 @@
     background: var(--vd-term-bezel);
 }
 
-.vd-terminal-app[data-terminal-geometry="bbs"] .xterm .xterm-viewport {
+.vd-terminal-app[data-terminal-geometry="bbs"] .xterm .xterm-viewport,
+.vd-terminal-app[data-terminal-geometry="c64"] .xterm .xterm-viewport {
     background-color: transparent !important;
     scrollbar-width: none;
+}
+
+/* 40x25 C64 letterbox: the black C64 screen sits in the C64 border colour (light blue); with the WebGL CRT the
+   same colour comes from terminal.js (crtProfile). */
+.vd-terminal-app[data-terminal-geometry="c64"] .vd-terminal-screen {
+    background: #706DEB;
 }
 
 /* Own-entry dialogs (native <dialog>, desktop theme). */

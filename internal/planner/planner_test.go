@@ -237,6 +237,34 @@ func TestValidTodoPriority(t *testing.T) {
 	}
 }
 
+func TestCreateAppointmentsRollsBackTheWholeSeries(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	ids, err := CreateAppointments(db, []Appointment{
+		{Title: "Standup", DateTime: "2026-10-12T07:00:00Z", NotificationAt: "2026-10-12T06:45:00Z"},
+		{Title: "Standup", DateTime: "not-a-date"},
+	})
+	if err == nil || ids != nil {
+		t.Fatalf("CreateAppointments partial = %v, %v; want error and no ids", ids, err)
+	}
+	list, err := ListAppointments(db, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 0 {
+		t.Fatalf("rows after rollback = %d, want 0", len(list))
+	}
+
+	ids, err = CreateAppointments(db, []Appointment{
+		{Title: "Standup", DateTime: "2026-10-12T07:00:00Z"},
+		{Title: "Standup", DateTime: "2026-10-13T07:00:00Z"},
+	})
+	if err != nil || len(ids) != 2 || ids[0] == ids[1] {
+		t.Fatalf("CreateAppointments = %v, %v; want two distinct ids", ids, err)
+	}
+}
+
 func TestCreateAppointment(t *testing.T) {
 	db := testDB(t)
 	defer db.Close()
@@ -1248,6 +1276,40 @@ func TestUpdateTodo(t *testing.T) {
 	}
 }
 
+func TestUpdateTodoReopenKeepsFinishedItems(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	id, err := CreateTodo(db, Todo{
+		Title: "Pack",
+		Items: []TodoItem{{Title: "Box"}, {Title: "Tape"}},
+	})
+	if err != nil {
+		t.Fatalf("CreateTodo: %v", err)
+	}
+	if err := CompleteTodo(db, id, true); err != nil {
+		t.Fatalf("CompleteTodo: %v", err)
+	}
+	todo, err := GetTodo(db, id)
+	if err != nil {
+		t.Fatalf("GetTodo: %v", err)
+	}
+	todo.Status = "open"
+	if err := UpdateTodo(db, *todo); err != nil {
+		t.Fatalf("UpdateTodo: %v", err)
+	}
+	reopened, err := GetTodo(db, id)
+	if err != nil {
+		t.Fatalf("GetTodo after reopen: %v", err)
+	}
+	if reopened.Status != "open" {
+		t.Fatalf("status = %q, want open", reopened.Status)
+	}
+	if reopened.DoneItemCount != 2 {
+		t.Fatalf("done items = %d, want 2", reopened.DoneItemCount)
+	}
+}
+
 func TestUpdateTodoDoneCompletesItems(t *testing.T) {
 	db := testDB(t)
 	defer db.Close()
@@ -1722,6 +1784,25 @@ func TestClaimDailyTodoReminderTodosWithChecklistItemsDoesNotBlock(t *testing.T)
 	}
 }
 
+func TestCivilDueDateIsNotOverdueOnItsLocalDay(t *testing.T) {
+	t.Parallel()
+	berlin := time.FixedZone("CEST", 2*60*60)
+	todo := Todo{Status: "open", DueDate: "2026-10-10T00:00:00Z"}
+	during := time.Date(2026, 10, 10, 15, 0, 0, 0, berlin)
+	if isTodoOverdue(todo, during) {
+		t.Fatal("civil due date is overdue during its local day")
+	}
+	nextMorning := time.Date(2026, 10, 11, 0, 30, 0, 0, berlin)
+	if !isTodoOverdue(todo, nextMorning) {
+		t.Fatal("civil due date is not overdue on the next local day")
+	}
+	timed := Todo{Status: "open", DueDate: "2026-10-10T12:00:00Z"}
+	afterInstant := time.Date(2026, 10, 10, 15, 0, 0, 0, berlin)
+	if !isTodoOverdue(timed, afterInstant) {
+		t.Fatal("timed due date stayed open after its instant")
+	}
+}
+
 func TestBuildPromptSnapshotSortsOverdueAndLimitsResults(t *testing.T) {
 	db := testDB(t)
 	defer db.Close()
@@ -2137,10 +2218,9 @@ func TestNotifierCallsMissionTriggerForDueAppointmentWithoutExecutor(t *testing.
 func TestNotifierCallsTodoOverdueTriggerOncePerDueDate(t *testing.T) {
 	db := testDB(t)
 	defer db.Close()
-	now := time.Now().UTC()
 	id, err := CreateTodo(db, Todo{
 		Title:   "Backup NAS",
-		DueDate: now.Add(-time.Hour).Format(time.RFC3339),
+		DueDate: time.Date(2020, 1, 2, 15, 4, 5, 0, time.UTC).Format(time.RFC3339),
 		Status:  "open",
 	})
 	if err != nil {
@@ -2163,6 +2243,30 @@ func TestNotifierCallsTodoOverdueTriggerOncePerDueDate(t *testing.T) {
 	}
 	if got.ID != id {
 		t.Fatalf("todo overdue trigger got todo %q, want %q", got.ID, id)
+	}
+}
+
+func TestNotifierSkipsCivilDueDateOnItsLocalDay(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+	_, err := CreateTodo(db, Todo{
+		Title:   "Due today",
+		DueDate: time.Now().Format("2006-01-02"),
+		Status:  "open",
+	})
+	if err != nil {
+		t.Fatalf("CreateTodo: %v", err)
+	}
+
+	calls := 0
+	notifier := NewNotifier(db, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	notifier.SetTodoOverdueTrigger(func(Todo) { calls++ })
+
+	notifier.checkDue()
+	notifier.checkDue()
+
+	if calls != 0 {
+		t.Fatalf("todo overdue trigger calls = %d, want 0 for civil due date on its local day", calls)
 	}
 }
 

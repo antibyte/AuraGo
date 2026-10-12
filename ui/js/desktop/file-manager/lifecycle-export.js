@@ -6,7 +6,7 @@
         const instance = instanceForWindow(windowId);
         if (instance && instance.host) {
             setActiveInstance(instance);
-            navigate(path);
+            navigate(typeof path === 'object' ? path : localLocation(path));
         }
     }
 
@@ -22,6 +22,11 @@
         const instance = instanceForWindow(windowId);
         if (!instance) return;
         instance.disposed = true;
+        instance.storageLifetime.abort();
+        instance.storageNavigation?.abort();
+        instance.storageBusy?.abort();
+        instance.quickLookOverlay?.remove();
+        document.removeEventListener('aurago:desktop-policy', instance.storagePolicyListener);
         instance.navigationGeneration++;
         if (instance.callbacks && typeof instance.callbacks.clearWindowMenus === 'function') {
             instance.callbacks.clearWindowMenus(windowId);
@@ -41,5 +46,12 @@
     }
 
     // Expose the module
-    window.FileManager = { render, navigateTo, dropDesktopFiles, dispose };
+    window.FileManager = { render, navigateTo, dropDesktopFiles, dispose,
+        storageReady: id => isLiveInstance(instanceForWindow(id)),
+        transferStorage: (id, entries, destination, mode, clipboard) => {
+            const instance = instanceForWindow(id);
+            if (!instance || instance.callbacks.readonly) return Promise.resolve(false);
+            return withInstance(instance, () => storageTransferSelection(instance, entries, destination || storageLocation(), mode, clipboard));
+        }
+    };
 })();

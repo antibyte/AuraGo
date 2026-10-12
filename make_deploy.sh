@@ -240,6 +240,12 @@ cp -r assets/skill_samples/. "$TMPDIR_RES/assets/skill_samples/"
 # Pack
 # Carry the unpacked set once for old updaters, which already copy assets/.
 # A separate archive also supports bare-binary and offline repair.
+# Build the approved optional helper before embedding its checksums.
+go run ./scripts/build-gog.go -out "$DEPLOY_DIR/gog"
+for gog_asset in "$DEPLOY_DIR"/gog/gog-*.zip; do
+  cp "$gog_asset" "$DEPLOY_DIR/"
+  RELEASE_DEPLOY_ASSETS+=("$(basename "$gog_asset")")
+done
 go run ./cmd/assetpack -out "$DEPLOY_DIR" -stage "$TMPDIR_RES/assets/web" -release "${AURAGO_RELEASE_TAG:-}"
 MAIN_LDFLAGS="$MAIN_LDFLAGS $(cat "$DEPLOY_DIR/web-assets.ldflags")"
 ASSET_SET_ID=$(sed -n 's/.*"asset_set_id": "\([a-f0-9]*\)".*/\1/p' "$DEPLOY_DIR/web-assets.json")
@@ -297,7 +303,7 @@ for target in "${REMOTE_TARGETS[@]}"; do
 
   OUT="$DEPLOY_DIR/aurago-remote_${OS}_${ARCH}${EXT}"
   echo "    → $OUT"
-  CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -trimpath -ldflags="-s -w" -o "$OUT" ./cmd/remote/
+  CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -trimpath -ldflags="-s -w -X main.BuildVersion=$BUILD_ID" -o "$OUT" ./cmd/remote/
   # Linux remotes also live in bin/ for update.sh / install.sh compatibility.
   if [ "$OS" = "linux" ] && [ "$ARCH" = "amd64" ]; then
     mkdir -p bin

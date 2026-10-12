@@ -538,7 +538,7 @@ func DefaultCatalog() []CatalogEntry {
 			Category:     "creative",
 			Name:         "OpenSCAD",
 			Description:  "Script-based parametric CAD compiler with previews and export files.",
-			Image:        "openscad/openscad:latest",
+			Image:        "openscad/openscad@sha256:147e48525bec392bcf628d7a6d5ea4ccac71b16251952328f86e1061cbf47c37",
 			Icon:         "openscad",
 			LogoSlug:     "openscad",
 			LogoURL:      "",

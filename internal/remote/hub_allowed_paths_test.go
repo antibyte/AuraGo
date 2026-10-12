@@ -82,10 +82,51 @@ func connectRemoteAgent(t *testing.T, hub *RemoteHub, deviceID string, ownPaths 
 	t.Helper()
 	serverConn, agentConn, cleanup := newWebSocketPairForHubTest(t)
 	t.Cleanup(cleanup)
-	hub.Register(deviceID, &RemoteConnection{
-		Conn: serverConn, DeviceID: deviceID, SharedKey: strings.Repeat("b", 64), AllowedPaths: ownPaths,
-	})
-	return &remoteAgent{hub: hub, id: deviceID, frames: agentFrames(agentConn)}
+	if hub.db != nil {
+		if _, err := GetDevice(hub.db, deviceID); err != nil {
+			var createErr error
+			deviceID, createErr = CreateDevice(hub.db, DeviceRecord{Name: deviceID, Status: "approved", AllowedPaths: ownPaths})
+			if createErr != nil {
+				t.Fatal(createErr)
+			}
+		}
+	}
+	conn := &RemoteConnection{Conn: serverConn, DeviceID: deviceID, SharedKey: strings.Repeat("b", 64), AllowedPaths: ownPaths}
+	hub.Register(deviceID, conn)
+	go hub.HandleMessages(conn)
+	frames := make(chan RemoteMessage, 32)
+	go func() {
+		defer close(frames)
+		for {
+			var msg RemoteMessage
+			if agentConn.ReadJSON(&msg) != nil {
+				return
+			}
+			if msg.Type == MsgConfigUpdate {
+				ack, _ := NewMessage(MsgAck, deviceID, conn.SharedKey, 1, AckPayload{RefID: msg.MessageID, Success: true})
+				_ = agentConn.WriteJSON(ack)
+				deadline := time.Now().Add(time.Second)
+				for {
+					conn.mu.Lock()
+					done := conn.configState == "confirmed"
+					conn.mu.Unlock()
+					if done || time.Now().After(deadline) {
+						break
+					}
+					time.Sleep(time.Millisecond)
+				}
+			}
+			if msg.Type == MsgCommand {
+				var cmd CommandPayload
+				_ = json.Unmarshal(msg.Payload, &cmd)
+				result, _ := NewMessage(MsgResult, deviceID, conn.SharedKey, 1, ResultPayload{CommandID: cmd.CommandID, Status: "ok"})
+				_ = agentConn.WriteJSON(result)
+			}
+			frames <- msg
+		}
+	}()
+	return &remoteAgent{hub: hub, id: deviceID, frames: frames}
+
 }
 
 func newRemoteAgentFixture(t *testing.T, ownPaths []string) *remoteAgent {
@@ -98,7 +139,7 @@ func (a *remoteAgent) send(t *testing.T, op string) ResultPayload {
 	result, err := a.hub.SendCommand(a.id, CommandPayload{
 		Operation: op,
 		Args:      map[string]interface{}{"command": "id", "path": "/etc/hostname"},
-	}, 20*time.Millisecond)
+	}, time.Second)
 	if err != nil {
 		t.Fatalf("SendCommand(%s): %v", op, err)
 	}
@@ -120,7 +161,7 @@ func (a *remoteAgent) expectRefused(t *testing.T, stage string) {
 // frames arrive in order, so nothing else went out before it.
 func (a *remoteAgent) expectDispatched(t *testing.T, op string) {
 	t.Helper()
-	if result := a.send(t, op); result.Status != "timeout" {
+	if result := a.send(t, op); result.Status != "ok" {
 		t.Fatalf("%s result = %+v, want dispatch to the agent", op, result)
 	}
 	msg := nextAgentFrame(t, a.frames, MsgCommand)
@@ -272,7 +313,7 @@ func TestAuthResponseCarriesEffectiveAllowedPaths(t *testing.T) {
 	seq := uint64(2)
 	reconnect := func() AuthResponsePayload {
 		t.Helper()
-		msg, err := NewMessage(MsgAuth, enrolled.DeviceID, enrolled.SharedKey, seq, AuthPayload{DeviceID: enrolled.DeviceID, Hostname: "test"})
+		msg, err := NewMessage(MsgAuth, enrolled.DeviceID, enrolled.SharedKey, seq, AuthPayload{SecurityRevision: ClientSecurityRevision, Capabilities: ClassicCapabilities(), DeviceID: enrolled.DeviceID, Hostname: "test"})
 		if err != nil {
 			t.Fatal(err)
 		}

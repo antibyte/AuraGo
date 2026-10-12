@@ -571,5 +571,7 @@
   "config.section.here_now.label": "here.now",
   "config.section.here_now.desc": "Publiser og administrer autentiserte permanente Sites",
   "config.section.cyd.label": "Cheap Yellow Display",
-  "config.section.cyd.desc": "ESP32 2,8\" mini-dashboard for systemstatus og agentvarsler"
+  "config.section.cyd.desc": "ESP32 2,8\" mini-dashboard for systemstatus og agentvarsler",
+  "config.section.gog.label": "Google Workspace via gog",
+  "config.section.gog.desc": "Bruk separate Google-kontoer sammen med den innebygde integrasjonen."
 }

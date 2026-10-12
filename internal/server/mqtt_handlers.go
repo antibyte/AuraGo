@@ -79,7 +79,7 @@ func handleMQTTStatus(s *Server) http.HandlerFunc {
 // handleMQTTTest tests the MQTT broker connection.
 func handleMQTTTest(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost && r.Method != http.MethodGet {
+		if r.Method != http.MethodPost {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}

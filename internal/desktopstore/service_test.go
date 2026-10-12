@@ -47,7 +47,7 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 		"code-server":         {image: "ghcr.io/linuxserver/code-server:latest", port: 8443, icon: "code", runtime: RuntimeContainerWebApp},
 		"termix":              {image: "ghcr.io/lukegus/termix:latest", port: 8080, icon: "termix", runtime: RuntimeContainerWebApp},
 		"commandcode":         {image: "ghcr.io/antibyte/aurago-commandcode:latest", port: 80, icon: "commandcode", runtime: RuntimeContainerWebApp},
-		"openscad":            {image: "openscad/openscad:latest", port: 0, icon: "openscad", runtime: RuntimeNativeManagedApp},
+		"openscad":            {image: "openscad/openscad@sha256:147e48525bec392bcf628d7a6d5ea4ccac71b16251952328f86e1061cbf47c37", port: 0, icon: "openscad", runtime: RuntimeNativeManagedApp},
 	}
 	if len(catalog) != len(expected) {
 		t.Fatalf("expected %d catalog apps, got %d", len(expected), len(catalog))
@@ -265,7 +265,7 @@ func TestNativeManagedInstallShowsBuiltinAppWithoutWebContainer(t *testing.T) {
 		status: NativeManagedStatus{
 			ContainerName: "aurago-openscad",
 			ContainerID:   "native-openscad",
-			Image:         "openscad/openscad:latest",
+			Image:         "openscad/openscad@sha256:147e48525bec392bcf628d7a6d5ea4ccac71b16251952328f86e1061cbf47c37",
 			Status:        AppStatusStopped,
 		},
 	}
@@ -2552,7 +2552,7 @@ func (f *fakeNativeManagedRuntime) statusOrDefault() NativeManagedStatus {
 		status.ContainerID = "native"
 	}
 	if status.Image == "" {
-		status.Image = "openscad/openscad:latest"
+		status.Image = "openscad/openscad@sha256:147e48525bec392bcf628d7a6d5ea4ccac71b16251952328f86e1061cbf47c37"
 	}
 	if status.Status == "" {
 		status.Status = AppStatusStopped

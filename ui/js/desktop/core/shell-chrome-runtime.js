@@ -149,6 +149,13 @@
         }
     }
 
+    function clockLocalDay(value) {
+        const date = value instanceof Date ? value : new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+        const pad = n => String(n).padStart(2, '0');
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    }
+
     async function openClockPopup(anchor) {
         closeClockPopup();
         let popup = document.getElementById('vd-clock-popup');
@@ -179,8 +186,8 @@
         }
         if (popup.hidden || popup._request !== request || !popup.isConnected) return;
         const now = new Date();
-        const todayKey = now.toISOString().slice(0, 10);
-        const todayItems = (Array.isArray(appointments) ? appointments : []).filter(item => String(item.date_time || '').startsWith(todayKey));
+        const todayKey = clockLocalDay(now);
+        const todayItems = (Array.isArray(appointments) ? appointments : []).filter(item => clockLocalDay(item.date_time) === todayKey && item.status !== 'cancelled');
         const events = todayItems.slice(0, 6).map(item => {
             const time = item.date_time ? new Date(item.date_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
             return `<li><span class="vd-clock-event-time">${esc(time)}</span><span class="vd-clock-event-title">${esc(item.title || '')}</span></li>`;
@@ -318,6 +325,43 @@
     }
 
     function wireShellChromeControls() {
+        const fullscreenBtn = document.getElementById('vd-fullscreen-button');
+        if (fullscreenBtn && !fullscreenBtn.dataset.shellChromeWired) {
+            fullscreenBtn.dataset.shellChromeWired = 'true';
+            let pending = false;
+            const syncFullscreen = () => {
+                const active = !!document.fullscreenElement;
+                const supported = !!(document.fullscreenEnabled && document.documentElement.requestFullscreen && document.exitFullscreen);
+                const label = !supported ? 'desktop.fullscreen_unavailable' : active ? 'desktop.exit_fullscreen' : 'desktop.fullscreen';
+                fullscreenBtn.disabled = pending || !supported;
+                fullscreenBtn.setAttribute('aria-busy', String(pending));
+                fullscreenBtn.setAttribute('aria-pressed', String(active));
+                fullscreenBtn.dataset.i18nTitle = label;
+                fullscreenBtn.dataset.i18nAriaLabel = label;
+                fullscreenBtn.title = t(label);
+                fullscreenBtn.setAttribute('aria-label', t(label));
+                fullscreenBtn.querySelector('path').setAttribute('d', active
+                    ? 'M3 8h5V3m8 0v5h5M8 21v-5H3m18 0h-5v5'
+                    : 'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5');
+            };
+            fullscreenBtn.addEventListener('click', async () => {
+                if (fullscreenBtn.disabled) return;
+                pending = true;
+                syncFullscreen();
+                try {
+                    if (document.fullscreenElement) await document.exitFullscreen();
+                    else await document.documentElement.requestFullscreen();
+                } catch (_) {
+                    showDesktopNotification({ type: 'error', title: t('desktop.fullscreen'), message: t('desktop.fullscreen_error') });
+                } finally {
+                    pending = false;
+                    syncFullscreen();
+                }
+            });
+            document.addEventListener('fullscreenchange', syncFullscreen);
+            window.addEventListener('aurago:language-changed', syncFullscreen);
+            syncFullscreen();
+        }
         const clock = document.getElementById('vd-clock');
         if (clock && !clock.dataset.shellChromeWired) {
             clock.dataset.shellChromeWired = 'true';

@@ -2,6 +2,13 @@
 
 Inventory of external libraries, runtimes, fonts, icons, and other third-party assets used by **AuraGo**.
 
+Layerling 1.57.0 (commit `25f12513802e322cdccecaf138f874ff526f331d`) is an optional
+AGPL-3.0-only browser CAD application, vendored in `ui/js/vendor/layerling`.
+Its license and complete corresponding source archive (including AuraGo's
+adapter and build instructions) are shipped as `LICENSE.txt` and `source.zip`.
+The running editor exposes both downloads. See `scripts/layerling/README.md`
+and [Layerling upstream](https://github.com/henmedia/layerling) for provenance.
+
 - **AuraGo project license:** [MIT](LICENSE)
 - **Reviewed:** 2026-10-09
 - **Sources:** `go.mod`, root `package.json`, `browser_automation_sidecar/package.json`, `ui/js/vendor/`, `ui/fonts/`, `ui/img/`, `THIRD_PARTY_NOTICES.md`
@@ -221,6 +228,7 @@ Self-hosted under `ui/fonts/` (see `ui/fonts/fonts.css`).
 | JetBrains Mono | SIL Open Font License 1.1 | https://github.com/JetBrains/JetBrainsMono · npm `@fontsource/jetbrains-mono@5.3.0` (weight 400, latin + latin-ext; CYD Creator designer preview, `JetBrainsMono-LICENSE.txt`) |
 | Datatype | Check upstream (self-hosted specialty face) | Vendor/original foundry for the Datatype files in `ui/fonts/` |
 | Px437 IBM VGA 8x16 (The Ultimate Oldschool PC Font Pack, VileR) | CC BY-SA 4.0 | https://int10h.org/oldschool-pc-fonts/ · `ui/fonts/Px437_IBM_VGA_8x16.woff`, unmodified (attribution: `ui/fonts/Px437-LICENSE.txt`) |
+| C64 Pro Mono 1.2.1 (C64 TrueType, Style) | Style C64 TrueType licence (custom): only in software provided to end users free of charge, `@font-face` embedding allowed, no modification or renaming, no separate download | http://style64.org/c64-truetype · `ui/fonts/C64_Pro_Mono-STYLE.woff`, unmodified, original file name (licence text and hashes: `ui/fonts/C64_Pro_Mono-LICENSE.txt`) |
 
 ---
 
@@ -314,6 +322,7 @@ These use strong or network-relevant copyleft licenses. Redistributors should re
 | certifi | MPL-2.0 | CYD Creator builder image (PlatformIO dependency, unmodified) |
 | Adafruit NeoPixel | LGPL-3.0 | CYD Creator builder image; linked only when an app selects it |
 | Px437 IBM VGA 8x16 font | CC BY-SA 4.0 (share-alike) | Terminal Retro-Net 80×25 BBS mode (`ui/fonts/Px437_IBM_VGA_8x16.woff`) |
+| C64 Pro Mono font (Style) | Style C64 TrueType licence (custom, not open source): AuraGo must stay free of charge; file unmodified under its original name; never offered as a separate download | Terminal Retro-Net 40×25 Commodore 64 mode (`ui/fonts/C64_Pro_Mono-STYLE.woff`) |
 
 ---
 

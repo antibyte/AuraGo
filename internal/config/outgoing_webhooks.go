@@ -113,6 +113,7 @@ func PrepareOutgoingWebhooks(incoming, existing []OutgoingWebhook) ([]OutgoingWe
 		existingByID[hook.ID] = hook
 	}
 	seen := make(map[string]struct{}, len(incoming))
+	seenNames := make(map[string]struct{}, len(incoming))
 	prepared := make([]OutgoingWebhook, len(incoming))
 	for i, hook := range incoming {
 		hook.ID = strings.TrimSpace(hook.ID)
@@ -123,6 +124,11 @@ func PrepareOutgoingWebhooks(incoming, existing []OutgoingWebhook) ([]OutgoingWe
 			return nil, fmt.Errorf("duplicate outgoing webhook id %q", hook.ID)
 		}
 		seen[hook.ID] = struct{}{}
+		nameKey := strings.ToLower(strings.TrimSpace(hook.Name))
+		if _, duplicate := seenNames[nameKey]; duplicate {
+			return nil, fmt.Errorf("duplicate outgoing webhook name %q", strings.TrimSpace(hook.Name))
+		}
+		seenNames[nameKey] = struct{}{}
 		old := existingByID[hook.ID]
 		if hook.URL == OutgoingWebhookMaskedValue {
 			hook.URL = old.URL

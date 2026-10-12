@@ -613,6 +613,10 @@
       "bytes": 59522,
       "sha256": "ad32b41ad8507aed4f7241178d9a472457355ecf0282faaa655de3ea37809c9a"
     },
+    "ui/js/vendor/ruview-esptool.js": {
+      "bytes": 218260,
+      "sha256": "c30e1a34fed03b1fe8220f908f427d55fcc481ade237f1e148a7cbef8f728136"
+    },
     "ui/js/vendor/pdf/cmaps/78-EUC-H.bcmap": {
       "bytes": 2404,
       "sha256": "d92a261336dc18b8c03a46eb4d462382d33f4338fa195d303256b2031434c874"

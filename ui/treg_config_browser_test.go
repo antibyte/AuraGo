@@ -57,6 +57,19 @@ func TestTregConfigBrowser(t *testing.T) {
         };
     }`)
 	page.MustEval(`async()=>{await selectSection('treg');resetDirtySnapshot();}`)
+	page.MustSetViewport(1440, 900, 1, false)
+	if !page.MustEval(`() => {
+		const enabled = document.querySelector('[data-path="treg.enabled"]');
+		const readonly = document.querySelector('[data-path="treg.readonly"]');
+		const save = document.getElementById('treg-save-token').getBoundingClientRect();
+		const test = document.getElementById('treg-test-btn').getBoundingClientRect();
+		const pill = enabled.getBoundingClientRect();
+		return enabled.tagName === 'DIV' && readonly.tagName === 'DIV' && readonly.classList.contains('on')
+			&& pill.height > 0 && pill.height < 36 && pill.width > pill.height
+			&& test.left >= save.right + 12;
+	}`).Bool() {
+		t.Fatal("treg switches or action buttons have the wrong geometry")
+	}
 	page.MustElement("#treg-token").MustInput("fixture-organization-token")
 	page.MustElement("#treg-save-token").MustClick()
 	waitForJSBool(t, page, `()=>window.tregTokenStored && document.getElementById('treg-token').value===''`)
@@ -81,7 +94,16 @@ func TestTregConfigBrowser(t *testing.T) {
 		t.Fatal("draft lost on section navigation")
 	}
 	page.MustEval(`()=>{const cost=document.getElementById('treg-cost');cost.value='0';cost.dispatchEvent(new Event('input',{bubbles:true}));}`)
-	page.MustElement(`[data-path="treg.enabled"]`).MustClick()
+	if covered := page.MustEval(`() => {
+		const el = document.querySelector('[data-path="treg.enabled"]');
+		const box = el.getBoundingClientRect();
+		const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+		if (!hit || hit === el || el.contains(hit)) return '';
+		return (hit.id || hit.className || hit.tagName) + ' @' + Math.round(box.left) + ',' + Math.round(box.top);
+	}`).String(); covered != "" {
+		t.Fatal("enabled switch covered by " + covered)
+	}
+	page.MustEval(`()=>document.querySelector('[data-path="treg.enabled"]').click()`)
 	if !page.MustEval(`async()=>{await saveConfig();const saved=await(await tregFetch('/api/config')).json();return saved.treg.enabled===true&&saved.treg.max_call_cost_micro===0&&saved.treg.allowed_endpoints[0].operation==='create';}`).Bool() {
 		t.Fatal("saved settings differ from draft")
 	}

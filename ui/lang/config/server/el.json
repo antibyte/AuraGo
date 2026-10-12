@@ -74,7 +74,7 @@
   "config.server.host_label": "Διεύθυνση σύνδεσης",
   "config.server.http_port_label": "Θύρα HTTP (ανακατεύθυνση)",
   "config.server.https_desc": "Ενεργοποιήστε HTTPS με αυτόματα, προσαρμοσμένα ή αυτο-υπογεγραμμένα πιστοποιητικά. Λειτουργεί ανεξάρτητα από άλλες ρυθμίσεις.",
-  "config.server.https_disabled_desc": "Ενεργοποιήστε HTTPS για ασφαλείς συνδέσεις με κρυπτογράφηση TLS. Επιλέξτε μεταξύ αυτόματου (Let's Encrypt), προσαρμοσμένου ή αυτο-υπογεγραμμένου.",
+  "config.server.https_disabled_desc": "Πολλές λειτουργίες της επιφάνειας εργασίας, ιδίως η φωνητική συνομιλία και η πρόσβαση στο μικρόφωνο, μπορεί να μη λειτουργούν μέσω HTTP. Το HTTPS μέσω αντίστροφου διακομιστή μεσολάβησης και το localhost μπορούν ακόμη να παρέχουν ασφαλές περιβάλλον περιήγησης.",
   "config.server.https_disabled_notice": "Το HTTPS είναι απενεργοποιημένο",
   "config.server.https_enabled_label": "Ενεργοποίηση HTTPS",
   "config.server.https_port_label": "Θύρα HTTPS",
@@ -101,5 +101,9 @@
   "config.updates.installing": "Εγκατάσταση…",
   "config.updates.running": "Εκτελείται…",
   "config.web_scraper.summary_mode": "Λειτουργία περίληψης",
-  "config.webdav.secret_empty": "Η τιμή είναι κενή"
+  "config.webdav.secret_empty": "Η τιμή είναι κενή",
+  "config.server.disable_https_title": "Απενεργοποίηση HTTPS;",
+  "config.server.disable_https_confirm": "Αλλάζει μόνο το πρόχειρο. Αποθήκευσε και επανεκκίνησε το AuraGo για χρήση HTTP. Οι κανόνες HSTS ενός διακομιστή μεσολάβησης ή γονικού τομέα μπορεί να εξακολουθούν να επιβάλλουν HTTPS.",
+  "config.server.http_port_hint": "Το 0 απενεργοποιεί την ακρόαση HTTP. Για το HTTP-01 του Let’s Encrypt, επίλεξε 80 και κάνε τη δημόσια θύρα 80 προσβάσιμη.",
+  "config.server.restart_address": "Μετά την επανεκκίνηση, άνοιξε:"
 }

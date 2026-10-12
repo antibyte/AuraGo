@@ -39,11 +39,12 @@
                         <button type="button" class="vd-calendar-search-clear" data-cal-search-clear aria-label="${esc(t('desktop.clear'))}" hidden>×</button>
                     </label>
                     <div class="vd-calendar-view-switch" role="tablist" aria-label="${esc(t('desktop.menu_view'))}">${viewButtons}</div>
-                    <button type="button" class="vd-button vd-button-primary vd-calendar-create" data-cal-create title="${esc(t('desktop.cal_new_appointment'))} (N)">${iconMarkup('plus', '+', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.cal_new'))}</span></button>
+                    <button type="button" class="vd-button vd-button-primary vd-calendar-create" data-cal-create title="${esc(t('desktop.cal_new_appointment'))} (N)" ${session.readonly() ? 'disabled' : ''}>${iconMarkup('plus', '+', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.cal_new'))}</span></button>
                 </div>
                 <div class="vd-calendar-progress" data-cal-progress hidden><i></i></div>
             </header>
             <div class="vd-calendar-stage">
+                ${session.readonly() ? `<p class="vd-calendar-readonly">${esc(t('desktop.cal_readonly'))}</p>` : ''}
                 <aside class="vd-calendar-sidebar" data-cal-sidebar>
                     <div class="vd-calendar-side-mini" data-cal-mini></div>
                     <div class="vd-calendar-side-agenda" data-cal-side-agenda></div>
@@ -79,8 +80,11 @@
             timeScrollTop: null,
             timers: [], listeners: [], observer: null,
             editor: null, peek: null, contactsPromise: null,
-            dragId: null, snackTimer: null, snackAction: null
+            dragId: null, snackTimer: null, snackAction: null,
+            readonly: () => desktopReadonly()
         };
+        session.loadGeneration = 0;
+        session.pendingDeletes = new Map();
         session.reload = options => loadCalendarAppointments(session, options);
         session.snack = options => showCalendarSnack(session, options);
         session.focusDate = (date, options) => calendarFocusDate(session, date, options);
@@ -89,6 +93,7 @@
         calendarSessions.set(id, session);
 
         host.innerHTML = calendarShellHTML(session);
+        session.disposeGog = window.AuraGogDesktop?.attachSources(host, 'calendar', { t });
         wireCalendarShell(session);
         // Bound once per host: the handler resolves the live session so re-renders keep working.
         wireContextMenuBoundary(host, { onContextMenu: event => showCalendarContextMenu(calendarSessions.get(id), event) });
@@ -96,15 +101,16 @@
         registerWindowCleanup(id, () => {
             session.dispose();
             calendarSessions.delete(id);
-            document.querySelectorAll('.vd-modal-backdrop.vd-calendar-editor-backdrop').forEach(el => el.remove());
         });
         paintCalendar(session);
         await loadCalendarAppointments(session, { initial: true });
     }
 
     function disposeCalendarSession(session) {
+        session.disposeGog?.();
         session.timers.forEach(timer => clearInterval(timer));
         session.timers = [];
+        Array.from(session.pendingDeletes.keys()).forEach(id => { commitCalendarDelete(session, id); });
         session.listeners.forEach(([target, type, handler, options]) => target.removeEventListener(type, handler, options));
         session.listeners = [];
         if (session.observer) { session.observer.disconnect(); session.observer = null; }
@@ -122,7 +128,7 @@
         setWindowMenus(id, [
             {
                 id: 'file', labelKey: 'desktop.menu_file', items: [
-                    { id: 'new-appointment', labelKey: 'desktop.cal_new_appointment', icon: 'plus', shortcut: 'Ctrl+N', action: () => openAppointmentEditor(session, { dateHint: session.selected }) },
+                    { id: 'new-appointment', labelKey: 'desktop.cal_new_appointment', icon: 'plus', shortcut: 'Ctrl+N', disabled: session.readonly(), action: () => openAppointmentEditor(session, { dateHint: session.selected }) },
                     { type: 'separator' },
                     { id: 'refresh', labelKey: 'desktop.context_refresh', icon: 'refresh', shortcut: 'F5', action: () => loadCalendarAppointments(session, { silent: true }) }
                 ]
@@ -141,25 +147,30 @@
 
     async function loadCalendarAppointments(session, options) {
         options = options || {};
-        if (session.loading) return;
+        const generation = ++session.loadGeneration;
         session.loading = true;
         const progress = session.host.querySelector('[data-cal-progress]');
         if (progress && session.loaded) progress.hidden = false;
         if (!session.loaded) paintCalendar(session);
         try {
             const data = await api('/api/desktop/integrations/appointments?status=all');
-            session.appointments = normalizeCalendarAppointments(data);
+            if (generation !== session.loadGeneration) return;
+            session.appointments = normalizeCalendarAppointments(data)
+                .filter(item => !session.pendingDeletes.has(String(item.id)));
             session.loaded = true;
             session.error = null;
             session.lastLoadedAt = Date.now();
         } catch (err) {
+            if (generation !== session.loadGeneration) return;
             session.error = err;
             if (session.loaded && !options.initial) session.snack({ type: 'error', message: t('desktop.load_failed') });
         } finally {
-            session.loading = false;
-            if (progress) progress.hidden = true;
+            if (generation === session.loadGeneration) {
+                session.loading = false;
+                if (progress) progress.hidden = true;
+                paintCalendar(session);
+            }
         }
-        paintCalendar(session);
     }
 
     function calendarMonthDensity(session) {
@@ -181,6 +192,18 @@
         shell.classList.toggle('is-sidebar-collapsed', !session.sidebarOpen);
         shell.classList.toggle('is-searching', searching);
         shell.classList.toggle('is-loading', session.loading && !session.loaded);
+        const create = host.querySelector('[data-cal-create]');
+        if (create) create.disabled = !!session.readonly();
+        const stage = host.querySelector('.vd-calendar-stage');
+        const hint = stage && stage.querySelector(':scope > .vd-calendar-readonly');
+        if (session.readonly()) {
+            if (stage && !hint) {
+                const note = document.createElement('p');
+                note.className = 'vd-calendar-readonly';
+                note.textContent = t('desktop.cal_readonly');
+                stage.insertBefore(note, stage.firstChild);
+            } else if (hint) hint.textContent = t('desktop.cal_readonly');
+        } else if (hint) hint.remove();
 
         const title = host.querySelector('[data-cal-title]');
         if (title) title.textContent = searching ? t('desktop.cal_search_results_title') : calendarRangeLabel(session.view, session.cursor);
@@ -203,7 +226,7 @@
             if (!session.loaded && session.loading) {
                 body.innerHTML = calendarSkeletonHTML(session.view);
             } else if (!session.loaded && session.error) {
-                body.innerHTML = `<div class="vd-calendar-empty is-error"><strong>${esc(t('desktop.load_failed'))}</strong><p>${esc(session.error.message || '')}</p><button type="button" class="vd-button" data-cal-retry>${iconMarkup('refresh', 'R', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.retry'))}</span></button></div>`;
+                body.innerHTML = `<div class="vd-calendar-empty is-error"><strong>${esc(t('desktop.load_failed'))}</strong><button type="button" class="vd-button" data-cal-retry>${iconMarkup('refresh', 'R', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.retry'))}</span></button></div>`;
             } else {
                 const items = calendarVisibleAppointments(session);
                 if (session.view === 'month') {
@@ -406,6 +429,7 @@
     }
 
     async function updateAppointmentDateTime(session, appointment, target) {
+        if (session.readonly()) return false;
         if (!appointment || !(target instanceof Date) || Number.isNaN(target.getTime())) return false;
         const previousDate = calendarDate(appointment.date_time);
         if (previousDate && previousDate.getTime() === target.getTime()) return false;
@@ -441,6 +465,7 @@
     }
 
     async function updateAppointmentStatus(session, appointment, status) {
+        if (session.readonly()) return;
         if (!appointment || appointment.status === status) return;
         const previous = appointment.status;
         appointment.status = status;
@@ -468,24 +493,38 @@
         loadCalendarAppointments(session, { silent: true });
     }
 
+    function commitCalendarDelete(session, id) {
+        const pending = session.pendingDeletes.get(String(id));
+        if (!pending) return;
+        session.pendingDeletes.delete(String(id));
+        clearTimeout(pending.timer);
+        api(`/api/desktop/integrations/appointments/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {
+            session.appointments.push(pending.appointment);
+            session.appointments.sort((a, b) => String(a.date_time).localeCompare(String(b.date_time)));
+            paintCalendar(session);
+            session.snack({ type: 'error', message: t('desktop.request_failed') });
+        });
+    }
+
     async function deleteCalendarAppointment(session, appointment) {
-        if (!appointment) return;
-        await api(`/api/desktop/integrations/appointments/${encodeURIComponent(appointment.id)}`, { method: 'DELETE' });
+        if (session.readonly()) return;
+        if (!appointment || session.pendingDeletes.has(String(appointment.id))) return;
         session.appointments = session.appointments.filter(item => item.id !== appointment.id);
         closeCalendarPeek(session);
         paintCalendar(session);
-        const restore = {
-            title: appointment.title, description: appointment.description, date_time: appointment.date_time,
-            notification_at: appointment.notification_at, wake_agent: appointment.wake_agent,
-            agent_instruction: appointment.agent_instruction, status: appointment.status,
-            contact_ids: (appointment.participants || []).map(p => p.id).filter(Boolean)
-        };
+        const timer = setTimeout(() => commitCalendarDelete(session, appointment.id), 8000);
+        session.pendingDeletes.set(String(appointment.id), { appointment, timer });
         session.snack({
             message: t('desktop.cal_deleted'),
             actionLabel: t('desktop.cal_undo'),
-            onAction: async () => {
-                await plannerJSON('/api/desktop/integrations/appointments', 'POST', restore);
-                await loadCalendarAppointments(session, { silent: true });
+            onAction: () => {
+                const pending = session.pendingDeletes.get(String(appointment.id));
+                if (!pending) return;
+                clearTimeout(pending.timer);
+                session.pendingDeletes.delete(String(appointment.id));
+                session.appointments.push(pending.appointment);
+                session.appointments.sort((a, b) => String(a.date_time).localeCompare(String(b.date_time)));
+                paintCalendar(session);
                 session.snack({ message: t('desktop.cal_restored') });
             }
         });
@@ -527,6 +566,7 @@
         if (!session) return false;
         const eventEl = event.target.closest('[data-appt-id]');
         if (eventEl) {
+            if (session.readonly()) return true;
             const item = calendarFindAppointment(session, eventEl.dataset.apptId);
             if (!item) return false;
             const open = item.status === 'upcoming' || item.status === 'overdue';
@@ -544,7 +584,7 @@
         if (cell) {
             const date = cell.dataset.calDropDate;
             showContextMenu(event.clientX, event.clientY, [
-                { labelKey: 'desktop.cal_new_appointment', icon: 'plus', action: () => openAppointmentEditor(session, { dateHint: date }) },
+                { labelKey: 'desktop.cal_new_appointment', icon: 'plus', hidden: session.readonly(), action: () => openAppointmentEditor(session, { dateHint: date }) },
                 { labelKey: 'desktop.cal_open_day', icon: 'calendar', action: () => calendarFocusDate(session, date, { view: 'day' }) }
             ]);
             return true;
@@ -612,6 +652,7 @@
         shell.addEventListener('click', async event => {
             const target = event.target;
             const closest = selector => target.closest(selector);
+            if (session.readonly() && (closest('[data-cal-create]') || closest('[data-cal-add]') || closest('[data-cal-status-action]') || closest('[data-cal-edit]') || closest('[data-cal-delete]'))) return;
             const nav = closest('[data-cal-nav]');
             if (nav) { shiftCalendarPeriod(session, Number(nav.dataset.calNav) || 1); return; }
             if (closest('[data-cal-today]')) { calendarGoToday(session); return; }
@@ -755,9 +796,19 @@
         });
 
         // Keep the current-time indicator and "today" markers fresh.
-        session.timers.push(setInterval(() => calendarUpdateNowLine(session), 60000));
+        session.timers.push(setInterval(() => {
+            calendarUpdateNowLine(session);
+            if (!document.hidden && session.loaded && Date.now() - session.lastLoadedAt > CAL_REFRESH_AFTER_MS) {
+                loadCalendarAppointments(session, { silent: true });
+            }
+        }, 60000));
 
         // Refresh quietly when the desktop becomes visible again after a while.
+        calendarListen(session, document, 'aurago:desktop-policy', () => {
+            setCalendarMenus(session.id, session);
+            paintCalendar(session);
+        });
+
         calendarListen(session, document, 'visibilitychange', () => {
             if (!document.hidden && session.loaded && Date.now() - session.lastLoadedAt > CAL_REFRESH_AFTER_MS) loadCalendarAppointments(session, { silent: true });
         });

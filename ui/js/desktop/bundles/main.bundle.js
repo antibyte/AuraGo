@@ -330,6 +330,7 @@
     };
     const appIconKeys = {
         'ha-switchboard': 'ha-switchboard',
+        'ruview': 'ruview',
         analytics: 'analytics',
         backup: 'backup',
         backups: 'backup',
@@ -404,6 +405,7 @@
         zipper: 'zipper',
         pixel: 'pixel',
         'galaxa-deluxe': 'galaxa-deluxe',
+        layerling: 'layerling',
         nasscad: 'nasscad',
         'store-quakejs-rootless': 'quakejs',
         people: 'users',
@@ -439,6 +441,7 @@
         ogg: 'audio',
         m4a: 'audio',
         opus: 'audio',
+        lyl: 'layerling',
         aurasynth: 'synth-studio',
         mp4: 'video',
         webm: 'video',
@@ -824,6 +827,7 @@
             'rtl-sdr': 'RTLSDRApp',
             bluetooth: 'BluetoothApp',
             'ha-switchboard': 'HASwitchboardApp',
+            'ruview': 'RuViewApp',
             files: 'FileManager',
             writer: 'WriterApp',
             sheets: 'SheetsApp',
@@ -840,12 +844,14 @@
             zipper: 'ZipperApp',
             pixel: 'PixelApp',
             'galaxa-deluxe': 'GalaxaDeluxe',
+            layerling: 'LayerlingApp',
             nasscad: 'NasscadApp',
             people: 'PeopleApp',
             'homepage-studio': 'HomepageStudioApp',
             'detective': 'DetectiveApp',
             'newspaper': 'NewspaperApp',
             'local-wikipedia': 'LocalWikipediaApp',
+            'retro-games': 'RetroGamesApp',
             cheater: 'CheaterApp',
             'agent-chat': 'AgentChatApp',
             'live-speech': 'LiveSpeechApp',
@@ -6447,6 +6453,7 @@
             pixel: { width: 1100, height: 750 },
             'galaxa-deluxe': { width: 600, height: 800 },
             chess: { width: 980, height: 680 },
+            layerling: { width: 1280, height: 850 },
             nasscad: { width: 1280, height: 850 },
             people: { width: 1020, height: 700 },
             'mission-control': { width: 1100, height: 750 },
@@ -6454,20 +6461,21 @@
             'system-world': { width: 1440, height: 900 },
             noisemaker: { width: 1120, height: 740 },
             'homepage-studio': { width: 1240, height: 760 },
+            'retro-games': { width: 1100, height: 720 },
             'local-wikipedia': { width: 1080, height: 760 }
         };
         if (presets[appId]) return presets[appId];
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { if (appId === 'ha-switchboard') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, easydrag: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { if (appId === 'ha-switchboard') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, easydrag: true, viewer: true, 'viewer-3d': true, chess: true, 'retro-games': true, nasscad: true, 'mission-control': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
 
     function appWindowMinSize(appId) {
         if (appId === 'ha-switchboard') return { width: 360, height: 540 };
         if (appId === 'radio') return { width: 360, height: 540 };
         if (appId === 'teevee') return { width: 1140, height: 540 }; // Keep the sidebar above its 1050px content breakpoint plus wood trim.
         if (appId === 'meshcore') return { width: 360, height: 480 };
-        const mins = { 'system-info': { width: 560, height: 460 }, 'log-viewer': { width: 640, height: 420 }, 'virtual-computers': { width: 640, height: 480 }, 'network-cameras': { width: 680, height: 480 }, 'sip-phone': { width: 340, height: 580 }, 'live-speech': { width: 340, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 }, noisemaker: { width: 760, height: 520 }, easydrag: { width: 720, height: 480 } };
+        const mins = { 'system-info': { width: 560, height: 460 }, 'log-viewer': { width: 640, height: 420 }, 'virtual-computers': { width: 640, height: 480 }, 'network-cameras': { width: 680, height: 480 }, 'sip-phone': { width: 340, height: 580 }, 'live-speech': { width: 340, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 }, 'retro-games': { width: 640, height: 480 }, noisemaker: { width: 760, height: 520 }, easydrag: { width: 720, height: 480 } };
         return mins[appId] || { width: WINDOW_MIN_W, height: WINDOW_MIN_H };
     }
 
@@ -6522,11 +6530,11 @@
 
     function matchesExistingAppWindow(win, appId, context) {
         if (win.appId !== appId || appId === 'quick-connect') return false;
-        if ((appId === 'editor' || appId === 'writer' || appId === 'sheets' || appId === 'notes' || appId === 'synth-studio') && context && context.path != null) {
+        if ((appId === 'editor' || appId === 'writer' || appId === 'sheets' || appId === 'notes' || appId === 'synth-studio' || appId === 'layerling') && context && context.path != null) {
             const requestedPath = normalizeDesktopPath(context.path);
             return win.context && normalizeDesktopPath(win.context.path) === requestedPath;
         }
-        return !['editor', 'writer', 'sheets', 'synth-studio'].includes(appId);
+        return !['editor', 'writer', 'sheets', 'synth-studio', 'layerling'].includes(appId);
     }
 
     function findExistingAppWindow(appId, context) {
@@ -6681,6 +6689,7 @@
             if (appId === 'settings' && context && context.category) renderAppContent(existing.id, appId, context);
             if (appId === 'meshcore' && context && window.MeshCoreApp) window.MeshCoreApp.openConversation(existing.id, context);
             if (appId === 'easydrag' && context && window.EasyDragApp && typeof window.EasyDragApp.open === 'function') window.EasyDragApp.open(existing.id, context);
+            if (appId === 'retro-games' && context && context.game && window.RetroGamesApp && typeof window.RetroGamesApp.open === 'function') window.RetroGamesApp.open(existing.id, context);
             if (context && context.path) recordRecentFile(context.path, appId, context.pathKind);
             return;
         }
@@ -7948,6 +7957,11 @@ function wireWindow(win, id) {
             guide: 'Use this window context to interpret references to the open app. If app-specific data is not included, ask for the missing detail instead of guessing.',
             resources: []
         };
+        if (item.appId === 'layerling') {
+            const editorId = window.LayerlingApp?.editorId(item.id);
+            base.guide = editorId ? 'Use the layerling tool with editor_id=' + editorId + '. This exact editor belongs to this window. Never use another editor automatically.' : 'Layerling is not connected. Wait for the editor before using the layerling tool.';
+            if (item.context?.path) base.resources.push({ kind: 'desktop_file', path: item.context.path, label: 'Layerling project' });
+        }
         if (storeAppId === 'olivetin') return oliveTinWindowAIContext(base);
         return base;
     }
@@ -8141,6 +8155,19 @@ function wireWindow(win, id) {
 ;
 /* ui/js/desktop/core/file-dialog-runtime.js */
     const fileDialogDefaultRoots = ['Desktop', 'Documents', 'Downloads', 'Pictures', 'Photos', 'Music', 'Videos', 'Apps', 'Widgets', 'Shared'];
+
+    function mountDesktopDialog(overlay) {
+        const mount = () => {
+            const host = document.fullscreenElement || document.body;
+            if (overlay.parentElement === host) return;
+            const focused = overlay.contains(document.activeElement) ? document.activeElement : null;
+            host.appendChild(overlay);
+            focused?.focus();
+        };
+        mount();
+        document.addEventListener('fullscreenchange', mount);
+        return () => document.removeEventListener('fullscreenchange', mount);
+    }
 
     function fileDialogText(key, fallback, vars) {
         let value = '';
@@ -8368,7 +8395,7 @@ function wireWindow(win, id) {
                 </div>
             </footer>
         </form>`;
-        document.body.appendChild(overlay);
+        const unmount = mountDesktopDialog(overlay);
 
         const form = overlay.querySelector('form');
         const list = overlay.querySelector('[data-file-dialog-list]');
@@ -8572,6 +8599,7 @@ function wireWindow(win, id) {
             settled = true;
             document.removeEventListener('keydown', onKeydown);
             if (options.signal) options.signal.removeEventListener('abort', onAbort);
+            unmount();
             overlay.remove();
             resolveDialog(result);
         }
@@ -8929,6 +8957,17 @@ function wireWindow(win, id) {
             out[key] = value;
         });
         if (/^[a-f0-9]{64}$/.test(context.conversation_id || '')) out.conversation_id = context.conversation_id;
+        if (context.storage != null) {
+            const loc = context.storage;
+            const path = loc && loc.path;
+            if (['local', 'webdav', 'koofr'].includes(loc?.provider) && typeof path === 'string' && !/[\\\x00-\x1f]/.test(path) && !path.startsWith('/') && !path.split('/').some(part => part === '..' || part === '.') && (loc.provider !== 'koofr' || typeof loc.mount_id === 'string' && !!loc.mount_id)) {
+                out.storage = { provider: loc.provider, mount_id: loc.provider === 'koofr' ? loc.mount_id : '', path };
+                out.path = path;
+            } else {
+                // Invalid remote identities must never reopen as local paths.
+                delete out.path;
+            }
+        }
         return out;
     }
 
@@ -9075,7 +9114,7 @@ function wireWindow(win, id) {
     function defaultAppForExtension(ext) {
         const normalized = String(ext || '').toLowerCase().replace(/^\./, '');
         const map = parseDefaultAppsMap();
-        return map[normalized] || '';
+        return map[normalized] || (normalized === 'lyl' ? 'layerling' : '');
     }
 
     const RECENT_FILES_KEY = 'aurago.desktop.recentFiles.v2';
@@ -9705,6 +9744,13 @@ function wireWindow(win, id) {
         }
     }
 
+    function clockLocalDay(value) {
+        const date = value instanceof Date ? value : new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+        const pad = n => String(n).padStart(2, '0');
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    }
+
     async function openClockPopup(anchor) {
         closeClockPopup();
         let popup = document.getElementById('vd-clock-popup');
@@ -9735,8 +9781,8 @@ function wireWindow(win, id) {
         }
         if (popup.hidden || popup._request !== request || !popup.isConnected) return;
         const now = new Date();
-        const todayKey = now.toISOString().slice(0, 10);
-        const todayItems = (Array.isArray(appointments) ? appointments : []).filter(item => String(item.date_time || '').startsWith(todayKey));
+        const todayKey = clockLocalDay(now);
+        const todayItems = (Array.isArray(appointments) ? appointments : []).filter(item => clockLocalDay(item.date_time) === todayKey && item.status !== 'cancelled');
         const events = todayItems.slice(0, 6).map(item => {
             const time = item.date_time ? new Date(item.date_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
             return `<li><span class="vd-clock-event-time">${esc(time)}</span><span class="vd-clock-event-title">${esc(item.title || '')}</span></li>`;
@@ -9874,6 +9920,43 @@ function wireWindow(win, id) {
     }
 
     function wireShellChromeControls() {
+        const fullscreenBtn = document.getElementById('vd-fullscreen-button');
+        if (fullscreenBtn && !fullscreenBtn.dataset.shellChromeWired) {
+            fullscreenBtn.dataset.shellChromeWired = 'true';
+            let pending = false;
+            const syncFullscreen = () => {
+                const active = !!document.fullscreenElement;
+                const supported = !!(document.fullscreenEnabled && document.documentElement.requestFullscreen && document.exitFullscreen);
+                const label = !supported ? 'desktop.fullscreen_unavailable' : active ? 'desktop.exit_fullscreen' : 'desktop.fullscreen';
+                fullscreenBtn.disabled = pending || !supported;
+                fullscreenBtn.setAttribute('aria-busy', String(pending));
+                fullscreenBtn.setAttribute('aria-pressed', String(active));
+                fullscreenBtn.dataset.i18nTitle = label;
+                fullscreenBtn.dataset.i18nAriaLabel = label;
+                fullscreenBtn.title = t(label);
+                fullscreenBtn.setAttribute('aria-label', t(label));
+                fullscreenBtn.querySelector('path').setAttribute('d', active
+                    ? 'M3 8h5V3m8 0v5h5M8 21v-5H3m18 0h-5v5'
+                    : 'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5');
+            };
+            fullscreenBtn.addEventListener('click', async () => {
+                if (fullscreenBtn.disabled) return;
+                pending = true;
+                syncFullscreen();
+                try {
+                    if (document.fullscreenElement) await document.exitFullscreen();
+                    else await document.documentElement.requestFullscreen();
+                } catch (_) {
+                    showDesktopNotification({ type: 'error', title: t('desktop.fullscreen'), message: t('desktop.fullscreen_error') });
+                } finally {
+                    pending = false;
+                    syncFullscreen();
+                }
+            });
+            document.addEventListener('fullscreenchange', syncFullscreen);
+            window.addEventListener('aurago:language-changed', syncFullscreen);
+            syncFullscreen();
+        }
         const clock = document.getElementById('vd-clock');
         if (clock && !clock.dataset.shellChromeWired) {
             clock.dataset.shellChromeWired = 'true';
@@ -10208,7 +10291,21 @@ function wireWindow(win, id) {
     }
 
     function hasDesktopFileClipboard() {
-        return !!desktopFileClipboard();
+        return !!window.AuraDesktopFileClipboard?.entries?.length || !!desktopFileClipboard();
+    }
+
+    async function transferCloudFilesToLocal(entries, path, mode, clipboard) {
+        if ((state.bootstrap || {}).readonly) return;
+        openApp('files', { path });
+        const id = state.activeWindowId;
+        const end = Date.now() + 5000;
+        while (!window.FileManager?.storageReady(id)) {
+            if (!state.windows.has(id) || Date.now() > end) throw new Error(t('desktop.load_failed'));
+            await new Promise(resolve => setTimeout(resolve, 50));
+        }
+        const result = await window.FileManager.transferStorage(id, entries, { provider: 'local', path }, mode, clipboard);
+        await loadBootstrap();
+        return result;
     }
 
     function desktopFileDragPayload(event) {
@@ -10330,6 +10427,7 @@ function wireWindow(win, id) {
 
     async function pasteDesktopFileClipboard(destBase, options) {
         const clipboardState = window.AuraDesktopFileClipboard;
+        if (clipboardState?.entries?.length) return transferCloudFilesToLocal(clipboardState.entries, destBase == null ? 'Desktop' : destBase, clipboardState.mode === 'cut' ? 'move' : 'copy', clipboardState);
         const clipboard = desktopFileClipboard();
         if (!clipboard) return;
         const targetBase = normalizeDesktopPath(destBase == null ? 'Desktop' : destBase);
@@ -10413,7 +10511,7 @@ function wireWindow(win, id) {
     }
 
     function handleDesktopFileDragOver(event) {
-        if (!hasDesktopFileDragPayload(event) && !hasDesktopHostFileDrag(event)) return;
+        if (!hasDesktopFileDragPayload(event) && !hasDesktopHostFileDrag(event) && !dataTransferHasType(event.dataTransfer, 'application/x-aurago-storage-files')) return;
         event.preventDefault();
         event.dataTransfer.dropEffect = hasDesktopHostFileDrag(event) ? 'copy' : 'move';
         const workspace = $('vd-workspace');
@@ -10427,6 +10525,15 @@ function wireWindow(win, id) {
     }
 
     async function handleDesktopFileDrop(event) {
+        if (dataTransferHasType(event.dataTransfer, 'application/x-aurago-storage-files')) {
+            event.preventDefault(); event.stopPropagation();
+            $('vd-workspace')?.classList.remove('vd-desktop-file-drop-target');
+            try {
+                const payload = JSON.parse(event.dataTransfer.getData('application/x-aurago-storage-files'));
+                await transferCloudFilesToLocal(payload.entries || [], 'Desktop', event.ctrlKey ? 'copy' : 'move');
+            } catch (err) { showDesktopNotification({ title: t('desktop.notification'), message: err.message }); }
+            return;
+        }
         const payload = desktopFileDragPayload(event);
         if (payload) {
             event.preventDefault();
@@ -10650,6 +10757,11 @@ function wireWindow(win, id) {
     }
 
     function handleDesktopFileWindowDragOver(event) {
+        if (desktopWindowDragTypes(event).includes('application/x-aurago-storage-files')) {
+            event.preventDefault(); event.stopPropagation();
+            event.dataTransfer.dropEffect = state.windows.get(event.currentTarget.dataset.windowId)?.appId === 'files' ? (event.ctrlKey ? 'copy' : 'move') : 'none';
+            return;
+        }
         if (!desktopWindowCanHandleDropEvent(event, event.currentTarget.dataset.windowId)) return;
         if (event.defaultPrevented) {
             event.stopPropagation();
@@ -10674,6 +10786,16 @@ function wireWindow(win, id) {
     }
 
     async function handleDesktopFileWindowDrop(event) {
+        if (desktopWindowDragTypes(event).includes('application/x-aurago-storage-files')) {
+            event.preventDefault(); event.stopPropagation();
+            const win = state.windows.get(event.currentTarget.dataset.windowId);
+            if (win?.appId !== 'files') return;
+            try {
+                const payload = JSON.parse(event.dataTransfer.getData('application/x-aurago-storage-files'));
+                await window.FileManager?.transferStorage(win.id, payload.entries || [], null, event.ctrlKey ? 'copy' : 'move');
+            } catch (err) { showDesktopNotification({ title: t('desktop.notification'), message: err.message }); }
+            return;
+        }
         if (!desktopWindowCanHandleDropEvent(event, event.currentTarget.dataset.windowId)) return;
         if (event.defaultPrevented) {
             event.stopPropagation();
@@ -12615,6 +12737,207 @@ function updateTaskbarSystemButtonsForMobile() {
     }
 
 ;
+/* ui/js/desktop/apps/gog-sources.js */
+(function () {
+    'use strict';
+    const base = '/api/desktop/integrations/gog/';
+    const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    async function request(path, body, signal, writing = false) {
+        let response, result;
+        try {
+            response = await fetch(base + path, { credentials: 'same-origin', cache: 'no-store', signal, ...(body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}) });
+            result = await response.json();
+            if (!result || typeof result !== 'object' || Array.isArray(result)) throw new Error('invalid_response');
+        } catch (error) { error.uncertain = writing; throw error; }
+        if (!response.ok || result.status === 'error' || result.status === 'external_status_unknown') {
+            const error = new Error(result.code || result.error || response.statusText); error.uncertain = result.status === 'external_status_unknown' || writing && response.status >= 500; throw error;
+        }
+        return result.data ?? result;
+    }
+    function dialog(ctx, title, build, signal) {
+        return new Promise(resolve => {
+            const tr = key => ctx.t('desktop.gog.' + key);
+            const node = document.createElement('dialog'); node.className = 'gog-dialog';
+            node.innerHTML = `<form method="dialog"><h2>${esc(title)}</h2><div data-fields></div><footer><button value="cancel" type="submit">${esc(tr('cancel'))}</button><button value="ok" type="submit">${esc(tr('continue'))}</button></footer></form>`;
+            const values = build(node.querySelector('[data-fields]'));
+            const close = () => { node.close('cancel'); };
+            const finish = () => { signal?.removeEventListener('abort', close); const result = node.returnValue === 'ok' ? values() : null; node.remove(); resolve(result); };
+            node.addEventListener('close', finish, { once: true }); signal?.addEventListener('abort', close, { once: true });
+            (document.fullscreenElement || document.body).append(node); node.showModal();
+            if (signal?.aborted) close();
+        });
+    }
+    function field(parent, title, value = '', type = 'text', required = false) {
+        const label = document.createElement('label'); label.textContent = title;
+        const input = document.createElement(type === 'textarea' ? 'textarea' : 'input');
+        if (input.tagName === 'INPUT') input.type = type;
+        input.setAttribute('aria-label', title); input.value = value; input.required = required; label.append(input); parent.append(label); return input;
+    }
+    function select(parent, title, options) {
+        const label = document.createElement('label'); label.textContent = title;
+        const input = document.createElement('select'); input.setAttribute('aria-label', title);
+        options.forEach(([value, text]) => { const option = document.createElement('option'); option.value = value; option.textContent = text; input.append(option); });
+        label.append(input); parent.append(label); return input;
+    }
+    function attachSources(host, service, ctx) {
+        const local = host.firstElementChild, lifetime = new AbortController(), tr = key => ctx.t('desktop.gog.' + key);
+        local.classList.add('gog-source-local'); host.classList.add('gog-source-host');
+        const bar = document.createElement('div'); bar.className = 'gog-source-bar'; bar.hidden = true;
+        const picker = select(bar, tr('source'), [['', tr('local')]]);
+        const panel = document.createElement('section'); panel.className = 'gog-source-panel'; panel.hidden = true;
+        panel.innerHTML = `<header><label data-container-label>${esc(tr(service === 'calendar' ? 'calendar' : 'tasklist'))}<select data-container></select></label><label data-search-label>${esc(tr('search'))}<input type="search" data-search></label><button type="button" data-refresh>${esc(tr('refresh'))}</button><button type="button" data-create>${esc(tr('create'))}</button><button type="button" data-list-create>${esc(tr('new_list'))}</button></header><p class="gog-status" role="status" aria-live="polite"></p><div class="gog-records"></div><button type="button" data-next hidden>${esc(tr('more'))}</button><div class="gog-editor"></div>`;
+        host.prepend(bar); host.append(panel);
+        const find = s => panel.querySelector(s), status = find('.gog-status'), records = find('.gog-records'), editor = find('.gog-editor'), container = find('[data-container]');
+        find('[data-container-label]').hidden = service === 'contacts'; find('[data-search-label]').hidden = service !== 'contacts'; find('[data-list-create]').hidden = service !== 'tasks';
+        let accounts = [], readonly = true, account = '', resource = '', controller, generation = 0, dirty = false, next = '', busy = false, writing = false, uncertain = false;
+        const grants = () => accounts.find(a => a.id === account)?.services?.[service] || {};
+        function buttons() {
+            picker.disabled = writing; container.disabled = writing;
+            panel.querySelectorAll('[data-refresh], [data-next], [data-search]').forEach(el => el.disabled = writing);
+            records.querySelectorAll('button').forEach(el => el.disabled = busy || writing);
+            find('[data-create]').disabled = busy || writing || readonly || !grants().create || uncertain; find('[data-list-create]').disabled = busy || writing || readonly || !grants().create || uncertain;
+        }
+        function error(e) { if (e.name !== 'AbortError' || e.uncertain) { uncertain ||= !!e.uncertain; status.textContent = tr(e.uncertain ? 'unknown' : 'error') + ' · ' + e.message; buttons(); } }
+        async function call(operation, args = {}, mutation = false) { return request('call', { account_id: account, service, operation, args }, controller.signal, mutation); }
+        async function discard() {
+            if (writing) return false;
+            if (!dirty) return true;
+            return !!await dialog(ctx, tr('unsaved'), body => { const p = document.createElement('p'); p.textContent = tr('discard'); body.append(p); return () => true; }, lifetime.signal);
+        }
+        function begin() { controller?.abort(); controller = new AbortController(); generation++; return generation; }
+        function label(item) { return item.summary || item.title || item.name || item.names?.[0]?.displayName || item.id || item.resource || item.resourceName; }
+        function refs(item) { return service === 'calendar' ? { calendar_id: resource, event_id: item.id } : service === 'tasks' ? { tasklist_id: resource, task_id: item.id } : { resource_name: item.resourceName || item.resource }; }
+        async function load(page = '') {
+            if (writing) return;
+            const token = begin(); status.textContent = tr('loading'); busy = true; buttons();
+            try {
+                const args = { max: 100 }; if (page) args.page = page;
+                let operation = 'list';
+                if (service === 'calendar') { if (!resource) { status.textContent = tr('empty'); return; } operation = 'events'; args.calendar_id = resource; }
+                if (service === 'tasks') { if (!resource) { status.textContent = tr('empty'); return; } args.tasklist_id = resource; args.show_completed = true; }
+                if (service === 'contacts' && find('[data-search]').value.trim()) { operation = 'search'; args.query = find('[data-search]').value.trim(); delete args.page; }
+                const data = await call(operation, args); if (token !== generation) return;
+                const items = data.events || data.tasks || data.contacts || [];
+                records.replaceChildren();
+                items.forEach(raw => { const item = raw.event || raw; const button = document.createElement('button'); button.type = 'button'; button.className = 'gog-record';
+                    const title = document.createElement('strong'); title.textContent = label(item); button.append(title);
+                    const detail = document.createElement('span'); detail.textContent = service === 'calendar' ? (item.start?.dateTime || item.start?.date || '') + ' — ' + (item.end?.dateTime || item.end?.date || '') : service === 'tasks' ? (item.status === 'completed' ? tr('completed') + ' · ' : '') + (item.due?.slice(0, 10) || '') : item.email || item.emailAddresses?.[0]?.value || ''; button.append(detail);
+                    button.addEventListener('click', () => openEditor(item).catch(error)); records.append(button);
+                });
+                next = data.nextPageToken || data.nextPageTokens?.[0]?.nextPageToken || ''; find('[data-next]').hidden = !next;
+                uncertain = false; status.textContent = items.length ? '' : tr('empty');
+            } catch (e) { if (token === generation) error(e); }
+            finally { if (token === generation) { busy = false; buttons(); } }
+        }
+        async function switchAccount() {
+            const chosen = picker.value;
+            if (!await discard()) { picker.value = account; return; }
+            begin(); account = chosen; resource = ''; dirty = false; editor.replaceChildren(); records.replaceChildren(); next = ''; find('[data-next]').hidden = true;
+            local.hidden = !!account; panel.hidden = !account; if (!account) return;
+            status.textContent = tr('loading'); const token = generation;
+            try {
+                if (service !== 'contacts') {
+                    let page = '', items = [], seen = new Set();
+                    do { const data = await call(service === 'calendar' ? 'calendars' : 'lists', { max: 100, ...(page ? { page } : {}) }); if (token !== generation) return; items.push(...(data.calendars || data.tasklists || [])); page = data.nextPageToken || ''; if (seen.has(page) || items.length > 1000) throw new Error(tr('limit')); seen.add(page); } while (page);
+                    container.replaceChildren(); items.forEach(item => { const option = document.createElement('option'); option.value = item.id; option.textContent = item.summary || item.title || item.id; container.append(option); }); resource = container.value;
+                }
+                await load();
+            } catch (e) { if (token === generation) error(e); }
+            buttons();
+        }
+        async function openEditor(item) {
+            if (busy || writing) return;
+            if (!await discard()) return;
+            const token = generation;
+            if (item && service === 'contacts') {
+                busy = true; buttons();
+                try { const data = await call('get', refs(item)); if (token !== generation) return; item = data.contact; }
+                finally { if (token === generation) { busy = false; buttons(); } }
+            }
+            editor.replaceChildren(); dirty = false;
+            const form = document.createElement('form'); form.className = 'gog-form'; const controls = {};
+            const add = (name, title, value, type, required) => controls[name] = field(form, tr(title), value || '', type || 'text', required);
+            if (service === 'calendar') {
+                add('summary', 'title', item?.summary, 'text', true); add('from', 'start', item?.start?.dateTime || item?.start?.date, 'text', true); add('to', 'end', item?.end?.dateTime || item?.end?.date, 'text', true);
+                add('description', 'notes', item?.description, 'textarea'); add('location', 'location', item?.location);
+                controls.all_day = field(form, tr('all_day'), '', 'checkbox'); controls.all_day.checked = !!item?.start?.date;
+                const tz = item?.start?.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+                const zones = [...new Set([tz, 'UTC', ...(Intl.supportedValuesOf?.('timeZone') || [])])]; controls.timezone = select(form, tr('timezone'), zones.map(v => [v, v])); controls.timezone.value = tz;
+                add('rrule', 'recurrence', (item?.recurrence || []).join('\n'), 'textarea');
+                if (item) { const recurring = !!item.recurringEventId || !!item.recurrence?.length; controls.scope = select(form, tr('scope'), [...(recurring ? [['', tr('choose')]] : []), ['all', tr('all')], ['single', tr('single')], ['future', tr('future')]]); controls.scope.required = true; }
+            } else if (service === 'tasks') {
+                add('title', 'title', item?.title, 'text', true); add('notes', 'notes', item?.notes, 'textarea'); add('due', 'due', item?.due?.slice(0, 10), 'date');
+            } else {
+                add('given', 'given', item?.names?.[0]?.givenName, 'text', !item); add('family', 'family', item?.names?.[0]?.familyName); add('email', 'email', item?.emailAddresses?.[0]?.value, 'email'); add('phone', 'phone', item?.phoneNumbers?.[0]?.value, 'tel'); add('org', 'organization', item?.organizations?.[0]?.name); add(item ? 'notes' : 'note', 'notes', item?.biographies?.[0]?.value, 'textarea');
+            }
+            const original = Object.fromEntries(Object.entries(controls).map(([key, input]) => [key, input.value]));
+            const actions = document.createElement('footer'); form.append(actions);
+            function button(title, action, grant) { const b = document.createElement('button'); b.type = 'button'; b.textContent = tr(title); b.disabled = readonly || !grants()[grant] || uncertain; b.addEventListener('click', () => mutate(action)); actions.append(b); return b; }
+            const save = button('save', item ? 'update' : 'create', item ? 'update' : 'create'); save.type = 'submit'; save.replaceWith(save.cloneNode(true));
+            if (item && service === 'tasks') button(item.status === 'completed' ? 'reopen' : 'complete', item.status === 'completed' ? 'reopen' : 'complete', 'update');
+            if (item) button('delete', 'delete', 'delete');
+            const close = document.createElement('button'); close.type = 'button'; close.textContent = tr('cancel'); close.addEventListener('click', async () => { if (await discard()) { editor.replaceChildren(); dirty = false; } }); actions.append(close);
+            form.addEventListener('input', () => { dirty = true; }); form.addEventListener('change', () => { dirty = true; });
+            form.addEventListener('submit', e => { e.preventDefault(); mutate(item ? 'update' : 'create'); });
+            async function mutate(operation) {
+                if (busy || writing || uncertain || (operation !== 'delete' && !form.reportValidity())) return;
+                if (operation === 'delete' && !await dialog(ctx, tr('delete'), body => { const p = document.createElement('p'); p.textContent = label(item); body.append(p); return () => true; }, lifetime.signal)) return;
+                const args = item ? refs(item) : service === 'calendar' ? { calendar_id: resource } : service === 'tasks' ? { tasklist_id: resource } : {};
+                if (operation === 'create' || operation === 'update') Object.entries(controls).forEach(([key, input]) => {
+                    if (key === 'scope' || key === 'timezone') return;
+                    const value = input.type === 'checkbox' ? input.checked : input.value;
+                    if (service === 'contacts' && operation === 'update' && value === original[key]) return;
+                    if (key === 'rrule') { if (value.trim() || item && value !== original[key]) args.rrule = value.trim().split('\n'); }
+                    else if (key === 'due') { if (value || item && value !== original[key]) args.due = value ? value + 'T00:00:00Z' : ''; }
+                    else args[key] = value;
+                });
+                if (service === 'contacts' && operation === 'update' && Object.keys(args).length === 1) { dirty = false; editor.replaceChildren(); return; }
+                if (service === 'calendar') {
+                    if (item) { if (!controls.scope.value) { controls.scope.reportValidity(); return; } args.scope = controls.scope.value; if (args.scope !== 'all') args.original_start = item.originalStartTime?.dateTime || item.originalStartTime?.date || item.start?.dateTime || item.start?.date; }
+                    if (operation !== 'delete') { args.start_timezone = controls.timezone.value; args.end_timezone = controls.timezone.value; }
+                }
+                busy = true; writing = true; buttons(); form.querySelectorAll('button').forEach(b => b.disabled = true);
+                try { await call(operation, args, true); dirty = false; editor.replaceChildren(); writing = false; busy = false; await load(); }
+                catch (e) { error(e); writing = false; busy = false; buttons(); form.querySelectorAll('button').forEach(b => b.disabled = true); close.disabled = false; }
+            }
+            editor.append(form); form.querySelector('input')?.focus();
+        }
+        picker.addEventListener('change', () => switchAccount().catch(error));
+        container.addEventListener('change', async () => { if (!await discard()) { container.value = resource; return; } resource = container.value; dirty = false; editor.replaceChildren(); load(); });
+        find('[data-refresh]').addEventListener('click', async () => { if (await discard()) { dirty = false; editor.replaceChildren(); load(); } });
+        find('[data-next]').addEventListener('click', async () => { if (await discard()) { dirty = false; editor.replaceChildren(); load(next); } });
+        find('[data-create]').addEventListener('click', () => openEditor(null).catch(error));
+        find('[data-list-create]').addEventListener('click', async () => {
+            const value = await dialog(ctx, tr('new_list'), body => { const title = field(body, tr('title'), '', 'text', true); return () => title.value; }, lifetime.signal); if (!value || busy) return;
+            busy = true; writing = true; buttons(); try { await call('create_list', { title: value }, true); writing = false; busy = false; await switchAccount(); } catch (e) { error(e); } finally { writing = false; busy = false; buttons(); }
+        });
+        async function policy() {
+            try { const data = await request('accounts', null, lifetime.signal); accounts = data.accounts.filter(a => a.services?.[service]?.read); readonly = data.readonly; picker.replaceChildren(); [['', tr('local')], ...accounts.map(a => [a.id, 'Google · ' + a.name])].forEach(([id, name]) => { const o = document.createElement('option'); o.value = id; o.textContent = name; picker.append(o); }); picker.value = account; bar.hidden = !accounts.length;
+                if (account) { controller?.abort(); generation++; busy = false; editor.querySelectorAll('button').forEach(b => b.disabled = true); if (!accounts.some(a => a.id === account)) { account = ''; local.hidden = false; panel.hidden = true; editor.replaceChildren(); dirty = false; } else { status.textContent = tr('refresh'); } } buttons();
+            } catch (e) { error(e); }
+        }
+        document.addEventListener('aurago:desktop-policy', policy); policy();
+        return () => { lifetime.abort(); controller?.abort(); document.removeEventListener('aurago:desktop-policy', policy); bar.remove(); panel.remove(); local.hidden = false; host.classList.remove('gog-source-host'); };
+    }
+
+    async function office(ctx, service, mode, path, signal, providedChoice) {
+        const tr = key => ctx.t('desktop.gog.' + key), state = await request('accounts', null, signal);
+        const accounts = state.accounts.filter(a => a.services?.[service]?.[mode === 'import' ? 'read' : 'create'] && a.services?.drive?.[mode === 'import' ? 'read' : 'create']);
+        if (!accounts.length || state.desktop_readonly || mode === 'export' && state.readonly) throw new Error(tr('no_account'));
+        const choice = providedChoice || await dialog(ctx, tr(mode), body => {
+            const note = document.createElement('p'); note.textContent = tr('office_help'); body.append(note);
+            const account = select(body, tr('source'), accounts.map(a => [a.id, a.name]));
+            const resource = mode === 'import' ? field(body, tr('resource_id'), '', 'text', true) : field(body, tr('parent'), 'root');
+            return () => ({ account_id: account.value, resource_id: mode === 'import' ? resource.value.trim() : '', parent_id: mode === 'export' ? resource.value.trim() : '' });
+        }, signal);
+        if (!choice) return;
+        if (mode === 'import') { const ext = service === 'docs' ? '.docx' : service === 'sheets' ? '.xlsx' : '.pdf'; const selected = await ctx.saveFileDialog({ title: tr('import'), defaultName: 'Google-' + crypto.randomUUID().slice(0, 8) + ext, defaultExtension: ext, filters: [{ label: ext, extensions: [ext] }] }); if (!selected) return; path = typeof selected === 'string' ? selected : selected.path; }
+        return request('office/' + mode, { ...choice, service, path }, signal);
+    }
+    window.AuraGogDesktop = { attachSources, office };
+})();
+
+;
 /* ui/js/desktop/apps/calendar-views.js */
     // Calendar view helpers: date math, formatting and pure HTML renderers for
     // the month grid, time grid (week/day), agenda list, mini month and skeletons.
@@ -12757,7 +13080,10 @@ function updateTaskbarSystemButtonsForMobile() {
         if (view === 'week') {
             const days = calendarWeekDays(cursor);
             const first = days[0], last = days[6];
-            if (first.getMonth() === last.getMonth()) return `${first.getDate()} – ${last.getDate()}. ${calFormat(last, { month: 'long', year: 'numeric' })}`;
+            try {
+                const fmt = new Intl.DateTimeFormat(calendarLocale(), { day: 'numeric', month: 'long', year: 'numeric' });
+                if (typeof fmt.formatRange === 'function') return fmt.formatRange(first, last);
+            } catch (_) { /* use the explicit fallback below */ }
             return `${calFormat(first, { day: 'numeric', month: 'short' })} – ${calFormat(last, { day: 'numeric', month: 'short', year: 'numeric' })}`;
         }
         if (view === 'agenda') return t('desktop.cal_agenda');
@@ -12844,10 +13170,10 @@ function updateTaskbarSystemButtonsForMobile() {
             return `<div class="${classes.join(' ')}" role="gridcell" tabindex="${key === session.selected ? '0' : '-1'}" data-cal-date="${key}" data-cal-drop-date="${key}" aria-label="${esc(label)}" aria-selected="${key === session.selected ? 'true' : 'false'}">
                 <div class="vd-calendar-cell-head">
                     <button type="button" class="vd-calendar-daynum" data-cal-open-day="${key}" tabindex="-1" title="${esc(t('desktop.cal_open_day'))}">${showMonth ? `<small>${esc(calFormat(day, { month: 'short' }))}</small>` : ''}<b>${day.getDate()}</b></button>
-                    <button type="button" class="vd-calendar-cell-add" data-cal-add="${key}" tabindex="-1" aria-label="${esc(t('desktop.cal_new_appointment'))}">${iconMarkup('plus', '+', 'vd-calendar-action-icon', 12)}</button>
+                    ${session.readonly() ? '' : `<button type="button" class="vd-calendar-cell-add" data-cal-add="${key}" tabindex="-1" aria-label="${esc(t('desktop.cal_new_appointment'))}">${iconMarkup('plus', '+', 'vd-calendar-action-icon', 12)}</button>`}
                 </div>
                 <div class="vd-calendar-cell-events">
-                    ${visible.map(item => calendarEventButtonHTML(item, { variant: 'chip' })).join('')}
+                    ${visible.map(item => calendarEventButtonHTML(item, { variant: 'chip', draggable: !session.readonly() })).join('')}
                     ${hidden > 0 ? `<button type="button" class="vd-calendar-more" data-cal-more="${key}">${esc(t('desktop.cal_more_events', { count: hidden }))}</button>` : ''}
                 </div>
             </div>`;
@@ -12875,13 +13201,14 @@ function updateTaskbarSystemButtonsForMobile() {
         return placed;
     }
 
-    function calendarTimedEventsHTML(dayItems) {
+    function calendarTimedEventsHTML(dayItems, options) {
+        options = options || {};
         return calendarLayoutColumns(dayItems).map(({ item, start, column, columns }) => {
             const top = (start / 60) * CAL_HOUR_HEIGHT;
             const height = Math.max(24, (CAL_EVENT_MINUTES / 60) * CAL_HOUR_HEIGHT - 2);
             const width = 100 / columns;
             const style = `top:${top.toFixed(1)}px;height:${height.toFixed(1)}px;left:calc(${(width * column).toFixed(2)}% + 2px);width:calc(${width.toFixed(2)}% - 4px)`;
-            return calendarEventButtonHTML(item, { variant: 'timed', style });
+            return calendarEventButtonHTML(item, { variant: 'timed', style, draggable: options.draggable });
         }).join('');
     }
 
@@ -12910,7 +13237,7 @@ function updateTaskbarSystemButtonsForMobile() {
             const slots = Array.from({ length: 24 }, (_, hour) => `<div class="vd-calendar-hour-slot" data-cal-hour="${hour}" style="height:${CAL_HOUR_HEIGHT}px"></div>`).join('');
             return `<div class="vd-calendar-day-column ${calSameDay(day, today) ? 'is-today' : ''} ${calIsWeekend(day) ? 'is-weekend' : ''}" data-cal-column="${key}" data-cal-drop-date="${key}" style="height:${CAL_HOUR_HEIGHT * 24}px">
                 ${slots}
-                <div class="vd-calendar-column-events">${calendarTimedEventsHTML(dayItems)}</div>
+                <div class="vd-calendar-column-events">${calendarTimedEventsHTML(dayItems, { draggable: !session.readonly() })}</div>
                 ${calendarNowLineHTML(day)}
             </div>`;
         }).join('');
@@ -12928,12 +13255,13 @@ function updateTaskbarSystemButtonsForMobile() {
         </div>`;
     }
 
-    function calendarEmptyStateHTML(title, hint, actionKey) {
+    function calendarEmptyStateHTML(title, hint, actionKey, options) {
+        const disabled = options && options.disabled ? ' disabled' : '';
         return `<div class="vd-calendar-empty">
             <div class="vd-calendar-empty-art" aria-hidden="true">${iconMarkup('calendar', 'C', 'vd-calendar-empty-icon', 40)}</div>
             <strong>${esc(title)}</strong>
             ${hint ? `<p>${esc(hint)}</p>` : ''}
-            ${actionKey ? `<button type="button" class="vd-button vd-button-primary" data-cal-create>${iconMarkup('plus', '+', 'vd-calendar-action-icon', 14)}<span>${esc(t(actionKey))}</span></button>` : ''}
+            ${actionKey ? `<button type="button" class="vd-button vd-button-primary" data-cal-create${disabled}>${iconMarkup('plus', '+', 'vd-calendar-action-icon', 14)}<span>${esc(t(actionKey))}</span></button>` : ''}
         </div>`;
     }
 
@@ -12943,7 +13271,8 @@ function updateTaskbarSystemButtonsForMobile() {
         items.forEach(item => {
             const date = calendarDate(item.date_time);
             if (!date) return;
-            if (options.from && date < options.from) return;
+            const keepPastOverdue = item.status === 'overdue';
+            if (options.from && date < options.from && !keepPastOverdue) return;
             if (options.to && date >= options.to) return;
             const key = isoDate(date);
             if (!groups.has(key)) groups.set(key, { date: calStartOfDay(date), items: [] });
@@ -12952,16 +13281,16 @@ function updateTaskbarSystemButtonsForMobile() {
         return Array.from(groups.values()).sort((a, b) => a.date - b.date);
     }
 
-    function calendarAgendaRowHTML(item) {
+    function calendarAgendaRowHTML(item, options) {
+        options = options || {};
         const date = calendarDate(item.date_time);
         const canComplete = item.status === 'upcoming' || item.status === 'overdue';
+        const actions = options.readonly ? '' : `${canComplete ? `<button type="button" class="vd-calendar-icon-button" data-cal-status-action="completed" data-appt-id="${esc(item.id)}" title="${esc(t('desktop.cal_mark_complete'))}" aria-label="${esc(t('desktop.cal_mark_complete'))}">${iconMarkup('check', 'OK', 'vd-calendar-action-icon', 14)}</button>` : ''}
+                <button type="button" class="vd-calendar-icon-button" data-cal-edit="${esc(item.id)}" title="${esc(t('desktop.cal_edit_appointment'))}" aria-label="${esc(t('desktop.cal_edit_appointment'))}">${iconMarkup('edit', 'E', 'vd-calendar-action-icon', 14)}</button>`;
         return `<div class="vd-calendar-agenda-row is-${item.status}" data-appt-row="${esc(item.id)}">
             <div class="vd-calendar-agenda-time"><b>${esc(date ? calFormatTime(date) : '')}</b><span>${esc(calRelativeTime(date))}</span></div>
             ${calendarEventButtonHTML(item, { variant: 'agenda', draggable: false })}
-            <div class="vd-calendar-agenda-actions">
-                ${canComplete ? `<button type="button" class="vd-calendar-icon-button" data-cal-status-action="completed" data-appt-id="${esc(item.id)}" title="${esc(t('desktop.cal_mark_complete'))}" aria-label="${esc(t('desktop.cal_mark_complete'))}">${iconMarkup('check', 'OK', 'vd-calendar-action-icon', 14)}</button>` : ''}
-                <button type="button" class="vd-calendar-icon-button" data-cal-edit="${esc(item.id)}" title="${esc(t('desktop.cal_edit_appointment'))}" aria-label="${esc(t('desktop.cal_edit_appointment'))}">${iconMarkup('edit', 'E', 'vd-calendar-action-icon', 14)}</button>
-            </div>
+            <div class="vd-calendar-agenda-actions">${actions}</div>
         </div>`;
     }
 
@@ -12971,7 +13300,7 @@ function updateTaskbarSystemButtonsForMobile() {
         const groups = calendarAgendaGroups(items, { from });
         if (!groups.length) {
             if (query) return calendarEmptyStateHTML(t('desktop.cal_no_results'), t('desktop.cal_no_results_hint'));
-            return calendarEmptyStateHTML(t('desktop.cal_empty_agenda'), t('desktop.cal_empty_hint'), 'desktop.cal_new_appointment');
+            return calendarEmptyStateHTML(t('desktop.cal_empty_agenda'), t('desktop.cal_empty_hint'), 'desktop.cal_new_appointment', { disabled: session.readonly() });
         }
         const total = groups.reduce((sum, group) => sum + group.items.length, 0);
         const heading = query
@@ -12987,7 +13316,7 @@ function updateTaskbarSystemButtonsForMobile() {
                         <span class="vd-calendar-agenda-daymeta"><b>${esc(relative || calFormat(group.date, { weekday: 'long' }))}</b><span>${esc(calFormat(group.date, { day: 'numeric', month: 'long', year: 'numeric' }))}</span></span>
                     </button>
                 </header>
-                <div class="vd-calendar-agenda-rows">${group.items.map(calendarAgendaRowHTML).join('')}</div>
+                <div class="vd-calendar-agenda-rows">${group.items.map(item => calendarAgendaRowHTML(item, { readonly: session.readonly() })).join('')}</div>
             </section>`;
         }).join('')}</div>`;
     }
@@ -13138,20 +13467,23 @@ function updateTaskbarSystemButtonsForMobile() {
     async function createRecurringAppointments(payload, repeat, count) {
         const total = Math.max(1, Math.min(CAL_REPEAT_LIMIT, Number(count) || 1));
         const start = calendarDate(payload.date_time);
-        if (!start || repeat === 'none' || total <= 1) {
-            await plannerJSON('/api/desktop/integrations/appointments', 'POST', payload);
+        const bodies = [];
+        const repeats = !start || repeat === 'none' || total <= 1 ? 1 : total;
+        const reminderOffset = payload.notification_at && start ? start - new Date(payload.notification_at) : null;
+        for (let index = 0; index < repeats; index += 1) {
+            const when = index === 0 || !start ? start : calendarShiftDate(start, repeat, index);
+            const body = Object.assign({}, payload, when ? { date_time: when.toISOString() } : {});
+            if (reminderOffset !== null) body.notification_at = new Date(when.getTime() - reminderOffset).toISOString();
+            bodies.push(body);
+        }
+        if (bodies.length === 1) {
+            await plannerJSON('/api/desktop/integrations/appointments', 'POST', bodies[0]);
             return 1;
         }
-        const reminderOffset = payload.notification_at ? start - new Date(payload.notification_at) : null;
-        let created = 0;
-        for (let index = 0; index < total; index += 1) {
-            const when = calendarShiftDate(start, repeat, index);
-            const body = Object.assign({}, payload, { date_time: when.toISOString() });
-            if (reminderOffset !== null) body.notification_at = new Date(when.getTime() - reminderOffset).toISOString();
-            await plannerJSON('/api/desktop/integrations/appointments', 'POST', body);
-            created += 1;
-        }
-        return created;
+        const created = await plannerJSON('/api/desktop/integrations/appointments', 'POST', { appointments: bodies });
+        const ids = created && Array.isArray(created.ids) ? created.ids : [];
+        if (ids.length !== bodies.length) throw new Error(t('desktop.request_failed'));
+        return ids.length;
     }
 
     function loadCalendarContacts(session) {
@@ -13355,6 +13687,7 @@ function updateTaskbarSystemButtonsForMobile() {
 
     function openAppointmentEditor(session, options) {
         options = options || {};
+        if (session.readonly()) return;
         const appointment = options.appointment || null;
         closeCalendarEditor(session);
         closeCalendarPeek(session);
@@ -13485,12 +13818,17 @@ function updateTaskbarSystemButtonsForMobile() {
         if (hadFocus && anchor && document.contains(anchor)) anchor.focus({ preventScroll: true });
     }
 
-    function calendarPeekHTML(item) {
+    function calendarPeekHTML(item, session) {
         const date = calendarDate(item.date_time);
         const canComplete = item.status === 'upcoming' || item.status === 'overdue';
         const canCancel = item.status === 'upcoming' || item.status === 'overdue';
         const canReopen = item.status === 'completed' || item.status === 'cancelled';
         const participants = (item.participants || []).map(p => p.name).filter(Boolean);
+        const actions = session.readonly() ? '' : `${canComplete ? `<button type="button" class="vd-button vd-button-primary" data-cal-status-action="completed" data-appt-id="${esc(item.id)}">${iconMarkup('check', 'OK', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.cal_mark_complete'))}</span></button>` : ''}
+                    ${canReopen ? `<button type="button" class="vd-button" data-cal-status-action="upcoming" data-appt-id="${esc(item.id)}">${iconMarkup('undo', 'U', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.cal_reopen'))}</span></button>` : ''}
+                    <button type="button" class="vd-button" data-cal-edit="${esc(item.id)}">${iconMarkup('edit', 'E', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.launchpad_edit'))}</span></button>
+                    ${canCancel ? `<button type="button" class="vd-calendar-icon-button" data-cal-status-action="cancelled" data-appt-id="${esc(item.id)}" title="${esc(t('desktop.cal_cancel_appointment'))}" aria-label="${esc(t('desktop.cal_cancel_appointment'))}">${iconMarkup('x', 'x', 'vd-calendar-action-icon', 14)}</button>` : ''}
+                    <button type="button" class="vd-calendar-icon-button is-danger" data-cal-delete="${esc(item.id)}" title="${esc(t('desktop.delete'))}" aria-label="${esc(t('desktop.delete'))}">${iconMarkup('trash', 'D', 'vd-calendar-action-icon', 14)}</button>`;
         return `<div class="vd-calendar-peek-accent is-${item.status}" aria-hidden="true"></div>
             <div class="vd-calendar-peek-body">
                 <header class="vd-calendar-peek-head">
@@ -13502,13 +13840,7 @@ function updateTaskbarSystemButtonsForMobile() {
                 ${participants.length ? `<p class="vd-calendar-peek-meta">${iconMarkup('users', 'P', 'vd-calendar-mini-icon', 13)}<span>${esc(participants.join(', '))}</span></p>` : ''}
                 ${item.wake_agent ? `<p class="vd-calendar-peek-meta is-agent">${iconMarkup('chat', 'A', 'vd-calendar-mini-icon', 13)}<span>${esc(item.agent_instruction || t('desktop.cal_wake_agent'))}</span></p>` : ''}
                 ${item.description ? `<p class="vd-calendar-peek-description">${esc(item.description)}</p>` : ''}
-                <footer class="vd-calendar-peek-actions">
-                    ${canComplete ? `<button type="button" class="vd-button vd-button-primary" data-cal-status-action="completed" data-appt-id="${esc(item.id)}">${iconMarkup('check', 'OK', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.cal_mark_complete'))}</span></button>` : ''}
-                    ${canReopen ? `<button type="button" class="vd-button" data-cal-status-action="upcoming" data-appt-id="${esc(item.id)}">${iconMarkup('undo', 'U', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.cal_reopen'))}</span></button>` : ''}
-                    <button type="button" class="vd-button" data-cal-edit="${esc(item.id)}">${iconMarkup('edit', 'E', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.launchpad_edit'))}</span></button>
-                    ${canCancel ? `<button type="button" class="vd-calendar-icon-button" data-cal-status-action="cancelled" data-appt-id="${esc(item.id)}" title="${esc(t('desktop.cal_cancel_appointment'))}" aria-label="${esc(t('desktop.cal_cancel_appointment'))}">${iconMarkup('x', 'x', 'vd-calendar-action-icon', 14)}</button>` : ''}
-                    <button type="button" class="vd-calendar-icon-button is-danger" data-cal-delete="${esc(item.id)}" title="${esc(t('desktop.delete'))}" aria-label="${esc(t('desktop.delete'))}">${iconMarkup('trash', 'D', 'vd-calendar-action-icon', 14)}</button>
-                </footer>
+                <footer class="vd-calendar-peek-actions">${actions}</footer>
             </div>`;
     }
 
@@ -13519,7 +13851,7 @@ function updateTaskbarSystemButtonsForMobile() {
         const peek = document.createElement('div');
         peek.className = 'vd-calendar-peek';
         peek.setAttribute('role', 'dialog');
-        peek.innerHTML = calendarPeekHTML(item);
+        peek.innerHTML = calendarPeekHTML(item, session);
         shell.appendChild(peek);
         session.peek = peek;
         peek.__calendarAnchor = anchor || null;
@@ -13586,11 +13918,12 @@ function updateTaskbarSystemButtonsForMobile() {
                         <button type="button" class="vd-calendar-search-clear" data-cal-search-clear aria-label="${esc(t('desktop.clear'))}" hidden>×</button>
                     </label>
                     <div class="vd-calendar-view-switch" role="tablist" aria-label="${esc(t('desktop.menu_view'))}">${viewButtons}</div>
-                    <button type="button" class="vd-button vd-button-primary vd-calendar-create" data-cal-create title="${esc(t('desktop.cal_new_appointment'))} (N)">${iconMarkup('plus', '+', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.cal_new'))}</span></button>
+                    <button type="button" class="vd-button vd-button-primary vd-calendar-create" data-cal-create title="${esc(t('desktop.cal_new_appointment'))} (N)" ${session.readonly() ? 'disabled' : ''}>${iconMarkup('plus', '+', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.cal_new'))}</span></button>
                 </div>
                 <div class="vd-calendar-progress" data-cal-progress hidden><i></i></div>
             </header>
             <div class="vd-calendar-stage">
+                ${session.readonly() ? `<p class="vd-calendar-readonly">${esc(t('desktop.cal_readonly'))}</p>` : ''}
                 <aside class="vd-calendar-sidebar" data-cal-sidebar>
                     <div class="vd-calendar-side-mini" data-cal-mini></div>
                     <div class="vd-calendar-side-agenda" data-cal-side-agenda></div>
@@ -13626,8 +13959,11 @@ function updateTaskbarSystemButtonsForMobile() {
             timeScrollTop: null,
             timers: [], listeners: [], observer: null,
             editor: null, peek: null, contactsPromise: null,
-            dragId: null, snackTimer: null, snackAction: null
+            dragId: null, snackTimer: null, snackAction: null,
+            readonly: () => desktopReadonly()
         };
+        session.loadGeneration = 0;
+        session.pendingDeletes = new Map();
         session.reload = options => loadCalendarAppointments(session, options);
         session.snack = options => showCalendarSnack(session, options);
         session.focusDate = (date, options) => calendarFocusDate(session, date, options);
@@ -13636,6 +13972,7 @@ function updateTaskbarSystemButtonsForMobile() {
         calendarSessions.set(id, session);
 
         host.innerHTML = calendarShellHTML(session);
+        session.disposeGog = window.AuraGogDesktop?.attachSources(host, 'calendar', { t });
         wireCalendarShell(session);
         // Bound once per host: the handler resolves the live session so re-renders keep working.
         wireContextMenuBoundary(host, { onContextMenu: event => showCalendarContextMenu(calendarSessions.get(id), event) });
@@ -13643,15 +13980,16 @@ function updateTaskbarSystemButtonsForMobile() {
         registerWindowCleanup(id, () => {
             session.dispose();
             calendarSessions.delete(id);
-            document.querySelectorAll('.vd-modal-backdrop.vd-calendar-editor-backdrop').forEach(el => el.remove());
         });
         paintCalendar(session);
         await loadCalendarAppointments(session, { initial: true });
     }
 
     function disposeCalendarSession(session) {
+        session.disposeGog?.();
         session.timers.forEach(timer => clearInterval(timer));
         session.timers = [];
+        Array.from(session.pendingDeletes.keys()).forEach(id => { commitCalendarDelete(session, id); });
         session.listeners.forEach(([target, type, handler, options]) => target.removeEventListener(type, handler, options));
         session.listeners = [];
         if (session.observer) { session.observer.disconnect(); session.observer = null; }
@@ -13669,7 +14007,7 @@ function updateTaskbarSystemButtonsForMobile() {
         setWindowMenus(id, [
             {
                 id: 'file', labelKey: 'desktop.menu_file', items: [
-                    { id: 'new-appointment', labelKey: 'desktop.cal_new_appointment', icon: 'plus', shortcut: 'Ctrl+N', action: () => openAppointmentEditor(session, { dateHint: session.selected }) },
+                    { id: 'new-appointment', labelKey: 'desktop.cal_new_appointment', icon: 'plus', shortcut: 'Ctrl+N', disabled: session.readonly(), action: () => openAppointmentEditor(session, { dateHint: session.selected }) },
                     { type: 'separator' },
                     { id: 'refresh', labelKey: 'desktop.context_refresh', icon: 'refresh', shortcut: 'F5', action: () => loadCalendarAppointments(session, { silent: true }) }
                 ]
@@ -13688,25 +14026,30 @@ function updateTaskbarSystemButtonsForMobile() {
 
     async function loadCalendarAppointments(session, options) {
         options = options || {};
-        if (session.loading) return;
+        const generation = ++session.loadGeneration;
         session.loading = true;
         const progress = session.host.querySelector('[data-cal-progress]');
         if (progress && session.loaded) progress.hidden = false;
         if (!session.loaded) paintCalendar(session);
         try {
             const data = await api('/api/desktop/integrations/appointments?status=all');
-            session.appointments = normalizeCalendarAppointments(data);
+            if (generation !== session.loadGeneration) return;
+            session.appointments = normalizeCalendarAppointments(data)
+                .filter(item => !session.pendingDeletes.has(String(item.id)));
             session.loaded = true;
             session.error = null;
             session.lastLoadedAt = Date.now();
         } catch (err) {
+            if (generation !== session.loadGeneration) return;
             session.error = err;
             if (session.loaded && !options.initial) session.snack({ type: 'error', message: t('desktop.load_failed') });
         } finally {
-            session.loading = false;
-            if (progress) progress.hidden = true;
+            if (generation === session.loadGeneration) {
+                session.loading = false;
+                if (progress) progress.hidden = true;
+                paintCalendar(session);
+            }
         }
-        paintCalendar(session);
     }
 
     function calendarMonthDensity(session) {
@@ -13728,6 +14071,18 @@ function updateTaskbarSystemButtonsForMobile() {
         shell.classList.toggle('is-sidebar-collapsed', !session.sidebarOpen);
         shell.classList.toggle('is-searching', searching);
         shell.classList.toggle('is-loading', session.loading && !session.loaded);
+        const create = host.querySelector('[data-cal-create]');
+        if (create) create.disabled = !!session.readonly();
+        const stage = host.querySelector('.vd-calendar-stage');
+        const hint = stage && stage.querySelector(':scope > .vd-calendar-readonly');
+        if (session.readonly()) {
+            if (stage && !hint) {
+                const note = document.createElement('p');
+                note.className = 'vd-calendar-readonly';
+                note.textContent = t('desktop.cal_readonly');
+                stage.insertBefore(note, stage.firstChild);
+            } else if (hint) hint.textContent = t('desktop.cal_readonly');
+        } else if (hint) hint.remove();
 
         const title = host.querySelector('[data-cal-title]');
         if (title) title.textContent = searching ? t('desktop.cal_search_results_title') : calendarRangeLabel(session.view, session.cursor);
@@ -13750,7 +14105,7 @@ function updateTaskbarSystemButtonsForMobile() {
             if (!session.loaded && session.loading) {
                 body.innerHTML = calendarSkeletonHTML(session.view);
             } else if (!session.loaded && session.error) {
-                body.innerHTML = `<div class="vd-calendar-empty is-error"><strong>${esc(t('desktop.load_failed'))}</strong><p>${esc(session.error.message || '')}</p><button type="button" class="vd-button" data-cal-retry>${iconMarkup('refresh', 'R', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.retry'))}</span></button></div>`;
+                body.innerHTML = `<div class="vd-calendar-empty is-error"><strong>${esc(t('desktop.load_failed'))}</strong><button type="button" class="vd-button" data-cal-retry>${iconMarkup('refresh', 'R', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.retry'))}</span></button></div>`;
             } else {
                 const items = calendarVisibleAppointments(session);
                 if (session.view === 'month') {
@@ -13953,6 +14308,7 @@ function updateTaskbarSystemButtonsForMobile() {
     }
 
     async function updateAppointmentDateTime(session, appointment, target) {
+        if (session.readonly()) return false;
         if (!appointment || !(target instanceof Date) || Number.isNaN(target.getTime())) return false;
         const previousDate = calendarDate(appointment.date_time);
         if (previousDate && previousDate.getTime() === target.getTime()) return false;
@@ -13988,6 +14344,7 @@ function updateTaskbarSystemButtonsForMobile() {
     }
 
     async function updateAppointmentStatus(session, appointment, status) {
+        if (session.readonly()) return;
         if (!appointment || appointment.status === status) return;
         const previous = appointment.status;
         appointment.status = status;
@@ -14015,24 +14372,38 @@ function updateTaskbarSystemButtonsForMobile() {
         loadCalendarAppointments(session, { silent: true });
     }
 
+    function commitCalendarDelete(session, id) {
+        const pending = session.pendingDeletes.get(String(id));
+        if (!pending) return;
+        session.pendingDeletes.delete(String(id));
+        clearTimeout(pending.timer);
+        api(`/api/desktop/integrations/appointments/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {
+            session.appointments.push(pending.appointment);
+            session.appointments.sort((a, b) => String(a.date_time).localeCompare(String(b.date_time)));
+            paintCalendar(session);
+            session.snack({ type: 'error', message: t('desktop.request_failed') });
+        });
+    }
+
     async function deleteCalendarAppointment(session, appointment) {
-        if (!appointment) return;
-        await api(`/api/desktop/integrations/appointments/${encodeURIComponent(appointment.id)}`, { method: 'DELETE' });
+        if (session.readonly()) return;
+        if (!appointment || session.pendingDeletes.has(String(appointment.id))) return;
         session.appointments = session.appointments.filter(item => item.id !== appointment.id);
         closeCalendarPeek(session);
         paintCalendar(session);
-        const restore = {
-            title: appointment.title, description: appointment.description, date_time: appointment.date_time,
-            notification_at: appointment.notification_at, wake_agent: appointment.wake_agent,
-            agent_instruction: appointment.agent_instruction, status: appointment.status,
-            contact_ids: (appointment.participants || []).map(p => p.id).filter(Boolean)
-        };
+        const timer = setTimeout(() => commitCalendarDelete(session, appointment.id), 8000);
+        session.pendingDeletes.set(String(appointment.id), { appointment, timer });
         session.snack({
             message: t('desktop.cal_deleted'),
             actionLabel: t('desktop.cal_undo'),
-            onAction: async () => {
-                await plannerJSON('/api/desktop/integrations/appointments', 'POST', restore);
-                await loadCalendarAppointments(session, { silent: true });
+            onAction: () => {
+                const pending = session.pendingDeletes.get(String(appointment.id));
+                if (!pending) return;
+                clearTimeout(pending.timer);
+                session.pendingDeletes.delete(String(appointment.id));
+                session.appointments.push(pending.appointment);
+                session.appointments.sort((a, b) => String(a.date_time).localeCompare(String(b.date_time)));
+                paintCalendar(session);
                 session.snack({ message: t('desktop.cal_restored') });
             }
         });
@@ -14074,6 +14445,7 @@ function updateTaskbarSystemButtonsForMobile() {
         if (!session) return false;
         const eventEl = event.target.closest('[data-appt-id]');
         if (eventEl) {
+            if (session.readonly()) return true;
             const item = calendarFindAppointment(session, eventEl.dataset.apptId);
             if (!item) return false;
             const open = item.status === 'upcoming' || item.status === 'overdue';
@@ -14091,7 +14463,7 @@ function updateTaskbarSystemButtonsForMobile() {
         if (cell) {
             const date = cell.dataset.calDropDate;
             showContextMenu(event.clientX, event.clientY, [
-                { labelKey: 'desktop.cal_new_appointment', icon: 'plus', action: () => openAppointmentEditor(session, { dateHint: date }) },
+                { labelKey: 'desktop.cal_new_appointment', icon: 'plus', hidden: session.readonly(), action: () => openAppointmentEditor(session, { dateHint: date }) },
                 { labelKey: 'desktop.cal_open_day', icon: 'calendar', action: () => calendarFocusDate(session, date, { view: 'day' }) }
             ]);
             return true;
@@ -14159,6 +14531,7 @@ function updateTaskbarSystemButtonsForMobile() {
         shell.addEventListener('click', async event => {
             const target = event.target;
             const closest = selector => target.closest(selector);
+            if (session.readonly() && (closest('[data-cal-create]') || closest('[data-cal-add]') || closest('[data-cal-status-action]') || closest('[data-cal-edit]') || closest('[data-cal-delete]'))) return;
             const nav = closest('[data-cal-nav]');
             if (nav) { shiftCalendarPeriod(session, Number(nav.dataset.calNav) || 1); return; }
             if (closest('[data-cal-today]')) { calendarGoToday(session); return; }
@@ -14302,9 +14675,19 @@ function updateTaskbarSystemButtonsForMobile() {
         });
 
         // Keep the current-time indicator and "today" markers fresh.
-        session.timers.push(setInterval(() => calendarUpdateNowLine(session), 60000));
+        session.timers.push(setInterval(() => {
+            calendarUpdateNowLine(session);
+            if (!document.hidden && session.loaded && Date.now() - session.lastLoadedAt > CAL_REFRESH_AFTER_MS) {
+                loadCalendarAppointments(session, { silent: true });
+            }
+        }, 60000));
 
         // Refresh quietly when the desktop becomes visible again after a while.
+        calendarListen(session, document, 'aurago:desktop-policy', () => {
+            setCalendarMenus(session.id, session);
+            paintCalendar(session);
+        });
+
         calendarListen(session, document, 'visibilitychange', () => {
             if (!document.hidden && session.loaded && Date.now() - session.lastLoadedAt > CAL_REFRESH_AFTER_MS) loadCalendarAppointments(session, { silent: true });
         });
@@ -15822,6 +16205,8 @@ function updateTaskbarSystemButtonsForMobile() {
         } else if (typeof isSheetsFile === 'function' && isSheetsFile(entry)) {
             apps.push({ label: t('desktop.app_sheets'), appId: 'sheets' });
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
+        } else if (/\.lyl$/i.test(name)) {
+            apps.push({ label: 'Layerling', appId: 'layerling' });
         } else if (/\.aurasynth$/i.test(name)) {
             apps.push({ label: t('desktop.app_synth_studio'), appId: 'synth-studio' });
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
@@ -15837,6 +16222,7 @@ function updateTaskbarSystemButtonsForMobile() {
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
         }
         const ext = desktopFileExtension(name);
+        if (/\.(stl|obj|3mf|step|stp|svg)$/i.test(name)) apps.push({ label: 'Layerling', appId: 'layerling' });
         const openItems = apps.map(app => ({
             label: app.label,
             action: () => {
@@ -16476,7 +16862,7 @@ function updateTaskbarSystemButtonsForMobile() {
                 ${options.choices ? options.choices.map(choice => `<button type="button" class="vd-button" data-choice="${esc(choice.value)}" ${choice.disabled ? 'disabled' : ''}>${esc(choice.label)}</button>`).join('') : `<button type="submit" class="vd-button vd-button-primary">${esc(t('desktop.ok'))}</button>`}
             </div>
         </form>`;
-        document.body.appendChild(overlay);
+        const unmount = mountDesktopDialog(overlay);
         desktopSound('dialog.open');
         const form = overlay.querySelector('form');
         const input = overlay.querySelector('input');
@@ -16502,6 +16888,7 @@ function updateTaskbarSystemButtonsForMobile() {
                 document.removeEventListener('focusin', trapFocus);
                 document.removeEventListener('keydown', onKey, true);
                 options.signal?.removeEventListener('abort', onAbort);
+                unmount();
                 overlay.remove();
                 if (previousFocus && typeof previousFocus.focus === 'function') previousFocus.focus();
                 if (value === true) desktopSound('dialog.confirm');
@@ -17271,6 +17658,12 @@ function updateTaskbarSystemButtonsForMobile() {
         if (appId === 'writer' && window.WriterApp && typeof window.WriterApp.render === 'function') {
             return window.WriterApp.render(contentEl(id), id, officeAppContext(context));
         }
+        if (appId === 'layerling') {
+            return window.LayerlingApp.render(contentEl(id), id, Object.assign(officeAppContext(context), {
+                windowId: id, sessionKey: state.windows.get(id)?.sessionKey || id, modalDialog,
+                makeFrame: () => makeSandboxedFrame(addDesktopSDKChannelFragment('/api/desktop/layerling/ui/'), 'layerling', '', id, 'vd-generated-frame vd-layerling-frame', 'Layerling', { allowSameOrigin: true, allowDownloads: true }),
+            }));
+        }
         if (appId === 'synth-studio') {
             if (!window.SynthStudioApp) {
                 window.AuraDesktopModules.loadAppScript('synth-studio').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
@@ -17326,6 +17719,7 @@ function updateTaskbarSystemButtonsForMobile() {
         if (appId === 'teevee' && window.TeeVeeApp && typeof window.TeeVeeApp.render === 'function') {
             return window.TeeVeeApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary }));
         }
+        if (appId === 'ruview' && window.RuViewApp) { return window.RuViewApp.render(contentEl(id), id, {esc,t,api}); }
         if (appId === 'ha-switchboard' && window.HASwitchboardApp) {
             return window.HASwitchboardApp.render(contentEl(id), id, { esc, t, api, saveSetting, settingValue, state });
         }
@@ -17556,6 +17950,13 @@ if (appId === 'pixel') {
             }
             return window.LocalWikipediaApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, openApp }));
         }
+        if (appId === 'retro-games') {
+            if (!window.RetroGamesApp) {
+                window.AuraDesktopModules.loadAppScript('retro-games').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            return window.RetroGamesApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, openApp, showContextMenu }));
+        }
         if (appId === 'homepage-studio') {
             if (!window.HomepageStudioApp) {
                 window.AuraDesktopModules.loadAppScript('homepage-studio').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
@@ -17627,9 +18028,10 @@ if (appId === 'pixel') {
     async function renderFiles(id, path) {
         const host = contentEl(id);
         if (!host) return;
-        state.filesPath = path || '';
+        const initialLocation = (path && typeof path === 'object') ? path : state.windows.get(id)?.context?.storage || { provider: 'local', path: path || '' };
+        if (initialLocation.provider === 'local') state.filesPath = initialLocation.path;
         if (window.FileManager && typeof window.FileManager.render === 'function') {
-            window.FileManager.render(host, id, state.filesPath, Object.assign(desktopFileDialogContext(), {
+            window.FileManager.render(host, id, initialLocation, Object.assign(desktopFileDialogContext(), {
                 esc,
                 api,
                 t,
@@ -17641,6 +18043,15 @@ if (appId === 'pixel') {
                 closeContextMenu,
                 promptDialog,
                 confirmDialog,
+                storageConflict: (conflict, signal) => modalDialog({
+                    title: t('desktop.file_conflict_title'),
+                    message: t('desktop.file_conflict_message').replace('{{path}}', conflict.path || ''),
+                    signal,
+                    choices: [
+                        { value: 'replace', label: t('desktop.file_conflict_replace'), disabled: !conflict.version || conflict.directory },
+                        { value: 'copy', label: t('desktop.file_conflict_copy') }
+                    ]
+                }),
                 showNotification: showDesktopNotification,
                 readonly: !!((state.bootstrap || {}).readonly),
                 maxFileSize: Number((((state.bootstrap || {}).workspace || {}).max_file_size) || 0),
@@ -17649,6 +18060,7 @@ if (appId === 'pixel') {
                 wireContextMenuBoundary,
                 openFile: (entry) => {
                     if (entry.name && /\.zip$/i.test(entry.name)) return openApp('zipper', { path: entry.path });
+                    if (/\.lyl$/i.test(entry.name || entry.path)) return openApp('layerling', { path: entry.path });
                     if (/\.aurasynth$/i.test(entry.name || entry.path)) return openApp('synth-studio', { path: entry.path });
                     if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
                     if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path }); if (is3DFile(entry)) return openApp('viewer-3d', { path: entry.path });
@@ -17665,12 +18077,14 @@ if (appId === 'pixel') {
                 restoreFromTrash: restorePathsFromTrash,
                 moveToTrash: movePathsToTrash,
                 emptyTrash,
-                onPathChange: (newPath) => {
-                    state.filesPath = newPath;
+                onPathChange: (newPath, location) => {
+                    if (!location || location.provider === 'local') state.filesPath = newPath;
                     const item = state.windows.get(id);
                     if (item) {
+                        item.context = Object.assign({}, item.context, { path: newPath, storage: location });
+                        scheduleSessionPersist();
                         const subtitle = item.element.querySelector('.vd-window-subtitle');
-                        if (subtitle) subtitle.textContent = newPath || t('desktop.workspace_root');
+                        if (subtitle) subtitle.textContent = (location && location.provider !== 'local' ? location.provider + ' · ' : '') + (newPath || t('desktop.workspace_root'));
                     }
                 },
                 directories: (state.bootstrap && state.bootstrap.workspace && state.bootstrap.workspace.directories) || []
@@ -17835,6 +18249,7 @@ if (appId === 'pixel') {
             mime_type: row.dataset.mimeType
         };
         if (fileExtension(entry.name || entry.path) === 'zip') return openApp('zipper', { path: entry.path });
+        if (/\.lyl$/i.test(entry.name || entry.path)) return openApp('layerling', { path: entry.path });
         if (/\.aurasynth$/i.test(entry.name || entry.path)) return openApp('synth-studio', { path: entry.path });
         if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
         if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path });
@@ -18146,69 +18561,232 @@ if (appId === 'pixel') {
         });
     }
 
+    function todoDueCivilDate(value) {
+        const text = String(value || '').trim();
+        const civil = /^(\d{4}-\d{2}-\d{2})T00:00:00Z$/.exec(text);
+        if (civil) return civil[1];
+        if (!text) return '';
+        const date = new Date(text);
+        if (Number.isNaN(date.getTime())) return '';
+        const pad = n => String(n).padStart(2, '0');
+        return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate());
+    }
+
+    function todoIsOverdue(todo, now) {
+        if (!todo || todo.status === 'done' || !todo.due_date) return false;
+        const text = String(todo.due_date).trim();
+        const civil = /^(\d{4}-\d{2}-\d{2})T00:00:00Z$/.exec(text);
+        if (civil) {
+            const pad = n => String(n).padStart(2, '0');
+            const today = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+            return civil[1] < today;
+        }
+        const due = new Date(text);
+        if (Number.isNaN(due.getTime())) return false;
+        return due < now;
+    }
+
+    function todoDueLabel(value) {
+        if (!value) return '';
+        const text = String(value).trim();
+        const civil = /^(\d{4}-\d{2}-\d{2})T00:00:00Z$/.exec(text);
+        if (civil) {
+            const [year, month, day] = civil[1].split('-').map(Number);
+            return new Date(year, month - 1, day).toLocaleDateString();
+        }
+        const date = new Date(text);
+        if (Number.isNaN(date.getTime())) return text;
+        return date.toLocaleDateString();
+    }
+
+    function todoDueFieldValue(originalDue, inputValue) {
+        if (todoDueCivilDate(originalDue) === String(inputValue || '').trim()) {
+            return { omit: true };
+        }
+        return { omit: false, value: inputValue };
+    }
+
+    const TODO_REFRESH_MS = 60000;
+
+    function clearTodoDetail(host) {
+        const pane = host.querySelector('.vd-todo-detail');
+        if (pane) {
+            pane.innerHTML = `<div class="vd-empty">${esc(t('desktop.todo_select_task'))}</div>`;
+        }
+        const win = host && host.closest && host.closest('.vd-window');
+        const windowId = win && win.dataset.windowId;
+        if (windowId) setWindowMenus(windowId, []);
+    }
+
+    function detailIsDirty(host, todo) {
+        const form = host.querySelector('.vd-todo-form');
+        if (!form || !todo) return false;
+        if (form.title.value.trim() !== String(todo.title || '').trim()) return true;
+        if (form.description.value !== String(todo.description || '')) return true;
+        if (form.priority.value !== todo.priority) return true;
+        if (form.status.value !== todo.status) return true;
+        if (!!form.remind_daily.checked !== !!todo.remind_daily) return true;
+        if (todoDueCivilDate(todo.due_date) !== String(form.due_date.value || '').trim()) return true;
+        return false;
+    }
+
+    function editedTodoFields(host) {
+        const form = host.querySelector('.vd-todo-form');
+        const shown = host._todoShown;
+        if (!form || !shown) return null;
+        const edits = {};
+        if (form.title.value.trim() !== String(shown.title || '').trim()) edits.title = form.title.value.trim();
+        if (form.description.value !== String(shown.description || '')) edits.description = form.description.value;
+        if (form.priority.value !== shown.priority) edits.priority = form.priority.value;
+        if (form.status.value !== shown.status) edits.status = form.status.value;
+        if (!!form.remind_daily.checked !== !!shown.remind_daily) edits.remind_daily = form.remind_daily.checked;
+        if (String(form.due_date.value || '').trim() !== String(shown.due || '')) edits.due = String(form.due_date.value || '').trim();
+        return edits;
+    }
+
+    function applyEditedTodoFields(host, edits) {
+        const form = host.querySelector('.vd-todo-form');
+        if (!form || !edits) return;
+        if ('title' in edits) form.title.value = edits.title;
+        if ('description' in edits) form.description.value = edits.description;
+        if ('priority' in edits) form.priority.value = edits.priority;
+        if ('status' in edits) form.status.value = edits.status;
+        if ('remind_daily' in edits) form.remind_daily.checked = edits.remind_daily;
+        if ('due' in edits) form.due_date.value = edits.due;
+    }
+
     async function renderTodo(id) {
         const host = contentEl(id);
         if (!host) return;
+        const todoReadonly = desktopReadonly();
         host.dataset.todoFilter = host.dataset.todoFilter || 'all';
-        host.innerHTML = `<div class="vd-todo"><aside class="vd-todo-sidebar">
+        const todoAddDisabled = todoReadonly ? ' disabled' : '';
+        host.innerHTML = `<div class="vd-todo-frame"><div class="vd-todo"><aside class="vd-todo-sidebar">
             ${['all', 'open', 'in_progress', 'done'].map(status => `<button type="button" data-filter="${status}" class="${host.dataset.todoFilter === status ? 'active' : ''}">${esc(t('desktop.todo_' + status))}</button>`).join('')}
-        </aside><main class="vd-todo-main"><form class="vd-todo-add"><input placeholder="${esc(t('desktop.todo_title_placeholder'))}"><select><option value="low">${esc(t('desktop.todo_priority_low'))}</option><option value="medium" selected>${esc(t('desktop.todo_priority_medium'))}</option><option value="high">${esc(t('desktop.todo_priority_high'))}</option></select><button class="vd-button vd-button-primary">${esc(t('desktop.todo_add'))}</button></form><div class="vd-todo-list">${esc(t('desktop.loading'))}</div></main><section class="vd-todo-detail"><div class="vd-empty">${esc(t('desktop.todo_select_task'))}</div></section></div>`;
+        </aside><main class="vd-todo-main"><form class="vd-todo-add"><input placeholder="${esc(t('desktop.todo_title_placeholder'))}"${todoAddDisabled}><select${todoAddDisabled}><option value="low">${esc(t('desktop.todo_priority_low'))}</option><option value="medium" selected>${esc(t('desktop.todo_priority_medium'))}</option><option value="high">${esc(t('desktop.todo_priority_high'))}</option></select><button class="vd-button vd-button-primary"${todoAddDisabled}>${esc(t('desktop.todo_add'))}</button></form><div class="vd-todo-list">${esc(t('desktop.loading'))}</div></main><section class="vd-todo-detail"><div class="vd-empty">${esc(t('desktop.todo_select_task'))}</div></section></div></div>`;
+        registerWindowCleanup(id, window.AuraGogDesktop?.attachSources(host, 'tasks', { t }) || (() => {}));
+        if (host._todoTimer) clearInterval(host._todoTimer);
+        async function runTodoAction(action) {
+            try {
+                await action();
+            } catch (err) {
+                showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.request_failed') });
+                await load(host.dataset.todoSelected, { replaceDetail: true });
+            }
+        }
         const showTodoContextMenu = (event, todo, reload) => {
             event.preventDefault();
             showContextMenu(event.clientX, event.clientY, [
-                { labelKey: 'desktop.context_open', icon: 'folder-open', action: () => renderTodoDetail(host, todo, reload) },
-                { labelKey: 'desktop.todo_complete', icon: 'check-square', disabled: todo.status === 'done', action: async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); } },
+                { labelKey: 'desktop.context_open', icon: 'folder-open', action: () => renderTodoDetail(host, todo, reload, todoReadonly, runTodoAction) },
+                { labelKey: 'desktop.todo_complete', icon: 'check-square', disabled: todoReadonly || todo.status === 'done', action: async () => { if (todoReadonly) return; await runTodoAction(async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id, { preserveEdits: true }); }); } },
                 { separator: true },
-                { labelKey: 'desktop.delete', icon: 'trash', action: async () => { if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } } }
+                { labelKey: 'desktop.delete', icon: 'trash', disabled: todoReadonly, action: async () => { if (todoReadonly) return; if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await runTodoAction(async () => { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); }); } } }
             ]);
             return true;
         };
         wireContextMenuBoundary(host);
-        const load = async (selectedID) => {
-            const todos = await api('/api/desktop/integrations/todos?status=all');
+        async function load(nextSelectedID, options = {}) {
+            const priorSelectedID = host.dataset.todoSelected || '';
+            host.dataset.todoGeneration = String(Number(host.dataset.todoGeneration || 0) + 1);
+            const generation = host.dataset.todoGeneration;
+            if (nextSelectedID !== undefined) {
+                host.dataset.todoSelected = nextSelectedID || '';
+            }
+            let todos;
+            try {
+                todos = await api('/api/desktop/integrations/todos?status=all');
+            } catch (err) {
+                if (host.dataset.todoGeneration !== generation) return;
+                const failedList = host.querySelector('.vd-todo-list');
+                if (failedList) {
+                    failedList.innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`;
+                }
+                return;
+            }
+            if (host.dataset.todoGeneration !== generation) return;
+            const selectedID = host.dataset.todoSelected || '';
+            const selectionChanged = nextSelectedID !== undefined && String(nextSelectedID || '') !== String(priorSelectedID);
             const filtered = todos.filter(todo => host.dataset.todoFilter === 'all' || todo.status === host.dataset.todoFilter)
                 .sort((a, b) => (({ high: 0, medium: 1, low: 2 }[a.priority] ?? 3) - (({ high: 0, medium: 1, low: 2 }[b.priority] ?? 3)) || String(a.due_date || '9999').localeCompare(String(b.due_date || '9999'))));
             const list = host.querySelector('.vd-todo-list');
-            list.innerHTML = filtered.length ? filtered.map(todo => renderTodoCard(todo, selectedID)).join('') : `<div class="vd-empty">${esc(t('desktop.empty_folder'))}</div>`;
-            list.querySelectorAll('[data-todo-id]').forEach(card => card.addEventListener('click', () => renderTodoDetail(host, todos.find(todo => todo.id === card.dataset.todoId), load)));
+            list.innerHTML = filtered.length ? filtered.map(todo => renderTodoCard(todo, selectedID, todoReadonly)).join('') : `<div class="vd-empty">${esc(t('desktop.todo_empty'))}</div>`;
+            list.querySelectorAll('[data-todo-id]').forEach(card => card.addEventListener('click', () => {
+                host.dataset.todoSelected = card.dataset.todoId;
+                list.querySelectorAll('.vd-todo-card').forEach(other => other.classList.remove('active'));
+                card.classList.toggle('active');
+                renderTodoDetail(host, todos.find(todo => todo.id === card.dataset.todoId), load, todoReadonly, runTodoAction);
+            }));
             list.querySelectorAll('[data-todo-status-toggle]').forEach(input => input.addEventListener('click', event => event.stopPropagation()));
             list.querySelectorAll('[data-todo-status-toggle]').forEach(input => input.addEventListener('change', async event => {
                 event.stopPropagation();
                 const todo = todos.find(item => item.id === input.dataset.todoStatusToggle);
-                if (todo) await setTodoDone(todo, input.checked, load);
+                if (todo) await setTodoDone(todo, input.checked, load, todoReadonly, runTodoAction);
             }));
             list.querySelectorAll('[data-todo-id]').forEach(card => card.addEventListener('contextmenu', event => {
                 const todo = todos.find(item => item.id === card.dataset.todoId);
                 if (todo) showTodoContextMenu(event, todo, load);
             }));
-            const selected = todos.find(todo => todo.id === selectedID) || filtered[0];
-            if (selected) renderTodoDetail(host, selected, load);
-        };
+            const selected = filtered.find(todo => todo.id === selectedID);
+            if (selected) {
+                let pendingEdits = null;
+                if (!options.replaceDetail && !selectionChanged) {
+                    pendingEdits = editedTodoFields(host);
+                }
+                const hasEdits = pendingEdits && Object.keys(pendingEdits).length > 0;
+                if (hasEdits && !options.preserveEdits) {
+                    // keep the open form; checklist-only refresh waits for a quiet form or preserveEdits reload
+                } else {
+                    renderTodoDetail(host, selected, load, todoReadonly, runTodoAction);
+                    if (hasEdits && options.preserveEdits) {
+                        applyEditedTodoFields(host, pendingEdits);
+                    }
+                }
+            } else {
+                clearTodoDetail(host);
+            }
+            host.dataset.todoLoadedAt = String(Date.now());
+        }
+        host._todoTimer = setInterval(() => {
+            if (document.hidden) return;
+            if (Date.now() - Number(host.dataset.todoLoadedAt || 0) < TODO_REFRESH_MS) return;
+            load(host.dataset.todoSelected);
+        }, TODO_REFRESH_MS);
+        registerWindowCleanup(id, () => {
+            clearInterval(host._todoTimer);
+            host._todoTimer = null;
+            host.dataset.todoGeneration = String(Number(host.dataset.todoGeneration || 0) + 1);
+        });
         host.querySelectorAll('[data-filter]').forEach(btn => btn.addEventListener('click', () => {
             host.dataset.todoFilter = btn.dataset.filter;
-            renderTodo(id);
+            host.querySelectorAll('[data-filter]').forEach(other => other.classList.toggle('active', other === btn));
+            load(host.dataset.todoSelected);
         }));
         host.querySelector('.vd-todo-add').addEventListener('submit', async event => {
             event.preventDefault();
+            if (todoReadonly) return;
             const input = event.currentTarget.querySelector('input');
             const title = input.value.trim();
             if (!title) return;
-            const result = await plannerJSON('/api/desktop/integrations/todos', 'POST', { title, priority: event.currentTarget.querySelector('select').value, status: 'open' });
-            input.value = '';
-            await load(result.id);
+            await runTodoAction(async () => {
+                const result = await plannerJSON('/api/desktop/integrations/todos', 'POST', { title, priority: event.currentTarget.querySelector('select').value, status: 'open' });
+                input.value = '';
+                await load(result.id);
+            });
         });
-        try { await load(); } catch (err) { host.querySelector('.vd-todo-list').innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`; }
+        await load();
     }
 
-    function renderTodoCard(todo, selectedID) {
-        const due = todo.due_date ? new Date(todo.due_date) : null;
-        const overdue = due && due < new Date() && todo.status !== 'done';
+    function renderTodoCard(todo, selectedID, todoReadonly) {
+        const now = new Date();
+        const overdue = todoIsOverdue(todo, now);
+        const dueLabel = todo.due_date ? todoDueLabel(todo.due_date) : '';
+        const cardDoneDisabled = todoReadonly ? ' disabled' : '';
         return `<article class="vd-todo-card ${todo.id === selectedID ? 'active' : ''} ${overdue ? 'overdue' : ''}" data-todo-id="${esc(todo.id)}">
             <div class="vd-todo-card-grid">
-                <input class="vd-todo-card-done" type="checkbox" data-todo-status-toggle="${esc(todo.id)}" ${todo.status === 'done' ? 'checked' : ''} aria-label="${esc(t('desktop.todo_complete'))}">
+                <input class="vd-todo-card-done" type="checkbox" data-todo-status-toggle="${esc(todo.id)}" ${todo.status === 'done' ? 'checked' : ''}${cardDoneDisabled} aria-label="${esc(t('desktop.todo_complete'))}">
                 <div class="vd-todo-card-copy">
                     <strong>${esc(todo.title)}</strong>
-                    <small>${esc(t('desktop.todo_' + todo.status))}${due ? ' &middot; ' + esc(due.toLocaleDateString()) : ''}${overdue ? ' &middot; ' + esc(t('desktop.todo_overdue')) : ''}</small>
+                    <small>${esc(t('desktop.todo_' + todo.status))}${dueLabel ? ' &middot; ' + esc(dueLabel) : ''}${overdue ? ' &middot; ' + esc(t('desktop.todo_overdue')) : ''}</small>
                 </div>
                 <span class="vd-todo-priority ${esc(todo.priority)}">${esc(t('desktop.todo_priority_' + todo.priority))}</span>
             </div>
@@ -18216,41 +18794,56 @@ if (appId === 'pixel') {
         </article>`;
     }
 
-    async function setTodoDone(todo, done, reload) {
+    async function setTodoDone(todo, done, reload, todoReadonly, runTodoAction) {
+        if (todoReadonly) return;
         if (!todo) return;
-        if (done) {
-            await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true });
-            await reload(todo.id);
-            return;
-        }
-        const payload = { status: 'open' };
-        if (Array.isArray(todo.items) && todo.items.length) {
-            payload.items = todo.items.map(item => Object.assign({}, item, { is_done: false }));
-        }
-        await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), 'PUT', payload);
-        await reload(todo.id);
+        if (!runTodoAction) return;
+        await runTodoAction(async () => {
+            if (done) {
+                await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true });
+                await reload(todo.id, { preserveEdits: true });
+                return;
+            }
+            await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), 'PUT', { status: 'open' });
+            await reload(todo.id, { preserveEdits: true });
+        });
     }
 
     async function updateTodoItem(todo, itemID, patch, reload) {
         if (!todo || !itemID) return;
         await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/items/' + encodeURIComponent(itemID), 'PUT', patch);
-        await reload(todo.id);
+        await reload(todo.id, { preserveEdits: true });
     }
 
-    function renderTodoDetail(host, todo, reload) {
+    function renderTodoDetail(host, todo, reload, todoReadonly, runTodoAction) {
+        host.dataset.todoSelected = todo.id;
         const pane = host.querySelector('.vd-todo-detail');
         const items = todo.items || [];
-        pane.innerHTML = `<form class="vd-todo-form"><input name="title" value="${esc(todo.title)}"><textarea name="description" placeholder="${esc(t('desktop.todo_description'))}">${esc(todo.description || '')}</textarea><div class="vd-todo-form-row"><label>${esc(t('desktop.todo_priority'))}<select name="priority">${['low','medium','high'].map(p => `<option value="${p}" ${todo.priority === p ? 'selected' : ''}>${esc(t('desktop.todo_priority_' + p))}</option>`).join('')}</select></label><label>${esc(t('desktop.todo_due_date'))}<input type="date" name="due_date" value="${esc(todo.due_date || '')}"></label></div><label class="vd-check"><input type="checkbox" name="remind_daily" ${todo.remind_daily ? 'checked' : ''}>${esc(t('desktop.todo_remind_daily'))}</label><div class="vd-todo-actions"><button class="vd-button vd-button-primary" data-action="save">${esc(t('desktop.save'))}</button><button type="button" class="vd-button" data-action="complete">${esc(t('desktop.todo_complete'))}</button><button type="button" class="vd-button" data-action="delete">${esc(t('desktop.delete'))}</button></div></form><h3>${esc(t('desktop.todo_items'))}</h3><form class="vd-todo-item-add"><input placeholder="${esc(t('desktop.todo_add_item'))}"><button class="vd-button">${esc(t('desktop.todo_add_item'))}</button></form><div class="vd-todo-items">${items.map(item => `<div class="vd-todo-item" data-item-id="${esc(item.id)}"><input class="vd-todo-item-check" type="checkbox" data-item-toggle="${esc(item.id)}" ${item.is_done ? 'checked' : ''} aria-label="${esc(t('desktop.todo_complete'))}"><input class="vd-todo-item-title" data-item-title="${esc(item.id)}" value="${esc(item.title)}" aria-label="${esc(t('desktop.todo_add_item'))}" spellcheck="true"><button type="button" class="vd-todo-item-delete" data-item-delete="${esc(item.id)}" title="${esc(t('desktop.delete'))}">${iconMarkup('x', 'X', 'vd-todo-action-icon', 13)}</button></div>`).join('')}</div>`;
+        const todoDetailDisabled = todoReadonly ? ' disabled' : '';
+        const readonlyHint = todoReadonly ? `<p class="vd-hint">${esc(t('desktop.todo_readonly'))}</p>` : '';
+        pane.innerHTML = `${readonlyHint}<form class="vd-todo-form"><input name="title" value="${esc(todo.title)}"${todoDetailDisabled}><textarea name="description" placeholder="${esc(t('desktop.todo_description'))}"${todoDetailDisabled}>${esc(todo.description || '')}</textarea><div class="vd-todo-form-row"><label>${esc(t('desktop.todo_priority'))}<select name="priority"${todoDetailDisabled}>${['low','medium','high'].map(p => `<option value="${p}" ${todo.priority === p ? 'selected' : ''}>${esc(t('desktop.todo_priority_' + p))}</option>`).join('')}</select></label><label>${esc(t('desktop.cal_status'))}<select name="status"${todoDetailDisabled}>${['open','in_progress','done'].map(s => `<option value="${s}" ${todo.status === s ? 'selected' : ''}>${esc(t('desktop.todo_' + s))}</option>`).join('')}</select></label><label>${esc(t('desktop.todo_due_date'))}<input type="date" name="due_date" value="${esc(todoDueCivilDate(todo.due_date))}"${todoDetailDisabled}></label></div><label class="vd-check"><input type="checkbox" name="remind_daily" ${todo.remind_daily ? 'checked' : ''}${todoDetailDisabled}>${esc(t('desktop.todo_remind_daily'))}</label><div class="vd-todo-actions"><button class="vd-button vd-button-primary" data-action="save"${todoDetailDisabled}>${esc(t('desktop.save'))}</button><button type="button" class="vd-button" data-action="complete"${todoDetailDisabled}>${esc(t('desktop.todo_complete'))}</button><button type="button" class="vd-button" data-action="delete"${todoDetailDisabled}>${esc(t('desktop.delete'))}</button></div></form><h3>${esc(t('desktop.todo_items'))}</h3><form class="vd-todo-item-add"><input placeholder="${esc(t('desktop.todo_add_item'))}"${todoDetailDisabled}><button class="vd-button"${todoDetailDisabled}>${esc(t('desktop.todo_add_item'))}</button></form><div class="vd-todo-items">${items.map(item => `<div class="vd-todo-item" data-item-id="${esc(item.id)}"><input class="vd-todo-item-check" type="checkbox" data-item-toggle="${esc(item.id)}" ${item.is_done ? 'checked' : ''}${todoDetailDisabled} aria-label="${esc(t('desktop.todo_complete'))}"><input class="vd-todo-item-title" data-item-title="${esc(item.id)}" value="${esc(item.title)}" aria-label="${esc(t('desktop.todo_add_item'))}" spellcheck="true"${todoDetailDisabled}><button type="button" class="vd-todo-item-delete" data-item-delete="${esc(item.id)}" title="${esc(t('desktop.delete'))}"${todoDetailDisabled}>${iconMarkup('x', 'X', 'vd-todo-action-icon', 13)}</button></div>`).join('')}</div>`;
         pane.querySelector('.vd-todo-form').addEventListener('submit', async event => {
             event.preventDefault();
-            const form = event.currentTarget;
-            await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), 'PUT', { title: form.title.value.trim(), description: form.description.value, priority: form.priority.value, due_date: form.due_date.value, remind_daily: form.remind_daily.checked });
-            await reload(todo.id);
+            if (todoReadonly) return;
+            await runTodoAction(async () => {
+                const form = event.currentTarget;
+                const body = {
+                    title: form.title.value.trim(),
+                    description: form.description.value,
+                    priority: form.priority.value,
+                    status: form.status.value,
+                    remind_daily: form.remind_daily.checked
+                };
+                const due = todoDueFieldValue(todo.due_date, form.due_date.value);
+                if (!due.omit) body.due_date = due.value;
+                await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), 'PUT', body);
+                await reload(todo.id, { replaceDetail: true });
+            });
         });
-        pane.querySelector('[data-action="complete"]').addEventListener('click', async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); });
-        pane.querySelector('[data-action="delete"]').addEventListener('click', async () => { if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } });
-        pane.querySelector('.vd-todo-item-add').addEventListener('submit', async event => { event.preventDefault(); const input = event.currentTarget.querySelector('input'); if (!input.value.trim()) return; await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/items', 'POST', { title: input.value.trim() }); await reload(todo.id); });
-        pane.querySelectorAll('[data-item-toggle]').forEach(input => input.addEventListener('change', async () => { await updateTodoItem(todo, input.dataset.itemToggle, { is_done: input.checked }, reload); }));
+        pane.querySelector('[data-action="complete"]').addEventListener('click', async () => { if (todoReadonly) return; await runTodoAction(async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id, { preserveEdits: true }); }); });
+        pane.querySelector('[data-action="delete"]').addEventListener('click', async () => { if (todoReadonly) return; if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await runTodoAction(async () => { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); }); } });
+        pane.querySelector('.vd-todo-item-add').addEventListener('submit', async event => { event.preventDefault(); if (todoReadonly) return; const input = event.currentTarget.querySelector('input'); if (!input.value.trim()) return; await runTodoAction(async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/items', 'POST', { title: input.value.trim() }); await reload(todo.id, { preserveEdits: true }); }); });
+        pane.querySelectorAll('[data-item-toggle]').forEach(input => input.addEventListener('change', async () => { if (todoReadonly) return; await runTodoAction(async () => { await updateTodoItem(todo, input.dataset.itemToggle, { is_done: input.checked }, reload); }); }));
         pane.querySelectorAll('[data-item-title]').forEach(titleInput => {
             titleInput.addEventListener('keydown', async event => {
                 if (event.key === 'Enter') {
@@ -18264,20 +18857,29 @@ if (appId === 'pixel') {
                 }
             });
             titleInput.addEventListener('change', async () => {
+                if (todoReadonly) return;
                 const title = titleInput.value.trim();
                 const item = items.find(entry => entry.id === titleInput.dataset.itemTitle);
                 if (!title || !item || title === item.title) {
                     titleInput.value = item ? item.title : '';
                     return;
                 }
-                await updateTodoItem(todo, titleInput.dataset.itemTitle, { title: titleInput.value.trim() }, reload);
+                await runTodoAction(async () => { await updateTodoItem(todo, titleInput.dataset.itemTitle, { title: titleInput.value.trim() }, reload); });
             });
         });
-        pane.querySelectorAll('[data-item-delete]').forEach(btn => btn.addEventListener('click', async () => { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/items/' + encodeURIComponent(btn.dataset.itemDelete), { method: 'DELETE' }); await reload(todo.id); }));
-        setTodoMenus(host, todo, reload);
+        pane.querySelectorAll('[data-item-delete]').forEach(btn => btn.addEventListener('click', async () => { if (todoReadonly) return; await runTodoAction(async () => { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/items/' + encodeURIComponent(btn.dataset.itemDelete), { method: 'DELETE' }); await reload(todo.id, { preserveEdits: true }); }); }));
+        host._todoShown = {
+            title: todo.title,
+            description: todo.description || '',
+            priority: todo.priority,
+            status: todo.status,
+            remind_daily: !!todo.remind_daily,
+            due: todoDueCivilDate(todo.due_date)
+        };
+        setTodoMenus(host, todo, reload, todoReadonly, runTodoAction);
     }
 
-    function setTodoMenus(host, todo, reload) {
+    function setTodoMenus(host, todo, reload, todoReadonly, runTodoAction) {
         const win = host && host.closest && host.closest('.vd-window');
         const id = win && win.dataset.windowId;
         if (!id || !todo) return;
@@ -18286,7 +18888,8 @@ if (appId === 'pixel') {
                 id: 'file',
                 labelKey: 'desktop.menu_file',
                 items: [
-                    { id: 'save', labelKey: 'desktop.save', icon: 'save', shortcut: 'Ctrl+S', action: () => {
+                    { id: 'save', labelKey: 'desktop.save', icon: 'save', shortcut: 'Ctrl+S', disabled: todoReadonly, action: () => {
+                        if (todoReadonly) return;
                         const form = host.querySelector('.vd-todo-form');
                         if (form) form.requestSubmit();
                     } }
@@ -18296,8 +18899,8 @@ if (appId === 'pixel') {
                 id: 'edit',
                 labelKey: 'desktop.menu_edit',
                 items: [
-                    { id: 'complete', labelKey: 'desktop.todo_complete', icon: 'check-square', action: async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); } },
-                    { id: 'delete', labelKey: 'desktop.delete', icon: 'trash', action: async () => { if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } } }
+                    { id: 'complete', labelKey: 'desktop.todo_complete', icon: 'check-square', disabled: todoReadonly, action: async () => { if (todoReadonly) return; await runTodoAction(async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id, { preserveEdits: true }); }); } },
+                    { id: 'delete', labelKey: 'desktop.delete', icon: 'trash', disabled: todoReadonly, action: async () => { if (todoReadonly) return; if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await runTodoAction(async () => { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); }); } } }
                 ]
             }
         ]);
@@ -20359,7 +20962,7 @@ if (appId === 'pixel') {
     function desktopSDKChannelFromURL(src) {
         try {
             const url = new URL(src, window.location.origin);
-            if (url.origin !== window.location.origin || !url.pathname.includes('/files/desktop/')) return '';
+            if (url.origin !== window.location.origin || (!url.pathname.includes('/files/desktop/') && url.pathname !== '/api/desktop/layerling/ui/')) return '';
             const params = new URLSearchParams(url.hash.slice(1));
             const capability = params.get(SDK_CHANNEL_FRAGMENT_KEY) || '';
             return /^[0-9a-f]{64}$/.test(capability) ? capability : '';
@@ -20473,7 +21076,9 @@ if (appId === 'pixel') {
         const client = frame && sdkFrameClients.get(frame);
         const challenge = client && client.challenge;
         const port = event.ports && event.ports.length === 1 ? event.ports[0] : null;
-        if (!frame || !client || event.origin !== 'null' || !port ||
+        const trustedLayerling = frame?.dataset.appId === 'layerling' && event.origin === location.origin &&
+            new URL(frame.src, location.href).pathname === '/api/desktop/layerling/ui/';
+        if (!frame || !client || (event.origin !== 'null' && !trustedLayerling) || !port ||
             message.capability !== frame.dataset.sdkChannel ||
             !challenge || message.challenge !== challenge ||
             String(frame.dataset.sdkChallenge || '') !== String(challenge)) {
@@ -20494,6 +21099,7 @@ if (appId === 'pixel') {
         delete frame.dataset.sdkChallenge;
         const generation = client.generation;
         port.addEventListener('message', messageEvent => handleSDKMessage(client, messageEvent, port, generation));
+        if (trustedLayerling) window.LayerlingApp?.connect(client.windowId, port, client.abortController.signal);
         port.start();
     }
 
@@ -20956,7 +21562,10 @@ if (appId === 'pixel') {
                 openStandaloneWidget(event.payload.path, event.payload.widget_id || event.payload.app_id, event.payload);
                 return;
             }
-            openApp(event.payload.app_id, event.payload.path ? { path: event.payload.path } : undefined);
+            const launch = {};
+            if (event.payload.path) launch.path = event.payload.path;
+            if (typeof event.payload.game === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(event.payload.game)) launch.game = event.payload.game;
+            openApp(event.payload.app_id, Object.keys(launch).length ? launch : undefined);
             return;
         }
         if (event.type === 'notification') {
@@ -21208,6 +21817,30 @@ if (appId === 'pixel') {
         beginWindowSwitcherHold(false);
     }
 
+    // Enter, Delete and F2 act on the selected desktop icon only while the keyboard belongs to
+    // the desktop: a focused icon, or the page body after the last press landed on the desktop.
+    // A press inside a window or other shell surface keeps them off the icon even when the
+    // pressed element cannot hold focus and the keys arrive at the page body.
+    let desktopKeyboardOnSurface = true;
+
+    function trackDesktopKeyboardScope(event) {
+        const target = event.target instanceof Element ? event.target : null;
+        const workspace = $('vd-workspace');
+        desktopKeyboardOnSurface = !!(target && workspace && workspace.contains(target)
+            && !target.closest('.vd-window, .vd-widget, .vd-start-menu, .vd-taskbar, .vd-sip-phone-gadget'));
+    }
+
+    function desktopIconKeysAllowed(event) {
+        if (event.defaultPrevented) return false;
+        const target = event.target;
+        const icons = $('vd-icons');
+        if (icons && target instanceof Node && icons.contains(target)) return true;
+        const onPage = !target || target === document.body || target === document.documentElement;
+        return onPage && desktopKeyboardOnSurface;
+    }
+
+    document.addEventListener('pointerdown', trackDesktopKeyboardScope, true);
+
     function handleDesktopKeydown(event) {
         if (handleWindowMenuShortcut(event)) return;
         if (handleDesktopMediaKeydown(event)) return;
@@ -21247,6 +21880,7 @@ if (appId === 'pixel') {
             if (state.activeWindowId) toggleMaximizeWindow(state.activeWindowId);
             return;
         }
+        if ((event.key === 'Enter' || event.key === 'Delete' || event.key === 'F2') && !desktopIconKeysAllowed(event)) return;
         switch (event.key) {
         case 'Escape': {
             const shortcuts = document.getElementById('vd-shortcuts-help');

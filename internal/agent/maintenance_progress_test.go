@@ -143,7 +143,7 @@ func TestMaintenanceConsolidationMakesProgressBeforeSlowPhases(t *testing.T) {
 					}
 					return skillQualityTestClient{response: content}.CreateChatCompletion(ctx, req)
 				}}
-				runMaintenanceTask(t.Context(), cfg, logger, client, nil, nil, nil, nil, &hierarchyVectorDB{}, stm, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+				runMaintenanceTask(t.Context(), cfg, logger, client, nil, nil, nil, nil, &hierarchyVectorDB{}, stm, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 				run, err := stm.GetLatestMaintenanceRun()
 				if err != nil || run == nil {
 					t.Fatalf("run=%v err=%v", run, err)

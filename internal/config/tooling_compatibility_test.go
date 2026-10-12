@@ -455,8 +455,11 @@ func TestToolingArchitectureDefaults(t *testing.T) {
 	if !cfg.Agent.OutputCompression.Reversible.PrimaryOutputVault {
 		t.Fatal("output_compression.reversible.primary_output_vault should default to true")
 	}
-	if cfg.Agent.OutputCompression.Reversible.MaxInlineChars != 6000 {
-		t.Fatalf("output_compression.reversible.max_inline_chars = %d, want 6000", cfg.Agent.OutputCompression.Reversible.MaxInlineChars)
+	if cfg.Agent.OutputCompression.Reversible.MaxInlineChars != 0 {
+		t.Fatalf("output_compression.reversible.max_inline_chars = %d, want 0 (automatic)", cfg.Agent.OutputCompression.Reversible.MaxInlineChars)
+	}
+	if negative := loadConfigFromTestYAML(t, "agent:\n  output_compression:\n    reversible:\n      max_inline_chars: -5\n"); negative.Agent.OutputCompression.Reversible.MaxInlineChars != 0 {
+		t.Fatalf("negative max_inline_chars = %d, want 0 (automatic)", negative.Agent.OutputCompression.Reversible.MaxInlineChars)
 	}
 }
 

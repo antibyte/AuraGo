@@ -852,8 +852,10 @@ MeshCentral Geräte über den Control-WebSocket verwalten.
 | `node_id` | string | Geräte-ID für device_info, wake, power_action, run_command oder Ereignisfilter |
 | `user_id` | string | Benutzerfilter für list_events |
 | `power_action` | string | off, reset, sleep, amt_on, amt_off, amt_reset |
-| `command` | string | Befehl für run_command |
+| `command` | string | Befehl für run_command (höchstens 4096 Byte; läuft als MeshAgent-Dienstkonto) |
 | `limit` | integer | Maximale Anzahl von Ereignissen |
+
+Wake und Strom brauchen zusätzlich `meshcentral.allow_power_actions`. `run_command` braucht `agent.allow_remote_shell`. Eine unbestätigte Wake- oder Stromanfrage wiederholst du nicht blind.
 
 ### `vercel`
 Vercel-Projekte, Deployments, Umgebungsvariablen und Domains verwalten.
@@ -1634,6 +1636,18 @@ Die lokal installierte Wikipedia-Ausgabe durchsuchen (`search`) und Artikel absc
 | `path` | string | Artikelpfad aus einem Suchtreffer (`read`) |
 | `section` | string | Überschrift oder Abschnittsindex (`read`, optional) |
 | `offset` | integer | Langen Artikel bei `next_offset` fortsetzen (`read`, optional) |
+
+### `retro_games`
+Den lokalen Index der im Browser spielbaren archive.org-Spiele durchsuchen und ein Spiel in der Desktop-App Retro Games öffnen (siehe [Retro Games](../../retro-games.md)). Nur vorhanden, wenn **Retro Games aktivieren** und **Agent darf Spiele suchen und starten** an sind. Mit adaptiver Tool-Auswahl (Standard) bekommt der Agent das Tool bei Anfragen zu Retro-Spielen, Arcade (Spielhalle), alten Spielen oder Spieleklassikern, DOS-Spielen oder klassischen Systemen wie C64, Amiga, Atari, ZX Spectrum und Mega Drive und findet es sonst über `discover_tools`; es nimmt keinem anderen Tool den Platz weg. Titel und Hersteller gelten als externe Daten. `search` ohne `query` listet Klassiker aus der Hall of Fame; solange der Index noch keine Spiele enthält, weicht eine Suche auf passende Hall-of-Fame-Spiele aus (`note: index_building`, solange die erste Synchronisation läuft, `note: index_unavailable`, wenn sie fehlgeschlagen ist und keine Synchronisation läuft), und ein leeres Ergebnis, solange eine durchsuchte Plattform (ohne Angabe: irgendeine Plattform) ihre erste Synchronisation noch nicht abgeschlossen hat, trägt `note: index_incomplete`. Indexsuchen lassen Spiele aus, die der Nutzer als „startet nicht“ markiert hat. Die Ergebnisse sind Zeilen der Form `n. identifier | title | system | year | maker` mit höchstens etwa 2.800 Bytes (`truncated: true`, wenn die Liste gekürzt wurde; Titel werden auf 80, Hersteller auf 60 Zeichen gekürzt). `play` öffnet das Spiel nur, wenn der Virtuelle Desktop, sein Agent-Tool und **Agentensteuerung erlauben** an sind (sonst `desktop_unavailable` oder `desktop_agent_control_disabled`); den Emulator startet der Nutzer mit dem Power-Button.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | string | `search` oder `play` |
+| `query` | string | Titel, Hersteller oder Stichwörter, höchstens 200 Zeichen (`search`, optional) |
+| `platform` | string | `msdos`, `arcade`, `console`, `c64`, `amiga`, `apple2`, `zx` oder `win3` (`search`, optional) |
+| `decade` | integer | 1970, 1980, 1990 oder 2000 (`search`, optional; jedes Jahrzehnt von 1950 bis 2020 wird akzeptiert) |
+| `limit` | integer | Anzahl der Ergebnisse, 1–20 (Standard 10; größere Werte werden auf 20 gesenkt; `search`) |
+| `identifier` | string | Spielkennung aus einem Suchergebnis (`play`, erforderlich) |
 
 ### `truenas`
 TrueNAS SCALE Storage verwalten (Pools, Datasets, Shares, Snapshots).

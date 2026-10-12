@@ -82,15 +82,21 @@ func (a codeStudioDockerAdapter) InspectContainer(ctx context.Context, container
 	// in-process caller needs the full source the agent-facing inspect hides.
 	raw := tools.DockerInspectContainerWithMountSources(a.cfg, container)
 	var resp struct {
-		Status  string                  `json:"status"`
-		Message string                  `json:"message"`
-		ID      string                  `json:"id"`
-		Name    string                  `json:"name"`
-		State   desktop.CodeDockerState `json:"state"`
-		Mounts  []struct {
+		Status         string                  `json:"status"`
+		Message        string                  `json:"message"`
+		ID             string                  `json:"id"`
+		Name           string                  `json:"name"`
+		State          desktop.CodeDockerState `json:"state"`
+		ReadonlyRootfs bool                    `json:"readonly_rootfs"`
+		Tmpfs          map[string]string       `json:"tmpfs"`
+		Mounts         []struct {
+			Type        string `json:"type"`
 			Source      string `json:"source"`
 			Destination string `json:"destination"`
 		} `json:"mounts"`
+		Config struct {
+			Env []string `json:"env"`
+		} `json:"config"`
 	}
 	if err := json.Unmarshal([]byte(raw), &resp); err != nil {
 		return desktop.CodeDockerInspect{}, fmt.Errorf("parse docker inspect response: %w", err)
@@ -101,11 +107,20 @@ func (a codeStudioDockerAdapter) InspectContainer(ctx context.Context, container
 	mounts := make([]desktop.CodeDockerMount, 0, len(resp.Mounts))
 	for _, mount := range resp.Mounts {
 		mounts = append(mounts, desktop.CodeDockerMount{
+			Type:        mount.Type,
 			Source:      mount.Source,
 			Destination: mount.Destination,
 		})
 	}
-	return desktop.CodeDockerInspect{ID: resp.ID, Name: resp.Name, State: resp.State, Mounts: mounts}, nil
+	return desktop.CodeDockerInspect{
+		ID:             resp.ID,
+		Name:           resp.Name,
+		State:          resp.State,
+		Mounts:         mounts,
+		Env:            resp.Config.Env,
+		ReadonlyRootfs: resp.ReadonlyRootfs,
+		Tmpfs:          resp.Tmpfs,
+	}, nil
 }
 
 func (a codeStudioDockerAdapter) EnsureImage(ctx context.Context, image string) error {
@@ -215,11 +230,13 @@ func (a codeStudioDockerAdapter) CreateContainer(ctx context.Context, req deskto
 		}
 	}
 	options := tools.ContainerCreateOptions{
-		User:        req.User,
-		SecurityOpt: req.SecurityOpt,
-		CapDrop:     req.CapDrop,
-		CapAdd:      req.CapAdd,
-		NetworkMode: req.NetworkMode,
+		User:           req.User,
+		SecurityOpt:    req.SecurityOpt,
+		CapDrop:        req.CapDrop,
+		CapAdd:         req.CapAdd,
+		NetworkMode:    req.NetworkMode,
+		ReadonlyRootfs: req.ReadonlyRootfs,
+		Tmpfs:          req.Tmpfs,
 	}
 	raw := tools.DockerCreateContainerWithOptions(a.cfg, req.Name, req.Image, req.Env, req.Ports, req.Volumes, req.Cmd, req.Restart, resources, options)
 	var resp struct {

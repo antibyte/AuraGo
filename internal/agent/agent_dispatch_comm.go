@@ -312,6 +312,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 	manifest := dc.Manifest
 	cronManager := dc.CronManager
 	missionManagerV2 := dc.MissionManagerV2
+	webhookManager := dc.WebhookManager
 	longTermMem := dc.LongTermMem
 	shortTermMem := dc.ShortTermMem
 	kg := dc.KG
@@ -351,25 +352,47 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			req := decodeCallWebhookArgs(tc)
 			logger.Info("LLM requested webhook execution", "webhook_name", req.WebhookName)
 
-			// Find the webhook by name
-			var targetHook *config.OutgoingWebhook
+			var matches []config.OutgoingWebhook
 			for _, w := range cfg.Webhooks.Outgoing {
 				if strings.EqualFold(w.Name, req.WebhookName) {
-					targetHook = &w
-					break
+					matches = append(matches, w)
 				}
 			}
-
-			if targetHook == nil {
+			if len(matches) == 0 {
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Webhook '%s' not found. Check the exact name of the webhook from your System Context."}`, req.WebhookName)
 			}
-			out, statusCode, err := tools.ExecuteOutgoingWebhook(ctx, *targetHook, req.Parameters)
+			if len(matches) > 1 {
+				ids := make([]string, len(matches))
+				for i, match := range matches {
+					ids[i] = match.ID
+				}
+				data, err := json.Marshal(map[string]any{
+					"status":  "error",
+					"message": fmt.Sprintf("Several outgoing webhooks are named %q. Choose one ID: %s", req.WebhookName, strings.Join(ids, ", ")),
+				})
+				if err != nil {
+					return `Tool Output: {"status":"error","message":"Several outgoing webhooks share that name."}`
+				}
+				return "Tool Output: " + string(data)
+			}
+			targetHook := matches[0]
+			out, statusCode, err := tools.ExecuteOutgoingWebhook(ctx, targetHook, req.Parameters)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Failed to execute webhook: %v"}`, err)
 			}
-
-			// Provide simple response
-			return fmt.Sprintf(`Tool Output: {"status":"success", "http_status_code": %d, "response": %q}`, statusCode, out)
+			status := "success"
+			if statusCode >= 400 {
+				status = "error"
+			}
+			data, err := json.Marshal(map[string]any{
+				"status":           status,
+				"http_status_code": statusCode,
+				"response":         out,
+			})
+			if err != nil {
+				return `Tool Output: {"status":"error","message":"Failed to encode webhook response."}`
+			}
+			return "Tool Output: " + string(data)
 
 		case "manage_outgoing_webhooks":
 			if !cfg.Webhooks.Enabled {
@@ -379,7 +402,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if cfg.Webhooks.ReadOnly && req.Operation != "list" {
 				return `Tool Output: {"status":"error","message":"Webhooks tool is set to Read-Only mode. Cannot modify."}`
 			}
-			return tools.ManageOutgoingWebhooks(req.Operation, req.ID, req.Name, req.Description, req.Method, req.URL, req.PayloadType, req.BodyTemplate, req.Headers, req.rawParameters(), cfg, dc.Vault)
+			return tools.ManageOutgoingWebhooks(req.Operation, req.ID, req.Name, req.Description, req.Method, req.URL, req.PayloadType, req.BodyTemplate, req.Headers, req.rawParameters(), cfg, dc.Vault, req.HeadersSet, req.ParametersSet)
 
 		case "list_skill_templates":
 			logger.Info("LLM requested to list skill templates")
@@ -754,7 +777,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			var skillErr error
 			if cfg.Tools.SkillManager.RequireSandbox {
 				// Sandbox enforcement: skills must run in the container sandbox
-				if !tools.GetSandboxManager().IsReady() {
+				if !tools.SandboxReady() {
 					if executionSkillManager != nil {
 						_ = executionSkillManager.RecordSkillUsage(cleanSkillName, false)
 					}
@@ -914,6 +937,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				Manifest:           manifest,
 				CronManager:        cronManager,
 				MissionManagerV2:   missionManagerV2,
+				WebhookManager:     webhookManager,
 				CoAgentRegistry:    coAgentRegistry,
 				BudgetTracker:      budgetTracker,
 				LLMGuardian:        llmGuardian,
@@ -971,7 +995,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			req := decodeBrowserAutomationArgs(tc)
 			logger.Info("LLM requested browser automation", "operation", req.Operation, "session_id", req.SessionID, "url", req.URL)
-			return "Tool Output: " + tools.ExecuteBrowserAutomation(ctx, cfg, tools.BrowserAutomationRequest{
+			output := tools.ExecuteBrowserAutomation(ctx, cfg, tools.BrowserAutomationRequest{
 				Operation:            req.Operation,
 				SessionID:            req.SessionID,
 				URL:                  req.URL,
@@ -991,6 +1015,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				CloakProxy:           req.CloakProxy,
 				CloakFingerprintSeed: req.CloakFingerprintSeed,
 			}, logger)
+			return formatBrowserAutomationOutput(ctx, output)
 
 		case "space_agent":
 			if !cfg.SpaceAgent.Enabled {
@@ -2010,6 +2035,10 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 		}
 	}()
 	return result, handled
+}
+
+func formatBrowserAutomationOutput(ctx context.Context, raw string) string {
+	return externalToolOutput(ctx, raw)
 }
 
 func synthesizeExecuteSkillArgs(tc ToolCall) map[string]interface{} {

@@ -29,7 +29,7 @@ func handleFrigateTest(s *Server) http.HandlerFunc {
 			return
 		}
 
-		raw := tools.FrigateStatus(tools.FrigateConfig{
+		raw := tools.FrigateStatus(r.Context(), tools.FrigateConfig{
 			URL:           s.Cfg.Frigate.URL,
 			APIToken:      s.Cfg.Frigate.APIToken,
 			InternalPort:  s.Cfg.Frigate.InternalPort,

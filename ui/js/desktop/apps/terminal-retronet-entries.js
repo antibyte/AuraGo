@@ -2,7 +2,7 @@
     'use strict';
 
     const SETTING_KEY = 'retronet.entries';
-    const MAX_ENTRIES = 64;
+    const MAX_ENTRIES = 50;
     const MAX_BYTES = 64 * 1024;
     const NAME_MAX = 40;
     const DESCRIPTION_MAX = 80;
@@ -10,7 +10,7 @@
     const ID_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
     const OWN_ID = /^own-[a-z0-9]{8,32}$/;
     const BLOCKED_PORTS = [25, 465, 587];
-    const KINDS = ['bbs', 'world'];
+    const KINDS = ['bbs', 'world', 'c64'];
     const CHARSETS = [['utf8', 'UTF-8'], ['cp437', 'CP437 (IBM PC)'], ['latin1', 'ISO 8859-1 (Latin-1)']];
     const CHARSET_VALUES = ['utf8', 'cp437', 'latin1'];
     // UX mirror of internal/retronet (entries.go); the server stays the authority.
@@ -61,6 +61,13 @@
         return id;
     }
 
+    // UX mirror of the server rule kind c64 <=> charset petscii: a C64 entry always stores petscii, every other kind
+    // one of the selectable character sets.
+    function charsetFor(kind, charset) {
+        if (kind === 'c64') return 'petscii';
+        return CHARSET_VALUES.indexOf(charset) >= 0 ? charset : 'utf8';
+    }
+
     // Exactly the stored keys (id, name, description, protocol, host, port, kind, charset, user, host_key);
     // directory-only fields (own, category, description_key) are dropped, empty optional ones left out.
     function storable(entry) {
@@ -73,7 +80,7 @@
         out.port = Number(source.port) || 0;
         if (protocol === 'telnet') {
             out.kind = KINDS.indexOf(source.kind) >= 0 ? source.kind : 'bbs';
-            out.charset = CHARSET_VALUES.indexOf(source.charset) >= 0 ? source.charset : 'utf8';
+            out.charset = charsetFor(out.kind, source.charset);
         } else {
             out.user = String(source.user || '');
             if (source.host_key) out.host_key = String(source.host_key);
@@ -192,7 +199,7 @@
         draft.port = /^[0-9]{1,5}$/.test(portText) ? Number(portText) : NaN;
         if (protocol === 'telnet') {
             draft.kind = KINDS.indexOf(value('kind')) >= 0 ? value('kind') : 'bbs';
-            draft.charset = CHARSET_VALUES.indexOf(value('charset')) >= 0 ? value('charset') : 'utf8';
+            draft.charset = charsetFor(draft.kind, value('charset'));
         } else {
             draft.user = value('user').trim();
         }
@@ -446,13 +453,18 @@
         const entry = opts.entry ? storable(opts.entry) : null;
         const own = ownList(opts.ownEntries);
         const onSaved = typeof opts.onSaved === 'function' ? opts.onSaved : function () {};
-        const kind = entry && entry.kind === 'world' ? 'world' : 'bbs';
-        const charset = entry && entry.charset ? entry.charset : (kind === 'bbs' ? 'cp437' : 'utf8');
+        const kind = entry && KINDS.indexOf(entry.kind) >= 0 ? entry.kind : 'bbs';
+        // A C64 entry's petscii is no option of the select: it starts on the default of the other types.
+        const charset = entry && entry.charset && kind !== 'c64' ? entry.charset : (kind === 'world' ? 'utf8' : 'cp437');
         const fields = {
             name: textInput('name', entry ? entry.name : '', { required: '' }),
             description: textInput('description', entry && entry.description ? entry.description : ''),
             protocol: selectInput('protocol', [['telnet', 'Telnet'], ['ssh', 'SSH']], entry ? entry.protocol : 'telnet'),
-            kind: selectInput('kind', [['bbs', tr('desktop.terminal_retronet_type_bbs')], ['world', tr('desktop.terminal_retronet_type_world')]], kind),
+            kind: selectInput('kind', [
+                ['bbs', tr('desktop.terminal_retronet_type_bbs')],
+                ['world', tr('desktop.terminal_retronet_type_world')],
+                ['c64', tr('desktop.terminal_retronet_type_c64')]
+            ], kind),
             charset: selectInput('charset', CHARSETS, charset),
             host: textInput('host', entry ? entry.host : '', { maxlength: '253', inputmode: 'url', autocapitalize: 'none' }),
             port: textInput('port', entry ? String(entry.port) : '23', { type: 'number', min: '1', max: '65535', step: '1', inputmode: 'numeric' }),
@@ -473,13 +485,15 @@
         const title = tr(entry ? 'desktop.terminal_retronet_edit_entry' : 'desktop.terminal_retronet_new_entry');
         const parts = buildDialog(host, entry ? 'edit' : 'new', title, [hint, grid], save, tr, true);
         const state = { busy: false };
-        let charsetTouched = !!entry;
+        let charsetTouched = !!entry && kind !== 'c64';
 
+        // Rows of the other protocol are hidden, and the character set for C64 entries (always PETSCII).
         function syncProtocol() {
             const shown = fields.protocol.value === 'ssh' ? 'ssh' : 'telnet';
+            const c64 = fields.kind.value === 'c64';
             Array.prototype.forEach.call(grid.children, function (row) {
                 const only = row.getAttribute('data-retronet-only');
-                row.hidden = !!only && only !== shown;
+                row.hidden = (!!only && only !== shown) || (c64 && row.getAttribute('data-retronet-field') === 'charset');
             });
         }
 
@@ -489,7 +503,8 @@
             syncProtocol();
         });
         fields.kind.addEventListener('change', function () {
-            if (!charsetTouched) fields.charset.value = fields.kind.value === 'bbs' ? 'cp437' : 'utf8';
+            if (!charsetTouched) fields.charset.value = fields.kind.value === 'world' ? 'utf8' : 'cp437';
+            syncProtocol();
         });
         fields.charset.addEventListener('change', function () { charsetTouched = true; });
         parts.form.addEventListener('submit', function (event) {

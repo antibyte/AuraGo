@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -69,6 +71,57 @@ func TestMQTTConnectionTestHonorsCanceledRequest(t *testing.T) {
 	}
 	if body["status"] != "error" || !strings.Contains(body["message"].(string), "canceled") {
 		t.Fatalf("cancelled test was not reported: %v", body)
+	}
+}
+
+func TestMQTTTestRejectsGET(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = listener.Close() })
+	accepted := make(chan struct{})
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			return
+		}
+		close(accepted)
+		defer conn.Close()
+		_, _ = io.Copy(io.Discard, conn) // hold the socket without sending CONNACK
+	}()
+
+	s := newMQTTConfigTestServer(t)
+	next := s.ConfigSnapshot().Clone()
+	next.MQTT.Enabled = true
+	next.MQTT.Broker = "tcp://" + listener.Addr().String()
+	next.MQTT.ConnectTimeout = 30
+	s.replaceConfigSnapshot(next)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/mqtt/test", nil)
+	done := make(chan struct{})
+	go func() {
+		handleMQTTTest(s).ServeHTTP(rec, req)
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		select {
+		case <-accepted:
+			t.Fatal("GET dialed the broker and waited on the handshake")
+		default:
+			t.Fatal("GET did not return before the broker wait")
+		}
+	}
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusMethodNotAllowed, rec.Body.String())
+	}
+	select {
+	case <-accepted:
+		t.Fatal("GET dialed the broker")
+	default:
 	}
 }
 

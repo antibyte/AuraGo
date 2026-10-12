@@ -157,6 +157,7 @@ func TestTelnetTTYPEAnswerPerKind(t *testing.T) {
 	}{
 		{KindBBS, "ANSI"},
 		{KindWorld, "XTERM-256COLOR"},
+		{KindC64, "PETSCII"},
 	}
 	for _, tc := range tests {
 		t.Run(string(tc.kind), func(t *testing.T) {

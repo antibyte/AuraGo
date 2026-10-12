@@ -19,6 +19,7 @@ function renderWebDAVSection(section) {
         groups: [{ titleKey: 'config.refresh.operation', fields: [
             form.toggle({ label: t('config.webdav.enabled_label'), help: t('help.webdav.enabled'), path: 'webdav.enabled', value: enabled }),
             form.toggle({ label: t('config.webdav.readonly_label'), help: t('help.webdav.read_only'), path: 'webdav.readonly', value: readonly }),
+            form.toggle({ label: t('config.webdav.show_in_filemanager'), help: t('config.webdav.filemanager_help'), path: 'webdav.show_in_filemanager', value: data.show_in_filemanager === true }),
         ] }, { titleKey: 'config.refresh.connection', fields: [
             form.field({ label: t('config.webdav.url_label'), help: t('help.webdav.url'), path: 'webdav.url', value: data.url || '', placeholder: 'https://cloud.example.com/remote.php/dav/files/user/' })
         ] }, { titleKey: 'config.refresh.credentials', fields: [

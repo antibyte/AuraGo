@@ -381,6 +381,17 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 		})
 	}
 
+	// 8b. meshcentral_plaintext — unencrypted HTTP connection
+	if cfg.MeshCentral.Enabled && strings.HasPrefix(strings.ToLower(strings.TrimSpace(cfg.MeshCentral.URL)), "http://") {
+		hints = append(hints, SecurityHint{
+			ID: "meshcentral_plaintext", Severity: SevWarning,
+			Title: "MeshCentral: Plaintext HTTP connection",
+			Description: "meshcentral.url uses unencrypted HTTP. Authentication credentials and control commands " +
+				"are transmitted in plaintext.",
+			AutoFixable: false,
+		})
+	}
+
 	// 9. proxmox_insecure — TLS verification disabled
 	if cfg.Proxmox.Enabled && cfg.Proxmox.Insecure {
 		hints = append(hints, SecurityHint{
@@ -643,6 +654,66 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 		}
 	}
 
+	// 24d. mqtt_relay_untrusted_transport — a broker login over plaintext or
+	// skipped certificate verification. Critical whenever the relay gate is
+	// open on that transport, including when allow_unauthenticated_relay is
+	// the switch that opens it. Warning when a relay or Frigate relay is on
+	// and the gate stays closed. The warning does not say an observer can
+	// start agent runs: the gate is closed, so broker traffic does not.
+	if cfg.MQTT.Enabled && config.MQTTBrokerAuthenticated(cfg) && !config.MQTTRelayTransportTrusted(cfg) {
+		if mqttRelayAuthorized(cfg) {
+			description := "mqtt.allow_unauthenticated_relay is true and a broker login is set, but the broker transport is plaintext or skips TLS certificate verification. " +
+				"An observer on the path can start agent runs through relay_to_agent, the Frigate relays and MQTT-triggered missions. " +
+				"Use mqtts or wss with a verified certificate chain. Set allow_unauthenticated_relay to false unless allow_untrusted_transport: true is an intentional choice to keep the insecure path."
+			if cfg.MQTT.AllowUntrustedTransport {
+				description = "mqtt.allow_untrusted_transport is true and the broker transport is plaintext or skips TLS certificate verification. " +
+					"An observer on the path can start agent runs through relay_to_agent, the Frigate relays and MQTT-triggered missions. " +
+					"Use mqtts or wss with a verified certificate chain; allow_untrusted_transport: true accepts the insecure path."
+			}
+			hints = append(hints, SecurityHint{
+				ID: "mqtt_relay_untrusted_transport", Severity: SevCritical,
+				Title:       "MQTT: agent runs accepted over an untrusted transport",
+				Description: description,
+				AutoFixable: false,
+			})
+		} else if cfg.MQTT.RelayToAgent || mqtt.FrigateRelayEnabled(cfg) {
+			hints = append(hints, SecurityHint{
+				ID: "mqtt_relay_untrusted_transport", Severity: SevWarning,
+				Title: "MQTT: relay refused over an untrusted transport",
+				Description: "relay_to_agent or a Frigate relay is enabled, but the broker transport is plaintext or skips TLS certificate verification " +
+					"and mqtt.allow_untrusted_transport is false, so AuraGo does not start agent runs from broker messages. " +
+					"Use mqtts or wss with a verified certificate chain; allow_untrusted_transport: true accepts the insecure path.",
+				AutoFixable: false,
+			})
+		}
+	}
+
+	// 24e. mqtt_relay_password_missing — username set, resolved password empty,
+	// relay gate open. Callers pass the snapshot after password resolution.
+	// An empty password is a real warning. The password value is never logged.
+	if cfg.MQTT.Enabled && strings.TrimSpace(cfg.MQTT.Username) != "" && cfg.MQTT.Password == "" && mqttRelayAuthorized(cfg) {
+		hints = append(hints, SecurityHint{
+			ID: "mqtt_relay_password_missing", Severity: SevWarning,
+			Title: "MQTT: broker password is missing",
+			Description: "mqtt.username is set and the relay gate is open, but the resolved broker password is empty. " +
+				"A username without a password still counts as a broker login, so broker traffic can start agent runs. " +
+				"Store the broker password in the Vault.",
+			AutoFixable: false,
+		})
+	}
+
+	// 24a. frigate_mqtt_prefix — a relay that cannot name a literal topic must not subscribe.
+	if cfg.Frigate.Enabled && (cfg.Frigate.EventRelay || cfg.Frigate.ReviewRelay) {
+		if _, ok := mqtt.FrigateLiteralPrefix(cfg); !ok {
+			hints = append(hints, SecurityHint{
+				ID: "frigate_mqtt_prefix", Severity: SevWarning,
+				Title:       "Frigate: MQTT topic prefix is not literal",
+				Description: frigateMQTTPrefixHint(cfg.Frigate.MQTTTopicPrefix),
+				AutoFixable: false,
+			})
+		}
+	}
+
 	// 24b. sip_auto_answer_all_interfaces / sip_wildcard_callers_cidr_peers — an
 	// auto-answering agent route reachable on every interface, or a wildcard caller
 	// list whose only network check is a whole subnet.
@@ -882,6 +953,18 @@ func fritzBoxAnyGroupWritable(cfg *config.Config) bool {
 		(fb.Telephony.Enabled && !fb.Telephony.ReadOnly) ||
 		(fb.SmartHome.Enabled && !fb.SmartHome.ReadOnly) ||
 		(fb.Storage.Enabled && !fb.Storage.ReadOnly)
+}
+
+func frigateMQTTPrefixHint(prefix string) string {
+	description := "A Frigate event or review relay is enabled, but frigate.mqtt_topic_prefix is not a literal MQTT topic. AuraGo does not subscribe to it and does not start an agent run from it."
+	if strings.ContainsAny(prefix, "+#") || strings.ContainsRune(prefix, 0) {
+		return description
+	}
+	trimmed := strings.TrimSpace(prefix)
+	if trimmed == "" || len(trimmed) > 200 {
+		return description
+	}
+	return description + " Configured prefix: " + trimmed + "."
 }
 
 func pythonSandboxReady(cfg *config.Config) bool {

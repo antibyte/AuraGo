@@ -29,6 +29,8 @@ func TestSQLiteDatabasePathsIncludesConfiguredAndDataDirDatabases(t *testing.T) 
 		filepath.Join(dataDir, GalaxaDBFilename):       true,
 		filepath.Join(dataDir, DesktopStoreDBFilename): true,
 		filepath.Join(dataDir, TresorDBFilename):       true,
+		// Retro Games keeps favorites, plays and broken markers in its index.
+		filepath.Join(dataDir, "retrogames", "retrogames.db"): true,
 	}
 
 	for _, path := range got {
@@ -42,6 +44,53 @@ func TestSQLiteDatabasePathsIncludesConfiguredAndDataDirDatabases(t *testing.T) 
 	}
 	if containsPath(got, cfg.SQLite.LongTermPath) {
 		t.Fatalf("legacy long_term_path should be omitted when file does not exist: %v", got)
+	}
+}
+
+func TestIsBestEffortSQLiteBackupOnlyForTheRetroGamesIndex(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	dataDir := filepath.Join(root, "data")
+	cfg := &Config{}
+	cfg.Directories.DataDir = dataDir
+	cfg.SQLite.ShortTermPath = filepath.Join(dataDir, "short_term.db")
+
+	index := filepath.Join(dataDir, "retrogames", "retrogames.db")
+	if !IsBestEffortSQLiteBackup(cfg, index) {
+		t.Fatalf("%s must be best-effort", index)
+	}
+	if !IsBestEffortSQLiteBackup(cfg, filepath.Join(dataDir, "retrogames", ".", "retrogames.db")) {
+		t.Fatal("an uncleaned spelling of the index path must match")
+	}
+	for _, path := range append(SQLiteDatabasePaths(cfg), filepath.Join(dataDir, "retrogames.db"), filepath.Join(dataDir, "retrogames", "other.db"), "") {
+		if path == index {
+			continue
+		}
+		if IsBestEffortSQLiteBackup(cfg, path) {
+			t.Fatalf("%q must keep the fail-the-backup policy", path)
+		}
+	}
+	if !containsPath(SQLiteDatabasePaths(cfg), index) {
+		t.Fatalf("the best-effort index must still be backed up: %v", SQLiteDatabasePaths(cfg))
+	}
+
+	// A relative data_dir matches the absolute path the backup works with.
+	rel := &Config{}
+	rel.Directories.DataDir = filepath.Join("data", "dir")
+	abs, err := filepath.Abs(filepath.Join("data", "dir", "retrogames", "retrogames.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !IsBestEffortSQLiteBackup(rel, abs) {
+		t.Fatalf("relative data_dir: %s must be best-effort", abs)
+	}
+
+	if IsBestEffortSQLiteBackup(nil, index) {
+		t.Fatal("nil config must match nothing")
+	}
+	if IsBestEffortSQLiteBackup(&Config{}, filepath.Join("retrogames", "retrogames.db")) {
+		t.Fatal("without a data_dir nothing is best-effort")
 	}
 }
 

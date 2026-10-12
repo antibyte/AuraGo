@@ -4,6 +4,9 @@
     // Display widths follow the vendored xterm's default Unicode 6 table only (emoji are one cell there).
     const ELLIPSIS = '\u2026';
 
+    // Separator of the key hints in one translated help string (a middle dot between spaces).
+    const HINT_SEPARATOR = ' \xb7 ';
+
     // Zero-width ranges of xterm's default Unicode 6 provider (vendored xterm.js, after Markus Kuhn's wcwidth).
     const ZERO_WIDTH = [
         0x300, 0x36f, 0x483, 0x486, 0x488, 0x489, 0x591, 0x5bd, 0x5bf, 0x5bf, 0x5c1, 0x5c2, 0x5c4, 0x5c5,
@@ -110,5 +113,60 @@
         return pad ? out + ' '.repeat(limit - used) : out;
     }
 
-    window.TerminalText = { cellWidth: cellWidth, fitToCells: fitToCells, printable: printable };
+    // Display width in xterm cells of the text without its control characters (shared by the directory, the line
+    // editor of the session and the hint packing).
+    function cells(value) {
+        let width = 0;
+        for (const ch of printable(value)) width += cellWidth(ch.codePointAt(0));
+        return width;
+    }
+
+    // Packs the middle-dot-separated key hints of one translated string into as few lines of at most `width`
+    // cells as fit (directory help, C64 key hint); a hint longer than a line is cut with an ellipsis.
+    function wrapHints(value, width) {
+        const lines = [];
+        printable(value).split(HINT_SEPARATOR).forEach(function (part) {
+            const last = lines.length - 1;
+            if (last >= 0 && cells(lines[last] + HINT_SEPARATOR + part) <= width) lines[last] += HINT_SEPARATOR + part;
+            else lines.push(fitToCells(part, width));
+        });
+        return lines;
+    }
+
+    // Text to read (notices, result lines) in lines of at most `width` cells (at least one), packed greedily at
+    // spaces. Nothing is cut: a word wider than a line is split at cell boundaries, never inside a cluster, so text
+    // without spaces (Chinese, Japanese) simply breaks where the line is full. A single cluster wider than `width`
+    // (a two-cell character at width 1) still gets a line of its own, the one line wider than `width`. Empty text
+    // is one empty line.
+    function wrapWords(value, width) {
+        const limit = Math.max(1, Math.floor(Number(width) || 0));
+        const lines = [''];
+        let used = 0;
+        function put(text, size, fresh) {
+            if (used && (fresh || used + size > limit)) {
+                lines.push('');
+                used = 0;
+            }
+            lines[lines.length - 1] += text;
+            used += size;
+        }
+        printable(value).split(' ').forEach(function (word) {
+            if (!word) return;
+            if (used && used + 1 + cells(word) <= limit) put(' ' + word, 1 + cells(word));
+            else clusters(word).forEach(function (part, index) { put(part.text, part.width, index === 0); });
+        });
+        return lines;
+    }
+
+    // Translated parts read out as one announcement, joined by spaces with control characters stripped. A part
+    // gets an ASCII full stop only when it does not already end with sentence punctuation: . ! ? or the ellipsis,
+    // the Devanagari danda, or the CJK/fullwidth full stop, exclamation and question marks.
+    function sentences(parts) {
+        return parts.map(function (part) {
+            const text = printable(part).trim();
+            return /[.!?\u2026\u0964\u3002\uff01\uff0e\uff1f]$/.test(text) ? text : text + '.';
+        }).join(' ');
+    }
+
+    window.TerminalText = { cellWidth: cellWidth, cells: cells, fitToCells: fitToCells, printable: printable, sentences: sentences, wrapHints: wrapHints, wrapWords: wrapWords };
 })();

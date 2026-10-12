@@ -8,6 +8,8 @@ func roleToolRestriction(tc ToolCall, dc *DispatchContext) string {
 	isCoAgent := dc.IsCoAgent || isCoAgentSession(sessionID)
 	if isCoAgent {
 		switch tc.Action {
+		case "correct_memory":
+			return `Tool Output: {"status":"policy_denied","message":"Only the main agent can correct memory."}`
 		case "manage_memory", "core_memory":
 			if tc.Operation != "read" && tc.Operation != "query" && tc.Operation != "" {
 				return `Tool Output: {"status": "policy_denied", "message": "Co-Agents cannot modify memory. Only read/query operations are allowed."}`

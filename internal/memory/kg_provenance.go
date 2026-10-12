@@ -116,6 +116,9 @@ func (kg *KnowledgeGraph) AddEdgeWithProvenance(source, target, relation string,
 	}
 	defer tx.Rollback()
 
+	if err := checkGraphCorrectionGuard(tx, MemoryReference{Store: "kg_edge", ID: source, Target: target, Relation: relation}, target); err != nil {
+		return nil, err
+	}
 	for _, id := range []string{source, target} {
 		if err := ensureKnowledgeGraphPlaceholderNodeTx(tx, id); err != nil {
 			kg.logger.Warn("AddEdgeWithProvenance: failed to ensure node exists", "id", id, "error", err)

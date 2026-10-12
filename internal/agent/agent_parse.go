@@ -1807,7 +1807,7 @@ func runGitCommand(dir string, args ...string) ([]byte, error) {
 }
 
 // handleWebhookToolCall processes manage_webhooks tool calls.
-func handleWebhookToolCall(req manageWebhooksArgs, mgr *webhooks.Manager, logger *slog.Logger) string {
+func handleWebhookToolCall(req manageWebhooksArgs, mgr *webhooks.Manager, vault webhooks.SignatureSecretStore, logger *slog.Logger) string {
 	switch req.Operation {
 	case "list":
 		list := mgr.List()
@@ -1873,7 +1873,7 @@ func handleWebhookToolCall(req manageWebhooksArgs, mgr *webhooks.Manager, logger
 		if req.ID == "" {
 			return `Tool Output: {"status":"error","message":"id is required"}`
 		}
-		err := mgr.Delete(req.ID)
+		err := mgr.DeleteWithSignatureSecret(vault, req.ID)
 		if err != nil {
 			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err)
 		}

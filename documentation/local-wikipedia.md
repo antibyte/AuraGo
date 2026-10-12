@@ -258,18 +258,22 @@ and an administrator installs an edition under **Config > Local Wikipedia**.
   become Markdown tables (at most 50 rows), and reference lists, navigation boxes
   and edit links are removed.
 
-**Answer size.** AuraGo moves a tool answer that is larger than
-`agent.output_compression.reversible.max_inline_chars` (default 6,000, counted in
-bytes of the answer as the model receives it) into the output vault, and the
-model then sees only its start. The tool therefore sizes every answer to that
-limit (or to `agent.tool_output_limit` when it is smaller): a search first
+**Answer size.** AuraGo moves a tool answer that is larger than the inline limit
+`agent.output_compression.reversible.max_inline_chars` (counted in bytes of the
+answer as the model receives it; by default automatic, 6,000 bytes for small or
+unknown model contexts and up to 32,000 for large ones, see
+[output_compression.md](output_compression.md)) into the output vault, and the
+model then sees only part of it. The tool therefore sizes every answer to the
+limit of the current request (or to `agent.tool_output_limit` when it is
+smaller): a search first
 shortens the leads, then gives fewer results a lead, then shortens snippets and
 only at last drops results; a read gives the section list at most a third of the
 room and shortens the page. Non-Latin scripts take two to three bytes per
 character, so a page of a Hindi or Chinese article holds about 1,500
-characters at the default, a German or English page about 3,500–4,000. Offsets
-stay in characters, so the agent simply continues with `next_offset`. Raise
-`max_inline_chars` for longer pages.
+characters at 6,000 bytes, a German or English page about 3,500–4,000; models
+with larger contexts get proportionally longer pages. Offsets stay in
+characters, so the agent simply continues with `next_offset`. A fixed
+`max_inline_chars` overrides the automatic limit.
 
 Tool output is marked as external data, like web content. The agent is told to
 prefer `local_wikipedia` over the online `wikipedia_search` tool and web search for

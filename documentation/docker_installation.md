@@ -67,9 +67,29 @@ That's it!
 - Otherwise AuraGo auto-generates a key and stores it in `/app/data/.env` inside the persistent volume.
 - A default config is generated inside the container from the built-in template.
 - The Docker socket proxy (`docker-proxy`) starts automatically and provides safe, filtered access to the host Docker daemon.
-- The Web UI is now available at `http://<your-server-ip>:8088`.
+- The Web UI is now available at `https://<your-server-ip>:8443`.
 
 Open the Web UI to finish setting up your LLM Provider and API keys!
+
+Fresh configs use an automatically generated local certificate on **container
+port 8443**. Verify the certificate and configure browser/device trust if
+needed. Compose publishes **8443** by default. Set
+`AURAGO_HTTPS_PORT=443` in the Compose `.env` file only when host port 443 is
+free, then open `https://<your-server-ip>`. Otherwise open
+`https://<your-server-ip>:8443`. Compose does not choose a different host port
+automatically.
+
+Existing or user-supplied configurations retain their transport and ports;
+the `8088:8088` mapping supports existing HTTP installs. In fresh HTTPS mode,
+8088 is only the container's internal loopback HTTP listener. If you supply a
+custom HTTPS config, align its internal port with the Compose mapping (8443).
+The Docker healthcheck uses AuraGo's CLI and supports both HTTPS with local
+certificates and HTTP Egg instances on their configured port.
+
+When changing transport or ports later, adjust Docker mappings as well. A
+mapped public port is retained in the browser; AuraGo cannot infer arbitrary
+host mappings. See [HTTPS configuration](https.md).
+
 
 Quick Connect can also use serial hardware attached to the AuraGo server. The
 Docker service does not receive device access by default. To pass one through,
@@ -83,7 +103,7 @@ your Compose override; see [Quick Connect serial access](quick-connect-serial.md
 > docker logs aurago 2>&1 | grep bootstrap_token
 > ```
 >
-> The log line also contains a path like `/setup#bootstrap=<token>`. Open `http://<your-server-ip>:8088` followed by that path and the wizard fills in the token for you. Each restart creates a new token, and it stops working once setup is finished.
+> The log line also contains a path like `/setup#bootstrap=<token>`. Open `https://<your-server-ip>` followed by that path and the wizard fills in the token for you. Each restart creates a new token, and it stops working once setup is finished.
 
 ---
 
@@ -145,7 +165,7 @@ Deploy the stack.
 - Persistent volumes for `/app/data` and `/app/agent_workspace/workdir` are automatically created.
 
 ### Step 5: Configure via Web UI
-Access the Web UI at `http://<your-server-ip>:8088` and navigate to the **CONFIG** tab to finish setting up your AI agent. The setup wizard asks for the one-time setup token from the container log (entry `bootstrap_token`, visible in the container's log view in Dockge/Portainer).
+Access the Web UI at `https://<your-server-ip>` and navigate to the **CONFIG** tab to finish setting up your AI agent. The setup wizard asks for the one-time setup token from the container log (entry `bootstrap_token`, visible in the container's log view in Dockge/Portainer).
 
 > [!NOTE]
 > Your `AURAGO_MASTER_KEY` is either stored in `secrets/aurago_master.key` on the host or auto-generated into `data/.env` inside the Docker volume. THIS KEY ENCRYPTS THE AGENT'S SECRET VAULT. BACK IT UP OR YOU WILL NOT BE ABLE TO MOVE THE VAULT TO ANOTHER SERVER!

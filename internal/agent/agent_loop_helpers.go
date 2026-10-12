@@ -760,10 +760,35 @@ func adaptiveRefreshExcludedTools(initFiltered bool, requested map[string]bool) 
 // tool and token caps and can push out a tool the query offered before the
 // optional tool existed, while an additive tool never does.
 func adaptiveAdditiveToolsForQuery(userQuery string) []string {
-	if isEncyclopediaIntent(normalizeAdaptiveIntentText(userQuery)) {
-		return []string{"local_wikipedia"}
+	normalized := normalizeAdaptiveIntentText(userQuery)
+	var out []string
+	if isEncyclopediaIntent(normalized) {
+		out = append(out, "local_wikipedia")
 	}
-	return nil
+	if isRetroGamesIntent(normalized) {
+		out = append(out, "retro_games")
+	}
+	return out
+}
+
+// isRetroGamesIntent offers the retro_games tool when the user talks about
+// retro or arcade games, old or classic games, or classic home computers and
+// consoles. A term matches only at the start of a word, so hex digests
+// ("3fc64a9d"), architectures ("ppc64le") and words such as "omega drive" or
+// "ddos game" stay out. A bare "retro" is not a term: AuraGo has an unrelated
+// Retro-Net app.
+func isRetroGamesIntent(normalizedQuery string) bool {
+	padded := " " + normalizedQuery
+	for _, term := range []string{
+		"retro spiel", "retrospiel", "retro game", "retrogame", "arcade", "spielhalle",
+		"old game", "classic game", "alte spiele", "altes spiel", "spieleklassiker", "klassiker spiel",
+		"dos game", "dos spiel", "c64", "commodore", "amiga", "atari", "zx spectrum", "mega drive", "megadrive",
+	} {
+		if strings.Contains(padded, " "+term) {
+			return true
+		}
+	}
+	return false
 }
 
 // isEncyclopediaIntent offers the offline Wikipedia tool when the user asks

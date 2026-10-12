@@ -571,5 +571,7 @@
   "config.section.optimizations.group.token_context": "Token 与上下文",
   "config.section.optimizations.group.tool_context": "工具上下文",
   "config.section.optimizations.group.tool_optimization": "工具优化",
-  "config.section.optimizations.group.tool_visibility": "工具可见性"
+  "config.section.optimizations.group.tool_visibility": "工具可见性",
+  "config.section.gog.label": "通过 gog 访问 Google Workspace",
+  "config.section.gog.desc": "在原生集成之外使用独立的 Google 账号。"
 }

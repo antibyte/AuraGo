@@ -290,6 +290,7 @@ func ExecuteMinimalLoop(
 
 		for _, tc := range msg.ToolCalls {
 			dispatchCtx.ToolDetailFits = toolDetailBudgetCheck(prepared.Budget, req)
+			dispatchCtx.inlineBasis = inlineBudgetBasis{InputTokens: prepared.Budget.minInputLimit(), BatchCalls: len(msg.ToolCalls)}
 			toolResult := "Tool Output: {\"status\":\"error\",\"code\":\"tool_call_limit\"}"
 			if opts == nil || opts.MaxToolCalls <= 0 || result.ToolCalls < opts.MaxToolCalls {
 				toolResult = executeMinimalToolCall(ctx, tc, dispatchCtx, userPrompt, logger)

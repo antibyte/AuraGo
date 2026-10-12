@@ -134,6 +134,7 @@ func (s *Server) buildUptimeKumaRunConfig() agent.RunConfig {
 		Manifest:           tools.NewManifest(cfg.Directories.ToolsDir),
 		CronManager:        s.CronManager,
 		MissionManagerV2:   s.MissionManagerV2,
+		WebhookManager:     s.WebhookManager,
 		CoAgentRegistry:    s.CoAgentRegistry,
 		BudgetTracker:      s.BudgetTracker,
 		DaemonSupervisor:   s.DaemonSupervisor,

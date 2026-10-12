@@ -128,6 +128,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		injectCYDCreatorDefaults(rawCfg, s.Cfg)
 		injectHereNowDefaults(rawCfg, s.Cfg)
 		injectMQTTRelayDefaults(rawCfg, s.ConfigSnapshot())
+		injectRetroNetDefault(rawCfg, s.ConfigSnapshot())
 		injectTregDefaults(rawCfg, s.Cfg)
 
 		// Mask sensitive fields
@@ -165,12 +166,12 @@ func injectHereNowDefaults(rawCfg map[string]interface{}, cfg *config.Config) {
 	section["default_account"] = cfg.HereNow.DefaultAccount
 }
 
-// injectMQTTRelayDefaults exposes the effective mqtt.allow_unauthenticated_relay.
-// A config the merger has not rewritten yet lacks the key while config.Load
-// grandfathers it to true for an enabled anonymous broker; showing the raw
-// absence as "off" would make the next MQTT save write false and refuse
-// relays that were running. The effective value equals an explicit key and
-// otherwise matches what config-merger writes.
+// injectMQTTRelayDefaults exposes the effective mqtt.allow_unauthenticated_relay
+// and mqtt.allow_untrusted_transport. A config the merger has not rewritten yet
+// lacks a key while config.Load grandfathers it; showing the raw absence as
+// "off" would make the next MQTT save write false and refuse relays that were
+// running. Each effective value equals an explicit key and otherwise matches
+// what config-merger writes.
 func injectMQTTRelayDefaults(rawCfg map[string]interface{}, cfg *config.Config) {
 	if cfg == nil {
 		return
@@ -181,6 +182,26 @@ func injectMQTTRelayDefaults(rawCfg map[string]interface{}, cfg *config.Config) 
 		rawCfg["mqtt"] = section
 	}
 	section["allow_unauthenticated_relay"] = cfg.MQTT.AllowUnauthenticatedRelay
+	section["allow_untrusted_transport"] = cfg.MQTT.AllowUntrustedTransport
+}
+
+// injectRetroNetDefault exposes the effective virtual_desktop.retronet_enabled
+// when the raw YAML has no boolean for it (key missing, null or an unusual
+// spelling). config.Load turns Retro-Net on by default, so showing the absence
+// as "off" would make the next Virtual Desktop save write false. A written
+// true or false is shown as it is.
+func injectRetroNetDefault(rawCfg map[string]interface{}, cfg *config.Config) {
+	if cfg == nil {
+		return
+	}
+	section, ok := rawCfg["virtual_desktop"].(map[string]interface{})
+	if !ok {
+		section = make(map[string]interface{})
+		rawCfg["virtual_desktop"] = section
+	}
+	if _, explicit := section["retronet_enabled"].(bool); !explicit {
+		section["retronet_enabled"] = cfg.VirtualDesktop.RetroNetEnabled
+	}
 }
 
 func injectGo2RTCConfig(rawCfg map[string]interface{}, cfg *config.Config, vault *security.Vault) {
@@ -648,6 +669,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			})
 			return
 		}
+		if err := config.ValidateRuViewConfig(validateCfg.RuView, runtimeSnapshot.IsDocker); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		if go2RTCErr := validateGo2RTCSettings(validateCfg.Go2RTC, runtimeSnapshot, s.Vault); go2RTCErr != nil {
 			s.Logger.Error("[Config] Invalid go2rtc settings — save rejected", "error", go2RTCErr)
 			w.Header().Set("Content-Type", "application/json")
@@ -720,7 +745,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			// Only run the bind-test if HTTPS is being switched on or the port changed
 			runBindTest := !currentHTTPS || (currentPort != httpsPort)
 			if runBindTest {
-				if ln, bindErr := net.Listen("tcp", fmt.Sprintf(":%d", httpsPort)); bindErr != nil {
+				if ln, bindErr := net.Listen("tcp", net.JoinHostPort(validateCfg.Server.Host, fmt.Sprint(httpsPort))); bindErr != nil {
 					errMsg := bindErr.Error()
 					var userMsg string
 					if strings.Contains(errMsg, "permission denied") || strings.Contains(errMsg, "access is denied") {
@@ -809,6 +834,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		fileIndexerEnabledAfterReload := false
 		restartAgentMailAfterUnlock := false
 		syncMCPAfterUnlock := false
+		var mcpGeneration uint64
 		bluetoothChanged := false
 		networkSharesChanged := false
 		go2RTCChanged := false
@@ -935,6 +961,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 
 			// Apply hot-reload by publishing a new immutable config snapshot after
 			// all synchronous auto-detection adjustments are complete.
+			if !reflect.DeepEqual(oldCfg.Agent, newCfg.Agent) || !reflect.DeepEqual(oldCfg.Docker, newCfg.Docker) || !reflect.DeepEqual(oldCfg.Sandbox, newCfg.Sandbox) || !reflect.DeepEqual(oldCfg.MCP, newCfg.MCP) || !reflect.DeepEqual(oldCfg.Dograh, newCfg.Dograh) {
+				syncMCPAfterUnlock = true
+				mcpGeneration = shutdownExternalMCPManager()
+			}
 			s.replaceConfigSnapshot(newCfg)
 			cfFinish(true)
 			tools.ConfigureRuntimePermissions(tools.RuntimePermissionsFromConfig(newCfg))
@@ -1139,9 +1169,6 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			newDograhRuntime.APIKey = ""
 			newDograhRuntime.AuraGoMCPToken = ""
 			dograhRuntimeChanged := !reflect.DeepEqual(oldDograhRuntime, newDograhRuntime) || oldCfg.Docker.Host != newCfg.Docker.Host || oldCfg.Runtime.IsDocker != newCfg.Runtime.IsDocker
-			if dograhChanged || oldCfg.Agent.AllowMCP != newCfg.Agent.AllowMCP || !reflect.DeepEqual(oldCfg.MCP, newCfg.MCP) {
-				syncMCPAfterUnlock = true
-			}
 			if dograhChanged && newCfg.Docker.Enabled && newCfg.Dograh.Enabled && newCfg.Dograh.AutoStart && strings.EqualFold(newCfg.Dograh.Mode, "managed") {
 				if err := s.ensureDograhSecrets(newCfg); err != nil {
 					s.Logger.Warn("[Config UI] Failed to ensure Dograh secrets", "error", err)
@@ -1496,7 +1523,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		}
 		if loadErr == nil && discordChanged && newCfg != nil && !newCfg.EggMode.Enabled {
 			discord.StopBot(s.Logger)
-			discord.StartBot(newCfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.budgetTrackerSnapshot)
+			discord.StartBot(newCfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.budgetTrackerSnapshot, s.WebhookManager)
 			s.Logger.Info("[Config UI] Discord bot hot-reloaded", "enabled", newCfg.Discord.Enabled)
 		}
 		if loadErr == nil && uptimeKumaChanged {
@@ -1524,7 +1551,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			s.Logger.Info("[Config UI] AgentMail relay hot-reloaded", "enabled", newCfg.AgentMail.Enabled, "relay", newCfg.AgentMail.RelayToAgent)
 		}
 		if loadErr == nil && syncMCPAfterUnlock && newCfg != nil {
-			syncExternalMCPRuntime(newCfg, s.Vault, s.Logger)
+			syncExternalMCPRuntime(newCfg, s.Vault, s.Logger, mcpGeneration)
 		}
 		if loadErr == nil && newCfg != nil {
 			optimizer.SetEnabled(newCfg.Agent.OptimizerEnabled)
@@ -1551,12 +1578,17 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
+		if newCfg != nil && oldCfg.Server.HTTPS.Enabled && !newCfg.Server.HTTPS.Enabled && r.TLS != nil {
+			w.Header().Set("Strict-Transport-Security", "max-age=0")
+		}
 		if needsRestart {
 			msg := fmt.Sprintf("Gespeichert. Neustart nötig für: %s", strings.Join(restartReasons, ", "))
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":             "saved",
 				"message":            msg,
 				"needs_restart":      true,
+				"restart_url":        configRestartURL(r, &oldCfg, newCfg),
+				"restart_from":       configRequestOrigin(r),
 				"restart_reason":     restartReasons,
 				"embeddings_changed": embeddingsChanged,
 			})
@@ -2293,6 +2325,7 @@ var vaultKeyMap = map[string]string{
 	"s3.secret_key":                           "s3_secret_key",
 	"proxmox.secret":                          "proxmox_secret",
 	"frigate.api_token":                       "frigate_api_token",
+	"ruview.api_token":                        "ruview_api_token",
 	"github.token":                            "github_token",
 	"rocketchat.auth_token":                   "rocketchat_auth_token",
 	"mqtt.password":                           "mqtt_password",

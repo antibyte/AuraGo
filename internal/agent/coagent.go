@@ -22,6 +22,7 @@ import (
 	"aurago/internal/prompts"
 	"aurago/internal/security"
 	"aurago/internal/tools"
+	"aurago/internal/webhooks"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -161,6 +162,7 @@ func SpawnCoAgent(
 	req CoAgentRequest,
 	budgetTracker *budget.Tracker,
 	progressSink coAgentProgressBroadcaster,
+	webhookManager *webhooks.Manager,
 ) (string, CoAgentState, error) {
 	if !cfg.CoAgents.Enabled {
 		return "", "", fmt.Errorf("co-agent system is disabled — set co_agents.enabled=true in config.yaml")
@@ -312,6 +314,7 @@ func SpawnCoAgent(
 			IsCoAgent:         true,
 			CoAgentSpecialist: req.Specialist,
 			CoAgentTokenLimit: maxTokensBudget,
+			WebhookManager:    webhookManager,
 		}
 		addendumID := prompts.PromptAddendumCoAgent
 		if req.Specialist != "" {

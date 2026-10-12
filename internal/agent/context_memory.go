@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,9 +16,10 @@ import (
 )
 
 type memorySourceResult struct {
-	Source string      `json:"source"`
-	Count  int         `json:"count"`
-	Data   interface{} `json:"data"`
+	References []memory.MemoryReference `json:"references,omitempty"`
+	Source     string                   `json:"source"`
+	Count      int                      `json:"count"`
+	Data       interface{}              `json:"data"`
 }
 
 type memorySearchBundle struct {
@@ -147,6 +149,8 @@ func normalizeMemorySourceMap(sources []string, defaults map[string]bool) map[st
 	}
 
 	aliases := map[string]string{
+		"profile":         "profile",
+		"user_profile":    "profile",
 		"activity":        "activity",
 		"conversation":    "conversation",
 		"journal":         "journal",
@@ -201,6 +205,9 @@ func gatherMemoryInventoryResults(tc ToolCall, shortTermMem *memory.SQLiteMemory
 	}
 	appendResult := func(source string, count int, data interface{}) {
 		bundle.Results = append(bundle.Results, memorySourceResult{Source: labelFor(source), Count: count, Data: data})
+	}
+	if bundle.SourceMap["profile"] {
+		appendCorrectionProfileResults(shortTermMem, "", perSourceLimit, &bundle)
 	}
 
 	if bundle.SourceMap["ltm"] && longTermMem != nil {
@@ -374,10 +381,14 @@ func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *
 	}
 	searchContent = strings.TrimSpace(bundle.NormalizedQuery)
 	hasSemanticQuery := searchContent != ""
+	if bundle.SourceMap["profile"] {
+		appendCorrectionProfileResults(shortTermMem, searchContent, perSourceLimit, &bundle)
+	}
 
 	if bundle.SourceMap["activity"] && shortTermMem != nil {
+		before := len(bundle.Results)
 		appendActivityResults(shortTermMem, searchContent, bundle.TemporalRange.FromDate, bundle.TemporalRange.ToDate, perSourceLimit, &bundle.Results, &bundle.Errors)
-		if len(bundle.Results) > 0 {
+		if len(bundle.Results) > before {
 			bundle.Results[len(bundle.Results)-1].Source = labelFor("activity")
 		}
 		if includeActivityRollups && (isActivityFocusedQuery(tc.Query) || isActivityFocusedQuery(tc.Content) || bundle.HasTemporalRange) {
@@ -400,16 +411,17 @@ func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *
 				if err != nil {
 					bundle.Errors = append(bundle.Errors, fmt.Sprintf("%s: %v", labelFor("ltm"), err))
 				} else if len(results) > 0 {
-					bundle.Results = append(bundle.Results, memorySourceResult{Source: labelFor("ltm"), Count: len(results), Data: results})
+					bundle.Results = append(bundle.Results, memorySourceResult{Source: labelFor("ltm"), Count: len(results), Data: results, References: correctionVectorReferences(docIDs, shortTermMem, longTermMem)})
 				}
 			}
 		}
 	}
 
 	if bundle.SourceMap["kg"] && kg != nil && hasSemanticQuery {
-		kgResult := kg.SearchForContext(searchContent, perSourceLimit, 2000)
+		structured := kg.SearchForContextStructured(searchContent, perSourceLimit, 2000)
+		kgResult := structured.FormatContext(2000)
 		if kgResult != "" && kgResult != "No matching entities found." {
-			bundle.Results = append(bundle.Results, memorySourceResult{Source: labelFor("kg"), Count: 1, Data: kgResult})
+			bundle.Results = append(bundle.Results, memorySourceResult{Source: labelFor("kg"), Count: 1, Data: kgResult, References: correctionGraphReferences(structured)})
 		}
 	}
 
@@ -481,7 +493,11 @@ func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *
 				}
 			}
 			if len(matched) > 0 {
-				bundle.Results = append(bundle.Results, memorySourceResult{Source: labelFor("core"), Count: len(matched), Data: matched})
+				refs := make([]memory.MemoryReference, 0, len(matched))
+				for _, fact := range matched {
+					refs = append(refs, memory.MemoryReference{Store: "core", ID: strconv.FormatInt(fact.ID, 10)})
+				}
+				bundle.Results = append(bundle.Results, memorySourceResult{Source: labelFor("core"), Count: len(matched), Data: matched, References: refs})
 			}
 		}
 	}
@@ -529,6 +545,7 @@ func executeQueryMemory(tc ToolCall, sessionID string, shortTermMem *memory.SQLi
 	}
 
 	defaults := map[string]bool{"conversation": true, "activity": true, "ltm": true, "kg": true, "journal": true, "episodic": true, "notes": true, "planner": true, "core": true, "cheatsheets": true, "error_patterns": true}
+	defaults["profile"] = true
 	sourceLabels := map[string]string{"conversation": "conversation", "activity": "activity", "ltm": "vector_db", "kg": "knowledge_graph", "journal": "journal", "episodic": "episodic", "notes": "notes", "planner": "planner", "core": "core_memory", "cheatsheets": "cheatsheets", "error_patterns": "error_patterns"}
 
 	inventoryMode := isMemoryInventoryQuery(searchContent)
@@ -856,7 +873,7 @@ func executeContextMemoryQuery(tc ToolCall, sessionID string, shortTermMem *memo
 	}
 
 	sourceMap := normalizeMemorySourceMap(tc.Sources, map[string]bool{
-		"conversation": true, "activity": true, "journal": true, "notes": true, "planner": true, "core": true, "kg": true, "ltm": true, "cheatsheets": true,
+		"conversation": true, "activity": true, "journal": true, "notes": true, "planner": true, "core": true, "profile": true, "kg": true, "ltm": true, "cheatsheets": true,
 	})
 
 	results := make([]contextMemoryResult, 0, 20)
@@ -909,7 +926,7 @@ func executeContextMemoryQuery(tc ToolCall, sessionID string, shortTermMem *memo
 		plannerDB,
 		cheatsheetDB,
 		perSourceLimit,
-		map[string]bool{"activity": true, "journal": true, "notes": true, "planner": true, "core": true, "kg": true, "ltm": true, "cheatsheets": true},
+		map[string]bool{"activity": true, "journal": true, "notes": true, "planner": true, "core": true, "profile": true, "kg": true, "ltm": true, "cheatsheets": true},
 		map[string]string{"activity": "activity", "journal": "journal", "notes": "notes", "planner": "planner", "core": "core", "kg": "kg", "ltm": "ltm", "cheatsheets": "cheatsheets"},
 		false,
 		memory.TemporalQueryRange{FromDate: fromDate, ToDate: toDate, Label: tc.TimeRange},
@@ -966,6 +983,12 @@ func executeContextMemoryQuery(tc ToolCall, sessionID string, shortTermMem *memo
 				}
 				content += " | at: " + appointment.DateTime
 				addResult("planner", "appointment", content, appointment.DateTime, "Relevant planner appointment matched the query or active time window", appointment.ID, 0.9)
+			}
+		case "user_profile":
+			if entries, ok := result.Data.([]memory.ProfileEntry); ok {
+				for _, entry := range entries {
+					addResult("profile", "field", entry.Category+"/"+entry.Key+": "+entry.Value, entry.UpdatedAt, "Current user profile field", "", 0.86)
+				}
 			}
 		case "core":
 			facts, ok := result.Data.([]memory.CoreMemoryFact)

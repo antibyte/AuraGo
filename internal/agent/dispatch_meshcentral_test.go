@@ -52,7 +52,7 @@ func TestGetMeshCentralClientRebuildsWhenSettingsChange(t *testing.T) {
 	second := newMeshCentralGroupsServer(t, "new-group")
 	defer second.Close()
 
-	client := getMeshCentralClient(first.URL, "admin", "pass", "", true, testLogger)
+	client := getMeshCentralClient(first.URL, "admin", "pass", "", true, "", testLogger)
 	groups, err := client.ListDeviceGroups()
 	if err != nil {
 		t.Fatalf("first ListDeviceGroups: %v", err)
@@ -61,7 +61,7 @@ func TestGetMeshCentralClientRebuildsWhenSettingsChange(t *testing.T) {
 		t.Fatalf("first groups = %#v, want old-group", groups)
 	}
 
-	client = getMeshCentralClient(second.URL, "admin", "pass", "", true, testLogger)
+	client = getMeshCentralClient(second.URL, "admin", "pass", "", true, "", testLogger)
 	groups, err = client.ListDeviceGroups()
 	if err != nil {
 		t.Fatalf("second ListDeviceGroups: %v", err)
@@ -189,6 +189,7 @@ func TestDispatchMeshCentralPowerActionMapsSemanticReset(t *testing.T) {
 	cfg.MeshCentral.URL = server.URL
 	cfg.MeshCentral.Username = "admin"
 	cfg.MeshCentral.Password = "pass"
+	cfg.MeshCentral.AllowPowerActions = true
 
 	output, ok := dispatchServices(context.Background(), ToolCall{
 		Action:    "meshcentral",
@@ -209,10 +210,31 @@ func TestDispatchMeshCentralPowerActionMapsSemanticReset(t *testing.T) {
 	}
 }
 
+func TestDispatchMeshCentralPowerRequiresAllowFlag(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.MeshCentral.Enabled = true
+	cfg.MeshCentral.URL = "http://127.0.0.1:1"
+	cfg.MeshCentral.Username = "admin"
+	cfg.MeshCentral.Password = "pass"
+
+	output, ok := dispatchServices(context.Background(), ToolCall{
+		Action:    "meshcentral",
+		Operation: "wake",
+		NodeID:    "node//dev1",
+	}, &DispatchContext{Cfg: cfg, Logger: testLogger})
+	if !ok {
+		t.Fatalf("expected meshcentral operation to be handled")
+	}
+	if !strings.Contains(output, "allow_power_actions") {
+		t.Fatalf("output = %s, want allow_power_actions block", output)
+	}
+}
+
 func TestDispatchMeshCentralLegacyHibernateIsUnsupported(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.MeshCentral.Enabled = true
 	cfg.MeshCentral.URL = "http://127.0.0.1:1"
+	cfg.MeshCentral.AllowPowerActions = true
 
 	output, ok := dispatchServices(context.Background(), ToolCall{
 		Action:      "meshcentral",
@@ -292,6 +314,13 @@ func newMeshCentralGroupsServer(t *testing.T, groupName string) *httptest.Server
 					"type":       "runcommands",
 					"responseid": responseID,
 					"result":     "ok",
+				})
+			case "wakedevices":
+				_ = ws.WriteJSON(map[string]interface{}{
+					"reqid":      int(reqid),
+					"action":     "wakedevices",
+					"responseid": responseID,
+					"result":     "OK",
 				})
 			case "poweraction":
 				actionType, _ := data["actiontype"].(float64)

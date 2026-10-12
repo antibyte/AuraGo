@@ -17,7 +17,8 @@
 METRICS_DASHBOARD_DATA_SOURCES.md
 # Lock files (runtime)
 *.lock
-!/training/uv.lock
+/training/
+/.training/
 !/tools/aurago-tui/Cargo.lock
 
 # Deploy output
@@ -152,6 +153,7 @@ disposable/
 !/.github/
 /.github/*
 !/.github/dependabot.yml
+!/.github/agotrain-revision
 !/.github/workflows/
 /.github/workflows/*
 !/.github/workflows/*.yml

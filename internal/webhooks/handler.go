@@ -500,6 +500,33 @@ func newInternalWebhookHTTPClient(timeout time.Duration) *http.Client {
 }
 
 func (h *Handler) deliverMessage(prompt string, internalToken string) error {
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		if attempt > 0 {
+			time.Sleep(200 * time.Millisecond)
+		}
+		err := h.postInternalWebhook(prompt, internalToken)
+		if err == nil {
+			return nil
+		}
+		var statusErr *webhookDeliveryStatusError
+		if errors.As(err, &statusErr) {
+			return err
+		}
+		lastErr = err
+	}
+	return lastErr
+}
+
+type webhookDeliveryStatusError struct {
+	status int
+}
+
+func (e *webhookDeliveryStatusError) Error() string {
+	return fmt.Sprintf("agent returned status %d", e.status)
+}
+
+func (h *Handler) postInternalWebhook(prompt string, internalToken string) error {
 	url := h.internalAPIURL() + "/v1/chat/completions"
 	payload := map[string]interface{}{
 		"model":  "aurago",
@@ -530,7 +557,7 @@ func (h *Handler) deliverMessage(prompt string, internalToken string) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		return fmt.Errorf("agent returned status %d", resp.StatusCode)
+		return &webhookDeliveryStatusError{status: resp.StatusCode}
 	}
 	return nil
 }

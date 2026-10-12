@@ -2,15 +2,22 @@ package tools
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
 )
+
+//go:embed sandbox_mcp_launch.py
+var sandboxMCPLaunchSource string
 
 type sandboxConn interface {
 	initialize(ctx context.Context, logger *slog.Logger) error
@@ -25,9 +32,9 @@ type sandboxConnFactory func() (sandboxConn, error)
 
 // ── LLM-Sandbox Integration ────────────────────────────────────────────────
 //
-// Launches the llm-sandbox MCP server (`python3 -m llm_sandbox.mcp_server.server`)
-// as a child process and communicates via the JSON-RPC 2.0 stdio transport
-// (reusing the mcpConn type from mcp.go — same package).
+// Launches the llm-sandbox MCP server through an embedded Python launcher
+// that applies IMAGE before the upstream server starts. The child process
+// uses the JSON-RPC 2.0 stdio transport (reusing the mcpConn type from mcp.go).
 //
 // Environment matrix:
 //   - Docker available  → sandbox runs code in isolated containers (default)
@@ -59,6 +66,7 @@ type SandboxManager struct {
 	workspaceDir string
 	pythonBin    string
 	env          map[string]string
+	launchScript string
 	connFactory  sandboxConnFactory
 	// transportGrace lets the MCP server tear down its container after the
 	// execution deadline. The execution timeout itself is passed separately.
@@ -71,6 +79,10 @@ var (
 	globalSandboxMgr *SandboxManager
 	sandboxMgrMu     sync.RWMutex
 )
+
+// ErrSandboxUnavailable marks a missing, not-ready, or failed-to-start sandbox.
+// Timeouts and code-execution errors stay outside this sentinel.
+var ErrSandboxUnavailable = errors.New("sandbox unavailable")
 
 // InitSandboxManager creates and starts the sandbox MCP server.
 // Call once at startup. On failure the manager is still stored but status.Ready == false,
@@ -100,16 +112,12 @@ func InitSandboxManager(cfg SandboxConfig, workspaceDir string, logger *slog.Log
 		}
 		mgr.status.DockerAvailable = true
 	} else {
-		// Docker: try ping first, fall back to CLI check
 		host := cfg.DockerHost
 		if err := DockerPing(host); err != nil {
-			// Also try docker CLI as fallback
-			if _, lookErr := exec.LookPath("docker"); lookErr != nil {
-				mgr.status.Error = fmt.Sprintf("Docker unreachable: %v", err)
-				logger.Warn("[Sandbox] Docker not available — sandbox disabled", "error", err)
-				registerSandboxSingleton(mgr)
-				return mgr
-			}
+			mgr.status.Error = err.Error()
+			logger.Warn("[Sandbox] Docker not available — sandbox disabled", "error", err)
+			registerSandboxSingleton(mgr)
+			return mgr
 		}
 		mgr.status.DockerAvailable = true
 	}
@@ -149,31 +157,35 @@ func InitSandboxManager(cfg SandboxConfig, workspaceDir string, logger *slog.Log
 	if isSandboxMCPInstalled(pythonBin) {
 		mgr.status.PackageInstalled = true
 	} else {
-		mgr.status.Error = "llm-sandbox MCP extras not installed (set sandbox.auto_install: true or run: pip install 'llm-sandbox[mcp-docker]')"
+		mgr.status.Error = sandboxNotInstalledStatus(cfg.Backend)
 		logger.Warn("[Sandbox] llm-sandbox MCP dependencies not found", "python", pythonBin)
 		registerSandboxSingleton(mgr)
 		return mgr
 	}
 
-	// 4. Build environment variables for the MCP server
-	env := map[string]string{
-		"BACKEND": cfg.Backend,
-	}
-	if cfg.DockerHost != "" {
-		env["DOCKER_HOST"] = cfg.DockerHost
-	}
-	if cfg.Image != "" {
-		env["IMAGE"] = cfg.Image
-	}
-	if !cfg.NetworkEnabled {
-		env["ENABLE_NETWORKING"] = "false"
-	} else {
-		env["ENABLE_NETWORKING"] = "true"
+	// 4. Build environment variables for the MCP server.
+	// A rejected image must leave Ready false and must not start the process.
+	env, err := sandboxProcessEnv(cfg)
+	if err != nil {
+		mgr.status.Error = err.Error()
+		logger.Error("[Sandbox] invalid sandbox configuration", "error", err)
+		registerSandboxSingleton(mgr)
+		return mgr
 	}
 	mgr.env = env
-	args := []string{"-m", "llm_sandbox.mcp_server.server"}
+
+	scriptPath, err := writeSandboxMCPLauncher()
+	if err != nil {
+		mgr.status.Error = err.Error()
+		logger.Error("[Sandbox] MCP launcher setup failed", "error", err)
+		registerSandboxSingleton(mgr)
+		return mgr
+	}
+	mgr.launchScript = scriptPath
+	args := []string{scriptPath}
 	mgr.connFactory = func() (sandboxConn, error) {
-		return newMCPConn("llm-sandbox", mgr.pythonBin, args, mgr.env, logger, "local", "", "")
+		ctx := withContainerSandboxLandlock(context.Background(), mgr.workspaceDir, mgr.cfg.DockerHost)
+		return newMCPConn("llm-sandbox", mgr.pythonBin, args, mgr.env, logger, "local", "", "", ctx)
 	}
 
 	// 5. Validate the MCP server and optionally keep it warm.
@@ -205,12 +217,12 @@ func InitSandboxManager(cfg SandboxConfig, workspaceDir string, logger *slog.Log
 
 func (m *SandboxManager) openConn() (sandboxConn, error) {
 	if m.connFactory == nil {
-		return nil, fmt.Errorf("sandbox connection factory not configured")
+		return nil, fmt.Errorf("sandbox connection factory not configured: %w", ErrSandboxUnavailable)
 	}
 
 	conn, err := m.connFactory()
 	if err != nil {
-		return nil, fmt.Errorf("failed to start sandbox MCP server: %w", err)
+		return nil, fmt.Errorf("failed to start sandbox MCP server: %w: %w", err, ErrSandboxUnavailable)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), mcpCallToolTimeout)
 	defer cancel()
@@ -227,6 +239,15 @@ func (m *SandboxManager) openConn() (sandboxConn, error) {
 	return conn, nil
 }
 
+// wrapSandboxOpenError keeps ErrSandboxUnavailable on process-start failures.
+// Handshake errors after the process starts stay unwrapped.
+func wrapSandboxOpenError(err error) error {
+	if err == nil || !errors.Is(err, ErrSandboxUnavailable) {
+		return err
+	}
+	return fmt.Errorf("%w", err)
+}
+
 func (m *SandboxManager) borrowConn() (sandboxConn, func(), error) {
 	m.mu.RLock()
 	ready := m.status.Ready
@@ -239,13 +260,13 @@ func (m *SandboxManager) borrowConn() (sandboxConn, func(), error) {
 		if errMsg == "" {
 			errMsg = "sandbox not ready"
 		}
-		return nil, nil, fmt.Errorf("sandbox not ready: %s", errMsg)
+		return nil, nil, fmt.Errorf("sandbox not ready: %s: %w", errMsg, ErrSandboxUnavailable)
 	}
 
 	if !keepAlive {
 		conn, err := m.openConn()
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, wrapSandboxOpenError(err)
 		}
 		return conn, func() { conn.close() }, nil
 	}
@@ -266,7 +287,7 @@ func (m *SandboxManager) borrowConn() (sandboxConn, func(), error) {
 		conn, err := m.openConn()
 		if err != nil {
 			cleanup()
-			return nil, nil, err
+			return nil, nil, wrapSandboxOpenError(err)
 		}
 		m.conn = conn
 	}
@@ -309,6 +330,12 @@ func GetSandboxManager() *SandboxManager {
 	sandboxMgrMu.RLock()
 	defer sandboxMgrMu.RUnlock()
 	return globalSandboxMgr
+}
+
+// SandboxReady reports whether a manager exists and its sandbox is operational.
+func SandboxReady() bool {
+	mgr := GetSandboxManager()
+	return mgr != nil && mgr.IsReady()
 }
 
 // ShutdownSandboxManager gracefully stops the sandbox.
@@ -417,6 +444,12 @@ func (m *SandboxManager) Close() {
 		m.conn.close()
 		m.conn = nil
 	}
+	if m.launchScript != "" {
+		if err := os.Remove(m.launchScript); err != nil && !os.IsNotExist(err) {
+			m.logger.Warn("[Sandbox] could not remove MCP launcher", "error", err, "path", m.launchScript)
+		}
+		m.launchScript = ""
+	}
 	m.status.Ready = false
 }
 
@@ -462,7 +495,7 @@ func (m *SandboxManager) fetchLanguagesFromConn(conn sandboxConn) []string {
 func SandboxExecuteCode(code, language string, libraries []string, timeoutSecs int, logger *slog.Logger) (string, error) {
 	mgr := GetSandboxManager()
 	if mgr == nil {
-		return "", fmt.Errorf("sandbox manager not initialized")
+		return "", fmt.Errorf("sandbox manager not initialized: %w", ErrSandboxUnavailable)
 	}
 	return mgr.ExecuteCode(code, language, libraries, timeoutSecs)
 }
@@ -478,6 +511,86 @@ func SandboxGetStatus() *SandboxStatus {
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
+
+const llmSandboxVersion = "0.3.45"
+
+var sandboxImagePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]{0,200}$`)
+
+func llmSandboxRequirement(backend string) (string, error) {
+	switch backend {
+	case "", "docker":
+		return "llm-sandbox[mcp-docker]==" + llmSandboxVersion, nil
+	case "podman":
+		return "llm-sandbox[mcp-podman]==" + llmSandboxVersion, nil
+	default:
+		return "", fmt.Errorf("unsupported sandbox backend %q", backend)
+	}
+}
+
+func sandboxMCPEnv(cfg SandboxConfig) (map[string]string, error) {
+	backend := cfg.Backend
+	if backend == "" {
+		backend = "docker"
+	}
+	if backend != "docker" && backend != "podman" {
+		return nil, fmt.Errorf("unsupported sandbox backend %q", backend)
+	}
+	mode := "none"
+	if cfg.NetworkEnabled {
+		mode = "bridge"
+	}
+	env := map[string]string{
+		"BACKEND":              backend,
+		"SANDBOX_NETWORK_MODE": mode,
+	}
+	if cfg.DockerHost != "" {
+		env["DOCKER_HOST"] = cfg.DockerHost
+	}
+	if image := strings.TrimSpace(cfg.Image); image != "" {
+		if !sandboxImagePattern.MatchString(image) {
+			return nil, fmt.Errorf("sandbox image %q is not a single image reference", cfg.Image)
+		}
+		env["IMAGE"] = image
+	}
+	return env, nil
+}
+
+// sandboxProcessEnv is the MCP child environment. An omitted IMAGE becomes an
+// explicit empty value so the process overrides an inherited IMAGE. Go keeps
+// the last value when a key appears twice.
+func sandboxProcessEnv(cfg SandboxConfig) (map[string]string, error) {
+	env, err := sandboxMCPEnv(cfg)
+	if err != nil {
+		return nil, err
+	}
+	if _, ok := env["IMAGE"]; !ok {
+		env["IMAGE"] = ""
+	}
+	return env, nil
+}
+
+func writeSandboxMCPLauncher() (string, error) {
+	f, err := os.CreateTemp("", "aurago-sandbox-mcp-*.py")
+	if err != nil {
+		return "", fmt.Errorf("create sandbox launcher: %w", err)
+	}
+	path := f.Name()
+	if _, err := f.WriteString(sandboxMCPLaunchSource); err != nil {
+		f.Close()
+		os.Remove(path)
+		return "", fmt.Errorf("write sandbox launcher: %w", err)
+	}
+	if err := f.Chmod(0o600); err != nil {
+		f.Close()
+		os.Remove(path)
+		return "", fmt.Errorf("protect sandbox launcher: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		os.Remove(path)
+		return "", fmt.Errorf("close sandbox launcher: %w", err)
+	}
+	return path, nil
+}
 
 // SandboxConfig mirrors the config.Sandbox struct for the tools package
 // (avoids import cycle with config package).
@@ -518,12 +631,7 @@ func isSandboxMCPInstalled(pythonBin string) bool {
 	cmd := exec.CommandContext(ctx, pythonBin, "-c",
 		"import llm_sandbox; import llm_sandbox.mcp_server.server; print('ok')")
 	out, err := cmd.CombinedOutput()
-	if err == nil && strings.TrimSpace(string(out)) == "ok" {
-		return true
-	}
-	// Fallback: check pip for the package + mcp extra marker
-	cmd2 := exec.CommandContext(ctx, pythonBin, "-m", "pip", "show", "mcp")
-	return cmd2.Run() == nil
+	return err == nil && strings.TrimSpace(string(out)) == "ok"
 }
 
 // installSandboxPackage installs llm-sandbox with the correct MCP+backend extras.
@@ -535,12 +643,10 @@ func installSandboxPackage(workspaceDir string, backend string, logger *slog.Log
 		return fmt.Errorf("venv setup failed: %w", err)
 	}
 
-	// Choose the right extras: mcp-docker or mcp-podman
-	extras := "mcp-docker"
-	if backend == "podman" {
-		extras = "mcp-podman"
+	pkg, err := llmSandboxRequirement(backend)
+	if err != nil {
+		return err
 	}
-	pkg := fmt.Sprintf("llm-sandbox[%s]", extras)
 	logger.Info("[Sandbox] Installing package", "pkg", pkg)
 	stdout, stderr, err := InstallPackage(pkg, workspaceDir)
 	if err != nil {

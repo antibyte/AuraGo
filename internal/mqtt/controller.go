@@ -161,6 +161,10 @@ type MQTTController struct {
 	workerDone   chan struct{}
 	stopped      bool
 	legacyBridge bool
+
+	// reconcileHook replaces reconcileGenerationSubscriptions when non-nil.
+	// Production leaves it nil. Tests observe the broker wait from OnConnect.
+	reconcileHook func(*mqttGeneration, *config.Config)
 }
 
 const defaultControllerRelayQueueSize = 100
@@ -472,27 +476,37 @@ func (c *MQTTController) startGeneration(snapshot *mqttSnapshot, revision uint64
 		if !c.enterGenerationCallback(gen) {
 			return
 		}
-		defer gen.callbackMu.Unlock()
-		c.manualOpMu.Lock()
-		defer c.manualOpMu.Unlock()
 		c.mu.RLock()
 		currentSnapshot := c.active
 		c.mu.RUnlock()
 		if currentSnapshot == nil || !c.generationCurrent(gen) {
+			gen.callbackMu.Unlock()
 			return
 		}
+		gen.callbackMu.Unlock()
+		c.manualOpMu.Lock()
 		resetGenerationAcknowledgements(gen)
+		c.manualOpMu.Unlock()
 		if log != nil {
 			log.Info("[MQTT] Connected to broker")
 		}
 		recordConnected()
 		publishAvailability(pahoClient, currentSnapshot.config(), log)
-		c.reconcileGenerationSubscriptions(gen, currentSnapshot.config())
+		if c.reconcileHook != nil {
+			c.reconcileHook(gen, currentSnapshot.config())
+		} else {
+			c.reconcileGenerationSubscriptions(gen, currentSnapshot.config())
+		}
+		// ConnectionLost only stores reconnecting under callbackMu and does not
+		// retire the generation. Hold that lock across the open check and the
+		// write so a loss during the broker wait cannot be overwritten.
+		gen.callbackMu.Lock()
 		c.mu.Lock()
-		if c.generationCurrentLocked(gen) {
+		if c.generationCurrentLocked(gen) && pahoClient.IsConnectionOpen() {
 			c.state = "connected"
 		}
 		c.mu.Unlock()
+		gen.callbackMu.Unlock()
 	})
 	opts.SetConnectionLostHandler(func(pahoClient pahomqtt.Client, lostErr error) {
 		if !c.enterGenerationCallback(gen) {
@@ -746,13 +760,24 @@ func (c *MQTTController) messageHandler(gen *mqttGeneration) pahomqtt.MessageHan
 		c.mu.RLock()
 		active := c.active
 		c.mu.RUnlock()
-		if active != nil && (active.cfg.MQTT.RelayToAgent || FrigateRelayEnabled(&active.cfg)) {
+		if active != nil && relayWantsTopic(&active.cfg, m.Topic) {
 			c.enqueueRelay(gen, m)
 		}
 		for _, trigger := range matchingMissionTriggers(m.Topic, m.Payload) {
 			c.enqueueMission(gen, trigger, m.Topic, m.Payload)
 		}
 	}
+}
+
+// relayWantsTopic reports whether a received topic would become a relay run.
+// RelayToAgent accepts every topic that reached the handler. Otherwise only a
+// Frigate relay kind is queued; other topics stay in the global message buffer.
+func relayWantsTopic(cfg *config.Config, topic string) bool {
+	if cfg != nil && cfg.MQTT.RelayToAgent {
+		return true
+	}
+	_, ok := FrigateRelayKind(cfg, topic)
+	return ok
 }
 
 func (c *MQTTController) runMissionTrigger(gen *mqttGeneration, trigger missionTriggerEntry, topic, payload string) {

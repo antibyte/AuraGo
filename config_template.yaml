@@ -58,7 +58,7 @@ agent:
             enabled: true                 # archive original outputs so compact views can be expanded later
             max_age_hours: 24             # cleanup age for archived outputs
             primary_output_vault: true    # store large native outputs as compact views plus output_ref
-            max_inline_chars: 6000        # inline outputs up to this size before preferring the vault view
+            max_inline_chars: 0           # bytes inlined before the vault view; 0 = automatic: 3% of the model's input context, 6000-32000 (6000 when unknown)
 
     # ── History Compaction ── compacts older native tool rounds in the live
     #    request while preserving recent full tool-call groups.
@@ -480,6 +480,10 @@ local_wikipedia:
     variant: nopic                 # nopic = without media, maxi = with media
     data_dir: ""                   # empty = <directories.data_dir>/wikipedia; native installs only (fixed in Docker)
     update_check: true             # daily catalog check; updates start only when you click Update
+# Retro Games desktop app: searchable index of the browser-playable archive.org games, built on first use.
+retro_games:
+    enabled: true
+    agent_access: true             # lets the agent search the index and open games in the desktop app
 home_assistant:
     access_token: ""
     enabled: false
@@ -517,6 +521,7 @@ brave_search:
     country: ""
     lang: ""
 koofr:
+    show_in_filemanager: false
     base_url: https://app.koofr.net
     enabled: false
     readonly: false
@@ -640,7 +645,7 @@ tools:
         timeout_seconds: 300                              # per-command timeout in seconds
         default_format: best                              # best, bestaudio, or a custom yt-dlp format string
         max_search_results: 10                            # maximum search results returned to the agent
-        container_image: ghcr.io/jauderho/yt-dlp:latest    # Docker image used in docker mode
+        container_image: ghcr.io/jauderho/yt-dlp@sha256:90cd9016efc4451153c8bc35cc7a0d9a8cba0e796818e52f3b4d28b9736ac91c    # Docker image used in docker mode (digest-pinned)
         auto_pull: true                                   # automatically pull the container image when missing
     browser_automation:
         enabled: false                                     # enable browser_automation tool (CloakBrowser stealth browser sidecar)
@@ -785,11 +790,13 @@ logging:
     log_dir: ./log
 meshcentral:
     enabled: false
-    readonly: false
+    readonly: true
+    allow_power_actions: false                  # wake and power; also blocked while readonly is true
     blocked_operations: []
     url: ""
     username: ""
     insecure: false  # Set to true to skip TLS certificate verification (not recommended for production)
+    ca_file: ""      # PEM CA for a private MeshCentral certificate; ignored when insecure is true
 maintenance:
     enabled: true
     time: "04:00"
@@ -825,14 +832,14 @@ server:
     preview_domain: ""                            # separate registrable site; wildcard DNS/TLS must reach this server
     preview_enabled: false                        # activate only after staged app/login/WebSocket acceptance
     https:
-        enabled: false
-        cert_mode: auto                     # "auto" (Let's Encrypt), "custom" (uploaded cert), "selfsigned" (auto-generated)
+        enabled: true                       # Fresh installs only; upgrades preserve the existing transport
+        cert_mode: selfsigned               # "auto" (Let's Encrypt), "custom" (uploaded cert), "selfsigned" (auto-generated)
         domain: ""
         email: ""
         cert_file: ""                       # custom mode: path to PEM certificate file
         key_file: ""                        # custom mode: path to PEM private key file
         https_port: 443
-        http_port: 80
+        http_port: 0                        # Disabled; select 80 explicitly for Let's Encrypt HTTP-01
         behind_proxy: false
         trusted_proxy_cidrs: []           # explicit immediate proxy source IPs/CIDRs when behind_proxy is true
 sqlite:
@@ -986,8 +993,9 @@ browser_automation:
     screenshots_dir: browser_screenshots
     cloak_humanize: false                                  # simulate human-like mouse, keyboard and scroll behavior
     cloak_human_preset: default                            # behavior preset: default (normal) or careful (slower)
-    cloak_proxy: "http://browser-egress:7332"              # controlled proxy on the internal browser network
+    cloak_proxy: ""                                        # must stay empty; Chromium uses the egress proxy
     egress_network: aurago-app                             # existing Docker network; must have internal: true
+    outbound_network: bridge                               # different Docker network with a route out; must not be internal
     allowed_private_origins: []                            # exact home-lab origins allowed by browser policy
     cloak_fingerprint_seed: ""                             # fixed seed for consistent browser fingerprint across sessions
 space_agent:
@@ -1104,6 +1112,9 @@ dograh:
     # minio_root_password: generated/stored in vault
     # aurago_mcp_token: optional metadata copy, stored in vault
 virtual_desktop:
+    layerling:
+        enabled: false                                    # local browser CAD editor; no runtime sidecar
+        agent_access: "off"                               # off, read, write; also requires Desktop agent permissions
     enabled: true
     readonly: false
     allow_agent_control: false                            # exposes the virtual_desktop tool when tools.virtual_desktop.enabled is also true
@@ -1114,7 +1125,7 @@ virtual_desktop:
     max_ws_clients: 8
     serial_browser_enabled: false                         # Quick Connect: devices attached to the browser computer
     serial_host_enabled: false                            # Quick Connect: administrator access to AuraGo host serial ports
-    retronet_enabled: false                               # Terminal Retro-Net: dial public Telnet BBSes, MUDs and SSH games through this server (operators see its public IP; Telnet is unencrypted; off in readonly)
+    retronet_enabled: true                                # Terminal Retro-Net, on by default (also when the key is missing): dial public Telnet BBSes, MUDs and SSH games through this server (operators see its public IP; Telnet is unencrypted; off in readonly or with the Desktop disabled)
     remote_max_session_minutes: 60                         # max SSH/VNC/serial session duration
     remote_idle_timeout_minutes: 5                          # close idle SSH/VNC/serial sessions after this many minutes
     code_studio:
@@ -1126,12 +1137,12 @@ virtual_desktop:
         max_cpu_cores: 2                                   # Docker CPU quota
     openscad:
         enabled: true                                      # built-in headless OpenSCAD compiler container
-        image: openscad/openscad:latest
+        image: openscad/openscad@sha256:147e48525bec392bcf628d7a6d5ea4ccac71b16251952328f86e1061cbf47c37
         auto_start: false                                  # false = lazy start when the app renders
         auto_stop_minutes: 20                              # stop container after inactivity
         max_memory_mb: 2048                                # Docker memory limit
         max_cpu_cores: 2                                   # Docker CPU quota
-        max_concurrent_jobs: 1                             # render jobs at once
+        max_concurrent_jobs: 1                             # accepted for compatibility; renders always run one at a time
         geometry_backend: auto                             # auto prefers Manifold when the image supports --backend; cgal/manifold force a backend when available
         default_exports: [png, stl]                        # default render output formats
         max_source_kb: 512                                 # maximum uploaded/generated SCAD source size
@@ -1301,6 +1312,7 @@ workspace_search:
         - vault.bin
         - data/vault.bin
 webdav:
+    show_in_filemanager: false
     enabled: false
     readonly: false
     auth_type: basic
@@ -1318,6 +1330,7 @@ mqtt:
     qos: 0
     relay_to_agent: false
     allow_unauthenticated_relay: false  # relays and MQTT mission triggers need a username or a client certificate over TLS unless true
+    allow_untrusted_transport: false    # plaintext or skipped certificate verification cannot start those runs unless true
     connect_timeout: 15             # connection timeout in seconds
     clean_session: true             # true = broker does not keep a persistent session for this client
     trigger_min_interval_seconds: 0  # minimum seconds between MQTT-triggered mission starts (0 = disabled)
@@ -1486,6 +1499,23 @@ rtl_sdr:
   allow_agent: false
   device: ""                       # Enumerated USB port ID; empty selects the only dongle
   quota_gb: 10                     # 1-1000 GB; recordings are never automatically deleted
+
+# RuView v3122: experimental Wi-Fi sensing; credentials are stored in the Vault.
+ruview:
+    enabled: false
+    readonly: true
+    agent_access: false
+    mode: docker              # docker | native (Windows/macOS host) | external
+    source: esp32             # esp32 | wifi | simulated (explicit demo)
+    url: ""                   # External HTTP(S) origin; no path or credentials
+    allow_private: false
+    http_port: 3022            # Loopback HTTP; the next port is reserved internally
+    receiver_ip: ""            # Reachable private IPv4 of the RuView receiver
+    udp_enabled: false
+    udp_bind: ""               # Explicit private LAN IPv4; never 0.0.0.0
+    udp_port: 5005
+    udp_allow: []              # Private IPv4 addresses or canonical private CIDRs
+    storage_mb: 1024
 
 go2rtc:
     enabled: false
@@ -1914,11 +1944,11 @@ sandbox:
     enabled: false
     backend: docker
     docker_host: ""
-    image: ""
+    image: ""                                           # one image reference passed to llm-sandbox
     auto_install: true
-    pool_size: 0
+    pool_size: 0                                        # ignored; container pooling is not implemented
     timeout_seconds: 30
-    network_enabled: false
+    network_enabled: false                              # false means Docker network_mode=none
     keep_alive: false
     allow_local_python_fallback: false
 shell_sandbox:
@@ -1926,7 +1956,7 @@ shell_sandbox:
     allow_unsafe_fallback: false
     max_memory_mb: 1024
     max_cpu_seconds: 30
-    max_processes: 50
+    max_processes: 50                                   # ignored; Linux counts RLIMIT_NPROC per user
     max_file_size_mb: 100
     allowed_paths: []
 ai_gateway:
@@ -2102,3 +2132,9 @@ security_proxy:
         enabled: false
         allowed_countries: []               # ISO 3166-1 alpha-2 codes
     additional_routes: []
+
+# Optional managed Google Workspace CLI; secrets and OAuth tokens live in the Vault.
+gog:
+  enabled: false
+  readonly: true
+  accounts: [] # Add accounts and per-service grants in the configuration UI.

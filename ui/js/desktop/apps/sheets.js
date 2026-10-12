@@ -95,7 +95,7 @@
             find('[data-save-state]').textContent=tr('loading');find('[data-save-state]').dataset.state='loading';find('[data-notice] [data-action="saveAs"]').hidden=true;
             ctx.updateWindowContext?.(windowId,{path});
             try{
-                enginePromise ||= import('/js/vendor/sheets/engine.js').catch(error=>{enginePromise=null;throw error;});lib=await enginePromise;
+                enginePromise ||= import(window.AuraLazyAssets.versionedURL('/js/vendor/sheets/engine.js')).catch(error=>{enginePromise=null;throw error;});lib=await enginePromise;
                 let doc;
                 if(template)doc=window.SheetsData.template(template,tr);
                 else if(/\.csv$/i.test(target)){doc=await window.SheetsData.importCSV(state,target);if(!doc)throw new DOMException('Cancelled','AbortError');path=target.replace(/\.csv$/i,'')+'-import-'+crypto.randomUUID().slice(0,6)+'.xlsx';}
@@ -115,7 +115,7 @@
                 structuralLocked=!!doc.structural_locked;
                 const localeName=({de:'de-DE',es:'es-ES',fr:'fr-FR',it:'it-IT',ja:'ja-JP',pl:'pl-PL',pt:'pt-BR',zh:'zh-CN'})[locale.split('-')[0]]||'en-US',localeID=localeName.replace('-','');
                 const created=lib.createUniver({locale:localeID,locales:{[localeID]:localeName==='en-US'&&!locale.startsWith('en')?SheetsData.nativeLocale(lib.locales[localeName],tr,locale):lib.locales[localeName]},logLevel:4,presets:[
-                    lib.UniverSheetsCorePreset({container:mount,header:false,toolbar:false,formulaBar:false,footer:false,contextMenu:!ctx.showContextMenu,disableAutoFocus:true,workerURL:'/js/vendor/sheets/worker.js',customFontFamily:['Geist','Carlito'],formula:{initialFormulaComputing:0,function:[lib.averageAlias]}}),
+                    lib.UniverSheetsCorePreset({container:mount,header:false,toolbar:false,formulaBar:false,footer:false,contextMenu:!ctx.showContextMenu,disableAutoFocus:true,workerURL:window.AuraLazyAssets.versionedURL('/js/vendor/sheets/worker.js'),customFontFamily:['Geist','Carlito'],formula:{initialFormulaComputing:0,function:[lib.averageAlias]}}),
                     lib.UniverSheetsFilterPreset(),lib.UniverSheetsSortPreset(),lib.UniverSheetsDataValidationPreset(),lib.UniverSheetsConditionalFormattingPreset(),lib.UniverSheetsFindReplacePreset(),lib.UniverSheetsNotePreset(),lib.UniverSheetsHyperLinkPreset(),lib.UniverSheetsTablePreset()
                 ]});
                 engine=created.univer;api=created.univerAPI;api.toggleDarkMode(false);api.getFormula().setFormulaReturnDependencyTree(true);
@@ -250,10 +250,19 @@
                 });
             }catch(error){fail(error);}
         }
+        async function gogOffice(mode) {
+            if(disposed||loading)return;
+            try {
+                if(mode==='import'&&!await guard())return;
+                if(mode==='export'){await save();if(queue?.dirty)throw Error(tr('unsaved'));}
+                const result=await window.AuraGogDesktop.office(ctx,'sheets',mode,path,lifecycle.signal);
+                if(result?.file?.path&&!disposed)await load(result.file.path);
+            }catch(error){fail(error);}
+        }
         function renderMenus(){
             const item=(label,action,icon,shortcut)=>({id:action,label:tr(label),icon:icons[icon||action]||icon||action,shortcut,action:()=>act(action)});
             ctx.setWindowMenus?.(windowId,[
-                {id:'file',labelKey:'desktop.menu_file',items:[item('new','new','new','Ctrl+N'),item('open','open','open','Ctrl+O'),item('save','save','save','Ctrl+S'),item('save_as','saveAs','saveAs'),{type:'separator'},item('download_xlsx','xlsx','file'),item('export_csv','csv','file-text'),item('print','print','print','Ctrl+P')]},
+                {id:'file',labelKey:'desktop.menu_file',items:[item('new','new','new','Ctrl+N'),item('open','open','open','Ctrl+O'),item('save','save','save','Ctrl+S'),item('save_as','saveAs','saveAs'),{id:'gog-import',label:ctx.t('desktop.gog.import'),disabled:ctx.readonly,action:()=>gogOffice('import')},{id:'gog-export',label:ctx.t('desktop.gog.export'),disabled:ctx.readonly||!book,action:()=>gogOffice('export')},{type:'separator'},item('download_xlsx','xlsx','file'),item('export_csv','csv','file-text'),item('print','print','print','Ctrl+P')]},
                 {id:'edit',labelKey:'desktop.menu_edit',items:[item('undo','undo','undo','Ctrl+Z'),item('redo','redo','redo','Ctrl+Y'),{type:'separator'},item('find','search','search','Ctrl+F'),item('copy','copy','copy'),item('cut','cut','scissors'),item('paste','paste','clipboard'),item('paste_special','pasteSpecial','clipboard')]},
                 {id:'agent',labelKey:'desktop.menu_agent',items:[item('assist','assist')]},
                 {id:'view',label:tr('view'),items:[item('navigation','navigation'),item('format','format'),item('data','data'),item('chart','chart'),item('assist','assist')]}

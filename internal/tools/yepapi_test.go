@@ -683,9 +683,9 @@ func TestDispatchYepAPIYouTubeParityEndpoints(t *testing.T) {
 		path    string
 		payload map[string]interface{}
 	}{
-		{"video_info", map[string]interface{}{"video_id": "vid"}, "/v1/youtube/video-info", map[string]interface{}{"videoId": "vid"}},
-		{"metadata", map[string]interface{}{"video_id": "vid"}, "/v1/youtube/metadata", map[string]interface{}{"videoId": "vid"}},
-		{"subtitles", map[string]interface{}{"video_id": "vid"}, "/v1/youtube/subtitles", map[string]interface{}{"videoId": "vid"}},
+		{"video_info", map[string]interface{}{"video_id": "dQw4w9WgXcQ"}, "/v1/youtube/video-info", map[string]interface{}{"videoId": "dQw4w9WgXcQ"}},
+		{"metadata", map[string]interface{}{"video_id": "dQw4w9WgXcQ"}, "/v1/youtube/metadata", map[string]interface{}{"videoId": "dQw4w9WgXcQ"}},
+		{"subtitles", map[string]interface{}{"video_id": "dQw4w9WgXcQ"}, "/v1/youtube/subtitles", map[string]interface{}{"videoId": "dQw4w9WgXcQ"}},
 		{"channel_shorts", map[string]interface{}{"channel_id": "chan", "limit": 4.0}, "/v1/youtube/channel-shorts", map[string]interface{}{"channelId": "chan", "limit": 4.0}},
 		{"channel_livestreams", map[string]interface{}{"channel_id": "chan"}, "/v1/youtube/channel-livestreams", map[string]interface{}{"channelId": "chan"}},
 		{"channel_playlists", map[string]interface{}{"channel_id": "chan"}, "/v1/youtube/channel-playlists", map[string]interface{}{"channelId": "chan"}},
@@ -695,15 +695,15 @@ func TestDispatchYepAPIYouTubeParityEndpoints(t *testing.T) {
 		{"channel_store", map[string]interface{}{"channel_id": "chan"}, "/v1/youtube/channel-store", map[string]interface{}{"channelId": "chan"}},
 		{"channel_search", map[string]interface{}{"channel_id": "chan", "query": "go"}, "/v1/youtube/channel-search", map[string]interface{}{"channelId": "chan", "query": "go"}},
 		{"playlist_info", map[string]interface{}{"playlist_id": "pl"}, "/v1/youtube/playlist-info", map[string]interface{}{"playlistId": "pl"}},
-		{"related", map[string]interface{}{"video_id": "vid", "limit": 2.0}, "/v1/youtube/related", map[string]interface{}{"videoId": "vid", "limit": 2.0}},
-		{"screenshot", map[string]interface{}{"video_id": "vid"}, "/v1/youtube/screenshot", map[string]interface{}{"videoId": "vid"}},
-		{"shorts_info", map[string]interface{}{"video_id": "vid"}, "/v1/youtube/shorts-info", map[string]interface{}{"videoId": "vid"}},
+		{"related", map[string]interface{}{"video_id": "dQw4w9WgXcQ", "limit": 2.0}, "/v1/youtube/related", map[string]interface{}{"videoId": "dQw4w9WgXcQ", "limit": 2.0}},
+		{"screenshot", map[string]interface{}{"video_id": "dQw4w9WgXcQ"}, "/v1/youtube/screenshot", map[string]interface{}{"videoId": "dQw4w9WgXcQ"}},
+		{"shorts_info", map[string]interface{}{"video_id": "dQw4w9WgXcQ"}, "/v1/youtube/shorts-info", map[string]interface{}{"videoId": "dQw4w9WgXcQ"}},
 		{"hashtag", map[string]interface{}{"tag": "golang"}, "/v1/youtube/hashtag", map[string]interface{}{"tag": "golang"}},
 		{"post", map[string]interface{}{"post_id": "post1"}, "/v1/youtube/post", map[string]interface{}{"postId": "post1"}},
 		{"post_comments", map[string]interface{}{"post_id": "post1"}, "/v1/youtube/post-comments", map[string]interface{}{"postId": "post1"}},
 		{"home", map[string]interface{}{"country": "DE"}, "/v1/youtube/home", map[string]interface{}{"country": "DE"}},
 		{"hype", map[string]interface{}{"language": "de"}, "/v1/youtube/hype", map[string]interface{}{"language": "de"}},
-		{"resolve", map[string]interface{}{"url": "https://youtu.be/vid"}, "/v1/youtube/resolve", map[string]interface{}{"url": "https://youtu.be/vid"}},
+		{"resolve", map[string]interface{}{"url": "https://youtu.be/dQw4w9WgXcQ"}, "/v1/youtube/resolve", map[string]interface{}{"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"}},
 	}
 
 	for _, tt := range tests {

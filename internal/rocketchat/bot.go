@@ -22,6 +22,7 @@ import (
 	"aurago/internal/remote"
 	"aurago/internal/security"
 	"aurago/internal/tools"
+	"aurago/internal/webhooks"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -160,7 +161,7 @@ func rocketChatSenderKey(msg message) string {
 // processMessage handles a single incoming Rocket.Chat message. The shared
 // history manager belongs to the owner's "default" session and is
 // deliberately unused: each room/sender pair has its own session.
-func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, _ *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, channelID string, msg message, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker) {
+func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, _ *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, channelID string, msg message, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker, webhookManager *webhooks.Manager) {
 	if ctx.Err() != nil || !cfg.RocketChat.Enabled || !isAllowedRocketChatUser(cfg, msg) {
 		return
 	}
@@ -231,6 +232,7 @@ func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger
 		BudgetTracker:      budgetTracker,
 		CronManager:        cronManager,
 		MissionManagerV2:   missionManagerV2,
+		WebhookManager:     webhookManager,
 		PreparationService: nil,
 		SessionID:          sessionID,
 		IsMaintenance:      tools.IsBusy(),

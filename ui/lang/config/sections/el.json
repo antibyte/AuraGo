@@ -571,5 +571,7 @@
   "config.section.here_now.label": "here.now",
   "config.section.here_now.desc": "Δημοσίευση και διαχείριση μόνιμων πιστοποιημένων Sites",
   "config.section.cyd.label": "Cheap Yellow Display",
-  "config.section.cyd.desc": "Μίνι πίνακας ESP32 2,8\" για κατάσταση συστήματος και ειδοποιήσεις πράκτορα"
+  "config.section.cyd.desc": "Μίνι πίνακας ESP32 2,8\" για κατάσταση συστήματος και ειδοποιήσεις πράκτορα",
+  "config.section.gog.label": "Google Workspace μέσω gog",
+  "config.section.gog.desc": "Χρησιμοποίησε ξεχωριστούς λογαριασμούς Google μαζί με την εγγενή ενσωμάτωση."
 }

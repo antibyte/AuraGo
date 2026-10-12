@@ -179,3 +179,25 @@ func TestRepositoryConfigTemplateWritesDockerHostAccessFalse(t *testing.T) {
 		t.Fatal("template docker.allow_host_access = true, want false")
 	}
 }
+
+func TestRepositoryConfigTemplateMeshCentralPowerDefaultsSafe(t *testing.T) {
+	t.Parallel()
+
+	data, err := os.ReadFile(filepath.Join("..", "..", "config_template.yaml"))
+	if err != nil {
+		t.Fatalf("read config_template.yaml: %v", err)
+	}
+	if !yamlHasPath(data, "meshcentral", "allow_power_actions") {
+		t.Fatal("config_template.yaml must write meshcentral.allow_power_actions")
+	}
+	var cfg Config
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("parse config_template.yaml into Config: %v", err)
+	}
+	if !cfg.MeshCentral.ReadOnly {
+		t.Fatal("template meshcentral.readonly = false, want true")
+	}
+	if cfg.MeshCentral.AllowPowerActions {
+		t.Fatal("template meshcentral.allow_power_actions = true, want false")
+	}
+}

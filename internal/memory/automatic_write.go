@@ -55,6 +55,15 @@ func StoreAutomaticMemoryDocument(s *SQLiteMemory, ltm VectorDB, concept, conten
 		defer s.automaticMemoryMu.Unlock()
 	}
 	var result AutomaticMemoryStoreResult
+	if s != nil {
+		blocked, err := s.IsCorrectedMemoryFact(CorrectionFactText(buildContentString(concept, content)))
+		if err != nil {
+			return result, fmt.Errorf("check memory correction history: %w", err)
+		}
+		if blocked {
+			return result, fmt.Errorf("fact was corrected; automatic extraction cannot restore it")
+		}
+	}
 	session := "default"
 	if _, ok := AnalysisMemoryIdentity(concept, content, ""); ok && details.SourceType == "memory_analysis" {
 		session, _ = MemoryAnalysisSession(content)

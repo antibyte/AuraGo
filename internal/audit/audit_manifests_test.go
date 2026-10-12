@@ -675,7 +675,7 @@ func TestInstallerNonInteractiveDefaultsAreConservative(t *testing.T) {
 		`if _go_version_ok && $INTERACTIVE_TTY; then`,
 		`prompt_value MODE_REPLY "Install mode [1/2, default=1]: " "1" "1"`,
 		`prompt_value HTTPS_REPLY`,
-		`prompt_value NET_REPLY "Enable HTTP access from outside localhost (LAN)? [Y/n]: " "y" "n"`,
+		`prompt_value NET_REPLY "Allow access from other devices on your network? [Y/n]: " "y" "n"`,
 		`prompt_value SVC_REPLY "Install as systemd service (auto-start on boot)? [Y/n]: " "y" "n"`,
 	} {
 		if !strings.Contains(installScript, marker) {
@@ -693,10 +693,8 @@ func TestInstallerSummaryReportsEffectiveWebUIPort(t *testing.T) {
 		"configured_server_port()",
 		`HTTP_PORT="$(configured_server_port "$CONFIG_FILE" "port" "8088")"`,
 		`HTTPS_PORT="$(configured_server_port "$CONFIG_FILE" "https_port" "443")"`,
-		`WEB_UI_URL="https://${HTTPS_DOMAIN}:${HTTPS_PORT}"`,
-		`WEB_UI_URL="http://${LAN_IP:-<server-LAN-IP>}:${HTTP_PORT}"`,
-		`WEB_UI_URL="http://127.0.0.1:${HTTP_PORT}"`,
-		`WEB_UI_LISTEN="0.0.0.0:${HTTP_PORT} (HTTP, LAN)"`,
+		`WEB_UI_URL="${WEB_SCHEME}://${WEB_HOST}:${WEB_PORT}"`,
+		`WEB_UI_LISTEN="${SERVER_HOST}:${WEB_PORT} (${WEB_SCHEME})"`,
 		`Web UI:${NC}         $WEB_UI_URL`,
 		`Listening on:${NC}   $WEB_UI_LISTEN`,
 		`echo "  3. Open UI:      $WEB_UI_URL"`,
@@ -1063,6 +1061,10 @@ func TestGitHubWorkflowsUseNativeNode24Actions(t *testing.T) {
 		used[strings.ToLower(ref.action)] = true
 	}
 	for _, floor := range githubNode24Floors {
+		// Python training CI lives in agotrain; its floor still applies if used here.
+		if floor.name == "actions/setup-python" {
+			continue
+		}
 		if !used[floor.name] {
 			t.Errorf("workflows missing SHA-pinned Node 24 action %s (want `uses: %s@<40-hex sha> # vX.Y.Z` with X >= %d)", floor.name, floor.name, floor.minMajor)
 		}

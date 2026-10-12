@@ -278,7 +278,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 
 	// Phase 68: Start the daily maintenance loop
 	manifest := tools.NewManifest(s.Cfg.Directories.ToolsDir)
-	s.MaintenanceScheduler = agent.StartMaintenanceLoop(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.Vault, s.Registry, manifest, s.CronManager, s.LongTermMem, s.ShortTermMem, s.HistoryManager, s.KG, s.InventoryDB, s.ContactsDB, s.PlannerDB, s.CheatsheetDB, s.MissionManagerV2, s.LLMGuardian, s.DaemonSupervisor)
+	s.MaintenanceScheduler = agent.StartMaintenanceLoop(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.Vault, s.Registry, manifest, s.CronManager, s.LongTermMem, s.ShortTermMem, s.HistoryManager, s.KG, s.InventoryDB, s.ContactsDB, s.PlannerDB, s.CheatsheetDB, s.MissionManagerV2, s.LLMGuardian, s.DaemonSupervisor, s.WebhookManager)
 
 	// Start Planner Notifier for appointment reminders with agent wake-up
 	if s.PlannerDB != nil && s.Cfg.Tools.Planner.Enabled {
@@ -315,6 +315,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				Registry:           s.Registry,
 				CronManager:        s.CronManager,
 				MissionManagerV2:   s.MissionManagerV2,
+				WebhookManager:     s.WebhookManager,
 				CoAgentRegistry:    s.CoAgentRegistry,
 				BudgetTracker:      s.BudgetTracker,
 				DaemonSupervisor:   s.DaemonSupervisor,
@@ -556,6 +557,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/system-world/actions", handleSystemWorldAction(s))
 	mux.HandleFunc("/api/desktop/fritzbox/overview", handleDesktopFritzBoxOverview(s))
 	mux.HandleFunc("/api/desktop/files", handleDesktopFiles(s))
+	mux.HandleFunc("/api/desktop/storage/", handleDesktopStorage(s))
+	mux.HandleFunc("/api/desktop/gallery/metadata", handleDesktopGalleryMetadata(s))
+	mux.HandleFunc("/api/desktop/gallery/categories", handleDesktopGalleryCategories(s))
 	mux.HandleFunc("/api/desktop/search", handleDesktopSearch(s))
 	mux.HandleFunc("/api/desktop/file", handleDesktopFile(s))
 	mux.HandleFunc("/api/desktop/directory", handleDesktopDirectory(s))
@@ -588,8 +592,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/home-assistant/states", handleDesktopHomeAssistant(s))
 	mux.HandleFunc("/api/desktop/home-assistant/switch", handleDesktopHomeAssistant(s))
 	mux.HandleFunc("/api/desktop/embed-token", handleDesktopEmbedToken(s))
-	mux.HandleFunc("/api/desktop/chat", handleDesktopChat(s))
-	mux.HandleFunc("/api/desktop/chat/stream", handleDesktopChatStream(s))
+	layerling := registerLayerlingRoutes(mux, s)
+	mux.HandleFunc("/api/desktop/chat", layerling.chat(handleDesktopChat(s)))
+	mux.HandleFunc("/api/desktop/chat/stream", layerling.chat(handleDesktopChatStream(s)))
 	mux.HandleFunc("/api/desktop/chess/agent-move", handleDesktopChessAgentMove(s))
 	mux.HandleFunc("/api/desktop/logs/files", handleDesktopLogFiles(s))
 	mux.HandleFunc("/api/desktop/logs/tail", handleDesktopLogTail(s))
@@ -661,6 +666,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	registerDetectiveRoutes(mux, s)
 	registerNewspaperRoutes(mux, s)
 	registerLocalWikipediaDesktopRoutes(mux, s)
+	registerRetroGamesRoutes(mux, s)
 	registerFlowsRoutes(mux, s)
 	registerCYDCreatorRoutes(mux, s)
 	mux.HandleFunc("/api/desktop/personal-radio/", s.handlePersonalRadio)
@@ -683,6 +689,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/radio-browser/", handleRadioBrowserProxy(s))
 
 	registerGo2RTCRoutes(mux, s)
+	registerRuViewRoutes(mux, s)
 	registerLocalLLMRoutes(mux, s)
 	registerLocalWikipediaRoutes(mux, s)
 	registerLLMRouterRoutes(mux, s)
@@ -691,10 +698,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// ── Integration bots (disabled in egg mode — eggs are headless workers) ──
 	if !s.Cfg.EggMode.Enabled {
 		// Phase 35.2: Start the Telegram Long Polling loop
-		telegram.StartLongPolling(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.PlannerDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.budgetTrackerSnapshot)
+		telegram.StartLongPolling(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.PlannerDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.budgetTrackerSnapshot, s.WebhookManager)
 
 		// Discord Bot: listen for messages and relay to the agent
-		discord.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.budgetTrackerSnapshot)
+		discord.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.budgetTrackerSnapshot, s.WebhookManager)
 
 		// Email Watcher: poll IMAP for new messages and wake the agent
 		s.EmailWatcher = tools.StartEmailWatcherContext(serverCtx, s.Cfg, s.Logger, s.Guardian, s.LLMGuardian, s.internalToken, s.CheatsheetDB)
@@ -763,6 +770,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 					Registry:           s.Registry,
 					CronManager:        s.CronManager,
 					MissionManagerV2:   s.MissionManagerV2,
+					WebhookManager:     s.WebhookManager,
 					CoAgentRegistry:    s.CoAgentRegistry,
 					BudgetTracker:      s.BudgetTracker,
 					DaemonSupervisor:   s.DaemonSupervisor,
@@ -1061,7 +1069,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		// Pre-check that the HTTPS port is actually bindable.
 		// Ports < 1024 require root or CAP_NET_BIND_SERVICE on Linux.
 		// Fail immediately with a clear, actionable error — never silently degrade to HTTP.
-		if ln, err := net.Listen("tcp", fmt.Sprintf(":%d", tlsCfg.HTTPSPort)); err != nil {
+		if ln, err := net.Listen("tcp", net.JoinHostPort(tlsCfg.Host, fmt.Sprint(tlsCfg.HTTPSPort))); err != nil {
 			errMsg := err.Error()
 			if strings.Contains(errMsg, "permission denied") || strings.Contains(errMsg, "access is denied") {
 				return fmt.Errorf(

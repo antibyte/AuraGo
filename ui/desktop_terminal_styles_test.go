@@ -141,14 +141,15 @@ func TestDesktopTerminalAssetsLoadInDependencyOrder(t *testing.T) {
 		`'/js/desktop/apps/terminal-crt.js'`,
 		`'/js/desktop/apps/terminal-audio.js'`,
 		`'/js/desktop/apps/terminal-text.js'`,
+		`'/js/desktop/apps/terminal-geometry.js'`,
 		`'/js/desktop/apps/terminal-modem.js'`,
 		`'/js/desktop/apps/terminal-retronet-directory.js'`,
 		`'/js/desktop/apps/terminal-retronet-session.js'`,
 		`'/js/desktop/apps/terminal-retronet-entries.js'`,
 		`'/js/desktop/apps/terminal.js'`,
 	}
-	if got := strings.Count(loader, "'/js/"); got != 12 {
-		t.Fatalf("terminal loader lists %d scripts, want exactly the 12 of Contract E", got)
+	if got := strings.Count(loader, "'/js/"); got != 13 {
+		t.Fatalf("terminal loader lists %d scripts, want exactly the 13 of the C64 Contract C", got)
 	}
 	prev := -1
 	for _, marker := range markers {
@@ -277,10 +278,24 @@ func TestDesktopTerminalAudioContract(t *testing.T) {
 		"apple2",
 		"prefers-reduced-motion",
 		"dataset.animations",
+		// C64 bell (Contract C): the key-click rules, one short square tone.
+		"function beep()",
+		"const BELL = { type: 'square'",
+		// One tone per BELL_GAP_MS however many BELs arrive, never queued against a suspended clock.
+		"const BELL_GAP_MS = 150;",
+		"if (clock() - lastBell < BELL_GAP_MS) return;",
+		// The gap counts from the tone: a slow first AudioContext must not let BELs queued behind it add a tone.
+		"lastBell = clock();",
+		"return audio.state === 'running' ? audio : null;",
+		"return { setProfile, setMuted, playKey, beep, dispose }",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("terminal-audio.js missing %q", want)
 		}
+	}
+	beep := source[strings.Index(source, "function beep()"):]
+	if !strings.Contains(beep[:strings.Index(beep, "}")], "if (!retro || muted || shouldSilence()) return;") {
+		t.Fatal("beep() must follow the key-click rules: retro style, not muted, no reduced motion or disabled animations")
 	}
 }
 
@@ -320,8 +335,6 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		"retroNetOn && typeof ctx.path !== 'string'",
 		"term.options.convertEol = false",
 		"term.options.convertEol = true",
-		"term.resize(80, 25)",
-		`'"Aura VGA", "Aura Terminal", ui-monospace, monospace'`,
 		"'aurago.desktop.terminal.retronet.last'",
 		`const HANGUP_KEY = '\x1d'`,
 		"'desktop.terminal_directory'",
@@ -329,7 +342,6 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		"'desktop.terminal_connected'",
 		"'desktop.terminal_retronet_result_' + reason",
 		"data-terminal-mode",
-		"data-terminal-geometry",
 		`data-terminal-announce aria-live="polite"`,
 		"select[data-terminal-baud]",
 		"[data-terminal-retronet-action]",
@@ -343,9 +355,58 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		"if (remote && run.connected && !run.live && !run.hostKey) {",
 		// Dispose removes own-entry dialogs without close(), which would reopen a dialog with a pending save.
 		"root.querySelectorAll('dialog[data-terminal-retronet-dialog]').forEach(function (dialog) { dialog.remove(); })",
-		// BBS fits run one at a time; a request during a fit reruns it once afterwards.
-		"if (bbsFitting) {",
-		"bbsRefit = true;",
+		// Screen geometry lives in terminal-geometry.js (Contract C): fit, the 80x24 VT screen, 80x25 BBS, 40x25 C64.
+		"window.TerminalGeometry.create({",
+		"getProfile: currentProfile,",
+		// 'vt' spaces rows only while the WebGL addon (custom block and box glyphs) is loaded.
+		"canSpace: function () { return !!canvasAddon; },",
+		"if (geometry) geometry.set(next);",
+		// Every Retro-Net session runs on a pinned grid (Telnet worlds and SSH on 'vt') and opens with it.
+		"const pinned = c64 ? 'c64' : entry.protocol === 'telnet' && entry.kind === 'bbs' ? 'bbs' : 'vt';",
+		"setGeometry(pinned);",
+		"const c64 = entry.kind === 'c64';",
+		"cols: grid.cols,",
+		"rows: grid.rows,",
+		// Only the directory follows the grid; sessions never resize.
+		"if (mode === 'directory' && directory) directory.render();",
+		// C64 sessions: the commodore64 style without saving it, a locked style select, cursor, screen and border.
+		"const next = persist === false ? styles.normalize(id) : styles.save(id);",
+		"applyStyle('commodore64', false);",
+		"applyStyle(look.style, false);",
+		"node.title = ctx.t('desktop.terminal_retronet_style_locked');",
+		"if (select) select.disabled = locked;",
+		"term.options.cursorStyle = 'block';",
+		"term.options.cursorBlink = true;",
+		"const C64_THEME = { background: '#000000', cursor: '#706DEB', cursorAccent: '#000000' };",
+		"const C64_BORDER = '#706DEB';",
+		"crt.setProfile(crtProfile(profile));",
+		"term.write(C64_FRESH_SCREEN);",
+		`const C64_FRESH_SCREEN = '\x1b[0m\x1b[2J\x1b[25;1H';`,
+		// Key hint after CONNECT, colour keys and the bell (C64 calls only).
+		"window.TerminalText.wrapHints(tr('desktop.terminal_retronet_c64_keys'), term.cols - 1).forEach(function (line) { writeDim(line); });",
+		"term.attachCustomKeyEventHandler(onTermKey);",
+		"const sequence = window.TerminalRetroNetSession.c64ColorKey(event);",
+		"if (!run || !run.c64 || mode !== 'retro') return true;",
+		"if (event.type === 'keydown' && !event.repeat) {",
+		// The hint hold: board output waits 2 s after CONNECT unless a key (also a colour key) or a full queue ends it;
+		// every way out of the call ends it, a local hang-up drops the held output.
+		"const C64_HINT_HOLD_MS = 2000;",
+		"if (run.c64) run.hold = window.setTimeout(function () { endHold(run); }, C64_HINT_HOLD_MS);",
+		"if ((!run.live || run.hold) && run.buffered + bytes.length > window.TerminalModem.MAX_QUEUE_BYTES) {",
+		"if (retro === run && !run.ended) releaseHeld(run);",
+		"if (!remote) run.buffer = [];",
+		// The CONNECT announcement names Ctrl+] once: the C64 keys include it, other calls get the hang-up hint.
+		"[tr('desktop.terminal_retronet_c64_keys'), tr('desktop.terminal_retronet_style_locked')] : [tr('desktop.terminal_retronet_hangup_hint')]",
+		"announce(window.TerminalText.sentences(spoken));",
+		// Dim text wraps between words inside the screen; the locked style select is described for screen readers.
+		"window.TerminalText.wrapWords(text, term.cols - 1)",
+		"writeDim(next, true);",
+		"select.setAttribute('aria-describedby', styleNote.id);",
+		"select.removeAttribute('aria-describedby');",
+		// Leaving the C64 look never puts the C64 font back before the geometry leaves 'c64'.
+		"const leaving = !c64Look && !!geometry && geometry.mode() === 'c64';",
+		"term.onBell(onTermBell);",
+		"if (audio && retro && retro.c64 && mode === 'retro') audio.beep();",
 		// A result ignores keys for a moment so keys typed as the service hangs up do not dismiss it.
 		"if (window.performance.now() - resultAt >= RESULT_GRACE_MS) afterResult();",
 		// Placeholders are filled here, never by the shared t(), whose replaceAll treats $ in server text as a pattern.
@@ -355,7 +416,9 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 			t.Fatalf("terminal.js missing %q", want)
 		}
 	}
-	for _, forbidden := range []string{"function printable", "function cellWidth", "function fitToCells", "key === 'y'", "dialog.close(); dialog.remove()", "ctx.t(key, params)"} {
+	for _, forbidden := range []string{"function printable", "function cellWidth", "function fitToCells", "key === 'y'", "dialog.close(); dialog.remove()", "ctx.t(key, params)",
+		"bbsMode", "fitBbsFont", "VGA_FONT", "function wrapHints", "styles.save('commodore64')", "forEach(writeDim)", "function wrapWords", "function sentences",
+		"CLASSIC_GRID", "retro.session.resize("} {
 		if strings.Contains(source, forbidden) {
 			t.Fatalf("terminal.js must use the shared TerminalText/session helpers; found %q", forbidden)
 		}
@@ -378,13 +441,108 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 	if strings.Count(session, "new WebSocket") != 1 || !strings.Contains(session, "/api/desktop/retronet/connect") {
 		t.Fatal("terminal-retronet-session.js must own exactly one Retro-Net WebSocket")
 	}
-	for _, module := range []string{"terminal-text.js", "terminal-modem.js", "terminal-retronet-directory.js", "terminal-retronet-entries.js", "terminal-styles.js", "terminal-crt.js", "terminal-audio.js"} {
+	for _, module := range []string{"terminal-text.js", "terminal-geometry.js", "terminal-modem.js", "terminal-retronet-directory.js", "terminal-retronet-entries.js", "terminal-styles.js", "terminal-crt.js", "terminal-audio.js"} {
 		if strings.Contains(readDesktopAssetText(t, "js/desktop/apps/"+module), "new WebSocket") {
 			t.Fatalf("%s must not open sockets", module)
 		}
 	}
 	if strings.Contains(source, "onclick=") {
 		t.Fatal("terminal.js must not use inline onclick")
+	}
+	// The temporary C64 look is entered and left only through setGeometry(), so every exit path restores it.
+	if strings.Count(source, "enterC64Look()") != 2 || strings.Count(source, "leaveC64Look()") != 2 {
+		t.Fatal("terminal.js must enter and leave the C64 look only in setGeometry()")
+	}
+}
+
+// Screen geometry (Contract C): fit, the 80x24 VT screen in the style's font, 80x25 BBS with the VGA font, 40x25
+// C64 with the C64 font; one fit at a time.
+// Behaviour is covered by scripts/test-terminal-geometry.mjs.
+func TestDesktopTerminalGeometryContract(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/terminal-geometry.js")
+	for _, want := range []string{
+		"window.TerminalGeometry = { MODES: MODES, create: create }",
+		"fit: null,",
+		"vt: { cols: 80, rows: 24, scrollback: FIT_SCROLLBACK },",
+		`bbs: { cols: 80, rows: 25, font: '"Aura VGA", "Aura Terminal", ui-monospace, monospace', load: '16px "Aura VGA"', cell: [0.5, 1] }`,
+		`c64: { cols: 40, rows: 25, font: '"Aura C64", "Aura Terminal", ui-monospace, monospace', load: '16px "Aura C64"', cell: [1, 1], pixels: 8 }`,
+		// C64: whole device pixels (font size pixels * k / dpr) from xterm's alpha glyph atlas, refit on a DPR change.
+		"Math.floor(ems * dpr / spec.pixels)",
+		"term.options.allowTransparency = !!spec.pixels;",
+		"term.options.allowTransparency = false;",
+		"window.matchMedia('(resolution: ' + (window.devicePixelRatio || 1) + 'dppx)')",
+		// Grids with their own font keep line height 1 (VGA blocks come from the font, a C64 nudge moves glyphs); 'vt'
+		// takes the style's font and its fit owns the line height. Sizes ignore the CSS transforms of window animations.
+		"if (spec.font) return { family: spec.font, load: spec.load };",
+		"return { family: family, load: (profile.fontSize || 16) + 'px ' + first };",
+		"if (spec.font) term.options.lineHeight = 1;",
+		"if (!spec.font) term.options.lineHeight = canSpace() ? fitted.lineHeight : 1;",
+		"return { width: screenEl.offsetWidth, height: screenEl.offsetHeight };",
+		"set: set,",
+		"mode: function () { return current; },",
+		"refit: refit,",
+		"dispose: dispose",
+		"root.setAttribute('data-terminal-geometry', mode);",
+		"root.removeAttribute('data-terminal-geometry');",
+		"term.resize(spec.cols, spec.rows);",
+		"document.fonts.load(face(spec).load)",
+		// 'vt' keeps the scrollback and leaves xterm's scrollbar a strip beside the grid; bbs and c64 keep none.
+		"term.options.scrollback = spec.scrollback || 0;",
+		"term.options.scrollback = FIT_SCROLLBACK;",
+		"const bar = spec.scrollback ? (term.options.overviewRuler && term.options.overviewRuler.width) || 14 : 0;",
+		"const FIT_SCROLLBACK = 1000;",
+		"window.TerminalStyles.applyXterm(term, getProfile());",
+		"const step = function (value) { return Math.max(MIN_FONT_SIZE, Math.floor(value * 2) / 2); };",
+		// One fit at a time: a request during a fit reruns it once afterwards.
+		"if (fitting) {",
+		"again = true;",
+		"if (disposed || mine !== revision) return;",
+		"screenEl.style.background = (term.options.theme && term.options.theme.background) || '';",
+		// The 0.5 px search: down from the em cell's size; 'vt' from the current size to the size its measured cells
+		// scale to, bracketed, one step tried beyond, and an unchanged glass remembered in `ceiling`.
+		"let size = step(scales ? term.options.fontSize : ems);",
+		"const expected = scales ? step(size * Math.min(width / box.width, room.height / box.height)) : size;",
+		"const next = !scales ? size : Math.min(expected > size ? expected : size + 0.5, bad - 0.5);",
+		// 'vt' measures at the current line height (no collapse on screen) and judges the grid at line height 1.
+		"const measured = await measure(size, 0, scales && !spaceRows ? 1 : 0);",
+		"const base = Math.ceil(Math.round(box.height * dpr / spec.rows) / (term.options.lineHeight || 1) - 1e-6);",
+		// 'vt' spaces its rows to fill the glass height: the largest device px cell height that fits, as a line
+		// height over the cell at line height 1, at most MAX_LINE_HEIGHT; an unchanged glass keeps its fit.
+		"const MAX_LINE_HEIGHT = 2;",
+		// Rows are spaced only where the renderer's custom glyphs fill the spaced cell (WebGL: canSpace).
+		"const spaceRows = scales && canSpace();",
+		"const target = spaceRows && good ? Math.floor((room.height + 0.5) * dpr / spec.rows) : 0;",
+		"const box = await measure(good.size, 0, Math.min(MAX_LINE_HEIGHT, (cell + 0.5) / good.base));",
+		// A fit that changed the cell re-syncs xterm's viewport (scroll position in the new cell height).
+		"if (resized && spec.scrollback) syncViewport();",
+		"viewport._latestYDisp = undefined;",
+		"viewport.queueSync();",
+		// The grid is centred in the glass; the scrollbar strip comes out of the right letterbox.
+		"const extraLeft = Math.min(spare, (spare + bar) / 2);",
+		"if (box.width === ceiling.width && box.height === ceiling.height) rect = box;",
+		// The per-axis glass border of 'vt' and 'bbs' (the C64 grid keeps the style padding, a share of the width).
+		"const GLASS_X = 0.02;",
+		"const GLASS_Y = 0.03;",
+		"const GLASS_MIN = 12;",
+		"return glass && own > 0 ? Math.min(own, Math.max(GLASS_MIN, share * size)) : own;",
+		"const room = space(element, !spec.pixels);",
+		"function set(mode) {",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("terminal-geometry.js missing %q", want)
+		}
+	}
+	for _, forbidden := range []string{"new WebSocket", "innerHTML", "localStorage", "ctx.t(", "TerminalRetroNet", "getBoundingClientRect", "lineHeight = withSize",
+		"minCols", "shrinkToMinimum", "proposeDimensions"} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("terminal-geometry.js only sizes the grid, by offset sizes, with pinned grids only; found %q", forbidden)
+		}
+	}
+	// A lost WebGL context switches xterm to the DOM renderer, whose cells differ: the pinned grid fits again.
+	if !regexp.MustCompile(`(?s)onContextLoss\(\(\) => \{.*?refitScreen\(\);\s*\}\);`).MatchString(readDesktopAssetText(t, "js/desktop/apps/terminal.js")) {
+		t.Fatal("terminal.js must refit the screen when the WebGL context is lost")
 	}
 }
 
@@ -396,7 +554,7 @@ func TestDesktopTerminalRetroNetSourcesUseKnownKeys(t *testing.T) {
 		known[key] = true
 	}
 	pattern := regexp.MustCompile(`desktop\.terminal_(?:retronet_[a-z0-9_]+|directory|dialing|connected)\b`)
-	for _, file := range []string{"terminal.js", "terminal-modem.js", "terminal-retronet-directory.js", "terminal-retronet-session.js", "terminal-retronet-entries.js"} {
+	for _, file := range []string{"terminal.js", "terminal-geometry.js", "terminal-modem.js", "terminal-retronet-directory.js", "terminal-retronet-session.js", "terminal-retronet-entries.js"} {
 		source := readDesktopAssetText(t, "js/desktop/apps/"+file)
 		for _, key := range pattern.FindAllString(source, -1) {
 			if strings.HasSuffix(key, "_") {
@@ -478,6 +636,7 @@ var terminalRetroNetCategories = []string{
 	retronet.CategoryBBS,
 	retronet.CategoryMUDs,
 	retronet.CategoryGames,
+	retronet.CategoryCommodore,
 	retronet.CategoryOwn,
 }
 
@@ -524,6 +683,7 @@ var terminalRetroNetFixedKeys = []string{
 	"desktop.terminal_retronet_field_type",
 	"desktop.terminal_retronet_type_bbs",
 	"desktop.terminal_retronet_type_world",
+	"desktop.terminal_retronet_type_c64",
 	"desktop.terminal_retronet_field_charset",
 	"desktop.terminal_retronet_field_host",
 	"desktop.terminal_retronet_field_port",
@@ -544,6 +704,9 @@ var terminalRetroNetFixedKeys = []string{
 	"desktop.terminal_retronet_keep_editing",
 	"desktop.terminal_retronet_delete_title",
 	"desktop.terminal_retronet_delete_confirm",
+	"desktop.terminal_retronet_status_c64_help",
+	"desktop.terminal_retronet_c64_keys",
+	"desktop.terminal_retronet_style_locked",
 }
 
 // Full sentences that must be translated in every non-English locale.
@@ -566,6 +729,9 @@ var terminalRetroNetSentenceKeys = []string{
 	"desktop.terminal_retronet_error_limit",
 	"desktop.terminal_retronet_error_gone",
 	"desktop.terminal_retronet_discard_question",
+	"desktop.terminal_retronet_status_c64_help",
+	"desktop.terminal_retronet_c64_keys",
+	"desktop.terminal_retronet_style_locked",
 }
 
 func terminalRetroNetI18nKeys(t *testing.T) []string {
@@ -574,7 +740,7 @@ func terminalRetroNetI18nKeys(t *testing.T) []string {
 	for _, category := range terminalRetroNetCategories {
 		keys = append(keys, "desktop.terminal_retronet_cat_"+category)
 	}
-	for _, state := range []string{"online", "offline", "unknown"} {
+	for _, state := range []string{"online", "offline", "unknown", "c64"} {
 		keys = append(keys, "desktop.terminal_retronet_status_"+state)
 	}
 	for _, reason := range terminalRetroNetReasons() {
@@ -685,6 +851,11 @@ func TestDesktopTerminalRetroNetI18n(t *testing.T) {
 	for _, reason := range terminalRetroNetReasons() {
 		copyChecked = append(copyChecked, "desktop.terminal_retronet_result_"+reason)
 	}
+	for _, entry := range retronet.DefaultCatalog() {
+		if entry.Kind == retronet.KindC64 {
+			copyChecked = append(copyChecked, entry.DescriptionKey) // C64 descriptions are translated, never copied
+		}
+	}
 	placeholder := regexp.MustCompile(`\{\{[a-z_]+\}\}`)
 	english := readTerminalDesktopLocale(t, "en")
 	for _, lang := range terminalRetroNetLocales {
@@ -719,12 +890,30 @@ func TestDesktopTerminalRetroNetI18n(t *testing.T) {
 	if english["desktop.terminal_retronet_telnet_notice"] != "Unencrypted Telnet connection – do not use real passwords" {
 		t.Errorf("English Telnet notice changed: %q", english["desktop.terminal_retronet_telnet_notice"])
 	}
+	for _, lang := range terminalRetroNetLocales {
+		values := readTerminalDesktopLocale(t, lang)
+		if !strings.HasPrefix(values["desktop.terminal_retronet_status_c64_help"], "[C]") {
+			t.Errorf("lang/desktop/%s.json desktop.terminal_retronet_status_c64_help must start with the [C] marker", lang)
+		}
+		keys := values["desktop.terminal_retronet_c64_keys"]
+		for _, key := range []string{"DEL", "RUN/STOP", "HOME", "CLR", "INST", "F1", "F8", "RVS", "1–8", "9–16", "9/0", "+]"} {
+			if !strings.Contains(keys, key) {
+				t.Errorf("lang/desktop/%s.json desktop.terminal_retronet_c64_keys must name %q", lang, key)
+			}
+		}
+		if strings.Count(keys, " · ") < 9 {
+			t.Errorf("lang/desktop/%s.json desktop.terminal_retronet_c64_keys must keep its 10 parts separated by \" · \"", lang)
+		}
+	}
 	german := readTerminalDesktopLocale(t, "de")
 	for key, umlaut := range map[string]string{
 		"desktop.terminal_retronet_cat_own":                 "ä",
 		"desktop.terminal_retronet_telnet_notice":           "ü",
 		"desktop.terminal_retronet_press_key":               "ü",
 		"desktop.terminal_retronet_result_hostkey_mismatch": "ü",
+		"desktop.terminal_retronet_c64_keys":                "ü",
+		"desktop.terminal_retronet_style_locked":            "ä",
+		"desktop.terminal_retronet_status_c64":              "ü",
 	} {
 		if !strings.Contains(german[key], umlaut) {
 			t.Errorf("German %s must use real umlauts, got %q", key, german[key])
@@ -770,6 +959,19 @@ func TestDesktopTerminalModemContract(t *testing.T) {
 		"window.TerminalText.printable(host)",
 		"if (audible()) context();",
 		"ctx.state === 'running'",
+		// Throttle units (Contract C): code points, whole escape sequences and whole synchronized-output blocks.
+		"const SEQUENCE_LIMIT = 1024;",
+		"const SYNC_BEGIN = '?2026h';",
+		"const SYNC_END = '?2026l';",
+		"const found = allowance > 0 ? scan(allowance) : { units: 0, bytes: 0 };",
+		"if (queue.length && found.units === allowance) schedule();",
+		// Unterminated blocks leave at 64 KiB or 1 s after a stall; scanning goes on from where it stopped.
+		"const SYNC_LIMIT = 64 * 1024;",
+		"if (b === 0x18 || b === 0x1a) return true;",
+		"const SYNC_WAIT_MS = 1000;",
+		"function scan(limit)",
+		"stall = window.setTimeout(expire, SYNC_WAIT_MS);",
+		"if (stall) window.clearTimeout(stall);",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("terminal-modem.js missing %q", want)
@@ -789,7 +991,16 @@ func TestDesktopTerminalTextContract(t *testing.T) {
 
 	source := readDesktopAssetText(t, "js/desktop/apps/terminal-text.js")
 	for _, want := range []string{
-		"window.TerminalText = { cellWidth: cellWidth, fitToCells: fitToCells, printable: printable }",
+		"window.TerminalText = { cellWidth: cellWidth, cells: cells, fitToCells: fitToCells, printable: printable, sentences: sentences, wrapHints: wrapHints, wrapWords: wrapWords }",
+		"function cells(value)",
+		"function wrapHints(value, width)",
+		// Text to read wraps at spaces and splits only over-long words, at cluster boundaries; nothing is cut.
+		"function wrapWords(value, width)",
+		"else clusters(word).forEach(function (part, index) { put(part.text, part.width, index === 0); });",
+		// Announcements: a full stop only after a part without sentence punctuation (ASCII, ellipsis, danda, CJK).
+		"function sentences(parts)",
+		`/[.!?\u2026\u0964\u3002\uff01\uff0e\uff1f]$/.test(text) ? text : text + '.'`,
+		`const HINT_SEPARATOR = ' \xb7 ';`,
 		"function cellWidth(code)",
 		"function fitToCells(value, width, pad)",
 		"function printable(value)",
@@ -819,10 +1030,13 @@ func TestDesktopTerminalRetroNetDirectoryContract(t *testing.T) {
 		"const TerminalText = window.TerminalText",
 		"const LOCAL_SHELL_ID = 'local-shell'",
 		"'aurago.desktop.terminal.retronet.last'",
-		"['classics', 'bbs', 'muds', 'games', 'own']",
+		"['classics', 'bbs', 'muds', 'games', 'commodore', 'own']",
 		"online: '[*]'",
 		"offline: '[ ]'",
 		"unknown: '[?]'",
+		"c64: '[C]'",
+		"if (entry.kind === 'c64') return { state: 'c64', lastOnline: '' };",
+		"TerminalText.wrapHints(tr('desktop.terminal_retronet_status_c64_help'), cols - 1)",
 		"api('/api/desktop/retronet/directory')",
 		"api('/api/desktop/retronet/status', { method: 'POST' })",
 		"payload.can_edit === true",
@@ -858,10 +1072,13 @@ func TestDesktopTerminalRetroNetDirectoryContract(t *testing.T) {
 		}
 	}
 	for _, forbidden := range []string{"new WebSocket", "innerHTML", "alert(", "window.confirm", "._core", "unicodeService", ".length > width", ".slice(0, width",
-		"function cellWidth", "function fitToCells", "function printable", "ZERO_WIDTH", "WIDE_EMOJI", "activeVersion", `\u001f`} {
+		"function cellWidth", "function cells", "function fitToCells", "function printable", "ZERO_WIDTH", "WIDE_EMOJI", "activeVersion", `\u001f`} {
 		if strings.Contains(source, forbidden) {
 			t.Fatalf("terminal-retronet-directory.js must render only into xterm and use the shared TerminalText helpers; found %q", forbidden)
 		}
+	}
+	if strings.Contains(source, "function wrapHints") || strings.Contains(source, "HINT_SEPARATOR") {
+		t.Fatal("terminal-retronet-directory.js must pack its key help through TerminalText.wrapHints")
 	}
 }
 
@@ -880,7 +1097,7 @@ func TestDesktopTerminalBehaviourScripts(t *testing.T) {
 	if err != nil {
 		t.Skip("node is not installed")
 	}
-	for _, name := range []string{"test-terminal-modem.mjs", "test-terminal-retronet-directory.mjs", "test-terminal-retronet-session.mjs", "test-terminal-retronet-entries.mjs"} {
+	for _, name := range []string{"test-terminal-modem.mjs", "test-terminal-geometry.mjs", "test-terminal-retronet-directory.mjs", "test-terminal-retronet-session.mjs", "test-terminal-retronet-entries.mjs"} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -901,9 +1118,15 @@ func TestDesktopTerminalRetroNetSessionContract(t *testing.T) {
 
 	source := readDesktopAssetText(t, "js/desktop/apps/terminal-retronet-session.js")
 	for _, want := range []string{
-		"window.TerminalRetroNetSession = { open: open, hostKeyAnswer: hostKeyAnswer }",
+		"window.TerminalRetroNetSession = { open: open, hostKeyAnswer: hostKeyAnswer, c64ColorKey: c64ColorKey }",
+		// C64 colour keys (Contract C): event.code, exact modifiers, the private sequence.
+		"Digit1: 0x90, Digit2: 0x05, Digit3: 0x1c, Digit4: 0x9f, Digit5: 0x9c,",
+		"Digit6: 0x1e, Digit7: 0x1f, Digit8: 0x9e, Digit9: 0x12, Digit0: 0x92",
+		"Digit1: 0x81, Digit2: 0x95, Digit3: 0x96, Digit4: 0x97, Digit5: 0x98, Digit6: 0x99, Digit7: 0x9a, Digit8: 0x9b",
+		"if (!event || !event.shiftKey || event.metaKey || event.ctrlKey === event.altKey) return '';",
+		`'\x1b[64;' + keys[event.code] + '~'`,
 		"const TerminalText = window.TerminalText",
-		"TerminalText.cellWidth(ch.codePointAt(0))",
+		"const width = TerminalText.cells(String(text || '').split('\\t').join(' '));",
 		"line = lineText(text)",
 		`split('\t').map(TerminalText.printable).join('\t')`,
 		"const start = lastCharacterStart(chars)",
@@ -916,7 +1139,6 @@ func TestDesktopTerminalRetroNetSessionContract(t *testing.T) {
 		"ws.binaryType = 'arraybuffer'",
 		"new TextEncoder()",
 		"event.data instanceof ArrayBuffer",
-		"type: 'resize'",
 		"type: 'hostkey_decision'",
 		"control.type === 'echo'",
 		"setEchoMode(control.remote === true, control.hidden === true)",
@@ -932,7 +1154,7 @@ func TestDesktopTerminalRetroNetSessionContract(t *testing.T) {
 		"function hostKeyAnswer(input, yes, no)",
 		"if (key === 'y') return true",
 		"if (key === 'n') return false",
-		"return { send: send, resize: resize, hostKeyDecision: hostKeyDecision, hangup: shutdown, dispose: shutdown }",
+		"return { send: send, hostKeyDecision: hostKeyDecision, hangup: shutdown, dispose: shutdown }",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("terminal-retronet-session.js missing %q", want)
@@ -945,7 +1167,7 @@ func TestDesktopTerminalRetroNetSessionContract(t *testing.T) {
 	if !strings.Contains(source, "function forget()") || strings.Count(strings.ReplaceAll(source, "\r\n", "\n"), "detach();\n            forget();") != 2 {
 		t.Fatal("terminal-retronet-session.js must forget the line buffer and history in shutdown() and on remote close")
 	}
-	for _, forbidden := range []string{"&host=", "&port=", "?host=", "innerHTML", "function cellWidth", "function fitToCells", "function printable", "0x1f300", `\u001f`} {
+	for _, forbidden := range []string{"&host=", "&port=", "?host=", "innerHTML", "function cellWidth", "function cells", "function fitToCells", "function printable", "0x1f300", `\u001f`} {
 		if strings.Contains(source, forbidden) {
 			t.Fatalf("terminal-retronet-session.js dials by entry ID only and uses the shared TerminalText helpers; found %q", forbidden)
 		}
@@ -970,7 +1192,7 @@ func TestDesktopTerminalRetroNetEntriesContract(t *testing.T) {
 		"window.crypto.getRandomValues",
 		"'own-' + chars.join('')",
 		"const ID_LENGTH = 12",
-		"const MAX_ENTRIES = 64",
+		"const MAX_ENTRIES = 50",
 		"const BLOCKED_PORTS = [25, 465, 587]",
 		`const INVISIBLE = /[\p{Cc}\p{Co}\p{Cs}\p{Zl}\p{Zp}\ufffd]|(?!\u200d)\p{Cf}/u`,
 		`const VISIBLE = /[^\p{White_Space}\u200d]/u`,
@@ -994,6 +1216,11 @@ func TestDesktopTerminalRetroNetEntriesContract(t *testing.T) {
 		"tr('desktop.terminal_retronet_delete_confirm', { name: entry.name })",
 		"tr('desktop.terminal_retronet_type_bbs')",
 		"tr('desktop.terminal_retronet_type_world')",
+		// C64 entries (Contract C): type c64, charset fixed to petscii (UX mirror of kind c64 <=> charset petscii).
+		"const KINDS = ['bbs', 'world', 'c64']",
+		"tr('desktop.terminal_retronet_type_c64')",
+		"if (kind === 'c64') return 'petscii';",
+		"(c64 && row.getAttribute('data-retronet-field') === 'charset')",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("terminal-retronet-entries.js missing %q", want)
@@ -1024,6 +1251,8 @@ func TestDesktopTerminalRetroNetStylesheet(t *testing.T) {
 		`body:not([data-animations="false"])`,
 		`.vd-terminal-app[data-terminal-geometry="bbs"]:not([data-terminal-style="modern"]) .vd-terminal-screen`,
 		`.vd-terminal-app[data-terminal-geometry="bbs"] .xterm .xterm-viewport`,
+		`.vd-terminal-app[data-terminal-geometry="c64"] .xterm .xterm-viewport`,
+		".vd-terminal-app[data-terminal-geometry=\"c64\"] .vd-terminal-screen {\n    background: #706DEB;\n}",
 		".vd-terminal-retronet-dialog {",
 		".vd-terminal-retronet-dialog::backdrop",
 		".vd-terminal-retronet-fields label[hidden]",

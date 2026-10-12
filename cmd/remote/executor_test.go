@@ -88,8 +88,8 @@ func TestExecutorFileWriteRejectsSymlinkPrefixEscape(t *testing.T) {
 		},
 	}, false, []string{root})
 
-	if result.Status != "denied" || !strings.Contains(result.Error, "outside allowed directories") {
-		t.Fatalf("status=%q error=%q, want denied symlink escape", result.Status, result.Error)
+	if result.Status != "error" || !strings.Contains(result.Error, "path escapes from parent") {
+		t.Fatalf("status=%q error=%q, want rooted filesystem refusal", result.Status, result.Error)
 	}
 	if _, err := os.Stat(filepath.Join(outside, "nested", "created.txt")); !os.IsNotExist(err) {
 		t.Fatalf("symlink escape created outside file, stat error = %v", err)
@@ -271,7 +271,7 @@ func TestExecutorTrimCommandResultCacheSkipsCurrentAndRemovesCompletedEntries(t 
 	}
 }
 
-func TestExecutorTrimCommandResultCacheForcesRemovalWhenAllRunning(t *testing.T) {
+func TestExecutorTrimCommandResultCachePreservesAllRunning(t *testing.T) {
 	executor := NewExecutor(slog.Default(), remote.DefaultMaxFileSizeMB)
 	executor.commandResults = make(map[string]*commandExecutionRecord)
 
@@ -294,8 +294,8 @@ func TestExecutorTrimCommandResultCacheForcesRemovalWhenAllRunning(t *testing.T)
 
 	// Verify that force-removed entries have their done channel closed
 	removedID := "running-0"
-	if executor.commandResults[removedID] != nil {
-		t.Fatalf("oldest running entry %q should have been force-removed", removedID)
+	if executor.commandResults[removedID] == nil {
+		t.Fatalf("running entry %q must never be removed", removedID)
 	}
 }
 

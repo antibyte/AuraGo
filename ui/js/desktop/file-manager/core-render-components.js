@@ -30,6 +30,7 @@
     }
 
     function api(url, options) {
+        if (isRemote() && url.startsWith('/api/desktop/') && !url.startsWith('/api/desktop/storage/')) return Promise.reject(new Error(t('desktop.fm.storage_preview')));
         if (fm.callbacks && typeof fm.callbacks.api === 'function') {
             return fm.callbacks.api(url, options);
         }
@@ -46,7 +47,7 @@
     }
 
     function isReadonly() {
-        return !!(fm.callbacks && fm.callbacks.readonly);
+        return !!(fm.callbacks && fm.callbacks.readonly) || storageReadonly();
     }
 
     function normalizeFmPath(path) {
@@ -54,10 +55,12 @@
     }
 
     function isTrashFolderPath(path) {
+        if (isRemote()) return false;
         return normalizeFmPath(path).toLowerCase() === 'trash';
     }
 
     function isTrashItemPath(path) {
+        if (isRemote()) return false;
         return normalizeFmPath(path).toLowerCase().startsWith('trash/');
     }
 
@@ -197,6 +200,7 @@
     }
 
     function previewURL(file) {
+        if (file.storage || isRemote()) return storageURL('content', { ...(file.storage || storageLocation()), path: file.path || '' });
         return '/api/desktop/preview?path=' + encodeURIComponent(file.path || '');
     }
 
@@ -254,6 +258,144 @@
         if (lower === 'backups') return 'folder-backups';
         if (lower === 'tmp' || lower === 'temp') return 'folder-temp';
         return 'folder';
+    }
+
+    function showContextMenu(x, y, items) {
+        const origin = fm;
+        const bindItems = entries => entries.map(item => ({ ...item,
+            handler: typeof item.handler === 'function' ? () => withInstance(origin, item.handler) : item.handler,
+            items: item.items ? bindItems(item.items) : item.items
+        }));
+        items = bindItems(items);
+        if (fm.callbacks && typeof fm.callbacks.showContextMenu === 'function') {
+            // Convert file-manager format {action: string, handler: fn} to main.js format {action: fn}
+            const convertItem = item => {
+                if (item.separator) return item;
+                const converted = {
+                    label: item.label,
+                    icon: item.icon || 'tools',
+                    fallback: contextIconGlyph(item.icon)
+                };
+                if (item.disabled) converted.disabled = true;
+                converted.action = typeof item.handler === 'function' ? item.handler : (typeof item.action === 'function' ? item.action : () => {});
+                if (item.items) {
+                    converted.items = item.items.map(convertItem);
+                } else if (item.children) {
+                    converted.items = item.children.map(convertItem);
+                }
+                return converted;
+            };
+            const converted = items.map(convertItem);
+            fm.callbacks.showContextMenu(x, y, converted);
+            return;
+        }
+        closeContextMenu();
+        const menu = document.createElement('div');
+        menu.className = 'fm-context-menu';
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+        menu.innerHTML = items.map(item => {
+            if (item.separator) return '<div class="fm-context-separator"></div>';
+            return `<button type="button" class="fm-context-item${item.disabled ? ' disabled' : ''}" data-action="${esc(item.action || '')}">
+                ${item.icon ? iconMarkup(item.icon, item.icon, 'fm-context-icon', 14) : ''}
+                <span>${esc(item.label)}</span>
+                ${item.shortcut ? `<kbd class="fm-context-shortcut">${esc(item.shortcut)}</kbd>` : ''}
+            </button>`;
+        }).join('');
+        document.body.appendChild(menu);
+        const menuRect = menu.getBoundingClientRect();
+        let nextLeft = x;
+        let nextTop = y;
+        if (menuRect.right > window.innerWidth) nextLeft = Math.max(8, window.innerWidth - menuRect.width - 8);
+        if (menuRect.bottom > window.innerHeight) nextTop = Math.max(8, window.innerHeight - menuRect.height - 8);
+        if (menuRect.left < 8) nextLeft = Math.max(8, nextLeft);
+        if (menuRect.top < 8) nextTop = Math.max(8, nextTop);
+        menu.style.left = nextLeft + 'px';
+        menu.style.top = nextTop + 'px';
+        menu.querySelectorAll('.fm-context-item:not(.disabled)').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const action = btn.dataset.action;
+                const item = items.find(i => i.action === action);
+                closeContextMenu();
+                if (item && typeof item.handler === 'function') item.handler();
+            });
+        });
+        setTimeout(() => {
+            const closeHandler = event => {
+                if (!menu.contains(event.target)) {
+                    closeContextMenu();
+                    document.removeEventListener('mousedown', closeHandler);
+                    document.removeEventListener('keydown', escapeHandler);
+                }
+            };
+            const escapeHandler = event => {
+                if (event.key === 'Escape') {
+                    closeContextMenu();
+                    document.removeEventListener('mousedown', closeHandler);
+                    document.removeEventListener('keydown', escapeHandler);
+                }
+            };
+            document.addEventListener('mousedown', closeHandler);
+            document.addEventListener('keydown', escapeHandler);
+        }, 0);
+    }
+
+    function closeContextMenu() {
+        if (fm.callbacks && typeof fm.callbacks.closeContextMenu === 'function') {
+            fm.callbacks.closeContextMenu();
+            return;
+        }
+        document.querySelectorAll('.fm-context-menu').forEach(menu => menu.remove());
+    }
+
+    function promptDialog(title, value) {
+        if (fm.callbacks && typeof fm.callbacks.promptDialog === 'function') {
+            return fm.callbacks.promptDialog(title, value);
+        }
+        return new Promise(resolve => {
+            const overlay = document.createElement('div');
+            overlay.className = 'fm-modal-overlay';
+            overlay.innerHTML = `<form class="fm-modal">
+                <div class="fm-modal-title">${esc(title)}</div>
+                <input type="text" name="value" value="${esc(value || '')}" autocomplete="off" spellcheck="false">
+                <div class="fm-modal-actions">
+                    <button type="button" class="fm-btn" data-cancel>${esc(t('desktop.cancel'))}</button>
+                    <button type="submit" class="fm-btn primary">${esc(t('desktop.ok'))}</button>
+                </div>
+            </form>`;
+            document.body.appendChild(overlay);
+            const input = overlay.querySelector('input');
+            const cleanup = result => { overlay.remove(); resolve(result); };
+            overlay.querySelector('form').addEventListener('submit', e => { e.preventDefault(); cleanup(input.value.trim()); });
+            overlay.querySelector('[data-cancel]').addEventListener('click', () => cleanup(''));
+            overlay.addEventListener('click', e => { if (e.target === overlay) cleanup(''); });
+            input.focus();
+            input.select();
+        });
+    }
+
+    function confirmDialog(title, message) {
+        if (fm.callbacks && typeof fm.callbacks.confirmDialog === 'function') {
+            return fm.callbacks.confirmDialog(title, message);
+        }
+        return new Promise(resolve => {
+            const overlay = document.createElement('div');
+            overlay.className = 'fm-modal-overlay';
+            overlay.innerHTML = `<div class="fm-modal">
+                <div class="fm-modal-title">${esc(title)}</div>
+                <p class="fm-modal-message">${esc(message)}</p>
+                <div class="fm-modal-actions">
+                    <button type="button" class="fm-btn" data-cancel>${esc(t('desktop.cancel'))}</button>
+                    <button type="button" class="fm-btn danger" data-confirm>${esc(t('desktop.delete'))}</button>
+                </div>
+            </div>`;
+            document.body.appendChild(overlay);
+            const cleanup = result => { overlay.remove(); resolve(result); };
+            overlay.querySelector('[data-confirm]').addEventListener('click', () => cleanup(true));
+            overlay.querySelector('[data-cancel]').addEventListener('click', () => cleanup(false));
+            overlay.addEventListener('click', e => { if (e.target === overlay) cleanup(false); });
+            overlay.querySelector('[data-confirm]').focus();
+        });
     }
 
     function contextIconGlyph(icon) {

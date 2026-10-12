@@ -54,6 +54,12 @@ func TestOpenSCADJobFileServesInlineByDefaultAndAttachmentOnDownload(t *testing.
 	if got := inlineRec.Header().Get("Content-Disposition"); strings.Contains(strings.ToLower(got), "attachment") {
 		t.Fatalf("inline Content-Disposition = %q, want no attachment", got)
 	}
+	if got := inlineRec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("nosniff = %q", got)
+	}
+	if got := inlineRec.Header().Get("Content-Security-Policy"); !strings.Contains(got, "script-src 'none'") {
+		t.Fatalf("CSP = %q", got)
+	}
 
 	downloadRec := httptest.NewRecorder()
 	downloadReq := httptest.NewRequest(http.MethodGet, "/api/openscad/jobs/oscad-inline/files/model.svg?download=1", nil)

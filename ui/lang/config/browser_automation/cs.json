@@ -22,11 +22,13 @@
   "config.browser_automation.cloak_human_preset_label": "Preset chování",
   "help.browser_automation.cloak_human_preset": "Rychlost simulace: 'default' (normální) nebo 'careful' (pomalejší, opatrnější).",
   "config.browser_automation.cloak_proxy_label": "Proxy URL",
-  "help.browser_automation.cloak_proxy": "Povinná adresa filtrovací proxy v izolované síti.",
+  "help.browser_automation.cloak_proxy": "Nech to prázdné. Chromium používá samostatný egress proxy. URL zde zablokuje spuštění.",
   "config.browser_automation.cloak_fingerprint_seed_label": "Seed otisku",
   "help.browser_automation.cloak_fingerprint_seed": "Pevný seed pro deterministický prohlížečový otisk. Užitečné pro konzistentní identitu napříč sessions.",
   "config.browser_automation.egress_network_label": "Izolovaná síť Docker",
   "help.browser_automation.egress_network": "Interní síť Docker pro prohlížeč; bez ní se služba nespustí.",
+  "config.browser_automation.outbound_network_label": "Odchozí síť Docker",
+  "help.browser_automation.outbound_network": "Síť Docker s cestou do internetu. Připojuje se k ní jen egress proxy. Prohlížeč zůstává v izolované síti.",
   "config.browser_automation.private_origins_label": "Povolené místní adresy",
   "help.browser_automation.private_origins": "Jedna přesná adresa HTTP(S) nebo WS(S) na řádek. Stejný seznam nastavte v proxy."
 }

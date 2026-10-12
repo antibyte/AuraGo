@@ -151,6 +151,14 @@ var configSaveMu sync.Mutex
 // anonymous MQTT broker to once per process.
 var mqttRelayGrandfatherWarning sync.Once
 
+// mqttUntrustedTransportGrandfatherWarning limits the Load warning about a
+// grandfathered plaintext or unverified MQTT transport to once per process.
+var mqttUntrustedTransportGrandfatherWarning sync.Once
+
+// meshCentralPowerGrandfatherWarning limits the Load warning about a
+// pre-allow_power_actions MeshCentral config to once per process.
+var meshCentralPowerGrandfatherWarning sync.Once
+
 // DefaultWorkspaceSearchExcludes returns the safe default skip list for the resident workspace index.
 func DefaultWorkspaceSearchExcludes() []string {
 	return append([]string(nil), defaultWorkspaceSearchExcludes...)
@@ -318,6 +326,27 @@ func EffectiveServerHost(configured string) string {
 	return configured
 }
 
+func clearLegacyBrowserAutomationCloakProxy(cfg *Config) {
+	if cfg == nil {
+		return
+	}
+	parsed, err := url.Parse(strings.TrimSpace(cfg.BrowserAutomation.CloakProxy))
+	if err != nil || parsed == nil || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return
+	}
+	if !strings.EqualFold(parsed.Scheme, "http") || !strings.EqualFold(parsed.Hostname(), "browser-egress") {
+		return
+	}
+	port := parsed.Port()
+	if port == "" {
+		port = "80"
+	}
+	if port != "7332" || (parsed.Path != "" && parsed.Path != "/") {
+		return
+	}
+	cfg.BrowserAutomation.CloakProxy = ""
+}
+
 func Load(path string) (*Config, error) {
 	absConfigPath, err := filepath.Abs(path)
 	if err != nil {
@@ -342,6 +371,7 @@ func Load(path string) (*Config, error) {
 	ApplySIPDefaults(&cfg.SIP)
 	cfg.HereNow.ReadOnly = true
 	cfg.Treg = DefaultTregConfig()
+	cfg.Gog.ReadOnly = true
 	cfg.ModelCatalog.Enabled = true
 	cfg.ModelCatalog.CatalogOnlyVisible = true
 	// Tools section defaults: all tools are enabled by default (opt-in to disable).
@@ -437,7 +467,7 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.VideoDownload.TimeoutSeconds = 300
 	cfg.Tools.VideoDownload.DefaultFormat = "best"
 	cfg.Tools.VideoDownload.MaxSearchResults = 10
-	cfg.Tools.VideoDownload.ContainerImage = "ghcr.io/jauderho/yt-dlp:latest"
+	cfg.Tools.VideoDownload.ContainerImage = "ghcr.io/jauderho/yt-dlp@sha256:90cd9016efc4451153c8bc35cc7a0d9a8cba0e796818e52f3b4d28b9736ac91c"
 	cfg.Tools.VideoDownload.AutoPull = true
 	cfg.Tools.SendYouTubeVideo.Enabled = true
 	cfg.Tools.DocumentCreator.Backend = "maroto"
@@ -464,7 +494,9 @@ func Load(path string) (*Config, error) {
 	cfg.BrowserAutomation.ReadOnly = false
 	cfg.BrowserAutomation.ScreenshotsDir = "browser_screenshots"
 	cfg.BrowserAutomation.CloakHumanPreset = "default"
+	cfg.BrowserAutomation.OutboundNetwork = "bridge"
 
+	cfg.RuView = DefaultRuViewConfig()
 	// go2rtc defaults: disabled, proxy-first, and managed as a hardened sidecar.
 	cfg.Go2RTC.AutoStart = true
 	cfg.Go2RTC.AgentAccess = true
@@ -489,6 +521,11 @@ func Load(path string) (*Config, error) {
 	cfg.LocalWikipedia.AgentAccess = true
 	cfg.LocalWikipedia.Variant = "nopic"
 	cfg.LocalWikipedia.UpdateCheck = true
+
+	// Retro Games is on by default; the index is built only when the app or
+	// the tool is first used.
+	cfg.RetroGames.Enabled = true
+	cfg.RetroGames.AgentAccess = true
 
 	// Space Agent defaults: disabled by default, managed Docker sidecar when enabled.
 	cfg.SpaceAgent.AutoStart = true
@@ -583,11 +620,15 @@ func Load(path string) (*Config, error) {
 	// Virtual Desktop defaults: disabled by default, first-party browser desktop
 	// with a project-local persistent workspace when explicitly enabled.
 	cfg.VirtualDesktop.WorkspaceDir = "agent_workspace/virtual_desktop"
+	cfg.VirtualDesktop.Layerling.AgentAccess = "off"
 	cfg.VirtualDesktop.MaxFileSizeMB = 50
 	cfg.VirtualDesktop.MaxWSClients = 8
 	cfg.VirtualDesktop.RemoteMaxSessionMinutes = 60
 	cfg.VirtualDesktop.RemoteIdleTimeoutMinutes = 5
 	cfg.VirtualDesktop.AllowGeneratedApps = true
+	// Terminal Retro-Net is on by default; an explicit retronet_enabled: false
+	// keeps it off, and the grant still needs an enabled, writable Desktop.
+	cfg.VirtualDesktop.RetroNetEnabled = true
 	cfg.VirtualDesktop.CodeStudio.Enabled = true
 	cfg.VirtualDesktop.CodeStudio.Image = "ghcr.io/antibyte/aurago-code-studio:latest"
 	cfg.VirtualDesktop.CodeStudio.AutoStart = false
@@ -595,7 +636,7 @@ func Load(path string) (*Config, error) {
 	cfg.VirtualDesktop.CodeStudio.MaxMemoryMB = 4096
 	cfg.VirtualDesktop.CodeStudio.MaxCPUCores = 2
 	cfg.VirtualDesktop.OpenSCAD.Enabled = true
-	cfg.VirtualDesktop.OpenSCAD.Image = "openscad/openscad:latest"
+	cfg.VirtualDesktop.OpenSCAD.Image = "openscad/openscad@sha256:147e48525bec392bcf628d7a6d5ea4ccac71b16251952328f86e1061cbf47c37"
 	cfg.VirtualDesktop.OpenSCAD.AutoStart = false
 	cfg.VirtualDesktop.OpenSCAD.AutoStopMinutes = 20
 	cfg.VirtualDesktop.OpenSCAD.MaxMemoryMB = 2048
@@ -978,6 +1019,7 @@ func Load(path string) (*Config, error) {
 
 		return nil, fmt.Errorf("failed to unmarshal config (backup saved to %s): %w", backupPath, err)
 	}
+	clearLegacyBrowserAutomationCloakProxy(&cfg)
 	// Defaults are applied before YAML decoding, so an omitted mode would otherwise
 	// be indistinguishable from an explicit managed_garage selection. Clear only the
 	// defaulted value here and let normalization preserve legacy endpoint-based S3.
@@ -988,6 +1030,9 @@ func Load(path string) (*Config, error) {
 		return nil, err
 	}
 	if err := NormalizeNewspaperConfig(&cfg.Newspaper); err != nil {
+		return nil, err
+	}
+	if err := ValidateGogConfig(cfg.Gog); err != nil {
 		return nil, err
 	}
 	if err := ValidateLLMRouterConfig(&cfg, false); err != nil {
@@ -1108,6 +1153,9 @@ func Load(path string) (*Config, error) {
 	}
 
 	cfg.BrowserAutomation.URL = NormalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", 7331)
+	if err := ValidateRuViewConfig(cfg.RuView, runningInDocker); err != nil {
+		return nil, fmt.Errorf("invalid ruview configuration: %w", err)
+	}
 	cfg.Go2RTC.URL = ResolveGo2RTCInternalURL(cfg.Go2RTC.URL, runningInDocker)
 	if strings.TrimSpace(cfg.Go2RTC.Image) == "" {
 		cfg.Go2RTC.Image = Go2RTCDefaultImage
@@ -1404,7 +1452,7 @@ func Load(path string) (*Config, error) {
 		cfg.VirtualDesktop.CodeStudio.MaxCPUCores = 2
 	}
 	if strings.TrimSpace(cfg.VirtualDesktop.OpenSCAD.Image) == "" {
-		cfg.VirtualDesktop.OpenSCAD.Image = "openscad/openscad:latest"
+		cfg.VirtualDesktop.OpenSCAD.Image = "openscad/openscad@sha256:147e48525bec392bcf628d7a6d5ea4ccac71b16251952328f86e1061cbf47c37"
 	}
 	if cfg.VirtualDesktop.OpenSCAD.AutoStopMinutes <= 0 {
 		cfg.VirtualDesktop.OpenSCAD.AutoStopMinutes = 20
@@ -1663,6 +1711,19 @@ func Load(path string) (*Config, error) {
 		})
 	}
 
+	// A broker login over plaintext or skipped certificate verification used to
+	// start relay runs. Existing configs keep that until
+	// mqtt.allow_untrusted_transport is written. Null counts as unwritten
+	// (yamlHasValue), as config-merger fills a null key like a missing one.
+	// A written false or true ends the grandfather. The security check reports
+	// the result; this warning appears once per process.
+	if cfg.MQTT.Enabled && MQTTBrokerAuthenticated(&cfg) && !MQTTRelayTransportTrusted(&cfg) && !yamlHasValue(data, "mqtt", "allow_untrusted_transport") {
+		cfg.MQTT.AllowUntrustedTransport = true
+		mqttUntrustedTransportGrandfatherWarning.Do(func() {
+			slog.Warn("[Config] untrusted MQTT transport grandfathered: relays and MQTT mission triggers stay allowed until mqtt.allow_untrusted_transport is written")
+		})
+	}
+
 	// docker.allow_host_access gates host access for agent Compose stacks
 	// (up/create/build). Configurations written before the key existed keep
 	// working: an absent key loads as true. config-merger writes the key on
@@ -1670,6 +1731,16 @@ func Load(path string) (*Config, error) {
 	// off silently; writing the key (true or false) ends the grandfather.
 	if !yamlHasPath(data, "docker", "allow_host_access") {
 		cfg.Docker.AllowHostAccess = true
+	}
+
+	// meshcentral.allow_power_actions gates wake and power. Configurations that
+	// already enabled a writable integration keep that behavior when the key is
+	// absent. Writing the key, including false, ends the grandfather.
+	if cfg.MeshCentral.Enabled && !cfg.MeshCentral.ReadOnly && !yamlHasPath(data, "meshcentral", "allow_power_actions") {
+		cfg.MeshCentral.AllowPowerActions = true
+		meshCentralPowerGrandfatherWarning.Do(func() {
+			slog.Warn("[Config] MeshCentral power actions remain enabled because meshcentral.allow_power_actions is absent on an enabled writable integration. Set allow_power_actions: false to block wake and power actions.")
+		})
 	}
 
 	// Migrate legacy agent.personality_* fields → new personality section.
@@ -1737,8 +1808,12 @@ func Load(path string) (*Config, error) {
 		cfg.Server.HTTPS.HTTPSPort = 443
 	}
 	// HTTPPort defaults to 0 = no HTTP redirect server.
-	// Let's Encrypt (auto mode) will override this to 80 at startup since ACME needs it.
-	// For self-signed / custom certs, the redirect is optional — leave 0 as-is.
+	// Leave 0 disabled in every mode. Let's Encrypt HTTP-01 requires explicit port 80.
+	// Before this field existed, public-domain auto TLS opened port 80 at startup.
+	// Retain that legacy listener only when the field is absent, never for an explicit 0.
+	if cfg.Server.HTTPS.Enabled && !UsesSelfSignedTLS(&cfg) && NormalizeCertMode(cfg.Server.HTTPS.CertMode) != "custom" && !yamlHasValue(data, "server", "https", "http_port") {
+		cfg.Server.HTTPS.HTTPPort = 80
+	}
 	if cfg.Server.HTTPS.Enabled && cfg.Server.HTTPS.CertMode == "" {
 		cfg.Server.HTTPS.CertMode = "auto"
 	}
@@ -1850,8 +1925,9 @@ func Load(path string) (*Config, error) {
 	if !yamlHasPath(data, "agent", "output_compression", "reversible", "primary_output_vault") {
 		cfg.Agent.OutputCompression.Reversible.PrimaryOutputVault = true
 	}
-	if cfg.Agent.OutputCompression.Reversible.MaxInlineChars <= 0 {
-		cfg.Agent.OutputCompression.Reversible.MaxInlineChars = 6000
+	// 0 (the default) sizes the inline limit from the model context at run time.
+	if cfg.Agent.OutputCompression.Reversible.MaxInlineChars < 0 {
+		cfg.Agent.OutputCompression.Reversible.MaxInlineChars = 0
 	}
 	// Enable all headroom features by default — validated in production.
 	if !yamlHasPath(data, "agent", "output_compression", "smart_crusher", "enabled") {
@@ -2968,6 +3044,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"frigate", "review_relay"}, c.Frigate.ReviewRelay},
 		{[]string{"frigate", "store_media"}, c.Frigate.StoreMedia},
 		{[]string{"frigate", "mqtt_topic_prefix"}, c.Frigate.MQTTTopicPrefix},
+		{[]string{"ruview"}, c.RuView},
 		{[]string{"go2rtc", "enabled"}, c.Go2RTC.Enabled},
 		{[]string{"go2rtc", "auto_start"}, c.Go2RTC.AutoStart},
 		{[]string{"go2rtc", "web_ui_enabled"}, c.Go2RTC.WebUIEnabled},

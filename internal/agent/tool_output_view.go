@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"aurago/internal/memory"
 )
@@ -16,41 +17,36 @@ type toolOutputViewRequest struct {
 	EndLine   int
 	MaxLines  int
 	MaxChars  int
+	Offset    int
 	Reason    string
 }
 
-func renderToolOutputView(out *memory.CompressedToolOutput, req toolOutputViewRequest) (string, bool, error) {
+// renderToolOutputView selects a view of payload, the readable archived
+// output (vaultReadablePayload): line numbers, grep and jsonpath see the
+// tool's own text without presentation prefixes or isolation escaping. The
+// caller pages and bounds the result.
+func renderToolOutputView(out *memory.CompressedToolOutput, payload string, req toolOutputViewRequest) (string, error) {
 	if out == nil {
-		return "", false, fmt.Errorf("output is nil")
+		return "", fmt.Errorf("output is nil")
 	}
-	view := strings.ToLower(strings.TrimSpace(req.View))
-	if view == "" {
-		view = "summary"
-	}
-	var content string
-	switch view {
+	switch strings.ToLower(strings.TrimSpace(req.View)) {
 	case "summary":
-		content = firstNonEmptyToolString(out.SummaryContent, out.ViewContent, out.CompressedContent)
+		return firstNonEmptyToolString(out.SummaryContent, out.ViewContent, out.CompressedContent), nil
 	case "head":
-		content = selectHeadLines(out.OriginalContent, req.MaxLines)
+		return selectHeadLines(payload, req.MaxLines), nil
 	case "tail":
-		content = selectTailLines(out.OriginalContent, req.MaxLines)
+		return selectTailLines(payload, req.MaxLines), nil
 	case "range":
-		content = selectLineRange(out.OriginalContent, req.StartLine, req.EndLine)
+		return selectLineRange(payload, req.StartLine, req.EndLine), nil
 	case "grep":
-		content = selectGrepLines(out.OriginalContent, req.Query)
+		return selectGrepLines(payload, req.Query), nil
 	case "jsonpath":
-		value, err := selectJSONPath(out.OriginalContent, req.Query)
-		if err != nil {
-			return "", false, err
-		}
-		content = value
-	case "full":
-		content = out.OriginalContent
+		return selectJSONPath(payload, req.Query)
+	case "", "full":
+		return payload, nil
 	default:
-		return "", false, fmt.Errorf("unknown view %q", req.View)
+		return "", fmt.Errorf("unknown view %q", req.View)
 	}
-	return capToolOutputView(content, req.MaxChars)
 }
 
 func selectHeadLines(content string, maxLines int) string {
@@ -89,6 +85,13 @@ func selectLineRange(content string, startLine, endLine int) string {
 	return strings.Join(lines[startLine-1:endLine], "\n")
 }
 
+// grepContextBytes is the context kept on each side of a match in a long
+// line; shorter lines match whole.
+const grepContextBytes = 200
+
+// selectGrepLines returns the lines containing query (case-insensitive). A
+// long line (minified JSON or HTML) yields a window around each match,
+// labelled with its line and byte position.
 func selectGrepLines(content, query string) string {
 	query = strings.TrimSpace(query)
 	if query == "" {
@@ -96,9 +99,30 @@ func selectGrepLines(content, query string) string {
 	}
 	needle := strings.ToLower(query)
 	var matches []string
-	for _, line := range splitOutputLines(content) {
-		if strings.Contains(strings.ToLower(line), needle) {
+	for i, line := range splitOutputLines(content) {
+		lower := strings.ToLower(line)
+		if !strings.Contains(lower, needle) {
+			continue
+		}
+		if len(line) <= 4*grepContextBytes || len(lower) != len(line) {
 			matches = append(matches, line)
+			continue
+		}
+		for from := 0; from < len(lower); {
+			at := strings.Index(lower[from:], needle)
+			if at < 0 {
+				break
+			}
+			at += from
+			start, end := max(at-grepContextBytes, 0), min(at+len(needle)+grepContextBytes, len(line))
+			for start > 0 && !utf8.RuneStart(line[start]) {
+				start--
+			}
+			for end < len(line) && !utf8.RuneStart(line[end]) {
+				end++
+			}
+			matches = append(matches, fmt.Sprintf("[line %d, byte %d] %s", i+1, at, line[start:end]))
+			from = end
 		}
 	}
 	return strings.Join(matches, "\n")
@@ -111,13 +135,6 @@ func splitOutputLines(content string) []string {
 		return nil
 	}
 	return strings.Split(content, "\n")
-}
-
-func capToolOutputView(content string, maxChars int) (string, bool, error) {
-	if maxChars <= 0 || len(content) <= maxChars {
-		return content, false, nil
-	}
-	return content[:maxChars] + fmt.Sprintf("\n[TRUNCATED: view was %d chars, returned first %d]", len(content), maxChars), true, nil
 }
 
 func selectJSONPath(content, query string) (string, error) {

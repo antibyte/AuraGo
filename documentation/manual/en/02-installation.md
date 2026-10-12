@@ -1,5 +1,7 @@
 # Chapter 2: Installation
 
+Fresh installs use HTTPS with a local certificate: native port 443 or 8443, Docker container port 8443 published as 443. Use the address reported by installation. Existing HTTP configs stay unchanged. See [HTTPS and browser trust](../../https.md).
+
 <p align="center">
   <a href="../images/manual-install.webp"><img src="../images/manual-install.webp" width="560" alt="AuraGo gopher unpacking the binary and resource bundle at a workbench"></a>
 </p>
@@ -80,7 +82,7 @@ cd AuraGo
 docker compose up -d
 ```
 
-Open **http://localhost:8088**. The image ships volumes and the UI set. It creates a vault key if none is supplied. Keep that key with the backups.
+Open **https://localhost**. The image ships volumes and the UI set. It creates a vault key if none is supplied. Keep that key with the backups.
 
 Docker access goes through a restricted socket proxy. It reduces the attack surface but does not contain a compromised AuraGo; see section 4 of the [Docker guide](../../docker_installation.md#4-docker-socket-security).
 
@@ -159,13 +161,13 @@ make_deploy.bat   # Windows
 
 ### 1. Configure API Key (Web UI — recommended)
 
-1. Open `http://localhost:8088` (or your configured host/port).
+1. Open `https://localhost` (or your configured host/port).
 2. Go to **Menu → Config → Providers**.
 3. Add a provider (e.g. OpenRouter), paste your API key, and select a model.
 4. Under **Config → LLM Settings**, set **Provider** to your new provider ID.
 5. Click **Save**.
 
-### 1b. Configure API Key (YAML — alternative)
+### 1b. Configure provider settings in YAML (optional)
 
 Edit `config.yaml`:
 
@@ -173,7 +175,8 @@ Edit `config.yaml`:
 nano config.yaml   # or vim, code, notepad
 ```
 
-Minimal configuration:
+Merge these provider settings into the generated configuration; keep its server
+and HTTPS settings. Store the API key through the wizard or Config UI in the Vault.
 
 ```yaml
 providers:
@@ -181,15 +184,11 @@ providers:
     type: openrouter
     name: "Main LLM"
     base_url: https://openrouter.ai/api/v1
-    api_key: "sk-or-v1-YOUR-API-KEY"
     model: "google/gemini-2.0-flash-001"
 
 llm:
   provider: "main"
 
-server:
-  host: "127.0.0.1"
-  port: 8088
 ```
 
 > 💡 **No API key?** Visit [openrouter.ai](https://openrouter.ai) – there are free models available.
@@ -262,13 +261,13 @@ tail -f log/aurago.log     # Direct
 You should see:
 ```
 [INFO] AuraGo starting...
-[INFO] Web UI available at http://localhost:8088
+[INFO] Web UI available at https://localhost
 [INFO] Agent loop initialized
 ```
 
 ### 3. Open Web UI
 
-Navigate to: **http://localhost:8088**
+Navigate to: **https://localhost**
 
 You should see the login screen or chat (depending on auth configuration).
 

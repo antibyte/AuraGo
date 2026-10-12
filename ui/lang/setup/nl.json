@@ -213,8 +213,8 @@
   "setup.profile_agnes_ai_name": "Agnes AI",
   "setup.profile_agnes_ai_pricing": "Gratis gebruik mogelijk",
   "setup.step0_provider_agnes": "Agnes AI",
-  "setup.step0_provider_hint_agnes": "Gratis gebruik van Agnes AI-modellen voor tekst, afbeeldingen en video is mogelijk."
-  ,"setup.step_label_local_llm": "Lokaal testmodel",
+  "setup.step0_provider_hint_agnes": "Gratis gebruik van Agnes AI-modellen voor tekst, afbeeldingen en video is mogelijk.",
+  "setup.step_label_local_llm": "Lokaal testmodel",
   "setup.local_llm_backend_cpu": "CPU (experimenteel)",
   "setup.local_llm_mtp_forced": "MTP-2 (experimenteel, verplicht)",
   "setup.local_llm_probing": "Hardware en Docker controleren zonder wijzigingen…",
@@ -223,5 +223,12 @@
   "setup.local_llm_job_running": "{model} wordt geïnstalleerd nadat de normale aanbieder is opgeslagen.",
   "setup.local_llm_job_complete": "{model} is geslaagd voor de tests en de gekozen rol is actief.",
   "setup.local_llm_job_failed": "Installatie van {model} mislukt; de normale aanbieder blijft primair",
-  "setup.local_llm_job_progress": "Installatie {model}: {progress}%"
+  "setup.local_llm_job_progress": "Installatie {model}: {progress}%",
+  "setup.connection_title": "Verbinding en browserfuncties",
+  "setup.https_active": "AuraGo gebruikt HTTPS op poort {port}.",
+  "setup.https_inactive": "De ingebouwde HTTPS van AuraGo is uitgeschakeld.",
+  "setup.https_selfsigned": "Een lokaal certificaat wordt automatisch aangemaakt. Controleer het en voeg zo nodig vertrouwen toe in je browser of op je apparaat.",
+  "setup.secure_ready": "Deze browser meldt een veilige context. Bureaubladfuncties vereisen nog steeds browserondersteuning en apparaatmachtigingen.",
+  "setup.secure_unavailable": "Deze browser meldt geen veilige context. Veel bureaubladfuncties, waaronder spraakchat en microfoontoegang, zijn mogelijk niet beschikbaar.",
+  "setup.https_manage": "Wijzig HTTPS in het installatieprogramma of na de installatie onder Config → Server. HTTPS via een proxy en localhost kunnen ook een veilige context bieden."
 }
