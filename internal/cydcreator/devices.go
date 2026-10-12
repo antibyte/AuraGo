@@ -250,6 +250,24 @@ func (s *Service) removeDevice(ctx context.Context, d deviceRow, now time.Time) 
 	return nil
 }
 
+// removeExpiredDevice deletes d only while the stored row is still a pending
+// device whose first heartbeat is overdue at now (d may have been read before
+// the project lock: a device activated meanwhile stays). It announces the
+// removal and reports whether a row was deleted.
+func (s *Service) removeExpiredDevice(ctx context.Context, d deviceRow, now time.Time) (bool, error) {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM cc_devices WHERE id=? AND status=? AND expires_at<>'' AND expires_at<=?`,
+		d.ID, DevicePending, formatTime(now))
+	if err != nil {
+		return false, fmt.Errorf("delete expired cyd creator device: %w", err)
+	}
+	if n, err := res.RowsAffected(); err != nil || n == 0 {
+		return false, err
+	}
+	d.Status = DeviceRevoked
+	s.emitDevice(d, now)
+	return true, nil
+}
+
 // saveDeviceSettings stores the user-editable fields of d (name, target,
 // last_error). A row that no longer exists is CYD_DEVICE_NOT_FOUND, so the
 // caller emits nothing (no "pending" event after the "revoked" one).

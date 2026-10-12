@@ -121,11 +121,17 @@ func TestDeviceAuthenticationFailuresAreRateLimitedPerClient(t *testing.T) {
 	p := env.createProject(t, "Brute")
 	build := succeededBuild(t, env, p.ID)
 	minted, token := mintTestDevice(t, env, p.ID, build.ID)
-	attacker := DeviceRequest{Token: "ccdt_" + strings.Repeat("1", 64), ClientIP: "10.0.0.9"}
+	guess := func(i int) string { return fmt.Sprintf("ccdt_%064x", i+1) }
+	attacker := DeviceRequest{ClientIP: "10.0.0.9"}
 	for i := 0; i < authFailuresPerWindow; i++ {
+		attacker.Token = guess(i)
 		if _, err := env.svc.DeviceHeartbeat(ctx, attacker, heartbeatFor(minted.Device, build.ID)); ErrorCode(err) != CodeUnauthorized {
 			t.Fatalf("attempt %d: %v", i, err)
 		}
+	}
+	attacker.Token = guess(authFailuresPerWindow)
+	if _, err := env.svc.DeviceHeartbeat(ctx, attacker, heartbeatFor(minted.Device, build.ID)); ErrorCode(err) != CodeRateLimited {
+		t.Fatalf("distinct guess %d: %v", authFailuresPerWindow+1, err)
 	}
 	attacker.Token = token
 	if _, err := env.svc.DeviceHeartbeat(ctx, attacker, heartbeatFor(minted.Device, build.ID)); ErrorCode(err) != CodeRateLimited {
@@ -140,17 +146,113 @@ func TestDeviceAuthenticationFailuresAreRateLimitedPerClient(t *testing.T) {
 	}
 }
 
+// Revoked devices behind one address keep sending their stale token; each
+// token counts once, so the healthy device next to them is never refused.
+func TestDeviceAuthFailuresCountDistinctTokensPerAddress(t *testing.T) {
+	env, clock := newDeviceEnv(t)
+	ctx := context.Background()
+	p := env.createProject(t, "Nat")
+	build := succeededBuild(t, env, p.ID)
+	good, goodToken := mintTestDevice(t, env, p.ID, build.ID)
+	var revoked []string
+	for i := 0; i < 2; i++ {
+		d, token := mintTestDevice(t, env, p.ID, build.ID)
+		if err := env.svc.RevokeDevice(ctx, d.Device.ID); err != nil {
+			t.Fatal(err)
+		}
+		revoked = append(revoked, token)
+	}
+	nat := func(token string) DeviceRequest { return DeviceRequest{Token: token, ClientIP: "172.17.0.1"} }
+	for minute := 0; minute < 30; minute++ {
+		for _, token := range revoked {
+			if _, err := env.svc.DeviceHeartbeat(ctx, nat(token), Heartbeat{DeviceID: "ccd_x"}); ErrorCode(err) != CodeUnauthorized {
+				t.Fatalf("minute %d, revoked device: %v", minute, err)
+			}
+		}
+		if _, err := env.svc.DeviceHeartbeat(ctx, nat(goodToken), heartbeatFor(good.Device, build.ID)); err != nil {
+			t.Fatalf("minute %d, healthy device behind the same address: %v", minute, err)
+		}
+		clock.advance(time.Minute)
+	}
+
+	// IPv6 clients share the limit of their /64.
+	v6 := func(addr string, i int) DeviceRequest {
+		return DeviceRequest{Token: fmt.Sprintf("ccdt_%064x", 1000+i), ClientIP: addr}
+	}
+	for i := 0; i < authFailuresPerWindow; i++ {
+		addr := fmt.Sprintf("2001:db8:1:2::%x", i+1)
+		if _, err := env.svc.DeviceHeartbeat(ctx, v6(addr, i), heartbeatFor(good.Device, build.ID)); ErrorCode(err) != CodeUnauthorized {
+			t.Fatalf("v6 guess %d: %v", i, err)
+		}
+	}
+	if _, err := env.svc.DeviceHeartbeat(ctx, v6("2001:db8:1:2:ffff::1", 99), heartbeatFor(good.Device, build.ID)); ErrorCode(err) != CodeRateLimited {
+		t.Fatalf("another address of the same /64: %v", err)
+	}
+	other := DeviceRequest{Token: goodToken, ClientIP: "2001:db8:1:3::1"}
+	if _, err := env.svc.DeviceHeartbeat(ctx, other, heartbeatFor(good.Device, build.ID)); err != nil {
+		t.Fatalf("another /64: %v", err)
+	}
+}
+
+func TestDeviceAuthFailureKeysAreCapped(t *testing.T) {
+	var l deviceLimiter
+	now := time.Date(2026, 10, 10, 8, 0, 0, 0, time.UTC)
+	for i := 0; i < maxAuthClients; i++ {
+		l.authFailed(fmt.Sprintf("10.%d.%d.1", i/256, i%256), "ccdt_bad", now)
+	}
+	// The map is full of fresh keys: new addresses share the overflow bucket,
+	// which blocks after authFailuresPerWindow distinct tokens.
+	for i := 0; i < authFailuresPerWindow; i++ {
+		l.authFailed(fmt.Sprintf("192.168.%d.1", i), fmt.Sprintf("guess-%d", i), now)
+	}
+	if n := len(l.auth); n != maxAuthClients+1 {
+		t.Fatalf("keys = %d, want %d (the overflow bucket on top)", n, maxAuthClients+1)
+	}
+	if !l.authBlocked("192.168.200.1", now) {
+		t.Fatal("a new address must share the saturated overflow bucket")
+	}
+	if l.authBlocked("10.0.0.1", now) {
+		t.Fatal("a known address keeps its own key")
+	}
+	// After the window the sweep frees the map: new addresses get their own key.
+	later := now.Add(authFailureWindow)
+	if l.authBlocked("192.168.201.1", later) {
+		t.Fatal("blocked after the window")
+	}
+	l.authFailed("192.168.201.1", "guess", later)
+	if n := len(l.auth); n != 1 {
+		t.Fatalf("keys after the sweep = %d, want 1", n)
+	}
+}
+
 func TestDeviceLimiterForgetsIdleKeys(t *testing.T) {
 	var l deviceLimiter
 	start := time.Date(2026, 10, 10, 8, 0, 0, 0, time.UTC)
 	for i := 0; i < deviceLimiterSweepKeys; i++ {
-		l.record(fmt.Sprintf("auth:10.0.%d.%d", i/256, i%256), start, authFailureWindow)
+		l.allow(fmt.Sprintf("hb:ccd_%04d", i), start, heartbeatsPerMinute, time.Minute)
 	}
-	// One more key after every earlier one left its window: the sweep drops
-	// the idle keys, so client addresses that never return cannot pile up.
-	l.record("auth:10.9.9.9", start.Add(authFailureWindow), authFailureWindow)
+	// One more key after every earlier one left the longest window: the sweep
+	// drops the idle keys, so keys of removed devices cannot pile up.
+	l.allow("hb:ccd_new", start.Add(longestDeviceWindow), heartbeatsPerMinute, time.Minute)
 	if n := len(l.hits); n != 1 {
 		t.Fatalf("keys after the sweep = %d, want 1", n)
+	}
+}
+
+func TestClientKey(t *testing.T) {
+	for in, want := range map[string]string{
+		"192.168.1.50":           "192.168.1.50",
+		" 10.0.0.9 ":             "10.0.0.9",
+		"::ffff:192.168.1.50":    "192.168.1.50",
+		"2001:db8:1:2:3:4:5:6":   "2001:db8:1:2::/64",
+		"2001:db8:1:2::1%eth0":   "2001:db8:1:2::/64",
+		"":                       "",
+		"not an address":         "not an address",
+		strings.Repeat("x", 300): clipEcho(strings.Repeat("x", 300)),
+	} {
+		if got := clientKey(in); got != want {
+			t.Errorf("clientKey(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
 
@@ -196,6 +298,7 @@ func TestDeviceHeartbeatMirrorsRollbackAndFailure(t *testing.T) {
 	first := succeededBuild(t, env, p.ID)
 	minted, token := mintTestDevice(t, env, p.ID, first.ID)
 	second := succeededBuild(t, env, p.ID)
+	third := succeededBuild(t, env, p.ID)
 	target := second.ID
 	setTarget := func() {
 		t.Helper()
@@ -228,12 +331,99 @@ func TestDeviceHeartbeatMirrorsRollbackAndFailure(t *testing.T) {
 		t.Fatalf("after rolled_back: %+v, update %+v", d, resp.Update)
 	}
 
-	// The firmware keeps reporting rolled_back for the rest of the boot; a target
-	// the user sets meanwhile survives those heartbeats.
+	// The firmware keeps reporting rolled_back for the rest of the boot; another
+	// target the user sets meanwhile survives those heartbeats.
+	target = third.ID
 	setTarget()
 	resp, d = beat(OTAStateRolledBack, "rolled back from "+second.ID)
-	if d.TargetBuildID != second.ID || d.LastError != "" || resp.Update == nil {
+	if d.TargetBuildID != third.ID || d.LastError != "" || resp.Update == nil || resp.Update.BuildID != third.ID {
 		t.Fatalf("new target during the rolled back boot: %+v, update %+v", d, resp.Update)
+	}
+
+	// Picking the build that rolled back in this boot again is reset: it can be
+	// retried once the board restarted (the firmware then reports idle).
+	target = second.ID
+	setTarget()
+	if resp, d = beat(OTAStateRolledBack, "rolled back from "+second.ID); d.TargetBuildID != first.ID || resp.Update != nil {
+		t.Fatalf("the failed build picked again in the same boot: %+v, update %+v", d, resp.Update)
+	}
+	setTarget()
+	if resp, d = beat(OTAStateIdle, ""); d.TargetBuildID != second.ID || resp.Update == nil {
+		t.Fatalf("retry after a restart: %+v, update %+v", d, resp.Update)
+	}
+
+	// Format characters in the device message are dropped.
+	if _, d = beat(OTAStateFailed, "time"+string(rune(0x200b))+"out"+string(rune(0x202e))); d.LastError != "failed: timeout" {
+		t.Fatalf("last_error with format characters = %q", d.LastError)
+	}
+}
+
+// A second rollback while the stored state already is rolled_back (the user
+// picked another build during the rolled back boot and it failed too) must
+// stop offering that build: no reinstall loop. Heartbeat and ota-result agree.
+func TestDeviceSecondRollbackInTheSameStateStopsTheOffer(t *testing.T) {
+	env, _ := newDeviceEnv(t)
+	ctx := context.Background()
+	p := env.createProject(t, "Zweimal")
+	first := succeededBuild(t, env, p.ID)
+	minted, token := mintTestDevice(t, env, p.ID, first.ID)
+	second := succeededBuild(t, env, p.ID)
+	third := succeededBuild(t, env, p.ID)
+	set := func(id string) {
+		t.Helper()
+		if _, err := env.svc.UpdateDevice(ctx, minted.Device.ID, DeviceUpdate{TargetBuildID: &id}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	beat := func(state, message string) HeartbeatResponse {
+		t.Helper()
+		hb := heartbeatFor(minted.Device, first.ID)
+		hb.OTAState, hb.OTAError = state, message
+		resp, err := env.svc.DeviceHeartbeat(ctx, deviceReq(token), hb)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return resp
+	}
+	device := func() Device {
+		t.Helper()
+		list, _ := env.svc.ListDevices(ctx, p.ID)
+		return list[0]
+	}
+	rolledBack := func(id string) {
+		t.Helper()
+		if err := env.svc.DeviceOTAResult(ctx, deviceReq(token), OTAResult{BuildID: id, Error: "rolled_back"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	beat(OTAStateIdle, "")
+	set(second.ID)
+	if beat(OTAStateIdle, "").Update == nil {
+		t.Fatal("second is not offered")
+	}
+	// second crashed before its first heartbeat; the old image reports the rollback.
+	if r := beat(OTAStateRolledBack, "rolled back from "+second.ID); r.Update != nil {
+		t.Fatalf("offer after the first rollback: %+v", r.Update)
+	}
+	rolledBack(second.ID)
+	set(third.ID)
+	if r := beat(OTAStateRolledBack, "rolled back from "+second.ID); r.Update == nil || r.Update.BuildID != third.ID {
+		t.Fatalf("third is not offered: %+v", r.Update)
+	}
+	// third crashed too: the old image boots again and reports it.
+	if r := beat(OTAStateRolledBack, "rolled back from "+third.ID); r.Update != nil {
+		t.Fatalf("REINSTALL LOOP: %s is offered again", r.Update.BuildID)
+	}
+	if d := device(); d.TargetBuildID != first.ID || d.LastError != "rolled_back: rolled back from "+third.ID || d.OTAState != OTAStateRolledBack {
+		t.Fatalf("after the second rollback: %+v", d)
+	}
+
+	// The ota-result alone (heartbeat lost) stops the offer as well.
+	set(third.ID)
+	rolledBack(third.ID)
+	if d := device(); d.TargetBuildID != first.ID || d.LastError != OTAStateRolledBack {
+		t.Fatalf("after the second rollback report: %+v", d)
 	}
 }
 
@@ -351,6 +541,117 @@ func TestDeviceOTAResultMirrorsTheFirmwareReports(t *testing.T) {
 	}
 	if d := device(); d.LastError != "" || d.BuildID != second.ID || d.TargetBuildID != second.ID || d.OTAState != OTAStateIdle {
 		t.Fatalf("after the confirmed update: %+v", d)
+	}
+}
+
+// A target for another board (a stale row) is neither offered nor served.
+func TestDeviceUpdatesNeedTheDevicesBoard(t *testing.T) {
+	env, _ := newDeviceEnv(t)
+	ctx := context.Background()
+	p := env.createProject(t, "Platine")
+	first := succeededBuild(t, env, p.ID)
+	minted, token := mintTestDevice(t, env, p.ID, first.ID)
+	second := succeededBuild(t, env, p.ID)
+	target := second.ID
+	if _, err := env.svc.UpdateDevice(ctx, minted.Device.ID, DeviceUpdate{TargetBuildID: &target}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.svc.db.Exec(`UPDATE cc_devices SET board='jc4827w543' WHERE id=?`, minted.Device.ID); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := env.svc.DeviceHeartbeat(ctx, deviceReq(token), heartbeatFor(minted.Device, first.ID))
+	if err != nil || resp.Update != nil {
+		t.Fatalf("heartbeat = %+v, %v; want no offer for another board", resp, err)
+	}
+	if _, _, err := env.svc.DeviceFirmware(ctx, deviceReq(token), second.ID); ErrorCode(err) != CodeNotFound {
+		t.Fatalf("firmware for another board: %v", err)
+	}
+}
+
+func deviceEventCount(t *testing.T, env *testEnv, projectID string) int {
+	t.Helper()
+	var n int
+	if err := env.svc.db.QueryRow(`SELECT COUNT(*) FROM cc_events WHERE project_id=? AND type=?`, projectID, EventDeviceChanged).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+// A device that comes back online is announced; IP or template version
+// changes alone are announced at most once per heartbeat interval.
+func TestDeviceHeartbeatEvents(t *testing.T) {
+	env, clock := newDeviceEnv(t)
+	ctx := context.Background()
+	p := env.createProject(t, "Ereignis")
+	build := succeededBuild(t, env, p.ID)
+	minted, token := mintTestDevice(t, env, p.ID, build.ID)
+	beat := func(ip, version string) {
+		t.Helper()
+		hb := heartbeatFor(minted.Device, build.ID)
+		hb.IP, hb.TemplateVersion = ip, version
+		if _, err := env.svc.DeviceHeartbeat(ctx, deviceReq(token), hb); err != nil {
+			t.Fatal(err)
+		}
+	}
+	beat("192.168.1.50", "1.0.0") // activation
+	base := deviceEventCount(t, env, p.ID)
+	beat("192.168.1.50", "1.0.0")
+	if n := deviceEventCount(t, env, p.ID); n != base {
+		t.Fatalf("plain heartbeat: %d events, want %d", n, base)
+	}
+
+	// Offline (three silent intervals and more), then back: one event.
+	clock.advance(3*time.Minute + 5*time.Second)
+	beat("192.168.1.50", "1.0.0")
+	if n := deviceEventCount(t, env, p.ID); n != base+1 {
+		t.Fatalf("back online: %d events, want %d", n, base+1)
+	}
+
+	clock.advance(time.Second)
+	beat("192.168.1.51", "1.0.0")
+	beat("192.168.1.50", "1.0.0")
+	beat("192.168.1.50", "1.0.1")
+	if n := deviceEventCount(t, env, p.ID); n != base+2 {
+		t.Fatalf("alternating details within one interval: %d events, want %d", n, base+2)
+	}
+	clock.advance(time.Minute)
+	beat("192.168.1.52", "1.0.1")
+	if n := deviceEventCount(t, env, p.ID); n != base+3 {
+		t.Fatalf("details change in the next interval: %d events, want %d", n, base+3)
+	}
+	list, _ := env.svc.ListDevices(ctx, p.ID)
+	if list[0].IP != "192.168.1.52" {
+		t.Fatalf("stored ip = %q", list[0].IP)
+	}
+}
+
+// The expiry delete only removes a row that is still pending and overdue: a
+// row read before the project lock may have been activated meanwhile.
+func TestRemoveExpiredDeviceKeepsAnActivatedRow(t *testing.T) {
+	env, clock := newDeviceEnv(t)
+	ctx := context.Background()
+	p := env.createProject(t, "Ablauf")
+	build := succeededBuild(t, env, p.ID)
+	minted, _ := mintTestDevice(t, env, p.ID, build.ID)
+	stale, err := env.svc.loadDeviceRow(ctx, minted.Device.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clock.advance(DevicePendingTTL + time.Second)
+	if _, err := env.svc.db.Exec(`UPDATE cc_devices SET status=?, expires_at='' WHERE id=?`, DeviceActive, stale.ID); err != nil {
+		t.Fatal(err)
+	}
+	if removed, err := env.svc.removeExpiredDevice(ctx, stale, env.svc.now()); removed || err != nil {
+		t.Fatalf("activated row: removed %v, %v", removed, err)
+	}
+	if _, err := env.svc.loadDeviceRow(ctx, stale.ID); err != nil {
+		t.Fatalf("the activated device must stay: %v", err)
+	}
+	if _, err := env.svc.db.Exec(`UPDATE cc_devices SET status=?, expires_at=? WHERE id=?`, DevicePending, stale.ExpiresAt, stale.ID); err != nil {
+		t.Fatal(err)
+	}
+	if removed, err := env.svc.removeExpiredDevice(ctx, stale, env.svc.now()); !removed || err != nil {
+		t.Fatalf("expired pending row: removed %v, %v", removed, err)
 	}
 }
 

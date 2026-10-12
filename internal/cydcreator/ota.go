@@ -2,11 +2,13 @@ package cydcreator
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
 	"io"
 	"net"
+	"net/netip"
 	"regexp"
 	"strings"
 	"sync"
@@ -31,9 +33,17 @@ const (
 	maxOTAErrorRunes           = 200
 	// longestDeviceWindow is the longest window above; deviceLimiterSweepKeys
 	// is the key count from which the limiter drops idle keys (at most once a
-	// minute), so client addresses that never come back cannot pile up.
+	// minute), so keys of removed devices cannot pile up.
 	longestDeviceWindow    = 10 * time.Minute
 	deviceLimiterSweepKeys = 1024
+	// maxAuthClients caps the client keys of the failed-authentication limit;
+	// while it is reached (after a sweep), further clients share the bucket
+	// authOverflowKey, so rotating addresses cannot grow memory.
+	maxAuthClients  = 4096
+	authOverflowKey = "*"
+	// rolledBackPrefix starts the ota_error of a boot after a rollback
+	// (template cyd_link.cpp link_begin: "rolled back from <build id>").
+	rolledBackPrefix = "rolled back from "
 )
 
 var (
@@ -41,13 +51,106 @@ var (
 	deviceReasonPattern  = regexp.MustCompile(`^[A-Za-z0-9_ -]{0,32}$`)
 )
 
-// deviceLimiter counts events per key in a sliding window. The zero value is
-// ready; keys without events in their window are dropped on the next check
-// and, once there are many keys, by a sweep.
+// deviceLimiter counts events per key in a sliding window (per-device limits)
+// and the distinct failing tokens per client key (authFailed, authBlocked).
+// The zero value is ready; keys without events in their window are dropped on
+// the next check and, once there are many keys, by a sweep.
 type deviceLimiter struct {
 	mu    sync.Mutex
 	hits  map[string][]time.Time
 	swept time.Time
+
+	auth      map[string]map[[sha256.Size]byte]time.Time // client key → failing token hash → last failure
+	authSwept time.Time
+}
+
+// clientKey is the failed-authentication key of a client address: an IPv4
+// address as is, an IPv6 address as its /64 (one subscriber or LAN usually
+// owns a whole /64, so rotating the interface id gains nothing), anything
+// else clipped.
+func clientKey(addr string) string {
+	addr = strings.TrimSpace(addr)
+	ip, err := netip.ParseAddr(addr)
+	if err != nil {
+		return clipEcho(addr)
+	}
+	ip = ip.Unmap().WithZone("")
+	if ip.Is4() {
+		return ip.String()
+	}
+	prefix, err := ip.Prefix(64)
+	if err != nil {
+		return clipEcho(addr)
+	}
+	return prefix.String()
+}
+
+// authTokens returns the failures of one client key that are still within the
+// window, dropping the key when none is left. Callers hold mu.
+func (l *deviceLimiter) authTokens(key string, now time.Time) map[[sha256.Size]byte]time.Time {
+	tokens, ok := l.auth[key]
+	if !ok {
+		return nil
+	}
+	for hash, at := range tokens {
+		if now.Sub(at) >= authFailureWindow {
+			delete(tokens, hash)
+		}
+	}
+	if len(tokens) == 0 {
+		delete(l.auth, key)
+		return nil
+	}
+	return tokens
+}
+
+// authKey maps a client to its own key, or to authOverflowKey while the map
+// holds maxAuthClients other keys (idle keys are swept at most once a minute
+// first). Callers hold mu.
+func (l *deviceLimiter) authKey(client string, now time.Time) string {
+	key := clientKey(client)
+	if _, ok := l.auth[key]; ok || len(l.auth) < maxAuthClients {
+		return key
+	}
+	if now.Sub(l.authSwept) >= time.Minute {
+		l.authSwept = now
+		for k := range l.auth {
+			l.authTokens(k, now)
+		}
+		if len(l.auth) < maxAuthClients {
+			return key
+		}
+	}
+	return authOverflowKey
+}
+
+// authBlocked reports whether the client failed with authFailuresPerWindow
+// distinct tokens within the window.
+func (l *deviceLimiter) authBlocked(client string, now time.Time) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return len(l.authTokens(l.authKey(client, now), now)) >= authFailuresPerWindow
+}
+
+// authFailed records a failed authentication. The same token counts once per
+// window: a revoked or orphaned device that repeats its stale token every
+// heartbeat cannot lock out the devices sharing its address, while guessing
+// needs a new token per try and stays capped. A blocked client records
+// nothing (authBlocked runs first), so a key holds about authFailuresPerWindow
+// tokens at most.
+func (l *deviceLimiter) authFailed(client, token string, now time.Time) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.auth == nil {
+		l.auth = map[string]map[[sha256.Size]byte]time.Time{}
+	}
+	key := l.authKey(client, now)
+	tokens := l.authTokens(key, now)
+	if tokens == nil {
+		tokens = map[[sha256.Size]byte]time.Time{}
+		l.auth[key] = tokens
+	}
+	tokens[sha256.Sum256([]byte(token))] = now
 }
 
 func (l *deviceLimiter) recent(key string, now time.Time, window time.Duration) []time.Time {
@@ -94,30 +197,11 @@ func (l *deviceLimiter) allow(key string, now time.Time, limit int, window time.
 	return true
 }
 
-// record adds an event without a limit check.
-func (l *deviceLimiter) record(key string, now time.Time, window time.Duration) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.prepare(now)
-	l.recent(key, now, window)
-	l.hits[key] = append(l.hits[key], now)
-}
-
-// blocked reports whether key already reached limit, without recording.
-func (l *deviceLimiter) blocked(key string, now time.Time, limit int, window time.Duration) bool {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if l.hits == nil {
-		return false
-	}
-	return len(l.recent(key, now, window)) >= limit
-}
-
 // DeviceRequest is one call of a device endpoint: the bearer token and the
-// client address, the key of the failed-authentication limit. The HTTP layer
-// passes the address its trusted-proxy rule resolves (server ClientIP), never
-// the raw peer address: behind a reverse proxy every device would otherwise
-// share one bucket, and one attacker could lock all of them out.
+// client address, the key of the failed-authentication limit (IPv6 by /64).
+// The HTTP layer passes the address its trusted-proxy rule resolves (server
+// ClientIP), never the raw peer address: behind a reverse proxy every device
+// would otherwise share one bucket, and one attacker could lock all of them out.
 type DeviceRequest struct {
 	Token    string
 	ClientIP string
@@ -195,11 +279,17 @@ func (hb Heartbeat) validate() error {
 	return nil
 }
 
-// cleanDeviceText replaces control characters in device-supplied text.
+// cleanDeviceText replaces control characters and line/paragraph separators
+// in device-supplied text by spaces and drops everything else that is not
+// graphic (format characters such as bidirectional overrides and zero-width
+// marks, unassigned or private code points, invalid UTF-8).
 func cleanDeviceText(s string) string {
 	s = strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) {
+		switch {
+		case unicode.IsControl(r) || unicode.In(r, unicode.Zl, unicode.Zp):
 			return ' '
+		case r == utf8.RuneError || !unicode.IsGraphic(r):
+			return -1
 		}
 		return r
 	}, s)
@@ -216,23 +306,23 @@ func otaError(state, message string) string {
 }
 
 // authenticateDevice resolves the bearer token to its device. OTA must be on,
-// the client address must not have failed too often, the token must belong to
-// a device that is not revoked and, while pending, not expired (an expired
-// pending device is removed). Every failure is CYD_UNAUTHORIZED.
+// the client address must not have failed with too many distinct tokens, the
+// token must belong to a device that is not revoked and, while pending, not
+// expired (an expired pending device is removed). Every failure is
+// CYD_UNAUTHORIZED.
 func (s *Service) authenticateDevice(ctx context.Context, req DeviceRequest) (deviceRow, error) {
 	if !s.Limits().OTA.Enabled {
 		return deviceRow{}, NewError(CodeOTADisabled, "updates over Wi-Fi are switched off", nil)
 	}
 	now := s.now()
-	client := "auth:" + req.ClientIP
-	if s.deviceLimits.blocked(client, now, authFailuresPerWindow, authFailureWindow) {
+	if s.deviceLimits.authBlocked(req.ClientIP, now) {
 		return deviceRow{}, NewError(CodeRateLimited, "too many failed device requests; try again later", nil)
 	}
+	token := strings.TrimSpace(req.Token)
 	fail := func() (deviceRow, error) {
-		s.deviceLimits.record(client, now, authFailureWindow)
+		s.deviceLimits.authFailed(req.ClientIP, token, now)
 		return deviceRow{}, NewError(CodeUnauthorized, "the device token is not valid", nil)
 	}
-	token := strings.TrimSpace(req.Token)
 	if len(token) != len(deviceTokenPrefix)+2*deviceTokenBytes || !strings.HasPrefix(token, deviceTokenPrefix) {
 		return fail()
 	}
@@ -247,8 +337,12 @@ func (s *Service) authenticateDevice(ctx context.Context, req DeviceRequest) (de
 		return fail()
 	}
 	if deviceExpired(d, now) {
+		// d was read without the project lock: the delete only removes a row
+		// that is still pending and overdue.
 		unlock := s.lockProject(d.ProjectID)
-		_ = s.removeDevice(ctx, d, now)
+		if _, err := s.removeExpiredDevice(ctx, d, now); err != nil {
+			s.logger.Warn("CYD Creator expired device could not be removed", "device_id", d.ID, "error", err)
+		}
 		unlock()
 		return fail()
 	}
@@ -265,18 +359,33 @@ func (s *Service) reloadDevice(ctx context.Context, id string) (deviceRow, error
 	return d, err
 }
 
+// rolledBackFrom returns the build id of a rollback message ("rolled back
+// from <build id>"), or "".
+func rolledBackFrom(message string) string {
+	id, ok := strings.CutPrefix(cleanDeviceText(message), rolledBackPrefix)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(id)
+}
+
 // applyHeartbeat returns the device state after a heartbeat, mirroring the
 // firmware (plan 1b "Device behaviour"). The first heartbeat activates a
-// pending device. ota_state "rolled_back" is reported for the rest of the boot
-// after a rollback: entering it stores last_error and resets the target to the
-// running build, so the build that did not start is not offered again (the
-// user picks it again in the OTA dialog). "failed" is reported after a failed
-// download or verification until the next attempt: entering it stores
-// last_error and keeps the target, because the firmware retries a failed
-// build after 10 minutes. Only the transition into a state writes last_error,
-// so a target the user sets meanwhile survives the remaining heartbeats of
-// that boot. A device that reports the target build after running another one
-// finished its update (health confirmation): last_error is cleared.
+// pending device. ota_state "rolled_back" with ota_error "rolled back from
+// <id>" is reported for the whole boot after a rollback. The rollback is
+// judged by that failed build, not by the stored state: while the target is
+// the failed build, the target is reset to the running build and last_error
+// stored, so the build that did not start is not offered again. That also
+// catches a second rollback in the same rolled_back state (the user picked
+// another build during the boot and it failed too), and keeps any other
+// target the user picks meanwhile. Picking the failed build again during the
+// same boot is reset as well; it can be retried once the board restarted.
+// Without a build id in the message only the transition into the state
+// counts. "failed" is reported after a failed download or verification until
+// the next attempt: entering it stores last_error and keeps the target,
+// because the firmware retries a failed build after 10 minutes. A device that
+// reports the target build after running another one finished its update
+// (health confirmation): last_error is cleared.
 func applyHeartbeat(d deviceRow, hb Heartbeat, now time.Time) deviceRow {
 	running := hb.BuildID
 	if running == "" {
@@ -284,9 +393,15 @@ func applyHeartbeat(d deviceRow, hb Heartbeat, now time.Time) deviceRow {
 	}
 	switch hb.OTAState {
 	case OTAStateRolledBack:
-		if d.OTAState != OTAStateRolledBack {
+		failed := rolledBackFrom(hb.OTAError)
+		if failed == "" && d.OTAState != OTAStateRolledBack {
+			failed = d.TargetBuildID
+		}
+		if failed != "" && failed == d.TargetBuildID && failed != running {
 			d.LastError = otaError(OTAStateRolledBack, hb.OTAError)
 			d.TargetBuildID = running
+		} else if d.OTAState != OTAStateRolledBack {
+			d.LastError = otaError(OTAStateRolledBack, hb.OTAError)
 		}
 	case OTAStateFailed:
 		if d.OTAState != OTAStateFailed {
@@ -307,11 +422,19 @@ func applyHeartbeat(d deviceRow, hb Heartbeat, now time.Time) deviceRow {
 	return d
 }
 
-// deviceChanged reports a change worth an event; plain heartbeats that only
-// move last_seen, RSSI or free heap do not fill the persisted event log.
+// deviceChanged reports a change of state, builds, target, OTA state, error or
+// name, which is always worth an event; plain heartbeats that only move
+// last_seen, RSSI or free heap do not fill the persisted event log.
 func deviceChanged(a, b deviceRow) bool {
 	return a.Status != b.Status || a.BuildID != b.BuildID || a.TargetBuildID != b.TargetBuildID || a.OTAState != b.OTAState ||
-		a.LastError != b.LastError || a.IP != b.IP || a.TemplateVersion != b.TemplateVersion || a.Name != b.Name
+		a.LastError != b.LastError || a.Name != b.Name
+}
+
+// deviceDetailsChanged reports a new IP or template version: an event at most
+// once per heartbeat interval (DeviceHeartbeat), so a device that alternates
+// them cannot flood the event log.
+func deviceDetailsChanged(a, b deviceRow) bool {
+	return a.IP != b.IP || a.TemplateVersion != b.TemplateVersion
 }
 
 // offerUpdate returns the update for a device whose target differs from the
@@ -358,7 +481,10 @@ func (s *Service) DeviceHeartbeat(ctx context.Context, req DeviceRequest, hb Hea
 		next.LastError, next.BuildID, next.TargetBuildID, next.ID); err != nil {
 		return HeartbeatResponse{}, s.internalError("device heartbeat", err)
 	}
-	if !wasOnline || deviceChanged(d, next) {
+	switch {
+	case !wasOnline || deviceChanged(d, next):
+		s.emitDevice(next, now)
+	case deviceDetailsChanged(d, next) && s.deviceLimits.allow("ev:"+d.ID, now, 1, interval):
 		s.emitDevice(next, now)
 	}
 	return HeartbeatResponse{IntervalS: int(interval / time.Second), Update: s.offerUpdate(ctx, next)}, nil
@@ -429,8 +555,8 @@ func (s *Service) openFirmware(ctx context.Context, b Build) (io.ReadSeekCloser,
 // sends {build_id: <own>, ok: true} after its first good heartbeat, which
 // clears last_error; an old image that booted after a rollback sends
 // {build_id: <failed>, ok: false, error: "rolled_back"}, which stores
-// last_error "rolled_back" and resets the target if it was the failed build
-// (once: a repeated report changes nothing); a download or verification
+// last_error "rolled_back" and resets the target while it is the failed build
+// (a repeated report changes nothing); a download or verification
 // failure {ok: false, error: "<reason>"} stores "failed: <reason>" and keeps
 // the target (the firmware retries after 10 minutes). build_id must be the
 // device's target, the build it runs or another build of its project.
@@ -462,13 +588,15 @@ func (s *Service) DeviceOTAResult(ctx context.Context, req DeviceRequest, res OT
 	case res.OK:
 		d.LastError = ""
 	case cleanDeviceText(res.Error) == OTAStateRolledBack:
-		if d.OTAState != OTAStateRolledBack {
-			d.OTAState = OTAStateRolledBack
+		// Judged by the failed build like the heartbeat: a target that is the
+		// failed build is reset even when the state already is rolled_back.
+		if res.BuildID == d.TargetBuildID && res.BuildID != d.BuildID {
+			d.TargetBuildID = d.BuildID
 			d.LastError = OTAStateRolledBack
-			if res.BuildID == d.TargetBuildID {
-				d.TargetBuildID = d.BuildID
-			}
+		} else if d.OTAState != OTAStateRolledBack {
+			d.LastError = OTAStateRolledBack
 		}
+		d.OTAState = OTAStateRolledBack
 	default:
 		d.OTAState = OTAStateFailed
 		d.LastError = otaError(OTAStateFailed, res.Error)
