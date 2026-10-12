@@ -9,7 +9,8 @@ project and, outside the package, the builder image (`deploy/docker/Dockerfile.c
 `deploy/docker/cyd-builder/`, `.github/workflows/cyd-builder.yml`), plus (plan 1c) the deterministic generator that
 turns a project into the complete PlatformIO tree, plus (plan 2) the SQLite store, the service (projects, layout,
 app files, assets, events) and the build queue, plus (plan 3) agent jobs with working copies, drafts, the crash-safe
-publication, revisions, the job chat and the agent tool implementations. Plan 5 adds devices to this same package.
+publication, revisions, the job chat and the agent tool implementations, plus (plan 5) devices, the device side of
+OTA updates and the ZIP export and import.
 
 ## Ownership
 
@@ -44,6 +45,10 @@ publication, revisions, the job chat and the agent tool implementations. Plan 5 
   receipts, fence), `tools_project.go`, `tools_files.go`, `tools_build.go`, `tools_reference.go` (agent tool
   implementations), `texts.go` (translation codes and English templates of job steps and system chat lines). The agent schemas and dispatcher live in `internal/agent` (`internal/agent/AGENTS.md`), the
   runner, prompt profiles and job routes in `internal/server`.
+- Plan 5: `devices.go` (device records, minting, rename/OTA target, revoke, pending expiry), `ota.go` (device token
+  authentication, the failed-authentication limiter, heartbeat, firmware download, OTA results), `transfer.go` (ZIP
+  export) and `transfer_import.go` (ZIP import). Device routes, the device URL and the certificate pin live in
+  `internal/server` (`internal/server/AGENTS.md`, "CYD Creator").
 
 ## Local Contracts
 
@@ -163,11 +168,18 @@ publication, revisions, the job chat and the agent tool implementations. Plan 5 
   most 4088 payload bytes.
 - `DeviceConfig.validate` is firmware-compatible and strict for encode and decode alike: the URL starts with the
   literal lowercase `http://` or `https://`, is printable ASCII without quotes or backslashes, has no userinfo,
-  query, fragment or IPv6 literal, a non-empty host name and a port of 1..65535; `https` requires a 64-hex
-  lowercase `cert_sha256`, `http` must not carry one; the token matches `[A-Za-z0-9._~+/=-]+`. Decoding also
-  needs exactly the four keys (case-sensitive, once each, all strings), no trailing data and zero padding.
-  Violations are `CYD_BAD_REQUEST`; an IPv6 literal host is one of them, so a device URL needs a hostname or an
-  IPv4 address.
+  query, fragment or IPv6 literal, a non-empty host of only letters, digits, dots and hyphens
+  (`deviceHostPattern`: the firmware hands the raw text to its DNS lookup, so no %-escapes or sub-delimiters) and a
+  port of 1..65535; `https` requires a 64-hex lowercase `cert_sha256`, `http` must not carry one; the token matches
+  `[A-Za-z0-9._~+/=-]+`. Decoding also needs exactly the four keys (case-sensitive, once each, all strings), no
+  trailing data and zero padding. Violations are `CYD_BAD_REQUEST`; an IPv6 literal host is one of them, so a device
+  URL needs a hostname or an IPv4 address.
+- `ValidateDeviceURL(url, certSHA256)` is that URL and pin rule on its own (`deviceURLProblem`,
+  `deviceCertProblem`, shared with `validate`), so a URL accepted anywhere always encodes. It fails with
+  `CYD_BAD_REQUEST`, `details.reason` `device_url` or `cert_sha256` and `details.hint` `cyd_creator.ota.public_url`.
+  `MintDevice` and the server's device URL resolution use it; `internal/config` mirrors the URL part for
+  `cyd_creator.ota.public_url` (`cydPublicURLProblem`, `TestCYDCreatorPublicURLMatchesDeviceRule`): change all
+  three together.
 - `DeviceConfig` redacts `Token` in `String`, `GoString` and `LogValue`; only the JSON blob carries it. Never log it.
 
 ### Diagnostics and paths
@@ -468,11 +480,15 @@ publication, revisions, the job chat and the agent tool implementations. Plan 5 
 - Assets (`PutAsset`): PNG/JPEG by magic bytes, at most 2 MiB (`MaxAssetUploadBytes`). The header is read first
   (`checkUploadHeader`): an image larger than every board's display is `CYD_ASSET_TOO_LARGE` (`details.reason`
   `dimensions`) before any pixel is decoded; then it must fit the project's display (either orientation) and the
-  decoded total `AssetBudget` (`budget`). Names are sanitised to the asset file rule with `_2` … suffixes, ids are
-  fresh `a_` ids. Because a hand-edited or imported layout can carry any path, the asset file rule is checked again
-  right before every open, read and remove (`OpenAsset`, `DeleteAsset`, `loadGenerateInput`); `DeleteAsset` keeps a
-  file that a remaining entry still lists. An asset file above 2 MiB fails `Generate`/`StartBuild` with
-  `CYD_ASSET_TOO_LARGE` (`details.asset`, `reason` `file_size`). `OpenAsset` reads the file (at most 2 MiB) into
+  decoded total `AssetBudget` (`budget`), and the stored originals of the project together stay within
+  `MaxAssetTotalBytes` (16 MiB; else `CYD_FILE_LIMIT` with `details.limit` `asset_bytes` and `details.max`). Names
+  are sanitised to the asset file rule with `_2` … suffixes, ids are fresh `a_` ids. Because a hand-edited or
+  imported layout can carry any path, the asset file rule is checked again right before every open, read and
+  remove (`OpenAsset`, `DeleteAsset`, `loadGenerateInput`); `DeleteAsset` keeps a file that a remaining entry still
+  lists. `loadGenerateInput` measures every listed file before it reads any: one above 2 MiB fails
+  `Generate`/`StartBuild`/the export with `CYD_ASSET_TOO_LARGE` (`details.asset`, `reason` `file_size`), all
+  together above `MaxAssetTotalBytes` with `CYD_FILE_LIMIT` (`asset_bytes`; what was actually read counts too, so a
+  file that grew meanwhile cannot slip through). `OpenAsset` reads the file (at most 2 MiB) into
   memory under the project lock and returns a reader the caller closes: no handle may stay open inside a project
   directory, because on Windows it blocks the directory swap of a publication or restore.
 
@@ -719,6 +735,79 @@ publication, revisions, the job chat and the agent tool implementations. Plan 5 
   3. Delete the receipt file, and any file in `transactions/` that is not a receipt (each one fences every
      project). Start AuraGo; a backup without a receipt is swept at the start.
   A `recover_<job>` fence needs no action: restart AuraGo and the job is settled again.
+
+### Devices, OTA and transfer (plan 5)
+
+- `MintDevice` needs OTA on (`CYD_OTA_DISABLED`), an endpoint that passes `ValidateDeviceURL`, a succeeded build of
+  the same project with firmware.bin (`firmwareBuild`) and fewer than 64 devices in the project (`CYD_BUSY`,
+  `details.limit`). It creates a `pending` device (`ccd_` id, default name "<project> #<n>" with the next unused n;
+  names are 1..64 runes without control or format characters) bound to the project, with a fresh token `ccdt_` +
+  64 hex (`TokenScopeDevice` `cyd_creator_device`). Only the token's SHA-256 is stored (`token_hash`); the token
+  exists only inside the 4096-byte config blob (`EncodeDeviceConfig`: URL without trailing slash, device id, token,
+  pin, "" for `http://`), returned once with `config_offset = ConfigPartitionOffset(board.FlashMB)`.
+- A pending device expires `DevicePendingTTL` (1 h) after minting without a heartbeat; it is removed on the next
+  list, mint, update or authentication. `UpdateDevice` renames and/or sets the target (a succeeded build of the
+  project for the device's board, OTA on); a new target clears `last_error`. `RevokeDevice` deletes the row, so the
+  token stops working at once. Every device write runs under the project lock and emits a persisted
+  `device_changed` `{device}` (public `Device`, no token); removals carry status `revoked`. Online = active with a
+  heartbeat within 3 heartbeat intervals.
+- Device requests (`authenticateDevice`): OTA on (else `CYD_OTA_DISABLED`), then the failed-authentication limit
+  (`deviceLimiter`): per client key (an IPv4 address, an IPv6 address by its /64; the server passes its trusted-proxy
+  `ClientIP`) it counts distinct failing tokens within 10 minutes and answers `CYD_RATE_LIMITED` from 20 on. The
+  same bad token (a revoked board that keeps its heartbeat) counts once, so it cannot lock out the boards behind the
+  same address. At most 4096 client keys (`maxAuthClients`; idle keys are swept at most once a minute when full);
+  while the map is full, failures of clients without a key are not recorded: the overflow never blocks a client
+  (such clients may guess unlimited until keys expire, accepted against 256-bit tokens). Every other failure
+  (malformed, unknown, revoked, expired) is `CYD_UNAUTHORIZED`. Per device: 12 heartbeats a minute, 3 firmware
+  downloads and 10 OTA results per 10 minutes (`CYD_RATE_LIMITED`).
+- Heartbeats: `device_id` must be the token's device, fields are checked strictly (`Heartbeat.validate`) and device
+  text is cleaned (`cleanDeviceText`). The first one activates a pending device. `device_changed` is emitted when
+  the device was offline or its status, builds, target, OTA state, last_error or name changed; a new IP or template
+  version at most once per interval. They mirror the firmware (`applyHeartbeat`): a rollback is judged by the
+  failed build named in `ota_error` "rolled back from <id>" (template `link_begin`), not by the stored state. While
+  the target is that build the target is reset to the running build and `last_error` becomes `rolled_back[: …]`,
+  also for a second rollback within the same boot; re-picking the failed build during that boot is reset again
+  (retry after a restart or with a new build). Without an id only entering `rolled_back` counts. Entering `failed`
+  stores `failed[: …]` and keeps the target (the firmware retries after 10 minutes); reporting the target after
+  running another build clears `last_error` (health confirmation). The answer carries `interval_s` and, while the
+  target differs from the running build, `update` {build_id, size, sha256, url}; `url` is the path
+  `DeviceFirmwarePath` + id (`/api/cyd-creator/device/firmware/<id>`), never absolute (the firmware takes only a path
+  below its configured URL, "Device template").
+- `DeviceFirmware` serves only the device's current target, a succeeded build of its project for its board
+  (anything else `CYD_NOT_FOUND`). `openFirmware` streams firmware.bin, never merged.bin, only while the file still
+  has its build record's size and fits one app slot (`AppSlotSize`); the reader is cut to that size (a mismatch is
+  `CYD_INTERNAL`, logged).
+- `DeviceOTAResult`: `build_id` is the target, the running build or another build of the project; `ok` clears
+  `last_error`, `error: "rolled_back"` resets a target that is the failed build and stores `rolled_back`, any other
+  error stores `failed: <reason>` and keeps the target.
+- `ExportProject` zips the current version below `<slug>/`. `snapshotExport` reads the project under its mutex
+  and refuses a fenced one (`CYD_BUSY` `publication_review`); fonts are read and the archive is compressed after
+  the lock is released (build artefacts never change). Contents: the generated tree plus a default
+  `include/cyd_build_id.h` (`#define CYD_BUILD_ID "export"`), the converted fonts of the newest succeeded build with
+  the same `fonts.json` (else the newest kept fonts and a README warning; none: the README says to build once),
+  cyd.project.json, the app files, the original assets and a README; projects hold no tokens or Wi-Fi credentials.
+  When the generator refuses the project (`CYD_INVALID_LAYOUT`, `CYD_BAD_REQUEST` for bad images,
+  `CYD_GENERATOR_ERROR`) the export keeps the sources only and the README says so (a backup still works). Paths
+  `safeArchivePath` refuses are left out and listed in the README. The archive is built in memory: at most two
+  exports at a time (`exportSlots`, else `CYD_BUSY` reason `export`) and at most `maxExportBytes` (128 MiB) unpacked
+  (`CYD_FILE_LIMIT`, `details.limit` `export_bytes`, `details.max`).
+- `ImportProject` accepts only exports: 1..`MaxImportBytes` (20 MiB), at most `MaxImportEntries` (500) entries,
+  every path checked for zip slip and portability (absolute, drive letters, backslashes, `.`/`..`, double slashes,
+  control or Windows-forbidden characters, Windows device names, a trailing dot or space; links and devices),
+  cyd.project.json at the root or in one top-level folder. Generated and template paths, the README, hidden folders
+  and `__MACOSX` are dropped unread; src/app sources (file limits, no letter-case clash of a file or any folder)
+  and the PNG/JPEG images the layout lists (magic bytes matching the extension, header size equal to the layout's,
+  within the largest display, together within `AssetBudgetLarge` as RGB565 and `MaxAssetTotalBytes` as files) are
+  kept; any other file refuses the import. Only kept entries count against `MaxImportBytes`, by declared size
+  (saturating) and again while reading (`importBudget`), so an export with large generated files re-imports. The
+  layout is parsed strictly with a valid name and a known board, a newer template is `CYD_TEMPLATE_TOO_NEW`, an
+  empty timezone becomes `UTC0`, asset entries pass `checkLayoutAssets` and an image file with a Windows device name
+  (`aux.png`) is refused. Refusals are `CYD_IMPORT_INVALID` with `details.reason` `not_zip`, `too_large`,
+  `too_many_entries`, `unsafe_path`, `layout_missing`, `file_type`, `layout`, `board`, `app_files` or `asset`
+  (`asset` with `limit` `asset_bytes` and `max` for the image total) and `path`/`board`/`limit` where they apply,
+  never host paths. The project gets a new id and a unique slug (no existing project is touched), scaffolded
+  sources when none came along, the revision "Import <file name>" (`RevisionImport`, a failure is only logged) and
+  `project_changed` `{version: 1, origin: "import", what: "layout"}`; a failed write removes the directory.
 
 ## Work Guidance
 

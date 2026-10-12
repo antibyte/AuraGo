@@ -381,7 +381,8 @@
   and `layout:issues`; it may call `inst.assetUrl(id)` and `inst.code.ensureHook({name, event})`.
 - `P.api` wraps every endpoint and throws `ApiError {status, code, message, details}` (status 0: the
   request never reached AuraGo); `P.errors.message(t, err)` shows `cyd_creator.error.<CODE>` (`CYD_BUSY`
-  with `details.reason` `publication_review` has its own sentence).
+  with `details.reason` `publication_review` has its own sentence; `CYD_FILE_LIMIT` and `CYD_BUSY` `export` use
+  the plan 5 transfer strings, "CYD Creator flash, monitor and devices").
 - Event stream (`cyd-creator-events.js`): resumes with `?after=<last seq>`, coalesces the backlog until
   `stream_ready` and reconnects with 1–30 s backoff (±20 % jitter); parts listen to `sse:<type>` or the
   semantic bus events of the `inst` contract. An event without an id line (the browser keeps the previous
@@ -536,6 +537,80 @@
   theme, font, symbol, library, language or classic-CYD board change regenerate
   `ui/testdata/cyd_creator_designer_caps.json` with
   `go test ./ui -run TestCYDCreatorDesignerCapsFixtureMatchesCatalog -args -update-cyd-designer-caps`.
+
+## CYD Creator flash, monitor and devices
+- Plan 5's five modules `cyd-creator-serial`, `-flasher`, `-monitor`, `-devices`, `-transfer` load in this order
+  below the "plan 5" marker comment, between `cyd-creator-home.js` and `cyd-creator-app.js`
+  (`cydCreatorFlashModules`, also in `cydCreatorShellModules`). `app` attaches the monitor right after the dock
+  (`inst.monitor = P.monitor.attach(inst)`, disposed with `inst.projectBag`), before the agent panel exists: the
+  monitor looks `inst.agent` up when "Attach log" is used. Toolbar Flash, OTA and Export and the start screen's
+  Import ZIP card show only when their module loaded.
+- Web Serial (`P.serial`): `P.serial.manager` is the page's single owner of the port (a port opens once per
+  page). Owners are `flasher` (exclusive) and `monitor` (revocable: a flash makes the monitor close the port
+  first, and the monitor reopens it afterwards). It covers CYD Creator only: a port Quick Connect holds is
+  `CYD_FLASH_PORT_BUSY`. `support()` returns `{ok, reason}` with reason `readonly` (read-only desktop), `disabled`
+  (`virtual_desktop.serial_browser_enabled` off, admin-only, or not known yet), `insecure`, `unsupported` (no
+  `navigator.serial`), `framed` (not the top-level `/desktop` document) or `policy` (Permissions-Policy). The
+  desktop policy (decision D2, like Quick Connect) comes from `aurago:desktop-policy` events on `document`
+  (`serial_browser_enabled`, `readonly`) and, while unknown, one `GET /api/desktop/bootstrap` (events win;
+  `manager.ensure()` waits for it); a change re-renders an idle flash dialog and ends a monitor session it no
+  longer allows. `manager.request()` (`requestPort`) must be the first await of a click (user activation). The
+  reset pulses RTS for 100 ms with DTR (IO0/BOOT) released: BOOT held 5 s during the splash erases the Wi-Fi
+  credentials.
+- Flasher (`P.flasher.open(inst)`): esptool-js 0.7.0 is imported lazily from
+  `/js/vendor/esptool-js/esptool-js.min.mjs` (`P.flasher.setLoader` injects a fake). It offers succeeded builds
+  with merged.bin (default: the newest), downloads the images and checks each against the build record's SHA-256
+  and `X-CYD-SHA256` before anything is written. The build decides the AuraGo link: its image contains the
+  heartbeat path literal `/api/cyd-creator/device/heartbeat` (only link firmware has it). When it does and the user
+  may mint (not read-only, OTA on), the flasher mints a device after the download (`P.api.mintDevice`) and writes
+  the blob at its `config_offset`, which must equal the board's `caps.boards[].config_offset`. Install modes
+  (decision D1): Automatic (default) keeps the settings only when this browser's board record (`localStorage`
+  `aurago.cydcreator.boards.v1`, per project and MAC: chip, board profile, minted device; server device rows have
+  no MAC) matches the connected board's MAC, chip and board profile and the partition table on the board (MD5 of
+  0x8000, 3 KiB, read back) equals merged.bin's; else it is a full install. Keep settings writes firmware.bin at
+  0x10000 and erases otadata (8 KiB 0xFF at 0xE000, so app0 boots even after an OTA into app1); Full install
+  writes merged.bin at 0x0 (wipes touch calibration and Wi-Fi) and drops the board's records before writing.
+  Every flash rewrites the cydcc config partition (the blob, else 4 KiB 0xFF at `config_offset`), so no earlier
+  token survives. Rates 921600 → 460800 → 115200; a wrong chip, a lost board, a busy port or missing Web Serial
+  end at once; esptool verifies every image by MD5 (`md5Hex`). With the monitor toggle on, esptool ends in the stub
+  (`no_reset_stub`) and the monitor connects and resets the board through RTS (`handOff`; when it cannot, the
+  flasher resets once). After a success `aurago.cydcreator.flashed.v1` remembers the build per project (backtrace
+  decoding), the board record is written and the board's previous device of this project is revoked (its token is
+  no longer on the board). A failed flash revokes the device it minted unless the blob was already transferred
+  (`blobWritten`). Escape and the backdrop cannot close the dialog while a flash runs; a window closed after the
+  first write lets the flash finish and hard-reset. `device_url` and `tls_pin` refusals show
+  `flash.error_device_url` and `flash.error_tls_pin` (decision D4: set `cyd_creator.ota.public_url`). Without Web
+  Serial the dialog says why (`flash.unsupported_<reason>`) and offers only "Download image" (merged.bin at 0x0).
+- Monitor (`P.monitor`): dock tab `monitor` (order 1, `cyd_creator.dock.monitor`), states disconnected, connected,
+  flashing and lost; 5000-line ring buffer, timestamps, filter, pause, clear, reset, baud rates 9600–921600
+  (default 115200; baud and timestamps remembered in `aurago.cydcreator.monitor.v1`). `Backtrace:` lines get
+  "Decode" (`POST builds/{id}/decode-backtrace` with the build last flashed from this browser, else the newest
+  green one); "Attach log" hands at most 16 KiB of the selected or visible lines to `inst.agent.attachLog`.
+- OTA dialog (`P.devices.open`): devices with state (pending, online, offline), board, build, last seen, target,
+  IP, RSSI and the translated last error (`rolled_back[: …]` with `devices.rollback_hint`: re-picking the failed
+  build is reset until the board restarts; `failed[: …]`); rename, "Update to" a succeeded build with firmware.bin
+  for the device's board, remove (asks first, revokes). Live `device:changed`, a refresh every 30 s while open and
+  `readonly:changed` re-render it; read-only users see no actions; banners show OTA off, the device URL
+  (`caps.ota.public_url`) and a plain `http://` warning. The device wrappers live on `P.api` (`listDevices`,
+  `mintDevice`, `updateDevice`, `revokeDevice`); both dialogs pass `owner: inst.projectBag || inst.bag`.
+- Transfer (`P.transfer`): Export flushes (`inst.flushAll()`), fetches `GET projects/{id}/export` and saves it
+  under the `Content-Disposition` name; Import ZIP picks a file (`P.transfer.pickFile`, replaceable in tests),
+  posts it to `/import` (`P.api.importZip`) and the start screen opens the new project. `CYD_IMPORT_INVALID` shows
+  `transfer.import_<reason>` (`transfer.limit_asset_bytes` / `limit_app_files` for the size limits); other errors
+  go to `P.errors.message`, which maps `CYD_FILE_LIMIT` by `details.limit` to `transfer.limit_<asset_bytes|
+  export_bytes|app_files>` (`file_bytes`, `files` and `total_bytes` share `app_files`; `{{size}}` = `details.max`)
+  and `CYD_BUSY` `export` to `transfer.busy_export`.
+- Strings: `cyd_creator.flash.*`, `monitor.*`, `devices.*`, `transfer.*` and `dock.monitor` in all 16
+  `ui/lang/cyd_creator` files; `TestCYDCreatorFlashKeysExistInAllLocales` lists the members of every dynamic family
+  (`flash.unsupported_`, `flash.phase_`, `monitor.status_`, `devices.state_`, `transfer.limit_`, `transfer.busy_`,
+  `transfer.import_`); errors reuse 4a's `error.<CODE>`.
+- CSS: the section between `/* ==== CYD Creator flash, monitor and devices (plan 5) — begin` and `… — end` (both
+  with U+2014) follows the designer's end marker; `TestCYDCreatorFlashStylesheetSection` allows no literal colour
+  or colour function, only `--cc-*` tokens the stylesheet defines and only selectors scoped to `.cc-app`.
+- Verify: `npm run test:cyd-creator-flash`, `go test ./ui -run '(?i)CYDCreator'` (plan 5 adds the module, offset,
+  vendor, wiring, stylesheet, devices/transfer and key tests) and, with `AURAGO_RUN_BROWSER_SMOKE=1`,
+  `TestDesktopCYDCreatorFlashBrowser` (fixture `ui/testdata/cyd-creator-flash-fixture.js`: fake `navigator.serial`
+  and esptool). After an esptool-js change: `npm run build:browser-vendor -- --check`.
 
 ## Purpose
 

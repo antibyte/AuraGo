@@ -79,7 +79,7 @@ Server-owned HTTP and cross-component integration contracts.
 
 - Desktop agent chat, its stream and log APIs require administrative Desktop access. Log tail/search/stream/download scrub registered secrets and credential fields. Passive media proxies reject active HTML/SVG/XML; every inline Knowledge document uses sandbox CSP. Garage HTTP and WebSocket proxies remove local cookies and authorization headers before forwarding.
 - Logout is same-origin POST and persistently revokes the presented session until expiry. Nonce-bearing sessions remain independent; revocation persistence failure does not report success. Login combines bounded per-IP state with account verification concurrency/backoff rather than letting one attacker globally lock the owner out.
-- `POST /api/tokens` accepts only scopes that some `TokenManager.Validate` call checks (`knownTokenScopes` in `token_scopes.go`, plus the desktop remote device/tag prefixes with a non-empty suffix that has no surrounding whitespace) and refuses `cyd` combined with anything. Add a scope there when a handler starts checking it; the allowlist is creation-time only, so stored tokens keep validating. Verify `TestCreateTokenValidatesScopes`.
+- `POST /api/tokens` accepts only scopes that some `TokenManager.Validate` call checks (`knownTokenScopes` in `token_scopes.go`, plus the desktop remote device/tag prefixes with a non-empty suffix that has no surrounding whitespace), refuses `cyd` combined with anything and refuses the CYD Creator device scope `cyd_creator_device` (minted per flashed board by CYD Creator, never stored in `tokens.json`; "CYD Creator" below). Add a scope there when a handler starts checking it; the allowlist is creation-time only, so stored tokens keep validating. Verify `TestCreateTokenValidatesScopes`.
 - Read TokenManager through one synchronized snapshot per operation. Stop HTTP acceptance, cancel active handlers, and close tracked hijacked WebSocket connections before waiting for handlers to drain; request cancellation alone does not unblock WebSocket reads. Close dependencies only after the drain. Re-panic `http.ErrAbortHandler`; never write a replacement JSON response over a partial proxy response. Verify `TestHTTPDrainClosesHijackedWebSocketBeforeWaiting`.
 - Cast LAN listeners require a file-specific ticket, reject listing and keep bounded header/idle/stream-write budgets. Store preview calls a configured loopback origin with no redirects; request Host cannot choose it.
 - Every static mount under `/files/` and the `/files/desktop/` index, widget and inlined sibling-script reads go through `neuteredFileSystem{rootBoundFileSystem(dir)}` (`fileserver.go`): regular files only (on Windows also non-link reparse files Go reports as irregular), a fresh `os.Root` per request, links followed only while they stay inside the directory (absolute in-root links and Windows junctions through the resolve fallback, whose final open is still root-bound and keeps the requested name), resolution failures and every other non-permission failure 404. Never use `http.Dir` in production code under `internal/server`; `internal/audit` `TestServerFileMountsNeverUseHTTPDir` enforces it. Verify `TestRootBoundFileSystem*` and `TestUIRoutesFilesMountsAreRootBound`. `castMediaAssetHandler` refuses every link by design: its single-component names are checked with `Lstat` and must be regular files.
@@ -317,8 +317,10 @@ depends on the API, SSE and error contracts below; its side is in `ui/js/desktop
   cold 60–3600 s and at least build, memory 512–16384 MB, CPUs 0.5–16 with NaN/±Inf the default 2, idle stop
   1–1440 min, repairs 0–10, job 5–120 min, kept builds 1–50, heartbeat 30–600 s), an invalid `builder_image`
   (`[host[:port]/]path[:tag][@sha256:<hex>]`, lowercase path components, at most 255 bytes) becomes the default and
-  `ota.public_url` loses trailing `/` and is blanked (warning without the value) when it breaks the device URL rule
-  (`cydPublicURLProblem` mirrors `DeviceConfig.validate`, `TestCYDCreatorPublicURLMatchesDeviceRule`). Config saves
+  `ota.public_url` loses trailing `/` and is blanked (warning without the value) when it breaks the device URL rule;
+  a save refuses such a URL (`cydPublicURLProblem` mirrors `cydcreator.ValidateDeviceURL`, host charset
+  `[A-Za-z0-9.-]` included, because `internal/config` cannot import `cydcreator`;
+  `TestCYDCreatorPublicURLMatchesDeviceRule`). Config saves
   (`handleUpdateConfig`, `applyConfigPatch`) run `validateCYDCreatorSave`: `config.ValidateCYDCreatorConfig` on the
   values the save changes compared with `config.yaml` before it, so a hand-edited value that `Load` clamps never
   blocks saving other sections; cold ≥ warm is checked when either timeout changes. The config page sees loaded
@@ -334,11 +336,17 @@ depends on the API, SSE and error contracts below; its side is in `ui/js/desktop
   `docker.read_only` (the builder creates, starts and execs). API gate (`cydCreatorAvailable`): service present and
   `cyd_creator.enabled`, else 503 `CYD_DISABLED`; switched on without a service it adds `details.problem` (storage
   refusal or failed start) and/or `details.restart_required`.
-- Routes (`cyd_creator_routes.go`, handlers in `cyd_creator_handlers.go`, `cyd_creator_build_handlers.go` and
-  `cyd_creator_job_handlers.go`): `/api/desktop/cyd-creator/` dispatches through `cydCreatorRoutes(s)` (the plan 2
-  table plus plan 3's `cydCreatorJobRoutes`; plan 5 appends its own), `/api/cyd-creator/device/` through
-  `cydCreatorDeviceRoutes(s)` (empty in plan 2). `handleCYDCreatorDevice` authenticates nothing itself: plan 5
-  authenticates every device route (token hash) before the prefix joins the auth bypass list. Desktop routes check in
+- Routes (`cyd_creator_routes.go`, handlers in `cyd_creator_handlers.go`, `cyd_creator_build_handlers.go`,
+  `cyd_creator_job_handlers.go` and `cyd_creator_devices_handlers.go`): `/api/desktop/cyd-creator/` dispatches
+  through `cydCreatorRoutes(s)` (the plan 2 table, plan 3's `cydCreatorJobRoutes` and plan 5's
+  `cydCreatorDeviceDesktopRoutes`), `/api/cyd-creator/device/` through `cydCreatorDeviceRoutes(s)`
+  (`cydCreatorDeviceEndpointRoutes`). That prefix is a session-auth bypass subtree (`authBypassSubtrees`; the
+  password lockdown still blocks it), so `handleCYDCreatorDevice` answers 401 `CYD_UNAUTHORIZED` to every request
+  without a device token before the route lookup, the feature gate and any body read: `cydDeviceTokenPresent`
+  needs exactly one `Authorization: Bearer` credential matching `cydDeviceTokenPattern` (`ccdt_` + 64 lowercase
+  hex); session cookies and API tokens of any scope never reach a device handler. Each handler then authenticates
+  the token through the service (hash lookup, device binding, failed-authentication limit;
+  `internal/cydcreator/AGENTS.md`, "Devices, OTA and transfer"). Desktop routes check in
   order: authentication with the route's scope, 405 (with `Allow`, HEAD wherever GET) or 404, `CYD_DISABLED`, a
   same-origin `Origin` for every session request other than GET/HEAD (403), then `Write` routes answer 403
   `CYD_READONLY` while the desktop is read-only and pass `checkDesktopOperation(desktopWrite)`, `Stop` routes (build
@@ -435,7 +443,44 @@ depends on the API, SSE and error contracts below; its side is in `ui/js/desktop
   `IMAGES=1`, volume create `VOLUMES=1`, API negotiation `VERSION=1`; `BUILD=0` is fine. HAProxy's
   `timeout server 10m` ends an exec stream that stays silent for ten minutes (the build fails and the container is
   discarded).
-- Verify `go test ./internal/server -run '^(TestCYD|TestInitCYDCreator|TestValidateCYDCreatorSave|TestDemuxDocker|TestBuildTar|TestExtractArtifacts)'`;
+- Devices and transfer (plan 5, `cyd_creator_devices_handlers.go`): desktop routes `GET projects/{id}/devices`,
+  `POST projects/{id}/devices` (Write; 503 `CYD_OTA_DISABLED` while OTA is off, else 201
+  `{device, config_blob, config_offset}` with the blob in base64), `PATCH devices/{id}` (Write,
+  `{name?, target_build_id?}` → `{device}`), `DELETE devices/{id}` (Write, 204), `GET projects/{id}/export`
+  (read; `application/zip` attachment with `Content-Length`, `no-store`, nosniff) and `POST import` (Write; multipart field `file`, the body capped at
+  `MaxImportBytes` + 1 MiB (`cydImportBodySlop`), larger is 422 `CYD_IMPORT_INVALID` `too_large`; 201 `{project}`).
+  Read-only viewers list devices and export. Status table: `CYD_FILE_LIMIT` 413, `CYD_IMPORT_INVALID` and
+  `CYD_TEMPLATE_TOO_NEW` 422, `CYD_UNAUTHORIZED` 401, `CYD_RATE_LIMITED` 429, `CYD_OTA_DISABLED` 503,
+  `CYD_DEVICE_NOT_FOUND` 404.
+- Device endpoints (`cydCreatorDeviceEndpointRoutes`): `POST heartbeat` (`{interval_s, update}`),
+  `GET firmware/{id}` and `POST ota-result` (204); JSON bodies are strict and at most 64 KiB. `cydDeviceRequest`
+  passes the bearer token and `ClientIP(r, server.https.behind_proxy)` to the service, so boards behind a reverse
+  proxy do not share one failed-authentication bucket. Firmware goes through `cydServeReader` with
+  `Content-Length` (the reader is cut to the build record's size), `X-CYD-SHA256`, `Cache-Control: no-store,
+  no-transform` and nosniff, and `gzipRequestEligible` keeps the whole subtree uncompressed: the firmware compares
+  `Content-Length` with the offered size. `update.url` is a path, never absolute (`internal/cydcreator/AGENTS.md`).
+- Device tokens (scope `cyd_creator_device`, `cydcreator.TokenScopeDevice`) are stored as SHA-256 in `cc_devices`,
+  never in the API token store: `POST /api/tokens` refuses the scope (`validateTokenScopes`), API tokens never pass
+  the device gate, and a device token on a desktop route is 403 (`validRouteBearer` rejects it). Verify
+  `TestCYDCreatorDeviceTokensStayInTheirLane`, `TestCYDCreatorDeviceEndpointsBypassOnlyTheirSessionAuth` and
+  `TestCYDCreatorDeviceRoutesRefuseMissingTokensBeforeTheBody`.
+- Device URL and pin (`cyd_creator_devices_endpoint.go`): `cydCreatorDeviceBaseURL` is `cyd_creator.ota.public_url`
+  (trailing `/` dropped) or derived: the HTTPS domain or `server.host` with the HTTPS port (443 omitted), a LAN IPv4
+  (`firstLANIPv4`) for wildcard and loopback binds, else `http://` with `server.port`. A wildcard bind inside Docker
+  derives the container address and an IPv6 address is no device URL: such setups need `public_url`.
+  `cydCreatorDeviceEndpoint` (minting only) checks the URL with `cydcreator.ValidateDeviceURL` (`cydCheckDeviceURL`)
+  and for https resolves the pin, the SHA-256 of the DER leaf certificate: AuraGo's own certificate file for a
+  derived URL (self-signed, custom `cert_file`, or the autocert cache entry named after the domain), a TLS probe
+  (`cydTLSProbe`, 5 s, verifies nothing on purpose) when that file cannot be read (Let's Encrypt has not issued
+  yet) and always for a configured URL (a reverse proxy may present its own certificate). Failures are
+  `CYD_BAD_REQUEST` with `details.reason` `device_url` or `tls_pin` (with `url`) and `details.hint`
+  `cyd_creator.ota.public_url`, which `cydError` passes to the flash dialog; never `CYD_INTERNAL`. A renewed leaf
+  certificate (Let's Encrypt about every 60 days) breaks the pin, and pinned boards need a USB re-flash (v1
+  limitation).
+- `GET capabilities` replaces `ota.public_url` with the resolved URL and sets `ota.insecure` for `http://`
+  (`cydCreatorOTACapability`) only while OTA is on and the URL passes the device rule. Capabilities never read a
+  certificate or dial out; only minting resolves the pin.
+- Verify `go test ./internal/server -run '^(TestCYD|TestInitCYDCreator|TestValidateCYDCreatorSave|TestDemuxDocker|TestBuildTar|TestExtractArtifacts|TestCreateTokenValidatesScopes|TestAuthBypass|TestGzip)'`;
   the live adapter checks are opt-in (`internal/cydcreator/AGENTS.md`, Verification).
 
 ### Video Studio Contract
