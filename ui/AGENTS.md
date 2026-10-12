@@ -347,7 +347,7 @@ worker. Keep packaging, recovery and offline instructions in
   matching 128px cell in `img/config-sidebar-icons.svg` and `.json`, and a
   `.config-icon-slot-N` position in `config-workspace.css`. The sidebar draws the
   inline symbol, so a missing one renders blank; it must match the sprite cell.
-  The sprite has 11 columns and 12 rows (slots 0–131; `gog` 121, `ruview` 122, `cyd_creator` 123):
+  The sprite has 11 columns and 12 rows (slots 0–131; `gog` 121, `ruview` 122, `cyd_creator` 123, `decisions` 124):
   x = column × 10 %, y = row × 100 / 11 %. A thirteenth row needs the same
   growth in `main.js`, the CSS, the SVG canvas, the metadata and the test
   constants. Keep all slot rules in one ordered CSS block and the sprite
@@ -758,6 +758,17 @@ worker. Keep packaging, recovery and offline instructions in
 - Full repository: `go test -count=1 ./...`.
 - Protected surfaces from the rollout base:
   `git diff --exit-code 0773dfa52e3d21f420f9009c480bdd817e761882 -- ui/index.html ui/desktop.html ui/gallery.html ui/js/shared ui/js/chat ui/js/desktop ui/fonts ui/shared-variables.css ui/shared-utilities.css ui/shared-components.css ui/shared-animations.css`.
+
+## Decisions settings
+
+- `cfg/decisions.js` uses the shared saved/draft state for activation, deployment,
+  and explicit CPU/mixed-offload permission. Its status polling is passive,
+  bounded, cancelled on disposal, and cannot repaint another section. Install,
+  start, and test require saved settings; stop remains available for containment,
+  including while a test is pending. A superseded test response must not replace the stop result.
+  Keep `config.decisions.*` in all sixteen locales aligned and verify
+  `TestDecisionsConfigBrowser` and `TestDecisionsLocaleKeys`. The backend and
+  hardware acceptance contract lives in `../internal/decisions/AGENTS.md`.
 
 ## Child DOX Index
 

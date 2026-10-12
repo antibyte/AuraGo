@@ -373,6 +373,13 @@
   source port the step does not have is drawn dashed under the card (`.ed-edge.is-broken`)
   and stays selectable; a missing step draws nothing. The server still reports
   `EDGE_PORT_INVALID`.
+- `ai.decision` uses `dynamic_outputs: "decision_choices"`: route ports are keyed by stable
+  option ID (`choice_<id>`) and move with their option; evaluate ports stay `out`/`uncertain`.
+  Keep `model.outputs` and `canvas.portLabel` in sync, and never key a choice wire by its row
+  number. The nested question and image-reference forms preserve order, stable IDs, templates
+  for instructions/media references, and the server caps; the JSON state field can switch to a
+  template. Its detail error-policy picker follows `error_modes` from the catalog.
+  Converting `score` to `choice` removes option values while retaining IDs, labels and wires.
 - Keyboard model of the canvas: the canvas is one tab stop, the zoom bar follows. Arrow keys move
   the selection between steps (announced through the live region, `core.announcer`), Enter opens
   the detail view, Delete/D/Ctrl+D/C act on the selection, Tab adds a step. A card's tool buttons
@@ -391,8 +398,9 @@
   changes move the focus: leaving the run view to the canvas, the start page to New flow and then
   to the card of the flow just left (not for Mission Control's New flow or the templates link),
   the shell's error card to Retry.
-- Strings: `easydrag.ui.*` in `ui/lang/easydrag/<16>.json` (shared with the server's catalog
-  keys); built keys (`core.tr`) belong to a family of `TestEasyDragUIKeysExistInAllLocales`.
+- Strings: `easydrag.ui.*`, `easydrag.decision.*`, `easydrag.availability.*` in
+  `ui/lang/easydrag/<16>.json` (shared with the server's catalog keys); built keys (`core.tr`)
+  belong to a family of `TestEasyDragUIKeysExistInAllLocales`.
 - `createApi` (`easydrag-core.js`) errors carry `err.body.code`, shown as
   `easydrag.ui.error_<code>`. SSE (`/runs/{id}/events?after=<seq>`) is idempotent and
   reconnects at once on `event: resync`. Only `FLOWS_DISABLED` (flows switched off) gets the

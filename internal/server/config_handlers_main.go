@@ -66,6 +66,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		}
 		removeDeprecatedSpeechLabVoice(rawCfg)
 		rawCfg["llm_router"] = s.ConfigSnapshot().LLMRouter
+		rawCfg["decisions"] = s.ConfigSnapshot().Decisions
 
 		// Inject personality section from in-memory config when it is absent
 		// from the raw YAML (migration scenario: old config only has agent.personality_*).
@@ -597,6 +598,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			return
 		}
 		if err := config.ValidateLLMRouterConfig(&validateCfg, true); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := config.ValidateDecisionsConfig(validateCfg.Decisions); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}

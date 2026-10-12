@@ -441,6 +441,185 @@
         return el;
     }
 
+    function nextStableID(prefix, used) {
+        for (let index = 1; index < 10000; index++) {
+            const id = prefix + '_' + index;
+            if (!used.has(id)) { used.add(id); return id; }
+        }
+        return prefix + '_' + Date.now().toString(36);
+    }
+
+    // decisionQuestions edits an ordered question list. IDs are persisted independently
+    // from row order so ports remain attached to the same choice when options move.
+    function decisionQuestions(env, value, onChange) {
+        const c = core();
+        const { t, esc } = env;
+        const list = objects(Array.isArray(value) ? JSON.parse(JSON.stringify(value)) : []);
+        const mode = env.node && env.node.params && env.node.params.mode === 'evaluate' ? 'evaluate' : 'route';
+        const typeOptions = [
+            { value: 'choice', label: t('easydrag.decision.type_choice') },
+            { value: 'noul', label: t('easydrag.decision.type_noul') },
+            { value: 'score', label: t('easydrag.decision.type_score') }
+        ];
+        const el = c.el('<div class="ed-decision-questions"><div class="ed-decision-questions-list"></div>' +
+            (env.readonly ? '' : '<button type="button" class="ed-btn ed-btn--ghost ed-btn--small" data-ed-decision-add-question>' + c.icon('plus') + '<span>' + esc(t('easydrag.decision.add_question')) + '</span></button>') + '</div>');
+        const host = el.querySelector('.ed-decision-questions-list');
+        const emit = () => onChange(JSON.parse(JSON.stringify(list)));
+
+        function render() {
+            host.innerHTML = '';
+            list.forEach((question, qi) => {
+                const questionID = String(question.id || '');
+                const type = ['choice', 'noul', 'score'].includes(question.type) ? question.type : 'choice';
+                const routeExtra = mode === 'route' && qi > 0;
+                const card = c.el('<section class="ed-decision-card" data-question-index="' + qi + '">' +
+                    '<header class="ed-decision-card-head"><strong>' + esc(t('easydrag.decision.question_number', { n: qi + 1 })) + '</strong><div class="ed-decision-actions">' +
+                    (env.readonly ? '' : '<button type="button" class="ed-icon-btn" data-ed-decision-question-up="' + qi + '" aria-label="' + esc(t('easydrag.ui.move_up')) + '"' + (qi === 0 ? ' disabled' : '') + '>' + c.icon('chevron-down', 'ed-rot180') + '</button>' +
+                        '<button type="button" class="ed-icon-btn" data-ed-decision-question-down="' + qi + '" aria-label="' + esc(t('easydrag.ui.move_down')) + '"' + (qi === list.length - 1 ? ' disabled' : '') + '>' + c.icon('chevron-down') + '</button>' +
+                        '<button type="button" class="ed-icon-btn" data-ed-decision-question-remove="' + qi + '" aria-label="' + esc(t('easydrag.ui.remove_row', { n: qi + 1 })) + '">' + c.icon('trash') + '</button>') +
+                    '</div></header><div class="ed-decision-grid"><label>' + esc(t('easydrag.decision.id')) + '<input class="ed-input ed-code" data-ed-decision-question-id value="' + esc(questionID) + '"' + (env.readonly ? ' disabled' : '') + '></label><label>' + esc(t('easydrag.decision.question_type')) + '<select class="ed-input" data-ed-decision-type' + (env.readonly ? ' disabled' : '') + '>' +
+                    typeOptions.map(option => '<option value="' + option.value + '"' + (type === option.value ? ' selected' : '') + '>' + esc(option.label) + '</option>').join('') + '</select></label></div>' +
+                    '<div class="ed-decision-instructions"></div><div class="ed-decision-options"></div>' +
+                    (routeExtra ? '<p class="ed-hint ed-decision-warning">' + esc(t('easydrag.decision.route_one_question')) + '</p>' : '') + '</section>');
+                card.querySelector('[data-ed-decision-question-id]').addEventListener('change', event => { question.id = event.target.value; emit(); });
+                card.querySelector('[data-ed-decision-type]').addEventListener('change', event => {
+                    question.type = event.target.value;
+                    if (question.type === 'noul') question.options = [
+                        { id: 'no', label: t('easydrag.decision.no') }, { id: 'yes', label: t('easydrag.decision.yes') }
+                    ];
+                    else if (type === 'noul' || !Array.isArray(question.options) || question.options.length < 2) {
+                        question.options = [{ id: 'option_a', label: '' }, { id: 'option_b', label: '' }];
+                    } else if (question.type === 'choice') {
+                        // Score-only values are invalid for choice questions; keep the option IDs,
+                        // labels, and their stable output ports when switching back to routing.
+                        question.options.forEach(option => {
+                            if (option && typeof option === 'object' && !Array.isArray(option)) delete option.value;
+                        });
+                    }
+                    emit(); render();
+                });
+                card.querySelector('.ed-decision-instructions').appendChild(templateField(withChange(env, next => { question.instructions = next; emit(); }), question.instructions, {
+                    multiline: true, placeholder: t('easydrag.decision.instructions'), label: t('easydrag.decision.instructions')
+                }).el);
+                const optionHost = card.querySelector('.ed-decision-options');
+                const options = objects(Array.isArray(question.options) ? question.options : []);
+                const noAction = env.readonly;
+                if (type === 'noul') {
+                    // Noul's two branches are semantic and fixed; only their display labels can change.
+                    const byID = new Map(options.map(option => [option.id, option]));
+                    ['no', 'yes'].forEach((id, index) => {
+                        const option = byID.get(id) || { id, label: t('easydrag.decision.' + id) };
+                        const row = c.el('<div class="ed-decision-option ed-decision-option--noul"><code>' + id + '</code><input class="ed-input" data-ed-decision-label placeholder="' + esc(t('easydrag.decision.option_label')) + '" aria-label="' + esc(t('easydrag.decision.' + id)) + '" value="' + esc(option.label || '') + '"' + (noAction ? ' disabled' : '') + '></div>');
+                        row.querySelector('input').addEventListener('change', event => {
+                            const next = ['no', 'yes'].map(key => byID.get(key) || { id: key, label: t('easydrag.decision.' + key) });
+                            next[index].label = event.target.value;
+                            question.options = next; emit();
+                        });
+                        optionHost.appendChild(row);
+                    });
+                } else {
+                    const used = new Set(options.map(option => String(option.id || '')));
+                    options.forEach((option, oi) => {
+                        const row = c.el('<div class="ed-decision-option' + (type === 'score' ? ' ed-decision-option--score' : '') + '"><input class="ed-input ed-code" data-ed-decision-option-id value="' + esc(option.id || '') + '" aria-label="' + esc(t('easydrag.decision.option_id')) + '"' + (noAction ? ' disabled' : '') + '>' +
+                            '<input class="ed-input" data-ed-decision-label placeholder="' + esc(t('easydrag.decision.option_label')) + '" aria-label="' + esc(t('easydrag.decision.option_label')) + '" value="' + esc(option.label || '') + '"' + (noAction ? ' disabled' : '') + '>' +
+                            (type === 'score' ? '<input class="ed-input ed-decision-score" data-ed-decision-score type="number" step="any" placeholder="' + esc(t('easydrag.decision.score_default', { n: oi })) + '" aria-label="' + esc(t('easydrag.decision.score_value')) + '" value="' + esc(option.value == null ? '' : option.value) + '"' + (noAction ? ' disabled' : '') + '>' : '') +
+                            '<div class="ed-decision-actions">' + (noAction ? '' : '<button type="button" class="ed-icon-btn" data-ed-decision-option-up="' + oi + '" aria-label="' + esc(t('easydrag.ui.move_up')) + '"' + (oi === 0 ? ' disabled' : '') + '>' + c.icon('chevron-down', 'ed-rot180') + '</button><button type="button" class="ed-icon-btn" data-ed-decision-option-down="' + oi + '" aria-label="' + esc(t('easydrag.ui.move_down')) + '"' + (oi === options.length - 1 ? ' disabled' : '') + '>' + c.icon('chevron-down') + '</button><button type="button" class="ed-icon-btn" data-ed-decision-option-remove="' + oi + '" aria-label="' + esc(t('easydrag.ui.remove_row', { n: oi + 1 })) + '">' + c.icon('trash') + '</button>') + '</div></div>');
+                        row.querySelector('[data-ed-decision-option-id]').addEventListener('change', event => { option.id = event.target.value; emit(); });
+                        row.querySelector('[data-ed-decision-label]').addEventListener('change', event => { option.label = event.target.value; emit(); });
+                        const score = row.querySelector('[data-ed-decision-score]');
+                        if (score) score.addEventListener('change', event => { option.value = event.target.value === '' ? undefined : Number(event.target.value); emit(); });
+                        optionHost.appendChild(row);
+                    });
+                    if (!env.readonly) {
+                        const add = c.el('<button type="button" class="ed-btn ed-btn--ghost ed-btn--small" data-ed-decision-add-option' + (options.length >= 62 ? ' disabled' : '') + '>' + c.icon('plus') + '<span>' + esc(t('easydrag.decision.add_option')) + '</span></button>');
+                        optionHost.appendChild(add);
+                    }
+                }
+                host.appendChild(card);
+            });
+            const addQuestion = el.querySelector('[data-ed-decision-add-question]');
+            if (addQuestion) addQuestion.disabled = list.length >= 16 || (mode === 'route' && list.length >= 1);
+        }
+        el.addEventListener('click', event => {
+            let button = event.target.closest('[data-ed-decision-add-question]');
+            if (button && !button.disabled) {
+                const used = new Set(list.map(question => String(question.id || '')));
+                const id = nextStableID('question', used);
+                list.push({ id, type: 'choice', instructions: '', options: [{ id: 'option_a', label: '' }, { id: 'option_b', label: '' }] }); emit(); render(); return;
+            }
+            button = event.target.closest('[data-ed-decision-question-up],[data-ed-decision-question-down]');
+            if (button) {
+                const index = Number(button.dataset.edDecisionQuestionUp || button.dataset.edDecisionQuestionDown);
+                const target = button.getAttribute('data-ed-decision-question-up') !== null ? index - 1 : index + 1;
+                list.splice(target, 0, list.splice(index, 1)[0]); emit(); render(); return;
+            }
+            button = event.target.closest('[data-ed-decision-question-remove]');
+            if (button) { list.splice(Number(button.dataset.edDecisionQuestionRemove), 1); emit(); render(); return; }
+            button = event.target.closest('[data-ed-decision-add-option]');
+            if (button && !button.disabled) {
+                const card = button.closest('[data-question-index]');
+                const question = list[Number(card.dataset.questionIndex)];
+                const options = objects(question.options);
+                const used = new Set(options.map(option => String(option.id || '')));
+                options.push({ id: nextStableID('option', used), label: '' }); question.options = options; emit(); render(); return;
+            }
+            button = event.target.closest('[data-ed-decision-option-up],[data-ed-decision-option-down]');
+            if (button) {
+                const card = button.closest('[data-question-index]');
+                const question = list[Number(card.dataset.questionIndex)];
+                const options = objects(question.options);
+                const index = Number(button.dataset.edDecisionOptionUp || button.dataset.edDecisionOptionDown);
+                const target = button.getAttribute('data-ed-decision-option-up') !== null ? index - 1 : index + 1;
+                options.splice(target, 0, options.splice(index, 1)[0]); question.options = options; emit(); render(); return;
+            }
+            button = event.target.closest('[data-ed-decision-option-remove]');
+            if (button) {
+                const card = button.closest('[data-question-index]');
+                const question = list[Number(card.dataset.questionIndex)];
+                const options = objects(question.options); options.splice(Number(button.dataset.edDecisionOptionRemove), 1); question.options = options; emit(); render();
+            }
+        });
+        render();
+        return el;
+    }
+
+    function decisionImages(env, value, onChange) {
+        const c = core();
+        const { t, esc } = env;
+        const list = Array.isArray(value) ? value.map(item => typeof item === 'string' ? item : '') : [];
+        const el = c.el('<div class="ed-decision-images"><div class="ed-decision-images-list"></div>' +
+            (env.readonly ? '' : '<button type="button" class="ed-btn ed-btn--ghost ed-btn--small" data-ed-decision-add-image>' + c.icon('plus') + '<span>' + esc(t('easydrag.decision.add_image')) + '</span></button>') + '</div>');
+        const host = el.querySelector('.ed-decision-images-list');
+        const emit = () => onChange(list.slice());
+        function render() {
+            host.innerHTML = '';
+            list.forEach((ref, index) => {
+                const row = c.el('<div class="ed-decision-image"><div class="ed-decision-image-ref"></div><div class="ed-decision-actions">' +
+                    (env.readonly ? '' : '<button type="button" class="ed-icon-btn" data-ed-decision-image-up="' + index + '" aria-label="' + esc(t('easydrag.ui.move_up')) + '"' + (index === 0 ? ' disabled' : '') + '>' + c.icon('chevron-down', 'ed-rot180') + '</button><button type="button" class="ed-icon-btn" data-ed-decision-image-down="' + index + '" aria-label="' + esc(t('easydrag.ui.move_down')) + '"' + (index === list.length - 1 ? ' disabled' : '') + '>' + c.icon('chevron-down') + '</button><button type="button" class="ed-icon-btn" data-ed-decision-image-remove="' + index + '" aria-label="' + esc(t('easydrag.ui.remove_row', { n: index + 1 })) + '">' + c.icon('trash') + '</button>') + '</div></div>');
+                row.querySelector('.ed-decision-image-ref').appendChild(templateField(withChange(env, next => { list[index] = next; emit(); }), ref, {
+                    placeholder: t('easydrag.decision.image_reference'), label: t('easydrag.decision.image_reference')
+                }).el);
+                host.appendChild(row);
+            });
+            const add = el.querySelector('[data-ed-decision-add-image]');
+            if (add) add.disabled = list.length >= 8;
+        }
+        el.addEventListener('click', event => {
+            const add = event.target.closest('[data-ed-decision-add-image]');
+            if (add && !add.disabled) { list.push(''); emit(); render(); return; }
+            const remove = event.target.closest('[data-ed-decision-image-remove]');
+            if (remove) { list.splice(Number(remove.dataset.edDecisionImageRemove), 1); emit(); render(); return; }
+            const move = event.target.closest('[data-ed-decision-image-up],[data-ed-decision-image-down]');
+            if (move) {
+                const index = Number(move.dataset.edDecisionImageUp || move.dataset.edDecisionImageDown);
+                const target = move.getAttribute('data-ed-decision-image-up') !== null ? index - 1 : index + 1;
+                list.splice(target, 0, list.splice(index, 1)[0]); emit(); render();
+            }
+        });
+        render();
+        return el;
+    }
+
     function keyValue(env, value, onChange) {
         const c = core();
         const { t, esc } = env;
@@ -731,5 +910,5 @@
         return el;
     }
 
-    ED.fields = { templateField, chipsMarkup, sampleAt, segmented, toggle, selectBox, conditionGroup, cases, fieldList, keyValue, jsonEditor, tags, dateTime, fileField, secretRef, OPS, UNARY };
+    ED.fields = { templateField, chipsMarkup, sampleAt, segmented, toggle, selectBox, conditionGroup, cases, fieldList, decisionQuestions, decisionImages, keyValue, jsonEditor, tags, dateTime, fileField, secretRef, OPS, UNARY };
 })();

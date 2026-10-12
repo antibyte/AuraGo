@@ -978,6 +978,33 @@ export async function run(env) {
         eq('c1d05 the param checks log no errors', h.logged, []);
     });
 
+    await guardAsync('decision question and media forms', async () => {
+        const h = harness();
+        const F = h.ED.fields;
+        const changes = [];
+        const env = {
+            t, esc: h.ED.core.esc, readonly: false, roots: {}, upstream: [], node: { params: { mode: 'evaluate' } }, change() {}
+        };
+        const questions = F.decisionQuestions(env, [{ id: 'intent', type: 'choice', instructions: 'Choose', options: [{ id: 'accept', label: 'Accept' }, { id: 'reject', label: 'Reject' }] }], value => changes.push(value));
+        questions.querySelectorAll('[data-ed-decision-option-down]')[0].fire('click');
+        const reordered = changes.at(-1)[0].options.map(option => option.id);
+        questions.querySelector('[data-ed-decision-add-question]').fire('click');
+        const addedQuestion = changes.at(-1).length;
+        const secondType = questions.querySelectorAll('[data-ed-decision-type]')[1];
+        secondType.value = 'score';
+        secondType.fire('change');
+        const scoreFields = questions.querySelectorAll('[data-ed-decision-score]').length;
+        const secondQuestionType = changes.at(-1)[1].type;
+        const images = F.decisionImages(env, ['media://image/a'], value => changes.push(value));
+        images.querySelector('[data-ed-decision-add-image]').fire('click');
+        const imageRows = images.querySelectorAll('.ed-decision-image').length;
+        const imageLimit = F.decisionImages(env, Array.from({ length: 8 }, (_, i) => 'media://image/' + i), () => {}).querySelector('[data-ed-decision-add-image]').disabled;
+        eq('ordered question editor reorders stable choices, adds typed questions, and exposes score values',
+            [reordered, addedQuestion, secondQuestionType, scoreFields], [['reject', 'accept'], 2, 'score', 2]);
+        eq('image editor adds references and enforces its eight-image cap', [imageRows, imageLimit], [2, true]);
+        eq('decision form checks log no errors', h.logged, []);
+    });
+
     // ── c1d05 review: palette, forms and mapping ──
 
     await guardAsync('c1d05 review palette', async () => {

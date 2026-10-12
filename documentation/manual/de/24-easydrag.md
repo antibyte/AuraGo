@@ -59,6 +59,16 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 - Ein fehlgeschlagener Live-Lauf benachrichtigt so, wie es die Flow-Einstellungen sagen: auf dem Desktop (Standard), per Push, per Telegram oder gar nicht. Ein Flow benachrichtigt einmal, wenn er zu scheitern beginnt, danach höchstens einmal pro Stunde, solange er weiter scheitert. Ein Klick auf die Desktop-Benachrichtigung öffnet EasyDrag bei diesem Lauf.
 - Nach einem Neuladen des Desktops öffnet sich ein offener Flow wieder.
 
+## Decisions-Baustein
+
+*Entscheidung* nutzt den optionalen, von AuraGo verwalteten Decisions-Dienst. Er kann nativ oder in Docker laufen. Der Baustein nimmt einen Zustandswert und bis zu acht registrierte Bildreferenzen an; Vorlagen können beides liefern. Der Server löst Bildreferenzen innerhalb der AuraGo-Mediengrenze auf, bevor das Modell sie erhält. Fehlt der Dienst oder ist er nicht verfügbar, zeigt der Baustein an, dass eine Einrichtung nötig ist.
+
+- *Eine weiterleiten* stellt eine einzelne *Auswahl*- oder Ja/Nein-Frage (*Noul*). Jede Auswahl hat eine stabile ID und einen eigenen Ausgang `choice_<id>` sowie *Unsicher*. Beim Umsortieren bleiben Verbindungen erhalten; eine geänderte ID erzeugt einen anderen Ausgang. Antworten unter der Konfidenzschwelle (Standard 0,70) gehen zu *Unsicher*.
+- *Alle auswerten* nimmt bis zu 16 Fragen in ihrer Reihenfolge entgegen und liefert ein `answers`-Objekt mit Frage-IDs als Schlüsseln. Fragetypen: *Auswahl*, *Ja/Nein* und *Bewertung*. Liegt mindestens eine Antwort unter der Schwelle, geht der Flow zu *Unsicher*, sonst über `out` weiter.
+- Jede Frage hat Vorlagen-fähige Anweisungen. Auswahl-IDs sind stabile Bezeichner, ihre Namen dienen der Anzeige. Bewertungsoptionen erhalten unterschiedliche Zahlenwerte (standardmäßig ihre nullbasierte Reihenfolge); das Ergebnis enthält den Erwartungswert. Ja/Nein verwendet immer die festen IDs `no` und `yes`.
+- Modellausgaben sind nicht vertrauenswürdige Daten. Technische Fehler stoppen den Lauf oder nehmen den *Fehlerpfad*; *Weitermachen* steht nicht zur Auswahl, da ein fehlgeschlagener Aufruf kein gültiges Entscheidungsergebnis hat.
+- GPU/iGPU-Inferenz ist standardmäßig erforderlich. CPU-Fallback muss ausdrücklich unter **Config → Decisions** freigegeben werden und kann dort wieder entzogen werden. Status und fehlende Einrichtung zeigt der Baustein an.
+
 ## Wenn ein Schritt scheitert
 
 - In den *Einstellungen* eines Schritts wählst du unter *Wenn der Schritt fehlschlägt*: *Lauf stoppen*, *Weitermachen* (die nächsten Schritte erhalten den Fehler als Daten) oder *Fehlerpfad* (ein eigener Ausgang *Fehler* für Schritte, die auf den Fehler reagieren). *Wiederholungen*, *Sekunden dazwischen* und *Zeitlimit (s)* stehen daneben.

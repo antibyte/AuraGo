@@ -36,29 +36,32 @@ const (
 // Availability tells the UI and the validator whether a node type can run now.
 type Availability struct {
 	State         string `json:"state"`
+	Code          string `json:"code,omitempty"`
 	Reason        string `json:"reason,omitempty"`
 	ConfigSection string `json:"config_section,omitempty"`
 }
 
 // Parameter kinds understood by the editor's form generator.
 const (
-	ParamText           = "text"
-	ParamTextarea       = "textarea"
-	ParamNumber         = "number"
-	ParamBool           = "bool"
-	ParamSelect         = "select"
-	ParamSegmented      = "segmented"
-	ParamMultiSelect    = "multiselect"
-	ParamFile           = "file"
-	ParamJSON           = "json"
-	ParamKeyValue       = "keyvalue"
-	ParamSecretRef      = "secret_ref"
-	ParamConditionGroup = "condition_group"
-	ParamCron           = "cron"
-	ParamDateTime       = "datetime"
-	ParamFields         = "fields"
-	ParamCases          = "cases"
-	ParamTags           = "tags"
+	ParamText              = "text"
+	ParamTextarea          = "textarea"
+	ParamNumber            = "number"
+	ParamBool              = "bool"
+	ParamSelect            = "select"
+	ParamSegmented         = "segmented"
+	ParamMultiSelect       = "multiselect"
+	ParamFile              = "file"
+	ParamJSON              = "json"
+	ParamKeyValue          = "keyvalue"
+	ParamSecretRef         = "secret_ref"
+	ParamConditionGroup    = "condition_group"
+	ParamCron              = "cron"
+	ParamDateTime          = "datetime"
+	ParamFields            = "fields"
+	ParamCases             = "cases"
+	ParamTags              = "tags"
+	ParamDecisionQuestions = "decision_questions"
+	ParamDecisionImages    = "decision_images"
 )
 
 // Option is one choice of a select-like parameter.
@@ -85,6 +88,9 @@ type ParamSpec struct {
 	Required      bool        `json:"required,omitempty"`
 	Templatable   bool        `json:"templatable,omitempty"`
 	Default       any         `json:"default,omitempty"`
+	Min           *float64    `json:"min,omitempty"`
+	Max           *float64    `json:"max,omitempty"`
+	Step          *float64    `json:"step,omitempty"`
 	Options       []Option    `json:"options,omitempty"`
 	OptionsSource string      `json:"options_source,omitempty"`
 	VisibleIf     *Visibility `json:"visible_if,omitempty"`
@@ -225,11 +231,28 @@ type NodeDef struct {
 	Tool             string
 	Effects          []Effect
 	EffectsFunc      func(n *Node) []Effect
+	// ErrorModes optionally restricts how runtime errors are handled for this
+	// node. Empty keeps the historical stop/continue/error-port behavior.
+	ErrorModes       []ErrorMode
 	UntrustedOutput  bool
 	DefaultTimeout   time.Duration
 	AvailabilityFunc func() Availability
 	Validate         func(n *Node, vc ValidateContext) []Issue
 	Execute          ExecuteFunc
+}
+
+// AllowsErrorMode reports whether mode is permitted for this definition. A nil
+// or empty allowlist keeps the legacy set of error policies available.
+func (d *NodeDef) AllowsErrorMode(mode ErrorMode) bool {
+	if d == nil || len(d.ErrorModes) == 0 {
+		return true
+	}
+	for _, allowed := range d.ErrorModes {
+		if mode == allowed {
+			return true
+		}
+	}
+	return false
 }
 
 // catchPanic runs fn, a call into a node definition's hook, and returns the value

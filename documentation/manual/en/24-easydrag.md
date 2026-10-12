@@ -59,6 +59,16 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 - A failed live run notifies as the flow settings say: on the desktop (the default), as a push notification, on Telegram or not at all. A flow notifies once when it starts failing, then at most once an hour while it keeps failing. Clicking the desktop notification opens EasyDrag on that run.
 - After a desktop reload, an open flow is opened again.
 
+## Decisions node
+
+*Decision* uses AuraGo’s optional managed Decisions service, which can run natively or in Docker. It accepts a state value and up to eight registered image references; templates can supply both. The server resolves image references within AuraGo’s media boundary before the model sees them. A missing or unavailable service marks the node as needing setup.
+
+- *Route one* asks one `choice` or yes/no (`noul`) question. Each choice has a stable ID and its own `choice_<id>` output, plus *Uncertain*. Reordering options keeps their wires; changing an ID creates a different output. A confidence threshold (default 0.70) sends lower-confidence answers to *Uncertain*.
+- *Evaluate all* accepts up to 16 ordered questions and returns an `answers` object keyed by question ID. Question types are *Choice*, *Yes / no* and *Score*. It uses *Uncertain* if any answer is below the threshold, otherwise `out`.
+- Each question has templated instructions. Choice IDs are stable identifiers; labels are display text. Score options have distinct numeric values (their zero-based order is the default); the result includes the expected score. Yes/no always uses the fixed IDs `no` and `yes`.
+- Model output is untrusted data. Technical failures stop the run or use the node’s *Error path*; *Continue* is unavailable because a failed evaluation has no valid decision result.
+- GPU/iGPU inference is required by default. CPU fallback must be explicitly enabled in **Config → Decisions** and can be revoked there. The service status and any missing setup are shown on the node.
+
 ## When a step fails
 
 - Under *If this step fails* in a step's *Settings* you choose *Stop the run*, *Continue* (the next steps get the error as data) or *Error path* (an extra *Error* output for steps that handle the failure). *Retries*, *Seconds between* and *Time limit (s)* sit next to it.

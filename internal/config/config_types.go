@@ -1900,6 +1900,7 @@ type Config struct {
 	Go2RTC         Go2RTCConfig         `yaml:"go2rtc" json:"go2rtc"`
 	RTLSDR         RTLSDRConfig         `yaml:"rtl_sdr" json:"rtl_sdr"`
 	LocalLLM       LocalLLMConfig       `yaml:"local_llm" json:"local_llm"`
+	Decisions      DecisionsConfig      `yaml:"decisions" json:"decisions"`
 	LocalWikipedia LocalWikipediaConfig `yaml:"local_wikipedia" json:"local_wikipedia"`
 	RetroGames     RetroGamesConfig     `yaml:"retro_games" json:"retro_games"`
 	ThreeDPrinters ThreeDPrintersConfig `yaml:"three_d_printers"`

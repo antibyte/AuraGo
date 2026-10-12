@@ -75,6 +75,20 @@
             T('ai.prompt', 'ai', 'sparkles', 'KI-Schritt', { description: 'Lässt die KI einen Text erzeugen.', primary_input: 'prompt',
                 params: [P('prompt', 'textarea', 'Anweisung', { required: true, templatable: true })],
                 output_fields: [{ name: 'text', type: 'text', primary: true }, { name: 'tokens', type: 'object' }] }),
+            T('ai.decision', 'ai', 'git-branch', 'Entscheidung', { description: 'Bewertet Zustand und Medien mit dem Decisions-Dienst.', primary_input: 'state',
+                inputs: ['in'], outputs: ['out', 'uncertain'], dynamic_outputs: 'decision_choices', dynamic_fields: 'mode', error_modes: ['stop', 'error_port'],
+                params: [
+                    P('mode', 'segmented', 'Modus', { default: 'route', options: [{ value: 'route', label: 'Einzelentscheidung' }, { value: 'evaluate', label: 'Mehrfragen-Auswertung' }] }),
+                    P('state', 'json', 'Zustand', { templatable: true }),
+                    P('questions', 'decision_questions', 'Fragen', { required: true, default: [
+                        { id: 'decision', type: 'choice', instructions: 'Choose one option', options: [{ id: 'option_a', label: 'Option A' }, { id: 'option_b', label: 'Option B' }] }
+                    ] }),
+                    P('images', 'decision_images', 'Bilder', { templatable: true, default: [] }),
+                    P('confidence_threshold', 'number', 'Konfidenzschwelle', { default: 0.70, min: 0, max: 1, step: 0.01 })
+                ],
+                output_fields: [{ name: 'answers', type: 'object', primary: true }, { name: 'model', type: 'text' }, { name: 'model_revision', type: 'text' },
+                    { name: 'calibration', type: 'text' }, { name: 'runtime', type: 'object' }, { name: 'usage', type: 'object' },
+                    { name: 'decision', type: 'text' }, { name: 'confidence', type: 'number' }] }),
             T('documents.pdf', 'documents', 'file-type-pdf', 'PDF erstellen', { description: 'Erstellt ein PDF im Workspace.', effects: ['writes_files'], primary_input: 'content',
                 params: [P('title', 'text', 'Titel', { templatable: true }), P('content', 'textarea', 'Inhalt', { required: true, templatable: true })],
                 output_fields: [{ name: 'file', type: 'file', primary: true }] }),
@@ -127,7 +141,7 @@
     //   failPreview     the publish preview answers 500 FLOW_INTERNAL
     //   delay           milliseconds each step of a run takes
     const state = {
-        flows: new Map(), runs: new Map(), saves: [], requests: [], testData: {}, secrets: ['wetter_api'], secretWrites: [], streams: [],
+        flows: new Map(), runs: new Map(), saves: [], exports: [], requests: [], testData: {}, secrets: ['wetter_api'], secretWrites: [], streams: [], decisionResult: null,
         delay: 140, disabled: false, failSaves: [], publishPartial: '', resyncAfter: 0, failType: '', failPreview: false,
         options: { ha_entities: { options: [{ value: 'light.kueche', label: 'Küche' }, { value: 'light.flur', label: 'Flur' }], truncated: true } }
     };
@@ -211,6 +225,22 @@
                 issues.push({ code: 'UNTRUSTED_DATA_TO_SINK', severity: 'warning', node_id: n.id, param: 'message', message: 'untrusted data reaches a message' });
             }
         });
+        doc.edges.forEach(e => {
+            const source = doc.nodes.find(n => n.id === e.source.node);
+            if (!source || source.type !== 'ai.decision') return;
+            const info = types.get(source.type);
+            let ports = info.outputs.slice();
+            if (source.params.mode === 'evaluate') {
+                ports = ['out', 'uncertain'];
+            } else {
+                const question = Array.isArray(source.params.questions) ? source.params.questions[0] : null;
+                let options = question && Array.isArray(question.options) ? question.options : [];
+                if (question && question.type === 'noul') options = [{ id: 'no' }, { id: 'yes' }];
+                ports = options.map(option => 'choice_' + option.id).concat(['uncertain']);
+            }
+            if (source.settings && source.settings.on_error === 'error_port') ports.push('error');
+            if (!ports.includes(e.source.port)) issues.push({ code: 'EDGE_PORT_INVALID', severity: 'error', node_id: source.id, edge_id: e.id, message: 'node ' + source.key + ' has no output ' + e.source.port });
+        });
         return issues;
     }
     const hasErrors = issues => issues.some(i => i.severity === 'error');
@@ -260,6 +290,12 @@
         switch (n.type) {
         case 'web.search': return { results: [1, 2, 3].map(i => ({ title: 'Schlagzeile ' + i, url: 'https://news.example/' + i, snippet: 'Kurzer Anriss ' + i })), count: 3 };
         case 'ai.prompt': return { text: 'Heute: drei wichtige KI-Meldungen, kurz und verständlich zusammengefasst.', tokens: { input: 182, output: 64 }, model: 'fixture' };
+        case 'ai.decision': return clone(state.decisionResult || {
+            answers: { intent: { type: 'choice', decision: 'accept', probabilities: { accept: 0.84, reject: 0.16 }, confidence: 0.84, choice: 'Accept' } },
+            model: 'fixture-decisions', model_revision: 'fixture-r1', calibration: 'fixture',
+            runtime: { deployment: 'fixture', backend: 'scripted', device: 'cpu' }, usage: { questions: 1, candidates: 2, images: 0 },
+            decision: 'accept', confidence: 0.84
+        });
         case 'documents.pdf': return { file: { $type: 'file', name: 'briefing.pdf', path: 'Documents/EasyDrag/briefing.pdf', size: 18234 } };
         case 'notify.telegram': return { message_id: 42 };
         default: return (types.get(n.type) || {}).trigger ? { data: { thema: 'KI' }, fired_at: iso() } : { ok: true };
@@ -340,7 +376,10 @@
             const out = outputFor(n);
             const step = {
                 node_id: n.id, node_key: n.key, attempt: 1, status: 'success', started_at: started, finished_at: iso(), duration_ms: state.delay,
-                output: out, item_count: Array.isArray(out.results) ? out.results.length : 1, ports: n.type === 'logic.if' ? ['true'] : ['out']
+                output: out, item_count: Array.isArray(out.results) ? out.results.length : 1,
+                ports: n.type === 'logic.if' ? ['true'] : n.type === 'ai.decision'
+                    ? (n.params.mode === 'evaluate' ? ['out'] : ['choice_' + ((out.answers && out.answers.intent && out.answers.intent.decision) || out.decision || 'accept')])
+                    : ['out']
             };
             rec.steps.push(step);
             emitRunEvent(rec, 'step_finished', { node_id: n.id, step });
@@ -589,7 +628,10 @@
             broadcast(rec.id, 'enabled');
             return reply({ enabled: entry.enabled });
         }
-        if (action === 'export' && method === 'GET') return reply(rec.draft, 200, { 'Content-Disposition': 'attachment; filename="flow.easydrag.json"' });
+        if (action === 'export' && method === 'GET') {
+            state.exports.push(clone(rec.draft));
+            return reply(rec.draft, 200, { 'Content-Disposition': 'attachment; filename="flow.easydrag.json"' });
+        }
         if ((action === 'test' || action === 'run') && method === 'POST') {
             if (action === 'run' && !rec.live) return fail(409, 'FLOW_NOT_PUBLISHED', 'the flow is not published');
             // RunNow refuses a paused flow (ErrFlowDisabled); test runs stay allowed.
@@ -746,6 +788,7 @@
         flow: id => state.flows.get(id || seeded.id),
         // addDraft adds an unpublished flow with the briefing's steps (Mission Control's second row).
         addDraft: name => addFlow(Object.assign(briefing(), { name }), false, false).id,
+        addEmptyDraft: name => addFlow(emptyFlow(name), false, false).id,
         // addWaitingRun adds a live run that waits for a slot (see waitingRun) and returns its id.
         addWaitingRun: flowId => waitingRun(flowId),
         // editor returns the editor state of the first EasyDrag window (null on the start page).

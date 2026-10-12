@@ -1197,6 +1197,10 @@ func Load(path string) (*Config, error) {
 	if cfg.LocalLLM.ListenPort == 0 {
 		cfg.LocalLLM.ListenPort = 18081
 	}
+	NormalizeDecisionsConfig(&cfg.Decisions)
+	if err := ValidateDecisionsConfig(cfg.Decisions); err != nil {
+		return nil, err
+	}
 	if err := ValidateLocalLLMConfig(&cfg); err != nil {
 		return nil, err
 	}
@@ -3061,6 +3065,9 @@ func (c *Config) Save(path string) error {
 		{[]string{"go2rtc", "webrtc", "bind_address"}, c.Go2RTC.WebRTC.BindAddress},
 		{[]string{"go2rtc", "webrtc", "port"}, c.Go2RTC.WebRTC.Port},
 		{[]string{"go2rtc", "streams"}, c.Go2RTC.Streams},
+		{[]string{"decisions", "enabled"}, c.Decisions.Enabled},
+		{[]string{"decisions", "deployment"}, c.Decisions.Deployment},
+		{[]string{"decisions", "cpu_fallback_allowed"}, c.Decisions.CPUFallbackAllowed},
 		{[]string{"local_llm", "enabled"}, c.LocalLLM.Enabled},
 		{[]string{"local_llm", "backend"}, c.LocalLLM.Backend},
 		{[]string{"local_llm", "model_family"}, c.LocalLLM.ModelFamily},

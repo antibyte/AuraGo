@@ -278,6 +278,8 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Fritz!Box Desktop Widget Contract | `internal/fritzbox/AGENTS.md` |
 | Game Maker Studio Contract; Game Maker tool validation contract; Game Maker sprite library contract | `internal/gamemaker/AGENTS.md` |
 | Managed Local Model Contract | `internal/localllm/AGENTS.md` |
+| Decisions service and CPU permission | `internal/decisions/AGENTS.md` |
+| Decisions native scoring runtime | `decisions_runtime/AGENTS.md` |
 | Local Wikipedia Contract | `internal/localwiki/AGENTS.md` |
 | Memory System | `internal/memory/AGENTS.md` |
 | Newspaper publication, scheduling and delivery | `internal/newspaper/AGENTS.md` |
@@ -613,6 +615,8 @@ Current child AGENTS.md files:
 - `internal/invasion/AGENTS.md` — Egg/nest authentication, connection generations, key rotation and private deployment.
 - `internal/llm/AGENTS.md` — Provider transport trust, URL logging and failover state.
 - `internal/localllm/AGENTS.md` — Local model lifecycle, routing, attestation, and qualification.
+- `internal/decisions/AGENTS.md` — Optional shared decision service, verified artifacts, device placement, CPU permission, and bounded scoring.
+- `decisions_runtime/AGENTS.md` — Pinned llama.cpp/mtmd scoring process, private protocol, offload evidence, and native/Docker packaging.
 - `internal/localwiki/AGENTS.md` — Offline Wikipedia: edition download/verify/swap, search, tool and content serving (readers: `internal/zim`, `internal/zim/xapian`).
 - `internal/memory/AGENTS.md` — Memory retrieval, hygiene, indexing, and maintenance.
 - `internal/meshcentral/AGENTS.md` — MeshCentral control WebSocket, power gate, command limits, TLS CA and admin connection test.

@@ -997,6 +997,14 @@
       "row": 11,
       "source_type": "custom",
       "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "decisions",
+      "slot": 124,
+      "column": 3,
+      "row": 11,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
     }
   ]
 }
