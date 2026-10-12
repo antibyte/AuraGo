@@ -589,6 +589,7 @@ func isNetworkCameraIntent(normalizedQuery string) bool {
 	explicitTerms := []string{
 		"go2rtc", "onvif", "netzwerkkamera", "netzwerk kamera",
 		"ip kamera", "ip camera", "network camera",
+		"personenerkennung", "personen erkennung", "person detection", "people detection",
 	}
 	for _, term := range explicitTerms {
 		if strings.Contains(normalizedQuery, term) {
@@ -598,7 +599,26 @@ func isNetworkCameraIntent(normalizedQuery string) bool {
 	cameraMentioned := strings.Contains(normalizedQuery, "kamera") || strings.Contains(normalizedQuery, "camera")
 	mediaAction := strings.Contains(normalizedQuery, "snapshot") || strings.Contains(normalizedQuery, "live stream") ||
 		strings.Contains(normalizedQuery, "livebild") || strings.Contains(normalizedQuery, "stream anzeigen")
-	return cameraMentioned && mediaAction
+	if cameraMentioned && mediaAction {
+		return true
+	}
+	// Arming person detection ("scharf schalten", "unscharf", "arm", "disarm") needs a camera
+	// or an alarm system in the same request.
+	armingContext := cameraMentioned || strings.Contains(normalizedQuery, "alarmanlage") || strings.Contains(normalizedQuery, "alarm system")
+	return armingContext && networkCameraArmingWord(normalizedQuery)
+}
+
+// networkCameraArmingWord reports an arming word as a whole word, so "alarm" or "warm" do
+// not count as "arm".
+func networkCameraArmingWord(normalizedQuery string) bool {
+	for _, word := range strings.Fields(normalizedQuery) {
+		switch word {
+		case "scharf", "unscharf", "scharfschalten", "scharfgeschaltet", "unscharfschalten",
+			"arm", "disarm", "armed", "disarmed", "arming", "disarming":
+			return true
+		}
+	}
+	return false
 }
 
 // adaptiveIntentOnlyTools take no capped slot in the adaptive selection on

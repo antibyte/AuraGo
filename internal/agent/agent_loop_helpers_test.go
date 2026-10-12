@@ -1136,6 +1136,26 @@ func TestAdaptiveFamilySeedsForQueryIncludesGo2RTCForNetworkCameras(t *testing.T
 	}
 }
 
+func TestAdaptiveFamilySeedsForQueryIncludesGo2RTCForPersonDetection(t *testing.T) {
+	for _, query := range []string{
+		"Ist die Personenerkennung aktiv?",
+		"show the person detection events of the garden camera",
+		"Schalte die Alarmanlage scharf",
+		"Kameras unscharf schalten",
+		"disarm the cameras",
+		"arm the camera system for the night",
+	} {
+		if seeds := adaptiveFamilySeedsForQuery(query); !containsName(seeds, "go2rtc") {
+			t.Errorf("expected go2rtc for %q, got %v", query, seeds)
+		}
+	}
+	for _, query := range []string{"Mein Arm tut weh", "set an alarm for 7", "das Messer ist scharf", "warm water please"} {
+		if seeds := adaptiveFamilySeedsForQuery(query); containsName(seeds, "go2rtc") {
+			t.Errorf("unrelated query %q selected go2rtc: %v", query, seeds)
+		}
+	}
+}
+
 func TestAdaptiveFamilySeedsForQueryIncludesBalancedProgressiveTools(t *testing.T) {
 	tests := []struct {
 		name  string
