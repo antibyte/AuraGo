@@ -7,7 +7,10 @@
 // layers still select. Keys: F2 renames and Alt+ArrowUp/Down moves the focused screen; in the layer
 // list ArrowUp/Down, Home and End move the focus (they win over nudging), the other designer keys
 // (Delete, arrows left/right, undo …) go to interact.handleKey. Enter, Delete, Backspace and F2 never
-// leave the panel: the desktop opens, deletes or renames its selected icons from them.
+// leave the panel: the desktop opens, deletes or renames its selected icons from them. Typing in the
+// screen settings updates the entry in place: a re-render at blur would drop the focus to the page
+// and lose the click that caused the blur; a rename's blur commit waits for a press in the panel to
+// end (and its click to run) for the same reason.
 (function () {
     'use strict';
 
@@ -33,10 +36,14 @@
         let editing = false;
         let disposed = false;
         let blurTimer = 0;
+        let held = false; // a pointer is pressed inside the panel
+        let blurAfterRelease = false;
         let shownSelection = null;
+        const errorId = P.util.uid('cc_rename_err');
         const root = dom(h('div', { class: 'cc-screens', tabindex: '-1' }));
         host.appendChild(root);
         const str = v => (typeof v === 'string' ? v : v == null ? '' : String(v));
+        const issueCount = count => t.or('cyd_creator.designer.issue_count', 'Issues: {count}', { count });
 
         const tool = (cmd, name, label, id, disabled) => h('button', { type: 'button', class: 'cc-tool cc-tool-sm', 'data-cc-cmd': cmd, 'data-cc-id': id, 'data-cc-focus': cmd + ':' + id, title: label, 'aria-label': label, disabled: !!disabled }, icon(name));
         const field = (label, control) => h('label', { class: 'cc-field' }, h('span', { class: 'cc-field-label' }, label), control);
@@ -55,17 +62,20 @@
             const issues = d.issuesForScreen(s).length;
             const renameLabel = t.or('cyd_creator.designer.screen_rename', 'Rename screen');
             if (renaming === s.id) {
+                // The reason is spoken once when it changes (commitRename); re-renders stay silent.
                 return h('li', { class: 'cc-screen-row is-renaming', 'data-cc-screen-id': s.id },
-                    h('input', { type: 'text', class: 'cc-screen-rename', value: draft, maxlength: '32', spellcheck: 'false', autocomplete: 'off', 'data-cc-rename': s.id, 'data-cc-focus': 'rename:' + s.id, 'aria-label': renameLabel, 'aria-invalid': renameError ? 'true' : null }),
-                    renameError ? h('span', { class: 'cc-field-error', role: 'alert' }, renameMessage(renameError)) : null);
+                    h('input', { type: 'text', class: 'cc-screen-rename', value: draft, maxlength: '32', spellcheck: 'false', autocomplete: 'off', 'data-cc-rename': s.id, 'data-cc-focus': 'rename:' + s.id, 'aria-label': renameLabel, 'aria-invalid': renameError ? 'true' : null, 'aria-describedby': renameError ? errorId : null }),
+                    renameError ? h('span', { class: 'cc-field-error', id: errorId }, renameMessage(renameError)) : null);
             }
             const startLabel = t.or('cyd_creator.designer.screen_start', 'Start screen');
             return h('li', { class: 'cc-screen-row' + (active ? ' is-active' : ''), 'data-cc-screen-id': s.id },
                 h('button', { type: 'button', class: 'cc-screen-open', 'data-cc-cmd': 'screen-open', 'data-cc-id': s.id, 'data-cc-focus': openKey(s.id), 'aria-current': active ? 'true' : null },
                     start ? h('span', { class: 'cc-start', title: startLabel, 'aria-label': startLabel }, icon('star')) : null,
                     h('span', { class: 'cc-screen-name' }, str(s.name)),
-                    s.title ? h('span', { class: 'cc-screen-title' }, str(s.title)) : null,
-                    issues ? h('span', { class: 'cc-count is-error', title: t.or('cyd_creator.designer.issue_count', '{count} issues', { count: issues }) }, String(issues)) : null),
+                    // Always present (empty without a title): typing a title updates it in place.
+                    h('span', { class: 'cc-screen-title', 'data-cc-title': s.id }, str(s.title)),
+                    issues ? h('span', { class: 'cc-count is-error', title: issueCount(issues) },
+                        h('span', { 'aria-hidden': 'true' }, String(issues)), h('span', { class: 'cc-sr-only' }, issueCount(issues))) : null),
                 h('span', { class: 'cc-row-tools' },
                     tool('screen-start', 'star', t.or('cyd_creator.designer.screen_set_start', 'Make start screen'), s.id, ro || start),
                     tool('screen-rename', 'edit', renameLabel, s.id, ro),
@@ -109,10 +119,12 @@
                     if (!w || typeof w !== 'object') return;
                     const name = str(w.name) || d.label(w.type);
                     const issues = d.issuesFor(w);
-                    const state = [w.locked ? t.or('cyd_creator.designer.layer_locked', 'locked') : '', w.hidden ? t.or('cyd_creator.designer.layer_hidden', 'hidden') : '', parent && parent.type === 'tabview' ? t.or('cyd_creator.designer.layer_tab', 'tab {n}', { n: (Number(w.tab) || 0) + 1 }) : ''].filter(Boolean).join(', ');
+                    const state = [w.locked ? t.or('cyd_creator.designer.layer_locked', 'locked') : '', w.hidden ? t.or('cyd_creator.designer.layer_hidden', 'hidden') : '',
+                        parent && parent.type === 'tabview' ? t.or('cyd_creator.designer.layer_tab', 'tab {n}', { n: (Number(w.tab) || 0) + 1 }) : '', issues.length ? issueCount(issues.length) : ''].filter(Boolean).join(', ');
                     const lockLabel = w.locked ? t.or('cyd_creator.designer.unlock', 'Unlock') : t.or('cyd_creator.designer.lock', 'Lock');
                     const hideLabel = w.hidden ? t.or('cyd_creator.designer.show', 'Show') : t.or('cyd_creator.designer.hide', 'Hide');
-                    rows.push(h('li', { class: 'cc-layer' + (selected.has(w.id) ? ' is-selected' : '') + (w.hidden ? ' is-hidden' : ''), style: { '--cc-depth': String(depth) } },
+                    // aria-level carries the nesting the indentation shows.
+                    rows.push(h('li', { class: 'cc-layer' + (selected.has(w.id) ? ' is-selected' : '') + (w.hidden ? ' is-hidden' : ''), 'aria-level': String(depth + 1), style: { '--cc-depth': String(depth) } },
                         h('button', { type: 'button', class: 'cc-layer-select', 'data-cc-layer-id': w.id, 'data-cc-focus': 'layer:' + w.id, tabindex: '-1', 'aria-pressed': selected.has(w.id) ? 'true' : 'false', 'aria-label': [name, d.label(w.type), state].filter(Boolean).join(', ') },
                             h('span', { class: 'cc-layer-glyph', 'aria-hidden': 'true' }, P.designerPalette ? (P.designerPalette.GLYPHS[w.type] || '◆') : '◆'),
                             h('span', { class: 'cc-layer-name' }, name),
@@ -241,6 +253,7 @@
             if (changed) {
                 const issue = M.screenNameIssue(d.project(), name, id);
                 if (issue) {
+                    if (issue !== renameError) d.announce(renameMessage(issue));
                     renameError = issue;
                     render();
                     const input = byFocus('rename:' + id);
@@ -252,12 +265,49 @@
             if (!changed || !d.commands.run('rename-screen', [{ op: 'update_screen', id, set: { name } }])) render();
             if (!blur) { const btn = byFocus(openKey(id)); if (btn) btn.focus({ preventScroll: true }); else keepFocus(''); }
         }
-        // editScreen changes the active screen; typing=true keeps the panel as it is (the caret stays).
+        // editScreen changes the active screen; typing=true keeps the panel as it is (the caret stays)
+        // and updates the entry's title and the "Use theme" chip in place.
         function editScreen(set, coalesce, typing) {
             const screen = d.screen();
             if (!screen) return;
             editing = !!typing;
             try { d.commands.run('screen', [{ op: 'update_screen', id: screen.id, set }], coalesce); } finally { editing = false; }
+            if (typing) syncEntry();
+        }
+        function syncEntry() {
+            const screen = d.screen();
+            if (!screen) return;
+            const title = Array.from(root.querySelectorAll('[data-cc-title]')).find(el => el.getAttribute('data-cc-title') === screen.id);
+            if (title) title.replaceChildren(document.createTextNode(str(screen.title)));
+            const chip = byFocus('screen-bg-reset');
+            if (chip) chip.setAttribute('aria-pressed', screen.style && screen.style.bg_color ? 'false' : 'true');
+        }
+        // showTabs opens the tab pages on a widget's path (as the designer's reveal does), so a layer
+        // picked from the list is visible on the canvas.
+        function showTabs(id) {
+            const f = d.find(id);
+            if (!f) return;
+            const chain = f.ancestors.concat([f.widget]);
+            chain.forEach((a, i) => {
+                const tab = chain[i + 1] ? Number(chain[i + 1].tab) || 0 : 0;
+                if (a.type === 'tabview' && chain[i + 1] && d.activeTab(a.id) !== tab) d.setTab(a.id, tab);
+            });
+        }
+        // blurCommit commits a rename whose field lost the focus, unless the focus is back in it (a
+        // re-render made a new one). A press inside the panel (another entry, a tool, a layer) gets its
+        // click first: re-rendering between press and release would lose that click.
+        function blurCommit() {
+            const now = document.activeElement;
+            if (disposed || !renaming || (now && now.dataset && now.dataset.ccRename === renaming && root.contains(now))) return;
+            if (held) { blurAfterRelease = true; return; }
+            commitRename(false, true);
+        }
+        function release() {
+            held = false;
+            if (!blurAfterRelease) return;
+            blurAfterRelease = false;
+            clearTimeout(blurTimer);
+            blurTimer = setTimeout(blurCommit, 0);
         }
         function moveScreen(id, step) {
             const f = M.findScreen(d.project(), id);
@@ -277,7 +327,12 @@
             const target = event.target;
             if (!target || typeof target.closest !== 'function') return;
             const layer = target.closest('[data-cc-layer-id]');
-            if (layer) { d.select([layer.dataset.ccLayerId], { toggle: event.shiftKey || event.ctrlKey || event.metaKey }); return; }
+            if (layer) {
+                const id = layer.dataset.ccLayerId;
+                d.select([id], { toggle: event.shiftKey || event.ctrlKey || event.metaKey });
+                if (d.selection.includes(id)) showTabs(id);
+                return;
+            }
             const b = target.closest('button[data-cc-cmd]');
             if (!b || b.disabled) return;
             const id = b.dataset.ccId;
@@ -303,11 +358,12 @@
             if (el.dataset.ccField === 'title') editScreen({ title: str(el.value) }, 'screen-title:' + d.screenId, true);
             if (el.dataset.ccField === 'bg' && HEX.test(el.value)) editScreen({ style: { bg_color: el.value.toUpperCase() } }, 'screen-bg:' + d.screenId, true);
         });
+        // A select changes while it has the focus (the re-render keeps it). Title and colour edits are
+        // stored on input; their change event (at blur) re-renders nothing.
         bag.on(root, 'change', event => {
             const el = event.target;
             if (!el || !el.dataset) return;
             if (el.dataset.ccField === 'transition' && M.TRANSITIONS.includes(el.value)) editScreen({ transition: el.value });
-            if (el.dataset.ccField === 'bg' || el.dataset.ccField === 'title') render();
         });
         bag.on(root, 'keydown', event => {
             const el = event.target;
@@ -318,6 +374,8 @@
             if (PAGE_KEYS.has(event.key)) event.stopPropagation();
             const plain = !event.ctrlKey && !event.metaKey && !event.altKey;
             if (el.dataset && el.dataset.ccRename !== undefined) {
+                // Enter and Escape during an IME composition belong to the composition.
+                if (event.isComposing || event.keyCode === 229) return;
                 if (event.key === 'Enter') { event.preventDefault(); commitRename(false, false); }
                 if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); commitRename(true, false); }
                 return;
@@ -340,17 +398,16 @@
                 if (ix && ix.handleKey(event)) { event.preventDefault(); event.stopPropagation(); }
             }
         });
-        // Blur commits a rename unless the focus is back in its field (a re-render made a new one).
+        // Blur commits a rename (blurCommit); a press anywhere tells whether it started in the panel.
         bag.on(root, 'focusout', event => {
             const el = event.target;
             if (!renaming || !el || !el.dataset || el.dataset.ccRename === undefined) return;
             clearTimeout(blurTimer);
-            blurTimer = setTimeout(() => {
-                const now = document.activeElement;
-                if (disposed || !renaming || (now && now.dataset && now.dataset.ccRename === renaming && root.contains(now))) return;
-                commitRename(false, true);
-            }, 0);
+            blurTimer = setTimeout(blurCommit, 0);
         });
+        bag.on(window, 'pointerdown', event => { held = !!event.target && root.contains(event.target); }, true);
+        bag.on(window, 'pointerup', release, true);
+        bag.on(window, 'pointercancel', release, true);
         bag.add(() => clearTimeout(blurTimer));
         // A store change that switched the screen rendered on 'screen' already; a selection already
         // shown (the 'selection' after 'screen') renders nothing.

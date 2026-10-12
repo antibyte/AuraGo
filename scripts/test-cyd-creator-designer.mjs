@@ -1837,14 +1837,22 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     eq('the active screen\'s entry is aria-current', [byKey('open:s_home').attrs['aria-current'], byKey('open:s_two').attrs['aria-current']], ['true', undefined]);
     check('translated headings and English fallbacks', textOf(scr).includes('Bildschirme') && byKey('screen-add').attrs['aria-label'] === 'Add screen' && textOf(scr).includes('Layers'));
     shellBus.emit('layout:issues', [{ code: 'SCREEN_NAME_INVALID', severity: 'error', screen: 's_two', message: 'x' }, { code: 'NAME_INVALID', severity: 'error', widget: 'w_btn', message: 'bad name' }]);
-    eq('a screen\'s issue count shows on its entry', all(rowOf('s_two'), el => el.attrs.class === 'cc-count is-error').map(textOf), ['1']);
+    const count = all(rowOf('s_two'), el => el.attrs.class === 'cc-count is-error')[0];
+    eq('a screen\'s issue count shows the number and gives screen readers words', count && count.kids.map(k => [k.attrs['aria-hidden'] || k.attrs.class, textOf(k)]), [['true', '1'], ['cc-sr-only', 'Issues: 1']]);
     check('a widget issue marks its layer with the issue text', all(layer('w_btn').parent, el => el.attrs.class === 'cc-issue-mark is-error' && el.attrs.title === 'bad name').length === 1);
+    check('… and its accessible name counts the issues', layer('w_btn').attrs['aria-label'] === 'btn_1, button, Issues: 1', layer('w_btn').attrs['aria-label']);
 
     // layers: front-most first, nested by depth, states in the accessible name, one tab stop
     eq('layers list front-most first, children after their container', layerSel().map(el => el.dataset.ccLayerId), ['w_hid', 'w_tabs', 'w_tk', 'w_pnl', 'w_lbl', 'w_btn']);
     eq('… indented by depth', layerSel().map(el => el.parent.style['--cc-depth']), ['0', '0', '1', '0', '1', '0']);
+    eq('… with the depth as aria-level', layerSel().map(el => el.parent.attrs['aria-level']), ['1', '1', '2', '1', '2', '1']);
     eq('the accessible name holds name, type and state', [layer('w_hid').attrs['aria-label'], layer('w_tk').attrs['aria-label']], ['lbl_hid, label, locked, hidden', 'lbl_tk, label, tab 2']);
     eq('one tab stop: the first layer while nothing is selected', tabStops(), ['w_hid']);
+    fire(layer('w_tk'), 'click', {});
+    check('a layer on another tab page opens that page', d.selection.join() === 'w_tk' && d.activeTab('w_tabs') === 1);
+    d.setTab('w_tabs', 0);
+    fire(layer('w_tk'), 'click', { shiftKey: true });
+    check('… but not when the click unselects it', !d.selection.length && d.activeTab('w_tabs') === 0);
     let before = renders;
     fire(all(layer('w_lbl'), el => el.attrs.class === 'cc-layer-name')[0], 'click', {});
     check('a click on a layer (also on its text) selects the widget and renders once', d.selection.join() === 'w_lbl' && renders === before + 1);
@@ -1887,19 +1895,29 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     fire(byKey('screen-rename:s_home'), 'click', {});
     const ri = renameInput();
     check('the rename tool opens the field with the name selected and focused', !!ri && ri.value === 'home' && fakeDoc.activeElement === ri && ri.selectionStart === 0 && ri.selectionEnd === 4);
+    // The reason describes the field (aria-describedby) and is spoken once per change, not per render.
+    const errOf = () => all(scr, el => !!el.attrs.id && el.attrs.id === renameInput().attrs['aria-describedby'])[0];
+    const spoken = said.length;
     type(renameInput(), 'Main Screen');
     const bad = key(renameInput(), 'Enter');
-    check('an invalid name is refused with the reason; the field keeps entry and focus', screenOf('s_home').name === 'home' && renameInput().value === 'Main Screen' && renameInput().attrs['aria-invalid'] === 'true' && fakeDoc.activeElement === renameInput() && textOf(all(scr, el => el.attrs.role === 'alert')[0]).startsWith('Screen names use'));
+    check('an invalid name is refused with the reason; the field keeps entry and focus', screenOf('s_home').name === 'home' && renameInput().value === 'Main Screen' && renameInput().attrs['aria-invalid'] === 'true' && fakeDoc.activeElement === renameInput() && !!errOf() && textOf(errOf()).startsWith('Screen names use'));
     eq('… Enter stops at the panel (the desktop would open its selected icon)', [bad.stopped, bad.defaultPrevented], [true, true]);
+    check('… the reason is spoken once, from a description without role=alert', said.length === spoken + 1 && said[spoken].startsWith('Screen names use') && !all(scr, el => el.attrs.role === 'alert').length);
+    type(renameInput(), 'Bad Name');
+    key(renameInput(), 'Enter');
+    shellBus.emit('layout:issues', [{ code: 'X', severity: 'warning', message: 'x' }]);
+    check('the same reason again and re-renders speak nothing new', said.length === spoken + 1 && textOf(errOf()).startsWith('Screen names use'));
     type(renameInput(), 'details');
     key(renameInput(), 'Enter');
-    check('a duplicate screen name is refused', screenOf('s_home').name === 'home' && textOf(all(scr, el => el.attrs.role === 'alert')[0]) === 'Another screen already uses this name.');
+    check('a duplicate screen name is refused and its reason spoken', screenOf('s_home').name === 'home' && textOf(errOf()) === 'Another screen already uses this name.' && said.length === spoken + 2);
     type(renameInput(), ' main ');
     key(renameInput(), 'Enter');
     check('a valid name is stored trimmed; the focus returns to the screen\'s entry', screenOf('s_home').name === 'main' && !renameInput() && fakeDoc.activeElement === byKey('open:s_home'));
     const f2open = key(byKey('open:s_home'), 'F2');
     check('F2 on a screen entry renames it and stops at the panel', used(f2open) && !!renameInput() && fakeDoc.activeElement === renameInput());
     type(renameInput(), 'zzz');
+    const ime = [key(renameInput(), 'Enter', { isComposing: true }), key(renameInput(), 'Escape', { keyCode: 229 })];
+    check('Enter and Escape of an IME composition leave the rename alone', !!renameInput() && renameInput().value === 'zzz' && ime.every(ev => !ev.defaultPrevented) && screenOf('s_home').name === 'main');
     const esc = key(renameInput(), 'Escape');
     check('Escape cancels the rename, stops there and refocuses the entry', used(esc) && screenOf('s_home').name === 'main' && !renameInput() && fakeDoc.activeElement === byKey('open:s_home'));
     fire(byKey('screen-rename:s_home'), 'click', {});
@@ -1923,6 +1941,33 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     runTimers();
     check('a blur with an invalid name keeps the field with the reason without taking the focus back', !!renameInput() && renameInput().attrs['aria-invalid'] === 'true' && fakeDoc.activeElement === croot && screenOf('s_home').name === 'kept');
     key(renameInput(), 'Escape');
+    // A press in the panel moves the focus (blur) before its click: the commit waits for the release,
+    // so the pressed element is still there when the click arrives.
+    const winFire = (type, target) => (winListeners[type] || []).slice().forEach(fn => fn({ type, target }));
+    fire(byKey('screen-rename:s_home'), 'click', {});
+    type(renameInput(), 'pressed');
+    const pressedEntry = byKey('open:s_two');
+    winFire('pointerdown', pressedEntry);
+    pressedEntry.focus();
+    fire(renameInput(), 'focusout', {});
+    runTimers();
+    check('during a press in the panel the blur commit waits; the pressed entry stays', !!renameInput() && scr.contains(pressedEntry) && screenOf('s_home').name === 'kept');
+    winFire('pointerup', pressedEntry);
+    fire(pressedEntry, 'click', {});
+    check('… so its click arrives (the screen opens)', d.screenId === 's_two' && screenOf('s_home').name === 'kept');
+    runTimers();
+    check('… and the release commits the name, leaving the focus on the clicked entry', screenOf('s_home').name === 'pressed' && !renameInput() && fakeDoc.activeElement === byKey('open:s_two'));
+    fire(byKey('screen-rename:s_home'), 'click', {});
+    type(renameInput(), 'outside');
+    winFire('pointerdown', croot);
+    croot.focus();
+    fire(renameInput(), 'focusout', {});
+    runTimers();
+    check('a press outside the panel commits at once', screenOf('s_home').name === 'outside' && !renameInput());
+    winFire('pointerup', croot);
+    fire(byKey('screen-rename:s_home'), 'click', {});
+    type(renameInput(), 'pressed');
+    key(renameInput(), 'Enter');
 
     // add, duplicate, reorder, start screen
     fire(byKey('screen-add'), 'click', {});
@@ -1936,7 +1981,7 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     const copy = sStore.get().screens[1];
     const origIds = []; const origNames = []; M.walk({ screens: [screenOf('s_home')] }, w => { origIds.push(w.id); origNames.push(w.name); });
     const copyIds = []; const copyNames = []; M.walk({ screens: [copy] }, w => { copyIds.push(w.id); copyNames.push(w.name); });
-    check('duplicate inserts the copy right after the original and opens it', screenIds().length === n0 + 1 && copy.name === 'kept_1' && d.screenId === copy.id && copy.title === 'Start');
+    check('duplicate inserts the copy right after the original and opens it', screenIds().length === n0 + 1 && copy.name === 'pressed_1' && d.screenId === copy.id && copy.title === 'Start');
     check('… with fresh widget ids and names', copyIds.length === origIds.length && copyIds.every(id => !origIds.includes(id)) && copyNames.every(n => !origNames.includes(n)));
     sStore.undo();
     check('… as one undo step', screenIds().length === n0 && d.screenId === 's_home');
@@ -1974,23 +2019,34 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
 
     // settings of the active screen
     const titleEl = byKey('screen-title');
+    const entryTitle = () => all(rowOf('s_home'), el => el.attrs['data-cc-title'] === 's_home')[0];
     titleEl.focus();
+    before = renders;
     type(titleEl, 'Hello');
     type(titleEl, 'Hello!');
-    check('the title is stored while typing without re-rendering the field', screenOf('s_home').title === 'Hello!' && byKey('screen-title') === titleEl && fakeDoc.activeElement === titleEl);
+    check('the title is stored while typing without re-rendering the panel', screenOf('s_home').title === 'Hello!' && byKey('screen-title') === titleEl && fakeDoc.activeElement === titleEl && renders === before);
+    check('… and the entry shows it in place', textOf(entryTitle()) === 'Hello!');
+    // Chrome fires change inside the blur (the focus is on the page then): a re-render there would
+    // drop the focus to the page and lose the click that moved it.
+    fakeDoc.activeElement = fakeDoc.body;
     fire(titleEl, 'change', {});
-    check('… and the entry shows it after the change', textOf(rowOf('s_home')).includes('Hello!'));
+    check('the title\'s change (at blur) re-renders nothing', renders === before && byKey('screen-title') === titleEl);
+    type(titleEl, '');
+    check('an empty title empties the entry\'s title in place', textOf(entryTitle()) === '' && renders === before);
+    type(titleEl, 'Hello!');
     const tr = byKey('screen-transition');
     tr.value = 'slide_left'; fire(tr, 'change', {});
     byKey('screen-transition').value = 'zoom'; fire(byKey('screen-transition'), 'change', {});
     eq('a transition comes from the list; others are ignored', screenOf('s_home').transition, 'slide_left');
     const bgEl = byKey('screen-bg');
+    before = renders;
     type(bgEl, '#12ab34');
     type(bgEl, 'red');
     eq('the background is stored as #RRGGBB; anything else is ignored', screenOf('s_home').style, { bg_color: '#12AB34' });
     fire(bgEl, 'change', {});
+    check('… the "Use theme" chip shows it in place; nothing re-renders', byKey('screen-bg-reset').attrs['aria-pressed'] === 'false' && byKey('screen-bg') === bgEl && renders === before);
     fire(byKey('screen-bg-reset'), 'click', {});
-    check('"Use theme" removes the background and shows the chip pressed', !screenOf('s_home').style.bg_color && byKey('screen-bg-reset').attrs['aria-pressed'] === 'true');
+    check('"Use theme" removes the background, shows the chip pressed and the theme colour', !screenOf('s_home').style.bg_color && byKey('screen-bg-reset').attrs['aria-pressed'] === 'true' && byKey('screen-bg').value === caps.themes.find(x => x.id === sStore.get().theme).tokens.bg.toLowerCase());
 
     // the Wi-Fi system entry: a locked, view-only screen
     before = renders;
@@ -2033,6 +2089,15 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     shellBus.emit('lock:changed', false, '');
     check('the released lock enables them again', !byKey('screen-add').disabled);
     check('every panel edit reached the store as local (remote: the test replaces; undo: Ctrl+Z and the duplicate check)', origins.filter(o => o !== 'local').join() === 'undo,remote,undo,remote', origins.join());
+
+    // the screen limit (M.LIMITS.screens = 16, limits.go MaxScreens)
+    const full = JSON.parse(JSON.stringify(sStore.get()));
+    for (let i = full.screens.length; i < M.LIMITS.screens; i++) full.screens.push({ id: 's_x' + i, name: 'x' + i, title: '', transition: 'none', style: {}, widgets: [] });
+    sStore.replace(full, { resetHistory: false });
+    check('at 16 screens add and every duplicate are disabled', M.LIMITS.screens === 16 && screenIds().length === 16 && byKey('screen-add').disabled === true && full.screens.every(s => byKey('screen-duplicate:' + s.id).disabled === true));
+    full.screens.pop();
+    sStore.replace(full, { resetHistory: false });
+    check('at 15 screens they are enabled again', screenIds().length === 15 && !byKey('screen-add').disabled && full.screens.every(s => !byKey('screen-duplicate:' + s.id).disabled));
 
     designer.dispose();
     shellBus.emit('layout:issues', [{ code: 'X', severity: 'error', screen: 's_home' }]);
