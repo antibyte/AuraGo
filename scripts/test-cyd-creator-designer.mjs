@@ -206,6 +206,91 @@ store.change('after', d => { d.name = 'unsubscribed'; });
 check('unsubscribe stops events', seen[seen.length - 1] !== 'local:after');
 const ret = store.change('ret', d => { d.name = 'r'; return 42; });
 eq('change returns the fn result', ret, 42);
+{
+    // A remote replace ends coalescing: the next edit with the same key is a step of its own.
+    let t = 0;
+    const s = M.createStore(project(), { now: () => t });
+    s.change('type', d => { d.name = 'A'; }, { coalesce: 'name' });
+    s.replace(Object.assign({}, s.get(), { name: 'R' }), { resetHistory: false });
+    t += 100;
+    s.change('type', d => { d.name = 'B'; }, { coalesce: 'name' });
+    s.undo();
+    eq('a replace ends coalescing', s.get().name, 'R');
+}
+{
+    // change() caches the JSON of the current snapshot for its no-op check; undo and redo must
+    // refresh it, so an edit back to the state before the undo (or redo) is recorded.
+    const s = M.createStore(project(), { now: () => 0 });
+    s.change('a', d => { d.name = 'A'; });
+    s.undo();
+    s.change('a', d => { d.name = 'A'; });
+    const afterUndo = [s.get().name, s.canUndo(), s.canRedo()];
+    s.undo();
+    s.change('noop', d => { d.name = 'Test'; });
+    s.redo();
+    s.change('t', d => { d.name = 'Test'; });
+    eq('an edit back to the state before an undo or redo is recorded', [afterUndo, s.get().name, s.canUndo()], [['A', true, false], 'Test', true]);
+}
+{
+    // An upload replaces the store with resetHistory false: undo goes back before it (the asset is
+    // dropped again), redo re-adds it.
+    const s = M.createStore(project(), { now: () => 0 });
+    s.change('rename', d => { d.name = 'Edited'; });
+    s.replace(Object.assign({}, s.get(), { assets: [{ id: 'a_sun', file: 'assets/sun.png', w: 8, h: 8, alpha: false }] }), { resetHistory: false });
+    s.undo();
+    const undone = [s.get().name, s.get().assets.length, s.canRedo()];
+    s.redo();
+    eq('undo across an upload replace drops the asset, redo re-adds it', [undone, s.get().name, s.get().assets.map(a => a.id)], [['Test', 0, true], 'Edited', ['a_sun']]);
+}
+{
+    // emit works on a copy of the subscriber set: a subscriber removed during an emit still gets
+    // that event, one added during an emit gets only later events.
+    const s = M.createStore(project(), { now: () => 0 });
+    const calls = [];
+    let offB = null;
+    s.subscribe((p, info) => {
+        calls.push('A:' + info.label);
+        if (info.label === 'one') { offB(); s.subscribe((q, i2) => calls.push('C:' + i2.label)); }
+    });
+    offB = s.subscribe((p, info) => calls.push('B:' + info.label));
+    s.change('one', d => { d.name = '1'; });
+    s.change('two', d => { d.name = '2'; });
+    eq('subscribe/unsubscribe during an emit take effect from the next event', calls, ['A:one', 'B:one', 'A:two', 'C:two']);
+}
+{
+    // The history is bounded by bytes as well as by count: a large layout (about 0.5 MB of JSON,
+    // near the 1 MiB server maximum) keeps HISTORY_MAX_BYTES / size steps, and undo/redo work
+    // across all of them.
+    const big = project();
+    big.name = 'v----';
+    big.screens = [];
+    for (let s = 0; s < 16; s++) {
+        const widgets = [];
+        for (let i = 0; i < 200; i++) widgets.push({ id: 'w_' + String(s * 1000 + i).padStart(12, '0'), type: 'button', name: 'btn_' + (s * 1000 + i), x: i % 300, y: i % 200, w: 120, h: 40, props: { text: 'Button ' + i, symbol: 'ok' }, style: { radius: 4 } });
+        big.screens.push({ id: 's_' + String(s).padStart(12, '0'), name: 'scr' + s, title: 'Screen ' + s, transition: 'none', style: {}, widgets });
+    }
+    const size = JSON.stringify(big).length;
+    const fit = Math.floor(M.HISTORY_MAX_BYTES / size);
+    const s = M.createStore(big, { now: () => 0 });
+    const n = fit + 10;
+    for (let i = 0; i < n; i++) s.change('n', d => { d.name = 'v' + String(i).padStart(4, '0'); });
+    let steps = 0;
+    while (s.undo()) steps++;
+    const oldest = s.get().name;
+    let redone = 0;
+    while (s.redo()) redone++;
+    eq('a large layout keeps the history within HISTORY_MAX_BYTES and undo/redo work across it',
+        [fit > 10 && fit < 300, steps, redone, oldest, s.get().name], [true, fit, fit, 'v' + String(n - 1 - fit).padStart(4, '0'), 'v' + String(n - 1).padStart(4, '0')]);
+    s.change('n', d => { d.name = 'vnext'; });
+    let again = 0;
+    while (s.undo()) again++;
+    eq('undo/redo keep the byte count: the next change trims back to the same bound', again, fit);
+    let count = 0;
+    const tiny = M.createStore(project(), { maxBytes: 1, now: () => 0 });
+    for (let i = 0; i < 3; i++) tiny.change('n', d => { d.name = 'n' + i; });
+    while (tiny.undo()) count++;
+    eq('the newest step stays even when one snapshot exceeds maxBytes', [count, tiny.get().name], [1, 'n1']);
+}
 
 // ── ops (structural mirror of Go ApplyOps, no validation gate) ──
 const specs = M.specMap(caps.widgets);
@@ -239,6 +324,9 @@ fails('unknown screen', () => ops([{ op: 'add_widget', screen: 'nope', widget: {
 fails('unknown type', () => ops([{ op: 'add_widget', screen: 'home', widget: { type: 'gizmo' } }]), 'unknown widget type');
 fails('parent not a container', () => ops([{ op: 'add_widget', screen: 'home', parent: 'btn_1', widget: { type: 'label' } }]), 'cannot contain widgets');
 fails('parent missing', () => ops([{ op: 'add_widget', screen: 'home', parent: 'zzz', widget: { type: 'label' } }]), 'parent:');
+fails('add_widget rejects a fractional x override', () => ops([{ op: 'add_widget', screen: 'home', x: 1.5, widget: { type: 'label' } }]), 'x must be an integer');
+fails('add_widget rejects fractional widget sizes', () => ops([{ op: 'add_widget', screen: 'home', widget: { type: 'label', x: 0, y: 0, w: 10.5, h: 20 } }]), 'w must be an integer');
+fails('add_widget rejects non-integer child geometry', () => ops([{ op: 'add_widget', screen: 'home', widget: { type: 'panel', children: [{ type: 'label', h: '24' }] } }]), 'h must be an integer');
 const deep = { type: 'panel', x: 0, y: 0, w: 10, h: 10, children: [{ type: 'panel', x: 0, y: 0, w: 5, h: 5, children: [{ type: 'panel', x: 0, y: 0, w: 5, h: 5, children: [{ type: 'label', x: 0, y: 0, w: 5, h: 5 }] }] }] };
 check('limits are validation issues, not op failures (nesting 5)', ops([{ op: 'add_widget', screen: 'home', parent: 'w_pnl', widget: deep }]).results.length === 1);
 fails('atomic: a failing op fails the call', () => ops([{ op: 'add_widget', screen: 'home', widget: { type: 'label' } }, { op: 'delete_widget', id: 'missing' }]), 'not found');

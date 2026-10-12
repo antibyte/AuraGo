@@ -45,19 +45,32 @@
 
     // ── store ───────────────────────────────────────────────────────────────
 
+    // HISTORY_MAX_BYTES caps the undo history by the summed JSON length of its snapshots (a frozen
+    // snapshot takes about 2.5 times its JSON length on the heap): typical layouts keep all `limit`
+    // steps, a layout near the 1 MiB server maximum keeps about 30.
+    const HISTORY_MAX_BYTES = 16 * 1024 * 1024;
+
     // createStore keeps the layout as frozen snapshots. change() runs fn on a deep clone; a thrown
     // error leaves everything unchanged, a change without effect records nothing. A change with the
     // same coalesce key as the newest undo step, made within coalesceMs of the previous one, joins
-    // that step. undo/redo/replace end coalescing.
+    // that step. undo/redo/replace end coalescing. The history keeps at most `limit` undo steps
+    // whose snapshots sum to at most `maxBytes` JSON bytes (the newest step always stays); only
+    // change() adds snapshots, undo/redo move them between the two stacks.
     function createStore(project, opts) {
         const o = opts || {};
         const limit = o.limit || 300;
+        const maxBytes = o.maxBytes || HISTORY_MAX_BYTES;
         const coalesceMs = o.coalesceMs == null ? 1200 : o.coalesceMs;
         const now = typeof o.now === 'function' ? o.now : () => Date.now();
         const subs = new Set();
         const past = [];
         const future = [];
         let current = freeze(clone(project));
+        // currentJson caches JSON.stringify(current) for the no-op check (null = not computed since
+        // an undo/redo); currentBytes is its length, the byte weight current gets in a history stack.
+        let currentJson = JSON.stringify(current);
+        let currentBytes = currentJson.length;
+        let pastBytes = 0;
         let barrier = true;
 
         function emit(label, origin) {
@@ -70,33 +83,43 @@
             change(label, fn, copts) {
                 const draft = clone(current);
                 const result = fn(draft);
-                if (JSON.stringify(draft) === JSON.stringify(current)) return result;
+                const json = JSON.stringify(draft);
+                if (currentJson === null) currentJson = JSON.stringify(current);
+                if (json === currentJson) return result;
                 const key = (copts && copts.coalesce) || null;
                 const at = now();
                 const top = past[past.length - 1];
                 if (key && !barrier && top && top.coalesce === key && at - top.at < coalesceMs) {
                     top.at = at;
                 } else {
-                    past.push({ snapshot: current, label, coalesce: key, at });
-                    if (past.length > limit) past.shift();
+                    past.push({ snapshot: current, bytes: currentBytes, label, coalesce: key, at });
+                    pastBytes += currentBytes;
+                    while (past.length > 1 && (past.length > limit || pastBytes > maxBytes)) pastBytes -= past.shift().bytes;
                 }
                 barrier = false;
                 future.length = 0;
                 current = freeze(draft);
+                currentJson = json;
+                currentBytes = json.length;
                 emit(label, 'local');
                 return result;
             },
             replace(next, ropts) {
                 current = freeze(clone(next));
-                if (ropts && ropts.resetHistory) { past.length = 0; future.length = 0; }
+                currentJson = JSON.stringify(current);
+                currentBytes = currentJson.length;
+                if (ropts && ropts.resetHistory) { past.length = 0; future.length = 0; pastBytes = 0; }
                 barrier = true;
                 emit('replace', 'remote');
             },
             undo() {
                 const step = past.pop();
                 if (!step) return false;
-                future.push({ snapshot: current, label: step.label });
+                pastBytes -= step.bytes;
+                future.push({ snapshot: current, bytes: currentBytes, label: step.label });
                 current = step.snapshot;
+                currentJson = null;
+                currentBytes = step.bytes;
                 barrier = true;
                 emit(step.label, 'undo');
                 return true;
@@ -104,8 +127,11 @@
             redo() {
                 const step = future.pop();
                 if (!step) return false;
-                past.push({ snapshot: current, label: step.label, coalesce: null, at: 0 });
+                past.push({ snapshot: current, bytes: currentBytes, label: step.label, coalesce: null, at: 0 });
+                pastBytes += currentBytes;
                 current = step.snapshot;
+                currentJson = null;
+                currentBytes = step.bytes;
                 barrier = true;
                 emit(step.label, 'redo');
                 return true;
@@ -327,6 +353,12 @@
         }
         (w.children || []).forEach(c => prepare(c, used, specs, w.w));
     }
+    // checkInts rejects non-integer geometry in a new widget tree, like move/update do (the server
+    // decodes x/y/w/h as ints, so a fraction would make the whole layout unsavable).
+    function checkInts(w, fail) {
+        ['x', 'y', 'w', 'h'].forEach(k => { if (w[k] != null && !isInt(w[k])) fail(k + ' must be an integer'); });
+        (w.children || []).forEach(c => checkInts(c, fail));
+    }
     // resolveScreens mirrors resolveActionScreens: goto_screen targets given by name become ids.
     function resolveScreens(project, w) {
         (w.events || []).forEach(b => {
@@ -388,6 +420,7 @@
             if (!specOf(ctx.specs, w.type)) fail('unknown widget type ' + JSON.stringify(w.type));
             if (op.x != null) w.x = op.x;
             if (op.y != null) w.y = op.y;
+            checkInts(w, fail);
             if (!sc.screen.widgets) sc.screen.widgets = [];
             const target = resolveParent(draft, sc.screen, op.parent, fail, ctx.specs);
             const tab = op.tab != null ? op.tab : (w.tab || 0);
@@ -562,7 +595,7 @@
     }
 
     P.model = {
-        NAME_RE, RESERVED_NAMES, RESERVED_PREFIXES, RESERVED_SUFFIXES, LIMITS, TRANSITIONS, ACTIONS, ORIENTATIONS, WIFI_MODES, STYLE_KEYS, PREFIX, ModelError,
+        NAME_RE, RESERVED_NAMES, RESERVED_PREFIXES, RESERVED_SUFFIXES, LIMITS, TRANSITIONS, ACTIONS, ORIENTATIONS, WIFI_MODES, STYLE_KEYS, PREFIX, HISTORY_MAX_BYTES, ModelError,
         createStore, specMap, specOf, propSpec, propValue, tabCount, contentBox,
         walk, findScreen, findWidget, countWidgets, subtreeDepth, usedIds, usedNames, absOrigin, absRect, topLevel, prune,
         validName, reservedName, nameIssue, screenNameIssue, proposeName, proposeScreenName, cloneSubtree, newWidget,

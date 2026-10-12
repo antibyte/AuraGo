@@ -2077,10 +2077,22 @@ const appT = P.i18n({});
     await a.inst.flushAll();
     eq('an upload replaces the store remotely (history kept) and saves nothing',
         [asset.id, origins.splice(0), puts() - start, store.get().assets, store.canUndo(), a.inst.layoutSaver.dirty()], ['a_sun', ['remote'], 3, [{ id: 'a_sun' }], true, false]);
+    // Undo across the upload drops the asset again and saves on the upload's version; redo re-adds it.
+    const backendPut = P.api.putLayout;
+    const sent = [];
+    P.api.putLayout = (id, next, ifMatch) => { sent.push([ifMatch, next.assets]); return backendPut(id, next, ifMatch); };
+    const uploaded = a.be.version();
+    store.undo();
+    const undoSaved = await a.inst.flushAll();
+    store.redo();
+    const redoSaved = await a.inst.flushAll();
+    P.api.putLayout = backendPut;
+    eq('undo across the upload saves without the asset on the upload\'s If-Match, redo re-adds it',
+        [undoSaved, redoSaved, sent, origins.splice(0)], [true, true, [[uploaded, undefined], [uploaded + 1, [{ id: 'a_sun' }]]], ['undo', 'redo']]);
     await a.inst.reloadProject();
     await a.inst.flushAll();
     eq('a reload replaces the store remotely, resets its history and saves nothing',
-        [origins.splice(0), puts() - start, store.canUndo(), store.canRedo(), a.inst.layoutSaver.dirty()], [['remote'], 3, false, false, false]);
+        [origins.splice(0), puts() - start, store.canUndo(), store.canRedo(), a.inst.layoutSaver.dirty()], [['remote'], 5, false, false, false]);
     a.dispose();
     const ro = await makeApp({ projectId: 'ccp_1', readonly: true });
     ro.inst.layoutStore.change('rename', d => { d.name = 'Read-only'; });
