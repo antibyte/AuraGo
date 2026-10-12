@@ -2496,6 +2496,12 @@ registration lives in `internal/desktop/types.go`.
 
 ## Work Guidance
 
+- A local translation helper that prepends a prefix
+  (`tr = key => ctx.t('desktop.gog.' + key)`) is registered in
+  `desktopLocalI18nHelpers` (`ui/i18n_lint_test.go`) and called with literal
+  keys. The static checks resolve those calls in every locale and skip the
+  bare prefix. Verify `TestFrontend_StaticI18nKeysExistInEnglishBundle` and
+  `TestDesktopUsedI18nKeysExistInAllLanguages`.
 - Files exceeding 1100 lines must be added to `knownOversizedContinuations` in
   `ui/desktop_js_line_budget_test.go`; use the map there as the current
   source of truth for oversized continuation files.

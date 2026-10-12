@@ -155,9 +155,14 @@ func TestDesktopUsedI18nKeysExistInAllLanguages(t *testing.T) {
 					break
 				}
 			}
+			// A key ending in "_" or "." is the prefix of a dynamic key such as
+			// t('desktop.gog.' + key); registered local helpers are resolved below.
 			if key == "" || strings.HasSuffix(key, "_") || strings.HasSuffix(key, ".") {
 				continue
 			}
+			used[key] = true
+		}
+		for _, key := range localI18nHelperKeys(asset, content) {
 			used[key] = true
 		}
 	}

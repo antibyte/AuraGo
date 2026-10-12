@@ -454,14 +454,6 @@ func TestFrontend_StaticI18nKeysExistInEnglishBundle(t *testing.T) {
 	skipFiles := map[string]bool{
 		filepath.ToSlash(filepath.Join("js", "chat", "bundles", "chat-vendor.bundle.js")): true,
 	}
-	localPrefixes := map[string]string{
-		"js/desktop/apps/layerling.js":               "layerling.",
-		"js/desktop/apps/meshcore-device.js":         "desktop.meshcore_",
-		"js/desktop/apps/personal-radio.js":          "personalRadio.",
-		"js/desktop/apps/personal-radio-settings.js": "personalRadio.",
-		"js/desktop/apps/rtl-sdr.js":                 "rtlSdr.",
-		"js/desktop/apps/ruview.js":                  "ruview.",
-	}
 	referenced := make(map[string][]string)
 
 	for _, root := range []string{"js", "cfg"} {
@@ -489,11 +481,16 @@ func TestFrontend_StaticI18nKeysExistInEnglishBundle(t *testing.T) {
 			if err != nil {
 				return nil
 			}
+			_, hasLocalHelper := desktopLocalI18nHelpers[relPath]
 			for _, match := range jsKeyPattern.FindAllStringSubmatch(string(content), -1) {
 				key := match[1]
-				if prefix := localPrefixes[relPath]; prefix != "" && !strings.Contains(key, ".") {
-					key = prefix + key
+				if hasLocalHelper && !strings.Contains(key, ".") {
+					// Bare keys belong to the file's local helper, resolved below.
+					continue
 				}
+				referenced[key] = append(referenced[key], relPath)
+			}
+			for _, key := range localI18nHelperKeys(relPath, string(content)) {
 				referenced[key] = append(referenced[key], relPath)
 			}
 			return nil
@@ -1041,6 +1038,43 @@ func uniqueStrings(values []string) []string {
 		last = value
 	}
 	return out
+}
+
+// localI18nHelper is a file-local translation helper that prepends a fixed
+// prefix to a bare key, such as `tr = key => ctx.t('desktop.gog.' + key)`.
+type localI18nHelper struct {
+	name   string
+	prefix string
+}
+
+// desktopLocalI18nHelpers registers Desktop app files whose local helper the
+// static i18n checks resolve: tr('title') in gog-sources.js is desktop.gog.title.
+// Register every new prefix helper here so its keys stay verified.
+var desktopLocalI18nHelpers = map[string]localI18nHelper{
+	"js/desktop/apps/gog-sources.js":             {name: "tr", prefix: "desktop.gog."},
+	"js/desktop/apps/layerling.js":               {name: "t", prefix: "layerling."},
+	"js/desktop/apps/meshcore-device.js":         {name: "t", prefix: "desktop.meshcore_"},
+	"js/desktop/apps/personal-radio.js":          {name: "t", prefix: "personalRadio."},
+	"js/desktop/apps/personal-radio-runtime.js":  {name: "tr", prefix: "personalRadio."},
+	"js/desktop/apps/personal-radio-settings.js": {name: "t", prefix: "personalRadio."},
+	"js/desktop/apps/rtl-sdr-runtime.js":         {name: "tr", prefix: "rtlSdr."},
+	"js/desktop/apps/rtl-sdr.js":                 {name: "t", prefix: "rtlSdr."},
+	"js/desktop/apps/ruview.js":                  {name: "t", prefix: "ruview."},
+}
+
+// localI18nHelperKeys returns the full keys a registered file passes to its
+// local helper as bare literals. Dynamic arguments stay unresolved.
+func localI18nHelperKeys(relPath, content string) []string {
+	helper, ok := desktopLocalI18nHelpers[relPath]
+	if !ok {
+		return nil
+	}
+	pattern := regexp.MustCompile(`\b` + regexp.QuoteMeta(helper.name) + `\(\s*['"]([a-zA-Z0-9_]+)['"]\s*[,)]`)
+	var keys []string
+	for _, match := range pattern.FindAllStringSubmatch(content, -1) {
+		keys = append(keys, helper.prefix+match[1])
+	}
+	return keys
 }
 
 // cfgJSI18nKeyPattern matches static t('config.key') calls, not dynamic concatenation.
