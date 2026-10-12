@@ -136,7 +136,8 @@ func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 	s.wait(`()=>cydFixture.state.heldJob!==null && !document.querySelector('[data-cc-lock]').hidden && !!document.querySelector('.cc-job [data-cc-agent-action="cancel"]')`)
 	page.MustElement(`.cc-job [data-cc-agent-action="cancel"]`).MustClick()
 	page.MustElement(`.cc-dialog [data-cc-dialog-action="ok"]`).MustClick()
-	s.wait(`()=>{const sys=[...document.querySelectorAll('[data-cc-message][data-role="system"]')].map(m=>m.textContent).join(' ');return document.querySelector('[data-cc-lock]').hidden && !document.querySelector('[data-cc-draft]').hidden && sys.includes('cancelled') && sys.includes('draft') && !document.querySelector('[data-cc-agent-input]').disabled}`)
+	// The system line comes with its code (job_cancelled_draft) and shows in the UI language.
+	s.wait(`()=>{const sys=[...document.querySelectorAll('[data-cc-message][data-role="system"]')].map(m=>m.textContent).join(' ');return document.querySelector('[data-cc-lock]').hidden && !document.querySelector('[data-cc-draft]').hidden && sys.includes(t('cyd_creator.msg.job_cancelled_draft')) && !sys.includes('cancelled') && !document.querySelector('[data-cc-agent-input]').disabled}`)
 	s.noRawKeys("cancelled")
 	s.shot("agent-cancelled-draft")
 	s.failOnPageErrors("cancel")
@@ -151,6 +152,9 @@ func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 	s.wait(`()=>document.querySelector('[data-cc-panel="agent"]')?.getAttribute('aria-selected')==='true' && !!document.querySelector('[data-cc-plan]')`)
 	s.wait(`()=>{const b=cydFixture.state.jobBodies.at(-1);return b.mode==='new' && b.prompt.startsWith('Zeige')}`)
 	s.wait(`()=>{const p=document.querySelector('[data-cc-plan]')?.textContent||'';return p.includes('verlauf') && p.includes('ArduinoJson')}`)
+	// The planning step arrives with its code and vars: the German UI shows the translated line,
+	// never the server's English text.
+	s.wait(`()=>{const steps=[...document.querySelectorAll('[data-cc-step] .cc-step-text')].map(n=>n.textContent);return steps.includes(t('cyd_creator.step.plan_submitted',{screens:2,widgets:2,data_sources:1})) && !document.querySelector('[data-cc-agent-log]').textContent.includes('Plan submitted')}`)
 	s.noRawKeys("plan")
 	s.shot("agent-plan")
 	// The desktop policy switches read-only on while the plan waits: Confirm and Change plan lock at
@@ -185,6 +189,7 @@ func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 	s.wait(`()=>{const i=cydFixture.inst();return i.layout().version===cydFixture.state.layouts.get(i.projectId).version && i.layout().project.screens[0].title==='Thermometer'}`)
 	page.MustElement(`[data-cc-panel="agent"]`).MustClick()
 	s.wait(`()=>[...document.querySelectorAll('[data-cc-message][data-role="agent"]')].some(m=>m.textContent.includes('Fertig')) && document.querySelectorAll('[data-cc-message][data-role="user"]').length===1`)
+	s.wait(`()=>{const steps=[...document.querySelectorAll('[data-cc-step] .cc-step-text')].map(n=>n.textContent);return steps.includes(t('cyd_creator.step.file_written',{path:'src/app/app_main.cpp',lines:12})) && steps.includes(t('cyd_creator.step.build_succeeded_flash',{n:1,percent:63}))}`)
 	s.shot("agent-done")
 	s.failOnPageErrors("agent")
 

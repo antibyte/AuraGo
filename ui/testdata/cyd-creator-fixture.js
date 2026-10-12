@@ -238,11 +238,17 @@
     }
 
     // ── jobs ──
-    function message(projectId, jobId, role, text, attachments) {
+    // Job steps and system lines carry the server's code and vars next to its English text
+    // (internal/cydcreator texts.go); user and agent lines have no code.
+    function message(projectId, jobId, role, text, attachments, code) {
         const m = { id: nextID('ccm'), job_id: jobId, role, text, attachments: attachments || [], created_at: iso() };
+        if (code) m.code = code;
         state.messages.get(projectId).push(m);
         emit(projectId, 'job_message', { message: m });
         return m;
+    }
+    function step(job, kind, code, vars, text) {
+        emit(job.project_id, 'job_step', { job_id: job.id, kind, code, vars, text });
     }
     function setJob(job, patch) {
         Object.assign(job, patch);
@@ -262,7 +268,7 @@
             setJob(job, { status: 'running', phase: 'planning', started_at: job.started_at || iso() });
             await wait(60);
             if (state.cancelled.has(job.id)) return;
-            emit(job.project_id, 'job_step', { job_id: job.id, kind: 'info', text: 'Plan drafted' });
+            step(job, 'info', 'plan_submitted', { screens: 2, widgets: 2, data_sources: 1 }, 'Plan submitted · screens: 2 · widgets: 2 · data sources: 1');
             setJob(job, {
                 status: 'awaiting_confirmation', phase: 'planning',
                 plan: { summary: 'Ein Thermometer mit großer Temperaturanzeige und Verlauf.', screens: ['home', 'verlauf'], widgets: ['lbl_temp', 'chart_verlauf'], data_sources: ['Open-Meteo'], wifi: 'required', aurago_link: false, libraries: ['arduinojson'] }
@@ -281,10 +287,11 @@
         await wait(60);
         if (state.cancelled.has(job.id)) return;
         if (startPhase === 'layout') {
-            emit(job.project_id, 'job_step', { job_id: job.id, kind: 'layout', text: '2 widgets added' });
+            const changes = 'added label lbl_temp to home; added chart chart_verlauf to verlauf';
+            step(job, 'layout', 'layout_updated', { count: 2, changes }, 'Layout changes (2): ' + changes);
             setJob(job, { phase: 'coding' });
         }
-        emit(job.project_id, 'job_step', { job_id: job.id, kind: 'file', text: 'src/app/app_main.cpp written' });
+        step(job, 'file', 'file_written', { path: 'src/app/app_main.cpp', lines: 12 }, 'Wrote src/app/app_main.cpp (lines: 12)');
         state.heldJob = job;
     }
 
@@ -320,6 +327,8 @@
         state.heldJob = null;
         setJob(job, { phase: 'building' });
         const build = await jobBuild(job);
+        const percent = Math.floor(build.usage.flash_used * 100 / build.usage.flash_total);
+        step(job, 'build', 'build_succeeded_flash', { n: 1, percent }, 'Build 1 succeeded (flash ' + percent + '%)');
         const projectId = job.project_id;
         const project = state.projects.get(projectId);
         const layout = state.layouts.get(projectId);
@@ -348,7 +357,8 @@
         if (keep) project.has_draft = true;
         if (project.locked_by_job === job.id) setLock(job.project_id, '');
         setJob(job, { status: 'cancelled', finished_at: iso() });
-        message(job.project_id, job.id, 'system', 'The job was cancelled. The project is unchanged.' + (keep ? " The agent's work is kept as a draft you can resume or discard." : ''));
+        message(job.project_id, job.id, 'system', 'The job was cancelled. The project is unchanged.' + (keep ? " The agent's work is kept as a draft you can resume or discard." : ''),
+            [], keep ? 'job_cancelled_draft' : 'job_cancelled');
     }
 
     // ── routes ──

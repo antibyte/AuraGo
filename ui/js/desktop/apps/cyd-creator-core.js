@@ -213,14 +213,15 @@
             const name = full(key);
             return Object.prototype.hasOwnProperty.call(dict, name) ? String(dict[name]) : null;
         }
+        // fill replaces the placeholders in one pass, so a value (a file name, a compiler message from
+        // the server) is never read as a placeholder itself; unknown placeholders stay.
         function fill(text, vars) {
             if (!vars) return text;
-            let out = text;
-            Object.keys(vars).forEach(name => {
-                const value = vars[name] == null ? '' : String(vars[name]);
-                out = out.split('{{' + name + '}}').join(value).split('{' + name + '}').join(value);
+            return text.replace(/\{\{(\w+)\}\}|\{(\w+)\}/g, (match, double, single) => {
+                const name = double || single;
+                if (!Object.prototype.hasOwnProperty.call(vars, name)) return match;
+                return vars[name] == null ? '' : String(vars[name]);
             });
-            return out;
         }
         function t(key, vars) {
             const text = lookup(key);

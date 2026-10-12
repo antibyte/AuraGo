@@ -5,9 +5,11 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
+	"aurago/internal/cydcreator"
 	"aurago/internal/desktop"
 )
 
@@ -101,6 +103,14 @@ func TestCYDCreatorKeysExistInAllLocales(t *testing.T) {
 		"cyd_creator.revisions.reason_": {"before_job", "job", "restore", "import", "template_upgrade"},
 		"cyd_creator.revisions.status_": {"added", "modified", "deleted"},
 	}
+	// Job steps and system chat lines are translated by their server code (internal/cydcreator texts.go).
+	for key := range cydcreator.TextKeys() {
+		for _, prefix := range []string{"cyd_creator.step.", "cyd_creator.msg."} {
+			if code, ok := strings.CutPrefix(key, prefix); ok {
+				families[prefix] = append(families[prefix], code)
+			}
+		}
+	}
 	// The key prefix itself and the families plan 4b owns (issue codes, theme names, board states) are
 	// not 4a's: the shell reads them with t.has/t.or fallbacks, the designer's own test covers them.
 	ignored := map[string]bool{"cyd_creator.": true, "cyd_creator.issue.": true, "cyd_creator.theme.": true, "cyd_creator.board.status_": true}
@@ -168,6 +178,49 @@ func TestCYDCreatorKeysExistInAllLocales(t *testing.T) {
 	}
 	if !strings.Contains(de["cyd_creator.app.close"], "ß") || !strings.Contains(de["cyd_creator.code.conflict_overwrite"], "Ü") {
 		t.Error("German strings must use real umlauts and ß")
+	}
+}
+
+var cydCreatorPlaceholder = regexp.MustCompile(`\{\{(\w+)\}\}`)
+
+func cydCreatorPlaceholders(text string) string {
+	var names []string
+	for _, m := range cydCreatorPlaceholder.FindAllStringSubmatch(text, -1) {
+		names = append(names, m[1])
+	}
+	slices.Sort(names)
+	return strings.Join(names, ",")
+}
+
+// TestCYDCreatorServerTextsAreTranslated: every job step and system line code of the server has its
+// key in all sixteen locales; the English bundle is exactly the server's template, and every
+// translation uses the same placeholders.
+func TestCYDCreatorServerTextsAreTranslated(t *testing.T) {
+	keys := cydcreator.TextKeys()
+	if len(keys) < 20 {
+		t.Fatalf("server text keys = %d", len(keys))
+	}
+	en := readCYDCreatorShellLang(t, "en")
+	for key, template := range keys {
+		if en[key] != template {
+			t.Errorf("en %s = %q, want the server template %q", key, en[key], template)
+		}
+	}
+	for _, lang := range cydCreatorLocales {
+		words := readCYDCreatorShellLang(t, lang)
+		for key, template := range keys {
+			value := words[key]
+			if strings.TrimSpace(value) == "" {
+				t.Errorf("%s misses %s", lang, key)
+				continue
+			}
+			if got, want := cydCreatorPlaceholders(value), cydCreatorPlaceholders(template); got != want {
+				t.Errorf("%s %s has placeholders %q, want %q", lang, key, got, want)
+			}
+			if lang != "en" && strings.Contains(value, "(s)") {
+				t.Errorf("%s %s uses a plural shortcut: %q", lang, key, value)
+			}
+		}
 	}
 }
 
@@ -309,9 +362,11 @@ func TestCYDCreatorAgentModule(t *testing.T) {
 		"ccAgentAction: 'resume'", "ccAgentAction: 'discard'", "inst.api.restoreRevision(", "dispose() {")
 	checkCYDCreatorCancelNotReadonly(t, "cyd-creator-agent.js", text, "ccAgentAction: 'cancel'")
 	// Review fixes: finished jobs stay final, restore flushes first, the dialog has an owner, the
-	// publication-review reason is shown and a reloading stream reloads the panel.
+	// publication-review reason is shown, a reloading stream reloads the panel and server lines are
+	// translated by their code.
 	for _, marker := range []string{"TERMINAL.has(previous.status) && !TERMINAL.has(job.status)) return;", "inst.flushAll()", "owner: b,",
-		"job.error_reason === 'publication_review'", "inst.bus.on('sse:stream_ready'"} {
+		"reason === 'publication_review'", "inst.bus.on('sse:stream_ready'", "serverText('cyd_creator.step.', step)",
+		"serverText('cyd_creator.msg.', message)"} {
 		if !strings.Contains(text, marker) {
 			t.Errorf("cyd-creator-agent.js misses %q", marker)
 		}

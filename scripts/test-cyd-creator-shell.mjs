@@ -102,6 +102,8 @@ eq('t fills single-brace placeholders of plan 4b', t('designer.added', { name: '
 eq('t.has', [t.has('app.title'), t.has('home.nope')], [true, false]);
 eq('t.or uses the key when it exists', t.or('designer.added', 'x', { name: 'a' }), 'a hinzugefügt');
 eq('t.or falls back for a missing key', t.or('cyd_creator.theme.aurora', 'Aurora'), 'Aurora');
+eq('t fills in one pass: a value is never read as a placeholder', t('home.hello', { name: '{{name}} {name}' }), 'Hallo {{name}} {name}, {{name}} {name}!');
+eq('t keeps placeholders it has no value for', t('designer.added', { other: 'x' }), '{name} hinzugefügt');
 const { ApiError, toError } = P.api;
 eq('errors.message uses error.<CODE>', P.errors.message(t, new ApiError(409, 'CYD_BUSY', 'busy')), 'Beschäftigt');
 eq('errors.message: status 0 is a network error', P.errors.message(t, new ApiError(0, '', 'offline')), 'Netzwerk');
@@ -1343,6 +1345,49 @@ async function makeAgent(opts) {
     eq('without a reason CYD_BUSY keeps the server text until the summary reports the fence',
         [before, b.errorText(), b.byData('ccAgentAction', 'resume').disabled], ['Another job is active.', b.inst.t('cyd_creator.error.publication_review'), true]);
     b.dispose();
+}
+{
+    // Server lines with a code show the translation filled with their vars; without a key (or a code,
+    // or with a malformed one) they show the server's English text. Agent lines are never translated;
+    // a failed job's line names the error like the job card.
+    const words = {
+        'cyd_creator.step.file_written': '{{path}} geschrieben (Zeilen: {{lines}})',
+        'cyd_creator.msg.job_cancelled_draft': 'Job abgebrochen. Entwurf behalten.',
+        'cyd_creator.msg.job_failed': '{{error}} Projekt unverändert.',
+        'cyd_creator.error.CYD_BUILD_FAILED': 'Build fehlgeschlagen.'
+    };
+    Object.assign(sandbox.window.I18N, words);
+    const at = minute => '2026-10-12T10:' + String(minute).padStart(2, '0') + ':00.000Z';
+    const messages = [
+        { id: 'm1', role: 'system', code: 'job_cancelled_draft', text: 'The job was cancelled.', job_id: 'ccj_s', created_at: at(1) },
+        { id: 'm2', role: 'system', code: 'job_failed', vars: { error_code: 'CYD_BUILD_FAILED', error: 'The build still fails after 3 repair attempts.' }, text: 'The build still fails after 3 repair attempts. The project is unchanged.', job_id: 'ccj_s', created_at: at(2) },
+        { id: 'm3', role: 'system', code: 'server_restarted', text: 'The server restarted while the job was running.', job_id: 'ccj_s', created_at: at(3) },
+        { id: 'm4', role: 'system', text: 'A line from before the codes.', job_id: 'ccj_s', created_at: at(4) },
+        { id: 'm5', role: 'agent', code: 'job_cancelled_draft', text: 'Agent prose', job_id: 'ccj_s', created_at: at(5) },
+        { id: 'm6', role: 'system', code: 'job_failed', vars: { error_code: 'CYD_BUSY', error_reason: 'publication_review', error: 'fenced' }, text: 'fenced The project is unchanged.', job_id: 'ccj_s', created_at: at(6) }
+    ];
+    const a = await makeAgent({ messages, jobs: [agentJob('ccj_s', 'running', 0)] });
+    a.inst.bus.emit('sse:job_step', { job_id: 'ccj_s', kind: 'file', code: 'file_written', vars: { path: 'src/app/{lines}.cpp', lines: 3 }, text: 'Wrote src/app/{lines}.cpp (lines: 3)' });
+    a.inst.bus.emit('sse:job_step', { job_id: 'ccj_s', kind: 'info', code: 'plan_submitted', vars: { screens: 2 }, text: 'Plan submitted · screens: 2' });
+    a.inst.bus.emit('sse:job_step', { job_id: 'ccj_s', kind: 'info', code: 'File_Written', vars: { path: 'x' }, text: 'raw {{path}}' });
+    a.inst.bus.emit('sse:job_step', { job_id: 'ccj_s', kind: 'build', text: 'Build 1 succeeded' });
+    const shown = a.log().childNodes.map(n => n.dataset.ccStep !== undefined ? n.childNodes[1].textContent : n.childNodes[0].textContent);
+    eq('server lines show their translation or the English text', shown, [
+        'Job abgebrochen. Entwurf behalten.',
+        'Build fehlgeschlagen. Projekt unverändert.',
+        'The server restarted while the job was running.',
+        'A line from before the codes.',
+        'Agent prose',
+        a.inst.t('cyd_creator.error.publication_review') + ' Projekt unverändert.',
+        'src/app/{lines}.cpp geschrieben (Zeilen: 3)',
+        'Plan submitted · screens: 2',
+        'raw {{path}}',
+        'Build 1 succeeded'
+    ]);
+    a.inst.bus.emit('sse:job_message', { message: { id: 'm7', role: 'system', code: 'job_cancelled_draft', text: 'The job was cancelled.', job_id: 'ccj_s', created_at: at(7) } });
+    eq('a live system line is translated too', a.log().childNodes.at(-1).childNodes[0].textContent, 'Job abgebrochen. Entwurf behalten.');
+    a.dispose();
+    Object.keys(words).forEach(key => { delete sandbox.window.I18N[key]; });
 }
 {
     const rev = { id: 'ccr_1', label: 'v1', reason: 'job', created_at: '2026-10-12T10:00:00.000Z' };

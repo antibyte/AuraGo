@@ -12,6 +12,8 @@
     const LOG_MAX_BYTES = 16 * 1024;
     const MAX_STEPS = 200;
     const STEP_ICONS = { layout: '▦', file: '✎', build: '⚙', repair: '↻', info: '•' };
+    // CODE_RE is the shape of a server text code (internal/cydcreator texts.go).
+    const CODE_RE = /^[a-z][a-z0-9_]{0,63}$/;
 
     function byteLength(text) {
         return new TextEncoder().encode(String(text)).length;
@@ -90,11 +92,26 @@
             draftBanner, scroller, composer);
 
         // ── history ──
+        // serverText shows a server-written line (job step, system message) in the UI language: the
+        // translation of its code (cyd_creator.step.<code> / cyd_creator.msg.<code>) filled with its
+        // vars, else the server's English text as it is. A failed job's line names the error by its
+        // code like the job card does.
+        function serverText(prefix, item) {
+            const text = String(item.text || '');
+            const code = typeof item.code === 'string' && CODE_RE.test(item.code) ? item.code : '';
+            if (!code || !t.has(prefix + code)) return text;
+            const vars = Object.assign({}, item.vars && typeof item.vars === 'object' ? item.vars : {});
+            if (typeof vars.error_code === 'string' && vars.error_code) {
+                vars.error = errorSentence(vars.error_code, String(vars.error_reason || ''), String(vars.error || ''));
+            }
+            return t(prefix + code, vars);
+        }
+
         function messageNode(message) {
             const role = ['user', 'agent', 'system'].includes(message.role) ? message.role : 'system';
             const attachments = Array.isArray(message.attachments) ? message.attachments : [];
             return el('div', { class: 'cc-msg cc-msg--' + role + (message.pending ? ' is-pending' : ''), dataset: { ccMessage: message.id, role } },
-                el('div', { class: 'cc-msg-text', text: String(message.text || '') }),
+                el('div', { class: 'cc-msg-text', text: role === 'system' ? serverText('cyd_creator.msg.', message) : String(message.text || '') }),
                 attachments.length ? el('div', { class: 'cc-msg-attachments' }, attachments.map(a => el('span', { class: 'cc-pill', text: t('cyd_creator.agent.attachment_log', { lines: String(a.text || '').split('\n').length }) }))) : null,
                 message.created_at ? el('time', { class: 'cc-msg-time', datetime: message.created_at, text: P.format.time(message.created_at) }) : null);
         }
@@ -103,7 +120,7 @@
             const kind = STEP_ICONS[step.kind] ? step.kind : 'info';
             return el('div', { class: 'cc-step', dataset: { ccStep: kind } },
                 el('span', { class: 'cc-step-icon', 'aria-hidden': 'true', text: STEP_ICONS[kind] }),
-                el('span', { class: 'cc-step-text', text: String(step.text || '') }));
+                el('span', { class: 'cc-step-text', text: serverText('cyd_creator.step.', step) }));
         }
 
         function stickToEnd(fn) {
@@ -255,16 +272,21 @@
             return '';
         }
 
-        // jobError is the sentence for a failed or interrupted job. A publication fenced for review ends
-        // CYD_BUSY with error_reason publication_review; without a recorded reason the project summary
-        // (publish_review) tells. Other CYD_BUSY endings keep the server's sentence.
+        // errorSentence is the sentence for a job error: a publication fenced for review (CYD_BUSY with
+        // reason publication_review) has its own text, other CYD_BUSY endings keep the server's
+        // sentence, known codes their translation.
+        function errorSentence(code, reason, message) {
+            if (reason === 'publication_review') return t('cyd_creator.error.publication_review');
+            if (code === 'CYD_BUSY') return message || t('cyd_creator.error.CYD_BUSY');
+            return code && t.has('cyd_creator.error.' + code) ? t('cyd_creator.error.' + code) : (message || t('cyd_creator.error.generic'));
+        }
+
+        // jobError is the sentence for a failed or interrupted job; without a recorded reason the
+        // project summary (publish_review) tells a fenced publication from another CYD_BUSY.
         function jobError(job) {
             const project = inst.project || {};
-            if (job.error_reason === 'publication_review' || (!job.error_reason && job.error_code === 'CYD_BUSY' && project.publish_review)) {
-                return t('cyd_creator.error.publication_review');
-            }
-            if (job.error_code === 'CYD_BUSY') return job.error_message || t('cyd_creator.error.CYD_BUSY');
-            return job.error_code && t.has('cyd_creator.error.' + job.error_code) ? t('cyd_creator.error.' + job.error_code) : (job.error_message || t('cyd_creator.error.generic'));
+            if (!job.error_reason && job.error_code === 'CYD_BUSY' && project.publish_review) return t('cyd_creator.error.publication_review');
+            return errorSentence(job.error_code, job.error_reason, job.error_message);
         }
 
         function elapsed(job) {
