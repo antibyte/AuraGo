@@ -22,7 +22,7 @@ sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
 const core = path.join(apps, 'cyd-creator-core.js');
 vm.runInContext(fs.readFileSync(core, 'utf8'), sandbox, { filename: core });
-for (const file of ['cyd-creator-geometry.js', 'cyd-creator-model.js']) {
+for (const file of ['cyd-creator-geometry.js', 'cyd-creator-model.js', 'cyd-creator-render.js']) {
     const full = path.join(apps, file);
     vm.runInContext(fs.readFileSync(full, 'utf8'), sandbox, { filename: full });
 }
@@ -310,6 +310,46 @@ const copy = M.cloneSubtree(base, base.screens[0].widgets[1]);
 check('cloneSubtree renews ids and names', copy.id !== 'w_pnl' && copy.name === 'pnl_2' && copy.children[0].id !== 'w_lbl' && copy.children[0].name === 'lbl_2');
 const nw = M.newWidget(base, specs.get('statusbar'), { x: 40, y: 40 }, { w: 320, h: 240 });
 eq('newWidget statusbar spans the screen', [nw.x, nw.y, nw.w, nw.h, nw.name], [0, 0, 320, 24, 'status_1']);
+
+// ── render ──
+check('renderer for every catalog type', caps.widgets.every(s => R.TYPES.includes(s.type)), R.TYPES.join(','));
+eq('font sizes mirror the catalog (statusbar small font)', R.FONT_SIZES, caps.fonts.sizes);
+for (const theme of caps.themes) {
+    for (const spec of caps.widgets) {
+        const w = { id: 'w_' + spec.type, type: spec.type, x: 0, y: 0, w: spec.default_w || 320, h: spec.default_h, props: spec.type === 'image' ? { asset: 'a_sun' } : {} };
+        let out = '';
+        try { out = R.html(R.tree(spec, w, theme, { assetUrl: id => '/assets/' + id, activeTab: 1 })); } catch (err) { out = 'ERROR ' + err.message; }
+        check('render ' + theme.id + '/' + spec.type, out.startsWith('<div') && out.includes('cc-wv-' + spec.type) && !out.includes('undefined') && !out.includes('NaN'), out.slice(0, 200));
+    }
+}
+const byStyle = style => caps.themes.find(t => t.button_style === style);
+const filled = byStyle('filled');
+const btn = R.html(R.tree(specs.get('button'), { type: 'button', w: 120, h: 40, props: { text: 'Go', symbol: 'ok' } }, filled, {}));
+check('filled button uses accent + on_accent', btn.includes('background:' + filled.tokens.accent) && btn.includes('color:' + filled.tokens.on_accent) && btn.includes('✓') && btn.includes('Go'), btn);
+const bracketTheme = byStyle('bracket');
+const bracket = R.html(R.tree(specs.get('button'), { type: 'button', w: 120, h: 40, props: { text: 'RUN' } }, bracketTheme, {}));
+check('bracket button', bracket.includes('[') && bracket.includes(']') && bracket.includes(R.FAMILIES[bracketTheme.font].split(',')[0]), bracket);
+const outlineTheme = byStyle('outline');
+const outline = R.html(R.tree(specs.get('button'), { type: 'button', w: 120, h: 40 }, outlineTheme, {}));
+check('outline button border in accent', outline.includes('solid ' + outlineTheme.tokens.accent) && outline.includes('Button'), outline);
+const night = caps.themes.find(t => t.id === 'night');
+const styled = R.html(R.tree(specs.get('label'), { type: 'label', w: 100, h: 20, props: { text: 'T', size: 28, font: 'inter', align: 'center' }, style: { text_color: '#FF0000', bg_color: '#000000', bg_opacity: 128 } }, night, {}));
+check('label overrides and font', styled.includes('color:#FF0000') && styled.includes('rgba(0,0,0,0.502)') && styled.includes('font-size:28px') && styled.includes("'Inter'") && styled.includes('text-align:center'), styled);
+const img = R.html(R.tree(specs.get('image'), { type: 'image', w: 48, h: 48, props: { asset: 'a_sun' } }, night, { assetUrl: id => '/x/' + id }));
+check('image uses assetUrl and pixelated rendering', img.includes('src="/x/a_sun"') && img.includes('image-rendering:pixelated'), img);
+const tabs = R.html(R.tree(specs.get('tabview'), { type: 'tabview', w: 300, h: 200, props: { tabs: ['A', 'B'] } }, night, { activeTab: 1 }));
+check('tabview bar with tab hooks', tabs.includes('data-cc-tab="0"') && tabs.includes('data-cc-tab="1"') && tabs.includes('>B<'), tabs);
+const spin = R.html(R.tree(specs.get('spinbox'), { type: 'spinbox', w: 140, h: 40, props: { value: 1234, digits: 5, decimals: 2 } }, night, {}));
+check('spinbox formats digits/decimals', spin.includes('012.34'), spin);
+const sb = R.html(R.tree(specs.get('statusbar'), { type: 'statusbar', w: 320, h: 24, props: { title: 'Wetter' } }, night, {}));
+check('statusbar title + clock', sb.includes('Wetter') && sb.includes('12:34'), sb);
+const pw = R.html(R.tree(specs.get('textarea'), { type: 'textarea', w: 200, h: 40, props: { text: 'abc', password: true } }, night, {}));
+check('textarea password bullets like the device (*)', pw.includes('***') && !pw.includes('abc'), pw);
+const sys = R.html(R.wifiSetup(night, { w: 320, h: 240 }, k => k));
+check('wifi setup system preview', sys.includes('cyd_creator.designer.system_wifi_title') && sys.includes('cc-system-screen'), sys.slice(0, 200));
+const xss = R.html(R.tree(specs.get('label'), { type: 'label', w: 10, h: 10, props: { text: '<img src=x onerror=alert(1)>' } }, night, {}));
+check('render escapes text', !xss.includes('<img') && xss.includes('&lt;img'), xss);
+check('render source holds no hex colour literals', !/#[0-9a-fA-F]{6}\b/.test(fs.readFileSync(path.join(apps, 'cyd-creator-render.js'), 'utf8')));
 
 console.log((failures ? 'FAILED ' + failures : 'ok') + ' — ' + checks + ' checks');
 process.exit(failures ? 1 : 0);
