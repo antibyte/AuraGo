@@ -1,0 +1,485 @@
+package cydcreator
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"io"
+	"net"
+	"regexp"
+	"strings"
+	"sync"
+	"time"
+	"unicode"
+	"unicode/utf8"
+)
+
+// Device endpoint rules (spec §9, §16). Every limit is per device except the
+// failed-authentication limit, which is per client address.
+const (
+	// DeviceFirmwarePath is the download path the heartbeat answer points to.
+	// The offer carries it as a path below the device URL (the firmware rejects
+	// anything else, template cyd_link.cpp firmware_path), never as an absolute URL.
+	DeviceFirmwarePath         = "/api/cyd-creator/device/firmware/"
+	firmwareDownloadsPerWindow = 3
+	firmwareDownloadWindow     = 10 * time.Minute
+	heartbeatsPerMinute        = 12
+	otaResultsPerWindow        = 10
+	authFailuresPerWindow      = 20
+	authFailureWindow          = 10 * time.Minute
+	maxOTAErrorRunes           = 200
+	// longestDeviceWindow is the longest window above; deviceLimiterSweepKeys
+	// is the key count from which the limiter drops idle keys (at most once a
+	// minute), so client addresses that never come back cannot pile up.
+	longestDeviceWindow    = 10 * time.Minute
+	deviceLimiterSweepKeys = 1024
+)
+
+var (
+	deviceVersionPattern = regexp.MustCompile(`^[0-9A-Za-z.+-]{0,32}$`)
+	deviceReasonPattern  = regexp.MustCompile(`^[A-Za-z0-9_ -]{0,32}$`)
+)
+
+// deviceLimiter counts events per key in a sliding window. The zero value is
+// ready; keys without events in their window are dropped on the next check
+// and, once there are many keys, by a sweep.
+type deviceLimiter struct {
+	mu    sync.Mutex
+	hits  map[string][]time.Time
+	swept time.Time
+}
+
+func (l *deviceLimiter) recent(key string, now time.Time, window time.Duration) []time.Time {
+	kept := l.hits[key][:0]
+	for _, t := range l.hits[key] {
+		if now.Sub(t) < window {
+			kept = append(kept, t)
+		}
+	}
+	if len(kept) == 0 {
+		delete(l.hits, key)
+		return nil
+	}
+	l.hits[key] = kept
+	return kept
+}
+
+// prepare creates the map and, from deviceLimiterSweepKeys keys on and at most
+// once a minute, drops every key whose newest event left the longest window.
+func (l *deviceLimiter) prepare(now time.Time) {
+	if l.hits == nil {
+		l.hits = map[string][]time.Time{}
+	}
+	if len(l.hits) < deviceLimiterSweepKeys || now.Sub(l.swept) < time.Minute {
+		return
+	}
+	l.swept = now
+	for key, times := range l.hits {
+		if now.Sub(times[len(times)-1]) >= longestDeviceWindow {
+			delete(l.hits, key)
+		}
+	}
+}
+
+// allow records an event and reports whether it is within limit.
+func (l *deviceLimiter) allow(key string, now time.Time, limit int, window time.Duration) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.prepare(now)
+	if len(l.recent(key, now, window)) >= limit {
+		return false
+	}
+	l.hits[key] = append(l.hits[key], now)
+	return true
+}
+
+// record adds an event without a limit check.
+func (l *deviceLimiter) record(key string, now time.Time, window time.Duration) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.prepare(now)
+	l.recent(key, now, window)
+	l.hits[key] = append(l.hits[key], now)
+}
+
+// blocked reports whether key already reached limit, without recording.
+func (l *deviceLimiter) blocked(key string, now time.Time, limit int, window time.Duration) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.hits == nil {
+		return false
+	}
+	return len(l.recent(key, now, window)) >= limit
+}
+
+// DeviceRequest is one call of a device endpoint: the bearer token and the
+// client address, the key of the failed-authentication limit. The HTTP layer
+// passes the address its trusted-proxy rule resolves (server ClientIP), never
+// the raw peer address: behind a reverse proxy every device would otherwise
+// share one bucket, and one attacker could lock all of them out.
+type DeviceRequest struct {
+	Token    string
+	ClientIP string
+}
+
+// Heartbeat is the body of POST /api/cyd-creator/device/heartbeat.
+type Heartbeat struct {
+	DeviceID        string `json:"device_id"`
+	BuildID         string `json:"build_id"`
+	TemplateVersion string `json:"template_version"`
+	UptimeS         int64  `json:"uptime_s"`
+	IP              string `json:"ip"`
+	RSSI            int    `json:"rssi"`
+	FreeHeap        int64  `json:"free_heap"`
+	ResetReason     string `json:"reset_reason"`
+	OTAState        string `json:"ota_state"`
+	OTAError        string `json:"ota_error"`
+}
+
+// HeartbeatResponse tells the device when to report again and which update to
+// install (nil: none).
+type HeartbeatResponse struct {
+	IntervalS int             `json:"interval_s"`
+	Update    *FirmwareUpdate `json:"update"`
+}
+
+// FirmwareUpdate is the OTA offer: firmware.bin of BuildID with its size and
+// SHA-256, downloadable at URL, a path below the device URL
+// (DeviceFirmwarePath + id); the device prefixes the URL from its config blob.
+type FirmwareUpdate struct {
+	BuildID string `json:"build_id"`
+	Size    int64  `json:"size"`
+	SHA256  string `json:"sha256"`
+	URL     string `json:"url"`
+}
+
+// OTAResult is the body of POST /api/cyd-creator/device/ota-result.
+type OTAResult struct {
+	BuildID string `json:"build_id"`
+	OK      bool   `json:"ok"`
+	Error   string `json:"error"`
+}
+
+func deviceBadRequest(message string) error {
+	return NewError(CodeBadRequest, message, nil)
+}
+
+func validOTAState(state string) bool {
+	switch state {
+	case "", OTAStateIdle, OTAStateDownloading, OTAStateRolledBack, OTAStateFailed:
+		return true
+	}
+	return false
+}
+
+func (hb Heartbeat) validate() error {
+	switch {
+	case hb.BuildID != "" && !validElementID(hb.BuildID):
+		return deviceBadRequest("build_id is invalid")
+	case !deviceVersionPattern.MatchString(hb.TemplateVersion):
+		return deviceBadRequest("template_version is invalid")
+	case hb.IP != "" && net.ParseIP(hb.IP) == nil:
+		return deviceBadRequest("ip must be an IP address")
+	case hb.RSSI < -127 || hb.RSSI > 0:
+		return deviceBadRequest("rssi must be between -127 and 0")
+	case hb.FreeHeap < 0 || hb.UptimeS < 0:
+		return deviceBadRequest("free_heap and uptime_s must not be negative")
+	case !deviceReasonPattern.MatchString(hb.ResetReason):
+		return deviceBadRequest("reset_reason is invalid")
+	case !validOTAState(hb.OTAState):
+		return deviceBadRequest("ota_state must be idle, downloading, rolled_back or failed")
+	case utf8.RuneCountInString(hb.OTAError) > maxOTAErrorRunes:
+		return deviceBadRequest("ota_error is too long")
+	}
+	return nil
+}
+
+// cleanDeviceText replaces control characters in device-supplied text.
+func cleanDeviceText(s string) string {
+	s = strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return ' '
+		}
+		return r
+	}, s)
+	return strings.TrimSpace(s)
+}
+
+// otaError is the stored last_error of a failed or rolled back update:
+// "<state>" or "<state>: <device message>". The UI translates the state.
+func otaError(state, message string) string {
+	if message = cleanDeviceText(message); message != "" {
+		return state + ": " + message
+	}
+	return state
+}
+
+// authenticateDevice resolves the bearer token to its device. OTA must be on,
+// the client address must not have failed too often, the token must belong to
+// a device that is not revoked and, while pending, not expired (an expired
+// pending device is removed). Every failure is CYD_UNAUTHORIZED.
+func (s *Service) authenticateDevice(ctx context.Context, req DeviceRequest) (deviceRow, error) {
+	if !s.Limits().OTA.Enabled {
+		return deviceRow{}, NewError(CodeOTADisabled, "updates over Wi-Fi are switched off", nil)
+	}
+	now := s.now()
+	client := "auth:" + req.ClientIP
+	if s.deviceLimits.blocked(client, now, authFailuresPerWindow, authFailureWindow) {
+		return deviceRow{}, NewError(CodeRateLimited, "too many failed device requests; try again later", nil)
+	}
+	fail := func() (deviceRow, error) {
+		s.deviceLimits.record(client, now, authFailureWindow)
+		return deviceRow{}, NewError(CodeUnauthorized, "the device token is not valid", nil)
+	}
+	token := strings.TrimSpace(req.Token)
+	if len(token) != len(deviceTokenPrefix)+2*deviceTokenBytes || !strings.HasPrefix(token, deviceTokenPrefix) {
+		return fail()
+	}
+	d, err := scanDevice(s.db.QueryRowContext(ctx, `SELECT `+deviceColumns+` FROM cc_devices WHERE token_hash=?`, sha256Hex([]byte(token))))
+	if errors.Is(err, sql.ErrNoRows) {
+		return fail()
+	}
+	if err != nil {
+		return deviceRow{}, s.internalError("authenticate device", err)
+	}
+	if d.Status == DeviceRevoked {
+		return fail()
+	}
+	if deviceExpired(d, now) {
+		unlock := s.lockProject(d.ProjectID)
+		_ = s.removeDevice(ctx, d, now)
+		unlock()
+		return fail()
+	}
+	return d, nil
+}
+
+// reloadDevice re-reads an authenticated device under the project lock; a
+// device removed in between makes the request unauthorized.
+func (s *Service) reloadDevice(ctx context.Context, id string) (deviceRow, error) {
+	d, err := s.loadDeviceRow(ctx, id)
+	if ErrorCode(err) == CodeDeviceNotFound {
+		return deviceRow{}, NewError(CodeUnauthorized, "the device token is not valid", nil)
+	}
+	return d, err
+}
+
+// applyHeartbeat returns the device state after a heartbeat, mirroring the
+// firmware (plan 1b "Device behaviour"). The first heartbeat activates a
+// pending device. ota_state "rolled_back" is reported for the rest of the boot
+// after a rollback: entering it stores last_error and resets the target to the
+// running build, so the build that did not start is not offered again (the
+// user picks it again in the OTA dialog). "failed" is reported after a failed
+// download or verification until the next attempt: entering it stores
+// last_error and keeps the target, because the firmware retries a failed
+// build after 10 minutes. Only the transition into a state writes last_error,
+// so a target the user sets meanwhile survives the remaining heartbeats of
+// that boot. A device that reports the target build after running another one
+// finished its update (health confirmation): last_error is cleared.
+func applyHeartbeat(d deviceRow, hb Heartbeat, now time.Time) deviceRow {
+	running := hb.BuildID
+	if running == "" {
+		running = d.BuildID
+	}
+	switch hb.OTAState {
+	case OTAStateRolledBack:
+		if d.OTAState != OTAStateRolledBack {
+			d.LastError = otaError(OTAStateRolledBack, hb.OTAError)
+			d.TargetBuildID = running
+		}
+	case OTAStateFailed:
+		if d.OTAState != OTAStateFailed {
+			d.LastError = otaError(OTAStateFailed, hb.OTAError)
+		}
+	default:
+		if running == d.TargetBuildID && running != d.BuildID {
+			d.LastError = ""
+		}
+	}
+	d.Status = DeviceActive
+	d.ExpiresAt = ""
+	d.LastSeen = formatTime(now)
+	d.IP, d.RSSI, d.FreeHeap = hb.IP, hb.RSSI, hb.FreeHeap
+	d.TemplateVersion = hb.TemplateVersion
+	d.OTAState = hb.OTAState
+	d.BuildID = running
+	return d
+}
+
+// deviceChanged reports a change worth an event; plain heartbeats that only
+// move last_seen, RSSI or free heap do not fill the persisted event log.
+func deviceChanged(a, b deviceRow) bool {
+	return a.Status != b.Status || a.BuildID != b.BuildID || a.TargetBuildID != b.TargetBuildID || a.OTAState != b.OTAState ||
+		a.LastError != b.LastError || a.IP != b.IP || a.TemplateVersion != b.TemplateVersion || a.Name != b.Name
+}
+
+// offerUpdate returns the update for a device whose target differs from the
+// build it runs, or nil.
+func (s *Service) offerUpdate(ctx context.Context, d deviceRow) *FirmwareUpdate {
+	if d.TargetBuildID == "" || d.TargetBuildID == d.BuildID {
+		return nil
+	}
+	b, fw, err := s.firmwareBuild(ctx, d.ProjectID, d.TargetBuildID)
+	if err != nil || b.Board != d.Board {
+		return nil
+	}
+	return &FirmwareUpdate{BuildID: b.ID, Size: fw.Size, SHA256: fw.SHA256, URL: DeviceFirmwarePath + b.ID}
+}
+
+// DeviceHeartbeat records a heartbeat (device_id must be the token's device)
+// and answers with the interval and the pending update.
+func (s *Service) DeviceHeartbeat(ctx context.Context, req DeviceRequest, hb Heartbeat) (HeartbeatResponse, error) {
+	d, err := s.authenticateDevice(ctx, req)
+	if err != nil {
+		return HeartbeatResponse{}, err
+	}
+	if hb.DeviceID != d.ID {
+		return HeartbeatResponse{}, NewError(CodeUnauthorized, "the device token belongs to another device", nil)
+	}
+	if err := hb.validate(); err != nil {
+		return HeartbeatResponse{}, err
+	}
+	now := s.now()
+	if !s.deviceLimits.allow("hb:"+d.ID, now, heartbeatsPerMinute, time.Minute) {
+		return HeartbeatResponse{}, NewError(CodeRateLimited, "heartbeats arrive too often", nil)
+	}
+	unlock := s.lockProject(d.ProjectID)
+	defer unlock()
+	if d, err = s.reloadDevice(ctx, d.ID); err != nil {
+		return HeartbeatResponse{}, s.internalError("device heartbeat", err)
+	}
+	interval := s.heartbeatInterval()
+	wasOnline := d.Status == DeviceActive && deviceOnline(d.LastSeen, now, interval)
+	next := applyHeartbeat(d, hb, now)
+	if _, err := s.db.ExecContext(ctx, `UPDATE cc_devices SET status=?, expires_at=?, last_seen=?, ip=?, rssi=?, free_heap=?,
+		template_version=?, ota_state=?, last_error=?, build_id=?, target_build_id=? WHERE id=?`,
+		next.Status, next.ExpiresAt, next.LastSeen, next.IP, next.RSSI, next.FreeHeap, next.TemplateVersion, next.OTAState,
+		next.LastError, next.BuildID, next.TargetBuildID, next.ID); err != nil {
+		return HeartbeatResponse{}, s.internalError("device heartbeat", err)
+	}
+	if !wasOnline || deviceChanged(d, next) {
+		s.emitDevice(next, now)
+	}
+	return HeartbeatResponse{IntervalS: int(interval / time.Second), Update: s.offerUpdate(ctx, next)}, nil
+}
+
+// DeviceFirmware opens firmware.bin (the app image, never merged.bin) of the
+// device's current target build, a succeeded build of its own project for its
+// board, at most firmwareDownloadsPerWindow times per window.
+func (s *Service) DeviceFirmware(ctx context.Context, req DeviceRequest, buildID string) (io.ReadSeekCloser, ArtifactInfo, error) {
+	d, err := s.authenticateDevice(ctx, req)
+	if err != nil {
+		return nil, ArtifactInfo{}, err
+	}
+	notFound := NewError(CodeNotFound, "this build is not the device's update target", map[string]any{"build_id": clipEcho(buildID)})
+	if buildID == "" || buildID != d.TargetBuildID {
+		return nil, ArtifactInfo{}, notFound
+	}
+	b, _, err := s.firmwareBuild(ctx, d.ProjectID, buildID)
+	if err != nil {
+		if ErrorCode(err) != "" {
+			return nil, ArtifactInfo{}, notFound
+		}
+		return nil, ArtifactInfo{}, s.internalError("device firmware", err)
+	}
+	if b.Board != d.Board {
+		return nil, ArtifactInfo{}, notFound
+	}
+	if !s.deviceLimits.allow("fw:"+d.ID, s.now(), firmwareDownloadsPerWindow, firmwareDownloadWindow) {
+		return nil, ArtifactInfo{}, NewError(CodeRateLimited, "at most 3 firmware downloads per 10 minutes", nil)
+	}
+	return s.openFirmware(ctx, b)
+}
+
+// firmwareReader streams firmware.bin cut to the size of its build record.
+type firmwareReader struct {
+	*io.SectionReader
+	io.Closer
+}
+
+// openFirmware opens firmware.bin of b for streaming. The file must still have
+// the size its build record lists (the size the update offer announced, which
+// the device checks against Content-Length) and fit one app slot of the board;
+// the reader never yields more than that size.
+func (s *Service) openFirmware(ctx context.Context, b Build) (io.ReadSeekCloser, ArtifactInfo, error) {
+	board, err := BoardByID(b.Board)
+	if err != nil {
+		return nil, ArtifactInfo{}, s.internalError("device firmware", fmt.Errorf("board of build %s: %v", b.ID, err))
+	}
+	slot, err := AppSlotSize(board.FlashMB)
+	if err != nil {
+		return nil, ArtifactInfo{}, s.internalError("device firmware", fmt.Errorf("app slot of build %s: %v", b.ID, err))
+	}
+	f, info, err := s.OpenArtifact(ctx, b.ID, ArtifactFirmwareBin)
+	if err != nil {
+		return nil, ArtifactInfo{}, err
+	}
+	at, ok := f.(io.ReaderAt)
+	size, err := f.Seek(0, io.SeekEnd)
+	if err != nil || !ok || size != info.Size || size <= 0 || size > int64(slot) {
+		_ = f.Close()
+		return nil, ArtifactInfo{}, s.internalError("device firmware", fmt.Errorf(
+			"firmware.bin of %s does not match its build record (%d bytes on disk, %d recorded, app slot %d)", b.ID, size, info.Size, slot))
+	}
+	return firmwareReader{SectionReader: io.NewSectionReader(at, 0, size), Closer: f}, info, nil
+}
+
+// DeviceOTAResult records an installation report (plan 1b): the new image
+// sends {build_id: <own>, ok: true} after its first good heartbeat, which
+// clears last_error; an old image that booted after a rollback sends
+// {build_id: <failed>, ok: false, error: "rolled_back"}, which stores
+// last_error "rolled_back" and resets the target if it was the failed build
+// (once: a repeated report changes nothing); a download or verification
+// failure {ok: false, error: "<reason>"} stores "failed: <reason>" and keeps
+// the target (the firmware retries after 10 minutes). build_id must be the
+// device's target, the build it runs or another build of its project.
+func (s *Service) DeviceOTAResult(ctx context.Context, req DeviceRequest, res OTAResult) error {
+	d, err := s.authenticateDevice(ctx, req)
+	if err != nil {
+		return err
+	}
+	now := s.now()
+	if !s.deviceLimits.allow("res:"+d.ID, now, otaResultsPerWindow, firmwareDownloadWindow) {
+		return NewError(CodeRateLimited, "too many OTA results", nil)
+	}
+	if !validElementID(res.BuildID) || utf8.RuneCountInString(res.Error) > maxOTAErrorRunes {
+		return deviceBadRequest("build_id is required and error may have at most 200 characters")
+	}
+	unlock := s.lockProject(d.ProjectID)
+	defer unlock()
+	if d, err = s.reloadDevice(ctx, d.ID); err != nil {
+		return s.internalError("device ota result", err)
+	}
+	if res.BuildID != d.TargetBuildID && res.BuildID != d.BuildID {
+		b, err := s.loadBuild(ctx, res.BuildID)
+		if err != nil || b.ProjectID != d.ProjectID {
+			return NewError(CodeBadRequest, "build_id is not a build of this device's project", map[string]any{"build_id": res.BuildID})
+		}
+	}
+	before := d
+	switch {
+	case res.OK:
+		d.LastError = ""
+	case cleanDeviceText(res.Error) == OTAStateRolledBack:
+		if d.OTAState != OTAStateRolledBack {
+			d.OTAState = OTAStateRolledBack
+			d.LastError = OTAStateRolledBack
+			if res.BuildID == d.TargetBuildID {
+				d.TargetBuildID = d.BuildID
+			}
+		}
+	default:
+		d.OTAState = OTAStateFailed
+		d.LastError = otaError(OTAStateFailed, res.Error)
+	}
+	if !deviceChanged(before, d) {
+		return nil
+	}
+	if _, err := s.db.ExecContext(ctx, `UPDATE cc_devices SET ota_state=?, last_error=?, target_build_id=? WHERE id=?`,
+		d.OTAState, d.LastError, d.TargetBuildID, d.ID); err != nil {
+		return s.internalError("device ota result", err)
+	}
+	s.emitDevice(d, now)
+	return nil
+}

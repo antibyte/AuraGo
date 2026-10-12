@@ -157,6 +157,8 @@ type Service struct {
 	wake     chan struct{}
 	pulling  atomic.Bool
 
+	deviceLimits deviceLimiter // device endpoint rate limits (plan 5, ota.go)
+
 	ctx       context.Context
 	cancel    context.CancelFunc
 	wg        sync.WaitGroup
