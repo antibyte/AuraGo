@@ -58,10 +58,30 @@ func TestMQTTRelayAuthorizedRequiresCredentialsOrExplicitFlag(t *testing.T) {
 		t.Fatal("a blank username must not authorize the relay")
 	}
 	cfg.MQTT.Username = "iot"
-	if !mqttRelayAuthorized(cfg) {
-		t.Fatal("username must authorize the relay")
+	if mqttRelayAuthorized(cfg) {
+		t.Fatal("username on plaintext must not authorize the relay without allow_untrusted_transport")
 	}
+	cfg.MQTT.AllowUntrustedTransport = true
+	if !mqttRelayAuthorized(cfg) {
+		t.Fatal("allow_untrusted_transport must authorize a username on plaintext")
+	}
+	cfg.MQTT.AllowUntrustedTransport = false
+	cfg.MQTT.Broker = "mqtts://broker.lan:8883"
+	if !mqttRelayAuthorized(cfg) {
+		t.Fatal("username over checked TLS must authorize the relay")
+	}
+	cfg.MQTT.TLS.InsecureSkipVerify = true
+	if mqttRelayAuthorized(cfg) {
+		t.Fatal("insecure_skip_verify must not authorize the relay without allow_untrusted_transport")
+	}
+	cfg.MQTT.AllowUntrustedTransport = true
+	if !mqttRelayAuthorized(cfg) {
+		t.Fatal("allow_untrusted_transport must authorize skipped certificate verification")
+	}
+	cfg.MQTT.AllowUntrustedTransport = false
+	cfg.MQTT.TLS.InsecureSkipVerify = false
 	cfg.MQTT.Username = ""
+	cfg.MQTT.Broker = "tcp://broker.lan:1883"
 	cfg.MQTT.TLS.CertFile = "client.crt"
 	if mqttRelayAuthorized(cfg) {
 		t.Fatal("a client certificate on a tcp:// broker is never presented and must not authorize the relay")
@@ -151,14 +171,20 @@ func TestMQTTRelayRouteRefusesAnonymousBrokerAndLogsOnce(t *testing.T) {
 	}
 
 	cfg.MQTT.Username = "iot"
+	if _, _, ok := gate.route(cfg, "home/door", logger); ok {
+		t.Fatal("username on plaintext must stay refused without allow_untrusted_transport")
+	}
+
+	cfg.MQTT.Broker = "mqtts://broker.lan:8883"
 	if source, kind, ok := gate.route(cfg, "frigate/events", logger); !ok || source != "frigate" || kind != "event" {
-		t.Fatalf("authenticated Frigate relay = (%q, %q, %v), want (frigate, event, true)", source, kind, ok)
+		t.Fatalf("authenticated Frigate relay over checked TLS = (%q, %q, %v), want (frigate, event, true)", source, kind, ok)
 	}
 	if source, kind, ok := gate.route(cfg, "home/door", logger); !ok || source != "mqtt" || kind != "" {
-		t.Fatalf("authenticated generic relay = (%q, %q, %v), want (mqtt, \"\", true)", source, kind, ok)
+		t.Fatalf("authenticated generic relay over checked TLS = (%q, %q, %v), want (mqtt, \"\", true)", source, kind, ok)
 	}
 
 	// A refusal after the gate was open in between is reported again.
+	cfg.MQTT.Broker = "tcp://broker.lan:1883"
 	cfg.MQTT.Username = ""
 	if _, _, ok := gate.route(cfg, "home/door", logger); ok {
 		t.Fatal("relay must be refused again once the credentials are gone")
@@ -170,6 +196,44 @@ func TestMQTTRelayRouteRefusesAnonymousBrokerAndLogsOnce(t *testing.T) {
 	cfg.MQTT.AllowUnauthenticatedRelay = true
 	if source, _, ok := gate.route(cfg, "home/door", logger); !ok || source != "mqtt" {
 		t.Fatalf("explicitly allowed anonymous relay = (%q, %v), want (mqtt, true)", source, ok)
+	}
+}
+
+func TestMQTTRelayUntrustedTransportRefusalDoesNotClaimMissingLogin(t *testing.T) {
+	logger, logs := newMQTTRelayTestLogger()
+	gate := &mqttRelayGate{}
+	cfg := anonymousMQTTRelayConfig()
+	cfg.MQTT.Broker = "mqtt://broker.lan:1883"
+	cfg.MQTT.Username = "iot"
+
+	if _, _, ok := gate.route(cfg, "home/door", logger); ok {
+		t.Fatal("username on mqtt:// must be refused without allow_untrusted_transport")
+	}
+	logged := logs.String()
+	if strings.Contains(logged, "no login") {
+		t.Fatalf("untrusted transport refusal must not claim the broker has no login:\n%s", logged)
+	}
+	if strings.Contains(logged, "mqtt://") || strings.Contains(logged, "broker.lan") {
+		t.Fatalf("refusal must not contain the broker URL:\n%s", logged)
+	}
+	for _, want := range []string{"plaintext", "certificate"} {
+		if !strings.Contains(strings.ToLower(logged), want) {
+			t.Fatalf("refusal must name %q:\n%s", want, logged)
+		}
+	}
+
+	cfg.MQTT.Broker = "mqtts://broker.lan:8883"
+	cfg.MQTT.TLS.InsecureSkipVerify = true
+	cfg.MQTT.TLS.CertFile = "client.crt"
+	cfg.MQTT.TLS.KeyFile = "client.key"
+	logs.buf.Reset()
+	gate = &mqttRelayGate{}
+	if _, _, ok := gate.route(cfg, "home/door", logger); ok {
+		t.Fatal("insecure_skip_verify must refuse the relay without allow_untrusted_transport")
+	}
+	logged = logs.String()
+	if strings.Contains(logged, "no login") || strings.Contains(logged, "client.crt") || strings.Contains(logged, "mqtts://") {
+		t.Fatalf("skipped verification refusal leaked login wording or paths:\n%s", logged)
 	}
 }
 
@@ -276,8 +340,16 @@ func TestMissionMQTTAdapterGatesTriggersOnLiveConfig(t *testing.T) {
 	withUser.MQTT.Username = "iot"
 	current = withUser
 	trigger("home/door", "open")
+	if fired != 0 {
+		t.Fatalf("username on plaintext started %d missions, want 0", fired)
+	}
+
+	trusted := current.Clone()
+	trusted.MQTT.Broker = "mqtts://broker.lan:8883"
+	current = trusted
+	trigger("home/door", "open")
 	if fired != 1 {
-		t.Fatalf("authenticated broker started %d missions, want 1", fired)
+		t.Fatalf("username over checked TLS started %d missions, want 1", fired)
 	}
 
 	allowed := current.Clone()

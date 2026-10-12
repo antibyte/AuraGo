@@ -54,14 +54,15 @@ Broker configuration, subscriptions, relays, and mission dispatch.
   issue recording available. Relay registration is synchronized and delivery
   uses the controller's cancellable context and bounded queue.
 - Generic and Frigate relays and MQTT mission triggers start agent runs only
-  through the server's `mqttRelayAuthorized` gate (broker username or a client
-  certificate over TLS per `config.MQTTBrokerAuthenticated`, else
-  `mqtt.allow_unauthenticated_relay`), read from the live snapshot per delivery;
-  refusals log once. The Frigate prefix must be a literal MQTT topic; otherwise
+  through the server's `mqttRelayAuthorized` gate: trusted TLS with a broker
+  login (`config.MQTTBrokerAuthenticated` and `config.MQTTRelayTransportTrusted`),
+  `mqtt.allow_unauthenticated_relay`, or `mqtt.allow_untrusted_transport`.
+  The gate reads the live snapshot per delivery; refusals log once. The Frigate prefix must be a literal MQTT topic; otherwise
   there is no subscription and no agent run, while config load still accepts the
   file and `frigate_mqtt_prefix` warns. Mission triggers are invisible to config, so `config.Load`
   and config-merger grandfather every enabled anonymous broker without the key
-  to `true`; `mqtt_relay_no_auth` reports it as critical.
+  to `true`; `mqtt_relay_no_auth` reports it as critical. `config.Load` and
+  config-merger also grandfather a missing `mqtt.allow_untrusted_transport`.
 - Build direct runtime gates with `tools.RuntimePermissionsFromConfig` at
   startup, reload and agent dispatch. MQTT bridge/CYD gates resolve the live
   server snapshot independently of earlier agent turns; dispatch also retains

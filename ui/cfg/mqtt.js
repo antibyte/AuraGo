@@ -102,6 +102,16 @@ async function renderMQTTSection(section) {
         </div>
     </div>`;
 
+    // Relay over plaintext or skipped certificate verification
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.mqtt.allow_untrusted_transport_label')}</div>
+        <div class="field-help">${t('help.mqtt.allow_untrusted_transport')}</div>
+        <div class="toggle-wrap">
+            <div class="toggle${data.allow_untrusted_transport ? ' on' : ''}" data-path="mqtt.allow_untrusted_transport" onclick="toggleBool(this)"></div>
+            <span class="toggle-label">${data.allow_untrusted_transport ? t('config.toggle.active') : t('config.toggle.inactive')}</span>
+        </div>
+    </div>`;
+
     // Read-only toggle
     html += `<div class="field-group">
         <div class="field-label">${t('config.mqtt.readonly_label')}</div>

@@ -338,6 +338,7 @@ func applyUpgradeGrandfathers(merged, user map[string]interface{}) bool {
 		grandfatherUnsandboxedShell,
 		grandfatherWebScraperAndWebhookLimit,
 		grandfatherUnauthenticatedMQTTRelay,
+		grandfatherUntrustedMQTTTransport,
 	} {
 		if rule(merged, user) {
 			changed = true
@@ -451,6 +452,64 @@ func grandfatherUnauthenticatedMQTTRelay(merged, user map[string]interface{}) bo
 	mqttMap["allow_unauthenticated_relay"] = mqttRanAnonymously(userMQTT)
 	merged["mqtt"] = mqttMap
 	return true
+}
+
+// grandfatherUntrustedMQTTTransport mirrors the config.Load grandfather for
+// mqtt.allow_untrusted_transport. A missing or null key becomes true when the
+// user MQTT is enabled, config.MQTTBrokerAuthenticated would be true for those
+// yaml values, and the transport is plaintext, skips certificate verification,
+// or MQTTEffectiveTLS reports an error. Otherwise it becomes false. A written
+// value, including false, stays.
+func grandfatherUntrustedMQTTTransport(merged, user map[string]interface{}) bool {
+	userMQTT, _ := asStringMap(user["mqtt"])
+	if userMQTT["allow_untrusted_transport"] != nil {
+		return false
+	}
+	mqttMap, ok := asStringMap(merged["mqtt"])
+	if !ok {
+		return false
+	}
+	mqttMap = maps.Clone(mqttMap)
+	mqttMap["allow_untrusted_transport"] = mqttRanOnUntrustedTransport(userMQTT)
+	merged["mqtt"] = mqttMap
+	return true
+}
+
+// mqttRanOnUntrustedTransport reports the value config.Load grandfathers for
+// mqtt.allow_untrusted_transport from the raw user mqtt map.
+func mqttRanOnUntrustedTransport(userMQTT map[string]interface{}) bool {
+	if enabled, _ := yamlBoolValue(userMQTT["enabled"]); !enabled {
+		return false
+	}
+	probe := mqttTransportProbe(userMQTT)
+	return config.MQTTBrokerAuthenticated(&probe) && !config.MQTTRelayTransportTrusted(&probe)
+}
+
+// mqttTransportProbe builds the broker, username and TLS fields
+// config.MQTTBrokerAuthenticated and config.MQTTRelayTransportTrusted read.
+func mqttTransportProbe(userMQTT map[string]interface{}) config.Config {
+	var probe config.Config
+	if broker, ok := userMQTT["broker"].(string); ok {
+		probe.MQTT.Broker = broker
+	}
+	if yamlStringSet(userMQTT["username"]) {
+		if username, ok := userMQTT["username"].(string); ok {
+			probe.MQTT.Username = username
+		} else {
+			probe.MQTT.Username = "set"
+		}
+	}
+	userTLS, _ := asStringMap(userMQTT["tls"])
+	probe.MQTT.TLS.Enabled, _ = yamlBoolValue(userTLS["enabled"])
+	probe.MQTT.TLS.InsecureSkipVerify, _ = yamlBoolValue(userTLS["insecure_skip_verify"])
+	if yamlStringSet(userTLS["cert_file"]) {
+		if certFile, ok := userTLS["cert_file"].(string); ok {
+			probe.MQTT.TLS.CertFile = certFile
+		} else {
+			probe.MQTT.TLS.CertFile = "set"
+		}
+	}
+	return probe
 }
 
 // mqttRanAnonymously mirrors the config.Load grandfather for

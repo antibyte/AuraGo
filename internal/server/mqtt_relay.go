@@ -98,11 +98,38 @@ func mqttRelayRefusalMessage(path string, haveConfig bool) string {
 	return "[MQTT] " + subject + " refused: broker has no login (username or TLS client certificate) and mqtt.allow_unauthenticated_relay is false"
 }
 
+// mqttRelayTransportRefusalMessage words a refusal where the broker has a
+// login but the transport is plaintext or skips certificate verification.
+// It does not claim the broker has no login and names neither a broker URL
+// nor certificate paths.
+func mqttRelayTransportRefusalMessage(path string) string {
+	subject := "relay delivery"
+	if path == mqttRelayPathMissionTrigger {
+		subject = "mission trigger delivery"
+	}
+	return "[MQTT] " + subject + " refused: broker transport is plaintext or skips certificate verification and mqtt.allow_untrusted_transport is false"
+}
+
+func mqttRelayRefusal(path string, cfg *config.Config) string {
+	if cfg != nil && config.MQTTBrokerAuthenticated(cfg) {
+		return mqttRelayTransportRefusalMessage(path)
+	}
+	return mqttRelayRefusalMessage(path, cfg != nil)
+}
+
 // mqttRelayAuthorized reports whether inbound broker traffic may start agent
-// runs: the broker authenticates the publisher (username or client
-// certificate over TLS) or the operator accepted an open broker explicitly.
+// runs. Nil is refused. An explicit anonymous broker is allowed. Otherwise the
+// broker must authenticate the publisher and the transport must be trusted
+// TLS, unless the operator allowed plaintext or skipped certificate
+// verification. The grandfather for that switch happens at load, not here.
 func mqttRelayAuthorized(cfg *config.Config) bool {
-	return cfg != nil && (config.MQTTBrokerAuthenticated(cfg) || cfg.MQTT.AllowUnauthenticatedRelay)
+	if cfg == nil {
+		return false
+	}
+	if cfg.MQTT.AllowUnauthenticatedRelay {
+		return true
+	}
+	return config.MQTTBrokerAuthenticated(cfg) && (config.MQTTRelayTransportTrusted(cfg) || cfg.MQTT.AllowUntrustedTransport)
 }
 
 // mqttRelayGate applies mqttRelayAuthorized to every delivery that would start
@@ -119,7 +146,7 @@ func (g *mqttRelayGate) admit(cfg *config.Config, logger *slog.Logger, path stri
 		return true
 	}
 	if g.refusalLogged.CompareAndSwap(false, true) && logger != nil {
-		logger.Warn(mqttRelayRefusalMessage(path, cfg != nil), "path", path)
+		logger.Warn(mqttRelayRefusal(path, cfg), "path", path)
 	}
 	return false
 }

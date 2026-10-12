@@ -151,6 +151,10 @@ var configSaveMu sync.Mutex
 // anonymous MQTT broker to once per process.
 var mqttRelayGrandfatherWarning sync.Once
 
+// mqttUntrustedTransportGrandfatherWarning limits the Load warning about a
+// grandfathered plaintext or unverified MQTT transport to once per process.
+var mqttUntrustedTransportGrandfatherWarning sync.Once
+
 // meshCentralPowerGrandfatherWarning limits the Load warning about a
 // pre-allow_power_actions MeshCentral config to once per process.
 var meshCentralPowerGrandfatherWarning sync.Once
@@ -1698,6 +1702,19 @@ func Load(path string) (*Config, error) {
 		cfg.MQTT.AllowUnauthenticatedRelay = true
 		mqttRelayGrandfatherWarning.Do(func() {
 			slog.Warn("[Config] anonymous MQTT broker grandfathered: relays and MQTT mission triggers stay allowed until mqtt.allow_unauthenticated_relay is written")
+		})
+	}
+
+	// A broker login over plaintext or skipped certificate verification used to
+	// start relay runs. Existing configs keep that until
+	// mqtt.allow_untrusted_transport is written. Null counts as unwritten
+	// (yamlHasValue), as config-merger fills a null key like a missing one.
+	// A written false or true ends the grandfather. The security check reports
+	// the result; this warning appears once per process.
+	if cfg.MQTT.Enabled && MQTTBrokerAuthenticated(&cfg) && !MQTTRelayTransportTrusted(&cfg) && !yamlHasValue(data, "mqtt", "allow_untrusted_transport") {
+		cfg.MQTT.AllowUntrustedTransport = true
+		mqttUntrustedTransportGrandfatherWarning.Do(func() {
+			slog.Warn("[Config] untrusted MQTT transport grandfathered: relays and MQTT mission triggers stay allowed until mqtt.allow_untrusted_transport is written")
 		})
 	}
 

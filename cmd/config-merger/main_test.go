@@ -481,6 +481,7 @@ func assertMergeMatchesLoad(t *testing.T, userYAML string, merged map[string]int
 		{"agent.allow_shell", before.Agent.AllowShell, after.Agent.AllowShell},
 		{"effective unsandboxed shell", unsandboxed(before), unsandboxed(after)},
 		{"mqtt.allow_unauthenticated_relay", before.MQTT.AllowUnauthenticatedRelay, after.MQTT.AllowUnauthenticatedRelay},
+		{"mqtt.allow_untrusted_transport", before.MQTT.AllowUntrustedTransport, after.MQTT.AllowUntrustedTransport},
 		{"docker.allow_host_access", before.Docker.AllowHostAccess, after.Docker.AllowHostAccess},
 	} {
 		if field.before != field.after {
@@ -596,8 +597,8 @@ func TestApplyUpgradeGrandfathers_MaterialisesUnauthenticatedMQTTRelay(t *testin
 		{"client certificate over ssl, key absent", map[string]interface{}{"enabled": true, "broker": "ssl://broker.lan:8883", "tls": map[string]interface{}{"cert_file": "client.crt"}}, false, true},
 		{"client certificate over mqtts with tls.enabled yes, key absent", map[string]interface{}{"enabled": true, "broker": "mqtts://broker.lan:8883", "tls": map[string]interface{}{"enabled": "yes", "cert_file": "client.crt"}}, false, true},
 		{"mqtt disabled, key absent", map[string]interface{}{"enabled": false, "relay_to_agent": true}, false, true},
-		{"key written false", map[string]interface{}{"enabled": true, "allow_unauthenticated_relay": false}, false, false},
-		{"key written true", map[string]interface{}{"enabled": true, "username": "iot", "allow_unauthenticated_relay": true}, true, false},
+		{"key written false", map[string]interface{}{"enabled": true, "allow_unauthenticated_relay": false, "allow_untrusted_transport": false}, false, false},
+		{"key written true", map[string]interface{}{"enabled": true, "username": "iot", "allow_unauthenticated_relay": true, "allow_untrusted_transport": true}, true, false},
 		{"no mqtt section", nil, false, true},
 	}
 	for _, tc := range cases {
@@ -661,6 +662,43 @@ func TestRepositoryTemplateMergeKeepsAnonymousMQTTRelay(t *testing.T) {
 			res := mergeUserConfig(tmplMap, srcMap)
 			if got := mergedValue(res.merged, "mqtt.allow_unauthenticated_relay"); got != tc.want {
 				t.Fatalf("mqtt.allow_unauthenticated_relay = %#v, want %v", got, tc.want)
+			}
+			assertMergeMatchesLoad(t, tc.user, res.merged)
+		})
+	}
+}
+
+// A missing allow_untrusted_transport is filled with the same value config.Load
+// grandfathers. A written value, including false, stays.
+func TestRepositoryTemplateMergeWritesUntrustedMQTTTransportGrandfather(t *testing.T) {
+	tmplData, _ := repositoryTemplate(t)
+	const auth = "mqtt:\n    enabled: true\n    username: iot\n    broker: mqtt://broker.lan:1883\n"
+	cases := []struct {
+		name string
+		user string
+		want bool
+	}{
+		{"username on mqtt, key absent", auth, true},
+		{"username on tcp, key absent", "mqtt:\n    enabled: true\n    username: iot\n    broker: tcp://broker.lan:1883\n", true},
+		{"key null", auth + "    allow_untrusted_transport:\n", true},
+		{"key false", auth + "    allow_untrusted_transport: false\n", false},
+		{"key true on mqtts", "mqtt:\n    enabled: true\n    username: iot\n    broker: mqtts://broker.lan:8883\n    allow_untrusted_transport: true\n", true},
+		{"mqtts without skip, key absent", "mqtt:\n    enabled: true\n    username: iot\n    broker: mqtts://broker.lan:8883\n", false},
+		{"insecure_skip_verify yes, key absent", "mqtt:\n    enabled: true\n    username: iot\n    broker: mqtts://broker.lan:8883\n    tls:\n        insecure_skip_verify: yes\n", true},
+		{"anonymous mqtt, key absent", "mqtt:\n    enabled: true\n    broker: mqtt://broker.lan:1883\n", false},
+		{"mqtt disabled, key absent", "mqtt:\n    enabled: false\n    username: iot\n    broker: mqtt://broker.lan:1883\n", false},
+		{"fresh install from template", tmplData, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, tmplMap := repositoryTemplate(t)
+			srcMap, err := parseYAMLMap(tc.user)
+			if err != nil {
+				t.Fatalf("parse user config: %v", err)
+			}
+			res := mergeUserConfig(tmplMap, srcMap)
+			if got := mergedValue(res.merged, "mqtt.allow_untrusted_transport"); got != tc.want {
+				t.Fatalf("mqtt.allow_untrusted_transport = %#v, want %v", got, tc.want)
 			}
 			assertMergeMatchesLoad(t, tc.user, res.merged)
 		})

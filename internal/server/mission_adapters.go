@@ -51,8 +51,8 @@ func (a *missionMQTTAdapter) RegisterMissionTrigger(topicFilter string, payloadC
 }
 
 // gateMissionTrigger wraps a mission callback so that broker traffic starts
-// the mission only while the broker authenticates its publishers or the
-// operator allowed an anonymous broker (mqttRelayAuthorized).
+// the mission only while mqttRelayAuthorized allows it: trusted TLS with a
+// broker login, allow_unauthenticated_relay, or allow_untrusted_transport.
 func (a *missionMQTTAdapter) gateMissionTrigger(callback func(topic, payload string)) func(topic, payload string) {
 	return func(topic, payload string) {
 		var cfg *config.Config
