@@ -2160,6 +2160,56 @@ function holdLayout() {
     u.dispose();
 }
 {
+    // Assets changes of another tab that arrive while our upload runs are skipped; when the upload's
+    // re-read does not cover them, the window catches up afterwards like any remote change.
+    async function uploadWindow() {
+        const w = await makeApp({ projectId: 'ccp_1' });
+        browserStreams[browserStreams.length - 1].send('stream_ready', { after: 0 });
+        await settle();
+        const store = w.inst.layoutStore;
+        const replaces = [];
+        const replace = store.replace;
+        store.replace = (next, ropts) => { replaces.push(!!(ropts && ropts.resetHistory)); return replace.call(store, next, ropts); };
+        store.change('rename', d => { d.name = 'Mine'; });
+        await w.inst.flushAll();
+        const otherTab = () => {
+            w.be.layout.assets = [{ id: 'a_sun' }, { id: 'a_moon' }];
+            w.be.bump();
+            sse('project_changed', { version: w.be.version(), origin: 'user', what: 'assets' });
+        };
+        return { w, store, replaces, otherTab };
+    }
+    // (1) The other tab commits after our re-read was served, its event arrives before the answer.
+    const one = await uploadWindow();
+    const release = holdLayout();
+    const upload = one.w.inst.uploadAsset({ name: 'sun.png' });
+    await settle();
+    one.otherTab();
+    await settle();
+    release();
+    await upload;
+    await settle();
+    eq('an assets change committed after the upload\'s re-read is caught up with a reset history',
+        [one.w.inst.layoutVersion, one.store.get().assets, one.replaces, one.store.canUndo(), one.store.get().name],
+        [one.w.be.version(), [{ id: 'a_sun' }, { id: 'a_moon' }], [false, true], false, 'Mine']);
+    one.w.dispose();
+    // (2) The upload fails after another tab's assets event was skipped.
+    const two = await uploadWindow();
+    const releaseUpload = gate(two.w.be, 'uploadAsset');
+    const failing = two.w.inst.uploadAsset({ name: 'huge.png' }).then(() => null, err => err);
+    await settle();
+    two.otherTab();
+    await settle();
+    two.w.be.fail.uploadAsset = new P.api.ApiError(413, 'CYD_ASSET_TOO_LARGE', 'too large', {});
+    releaseUpload();
+    const err = await failing;
+    await settle();
+    eq('a failed upload catches up an assets change skipped while it ran',
+        [err && err.code, two.w.inst.layoutVersion, two.store.get().assets, two.replaces, two.store.canUndo()],
+        ['CYD_ASSET_TOO_LARGE', two.w.be.version(), [{ id: 'a_sun' }, { id: 'a_moon' }], [true], false]);
+    two.w.dispose();
+}
+{
     // A remote change is read (GET /layout held open) while the user edits: the edit must survive
     // and save through the If-Match conflict choice instead of being replaced and marked saved.
     const e = await makeApp({ projectId: 'ccp_1' });

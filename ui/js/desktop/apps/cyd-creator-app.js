@@ -55,6 +55,8 @@
             probing: false,
             // uploads holds the projectSeq of every asset upload in flight (see uploadAsset).
             uploads: [],
+            // skippedAssets: projectSeq → highest version of the assets events skipped while uploads ran.
+            skippedAssets: new Map(),
             layoutIssues: [],
             pullTimer: 0
         };
@@ -541,7 +543,9 @@
     // window's version (a save, e.g. an Overwrite, landed while it was on the way) is dropped. The
     // server announces the upload with project_changed (what: assets) before it answers: while the
     // upload runs, onProjectChanged leaves that reload (which would reset the undo history) to the
-    // re-read here, which keeps the history.
+    // re-read here, which keeps the history. An assets change skipped meanwhile that the re-read does
+    // not cover (another tab committed after the GET was served, or the upload failed) is caught up
+    // when the last upload ends, like any remote change (history reset).
     async function uploadAsset(inst, file) {
         const seq = inst.projectSeq;
         const id = inst.projectId;
@@ -554,6 +558,18 @@
             return res.asset;
         } finally {
             inst.uploads.splice(inst.uploads.indexOf(seq), 1);
+            if (!inst.uploads.includes(seq)) await catchUpSkippedAssets(inst, seq);
+        }
+    }
+
+    async function catchUpSkippedAssets(inst, seq) {
+        const skipped = inst.skippedAssets.get(seq) || 0;
+        inst.skippedAssets.delete(seq);
+        if (skipped <= inst.layoutVersion || !isCurrent(inst, seq) || !layoutIdle(inst)) return;
+        try {
+            await reloadLayout(inst, { ifIdle: true, newer: true });
+        } catch (err) {
+            if (isCurrent(inst, seq)) inst.notify('error', P.errors.message(inst.t, err));
         }
     }
 
@@ -682,6 +698,7 @@
                 // The window's own upload re-reads the layout itself (keeping the undo history); an
                 // upload only ever announces "assets".
                 const ownUpload = what === 'assets' && inst.uploads.includes(seq);
+                if (ownUpload) inst.skippedAssets.set(seq, Math.max(inst.skippedAssets.get(seq) || 0, Number(data.version) || 0));
                 if (!ownUpload && Number(data.version) > inst.layoutVersion && layoutIdle(inst)) await reloadLayout(inst, { ifIdle: true, newer: true });
             } else if (what === 'files') {
                 if (inst.code) await inst.code.refreshFiles();
