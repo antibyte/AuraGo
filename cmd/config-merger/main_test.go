@@ -1066,6 +1066,47 @@ func TestEnforceTemplateTypes_CorrectTypesUntouched(t *testing.T) {
 	}
 }
 
+// config.Load reads hand-written float notation in an int field as the whole
+// number, so the merger must keep it instead of resetting it to the default.
+func TestEnforceTemplateTypes_IntSlotFloatNotation(t *testing.T) {
+	cases := []struct {
+		name    string
+		literal string
+		want    interface{}
+	}{
+		{"exponent", "1e5", 100000},
+		{"trailing zero fraction", "100000.0", 100000},
+		{"fractional float repaired", "2.5", 2048},
+		{"quoted number repaired", `"30"`, 2048},
+		{"infinity repaired", ".inf", 2048},
+		{"not a number repaired", ".nan", 2048},
+		{"beyond int range repaired", "9.223372036854775808e18", 2048},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpl := map[string]interface{}{
+				"go2rtc": map[string]interface{}{
+					"detection": map[string]interface{}{"max_storage_mb": 2048},
+				},
+			}
+			var merged map[string]interface{}
+			doc := "go2rtc:\n  detection:\n    max_storage_mb: " + tc.literal + "\n"
+			if err := yaml.Unmarshal([]byte(doc), &merged); err != nil {
+				t.Fatalf("parse user config: %v", err)
+			}
+
+			if !enforceTemplateTypes(merged, tmpl) {
+				t.Fatal("a non-int value in an int slot must be reported as fixed")
+			}
+			go2rtc, _ := asStringMap(merged["go2rtc"])
+			detection, _ := asStringMap(go2rtc["detection"])
+			if got := detection["max_storage_mb"]; got != tc.want {
+				t.Errorf("max_storage_mb = %v (%T), want %v (%T)", got, got, tc.want, tc.want)
+			}
+		})
+	}
+}
+
 // ── sanitizeMergedConfig extended tests ──────────────────────────────
 
 func TestSanitizeMergedConfig_StringArrayFields(t *testing.T) {

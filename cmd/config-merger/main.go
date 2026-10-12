@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"log"
 	"maps"
+	"math"
 	"os"
 	"regexp"
 	"sort"
@@ -585,6 +586,19 @@ func yamlBoolSpelling(s string) (value, ok bool) {
 	return false, false
 }
 
+// integralIntValue reports the int a parsed user-config float stands for: a
+// finite float64 without a fractional part inside the int range, as yaml.v3
+// produces for hand-written 1e5 or 100000.0.
+func integralIntValue(v interface{}) (int, bool) {
+	f, ok := v.(float64)
+	// -float64(math.MinInt) is one past math.MaxInt and exact as a float64;
+	// NaN fails the Trunc comparison and the infinities the range check.
+	if !ok || f != math.Trunc(f) || f < float64(math.MinInt) || f >= -float64(math.MinInt) {
+		return 0, false
+	}
+	return int(f), true
+}
+
 // yamlBoolValue reports the bool a parsed user-config value stands for: a
 // bool, or a string yamlBoolSpelling accepts.
 func yamlBoolValue(v interface{}) (value, ok bool) {
@@ -752,7 +766,8 @@ func truncate(s string, maxLen int) string {
 // against the template. When the template defines a specific type (array, map,
 // bool, int) but the merged value has a different type (typically a string from
 // a corrupted or old-format config), the template default is used instead;
-// bool slots keep strings in a yaml.v3 bool spelling (yamlBoolSpelling).
+// bool slots keep strings in a yaml.v3 bool spelling (yamlBoolSpelling) and
+// int slots keep floats that hold a whole number (integralIntValue).
 // This prevents type mismatches from causing config.Load() unmarshal errors.
 func enforceTemplateTypes(merged, tmpl map[string]interface{}) bool {
 	fixed := false
@@ -804,8 +819,15 @@ func enforceTemplateTypes(merged, tmpl map[string]interface{}) bool {
 			}
 		case int:
 			if _, ok := mergedVal.(int); !ok {
-				log.Printf("enforceTypes: %s should be int, got %T — using template default", key, mergedVal)
-				merged[key] = tmplVal
+				// Float notation for a whole number (1e5, 100000.0) keeps the
+				// owner's value, as config.Load would read it; anything else
+				// falls back to the template.
+				if n, ok := integralIntValue(mergedVal); ok {
+					merged[key] = n
+				} else {
+					merged[key] = tmplVal
+				}
+				log.Printf("enforceTypes: %s should be int, got %T — corrected", key, mergedVal)
 				fixed = true
 			}
 		case float64:
