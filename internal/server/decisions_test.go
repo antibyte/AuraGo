@@ -11,6 +11,7 @@ import (
 	"hash/crc32"
 	"image"
 	"image/color"
+	"image/gif"
 	"image/png"
 	"io"
 	"log/slog"
@@ -421,6 +422,49 @@ func TestDecisionsWebPNormalizesWithoutNativeCodec(t *testing.T) {
 	limited := decisionImageBuffer{limit: 3}
 	if _, err := limited.Write([]byte("four")); !errors.Is(err, errDecisionImage) || limited.Len() != 0 {
 		t.Fatal("normalization exceeded byte budget")
+	}
+}
+
+func TestDecisionsGIFUsesTheFirstFrameAsPNG(t *testing.T) {
+	s, fake := decisionsServerFixture(t)
+	red := image.NewPaletted(image.Rect(0, 0, 1, 1), color.Palette{color.RGBA{R: 255, A: 255}})
+	blue := image.NewPaletted(image.Rect(0, 0, 1, 1), color.Palette{color.RGBA{B: 255, A: 255}})
+	var encoded bytes.Buffer
+	if err := gif.EncodeAll(&encoded, &gif.GIF{Image: []*image.Paletted{red, blue}, Delay: []int{0, 0}}); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(s.Cfg.Directories.WorkspaceDir, "frames.gif")
+	if err := os.WriteFile(path, encoded.Bytes(), 0600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := s.evaluateDecisions(context.Background(), decisionsAPIRequest{Questions: []decisions.Question{{ID: "q", Type: "noul", Instructions: "Red?"}}, Images: []string{path}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fake.request.Images) != 1 || fake.request.Images[0].MIME != "image/png" || !bytes.HasPrefix(fake.request.Images[0].Data, []byte("\x89PNG")) {
+		t.Fatal("GIF not reduced to one PNG frame")
+	}
+	decoded, err := png.Decode(bytes.NewReader(fake.request.Images[0].Data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, g, b, _ := decoded.At(0, 0).RGBA()
+	if r != 65535 || g != 0 || b != 0 || fake.calls != 1 {
+		t.Fatalf("first frame not kept: r=%d g=%d b=%d calls=%d", r, g, b, fake.calls)
+	}
+
+	oversized, oversizedFake := decisionsServerFixture(t)
+	header := make([]byte, 13)
+	copy(header, "GIF89a")
+	binary.LittleEndian.PutUint16(header[6:8], 8192)
+	binary.LittleEndian.PutUint16(header[8:10], 8192)
+	pixelPath := filepath.Join(oversized.Cfg.Directories.WorkspaceDir, "huge.gif")
+	if err := os.WriteFile(pixelPath, header, 0600); err != nil {
+		t.Fatal(err)
+	}
+	_, err = oversized.evaluateDecisions(context.Background(), decisionsAPIRequest{Questions: []decisions.Question{{ID: "q", Type: "noul"}}, Images: []string{pixelPath}})
+	if !errors.Is(err, errDecisionImage) || oversizedFake.calls != 0 {
+		t.Fatalf("oversized GIF logical screen accepted: calls=%d, error=%v", oversizedFake.calls, err)
 	}
 }
 

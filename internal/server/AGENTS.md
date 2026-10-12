@@ -24,7 +24,7 @@ Server-owned HTTP and cross-component integration contracts.
   attachment paths to rooted regular-file handles. Never accept caller URLs as
   download authority. Enforce eight images, 12 MiB each, 24 MiB total, and 32
   million pixels per image; enforce separate source and normalized byte totals.
-  Normalize WebP to bounded PNG using the existing Go
+  Normalize GIF and WebP to one bounded PNG frame using the existing Go
   decoder. Flow core receives no filesystem capability. Verify `TestDecisions*`;
   manager and native contracts live in `../decisions/AGENTS.md` and
   `../../decisions_runtime/AGENTS.md`.
