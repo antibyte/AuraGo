@@ -681,15 +681,15 @@ function dockBuild(id, status, minute) {
     return { id, status, created_at: '2026-10-12T10:' + String(minute).padStart(2, '0') + ':00.000Z', diagnostics: [] };
 }
 // makeDock creates a dock with stored prefs and loads its builds like the app; GET /builds
-// answers when release() is called.
-function makeDock(prefs, listed, logs) {
+// answers when release() is called; the window is rootHeight px high (default 1000).
+function makeDock(prefs, listed, logs, rootHeight) {
     fakeStorage.clear();
     if (prefs) fakeStorage.set(DOCK_PREFS, JSON.stringify(prefs));
     const calls = { log: [] };
     let release;
     const listedPromise = new Promise(resolve => { release = () => resolve(listed || []); });
     const inst = {
-        t: P.i18n({}), bus: P.createBus(), projectId: 'ccp_1', root: { clientHeight: 1000 }, domId: s => 'cc1-' + s,
+        t: P.i18n({}), bus: P.createBus(), projectId: 'ccp_1', root: { clientHeight: rootHeight || 1000 }, domId: s => 'cc1-' + s,
         api: {
             listBuilds: () => listedPromise,
             buildLog: id => { calls.log.push(id); return Promise.resolve((logs || {})[id] || ''); },
@@ -717,6 +717,47 @@ function makeDock(prefs, listed, logs) {
     eq('the log stands in for an unregistered saved tab without replacing it', [d.dock.current(), d.prefs().tab], ['log', 'monitor']);
     d.dock.registerTab('monitor', { labelKey: 'cyd_creator.dock.log', mount() {} });
     eq('the saved tab is shown once it registers', [d.dock.current(), d.prefs().tab], ['monitor', 'monitor']);
+    d.dock.dispose();
+}
+{
+    // Dock height with the designer (plan 4b): the first, unsaved height in Design mode is at most
+    // 30 % of the window; Code mode and a missing designer keep the 220 px default; a height the
+    // user drags or saved wins up to 70 % of the window, and the separator states the shown height.
+    const shown = d => { const h = d.dock.el.childNodes[0]; return [d.dock.el.style.props['--cc-dock-h'], h.getAttribute('aria-valuenow'), h.getAttribute('aria-valuemax')]; };
+    const designer = (d, mode) => { d.inst.root.clientHeight = 600; d.inst.designer = {}; d.inst.mode = mode; d.inst.bus.emit('mode:changed', mode); };
+    let d = makeDock(null);
+    d.inst.root.clientHeight = 600;
+    d.inst.bus.emit('mode:changed', 'design');
+    eq('without the designer the default stays 220 px', shown(d), ['220px', '220', '420']);
+    designer(d, 'design');
+    eq('Design mode limits the unsaved default to 30 % of the window', shown(d), ['180px', '180', '420']);
+    d.dock.show('problems');
+    eq('a tab switch saves no height of its own', [d.prefs().h, d.prefs().custom], [220, undefined]);
+    designer(d, 'code');
+    eq('Code mode keeps the 220 px default', shown(d), ['220px', '220', '420']);
+    designer(d, 'design');
+    const handle = d.dock.el.childNodes[0];
+    handle.dispatch('pointerdown', { clientY: 400, pointerId: 1 });
+    handle.dispatch('pointermove', { clientY: 200, pointerId: 1 });
+    handle.dispatch('pointerup', { pointerId: 1 });
+    eq('a drag starts at the shown height and is the user\'s height', [shown(d), d.prefs().h, d.prefs().custom], [['380px', '380', '420'], 380, true]);
+    designer(d, 'code');
+    designer(d, 'design');
+    eq('a mode switch keeps the user\'s height', shown(d), ['380px', '380', '420']);
+    d.dock.dispose();
+    d = makeDock({ h: 380, custom: true, tab: 'log' }, null, null, 600);
+    designer(d, 'design');
+    eq('a saved user height wins over the Design mode default', shown(d), ['380px', '380', '420']);
+    d.dock.dispose();
+    d = makeDock({ h: 220, tab: 'problems' });
+    designer(d, 'design');
+    eq('a default height saved by a tab switch is no user height', shown(d), ['180px', '180', '420']);
+    d.dock.el.childNodes[0].dispatch('keydown', { key: 'ArrowUp' });
+    eq('a key step starts at the shown height and is the user\'s height', [shown(d), d.prefs().h, d.prefs().custom], [['204px', '204', '420'], 204, true]);
+    d.dock.dispose();
+    d = makeDock({ h: 500, tab: 'log' }, null, null, 600);
+    designer(d, 'design');
+    eq('a saved height above 70 % shows the maximum and states it', shown(d), ['420px', '420', '420']);
     d.dock.dispose();
 }
 {

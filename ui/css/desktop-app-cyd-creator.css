@@ -822,11 +822,9 @@
 /* ── window height ──────────────────────────────────────────────────────────── */
 /* The designer's panels are tall (the inspector runs to ~1200 px). As flex basis of the project
    column they would let the dock absorb all the shrinking (down to its tab bar), so project and
-   workbench start from 0 and take the room the dock leaves. In Design mode the dock takes at most
-   30 % of the window (only windows below ~730 px reach it), so small windows keep a canvas; Code
-   mode keeps the shell's dock height. */
+   workbench start from 0 and take the room the dock leaves. The dock keeps the height the user
+   chose; its first height in Design mode is at most 30 % of the window (cyd-creator-dock.js). */
 .cc-app:not(.no-designer) .cc-project, .cc-app:not(.no-designer) .cc-workbench { flex-basis: 0; }
-.cc-app:not(.no-designer):not([data-cc-mode="code"]) .cc-dock { max-height: 30%; }
 
 /* ── narrow windows ─────────────────────────────────────────────────────────── */
 /* The shell hides .cc-left at ≤ 820 px (Code mode needs no left column). In Design mode screens,
@@ -855,7 +853,7 @@
    system colour (Highlight) or an outline here; the shell's Design/Code switch is included. */
 @media (forced-colors: active) {
     .cc-app .cc-device-frame, .cc-app .cc-screen-host, .cc-drag-ghost, .cc-app .cc-swatch, .cc-app .cc-issue-dot, .cc-app .cc-guide { forced-color-adjust: none; }
-    .cc-app .cc-sel { border-color: Highlight; box-shadow: 0 0 0 1px Canvas; }
+    .cc-app .cc-sel { border-color: Highlight; }
     .cc-app .cc-handle { border-color: Canvas; background: Highlight; }
     .cc-app .cc-marquee { border-color: Highlight; }
     .cc-app .cc-drop { outline-color: Highlight; }

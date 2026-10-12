@@ -79,6 +79,18 @@ func TestCYDCreatorDesignerStaticContracts(t *testing.T) {
 		checkCYDDesignerSectionTokens(t, css, section)
 		checkCYDDesignerScope(t, section)
 		checkCYDDesignerStageMetrics(t, section)
+		// The dock keeps the height the user drags (cyd-creator-dock.js limits only its first,
+		// unsaved height in Design mode): no designer rule caps or sets it.
+		for _, rule := range cydCSSRules(section) {
+			if !cydTargets(rule, "cc-dock") {
+				continue
+			}
+			for _, d := range cydDeclarations(rule.body) {
+				if strings.Contains(d[0], "height") || strings.Contains(d[0], "block-size") {
+					t.Errorf("%s { %s: %s }: the dock's height belongs to cyd-creator-dock.js (the user's resize)", rule.selector, d[0], d[1])
+				}
+			}
+		}
 		// Narrow windows: the shell hides .cc-left at ≤ 820 px; Design mode must bring screens,
 		// layers and palette back (Code mode keeps the shell layout).
 		for _, marker := range []string{"@container cc-app (max-width: 820px)", `.cc-app:not(.no-designer):not([data-cc-mode="code"]) .cc-left { display: grid;`} {

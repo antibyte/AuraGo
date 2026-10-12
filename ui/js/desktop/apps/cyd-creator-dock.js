@@ -9,6 +9,10 @@
     const PREFS_KEY = 'aurago.cydcreator.dock.v1';
     const LOG_MAX_LINES = 5000;
     const MIN_HEIGHT = 120;
+    const DEFAULT_HEIGHT = 220;
+    // Until the user resizes the dock, it takes at most this share of the window in Design mode with
+    // the designer (plan 4b), so a small window keeps the canvas.
+    const DESIGN_SHARE = 0.3;
     const TAB_ORDER = { log: 0, monitor: 1, problems: 2 };
     const ACTIVE_BUILD = new Set(['queued', 'running']);
 
@@ -44,7 +48,12 @@
         const { el, bag } = P.util;
         const t = inst.t;
         const b = bag();
-        const prefs = Object.assign({ h: 220, collapsed: false, tab: 'log' }, readPrefs());
+        const saved = readPrefs();
+        const prefs = Object.assign({ h: DEFAULT_HEIGHT, collapsed: false, tab: 'log' }, saved);
+        // custom: the user chose the height (drag or keys, here or in an earlier window); prefs saved
+        // before the flag existed count when they hold another height than the default.
+        let custom = prefs.custom === true || (Number.isFinite(saved.h) && saved.h !== DEFAULT_HEIGHT);
+        let shownHeight = prefs.h;
         // Restoring the saved tab while the dock is built must not expand a collapsed dock.
         const startCollapsed = !!prefs.collapsed;
         const tabs = new Map();
@@ -170,22 +179,35 @@
             writePrefs(prefs);
             followTail();
         }
-        function setHeight(h) {
+        // setHeight shows h within MIN_HEIGHT and 70 % of the window; byUser stores it as the user's
+        // height. The separator states the shown height.
+        function setHeight(h, byUser) {
             const max = Math.max(160, Math.round((inst.root.clientHeight || 800) * 0.7));
-            prefs.h = Math.round(P.util.clamp(h, MIN_HEIGHT, max));
-            root.style.setProperty('--cc-dock-h', prefs.h + 'px');
+            shownHeight = Math.round(P.util.clamp(h, MIN_HEIGHT, max));
+            if (byUser) {
+                custom = true;
+                prefs.custom = true;
+                prefs.h = shownHeight;
+            }
+            root.style.setProperty('--cc-dock-h', shownHeight + 'px');
             handle.setAttribute('aria-valuemin', String(MIN_HEIGHT));
             handle.setAttribute('aria-valuemax', String(max));
-            handle.setAttribute('aria-valuenow', String(prefs.h));
+            handle.setAttribute('aria-valuenow', String(shownHeight));
+        }
+        // startHeight: the user's height; else the default, in Design mode with the designer at most
+        // DESIGN_SHARE of the window. Re-applied on mode changes until the user resizes the dock.
+        function startHeight() {
+            if (custom || inst.mode === 'code' || !inst.designer) return prefs.h;
+            return Math.min(prefs.h, Math.max(MIN_HEIGHT, Math.round((inst.root.clientHeight || 800) * DESIGN_SHARE)));
         }
         b.on(toggleBtn, 'click', () => setCollapsed(!prefs.collapsed));
         b.on(handle, 'pointerdown', event => {
             if (event.button !== 0) return;
             event.preventDefault();
             const startY = event.clientY;
-            const startH = prefs.h;
+            const startH = shownHeight;
             handle.setPointerCapture(event.pointerId);
-            const move = e => setHeight(startH + (startY - e.clientY));
+            const move = e => setHeight(startH + (startY - e.clientY), true);
             const up = () => {
                 handle.removeEventListener('pointermove', move);
                 handle.removeEventListener('pointerup', up);
@@ -199,7 +221,7 @@
         b.on(handle, 'keydown', event => {
             if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
             event.preventDefault();
-            setHeight(prefs.h + (event.key === 'ArrowUp' ? 24 : -24));
+            setHeight(shownHeight + (event.key === 'ArrowUp' ? 24 : -24), true);
             writePrefs(prefs);
         });
 
@@ -505,7 +527,7 @@
         registerTab('problems', { labelKey: 'cyd_creator.dock.problems', mount: panel => { panel.appendChild(problemsPanel); } });
         if (!state.current) show(tabs.has(prefs.tab) ? prefs.tab : 'log', true);
         setCollapsed(startCollapsed);
-        setHeight(prefs.h);
+        setHeight(startHeight());
         renderBuildStatus();
         renderProblems();
 
@@ -515,6 +537,8 @@
             pushLines(data.lines);
         }));
         b.add(inst.bus.on('layout:issues', issues => setIssues(issues)));
+        // The app sets the mode once the designer is mounted (and on every switch).
+        b.add(inst.bus.on('mode:changed', () => { if (!custom) setHeight(startHeight()); }));
         // Live lines of a running build are ephemeral: after every (re)connect, the first one too
         // (lines between the HTTP snapshot and the subscription), read its log again.
         b.add(inst.bus.on('sse:stream_ready', () => {
