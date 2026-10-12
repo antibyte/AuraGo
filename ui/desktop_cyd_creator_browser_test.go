@@ -262,13 +262,17 @@ type cydCreatorSmoke struct {
 	dir  string
 }
 
-// startCYDCreatorSmoke serves the desktop shell with the aurora and CYD Creator fixtures and opens
-// CYD Creator in a 1440×900 page.
-func startCYDCreatorSmoke(t *testing.T) *cydCreatorSmoke {
+// startCYDCreatorSmoke serves the desktop shell with the aurora and CYD Creator fixtures (plus the
+// extra fixture scripts, loaded after cyd-creator-fixture.js) and opens CYD Creator in a 1440×900 page.
+func startCYDCreatorSmoke(t *testing.T, extraScripts ...string) *cydCreatorSmoke {
 	t.Helper()
 	html := regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(readDesktopAssetText(t, "desktop.html"), "")
 	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
-	html = strings.Replace(html, "</body>", `<script src="/js/shared/lazy-assets.js"></script><script src="/js/desktop/core/module-loader.js"></script><script src="/cyd-creator-shell.js"></script><script src="/testdata/aurora-fixture.js"></script><script src="/testdata/cyd-creator-fixture.js"></script></body>`, 1)
+	extra := ""
+	for _, src := range extraScripts {
+		extra += `<script src="` + src + `"></script>`
+	}
+	html = strings.Replace(html, "</body>", `<script src="/js/shared/lazy-assets.js"></script><script src="/js/desktop/core/module-loader.js"></script><script src="/cyd-creator-shell.js"></script><script src="/testdata/aurora-fixture.js"></script><script src="/testdata/cyd-creator-fixture.js"></script>`+extra+`</body>`, 1)
 	shell := readDesktopAssetText(t, "js/desktop/bundles/main.bundle.js")
 	cut := strings.LastIndex(shell, "    ensureDesktopRadialMenuAnchor();")
 	if cut < 0 {
