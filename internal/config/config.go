@@ -1172,6 +1172,12 @@ func Load(path string) (*Config, error) {
 	if cfg.Go2RTC.WebRTC.Port <= 0 {
 		cfg.Go2RTC.WebRTC.Port = 8555
 	}
+	// Person detection: defaults for unset values, then the same validation the
+	// config UI and the camera app apply before they write the file.
+	NormalizeGo2RTCDetection(&cfg.Go2RTC)
+	if err := ValidateGo2RTCDetection(cfg.Go2RTC); err != nil {
+		return nil, fmt.Errorf("invalid go2rtc detection config: %w", err)
+	}
 	cfg.LocalLLM.Backend = strings.ToLower(strings.TrimSpace(cfg.LocalLLM.Backend))
 	if cfg.LocalLLM.Backend == "" {
 		cfg.LocalLLM.Backend = "auto"

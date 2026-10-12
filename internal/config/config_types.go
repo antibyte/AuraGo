@@ -300,13 +300,57 @@ const (
 	ProxyBasicAuthPasswordVaultKey = "proxy_basic_auth_pass"
 )
 
+// Go2RTCDetectionWindow is one weekly arming window of person detection.
+type Go2RTCDetectionWindow struct {
+	Days []string `yaml:"days" json:"days"` // mon tue wed thu fri sat sun
+	From string   `yaml:"from" json:"from"` // HH:MM
+	To   string   `yaml:"to" json:"to"`     // HH:MM; To <= From crosses midnight
+}
+
+// Go2RTCDetectionConfig holds the global person-detection settings (go2rtc.detection).
+type Go2RTCDetectionConfig struct {
+	Enabled       bool                    `yaml:"enabled" json:"enabled"`
+	Model         string                  `yaml:"model" json:"model"`
+	Backend       string                  `yaml:"backend" json:"backend"`
+	RetentionDays int                     `yaml:"retention_days" json:"retention_days"`
+	MaxStorageMB  int                     `yaml:"max_storage_mb" json:"max_storage_mb"`
+	Schedule      []Go2RTCDetectionWindow `yaml:"schedule" json:"schedule"`
+}
+
+// Go2RTCDetectionZone is a named polygon of normalized [x, y] points.
+type Go2RTCDetectionZone struct {
+	Name   string       `yaml:"name" json:"name"`
+	Points [][2]float64 `yaml:"points" json:"points"`
+}
+
+// Go2RTCDetectionActions selects the alerts of one camera.
+type Go2RTCDetectionActions struct {
+	Message          bool   `yaml:"message" json:"message"`
+	Channel          string `yaml:"channel" json:"channel"`
+	Agent            bool   `yaml:"agent" json:"agent"`
+	AgentInstruction string `yaml:"agent_instruction" json:"agent_instruction"`
+	Desktop          bool   `yaml:"desktop" json:"desktop"`
+}
+
+// Go2RTCStreamDetectionConfig is the per-camera person-detection setting
+// (go2rtc.streams[].detection). IntervalSeconds == 0 means "never configured".
+type Go2RTCStreamDetectionConfig struct {
+	Enabled         bool                   `yaml:"enabled" json:"enabled"`
+	IntervalSeconds int                    `yaml:"interval_seconds" json:"interval_seconds"`
+	MinScore        float64                `yaml:"min_score" json:"min_score"`
+	CooldownSeconds int                    `yaml:"cooldown_seconds" json:"cooldown_seconds"`
+	Zones           []Go2RTCDetectionZone  `yaml:"zones" json:"zones"`
+	Actions         Go2RTCDetectionActions `yaml:"actions" json:"actions"`
+}
+
 // Go2RTCStreamConfig describes one stable, user-visible stream. Source is vault-only.
 type Go2RTCStreamConfig struct {
-	ID               string `yaml:"id" json:"id"`
-	Name             string `yaml:"name" json:"name"`
-	Enabled          bool   `yaml:"enabled" json:"enabled"`
-	Source           string `yaml:"-" json:"-"`
-	SourceConfigured bool   `yaml:"-" json:"source_configured"`
+	ID               string                      `yaml:"id" json:"id"`
+	Name             string                      `yaml:"name" json:"name"`
+	Enabled          bool                        `yaml:"enabled" json:"enabled"`
+	Source           string                      `yaml:"-" json:"-"`
+	SourceConfigured bool                        `yaml:"-" json:"source_configured"`
+	Detection        Go2RTCStreamDetectionConfig `yaml:"detection" json:"detection"`
 }
 
 // Go2RTCWebRTCConfig controls the optional direct LAN media listener.
@@ -318,18 +362,19 @@ type Go2RTCWebRTCConfig struct {
 
 // Go2RTCConfig holds settings for AuraGo's managed go2rtc sidecar.
 type Go2RTCConfig struct {
-	Enabled       bool                 `yaml:"enabled" json:"enabled"`
-	AutoStart     bool                 `yaml:"auto_start" json:"auto_start"`
-	WebUIEnabled  bool                 `yaml:"web_ui_enabled" json:"web_ui_enabled"`
-	AgentAccess   bool                 `yaml:"agent_access" json:"agent_access"`
-	StoreMedia    bool                 `yaml:"store_media" json:"store_media"`
-	Image         string               `yaml:"image" json:"image"`
-	ContainerName string               `yaml:"container_name" json:"container_name"`
-	URL           string               `yaml:"url" json:"url"`
-	APIHostPort   int                  `yaml:"api_host_port" json:"api_host_port"`
-	WebRTC        Go2RTCWebRTCConfig   `yaml:"webrtc" json:"webrtc"`
-	Streams       []Go2RTCStreamConfig `yaml:"streams" json:"streams"`
-	APIPassword   string               `yaml:"-" json:"-"`
+	Enabled       bool                  `yaml:"enabled" json:"enabled"`
+	AutoStart     bool                  `yaml:"auto_start" json:"auto_start"`
+	WebUIEnabled  bool                  `yaml:"web_ui_enabled" json:"web_ui_enabled"`
+	AgentAccess   bool                  `yaml:"agent_access" json:"agent_access"`
+	StoreMedia    bool                  `yaml:"store_media" json:"store_media"`
+	Image         string                `yaml:"image" json:"image"`
+	ContainerName string                `yaml:"container_name" json:"container_name"`
+	URL           string                `yaml:"url" json:"url"`
+	APIHostPort   int                   `yaml:"api_host_port" json:"api_host_port"`
+	WebRTC        Go2RTCWebRTCConfig    `yaml:"webrtc" json:"webrtc"`
+	Streams       []Go2RTCStreamConfig  `yaml:"streams" json:"streams"`
+	Detection     Go2RTCDetectionConfig `yaml:"detection" json:"detection"`
+	APIPassword   string                `yaml:"-" json:"-"`
 }
 
 const (
