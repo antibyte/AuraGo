@@ -210,6 +210,16 @@ func TestValidateDeviceURLIsTheConfigBlobRule(t *testing.T) {
 		{"https://x.example:65536", pin, "device_url"},
 		{"http://x.example:", "", "device_url"},
 		{"http://:80", "", "device_url"},
+		// url.Parse tolerates these, the firmware's host/port split
+		// (everything before the last ':' is the host) does not.
+		{"http://fe80::1", "", "device_url"},
+		{"http://x.example:80:90", "", "device_url"},
+		{"http://a%C3%A4b", "", "device_url"},
+		{"http://a%41b.example", "", "device_url"},
+		{"http://a!b$c", "", "device_url"},
+		{"http://a_b.example", "", "device_url"},
+		{"https://aurago-1.lan:8443", pin, ""},
+		{"http://10.0.0.7", "", ""},
 		{"https://x.example", "", "cert_sha256"},
 		{"https://x.example", "abcd", "cert_sha256"},
 		{"https://x.example", strings.Repeat("AB", 32), "cert_sha256"},

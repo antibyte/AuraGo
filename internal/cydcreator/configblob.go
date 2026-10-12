@@ -63,6 +63,7 @@ func (c DeviceConfig) LogValue() slog.Value {
 var (
 	configTokenPattern = regexp.MustCompile(`^[A-Za-z0-9._~+/=-]+$`)
 	configCertPattern  = regexp.MustCompile(`^[0-9a-f]{64}$`)
+	deviceHostPattern  = regexp.MustCompile(`^[A-Za-z0-9.-]+$`)
 )
 
 // validate is the single gate for the encoder and the decoder. The URL and
@@ -88,7 +89,8 @@ func (c DeviceConfig) validate() error {
 // The firmware builds request URLs by string joining, checks the literal
 // prefix "https://", splits host and port with lastIndexOf(':') and casts the
 // port to uint16, so a URL is only accepted when it is plain ASCII, has no
-// credentials, query or fragment, no IPv6 literal and a port in 1..65535.
+// credentials, query or fragment, no IPv6 literal, a host of letters, digits,
+// dots and hyphens and a port in 1..65535.
 func deviceURLProblem(rawURL string) string {
 	if !strings.HasPrefix(rawURL, "https://") && !strings.HasPrefix(rawURL, "http://") {
 		return "url must start with http:// or https://"
@@ -111,6 +113,12 @@ func deviceURLProblem(rawURL string) string {
 	}
 	if u.Hostname() == "" { // "http://:80": url.Parse accepts it, the device cannot connect to it
 		return "url must have a host name"
+	}
+	// The firmware connects to the raw text between "//" and the last ':' (host
+	// names and IPv4 only): a %-escape, a sub-delimiter or a second colon that
+	// url.Parse tolerates would reach the device's DNS lookup as is.
+	if !deviceHostPattern.MatchString(u.Hostname()) {
+		return "url host must be a host name or an IPv4 address (letters, digits, dots and hyphens)"
 	}
 	if strings.HasSuffix(u.Host, ":") {
 		return "url port must be 1..65535"

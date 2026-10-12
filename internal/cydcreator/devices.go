@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	"unicode"
 	"unicode/utf8"
 )
 
@@ -140,14 +139,31 @@ func normalizeDeviceEndpoint(e DeviceEndpoint) (DeviceEndpoint, error) {
 	return DeviceEndpoint{URL: raw, CertSHA256: e.CertSHA256}, nil
 }
 
-// validDeviceName trims name and checks 1..64 characters without control characters.
+// validDeviceName trims name and checks 1..64 characters of valid UTF-8
+// without control characters, format characters (bidirectional overrides,
+// zero-width marks) or line/paragraph separators (planRuneNotAllowed).
 func validDeviceName(name string) (string, error) {
 	name = strings.TrimSpace(name)
-	if name == "" || utf8.RuneCountInString(name) > maxDeviceNameRunes || strings.IndexFunc(name, unicode.IsControl) >= 0 {
+	if name == "" || !utf8.ValidString(name) || utf8.RuneCountInString(name) > maxDeviceNameRunes ||
+		strings.IndexFunc(name, func(r rune) bool { return planRuneNotAllowed(r, false) }) >= 0 {
 		return "", NewError(CodeBadRequest,
-			fmt.Sprintf("device name must be 1..%d characters without control characters", maxDeviceNameRunes), nil)
+			fmt.Sprintf("device name must be 1..%d characters without control or format characters", maxDeviceNameRunes), nil)
 	}
 	return name, nil
+}
+
+// deviceIDPrefix starts every id MintDevice issues.
+const deviceIDPrefix = "ccd_"
+
+// validDeviceID reports an id the service could have issued ("ccd_" plus
+// element id characters); anything else is not found without a query.
+func validDeviceID(id string) bool {
+	return strings.HasPrefix(id, deviceIDPrefix) && validElementID(id)
+}
+
+// deviceNotFound is CYD_DEVICE_NOT_FOUND with the (clipped) id.
+func deviceNotFound(id string) error {
+	return NewError(CodeDeviceNotFound, "device not found", map[string]any{"device_id": clipEcho(id)})
 }
 
 // defaultDeviceName is "<project name> #<n>", shortening the project name so
@@ -205,9 +221,12 @@ func (s *Service) emitDevice(d deviceRow, now time.Time) Device {
 
 // loadDeviceRow returns the device or *Error CYD_DEVICE_NOT_FOUND.
 func (s *Service) loadDeviceRow(ctx context.Context, id string) (deviceRow, error) {
+	if !validDeviceID(id) {
+		return deviceRow{}, deviceNotFound(id)
+	}
 	d, err := scanDevice(s.db.QueryRowContext(ctx, `SELECT `+deviceColumns+` FROM cc_devices WHERE id=?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
-		return deviceRow{}, NewError(CodeDeviceNotFound, "device not found", map[string]any{"device_id": id})
+		return deviceRow{}, deviceNotFound(id)
 	}
 	if err != nil {
 		return deviceRow{}, fmt.Errorf("read cyd creator device: %w", err)
@@ -215,17 +234,36 @@ func (s *Service) loadDeviceRow(ctx context.Context, id string) (deviceRow, erro
 	return d, nil
 }
 
-// removeDevice deletes a device row and announces it as revoked.
+// removeDevice deletes a device row and announces it as revoked. Callers hold
+// the project lock (every cc_devices delete does, DeleteProject included), so
+// a writer that re-read the row under that lock never updates a deleted one.
 func (s *Service) removeDevice(ctx context.Context, d deviceRow, now time.Time) error {
 	res, err := s.db.ExecContext(ctx, `DELETE FROM cc_devices WHERE id=?`, d.ID)
 	if err != nil {
 		return fmt.Errorf("delete cyd creator device: %w", err)
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
-		return NewError(CodeDeviceNotFound, "device not found", map[string]any{"device_id": d.ID})
+		return deviceNotFound(d.ID)
 	}
 	d.Status = DeviceRevoked
 	s.emitDevice(d, now)
+	return nil
+}
+
+// saveDeviceSettings stores the user-editable fields of d (name, target,
+// last_error). A row that no longer exists is CYD_DEVICE_NOT_FOUND, so the
+// caller emits nothing (no "pending" event after the "revoked" one).
+func (s *Service) saveDeviceSettings(ctx context.Context, d deviceRow) error {
+	res, err := s.db.ExecContext(ctx, `UPDATE cc_devices SET name=?, target_build_id=?, last_error=? WHERE id=?`,
+		d.Name, d.TargetBuildID, d.LastError, d.ID)
+	if err != nil {
+		return fmt.Errorf("update cyd creator device: %w", err)
+	}
+	if n, err := res.RowsAffected(); err != nil {
+		return fmt.Errorf("update cyd creator device: %w", err)
+	} else if n == 0 {
+		return deviceNotFound(d.ID)
+	}
 	return nil
 }
 
@@ -317,16 +355,22 @@ func (s *Service) MintDevice(ctx context.Context, projectID string, in MintDevic
 		return MintedDevice{}, s.internalError("mint device", err)
 	}
 	s.purgeExpiredDevices(ctx, projectID)
-	var count int
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM cc_devices WHERE project_id=?`, projectID).Scan(&count); err != nil {
+	names, err := s.deviceNames(ctx, projectID)
+	if err != nil {
 		return MintedDevice{}, s.internalError("mint device", err)
 	}
-	if count >= maxDevicesPerProject {
+	if len(names) >= maxDevicesPerProject {
 		return MintedDevice{}, NewError(CodeBusy, "this project has too many devices; remove one first",
 			map[string]any{"limit": maxDevicesPerProject})
 	}
 	if name == "" {
-		name = defaultDeviceName(row.Name, count+1)
+		// The next number from count+1 on that no device uses: after a revoke
+		// count+1 may still be taken ("X #1", "X #3" → "X #4", never a second "X #3").
+		n := len(names) + 1
+		for names[defaultDeviceName(row.Name, n)] {
+			n++
+		}
+		name = defaultDeviceName(row.Name, n)
 	}
 	token, hash, err := newDeviceToken()
 	if err != nil {
@@ -351,12 +395,34 @@ func (s *Service) MintDevice(ctx context.Context, projectID string, in MintDevic
 	return MintedDevice{Device: s.emitDevice(d, now), ConfigBlob: blob, ConfigOffset: offset}, nil
 }
 
+// deviceNames returns the set of device names of a project (at most
+// maxDevicesPerProject rows) and, through its size, the device count.
+func (s *Service) deviceNames(ctx context.Context, projectID string) (map[string]bool, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT name FROM cc_devices WHERE project_id=?`, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	names := map[string]bool{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		names[name] = true
+	}
+	return names, rows.Err()
+}
+
 // ListDevices returns the devices of a project, oldest first. Pending devices
-// whose first heartbeat is overdue are removed first.
+// whose first heartbeat is overdue are removed first, under the project lock
+// like every other device write (lock order: project lock → eventsMu).
 func (s *Service) ListDevices(ctx context.Context, projectID string) ([]Device, error) {
 	if _, err := s.loadProjectRow(ctx, projectID); err != nil {
 		return nil, s.internalError("list devices", err)
 	}
+	unlock := s.lockProject(projectID)
+	defer unlock()
 	s.purgeExpiredDevices(ctx, projectID)
 	rows, err := s.db.QueryContext(ctx, `SELECT `+deviceColumns+` FROM cc_devices WHERE project_id=? ORDER BY created_at, id`, projectID)
 	if err != nil {
@@ -395,7 +461,7 @@ func (s *Service) UpdateDevice(ctx context.Context, deviceID string, in DeviceUp
 	now := s.now()
 	if deviceExpired(d, now) {
 		_ = s.removeDevice(ctx, d, now)
-		return Device{}, NewError(CodeDeviceNotFound, "device not found", map[string]any{"device_id": deviceID})
+		return Device{}, deviceNotFound(deviceID)
 	}
 	if in.Name != nil {
 		name, err := validDeviceName(*in.Name)
@@ -421,8 +487,7 @@ func (s *Service) UpdateDevice(ctx context.Context, deviceID string, in DeviceUp
 			d.LastError = ""
 		}
 	}
-	if _, err := s.db.ExecContext(ctx, `UPDATE cc_devices SET name=?, target_build_id=?, last_error=? WHERE id=?`,
-		d.Name, d.TargetBuildID, d.LastError, d.ID); err != nil {
+	if err := s.saveDeviceSettings(ctx, d); err != nil {
 		return Device{}, s.internalError("update device", err)
 	}
 	return s.emitDevice(d, now), nil
