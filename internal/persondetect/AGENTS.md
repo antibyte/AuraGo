@@ -2,19 +2,31 @@
 
 ## Purpose
 
-D-FINE person detector for the Network Cameras detection mode: pinned model manifest, frame preprocessing and
-person decoding, detection-set comparison, the WebGPU model patcher, the `aurago --person-detect-worker
-prepare|serve` worker, and `NewDetector` (backend selection, GPU model cache, self-test acceptance,
-supervision and restarts). The package is camera-independent and holds no config, store, scheduler, server
-or UI code. Design: spec `docs/superpowers/specs/2026-10-11-network-cameras-person-detection-design.md` and
-plans `docs/superpowers/plans/2026-10-11-person-detection-*.md` (detector API C2 and worker protocol C3 in the
-overview; local, git-ignored).
+Person detection for the Network Cameras detection mode, in two layers:
+
+- the D-FINE detector: pinned model manifest, frame preprocessing and person decoding, detection-set
+  comparison, the WebGPU model patcher, the `aurago --person-detect-worker prepare|serve` worker, and
+  `NewDetector` (backend selection, GPU model cache, self-test acceptance, supervision and restarts);
+- the detection `Service` (C4): zones, arming and schedule, the per-camera event tracker, the event store
+  (`detections.db` plus image files), retention, the round-robin frame scheduler, status, on-demand test,
+  retry, and the alert contract (`AlertDispatcher`, `FireSet`, `AlertEvent`; the dispatcher itself is slice 3).
+
+The package holds no config, HTTP or UI code: it does not import `internal/config`. Design: spec
+`docs/superpowers/specs/2026-10-11-network-cameras-person-detection-design.md` and plans
+`docs/superpowers/plans/2026-10-11-person-detection-*.md` (detector API C2, worker protocol C3, service API C4,
+config C5 and HTTP API C6 in the overview; local, git-ignored).
 
 ## Ownership
 
 `internal/persondetect` owns everything above, including the JSON-lines worker protocol, which has two ends in
 this package: the worker (`worker.go`, `serve.go`, `protocol.go`, `engine.go`) and the client
-(`worker_process.go`, `supervisor.go`, `detector.go`, `gpumodel.go`). Change both together. ONNX Runtime, the
+(`worker_process.go`, `supervisor.go`, `detector.go`, `gpumodel.go`). Change both together. The service lives
+in `settings.go`, `api_types.go`, `alert_types.go`, `alert_rules.go`, `zones.go`, `arming.go`, `tracker.go`,
+`store.go`, `images.go`, `retention.go`, `scheduler.go` and `service*.go`; `persondetecttest` holds the fakes
+that this package's external tests and `internal/server` use. `internal/server/person_detection.go` maps the
+config snapshot to `Settings` on every publication (go2rtc stream ids are camera ids; zone points within 0.01
+of a frame edge snap to it there) and supplies the go2rtc frame source;
+`internal/server/go2rtc_detection_handlers.go` serves the C6 API. ONNX Runtime, the
 asset cache and worker process environment belong to `internal/onnxrt` (`internal/onnxrt/AGENTS.md`).
 `cmd/aurago/main.go` dispatches the worker through `persondetect.WorkerFlag` before any
 initialization, so stdout carries only the JSON protocol and no config, log or database setup runs in the
@@ -140,6 +152,46 @@ worker. ONNX Runtime is loaded only in worker subprocesses; the one in-process l
   Non-JSON stdout lines go to the log, stdout lines over 1 MiB are skipped.
 - `Close` asks the worker to exit (2 s), then kills it; afterwards every `Detect` returns `ErrDetectorClosed`.
 
+### Service (C4)
+
+- Storage: `<data>/go2rtc/detections.db` (`DetectionsPaths`) with the tables `events`, `frames`, `arm_log` and
+  `state`. Every write is one transaction stamped with the next value of one revision sequence (`rev_seq`);
+  each row carries the `rev` of its last write, and `Status.Cursor` is the newest revision. Images live
+  under `<data>/go2rtc/detections/YYYY/MM/DD/<camera>/<event>_<seq>.jpg` plus `_thumb.jpg` (UTC date,
+  320 px, q80), 0640 files and 0750 directories, written as temp file plus rename without fsync (a power
+  loss can leave a 0-byte file; the HTTP API answers it as not found). Schema changes are appended
+  migrations (`eventStoreMigrations`); never change an existing step.
+- Ids: event, frame and arm-log ids and the revision are seeded from `UnixMilli` when the database is
+  created, so they never repeat across database resets (image URLs are cached as immutable) and start
+  around 1.8e12. Parse them with `strconv.ParseInt(s, 10, 64)`, never `int`/`Atoi` (armv6/armv7 overflow);
+  they stay below 2^53 for JavaScript. A corrupt database is moved aside and its images are kept in
+  `detections.orphaned-<ts>`.
+- Change feed: `Changes(0)` is a snapshot, not a replay: the newest ≤ 200 events and arm-log rows
+  (ascending) with `cursor = status.cursor`. A cursor above 0 returns rows with a revision in
+  `(cursor, status.cursor]`, about 200 per list; a page never splits a revision (one write can stamp
+  several rows), and when a list was capped the cursor is its last delivered revision, so the next call
+  continues there. There are no deletion tombstones: clients treat a 404 on a listed event as deleted.
+  `Changes` fails only on a database read error; while detection is off or the database is not open it
+  returns the status with empty lists.
+- JSON (`api_types.go`): every list is `[]`, never `null`; optional values (pointer fields such as
+  `ended_at`, `cover_frame_id`, `next_change`) are JSON `null`; timestamps are UTC truncated to
+  milliseconds, in memory and in the store; ids are numbers.
+- Stored frame boxes (`EventFrame.Boxes`) are only the boxes that count (score at or above the camera
+  threshold and a foot point in a zone, or every such box when the camera has no zones), so they match
+  the frame score and the alert photo. `Test` keeps the counted/ignored view of every box at
+  `TestMinScore`.
+- Lock order: `armMu` before `mu`; `trackMu` before `mu`; code holding `mu` never takes `trackMu` or
+  `armMu`; `detectMu` is held only around `Detect` and `Close`. Nothing slow runs under `mu`, so
+  `Configure` (called under the server's config lock) and `Status` never wait for I/O.
+- Opening `detections.db` (integrity check, seconds on a large database) runs in the background. While it
+  runs, or after it failed, an enabled service answers the store-backed calls with `ErrUnavailable`
+  (HTTP 503 `detection_unavailable`), never `ErrDisabled` ("switched off"); `Retry` and the next
+  `Configure` try again. A switched-off service still opens an existing database, so stored events stay
+  readable.
+- `Configure` is idempotent; the detector is rebuilt only when `Enabled`, `Model` or `Backend` change.
+  The schedule is evaluated in `Settings.Location` (the server's `time.Local`). Cooldowns are per camera
+  and per action since that action's last sent alert, in memory only.
+
 ## Work Guidance
 
 - Unit tests never download or load ONNX Runtime: the test binary acts as the worker through `TestMain` (the
@@ -148,9 +200,10 @@ worker. ONNX Runtime is loaded only in worker subprocesses; the one in-process l
 
 ## Verification
 
-- `go test ./internal/persondetect/ ./internal/onnxrt/ ./cmd/aurago/ -count=1`; the notice and routing
-  checks `go test ./internal/audit/ -run '(?i)(TestPersonDetection)' -count=1`; `gofmt -l`; `go vet` for
-  windows/amd64, linux/amd64, linux/arm64 and darwin/arm64; `go build ./...`.
+- `go test ./internal/persondetect/... ./internal/onnxrt/ ./cmd/aurago/ -count=1`; the server side
+  `go test ./internal/server/ -run '(?i)(PersonDetection|Go2RTCDetection|Go2RTCStreamPatch|Go2RTCAppState)' -count=1`;
+  the notice and routing checks `go test ./internal/audit/ -run '(?i)(TestPersonDetection)' -count=1`;
+  `gofmt -l`; `go vet` for windows/amd64, linux/amd64, linux/arm64 and darwin/arm64; `go build ./...`.
 - Opt-in real runs download the pinned model(s) and runtime and need `-timeout 30m`:
   `AURAGO_PERSONDETECT_INTEGRATION=1 go test ./internal/persondetect/ -run '^(TestPrepareIntegration|TestDetectorIntegrationCPU)$' -count=1 -timeout 30m -v`.
   Add `AURAGO_PERSONDETECT_GPU=1` and `TestDetectorIntegrationGPU` for the WebGPU path (needs a GPU; it fails

@@ -51,6 +51,7 @@ import (
 	"aurago/internal/newspaper"
 	"aurago/internal/onvif"
 	"aurago/internal/personalradio"
+	"aurago/internal/persondetect"
 	"aurago/internal/planner"
 	"aurago/internal/proxy"
 	"aurago/internal/remote"
@@ -208,6 +209,9 @@ type Server struct {
 	retroGamesBeforeConfigure func()     // test seam: runs in syncRetroGamesSettings after the snapshot is read
 	localLLMLifecycleCtx      context.Context
 	Go2RTCDiscovery           *onvif.Service
+	PersonDetect              *persondetect.Service
+	personDetectSyncMu        sync.Mutex  // one step from reading the config snapshot to configuring PersonDetect
+	personDetectStarted       atomic.Bool // set by Start; publications configure PersonDetect only afterwards
 	MeshCore                  *meshcore.Manager
 	Bluetooth                 *bluetooth.Manager
 	NetworkShares             *networkshares.Manager
@@ -561,6 +565,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 		// The Retro Games Desktop app appears or disappears with the switch.
 		s.announceRetroGamesAvailability()
 	}
+	// Person detection follows every publication (go2rtc settings, UI language);
+	// Configure is idempotent and never blocks this CfgMu-held path.
+	s.syncPersonDetectionSettings()
 	if s.WarningsRegistry != nil {
 		// Provider metadata probes may perform bounded network I/O. Keep config
 		// publication non-blocking while still reconciling stale warnings.
@@ -728,12 +735,16 @@ func Start(opts StartOptions) error {
 			withdrawLocalWikipediaTool(s.LocalWiki)
 		}
 		withdrawRetroGamesTool(s.RetroGames)
+		s.shutdownPersonDetection(context.Background())
 		serverCancel()
 		return err
 	}
 	if s.Go2RTC != nil {
 		s.Go2RTC.StartBackground(serverCtx)
 	}
+	// Person detection pulls frames through the go2rtc manager started above and
+	// follows the config snapshot from here on.
+	s.startPersonDetection()
 	if s.RuView != nil {
 		s.RuView.StartBackground(serverCtx)
 	}
@@ -792,6 +803,9 @@ func Start(opts StartOptions) error {
 			gamemaker.SetDefaultService(nil)
 		}
 		s.shutdownCYDCreator()
+		detectCtx, detectCancel := context.WithTimeout(context.Background(), 15*time.Second)
+		s.shutdownPersonDetection(detectCtx)
+		detectCancel()
 		if s.Go2RTC != nil {
 			s.Go2RTC.Close()
 		}
@@ -1759,6 +1773,8 @@ func newServerFromOptions(opts StartOptions) *Server {
 	acestep.SetDefault(s.LocalMusic)
 	s.Go2RTCDiscovery = onvif.NewService(cfg.Runtime.BroadcastOK)
 	tools.SetDefaultGo2RTCManager(s.Go2RTC)
+	s.PersonDetect = newPersonDetectionService(s, logger)
+	persondetect.SetDefault(s.PersonDetect)
 	s.LocalWiki = newLocalWikipediaManager(cfg, logger)
 	publishLocalWikipediaTool(s.LocalWiki)
 	s.RetroGames = newRetroGamesService(cfg, logger)
