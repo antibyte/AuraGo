@@ -2,10 +2,12 @@
 // Runs the pure CYD Creator designer modules (geometry, model, render) in Node and checks them:
 // snapping and guides, resize/align/distribute maths, the layout store (history, coalescing,
 // origins), every layout op incl. reparenting and tabs (structural mirror of Go ApplyOps), name
-// rules incl. reserved names, and a render smoke test of all 26 widget types in every theme through
-// the string serialiser. Capabilities come from ui/testdata/cyd_creator_designer_caps.json (kept
-// equal to internal/cydcreator by TestCYDCreatorDesignerCapsFixtureMatchesCatalog). P.util comes
-// from the real cyd-creator-core.js (plan 4a), which runs in Node and loads first.
+// rules incl. reserved names, a render smoke test of all 26 widget types in every theme through
+// the string serialiser, and the interaction module (gestures, palette drag, keyboard) through the
+// real designer and store on a minimal fake DOM. Capabilities come from
+// ui/testdata/cyd_creator_designer_caps.json (kept equal to internal/cydcreator by
+// TestCYDCreatorDesignerCapsFixtureMatchesCatalog). P.util comes from the real cyd-creator-core.js
+// (plan 4a), which runs in Node and loads first.
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -517,6 +519,227 @@ const hBar = R.html(R.tree(specs.get('bar'), { type: 'bar', w: 160, h: 20, props
 const vSlider = R.html(R.tree(specs.get('slider'), { type: 'slider', w: 24, h: 160, props: { value: 25 } }, night, {}));
 check('bar fills from the bottom when taller than wide', vBar.includes('bottom:0;height:30%') && hBar.includes('width:30%;height:100%'), vBar);
 check('slider runs vertically when taller than wide', vSlider.includes('height:25%') && vSlider.includes('top:calc(75% - 17px)'), vSlider);
+
+// ── interact (cyd-creator-interact.js) through the real designer on a minimal fake DOM ──
+// The designer mounts a stand-in canvas (records previews and re-renders); interact gets real
+// pointer and key events dispatched with bubbling, and every edit must reach the real store.
+class El {
+    constructor(tag, data) {
+        this.tagName = tag.toUpperCase();
+        this.dataset = Object.assign({}, data);
+        this.attrs = {};
+        this.parent = null;
+        this.kids = [];
+        this.listeners = {};
+        this.captured = new Set();
+        this.clientWidth = 600;
+        this.clientHeight = 400;
+        const cls = new Set();
+        this.classList = { add: n => cls.add(n), remove: n => cls.delete(n), contains: n => cls.has(n), toggle: (n, on) => { const want = on === undefined ? !cls.has(n) : !!on; if (want) cls.add(n); else cls.delete(n); return want; } };
+        this.style = { setProperty(k, v) { this[k] = String(v); } };
+    }
+    appendChild(c) { if (c.parent) c.remove(); c.parent = this; this.kids.push(c); return c; }
+    remove() { if (this.parent) this.parent.kids.splice(this.parent.kids.indexOf(this), 1); this.parent = null; }
+    setAttribute(k, v) { this.attrs[k] = String(v); }
+    addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
+    removeEventListener(type, fn) { this.listeners[type] = (this.listeners[type] || []).filter(f => f !== fn); }
+    setPointerCapture(id) { this.captured.add(id); }
+    hasPointerCapture(id) { return this.captured.has(id); }
+    releasePointerCapture(id) { this.captured.delete(id); }
+    focus() { fakeDoc.activeElement = this; }
+    contains(n) { for (let x = n; x; x = x.parent) if (x === this) return true; return false; }
+    // Selectors: tag, [attr], [attr="v"], [attr]:not([attr="v"]), comma lists.
+    matches(sel) {
+        return sel.split(',').some(part => {
+            const m = /^([a-z]+)?(?:\[([a-z-]+)(?:="([^"]*)")?\])?(?::not\(\[([a-z-]+)="([^"]*)"\]\))?$/.exec(part.trim());
+            if (!m) throw new Error('fake DOM: unsupported selector ' + part);
+            const [, tag, attr, want, notAttr, notValue] = m;
+            const value = a => (a.startsWith('data-') ? this.dataset[a.slice(5).replace(/-([a-z])/g, (_, c) => c.toUpperCase())] : this.attrs[a]);
+            if (tag && this.tagName !== tag.toUpperCase()) return false;
+            if (attr && (value(attr) === undefined || (want !== undefined && value(attr) !== want))) return false;
+            return !(notAttr && value(notAttr) === notValue);
+        });
+    }
+    closest(sel) { for (let x = this; x; x = x.parent) if (x.matches(sel)) return x; return null; }
+}
+const fakeDoc = { activeElement: null, body: new El('body'), createElement: tag => new El(tag), createElementNS: (ns, tag) => new El(tag), createTextNode: text => Object.assign(new El('#text'), { text }) };
+const winListeners = {};
+sandbox.document = fakeDoc;
+sandbox.window.addEventListener = (type, fn) => { (winListeners[type] = winListeners[type] || []).push(fn); };
+sandbox.window.removeEventListener = (type, fn) => { winListeners[type] = (winListeners[type] || []).filter(f => f !== fn); };
+// fire dispatches a bubbling event from el; it returns the event (defaultPrevented, stopped).
+function fire(el, type, props) {
+    const ev = Object.assign({ type, target: el, button: 0, buttons: 1, pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0, defaultPrevented: false, stopped: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() { this.stopped = true; } }, props);
+    for (let x = el; x && !ev.stopped; x = x.parent) (x.listeners[type] || []).slice().forEach(fn => fn(ev));
+    return ev;
+}
+for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
+    const full = path.join(apps, file);
+    vm.runInContext(fs.readFileSync(full, 'utf8'), sandbox, { filename: full });
+}
+{
+    const layout = project();
+    layout.screens = [{ id: 's_one', name: 'one', title: 'One', transition: 'none', style: {}, widgets: [
+        { id: 'w_lbl', type: 'label', name: 'lbl_1', x: 10, y: 10, w: 80, h: 20 },
+        { id: 'w_pnl', type: 'panel', name: 'pnl_1', x: 100, y: 100, w: 120, h: 80 },
+        { id: 'w_btn', type: 'button', name: 'btn_9', x: 200, y: 20, w: 100, h: 40 }] }];
+    layout.start_screen = 's_one';
+    const shellBus = P.createBus();
+    const iStore = M.createStore(layout, { coalesceMs: 1200 });
+    const origins = [];
+    iStore.subscribe((p, info) => origins.push(info.origin));
+    const inst = { t: P.i18n(null), caps, readonly: false, isLocked: () => false, layoutStore: iStore, bus: shellBus, notify() {}, assetUrl: id => '/a/' + id };
+    const designer = P.designer.create(inst);
+    const d = designer.state;
+    const root = new El('div');
+    const viewport = root.appendChild(new El('div'));
+    const screenEl = viewport.appendChild(new El('div'));
+    const input = root.appendChild(new El('input'));
+    const button = root.appendChild(new El('button'));
+    const outside = new El('textarea');
+    const els = {};
+    ['w_lbl', 'w_pnl', 'w_btn'].forEach(id => { els[id] = screenEl.appendChild(new El('div', { ccWidgetId: id })); });
+    const handle = viewport.appendChild(new El('div', { ccHandle: 'se' }));
+    const seen = { render: 0, moves: [], resizes: [], drops: [] };
+    // The stand-in canvas: host at client (0, 0); world = client / zoom.
+    P.designerCanvas = { mount: () => ({
+        root, viewport,
+        render() { seen.render++; }, fit() { seen.fit = (seen.fit || 0) + 1; }, dispose() { seen.disposed = true; },
+        previewMove(ids, delta) { seen.moves.push(delta); }, previewResize(id, r) { seen.resizes.push(r); },
+        showGuides() {}, showMarquee() {}, showDrop(r) { seen.drops.push(r); }, announce() {},
+        hostRect: () => ({ left: 0, top: 0, right: 320 * (d.zoom || 1), bottom: 240 * (d.zoom || 1) }),
+        clientToWorld: (x, y) => G.toWorld({ x, y }, { left: 0, top: 0 }, d.zoom || 1)
+    }) };
+    designer.mountCanvas(new El('div'));
+    d.setZoom(1);
+    d.setSnap(0);
+    const widget = id => M.findWidget(iStore.get(), id);
+    const key = (k, extra, target) => fire(target || root, 'keydown', Object.assign({ key: k }, extra));
+    // drag presses on el at from (client px), moves to to and ends with type (pointerup by default).
+    function drag(el, from, to, opts) {
+        const o = Object.assign({ altKey: true, end: 'pointerup' }, opts);
+        fire(el, 'pointerdown', { clientX: from[0], clientY: from[1] });
+        fire(viewport, 'pointermove', { clientX: to[0], clientY: to[1], altKey: o.altKey, shiftKey: !!o.shiftKey });
+        if (o.end) fire(viewport, o.end, { clientX: to[0], clientY: to[1] });
+    }
+
+    drag(els.w_lbl, [20, 15], [43, 15]);
+    eq('move commits the previewed delta', [widget('w_lbl').widget.x, widget('w_lbl').widget.y, seen.moves.pop()], [33, 10, { x: 23, y: 0 }]);
+    check('move releases the pointer capture and the dragging state', !viewport.captured.size && !root.classList.contains('is-dragging'));
+    iStore.undo();
+    eq('a move is one undo step', widget('w_lbl').widget.x, 10);
+    d.setZoom(2);
+    drag(els.w_lbl, [40, 30], [45, 30]);
+    eq('pointer deltas are rounded to device pixels at zoom 2', widget('w_lbl').widget.x, 13);
+    d.setZoom(1);
+    d.setSnap(8);
+    drag(els.w_lbl, [20, 15], [50, 15], { altKey: false });
+    eq('a move without Alt snaps to the 8 px grid (x) and the button top guide (y)', [widget('w_lbl').widget.x, widget('w_lbl').widget.y], [40, 10]);
+    d.setSnap(0);
+    iStore.undo();
+    iStore.undo();
+    eq('undo restores the start position', widget('w_lbl').widget.x, 10);
+
+    const before = JSON.stringify(iStore.get());
+    const aborts = [
+        ['readonly:changed', () => shellBus.emit('readonly:changed', true)],
+        ['lock:changed', () => shellBus.emit('lock:changed', true, 'ccj_1')],
+        ['mode:changed code', () => shellBus.emit('mode:changed', 'code')],
+        ['window blur', () => (winListeners.blur || []).forEach(fn => fn({}))],
+        ['a remote replace', () => iStore.replace(JSON.parse(before), { resetHistory: false })]
+    ];
+    for (const [name, emit] of aborts) {
+        const renders = seen.render;
+        drag(els.w_lbl, [20, 15], [60, 15], { end: null });
+        check(name + ': a gesture runs before', viewport.captured.has(1) && root.classList.contains('is-dragging'));
+        emit();
+        fire(viewport, 'pointerup', { clientX: 60, clientY: 15 });
+        check(name + ' cancels the gesture: capture released, stored layout re-rendered, nothing saved', !viewport.captured.size && !root.classList.contains('is-dragging') && seen.render > renders && JSON.stringify(iStore.get()) === before);
+    }
+    drag(els.w_lbl, [20, 15], [60, 15], { end: 'pointercancel' });
+    check('pointercancel changes nothing', JSON.stringify(iStore.get()) === before && !viewport.captured.size);
+
+    d.select(['w_btn']);
+    drag(els.w_btn, [210, 30], [130, 120]);
+    const into = widget('w_btn');
+    eq('dropping on a panel reparents with coordinates in the panel', [into.parent && into.parent.id, into.widget.x, into.widget.y], ['w_pnl', 20, 10]);
+    iStore.undo();
+    eq('reparent is one undo step', [widget('w_btn').parent, widget('w_btn').widget.x], [null, 200]);
+
+    d.select(['w_lbl']);
+    drag(handle, [90, 30], [103, 37]);
+    eq('resize commits integers through update_widget', ['x', 'y', 'w', 'h'].map(k => widget('w_lbl').widget[k]), [10, 10, 93, 27]);
+    d.setZoom(2);
+    drag(handle, [206, 74], [211, 74]);
+    eq('resize rounds the pointer delta at zoom 2', widget('w_lbl').widget.w, 96);
+    d.setZoom(1);
+
+    d.select([]);
+    drag(viewport, [5, 5], [95, 35], { altKey: false });
+    eq('box select picks the root widgets it touches', d.selection, ['w_lbl']);
+    fire(viewport, 'pointerdown', { clientX: 5, clientY: 5, offsetX: 600, offsetY: 5 });
+    check('a press on the viewport scrollbar neither starts a gesture nor clears', !viewport.captured.size && d.selection.join() === 'w_lbl');
+
+    // keyboard
+    const x0 = widget('w_lbl').widget.x;
+    const steps = [];
+    for (let i = 0; i < 5; i++) steps.push(key('ArrowRight'));
+    check('arrow keys are used and stop at the canvas', steps.every(ev => ev.defaultPrevented && ev.stopped));
+    eq('five nudges move 5 px', widget('w_lbl').widget.x, x0 + 5);
+    key('ArrowDown', { shiftKey: true });
+    eq('Shift+arrow nudges 8 px', widget('w_lbl').widget.y, 18);
+    key('z', { ctrlKey: true });
+    eq('a nudge burst is one undo step', [widget('w_lbl').widget.x, widget('w_lbl').widget.y], [x0, 10]);
+    key('z', { ctrlKey: true, shiftKey: true });
+    eq('Ctrl+Shift+Z redoes', [widget('w_lbl').widget.x, widget('w_lbl').widget.y], [x0 + 5, 18]);
+    const typed = key('Delete', {}, input);
+    check('keys typed into a field stay native', !typed.defaultPrevented && !!widget('w_lbl'));
+    check('Space and Enter on a button stay native', !key(' ', {}, button).defaultPrevented && !key('Enter', {}, button).defaultPrevented);
+    check('keys of other windows and the code editor never reach the designer', !key('Delete', {}, outside).defaultPrevented && !!widget('w_lbl'));
+    check('Ctrl+S bubbles on to the shell', !key('s', { ctrlKey: true }).defaultPrevented);
+    viewport.clientWidth = 0;
+    check('a hidden canvas (Code mode) uses no keys', !key('Delete').defaultPrevented && !!widget('w_lbl'));
+    viewport.clientWidth = 600;
+    drag(els.w_lbl, [20, 15], [60, 15], { end: null });
+    check('during a gesture other keys wait', !key('Delete').defaultPrevented && !!widget('w_lbl'));
+    check('Escape cancels a gesture', key('Escape').defaultPrevented && !viewport.captured.size);
+    check('Escape clears the selection', key('Escape').defaultPrevented && d.selection.length === 0);
+    check('Escape without a selection bubbles on', !key('Escape').defaultPrevented);
+    d.select(['w_lbl']);
+    key('Delete');
+    check('Delete removes the selection', !widget('w_lbl'));
+    key('+');
+    eq('+ zooms in', d.zoom, 2);
+    key('0');
+    check('0 fits the screen', seen.fit === 1);
+
+    // palette: a press adds at the centre, a drag drops into the container under the pointer.
+    const item = new El('button', { ccPalette: 'button' });
+    const press = { clientX: 5, clientY: 5, pointerId: 2, button: 0, buttons: 1, pointerType: 'mouse', preventDefault() {} };
+    const sample = M.newWidget(iStore.get(), specs.get('button'), { x: 0, y: 0 }, d.screenSize());
+    d.interact.startPaletteDrag('button', Object.assign({ target: item }, press), item);
+    fire(item, 'pointerup', { pointerId: 2 });
+    const added = widget(d.selection[0]);
+    eq('a palette press adds the catalog default with a proposed name', [added.widget.name, added.widget.w, added.widget.h, added.parent], [sample.name, specs.get('button').default_w, specs.get('button').default_h, null]);
+    d.interact.startPaletteDrag('statusbar', Object.assign({ target: item }, press), item);
+    fire(item, 'pointermove', { pointerId: 2, clientX: 700, clientY: 300 });
+    const ghost = fakeDoc.body.kids[0];
+    eq('the palette ghost has the new widget\'s default size (statusbar: screen width, zoom 2)', [ghost && ghost.className, ghost && ghost.style.width, ghost && ghost.classList.contains('is-outside')], ['cc-drag-ghost', '640px', true]);
+    fire(item, 'pointerup', { pointerId: 2, clientX: 700, clientY: 300 });
+    check('a drop outside the screen adds nothing and removes the ghost', !fakeDoc.body.kids.length && !M.findWidget(iStore.get(), 'status_1'));
+    d.setZoom(1);
+    d.interact.startPaletteDrag('label', Object.assign({ target: item }, press), item);
+    fire(item, 'pointermove', { pointerId: 2, clientX: 140, clientY: 130 });
+    fire(item, 'pointerup', { pointerId: 2, clientX: 140, clientY: 130 });
+    const dropped = widget(d.selection[0]);
+    check('a palette drop adds into the panel under the pointer', dropped && dropped.widget.type === 'label' && dropped.parent && dropped.parent.id === 'w_pnl', JSON.stringify(dropped && dropped.widget));
+    // The one remote origin is the test's own replace above.
+    check('every designer edit reached the store with origin local (undo/redo for history)', origins.includes('local') && origins.filter(o => !['local', 'undo', 'redo'].includes(o)).join() === 'remote', origins.join());
+
+    drag(els.w_pnl, [110, 110], [150, 110], { end: null });
+    designer.dispose();
+    check('dispose cancels a running gesture and releases the capture', !viewport.captured.size && seen.disposed && !(root.listeners.keydown || []).length && !(viewport.listeners.pointerdown || []).length);
+}
 
 console.log((failures ? 'FAILED ' + failures : 'ok') + ' — ' + checks + ' checks');
 process.exit(failures ? 1 : 0);
