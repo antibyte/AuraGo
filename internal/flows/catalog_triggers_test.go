@@ -24,9 +24,9 @@ func TestTriggerNodesRegistered(t *testing.T) {
 	reg := triggerRegistry(t)
 	types := []string{TypeTriggerManual, TypeTriggerSchedule, TypeTriggerDateTime, TypeTriggerWebhook, TypeTriggerEmail,
 		TypeTriggerMQTT, TypeTriggerHAState, TypeTriggerDevice, TypeTriggerFritzBox, TypeTriggerPlanner,
-		TypeTriggerStartup, TypeTriggerBudget, TypeTriggerMission}
-	if len(types) != 13 {
-		t.Fatalf("expected 13 trigger types, listed %d", len(types))
+		TypeTriggerStartup, TypeTriggerBudget, TypeTriggerMission, TypeTriggerPersonDetected}
+	if len(types) != 14 {
+		t.Fatalf("expected 14 trigger types, listed %d", len(types))
 	}
 	for _, typ := range types {
 		def := lookupDef(t, reg, typ)

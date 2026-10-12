@@ -173,8 +173,8 @@ func TestC15CatalogTriggerConfigsDecode(t *testing.T) {
 			}
 		}
 	}
-	if len(missionTypes) != 10 {
-		t.Fatalf("mission trigger node types = %v, want 10", missionTypes)
+	if len(missionTypes) != 11 {
+		t.Fatalf("mission trigger node types = %v, want 11", missionTypes)
 	}
 	if len(seen) != len(flowMissionTriggerTypes) {
 		t.Fatalf("the catalog uses %v; the bridge accepts %v", seen, flowMissionTriggerTypes)

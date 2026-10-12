@@ -17,8 +17,9 @@ import (
 // flowMissionTriggerTypes are the Mission Control trigger types a flows.BindingMission may
 // use: the ones MissionManagerV2 registers for a flow mission (ensureFlowTriggersLocked:
 // webhook, email, MQTT) and the ones it starts flows for through notifyFlowsLocked (the
-// Notify* events and mission_completed). MissionManagerV2.SyncFlowMission checks only the
-// node ids, so a spec of any other type would be stored and never fire. Egg, nest and
+// Notify* events, person_detected included, and mission_completed).
+// MissionManagerV2.SyncFlowMission checks only the node ids, so a spec of any other type
+// would be stored and never fire. Egg, nest and
 // planner_operational_issue events start no flows; schedule, datetime and manual are
 // separate binding kinds. TestC15CatalogTriggerConfigsDecode keeps the catalog and this
 // set in step.
@@ -36,6 +37,7 @@ var flowMissionTriggerTypes = map[tools.TriggerType]bool{
 	tools.TriggerPlannerAppointmentDue: true,
 	tools.TriggerPlannerTodoOverdue:    true,
 	tools.TriggerMissionCompleted:      true,
+	tools.TriggerPersonDetected:        true,
 }
 
 // flowTriggerSpecs converts published trigger bindings into Mission Control trigger specs.

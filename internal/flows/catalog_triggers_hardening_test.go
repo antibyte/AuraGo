@@ -46,10 +46,10 @@ func TestTriggerUntrustedOutputTable(t *testing.T) {
 		TypeTriggerWebhook: true, TypeTriggerEmail: true, TypeTriggerMQTT: true,
 		TypeTriggerHAState: false, TypeTriggerDevice: false, TypeTriggerFritzBox: true,
 		TypeTriggerPlanner: true, TypeTriggerStartup: false, TypeTriggerBudget: false,
-		TypeTriggerMission: true,
+		TypeTriggerMission: true, TypeTriggerPersonDetected: false,
 	}
-	if len(want) != 13 {
-		t.Fatalf("table lists %d trigger types, want 13", len(want))
+	if len(want) != 14 {
+		t.Fatalf("table lists %d trigger types, want 14", len(want))
 	}
 	for typ, untrusted := range want {
 		if got := lookupDef(t, reg, typ).UntrustedOutput; got != untrusted {
@@ -297,8 +297,8 @@ func oddParamBases(typ string) []map[string]any {
 func TestTriggerHooksSurviveOddParams(t *testing.T) {
 	reg := triggerRegistry(t)
 	table := triggerTypes()
-	if len(table) != 13 {
-		t.Fatalf("%d trigger types, want 13", len(table))
+	if len(table) != 14 {
+		t.Fatalf("%d trigger types, want 14", len(table))
 	}
 	vc := ValidateContext{Mode: ModePublish, Now: triggerNow, Location: time.UTC}
 	values := oddParamValues()

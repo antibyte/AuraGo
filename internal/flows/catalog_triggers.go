@@ -13,19 +13,20 @@ import (
 
 // Trigger node types.
 const (
-	TypeTriggerManual   = "trigger.manual"
-	TypeTriggerSchedule = "trigger.schedule"
-	TypeTriggerDateTime = "trigger.datetime"
-	TypeTriggerWebhook  = "trigger.webhook"
-	TypeTriggerEmail    = "trigger.email"
-	TypeTriggerMQTT     = "trigger.mqtt"
-	TypeTriggerHAState  = "trigger.ha_state"
-	TypeTriggerDevice   = "trigger.device"
-	TypeTriggerFritzBox = "trigger.fritzbox_call"
-	TypeTriggerPlanner  = "trigger.planner"
-	TypeTriggerStartup  = "trigger.startup"
-	TypeTriggerBudget   = "trigger.budget"
-	TypeTriggerMission  = "trigger.mission_completed"
+	TypeTriggerManual         = "trigger.manual"
+	TypeTriggerSchedule       = "trigger.schedule"
+	TypeTriggerDateTime       = "trigger.datetime"
+	TypeTriggerWebhook        = "trigger.webhook"
+	TypeTriggerEmail          = "trigger.email"
+	TypeTriggerMQTT           = "trigger.mqtt"
+	TypeTriggerHAState        = "trigger.ha_state"
+	TypeTriggerDevice         = "trigger.device"
+	TypeTriggerFritzBox       = "trigger.fritzbox_call"
+	TypeTriggerPlanner        = "trigger.planner"
+	TypeTriggerStartup        = "trigger.startup"
+	TypeTriggerBudget         = "trigger.budget"
+	TypeTriggerMission        = "trigger.mission_completed"
+	TypeTriggerPersonDetected = "trigger.person_detected"
 )
 
 const (
@@ -338,6 +339,23 @@ func buildTriggerTypes() []triggerType {
 			return "device_" + event, map[string]any{"device_id": textParam(p, "device_id")}, nil
 		}, map[string]any{"event": "device_connected", "device_id": "dev-1", "device_name": "Laptop", "time": sampleTime}),
 			map[string]map[string]any{"disconnected": {"event": "device_disconnected", "device_id": "dev-1", "device_name": "Laptop", "time": sampleTime}}),
+		// Camera and zone names come from the administrator's go2rtc configuration and the
+		// numbers from the detector, so the output is trusted, like trigger.ha_state.
+		missionTriggerType(TypeTriggerPersonDetected, "camera", false, []ParamSpec{
+			{Name: "camera", Kind: ParamSelect, LabelKey: "easydrag.param.person_camera", OptionsSource: "cameras"},
+			{Name: "zone", Kind: ParamText, LabelKey: "easydrag.param.person_zone", HelpKey: "easydrag.help.person_zone"},
+			{Name: "include_disarmed", Kind: ParamBool, LabelKey: "easydrag.param.person_include_disarmed",
+				HelpKey: "easydrag.help.person_include_disarmed", Default: false},
+			minInterval,
+		}, func(p map[string]any) (string, map[string]any, error) {
+			return "person_detected", map[string]any{
+				"person_camera_id":        textParam(p, "camera"),
+				"person_zone":             textParam(p, "zone"),
+				"person_include_disarmed": truthy(p["include_disarmed"]),
+			}, nil
+		}, map[string]any{"event_id": 42, "camera_id": "driveway", "camera_name": "Einfahrt", "zones": []any{"Einfahrt"},
+			"max_score": 0.91, "persons": 1, "armed": true, "started_at": sampleTime,
+			"image_path": "/var/lib/aurago/data/go2rtc/detections/2026/10/03/driveway/42_1.jpg"}),
 		// The call summary carries the caller's number and display name, which the caller
 		// (or the network) chooses, so the output is untrusted.
 		missionTriggerType(TypeTriggerFritzBox, "phone-incoming", true, []ParamSpec{

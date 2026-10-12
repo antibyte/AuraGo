@@ -27,8 +27,8 @@ func catalogRegistry(t *testing.T, env CatalogEnv) *Registry {
 
 func TestRegisterCatalogCounts(t *testing.T) {
 	reg := catalogRegistry(t, fullEnv())
-	if n := len(reg.All()); n != 36 {
-		t.Fatalf("phase 1 catalog has %d node types, want 36 (13 triggers + 23 others)", n)
+	if n := len(reg.All()); n != 37 {
+		t.Fatalf("phase 1 catalog has %d node types, want 37 (14 triggers + 23 others)", n)
 	}
 	triggers := 0
 	for _, def := range reg.All() {
@@ -42,7 +42,7 @@ func TestRegisterCatalogCounts(t *testing.T) {
 			t.Errorf("%s has no label key", def.Type)
 		}
 	}
-	if triggers != 13 {
+	if triggers != 14 {
 		t.Fatalf("triggers = %d", triggers)
 	}
 }
