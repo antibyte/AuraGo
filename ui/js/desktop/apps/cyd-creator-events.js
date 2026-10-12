@@ -109,7 +109,8 @@
     }
 
     // connect(inst) opens the stream for inst.projectId. opts.EventSource overrides the constructor
-    // and opts.random the jitter source (tests); opts.after is a resume point. Returns {close(), after}.
+    // and opts.random the jitter source (tests); opts.after is a resume point. Returns {close(), after,
+    // resumeFrom}.
     function connect(inst, opts) {
         const o = opts || {};
         const cursor = createCursor(o.after || 0);
@@ -212,7 +213,10 @@
                 if (source) source.close();
                 source = null;
             },
-            get after() { return cursor.after; }
+            get after() { return cursor.after; },
+            // resumeFrom is where a new connection must start: during a catch-up the cursor already
+            // counts buffered events that were never delivered, so it is the catch-up's own start.
+            get resumeFrom() { return catching ? catchupFrom : cursor.after; }
         };
     }
 

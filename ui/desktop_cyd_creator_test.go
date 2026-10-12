@@ -484,3 +484,18 @@ func TestCYDCreatorAppCarriesTheModuleContracts(t *testing.T) {
 		"'aurago:desktop-policy'", "if (inst.code) inst.code.updateReadOnly();", "if (inst.home) inst.home.refresh();")
 	checkCYDCreatorModule(t, "cyd-creator-events.js", "inst.bus.emit('events:failed', attempt);")
 }
+
+// TestCYDCreatorWindowKeepsUnsavedEditsAndResumesSafely pins the Task 9 review fixes (behaviour:
+// scripts/test-cyd-creator-shell.mjs): an asset upload saves pending edits first and never marks
+// later edits saved, a stopped stream resumes where its catch-up started, flush waits for an open
+// conflict choice, a failed code save explains a refused job, the review banner is announced, the
+// toolchain banner follows read-only and a closed project's probe cannot block the next one's.
+func TestCYDCreatorWindowKeepsUnsavedEditsAndResumesSafely(t *testing.T) {
+	checkCYDCreatorModule(t, "cyd-creator-app.js",
+		"if (!(await inst.layoutSaver.flush())) throw unsavedError(inst);", "if (!isCurrent(inst, seq) || !layoutIdle(inst)) return res.asset;",
+		"inst.streamAfter = inst.events.resumeFrom;", "code.saveError()", "role: 'alert', dataset: { ccPublishReview: '' }",
+		"renderToolchain(inst, inst.view && inst.view.toolchainSlot);", "if (isCurrent(inst, seq)) inst.probing = false;")
+	checkCYDCreatorModule(t, "cyd-creator-events.js", "get resumeFrom() { return catching ? catchupFrom : cursor.after; }")
+	checkCYDCreatorModule(t, "cyd-creator-core.js", "if (conflictPending) return conflictPending;")
+	checkCYDCreatorModule(t, "cyd-creator-code.js", "saveError: () => (state.saver ? state.saver.error() : null),")
+}

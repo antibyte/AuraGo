@@ -163,13 +163,15 @@
     }
 
     // setReadonly applies a read-only change (the desktop policy or the capabilities): the toolbar,
-    // the code editor, the agent panel (it re-renders on project:updated) and the start screen.
+    // the toolchain banner (its install button), the code editor, the agent panel (it re-renders on
+    // project:updated) and the start screen.
     function setReadonly(inst) {
         const next = !!(inst.ctxReadonly || (inst.caps && inst.caps.readonly));
         if (next === inst.readonly) return;
         inst.readonly = next;
         renderToolbar(inst);
         renderSaveState(inst);
+        renderToolchain(inst, inst.view && inst.view.toolchainSlot);
         if (inst.code) inst.code.updateReadOnly();
         if (inst.project) inst.bus.emit('project:updated', inst.project);
         inst.bus.emit('readonly:changed', next);
@@ -282,8 +284,9 @@
         v.lockBanner = el('div', { class: 'cc-banner cc-banner--lock', role: 'status', dataset: { ccLock: '' }, hidden: true },
             el('span', { class: 'cc-spinner', 'aria-hidden': 'true' }), el('span', { text: t('cyd_creator.app.locked_banner') }));
         // A project fenced after an interrupted publication refuses every change until it is resolved.
-        v.reviewBanner = el('div', { class: 'cc-banner cc-banner--danger', role: 'status', dataset: { ccPublishReview: '' }, hidden: true },
-            el('span', { class: 'cc-banner-text', text: t('cyd_creator.error.publication_review') }));
+        // renderToolbar inserts the sentence when the banner appears, so screen readers announce it.
+        v.reviewText = el('span', { class: 'cc-banner-text' });
+        v.reviewBanner = el('div', { class: 'cc-banner cc-banner--danger', role: 'alert', dataset: { ccPublishReview: '' }, hidden: true }, v.reviewText);
         // The event stream stopped for good (see probeStream): its reason and a Retry button.
         v.streamBanner = el('div', { class: 'cc-banner cc-banner--danger', role: 'alert', dataset: { ccStreamStopped: '' }, hidden: true });
         v.toolchainSlot = el('div', { class: 'cc-toolchain-slot', dataset: { ccToolchain: '' } });
@@ -357,6 +360,8 @@
         v.readonlyChip.hidden = !inst.readonly;
         v.lockBanner.hidden = !inst.isLocked();
         v.reviewBanner.hidden = !project.publish_review;
+        const reviewText = project.publish_review ? t('cyd_creator.error.publication_review') : '';
+        if (v.reviewText.textContent !== reviewText) v.reviewText.textContent = reviewText;
         inst.root.classList.toggle('is-locked', inst.isLocked());
         inst.root.classList.toggle('is-readonly', !!inst.readonly);
     }
@@ -515,12 +520,17 @@
         await inst.layoutSaver.flush();
     }
 
+    // uploadAsset saves pending layout edits first (the upload bumps the layout version) and refuses
+    // with the save error when they cannot be saved. The new layout replaces the store only while
+    // nothing is unsaved: edits made during the upload stay and meet the new version through the
+    // If-Match conflict choice, like a project_changed from elsewhere.
     async function uploadAsset(inst, file) {
         const seq = inst.projectSeq;
-        await inst.layoutSaver.flush();
-        const res = await P.api.uploadAsset(inst.projectId, file);
-        const payload = await P.api.getLayout(inst.projectId);
-        if (!isCurrent(inst, seq)) return res.asset;
+        const id = inst.projectId;
+        if (!(await inst.layoutSaver.flush())) throw unsavedError(inst);
+        const res = await P.api.uploadAsset(id, file);
+        const payload = await P.api.getLayout(id);
+        if (!isCurrent(inst, seq) || !layoutIdle(inst)) return res.asset;
         inst.layoutVersion = Number(payload.version) || inst.layoutVersion;
         inst.layoutSnapshot = P.util.deepFreeze(P.util.deepClone(payload.project));
         if (inst.layoutStore) inst.layoutStore.replace(payload.project, { resetHistory: false });
@@ -701,16 +711,16 @@
         return results.every(Boolean);
     }
 
-    // unsavedError explains why unsaved edits blocked an agent job: the layout save's error, else
-    // the code editor's state (offline, conflict, locked; another failure gets the generic text).
+    // unsavedError explains why unsaved edits blocked an agent job or an upload: the error of the
+    // failed layout save, else that of the failed code save (P.errors.message turns either into its
+    // sentence), else a generic one.
     function unsavedError(inst) {
         const saver = inst.layoutSaver;
         if (saver && saver.dirty() && saver.error()) return saver.error();
-        const E = P.api.ApiError;
-        if (inst.codeState === 'offline') return new E(0, '', 'the code could not be saved', {});
-        if (inst.codeState === 'conflict') return new E(409, 'CYD_FILE_CONFLICT', 'the code could not be saved', {});
-        if (inst.codeState === 'locked') return new E(423, 'CYD_PROJECT_LOCKED', 'the code could not be saved', {});
-        return new E(409, '', 'unsaved changes', {});
+        const code = inst.code;
+        const codeError = code && code.isDirty() && typeof code.saveError === 'function' ? code.saveError() : null;
+        if (codeError) return codeError;
+        return new P.api.ApiError(409, '', 'unsaved changes', {});
     }
 
     async function leaveProject(inst) {
@@ -741,6 +751,8 @@
         inst.projectId = '';
         inst.codeState = 'saved';
         inst.streamAfter = 0;
+        // A probe of the closed project that never answers must not hold off the next project's.
+        inst.probing = false;
     }
 
     // ── event stream give-up ────────────────────────────────────────────────
@@ -767,14 +779,15 @@
                 stopStream(inst, err);
             }
         } finally {
-            inst.probing = false;
+            if (isCurrent(inst, seq)) inst.probing = false;
         }
     }
 
     function stopStream(inst, err) {
         const v = inst.view;
         if (inst.events) {
-            inst.streamAfter = inst.events.after;
+            // Not .after: during a catch-up the cursor already counts buffered, undelivered events.
+            inst.streamAfter = inst.events.resumeFrom;
             inst.events.close();
             inst.events = null;
         }

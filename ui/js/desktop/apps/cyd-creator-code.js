@@ -761,6 +761,8 @@
             updateReadOnly,
             flush,
             isDirty: () => !!(state.saver && state.saver.dirty()),
+            // saveError is the error of the open file's last failed save (null once it saved).
+            saveError: () => (state.saver ? state.saver.error() : null),
             openPath: () => state.openPath,
             text: currentText,
             dispose() {

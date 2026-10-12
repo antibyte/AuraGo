@@ -299,6 +299,23 @@ function makeSaver(answers, extra) {
     eq('flush tries again and asks again', [calls.length, asked, saver.state()], [2, 2, 'conflict']);
 }
 {
+    // Ctrl+S or closing the window while the conflict choice is open: flush waits for the choice
+    // instead of sending the stale version again (a second, stacked conflict dialog).
+    let answer;
+    let asked = 0;
+    const { saver, calls } = makeSaver([{ error: new ApiError(409, 'CYD_PROJECT_CONFLICT', 'stale', { version: 8 }) }, { token: 9 }], {
+        onConflict: () => { asked++; return new Promise(resolve => { answer = resolve; }); }
+    });
+    saver.change('mine');
+    await advance(1000);
+    const first = saver.flush();
+    const second = saver.flush();
+    await settle();
+    eq('flush during an open conflict choice sends nothing and asks nothing', [calls.length, asked, first === second], [1, 1, true]);
+    answer({ action: 'overwrite', token: 8 });
+    eq('both flushes end with the outcome of the choice', [await first, await second, calls.map(c => c.token), saver.state()], [true, true, [1, 8], 'saved']);
+}
+{
     const { saver, calls } = makeSaver([{ error: new ApiError(423, 'CYD_PROJECT_LOCKED', 'locked') }, { token: 4 }]);
     saver.change('a');
     await advance(1000);
@@ -458,6 +475,17 @@ function browserConnect(after) {
         'stream_ready:{"reload":true,"after":11}@0'
     ]);
     eq('after a pruned reload the cursor is the last event sent', conn.after, 11);
+    conn.close();
+}
+{
+    // A new connection after a cut-off catch-up must start where the catch-up started: the cursor
+    // already counts the buffered events, which were never delivered.
+    const { conn, streams } = browserConnect(3);
+    streams[0].send('job_message', { message: { id: 'm4' } }, 4);
+    streams[0].send('job_message', { message: { id: 'm5' } }, 5);
+    eq('during a catch-up resumeFrom stays at its start while the cursor moves', [conn.after, conn.resumeFrom], [5, 3]);
+    streams[0].send('stream_ready', { after: 5 });
+    eq('once the backlog is delivered resumeFrom follows the cursor', conn.resumeFrom, 5);
     conn.close();
 }
 {
@@ -1477,17 +1505,22 @@ const policyListeners = [];
 }
 const App = sandbox.window.CYDCreatorApp;
 // appBackend replaces the P.api wrappers the window and its parts call. calls lists them in order;
-// fail.<name> = ApiError makes that call throw (until cleared); project is the stored summary.
+// fail.<name> = ApiError makes that call throw (until cleared), gates.<name> = promise holds it;
+// project is the stored summary (names: other names per project id). PUT /layout checks If-Match
+// like the server (409 CYD_PROJECT_CONFLICT with details.version); bump() is a change elsewhere.
 function appBackend(opts) {
     const o = opts || {};
     const calls = [];
     const fail = {};
+    const gates = {};
     const saved = {};
+    const names = o.names || {};
     const project = Object.assign({ id: 'ccp_1', name: 'Clock', board: 'cyd_2432s028r', theme: 'dark_sun', version: 3, locked_by_job: '', has_draft: false, publish_review: false }, o.project || {});
     const layout = { name: 'Clock', orientation: 'landscape', screens: [] };
     let version = 3;
     const call = (name, fn) => async (...args) => {
         calls.push(name);
+        if (gates[name]) await gates[name];
         if (fail[name]) throw fail[name];
         return fn(...args);
     };
@@ -1496,24 +1529,37 @@ function appBackend(opts) {
             enabled: true, readonly: !!o.capsReadonly, languages: ['en'],
             boards: [{ id: 'cyd_2432s028r', label: 'CYD 2.8"', status: 'verified', chip: 'esp32', display: { width: 320, height: 240, driver: 'ili9341' } }],
             themes: [{ id: 'dark_sun', tokens: {} }],
-            toolchain: { docker_available: true, present: true, pulling: false, progress: 1, error: '' }
+            toolchain: Object.assign({ docker_available: true, present: true, pulling: false, progress: 1, error: '' }, o.toolchain || {})
         })),
         listProjects: call('listProjects', () => []),
-        getProject: call('getProject', () => Object.assign({}, project)),
+        getProject: call('getProject', id => Object.assign({}, project, { id: id || project.id }, names[id] ? { name: names[id] } : {})),
         getLayout: call('getLayout', () => ({ version, project: Object.assign({}, layout), issues: [] })),
-        putLayout: call('putLayout', (id, next) => { version++; Object.assign(layout, next); return { version, issues: [] }; }),
-        listFiles: call('listFiles', () => []),
+        putLayout: call('putLayout', (id, next, ifMatch) => {
+            if (Number(ifMatch) !== version) throw new P.api.ApiError(409, 'CYD_PROJECT_CONFLICT', 'stale', { version });
+            version++;
+            Object.assign(layout, next);
+            return { version, issues: [] };
+        }),
+        uploadAsset: call('uploadAsset', () => { version++; layout.assets = [{ id: 'a_sun' }]; return { asset: { id: 'a_sun' } }; }),
+        listFiles: call('listFiles', () => [{ path: 'src/app/app_main.cpp', sha256: 's1', editable: true, generated: false }]),
+        readFile: call('readFile', () => ({ text: '#include <cyd.h>\n', sha: 's1' })),
+        writeFile: call('writeFile', () => 's2'),
         listBuilds: call('listBuilds', () => []),
         listMessages: call('listMessages', () => []),
         listJobs: call('listJobs', () => []),
         startJob: call('startJob', (id, body) => ({ id: 'ccj_1', project_id: id, mode: body.mode, status: 'queued', phase: 'queued', created_at: '2026-10-12T10:00:00.000Z' }))
     };
     Object.keys(answers).forEach(name => { saved[name] = P.api[name]; P.api[name] = answers[name]; });
-    return { calls, fail, project, layout, restore() { Object.keys(saved).forEach(name => { P.api[name] = saved[name]; }); } };
+    return {
+        calls, fail, gates, project, layout,
+        version: () => version,
+        bump() { version++; },
+        restore() { Object.keys(saved).forEach(name => { P.api[name] = saved[name]; }); }
+    };
 }
 let appWindows = 0;
 // makeApp renders a window like the desktop shell; opts: projectId (open it right away), readonly,
-// capsReadonly, project (summary fields).
+// capsReadonly, project (summary fields), names, toolchain.
 async function makeApp(opts) {
     const o = opts || {};
     const be = appBackend(o);
@@ -1521,10 +1567,21 @@ async function makeApp(opts) {
     const host = attachedHost();
     const notes = [];
     const windowId = 'win-' + (++appWindows);
-    const inst = App.render(host, windowId, { notify: n => notes.push(n.message), readonly: !!o.readonly, projectId: o.projectId || '', setWindowBeforeClose() {} });
+    let beforeClose = null;
+    const inst = App.render(host, windowId, {
+        notify: n => notes.push(n.message), readonly: !!o.readonly, projectId: o.projectId || '',
+        setWindowBeforeClose(id, fn) { beforeClose = fn; }
+    });
     await settle();
     const find = (name, value) => findNode(inst.root, n => n.dataset && n.dataset[name] !== undefined && (value === undefined || n.dataset[name] === value));
-    return { inst, be, notes, windowId, find, dispose() { App.dispose(windowId); host.remove(); be.restore(); } };
+    return { inst, be, notes, windowId, find, beforeClose: () => beforeClose, dispose() { App.dispose(windowId); host.remove(); be.restore(); } };
+}
+const portrait = () => ({ name: 'Clock', orientation: 'portrait', screens: [] });
+// gate holds the next calls of name until the returned release() runs.
+function gate(be, name) {
+    let release;
+    be.gates[name] = new Promise(resolve => { release = resolve; });
+    return () => { delete be.gates[name]; release(); };
 }
 const appT = P.i18n({});
 {
@@ -1548,11 +1605,24 @@ const appT = P.i18n({});
     await settle();
     eq('stream_ready with reload reloads summary, layout, files and builds (the agent reloads itself)', a.be.calls.slice().sort(),
         ['getLayout', 'getProject', 'listBuilds', 'listFiles', 'listJobs', 'listMessages']);
-    a.inst.layoutSaver.change({ name: 'Clock', orientation: 'portrait', screens: [] });
+    a.inst.layoutSaver.change(portrait());
+    a.be.bump(); // the layout changed elsewhere (or the database was restored)
     a.be.calls.length = 0;
     browserStreams[0].send('stream_ready', { reload: true, after: 7 });
     await settle();
-    check('a reload keeps a layout with unsaved edits (its save meets the If-Match conflict)', !a.be.calls.includes('getLayout') && a.be.calls.includes('getProject'), JSON.stringify(a.be.calls));
+    const kept = !a.be.calls.includes('getLayout') && a.be.calls.includes('getProject');
+    const saving = a.inst.flushAll();
+    await settle();
+    eq('a reload keeps a layout with unsaved edits and its save meets the If-Match conflict',
+        [kept, !!a.find('ccDialogAction', 'overwrite'), a.find('ccSaveState').dataset.state], [true, true, 'conflict']);
+    const puts = () => a.be.calls.filter(c => c === 'putLayout').length;
+    const putsBefore = puts();
+    a.inst.root.dispatch('keydown', { ctrlKey: true, key: 's' });
+    await settle();
+    eq('Ctrl+S while the conflict choice is open sends no stale save and stacks no dialog',
+        [puts(), a.inst.root.querySelectorAll('[data-cc-dialog-action="overwrite"]').length], [putsBefore, 1]);
+    a.find('ccDialogAction', 'keep').click();
+    eq('Keep editing leaves the edits unsaved', [await saving, a.inst.layoutSaver.dirty()], [false, true]);
     a.dispose();
 }
 {
@@ -1569,6 +1639,8 @@ const appT = P.i18n({});
     await fail();
     eq('two failures in a row do not probe yet', probes(), before);
     await advance(3000);
+    // The third stream is cut off during its catch-up: its buffered event 12 was never delivered.
+    browserStreams[browserStreams.length - 1].send('job_message', { message: { id: 'm12' } }, 12);
     await fail();
     const banner = a.find('ccStreamStopped');
     eq('the third failure probes and an expired session stops the stream with its message', [probes(), banner.hidden, banner.childNodes[0].textContent],
@@ -1578,7 +1650,7 @@ const appT = P.i18n({});
     eq('a stopped stream does not reconnect', browserStreams.length, streams);
     delete a.be.fail.getProject;
     a.find('ccAction', 'reconnect').click();
-    eq('Retry resumes after the last applied event and hides the banner', [browserStreams.length, browserStreams[browserStreams.length - 1].url, banner.hidden],
+    eq('Retry resumes after the last delivered event (not a buffered one) and hides the banner', [browserStreams.length, browserStreams[browserStreams.length - 1].url, banner.hidden],
         [streams + 1, '/api/desktop/cyd-creator/projects/ccp_1/events?after=9', true]);
     a.be.fail.getProject = new P.api.ApiError(503, 'CYD_DISABLED', 'CYD Creator is not available', { problem: 'storage refused' });
     for (let i = 0; i < 3; i++) { await fail(); await advance(30000); }
@@ -1601,10 +1673,11 @@ const appT = P.i18n({});
 {
     const a = await makeApp({ projectId: 'ccp_1', project: { publish_review: true } });
     const banner = a.find('ccPublishReview');
-    eq('a fenced project shows the publication review banner', [banner.hidden, banner.textContent, banner.className], [false, appT('cyd_creator.error.publication_review'), 'cc-banner cc-banner--danger']);
+    eq('a fenced project shows the publication review banner as an alert', [banner.hidden, banner.textContent, banner.className, banner.getAttribute('role')],
+        [false, appT('cyd_creator.error.publication_review'), 'cc-banner cc-banner--danger', 'alert']);
     a.be.project.publish_review = false;
     await a.inst.refreshProject();
-    eq('the banner disappears once the summary no longer reports the fence', banner.hidden, true);
+    eq('the banner disappears (and loses its sentence) once the summary no longer reports the fence', [banner.hidden, banner.textContent], [true, '']);
     a.be.fail.putLayout = new P.api.ApiError(409, 'CYD_BUSY', 'needs review', { reason: 'publication_review' });
     a.be.project.publish_review = true;
     a.inst.layoutSaver.change({ name: 'Clock', orientation: 'portrait', screens: [] });
@@ -1655,13 +1728,15 @@ const appT = P.i18n({});
     a.dispose();
 }
 {
-    const a = await makeApp({ projectId: 'ccp_1' });
+    const a = await makeApp({ projectId: 'ccp_1', toolchain: { present: false } });
+    const pullBefore = a.find('ccAction', 'pull-toolchain').disabled;
     policyListeners.slice().forEach(fn => fn({ detail: { readonly: true } }));
     await settle();
-    eq('a read-only policy reaches the toolbar and the agent panel',
-        [a.inst.readonly, a.find('ccAction', 'build').disabled, a.find('ccAgentAction', 'send').disabled, a.find('ccAgentInput').disabled], [true, true, true, true]);
+    eq('a read-only policy reaches the toolbar, the toolchain banner and the agent panel',
+        [pullBefore, a.inst.readonly, a.find('ccAction', 'build').disabled, a.find('ccAction', 'pull-toolchain').disabled, a.find('ccAgentAction', 'send').disabled, a.find('ccAgentInput').disabled],
+        [false, true, true, true, true, true]);
     policyListeners.slice().forEach(fn => fn({ detail: { readonly: false } }));
-    eq('lifting it enables them again', [a.inst.readonly, a.find('ccAgentAction', 'send').disabled], [false, false]);
+    eq('lifting it enables them again', [a.inst.readonly, a.find('ccAgentAction', 'send').disabled, a.find('ccAction', 'pull-toolchain').disabled], [false, false, false]);
     a.dispose();
     const h = await makeApp({});
     policyListeners.slice().forEach(fn => fn({ detail: { readonly: true } }));
@@ -1672,6 +1747,141 @@ const appT = P.i18n({});
     h.dispose();
     ro.dispose();
     eq('disposed windows leave no policy listener behind', policyListeners.length, 0);
+}
+{
+    // uploadAsset (the designer's image upload): pending edits are saved first, and edits made while
+    // the upload runs are never marked saved by the reloaded layout.
+    const a = await makeApp({ projectId: 'ccp_1' });
+    a.inst.layoutSaver.change(portrait());
+    a.be.calls.length = 0;
+    const asset = await a.inst.uploadAsset({ name: 'sun.png' });
+    const order = a.be.calls.filter(c => c === 'putLayout' || c === 'uploadAsset' || c === 'getLayout');
+    eq('an upload saves pending edits, then takes the new layout version', [asset.id, order, a.inst.layoutVersion, a.inst.layoutSaver.dirty(), a.inst.layout().project.assets],
+        ['a_sun', ['putLayout', 'uploadAsset', 'getLayout'], a.be.version(), false, [{ id: 'a_sun' }]]);
+    a.inst.layoutSaver.change(Object.assign(portrait(), { name: 'After' }));
+    eq('the next edit saves on the new version', [await a.inst.flushAll(), a.find('ccSaveState').dataset.state], [true, 'saved']);
+    a.be.fail.putLayout = new P.api.ApiError(0, '', 'network error', {});
+    a.inst.layoutSaver.change(Object.assign(portrait(), { name: 'Offline' }));
+    a.be.calls.length = 0;
+    const refused = await a.inst.uploadAsset({ name: 'moon.png' }).then(() => null, err => err);
+    eq('edits that cannot be saved refuse the upload with the save error and stay unsaved',
+        [refused && P.errors.message(appT, refused), a.be.calls.includes('uploadAsset'), a.inst.layoutSaver.dirty()], [appT('cyd_creator.error.network'), false, true]);
+    a.dispose();
+    const b = await makeApp({ projectId: 'ccp_1' });
+    const release = gate(b.be, 'uploadAsset');
+    const upload = b.inst.uploadAsset({ name: 'sun.png' });
+    await settle();
+    b.inst.layoutSaver.change(portrait());
+    const versionBefore = b.inst.layoutVersion;
+    release();
+    await upload;
+    eq('an edit made during the upload stays unsaved on its version', [b.inst.layoutSaver.dirty(), b.inst.layoutVersion, b.inst.layout().project.assets], [true, versionBefore, undefined]);
+    const saving = b.inst.flushAll();
+    await settle();
+    eq('its save meets the new version through the conflict choice', !!b.find('ccDialogAction', 'overwrite'), true);
+    b.find('ccDialogAction', 'keep').click();
+    await saving;
+    b.dispose();
+}
+{
+    // A failed code save that blocks an agent job explains itself with its own error.
+    const a = await makeApp({ projectId: 'ccp_1' });
+    a.find('ccAction', 'mode-code').click();
+    await settle();
+    await a.inst.openFile('src/app/app_main.cpp', 1);
+    a.be.fail.writeFile = new P.api.ApiError(422, 'CYD_FILE_LIMIT', 'too large', {});
+    const area = a.find('ccCodeFallback');
+    area.value = '#include <cyd.h>\n// more\n';
+    area.dispatch('input');
+    a.find('ccAgentInput').value = 'Add a clock';
+    a.find('ccComposer').dispatch('submit');
+    await settle();
+    eq('a refused code save stops the job with its sentence', [a.be.calls.includes('startJob'), a.notes[a.notes.length - 1]], [false, appT('cyd_creator.error.CYD_FILE_LIMIT')]);
+    a.dispose();
+}
+{
+    const a = await makeApp({ projectId: 'ccp_1' });
+    const summaries = () => a.be.calls.filter(c => c === 'getProject').length;
+    const start = summaries();
+    a.inst.bus.emit('code:state', 'failed');
+    a.inst.bus.emit('code:state', 'dirty');
+    a.inst.bus.emit('code:state', 'failed');
+    await settle();
+    const once = summaries() - start;
+    a.inst.bus.emit('code:state', 'saved');
+    a.inst.bus.emit('code:state', 'failed');
+    await settle();
+    eq('a run of failed code saves asks for the summary once, the next run again', [once, summaries() - start], [1, 2]);
+    a.dispose();
+}
+{
+    // Closing the window (desktop beforeClose → leaveProject) with edits that cannot be saved asks first.
+    const a = await makeApp({ projectId: 'ccp_1' });
+    const clean = await a.beforeClose()();
+    a.be.fail.putLayout = new P.api.ApiError(0, '', 'network error', {});
+    a.inst.layoutSaver.change(portrait());
+    let answer = 'pending';
+    a.beforeClose()().then(v => { answer = v; });
+    await settle();
+    const leave = a.find('ccDialogAction', 'ok');
+    a.find('ccDialogAction', 'cancel').click();
+    await settle();
+    const cancelled = answer;
+    a.beforeClose()().then(v => { answer = v; });
+    await settle();
+    a.find('ccDialogAction', 'ok').click();
+    await settle();
+    eq('a clean window closes at once; unsaved edits ask: Cancel keeps the window, Leave anyway closes it',
+        [clean, leave && leave.textContent, cancelled, answer], [true, appT('cyd_creator.app.leave_anyway'), false, true]);
+    a.dispose();
+}
+{
+    // Lifecycle A → start screen → B → close: every subscription and listener the parts add goes
+    // away again, and late answers for A never reach B.
+    const a = await makeApp({ names: { ccp_2: 'Second' } });
+    const bus = a.inst.bus;
+    const on = bus.on;
+    let live = 0;
+    bus.on = (type, fn) => {
+        live++;
+        const off = on(type, fn);
+        let done = false;
+        return () => { if (!done) { done = true; live--; } off(); };
+    };
+    const keydowns = () => (a.inst.root.listeners.keydown || []).length;
+    const title = () => a.find('ccProjectTitle').textContent;
+    await a.inst.openProject('ccp_1');
+    await settle();
+    const opened = [live, keydowns()];
+    const streamA = browserStreams[browserStreams.length - 1];
+    const releaseA = gate(a.be, 'getProject');
+    a.inst.refreshProject();
+    delete a.be.gates.getProject;
+    a.find('ccAction', 'home').click();
+    await settle();
+    const home = [live, keydowns(), streamA.closed, a.inst.root.dataset.ccView];
+    await a.inst.openProject('ccp_1');
+    await settle();
+    a.be.project.name = 'Stale';
+    releaseA();
+    await settle();
+    eq('a late summary of the closed project A is dropped by the reopened one', title(), 'Clock');
+    a.be.project.name = 'Clock';
+    const releaseOpen = gate(a.be, 'getProject');
+    const pendingA = a.inst.openProject('ccp_1');
+    delete a.be.gates.getProject;
+    await a.inst.openProject('ccp_2');
+    releaseOpen();
+    await pendingA;
+    await settle();
+    eq('a late open of A does not replace B', [title(), a.inst.root.querySelectorAll('[data-cc-project-title]').length, a.inst.projectId], ['Second', 1, 'ccp_2']);
+    const reopened = [live, keydowns()];
+    App.dispose(a.windowId);
+    await settle();
+    eq('A → home → B → close returns subscriptions and listeners to their baseline',
+        [opened[0] > 1, home, reopened, live, keydowns(), policyListeners.length, docKeys.length],
+        [true, [1, 0, true, 'home'], opened, 0, 0, 0, 0]);
+    a.dispose();
 }
 console.warn = consoleWarn;
 

@@ -328,6 +328,10 @@
         let retryTimer = null;
         let retryDelay = retryBase;
         let inFlight = null;
+        // conflictPending is the outcome of the open conflict choice. Until it is made, flush() (Ctrl+S,
+        // closing the window) waits for it instead of sending the stale version again, which would
+        // only stack a second conflict dialog.
+        let conflictPending = null;
         let disposed = false;
 
         function setState(next) {
@@ -357,6 +361,7 @@
 
         function save() {
             if (disposed) return Promise.resolve(false);
+            if (conflictPending) return conflictPending;
             if (inFlight) return inFlight;
             clearTimers();
             if (!dirty()) { setState('saved'); return Promise.resolve(true); }
@@ -397,12 +402,21 @@
             return inFlight;
         }
 
-        async function conflict(err) {
+        function conflict(err) {
             setState('conflict');
+            const outcome = resolveConflict(err);
+            conflictPending = outcome;
+            outcome.then(() => { if (conflictPending === outcome) conflictPending = null; });
+            return outcome;
+        }
+
+        async function resolveConflict(err) {
             let choice = { action: 'keep' };
             if (typeof o.onConflict === 'function') {
                 try { choice = (await o.onConflict(err)) || choice; } catch (e) { console.error('cyd-creator autosave onConflict failed', e); }
             }
+            // The choice is made: saves run again (Overwrite saves right here).
+            conflictPending = null;
             if (disposed) return false;
             if (choice.action === 'reload') {
                 reset(choice.token === undefined ? token : choice.token);
@@ -417,6 +431,7 @@
 
         function flush() {
             if (disposed) return Promise.resolve(false);
+            if (conflictPending) return conflictPending;
             if (timer) { timers.clearTimeout(timer); timer = null; }
             if (state === 'locked') return Promise.resolve(false);
             if (inFlight) return inFlight.then(() => flush());
