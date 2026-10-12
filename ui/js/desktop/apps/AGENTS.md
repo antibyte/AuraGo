@@ -362,13 +362,23 @@
   core, api, events, the ten designer modules of plan 4b (directly after events, above the "plan 4b"
   marker comment), code, dock, agent, home, the modules of plan 5 below the "plan 5" marker comment,
   `cyd-creator-app.js` last. Keep both marker comments. The shell finds
-  `window.CYDCreatorApp = { render, dispose, instances }` through `appGlobalName`.
+  `window.CYDCreatorApp = { render, dispose, instances }` through `appGlobalName`. Each shell module stays
+  below 1100 lines and starts with a purpose comment, `'use strict'` and `window.CYDCreatorParts`
+  (`checkCYDCreatorModule`; `knownOversizedContinuations` does not exempt them; `app.js` is near 900 lines).
 - `cyd-creator-app.js` builds one `inst` per window and composes dock, code, agent, home and, when
   `P.designer` exists, the designer. `inst.flushAll()` → Promise<boolean> saves layout and code. `inst.api` is
   `Object.create(P.api)` whose `startJob` flushes first and throws the save error when that fails (override
-  single methods, never replace `P.api`); `uploadAsset` flushes the layout first too. `inst.confirm` and every
-  `P.dialog.open` pass `owner` (a `P.util.bag`), so dialogs close with their window or project; `inst.notify`
-  stays safe after dispose. Async work checks `inst.projectSeq` (`isCurrent`) before touching the window.
+  single methods, never replace `P.api`). `inst.uploadAsset(file)` (not `inst.api.uploadAsset`) flushes the
+  layout first and then re-reads it. `inst.confirm` and every `P.dialog.open` pass `owner` (a `P.util.bag`),
+  so dialogs close with their window or project; `inst.notify` stays safe after dispose. Dock, code, agent and
+  designer exist per project and are disposed in `teardownProject`; app.js checks `inst.projectSeq` before
+  async work touches the window.
+- Designer seam (plan 4b): `inst.layoutStore` exists only when `P.model.createStore(project, {limit: 300,
+  coalesceMs: 1200})` exists; only store changes with origin local, undo or redo autosave, and none while
+  read-only. The designer is created only when `P.designer.create` and the store both exist and gets
+  `mountScreens`, `mountPalette`, `mountCanvas` and `mountInspector`. Reveals go only through the bus event
+  `designer:reveal`. For the designer the bus also carries `lock:changed(locked, jobId)`, `mode:changed`
+  and `layout:issues`; it may call `inst.assetUrl(id)` and `inst.code.ensureHook({name, event})`.
 - `P.api` wraps every endpoint and throws `ApiError {status, code, message, details}` (status 0: the
   request never reached AuraGo); `P.errors.message(t, err)` shows `cyd_creator.error.<CODE>` (`CYD_BUSY`
   with `details.reason` `publication_review` has its own sentence).
@@ -376,8 +386,9 @@
   `stream_ready` and reconnects with 1–30 s backoff (±20 % jitter); parts listen to `sse:<type>` or the
   semantic bus events of the `inst` contract. An event without an id line (the browser keeps the previous
   `lastEventId`) counts as seq 0. `stream_ready` carries `{after}`; with `reload: true` the cursor moves to
-  `after` and the window reloads (`reloadProject({keepEdits: true})`: unsaved layout edits stay and meet the
-  new version through the conflict choice). A stream cut off during the catch-up resumes from the catch-up's
+  `after` and the window reloads through the internal `reloadProject(inst, {keepEdits: true})`: unsaved layout
+  edits stay and meet the new version through the conflict choice (`inst.reloadProject()` always reloads the
+  layout). A stream cut off during the catch-up resumes from the catch-up's
   start (`resumeFrom`, not `after`). Each failure in a row emits `events:failed(n)`; after 3 the app probes
   `GET /projects/{id}`: 404 returns to the start screen, 401, `unauthorized`, `desktop_scope_required` and
   `CYD_DISABLED` stop the stream with a banner and Retry (`data-cc-stream-stopped`,
@@ -410,16 +421,17 @@
   them with `t.or(key, fallback)` / `t.has` (the dock falls back to the English Issue message). `t(key,
   vars)` fills `{{name}}` and `{name}`. Shell CSS classes stay distinct from the designer's global ones
   (`.cc-tag`, `.cc-pill`, `.cc-form-*` here; `.cc-badge`, `.cc-chip`, `.cc-field*` belong to 4b), and the
-  designer rules live in the delimited "plan 4b" section at the end of the stylesheet. No
+  designer rules live at the end of the stylesheet in the section that starts with
+  `/* ==== CYD Creator designer (plan 4b) — begin` (the theme-token test stops there). No
   alert/confirm/prompt: `P.dialog` (core) and `inst.confirm` render inside the window, and one shared key
   listener lets only the newest dialog in the focused window handle Escape and Tab.
 - Config section `ui/cfg/cyd_creator.js` (strings in `ui/lang/config/cyd_creator/`): `cyd_creator.model` is a
   provider ID from the shared provider dropdown ("" = main LLM); its sidebar icon is slot 121 of the 11×12
   sprite (`ui/AGENTS.md`).
-- Verify: `npm run test:cyd-creator-shell`, `go test ./ui -run '(?i)CYDCreator'` and the opt-in
-  `TestDesktopCYDCreatorShellBrowser` and `TestConfigCYDCreatorSectionBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`,
-  screenshots in `reports/cyd-creator/`, backend `ui/testdata/cyd-creator-fixture.js`, whose EventSource keeps
-  `lastEventId` like a browser).
+- Verify: `npm run test:cyd-creator-shell`, `go test ./ui -run '(?i)CYDCreator'` and, with
+  `AURAGO_RUN_BROWSER_SMOKE=1`, `TestDesktopCYDCreatorShellBrowser` (screenshots in `reports/cyd-creator/`,
+  backend `ui/testdata/cyd-creator-fixture.js`, whose EventSource keeps `lastEventId` like a browser) and
+  `TestConfigCYDCreatorSectionBrowser` (the real config page, no screenshots).
 
 ## Purpose
 
