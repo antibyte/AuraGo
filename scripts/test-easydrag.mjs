@@ -83,6 +83,7 @@ const types = new Map([
     ['web.search', { type: 'web.search', label: 'Websuche', inputs: ['in'], outputs: ['out'], primary_input: 'query', params: [{ name: 'query', kind: 'text' }, { name: 'count', kind: 'number', default: 5 }], output_fields: [{ name: 'results', type: 'list', primary: true }] }],
     ['logic.if', { type: 'logic.if', label: 'Wenn', inputs: ['in'], outputs: ['true', 'false'], params: [] }],
     ['logic.switch', { type: 'logic.switch', label: 'Verzweigung', inputs: ['in'], outputs: ['default'], dynamic_outputs: 'cases', params: [] }],
+    ['ai.decision', { type: 'ai.decision', label: 'Entscheidung', inputs: ['in'], outputs: ['out', 'uncertain'], dynamic_outputs: 'decision_choices', dynamic_fields: 'mode', params: [], output_fields: [{ name: 'answers', type: 'object' }, { name: 'decision', type: 'text' }, { name: 'confidence', type: 'number' }] }],
     ['ai.step', { type: 'ai.step', label: 'KI-Schritt', inputs: ['in'], outputs: ['out'], primary_input: 'prompt', dynamic_fields: 'fields', params: [{ name: 'prompt', kind: 'textarea' }], output_fields: [{ name: 'text', type: 'text', primary: true }] }],
     ['documents.pdf', { type: 'documents.pdf', label: 'PDF', inputs: ['in'], outputs: ['out'], primary_input: 'content', params: [{ name: 'content', kind: 'textarea' }], output_fields: [{ name: 'file', type: 'file', primary: true }] }],
     ['notify.telegram', { type: 'notify.telegram', label: 'Telegram', inputs: ['in'], outputs: ['out'], primary_input: 'message', params: [{ name: 'message', kind: 'textarea' }, { name: 'file', kind: 'file' }] }]
@@ -126,6 +127,26 @@ eq('taken key refused', model.setKey(search, model.node(ai).key).reason, 'taken'
 const sw = model.addNode('logic.switch', { x: 900, y: 0 });
 model.setParam(sw, 'cases', [{ label: 'a' }, { label: 'b' }]);
 eq('switch outputs follow cases', model.outputs(model.node(sw)), ['case_1', 'case_2', 'default']);
+const decision = model.addNode('ai.decision', { x: 900, y: 300 });
+model.setParam(decision, 'questions', [{ id: 'intent', type: 'choice', instructions: 'Choose', options: [{ id: 'approve', label: 'Approve' }, { id: 'reject', label: 'Reject' }] }]);
+eq('decision route outputs use stable option ids', model.outputs(model.node(decision)), ['choice_approve', 'choice_reject', 'uncertain']);
+const branch = model.addNode('logic.if', { x: 1200, y: 300 });
+const decisionEdge = model.connect(decision, 'choice_approve', branch, 'in');
+check('decision choice port connects', decisionEdge.ok);
+model.setParam(decision, 'questions', [{ id: 'intent', type: 'choice', instructions: 'Choose', options: [{ id: 'reject', label: 'Reject' }, { id: 'approve', label: 'Approve' }] }]);
+eq('decision option reorder retains port and wire', [model.outputs(model.node(decision)), model.incoming(branch)[0].source.port], [['choice_reject', 'choice_approve', 'uncertain'], 'choice_approve']);
+model.setParam(decision, 'questions', [{ id: 'intent', type: 'choice', instructions: 'Choose', options: [{ id: 'reject', label: 'Reject' }, { id: 'other', label: 'Other' }] }]);
+eq('decision option deletion keeps the invalid wire visible for repair', [model.outputs(model.node(decision)), model.outgoing(decision).map(edge => edge.source.port)], [['choice_reject', 'choice_other', 'uncertain'], ['choice_approve']]);
+model.setParam(decision, 'mode', 'evaluate');
+eq('decision evaluate uses fixed outputs', model.outputs(model.node(decision)), ['out', 'uncertain']);
+eq('decision mode change keeps route wires visible for repair', model.outgoing(decision).map(edge => edge.source.port), ['choice_approve']);
+model.disconnect([decisionEdge.id]);
+eq('decision wire can be explicitly disconnected', model.outgoing(decision), []);
+eq('decision evaluate removes route-only result fields', model.fieldsOf(model.node(decision)).map(field => field.name), ['answers']);
+model.setParam(decision, 'mode', 'route');
+eq('decision route exposes its direct decision fields', model.fieldsOf(model.node(decision)).map(field => field.name), ['answers', 'decision', 'confidence']);
+model.setSettings(decision, { on_error: 'error_port' });
+eq('decision allows explicit error port', model.outputs(model.node(decision)), ['choice_reject', 'choice_other', 'uncertain', 'error']);
 model.setSettings(ai, { on_error: 'error_port' });
 eq('error port added', model.outputs(model.node(ai)), ['out', 'error']);
 model.setParam(ai, 'output_mode', 'fields');

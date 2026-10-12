@@ -32,7 +32,7 @@
 
     // GROUP_KINDS have no single input a <label for> could point at: the label names the
     // control's group through aria-labelledby.
-    const GROUP_KINDS = new Set(['bool', 'segmented', 'multiselect', 'keyvalue', 'condition_group', 'cases', 'fields', 'tags']);
+    const GROUP_KINDS = new Set(['bool', 'segmented', 'multiselect', 'keyvalue', 'condition_group', 'cases', 'fields', 'tags', 'decision_questions', 'decision_images']);
 
     const REF_TYPE = 'application/x-easydrag-ref';
 
@@ -157,7 +157,7 @@
             const fenv = fieldEnv(param.name);
             const set = v => fenv.change(v);
             const asTemplate = param.templatable && templated(param, value);
-            const tpl = extra => F.templateField(fenv, value, Object.assign({ id, labelledBy: labelId }, extra)).el;
+            const tpl = extra => F.templateField(fenv, param.kind === 'json' && forced.has(param.name) && !isTemplate(value) ? '' : value, Object.assign({ id, labelledBy: labelId }, extra)).el;
             switch (param.kind) {
                 case 'textarea':
                     return tpl({ multiline: true });
@@ -165,7 +165,7 @@
                 case 'cron':
                     return asTemplate || param.kind === 'text' ? tpl() : plainInput(param, value, id, set);
                 case 'number':
-                    return templated(param, value) ? tpl() : numberInput(value, id, set);
+                    return templated(param, value) ? tpl() : numberInput(param, value, id, set);
                 case 'bool':
                     return F.toggle(fenv, value === undefined ? param.default : value, set, param.label);
                 case 'segmented':
@@ -178,6 +178,7 @@
                 case 'file':
                     return F.fileField(fenv, value, set, id, { labelledBy: labelId });
                 case 'json':
+					if (asTemplate) return tpl({ multiline: true });
                     return F.jsonEditor(fenv, value, set, id);
                 case 'keyvalue':
                     return F.keyValue(fenv, value, set);
@@ -191,6 +192,10 @@
                     return templated(param, value) ? tpl() : F.dateTime(fenv, value, set, id);
                 case 'fields':
                     return F.fieldList(fenv, param, value, set);
+                case 'decision_questions':
+                    return F.decisionQuestions(Object.assign({ node }, fenv), value, set);
+                case 'decision_images':
+                    return F.decisionImages(fenv, value, set);
                 case 'tags':
                     return F.tags(fenv, value, set);
                 default:
@@ -204,8 +209,9 @@
             return input;
         }
 
-        function numberInput(value, id, set) {
-            const input = core.el('<input type="number" inputmode="decimal" class="ed-input" id="' + esc(id) + '" value="' + esc(value == null ? '' : value) + '"' + (readonly ? ' disabled' : '') + '>');
+        function numberInput(param, value, id, set) {
+            const bounds = (name, attr) => typeof param[name] === 'number' && isFinite(param[name]) ? ' ' + attr + '="' + esc(param[name]) + '"' : '';
+            const input = core.el('<input type="number" inputmode="decimal" class="ed-input" id="' + esc(id) + '" value="' + esc(value == null ? '' : value) + '"' + bounds('min', 'min') + bounds('max', 'max') + bounds('step', 'step') + (readonly ? ' disabled' : '') + '>');
             input.addEventListener('change', () => set(input.value === '' ? undefined : Number(input.value)));
             return input;
         }
@@ -288,7 +294,7 @@
                 const grouped = GROUP_KINDS.has(param.kind);
                 const value = node.params[param.name];
                 const issue = issueFor(param.name);
-                const canToggle = param.templatable && !['text', 'textarea', 'condition_group', 'cases', 'fields', 'keyvalue', 'file', 'json'].includes(param.kind) && !readonly;
+                const canToggle = param.templatable && !['text', 'textarea', 'condition_group', 'cases', 'fields', 'keyvalue', 'file', 'decision_questions', 'decision_images'].includes(param.kind) && !readonly;
                 const field = core.el('<div class="ed-field' + (param.required ? ' is-required' : '') + (issue ? ' has-issue' : '') + '" data-param="' + esc(param.name) + '" data-kind="' + esc(param.kind) + '">' +
                     '<div class="ed-field-head"><label id="' + esc(labelId) + '"' + (grouped ? '' : ' for="' + esc(id) + '"') + '>' + esc(param.label) + (param.required ? '<span class="ed-required" aria-hidden="true">*</span>' : '') + '</label>' +
                     (canToggle ? '<button type="button" class="ed-mode" data-ed-mode="' + esc(param.name) + '" aria-pressed="' + templated(param, value) + '" title="' + esc(t('easydrag.ui.mode_hint')) + '">' +
@@ -403,12 +409,14 @@
             // refresh re-renders after the node changed outside the form (undo, other window).
             refresh(nextNode, nextRoots, issues) {
                 const visibleBefore = Array.from(controls.keys()).join(',');
+                const decisionModeChanged = env.info && env.info.type === 'ai.decision' &&
+                    node.params && nextNode && nextNode.params && node.params.mode !== nextNode.params.mode;
                 node = nextNode;
                 if (nextRoots) roots = nextRoots;
                 if (issues) env.issues = issues;
                 const visibleAfter = ((env.info && env.info.params) || []).filter(p => visible(p, node.params)).map(p => p.name).join(',');
                 const focused = el.contains(document.activeElement);
-                if (visibleBefore !== visibleAfter || !focused) build();
+                if (visibleBefore !== visibleAfter || decisionModeChanged || !focused) build();
                 else {
                     controls.forEach((_, name) => previewFor(name));
                     syncIssues();

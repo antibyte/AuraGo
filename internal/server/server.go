@@ -195,6 +195,7 @@ type Server struct {
 	Go2RTC                    *tools.Go2RTCManager
 	RuView                    *ruview.Manager
 	LocalLLM                  *localllm.Manager
+	Decisions                 decisionsService
 	LocalMusic                *acestep.Manager
 	LocalWiki                 *localwiki.Manager
 	localWikiSyncMu           sync.Mutex // one step from reading the config snapshot to configuring LocalWiki
@@ -492,6 +493,7 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	RegisterLLMSecrets(cfg)
 	s.Cfg = cfg
 	s.cfgSnapshot.Store(cfg)
+	s.reconfigureDecisions(previous, cfg)
 	if s.RuView != nil {
 		s.RuView.Configure()
 	}
@@ -1305,6 +1307,8 @@ func Start(opts StartOptions) error {
 	s.reinitBudgetTracker(cfg)
 
 	// EasyDrag flows hook into Mission Control before it starts (flow triggers, startup trigger).
+	s.startDecisions(serverCtx)
+	defer s.shutdownDecisions(context.Background())
 	s.initFlows()
 	if err := s.MissionManagerV2.StartContext(serverCtx); err != nil {
 		logger.Warn("Failed to start MissionManagerV2", "error", err)
@@ -1730,6 +1734,7 @@ func newServerFromOptions(opts StartOptions) *Server {
 	// Speech Lab is disabled or switched to an external deployment.
 	s.SpeechLabDeployer = deployer.NewManager(speechCfg, cfg.Runtime.IsDocker, cfg.Docker.Enabled, cfg.Docker.ReadOnly, cfg.Directories.DataDir, logger, deployer.WithDockerClient(dockerutil.NewClient(cfg.Docker.Host, 30*time.Second)))
 	s.initConfigSnapshot()
+	s.initDecisions(opts.InstallDir)
 	if opts.Vault != nil {
 		s.VaultSecretPrompter = vaultprompt.NewManager(opts.Vault, 5*time.Minute)
 	}
@@ -1915,6 +1920,7 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		// Flow runs use tools, MQTT, mail, MCP, the sandbox, the mission history and the
 		// planner. Cancel and join them before any of those stop (see shutdownFlows).
 		s.shutdownFlows(ctx)
+		s.shutdownDecisions(ctx)
 
 		// Relay runs can own network, database and tool activity. Cancel and
 		// join them before shutting down any of their dependencies.

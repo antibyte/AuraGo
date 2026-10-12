@@ -753,6 +753,16 @@ worker. Keep packaging, recovery and offline instructions in
 - Protected surfaces from the rollout base:
   `git diff --exit-code 0773dfa52e3d21f420f9009c480bdd817e761882 -- ui/index.html ui/desktop.html ui/gallery.html ui/js/shared ui/js/chat ui/js/desktop ui/fonts ui/shared-variables.css ui/shared-utilities.css ui/shared-components.css ui/shared-animations.css`.
 
+## Decisions settings
+
+- `cfg/decisions.js` uses the shared saved/draft state for activation, deployment,
+  and explicit CPU/mixed-offload permission. Its status polling is passive,
+  bounded, cancelled on disposal, and cannot repaint another section. Install,
+  start, and test require saved settings; stop remains available for containment.
+  Keep `config.decisions.*` in all sixteen locales aligned and verify
+  `TestDecisionsConfigBrowser` and `TestDecisionsLocaleKeys`. The backend and
+  hardware acceptance contract lives in `../internal/decisions/AGENTS.md`.
+
 ## Child DOX Index
 
 - `3d/screensaver/AGENTS.md` — Compact Tiefsee screensaver creature GLBs and their shader-facing UV contract.

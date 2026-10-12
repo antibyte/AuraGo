@@ -5,7 +5,7 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 ## Boundaries
 - Never import `internal/agent`, `internal/server` or `internal/tools`. Tool calls go through
   `ToolInvoker`, LLM calls through `LLMStepper`, time through `Clock` (`services.go`).
-- Node types live in a `Registry`. `RegisterCatalog(reg, env)` registers the 35 curated types (see Catalog);
+- Node types live in a `Registry`. `RegisterCatalog(reg, env)` registers the 36 curated types (see Catalog);
   the server wiring (`internal/server`, see Integration) supplies the `CatalogEnv` and the `GenericTool` list for
   `RefreshGenericTools`.
 
@@ -59,6 +59,17 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - `ParseToolOutput` limits: JSON followed by trailing text is not JSON and falls back to `{"text": …}`.
 - `ParseToolOutput` limits: nesting deeper than about 10000 levels falls back to text, and the engine fails
   a node whose output is nested beyond its own depth limit.
+- `ai.decision` calls only `Services.Decisions` (`DecisionEvaluator`); its `DecisionRequest.Images` are
+  registered-media references, never paths or bytes. The server owns rooted media resolution and only then
+  passes `decisions.Image` bytes to the managed runtime. Do not import `internal/server` or put image bytes
+  into flow params, outputs, events or logs. Validate the service response before routing; a missing,
+  malformed or uncertain result must never reach a choice port.
+- `ai.decision` has `route` and `evaluate` modes. Route permits one `choice` or `noul` question and names
+  choice ports `choice_<stable-option-id>`; reordering options must not rename ports. Evaluate returns the
+  ordered questions' answer map on `out`, or `uncertain` if any confidence is below the configured threshold.
+  Its only error policies are stop and `error_port`: disallow `continue` in both publish validation and the
+  editor, and force stop for invalid imported settings at runtime. `choice`, `noul` and `score` are closed
+  type IDs shared with `internal/decisions`; keep their option semantics and caps in sync.
 
 ## Document and template invariants
 - `SchemaVersion` is 1. Limits: `MaxNodes` 500, `MaxEdges` 2000, `MaxDocumentBytes` 2 MiB. `Normalize`
@@ -224,8 +235,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   overlap keeps its wall-clock time; which of the two instants is not defined.
 
 ## Catalog
-- Counts: `RegisterCatalog(reg, env)` registers 35 curated types: logic 6 (`logic.if`, `switch`, `merge`, `wait`,
-  `set`, `stop`), triggers 13, AI 1 (`ai.step`) and actions 15 (web 3, documents 4, notify 4, smart home 2,
+- Counts: `RegisterCatalog(reg, env)` registers 36 curated types: logic 6 (`logic.if`, `switch`, `merge`, `wait`,
+  `set`, `stop`), triggers 13, AI 2 (`ai.step`, `ai.decision`) and actions 15 (web 3, documents 4, notify 4, smart home 2,
   planner 2); `TestRegisterCatalogCounts` pins the total and the trigger count. Generic `tool.<name>` nodes are
   separate: `RefreshGenericTools(reg, tools, env)` replaces all of them in one atomic `Registry.ReplaceWhere`
   step (a concurrent `Lookup` never sees a half-built set) and returns how many it registered. Call it again

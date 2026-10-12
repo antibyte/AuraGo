@@ -67,7 +67,7 @@ func (s *Server) initFlows() {
 	// time.Local: the cron manager runs flow schedules in time.Local, so Date/Time triggers
 	// and yearly timers must use the same zone.
 	services := &flows.Services{Tools: newFlowToolInvoker(s, env), LLM: newFlowLLM(s), Secrets: flowSecrets{s: s},
-		Clock: flows.RealClock(), Location: time.Local}
+		Clock: flows.RealClock(), Location: time.Local, Decisions: flowDecisions{s: s}}
 	limits := s.Cfg.Flows
 	s.Flows = flows.NewService(store, reg, services, flowMissionBridge{s: s}, flows.ServiceConfig{
 		MaxParallelRuns: limits.EffectiveMaxParallelRuns(), MaxParallelNodes: limits.EffectiveMaxParallelNodes(),

@@ -86,10 +86,17 @@ export async function run(env) {
         proto.scrollIntoView = function () {};
         proto.click = function () { this.fire('click'); };
         const docListeners = {};
+        const windowListeners = {};
         Object.assign(dom.document, {
             addEventListener(type, fn) { (docListeners[type] = docListeners[type] || []).push(fn); },
             removeEventListener(type, fn) { const list = docListeners[type] || []; const i = list.indexOf(fn); if (i >= 0) list.splice(i, 1); }
         });
+        const win = {
+            SYSTEM_LANG: 'en', location: { origin: 'https://aurago.test' },
+            addEventListener(type, fn) { (windowListeners[type] = windowListeners[type] || []).push(fn); },
+            removeEventListener(type, fn) { const list = windowListeners[type] || []; const i = list.indexOf(fn); if (i >= 0) list.splice(i, 1); },
+            dispatchEvent(event) { (windowListeners[event.type] || []).slice().forEach(fn => fn(event)); return true; }
+        };
         const timers = new Map();
         const frames = new Map();
         let nextId = 1;
@@ -104,7 +111,7 @@ export async function run(env) {
             fail() { if (!this.closed && this.onerror) this.onerror({ type: 'error' }); }
         }
         const box = vm.createContext({
-            window: { SYSTEM_LANG: 'en', location: { origin: 'https://aurago.test' } }, navigator: { platform: 'Linux' }, crypto: webcrypto, document: dom.document, EventSource, URLSearchParams, URL,
+            window: win, navigator: { platform: 'Linux' }, crypto: webcrypto, document: dom.document, EventSource, URLSearchParams, URL,
             console: { log() {}, warn() {}, error: (...args) => { logged.push(args.map(String).join(' ')); } },
             localStorage: { getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => { store.set(k, String(v)); }, removeItem: k => { store.delete(k); } },
             setTimeout: (fn, ms) => { const id = nextId++; timers.set(id, { fn, ms }); return id; },
@@ -138,7 +145,7 @@ export async function run(env) {
             selection: new Set(), run: null, runView: null, issues: [], lastRunData: null, detail: null, effectsConfirmed: false, bus
         };
         return {
-            ED, ed, model, bus, dom, sources, requests, notes, announced, logged, timers, store, win: box.window, docListeners,
+            ED, ed, model, bus, dom, sources, requests, notes, announced, logged, timers, store, win: box.window, docListeners, windowListeners,
             canvas: { announce: text => announced.push(text) },
             // timer returns the delay of the one pending timer (all delays when there are more).
             timer() { const list = Array.from(timers.values()).map(x => x.ms); return list.length === 1 ? list[0] : list; },
@@ -331,10 +338,14 @@ export async function run(env) {
         const alphaRow = () => rows().find(r => r.getAttribute('data-ref') === 'alpha.results');
         // Editing: rows drag, and a click inserts into the first template field.
         h.ED.detail.open(h.ed, B);
+        eq('c1d06 opening the detail listens for viewport and fullscreen changes',
+            [h.windowListeners.resize?.length || 0, h.docListeners.fullscreenchange?.length || 0], [1, 1]);
         const editDrag = rows().map(r => r.getAttribute('draggable'));
         alphaRow().fire('click');
         const inserted = h.model.node(B).params.query;
         h.ED.detail.close(h.ed);
+        eq('c1d06 closing the detail removes window lifecycle listeners',
+            [h.windowListeners.resize?.length || 0, h.docListeners.fullscreenchange?.length || 0], [0, 0]);
         h.runTimers();
         // Run view: the same tree shows the run's data but inserts nothing.
         h.ed.runView = { run: { id: 'r1' }, doc: flowDoc() };

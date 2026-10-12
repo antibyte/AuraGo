@@ -463,6 +463,12 @@ fallback_llm:
 # performance use Linux AMD64, Docker, and preferably a discrete NVIDIA,
 # Intel Arc, or Vulkan 1.2+ GPU with at least 8 GB VRAM. Modern iGPUs and CPU
 # mode are experimental and may be unacceptably slow.
+# Optional local text/image decisions. CPU and mixed offload require explicit consent.
+decisions:
+  enabled: false
+  deployment: auto                     # auto: native on host, managed container in Docker
+  cpu_fallback_allowed: false           # persistent, revocable permission; GPUs remain preferred
+
 local_llm:
     enabled: false
     backend: auto                  # auto, cuda, sycl, vulkan, cpu (CPU is never automatic)

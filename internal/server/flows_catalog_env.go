@@ -34,8 +34,9 @@ import (
 // The cached names and generic tools are shared by all callers and read-only. The
 // schemas inside them are the agent's cached schema maps, also read-only.
 type flowCatalogEnv struct {
-	schemas func(cfg *config.Config) []openai.Tool
-	current func() *config.Config
+	decisionsServer *Server
+	schemas         func(cfg *config.Config) []openai.Tool
+	current         func() *config.Config
 
 	refreshMu sync.Mutex
 	regCfg    *config.Config // the configuration whose tools the registry holds; guarded by refreshMu
@@ -48,8 +49,9 @@ type flowCatalogEnv struct {
 
 func newFlowCatalogEnv(s *Server) *flowCatalogEnv {
 	return &flowCatalogEnv{
-		schemas: func(cfg *config.Config) []openai.Tool { return agent.ConfiguredToolSchemas(cfg, s.Logger) },
-		current: s.ConfigSnapshot,
+		decisionsServer: s,
+		schemas:         func(cfg *config.Config) []openai.Tool { return agent.ConfiguredToolSchemas(cfg, s.Logger) },
+		current:         s.ConfigSnapshot,
 	}
 }
 

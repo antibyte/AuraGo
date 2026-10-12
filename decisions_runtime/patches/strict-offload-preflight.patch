@@ -1,0 +1,324 @@
+diff --git a/ggml/include/ggml-backend.h b/ggml/include/ggml-backend.h
+index 5ef80da..5cbfe27 100644
+--- a/ggml/include/ggml-backend.h
++++ b/ggml/include/ggml-backend.h
+@@ -317,6 +317,10 @@ extern "C" {
+     //
+     typedef bool (*ggml_backend_sched_eval_callback)(struct ggml_tensor * t, bool ask, void * user_data);
+ 
++    // Called after graph allocation and before any graph split is copied or computed.
++    // Returning false aborts the graph before backend execution begins.
++    typedef bool (*ggml_backend_sched_preflight_callback)(struct ggml_tensor * t, ggml_backend_t backend, void * user_data);
++
+     // Initialize a backend scheduler, backends with low index are given priority over backends with high index
+     GGML_API ggml_backend_sched_t ggml_backend_sched_new(ggml_backend_t * backends, ggml_backend_buffer_type_t * bufts, int n_backends, size_t graph_size, bool parallel, bool op_offload);
+     GGML_API void                 ggml_backend_sched_free(ggml_backend_sched_t sched);
+@@ -355,6 +359,9 @@ extern "C" {
+     // Set a callback to be called for each resulting node during graph compute
+     GGML_API void                 ggml_backend_sched_set_eval_callback(ggml_backend_sched_t sched, ggml_backend_sched_eval_callback callback, void * user_data);
+ 
++    // Set a preflight callback for each allocated graph node, before any compute.
++    GGML_API void                 ggml_backend_sched_set_preflight_callback(ggml_backend_sched_t sched, ggml_backend_sched_preflight_callback callback, void * user_data);
++
+     //
+     // Meta backend
+     //
+diff --git a/ggml/src/ggml-backend.cpp b/ggml/src/ggml-backend.cpp
+index 5bdade6..402613c 100644
+--- a/ggml/src/ggml-backend.cpp
++++ b/ggml/src/ggml-backend.cpp
+@@ -965,6 +965,8 @@ struct ggml_backend_sched {
+ 
+     ggml_backend_sched_eval_callback callback_eval;
+     void * callback_eval_user_data;
++    ggml_backend_sched_preflight_callback callback_preflight;
++    void * callback_preflight_user_data;
+ 
+     char * context_buffer;
+     size_t context_buffer_size;
+@@ -2182,6 +2184,16 @@ enum ggml_status ggml_backend_sched_graph_compute_async(ggml_backend_sched_t sch
+         }
+     }
+ 
++    if (sched->callback_preflight) {
++        for (int i = 0; i < sched->graph.n_nodes; i++) {
++            const int backend_id = sched->node_backend_ids[i];
++            if (backend_id < 0 || backend_id >= sched->n_backends ||
++                !sched->callback_preflight(sched->graph.nodes[i], sched->backends[backend_id], sched->callback_preflight_user_data)) {
++                return GGML_STATUS_ABORTED;
++            }
++        }
++    }
++
+     return ggml_backend_sched_compute_splits(sched);
+ }
+ 
+@@ -2204,6 +2216,12 @@ void ggml_backend_sched_set_eval_callback(ggml_backend_sched_t sched, ggml_backe
+     sched->callback_eval_user_data = user_data;
+ }
+ 
++void ggml_backend_sched_set_preflight_callback(ggml_backend_sched_t sched, ggml_backend_sched_preflight_callback callback, void * user_data) {
++    GGML_ASSERT(sched);
++    sched->callback_preflight = callback;
++    sched->callback_preflight_user_data = user_data;
++}
++
+ int ggml_backend_sched_get_n_splits(ggml_backend_sched_t sched) {
+     GGML_ASSERT(sched);
+     return sched->n_splits;
+diff --git a/ggml/src/ggml-vulkan/CMakeLists.txt b/ggml/src/ggml-vulkan/CMakeLists.txt
+index d7dec92..cdff839 100644
+--- a/ggml/src/ggml-vulkan/CMakeLists.txt
++++ b/ggml/src/ggml-vulkan/CMakeLists.txt
+@@ -177,6 +177,7 @@ if (Vulkan_FOUND)
+         set(HOST_CMAKE_TOOLCHAIN_FILE "")
+     endif()
+ 
++    if (NOT WIN32 OR CMAKE_CROSSCOMPILING)
+     include(ExternalProject)
+ 
+     if (CMAKE_CROSSCOMPILING)
+@@ -190,6 +191,7 @@ if (Vulkan_FOUND)
+         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/$<CONFIG>
+                    -DCMAKE_INSTALL_BINDIR=.
+                    -DCMAKE_BUILD_TYPE=$<CONFIG>
++                   -DCMAKE_TRY_COMPILE_CONFIGURATION=Release
+                    ${VULKAN_SHADER_GEN_CMAKE_ARGS}
+ 
+         BUILD_COMMAND ${CMAKE_COMMAND} --build . --config $<CONFIG>
+@@ -203,6 +205,13 @@ if (Vulkan_FOUND)
+         INSTALL_COMMAND ${CMAKE_COMMAND} -E env --unset=DESTDIR
+                         ${CMAKE_COMMAND} --install . --config $<CONFIG>
+     )
++    else()
++        # Build the host tool in the same graph to avoid nested CMake/build
++        # processes while retaining dependency tracking for shader sources.
++        add_subdirectory(vulkan-shaders "${CMAKE_CURRENT_BINARY_DIR}/vulkan-shaders-gen")
++        set_target_properties(vulkan-shaders-gen PROPERTIES
++            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIG>")
++    endif()
+ 
+     set (_ggml_vk_host_suffix $<IF:$<STREQUAL:${CMAKE_HOST_SYSTEM_NAME},Windows>,.exe,>)
+     set (_ggml_vk_genshaders_dir "${CMAKE_BINARY_DIR}/$<CONFIG>")
+diff --git a/include/llama.h b/include/llama.h
+index 9bca8ee..d259294 100644
+--- a/include/llama.h
++++ b/include/llama.h
+@@ -401,6 +401,10 @@ extern "C" {
+         ggml_abort_callback abort_callback;
+         void *              abort_callback_data;
+ 
++        // Called after graph allocation and before any graph compute. Returning false aborts safely.
++        ggml_backend_sched_preflight_callback preflight_callback;
++        void *                                preflight_callback_data;
++
+         // Keep the booleans together and at the end of the struct to avoid misalignment during copy-by-value.
+         bool embeddings;  // if true, extract embeddings (together with logits)
+         bool offload_kqv; // offload the KQV ops (including the KV cache) to GPU
+diff --git a/src/llama-context.cpp b/src/llama-context.cpp
+index 07b4c61..82b0b0b 100644
+--- a/src/llama-context.cpp
++++ b/src/llama-context.cpp
+@@ -143,6 +143,9 @@ llama_context::llama_context(
+     cparams.cb_eval           = params.cb_eval;
+     cparams.cb_eval_user_data = params.cb_eval_user_data;
+ 
++    preflight_callback = params.preflight_callback;
++    preflight_callback_data = params.preflight_callback_data;
++
+     cparams.ctx_other = nullptr;
+ 
+     // TODO: more generic
+@@ -373,7 +376,6 @@ llama_context::llama_context(
+         }
+ 
+         llama_set_abort_callback(this, params.abort_callback, params.abort_callback_data);
+-
+         // graph outputs buffer
+         {
+             if (output_reserve(params.n_seq_max) < params.n_seq_max) {
+@@ -641,6 +643,9 @@ void llama_context::sched_reserve() {
+     gf_res_prev_active = nullptr;
+ 
+     sched.reset(ggml_backend_sched_new(backend_ptrs.data(), backend_buft.data(), backend_ptrs.size(), max_nodes, cparams.pipeline_parallel, cparams.op_offload));
++    if (preflight_callback != nullptr) {
++        ggml_backend_sched_set_preflight_callback(sched.get(), preflight_callback, preflight_callback_data);
++    }
+ 
+     llama_memory_context_ptr mctx;
+     if (memory) {
+@@ -680,6 +685,9 @@ void llama_context::sched_reserve() {
+                 LLAMA_LOG_WARN("%s: compute buffer allocation failed, retrying without pipeline parallelism\n", __func__);
+                 cparams.pipeline_parallel = false;
+                 sched.reset(ggml_backend_sched_new(backend_ptrs.data(), backend_buft.data(), backend_ptrs.size(), max_nodes, false, cparams.op_offload));
++                if (preflight_callback != nullptr) {
++                    ggml_backend_sched_set_preflight_callback(sched.get(), preflight_callback, preflight_callback_data);
++                }
+                 gf = graph_reserve(n_tokens, n_seqs, n_outputs_pp, mctx.get());
+             }
+             if (!gf) {
+@@ -3784,6 +3792,8 @@ llama_context_params llama_context_default_params() {
+         /*.type_v                      =*/ GGML_TYPE_F16,
+         /*.abort_callback              =*/ nullptr,
+         /*.abort_callback_data         =*/ nullptr,
++        /*.preflight_callback          =*/ nullptr,
++        /*.preflight_callback_data     =*/ nullptr,
+         /*.embeddings                  =*/ false,
+         /*.offload_kqv                 =*/ true,
+         /*.no_perf                     =*/ true,
+diff --git a/src/llama-context.h b/src/llama-context.h
+index 95b7226..48d9e86 100644
+--- a/src/llama-context.h
++++ b/src/llama-context.h
+@@ -368,6 +368,9 @@ private:
+     ggml_abort_callback abort_callback      = nullptr;
+     void *              abort_callback_data = nullptr;
+ 
++    ggml_backend_sched_preflight_callback preflight_callback = nullptr;
++    void * preflight_callback_data = nullptr;
++
+     std::vector<std::pair<ggml_backend_t, ggml_backend_set_n_threads_t>> set_n_threads_fns;
+ 
+     // pointers and buffer types used for the compute buffer of each backend
+diff --git a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
+index 50fb6c4..6a6febe 100644
+--- a/tools/mtmd/clip.cpp
++++ b/tools/mtmd/clip.cpp
+@@ -224,6 +224,9 @@ struct clip_ctx {
+         if (ctx_params.cb_eval != nullptr) {
+             ggml_backend_sched_set_eval_callback(sched.get(), ctx_params.cb_eval, ctx_params.cb_eval_user_data);
+         }
++        if (ctx_params.preflight_callback != nullptr) {
++            ggml_backend_sched_set_preflight_callback(sched.get(), ctx_params.preflight_callback, ctx_params.preflight_callback_user_data);
++        }
+ 
+         debug_output_embeddings = std::getenv("MTMD_DEBUG_EMBEDDINGS") != nullptr;
+     }
+@@ -6133,6 +6136,14 @@ std::map<ggml_backend_dev_t, size_t> clip_get_mem_usage(const struct clip_ctx *
+     return result;
+ }
+ 
++std::map<ggml_backend_dev_t, size_t> clip_get_weight_mem_usage(const struct clip_ctx * ctx) {
++    return ctx->mem_usage;
++}
++
++std::map<ggml_backend_dev_t, size_t> clip_get_compute_mem_usage(const struct clip_ctx * ctx) {
++    return ctx->mem_compute;
++}
++
+ //
+ // API for debugging
+ //
+diff --git a/tools/mtmd/clip.h b/tools/mtmd/clip.h
+index 9e12702..8228964 100644
+--- a/tools/mtmd/clip.h
++++ b/tools/mtmd/clip.h
+@@ -55,6 +55,8 @@ struct clip_context_params {
+     bool warmup;
+     ggml_backend_sched_eval_callback cb_eval;
+     void * cb_eval_user_data;
++    ggml_backend_sched_preflight_callback preflight_callback;
++    void * preflight_callback_user_data;
+     bool no_alloc;
+     mtmd_progress_callback progress_callback;
+     void * progress_callback_user_data;
+@@ -134,6 +136,8 @@ bool clip_support_batch(const struct clip_ctx * ctx);
+ int clip_model_n_temporal_merge(const struct clip_ctx * ctx); // TODO @ngxson : remove, refactor this
+ 
+ std::map<ggml_backend_dev_t, size_t> clip_get_mem_usage(const struct clip_ctx * ctx);
++std::map<ggml_backend_dev_t, size_t> clip_get_weight_mem_usage(const struct clip_ctx * ctx);
++std::map<ggml_backend_dev_t, size_t> clip_get_compute_mem_usage(const struct clip_ctx * ctx);
+ 
+ struct clip_cap {
+     bool has_vision;
+diff --git a/tools/mtmd/mtmd.cpp b/tools/mtmd/mtmd.cpp
+index 9e7b1cc..8273965 100644
+--- a/tools/mtmd/mtmd.cpp
++++ b/tools/mtmd/mtmd.cpp
+@@ -469,6 +469,8 @@ mtmd_context_params mtmd_context_params_default() {
+         /* image_max_tokens  */ -1,
+         /* cb_eval           */ nullptr,
+         /* cb_eval_user_data */ nullptr,
++        /* preflight_callback */ nullptr,
++        /* preflight_callback_user_data */ nullptr,
+         /* batch_max_tokens  */ 1024,
+         /* progress_callback */ nullptr,
+         /* progress_callback_user_data */ nullptr,
+@@ -574,6 +576,8 @@ struct mtmd_context {
+             /* warmup            */ ctx_params.warmup,
+             /* cb_eval           */ ctx_params.cb_eval,
+             /* cb_eval_user_data */ ctx_params.cb_eval_user_data,
++            /* preflight_callback */ ctx_params.preflight_callback,
++            /* preflight_callback_user_data */ ctx_params.preflight_callback_user_data,
+             /* no_alloc          */ no_alloc,
+             /* progress_callback */ ctx_params.progress_callback,
+             /* progress_callback_user_data */ ctx_params.progress_callback_user_data,
+@@ -1101,6 +1105,30 @@ mtmd_context * mtmd_init_from_file(const char * mmproj_fname,
+     }
+ }
+ 
++struct mtmd_device_memory_usage mtmd_get_context_device_memory_usage(const mtmd_context * ctx, ggml_backend_dev_t selected_device) {
++    mtmd_device_memory_usage usage{};
++    if (!ctx || !selected_device) return usage;
++    auto collect = [&](const clip_ctx * clip) {
++        if (!clip) return;
++        for (const auto & [dev, bytes] : clip_get_weight_mem_usage(clip)) {
++            if (dev == selected_device) usage.selected_weight_bytes += bytes;
++            else usage.other_weight_bytes += bytes;
++            if (dev && ggml_backend_dev_type(dev) == GGML_BACKEND_DEVICE_TYPE_CPU) usage.cpu_weight_bytes += bytes;
++            else if (dev != selected_device) usage.non_cpu_other_weight_bytes += bytes;
++        }
++        for (const auto & [dev, bytes] : clip_get_compute_mem_usage(clip)) {
++            if (dev == selected_device) usage.selected_compute_bytes += bytes;
++            else usage.other_compute_bytes += bytes;
++            if (dev && ggml_backend_dev_type(dev) == GGML_BACKEND_DEVICE_TYPE_CPU) usage.cpu_compute_bytes += bytes;
++            else if (dev != selected_device) usage.non_cpu_other_compute_bytes += bytes;
++        }
++    };
++    collect(ctx->ctx_v);
++    collect(ctx->ctx_a);
++    collect(ctx->ctx_gen_a);
++    return usage;
++}
++
+ void mtmd_free(mtmd_context * ctx) {
+     delete ctx;
+ }
+diff --git a/tools/mtmd/mtmd.h b/tools/mtmd/mtmd.h
+index bcd76a9..b8c25fa 100644
+--- a/tools/mtmd/mtmd.h
++++ b/tools/mtmd/mtmd.h
+@@ -112,6 +112,10 @@ struct mtmd_context_params {
+     ggml_backend_sched_eval_callback cb_eval;
+     void * cb_eval_user_data;
+ 
++    // Called after projector graph allocation and before any graph compute.
++    ggml_backend_sched_preflight_callback preflight_callback;
++    void * preflight_callback_user_data;
++
+     // batching params
+     int32_t batch_max_tokens; // maximum number of output tokens in a batch
+                               // (note: this is not a hard-limit, the first image will always be added even if it exceeds this limit)
+@@ -455,9 +459,22 @@ struct mtmd_memory_usage {
+     int image_max_tokens;
+     bool use_non_causal;
+ };
++struct mtmd_device_memory_usage {
++    size_t selected_weight_bytes;
++    size_t other_weight_bytes;
++    size_t selected_compute_bytes;
++    size_t other_compute_bytes;
++    size_t cpu_weight_bytes;
++    size_t non_cpu_other_weight_bytes;
++    size_t cpu_compute_bytes;
++    size_t non_cpu_other_compute_bytes;
++};
+ MTMD_API struct mtmd_memory_usage mtmd_get_memory_usage(
+     const char * mmproj_fname,
+     struct mtmd_context_params ctx_params);
++MTMD_API struct mtmd_device_memory_usage mtmd_get_context_device_memory_usage(
++    const struct mtmd_context * ctx,
++    ggml_backend_dev_t selected_device);
+ #endif
+ 
+ //

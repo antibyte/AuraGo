@@ -6,6 +6,27 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Ownership
 
+- Decisions is constructed passively from the saved snapshot and trusted install
+  directory. Start it on the server lifecycle, inject `flowDecisions` into the
+  flow services before Mission Control starts, and drain it after flows and on
+  early server exit. Configuration replacement publishes CPU revocation and
+  disablement immediately; shutdown errors never restore permission. Call
+  `PrepareReconfigure` during publication, but run returned cleanup outside
+  `CfgMu` and complete it before restarting the runtime.
+- `/api/decisions/` is administrator-only, including status and evaluation.
+  Session mutations require an exact same-origin Origin; validated admin bearer
+  tokens use the existing scope boundary. Bound request bodies, preserve context
+  cancellation, and expose stable error codes rather than process output or
+  paths. Install/start may outlive the request, never the server.
+- `decisions_media.go` resolves registered media or existing authorized outgoing
+  attachment paths to rooted regular-file handles. Never accept caller URLs as
+  download authority. Enforce eight images, 12 MiB each, 24 MiB total, and 32
+  million pixels per image; enforce separate source and normalized byte totals.
+  Normalize WebP to bounded PNG using the existing Go
+  decoder. Flow core receives no filesystem capability. Verify `TestDecisions*`;
+  manager and native contracts live in `../decisions/AGENTS.md` and
+  `../../decisions_runtime/AGENTS.md`.
+
 - Desktop cloud storage routes under `/api/desktop/storage/` require admin
   access and apply Desktop, integration and mount rights independently.
   Visibility changes revoke active storage contexts. Transfer preflight enforces

@@ -422,7 +422,13 @@ func (s *runState) complete(ctx context.Context, d nodeDone) {
 	case d.err != nil:
 		s.status[n.ID] = StepError
 		errOut := map[string]any{"error": map[string]any{"code": d.err.Code, "message": d.err.Message}}
-		switch n.Settings.OnError {
+		errorMode := n.Settings.OnError
+		if info.def != nil && !info.def.AllowsErrorMode(errorMode) {
+			// Imported or test-only drafts can bypass publish validation. Keep a
+			// node's declared failure policy binding at runtime as well.
+			errorMode = ErrorStop
+		}
+		switch errorMode {
 		case ErrorContinue:
 			// The default port: "true" for logic.if, "case_1" for logic.switch.
 			s.outputs[n.Key] = errOut

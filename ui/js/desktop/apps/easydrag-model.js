@@ -126,6 +126,17 @@
             if (i && i.dynamic_outputs === 'cases') {
                 const cases = Array.isArray(n.params && n.params.cases) ? n.params.cases : [];
                 ports = cases.map((_, idx) => 'case_' + (idx + 1)).concat(['default']);
+            } else if (i && i.dynamic_outputs === 'decision_choices') {
+                if (n.params && n.params.mode === 'evaluate') {
+                    ports = ['out', 'uncertain'];
+                } else {
+                    const questions = Array.isArray(n.params && n.params.questions) ? n.params.questions : [];
+                    const question = questions.find(q => q && typeof q === 'object');
+                    let options = question && Array.isArray(question.options) ? question.options : [];
+                    if (question && question.type === 'noul') options = [{ id: 'no' }, { id: 'yes' }];
+                    ports = options.map(option => option && /^[a-z][a-z0-9_]{0,31}$/.test(String(option.id || '')) ? 'choice_' + option.id : null).filter(Boolean);
+                    ports.push('uncertain');
+                }
             } else if (i) {
                 ports = Array.isArray(i.outputs) ? i.outputs.filter(p => p !== 'error') : [];
             } else {
@@ -140,6 +151,11 @@
             const i = info(n.type);
             if (!i) return [];
             if (i.dynamic_fields === 'mode') {
+                if (i.type === 'ai.decision') {
+                    const fields = Array.isArray(i.output_fields) ? i.output_fields.slice() : [];
+                    if (n.params && n.params.mode === 'evaluate') return fields.filter(field => field.name !== 'decision' && field.name !== 'confidence');
+                    return fields;
+                }
                 // logic.merge: "append" outputs items and count; every other mode outputs one
                 // entry per direct upstream node, keyed by that node's key (internal/flows/nodes_logic.go).
                 if (n.params && n.params.mode === 'append') return [{ name: 'items', type: 'list', primary: true }, { name: 'count', type: 'number' }];
@@ -525,7 +541,6 @@
             change('param', rec => {
                 const n = rec.node(id);
                 if (value === undefined) delete n.params[name]; else n.params[name] = clone(value);
-                if (name === 'cases') dropDanglingEdges(rec, id);
             }, { coalesce: 'param:' + id + ':' + name });
         }
 

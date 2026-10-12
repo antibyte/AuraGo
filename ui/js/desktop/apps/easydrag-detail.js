@@ -169,6 +169,13 @@
         let shownStep;
         let shownNode = null;
         let shownData = null;
+        const ownerWindow = ed.root.closest('.vd-window');
+        // Touch layouts deliberately keep EasyDrag's workspace wider than the viewport. The
+        // node detail is a modal, though, so mount it outside that clipped window content on
+        // phones and let it use the visible viewport instead.
+        const wantsViewportPortal = () => !!(ownerWindow && ownerWindow.classList.contains('vd-mobile-wide-window') &&
+            window.matchMedia('(max-width: 820px)').matches);
+        let useViewportPortal = wantsViewportPortal();
 
         const el = core.el('<div class="ed-detail-backdrop"><div class="ed-detail" role="dialog" aria-modal="true">' +
             '<header class="ed-detail-head">' +
@@ -190,7 +197,17 @@
             ['tree', 'table', 'json'].map(v => '<button type="button" role="radio" data-ed-view="' + v + '">' + esc(t('easydrag.ui.view_' + v)) + '</button>').join('') + '</div></div>' +
             '<div class="ed-output-status"></div><div class="ed-output"></div></section>' +
             '</div></div></div>');
-        ed.root.appendChild(el);
+        function mountDetail() {
+            const nextPortal = wantsViewportPortal();
+            const host = nextPortal ? (document.fullscreenElement || document.body) : ed.root;
+            const focused = el.contains(document.activeElement) ? document.activeElement : null;
+            useViewportPortal = nextPortal;
+            el.classList.toggle('ed-app', nextPortal);
+            el.classList.toggle('ed-detail-portal', nextPortal);
+            if (el.parentElement !== host) host.appendChild(el);
+            if (focused && document.activeElement !== focused) focused.focus({ preventScroll: true });
+        }
+        mountDetail();
         const dialog = el.querySelector('.ed-detail');
         const labelInput = el.querySelector('.ed-detail-label');
 
@@ -273,7 +290,8 @@
             }
             const avail = info.availability || {};
             if (avail.state && avail.state !== 'available') {
-                host.appendChild(core.el('<div class="ed-callout ed-callout--warn">' + core.icon('settings') + '<div><strong>' + esc(t('easydrag.ui.badge_needs_setup')) + '</strong><p>' + esc(t('easydrag.ui.setup_hint')) + '</p>' +
+                const detail = avail.code ? core.tr(t, 'easydrag.availability.' + avail.code, avail.reason || t('easydrag.ui.setup_hint')) : (avail.reason || t('easydrag.ui.setup_hint'));
+                host.appendChild(core.el('<div class="ed-callout ed-callout--warn">' + core.icon('settings') + '<div><strong>' + esc(t('easydrag.ui.badge_needs_setup')) + '</strong><p>' + esc(detail) + '</p>' +
                     '<a class="ed-link" href="/config#' + esc(avail.config_section || 'tools') + '" target="_blank" rel="noopener">' + esc(t('easydrag.ui.setup_open')) + '</a></div></div>'));
             }
             if (info.description) host.appendChild(core.el('<p class="ed-detail-desc">' + esc(info.description) + '</p>'));
@@ -306,9 +324,14 @@
             });
             host.appendChild(keyField);
             const onError = core.el('<div class="ed-field"><div class="ed-field-head"><label>' + esc(t('easydrag.ui.settings_on_error')) + '</label></div></div>');
-            onError.appendChild(ED.fields.segmented(fenv, [
-                { value: 'stop', label: t('easydrag.ui.on_error_stop') }, { value: 'continue', label: t('easydrag.ui.on_error_continue') }, { value: 'error_port', label: t('easydrag.ui.on_error_port') }
-            ], s.on_error || 'stop', v => ed.model.setSettings(id, { on_error: v === 'stop' ? undefined : v }), { label: t('easydrag.ui.settings_on_error') }));
+            const allowedErrors = Array.isArray(info && info.error_modes) && info.error_modes.length ? info.error_modes : ['stop', 'continue', 'error_port'];
+            const errorOptions = [
+                { value: 'stop', label: t('easydrag.ui.on_error_stop') },
+                { value: 'continue', label: t('easydrag.ui.on_error_continue') },
+                { value: 'error_port', label: t('easydrag.ui.on_error_port') }
+            ].filter(option => allowedErrors.includes(option.value));
+            onError.appendChild(ED.fields.segmented(fenv, errorOptions,
+                s.on_error || 'stop', v => ed.model.setSettings(id, { on_error: v === 'stop' ? undefined : v }), { label: t('easydrag.ui.settings_on_error') }));
             onError.appendChild(core.el('<p class="ed-hint">' + esc(t('easydrag.ui.settings_on_error_hint')) + '</p>'));
             host.appendChild(onError);
             const retry = core.el('<div class="ed-field ed-field--row"><label>' + esc(t('easydrag.ui.settings_retries')) +
@@ -416,11 +439,15 @@
         }
 
         function applyNarrow() {
-            const narrow = ed.root.getBoundingClientRect().width < NARROW;
+            const layoutWidth = useViewportPortal ? el.getBoundingClientRect().width : ed.root.getBoundingClientRect().width;
+            const narrow = layoutWidth < NARROW;
             dialog.classList.toggle('is-narrow', narrow);
             el.querySelectorAll('[data-ed-narrow]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.edNarrow === narrowTab)));
             el.querySelectorAll('.ed-detail-col').forEach(c => { c.classList.toggle('is-active', c.dataset.col === narrowTab); });
         }
+
+        bag.listen(window, 'resize', () => { mountDetail(); applyNarrow(); });
+        bag.listen(document, 'fullscreenchange', () => { mountDetail(); applyNarrow(); });
 
         function renderAll() {
             renderHead();
@@ -528,6 +555,7 @@
         bag.add(ed.bus.on('issues', () => { if (form) form.refresh(node, roots(), ed.issues); }));
         const ro = new ResizeObserver(applyNarrow);
         ro.observe(ed.root);
+        ro.observe(el);
         bag.add(() => ro.disconnect());
 
         // ed.detail exists before the first render, so a render that throws still closes cleanly.

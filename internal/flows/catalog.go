@@ -21,7 +21,11 @@ func RegisterCatalog(reg *Registry, env CatalogEnv) error {
 	if err := RegisterTriggerNodes(reg); err != nil {
 		return err
 	}
-	if err := RegisterAINodes(reg); err != nil {
+	var decisionAvailability func() Availability
+	if source, ok := env.(interface{ DecisionAvailability() Availability }); ok {
+		decisionAvailability = source.DecisionAvailability
+	}
+	if err := RegisterAINodes(reg, decisionAvailability); err != nil {
 		return err
 	}
 	return RegisterActionNodes(reg, env)
@@ -51,6 +55,7 @@ type NodeTypeInfo struct {
 	Outputs        []string       `json:"outputs"`
 	DynamicOutputs string         `json:"dynamic_outputs,omitempty"`
 	DynamicFields  string         `json:"dynamic_fields,omitempty"`
+	ErrorModes     []ErrorMode    `json:"error_modes,omitempty"`
 	Params         []ParamInfo    `json:"params"`
 	OutputFields   []FieldInfo    `json:"output_fields,omitempty"`
 	PrimaryInput   string         `json:"primary_input,omitempty"`
@@ -71,6 +76,9 @@ type ParamInfo struct {
 	Required      bool         `json:"required,omitempty"`
 	Templatable   bool         `json:"templatable,omitempty"`
 	Default       any          `json:"default,omitempty"`
+	Min           *float64     `json:"min,omitempty"`
+	Max           *float64     `json:"max,omitempty"`
+	Step          *float64     `json:"step,omitempty"`
 	Options       []OptionInfo `json:"options,omitempty"`
 	OptionsSource string       `json:"options_source,omitempty"`
 	VisibleIf     *Visibility  `json:"visible_if,omitempty"`
@@ -103,9 +111,10 @@ type FieldInfo struct {
 //     (the default) included, declares no field, because it outputs one entry per
 //     upstream node key and those are only known from the connections. The
 //     OutputFields of the merge's NodeTypeInfo describe the default mode, which is none.
+//   - ai.decision: "mode" selects route-only result fields or structured-evaluation fields.
 var (
-	dynamicOutputs = map[string]string{TypeSwitch: "cases"}
-	dynamicFields  = map[string]string{TypeAIStep: "fields", TypeMerge: "mode"}
+	dynamicOutputs = map[string]string{TypeSwitch: "cases", TypeAIDecision: "decision_choices"}
+	dynamicFields  = map[string]string{TypeAIStep: "fields", TypeMerge: "mode", TypeAIDecision: "mode"}
 )
 
 // DescribeNodeTypes describes every registered node type for the editor, ordered by
@@ -261,6 +270,7 @@ func describeNodeType(def *NodeDef, tr func(string) string, sample func(*Node) m
 		Inputs:         nonNilStrings(slices.Clone(def.InputPorts())),
 		DynamicOutputs: dynamicOutputs[def.Type],
 		DynamicFields:  dynamicFields[def.Type],
+		ErrorModes:     slices.Clone(def.ErrorModes),
 		Params:         []ParamInfo{},
 		PrimaryInput:   def.PrimaryInput,
 		Tool:           def.Tool,
@@ -314,7 +324,7 @@ func describeParam(p ParamSpec, tr func(string) string) ParamInfo {
 		Name: p.Name, Kind: p.Kind, Label: firstNonEmpty(localize(tr, p.LabelKey, p.Label), p.Name),
 		Help: localize(tr, p.HelpKey, p.Help), Required: p.Required, Templatable: p.Templatable,
 		Default: cloneParamValue(p.Default), OptionsSource: p.OptionsSource, VisibleIf: cloneVisibility(p.VisibleIf),
-		SensitiveSink: p.SensitiveSink,
+		SensitiveSink: p.SensitiveSink, Min: cloneFloat(p.Min), Max: cloneFloat(p.Max), Step: cloneFloat(p.Step),
 	}
 	for _, o := range p.Options {
 		info.Options = append(info.Options, OptionInfo{Value: o.Value, Label: firstNonEmpty(localize(tr, o.LabelKey, o.Label), o.Value)})
@@ -323,6 +333,14 @@ func describeParam(p ParamSpec, tr func(string) string) ParamInfo {
 		info.Fields = append(info.Fields, describeParam(f, tr))
 	}
 	return info
+}
+
+func cloneFloat(v *float64) *float64 {
+	if v == nil {
+		return nil
+	}
+	x := *v
+	return &x
 }
 
 // cloneVisibility copies v, so the Equals list of the definition is not shared. Other

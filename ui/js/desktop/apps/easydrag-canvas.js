@@ -10,13 +10,22 @@
     const READABLE_PAD = 48;
     const ZOOMED_OUT = 0.7;
 
-    // portLabel names the output port of node n: a switch case by its label or number, any other port
-    // by its translation. The connect picker uses it too.
+    // portLabel names the output port of node n: switch cases and decision choices by their
+    // configured labels, any other port by its translation. The connect picker uses it too.
     function portLabel(t, n, port) {
-        if (!port.startsWith('case_')) return ED.core.tr(t, 'easydrag.ui.port_' + port, port);
-        const idx = Number(port.slice(5)) - 1;
-        const c = n && n.params && Array.isArray(n.params.cases) ? n.params.cases[idx] : null;
-        return (c && c.label) || t('easydrag.ui.port_case', { n: idx + 1 });
+        if (port.startsWith('case_')) {
+            const idx = Number(port.slice(5)) - 1;
+            const c = n && n.params && Array.isArray(n.params.cases) ? n.params.cases[idx] : null;
+            return (c && c.label) || t('easydrag.ui.port_case', { n: idx + 1 });
+        }
+        if (port.startsWith('choice_')) {
+            const id = port.slice('choice_'.length);
+            const question = n && n.params && Array.isArray(n.params.questions) ? n.params.questions[0] : null;
+            const option = question && Array.isArray(question.options) ? question.options.find(item => item && item.id === id) : null;
+            if (question && question.type === 'noul') return t('easydrag.decision.' + id);
+            return (option && option.label) || id;
+        }
+        return ED.core.tr(t, 'easydrag.ui.port_' + port, port);
     }
 
     function create(ed) {

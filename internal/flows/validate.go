@@ -397,6 +397,13 @@ func (v *validator) publishRules() {
 		// crash must not go unnoticed here: publishing is blocked until it is fixed.
 		v.callDefHook(n, func() { _ = def.EffectsOf(n) })
 		v.requiredParams(n, def, sev)
+		errorMode := n.Settings.OnError
+		if errorMode == "" {
+			errorMode = ErrorStop
+		}
+		if !def.AllowsErrorMode(errorMode) {
+			v.add(IssueParamInvalid, sev, n.ID, "", "on_error", "this node supports only stop or error_port when it fails")
+		}
 		if def.Validate != nil {
 			var found []Issue
 			if v.callDefHook(n, func() { found = def.Validate(n, v.vc) }) {

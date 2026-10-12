@@ -3,6 +3,8 @@ package flows
 import (
 	"context"
 	"time"
+
+	"aurago/internal/decisions"
 )
 
 // Clock abstracts time for the engine, waits and timers.
@@ -50,6 +52,22 @@ type LLMStepper interface {
 	Step(ctx context.Context, req LLMRequest) (LLMResponse, error)
 }
 
+// DecisionEvaluator evaluates typed questions against state and registered media
+// references. The server resolves Images before passing bytes to the managed
+// Decisions runtime; the flow core never receives or trusts raw media bytes.
+type DecisionEvaluator interface {
+	Evaluate(ctx context.Context, req DecisionRequest) (decisions.Response, error)
+}
+
+// DecisionRequest is the flow-safe input to the optional Decisions service.
+// State is read-only and may alias run data. Images contains registered media
+// references resolved and authorized by the server; the flow core never opens files.
+type DecisionRequest struct {
+	State     any
+	Questions []decisions.Question
+	Images    []string
+}
+
 // LLMRequest is one AI step. When JSONSchema is set the response must be a JSON object.
 //
 // JSONSchema is read-only for the stepper and is shared: the node passes the same
@@ -89,11 +107,12 @@ type SecretReader interface {
 
 // Services bundles what nodes may use. Any field may be nil; helpers fall back to defaults.
 type Services struct {
-	Tools    ToolInvoker
-	LLM      LLMStepper
-	Secrets  SecretReader
-	Clock    Clock
-	Location *time.Location
+	Tools     ToolInvoker
+	LLM       LLMStepper
+	Decisions DecisionEvaluator
+	Secrets   SecretReader
+	Clock     Clock
+	Location  *time.Location
 }
 
 func (s *Services) clock() Clock {
