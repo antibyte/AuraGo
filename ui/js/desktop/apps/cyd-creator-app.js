@@ -53,6 +53,8 @@
             projectSeq: 0,
             streamAfter: 0,
             probing: false,
+            // uploads holds the projectSeq of every asset upload in flight (see uploadAsset).
+            uploads: [],
             layoutIssues: [],
             pullTimer: 0
         };
@@ -467,13 +469,23 @@
         inst.layoutIssues = Array.isArray(payload.issues) ? payload.issues : [];
     }
 
-    async function reloadLayout(inst) {
+    // reloadLayout reads the saved layout and replaces the window's copy (store, snapshot, saver token).
+    // o.ifIdle (a change from elsewhere, a stream reload, the window's own upload) replaces only while
+    // nothing is unsaved, checked once the answer is in: an edit made during the request stays and
+    // meets the new version through the If-Match conflict choice. o.newer drops an answer older than
+    // the window's version (a save, e.g. an Overwrite, landed meanwhile); a stream reload does not use
+    // it, since a restored database may go back. o.keepHistory keeps the undo history (the window's
+    // own upload). Returns the answer, applied or not.
+    async function reloadLayout(inst, opts) {
+        const o = opts || {};
         const seq = inst.projectSeq;
         const payload = await P.api.getLayout(inst.projectId);
         if (!isCurrent(inst, seq)) return payload;
+        if (o.ifIdle && !layoutIdle(inst)) return payload;
+        if (o.newer && Number(payload.version) < inst.layoutVersion) return payload;
         inst.layoutVersion = Number(payload.version) || 0;
         inst.layoutSnapshot = P.util.deepFreeze(P.util.deepClone(payload.project));
-        if (inst.layoutStore) inst.layoutStore.replace(payload.project, { resetHistory: true });
+        if (inst.layoutStore) inst.layoutStore.replace(payload.project, { resetHistory: !o.keepHistory });
         if (inst.layoutSaver) inst.layoutSaver.reset(inst.layoutVersion);
         emitIssues(inst, payload.issues);
         return payload;
@@ -526,21 +538,23 @@
     // with the save error when they cannot be saved. The new layout replaces the store only while
     // nothing is unsaved: edits made during the upload stay and meet the new version through the
     // If-Match conflict choice, like a project_changed from elsewhere. An answer older than the
-    // window's version (a save, e.g. an Overwrite, landed while it was on the way) is dropped.
+    // window's version (a save, e.g. an Overwrite, landed while it was on the way) is dropped. The
+    // server announces the upload with project_changed (what: assets) before it answers: while the
+    // upload runs, onProjectChanged leaves that reload (which would reset the undo history) to the
+    // re-read here, which keeps the history.
     async function uploadAsset(inst, file) {
         const seq = inst.projectSeq;
         const id = inst.projectId;
         if (!(await inst.layoutSaver.flush())) throw unsavedError(inst);
-        const res = await P.api.uploadAsset(id, file);
-        const payload = await P.api.getLayout(id);
-        if (!isCurrent(inst, seq) || !layoutIdle(inst)) return res.asset;
-        if (Number(payload.version) < inst.layoutVersion) return res.asset;
-        inst.layoutVersion = Number(payload.version) || inst.layoutVersion;
-        inst.layoutSnapshot = P.util.deepFreeze(P.util.deepClone(payload.project));
-        if (inst.layoutStore) inst.layoutStore.replace(payload.project, { resetHistory: false });
-        inst.layoutSaver.reset(inst.layoutVersion);
-        emitIssues(inst, payload.issues);
-        return res.asset;
+        inst.uploads.push(seq);
+        try {
+            const res = await P.api.uploadAsset(id, file);
+            if (!isCurrent(inst, seq) || !layoutIdle(inst)) return res.asset;
+            await reloadLayout(inst, { ifIdle: true, newer: true, keepHistory: true });
+            return res.asset;
+        } finally {
+            inst.uploads.splice(inst.uploads.indexOf(seq), 1);
+        }
     }
 
     // ── open / leave ────────────────────────────────────────────────────────
@@ -665,7 +679,10 @@
         const what = data.what || 'layout';
         try {
             if (what === 'layout' || what === 'assets') {
-                if (Number(data.version) > inst.layoutVersion && layoutIdle(inst)) await reloadLayout(inst);
+                // The window's own upload re-reads the layout itself (keeping the undo history); an
+                // upload only ever announces "assets".
+                const ownUpload = what === 'assets' && inst.uploads.includes(seq);
+                if (!ownUpload && Number(data.version) > inst.layoutVersion && layoutIdle(inst)) await reloadLayout(inst, { ifIdle: true, newer: true });
             } else if (what === 'files') {
                 if (inst.code) await inst.code.refreshFiles();
             } else if (what === 'meta') {
@@ -704,7 +721,7 @@
         const keepLayout = !!(opts && opts.keepEdits) && !layoutIdle(inst);
         try {
             await Promise.all([
-                keepLayout ? null : reloadLayout(inst),
+                keepLayout ? null : reloadLayout(inst, { ifIdle: !!(opts && opts.keepEdits) }),
                 inst.code ? inst.code.refreshFiles() : null,
                 inst.dock ? inst.dock.builds.load() : null,
                 refreshProject(inst)

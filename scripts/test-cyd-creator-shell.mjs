@@ -1606,6 +1606,13 @@ const App = sandbox.window.CYDCreatorApp;
 // fail.<name> = ApiError makes that call throw (until cleared), gates.<name> = promise holds it;
 // project is the stored summary (names: other names per project id). PUT /layout checks If-Match
 // like the server (409 CYD_PROJECT_CONFLICT with details.version); bump() is a change elsewhere.
+// Like PutAsset, an upload announces project_changed (what: assets) on the event stream before it
+// answers (delivered once the test sent stream_ready; before that the catch-up buffers it).
+let sseSeq = 1000;
+function sse(type, data) {
+    const stream = browserStreams[browserStreams.length - 1];
+    if (stream) stream.send(type, data, ++sseSeq);
+}
 function appBackend(opts) {
     const o = opts || {};
     const calls = [];
@@ -1638,7 +1645,12 @@ function appBackend(opts) {
             Object.assign(layout, next);
             return { version, issues: [] };
         }),
-        uploadAsset: call('uploadAsset', () => { version++; layout.assets = [{ id: 'a_sun' }]; return { asset: { id: 'a_sun' } }; }),
+        uploadAsset: call('uploadAsset', () => {
+            version++;
+            layout.assets = [{ id: 'a_sun' }];
+            sse('project_changed', { version, origin: 'user', what: 'assets' });
+            return { asset: { id: 'a_sun' } };
+        }),
         listFiles: call('listFiles', () => [{ path: 'src/app/app_main.cpp', sha256: 's1', editable: true, generated: false }]),
         readFile: call('readFile', () => ({ text: '#include <cyd.h>\n', sha: 's1' })),
         writeFile: call('writeFile', () => 's2'),
@@ -2099,6 +2111,93 @@ const appT = P.i18n({});
     await ro.inst.flushAll();
     eq('a read-only window never saves store changes', [ro.be.calls.includes('putLayout'), ro.inst.layoutSaver.dirty()], [false, false]);
     ro.dispose();
+}
+// holdLayout holds the answer of the next GET /layout (read at call time) until release() runs.
+function holdLayout() {
+    const backendLayout = P.api.getLayout;
+    let release;
+    P.api.getLayout = id => {
+        P.api.getLayout = backendLayout;
+        return backendLayout(id).then(answer => new Promise(resolve => { release = () => resolve(answer); }));
+    };
+    return () => release();
+}
+{
+    // The server announces the window's own upload (project_changed assets, version V+1) before it
+    // answers. That must not reload with a reset history: the upload's re-read keeps the undo history.
+    const u = await makeApp({ projectId: 'ccp_1' });
+    browserStreams[browserStreams.length - 1].send('stream_ready', { after: 0 });
+    await settle();
+    const store = u.inst.layoutStore;
+    const replaces = [];
+    const replace = store.replace;
+    store.replace = (next, ropts) => { replaces.push(!!(ropts && ropts.resetHistory)); return replace.call(store, next, ropts); };
+    store.change('rename', d => { d.name = 'Before upload'; });
+    await u.inst.flushAll();
+    u.be.calls.length = 0;
+    const events = [];
+    u.inst.bus.on('project:changed', d => events.push(d.what));
+    await u.inst.uploadAsset({ name: 'sun.png' });
+    await settle();
+    const reads = () => u.be.calls.filter(c => c === 'getLayout').length;
+    eq('the assets event of the window\'s own upload keeps the undo history (one re-read, no reset)',
+        [events, reads(), replaces, store.canUndo(), store.get().assets, store.get().name], [['assets'], 1, [false], true, [{ id: 'a_sun' }], 'Before upload']);
+    sse('project_changed', { version: u.be.version(), origin: 'user', what: 'assets' });
+    await settle();
+    eq('the same event arriving after the upload reads nothing', reads(), 1);
+    u.be.bump();
+    sse('project_changed', { version: u.be.version(), origin: 'user', what: 'assets' });
+    await settle();
+    eq('an assets change from elsewhere still reloads with a reset history', [reads(), replaces, store.canUndo()], [2, [false, true], false]);
+    const release = holdLayout();
+    const upload = u.inst.uploadAsset({ name: 'moon.png' });
+    await settle();
+    store.change('rename', d => { d.name = 'During the re-read'; });
+    release();
+    await upload;
+    eq('an edit made while the upload\'s re-read is on the way stays unsaved (If-Match path)',
+        [store.get().name, u.inst.layoutSaver.dirty(), replaces.length], ['During the re-read', true, 2]);
+    u.dispose();
+}
+{
+    // A remote change is read (GET /layout held open) while the user edits: the edit must survive
+    // and save through the If-Match conflict choice instead of being replaced and marked saved.
+    const e = await makeApp({ projectId: 'ccp_1' });
+    browserStreams[browserStreams.length - 1].send('stream_ready', { after: 0 });
+    await settle();
+    const store = e.inst.layoutStore;
+    let release = holdLayout();
+    e.be.layout.name = 'Theirs';
+    e.be.bump();
+    sse('project_changed', { version: e.be.version(), origin: 'user', what: 'layout' });
+    await settle();
+    store.change('rename', d => { d.name = 'Mine'; });
+    release();
+    await settle();
+    const kept = [store.get().name, e.inst.layoutSaver.dirty(), store.canUndo()];
+    let saving = e.inst.flushAll();
+    await settle();
+    const asked = !!e.find('ccDialogAction', 'overwrite');
+    e.find('ccDialogAction', 'overwrite').click();
+    eq('an edit made while a remote change is read stays and saves through the If-Match conflict',
+        [kept, asked, await saving, e.be.layout.name, store.get().name], [['Mine', true, true], true, true, 'Mine', 'Mine']);
+    // The window's own newer save lands while the read is on the way: the older answer is dropped.
+    release = holdLayout();
+    e.be.layout.name = 'Theirs again';
+    e.be.bump();
+    sse('project_changed', { version: e.be.version(), origin: 'user', what: 'layout' });
+    await settle();
+    store.change('rename', d => { d.name = 'Mine again'; });
+    saving = e.inst.flushAll();
+    await settle();
+    e.find('ccDialogAction', 'overwrite').click();
+    await saving;
+    release();
+    await settle();
+    eq('a remote answer older than the window\'s own save is dropped',
+        [store.get().name, e.inst.layoutVersion, e.inst.layoutSaver.token(), e.be.version(), e.inst.layoutSaver.dirty()],
+        ['Mine again', e.be.version(), e.be.version(), e.be.version(), false]);
+    e.dispose();
 }
 console.warn = consoleWarn;
 
