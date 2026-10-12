@@ -133,7 +133,11 @@ func (f go2RTCFrameSource) Frame(ctx context.Context, cameraID string) ([]byte, 
 }
 
 func newPersonDetectionService(s *Server, logger *slog.Logger) *persondetect.Service {
-	return persondetect.NewService(persondetect.Deps{Logger: logger, Frames: go2RTCFrameSource{s: s}})
+	return persondetect.NewService(persondetect.Deps{
+		Logger: logger,
+		Frames: go2RTCFrameSource{s: s},
+		Alerts: s.newPersonAlertDispatcher(),
+	})
 }
 
 // syncPersonDetectionSettings configures the service from the current snapshot.

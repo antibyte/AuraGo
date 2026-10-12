@@ -59,10 +59,11 @@ func (r *alertRecorder) sinks() AlertSinks {
 			r.toasts = append(r.toasts, title+"|"+message)
 			return nil
 		},
-		Mission: func(ev AlertEvent) {
+		Mission: func(ev AlertEvent) error {
 			r.mu.Lock()
 			defer r.mu.Unlock()
 			r.missions = append(r.missions, ev)
+			return nil
 		},
 	}
 }

@@ -78,8 +78,9 @@ type AlertSinks struct {
 	// Desktop shows a toast for ev in the desktop notification center.
 	Desktop func(ev AlertEvent, title, message string) error
 	// Mission fires the person_detected mission and flow triggers. Handing the event over
-	// counts as sent; the missions apply their own filters.
-	Mission func(ev AlertEvent)
+	// (a nil error) counts as sent; the missions apply their own filters. A SkipError
+	// reports skipped, for example while there is no mission manager.
+	Mission func(ev AlertEvent) error
 }
 
 // Dispatcher implements AlertDispatcher over AlertSinks. Dispatch and Wait may be called
@@ -253,8 +254,7 @@ func (d *Dispatcher) fireMission(ev AlertEvent) AlertResult {
 	if d.sinks.Mission == nil {
 		return AlertResult{Status: AlertSkipped, Detail: "missions unavailable"}
 	}
-	d.sinks.Mission(ev)
-	return AlertResult{Status: AlertSent}
+	return alertResultFor(d.sinks.Mission(ev))
 }
 
 // alertResultFor maps a sink error to the stored result.

@@ -3337,6 +3337,24 @@ function testEasyDragNotificationContextKeepsOnlyServerIds() {
   assert.deepEqual(keep('meshcore', { conversation_id: conversation, flow_id: flow }), { conversation_id: conversation }, 'MeshCore keeps its conversation only');
 }
 
+// A person detection toast keeps its event (and a well-formed camera id) as launch context,
+// so a click on the notification can open the event in Network Cameras.
+function testNetworkCamerasNotificationContextKeepsEventIds() {
+  const source = sourceBetween(read('ui/js/desktop/core/shell-chrome-runtime.js'), 'function notificationContext(', 'function pushNotificationRecord(');
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(`${source}; globalThis.notificationContext = notificationContext;`, context);
+  const keep = (appId, ctx) => JSON.parse(JSON.stringify(context.notificationContext({ appId, context: ctx }) ?? null));
+  assert.deepEqual(keep('network-cameras', { event_id: 42, camera_id: 'garden' }), { event_id: 42, camera_id: 'garden' });
+  assert.deepEqual(keep('network-cameras', { event_id: 42, camera_id: '../x' }), { event_id: 42 }, 'an odd camera id is dropped');
+  assert.deepEqual(keep('network-cameras', { event_id: 42, camera_id: 7 }), { event_id: 42 }, 'a camera id must be a string');
+  assert.deepEqual(keep('network-cameras', { event_id: 42, path: '/etc' }), { event_id: 42 }, 'other keys are dropped');
+  for (const bad of [0, -1, 1.5, '42', null, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.equal(keep('network-cameras', { event_id: bad, camera_id: 'garden' }), null, `event id ${String(bad)} opens nothing`);
+  }
+  assert.equal(keep('easydrag', { event_id: 42 }), null, 'another app keeps no event ids');
+}
+
 // The session keeps an EasyDrag window's flow: a valid flowId survives save and restore; any
 // other value is neither saved nor restored, so the window opens the start page.
 async function testEasyDragSessionKeepsOnlyValidFlowIds() {
@@ -4017,6 +4035,7 @@ const tests = [
   ['Desktop main bundle parts end at function boundaries', testDesktopMainBundlePartsEndAtFunctionBoundaries],
   ['Window menu shortcut hints are drawn but not dispatched', testWindowMenuShortcutHintIsDrawnButNotDispatched],
   ['EasyDrag notifications keep only server-shaped flow and run ids', testEasyDragNotificationContextKeepsOnlyServerIds],
+  ['Network Cameras notifications keep the detection event id', testNetworkCamerasNotificationContextKeepsEventIds],
   ['EasyDrag session keeps only valid flow ids', testEasyDragSessionKeepsOnlyValidFlowIds],
   ['EasyDrag flows_changed is forwarded as aurago:flows-changed', testEasyDragFlowsChangedIsForwarded],
   ['Config EasyDrag flows section keeps providers, numbers and locked agent options', testConfigFlowsSection],

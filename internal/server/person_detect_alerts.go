@@ -11,9 +11,12 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/desktop"
 	"aurago/internal/discord"
+	"aurago/internal/i18n"
 	"aurago/internal/persondetect"
 	"aurago/internal/security"
 	"aurago/internal/telegram"
@@ -285,3 +288,65 @@ func personAlertTelnyxSender(ctx context.Context, cfg *config.Config, logger *sl
 		return err
 	}
 }
+
+// showPersonAlertToast is the Desktop sink: a notification for the desktop notification
+// center, shaped like the flow failure notifications; its context lets a click open the
+// event in Network Cameras (shell-chrome-runtime.js keeps it). The hub is read when the
+// toast is shown, because the dispatcher is built before the desktop starts.
+func (s *Server) showPersonAlertToast(ev persondetect.AlertEvent, title, message string) error {
+	cfg := s.ConfigSnapshot()
+	if cfg == nil || !cfg.VirtualDesktop.Enabled {
+		return persondetect.Skipped("desktop unavailable")
+	}
+	s.DesktopMu.Lock()
+	hub := s.DesktopHub
+	s.DesktopMu.Unlock()
+	broadcastDesktopEvent(s, hub, desktop.Event{Type: "notification", Payload: map[string]any{
+		"title":   title,
+		"message": message,
+		"type":    "info",
+		"appId":   "network-cameras",
+		"context": map[string]any{"event_id": ev.EventID, "camera_id": ev.CameraID},
+	}, CreatedAt: time.Now().UTC()})
+	return nil
+}
+
+// notifyPersonDetectedMission is the Mission sink: every event start, armed or not, goes to
+// Mission Control, whose missions and flows apply their own filters and min intervals.
+// Handing the event over counts as sent; without a mission manager the action is skipped.
+func (s *Server) notifyPersonDetectedMission(ev persondetect.AlertEvent) error {
+	mm := s.MissionManagerV2
+	if mm == nil {
+		return persondetect.Skipped("missions unavailable")
+	}
+	mm.NotifyPersonDetected(tools.PersonDetectedEvent{
+		EventID:    ev.EventID,
+		CameraID:   ev.CameraID,
+		CameraName: ev.CameraName,
+		Zones:      ev.Zones,
+		MaxScore:   ev.Score,
+		Persons:    ev.Persons,
+		Armed:      ev.Armed,
+		StartedAt:  ev.StartedAt,
+		ImagePath:  ev.CoverPath,
+	})
+	return nil
+}
+
+// newPersonAlertDispatcher builds the dispatcher that person detection reports event starts
+// to (persondetect.Deps.Alerts): messages, agent wake-ups, desktop toasts and the
+// person_detected trigger. It is built in newServerFromOptions, before Start: every sink
+// reads the server's configuration, desktop hub and mission manager when it runs, and the
+// agent queue holds wake-ups until Start starts its consumer.
+func (s *Server) newPersonAlertDispatcher() *persondetect.Dispatcher {
+	return persondetect.NewAlertDispatcher(persondetect.AlertSinks{
+		Message: s.sendPersonAlertMessage,
+		Agent:   s.personAlertAgents.enqueue,
+		Desktop: s.showPersonAlertToast,
+		Mission: s.notifyPersonDetectedMission,
+	}, personAlertText, s.personAlertLogger())
+}
+
+// personAlertText is i18n.T without parameters: the dispatcher fills the placeholders
+// itself, in one pass, and treats a returned key as "no text".
+func personAlertText(lang, key string) string { return i18n.T(lang, key) }

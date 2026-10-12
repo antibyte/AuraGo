@@ -9604,6 +9604,11 @@ function wireWindow(win, id) {
         if (payload.appId === 'easydrag' && /^flow_[a-z0-9]{10}$/.test(c.flow_id || '')) {
             return /^run_[a-z0-9]{12}$/.test(c.run_id || '') ? { flow_id: c.flow_id, run_id: c.run_id } : { flow_id: c.flow_id };
         }
+        if (payload.appId === 'network-cameras' && Number.isSafeInteger(c.event_id) && c.event_id > 0) {
+            return typeof c.camera_id === 'string' && /^[a-z0-9_-]{1,64}$/.test(c.camera_id)
+                ? { event_id: c.event_id, camera_id: c.camera_id }
+                : { event_id: c.event_id };
+        }
         return undefined;
     }
 
