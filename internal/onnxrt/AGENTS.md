@@ -4,7 +4,9 @@
 
 Shared ONNX Runtime layer of `internal/embeddings` and `internal/persondetect`: a CGO-free purego binding
 of the ONNX Runtime C API, a verified cache for pinned runtime and model downloads, the pinned runtime
-manifest, and the helpers that start native worker processes.
+manifest, and the helpers that start native worker processes. Design: spec
+`docs/superpowers/specs/2026-10-11-network-cameras-person-detection-design.md` and plans
+`docs/superpowers/plans/2026-10-11-person-detection-*.md` (contract C1; local, git-ignored).
 
 ## Ownership
 

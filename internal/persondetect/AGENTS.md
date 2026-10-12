@@ -6,7 +6,9 @@ D-FINE person detector for the Network Cameras detection mode: pinned model mani
 person decoding, detection-set comparison, the WebGPU model patcher, the `aurago --person-detect-worker
 prepare|serve` worker, and `NewDetector` (backend selection, GPU model cache, self-test acceptance,
 supervision and restarts). The package is camera-independent and holds no config, store, scheduler, server
-or UI code.
+or UI code. Design: spec `docs/superpowers/specs/2026-10-11-network-cameras-person-detection-design.md` and
+plans `docs/superpowers/plans/2026-10-11-person-detection-*.md` (detector API C2 and worker protocol C3 in the
+overview; local, git-ignored).
 
 ## Ownership
 

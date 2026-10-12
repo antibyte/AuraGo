@@ -180,8 +180,10 @@ verified by exact size and SHA-256 before use.
 - **Models.** D-FINE (arXiv 2410.13842) is Apache License 2.0 software. The
   "standard" model is the ONNX export `AnnotateIt/dfine-nano-coco-onnx` (pinned
   revision `571d3971bfb47dc5ddd3746134dd464954bc9df0`) of
-  `ustc-community/dfine-nano-coco`; that repository declares Apache-2.0 and ships a
-  `LICENSE` file. The "accurate" model is the ONNX conversion
+  `ustc-community/dfine-nano-coco`; the export repository
+  (`AnnotateIt/dfine-nano-coco-onnx`) declares Apache-2.0 and ships a `LICENSE` file,
+  and the base repository `ustc-community/dfine-nano-coco` declares Apache-2.0. The
+  "accurate" model is the ONNX conversion
   `onnx-community/dfine_s_coco-ONNX` (pinned revision
   `a3cf03147a9b86c78475139115c8ac142577352d`) of the Apache-2.0 weights
   `ustc-community/dfine-small-coco`; the conversion repository has no license
