@@ -2051,6 +2051,43 @@ const appT = P.i18n({});
         [true, [1, 0, true, 'home'], opened, 0, 0, 0, 0]);
     a.dispose();
 }
+{
+    // The real layout store (cyd-creator-model.js, plan 4b) under the window: edits (origin local),
+    // undo and redo autosave through PUT /layout; remote replaces (upload, reload) and a read-only
+    // window save nothing. Loaded last, so every window above runs without a store.
+    const full = path.join(apps, 'cyd-creator-model.js');
+    vm.runInContext(fs.readFileSync(full, 'utf8'), sandbox, { filename: full });
+    const a = await makeApp({ projectId: 'ccp_1' });
+    const store = a.inst.layoutStore;
+    const origins = [];
+    a.inst.projectBag.add(store.subscribe((project, info) => origins.push(info.origin)));
+    const puts = () => a.be.calls.filter(c => c === 'putLayout').length;
+    const start = puts();
+    store.change('rename', d => { d.name = 'Renamed'; });
+    await a.inst.flushAll();
+    const local = [puts() - start, a.be.layout.name];
+    store.undo();
+    await a.inst.flushAll();
+    const undone = [puts() - start, a.be.layout.name];
+    store.redo();
+    await a.inst.flushAll();
+    eq('the real store autosaves local, undo and redo changes', [local, undone, puts() - start, a.be.layout.name, a.inst.layout().project.name, origins.splice(0)],
+        [[1, 'Renamed'], [2, 'Clock'], 3, 'Renamed', 'Renamed', ['local', 'undo', 'redo']]);
+    const asset = await a.inst.uploadAsset({ name: 'sun.png' });
+    await a.inst.flushAll();
+    eq('an upload replaces the store remotely (history kept) and saves nothing',
+        [asset.id, origins.splice(0), puts() - start, store.get().assets, store.canUndo(), a.inst.layoutSaver.dirty()], ['a_sun', ['remote'], 3, [{ id: 'a_sun' }], true, false]);
+    await a.inst.reloadProject();
+    await a.inst.flushAll();
+    eq('a reload replaces the store remotely, resets its history and saves nothing',
+        [origins.splice(0), puts() - start, store.canUndo(), store.canRedo(), a.inst.layoutSaver.dirty()], [['remote'], 3, false, false, false]);
+    a.dispose();
+    const ro = await makeApp({ projectId: 'ccp_1', readonly: true });
+    ro.inst.layoutStore.change('rename', d => { d.name = 'Read-only'; });
+    await ro.inst.flushAll();
+    eq('a read-only window never saves store changes', [ro.be.calls.includes('putLayout'), ro.inst.layoutSaver.dirty()], [false, false]);
+    ro.dispose();
+}
 console.warn = consoleWarn;
 
 if (failures) {

@@ -22,7 +22,7 @@ sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
 const core = path.join(apps, 'cyd-creator-core.js');
 vm.runInContext(fs.readFileSync(core, 'utf8'), sandbox, { filename: core });
-for (const file of ['cyd-creator-geometry.js']) {
+for (const file of ['cyd-creator-geometry.js', 'cyd-creator-model.js']) {
     const full = path.join(apps, file);
     vm.runInContext(fs.readFileSync(full, 'utf8'), sandbox, { filename: full });
 }
@@ -97,6 +97,175 @@ eq('inBox', G.inBox(items, { x: 60, y: 60, w: 5, h: 5 }), ['b']);
 eq('nudge', [G.nudgeDelta('ArrowLeft', false), G.nudgeDelta('ArrowDown', true), G.nudgeDelta('a', false)], [{ x: -1, y: 0 }, { x: 0, y: 8 }, null]);
 eq('toWorld', G.toWorld({ x: 125, y: 63 }, { left: 20, top: 10 }, 2), { x: 52, y: 26 });
 eq('clampInto', G.clampInto({ x: 300, y: -5, w: 40, h: 20 }, { x: 0, y: 0, w: 320, h: 240 }), { x: 280, y: 0, w: 40, h: 20 });
+
+// ── store ──
+function project() {
+    return {
+        format: 1, template_version: '1.0.0', name: 'Test', board: 'esp32-2432s028r', orientation: 'landscape', theme: 'night',
+        language: 'de', timezone: 'CET-1CEST,M3.5.0,M10.5.0/3',
+        settings: { wifi: 'optional', aurago_link: false, libraries: [], backlight: 100, statusbar_clock: false },
+        start_screen: 's_home',
+        screens: [
+            { id: 's_home', name: 'home', title: 'Start', transition: 'none', style: {}, widgets: [
+                { id: 'w_btn', type: 'button', name: 'btn_1', x: 10, y: 10, w: 120, h: 40 },
+                { id: 'w_pnl', type: 'panel', name: 'pnl_1', x: 150, y: 20, w: 160, h: 100, children: [
+                    { id: 'w_lbl', type: 'label', name: 'lbl_1', x: 4, y: 4, w: 100, h: 24 }] },
+                { id: 'w_tabs', type: 'tabview', name: 'tabs_1', x: 10, y: 130, w: 300, h: 100, children: [] }] },
+            { id: 's_two', name: 'details', title: '', transition: 'fade', style: {}, widgets: [] }],
+        assets: []
+    };
+}
+let clock = 1000;
+const store = M.createStore(project(), { limit: 300, coalesceMs: 1200, now: () => clock });
+const seen = [];
+const unsub = store.subscribe((p, info) => seen.push(info.origin + ':' + info.label));
+check('store snapshot is frozen', Object.isFrozen(store.get()) && Object.isFrozen(store.get().screens[0].widgets[0]));
+check('store starts without history', !store.canUndo() && !store.canRedo());
+store.change('rename', d => { d.screens[0].title = 'A'; });
+eq('change emits local', seen.pop(), 'local:rename');
+check('change pushes history', store.canUndo());
+clock += 500; store.change('type', d => { d.screens[0].title = 'AB'; }, { coalesce: 'title' });
+clock += 500; store.change('type', d => { d.screens[0].title = 'ABC'; }, { coalesce: 'title' });
+clock += 500; store.change('type', d => { d.screens[0].title = 'ABCD'; }, { coalesce: 'title' });
+store.undo();
+eq('coalesced typing is one undo step', store.get().screens[0].title, 'A');
+eq('undo emits undo origin', seen.pop(), 'undo:type');
+store.redo();
+eq('redo restores', store.get().screens[0].title, 'ABCD');
+eq('redo emits redo origin', seen.pop(), 'redo:type');
+clock += 100; store.change('type', d => { d.screens[0].title = 'X'; }, { coalesce: 'title' });
+store.undo();
+eq('no coalescing across undo/redo', store.get().screens[0].title, 'ABCD');
+store.redo();
+clock += 5000; store.change('type', d => { d.screens[0].title = 'Y'; }, { coalesce: 'title' });
+store.undo();
+eq('coalescing window expires after 1200 ms', store.get().screens[0].title, 'X');
+store.redo();
+const before = store.get();
+try { store.change('boom', d => { d.screens[0].title = 'broken'; throw new Error('nope'); }); } catch (err) { /* expected */ }
+check('throwing change leaves the snapshot', store.get() === before && store.get().screens[0].title === 'Y');
+const histBefore = seen.length;
+store.change('noop', d => { d.screens[0].title = 'Y'; });
+check('no-op change is not recorded', seen.length === histBefore);
+store.replace(project(), { resetHistory: true });
+eq('replace emits remote', seen.pop(), 'remote:replace');
+check('replace with resetHistory clears history', !store.canUndo() && !store.canRedo());
+const limited = M.createStore(project(), { limit: 3, now: () => 0 });
+for (let i = 0; i < 5; i++) limited.change('n' + i, d => { d.name = 'v' + i; });
+let undos = 0;
+while (limited.undo()) undos++;
+eq('history limit', [undos, limited.get().name], [3, 'v1']);
+unsub();
+store.change('after', d => { d.name = 'unsubscribed'; });
+check('unsubscribe stops events', seen[seen.length - 1] !== 'local:after');
+const ret = store.change('ret', d => { d.name = 'r'; return 42; });
+eq('change returns the fn result', ret, 42);
+
+// ── ops (structural mirror of Go ApplyOps, no validation gate) ──
+const specs = M.specMap(caps.widgets);
+const ctx = { specs, screenSize: { w: 320, h: 240 }, themes: caps.themes.map(t => t.id) };
+const base = project();
+function ops(list) { return M.applyOps(base, list, ctx); }
+let r = ops([{ op: 'add_widget', screen: 'home', widget: { type: 'label', x: 1, y: 2, w: 50, h: 20 } }]);
+eq('add_widget appends to the root with a new id', [r.project.screens[0].widgets.length, /^w_[0-9a-f]{12}$/.test(r.results[0].id)], [4, true]);
+eq('add_widget result op', r.results[0].op, 'add_widget');
+check('applyOps leaves the input unchanged', base.screens[0].widgets.length === 3);
+r = ops([{ op: 'add_widget', screen: 's_home', parent: 'pnl_1', widget: { id: 'w_new', type: 'switch', x: 0, y: 0, w: 56, h: 28 } }]);
+const added = r.project.screens[0].widgets[1].children[1];
+check('add_widget into a panel by name; supplied ids are replaced by fresh ones', !!added && added.type === 'switch' && added.id !== 'w_new' && added.id === r.results[0].id);
+r = ops([{ op: 'add_widget', screen: 's_home', widget: { type: 'panel', x: 0, y: 0, children: [{ id: 'w_lbl', type: 'label' }] } }]);
+const pnl = r.project.screens[0].widgets[3];
+eq('add_widget fills zero sizes from the catalog and renews child ids', [pnl.w, pnl.h, pnl.children[0].w, pnl.children[0].h, pnl.children[0].id !== 'w_lbl'], [160, 100, 120, 24, true]);
+r = ops([{ op: 'add_widget', screen: 's_home', widget: { type: 'statusbar' } }]);
+eq('statusbar default width is the parent width', [r.project.screens[0].widgets[3].w, r.project.screens[0].widgets[3].h], [320, 24]);
+r = ops([{ op: 'add_widget', screen: 's_home', x: 7, y: 9, widget: { type: 'led', x: 1, y: 1 } }]);
+eq('add_widget honours x/y overrides', [r.project.screens[0].widgets[3].x, r.project.screens[0].widgets[3].y], [7, 9]);
+r = ops([{ op: 'add_widget', screen: 's_home', widget: { type: 'button', events: [{ on: 'clicked', action: { type: 'goto_screen', screen: 'details' } }] } }]);
+eq('goto_screen targets given by name are stored as ids', r.project.screens[0].widgets[3].events[0].action.screen, 's_two');
+r = ops([{ op: 'add_widget', screen: 's_home', parent: 'w_tabs', tab: 1, widget: { type: 'label', x: 0, y: 0, w: 50, h: 20 } }]);
+eq('add_widget into a tabview page', r.project.screens[0].widgets[2].children[0].tab, 1);
+r = ops([{ op: 'add_widget', screen: 's_home', parent: 'w_tabs', tab: 5, widget: { type: 'label' } }]);
+eq('an out-of-range tab is stored (validation reports TAB_INVALID)', r.project.screens[0].widgets[2].children[0].tab, 5);
+r = ops([{ op: 'add_widget', screen: 's_home', parent: 'w_pnl', tab: 0, widget: { type: 'label' } }]);
+check('tab 0 under a panel is fine', !('tab' in r.project.screens[0].widgets[1].children[1]));
+fails('a non-zero tab outside a tabview fails', () => ops([{ op: 'add_widget', screen: 's_home', parent: 'w_pnl', tab: 1, widget: { type: 'label' } }]), 'only allowed when the parent is a tabview');
+fails('unknown screen', () => ops([{ op: 'add_widget', screen: 'nope', widget: { type: 'label' } }]), 'not found');
+fails('unknown type', () => ops([{ op: 'add_widget', screen: 'home', widget: { type: 'gizmo' } }]), 'unknown widget type');
+fails('parent not a container', () => ops([{ op: 'add_widget', screen: 'home', parent: 'btn_1', widget: { type: 'label' } }]), 'cannot contain widgets');
+fails('parent missing', () => ops([{ op: 'add_widget', screen: 'home', parent: 'zzz', widget: { type: 'label' } }]), 'parent:');
+const deep = { type: 'panel', x: 0, y: 0, w: 10, h: 10, children: [{ type: 'panel', x: 0, y: 0, w: 5, h: 5, children: [{ type: 'panel', x: 0, y: 0, w: 5, h: 5, children: [{ type: 'label', x: 0, y: 0, w: 5, h: 5 }] }] }] };
+check('limits are validation issues, not op failures (nesting 5)', ops([{ op: 'add_widget', screen: 'home', parent: 'w_pnl', widget: deep }]).results.length === 1);
+fails('atomic: a failing op fails the call', () => ops([{ op: 'add_widget', screen: 'home', widget: { type: 'label' } }, { op: 'delete_widget', id: 'missing' }]), 'not found');
+try { ops([{ op: 'add_widget', screen: 'home', widget: { type: 'label' } }, { op: 'nope' }]); } catch (err) { eq('error details carry index and op', [err.details.index, err.details.op], [1, 'nope']); }
+r = ops([{ op: 'update_widget', id: 'btn_1', set: { x: 20, props: { text: 'Go', symbol: 'ok' }, style: { radius: 4 }, locked: true } }]);
+const ub = r.project.screens[0].widgets[0];
+eq('update_widget merges props/style', [ub.x, ub.props, ub.style, ub.locked], [20, { text: 'Go', symbol: 'ok' }, { radius: 4 }, true]);
+r = M.applyOps(r.project, [{ op: 'update_widget', id: 'w_btn', set: { props: { symbol: null }, style: { radius: null }, locked: false, name: '' } }], ctx);
+const ub2 = r.project.screens[0].widgets[0];
+eq('update_widget null removes keys, empty maps vanish', [ub2.props, 'style' in ub2, 'locked' in ub2, 'name' in ub2], [{ text: 'Go' }, false, false, false]);
+r = M.applyOps(r.project, [{ op: 'update_widget', id: 'w_btn', set: { props: null, tab: 0 } }], ctx);
+check('props null resets every prop', !('props' in r.project.screens[0].widgets[0]));
+fails('update_widget cannot set type', () => ops([{ op: 'update_widget', id: 'w_btn', set: { type: 'label' } }]), 'cannot be changed');
+fails('update_widget rejects unknown keys', () => ops([{ op: 'update_widget', id: 'w_btn', set: { colour: 1 } }]), 'unknown widget field');
+fails('update_widget rejects wrong types', () => ops([{ op: 'update_widget', id: 'w_btn', set: { x: 'abc' } }]), 'must be an integer');
+fails('update_widget rejects unknown style keys', () => ops([{ op: 'update_widget', id: 'w_btn', set: { style: { shadow: 1 } } }]), 'unknown style field');
+fails('update_widget needs set', () => ops([{ op: 'update_widget', id: 'w_btn', set: {} }]), 'set is empty');
+r = ops([{ op: 'move_widget', id: 'w_btn', x: 5, y: 6 }]);
+eq('move_widget position keeps the parent and z-order', [r.project.screens[0].widgets[0].id, r.project.screens[0].widgets[0].x, r.project.screens[0].widgets[0].y], ['w_btn', 5, 6]);
+r = ops([{ op: 'move_widget', id: 'w_btn', parent: 'w_pnl', x: 1, y: 2 }]);
+eq('move_widget reparents into a panel (top of z-order)', [r.project.screens[0].widgets.map(w => w.id), r.project.screens[0].widgets[0].children.map(w => w.id)], [['w_pnl', 'w_tabs'], ['w_lbl', 'w_btn']]);
+r = ops([{ op: 'move_widget', id: 'w_lbl', screen: 's_home', x: 3, y: 3 }]);
+eq('move_widget with screen and no parent goes to the screen root', r.project.screens[0].widgets.map(w => w.id), ['w_btn', 'w_pnl', 'w_tabs', 'w_lbl']);
+r = ops([{ op: 'move_widget', id: 'w_btn', parent: 'w_tabs', tab: 1 }]);
+eq('move_widget into a tab', r.project.screens[0].widgets[1].children[0].tab, 1);
+r = M.applyOps(r.project, [{ op: 'move_widget', id: 'w_btn', screen: 's_two', x: 0, y: 0 }], ctx);
+eq('move_widget to another screen drops tab', [r.project.screens[1].widgets[0].id, 'tab' in r.project.screens[1].widgets[0]], ['w_btn', false]);
+fails('move into itself', () => ops([{ op: 'move_widget', id: 'w_pnl', parent: 'w_pnl' }]), 'into itself');
+fails('move needs x/y, screen or parent', () => ops([{ op: 'move_widget', id: 'w_btn', tab: 1 }]), 'needs x/y');
+r = ops([{ op: 'delete_widget', id: 'w_pnl' }]);
+check('delete_widget removes the subtree', !M.findWidget(r.project, 'w_lbl') && r.project.screens[0].widgets.length === 2);
+r = ops([{ op: 'add_screen', screen_data: { id: 's_mine', name: 'settings' } }]);
+const ns = r.project.screens[2];
+eq('add_screen defaults and a fresh id', [ns.name, ns.transition, ns.title, ns.widgets, ns.id !== 's_mine' && /^s_/.test(ns.id)], ['settings', 'none', '', [], true]);
+r = ops([{ op: 'update_screen', id: 'details', set: { name: 'info', transition: 'slide_left', style: { bg_color: '#112233' } } }]);
+eq('update_screen', [r.project.screens[1].name, r.project.screens[1].transition, r.project.screens[1].style], ['info', 'slide_left', { bg_color: '#112233' }]);
+r = ops([{ op: 'delete_screen', id: 's_home' }]);
+eq('delete_screen moves the start screen', [r.project.screens.length, r.project.start_screen], [1, 's_two']);
+fails('the designer keeps the last screen', () => M.applyOps(r.project, [{ op: 'delete_screen', id: 's_two' }], ctx), 'last screen');
+r = ops([{ op: 'set_theme', theme: 'terminal' }, { op: 'set_settings', set: { wifi: 'off', libraries: ['dht'], backlight: 60 } }]);
+eq('set_theme + set_settings', [r.project.theme, r.project.settings.wifi, r.project.settings.libraries, r.project.settings.backlight], ['terminal', 'off', ['dht'], 60]);
+fails('set_theme needs a known theme', () => ops([{ op: 'set_theme', theme: 'neon' }]), 'unknown theme');
+fails('set_settings accepts only settings keys (like Go)', () => ops([{ op: 'set_settings', set: { orientation: 'portrait' } }]), 'unknown settings field');
+r = ops([{ op: 'set_project', set: { orientation: 'portrait', language: 'en', timezone: 'UTC0', start_screen: 's_two' } }]);
+eq('set_project (designer-only)', [r.project.orientation, r.project.language, r.project.timezone, r.project.start_screen], ['portrait', 'en', 'UTC0', 's_two']);
+r = ops([{ op: 'reorder_widget', id: 'w_tabs', index: 0 }, { op: 'reorder_screen', id: 's_two', index: 0 }]);
+eq('reorder widget (z-order) and screen', [r.project.screens[1].widgets.map(w => w.id), r.project.screens.map(s => s.id)], [['w_tabs', 'w_btn', 'w_pnl'], ['s_two', 's_home']]);
+
+// ── lookups, geometry in the tree ──
+eq('contentBox panel is the whole box (like validate.go)', M.contentBox(base.screens[0].widgets[1], specs.get('panel')), { x: 0, y: 0, w: 160, h: 100 });
+eq('contentBox tabview top bar', M.contentBox(base.screens[0].widgets[2], specs.get('tabview')), { x: 0, y: 40, w: 300, h: 60 });
+eq('contentBox tabview left bar', M.contentBox({ type: 'tabview', x: 0, y: 0, w: 200, h: 100, props: { bar_position: 'left', bar_size: 30 } }, specs.get('tabview')), { x: 30, y: 0, w: 170, h: 100 });
+eq('absRect of a panel child', M.absRect(base, 'w_lbl', { specs }), { x: 154, y: 24, w: 100, h: 24 });
+eq('findWidget by name', M.findWidget(base, 'lbl_1').widget.id, 'w_lbl');
+eq('findWidget ancestors', M.findWidget(base, 'w_lbl').ancestors.map(a => a.id), ['w_pnl']);
+eq('topLevel drops selected descendants', M.topLevel(base, ['w_lbl', 'w_pnl', 'w_btn']), ['w_pnl', 'w_btn']);
+eq('prune', M.prune(base, ['w_lbl', 'gone']), ['w_lbl']);
+eq('propValue default and override', [M.propValue({ props: {} }, specs.get('slider'), 'value'), M.propValue({ props: { value: 7 } }, specs.get('slider'), 'value')], [50, 7]);
+
+// ── names ──
+eq('name rule', ['btn_1', 'a', 'A1', '1a', 'a-b', 'a'.repeat(32), 'a'.repeat(33), ''].map(M.validName), [true, true, false, false, false, true, false, false]);
+eq('reserved names (validate.go)', ['init', 'goto', 'back', 'theme_colors', 'event_index', 'async', 'screen_t', 'transition_t', 'scr_home', 'show_x', 'hide_x', 'font_big', 'temp_series', 'btn_1', 'screen'].map(M.reservedName),
+    [true, true, true, true, true, true, true, true, true, true, true, true, true, false, false]);
+eq('img_<asset id> collides with an image symbol', [M.nameIssue(Object.assign({}, base, { assets: [{ id: 'a_sun', file: 'assets/sun.png', w: 8, h: 8, alpha: false }] }), 'img_a_sun', 'w_btn'), M.nameIssue(base, 'img_a_sun', 'w_btn')], ['NAME_INVALID', '']);
+eq('nameIssue', [M.nameIssue(base, 'btn_1', 'w_lbl'), M.nameIssue(base, 'btn_1', 'w_btn'), M.nameIssue(base, 'Bad', 'w_btn'), M.nameIssue(base, '', 'w_btn'), M.nameIssue(base, 'show_more', 'w_btn')], ['NAME_DUPLICATE', '', 'NAME_INVALID', '', 'NAME_INVALID']);
+eq('screenNameIssue', [M.screenNameIssue(base, 'home', 's_two'), M.screenNameIssue(base, 'x y', 's_two'), M.screenNameIssue(base, 'info', 's_two')], ['SCREEN_NAME_DUPLICATE', 'SCREEN_NAME_INVALID', '']);
+eq('proposeName', [M.proposeName(base, 'button'), M.proposeName(base, 'label'), M.proposeName(base, 'slider'), M.proposeName(base, 'button', ['btn_2'])], ['btn_2', 'lbl_2', 'sld_1', 'btn_3']);
+check('proposals never use reserved names', Object.keys(M.PREFIX).every(type => !M.reservedName(M.proposeName(base, type))));
+eq('proposeScreenName', [M.proposeScreenName(base, 'home'), M.proposeScreenName(base, 'Bad Name'), M.proposeScreenName(base)], ['home_1', 'screen_1', 'screen_1']);
+const copy = M.cloneSubtree(base, base.screens[0].widgets[1]);
+check('cloneSubtree renews ids and names', copy.id !== 'w_pnl' && copy.name === 'pnl_2' && copy.children[0].id !== 'w_lbl' && copy.children[0].name === 'lbl_2');
+const nw = M.newWidget(base, specs.get('statusbar'), { x: 40, y: 40 }, { w: 320, h: 240 });
+eq('newWidget statusbar spans the screen', [nw.x, nw.y, nw.w, nw.h, nw.name], [0, 0, 320, 24, 'status_1']);
 
 console.log((failures ? 'FAILED ' + failures : 'ok') + ' — ' + checks + ' checks');
 process.exit(failures ? 1 : 0);
