@@ -30,9 +30,10 @@ function go2rtcStreams() {
 
 function go2rtcSetStreams(streams) {
     go2rtcEnsureData().streams = streams;
-    if (window.AuraConfigState) window.AuraConfigState.set('go2rtc.streams', streams);
-    // Render first: setDirty reads every rendered control back into the draft.
-    renderGo2RTCSection(null);
+    const render = () => renderGo2RTCSection(null);
+    // Render before any listener reads the controls back into the draft.
+    if (window.AuraConfigState) window.AuraConfigState.replace('go2rtc.streams', streams, render);
+    else render();
     setDirty(true);
 }
 

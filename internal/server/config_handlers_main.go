@@ -480,8 +480,12 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		// Before any Vault write: a sparse stream list would replace the saved one.
-		if err := validateGo2RTCStreamsPatch(patch); err != nil {
+		// Before any Vault write: a sparse list would replace the saved one.
+		listErr := validateGo2RTCStreamsPatch(patch)
+		if listErr == nil {
+			listErr = validateCompleteConfigListPatch(patch)
+		}
+		if err := listErr; err != nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{
@@ -2063,6 +2067,20 @@ func copyMaskedKlipperPrinterSecretsForRenamedIDs(patch map[string]interface{}, 
 	if len(items) == 0 {
 		return
 	}
+	// A printer counts as renamed only when its index holds an id no saved
+	// printer uses and its old id left the list. Removing a printer moves the
+	// later ones up an index; their stored keys must stay their own.
+	savedKeys := make(map[string]bool, len(current.ThreeDPrinters.Klipper.Printers))
+	for _, printer := range current.ThreeDPrinters.Klipper.Printers {
+		savedKeys[config.ThreeDPrinterKlipperAPIKeyVaultKey(printer.ID)] = true
+	}
+	patchKeys := make(map[string]bool, len(items))
+	for _, item := range items {
+		if printer, ok := item.(map[string]interface{}); ok {
+			id, _ := printer["id"].(string)
+			patchKeys[config.ThreeDPrinterKlipperAPIKeyVaultKey(id)] = true
+		}
+	}
 	for i, item := range items {
 		printer, ok := item.(map[string]interface{})
 		if !ok || i >= len(current.ThreeDPrinters.Klipper.Printers) {
@@ -2085,7 +2103,7 @@ func copyMaskedKlipperPrinterSecretsForRenamedIDs(patch map[string]interface{}, 
 			continue
 		}
 		newKey := config.ThreeDPrinterKlipperAPIKeyVaultKey(newID)
-		if newKey == "" {
+		if newKey == "" || savedKeys[newKey] || patchKeys[config.ThreeDPrinterKlipperAPIKeyVaultKey(oldPrinter.ID)] {
 			continue
 		}
 		if err := vault.WriteSecret(newKey, oldPrinter.APIKey); err != nil {
@@ -2451,6 +2469,15 @@ func extractRecursive(m map[string]interface{}, prefix string, vault *security.V
 					continue
 				}
 			}
+			if fullPath == "a2a.client.remote_agents" {
+				if converted, ok := numericKeyedMapToSlice(v); ok {
+					m[key] = converted
+					if err := extractA2ARemoteAgentSecretsToVault(converted, vault, logger); err != nil && firstErr == nil {
+						firstErr = err
+					}
+					continue
+				}
+			}
 			if err := extractRecursive(v, fullPath, vault, logger); err != nil && firstErr == nil {
 				firstErr = err
 			}
@@ -2462,6 +2489,11 @@ func extractRecursive(m map[string]interface{}, prefix string, vault *security.V
 			}
 			if fullPath == "go2rtc.streams" {
 				if err := extractGo2RTCStreamSourcesToVault(v, vault, logger); err != nil && firstErr == nil {
+					firstErr = err
+				}
+			}
+			if fullPath == "a2a.client.remote_agents" {
+				if err := extractA2ARemoteAgentSecretsToVault(v, vault, logger); err != nil && firstErr == nil {
 					firstErr = err
 				}
 			}

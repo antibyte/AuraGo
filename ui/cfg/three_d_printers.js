@@ -7,11 +7,11 @@ function renderThreeDPrintersSection(section) {
             if (found) { section = found; break; }
         }
     }
+    const printers = threeDPrinterDraftPrinters('elegoo');
+    const klipperPrinters = threeDPrinterDraftPrinters('klipper');
     const cfg = configData.three_d_printers || {};
     const elegoo = cfg.elegoo_centauri_carbon || {};
     const klipper = cfg.klipper || {};
-    const printers = Array.isArray(elegoo.printers) ? elegoo.printers : [];
-    const klipperPrinters = Array.isArray(klipper.printers) ? klipper.printers : [];
 
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.label + '</div>';
@@ -126,22 +126,48 @@ function threeDPrinterEnsurePrinters(protocol) {
     return configData.three_d_printers.elegoo_centauri_carbon.printers;
 }
 
+function threeDPrinterListPath(protocol) {
+    return protocol === 'klipper' ? 'three_d_printers.klipper.printers' : 'three_d_printers.elegoo_centauri_carbon.printers';
+}
+
+// The server replaces both printer lists wholesale, so the draft treats each
+// list as one value. Printer cards edit the draft; adopt it before rendering or
+// changing a list so typed edits and fields the cards do not show survive.
+function threeDPrinterDraftPrinters(protocol) {
+    threeDPrinterEnsurePrinters(protocol);
+    const owner = protocol === 'klipper' ? configData.three_d_printers.klipper : configData.three_d_printers.elegoo_centauri_carbon;
+    const state = window.AuraConfigState;
+    if (state && typeof state.markAtomic === 'function') {
+        const path = threeDPrinterListPath(protocol);
+        state.markAtomic(path);
+        const draft = state.get(path);
+        if (Array.isArray(draft)) owner.printers = JSON.parse(JSON.stringify(draft));
+    }
+    return owner.printers;
+}
+
+function threeDPrinterSetPrinters(protocol, printers) {
+    const render = () => renderThreeDPrintersSection(null);
+    // Render before any listener reads the controls back into the draft.
+    if (window.AuraConfigState) window.AuraConfigState.replace(threeDPrinterListPath(protocol), printers, render);
+    else render();
+    setDirty(true);
+}
+
 function threeDPrinterAdd(protocol) {
-    const printers = threeDPrinterEnsurePrinters(protocol);
+    const printers = threeDPrinterDraftPrinters(protocol);
     if (protocol === 'klipper') {
         printers.push({ id: 'klipper-' + (printers.length + 1), name: 'Klipper', url: 'http://192.168.6.60:7125', api_key: '', timeout_seconds: 10, webcam_name: '' });
     } else {
         printers.push({ id: 'printer-' + (printers.length + 1), name: 'Elegoo Centauri Carbon', url: 'ws://192.168.6.50/websocket', timeout_seconds: 10 });
     }
-    setDirty(true);
-    renderThreeDPrintersSection(null);
+    threeDPrinterSetPrinters(protocol, printers);
 }
 
 function threeDPrinterRemove(protocol, index) {
-    const printers = threeDPrinterEnsurePrinters(protocol);
+    const printers = threeDPrinterDraftPrinters(protocol);
     printers.splice(index, 1);
-    setDirty(true);
-    renderThreeDPrintersSection(null);
+    threeDPrinterSetPrinters(protocol, printers);
 }
 
 async function threeDPrinterTest(protocol, index) {

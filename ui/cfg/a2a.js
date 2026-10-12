@@ -1,12 +1,12 @@
 function renderA2ASection(section) {
+    const skills = a2aList('a2a.server.skills');
+    const remoteAgents = a2aList('a2a.client.remote_agents');
     const data = configData['a2a'] || {};
     const srv = data.server || {};
     const cli = data.client || {};
     const auth = data.auth || {};
     const llmCfg = data.llm || {};
     const bindings = srv.bindings || {};
-    const skills = srv.skills || [];
-    const remoteAgents = cli.remote_agents || [];
     const authAPIKeyPlaceholder = cfgSecretPlaceholder(auth.api_key, t('config.a2a.api_key_placeholder'));
     const authBearerPlaceholder = cfgSecretPlaceholder(auth.bearer_secret, t('config.a2a.bearer_placeholder'));
 
@@ -80,14 +80,7 @@ function renderA2ASection(section) {
     html += '<div class="a2a-card">';
     html += '<div class="a2a-card-title">🎯 ' + t('config.a2a.skills_title') + '</div>';
     html += '<div class="a2a-desc">' + t('config.a2a.skills_desc') + '</div>';
-    html += '<div id="a2a-skills-list">';
-    if (skills.length === 0) {
-        html += '<div class="a2a-placeholder-sm">' + t('config.a2a.no_skills') + '</div>';
-    }
-    skills.forEach(function(skill, idx) {
-        html += a2aSkillRow(skill, idx);
-    });
-    html += '</div>';
+    html += '<div id="a2a-skills-list">' + a2aSkillRows(skills) + '</div>';
     html += '<button class="btn-save a2a-add-btn" onclick="a2aAddSkill()">+ ' + t('config.a2a.add_skill') + '</button>';
     html += '</div>';
 
@@ -154,14 +147,7 @@ function renderA2ASection(section) {
     html += '<span class="toggle-label">' + (cli.enabled ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
     html += '</div></div>';
 
-    html += '<div id="a2a-remote-agents">';
-    if (remoteAgents.length === 0) {
-        html += '<div class="a2a-placeholder">' + t('config.a2a.no_remote_agents') + '</div>';
-    }
-    remoteAgents.forEach(function(ra, idx) {
-        html += a2aRemoteAgentCard(ra, idx);
-    });
-    html += '</div>';
+    html += '<div id="a2a-remote-agents">' + a2aRemoteAgentCards(remoteAgents) + '</div>';
     html += '<button class="btn-save a2a-add-btn-lg" onclick="a2aAddRemoteAgent()">+ ' + t('config.a2a.add_remote_agent') + '</button>';
 
     if (srv.enabled) {
@@ -178,6 +164,45 @@ function renderA2ASection(section) {
     a2aCheckStatus();
 }
 
+// The server replaces a2a.server.skills and a2a.client.remote_agents wholesale,
+// so the draft treats each list as one value. Rows edit the draft; adopt it
+// before rendering or changing a list so typed edits and fields the rows do not
+// show (skill tags, the masked agent credentials) survive.
+function a2aList(path) {
+    var keys = path.split('.');
+    if (!configData.a2a) configData.a2a = {};
+    if (!configData.a2a[keys[1]]) configData.a2a[keys[1]] = {};
+    var owner = configData.a2a[keys[1]];
+    var state = window.AuraConfigState;
+    if (state && typeof state.markAtomic === 'function') {
+        state.markAtomic(path);
+        var draft = state.get(path);
+        if (Array.isArray(draft)) owner[keys[2]] = JSON.parse(JSON.stringify(draft));
+    }
+    if (!Array.isArray(owner[keys[2]])) owner[keys[2]] = [];
+    return owner[keys[2]];
+}
+
+// Only the list container re-renders, before any listener reads the controls
+// back into the draft; fields outside it keep what was typed.
+function a2aSetList(path, list, render) {
+    if (window.AuraConfigState) window.AuraConfigState.replace(path, list, render);
+    else render();
+    setDirty(true);
+}
+
+function a2aSkillRows(skills) {
+    if (skills.length === 0) return '<div class="a2a-placeholder-sm">' + t('config.a2a.no_skills') + '</div>';
+    return skills.map(function(skill, idx) { return a2aSkillRow(skill, idx); }).join('');
+}
+
+function a2aRenderSkills() {
+    var container = document.getElementById('a2a-skills-list');
+    if (!container) return;
+    container.innerHTML = a2aSkillRows(a2aList('a2a.server.skills'));
+    attachChangeListeners();
+}
+
 function a2aSkillRow(skill, idx) {
     var h = '<div class="a2a-skill-row" data-skill-idx="' + idx + '">';
     h += '<input class="field-input a2a-input-xs" type="text" data-path="a2a.server.skills.' + idx + '.id" value="' + escapeAttr(skill.id || '') + '" placeholder="ID">';
@@ -189,34 +214,27 @@ function a2aSkillRow(skill, idx) {
 }
 
 function a2aAddSkill() {
-    var skills = configData.a2a && configData.a2a.server && configData.a2a.server.skills ? configData.a2a.server.skills : [];
+    var skills = a2aList('a2a.server.skills');
     skills.push({ id: '', name: '', description: '', tags: [] });
-    if (!configData.a2a) configData.a2a = {};
-    if (!configData.a2a.server) configData.a2a.server = {};
-    configData.a2a.server.skills = skills;
-    var container = document.getElementById('a2a-skills-list');
-    if (container) {
-        var placeholder = container.querySelector('.a2a-placeholder-sm');
-        if (placeholder) placeholder.remove();
-        container.insertAdjacentHTML('beforeend', a2aSkillRow(skills[skills.length - 1], skills.length - 1));
-    }
-    markDirty();
+    a2aSetList('a2a.server.skills', skills, a2aRenderSkills);
 }
 
 function a2aRemoveSkill(idx) {
-    if (!configData.a2a || !configData.a2a.server || !configData.a2a.server.skills) return;
-    configData.a2a.server.skills.splice(idx, 1);
-    markDirty();
-    var container = document.getElementById('a2a-skills-list');
-    if (container) {
-        var html = '';
-        var skills = configData.a2a.server.skills;
-        if (skills.length === 0) {
-            html = '<div class="a2a-placeholder-sm">' + t('config.a2a.no_skills') + '</div>';
-        }
-        skills.forEach(function(skill, i) { html += a2aSkillRow(skill, i); });
-        container.innerHTML = html;
-    }
+    var skills = a2aList('a2a.server.skills');
+    skills.splice(idx, 1);
+    a2aSetList('a2a.server.skills', skills, a2aRenderSkills);
+}
+
+function a2aRemoteAgentCards(agents) {
+    if (agents.length === 0) return '<div class="a2a-placeholder">' + t('config.a2a.no_remote_agents') + '</div>';
+    return agents.map(function(ra, idx) { return a2aRemoteAgentCard(ra, idx); }).join('');
+}
+
+function a2aRenderRemoteAgents() {
+    var container = document.getElementById('a2a-remote-agents');
+    if (!container) return;
+    container.innerHTML = a2aRemoteAgentCards(a2aList('a2a.client.remote_agents'));
+    attachChangeListeners();
 }
 
 function a2aRemoteAgentCard(ra, idx) {
@@ -258,34 +276,15 @@ function a2aRemoteAgentCard(ra, idx) {
 }
 
 function a2aAddRemoteAgent() {
-    if (!configData.a2a) configData.a2a = {};
-    if (!configData.a2a.client) configData.a2a.client = {};
-    if (!configData.a2a.client.remote_agents) configData.a2a.client.remote_agents = [];
-    var agents = configData.a2a.client.remote_agents;
+    var agents = a2aList('a2a.client.remote_agents');
     agents.push({ id: '', name: '', card_url: '', enabled: true });
-    var container = document.getElementById('a2a-remote-agents');
-    if (container) {
-        var placeholder = container.querySelector('.a2a-placeholder');
-        if (placeholder) placeholder.remove();
-        container.insertAdjacentHTML('beforeend', a2aRemoteAgentCard(agents[agents.length - 1], agents.length - 1));
-    }
-    markDirty();
+    a2aSetList('a2a.client.remote_agents', agents, a2aRenderRemoteAgents);
 }
 
 function a2aRemoveRemoteAgent(idx) {
-    if (!configData.a2a || !configData.a2a.client || !configData.a2a.client.remote_agents) return;
-    configData.a2a.client.remote_agents.splice(idx, 1);
-    markDirty();
-    var container = document.getElementById('a2a-remote-agents');
-    if (container) {
-        var html = '';
-        var agents = configData.a2a.client.remote_agents;
-        if (agents.length === 0) {
-            html = '<div class="a2a-placeholder">' + t('config.a2a.no_remote_agents') + '</div>';
-        }
-        agents.forEach(function(ra, i) { html += a2aRemoteAgentCard(ra, i); });
-        container.innerHTML = html;
-    }
+    var agents = a2aList('a2a.client.remote_agents');
+    agents.splice(idx, 1);
+    a2aSetList('a2a.client.remote_agents', agents, a2aRenderRemoteAgents);
 }
 
 function a2aSaveVault(vaultKey, inputId) {

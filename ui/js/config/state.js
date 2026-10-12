@@ -104,6 +104,18 @@
         if (!same(before, value)) notify();
     }
 
+    // Publish a new value for a list the section re-renders (an added or removed
+    // entry). Listeners read every rendered control back into the draft
+    // (setDirty -> syncFromDOM), so notify only after render() has replaced the
+    // controls of the old list; otherwise they would be written over the new one.
+    function replace(path, value, render) {
+        if (!path) return;
+        write(draftConfig, path, value);
+        track(path);
+        if (typeof render === 'function') render();
+        notify();
+    }
+
     function markSaved(path, value) {
         if (!path) return;
         write(savedConfig, path, value);
@@ -322,6 +334,7 @@
         beginSection: beginSection,
         get: get,
         set: set,
+        replace: replace,
         markSaved: markSaved,
         markAtomic: markAtomic,
         dirtyPaths: dirtyPaths,

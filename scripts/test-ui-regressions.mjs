@@ -3511,29 +3511,201 @@ function fakeConfigContent() {
   return content;
 }
 
-function configGo2RTCContext(go2rtc) {
+// An element inside #content (such as a list container) whose innerHTML replaces only its own markup.
+// Controls outside it keep their typed values, like the browser DOM.
+function fakeConfigRegion(content, id) {
+  const bounds = () => {
+    const html = content.innerHTML;
+    const open = html.indexOf(`<div id="${id}"`);
+    if (open < 0) return null;
+    const start = html.indexOf('>', open) + 1;
+    const tags = /<div\b|<\/div>/g;
+    tags.lastIndex = start;
+    let depth = 1;
+    for (let match = tags.exec(html); match; match = tags.exec(html)) {
+      depth += match[0] === '</div>' ? -1 : 1;
+      if (depth === 0) return { html, start, end: match.index };
+    }
+    throw new Error(`#${id} is not closed`);
+  };
+  return {
+    get innerHTML() {
+      const region = bounds();
+      return region ? region.html.slice(region.start, region.end) : '';
+    },
+    set innerHTML(inner) {
+      const region = bounds();
+      assert.ok(region, `#${id} is not rendered`);
+      const typed = new Map(content.controls.map(control => [control.dataset.path, control.value]));
+      const replaced = new Set([...inner.matchAll(/data-path="([^"]*)"/g)].map(match => decodeConfigAttr(match[1])));
+      content.innerHTML = region.html.slice(0, region.start) + inner + region.html.slice(region.end);
+      content.controls.forEach(control => {
+        const dataPath = control.dataset.path;
+        if (!replaced.has(dataPath) && typed.has(dataPath)) control.value = typed.get(dataPath);
+      });
+    }
+  };
+}
+
+// A Config page with one section module. Like main.js, every draft change and every setDirty(true) reads
+// the rendered controls back into the draft, so stale controls must never outlive the list they show.
+function configSectionContext(configData, modules, { regions = [], globals = {} } = {}) {
   const content = fakeConfigContent();
+  const elements = new Map(regions.map(id => [id, fakeConfigRegion(content, id)]));
   const context = {
     window: {},
     content,
-    configData: { go2rtc: JSON.parse(JSON.stringify(go2rtc)) },
+    configData: JSON.parse(JSON.stringify(configData)),
     isDirty: false,
     t: key => key,
-    document: { getElementById: id => (id === 'content' ? content : null), dispatchEvent() {} },
+    document: { getElementById: id => (id === 'content' ? content : (elements.get(id) || null)), dispatchEvent() {} },
     CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init && init.detail; } },
     attachChangeListeners() {},
-    // Like main.js: marking the page dirty reads every rendered control into the draft.
     setDirty(dirty) {
       if (dirty) context.window.AuraConfigState.syncFromDOM(content);
       context.isDirty = context.window.AuraConfigState.isDirty();
-    }
+    },
+    ...globals
   };
   vm.createContext(context);
   vm.runInContext(read('ui/js/config/state.js'), context);
   vm.runInContext(sourceBetween(read('ui/js/config/utils.js'), 'function escapeAttr(', 'function formatKey('), context);
-  vm.runInContext(read('ui/cfg/go2rtc.js'), context);
-  context.window.AuraConfigState.init(context.configData);
+  modules.forEach(module => vm.runInContext(read(module), context));
+  const state = context.window.AuraConfigState;
+  state.init(context.configData);
+  state.subscribe(snapshot => context.setDirty(snapshot.dirty));
   return context;
+}
+
+function configGo2RTCContext(go2rtc) {
+  return configSectionContext({ go2rtc }, ['ui/cfg/go2rtc.js']);
+}
+
+// Reads the complete lists a save would send; any other patched key fails the check.
+function configListPatch(state, expectedPaths, message) {
+  const plain = value => JSON.parse(JSON.stringify(value));
+  const patch = plain(state.buildPatch());
+  assert.deepEqual(plain(state.dirtyPaths()), [...expectedPaths].sort(), message + ': each list counts as one change ' + JSON.stringify(plain(state.dirtyPaths())));
+  return expectedPaths.map(dataPath => dataPath.split('.').reduce((value, key) => value[key], patch));
+}
+
+function typeConfigControl(context, dataPath, value) {
+  const control = context.content.control(dataPath);
+  assert.ok(control, `missing control ${dataPath}`);
+  control.value = value;
+  context.window.AuraConfigState.syncFromDOM(context.content);
+}
+
+// Config section "A2A": skills and remote agents save as complete lists. Fields the rows do not show (skill
+// tags, the masked agent credentials the server reports) survive, adding or removing an entry keeps typed
+// edits and never shifts one entry's fields onto another, and other typed fields outside the lists stay.
+function testConfigA2AListsSaveAsCompleteLists() {
+  const skill = (id, name) => ({ id, name, description: name + ' help', tags: [id, 'aurago'] });
+  const agent = (id, name) => ({ id, name, card_url: `https://${id}.example/.well-known/agent-card.json`, enabled: true, api_key: '••••••••', bearer_token: '••••••••' });
+  const context = configSectionContext({
+    providers: [],
+    a2a: {
+      server: {
+        enabled: true, agent_name: 'Aura', agent_description: '', agent_version: '1.0.0', agent_url: '', port: 8091, base_path: '/a2a',
+        skills: [skill('search', 'Search'), skill('notes', 'Notes'), skill('lights', 'Lights')]
+      },
+      client: { enabled: true, remote_agents: [agent('alpha', 'Alpha'), agent('beta', 'Beta'), agent('gamma', 'Gamma')] },
+      auth: {},
+      llm: {}
+    }
+  }, ['ui/cfg/a2a.js'], {
+    regions: ['a2a-skills-list', 'a2a-remote-agents'],
+    globals: {
+      AuraConfigForm: { toggle: () => '', number: () => '' },
+      cfgSecretPlaceholder: (value, fallback) => fallback,
+      cfgSecretValue: () => '',
+      EYE_OPEN_SVG: ''
+    }
+  });
+  const state = context.window.AuraConfigState;
+  const skills = 'a2a.server.skills';
+  const agents = 'a2a.client.remote_agents';
+
+  context.renderA2ASection({ label: 'A2A', desc: 'Agents' });
+  assert.equal(state.isDirty(), false);
+
+  typeConfigControl(context, 'a2a.server.skills.1.name', 'Notebook');
+  const edited = [skill('search', 'Search'), { ...skill('notes', 'Notes'), name: 'Notebook' }, skill('lights', 'Lights')];
+  assert.deepEqual(configListPatch(state, [skills], 'a skill edit'), [edited], 'a skill edit sends every skill with its tags');
+
+  typeConfigControl(context, 'a2a.server.agent_name', 'Aura 2');
+  context.a2aAddSkill();
+  state.syncFromDOM(context.content); // saveConfig reads the controls again
+  const addedSkill = { id: '', name: '', description: '', tags: [] };
+  assert.equal(context.content.control('a2a.server.skills.1.name').value, 'Notebook', 'the re-rendered rows show the typed edit');
+  assert.equal(context.content.control('a2a.server.agent_name').value, 'Aura 2', 'adding a skill keeps typed fields outside the list');
+  assert.equal(state.get('a2a.server.agent_name'), 'Aura 2');
+  assert.deepEqual(configListPatch(state, ['a2a.server.agent_name', skills], 'an added skill')[1], [...edited, addedSkill]);
+
+  context.a2aRemoveSkill(0);
+  state.syncFromDOM(context.content);
+  assert.deepEqual(configListPatch(state, ['a2a.server.agent_name', skills], 'a removed skill')[1], [edited[1], edited[2], addedSkill],
+    'a removed skill does not shift fields onto its neighbour');
+  [2, 1, 0].forEach(index => context.a2aRemoveSkill(index));
+  state.syncFromDOM(context.content);
+  assert.deepEqual(configListPatch(state, ['a2a.server.agent_name', skills], 'no skills')[1], [], 'removing every skill sends an empty list');
+
+  typeConfigControl(context, 'a2a.client.remote_agents.2.card_url', 'https://gamma.example/card.json');
+  const gamma = { ...agent('gamma', 'Gamma'), card_url: 'https://gamma.example/card.json' };
+  context.a2aRemoveRemoteAgent(0);
+  state.syncFromDOM(context.content);
+  assert.deepEqual(configListPatch(state, ['a2a.server.agent_name', agents, skills], 'a removed agent')[1], [agent('beta', 'Beta'), gamma],
+    'a removed agent keeps the others whole');
+  context.a2aAddRemoteAgent();
+  state.syncFromDOM(context.content);
+  assert.equal(context.content.control('a2a.client.remote_agents.1.card_url').value, 'https://gamma.example/card.json');
+  assert.deepEqual(configListPatch(state, ['a2a.server.agent_name', agents, skills], 'an added agent')[1],
+    [agent('beta', 'Beta'), gamma, { id: '', name: '', card_url: '', enabled: true }]);
+}
+
+// Config section "3D printers": both printer lists save as complete lists (with the masked Klipper key and
+// fields like webcam_name), each list only when it changed, and adding or removing a printer re-renders
+// before the controls are read back, so typed edits survive and nothing shifts between printers.
+function testConfigThreeDPrinterListsSaveAsCompleteLists() {
+  const elegoo = (id, name) => ({ id, name, url: `ws://${id}.local/websocket`, mainboard_id: id + '-board', timeout_seconds: 10 });
+  const klipper = (id, name) => ({ id, name, url: `http://${id}.local:7125`, api_key: '••••••••', timeout_seconds: 15, webcam_name: id + '-cam' });
+  const context = configSectionContext({
+    three_d_printers: {
+      enabled: true, readonly: true, default_printer: 'voron',
+      elegoo_centauri_carbon: { enabled: true, printers: [elegoo('lab', 'Lab'), elegoo('shop', 'Shop')] },
+      klipper: { enabled: true, printers: [klipper('voron', 'Voron'), klipper('ender', 'Ender'), klipper('prusa', 'Prusa')] }
+    }
+  }, ['ui/cfg/three_d_printers.js'], {
+    globals: { SECTIONS: [{ items: [{ key: 'three_d_printers', label: '3D printers', desc: 'Printers' }] }] }
+  });
+  const state = context.window.AuraConfigState;
+  const elegooPath = 'three_d_printers.elegoo_centauri_carbon.printers';
+  const klipperPath = 'three_d_printers.klipper.printers';
+
+  context.renderThreeDPrintersSection(null);
+  assert.equal(state.isDirty(), false);
+
+  typeConfigControl(context, klipperPath + '.1.name', 'Ender 3');
+  const ender = { ...klipper('ender', 'Ender'), name: 'Ender 3' };
+  assert.deepEqual(configListPatch(state, [klipperPath], 'a printer edit'), [[klipper('voron', 'Voron'), ender, klipper('prusa', 'Prusa')]],
+    'a printer edit sends every Klipper printer and leaves the Elegoo list alone');
+
+  context.threeDPrinterRemove('klipper', 0);
+  state.syncFromDOM(context.content);
+  assert.equal(context.content.control(klipperPath + '.0.name').value, 'Ender 3', 'the re-render shows the typed edit');
+  assert.deepEqual(configListPatch(state, [klipperPath], 'a removed printer'), [[ender, klipper('prusa', 'Prusa')]],
+    'a removed printer does not shift fields onto its neighbour');
+
+  context.threeDPrinterAdd('elegoo');
+  state.syncFromDOM(context.content);
+  const added = { id: 'printer-3', name: 'Elegoo Centauri Carbon', url: 'ws://192.168.6.50/websocket', timeout_seconds: 10, mainboard_id: '' };
+  assert.deepEqual(configListPatch(state, [elegooPath, klipperPath], 'an added printer'),
+    [[elegoo('lab', 'Lab'), elegoo('shop', 'Shop'), added], [ender, klipper('prusa', 'Prusa')]]);
+
+  context.threeDPrinterRemove('klipper', 1);
+  context.threeDPrinterRemove('klipper', 0);
+  state.syncFromDOM(context.content);
+  assert.deepEqual(configListPatch(state, [elegooPath, klipperPath], 'no Klipper printers')[1], [], 'removing every printer sends an empty list');
 }
 
 // Config section "go2rtc": the server replaces go2rtc.streams wholesale, so a save sends the complete list,
@@ -3846,6 +4018,8 @@ const tests = [
   ['EasyDrag flows_changed is forwarded as aurago:flows-changed', testEasyDragFlowsChangedIsForwarded],
   ['Config EasyDrag flows section keeps providers, numbers and locked agent options', testConfigFlowsSection],
   ['Config go2rtc streams save as the complete list', testConfigGo2RTCStreamsSaveAsCompleteList],
+  ['Config A2A skills and remote agents save as complete lists', testConfigA2AListsSaveAsCompleteLists],
+  ['Config 3D printer lists save as complete lists', testConfigThreeDPrinterListsSaveAsCompleteLists],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting],
   ['Invasion nest form sends export_nest_secret', testInvasionNestFormSendsExportNestSecret],
   ['Invasion nest secret field hides only without effect', testInvasionNestSecretFieldHidesOnlyWithoutEffect]

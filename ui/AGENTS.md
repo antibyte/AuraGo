@@ -123,12 +123,17 @@ worker. Keep packaging, recovery and offline instructions in
 - `PUT /api/config` replaces lists wholesale, so a Config section with per-index
   `data-path` controls (`list.<index>.<field>`) must never patch single indexes.
   It calls `AuraConfigState.markAtomic('<list>')`, adopts the draft list before
-  rendering or changing it, publishes additions and removals with
-  `AuraConfigState.set('<list>', list)` and re-renders before `setDirty(true)`
-  (which reads every rendered control back). The patch then carries the complete
-  list, including fields the cards do not render. `cfg/go2rtc.js` does this for
-  `go2rtc.streams` (keeping `source_configured` and `detection`). Verify the go2rtc
-  case in `node scripts/test-ui-regressions.mjs`.
+  rendering or changing it, and publishes additions and removals with
+  `AuraConfigState.replace('<list>', list, render)`, then `setDirty(true)`.
+  `replace` re-renders before it notifies: main.js subscribes `setDirty`, which
+  reads every rendered control back, so a plain `set` would write the old list's
+  controls over the new one. The patch then carries the complete list, including
+  fields the cards do not render. Lists: `go2rtc.streams` (`cfg/go2rtc.js`, keeping
+  `source_configured`, `detection`), `a2a.server.skills` and
+  `a2a.client.remote_agents` (`cfg/a2a.js`, re-rendering only the list container;
+  keeping skill `tags` and the masked agent credentials), both
+  `three_d_printers.*.printers` (`cfg/three_d_printers.js`). Verify the Config
+  list cases in `node scripts/test-ui-regressions.mjs`.
 
 - Newspaper is a lazy built-in Desktop reader with a separate editorial paper surface and Config/Dashboard entry. Keep all sixteen Desktop, Config and Dashboard locale keys aligned, both icon manifests registered, and the generated main Desktop bundle current. Config exposes the search cap (32 by default, 1–64 including retries); shared capability responses distinguish setup reasons from last-attempt failures. The reader preserves optional research counters and topic gaps, including legacy runs without them. A bounce-suppression message must not imply that the recipient address is invalid without the original SMTP evidence. Verify `TestNewspaperResearchTranslations`, `TestNewspaperConfigResearchBrowser` and `TestDesktopNewspaperBrowser` at wide/narrow sizes in both themes; backend contracts live in `internal/newspaper/AGENTS.md`.
 
