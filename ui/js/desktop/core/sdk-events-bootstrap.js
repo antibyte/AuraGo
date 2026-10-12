@@ -675,6 +675,30 @@
         beginWindowSwitcherHold(false);
     }
 
+    // Enter, Delete and F2 act on the selected desktop icon only while the keyboard belongs to
+    // the desktop: a focused icon, or the page body after the last press landed on the desktop.
+    // A press inside a window or other shell surface keeps them off the icon even when the
+    // pressed element cannot hold focus and the keys arrive at the page body.
+    let desktopKeyboardOnSurface = true;
+
+    function trackDesktopKeyboardScope(event) {
+        const target = event.target instanceof Element ? event.target : null;
+        const workspace = $('vd-workspace');
+        desktopKeyboardOnSurface = !!(target && workspace && workspace.contains(target)
+            && !target.closest('.vd-window, .vd-widget, .vd-start-menu, .vd-taskbar, .vd-sip-phone-gadget'));
+    }
+
+    function desktopIconKeysAllowed(event) {
+        if (event.defaultPrevented) return false;
+        const target = event.target;
+        const icons = $('vd-icons');
+        if (icons && target instanceof Node && icons.contains(target)) return true;
+        const onPage = !target || target === document.body || target === document.documentElement;
+        return onPage && desktopKeyboardOnSurface;
+    }
+
+    document.addEventListener('pointerdown', trackDesktopKeyboardScope, true);
+
     function handleDesktopKeydown(event) {
         if (handleWindowMenuShortcut(event)) return;
         if (handleDesktopMediaKeydown(event)) return;
@@ -714,6 +738,7 @@
             if (state.activeWindowId) toggleMaximizeWindow(state.activeWindowId);
             return;
         }
+        if ((event.key === 'Enter' || event.key === 'Delete' || event.key === 'F2') && !desktopIconKeysAllowed(event)) return;
         switch (event.key) {
         case 'Escape': {
             const shortcuts = document.getElementById('vd-shortcuts-help');
