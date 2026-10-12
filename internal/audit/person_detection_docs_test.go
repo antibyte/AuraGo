@@ -2,8 +2,31 @@ package audit
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
+
+// TestPersonDetectionContractsAreRouted keeps the onnxrt and persondetect
+// package contracts in the root routing table and Child DOX Index. Child
+// AGENTS.md files are git-ignored by pattern and must be added with git add -f.
+func TestPersonDetectionContractsAreRouted(t *testing.T) {
+	t.Parallel()
+	root := readRepoFile(t, "AGENTS.md")
+	for _, path := range []string{"internal/onnxrt/AGENTS.md", "internal/persondetect/AGENTS.md"} {
+		if got := strings.Count(root, "`"+path+"`"); got < 2 {
+			t.Errorf("root AGENTS.md must route %s in the contract table and the Child DOX Index, found %d references", path, got)
+		}
+		requireAll(t, path, readRepoFile(t, path), []string{
+			"## Purpose", "## Ownership", "## Local Contracts", "## Work Guidance", "## Verification", "## Child DOX Index",
+		})
+	}
+	requireAll(t, "internal/persondetect/AGENTS.md", readRepoFile(t, "internal/persondetect/AGENTS.md"), []string{
+		"WorkerFlag", "SameConfidentDetections", "PatchVectorMatMuls", "ErrDetectorFailed", "-timeout 30m", "--group-add",
+	})
+	requireAll(t, "internal/onnxrt/AGENTS.md", readRepoFile(t, "internal/onnxrt/AGENTS.md"), []string{
+		"ConfigureWorkerCommand", "AccessibleRenderNode", ".complete.json", "ValidateAssetSpec", "-timeout 30m",
+	})
+}
 
 // TestPersonDetectionThirdPartyRecords keeps the attribution of the downloaded
 // person-detection models, the WebGPU runtime (with the DirectX Shader Compiler

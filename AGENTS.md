@@ -281,6 +281,7 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Decisions service and CPU permission | `internal/decisions/AGENTS.md` |
 | Decisions native scoring runtime | `decisions_runtime/AGENTS.md` |
 | Local Wikipedia Contract | `internal/localwiki/AGENTS.md` |
+| ONNX Runtime binding, asset cache and person detection worker | `internal/onnxrt/AGENTS.md`, `internal/persondetect/AGENTS.md` |
 | Memory System | `internal/memory/AGENTS.md` |
 | Newspaper publication, scheduling and delivery | `internal/newspaper/AGENTS.md` |
 | MeshCentral control client, power gate and test route | `internal/meshcentral/AGENTS.md` |
@@ -625,7 +626,9 @@ Current child AGENTS.md files:
 - `internal/networkshares/AGENTS.md` — SMB/NFS capability, ownership, and mutation policy.
 - `internal/newspaper/AGENTS.md` — Personal daily publication, source validation, scheduler and delivery receipts.
 - `internal/office/AGENTS.md` — Workbook and document preservation, editing, and assist.
+- `internal/onnxrt/AGENTS.md` — Purego ONNX Runtime binding, verified pinned asset cache and native worker process helpers shared by embeddings and person detection.
 - `internal/personalradio/AGENTS.md` — Personal stations, durable audio library, rotation, news, provider quotas and desktop playback contracts.
+- `internal/persondetect/AGENTS.md` — D-FINE person detector: pinned models, WebGPU model patcher, `--person-detect-worker` protocol, backend selection and worker supervision.
 - `internal/planner/AGENTS.md` — Issue lifecycle, notification, and background retry policy.
 - `internal/proxy/AGENTS.md` — Managed Caddy security proxy: Vault Basic Auth, rate-limit image, Docker placement and reload.
 - `internal/rtlsdr/AGENTS.md` — Optional receive-only RTL-SDR runtime, schedules, leases, recordings and ASR.
