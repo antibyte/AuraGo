@@ -81,7 +81,7 @@ func promoteUploadedImagesToMultiContent(cfg *config.Config, msg openai.ChatComp
 		}
 		info, err := os.Stat(fullPath)
 		if err != nil {
-			reason := err.Error()
+			reason := "could not be read"
 			if os.IsNotExist(err) {
 				reason = "missing"
 			}
@@ -91,7 +91,7 @@ func promoteUploadedImagesToMultiContent(cfg *config.Config, msg openai.ChatComp
 			}
 			continue
 		}
-		if info.Size() <= 0 || info.Size() > maxInlineBytes {
+		if info.Mode().IsRegular() && (info.Size() <= 0 || info.Size() > maxInlineBytes) {
 			reason := "empty"
 			if info.Size() > maxInlineBytes {
 				reason = "larger than 10 MiB"
@@ -104,7 +104,7 @@ func promoteUploadedImagesToMultiContent(cfg *config.Config, msg openai.ChatComp
 		}
 		data, err := os.ReadFile(fullPath)
 		if err != nil {
-			skips = append(skips, imageNotSent(relativeAttachmentPath, err.Error()))
+			skips = append(skips, imageNotSent(relativeAttachmentPath, "could not be read"))
 			if logger != nil {
 				logger.Warn("Failed to read attachment for multimodal input", "path", fullPath, "error", err)
 			}
@@ -266,6 +266,7 @@ func fallbackVisionAnalysis(cfg *config.Config, msg openai.ChatCompletionMessage
 	b.WriteString(prefix)
 	b.WriteString("\n\n[IMAGE ANALYSIS]\n")
 	added := 0
+	attempted := map[string]struct{}{}
 	for _, m := range matches {
 		if len(m) < 2 {
 			continue
@@ -278,6 +279,7 @@ func fallbackVisionAnalysis(cfg *config.Config, msg openai.ChatCompletionMessage
 		if imageMimeType(ext) == "" {
 			continue
 		}
+		attempted[relativeAttachmentPath] = struct{}{}
 		agentPath := "agent_workspace/workdir/attachments/" + relativeAttachmentPath
 		analysis, _, _, err := analyzeImageForFallback(agentPath, prompt, cfg)
 		if err != nil {
@@ -297,9 +299,12 @@ func fallbackVisionAnalysis(cfg *config.Config, msg openai.ChatCompletionMessage
 		b.WriteString(analysis)
 		b.WriteString("\n")
 	}
+	if len(attempted) == 0 {
+		return msg
+	}
 	if added == 0 {
 		const note = "The attached image could not be analyzed."
-		content := userText
+		content := strings.TrimSpace(stripSentAttachmentPaths(msg.Content, attempted))
 		if content == "" {
 			content = note
 		} else {

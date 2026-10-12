@@ -552,3 +552,66 @@ func TestLegacyOpenAIFlagDoesNotInlineWithoutImageCapability(t *testing.T) {
 		t.Fatalf("expected no inlined image data, got %q", out.Content)
 	}
 }
+
+func TestPromoteUploadedImagesDirectoryReadUsesShortReason(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "attachments", "folder.png"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	auto := false
+	cfg := &config.Config{}
+	cfg.LLM.Multimodal = true
+	cfg.LLM.Provider = "main"
+	cfg.LLM.ProviderType = "openrouter"
+	cfg.Providers = []config.ProviderEntry{{
+		ID:   "main",
+		Type: "openrouter",
+		Capabilities: config.ProviderCapabilities{
+			Auto:       &auto,
+			Multimodal: true,
+		},
+	}}
+
+	in := openai.ChatCompletionMessage{
+		Role:    openai.ChatMessageRoleUser,
+		Content: "Look at agent_workspace/workdir/attachments/folder.png",
+	}
+	out := promoteUploadedImagesToMultiContent(cfg, in, dir, nil)
+	joined := out.Content
+	for _, part := range out.MultiContent {
+		if part.Type == openai.ChatMessagePartTypeText {
+			joined += "\n" + part.Text
+		}
+	}
+	if !strings.Contains(joined, "Image folder.png was not sent: could not be read.") {
+		t.Fatalf("expected short read reason, got %q", joined)
+	}
+	if strings.Contains(joined, dir) {
+		t.Fatalf("message contains the absolute workspace path: %q", joined)
+	}
+}
+
+func TestFallbackVisionLeavesNonImageAttachmentsUnchanged(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.LLM.Multimodal = true
+	cfg.LLM.ProviderType = "ollama"
+	orig := analyzeImageForFallback
+	analyzeImageForFallback = func(filePath, prompt string, cfg *config.Config) (string, int, int, error) {
+		t.Fatalf("non-image attachment was sent for analysis: %s", filePath)
+		return "", 0, 0, nil
+	}
+	defer func() { analyzeImageForFallback = orig }()
+
+	in := openai.ChatCompletionMessage{
+		Role:    openai.ChatMessageRoleUser,
+		Content: "Read agent_workspace/workdir/attachments/notes.pdf",
+	}
+	out := promoteUploadedImagesToMultiContent(cfg, in, t.TempDir(), nil)
+	if out.Content != in.Content || len(out.MultiContent) != 0 {
+		t.Fatalf("expected the pdf-only message to stay unchanged, got %+v", out)
+	}
+	if strings.Contains(out.Content, "could not be analyzed") {
+		t.Fatalf("non-image attachment was reported as a failed image analysis: %q", out.Content)
+	}
+}
