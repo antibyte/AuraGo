@@ -343,8 +343,11 @@ func TestValidateGo2RTCSettingsChecksDetectionEvenWhenDisabled(t *testing.T) {
 	}
 }
 
-// Detection settings are not container settings: a detection-only edit takes the
-// soft path (Configure + reconcile) and never recreates the go2rtc container.
+// Detection settings are not container settings: a detection-only edit that
+// leaves the detecting-camera count alone takes the soft path (Configure +
+// reconcile) and never recreates the go2rtc container. Switching a camera's
+// detection on or off changes the sidecar's CPU and memory limits and does
+// recreate it (see the second half and TestGo2RTCRecreateWhenDetectionLimitsChange).
 func TestGo2RTCRuntimeTransitionDetectionOnlyChangeKeepsContainer(t *testing.T) {
 	oldCfg := config.Config{}
 	oldCfg.Go2RTC = config.Go2RTCConfig{
@@ -360,14 +363,24 @@ func TestGo2RTCRuntimeTransitionDetectionOnlyChangeKeepsContainer(t *testing.T) 
 	newCfg.Go2RTC.Detection.Schedule = []config.Go2RTCDetectionWindow{{Days: []string{"mon"}, From: "22:00", To: "06:00"}}
 	newCfg.Go2RTC.Streams[0].Detection.MinScore = 0.7
 	newCfg.Go2RTC.Streams[0].Detection.Zones = []config.Go2RTCDetectionZone{{Name: "Driveway", Points: [][2]float64{{0, 0}, {1, 0}, {1, 1}}}}
-	newCfg.Go2RTC.Streams[0].Detection.Enabled = false
 
 	changed, recreate := go2RTCRuntimeTransition(oldCfg, newCfg)
 	if !changed {
 		t.Fatal("a detection-only change must count as a go2rtc change")
 	}
 	if recreate {
-		t.Fatal("a detection-only change must not recreate the go2rtc container")
+		t.Fatal("a detection-only change that keeps the detecting-camera count must not recreate the go2rtc container")
+	}
+
+	// The camera's detection flag decides the sidecar limits: the last detecting
+	// camera going away drops the container back to the hardened base limits.
+	newCfg.Go2RTC.Streams[0].Detection.Enabled = false
+	changed, recreate = go2RTCRuntimeTransition(oldCfg, newCfg)
+	if !changed {
+		t.Fatal("disabling a camera's detection must count as a go2rtc change")
+	}
+	if !recreate {
+		t.Fatal("disabling the last detecting camera changes the sidecar limits and must recreate the container")
 	}
 }
 

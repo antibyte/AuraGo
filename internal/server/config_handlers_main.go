@@ -1643,6 +1643,12 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 }
 
 func go2RTCRequiresRecreate(oldCfg, newCfg config.Go2RTCConfig) bool {
+	// Person detection raises the sidecar's CPU and memory limits; a running
+	// container only gets new limits when it is recreated. A sidecar that is
+	// being enabled starts fresh and gets them from its fingerprint.
+	if oldCfg.Enabled && newCfg.Enabled && !tools.Go2RTCResourcesFor(oldCfg).SameLimits(tools.Go2RTCResourcesFor(newCfg)) {
+		return true
+	}
 	if oldCfg.Image != newCfg.Image ||
 		oldCfg.ContainerName != newCfg.ContainerName ||
 		oldCfg.URL != newCfg.URL ||

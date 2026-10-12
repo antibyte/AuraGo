@@ -416,14 +416,15 @@ func (m *Go2RTCManager) go2RTCContainerPayload(cfg config.Go2RTCConfig, configPa
 	m.mu.RLock()
 	dockerCfg := m.docker
 	m.mu.RUnlock()
+	resources := Go2RTCResourcesFor(cfg)
 	hostConfig := map[string]interface{}{
 		"ReadonlyRootfs": true,
 		"SecurityOpt":    []string{"no-new-privileges:true"},
 		"CapDrop":        []string{"ALL"},
 		"Tmpfs":          map[string]string{"/tmp": "rw,noexec,nosuid,size=64m,mode=1777"},
 		"PidsLimit":      int64(100),
-		"Memory":         int64(256 << 20),
-		"NanoCpus":       int64(500_000_000),
+		"Memory":         resources.MemoryBytes,
+		"NanoCpus":       resources.NanoCPUs,
 		"RestartPolicy":  map[string]interface{}{"Name": "unless-stopped"},
 	}
 	exposed := map[string]interface{}{"1984/tcp": struct{}{}}
@@ -674,6 +675,11 @@ func validateGo2RTCWebRTC(cfg config.Go2RTCWebRTCConfig) error {
 
 func go2RTCFingerprint(cfg config.Go2RTCConfig, rendered []byte, owner string) string {
 	input := append([]byte(cfg.Image+"\x00"+cfg.URL+"\x00"+strconv.Itoa(cfg.APIHostPort)+"\x00"+owner+"\x00"), rendered...)
+	// Raised limits join the identity only while person detection runs, so
+	// installations without detection keep their fingerprint (no recreate on upgrade).
+	if resources := Go2RTCResourcesFor(cfg); resources.DetectingCameras > 0 {
+		input = append(input, []byte("\x00limits:"+strconv.FormatInt(resources.NanoCPUs, 10)+":"+strconv.FormatInt(resources.MemoryBytes, 10))...)
+	}
 	sum := sha256.Sum256(input)
 	return hex.EncodeToString(sum[:])
 }
