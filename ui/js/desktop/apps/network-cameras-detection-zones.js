@@ -34,7 +34,7 @@
 
     function bindCameraSettings(root, stream, ctx, onChange) {
         const container = root && root.querySelector ? (root.querySelector('[data-ncd-camera-settings]') || root) : null;
-        if (!container || !ctx) return { value: () => null, dispose() {} };
+        if (!container || !ctx) return { value: () => null, commitDrawing: () => true, dispose() {} };
         const ed = {
             draft: cameraDefaults(stream && stream.detection),
             drawing: null, selected: -1, drag: null, boxes: [], width: 1280, height: 720,
@@ -121,6 +121,17 @@
             setStatus(T(ctx, 'zone_added', { name }));
             warnIfFlat(zone);
             emit();
+        };
+        // commitDrawing runs before Save: it closes a zone that is still being drawn, so the
+        // PATCH never drops it, and returns false (with a hint) when it has fewer than 3 points.
+        const commitDrawing = () => {
+            if (ed.disposed || !ed.drawing) return true;
+            if (ed.drawing.length >= MIN_POINTS) {
+                closeZone();
+                return true;
+            }
+            setStatus(T(ctx, 'zone_unfinished'), true);
+            return false;
         };
         const cancelZone = () => {
             if (!ed.drawing) return;
@@ -301,6 +312,7 @@
         if (background && background.complete && background.naturalWidth) onBackgroundLoad();
         return {
             value: () => cameraPayload(ed.draft),
+            commitDrawing,
             dispose() {
                 ed.disposed = true;
                 if (ed.controller) ed.controller.abort();

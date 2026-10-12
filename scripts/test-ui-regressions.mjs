@@ -1908,7 +1908,7 @@ function testNetworkCamerasDesktopContracts() {
   assert.match(app, /const live = enabled && liveIDs\.has\(stream\.id\)/, 'selected cards must render live inside live-grid mode');
   assert.match(app, /const liveGrid = state\.mode === 'live'[\s\S]*\(liveGrid \? '' : detailMarkup\(state\)\)/, 'live-grid mode must replace the detail pane instead of duplicating it');
   assert.match(app, /if \(state\.mode === 'live'\) state\.mode = 'snapshots'[\s\S]*state\.focus = !state\.focus/, 'focus mode must return to the dedicated detail layout');
-  assert.match(app, /window\.NetworkCamerasApp = \{ render, dispose \}/);
+  assert.match(app, /window\.NetworkCamerasApp = \{ render, dispose, open \}/);
   assert.doesNotMatch(app, /\b(?:alert|confirm|prompt)\s*\(/);
 
   const languages = ['cs', 'da', 'de', 'el', 'en', 'es', 'fr', 'hi', 'it', 'ja', 'nl', 'no', 'pl', 'pt', 'sv', 'zh'];
@@ -2126,6 +2126,54 @@ function testNetworkCamerasDetectionRuntime() {
   for (const line of runtime.split('\n').filter(entry => entry.includes('.innerHTML ='))) {
     assert.match(line.trim(), /^(?:region\.innerHTML = html;|inst\.host\.innerHTML = '<div class="ncd-root"[^+]*';)/, `unexpected innerHTML assignment: ${line.trim()}`);
   }
+}
+
+function testNetworkCamerasDetectionAppContracts() {
+  const app = read('ui/js/desktop/apps/network-cameras.js');
+  const loader = read('ui/js/desktop/core/module-loader.js');
+
+  assert.match(loader, /'network-cameras': \{\s*styles: appStyles\('\/css\/desktop-app-network-cameras\.css', '\/css\/desktop-app-network-cameras-detection\.css'\),\s*scripts: \[\s*'\/js\/desktop\/apps\/network-cameras-detection-views\.js',\s*'\/js\/desktop\/apps\/network-cameras-detection-zones\.js',\s*'\/js\/desktop\/apps\/network-cameras-detection\.js',\s*'\/js\/desktop\/apps\/network-cameras\.js'\s*\]/, 'the detection modules and stylesheet must load before the Network Cameras app');
+
+  const modeSource = sourceBetween(app, 'function coerceMode(value)', 'function readPreferences');
+  const modeContext = {};
+  vm.createContext(modeContext);
+  vm.runInContext(`${modeSource}; globalThis.coerceModeForTest = coerceMode; globalThis.launchContextForTest = launchContext;`, modeContext);
+  assert.equal(modeContext.coerceModeForTest('detections'), 'detections');
+  assert.equal(modeContext.coerceModeForTest('live'), 'live');
+  assert.equal(modeContext.coerceModeForTest('snapshots'), 'snapshots');
+  assert.equal(modeContext.coerceModeForTest('admin'), 'snapshots');
+  assert.equal(modeContext.coerceModeForTest(undefined), 'snapshots');
+  const launch = value => JSON.parse(JSON.stringify(modeContext.launchContextForTest(value)));
+  assert.deepEqual(launch({ event_id: 7, camera_id: 'front-door' }), { event_id: 7, camera_id: 'front-door' });
+  assert.deepEqual(launch({ event_id: 7, camera_id: '../x' }), { event_id: 7 }, 'an invalid camera id is dropped, the event stays');
+  assert.equal(modeContext.launchContextForTest({ event_id: '7' }), null, 'event ids from the notification center are numbers');
+  assert.equal(modeContext.launchContextForTest({ event_id: 2 ** 60 }), null);
+  assert.equal(modeContext.launchContextForTest({ event_id: -1 }), null);
+  assert.equal(modeContext.launchContextForTest(undefined), null);
+  assert.match(app, /mode: coerceMode\(value\.mode\)/, 'the stored preference must accept the detection mode');
+  assert.match(app, /state\.mode = coerceMode\(button\.dataset\.mode\)/, 'the segmented control must accept the detection mode');
+  assert.match(app, /mode: launchContext\(ctx\) \? 'detections' : preferences\.mode/, 'a launch context opens the detection mode');
+  assert.match(app, /data-mode="detections"/);
+  assert.match(app, /if \(state\.mode === 'detections'\) return '<div class="nc-detection-host" data-role="detection"><\/div>'/);
+  assert.match(app, /module\.unmount\(state\.windowId, \{ keepState: true \}\)/, 'hidden windows and other modes must stop detection polling');
+  assert.match(sourceBetween(app, 'function syncDetection(state)', 'function bindMainEvents'), /const launch = state\.pendingLaunch;\s*state\.pendingLaunch = null;/, 'the launch context is consumed by exactly one mount');
+  assert.match(sourceBetween(app, 'function stopActivity(state)', 'function installVisibilityLifecycle'), /detection\.unmount\(state\.windowId, \{ keepState: true \}\)/);
+  assert.match(sourceBetween(app, 'function dispose(windowId)', 'function render(host'), /detection\.unmount\(windowId\)/);
+  assert.match(sourceBetween(app, 'function open(windowId, context)', 'function render(host'), /state\.pendingLaunch = launch;[\s\S]*state\.mode = 'detections';[\s\S]*draw\(state\)/, 'an open window takes a new launch context');
+  assert.match(app, /window\.NetworkCamerasApp = \{ render, dispose, open \}/);
+  const hook = "if (appId === 'network-cameras' && context && context.event_id && window.NetworkCamerasApp && typeof window.NetworkCamerasApp.open === 'function') window.NetworkCamerasApp.open(existing.id, context);";
+  assert.ok(read('ui/js/desktop/core/window-shell-runtime.js').includes(hook), 'openApp must hand a launch context to an open Network Cameras window');
+  assert.ok(read('ui/js/desktop/bundles/main.bundle.js').includes(hook), 'rebuild the main bundle (npm run build:ui)');
+  assert.match(app, /modal\.detectionDirty && modal\.detection \? \{ detection: modal\.detection \} : \{\}/, 'camera detection settings are saved through PATCH streams/<id>');
+  assert.match(sourceBetween(app, 'async function saveManagedStream(state)', 'async function deleteManagedStream'), /detection\.validateCameraSettings\(modal\.detection\)[\s\S]*confirmDialog/, 'invalid zones are reported before the save confirmation');
+  for (const file of ['ui/js/desktop/apps/network-cameras.js', 'ui/js/desktop/apps/network-cameras-detection-views.js', 'ui/js/desktop/apps/network-cameras-detection-zones.js', 'ui/js/desktop/apps/network-cameras-detection.js']) {
+    assert.doesNotMatch(read(file), /ctx\.notify\(\s*(?!\{)/, `${file}: ctx.notify is showDesktopNotification and needs {title, message, type}, not a string`);
+  }
+  // 4A review add-on 1: Save never drops a zone that is still being drawn.
+  const zonesSource = read('ui/js/desktop/apps/network-cameras-detection-zones.js');
+  assert.match(zonesSource, /const commitDrawing = \(\) => \{\s*if \(ed\.disposed \|\| !ed\.drawing\) return true;\s*if \(ed\.drawing\.length >= MIN_POINTS\) \{\s*closeZone\(\);\s*return true;\s*\}\s*setStatus\(T\(ctx, 'zone_unfinished'\), true\);\s*return false;/, 'an unfinished zone is closed, or the save is blocked with a hint');
+  assert.match(zonesSource, /value: \(\) => cameraPayload\(ed\.draft\),\s*commitDrawing,/, 'the camera tab binding exposes commitDrawing');
+  assert.match(sourceBetween(app, 'async function saveManagedStream(state)', 'async function deleteManagedStream'), /state\.detectionSettings\.commitDrawing\(\)\) \{\s*selectManageTab\(state, 'detection'\);[\s\S]*return;\s*\}[\s\S]*validateCameraSettings\(modal\.detection\)[\s\S]*method: 'PATCH'/, 'the drawing is committed before validation and the PATCH');
 }
 
 async function testManusCatalogFailuresStayIsolatedAndActionsRequireReadyStatus() {
@@ -4246,6 +4294,7 @@ const tests = [
   ['Network Cameras person detection views', testNetworkCamerasDetectionViews],
   ['Network Cameras person detection zone editor', testNetworkCamerasDetectionZones],
   ['Network Cameras person detection mode', testNetworkCamerasDetectionRuntime],
+  ['Network Cameras person detection app wiring', testNetworkCamerasDetectionAppContracts],
   ['Manus catalog failures stay isolated and actions require ready status', testManusCatalogFailuresStayIsolatedAndActionsRequireReadyStatus],
   ['Speech Lab recorder resumes audio and routes fallbacks safely', testSpeechLabRecorderLifecycleAndFallbacks],
   ['Quick Connect SFTP navigator ignores stale listings', testQuickConnectSFTPNavigatorIgnoresStaleListings],

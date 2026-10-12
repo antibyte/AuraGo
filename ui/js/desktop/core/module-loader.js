@@ -258,8 +258,13 @@
             scripts: ['/js/desktop/apps/sip-phone.js']
         },
         'network-cameras': {
-            styles: appStyles('/css/desktop-app-network-cameras.css'),
-            scripts: ['/js/desktop/apps/network-cameras.js']
+            styles: appStyles('/css/desktop-app-network-cameras.css', '/css/desktop-app-network-cameras-detection.css'),
+            scripts: [
+                '/js/desktop/apps/network-cameras-detection-views.js',
+                '/js/desktop/apps/network-cameras-detection-zones.js',
+                '/js/desktop/apps/network-cameras-detection.js',
+                '/js/desktop/apps/network-cameras.js'
+            ]
         },
         'meshcore': {
             styles: appStyles('/css/desktop-app-meshcore.css'),

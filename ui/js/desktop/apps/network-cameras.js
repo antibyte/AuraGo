@@ -10,6 +10,12 @@
         return ctx.t(translationNamespace + '.' + key, params || {});
     }
 
+    // ctx.notify is showDesktopNotification(payload): it needs an object, a bare string loses its text.
+    function notify(state, message, type) {
+        if (typeof state.ctx.notify !== 'function' || !message) return;
+        state.ctx.notify({ title: text(state.ctx, 'title'), message: String(message), appId: 'network-cameras', type: type === 'error' ? 'error' : 'info' });
+    }
+
     const iconAliases = Object.freeze({ radar: 'search', link: 'globe', plus: 'file-plus', minimize: 'minus' });
 
     function appIcon(ctx, key, fallback, size) {
@@ -27,11 +33,23 @@
         return result && result.status === 'degraded' ? 'saved_degraded' : successKey;
     }
 
+    function coerceMode(value) {
+        return value === 'live' || value === 'detections' ? value : 'snapshots';
+    }
+
+    // launchContext accepts the notification-center context {event_id, camera_id} (shell-chrome-runtime.js).
+    function launchContext(context) {
+        const eventID = context ? context.event_id : undefined;
+        if (!Number.isSafeInteger(eventID) || eventID <= 0) return null;
+        const cameraID = typeof context.camera_id === 'string' && /^[a-z0-9_-]{1,64}$/.test(context.camera_id) ? context.camera_id : '';
+        return cameraID ? { event_id: eventID, camera_id: cameraID } : { event_id: eventID };
+    }
+
     function readPreferences() {
         try {
             const value = JSON.parse(localStorage.getItem(preferenceKey) || '{}');
             return {
-                mode: value.mode === 'live' ? 'live' : 'snapshots',
+                mode: coerceMode(value.mode),
                 selected: String(value.selected || '')
             };
         } catch (_) {
@@ -56,7 +74,7 @@
             error: '',
             filter: '',
             selected: preferences.selected,
-            mode: preferences.mode,
+            mode: launchContext(ctx) ? 'detections' : preferences.mode,
             focus: false,
             modal: null,
             deletingID: '',
@@ -66,7 +84,9 @@
             thumbnailTimer: null,
             intersection: null,
             visibilityObserver: null,
-            documentVisibilityHandler: null
+            documentVisibilityHandler: null,
+            detectionSettings: null,
+            pendingLaunch: launchContext(ctx)
         };
     }
 
@@ -130,8 +150,9 @@
             '<label class="nc-search"><span>' + appIcon(ctx, 'search', 'S', 16) + '</span><input type="search" data-role="filter" value="' + ctx.esc(state.filter) + '" placeholder="' + ctx.esc(text(ctx, 'search')) + '"></label>' +
             '<div class="nc-toolbar-actions">' +
                 '<div class="nc-segmented" role="group" aria-label="' + ctx.esc(text(ctx, 'grid_mode')) + '">' +
-                    '<button type="button" data-mode="snapshots" class="' + (state.mode === 'snapshots' ? 'is-active' : '') + '">' + ctx.esc(text(ctx, 'snapshots')) + '</button>' +
-                    '<button type="button" data-mode="live" class="' + (state.mode === 'live' ? 'is-active' : '') + '">' + ctx.esc(text(ctx, 'live_grid')) + '</button>' +
+                    '<button type="button" data-mode="snapshots" aria-pressed="' + (state.mode === 'snapshots') + '" class="' + (state.mode === 'snapshots' ? 'is-active' : '') + '">' + ctx.esc(text(ctx, 'snapshots')) + '</button>' +
+                    '<button type="button" data-mode="live" aria-pressed="' + (state.mode === 'live') + '" class="' + (state.mode === 'live' ? 'is-active' : '') + '">' + ctx.esc(text(ctx, 'live_grid')) + '</button>' +
+                    '<button type="button" data-mode="detections" aria-pressed="' + (state.mode === 'detections') + '" class="' + (state.mode === 'detections' ? 'is-active' : '') + '">' + ctx.esc(text(ctx, 'detection.mode')) + '</button>' +
                 '</div>' +
                 '<button class="nc-icon-button" type="button" data-action="refresh" title="' + ctx.esc(text(ctx, 'refresh')) + '">' + appIcon(ctx, 'refresh', 'R', 17) + '</button>' +
                 (canManage ? '<button class="nc-primary" type="button" data-action="add">' + appIcon(ctx, 'plus', '+', 16) + '<span>' + ctx.esc(text(ctx, 'add_camera')) + '</span></button>' : '') +
@@ -210,6 +231,7 @@
         if (state.error && !state.data) return '<div class="nc-centered is-error"><strong>' + state.ctx.esc(text(state.ctx, 'load_error')) + '</strong><span>' + state.ctx.esc(state.error) + '</span><button class="nc-primary" data-action="refresh">' + state.ctx.esc(text(state.ctx, 'retry')) + '</button></div>';
         const runtime = state.data && state.data.integration;
         if (!runtime || !runtime.enabled || !runtime.api_usable || allStreams(state).length === 0) return emptyMarkup(state);
+        if (state.mode === 'detections') return '<div class="nc-detection-host" data-role="detection"></div>';
         const streams = filteredStreams(state);
         const liveIDs = liveGridIDs(state, streams);
         const liveGrid = state.mode === 'live';
@@ -226,6 +248,33 @@
         observeCards(state);
         scheduleThumbnails(state, true);
         setWindowMenus(state);
+        syncDetection(state);
+    }
+
+    function detectionModule() {
+        const module = window.NetworkCamerasDetection;
+        return module && typeof module.mount === 'function' ? module : null;
+    }
+
+    function syncDetection(state) {
+        const module = detectionModule();
+        if (!module) return;
+        const target = state.host.querySelector('[data-role="detection"]');
+        if (!target || !state.visible || state.disposed) {
+            module.unmount(state.windowId, { keepState: true });
+            return;
+        }
+        const launch = state.pendingLaunch;
+        state.pendingLaunch = null;
+        module.mount(target, state.ctx, {
+            windowId: state.windowId,
+            launch,
+            canManage: !!(state.data && state.data.can_manage),
+            streams: allStreams(state).map(stream => ({ id: stream.id, name: stream.name || stream.id, enabled: stream.enabled !== false })),
+            detectionSettings: state.data && state.data.detection_settings ? state.data.detection_settings : null,
+            openCameraSettings: streamID => openManageModal(state, streamID, 'detection'),
+            reloadAppState: () => loadState(state, false)
+        });
     }
 
     function bindMainEvents(state) {
@@ -233,7 +282,7 @@
         const filter = host.querySelector('[data-role="filter"]');
         if (filter) filter.addEventListener('input', event => { state.filter = event.target.value; draw(state); });
         host.querySelectorAll('[data-mode]').forEach(button => button.addEventListener('click', () => {
-            state.mode = button.dataset.mode === 'live' ? 'live' : 'snapshots';
+            state.mode = coerceMode(button.dataset.mode);
             if (state.mode === 'live') state.focus = false;
             savePreferences(state);
             draw(state);
@@ -259,6 +308,7 @@
         if (action === 'add') return openSetupModal(state);
         if (action === 'enable') return enableIntegration(state);
         if (action === 'focus') {
+            if (state.mode === 'detections') state.mode = 'snapshots';
             if (state.mode === 'live') state.mode = 'snapshots';
             state.focus = !state.focus;
             savePreferences(state);
@@ -276,7 +326,7 @@
     async function enableIntegration(state) {
         try {
             const result = await request(state, '/api/desktop/integrations/go2rtc/setup/enable', { method: 'POST', body: {} });
-            state.ctx.notify(text(state.ctx, mutationNoticeKey(result, 'enabled_notice')));
+            notify(state, text(state.ctx, mutationNoticeKey(result, 'enabled_notice')));
             await loadState(state, true);
         } catch (error) {
             const requirements = error.body && Array.isArray(error.body.requirements) ? error.body.requirements.map(item => requirementText(state.ctx, item)).join(' · ') : '';
@@ -296,10 +346,10 @@
         if (!stream) return;
         try {
             await request(state, '/api/desktop/integrations/go2rtc/snapshot', { method: 'POST', body: { stream_id: stream.id, store: true } });
-            state.ctx.notify(text(state.ctx, 'snapshot_saved'));
+            notify(state, text(state.ctx, 'snapshot_saved'));
             scheduleThumbnails(state, true);
         } catch (error) {
-            state.ctx.notify(error.message || text(state.ctx, 'snapshot_failed'));
+            notify(state, error.message || text(state.ctx, 'snapshot_failed'), 'error');
         }
     }
 
@@ -401,11 +451,55 @@
         drawModal(state);
     }
 
-    function openManageModal(state, streamID) {
+    function openManageModal(state, streamID, tab) {
         const stream = allStreams(state).find(item => item.id === streamID);
         if (!stream) return;
-        state.modal = { type: 'manage', streamID, name: stream.name || stream.id, enabled: stream.enabled !== false, originalEnabled: stream.enabled !== false, source: '', busy: false, error: '' };
+        state.modal = {
+            type: 'manage', streamID, name: stream.name || stream.id, enabled: stream.enabled !== false, originalEnabled: stream.enabled !== false, source: '', busy: false, error: '',
+            tab: tab === 'detection' && detectionTabAvailable(state) ? 'detection' : 'general',
+            detection: stream.detection ? JSON.parse(JSON.stringify(stream.detection)) : null,
+            detectionDirty: false
+        };
         drawModal(state);
+    }
+
+    function detectionTabAvailable(state) {
+        return !!(detectionModule() && state.data && state.data.can_manage);
+    }
+
+    function disposeDetectionSettings(state) {
+        if (state.detectionSettings) state.detectionSettings.dispose();
+        state.detectionSettings = null;
+    }
+
+    function manageDetectionStream(state, modal) {
+        if (!detectionTabAvailable(state)) return null;
+        const stream = allStreams(state).find(item => item.id === modal.streamID) || { id: modal.streamID, name: modal.name };
+        // detection_enabled is top-level in app/state; the tab warns only when it is false.
+        return Object.assign({}, stream, { detection: modal.detection, detection_enabled: !(state.data && state.data.detection_enabled === false) });
+    }
+
+    function manageMarkup(state, modal, detectionStream) {
+        const ctx = state.ctx;
+        const general = '<div class="nc-form" role="tabpanel" data-tab-panel="general"' + (detectionStream && modal.tab === 'detection' ? ' hidden' : '') + '><label>' + ctx.esc(text(ctx, 'camera_name')) + '<input data-field="name" value="' + ctx.esc(modal.name) + '"></label><label class="nc-check"><input data-field="enabled" type="checkbox" ' + (modal.enabled ? 'checked' : '') + '><span>' + ctx.esc(text(ctx, 'camera_enabled')) + '</span></label><label>' + ctx.esc(text(ctx, 'replace_source')) + '<input data-field="source" type="password" autocomplete="off" value="" placeholder="' + ctx.esc(text(ctx, 'keep_source')) + '"></label></div>';
+        if (!detectionStream) return general;
+        const tab = (id, label) => '<button type="button" role="tab" data-modal-tab="' + id + '" aria-selected="' + (modal.tab === id) + '" tabindex="' + (modal.tab === id ? '0' : '-1') + '" class="' + (modal.tab === id ? 'is-active' : '') + '">' + ctx.esc(label) + '</button>';
+        return '<div class="nc-tabs" role="tablist" aria-label="' + ctx.esc(text(ctx, 'manage_title')) + '">' + tab('general', text(ctx, 'tab_general')) + tab('detection', text(ctx, 'detection.tab')) + '</div>' + general +
+            '<div class="nc-tab-panel" role="tabpanel" data-tab-panel="detection" data-role="detection-settings"' + (modal.tab === 'detection' ? '' : ' hidden') + '>' + window.NetworkCamerasDetection.cameraSettingsMarkup(detectionStream, ctx, { windowKey: state.windowId }) + '</div>';
+    }
+
+    function selectManageTab(state, tab) {
+        const modal = state.modal;
+        const host = state.host.querySelector('[data-role="modal"]');
+        if (!modal || !host) return;
+        modal.tab = tab === 'detection' ? 'detection' : 'general';
+        host.querySelectorAll('[data-modal-tab]').forEach(button => {
+            const active = button.dataset.modalTab === modal.tab;
+            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-selected', String(active));
+            button.tabIndex = active ? 0 : -1;
+        });
+        host.querySelectorAll('[data-tab-panel]').forEach(panel => { panel.hidden = panel.dataset.tabPanel !== modal.tab; });
     }
 
     function setupStepMarkup(state, modal) {
@@ -442,19 +536,29 @@
     }
 
     function drawModal(state) {
+        disposeDetectionSettings(state);
         const host = state.host.querySelector('[data-role="modal"]');
         const modal = state.modal;
         if (!host || !modal) { if (host) host.innerHTML = ''; return; }
         const ctx = state.ctx;
         const setup = modal.type === 'setup';
         const title = setup ? text(ctx, 'setup_title') : text(ctx, 'manage_title');
-        const content = setup ? setupStepMarkup(state, modal) : '<div class="nc-form"><label>' + ctx.esc(text(ctx, 'camera_name')) + '<input data-field="name" value="' + ctx.esc(modal.name) + '"></label><label class="nc-check"><input data-field="enabled" type="checkbox" ' + (modal.enabled ? 'checked' : '') + '><span>' + ctx.esc(text(ctx, 'camera_enabled')) + '</span></label><label>' + ctx.esc(text(ctx, 'replace_source')) + '<input data-field="source" type="password" autocomplete="off" value="" placeholder="' + ctx.esc(text(ctx, 'keep_source')) + '"></label></div>';
+        const detectionStream = setup ? null : manageDetectionStream(state, modal);
+        const content = setup ? setupStepMarkup(state, modal) : manageMarkup(state, modal, detectionStream);
         let actions = '<button type="button" data-modal-action="cancel">' + ctx.esc(text(ctx, 'cancel')) + '</button>';
         if (setup && modal.step > 1) actions += '<button type="button" data-modal-action="back">' + ctx.esc(text(ctx, 'back')) + '</button>';
         if (setup && modal.step > 1) actions += '<button class="nc-primary" type="button" data-modal-action="next" ' + (modal.busy ? 'disabled' : '') + '>' + ctx.esc(text(ctx, modal.step === 4 ? 'save_camera' : 'next')) + '</button>';
         if (!setup) actions += '<button class="nc-danger" type="button" data-modal-action="delete" ' + (modal.busy ? 'disabled' : '') + '>' + appIcon(ctx, 'trash', 'X', 15) + ctx.esc(text(ctx, 'delete')) + '</button><button class="nc-primary" type="button" data-modal-action="save" ' + (modal.busy ? 'disabled' : '') + '>' + ctx.esc(text(ctx, 'save')) + '</button>';
         host.innerHTML = '<div class="nc-modal-backdrop"><section class="nc-modal" role="dialog" aria-modal="true" aria-label="' + ctx.esc(title) + '"><header><div><strong>' + ctx.esc(title) + '</strong>' + (setup ? '<small>' + ctx.esc(text(ctx, 'step', { current: modal.step, total: 4 })) + '</small>' : '') + '</div><button type="button" data-modal-action="cancel">×</button></header><div class="nc-modal-body">' + content + (modal.error ? '<div class="nc-modal-error">' + ctx.esc(modal.error) + '</div>' : '') + '</div><footer>' + actions + '</footer></section></div>';
         bindModalEvents(state);
+        const detectionRoot = detectionStream ? host.querySelector('[data-role="detection-settings"]') : null;
+        if (detectionRoot) {
+            state.detectionSettings = window.NetworkCamerasDetection.bindCameraSettings(detectionRoot, detectionStream, ctx, detection => {
+                if (state.modal !== modal) return;
+                modal.detection = detection;
+                modal.detectionDirty = true;
+            });
+        }
     }
 
     function bindModalEvents(state) {
@@ -465,6 +569,17 @@
         }));
         host.querySelectorAll('[data-method-choice]').forEach(button => button.addEventListener('click', () => chooseSetupMethod(state, button.dataset.methodChoice)));
         host.querySelectorAll('[data-modal-action]').forEach(button => button.addEventListener('click', () => modalAction(state, button.dataset.modalAction)));
+        host.querySelectorAll('[data-modal-tab]').forEach(button => {
+            button.addEventListener('click', () => selectManageTab(state, button.dataset.modalTab));
+            button.addEventListener('keydown', event => {
+                if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+                event.preventDefault();
+                const next = button.dataset.modalTab === 'general' ? 'detection' : 'general';
+                selectManageTab(state, next);
+                const target = host.querySelector('[data-modal-tab="' + next + '"]');
+                if (target) target.focus();
+            });
+        });
     }
 
     async function chooseSetupMethod(state, method) {
@@ -549,7 +664,7 @@
             state.selected = result.stream && result.stream.id ? result.stream.id : modal.id;
             state.modal = null;
             savePreferences(state);
-            state.ctx.notify(text(state.ctx, mutationNoticeKey(result, 'camera_saved')));
+            notify(state, text(state.ctx, mutationNoticeKey(result, 'camera_saved')));
             await loadState(state, false);
         } catch (error) {
             modal.error = error.message;
@@ -560,6 +675,23 @@
 
     async function saveManagedStream(state) {
         const modal = state.modal;
+        const detection = detectionModule();
+        // A zone still being drawn is closed first (Save must not drop it); one with fewer
+        // than 3 points blocks the save and the editor says why.
+        if (state.detectionSettings && typeof state.detectionSettings.commitDrawing === 'function' && !state.detectionSettings.commitDrawing()) {
+            selectManageTab(state, 'detection');
+            const stage = state.host.querySelector('[data-role="modal"] [data-zone-stage]');
+            if (stage) stage.focus();
+            return;
+        }
+        if (modal.detectionDirty && detection && typeof detection.validateCameraSettings === 'function') {
+            const problem = detection.validateCameraSettings(modal.detection);
+            if (problem) {
+                modal.error = text(state.ctx, 'detection.' + problem.key, problem.params);
+                modal.tab = 'detection';
+                return drawModal(state);
+            }
+        }
         const confirmations = [];
         if (modal.originalEnabled && !modal.enabled) confirmations.push(text(state.ctx, 'disable_confirm_message'));
         if (modal.source.trim()) confirmations.push(text(state.ctx, 'replace_confirm_message'));
@@ -570,10 +702,10 @@
         modal.busy = true;
         drawModal(state);
         try {
-            const result = await request(state, '/api/desktop/integrations/go2rtc/streams/' + encodeURIComponent(modal.streamID), { method: 'PATCH', body: { name: modal.name, enabled: modal.enabled, source: modal.source } });
+            const result = await request(state, '/api/desktop/integrations/go2rtc/streams/' + encodeURIComponent(modal.streamID), { method: 'PATCH', body: Object.assign({ name: modal.name, enabled: modal.enabled, source: modal.source }, modal.detectionDirty && modal.detection ? { detection: modal.detection } : {}) });
             modal.source = '';
             state.modal = null;
-            state.ctx.notify(text(state.ctx, mutationNoticeKey(result, 'camera_updated')));
+            notify(state, text(state.ctx, mutationNoticeKey(result, 'camera_updated')));
             await loadState(state, false);
         } catch (error) {
             modal.error = error.message;
@@ -606,7 +738,7 @@
             state.modal = null;
             if (state.selected === streamID) state.selected = '';
             savePreferences(state);
-            state.ctx.notify(text(state.ctx, mutationNoticeKey(result, 'camera_deleted')));
+            notify(state, text(state.ctx, mutationNoticeKey(result, 'camera_deleted')));
             state.deletingID = '';
             await loadState(state, false);
         } catch (error) {
@@ -616,7 +748,7 @@
                 drawModal(state);
             } else {
                 state.deletingID = '';
-                state.ctx.notify(error.message);
+                notify(state, error.message, 'error');
                 draw(state);
             }
         } finally {
@@ -638,6 +770,8 @@
         state.controllers.forEach(controller => controller.abort());
         state.controllers.clear();
         state.host.querySelectorAll('iframe').forEach(frame => { frame.src = 'about:blank'; frame.removeAttribute('src'); });
+        const detection = detectionModule();
+        if (detection) detection.unmount(state.windowId, { keepState: true });
     }
 
     function installVisibilityLifecycle(state) {
@@ -662,6 +796,9 @@
         if (!state) return;
         state.disposed = true;
         stopActivity(state);
+        disposeDetectionSettings(state);
+        const detection = detectionModule();
+        if (detection) detection.unmount(windowId);
         disconnectIntersection(state);
         if (state.visibilityObserver) state.visibilityObserver.disconnect();
         if (state.documentVisibilityHandler) document.removeEventListener('visibilitychange', state.documentVisibilityHandler);
@@ -671,14 +808,27 @@
         instances.delete(windowId);
     }
 
+    // open applies a launch context to an already open window (window-shell-runtime.js openApp).
+    function open(windowId, context) {
+        const state = instances.get(windowId);
+        const launch = launchContext(context);
+        if (!state || state.disposed || !launch) return;
+        state.pendingLaunch = launch;
+        state.mode = 'detections';
+        state.focus = false;
+        savePreferences(state);
+        draw(state);
+    }
+
     function render(host, windowId, ctx) {
         dispose(windowId);
         const state = createState(host, windowId, ctx);
         instances.set(windowId, state);
+        if (state.pendingLaunch) savePreferences(state);
         draw(state);
         installVisibilityLifecycle(state);
         loadState(state, false);
     }
 
-    window.NetworkCamerasApp = { render, dispose };
+    window.NetworkCamerasApp = { render, dispose, open };
 })();

@@ -133,3 +133,50 @@ func TestDesktopNetworkCamerasDetectionStyles(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopNetworkCamerasDetectionRegistration(t *testing.T) {
+	t.Parallel()
+
+	loader := strings.ReplaceAll(rawDesktopAssetText(t, "js/desktop/core/module-loader.js"), "\r\n", "\n")
+	for _, marker := range []string{
+		"styles: appStyles('/css/desktop-app-network-cameras.css', '/css/desktop-app-network-cameras-detection.css')",
+		"'/js/desktop/apps/network-cameras-detection-views.js',\n                '/js/desktop/apps/network-cameras-detection-zones.js',\n                '/js/desktop/apps/network-cameras-detection.js',\n                '/js/desktop/apps/network-cameras.js'",
+	} {
+		if !strings.Contains(loader, marker) {
+			t.Errorf("module-loader.js lacks %q", marker)
+		}
+	}
+	app := rawDesktopAssetText(t, "js/desktop/apps/network-cameras.js")
+	for _, marker := range []string{
+		"function coerceMode(value)",
+		"mode: coerceMode(value.mode)",
+		"state.mode = coerceMode(button.dataset.mode)",
+		`data-mode="detections"`,
+		"function syncDetection(state)",
+		"module.unmount(state.windowId, { keepState: true })",
+		"if (detection) detection.unmount(windowId)",
+		"openCameraSettings: streamID => openManageModal(state, streamID, 'detection')",
+		"detection.validateCameraSettings(modal.detection)",
+		"modal.detectionDirty && modal.detection ? { detection: modal.detection } : {}",
+		"function launchContext(context)",
+		"mode: launchContext(ctx) ? 'detections' : preferences.mode",
+		"window.NetworkCamerasApp = { render, dispose, open }",
+		"function notify(state, message, type)",
+	} {
+		if !strings.Contains(app, marker) {
+			t.Errorf("network-cameras.js lacks %q", marker)
+		}
+	}
+	hook := "if (appId === 'network-cameras' && context && context.event_id && window.NetworkCamerasApp && typeof window.NetworkCamerasApp.open === 'function') window.NetworkCamerasApp.open(existing.id, context);"
+	if !strings.Contains(rawDesktopAssetText(t, "js/desktop/core/window-shell-runtime.js"), hook) {
+		t.Error("window-shell-runtime.js openApp does not forward launch contexts to an open Network Cameras window")
+	}
+	if !strings.Contains(rawDesktopAssetText(t, "js/desktop/bundles/main.bundle.js"), hook) {
+		t.Error("main.bundle.js lacks the Network Cameras launch hook (run npm run build:ui)")
+	}
+	for _, file := range networkCamerasDetectionFiles {
+		if lines := strings.Count(rawDesktopAssetText(t, file), "\n"); lines >= 1100 {
+			t.Errorf("%s has %d lines; desktop JS files stay below 1100", file, lines)
+		}
+	}
+}
