@@ -72,7 +72,9 @@ type openedStore struct {
 // Lock order: armMu before mu; trackMu before mu. Code holding mu never takes
 // trackMu or armMu. detectMu is held only around the detector's Detect and Close.
 // Nothing slow runs under mu: opening detections.db and the detector setup run in
-// spawned goroutines that publish their outcome under mu.
+// spawned goroutines that publish their outcome under mu. Frame files, thumbnails
+// and alert dispatches run in per-camera storage goroutines (storeQueues), outside
+// trackMu and off the detection loop.
 type Service struct {
 	logger      *slog.Logger
 	frames      FrameSource
@@ -106,6 +108,10 @@ type Service struct {
 	lastSent     map[string]LastSent // per camera; in memory only, so a restart resets the cooldowns
 	storageBytes int64
 	storageWarn  string
+	storeQueues  map[string]*storeQueue       // per camera, present while its storage goroutine runs
+	thumbnailer  func([]byte) ([]byte, error) // makeThumbnail; tests replace it
+	sweepEvery   time.Duration                // SweepInterval; tests shorten it before the first Configure
+	sweeps       atomic.Int64                 // sweeps run, for tests
 
 	wg           sync.WaitGroup
 	slots        *frameSlots
@@ -148,6 +154,9 @@ func NewService(deps Deps) *Service {
 		detRetryMax:  MaxDetectorRetryDelay,
 		arm:          armCache{mode: ArmOff},
 		lastSent:     map[string]LastSent{},
+		storeQueues:  map[string]*storeQueue{},
+		thumbnailer:  makeThumbnail,
+		sweepEvery:   SweepInterval,
 		slots:        newFrameSlots(),
 		wake:         make(chan struct{}, 1),
 		retentionNow: make(chan struct{}, 1),
@@ -474,6 +483,12 @@ func (s *Service) publishStoreLocked(o openedStore) {
 func (s *Service) startLocked() {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.runCtx, s.runCancel = ctx, cancel
+	if s.manual {
+		return
+	}
+	s.wg.Add(2)
+	go s.detectLoop(ctx)
+	go s.retentionLoop(ctx)
 }
 
 func (s *Service) stopLocked() {
@@ -717,10 +732,12 @@ func (s *Service) syncCamerasLocked() {
 	count := len(s.settings.Cameras)
 	ids := make([]string, 0, count)
 	keep := make(map[string]bool, count)
+	intervalChanged := false
 	for i, cam := range s.settings.Cameras {
 		ids = append(ids, cam.ID)
 		keep[cam.ID] = true
 		if rt, ok := s.cameras[cam.ID]; ok {
+			intervalChanged = intervalChanged || rt.cam.Interval != cam.Interval
 			rt.cam = cam
 			continue
 		}
@@ -747,6 +764,9 @@ func (s *Service) syncCamerasLocked() {
 	s.slots.setOrder(ids)
 	if len(removed) > 0 {
 		s.spawn(func() { s.closeCameraEvents(context.Background(), removed) })
+	}
+	if intervalChanged {
+		s.spawn(s.applyEndAfter)
 	}
 }
 

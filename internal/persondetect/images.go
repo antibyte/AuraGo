@@ -309,6 +309,12 @@ func writeFramePair(root, rel, thumbRel string, data []byte) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+	return writeFrameWithThumbnail(root, rel, thumbRel, data, thumb)
+}
+
+// writeFrameWithThumbnail stores a frame and an already made thumbnail and returns
+// the bytes written. When the thumbnail cannot be written, the frame is removed again.
+func writeFrameWithThumbnail(root, rel, thumbRel string, data, thumb []byte) (int64, error) {
 	if err := writeImageAtomic(root, rel, data); err != nil {
 		return 0, err
 	}

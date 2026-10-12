@@ -86,6 +86,14 @@ func (fs *frameSlots) take() (frameJob, bool) {
 	return frameJob{}, false
 }
 
+// has reports whether a frame of the camera waits for analysis.
+func (fs *frameSlots) has(cameraID string) bool {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+	_, ok := fs.frames[cameraID]
+	return ok
+}
+
 // queued is the number of cameras with a waiting frame.
 func (fs *frameSlots) queued() int {
 	fs.mu.Lock()

@@ -95,6 +95,24 @@ func TestCameraStartDelay(t *testing.T) {
 	}
 }
 
+// The tracker's single-hit start reads AnalyzedFrame.Score: the best score among
+// the boxes that count, not among all boxes.
+func TestServiceAnalyzedFrameScoreIsTheBestHit(t *testing.T) {
+	cam := normalizeCamera(Camera{ID: "front-door", MinScore: 0.5, Zones: []Zone{{Name: "Left", Points: []Point{{X: 0, Y: 0}, {X: 0.5, Y: 0}, {X: 0.5, Y: 1}, {X: 0, Y: 1}}}}})
+	inLow := Box{X1: 0.1, Y1: 0.2, X2: 0.3, Y2: 0.9, Score: 0.6}
+	outside := Box{X1: 0.6, Y1: 0.2, X2: 0.9, Y2: 0.9, Score: 0.95}
+	inHigh := Box{X1: 0.2, Y1: 0.2, X2: 0.4, Y2: 0.9, Score: 0.7}
+	at := time.Date(2026, 10, 14, 12, 0, 0, 0, time.UTC)
+	f := analyzeFrame(frameJob{cameraID: cam.ID, jpeg: []byte("jpeg"), at: at},
+		DetectResult{Boxes: []Box{inLow, outside, inHigh}, Width: 640, Height: 360}, cam)
+	if f.Score != 0.7 || len(f.Hits) != 2 || len(f.Boxes) != 3 || len(f.Zones) != 1 || f.Zones[0] != "Left" || !f.At.Equal(at) || f.Width != 640 {
+		t.Fatalf("analyzed frame = %+v, want score 0.7 from the two hits", f)
+	}
+	if none := analyzeFrame(frameJob{at: at}, DetectResult{Boxes: []Box{outside}, Width: 640, Height: 360}, cam); none.Score != 0 || none.IsHit() {
+		t.Fatalf("frame without hits = %+v", none)
+	}
+}
+
 func TestClassifyDetectError(t *testing.T) {
 	ctx := context.Background()
 	cancelled, cancel := context.WithCancel(ctx)
