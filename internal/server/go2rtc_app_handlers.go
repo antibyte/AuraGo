@@ -158,6 +158,14 @@ func handleGo2RTCAppState(s *Server) http.HandlerFunc {
 				})
 			}
 			response["disabled_streams"] = disabled
+			// The settings dialog saves the whole global block (PUT settings
+			// replaces it), so it reads the published config: the manager's copy
+			// is reconfigured in a goroutine and can briefly lag behind.
+			settings := cfg.Detection
+			if published := s.ConfigSnapshot(); published != nil {
+				settings = published.Go2RTC.Detection
+			}
+			response["detection_settings"] = config.NormalizeGo2RTCDetectionSettings(settings)
 		}
 		writeGo2RTCJSON(w, response)
 	}
