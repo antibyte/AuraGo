@@ -441,5 +441,82 @@ const xss = R.html(R.tree(specs.get('label'), { type: 'label', w: 10, h: 10, pro
 check('render escapes text', !xss.includes('<img') && xss.includes('&lt;img'), xss);
 check('render source holds no hex colour literals', !/#[0-9a-fA-F]{6}\b/.test(fs.readFileSync(path.join(apps, 'cyd-creator-render.js'), 'utf8')));
 
+// ── render: untrusted layout values ──
+// Colours reach CSS only as #RRGGBB (validate.go colorPattern). Hostile strings go into every
+// colour/enum/font/symbol/asset prop of every catalog widget and into every style override; no
+// output may contain "url(" or the raw string.
+const hostile = ['url(https://attacker.example/beacon)', 'red;background:url(x)', 'expression(alert(1))', 'javascript:alert(1)', '#12345', '#1234567', 'rgb(1,2,3)', '#FFFFFF;background:url(x)', ' #FFFFFF'];
+const guardedKinds = new Set(['color', 'enum', 'font', 'font_size', 'symbol', 'asset']);
+const leaks = [];
+for (const spec of caps.widgets) {
+    for (const bad of hostile) {
+        const props = Object.fromEntries(spec.props.filter(p => guardedKinds.has(p.kind)).map(p => [p.name, bad]));
+        const style = { bg_color: bad, text_color: bad, accent_color: bad, border_color: bad, bg_opacity: bad, border_width: bad, radius: bad };
+        const out = R.html(R.tree(spec, { type: spec.type, w: spec.default_w || 320, h: spec.default_h, props, style }, night, { assetUrl: id => '/a/' + encodeURIComponent(id) }));
+        if (out.includes('url(') || out.includes(bad)) leaks.push(spec.type + ': ' + bad);
+    }
+}
+check('hostile colours, enums and style values never reach the output', leaks.length === 0, leaks.slice(0, 6).join(' | '));
+check('rgba/colors accept only #RRGGBB', R.rgba('url(x)', 1) === 'transparent' && R.rgba('#FF0000', 0.5) === 'rgba(255,0,0,0.5)' && R.colors(night, { text_color: 'red;x:url(y)', accent_color: '#ABCDEF' }).text === night.tokens.text && R.colors(night, { accent_color: '#ABCDEF' }).accent === '#ABCDEF');
+
+// Numbers clamp to the catalog min/max, lists to max_len items; wrong types use the default.
+const extremes = [1e9, -1e9, NaN, Infinity, -Infinity, 'x', '1e9', null, {}, [], true];
+const huge = Array.from({ length: 100000 }, (_, i) => 'item ' + i);
+const problems = [];
+const started = Date.now();
+for (const spec of caps.widgets) {
+    for (const v of extremes) {
+        const props = Object.fromEntries(spec.props.map(p => [p.name, p.kind === 'list' && typeof v === 'number' ? huge : v]));
+        for (const geo of [[spec.default_w || 320, spec.default_h], [v, v]]) {
+            let out = '';
+            try {
+                out = R.html(R.tree(spec, { type: spec.type, w: geo[0], h: geo[1], props, style: { radius: v, border_width: v, bg_opacity: v } }, night, { assetUrl: id => '/a/' + encodeURIComponent(id), activeTab: v, screenTitle: v, settings: v }));
+            } catch (err) { problems.push(spec.type + ' ' + String(v) + ' threw ' + err.message); continue; }
+            if (/NaN|undefined|Infinity/.test(out) || out.length > 300000) problems.push(spec.type + ' ' + String(v) + ' → ' + out.slice(0, 120));
+        }
+    }
+}
+const elapsed = Date.now() - started;
+check('extreme numbers, wrong types and huge lists render without errors', problems.length === 0, problems.slice(0, 5).join(' | '));
+check('extreme values render within the time budget (< 2 s)', elapsed < 2000, elapsed + ' ms');
+const ints = type => Object.fromEntries(specs.get(type).props.filter(p => p.kind === 'int').map(p => [p.name, 1e9]));
+const count = (out, tag) => out.split('<' + tag + ' ').length - 1;
+eq('table clamps rows × columns to 32 × 8 cells', R.tree(specs.get('table'), { type: 'table', w: 200, h: 120, props: ints('table') }, night, {}).children.length, 256);
+eq('roller clamps visible_rows to 7', R.tree(specs.get('roller'), { type: 'roller', w: 120, h: 100, props: ints('roller') }, night, {}).children.length, 7);
+eq('gauge clamps ticks to 41 (+ needle)', count(R.html(R.tree(specs.get('gauge'), { type: 'gauge', w: 140, h: 140, props: ints('gauge') }, night, {})), 'line'), 42);
+eq('chart clamps points to 100', count(R.html(R.tree(specs.get('chart'), { type: 'chart', w: 200, h: 120, props: ints('chart') }, night, {})), 'circle'), 100);
+check('spinbox clamps digits to 8', R.html(R.tree(specs.get('spinbox'), { type: 'spinbox', w: 140, h: 40, props: { digits: 1e9, value: 5 } }, night, {})).includes('>00000005<'));
+eq('lists keep at most max_len items', R.tree(specs.get('list'), { type: 'list', w: 200, h: 160, props: { items: huge } }, night, {}).children.length, 64);
+
+// Deviation behaviours of the device previews.
+// keypadMap expectations copied from internal/cydcreator/generate_widgets.go (keypadMap): the
+// numeric/numeric_ok maps; any other layout uses the keys: "\n" breaks rows, without breaks more
+// than four keys make rows of four, an empty key becomes " ".
+const keyRows = props => R.tree(specs.get('keypad'), { type: 'keypad', w: 200, h: 160, props }, night, {}).children.map(r => r.children.map(k => k.children.join('')));
+eq('keypad numeric map', keyRows({ layout: 'numeric' }), [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['.', '0', '⌫']]);
+eq('keypad numeric_ok map', keyRows({ layout: 'numeric_ok' }), [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['⌫', '0', 'OK']]);
+eq('keypad custom: rows of four', keyRows({ layout: 'custom', keys: ['A', 'B', 'C', 'D', 'E', 'F'] }), [['A', 'B', 'C', 'D'], ['E', 'F']]);
+eq('keypad custom: four keys stay one row', keyRows({ layout: 'custom', keys: ['A', 'B', 'C', 'D'] }), [['A', 'B', 'C', 'D']]);
+eq('keypad custom: line breaks win', keyRows({ layout: 'custom', keys: ['1', '\n', '2', '3', '4', '5', '6'] }), [['1'], ['2', '3', '4', '5', '6']]);
+eq('keypad custom: empty key is a space', keyRows({ layout: 'custom', keys: ['', 'x'] }), [[' ', 'x']]);
+eq('keypad unknown layout uses the keys', keyRows({ layout: 'weird', keys: ['a', 'b'] }), [['a', 'b']]);
+const spinOut = props => R.html(R.tree(specs.get('spinbox'), { type: 'spinbox', w: 140, h: 40, props }, night, {}));
+check('spinbox sign only with a negative minimum', spinOut({ min: -10, value: 5 }).includes('>+005<') && spinOut({ min: -10, value: -5 }).includes('>-005<') && spinOut({ value: 5 }).includes('>005<'));
+const sbOut = (props, opts) => R.html(R.tree(specs.get('statusbar'), { type: 'statusbar', w: 320, h: 24, props }, night, opts));
+check('statusbar falls back to the screen title', sbOut({}, { screenTitle: 'Home' }).includes('>Home<') && sbOut({ title: 'Own' }, { screenTitle: 'Home' }).includes('>Own<'));
+const sbOff = sbOut({}, { settings: { wifi: 'off', statusbar_clock: false } });
+const sbOn = sbOut({}, { settings: { wifi: 'optional', statusbar_clock: true } });
+check('statusbar follows the Wi-Fi and clock settings', !sbOff.includes('12:34') && !sbOff.includes(R.SYMBOLS.wifi) && sbOn.includes('12:34') && sbOn.includes(R.SYMBOLS.wifi), sbOff + ' / ' + sbOn);
+const clearTheme = caps.themes.find(t => t.id === 'clear');
+const lblSquare = R.html(R.tree(specs.get('label'), { type: 'label', w: 80, h: 20, style: { bg_color: '#000000' } }, clearTheme, {}));
+const lblOwn = R.html(R.tree(specs.get('label'), { type: 'label', w: 80, h: 20, style: { bg_color: '#000000', radius: 5 } }, clearTheme, {}));
+const imgSquare = R.html(R.tree(specs.get('image'), { type: 'image', w: 48, h: 48, props: { asset: 'a_sun' } }, clearTheme, { assetUrl: id => '/x/' + id }));
+check('label and image stay square unless the radius is overridden', clearTheme.tokens.radius > 0 && lblSquare.includes('border-radius:0px') && lblOwn.includes('border-radius:5px') && imgSquare.includes('border-radius:0px'), lblSquare);
+const vBar = R.html(R.tree(specs.get('bar'), { type: 'bar', w: 20, h: 160, props: { value: 30 } }, night, {}));
+const hBar = R.html(R.tree(specs.get('bar'), { type: 'bar', w: 160, h: 20, props: { value: 30 } }, night, {}));
+const vSlider = R.html(R.tree(specs.get('slider'), { type: 'slider', w: 24, h: 160, props: { value: 25 } }, night, {}));
+check('bar fills from the bottom when taller than wide', vBar.includes('bottom:0;height:30%') && hBar.includes('width:30%;height:100%'), vBar);
+check('slider runs vertically when taller than wide', vSlider.includes('height:25%') && vSlider.includes('top:calc(75% - 17px)'), vSlider);
+
 console.log((failures ? 'FAILED ' + failures : 'ok') + ' — ' + checks + ' checks');
 process.exit(failures ? 1 : 0);

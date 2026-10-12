@@ -4,12 +4,19 @@
 // this file holds no theme values. Each preview follows the generator (generate_widgets.go,
 // generate_theme.go) and the LVGL 9 default theme; the only fixed colours are the ones the device
 // draws regardless of the theme (QR code black on white, the checkbox tick). Close, not bit-exact.
+// Layout values are untrusted (agent-written or imported layouts may be invalid): colours reach CSS
+// only as #RRGGBB, numbers are clamped to the catalog ranges, strings and lists to their limits,
+// enums to their options, and every text is a text node.
 (function () {
     'use strict';
 
     const P = window.CYDCreatorParts = window.CYDCreatorParts || {};
     const SVG_NS = 'http://www.w3.org/2000/svg';
-    const SVG_TAGS = new Set(['svg', 'g', 'path', 'circle', 'line', 'polyline', 'rect', 'text']);
+    const HEX = /^#[0-9A-Fa-f]{6}$/; // colorPattern, internal/cydcreator/validate.go
+    const ELEMENT_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/; // elementIDPattern (asset ids), internal/cydcreator/ids.go
+    const INT32 = 2147483647;
+    const MAX_SIDE = 2048; // maxWidgetSide, internal/cydcreator/limits.go
+    const MAX_TEXT = 1024; // MaxTextBytes: string props and list items
     const PROP_KEYS = new Set(['value', 'checked', 'disabled', 'selected', 'hidden', 'indeterminate']);
     const FAMILIES = {
         montserrat: "'CYD Montserrat', 'Montserrat', sans-serif",
@@ -100,57 +107,119 @@
         return out + '>' + node.children.map(html).join('') + '</' + node.tag + '>';
     }
 
+    // ── value guards ────────────────────────────────────────────────────────
+
+    function has(obj, key) { return Object.prototype.hasOwnProperty.call(obj, key); }
+    // hexOr returns v when it is a colour the server accepts (#RRGGBB), else fallback.
+    function hexOr(v, fallback) { return typeof v === 'string' && HEX.test(v) ? v : fallback; }
+    // int returns v rounded and clamped to min..max, or fallback when v is not a finite number.
+    function int(v, min, max, fallback) {
+        return typeof v === 'number' && Number.isFinite(v) ? Math.max(min, Math.min(max, Math.round(v))) : fallback;
+    }
+
+    // reader gives typed, bounded access to a widget's props. A value of the wrong type falls back
+    // to the catalog default (the generator only sees validated layouts); numbers clamp to the
+    // catalog min/max (int32 without one), strings to max_len characters, lists to max_len items of
+    // at most MAX_TEXT characters (a list with a non-string item counts as invalid), enums to their
+    // options and colours to #RRGGBB.
+    function reader(widget, spec) {
+        const raw = name => P.model.propValue(widget, spec, name);
+        const ps = name => P.model.propSpec(spec, name) || {};
+        return {
+            raw,
+            num(name) {
+                const p = ps(name);
+                const lo = typeof p.min === 'number' ? p.min : -INT32;
+                const hi = typeof p.max === 'number' ? p.max : INT32;
+                return int(raw(name), lo, hi, int(p.default, lo, hi, Math.max(lo, Math.min(hi, 0))));
+            },
+            bool(name) {
+                const v = raw(name);
+                return typeof v === 'boolean' ? v : ps(name).default === true;
+            },
+            str(name) {
+                const p = ps(name);
+                const v = raw(name);
+                const s = typeof v === 'string' ? v : (typeof p.default === 'string' ? p.default : '');
+                return s.slice(0, p.max_len || MAX_TEXT);
+            },
+            items(name) {
+                const p = ps(name);
+                const ok = v => Array.isArray(v) && v.every(it => typeof it === 'string');
+                const v = raw(name);
+                const arr = ok(v) ? v : (ok(p.default) ? p.default : []);
+                return arr.slice(0, p.max_len || 64).map(it => it.slice(0, MAX_TEXT));
+            },
+            pick(name) {
+                const p = ps(name);
+                const v = raw(name);
+                return Array.isArray(p.options) && p.options.includes(v) ? v : (typeof p.default === 'string' ? p.default : '');
+            },
+            color(name) { return hexOr(raw(name), ''); }
+        };
+    }
+
     // ── theme helpers ───────────────────────────────────────────────────────
 
-    function rgba(hex, alpha) {
-        const m = /^#([0-9a-f]{6})$/i.exec(String(hex || ''));
-        if (!m) return hex || 'transparent';
-        const n = parseInt(m[1], 16);
+    // rgba and shade take a #RRGGBB colour; anything else yields fallback (transparent by default).
+    function rgba(hex, alpha, fallback) {
+        if (!hexOr(hex, '')) return fallback === undefined ? 'transparent' : fallback;
+        const n = parseInt(hex.slice(1), 16);
         return 'rgba(' + (n >> 16 & 255) + ',' + (n >> 8 & 255) + ',' + (n & 255) + ',' + Math.round(alpha * 1000) / 1000 + ')';
     }
 
     // shade mixes a colour with black like lv_color_mix(color, black, mix), mix 0..255 (LED brightness).
-    function shade(hex, mix) {
-        const m = /^#([0-9a-f]{6})$/i.exec(String(hex || ''));
-        if (!m) return hex || 'transparent';
-        const n = parseInt(m[1], 16);
+    function shade(hex, mix, fallback) {
+        if (!hexOr(hex, '')) return fallback === undefined ? 'transparent' : fallback;
+        const n = parseInt(hex.slice(1), 16);
         const f = Math.max(0, Math.min(255, mix)) / 255;
         return 'rgb(' + [n >> 16 & 255, n >> 8 & 255, n & 255].map(v => Math.round(v * f)).join(',') + ')';
     }
 
-    // colors resolves the theme tokens with the widget's style overrides. ownRadius is the radius
-    // override alone (null without one): widgets the device does not round (label, image, tabview,
-    // statusbar) fall back to 0 instead of the theme radius.
+    // colors resolves the theme tokens with the widget's style overrides, accepting only what
+    // validate.go accepts (#RRGGBB colours, bg_opacity 0..255, border_width 0..8, radius 0..64;
+    // numbers outside the range are clamped, anything else is ignored). textSet, accentSet and
+    // borderSet tell whether a valid override exists. ownRadius is the radius override alone (null
+    // without one): widgets the device does not round (label, image, tabview, statusbar) fall back to
+    // 0 instead of the theme radius.
     function colors(theme, style) {
         const tk = (theme && theme.tokens) || {};
-        const s = style || {};
-        const set = v => v !== null && v !== undefined;
-        const alpha = set(s.bg_opacity) ? Math.max(0, Math.min(255, s.bg_opacity)) / 255 : 1;
+        const s = style !== null && typeof style === 'object' ? style : {};
+        const bg = hexOr(s.bg_color, '');
+        const opa = int(s.bg_opacity, 0, 255, null);
+        const alpha = opa === null ? 1 : opa / 255;
+        const ownRadius = int(s.radius, 0, 64, null);
         return {
             tk,
-            bg: s.bg_color ? rgba(s.bg_color, alpha) : null,
+            bg: bg ? rgba(bg, alpha) : null,
             alpha,
-            opaSet: set(s.bg_opacity),
-            text: s.text_color || tk.text,
-            accent: s.accent_color || tk.accent,
-            border: s.border_color || tk.border,
-            bw: set(s.border_width) ? s.border_width : null,
-            radius: set(s.radius) ? s.radius : (tk.radius || 0),
-            ownRadius: set(s.radius) ? s.radius : null
+            opaSet: opa !== null,
+            text: hexOr(s.text_color, tk.text),
+            accent: hexOr(s.accent_color, tk.accent),
+            border: hexOr(s.border_color, tk.border),
+            textSet: !!hexOr(s.text_color, ''),
+            accentSet: !!hexOr(s.accent_color, ''),
+            borderSet: !!hexOr(s.border_color, ''),
+            bw: int(s.border_width, 0, 8, null),
+            radius: own(ownRadius, tk.radius || 0),
+            ownRadius
         };
     }
-    function fill(c, fallback) { return c.bg || (c.alpha < 1 ? rgba(fallback, c.alpha) : fallback); }
+    function fill(c, fallback) { return c.bg || (c.alpha < 1 ? rgba(fallback, c.alpha, fallback) : fallback); }
     function border(c, defaultWidth) {
         const width = c.bw === null ? defaultWidth : c.bw;
         return width > 0 ? width + 'px solid ' + c.border : 'none';
     }
     function own(v, fallback) { return v === null || v === undefined ? fallback : v; }
-    function fontFamily(name) { return FAMILIES[name] || FAMILIES.montserrat; }
+    function fontFamily(name) { return typeof name === 'string' && has(FAMILIES, name) ? FAMILIES[name] : FAMILIES.montserrat; }
+    // fontStyle: the widget's font/size props when they hold a catalog family/size, else the theme's.
     function fontStyle(theme, widget, spec) {
         const pv = name => P.model.propValue(widget, spec, name);
-        const family = (spec && P.model.propSpec(spec, 'font') && pv('font')) || (theme && theme.font) || 'montserrat';
-        const size = (spec && P.model.propSpec(spec, 'size') && Number(pv('size'))) || (theme && theme.font_size) || 16;
-        return { 'font-family': fontFamily(family), 'font-size': size + 'px', 'line-height': '1.2' };
+        const fam = spec && P.model.propSpec(spec, 'font') ? pv('font') : '';
+        const size = spec && P.model.propSpec(spec, 'size') ? pv('size') : 0;
+        const family = typeof fam === 'string' && has(FAMILIES, fam) ? fam : (theme && theme.font) || 'montserrat';
+        const px = FONT_SIZES.includes(size) ? size : (theme && theme.font_size) || 16;
+        return { 'font-family': fontFamily(family), 'font-size': px + 'px', 'line-height': '1.2' };
     }
     // smallSize is the theme's small font role (themeFontRoles): the next catalog size below the base.
     function smallSize(base) {
@@ -158,9 +227,8 @@
         FONT_SIZES.forEach(s => { if (s < base) small = s; });
         return small;
     }
-    function symbolGlyph(name) { return name ? (SYMBOLS[name] || '◆') : ''; }
+    function symbolGlyph(name) { return name ? (typeof name === 'string' && has(SYMBOLS, name) ? SYMBOLS[name] : '◆') : ''; }
     function ratio(value, min, max) { return max > min ? Math.max(0, Math.min(1, (value - min) / (max - min))) : 0; }
-    function list(v) { return Array.isArray(v) ? v.map(String) : []; }
     function box(extra) { return Object.assign({ position: 'absolute', left: '0', top: '0', width: '100%', height: '100%', 'box-sizing': 'border-box', overflow: 'hidden' }, extra); }
     function center(extra) { return Object.assign({ display: 'flex', 'align-items': 'center', 'justify-content': 'center' }, extra); }
 
@@ -175,17 +243,16 @@
     // not reach buttons on the device (renderStyle has no button case); bg, text, border and radius do.
     // Without a bg_color override an outline/bracket button with bg_opacity shows the accent (LVGL's
     // primary button colour) at that opacity.
-    function buttonFace(theme, c, style) {
+    function buttonFace(theme, c) {
         const kind = (theme && theme.button_style) || 'filled';
-        const s = style || {};
         const tk = c.tk;
         const face = { 'border-radius': c.radius + 'px' };
-        if (kind === 'filled') Object.assign(face, { background: fill(c, tk.accent), color: s.text_color ? c.text : tk.on_accent, border: border(c, 0) });
+        if (kind === 'filled') Object.assign(face, { background: fill(c, tk.accent), color: c.textSet ? c.text : tk.on_accent, border: border(c, 0) });
         else {
             Object.assign(face, {
                 background: c.bg || (c.opaSet ? rgba(tk.accent, c.alpha) : 'transparent'),
-                color: s.text_color ? c.text : tk.accent,
-                border: border(Object.assign({}, c, { border: s.border_color || tk.accent }), kind === 'outline' ? Math.max(1, tk.border_width || 1) : 0)
+                color: c.textSet ? c.text : tk.accent,
+                border: border(Object.assign({}, c, { border: c.borderSet ? c.border : tk.accent }), kind === 'outline' ? Math.max(1, tk.border_width || 1) : 0)
             });
         }
         return { kind, face };
@@ -202,21 +269,22 @@
             kind === 'bracket' ? ' ]' : null);
     }
 
-    // ── renderers (ctx: {w, spec, theme, c, pv, font, assetUrl, activeTab, screenTitle, settings}) ───
+    // ── renderers (ctx: {w, spec, theme, c, num, bool, str, items, pick, color, raw, font, assetUrl,
+    //    activeTab, screenTitle, settings}; w has its size clamped to 1..MAX_SIDE) ───
 
     const R = {
         label(x) {
-            const mode = x.pv('long_mode');
+            const mode = x.pick('long_mode');
             const nowrap = mode === 'dots' || mode === 'scroll';
-            return h('div', { style: box(Object.assign({}, x.font, { color: x.c.text, background: x.c.bg || 'transparent', border: border(x.c, 0), 'border-radius': own(x.c.ownRadius, 0) + 'px', 'text-align': x.pv('align') || 'left', 'white-space': nowrap ? 'nowrap' : 'pre-wrap', 'text-overflow': mode === 'dots' ? 'ellipsis' : 'clip', 'overflow-wrap': 'anywhere' })) }, String(x.pv('text') || ''));
+            return h('div', { style: box(Object.assign({}, x.font, { color: x.c.text, background: x.c.bg || 'transparent', border: border(x.c, 0), 'border-radius': own(x.c.ownRadius, 0) + 'px', 'text-align': x.pick('align') || 'left', 'white-space': nowrap ? 'nowrap' : 'pre-wrap', 'text-overflow': mode === 'dots' ? 'ellipsis' : 'clip', 'overflow-wrap': 'anywhere' })) }, x.str('text'));
         },
         button(x) {
-            const b = buttonFace(x.theme, x.c, x.w.style);
-            return h('div', { style: box(center(Object.assign({}, x.font, b.face, { padding: '0 6px', 'white-space': 'nowrap' }))) }, buttonLabel(b.kind, x.pv('symbol'), String(x.pv('text') || '')));
+            const b = buttonFace(x.theme, x.c);
+            return h('div', { style: box(center(Object.assign({}, x.font, b.face, { padding: '0 6px', 'white-space': 'nowrap' }))) }, buttonLabel(b.kind, x.str('symbol'), x.str('text')));
         },
         image(x) {
-            const id = x.pv('asset');
-            if (id && typeof x.assetUrl === 'function') {
+            const id = x.str('asset');
+            if (ELEMENT_ID.test(id) && typeof x.assetUrl === 'function') {
                 return h('div', { style: box({ background: x.c.bg || 'transparent', 'border-radius': own(x.c.ownRadius, 0) + 'px' }) },
                     h('img', { src: x.assetUrl(id), alt: '', draggable: 'false', style: { width: '100%', height: '100%', 'object-fit': 'none', 'object-position': 'center', 'image-rendering': 'pixelated', 'pointer-events': 'none' } }));
             }
@@ -226,16 +294,16 @@
             return h('div', { style: box({ background: fill(x.c, x.c.tk.surface), border: border(x.c, x.c.tk.border_width || 0), 'border-radius': x.c.radius + 'px' }) });
         },
         line(x) {
-            const t = Math.max(1, Number(x.pv('thickness')) || 1);
-            const vertical = x.pv('orientation') === 'vertical';
-            const color = (x.w.style && x.w.style.accent_color) || x.c.tk.border;
+            const t = x.num('thickness');
+            const vertical = x.pick('orientation') === 'vertical';
+            const color = x.c.accentSet ? x.c.accent : x.c.tk.border;
             return h('div', { style: box({ overflow: 'visible', background: x.c.bg || 'transparent' }) }, h('div', { style: vertical
                 ? { position: 'absolute', top: '0', bottom: '0', left: 'calc(50% - ' + t / 2 + 'px)', width: t + 'px', background: color, 'border-radius': t / 2 + 'px' }
                 : { position: 'absolute', left: '0', right: '0', top: 'calc(50% - ' + t / 2 + 'px)', height: t + 'px', background: color, 'border-radius': t / 2 + 'px' } }));
         },
         switch(x) {
             // Track surface_alt (accent when checked); the knob is ui__st_knob: text fill, 2 px accent ring.
-            const on = !!x.pv('checked');
+            const on = x.bool('checked');
             const inset = LV.SWITCH_INSET;
             const d = Math.max(4, x.w.h - 2 * inset);
             return h('div', { style: box({ background: on ? x.c.accent : fill(x.c, x.c.tk.surface_alt), border: border(x.c, 0), 'border-radius': own(x.c.ownRadius, Math.min(x.w.w, x.w.h) / 2) + 'px' }) },
@@ -243,16 +311,16 @@
         },
         checkbox(x) {
             // LVGL marker: line height + 2 × pad, at the top-left; ui__st_input box, accent when checked, white tick.
-            const on = !!x.pv('checked');
+            const on = x.bool('checked');
             const s = Math.round(parseInt(x.font['font-size'], 10) * 1.2) + 2 * LV.MARKER_PAD;
             return h('div', { style: box(Object.assign({}, x.font, { display: 'flex', 'align-items': 'flex-start', gap: LV.PAD_SMALL + 'px', color: x.c.text, background: x.c.bg || 'transparent', border: border(x.c, 0), 'border-radius': own(x.c.ownRadius, 0) + 'px' })) },
                 h('span', { class: 'cc-glyph', style: center({ width: s + 'px', height: s + 'px', flex: 'none', 'box-sizing': 'border-box', 'border-radius': Math.min(s / 2, x.c.tk.radius || 0) + 'px', border: Math.max(1, x.c.tk.border_width || 1) + 'px solid ' + x.c.tk.border, background: on ? x.c.accent : x.c.tk.surface, color: LV_WHITE }) }, on ? '✓' : ''),
-                h('span', { style: { 'white-space': 'nowrap', overflow: 'hidden', 'text-overflow': 'clip', 'line-height': s + 'px' } }, String(x.pv('text') || '')));
+                h('span', { style: { 'white-space': 'nowrap', overflow: 'hidden', 'text-overflow': 'clip', 'line-height': s + 'px' } }, x.str('text')));
         },
         slider(x) {
             // The track is the whole widget (vertical when taller than wide); the knob is the cross
             // size plus 2 × knob pad, centred on the indicator end (it overhangs the widget box).
-            const r = ratio(Number(x.pv('value')), Number(x.pv('min')), Number(x.pv('max')));
+            const r = ratio(x.num('value'), x.num('min'), x.num('max'));
             const vertical = x.w.h > x.w.w;
             const cross = vertical ? x.w.w : x.w.h;
             const k = cross + 2 * LV.KNOB_PAD;
@@ -270,7 +338,7 @@
         },
         arc(x) {
             // lv_arc: a square of min(w, h) at the top-left, outer edge on the box, 270° from 135°.
-            const r = ratio(Number(x.pv('value')), Number(x.pv('min')), Number(x.pv('max')));
+            const r = ratio(x.num('value'), x.num('min'), x.num('max'));
             const size = Math.min(x.w.w, x.w.h);
             const sw = Math.max(1, Math.min(LV.ARC_W, Math.floor(size / 2)));
             const rad = Math.max(0.5, size / 2 - sw / 2);
@@ -283,15 +351,15 @@
                     h('circle', { cx: String(Math.round(knob[0])), cy: String(Math.round(knob[1])), r: String(sw / 2 + LV.KNOB_PAD - 1), fill: x.c.tk.text, stroke: x.c.tk.accent, 'stroke-width': '2' })));
         },
         dropdown(x) {
-            const opts = list(x.pv('options'));
-            const sel = opts[Math.max(0, Math.min(opts.length - 1, Number(x.pv('selected')) || 0))] || '';
+            const opts = x.items('options');
+            const sel = opts[Math.max(0, Math.min(opts.length - 1, x.num('selected')))] || '';
             return h('div', { style: box(Object.assign({}, x.font, { display: 'flex', 'align-items': 'center', 'justify-content': 'space-between', padding: '0 8px', color: x.c.text, background: fill(x.c, x.c.tk.surface), border: border(x.c, x.c.tk.border_width || 1), 'border-radius': x.c.radius + 'px', 'white-space': 'nowrap' })) },
                 h('span', { style: { overflow: 'hidden', 'text-overflow': 'ellipsis' } }, sel), h('span', { class: 'cc-glyph' }, '▾'));
         },
         roller(x) {
-            const opts = list(x.pv('options'));
-            const rows = Math.max(1, Number(x.pv('visible_rows')) || 3);
-            const sel = Math.max(0, Math.min(opts.length - 1, Number(x.pv('selected')) || 0));
+            const opts = x.items('options');
+            const rows = x.num('visible_rows');
+            const sel = Math.max(0, Math.min(opts.length - 1, x.num('selected')));
             const half = Math.floor(rows / 2);
             const lines = [];
             for (let i = -half; i < rows - half; i++) lines.push({ text: opts[sel + i] || '', active: i === 0 });
@@ -300,18 +368,18 @@
         },
         textarea(x) {
             // pad_small padding; password mode shows the generator's "*" bullet; LVGL draws the cursor only while focused.
-            const text = String(x.pv('text') || '');
-            const shown = text ? (x.pv('password') ? '*'.repeat(Math.min(text.length, 64)) : text) : String(x.pv('placeholder') || '');
-            return h('div', { style: box(Object.assign({}, x.font, { padding: LV.PAD_SMALL + 'px', color: text ? x.c.text : x.c.tk.text_muted, background: fill(x.c, x.c.tk.surface), border: border(x.c, x.c.tk.border_width || 1), 'border-radius': x.c.radius + 'px', 'white-space': x.pv('one_line') ? 'nowrap' : 'pre-wrap', 'overflow-wrap': 'anywhere' })) }, shown);
+            const text = x.str('text');
+            const shown = text ? (x.bool('password') ? '*'.repeat(Math.min(text.length, 64)) : text) : x.str('placeholder');
+            return h('div', { style: box(Object.assign({}, x.font, { padding: LV.PAD_SMALL + 'px', color: text ? x.c.text : x.c.tk.text_muted, background: fill(x.c, x.c.tk.surface), border: border(x.c, x.c.tk.border_width || 1), 'border-radius': x.c.radius + 'px', 'white-space': x.bool('one_line') ? 'nowrap' : 'pre-wrap', 'overflow-wrap': 'anywhere' })) }, shown);
         },
         spinbox(x) {
             // Generator: − and + are theme buttons (h × h) at both ends, 4 px from the value field;
             // lv_spinbox shows a sign only when the range includes negative values.
-            const digits = Math.max(1, Number(x.pv('digits')) || 1);
-            const decimals = Math.max(0, Math.min(digits - 1, Number(x.pv('decimals')) || 0));
-            const v = Math.round(Number(x.pv('value')) || 0);
+            const digits = x.num('digits');
+            const decimals = Math.min(digits - 1, x.num('decimals'));
+            const v = x.num('value');
             const raw = String(Math.abs(v)).padStart(digits, '0');
-            const sign = Number(x.pv('min')) < 0 ? (v < 0 ? '-' : '+') : '';
+            const sign = x.num('min') < 0 ? (v < 0 ? '-' : '+') : '';
             const text = sign + (decimals ? raw.slice(0, raw.length - decimals) + '.' + raw.slice(raw.length - decimals) : raw);
             const b = buttonFace(x.theme, colors(x.theme, null));
             const btn = glyph => h('span', { class: 'cc-glyph', style: center(Object.assign({}, b.face, { width: x.w.h + 'px', height: '100%', flex: 'none', 'box-sizing': 'border-box' })) }, glyph);
@@ -319,12 +387,16 @@
                 btn(SYMBOLS.minus), h('div', { style: center({ flex: '1', 'min-width': '0', overflow: 'hidden', background: fill(x.c, x.c.tk.surface), border: border(x.c, x.c.tk.border_width || 1), 'border-radius': x.c.radius + 'px', 'box-sizing': 'border-box' }) }, text), btn(SYMBOLS.plus));
         },
         keypad(x) {
-            // Built-in maps and keypadMap's custom rule: "\n" breaks rows, otherwise more than four
-            // keys make rows of four; empty keys become a space. Card pads, item style ui__st_item.
-            const layout = x.pv('layout');
+            // keypadMap (generate_widgets.go): the numeric and numeric_ok maps; any other layout uses
+            // the keys: "\n" breaks rows, otherwise more than four keys make rows of four; empty keys
+            // become a space. Card pads, item style ui__st_item.
+            const lv = x.raw('layout');
+            const layout = typeof lv === 'string' ? lv : '';
             let rows;
-            if (layout === 'custom') {
-                const keys = list(x.pv('keys'));
+            if (layout === 'numeric' || layout === 'numeric_ok') {
+                rows = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], layout === 'numeric_ok' ? ['⌫', '0', 'OK'] : ['.', '0', '⌫']];
+            } else {
+                const keys = x.items('keys');
                 const breaks = keys.includes('\n');
                 rows = [[]];
                 keys.forEach((k, i) => {
@@ -333,8 +405,6 @@
                     rows[rows.length - 1].push(k === '' ? ' ' : k);
                 });
                 rows = rows.filter(r => r.length);
-            } else {
-                rows = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], layout === 'numeric_ok' ? ['⌫', '0', 'OK'] : ['.', '0', '⌫']];
             }
             return h('div', { style: box(Object.assign({}, x.font, { display: 'flex', 'flex-direction': 'column', gap: LV.PAD_SMALL + 'px', padding: LV.PAD_DEF + 'px', background: fill(x.c, x.c.tk.surface), border: border(x.c, x.c.tk.border_width || 1), 'border-radius': x.c.radius + 'px' })) },
                 rows.map(r => h('div', { style: { display: 'flex', gap: LV.PAD_SMALL + 'px', flex: '1', 'min-height': '0' } },
@@ -342,7 +412,7 @@
         },
         bar(x) {
             // lv_bar: round track (vertical when taller than wide, filling from the bottom).
-            const r = ratio(Number(x.pv('value')), Number(x.pv('min')), Number(x.pv('max')));
+            const r = ratio(x.num('value'), x.num('min'), x.num('max'));
             const vertical = x.w.h > x.w.w;
             const pct = Math.round(r * 100);
             return h('div', { style: box({ background: fill(x.c, x.c.tk.surface_alt), border: border(x.c, 0), 'border-radius': own(x.c.ownRadius, Math.min(x.w.w, x.w.h) / 2) + 'px' }) },
@@ -362,8 +432,8 @@
         },
         led(x) {
             // lv_led mixes its colour with black by brightness (80..255, off = 80); the glow grows with it.
-            const color = x.pv('color') || x.c.accent;
-            const bright = x.pv('on') ? Math.max(LED_MIN, Math.min(255, Number(x.pv('brightness')) || 0)) : LED_MIN;
+            const color = x.color('color') || x.c.accent;
+            const bright = x.bool('on') ? Math.max(LED_MIN, x.num('brightness')) : LED_MIN;
             const k = (bright - LED_MIN) / (255 - LED_MIN);
             const lit = shade(color, bright);
             return h('div', { style: box({ overflow: 'visible', 'border-radius': Math.min(x.w.w, x.w.h) / 2 + 'px', background: lit, 'box-shadow': k > 0 ? '0 0 ' + Math.round(12 * k) + 'px ' + Math.round(4 * k) + 'px ' + lit : 'none' }) });
@@ -374,9 +444,9 @@
             const W = x.w.w, H = x.w.h;
             const bw = x.c.bw === null ? (x.c.tk.border_width || 0) : x.c.bw;
             const cw = Math.max(1, W - 2 * (bw + LV.PAD_SMALL)), ch = Math.max(1, H - 2 * (bw + LV.PAD_SMALL));
-            const points = Math.max(2, Number(x.pv('points')) || 2);
-            const min = Number(x.pv('min')), max = Number(x.pv('max'));
-            const series = list(x.pv('series'));
+            const points = x.num('points');
+            const min = x.num('min'), max = x.num('max');
+            const series = x.items('series');
             const hues = [x.c.accent, x.c.tk.success, x.c.tk.warning, x.c.tk.danger];
             const val = (s, i) => min + (max - min) * (0.5 + 0.35 * Math.sin(i * 0.9 + s * 1.7));
             const y = v => Math.round(ch - ratio(v, min, max) * ch);
@@ -384,7 +454,7 @@
                 .concat([0, 1, 2, 3, 4].map(k => h('line', { y1: '0', y2: String(ch), x1: String(Math.round(cw * k / 4)), x2: String(Math.round(cw * k / 4)), stroke: x.c.tk.border, 'stroke-width': '1' })));
             const marks = series.map((name, s) => {
                 const hue = hues[s % hues.length];
-                if (x.pv('kind') === 'bar') {
+                if (x.pick('kind') === 'bar') {
                     const block = Math.max(1, Math.floor((cw - (points - 1) * LV.PAD_SMALL) / points));
                     const col = Math.max(1, Math.floor((block - (series.length - 1) * LV.SER_GAP) / series.length));
                     return h('g', {}, Array.from({ length: points }, (_, i) => h('rect', { x: String(i * (block + LV.PAD_SMALL) + s * (col + LV.SER_GAP)), y: String(y(val(s, i))), width: String(col), height: String(Math.max(0, ch - y(val(s, i)))), fill: hue })));
@@ -401,9 +471,9 @@
             // lv_scale ROUND_INNER on a centred square: panel fill and border, a 2 px arc and equal
             // 5 px ticks in the text colour, labels in the theme font, accent needle of gaugeNeedle().
             const size = Math.min(x.w.w, x.w.h);
-            const min = Number(x.pv('min')), max = Number(x.pv('max'));
-            const ticks = Math.max(2, Number(x.pv('ticks')) || 2);
-            const every = Math.max(1, Number(x.pv('label_every')) || 1);
+            const min = x.num('min'), max = x.num('max');
+            const ticks = x.num('ticks');
+            const every = x.num('label_every');
             const bw = x.c.bw === null ? (x.c.tk.border_width || 0) : x.c.bw;
             const c = size / 2, rad = Math.max(1, size / 2 - bw);
             const fs = parseInt(x.font['font-size'], 10);
@@ -421,7 +491,7 @@
                     parts.push(h('text', { x: p[0], y: p[1], fill: x.c.text, 'font-family': x.font['font-family'], 'font-size': String(fs), 'text-anchor': 'middle', 'dominant-baseline': 'middle' }, String(Math.round(min + (max - min) * i / (ticks - 1)))));
                 }
             }
-            const angle = 135 + 270 * ratio(Number(x.pv('value')), min, max);
+            const angle = 135 + 270 * ratio(x.num('value'), min, max);
             const tip = at(angle, Math.max(Math.floor(size / 2) - 16, 4));
             parts.push(h('line', { x1: String(c), y1: String(c), x2: tip[0], y2: tip[1], stroke: x.c.accent, 'stroke-width': '3', 'stroke-linecap': 'round' }));
             return h('div', { style: box(center({ overflow: 'visible' })) }, h('svg', { width: String(size), height: String(size), viewBox: '0 0 ' + size + ' ' + size, style: { flex: 'none', overflow: 'visible' } }, parts));
@@ -429,9 +499,9 @@
         table(x) {
             // ui__style_items: input box; cells are ui__st_item (surface_alt, rounded) with LVGL's
             // pad_normal padding and 1 px top/bottom cell borders; cell text wraps.
-            const cols = Math.max(1, Number(x.pv('columns')) || 1);
-            const rows = Math.max(1, Number(x.pv('rows')) || 1);
-            const cells = list(x.pv('cells'));
+            const cols = x.num('columns');
+            const rows = x.num('rows');
+            const cells = x.items('cells');
             const grid = [];
             for (let r = 0; r < rows; r++) for (let col = 0; col < cols; col++) {
                 grid.push(h('div', { style: { padding: LV.PAD_DEF + 'px', 'min-height': '1.2em', overflow: 'hidden', 'white-space': 'pre-wrap', 'overflow-wrap': 'anywhere', background: x.c.tk.surface_alt, color: x.c.tk.text, 'border-top': '1px solid ' + x.c.tk.border, 'border-bottom': '1px solid ' + x.c.tk.border, 'border-radius': (x.c.tk.radius || 0) + 'px' } }, cells[r * cols + col] || ''));
@@ -442,7 +512,7 @@
             // The generator draws black modules on white, on a centred min(w, h) square.
             const n = 21;
             const size = Math.min(x.w.w, x.w.h);
-            const text = String(x.pv('text') || '');
+            const text = x.str('text');
             let seed = 2166136261;
             for (let i = 0; i < text.length; i++) seed = Math.imul(seed ^ text.charCodeAt(i), 16777619) >>> 0;
             const finder = (r, c) => [[0, 0], [0, n - 7], [n - 7, 0]].some(([fr, fc]) => r >= fr && r < fr + 7 && c >= fc && c < fc + 7);
@@ -459,16 +529,16 @@
         tabview(x) {
             // Generator: bg, tab bar surface_alt. LVGL tab buttons: the checked one gets accent text,
             // 20 % accent fill and a 4 px bottom border (for every bar position); the others the theme text.
-            const tabs = list(x.pv('tabs'));
-            const pos = x.pv('bar_position') || 'top';
-            const size = Number(x.pv('bar_size')) || 40;
+            const tabs = x.items('tabs');
+            const pos = x.pick('bar_position') || 'top';
+            const size = x.num('bar_size');
             const vertical = pos === 'left' || pos === 'right';
             const barStyle = { position: 'absolute', display: 'flex', 'flex-direction': vertical ? 'column' : 'row', background: x.c.tk.surface_alt, color: x.c.tk.text, 'box-sizing': 'border-box' };
             if (pos === 'top') Object.assign(barStyle, { left: '0', right: '0', top: '0', height: size + 'px' });
             if (pos === 'bottom') Object.assign(barStyle, { left: '0', right: '0', bottom: '0', height: size + 'px' });
             if (pos === 'left') Object.assign(barStyle, { left: '0', top: '0', bottom: '0', width: size + 'px' });
             if (pos === 'right') Object.assign(barStyle, { right: '0', top: '0', bottom: '0', width: size + 'px' });
-            const active = Math.max(0, Math.min(tabs.length - 1, x.activeTab || 0));
+            const active = Math.max(0, Math.min(tabs.length - 1, x.activeTab));
             return h('div', { style: box(Object.assign({}, x.font, { background: fill(x.c, x.c.tk.bg), border: border(x.c, 0), 'border-radius': own(x.c.ownRadius, 0) + 'px', color: x.c.text })) },
                 h('div', { class: 'cc-tabbar', style: barStyle }, tabs.map((label, i) => h('span', {
                     'data-cc-tab': String(i),
@@ -477,7 +547,7 @@
         },
         list(x) {
             // lv_list: pad_def side inset, item rows with a bottom border each (LVGL list buttons).
-            const items = list(x.pv('items'));
+            const items = x.items('items');
             const rowH = Math.round(parseInt(x.font['font-size'], 10) * 2.2);
             return h('div', { style: box(Object.assign({}, x.font, { padding: '0 ' + LV.PAD_DEF + 'px', color: x.c.text, background: fill(x.c, x.c.tk.surface), border: border(x.c, x.c.tk.border_width || 1), 'border-radius': x.c.radius + 'px' })) },
                 items.map(item => h('div', { style: { height: rowH + 'px', 'box-sizing': 'border-box', display: 'flex', 'align-items': 'center', padding: '0 8px', 'white-space': 'nowrap', overflow: 'hidden', color: x.c.tk.text, 'border-bottom': '1px solid ' + x.c.tk.border } }, item)));
@@ -485,13 +555,13 @@
         msgbox(x) {
             // lv_msgbox: header bar (surface_alt, generator) with the title, growing content,
             // footer bar with theme buttons spaced evenly ("[ OK ]" in bracket themes).
-            const buttons = list(x.pv('buttons'));
-            const title = String(x.pv('title') || '');
+            const buttons = x.items('buttons');
+            const title = x.str('title');
             const b = buttonFace(x.theme, colors(x.theme, null));
             const bar = { flex: 'none', height: LV.BAR_H + 'px', 'box-sizing': 'border-box', display: 'flex' };
             return h('div', { class: 'cc-wv-modal', style: box(Object.assign({}, x.font, { display: 'flex', 'flex-direction': 'column', color: x.c.text, background: fill(x.c, x.c.tk.surface), border: border(x.c, Math.max(1, x.c.tk.border_width || 1)), 'border-radius': x.c.radius + 'px' })) },
                 title ? h('div', { style: Object.assign({}, bar, { 'align-items': 'center', padding: '0 ' + LV.PAD_SMALL + 'px', background: x.c.tk.surface_alt, 'white-space': 'nowrap', overflow: 'hidden' }) }, h('span', { style: { overflow: 'hidden', 'text-overflow': 'ellipsis' } }, title)) : null,
-                h('div', { style: { flex: '1', 'min-height': '0', overflow: 'hidden', padding: LV.PAD_SMALL + 'px', 'white-space': 'pre-wrap', 'overflow-wrap': 'anywhere' } }, String(x.pv('text') || '')),
+                h('div', { style: { flex: '1', 'min-height': '0', overflow: 'hidden', padding: LV.PAD_SMALL + 'px', 'white-space': 'pre-wrap', 'overflow-wrap': 'anywhere' } }, x.str('text')),
                 buttons.length ? h('div', { style: Object.assign({}, bar, { 'align-items': 'stretch', 'justify-content': 'space-evenly', padding: LV.PAD_SMALL + 'px' }) },
                     buttons.map(t => h('span', { style: center(Object.assign({}, b.face, { padding: '0 ' + LV.PAD_DEF + 'px', 'white-space': 'nowrap', 'box-sizing': 'border-box' })) }, buttonLabel(b.kind, '', t)))) : null);
         },
@@ -503,11 +573,11 @@
             // title shows the screen title; Wi-Fi/clock follow the project settings when given.
             const set = x.settings;
             const parts = [];
-            if (x.pv('show_wifi') && (!set || set.wifi !== 'off')) parts.push(h('span', { class: 'cc-glyph' }, symbolGlyph('wifi')));
-            if (x.pv('show_clock') && (!set || !!set.statusbar_clock)) parts.push(h('span', {}, '12:34'));
+            if (x.bool('show_wifi') && (!set || set.wifi !== 'off')) parts.push(h('span', { class: 'cc-glyph' }, symbolGlyph('wifi')));
+            if (x.bool('show_clock') && (!set || set.statusbar_clock === true)) parts.push(h('span', {}, '12:34'));
             const bw = x.c.bw === null ? (x.c.tk.border_width || 0) : x.c.bw;
             return h('div', { style: box(Object.assign({}, x.font, { display: 'flex', 'align-items': 'center', 'justify-content': 'space-between', gap: '8px', padding: '0 6px', color: x.c.text, background: fill(x.c, x.c.tk.surface), 'border-bottom': bw > 0 ? bw + 'px solid ' + x.c.border : 'none', 'border-radius': own(x.c.ownRadius, 0) + 'px', 'white-space': 'nowrap', 'font-size': smallSize((x.theme && x.theme.font_size) || 16) + 'px' })) },
-                h('span', { style: { overflow: 'hidden', 'text-overflow': 'ellipsis' } }, String(x.pv('title') || x.screenTitle || '')), h('span', { style: { display: 'flex', gap: '6px' } }, parts));
+                h('span', { style: { overflow: 'hidden', 'text-overflow': 'ellipsis' } }, x.str('title') || x.screenTitle), h('span', { style: { display: 'flex', gap: '6px' } }, parts));
         }
     };
 
@@ -515,11 +585,18 @@
     // opts: assetUrl, activeTab, and for statusbars screenTitle and settings ({wifi, statusbar_clock}).
     function tree(spec, widget, theme, opts) {
         const o = opts || {};
-        const renderer = spec && R[spec.type];
+        const renderer = spec && has(R, spec.type) ? R[spec.type] : null;
         const c = colors(theme, widget.style);
-        const ctx = { w: widget, spec, theme: theme || {}, c, pv: name => P.model.propValue(widget, spec, name), font: fontStyle(theme, widget, spec), assetUrl: o.assetUrl, activeTab: o.activeTab || 0, screenTitle: o.screenTitle || '', settings: o.settings || null };
+        const w = Object.assign({}, widget, { w: int(widget.w, 1, MAX_SIDE, 1), h: int(widget.h, 1, MAX_SIDE, 1) });
+        const settings = o.settings !== null && typeof o.settings === 'object' ? o.settings : null;
+        const ctx = Object.assign(reader(widget, spec), {
+            w, spec, theme: theme || {}, c, font: fontStyle(theme, widget, spec), assetUrl: o.assetUrl,
+            activeTab: int(o.activeTab, 0, 63, 0),
+            screenTitle: typeof o.screenTitle === 'string' ? o.screenTitle.slice(0, MAX_TEXT) : '',
+            settings
+        });
         const node = renderer ? renderer(ctx) : h('div', { class: 'cc-wv-placeholder', style: box(center({ border: '1px dashed ' + (c.tk.danger || 'currentColor'), color: c.tk.danger })) }, '?');
-        node.attrs.class = ('cc-wv cc-wv-' + (spec ? spec.type : 'unknown') + ' ' + (node.attrs.class || '')).trim();
+        node.attrs.class = ('cc-wv cc-wv-' + (renderer ? spec.type : 'unknown') + ' ' + (node.attrs.class || '')).trim();
         return node;
     }
 
