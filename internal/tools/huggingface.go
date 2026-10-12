@@ -557,10 +557,10 @@ func checkHFRepoAllowlist(cfg config.HuggingFaceConfig, repoID string) error {
 	}
 	repoID = strings.ToLower(canonical)
 	if !strings.Contains(repoID, "/") {
-		return fmt.Errorf("Hugging Face writes require an explicit namespace/repository identity")
+		return fmt.Errorf("Hugging Face repository access requires an explicit namespace/repository identity")
 	}
 	if len(cfg.AllowedRepos) == 0 && len(cfg.AllowedNamespaces) == 0 {
-		return fmt.Errorf("Hugging Face writes require huggingface.allowed_repos or huggingface.allowed_namespaces")
+		return fmt.Errorf("Hugging Face repository access requires huggingface.allowed_repos or huggingface.allowed_namespaces")
 	}
 	if len(cfg.AllowedRepos) > 0 && !hfStringInList(repoID, cfg.AllowedRepos) {
 		return fmt.Errorf("Hugging Face repo %q is not in huggingface.allowed_repos", repoID)

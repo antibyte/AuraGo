@@ -399,9 +399,51 @@ func TestHuggingFaceAllowlistRejectsNamedReadBeforeHTTP(t *testing.T) {
 	}
 	for _, id := range []string{"other/private", "gpt2"} {
 		out := RunHuggingFace(context.Background(), cfg, "hf_audit_token_0123456789", t.TempDir(), t.TempDir(), HuggingFaceRequest{Operation: "get_model", RepoID: id})
-		if hits.Load() != 0 || !strings.Contains(out, `"status":"error"`) {
+		if hits.Load() != 0 || !strings.Contains(out, `"status":"error"`) || strings.Contains(out, "write") {
 			t.Fatalf("id %s hits=%d output=%s", id, hits.Load(), out)
 		}
+		if id == "gpt2" && !strings.Contains(out, "namespace/repository") {
+			t.Fatalf("single-segment read used the wrong rejection: %s", out)
+		}
+	}
+}
+
+func TestHuggingFaceAllowlistsRequireBothLists(t *testing.T) {
+	const token = "hf_audit_token_0123456789"
+	var hits atomic.Int32
+	var auth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		auth = r.Header.Get("Authorization")
+		_, _ = w.Write([]byte(`{"id":"allowed/model"}`))
+	}))
+	defer server.Close()
+	rejected := []struct {
+		repos, namespaces []string
+		repoID, want      string
+	}{
+		{[]string{"other/model"}, []string{"allowed"}, "other/model", "allowed_namespaces"},
+		{[]string{"allowed/other"}, []string{"allowed"}, "allowed/model", "allowed_repos"},
+	}
+	for _, tc := range rejected {
+		cfg := config.HuggingFaceConfig{
+			Enabled: true, ReadOnly: true, HubBaseURL: server.URL,
+			AllowedRepos: tc.repos, AllowedNamespaces: tc.namespaces,
+		}
+		out := RunHuggingFace(context.Background(), cfg, token, t.TempDir(), t.TempDir(), HuggingFaceRequest{Operation: "get_model", RepoID: tc.repoID})
+		if hits.Load() != 0 || !strings.Contains(out, `"status":"error"`) || !strings.Contains(out, tc.want) {
+			t.Fatalf("repo %s lists %#v %#v hits=%d output=%s", tc.repoID, tc.repos, tc.namespaces, hits.Load(), out)
+		}
+	}
+	hits.Store(0)
+	auth = ""
+	cfg := config.HuggingFaceConfig{
+		Enabled: true, ReadOnly: true, HubBaseURL: server.URL,
+		AllowedRepos: []string{"allowed/model"}, AllowedNamespaces: []string{"allowed"},
+	}
+	out := RunHuggingFace(context.Background(), cfg, token, t.TempDir(), t.TempDir(), HuggingFaceRequest{Operation: "get_model", RepoID: "allowed/model"})
+	if hits.Load() != 1 || auth != "Bearer "+token || !strings.Contains(out, `"status":"success"`) {
+		t.Fatalf("both lists hits=%d auth=%q output=%s", hits.Load(), auth, out)
 	}
 }
 

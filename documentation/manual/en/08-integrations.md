@@ -1665,7 +1665,7 @@ huggingface:
 | `jobs_list` | List all jobs | `{"action": "huggingface", "operation": "jobs_list"}` |
 | `job_run_python` | Execute a Python script | `{"action": "huggingface", "operation": "job_run_python", "script": "print('ok')"}` |
 
-> 🔒 **Security:** HuggingFace integration is disabled by default. Empty repository and namespace allowlists block every write and keep named reads public. A named read sends the Vault token only when at least one allowlist is set and accepts the canonical id; search, papers, and daily papers never send it. `download_file` stays available in read-only mode. Job code is untrusted; `HF_TOKEN` is injected only when both the administrator and the individual tool call opt in.
+> 🔒 **Security:** HuggingFace integration is disabled by default. Empty repository and namespace allowlists block every write and keep named reads public. A named read sends the Vault token only when at least one allowlist is set and the canonical id passes it. When both allowlists are set, the repository must be listed and its namespace must be listed. One list alone checks only that list. Search, papers, and daily papers never send the token. `download_file` stays available in read-only mode. Job code is untrusted; `HF_TOKEN` is injected only when both the administrator and the individual tool call opt in.
 
 ---
 

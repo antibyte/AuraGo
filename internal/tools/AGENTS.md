@@ -189,8 +189,10 @@ Agent filesystem, external service and Docker tool safety boundaries.
   explicit namespace/repository. Encoded/traversal identities never grant access.
   Named Hub and dataset reads send the Vault token only when at least one of
   `allowed_repos` and `allowed_namespaces` is non-empty and the canonical id
-  passes that allowlist. Empty allowlists keep those reads public. Search,
-  papers, and daily papers never send the token. `download_file` stays allowed
+  passes the allowlist. When both lists are non-empty, the repository must
+  match `allowed_repos` and its namespace must match `allowed_namespaces`.
+  One list alone checks only itself. Empty allowlists keep those reads public.
+  Search, papers, and daily papers never send the token. `download_file` stays allowed
   while `read_only` is true. Download publication and upload reads use
   `os.OpenRoot` on the evaluated workspace. The client download returns a
   private temp file and does not create the caller destination. `max_download_mb`

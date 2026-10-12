@@ -644,7 +644,7 @@ huggingface:
 | `jobs_list` | Liste aller Jobs | `{"action": "huggingface", "operation": "jobs_list"}` |
 | `job_run_python` | Python-Skript ausführen | `{"action": "huggingface", "operation": "job_run_python", "script": "print('ok')"}` |
 
-> 🔒 **Sicherheit:** Standardmäßig ist HuggingFace deaktiviert. Leere Repository- und Namespace-Allowlists sperren alle Schreibvorgänge und lassen benannte Lesezugriffe öffentlich. Ein benannter Lesezugriff sendet das Vault-Token nur, wenn mindestens eine Allowlist gesetzt ist und die kanonische ID darin erlaubt ist; Suche, Papers und Daily Papers senden das Token nie. `download_file` bleibt im Read-Only-Modus erlaubt. Job-Code ist nicht vertrauenswürdig; `HF_TOKEN` wird nur injiziert, wenn Administrator und einzelner Tool-Aufruf zustimmen.
+> 🔒 **Sicherheit:** Standardmäßig ist HuggingFace deaktiviert. Leere Repository- und Namespace-Allowlists sperren alle Schreibvorgänge und lassen benannte Lesezugriffe öffentlich. Ein benannter Lesezugriff sendet das Vault-Token nur, wenn mindestens eine Allowlist gesetzt ist und die kanonische ID die Prüfung besteht. Sind beide Allowlists gesetzt, muss das Repository in `allowed_repos` stehen und sein Namespace in `allowed_namespaces`. Eine einzelne Liste prüft nur sich selbst. Suche, Papers und Daily Papers senden das Token nie. `download_file` bleibt im Read-Only-Modus erlaubt. Job-Code ist nicht vertrauenswürdig; `HF_TOKEN` wird nur injiziert, wenn Administrator und einzelner Tool-Aufruf zustimmen.
 
 ## MeshCentral
 
