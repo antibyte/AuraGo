@@ -285,6 +285,7 @@ func TestDockerComposeContainerReferenceDenialRefusesEveryProtectedOwner(t *test
 		dockerutil.HomepageOwner:     `"code":"docker_managed_homepage_resource"`,
 		dockerutil.BoringGarageOwner: `"code":"docker_managed_garage_resource"`,
 		dockerutil.AppOwner:          `"code":"docker_managed_aurago_resource"`,
+		dockerutil.CYDCreatorOwner:   `"code":"docker_managed_cyd_creator_resource"`,
 		dockerutil.LocalLLMOwner:     "managed local LLM",
 	}
 	for _, owner := range dockerComposeReferenceOwners {
@@ -431,6 +432,189 @@ func TestDockerComposePolicySkipsContainerReferencesOnlyForReadOnlySubcommands(t
 		if got := policy(command); !strings.Contains(got, `"code":"docker_ownership_unverified"`) {
 			t.Fatalf("%s while Docker is down = %s, want docker_ownership_unverified", command, got)
 		}
+	}
+}
+
+// Compose must not reach the CYD Creator builder or its volumes through any
+// subcommand (down --volumes would delete the shared cache); the test and CI
+// volumes stay usable.
+func TestDockerComposePolicyRefusesTheCYDCreatorBuilderAndVolumes(t *testing.T) {
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "cyd/compose.yml", "services:\n  web:\n    image: alpine\n")
+	dockerCfg := tools.DockerConfig{WorkspaceDir: workspace}
+	// volumes_from is refused for every container by the older local LLM text
+	// check before the model check runs (tools covers its CYD form).
+	refused := map[string]string{
+		"builder container name": `{"services":{"web":{"image":"alpine","container_name":"aurago-cyd-builder"}}}`,
+		"builder namespace":      `{"services":{"web":{"image":"alpine","network_mode":"container:aurago-cyd-builder"}}}`,
+		"builder pid namespace":  `{"services":{"web":{"image":"alpine","pid":"container:aurago-cyd-builder"}}}`,
+		"builder label":          `{"services":{"web":{"image":"alpine","labels":{"aurago.managed":"cyd-creator"}}}}`,
+		"external cache volume":  `{"services":{"web":{"image":"alpine","volumes":[{"type":"volume","source":"aurago-cyd-cache","target":"/c"}]}},"volumes":{"aurago-cyd-cache":{"name":"aurago-cyd-cache","external":true}}}`,
+		"work volume by name":    `{"services":{"web":{"image":"alpine","volumes":[{"type":"volume","source":"w","target":"/w"}]}},"volumes":{"w":{"name":"aurago-cyd-work","external":true}}}`,
+		"declared cache volume":  `{"services":{"web":{"image":"alpine"}},"volumes":{"c":{"name":"aurago-cyd-cache"}}}`,
+	}
+	for name, resolved := range refused {
+		for _, command := range []string{"up -d", "down --volumes", "ps"} {
+			stubDockerComposeResolver(t, func(string) (string, error) { return resolved, nil })
+			got := dockerComposePolicy(context.Background(), &config.Config{}, dockerCfg, dockerArgs{Operation: "compose", File: "cyd/compose.yml", Command: command})
+			if !strings.Contains(got, `"code":"docker_managed_cyd_creator_resource"`) {
+				t.Fatalf("%s, %s: dockerComposePolicy() = %s, want docker_managed_cyd_creator_resource", name, command, got)
+			}
+		}
+	}
+	allowed := `{"services":{"it":{"image":"aurago-cyd-builder:dev","container_name":"aurago-cyd-builder-it","volumes":[{"type":"volume","source":"aurago-cyd-work-it","target":"/work"},{"type":"volume","source":"aurago-cyd-cache-it","target":"/cache"},{"type":"volume","source":"cyd-ci-cache","target":"/ci"}]}},` +
+		`"volumes":{"aurago-cyd-work-it":{"name":"aurago-cyd-work-it","external":true},"aurago-cyd-cache-it":{"name":"aurago-cyd-cache-it","external":true},"cyd-ci-cache":{"name":"cyd-ci-cache"}}}`
+	stubDockerComposeResolver(t, func(string) (string, error) { return allowed, nil })
+	for _, command := range []string{"ps", "down", "config"} {
+		if got := dockerComposePolicy(context.Background(), &config.Config{}, dockerCfg, dockerArgs{Operation: "compose", File: "cyd/compose.yml", Command: command}); got != "" {
+			t.Fatalf("%s: test and CI volumes were blocked: %s", command, got)
+		}
+	}
+}
+
+// The CYD Creator builder as a network_mode, pid or ipc "container:" target is
+// resolved through Docker like the Engine resolves them: an ID prefix, a full
+// ID, a name and a renamed container with AuraGo's label all name their owner.
+// A shared PID namespace would expose the builder's /proc/<pid>/root (its
+// /cache) and the app container's environ.
+func TestDockerComposePolicyResolvesCYDCreatorBuilderReferencesThroughDocker(t *testing.T) {
+	builderID := strings.Repeat("c", 64)
+	appID := strings.Repeat("a", 64)
+	vpnID := strings.Repeat("e", 64)
+	var failing bool
+	var lookups []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		switch {
+		case path == "/version":
+			_, _ = w.Write([]byte(`{"ApiVersion":"1.45","MinAPIVersion":"1.25"}`))
+			return
+		case failing:
+			http.Error(w, `{"message":"refused by the socket proxy"}`, http.StatusForbidden)
+			return
+		case strings.HasSuffix(path, "/containers/json"):
+			_, _ = w.Write([]byte(`[]`))
+			return
+		}
+		target := strings.TrimSuffix(path[strings.Index(path, "/containers/")+len("/containers/"):], "/json")
+		lookups = append(lookups, target)
+		switch {
+		case strings.HasPrefix(builderID, target) || target == "renamed-builder":
+			_, _ = w.Write([]byte(`{"Id":"` + builderID + `","Name":"/renamed-builder","Config":{"Labels":{"aurago.managed":"cyd-creator","aurago.role":"builder"}}}`))
+		case strings.HasPrefix(appID, target):
+			_, _ = w.Write([]byte(`{"Id":"` + appID + `","Name":"/prod-app","Config":{"Labels":{"aurago.managed":"aurago-app"}}}`))
+		case strings.HasPrefix(vpnID, target) || target == "gluetun":
+			_, _ = w.Write([]byte(`{"Id":"` + vpnID + `","Name":"/gluetun","Config":{"Labels":{"com.docker.compose.service":"gluetun"}}}`))
+		default:
+			http.Error(w, `{"message":"No such container"}`, http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "ns/compose.yml", "services:\n  web:\n    image: alpine\n")
+	dockerCfg := tools.DockerConfig{WorkspaceDir: workspace, Host: "tcp://" + strings.TrimPrefix(server.URL, "http://")}
+	cfg := &config.Config{}
+	cfg.Docker.Enabled = true
+	useRuntimePermissionsForTest(t, cfg)
+	policy := func(resolved, command string) string {
+		stubDockerComposeResolver(t, func(string) (string, error) { return resolved, nil })
+		return dockerComposePolicy(context.Background(), cfg, dockerCfg, dockerArgs{Operation: "compose", File: "ns/compose.yml", Command: command})
+	}
+	service := func(field, target string) string {
+		return `{"services":{"web":{"image":"alpine","` + field + `":"container:` + target + `"}}}`
+	}
+	for _, field := range []string{"pid", "network_mode", "ipc"} {
+		// Docker resolves "/name" like "name".
+		for _, target := range []string{builderID[:12], builderID, "renamed-builder", "/renamed-builder", "/" + builderID[:12]} {
+			for _, command := range []string{"up -d", "ps"} {
+				if got := policy(service(field, target), command); !strings.Contains(got, `"code":"docker_managed_cyd_creator_resource"`) {
+					t.Fatalf("%s container:%s, %s = %s, want the CYD Creator refusal", field, target, command, got)
+				}
+			}
+		}
+		if got := policy(service(field, appID[:16]), "up -d"); !strings.Contains(got, `"code":"docker_managed_aurago_resource"`) {
+			t.Fatalf("%s container:<app ID prefix> = %s, want the AuraGo app refusal", field, got)
+		}
+		// Containers that belong to nobody protected stay usable.
+		for _, target := range []string{"gluetun", "/gluetun", vpnID[:12], "ghost"} {
+			if got := policy(service(field, target), "ps"); got != "" {
+				t.Fatalf("%s container:%s = %s, want it allowed", field, target, got)
+			}
+		}
+		// A target that is no checkable name fails closed instead of owning
+		// nothing.
+		for _, target := range []string{"//renamed-builder", "bad name", "-renamed", "a..b", "x$y"} {
+			if got := policy(service(field, target), "ps"); !strings.Contains(got, `"code":"docker_ownership_unverified"`) {
+				t.Fatalf("%s container:%s = %s, want docker_ownership_unverified", field, target, got)
+			}
+		}
+	}
+	// Services of the same project are no Docker lookup.
+	lookups = nil
+	if got := policy(`{"services":{"vpn":{"image":"alpine"},"web":{"image":"alpine","network_mode":"service:vpn","pid":"service:vpn"}}}`, "ps"); got != "" || len(lookups) != 0 {
+		t.Fatalf("same-project namespaces = %s (lookups %v), want allowed without a lookup", got, lookups)
+	}
+	// Docker did not answer: fail closed.
+	failing = true
+	if got := policy(service("pid", "deadbeef"), "up -d"); !strings.Contains(got, `"code":"docker_ownership_unverified"`) {
+		t.Fatalf("unverifiable pid target = %s, want docker_ownership_unverified", got)
+	}
+}
+
+// volumes_from of the CYD Creator builder by ID is resolved too (the older
+// text check refuses every volumes_from before; the references still name them).
+func TestDockerComposeContainerReferenceDenialCoversCYDCreatorVolumesFrom(t *testing.T) {
+	stubDockerComposeReferenceOwnership(t, func(target string) (map[string]bool, error) {
+		return map[string]bool{dockerutil.CYDCreatorOwner: target == "cccccccccccc"}, nil
+	})
+	model, err := tools.ParseDockerComposeModel(`{"services":{"db":{"image":"x"},"web":{"image":"alpine","volumes_from":["db","container:cccccccccccc:ro"]}}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := tools.DockerComposeContainerReferences(model); strings.Join(got, ",") != "cccccccccccc" {
+		t.Fatalf("references = %q, want only the outside container", got)
+	}
+	if got := dockerComposeContainerReferenceDenial(tools.DockerConfig{}, model); !strings.Contains(got, `"code":"docker_managed_cyd_creator_resource"`) {
+		t.Fatalf("volumes_from the builder by ID = %s", got)
+	}
+}
+
+// I2: Compose must not build, tag, pull or remove the builder image: the
+// published repository (any tag or digest, as image or build tag) and the
+// configured builder_image, for every subcommand (down --rmi too).
+func TestDockerComposePolicyRefusesTheCYDCreatorBuilderImage(t *testing.T) {
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "img/compose.yml", "services:\n  web:\n    image: alpine\n")
+	dockerCfg := tools.DockerConfig{WorkspaceDir: workspace}
+	configured := &config.Config{}
+	configured.CYDCreator.BuilderImage = "aurago-cyd-builder:dev"
+	cases := []struct {
+		name     string
+		cfg      *config.Config
+		resolved string
+	}{
+		{"published image", &config.Config{}, `{"services":{"web":{"image":"ghcr.io/antibyte/aurago-cyd-builder:1"}}}`},
+		{"published image by digest", &config.Config{}, `{"services":{"web":{"image":"ghcr.io/antibyte/aurago-cyd-builder@sha256:` + strings.Repeat("d", 64) + `"}}}`},
+		{"build tagged as the published image", &config.Config{}, `{"services":{"web":{"image":"ghcr.io/antibyte/aurago-cyd-builder:1","build":{"context":"."}}}}`},
+		{"extra build tag", &config.Config{}, `{"services":{"web":{"image":"mine:1","build":{"context":".","tags":["ghcr.io/antibyte/aurago-cyd-builder:latest"]}}}}`},
+		{"configured local image", configured, `{"services":{"web":{"image":"aurago-cyd-builder:dev"}}}`},
+		{"configured image under another tag", configured, `{"services":{"web":{"image":"docker.io/library/aurago-cyd-builder:x","build":{"context":"."}}}}`},
+	}
+	for _, tc := range cases {
+		for _, command := range []string{"build", "pull", "up -d", "down --rmi all", "config"} {
+			stubDockerComposeResolver(t, func(string) (string, error) { return tc.resolved, nil })
+			got := dockerComposePolicy(context.Background(), tc.cfg, dockerCfg, dockerArgs{Operation: "compose", File: "img/compose.yml", Command: command})
+			if !strings.Contains(got, `"code":"docker_managed_cyd_creator_resource"`) {
+				t.Fatalf("%s, %s = %s, want the CYD Creator refusal", tc.name, command, got)
+			}
+		}
+	}
+	// Without a configured local image, the dev tag is an ordinary image.
+	stubDockerComposeResolver(t, func(string) (string, error) {
+		return `{"services":{"web":{"image":"aurago-cyd-builder:dev"},"stub":{"image":"ghcr.io/antibyte/aurago-cyd-builder-stub:1"}}}`, nil
+	})
+	if got := dockerComposePolicy(context.Background(), &config.Config{}, dockerCfg, dockerArgs{Operation: "compose", File: "img/compose.yml", Command: "ps"}); got != "" {
+		t.Fatalf("unrelated images were refused: %s", got)
 	}
 }
 

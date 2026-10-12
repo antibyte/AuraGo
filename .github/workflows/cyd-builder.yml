@@ -1,0 +1,196 @@
+name: CYD Creator builder image
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths:
+      - deploy/docker/Dockerfile.cyd-builder
+      - deploy/docker/cyd-builder/**
+      - internal/cydcreator/template/**
+      - internal/cydcreator/testdata/reference/**
+      - internal/cydcreator/testdata/golden/**
+      - internal/cydcreator/generate*.go
+      - internal/cydcreator/boards/**
+      - .github/workflows/cyd-builder.yml
+  pull_request:
+    paths:
+      - deploy/docker/Dockerfile.cyd-builder
+      - deploy/docker/cyd-builder/**
+      - internal/cydcreator/template/**
+      - internal/cydcreator/testdata/reference/**
+      - internal/cydcreator/testdata/golden/**
+      - internal/cydcreator/generate*.go
+      - internal/cydcreator/boards/**
+      - .github/workflows/cyd-builder.yml
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the tested image to GHCR
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# A newer push to the same ref replaces a running pull-request build; builds of
+# main and of tags are never cancelled (a half-published image would be worse).
+concurrency:
+  group: cyd-builder-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/aurago-cyd-builder
+
+jobs:
+  build:
+    name: Build and smoke-test (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+            smoke: --all
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            smoke: esp32-2432s028r
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      packages: write
+    env:
+      # Only main and v* tags publish, also for a manual dispatch from any other branch.
+      PUBLISH: ${{ ((github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.publish)) && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Lowercase image name
+        run: echo "IMAGE_LC=${IMAGE,,}" >> "$GITHUB_ENV"
+      - name: Build image (native ${{ matrix.arch }}, prewarm compiles every board profile)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: deploy/docker/cyd-builder
+          file: deploy/docker/Dockerfile.cyd-builder
+          build-contexts: cydcreator=internal/cydcreator
+          platforms: linux/${{ matrix.arch }}
+          load: true
+          tags: aurago-cyd-builder:ci
+      - name: Smoke-compile the reference sample with AuraGo's container settings (offline, read-only rootfs)
+        run: |
+          docker volume create cyd-ci-work
+          docker volume create cyd-ci-cache
+          docker run --rm --network none --read-only \
+            --tmpfs /tmp:rw,exec,size=1g -e HOME=/tmp --user 1000:1000 \
+            -v cyd-ci-work:/work -v cyd-ci-cache:/cache \
+            --cap-drop ALL --security-opt no-new-privileges:true \
+            --memory 2g --cpus 2 --pids-limit 512 \
+            aurago-cyd-builder:ci cyd-selftest ${{ matrix.smoke }}
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: matrix.arch == 'amd64'
+        with:
+          go-version-file: go.mod
+      - name: Compile the generator goldens with the same container settings (plan 1c)
+        if: matrix.arch == 'amd64'
+        env:
+          CYD_BUILDER_IT: '1'
+          CYD_BUILDER_IMAGE: aurago-cyd-builder:ci
+          CYD_BUILDER_IT_ONLY: all_widgets,theme_
+          CYD_BUILDER_IT_STRICT: '1'
+          CYD_BUILDER_IT_CPUS: '4'
+          CYD_BUILDER_WORK_VOLUME: cyd-ci-work
+          CYD_BUILDER_CACHE_VOLUME: cyd-ci-cache
+        run: go test -count=1 ./internal/cydcreator/ -run TestGenerateCompilesInBuilder -v -timeout 60m
+      - name: Image size
+        run: |
+          docker image ls aurago-cyd-builder:ci
+          docker image inspect aurago-cyd-builder:ci --format 'size in bytes {{.Size}}'
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        if: env.PUBLISH == 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push by digest (reuses the build cache of the step above)
+        id: push
+        if: env.PUBLISH == 'true'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: deploy/docker/cyd-builder
+          file: deploy/docker/Dockerfile.cyd-builder
+          build-contexts: cydcreator=internal/cydcreator
+          platforms: linux/${{ matrix.arch }}
+          outputs: type=image,name=${{ env.IMAGE_LC }},push-by-digest=true,name-canonical=true,push=true
+          provenance: false
+      - name: Export digest
+        if: env.PUBLISH == 'true'
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          mkdir -p "${RUNNER_TEMP}/digests"
+          touch "${RUNNER_TEMP}/digests/${DIGEST#sha256:}"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: env.PUBLISH == 'true'
+        with:
+          name: cyd-builder-digest-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish multi-arch manifest
+    needs: build
+    if: ((github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.publish)) && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    concurrency:
+      group: cyd-builder-publish
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: cyd-builder-digest-*
+          path: ${{ runner.temp }}/digests
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create :1 and the immutable :<version> manifest lists
+        id: manifest
+        run: |
+          image="${IMAGE,,}"
+          version="$(sed -n 's/^ARG CYD_BUILDER_VERSION=//p' deploy/docker/Dockerfile.cyd-builder)"
+          major="${version%%.*}"
+          sources="$(cd "${RUNNER_TEMP}/digests" && printf "${image}@sha256:%s " *)"
+          tags="-t ${image}:${major}"
+          # Only "not found" means the version tag is free; a registry or network
+          # error must not look like absence (it would let the immutable tag move).
+          if existing="$(docker buildx imagetools inspect "${image}:${version}" 2>&1)"; then
+            echo "${image}:${version} already exists; it is immutable, only :${major} moves"
+          elif grep -qiE 'MANIFEST_UNKNOWN|NAME_UNKNOWN|not found' <<< "${existing}"; then
+            tags="${tags} -t ${image}:${version}"
+          else
+            echo "cannot tell whether ${image}:${version} exists:" >&2
+            echo "${existing}" >&2
+            exit 1
+          fi
+          docker buildx imagetools create ${tags} ${sources}
+          digest="$(docker buildx imagetools inspect "${image}:${major}" --format '{{json .Manifest}}' | jq -r .digest)"
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Sign manifest digest
+        env:
+          IMAGE_REF: ${{ steps.manifest.outputs.image }}@${{ steps.manifest.outputs.digest }}
+        run: cosign sign --yes "${IMAGE_REF}"

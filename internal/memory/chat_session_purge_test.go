@@ -3,6 +3,7 @@ package memory
 import (
 	"io"
 	"log/slog"
+	"slices"
 	"testing"
 )
 
@@ -47,5 +48,37 @@ func TestPurgeChatSessionRemovesTranscriptBearingRecords(t *testing.T) {
 	var sessions int
 	if err := store.db.QueryRow(`SELECT COUNT(*) FROM chat_sessions WHERE id = ?`, sessionID).Scan(&sessions); err != nil || sessions != 0 {
 		t.Fatalf("chat session retained count=%d err=%v", sessions, err)
+	}
+}
+
+func TestTransientSessionIDsListsOnlyThePrefix(t *testing.T) {
+	store, err := NewSQLiteMemory(":memory:", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	for _, id := range []string{"cyd-creator-ccj_2", "cyd-creator-ccj_1", "cyd-creator-ccj_1", "default", "cyd-creatorx", "game-maker-cyd-creator-1"} {
+		if _, err := store.InsertMessage(id, "user", "private", false, false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := store.db.Exec(`INSERT INTO chat_sessions(id) VALUES('cyd-creator-ccj_3')`); err != nil {
+		t.Fatal(err)
+	}
+	ids, err := store.TransientSessionIDs("cyd-creator-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"cyd-creator-ccj_1", "cyd-creator-ccj_2", "cyd-creator-ccj_3"}; !slices.Equal(ids, want) {
+		t.Fatalf("ids = %v, want %v", ids, want)
+	}
+	if err := store.PurgeChatSession("cyd-creator-ccj_1"); err != nil {
+		t.Fatal(err)
+	}
+	if ids, _ := store.TransientSessionIDs("cyd-creator-"); slices.Contains(ids, "cyd-creator-ccj_1") {
+		t.Fatalf("a purged session is still listed: %v", ids)
+	}
+	if _, err := store.TransientSessionIDs(""); err == nil {
+		t.Fatal("an empty prefix must be refused")
 	}
 }

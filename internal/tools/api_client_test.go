@@ -62,3 +62,30 @@ func TestExecuteAPIRequestKeepsSSRFForNonOllamaLocalPaths(t *testing.T) {
 		t.Fatalf("expected SSRF rejection for non-Ollama path, got %+v raw=%s", out, got)
 	}
 }
+
+func TestExecuteAPIRequestRejectsOllamaAdminPaths(t *testing.T) {
+	// Residual: POST /api/generate stays allowed, so api_request can still send keep_alive.
+	ConfigureRuntimePermissions(RuntimePermissions{AllowNetworkRequests: true})
+	t.Cleanup(func() {
+		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
+	})
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("admin path reached the server: %s %s", r.Method, r.URL.Path)
+	}))
+	t.Cleanup(server.Close)
+
+	paths := []string{"/api/pull", "/api/delete", "/api/push", "/api/create", "/api/copy", "/api/blobs/sha256:abc"}
+	for _, path := range paths {
+		for _, method := range []string{http.MethodGet, http.MethodPost} {
+			got := ExecuteAPIRequestWithOptions(method, server.URL+path, "", nil, APIRequestOptions{AllowedLocalOllamaBaseURL: server.URL})
+			var out APIResult
+			if err := json.Unmarshal([]byte(got), &out); err != nil {
+				t.Fatalf("%s %s decode: %v raw=%s", method, path, err, got)
+			}
+			if out.Status != "error" || !strings.Contains(out.Message, "SSRF protection") {
+				t.Fatalf("%s %s: expected SSRF rejection, got %+v raw=%s", method, path, out, got)
+			}
+		}
+	}
+}

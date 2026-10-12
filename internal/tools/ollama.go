@@ -27,6 +27,26 @@ func ollamaReadOnlyMutationError(cfg OllamaConfig, operation string) string {
 	return ""
 }
 
+func ollamaErrJSON(message string) string {
+	out, err := json.Marshal(map[string]string{"status": "error", "message": message})
+	if err != nil {
+		return `{"status":"error","message":"internal error"}`
+	}
+	return string(out)
+}
+
+func ollamaShowInfoKey(key string) bool {
+	if key == "context_length" || strings.HasSuffix(key, ".context_length") {
+		return true
+	}
+	for _, suffix := range []string{".architecture", ".parameter_count", ".quantization_version"} {
+		if strings.HasSuffix(key, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
 // ollamaRequest performs a generic HTTP request against the Ollama REST API.
 func ollamaRequest(cfg OllamaConfig, method, endpoint string, body string) ([]byte, int, error) {
 	url := strings.TrimRight(cfg.URL, "/") + endpoint
@@ -133,11 +153,17 @@ func OllamaShowModel(cfg OllamaConfig, modelName string) string {
 		License   string                 `json:"license"`
 	}
 	if json.Unmarshal(data, &info) == nil {
+		trimmed := map[string]interface{}{}
+		for key, value := range info.ModelInfo {
+			if ollamaShowInfoKey(key) {
+				trimmed[key] = value
+			}
+		}
 		out, _ := json.Marshal(map[string]interface{}{
 			"status":     "ok",
 			"model":      modelName,
 			"details":    info.Details,
-			"model_info": info.ModelInfo,
+			"model_info": trimmed,
 		})
 		return string(out)
 	}
@@ -222,7 +248,7 @@ func OllamaLoadModel(cfg OllamaConfig, modelName string) string {
 	if denied := ollamaReadOnlyMutationError(cfg, "load"); denied != "" {
 		return denied
 	}
-	body := fmt.Sprintf(`{"model":%q}`, modelName)
+	body := fmt.Sprintf(`{"model":%q,"prompt":"","keep_alive":-1}`, modelName)
 	data, code, err := ollamaRequest(cfg, "POST", "/api/generate", body)
 	if err != nil {
 		return errJSON("Load failed: %v", err)

@@ -18,7 +18,10 @@ func classifyToolOutput(action string) toolOutputTrust {
 		return toolOutputTrusted
 	case "execute_shell", "execute_python", "run_tool":
 		return toolOutputExternal
-	case "game_maker_project", "game_maker_file", "game_maker_asset", "game_maker_validate":
+	case "game_maker_project", "game_maker_file", "game_maker_asset", "game_maker_validate",
+		// CYD Creator job tools that return C++ source, layout JSON, build
+		// diagnostics or API reference text: copyable code must stay unescaped.
+		"cyd_creator_read_project", "cyd_creator_read_file", "cyd_creator_build", "cyd_creator_api_reference":
 		return toolOutputSourceData
 	case
 		"adguard",

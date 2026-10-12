@@ -1,12 +1,18 @@
 package tools
 
 import (
+	"context"
+	"errors"
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"aurago/internal/sandbox"
 )
@@ -27,7 +33,7 @@ func TestExecuteShell(t *testing.T) {
 		command = "echo 'hello world'"
 	}
 
-	stdout, stderr, err := ExecuteShell(command, workspaceDir)
+	stdout, stderr, err := ExecuteShell(context.Background(), command, workspaceDir)
 	if err != nil {
 		t.Errorf("ExecuteShell failed: %v, stderr: %s", err, stderr)
 	}
@@ -53,10 +59,126 @@ func TestExecuteShellError(t *testing.T) {
 	defer os.RemoveAll(workspaceDir)
 
 	command := "non-existent-command-12345"
-	_, _, err := ExecuteShell(command, workspaceDir)
+	_, _, err := ExecuteShell(context.Background(), command, workspaceDir)
 	if err == nil {
 		t.Error("expected error for non-existent command, got nil")
 	}
+}
+
+func TestExecuteShellStopsWhenContextEnds(t *testing.T) {
+	skipIfWindowsPowerShellUnavailable(t)
+
+	workspaceDir := t.TempDir()
+	pidPath := filepath.Join(workspaceDir, "pid.txt")
+	var command string
+	if runtime.GOOS == "windows" {
+		command = "Set-Content -LiteralPath 'pid.txt' -Value $PID -Encoding ascii; Start-Sleep 30"
+	} else {
+		command = "echo $$ > pid.txt; sleep 30"
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	type shellResult struct {
+		err error
+	}
+	done := make(chan shellResult, 1)
+	go func() {
+		_, _, err := ExecuteShell(ctx, command, workspaceDir)
+		done <- shellResult{err: err}
+	}()
+
+	deadline := time.Now().Add(10 * time.Second)
+	var pid int
+	for pid == 0 && time.Now().Before(deadline) {
+		body, readErr := os.ReadFile(pidPath)
+		if readErr == nil {
+			n, convErr := strconv.Atoi(strings.TrimSpace(string(body)))
+			if convErr == nil && n > 0 {
+				pid = n
+				break
+			}
+		}
+		select {
+		case result := <-done:
+			t.Fatalf("ExecuteShell returned before recording a pid: %v", result.err)
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+	if pid == 0 {
+		cancel()
+		t.Fatal("shell did not record its pid")
+	}
+	cancel()
+
+	var result shellResult
+	select {
+	case result = <-done:
+	case <-time.After(12 * time.Second):
+		t.Fatal("ExecuteShell did not return after the context ended")
+	}
+	if !errors.Is(result.err, context.Canceled) {
+		t.Fatalf("ExecuteShell error = %v, want context.Canceled", result.err)
+	}
+	gone := false
+	for i := 0; i < 20; i++ {
+		if !shellProcessStillRunning(pid) {
+			gone = true
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if !gone {
+		t.Fatalf("process %d is still running after ExecuteShell returned", pid)
+	}
+}
+
+func TestExecuteShellDoesNotStartWhenContextAlreadyEnded(t *testing.T) {
+	skipIfWindowsPowerShellUnavailable(t)
+
+	workspaceDir := t.TempDir()
+	pidPath := filepath.Join(workspaceDir, "pid.txt")
+	var command string
+	if runtime.GOOS == "windows" {
+		command = "Set-Content -LiteralPath 'pid.txt' -Value $PID -Encoding ascii"
+	} else {
+		command = "echo $$ > pid.txt"
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, _, err := ExecuteShell(ctx, command, workspaceDir)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("ExecuteShell error = %v, want context.Canceled", err)
+	}
+	// A process that started despite the cancelled context would write the file.
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if _, statErr := os.Stat(pidPath); statErr == nil {
+			t.Fatal("pid.txt was created after a context that was already cancelled")
+		} else if !os.IsNotExist(statErr) {
+			t.Fatalf("stat pid.txt: %v", statErr)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+func shellProcessStillRunning(pid int) bool {
+	if pid <= 0 {
+		return false
+	}
+	if runtime.GOOS == "windows" {
+		out, err := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+			"Get-Process -Id "+strconv.Itoa(pid)+" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id").Output()
+		return err == nil && strings.TrimSpace(string(out)) == strconv.Itoa(pid)
+	}
+	proc, err := os.FindProcess(pid)
+	if err != nil || proc == nil {
+		return false
+	}
+	return proc.Signal(syscall.Signal(0)) == nil
 }
 
 func TestValidateShellCommandPolicyBlocksDangerousCommands(t *testing.T) {
@@ -123,7 +245,7 @@ func TestExecuteShellDoesNotInheritSensitiveEnv(t *testing.T) {
 	t.Cleanup(restore)
 	setSensitiveEnvForSubprocessTest(t)
 
-	stdout, stderr, err := ExecuteShell(shellPrintSensitiveEnvCommand(), t.TempDir())
+	stdout, stderr, err := ExecuteShell(context.Background(), shellPrintSensitiveEnvCommand(), t.TempDir())
 	if err != nil {
 		t.Fatalf("ExecuteShell() error = %v, stderr = %q", err, stderr)
 	}
@@ -230,7 +352,7 @@ func TestHostShellEntryPointsRefuseWithoutFlagOrSandbox(t *testing.T) {
 	ConfigureRuntimePermissions(perms)
 	t.Cleanup(func() { ConfigureRuntimePermissions(defaultRuntimePermissionsForTests()) })
 
-	if _, _, err := ExecuteShell("echo must-not-run", t.TempDir()); err == nil || !strings.Contains(err.Error(), "allow_unsandboxed_shell") {
+	if _, _, err := ExecuteShell(context.Background(), "echo must-not-run", t.TempDir()); err == nil || !strings.Contains(err.Error(), "allow_unsandboxed_shell") {
 		t.Fatalf("ExecuteShell() error = %v, want host shell gate", err)
 	}
 	if _, err := ExecuteShellBackground("echo must-not-run", t.TempDir(), NewProcessRegistry(slog.Default())); err == nil || !strings.Contains(err.Error(), "allow_unsandboxed_shell") {

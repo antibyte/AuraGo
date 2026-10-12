@@ -74,8 +74,24 @@
         d.nodes = Array.isArray(d.nodes) ? d.nodes.filter(isPlainObject) : [];
         d.edges = Array.isArray(d.edges) ? d.edges.filter(e => isPlainObject(e) && isPlainObject(e.source) && isPlainObject(e.target)) : [];
         d.settings = d.settings || {};
-        d.nodes.forEach(n => { n.params = n.params || {}; n.settings = n.settings || {}; n.position = n.position || { x: 0, y: 0 }; });
-        return d;
+        // A damaged emergency copy can repeat an id. node() keeps the first; the canvas card is keyed
+        // by id, so a later copy would be the one on screen. Drop the later copies. Edges stay and
+        // keep pointing at the id that remains. The server still rejects a duplicate id on save.
+        // The dropped count stays off the document: a save must not persist it.
+        const seen = new Set();
+        let droppedNodes = 0;
+        d.nodes = d.nodes.filter(n => {
+            if (n.id && seen.has(n.id)) { droppedNodes++; return false; }
+            if (n.id) seen.add(n.id);
+            return true;
+        });
+        d.nodes.forEach(n => {
+            n.params = n.params || {};
+            n.settings = n.settings || {};
+            const pos = isPlainObject(n.position) ? n.position : {};
+            n.position = { x: finite(pos.x), y: finite(pos.y) };
+        });
+        return { doc: d, droppedNodes };
     }
 
     const META_KEYS = ['name', 'description', 'settings'];
@@ -84,7 +100,9 @@
         const listeners = new Set();
         const undoStack = [];
         const redoStack = [];
-        const state = { doc: normalize(clone(doc)), version: 0 };
+        const opened = normalize(clone(doc));
+        const state = { doc: opened.doc, version: 0 };
+        let droppedNodes = opened.droppedNodes;
         // docGen counts the writes of the node and edge lists (applySet, replaceDoc).
         let docGen = 0;
 
@@ -715,7 +733,9 @@
         // replaceDoc swaps in a document from the server (conflict reload) and clears history.
         function replaceDoc(doc) {
             docGen += 1;
-            state.doc = normalize(clone(doc));
+            const next = normalize(clone(doc));
+            state.doc = next.doc;
+            droppedNodes = next.droppedNodes;
             undoStack.length = 0;
             redoStack.length = 0;
             emit({ kind: 'reset', nodes: [], edges: [], meta: true, structural: true });
@@ -730,6 +750,7 @@
             canRedo: () => redoStack.length > 0,
             on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
             toJSON: () => clone(state.doc),
+            repairs: () => ({ droppedNodes }),
             addNode, removeNodes, moveNodes, connect, disconnect, insertOnEdge, setParam, setLabel, setKey, setSettings,
             toggleDisabled, setFlow, fragment, paste, duplicate, replaceDoc
         };

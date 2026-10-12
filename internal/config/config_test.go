@@ -2646,6 +2646,29 @@ func TestLoadClampsHuggingFaceUploadAndAcceptsLegacyRouterURL(t *testing.T) {
 	}
 }
 
+func TestLoadClampsHuggingFaceDownloadMB(t *testing.T) {
+	for _, tc := range []struct {
+		raw  string
+		want int
+	}{
+		{"providers: []\nhuggingface:\n  max_download_mb: 99999\n", 2048},
+		{"providers: []\nhuggingface:\n  max_download_mb: 0\n", 512},
+		{"providers: []\nhuggingface:\n  max_download_mb: 100\n", 100},
+	} {
+		configPath := filepath.Join(t.TempDir(), "config.yaml")
+		if err := os.WriteFile(configPath, []byte(tc.raw), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		cfg, err := Load(configPath)
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if cfg.HuggingFace.MaxDownloadMB != tc.want {
+			t.Fatalf("max_download_mb in %q = %d, want %d", tc.raw, cfg.HuggingFace.MaxDownloadMB, tc.want)
+		}
+	}
+}
+
 func TestKnownProviderTypesIncludesHuggingFace(t *testing.T) {
 	if !knownProviderTypes["huggingface"] {
 		t.Fatal("knownProviderTypes must include huggingface for provider config validation")

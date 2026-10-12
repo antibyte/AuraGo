@@ -592,6 +592,16 @@
 .pw-page[data-workspace-page="config"] .config-icon-slot-112 { background-position: 20% 90.909091%; }
 .pw-page[data-workspace-page="config"] .config-icon-slot-113 { background-position: 30% 90.909091%; }
 .pw-page[data-workspace-page="config"] .config-icon-slot-114 { background-position: 40% 90.909091%; }
+.pw-page[data-workspace-page="config"] .config-icon-slot-115 { background-position: 50% 90.909091%; }
+.pw-page[data-workspace-page="config"] .config-icon-slot-116 { background-position: 60% 90.909091%; }
+.pw-page[data-workspace-page="config"] .config-icon-slot-117 { background-position: 70% 90.909091%; }
+.pw-page[data-workspace-page="config"] .config-icon-slot-118 { background-position: 80% 90.909091%; }
+.pw-page[data-workspace-page="config"] .config-icon-slot-119 { background-position: 90% 90.909091%; }
+.pw-page[data-workspace-page="config"] .config-icon-slot-120 { background-position: 100% 90.909091%; }
+.pw-page[data-workspace-page="config"] .config-icon-slot-121 { background-position: 0% 100%; }
+.pw-page[data-workspace-page="config"] .config-icon-slot-122 { background-position: 10% 100%; }
+.pw-page[data-workspace-page="config"] .config-icon-slot-123 { background-position: 20% 100%; }
+.pw-page[data-workspace-page="config"] .config-icon-slot-124 { background-position: 30% 100%; }
 
 .pw-page[data-workspace-page="config"] .cyd-token-code {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -1653,13 +1663,3 @@
         scroll-behavior: auto;
     }
 }
-
-.pw-page[data-workspace-page="config"] .config-icon-slot-115 { background-position: 50% 90.909091%; }
-.pw-page[data-workspace-page="config"] .config-icon-slot-116 { background-position: 60% 90.909091%; }
-.pw-page[data-workspace-page="config"] .config-icon-slot-117 { background-position: 70% 90.909091%; }
-.pw-page[data-workspace-page="config"] .config-icon-slot-118 { background-position: 80% 90.909091%; }
-.pw-page[data-workspace-page="config"] .config-icon-slot-119 { background-position: 90% 90.909091%; }
-.pw-page[data-workspace-page="config"] .config-icon-slot-120 { background-position: 100% 90.909091%; }
-.pw-page[data-workspace-page="config"] .config-icon-slot-121 { background-position: 0% 100%; }
-.pw-page[data-workspace-page="config"] .config-icon-slot-122 { background-position: 10% 100%; }
-.pw-page[data-workspace-page="config"] .config-icon-slot-123 { background-position: 20% 100%; }

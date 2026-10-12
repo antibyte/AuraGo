@@ -99,6 +99,7 @@ Your data stays with the installation. **Hosted models still see their request i
 6. [Tools](06-tools.md) — The big toolbox
 7. [Configuration](07-configuration.md) — Provider system and fine-tuning
 8. [Integrations](08-integrations.md) — From NAS boxes to radios
+    - [CYD Creator](25-cyd-creator.md) (chapter 25) — Apps for the Cheap Yellow Display
 9. [Memory](09-memory.md) — History, core facts, RAG, graph
 10. [Personality](10-personality.md) — Same toolbox, different attitude
 

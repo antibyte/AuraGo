@@ -55,7 +55,7 @@ func DockerCreateContainerWithOptions(cfg DockerConfig, name, image string, env 
 		return errJSON("reserved AuraGo local LLM container name")
 	}
 	if dockerutil.IsBoringGarageContainerName(name) || dockerutil.IsHomepageContainerName(name) || dockerutil.IsAuraGoAppContainerName(name) ||
-		dockerutil.IsSecurityProxyContainerName(name) {
+		dockerutil.IsSecurityProxyContainerName(name) || dockerutil.IsCYDCreatorBuilderContainerName(name) {
 		return errJSON("reserved AuraGo managed container name")
 	}
 
@@ -648,6 +648,9 @@ func DockerCreateVolume(cfg DockerConfig, name, driver string) string {
 	if acestep.IsResourceName(name) || dockerutil.IsLocalLLMVolumeName(name) {
 		return errJSON("reserved AuraGo local LLM volume name")
 	}
+	if dockerutil.IsCYDCreatorVolumeName(name) {
+		return errJSON("reserved AuraGo CYD Creator volume name")
+	}
 	if driver == "" {
 		driver = "local"
 	}
@@ -669,6 +672,9 @@ func DockerRemoveVolume(cfg DockerConfig, name string, force bool) string {
 	}
 	if acestep.IsResourceName(name) || dockerutil.IsLocalLLMVolumeName(name) {
 		return errJSON("reserved AuraGo local LLM volume name")
+	}
+	if dockerutil.IsCYDCreatorVolumeName(name) {
+		return errJSON("reserved AuraGo CYD Creator volume name")
 	}
 	forceParam := ""
 	if force {
@@ -1136,6 +1142,9 @@ func validateDockerBindMount(cfg DockerConfig, bind string) error {
 	if !spec.isHostPath {
 		if acestep.IsResourceName(spec.hostPath) || dockerutil.IsLocalLLMVolumeName(spec.hostPath) {
 			return fmt.Errorf("mounting reserved AuraGo local LLM volume %q is not allowed", spec.hostPath)
+		}
+		if dockerutil.IsCYDCreatorVolumeName(spec.hostPath) {
+			return fmt.Errorf("mounting reserved AuraGo CYD Creator volume %q is not allowed", spec.hostPath)
 		}
 		return nil // named Docker volume
 	}

@@ -11,7 +11,6 @@ import (
 	"net/http"
 	neturl "net/url"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -21,6 +20,7 @@ import (
 
 const defaultUserAgent = "AuraGo HuggingFace Integration"
 const maxJSONUploadMB = 10
+const maxDownloadMBCap = 2048
 
 type ClientConfig struct {
 	HubBaseURL            string
@@ -138,12 +138,13 @@ type CreateRepoOptions struct {
 }
 
 type UploadFileOptions struct {
-	RepoType  string
-	RepoID    string
-	Revision  string
-	Path      string
-	LocalPath string
-	Message   string
+	RepoType string
+	RepoID   string
+	Revision string
+	Path     string
+	Body     io.Reader
+	Size     int64
+	Message  string
 }
 
 type DiscussionOptions struct {
@@ -163,6 +164,9 @@ func NewClient(cfg ClientConfig) *Client {
 	}
 	if cfg.MaxDownloadMB <= 0 {
 		cfg.MaxDownloadMB = 512
+	}
+	if cfg.MaxDownloadMB > maxDownloadMBCap {
+		cfg.MaxDownloadMB = maxDownloadMBCap
 	}
 	if cfg.MaxUploadMB <= 0 {
 		cfg.MaxUploadMB = maxJSONUploadMB
@@ -276,18 +280,15 @@ func (c *Client) DownloadFile(ctx context.Context, opts DownloadFileOptions) (Do
 	if resp.ContentLength > maxBytes {
 		return DownloadResult{}, fmt.Errorf("download exceeds max_download_mb (%d MB)", c.cfg.MaxDownloadMB)
 	}
-	if err := os.MkdirAll(filepath.Dir(opts.Destination), 0o755); err != nil {
-		return DownloadResult{}, err
-	}
-	temp, err := os.CreateTemp(filepath.Dir(opts.Destination), ".aurago-huggingface-download-*")
+	temp, err := os.CreateTemp("", "aurago-huggingface-download-*")
 	if err != nil {
 		return DownloadResult{}, fmt.Errorf("create temporary download: %w", err)
 	}
 	tempPath := temp.Name()
-	published := false
+	keep := false
 	defer func() {
 		_ = temp.Close()
-		if !published {
+		if !keep {
 			_ = os.Remove(tempPath)
 		}
 	}()
@@ -307,11 +308,8 @@ func (c *Client) DownloadFile(ctx context.Context, opts DownloadFileOptions) (Do
 	if err := temp.Close(); err != nil {
 		return DownloadResult{}, fmt.Errorf("close temporary download: %w", err)
 	}
-	if err := replaceDownloadedFile(tempPath, opts.Destination); err != nil {
-		return DownloadResult{}, fmt.Errorf("publish Hugging Face download: %w", err)
-	}
-	published = true
-	return DownloadResult{Path: opts.Destination, Bytes: written}, nil
+	keep = true
+	return DownloadResult{Path: tempPath, Bytes: written}, nil
 }
 
 func (c *Client) DatasetSplits(ctx context.Context, dataset string) (map[string]interface{}, error) {
@@ -545,20 +543,14 @@ func (c *Client) UploadFile(ctx context.Context, opts UploadFileOptions) (map[st
 	if maxBytes > maxJSONUploadMB*1024*1024 {
 		maxBytes = maxJSONUploadMB * 1024 * 1024
 	}
-	file, err := os.Open(opts.LocalPath)
-	if err != nil {
-		return nil, err
+	if opts.Size < 0 {
+		return nil, fmt.Errorf("huggingface upload size is required")
 	}
-	defer file.Close()
-	info, err := file.Stat()
-	if err != nil {
-		return nil, err
-	}
-	if !info.Mode().IsRegular() {
-		return nil, fmt.Errorf("huggingface upload source must be a regular file")
-	}
-	if info.Size() > maxBytes {
+	if opts.Size > maxBytes {
 		return nil, smallUploadLimitError(c.cfg.MaxUploadMB)
+	}
+	if opts.Body == nil {
+		return nil, fmt.Errorf("huggingface upload body is required")
 	}
 	revision := defaultString(opts.Revision, "main")
 	p := "/api/" + repoPlural(opts.RepoType) + "/" + strings.Trim(opts.RepoID, "/") + "/commit/" + revision
@@ -572,16 +564,19 @@ func (c *Client) UploadFile(ctx context.Context, opts UploadFileOptions) (map[st
 	}
 	reader, writer := io.Pipe()
 	writeDone := make(chan error, 1)
+	body := opts.Body
 	go func() {
-		defer file.Close()
 		_, writeErr := fmt.Fprintf(writer, `{"summary":%s,"files":[{"path":%s,"content":"`, summaryJSON, pathJSON)
 		if writeErr == nil {
 			encoder := base64.NewEncoder(base64.StdEncoding, writer)
 			var written int64
-			written, writeErr = io.Copy(encoder, io.LimitReader(file, maxBytes+1))
+			written, writeErr = io.Copy(encoder, io.LimitReader(body, maxBytes+1))
 			closeErr := encoder.Close()
 			if writeErr == nil {
 				writeErr = closeErr
+			}
+			if writeErr == nil && written > opts.Size {
+				writeErr = fmt.Errorf("huggingface upload exceeded the declared size")
 			}
 			if writeErr == nil && written > maxBytes {
 				writeErr = smallUploadLimitError(c.cfg.MaxUploadMB)

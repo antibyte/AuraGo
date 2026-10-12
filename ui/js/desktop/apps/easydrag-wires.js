@@ -39,12 +39,19 @@
             const dst = byId ? byId.get(e.target.node) : ed.model.node(e.target.node);
             if (!src || !dst) return null;
             const outs = ed.model.outputs(src);
-            const idx = Math.max(0, outs.indexOf(e.source.port));
-            return {
-                a: G.portPoint(src.position, 'out', idx, outs.length),
-                b: G.portPoint(dst.position, 'in', 0, ed.model.outputs(dst).length),
-                src, dst
-            };
+            const idx = outs.indexOf(e.source.port);
+            const b = G.portPoint(dst.position, 'in', 0, ed.model.outputs(dst).length);
+            // An output the node type does not have is drawn under the card, so the
+            // edge can be selected and deleted. portPoint would sit on the only real
+            // output when the step has one. A missing step is still not drawn.
+            // New connections and paste still refuse that port on their own.
+            if (idx < 0) {
+                return {
+                    a: { x: src.position.x + G.NODE_W, y: src.position.y + G.nodeHeight(outs.length) + 8 },
+                    b, src, dst, broken: true
+                };
+            }
+            return { a: G.portPoint(src.position, 'out', idx, outs.length), b, src, dst };
         }
 
         function edgeState(e) {
@@ -81,6 +88,7 @@
             const state = edgeState(e);
             const cls = ['ed-edge'];
             if (state) cls.push('is-' + state);
+            if (geo.broken) cls.push('is-broken');
             if (e.source.port === 'error') cls.push('is-error-port');
             if (geo.src.settings.disabled || geo.dst.settings.disabled) cls.push('is-disabled');
             if (ed.selectedEdge === e.id) { cls.push('is-selected'); markedEdge = e.id; }

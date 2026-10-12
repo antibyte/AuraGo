@@ -223,6 +223,36 @@
                 '/js/desktop/apps/game-maker-studio.js'
             ]
         },
+        'cyd-creator': {
+            styles: appStyles('/css/desktop-app-cyd-creator.css'),
+            scripts: [
+                '/js/desktop/apps/cyd-creator-core.js',
+                '/js/desktop/apps/cyd-creator-api.js',
+                '/js/desktop/apps/cyd-creator-events.js',
+                '/js/desktop/apps/cyd-creator-geometry.js',
+                '/js/desktop/apps/cyd-creator-model.js',
+                '/js/desktop/apps/cyd-creator-render.js',
+                '/js/desktop/apps/cyd-creator-canvas.js',
+                '/js/desktop/apps/cyd-creator-interact.js',
+                '/js/desktop/apps/cyd-creator-palette.js',
+                '/js/desktop/apps/cyd-creator-inspector-fields.js',
+                '/js/desktop/apps/cyd-creator-inspector.js',
+                '/js/desktop/apps/cyd-creator-screens.js',
+                '/js/desktop/apps/cyd-creator-designer.js',
+                // CYD Creator plan 4b inserts geometry, model, render, canvas, interact, palette, inspector-fields, inspector, screens, designer above this line.
+                '/js/desktop/apps/cyd-creator-code.js',
+                '/js/desktop/apps/cyd-creator-dock.js',
+                '/js/desktop/apps/cyd-creator-agent.js',
+                '/js/desktop/apps/cyd-creator-home.js',
+                // CYD Creator plan 5 inserts serial, flasher, monitor, devices, transfer here.
+                '/js/desktop/apps/cyd-creator-serial.js',
+                '/js/desktop/apps/cyd-creator-flasher.js',
+                '/js/desktop/apps/cyd-creator-monitor.js',
+                '/js/desktop/apps/cyd-creator-devices.js',
+                '/js/desktop/apps/cyd-creator-transfer.js',
+                '/js/desktop/apps/cyd-creator-app.js'
+            ]
+        },
         'sip-phone': {
             styles: appStyles('/css/desktop-app-sip-phone.css'),
             scripts: ['/js/desktop/apps/sip-phone.js']
@@ -539,6 +569,7 @@
         'ruview': ['ruview'],
         'agent-chat': ['chat'],
         'cheater': ['cheater'],
+        'cyd-creator': ['cyd_creator'],
         'easydrag': ['easydrag'],
         'chess': [],
         'code-studio': ['codeStudio'],

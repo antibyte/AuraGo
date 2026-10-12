@@ -1,0 +1,161 @@
+{
+  "format": 1,
+  "template_version": "1.0.0",
+  "name": "Theme night",
+  "board": "esp32-2432s028r",
+  "orientation": "landscape",
+  "theme": "night",
+  "language": "de",
+  "timezone": "CET-1CEST,M3.5.0,M10.5.0/3",
+  "settings": {
+    "wifi": "optional",
+    "aurago_link": false,
+    "libraries": [],
+    "backlight": 100,
+    "statusbar_clock": true
+  },
+  "start_screen": "s_0001",
+  "screens": [
+    {
+      "id": "s_0001",
+      "name": "main",
+      "title": "Thema",
+      "transition": "none",
+      "style": {},
+      "widgets": [
+        {
+          "id": "w_0001",
+          "type": "statusbar",
+          "name": "sb",
+          "x": 0,
+          "y": 0,
+          "w": 320,
+          "h": 24,
+          "props": {
+            "show_clock": true,
+            "show_wifi": true
+          },
+          "style": {}
+        },
+        {
+          "id": "w_0002",
+          "type": "label",
+          "name": "lbl_big",
+          "x": 16,
+          "y": 32,
+          "w": 288,
+          "h": 36,
+          "props": {
+            "align": "center",
+            "size": 24,
+            "text": "22,5 °C"
+          },
+          "style": {}
+        },
+        {
+          "id": "w_0003",
+          "type": "button",
+          "name": "btn_go",
+          "x": 16,
+          "y": 76,
+          "w": 140,
+          "h": 40,
+          "props": {
+            "symbol": "play",
+            "text": "Los"
+          },
+          "style": {},
+          "events": [
+            {
+              "on": "clicked",
+              "action": {
+                "type": "logic",
+                "hint": "Start"
+              }
+            }
+          ]
+        },
+        {
+          "id": "w_0004",
+          "type": "button",
+          "name": "btn_text",
+          "x": 164,
+          "y": 76,
+          "w": 140,
+          "h": 40,
+          "props": {
+            "text": "Text"
+          },
+          "style": {}
+        },
+        {
+          "id": "w_0005",
+          "type": "slider",
+          "name": "sld",
+          "x": 16,
+          "y": 128,
+          "w": 180,
+          "h": 24,
+          "props": {
+            "value": 40
+          },
+          "style": {}
+        },
+        {
+          "id": "w_0006",
+          "type": "switch",
+          "name": "sw",
+          "x": 220,
+          "y": 126,
+          "w": 56,
+          "h": 28,
+          "props": {
+            "checked": true
+          },
+          "style": {}
+        },
+        {
+          "id": "w_0007",
+          "type": "checkbox",
+          "name": "chk",
+          "x": 16,
+          "y": 164,
+          "w": 180,
+          "h": 28,
+          "props": {
+            "checked": true,
+            "text": "Option"
+          },
+          "style": {}
+        },
+        {
+          "id": "w_0008",
+          "type": "bar",
+          "name": "bar",
+          "x": 16,
+          "y": 204,
+          "w": 180,
+          "h": 20,
+          "props": {
+            "value": 60
+          },
+          "style": {}
+        },
+        {
+          "id": "w_0009",
+          "type": "arc",
+          "name": "arc",
+          "x": 220,
+          "y": 160,
+          "w": 76,
+          "h": 76,
+          "props": {
+            "value": 70
+          },
+          "style": {}
+        }
+      ]
+    }
+  ],
+  "assets": []
+}

@@ -26,9 +26,9 @@ const sharedThree = {
             Object.keys(three).map(name => `export const ${name}=window.THREE.${name};`).join('\n') }));
     },
 };
-async function bundle(name, contents, target, plugins = [], format = 'iife') {
+async function bundle(name, contents, target, plugins = [], format = 'iife', resolveDir = process.cwd()) {
     packages.add(name);
-    const result = await build({ stdin: { contents, resolveDir: process.cwd() }, bundle: true,
+    const result = await build({ stdin: { contents, resolveDir }, bundle: true,
         format, target: 'es2022', minify: true, legalComments: 'inline', write: false,
         metafile: true, plugins, define: { 'process.env.NODE_ENV': '"production"',
             ...(format === 'iife' ? { 'import.meta.url': '__auragoVendorURL' } : {}) },
@@ -66,7 +66,9 @@ for (const [source, target] of [['three.module.js', 'three-0.186.1.module.min.js
 }
 await tree('three', 'examples/jsm/libs/draco/gltf', vendor + 'draco');
 await tree('esp-web-tools', 'dist/web', vendor + 'esp-web-tools');
-await bundle('esptool-js', "export { ESPLoader, Transport } from 'esptool-js';", vendor + 'ruview-esptool.js', [], 'esm');
+// RuView flasher: the esptool-js release ESP Web Tools pins (resolved from its directory, so its nested copy wins
+// over the newer top-level esptool-js the CYD Creator flasher uses).
+await bundle('esptool-js', "export { ESPLoader, Transport } from 'esptool-js';", vendor + 'ruview-esptool.js', [], 'esm', path.resolve('node_modules/esp-web-tools'));
 for (const dir of ['cmaps', 'standard_fonts', 'wasm', 'iccs']) await tree('pdfjs-dist', dir, vendor + 'pdf/' + dir);
 await bundle('three', "import * as THREE from 'three'; window.THREE={...THREE};", vendor + 'three.min.js');
 await bundle('markdown-it', "import markdownit from 'markdown-it'; window.markdownit=markdownit;", vendor + 'markdown-it.min.js');
@@ -76,6 +78,9 @@ for (const [name, dir] of [['GLTFLoader', 'loaders'], ['STLLoader', 'loaders'], 
 await bundle('3d-force-graph', "import ForceGraph3D from '3d-force-graph'; window.ForceGraph3D=ForceGraph3D;", vendor + '3d-force-graph.min.js', [sharedThree]);
 await bundle('mermaid', "import mermaid from 'mermaid'; window.mermaid=mermaid;", vendor + 'mermaid.min.js');
 await bundle('@novnc/novnc', "import RFB from '@novnc/novnc'; window.RFB=RFB;", vendor + 'novnc.min.js', [], 'esm');
+// CYD Creator flasher: an ES module the flasher imports lazily (pako and atob-lite are bundled in).
+await bundle('esptool-js', "export * from 'esptool-js';", vendor + 'esptool-js/esptool-js.min.mjs', [], 'esm');
+await copy('esptool-js', 'LICENSE', vendor + 'esptool-js/LICENSE.txt');
 
 // Await module initialization before Desktop loads the app that consumes it.
 outputs.set(vendor + 'pdf.min.js', Buffer.from(`const source = new URL(import.meta.url);
@@ -104,6 +109,10 @@ for (const [name, target, assets] of [
         ...(name === '3d-force-graph' ? { shared_three: '0.186.1' } : {}), files,
     }, null, 2) + '\n'));
 }
+outputs.set(vendor + 'esptool-js/README.md', Buffer.from(
+    `Vendored [esptool-js](https://github.com/espressif/esptool-js) ${lock.packages['node_modules/esptool-js'].version} (ES module bundle of \`lib/index.js\` with pako and atob-lite).\n` +
+    'Used by the CYD Creator flasher, which imports it lazily. Apache-2.0, see LICENSE.txt.\n' +
+    'Regenerate with `npm run build:browser-vendor`.\n'));
 outputs.set(vendor + 'esp-web-tools/README.md', Buffer.from(
     `Vendored [ESP Web Tools](https://github.com/esphome/esp-web-tools) ${lock.packages['node_modules/esp-web-tools'].version} (\`dist/web\`).\n` +
     'Used by the Cheap Yellow Display config flasher. Apache-2.0, see LICENSE.txt.\n' +

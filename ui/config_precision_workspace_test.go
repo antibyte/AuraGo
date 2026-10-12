@@ -2,7 +2,10 @@ package ui
 
 import (
 	"encoding/json"
+	"encoding/xml"
+	"errors"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -444,6 +447,14 @@ func TestConfigPrecisionWorkspaceNavigationAndDensityMarkers(t *testing.T) {
 	}
 }
 
+// The config sidebar sprite keeps eleven columns and grows by whole rows once
+// every cell is taken, so the cell of an existing slot never moves.
+const (
+	configSidebarIconColumns = 11
+	configSidebarIconRows    = 12
+	configSidebarIconCell    = 128
+)
+
 func TestConfigSidebarIconSpriteContract(t *testing.T) {
 	t.Parallel()
 
@@ -463,7 +474,7 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 	}
 
 	for _, marker := range []string{
-		`const CONFIG_SIDEBAR_ICON_GRID = Object.freeze({ columns: 11, rows: 12, cell: 128 });`,
+		fmt.Sprintf(`const CONFIG_SIDEBAR_ICON_GRID = Object.freeze({ columns: %d, rows: %d, cell: %d });`, configSidebarIconColumns, configSidebarIconRows, configSidebarIconCell),
 		`const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({`,
 		`const CONFIG_SIDEBAR_ICON_SYMBOLS = Object.freeze({`,
 		`function ensureConfigSidebarIconSymbols(`,
@@ -479,7 +490,7 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 	}
 
 	expectedKeys := expectedConfigSidebarIconKeys(t, mainJS)
-	const spriteCapacity = 11 * 12
+	const spriteCapacity = configSidebarIconColumns * configSidebarIconRows
 	if got := len(expectedKeys); got == 0 || got > spriteCapacity {
 		t.Fatalf("expected config sidebar key count = %d, want 1..%d", got, spriteCapacity)
 	}
@@ -492,9 +503,9 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 	}
 	for _, key := range expectedKeys {
 		slot := slotByKey[key]
-		column := slot % 11
-		row := slot / 11
-		svgMarker := fmt.Sprintf(`data-key="%s" data-slot="%d" transform="translate(%d %d)"`, key, slot, column*128, row*128)
+		column := slot % configSidebarIconColumns
+		row := slot / configSidebarIconColumns
+		svgMarker := fmt.Sprintf(`data-key="%s" data-slot="%d" transform="translate(%d %d)"`, key, slot, column*configSidebarIconCell, row*configSidebarIconCell)
 		if !strings.Contains(sprite, svgMarker) {
 			t.Fatalf("config sidebar SVG sprite missing exact cell marker %q", svgMarker)
 		}
@@ -510,8 +521,8 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 		if !strings.Contains(cell, symbol) {
 			t.Fatalf("inline symbol for %q does not match its SVG sprite cell", key)
 		}
-		x := configIconSpritePercent(float64(column) * 100 / 10)
-		y := configIconSpritePercent(float64(row) * 100 / 11)
+		x := configIconSpritePercent(float64(column) * 100 / (configSidebarIconColumns - 1))
+		y := configIconSpritePercent(float64(row) * 100 / (configSidebarIconRows - 1))
 		cssMarker := fmt.Sprintf(`.pw-page[data-workspace-page="config"] .config-icon-slot-%d { background-position: %s %s; }`, slot, x, y)
 		if !strings.Contains(css, cssMarker) {
 			t.Fatalf("config workspace CSS missing exact slot marker %q", cssMarker)
@@ -524,9 +535,10 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 		`.config-sidebar-icon-svg`,
 		`.config-sidebar-icon-sprite:empty`,
 		`background-image: url('/img/config-sidebar-icons.svg')`,
-		`background-size: 1100% 1200%`,
+		fmt.Sprintf(`background-size: %d%% %d%%`, configSidebarIconColumns*100, configSidebarIconRows*100),
 		`.pw-page[data-workspace-page="config"] .config-icon-slot-0 { background-position: 0% 0%; }`,
-		`.pw-page[data-workspace-page="config"] .config-icon-slot-110 { background-position: 0% 90.909091%; }`,
+		fmt.Sprintf(`.pw-page[data-workspace-page="config"] .config-icon-slot-%d { background-position: 0%% %s; }`, (configSidebarIconRows-2)*configSidebarIconColumns, configIconSpritePercent(float64(configSidebarIconRows-2)*100/(configSidebarIconRows-1))),
+		fmt.Sprintf(`.pw-page[data-workspace-page="config"] .config-icon-slot-%d { background-position: 0%% 100%%; }`, (configSidebarIconRows-1)*configSidebarIconColumns),
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("config workspace CSS missing sidebar sprite marker %q", marker)
@@ -534,7 +546,7 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 	}
 
 	for _, marker := range []string{
-		`<svg xmlns="http://www.w3.org/2000/svg" width="1408" height="1536" viewBox="0 0 1408 1536" role="img" aria-label="AuraGo config sidebar icon sprite">`,
+		fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="%[1]d" height="%[2]d" viewBox="0 0 %[1]d %[2]d" role="img" aria-label="AuraGo config sidebar icon sprite">`, configSidebarIconColumns*configSidebarIconCell, configSidebarIconRows*configSidebarIconCell),
 		`class="cfg-icon-cell"`,
 		`data-key="overview"`,
 		`data-key="danger_zone"`,
@@ -543,6 +555,7 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 			t.Fatalf("config sidebar SVG sprite missing marker %q", marker)
 		}
 	}
+	assertConfigSidebarSpriteIsWellFormed(t, sprite)
 	if got := strings.Count(sprite, `class="cfg-icon-cell"`); got != len(expectedKeys) {
 		t.Fatalf("config sidebar SVG sprite has %d icon cells, want %d", got, len(expectedKeys))
 	}
@@ -565,8 +578,8 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 	if err := json.Unmarshal(metadataBytes, &metadata); err != nil {
 		t.Fatalf("decode config sidebar sprite metadata: %v", err)
 	}
-	if metadata.Grid.Columns != 11 || metadata.Grid.Rows != 12 || metadata.Grid.CellSize != 128 {
-		t.Fatalf("metadata grid = %+v, want 11x12 cells of 128", metadata.Grid)
+	if metadata.Grid.Columns != configSidebarIconColumns || metadata.Grid.Rows != configSidebarIconRows || metadata.Grid.CellSize != configSidebarIconCell {
+		t.Fatalf("metadata grid = %+v, want %dx%d cells of %d", metadata.Grid, configSidebarIconColumns, configSidebarIconRows, configSidebarIconCell)
 	}
 	if got := len(metadata.Icons); got != len(expectedKeys) {
 		t.Fatalf("metadata has %d icons, want %d", got, len(expectedKeys))
@@ -600,13 +613,43 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 		if !ok {
 			t.Fatalf("metadata missing icon key %q", key)
 		}
-		if meta.slot != slot || meta.column != slot%11 || meta.row != slot/11 {
-			t.Fatalf("metadata for %q = slot %d column %d row %d, want slot %d column %d row %d", key, meta.slot, meta.column, meta.row, slot, slot%11, slot/11)
+		column, row := slot%configSidebarIconColumns, slot/configSidebarIconColumns
+		if meta.slot != slot || meta.column != column || meta.row != row {
+			t.Fatalf("metadata for %q = slot %d column %d row %d, want slot %d column %d row %d", key, meta.slot, meta.column, meta.row, slot, column, row)
 		}
 	}
 	for _, key := range []string{"docker", "github", "cloudflare_tunnel", "huggingface", "google_workspace", "telegram", "discord", "truenas", "grafana"} {
 		if metaByKey[key].sourceType != "brand" {
 			t.Fatalf("metadata source_type for brand icon %q = %q, want brand", key, metaByKey[key].sourceType)
+		}
+	}
+}
+
+// assertConfigSidebarSpriteIsWellFormed rejects XML errors and repeated
+// attributes. Browsers drop the whole standalone sprite on either, while the
+// inline HTML symbols silently keep the first value of a repeated attribute.
+func assertConfigSidebarSpriteIsWellFormed(t *testing.T, sprite string) {
+	t.Helper()
+	decoder := xml.NewDecoder(strings.NewReader(sprite))
+	for {
+		token, err := decoder.Token()
+		if errors.Is(err, io.EOF) {
+			return
+		}
+		if err != nil {
+			t.Fatalf("config sidebar SVG sprite is not well-formed XML: %v", err)
+		}
+		start, ok := token.(xml.StartElement)
+		if !ok {
+			continue
+		}
+		seen := make(map[xml.Name]bool, len(start.Attr))
+		for _, attr := range start.Attr {
+			if seen[attr.Name] {
+				line, _ := decoder.InputPos()
+				t.Fatalf("config sidebar SVG sprite repeats attribute %q on <%s> at line %d", attr.Name.Local, start.Name.Local, line)
+			}
+			seen[attr.Name] = true
 		}
 	}
 }

@@ -17,16 +17,6 @@ Manage local Ollama LLM instance: models, GPU memory, and inference.
 | `load` | Load model into GPU memory for fast inference | `model` |
 | `unload` | Unload model from GPU memory | `model` |
 
-### Container Operations
-
-| Operation | Description | Parameters |
-|-----------|-------------|------------|
-| `container_status` | Get Ollama container status | — |
-| `container_start` | Start the Ollama container | — |
-| `container_stop` | Stop the Ollama container | — |
-| `container_restart` | Restart the Ollama container | — |
-| `container_logs` | Get container logs | `tail` |
-
 ## Parameters
 
 | Parameter | Type | Required | Description |
@@ -34,7 +24,6 @@ Manage local Ollama LLM instance: models, GPU memory, and inference.
 | `model` | string | for show/pull/delete/load/unload | Model name (e.g. `llama3:latest`, `codellama:13b`, `mistral:7b`) |
 | `source` | string | for copy | Source model name |
 | `destination` | string | for copy | Destination model name |
-| `tail` | integer | for container_logs | Number of log lines to retrieve (default: 100) |
 
 ## Examples
 
@@ -62,10 +51,6 @@ Manage local Ollama LLM instance: models, GPU memory, and inference.
 {"action": "ollama", "operation": "unload", "model": "llama3:latest"}
 ```
 
-```json
-{"action": "ollama", "operation": "container_logs", "tail": 50}
-```
-
 ## Configuration
 
 ```yaml
@@ -87,6 +72,5 @@ ollama:
 
 - **Model naming**: Format is `modelname:tag` (e.g. `llama3:latest`, `mistral:7b`). Without tag, `:latest` is assumed.
 - **GPU memory**: `load` keeps model in GPU for fast responses; `unload` frees GPU memory when not needed.
-- **Container mode**: If Ollama runs in Docker, use container operations for lifecycle management.
 - **Read-only mode**: When `ollama.readonly: true`, pull/delete/copy/load/unload operations are blocked.
 - **Common models**: llama3, mistral, codellama, phi3, Gemma, neural-chat

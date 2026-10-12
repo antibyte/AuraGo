@@ -52,11 +52,13 @@ func TestOllamaModelManagementUsesCurrentModelField(t *testing.T) {
 
 		switch r.URL.Path {
 		case "/api/show":
-			_, _ = w.Write([]byte(`{"model_info":{"general.architecture":"llama"},"details":{"family":"llama"}}`))
+			_, _ = w.Write([]byte(`{"model_info":{"general.architecture":"llama","llama.context_length":8192,"tokenizer.ggml.tokens":"huge"},"details":{"family":"llama"}}`))
 		case "/api/pull":
 			_, _ = w.Write([]byte(`{"status":"success"}`))
 		case "/api/delete":
 			_, _ = w.Write([]byte(`{"status":"success"}`))
+		case "/api/generate":
+			_, _ = w.Write([]byte(`{"done":true}`))
 		default:
 			t.Errorf("unexpected path %s", r.URL.Path)
 			w.WriteHeader(http.StatusNotFound)
@@ -69,13 +71,23 @@ func TestOllamaModelManagementUsesCurrentModelField(t *testing.T) {
 		"show":   func() string { return OllamaShowModel(cfg, "llama3:latest") },
 		"pull":   func() string { return OllamaPullModel(cfg, "llama3:latest") },
 		"delete": func() string { return OllamaDeleteModel(cfg, "llama3:latest") },
+		"load":   func() string { return OllamaLoadModel(cfg, "llama3:latest") },
 	} {
-		if got := call(); !strings.Contains(got, `"status":"ok"`) {
+		got := call()
+		if !strings.Contains(got, `"status":"ok"`) {
 			t.Fatalf("%s response = %s, want ok", name, got)
+		}
+		if name == "show" {
+			if strings.Contains(got, "tokenizer.ggml.tokens") {
+				t.Fatalf("show kept an unrelated model_info key: %s", got)
+			}
+			if !strings.Contains(got, "llama.context_length") || !strings.Contains(got, "general.architecture") {
+				t.Fatalf("show dropped required model_info: %s", got)
+			}
 		}
 	}
 
-	for _, path := range []string{"/api/show", "/api/pull", "/api/delete"} {
+	for _, path := range []string{"/api/show", "/api/pull", "/api/delete", "/api/generate"} {
 		mu.Lock()
 		body := bodies[path]
 		mu.Unlock()
@@ -88,6 +100,16 @@ func TestOllamaModelManagementUsesCurrentModelField(t *testing.T) {
 		if body["model"] != "llama3:latest" {
 			t.Fatalf("%s model = %#v, want llama3:latest; body=%#v", path, body["model"], body)
 		}
+	}
+	mu.Lock()
+	load := bodies["/api/generate"]
+	mu.Unlock()
+	if load["prompt"] != "" {
+		t.Fatalf("load prompt = %#v, want empty string", load["prompt"])
+	}
+	keep, ok := load["keep_alive"].(float64)
+	if !ok || keep != -1 {
+		t.Fatalf("load keep_alive = %#v, want -1", load["keep_alive"])
 	}
 }
 

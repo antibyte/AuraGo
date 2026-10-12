@@ -17,7 +17,7 @@ Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a b
 ## The toy box
 
 - **Your home lab, on speaking terms.** Docker, Proxmox VMs and LXCs, TrueNAS, Home Assistant, MQTT, Fritz!Box, AdGuard, Tailscale, SSH and Wake-on-LAN. Inspect services, work with files, switch things on.
-- **A desktop with side quests.** Agent chat, files, terminal, gallery, calendar, radio and a Winamp-style music player. Code Studio for code, Homepage Studio for websites, Game Maker for single-player 2D/3D browser games.
+- **A desktop with side quests.** Agent chat, files, terminal, gallery, calendar, radio and a Winamp-style music player. Code Studio for code, Homepage Studio for websites, Game Maker for single-player 2D/3D browser games, CYD Creator for ESP32 touch-display apps.
 - **It remembers.** Conversation history, core facts, local embeddings, document RAG, a knowledge graph, notes and a journal. Personality traits, moods and an inner voice shape how it talks.
 - **Put it on autopilot.** Missions, cron schedules and webhooks start recurring work. Co-agents tackle subtasks. **Invasion Control** hatches worker “Eggs” on remote “Nests” over SSH or Docker. Yes, those are the actual names.
 - **Give it a computer.** Agent Workspaces provide disposable Firecracker VMs with a shell, files and a visible Chromium browser. The main agent does the thinking; the VM is its workbench.
@@ -29,7 +29,7 @@ Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a b
 - **Make things.** Documents, PDFs, images, music, video and websites through configured tools and providers. Connect GitHub, Google Workspace, S3, WebDAV and SQL; play media through Jellyfin or Chromecast.
 - **Plug in the weird stuff.** Klipper/Moonraker and Elegoo 3D printers, go2rtc cameras, Linux Bluetooth audio, and an **ESP32 Cheap Yellow Display** for a tiny desk dashboard. Extend further with Python Skills, Agent Skills and MCP.
 
-[All integrations](documentation/manual/en/08-integrations.md) · [Tool catalog](documentation/manual/en/22-internal-tools.md) · [Game Maker](documentation/game-maker-studio.md) · [Detective](documentation/detective.md) · [MeshCore](documentation/meshcore-en.md) · [Agent Workspaces](documentation/virtual_computers.md) · [Local Wikipedia](documentation/local-wikipedia.md)
+[All integrations](documentation/manual/en/08-integrations.md) · [Tool catalog](documentation/manual/en/22-internal-tools.md) · [Game Maker](documentation/game-maker-studio.md) · [Detective](documentation/detective.md) · [MeshCore](documentation/meshcore-en.md) · [Agent Workspaces](documentation/virtual_computers.md) · [Local Wikipedia](documentation/local-wikipedia.md) · [CYD Creator](documentation/cyd-creator.md)
 
 ### Yes, there is an actual desktop
 

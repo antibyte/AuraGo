@@ -1,0 +1,191 @@
+{
+  "format": 1,
+  "template_version": "1.0.0",
+  "name": "Reference Basic",
+  "board": "esp32-2432s028r",
+  "orientation": "landscape",
+  "theme": "night",
+  "language": "de",
+  "timezone": "CET-1CEST,M3.5.0,M10.5.0/3",
+  "settings": {
+    "wifi": "optional",
+    "aurago_link": true,
+    "libraries": [],
+    "backlight": 100,
+    "statusbar_clock": true
+  },
+  "start_screen": "s_0001",
+  "screens": [
+    {
+      "id": "s_0001",
+      "name": "home",
+      "title": "Start",
+      "transition": "fade",
+      "style": {},
+      "widgets": [
+        {
+          "id": "w_0001",
+          "type": "statusbar",
+          "name": "sb_home",
+          "x": 0,
+          "y": 0,
+          "w": 320,
+          "h": 24,
+          "props": {
+            "show_clock": true,
+            "show_wifi": true,
+            "title": "Start"
+          },
+          "style": {}
+        },
+        {
+          "id": "w_0002",
+          "type": "label",
+          "name": "lbl_temp",
+          "x": 20,
+          "y": 40,
+          "w": 280,
+          "h": 40,
+          "props": {
+            "align": "center",
+            "font": "montserrat",
+            "size": 28,
+            "text": "22,5 °C"
+          },
+          "style": {}
+        },
+        {
+          "id": "w_0003",
+          "type": "slider",
+          "name": "sld_level",
+          "x": 20,
+          "y": 104,
+          "w": 200,
+          "h": 24,
+          "props": {
+            "max": 100,
+            "min": 10,
+            "value": 100
+          },
+          "style": {},
+          "events": [
+            {
+              "on": "value_changed",
+              "action": {
+                "type": "logic",
+                "hint": "Sets the backlight to the slider value."
+              }
+            }
+          ]
+        },
+        {
+          "id": "w_0004",
+          "type": "switch",
+          "name": "sw_light",
+          "x": 244,
+          "y": 102,
+          "w": 56,
+          "h": 28,
+          "props": {
+            "checked": false
+          },
+          "style": {},
+          "events": [
+            {
+              "on": "value_changed",
+              "action": {
+                "type": "logic",
+                "hint": "Switches the RGB LED on or off."
+              }
+            }
+          ]
+        },
+        {
+          "id": "w_0005",
+          "type": "button",
+          "name": "btn_details",
+          "x": 20,
+          "y": 160,
+          "w": 280,
+          "h": 48,
+          "props": {
+            "symbol": "right",
+            "text": "Details"
+          },
+          "style": {},
+          "events": [
+            {
+              "on": "clicked",
+              "action": {
+                "type": "goto_screen",
+                "screen": "s_0002",
+                "transition": "slide_left"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s_0002",
+      "name": "details",
+      "title": "Details",
+      "transition": "slide_left",
+      "style": {},
+      "widgets": [
+        {
+          "id": "w_0006",
+          "type": "statusbar",
+          "name": "sb_details",
+          "x": 0,
+          "y": 0,
+          "w": 320,
+          "h": 24,
+          "props": {
+            "show_clock": true,
+            "show_wifi": true,
+            "title": "Details"
+          },
+          "style": {}
+        },
+        {
+          "id": "w_0007",
+          "type": "label",
+          "name": "lbl_info",
+          "x": 20,
+          "y": 40,
+          "w": 280,
+          "h": 104,
+          "props": {
+            "long_mode": "wrap",
+            "text": "Gebaut mit CYD Creator.\nWLAN und AuraGo-Link sind aktiv."
+          },
+          "style": {}
+        },
+        {
+          "id": "w_0008",
+          "type": "button",
+          "name": "btn_back",
+          "x": 20,
+          "y": 160,
+          "w": 136,
+          "h": 48,
+          "props": {
+            "symbol": "left",
+            "text": "Zurück"
+          },
+          "style": {},
+          "events": [
+            {
+              "on": "clicked",
+              "action": {
+                "type": "back"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "assets": []
+}

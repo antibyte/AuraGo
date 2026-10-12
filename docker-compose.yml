@@ -386,7 +386,8 @@ services:
   #     The browser-automation auto-build needs the Docker CLI, which the AuraGo
   #     image does not include; build that image on the host if you need it.
   #   - EXEC=1 is used by the agent's Docker exec, the Homepage tool, Code Studio
-  #     terminals, the built-in OpenSCAD compiler container, Web UI container
+  #     terminals, the built-in OpenSCAD compiler container, the CYD Creator
+  #     builder, Web UI container
   #     terminals (including the CommandCode Store terminal), the code sandbox
   #     and security-proxy reloads; see documentation/docker_installation.md §4
   #     before setting 0
@@ -417,7 +418,7 @@ services:
       - POST=1          # allow create/start/stop/remove (managed sidecars, Software Store, Invasion Control)
       - BUILD=0          # Docker build API stays disabled; images AuraGo builds itself need BUILD=1 (see SECURITY NOTES)
       - COMMIT=0
-      - EXEC=1          # agent Docker exec, Homepage tool, Code Studio, OpenSCAD compiler, container terminals, code sandbox, security-proxy reloads; see documentation/docker_installation.md §4 before setting 0
+      - EXEC=1          # agent Docker exec, Homepage tool, Code Studio, OpenSCAD compiler, CYD Creator builder, container terminals, code sandbox, security-proxy reloads; see documentation/docker_installation.md §4 before setting 0
       - SWARM=0
     healthcheck:
       # Enhanced healthcheck: verify both ping and container list API work

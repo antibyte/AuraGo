@@ -1,0 +1,34 @@
+Processing esp32-2432s028r (platform: espressif32@6.7.0; board: esp32dev; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32dev.html
+PLATFORM: Espressif 32 (6.7.0) > Espressif ESP32 Dev Module
+HARDWARE: ESP32 240MHz, 320KB RAM, 4MB Flash
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+Compiling .pio/build/esp32-2432s028r/src/app/app_main.cpp.o
+Compiling .pio/build/esp32-2432s028r/src/generated/ui.cpp.o
+In file included from /work/ccb_0123456789ab/src/app/app_main.cpp:2:
+/work/ccb_0123456789ab/src/app/sensors.h:5:13: warning: 'int counter' defined but not used [-Wunused-variable]
+    5 | static int counter = 0;
+      |             ^~~~~~~
+/work/ccb_0123456789ab/src/app/app_main.cpp: In function 'void app_loop()':
+/work/ccb_0123456789ab/src/app/app_main.cpp:42:5: error: 'update_weather' was not declared in this scope
+   42 |     update_weather();
+      |     ^~~~~~~~~~~~~~
+/work/ccb_0123456789ab/src/app/app_main.cpp:42:5: note: suggested alternative: 'update_weathr'
+   42 |     update_weather();
+      |     ^~~~~~~~~~~~~~
+      |     update_weathr
+In file included from /work/ccb_0123456789ab/src/app/app_events.cpp:1:
+/work/ccb_0123456789ab/src/app/sensors.h:5:13: warning: 'int counter' defined but not used [-Wunused-variable]
+/work/ccb_0123456789ab/src/app/app_main.cpp:3:10: fatal error: missing_lib.h: No such file or directory
+compilation terminated.
+/work/ccb_0123456789ab/src/generated/ui.cpp:118:22: error: 'ui_lbl_temp' was not declared in this scope
+In file included from /root/.platformio/packages/framework-arduinoespressif32/cores/esp32/Arduino.h:36,
+                 from /work/ccb_0123456789ab/src/app/app_main.cpp:1:
+/root/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-gpio.h:80:6: note: declared here
+/work/ccb_0123456789ab/.pio/libdeps/esp32-2432s028r/lvgl/src/misc/lv_types.h:40:2: warning: #warning "LV_CONF_INCLUDE_SIMPLE is deprecated" [-Wcpp]
+/root/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src/WiFiGeneric.h:120:10: error: 'wifi_event_t' has not been declared
+/work/ccb_0123456789ab/lib/cyd_template/src/cyd_wifi.cpp:77:9: warning: unused variable 'retries' [-Wunused-variable]
+*** [.pio/build/esp32-2432s028r/src/app/app_main.cpp.o] Error 1
+========================= [FAILED] Took 41.27 seconds =========================

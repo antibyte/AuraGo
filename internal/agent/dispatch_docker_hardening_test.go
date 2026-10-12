@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 
 	"aurago/internal/config"
@@ -113,6 +114,36 @@ func TestDispatchDockerCreateRunHardeningBlocksBeforeDocker(t *testing.T) {
 			name: "reserved security proxy name with case and spaces",
 			call: ToolCall{Action: "docker", Operation: "create", Name: " AURAGO-SECURITY-PROXY ", Image: "caddy:latest"},
 			code: "docker_managed_security_proxy_resource",
+		},
+		{
+			name: "reserved cyd builder create name",
+			call: ToolCall{Action: "docker", Operation: "create", Name: "aurago-cyd-builder", Image: "alpine:latest"},
+			code: "docker_managed_cyd_creator_resource",
+		},
+		{
+			name: "reserved cyd builder run name behind decoy container_id",
+			call: ToolCall{Action: "docker", Operation: "run", ContainerID: "decoy", Name: "aurago-cyd-builder", Image: "alpine:latest"},
+			code: "docker_managed_cyd_creator_resource",
+		},
+		{
+			name: "reserved cyd builder name with case and spaces",
+			call: ToolCall{Action: "docker", Operation: "create", Name: " AURAGO-CYD-BUILDER ", Image: "alpine:latest"},
+			code: "docker_managed_cyd_creator_resource",
+		},
+		{
+			name: "cyd builder image run",
+			call: ToolCall{Action: "docker", Operation: "run", Name: "job", Image: "ghcr.io/antibyte/aurago-cyd-builder:1"},
+			code: "docker_managed_cyd_creator_resource",
+		},
+		{
+			name: "cyd builder image pull by digest",
+			call: ToolCall{Action: "docker", Operation: "pull", Image: "ghcr.io/antibyte/aurago-cyd-builder@sha256:" + strings.Repeat("d", 64)},
+			code: "docker_managed_cyd_creator_resource",
+		},
+		{
+			name: "cyd builder image forced removal",
+			call: ToolCall{Action: "docker", Operation: "remove_image", Image: "GHCR.IO/antibyte/aurago-cyd-builder:latest", Force: true},
+			code: "docker_managed_cyd_creator_resource",
 		},
 		{
 			name: "reserved homepage image",
@@ -246,11 +277,12 @@ func TestDispatchDockerReservedNameChecksAllowGenericNamesNextToContainerID(t *t
 	cfg.Directories.WorkspaceDir = t.TempDir()
 
 	for _, operation := range []string{"create", "run"} {
-		for _, name := range []string{"worker", "custom-caddy", "aurago-lab", "homepage-notes", "aurago-code-studio", "aurago-openscad"} {
+		for _, name := range []string{"worker", "custom-caddy", "aurago-lab", "homepage-notes", "aurago-code-studio", "aurago-openscad", "aurago-cyd-builder-it", "cyd-builder"} {
 			for _, containerID := range []string{"", "decoy"} {
 				call := ToolCall{Action: "docker", Operation: operation, ContainerID: containerID, Name: name, Image: "alpine:latest"}
 				req := decodeDockerArgs(call)
-				if dockerRequestTargetsManagedHomepage(req) || dockerRequestTargetsAuraGoApp(req) || dockerRequestCreatesReservedGarageName(req) {
+				if dockerRequestTargetsManagedHomepage(req) || dockerRequestTargetsAuraGoApp(req) || dockerRequestCreatesReservedGarageName(req) ||
+					dockerRequestCreatesReservedCYDCreatorName(req) {
 					t.Errorf("%s name=%q container_id=%q: reserved-name check matched a generic name", operation, name, containerID)
 				}
 				output, ok := dispatchServices(context.Background(), call, &DispatchContext{Cfg: cfg, Logger: testLogger})
@@ -346,6 +378,151 @@ func TestDispatchDockerKeepsSecurityProxyContainerAccess(t *testing.T) {
 	for _, name := range []string{"caddy", "security-proxy", "aurago-security-proxy-test"} {
 		if dockerRequestCreatesReservedSecurityProxyName(decodeDockerArgs(ToolCall{Action: "docker", Operation: "run", Name: name, Image: "caddy:latest"})) {
 			t.Fatalf("generic name %q was treated as the reserved security proxy name", name)
+		}
+	}
+}
+
+// The CYD Creator builder compiles every project from its shared cache volume:
+// the agent docker tool refuses every operation on the builder (by name, or by
+// ID through its label), every mount and volume create/remove of its two
+// volumes, and hides them from the lists. The test and CI volumes stay usable.
+func TestDispatchDockerBlocksTheCYDCreatorBuilderAndVolumes(t *testing.T) {
+	const builderLabels = `{"aurago.managed":"cyd-creator","aurago.component":"cyd-creator","aurago.role":"builder","aurago.fingerprint":"0123456789abcdef"}`
+	var mu sync.Mutex
+	var mutations []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			mu.Lock()
+			mutations = append(mutations, r.Method+" "+path+"?"+r.URL.RawQuery)
+			mu.Unlock()
+		}
+		switch {
+		case path == "/version":
+			_, _ = w.Write([]byte(`{"ApiVersion":"1.45","MinAPIVersion":"1.25"}`))
+		case strings.HasSuffix(path, "/containers/aurago-cyd-builder/json"):
+			_, _ = w.Write([]byte(`{"Id":"cccccccccccc3333","Name":"/aurago-cyd-builder","Config":{"Labels":` + builderLabels + `}}`))
+		case strings.HasSuffix(path, "/containers/cccccccccccc/json"):
+			_, _ = w.Write([]byte(`{"Id":"cccccccccccc3333","Name":"/renamed-builder","Config":{"Labels":` + builderLabels + `}}`))
+		case strings.HasSuffix(path, "/containers/json"):
+			_, _ = w.Write([]byte(`[
+				{"Id":"cccccccccccc3333","Names":["/aurago-cyd-builder"],"Image":"ghcr.io/antibyte/aurago-cyd-builder:1","State":"running","Status":"Up","Labels":` + builderLabels + `},
+				{"Id":"aaaaaaaaaaaa1111","Names":["/web"],"Image":"nginx:1","State":"running","Status":"Up","Labels":{}}
+			]`))
+		case strings.HasSuffix(path, "/volumes") && r.Method == http.MethodGet:
+			_, _ = w.Write([]byte(`{"Volumes":[
+				{"Name":"aurago-cyd-work","Driver":"local","Labels":{"aurago.managed":"cyd-creator","aurago.role":"work"}},
+				{"Name":"aurago-cyd-cache","Driver":"local","Labels":{"aurago.managed":"cyd-creator","aurago.role":"cache"}},
+				{"Name":"aurago-cyd-cache-it","Driver":"local","Labels":null}
+			]}`))
+		case strings.HasSuffix(path, "/containers/create"):
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"Id":"bbbbbbbbbbbb2222"}`))
+		case strings.HasSuffix(path, "/volumes/create"):
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"Name":"aurago-cyd-cache-it"}`))
+		case r.Method == http.MethodPost && strings.HasSuffix(path, "/start"):
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+	cfg := &config.Config{}
+	cfg.Docker.Enabled = true
+	cfg.Docker.Host = "tcp://" + strings.TrimPrefix(server.URL, "http://")
+	cfg.Directories.WorkspaceDir = t.TempDir()
+	useRuntimePermissionsForTest(t, cfg)
+	dispatch := func(call ToolCall) string {
+		t.Helper()
+		output, ok := dispatchServices(context.Background(), call, &DispatchContext{Cfg: cfg, Logger: testLogger})
+		if !ok {
+			t.Fatal("expected docker operation to be handled")
+		}
+		return output
+	}
+	const code = `"code":"docker_managed_cyd_creator_resource"`
+
+	var blocked []ToolCall
+	for _, target := range []string{"aurago-cyd-builder", "cccccccccccc"} {
+		for _, operation := range []string{"inspect", "logs", "stats", "top", "port", "start", "stop", "restart", "pause", "unpause", "remove", "connect", "disconnect"} {
+			blocked = append(blocked, ToolCall{Action: "docker", Operation: operation, ContainerID: target, Network: "bridge"})
+		}
+		blocked = append(blocked,
+			ToolCall{Action: "docker", Operation: "exec", ContainerID: target, Command: "sh -c 'touch /cache/x'"},
+			ToolCall{Action: "docker", Operation: "cp", ContainerID: target, Source: "evil.o", Destination: "/cache/build/x.o", Direction: "to_container"},
+		)
+	}
+	for _, volumes := range [][]string{{"aurago-cyd-cache:/cache"}, {"aurago-cyd-work:/work:ro"}, {"data:/data", " AURAGO-CYD-CACHE :/x"}} {
+		blocked = append(blocked, ToolCall{Action: "docker", Operation: "run", Name: "job", Image: "alpine:latest", Volumes: volumes})
+	}
+	for _, operation := range []string{"create_volume", "remove_volume"} {
+		for _, name := range []string{"aurago-cyd-work", "aurago-cyd-cache"} {
+			blocked = append(blocked, ToolCall{Action: "docker", Operation: operation, Name: name, Force: true})
+		}
+	}
+	for _, call := range blocked {
+		if output := dispatch(call); !strings.Contains(output, code) || !strings.Contains(output, "CYD Creator") {
+			t.Fatalf("%s %s %v = %s, want %s", call.Operation, call.ContainerID+call.Name, call.Volumes, output, code)
+		}
+	}
+	mu.Lock()
+	if len(mutations) != 0 {
+		t.Fatalf("refused operations reached Docker: %v", mutations)
+	}
+	mu.Unlock()
+
+	// Test and CI volumes stay usable.
+	for _, call := range []ToolCall{
+		{Action: "docker", Operation: "run", Name: "it-job", Image: "aurago-cyd-builder:dev", Volumes: []string{"aurago-cyd-work-it:/work", "aurago-cyd-cache-it:/cache"}},
+		{Action: "docker", Operation: "create", Name: "ci-job", Image: "alpine:latest", Volumes: []string{"cyd-ci-cache:/cache"}},
+		{Action: "docker", Operation: "create_volume", Name: "aurago-cyd-cache-it"},
+	} {
+		if output := dispatch(call); strings.Contains(output, "docker_managed") || strings.Contains(output, `"status":"error"`) {
+			t.Fatalf("%s %s %v = %s, want it to reach Docker", call.Operation, call.Name, call.Volumes, output)
+		}
+	}
+
+	// The lists hide the builder and both volumes.
+	containers := dispatch(ToolCall{Action: "docker", Operation: "list_containers", All: true})
+	if strings.Contains(containers, "aurago-cyd-builder") || !strings.Contains(containers, `"/web"`) {
+		t.Fatalf("list_containers = %s, want the builder hidden and web listed", containers)
+	}
+	volumes := dispatch(ToolCall{Action: "docker", Operation: "list_volumes"})
+	if strings.Contains(volumes, `"aurago-cyd-work"`) || strings.Contains(volumes, `"aurago-cyd-cache"`) || !strings.Contains(volumes, `"aurago-cyd-cache-it"`) {
+		t.Fatalf("list_volumes = %s, want both builder volumes hidden and the test volume listed", volumes)
+	}
+
+	got := dockerComposeOwnerDenial(dockerutil.CYDCreatorOwner)
+	if !strings.Contains(got, code) || !strings.Contains(got, "Use the CYD Creator app") {
+		t.Fatalf("compose CYD Creator denial = %s, want %s", got, code)
+	}
+}
+
+// I2: a configured local builder image (aurago-cyd-builder:dev) is reserved like
+// the published one; without that setting the tag is an ordinary image.
+func TestDispatchDockerRefusesTheConfiguredCYDCreatorImage(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Docker.Enabled = true
+	cfg.Docker.ReadOnly = true // an allowed call stops at the read-only gate, before Docker
+	cfg.Docker.Host = "tcp://127.0.0.1:1"
+	cfg.Directories.WorkspaceDir = t.TempDir()
+	calls := []ToolCall{
+		{Action: "docker", Operation: "run", Name: "job", Image: "aurago-cyd-builder:dev"},
+		{Action: "docker", Operation: "pull", Image: "docker.io/library/aurago-cyd-builder:other"},
+		{Action: "docker", Operation: "rmi", Image: "aurago-cyd-builder:dev", Force: true},
+	}
+	for _, configured := range []string{"", "aurago-cyd-builder:dev"} {
+		cfg.CYDCreator.BuilderImage = configured
+		for _, call := range calls {
+			output, ok := dispatchServices(context.Background(), call, &DispatchContext{Cfg: cfg, Logger: testLogger})
+			if !ok {
+				t.Fatal("expected docker operation to be handled")
+			}
+			refused := strings.Contains(output, `"code":"docker_managed_cyd_creator_resource"`)
+			if refused != (configured != "") {
+				t.Fatalf("configured %q, %s %s = %s", configured, call.Operation, call.Image, output)
+			}
 		}
 	}
 }

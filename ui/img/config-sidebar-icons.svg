@@ -233,15 +233,15 @@
   </g>
   <g class="cfg-icon-cell" data-key="telegram" data-slot="59" transform="translate(512 640)">
     <title>telegram</title>
-    <circle cx="64" cy="64" r="39" fill="#2aabee"/><path d="M43 63 89 42 80 89 66 75 58 84 57 70z" fill="#ffffff"/><path d="m57 70 29-25-20 30" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#2aabee" stroke-width="4"/>
+    <circle cx="64" cy="64" r="39" fill="#2aabee"/><path d="M43 63 89 42 80 89 66 75 58 84 57 70z" fill="#ffffff"/><path d="m57 70 29-25-20 30" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#2aabee"/>
   </g>
   <g class="cfg-icon-cell" data-key="discord" data-slot="60" transform="translate(640 640)">
     <title>discord</title>
-    <path d="M42 42c15-8 29-8 44 0l8 34c-8 8-16 12-25 13l-5-8-5 8c-9-1-17-5-25-13z" fill="#5865f2"/><circle cx="53" cy="63" r="5" fill="#ffffff"/><circle cx="75" cy="63" r="5" fill="#ffffff"/><path d="M51 77c9 5 17 5 26 0" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#ffffff" stroke-width="4"/>
+    <path d="M42 42c15-8 29-8 44 0l8 34c-8 8-16 12-25 13l-5-8-5 8c-9-1-17-5-25-13z" fill="#5865f2"/><circle cx="53" cy="63" r="5" fill="#ffffff"/><circle cx="75" cy="63" r="5" fill="#ffffff"/><path d="M51 77c9 5 17 5 26 0" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#ffffff"/>
   </g>
   <g class="cfg-icon-cell" data-key="rocketchat" data-slot="61" transform="translate(768 640)">
     <title>rocketchat</title>
-    <path d="M32 43h61c7 0 12 5 12 12v20c0 7-5 12-12 12H58l-21 14V87h-5c-7 0-12-5-12-12V55c0-7 5-12 12-12z" fill="#f5455c" opacity=".9"/><path d="M42 63h43M42 76h28" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#f6cf58" stroke-width="5"/>
+    <path d="M32 43h61c7 0 12 5 12 12v20c0 7-5 12-12 12H58l-21 14V87h-5c-7 0-12-5-12-12V55c0-7 5-12 12-12z" fill="#f5455c" opacity=".9"/><path d="M42 63h43M42 76h28" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#f6cf58"/>
   </g>
   <g class="cfg-icon-cell" data-key="telnyx" data-slot="62" transform="translate(896 640)">
     <title>telnyx</title>
@@ -297,7 +297,7 @@
   </g>
   <g class="cfg-icon-cell" data-key="adguard" data-slot="75" transform="translate(1152 768)">
     <title>adguard</title>
-    <path d="M64 23 32 37v27c0 22 14 36 32 43 18-7 32-21 32-43V37z" fill="#67b279"/><path d="m47 65 12 12 26-31" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#ffffff" stroke-width="7"/>
+    <path d="M64 23 32 37v27c0 22 14 36 32 43 18-7 32-21 32-43V37z" fill="#67b279"/><path d="m47 65 12 12 26-31" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#ffffff"/>
   </g>
   <g class="cfg-icon-cell" data-key="fritzbox" data-slot="76" transform="translate(1280 768)">
     <title>fritzbox</title>
@@ -309,7 +309,7 @@
   </g>
   <g class="cfg-icon-cell" data-key="truenas" data-slot="78" transform="translate(128 896)">
     <title>truenas</title>
-    <path d="m64 22 21 12v24L64 70 43 58V34z" fill="#0095d5"/><path d="m31 66 21 12v24L31 114 10 102V78zM97 66l21 12v24l-21 12-21-12V78z" fill="#00aeef" opacity=".82"/><path d="M43 58 31 66M85 58l12 8M52 78l12-8 12 8" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#9eb3c9" stroke-width="4"/>
+    <path d="m64 22 21 12v24L64 70 43 58V34z" fill="#0095d5"/><path d="m31 66 21 12v24L31 114 10 102V78zM97 66l21 12v24l-21 12-21-12V78z" fill="#00aeef" opacity=".82"/><path d="M43 58 31 66M85 58l12 8M52 78l12-8 12 8" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#9eb3c9"/>
   </g>
   <g class="cfg-icon-cell" data-key="uptime_kuma" data-slot="79" transform="translate(256 896)">
     <title>uptime_kuma</title>
@@ -325,7 +325,7 @@
   </g>
   <g class="cfg-icon-cell" data-key="proxmox" data-slot="82" transform="translate(640 896)">
     <title>proxmox</title>
-    <path d="M28 38h30l16 26-16 26H28l16-26z" fill="#e57000"/><path d="M70 38h30L84 64l16 26H70L54 64z" fill="#28394a"/><path d="M49 45 79 83M79 45 49 83" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#f8fafc" stroke-width="5"/>
+    <path d="M28 38h30l16 26-16 26H28l16-26z" fill="#e57000"/><path d="M70 38h30L84 64l16 26H70L54 64z" fill="#28394a"/><path d="M49 45 79 83M79 45 49 83" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#f8fafc"/>
   </g>
   <g class="cfg-icon-cell" data-key="frigate" data-slot="83" transform="translate(768 896)">
     <title>frigate</title>
@@ -365,7 +365,7 @@
   </g>
   <g class="cfg-icon-cell" data-key="virustotal" data-slot="92" transform="translate(512 1024)">
     <title>virustotal</title>
-    <circle cx="64" cy="64" r="34" fill="#394eff" opacity=".9"/><path d="M64 29v70M29 64h70M39 39l50 50M89 39 39 89" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#35c7d3" stroke-width="5"/>
+    <circle cx="64" cy="64" r="34" fill="#394eff" opacity=".9"/><path d="M64 29v70M29 64h70M39 39l50 50M89 39 39 89" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#35c7d3"/>
   </g>
   <g class="cfg-icon-cell" data-key="ai_gateway" data-slot="93" transform="translate(640 1024)">
     <title>ai_gateway</title>
@@ -377,7 +377,7 @@
   </g>
   <g class="cfg-icon-cell" data-key="huggingface" data-slot="95" transform="translate(896 1024)">
     <title>huggingface</title>
-    <circle cx="64" cy="64" r="38" fill="#ffd21e"/><circle cx="51" cy="57" r="5" fill="#111827"/><circle cx="77" cy="57" r="5" fill="#111827"/><path d="M48 76c9 9 23 9 32 0" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#111827" stroke-width="5"/><text x="64" y="95" text-anchor="middle" dominant-baseline="middle" font-family="Geist, Inter, Segoe UI, Arial, sans-serif" font-size="17" font-weight="800" fill="#111827">HF</text>
+    <circle cx="64" cy="64" r="38" fill="#ffd21e"/><circle cx="51" cy="57" r="5" fill="#111827"/><circle cx="77" cy="57" r="5" fill="#111827"/><path d="M48 76c9 9 23 9 32 0" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#111827"/><text x="64" y="95" text-anchor="middle" dominant-baseline="middle" font-family="Geist, Inter, Segoe UI, Arial, sans-serif" font-size="17" font-weight="800" fill="#111827">HF</text>
   </g>
   <g class="cfg-icon-cell" data-key="evomap" data-slot="96" transform="translate(1024 1024)">
     <title>evomap</title>
@@ -467,5 +467,6 @@
   <g class="cfg-icon-cell" data-key="local_wikipedia" data-slot="120" transform="translate(1280 1280)"><title>local_wikipedia</title><path d="M24 36c14-7 28-7 40 3v60c-12-9-26-9-40-3z" fill="#7da3c8" opacity=".2"/><path d="M104 36c-14-7-28-7-40 3v60c12-9 26-9 40-3z" fill="#35c7d3" opacity=".2"/><path d="M24 36c14-7 28-7 40 3 12-10 26-10 40-3v60c-14-6-28-6-40 3-12-9-26-9-40-3zM64 39v60" fill="none" stroke="#7da3c8" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><path d="M33 54l5 18 5-13 5 13 5-18" fill="none" stroke="#35c7d3" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></g>
   <g class="cfg-icon-cell" data-key="gog" data-slot="121" transform="translate(0 1408)"><title>gog</title><rect x="22" y="28" width="52" height="40" rx="8" fill="#4285f4" opacity=".2"/><rect x="40" y="46" width="52" height="40" rx="8" fill="#34a853" opacity=".25"/><path d="M22 28h52v40H22zM40 46h52v40H40z" fill="none" stroke="#4285f4" stroke-width="6" stroke-linejoin="round"/><circle cx="66" cy="66" r="7" fill="#f6cf58"/></g>
   <g class="cfg-icon-cell" data-key="ruview" data-slot="122" transform="translate(128 1408)"><title>ruview</title><path d="M28 78a36 36 0 0 1 72 0M40 78a24 24 0 0 1 48 0M52 78a12 12 0 0 1 24 0" fill="none" stroke="#35c7d3" stroke-width="6" stroke-linecap="round"/><circle cx="64" cy="78" r="6" fill="#6fca8f"/><path d="M64 84v16M52 92l12-8 12 8" fill="none" stroke="#7da3c8" stroke-width="6" stroke-linecap="round"/></g>
-  <g class="cfg-icon-cell" data-key="decisions" data-slot="123" transform="translate(256 1408)"><title>decisions</title><path d="M64 17 86 39 64 61 42 39z" fill="#35c7d3" opacity=".25"/><path d="M64 17 86 39 64 61 42 39zM64 61v14M32 94V75h64v19" fill="none" stroke="#35c7d3" stroke-width="6" stroke-linejoin="round"/><rect x="20" y="91" width="24" height="22" rx="5" fill="#6fca8f"/><rect x="84" y="91" width="24" height="22" rx="5" fill="#7da3c8"/></g>
+  <g class="cfg-icon-cell" data-key="cyd_creator" data-slot="123" transform="translate(256 1408)"><title>cyd_creator</title><rect x="22" y="30" width="84" height="64" rx="10" fill="#f0b54a" opacity=".22"/><rect x="22" y="30" width="84" height="64" rx="10" fill="none" stroke="#f0b54a" stroke-width="6" stroke-linejoin="round"/><rect x="36" y="44" width="42" height="34" rx="4" fill="none" stroke="#35c7d3" stroke-width="5" stroke-linejoin="round"/><path d="M44 56h26M44 66h14" fill="none" stroke="#35c7d3" stroke-width="5" stroke-linecap="round"/><circle cx="92" cy="46" r="4.5" fill="#ef6f78"/></g>
+  <g class="cfg-icon-cell" data-key="decisions" data-slot="124" transform="translate(384 1408)"><title>decisions</title><path d="M64 17 86 39 64 61 42 39z" fill="#35c7d3" opacity=".25"/><path d="M64 17 86 39 64 61 42 39zM64 61v14M32 94V75h64v19" fill="none" stroke="#35c7d3" stroke-width="6" stroke-linejoin="round"/><rect x="20" y="91" width="24" height="22" rx="5" fill="#6fca8f"/><rect x="84" y="91" width="24" height="22" rx="5" fill="#7da3c8"/></g>
 </svg>

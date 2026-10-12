@@ -300,8 +300,9 @@ func audit17ReasonOf(l *svcLogs, part string) []string {
 }
 
 // Review M1: only a flow that is switched off is logged as switched off (Info). When its
-// switch cannot be read, because Mission Control is not available or holds no mission for
-// the flow, the skip is a Warn naming that reason. The occurrence is consumed either way.
+// switch cannot be read, the skip is a Warn naming that reason. A missing mission is
+// consumed. Mission Control that cannot be read (ErrMissionControlUnavailable) leaves the
+// occurrence and retries it; no run starts during the retries.
 func TestAudit17UnreadableSwitchIsAWarnWithItsReason(t *testing.T) {
 	ctx := context.Background()
 	for _, tc := range []struct {
@@ -309,13 +310,14 @@ func TestAudit17UnreadableSwitchIsAWarnWithItsReason(t *testing.T) {
 		setup func(b *ff1ReconBridge, missionID string)
 		want  []string // log lines: level and reason
 		about string   // part of the expected message
+		keep  bool     // the timer row stays and retrying holds the occurrence
 	}{
 		{"switched off", func(b *ff1ReconBridge, m string) { _ = b.fakeBridge.SetFlowMissionEnabled(m, false) },
-			[]string{"INFO "}, "is switched off"},
+			[]string{"INFO "}, "is switched off", false},
 		{"no Mission Control", func(b *ff1ReconBridge, m string) { _ = b.fakeBridge.SetFlowMissionEnabled(m, false); b.none = true },
-			[]string{"WARN " + ErrMissionControlUnavailable.Error()}, "cannot tell whether its flow is switched on"},
+			[]string{"WARN " + ErrMissionControlUnavailable.Error()}, "cannot tell whether its flow is switched on", true},
 		{"mission missing", func(b *ff1ReconBridge, m string) { _ = b.fakeBridge.DeleteFlowMission(m) },
-			[]string{"WARN " + ErrFlowMissionMissing.Error()}, "cannot tell whether its flow is switched on"},
+			[]string{"WARN " + ErrFlowMissionMissing.Error()}, "cannot tell whether its flow is switched on", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			clock := newFakeClock(time.Date(2026, 10, 3, 7, 0, 0, 0, time.UTC))
@@ -337,8 +339,12 @@ func TestAudit17UnreadableSwitchIsAWarnWithItsReason(t *testing.T) {
 			if err := s.timers.processDue(ctx, false); err != nil {
 				t.Fatalf("processDue: %v", err)
 			}
-			if list, err := s.store.ListTimers(ctx); err != nil || len(list) != 0 {
-				t.Fatalf("timers = %+v, %v; the occurrence must be consumed", list, err)
+			wantLeft := 0
+			if tc.keep {
+				wantLeft = 1
+			}
+			if list, err := s.store.ListTimers(ctx); err != nil || len(list) != wantLeft {
+				t.Fatalf("timers = %+v, %v; want %d left", list, err, wantLeft)
 			}
 			if got := audit17ReasonOf(logs, tc.about); len(got) != 1 || got[0] != tc.want[0] {
 				t.Fatalf("log lines %q = %q, want %q", tc.about, got, tc.want)
@@ -346,7 +352,11 @@ func TestAudit17UnreadableSwitchIsAWarnWithItsReason(t *testing.T) {
 			if runs, err := s.Runs(ctx, pub.ID, RunFilter{}); err != nil || len(runs) != 0 {
 				t.Fatalf("runs = %+v, %v; none may start", runs, err)
 			}
-			if len(s.timers.retrying) != 0 {
+			if tc.keep {
+				if len(s.timers.retrying) != 1 {
+					t.Fatalf("unreadable Mission Control must retry once, retrying = %v", s.timers.retrying)
+				}
+			} else if len(s.timers.retrying) != 0 {
 				t.Fatalf("a skip must not be retried: %v", s.timers.retrying)
 			}
 		})

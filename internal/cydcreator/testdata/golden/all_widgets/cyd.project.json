@@ -1,0 +1,1042 @@
+{
+  "format": 1,
+  "template_version": "1.0.0",
+  "name": "All \"Widgets\" \\ Ünï – Test",
+  "board": "esp32-2432s028r",
+  "orientation": "landscape",
+  "theme": "night",
+  "language": "ja",
+  "timezone": "JST-9",
+  "settings": {
+    "wifi": "optional",
+    "aurago_link": false,
+    "libraries": [
+      "dht",
+      "arduinojson",
+      "bme280"
+    ],
+    "backlight": 80,
+    "statusbar_clock": true
+  },
+  "start_screen": "s_0001",
+  "screens": [
+    {
+      "id": "s_0001",
+      "name": "home",
+      "title": "Übersicht – 22 °C",
+      "transition": "fade",
+      "style": {},
+      "widgets": [
+        {
+          "id": "w_0001",
+          "type": "statusbar",
+          "name": "sb_main",
+          "x": 0,
+          "y": 0,
+          "w": 240,
+          "h": 24,
+          "props": {
+            "show_clock": true,
+            "show_wifi": true,
+            "title": ""
+          },
+          "style": {
+            "text_color": "#FFEEDD"
+          }
+        },
+        {
+          "id": "w_0002",
+          "type": "label",
+          "name": "lbl_title",
+          "x": 8,
+          "y": 28,
+          "w": 224,
+          "h": 28,
+          "props": {
+            "align": "center",
+            "font": "inter",
+            "long_mode": "dots",
+            "size": 20,
+            "text": "Grüße aus Köln € ✓ 你好"
+          },
+          "style": {},
+          "events": [
+            {
+              "on": "clicked",
+              "action": {
+                "type": "goto_screen",
+                "screen": "s_0002",
+                "transition": "slide_up"
+              }
+            },
+            {
+              "on": "long_pressed",
+              "action": {
+                "type": "logic",
+                "hint": "Shows \"details\" \\ with ??= trigraph and a\nnewline\\"
+              }
+            }
+          ]
+        },
+        {
+          "id": "w_0003",
+          "type": "button",
+          "name": "btn_next",
+          "x": 8,
+          "y": 60,
+          "w": 110,
+          "h": 36,
+          "props": {
+            "symbol": "right",
+            "text": "Weiter"
+          },
+          "style": {
+            "bg_color": "#112233",
+            "bg_opacity": 200,
+            "text_color": "#FFFFFF",
+            "border_color": "#445566",
+            "border_width": 2,
+            "radius": 8
+          },
+          "events": [
+            {
+              "on": "clicked",
+              "action": {
+                "type": "goto_screen",
+                "screen": "s_0002"
+              }
+            },
+            {
+              "on": "long_pressed",
+              "action": {
+                "type": "open_wifi_setup"
+              }
+            }
+          ]
+        },
+        {
+          "id": "w_0004",
+          "type": "button",
+          "name": "btn_info",
+          "x": 122,
+          "y": 60,
+          "w": 110,
+          "h": 36,
+          "props": {
+            "font": "jetbrains_mono",
+            "size": 14,
+            "text": "Info"
+          },
+          "style": {},
+          "events": [
+            {
+              "on": "clicked",
+              "action": {
+                "type": "logic",
+                "hint": "Opens msg_info."
+              }
+            }
+          ]
+        },
+        {
+          "id": "w_0005",
+          "type": "image",
+          "name": "img_logo",
+          "x": 8,
+          "y": 100,
+          "w": 24,
+          "h": 16,
+          "props": {
+            "asset": "a_logo"
+          },
+          "style": {},
+          "events": [
+            {
+              "on": "clicked",
+              "action": {
+                "type": "logic"
+              }
+            }
+          ]
+        },
+        {
+          "id": "w_0006",
+          "type": "image",
+          "x": 40,
+          "y": 100,
+          "w": 16,
+          "h": 12,
+          "props": {
+            "asset": "a_photo"
+          },
+          "style": {}
+        },
+        {
+          "id": "w_0007",
+          "type": "panel",
+          "name": "pnl_outer",
+          "x": 8,
+          "y": 120,
+          "w": 150,
+          "h": 100,
+          "props": {
+            "scrollable": false
+          },
+          "style": {
+            "border_color": "#AA5500",
+            "border_width": 3
+          },
+          "children": [
+            {
+              "id": "w_0008",
+              "type": "label",
+              "x": 4,
+              "y": 4,
+              "w": 80,
+              "h": 20,
+              "props": {
+                "text": "Panel"
+              },
+              "style": {}
+            },
+            {
+              "id": "w_0009",
+              "type": "panel",
+              "name": "pnl_inner",
+              "x": 4,
+              "y": 28,
+              "w": 120,
+              "h": 64,
+              "props": {
+                "scrollable": true
+              },
+              "style": {},
+              "events": [
+                {
+                  "on": "long_pressed",
+                  "action": {
+                    "type": "back"
+                  }
+                }
+              ],
+              "children": [
+                {
+                  "id": "w_0010",
+                  "type": "panel",
+                  "x": 4,
+                  "y": 4,
+                  "w": 80,
+                  "h": 40,
+                  "style": {},
+                  "children": [
+                    {
+                      "id": "w_0011",
+                      "type": "led",
+                      "name": "led_deep",
+                      "x": 4,
+                      "y": 4,
+                      "w": 16,
+                      "h": 16,
+                      "props": {
+                        "brightness": 200,
+                        "color": "#FF0000",
+                        "on": true
+                      },
+                      "style": {}
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "w_0012",
+          "type": "line",
+          "x": 164,
+          "y": 124,
+          "w": 70,
+          "h": 8,
+          "props": {
+            "thickness": 3
+          },
+          "style": {
+            "accent_color": "#00FF88"
+          }
+        },
+        {
+          "id": "w_0013",
+          "type": "line",
+          "name": "line_v",
+          "x": 220,
+          "y": 136,
+          "w": 8,
+          "h": 80,
+          "props": {
+            "orientation": "vertical",
+            "thickness": 2
+          },
+          "style": {}
+        },
+        {
+          "id": "w_0014",
+          "type": "msgbox",
+          "name": "msg_info",
+          "x": 20,
+          "y": 40,
+          "w": 200,
+          "h": 140,
+          "props": {
+            "buttons": [
+              "OK",
+              "Abbrechen"
+            ],
+            "text": "Gespeichert ✓\nZweite Zeile",
+            "title": "Hinweis"
+          },
+          "style": {},
+          "events": [
+            {
+              "on": "clicked",
+              "action": {
+                "type": "logic",
+                "hint": "Button index via ui_event_index(e)."
+              }
+            }
+          ]
+        },
+        {
+          "id": "w_0015",
+          "type": "msgbox",
+          "x": 40,
+          "y": 60,
+          "w": 160,
+          "h": 100,
+          "style": {}
+        }
+      ]
+    },
+    {
+      "id": "s_0002",
+      "name": "inputs",
+      "title": "Eingaben",
+      "transition": "slide_up",
+      "style": {},
+      "widgets": [
+        {
+          "id": "w_0016",
+          "type": "statusbar",
+          "x": 0,
+          "y": 0,
+          "w": 240,
+          "h": 24,
+          "props": {
+            "show_clock": false,
+            "show_wifi": true
+          },
+          "style": {}
+        },
+        {
+          "id": "w_0017",
+          "type": "switch",
+          "name": "sw_power",
+          "x": 8,
+          "y": 28,
+          "w": 50,
+          "h": 26,
+          "props": {
+            "checked": true
+          },
+          "style": {
+            "accent_color": "#FF00AA"
+          },
+          "events": [
+            {
+              "on": "value_changed",
+              "action": {
+                "type": "logic",
+                "hint": "Power"
+              }
+            }
+          ]
+        },
+        {
+          "id": "w_0018",
+          "type": "checkbox",
+          "name": "chk_agree",
+          "x": 64,
+          "y": 28,
+          "w": 170,
+          "h": 26,
+          "props": {
+            "checked": true,
+            "text": "Ich stimme zu"
+          },
+          "style": {},
+          "events": [
+            {
+              "on": "value_changed",
+              "action": {
+                "type": "logic"
+              }
+            }
+          ]
+        },
+        {
+          "id": "w_0019",
+          "type": "slider",
+          "name": "sld_volume",
+          "x": 8,
+          "y": 58,
+          "w": 140,
+          "h": 20,
+          "props": {
+            "max": 10,
+            "min": -10,
+            "value": 0
+          },
+          "style": {},
+          "events": [
+            {
+              "on": "value_changed",
+              "action": {
+                "type": "logic"
+              }
+            }
+          ]
+        },
+        {
+          "id": "w_0020",
+          "type": "arc",
+          "name": "arc_temp",
+          "x": 156,
+          "y": 56,
+          "w": 76,
+          "h": 76,
+          "props": {
+            "max": 40,
+            "min": 0,
+            "value": 21
+          },
+          "style": {
+            "accent_color": "#FFAA00"
+          },
+          "events": [
+            {
+              "on": "value_changed",
+              "action": {
+                "type": "logic"
+              }
+            }
+          ]
+        },
+        {
+          "id": "w_0021",
+          "type": "dropdown",
+          "name": "dd_mode",
+          "x": 8,
+          "y": 82,
+          "w": 140,
+          "h": 34,
+          "props": {
+            "options": [
+              "Auto",
+              "Heizen",
+              "Kühlen"
+            ],
+            "selected": 1
+          },
+          "style": {},
+          "events": [
+            {
+              "on": "value_changed",
+              "action": {
+                "type": "logic"
+              }
+            }
+          ]
+        },
+        {
+          "id": "w_0022",
+          "type": "roller",
+          "name": "rl_hour",
+          "x": 8,
+          "y": 120,
+          "w": 70,
+          "h": 70,
+          "props": {
+            "options": [
+              "06",
+              "07",
+              "08",
+              "09"
+            ],
+            "selected": 2,
+            "visible_rows": 3
+          },
+          "style": {
+            "accent_color": "#3366FF"
+          },
+          "events": [
+            {
+              "on": "value_changed",
+              "action": {
+                "type": "logic"
+              }
+            }
+          ]
+        },
+        {
+          "id": "w_0023",
+          "type": "textarea",
+          "name": "ta_name",
+          "x": 84,
+          "y": 120,
+          "w": 148,
+          "h": 34,
+          "props": {
+            "max_length": 32,
+            "one_line": true,
+            "placeholder": "Name …"
+          },
+          "style": {},
+          "events": [
+            {
+              "on": "value_changed",
+              "action": {
+                "type": "logic"
+              }
+            },
+            {
+              "on": "ready",
+              "action": {
+                "type": "goto_screen",
+                "screen": "s_0003",
+                "transition": "slide_right"
+              }
+            }
+          ]
+        },
+        {
+          "id": "w_0024",
+          "type": "textarea",
+          "name": "ta_pin",
+          "x": 84,
+          "y": 158,
+          "w": 148,
+          "h": 34,
+          "props": {
+            "keyboard": "number",
+            "max_length": 6,
+            "one_line": true,
+            "password": true,
+            "text": "12"
+          },
+          "style": {}
+        },
+        {
+          "id": "w_0025",
+          "type": "spinbox",
+          "name": "spn_temp",
+          "x": 8,
+          "y": 196,
+          "w": 150,
+          "h": 36,
+          "props": {
+            "decimals": 1,
+            "digits": 4,
+            "max": 150,
+            "min": -50,
+            "step": 5,
+            "value": 105
+          },
+          "style": {},
+          "events": [
+            {
+              "on": "value_changed",
+              "action": {
+                "type": "logic"
+              }
+            }
+          ]
+        },
+        {
+          "id": "w_0026",
+          "type": "button",
+          "name": "btn_back",
+          "x": 164,
+          "y": 196,
+          "w": 68,
+          "h": 36,
+          "props": {
+            "symbol": "left",
+            "text": ""
+          },
+          "style": {},
+          "events": [
+            {
+              "on": "clicked",
+              "action": {
+                "type": "back"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s_0003",
+      "name": "display",
+      "title": "Anzeige",
+      "transition": "slide_left",
+      "style": {
+        "bg_color": "#101820"
+      },
+      "widgets": [
+        {
+          "id": "w_0027",
+          "type": "bar",
+          "name": "bar_load",
+          "x": 8,
+          "y": 8,
+          "w": 140,
+          "h": 16,
+          "props": {
+            "value": 70
+          },
+          "style": {
+            "accent_color": "#22CC88"
+          }
+        },
+        {
+          "id": "w_0028",
+          "type": "spinner",
+          "x": 156,
+          "y": 4,
+          "w": 36,
+          "h": 36,
+          "style": {}
+        },
+        {
+          "id": "w_0029",
+          "type": "led",
+          "name": "led_status",
+          "x": 200,
+          "y": 8,
+          "w": 20,
+          "h": 20,
+          "props": {
+            "on": false
+          },
+          "style": {}
+        },
+        {
+          "id": "w_0030",
+          "type": "led",
+          "x": 224,
+          "y": 8,
+          "w": 14,
+          "h": 14,
+          "props": {
+            "brightness": 120
+          },
+          "style": {}
+        },
+        {
+          "id": "w_0031",
+          "type": "chart",
+          "name": "chart_temp",
+          "x": 8,
+          "y": 44,
+          "w": 140,
+          "h": 80,
+          "props": {
+            "kind": "line",
+            "max": 40,
+            "min": -10,
+            "points": 12,
+            "series": [
+              "Innen",
+              "Außen"
+            ]
+          },
+          "style": {}
+        },
+        {
+          "id": "w_0032",
+          "type": "chart",
+          "x": 156,
+          "y": 44,
+          "w": 80,
+          "h": 80,
+          "props": {
+            "kind": "bar",
+            "points": 5,
+            "series": [
+              "A"
+            ]
+          },
+          "style": {
+            "accent_color": "#AA22FF"
+          }
+        },
+        {
+          "id": "w_0033",
+          "type": "gauge",
+          "name": "gauge_speed",
+          "x": 8,
+          "y": 128,
+          "w": 100,
+          "h": 100,
+          "props": {
+            "label_every": 5,
+            "max": 200,
+            "min": 0,
+            "ticks": 21,
+            "value": 120
+          },
+          "style": {}
+        },
+        {
+          "id": "w_0034",
+          "type": "table",
+          "name": "tbl_data",
+          "x": 112,
+          "y": 128,
+          "w": 124,
+          "h": 64,
+          "props": {
+            "cells": [
+              "Zeit",
+              "Temp",
+              "%",
+              "08:00",
+              "21 °C",
+              "40 %"
+            ],
+            "columns": 3,
+            "rows": 3
+          },
+          "style": {}
+        },
+        {
+          "id": "w_0035",
+          "type": "qrcode",
+          "name": "qr_link",
+          "x": 112,
+          "y": 196,
+          "w": 40,
+          "h": 40,
+          "props": {
+            "text": "https://aurago.local/cyd?x=1&y=ä"
+          },
+          "style": {}
+        },
+        {
+          "id": "w_0036",
+          "type": "button",
+          "name": "btn_home",
+          "x": 160,
+          "y": 196,
+          "w": 76,
+          "h": 40,
+          "props": {
+            "symbol": "home",
+            "text": "Start"
+          },
+          "style": {},
+          "events": [
+            {
+              "on": "clicked",
+              "action": {
+                "type": "goto_screen",
+                "screen": "s_0001",
+                "transition": "none"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s_0004",
+      "name": "structure",
+      "title": "Struktur",
+      "transition": "slide_right",
+      "style": {},
+      "widgets": [
+        {
+          "id": "w_0037",
+          "type": "statusbar",
+          "name": "sb_struct",
+          "x": 0,
+          "y": 0,
+          "w": 240,
+          "h": 24,
+          "props": {
+            "show_clock": true,
+            "show_wifi": false,
+            "title": "Struktur ✓"
+          },
+          "style": {},
+          "events": [
+            {
+              "on": "long_pressed",
+              "action": {
+                "type": "goto_screen",
+                "screen": "s_0001",
+                "transition": "slide_down"
+              }
+            }
+          ]
+        },
+        {
+          "id": "w_0038",
+          "type": "tabview",
+          "name": "tabs_main",
+          "x": 0,
+          "y": 24,
+          "w": 240,
+          "h": 140,
+          "props": {
+            "bar_position": "left",
+            "bar_size": 60,
+            "tabs": [
+              "Liste",
+              "Grafik",
+              "Mehr"
+            ]
+          },
+          "style": {},
+          "events": [
+            {
+              "on": "value_changed",
+              "action": {
+                "type": "logic"
+              }
+            }
+          ],
+          "children": [
+            {
+              "id": "w_0039",
+              "type": "list",
+              "name": "lst_items",
+              "x": 4,
+              "y": 4,
+              "w": 170,
+              "h": 120,
+              "props": {
+                "items": [
+                  "Eins",
+                  "Zwei",
+                  "Drei ✓"
+                ]
+              },
+              "style": {},
+              "events": [
+                {
+                  "on": "clicked",
+                  "action": {
+                    "type": "logic",
+                    "hint": "Item via ui_event_index(e)."
+                  }
+                }
+              ]
+            },
+            {
+              "id": "w_0040",
+              "type": "canvas",
+              "name": "cnv_draw",
+              "x": 4,
+              "y": 4,
+              "w": 100,
+              "h": 80,
+              "tab": 1,
+              "style": {}
+            },
+            {
+              "id": "w_0041",
+              "type": "panel",
+              "x": 4,
+              "y": 4,
+              "w": 170,
+              "h": 100,
+              "tab": 2,
+              "style": {},
+              "children": [
+                {
+                  "id": "w_0042",
+                  "type": "button",
+                  "name": "btn_tab_back",
+                  "x": 8,
+                  "y": 8,
+                  "w": 120,
+                  "h": 40,
+                  "props": {
+                    "text": "Zurück"
+                  },
+                  "style": {},
+                  "events": [
+                    {
+                      "on": "clicked",
+                      "action": {
+                        "type": "back"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "w_0043",
+          "type": "tabview",
+          "x": 0,
+          "y": 168,
+          "w": 120,
+          "h": 70,
+          "props": {
+            "bar_position": "bottom",
+            "bar_size": 24,
+            "tabs": [
+              "A"
+            ]
+          },
+          "style": {}
+        },
+        {
+          "id": "w_0044",
+          "type": "keypad",
+          "name": "kp_num",
+          "x": 124,
+          "y": 168,
+          "w": 112,
+          "h": 70,
+          "props": {
+            "layout": "numeric_ok"
+          },
+          "style": {},
+          "events": [
+            {
+              "on": "value_changed",
+              "action": {
+                "type": "logic"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s_0005",
+      "name": "more",
+      "title": "Mehr",
+      "transition": "none",
+      "style": {},
+      "widgets": [
+        {
+          "id": "w_0045",
+          "type": "keypad",
+          "name": "kp_custom",
+          "x": 8,
+          "y": 8,
+          "w": 150,
+          "h": 80,
+          "props": {
+            "keys": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F"
+            ],
+            "layout": "custom"
+          },
+          "style": {},
+          "events": [
+            {
+              "on": "value_changed",
+              "action": {
+                "type": "logic"
+              }
+            }
+          ]
+        },
+        {
+          "id": "w_0046",
+          "type": "keypad",
+          "x": 8,
+          "y": 92,
+          "w": 150,
+          "h": 60,
+          "props": {
+            "keys": [
+              "1",
+              "\n",
+              "2",
+              "3",
+              ""
+            ],
+            "layout": "custom"
+          },
+          "style": {}
+        },
+        {
+          "id": "w_0047",
+          "type": "list",
+          "x": 164,
+          "y": 8,
+          "w": 72,
+          "h": 100,
+          "style": {}
+        },
+        {
+          "id": "w_0048",
+          "type": "label",
+          "name": "lbl_hidden",
+          "x": 8,
+          "y": 160,
+          "w": 120,
+          "h": 24,
+          "hidden": true,
+          "props": {
+            "text": "Versteckt"
+          },
+          "style": {}
+        },
+        {
+          "id": "w_0049",
+          "type": "label",
+          "x": 8,
+          "y": 190,
+          "w": 224,
+          "h": 40,
+          "props": {
+            "align": "right",
+            "long_mode": "scroll",
+            "text": "Tab\there, quote \" and backslash \\ end"
+          },
+          "style": {}
+        }
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "id": "a_logo",
+      "file": "assets/logo.png",
+      "w": 24,
+      "h": 16,
+      "alpha": true
+    },
+    {
+      "id": "a_photo",
+      "file": "assets/photo.jpg",
+      "w": 16,
+      "h": 12,
+      "alpha": false
+    }
+  ]
+}

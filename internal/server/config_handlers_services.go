@@ -1,12 +1,14 @@
 package server
 
 import (
+	"aurago/internal/config"
 	"aurago/internal/tools"
 	crand "crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"path/filepath"
+	"slices"
 )
 
 // handleAnsibleGenerateToken generates a cryptographically secure random token,
@@ -117,7 +119,10 @@ func handleOllamaManagedRecreate(s *Server) http.HandlerFunc {
 		}
 
 		s.Logger.Info("[Config UI] Ollama managed container recreate requested via Web UI")
-		go tools.EnsureOllamaManagedRunning(&cfg, s.Logger)
+		go func() {
+			tools.RemoveOllamaManagedContainer(cfg.Docker.Host)
+			tools.EnsureOllamaManagedRunning(&cfg, s.Logger)
+		}()
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{
@@ -125,4 +130,17 @@ func handleOllamaManagedRecreate(s *Server) http.HandlerFunc {
 			"message": "Container creation started in background.",
 		})
 	}
+}
+
+func ollamaManagedInputsChanged(oldCfg, newCfg *config.Config) bool {
+	oldMI := oldCfg.Ollama.ManagedInstance
+	newMI := newCfg.Ollama.ManagedInstance
+	if oldMI.ContainerPort != newMI.ContainerPort ||
+		oldMI.UseHostGPU != newMI.UseHostGPU ||
+		oldMI.GPUBackend != newMI.GPUBackend ||
+		oldMI.MemoryLimit != newMI.MemoryLimit ||
+		oldMI.VolumePath != newMI.VolumePath {
+		return true
+	}
+	return !slices.Equal(oldMI.DefaultModels, newMI.DefaultModels)
 }

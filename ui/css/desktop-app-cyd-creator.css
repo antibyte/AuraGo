@@ -1,0 +1,937 @@
+/* desktop-app-cyd-creator.css — CYD Creator shell (plan 4a): window layout A, toolbar, dock, code
+   editor, agent panel, start screen and dialogs. Chrome colours come from the desktop theme
+   (--vd-theme-*, --ds-*) through the --cc-* aliases below; device previews use the API theme
+   tokens only (inline custom properties such as --sw-*). Literal colours live in this block only. */
+
+/* ── tokens ─────────────────────────────────────────────────────────────────── */
+.cc-app {
+    --cc-accent: var(--vd-accent, var(--ds-color-accent-500, #27c7a6));
+    --cc-text: var(--vd-text, var(--ds-color-fg-primary, #f6f7fb));
+    --cc-muted: var(--vd-theme-muted, var(--ds-color-fg-muted, #9aa3b2));
+    --cc-bg: var(--vd-theme-app-bg, #12161f);
+    --cc-panel: var(--vd-theme-panel-bg, #181d28);
+    --cc-panel-strong: var(--vd-theme-panel-bg-strong, var(--cc-panel));
+    --cc-chrome: var(--vd-theme-chrome-bg, var(--cc-panel));
+    --cc-control: var(--vd-theme-control-bg, #222938);
+    --cc-control-hover: var(--vd-theme-control-hover, #2b3446);
+    --cc-border: var(--vd-theme-border, #2c3445);
+    --cc-border-strong: var(--vd-theme-border-strong, var(--cc-border));
+    --cc-accent-soft: var(--vd-theme-accent-soft, color-mix(in srgb, var(--cc-accent) 18%, transparent));
+    --cc-accent-faint: color-mix(in srgb, var(--cc-accent) 9%, transparent);
+    --cc-ok: var(--ds-color-success-fg, #4ad29c);
+    --cc-warn: var(--ds-color-warning-fg, #f0b54a);
+    --cc-danger: var(--ds-color-danger-fg, #ff6b7a);
+    /* ink: a status hue mixed with the text colour so text keeps 4.5:1 on light surfaces too */
+    --cc-ok-ink: color-mix(in srgb, var(--cc-ok) 35%, var(--cc-text));
+    --cc-warn-ink: color-mix(in srgb, var(--cc-warn) 35%, var(--cc-text));
+    --cc-danger-ink: color-mix(in srgb, var(--cc-danger) 40%, var(--cc-text));
+    --cc-accent-ink: color-mix(in srgb, var(--cc-accent) 35%, var(--cc-text));
+    /* white on accent-deep stays >= 5.5:1 and on accent-deeper >= 7.4:1 for every desktop accent */
+    --cc-accent-deep: color-mix(in srgb, var(--cc-accent) 55%, black);
+    --cc-accent-deeper: color-mix(in srgb, var(--cc-accent) 45%, black);
+    --cc-on-accent: #ffffff;
+    --cc-focus: color-mix(in srgb, var(--cc-accent) 50%, var(--cc-text));
+    --cc-overlay: var(--vd-theme-overlay-bg, rgba(0, 0, 0, 0.45));
+    --cc-shadow: var(--vd-theme-shadow-modal, var(--ds-elevation-4, 0 18px 48px rgba(0, 0, 0, 0.45)));
+    --cc-radius: var(--ds-radius-md, 10px);
+    --cc-radius-lg: var(--vd-theme-radius-modal, 14px);
+    --cc-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --cc-code-bg: var(--cc-panel-strong);
+    --cc-dock-h: 220px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    color: var(--cc-text);
+    background: var(--cc-bg);
+    accent-color: var(--cc-accent);
+    font-size: 13px;
+    container: cc-app / inline-size;
+}
+
+.cc-app [hidden] { display: none !important; }
+.cc-app *, .cc-app *::before, .cc-app *::after { box-sizing: border-box; }
+
+/* ── controls ───────────────────────────────────────────────────────────────── */
+.cc-app .cc-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--cc-border);
+    border-radius: var(--cc-radius);
+    background: var(--cc-control);
+    color: var(--cc-text);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    text-decoration: none;
+}
+.cc-app .cc-btn:hover:not(:disabled) { background: var(--cc-control-hover); }
+.cc-app .cc-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.cc-app .cc-btn--primary { background: var(--cc-accent-deep); border-color: transparent; color: var(--cc-on-accent); }
+.cc-app .cc-btn--primary:hover:not(:disabled) { background: var(--cc-accent-deeper); }
+.cc-app .cc-btn--danger { background: color-mix(in srgb, var(--cc-danger) 18%, var(--cc-control)); border-color: color-mix(in srgb, var(--cc-danger) 55%, transparent); color: var(--cc-danger-ink); }
+.cc-app .cc-btn--ghost { background: transparent; }
+.cc-app .cc-btn--small { min-height: 26px; padding: 0 9px; font-size: 12px; }
+.cc-app .cc-icon-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid transparent;
+    border-radius: var(--cc-radius);
+    background: transparent;
+    color: var(--cc-text);
+    font: inherit;
+    font-size: 15px;
+    cursor: pointer;
+}
+.cc-app .cc-icon-btn:hover:not(:disabled) { background: var(--cc-control-hover); }
+.cc-app .cc-icon-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.cc-app :is(button, a, input, select, textarea, [tabindex]):focus-visible { outline: 2px solid var(--cc-focus); outline-offset: 2px; }
+.cc-app .cc-input, .cc-app .cc-select {
+    width: 100%;
+    min-height: 34px;
+    padding: 6px 10px;
+    border: 1px solid var(--cc-border);
+    border-radius: var(--cc-radius);
+    background: var(--vd-theme-input-bg, var(--cc-control));
+    color: var(--cc-text);
+    font: inherit;
+}
+.cc-app textarea.cc-input { resize: vertical; line-height: 1.45; }
+.cc-app .cc-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 24px;
+    padding: 0 9px;
+    border: 1px solid var(--cc-border);
+    border-radius: 999px;
+    background: var(--cc-panel);
+    color: var(--cc-muted);
+    font-size: 12px;
+    white-space: nowrap;
+}
+.cc-app .cc-pill[data-state="conflict"], .cc-app .cc-pill[data-state="failed"] { color: var(--cc-danger-ink); border-color: color-mix(in srgb, var(--cc-danger) 50%, transparent); }
+.cc-app .cc-pill[data-state="offline"], .cc-app .cc-pill[data-state="locked"], .cc-app .cc-pill[data-tone="warning"] { color: var(--cc-warn-ink); border-color: color-mix(in srgb, var(--cc-warn) 50%, transparent); }
+.cc-app .cc-pill-remove { border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit; }
+.cc-app .cc-tag {
+    display: inline-flex;
+    align-items: center;
+    min-height: 18px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: var(--cc-control);
+    color: var(--cc-muted);
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.cc-app .cc-tag[data-tone="ok"] { background: color-mix(in srgb, var(--cc-ok) 18%, transparent); color: var(--cc-ok-ink); }
+.cc-app .cc-tag[data-tone="warning"] { background: color-mix(in srgb, var(--cc-warn) 18%, transparent); color: var(--cc-warn-ink); }
+.cc-app .cc-tag[data-tone="danger"] { background: color-mix(in srgb, var(--cc-danger) 18%, transparent); color: var(--cc-danger-ink); }
+.cc-app .cc-tag[data-tone="accent"] { background: var(--cc-accent-soft); color: var(--cc-accent-ink); }
+.cc-app .cc-empty { margin: 0; padding: 16px; color: var(--cc-muted); text-align: center; }
+.cc-app .cc-form-field { display: grid; align-content: start; gap: 6px; }
+.cc-app .cc-form-label { font-weight: 600; }
+.cc-app .cc-form-help { margin: 0; color: var(--cc-muted); font-size: 12px; }
+.cc-app .cc-form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 12px; }
+.cc-app .cc-form-group { margin: 0; padding: 0; border: 0; display: grid; gap: 8px; }
+.cc-app .cc-form-group legend { padding: 0 0 6px; font-weight: 600; }
+.cc-app .cc-checkline { display: inline-flex; align-items: center; gap: 6px; color: var(--cc-muted); font-size: 12px; }
+.cc-app .cc-dock-spacer { flex: 1 1 auto; }
+.cc-app .cc-progress { width: 180px; height: 8px; }
+
+.cc-app .cc-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin: 8px 12px 0;
+    padding: 9px 12px;
+    border: 1px solid var(--cc-border);
+    border-radius: var(--cc-radius);
+    background: var(--cc-panel);
+}
+.cc-app .cc-banner--warn { border-color: color-mix(in srgb, var(--cc-warn) 45%, transparent); background: color-mix(in srgb, var(--cc-warn) 9%, var(--cc-panel)); }
+.cc-app .cc-banner--danger { border-color: color-mix(in srgb, var(--cc-danger) 45%, transparent); background: color-mix(in srgb, var(--cc-danger) 9%, var(--cc-panel)); }
+.cc-app .cc-banner--lock { border-color: color-mix(in srgb, var(--cc-accent) 45%, transparent); background: var(--cc-accent-faint); }
+.cc-app .cc-banner-text { flex: 1 1 200px; }
+.cc-app .cc-banner-detail { font-family: var(--cc-mono); font-size: 12px; color: var(--cc-muted); }
+.cc-app .cc-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--cc-accent-soft);
+    border-top-color: var(--cc-accent);
+    border-radius: 50%;
+    animation: cc-spin 0.9s linear infinite;
+}
+@keyframes cc-spin { to { transform: rotate(360deg); } }
+
+.cc-app .cc-loading, .cc-app .cc-state-card { margin: auto; padding: 32px; text-align: center; color: var(--cc-muted); }
+.cc-app .cc-state-card { max-width: 460px; }
+.cc-app .cc-state-card h2 { margin: 0 0 8px; color: var(--cc-text); font-size: 18px; }
+.cc-app .cc-state-actions { display: flex; justify-content: center; gap: 8px; margin-top: 16px; }
+
+/* ── start screen ───────────────────────────────────────────────────────────── */
+.cc-app .cc-home-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.cc-app .cc-home { max-width: 980px; margin: 0 auto; padding: 28px 24px 40px; display: grid; gap: 20px; }
+.cc-app .cc-home-title { margin: 0; font-size: 26px; }
+.cc-app .cc-home-lead { margin: 6px 0 0; color: var(--cc-muted); font-size: 14px; max-width: 64ch; }
+.cc-app .cc-home > .cc-banner, .cc-app .cc-home-toolchain .cc-banner { margin: 0; }
+.cc-app .cc-home-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.cc-app .cc-action-card {
+    display: grid;
+    gap: 6px;
+    align-content: start;
+    padding: 18px;
+    border: 1px solid var(--cc-border);
+    border-radius: var(--cc-radius-lg);
+    background: var(--cc-panel);
+    color: var(--cc-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 140ms ease, transform 140ms ease;
+}
+.cc-app .cc-action-card:hover:not(:disabled) { border-color: var(--cc-accent); transform: translateY(-1px); }
+.cc-app .cc-action-card:disabled { opacity: 0.55; cursor: not-allowed; }
+.cc-app .cc-action-card strong { font-size: 15px; }
+.cc-app .cc-action-icon { font-size: 22px; color: var(--cc-accent-ink); }
+.cc-app .cc-action-text { color: var(--cc-muted); line-height: 1.45; }
+.cc-app .cc-home-recent h3 { margin: 0 0 10px; font-size: 15px; }
+.cc-app .cc-project-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.cc-app .cc-project-row { display: flex; align-items: center; gap: 6px; }
+.cc-app .cc-project-open {
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px 12px;
+    padding: 10px 14px;
+    border: 1px solid var(--cc-border);
+    border-radius: var(--cc-radius);
+    background: var(--cc-panel);
+    color: var(--cc-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.cc-app .cc-project-open:hover { border-color: var(--cc-accent); }
+.cc-app .cc-project-name { font-weight: 700; }
+.cc-app .cc-project-meta { grid-column: 1; color: var(--cc-muted); font-size: 12px; }
+.cc-app .cc-project-badges { grid-column: 2; grid-row: 1 / span 2; display: flex; gap: 6px; align-items: center; }
+
+/* new-project dialog */
+.cc-app .cc-board-list { display: grid; gap: 6px; max-height: 240px; overflow: auto; }
+.cc-app .cc-board-option, .cc-app .cc-theme-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid var(--cc-border);
+    border-radius: var(--cc-radius);
+    cursor: pointer;
+}
+.cc-app .cc-board-option:has(input:checked), .cc-app .cc-theme-option:has(input:checked) { border-color: var(--cc-accent); background: var(--cc-accent-faint); }
+.cc-app .cc-board-text { flex: 1 1 auto; display: grid; gap: 2px; }
+.cc-app .cc-board-label { font-weight: 600; }
+.cc-app .cc-board-meta { color: var(--cc-muted); font-size: 12px; }
+.cc-app .cc-theme-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.cc-app .cc-theme-sample {
+    position: relative;
+    width: 34px;
+    height: 24px;
+    border-radius: 5px;
+    background: var(--sw-bg);
+    border: 1px solid var(--cc-border);
+    overflow: hidden;
+    flex: 0 0 auto;
+}
+.cc-app .cc-theme-sample-bar { position: absolute; left: 0; right: 0; top: 0; height: 7px; background: var(--sw-surface); }
+.cc-app .cc-theme-sample-dot { position: absolute; right: 4px; bottom: 4px; width: 9px; height: 9px; border-radius: 50%; background: var(--sw-accent); box-shadow: 0 0 0 2px var(--sw-text); }
+
+/* ── project view: toolbar ──────────────────────────────────────────────────── */
+.cc-app .cc-project { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.cc-app .cc-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 48px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--cc-border);
+    background: var(--cc-chrome);
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+.cc-app .cc-toolbar-project { display: grid; min-width: 0; }
+.cc-app .cc-project-title { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 28ch; }
+.cc-app .cc-board-chip { color: var(--cc-muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 32ch; }
+.cc-app .cc-segmented { display: inline-flex; padding: 2px; border: 1px solid var(--cc-border); border-radius: var(--cc-radius); background: var(--cc-panel); }
+/* .cc-seg works alone and together with .cc-btn (it comes later and overrides the button frame) */
+.cc-app .cc-seg {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 28px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: calc(var(--cc-radius) - 3px);
+    background: transparent;
+    color: var(--cc-text);
+    font: inherit;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.cc-app .cc-seg:hover:not(:disabled) { background: var(--cc-control-hover); }
+.cc-app .cc-seg:disabled { opacity: 0.55; cursor: not-allowed; }
+.cc-app .cc-seg[aria-pressed="true"], .cc-app .cc-seg[aria-pressed="true"]:hover:not(:disabled) { background: var(--cc-accent-soft); color: var(--cc-accent-ink); }
+.cc-app .cc-toolchain-slot .cc-banner { margin: 8px 12px 0; }
+
+/* ── workbench ──────────────────────────────────────────────────────────────── */
+.cc-app .cc-workbench {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(180px, 230px) minmax(0, 1fr) minmax(270px, 330px);
+}
+.cc-app[data-cc-mode="code"] .cc-workbench, .cc-app.no-designer .cc-workbench { grid-template-columns: minmax(0, 1fr) minmax(270px, 330px); }
+.cc-app.no-designer .cc-left { display: none; }
+.cc-app .cc-left { display: grid; grid-template-rows: minmax(0, 1fr) minmax(0, 1.4fr); min-height: 0; border-right: 1px solid var(--cc-border); background: var(--cc-panel); }
+.cc-app .cc-left-screens, .cc-app .cc-left-palette { min-height: 0; overflow: auto; }
+.cc-app .cc-left-screens { border-bottom: 1px solid var(--cc-border); }
+.cc-app .cc-center { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--cc-bg); }
+.cc-app .cc-center-design, .cc-app .cc-center-code { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.cc-app .cc-designer-placeholder { margin: auto; max-width: 42ch; }
+.cc-app .cc-right { display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--cc-border); background: var(--cc-panel); }
+.cc-app .cc-panel-tabs { display: flex; border-bottom: 1px solid var(--cc-border); }
+.cc-app .cc-panel-tab {
+    flex: 1 1 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 38px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--cc-muted);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+.cc-app .cc-panel-tab[aria-selected="true"] { color: var(--cc-text); border-bottom-color: var(--cc-accent); }
+.cc-app .cc-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cc-accent); animation: cc-pulse 1.4s ease-in-out infinite; }
+@keyframes cc-pulse { 50% { opacity: 0.35; } }
+.cc-app .cc-panel { flex: 1 1 auto; min-height: 0; min-width: 0; overflow: auto; display: flex; flex-direction: column; }
+.cc-app .cc-panel[data-cc-agent-host] { overflow: hidden; }
+
+/* ── code editor ────────────────────────────────────────────────────────────── */
+.cc-app .cc-code { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(170px, 230px) minmax(0, 1fr); }
+.cc-app .cc-code.is-loading .cc-code-main { opacity: 0.7; }
+.cc-app .cc-tree { min-height: 0; overflow: auto; border-right: 1px solid var(--cc-border); background: var(--cc-panel); }
+.cc-app .cc-tree-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; font-weight: 700; }
+.cc-app .cc-tree-group { padding: 0 6px 6px; }
+.cc-app .cc-tree-group summary { padding: 4px 6px; color: var(--cc-muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer; }
+.cc-app .cc-tree-group ul { list-style: none; margin: 0; padding: 0; }
+.cc-app .cc-tree-row { display: flex; align-items: center; }
+.cc-app .cc-tree-item {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    min-height: 28px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--cc-text);
+    font: inherit;
+    font-family: var(--cc-mono);
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+}
+.cc-app .cc-tree-item:hover { background: var(--cc-control-hover); }
+.cc-app .cc-tree-item[aria-current="true"] { background: var(--cc-accent-soft); color: var(--cc-accent-ink); }
+.cc-app .cc-tree-name { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-app .cc-tree-tools { display: inline-flex; opacity: 0; transition: opacity 140ms ease; }
+.cc-app .cc-tree-row:hover .cc-tree-tools, .cc-app .cc-tree-row:focus-within .cc-tree-tools { opacity: 1; }
+.cc-app .cc-tree-tools .cc-icon-btn { width: 24px; height: 24px; font-size: 13px; }
+@media (hover: none) {
+    .cc-app .cc-tree-tools { opacity: 1; }
+}
+.cc-app .cc-code-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.cc-app .cc-code-bar { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 4px 10px; border-bottom: 1px solid var(--cc-border); background: var(--cc-chrome); }
+.cc-app .cc-code-path { font-family: var(--cc-mono); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-app .cc-code-hint { margin: 0; padding: 7px 12px; border-bottom: 1px solid var(--cc-border); background: var(--cc-accent-faint); color: var(--cc-accent-ink); }
+.cc-app .cc-code-surface { position: relative; flex: 1 1 auto; min-height: 0; display: flex; }
+/* CodeMirror drops its own outline (&.cm-focused): the ring is an overlay because the editor's
+   background would paint over an inset shadow on the surface itself. */
+.cc-app .cc-code-surface:focus-within::after { content: ''; position: absolute; inset: 0; z-index: 1; box-shadow: inset 0 0 0 2px var(--cc-focus); pointer-events: none; }
+.cc-app .cc-code-fallback:focus-visible { outline: none; }
+.cc-app .cc-code-editor { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; }
+.cc-app .cc-code-editor > .cm-editor { flex: 1 1 auto; min-width: 0; }
+.cc-app .cc-code-fallback { flex: 1 1 auto; border: 0; padding: 10px; background: var(--cc-code-bg); color: var(--cc-text); font-family: var(--cc-mono); font-size: 13px; resize: none; }
+.cc-app .cc-code-markers { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.cc-app .cc-code-marker { position: absolute; left: 0; right: 0; border-left: 3px solid var(--cc-danger); background: color-mix(in srgb, var(--cc-danger) 12%, transparent); pointer-events: none; }
+/* Only the edge takes the pointer (the marker's title shows the message); clicks on the line reach the editor. */
+.cc-app .cc-code-marker::before { content: ''; position: absolute; top: 0; bottom: 0; left: -3px; width: 8px; pointer-events: auto; cursor: help; }
+.cc-app .cc-code-marker.is-warning { border-left-color: var(--cc-warn); background: color-mix(in srgb, var(--cc-warn) 10%, transparent); }
+.cc-app .cc-code-marker.is-note { border-left-color: var(--cc-muted); background: transparent; }
+.cc-app .cc-code-empty { margin: auto; }
+
+/* ── dock ───────────────────────────────────────────────────────────────────── */
+.cc-app .cc-dock { position: relative; display: flex; flex-direction: column; height: var(--cc-dock-h); min-height: 0; border-top: 1px solid var(--cc-border); background: var(--cc-panel); }
+.cc-app .cc-dock.is-collapsed { height: auto; }
+.cc-app .cc-dock-handle { position: absolute; left: 0; right: 0; top: -4px; height: 8px; cursor: ns-resize; z-index: 2; touch-action: none; }
+.cc-app .cc-dock.is-collapsed .cc-dock-handle { display: none; }
+.cc-app .cc-dock-bar { display: flex; align-items: center; gap: 4px; padding: 0 6px; border-bottom: 1px solid var(--cc-border); background: var(--cc-chrome); }
+.cc-app .cc-dock-tabs { display: flex; gap: 2px; }
+.cc-app .cc-dock-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 0 10px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--cc-muted);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+.cc-app .cc-dock-tab[aria-selected="true"] { color: var(--cc-text); border-bottom-color: var(--cc-accent); }
+.cc-app .cc-dock-body { flex: 1 1 auto; min-height: 0; display: flex; }
+.cc-app .cc-dock-panel { flex: 1 1 auto; min-height: 0; min-width: 0; display: flex; flex-direction: column; }
+.cc-app .cc-log, .cc-app .cc-problems { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.cc-app .cc-log-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--cc-border); }
+.cc-app .cc-log-builds { width: auto; min-height: 28px; padding: 2px 8px; font-size: 12px; }
+.cc-app .cc-build-status { font-weight: 600; }
+.cc-app .cc-build-status[data-status="failed"] { color: var(--cc-danger-ink); }
+.cc-app .cc-build-status[data-status="succeeded"] { color: var(--cc-ok-ink); }
+.cc-app .cc-build-usage { color: var(--cc-muted); font-size: 12px; }
+.cc-app .cc-log-lines { flex: 1 1 auto; min-height: 0; margin: 0; padding: 8px 12px; overflow: auto; background: var(--cc-code-bg); font-family: var(--cc-mono); font-size: 12px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.cc-app .cc-log-line.is-error { color: var(--cc-danger-ink); }
+.cc-app .cc-log-line.is-warning { color: var(--cc-warn-ink); }
+.cc-app .cc-log-line.is-note { color: var(--cc-muted); font-style: italic; }
+.cc-app .cc-problems-summary { margin: 0; padding: 6px 12px; color: var(--cc-muted); border-bottom: 1px solid var(--cc-border); }
+.cc-app .cc-problems-summary:empty { display: none; }
+.cc-app .cc-problems-list { list-style: none; margin: 0; padding: 4px; overflow: auto; flex: 1 1 auto; }
+.cc-app .cc-problem {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 30px;
+    padding: 4px 8px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--cc-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.cc-app .cc-problem:hover:not(:disabled) { background: var(--cc-control-hover); }
+.cc-app .cc-problem:disabled { cursor: default; }
+/* tag recipe (tinted fill + ink): the dock emits data-severity error | warning | note */
+.cc-app .cc-problem-icon { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font-size: 11px; font-weight: 800; color: var(--cc-muted); background: var(--cc-control); flex: 0 0 auto; }
+.cc-app .cc-problem[data-severity="error"] .cc-problem-icon { background: color-mix(in srgb, var(--cc-danger) 18%, transparent); color: var(--cc-danger-ink); }
+.cc-app .cc-problem[data-severity="warning"] .cc-problem-icon { background: color-mix(in srgb, var(--cc-warn) 18%, transparent); color: var(--cc-warn-ink); }
+.cc-app .cc-problem-text { flex: 1 1 auto; min-width: 0; }
+.cc-app .cc-problem-source { color: var(--cc-muted); font-size: 11px; }
+.cc-app .cc-problem-where { color: var(--cc-muted); font-family: var(--cc-mono); font-size: 11px; }
+
+/* ── agent panel ────────────────────────────────────────────────────────────── */
+.cc-app .cc-agent { flex: 1 1 auto; min-height: 0; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.cc-app .cc-agent-head { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--cc-border); }
+.cc-app .cc-agent-title { font-weight: 700; }
+.cc-app .cc-agent .cc-banner { margin: 8px 10px 0; }
+/* History and job card share one scroller (no box scrolling inside another); it shrinks to nothing
+   before the composer is cut off. */
+.cc-app .cc-agent-scroll { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; display: flex; flex-direction: column; }
+.cc-app .cc-agent-log { flex: 0 0 auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.cc-app .cc-agent-empty { padding: 24px 16px; }
+.cc-app .cc-msg { max-width: 92%; padding: 8px 11px; border-radius: 12px; border: 1px solid var(--cc-border); background: var(--cc-panel-strong); }
+.cc-app .cc-msg--user { align-self: flex-end; background: var(--cc-accent-soft); border-color: transparent; }
+.cc-app .cc-msg--system { align-self: center; background: transparent; color: var(--cc-muted); font-size: 12px; }
+.cc-app .cc-msg.is-pending { opacity: 0.7; }
+.cc-app .cc-msg-text { white-space: pre-wrap; word-break: break-word; line-height: 1.45; }
+.cc-app .cc-msg-attachments { display: flex; gap: 6px; margin-top: 6px; }
+.cc-app .cc-msg-time { display: block; margin-top: 4px; color: var(--cc-muted); font-size: 11px; }
+.cc-app .cc-step { display: flex; gap: 8px; align-items: baseline; color: var(--cc-muted); font-size: 12px; }
+.cc-app .cc-step-icon { color: var(--cc-accent-ink); }
+.cc-app .cc-job { flex: 0 0 auto; margin: 0 10px 8px; padding: 10px; border: 1px solid var(--cc-border); border-radius: var(--cc-radius); background: var(--cc-panel-strong); display: grid; align-content: start; gap: 8px; }
+.cc-app .cc-job-head { display: flex; align-items: center; gap: 8px; }
+.cc-app .cc-job-status { font-weight: 700; }
+.cc-app .cc-job-status[data-status="failed"], .cc-app .cc-job-status[data-status="interrupted"] { color: var(--cc-danger-ink); }
+.cc-app .cc-job-elapsed { color: var(--cc-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.cc-app .cc-job-error { margin: 0; color: var(--cc-danger-ink); }
+.cc-app .cc-phases { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.cc-app .cc-phases li { padding: 3px 8px; border-radius: 999px; background: var(--cc-control); color: var(--cc-muted); font-size: 11px; font-weight: 600; }
+.cc-app .cc-phases li.is-done { color: var(--cc-ok-ink); background: color-mix(in srgb, var(--cc-ok) 14%, transparent); }
+.cc-app .cc-phases li.is-current { color: var(--cc-on-accent); background: var(--cc-accent-deep); }
+.cc-app .cc-plan-card { display: grid; gap: 8px; }
+.cc-app .cc-plan-card h3 { margin: 0; font-size: 14px; }
+.cc-app .cc-plan-summary { margin: 0; line-height: 1.45; }
+.cc-app .cc-plan-facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; margin: 0; font-size: 12px; }
+.cc-app .cc-plan-facts dt { color: var(--cc-muted); }
+.cc-app .cc-plan-facts dd { margin: 0; }
+/* The plan's actions stay at the bottom of the agent scroller while the plan is in view. The
+   strong panel colour is slightly translucent: layered over the panel colour it hides the facts
+   scrolling underneath. */
+.cc-app .cc-plan-actions { position: sticky; bottom: 0; display: flex; flex-wrap: wrap; gap: 6px; margin: 0 -10px -10px; padding: 8px 10px 10px; background: linear-gradient(var(--cc-panel-strong), var(--cc-panel-strong)), var(--cc-panel); border-top: 1px solid var(--cc-border); border-radius: 0 0 var(--cc-radius) var(--cc-radius); }
+.cc-app .cc-replan { display: grid; gap: 8px; }
+.cc-app .cc-agent-composer { display: grid; gap: 6px; padding: 8px 10px 10px; border-top: 1px solid var(--cc-border); }
+.cc-app .cc-attachments { display: flex; gap: 6px; }
+.cc-app .cc-composer-actions { display: flex; align-items: center; gap: 6px; }
+
+/* revisions */
+/* The dialog is capped at the window (max-height: 100%); its body row shrinks to what is left
+   (grid fr under a max size), so list and diff scroll inside the window instead of at 52vh. */
+.cc-app .cc-dialog:has(> .cc-dialog-body > .cc-rev) { grid-template-rows: auto minmax(0, 1fr); }
+.cc-app .cc-dialog-body:has(> .cc-rev) { grid-template-rows: minmax(0, 1fr); }
+.cc-app .cc-rev { display: grid; grid-template-columns: minmax(200px, 260px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 12px; min-height: 320px; }
+.cc-app .cc-rev-list { list-style: none; margin: 0; padding: 4px; display: grid; gap: 4px; align-content: start; overflow: auto; }
+.cc-app .cc-rev-item { display: grid; gap: 3px; width: 100%; padding: 8px 10px; border: 1px solid var(--cc-border); border-radius: var(--cc-radius); background: var(--cc-panel); color: var(--cc-text); font: inherit; text-align: left; cursor: pointer; }
+.cc-app .cc-rev-item[aria-pressed="true"] { border-color: var(--cc-accent); background: var(--cc-accent-faint); }
+.cc-app .cc-rev-item time { color: var(--cc-muted); font-size: 11px; }
+.cc-app .cc-rev-item .cc-tag { justify-self: start; }
+.cc-app .cc-rev-label { font-weight: 600; }
+.cc-app .cc-rev-detail { min-width: 0; overflow: auto; }
+.cc-app .cc-rev-layout { margin: 0 0 8px; color: var(--cc-muted); }
+.cc-app .cc-diff-file h4 { display: flex; align-items: center; gap: 8px; margin: 10px 0 4px; font-family: var(--cc-mono); font-size: 12px; }
+.cc-app .cc-diff { margin: 0; padding: 8px; border-radius: 6px; background: var(--cc-code-bg); font-family: var(--cc-mono); font-size: 12px; white-space: pre-wrap; word-break: break-word; }
+.cc-app .cc-diff .is-add { color: var(--cc-ok-ink); background: color-mix(in srgb, var(--cc-ok) 10%, transparent); }
+.cc-app .cc-diff .is-del { color: var(--cc-danger-ink); background: color-mix(in srgb, var(--cc-danger) 10%, transparent); }
+.cc-app .cc-diff .is-hunk { color: var(--cc-accent-ink); }
+
+/* ── dialogs ────────────────────────────────────────────────────────────────── */
+.cc-app .cc-modal-backdrop { position: absolute; inset: 0; z-index: 40; display: grid; place-items: center; padding: 16px; background: var(--cc-overlay); }
+.cc-app .cc-dialog {
+    width: min(480px, 100%);
+    max-height: 100%;
+    overflow: auto;
+    display: grid;
+    gap: 12px;
+    padding: 18px;
+    border: 1px solid var(--cc-border-strong);
+    border-radius: var(--cc-radius-lg);
+    background: var(--cc-panel-strong);
+    box-shadow: var(--cc-shadow);
+}
+.cc-app .cc-dialog--wide { width: min(860px, 100%); }
+.cc-app .cc-dialog.is-busy { cursor: progress; }
+.cc-app .cc-dialog-title { margin: 0; font-size: 16px; }
+.cc-app .cc-dialog-body { display: grid; gap: 12px; }
+.cc-app .cc-dialog-body p { margin: 0; line-height: 1.5; }
+.cc-app .cc-dialog-error { margin: 0; color: var(--cc-danger-ink); }
+.cc-app .cc-dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+/* Three choices (the conflict dialogs) get room for one row; when a long translation or a narrow
+   window still wraps them, the buttons share each row evenly instead of leaving one alone. */
+.cc-app .cc-dialog:has(> .cc-dialog-actions > :nth-child(3)) { width: min(600px, 100%); }
+.cc-app .cc-dialog-actions:has(> :nth-child(3)) > .cc-btn { flex: 1 1 auto; justify-content: center; }
+
+/* ── narrow windows ─────────────────────────────────────────────────────────── */
+@container cc-app (max-width: 1080px) {
+    .cc-app .cc-workbench { grid-template-columns: minmax(160px, 200px) minmax(0, 1fr) minmax(240px, 280px); }
+    .cc-app .cc-code { grid-template-columns: minmax(150px, 190px) minmax(0, 1fr); }
+}
+@container cc-app (max-width: 820px) {
+    .cc-app .cc-workbench, .cc-app[data-cc-mode="code"] .cc-workbench, .cc-app.no-designer .cc-workbench { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 3fr) minmax(0, 2fr); }
+    .cc-app .cc-left { display: none; }
+    .cc-app .cc-right { border-left: 0; border-top: 1px solid var(--cc-border); }
+    .cc-app .cc-code { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+    .cc-app .cc-tree { max-height: 140px; border-right: 0; border-bottom: 1px solid var(--cc-border); }
+    .cc-app .cc-rev { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 2fr) minmax(0, 3fr); }
+    .cc-app .cc-form-row { grid-template-columns: minmax(0, 1fr); }
+    .cc-app .cc-project-title { max-width: 16ch; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cc-app .cc-spinner, .cc-app .cc-dot { animation: none; }
+    .cc-app .cc-action-card, .cc-app .cc-tree-tools { transition: none; }
+}
+
+/* ==== CYD Creator designer (plan 4b) — begin ============================================== */
+/* Canvas, palette, screens and layers, inspector and the palette drag ghost. Chrome reads the --cc-*
+   tokens of the shell block above (status text through the *-ink tokens, solid fills through
+   --cc-accent-deep / --cc-on-accent); the device preview takes its colours from the API themes only
+   (inline styles set by cyd-creator-render.js). Literal colours live in the designer token block
+   below only. Every rule is scoped to .cc-app except the drag ghost, which hangs in document.body. */
+@font-face {
+    font-family: 'CYD Montserrat';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('/fonts/montserrat-latin-500-normal.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+    font-family: 'CYD Montserrat';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('/fonts/montserrat-latin-ext-500-normal.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+    font-family: 'CYD JetBrains Mono';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/fonts/jetbrains-mono-latin-400-normal.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+    font-family: 'CYD JetBrains Mono';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/fonts/jetbrains-mono-latin-ext-400-normal.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* ── designer tokens ────────────────────────────────────────────────────────── */
+/* Marks drawn over the device preview must read on light and dark device themes alike, so they
+   do not follow the desktop theme. The ghost lives outside .cc-app and gets the same tokens. */
+.cc-app, .cc-drag-ghost {
+    --cc-guide: #ff4fd8;
+    --cc-grid-line: rgba(127, 127, 127, 0.28);
+    --cc-halo: rgba(0, 0, 0, 0.45);
+    --cc-bezel: linear-gradient(160deg, #2b2f36, #15171b);
+    --cc-bezel-shadow: 0 12px 32px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+    --cc-ghost-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+}
+
+/* ── shared ─────────────────────────────────────────────────────────────────── */
+.cc-app .cc-sr-only { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+.cc-app .cc-icon { width: 16px; height: 16px; flex: none; }
+.cc-app .cc-palette, .cc-app .cc-screens, .cc-app .cc-inspector { padding: 10px; }
+/* The shell's focus ring (outline, offset 2px) is drawn inside these filling boxes instead. */
+.cc-app .cc-canvas:focus-visible, .cc-app .cc-screens:focus-visible, .cc-app .cc-inspector:focus-visible { outline-offset: -2px; }
+
+/* ── canvas ─────────────────────────────────────────────────────────────────── */
+.cc-app .cc-canvas { position: relative; display: flex; flex-direction: column; flex: 1 1 auto; width: 100%; min-width: 0; min-height: 0; background: var(--cc-bg); }
+.cc-app .cc-canvas-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; min-height: 36px; padding: 2px 8px; border-bottom: 1px solid var(--cc-border); background: var(--cc-chrome); }
+.cc-app .cc-tool-group { display: flex; align-items: center; gap: 2px; }
+.cc-app .cc-tool { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--cc-text); font: inherit; cursor: pointer; }
+.cc-app .cc-tool-sm { width: 26px; height: 26px; }
+.cc-app .cc-tool:hover:not(:disabled) { background: var(--cc-control-hover); }
+.cc-app .cc-tool:disabled { opacity: 0.4; cursor: not-allowed; }
+/* a pressed toggle (grid) is a solid fill: accent-ink on the soft tint over the darker chrome of
+   light themes drops below 4.5:1 for light accents */
+.cc-app .cc-tool[aria-pressed="true"] { background: var(--cc-accent-deep); color: var(--cc-on-accent); }
+.cc-app .cc-tool[aria-pressed="true"]:hover:not(:disabled) { background: var(--cc-accent-deeper); }
+.cc-app .cc-zoom-label { min-width: 3.2em; text-align: center; font-variant-numeric: tabular-nums; }
+.cc-app .cc-snap { display: inline-flex; align-items: center; gap: 6px; color: var(--cc-muted); }
+.cc-app .cc-snap select { min-height: 28px; padding: 2px 6px; border: 1px solid var(--cc-border); border-radius: 6px; background: var(--cc-control); color: var(--cc-text); font: inherit; }
+.cc-app .cc-canvas-viewport { position: relative; flex: 1 1 auto; min-height: 0; overflow: auto; touch-action: none; }
+/* fitZoom (cyd-creator-canvas.js) subtracts PAD = the stage padding and BEZEL = the frame padding:
+   change them together (TestCYDCreatorDesignerStaticContracts/css pins both). */
+.cc-app .cc-canvas-stage { display: flex; flex-direction: column; align-items: center; justify-content: center; width: max-content; min-width: 100%; min-height: 100%; padding: 24px; }
+.cc-app .cc-device-frame { padding: 14px; border-radius: 18px; background: var(--cc-bezel); box-shadow: var(--cc-bezel-shadow); }
+.cc-app .cc-screen-host { position: relative; overflow: hidden; }
+.cc-app .cc-screen { position: absolute; left: 0; top: 0; overflow: hidden; transform-origin: 0 0; user-select: none; -webkit-user-select: none; line-height: 1.2; }
+.cc-app .cc-screen img, .cc-drag-ghost img { image-rendering: pixelated; }
+.cc-app .cc-w { position: absolute; }
+.cc-app .cc-canvas:not(.is-readonly):not(.is-system) .cc-w { cursor: move; }
+.cc-app .cc-canvas .cc-w.is-locked, .cc-app .cc-canvas.is-readonly .cc-w { cursor: default; }
+.cc-app .cc-canvas.is-dragging, .cc-app .cc-canvas.is-dragging * { cursor: grabbing; }
+.cc-app .cc-canvas.is-dropping, .cc-app .cc-canvas.is-dropping * { cursor: copy; }
+.cc-app .cc-canvas:is(.is-dragging, .is-resizing, .is-dropping) { user-select: none; -webkit-user-select: none; }
+.cc-app .cc-slot { position: absolute; overflow: hidden; }
+.cc-app .cc-wv-modal { outline: 1px dashed var(--cc-muted); outline-offset: 2px; }
+.cc-app .cc-wv .cc-glyph, .cc-drag-ghost .cc-glyph, .cc-app .cc-palette-glyph, .cc-app .cc-layer-glyph, .cc-app .cc-insp-glyph { font-variant-emoji: text; }
+.cc-app .cc-w.cc-flash { animation: cc-flash 1.2s ease-out; }
+@keyframes cc-flash { from { outline: 3px solid var(--cc-accent); outline-offset: 2px; } to { outline: 3px solid transparent; outline-offset: 8px; } }
+.cc-app .cc-overlay { position: absolute; inset: 0; pointer-events: none; }
+.cc-app .cc-overlay.has-grid { background-image: linear-gradient(to right, var(--cc-grid-line) 1px, transparent 1px), linear-gradient(to bottom, var(--cc-grid-line) 1px, transparent 1px); background-size: var(--cc-grid, 8px) var(--cc-grid, 8px); }
+.cc-app .cc-overlay-sel, .cc-app .cc-guides { position: absolute; inset: 0; }
+.cc-app .cc-sel { position: absolute; border: 1px solid var(--cc-accent); box-shadow: 0 0 0 1px var(--cc-halo); }
+.cc-app .cc-sel.is-locked { border-style: dashed; }
+.cc-app .cc-sel.is-hidden { border-style: dotted; opacity: 0.7; }
+.cc-app .cc-handle { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border: 1px solid var(--cc-accent-deep); border-radius: 2px; background: var(--cc-on-accent); pointer-events: auto; touch-action: none; }
+.cc-app .cc-handle-nw { left: 0; top: 0; cursor: nwse-resize; }
+.cc-app .cc-handle-n { left: 50%; top: 0; cursor: ns-resize; }
+.cc-app .cc-handle-ne { left: 100%; top: 0; cursor: nesw-resize; }
+.cc-app .cc-handle-e { left: 100%; top: 50%; cursor: ew-resize; }
+.cc-app .cc-handle-se { left: 100%; top: 100%; cursor: nwse-resize; }
+.cc-app .cc-handle-s { left: 50%; top: 100%; cursor: ns-resize; }
+.cc-app .cc-handle-sw { left: 0; top: 100%; cursor: nesw-resize; }
+.cc-app .cc-handle-w { left: 0; top: 50%; cursor: ew-resize; }
+.cc-app .cc-guide { position: absolute; background: var(--cc-guide); }
+.cc-app .cc-guide-v { top: 0; bottom: 0; width: 1px; }
+.cc-app .cc-guide-h { left: 0; right: 0; height: 1px; }
+.cc-app .cc-marquee { position: absolute; border: 1px dashed var(--cc-accent); background: color-mix(in srgb, var(--cc-accent) 12%, transparent); }
+.cc-app .cc-drop { position: absolute; outline: 2px dashed var(--cc-ok); outline-offset: -2px; background: color-mix(in srgb, var(--cc-ok) 14%, transparent); }
+/* above the selection boxes and half a dot off the corner: the selected widget's top-right resize
+   handle stays three quarters visible under it (the overlay ignores the pointer, so the handle still
+   takes the drag) */
+.cc-app .cc-issue-dot { position: absolute; z-index: 1; width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 2px var(--cc-halo); transform: translate(5px, -5px); }
+.cc-app .cc-issue-dot.is-error { background: var(--cc-danger); }
+.cc-app .cc-issue-dot.is-warning { background: var(--cc-warn); }
+/* LABEL_H (cyd-creator-canvas.js) = margin-top + min-height. */
+.cc-app .cc-device-label { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; min-height: 20px; margin-top: 10px; color: var(--cc-muted); font-size: 12px; }
+/* tag recipe of the shell (tinted fill + ink): board states verified | community */
+.cc-app .cc-badge { display: inline-flex; align-items: center; min-height: 18px; padding: 0 7px; border-radius: 999px; background: var(--cc-control); color: var(--cc-muted); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.cc-app .cc-badge-verified { background: color-mix(in srgb, var(--cc-ok) 18%, transparent); color: var(--cc-ok-ink); }
+.cc-app .cc-badge-community { background: color-mix(in srgb, var(--cc-warn) 18%, transparent); color: var(--cc-warn-ink); }
+
+/* ── drag ghost ─────────────────────────────────────────────────────────────── */
+/* The palette ghost hangs in document.body, outside .cc-app: no --cc-* aliases, no box-sizing
+   reset and no .cc-screen line-height reach it, so it sets them itself (font family and size come
+   inline from cyd-creator-interact.js). */
+.cc-drag-ghost { position: fixed; left: 0; top: 0; z-index: 2147483000; overflow: hidden; pointer-events: none; opacity: 0.88; box-shadow: var(--cc-ghost-shadow); line-height: 1.2; letter-spacing: normal; text-align: left; text-transform: none; white-space: normal; user-select: none; -webkit-user-select: none; }
+.cc-drag-ghost, .cc-drag-ghost *, .cc-drag-ghost *::before, .cc-drag-ghost *::after { box-sizing: border-box; }
+.cc-drag-ghost [hidden] { display: none !important; }
+.cc-drag-ghost.is-outside { opacity: 0.45; }
+.cc-drag-ghost-inner { position: relative; transform-origin: 0 0; }
+
+/* ── panels (palette, screens, layers, inspector) ───────────────────────────── */
+.cc-app .cc-palette, .cc-app .cc-palette-list, .cc-app .cc-screens, .cc-app .cc-inspector, .cc-app .cc-insp, .cc-app .cc-screen-section, .cc-app .cc-screen-props, .cc-app .cc-layers { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.cc-app .cc-screens { gap: 14px; }
+.cc-app .cc-panel-head, .cc-app .cc-insp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 26px; }
+/* long uppercase headings ("Bildschirmeinstellungen") wrap instead of scrolling a narrow column sideways */
+.cc-app .cc-panel-head h3, .cc-app .cc-insp-head h3, .cc-app .cc-screen-props h3 { min-width: 0; margin: 0; overflow-wrap: anywhere; hyphens: auto; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--cc-muted); }
+.cc-app .cc-panel-hint, .cc-app .cc-panel-empty { margin: 0; font-size: 12px; color: var(--cc-muted); }
+.cc-app .cc-palette-group h4, .cc-app .cc-insp-section h4 { margin: 4px 0; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--cc-muted); }
+/* read-only, locked or on the Wi-Fi system screen every entry is disabled: the drag hint does not apply */
+.cc-app .cc-palette:is(.is-readonly, .is-system) .cc-panel-hint { display: none; }
+/* one entry per row in the shell's left column: long catalog names (German compounds such as
+   "Kontrollkästchen") do not fit half of it; wider hosts get columns */
+.cc-app .cc-palette-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px; }
+.cc-app .cc-palette-item { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 32px; padding: 5px 7px; border: 1px solid var(--cc-border); border-radius: 6px; background: var(--cc-control); color: var(--cc-text); font: inherit; text-align: left; cursor: grab; touch-action: none; }
+.cc-app .cc-palette-item:hover:not(:disabled) { background: var(--cc-control-hover); }
+.cc-app .cc-palette-item:disabled { opacity: 0.45; cursor: not-allowed; }
+.cc-app .cc-palette-glyph { flex: none; width: 18px; text-align: center; }
+.cc-app .cc-palette-name { min-width: 0; line-height: 1.15; overflow-wrap: anywhere; }
+.cc-app .cc-palette-search, .cc-app .cc-screen-rename, .cc-app .cc-field :is(input[type="text"], input[type="number"], select, textarea) { width: 100%; min-height: 30px; padding: 5px 8px; border: 1px solid var(--cc-border); border-radius: 6px; background: var(--cc-control); color: var(--cc-text); font: inherit; }
+.cc-app :is(.cc-palette-search, .cc-screen-rename, .cc-field input, .cc-field textarea)::placeholder { color: var(--cc-muted); opacity: 1; }
+.cc-app .cc-field textarea { min-height: 58px; resize: vertical; line-height: 1.4; }
+.cc-app .cc-field :is(input, textarea)[aria-invalid="true"], .cc-app .cc-screen-rename[aria-invalid="true"] { border-color: var(--cc-danger); }
+/* Read-only keeps the values readable (the shell shows the read-only chip); a dashed frame marks them. */
+.cc-app .cc-fieldset:disabled :is(input, select, textarea) { border-style: dashed; border-color: var(--cc-border-strong); opacity: 1; cursor: default; }
+
+/* screens */
+.cc-app .cc-screen-list, .cc-app .cc-layer-list, .cc-app .cc-issues, .cc-app .cc-multi-list { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.cc-app .cc-screen-row { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; border-radius: 6px; }
+.cc-app .cc-screen-row.is-active { background: var(--cc-control); box-shadow: inset 2px 0 0 var(--cc-accent); }
+.cc-app .cc-screen-row.is-renaming { flex-direction: column; align-items: stretch; gap: 4px; padding: 4px; }
+.cc-app .cc-screen-open, .cc-app .cc-layer-select { display: flex; flex: 1 1 120px; align-items: center; gap: 6px; min-width: 0; min-height: 30px; padding: 4px 6px; border: 0; border-radius: 6px; background: transparent; color: var(--cc-text); font: inherit; text-align: left; cursor: pointer; }
+.cc-app .cc-screen-open:hover, .cc-app .cc-layer-select:hover { background: var(--cc-control-hover); }
+.cc-app .cc-screen-name, .cc-app .cc-screen-title, .cc-app .cc-layer-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-app .cc-screen-name { font-weight: 600; }
+/* the title takes the room the name leaves (the name is what identifies the screen) */
+.cc-app .cc-screen-title { flex: 1 1 0; color: var(--cc-muted); font-size: 12px; }
+.cc-app .cc-screen-title:empty { display: none; }
+.cc-app .cc-screen-row.is-system .cc-screen-open { color: var(--cc-muted); }
+.cc-app .cc-screen-open :is(.cc-badge, .cc-start, .cc-count, .cc-icon) { flex: none; }
+.cc-app .cc-row-tools { display: flex; flex: none; gap: 1px; margin-left: auto; }
+/* Showing tools never moves anything: a press that takes the pointer or the focus out of a row
+   would otherwise shift the rows below between press and release (the click is lost), and tools
+   laid over the entry would catch presses meant for it. The active row shows all six tools on its
+   second line; touch devices show them there in every row. On hover devices every other row stays
+   one line and keeps a slot at its end for Rename and Delete, shown while the row is hovered or
+   focused (hidden by visibility they also leave the tab order); its other tools come with the
+   active row. Six tools never fit beside an entry in the 150–230 px column. */
+@media (hover: hover) {
+    .cc-app .cc-screen-row:not(.is-active) { flex-wrap: nowrap; }
+    .cc-app .cc-screen-row:not(.is-active) .cc-row-tools > :not([data-cc-cmd="screen-rename"], [data-cc-cmd="screen-delete"]) { display: none; }
+    .cc-app .cc-screen-row:not(.is-active):not(:hover):not(:focus-within) .cc-row-tools { visibility: hidden; }
+}
+.cc-app .cc-screens.is-readonly .cc-row-tools { display: none; }
+.cc-app .cc-start { display: inline-flex; color: var(--cc-warn-ink); }
+.cc-app .cc-count, .cc-app .cc-issue-mark { min-width: 18px; padding: 0 5px; border-radius: 999px; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
+/* tinted fill mixed with the opaque panel colour: the same contrast on active, hovered and selected rows */
+.cc-app .cc-count.is-error, .cc-app .cc-issue-mark.is-error { background: color-mix(in srgb, var(--cc-danger) 18%, var(--cc-panel)); color: var(--cc-danger-ink); }
+.cc-app .cc-issue-mark.is-warning { background: color-mix(in srgb, var(--cc-warn) 18%, var(--cc-panel)); color: var(--cc-warn-ink); }
+
+/* layers */
+.cc-app .cc-layer { display: flex; align-items: center; gap: 2px; padding-left: calc(var(--cc-depth, 0) * 14px); border-radius: 6px; }
+.cc-app .cc-layer.is-selected { background: var(--cc-accent-soft); }
+.cc-app .cc-layer.is-selected :is(.cc-layer-name, .cc-layer-type) { color: var(--cc-accent-ink); }
+.cc-app .cc-layer.is-hidden .cc-layer-name { color: var(--cc-muted); text-decoration: line-through; }
+.cc-app .cc-layer-type { margin-left: auto; color: var(--cc-muted); font-size: 11px; white-space: nowrap; }
+.cc-app .cc-layer-flag { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--cc-muted); cursor: pointer; }
+.cc-app .cc-layer-flag:hover:not(:disabled) { background: var(--cc-control-hover); }
+.cc-app .cc-layer-flag:disabled { opacity: 0.45; cursor: not-allowed; }
+.cc-app .cc-layer-flag[aria-pressed="true"] { color: var(--cc-accent-ink); }
+
+/* inspector */
+.cc-app .cc-insp-head { justify-content: flex-start; }
+.cc-app .cc-insp-sub, .cc-app .cc-insp-id { min-width: 0; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--cc-muted); font-size: 11px; }
+.cc-app .cc-insp-id { font-family: var(--cc-mono); }
+.cc-app .cc-insp-issues:empty { display: none; }
+.cc-app .cc-insp-section { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; border-top: 1px solid var(--cc-border); }
+.cc-app .cc-fieldset { display: flex; flex-direction: column; gap: 10px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.cc-app .cc-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.cc-app .cc-field-label { font-size: 12px; color: var(--cc-muted); overflow-wrap: anywhere; }
+.cc-app .cc-field-hint, .cc-app .cc-field-count { font-size: 11px; color: var(--cc-muted); }
+.cc-app .cc-field-count { align-self: flex-end; font-variant-numeric: tabular-nums; }
+.cc-app .cc-field-error { font-size: 11px; color: var(--cc-danger-ink); }
+.cc-app .cc-grid-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.cc-app .cc-check-field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cc-app .cc-check { display: flex; align-items: center; gap: 8px; min-height: 24px; cursor: pointer; }
+.cc-app .cc-check input { flex: none; width: 16px; height: 16px; margin: 0; }
+.cc-app .cc-check > span { min-width: 0; overflow-wrap: anywhere; }
+.cc-app .cc-check-field > .cc-field-hint { padding-left: 24px; }
+.cc-app .cc-check.is-disabled { opacity: 0.55; cursor: not-allowed; }
+.cc-app .cc-check-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.cc-app .cc-color-row, .cc-app .cc-range-row, .cc-app .cc-asset-row, .cc-app .cc-hook-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.cc-app .cc-color-row input[type="color"] { width: 38px; height: 30px; padding: 2px; border: 1px solid var(--cc-border); border-radius: 6px; background: var(--cc-control); cursor: pointer; }
+.cc-app .cc-color-value { flex: 1 1 auto; min-width: 0; color: var(--cc-muted); font-family: var(--cc-mono); font-size: 11px; }
+.cc-app .cc-range-row input { flex: 1 1 auto; min-width: 0; }
+.cc-app .cc-range-row output { min-width: 3.5em; text-align: right; font-variant-numeric: tabular-nums; }
+.cc-app .cc-chip { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 4px 10px; border: 1px solid var(--cc-border); border-radius: 999px; background: var(--cc-control); color: var(--cc-text); font: inherit; font-size: 12px; cursor: pointer; }
+.cc-app .cc-chip:hover:not(:disabled) { background: var(--cc-control-hover); }
+.cc-app .cc-chip[aria-pressed="true"], .cc-app .cc-chip[aria-pressed="true"]:hover:not(:disabled) { border-color: var(--cc-accent); background: var(--cc-accent-soft); color: var(--cc-accent-ink); }
+.cc-app .cc-chip:disabled { opacity: 0.45; cursor: not-allowed; }
+/* The file input is visually hidden: its label (a chip) shows the keyboard focus. */
+.cc-app .cc-upload:has(input:focus-visible) { outline: 2px solid var(--cc-focus); outline-offset: 2px; }
+@supports not selector(:has(*)) {
+    .cc-app .cc-upload:focus-within { outline: 2px solid var(--cc-focus); outline-offset: 2px; }
+}
+.cc-app .cc-upload.is-busy { opacity: 0.7; cursor: progress; }
+.cc-app .cc-hook-name { min-width: 0; color: var(--cc-muted); font-family: var(--cc-mono); font-size: 11px; overflow-wrap: anywhere; }
+.cc-app .cc-event { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--cc-border); border-radius: 8px; background: var(--cc-panel-strong); }
+.cc-app .cc-event-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: 6px; }
+.cc-app .cc-event-body { display: flex; flex-direction: column; gap: 6px; }
+.cc-app .cc-issue { padding: 6px 8px; border-left: 3px solid var(--cc-warn); border-radius: 6px; background: color-mix(in srgb, var(--cc-warn) 12%, transparent); font-size: 12px; }
+.cc-app .cc-issue.is-error { border-left-color: var(--cc-danger); background: color-mix(in srgb, var(--cc-danger) 12%, transparent); }
+.cc-app .cc-theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 6px; }
+.cc-app .cc-theme-swatch { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 4px; border: 1px solid var(--cc-border); border-radius: 8px; background: transparent; color: var(--cc-text); font: inherit; font-size: 11px; cursor: pointer; }
+.cc-app .cc-theme-swatch:hover:not(:disabled) { background: var(--cc-control-hover); }
+.cc-app .cc-theme-swatch[aria-checked="true"] { border-color: var(--cc-accent); box-shadow: 0 0 0 1px var(--cc-accent); }
+/* device colours: inline from the API theme (background, text, border) */
+.cc-app .cc-swatch { position: relative; display: flex; align-items: flex-end; height: 42px; padding: 4px 6px; overflow: hidden; border: 1px solid; border-radius: 5px; font-size: 14px; font-weight: 600; }
+.cc-app .cc-swatch-surface { position: absolute; top: 6px; right: 6px; width: 22px; height: 14px; border-radius: 3px; }
+.cc-app .cc-swatch-accent { position: absolute; right: 6px; bottom: 6px; width: 22px; height: 8px; border-radius: 3px; }
+.cc-app .cc-theme-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-app .cc-board { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; }
+.cc-app .cc-multi-list li { display: flex; gap: 8px; min-width: 0; }
+
+/* ── touch ──────────────────────────────────────────────────────────────────── */
+@media (pointer: coarse) {
+    .cc-app .cc-tool { width: 40px; height: 40px; }
+    .cc-app .cc-tool-sm, .cc-app .cc-layer-flag { width: 36px; height: 36px; }
+    .cc-app .cc-screen-open, .cc-app .cc-layer-select, .cc-app .cc-palette-item { min-height: 40px; }
+    /* a 26 px hit area around the 10 px resize handle */
+    .cc-app .cc-handle::after { content: ''; position: absolute; inset: -9px; }
+}
+
+/* ── window height ──────────────────────────────────────────────────────────── */
+/* The designer's panels are tall (the inspector runs to ~1200 px). As flex basis of the project
+   column they would let the dock absorb all the shrinking (down to its tab bar), so project and
+   workbench start from 0 and take the room the dock leaves. The dock keeps the height the user
+   chose; its first height in Design mode is at most 30 % of the window (cyd-creator-dock.js). */
+.cc-app:not(.no-designer) .cc-project, .cc-app:not(.no-designer) .cc-workbench { flex-basis: 0; }
+
+/* ── narrow windows ─────────────────────────────────────────────────────────── */
+/* The shell hides .cc-left at ≤ 820 px (Code mode needs no left column). In Design mode screens,
+   layers and palette stay reachable: the left column becomes a slim column beside the canvas over
+   both rows and the properties panel moves under the canvas; at ≤ 560 px it becomes a strip above
+   the canvas with screens and palette side by side. Code mode keeps the shell layout. */
+@container cc-app (max-width: 820px) {
+    /* the canvas takes two thirds of the height beside the left column, Properties the rest */
+    .cc-app:not(.no-designer):not([data-cc-mode="code"]) .cc-workbench { grid-template-columns: minmax(150px, 190px) minmax(0, 1fr); grid-template-rows: minmax(0, 2fr) minmax(0, 1fr); }
+    .cc-app:not(.no-designer):not([data-cc-mode="code"]) .cc-left { display: grid; grid-column: 1; grid-row: 1 / span 2; }
+    .cc-app:not(.no-designer):not([data-cc-mode="code"]) .cc-center { grid-column: 2; grid-row: 1; }
+    .cc-app:not(.no-designer):not([data-cc-mode="code"]) .cc-right { grid-column: 2; grid-row: 2; }
+    .cc-app .cc-canvas-bar { gap: 2px 6px; padding: 2px 4px; }
+}
+@container cc-app (max-width: 560px) {
+    .cc-app:not(.no-designer):not([data-cc-mode="code"]) .cc-workbench { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 2fr) minmax(0, 3fr) minmax(0, 2fr); }
+    .cc-app:not(.no-designer):not([data-cc-mode="code"]) .cc-left { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); grid-row: 1; border-right: 0; border-bottom: 1px solid var(--cc-border); }
+    .cc-app:not(.no-designer):not([data-cc-mode="code"]) .cc-left-screens { border-bottom: 0; border-right: 1px solid var(--cc-border); }
+    .cc-app:not(.no-designer):not([data-cc-mode="code"]) .cc-center { grid-column: 1; grid-row: 2; }
+    .cc-app:not(.no-designer):not([data-cc-mode="code"]) .cc-right { grid-column: 1; grid-row: 3; }
+}
+
+/* ── forced colours (Windows contrast themes) ───────────────────────────────── */
+/* The device preview is a picture of the device: frame, screen, ghost, theme swatches and the marks
+   drawn over the screen keep their colours. Every state that tint or fill shows elsewhere gets a
+   system colour (Highlight) or an outline here; the shell's Design/Code switch is included. */
+@media (forced-colors: active) {
+    .cc-app .cc-device-frame, .cc-app .cc-screen-host, .cc-drag-ghost, .cc-app .cc-swatch, .cc-app .cc-issue-dot, .cc-app .cc-guide { forced-color-adjust: none; }
+    .cc-app .cc-sel { border-color: Highlight; }
+    .cc-app .cc-handle { border-color: Canvas; background: Highlight; }
+    .cc-app .cc-marquee { border-color: Highlight; }
+    .cc-app .cc-drop { outline-color: Highlight; }
+    .cc-app .cc-canvas:focus-visible { outline: 2px solid Highlight; outline-offset: -2px; }
+    .cc-app .cc-tool[aria-pressed="true"], .cc-app .cc-tool[aria-pressed="true"]:hover:not(:disabled),
+    .cc-app .cc-chip[aria-pressed="true"], .cc-app .cc-chip[aria-pressed="true"]:hover:not(:disabled),
+    .cc-app .cc-seg[aria-pressed="true"], .cc-app .cc-seg[aria-pressed="true"]:hover:not(:disabled) { forced-color-adjust: none; background: Highlight; color: HighlightText; }
+    .cc-app .cc-layer-flag[aria-pressed="true"] { color: Highlight; }
+    .cc-app .cc-screen-row.is-active, .cc-app .cc-layer.is-selected { outline: 2px solid Highlight; outline-offset: -2px; }
+    .cc-app .cc-theme-swatch[aria-checked="true"] { outline: 2px solid Highlight; outline-offset: 1px; }
+    .cc-app .cc-count, .cc-app .cc-issue-mark, .cc-app .cc-badge { outline: 1px solid CanvasText; outline-offset: -1px; }
+    .cc-app .cc-tool:disabled, .cc-app .cc-palette-item:disabled, .cc-app .cc-chip:disabled, .cc-app .cc-layer-flag:disabled { color: GrayText; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cc-app .cc-w.cc-flash { animation: none; outline: 2px solid var(--cc-accent); }
+}
+/* ==== CYD Creator designer (plan 4b) — end ================================================ */
+
+/* ==== CYD Creator flash, monitor and devices (plan 5) — begin ============================== */
+.cc-app .cc-flasher { display: grid; gap: 12px; min-width: min(560px, 100%); }
+.cc-app .cc-flasher-phase { margin: 0; font-weight: 600; }
+.cc-app .cc-flasher .cc-progress { width: 100%; }
+.cc-app .cc-flasher-details summary { cursor: pointer; color: var(--cc-muted); }
+.cc-app .cc-flasher-log { max-height: 180px; margin: 6px 0 0; padding: 8px; overflow: auto; border: 1px solid var(--cc-border); border-radius: var(--cc-radius); background: var(--cc-code-bg); font: 12px/1.45 var(--cc-mono); white-space: pre-wrap; }
+.cc-app .cc-flasher-insecure { display: block; margin-top: 4px; color: var(--cc-warn-ink); }
+.cc-app .cc-dialog-actions a.cc-btn.is-disabled { pointer-events: none; opacity: 0.5; }
+
+.cc-app .cc-monitor { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+.cc-app .cc-monitor-head { gap: 6px; padding: 4px 10px; }
+.cc-app .cc-monitor-head .cc-select, .cc-app .cc-monitor-head .cc-input { width: auto; min-height: 28px; padding: 2px 8px; font-size: 12px; }
+.cc-app .cc-monitor-filter { width: 160px; }
+.cc-app .cc-monitor-notice { margin: 4px 8px; color: var(--cc-warn-ink); }
+.cc-app .cc-monitor-lines { flex: 1; min-height: 0; overflow: auto; padding: 6px 8px; font: 12px/1.45 var(--cc-mono); background: var(--cc-code-bg); }
+.cc-app .cc-monitor-line { white-space: pre-wrap; overflow-wrap: anywhere; }
+.cc-app .cc-monitor-line.is-backtrace { border-left: 3px solid var(--cc-warn); padding-left: 6px; }
+.cc-app .cc-monitor-line .cc-btn { margin-left: 8px; min-height: 22px; }
+.cc-app .cc-monitor-time { color: var(--cc-muted); }
+.cc-app .cc-monitor-frames { margin: 4px 0 6px 12px; color: var(--cc-text); }
+.cc-app .cc-monitor-frames ol { margin: 2px 0 0; padding-left: 20px; }
+.cc-app .cc-monitor-frames-head { margin: 0; color: var(--cc-muted); }
+.cc-app .cc-monitor-where { color: var(--cc-accent-ink); }
+/* The monitor's status pill: connected (ok) and lost (danger); flashing uses the shell's warning tone. */
+.cc-app .cc-pill[data-tone="ok"] { color: var(--cc-ok-ink); border-color: color-mix(in srgb, var(--cc-ok) 50%, transparent); }
+.cc-app .cc-pill[data-tone="danger"] { color: var(--cc-danger-ink); border-color: color-mix(in srgb, var(--cc-danger) 50%, transparent); }
+
+.cc-app .cc-devices { display: grid; gap: 10px; min-width: min(640px, 100%); }
+.cc-app .cc-device-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.cc-app .cc-device { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--cc-border); border-radius: var(--cc-radius); background: var(--cc-panel); }
+.cc-app .cc-device-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cc-app .cc-device-name { font-size: 14px; }
+.cc-app .cc-device-rename { display: flex; gap: 6px; align-items: center; }
+.cc-app .cc-device-facts { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 0; }
+.cc-app .cc-device-facts dt { color: var(--cc-muted); }
+.cc-app .cc-device-facts dd { margin: 0; overflow-wrap: anywhere; }
+.cc-app .cc-device-error { margin: 0; color: var(--cc-danger-ink); }
+.cc-app .cc-device-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.cc-app .cc-device-update { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+@container cc-app (max-width: 820px) {
+    .cc-app .cc-device-facts { grid-template-columns: 1fr; }
+    .cc-app .cc-monitor-filter { width: 100%; }
+}
+
+/* Forced colours: the tone tints vanish, so the device state keeps a frame, the backtrace mark a
+   system colour and a disabled download link reads as disabled. */
+@media (forced-colors: active) {
+    .cc-app .cc-device .cc-tag[data-tone="ok"], .cc-app .cc-device .cc-tag[data-tone="warning"] { outline: 1px solid CanvasText; outline-offset: -1px; }
+    .cc-app .cc-monitor-line.is-backtrace { border-left-color: Highlight; }
+    .cc-app .cc-dialog-actions a.cc-btn.is-disabled { color: GrayText; }
+}
+/* ==== CYD Creator flash, monitor and devices (plan 5) — end ================================ */

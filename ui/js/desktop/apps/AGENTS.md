@@ -369,7 +369,10 @@
   draws as the disabled item's tooltip; a stale click gets the server's 409 `FLOW_DISABLED`.
 - DOM modules get the editor state `ed` and talk over `ed.bus`, never through other modules'
   DOM. Focus moves synchronously when a popover or dialog opens; `.ed-app [hidden]` forces
-  `display: none`. `ED.canvas.portLabel(t, node, port)` is the one port label.
+  `display: none`. `ED.canvas.portLabel(t, node, port)` is the one port label. An edge whose
+  source port the step does not have is drawn dashed under the card (`.ed-edge.is-broken`)
+  and stays selectable; a missing step draws nothing. The server still reports
+  `EDGE_PORT_INVALID`.
 - `ai.decision` uses `dynamic_outputs: "decision_choices"`: route ports are keyed by stable
   option ID (`choice_<id>`) and move with their option; evaluate ports stay `out`/`uncertain`.
   Keep `model.outputs` and `canvas.portLabel` in sync, and never key a choice wire by its row
@@ -425,20 +428,33 @@
   per 500 ms while changes keep coming (a drag); a held-back change is written by a later change,
   `saver.flushCopy()` (the interact bus event `gesture-end`, `pagehide`, a `visibilitychange`
   to hidden), the next save, `flush()`, `dispose()`, and at the latest by a trailing write
-  500 ms later, so a crash loses less than 500 ms; never once the draft is saved. Model change
+  500 ms later, so a crash loses less than 500 ms; never once the draft is saved. A failed
+  `storage.set` leaves the copy pending (`copyPending` stays, `copyAt` does not move) so those
+  same paths try again. `dispose` writes before it marks itself disposed when the model is newer
+  than the saved version, including while an older save is still in flight. A refused write on
+  dispose is tried once more immediately and arms no timer; a timer already waiting is cleared
+  with the saver. Model change
   sets and `model.node` look ids up in Maps (`node` rebuilds its Map after each write of the
   node list); `test-easydrag-extra5.mjs` guards a 200-step drag and the 100-to-400-step scaling.
-- Run view: `ed.model` is the stored run's document there, `ed.draftModel` always the draft. The
+- Run view: `ed.model` is the stored run's document there, `ed.draftModel` always the draft. A
+  dropped duplicate step is announced once, on the draft model only, with the existing
+  `easydrag.ui.issue_node_id_duplicate` (also after a restore). The
   hints (`publish.refreshIssues`) validate the draft, wait while the run view shows and run again
-  on exit; a live run that starts meanwhile is parked (`runs.attach`) and followed on exit.
+  on exit; a live run that starts meanwhile is parked (`runs.attach`) and followed on exit. The
+  issues foot button is `aria-disabled` in the run view and `openIssues` returns at once there;
+  leaving the view renders the button again so it works.
 - Dialog holds (`holdAction`, a 429's Retry-After) are kept per button and end when the dialog
   closes; a tree drag's document listeners (`dragend`, `drop`) end with the drag or the next one.
 - Window menus pass canonical keys ("Ctrl+S"); the shell dispatches a `shortcut` item before the
   editor sees the key, a `shortcutHint` ("?") is only drawn. Mod+S is always prevented in the
   editor and saves only when no EasyDrag dialog is open. The step dialog (`ed.detail`,
   aria-modal) counts as a dialog: Ctrl+S, Ctrl+Enter, Ctrl+K and the menu items behind
-  `unlessModal` (`modalOpen`) wait for it as for `.ed-modal-backdrop`. Under either, Ctrl+Enter
-  and Ctrl+K are prevented too (the browser would take Ctrl+K to its address bar).
+  `unlessModal` (`modalOpen`) wait for it as for `.ed-modal-backdrop`. A `.vd-context-menu` blocks
+  `unlessModal` the same way: Save, Test, Search and the other items behind it do nothing while
+  that menu is open. Under a dialog, Ctrl+Enter and Ctrl+K are prevented too (the browser would
+  take Ctrl+K to its address bar). The start page's window menu disables New and Import when the
+  desktop is read-only or the list came back `FLOWS_DISABLED`; Reload stays enabled, and a later
+  list that succeeds enables New and Import again unless the desktop is read-only.
 - `editor.leave()` aborts a drag, writes a note still pending in the step dialog
   (`ed.detail.flushNote`; `pagehide` and a hidden page do so before the emergency copy),
   flushes the saver and shares one in-flight promise. Sessions
@@ -454,6 +470,266 @@
   `go test ./ui -run 'EasyDrag|MissionControlShowsFlow|StandaloneMissionsPage'` and the opt-in
   `TestDesktopEasyDragBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`, screenshots in
   `reports/easydrag/`). Backend: `internal/flows`, `internal/server/flows_*.go`.
+
+## CYD Creator
+- Builtin app `cyd-creator` (category dev, `Requires: cyd_creator`, opens maximized). It must stay a builtin
+  loaded into the `/desktop` document, never an iframe app: flashing needs Web Serial there. Server contracts
+  (HTTP API, SSE, step and message codes): `internal/server/AGENTS.md` (CYD Creator) and
+  `internal/cydcreator/AGENTS.md`. The `inst` object and the 4a↔4b seam are also specified in the local plan
+  overview `docs/superpowers/plans/2026-10-10-cyd-creator-overview.md` (git-ignored).
+- Modules share `window.CYDCreatorParts` and load in the order of `DESKTOP_APP_ASSETS['cyd-creator']`:
+  core, api, events, the ten designer modules of plan 4b (directly after events, above the "plan 4b"
+  marker comment), code, dock, agent, home, the modules of plan 5 below the "plan 5" marker comment,
+  `cyd-creator-app.js` last. Keep both marker comments. The shell finds
+  `window.CYDCreatorApp = { render, dispose, instances }` through `appGlobalName`. Each shell module stays
+  below 1100 lines and starts with a purpose comment, `'use strict'` and `window.CYDCreatorParts`
+  (`checkCYDCreatorModule`; `knownOversizedContinuations` does not exempt them; `app.js` is near 900 lines).
+- `cyd-creator-app.js` builds one `inst` per window and composes dock, code, agent, home and, when
+  `P.designer` exists, the designer. `inst.flushAll()` → Promise<boolean> saves layout and code. `inst.api` is
+  `Object.create(P.api)` whose `startJob` flushes first and throws the save error when that fails (override
+  single methods, never replace `P.api`). `inst.uploadAsset(file)` (not `inst.api.uploadAsset`) flushes the
+  layout first and then re-reads it. `inst.confirm` and every `P.dialog.open` pass `owner` (a `P.util.bag`),
+  so dialogs close with their window or project; `inst.notify` stays safe after dispose. Dock, code, agent and
+  designer exist per project and are disposed in `teardownProject`; app.js checks `inst.projectSeq` before
+  async work touches the window.
+- Designer seam (plan 4b): `inst.layoutStore` exists only when `P.model.createStore(project, {limit: 300,
+  coalesceMs: 1200})` exists; only store changes with origin local, undo or redo autosave, and none while
+  read-only. The designer is created only when `P.designer.create` and the store both exist and gets
+  `mountScreens`, `mountPalette`, `mountCanvas` and `mountInspector`. Reveals go only through the bus event
+  `designer:reveal`. For the designer the bus also carries `lock:changed(locked, jobId)`, `mode:changed`
+  and `layout:issues`; it may call `inst.assetUrl(id)` and `inst.code.ensureHook({name, event})`.
+- `P.api` wraps every endpoint and throws `ApiError {status, code, message, details}` (status 0: the
+  request never reached AuraGo); `P.errors.message(t, err)` shows `cyd_creator.error.<CODE>` (`CYD_BUSY`
+  with `details.reason` `publication_review` has its own sentence; `CYD_FILE_LIMIT` and `CYD_BUSY` `export` use
+  the plan 5 transfer strings, "CYD Creator flash, monitor and devices").
+- Event stream (`cyd-creator-events.js`): resumes with `?after=<last seq>`, coalesces the backlog until
+  `stream_ready` and reconnects with 1–30 s backoff (±20 % jitter); parts listen to `sse:<type>` or the
+  semantic bus events of the `inst` contract. An event without an id line (the browser keeps the previous
+  `lastEventId`) counts as seq 0. `stream_ready` carries `{after}`; with `reload: true` the cursor moves to
+  `after` and the window reloads through the internal `reloadProject(inst, {keepEdits: true})`: unsaved layout
+  edits stay and meet the new version through the conflict choice (`inst.reloadProject()` always reloads the
+  layout). A stream cut off during the catch-up resumes from the catch-up's
+  start (`resumeFrom`, not `after`). Each failure in a row emits `events:failed(n)`; after 3 the app probes
+  `GET /projects/{id}`: 404 returns to the start screen, 401, `unauthorized`, `desktop_scope_required` and
+  `CYD_DISABLED` stop the stream with a banner and Retry (`data-cc-stream-stopped`,
+  `data-cc-action="reconnect"`), anything else keeps reconnecting. The first `stream_ready` after a failure
+  re-reads the summary: a server restart ends in-memory state (the publication fence) without an event.
+- Publication review: a project with `publish_review` shows the danger banner (`data-cc-publish-review`,
+  `cyd_creator.error.publication_review`) and Build stays disabled; a layout or code save refused for
+  `publication_review` re-reads the summary, so the banner appears.
+- `P.autosave` serialises saves (1 s debounce, If-Match version for the layout, sha for files). A 409
+  asks Keep editing / Load saved version / Overwrite and never overwrites silently; while that choice is
+  open, `flush()` returns it instead of sending the stale version again. 423 waits for the unlock;
+  network/408/429/5xx and `CYD_BUSY` without a reason or with `file_open` retry after 5 s doubling to 60 s,
+  `CYD_BUSY` `publication_review` fails at once. Home and window close flush first and ask
+  before changes are lost. The layout autosave also saves layouts with validation issues (the designer
+  applies edits without a gate; the server answers with `issues`, the shell emits `layout:issues`); only a
+  422 for an unparseable layout counts as failed. The project lock (`lock_changed`) makes layout and code
+  read-only.
+- Read-only: `inst.readonly` is the desktop policy (`ctx.readonly`, then `aurago:desktop-policy` events on
+  `document`) or `caps.readonly`; a change re-renders toolbar, code editor, agent panel and start screen and
+  emits `readonly:changed(bool)`. Read-only viewers can still cancel a job or a build (the server allows the
+  cancel routes in read-only mode), so never gate a Cancel button on `inst.readonly`.
+- The agent panel never moves the focus or switches the right panel by itself; a running job only shows
+  the dot on its tab. Without plan 4b (`P.designer` absent) Design mode shows a placeholder. Job steps and
+  system chat lines render `cyd_creator.step.<code>` / `cyd_creator.msg.<code>` with their `vars` (server
+  table `internal/cydcreator/texts.go`; an `error_code` var shows that error's sentence), else the server's
+  English `text`.
+- Code uses full `cyd_creator.*` key literals (the i18n lint tests read them); strings live in
+  `ui/lang/cyd_creator/<16>.json`. Plan 4b owns the families `theme.*`, `board.status_*`, `widget.*`,
+  `group.*`, `prop.*`, `event.*`, `action.*`, `transition.*`, `issue.*` and `designer.*`; shell code reads
+  them with `t.or(key, fallback)` / `t.has` (the dock falls back to the English Issue message). `t(key,
+  vars)` fills `{{name}}` and `{name}`. Shell CSS classes stay distinct from the designer's global ones
+  (`.cc-tag`, `.cc-pill`, `.cc-form-*` here; `.cc-badge`, `.cc-chip`, `.cc-field*` belong to 4b), and the
+  designer rules live at the end of the stylesheet in the section that starts with
+  `/* ==== CYD Creator designer (plan 4b) — begin` (the theme-token test stops there). No
+  alert/confirm/prompt: `P.dialog` (core) and `inst.confirm` render inside the window, and one shared key
+  listener lets only the newest dialog in the focused window handle Escape and Tab.
+- Config section `ui/cfg/cyd_creator.js` (strings in `ui/lang/config/cyd_creator/`): `cyd_creator.model` is a
+  provider ID from the shared provider dropdown ("" = main LLM); its sidebar icon is slot 123 of the 11×12
+  sprite (`ui/AGENTS.md`).
+- Verify: `npm run test:cyd-creator-shell`, `go test ./ui -run '(?i)CYDCreator'` and, with
+  `AURAGO_RUN_BROWSER_SMOKE=1`, `TestDesktopCYDCreatorShellBrowser` (screenshots in `reports/cyd-creator/`,
+  backend `ui/testdata/cyd-creator-fixture.js`, whose EventSource keeps `lastEventId` like a browser) and
+  `TestConfigCYDCreatorSectionBrowser` (the real config page, no screenshots).
+
+## CYD Creator designer
+- Plan 4b's ten modules load right after `cyd-creator-events.js` in this order (`cydDesignerScripts`,
+  `TestCYDCreatorDesignerModulesLoadInOrder`): `cyd-creator-geometry`, `-model`, `-render` (pure, run in Node),
+  `-canvas`, `-interact`, `-palette`, `-inspector-fields`, `-inspector`, `-screens`, `-designer` last; each stays
+  below 1100 lines (`TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget`). `P.designer.create(inst)` returns
+  `{mountCanvas, mountPalette, mountScreens, mountInspector, reveal, dispose, state}` (`state`: the internal
+  designer object, read-only, for tests and diagnostics). Snap and grid persist in `localStorage`
+  `aurago.cyd-creator.designer.view`; the clipboard is shared by all designer windows of the document.
+- Every edit is one `inst.layoutStore.change` through `d.commands.run`/`transact` with ops from `P.model.apply`;
+  the store keeps frozen snapshots, at most 16 MiB of history and the origins `local`/`undo`/`redo`/`remote`. The
+  ops are the structural part of Go `ApplyOps` (`internal/cydcreator/patch.go`: fresh ids, catalog default sizes,
+  `goto_screen` names stored as ids, `tab` only under a tabview, `set_settings` takes settings keys only) plus the
+  designer-only `set_project`, `reorder_widget`, `reorder_screen` and a last-screen guard. No validation gate (the
+  server reports issues after the save); only a structurally impossible op throws (`ModelError`
+  `CYD_INVALID_LAYOUT`, shown as `designer.op_failed`). New widgets come from `P.model.newWidget`/`cloneSubtree`:
+  the server decodes layouts strictly (no unknown fields, integers only).
+- Shell bus: an identical `layout:issues` list is ignored (a re-render would reset a name being typed and make
+  gesture previews flicker); `lock:changed(locked, jobId)` and `readonly:changed(bool)` end a running gesture and
+  re-render the parts (read-only = `inst.readonly || inst.isLocked()`, read at each use); `mode:changed` to `code`
+  ends a gesture (the hidden canvas keeps its zoom and runs no keys); `designer:reveal` → `reveal({screen,
+  widget})` opens the tab pages on the path, scrolls and flashes. Parts talk over the designer bus `d.bus`
+  (`selection`, `screen`, `project`, `view`, `issues`, `lock`). A store change emits `project` `{before, label,
+  origin, screenChanged}`; when it took the active screen away (deleted, Wi-Fi off), `screen` fires first and
+  `screenChanged: true` lets a part that renders on both render once. Non-local changes end a gesture, remote
+  ones flash the changed widgets.
+- Uploads go only through `inst.uploadAsset(file)` (the static test forbids `P.api.`, `inst.api.`, `layoutSaver`,
+  `innerHTML` and `insertAdjacentHTML` in every designer module). It saves pending edits, the server adds the asset
+  to the layout and the window replaces the store remotely (`resetHistory: false`) before it answers; the
+  inspector then sets the prop (an image also takes the asset's size) and pushes the asset only when it is missing
+  (an edit during the upload kept the window's copy; the If-Match conflict choice follows). The browser refuses
+  what the server would: only PNG/JPEG (magic bytes) or SVG (rasterised to PNG at the widget's size), at most 2 MiB.
+- Gestures preview in the DOM and commit one change on release; `pointercancel`, lost capture, window blur, a
+  screen switch, the lock and non-local changes cancel them. Coordinates are device pixels: the screen scales with
+  `transform: scale(zoom)` (integer 1–4, images pixelated), the overlay does not, and children are relative to
+  `P.model.contentBox` (as `validate.go` bounds them: the whole panel, a tabview minus its tab bar). Read-only:
+  palette entries, inspector fieldsets and screen tools are disabled, no resize handles, commands return early;
+  screens still open and layers still select.
+- Keys: `interact.handleKey(e)` runs a designer shortcut and returns true when it used the key (Delete/Backspace,
+  arrows nudge 1/8 px, Ctrl+Z/Y/Shift+Z/C/X/V/D/A, `+` `-` `0` zoom, Escape); `interact.gestureKey(e)` takes the
+  keys while a gesture runs (Escape cancels, other designer keys are swallowed). The canvas listens itself;
+  palette, screens panel and layer list forward their keys and on true call `preventDefault()` and
+  `stopPropagation()`. Enter, Delete, Backspace and F2 outside form fields never leave the canvas (toolbar
+  included), the palette or the screens panel, and the inspector stops Enter, Delete and F2 without
+  Ctrl/Cmd/Alt; a button's native Enter click still runs (no `preventDefault()`). They keep the desktop from
+  opening, deleting or renaming its selected icons; the desktop itself ignores keys from app windows since main's
+  3ff6eed26, so after that lands this is belt-and-braces. Ctrl/Cmd+S, Alt combinations and Tab bubble on. The
+  canvas is one tab stop with a live announcer and a shortcut hint; the layer list reaches every widget with a
+  roving tab stop (ArrowUp/Down, Home/End win over nudging); Enter/Space on a palette entry adds the widget in the
+  middle; F2 renames and Alt+ArrowUp/Down moves the focused screen. The browser smoke presses Enter, F2 and Delete
+  (on the toolbar also Backspace) in the canvas, its toolbar, palette, layers, screens and inspector and checks
+  that none reaches the document.
+- Names match `^[a-z][a-z0-9_]{0,31}$`, are unique and not reserved (`P.model.RESERVED_NAMES`, prefixes and the
+  `_series` suffix mirror `validate.go`); proposals (`btn_1` …) skip reserved names. The inspector keeps an
+  invalid name visible with its message and stores only valid names.
+- Layout values are untrusted (agent-written or imported), so `P.render` validates its input itself: colours reach
+  CSS only through `hexOr` (`#RRGGBB`, `validate.go` `colorPattern`), numbers clamp to the catalog and
+  `validate.go` ranges, widget sides to 1–2048 (`maxWidgetSide`), strings and lists to their limits, enums to
+  their options; texts are text nodes. In the canvas, widget visuals come only from `P.render.widget(spec, w,
+  theme, assetUrl, {activeTab, screenTitle, settings})`, the screen colour only through `P.render.colors`, and
+  widget boxes reach CSS as finite integers clamped like the renderer clamps them. Device colours come only from
+  `inst.caps.themes` and style overrides (no hex literal in render, canvas or interact). The Node test reads
+  `limits.go`, `validate.go`, `ids.go` and `assets.go` and pins the mirrored values: `P.model` `LIMITS`,
+  `NAME_RE`, `RESERVED_NAMES`/`_PREFIXES`/`_SUFFIXES`, `TRANSITIONS`, `ACTIONS`, `ORIENTATIONS`, `WIFI_MODES`;
+  render's `HEX`, `ELEMENT_ID`, `MAX_SIDE`, `MAX_TEXT`; canvas `MAX_COORD`; `P.geometry.MAX_SIDE`;
+  `P.designerInspector.LIMITS`; `P.designerFields.HEX` and `MAX_UPLOAD_BYTES`. Hand mirrors without a source
+  check: render's inline style clamps (the values of the pinned `LIMITS.style`), `P.model.STYLE_KEYS` and the op
+  semantics of `patch.go` (behaviour tests only).
+- CSS: the designer section ends at `/* ==== CYD Creator designer (plan 4b) — end`; keep that end marker, plan
+  5's CSS test requires it before its own section. `TestCYDCreatorDesignerStaticContracts/css` checks: every
+  selector starts at `.cc-app` or the body-level `.cc-drag-ghost`; literal colours (hex, `rgb()`/`hsl()`, named)
+  stand only in the token block `.cc-app, .cc-drag-ghost {…}` (marks over the device preview that read on every
+  device theme); every `var()` in the section is a `--cc-*` token the stylesheet defines, and the file has no
+  `--ccd-*`; `.cc-canvas-stage` padding = `PAD` (24), `.cc-device-frame` padding = `BEZEL` (14) and
+  `.cc-device-label` margin-top + min-height = `LABEL_H` (the `cyd-creator-canvas.js` constants `fitZoom`
+  subtracts); non-active screen rows stay on one line and their tools change only `visibility` on hover or focus;
+  no rule sets the dock's height (`cyd-creator-dock.js` limits only its first, unsaved Design-mode height to
+  30 %); the `@container cc-app (max-width: 820px)` rule shows `.cc-left` again in Design mode. Conventions
+  without a test: status text through the `*-ink` tokens, solid fills `--cc-accent-deep`/`--cc-on-accent`; at
+  560 px the left column becomes a strip above the canvas (Code mode keeps the shell layout); `@media
+  (forced-colors: active)` keeps the device preview's own colours and marks selection, handles, pressed tools and
+  chips and the shell's Design/Code switch with `Highlight`.
+- Preview fonts `CYD Montserrat` 500 and `CYD JetBrains Mono` 400 (latin and latin-ext `woff2`, fontsource 5.3.0)
+  live in `ui/fonts/` with their OFL texts (`Montserrat-LICENSE.txt`, `JetBrainsMono-LICENSE.txt`), are listed in
+  `THIRD_PARTY_LIBRARIES.md` §6 and are declared in the designer section (loaded only with the app); Inter comes
+  from `fonts/fonts.css`. `TestCYDCreatorDesignerFontsVendored` checks files, licences and inventory rows.
+- Strings: `cyd_creator.designer.*`, the families `widget.`, `group.`, `prop.`, `event.`, `action.`,
+  `transition.`, `theme.`, `board.status_`, `issue.` and `designer.align_`, `designer.z_`, `designer.font_`,
+  `designer.wifi_`, `designer.opt_<prop>_<option>`; orientation labels reuse plan 4a's `cyd_creator.orientation.*`.
+  `TestCYDCreatorDesignerKeysExistInAllLocales` takes the literal keys and `'prefix' +` families from the designer
+  modules and the family members from the Go catalog, checks all 16 locales (English placeholders, German without
+  the formal address) and runs in reverse: a family no designer module builds fails, and so does any key under the
+  designer-owned prefixes (`designer.`, `widget.`, `group.`, `prop.`, `event.`, `action.`, `transition.`,
+  `theme.`, `board.status_`, `issue.`) that no designer module uses, so plan 5 modules add no keys there. Every
+  literal `t.or(key, 'fallback')` must equal `en.json`: change both together.
+- Verify: `npm run test:cyd-creator-designer` (pure modules, then the DOM parts with the real designer on a fake
+  DOM), `go test ./ui -run '(?i)CYDCreatorDesigner'` (`TestCYDCreatorDesignerStaticContracts`, load order, keys,
+  fonts, capabilities fixture) and, with `AURAGO_RUN_BROWSER_SMOKE=1`, `TestDesktopCYDCreatorDesignerBrowser` (real
+  core and designer on `ui/testdata/cyd-creator-designer-fixture.js`, both `prefers-reduced-motion` modes,
+  screenshots in `designer/<motion>/` under `AURAGO_BROWSER_ARTIFACT_DIR` or `reports/cyd-creator/`) and
+  `TestDesktopCYDCreatorShellBrowser` (the real shell: a palette add autosaves with If-Match). After a catalog,
+  theme, font, symbol, library, language or classic-CYD board change regenerate
+  `ui/testdata/cyd_creator_designer_caps.json` with
+  `go test ./ui -run TestCYDCreatorDesignerCapsFixtureMatchesCatalog -args -update-cyd-designer-caps`.
+
+## CYD Creator flash, monitor and devices
+- Plan 5's five modules `cyd-creator-serial`, `-flasher`, `-monitor`, `-devices`, `-transfer` load in this order
+  below the "plan 5" marker comment, between `cyd-creator-home.js` and `cyd-creator-app.js`
+  (`cydCreatorFlashModules`, also in `cydCreatorShellModules`). `app` attaches the monitor right after the dock
+  (`inst.monitor = P.monitor.attach(inst)`, disposed with `inst.projectBag`), before the agent panel exists: the
+  monitor looks `inst.agent` up when "Attach log" is used. Toolbar Flash, OTA and Export and the start screen's
+  Import ZIP card show only when their module loaded.
+- Web Serial (`P.serial`): `P.serial.manager` is the page's single owner of the port (a port opens once per
+  page). Owners are `flasher` (exclusive) and `monitor` (revocable: a flash makes the monitor close the port
+  first, and the monitor reopens it afterwards). It covers CYD Creator only: a port Quick Connect holds is
+  `CYD_FLASH_PORT_BUSY`. `support()` returns `{ok, reason}` with reason `readonly` (read-only desktop), `disabled`
+  (`virtual_desktop.serial_browser_enabled` off, admin-only, or not known yet), `insecure`, `unsupported` (no
+  `navigator.serial`), `framed` (not the top-level `/desktop` document) or `policy` (Permissions-Policy). The
+  desktop policy (decision D2, like Quick Connect) comes from `aurago:desktop-policy` events on `document`
+  (`serial_browser_enabled`, `readonly`) and, while unknown, one `GET /api/desktop/bootstrap` (events win;
+  `manager.ensure()` waits for it); a change re-renders an idle flash dialog and ends a monitor session it no
+  longer allows. `manager.request()` (`requestPort`) must be the first await of a click (user activation). The
+  reset pulses RTS for 100 ms with DTR (IO0/BOOT) released: BOOT held 5 s during the splash erases the Wi-Fi
+  credentials.
+- Flasher (`P.flasher.open(inst)`): esptool-js 0.7.0 is imported lazily from
+  `/js/vendor/esptool-js/esptool-js.min.mjs` (`P.flasher.setLoader` injects a fake). It offers succeeded builds
+  with merged.bin (default: the newest), downloads the images and checks each against the build record's SHA-256
+  and `X-CYD-SHA256` before anything is written. The build decides the AuraGo link: its image contains the
+  heartbeat path literal `/api/cyd-creator/device/heartbeat` (only link firmware has it). When it does and the user
+  may mint (not read-only, OTA on), the flasher mints a device after the download (`P.api.mintDevice`) and writes
+  the blob at its `config_offset`, which must equal the board's `caps.boards[].config_offset`. Install modes
+  (decision D1): Automatic (default) keeps the settings only when this browser's board record (`localStorage`
+  `aurago.cydcreator.boards.v1`, per project and MAC: chip, board profile, minted device; server device rows have
+  no MAC) matches the connected board's MAC, chip and board profile and the partition table on the board (MD5 of
+  0x8000, 3 KiB, read back) equals merged.bin's; else it is a full install. Keep settings writes firmware.bin at
+  0x10000 and erases otadata (8 KiB 0xFF at 0xE000, so app0 boots even after an OTA into app1); Full install
+  writes merged.bin at 0x0 (wipes touch calibration and Wi-Fi) and drops the board's records before writing.
+  Every flash rewrites the cydcc config partition (the blob, else 4 KiB 0xFF at `config_offset`), so no earlier
+  token survives. Rates 921600 → 460800 → 115200; a wrong chip, a lost board, a busy port or missing Web Serial
+  end at once; esptool verifies every image by MD5 (`md5Hex`). With the monitor toggle on, esptool ends in the stub
+  (`no_reset_stub`) and the monitor connects and resets the board through RTS (`handOff`; when it cannot, the
+  flasher resets once). After a success `aurago.cydcreator.flashed.v1` remembers the build per project (backtrace
+  decoding), the board record is written and the board's previous device of this project is revoked (its token is
+  no longer on the board). A failed flash revokes the device it minted unless the blob was already transferred
+  (`blobWritten`). Escape and the backdrop cannot close the dialog while a flash runs; a window closed after the
+  first write lets the flash finish and hard-reset. `device_url` and `tls_pin` refusals show
+  `flash.error_device_url` and `flash.error_tls_pin` (decision D4: set `cyd_creator.ota.public_url`). Without Web
+  Serial the dialog says why (`flash.unsupported_<reason>`) and offers only "Download image" (merged.bin at 0x0).
+- Monitor (`P.monitor`): dock tab `monitor` (order 1, `cyd_creator.dock.monitor`), states disconnected, connected,
+  flashing and lost; 5000-line ring buffer, timestamps, filter, pause, clear, reset, baud rates 9600–921600
+  (default 115200; baud and timestamps remembered in `aurago.cydcreator.monitor.v1`). `Backtrace:` lines get
+  "Decode" (`POST builds/{id}/decode-backtrace` with the build last flashed from this browser, else the newest
+  green one); "Attach log" hands at most 16 KiB of the selected or visible lines to `inst.agent.attachLog`.
+- OTA dialog (`P.devices.open`): devices with state (pending, online, offline), board, build, last seen, target,
+  IP, RSSI and the translated last error (`rolled_back[: …]` with `devices.rollback_hint`: re-picking the failed
+  build is reset until the board restarts; `failed[: …]`); rename, "Update to" a succeeded build with firmware.bin
+  for the device's board, remove (asks first, revokes). Live `device:changed`, a refresh every 30 s while open and
+  `readonly:changed` re-render it; read-only users see no actions; banners show OTA off, the device URL
+  (`caps.ota.public_url`) and a plain `http://` warning. The device wrappers live on `P.api` (`listDevices`,
+  `mintDevice`, `updateDevice`, `revokeDevice`); both dialogs pass `owner: inst.projectBag || inst.bag`.
+- Transfer (`P.transfer`): Export flushes (`inst.flushAll()`), fetches `GET projects/{id}/export` and saves it
+  under the `Content-Disposition` name; Import ZIP picks a file (`P.transfer.pickFile`, replaceable in tests),
+  posts it to `/import` (`P.api.importZip`) and the start screen opens the new project. `CYD_IMPORT_INVALID` shows
+  `transfer.import_<reason>` (`transfer.limit_asset_bytes` / `limit_app_files` for the size limits); other errors
+  go to `P.errors.message`, which maps `CYD_FILE_LIMIT` by `details.limit` to `transfer.limit_<asset_bytes|
+  export_bytes|app_files>` (`file_bytes`, `files` and `total_bytes` share `app_files`; `{{size}}` = `details.max`)
+  and `CYD_BUSY` `export` to `transfer.busy_export`.
+- Strings: `cyd_creator.flash.*`, `monitor.*`, `devices.*`, `transfer.*` and `dock.monitor` in all 16
+  `ui/lang/cyd_creator` files; `TestCYDCreatorFlashKeysExistInAllLocales` lists the members of every dynamic family
+  (`flash.unsupported_`, `flash.phase_`, `monitor.status_`, `devices.state_`, `transfer.limit_`, `transfer.busy_`,
+  `transfer.import_`); errors reuse 4a's `error.<CODE>`.
+- CSS: the section between `/* ==== CYD Creator flash, monitor and devices (plan 5) — begin` and `… — end` (both
+  with U+2014) follows the designer's end marker; `TestCYDCreatorFlashStylesheetSection` allows no literal colour
+  or colour function, only `--cc-*` tokens the stylesheet defines and only selectors scoped to `.cc-app`.
+- Verify: `npm run test:cyd-creator-flash`, `go test ./ui -run '(?i)CYDCreator'` (plan 5 adds the module, offset,
+  vendor, wiring, stylesheet, devices/transfer and key tests) and, with `AURAGO_RUN_BROWSER_SMOKE=1`,
+  `TestDesktopCYDCreatorFlashBrowser` (fixture `ui/testdata/cyd-creator-flash-fixture.js`: fake `navigator.serial`
+  and esptool). After an esptool-js change: `npm run build:browser-vendor -- --check`.
 
 ## Purpose
 
@@ -2235,6 +2511,12 @@ registration lives in `internal/desktop/types.go`.
 
 ## Work Guidance
 
+- A local translation helper that prepends a prefix
+  (`tr = key => ctx.t('desktop.gog.' + key)`) is registered in
+  `desktopLocalI18nHelpers` (`ui/i18n_lint_test.go`) and called with literal
+  keys. The static checks resolve those calls in every locale and skip the
+  bare prefix. Verify `TestFrontend_StaticI18nKeysExistInEnglishBundle` and
+  `TestDesktopUsedI18nKeysExistInAllLanguages`.
 - Files exceeding 1100 lines must be added to `knownOversizedContinuations` in
   `ui/desktop_js_line_budget_test.go`; use the map there as the current
   source of truth for oversized continuation files.

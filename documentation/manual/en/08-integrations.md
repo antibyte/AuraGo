@@ -1628,7 +1628,7 @@ Access the Hugging Face Hub for models, datasets, papers, and jobs. Enables sear
 ```yaml
 huggingface:
   enabled: false                 # Enable integration
-  read_only: true                # Default: read-only access
+  read_only: true                # Default: read-only access; download_file stays allowed
   allow_writes: false            # Repository creation and uploads
   allow_delete: false            # Delete resources
   allow_jobs: false              # Job execution
@@ -1636,15 +1636,17 @@ huggingface:
   allow_job_token_injection: false # Allow explicit HF_TOKEN injection into untrusted Job code
   allowed_namespaces: []         # Explicit namespaces
   allowed_repos: []             # Explicit repositories
-  allowed_hardware: []           # Allowed hardware types
-  max_download_mb: 100           # Max download size in MB
+  allowed_hardware: [cpu-basic]  # Allowed hardware types
+  max_download_mb: 512           # Max download size in MB; values above 2048 are clamped
   max_upload_mb: 10              # Small JSON uploads only; no LFS/Xet support
-  max_dataset_rows: 10000        # Max dataset rows
-  job_default_timeout_minutes: 60
-  job_max_runtime_minutes: 300
-  request_timeout_seconds: 120
-  max_result_bytes: 1048576     # 1MB
+  max_dataset_rows: 100          # Max dataset rows
+  job_default_timeout_minutes: 30
+  job_max_runtime_minutes: 120
+  request_timeout_seconds: 60
+  max_result_bytes: 524288
   hub_base_url: "https://huggingface.co"
+  dataset_base_url: "https://datasets-server.huggingface.co"
+  jobs_base_url: "https://huggingface.co/api/jobs"
   job_namespace: ""              # Optional; empty resolves through whoami
 ```
 
@@ -1659,11 +1661,11 @@ huggingface:
 | `dataset_rows` | Retrieve dataset contents | `{"action": "huggingface", "operation": "dataset_rows", "dataset": "user/dataset", "config": "default", "split": "train", "offset": 0, "length": 100}` |
 | `search_papers` | Search for papers | `{"action": "huggingface", "operation": "search_papers", "query": "transformers"}` |
 | `daily_papers` | Daily paper updates | `{"action": "huggingface", "operation": "daily_papers"}` |
-| `get_paper` | Get paper details | `{"action": "huggingface", "operation": "get_paper", "id": "paper_id"}` |
+| `get_paper` | Get paper details | `{"action": "huggingface", "operation": "get_paper", "paper_id": "paper_id"}` |
 | `jobs_list` | List all jobs | `{"action": "huggingface", "operation": "jobs_list"}` |
 | `job_run_python` | Execute a Python script | `{"action": "huggingface", "operation": "job_run_python", "script": "print('ok')"}` |
 
-> 🔒 **Security:** HuggingFace integration is disabled by default. Empty repository and namespace allowlists block every write. Job code is untrusted; `HF_TOKEN` is injected only when both the administrator and the individual tool call opt in.
+> 🔒 **Security:** HuggingFace integration is disabled by default. Empty repository and namespace allowlists block every write and keep named reads public. A named read sends the Vault token only when at least one allowlist is set and the canonical id passes it. When both allowlists are set, the repository must be listed and its namespace must be listed. One list alone checks only that list. Search, papers, and daily papers never send the token. `download_file` stays available in read-only mode. Job code is untrusted; `HF_TOKEN` is injected only when both the administrator and the individual tool call opt in.
 
 ---
 

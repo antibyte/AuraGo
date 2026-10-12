@@ -91,10 +91,22 @@
             notify(o.onState, next);
         }
 
-        function writeEmergency() {
+        // writeEmergency stores the current draft. It returns whether storage accepted it.
+        // A refusal leaves copyPending set, so the trailing timer, flushCopy and dispose try again.
+        // {hold:true} arms no timer: dispose retries once itself, then clears every timer, and a
+        // timer left behind could overwrite a newer editor's copy. copyAt moves only after a
+        // write that landed, or the next change would look already copied.
+        function writeEmergency(opts) {
+            const at = Date.now();
+            const ok = core.storage.set(emergencyKey(o.flowId), { revision, at, doc: o.model.toJSON() });
+            if (!ok) {
+                copyPending = true;
+                if (!(opts && opts.hold) && !copyTimer) copyTimer = setTimeout(() => { copyTimer = 0; flushCopy(); }, COPY_MS);
+                return false;
+            }
             dropPendingCopy();
-            copyAt = Date.now();
-            core.storage.set(emergencyKey(o.flowId), { revision, at: copyAt, doc: o.model.toJSON() });
+            copyAt = at;
+            return true;
         }
 
         function dropPendingCopy() {
@@ -301,8 +313,20 @@
             get error() { return error; },
             isDirty: () => o.model.version !== savedVersion,
             markSaved() { savedVersion = o.model.version; setState('saved'); },
-            // dispose writes a held-back change to the emergency copy first, so closing never loses it.
-            dispose() { if (!disposed) flushCopy(); disposed = true; dropPendingCopy(); clearTimeout(timer); clearTimeout(retryTimer); }
+            // dispose writes the unsaved draft before it marks itself disposed, also while an older
+            // save is still in flight (that request will not send the newer draft once disposed).
+            // A refused write is tried once more immediately and arms no timer. dropPendingCopy
+            // then clears a timer an earlier refusal had armed, so it cannot fire into a newer editor.
+            dispose() {
+                if (disposed) return;
+                if (o.model.version !== savedVersion) {
+                    if (!writeEmergency({ hold: true })) writeEmergency({ hold: true });
+                } else flushCopy();
+                disposed = true;
+                dropPendingCopy();
+                clearTimeout(timer);
+                clearTimeout(retryTimer);
+            }
         };
     }
 

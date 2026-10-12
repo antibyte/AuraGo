@@ -109,6 +109,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 ## Engine semantics
 - One coordinator goroutine per run owns all state; nodes run on workers (at most `parallel`, default 4).
   A node holds its slot until it returns, so a `logic.wait` (up to 1 h) can starve parallel branches.
+  `logic.wait` until looks for the next real minute with that wall-clock time within one hour. Timer rules
+  for the spring gap and the autumn overlap stay as they are (see Timers).
 - Run-start checks: nil flow `FLOW_INVALID`; over the limits `FLOW_TOO_LARGE`; a loop `FLOW_CYCLE`; a
   panicking definition hook `FLOW_NODE_PANIC`. Test runs execute unpublished drafts, so these are the
   guard. Definitions, ports and default ports are computed once per run; a definition is pinned for it.
@@ -209,10 +211,12 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - An occurrence is consumed (a one-off deleted, a yearly one moved on) only after its callback handled it.
   The Service's fire callback is a `timerHandleFunc` (`onTimerFired`, wired through the unexported
   `newTimerService`): nil when a run was created or the start was deliberately skipped (Skip policy
-  `StartSkipped` and a flow switched off at Info; no live revision, a switch that cannot be read because
-  Mission Control is not available or holds no mission for the flow, and a node no longer an enabled
-  trigger at Warn with the reason; a gone flow at Debug), the start's error otherwise (`ErrQueueFull`, a
-  store error, `ErrRunnerClosed`), which the callback does not log itself. An error leaves the occurrence
+  `StartSkipped` and a flow switched off at Info; no live revision, a mission Mission Control does not
+  hold (`ErrFlowMissionMissing`), and a node no longer an enabled trigger at Warn with the reason; a
+  gone flow at Debug). `ErrMissionControlUnavailable` (Mission Control cannot be read) returns that
+  error after the same Warn, so the occurrence stays and is retried; no run starts during the retries,
+  and the missed callback after `timerMaxRetryLateness` starts none either. The start's error otherwise
+  (`ErrQueueFull`, a store error, `ErrRunnerClosed`) is not logged by the callback itself. An error leaves the occurrence
   stored and the service calls the callback again for it after a per-occurrence backoff: `retryDelay`
   (30 s), doubled per failed attempt up to `timerMaxRetryDelay` (15 min), each attempt logged at Warn with
   the error. Other timers keep firing meanwhile, and `nextFire` plans the loop's wake-up around the backoff,
@@ -430,7 +434,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   `MissionReconciler` bridge extension reports it in sync) and makes the timers follow Mission Control's enabled
   switch and the live revision (clear when disabled; when enabled re-arm only stale timers, `staleTimers`: a
   node or repeat the live revision lacks, or a trigger without its timer; matching timers keep their fire time,
-  a due one-off too). It deletes nothing: it warns about a flow without its mission and, with the extension, a
+  a due one-off too). An unreadable snapshot (`FlowMissions` returns nil) leaves that flow's mission entry and
+  timers unchanged and warns; at fire time the same unreadability (`ErrMissionControlUnavailable`) leaves the occurrence and retries it. Only a readable disabled flow loses its timers. It deletes nothing: it warns about a flow without its mission and, with the extension, a
   flow mission without its flow that Mission Control still holds at report time.
   `Publish` never recreates a missing mission (the sync fails after the store published). `Shutdown` waits for a
   reconciliation in progress and ends its lock waits. Limit: `staleTimers` compares node ids and repeat kinds
@@ -460,7 +465,7 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   (`notEnabledReason` asks `MissionReconciler.FlowMissions` when the bridge offers it: `ErrMissionControlUnavailable`
   without Mission Control, `ErrFlowMissionMissing` when the mission is gone); the
   other live starts check the switch before they get here (Mission Control's triggers and Run, `onTimerFired`,
-  which logs the skip and reports the occurrence handled, see Timers), and test runs are not affected. `TriggerFromMission` without a node (Mission Control's Run and
+  which logs the skip and reports the occurrence handled, except `ErrMissionControlUnavailable`, which leaves it for retry; see Timers), and test runs are not affected. `TriggerFromMission` without a node (Mission Control's Run and
   `TriggerMissionWithOptions`: the daemon wake-up and `POST /api/missions/v2/{id}/trigger`) drops the caller's
   data and starts like `RunNow` (manual trigger: its sample; any other: `{}`), because `LintUntrustedData`
   treats those triggers as trusted; a trigger registration names its node and keeps its data. The drop is logged at

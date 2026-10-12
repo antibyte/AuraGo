@@ -14,6 +14,16 @@
         const { t, esc, ctx } = app;
         const bag = core.bag();
         const draftModel = ED.model.create(loaded.flow.draft, app.catalog);
+        // One notice for the draft only. The run view builds its own model and must not say this.
+        // A later restore (replaceDoc emits reset) says it if the first document did not.
+        let duplicatesNoted = false;
+        function noteDroppedDuplicates() {
+            if (duplicatesNoted || !draftModel.repairs().droppedNodes) return;
+            duplicatesNoted = true;
+            if (typeof ctx.notify === 'function') ctx.notify({ title: 'EasyDrag', message: t('easydrag.ui.issue_node_id_duplicate') });
+        }
+        noteDroppedDuplicates();
+        bag.add(draftModel.on(change => { if (change && change.kind === 'reset') noteDroppedDuplicates(); }));
         let savedView = null;
         // paletteBefore: the palette was open when the run view hid it; leaving the run view shows it again.
         let paletteBefore = false;
@@ -173,6 +183,11 @@
                 ? (errors ? '<span class="ed-count-badge ed-count-badge--error">' + core.icon('alert') + errors + '</span>' : '') +
                   (warnings ? '<span class="ed-count-badge ed-count-badge--warn">' + core.icon('info') + warnings + '</span>' : '')
                 : core.icon('check') + '<span class="ed-foot-text">' + esc(t('easydrag.ui.issues_none_short')) + '</span>';
+            // The run view shows a stored run, not the draft the issues describe. The foot button
+            // stays inert there; leaving the view renders it again.
+            const button = node.closest('[data-ed-cmd]') || node;
+            if (ed.runView) button.setAttribute('aria-disabled', 'true');
+            else button.removeAttribute('aria-disabled');
         }
 
         function renderLastRun() {
@@ -241,6 +256,7 @@
             if (palette.isOpen()) { palette.setOpen(false, true); palette.afterMove(place); } else place();
             renderHeader();
             setMenus();
+            renderIssues();
         }
 
         function exitRunView() {
@@ -257,6 +273,7 @@
             paletteBefore = false;
             renderHeader();
             setMenus();
+            renderIssues();
             // The hints were not checked while the run view showed (an edit there, a restore).
             publish.refreshIssues();
             // The banner and its buttons are gone: keyboard focus goes to the draft's canvas.
@@ -395,11 +412,13 @@
         // therefore a shortcutHint, which the desktop draws but does not dispatch. Ctrl+S,
         // Ctrl+Enter and Ctrl+K are real shortcuts (Ctrl+K so that the desktop's search does not
         // take it); they do nothing while a dialog is open, the step dialog (detail view, also
-        // aria-modal) included. Edits wait while a dialog, the detail view or quick-add covers the
-        // canvas, and while the restore offer waits for its answer.
+        // aria-modal) included, or while a desktop context menu is open (the shell runs the
+        // shortcut before onKeyDown can see that menu). Edits wait while a dialog, the detail
+        // view or quick-add covers the canvas, and while the restore offer waits for its answer.
         function modalOpen() { return !!(ed.detail || el.querySelector('.ed-modal-backdrop:not(.is-closing)')); }
+        function contextMenuOpen() { return !!document.querySelector('.vd-context-menu'); }
         function overlayOpen() { return !!(ed.detail || ed.quickAdd || modalOpen()); }
-        const unlessModal = fn => () => { if (!modalOpen()) fn(); };
+        const unlessModal = fn => () => { if (!modalOpen() && !contextMenuOpen()) fn(); };
         const unlessOverlay = fn => () => { if (!overlayOpen() && !restoring) fn(); };
 
         function setMenus() {

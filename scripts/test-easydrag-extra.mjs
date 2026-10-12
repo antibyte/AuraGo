@@ -338,6 +338,40 @@ export async function run(env) {
         eq('c1d04 the wire checks log no errors', [h.logged, p.logged, q.logged], [[], [], []]);
     });
 
+    await guardAsync('c1d04 an unknown source port draws a dashed wire under the card', async () => {
+        const S = 'n_switch01';
+        const D = 'n_dddddddd';
+        const h = harness({
+            schema: 1, name: 'Ports',
+            nodes: [
+                { id: S, key: 'route', type: 'logic.switch', label: 'Route', position: { x: 0, y: 0 }, params: { cases: [{}, {}] }, settings: {} },
+                { id: D, key: 'beta', type: 'web.search', label: 'Beta', position: { x: 600, y: 80 }, params: {}, settings: {} }
+            ],
+            edges: [
+                { id: 'bad', source: { node: S, port: 'missing' }, target: { node: D, port: 'in' } },
+                { id: 'case1', source: { node: S, port: 'case_1' }, target: { node: D, port: 'in' } },
+                { id: 'case2', source: { node: S, port: 'case_2' }, target: { node: D, port: 'in' } }
+            ]
+        });
+        const group = id => h.canvas.wiresSvg.querySelectorAll('.ed-edge').find(g => g.getAttribute('data-edge-id') === id);
+        const drawn = id => { const g = group(id); const path = g && g.querySelector('.ed-wire'); return path ? path.getAttribute('d') : null; };
+        const expectPort = port => {
+            const src = h.model.node(S);
+            const dst = h.model.node(D);
+            const outs = h.model.outputs(src);
+            const a = h.ED.geometry.portPoint(src.position, 'out', outs.indexOf(port), outs.length);
+            const b = h.ED.geometry.portPoint(dst.position, 'in', 0, h.model.outputs(dst).length);
+            return h.ED.geometry.wirePath(a, b);
+        };
+        const bad = group('bad');
+        const badPath = drawn('bad');
+        const case1 = expectPort('case_1');
+        const case2 = expectPort('case_2');
+        eq('c1d04 an unknown source port draws a dashed wire under the card; case_1 and case_2 stay on their ports',
+            [!!bad && bad.classList.contains('is-broken'), badPath !== null && badPath !== case1 && badPath !== case2, drawn('case1'), drawn('case2'), h.model.outputs(h.model.node(S)).indexOf('case_1')],
+            [true, true, case1, case2, 0]);
+    });
+
     await guardAsync('c1d04 read-only canvas', async () => {
         const h = harness(twoNodes());
         h.ed.readonly = true;

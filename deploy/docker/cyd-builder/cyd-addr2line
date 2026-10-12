@@ -1,0 +1,74 @@
+#!/opt/cyd/pio-venv/bin/python -I
+"""cyd-addr2line: decode backtrace addresses against a firmware ELF.
+
+usage: cyd-addr2line --elf <path> --chip esp32|esp32s3 <addr>...
+stdout: JSON array [{"address","function","file","line"}], one entry per address
+exit: 0 ok, 2 bad arguments or tooling error
+File paths are made project-relative where possible ("src/app/app_main.cpp");
+library and framework sources keep a short "<package>/..." path; unknown
+locations have function "??", file "" and line 0.
+"""
+import argparse
+import json
+import re
+import subprocess
+import sys
+
+TOOLCHAINS = {
+    "esp32": "/opt/cyd/platformio/packages/toolchain-xtensa-esp32/bin/xtensa-esp32-elf-addr2line",
+    "esp32s3": "/opt/cyd/platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-addr2line",
+}
+ADDR_RE = re.compile(r"0x[0-9a-fA-F]{1,8}")  # fullmatch: "$" would also accept a trailing newline
+MAX_ADDRS = 64
+PATH_RULES = [
+    (re.compile(r"^/work/[^/]+/"), ""),                                     # the build tree
+    (re.compile(r"^/(?:tmp/cyd-pio|opt/cyd/platformio)/packages/"), ""),    # framework/toolchain
+    (re.compile(r"^/(?:tmp/cyd-pio/libdeps/[^/]+|opt/cyd/libs)/"), "libs/"),
+]
+
+
+def clean_path(path):
+    for rule, repl in PATH_RULES:
+        if rule.match(path):
+            return rule.sub(repl, path, count=1)
+    return path
+
+
+def main():
+    p = argparse.ArgumentParser(prog="cyd-addr2line")
+    p.add_argument("--elf", required=True)
+    p.add_argument("--chip", required=True, choices=sorted(TOOLCHAINS))
+    p.add_argument("addresses", nargs="+")
+    a = p.parse_args()
+    if len(a.addresses) > MAX_ADDRS or not all(ADDR_RE.fullmatch(x) for x in a.addresses):
+        p.error("addresses must be 1..%d hex values like 0x400d1234" % MAX_ADDRS)
+    addrs = [x.lower() for x in a.addresses]
+    res = subprocess.run([TOOLCHAINS[a.chip], "-f", "-C", "-e", a.elf] + addrs,
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="replace")
+    if res.returncode != 0:
+        sys.stderr.write(res.stderr)
+        return 2
+    lines = res.stdout.splitlines()
+    if len(lines) != 2 * len(addrs):
+        sys.stderr.write("unexpected addr2line output\n")
+        return 2
+    frames = []
+    for i, addr in enumerate(addrs):
+        func = lines[2 * i].strip() or "??"
+        loc = lines[2 * i + 1].strip()
+        loc = re.sub(r" \(discriminator \d+\)$", "", loc)
+        file, _, num = loc.rpartition(":")
+        try:
+            line = int(num)
+        except ValueError:
+            line = 0
+        if file in ("??", "") or (line == 0 and func == "??"):
+            file, line = "", 0
+        frames.append({"address": addr, "function": func, "file": clean_path(file), "line": line})
+    json.dump(frames, sys.stdout)
+    sys.stdout.write("\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

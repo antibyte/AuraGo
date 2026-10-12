@@ -99,6 +99,7 @@ Daten liegen bei deiner Installation. **Gehostete Modelle sehen trotzdem ihre Re
 6. [Werkzeuge](06-tools.md) — Der große Werkzeugkasten
 7. [Konfiguration](07-konfiguration.md) — Provider-System und Feintuning
 8. [Integrationen](08-integrations.md) — Vom NAS bis zum Funkgerät
+    - [CYD Creator](25-cyd-creator.md) (Kapitel 25) — Apps für das Cheap Yellow Display
 9. [Gedächtnis](09-memory.md) — Verlauf, Kernfakten, RAG, Graph
 10. [Persönlichkeit](10-personality.md) — Dieselbe Toolbox, andere Haltung
 

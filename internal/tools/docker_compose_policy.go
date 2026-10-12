@@ -187,7 +187,9 @@ func dockerComposeKeepEnd(text string, limit int) string {
 // (canonical and legacy) on services, top-level volumes and networks, the
 // homepage image repository, named and bind volume sources, local bind volume
 // devices, volumes_from and container: namespace references. Owners: acestep.Owner, dockerutil.LocalLLMOwner,
-// BoringGarageOwner, HomepageOwner and AppOwner. The app container matches only
+// BoringGarageOwner, HomepageOwner, AppOwner and CYDCreatorOwner (the exact
+// builder container name, its two exact volume names and the published builder
+// image as a service image or build tag). The app container matches only
 // its exact name "aurago" or the aurago-app owner label: this tier also binds
 // grandfathered configs, and user stacks name containers like "dev-aurago".
 func DockerComposeModelOwner(model DockerComposeModel) string {
@@ -201,6 +203,11 @@ func DockerComposeModelOwner(model DockerComposeModel) string {
 		}
 		if dockerutil.IsHomepageImageReference(service.Image) {
 			return dockerutil.HomepageOwner
+		}
+		if dockerComposeServiceUsesImage(service, func(ref string) bool { return dockerutil.IsCYDCreatorImageReference(ref, "") }) {
+			// build would tag (and pull, push or down --rmi would touch) the
+			// published builder image.
+			return dockerutil.CYDCreatorOwner
 		}
 		for _, mount := range service.Volumes {
 			if owner := dockerComposeMountOwner(model, mount); owner != "" {
@@ -242,6 +249,34 @@ func DockerComposeModelOwner(model DockerComposeModel) string {
 		}
 	}
 	return ""
+}
+
+// dockerComposeServiceUsesImage reports whether matches accepts the service's
+// image or one of its build tags.
+func dockerComposeServiceUsesImage(service DockerComposeService, matches func(string) bool) bool {
+	if matches(service.Image) {
+		return true
+	}
+	if service.Build != nil {
+		for _, tag := range service.Build.Tags {
+			if matches(tag) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// DockerComposeModelUsesImage reports whether a service of the model uses an
+// image reference that matches accepts (image or build tag); the agent passes
+// the configured CYD Creator builder image.
+func DockerComposeModelUsesImage(model DockerComposeModel, matches func(string) bool) bool {
+	for _, name := range sortedDockerComposeKeys(model.Services) {
+		if dockerComposeServiceUsesImage(model.Services[name], matches) {
+			return true
+		}
+	}
+	return false
 }
 
 // DockerComposeContainerReferences returns the containers outside the project
@@ -300,7 +335,7 @@ func dockerComposeVolumesFromTarget(ref string) (target string, isContainer bool
 // dockerComposeLabelOwner reports the AuraGo owner named by canonical or legacy
 // aurago.managed labels on a service, volume or network.
 func dockerComposeLabelOwner(labels map[string]string) string {
-	for _, owner := range []string{acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner, dockerutil.HomepageOwner, dockerutil.AppOwner} {
+	for _, owner := range []string{acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner, dockerutil.HomepageOwner, dockerutil.AppOwner, dockerutil.CYDCreatorOwner} {
 		if dockerutil.ManagedBy(labels, owner) {
 			return owner
 		}
@@ -321,6 +356,8 @@ func dockerComposeContainerOwner(name string) string {
 		return dockerutil.BoringGarageOwner
 	case dockerutil.IsHomepageContainerName(name):
 		return dockerutil.HomepageOwner
+	case dockerutil.IsCYDCreatorBuilderContainerName(name):
+		return dockerutil.CYDCreatorOwner
 	case strings.EqualFold(strings.TrimPrefix(name, "/"), dockerutil.AppContainerName):
 		// Exact name only. dockerutil.IsAuraGoAppContainerName also matches
 		// "*-aurago"/"*_aurago" replicas; the agent create path keeps using it,
@@ -341,6 +378,8 @@ func dockerComposeVolumeOwner(name string) string {
 		return dockerutil.LocalLLMOwner
 	case dockerutil.IsBoringGarageContainerName(name):
 		return dockerutil.BoringGarageOwner
+	case dockerutil.IsCYDCreatorVolumeName(name):
+		return dockerutil.CYDCreatorOwner
 	}
 	return ""
 }

@@ -127,6 +127,7 @@ worker. Keep packaging, recovery and offline instructions in
 - Chat history loads are session-generation bound through every rendered batch; a late fetch or animation-frame continuation cannot append to a newer session. Store dialogs clear input values and attributes on close/dispose, and late API responses cannot reopen them. Verify `TestChatHistorySwitchDropsLateBatchesBrowser` and `TestSoftwareStoreDisposesSensitiveDialogsBrowser`.
 
 - Radio, Personal Radio, and RTL-SDR use separate icon keys and assets in both Papirus and WhiteSur. Keep the backend app manifests, Desktop mappings, theme manifests, and generated main bundle aligned; verify `TestDesktopRadioAppsHaveDistinctThemeIcons`.
+- Theme manifests reference only their own `img/papirus/icons/` or `img/whitesur/icons/` assets; an app logo such as `img/desktop-icons/layerling.svg` stays `logo_path` metadata. Verify `TestDesktopWhiteSurAssetsAreEmbedded`.
 
 - Tool configuration consumes `_effective_tool_policy` and `_config_migrations`
   as response diagnostics only, through the shared config-response loader on
@@ -346,6 +347,11 @@ worker. Keep packaging, recovery and offline instructions in
   matching 128px cell in `img/config-sidebar-icons.svg` and `.json`, and a
   `.config-icon-slot-N` position in `config-workspace.css`. The sidebar draws the
   inline symbol, so a missing one renders blank; it must match the sprite cell.
+  The sprite has 11 columns and 12 rows (slots 0–131; `gog` 121, `ruview` 122, `cyd_creator` 123, `decisions` 124):
+  x = column × 10 %, y = row × 100 / 11 %. A thirteenth row needs the same
+  growth in `main.js`, the CSS, the SVG canvas, the metadata and the test
+  constants. Keep all slot rules in one ordered CSS block and the sprite
+  well-formed XML without repeated attributes.
   Verify `TestConfigSidebarIconSpriteContract`.
 - Config uses one visible card level: named topic cards containing flat fields,
   with a compact variant for independent objects. Reuse `AuraConfigForm` and the shared presentation pass for lazy

@@ -240,6 +240,7 @@ Flows that you build in the **EasyDrag** desktop app appear in Mission Control a
 - When a step reads a file that another step created in the documents folder (a new PDF, for example), AuraGo copies it to `.easydrag/<run>/` in the workspace for that one call and removes the copy afterwards.
 - Email steps: a retry starts only after the previous attempt has ended, so two attempts never overlap. If the mail server accepted a mail but its answer got lost, the retry sends the mail a second time. A run that is cancelled during a send may still deliver the mail in the background.
 - Telegram steps with a file: when the text went out but the file failed, the step is not tried again, so the text is not sent twice.
+- A foreground shell step ends with the run. Cancelling the run ends its process tree. The shell also ends when the step's own timeout cancels the same context. Both limits apply; the shorter one wins. A shell step with `background: true` stays registered until the command ends on its own, in a flow and in chat.
 
 #### Flow secrets
 
@@ -247,8 +248,9 @@ Steps that need a password or key (the authentication of an HTTP request, for ex
 
 #### Switching flows off, restarts and backups
 
-- With `flows.enabled: false`, or when the flow store cannot be opened, no flow runs. The flow missions stay in Mission Control but never run as agent missions: a trigger that fires sets the last result to the error "EasyDrag flows are not available …", and **Run** answers that flows are not available.
-- Changes to `flows.enabled` and the four limits take effect after a restart; `flows.ai_provider` applies at once. See the [configuration reference](07-configuration.md#compact-yaml-reference).
+- When the flow service is not there (`flows.enabled` was off at startup, or the flow store cannot be opened), no flow runs. The flow missions stay in Mission Control but never run as agent missions: a trigger that fires sets the last result to the error "EasyDrag flows are not available …", and **Run** answers that flows are not available.
+- Switching `flows.enabled` off while AuraGo is running turns EasyDrag and the API off at once. Published flows keep running until the restart. You can still stop a run that is already going.
+- The four limits take effect after a restart. `flows.ai_provider` applies at once. See the [configuration reference](07-configuration.md#compact-yaml-reference).
 - Runs that were in progress when AuraGo stopped are marked interrupted; they do not resume. A Date/Time trigger that came due while AuraGo or flows were off fires at start-up only when it is at most 10 minutes late; otherwise it is skipped with a warning in the log, and a yearly date moves on to the next year.
 - A Date/Time trigger whose run cannot be created when it comes due (the flow already has the maximum of waiting runs, or a database error) is kept and tried again after 30 seconds, then at doubling intervals up to every 15 minutes, with a warning in the log each time; the run then carries the original time as `scheduled_for`. After 24 hours AuraGo gives up: the trigger counts as missed (a warning in the log), and a yearly date moves on to the next year. Republishing the flow or switching it off discards a pending retry. A trigger that the *Skip* setting drops, or that fires while the flow is switched off, is not retried; the log says so.
 - At start-up AuraGo checks Mission Control against the published flows and repairs their triggers and timers. Publishing never re-creates a flow mission that is missing from Mission Control: export the flow, delete it and import it again.

@@ -43,6 +43,7 @@ var containerProtectedOwners = []string{
 	"ruview",
 	dockerutil.LocalLLMOwner,
 	dockerutil.BoringGarageOwner,
+	dockerutil.CYDCreatorOwner,
 	dockerutil.SecurityProxyOwner,
 }
 

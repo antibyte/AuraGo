@@ -47,7 +47,7 @@ async function renderOllamaSection(section) {
     html += _ollamaField('ollama.managed_instance.gpu_backend', t('config.ollama.managed_gpu_backend_label'), t('config.ollama.managed_gpu_backend_help'), gpuSelect);
 
     html += _ollamaField('ollama.managed_instance.default_models', t('config.ollama.managed_models_label'), t('config.ollama.managed_models_help'),
-        '<input class="field-input" type="text" data-path="ollama.managed_instance.default_models" value="' + escapeAttr((miData.default_models || []).join(',')) + '" placeholder="llama3,mistral">');
+        '<input class="field-input" type="text" data-type="array" data-path="ollama.managed_instance.default_models" value="' + escapeAttr((miData.default_models || []).join(',')) + '" placeholder="llama3,mistral">');
 
     html += _ollamaField('ollama.managed_instance.memory_limit', t('config.ollama.managed_memory_label'), t('config.ollama.managed_memory_help'),
         '<input class="field-input" type="text" data-path="ollama.managed_instance.memory_limit" value="' + escapeAttr(miData.memory_limit || '') + '" placeholder="8g">');

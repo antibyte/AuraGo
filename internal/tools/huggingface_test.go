@@ -6,10 +6,13 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 )
 
 func TestHuggingFacePolicyAllowsPublicReadsWithoutToken(t *testing.T) {
@@ -227,4 +230,310 @@ func TestHuggingFaceLedgerFailureProducesSafeWarning(t *testing.T) {
 	if result["ledger_warning"] == nil || strings.Contains(result["ledger_warning"].(string), blockingFile) {
 		t.Fatalf("unsafe or missing ledger warning: %#v", result)
 	}
+}
+
+func TestHuggingFaceLedgerScrubsProviderResponse(t *testing.T) {
+	const token = "hf_audit_token_0123456789"
+	security.RegisterSensitive(token)
+
+	t.Run("response", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/api/jobs/team" || r.Header.Get("Authorization") != "Bearer "+token {
+				t.Fatalf("request = %s %s auth=%q", r.Method, r.URL.Path, r.Header.Get("Authorization"))
+			}
+			_, _ = w.Write([]byte(`{"id":"job-1","note":"` + token + `"}`))
+		}))
+		defer server.Close()
+		dataDir := t.TempDir()
+		out := runHuggingFaceJobFixture(t, server.URL, dataDir, token)
+		if !strings.Contains(out, `"status":"success"`) {
+			t.Fatalf("output = %s", out)
+		}
+		job := mustHuggingFaceLedgerJob(t, dataDir)
+		if strings.Contains(job.ResponseJSON, token) || !strings.Contains(job.ResponseJSON, "[redacted]") || strings.Contains(job.LastError, token) || strings.Contains(job.RequestJSON, "secret-script") {
+			t.Fatalf("ledger leaked: %#v", job)
+		}
+	})
+
+	t.Run("error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"error":"` + token + `"}`))
+		}))
+		defer server.Close()
+		dataDir := t.TempDir()
+		out := runHuggingFaceJobFixture(t, server.URL, dataDir, token)
+		if !strings.Contains(out, `"status":"error"`) {
+			t.Fatalf("output = %s", out)
+		}
+		job := mustHuggingFaceLedgerJob(t, dataDir)
+		if strings.Contains(job.LastError, token) || !strings.Contains(job.LastError, "[redacted]") || strings.Contains(job.ResponseJSON, token) || strings.Contains(job.RequestJSON, "secret-script") {
+			t.Fatalf("ledger leaked: %#v", job)
+		}
+	})
+}
+
+func TestHuggingFaceDownloadPublishesThroughWorkspaceRoot(t *testing.T) {
+	root := t.TempDir()
+	workspace := filepath.Join(root, "workspace")
+	outside := filepath.Join(root, "outside")
+	if err := os.MkdirAll(workspace, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(outside, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(workspace, "huggingface")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("0123456789abcdef0123456789abcdef"))
+	}))
+	defer server.Close()
+	out := RunHuggingFace(context.Background(), config.HuggingFaceConfig{
+		Enabled: true, ReadOnly: true, HubBaseURL: server.URL,
+	}, "", workspace, t.TempDir(), HuggingFaceRequest{Operation: "download_file", RepoID: "org/model", Path: "file.bin"})
+	if !strings.Contains(out, `"status":"error"`) {
+		t.Fatalf("expected download through the workspace symlink to fail, got %s", out)
+	}
+	entries, err := os.ReadDir(outside)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("outside directory gained %d entries", len(entries))
+	}
+}
+
+func TestHuggingFaceAllowlistedDownloadSendsToken(t *testing.T) {
+	const token = "hf_audit_token_0123456789"
+	const payload = "0123456789abcdef0123456789abcdef"
+	var auth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth = r.Header.Get("Authorization")
+		_, _ = w.Write([]byte(payload))
+	}))
+	defer server.Close()
+	workspace := t.TempDir()
+	out := RunHuggingFace(context.Background(), config.HuggingFaceConfig{
+		Enabled: true, ReadOnly: true, HubBaseURL: server.URL, AllowedRepos: []string{"allowed/model"},
+	}, token, workspace, t.TempDir(), HuggingFaceRequest{
+		Operation: "download_file", RepoID: "allowed/model", Path: "file.bin", Destination: "models/file.bin",
+	})
+	if auth != "Bearer "+token || !strings.Contains(out, `"status":"success"`) {
+		t.Fatalf("auth=%q output=%s", auth, out)
+	}
+	published := filepath.Join(workspace, "models", "file.bin")
+	got, err := os.ReadFile(published)
+	if err != nil || string(got) != payload {
+		t.Fatalf("published file = %q, err=%v", got, err)
+	}
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(published)
+		if err != nil || info.Mode().Perm() != 0o600 {
+			t.Fatalf("mode = %v, err=%v", info, err)
+		}
+	}
+}
+
+func TestHuggingFaceDownloadRefusesProtectedNames(t *testing.T) {
+	var hits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		_, _ = w.Write([]byte("secret"))
+	}))
+	defer server.Close()
+	workspace := t.TempDir()
+	out := RunHuggingFace(context.Background(), config.HuggingFaceConfig{
+		Enabled: true, ReadOnly: true, HubBaseURL: server.URL,
+	}, "", workspace, t.TempDir(), HuggingFaceRequest{
+		Operation: "download_file", RepoID: "org/model", Path: "file.bin", Destination: ".env",
+	})
+	if hits.Load() != 0 || !strings.Contains(out, "protected") {
+		t.Fatalf("hits=%d output=%s", hits.Load(), out)
+	}
+	if _, err := os.Stat(filepath.Join(workspace, ".env")); !os.IsNotExist(err) {
+		t.Fatalf("protected file exists: %v", err)
+	}
+}
+
+func TestHuggingFaceReadOnlyAllowsDownload(t *testing.T) {
+	cfg := config.HuggingFaceConfig{Enabled: true, ReadOnly: true}
+	if err := EvaluateHuggingFacePolicy(cfg, HuggingFaceRequest{Operation: "download_file", RepoID: "gpt2", Path: "file"}, ""); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestHuggingFacePublicNamedReadOmitsToken(t *testing.T) {
+	const token = "hf_audit_token_0123456789"
+	var auth string
+	var hits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		auth = r.Header.Get("Authorization")
+		_, _ = w.Write([]byte(`{"id":"gpt2"}`))
+	}))
+	defer server.Close()
+	for _, id := range []string{"org/private", "gpt2"} {
+		hits.Store(0)
+		auth = ""
+		out := RunHuggingFace(context.Background(), config.HuggingFaceConfig{
+			Enabled: true, ReadOnly: true, HubBaseURL: server.URL,
+		}, token, t.TempDir(), t.TempDir(), HuggingFaceRequest{Operation: "get_model", RepoID: id})
+		if hits.Load() != 1 || auth != "" || !strings.Contains(out, `"status":"success"`) {
+			t.Fatalf("%s hits=%d auth=%q output=%s", id, hits.Load(), auth, out)
+		}
+	}
+}
+
+func TestHuggingFaceAllowlistRejectsNamedReadBeforeHTTP(t *testing.T) {
+	var hits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		_, _ = w.Write([]byte(`{"id":"x"}`))
+	}))
+	defer server.Close()
+	cfg := config.HuggingFaceConfig{
+		Enabled: true, ReadOnly: true, HubBaseURL: server.URL, AllowedNamespaces: []string{"allowed"},
+	}
+	for _, id := range []string{"other/private", "gpt2"} {
+		out := RunHuggingFace(context.Background(), cfg, "hf_audit_token_0123456789", t.TempDir(), t.TempDir(), HuggingFaceRequest{Operation: "get_model", RepoID: id})
+		if hits.Load() != 0 || !strings.Contains(out, `"status":"error"`) || strings.Contains(out, "write") {
+			t.Fatalf("id %s hits=%d output=%s", id, hits.Load(), out)
+		}
+		if id == "gpt2" && !strings.Contains(out, "namespace/repository") {
+			t.Fatalf("single-segment read used the wrong rejection: %s", out)
+		}
+	}
+}
+
+func TestHuggingFaceAllowlistsRequireBothLists(t *testing.T) {
+	const token = "hf_audit_token_0123456789"
+	var hits atomic.Int32
+	var auth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		auth = r.Header.Get("Authorization")
+		_, _ = w.Write([]byte(`{"id":"allowed/model"}`))
+	}))
+	defer server.Close()
+	rejected := []struct {
+		repos, namespaces []string
+		repoID, want      string
+	}{
+		{[]string{"other/model"}, []string{"allowed"}, "other/model", "allowed_namespaces"},
+		{[]string{"allowed/other"}, []string{"allowed"}, "allowed/model", "allowed_repos"},
+	}
+	for _, tc := range rejected {
+		cfg := config.HuggingFaceConfig{
+			Enabled: true, ReadOnly: true, HubBaseURL: server.URL,
+			AllowedRepos: tc.repos, AllowedNamespaces: tc.namespaces,
+		}
+		out := RunHuggingFace(context.Background(), cfg, token, t.TempDir(), t.TempDir(), HuggingFaceRequest{Operation: "get_model", RepoID: tc.repoID})
+		if hits.Load() != 0 || !strings.Contains(out, `"status":"error"`) || !strings.Contains(out, tc.want) {
+			t.Fatalf("repo %s lists %#v %#v hits=%d output=%s", tc.repoID, tc.repos, tc.namespaces, hits.Load(), out)
+		}
+	}
+	hits.Store(0)
+	auth = ""
+	cfg := config.HuggingFaceConfig{
+		Enabled: true, ReadOnly: true, HubBaseURL: server.URL,
+		AllowedRepos: []string{"allowed/model"}, AllowedNamespaces: []string{"allowed"},
+	}
+	out := RunHuggingFace(context.Background(), cfg, token, t.TempDir(), t.TempDir(), HuggingFaceRequest{Operation: "get_model", RepoID: "allowed/model"})
+	if hits.Load() != 1 || auth != "Bearer "+token || !strings.Contains(out, `"status":"success"`) {
+		t.Fatalf("both lists hits=%d auth=%q output=%s", hits.Load(), auth, out)
+	}
+}
+
+func TestHuggingFaceDatasetReadsFollowAllowlist(t *testing.T) {
+	const token = "hf_audit_token_0123456789"
+	var auth string
+	var hits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		auth = r.Header.Get("Authorization")
+		_, _ = w.Write([]byte(`{"rows":[]}`))
+	}))
+	defer server.Close()
+	cfg := config.HuggingFaceConfig{Enabled: true, ReadOnly: true, DatasetBaseURL: server.URL}
+	out := RunHuggingFace(context.Background(), cfg, token, t.TempDir(), t.TempDir(), HuggingFaceRequest{
+		Operation: "dataset_rows", Dataset: "org/data", Split: "train", Length: 1,
+	})
+	if hits.Load() != 1 || auth != "" || !strings.Contains(out, `"status":"success"`) {
+		t.Fatalf("public dataset hits=%d auth=%q output=%s", hits.Load(), auth, out)
+	}
+
+	hits.Store(0)
+	cfg.AllowedNamespaces = []string{"allowed"}
+	out = RunHuggingFace(context.Background(), cfg, token, t.TempDir(), t.TempDir(), HuggingFaceRequest{
+		Operation: "dataset_rows", Dataset: "other/private", Split: "train", Length: 1,
+	})
+	if hits.Load() != 0 || !strings.Contains(out, `"status":"error"`) {
+		t.Fatalf("rejected dataset hits=%d output=%s", hits.Load(), out)
+	}
+
+	auth = ""
+	out = RunHuggingFace(context.Background(), cfg, token, t.TempDir(), t.TempDir(), HuggingFaceRequest{
+		Operation: "dataset_rows", Dataset: "allowed/data", Split: "train", Length: 1,
+	})
+	if hits.Load() != 1 || auth != "Bearer "+token || !strings.Contains(out, `"status":"success"`) {
+		t.Fatalf("allowlisted dataset hits=%d auth=%q output=%s", hits.Load(), auth, out)
+	}
+
+	hits.Store(0)
+	out = RunHuggingFace(context.Background(), cfg, token, t.TempDir(), t.TempDir(), HuggingFaceRequest{
+		Operation: "dataset_rows", Dataset: "org/../../other", Split: "train", Length: 1,
+	})
+	if hits.Load() != 0 || !strings.Contains(out, `"status":"error"`) {
+		t.Fatalf("invalid dataset hits=%d output=%s", hits.Load(), out)
+	}
+}
+
+func TestHuggingFaceSearchOmitsTokenWhenAllowlistSet(t *testing.T) {
+	const token = "hf_audit_token_0123456789"
+	var auth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth = r.Header.Get("Authorization")
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer server.Close()
+	cfg := config.HuggingFaceConfig{
+		Enabled: true, ReadOnly: true, HubBaseURL: server.URL, AllowedNamespaces: []string{"allowed"},
+	}
+	for _, operation := range []string{"search_models", "search_papers", "daily_papers"} {
+		auth = ""
+		out := RunHuggingFace(context.Background(), cfg, token, t.TempDir(), t.TempDir(), HuggingFaceRequest{Operation: operation, Query: "bert"})
+		if auth != "" || !strings.Contains(out, `"status":"success"`) {
+			t.Fatalf("%s auth=%q output=%s", operation, auth, out)
+		}
+	}
+}
+
+func runHuggingFaceJobFixture(t *testing.T, jobsURL, dataDir, token string) string {
+	t.Helper()
+	return RunHuggingFace(context.Background(), config.HuggingFaceConfig{
+		Enabled: true, ReadOnly: false, AllowJobs: true, AllowedHardware: []string{"cpu-basic"},
+		JobsBaseURL: jobsURL + "/api/jobs", JobNamespace: "team",
+	}, token, t.TempDir(), dataDir, HuggingFaceRequest{
+		Operation: "job_run_python", Script: "print('secret-script')", Hardware: "cpu-basic",
+	})
+}
+
+func mustHuggingFaceLedgerJob(t *testing.T, dataDir string) hfJobRecord {
+	t.Helper()
+	jobs, err := HuggingFaceLedgerJobs(context.Background(), dataDir, 10)
+	if err != nil || len(jobs) != 1 {
+		t.Fatalf("jobs = %#v, err=%v", jobs, err)
+	}
+	return hfJobRecord{
+		RequestJSON: jobs[0].RequestJSON, ResponseJSON: jobs[0].ResponseJSON, LastError: jobs[0].LastError,
+	}
+}
+
+type hfJobRecord struct {
+	RequestJSON  string
+	ResponseJSON string
+	LastError    string
 }

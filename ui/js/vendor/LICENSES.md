@@ -3485,7 +3485,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
    limitations under the License.
 
 
-## esptool-js 0.6.1 — Apache-2.0
+## esptool-js 0.7.0 — Apache-2.0
 
 
                                  Apache License

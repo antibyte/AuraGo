@@ -861,6 +861,7 @@ sqlite:
     media_registry_path: ./data/media_registry.db
     homepage_registry_path: ./data/homepage_registry.db
     game_maker_path: ./data/game_maker.db
+    cyd_creator_path: ./data/cyd_creator.db
     contacts_path: ./data/contacts.db
     planner_path: ./data/planner.db
     virtual_desktop_path: ./data/virtual_desktop.db
@@ -1202,6 +1203,22 @@ game_maker:
     max_asset_size_mb: 32
     max_project_size_mb: 100
     job_timeout_seconds: 1800                              # normal budget; recent compiled source may earn one 50% extension, capped at 15 min
+cyd_creator:
+    enabled: false                                         # CYD Creator desktop app (needs docker.enabled); builds run in a Docker container
+    builder_image: ghcr.io/antibyte/aurago-cyd-builder:1   # published toolchain image; pulled from the app, never built locally
+    build_timeout_seconds: 300                             # 60-1800; per build when the build cache is warm
+    cold_build_timeout_seconds: 600                        # 60-3600, at least build_timeout_seconds; first build of a project and board
+    memory_mb: 2048                                        # 512-16384; builder container memory limit
+    cpu_cores: 2                                           # 0.5-16; builder container CPU limit
+    idle_stop_minutes: 20                                  # 1-1440; the builder container stops after this idle time
+    max_repair_attempts: 3                                 # 0-10; agent build repair rounds per job
+    job_timeout_minutes: 20                                # 5-120; agent job budget
+    model: ""                                              # provider ID for agent jobs; empty = main provider
+    keep_builds_per_project: 5                             # 1-50; older builds and their artefacts are deleted
+    ota:
+        enabled: true                                      # devices with the AuraGo link pull updates over Wi-Fi
+        heartbeat_seconds: 60                              # 30-600; device heartbeat interval
+        public_url: ""                                     # URL devices use to reach AuraGo; empty = derived from server config
 virtual_computers:
     enabled: false                                         # enable Virtual Computers UI/API; boringd stays private behind AuraGo
     provider: boring_computers                             # v1 provider
@@ -1561,7 +1578,7 @@ ollama:
         gpu_backend: "auto"            # "auto", "nvidia", "amd", "intel", "vulkan" — use "vulkan" for older iGPUs/APUs without ROCm support
         default_models: []             # models to auto-pull after start, e.g. ["llama3", "mistral"]
         memory_limit: ""               # Docker memory limit, e.g. "8g" (empty = unlimited)
-        volume_path: ""                # host path for persistent model storage (empty = Docker volume)
+        volume_path: ""                # host path for /root/.ollama; empty uses named volume aurago_ollama_managed_models
 personality:
     core_personality: friend           # active personality profile, e.g. 'neutral', 'punk', 'zen'
     engine: true                       # enable personality engine (mood, micro-traits)

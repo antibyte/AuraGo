@@ -277,7 +277,7 @@
       "license": "Apache-2.0"
     },
     "esptool-js": {
-      "version": "0.6.1",
+      "version": "0.7.0",
       "license": "Apache-2.0"
     },
     "float-tooltip": {
@@ -1453,6 +1453,14 @@
       "bytes": 188679,
       "sha256": "a74178041eb8cd329e1c292aad0529d7c8d6e34f24bda0459a5c1c3c19a5566d"
     },
+    "ui/js/vendor/esptool-js/esptool-js.min.mjs": {
+      "bytes": 313225,
+      "sha256": "0c7588a441498bc2492b9f9bd0dc626c0bc96413ae2bb4470a1500928cd0db20"
+    },
+    "ui/js/vendor/esptool-js/LICENSE.txt": {
+      "bytes": 11365,
+      "sha256": "1c25f29242785d63e9adb0be7fdc137551dfbbc0756b622fcd26d9cd7de3a4f3"
+    },
     "ui/js/vendor/pdf.min.js": {
       "bytes": 307,
       "sha256": "8d86e07b976e6fb6e5ef0a8f0f3ccd70a51fe3654948b1079b8c09b9a6dc8485"
@@ -1469,13 +1477,17 @@
       "bytes": 455,
       "sha256": "3d800b96a63bb9e77a7065fc19511f529bfd6809185791a607477835dce542e5"
     },
+    "ui/js/vendor/esptool-js/README.md": {
+      "bytes": 266,
+      "sha256": "a2f8d3f313912cc2cf91e2b8f8ae5424633724e797489d5fd9a721536666a2f6"
+    },
     "ui/js/vendor/esp-web-tools/README.md": {
       "bytes": 214,
       "sha256": "bd9a843a7f83a857b52d0c1221770e27d9e890c6649b690b3b2e587dbdacb531"
     },
     "ui/js/vendor/LICENSES.md": {
       "bytes": 239289,
-      "sha256": "5be7508e4efddde493b1ed5f6e5510a9fa708e141383f3e263e1927a0e2175e9"
+      "sha256": "3389b89bbd3a29fe59d0f58c581161930a9f5fcc5be4823bf7a1815711db66ae"
     }
   }
 }

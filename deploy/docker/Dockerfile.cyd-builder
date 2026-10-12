@@ -1,0 +1,203 @@
+# syntax=docker/dockerfile:1.7
+# CYD Creator toolchain image: ghcr.io/antibyte/aurago-cyd-builder:1
+#
+# Build (context = deploy/docker/cyd-builder, named context "cydcreator" = internal/cydcreator):
+#   docker build -f deploy/docker/Dockerfile.cyd-builder \
+#     --build-context cydcreator=internal/cydcreator \
+#     -t ghcr.io/antibyte/aurago-cyd-builder:1 deploy/docker/cyd-builder
+#
+# Everything a build needs is installed here: PlatformIO Core, the espressif32
+# platform with the ESP32 and ESP32-S3 toolchains, every curated library, the
+# fonts and lv_font_conv. The reference sample is compiled once per board
+# profile at image build time, so builds later run with --network none on a
+# read-only root filesystem (writable: /work, /cache, /tmp) as uid 1000.
+FROM node:22-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392
+
+ARG CYD_BUILDER_VERSION=1.0.0
+# The licences label names the main licences of what the image ships (AuraGo's
+# scripts are MIT; the toolchains, esptool, the Arduino core, NeoPixel, certifi,
+# Python and the Debian packages bring the rest). The per-component list with
+# exact versions and source URLs is /usr/share/doc/aurago-cyd-builder/NOTICE,
+# generated from cyd-builder/NOTICE below.
+LABEL org.opencontainers.image.title="aurago-cyd-builder" \
+      org.opencontainers.image.description="PlatformIO toolchain for AuraGo CYD Creator (ESP32/ESP32-S3, LVGL 9, LovyanGFX). Third-party licences and sources: /usr/share/doc/aurago-cyd-builder/NOTICE" \
+      org.opencontainers.image.source="https://github.com/antibyte/AuraGo" \
+      org.opencontainers.image.version="${CYD_BUILDER_VERSION}" \
+      org.opencontainers.image.licenses="MIT AND Apache-2.0 AND BSD-3-Clause AND GPL-2.0-or-later AND GPL-3.0-or-later AND LGPL-2.1-or-later AND LGPL-3.0-or-later AND MPL-2.0 AND PSF-2.0 AND OFL-1.1"
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=C.UTF-8 \
+    PYTHONDONTWRITEBYTECODE=1
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl python3 python3-venv tini unzip \
+    && rm -rf /var/lib/apt/lists/* \
+    && usermod -l cyd -d /home/cyd -m node \
+    && groupmod -n cyd node
+
+# PlatformIO Core, hash-pinned (requirements.txt is generated from requirements.in).
+COPY requirements.txt /opt/cyd/requirements.txt
+RUN python3 -m venv /opt/cyd/pio-venv \
+    && /opt/cyd/pio-venv/bin/pip install --no-cache-dir --require-hashes -r /opt/cyd/requirements.txt
+
+# Image-build-time PlatformIO locations (runtime ones are set at the end). The
+# core dir (download cache, state) lives in /tmp and is deleted in every RUN so
+# no layer keeps downloaded archives. PlatformIO creates owner-only (0700)
+# directories, so each RUN opens up exactly the files it created: a chmod of
+# older files would copy them into the new layer.
+ENV PLATFORMIO_CORE_DIR=/tmp/cyd-pio-build \
+    PLATFORMIO_PLATFORMS_DIR=/opt/cyd/platformio/platforms \
+    PLATFORMIO_PACKAGES_DIR=/opt/cyd/platformio/packages \
+    PLATFORMIO_SETTING_ENABLE_TELEMETRY=No \
+    PLATFORMIO_SETTING_CHECK_PLATFORMIO_INTERVAL=36500 \
+    PLATFORMIO_DISABLE_PROGRESSBAR=true
+
+# The platform and every package a build uses, at exact versions. Installed
+# first, they satisfy the platform's version ranges (e.g. framework
+# ~3.20017.0), so PlatformIO never resolves a range against whatever the
+# registry offers on the day the image is built; the check after the prewarm
+# fails the build on any drift. The same RUN drops the SDKs of chips no profile
+# uses and the RISC-V (ULP) toolchain binaries - its package.json/.piopm stay,
+# so PlatformIO still sees the package as installed; CYD apps never build ULP
+# code (saves ~900 MB, which a later RUN could no longer reclaim).
+RUN /opt/cyd/pio-venv/bin/pio pkg install --global \
+      --tool "platformio/framework-arduinoespressif32@3.20017.241212" \
+      --tool "platformio/tool-esptoolpy@2.41100.260830" \
+      --tool "platformio/tool-scons@4.40801.0" \
+      --tool "espressif/toolchain-xtensa-esp32@8.4.0+2021r2-patch5" \
+      --tool "espressif/toolchain-xtensa-esp32s3@8.4.0+2021r2-patch5" \
+      --tool "espressif/toolchain-riscv32-esp@8.4.0+2021r2-patch5" \
+    && /opt/cyd/pio-venv/bin/pio pkg install --global --platform "platformio/espressif32@6.13.0" \
+    && rm -rf /tmp/cyd-pio-build \
+      /opt/cyd/platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s2 \
+      /opt/cyd/platformio/packages/framework-arduinoespressif32/tools/sdk/esp32c3 \
+    && find /opt/cyd/platformio/packages/toolchain-riscv32-esp -mindepth 1 -maxdepth 1 \
+      ! -name package.json ! -name .piopm -exec rm -rf {} + \
+    && chmod -R a+rX,go-w /opt/cyd/platformio
+
+# Curated libraries (identical specs to cydcreator.Libraries() and the template's
+# lib_deps), installed from the registry without their unpinned dependencies.
+RUN mkdir -p /opt/cyd/libs \
+    && /opt/cyd/pio-venv/bin/pio pkg install --skip-dependencies --storage-dir /opt/cyd/libs \
+      --library "lvgl/lvgl@9.5.0" \
+      --library "lovyan03/LovyanGFX@1.2.30" \
+      --library "tzapu/WiFiManager@2.0.17" \
+      --library "bblanchon/ArduinoJson@7.4.3" \
+      --library "knolleary/PubSubClient@2.8" \
+      --library "paulstoffregen/OneWire@2.3.8" \
+      --library "milesburton/DallasTemperature@4.0.6" \
+      --library "adafruit/DHT sensor library@1.4.7" \
+      --library "adafruit/Adafruit BME280 Library@2.3.0" \
+      --library "adafruit/Adafruit BMP280 Library@3.0.0" \
+      --library "adafruit/Adafruit NeoPixel@1.15.5" \
+      --library "adafruit/Adafruit Unified Sensor@1.1.15" \
+      --library "adafruit/Adafruit BusIO@1.17.4" \
+    && rm -rf /tmp/cyd-pio-build \
+    && chmod -R a+rX,go-w /opt/cyd/libs
+
+# lv_font_conv (MIT) ships its dependencies bundled; the tarball is pinned by SHA-256.
+RUN curl -fsSL -o /tmp/lv_font_conv.tgz https://registry.npmjs.org/lv_font_conv/-/lv_font_conv-1.5.3.tgz \
+    && echo "9f64fb8eb553dbab1990402eae74afbafd80b4f39a8314a01484083b6ed1000d  /tmp/lv_font_conv.tgz" | sha256sum -c - \
+    && npm install --global --prefix /opt/cyd/node --no-audit --no-fund --offline --ignore-scripts /tmp/lv_font_conv.tgz \
+    && rm -f /tmp/lv_font_conv.tgz \
+    && /opt/cyd/node/bin/lv_font_conv --help > /dev/null
+
+# Fonts (SIL OFL 1.1), pinned by SHA-256: Montserrat Medium and the FontAwesome 5
+# symbol subset exactly as LVGL 9.5.0 uses them, Inter 4.1 Medium, JetBrains Mono 2.304 Medium.
+RUN mkdir -p /tmp/fonts /opt/cyd/fonts/licenses && cd /tmp/fonts \
+    && curl -fsSL -o Montserrat-Medium.ttf https://raw.githubusercontent.com/lvgl/lvgl/v9.5.0/scripts/built_in_font/Montserrat-Medium.ttf \
+    && curl -fsSL -o FontAwesome5.woff "https://raw.githubusercontent.com/lvgl/lvgl/v9.5.0/scripts/built_in_font/FontAwesome5-Solid%2BBrands%2BRegular.woff" \
+    && curl -fsSL -o Inter-4.1.zip https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip \
+    && curl -fsSL -o JetBrainsMono-2.304.zip https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip \
+    && curl -fsSL -o Montserrat-OFL.txt https://raw.githubusercontent.com/google/fonts/76fca9fd0bb4ea46583f92e978660f3984ab9442/ofl/montserrat/OFL.txt \
+    && curl -fsSL -o FontAwesome-LICENSE.txt https://raw.githubusercontent.com/FortAwesome/Font-Awesome/5.15.4/LICENSE.txt \
+    && printf '%s  %s\n' \
+      421f26b23e2be6b98373d32acd3cb2897b154d4bf0a77d26534ce476e4cbed53 Montserrat-Medium.ttf \
+      f4e42f6cd69e5dbdcccc0f2f5be136cebde0e427641e45403bf9173a92da95f4 FontAwesome5.woff \
+      9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e Inter-4.1.zip \
+      6f6376c6ed2960ea8a963cd7387ec9d76e3f629125bc33d1fdcd7eb7012f7bbf JetBrainsMono-2.304.zip \
+      8b7141c03fa4f8d44e6345d5d4931709290f0f67875e452e95ac1fd3a027802e Montserrat-OFL.txt \
+      e779748dfe75e84f974df3c7bc07f842011a100159158b0f1f49b2f2a5a515cb FontAwesome-LICENSE.txt \
+      | sha256sum -c - \
+    && unzip -q -j Inter-4.1.zip extras/ttf/Inter-Medium.ttf LICENSE.txt -d inter \
+    && unzip -q -j JetBrainsMono-2.304.zip fonts/ttf/JetBrainsMono-Medium.ttf OFL.txt -d jbm \
+    && cp Montserrat-Medium.ttf inter/Inter-Medium.ttf jbm/JetBrainsMono-Medium.ttf /opt/cyd/fonts/ \
+    && cp FontAwesome5.woff "/opt/cyd/fonts/FontAwesome5-Solid+Brands+Regular.woff" \
+    && cp Montserrat-OFL.txt FontAwesome-LICENSE.txt /opt/cyd/fonts/licenses/ \
+    && cp inter/LICENSE.txt /opt/cyd/fonts/licenses/Inter-OFL.txt \
+    && cp jbm/OFL.txt /opt/cyd/fonts/licenses/JetBrainsMono-OFL.txt \
+    && cd / && rm -rf /tmp/fonts
+
+COPY --chmod=0755 cyd-build cyd-addr2line cyd-selftest /usr/local/bin/
+
+# cyd-build keeps its PlatformIO build directories per builder version
+# (/cache/build/<version>/<cache key>), so a new image never reuses objects
+# compiled by an older toolchain.
+RUN printf '%s\n' "${CYD_BUILDER_VERSION}" > /opt/cyd/builder-version
+
+# Reference sample + template, used by cyd-selftest (prewarm now, smoke test later).
+COPY --from=cydcreator template/lib/cyd_template /opt/cyd/selftest/cyd_template
+COPY --from=cydcreator testdata/reference/basic /opt/cyd/selftest/reference
+
+# Prewarm: compile the reference sample for every board profile with network
+# access, so anything PlatformIO still wants on demand ends up in the image (the
+# check below fails the build if that was a package). Then drop build outputs
+# and open up only the entries this RUN created (everything older is already
+# world-readable).
+RUN mkdir -p /work /cache \
+    && cyd-selftest --all \
+    && rm -rf /work/* /cache/* /tmp/cyd-pio /tmp/cyd-build.lock /tmp/cyd-pio-build \
+    && find /opt/cyd \( \( -type d ! -perm -o+rx \) -o \( -type f ! -perm -o+r \) \) -print0 \
+      | xargs -0 -r chmod a+rX,go-w \
+    && chown 1000:1000 /work /cache
+
+# Toolchain drift check: the installed platform and packages must be exactly
+# the pinned set (an extra or different entry means PlatformIO resolved
+# something on its own during the prewarm).
+RUN /opt/cyd/pio-venv/bin/python -I -c 'import glob, json, os, sys; \
+got = sorted("%s %s" % (os.path.basename(os.path.dirname(p)), json.load(open(p))["version"]) \
+  for p in glob.glob("/opt/cyd/platformio/platforms/*/platform.json") + glob.glob("/opt/cyd/platformio/packages/*/package.json")); \
+want = sorted(sys.argv[1:]); print("\n".join(got)); \
+sys.exit(0 if got == want else "toolchain drift: expected %s" % want)' \
+      "espressif32 6.13.0" \
+      "framework-arduinoespressif32 3.20017.241212+sha.dcc1105b" \
+      "tool-esptoolpy 2.41100.260830" \
+      "tool-scons 4.40801.0" \
+      "toolchain-riscv32-esp 8.4.0+2021r2-patch5" \
+      "toolchain-xtensa-esp32 8.4.0+2021r2-patch5" \
+      "toolchain-xtensa-esp32s3 8.4.0+2021r2-patch5"
+
+# Third-party notice: cyd-builder/NOTICE (GPL/LGPL/MPL components, versions,
+# source URLs) plus the installed Debian packages with their source versions.
+# The check fails the build when the notice does not name, as "<name> <version>",
+# every installed PlatformIO platform/package and every GPL/LGPL/MPL Python
+# distribution or curated library - so a pin bump must update the notice.
+RUN --mount=type=bind,source=NOTICE,target=/tmp/cyd-notice.in \
+    mkdir -p /usr/share/doc/aurago-cyd-builder \
+    && { sed "s/@CYD_BUILDER_VERSION@/${CYD_BUILDER_VERSION}/" /tmp/cyd-notice.in \
+      && dpkg-query -W -f '${Package} ${Version} (source: ${source:Package} ${source:Version})\n'; } \
+      > /usr/share/doc/aurago-cyd-builder/NOTICE \
+    && chmod 0644 /usr/share/doc/aurago-cyd-builder/NOTICE \
+    && /opt/cyd/pio-venv/bin/python -I -c 'import glob, json, os, re, sys, importlib.metadata as md; \
+notice = open(sys.argv[1]).read(); copyleft = re.compile(r"\bL?GPL\b|GNU (Lesser )?General Public|Mozilla Public|\bMPL\b"); \
+want = ["%s %s" % (os.path.basename(os.path.dirname(p)), json.load(open(p))["version"]) \
+  for p in glob.glob("/opt/cyd/platformio/platforms/*/platform.json") + glob.glob("/opt/cyd/platformio/packages/*/package.json")]; \
+want += ["%s %s" % (d.metadata["Name"], d.version) for d in md.distributions() \
+  if copyleft.search(" ".join([d.metadata.get("License-Expression") or d.metadata.get("License") or ""] + (d.metadata.get_all("Classifier") or [])))]; \
+want += ["%s %s" % (m["name"], m["version"]) for p, m in ((p, json.load(open(p))) for p in glob.glob("/opt/cyd/libs/*/.piopm")) \
+  if any(copyleft.search(open(f, errors="replace").read()) for f in glob.glob(os.path.join(os.path.dirname(p), "*")) \
+    if re.match(r"(?i)(licen[cs]e|copying)", os.path.basename(f)) and os.path.isfile(f))]; \
+missing = [w for w in want if w not in notice]; print("notice names: " + ", ".join(want)); \
+sys.exit("NOTICE does not name: %s" % missing if missing else 0)' /usr/share/doc/aurago-cyd-builder/NOTICE
+
+ENV PLATFORMIO_CORE_DIR=/tmp/cyd-pio/core \
+    PLATFORMIO_PLATFORMS_DIR=/tmp/cyd-pio/platforms \
+    PLATFORMIO_PACKAGES_DIR=/tmp/cyd-pio/packages \
+    PLATFORMIO_LIBDEPS_DIR=/tmp/cyd-pio/libdeps \
+    HOME=/tmp/cyd-pio/home \
+    PATH=/opt/cyd/pio-venv/bin:/opt/cyd/node/bin:$PATH
+
+USER 1000:1000
+WORKDIR /work
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["sleep", "infinity"]

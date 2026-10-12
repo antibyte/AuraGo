@@ -1,0 +1,197 @@
+package cydcreator
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"testing"
+)
+
+func TestCHexColor(t *testing.T) {
+	if got := cHexColor("#3fc6e0"); got != "lv_color_hex(0x3FC6E0)" {
+		t.Errorf("cHexColor = %s", got)
+	}
+	if cBool(true) != "1" || cBool(false) != "0" {
+		t.Error("cBool")
+	}
+}
+
+func TestCString(t *testing.T) {
+	cases := map[string]string{
+		"":                        `""`,
+		"Start":                   `"Start"`,
+		`say "hi"`:                `"say \"hi\""`,
+		`C:\temp`:                 `"C:\\temp"`,
+		"two\nlines":              `"two\nlines"`,
+		"tab\there":               `"tab\011here"`,
+		"cr\r\x01\x1f\x7f":        `"cr\015\001\037\177"`,
+		"\x01" + "7":              `"\0017"`, // three octal digits: the 7 stays a character
+		"why??=":                  `"why?\?="`,
+		"???":                     `"?\?\?"`,
+		"22,5 °C – Zurück € ✓ 你好": `"22,5 °C – Zurück € ✓ 你好"`, // UTF-8 stays raw
+		"100 %":                   `"100 %"`,
+	}
+	for in, want := range cases {
+		if got := cString(in); got != want {
+			t.Errorf("cString(%q) = %s, want %s", in, got, want)
+		}
+	}
+}
+
+// TestCStringMatchesTemplateEscaper pins that the generator and the device
+// strings header (plan 1b, cStringLiteral) escape control bytes and trigraphs
+// identically: the 1b reference must stay reproducible byte for byte, and the
+// two escapers must never drift apart.
+func TestCStringMatchesTemplateEscaper(t *testing.T) {
+	var inputs []string
+	for c := 0; c < 0x80; c++ {
+		inputs = append(inputs, string(rune(c)), "a"+string(rune(c))+"7")
+	}
+	inputs = append(inputs, "??", "???", "????", "?a?", "??=", "??/", "??'", "??(", "??)", "??!", "??<", "??>", "??-",
+		"What?? Really???", "ü??ü", "\\??", "\"??\"", "\n??\n", "22,5 °C – Zurück € ✓ 你好")
+	for _, in := range inputs {
+		if got, want := cString(in), cStringLiteral(in); got != want {
+			t.Errorf("cString(%q) = %s, cStringLiteral = %s", in, got, want)
+		}
+	}
+}
+
+// TestCStringControlBytesAndTrigraphs checks the two properties generated
+// sources rely on, for every control byte and every trigraph introducer.
+func TestCStringControlBytesAndTrigraphs(t *testing.T) {
+	for c := 0; c < 0x20; c++ {
+		in := string(rune(c))
+		want := fmt.Sprintf(`"\%03o"`, c)
+		if c == '\n' {
+			want = `"\n"`
+		}
+		if got := cString(in); got != want {
+			t.Errorf("cString(%#x) = %s, want %s", c, got, want)
+		}
+		// Octal escapes carry three digits, so a following digit stays literal.
+		if got := cString(in + "7"); got != strings.TrimSuffix(want, `"`)+`7"` {
+			t.Errorf("cString(%#x+7) = %s", c, got)
+		}
+	}
+	if got := cString("\x7f"); got != `"\177"` {
+		t.Errorf("cString(DEL) = %s", got)
+	}
+	for _, third := range "=/'()!<>-" {
+		in := "??" + string(third)
+		got := cString(in)
+		if strings.Contains(got, "??") {
+			t.Errorf("cString(%q) = %s still contains a trigraph", in, got)
+		}
+		if got != `"?\?`+string(third)+`"` {
+			t.Errorf("cString(%q) = %s", in, got)
+		}
+	}
+	for n := 2; n <= 6; n++ {
+		if got := cString(strings.Repeat("?", n)); strings.Contains(got, "??") {
+			t.Errorf("cString(%d question marks) = %s still contains a trigraph", n, got)
+		}
+	}
+}
+
+func TestCComment(t *testing.T) {
+	cases := map[string]string{
+		"Sets the backlight.":           "Sets the backlight.",
+		"line one\nline two\r\tend":     "line one line two  end",
+		`ends with a backslash \`:       "ends with a backslash",
+		"trailing spaces and \\ \\   ":  "trailing spaces and",
+		"no trigraph ??/ here ???":      "no trigraph ? ?/ here ? ? ?",
+		"lädt das Wetter neu \u2028 ok": "lädt das Wetter neu   ok",
+		"":                              "",
+		// Other line breaks and control characters become spaces.
+		"para\xe2\x80\xa9graph":    "para graph", // U+2029 paragraph separator
+		"del\x7fchar":              "del char",   // DEL
+		"tab\there":                "tab here",   // tab
+		"next\xc2\x85line":         "next line",  // U+0085 next line
+		"ends with \xe2\x80\xa9":   "ends with",  // trailing U+2029
+		"ends with \\\xe2\x80\xa8": "ends with",  // backslash, then U+2028
+		// Format characters (Trojan Source): bidi override, zero-width, BOM.
+		"rlo \xe2\x80\xae txt":  "rlo   txt",  // U+202E right-to-left override
+		"zero\xe2\x80\x8bwidth": "zero width", // U+200B zero-width space
+		"bom\xef\xbb\xbfend":    "bom end",    // U+FEFF byte order mark
+		// A comment can never be closed from inside the text.
+		"close */ now":         "close * / now",
+		"**/":                  "** /",
+		"a*/b*/c":              "a* /b* /c",
+		"ends with */":         "ends with * /",
+		"slash / star * apart": "slash / star * apart",
+	}
+	for in, want := range cases {
+		if got := cComment(in); got != want {
+			t.Errorf("cComment(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// TestGenHeader pins the first line of every generated source: the 1b
+// reference sources start with exactly this text.
+func TestGenHeader(t *testing.T) {
+	const want = "// src/generated/ui.cpp - generated by CYD Creator (template " + TemplateVersion +
+		") from cyd.project.json. Do not edit.\n"
+	if got := genHeader("ui.cpp"); got != want {
+		t.Fatalf("genHeader(ui.cpp) = %q, want %q", got, want)
+	}
+	ref, err := os.ReadFile(filepath.Join(referenceDir, "src", "generated", "ui.cpp"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(string(ref), genHeader("ui.cpp")) {
+		t.Errorf("reference ui.cpp does not start with genHeader(ui.cpp)")
+	}
+}
+
+func TestCHexColorFallback(t *testing.T) {
+	cases := map[string]string{
+		"#000000":                    "lv_color_hex(0x000000)",
+		"#aBcDeF":                    "lv_color_hex(0xABCDEF)",
+		"":                           "lv_color_hex(0x000000)", // not validated: black
+		"3fc6e0":                     "lv_color_hex(0x000000)", // missing '#'
+		"#3fc6e":                     "lv_color_hex(0x000000)", // too short
+		"#3fc6e0f":                   "lv_color_hex(0x000000)", // too long
+		"#3fc6eg":                    "lv_color_hex(0x000000)", // not hex
+		"#3fc6e0); system(\"x\"); (": "lv_color_hex(0x000000)", // never reaches the output
+		"#3fc6e0\n":                  "lv_color_hex(0x000000)", // $ in Go regexps does not match before a newline
+	}
+	for in, want := range cases {
+		if got := cHexColor(in); got != want {
+			t.Errorf("cHexColor(%q) = %s, want %s", in, got, want)
+		}
+	}
+}
+
+func TestCodeWriterLine(t *testing.T) {
+	var w codeWriter
+	w.line(0, "a")
+	w.line(2, "b %s %d", "x", 3)
+	w.line(-3, "no negative indent")
+	w.line(0, "")
+	w.raw("100 %\n")
+	const want = "a\n    b x 3\nno negative indent\n\n100 %\n"
+	if got := w.String(); got != want {
+		t.Fatalf("codeWriter output %q, want %q", got, want)
+	}
+}
+
+// firstDiff shows the first differing line of two texts.
+func firstDiff(want, got string) string {
+	wl, gl := strings.Split(want, "\n"), strings.Split(got, "\n")
+	for i := 0; i < max(len(wl), len(gl)); i++ {
+		var w, g string
+		if i < len(wl) {
+			w = wl[i]
+		}
+		if i < len(gl) {
+			g = gl[i]
+		}
+		if w != g {
+			return "line " + strconv.Itoa(i+1) + "\n want: " + w + "\n  got: " + g
+		}
+	}
+	return "(same lines, different line endings or trailing bytes)"
+}

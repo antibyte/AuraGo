@@ -844,6 +844,9 @@ func dockerComposePolicyRun(ctx context.Context, cfg *config.Config, dockerCfg t
 	if denied := dockerComposeOwnerDenial(preflight.protectedOwner(effective)); denied != "" {
 		return denied
 	}
+	if denied := dockerComposeCYDCreatorImageDenial(cfg, preflight.model, effective.model); denied != "" {
+		return denied
+	}
 	if !dockerComposeSkipsContainerReferences(subcommand) {
 		if denied := dockerComposeContainerReferenceDenial(dockerCfg, preflight.model, effective.model); denied != "" {
 			return denied
@@ -961,6 +964,25 @@ func dockerComposeOwnerDenial(owner string) string {
 		return dockerAgentError("docker_managed_homepage_resource", "Docker Compose access to AuraGo-managed homepage resources is blocked. Use homepage_project, homepage_file, or homepage_deploy.")
 	case dockerutil.AppOwner:
 		return dockerAgentError("docker_managed_aurago_resource", "Docker Compose access to AuraGo's application container is blocked.")
+	case dockerutil.CYDCreatorOwner:
+		return dockerAgentError("docker_managed_cyd_creator_resource", "Docker Compose access to AuraGo's CYD Creator builder (container aurago-cyd-builder, volumes aurago-cyd-work and aurago-cyd-cache, builder image) is blocked. Use the CYD Creator app to build firmware.")
+	}
+	return ""
+}
+
+// dockerComposeCYDCreatorImageDenial refuses a model whose services use the
+// configured builder image (cyd_creator.builder_image) as image or build tag;
+// DockerComposeModelOwner already refuses the published repository.
+func dockerComposeCYDCreatorImageDenial(cfg *config.Config, models ...tools.DockerComposeModel) string {
+	configured := ""
+	if cfg != nil {
+		configured = cfg.CYDCreator.BuilderImage
+	}
+	matches := func(ref string) bool { return dockerutil.IsCYDCreatorImageReference(ref, configured) }
+	for _, model := range models {
+		if tools.DockerComposeModelUsesImage(model, matches) {
+			return dockerComposeOwnerDenial(dockerutil.CYDCreatorOwner)
+		}
 	}
 	return ""
 }
@@ -972,7 +994,7 @@ func dockerComposeOwnerDenial(owner string) string {
 // exec access there.
 var dockerComposeReferenceOwners = []string{
 	acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "ruview", dockerutil.LocalLLMOwner,
-	dockerutil.BoringGarageOwner, dockerutil.AppOwner,
+	dockerutil.BoringGarageOwner, dockerutil.CYDCreatorOwner, dockerutil.AppOwner,
 }
 
 // dockerComposeReferenceOwnership resolves a container reference like Docker

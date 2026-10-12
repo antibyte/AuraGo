@@ -274,6 +274,30 @@ func TestParseDockerComposeModelRejectsEmptyAndNonJSON(t *testing.T) {
 	}
 }
 
+// dockerComposeCYDCreatorOwnerCases pin the CYD Creator builder container and
+// its two volumes in every structured form; the test and CI volumes and the
+// builder image itself stay usable.
+var dockerComposeCYDCreatorOwnerCases = map[string]struct {
+	resolved string
+	want     string
+}{
+	"cyd builder container name":      {`{"services":{"w":{"container_name":"aurago-cyd-builder"}}}`, dockerutil.CYDCreatorOwner},
+	"cyd builder label":               {`{"services":{"w":{"labels":{"aurago.managed":"cyd-creator"}}}}`, dockerutil.CYDCreatorOwner},
+	"volumes_from cyd builder":        {`{"services":{"w":{"volumes_from":["container:aurago-cyd-builder"]}}}`, dockerutil.CYDCreatorOwner},
+	"network of cyd builder":          {`{"services":{"w":{"network_mode":"container:aurago-cyd-builder"}}}`, dockerutil.CYDCreatorOwner},
+	"pid of cyd builder":              {`{"services":{"w":{"pid":"container:aurago-cyd-builder"}}}`, dockerutil.CYDCreatorOwner},
+	"external cyd cache volume":       {`{"services":{"w":{"volumes":[{"type":"volume","source":"aurago-cyd-cache","target":"/c"}]}},"volumes":{"aurago-cyd-cache":{"name":"aurago-cyd-cache","external":true}}}`, dockerutil.CYDCreatorOwner},
+	"cyd work volume by name":         {`{"services":{"w":{"volumes":[{"type":"volume","source":"work","target":"/w"}]}},"volumes":{"work":{"name":"aurago-cyd-work","external":true}}}`, dockerutil.CYDCreatorOwner},
+	"declared cyd cache volume":       {`{"services":{},"volumes":{"c":{"name":"aurago-cyd-cache"}}}`, dockerutil.CYDCreatorOwner},
+	"cyd volume label":                {`{"services":{},"volumes":{"c":{"name":"x_c","labels":{"aurago.managed":"cyd-creator"}}}}`, dockerutil.CYDCreatorOwner},
+	"cyd builder image":               {`{"services":{"w":{"image":"ghcr.io/antibyte/aurago-cyd-builder:1"}}}`, dockerutil.CYDCreatorOwner},
+	"cyd builder image build tag":     {`{"services":{"w":{"image":"mine:1","build":{"context":".","tags":["ghcr.io/antibyte/aurago-cyd-builder:latest"]}}}}`, dockerutil.CYDCreatorOwner},
+	"cyd test volumes":                {`{"services":{"w":{"image":"aurago-cyd-builder:dev","volumes":[{"type":"volume","source":"aurago-cyd-work-it","target":"/work"},{"type":"volume","source":"aurago-cyd-cache-it","target":"/cache"}]}},"volumes":{"aurago-cyd-work-it":{"name":"aurago-cyd-work-it"},"aurago-cyd-cache-it":{"name":"aurago-cyd-cache-it"}}}`, ""},
+	"cyd ci volumes":                  {`{"services":{"w":{"image":"aurago-cyd-builder:ci","volumes":[{"type":"volume","source":"cyd-ci-cache","target":"/cache"}]}},"volumes":{"cyd-ci-cache":{"name":"cyd-ci-cache"}}}`, ""},
+	"builder-like test container":     {`{"services":{"w":{"container_name":"aurago-cyd-builder-it"}}}`, ""},
+	"project-scoped cyd cache volume": {`{"services":{},"volumes":{"c":{"name":"proj_aurago-cyd-cache-it"}}}`, ""},
+}
+
 // DockerComposeContainerReferences names every container outside the project
 // that a service joins or reads; the agent resolves each through Docker.
 func TestDockerComposeContainerReferencesListsOutsideContainers(t *testing.T) {
@@ -348,6 +372,9 @@ func TestDockerComposeModelOwnerFindsStructuredReferences(t *testing.T) {
 		"user name with aurago":      {`{"services":{"w":{"container_name":"my-aurago-1"}}}`, ""},
 		"same-project volumes_from":  {`{"services":{"aurago":{"image":"x"},"w":{"volumes_from":["aurago"]}}}`, ""},
 		"plain stack":                {`{"services":{"w":{"image":"nginx:1.27","container_name":"web","volumes":[{"type":"bind","source":"/srv/www","target":"/usr/share/nginx/html"}]}}}`, ""},
+	}
+	for name, tc := range dockerComposeCYDCreatorOwnerCases {
+		cases[name] = tc
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

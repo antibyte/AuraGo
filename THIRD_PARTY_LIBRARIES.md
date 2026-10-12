@@ -2,6 +2,8 @@
 
 Inventory of external libraries, runtimes, fonts, icons, and other third-party assets used by **AuraGo**.
 
+The German compact listing and the license texts that must travel with a redistribution are in [`licences/UEBERSICHT.md`](licences/UEBERSICHT.md).
+
 Layerling 1.57.0 (commit `25f12513802e322cdccecaf138f874ff526f331d`) is an optional
 AGPL-3.0-only browser CAD application, vendored in `ui/js/vendor/layerling`.
 Its license and complete corresponding source archive (including AuraGo's
@@ -142,6 +144,7 @@ Browser packages and SHA-256 checksums are recorded in `ui/js/vendor/manifest.js
 | force-graph | `ui/js/vendor/force-graph.min.js` | MIT | https://github.com/vasturiano/force-graph |
 | qrcode | `ui/js/vendor/qrcode.min.js` | MIT | https://github.com/davidshimjs/qrcodejs (common embed lineage) |
 | noVNC | `ui/js/vendor/novnc.min.js` | MPL-2.0 | https://github.com/novnc/noVNC |
+| esptool-js 0.7.0 | `ui/js/vendor/esptool-js/esptool-js.min.mjs` (bundles pako and atob-lite; CYD Creator flasher) | Apache-2.0 (pako: MIT AND Zlib, atob-lite: MIT) | https://github.com/espressif/esptool-js |
 
 ### 3D / graphics
 
@@ -223,6 +226,8 @@ Self-hosted under `ui/fonts/` (see `ui/fonts/fonts.css`).
 | Schoolbell | SIL Open Font License 1.1 | https://fonts.google.com/specimen/Schoolbell |
 | Shadows Into Light Two | SIL Open Font License 1.1 | https://fonts.google.com/specimen/Shadows+Into+Light+Two |
 | Press Start 2P | SIL Open Font License 1.1 | https://fonts.google.com/specimen/Press+Start+2P |
+| Montserrat | SIL Open Font License 1.1 | https://github.com/JulietaUla/Montserrat · npm `@fontsource/montserrat@5.3.0` (weight 500, latin + latin-ext; CYD Creator designer preview, `Montserrat-LICENSE.txt`) |
+| JetBrains Mono | SIL Open Font License 1.1 | https://github.com/JetBrains/JetBrainsMono · npm `@fontsource/jetbrains-mono@5.3.0` (weight 400, latin + latin-ext; CYD Creator designer preview, `JetBrainsMono-LICENSE.txt`) |
 | Datatype | Check upstream (self-hosted specialty face) | Vendor/original foundry for the Datatype files in `ui/fonts/` |
 | Px437 IBM VGA 8x16 (The Ultimate Oldschool PC Font Pack, VileR) | CC BY-SA 4.0 | https://int10h.org/oldschool-pc-fonts/ · `ui/fonts/Px437_IBM_VGA_8x16.woff`, unmodified (attribution: `ui/fonts/Px437-LICENSE.txt`) |
 | C64 Pro Mono 1.2.1 (C64 TrueType, Style) | Style C64 TrueType licence (custom): only in software provided to end users free of charge, `@font-face` embedding allowed, no modification or renaming, no separate download | http://style64.org/c64-truetype · `ui/fonts/C64_Pro_Mono-STYLE.woff`, unmodified, original file name (licence text and hashes: `ui/fonts/C64_Pro_Mono-LICENSE.txt`) |
@@ -267,6 +272,35 @@ Documented in `THIRD_PARTY_NOTICES.md`. **Not** embedded in the default source t
 | dlclark/regexp2 | Tokenizer regex | MIT | https://github.com/dlclark/regexp2 |
 | Kiwix Wikipedia ZIM edition (one, administrator-selected) | Local Wikipedia content | CC BY-SA 4.0 (text); media under individual licenses | https://library.kiwix.org |
 
+### CYD Creator builder image (`ghcr.io/antibyte/aurago-cyd-builder`)
+
+Pulled on demand when CYD Creator is enabled; not part of the AuraGo binary. Firmware built in it links the
+Arduino core and the libraries an app uses. The image's notice, `/usr/share/doc/aurago-cyd-builder/NOTICE`
+(source: `deploy/docker/cyd-builder/NOTICE`), names each GPL, LGPL and MPL component with its exact version and
+upstream source.
+
+| Component | Use | License | Project |
+|---|---|---|---|
+| Base image `node:22-bookworm-slim` | Node.js 22 runtime for lv_font_conv; Debian 12 packages `python3`, `curl`, `tini`, `unzip`, `ca-certificates` | Node.js: MIT; Debian packages: their own licences (`/usr/share/doc/*/copyright` in the image) | https://hub.docker.com/_/node |
+| PlatformIO Core 6.1.19 | Build system | Apache-2.0 | https://github.com/platformio/platformio-core |
+| PlatformIO's Python dependencies (hash-pinned in `deploy/docker/cyd-builder/requirements.txt`) | PlatformIO runtime | MIT (ajsonrpc, anyio, bottle, charset-normalizer, h11, marshmallow, tabulate, urllib3, wsproto, pip, setuptools), BSD-3-Clause (click, colorama, idna, pyserial, starlette, uvicorn), BSD-2-Clause (semantic-version), Apache-2.0 (requests), Apache-2.0 OR BSD-2-Clause (packaging), PSF-2.0 (typing_extensions), MPL-2.0 (certifi), public domain (pyelftools) | https://pypi.org |
+| SCons 4.8.1 (PlatformIO `tool-scons` 4.40801.0) | Build engine | MIT | https://github.com/SCons/scons |
+| PlatformIO espressif32 6.13.0 | ESP32 platform | Apache-2.0 | https://github.com/platformio/platform-espressif32 |
+| Arduino-ESP32 2.0.17 (ESP-IDF 4.4.7 libraries) | Firmware core | LGPL-2.1-or-later (core), Apache-2.0 (IDF; bundled third-party components keep their own licences, e.g. FreeRTOS MIT, lwIP BSD-3-Clause) | https://github.com/espressif/arduino-esp32 |
+| Xtensa GCC toolchains (esp32, esp32s3) 8.4.0 | Compilers | GPL-3.0 with GCC runtime exception | https://github.com/espressif/crosstool-NG |
+| esptool 4.11.0 | merge_bin | GPL-2.0-or-later | https://github.com/espressif/esptool |
+| LVGL 9.5.0 | UI library | MIT | https://github.com/lvgl/lvgl |
+| LovyanGFX 1.2.30 | Display/touch drivers | MIT AND BSD-2-Clause | https://github.com/lovyan03/LovyanGFX |
+| WiFiManager 2.0.17 | Captive portal | MIT | https://github.com/tzapu/WiFiManager |
+| ArduinoJson 7.4.3 | JSON | MIT | https://github.com/bblanchon/ArduinoJson |
+| PubSubClient 2.8, DallasTemperature 4.0.6, DHT sensor library 1.4.7, Adafruit BusIO 1.17.4, Adafruit BMP280 3.0.0 | Curated sensor/MQTT libraries | MIT | PlatformIO registry |
+| OneWire 2.3.8 | 1-Wire bus | MIT-style permissive (Jim Studt notice plus the Dallas Semiconductor/Maxim notice in `OneWire.cpp`) | https://github.com/PaulStoffregen/OneWire |
+| Adafruit BME280 2.3.0 | Sensor library | BSD-3-Clause | https://github.com/adafruit/Adafruit_BME280_Library |
+| Adafruit Unified Sensor 1.1.15 | Sensor abstraction | Apache-2.0 | https://github.com/adafruit/Adafruit_Sensor |
+| Adafruit NeoPixel 1.15.5 | LED library | LGPL-3.0 | https://github.com/adafruit/Adafruit_NeoPixel |
+| lv_font_conv 1.5.3 | Font conversion | MIT | https://github.com/lvgl/lv_font_conv |
+| Montserrat, Inter 4.1, JetBrains Mono 2.304, Font Awesome 5 Free (LVGL subset) | Device fonts | SIL OFL 1.1 | licence texts in `/opt/cyd/fonts/licenses/` |
+
 ---
 
 ## 9. Copyleft components (attention)
@@ -284,6 +318,11 @@ These use strong or network-relevant copyleft licenses. Redistributors should re
 | chromem-go | MPL-2.0 | Embedded vector DB |
 | Eclipse Paho MQTT | EPL-2.0 | MQTT client |
 | noVNC | MPL-2.0 | VNC in virtual computers UI |
+| Arduino-ESP32 core | LGPL-2.1-or-later | CYD Creator builder image; linked into CYD firmware |
+| esptool | GPL-2.0-or-later | CYD Creator builder image (`merge_bin`) |
+| Xtensa GCC toolchains | GPL-3.0 (runtime libraries under the GCC runtime library exception) | CYD Creator builder image (compilers) |
+| certifi | MPL-2.0 | CYD Creator builder image (PlatformIO dependency, unmodified) |
+| Adafruit NeoPixel | LGPL-3.0 | CYD Creator builder image; linked only when an app selects it |
 | Px437 IBM VGA 8x16 font | CC BY-SA 4.0 (share-alike) | Terminal Retro-Net 80×25 BBS mode (`ui/fonts/Px437_IBM_VGA_8x16.woff`) |
 | C64 Pro Mono font (Style) | Style C64 TrueType licence (custom, not open source): AuraGo must stay free of charge; file unmodified under its original name; never offered as a separate download | Terminal Retro-Net 40×25 Commodore 64 mode (`ui/fonts/C64_Pro_Mono-STYLE.woff`) |
 

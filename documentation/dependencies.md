@@ -60,7 +60,8 @@ Retain the source/version, checksum and license records beside these assets.
 
 Run `npm ci` before generators. `npm run build:browser-vendor` rebuilds shared
 libraries, licenses and hashes, including Three.js and its matching loaders,
-PDF.js workers/fonts, noVNC, Rive and ESP Web Tools. `-- --check` verifies without
+PDF.js workers/fonts, noVNC, Rive, ESP Web Tools and esptool-js (the CYD Creator
+flasher bundle). `-- --check` verifies without
 writing. Other `build:*-vendor`, `build:game-maker-3d`, `build:system-world`,
 `build:screensaver-abyss` scripts retain their own verified manifests. Also run
 `node scripts/build-game-maker-presentation.js` and `npm run build:ui`.

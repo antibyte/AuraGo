@@ -32,6 +32,7 @@ func TestDecisionsConfigBrowser(t *testing.T) {
 	browser := newSmokeBrowser(t)
 	page := browser.MustPage(configRefreshFixtureOrigin(t, "de", false) + "/config#overview")
 	defer page.MustClose()
+	page.MustSetViewport(1440, 900, 1, false)
 	waitForJSBool(t, page, `()=>!!document.querySelector('.pw-overview-card')`)
 	page.MustEval(`async()=>{
         window.decisionActions=[];window.holdDecisionTest=false;window.holdDecisionStop=false;window.decisionStatus={enabled:false,installed:false,ready:false,state:'disabled',deployment:'native',code:'service_disabled'};
@@ -52,8 +53,9 @@ func TestDecisionsConfigBrowser(t *testing.T) {
             }
             return previous(url,options);
         };
-        await selectSection('decisions',{scrollBehavior:'auto'});
     }`)
+	page.MustElement(`.sidebar-group:has([data-section="decisions"]) .sidebar-group-header`).MustClick()
+	page.MustElement(`[data-section="decisions"]`).MustClick()
 	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-status]')?.textContent.includes('Deaktiviert')`)
 	if page.MustEval(`()=>AuraConfigState.isDirty() || decisionActions.length!==0`).Bool() {
 		t.Fatal("opening settings changed configuration or started service")

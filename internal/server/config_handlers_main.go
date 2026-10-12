@@ -126,6 +126,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		injectGo2RTCConfig(rawCfg, s.Cfg, s.Vault)
 		injectGameMakerDefaults(rawCfg, s.Cfg)
 		injectLocalWikipediaDefaults(rawCfg, s.Cfg)
+		injectCYDCreatorDefaults(rawCfg, s.Cfg)
 		injectHereNowDefaults(rawCfg, s.Cfg)
 		injectMQTTRelayDefaults(rawCfg, s.ConfigSnapshot())
 		injectRetroNetDefault(rawCfg, s.ConfigSnapshot())
@@ -518,6 +519,8 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		// The local_wikipedia values before the merge: the save validates
 		// only the values it changes (validateLocalWikipediaSave).
 		previousLocalWikipedia := localWikipediaSectionFromRaw(rawCfg)
+		// Same rule for cyd_creator (validateCYDCreatorSave).
+		previousCYDCreator := cydCreatorSectionFromRaw(rawCfg)
 
 		// Deep merge the patch into the existing config, skipping masked password values.
 		// Before merging, extract any secrets from the patch and write them to the vault
@@ -578,6 +581,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			return
 		}
 		if err := config.NormalizeVideoStudioConfig(&validateCfg.VideoStudio); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := validateCYDCreatorSave(previousCYDCreator, validateCfg.CYDCreator); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -898,6 +905,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			if s.GameMaker == nil && newCfg.GameMaker.Enabled {
 				needsRestart = true
 				restartReasons = append(restartReasons, "Game Maker service")
+			}
+			if reason := s.cydCreatorRestartReason(&oldCfg, newCfg); reason != "" {
+				needsRestart = true
+				restartReasons = append(restartReasons, reason)
 			}
 			if flowsRuntimeConfigChanged(oldCfg.Flows, newCfg.Flows) {
 				needsRestart = true
@@ -1287,9 +1298,20 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			if newCfg.Docker.Enabled && newCfg.Embeddings.LocalOllama.Enabled && !oldCfg.Embeddings.LocalOllama.Enabled {
 				go tools.EnsureOllamaEmbeddingsRunning(newCfg, s.Logger)
 			}
+			if oldCfg.Embeddings.LocalOllama.Enabled && !newCfg.Embeddings.LocalOllama.Enabled {
+				if !newCfg.Docker.Enabled {
+					s.Logger.Info("[Config UI] Docker is disabled; skipping Ollama embeddings container stop")
+				} else {
+					go func() {
+						tools.StopOllamaEmbeddingsContainer(newCfg.Docker.Host)
+						s.Logger.Info("[Config UI] Ollama embeddings container stopped")
+					}()
+				}
+			}
 
-			// Auto-start managed Ollama container if just enabled
-			if newCfg.Docker.Enabled && newCfg.Ollama.ManagedInstance.Enabled && !oldCfg.Ollama.ManagedInstance.Enabled {
+			// Reconcile the managed container when it is enabled and its port, GPU, memory, volume, or model list changed.
+			if newCfg.Docker.Enabled && newCfg.Ollama.ManagedInstance.Enabled &&
+				(!oldCfg.Ollama.ManagedInstance.Enabled || ollamaManagedInputsChanged(&oldCfg, newCfg)) {
 				go tools.EnsureOllamaManagedRunning(newCfg, s.Logger)
 			}
 			// Stop managed Ollama container if just disabled

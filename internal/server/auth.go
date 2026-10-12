@@ -754,6 +754,7 @@ var authBypassSubtrees = []string{
 	"/api/agodesk/knowledge/upload/", // signed AgoDesk knowledge uploads authenticate inside the handler
 	"/api/game-maker/preview/",       // short-lived project-scoped token is validated by the preview handler
 	"/api/cyd/speak/",                // CYD sanoTTS PCM — Bearer scope cyd
+	"/api/cyd-creator/device/",       // CYD Creator device endpoints — device token checked by every handler
 	"/webhook/",                      // webhook receiver — per-webhook bound token or HMAC signature
 	"/css/",
 	"/fonts/",
@@ -1123,6 +1124,9 @@ func validRouteBearer(s *Server, token, path, method string) bool {
 		}
 		if isFlowsAPIPath(path) {
 			return desktopTokenHasScope(s, token, flowsRequiredScope(method, flowsPathParts(path)))
+		}
+		if isCYDCreatorAPIPath(path) {
+			return desktopTokenHasScope(s, token, cydCreatorBearerScope(method, path))
 		}
 		return desktopTokenHasScope(s, token, desktopMethodScope(method))
 	}

@@ -48,7 +48,9 @@ type reconcileTally struct {
 //     its timers, and an enabled flow whose stored timers are stale (staleTimers: a node
 //     or repeat that the live revision does not have, or a trigger without its timer) is
 //     armed again. Timers that match stay as they are, so an occurrence that is due right
-//     now is never dropped by a re-bind.
+//     now is never dropped by a re-bind. A nil FlowMissions snapshot means Mission
+//     Control is not readable: the flow's mission entry and timers stay as they are.
+//     Only a readable disabled flow loses its timers.
 //
 // It deletes nothing. It logs at Warn a flow whose mission is empty or gone (also an
 // unpublished one) and, with a MissionReconciler, a flow mission whose flow is gone. A
@@ -160,6 +162,11 @@ func (s *Service) reconcileFlow(ctx context.Context, id string, recon MissionRec
 		return nil
 	}
 	if rec.Live == nil {
+		return nil
+	}
+	if recon != nil && (missions == nil || *missions == nil) {
+		tally.problems++
+		s.logger.Warn("Mission Control is not readable; timers were left as they are", "flow", id)
 		return nil
 	}
 	// From here on Mission Control and the timers change: finish this flow whatever

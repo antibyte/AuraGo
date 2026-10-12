@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -421,7 +422,7 @@ func probeProviderModelLimits(ctx context.Context, route ModelRoute, logger *slo
 
 func probeOllamaModelLimits(ctx context.Context, route ModelRoute, logger *slog.Logger) providerModelLimitProbe {
 	base := strings.TrimSuffix(strings.TrimRight(route.BaseURL, "/"), "/v1")
-	payload, err := json.Marshal(map[string]string{"name": route.Model})
+	payload, err := json.Marshal(map[string]string{"model": route.Model})
 	if err != nil {
 		return providerModelLimitProbe{}
 	}
@@ -444,20 +445,65 @@ func probeOllamaModelLimits(ctx context.Context, route ModelRoute, logger *slog.
 		return providerModelLimitProbe{}
 	}
 	var decoded struct {
-		ModelInfo map[string]json.RawMessage `json:"model_info"`
+		ModelInfo  map[string]json.RawMessage `json:"model_info"`
+		Parameters json.RawMessage            `json:"parameters"`
 	}
 	if json.Unmarshal(body, &decoded) != nil {
 		return providerModelLimitProbe{}
 	}
+	window := 0
 	for key, raw := range decoded.ModelInfo {
 		if key == "context_length" || strings.HasSuffix(key, ".context_length") {
 			var value int
 			if json.Unmarshal(raw, &value) == nil && value > 0 {
-				return providerModelLimitProbe{ContextWindow: value}
+				window = value
+				break
 			}
 		}
 	}
+	if numCtx := ollamaReportedNumCtx(decoded.Parameters); numCtx > 0 && (window == 0 || numCtx < window) {
+		window = numCtx
+	}
+	if window > 0 {
+		return providerModelLimitProbe{ContextWindow: window}
+	}
 	return providerModelLimitProbe{}
+}
+
+func ollamaReportedNumCtx(parameters json.RawMessage) int {
+	parameters = bytes.TrimSpace(parameters)
+	if len(parameters) == 0 || string(parameters) == "null" {
+		return 0
+	}
+	var text string
+	if json.Unmarshal(parameters, &text) == nil {
+		return ollamaNumCtxLine(text)
+	}
+	var object map[string]json.RawMessage
+	if json.Unmarshal(parameters, &object) == nil {
+		raw, ok := object["num_ctx"]
+		if !ok {
+			return 0
+		}
+		var value int
+		if json.Unmarshal(raw, &value) == nil && value > 0 {
+			return value
+		}
+	}
+	return 0
+}
+
+func ollamaNumCtxLine(text string) int {
+	for _, line := range strings.Split(text, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && fields[0] == "num_ctx" {
+			value, err := strconv.Atoi(fields[1])
+			if err == nil && value > 0 {
+				return value
+			}
+		}
+	}
+	return 0
 }
 
 func probeOpenAICompatibleModelLimits(ctx context.Context, route ModelRoute, logger *slog.Logger) providerModelLimitProbe {

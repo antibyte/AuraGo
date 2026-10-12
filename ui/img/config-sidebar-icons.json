@@ -991,9 +991,17 @@
       "source": "AuraGo custom Precision sidebar icon set"
     },
     {
-      "key": "decisions",
+      "key": "cyd_creator",
       "slot": 123,
       "column": 2,
+      "row": 11,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "decisions",
+      "slot": 124,
+      "column": 3,
       "row": 11,
       "source_type": "custom",
       "source": "AuraGo custom Precision sidebar icon set"

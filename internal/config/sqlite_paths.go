@@ -64,6 +64,7 @@ func SQLiteDatabasePaths(cfg *Config) []string {
 		cfg.SQLite.PushPath,
 		cfg.SQLite.LaunchpadPath,
 		cfg.SQLite.NetworkSharesPath,
+		cfg.SQLite.CYDCreatorPath,
 		FlowsDBPath(cfg),
 	}
 

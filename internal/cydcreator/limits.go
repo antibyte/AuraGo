@@ -1,0 +1,61 @@
+package cydcreator
+
+// Project, file and import limits (spec §3, §11, §14).
+const (
+	MaxLayoutBytes      = 1 << 20
+	MaxScreens          = 16
+	MaxWidgetsPerScreen = 200
+	MaxNesting          = 4 // a widget directly on a screen has depth 1
+	MaxTextBytes        = 1024
+	MaxHintRunes        = 500
+	MaxAppFiles         = 64
+	MaxAppFileBytes     = 256 << 10
+	MaxAppTotalBytes    = 2 << 20
+	AssetBudget4MB      = 256 << 10
+	AssetBudgetLarge    = 4 << 20
+	// MaxAssetTotalBytes caps the stored image originals of one project. The
+	// decoded budget alone does not bound them (a 1x1 PNG costs 2 bytes of it
+	// but may be a 2 MiB file). 16 MiB is twice what the largest budget needs
+	// as originals: AssetBudgetLarge (4 MiB, the image share of an 8/16 MB
+	// board's app slot, at most 6.25 MiB) holds 2 megapixels in RGB565, and those
+	// pixels as an incompressible 8-bit RGBA PNG are 8 MiB. Generate, builds
+	// and the export read every original into memory.
+	MaxAssetTotalBytes = 16 << 20
+	MaxImportBytes     = 20 << 20
+	MaxImportEntries   = 500
+)
+
+// Internal bounds that are not part of the cross-plan contract.
+const (
+	maxLayoutOps        = 200       // ops per ApplyOps call
+	maxWidgetSide       = 2048      // px, any widget or asset side
+	maxCoordinate       = 4096      // px, |x| and |y|
+	intPropLimit        = 1_000_000 // |value| of int props without an explicit range
+	canvasWarnBytes     = 64 << 10  // RGB565 canvas buffer that triggers CANVAS_LARGE without PSRAM
+	maxProjectNameRunes = 64
+	maxDiagnostics      = 200
+	maxDiagMessageBytes = 1024
+	// ParseProject bounds the shape of untrusted layout JSON before decoding it:
+	// a valid layout nests about 16 levels (root, screens, screen, widgets, up
+	// to MaxNesting widget levels with props/events inside) and real arrays hold
+	// at most a few hundred items, so these leave generous headroom.
+	maxLayoutDepth      = 32
+	maxLayoutArrayElems = 4096
+	// maxLayoutObjects caps the total number of JSON objects: the largest valid
+	// layout (16 screens x 200 widgets, each with style, props and events
+	// objects) has about 16-20k, while many arrays that each stay under
+	// maxLayoutArrayElems could otherwise still allocate hundreds of thousands.
+	maxLayoutObjects = 32768
+	// maxInternalDrawBuffer caps LVGL draw buffers on boards without PSRAM so
+	// Wi-Fi, TLS (OTA) and WiFiManager keep enough internal heap (spec §21.5).
+	maxInternalDrawBuffer = 48 << 10
+)
+
+// AssetBudget returns the decoded image budget for a board's flash size:
+// 256 KiB on 4 MB boards (the app slot is ~80 % full with the template, plan 1b), 4 MiB on 8/16 MB boards.
+func AssetBudget(flashMB int) int64 {
+	if flashMB >= 8 {
+		return AssetBudgetLarge
+	}
+	return AssetBudget4MB
+}

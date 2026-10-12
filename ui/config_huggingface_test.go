@@ -18,6 +18,7 @@ func TestHuggingFaceConfigUsesSafeJobAndUploadContracts(t *testing.T) {
 		"job_namespace",
 		"huggingFaceNumber('max_upload_mb'",
 		", cfg.max_upload_mb, 10)",
+		", cfg.max_download_mb, 2048)",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("Hugging Face config module missing %q", marker)

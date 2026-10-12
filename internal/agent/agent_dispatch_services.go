@@ -631,11 +631,17 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if dockerRequestTargetsAuraGoApp(req) {
 				return dockerAgentError("docker_managed_aurago_resource", "Direct inspection, lifecycle, log, file, or process access to AuraGo's application container is blocked.")
 			}
+			if dockerRequestTargetsCYDCreatorImage(req, cfg.CYDCreator.BuilderImage) {
+				return dockerAgentError("docker_managed_cyd_creator_resource", "The CYD Creator builder image cannot be run, pulled or removed through the generic docker tool. Use the CYD Creator app; it installs its own toolchain image.")
+			}
 			if dockerRequestCreatesReservedGarageName(req) {
 				return dockerAgentError("docker_managed_garage_resource", "The container name is reserved for AuraGo's managed Boring Computers Garage. Choose another name.")
 			}
 			if dockerRequestCreatesReservedSecurityProxyName(req) {
 				return dockerAgentError("docker_managed_security_proxy_resource", "The container name is reserved for AuraGo's security proxy. Choose another name.")
+			}
+			if dockerRequestCreatesReservedCYDCreatorName(req) {
+				return dockerAgentError("docker_managed_cyd_creator_resource", "The container name is reserved for AuraGo's CYD Creator builder. Choose another name.")
 			}
 			if dockerCreateRunOperation(req.Operation) && dockerNameReserved(req.Name, dockerReservedSidecarNames(cfg)) {
 				return dockerAgentError("docker_managed_sidecar_name", fmt.Sprintf(dockerManagedSidecarNameMessage, strings.TrimPrefix(strings.TrimSpace(req.Name), "/")))
@@ -669,7 +675,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			// checked: the agent keeps its access to the proxy container, and
 			// dockerRequestCreatesReservedSecurityProxyName refuses create/run.
 			owned, ownershipErr := tools.DockerContainerOwnership(dockerCfg, containerID,
-				acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "ruview", "local-llm", dockerutil.BoringGarageOwner, dockerutil.AppOwner, dockerutil.SecurityProxyOwner)
+				acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "ruview", "local-llm", dockerutil.BoringGarageOwner, dockerutil.CYDCreatorOwner, dockerutil.AppOwner, dockerutil.SecurityProxyOwner)
 			if !localLLMDockerOperationSafe(req.Operation) && owned["ruview"] {
 				return dockerAgentError("docker_managed_ruview_resource", "Managed RuView resources are private. Use the read-only ruview tool or administrator RuView settings.")
 			}
@@ -691,6 +697,11 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if !localLLMDockerOperationSafe(req.Operation) && owned[dockerutil.AppOwner] {
 				return dockerAgentError("docker_managed_aurago_resource", "Direct inspection, lifecycle, log, file, or process access to AuraGo's application container is blocked.")
 			}
+			if !localLLMDockerOperationSafe(req.Operation) && owned[dockerutil.CYDCreatorOwner] {
+				// The builder compiles every project from its shared cache; a
+				// change there ends up in every project's firmware.
+				return dockerAgentError("docker_managed_cyd_creator_resource", dockerCYDCreatorContainerMessage)
+			}
 			if ownershipErr != nil && dockerOperationTargetsContainer(req.Operation) {
 				logger.Warn("Docker container ownership could not be verified", "container_id", containerID, "error", ownershipErr)
 				return dockerAgentError("docker_ownership_unverified", "Docker did not answer the ownership check for this container, so the request was blocked. Retry when the Docker API is reachable.")
@@ -700,6 +711,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			}
 			if dockerRequestMountsProtectedGaragePath(req.Volumes) {
 				return dockerAgentError("docker_managed_garage_resource", "AuraGo's managed Boring Computers Garage data paths cannot be mounted through the Docker agent tool.")
+			}
+			if dockerRequestMountsProtectedCYDCreatorVolume(req.Volumes) {
+				return dockerAgentError("docker_managed_cyd_creator_resource", "AuraGo's CYD Creator build volumes (aurago-cyd-work, aurago-cyd-cache) cannot be mounted through the Docker agent tool. Use the CYD Creator app to build firmware.")
 			}
 			if cfg.Runtime.IsDocker && (len(req.Volumes) > 0 || dockerVolumeOperation(req.Operation)) {
 				// In a container AuraGo's data directory is a volume or a host
@@ -718,6 +732,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			}
 			if dockerProtectedLocalLLMVolumeName(req.Name) {
 				return `Tool Output: {"status":"error","message":"AuraGo's managed local LLM volumes cannot be created, inspected, or removed through the Docker agent tool."}`
+			}
+			if dockerVolumeOperation(req.Operation) && dockerutil.IsCYDCreatorVolumeName(req.Name) {
+				return dockerAgentError("docker_managed_cyd_creator_resource", "AuraGo's CYD Creator build volumes (aurago-cyd-work, aurago-cyd-cache) cannot be created or removed through the Docker agent tool. Use the CYD Creator app.")
 			}
 			var composeChecked *dockerComposePreflight
 			if req.Operation == "compose" {
@@ -743,7 +760,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			switch req.Operation {
 			case "list_containers", "ps":
 				logger.Info("LLM requested Docker list_containers", "all", req.All)
-				return "Tool Output: " + tools.DockerListContainers(dockerCfg, req.All, acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner, dockerutil.AppOwner)
+				return "Tool Output: " + tools.DockerListContainers(dockerCfg, req.All, acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner, dockerutil.AppOwner, dockerutil.CYDCreatorOwner)
 			case "inspect", "inspect_container":
 				logger.Info("LLM requested Docker inspect", "container_id", containerID)
 				return "Tool Output: " + tools.DockerInspectContainer(dockerCfg, containerID)
@@ -798,7 +815,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + tools.DockerListNetworks(dockerCfg)
 			case "list_volumes", "volumes":
 				logger.Info("LLM requested Docker list_volumes")
-				return "Tool Output: " + tools.DockerListVolumes(dockerCfg, acestep.Owner, dockerutil.LocalLLMOwner)
+				return "Tool Output: " + tools.DockerListVolumes(dockerCfg, acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.CYDCreatorOwner)
 			case "info", "system_info":
 				logger.Info("LLM requested Docker system_info")
 				return "Tool Output: " + tools.DockerSystemInfo(dockerCfg)
@@ -1682,6 +1699,42 @@ func dockerRequestCreatesReservedGarageName(req dockerArgs) bool {
 // to a container_id. The agent keeps its access to the existing container.
 func dockerRequestCreatesReservedSecurityProxyName(req dockerArgs) bool {
 	return dockerCreateRunOperation(req.Operation) && dockerutil.IsSecurityProxyContainerName(req.Name)
+}
+
+// dockerCYDCreatorContainerMessage refuses every operation on the CYD Creator
+// builder container (strict, like the local LLM: inspect, logs, stats, top and
+// port included). Only the list operations, which hide it, stay available.
+const dockerCYDCreatorContainerMessage = "Direct inspection, lifecycle, log, file, or process access to AuraGo's CYD Creator builder container is blocked. Use the CYD Creator app to build firmware."
+
+// dockerRequestCreatesReservedCYDCreatorName blocks create/run of the CYD
+// Creator builder name; like the Garage check it covers req.Name next to a
+// container_id, so no container can take the free name before the builder.
+func dockerRequestCreatesReservedCYDCreatorName(req dockerArgs) bool {
+	return dockerCreateRunOperation(req.Operation) && dockerutil.IsCYDCreatorBuilderContainerName(req.Name)
+}
+
+// dockerRequestTargetsCYDCreatorImage reports create/run, pull and
+// remove_image of the published or configured builder image (any tag or
+// digest), like the homepage image rule. A pulled or removed tag would change
+// what the builder runs next.
+func dockerRequestTargetsCYDCreatorImage(req dockerArgs, configured string) bool {
+	switch strings.ToLower(strings.TrimSpace(req.Operation)) {
+	case "create", "create_container", "run", "pull_image", "pull", "remove_image", "rmi":
+		return dockerutil.IsCYDCreatorImageReference(req.Image, configured)
+	}
+	return false
+}
+
+// dockerRequestMountsProtectedCYDCreatorVolume reports a mount of the
+// builder's work or cache volume. The cache holds the objects every project's
+// firmware is linked from.
+func dockerRequestMountsProtectedCYDCreatorVolume(volumes []string) bool {
+	for _, volume := range volumes {
+		if dockerutil.IsCYDCreatorVolumeName(strings.SplitN(volume, ":", 2)[0]) {
+			return true
+		}
+	}
+	return false
 }
 
 func dockerRequestTargetsManagedHomepage(req dockerArgs) bool {

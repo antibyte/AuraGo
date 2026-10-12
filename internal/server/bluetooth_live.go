@@ -24,6 +24,8 @@ func (c desktopCapabilities) HasCapability(name string) bool {
 		return c.s.localWikipediaAvailable()
 	case "retro_games":
 		return c.s.retroGamesAvailable()
+	case "cyd_creator":
+		return c.s.cydCreatorCapability()
 	default:
 		return false
 	}

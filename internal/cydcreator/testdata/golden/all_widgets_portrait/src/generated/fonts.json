@@ -1,0 +1,70 @@
+{
+  "fonts": [
+    {
+      "symbol": "ui_font_inter_20",
+      "family": "inter",
+      "size": 20,
+      "ranges": [
+        "0x20-0x7E",
+        "0xA0-0x17F"
+      ],
+      "chars": "–…€✓你好",
+      "lv_symbols": true
+    },
+    {
+      "symbol": "ui_font_jetbrains_mono_14",
+      "family": "jetbrains_mono",
+      "size": 14,
+      "ranges": [
+        "0x20-0x7E",
+        "0xA0-0x17F"
+      ],
+      "chars": "–…€✓你好",
+      "lv_symbols": true
+    },
+    {
+      "symbol": "ui_font_jetbrains_mono_16",
+      "family": "jetbrains_mono",
+      "size": 16,
+      "ranges": [
+        "0x20-0x7E",
+        "0xA0-0x17F"
+      ],
+      "chars": "–…€✓你好",
+      "lv_symbols": true
+    },
+    {
+      "symbol": "ui_font_montserrat_14",
+      "family": "montserrat",
+      "size": 14,
+      "ranges": [
+        "0x20-0x7E",
+        "0xA0-0x17F"
+      ],
+      "chars": "–…€✓你好",
+      "lv_symbols": true
+    },
+    {
+      "symbol": "ui_font_montserrat_16",
+      "family": "montserrat",
+      "size": 16,
+      "ranges": [
+        "0x20-0x7E",
+        "0xA0-0x17F"
+      ],
+      "chars": "–…€✓你好",
+      "lv_symbols": true
+    },
+    {
+      "symbol": "ui_font_montserrat_20",
+      "family": "montserrat",
+      "size": 20,
+      "ranges": [
+        "0x20-0x7E",
+        "0xA0-0x17F"
+      ],
+      "chars": "–…€✓你好",
+      "lv_symbols": true
+    }
+  ]
+}
