@@ -1149,7 +1149,8 @@ func TestAdaptiveFamilySeedsForQueryIncludesGo2RTCForPersonDetection(t *testing.
 			t.Errorf("expected go2rtc for %q, got %v", query, seeds)
 		}
 	}
-	for _, query := range []string{"Mein Arm tut weh", "set an alarm for 7", "das Messer ist scharf", "warm water please"} {
+	for _, query := range []string{"Mein Arm tut weh", "set an alarm for 7", "das Messer ist scharf", "warm water please",
+		"Mein Kamerad ist scharf auf Kuchen"} {
 		if seeds := adaptiveFamilySeedsForQuery(query); containsName(seeds, "go2rtc") {
 			t.Errorf("unrelated query %q selected go2rtc: %v", query, seeds)
 		}

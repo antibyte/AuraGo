@@ -12,6 +12,8 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/tools"
+
+	openai "github.com/sashabaranov/go-openai"
 )
 
 // useAvailableGo2RTCManager publishes a go2rtc manager whose authenticated API answers, like
@@ -55,6 +57,29 @@ func TestGo2RTCDetectionOperationsRouteThroughTheTool(t *testing.T) {
 	out, _ = dispatchPlatform(context.Background(), ToolCall{Action: "go2rtc", Operation: "detection_status"}, dc)
 	if !strings.Contains(out, "not enabled for agent access") {
 		t.Fatalf("the go2rtc gate must apply first: %s", out)
+	}
+}
+
+// The schema declares event_id as an integer, and ToolCall.EventID is a string (calendar
+// event ids): a numeric event_id must not make the native call malformed, and 13-digit ids
+// stay exact.
+func TestNativeGo2RTCDetectionCallKeepsANumericEventID(t *testing.T) {
+	const id = int64(1_800_000_000_123)
+	tc := NativeToolCallToToolCall(openai.ToolCall{ID: "c1", Type: "function", Function: openai.FunctionCall{
+		Name: "go2rtc", Arguments: `{"operation":"show_detection_event","event_id":1800000000123}`,
+	}}, testLogger)
+	if tc.NativeArgsMalformed || tc.Operation != "show_detection_event" {
+		t.Fatalf("decoded call = malformed %v (%s), operation %q", tc.NativeArgsMalformed, tc.NativeArgsError, tc.Operation)
+	}
+	if got, ok := detectionEventID(tc.Params); !ok || got != id {
+		t.Fatalf("event_id = %d, %v from %#v", got, ok, tc.Params["event_id"])
+	}
+	ev := detectionTestEvent()
+	ev.ID = id
+	useDetectionAPI(t, &fakeDetectionAPI{events: map[int64]detectionEventView{id: ev}, frameRoot: "/data", frames: map[int64]string{7: "f.jpg"}})
+	out := dispatchGo2RTCDetection(context.Background(), tc.Operation, tc, &DispatchContext{Cfg: detectionTestConfig(), Logger: testLogger})
+	if m := decodeDetectionOutput(t, out); m["status"] != "ok" || m["event_id"] != float64(id) {
+		t.Fatalf("dispatch = %s", out)
 	}
 }
 

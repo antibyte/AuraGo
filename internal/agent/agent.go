@@ -740,6 +740,7 @@ var toolCallStringFields = map[string]struct{}{
 	"skill_id":    {},
 	"thread_id":   {},
 	"contact_id":  {},
+	"event_id":    {}, // go2rtc detection event ids arrive as JSON numbers; the literal stays exact
 	"to":          {},
 	"cc":          {},
 }

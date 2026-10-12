@@ -65,6 +65,33 @@ func prepareManagedVisionInput(input string, cfg *config.Config) (string, *confi
 		return "", cfg, noop, fmt.Errorf("open managed image root: %w", err)
 	}
 	defer root.Close()
+	return stageManagedVisionImage(root, rel, cfg)
+}
+
+// prepareManagedVisionInputAt stages an image that AuraGo stores below rootDir, a
+// directory that may itself be a link or mount outside the data directory (the person
+// detection image root). The image is opened through os.Root at rootDir, so rel cannot
+// leave it.
+func prepareManagedVisionInputAt(rootDir, rel string, cfg *config.Config) (string, *config.Config, func(), error) {
+	noop := func() {}
+	if cfg == nil {
+		return "", cfg, noop, fmt.Errorf("vision configuration is not available")
+	}
+	if strings.TrimSpace(rootDir) == "" || !filepath.IsLocal(rel) {
+		return "", cfg, noop, fmt.Errorf("managed image is outside its image root")
+	}
+	root, err := os.OpenRoot(rootDir)
+	if err != nil {
+		return "", cfg, noop, fmt.Errorf("open managed image root: %w", err)
+	}
+	defer root.Close()
+	return stageManagedVisionImage(root, rel, cfg)
+}
+
+// stageManagedVisionImage copies the image rel below root into a private directory that
+// becomes the vision call's workspace root.
+func stageManagedVisionImage(root *os.Root, rel string, cfg *config.Config) (string, *config.Config, func(), error) {
+	noop := func() {}
 	file, err := root.Open(rel)
 	if err != nil {
 		return "", cfg, noop, fmt.Errorf("open managed image: %w", err)
@@ -112,6 +139,17 @@ func prepareManagedVisionInput(input string, cfg *config.Config) (string, *confi
 
 func analyzeManagedImageWithPrompt(input, prompt string, cfg *config.Config) (string, int, int, error) {
 	path, visionCfg, cleanup, err := prepareManagedVisionInput(input, cfg)
+	if err != nil {
+		return "", 0, 0, err
+	}
+	defer cleanup()
+	return dispatchAnalyzeImageWithPrompt(path, prompt, visionCfg)
+}
+
+// analyzeManagedImageAtWithPrompt is analyzeManagedImageWithPrompt for an image below
+// its own root (see prepareManagedVisionInputAt).
+func analyzeManagedImageAtWithPrompt(rootDir, rel, prompt string, cfg *config.Config) (string, int, int, error) {
+	path, visionCfg, cleanup, err := prepareManagedVisionInputAt(rootDir, rel, cfg)
 	if err != nil {
 		return "", 0, 0, err
 	}

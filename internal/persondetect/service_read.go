@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 )
 
 // Events returns one page of events, newest first. A switched-off service without
@@ -35,23 +36,36 @@ func (s *Service) Event(ctx context.Context, id int64) (EventDetail, error) {
 // FrameFile returns the absolute path of a stored frame or its thumbnail. The path
 // is looked up by id and must resolve to a regular file inside the detections root.
 func (s *Service) FrameFile(ctx context.Context, frameID int64, thumb bool) (string, error) {
+	root, rel, err := s.FrameLocation(ctx, frameID, thumb)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, rel), nil
+}
+
+// FrameLocation is FrameFile split into the detections root and the frame's path
+// below it (native separators), checked the same way: a regular file with no link
+// below the root. The root itself may be a link or a mount point on another disk, so
+// a reader that opens frames through os.Root opens it at root, not at the data
+// directory.
+func (s *Service) FrameLocation(ctx context.Context, frameID int64, thumb bool) (root, rel string, err error) {
 	st, err := s.apiStore()
 	if errors.Is(err, ErrDisabled) {
-		return "", fmt.Errorf("%w: frame %d", ErrUnknownEvent, frameID)
+		return "", "", fmt.Errorf("%w: frame %d", ErrUnknownEvent, frameID)
 	}
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	rel, thumbRel, err := st.Frame(ctx, frameID)
+	frameRel, thumbRel, err := st.Frame(ctx, frameID)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	if thumb {
-		rel = thumbRel
+		frameRel = thumbRel
 	}
-	path, err := resolveInside(st.Root(), rel)
-	if err != nil {
-		return "", fmt.Errorf("%w: frame %d: %v", ErrUnknownEvent, frameID, err)
+	root = st.Root()
+	if _, err := resolveInside(root, frameRel); err != nil {
+		return "", "", fmt.Errorf("%w: frame %d: %v", ErrUnknownEvent, frameID, err)
 	}
-	return path, nil
+	return root, filepath.FromSlash(frameRel), nil
 }

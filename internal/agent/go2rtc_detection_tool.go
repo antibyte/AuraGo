@@ -22,8 +22,10 @@ const (
 	go2RTCDetectionDefaultLimit = 10
 	go2RTCDetectionMaxLimit     = 50
 	// go2RTCDetectionMessageRunes bounds error texts taken from the service or the vision call.
-	go2RTCDetectionMessageRunes  = 200
-	go2RTCDetectionDefaultPrompt = "Analyze this camera frame from a person detection event. Describe the persons (how many, where they are, what they do), whether anything looks unusual, and anything that may need attention."
+	go2RTCDetectionMessageRunes = 200
+	// go2RTCDetectionDefaultPrompt must not ask for a quantity ("how many", "number of"):
+	// tools.PrepareVisionPrompt would turn it into a structured vehicle count.
+	go2RTCDetectionDefaultPrompt = "Analyze this camera frame from a person detection event. Describe the persons you see (where they are, what they do, what they carry), whether anything looks unusual, and anything that may need attention."
 )
 
 // go2RTCDetectionOperations are the person detection operations of the go2rtc tool.
@@ -41,7 +43,9 @@ type detectionAPI interface {
 	SetArmMode(ctx context.Context, mode string) (detectionArmView, error)
 	Events(ctx context.Context, q detectionEventQuery) (detectionEventPageView, error)
 	Event(ctx context.Context, id int64) (detectionEventView, error)
-	FramePath(ctx context.Context, frameID int64) (string, error)
+	// FrameLocation names a stored frame as its image root and a path below it, so the
+	// frame can be opened through os.Root even when the root links to another disk.
+	FrameLocation(ctx context.Context, frameID int64) (root, rel string, err error)
 }
 
 // detectionArmView is C4's ArmState. Timestamps are UTC; time_zone and utc_offset name the
@@ -126,8 +130,13 @@ type detectionEventQuery struct {
 	Limit    int
 }
 
-// personDetectAPI adapts the server's *persondetect.Service to detectionAPI.
+// personDetectAPI adapts the server's *persondetect.Service to detectionAPI. The tool only
+// calls it while go2rtc.detection.enabled is on, so a service that still reports detection
+// as off has not been configured yet: the adapter answers that as ErrUnavailable
+// ("starting"), not ErrDisabled.
 type personDetectAPI struct{ svc *persondetect.Service }
+
+var errDetectionNotRunningYet = fmt.Errorf("%w: person detection is not running yet", persondetect.ErrUnavailable)
 
 func (a personDetectAPI) Status(context.Context) (detectionStatusView, error) {
 	var view detectionStatusView
@@ -136,6 +145,9 @@ func (a personDetectAPI) Status(context.Context) (detectionStatusView, error) {
 
 func (a personDetectAPI) SetArmMode(ctx context.Context, mode string) (detectionArmView, error) {
 	state, err := a.svc.SetArmMode(ctx, persondetect.ArmMode(mode), persondetect.ActorAgent)
+	if errors.Is(err, persondetect.ErrDisabled) {
+		return detectionArmView{}, errDetectionNotRunningYet
+	}
 	if err != nil {
 		return detectionArmView{}, err
 	}
@@ -143,15 +155,15 @@ func (a personDetectAPI) SetArmMode(ctx context.Context, mode string) (detection
 	return view, detectionViaJSON(state, &view)
 }
 
-// Events answers an empty page while detection is off; the adapter reports that as
-// ErrDisabled instead of "no events".
+// Events answers an empty page while detection is off; the adapter reports that as not
+// running yet instead of "no events".
 func (a personDetectAPI) Events(ctx context.Context, q detectionEventQuery) (detectionEventPageView, error) {
 	page, err := a.svc.Events(ctx, persondetect.EventQuery{CameraID: q.CameraID, From: q.From, To: q.To, Limit: q.Limit})
 	if err != nil {
 		return detectionEventPageView{}, err
 	}
 	if len(page.Events) == 0 && !a.svc.Status().Enabled {
-		return detectionEventPageView{}, persondetect.ErrDisabled
+		return detectionEventPageView{}, errDetectionNotRunningYet
 	}
 	var view detectionEventPageView
 	return view, detectionViaJSON(page, &view)
@@ -166,19 +178,19 @@ func (a personDetectAPI) Event(ctx context.Context, id int64) (detectionEventVie
 	return view, detectionViaJSON(detail, &view)
 }
 
-func (a personDetectAPI) FramePath(ctx context.Context, frameID int64) (string, error) {
-	path, err := a.svc.FrameFile(ctx, frameID, false)
+func (a personDetectAPI) FrameLocation(ctx context.Context, frameID int64) (string, string, error) {
+	root, rel, err := a.svc.FrameLocation(ctx, frameID, false)
 	if err != nil {
-		return "", a.offOr(err)
+		return "", "", a.offOr(err)
 	}
-	return path, nil
+	return root, rel, nil
 }
 
-// offOr turns the "unknown event" that Event and FrameFile answer while detection is off
-// into ErrDisabled.
+// offOr turns the "unknown event" that Event and FrameLocation answer while detection is
+// off into "not running yet".
 func (a personDetectAPI) offOr(err error) error {
 	if errors.Is(err, persondetect.ErrUnknownEvent) && !a.svc.Status().Enabled {
-		return persondetect.ErrDisabled
+		return errDetectionNotRunningYet
 	}
 	return err
 }
@@ -219,7 +231,7 @@ func dispatchGo2RTCDetection(ctx context.Context, operation string, tc ToolCall,
 	case "detection_status":
 		return go2RTCDetectionStatus(ctx, dc.Cfg, api)
 	case "set_arm_mode":
-		return go2RTCSetArmMode(ctx, api, toolArgString(tc.Params, "mode"))
+		return go2RTCSetArmMode(ctx, api, toolArgString(tc.Params, "mode"), isAutonomousMessageSource(dc.MessageSource))
 	case "list_detection_events":
 		return go2RTCListDetectionEvents(ctx, dc.Cfg, api, tc)
 	case "analyze_detection_event":
@@ -289,10 +301,16 @@ func go2RTCDetectionStatus(ctx context.Context, cfg *config.Config, api detectio
 	return go2RTCDetectionResult(payload)
 }
 
-func go2RTCSetArmMode(ctx context.Context, api detectionAPI, raw string) string {
+// go2RTCSetArmMode sets the arm mode. An autonomous run (a camera wake-up, cron, heartbeat,
+// relay) may only arm: its decisions can rest on a picture a stranger holds up to the
+// camera, and switching alerts off or back to the schedule would silence later alerts.
+func go2RTCSetArmMode(ctx context.Context, api detectionAPI, raw string, autonomous bool) string {
 	mode := strings.ToLower(strings.TrimSpace(raw))
 	if !persondetect.ValidArmMode(mode) {
 		return go2RTCDetectionFailure("invalid_request", "mode must be off, on or schedule.")
+	}
+	if autonomous && mode != string(persondetect.ArmOn) {
+		return go2RTCDetectionFailure("not_allowed", "Only the user can switch person detection alerts off or back to the schedule; an autonomous run may only arm them (mode on). Tell the user what you saw instead.")
 	}
 	arm, err := api.SetArmMode(ctx, mode)
 	if err != nil {
@@ -359,7 +377,7 @@ func go2RTCAnalyzeDetectionEvent(ctx context.Context, api detectionAPI, tc ToolC
 	if dc.BudgetTracker != nil && dc.BudgetTracker.IsBlocked("vision") {
 		return go2RTCDetectionFailure("vision_budget_exceeded", "Vision analysis is blocked because the daily budget is exceeded.")
 	}
-	ev, frameID, path, failure := go2RTCDetectionCover(ctx, api, tc.Params)
+	ev, frameID, frameRoot, frameRel, failure := go2RTCDetectionCover(ctx, api, tc.Params)
 	if failure != "" {
 		return failure
 	}
@@ -368,7 +386,7 @@ func go2RTCAnalyzeDetectionEvent(ctx context.Context, api detectionAPI, tc ToolC
 		prompt = go2RTCDetectionDefaultPrompt
 	}
 	prompt, _ = tools.PrepareVisionPrompt(prompt)
-	analysis, promptTokens, completionTokens, err := analyzeManagedImageWithPrompt(path, prompt, dc.Cfg)
+	analysis, promptTokens, completionTokens, err := analyzeManagedImageAtWithPrompt(frameRoot, frameRel, prompt, dc.Cfg)
 	if err != nil {
 		return go2RTCDetectionFailure("analysis_failed", "Event picture analysis failed: "+boundedRunes(err.Error(), go2RTCDetectionMessageRunes))
 	}
@@ -392,7 +410,7 @@ func go2RTCAnalyzeDetectionEvent(ctx context.Context, api detectionAPI, tc ToolC
 }
 
 func go2RTCShowDetectionEvent(ctx context.Context, api detectionAPI, tc ToolCall, dc *DispatchContext) string {
-	ev, frameID, _, failure := go2RTCDetectionCover(ctx, api, tc.Params)
+	ev, frameID, _, _, failure := go2RTCDetectionCover(ctx, api, tc.Params)
 	if failure != "" {
 		return failure
 	}
@@ -424,24 +442,25 @@ func go2RTCShowDetectionEvent(ctx context.Context, api detectionAPI, tc ToolCall
 }
 
 // go2RTCDetectionCover resolves the event_id argument to the event, its cover frame and the
-// frame's file; failure is a finished tool output when it is not empty.
-func go2RTCDetectionCover(ctx context.Context, api detectionAPI, params map[string]interface{}) (ev detectionEventView, frameID int64, path, failure string) {
+// frame's location (image root and path below it); failure is a finished tool output when
+// it is not empty.
+func go2RTCDetectionCover(ctx context.Context, api detectionAPI, params map[string]interface{}) (ev detectionEventView, frameID int64, root, rel, failure string) {
 	id, ok := detectionEventID(params)
 	if !ok {
-		return ev, 0, "", go2RTCDetectionFailure("invalid_request", "event_id is required; take it from list_detection_events.")
+		return ev, 0, "", "", go2RTCDetectionFailure("invalid_request", "event_id is required; take it from list_detection_events.")
 	}
 	ev, err := api.Event(ctx, id)
 	if err != nil {
-		return ev, 0, "", go2RTCDetectionError(err)
+		return ev, 0, "", "", go2RTCDetectionError(err)
 	}
 	if ev.CoverFrameID == nil || *ev.CoverFrameID <= 0 {
-		return ev, 0, "", go2RTCDetectionFailure("event_not_found", "This event has no stored picture any more (retention may have removed it).")
+		return ev, 0, "", "", go2RTCDetectionFailure("event_not_found", "This event has no stored picture any more (retention may have removed it).")
 	}
-	path, err = api.FramePath(ctx, *ev.CoverFrameID)
+	root, rel, err = api.FrameLocation(ctx, *ev.CoverFrameID)
 	if err != nil {
-		return ev, 0, "", go2RTCDetectionFrameError(err)
+		return ev, 0, "", "", go2RTCDetectionFrameError(err)
 	}
-	return ev, *ev.CoverFrameID, path, ""
+	return ev, *ev.CoverFrameID, root, rel, ""
 }
 
 // go2RTCDetectionImagePath is the web path of a stored frame (C6, gated by requireGo2RTCView).
@@ -477,9 +496,12 @@ func detectionEventID(params map[string]interface{}) (int64, bool) {
 	return 0, false
 }
 
-// parseDetectionTime reads an RFC 3339 time or a server-local date. The service's end of a
-// range is exclusive, so a date as the end becomes the next local midnight and covers the
-// whole day.
+// detectionLocalTimeLayouts are RFC 3339 times without an offset, read as server time.
+var detectionLocalTimeLayouts = []string{"2006-01-02T15:04:05", "2006-01-02T15:04", "2006-01-02 15:04:05", "2006-01-02 15:04"}
+
+// parseDetectionTime reads an RFC 3339 time, a time without an offset (server time) or a
+// server-local date. The service's end of a range is exclusive, so a date as the end
+// becomes the next local midnight and covers the whole day.
 func parseDetectionTime(raw string, end bool) (time.Time, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -487,6 +509,11 @@ func parseDetectionTime(raw string, end bool) (time.Time, error) {
 	}
 	if t, err := time.Parse(time.RFC3339, raw); err == nil {
 		return t, nil
+	}
+	for _, layout := range detectionLocalTimeLayouts {
+		if t, err := time.ParseInLocation(layout, raw, time.Local); err == nil {
+			return t, nil
+		}
 	}
 	day, err := time.ParseInLocation("2006-01-02", raw, time.Local)
 	if err != nil {
@@ -575,7 +602,7 @@ func go2RTCDetectionError(err error) string {
 	}
 }
 
-// go2RTCDetectionFrameError maps a FramePath error: "disabled" and "unavailable" keep their
+// go2RTCDetectionFrameError maps a FrameLocation error: "disabled" and "unavailable" keep their
 // meaning, any other error means the frame's file is gone.
 func go2RTCDetectionFrameError(err error) string {
 	if errors.Is(err, persondetect.ErrDisabled) || errors.Is(err, persondetect.ErrUnavailable) {

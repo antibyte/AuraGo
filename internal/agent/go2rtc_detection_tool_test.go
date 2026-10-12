@@ -4,6 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -24,7 +29,9 @@ type fakeDetectionAPI struct {
 	page     detectionEventPageView
 	queries  []detectionEventQuery
 	events   map[int64]detectionEventView
-	frames   map[int64]string
+	// frames maps a frame id to its path below frameRoot.
+	frameRoot string
+	frames    map[int64]string
 }
 
 func (f *fakeDetectionAPI) Status(context.Context) (detectionStatusView, error) {
@@ -65,17 +72,17 @@ func (f *fakeDetectionAPI) Event(_ context.Context, id int64) (detectionEventVie
 	return ev, nil
 }
 
-func (f *fakeDetectionAPI) FramePath(_ context.Context, frameID int64) (string, error) {
+func (f *fakeDetectionAPI) FrameLocation(_ context.Context, frameID int64) (string, string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.frameErr != nil {
-		return "", f.frameErr
+		return "", "", f.frameErr
 	}
-	path, ok := f.frames[frameID]
+	rel, ok := f.frames[frameID]
 	if !ok {
-		return "", errors.New("frame file is gone")
+		return "", "", errors.New("frame file is gone")
 	}
-	return path, nil
+	return f.frameRoot, rel, nil
 }
 
 func useDetectionAPI(t *testing.T, api detectionAPI) {
@@ -232,6 +239,11 @@ func TestGo2RTCListDetectionEventsParsesFilters(t *testing.T) {
 	if q.Limit != 10 || !q.From.IsZero() || q.CameraID != "" || !q.To.Equal(time.Date(2026, 10, 12, 0, 0, 0, 0, time.Local)) {
 		t.Fatalf("defaults = %+v", q)
 	}
+	// A time without an offset is server time.
+	runDetection(t, dc, "list_detection_events", map[string]interface{}{"since": "2026-10-11T20:00"})
+	if q = api.queries[2]; !q.From.Equal(time.Date(2026, 10, 11, 20, 0, 0, 0, time.Local)) || !q.To.IsZero() {
+		t.Fatalf("local time = %+v", q)
+	}
 	for _, params := range []map[string]interface{}{
 		{"since": "gestern"}, {"until": "11.10.2026"}, {"since": "2026-10-12", "until": "2026-10-11"},
 		// The service answers an unknown camera with an empty page; the tool names the mistake.
@@ -241,7 +253,7 @@ func TestGo2RTCListDetectionEventsParsesFilters(t *testing.T) {
 			t.Fatalf("%v: %v", params, m)
 		}
 	}
-	if len(api.queries) != 2 {
+	if len(api.queries) != 3 {
 		t.Fatalf("invalid filters must not query: %+v", api.queries)
 	}
 }
@@ -252,8 +264,9 @@ func TestGo2RTCAnalyzeDetectionEventUsesTheCoverFrame(t *testing.T) {
 	noCover := detectionTestEvent()
 	noCover.ID, noCover.CoverFrameID = 43, nil
 	useDetectionAPI(t, &fakeDetectionAPI{
-		events: map[int64]detectionEventView{42: detectionTestEvent(), 43: noCover},
-		frames: map[int64]string{7: path},
+		events:    map[int64]detectionEventView{42: detectionTestEvent(), 43: noCover},
+		frameRoot: filepath.Dir(path),
+		frames:    map[int64]string{7: filepath.Base(path)},
 	})
 	m := runDetection(t, dc, "analyze_detection_event", map[string]interface{}{"event_id": float64(42), "prompt": "Trägt die Person ein Paket?"})
 	if m["status"] != "ok" || m["analysis"] != "camera analysis succeeded" || m["event_id"] != 42.0 || m["camera_id"] != "garden" ||
@@ -287,8 +300,9 @@ func TestGo2RTCAnalyzeDetectionEventUsesTheCoverFrame(t *testing.T) {
 
 func TestGo2RTCShowDetectionEventSendsTheCoverImage(t *testing.T) {
 	api := &fakeDetectionAPI{
-		events: map[int64]detectionEventView{42: detectionTestEvent()},
-		frames: map[int64]string{7: "/data/go2rtc/detections/2026/10/11/garden/42_1.jpg"},
+		events:    map[int64]detectionEventView{42: detectionTestEvent()},
+		frameRoot: "/data/go2rtc/detections",
+		frames:    map[int64]string{7: "2026/10/11/garden/42_1.jpg"},
 	}
 	useDetectionAPI(t, api)
 	broker := &captureBroker{}
@@ -348,23 +362,106 @@ func TestPersonDetectAPIDecodesTheServiceStatus(t *testing.T) {
 	}
 }
 
-// The service answers reads of a switched-off detection with "unknown event" or an empty
-// page; the adapter turns that into ErrDisabled so the agent learns that detection is off.
-func TestPersonDetectAPIReportsSwitchedOffDetection(t *testing.T) {
+// The tool asks the service only while go2rtc.detection.enabled is on. A service that is not
+// configured yet answers reads with "unknown event", an empty page or ErrDisabled; the
+// adapter reports all of them as not running yet (detection_unavailable), not as off.
+func TestPersonDetectAPIReportsANotYetConfiguredServiceAsUnavailable(t *testing.T) {
 	svc := persondetect.NewService(persondetect.Deps{Logger: testLogger})
 	t.Cleanup(func() { _ = svc.Shutdown(context.Background()) })
 	api := personDetectAPI{svc: svc}
 	ctx := context.Background()
-	if _, err := api.Events(ctx, detectionEventQuery{Limit: 10}); !errors.Is(err, persondetect.ErrDisabled) {
+	if _, err := api.Events(ctx, detectionEventQuery{Limit: 10}); !errors.Is(err, persondetect.ErrUnavailable) {
 		t.Errorf("Events = %v", err)
 	}
-	if _, err := api.Event(ctx, 1_800_000_000_001); !errors.Is(err, persondetect.ErrDisabled) {
+	if _, err := api.Event(ctx, 1_800_000_000_001); !errors.Is(err, persondetect.ErrUnavailable) {
 		t.Errorf("Event = %v", err)
 	}
-	if _, err := api.FramePath(ctx, 1_800_000_000_002); !errors.Is(err, persondetect.ErrDisabled) {
-		t.Errorf("FramePath = %v", err)
+	if _, _, err := api.FrameLocation(ctx, 1_800_000_000_002); !errors.Is(err, persondetect.ErrUnavailable) {
+		t.Errorf("FrameLocation = %v", err)
 	}
-	if _, err := api.SetArmMode(ctx, "on"); !errors.Is(err, persondetect.ErrDisabled) {
+	if _, err := api.SetArmMode(ctx, "on"); !errors.Is(err, persondetect.ErrUnavailable) {
 		t.Errorf("SetArmMode = %v", err)
+	}
+	cfg := detectionTestConfig()
+	useDetectionAPI(t, api)
+	if m := runDetection(t, &DispatchContext{Cfg: cfg, Logger: testLogger}, "list_detection_events", nil); m["code"] != "detection_unavailable" {
+		t.Errorf("list = %v", m)
+	}
+}
+
+// Autonomous runs (a camera wake-up reacts to a picture anyone can hold up to the camera)
+// may arm but never switch alerts off or back to the schedule; a chat with the user may.
+func TestGo2RTCSetArmModeKeepsAutonomousRunsFromDisarming(t *testing.T) {
+	api := &fakeDetectionAPI{}
+	useDetectionAPI(t, api)
+	wake := &DispatchContext{Cfg: detectionTestConfig(), Logger: testLogger, MessageSource: "camera_detection"}
+	for _, mode := range []string{"off", "schedule"} {
+		if m := runDetection(t, wake, "set_arm_mode", map[string]interface{}{"mode": mode}); m["code"] != "not_allowed" {
+			t.Errorf("autonomous %s = %v", mode, m)
+		}
+	}
+	if m := runDetection(t, wake, "set_arm_mode", map[string]interface{}{"mode": "on"}); m["status"] != "ok" {
+		t.Errorf("autonomous on = %v", m)
+	}
+	chat := &DispatchContext{Cfg: detectionTestConfig(), Logger: testLogger, MessageSource: "web_chat"}
+	if m := runDetection(t, chat, "set_arm_mode", map[string]interface{}{"mode": "off"}); m["status"] != "ok" {
+		t.Errorf("chat off = %v", m)
+	}
+	if got := strings.Join(api.armModes, ","); got != "on,off" {
+		t.Fatalf("modes that reached the service = %s", got)
+	}
+}
+
+// linkDirOrSkip links link to the directory target: a symlink, or a junction on Windows
+// without symlink rights (as internal/persondetect's symlinkOrSkip).
+func linkDirOrSkip(t *testing.T, target, link string) {
+	t.Helper()
+	err := os.Symlink(target, link)
+	if err != nil && runtime.GOOS == "windows" {
+		out, jerr := exec.Command("cmd", "/c", "mklink", "/J", link, target).CombinedOutput()
+		if jerr == nil {
+			return
+		}
+		err = fmt.Errorf("%w; junction: %v: %s", err, jerr, strings.TrimSpace(string(out)))
+	}
+	if err != nil {
+		t.Skipf("cannot create a link here: %v", err)
+	}
+}
+
+// The detections root may link to another disk; the event picture is opened through
+// os.Root at that root, not at the data directory (which refuses the link).
+func TestGo2RTCAnalyzeDetectionEventReadsFramesBelowALinkedRoot(t *testing.T) {
+	dc, _, _, calls := newVisionInputFixture(t)
+	dc.Cfg.Go2RTC.Enabled, dc.Cfg.Go2RTC.AgentAccess, dc.Cfg.Go2RTC.Detection.Enabled = true, true, true
+	outside := filepath.Join(t.TempDir(), "nas", "detections")
+	rel := filepath.Join("2026", "10", "11", "garden", "42_1.jpg")
+	if err := os.MkdirAll(filepath.Dir(filepath.Join(outside, rel)), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(outside, rel), visionInputJPEG, 0o640); err != nil {
+		t.Fatal(err)
+	}
+	linkedRoot := filepath.Join(dc.Cfg.Directories.DataDir, "go2rtc", "detections")
+	if err := os.MkdirAll(filepath.Dir(linkedRoot), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	linkDirOrSkip(t, outside, linkedRoot)
+	useDetectionAPI(t, &fakeDetectionAPI{
+		events:    map[int64]detectionEventView{42: detectionTestEvent()},
+		frameRoot: linkedRoot,
+		frames:    map[int64]string{7: rel},
+	})
+	// Without a prompt the default one runs; it must stay a description, not a count.
+	if _, counted := tools.PrepareVisionPrompt(go2RTCDetectionDefaultPrompt); counted {
+		t.Fatal("the default prompt turns into a structured count")
+	}
+	m := runDetection(t, dc, "analyze_detection_event", map[string]interface{}{"event_id": float64(42)})
+	if m["status"] != "ok" || m["analysis"] != "camera analysis succeeded" || *calls != 1 {
+		t.Fatalf("analysis = %v, calls %d", m, *calls)
+	}
+	if _, _, cleanup, err := prepareManagedVisionInputAt(linkedRoot, filepath.Join("..", "..", "x.jpg"), dc.Cfg); err == nil {
+		cleanup()
+		t.Fatal("a path leaving the image root was staged")
 	}
 }

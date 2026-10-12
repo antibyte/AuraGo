@@ -69,7 +69,7 @@ When the integration, agent access, and authenticated API are all available, Aur
 - `show_live_stream`
 - `detection_status`, `set_arm_mode`, `list_detection_events`, `analyze_detection_event`, `show_detection_event` (person detection; only while `go2rtc.detection.enabled` is on)
 
-The agent accepts stable stream IDs and detection event IDs only and cannot start or stop the service or modify stream or detection configuration; `set_arm_mode` (`off`, `on`, `schedule`) is its only state change and is recorded in the arm log with the actor `agent`. Snapshot and detection-event analysis use AuraGo's existing Vision provider and budget accounting.
+The agent accepts stable stream IDs and detection event IDs only and cannot start or stop the service or modify stream or detection configuration; `set_arm_mode` (`off`, `on`, `schedule`) is its only state change and is recorded in the arm log with the actor `agent`. Autonomous runs (camera wake-ups, cron, heartbeat, relay messages) may only arm (`on`); `off` and `schedule` answer `not_allowed`, so only the user can disarm. Snapshot and detection-event analysis use AuraGo's existing Vision provider and budget accounting.
 
 Snapshots stored under `data/go2rtc/snapshots` are prepared as bounded private Vision inputs; only the private copies are removed after analysis. General `analyze_image` calls can use the exact local or `/files/...` path of an existing image in the Media Registry. Neither path grants general agent access to the data directory; unregistered paths and root-escaping symlinks remain blocked.
 

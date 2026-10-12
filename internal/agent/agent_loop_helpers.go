@@ -596,7 +596,7 @@ func isNetworkCameraIntent(normalizedQuery string) bool {
 			return true
 		}
 	}
-	cameraMentioned := strings.Contains(normalizedQuery, "kamera") || strings.Contains(normalizedQuery, "camera")
+	cameraMentioned := networkCameraWord(normalizedQuery)
 	mediaAction := strings.Contains(normalizedQuery, "snapshot") || strings.Contains(normalizedQuery, "live stream") ||
 		strings.Contains(normalizedQuery, "livebild") || strings.Contains(normalizedQuery, "stream anzeigen")
 	if cameraMentioned && mediaAction {
@@ -606,6 +606,17 @@ func isNetworkCameraIntent(normalizedQuery string) bool {
 	// or an alarm system in the same request.
 	armingContext := cameraMentioned || strings.Contains(normalizedQuery, "alarmanlage") || strings.Contains(normalizedQuery, "alarm system")
 	return armingContext && networkCameraArmingWord(normalizedQuery)
+}
+
+// networkCameraWord reports a word naming a camera, compounds such as "gartenkamera" or
+// "kamerabild" included; "kamerad" (comrade) and its compounds do not count.
+func networkCameraWord(normalizedQuery string) bool {
+	for _, word := range strings.Fields(normalizedQuery) {
+		if strings.Contains(word, "camera") || (strings.Contains(word, "kamera") && !strings.Contains(word, "kamerad")) {
+			return true
+		}
+	}
+	return false
 }
 
 // networkCameraArmingWord reports an arming word as a whole word, so "alarm" or "warm" do
