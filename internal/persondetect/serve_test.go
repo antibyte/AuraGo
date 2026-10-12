@@ -440,8 +440,38 @@ func TestServeLoopAnswersDetectPanicsAsFrameErrors(t *testing.T) {
 	// parent's "last log line" names the panic, not a stack frame.
 	log := strings.TrimSpace(diagnostics.String())
 	lastLine := log[strings.LastIndexByte(log, '\n')+1:]
-	if !strings.Contains(log, "goroutine") || lastLine != "panic: runtime error: index out of range [3] with length 0 [recovered: request 1 answered with an error]" {
+	if !strings.Contains(log, "goroutine") || lastLine != "recovered panic (request 1 answered with an error): runtime error: index out of range [3] with length 0" {
 		t.Fatalf("diagnostics = %q", log)
+	}
+}
+
+// panicValueEngine panics with value on every run.
+type panicValueEngine struct{ value any }
+
+func (p panicValueEngine) Run([]float32, int) (onnxrt.Tensor, onnxrt.Tensor, error) { panic(p.value) }
+func (panicValueEngine) Close() error                                               { return nil }
+
+func TestHandleDetectRecoveredPanicIsNeverACrashHeader(t *testing.T) {
+	// A long panic message must not push the "recovered" marker past what
+	// the parent keeps of a line: the line starts with it.
+	var diagnostics bytes.Buffer
+	request := workerRequest{ID: 7, Command: "detect", JPEG: testFrame(t), MinScore: 0.5}
+	response := handleDetect(panicValueEngine{value: "boom " + strings.Repeat("m", 600)}, request, &diagnostics)
+	if answer, ok := response.(errorResponse); !ok || answer.ID != 7 || !strings.HasPrefix(answer.Error, "internal error: boom mmm") || len(answer.Error) > maxRequestErrorBytes+len("…") {
+		t.Fatalf("response = %+v", response)
+	}
+	log := strings.TrimSpace(diagnostics.String())
+	lastLine := log[strings.LastIndexByte(log, '\n')+1:]
+	if !strings.HasPrefix(lastLine, "recovered panic (request 7 answered with an error): boom mmm") {
+		t.Fatalf("last line = %q", lastLine)
+	}
+	for _, size := range []int{1, 64, 1 << 16} {
+		if summary := writeInChunks(diagnostics.String()+"later plain line\n", size).summary(); summary != "last log line: later plain line" {
+			t.Fatalf("chunks of %d: summary = %q", size, summary)
+		}
+		if summary := writeInChunks(diagnostics.String(), size).summary(); !strings.HasPrefix(summary, "last log line: recovered panic (request 7") {
+			t.Fatalf("chunks of %d: summary = %q", size, summary)
+		}
 	}
 }
 

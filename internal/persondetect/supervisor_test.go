@@ -357,7 +357,7 @@ func TestDetectorDoesNotBlameARecoveredPanicForAnExit(t *testing.T) {
 	// recovered panic's one-line message, never a stale stack frame.
 	_, err = detector.Detect(ctx, frame, 0.5)
 	if !errors.Is(err, ErrWorkerRestarting) ||
-		!strings.HasSuffix(err.Error(), ": worker exited unexpectedly (exit status 0); last log line: panic: runtime error: index out of range [3] with length 0 [recovered: request 1 answered with an error]") {
+		!strings.HasSuffix(err.Error(), ": worker exited unexpectedly (exit status 0); last log line: recovered panic (request 1 answered with an error): runtime error: index out of range [3] with length 0") {
 		t.Fatalf("Detect after the exit = %v", err)
 	}
 }

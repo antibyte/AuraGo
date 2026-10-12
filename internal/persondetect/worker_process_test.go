@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 // writeInChunks writes text to a fresh workerLogBuffer in chunks of size
@@ -45,8 +46,10 @@ func TestWorkerLogBufferSummary(t *testing.T) {
 		{"unix signal in native code", "SIGSEGV: segmentation violation\nPC=0x7f3a m=0 sigcode=1 addr=0x10\nsignal arrived during cgo execution\n\ngoroutine 1 gp=0xc000002380 m=0 mp=0x5c [syscall]:\nruntime.cgocall(0x4b2c40, 0xc00005ff10)\n\t/usr/local/go/src/runtime/cgocall.go:167 +0x4b\nrax    0x10\n", "crash report: SIGSEGV: segmentation violation"},
 		{"go panic", "panic: runtime error: invalid memory address or nil pointer dereference\n[signal 0xc0000005 code=0x0 addr=0x0 pc=0x5f1a2b]\n\ngoroutine 1 [running]:\nmain.main()\n\tC:/x/main.go:9 +0x1b\n", "crash report: panic: runtime error: invalid memory address or nil pointer dereference"},
 		{"re-panic after a recovered panic", "panic: first [recovered]\n\tpanic: second\n\ngoroutine 1 [running]:\nmain.main()\n", "crash report: panic: second"},
-		{"panic answered as a frame error", "goroutine 8 [running]:\nruntime/debug.Stack()\n\tC:/go/src/runtime/debug/stack.go:26 +0x5e\npanic: boom [recovered: request 3 answered with an error]\n", "last log line: panic: boom [recovered: request 3 answered with an error]"},
-		{"crash after a recovered panic", "panic: boom [recovered: request 3 answered with an error]\nruntime: out of memory: cannot allocate 4194304-byte block (3976200192 in use)\nfatal error: out of memory\n\ngoroutine 1 [running]:\nruntime.throw()\n", "crash report: fatal error: out of memory"},
+		{"panic answered as a frame error", "goroutine 8 [running]:\nruntime/debug.Stack()\n\tC:/go/src/runtime/debug/stack.go:26 +0x5e\nrecovered panic (request 3 answered with an error): boom\n", "last log line: recovered panic (request 3 answered with an error): boom"},
+		{"crash after a recovered panic", "recovered panic (request 3 answered with an error): boom\nruntime: out of memory: cannot allocate 4194304-byte block (3976200192 in use)\nfatal error: out of memory\n\ngoroutine 1 [running]:\nruntime.throw()\n", "crash report: fatal error: out of memory"},
+		{"benign runtime note", "runtime: note: something informational\nloading model\nready\n", "last log line: ready"},
+		{"panic inside a line", "[E:onnxruntime] op failed: panic: x\nready\n", "last log line: ready"},
 		{"unterminated header", "loading\nException 0xc0000005 0x0 0x0 0x7ffd", "crash report: Exception 0xc0000005 0x0 0x0 0x7ffd"},
 		{"long header", longHeader + "\n\ngoroutine 1 [running]:\n", "crash report: " + longHeader[:maxWorkerErrorBytes] + "…"},
 		{"long last line", strings.Repeat("z", 600), "last log line: " + strings.Repeat("z", maxWorkerErrorBytes) + "…"},
@@ -54,6 +57,37 @@ func TestWorkerLogBufferSummary(t *testing.T) {
 	for _, tc := range cases {
 		if got := writeInChunks(tc.log, 5).summary(); got != tc.want {
 			t.Errorf("%s: summary = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestWorkerLogBufferKeepsSummariesValidUTF8(t *testing.T) {
+	// Headers and lines longer than what is kept per line, with a multibyte
+	// rune right at the cut and leading whitespace in front.
+	for _, tc := range []struct{ name, line, prefix string }{
+		{"indented header", "\tpanic: " + strings.Repeat("a", 392) + "ü" + strings.Repeat("b", 20), "crash report: panic: aaa"},
+		{"unindented header", "panic: " + strings.Repeat("a", 393) + "ü" + strings.Repeat("b", 20), "crash report: panic: aaa"},
+		{"deeply indented header", strings.Repeat(" ", 20) + "panic: " + strings.Repeat("ü", 300), "crash report: panic: üüü"},
+		{"plain line", strings.Repeat("ü", 300), "last log line: üüü"},
+	} {
+		for _, size := range []int{1, 3, 7, 1000} {
+			summary := writeInChunks(tc.line+"\n", size).summary()
+			if !utf8.ValidString(summary) || !strings.HasPrefix(summary, tc.prefix) || !strings.HasSuffix(summary, "…") ||
+				len(summary) > len("last log line: ")+maxWorkerErrorBytes+len("…") {
+				t.Errorf("%s, chunks of %d: summary (%d bytes, valid %v) = %q", tc.name, size, len(summary), utf8.ValidString(summary), summary)
+			}
+		}
+	}
+}
+
+func TestWorkerLogBufferFindsHeadersAcrossWrites(t *testing.T) {
+	text := "noise\r\nSIGSEGV: segmentation violation\r\nPC=0x1\r\nrax 0x0\r\n"
+	for split := 1; split < len(text); split++ {
+		log := newWorkerLogBuffer()
+		_, _ = log.Write([]byte(text[:split]))
+		_, _ = log.Write([]byte(text[split:]))
+		if summary := log.summary(); summary != "crash report: SIGSEGV: segmentation violation" {
+			t.Errorf("split at %d: summary = %q", split, summary)
 		}
 	}
 }

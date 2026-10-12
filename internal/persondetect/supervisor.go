@@ -60,7 +60,10 @@ func (d *workerDetector) Info() DetectorInfo {
 // error line); ctx.Err() when the caller gives up (no failure is counted;
 // the worker still answers the frame later, and that answer is skipped); any
 // other error is about this frame only (an undecodable JPEG, for example).
-// A frame is not sent when ctx is already done.
+// A frame is not sent when ctx is already done. A Detect that finds the
+// worker exited while no frame was pending (every frame answered) sends
+// nothing and returns the plain ErrWorkerRestarting; the exit is counted and
+// logged like any other worker failure.
 func (d *workerDetector) Detect(ctx context.Context, jpegData []byte, minScore float64) (DetectResult, error) {
 	if len(jpegData) == 0 {
 		return DetectResult{}, fmt.Errorf("frame is empty")

@@ -401,8 +401,9 @@ func truncateText(s string, limit int) string {
 // is 0 when the process CPU time cannot be read. A Go panic while the frame
 // is handled (a decoder or post-processing bug hit by one frame) is answered
 // as the frame's error, "internal error: …", with the stack and then the
-// line "panic: … [recovered: request N answered with an error]" on diagnostics;
-// the worker keeps serving.
+// line "recovered panic (request N answered with an error): …" on
+// diagnostics; the worker keeps serving. The marker comes first so the line
+// never looks like a crash header to the parent, however long the message.
 func handleDetect(eng engine, request workerRequest, diagnostics io.Writer) (response any) {
 	defer func() {
 		value := recover()
@@ -413,7 +414,7 @@ func handleDetect(eng engine, request workerRequest, diagnostics io.Writer) (res
 		// worker's last log line, which must not be a stale stack frame.
 		message := strings.Join(strings.Fields(fmt.Sprint(value)), " ")
 		fmt.Fprintf(diagnostics, "person detection worker: recovered from a panic while handling request %d:\n%s", request.ID, debug.Stack())
-		fmt.Fprintf(diagnostics, "panic: %s [recovered: request %d answered with an error]\n", truncateText(message, maxWorkerErrorBytes), request.ID)
+		fmt.Fprintf(diagnostics, "recovered panic (request %d answered with an error): %s\n", request.ID, truncateText(message, maxWorkerErrorBytes))
 		response = errorResponse{ID: request.ID, Type: "result", Error: truncateText("internal error: "+message, maxRequestErrorBytes)}
 	}()
 	if len(request.JPEG) == 0 {

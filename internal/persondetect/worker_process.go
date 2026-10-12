@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/onnxrt"
 )
@@ -403,27 +404,45 @@ func withLogSummary(message string, log *workerLogBuffer) error {
 	return withWorkerLog(errors.New(message), log.String())
 }
 
-// lastLogLine is the last non-empty line of log, cut to maxWorkerErrorBytes.
+// lastLogLine is the last non-empty line of log as valid UTF-8, cut to
+// maxWorkerErrorBytes.
 func lastLogLine(log string) string {
 	log = strings.TrimSpace(log)
 	if index := strings.LastIndexByte(log, '\n'); index >= 0 {
 		log = strings.TrimSpace(log[index+1:])
 	}
-	return truncateText(log, maxWorkerErrorBytes)
+	return truncateText(strings.ToValidUTF8(log, ""), maxWorkerErrorBytes)
 }
 
 // crashHeaderPattern matches the first line of a crash report: a Go panic or
-// fatal error, a Windows exception or Unix signal reported by the Go runtime
-// (for a crash in native code such as ONNX Runtime), and runtime messages.
-var crashHeaderPattern = regexp.MustCompile(`^(panic: |fatal error: |Exception 0x|SIG[A-Z]+: |unexpected fault|runtime: )`)
+// fatal error, or a Windows exception or Unix signal reported by the Go
+// runtime (for a crash in native code such as ONNX Runtime). "runtime: "
+// lines are not headers: some are benign notes, and a fatal one is always
+// followed by "fatal error: ".
+var crashHeaderPattern = regexp.MustCompile(`^(panic: |fatal error: |Exception 0x|SIG[A-Z]+: |unexpected fault)`)
 
-// isCrashHeader reports a crash report header line (already trimmed). A
-// panic marked recovered is not one: Go prints "panic: x [recovered]" before
-// the panic that ended the process, and handleDetect ends the stack of a
-// panic it answered as a frame error with "panic: … [recovered: …]".
+// isCrashHeader reports a crash report header line (already trimmed). Go
+// prints "panic: x [recovered]" before the panic that ended the process; that
+// line is not the header. (handleDetect reports a panic it answered as a
+// frame error with a line starting "recovered panic", which never matches.)
 func isCrashHeader(line string) bool {
-	return crashHeaderPattern.MatchString(line) &&
-		!strings.Contains(line, "[recovered]") && !strings.Contains(line, "[recovered: ")
+	return crashHeaderPattern.MatchString(line) && !strings.Contains(line, "[recovered]")
+}
+
+// maxKeptLineBytes is how much of each line workerLogBuffer keeps for
+// crash header detection: enough for a maxWorkerErrorBytes header plus a
+// rune split by the cut.
+const maxKeptLineBytes = maxWorkerErrorBytes + utf8.UTFMax
+
+// keptLineText is a kept line start as text: valid UTF-8 (a rune split by
+// the cut is dropped), trimmed, cut to maxWorkerErrorBytes and marked "…"
+// when the line was longer than what was kept.
+func keptLineText(kept []byte, cut bool) string {
+	text := strings.TrimSpace(strings.ToValidUTF8(string(kept), ""))
+	if cut && len(text) <= maxWorkerErrorBytes {
+		return text + "…"
+	}
+	return truncateText(text, maxWorkerErrorBytes)
 }
 
 // workerLogBuffer keeps what a worker prints on stderr: the first
@@ -436,8 +455,9 @@ type workerLogBuffer struct {
 	head   []byte
 	tail   []byte
 	total  int
-	line   []byte // the start of the current line, at most maxWorkerErrorBytes+1 bytes
-	header string // the last crash report header, cut to maxWorkerErrorBytes
+	line   []byte // the start of the current line, at most maxKeptLineBytes
+	cut    bool   // the current line is longer than line
+	header string // the last crash report header (keptLineText)
 }
 
 func newWorkerLogBuffer() *workerLogBuffer {
@@ -462,16 +482,16 @@ func (b *workerLogBuffer) Write(data []byte) (int, error) {
 		if end >= 0 {
 			chunk = data[:end]
 		}
-		if room := maxWorkerErrorBytes + 1 - len(b.line); room > 0 {
-			b.line = append(b.line, chunk[:min(room, len(chunk))]...)
-		}
+		room := maxKeptLineBytes - len(b.line)
+		b.line = append(b.line, chunk[:min(max(room, 0), len(chunk))]...)
+		b.cut = b.cut || len(chunk) > room
 		if end < 0 {
 			break
 		}
-		if line := strings.TrimSpace(string(b.line)); isCrashHeader(line) {
-			b.header = truncateText(line, maxWorkerErrorBytes)
+		if line := keptLineText(b.line, b.cut); isCrashHeader(line) {
+			b.header = line
 		}
-		b.line = b.line[:0]
+		b.line, b.cut = b.line[:0], false
 		data = data[end+1:]
 	}
 	return written, nil
@@ -484,8 +504,8 @@ func (b *workerLogBuffer) summary() string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	header := b.header
-	if line := strings.TrimSpace(string(b.line)); isCrashHeader(line) {
-		header = truncateText(line, maxWorkerErrorBytes) // an unterminated last line
+	if line := keptLineText(b.line, b.cut); isCrashHeader(line) {
+		header = line // an unterminated last line
 	}
 	if header != "" {
 		return "crash report: " + header
