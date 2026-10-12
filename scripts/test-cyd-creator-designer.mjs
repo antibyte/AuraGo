@@ -1354,7 +1354,20 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     eq('clampInt rounds, clamps and refuses empty or non-numeric input', [FD.clampInt('12.6', 0, 10), FD.clampInt('', 0, 10), FD.clampInt('x'), FD.clampInt(-5, 1, 2048), FD.clampInt('1e9', -4096, 4096), FD.clampInt(-0.4), FD.clampInt(true)], [10, null, null, 1, 4096, 0, null]);
     eq('utf8Bytes counts like Go len() (a lone surrogate arrives as U+FFFD)', ['abc', 'ä', '€', '😀', String.fromCharCode(0xd800)].map(FD.utf8Bytes), [3, 2, 3, 4, 3]);
     eq('textIssue mirrors textProblem', [FD.textIssue('a'.repeat(1024), 1024), FD.textIssue('ä'.repeat(513), 1024), FD.textIssue('a' + String.fromCharCode(0), 1024)], ['', 'TEXT_TOO_LONG', 'PROP_INVALID']);
-    eq('listItems: one item per line, empty lines are row breaks only for keys', [FD.listItems('a\n\n b \n', false), FD.listItems('1\n\n2', true)], [['a', 'b'], ['1', '\n', '2']]);
+    eq('listItems keeps empty lines in place (lists are index-addressed) and drops only trailing ones', [FD.listItems('a\n\n b \n\n', false), FD.listItems('\n', false), FD.listItems('', false)], [['a', '', 'b'], [], []]);
+    eq('listItems for keys: empty lines are row breaks, merged, never leading or trailing', [FD.listItems('1\n\n2', true), FD.listItems('\n\n1\n2\n\n\n3\n\n', true), FD.listItems('\n\n', true)], [['1', '\n', '2'], ['1', '2', '\n', '3'], []]);
+    const validateRange = name => (validateGo.match(new RegExp('\\{"' + name + '", st\\.\\w+, (\\d+), (\\d+)\\}')) || []).slice(1).map(Number);
+    const backlightGo = (validateGo.match(/st\.Backlight < (\d+) \|\| st\.Backlight > (\d+)/) || []).slice(1).map(Number);
+    eq('backlight and style ranges mirror validate.go', [LIM.backlight, ['bg_opacity', 'border_width', 'radius'].map(k => [0, LIM.style[k]])], [backlightGo, ['bg_opacity', 'border_width', 'radius'].map(validateRange)]);
+    const assetsGo = fs.readFileSync(path.join(root, 'internal', 'cydcreator', 'assets.go'), 'utf8');
+    const uploadGo = (assetsGo.match(/MaxAssetUploadBytes = (\d+) << (\d+)/) || []).slice(1).map(Number);
+    eq('the upload size limit mirrors MaxAssetUploadBytes', FD.MAX_UPLOAD_BYTES, uploadGo.length ? uploadGo[0] << uploadGo[1] : -1);
+    // fakeFile is a File stand-in: name, type, size and slice().arrayBuffer() over its first bytes.
+    const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    const fakeFile = (name, typeName, head, size) => ({ name, type: typeName, size: size == null ? 1000 : size, slice: (a, b) => ({ arrayBuffer: async () => Uint8Array.from(head.slice(a, b)).buffer }) });
+    eq('imageKind mirrors assetExtension (PNG/JPEG magic bytes) plus SVG', await Promise.all([
+        fakeFile('a.png', 'image/png', PNG), fakeFile('photo', '', [0xff, 0xd8, 0xff, 0xe0]), fakeFile('x.svg', '', []), fakeFile('a.png', 'image/png', [0x47, 0x49, 0x46, 0x38]), fakeFile('a.png', 'image/png', [])
+    ].map(FD.imageKind)), ['png', 'jpeg', 'svg', '', '']);
 
     const layout = project();
     const home = layout.screens[0];
@@ -1362,7 +1375,12 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
         { id: 'w_img', type: 'image', name: 'img_1', x: 10, y: 60, w: 32, h: 32 },
         { id: 'w_msg', type: 'msgbox', name: 'msg_1', x: 0, y: 0, w: 200, h: 100 },
         { id: 'w_led', type: 'led', name: 'led_1', x: 40, y: 60, w: 20, h: 20 },
-        { id: 'w_plain', type: 'label', x: 60, y: 60, w: 60, h: 20 });
+        { id: 'w_plain', type: 'label', x: 60, y: 60, w: 60, h: 20 },
+        { id: 'w_tbl', type: 'table', name: 'tbl_1', x: 0, y: 100, w: 200, h: 80, props: { columns: 2, rows: 2, cells: ['Name', 'Value', '', '42'] } },
+        { id: 'w_kp', type: 'keypad', name: 'kp_1', x: 0, y: 0, w: 200, h: 160, props: { layout: 'custom', keys: ['1', '2'] } },
+        { id: 'w_img2', type: 'image', name: 'img_2', x: 100, y: 60, w: 400, h: 300 },
+        // Events on a type without events (an imported layout): listed so they can be removed.
+        { id: 'w_stray', type: 'led', name: 'led_2', x: 80, y: 60, w: 20, h: 20, events: [{ on: 'clicked', action: { type: 'back' } }] });
     home.widgets.find(w => w.id === 'w_tabs').children.push({ id: 'w_tabkid', type: 'label', name: 'lbl_tab', x: 0, y: 0, w: 50, h: 20 });
     const iStore = M.createStore(layout, { coalesceMs: 1200 });
     const origins = [];
@@ -1378,6 +1396,9 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     };
     const designer = P.designer.create(inst);
     const d = designer.state;
+    // The designer's live region (canvas.announce) is not mounted here: record what is spoken.
+    const announced = [];
+    d.announce = text => announced.push(text);
     const host = new El('div');
     designer.mountInspector(host);
     const insp = host.kids[0];
@@ -1395,6 +1416,8 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     const fieldset = () => all(insp, el => el.tagName === 'FIELDSET')[0];
     const refused = el => el.attrs['aria-invalid'] === 'true' && !!noteOf(el) && noteOf(el).attrs.class === 'cc-field-error';
     const settle = () => new Promise(resolve => setTimeout(resolve, 0));
+    const insideLabel = el => { for (let x = el; x; x = x.parent) if (x.tagName === 'LABEL') return true; return false; };
+    const labelOf = el => all(insp, x => x.tagName === 'LABEL' && !!el.attrs.id && x.attrs.for === el.attrs.id)[0];
 
     // project settings
     check('with nothing selected the inspector shows the project with English fallbacks', panel() === 'project' && textOf(insp).includes('Device language') && textOf(insp).includes('Language and time'));
@@ -1429,6 +1452,8 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     tick('aurago_link', true);
     pick('wifi', 'off');
     check('Wi-Fi off also switches the AuraGo link off and disables it', settings().wifi === 'off' && settings().aurago_link === false && field('aurago_link').disabled === true);
+    const linkHint = noteOf(field('aurago_link'));
+    check('a11y: a checkbox hint is linked with aria-describedby, outside its label', !!linkHint && textOf(linkHint) === 'Needs Wi-Fi.' && !insideLabel(linkHint));
     shellBus.emit('layout:issues', [{ code: 'LIBRARY_UNKNOWN', severity: 'error', path: 'settings/libraries/0', message: 'unknown library' }]);
     check('a new issue list replaces only the issue list (the fields stay)', all(insp, el => el.attrs.class === 'cc-issue is-error').length === 1 && field('timezone') === all(insp, el => el.attrs['data-cc-focus'] === 'timezone')[0]);
     const nvBoard = Object.assign({}, caps.boards[0], { display: Object.assign({}, caps.boards[0].display, { driver: 'NV3041A', native_orientation: 'landscape' }) });
@@ -1446,6 +1471,10 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     check('an invalid name is refused: the layout keeps the last valid name, the field keeps the entry', widget('w_btn').name === 'btn_1' && refused(nameEl) && nameEl.value === 'Bad Name' && textOf(noteOf(nameEl)).startsWith('Names use lowercase'));
     shellBus.emit('layout:issues', [{ code: 'PROP_INVALID', severity: 'error', widget: 'w_btn', message: 'x' }]);
     check('an issue list after a save keeps the field and the half-typed name', field('name') === nameEl && nameEl.value === 'Bad Name' && all(insp, el => el.attrs.class === 'cc-issue is-error').length === 1);
+    check('a changed issue list of the shown panel is announced', announced[announced.length - 1] === '1 problems', announced.join(' | '));
+    const spokenBefore = announced.length;
+    shellBus.emit('layout:issues', [{ code: 'PROP_INVALID', severity: 'error', widget: 'w_btn', message: 'x' }, { code: 'NAME_INVALID', severity: 'error', widget: 'w_img', message: 'y' }]);
+    check('issues of other widgets change nothing on this panel and are not announced', announced.length === spokenBefore && field('name') === nameEl);
     const moved = JSON.parse(JSON.stringify(iStore.get()));
     moved.screens[0].widgets.find(w => w.id === 'w_btn').y = 12;
     iStore.replace(moved, { resetHistory: false });
@@ -1453,6 +1482,8 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     d.select(['w_img']);
     d.select(['w_btn']);
     check('another panel drops refused entries', field('name').value === 'btn_1' && field('name').attrs['aria-invalid'] !== 'true');
+    shellBus.emit('layout:issues', []);
+    check('an emptied issue list is announced too', announced[announced.length - 1] === 'No problems left.' && !all(insp, el => el.attrs.class === 'cc-issue is-error').length);
     type('name', 'lbl_1');
     check('a duplicate name is refused', widget('w_btn').name === 'btn_1' && textOf(noteOf(field('name'))).startsWith('Another widget'));
     type('name', 'init');
@@ -1460,6 +1491,15 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     check('reserved names are refused', widget('w_btn').name === 'btn_1' && refused(field('name')));
     const renamed = type('name', 'go_btn');
     check('a valid name is stored without re-rendering the panel', widget('w_btn').name === 'go_btn' && field('name') === renamed && renamed.attrs['aria-invalid'] === 'false');
+    check('a11y: a <label for> names each control; hint, error and counter lines sit outside the label', !!labelOf(renamed) && !insideLabel(noteOf(renamed)) && !!labelOf(field('prop:text')) && !!labelOf(field('geo:x')) && !insideLabel(noteOf(field('geo:x'))) && !!labelOf(field('prop:symbol')));
+    const composing = field('name');
+    fire(composing, 'compositionstart', {});
+    const imeMoved = JSON.parse(JSON.stringify(iStore.get()));
+    imeMoved.screens[0].widgets.find(w => w.id === 'w_btn').y = 20;
+    iStore.replace(imeMoved, { resetHistory: false });
+    const keptDuringIme = field('name') === composing;
+    fire(composing, 'compositionend', {});
+    check('a re-render waits while an input method composes and runs at compositionend', keptDuringIme && field('name') !== composing && field('geo:y').value === '20');
     const txt = field('prop:text');
     txt.focus();
     txt.selectionStart = 2;
@@ -1479,6 +1519,7 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     type('geo:h', '0');
     type('geo:h', 'abc');
     eq('geometry is stored as integers within the server limits', [widget('w_btn').w, field('geo:w').value, widget('w_btn').x, widget('w_btn').y, widget('w_btn').h], [2048, '2048', -4096, 13, 1]);
+    check('a clamped number is announced once per value', announced.filter(s => s === 'Allowed: 1 to 2048. Stored: 2048.').length === 1 && announced.includes('Allowed: -4096 to 4096. Stored: -4096.') && announced.includes('Allowed: 1 to 2048. Stored: 1.'), announced.join(' | '));
     tick('locked', true);
     eq('lock is a widget flag', widget('w_btn').locked, true);
     pick('prop:symbol', 'ok');
@@ -1494,12 +1535,23 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     type('prop:tabs', Array.from({ length: 9 }, (_, i) => 'T' + i).join('\n'));
     check('more items than max_len are refused', !widget('w_tabs').props.tabs && textOf(noteOf(field('prop:tabs'))).includes('8'));
     type('prop:tabs', 'A\n\nB\n');
-    eq('a list stores one trimmed item per non-empty line', widget('w_tabs').props.tabs, ['A', 'B']);
+    eq('a list keeps an empty line as an empty item in place (tabs are addressed by index)', widget('w_tabs').props.tabs, ['A', '', 'B']);
     d.select(['w_msg']);
     type('prop:buttons', '\n');
     check('a message box keeps at least one button (ApplyOps refuses an empty list)', !(widget('w_msg').props && widget('w_msg').props.buttons) && refused(field('prop:buttons')));
     type('prop:buttons', 'OK\nCancel');
     eq('message box buttons', widget('w_msg').props.buttons, ['OK', 'Cancel']);
+    d.select(['w_tbl']);
+    check('the cells editor shows an empty cell as an empty line', field('prop:cells').value === 'Name\nValue\n\n42', JSON.stringify(field('prop:cells').value));
+    type('prop:cells', 'Name\nValue\n\n42x');
+    eq('typing keeps table cells in place (an empty cell stays an empty item)', widget('w_tbl').props.cells, ['Name', 'Value', '', '42x']);
+    type('prop:cells', 'Name\nValue\n\n42x\n\n');
+    eq('trailing empty lines add no cells', widget('w_tbl').props.cells, ['Name', 'Value', '', '42x']);
+    d.select(['w_kp']);
+    type('prop:keys', '\n1\n2\n\n\n3\n');
+    eq('keypad keys: one row break between rows, none leading or trailing', widget('w_kp').props.keys, ['1', '2', '\n', '3']);
+    type('prop:keys', '\n\n');
+    check('a custom keypad keeps at least one key', widget('w_kp').props.keys.join() === '1,2,\n,3' && refused(field('prop:keys')));
     d.select(['w_led']);
     const led = field('prop:color');
     led.value = '#12ab34';
@@ -1519,6 +1571,13 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     type('style:radius', '');
     click('style:bg_color:reset');
     eq('clearing an optional number or "Use theme" removes the override', widget('w_led').style, { bg_opacity: 0 });
+    const opacity = field('style:bg_opacity');
+    opacity.validity = { badInput: true };
+    type('style:bg_opacity', '');
+    check('an unreadable entry ("-", "5e") keeps the override and says so', widget('w_led').style.bg_opacity === 0 && refused(opacity) && textOf(noteOf(opacity)) === 'Enter a whole number.');
+    opacity.validity = { badInput: false };
+    fire(opacity, 'change', {});
+    check('leaving the field shows the stored number again', opacity.value === '0' && opacity.attrs['aria-invalid'] === 'false');
     d.select(['w_lbl']);
     pick('prop:size', '20');
     pick('prop:font', 'inter');
@@ -1536,9 +1595,20 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     check('a hint over 500 characters is refused', widget('w_plain').events[0].action.hint === '' && refused(field('event:0:hint')));
     type('event:0:hint', 'Reload the weather');
     eq('the logic hint is stored', widget('w_plain').events[0].action.hint, 'Reload the weather');
+    let release = null;
+    inst.code.ensureHook = spec => { hooks.push(spec); return new Promise(resolve => { release = resolve; }); };
+    click('event:0:hook');
+    click('event:0:hook');
+    const hookPending = field('event:0:hook').disabled === true;
+    release(true);
+    await settle();
+    eq('"Create hook" calls inst.code.ensureHook({name, event}) once; the button is disabled while it runs', [hooks, hookPending, field('event:0:hook').disabled], [[{ name: widget('w_plain').name, event: 'clicked' }], true, false]);
+    inst.code.ensureHook = async () => { throw new Error('invalid hook name'); };
+    notes.length = 0;
     click('event:0:hook');
     await settle();
-    eq('"Create hook" calls inst.code.ensureHook({name, event})', hooks, [{ name: widget('w_plain').name, event: 'clicked' }]);
+    check('a hook request that throws is reported and the button works again', notes.join() === 'error: cyd_creator.error.generic' && field('event:0:hook').disabled === false, notes.join());
+    inst.code.ensureHook = async spec => { hooks.push(spec); return true; };
     type('name', 'temp_lbl');
     check('a new name updates the hook row in place', textOf(all(insp, el => el.attrs.class === 'cc-hook-name')[0]) === 'on_temp_lbl_clicked()');
     type('name', '');
@@ -1562,6 +1632,16 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     eq('removing an event', widget('w_plain').events.map(e => e.on), ['long_pressed']);
     check('every action uses only the keys validate.go knows', (widget('w_plain').events || []).every(e => Object.keys(e).join() === 'on,action' && Object.keys(e.action).every(k => ['type', 'screen', 'transition', 'hint'].includes(k))));
     check('Enter and Delete stop at the inspector; Ctrl+S reaches the window', fire(field('event:add'), 'keydown', { key: 'Enter' }).stopped && fire(field('name'), 'keydown', { key: 'Delete' }).stopped && !fire(field('name'), 'keydown', { key: 's', ctrlKey: true }).stopped);
+    d.commands.run('edit', [{ op: 'update_widget', id: 'w_plain', set: { events: [{ on: 'long_pressed', action: { type: 'goto_screen', screen: 's_gone' } }] } }]);
+    const goneOption = all(field('event:0:screen'), el => el.tagName === 'OPTION' && el.value === 's_gone')[0];
+    check('a goto to a deleted screen shows "Missing screen", selected', !!goneOption && textOf(goneOption) === 'Missing screen' && goneOption.selected === true);
+    pick('event:0:screen', 's_gone');
+    pick('event:0:screen', 's_two');
+    eq('only existing screens can be picked as targets', widget('w_plain').events[0].action, { type: 'goto_screen', screen: 's_two' });
+    d.select(['w_stray']);
+    check('events on a type without events are listed with a remove button and no "Add event"', !!field('event:0:remove') && !field('event:add') && textOf(insp).includes('This widget has no events.'));
+    click('event:0:remove');
+    check('… and can be removed', !widget('w_stray').events && !field('event:0:remove'));
 
     // uploads through inst.uploadAsset
     d.select(['w_img']);
@@ -1574,8 +1654,9 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
         iStore.replace(Object.assign({}, cur, { assets: (cur.assets || []).concat([sun]) }), { resetHistory: false });
         return sun;
     };
-    const upload = (name, typeName) => { const input = field('prop:asset:upload'); input.files = [{ name, type: typeName }]; fire(input, 'change', {}); return input; };
-    const uploadInput = upload('sun.png', 'image/png');
+    const upload = file => { const input = field('prop:asset:upload'); input.files = [file]; fire(input, 'change', {}); return input; };
+    const png = (name, size) => fakeFile(name, 'image/png', PNG, size);
+    const uploadInput = upload(png('sun.png'));
     await settle();
     const img = widget('w_img');
     check('an upload shows its progress and clears the file input', busyShown && uploadInput.value === '' && !textOf(insp).includes('Uploading…'));
@@ -1583,18 +1664,67 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     eq('the shell replaced the store (remote), the prop is one local edit', origins.slice(before), ['remote', 'local']);
     check('the asset select shows the new asset', all(field('prop:asset'), el => el.tagName === 'OPTION' && el.selected === true)[0].value === 'a_sun');
     inst.uploadAsset = async () => ({ id: 'a_moon', file: 'assets/moon.png', w: 10, h: 12, alpha: false, size: 999 });
-    upload('moon.png', 'image/png');
+    upload(png('moon.png'));
     await settle();
-    upload('moon.png', 'image/png');
+    upload(png('moon.png'));
     await settle();
     eq('fallback: an asset missing from the store is added once with only the Asset fields', iStore.get().assets.filter(a => a.id === 'a_moon'), [{ id: 'a_moon', file: 'assets/moon.png', w: 10, h: 12, alpha: false }]);
     inst.uploadAsset = async () => { throw Object.assign(new Error('too large'), { name: 'ApiError', status: 413, code: 'CYD_ASSET_TOO_LARGE' }); };
     notes.length = 0;
-    upload('big.png', 'image/png');
+    upload(png('big.png'));
     await settle();
     check('a failed upload is reported and the field is usable again', notes.length === 1 && notes[0].startsWith('error: ') && field('prop:asset:upload').disabled !== true && widget('w_img').props.asset === 'a_moon', notes.join());
     pick('prop:asset', '');
     check('"No image" removes the asset prop', !widget('w_img').props);
+
+    // checks before the upload (the server's limits), the SVG raster size, parallel uploads, a lock
+    // that arrives during the upload, an answer without an asset
+    let calls = 0;
+    inst.uploadAsset = async () => { calls++; return sun; };
+    notes.length = 0;
+    upload(fakeFile('anim.gif', 'image/gif', [0x47, 0x49, 0x46, 0x38, 0x39, 0x61]));
+    await settle();
+    upload(png('huge.png', FD.MAX_UPLOAD_BYTES + 1));
+    await settle();
+    check('a file the server would refuse (not PNG/JPEG/SVG, more than 2 MiB) is refused before the upload, with the reason', calls === 0 && notes.join(' | ') === 'error: Only PNG, JPEG and SVG images can be uploaded. | error: The image is larger than 2 MiB.' && !textOf(insp).includes('Uploading…'), notes.join(' | '));
+    const realRaster = FD.rasterizeSVG;
+    const rasters = [];
+    FD.rasterizeSVG = async (file, w, h) => { rasters.push([file.name, w, h]); return png('logo.png', 5000); };
+    d.select(['w_img2']);
+    upload(fakeFile('logo.svg', 'image/svg+xml', []));
+    await settle();
+    FD.rasterizeSVG = realRaster;
+    check('an SVG (400×300 widget) is rasterised capped at the screen size (320×240) and uploaded', JSON.stringify(rasters) === '[["logo.svg",320,240]]' && calls === 1, JSON.stringify(rasters));
+    const pending = [];
+    const moonAsset = { id: 'a_moon', file: 'assets/moon.png', w: 10, h: 12, alpha: false };
+    inst.uploadAsset = file => new Promise(resolve => pending.push(() => resolve(file.name === 'one.png' ? sun : moonAsset)));
+    d.select(['w_img']);
+    upload(png('one.png'));
+    await settle();
+    d.select(['w_img2']);
+    upload(png('two.png'));
+    await settle();
+    pending[0]();
+    await settle();
+    const stillBusy = textOf(insp).includes('Uploading…') && field('prop:asset:upload').disabled === true;
+    upload(png('three.png'));
+    await settle();
+    pending[1]();
+    await settle();
+    check('parallel uploads keep their own busy state; a second upload to a busy widget is ignored', stillBusy && pending.length === 2 && !textOf(insp).includes('Uploading…') && widget('w_img').props.asset === 'a_sun' && widget('w_img2').props.asset === 'a_moon');
+    inst.uploadAsset = async () => { jobLock = true; shellBus.emit('lock:changed', true, 'ccj_2'); return moonAsset; };
+    notes.length = 0;
+    d.select(['w_img']);
+    upload(png('late.png'));
+    await settle();
+    check('a lock that arrives during the upload is reported; the widget keeps its image', notes.join() === 'error: The image was uploaded but not set: the project became read-only or locked.' && widget('w_img').props.asset === 'a_sun', notes.join());
+    jobLock = false;
+    shellBus.emit('lock:changed', false, '');
+    inst.uploadAsset = async () => null;
+    notes.length = 0;
+    upload(png('none.png'));
+    await settle();
+    check('an answer without an asset is reported', notes.join() === 'error: cyd_creator.error.generic' && widget('w_img').props.asset === 'a_sun', notes.join());
 
     // read-only, job lock, multi selection, the Wi-Fi system screen
     field('name').focus();
@@ -1606,7 +1736,7 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     type('geo:x', '3');
     let roUploads = 0;
     inst.uploadAsset = async () => { roUploads++; return sun; };
-    upload('sun.png', 'image/png');
+    upload(png('sun.png'));
     await settle();
     check('read-only: edits and uploads change nothing', JSON.stringify(iStore.get()) === frozen && roUploads === 0);
     inst.readonly = false;
@@ -1626,7 +1756,7 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     d.setScreen(d.SYSTEM_WIFI);
     check('the Wi-Fi system screen shows its hint', panel() === 'system' && !fieldset());
     d.setScreen('s_home');
-    check('every inspector edit reached the store with origin local (remote: the test replace and the upload)', origins.filter(o => o !== 'local').join() === 'remote,remote', origins.join());
+    check('every inspector edit reached the store with origin local (remote: two test replaces and the upload)', origins.filter(o => o !== 'local').join() === 'remote,remote,remote', origins.join());
 
     designer.dispose();
     d.bus.emit('lock');

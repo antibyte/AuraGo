@@ -6,8 +6,9 @@
 // a refused entry (an invalid name being typed …) stays in its field with the reason. The inspector's
 // own edits do not re-render it (the focused field keeps its caret); handlers read the current
 // widget from the store at event time. New issue lists (after every save) only replace the issue
-// list, never the fields; other store changes re-render with the focus, caret and refused entries
-// kept. Read-only or locked by an agent job (the designer's 'lock' signal), the fields are disabled.
+// list, never the fields, and are announced; other store changes re-render with the focus, caret
+// and refused entries kept, and wait while an input method composes text. Read-only or locked by an
+// agent job (the designer's 'lock' signal), the fields are disabled.
 (function () {
     'use strict';
 
@@ -43,14 +44,19 @@
 
     function mount(d, host) {
         const { h, dom, icon, swap } = P.render;
-        const F = P.designerFields.create(d.t);
+        // Number clamps and issue changes are spoken by the designer's polite live region.
+        const F = P.designerFields.create(d.t, { announce: text => d.announce(text) });
         const M = P.model;
         const MAX_SIDE = P.geometry.MAX_SIDE;
         const t = d.t;
         const bag = P.util.bag();
         // ui.panel identifies what is shown (project, w:<id>, multi, system); ui.issuesOf lists the
-        // issues of that panel for the in-place issue list.
-        const ui = { uploading: '', panel: '', issuesOf: null, disposed: false };
+        // issues of that panel for the in-place issue list, ui.issueKey is that list as shown.
+        // ui.uploading holds the widget ids with an upload in flight, ui.hooking the pending
+        // "Create hook" requests (<widget id>:<event>). While an input method composes text
+        // (ui.composing) a re-render waits for compositionend (ui.deferred).
+        const ui = { uploading: new Set(), hooking: new Set(), panel: '', issuesOf: null, issueKey: '', composing: false, deferred: false, disposed: false };
+        const notify = text => { if (typeof d.inst.notify === 'function') d.inst.notify('error', text); };
         // drafts holds refused entries per field key; a re-render of the same panel shows them again
         // with their message, another panel starts without them.
         const drafts = new Map();
@@ -112,10 +118,16 @@
         // ── issues (replaced in place when the shell reports a new list) ────
         const issueList = list => (list.length ? h('ul', { class: 'cc-issues', role: 'list' }, list.map(i => h('li', { class: 'cc-issue is-' + (i.severity === 'error' ? 'error' : 'warning') }, d.issueText(i)))) : null);
         const issueBox = () => h('div', { class: 'cc-insp-issues', ref: el => { live.issues = el; } }, issueList(ui.issuesOf ? ui.issuesOf() : []));
+        const issueKey = list => JSON.stringify(list.map(i => [i.code, i.severity, i.path || '']));
         function refreshIssues() {
             if (ui.disposed || !live.issues || !ui.issuesOf) return;
-            const node = issueList(ui.issuesOf());
+            const list = ui.issuesOf();
+            const key = issueKey(list);
+            if (key === ui.issueKey) return;
+            ui.issueKey = key;
+            const node = issueList(list);
             live.issues.replaceChildren(...(node ? [dom(node)] : []));
+            d.announce(list.length ? t.or('cyd_creator.designer.issue_count', '{count} problems', { count: list.length }) : t.or('cyd_creator.designer.issues_none', 'No problems left.'));
         }
 
         // ── project settings ────────────────────────────────────────────────
@@ -162,6 +174,7 @@
             const wifiOff = (s.wifi || 'off') === 'off';
             const caps = d.inst.caps;
             const outId = P.util.uid('cc_bl');
+            const rangeId = P.util.uid('cc_in');
             const tzList = P.util.uid('cc_tz');
             const backlight = Number.isInteger(s.backlight) && s.backlight >= LIMITS.backlight[0] && s.backlight <= LIMITS.backlight[1] ? s.backlight : LIMITS.backlight[1];
             const libs = new Set(Array.isArray(s.libraries) ? s.libraries : []);
@@ -176,10 +189,10 @@
                         F.select(t.or('cyd_creator.designer.orientation', 'Orientation'), 'orientation',
                             M.ORIENTATIONS.map(o => [o, t.or('cyd_creator.orientation.' + o, pretty(o)), !!native && o.startsWith('portrait') !== (native === 'portrait')]),
                             p.orientation, v => setProject({ orientation: v }, null, true)),
-                        h('label', { class: 'cc-field' }, h('span', { class: 'cc-field-label' }, t.or('cyd_creator.designer.backlight', 'Backlight')),
-                            h('span', { class: 'cc-range-row' },
+                        h('div', { class: 'cc-field' }, h('label', { class: 'cc-field-label', for: rangeId }, t.or('cyd_creator.designer.backlight', 'Backlight')),
+                            h('div', { class: 'cc-range-row' },
                                 h('input', {
-                                    type: 'range', min: String(LIMITS.backlight[0]), max: String(LIMITS.backlight[1]), step: '5', value: String(backlight),
+                                    id: rangeId, type: 'range', min: String(LIMITS.backlight[0]), max: String(LIMITS.backlight[1]), step: '5', value: String(backlight),
                                     'data-cc-field': 'backlight', 'data-cc-focus': 'backlight', 'aria-describedby': outId,
                                     on: {
                                         input: e => {
@@ -214,8 +227,9 @@
         }
 
         // ── widget panel ────────────────────────────────────────────────────
-        // syncHooks shows a new name in the hook rows (the panel is not rebuilt for own edits).
-        const syncHooks = name => live.hooks.forEach(fn => fn(name));
+        // syncHooks updates the hook rows of the shown panel in place (name from the store, pending
+        // requests): the panel is not rebuilt for own edits.
+        const syncHooks = () => live.hooks.forEach(fn => fn());
 
         function nameField(w) {
             const check = raw => {
@@ -227,7 +241,7 @@
             // An invalid name stays in the field with its message; the layout keeps the last valid name.
             return F.text(t.or('cyd_creator.designer.name', 'Name'), 'name', str(w.name),
                 guard('name', check, { maxlength: 32, hint: t.or('cyd_creator.designer.name_hint', 'Lowercase letters, digits and _ (starts with a letter, max. 32). Code reaches the widget as ui_<name>.') }),
-                v => { const name = v.trim(); setWidget(w.id, { name }, 'name:' + w.id, false); syncHooks(name); });
+                v => { setWidget(w.id, { name: v.trim() }, 'name:' + w.id, false); syncHooks(); });
         }
 
         function geometry(f) {
@@ -275,7 +289,7 @@
             });
             case 'symbol': return F.select(label, key, [['', t.or('cyd_creator.designer.symbol_none', 'No symbol')]].concat((d.inst.caps.symbols || []).map(s => [s, P.render.symbolGlyph(s) + '  ' + s])), str(value), v => commit(v, true));
             case 'list': return F.list(label, key, Array.isArray(value) ? value.map(str) : [], ps.name === 'keys', guard(key, listCheck(w, spec, ps)), v => commit(v));
-            case 'asset': return F.asset(d, label, key, str(value), ui.uploading === w.id, v => commit(v, true), file => upload(w.id, file));
+            case 'asset': return F.asset(d, label, key, str(value), ui.uploading.has(w.id), v => commit(v, true), file => upload(w.id, file));
             default: return F.text(label, key, str(value), guard(key, textCheck(limit), { maxlength: limit }), v => commit(v));
             }
         }
@@ -293,8 +307,11 @@
 
         function eventsEditor(w, spec) {
             const allowed = (spec && spec.events) || [];
-            if (!allowed.length) return h('p', { class: 'cc-panel-empty' }, t.or('cyd_creator.designer.events_none', 'This widget has no events.'));
             const events = Array.isArray(w.events) ? w.events : [];
+            const none = h('p', { class: 'cc-panel-empty' }, t.or('cyd_creator.designer.events_none', 'This widget has no events.'));
+            // Events on a type without events (an imported or agent-written layout) stay listed, so
+            // they can be removed.
+            if (!allowed.length && !events.length) return none;
             const screens = d.project().screens || [];
             const wifiOff = ((d.project().settings || {}).wifi || 'off') === 'off';
             const listOf = () => P.util.deepClone((current(w.id) || {}).events || []);
@@ -331,12 +348,14 @@
                 const on = str(ev && ev.on);
                 const used = new Set(events.filter((_, j) => j !== i).map(e => e && e.on));
                 const hookName = name => 'on_' + (name || '…') + '_' + on + '()';
+                const hookOff = name => !M.validName(name) || !hookReady() || ui.hooking.has(w.id + ':' + on);
                 let code = null;
                 let button = null;
                 if (action.type === 'logic') {
-                    live.hooks.push(name => {
+                    live.hooks.push(() => {
+                        const name = (current(w.id) || {}).name;
                         if (code) code.replaceChildren(document.createTextNode(hookName(name)));
-                        if (button) button.disabled = !M.validName(name) || !hookReady();
+                        if (button) button.disabled = hookOff(name);
                     });
                 }
                 return h('div', { class: 'cc-event', 'data-cc-event': String(i) },
@@ -354,7 +373,8 @@
                             on: { click: () => { const list = listOf(); list.splice(i, 1); dropEventDrafts(); save(list, true); } }
                         }, icon('trash'))),
                     action.type === 'goto_screen' ? h('div', { class: 'cc-event-body' },
-                        F.select(t.or('cyd_creator.designer.event_screen', 'Target screen'), 'event:' + i + ':screen', screens.map(s => [s.id, str(s.name)]), str(action.screen), v => patch(i, b => { b.action.screen = v; }, true)),
+                        F.select(t.or('cyd_creator.designer.event_screen', 'Target screen'), 'event:' + i + ':screen', screens.map(s => [s.id, str(s.name)]), str(action.screen),
+                            v => { if (screens.some(s => s.id === v)) patch(i, b => { b.action.screen = v; }, true); }, t.or('cyd_creator.designer.screen_missing', 'Missing screen')),
                         F.select(t.or('cyd_creator.designer.event_transition', 'Transition'), 'event:' + i + ':transition',
                             [['', t.or('cyd_creator.designer.transition_screen_default', 'Screen’s own transition')]].concat(M.TRANSITIONS.map(x => [x, t.or('cyd_creator.transition.' + x, pretty(x))])),
                             str(action.transition), v => patch(i, b => { if (v) b.action.transition = v; else delete b.action.transition; }, true))) : null,
@@ -365,10 +385,11 @@
                         h('div', { class: 'cc-hook-row' },
                             h('code', { class: 'cc-hook-name', ref: el => { code = el; } }, hookName(w.name)),
                             h('button', {
-                                type: 'button', class: 'cc-chip', 'data-cc-focus': 'event:' + i + ':hook', disabled: !M.validName(w.name) || !hookReady(), ref: el => { button = el; },
+                                type: 'button', class: 'cc-chip', 'data-cc-focus': 'event:' + i + ':hook', disabled: hookOff(w.name), ref: el => { button = el; },
                                 on: { click: () => createHook(w.id, on) }
                             }, icon('code'), t.or('cyd_creator.designer.create_hook', 'Create hook')))) : null);
             });
+            if (!allowed.length) return [none, rows];
             const free = allowed.filter(e => !events.some(b => b && b.on === e));
             return [rows, h('button', {
                 type: 'button', class: 'cc-chip', 'data-cc-focus': 'event:add', disabled: !free.length,
@@ -377,33 +398,51 @@
         }
 
         // createHook asks the code editor for on_<name>_<event>(); ensureHook reports its own
-        // failures and switches to Code mode, only an invalid name throws.
+        // failures and switches to Code mode, only an invalid name throws. The button stays disabled
+        // while the request runs (a second click would write the stub twice).
         async function createHook(id, event) {
             const w = current(id);
-            if (!w || !M.validName(w.name) || !hookReady()) return;
+            const key = id + ':' + event;
+            if (!w || !M.validName(w.name) || !hookReady() || ui.hooking.has(key)) return;
+            ui.hooking.add(key);
+            syncHooks();
             try {
                 await d.inst.code.ensureHook({ name: w.name, event });
             } catch (err) {
-                if (typeof d.inst.notify === 'function') d.inst.notify('error', P.errors.message(t, err));
+                notify(P.errors.message(t, err));
+            } finally {
+                ui.hooking.delete(key);
+                if (!ui.disposed) syncHooks();
             }
         }
 
-        // upload sends the image (an SVG rasterised to PNG at the widget's size) through the shell's
-        // inst.uploadAsset: it saves pending edits, the server lists the asset in the layout and the
-        // window re-reads it (a remote replace) before it answers. Then the widget's prop is set (an
-        // image also takes the asset's size); the asset is added only when it is missing, which
-        // happens when an edit made during the upload kept the window's copy (the If-Match conflict
-        // choice follows on the next save).
+        // upload sends the image (an SVG rasterised to PNG at the widget's size, at most the screen's)
+        // through the shell's inst.uploadAsset: it saves pending edits, the server lists the asset in
+        // the layout and the window re-reads it (a remote replace) before it answers. Then the
+        // widget's prop is set (an image also takes the asset's size); the asset is added only when
+        // it is missing, which happens when an edit made during the upload kept the window's copy
+        // (the If-Match conflict choice follows on the next save). A file the server would refuse
+        // (not PNG/JPEG/SVG, more than 2 MiB) is refused here with the reason.
         async function upload(id, file) {
-            if (!file || d.readonly() || typeof d.inst.uploadAsset !== 'function') return;
-            ui.uploading = id;
+            if (!file || d.readonly() || typeof d.inst.uploadAsset !== 'function' || ui.uploading.has(id)) return;
+            ui.uploading.add(id);
             render();
             try {
+                const kind = await P.designerFields.imageKind(file);
+                if (!kind) { notify(t.or('cyd_creator.designer.asset_type', 'Only PNG, JPEG and SVG images can be uploaded.')); return; }
                 const w = current(id);
-                const side = v => P.designerFields.clampInt(v, 1, MAX_SIDE) || 64;
-                const png = F.isSVG(file) ? await F.rasterizeSVG(file, side(w && w.w), side(w && w.h)) : file;
+                const screen = d.screenSize();
+                const side = (v, max) => Math.min(P.designerFields.clampInt(v, 1, MAX_SIDE) || 64, Math.max(1, max || MAX_SIDE));
+                const png = kind === 'svg' ? await P.designerFields.rasterizeSVG(file, side(w && w.w, screen.w), side(w && w.h, screen.h)) : file;
+                if (!(png.size <= P.designerFields.MAX_UPLOAD_BYTES)) {
+                    notify(t.or('cyd_creator.designer.asset_too_large', 'The image is larger than {max} MiB.', { max: P.designerFields.MAX_UPLOAD_BYTES / (1 << 20) }));
+                    return;
+                }
                 const asset = await d.inst.uploadAsset(png);
-                if (ui.disposed || d.disposed || !asset || !asset.id || d.readonly() || !current(id)) return;
+                // The widget (or the window) is gone: nothing to set.
+                if (ui.disposed || d.disposed || !current(id)) return;
+                if (!asset || !asset.id) { notify(P.errors.message(t, null)); return; }
+                if (d.readonly()) { notify(t.or('cyd_creator.designer.asset_not_applied', 'The image was uploaded but not set: the project became read-only or locked.')); return; }
                 const cur = current(id);
                 const set = { props: { asset: asset.id } };
                 if (cur.type === 'image' && Number.isInteger(asset.w) && Number.isInteger(asset.h) && asset.w > 0 && asset.h > 0) { set.w = asset.w; set.h = asset.h; }
@@ -415,9 +454,9 @@
                 });
                 d.announce(t.or('cyd_creator.designer.asset_uploaded', 'Image uploaded'));
             } catch (err) {
-                if (typeof d.inst.notify === 'function') d.inst.notify('error', P.errors.message(t, err));
+                notify(P.errors.message(t, err));
             } finally {
-                ui.uploading = '';
+                ui.uploading.delete(id);
                 if (!ui.disposed && !d.disposed) render();
             }
         }
@@ -447,6 +486,9 @@
 
         function render() {
             if (ui.disposed) return;
+            // Rebuilding the field an input method composes in would end the composition: wait.
+            if (ui.composing) { ui.deferred = true; return; }
+            ui.deferred = false;
             const ro = d.readonly();
             const active = document.activeElement;
             const hadFocus = !!active && active !== root && root.contains(active);
@@ -469,6 +511,7 @@
                 ui.issuesOf = () => d.issues.filter(i => !i.widget && !i.screen);
                 node = projectPanel(ro);
             }
+            ui.issueKey = ui.issuesOf ? issueKey(ui.issuesOf()) : '';
             swap(root, node);
             root.classList.toggle('is-readonly', ro);
             // A field disabled by the lock (or one that is gone) cannot keep the focus: it goes to the
@@ -489,6 +532,8 @@
         bag.on(root, 'keydown', event => {
             if (!event.ctrlKey && !event.metaKey && !event.altKey && (event.key === 'Enter' || event.key === 'Delete' || event.key === 'F2')) event.stopPropagation();
         });
+        bag.on(root, 'compositionstart', () => { ui.composing = true; });
+        bag.on(root, 'compositionend', () => { ui.composing = false; if (ui.deferred) render(); });
         render();
         return { root, render, dispose() { ui.disposed = true; d.setPreviewTheme(''); bag.dispose(); root.remove(); } };
     }
