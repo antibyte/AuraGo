@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/llm/catalog"
 )
 
 func TestGetModelInfo(t *testing.T) {
@@ -290,8 +291,88 @@ func TestResolveManagedLocalProviderCapabilitiesAreImmutable(t *testing.T) {
 				Multimodal:        true,
 			},
 		}, CapabilityFallback{StructuredOutputs: true, Multimodal: true})
-		if !caps.Known || !caps.ToolCalling || caps.StructuredOutputs || caps.Multimodal || caps.Reasoning || caps.DetectedModel != model {
+		if !caps.Known || !caps.ToolCalling || caps.StructuredOutputs || !caps.Multimodal || caps.Reasoning || caps.DetectedModel != model {
 			t.Fatalf("managed local capabilities = %#v", caps)
 		}
 	}
+}
+
+func TestCatalogImageInputIgnoresPDFOnlyModels(t *testing.T) {
+	useCapabilityCatalog(t, []catalog.Model{
+		{ID: "pdf-reader", Provider: "openai", Input: []string{"pdf"}, Multimodal: true},
+		{ID: "image-reader", Provider: "openai", Input: []string{"text", "image"}, Multimodal: true},
+	})
+
+	pdf, ok := CapabilitiesFromRegistry("openai", "pdf-reader")
+	if !ok {
+		t.Fatal("expected pdf catalog model")
+	}
+	if pdf.Image {
+		t.Fatalf("pdf-only catalog input set Image: %#v", pdf)
+	}
+	if !pdf.Multimodal {
+		t.Fatalf("pdf-only catalog input cleared Multimodal: %#v", pdf)
+	}
+
+	image, ok := CapabilitiesFromRegistry("openai", "image-reader")
+	if !ok {
+		t.Fatal("expected image catalog model")
+	}
+	if !image.Image {
+		t.Fatalf("catalog input containing image left Image false: %#v", image)
+	}
+}
+
+func TestKnownCatalogInputBeatsTheNameHeuristic(t *testing.T) {
+	useCapabilityCatalog(t, []catalog.Model{
+		{ID: "custom-vision-text", Provider: "openai", Input: []string{"text"}, Multimodal: false},
+	})
+
+	caps := ResolveProviderCapabilities(config.ProviderEntry{
+		Type:  "openai",
+		Model: "custom-vision-text",
+	}, CapabilityFallback{})
+	if caps.Source != CapabilitySourceOhMyPi {
+		t.Fatalf("source = %q, want catalog resolution", caps.Source)
+	}
+	if caps.Image {
+		t.Fatalf("known text-only catalog input must keep Image false: %#v", caps)
+	}
+}
+
+func TestManualMultimodalEnablesImageOnManagedLocal(t *testing.T) {
+	manual := false
+	caps := ResolveProviderCapabilities(config.ProviderEntry{
+		ID:   config.LocalLLMProviderID,
+		Type: "aurago-local",
+		Capabilities: config.ProviderCapabilities{
+			Auto:       &manual,
+			Multimodal: true,
+		},
+	}, CapabilityFallback{})
+	if !caps.Image || !caps.ToolCalling || caps.StructuredOutputs {
+		t.Fatalf("manual managed local capabilities = %#v", caps)
+	}
+
+	auto := true
+	caps = ResolveProviderCapabilities(config.ProviderEntry{
+		ID:    config.LocalLLMProviderID,
+		Type:  "aurago-local",
+		Model: config.LocalLLMModelAlias,
+		Capabilities: config.ProviderCapabilities{
+			Auto: &auto,
+		},
+	}, CapabilityFallback{})
+	if caps.Image {
+		t.Fatalf("auto %s set Image: %#v", config.LocalLLMModelAlias, caps)
+	}
+}
+
+func useCapabilityCatalog(t *testing.T, models []catalog.Model) {
+	t.Helper()
+	previous := loadCapabilityCatalog
+	loadCapabilityCatalog = func() (*catalog.Snapshot, error) {
+		return &catalog.Snapshot{Models: models}, nil
+	}
+	t.Cleanup(func() { loadCapabilityCatalog = previous })
 }

@@ -30,15 +30,22 @@ type CapabilityFallback struct {
 }
 
 // ProviderCapabilityResult is the resolved provider/model feature set.
+// Multimodal is true when any of image, file, pdf, audio, or video is accepted.
+// Image is the narrower image-input decision.
 type ProviderCapabilityResult struct {
 	ToolCalling       bool   `json:"tool_calling"`
 	StructuredOutputs bool   `json:"structured_outputs"`
 	Multimodal        bool   `json:"multimodal"`
+	Image             bool   `json:"image"`
 	Reasoning         bool   `json:"reasoning,omitempty"`
 	DetectedModel     string `json:"detected_model"`
 	Source            string `json:"source"`
 	Known             bool   `json:"known"`
 }
+
+// loadCapabilityCatalog is the catalog snapshot used for capability resolution.
+// Tests replace it to inject a fake snapshot.
+var loadCapabilityCatalog = catalog.Load
 
 // OpenRouterModelMetadata is the subset of OpenRouter /models metadata needed
 // for capability detection.
@@ -79,29 +86,23 @@ func ResolveConfigProviderCapabilities(cfg *config.Config) ProviderCapabilityRes
 // models.dev registry, local heuristics, and finally legacy global fallback.
 func ResolveProviderCapabilities(provider config.ProviderEntry, fallback CapabilityFallback) ProviderCapabilityResult {
 	model := strings.TrimSpace(provider.Model)
-	if strings.EqualFold(strings.TrimSpace(provider.Type), "aurago-local") ||
-		strings.EqualFold(strings.TrimSpace(provider.ID), config.LocalLLMProviderID) {
-		return ProviderCapabilityResult{
-			ToolCalling: true, StructuredOutputs: false, Multimodal: false, Reasoning: false,
-			DetectedModel: firstNonEmpty(model, config.LocalLLMModelAlias), Source: CapabilitySourceManual, Known: true,
-		}
-	}
 	caps := provider.Capabilities
 	if !caps.AutoEnabled() {
-		return ProviderCapabilityResult{
+		return finishProviderCapabilities(provider, ProviderCapabilityResult{
 			ToolCalling:       caps.ToolCalling,
 			StructuredOutputs: caps.StructuredOutputs,
 			Multimodal:        caps.Multimodal,
+			Image:             caps.Multimodal,
 			DetectedModel:     firstNonEmpty(caps.DetectedModel, model),
 			Source:            firstNonEmpty(caps.Source, CapabilitySourceManual),
 			Known:             true,
-		}
+		})
 	}
 
 	if strings.TrimSpace(caps.Source) != "" &&
 		strings.TrimSpace(caps.DetectedModel) != "" &&
 		strings.EqualFold(strings.TrimSpace(caps.DetectedModel), model) {
-		return ProviderCapabilityResult{
+		result := ProviderCapabilityResult{
 			ToolCalling:       caps.ToolCalling,
 			StructuredOutputs: caps.StructuredOutputs,
 			Multimodal:        caps.Multimodal,
@@ -109,53 +110,61 @@ func ResolveProviderCapabilities(provider config.ProviderEntry, fallback Capabil
 			Source:            caps.Source,
 			Known:             true,
 		}
+		if known, image, ok := storedCatalogImage(provider.Type, model, caps.Source); ok && known {
+			result.Image = image
+		} else {
+			result.Image = caps.Multimodal
+		}
+		return finishProviderCapabilities(provider, result)
 	}
 
 	if detected, ok := CapabilitiesFromRegistry(provider.Type, model); ok {
 		if heuristic, heuristicOK := capabilitiesFromHeuristics(provider.Type, model); heuristicOK {
 			detected.ToolCalling = detected.ToolCalling || heuristic.ToolCalling
 			detected.Multimodal = detected.Multimodal || heuristic.Multimodal
+			// A known catalog input list already set Image. Do not OR the name heuristic over it.
 		}
-		return detected
+		return finishProviderCapabilities(provider, detected)
 	}
 	if detected, ok := capabilitiesFromHeuristics(provider.Type, model); ok {
-		return detected
+		detected.Image = modelNameSuggestsMultimodal(strings.ToLower(model))
+		detected.Multimodal = detected.Image
+		return finishProviderCapabilities(provider, detected)
 	}
-	return ProviderCapabilityResult{
+	return finishProviderCapabilities(provider, ProviderCapabilityResult{
 		ToolCalling:       fallback.ToolCalling,
 		StructuredOutputs: fallback.StructuredOutputs,
 		Multimodal:        fallback.Multimodal,
 		DetectedModel:     model,
 		Source:            CapabilitySourceLegacyFallback,
 		Known:             false,
+	})
+}
+
+func finishProviderCapabilities(provider config.ProviderEntry, result ProviderCapabilityResult) ProviderCapabilityResult {
+	if !managedLocalProvider(provider) {
+		return result
 	}
+	result.ToolCalling = true
+	result.StructuredOutputs = false
+	result.Reasoning = false
+	return result
+}
+
+func managedLocalProvider(provider config.ProviderEntry) bool {
+	return strings.EqualFold(strings.TrimSpace(provider.Type), "aurago-local") ||
+		strings.EqualFold(strings.TrimSpace(provider.ID), config.LocalLLMProviderID)
 }
 
 // CapabilitiesFromRegistry returns capability flags from bundled catalog and
 // generated models.dev metadata.
 func CapabilitiesFromRegistry(provider, modelID string) (ProviderCapabilityResult, bool) {
-	if snapshot, err := catalog.Load(); err == nil {
+	if snapshot, err := loadCapabilityCatalog(); err == nil {
 		if model, ok := snapshot.FindModel(provider, modelID); ok {
-			return ProviderCapabilityResult{
-				ToolCalling:       model.SupportsTools,
-				StructuredOutputs: model.StructuredOutputs,
-				Multimodal:        model.Multimodal,
-				Reasoning:         model.Reasoning,
-				DetectedModel:     model.ID,
-				Source:            CapabilitySourceOhMyPi,
-				Known:             true,
-			}, true
+			return capabilityResultFromCatalogModel(model), true
 		}
 		if model, ok := snapshot.FindModelByID(modelID); ok {
-			return ProviderCapabilityResult{
-				ToolCalling:       model.SupportsTools,
-				StructuredOutputs: model.StructuredOutputs,
-				Multimodal:        model.Multimodal,
-				Reasoning:         model.Reasoning,
-				DetectedModel:     model.ID,
-				Source:            CapabilitySourceOhMyPi,
-				Known:             true,
-			}, true
+			return capabilityResultFromCatalogModel(model), true
 		}
 	}
 	entry, ok := getModelsDevInfo(provider, modelID)
@@ -169,11 +178,64 @@ func CapabilitiesFromRegistry(provider, modelID string) (ProviderCapabilityResul
 		ToolCalling:       entry.SupportsToolCall,
 		StructuredOutputs: entry.SupportsStructuredOutput,
 		Multimodal:        entry.SupportsMultimodal,
+		Image:             entry.SupportsMultimodal,
 		Reasoning:         entry.SupportsReasoning,
 		DetectedModel:     entry.ID,
 		Source:            CapabilitySourceModelsDev,
 		Known:             true,
 	}, true
+}
+
+func capabilityResultFromCatalogModel(model catalog.Model) ProviderCapabilityResult {
+	result := ProviderCapabilityResult{
+		ToolCalling:       model.SupportsTools,
+		StructuredOutputs: model.StructuredOutputs,
+		Multimodal:        model.Multimodal,
+		Reasoning:         model.Reasoning,
+		DetectedModel:     model.ID,
+		Source:            CapabilitySourceOhMyPi,
+		Known:             true,
+	}
+	if known, image := catalogInputIncludesImage(model.Input); known {
+		result.Image = image
+	} else {
+		result.Image = model.Multimodal
+	}
+	return result
+}
+
+// catalogInputIncludesImage reports whether a catalog input list is present and
+// whether it accepts image input. An empty slice is unknown. image and images
+// are the only image modalities.
+func catalogInputIncludesImage(inputs []string) (known bool, image bool) {
+	if len(inputs) == 0 {
+		return false, false
+	}
+	for _, input := range inputs {
+		if isImageInput(input) {
+			return true, true
+		}
+	}
+	return true, false
+}
+
+func storedCatalogImage(providerType, model, source string) (known bool, image bool, ok bool) {
+	if strings.TrimSpace(source) != CapabilitySourceOhMyPi {
+		return false, false, false
+	}
+	snapshot, err := loadCapabilityCatalog()
+	if err != nil || snapshot == nil {
+		return false, false, false
+	}
+	entry, found := snapshot.FindModel(providerType, model)
+	if !found {
+		entry, found = snapshot.FindModelByID(model)
+	}
+	if !found {
+		return false, false, false
+	}
+	known, image = catalogInputIncludesImage(entry.Input)
+	return known, image, true
 }
 
 // CapabilitiesFromOpenRouterModel maps OpenRouter model metadata to AuraGo
@@ -193,6 +255,7 @@ func CapabilitiesFromOpenRouterModel(model OpenRouterModelMetadata) (ProviderCap
 		ToolCalling:       params["tools"] || params["tool_choice"],
 		StructuredOutputs: params["structured_outputs"] || params["response_format"],
 		Multimodal:        multimodal,
+		Image:             openRouterArchitectureSupportsImage(model.Architecture),
 		DetectedModel:     model.ID,
 		Source:            CapabilitySourceOpenRouter,
 		Known:             true,
@@ -258,6 +321,39 @@ func openRouterArchitectureSupportsMultimodal(arch OpenRouterArchitecture) bool 
 	return false
 }
 
+func openRouterArchitectureSupportsImage(arch OpenRouterArchitecture) bool {
+	for _, modality := range arch.InputModalities {
+		if isImageInput(modality) {
+			return true
+		}
+	}
+	modality := strings.ToLower(strings.TrimSpace(arch.Modality))
+	if modality == "" {
+		return false
+	}
+	inputSide := modality
+	if idx := strings.Index(inputSide, "->"); idx >= 0 {
+		inputSide = inputSide[:idx]
+	}
+	for _, part := range strings.FieldsFunc(inputSide, func(r rune) bool {
+		return r == '+' || r == ',' || r == ' '
+	}) {
+		if isImageInput(part) {
+			return true
+		}
+	}
+	return false
+}
+
+func isImageInput(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "image", "images":
+		return true
+	default:
+		return false
+	}
+}
+
 func isMultimodalInput(value string) bool {
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "image", "images", "file", "files", "pdf", "audio", "video":
@@ -283,7 +379,8 @@ func capabilitiesFromHeuristics(provider, model string) (ProviderCapabilityResul
 	isAgnesFlash := lowerProvider == "agnes" && lowerModel == "agnes-2.0-flash"
 	toolCalling := isDeepSeek || isClaude || isNemotron || isStepFun || isGPT || isGemini || isAgnesFlash
 	structured := toolCalling && lowerProvider != "ollama" && !isAgnesFlash
-	multimodal := modelNameSuggestsMultimodal(lowerModel) || isAgnesFlash
+	image := modelNameSuggestsMultimodal(lowerModel)
+	multimodal := image || isAgnesFlash
 	if !toolCalling && !structured && !multimodal {
 		return ProviderCapabilityResult{}, false
 	}
@@ -291,6 +388,7 @@ func capabilitiesFromHeuristics(provider, model string) (ProviderCapabilityResul
 		ToolCalling:       toolCalling,
 		StructuredOutputs: structured,
 		Multimodal:        multimodal,
+		Image:             image,
 		DetectedModel:     model,
 		Source:            CapabilitySourceHeuristic,
 		Known:             true,

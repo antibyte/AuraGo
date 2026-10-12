@@ -395,7 +395,7 @@ func routeSupportsRequest(route ModelRoute, req openai.ChatCompletionRequest, co
 		// a text-only model is predictably incompatible.
 		return !hasImage
 	}
-	return (!hasImage || caps.Multimodal) &&
+	return (!hasImage || caps.Image) &&
 		(!requiresTools || caps.ToolCalling) &&
 		(!requiresStructured || caps.StructuredOutputs)
 }
