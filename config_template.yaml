@@ -1548,7 +1548,37 @@ go2rtc:
     #   - id: "front-door"
     #     name: "Front Door"
     #     enabled: true
+    #     # Person detection for this camera (Network Cameras app). Keys left out take
+    #     # the defaults shown here.
+    #     detection:
+    #       enabled: false
+    #       interval_seconds: 2          # 1-30
+    #       min_score: 0.5               # 0.30-0.95
+    #       cooldown_seconds: 300        # 0-86400 between alerts of this camera
+    #       zones:                       # up to 8 named polygons, points [x, y] in 0..1; none = whole frame
+    #         - name: "Driveway"
+    #           points: [[0.1, 0.5], [0.9, 0.5], [0.9, 1.0], [0.1, 1.0]]
+    #       actions:
+    #         message: false
+    #         channel: "all"             # ntfy, pushover, telegram, discord, push, telnyx, cyd, all
+    #         agent: false
+    #         agent_instruction: ""      # up to 500 characters
+    #         desktop: true
     streams: []
+    # Person detection with a D-FINE model on this server (GPU/iGPU through WebGPU
+    # when usable, otherwise CPU). Detection and image storage run for cameras with
+    # streams[].detection.enabled; alerts fire only while armed. The arm mode
+    # (off/on/schedule) is runtime state, not configuration.
+    detection:
+        enabled: false
+        model: standard                # standard (D-FINE-N, 15 MB) | accurate (D-FINE-S, 41 MB)
+        backend: auto                  # auto | gpu | cpu
+        retention_days: 14             # 1-365
+        max_storage_mb: 2048           # 100-1000000; the oldest events are removed down to 90 %
+        schedule: []                   # arming windows for mode "schedule", server local time:
+        #   - days: [mon, tue, wed, thu, fri]
+        #     from: "22:00"
+        #     to: "06:00"              # to <= from crosses midnight
 three_d_printers:
     enabled: false
     readonly: true
