@@ -69,5 +69,5 @@ enabled for the app.
 
 ## Related
 
-- Tool parameters: [Internal tools — `retro_games`](manual/en/22-internal-tools.md).
+- Tool parameters: [Internal tools — `retro_games`](manuals/en/22-internal-tools.md).
 - HTTP contract of the app: [Desktop HTTP and SDK contract](desktop-api.md#retro-games-apidesktopretro-games).

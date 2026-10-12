@@ -259,6 +259,53 @@ Steps that need a password or key (the authentication of an HTTP request, for ex
 
 ---
 
+## The Decisions service (optional)
+
+**Decisions** is an optional shared local service for decisions from text and images. It is off by default and runs independently of normal chat, helper LLMs and agents. It keeps one resident model for all callers; EasyDrag's **Decision** node is its first consumer.
+
+### Setup in the web UI
+
+Open **Configuration → Decisions**, enable the service, pick the deployment and save. `auto` selects a native process for a native AuraGo installation and a managed container when AuraGo itself runs in Docker. Container management also requires the existing Docker permissions.
+
+- **Install** verifies the runtime bundle and downloads the model plus image projector with progress.
+- **Start** loads the resident model; **Stop** stops the process or container.
+- **Test decision** runs a small explicit text test. Merely opening settings only reads status.
+- Disabling the feature cancels requests and stops the service while preserving verified downloads.
+
+Runtime bundles must be built and packaged from the pinned native source under `decisions_runtime/`. A missing bundle is a setup error — there are no fabricated download URLs and no automatic pulls of an unpinned runtime.
+
+### Accelerators and CPU fallback
+
+CUDA is preferred on suitable NVIDIA devices, Metal on Apple Silicon, and Vulkan for other supported GPUs/iGPUs. **CPU fallback and mixed GPU/CPU operation are denied by default.** The separate CPU permission switch explicitly permits both and persists across restarts; revoking it immediately cancels any CPU-assisted inference.
+
+### YAML reference
+
+```yaml
+decisions:
+  enabled: false
+  deployment: auto       # auto, native, docker
+  cpu_fallback_allowed: false
+```
+
+### REST API
+
+The authenticated administrator API provides status, install, start, stop, test and the actual evaluation:
+
+| Method | Route | Purpose |
+|--------|-------|---------|
+| GET | `/api/decisions/status` | Passive status and runtime/device metadata |
+| POST | `/api/decisions/install` | Start managed installation |
+| POST | `/api/decisions/start` | Start the installed service |
+| POST | `/api/decisions/stop` | Cancel and stop the service |
+| POST | `/api/decisions/test` | Explicit text evaluation |
+| POST | `/api/decisions/evaluate` | Evaluate authorized input |
+
+Limits per evaluation: 16 ordered questions, 2–62 options per choice/rating question, up to eight images (12 MiB each, 24 MiB combined), 8192 input tokens including image tokens across the evaluation, and a 1 MiB JSON envelope. Results below the confidence threshold (default **0.70**) select Uncertain; technical errors stop the run and never masquerade as uncertainty.
+
+Details — prompt format, model pins, the live acceptance test — live in the [Decisions deep dive](../../decisions.md).
+
+---
+
 ## Manual Execution
 
 Missions can be started at any time regardless of schedule.

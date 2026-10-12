@@ -242,6 +242,53 @@ Schritte, die ein Passwort oder einen Schlüssel brauchen (etwa die Anmeldung ei
 
 ---
 
+## Der Decisions-Service (optional)
+
+**Decisions** ist ein optionaler, lokaler Dienst für Entscheidungen aus Text und Bildern. Er ist standardmäßig aus und läuft unabhängig vom normalen Chat, von Hilfs-LLMs und Agenten. Er hält ein residentes Modell für alle Aufrufer; der Baustein **Entscheidung** in EasyDrag ist sein erster Verbraucher.
+
+### Einrichtung in der Web-UI
+
+Öffne **Konfiguration → Decisions**, aktiviere den Dienst, wähle das Deployment und speichere. `auto` wählt für eine native AuraGo-Installation einen nativen Prozess und einen verwalteten Container, wenn AuraGo selbst in Docker läuft. Container-Verwaltung benötigt zusätzlich die bestehenden Docker-Rechte.
+
+- **Installieren** prüft das Runtime-Bundle und lädt Modell und Bild-Projektor mit Fortschrittsanzeige herunter.
+- **Starten** lädt das residente Modell; **Stoppen** beendet Prozess oder Container.
+- **Test-Entscheidung** führt eine kleine explizite Textauswertung aus. Das bloße Öffnen der Einstellungen liest nur den Status.
+- Das Deaktivieren bricht laufende Anfragen ab und stoppt den Dienst, behält aber verifizierte Downloads.
+
+Runtime-Bundles werden aus dem gepinnten Quellcode unter `decisions_runtime/` gebaut und gepackt. Ein fehlendes Bundle ist ein Setup-Fehler — es gibt keine erfundenen Download-URLs und kein automatisches Nachladen einer ungepinnten Runtime.
+
+### Beschleuniger und CPU-Fallback
+
+CUDA wird auf passenden NVIDIA-Geräten bevorzugt, Metal auf Apple Silicon, Vulkan für andere unterstützte GPUs/iGPUs. **CPU-Fallback und gemischter GPU/CPU-Betrieb sind standardmäßig untersagt.** Der separate CPU-Schalter erlaubt beides ausdrücklich und bleibt über Neustarts erhalten; ein Widerruf bricht eine laufende CPU-Beteiligung sofort ab.
+
+### YAML-Referenz
+
+```yaml
+decisions:
+  enabled: false
+  deployment: auto       # auto, native, docker
+  cpu_fallback_allowed: false
+```
+
+### REST-API
+
+Die authentifizierte Admin-API bietet Status, Installation, Start, Stopp, Test und die eigentliche Auswertung:
+
+| Methode | Route | Zweck |
+|---------|-------|-------|
+| GET | `/api/decisions/status` | Passiver Status und Laufzeit-/Geräte-Metadaten |
+| POST | `/api/decisions/install` | Verwaltete Installation starten |
+| POST | `/api/decisions/start` | Installierten Dienst starten |
+| POST | `/api/decisions/stop` | Abbrechen und stoppen |
+| POST | `/api/decisions/test` | Explizite Textauswertung |
+| POST | `/api/decisions/evaluate` | Autorisierte Eingabe auswerten |
+
+Grenzen pro Auswertung: 16 geordnete Fragen, 2–62 Optionen je Auswahl-/Bewertungsfrage, bis zu acht Bilder (je 12 MiB, zusammen 24 MiB), 8192 Input-Tokens inklusive Bild-Tokens über die gesamte Auswertung, 1 MiB JSON-Envelope. Ergebnisse unterhalb der Konfidenzschwelle (Standard **0,70**) landen auf `uncertain`; technische Fehler stoppen den Lauf und geben sich nie als Unsicherheit aus.
+
+Details — Prompt-Format, Modell-Pins, Live-Akzeptanztest — beschreibt der Deep-Dive [Decisions](../../decisions.md).
+
+---
+
 ## Manuelle Ausführung
 
 Missions können jederzeit manuell gestartet werden – unabhängig vom Zeitplan.

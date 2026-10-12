@@ -289,6 +289,17 @@ Ruft die **ursprüngliche unkomprimierte Ausgabe** eines vorherigen Tool-Calls a
 
 **Config:** `agent.output_compression` (Standard: aktiv). Siehe `documentation/output_compression.md`.
 
+### `read_tool_output`
+Archivierte Large-Outputs seitenweise nachlesen, wenn ein Tool-Ergebnis zu groß war („Full output archived" mit `output_ref`).
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `ref` | string | Der `output_ref` des archivierten Ergebnisses (z. B. `toolout_3f2a…`) |
+| `view` | enum | full (Standard), grep, jsonpath, range, head, tail, summary |
+| `offset` | integer | Byte-Position zum Fortsetzen (jede Seite liefert `next_offset`) |
+| `query` | string | Suchtext für `grep` oder JSONPath wie `$.items[0].name` |
+| `start_line`, `end_line`, `max_lines` | integer | Zeilenfenster für `range`/`head`/`tail` |
+
 ### `query_memory`
 Alle Memory-Quellen durchsuchen (Vektor-DB, Knowledge Graph, Journal, Notizen).
 
@@ -300,6 +311,21 @@ Alle Memory-Quellen durchsuchen (Vektor-DB, Knowledge Graph, Journal, Notizen).
 
 ### `context_memory`
 Kontext-bewusste Memory-Abfrage mit Zeitfenster.
+
+### `correct_memory`
+Korrigiert einen eindeutig falschen oder veralteten **Kernfach**. Zuerst mit `query_memory` suchen und die typisierten `references` übernehmen; jede Evidenz nennt `reference` und ein exaktes wörtliches `quote`. Gespräche, Journale, Notizen und Quelldokumente werden nicht umgeschrieben; historisch wahre Aussagen sind kein Fehlerfach.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `preview` | object | `changes`, `reason` und `evidence` zur Vorabprüfung |
+| `references` | array | Typisierte Verweise aus `query_memory` |
+
+### `recall_memory`
+Liest exakte Langzeit-Memory-Einträge **per ID** aus dem `AVAILABLE CONTEXT INDEX` (Einträge wie `[memory:mem-123]`).
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `ids` | array | Memory-IDs aus dem Kontext-Index |
 
 ### `remember`
 Automatisch in die richtige Memory-Quelle speichern.
@@ -323,6 +349,15 @@ Strukturierter Graph von Entitäten und Beziehungen.
 | `source` | string | Quell-Node (für Edges) |
 | `target` | string | Ziel-Node |
 | `relation` | string | Beziehungstyp |
+
+### `explore_kg`
+Erweitert exakte Knowledge-Graph-Knoten **per ID** aus dem `AVAILABLE CONTEXT INDEX` (Einträge wie `[kg:node-id]`).
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `ids` | array | Node-IDs aus dem Kontext-Index |
+| `depth` | integer | Traversal-Tiefe 1–3 (Standard 1) |
+| `limit` | integer | Max. Knoten/Kanten je angeforderter ID (Standard 20) |
 
 ### `cheatsheet`
 Cheat Sheets verwalten (Schritt-für-Schritt Anleitungen).
@@ -349,6 +384,13 @@ Verschlüsselte Secrets im Vault speichern/abrufen.
 | `operation` | enum | get, set, delete, list |
 | `key` | string | Secret-Name |
 | `value` | string | Secret-Wert |
+
+### `request_vault_secret`
+Fordert einen Secret **interaktiv vom Nutzer** an (API-Key, Token, Passwort): Der Client öffnet einen maskierten Dialog und speichert den Wert direkt im verschlüsselten Vault — der Wert kommt nie zurück zum Agenten.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `prompt` | string | Klartext-Erklärung für den Nutzer (max. 2000 Zeichen) |
 
 ### `cron_scheduler`
 Wiederkehrende Cron-Jobs planen.
@@ -655,6 +697,12 @@ Fernsteuerung verbundener Remote-Geräte.
 | `device_id` | string | Geräte-ID |
 | `command` | string | Shell-Befehl |
 
+### `remote_control_devices` / `remote_control_shell` / `remote_control_files`
+Fokussierte Remote-Control-Familie: `remote_control_devices` (Geräte auflisten/prüfen), `remote_control_shell` (Befehle auf verbundenen Geräten, Eingaben teils mit lokaler Freigabe auf dem Client) und `remote_control_files` (Dateiübertragung und -bearbeitung). Gates folgen dem Remote-Control-Schalter.
+
+### `remote_control_desktop`
+Screenshots und Automatisierung verbundener **AgoDesk**-Desktops und Browser. Desktop-Eingaben und UI-Aktionen können eine lokale Freigabe auf dem Remote-Client erfordern.
+
 ### `meshcore`
 MeshCore-Companion-Funk steuern: `status`, `contacts`, `channels`, `send_direct` (mit `node_key`/`text`) und `send_channel` (mit `channel`/`text`). Benötigt die aktivierte MeshCore-Integration; keine Rohprotokoll- oder Geräteverwaltung. Details in Kapitel 8.
 
@@ -772,6 +820,9 @@ Gmail, Calendar, Drive, Docs, Sheets.
 | Parameter | Typ | Beschreibung |
 |-----------|-----|--------------|
 | `operation` | enum | gmail_list, gmail_read, gmail_send, gmail_modify_labels, calendar_list, calendar_create, drive_search, docs_get, sheets_get, sheets_update |
+
+### `gog_accounts` / `gog_<service>`
+Google über den verwalteten **gog**-Helfer — getrennt von `google_workspace` oben. `gog_accounts` listet lokal konfigurierte, agent-sichtbare Konten und ihre Grants (kein Google-Request). Die typisierten Werkzeuge `gog_gmail`, `gog_calendar`, `gog_drive`, `gog_docs`, `gog_sheets`, `gog_slides`, `gog_contacts` und `gog_tasks` verlangen auf jede Ressourcenanfrage ein `account_id` und kennen nur 68 festgelegte Operationen mit Read/Create/Update/Delete-Grants — keine CLI, keine Flags, keine freien URLs. Gmail-Senden hat einen eigenen Grant; die Integration startet read-only. Details: Kapitel 8 und [gog.md](../../gog.md).
 
 ### `onedrive`
 Microsoft OneDrive Dateien verwalten.
@@ -1427,8 +1478,14 @@ Diese nativen Tools bedienen die Desktop-Apps und lokalen Laufzeiten aus Kapitel
 ### `desktop_notes`
 Bedient die sichtbare Desktop-Notizbibliothek mit `list`, `search`, `read` und `create`. Bestehende Notizen sind für den Agenten unveränderlich (Create-only); der Schutz gilt auch gegenüber Umwegen über andere Datei-Tools, sofern Isolation aktiv ist.
 
+### `layerling`
+Interaktives 3D-CAD im offenen Browser-Editor des Nutzers. Braucht einen authentifizierten Desktop-Chat-Kontext, die aktivierte Layerling-Integration, Desktop-Agent-Zugriff und `agent_access: read` oder `write` (Standard `off`). Workflow: `list_editors` mit exakter `editor_id` aus dem Fenster-Chat, dann `describe` für das Parameter-Schema von Layerling 1.57.0, dann die Operation. Kein Headless-CAD; nach Browser-Trennung laufen Befehle nicht automatisch nach. Details: Kapitel 8 und [layerling.md](../../layerling.md).
+
 ### `rtl_sdr`
 Steuert den RTL-SDR-Empfang: Status, Geräte, Abstimmung, Scans, Favoriten, Aufnahmen (FLAC), Zeitpläne und erneute Spracherkennung. Nur mit `rtl_sdr.enabled`; rein empfangsorientiert.
+
+### `ruview`
+Liest den administrierten RuView-Sensing-Service (read-only): `status`, `nodes`, `sensing`, `model_info`, `recordings`. Nur sichtbar, wenn Integration **und** Agent-Zugriff aktiviert sind. Keine URLs, Zugangsdaten, Gerätepfade oder freien API-Routen; das Tool kann weder installieren, flashen, konfigurieren, kalibrieren, aufnehmen, trainieren noch löschen. Antworten nennen Quelle, Beobachtungszeit und Datenfrische; `ready` beschreibt nur den Service. Details: Kapitel 8 und [ruview.md](../../ruview.md).
 
 ### `sip_phone`
 Native SIP-Telefonie: Anrufe starten, annehmen, beenden, DTMF senden und Anruflisten lesen — abhängig von der SIP-Konfiguration und den Rufregeln (Kapitel 8).
@@ -1554,6 +1611,9 @@ Nicht alle Tools sind standardmäßig verfügbar. Die Verfügbarkeit hängt von 
 | `uptime_kuma_enabled` | `uptime_kuma` |
 | `ldap_enabled` | `ldap` |
 | `paperless_ngx_enabled` | `paperless_ngx` |
+| `virtual_desktop.layerling.enabled` + `agent_access` | `layerling` (off/read/write; zusätzlich Desktop-Agent-Rechte) |
+| `ruview.enabled` + `ruview.agent_access` | `ruview` (read-only) |
+| `gog.enabled` | `gog_accounts`, `gog_<service>` (Grants pro Konto) |
 | `python_secret_injection_enabled` | Vault-Key-Injection in `execute_skill` |
 
 ---
@@ -1579,6 +1639,11 @@ Die meisten Tools nutzen `{tool_name}.md`. Ausnahmen und gruppierte Manuals:
 | `transfer_remote_file` | `remote_execution.md` | SFTP-Transfers |
 | `manage_memory` | `context_memory.md`, `core_memory.md` | Memory-Schichten |
 | `yepapi_*` (7 Tools) | `yepapi.md` | Gemeinsame YepAPI-Referenz |
+| `correct_memory`, `recall_memory`, `explore_kg`, `read_tool_output`, `request_vault_secret` | [correct_memory.md](../../../prompts/tools_manuals/correct_memory.md), [recall_memory.md](../../../prompts/tools_manuals/recall_memory.md), [explore_kg.md](../../../prompts/tools_manuals/explore_kg.md), [read_tool_output.md](../../../prompts/tools_manuals/read_tool_output.md), [request_vault_secret.md](../../../prompts/tools_manuals/request_vault_secret.md) | Memory-Korrektur, ID-Lesezugriff, KG-Traversal, Archiv-Lesezugriff, interaktive Secret-Anfrage |
+| `gog_accounts`, `gog_<service>` (8 Dienste) | [gog_accounts.md](../../../prompts/tools_manuals/gog_accounts.md) | Google über den gog-Helfer |
+| `remote_control_desktop`, `remote_control_devices`, `remote_control_files`, `remote_control_shell` | [remote_control_desktop.md](../../../prompts/tools_manuals/remote_control_desktop.md) | Fokussierte Remote-Control-Familie |
+| `layerling` | [layerling.md](../../../prompts/tools_manuals/layerling.md) | Desktop-CAD-Editor |
+| `ruview` | [ruview.md](../../../prompts/tools_manuals/ruview.md) | Wi-Fi-Sensing (read-only) |
 
 ### Legacy- / Meta-Manuals (kein 1:1-Nativtool)
 

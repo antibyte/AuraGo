@@ -156,6 +156,8 @@ personality:
 
 > 💡 Changes require a restart of AuraGo.
 
+> 🎭 **Animated personas:** In Webchat and Desktop **Live Speech**, every personality has an animated persona (Rive) that listens, thinks and moves its mouth while speaking — from butler to terminator. `custom` keeps its static image. Details: [chapter 4](04-webui.md#animated-personas-in-live-speech) and the [animated personas deep dive](../../animated-personas.md).
+
 ---
 
 ## User Profiling (V2)

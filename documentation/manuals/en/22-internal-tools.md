@@ -281,8 +281,34 @@ Retrieve the **original uncompressed output** of a prior tool call when output c
 
 **Config:** Works when `agent.output_compression` is enabled (default: true). See [Output Compression](../../output_compression.md) and ch. 08 Integrations.
 
+### `read_tool_output`
+Read archived large outputs page by page when a tool result was too large ("Full output archived" with an `output_ref`).
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `ref` | string | The `output_ref` of the archived result (e.g. `toolout_3f2a…`) |
+| `view` | enum | full (default), grep, jsonpath, range, head, tail, summary |
+| `offset` | integer | Byte position to continue from (every page returns `next_offset`) |
+| `query` | string | Search text for `grep`, or a JSONPath such as `$.items[0].name` |
+| `start_line`, `end_line`, `max_lines` | integer | Line window for `range`/`head`/`tail` |
+
 ### `context_memory`
 Context-aware memory query with time window.
+
+### `correct_memory`
+Correct a clearly wrong or outdated **core fact**. Search with `query_memory` first and copy its typed `references`; each evidence item names `reference` and an exact supporting `quote`. Conversations, journals, notes and source documents are never rewritten; a statement true in its historical context is not an erroneous current fact.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `preview` | object | `changes`, `reason` and `evidence` for pre-approval |
+| `references` | array | Typed references from `query_memory` |
+
+### `recall_memory`
+Read exact long-term memory entries **by ID** from the `AVAILABLE CONTEXT INDEX` (entries like `[memory:mem-123]`).
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `ids` | array | Memory IDs from the context index |
 
 ### `remember`
 Automatically save to the right memory source.
@@ -306,6 +332,15 @@ Structured graph of entities and relationships.
 | `source` | string | Source node (for edges) |
 | `target` | string | Target node |
 | `relation` | string | Relationship type |
+
+### `explore_kg`
+Expand exact Knowledge Graph nodes **by ID** from the `AVAILABLE CONTEXT INDEX` (entries like `[kg:node-id]`).
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `ids` | array | Node IDs from the context index |
+| `depth` | integer | Traversal depth 1–3 (default 1) |
+| `limit` | integer | Max nodes/edges per requested ID (default 20) |
 
 ### `cheatsheet`
 Manage cheat sheets (step-by-step instructions).
@@ -332,6 +367,13 @@ Store/retrieve encrypted secrets in the vault.
 | `operation` | enum | get, set, delete, list |
 | `key` | string | Secret name |
 | `value` | string | Secret value |
+
+### `request_vault_secret`
+Request a secret **interactively from the user** (API key, token, password): the client opens a secure masked dialog and stores the value directly in AuraGo's encrypted Vault — the value is never returned to you.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `prompt` | string | Plain-text explanation shown to the user (max 2,000 characters) |
 
 ### `cron_scheduler`
 Schedule recurring cron jobs.
@@ -676,6 +718,12 @@ Control connected remote devices.
 | `device_id` | string | Device ID |
 | `command` | string | Shell command |
 
+### `remote_control_devices` / `remote_control_shell` / `remote_control_files`
+Focused remote-control family: `remote_control_devices` (list/inspect devices), `remote_control_shell` (run commands on connected devices; some inputs need local approval on the client) and `remote_control_files` (file transfer and editing). Gates follow the remote-control switch.
+
+### `remote_control_desktop`
+Capture screenshots and automate connected **AgoDesk** desktops and browsers. Desktop input and UI actions may require local approval on the remote client.
+
 ### `meshcore`
 Operate the MeshCore Companion radio: `status`, `contacts`, `channels`, `send_direct` (with `node_key`/`text`), and `send_channel` (with `channel`/`text`). Requires the enabled MeshCore integration; no raw protocol or device administration. See chapter 8.
 
@@ -795,6 +843,9 @@ Gmail, Calendar, Drive, Docs, Sheets.
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `operation` | enum | gmail_list, gmail_read, gmail_send, gmail_modify_labels, calendar_list, calendar_create, drive_search, docs_get, sheets_get, sheets_update |
+
+### `gog_accounts` / `gog_<service>`
+Google through the managed **gog** helper — separate from `google_workspace` above. `gog_accounts` lists locally configured agent-visible accounts and their grants (no Google request). The typed tools `gog_gmail`, `gog_calendar`, `gog_drive`, `gog_docs`, `gog_sheets`, `gog_slides`, `gog_contacts` and `gog_tasks` require `account_id` on every resource request and expose only 68 fixed operations with read/create/update/delete grants — no CLI, no flags, no free URLs. Gmail sending has its own grant; the integration starts read-only. Details: chapter 8 and [gog.md](../../gog.md).
 
 ### `onedrive`
 Microsoft OneDrive file management.
@@ -1566,8 +1617,14 @@ These native tools operate the desktop apps and local runtimes from Chapters 4 a
 ### `desktop_notes`
 Operates the visible Desktop Notes library with `list`, `search`, `read`, and `create`. Existing notes are immutable to the agent (create-only); the protection also holds against detours through other file tools whenever isolation is active.
 
+### `layerling`
+Interactive 3D CAD in the user's open browser editor. Needs an authenticated Desktop chat context, the enabled Layerling integration, Desktop agent access and `agent_access: read` or `write` (default `off`). Workflow: `list_editors` with the exact `editor_id` from the window chat, then `describe` for Layerling 1.57.0's parameter schema, then the operation. No headless CAD; commands never auto-retry after a browser disconnect. Details: chapter 8 and [layerling.md](../../layerling.md).
+
 ### `rtl_sdr`
 Drives RTL-SDR reception: status, devices, tuning, scans, favorites, recordings (FLAC), schedules, and re-running speech recognition. Requires `rtl_sdr.enabled`; receive-only by design.
+
+### `ruview`
+Reads the administrator-configured RuView sensing service (read-only): `status`, `nodes`, `sensing`, `model_info`, `recordings`. Visible only when both the integration and agent access are enabled. No URLs, credentials, device paths or arbitrary API routes; the tool cannot install, flash, configure, calibrate, record, train or delete. Responses include source, observation time and data freshness; `ready` describes the service only. Details: chapter 8 and [ruview.md](../../ruview.md).
 
 ### `sip_phone`
 Native SIP telephony: start, answer, and end calls, send DTMF, and read call lists — depending on the SIP configuration and call rules (Chapter 8).
@@ -1690,6 +1747,9 @@ Not all tools are available by default. Availability depends on **Tool Feature F
 | `uptime_kuma_enabled` | `uptime_kuma` |
 | `ldap_enabled` | `ldap` |
 | `paperless_ngx_enabled` | `paperless_ngx` |
+| `virtual_desktop.layerling.enabled` + `agent_access` | `layerling` (off/read/write; also requires Desktop agent permissions) |
+| `ruview.enabled` + `ruview.agent_access` | `ruview` (read-only) |
+| `gog.enabled` | `gog_accounts`, `gog_<service>` (grants per account) |
 | `python_secret_injection_enabled` | Vault secret injection into Python skills |
 
 ---
@@ -1715,6 +1775,11 @@ Most tools use `{tool_name}.md`. Exceptions and grouped manuals:
 | `transfer_remote_file` | `remote_execution.md` | SFTP transfers |
 | `manage_memory` | `context_memory.md`, `core_memory.md` | Memory layers |
 | `yepapi_*` (7 tools) | `yepapi.md` | Shared YepAPI reference |
+| `correct_memory`, `recall_memory`, `explore_kg`, `read_tool_output`, `request_vault_secret` | [correct_memory.md](../../../prompts/tools_manuals/correct_memory.md), [recall_memory.md](../../../prompts/tools_manuals/recall_memory.md), [explore_kg.md](../../../prompts/tools_manuals/explore_kg.md), [read_tool_output.md](../../../prompts/tools_manuals/read_tool_output.md), [request_vault_secret.md](../../../prompts/tools_manuals/request_vault_secret.md) | Memory correction, ID-based recall, KG traversal, archive reads, interactive secret request |
+| `gog_accounts`, `gog_<service>` (8 services) | [gog_accounts.md](../../../prompts/tools_manuals/gog_accounts.md) | Google through the gog helper |
+| `remote_control_desktop`, `remote_control_devices`, `remote_control_files`, `remote_control_shell` | [remote_control_desktop.md](../../../prompts/tools_manuals/remote_control_desktop.md) | Focused remote-control family |
+| `layerling` | [layerling.md](../../../prompts/tools_manuals/layerling.md) | Desktop CAD editor |
+| `ruview` | [ruview.md](../../../prompts/tools_manuals/ruview.md) | Wi-Fi sensing (read-only) |
 
 ### Legacy / meta manuals (no 1:1 native tool name)
 

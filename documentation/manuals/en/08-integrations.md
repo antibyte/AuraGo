@@ -485,6 +485,27 @@ google_workspace:
 
 ---
 
+## Google Workspace through gog
+
+Alongside the native Google Workspace integration, AuraGo can use its managed **gog** helper. Accounts, credentials and permissions of the two paths are independent; no mail application is installed — Gmail works through the agent.
+
+**Web UI:** **Config → Google Workspace through gog** — explicitly install the helper (verified package against AuraGo's embedded SHA-256 manifest), enable the integration, add an account, pick services with read/create/update/delete grants, then start the OAuth login. Docs, Sheets and Slides tests need an existing test object's ID. Merely opening Config never contacts Google.
+
+**Important:**
+- The integration starts disabled and read-only; leaving read-only mode requires an explicit configuration change. Gmail sending has its own grant.
+- OAuth still needs a Google Cloud project, enabled APIs and user consent. Secrets live only in Vault keys `oauth_gog_client_<id>` and `oauth_gog_<id>` (export-deny).
+- Processes receive a short-lived access token, an isolated `GOG_HOME` and a minimal environment.
+- The agent tools (`gog_accounts` plus `gog_gmail`, `gog_calendar`, `gog_drive`, `gog_docs`, `gog_sheets`, `gog_slides`, `gog_contacts`, `gog_tasks`) expose 68 fixed operations — no arbitrary CLI, flags or free URLs. Details: chapter 22 and the [gog deep dive](../../gog.md).
+
+### YAML Reference
+```yaml
+gog:
+    enabled: false
+    # accounts, grants and agent/desktop access are managed in the Config UI
+```
+
+---
+
 ## WebDAV/Koofr Setup
 
 Access cloud storage through WebDAV-compatible services.
@@ -2541,6 +2562,76 @@ virtual_desktop:
     max_memory_mb: 4096
     max_cpu_cores: 2
 ```
+
+## Layerling (Desktop CAD)
+
+**Layerling** is an optional, locally shipped browser CAD editor on the Virtual Desktop. At runtime it needs no Docker container, Node server or separately installed skill — Node is only used when rebuilding the pinned vendor assets.
+
+**Web UI:** enable it in **Config → Virtual Desktop → Layerling**. Open the editor from the *Creative* category; the window follows the Desktop's language and theme (German for a German Desktop, English otherwise). **Fullscreen** hides the browser chrome and Desktop frame (`Esc` returns).
+
+**Important:**
+- Projects save as `.lyl` (suggested folder: `Documents/Layerling`); STL, OBJ, 3MF, STEP/STP and SVG can be opened with Layerling from the file manager. Export: STL, OBJ, 3MF, STEP or PNG.
+- Saving checks the version read when opening (conflict: Replace / Save a copy / Cancel); unsaved edits keep a browser-local recovery draft.
+- **Agent access defaults to Off**, independently of the activation switch: **Read** permits inspection and previews, **Read and write** additionally model edits and Desktop file writes. Desktop agent access and readonly remain upper bounds.
+- Version 1 needs an open browser editor — no headless CAD, no collaborative simultaneous editing, no direct printer control.
+- Upstream is Layerling **1.57.0** (AGPL-3.0-only); the editor's source links provide the corresponding source archive.
+
+Details: the [Layerling deep dive](../../layerling.md).
+
+### YAML Reference
+```yaml
+virtual_desktop:
+    layerling:
+        enabled: false          # local browser CAD editor; no runtime sidecar
+        agent_access: "off"     # off, read, write; also requires Desktop agent permissions
+```
+
+## RuView (Wi-Fi sensing)
+
+**RuView** integrates Wi-Fi sensing ([RuView v3122](https://github.com/ruvnet/RuView)) including its dashboard, observatory, pose fusion, calibration, recording and training views. AuraGo's management speaks all 16 languages; upstream views keep their original language. Wi-Fi sensing is experimental — connectivity proves nothing about measurement, presence or pose accuracy.
+
+**Web UI:** **Config → RuView** — enable the integration, pick a runtime and source, save. Start and agent access are disabled by default; read-only starts enabled. **Open RuView** installs/starts a managed runtime, **Set up board** flashes ESP32 firmware over USB (Web Serial) and provisions Wi-Fi.
+
+**Runtimes:**
+
+| Runtime | Intended use |
+|---------|--------------|
+| Managed Docker | Linux sensing server for ESP32 CSI or an explicit demo; AuraGo creates and stops its own labelled container |
+| Native host | Verified Windows amd64 or macOS package; hosts need a working Wi-Fi adapter for RSSI |
+| External | Existing RuView service at the saved HTTP(S) origin; private/loopback access requires `allow_private` |
+
+**Important:**
+- The agent tool `ruview` (read-only) offers only `status`, `nodes`, `sensing`, `model_info` and `recordings` — never install, flash, configure, calibrate, record or train.
+- Tokens live in Vault keys `ruview_api_token` and `ruview_managed_token` (both export-denied for Python/agent).
+- ESP32 reception needs explicit UDP publication: a concrete RFC1918 IPv4 LAN bind plus an allowlist of private sources (default port 5005).
+- Managed recordings/models live under `data/ruview/data`; a storage watcher stops recordings in a controlled way at the budget (default 1024 MiB) but never deletes anything automatically.
+
+Details: the [RuView deep dive](../../ruview.md).
+
+### YAML Reference
+```yaml
+ruview:
+    enabled: false
+    readonly: true
+    agent_access: false
+    mode: docker          # docker | native (Windows/macOS) | external
+    source: esp32         # esp32 | wifi | simulated (explicit demo)
+```
+
+## System World
+
+**System World** is a local Three.js city with seven fixed districts on the Virtual Desktop — no cloud, no LLM: exploration and decorative life never call a model.
+
+Version two adds three accessible annexes (agent control room, memory archive, mission depot on the south waterfront), a seven-stop tram, an optional drone tour, discoveries, articulated residents, time/weather controls and a shared recorded system view. The agent tower carries an open glass lift to the 72 m sky deck; viewers on every gallery zoom onto districts and name their live state and key figure. Robots (couriers, technicians, archivists) guide you to existing stations; "City life" sequences are clearly labelled decoration and claim no successful system work.
+
+Details: the [System World deep dive](../../system-world-2.md).
+
+## Retro-Net and Personal Radio on the Desktop
+
+Two more Desktop features with integration overlap:
+
+- **Retro-Net** turns the Desktop **Terminal** into a dialing directory for text services that are still online (Telnet BBSes, C64 boards, MUDs and more). It is enabled by default (`virtual_desktop.retronet_enabled`); every connection runs through the AuraGo server. Described in [chapter 4](04-webui.md#retronet-in-the-terminal) and the [Retro-Net deep dive](../../retro-net.md).
+- **Personal Radio** is a built-in Desktop app for your own station: imported and/or generated music, LLM moderation in your station's style and optional researched news through the active speech output. Described in [chapter 4](04-webui.md#personal-radio) and the [Personal Radio deep dive](../../personal-radio.md).
 
 ## Shell Sandbox Integration
 

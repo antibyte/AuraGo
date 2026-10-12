@@ -99,13 +99,11 @@ Daten liegen bei deiner Installation. **Gehostete Modelle sehen trotzdem ihre Re
 6. [Werkzeuge](06-tools.md) — Der große Werkzeugkasten
 7. [Konfiguration](07-konfiguration.md) — Provider-System und Feintuning
 8. [Integrationen](08-integrations.md) — Vom NAS bis zum Funkgerät
-    - [CYD Creator](25-cyd-creator.md) (Kapitel 25) — Apps für das Cheap Yellow Display
 9. [Gedächtnis](09-memory.md) — Verlauf, Kernfakten, RAG, Graph
 10. [Persönlichkeit](10-personality.md) — Dieselbe Toolbox, andere Haltung
 
 ### Teil 3 — Autopilot
 11. [Mission Control](11-missions.md) — Geplante Arbeit
-    - [EasyDrag](24-easydrag.md) (Kapitel 24) — Automationen per Drag & Drop
 12. [Invasion Control](12-invasion.md) — Eggs und Nests
 13. [Dashboard](13-dashboard.md) — Zahlen, Issues, Affect, 3D-Graph
 
@@ -123,7 +121,11 @@ Daten liegen bei deiner Installation. **Gehostete Modelle sehen trotzdem ihre Re
 22. [Interne Tools](22-interne-tools.md)
 23. [Interna](23-interna.md)
 
-[FAQ](faq.md) · [Handbuch-Start](../README.md)
+### Teil 6 — Studio-Apps
+24. [EasyDrag](24-easydrag.md) — Automationen per Drag & Drop (erweitert Mission Control aus Kapitel 11)
+25. [CYD Creator](25-cyd-creator.md) — Apps für das Cheap Yellow Display (gehört zur Integrations-Familie aus Kapitel 8)
+
+[FAQ](faq.md) · [Handbuch-Start](../README.md) · [Release Notes](../../release-notes-2026-10-audit-remediation.md)
 
 ## Chat-Kurzbefehle
 
@@ -156,4 +158,4 @@ Die UI spricht **16 Sprachen**. Pick your company in **Config → Personality**.
 
 [![Flaggen der 16 UI-Sprachen](../../../assets/readme/language-flags.webp)](../../../assets/readme/language-flags.webp)
 
-*Stand: 7. Oktober 2026. Die englische Fassung ist [hier](../en/README.md).*
+*Stand: 12. Oktober 2026. Die englische Fassung ist [hier](../en/README.md).*

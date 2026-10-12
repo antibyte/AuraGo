@@ -232,7 +232,7 @@ The Virtual Desktop opens workspace-backed apps in AuraGo's browser desktop. It 
 |-----|---------|
 | **Files** | Browse the virtual desktop workspace and open files in the right app |
 | **Code Studio** | Container-backed IDE with file tree, editor, search, terminal, and agent context |
-| **Terminal** | Workspace terminal with selectable CRT styles (retro tube look) |
+| **Terminal** | Workspace terminal with selectable CRT styles (retro tube look); with **Retro-Net** (on by default) also a dialing directory for Telnet BBSes, C64 boards, MUDs and more — see below |
 | **Writer / Sheets / Notes / Viewer** | Native DOCX word processor, native spreadsheet, and rich note editor (list, live preview, tags, rich layout), plus a file viewer |
 | **Pixel** | Image editor for local files, canvas edits, filters, crop/resize, and optional AI generation/enhancement |
 | **Zipper** | Browse ZIP archives and extract files into the workspace |
@@ -240,6 +240,7 @@ The Virtual Desktop opens workspace-backed apps in AuraGo's browser desktop. It 
 | **Radio / TeeVee / Noisemaker** | Vintage stereo radio receiver, CRT television for live streams (IPTV); Noisemaker: AI music studio laid out as a workbench – song creation on the left (Simple mode with genre presets or Custom mode with style, lyrics, title and local ACE-Step controls), the library on the right (grid/list, search, favorites, multi-select) and a persistent player bar below with queue, shuffle/repeat, visualizer and a Now Playing view. Window menus (File/Edit/View/Playback) and context menus cover every action. |
 | **Game Maker Studio** | Isolated offline 2D/3D game creation with a sprite library and asset browser |
 | **OpenSCAD / 3D Viewer** | Parametric 3D modeling with preview and an STL viewer |
+| **Layerling** | Local browser CAD editor (projects as `.lyl`; opens STL, OBJ, 3MF, STEP/STP and SVG, exports STL, OBJ, 3MF, STEP and PNG). Optional; agent access off by default — details in [chapter 8](08-integrations.md#layerling-desktop-cad) |
 | **Homepage Studio** | Build, validate, and deploy managed website projects |
 | **Software Store** | Install and operate managed Docker apps such as Homarr, n8n, Node-RED, Open WebUI, Arcane, Termix, code-server, Dozzle, Beszel, and OliveTin |
 | **Quick Connect** | Manage SSH/VNC connections |
@@ -258,11 +259,33 @@ The Virtual Desktop opens workspace-backed apps in AuraGo's browser desktop. It 
 | **Detective** | Bounded desktop research with adjustable effort, cited reports, and exports |
 | **Personal Radio** | Your own radio station: topic and music selection per station, a personal audio library, news, and speech segments |
 | **RTL-SDR** | Receive-only RTL-SDR stick support: live tuning, recordings, schedules, and automatic speech recognition (ASR) |
+| **RuView** | Wi-Fi sensing (experimental): dashboard, observatory and pose fusion for ESP32 CSI or RSSI, plus calibration, recording and training — managed in [chapter 8](08-integrations.md#ruview-wi-fi-sensing) |
 | **Bluetooth** | Manage the server's Bluetooth adapter: scan, pair (with number comparison), connect, trust, remove and make the server visible. Shown only when an adapter is present |
 | **HA Switchboard** | Home Assistant switches as a nostalgic switchboard with silver levers (selected `switch.*` entities only) |
 | **Tresor** | Browser-encrypted desktop vault: entries (names, notes, files) are stored only as ciphertext in `data/tresor.db`; the server never sees plaintext. Password plus recovery key, revisions, automatic note saving, and locking on close |
 | **Launchpad** | Managed URL collections as a desktop app: links with categories and icons (search in the icon catalog, icon download) |
 | **God's Eye View** | Store app: a Cesium-based 3D globe in a managed container. The Store setup dialog takes optional provider keys (Vault only) and allowed AuraGo origins; start/stop stays in the Store, the frame starts maximized and grants microphone capability to itself only |
+
+### Retro-Net in the Terminal
+
+**Retro-Net** turns the Desktop terminal into a dialing directory for text services that are still online: Telnet bulletin board systems, Commodore 64 boards, multi-user dungeons, Telehack, an ASCII world map, the Star Wars ASCII animation, the Free Internet Chess Server and a few anonymous SSH games. You pick an entry, the terminal "dials" with a short modem sequence, and the session runs inside the chosen retro terminal style.
+
+- Enabled by default (`virtual_desktop.retronet_enabled`); switch: **Config → Virtual Desktop → "Retro-Net in the Terminal"**. It needs an enabled Desktop, and read-only mode disables it.
+- Every connection runs through the AuraGo server — service operators see the server's public IP. Telnet is unencrypted: never type a password you use anywhere else (the terminal repeats this reminder after every `CONNECT`).
+- The server dials only entries stored in the directory, by ID — never a host or port from the browser — and refuses private/reserved target addresses as well as mail ports (25, 465, 587).
+- Session bytes are never logged; the Desktop audit log records each connection attempt, resolved target, result code, duration and byte counts.
+
+Details: the [Retro-Net deep dive](../../retro-net.md) and [chapter 8](08-integrations.md).
+
+### Personal Radio
+
+**Personal Radio** is a built-in Desktop app for your own station: imported and/or generated music, themed moderation through the configured LLM, and optional researched news through the active speech output. Four setup pages: **Station** (name, themes, language, moderation style, frequency), **Music** (local, generated or mixed; weighted genres like `Jazz:2` per line, mood, vocals, tempo 30–300 BPM), **News** (off, every 30 or 60 minutes; international, national, regional) and **Operation** (start reserve, rotation, library target, storage and daily limits). Stop a station before changing or deleting its profile. The existing Internet Radio app remains separate.
+
+Details: the [Personal Radio deep dive](../../personal-radio.md) and [chapter 8](08-integrations.md).
+
+### Animated personas in Live Speech
+
+Webchat and Desktop **Live Speech** share a compact animated persona panel: the selected persona listens, thinks and moves its mouth with assistant playback. Static chat avatars and the existing voice-session controls stay separate. The animations are locally shipped Rive files — one per personality (including butler, silver, manager, commander, professor, vampire, secretary, punk, terminator); `custom` keeps its static image. Asset catalog and runtime contract: the [animated personas deep dive](../../animated-personas.md).
 
 ### Widgets
 

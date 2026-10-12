@@ -370,7 +370,7 @@ Container management via the Docker Engine API.
 | `read_only` | `false` | When `true`, the agent can only list/inspect containers and images but cannot start, stop, create, or remove them. |
 | `host` | `""` | Docker socket/host. Empty = auto-detect (`/var/run/docker.sock` on Linux, `npipe:////./pipe/docker_engine` on Windows). |
 
-See [docker_installation.md](docker_installation.md) and [manual/en/08-integrations.md#docker-integration](manual/en/08-integrations.md#docker-integration) for details.
+See [docker_installation.md](docker_installation.md) and [manuals/en/08-integrations.md#docker-integration](manuals/en/08-integrations.md#docker-integration) for details.
 
 ---
 
@@ -400,7 +400,7 @@ Parallel sub-agent system — spawn independent LLM workers for complex sub-task
 | `retry_policy.retry_delay_seconds` | `5` | Delay between co-agent retries. |
 | `specialists.*.enabled` | `false` | Enable individual specialist types (`researcher`, `coder`, `designer`, `security`, `writer`). |
 
-See [manual/en/15-coagents.md](manual/en/15-coagents.md) for details.
+See [manuals/en/15-coagents.md](manuals/en/15-coagents.md) for details.
 
 ---
 

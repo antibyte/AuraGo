@@ -2,8 +2,8 @@
 
 CYD Creator is a builtin desktop app (`cyd-creator`, start-menu category Development) for building ESP32 /
 ESP32-S3 touch-display apps: a designer, an agent that plans and writes the code, builds in a Docker container,
-flashing over Web Serial and updates over Wi-Fi. User guide: [manual chapter 25](manual/en/25-cyd-creator.md)
-([German](manual/de/25-cyd-creator.md)). Code-level contracts live in `internal/cydcreator/AGENTS.md`,
+flashing over Web Serial and updates over Wi-Fi. User guide: [manual chapter 25](manuals/en/25-cyd-creator.md)
+([German](manuals/de/25-cyd-creator.md)). Code-level contracts live in `internal/cydcreator/AGENTS.md`,
 `internal/server/AGENTS.md` (CYD Creator) and `ui/js/desktop/apps/AGENTS.md` (CYD Creator, CYD Creator designer).
 
 CYD Creator is not the older **Cheap Yellow Display** companion (`cyd:` config section, with its own flasher on the

@@ -154,6 +154,8 @@ personality:
   core_personality: "professional"
 ```
 
+> 🎭 **Animated Personas:** In Webchat und Desktop **Live Speech** gehört zu jeder Persönlichkeit eine animierte Persona (Rive), die zuhört, denkt und beim Sprechen den Mund bewegt — vom Butler bis zum Terminator. `custom` behält sein statisches Bild. Details: [Kapitel 4](04-webui.md#animated-personas-in-live-speech) und der [Animated-Personas-Deep-Dive](../../animated-personas.md).
+
 ---
 
 ## Benutzer-Profiling (V2)

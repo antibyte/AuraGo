@@ -222,6 +222,6 @@ AuraGo bietet mit seinem mehrschichtigen Sicherheitskonzept ein hohes Maß an Ko
 ---
 
 **Weiterführende Dokumentation:**
-- [Sicherheitskonfiguration](./manual/de/14-sicherheit.md)
+- [Sicherheitskonfiguration](./manuals/de/14-sicherheit.md)
 - [Docker-Installation](./docker_installation.md)
-- [Best Practices für Production](./manual/de/18-anhang.md)
+- [Best Practices für Production](./manuals/de/18-anhang.md)

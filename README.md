@@ -9,7 +9,7 @@
 Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a browser game and remember what you were doing yesterday. It has a web desktop, a personality, helper agents and a growing pile of integrations. Written in Go, with the core, web UI and databases bundled together. Bring a local or hosted model. Pick the toys you want to connect.
 
 <p align="center">
-  <a href="#the-toy-box">Features</a> · <a href="#under-the-hood">How it connects</a> · <a href="#what-do-i-need-to-run-it">Requirements</a> · <a href="#quick-start">Install</a> · <a href="documentation/manual/en/README.md">English manual</a> · <a href="documentation/manual/de/README.md">Deutsches Handbuch</a>
+  <a href="#the-toy-box">Features</a> · <a href="#under-the-hood">How it connects</a> · <a href="#what-do-i-need-to-run-it">Requirements</a> · <a href="#quick-start">Install</a> · <a href="documentation/manuals/en/README.md">English manual</a> · <a href="documentation/manuals/de/README.md">Deutsches Handbuch</a>
 </p>
 
 [![Illustrated AuraGo feature map: the original gopher connects home-lab tools, memory, creative studios, voice and radio, automation and virtual workspaces](assets/readme/gopher-feature-map.webp)](assets/readme/gopher-feature-map.webp)
@@ -29,7 +29,7 @@ Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a b
 - **Make things.** Documents, PDFs, images, music, video and websites through configured tools and providers. Connect GitHub, Google Workspace, S3, WebDAV and SQL; play media through Jellyfin or Chromecast.
 - **Plug in the weird stuff.** Klipper/Moonraker and Elegoo 3D printers, go2rtc cameras, Linux Bluetooth audio, and an **ESP32 Cheap Yellow Display** for a tiny desk dashboard. Extend further with Python Skills, Agent Skills and MCP.
 
-[All integrations](documentation/manual/en/08-integrations.md) · [Tool catalog](documentation/manual/en/22-internal-tools.md) · [Game Maker](documentation/game-maker-studio.md) · [Detective](documentation/detective.md) · [MeshCore](documentation/meshcore-en.md) · [Agent Workspaces](documentation/virtual_computers.md) · [Local Wikipedia](documentation/local-wikipedia.md) · [CYD Creator](documentation/cyd-creator.md)
+[All integrations](documentation/manuals/en/08-integrations.md) · [Tool catalog](documentation/manuals/en/22-internal-tools.md) · [Game Maker](documentation/game-maker-studio.md) · [Detective](documentation/detective.md) · [MeshCore](documentation/meshcore-en.md) · [Agent Workspaces](documentation/virtual_computers.md) · [Local Wikipedia](documentation/local-wikipedia.md) · [CYD Creator](documentation/cyd-creator.md)
 
 ### Yes, there is an actual desktop
 
@@ -62,7 +62,7 @@ Prefer a desktop app? **AgoDesk for Windows and Linux** brings AuraGo to your ma
 
 [![Ten AuraGo personas from the desktop group portrait, redrawn as an illustrated cast of friends, thinkers, punks and theatrical villains](assets/readme/persona-party.webp)](assets/readme/persona-party.webp)
 
-A friendly sidekick, a thoughtful philosopher, a punk or a wonderfully overdramatic villain? Pick your company in **Config → Personality**. Same toolbox, different attitude. [Meet the personalities](documentation/manual/en/10-personality.md).
+A friendly sidekick, a thoughtful philosopher, a punk or a wonderfully overdramatic villain? Pick your company in **Config → Personality**. Same toolbox, different attitude. [Meet the personalities](documentation/manuals/en/10-personality.md).
 
 **AuraGo is fully translated to many languages.**
 
@@ -82,7 +82,7 @@ Messages and mission triggers reach the **agent loop**. It builds context, calls
 
 **History** keeps recent turns; **Core Memory** keeps important facts; **RAG** finds related documents and memories; the **knowledge graph** connects entities and relationships. Relevant pieces go into the next request. Recall tools can fetch more. The illustrations simplify the system; they are not UI screenshots.
 
-[Memory deep dive](documentation/manual/en/09-memory.md) · [Architecture](documentation/architecture.md) · [Co-agents](documentation/manual/en/15-coagents.md) · [Eggs and Nests](documentation/manual/en/12-invasion.md)
+[Memory deep dive](documentation/manuals/en/09-memory.md) · [Architecture](documentation/architecture.md) · [Co-agents](documentation/manuals/en/15-coagents.md) · [Eggs and Nests](documentation/manuals/en/12-invasion.md)
 
 ## What do I need to run it?
 
@@ -151,7 +151,7 @@ Your data is stored with your installation. **Hosted models and external service
 
 ## More rabbit holes
 
-[English manual](documentation/manual/en/README.md) · [Deutsches Handbuch](documentation/manual/de/README.md) · [Local models](documentation/local_llm_aurago_qwen.md) · [Speech Lab](documentation/s2s_speech_lab.md) · [SIP](documentation/sip_telephony.md) · [Skills](documentation/manual/en/19-skills.md) · [API](documentation/manual/en/21-api-reference.md) · [Troubleshooting](documentation/manual/en/16-troubleshooting.md)
+[English manual](documentation/manuals/en/README.md) · [Deutsches Handbuch](documentation/manuals/de/README.md) · [Local models](documentation/local_llm_aurago_qwen.md) · [Speech Lab](documentation/s2s_speech_lab.md) · [SIP](documentation/sip_telephony.md) · [Skills](documentation/manuals/en/19-skills.md) · [API](documentation/manuals/en/21-api-reference.md) · [Troubleshooting](documentation/manuals/en/16-troubleshooting.md)
 
 [Releases](https://github.com/antibyte/AuraGo/releases) · [Website](https://antibyte.github.io/aurago-web/) · [AgoDesk for Windows and Linux](https://github.com/antibyte/agodesk)
 

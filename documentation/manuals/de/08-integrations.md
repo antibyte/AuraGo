@@ -419,6 +419,25 @@ google_workspace:
   client_id: ""
 ```
 
+## Google Workspace über gog
+
+Neben der nativen Google-Workspace-Integration kann AuraGo den verwalteten **gog**-Helfer nutzen. Konten, Zugangsdaten und Berechtigungen beider Wege sind unabhängig; es wird keine Mail-App installiert — Gmail läuft über den Agenten.
+
+**Web-UI:** **Config → Google Workspace über gog** — Helfer ausdrücklich installieren (geprüftes Paket mit SHA-256-Manifest), Integration aktivieren, Konto hinzufügen, Dienste mit Read/Create/Update/Delete-Grants wählen, dann OAuth-Login starten. Docs-, Sheets- und Slides-Tests brauchen die ID eines existierenden Testobjekts. Das bloße Öffnen der Config kontaktiert Google nie.
+
+**Wichtig:**
+- Die Integration startet deaktiviert und read-only; Schreibzugriff erfordert eine explizite Konfigurationsänderung. Gmail-Senden hat einen eigenen Grant.
+- OAuth braucht weiterhin ein Google-Cloud-Projekt, aktivierte APIs und Nutzereinwilligung. Secrets liegen nur in den Vault-Keys `oauth_gog_client_<id>` und `oauth_gog_<id>` (Export-Deny).
+- Prozesse erhalten ein kurzlebiges Access-Token, ein isoliertes `GOG_HOME` und eine minimale Umgebung.
+- Die Agent-Tools (`gog_accounts` plus `gog_gmail`, `gog_calendar`, `gog_drive`, `gog_docs`, `gog_sheets`, `gog_slides`, `gog_contacts`, `gog_tasks`) kennen 68 festgelegte Operationen — keine beliebige CLI, keine Flags, keine freien URLs. Details: Kapitel 22 und der [gog-Deep-Dive](../../gog.md).
+
+### YAML-Referenz
+```yaml
+gog:
+  enabled: false
+  # Konten, Grants und Agent-/Desktop-Zugriff werden in der Config-UI verwaltet
+```
+
 ## WebDAV/Koofr
 
 ### WebDAV
@@ -2148,6 +2167,76 @@ virtual_desktop:
     max_memory_mb: 4096
     max_cpu_cores: 2
 ```
+
+## Layerling (Desktop-CAD)
+
+**Layerling** ist ein optionaler, lokal mitgelieferter Browser-CAD-Editor im Virtual Desktop. Zur Laufzeit braucht es keinen Docker-Container, Node-Server oder separaten Skill — nur beim Neubauen der gepinnten Vendor-Assets kommt Node zum Einsatz.
+
+**Web-UI:** **Config → Virtual Desktop → Layerling** aktivieren. Der Editor öffnet sich über die Kategorie *Kreativ*; das Fenster folgt Sprache und Theme des Desktops (im Editor: Deutsch bei deutschem Desktop, sonst Englisch). Vollbild versteckt Browser-Chrome und Desktop-Rahmen (`Esc` kehrt zurück).
+
+**Wichtig:**
+- Projekte werden als `.lyl` gespeichert (Vorschlag: `Documents/Layerling`); STL, OBJ, 3MF, STEP/STP und SVG lassen sich aus dem Dateimanager mit Layerling öffnen. Export: STL, OBJ, 3MF, STEP oder PNG.
+- Speichern prüft die beim Öffnen gelesene Version (Konflikt: Ersetzen / Kopie speichern / Abbrechen); ungespeicherte Entwürfe bleiben browser-lokal wiederherstellbar.
+- **Agent-Zugriff ist standardmäßig Aus**, unabhängig vom Aktivierungsschalter: **Lesen** erlaubt Inspektion und Vorschauen, **Lesen und Schreiben** zusätzlich Modellbearbeitung und Desktop-Dateischreibungen. Desktop-Agent-Zugriff und Schreibschutz bleiben Obergrenzen.
+- Version 1 braucht einen offenen Browser-Editor — kein Headless-CAD, keine gleichzeitige Ko-Bearbeitung, keine direkte Druckersteuerung.
+- Upstream ist Layerling **1.57.0** (AGPL-3.0-only); die Quelltext-Links im Editor liefern das korrespondierende Archiv.
+
+Details: der [Layerling-Deep-Dive](../../layerling.md).
+
+### YAML-Referenz
+```yaml
+virtual_desktop:
+  layerling:
+    enabled: false          # lokaler Browser-CAD-Editor; keine Runtime-Sidecar
+    agent_access: "off"     # off, read, write; benötigt zusätzlich Desktop-Agent-Rechte
+```
+
+## RuView (Wi-Fi-Sensing)
+
+**RuView** integriert Wi-Fi-Sensing ([RuView v3122](https://github.com/ruvnet/RuView)) inklusive Dashboard, Observatory, Pose Fusion, Kalibrierung, Aufnahme und Training. Die Verwaltung durch AuraGo spricht alle 16 Sprachen; die Upstream-Ansichten behalten ihre Originalsprache. Wi-Fi-Sensing ist experimentell — Verbindung bedeutet keine Aussage über Mess-, Präsenz- oder Posen-Genauigkeit.
+
+**Web-UI:** **Config → RuView** — Integration aktivieren, Runtime und Quelle wählen, speichern. Start und Agent-Zugriff sind standardmäßig aus; Read-only startet aktiviert. **Open RuView** installiert/startet eine verwaltete Runtime, **Board einrichten** flasht ESP32-Firmware über USB (Web Serial) und richtet Wi-Fi ein.
+
+**Runtimes:**
+
+| Runtime | Einsatzzweck |
+|---------|---------------|
+| Verwalteter Docker | Linux-Sensing-Server für ESP32-CSI oder explizite Demo; AuraGo erzeugt/stopt eigenen markierten Container |
+| Nativer Host | Geprüftes Windows-amd64- oder macOS-Paket; Host braucht einen funktionierenden Wi-Fi-Adapter für RSSI |
+| Extern | Bestehender RuView-Service unter der gespeicherten HTTPS(S)-Origin; private/Loopback-Adressen brauchen `allow_private` |
+
+**Wichtig:**
+- Das Agent-Tool `ruview` (read-only) kennt nur `status`, `nodes`, `sensing`, `model_info` und `recordings` — nie Installation, Flashen, Kalibrierung, Aufnahme oder Training.
+- Tokens liegen in den Vault-Keys `ruview_api_token` und `ruview_managed_token` (beide Export-Deny für Python/Agent).
+- ESP32-Empfang braucht eine explizite UDP-Veröffentlichung: konkrete RFC1918-IPv4-LAN-Bindung plus Allowlist privater Quellen (Standard-Port 5005).
+- Verwaltete Aufnahmen/Modelle liegen unter `data/ruview/data`; ein Storage-Watcher stoppt Aufnahmen kontrolliert beim Budget (Standard 1024 MiB), löscht aber nichts automatisch.
+
+Details: der [RuView-Deep-Dive](../../ruview.md).
+
+### YAML-Referenz
+```yaml
+ruview:
+  enabled: false
+  readonly: true
+  agent_access: false
+  mode: docker          # docker | native (Windows/macOS) | external
+  source: esp32         # esp32 | wifi | simulated (explizite Demo)
+```
+
+## System World
+
+**System World** ist eine lokale Three.js-Stadt mit sieben festen Bezirken im Virtual Desktop — keine Cloud, kein LLM: Erkundung und dekoratives Leben rufen nie ein Modell auf.
+
+Die zweite Version bringt drei begehbare Annexbauten (Agent-Kontrollraum, Gedächtnis-Archiv, Missions-Depot am Südufer), eine siebenstationige Straßenbahn, eine optionale Drohnen-Tour, Entdeckungen, artikulierte Bewohner, Zeit-/Wetter-Regler und einen geteilten aufgezeichneten Systemblick. Der Agent-Turm trägt einen offenen Glaslift zur Sky-Deck-Terrasse in 72 m; Viewer auf jeder Galerie zoomen auf Bezirke und nennen Live-Status und Kennzahl. Roboter (Kuriere, Techniker, Archivare) führen zu existierenden Stationen; „City life"-Sequenzen sind dekoativ gekennzeichnet und behaupten keine erfolgreiche Systemarbeit.
+
+Details: der [System-World-Deep-Dive](../../system-world-2.md).
+
+## Retro-Net und Personal Radio im Desktop
+
+Zwei weitere Desktop-Features mit Integrationsberührung:
+
+- **Retro-Net** verwandelt das Desktop-**Terminal** in ein Wählerverzeichnis für noch lebende Textdienste (Telnet-BBS, C64-Boards, MUDs u. a.). Es ist standardmäßig an (`virtual_desktop.retronet_enabled`); jede Verbindung läuft über den AuraGo-Server. Beschrieben in [Kapitel 4](04-webui.md#retronet-im-terminal) und im [Retro-Net-Deep-Dive](../../retro-net.md).
+- **Personal Radio** ist eine eingebaute Desktop-App für den eigenen Sender: importierte und/oder generierte Musik, LLM-Moderation im Stationsstil und optional recherchierte Nachrichten über die aktive Sprachausgabe. Beschrieben in [Kapitel 4](04-webui.md#personal-radio) und im [Personal-Radio-Deep-Dive](../../personal-radio.md).
 
 ## Shell Sandbox Integration
 
