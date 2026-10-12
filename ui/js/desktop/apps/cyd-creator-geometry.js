@@ -105,13 +105,13 @@
 
     // resizeRect applies a pointer delta to the edges a handle owns. keepRatio (corner handles)
     // keeps the start rect's aspect ratio. A side never falls below MIN_SIZE (or below its start
-    // size when that is already smaller, so small widgets keep their size) and never exceeds
-    // MAX_SIDE; the opposite edge stays. Moved edges are rounded before the size is derived.
+    // size when that is already smaller, so small widgets keep their size; never below 1) and never
+    // exceeds MAX_SIDE; the opposite edge stays. Moved edges are rounded before the size is derived.
     function resizeRect(start, handle, dx, dy, opts) {
         const o = opts || {};
         const min = o.min || MIN_SIZE;
-        const minW = Math.min(min, start.w);
-        const minH = Math.min(min, start.h);
+        const minW = Math.max(1, Math.min(min, start.w));
+        const minH = Math.max(1, Math.min(min, start.h));
         let x1 = start.x, y1 = start.y, x2 = right(start), y2 = bottom(start);
         if (handle.includes('w')) x1 = Math.max(x2 - MAX_SIDE, Math.min(x2 - minW, int(start.x + dx)));
         if (handle.includes('e')) x2 = Math.min(x1 + MAX_SIDE, Math.max(x1 + minW, int(right(start) + dx)));
@@ -140,8 +140,8 @@
         const radius = o.radius == null ? GUIDE_RADIUS : o.radius;
         const origin = o.origin || { x: 0, y: 0 };
         const min = o.min || MIN_SIZE;
-        const minW = Math.min(min, r.w);
-        const minH = Math.min(min, r.h);
+        const minW = Math.max(1, Math.min(min, r.w));
+        const minH = Math.max(1, Math.min(min, r.h));
         let x1 = r.x, y1 = r.y, x2 = right(r), y2 = bottom(r);
         const guides = { x: [], y: [] };
         const snap = (value, list, axis, base, limit) => {
@@ -175,24 +175,29 @@
     }
 
     // distribute spaces three or more rects with equal gaps along axis "h" or "v"; the first and the
-    // last rect (by position) stay. The result keeps the input order. Rects wider than their span
-    // (a negative gap) stay unchanged, so no rect is pushed outside the selection.
+    // last rect (by position) stay. The result keeps the input order. Overlapping rects (a negative
+    // gap) are spaced too as long as every rect stays within the span from the first rect's start to
+    // the last rect's end; otherwise all rects stay unchanged, so none leaves the selection.
     function distribute(rects, axis) {
-        if (rects.length < 3) return rects.map(r => Object.assign({}, r));
+        const copies = () => rects.map(r => Object.assign({}, r));
+        if (rects.length < 3) return copies();
         const pos = axis === 'v' ? 'y' : 'x';
         const size = axis === 'v' ? 'h' : 'w';
         const order = rects.map((r, i) => ({ r, i })).sort((a, b) => a.r[pos] - b.r[pos] || a.i - b.i);
         const first = order[0].r;
         const last = order[order.length - 1].r;
+        const start = first[pos];
+        const end = last[pos] + last[size];
         const total = order.reduce((sum, o) => sum + o.r[size], 0);
-        const gap = (last[pos] + last[size] - first[pos] - total) / (order.length - 1);
-        const out = rects.map(r => Object.assign({}, r));
-        if (gap < 0) return out;
-        let cursor = first[pos];
-        order.forEach(o => {
-            out[o.i][pos] = Math.round(cursor);
+        const gap = (end - start - total) / (order.length - 1);
+        const out = copies();
+        let cursor = start;
+        for (const o of order) {
+            const p = Math.round(cursor);
+            if (p < start || p + o.r[size] > end) return copies();
+            out[o.i][pos] = p;
             cursor += o.r[size] + gap;
-        });
+        }
         return out;
     }
 

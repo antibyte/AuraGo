@@ -138,6 +138,8 @@ eq('align empty list', [G.align([], 'left', { x: 0, y: 0, w: 320, h: 240 }), G.a
 eq('distribute fractional gap', G.distribute([{ x: 0, y: 0, w: 10, h: 10 }, { x: 20, y: 0, w: 10, h: 10 }, { x: 80, y: 0, w: 10, h: 10 }, { x: 101, y: 0, w: 10, h: 10 }], 'h').map(r => r.x), [0, 34, 67, 101]);
 const crowded = [{ x: 0, y: 0, w: 10, h: 10 }, { x: 5, y: 0, w: 200, h: 10 }, { x: 50, y: 0, w: 10, h: 10 }];
 eq('distribute leaves rects wider than their span unchanged', G.distribute(crowded, 'h'), crowded);
+eq('distribute spaces overlapping rects that fit their span', G.distribute([{ x: 0, y: 0, w: 50, h: 10 }, { x: 10, y: 0, w: 50, h: 10 }, { x: 60, y: 0, w: 50, h: 10 }], 'h').map(r => r.x), [0, 30, 60]);
+eq('resize grows a stored 0 size to at least 1', [G.resizeRect({ x: 5, y: 5, w: 0, h: 0 }, 'se', 0, 0), G.snapResize({ x: 5, y: 5, w: 0, h: 0 }, 'se', { x: [], y: [] }, { step: 0 })].map(r => [r.w, r.h]), [[1, 1], [1, 1]]);
 eq('clampInto rect larger than the frame', G.clampInto({ x: 50, y: 50, w: 400, h: 300 }, { x: 0, y: 0, w: 320, h: 240 }), { x: 0, y: 0, w: 400, h: 300 });
 eq('clampInto frame with an offset origin', [G.clampInto({ x: 0, y: 60, w: 20, h: 20 }, { x: 10, y: 20, w: 100, h: 50 }), G.clampInto({ x: 30, y: 30, w: 200, h: 10 }, { x: 10, y: 20, w: 100, h: 50 })],
     [{ x: 10, y: 50, w: 20, h: 20 }, { x: 10, y: 30, w: 200, h: 10 }]);
