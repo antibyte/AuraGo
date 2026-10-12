@@ -386,10 +386,10 @@ func TestResolveInsideRejectsEscapes(t *testing.T) {
 			t.Fatalf("resolveInside(%q) accepted", rel)
 		}
 	}
-	if err := os.Symlink(outside, filepath.Join(root, "a", "link.jpg")); err == nil {
-		if _, err := resolveInside(root, "a/link.jpg"); err == nil {
-			t.Fatal("a symlink pointing outside the root was accepted")
-		}
+	if err := os.Symlink(outside, filepath.Join(root, "a", "link.jpg")); err != nil {
+		t.Logf("symlink assertion skipped, cannot create a symlink here: %v", err)
+	} else if _, err := resolveInside(root, "a/link.jpg"); err == nil {
+		t.Fatal("a symlink pointing outside the root was accepted")
 	}
 }
 
@@ -408,6 +408,230 @@ func TestIsNoSpace(t *testing.T) {
 			t.Fatalf("isNoSpace(%v) = true", err)
 		}
 	}
+}
+
+func TestIsNoSpaceReadsTheMessageOnlyWhenThereIsNoErrorNumber(t *testing.T) {
+	// A phrase in a path must not turn another failure into "disk full".
+	for _, err := range []error{
+		&os.PathError{Op: "open", Path: "/srv/no space left/detections/x.jpg", Err: syscall.EACCES},
+		&os.PathError{Op: "open", Path: `D:\Disk quota exceeded\detections\2026`, Err: syscall.ENOENT},
+		fmt.Errorf("store frame: %w", &os.LinkError{Op: "rename", Old: "/not enough space on the disk/a", New: "b", Err: syscall.EPERM}),
+	} {
+		if isNoSpace(err) {
+			t.Errorf("isNoSpace(%v) = true", err)
+		}
+	}
+	// Without an error number the English message is the only hint left.
+	for _, err := range []error{
+		errors.New("write x.jpg: no space left on device"),
+		errors.New("There is not enough space on the disk."),
+		errors.New("write x.jpg: Disk quota exceeded"),
+	} {
+		if !isNoSpace(err) {
+			t.Errorf("isNoSpace(%v) = false", err)
+		}
+	}
+}
+
+func TestSafePathSegmentAvoidsReservedWindowsDeviceNames(t *testing.T) {
+	// Writing "nul" or "com1" fails on Windows (a device path), so the segment is
+	// changed on every platform to keep stored paths portable.
+	cases := map[string]string{
+		"nul": "nul_", "NUL": "nul_", "Con": "con_", "prn": "prn_", "AUX": "aux_",
+		"com1": "com1_", "COM9": "com9_", "lpt0": "lpt0_", "Lpt7": "lpt7_",
+		// not reserved: other lengths, other digits, other characters
+		"cam": "cam", "null": "null", "console": "console", "com": "com", "com10": "com10",
+		"lpt": "lpt", "comx": "comx", "nul1": "nul1", "my-nul": "my-nul", "con_": "con_",
+		// the dot becomes an underscore, so the Windows "con.txt" case never occurs
+		"con.txt": "con_txt",
+	}
+	for in, want := range cases {
+		if got := safePathSegment(in); got != want {
+			t.Errorf("safePathSegment(%q) = %q, want %q", in, got, want)
+		}
+	}
+	rel, thumb := frameRelPaths(time.Date(2026, 10, 11, 9, 0, 0, 0, time.UTC), "nul", 1, 1)
+	if rel != "2026/10/11/nul_/1_1.jpg" || thumb != "2026/10/11/nul_/1_1_thumb.jpg" {
+		t.Fatalf("paths = %q %q", rel, thumb)
+	}
+	// And it really can be written on this platform.
+	root := t.TempDir()
+	if _, err := writeFramePair(root, rel, thumb, encodeFrameTestJPEG(t, 320, 180)); err != nil {
+		t.Fatalf("a frame of camera %q cannot be stored: %v", "nul", err)
+	}
+	if _, err := resolveInside(root, rel); err != nil {
+		t.Fatalf("resolveInside: %v", err)
+	}
+}
+
+func TestSafePathSegmentLimitsLengthAndNeverReturnsEmpty(t *testing.T) {
+	if got := safePathSegment(""); got != "camera" {
+		t.Fatalf("empty id = %q, want camera", got)
+	}
+	long := strings.Repeat("x", 300)
+	if got := safePathSegment(long); got != strings.Repeat("x", 64) {
+		t.Fatalf("long id = %d chars", len(got))
+	}
+	exact := strings.Repeat("a", 64)
+	if got := safePathSegment(exact); got != exact {
+		t.Fatalf("64 characters changed: %q", got)
+	}
+	if got := safePathSegment(strings.Repeat("ä", 100)); got != strings.Repeat("_", 64) {
+		t.Fatalf("non-ASCII id = %q", got)
+	}
+}
+
+func TestWriteImageAtomicCreatesNothingBehindALinkedAncestor(t *testing.T) {
+	// MkdirAll would follow the link and build the rest of the path in its
+	// target before any check could refuse the write.
+	for _, level := range []string{"2026", "2026/10", "2026/10/11", "2026/10/11/cam"} {
+		t.Run(strings.ReplaceAll(level, "/", "_"), func(t *testing.T) {
+			root, outside := t.TempDir(), t.TempDir()
+			link := filepath.Join(root, filepath.FromSlash(level))
+			if err := os.MkdirAll(filepath.Dir(link), 0o750); err != nil {
+				t.Fatal(err)
+			}
+			symlinkOrSkip(t, outside, link)
+			if err := writeImageAtomic(root, "2026/10/11/cam/1_1.jpg", []byte("x")); err == nil {
+				t.Fatal("a write below a linked directory was accepted")
+			}
+			if tree := listTree(outside); len(tree) != 0 {
+				t.Fatalf("something was created behind the link: %v", tree)
+			}
+			data := encodeFrameTestJPEG(t, 320, 180)
+			if _, err := writeFramePair(root, "2026/10/11/cam/2_1.jpg", "2026/10/11/cam/2_1_thumb.jpg", data); err == nil {
+				t.Fatal("a frame pair below a linked directory was accepted")
+			}
+			if tree := listTree(outside); len(tree) != 0 {
+				t.Fatalf("a frame pair created something behind the link: %v", tree)
+			}
+		})
+	}
+}
+
+func TestRemoveFileDoesNotFollowALinkedParent(t *testing.T) {
+	for _, level := range []string{"2026", "2026/10/11/cam"} {
+		t.Run(strings.ReplaceAll(level, "/", "_"), func(t *testing.T) {
+			st := newTestEventStore(t)
+			outside := t.TempDir()
+			if err := os.MkdirAll(filepath.Join(outside, "10", "11", "cam"), 0o750); err != nil {
+				t.Fatal(err)
+			}
+			victim := filepath.Join(outside, "10", "11", "cam", "1_1.jpg")
+			if err := os.WriteFile(victim, []byte("precious"), 0o640); err != nil {
+				t.Fatal(err)
+			}
+			link := filepath.Join(st.Root(), filepath.FromSlash(level))
+			if err := os.MkdirAll(filepath.Dir(link), 0o750); err != nil {
+				t.Fatal(err)
+			}
+			symlinkOrSkip(t, outside, link)
+			if level == "2026/10/11/cam" {
+				victim = filepath.Join(outside, "1_1.jpg")
+				if err := os.WriteFile(victim, []byte("precious"), 0o640); err != nil {
+					t.Fatal(err)
+				}
+			}
+			before := listTree(outside)
+			st.removeFile("2026/10/11/cam/1_1.jpg")
+			if got, err := os.ReadFile(victim); err != nil || string(got) != "precious" {
+				t.Fatalf("a file behind a link was deleted: %q, %v", got, err)
+			}
+			if after := listTree(outside); strings.Join(after, "|") != strings.Join(before, "|") {
+				t.Fatalf("the tree behind the link changed:\nbefore %v\nafter  %v", before, after)
+			}
+			if _, err := os.Lstat(link); err != nil {
+				t.Fatalf("the link itself was removed by the prune: %v", err)
+			}
+		})
+	}
+}
+
+func TestRemoveFileNeverPrunesALinkEvenWhenItIsTheParent(t *testing.T) {
+	st := newTestEventStore(t)
+	outside := t.TempDir() // empty: an unguarded prune would remove the link, even rmdir the target
+	link := filepath.Join(st.Root(), "2026")
+	symlinkOrSkip(t, outside, link)
+	st.removeFile("2026/x.jpg")
+	if _, err := os.Lstat(link); err != nil {
+		t.Fatalf("the link was removed: %v", err)
+	}
+	if _, err := os.Stat(outside); err != nil {
+		t.Fatalf("the link target was removed: %v", err)
+	}
+}
+
+func TestRemoveFilePrunesEmptyParentsWhetherOrNotTheFileIsStillThere(t *testing.T) {
+	st := newTestEventStore(t)
+	root := st.Root()
+	exists := func(rel string) bool {
+		_, err := os.Lstat(filepath.Join(root, filepath.FromSlash(rel)))
+		return err == nil
+	}
+	// the file exists: it goes, and so do the directories it leaves empty
+	if err := writeImageAtomic(root, "2026/10/11/cam/1_1.jpg", []byte("x")); err != nil {
+		t.Fatal(err)
+	}
+	st.removeFile("2026/10/11/cam/1_1.jpg")
+	if exists("2026") {
+		t.Fatal("empty parents of a deleted file survived")
+	}
+	if !exists(".") {
+		t.Fatal("the root was removed")
+	}
+	// the file is already gone but its directories are empty
+	if err := os.MkdirAll(filepath.Join(root, "2026", "10", "11", "cam"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	st.removeFile("2026/10/11/cam/2_1.jpg")
+	if exists("2026") {
+		t.Fatal("empty parents of a missing file survived")
+	}
+	// the directory of the file is gone as well, the ones above it are empty
+	if err := os.MkdirAll(filepath.Join(root, "2026", "10"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	st.removeFile("2026/10/11/cam/3_1.jpg")
+	if exists("2026") {
+		t.Fatal("empty ancestors of a missing directory survived")
+	}
+	// a sibling keeps its directories
+	if err := writeImageAtomic(root, "2026/10/11/cam/4_1.jpg", []byte("keep")); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeImageAtomic(root, "2026/10/11/cam/5_1.jpg", []byte("go")); err != nil {
+		t.Fatal(err)
+	}
+	st.removeFile("2026/10/11/cam/5_1.jpg")
+	if !exists("2026/10/11/cam/4_1.jpg") || exists("2026/10/11/cam/5_1.jpg") {
+		t.Fatal("removeFile touched the wrong files")
+	}
+	// paths that leave the root are ignored
+	outside := filepath.Join(t.TempDir(), "victim.jpg")
+	if err := os.WriteFile(outside, []byte("x"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	rel, err := filepath.Rel(root, outside)
+	if err == nil {
+		st.removeFile(filepath.ToSlash(rel))
+	}
+	if _, err := os.Stat(outside); err != nil {
+		t.Fatalf("a file outside the root was deleted: %v", err)
+	}
+}
+
+// listTree lists every path below dir (slash separated, sorted by the walk).
+func listTree(dir string) []string {
+	var out []string
+	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || p == dir {
+			return nil
+		}
+		rel, _ := filepath.Rel(dir, p)
+		out = append(out, filepath.ToSlash(rel))
+		return nil
+	})
+	return out
 }
 
 func TestIsNoSpaceRecognisesTheDiskFullCodesOfEachPlatform(t *testing.T) {

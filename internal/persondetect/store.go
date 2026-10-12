@@ -1031,16 +1031,33 @@ func (st *EventStore) RemoveEvent(ctx context.Context, id int64) (int64, error) 
 }
 
 // removeFile deletes one image below the root and then its empty parent directories.
+//
+// The path comes from the database, so the directory chain above the file is
+// checked first (requireNoLinksBelow): a link in it, which this package never
+// creates, would let the delete reach a file outside the root, and nothing is
+// removed then. A missing file or directory is fine; the empty directories that
+// remain above it are still pruned. The prune stops at the root, removes only real
+// directories (each one is lstat-ed first, so a link is never removed) and stops
+// at the first one that is not empty.
 func (st *EventStore) removeFile(rel string) {
 	target := filepath.Join(st.root, filepath.FromSlash(rel))
 	if !pathInside(st.root, target) {
 		return
 	}
+	if dir := filepath.Dir(target); pathInside(st.root, dir) {
+		if err := requireNoLinksBelow(st.root, dir, false); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return
+		}
+	}
 	if err := os.Remove(target); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return
 	}
 	for dir := filepath.Dir(target); pathInside(st.root, dir); dir = filepath.Dir(dir) {
-		if os.Remove(dir) != nil {
+		info, err := os.Lstat(dir)
+		if errors.Is(err, os.ErrNotExist) {
+			continue // already gone: the directories above it may be empty now
+		}
+		if err != nil || checkElement(dir, info, true) != nil || os.Remove(dir) != nil {
 			break
 		}
 	}
