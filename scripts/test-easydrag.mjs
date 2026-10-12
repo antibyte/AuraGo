@@ -381,8 +381,19 @@ guard('c1d02 model review fixes', () => {
         edges: [{ id: 'e_keep', source: { node: 'n_abcdefgh', port: 'out' }, target: { node: 'n_abcdefgh', port: 'in' } }]
     }, { types });
     eq('c1d02 a damaged copy keeps the first node, finite coordinates and its edges',
-        [duplicated.doc.nodes.map(n => n.label), duplicated.node('n_abcdefgh').label, duplicated.doc.nodes[0].position, duplicated.doc.edges.map(e => e.id)],
-        [['First'], 'First', { x: 0, y: 0 }, ['e_keep']]);
+        [duplicated.doc.nodes.map(n => n.label), duplicated.node('n_abcdefgh').label, duplicated.doc.nodes[0].position, duplicated.doc.edges.map(e => e.id), duplicated.repairs().droppedNodes],
+        [['First'], 'First', { x: 0, y: 0 }, ['e_keep'], 1]);
+    const reloaded = M.create({ nodes: [], edges: [] }, { types });
+    reloaded.replaceDoc({
+        nodes: [
+            { id: 'n_abcdefgh', type: 'web.search', label: 'First', position: { x: 1, y: 2 } },
+            { id: 'n_abcdefgh', type: 'web.search', label: 'Second', position: { x: 4, y: 8 } }
+        ],
+        edges: []
+    });
+    eq('c1d02 replaceDoc records a dropped duplicate and a clean document drops none',
+        [reloaded.repairs().droppedNodes, reloaded.doc.nodes.map(n => n.label), M.create({ nodes: [], edges: [] }, { types }).repairs().droppedNodes],
+        [1, ['First'], 0]);
     eq('c1d02 clampZoom maps non-finite values to 1', [G.clampZoom(NaN), G.clampZoom(Infinity), G.clampZoom(undefined), G.zoomAt({ x: 0, y: 0, zoom: 1 }, NaN, { x: 10, y: 10 }).zoom], [1, 1, 1, 1]);
 });
 
@@ -542,6 +553,22 @@ await guardAsync('c1d03 a failed emergency copy stays pending and dispose writes
     h.model.replaceDoc({ schema: 1, name: 'Newer', nodes: [], edges: [] });
     h.saver.dispose();
     eq('c1d03 dispose writes the draft from after the refused set', [sets, h.copy() && h.copy().doc.name], [2, 'Newer']);
+    const retry = saverHarness([{ draft_revision: 2, issues: [] }]);
+    retry.change('Old');
+    retry.model.replaceDoc({ schema: 1, name: 'Newer', nodes: [], edges: [] });
+    const retryStorage = retry.core.storage;
+    const retrySet = retryStorage.set.bind(retryStorage);
+    let disposeSets = 0;
+    let failDispose = true;
+    retryStorage.set = (key, value) => {
+        disposeSets++;
+        if (failDispose) { failDispose = false; return false; }
+        return retrySet(key, value);
+    };
+    retry.saver.dispose();
+    eq('c1d03 dispose retries a refused emergency write once and leaves no copy timer',
+        [disposeSets, retry.copy() && retry.copy().doc.name, retry.delays().includes(500), retry.timers.size],
+        [2, 'Newer', false, 0]);
     const ok = saverHarness([{ draft_revision: 2, issues: [] }]);
     ok.change('Kept');
     eq('c1d03 a successful set still stores the copy and clears the hold-back timer', [ok.copy() && ok.copy().doc.name, ok.delays().includes(500)], ['Kept', false]);

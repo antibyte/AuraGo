@@ -338,7 +338,7 @@ export async function run(env) {
         eq('c1d04 the wire checks log no errors', [h.logged, p.logged, q.logged], [[], [], []]);
     });
 
-    await guardAsync('c1d04 an unknown source port draws no wire', async () => {
+    await guardAsync('c1d04 an unknown source port draws a dashed wire under the card', async () => {
         const S = 'n_switch01';
         const D = 'n_dddddddd';
         const h = harness({
@@ -363,9 +363,13 @@ export async function run(env) {
             const b = h.ED.geometry.portPoint(dst.position, 'in', 0, h.model.outputs(dst).length);
             return h.ED.geometry.wirePath(a, b);
         };
-        eq('c1d04 an unknown source port draws no wire; case_1 and case_2 stay on their ports',
-            [drawn('bad'), drawn('case1'), drawn('case2'), h.model.outputs(h.model.node(S)).indexOf('case_1')],
-            [null, expectPort('case_1'), expectPort('case_2'), 0]);
+        const bad = group('bad');
+        const badPath = drawn('bad');
+        const case1 = expectPort('case_1');
+        const case2 = expectPort('case_2');
+        eq('c1d04 an unknown source port draws a dashed wire under the card; case_1 and case_2 stay on their ports',
+            [!!bad && bad.classList.contains('is-broken'), badPath !== null && badPath !== case1 && badPath !== case2, drawn('case1'), drawn('case2'), h.model.outputs(h.model.node(S)).indexOf('case_1')],
+            [true, true, case1, case2, 0]);
     });
 
     await guardAsync('c1d04 read-only canvas', async () => {

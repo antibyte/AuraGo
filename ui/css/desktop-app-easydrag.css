@@ -560,6 +560,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-edge.is-drop-target .ed-wire { stroke-dasharray: 6 5; animation: ed-dash 0.6s linear infinite; }
 .ed-edge.is-selected .ed-wire { stroke: var(--ed-accent); stroke-width: 3; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--ed-accent) 60%, transparent)); }
 .ed-edge.is-error-port .ed-wire { stroke: color-mix(in srgb, var(--ed-danger) 70%, transparent); stroke-dasharray: 2 5; }
+.ed-edge.is-broken .ed-wire { stroke: color-mix(in srgb, var(--ed-danger) 70%, transparent); stroke-dasharray: 2 5; }
 .ed-edge.is-disabled .ed-wire { opacity: 0.35; }
 .ed-edge.is-delivered .ed-wire { stroke: var(--ed-cat); stroke-width: 2.5; }
 .ed-edge.is-flowing .ed-wire { stroke: var(--ed-info); stroke-width: 2.5; stroke-dasharray: 8 8; animation: ed-dash 0.5s linear infinite; }
@@ -985,7 +986,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     /* wires and their previews: SVG strokes keep their author colours */
     .ed-app .ed-edge .ed-wire { stroke: CanvasText; }
     .ed-app .ed-edge.is-selected .ed-wire, .ed-app .ed-edge.is-hover .ed-wire, .ed-app .ed-edge.is-drop-target .ed-wire, .ed-app .ed-edge.is-flowing .ed-wire,
-    .ed-app .ed-canvas.has-path .ed-edge.is-path .ed-wire, .ed-app .ed-wire-preview { stroke: Highlight; }
+    .ed-app .ed-edge.is-broken .ed-wire, .ed-app .ed-canvas.has-path .ed-edge.is-path .ed-wire, .ed-app .ed-wire-preview { stroke: Highlight; }
     .ed-app .ed-wire-preview.is-invalid { stroke: GrayText; }
     .ed-app .ed-pill rect { fill: Canvas; stroke: CanvasText; }
     .ed-app .ed-pill text { fill: CanvasText; }

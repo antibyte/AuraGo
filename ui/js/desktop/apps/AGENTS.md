@@ -369,7 +369,10 @@
   draws as the disabled item's tooltip; a stale click gets the server's 409 `FLOW_DISABLED`.
 - DOM modules get the editor state `ed` and talk over `ed.bus`, never through other modules'
   DOM. Focus moves synchronously when a popover or dialog opens; `.ed-app [hidden]` forces
-  `display: none`. `ED.canvas.portLabel(t, node, port)` is the one port label.
+  `display: none`. `ED.canvas.portLabel(t, node, port)` is the one port label. An edge whose
+  source port the step does not have is drawn dashed under the card (`.ed-edge.is-broken`)
+  and stays selectable; a missing step draws nothing. The server still reports
+  `EDGE_PORT_INVALID`.
 - Keyboard model of the canvas: the canvas is one tab stop, the zoom bar follows. Arrow keys move
   the selection between steps (announced through the live region, `core.announcer`), Enter opens
   the detail view, Delete/D/Ctrl+D/C act on the selection, Tab adds a step. A card's tool buttons
@@ -420,10 +423,14 @@
   500 ms later, so a crash loses less than 500 ms; never once the draft is saved. A failed
   `storage.set` leaves the copy pending (`copyPending` stays, `copyAt` does not move) so those
   same paths try again. `dispose` writes before it marks itself disposed when the model is newer
-  than the saved version, including while an older save is still in flight. Model change
+  than the saved version, including while an older save is still in flight. A refused write on
+  dispose is tried once more immediately and arms no timer; a timer already waiting is cleared
+  with the saver. Model change
   sets and `model.node` look ids up in Maps (`node` rebuilds its Map after each write of the
   node list); `test-easydrag-extra5.mjs` guards a 200-step drag and the 100-to-400-step scaling.
-- Run view: `ed.model` is the stored run's document there, `ed.draftModel` always the draft. The
+- Run view: `ed.model` is the stored run's document there, `ed.draftModel` always the draft. A
+  dropped duplicate step is announced once, on the draft model only, with the existing
+  `easydrag.ui.issue_node_id_duplicate` (also after a restore). The
   hints (`publish.refreshIssues`) validate the draft, wait while the run view shows and run again
   on exit; a live run that starts meanwhile is parked (`runs.attach`) and followed on exit. The
   issues foot button is `aria-disabled` in the run view and `openIssues` returns at once there;

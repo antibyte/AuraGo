@@ -14,6 +14,16 @@
         const { t, esc, ctx } = app;
         const bag = core.bag();
         const draftModel = ED.model.create(loaded.flow.draft, app.catalog);
+        // One notice for the draft only. The run view builds its own model and must not say this.
+        // A later restore (replaceDoc emits reset) says it if the first document did not.
+        let duplicatesNoted = false;
+        function noteDroppedDuplicates() {
+            if (duplicatesNoted || !draftModel.repairs().droppedNodes) return;
+            duplicatesNoted = true;
+            if (typeof ctx.notify === 'function') ctx.notify({ title: 'EasyDrag', message: t('easydrag.ui.issue_node_id_duplicate') });
+        }
+        noteDroppedDuplicates();
+        bag.add(draftModel.on(change => { if (change && change.kind === 'reset') noteDroppedDuplicates(); }));
         let savedView = null;
         // paletteBefore: the palette was open when the run view hid it; leaving the run view shows it again.
         let paletteBefore = false;
