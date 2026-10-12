@@ -198,6 +198,27 @@ worker. ONNX Runtime is loaded only in worker subprocesses; the one in-process l
   dispatched after its start frames are stored; it is dropped when the event was deleted meanwhile, and
   recorded as skipped `detection off` when detection was switched off or shut down.
 
+### Alerts (slice 3)
+
+- `Dispatcher` (`alerts.go`) implements `AlertDispatcher`. `Dispatch` returns at once; every fired action runs
+  on its own goroutine and `report` is called exactly once per fired action: `sent`, `failed` (detail ≤ 200
+  runes; `timeout` after 30 s for messages; `internal error` after a panic) or `skipped` (`queue full`,
+  `channel unavailable`, `agent unavailable`, `desktop unavailable`, `missions unavailable`).
+- Sinks are injected through `AlertSinks`; this package never imports `internal/server`, `internal/agent`,
+  `internal/tools`, `internal/telegram`, `internal/discord` or `internal/security` (security depends on
+  config, which may use this package's validators). A sink returns `Skipped(reason)` when its action cannot
+  apply and `ErrAgentQueueFull` when the wake queue is full.
+- Texts come from `ui/lang/desktop` keys
+  `desktop.network_cameras.detection.{alert_title,alert_message,alert_all_zones,agent_prompt}`;
+  `alertDefaultTexts` must equal `en.json` (`TestAlertTextsExistInEveryDesktopLocale`). Placeholders are
+  filled in one pass.
+- The agent prompt wraps the camera-provided facts with `isolateAlertFacts` (output identical to
+  `security.IsolateExternalData`, pinned by `TestIsolateAlertFactsFormat` here and
+  `TestPersonAlertIsolationMatchesSecurity` in `internal/server`); the admin's `agent_instruction` follows
+  outside the block, bounded to 500 runes.
+- `AnnotateJPEG` returns an annotated copy; stored frames stay unannotated. Photos go only to the `telegram`,
+  `discord` and `all` channels.
+
 ## Work Guidance
 
 - Unit tests never download or load ONNX Runtime: the test binary acts as the worker through `TestMain` (the

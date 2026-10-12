@@ -775,16 +775,20 @@ Frigate NVR (Network Video Recorder) Integration. Kamerastatus, Objekterkennungs
 | `start_time` / `end_time` | string | Unix-Zeitstempel-Bereich für Aufnahme-Clips |
 
 ### `go2rtc`
-Schreibgeschützter Zugriff auf konfigurierte go2rtc-Kamerastreams. Listet bereinigte Streamdaten, erstellt geprüfte JPEG-Snapshots, analysiert Snapshots über den konfigurierten Vision-Provider und öffnet AuraGos gleichursprüngliche Liveansicht. Das Tool akzeptiert ausschließlich Stream-IDs und gibt weder Quell-URLs noch Zugangsdaten aus.
+Zugriff auf konfigurierte go2rtc-Kamerastreams und die Personenerkennung. Listet bereinigte Streamdaten, erstellt geprüfte JPEG-Snapshots, analysiert Snapshots über den konfigurierten Vision-Provider und öffnet AuraGos gleichursprüngliche Liveansicht. Bei eingeschalteter Personenerkennung meldet es außerdem Detektor- und Scharfschaltzustand, schaltet scharf oder unscharf, listet Erkennungsereignisse und analysiert oder zeigt deren Bilder. Das Tool akzeptiert ausschließlich Stream- und Ereignis-IDs und gibt weder Quell-URLs noch Zugangsdaten aus; `set_arm_mode` ist seine einzige Zustandsänderung.
 
 | Parameter | Typ | Beschreibung |
 |-----------|-----|--------------|
-| `operation` | enum | status, list_streams, stream_status, snapshot, analyze_snapshot, show_live_stream |
-| `stream_id` | string | Stabile konfigurierte Stream-ID; für streamspezifische Operationen erforderlich |
+| `operation` | enum | status, list_streams, stream_status, snapshot, analyze_snapshot, show_live_stream, detection_status, set_arm_mode, list_detection_events, analyze_detection_event, show_detection_event |
+| `stream_id` | string | Stabile konfigurierte Stream-ID; für streamspezifische Operationen erforderlich, optionaler Kamerafilter für `list_detection_events` |
 | `width` / `height` | integer | Optionale begrenzte Snapshot-Abmessungen |
 | `rotate` | enum | 0, 90, 180 oder 270 Grad |
 | `cache_seconds` | integer | Snapshot-Cache-Dauer von 0 bis 3600 Sekunden |
-| `prompt` | string | Optionaler Vision-Prompt für `analyze_snapshot` |
+| `prompt` | string | Optionaler Vision-Prompt für `analyze_snapshot` und `analyze_detection_event` |
+| `mode` | enum | `set_arm_mode`: off, on oder schedule |
+| `event_id` | integer | ID eines Erkennungsereignisses; für `analyze_detection_event` und `show_detection_event` erforderlich |
+| `since` / `until` | string | Zeitraum für `list_detection_events`: RFC-3339-Zeit oder `YYYY-MM-DD` (Serverzeit; ein Datum als `until` umfasst den ganzen Tag) |
+| `limit` | integer | `list_detection_events`: 1 bis 50, Standard 10 |
 
 ---
 

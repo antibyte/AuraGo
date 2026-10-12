@@ -796,16 +796,20 @@ Frigate NVR (Network Video Recorder) integration. Query camera status, object de
 | `start_time` / `end_time` | string | Unix timestamp range for recording clips |
 
 ### `go2rtc`
-Read-only access to configured go2rtc camera streams. Lists sanitized stream telemetry, creates verified JPEG snapshots, analyzes snapshots through the configured Vision provider, and opens AuraGo's same-origin live viewer. It accepts stream IDs only and never exposes source URLs or credentials.
+Access to configured go2rtc camera streams and person detection. Lists sanitized stream telemetry, creates verified JPEG snapshots, analyzes snapshots through the configured Vision provider, and opens AuraGo's same-origin live viewer. With person detection enabled it also reports the detector and arm state, switches the arm mode, lists detection events and analyzes or shows their pictures. It accepts stream and event IDs only and never exposes source URLs or credentials; `set_arm_mode` is its only state change.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `operation` | enum | status, list_streams, stream_status, snapshot, analyze_snapshot, show_live_stream |
-| `stream_id` | string | Stable configured stream ID; required for stream-specific operations |
+| `operation` | enum | status, list_streams, stream_status, snapshot, analyze_snapshot, show_live_stream, detection_status, set_arm_mode, list_detection_events, analyze_detection_event, show_detection_event |
+| `stream_id` | string | Stable configured stream ID; required for stream-specific operations, optional camera filter for `list_detection_events` |
 | `width` / `height` | integer | Optional bounded snapshot dimensions |
 | `rotate` | enum | 0, 90, 180, or 270 degrees |
 | `cache_seconds` | integer | Snapshot cache duration from 0 to 3600 seconds |
-| `prompt` | string | Optional Vision prompt for `analyze_snapshot` |
+| `prompt` | string | Optional Vision prompt for `analyze_snapshot` and `analyze_detection_event` |
+| `mode` | enum | `set_arm_mode`: off, on, or schedule |
+| `event_id` | integer | Detection event ID; required for `analyze_detection_event` and `show_detection_event` |
+| `since` / `until` | string | `list_detection_events` range: RFC 3339 time or `YYYY-MM-DD` (server time; a date as `until` covers the whole day) |
+| `limit` | integer | `list_detection_events`: 1 to 50, default 10 |
 
 ---
 

@@ -322,8 +322,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
     the run's step params.
   - Dropped operations (`genericDroppedOperations`): the secret ones (`send_secret` of `invasion_tasks` and
     `set_env` of `netlify` and `vercel`, with their value params) and the ones that spend tokens or money outside
-    the flow budget (`smart_file_read` `summarize` with `query`, `go2rtc` `analyze_snapshot` and `three_d_printer`
-    `analyze_camera` with `prompt`, `video_download` `transcribe`, `fritzbox_telephony` `transcribe_tam_message`,
+    the flow budget (`smart_file_read` `summarize` with `query`, `go2rtc` `analyze_snapshot` and
+    `analyze_detection_event` and `three_d_printer` `analyze_camera` with `prompt`, `video_download` `transcribe`, `fritzbox_telephony` `transcribe_tam_message`,
     `rtl_sdr` `transcribe` with the `transcribe` switch of record and schedule, `virtual_computers` `run_shell_task`
     and `run_desktop_task` with `instruction`, `knowledge_graph` `optimize` and `optimize_graph`, `invasion_tasks`
     `send_task` (an agent turn on the egg) with `task` and `egg_name`, and `sip_phone` `dial` (the telephone agent)
