@@ -43,8 +43,9 @@ type Zone struct {
 }
 
 // Window is a weekly arming window. Days are the weekdays the window starts on;
-// From and To are minutes since midnight; To < From crosses midnight and
-// To == From covers 24 hours.
+// From and To are minutes since midnight in 0..1439 (config validation enforces
+// the range); To < From crosses midnight and To == From covers 24 hours. See
+// InWindow for how a window behaves across clock changes.
 type Window struct {
 	Days     []time.Weekday
 	From, To int
