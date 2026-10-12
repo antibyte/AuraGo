@@ -96,3 +96,34 @@ func TestGo2RTCAppStateReadsDetectionSettingsFromPublishedConfig(t *testing.T) {
 		t.Fatalf("detection_settings = %+v, want the published block", got)
 	}
 }
+
+// detection_enabled must come from the same published config as detection_settings:
+// right after "Activate" (PUT settings) the manager's copy can still say "off", and the
+// camera tab would then warn that detection is switched off globally.
+func TestGo2RTCAppStateReadsDetectionEnabledFromPublishedConfig(t *testing.T) {
+	for _, publishedEnabled := range []bool{true, false} {
+		stale := &config.Config{}
+		stale.Go2RTC = config.Go2RTCConfig{
+			Enabled: true, URL: "http://127.0.0.1:1", APIHostPort: 1,
+			Detection: config.Go2RTCDetectionConfig{Enabled: !publishedEnabled, Model: "standard", Backend: "auto", RetentionDays: 14, MaxStorageMB: 2048},
+		}
+		published := &config.Config{}
+		published.Go2RTC = stale.Go2RTC
+		published.Go2RTC.Detection.Enabled = publishedEnabled
+		server := &Server{Cfg: stale, Go2RTC: tools.NewGo2RTCManager(stale, nil, nil, nil)}
+		server.cfgSnapshot.Store(published)
+
+		recorder := httptest.NewRecorder()
+		handleGo2RTCAppState(server).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/go2rtc/app/state", nil))
+		var body struct {
+			DetectionEnabled  bool                          `json:"detection_enabled"`
+			DetectionSettings *config.Go2RTCDetectionConfig `json:"detection_settings"`
+		}
+		if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		if body.DetectionEnabled != publishedEnabled || body.DetectionSettings == nil || body.DetectionSettings.Enabled != publishedEnabled {
+			t.Fatalf("published enabled=%v: detection_enabled=%v, detection_settings=%+v", publishedEnabled, body.DetectionEnabled, body.DetectionSettings)
+		}
+	}
+}

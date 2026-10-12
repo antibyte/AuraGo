@@ -134,6 +134,15 @@ func handleGo2RTCAppState(s *Server) http.HandlerFunc {
 		if !available {
 			reasonCode = "broadcast_unavailable"
 		}
+		// The detection switch and the global settings come from the published config:
+		// the manager's copy is reconfigured in a goroutine after a save and can briefly
+		// lag behind (a fresh "Activate" would still read as off, and the settings dialog
+		// saves the whole block, so a stale copy could lose a schedule).
+		detectionEnabled, detectionSettings := cfg.Enabled && cfg.Detection.Enabled, cfg.Detection
+		if published := s.ConfigSnapshot(); published != nil {
+			detectionEnabled = published.Go2RTC.Enabled && published.Go2RTC.Detection.Enabled
+			detectionSettings = published.Go2RTC.Detection
+		}
 		response := map[string]interface{}{
 			"status":            "ok",
 			"integration":       status,
@@ -143,7 +152,7 @@ func handleGo2RTCAppState(s *Server) http.HandlerFunc {
 			"streams":           go2RTCAppStreams(streams, cfg, canManage),
 			"web_ui_enabled":    cfg.WebUIEnabled,
 			"thumbnail_refresh": 5,
-			"detection_enabled": cfg.Enabled && cfg.Detection.Enabled,
+			"detection_enabled": detectionEnabled,
 		}
 		if canManage {
 			disabled := make([]map[string]interface{}, 0)
@@ -158,14 +167,7 @@ func handleGo2RTCAppState(s *Server) http.HandlerFunc {
 				})
 			}
 			response["disabled_streams"] = disabled
-			// The settings dialog saves the whole global block (PUT settings
-			// replaces it), so it reads the published config: the manager's copy
-			// is reconfigured in a goroutine and can briefly lag behind.
-			settings := cfg.Detection
-			if published := s.ConfigSnapshot(); published != nil {
-				settings = published.Go2RTC.Detection
-			}
-			response["detection_settings"] = config.NormalizeGo2RTCDetectionSettings(settings)
+			response["detection_settings"] = config.NormalizeGo2RTCDetectionSettings(detectionSettings)
 		}
 		writeGo2RTCJSON(w, response)
 	}
