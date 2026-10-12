@@ -297,8 +297,9 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   untrusted (an entity state can be shaped by mail, RSS or MQTT) while `trigger.ha_state` is pinned trusted by a
   plan test (`catalog_triggers_test.go`), although the same states reach the flow there.
 - Sinks are search queries, paths and file names, URLs, headers and bodies, recipients, attachments, accounts,
-  channels, MQTT topic and payload, Home Assistant entity and service data, the planner title and the `ai.step`
-  instructions (they become the system message; untrusted data belongs in the prompt, which is no sink).
+  channels, MQTT topic and payload, Home Assistant entity and service data, the planner title, the `ai.step`
+  instructions (they become the system message; untrusted data belongs in the prompt, which is no sink), and
+  the `ai.decision` `images` and `questions` params. The `ai.decision` `state` param is not a sink.
   `OutputIndependent` are the message, the pdf and notify titles (not the planner title, a sink), subject, body,
   document and file content, the MQTT payload and the planner description.
 - Secrets: a `secret_ref` param (`http.request` `auth_secret`) holds only the vault key. The node reads the value
@@ -350,7 +351,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   describe the default params (a generic node shows the worst case): never present "not risky" as a safety
   claim, the publish dialog (`CollectEffects` over the real params) is authoritative; the test dialog adds those effects from `publish-preview` to the catalog's.
 - A def with an `OutputsFunc` or `OutputFieldsFunc` needs a `dynamicOutputs` or `dynamicFields` entry that names
-  the driving param (`logic.switch` `cases`; `ai.step` `fields`; `logic.merge` `mode`);
+  the driving param (`logic.switch` `cases`; `ai.step` `fields`; `logic.merge` `mode`; `ai.decision` outputs
+  driven by `decision_choices` and fields driven by `mode`);
   `TestDynamicMarkersCoverTheHooks` enforces it. Merge fields: mode `append` (exact match) gives `items` (list,
   primary) and `count`; any other mode gives none, because the output is then keyed by upstream node key.
 - i18n: `CatalogI18nKeys(reg)` lists every key of the catalog and the starter templates: node label, description
