@@ -1,8 +1,14 @@
 package tools
 
-import "aurago/internal/config"
+import (
+	"encoding/json"
+	"net/http"
+
+	"aurago/internal/config"
+)
 
 const (
+	go2RTCNanoCPUsPerCPU        int64 = 1_000_000_000
 	go2RTCBaseNanoCPUs          int64 = 500_000_000
 	go2RTCBaseMemoryBytes       int64 = 256 << 20
 	go2RTCDetectionNanoCPUsStep int64 = 250_000_000
@@ -35,6 +41,46 @@ func Go2RTCDetectingCameras(cfg config.Go2RTCConfig) int {
 		}
 	}
 	return count
+}
+
+// go2RTCDockerNCPU returns the number of CPUs the Docker daemon reports, or 0
+// when it is unknown (the request failed, a socket proxy denies /info, or the
+// answer carries no count). Callers treat 0 as "do not clamp".
+func go2RTCDockerNCPU(dockerCfg DockerConfig) int {
+	data, code, err := dockerRequest(dockerCfg, http.MethodGet, "/info", "")
+	if err != nil || code != http.StatusOK {
+		return 0
+	}
+	var info struct {
+		NCPU int `json:"NCPU"`
+	}
+	if json.Unmarshal(data, &info) != nil || info.NCPU <= 0 {
+		return 0
+	}
+	return info.NCPU
+}
+
+// go2RTCHostCPUsFor returns the Docker host's CPU count when the limits could
+// exceed it, otherwise 0. Docker rejects NanoCpus above the daemon's CPU count at
+// create time, but every daemon has at least one CPU, so limits up to one CPU
+// need no lookup.
+func go2RTCHostCPUsFor(dockerCfg DockerConfig, resources Go2RTCContainerResources) int {
+	if resources.NanoCPUs <= go2RTCNanoCPUsPerCPU {
+		return 0
+	}
+	return go2RTCDockerNCPU(dockerCfg)
+}
+
+// go2RTCClampNanoCPUs caps a CPU limit at the host's CPU count; hostCPUs <= 0
+// means the count is unknown and the limit stays as configured.
+func go2RTCClampNanoCPUs(nanoCPUs int64, hostCPUs int) int64 {
+	if hostCPUs <= 0 {
+		return nanoCPUs
+	}
+	if limit := int64(hostCPUs) * go2RTCNanoCPUsPerCPU; nanoCPUs > limit {
+		return limit
+	}
+	return nanoCPUs
 }
 
 // Go2RTCResourcesFor returns the sidecar limits: the hardened base (0.5 CPU,

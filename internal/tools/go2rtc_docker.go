@@ -20,10 +20,43 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/dockerutil"
+	"aurago/internal/security"
 )
 
 const go2RTCFingerprintLabel = "aurago.go2rtc.fingerprint"
 const go2RTCOwnerLabel = "aurago.go2rtc.owner"
+
+// go2RTCDockerErrorDetailBytes bounds the daemon text a failed Docker call adds
+// to a go2rtc error that reaches the status and the log.
+const go2RTCDockerErrorDetailBytes = 300
+
+// go2RTCDockerErrorScanBytes bounds how much of a Docker answer is scrubbed
+// before it is cut to go2RTCDockerErrorDetailBytes.
+const go2RTCDockerErrorScanBytes = 4096
+
+// go2RTCDockerErrorDetail renders the Docker Engine's answer to a failed call as
+// ": <message>" (empty when there is none): the JSON "message" or the raw body as
+// one printable line of at most go2RTCDockerErrorDetailBytes bytes. Registered
+// secrets and the given values never pass: the create request carries the
+// internal API password in its environment, so the text is scrubbed before it is
+// cut, not after.
+func go2RTCDockerErrorDetail(body []byte, secrets ...string) string {
+	text := dockerutil.SanitizeOneLine(dockerutil.EngineErrorMessage(body), go2RTCDockerErrorScanBytes)
+	for _, secret := range secrets {
+		if secret = strings.TrimSpace(secret); secret != "" {
+			text = strings.ReplaceAll(text, secret, "[redacted]")
+		}
+	}
+	text = security.Scrub(text)
+	line := dockerutil.SanitizeOneLine(text, go2RTCDockerErrorDetailBytes)
+	if line == "" {
+		return ""
+	}
+	if len(line) < len(text) {
+		line += "..."
+	}
+	return ": " + line
+}
 
 // Go2RTCDockerRequirement describes a missing Docker API capability required
 // before AuraGo can enable and manage the go2rtc sidecar.
@@ -194,7 +227,15 @@ func (m *Go2RTCManager) startContainerLocked(ctx context.Context) error {
 		return err
 	}
 
-	payload, err := m.go2RTCContainerPayload(cfg, configPath, password, fingerprint)
+	// Docker refuses a CPU limit above the daemon's CPU count, so the raised
+	// detection limit is capped at create time. The fingerprint stays
+	// config-based: the same config on the same host always maps to one container.
+	resources := Go2RTCResourcesFor(cfg)
+	hostCPUs := go2RTCHostCPUsFor(dockerCfg, resources)
+	if clamped := go2RTCClampNanoCPUs(resources.NanoCPUs, hostCPUs); clamped != resources.NanoCPUs {
+		m.logger.Info("[go2rtc] CPU limit capped at the Docker host's CPU count", "wanted_nano_cpus", resources.NanoCPUs, "host_cpus", hostCPUs)
+	}
+	payload, err := m.go2RTCContainerPayload(cfg, configPath, password, fingerprint, hostCPUs)
 	if err != nil {
 		return err
 	}
@@ -202,12 +243,12 @@ func (m *Go2RTCManager) startContainerLocked(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("encode go2rtc container spec: %w", err)
 	}
-	_, createCode, createErr := dockerRequest(dockerCfg, http.MethodPost, "/containers/create?name="+url.QueryEscape(cfg.ContainerName), string(body))
+	createBody, createCode, createErr := dockerRequest(dockerCfg, http.MethodPost, "/containers/create?name="+url.QueryEscape(cfg.ContainerName), string(body))
 	if createErr != nil {
 		return fmt.Errorf("create go2rtc container: %w", createErr)
 	}
 	if createCode != http.StatusCreated {
-		return fmt.Errorf("create go2rtc container returned HTTP %d", createCode)
+		return fmt.Errorf("create go2rtc container returned HTTP %d%s", createCode, go2RTCDockerErrorDetail(createBody, password))
 	}
 	_, startCode, startErr := dockerRequest(dockerCfg, http.MethodPost, "/containers/"+url.PathEscape(cfg.ContainerName)+"/start", "")
 	if startErr != nil {
@@ -336,21 +377,105 @@ func (m *Go2RTCManager) RestartContainer(ctx context.Context) error {
 	return err
 }
 
+// Go2RTCReconfigureError is the failure of ReconfigureContainer. StartIntended
+// says whether the sidecar was meant to be running afterwards: a caller queues a
+// background retry only then, because the retry always starts the container. A
+// sidecar that was stopped on purpose is not retried; its next start replaces a
+// container with a stale fingerprint anyway.
+type Go2RTCReconfigureError struct {
+	Err           error
+	StartIntended bool
+}
+
+func (e *Go2RTCReconfigureError) Error() string { return e.Err.Error() }
+func (e *Go2RTCReconfigureError) Unwrap() error { return e.Err }
+
 // ReconfigureContainer removes the sidecar through its previous Docker target
 // before publishing the new identity. This prevents name or daemon changes from
 // orphaning a container that still contains the previous runtime sources.
-func (m *Go2RTCManager) ReconfigureContainer(ctx context.Context, oldCfg, newCfg *config.Config) error {
+//
+// The replacement is started only when the sidecar is meant to run: forceStart,
+// auto start without an administrator stop, or it was running before the
+// removal. A stopped sidecar stays stopped (and its manual stop stays set); its
+// next start builds the container from the new config. Failures are reported as
+// *Go2RTCReconfigureError.
+func (m *Go2RTCManager) ReconfigureContainer(ctx context.Context, oldCfg, newCfg *config.Config, forceStart bool) error {
 	if m == nil || oldCfg == nil || newCfg == nil {
 		return fmt.Errorf("go2rtc reconfiguration requires old and new config")
 	}
 	m.lifecycleMu.Lock()
 	defer m.lifecycleMu.Unlock()
 	m.configureLocked(oldCfg)
+	if forceStart {
+		// An explicit start overrides the administrator's stop, as in StartContainer.
+		m.mu.Lock()
+		m.manualStop = false
+		m.mu.Unlock()
+	}
+	// Decide before the removal: afterwards nothing tells whether the sidecar ran.
+	start := m.startIntendedLocked(newCfg.Go2RTC.AutoStart, forceStart)
 	if err := m.removeContainer(); err != nil {
-		return err
+		return &Go2RTCReconfigureError{Err: err, StartIntended: start}
 	}
 	m.configureLocked(newCfg)
+	if !start {
+		m.setAPIStatus(false, "", "")
+		return nil
+	}
 	if err := m.startContainerLocked(ctx); err != nil {
+		return &Go2RTCReconfigureError{Err: err, StartIntended: true}
+	}
+	if _, err := m.reconcileStreamsLocked(ctx); err != nil {
+		return &Go2RTCReconfigureError{Err: err, StartIntended: true}
+	}
+	return nil
+}
+
+// startIntendedLocked reports whether the sidecar is meant to run: an explicit
+// start, auto start while the administrator has not stopped it, or it runs now
+// (or Docker cannot say, which keeps the pre-existing start-after-recreate).
+func (m *Go2RTCManager) startIntendedLocked(autoStart, forceStart bool) bool {
+	if forceStart || (autoStart && !m.ManualStop()) {
+		return true
+	}
+	running, known := m.sidecarRunning()
+	return running || !known
+}
+
+// sidecarRunning inspects the owned container through the current Docker
+// target. known is false when Docker did not answer with the container or a
+// plain "not found".
+func (m *Go2RTCManager) sidecarRunning() (running, known bool) {
+	cfg := m.Config()
+	m.mu.RLock()
+	dockerCfg := m.docker
+	m.mu.RUnlock()
+	return go2RTCInspectRunning(dockerCfg, cfg.ContainerName, m.go2RTCOwner())
+}
+
+// ApplyConfigured brings the runtime in line with a published config without
+// recreating the container (the soft path of a config change).
+//
+// It starts the sidecar only when that is intended: forceStart, or auto start
+// while the administrator has not stopped it. Otherwise a running sidecar gets
+// its streams reconciled, and a sidecar that is verifiably not running is left
+// alone: nothing needs a running API, the sources are applied at the next start,
+// and no error is reported for it.
+func (m *Go2RTCManager) ApplyConfigured(ctx context.Context, forceStart bool) error {
+	if m == nil {
+		return fmt.Errorf("go2rtc manager is not initialized")
+	}
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	if forceStart || (m.Config().AutoStart && !m.ManualStop()) {
+		if err := m.startContainerLocked(ctx); err != nil {
+			return err
+		}
+	} else if _, err := m.Test(ctx); err != nil {
+		if running, known := m.sidecarRunning(); known && !running {
+			m.setAPIStatus(false, "", "")
+			return nil
+		}
 		return err
 	}
 	_, err := m.reconcileStreamsLocked(ctx)
@@ -412,7 +537,10 @@ func (m *Go2RTCManager) ownedContainerID() (string, bool, error) {
 	return info.ID, true, nil
 }
 
-func (m *Go2RTCManager) go2RTCContainerPayload(cfg config.Go2RTCConfig, configPath, password, fingerprint string) (map[string]interface{}, error) {
+// go2RTCContainerPayload builds the container create request. hostCPUs is the
+// Docker daemon's CPU count (0 = unknown) that caps the CPU limit; the payload
+// itself makes no Docker calls.
+func (m *Go2RTCManager) go2RTCContainerPayload(cfg config.Go2RTCConfig, configPath, password, fingerprint string, hostCPUs int) (map[string]interface{}, error) {
 	m.mu.RLock()
 	dockerCfg := m.docker
 	m.mu.RUnlock()
@@ -424,7 +552,7 @@ func (m *Go2RTCManager) go2RTCContainerPayload(cfg config.Go2RTCConfig, configPa
 		"Tmpfs":          map[string]string{"/tmp": "rw,noexec,nosuid,size=64m,mode=1777"},
 		"PidsLimit":      int64(100),
 		"Memory":         resources.MemoryBytes,
-		"NanoCpus":       resources.NanoCPUs,
+		"NanoCpus":       go2RTCClampNanoCPUs(resources.NanoCPUs, hostCPUs),
 		"RestartPolicy":  map[string]interface{}{"Name": "unless-stopped"},
 	}
 	exposed := map[string]interface{}{"1984/tcp": struct{}{}}
@@ -685,12 +813,27 @@ func go2RTCFingerprint(cfg config.Go2RTCConfig, rendered []byte, owner string) s
 }
 
 func go2RTCContainerRunning(dockerCfg DockerConfig, containerName, owner string) bool {
+	running, _ := go2RTCInspectRunning(dockerCfg, containerName, owner)
+	return running
+}
+
+// go2RTCInspectRunning reports whether the named container is the running
+// sidecar of this owner. known is false when Docker's answer does not settle it
+// (transport error, a status other than 200 or 404, or an undecodable body); a
+// missing container is a known "not running".
+func go2RTCInspectRunning(dockerCfg DockerConfig, containerName, owner string) (running, known bool) {
 	if strings.TrimSpace(containerName) == "" {
-		return false
+		return false, true
 	}
 	data, code, err := dockerRequest(dockerCfg, http.MethodGet, "/containers/"+url.PathEscape(containerName)+"/json", "")
-	if err != nil || code != http.StatusOK {
-		return false
+	if err != nil {
+		return false, false
+	}
+	if code == http.StatusNotFound {
+		return false, true
+	}
+	if code != http.StatusOK {
+		return false, false
 	}
 	var info struct {
 		Config struct {
@@ -700,8 +843,10 @@ func go2RTCContainerRunning(dockerCfg DockerConfig, containerName, owner string)
 			Running bool `json:"Running"`
 		} `json:"State"`
 	}
-	return json.Unmarshal(data, &info) == nil &&
-		info.Config.Labels["aurago.managed"] == "go2rtc" &&
+	if json.Unmarshal(data, &info) != nil {
+		return false, false
+	}
+	return info.Config.Labels["aurago.managed"] == "go2rtc" &&
 		info.Config.Labels[go2RTCOwnerLabel] == owner &&
-		info.State.Running
+		info.State.Running, true
 }

@@ -201,6 +201,9 @@ func TestValidateManagedDockerBackendsRejectsGo2RTCWithoutDocker(t *testing.T) {
 	}
 }
 
+// The streams here do not detect persons. Adding or changing a stream that
+// does raises the sidecar's limits and recreates it
+// (TestGo2RTCRecreateMatrixForDetectionLimits).
 func TestGo2RTCRecreateDecisionKeepsRuntimePatchForAddsAndChanges(t *testing.T) {
 	base := config.Go2RTCConfig{
 		Image:         config.Go2RTCDefaultImage,

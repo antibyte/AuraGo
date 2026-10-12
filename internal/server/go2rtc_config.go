@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/security"
+	"aurago/internal/tools"
 
 	"gopkg.in/yaml.v3"
 )
@@ -154,14 +156,24 @@ func updateManagedGo2RTCConfig(
 
 	runtimeCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
+	// Whether the sidecar is meant to run afterwards, read before the transition
+	// can touch the administrator's stop. The background retry always starts the
+	// container, so it is queued only for a sidecar that should come back.
+	startIntended := forceStart || (published.newCfg.Go2RTC.AutoStart && !s.Go2RTC.ManualStop())
 	if err := applyGo2RTCRuntimeTransition(runtimeCtx, s, &published.oldCfg, published.newCfg, published.recreate, forceStart); err != nil {
 		// ReconfigureContainer may temporarily restore the old manager snapshot
 		// while removing the old sidecar. Always leave the manager on the
 		// published desired state and record lifecycle work for background retry.
 		s.Go2RTC.Configure(published.newCfg)
+		var reconfigureErr *tools.Go2RTCReconfigureError
+		if errors.As(err, &reconfigureErr) {
+			// A running sidecar counts as intended even without auto start.
+			startIntended = reconfigureErr.StartIntended
+		}
 		pendingStop := !published.newCfg.Go2RTC.Enabled
-		pendingStart := published.newCfg.Go2RTC.Enabled && !published.recreate && (published.newCfg.Go2RTC.AutoStart || forceStart)
-		s.Go2RTC.SetRuntimeTransitionPending(published.recreate, pendingStart, pendingStop)
+		pendingStart := published.newCfg.Go2RTC.Enabled && !published.recreate && startIntended
+		pendingRecreate := published.recreate && startIntended
+		s.Go2RTC.SetRuntimeTransitionPending(pendingRecreate, pendingStart, pendingStop)
 		result.ReconcileErr = fmt.Errorf("go2rtc reconciliation failed: %w", err)
 	} else {
 		s.Go2RTC.SetRuntimeTransitionPending(false, false, false)
@@ -186,18 +198,13 @@ func applyGo2RTCRuntimeTransition(ctx context.Context, s *Server, oldCfg, newCfg
 		s.Go2RTC.Configure(newCfg)
 		return nil
 	case recreate:
-		return s.Go2RTC.ReconfigureContainer(ctx, oldCfg, newCfg)
+		return s.Go2RTC.ReconfigureContainer(ctx, oldCfg, newCfg, forceStart)
 	default:
+		// Every save lands here (the zone editor saves often): it starts the
+		// sidecar only when that is intended and never clears an administrator's
+		// stop on its own.
 		s.Go2RTC.Configure(newCfg)
-		if newCfg.Go2RTC.AutoStart || forceStart {
-			if err := s.Go2RTC.StartContainer(ctx); err != nil {
-				return err
-			}
-		} else if _, err := s.Go2RTC.Test(ctx); err != nil {
-			return err
-		}
-		_, err := s.Go2RTC.ReconcileStreams(ctx)
-		return err
+		return s.Go2RTC.ApplyConfigured(ctx, forceStart)
 	}
 }
 

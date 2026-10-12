@@ -64,7 +64,7 @@ func TestGo2RTCContainerSpecIsHardenedAndLoopbackOnly(t *testing.T) {
 	}
 	manager := NewGo2RTCManager(cfg, nil, nil, nil)
 	configPath := filepath.Join(dataDir, "go2rtc", "go2rtc.yaml")
-	payload, err := manager.go2RTCContainerPayload(cfg.Go2RTC, configPath, cfg.Go2RTC.APIPassword, "fingerprint")
+	payload, err := manager.go2RTCContainerPayload(cfg.Go2RTC, configPath, cfg.Go2RTC.APIPassword, "fingerprint", 0)
 	if err != nil {
 		t.Fatalf("go2RTCContainerPayload: %v", err)
 	}
@@ -106,7 +106,7 @@ func TestGo2RTCContainerSpecPublishesExplicitWebRTCOnTCPAndUDP(t *testing.T) {
 		},
 	}
 	manager := NewGo2RTCManager(cfg, nil, nil, nil)
-	payload, err := manager.go2RTCContainerPayload(cfg.Go2RTC, filepath.Join(t.TempDir(), "go2rtc.yaml"), cfg.Go2RTC.APIPassword, "fingerprint")
+	payload, err := manager.go2RTCContainerPayload(cfg.Go2RTC, filepath.Join(t.TempDir(), "go2rtc.yaml"), cfg.Go2RTC.APIPassword, "fingerprint", 0)
 	if err != nil {
 		t.Fatalf("go2RTCContainerPayload: %v", err)
 	}

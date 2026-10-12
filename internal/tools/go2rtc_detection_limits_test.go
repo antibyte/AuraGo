@@ -64,7 +64,7 @@ func TestGo2RTCContainerSpecRaisesLimitsWhileDetecting(t *testing.T) {
 	cfg.Directories.DataDir = t.TempDir()
 	cfg.Go2RTC = detectingGo2RTCConfig(2)
 	manager := NewGo2RTCManager(cfg, nil, nil, nil)
-	payload, err := manager.go2RTCContainerPayload(cfg.Go2RTC, filepath.Join(cfg.Directories.DataDir, "go2rtc", "go2rtc.yaml"), "internal-password", "fingerprint")
+	payload, err := manager.go2RTCContainerPayload(cfg.Go2RTC, filepath.Join(cfg.Directories.DataDir, "go2rtc", "go2rtc.yaml"), "internal-password", "fingerprint", 0)
 	if err != nil {
 		t.Fatalf("go2RTCContainerPayload: %v", err)
 	}

@@ -285,6 +285,19 @@ func (m *Go2RTCManager) reconcileTick(ctx context.Context) {
 		m.setAPIStatus(false, "", "")
 		return
 	}
+	if pendingRecreate || pendingStart {
+		// A retry that was queued for a start must not undo a stop the
+		// administrator pressed after the failed attempt; the stop wins and the
+		// next explicit start builds the container from the then-current config.
+		m.mu.RLock()
+		stopped := m.manualStop
+		m.mu.RUnlock()
+		if stopped {
+			m.clearRuntimeTransitionPending()
+			m.setAPIStatus(false, "", "")
+			return
+		}
+	}
 	if pendingRecreate {
 		if err := m.RestartContainer(ctx); err != nil {
 			m.setAPIStatus(false, "", err.Error())
@@ -331,6 +344,8 @@ func (m *Go2RTCManager) reconcileTick(ctx context.Context) {
 
 // SetRuntimeTransitionPending records lifecycle work that must be retried by
 // the background manager after a desired configuration was already published.
+// Both recreate and start mean "bring the sidecar up": callers queue them only
+// for a sidecar that is meant to run, because the retry always starts it.
 func (m *Go2RTCManager) SetRuntimeTransitionPending(recreate, start, stop bool) {
 	if m == nil {
 		return
@@ -1048,4 +1063,26 @@ func go2RTCJSON(value interface{}) string {
 		return `{"status":"error","message":"failed to encode go2rtc result"}`
 	}
 	return string(data)
+}
+
+// ManualStop reports whether the administrator stopped the sidecar and no start
+// has cleared that since.
+func (m *Go2RTCManager) ManualStop() bool {
+	if m == nil {
+		return false
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.manualStop
+}
+
+// RuntimeTransitionPending reports the lifecycle work queued for the background
+// retry (see SetRuntimeTransitionPending).
+func (m *Go2RTCManager) RuntimeTransitionPending() (recreate, start, stop bool) {
+	if m == nil {
+		return false, false, false
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.pendingRecreate, m.pendingStart, m.pendingStop
 }
