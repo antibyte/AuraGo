@@ -74,10 +74,10 @@ func resolveInitialPassword(passwordFlag, passwordFile string) (string, error) {
 
 // runIsolatedWorker dispatches the native-runtime worker modes. Each runs as
 // its own process, so a crash in the native library stays in the child.
-// main calls it first, before any other initialization: stdout then carries
-// only the worker's JSON protocol (no config, log or database setup can print
-// to it) and a worker starts without loading the AuraGo configuration or
-// opening the databases.
+// main calls it before any initialization: stdout then carries only the
+// worker's JSON protocol (no config, log or database setup can print to it)
+// and a worker starts without loading the AuraGo configuration or opening the
+// databases.
 func runIsolatedWorker(args []string, stdin io.Reader, stdout, stderr io.Writer) (int, bool) {
 	if len(args) < 2 {
 		return 0, false

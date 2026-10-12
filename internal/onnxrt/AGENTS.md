@@ -74,9 +74,10 @@ adapts D-FINE). The audit `NetworkClientInventory` lists `internal/onnxrt/` as t
 - `ValidateAssetSpec` runs before any network access: ID matching `^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$`
   (a safe single path component, no trailing dot), absolute HTTPS URL, size > 0, a 64-digit hex SHA-256,
   `Members` only for `AssetWheel`. `EnsureRuntime` accepts zip, tar.gz and wheel only.
-- Downloads: HTTPS only, redirects included (at most 10); the content length must equal the pinned size;
-  the `.part` file is checked for size and SHA-256 and removed on any failure; a cached file that matches is
-  reused without network access.
+- Downloads: HTTPS only, redirects included (at most 10 requests, i.e. 9 redirects); a known
+  `Content-Length` must equal the pinned size (an unknown or chunked length is accepted), and the received
+  bytes must equal it either way; the `.part` file is checked for size and SHA-256 and removed on any
+  failure; a cached file that matches is reused without network access.
 - Extraction goes to `<id>.tmp-<random>` and is renamed into place only when complete. The marker lists
   every file with size and SHA-256; a missing, changed, extra or symlinked file, a marker for another
   asset/size/SHA, or (wheels) a file list that differs from the flattened `Members` triggers a fresh
@@ -89,8 +90,10 @@ adapts D-FINE). The audit `NetworkClientInventory` lists `internal/onnxrt/` as t
 - Pins live in `runtimes.go`: CPU/CUDA bundles of ORT `CPURuntimeVersion` (1.26.0) and the
   `onnxruntime-webgpu` wheels of `WebGPURuntimeVersion` (1.27.0) for linux/amd64, windows/amd64 and
   darwin/arm64 (`WebGPURuntimeAsset`). The Windows wheel also extracts `dxcompiler.dll` and `dxil.dll`;
-  `onnxruntime_providers_shared` is listed but ORT never loads it. Change a pin only together with size,
-  SHA-256, members and a passing integration run. Third-party notices: `THIRD_PARTY_NOTICES.md`.
+  `onnxruntime_providers_shared` is listed but the WebGPU path does not load it (observed in the spike).
+  Change a pin only together with size, SHA-256, members and a passing integration run. When a pin or its
+  members change, update `THIRD_PARTY_NOTICES.md` and `THIRD_PARTY_LIBRARIES.md` (the audit test
+  `TestPersonDetectionThirdPartyRecords` checks versions and members).
 
 ## Work Guidance
 
@@ -101,8 +104,8 @@ adapts D-FINE). The audit `NetworkClientInventory` lists `internal/onnxrt/` as t
 ## Verification
 
 - `go test ./internal/onnxrt/ -count=1`, `go vet` for windows/amd64, linux/amd64, linux/arm64 and
-  darwin/arm64, and `go test ./internal/embeddings/ ./internal/audit/ -count=1` (the audit package has
-  unrelated failures on `main`; compare before blaming a change).
+  darwin/arm64, `go test ./internal/embeddings/ -count=1`, and the notice and routing checks
+  `go test ./internal/audit/ -run '(?i)(TestPersonDetection)' -count=1`.
 - Opt-in real runtimes download from the pinned URLs and need `-timeout 30m`. Set
   `AURAGO_PERSONDETECT_INTEGRATION=1`; the cache root defaults to `disposable/person-detection/cache`
   (override with `AURAGO_PERSONDETECT_CACHE`, runtimes land in `<cache>/embeddings`). Two ORT builds must not

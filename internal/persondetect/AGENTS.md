@@ -16,7 +16,7 @@ overview; local, git-ignored).
 this package: the worker (`worker.go`, `serve.go`, `protocol.go`, `engine.go`) and the client
 (`worker_process.go`, `supervisor.go`, `detector.go`, `gpumodel.go`). Change both together. ONNX Runtime, the
 asset cache and worker process environment belong to `internal/onnxrt` (`internal/onnxrt/AGENTS.md`).
-`cmd/aurago/main.go` dispatches the worker through `persondetect.WorkerFlag` before any other
+`cmd/aurago/main.go` dispatches the worker through `persondetect.WorkerFlag` before any
 initialization, so stdout carries only the JSON protocol and no config, log or database setup runs in the
 worker. ONNX Runtime is loaded only in worker subprocesses; the one in-process load is the opt-in
 `TestPrepareIntegration`.
@@ -29,7 +29,9 @@ worker. ONNX Runtime is loaded only in worker subprocesses; the one in-process l
   export of `ustc-community/dfine-nano-coco` (the onnx-community D-FINE-N export finds no persons), D-FINE-S
   (`accurate`) the onnx-community conversion of `ustc-community/dfine-small-coco`. Each URL names a commit; size
   and SHA-256 are pinned. Change a pin only with new size + SHA-256 and a passing opt-in integration run of
-  both tiers (the patch count included).
+  both tiers (the patch count included), and update `THIRD_PARTY_NOTICES.md` and
+  `THIRD_PARTY_LIBRARIES.md` (the audit test `TestPersonDetectionThirdPartyRecords` checks the repository
+  names and revisions).
 - Both tiers share one I/O contract: input `pixel_values` float32 `[1,3,640,640]` RGB; outputs `logits`
   `[1,300,80]` (sigmoid, class 0 = person) and `pred_boxes` `[1,300,4]` (cx, cy, w, h, normalized). There is
   no NMS. `outputLayout` rejects any other shape.
@@ -40,8 +42,8 @@ worker. ONNX Runtime is loaded only in worker subprocesses; the one in-process l
 - Frame limits are checked on the JPEG header before decoding: at most 8192 px per side and 16 Mi px
   (`1<<24`; a pixel cap alone does not bound the decoder and scaler allocations). A frame is at most
   `maxFrameBytes` (16 MiB, defined once in `protocol.go`; the client, the worker and the request line limit
-  all use it). A hostile frame at the limits costs up to ~580 MB in `Preprocess` (progressive CMYK 2048x8192);
-  a normal 1280x720 frame ~23 MB and ~30 ms. The worker handles one frame at a time.
+  all use it). A hostile frame at the limits costs up to ~580 MB in `Preprocess` (progressive CMYK 2048x8192). The
+  worker handles one frame at a time.
 
 ### Comparing detections and self-tests
 
@@ -53,11 +55,11 @@ worker. ONNX Runtime is loaded only in worker subprocesses; the one in-process l
   unmatched. Do not decode at exactly 0.3: D-FINE-N scores one reference person at 0.303.
 - Two empty sets compare as the same, so the reference side must also find >= 1 person with score >= 0.5
   (the original model for `prepare`, the CPU session for a WebGPU self-test, the session itself for a CPU
-  worker). Go's resize differs slightly from PIL: tests expect >= 3 persons >= 0.5 for D-FINE-N (PIL: 4).
-- Self-test timing: one unmeasured warm-up (the first WebGPU run compiles shaders for 2-3 s), then 3 runs
+  worker). Go's resize differs slightly from PIL, so tests expect >= 3 persons >= 0.5 from D-FINE-N.
+- Self-test timing: one unmeasured warm-up (the first WebGPU run compiles shaders and takes seconds), then 3 runs
   timed as one interval (Windows process CPU time ticks at ~15.6 ms). A WebGPU worker also loads a CPU
   session of the same model with `cpuThreads()` threads, measures it, then measures the GPU session again
-  and reports the lower GPU CPU time (cold-start shader work inflated a first measurement to exactly 50 %);
+  and reports the lower GPU CPU time (cold-start shader work can inflate a first measurement);
   the comparison session is released before the hello line. Process CPU time comes from `Getrusage` (Unix) or
   `GetProcessTimes` (Windows); a time that cannot be read fails the self-test.
 
@@ -105,7 +107,7 @@ worker. ONNX Runtime is loaded only in worker subprocesses; the one in-process l
   `onnxrt.AccessibleRenderNode("/dev/dri")`, elsewhere true); then CPU. `cpu` uses only the CPU bundle. A
   cancelled context returns its error instead of falling back.
 - Acceptance at setup: a GPU worker needs a passed self-test, a CPU reference time and `GPUCPUMS` <= 50 % of
-  `CPUCPUMS` (software Vulkan such as llvmpipe measured 3538 %). Otherwise the worker is closed and
+  `CPUCPUMS` (this rejects software Vulkan such as llvmpipe). Otherwise the worker is closed and
   `FallbackReason` carries the cause: `no WebGPU runtime for <os>/<arch>`, `GPU not accessible: ...`,
   `WebGPU runtime: ...`, `GPU model preparation: ...`, `GPU worker: ...`, `self-test: ...`, `self-test: CPU
   reference time is missing` or `GPU path used N% of the CPU path's CPU time`. A CPU worker needs only a
@@ -114,10 +116,11 @@ worker. ONNX Runtime is loaded only in worker subprocesses; the one in-process l
 - Threads: CPU path `min(4, max(1, NumCPU/2))` with spinning disabled, GPU path 1.
 - GPU model cache: `<ModelDir>/<tier>/model.webgpu-1.27.0.onnx` plus sidecar `.json`
   (`source_sha256`, `ort_version`, `patched_nodes`); reused only when the source SHA-256 and ORT version match,
-  `patched_nodes` >= 1 and the model file is non-empty. `prepare` runs in a subprocess under a per-model-file
-  lock, returns only after that process exited (also when cancelled) and the sidecar is written last. A GPU
-  worker that fails to start or whose self-test did not pass discards the cached model so the next setup
-  prepares it again; a CPU-time ratio failure keeps it.
+  `patched_nodes` >= 1 and the model file is non-empty. `prepare` runs in a subprocess under an
+  in-process per-model-file lock, returns only after that process exited (also when cancelled) and the
+  sidecar is written last. Only a worker start failure (not when the context was cancelled) or a missing or
+  failed self-test discards the cached GPU model so the next setup prepares it again; CPU-time rejections
+  and `self-test: CPU reference time is missing` keep it.
 - Supervision (`supervisor.go`): frames are analyzed one at a time. Every unanswered request is tracked with
   its send time and the oldest one bounds the 10 s detect budget, also across callers that gave up, so a
   hung worker is killed once its oldest request is overdue. The hello and self-test phase uses the separate
@@ -127,8 +130,10 @@ worker. ONNX Runtime is loaded only in worker subprocesses; the one in-process l
 - `Detect` errors: `ErrDetectorClosed` after `Close`; plain `ErrWorkerRestarting` while a restart is pending;
   the failure that triggers a restart wraps `ErrWorkerRestarting` and its cause; the caller's `ctx` error when it
   gives up (no failure counted, the late answer is skipped); frame-level worker errors are returned as
-  `detect: ...` without counting a failure. Callers must treat the worker errors as service state, not as a
-  fault of the camera that sent the frame.
+  `detect: ...` without counting a failure. Before anything is sent, `Detect` rejects `frame is empty`,
+  `frame has N bytes, limit ...` and `min score must be in (0, 1]`; these are caller or frame errors and
+  count no failure. Callers must treat the worker errors as service state, not as a fault of the camera that
+  sent the frame.
 - Worker logs: stderr keeps the first 1 KiB, the last 4 KiB and the last crash header line (`panic: `,
   `fatal error: `, `Exception 0x...`, `SIG...: `). Error texts carry one line (`crash report: <header>`, else
   `last log line: <line>`, cut to 400 bytes); the slog warnings carry the whole kept log as `worker_log`.
@@ -143,7 +148,8 @@ worker. ONNX Runtime is loaded only in worker subprocesses; the one in-process l
 
 ## Verification
 
-- `go test ./internal/persondetect/ ./internal/onnxrt/ ./cmd/aurago/ -count=1`; `gofmt -l`; `go vet` for
+- `go test ./internal/persondetect/ ./internal/onnxrt/ ./cmd/aurago/ -count=1`; the notice and routing
+  checks `go test ./internal/audit/ -run '(?i)(TestPersonDetection)' -count=1`; `gofmt -l`; `go vet` for
   windows/amd64, linux/amd64, linux/arm64 and darwin/arm64; `go build ./...`.
 - Opt-in real runs download the pinned model(s) and runtime and need `-timeout 30m`:
   `AURAGO_PERSONDETECT_INTEGRATION=1 go test ./internal/persondetect/ -run '^(TestPrepareIntegration|TestDetectorIntegrationCPU)$' -count=1 -timeout 30m -v`.
@@ -159,7 +165,7 @@ worker. ONNX Runtime is loaded only in worker subprocesses; the one in-process l
   AURAGO_PERSONDETECT_INTEGRATION=1 -e AURAGO_PERSONDETECT_GPU=1 -e AURAGO_PERSONDETECT_CACHE=/w/cache -v
   <dir>:/w ubuntu:24.04` after `apt-get install ca-certificates mesa-vulkan-drivers` (993 and 44 are the
   `render` and `video` group ids of `/dev/dri` on that host; check `ls -l /dev/dri`). The default Vulkan
-  adapter is RADV on the Ryzen iGPU; Ubuntu 24.04 names the ICD files `radeon_icd.json` and `lvp_icd.json`
+  adapter is RADV on that host's AMD iGPU; Ubuntu 24.04 names the ICD files `radeon_icd.json` and `lvp_icd.json`
   (`VK_ICD_FILENAMES` selects one; llvmpipe must end in the CPU-time rejection). `chown` the work directory
   back on exit. Never touch existing containers, volumes or data there.
 

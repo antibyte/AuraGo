@@ -214,7 +214,10 @@ verified by exact size and SHA-256 before use.
   carries that license text under the LLVM entry; the wheel has no separate
   DirectX Shader Compiler entry, and neither the wheel nor the upstream README or
   `LICENSE.TXT` states redistribution terms specific to the signed `dxil.dll` binary.
-  The upstream licenses remain authoritative.
+  The upstream repository root lists only `LICENSE.TXT` and `ThirdPartyNotices.txt` (no
+  separate Microsoft license file) and the notes of its latest release (v1.9.2609)
+  carry no license terms; the release archives themselves were not inspected. The
+  upstream licenses remain authoritative.
 - **Self-test photo.** `internal/persondetect/selftest_reference.jpg` is
   "Pedestrians using crosswalk (Unsplash).jpg" by Peter Miranda, released under
   CC0 1.0 Universal (public domain dedication) on Wikimedia Commons

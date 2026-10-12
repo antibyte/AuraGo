@@ -48,7 +48,7 @@ const (
 func RunWorker(args []string, stdin io.Reader, stdout, stderr io.Writer) (code int) {
 	defer recoverWorkerPanic(stdout, stderr, &code)
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: aurago --person-detect-worker prepare|serve [flags]")
+		fmt.Fprintf(stderr, "usage: aurago %s prepare|serve [flags]\n", WorkerFlag)
 		return 2
 	}
 	switch args[0] {
