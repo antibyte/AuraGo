@@ -334,7 +334,7 @@ func (s *Service) emitBuildStep(run *jobRun, n int, b Build) {
 		s.emitStep(run.projectID, run.jobID, StepBuild, "build_failed_at", map[string]any{"n": n, "location": location, "message": d.Message})
 		return
 	}
-	s.emitStep(run.projectID, run.jobID, StepBuild, "build_failed", map[string]any{"n": n, "error_code": b.ErrorCode})
+	s.emitStep(run.projectID, run.jobID, StepBuild, "build_failed", map[string]any{"n": n, "error_code": b.ErrorCode, "error": b.ErrorCode})
 }
 
 // publishRetryDelays are the pauses before a publication is tried again after
@@ -360,7 +360,7 @@ func (s *Service) publishJob(run *jobRun, b Build) error {
 			return err
 		}
 		delay := publishRetryDelays[attempt]
-		s.emitStep(run.projectID, run.jobID, StepInfo, "publish_retry", map[string]any{"delay": delay.String()})
+		s.emitStep(run.projectID, run.jobID, StepInfo, "publish_retry", map[string]any{"milliseconds": delay.Milliseconds()})
 		timer := time.NewTimer(delay)
 		select {
 		case <-run.ctx.Done():
@@ -488,8 +488,11 @@ func (s *Service) classifyJobError(run *jobRun, err error) jobEnding {
 	case errors.Is(err, errJobCancelled):
 		return jobEnding{status: JobCancelled, msg: "job_cancelled"}
 	case errors.Is(err, errJobTimeout):
-		return jobEnding{status: JobFailed, message: fmt.Sprintf("The job exceeded its time limit of %s.", formatBudget(run.budget)),
-			msg: "job_timeout", vars: map[string]any{"limit": formatBudget(run.budget)}}
+		message := fmt.Sprintf("The job exceeded its time limit of %s.", formatBudget(run.budget))
+		if secs := textSeconds(run.budget); secs >= 60 {
+			return jobEnding{status: JobFailed, message: message, msg: "job_timeout_minutes", vars: map[string]any{"minutes": secs / 60, "seconds": secs % 60}}
+		}
+		return jobEnding{status: JobFailed, message: message, msg: "job_timeout", vars: map[string]any{"seconds": textSeconds(run.budget)}}
 	case s.ctx.Err() != nil:
 		return jobEnding{status: JobInterrupted, message: "The server stopped while the job was running.", msg: "job_interrupted"}
 	case errors.As(err, &typed):

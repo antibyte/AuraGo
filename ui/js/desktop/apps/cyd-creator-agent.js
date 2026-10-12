@@ -96,8 +96,8 @@
         // ── history ──
         // serverText shows a server-written line (job step, system message) in the UI language: the
         // translation of its code (cyd_creator.step.<code> / cyd_creator.msg.<code>) filled with its
-        // vars, else the server's English text as it is. A failed job's line names the error by its
-        // code like the job card does.
+        // vars, else the server's English text as it is. A line with error_code (a failed job, a failed
+        // build) names the error by its code like the job card does.
         function serverText(prefix, item) {
             const text = String(item.text || '');
             const code = typeof item.code === 'string' && CODE_RE.test(item.code) ? item.code : '';
@@ -303,12 +303,13 @@
         // renderJob redraws the job card below the history; a reader at the end stays at the end. When
         // a job's plan card appears, a reader at the end sees it from its top (status, heading, summary)
         // instead of at its actions; redraws of the same card (read-only, confirm in flight) keep the
-        // scroll position. A new plan of the same job (re-plan) opens at its top again.
+        // scroll position. A new plan of the same job (re-plan) opens at its top again. While the panel
+        // is hidden (no height) the open waits for the next redraw in view.
         function renderJob() {
             const job = state.job;
             const atEnd = stickToEnd(drawJob);
             if (job && job.status === 'awaiting_confirmation') {
-                if (state.planShown !== job.id) {
+                if (state.planShown !== job.id && scroller.clientHeight > 0) {
                     state.planShown = job.id;
                     if (atEnd) scroller.scrollTop += jobCard.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 8;
                 }

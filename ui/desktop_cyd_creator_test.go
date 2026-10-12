@@ -193,8 +193,8 @@ func cydCreatorPlaceholders(text string) string {
 }
 
 // TestCYDCreatorServerTextsAreTranslated: every job step and system line code of the server has its
-// key in all sixteen locales; the English bundle is exactly the server's template, and every
-// translation uses the same placeholders.
+// key in all sixteen locales; the English bundle is exactly the server's template, every translation
+// uses the same placeholders, and no locale keeps a step or message key the server no longer has.
 func TestCYDCreatorServerTextsAreTranslated(t *testing.T) {
 	keys := cydcreator.TextKeys()
 	if len(keys) < 20 {
@@ -219,6 +219,13 @@ func TestCYDCreatorServerTextsAreTranslated(t *testing.T) {
 			}
 			if lang != "en" && strings.Contains(value, "(s)") {
 				t.Errorf("%s %s uses a plural shortcut: %q", lang, key, value)
+			}
+		}
+		for key := range words {
+			if strings.HasPrefix(key, "cyd_creator.step.") || strings.HasPrefix(key, "cyd_creator.msg.") {
+				if _, ok := keys[key]; !ok {
+					t.Errorf("%s has %s, which is no server text code", lang, key)
+				}
 			}
 		}
 	}

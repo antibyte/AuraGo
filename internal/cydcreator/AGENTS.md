@@ -624,13 +624,20 @@ publication, revisions, the job chat and the agent tool implementations. Plan 5 
   messages), never model prose, reasoning or plan text (`SubmitPlan` reports counts).
 - Translation codes (`texts.go`): every `job_step` carries `code` (a `stepTexts` key) and `vars`, every system line
   a `messageTexts` code and its vars; the English `text` is always rendered from the code's template
-  (`renderText`: `{{name}}` filled in one pass), so text and code cannot drift. Codes match
-  `^[a-z][a-z0-9_]{0,63}$`; vars are identifier names with strings (one line, at most 160 runes for steps and 300
-  for messages) or integers (`textVars`). Counts are phrased without plural forms ("screens: 2"). Every job ending
-  (`jobEnding.msg`) has a `_draft` variant that adds exactly the draft sentence. A new step or system line adds its
-  code to the table and its `cyd_creator.step.*`/`cyd_creator.msg.*` key to all 16 `ui/lang/cyd_creator` files
-  (`en.json` equals the template, checked by `TextKeys` in the ui key test); `TestEveryStepAndSystemLineUsesATableCode`
-  checks every call site. An unknown code is logged and emits nothing. The
+  (`renderText`: `{{name}}` filled in one pass; a placeholder without a var renders empty and is logged as a
+  warning), so text and code cannot drift. Codes match `^[a-z][a-z0-9_]{0,63}$`; vars are identifier names with
+  strings (one line, at most 160 runes for steps and 300 for messages) or numbers (`textVars`: integer kinds as
+  int64, finite floats). Counts are phrased without plural forms ("screens: 2"), durations as integer vars with unit
+  symbols, never Go duration strings: `{{seconds}} s`, from 60 s on the `_minutes` variant with
+  `{{minutes}} min {{seconds}} s` (`textSeconds` rounds up), `{{milliseconds}} ms` for the publication retry. A
+  failure with a CYD code carries `error_code` next to `error` (`job_failed`, `build_failed`), so the client shows its
+  own sentence for the code. Every job ending (`jobEnding.msg`) has a `_draft` variant that adds exactly the draft
+  sentence. A new step or system line adds its code to the table and its `cyd_creator.step.*`/`cyd_creator.msg.*` key
+  to all 16 `ui/lang/cyd_creator` files (`en.json` equals the template and has no other such key, checked with
+  `TextKeys` by the ui key test); `TestEveryStepAndSystemLineUsesATableCode` checks every call site (literal code, a
+  var for each placeholder, draft variants), `TestEveryCodeRendersItsEnglishText` the English text of each code. An
+  unknown code is logged and emits nothing. Still English inside translated lines (backlog): the layout op summaries
+  of `layout_updated` and the runner's `agent_stopped` reason. The
   private conversation lives in `cc_agent_context`: `SaveAgentContext` only for the running job (at most 16 MiB of
   JSON), `LoadAgentContext` returns the job's, else the resumed draft's.
 

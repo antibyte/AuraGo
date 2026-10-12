@@ -427,7 +427,7 @@ func (s *Service) emitStep(projectID, jobID, kind, code string, vars map[string]
 		kind = StepInfo
 	}
 	vars = textVars(vars, maxStepVarRunes)
-	text := strings.Join(strings.Fields(renderText(template, vars)), " ")
+	text := strings.Join(strings.Fields(s.renderText(code, template, vars)), " ")
 	if utf8.RuneCountInString(text) > 200 {
 		text = string([]rune(text)[:199]) + "…"
 	}

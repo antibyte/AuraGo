@@ -2,9 +2,12 @@ package cydcreator
 
 import (
 	"encoding/json"
+	"math"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -15,7 +18,9 @@ import (
 // with the same vars and falls back to the text. ui/lang/cyd_creator/en.json
 // holds exactly these templates (TextKeys; the ui key test checks all
 // locales). Placeholders are {{name}}; counts are phrased without plural
-// forms ("screens: 2"), because the desktop i18n has no plural rules.
+// forms ("screens: 2"), because the desktop i18n has no plural rules, and
+// durations are integer vars with unit symbols ({{seconds}} s, {{minutes}}
+// min, {{milliseconds}} ms), never Go duration strings.
 
 // textCodePattern is the shape of a code (the error_reason rule).
 var textCodePattern = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
@@ -36,20 +41,23 @@ const (
 
 // stepTexts maps every job_step code to its English template. Widget and
 // screen names, app paths and compiler messages arrive as vars, already
-// clipped; model prose never does.
+// clipped; model prose never does. build_failed carries error_code next to
+// error (the code itself in the English text), so the client shows its own
+// sentence for the code like job_failed.
 var stepTexts = map[string]string{
-	"plan_submitted":        "Plan submitted · screens: {{screens}} · widgets: {{widgets}} · data sources: {{data_sources}}",
-	"layout_updated":        "Layout changes ({{count}}): {{changes}}",
-	"file_written":          "Wrote {{path}} (lines: {{lines}})",
-	"file_deleted":          "Deleted {{path}}",
-	"repair_started":        "Repair {{attempt}}/{{max}} started",
-	"build_succeeded":       "Build {{n}} succeeded",
-	"build_succeeded_flash": "Build {{n}} succeeded (flash {{percent}}%)",
-	"build_failed_at":       "Build {{n}} failed: {{location}} {{message}}",
-	"build_failed_error":    "Build {{n}} failed: {{message}}",
-	"build_failed":          "Build {{n}} failed ({{error_code}})",
-	"publish_retry":         "A project file is open; publishing again in {{delay}}.",
-	"grace_extended":        "Recent changes are still being built; the job gets {{duration}} more to finish.",
+	"plan_submitted":         "Plan submitted · screens: {{screens}} · widgets: {{widgets}} · data sources: {{data_sources}}",
+	"layout_updated":         "Layout changes ({{count}}): {{changes}}",
+	"file_written":           "Wrote {{path}} (lines: {{lines}})",
+	"file_deleted":           "Deleted {{path}}",
+	"repair_started":         "Repair {{attempt}}/{{max}} started",
+	"build_succeeded":        "Build {{n}} succeeded",
+	"build_succeeded_flash":  "Build {{n}} succeeded (flash {{percent}}%)",
+	"build_failed_at":        "Build {{n}} failed: {{location}} {{message}}",
+	"build_failed_error":     "Build {{n}} failed: {{message}}",
+	"build_failed":           "Build {{n}} failed: {{error}}",
+	"publish_retry":          "A project file is open; publishing again in {{milliseconds}} ms.",
+	"grace_extended":         "Recent changes are still being built; the job gets {{seconds}} s more to finish.",
+	"grace_extended_minutes": "Recent changes are still being built; the job gets {{minutes}} min {{seconds}} s more to finish.",
 }
 
 // draftCodeSuffix names the variant of a job ending whose working copy became
@@ -64,8 +72,10 @@ const (
 var messageTexts = map[string]string{
 	"job_cancelled":                 "The job was cancelled. The project is unchanged.",
 	"job_cancelled_draft":           "The job was cancelled. The project is unchanged." + draftSentence,
-	"job_timeout":                   "The job exceeded its time limit of {{limit}}. The project is unchanged.",
-	"job_timeout_draft":             "The job exceeded its time limit of {{limit}}. The project is unchanged." + draftSentence,
+	"job_timeout":                   "The job exceeded its time limit of {{seconds}} s. The project is unchanged.",
+	"job_timeout_draft":             "The job exceeded its time limit of {{seconds}} s. The project is unchanged." + draftSentence,
+	"job_timeout_minutes":           "The job exceeded its time limit of {{minutes}} min {{seconds}} s. The project is unchanged.",
+	"job_timeout_minutes_draft":     "The job exceeded its time limit of {{minutes}} min {{seconds}} s. The project is unchanged." + draftSentence,
 	"job_interrupted":               "The server stopped while the job was running. The project is unchanged.",
 	"job_interrupted_draft":         "The server stopped while the job was running. The project is unchanged." + draftSentence,
 	"job_failed":                    "{{error}} The project is unchanged.",
@@ -98,9 +108,19 @@ func TextKeys() map[string]string {
 	return out
 }
 
+// textSeconds is d in whole seconds, rounded up (a duration var: Go's
+// duration strings such as "30m0s" would show untranslated). Callers with
+// d >= 60 s use the code's _minutes variant with minutes and the remaining
+// seconds.
+func textSeconds(d time.Duration) int64 {
+	return int64(math.Ceil(d.Seconds()))
+}
+
 // textVars keeps the vars a client may interpolate: identifier names with a
-// string (folded to one line, at most maxRunes runes) or an integer value.
-// Anything else is dropped; no vars is nil.
+// string (folded to one line, at most maxRunes runes) or a number (every
+// integer kind becomes int64, a uint above MaxInt64 a json.Number, finite
+// floats float64). Anything else (bool, slices, NaN) is dropped, so its
+// placeholder renders empty and renderText warns; no vars is nil.
 func textVars(vars map[string]any, maxRunes int) map[string]any {
 	var out map[string]any
 	for key, value := range vars {
@@ -115,15 +135,22 @@ func textVars(vars map[string]any, maxRunes int) map[string]any {
 				s = string([]rune(s)[:maxRunes-1]) + "…"
 			}
 			clean = s
-		case int:
-			clean = int64(v)
-		case int32:
-			clean = int64(v)
-		case int64:
-			clean = v
 		case json.Number:
-			if _, err := v.Int64(); err == nil {
+			if _, err := v.Float64(); err == nil {
 				clean = v
+			}
+		default:
+			rv := reflect.ValueOf(value)
+			switch {
+			case !rv.IsValid():
+			case rv.CanInt():
+				clean = rv.Int()
+			case rv.CanUint() && rv.Uint() <= math.MaxInt64:
+				clean = int64(rv.Uint())
+			case rv.CanUint():
+				clean = json.Number(strconv.FormatUint(rv.Uint(), 10))
+			case rv.CanFloat() && !math.IsNaN(rv.Float()) && !math.IsInf(rv.Float(), 0):
+				clean = rv.Float()
 			}
 		}
 		if clean == nil {
@@ -137,20 +164,37 @@ func textVars(vars map[string]any, maxRunes int) map[string]any {
 	return out
 }
 
-// renderText fills the {{name}} placeholders of template in one pass, so a
-// value is never read as a placeholder itself; a missing var renders empty.
-func renderText(template string, vars map[string]any) string {
-	return textPlaceholder.ReplaceAllStringFunc(template, func(ph string) string {
-		switch v := vars[ph[2:len(ph)-2]].(type) {
+// fillText fills the {{name}} placeholders of template in one pass, so a
+// value is never read as a placeholder itself. A placeholder without a var
+// renders empty and is returned in missing.
+func fillText(template string, vars map[string]any) (text string, missing []string) {
+	text = textPlaceholder.ReplaceAllStringFunc(template, func(ph string) string {
+		name := ph[2 : len(ph)-2]
+		switch v := vars[name].(type) {
 		case string:
 			return v
 		case int64:
 			return strconv.FormatInt(v, 10)
 		case int:
 			return strconv.Itoa(v)
+		case float64:
+			return strconv.FormatFloat(v, 'f', -1, 64)
 		case json.Number:
 			return v.String()
 		}
+		missing = append(missing, name)
 		return ""
 	})
+	return text, missing
+}
+
+// renderText is fillText for the code's template; a placeholder without a
+// var (a call site that forgot it, or a value textVars dropped) is logged as
+// a warning.
+func (s *Service) renderText(code, template string, vars map[string]any) string {
+	text, missing := fillText(template, vars)
+	if len(missing) > 0 {
+		s.logger.Warn("CYD Creator text placeholder without a var", "code", code, "missing", missing)
+	}
+	return text
 }

@@ -1354,7 +1354,9 @@ async function makeAgent(opts) {
         'cyd_creator.step.file_written': '{{path}} geschrieben (Zeilen: {{lines}})',
         'cyd_creator.msg.job_cancelled_draft': 'Job abgebrochen. Entwurf behalten.',
         'cyd_creator.msg.job_failed': '{{error}} Projekt unverändert.',
-        'cyd_creator.error.CYD_BUILD_FAILED': 'Build fehlgeschlagen.'
+        'cyd_creator.error.CYD_BUILD_FAILED': 'Build fehlgeschlagen.',
+        'cyd_creator.step.build_failed': 'Build {{n}} fehlgeschlagen: {{error}}',
+        'cyd_creator.error.CYD_BUILD_TIMEOUT': 'Zu lange gebaut.'
     };
     Object.assign(sandbox.window.I18N, words);
     const at = minute => '2026-10-12T10:' + String(minute).padStart(2, '0') + ':00.000Z';
@@ -1371,6 +1373,7 @@ async function makeAgent(opts) {
     a.inst.bus.emit('sse:job_step', { job_id: 'ccj_s', kind: 'info', code: 'plan_submitted', vars: { screens: 2 }, text: 'Plan submitted · screens: 2' });
     a.inst.bus.emit('sse:job_step', { job_id: 'ccj_s', kind: 'info', code: 'File_Written', vars: { path: 'x' }, text: 'raw {{path}}' });
     a.inst.bus.emit('sse:job_step', { job_id: 'ccj_s', kind: 'build', text: 'Build 1 succeeded' });
+    a.inst.bus.emit('sse:job_step', { job_id: 'ccj_s', kind: 'build', code: 'build_failed', vars: { n: 2, error_code: 'CYD_BUILD_TIMEOUT', error: 'CYD_BUILD_TIMEOUT' }, text: 'Build 2 failed: CYD_BUILD_TIMEOUT' });
     const shown = a.log().childNodes.map(n => n.dataset.ccStep !== undefined ? n.childNodes[1].textContent : n.childNodes[0].textContent);
     eq('server lines show their translation or the English text', shown, [
         'Job abgebrochen. Entwurf behalten.',
@@ -1382,7 +1385,8 @@ async function makeAgent(opts) {
         'src/app/{lines}.cpp geschrieben (Zeilen: 3)',
         'Plan submitted · screens: 2',
         'raw {{path}}',
-        'Build 1 succeeded'
+        'Build 1 succeeded',
+        'Build 2 fehlgeschlagen: Zu lange gebaut.'
     ]);
     a.inst.bus.emit('sse:job_message', { message: { id: 'm7', role: 'system', code: 'job_cancelled_draft', text: 'The job was cancelled.', job_id: 'ccj_s', created_at: at(7) } });
     eq('a live system line is translated too', a.log().childNodes.at(-1).childNodes[0].textContent, 'Job abgebrochen. Entwurf behalten.');
@@ -1426,6 +1430,17 @@ async function makeAgent(opts) {
     b.inst.bus.emit('readonly:changed', false);
     eq('a reader scrolled up stays put, and the shown card does not jump later', [kept, away.scrollTop], [200, 1000]);
     b.dispose();
+    // A hidden panel (no height) does not use up the open: the next redraw in view opens the card.
+    const c = await makeAgent({ jobs: [agentJob('ccj_h', 'running', 2, { phase: 'planning' })] });
+    const hidden = geometry(c);
+    hidden.clientHeight = 0;
+    hidden.scrollTop = 700;
+    c.inst.bus.emit('job:status', planned('ccj_h'));
+    const whileHidden = hidden.scrollTop;
+    hidden.clientHeight = 300;
+    c.inst.bus.emit('readonly:changed', false);
+    eq('a plan card that appeared in a hidden panel opens at its top once shown', [whileHidden, hidden.scrollTop], [700, 592]);
+    c.dispose();
 }
 {
     const rev = { id: 'ccr_1', label: 'v1', reason: 'job', created_at: '2026-10-12T10:00:00.000Z' };

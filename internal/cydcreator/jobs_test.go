@@ -453,7 +453,7 @@ func TestProductiveJobGetsOneGraceWindow(t *testing.T) {
 	done := waitJob(t, env, job.ID, JobFailed)
 	extended := false
 	for _, ev := range drain(events) {
-		if ev.Type == EventJobStep && strings.Contains(string(ev.Data), "the job gets 15s more to finish") {
+		if ev.Type == EventJobStep && strings.Contains(string(ev.Data), "the job gets 15 s more to finish") {
 			extended = true
 		}
 	}

@@ -98,7 +98,7 @@ func (s *Service) postSystemMessage(projectID, jobID, code string, vars map[stri
 		return
 	}
 	vars = textVars(vars, maxMessageVarRunes)
-	text := strings.TrimSpace(renderText(template, vars))
+	text := strings.TrimSpace(s.renderText(code, template, vars))
 	if _, err := s.addMessage(context.Background(), projectID, jobID, MessageRoleSystem, text, nil, code, vars); err != nil {
 		s.logger.Warn("CYD Creator chat message could not be stored", "job_id", jobID, "error", err)
 	}

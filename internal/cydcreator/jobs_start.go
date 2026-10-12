@@ -312,7 +312,11 @@ func (s *Service) launchRun(run *jobRun) {
 		window := min(run.budget/3, 10*time.Minute)
 		return !run.lastChange.IsZero() && time.Since(run.lastChange) <= window
 	}, func(grace time.Duration) {
-		s.emitStep(run.projectID, run.jobID, StepInfo, "grace_extended", map[string]any{"duration": formatBudget(grace)})
+		if secs := textSeconds(grace); secs >= 60 {
+			s.emitStep(run.projectID, run.jobID, StepInfo, "grace_extended_minutes", map[string]any{"minutes": secs / 60, "seconds": secs % 60})
+		} else {
+			s.emitStep(run.projectID, run.jobID, StepInfo, "grace_extended", map[string]any{"seconds": secs})
+		}
 	})
 	s.jobs.active = run
 	s.wg.Add(1)
