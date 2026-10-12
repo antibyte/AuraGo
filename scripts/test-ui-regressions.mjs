@@ -1921,6 +1921,175 @@ function testNetworkCamerasDesktopContracts() {
   }
 }
 
+function loadNetworkCamerasDetectionViews() {
+  const source = read('ui/js/desktop/apps/network-cameras-detection-views.js');
+  const context = { window: {} };
+  vm.createContext(context);
+  vm.runInContext(source, context);
+  return context.window.NetworkCamerasDetectionViews;
+}
+
+function testNetworkCamerasDetectionViews() {
+  const views = read('ui/js/desktop/apps/network-cameras-detection-views.js');
+  assert.match(views, /const API = '\/api\/desktop\/integrations\/go2rtc\/detection\/'/);
+  assert.match(views, /const POLL_MS = 5000/);
+  assert.match(views, /window\.NetworkCamerasDetectionViews = Object\.freeze\(\{/);
+  assert.doesNotMatch(views, /innerHTML|addEventListener|localStorage|eval\(|new Function/, 'the views module only builds strings');
+  assert.doesNotMatch(views, /\b(?:alert|confirm|prompt)\s*\(/);
+
+  const ncd = loadNetworkCamerasDetectionViews();
+  const escape = value => String(value == null ? '' : value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+  const ctx = {
+    t: (key, params) => key + (params && Object.keys(params).length ? JSON.stringify(params) : ''),
+    esc: escape,
+    iconMarkup: () => '<i></i>'
+  };
+  const ns = 'desktop.network_cameras.detection.';
+
+  assert.equal(ncd.armSummary(ctx, { mode: 'on', armed: true }), ns + 'armed_now');
+  assert.equal(ncd.armSummary(ctx, { mode: 'off', armed: false }), ns + 'disarmed_now');
+  assert.equal(ncd.armSummary(ctx, { mode: 'schedule', armed: false, next_change: null }), ns + 'disarmed_schedule_empty');
+  assert.match(ncd.armSummary(ctx, { mode: 'schedule', armed: true, next_change: '2026-10-12T04:00:00Z' }, new Date('2026-10-11T20:00:00Z')), /armed_schedule_until\{"time":".+"\}/);
+  assert.match(ncd.armSummary(ctx, { mode: 'schedule', armed: false, next_change: '2026-10-12T20:00:00Z' }, new Date('2026-10-11T08:00:00Z')), /disarmed_schedule_from\{"time":".+"\}/);
+
+  const square = [[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+  const valid = ncd.cameraPayload(Object.assign(ncd.cameraDefaults({}), { zones: [{ name: ' Einfahrt ', points: square }] }));
+  assert.equal(valid.zones[0].name, 'Einfahrt', 'zone names are trimmed in the payload');
+  assert.equal(ncd.validateCameraSettings(valid), null);
+  const invalid = (patch, key) => assert.equal((ncd.validateCameraSettings(Object.assign({}, valid, patch)) || {}).key, key, key);
+  invalid({ interval_seconds: 0 }, 'invalid_interval');
+  invalid({ interval_seconds: 31 }, 'invalid_interval');
+  invalid({ min_score: 0.2 }, 'invalid_min_score');
+  invalid({ cooldown_seconds: 86401 }, 'invalid_cooldown');
+  invalid({ zones: [{ name: 'A', points: square.slice(0, 2) }] }, 'invalid_zone_points');
+  invalid({ zones: [{ name: 'A', points: [[0.1, 0.1], [1.2, 0.1], [0.5, 0.5]] }] }, 'invalid_zone_points');
+  invalid({ zones: [{ name: 'Hof', points: square }, { name: 'hof', points: square }] }, 'invalid_zone_name');
+  invalid({ zones: [{ name: 'x'.repeat(49), points: square }] }, 'invalid_zone_name');
+  invalid({ zones: Array.from({ length: 9 }, (_, index) => ({ name: 'Z' + index, points: square })) }, 'zone_limit');
+  invalid({ actions: Object.assign({}, valid.actions, { agent_instruction: '😀'.repeat(501) }) }, 'invalid_instruction');
+  assert.equal(ncd.validateCameraSettings(Object.assign({}, valid, { actions: Object.assign({}, valid.actions, { agent_instruction: '😀'.repeat(500) }) })), null, 'the instruction limit counts runes, not UTF-16 units');
+
+  assert.deepEqual(JSON.parse(JSON.stringify(ncd.cameraDefaults(null))), { enabled: false, interval_seconds: 2, min_score: 0.5, cooldown_seconds: 300, zones: [], actions: { message: false, channel: 'all', agent: false, agent_instruction: '', desktop: true } });
+  const kept = ncd.cameraDefaults({ enabled: true, interval_seconds: 5, min_score: 0.7, cooldown_seconds: 0, zones: [{ name: 'Tor', points: [[-1, 2], [0.5, 0.5], [0.2, 0.3]] }], actions: { message: true, channel: 'telegram', agent: true, agent_instruction: 'x', desktop: false } });
+  assert.equal(kept.cooldown_seconds, 0);
+  assert.equal(kept.actions.desktop, false);
+  assert.equal(kept.actions.channel, 'telegram');
+  assert.deepEqual(JSON.parse(JSON.stringify(kept.zones[0].points[0])), [0, 1], 'zone points are clamped to the frame');
+
+  const global = ncd.settingsPayload(ncd.globalDefaults({ enabled: true, model: 'accurate', backend: 'gpu', retention_days: 7, max_storage_mb: 500, schedule: [{ days: ['sun', 'mon'], from: '22:00', to: '06:00' }] }));
+  assert.deepEqual(JSON.parse(JSON.stringify(global)), { enabled: true, model: 'accurate', backend: 'gpu', retention_days: 7, max_storage_mb: 500, schedule: [{ days: ['mon', 'sun'], from: '22:00', to: '06:00' }] });
+  assert.equal(ncd.validateGlobalSettings(global), null);
+  assert.equal(ncd.validateGlobalSettings(Object.assign({}, global, { retention_days: 0 })).key, 'invalid_retention');
+  assert.equal(ncd.validateGlobalSettings(Object.assign({}, global, { max_storage_mb: 99 })).key, 'invalid_storage');
+  assert.equal(ncd.validateGlobalSettings(Object.assign({}, global, { schedule: [{ days: [], from: '22:00', to: '06:00' }] })).key, 'invalid_window');
+  assert.equal(ncd.validateGlobalSettings(Object.assign({}, global, { schedule: [{ days: ['mon'], from: '24:00', to: '06:00' }] })).key, 'invalid_window');
+  assert.deepEqual(JSON.parse(JSON.stringify(ncd.globalDefaults(null))), { enabled: false, model: 'standard', backend: 'auto', retention_days: 14, max_storage_mb: 2048, schedule: [] });
+
+  const events = [
+    { id: 2, camera_id: 'front', camera_name: 'Front', started_at: '2026-10-11T10:00:00Z', ended_at: '2026-10-11T10:01:05Z', max_score: 0.91, max_persons: 2, zones: [], armed: true, cover_frame_id: 21, alerts: {} },
+    { id: 1, camera_id: 'garage', camera_name: 'Garage', started_at: '2026-10-11T08:00:00Z', ended_at: null, max_score: 0.6, max_persons: 1, zones: ['Tor'], armed: false, cover_frame_id: null, alerts: {} }
+  ];
+  const armLog = [{ id: 9, at: '2026-10-11T09:00:00Z', mode: 'on', armed: true, actor: 'user' }, { id: 8, at: '2026-10-10T07:00:00Z', mode: 'off', armed: false, actor: 'agent' }];
+  assert.deepEqual(Array.from(ncd.timelineEntries(events, armLog, { camera: '', day: '' }, false), entry => entry.kind + entry.item.id), ['event2', 'arm9', 'event1', 'arm8']);
+  assert.deepEqual(Array.from(ncd.timelineEntries(events, armLog, { camera: '', day: '' }, true), entry => entry.kind + entry.item.id), ['event2', 'arm9', 'event1'], 'arm rows older than the loaded page wait for the next page');
+  assert.deepEqual(Array.from(ncd.timelineEntries(events, armLog, { camera: 'front', day: '' }, false), entry => entry.kind + entry.item.id), ['event2', 'event1'], 'a camera filter hides the global arm log');
+  assert.deepEqual(Array.from(ncd.upsertEvents([events[1]], [Object.assign({}, events[1], { max_persons: 3 }), events[0]]), event => event.id + ':' + event.max_persons), ['2:2', '1:3']);
+
+  const view = { status: { enabled: true, detector: { state: 'ready' }, cameras: [{ id: 'front' }] }, loaded: true, events: [], filter: { camera: '', day: '' } };
+  assert.equal(ncd.mainKind(Object.assign({}, view, { status: null })), 'loading');
+  assert.equal(ncd.mainKind(Object.assign({}, view, { status: null, connectionLost: true })), 'error');
+  assert.equal(ncd.mainKind(Object.assign({}, view, { status: { enabled: false } })), 'off');
+  assert.equal(ncd.mainKind(Object.assign({}, view, { status: { enabled: true, detector: { state: 'downloading' }, cameras: [] } })), 'preparing');
+  assert.equal(ncd.mainKind(Object.assign({}, view, { status: { enabled: true, detector: { state: 'ready' }, cameras: [] } })), 'no_camera');
+  assert.equal(ncd.mainKind(view), 'workspace');
+  assert.equal(ncd.mainKind(Object.assign({}, view, { status: { enabled: false }, events })), 'workspace', 'past events stay visible while detection is off');
+
+  const hostile = '<img src=x onerror=alert(1)>';
+  const row = ncd.eventRowMarkup(ctx, Object.assign({}, events[0], { camera_name: hostile, zones: ['"><script>'], alerts: { message: { status: 'failed', detail: '<b>telegram</b>' }, mission: { status: 'evil"' } } }), new Date(events[0].started_at), 2);
+  assert.doesNotMatch(row, /<img src=x|<script>|<b>telegram/);
+  assert.match(row, /&lt;img src=x onerror=alert\(1\)&gt;/);
+  assert.match(row, /class="ncd-alert is-skipped"/, 'unknown alert states fall back to skipped');
+  assert.match(row, /data-event="2" data-focus-key="event-2" aria-current="true"/);
+  assert.match(row, /src="\/api\/desktop\/integrations\/go2rtc\/detection\/images\/21\?thumb=1"/);
+  const timeline = ncd.timelineMarkup(ctx, { events: [Object.assign({}, events[0], { id: '3" onclick="x', cover_frame_id: 'x' })], armLog: [], filter: { camera: '"><svg>', day: '' }, streams: [{ id: '"><svg>', name: hostile }], status: null, hasMore: false });
+  assert.doesNotMatch(timeline, /onclick="x|<svg>|<img src=x/, 'non-numeric ids are dropped and names escaped');
+  assert.doesNotMatch(ncd.chipMarkup(ctx, { id: 'a', name: hostile, state: 'active', analyses_per_minute: 29.5, last_error: '"><script>' }), /<script>|<img src=x/);
+
+  const svg = ncd.boxesSvg([{ x1: '0.1" onload="x', y1: 0.1, x2: 0.5, y2: 0.9, score: 0.9 }, { x1: 0.1, y1: 0.2, x2: 0.3, y2: 0.9, score: 0.912, counts: true }, { x1: 0.5, y1: 0.2, x2: 0.6, y2: 0.8, score: 0.4, counts: false }], 1280, 720, 'test');
+  assert.doesNotMatch(svg, /onload|NaN|undefined/);
+  assert.equal((svg.match(/<rect /g) || []).length, 2);
+  assert.match(svg, /<rect class="ncd-box is-counted" x="128" y="144" width="256" height="504"/);
+  assert.match(svg, /class="ncd-box is-ignored"/);
+  assert.match(svg, />91 %<\/text>/);
+  const editor = ncd.zoneEditorSvg({ zones: [{ name: 'A', points: square }], selected: 0, drawing: null, width: 1000, height: 500, boxes: [] });
+  assert.equal((editor.match(/<circle class="ncd-vertex" data-zone="0" data-point="\d"/g) || []).length, 4);
+  assert.doesNotMatch(ncd.zoneEditorSvg({ zones: [{ name: 'A', points: [['x', 1], [0.2, 0.2], [0.3, 0.3]] }], selected: '0" onload="x', drawing: [[0.1, 0.1]], width: 'x', height: 720, boxes: [] }), /onload|NaN/);
+
+  const detail = ncd.detailMarkup(ctx, { windowKey: 'w1', selectedId: 2, detail: Object.assign({}, events[0], { frames: [{ id: 21, seq: 1, width: 1280, height: 720, boxes: [{ x1: 0.1, y1: 0.1, x2: 0.2, y2: 0.5, score: 0.9 }] }, { id: 22, seq: 2, width: 1280, height: 720, boxes: [] }] }), frameIndex: 1, canManage: true });
+  assert.match(detail, /src="\/api\/desktop\/integrations\/go2rtc\/detection\/images\/22"/);
+  assert.match(detail, /frame_position\{&quot;current&quot;:2,&quot;total&quot;:2\}/);
+  assert.match(detail, /data-ncd-action="next-frame"[^>]* disabled/);
+  assert.match(detail, /data-ncd-action="delete-event"/);
+  assert.doesNotMatch(ncd.detailMarkup(ctx, { windowKey: 'w1', selectedId: 2, detail: Object.assign({}, events[0], { frames: [] }), frameIndex: 0, canManage: false }), /delete-event/, 'viewers cannot delete events');
+
+  const settings = values => ncd.settingsMarkup(ctx, { windowKey: 'w1', dialog: { values: ncd.globalDefaults(values), busy: false, error: '' }, status: { detector: { fallback_reason: 'GPU not accessible: /dev/dri/renderD128: permission denied' } } });
+  assert.match(settings({}), /sudo usermod -aG render aurago/);
+  assert.doesNotMatch(ncd.settingsMarkup(ctx, { windowKey: 'w1', dialog: { values: ncd.globalDefaults({}), busy: false, error: '' }, status: { detector: { fallback_reason: '' } } }), /usermod/);
+  assert.match(settings({ schedule: [{ days: ['mon'], from: '22:00', to: '06:00' }] }), /data-window-day="0:mon"[^>]*aria-pressed="true"/);
+  assert.match(ncd.settingsMarkup(ctx, { windowKey: 'w1', dialog: { values: null, busy: false, error: '' }, status: null }), /data-ncd-action="save-settings"[^>]* disabled/, 'without loaded settings nothing can be saved');
+
+  const strip = ncd.stripMarkup(ctx, { canManage: false, status: { enabled: true, arm: { mode: 'on', armed: true }, detector: { state: 'degraded', backend: 'cpu', model_name: 'D-FINE-N', fallback_reason: 'self-test: <x>' }, cameras: [] } });
+  assert.doesNotMatch(strip, /data-arm=/, 'viewers see the arm state read-only');
+  assert.match(strip, /self-test: &lt;x&gt;/);
+  assert.match(ncd.stripMarkup(ctx, { canManage: true, status: { enabled: true, arm: { mode: 'schedule', armed: true }, detector: { state: 'error', error: 'boom' }, cameras: [] } }), /data-arm="schedule"[^>]*aria-pressed="true"[\s\S]*data-ncd-action="retry"/);
+
+  const cameraForm = ncd.cameraSettingsMarkup({ id: 'front"door', detection: { enabled: true, interval_seconds: 3, min_score: 0.6, cooldown_seconds: 60, zones: [{ name: hostile, points: square }], actions: { message: false, channel: 'all', agent: false, agent_instruction: '</textarea><script>', desktop: true } } }, ctx);
+  assert.doesNotMatch(cameraForm, /<script>|<img src=x|front"door/);
+  assert.match(cameraForm, /thumbnail\/front%22door\.jpg\?width=1280&amp;height=720&amp;cache=0/);
+  assert.match(cameraForm, /data-cam-field="actions.channel" disabled/, 'the channel only applies to messages');
+  assert.match(cameraForm, /data-cam-field="enabled" aria-describedby="ncd-restart-hint-frontdoor"[\s\S]*<p class="ncd-hint ncd-restart-hint" id="ncd-restart-hint-frontdoor">desktop\.network_cameras\.detection\.cam_restart_hint<\/p>/, 'the detection switch carries the go2rtc restart hint');
+  assert.deepEqual(JSON.parse(JSON.stringify(ncd.launchTarget({ event_id: 7, camera_id: 'front-door' }))), { eventId: 7, camera: 'front-door' });
+  assert.deepEqual(JSON.parse(JSON.stringify(ncd.launchTarget({ event_id: 7, camera_id: 'Front Door' }))), { eventId: 7, camera: '' });
+  assert.equal(ncd.launchTarget({ event_id: '7"><x' }), null);
+  assert.equal(ncd.launchTarget({ event_id: 0 }), null);
+  assert.equal(ncd.launchTarget(null), null);
+  assert.equal(ncd.nextZoneName(ctx, [{ name: ns + 'zone_default_name{"n":1}' }]), ns + 'zone_default_name{"n":2}');
+  assert.deepEqual(Array.from(ncd.normalizedPoint(150, 50, { left: 100, top: 0, width: 200, height: 100 })), [0.25, 0.5]);
+  assert.deepEqual(Array.from(ncd.normalizedPoint(-50, 500, { left: 0, top: 0, width: 200, height: 100 })), [0, 1]);
+  assert.equal(ncd.isNearPoint([0.5, 0.5], [0.503, 0.497]), true);
+  assert.equal(ncd.isNearPoint([0.5, 0.5], [0.52, 0.5]), false);
+  // Adaptations (controller notes): C5 zone-name rules, strict int64 ids, edge snap,
+  // nonzero fill, flat zones, server time zone, sanitized window keys.
+  assert.doesNotMatch(views, /evenodd/, 'zones use the default nonzero fill rule, like the backend');
+  const zoneNameKey = name => (ncd.validateCameraSettings(Object.assign({}, valid, { zones: [{ name, points: square }] })) || {}).key || null;
+  const cp = code => String.fromCodePoint(code);
+  assert.equal(zoneNameKey(cp(0x200B) + 'Hof'), 'invalid_zone_name', 'format characters are rejected');
+  assert.equal(zoneNameKey('Hof' + cp(0x202E)), 'invalid_zone_name', 'bidi controls are rejected');
+  assert.equal(zoneNameKey('Hof' + cp(7)), 'invalid_zone_name', 'control characters are rejected');
+  assert.equal(zoneNameKey('Hof' + String.fromCharCode(0xD800)), 'invalid_zone_name', 'lone surrogates are not valid UTF-8');
+  assert.equal(zoneNameKey(cp(0x200D) + ' ' + cp(0x200C)), 'invalid_zone_name', 'a name needs a visible character');
+  assert.equal(zoneNameKey(cp(0x1F468) + cp(0x200D) + cp(0x1F469)), null, 'the joiners ZWJ/ZWNJ are allowed');
+  assert.equal(zoneNameKey('é'.repeat(48)), null, 'the name limit counts runes');
+  assert.equal((ncd.validateCameraSettings(Object.assign({}, valid, { zones: [{ name: 'Cafe' + cp(0x301), points: square }, { name: 'CAFÉ', points: square }] })) || {}).key, 'invalid_zone_name', 'names compare in NFC, case-folded');
+  assert.deepEqual(JSON.parse(JSON.stringify(ncd.launchTarget({ event_id: '1800000000001' }))), { eventId: 1800000000001, camera: '' }, 'int64 ids stay exact');
+  for (const bad of ['0x10', '1e3', ' 7', '7.0', 1.5, -3, 2 ** 53]) assert.equal(ncd.idOf(bad), null, 'id ' + bad);
+  assert.deepEqual(Array.from(ncd.normalizedPoint(198, 1, { left: 0, top: 0, width: 200, height: 100 })), [1, 0], 'points within 0.015 of a frame edge snap to it');
+  assert.deepEqual(Array.from(ncd.normalizedPoint(196, 98, { left: 0, top: 0, width: 200, height: 100 })), [0.98, 0.98], 'points farther from the edge stay');
+  assert.equal(ncd.isFlatZone([[0, 0], [0.5, 0.5], [1, 1]]), true, 'points on one line make a flat zone');
+  assert.equal(ncd.isFlatZone(square), false);
+  const at = new Date('2026-10-11T20:00:00Z');
+  const localOffset = -at.getTimezoneOffset();
+  const offsetText = minutes => (minutes < 0 ? '-' : '+') + String(Math.floor(Math.abs(minutes) / 60)).padStart(2, '0') + ':' + String(Math.abs(minutes) % 60).padStart(2, '0');
+  const scheduleArm = offset => ({ mode: 'schedule', armed: true, next_change: '2026-10-12T04:00:00Z', time_zone: 'XST', utc_offset: offsetText(offset) });
+  const stripWith = arm => ncd.stripMarkup(ctx, { canManage: false, now: at, status: { enabled: true, arm, detector: { state: 'ready' }, cameras: [] } });
+  assert.match(stripWith(scheduleArm(localOffset + 60)), /arm_server_zone\{&quot;zone&quot;:&quot;XST, UTC[+-]\d{2}:\d{2}&quot;\}/, 'the arm status names the server zone when the browser offset differs');
+  assert.doesNotMatch(stripWith(scheduleArm(localOffset)), /arm_server_zone/, 'no zone label when browser and server agree');
+  assert.doesNotMatch(stripWith(Object.assign(scheduleArm(localOffset + 60), { time_zone: '<b>' })), /<b>|&lt;b&gt;/, 'an unexpected zone name is dropped');
+  assert.match(ncd.settingsMarkup(ctx, { windowKey: 'w1', dialog: { values: ncd.globalDefaults({}), busy: false, error: '' }, status: { arm: scheduleArm(localOffset) } }), /schedule_server_zone\{&quot;zone&quot;:&quot;XST, UTC[+-]\d{2}:\d{2}&quot;\}/, 'the schedule editor names the server zone');
+  assert.doesNotMatch(ncd.detailMarkup(ctx, { windowKey: 'w1"><x', selectedId: null }), /"><x/, 'window keys are sanitized');
+  assert.doesNotMatch(ncd.settingsMarkup(ctx, { windowKey: 'w1"><x', dialog: { values: ncd.globalDefaults({}), busy: false, error: '' }, status: null }), /"><x/);
+}
+
 async function testManusCatalogFailuresStayIsolatedAndActionsRequireReadyStatus() {
   const source = read('ui/cfg/manus.js');
   const catalogSource = sourceBetween(source, 'async function manusLoadCatalogs(showErrors)', 'async function manusLoadProjectSkills(projectIDs, showErrors)');
@@ -4036,6 +4205,7 @@ const tests = [
   ['local Granite multimodal observer remains idempotent', testLocalGraniteMultimodalObserverIsIdempotent],
   ['remote embedding status never renders Granite CPU state', testRemoteEmbeddingStatusNeverRendersGraniteCPUState],
   ['Network Cameras desktop contracts', testNetworkCamerasDesktopContracts],
+  ['Network Cameras person detection views', testNetworkCamerasDetectionViews],
   ['Manus catalog failures stay isolated and actions require ready status', testManusCatalogFailuresStayIsolatedAndActionsRequireReadyStatus],
   ['Speech Lab recorder resumes audio and routes fallbacks safely', testSpeechLabRecorderLifecycleAndFallbacks],
   ['Quick Connect SFTP navigator ignores stale listings', testQuickConnectSFTPNavigatorIgnoresStaleListings],
