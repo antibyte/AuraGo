@@ -398,6 +398,9 @@ func TestCYDCreatorHomeModule(t *testing.T) {
 // both markers stay in place. The tests check relative order only, so inserted modules are fine.
 var cydCreatorShellModules = []string{
 	"cyd-creator-core.js", "cyd-creator-api.js", "cyd-creator-events.js",
+	"cyd-creator-geometry.js", "cyd-creator-model.js", "cyd-creator-render.js", "cyd-creator-canvas.js",
+	"cyd-creator-interact.js", "cyd-creator-palette.js", "cyd-creator-inspector-fields.js",
+	"cyd-creator-inspector.js", "cyd-creator-screens.js", "cyd-creator-designer.js",
 	"cyd-creator-code.js", "cyd-creator-dock.js", "cyd-creator-agent.js", "cyd-creator-home.js",
 	"cyd-creator-app.js",
 }
