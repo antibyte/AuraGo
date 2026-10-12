@@ -2,11 +2,14 @@ package tools
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
+
+	"aurago/internal/scraper"
 )
 
 func withScraperTestServer(t *testing.T, body string) string {
@@ -464,5 +467,76 @@ func TestExecuteWebScraperReportsUnreadablePage(t *testing.T) {
 	}
 	if len(selectedPayload.Matches) != 1 || !strings.Contains(selectedPayload.Matches[0], "visible") {
 		t.Fatalf("selector matches = %+v, want visible", selectedPayload.Matches)
+	}
+}
+
+func TestExecuteWebScraperRedactsDynamicFallbackWarning(t *testing.T) {
+	const thinHTML = `<html><head><title>Note</title></head><body><article><h1>Note</h1><p class="lead">Hello there.</p></article><script>window.app=true</script></body></html>`
+	const blockedErr = "rod open page: access to internal address 10.9.8.7"
+	const wantBlocked = "Dynamic fallback failed: URL not allowed"
+	const launcherErr = "rod launcher: browser missing"
+	const wantLauncher = "Dynamic fallback failed: rod launcher: browser missing"
+
+	orig := fetchDynamicFallback
+	t.Cleanup(func() { fetchDynamicFallback = orig })
+
+	url := withScraperTestServer(t, thinHTML)
+
+	fetchDynamicFallback = func(_ *scraper.AgentScraper, _, _ string) (*scraper.ScrapeResult, error) {
+		return nil, errors.New(blockedErr)
+	}
+
+	autoResult := ExecuteWebScraperWithOptions(url, WebScraperOptions{Mode: "auto"})
+	var autoPayload struct {
+		Status  string `json:"status"`
+		Mode    string `json:"mode"`
+		Warning string `json:"warning"`
+	}
+	if err := json.Unmarshal([]byte(autoResult), &autoPayload); err != nil {
+		t.Fatalf("auto result is not JSON: %s", autoResult)
+	}
+	if autoPayload.Status != "success" {
+		t.Fatalf("auto status = %q, want success; result = %s", autoPayload.Status, autoResult)
+	}
+	if autoPayload.Mode != "static" {
+		t.Fatalf("auto mode = %q, want static; result = %s", autoPayload.Mode, autoResult)
+	}
+	if autoPayload.Warning != wantBlocked {
+		t.Fatalf("auto warning = %q, want %q; result = %s", autoPayload.Warning, wantBlocked, autoResult)
+	}
+	if strings.Contains(autoResult, "10.9.8.7") || strings.Contains(autoResult, "internal address") {
+		t.Fatalf("auto result leaked blocked address: %s", autoResult)
+	}
+
+	structuredResult := ExecuteWebScraperWithOptions(url, WebScraperOptions{Mode: "auto", Selector: ".lead"})
+	var structuredPayload struct {
+		Status  string `json:"status"`
+		Warning string `json:"warning"`
+	}
+	if err := json.Unmarshal([]byte(structuredResult), &structuredPayload); err != nil {
+		t.Fatalf("structured result is not JSON: %s", structuredResult)
+	}
+	if structuredPayload.Status != "success" {
+		t.Fatalf("structured status = %q, want success; result = %s", structuredPayload.Status, structuredResult)
+	}
+	if structuredPayload.Warning != wantBlocked {
+		t.Fatalf("structured warning = %q, want %q; result = %s", structuredPayload.Warning, wantBlocked, structuredResult)
+	}
+	if strings.Contains(structuredResult, "10.9.8.7") {
+		t.Fatalf("structured result leaked blocked address: %s", structuredResult)
+	}
+
+	fetchDynamicFallback = func(_ *scraper.AgentScraper, _, _ string) (*scraper.ScrapeResult, error) {
+		return nil, errors.New(launcherErr)
+	}
+	launcherResult := ExecuteWebScraperWithOptions(url, WebScraperOptions{Mode: "auto"})
+	var launcherPayload struct {
+		Warning string `json:"warning"`
+	}
+	if err := json.Unmarshal([]byte(launcherResult), &launcherPayload); err != nil {
+		t.Fatalf("launcher result is not JSON: %s", launcherResult)
+	}
+	if launcherPayload.Warning != wantLauncher {
+		t.Fatalf("launcher warning = %q, want %q; result = %s", launcherPayload.Warning, wantLauncher, launcherResult)
 	}
 }

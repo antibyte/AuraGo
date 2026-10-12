@@ -30,6 +30,12 @@ var scraperHTTPClient = security.NewSSRFProtectedHTTPClient(15 * time.Second)
 // scraperGuardian is a package-level Guardian used to scan and isolate web content.
 var scraperGuardian = security.NewGuardian(nil)
 
+// fetchDynamicFallback is the auto-mode Chromium fallback. Tests replace it so
+// FetchDynamic never launches a browser.
+var fetchDynamicFallback = func(s *scraper.AgentScraper, rawURL, waitForSelector string) (*scraper.ScrapeResult, error) {
+	return s.FetchDynamic(rawURL, waitForSelector)
+}
+
 type WebScraperOptions struct {
 	Context         context.Context
 	Mode            string
@@ -108,12 +114,12 @@ func executeWebScraperAuto(rawURL, waitForSelector string, contexts ...context.C
 		return formatScrapeError(err)
 	}
 	if scrapeResultLooksThin(result) {
-		dynamic, dynErr := s.FetchDynamic(rawURL, waitForSelector)
+		dynamic, dynErr := fetchDynamicFallback(s, rawURL, waitForSelector)
 		if dynErr == nil && !scrapeResultLooksThin(dynamic) {
 			return formatScrapeResult("dynamic", dynamic, "")
 		}
 		if dynErr != nil {
-			return formatScrapeResult("static", result, fmt.Sprintf("Dynamic fallback failed: %v", dynErr))
+			return formatScrapeResult("static", result, dynamicFallbackWarning(dynErr))
 		}
 	}
 	return formatScrapeResult("static", result, "")
@@ -382,13 +388,13 @@ func executeWebScraperStructuredAuto(rawURL string, options WebScraperOptions) s
 		return formatScrapeError(err)
 	}
 	if scrapeResultLooksThin(result) {
-		dynamic, dynErr := s.FetchDynamic(rawURL, options.WaitForSelector)
+		dynamic, dynErr := fetchDynamicFallback(s, rawURL, options.WaitForSelector)
 		if dynErr == nil && !scrapeResultLooksThin(dynamic) {
 			return extractStructuredHTML(dynamic.RawHTML, rawURL, options, "dynamic")
 		}
 		if dynErr != nil {
 			structured := extractStructuredHTML(result.RawHTML, rawURL, options, "static")
-			return withWarning(structured, fmt.Sprintf("Dynamic fallback failed: %v", dynErr))
+			return withWarning(structured, dynamicFallbackWarning(dynErr))
 		}
 	}
 	return extractStructuredHTML(result.RawHTML, rawURL, options, "static")
@@ -642,6 +648,14 @@ func isolateTableRows(rawURL string, rows [][]string) [][]string {
 		rows[i] = isolateStrings(rawURL, row)
 	}
 	return rows
+}
+
+func dynamicFallbackWarning(err error) string {
+	msg := err.Error()
+	if strings.Contains(msg, "SSRF") || strings.Contains(msg, "internal address") || strings.Contains(msg, "URL not allowed") {
+		return "Dynamic fallback failed: URL not allowed"
+	}
+	return fmt.Sprintf("Dynamic fallback failed: %v", err)
 }
 
 func formatScrapeError(err error) string {

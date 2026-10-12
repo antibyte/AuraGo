@@ -23,7 +23,7 @@ Agent filesystem, external service and Docker tool safety boundaries.
 
 ### Web scraper and site crawler
 - `web_scraper` and `site_crawler` share `tools.web_scraper.enabled`. Public fetches use `security.MaxSSRFResponseBytes`. Dynamic mode uses `newScraperLauncher` and one process-wide slot.
-- `web_scraper` static, RSS, and auto share that single GET. Auto returns RSS when `rssResponseLooksLikeFeed` and `parseRSSOrAtom` both succeed; otherwise it passes the same body to `AgentScraper.ScrapeHTML` and does not GET again. A thin HTML result may still call `FetchDynamic`. `internal/tools` does not export the GET helper. `FetchStatic` does not use Colly.
+- `web_scraper` static, RSS, and auto share that single GET. Auto returns RSS when `rssResponseLooksLikeFeed` and `parseRSSOrAtom` both succeed; otherwise it passes the same body to `AgentScraper.ScrapeHTML` and does not GET again. A thin HTML result may still call `FetchDynamic`. A dynamic fallback warning uses that same redaction, so a blocked address never appears in the warning. `internal/tools` does not export the GET helper. `FetchStatic` does not use Colly.
 - `site_crawler` honors robots.txt, applies `selector` via goquery, cuts previews at 500 runes, skips a body whose length equals `MaxSSRFResponseBytes` with the preview `page skipped because it exceeds 5 MiB`, and isolates title and preview with `ScanExternalContent`.
 
 ### GitHub repository trust
