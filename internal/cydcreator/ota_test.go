@@ -200,19 +200,27 @@ func TestDeviceAuthFailureKeysAreCapped(t *testing.T) {
 	for i := 0; i < maxAuthClients; i++ {
 		l.authFailed(fmt.Sprintf("10.%d.%d.1", i/256, i%256), "ccdt_bad", now)
 	}
-	// The map is full of fresh keys: new addresses share the overflow bucket,
-	// which blocks after authFailuresPerWindow distinct tokens.
+	// The map is full of fresh keys: failures of new addresses are dropped, so
+	// memory stays bounded and no client is blocked through a shared bucket.
 	for i := 0; i < authFailuresPerWindow; i++ {
-		l.authFailed(fmt.Sprintf("192.168.%d.1", i), fmt.Sprintf("guess-%d", i), now)
+		l.authFailed("192.168.0.1", fmt.Sprintf("guess-%d", i), now)
+		l.authFailed(fmt.Sprintf("192.168.%d.1", i+1), fmt.Sprintf("guess-%d", i), now)
 	}
-	if n := len(l.auth); n != maxAuthClients+1 {
-		t.Fatalf("keys = %d, want %d (the overflow bucket on top)", n, maxAuthClients+1)
+	if n := len(l.auth); n != maxAuthClients {
+		t.Fatalf("keys = %d, want %d", n, maxAuthClients)
 	}
-	if !l.authBlocked("192.168.200.1", now) {
-		t.Fatal("a new address must share the saturated overflow bucket")
+	for _, client := range []string{"192.168.0.1", "192.168.200.1"} {
+		if l.authBlocked(client, now) {
+			t.Fatalf("%s is blocked without recorded failures", client)
+		}
 	}
-	if l.authBlocked("10.0.0.1", now) {
-		t.Fatal("a known address keeps its own key")
+	// A known address keeps its own key and is limited as usual, with at most
+	// authFailuresPerWindow tokens.
+	for i := 0; i < 2*authFailuresPerWindow; i++ {
+		l.authFailed("10.0.0.1", fmt.Sprintf("guess-%d", i), now)
+	}
+	if !l.authBlocked("10.0.0.1", now) || len(l.auth["10.0.0.1"]) != authFailuresPerWindow {
+		t.Fatalf("known address: blocked %v, %d tokens", l.authBlocked("10.0.0.1", now), len(l.auth["10.0.0.1"]))
 	}
 	// After the window the sweep frees the map: new addresses get their own key.
 	later := now.Add(authFailureWindow)
@@ -222,6 +230,44 @@ func TestDeviceAuthFailureKeysAreCapped(t *testing.T) {
 	l.authFailed("192.168.201.1", "guess", later)
 	if n := len(l.auth); n != 1 {
 		t.Fatalf("keys after the sweep = %d, want 1", n)
+	}
+}
+
+// An attacker who fills the failure map and then guesses from one more
+// address must not lock out a clean client (heartbeat and firmware download).
+func TestDeviceAuthOverflowNeverBlocksACleanClient(t *testing.T) {
+	env, _ := newDeviceEnv(t)
+	ctx := context.Background()
+	p := env.createProject(t, "Flut")
+	first := succeededBuild(t, env, p.ID)
+	minted, token := mintTestDevice(t, env, p.ID, first.ID)
+	second := succeededBuild(t, env, p.ID)
+	target := second.ID
+	if _, err := env.svc.UpdateDevice(ctx, minted.Device.ID, DeviceUpdate{TargetBuildID: &target}); err != nil {
+		t.Fatal(err)
+	}
+	now := env.svc.now()
+	for i := 0; i < maxAuthClients; i++ {
+		env.svc.deviceLimits.authFailed(fmt.Sprintf("10.%d.%d.1", i/256, i%256), "ccdt_bad", now)
+	}
+	attacker := DeviceRequest{ClientIP: "203.0.113.7"}
+	for i := 0; i <= authFailuresPerWindow; i++ {
+		attacker.Token = fmt.Sprintf("ccdt_%064x", i+1)
+		if _, err := env.svc.DeviceHeartbeat(ctx, attacker, heartbeatFor(minted.Device, first.ID)); ErrorCode(err) != CodeUnauthorized {
+			t.Fatalf("overflow guess %d: %v", i, err)
+		}
+	}
+	clean := DeviceRequest{Token: token, ClientIP: "198.51.100.20"}
+	if _, err := env.svc.DeviceHeartbeat(ctx, clean, heartbeatFor(minted.Device, first.ID)); err != nil {
+		t.Fatalf("clean client heartbeat: %v", err)
+	}
+	f, _, err := env.svc.DeviceFirmware(ctx, clean, second.ID)
+	if err != nil {
+		t.Fatalf("clean client firmware: %v", err)
+	}
+	_ = f.Close()
+	if n := len(env.svc.deviceLimits.auth); n != maxAuthClients {
+		t.Fatalf("failure keys = %d, want %d", n, maxAuthClients)
 	}
 }
 

@@ -36,11 +36,12 @@ const (
 	// minute), so keys of removed devices cannot pile up.
 	longestDeviceWindow    = 10 * time.Minute
 	deviceLimiterSweepKeys = 1024
-	// maxAuthClients caps the client keys of the failed-authentication limit;
-	// while it is reached (after a sweep), further clients share the bucket
-	// authOverflowKey, so rotating addresses cannot grow memory.
-	maxAuthClients  = 4096
-	authOverflowKey = "*"
+	// maxAuthClients caps the client keys of the failed-authentication limit.
+	// While it is reached (after a sweep), failures of clients without a key
+	// are not recorded, so rotating addresses neither grow memory nor block a
+	// client that never failed. Such clients may guess without a limit until
+	// keys expire; that is acceptable against 256-bit device tokens.
+	maxAuthClients = 4096
 	// rolledBackPrefix starts the ota_error of a boot after a rollback
 	// (template cyd_link.cpp link_begin: "rolled back from <build id>").
 	rolledBackPrefix = "rolled back from "
@@ -104,53 +105,56 @@ func (l *deviceLimiter) authTokens(key string, now time.Time) map[[sha256.Size]b
 	return tokens
 }
 
-// authKey maps a client to its own key, or to authOverflowKey while the map
-// holds maxAuthClients other keys (idle keys are swept at most once a minute
-// first). Callers hold mu.
-func (l *deviceLimiter) authKey(client string, now time.Time) string {
-	key := clientKey(client)
+// authRoom reports whether failures of key may be recorded: the key exists or
+// the map has room for it (idle keys are swept at most once a minute when it
+// is full). Callers hold mu.
+func (l *deviceLimiter) authRoom(key string, now time.Time) bool {
 	if _, ok := l.auth[key]; ok || len(l.auth) < maxAuthClients {
-		return key
+		return true
 	}
 	if now.Sub(l.authSwept) >= time.Minute {
 		l.authSwept = now
 		for k := range l.auth {
 			l.authTokens(k, now)
 		}
-		if len(l.auth) < maxAuthClients {
-			return key
-		}
 	}
-	return authOverflowKey
+	return len(l.auth) < maxAuthClients
 }
 
 // authBlocked reports whether the client failed with authFailuresPerWindow
-// distinct tokens within the window.
+// distinct tokens within the window. Only the client's own key counts: a
+// client without recorded failures is never blocked.
 func (l *deviceLimiter) authBlocked(client string, now time.Time) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	return len(l.authTokens(l.authKey(client, now), now)) >= authFailuresPerWindow
+	return len(l.authTokens(clientKey(client), now)) >= authFailuresPerWindow
 }
 
 // authFailed records a failed authentication. The same token counts once per
 // window: a revoked or orphaned device that repeats its stale token every
 // heartbeat cannot lock out the devices sharing its address, while guessing
-// needs a new token per try and stays capped. A blocked client records
-// nothing (authBlocked runs first), so a key holds about authFailuresPerWindow
-// tokens at most.
+// needs a new token per try and stays capped. Memory is bounded: at most
+// maxAuthClients keys (see there for clients beyond it) with at most
+// authFailuresPerWindow tokens each.
 func (l *deviceLimiter) authFailed(client, token string, now time.Time) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.auth == nil {
 		l.auth = map[string]map[[sha256.Size]byte]time.Time{}
 	}
-	key := l.authKey(client, now)
+	key := clientKey(client)
+	if !l.authRoom(key, now) {
+		return
+	}
 	tokens := l.authTokens(key, now)
 	if tokens == nil {
 		tokens = map[[sha256.Size]byte]time.Time{}
 		l.auth[key] = tokens
 	}
-	tokens[sha256.Sum256([]byte(token))] = now
+	hash := sha256.Sum256([]byte(token))
+	if _, seen := tokens[hash]; seen || len(tokens) < authFailuresPerWindow {
+		tokens[hash] = now
+	}
 }
 
 func (l *deviceLimiter) recent(key string, now time.Time, window time.Duration) []time.Time {
