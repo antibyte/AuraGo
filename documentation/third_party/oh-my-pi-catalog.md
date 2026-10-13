@@ -10,7 +10,9 @@ AuraGo vendors a normalized snapshot of model and provider metadata from the npm
 The vendored files live under `internal/llm/catalog/`:
 
 - `ohmypi_models.json`
+- `ohmypi_models.json.gz`
 - `ohmypi_providers.json`
+- `ohmypi_providers.json.gz`
 - `ohmypi_metadata.json`
 
 The snapshot is updated manually with:
@@ -20,4 +22,6 @@ go run scripts/sync_ohmypi_catalog.go --version latest --check
 go run scripts/sync_ohmypi_catalog.go --version latest --write
 ```
 
-The sync downloads the npm release tarball and extracts only `package/src/models.json`, `package/src/provider-models/descriptors.ts`, and `package/package.json`. AuraGo does not execute upstream TypeScript at runtime or during sync.
+For a reproducible refresh, pass the same explicit npm version to `--write` and the subsequent `--check`. The metadata file records the imported version and tarball URL. The generated gzip files are embedded in the Go binary, so a running installation receives the refreshed catalog after a rebuild and restart.
+
+The sync downloads one npm release tarball and extracts only `package/src/models.json`, `package/src/compat/rules.json`, and `package/package.json`. Models and compiled provider rules therefore come from the same release. AuraGo does not execute upstream TypeScript at runtime or during sync.
