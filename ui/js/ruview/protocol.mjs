@@ -29,7 +29,7 @@ export async function sha256(bytes){return Array.from(new Uint8Array(await crypt
 export function validateProfile(profile){
     const expected=`${profile.chip}-${profile.flash_bytes/1048576}mb-${profile.console}`;
     if(profile.id!==expected)throw Error('invalid_firmware');
-    if(!/^esp32s[3]-[48]mb-(uart|cdc)$|^esp32c6-4mb-(uart|cdc)$/.test(profile.id)||!['esp32s3','esp32c6'].includes(profile.chip)||![4194304,8388608].includes(profile.flash_bytes)||!['uart','cdc'].includes(profile.console)||profile.parts.length!==4)throw Error('invalid_firmware');
+    if(!/^esp32s3-(4|8|16)mb-(uart|cdc)$|^esp32c6-4mb-(uart|cdc)$/.test(profile.id)||!['esp32s3','esp32c6'].includes(profile.chip)||![4194304,8388608,16777216].includes(profile.flash_bytes)||!['uart','cdc'].includes(profile.console)||profile.parts.length!==4)throw Error('invalid_firmware');
     let end=0;for(const p of [...profile.parts].sort((a,b)=>a.offset-b.offset)){if(!/^[a-z0-9_.-]+\.bin$/.test(p.name)||!Number.isSafeInteger(p.offset)||p.offset<end||p.offset%4096||!Number.isSafeInteger(p.size)||p.size<=0||p.offset+p.size>profile.flash_bytes||!/^[a-f0-9]{64}$/.test(p.sha256))throw Error('invalid_firmware');if(p.offset<0xf000&&p.offset+p.size>0x9000)throw Error('invalid_firmware');end=p.offset+p.size;}
     const offsets=profile.parts.map(p=>p.offset).sort((a,b)=>a-b);
     if(offsets.join(',')!=='0,32768,61440,131072'||!profile.parts.some(p=>p.offset===0x8000&&p.sha256===profile.partition_sha256))throw Error('invalid_firmware');return profile;

@@ -353,6 +353,13 @@ Server-owned HTTP and cross-component integration contracts.
 - Server APIs under `/api/homepage/sites` expose the managed-site read model, including detail `deploy_targets` and `remote_observations`, plus the reconciliation path. Keep these APIs additive and compatible with existing `/api/homepage/history`.
 
 ### Configuration UI Integration Test Contract
+
+- RuView `GET /api/ruview/board-setup` and its Desktop integration alias are
+  administrator-only, `no-store` reads of saved receiver/UDP defaults and LAN
+  suggestions. They never resolve DNS, probe, start a runtime or publish UDP.
+  Container interfaces cannot stand in for a Docker host; remote/external
+  placement cannot enumerate AuraGo's local interfaces as receiver candidates.
+  Verify `TestRuViewBoardSetupIsAdminOnlyAndPassive` and `internal/ruview/TestBoardSetup*`.
 - `/api/treg/` is admin-only. Connection tests read the saved Vault-backed organization and balance; they never execute a catalog endpoint or accept a token in the request body. Catalog, balance and local status routes share the client policy boundary.
 - Schema-rendered Telegram, Discord, Rocket.Chat, Home Assistant, Proxmox, S3, Frigate, and Ansible sections expose read-only connection tests through the shared registry in `ui/js/config/`.
 - Test actions are enabled only for saved configuration and available Vault-backed credentials. Their backend routes are POST-only and admin-protected; probes must not send messages, execute playbooks, mutate storage, or change remote state.

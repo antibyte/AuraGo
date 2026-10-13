@@ -3,7 +3,7 @@ set -euo pipefail
 # Run inside the pinned ESP-IDF image with only a disposable firmware copy mounted.
 cd /project
 test "$(tr -d '\r\n' < version.txt)" = "0.8.12"
-for spec in esp32s3:4 esp32s3:8 esp32c6:4; do
+for spec in esp32s3:4 esp32s3:8 esp32s3:16 esp32c6:4; do
   chip=${spec%:*}; size=${spec#*:}
   for console in uart cdc; do
     id="$chip-${size}mb-$console"
@@ -11,6 +11,10 @@ for spec in esp32s3:4 esp32s3:8 esp32c6:4; do
     defaults=sdkconfig.defaults
     if [ "$size" = 4 ] && [ "$chip" = esp32s3 ]; then defaults=sdkconfig.defaults.4mb; fi
     cat "$defaults" > "out/$id/sdkconfig.defaults"
+    if [ "$size" = 16 ]; then
+      # N16 boards retain the reviewed 8 MiB partition layout; upper flash is unused.
+      sed -i 's/CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y/CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y/; s/CONFIG_ESPTOOLPY_FLASHSIZE="8MB"/CONFIG_ESPTOOLPY_FLASHSIZE="16MB"/' "out/$id/sdkconfig.defaults"
+    fi
     if [ "$chip" = esp32c6 ]; then cat sdkconfig.defaults.esp32c6 >> "out/$id/sdkconfig.defaults"; fi
     # Generic profiles must not drive a display, mmWave accessory or require PSRAM.
     sed -i '/CONFIG_ESP_CONSOLE_/d; /CONFIG_DISPLAY_ENABLE/d; /CONFIG_WASM_ENABLE/d; /CONFIG_SPIRAM/d; /CONFIG_MMWAVE_ENABLE/d' "out/$id/sdkconfig.defaults"

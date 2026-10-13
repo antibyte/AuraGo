@@ -694,6 +694,21 @@ worker. Keep packaging, recovery and offline instructions in
   after ten seconds. Source probes and timers must respect connection disposal.
   Verify `scripts/ruview/upstream.test.mjs`, `scripts/ruview/browser.test.mjs` and
   backend `TestDashboardHealthEndpointsAreReadOnly`; keep `documentation/ruview.md` aligned.
+  The shared board wizard uses host theme tokens and native checkbox semantics.
+  Label firmware, WLAN/receiver setup and sensor checks as numbered steps; keep
+  restart confirmation inside step 2, and show action feedback beside its button.
+  Preserve WLAN drafts on cancellation, failed transfer and unrelated checks;
+  clear them after acknowledged configuration or dialog disposal. Readback and
+  fresh CSI verification require their preceding acknowledgements. Load saved
+  receiver/port defaults through the administrative `board-setup` read, preserve
+  typed values and require explicit acceptance of unverified LAN suggestions.
+  Never enable UDP from the wizard. S3 N16R8 boards use the exact 16 MiB profile
+  (8 MiB is PSRAM); capacity errors show detected and selected sizes before writes.
+  Keep the pinned firmware build, catalog, artifacts and profile validation aligned.
+  Transient policy/status failures retain the draft, but never bypass the fresh
+  permission check before an action; confirmed revocation still closes and clears it.
+  Verify `scripts/ruview/wizard-browser.test.mjs`
+  in Standard and Fruity light/dark, all locales and narrow/wide layouts.
 
 ## Work Guidance
 

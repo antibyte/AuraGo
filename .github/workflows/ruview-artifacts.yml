@@ -94,7 +94,7 @@ jobs:
           ref: a71634ae8a606bba5463489450c69e8b42de114e
           path: upstream
           persist-credentials: false
-      - name: Build all six supported profiles
+      - name: Build all eight supported profiles
         run: |
           cp scripts/ruview/build-firmware.sh upstream/firmware/esp32-csi-node/aurago-build.sh
           docker run --rm --mount type=bind,source="$PWD/upstream/firmware/esp32-csi-node",target=/project espressif/idf@sha256:f1e9f69dc052b9afc7801ca884e0ef40c17e014bb05ce73d9c09d29290bd17fb bash /project/aurago-build.sh

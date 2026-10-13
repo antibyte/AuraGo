@@ -145,7 +145,6 @@ function ruviewConfigActionReason(action) {
     if (action === 'setup') {
         if (c.readonly) return tr('write_first');
         if (c.source !== 'esp32') return tr('source_help_esp32');
-        if (!c.receiver_ip) return tr('receiver_help');
     }
     return '';
 }

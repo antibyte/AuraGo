@@ -9,7 +9,7 @@ const catalogPath = 'internal/ruview/artifacts.json';
 const catalog = JSON.parse(await readFile(catalogPath));
 const profiles = [];
 const sha256 = data => createHash('sha256').update(data).digest('hex');
-for (const [chip, size] of [['esp32s3',4],['esp32s3',8],['esp32c6',4]]) {
+for (const [chip, size] of [['esp32s3',4],['esp32s3',8],['esp32s3',16],['esp32c6',4]]) {
   for (const console of ['uart','cdc']) {
     const id = `${chip}-${size}mb-${console}`, dir = path.join(root,id,'build');
     const args = JSON.parse(await readFile(path.join(dir,'flasher_args.json')));

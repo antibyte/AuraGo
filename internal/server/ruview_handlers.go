@@ -77,6 +77,9 @@ func registerRuViewRoutes(mux *http.ServeMux, s *Server) {
 			case "status":
 				_ = json.NewEncoder(w).Encode(s.RuView.Status())
 				return
+			case "board-setup":
+				_ = json.NewEncoder(w).Encode(s.RuView.BoardSetup())
+				return
 			case "capabilities":
 				_ = json.NewEncoder(w).Encode(map[string]any{"revision": ruview.Revision, "catalog": ruview.Artifacts(), "unavailable": []string{"model_load", "model_unload", "lora_activate", "pose_stats", "demo_zones"}})
 				return

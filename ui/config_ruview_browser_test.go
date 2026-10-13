@@ -129,8 +129,26 @@ func TestRuViewConfigBrowser(t *testing.T) {
 	if page.MustElement(`dialog input[name="receiver"]`).MustProperty("value").Str() != "192.168.1.20" {
 		t.Fatal("board wizard did not receive the saved receiver address")
 	}
+	for _, theme := range []string{"dark", "light"} {
+		page.MustEval(`theme => {document.documentElement.dataset.theme=theme; document.body.dataset.theme=theme;}`, theme)
+		page.MustEval(`() => new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`)
+		if !page.MustEval(`theme => {
+		 const dialog=document.querySelector('dialog'), style=getComputedStyle(dialog);
+		 const rgb=style.backgroundColor.match(/[\d.]+/g).map(Number), brightness=(rgb[0]+rgb[1]+rgb[2])/3;
+		 const box=dialog.querySelector('[name="keep"]').getBoundingClientRect();
+		 return (theme==='dark'?brightness<100:brightness>150) && box.width===20 && box.height===20 && dialog.querySelectorAll('section h3').length===3;
+		}`, theme).Bool() {
+			t.Fatalf("%s Config wizard lost its theme, checkbox dimensions or numbered sections", theme)
+		}
+	}
 	page.MustElement(`dialog button[value="close"]`).MustClick()
 	waitForJSBool(t, page, `() => !document.querySelector('dialog[open]')`)
+	page.MustEval(`() => {const el=document.getElementById('ruview-receiver_ip');el.value='';el.dispatchEvent(new Event('input',{bubbles:true}));}`)
+	page.MustElement("#btnSave").MustClick()
+	waitForJSBool(t, page, `() => !hasUnsavedConfigChanges()`)
+	if page.MustElement("#ruview-setup").MustProperty("disabled").Bool() {
+		t.Fatal("an unknown receiver must not block opening the wizard that helps discover it")
+	}
 
 	page.MustElement("#ruview-mode").MustSelect("Verwaltetes Docker")
 	clickToggle("udp_enabled")

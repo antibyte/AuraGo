@@ -151,6 +151,72 @@
       ]
     },
     {
+      "id": "esp32s3-16mb-uart",
+      "chip": "esp32s3",
+      "flash_bytes": 16777216,
+      "console": "uart",
+      "partition_sha256": "23bf73995ce6bfc3f1fd6129502231c133725720274123d304829d70a0bc933e",
+      "parts": [
+        {
+          "name": "bootloader.bin",
+          "offset": 0,
+          "size": 18880,
+          "sha256": "4a4d9dc5646c257dfe0dea6fdc04e75300d0093a7383631139b8dde86cae1841"
+        },
+        {
+          "name": "partition-table.bin",
+          "offset": 32768,
+          "size": 3072,
+          "sha256": "23bf73995ce6bfc3f1fd6129502231c133725720274123d304829d70a0bc933e"
+        },
+        {
+          "name": "ota_data_initial.bin",
+          "offset": 61440,
+          "size": 8192,
+          "sha256": "7d2c7ac4888bfd75cd5f56e8d61f69595121183afc81556c876732fd3782c62f"
+        },
+        {
+          "name": "esp32-csi-node.bin",
+          "offset": 131072,
+          "size": 970144,
+          "sha256": "97cd2a2291774a91f06a1e8f0bbcf5ed8f6139c9b3d464ee48229fbb43c4c18b"
+        }
+      ]
+    },
+    {
+      "id": "esp32s3-16mb-cdc",
+      "chip": "esp32s3",
+      "flash_bytes": 16777216,
+      "console": "cdc",
+      "partition_sha256": "23bf73995ce6bfc3f1fd6129502231c133725720274123d304829d70a0bc933e",
+      "parts": [
+        {
+          "name": "bootloader.bin",
+          "offset": 0,
+          "size": 18736,
+          "sha256": "212430ac70da71746f00ccb04013439aa8ff324085f844869f1d01ab5c45a2ff"
+        },
+        {
+          "name": "partition-table.bin",
+          "offset": 32768,
+          "size": 3072,
+          "sha256": "23bf73995ce6bfc3f1fd6129502231c133725720274123d304829d70a0bc933e"
+        },
+        {
+          "name": "ota_data_initial.bin",
+          "offset": 61440,
+          "size": 8192,
+          "sha256": "7d2c7ac4888bfd75cd5f56e8d61f69595121183afc81556c876732fd3782c62f"
+        },
+        {
+          "name": "esp32-csi-node.bin",
+          "offset": 131072,
+          "size": 964016,
+          "sha256": "bc346ac018ff0aa6dd9cc7b124151e24e3210eb9258c7be321f601e44c683b3e"
+        }
+      ]
+    },
+    {
       "id": "esp32c6-4mb-uart",
       "chip": "esp32c6",
       "flash_bytes": 4194304,

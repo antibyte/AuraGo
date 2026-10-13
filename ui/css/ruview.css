@@ -1,5 +1,110 @@
-.ruview-app{height:100%;display:flex;flex-direction:column;background:var(--vd-theme-app-bg,#171c25);color:var(--vd-text,#e6edf5);font:14px system-ui}.ruview-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:14px;border-bottom:1px solid #73809640}.ruview-app button,.ruview-app a,.ruview-wizard button{min-height:44px;padding:9px 14px;border:1px solid #71809655;border-radius:8px;background:var(--vd-theme-panel-bg,#252d3a);color:inherit;cursor:pointer;text-decoration:none}.ruview-app button:disabled,.ruview-wizard button:disabled{opacity:.45;cursor:not-allowed}.ruview-content{flex:1;min-height:0;overflow:auto;padding:20px}.ruview-app iframe{height:100%;width:100%;border:0;background:#10121a}.ruview-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}.ruview-summary article{padding:18px;border:1px solid #71809640;border-radius:10px}.ruview-summary strong{display:block;font-size:21px;margin:8px 0}.ruview-note{max-width:76ch;line-height:1.65;opacity:.8}.ruview-feedback{padding:12px;border-left:3px solid #57adbe;overflow-wrap:anywhere}.ruview-wizard{width:min(680px,calc(100vw - 32px));max-height:calc(100vh - 32px);padding:22px;border:1px solid #718096;border-radius:14px;background:#f4f6f8;color:#172332;font:14px system-ui;overflow:auto}.ruview-wizard::backdrop{background:#101820b8}.ruview-wizard header{display:flex;justify-content:space-between;align-items:center}.ruview-wizard header h2{margin:0}.ruview-wizard section{padding:14px 0;border-top:1px solid #71809640}.ruview-wizard label{display:flex;flex-direction:column;gap:6px;margin:9px 0}.ruview-wizard input,.ruview-wizard select{font:inherit;min-height:42px;border:1px solid #71809680;border-radius:6px;padding:7px;background:white;color:#172332;box-sizing:border-box;width:100%}.ruview-wizard .ruview-check{display:flex;flex-direction:row;align-items:center;gap:10px}.ruview-check input{width:20px;min-height:20px}.ruview-wizard button{background:#dde7eb}.ruview-wizard progress{display:block;width:100%;margin-top:12px}.ruview-fields{display:grid;grid-template-columns:80px 1fr 100px;gap:12px}.ruview-steps{display:flex;gap:24px;padding-left:18px;flex-wrap:wrap}.ruview-wizard button:focus-visible,.ruview-app button:focus-visible{outline:3px solid #35a8bf;outline-offset:2px}@media(max-width:520px){.ruview-fields{grid-template-columns:1fr}.ruview-wizard{padding:16px}.ruview-content{padding:12px}}
+.ruview-app {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--vd-theme-app-bg, #171c25);
+    color: var(--vd-text, #e6edf5);
+    font: 14px system-ui;
+}
+.ruview-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 14px; border-bottom: 1px solid #73809640; }
+.ruview-app button, .ruview-app a, .ruview-wizard button {
+    min-height: 44px;
+    padding: 9px 14px;
+    border: 1px solid #71809655;
+    border-radius: 8px;
+    background: var(--vd-theme-panel-bg, #252d3a);
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    text-decoration: none;
+}
+.ruview-app button:disabled, .ruview-wizard button:disabled { opacity: .45; cursor: not-allowed; }
+.ruview-content { flex: 1; min-height: 0; overflow: auto; padding: 20px; }
+.ruview-app iframe { height: 100%; width: 100%; border: 0; background: #10121a; }
+.ruview-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.ruview-summary article { padding: 18px; border: 1px solid #71809640; border-radius: 10px; }
+.ruview-summary strong { display: block; font-size: 21px; margin: 8px 0; }
+.ruview-note { max-width: 76ch; line-height: 1.65; opacity: .8; }
+.ruview-feedback { padding: 12px; border-left: 3px solid #57adbe; overflow-wrap: anywhere; }
+.ruview-feedback:empty { display: none; }
 
-.ruview-app *,.ruview-wizard *{box-sizing:border-box}.ruview-steps .complete{color:#197345;font-weight:650}.ruview-steps .complete::after{content:" ✓"}.ruview-node{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px;padding:16px;border-bottom:1px solid var(--vd-theme-border,#73809640)}.ruview-node strong{font-size:18px}.ruview-node span{display:block;opacity:.8}.ruview-toolbar button[aria-pressed="true"]{border-color:var(--vd-accent,#57adbe);box-shadow:inset 0 -2px var(--vd-accent,#57adbe)}
+/* The same dialog is mounted in Config and in either Desktop theme. */
+.ruview-wizard {
+    --ruview-surface: var(--pw-surface, var(--vd-theme-app-bg, var(--vd-bg, #171c25)));
+    --ruview-text: var(--pw-text, var(--vd-text, #e6edf5));
+    --ruview-muted: var(--pw-muted, var(--vd-muted, #a8bbd0));
+    --ruview-border: var(--pw-line-strong, var(--vd-border-bright, #71809680));
+    --ruview-accent: var(--pw-accent, var(--vd-accent, #35a8bf));
+    width: min(720px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
+    max-height: calc(100dvh - 32px);
+    padding: 24px;
+    border: 1px solid var(--ruview-border);
+    border-radius: 16px;
+    background: var(--ruview-surface);
+    color: var(--ruview-text);
+    color-scheme: inherit;
+    font: 16px/1.5 var(--font-family, system-ui);
+    box-shadow: var(--surface-shadow-strong, var(--vd-shadow, 0 20px 64px #0006));
+    overflow: auto;
+    overflow-wrap: anywhere;
+}
+.ruview-wizard::backdrop { background: #101820b8; }
+.ruview-wizard header { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.ruview-wizard header h2 { margin: 0; font-size: 20px; }
+.ruview-wizard header button { flex: 0 0 44px; padding: 6px; font-size: 24px; }
+.ruview-wizard section { padding: 16px 0; border-top: 1px solid var(--ruview-border); }
+.ruview-wizard section h3 { margin: 0 0 12px; font-size: 18px; }
+.ruview-wizard section:last-child { padding-bottom: 0; }
+.ruview-wizard label { display: flex; flex-direction: column; gap: 6px; margin: 9px 0; min-width: 0; }
+.ruview-wizard input:not([type="checkbox"]), .ruview-wizard select {
+    font: inherit;
+    min-height: 44px;
+    min-width: 0;
+    width: 100%;
+    border: 1px solid var(--ruview-border);
+    border-radius: 8px;
+    padding: 9px 10px;
+    background: var(--pw-canvas, var(--vd-theme-input-bg, var(--vd-control-bg, #252d3a)));
+    color: var(--ruview-text);
+}
+.ruview-wizard input:disabled { opacity: .5; cursor: not-allowed; }
+.ruview-wizard .ruview-check { flex-direction: row; align-items: center; gap: 12px; min-height: 44px; cursor: pointer; }
+.ruview-wizard .ruview-check input[type="checkbox"] {
+    appearance: auto;
+    -webkit-appearance: auto;
+    flex: 0 0 20px;
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    min-height: 20px;
+    margin: 0;
+    padding: 0;
+    accent-color: var(--ruview-accent);
+    cursor: pointer;
+}
+.ruview-wizard .ruview-check span { flex: 1; }
+.ruview-wizard button { background: var(--pw-surface-elevated, var(--vd-control-bg, #252d3a)); border-color: var(--ruview-border); }
+.ruview-wizard button:hover:not(:disabled) { border-color: var(--ruview-accent); }
+.ruview-wizard a { color: var(--ruview-accent); text-decoration: underline; }
+.ruview-wizard progress { display: block; width: 100%; height: 8px; margin-top: 16px; accent-color: var(--ruview-accent); }
+.ruview-wizard .ruview-help { font-size: 14px; color: var(--ruview-muted); }
+.ruview-wizard [hidden] { display: none !important; }
+.ruview-fields { display: grid; grid-template-columns: 88px minmax(0, 1fr) 108px; gap: 12px; }
+.ruview-actions, .ruview-receiver-suggestions { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+.ruview-receiver-suggestions label { flex: 1 1 160px; margin: 0; }
+.ruview-steps { display: flex; gap: 24px; padding-left: 18px; flex-wrap: wrap; }
+.ruview-steps .complete { color: var(--pw-success, var(--vd-accent, #58c98f)); font-weight: 650; }
+.ruview-steps .complete::after { content: " ✓"; }
+.ruview-wizard :is(button, input, select, a):focus-visible, .ruview-app button:focus-visible { outline: 3px solid var(--ruview-accent, #35a8bf); outline-offset: 2px; }
+.ruview-app *, .ruview-wizard * { box-sizing: border-box; }
+.ruview-node { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; padding: 16px; border-bottom: 1px solid var(--vd-theme-border, #73809640); }
+.ruview-node strong { font-size: 18px; }
+.ruview-node span { display: block; opacity: .8; }
+.ruview-toolbar button[aria-pressed="true"] { border-color: var(--vd-accent, #57adbe); box-shadow: inset 0 -2px var(--vd-accent, #57adbe); }
 
-.ruview-feedback:empty{display:none}
+@media (max-width: 520px) {
+    .ruview-fields { grid-template-columns: 1fr; }
+    .ruview-wizard { padding: 16px; }
+    .ruview-content { padding: 12px; }
+}

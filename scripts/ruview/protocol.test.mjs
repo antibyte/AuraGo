@@ -24,6 +24,15 @@ test('damaged firmware never opens the serial transport',async()=>{
  const previous=globalThis.fetch;globalThis.fetch=async()=>new Response(new Uint8Array(4096));
  try{await assert.rejects(flash({getInfo:()=>({usbVendorId:0x10c4,usbProductId:0xea60}),open:()=>assert.fail('opened damaged firmware')},profile()),/checksum_failed/);}finally{globalThis.fetch=previous;}
 });
+test('N16R8 uses a 16 MB S3 profile and capacity mismatches report both sizes',()=>{
+ for(const console of ['uart','cdc']){
+  const p={...profile(),id:`esp32s3-16mb-${console}`,console,flash_bytes:16777216};
+  assert.equal(validateProfile(p),p);validateBoard(p,'ESP32-S3',24<<16);
+  for(const capacity of [22,23,25])assert.throws(()=>validateBoard(p,'ESP32-S3',capacity<<16),error=>error.message==='wrong_flash'&&error.detectedFlash===2**capacity/1048576&&error.expectedFlash===16);
+  assert.throws(()=>validateProfile({...p,id:`esp32c6-16mb-${console}`,chip:'esp32c6'}),/invalid_firmware/);
+ }
+ assert.throws(()=>validateBoard({...profile(),flash_bytes:8388608},'ESP32-S3',24<<16),error=>error.detectedFlash===16&&error.expectedFlash===8);
+});
 test('serial handshake and configuration are confirmed, secrets stay in writes',async()=>{
  let controller,closed=false,writes=[];
  const port={open:async({baudRate})=>assert.equal(baudRate,115200),close:async()=>{closed=true;},
@@ -42,10 +51,10 @@ test('SHA-256 is checked over exact bytes',async()=>assert.equal(await sha256(ne
 test('flashing preserves NVS, requires erase for layout changes, and never retries a write',async()=>{
  const {ESPLoader,Transport}=await import('../../ui/js/vendor/ruview-esptool.js');
  const p=profile(),images=await Promise.all(p.parts.map(async(part,i)=>{const data=new Uint8Array(part.size).fill(i+1);part.sha256=await sha256(data);return data;}));p.partition_sha256=p.parts[1].sha256;
- const fetchBefore=globalThis.fetch,restore=[];let writes=0,erases=0,disconnects=0,incompatible=false,fail=false;
+ const fetchBefore=globalThis.fetch,restore=[];let writes=0,erases=0,disconnects=0,incompatible=false,fail=false,bootFailure=false,capacity=22;
  function patch(object,key,value){const old=object[key];restore.push(()=>object[key]=old);object[key]=value;}
- patch(ESPLoader.prototype,'main',async function(){this.chip={CHIP_NAME:'ESP32-S3'};});
- patch(ESPLoader.prototype,'readFlashId',async()=>22<<16);
+ patch(ESPLoader.prototype,'main',async function(){if(bootFailure)throw Error('fixture_sync_failed');this.chip={CHIP_NAME:'ESP32-S3'};});
+ patch(ESPLoader.prototype,'readFlashId',async()=>capacity<<16);
  patch(ESPLoader.prototype,'readFlash',async(address)=>incompatible&&address===0x8000&&writes===0?new Uint8Array(4096):images[p.parts.findIndex(part=>part.offset===address)]);
  patch(ESPLoader.prototype,'eraseFlash',async()=>{erases++;});
  patch(ESPLoader.prototype,'writeFlash',async function(options){writes++;assert.equal(this.WRITE_BLOCK_ATTEMPTS,1);assert.equal(options.eraseAll,false);assert.deepEqual(options.fileArray.map(f=>f.address),[0,0x8000,0xf000,0x20000]);if(fail)throw Error('uncertain_write');});
@@ -57,6 +66,8 @@ test('flashing preserves NVS, requires erase for layout changes, and never retri
   await flash(port,p);assert.equal(writes,1);assert.equal(erases,0);assert.equal(disconnects,1);
   writes=0;incompatible=true;await assert.rejects(flash(port,p),/erase_required/);assert.equal(writes,0);assert.equal(erases,0);
   await flash(port,p,{erase:true});assert.equal(erases,1);assert.equal(writes,1);
-  writes=0;incompatible=false;fail=true;await assert.rejects(flash(port,p),/uncertain_write/);assert.equal(writes,1);
+  writes=0;incompatible=false;fail=true;await assert.rejects(flash(port,p),error=>error.message==='uncertain_write'&&error.ruviewStage==='flash_failed');assert.equal(writes,1);
+  writes=0;fail=false;capacity=24;await assert.rejects(flash(port,p,{erase:true}),/wrong_flash/);assert.equal(writes,0);assert.equal(erases,1,'capacity rejection must precede erase');
+  bootFailure=true;await assert.rejects(flash(port,p),error=>error.message==='fixture_sync_failed'&&error.ruviewStage==='bootloader_failed');assert.equal(writes,0);
  }finally{globalThis.fetch=fetchBefore;for(const undo of restore.reverse())undo();}
 });
