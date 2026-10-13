@@ -1,13 +1,7 @@
 package server
 
 import (
-	"bytes"
-	"encoding/base64"
 	"fmt"
-	"image"
-	"image/color"
-	"image/jpeg"
-	"image/png"
 	"log/slog"
 	"os"
 	pathpkg "path"
@@ -21,7 +15,6 @@ import (
 	"aurago/internal/tools"
 
 	"github.com/sashabaranov/go-openai"
-	"golang.org/x/image/draw"
 )
 
 var attachmentPathRe = regexp.MustCompile(`agent_workspace/workdir/attachments/([A-Za-z0-9._/-]+)`)
@@ -59,6 +52,8 @@ func promoteUploadedImagesToMultiContent(cfg *config.Config, msg openai.ChatComp
 	}
 
 	var imageParts []openai.ChatMessagePart
+	sent := map[string]struct{}{}
+	var skips []string
 	for _, m := range matches {
 		if len(m) < 2 {
 			continue
@@ -79,12 +74,22 @@ func promoteUploadedImagesToMultiContent(cfg *config.Config, msg openai.ChatComp
 		}
 		info, err := os.Stat(fullPath)
 		if err != nil {
+			reason := "could not be read"
+			if os.IsNotExist(err) {
+				reason = "missing"
+			}
+			skips = append(skips, imageNotSent(relativeAttachmentPath, reason))
 			if logger != nil {
 				logger.Warn("Attachment referenced but missing on disk", "path", fullPath, "error", err)
 			}
 			continue
 		}
-		if info.Size() <= 0 || info.Size() > maxInlineBytes {
+		if info.Mode().IsRegular() && (info.Size() <= 0 || info.Size() > maxInlineBytes) {
+			reason := "empty"
+			if info.Size() > maxInlineBytes {
+				reason = "larger than 10 MiB"
+			}
+			skips = append(skips, imageNotSent(relativeAttachmentPath, reason))
 			if logger != nil {
 				logger.Warn("Attachment too large to inline as multimodal input", "path", fullPath, "size", info.Size(), "max", maxInlineBytes)
 			}
@@ -92,6 +97,7 @@ func promoteUploadedImagesToMultiContent(cfg *config.Config, msg openai.ChatComp
 		}
 		data, err := os.ReadFile(fullPath)
 		if err != nil {
+			skips = append(skips, imageNotSent(relativeAttachmentPath, "could not be read"))
 			if logger != nil {
 				logger.Warn("Failed to read attachment for multimodal input", "path", fullPath, "error", err)
 			}
@@ -99,11 +105,13 @@ func promoteUploadedImagesToMultiContent(cfg *config.Config, msg openai.ChatComp
 		}
 		dataURI, err := buildOptimizedImageDataURI(data, ext, mime, maxDecodedPixels, maxDim, logger)
 		if err != nil {
+			skips = append(skips, imageNotSent(relativeAttachmentPath, err.Error()))
 			if logger != nil {
 				logger.Warn("Failed to build optimized image data URI; skipping attachment", "path", fullPath, "error", err)
 			}
 			continue
 		}
+		sent[relativeAttachmentPath] = struct{}{}
 		imageParts = append(imageParts, openai.ChatMessagePart{
 			Type: openai.ChatMessagePartTypeImageURL,
 			ImageURL: &openai.ChatMessageImageURL{
@@ -113,13 +121,20 @@ func promoteUploadedImagesToMultiContent(cfg *config.Config, msg openai.ChatComp
 	}
 
 	if len(imageParts) == 0 {
-		return msg
+		if len(skips) == 0 {
+			return msg
+		}
+		out := msg
+		out.MultiContent = nil
+		out.Content = appendImageSkipNotes(msg.Content, skips)
+		return out
 	}
 
-	cleanText := stripAttachmentPaths(msg.Content)
+	cleanText := stripSentAttachmentPaths(msg.Content, sent)
 	if strings.TrimSpace(cleanText) == "" {
 		cleanText = "Please analyze the attached image(s)."
 	}
+	cleanText = appendImageSkipNotes(cleanText, skips)
 
 	parts := make([]openai.ChatMessagePart, 0, 1+len(imageParts))
 	parts = append(parts, openai.ChatMessagePart{Type: openai.ChatMessagePartTypeText, Text: cleanText})
@@ -176,31 +191,43 @@ func mainProviderSupportsInlineImageData(cfg *config.Config) bool {
 	return !mainProviderRequiresPublicImageURL(cfg) && mainProviderSupportsImageMultimodal(cfg)
 }
 
+func promoteRequestImages(cfg *config.Config, messages []openai.ChatCompletionMessage, workspaceDir string, logger *slog.Logger) []openai.ChatCompletionMessage {
+	if len(messages) == 0 {
+		return messages
+	}
+	last := -1
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Role == openai.ChatMessageRoleUser {
+			last = i
+			break
+		}
+	}
+	if last < 0 {
+		return messages
+	}
+	out := append([]openai.ChatCompletionMessage(nil), messages...)
+	out[last] = promoteUploadedImagesToMultiContent(cfg, out[last], workspaceDir, logger)
+	return out
+}
+
 func mainProviderSupportsImageMultimodal(cfg *config.Config) bool {
 	if cfg == nil {
 		return false
 	}
-	effectiveCaps := llm.ResolveConfigProviderCapabilities(cfg)
-	if effectiveCaps.Multimodal && effectiveCaps.Source != llm.CapabilitySourceLegacyFallback {
+	caps := llm.ResolveConfigProviderCapabilities(cfg)
+	if caps.Image {
 		return true
 	}
+	if caps.Source != llm.CapabilitySourceLegacyFallback {
+		return false
+	}
 	pt := strings.ToLower(strings.TrimSpace(cfg.LLM.ProviderType))
-	model := strings.ToLower(strings.TrimSpace(cfg.LLM.Model))
 	for _, extra := range cfg.LLM.MultimodalProviderTypesExtra {
 		if strings.ToLower(strings.TrimSpace(extra)) == pt && pt != "" {
 			return true
 		}
 	}
-	if modelSupportsImageMultimodal(model) {
-		return true
-	}
-
-	switch pt {
-	case "openai", "openrouter", "anthropic", "google", "custom", "workers-ai":
-		return true
-	default:
-		return false
-	}
+	return modelSupportsImageMultimodal(strings.ToLower(strings.TrimSpace(cfg.LLM.Model)))
 }
 
 func modelSupportsImageMultimodal(model string) bool {
@@ -221,16 +248,18 @@ func fallbackVisionAnalysis(cfg *config.Config, msg openai.ChatCompletionMessage
 	if cfg == nil || analyzeImageForFallback == nil {
 		return msg
 	}
-	cleanText := stripAttachmentPaths(msg.Content)
-	if strings.TrimSpace(cleanText) == "" {
-		cleanText = "Please analyze the attached image(s)."
+	userText := strings.TrimSpace(stripAttachmentPaths(msg.Content))
+	prefix := userText
+	if prefix == "" {
+		prefix = "Please analyze the attached image(s)."
 	}
-	prompt := "Describe this image in detail. What do you see? If there is text, transcribe it. If there are people, describe their actions."
+	prompt := fallbackVisionPrompt(userText)
 
 	var b strings.Builder
-	b.WriteString(cleanText)
+	b.WriteString(prefix)
 	b.WriteString("\n\n[IMAGE ANALYSIS]\n")
 	added := 0
+	attempted := map[string]struct{}{}
 	for _, m := range matches {
 		if len(m) < 2 {
 			continue
@@ -243,6 +272,7 @@ func fallbackVisionAnalysis(cfg *config.Config, msg openai.ChatCompletionMessage
 		if imageMimeType(ext) == "" {
 			continue
 		}
+		attempted[relativeAttachmentPath] = struct{}{}
 		agentPath := "agent_workspace/workdir/attachments/" + relativeAttachmentPath
 		analysis, _, _, err := analyzeImageForFallback(agentPath, prompt, cfg)
 		if err != nil {
@@ -262,8 +292,21 @@ func fallbackVisionAnalysis(cfg *config.Config, msg openai.ChatCompletionMessage
 		b.WriteString(analysis)
 		b.WriteString("\n")
 	}
-	if added == 0 {
+	if len(attempted) == 0 {
 		return msg
+	}
+	if added == 0 {
+		const note = "The attached image could not be analyzed."
+		content := strings.TrimSpace(stripSentAttachmentPaths(msg.Content, attempted))
+		if content == "" {
+			content = note
+		} else {
+			content = content + "\n" + note
+		}
+		out := msg
+		out.MultiContent = nil
+		out.Content = content
+		return out
 	}
 
 	out := msg
@@ -290,116 +333,86 @@ func imageMimeType(ext string) string {
 }
 
 func buildOptimizedImageDataURI(raw []byte, ext string, mime string, maxDecodedPixels int, maxDim int, logger *slog.Logger) (string, error) {
-	// Fast path: if decode fails, fall back to raw bytes as-is.
-	// This keeps the flow robust for edge cases while still enabling optimization for normal images.
-	img, format, err := image.Decode(bytes.NewReader(raw))
-	if err != nil {
-		return fmt.Sprintf("data:%s;base64,%s", mime, base64.StdEncoding.EncodeToString(raw)), nil
-	}
-
-	b := img.Bounds()
-	w, h := b.Dx(), b.Dy()
-	if w <= 0 || h <= 0 {
-		return "", fmt.Errorf("invalid decoded bounds")
-	}
-	if w*h > maxDecodedPixels {
-		return "", fmt.Errorf("decoded image too large: %dx%d (%d pixels)", w, h, w*h)
-	}
-
-	// Resize if needed.
-	targetW, targetH := w, h
-	if w > maxDim || h > maxDim {
-		if w >= h {
-			targetW = maxDim
-			targetH = int(float64(h) * (float64(maxDim) / float64(w)))
-		} else {
-			targetH = maxDim
-			targetW = int(float64(w) * (float64(maxDim) / float64(h)))
-		}
-		if targetW < 1 {
-			targetW = 1
-		}
-		if targetH < 1 {
-			targetH = 1
-		}
-		dst := image.NewRGBA(image.Rect(0, 0, targetW, targetH))
-		draw.CatmullRom.Scale(dst, dst.Bounds(), img, b, draw.Over, nil)
-		img = dst
-		w, h = targetW, targetH
-	}
-
-	// Encode: prefer preserving PNG only when the original is PNG and it stays reasonably small.
-	// Otherwise use JPEG to keep size down. If the image has alpha, composite onto white.
-	hasAlpha := imageHasAlpha(img)
-	var outBytes []byte
-
-	if strings.EqualFold(format, "png") && !hasAlpha {
-		var buf bytes.Buffer
-		if err := png.Encode(&buf, img); err == nil {
-			outBytes = buf.Bytes()
-			// If PNG is still large, we fall back to JPEG.
-			if len(outBytes) <= 1_500_000 {
-				return fmt.Sprintf("data:image/png;base64,%s", base64.StdEncoding.EncodeToString(outBytes)), nil
-			}
-		}
-	}
-
-	if hasAlpha {
-		img = flattenAlpha(img, color.White)
-	}
-
-	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 85}); err != nil {
-		return "", fmt.Errorf("jpeg encode: %w", err)
-	}
-	outBytes = buf.Bytes()
-	if logger != nil && (w != 0 && h != 0) {
-		_ = ext // reserved for future logging/detail
-	}
-	return fmt.Sprintf("data:image/jpeg;base64,%s", base64.StdEncoding.EncodeToString(outBytes)), nil
+	_, _, _, _ = ext, maxDecodedPixels, maxDim, logger
+	return tools.PrepareVisionDataURL(raw, mime)
 }
 
-func imageHasAlpha(img image.Image) bool {
-	switch i := img.(type) {
-	case *image.NRGBA:
-		return true
-	case *image.NRGBA64:
-		return true
-	case *image.RGBA:
-		// RGBA may have alpha; scan a small sample grid to avoid O(w*h).
-		b := i.Bounds()
-		stepX := max(1, b.Dx()/32)
-		stepY := max(1, b.Dy()/32)
-		for y := b.Min.Y; y < b.Max.Y; y += stepY {
-			for x := b.Min.X; x < b.Max.X; x += stepX {
-				_, _, _, a := i.At(x, y).RGBA()
-				if a != 0xffff {
-					return true
-				}
-			}
+func imageNotSent(relative string, reason string) string {
+	return fmt.Sprintf("Image %s was not sent: %s.", filepath.Base(relative), reason)
+}
+
+func appendImageSkipNotes(content string, notes []string) string {
+	if len(notes) == 0 {
+		return content
+	}
+	var b strings.Builder
+	b.WriteString(strings.TrimRight(content, "\n"))
+	for _, note := range notes {
+		if b.Len() > 0 {
+			b.WriteByte('\n')
 		}
-		return false
-	default:
-		// Unknown format: assume it might have alpha; be conservative.
-		return true
+		b.WriteString(note)
 	}
+	return b.String()
 }
 
-func flattenAlpha(src image.Image, bg color.Color) image.Image {
-	b := src.Bounds()
-	dst := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
-	// Fill background.
-	draw.Draw(dst, dst.Bounds(), &image.Uniform{C: bg}, image.Point{}, draw.Src)
-	// Draw source over it.
-	draw.Draw(dst, dst.Bounds(), src, b.Min, draw.Over)
-	return dst
+func fallbackVisionPrompt(userText string) string {
+	text := strings.TrimSpace(userText)
+	if text == "" {
+		return "Describe this image in detail. What do you see? If there is text, transcribe it. If there are people, describe their actions."
+	}
+	runes := []rune(text)
+	if len(runes) > 2000 {
+		return string(runes[:2000])
+	}
+	return text
 }
 
-func max(a, b int) int {
-	if a > b {
-		return a
+func replaceSentAttachmentPaths(s string, sent map[string]struct{}) string {
+	return attachmentPathRe.ReplaceAllStringFunc(s, func(match string) string {
+		sub := attachmentPathRe.FindStringSubmatch(match)
+		if len(sub) < 2 {
+			return match
+		}
+		cleaned := cleanMatchedAttachmentPath(sub[1])
+		if cleaned == "" {
+			return match
+		}
+		if _, ok := sent[cleaned]; ok {
+			return ""
+		}
+		return match
+	})
+}
+
+func stripSentAttachmentPaths(s string, sent map[string]struct{}) string {
+	if len(sent) == 0 {
+		return s
 	}
-	return b
+	if strings.Contains(s, "<agodesk_attachments>") {
+		return stripSentAttachmentPathsOutsideAgodeskBlocks(s, sent)
+	}
+	return compactAttachmentPromptText(replaceSentAttachmentPaths(s, sent))
+}
+
+func stripSentAttachmentPathsOutsideAgodeskBlocks(s string, sent map[string]struct{}) string {
+	matches := agodeskAttachmentBlockPattern.FindAllStringIndex(s, -1)
+	if len(matches) == 0 {
+		return compactAttachmentPromptText(replaceSentAttachmentPaths(s, sent))
+	}
+	var b strings.Builder
+	last := 0
+	for _, loc := range matches {
+		if loc[0] > last {
+			appendAttachmentPromptText(&b, replaceSentAttachmentPaths(s[last:loc[0]], sent))
+		}
+		appendAttachmentPromptText(&b, s[loc[0]:loc[1]])
+		last = loc[1]
+	}
+	if last < len(s) {
+		appendAttachmentPromptText(&b, replaceSentAttachmentPaths(s[last:], sent))
+	}
+	return compactAttachmentPromptText(b.String())
 }
 
 func stripAttachmentPaths(s string) string {

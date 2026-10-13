@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"encoding/base64"
 	"encoding/json"
+	"image"
+	"image/color"
+	"image/jpeg"
 	"io"
 	"log/slog"
 	"net/http"
@@ -22,7 +24,20 @@ import (
 	"aurago/internal/tools"
 )
 
-var visionInputJPEG = []byte{0xff, 0xd8, 0xff, 0xdb, 0x00, 0xff, 0xd9}
+func visionFixtureJPEG() []byte {
+	img := image.NewRGBA(image.Rect(0, 0, 2, 2))
+	img.Set(0, 0, color.RGBA{R: 200, G: 10, B: 10, A: 255})
+	img.Set(1, 0, color.RGBA{R: 10, G: 180, B: 20, A: 255})
+	img.Set(0, 1, color.RGBA{R: 10, G: 20, B: 190, A: 255})
+	img.Set(1, 1, color.RGBA{R: 240, G: 240, B: 240, A: 255})
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 90}); err != nil {
+		panic(err)
+	}
+	return buf.Bytes()
+}
+
+var visionInputJPEG = visionFixtureJPEG()
 
 func newVisionInputFixture(t *testing.T) (*DispatchContext, string, string, *int) {
 	t.Helper()
@@ -53,7 +68,11 @@ func newVisionInputFixture(t *testing.T) (*DispatchContext, string, string, *int
 		if err != nil {
 			t.Error(err)
 		}
-		wantImage := "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(visionInputJPEG)
+		wantImage, prepErr := tools.PrepareVisionDataURL(visionInputJPEG, "image/jpeg")
+		if prepErr != nil {
+			t.Errorf("fixture image: %v", prepErr)
+			return
+		}
 		if !bytes.Contains(body, []byte(wantImage)) {
 			t.Errorf("provider did not receive the snapshot bytes: %s", body)
 		}

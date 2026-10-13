@@ -352,7 +352,7 @@ func PrepareTaskRouting(ctx context.Context, req *openai.ChatCompletionRequest, 
 	}
 	view := llm.TaskProviderConfig(cfg, *p)
 	caps := llm.ResolveProviderCapabilities(*p, llm.CapabilityFallback{})
-	if run.TaskRoutingImageInput && (!caps.Known || !caps.Multimodal) {
+	if run.TaskRoutingImageInput && (!caps.Known || !caps.Image) {
 		d.Reason = "capability_mismatch"
 		return nil
 	}
