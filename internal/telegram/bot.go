@@ -52,7 +52,7 @@ func buildTelegramAgentMessages(historyManager *memory.HistoryManager) []openai.
 
 // StartLongPolling initializes the Telegram bot in Long Polling mode.
 // It runs in a background goroutine and processes incoming messages.
-func StartLongPolling(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, plannerDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker, webhookManager *webhooks.Manager, routingDecisions ...agent.TaskDecisionService) {
+func StartLongPolling(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, plannerDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker, webhookManager *webhooks.Manager, snapshot func() (*config.Config, llm.ChatClient), routingDecisions agent.TaskDecisionService) {
 	if cfg.Telegram.BotToken == "" {
 		integrationstatus.SetTelegramConfigured(false, false)
 		logger.Warn("Telegram Bot Token is missing, skipping Long Polling start.")
@@ -94,21 +94,30 @@ func StartLongPolling(ctx context.Context, cfg *config.Config, logger *slog.Logg
 
 	integrationstatus.MarkTelegramPolling()
 	go runPollingLoop(ctx, bot, u, plannerDB, logger, func(update tgbotapi.Update) {
-		if update.Message == nil {
+		if update.Message == nil || update.Message.From == nil {
+			return
+		}
+		current, currentClient := cfg, client
+		if snapshot != nil {
+			current, currentClient = snapshot()
+		}
+		// Freeze one current config/client pair for the accepted turn. A changed
+		// transport token needs a new poller, never the old bot's credentials.
+		if current == nil || current.EggMode.Enabled || current.Telegram.BotToken != cfg.Telegram.BotToken {
 			return
 		}
 
 		senderID := update.Message.From.ID
 
 		// [Silent ID Discovery Mode]
-		if cfg.Telegram.UserID == 0 {
+		if current.Telegram.UserID == 0 {
 			fmt.Printf("\n[SECURITY] Incoming message from unauthorized ID: %d. Add this to config.yaml under telegram_user_id to authorize.\n\n", senderID)
 			logger.Warn("Unauthorized Telegram ID discovered", "id", senderID, "username", update.Message.From.UserName)
 			return
 		}
 
 		// [Authorization Check]
-		if senderID != cfg.Telegram.UserID {
+		if senderID != current.Telegram.UserID {
 			logger.Warn("Blocked unauthorized Telegram message", "id", senderID)
 			return
 		}
@@ -119,7 +128,7 @@ func StartLongPolling(ctx context.Context, cfg *config.Config, logger *slog.Logg
 		}
 		go func(upd tgbotapi.Update) {
 			defer func() { <-workerSem }()
-			processUpdate(ctx, bot, upd, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2, remoteHub, guardian, budgetTrackerSnapshot, webhookManager, routingDecisions...)
+			processUpdate(ctx, bot, upd, current, logger, currentClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2, remoteHub, guardian, budgetTrackerSnapshot, webhookManager, routingDecisions)
 		}(update)
 	})
 }

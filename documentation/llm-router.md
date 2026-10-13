@@ -55,7 +55,9 @@ The classifier receives only a scrubbed, bounded copy of the immutable human
 task, isolated as untrusted data. No history, tool output, files or images are
 sent. External providers receive this shortened task text and may charge for it.
 Chat entry points pin this text before adding image analysis, attachment notes,
-or sender metadata. Attachment-only input without human text stays on the ordinary route.
+or sender metadata. AgoDesk handoffs use the original human message, excluding
+the local agent transcript. MeshCore excludes receiver/contact/location metadata.
+Attachment-only input without human text stays on the ordinary route.
 One choice question contains all nine categories plus `unknown`, including
 categories without an assignment. Only validated normalized probabilities are
 accepted: a winning probability of at least 0.60 and a lead of at least 0.15.
@@ -137,7 +139,9 @@ through another provider. Permissions, live authorization checks, tool scope and
 normal request budgeting still apply.
 
 Assignments and toggles hot-reload for new tasks; existing runs retain their
-accepted snapshot. Old configurations remain valid and disabled. Provider deletion
+accepted snapshot. Telegram, Discord and Rocket.Chat obtain the current config
+and chat client together for each new message. Discord preserves Decisions when
+its bot reconnects after a settings change. Old configurations remain valid and disabled. Provider deletion
 is blocked while a saved router assignment references it, including when the
 router is disabled. Remove the assignment first. No database migration is needed.
 A stored zero deadline from a programmatic configuration snapshot is normalized

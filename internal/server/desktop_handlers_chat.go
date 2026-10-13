@@ -557,6 +557,9 @@ type preparedDesktopAgentTurn struct {
 }
 
 type desktopAgentTurnOptions struct {
+	// TaskRoutingText is captured before attachments, handoff transcripts or
+	// transport metadata are added. A non-nil empty string forbids classification.
+	TaskRoutingText        *string
 	SessionID              string
 	MessageSource          string
 	AdditionalPrompt       string
@@ -640,7 +643,11 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 	}
 	routingRun := buildDesktopRunConfigForSession(s, &cfg, llmClient, sessionID, messageSource)
 	routingRun.UserIntent = message
-	routingRun.TaskRoutingText = &message
+	routingText := message
+	if opts.TaskRoutingText != nil {
+		routingText = *opts.TaskRoutingText
+	}
+	routingRun.TaskRoutingText = &routingText
 	routingRun.NativeToolSchemas = opts.NativeToolSchemas
 	routingRun.TaskRoutingImageInput = strings.TrimSpace(chatContext.ImageBase64) != "" || taskRoutingHasImages(routingReq.Messages)
 	if opts.RuntimeConfig != nil || opts.ProviderID != "" || (!opts.SkipDesktopProvider && desktopAgentProviderID(ctx, s) != "") {
@@ -746,7 +753,7 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 	}
 	turn.runCfg = buildDesktopRunConfigForSession(s, &cfg, llmClient, sessionID, messageSource)
 	turn.runCfg.UserIntent = message
-	turn.runCfg.TaskRoutingText = &message
+	turn.runCfg.TaskRoutingText = &routingText
 	turn.runCfg.TaskRouting = routingRun.TaskRouting
 	turn.runCfg.TaskRoutingMode = routingRun.TaskRoutingMode
 	turn.runCfg.TaskRoutingImageInput = routingRun.TaskRoutingImageInput

@@ -83,6 +83,15 @@ Server-owned HTTP and cross-component integration contracts.
 - `RegisterLLMSecrets` (`llm_secrets.go`) runs in `cmd/aurago` right after `ApplyOAuthTokens` (before the LLM client exists), at the top of `Start` and in every `replaceConfigSnapshot`; the OAuth authorize path (`applyOAuthTokenToRuntime`) and the refresher publish through `replaceConfigSnapshot`, so new access tokens register too. Static LLM/provider keys and OAuth client secrets go to the permanent `security.RegisterSensitive` registry; OAuth access tokens in LLM slots use scoped registrations released on rotation (bounded registry). Values under 8 bytes are never registered, and placeholder keys are skipped: a key needs a `[A-Za-z0-9]` run of at least 8 characters mixing letters and digits, or 16 letters mixing case, so `lm-studio` or `ollama-does-not-need-a-key` cannot redact words. Verify `TestRegisterLLMSecrets*`, `TestLLMSecret*` and `TestApplyOAuthTokenToRuntime*`.
 
 - Telegram, Discord and Rocket.Chat receive the server-owned budget tracker and the shared isolated context recap formatter. Telegram worker admission, transcription, typing and agent execution inherit the polling owner context; cancellation stops queued work and ongoing model work.
+- Long-lived chat bots capture `chatRuntimeSnapshot` once per new message so
+  configuration and client come from the same publication; accepted turns stay
+  frozen. Telegram and Discord startup require both this callback and the
+  Decisions capability, including Discord's config-reload restart path.
+- Desktop turn preparation accepts an explicit original `TaskRoutingText`.
+  AgoDesk pins it before attachment enrichment or default text, preserving the
+  original handoff message; MeshCore supplies only `msg.Text`. Empty originals
+  remain empty. Routing never receives attachments, handoff transcripts or radio
+  metadata, while the ordinary chat request retains its authorized context.
 
 ### Retro-Net Terminal
 

@@ -1240,11 +1240,15 @@ func handleAgodeskChatMessage(s *Server, r *http.Request, conn *websocket.Conn, 
 		_ = writeAgodeskErrorLocked(conn, state, requestID, attachmentErrCode, attachmentErrMsg)
 		return
 	}
+	// A local-agent handoff already carries its original human message in the
+	// context. Preserve that text before adding attachment contents or defaults.
+	routingText := agodeskPersistedMessageFromContext(r.Context(), message)
 	message = buildAgodeskMessageWithAttachments(s, message, attachmentRecords)
 	unlockSession := lockSessionRequest(conversationID)
 	defer unlockSession()
 
 	chatCtx, cancel := context.WithCancel(r.Context())
+	chatCtx = contextWithAgodeskPersistedMessage(chatCtx, routingText)
 	chatCtx = contextWithAgodeskAttachmentBinding(chatCtx, s, conversationID, attachmentRecords)
 	defer cancel()
 	registerAgodeskActiveRun(state, requestID, conversationID, cancel)
@@ -2597,7 +2601,13 @@ func runAgodeskAgentChat(s *Server, r *http.Request, conn *websocket.Conn, state
 	if s == nil {
 		return agodeskChatResult{}, fmt.Errorf("server not configured")
 	}
+	routingText := stripAgodeskAttachmentBlock(message)
+	if original, ok := r.Context().Value(agodeskPersistedMessageContextKey{}).(string); ok {
+		// Unlike persisted history, empty original text must stay empty here.
+		routingText = original
+	}
 	turn, err := prepareDesktopAgentTurnWithOptions(r.Context(), s, message, desktopChatContext{}, false, desktopAgentTurnOptions{
+		TaskRoutingText:       &routingText,
 		SessionID:             conversationID,
 		MessageSource:         agodeskMessageSource,
 		AdditionalPrompt:      buildAgodeskAgentContext(deviceID, agodeskStateFileAccess(state)),

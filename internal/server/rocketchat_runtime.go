@@ -4,8 +4,6 @@ import (
 	"context"
 
 	"aurago/internal/budget"
-	"aurago/internal/config"
-	"aurago/internal/llm"
 	"aurago/internal/rocketchat"
 )
 
@@ -42,15 +40,7 @@ func (s *Server) configureRocketChatBot() {
 	if parent == nil {
 		parent = context.Background()
 	}
-	bot := rocketchat.StartBot(parent, cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.budgetTrackerSnapshot, func() (*config.Config, llm.ChatClient) {
-		s.CfgMu.RLock()
-		defer s.CfgMu.RUnlock()
-		current := s.ConfigSnapshot()
-		if current == nil {
-			return nil, nil
-		}
-		return current.Clone(), s.LLMClient
-	}, s.WebhookManager, taskDecisionService{s})
+	bot := rocketchat.StartBot(parent, cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.budgetTrackerSnapshot, s.chatRuntimeSnapshot, s.WebhookManager, taskDecisionService{s})
 	s.rocketChatBot.Store(bot)
 }
 

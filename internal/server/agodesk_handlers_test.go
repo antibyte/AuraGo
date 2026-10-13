@@ -322,10 +322,16 @@ func TestAgodeskAttachmentPrepareUploadAndTextlessChatMessage(t *testing.T) {
 		t.Fatalf("CreateChatSession: %v", err)
 	}
 
-	capturedMessage := make(chan string, 1)
+	type capturedInput struct {
+		message     string
+		routingText string
+		hasOriginal bool
+	}
+	capturedMessage := make(chan capturedInput, 1)
 	oldRunner := agodeskAgentChatRunner
-	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, transportSessionID, conversationID, deviceID, message string, voiceOutput bool) (agodeskChatResult, error) {
-		capturedMessage <- message
+	agodeskAgentChatRunner = func(_ *Server, r *http.Request, _ *websocket.Conn, _ *agodeskConnectionState, requestID, transportSessionID, conversationID, deviceID, message string, voiceOutput bool) (agodeskChatResult, error) {
+		original, ok := r.Context().Value(agodeskPersistedMessageContextKey{}).(string)
+		capturedMessage <- capturedInput{message: message, routingText: original, hasOriginal: ok}
 		return agodeskChatResult{Answer: "saw attachment"}, nil
 	}
 	t.Cleanup(func() { agodeskAgentChatRunner = oldRunner })
@@ -429,9 +435,12 @@ func TestAgodeskAttachmentPrepareUploadAndTextlessChatMessage(t *testing.T) {
 	}
 	select {
 	case got := <-capturedMessage:
+		if !got.hasOriginal || got.routingText != "" {
+			t.Fatal("attachment-only input must keep an explicitly empty routing text")
+		}
 		for _, want := range []string{"note.txt", "agent_workspace/workdir/attachments/agodesk/", prepared.AttachmentID} {
-			if !strings.Contains(got, want) {
-				t.Fatalf("runner message missing %q in:\n%s", want, got)
+			if !strings.Contains(got.message, want) {
+				t.Fatalf("runner message missing %q in:\n%s", want, got.message)
 			}
 		}
 	case <-time.After(time.Second):

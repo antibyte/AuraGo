@@ -136,7 +136,7 @@ func (s *Server) runMeshCoreMessage(ctx context.Context, msg meshcore.Message, m
 	if mode == "trusted" {
 		sessionID := "meshcore-" + msg.IdentityKey + "-" + msg.Sender
 		text := security.IsolateExternalData(msg.Text)
-		turn, err := prepareDesktopAgentTurnWithOptions(ctx, s, input, desktopChatContext{Source: "meshcore"}, false, desktopAgentTurnOptions{SessionID: sessionID, MessageSource: "meshcore", PersistedMessage: text, SkipDesktopProvider: true, AdditionalPrompt: "This request arrived as an authorized MeshCore direct message. Existing tool permissions and security rules still apply. Reply briefly in plain text, at most 350 UTF-8 bytes. The runtime sends the final answer to the authenticated sender; do not send a separate message. " + meshCoreMetadataInstructions + " " + locationInstructions})
+		turn, err := prepareDesktopAgentTurnWithOptions(ctx, s, input, desktopChatContext{Source: "meshcore"}, false, desktopAgentTurnOptions{TaskRoutingText: &msg.Text, SessionID: sessionID, MessageSource: "meshcore", PersistedMessage: text, SkipDesktopProvider: true, AdditionalPrompt: "This request arrived as an authorized MeshCore direct message. Existing tool permissions and security rules still apply. Reply briefly in plain text, at most 350 UTF-8 bytes. The runtime sends the final answer to the authenticated sender; do not send a separate message. " + meshCoreMetadataInstructions + " " + locationInstructions})
 		if err != nil {
 			return "", err
 		}
