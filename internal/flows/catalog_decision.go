@@ -65,6 +65,7 @@ func aiDecisionDef(availability func() Availability) *NodeDef {
 			{Name: "answers", Type: "object", Primary: true},
 			{Name: "model", Type: "text"}, {Name: "model_revision", Type: "text"},
 			{Name: "calibration", Type: "text"}, {Name: "runtime", Type: "object"}, {Name: "usage", Type: "object"},
+			{Name: "execution", Type: "object"},
 		}
 		if decisionMode(node.Params) == decisionModeRoute {
 			fields = append(fields, FieldSpec{Name: "decision", Type: "text"}, FieldSpec{Name: "confidence", Type: "number"})
@@ -377,12 +378,18 @@ func executeDecisionNode(ctx context.Context, in ExecInput) (ExecResult, error) 
 	}
 	response, err := in.Services.Decisions.Evaluate(ctx, DecisionRequest{State: state, Questions: questions, Images: images})
 	if err != nil {
+		if hopeless(err) {
+			return ExecResult{}, invokeError(err)
+		}
 		if ctx.Err() != nil {
 			return ExecResult{}, invokeError(ctx.Err())
 		}
 		return ExecResult{}, invokeError(err)
 	}
 	if err := validateDecisionResponse(response, questions); err != nil {
+		if response.Execution != nil {
+			return ExecResult{}, NewNodeError("FLOW_AI_UNAVAILABLE", "Invalid external Decisions result: %s", err.Error())
+		}
 		return ExecResult{}, NewNodeError("FLOW_AI_OUTPUT_INVALID", "%s", err.Error())
 	}
 	threshold := decisionDefaultThreshold
@@ -401,6 +408,9 @@ func executeDecisionNode(ctx context.Context, in ExecInput) (ExecResult, error) 
 	output := map[string]any{
 		"answers": answers, "model": response.Model, "model_revision": response.ModelRevision,
 		"calibration": response.Calibration, "runtime": response.Runtime, "usage": response.Usage,
+	}
+	if response.Execution != nil {
+		output["execution"] = response.Execution
 	}
 	ports := []string{PortOut}
 	if mode == decisionModeRoute {

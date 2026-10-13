@@ -500,6 +500,9 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 		if provider == nil {
 			return fmt.Errorf("selected Game Maker provider %q is not configured", providerID)
 		}
+		if !config.ProviderUsageAllowsGeneralChat(provider) {
+			return fmt.Errorf("selected Game Maker provider is not available for general chat")
+		}
 		cfg.LLM.Provider = provider.ID
 		cfg.LLM.ProviderType = provider.Type
 		cfg.LLM.BaseURL = provider.BaseURL

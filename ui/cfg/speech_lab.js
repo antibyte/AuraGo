@@ -124,7 +124,8 @@ function speechLabHardwareProfileField(selected, disabled) {
 function speechLabProviderField(selected) {
     let options = '<option value="">' + escapeHtml(t('config.speech_lab.global_provider')) + '</option>';
     let selectedFound = !selected;
-    speechLabProviders.filter(provider => provider.runtime_chat?.eligible === true).forEach(provider => {
+    const eligibleProviders = speechLabProviders.filter(provider => provider.usage !== 'decisions' && provider.runtime_chat?.eligible === true);
+    eligibleProviders.forEach(provider => {
         const id = String(provider.id || '').trim();
         if (!id) return;
         if (id === selected) selectedFound = true;
@@ -132,6 +133,10 @@ function speechLabProviderField(selected) {
         if (provider.runtime_chat?.configured !== true) label += ' — ' + t('config.speech_lab.provider_not_configured');
         options += '<option value="' + escapeAttr(id) + '"' + (id === selected ? ' selected' : '') + '>' + escapeHtml(label) + '</option>';
     });
+    if (!selectedFound && speechLabProviders.some(provider => String(provider.id || '').trim() === selected && provider.usage === 'decisions')) {
+        options += configPreservedProviderOptionHTML(selected, eligibleProviders);
+        selectedFound = true;
+    }
     if (!selectedFound) {
         const selectedProvider = speechLabProviders.find(provider => String(provider.id || '').trim() === selected);
         const label = selectedProvider ? [selectedProvider.name || selected, selectedProvider.model || ''].filter(Boolean).join(' · ') : selected;

@@ -32,6 +32,11 @@ func (s *Server) evaluateDecisions(ctx context.Context, request decisionsAPIRequ
 	if s.Decisions == nil {
 		return decisions.Response{}, decisions.NewError(decisions.CodeServiceNotReady, nil)
 	}
+	if router, ok := s.Decisions.(*routedDecisions); ok {
+		var cancel context.CancelFunc
+		ctx, cancel = router.requestContext(ctx)
+		defer cancel()
+	}
 	cfg := s.ConfigSnapshot()
 	if cfg == nil || !cfg.Decisions.Enabled {
 		return decisions.Response{}, &decisions.Error{Code: "service_disabled"}
@@ -173,10 +178,23 @@ func (adapter flowDecisions) Evaluate(ctx context.Context, request flows.Decisio
 	if err == nil {
 		return response, nil
 	}
+	code := decisionsFailureCode(err)
+	if ctx.Err() != nil && code != decisions.CodeExternalOutcomeUnknown && code != "configuration_changed" {
+		return decisions.Response{}, ctx.Err()
+	}
+	if decisions.IsNonRetryable(err) {
+		flowCode := "FLOW_AI_UNAVAILABLE"
+		if code == "budget_exceeded" {
+			flowCode = "FLOW_BUDGET_EXCEEDED"
+		}
+		if code == decisions.CodeInvalidRequest || code == "invalid_image" || code == decisions.CodeInputTokenBudgetExceeded || code == decisions.CodeCandidateNotScorable {
+			flowCode = "FLOW_PARAM_INVALID"
+		}
+		return decisions.Response{}, flows.NewNodeError(flowCode, "Decisions: %s", code)
+	}
 	if ctx.Err() != nil {
 		return decisions.Response{}, ctx.Err()
 	}
-	code := decisionsFailureCode(err)
 	flowCode := "FLOW_AI_UNAVAILABLE"
 	if code == decisions.CodeInvalidRequest || code == "invalid_image" || code == decisions.CodeInputTokenBudgetExceeded || code == decisions.CodeCandidateNotScorable {
 		flowCode = "FLOW_PARAM_INVALID"

@@ -914,7 +914,11 @@
         if (capabilityState(cap).status !== 'ready') return;
         const { esc, t } = state.context;
         const prefer3D=state.selectedModelAssetIDs?.length || state.selectedAssetSelections?.some(a=>state.selectedAssetDimensions[a.pack_id]==='3d');
-        const providers = (cap.providers || []).map(provider =>
+        const eligibleProviders = (cap.providers || []).filter(provider => provider && provider.id && provider.usage !== 'decisions');
+        const selectedProvider = String(cap.default_provider_id || '');
+        const missingProvider = selectedProvider && !eligibleProviders.some(provider => String(provider.id) === selectedProvider)
+            ? `<option value="${esc(selectedProvider)}" disabled selected>${esc(selectedProvider)} — ${esc(t('game_maker.provider_unavailable'))}</option>` : '';
+        const providers = missingProvider + eligibleProviders.map(provider =>
             `<option value="${esc(provider.id)}" data-model="${esc(provider.model || '')}"
                 ${provider.id === cap.default_provider_id ? 'selected' : ''}>${esc(provider.name || provider.id)}</option>`
         ).join('');

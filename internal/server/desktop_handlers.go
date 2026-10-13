@@ -174,6 +174,9 @@ func (s *Server) desktopProviderOptions() []desktop.ProviderOption {
 	s.CfgMu.RUnlock()
 	out := make([]desktop.ProviderOption, 0, len(providers))
 	for _, p := range providers {
+		if !config.ProviderUsageAllowsGeneralChat(&p) {
+			continue
+		}
 		id := strings.TrimSpace(p.ID)
 		if id == "" {
 			continue

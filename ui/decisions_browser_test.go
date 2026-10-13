@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestDecisionsLocaleKeys(t *testing.T) {
@@ -20,8 +21,171 @@ func TestDecisionsLocaleKeys(t *testing.T) {
 			t.Fatal(err)
 		}
 		for key := range reference {
-			if strings.HasPrefix(key, "config.decisions.") && strings.TrimSpace(translated[key]) == "" {
+			if (strings.HasPrefix(key, "config.decisions.") || strings.HasPrefix(key, "config.providers.usage_") || key == "config.providers.decisions_only_unavailable" || key == "config.providers.not_available_here" || key == "config.telephone_agent.provider_unavailable") && strings.TrimSpace(translated[key]) == "" {
 				t.Errorf("%s missing %s", locale, key)
+			}
+		}
+		var desktop map[string]string
+		if err := json.Unmarshal(mustReadUIFile(t, "lang/desktop/"+locale+".json"), &desktop); err != nil {
+			t.Fatal(err)
+		}
+		for _, key := range []string{"desktop.detective_provider_unavailable", "game_maker.provider_unavailable", "desktop.looper_provider_unavailable"} {
+			if strings.TrimSpace(desktop[key]) == "" {
+				t.Errorf("%s missing %s", locale, key)
+			}
+		}
+		var invasion map[string]string
+		if err := json.Unmarshal(mustReadUIFile(t, "lang/invasion/"+locale+".json"), &invasion); err != nil {
+			t.Fatal(err)
+		}
+		if strings.TrimSpace(invasion["invasion.provider_unavailable"]) == "" {
+			t.Errorf("%s missing invasion.provider_unavailable", locale)
+		}
+	}
+}
+
+func TestDecisionsProviderConfigBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	browser := newSmokeBrowser(t)
+	page := browser.MustPage(configRefreshFixtureOrigin(t, "en", false) + "/config#overview").Timeout(60 * time.Second)
+	defer page.MustClose()
+	page.MustSetViewport(1440, 900, 1, false)
+	waitForJSBool(t, page, `()=>!!document.querySelector('.pw-overview-card')`)
+	page.MustEval(`()=>{
+		window.decisionStatus={enabled:true,configured:true,ready:false,state:'configured',backend:'provider',deployment:'provider',provider:'fixture-decisions',model:'microsoft/microsoft-decision-1',last_success:'',last_error:''};
+		window.decisionCatalogCalls=0;window.decisionTestCalls=0;window.holdDecisionCatalog=false;
+		const previous=window.fetch;
+		window.fetch=async(url,options)=>{
+			const path=new URL(typeof url==='string'?url:url.url,location.origin).pathname;
+			if(path==='/api/decisions/status')return new Response(JSON.stringify(window.decisionStatus));
+			if(path==='/api/decisions/models'){
+				window.decisionCatalogCalls++;
+				if(window.holdDecisionCatalog)return new Promise(resolve=>window.resolveDecisionCatalog=resolve);
+				return new Response(JSON.stringify({models:[
+					{id:'microsoft/microsoft-decision-1',name:'Microsoft Decision 1',input_modalities:['text'],context_length:65536,pricing:{prompt:'0.000001',completion:'0.000004'},supports_decisions:true,supports_images:false},
+					{id:'typesafe/jev-1.13',name:'Jev 1.13',input_modalities:['text'],context_length:32768,pricing:{prompt:'0',completion:'0'},supports_decisions:true,supports_images:false}
+				]}));
+			}
+			if(path==='/api/decisions/test'&&options?.method==='POST'){
+				window.decisionTestCalls++;
+				if(window.decisionTestError)return new Response(JSON.stringify({code:window.decisionTestError}),{status:window.decisionTestStatus||401});
+				window.decisionStatus={...window.decisionStatus,ready:true,state:'ready',last_success:'2026-10-13T12:00:00Z',last_error:''};
+				return new Response(JSON.stringify({status:'ok'}));
+			}
+			return previous(url,options);
+		};
+		providersCache.push(
+			{id:'fixture-openrouter-general',name:'General OpenRouter',type:'openrouter',usage:'general',base_url:'https://openrouter.ai/api/v1',model:'chat-model',has_api_key:true},
+			{id:'fixture-decisions',name:'Decisions OpenRouter',type:'openrouter',usage:'decisions',base_url:'https://openrouter.ai/api/v1',model:'',has_api_key:true}
+		);
+	}`)
+	page.MustElement(`.sidebar-group:has([data-section="decisions"]) .sidebar-group-header`).MustClick()
+	page.MustElement(`[data-section="decisions"]`).MustClick()
+	waitForJSBool(t, page, `()=>!!document.querySelector('[data-decisions-settings]')`)
+	if !page.MustEval(`()=>document.querySelector('[data-decisions-mode="local"]')?.hidden===false && decisionCatalogCalls===0 && decisionTestCalls===0 && !configGeneralProviders().some(p=>p.id==='fixture-decisions') && configPreservedProviderOptionHTML('fixture-decisions',configGeneralProviders()).includes('Decisions-only profile')`).Bool() {
+		t.Fatal("local rendering contacted OpenRouter or the shared provider filter did not preserve dedicated profiles")
+	}
+	page.MustEval(`()=>{
+		document.querySelector('[data-path="decisions.enabled"]').click();
+		const backend=document.querySelector('[data-path="decisions.backend"]');backend.value='provider';backend.dispatchEvent(new Event('change',{bubbles:true}));
+		const provider=document.querySelector('[data-path="decisions.provider"]');provider.value='fixture-decisions';provider.dispatchEvent(new Event('change',{bubbles:true}));
+	}`)
+	if !page.MustEval(`()=>document.querySelector('[data-decisions-mode="local"]')?.hidden===true && document.querySelector('[data-decisions-mode="provider"]')?.hidden===false && document.querySelector('[data-decisions-action="install"]')?.hidden===true && document.querySelector('[data-decisions-action="test-provider"]')?.disabled===true && decisionCatalogCalls===0 && decisionTestCalls===0`).Bool() {
+		t.Fatal("provider mode exposed local lifecycle actions, skipped the save-first gate, or made an automatic provider request")
+	}
+	if !page.MustEval(`()=>AuraConfigState.isDirty() && document.querySelector('[data-decisions-create-provider]')?.disabled===false`).Bool() {
+		t.Fatal("creating an OpenRouter profile must remain available while the Decisions setup draft is incomplete")
+	}
+	page.MustEval(`()=>document.querySelector('[data-decisions-create-provider]').click()`)
+	waitForJSBool(t, page, `()=>!!document.querySelector('#provider-modal-overlay')`)
+	if !page.MustEval(`()=>{
+		const modal=document.querySelector('#provider-modal-overlay');
+		const tab=key=>modal.querySelector('[data-prov-tab="'+key+'"]');
+		return document.querySelector('#prov-usage')?.value==='decisions' && document.querySelector('#prov-type')?.value==='openrouter' && document.querySelector('#prov-type')?.disabled===true && document.querySelector('#prov-url')?.value==='https://openrouter.ai/api/v1' && document.querySelector('#prov-url')?.disabled===true && document.querySelector('#prov-model')?.value==='' && ['model','capabilities','pricing'].every(key=>tab(key)?.classList.contains('is-hidden'));
+	}`).Bool() {
+		t.Fatal("Create Decisions profile did not open a canonical OpenRouter-only form without chat model fields")
+	}
+	page.MustElement(`#provider-modal-close-btn`).MustClick()
+	if !page.MustEval(`()=>!document.querySelector('#provider-modal-overlay') && AuraConfigState.isDirty()`).Bool() {
+		t.Fatal("closing the provider form lost the incomplete Decisions setup draft")
+	}
+	if !page.MustEval(`()=>document.querySelector('[data-decisions-action="test-provider"]')?.disabled===true`).Bool() {
+		t.Fatal("paid provider test enabled before selecting a model")
+	}
+	// Catalog reads are explicit and may use the selected saved provider while
+	// the Decisions configuration itself is still an unsaved draft.
+	page.MustEval(`()=>{window.holdDecisionCatalog=true;document.querySelector('[data-decisions-load-models]').click()}`)
+	waitForJSBool(t, page, `()=>typeof resolveDecisionCatalog==='function'`)
+	page.MustEval(`()=>{const provider=document.querySelector('[data-path="decisions.provider"]');provider.value='fixture-openrouter-general';provider.dispatchEvent(new Event('change',{bubbles:true}));window.holdDecisionCatalog=false;resolveDecisionCatalog(new Response(JSON.stringify({models:[{id:'stale/model',name:'stale'}]})));}`)
+	if !page.MustEval(`()=>document.querySelector('[data-path="decisions.model"]').options.length===1 && decisionCatalogCalls===1`).Bool() {
+		t.Fatal("a late catalog response populated models for a provider that is no longer selected")
+	}
+	page.MustEval(`()=>{const provider=document.querySelector('[data-path="decisions.provider"]');provider.value='fixture-decisions';provider.dispatchEvent(new Event('change',{bubbles:true}));document.querySelector('[data-decisions-load-models]').click()}`)
+	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-models]')?.textContent.includes('Loaded 2 models')`)
+	if !page.MustEval(`()=>decisionCatalogCalls===2 && AuraConfigState.isDirty()===true`).Bool() {
+		t.Fatal("explicit model catalog action changed the unsaved Decisions draft or failed to load")
+	}
+	if !page.MustEval(`()=>document.querySelector('[data-decisions-action="test-provider"]')?.disabled===true`).Bool() {
+		t.Fatal("paid provider test enabled before selecting a model")
+	}
+	page.MustEval(`()=>{const model=document.querySelector('[data-path="decisions.model"]');model.value='microsoft/microsoft-decision-1';model.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	if !page.MustEval(`()=>document.querySelector('[data-decisions-action="test-provider"]')?.disabled===true && decisionTestCalls===0 && document.querySelector('[data-decisions-model-details]')?.textContent.includes((65536).toLocaleString()) && document.querySelector('[data-decisions-model-details]')?.textContent.includes('USD per token')`).Bool() {
+		t.Fatal("paid provider test was enabled while the selected model was still an unsaved draft")
+	}
+	page.MustEval(`async()=>{await saveConfig();}`)
+	waitForJSBool(t, page, `()=>AuraConfigState.isDirty()===false && document.querySelector('[data-decisions-action="test-provider"]')?.disabled===false`)
+	page.MustEval(`()=>{const button=document.querySelector('[data-decisions-action="test-provider"]');button.click();button.click()}`)
+	waitForJSBool(t, page, `()=>document.querySelector('#shared-modal-overlay')?.classList.contains('active')`)
+	if !page.MustEval(`()=>document.querySelector('#shared-modal-message')?.textContent.includes('fixed Decisions sample request') && document.querySelector('#shared-modal-message')?.textContent.includes('Charges may apply') && decisionTestCalls===0`).Bool() {
+		t.Fatal("paid provider confirmation did not describe the fixed external sample or fired before confirmation")
+	}
+	page.MustElement(`#shared-modal-confirm`).MustClick()
+	waitForJSBool(t, page, `()=>decisionTestCalls===1 && document.querySelector('[data-decisions-provider-result]')?.textContent.includes('Decision test completed')`)
+	if !page.MustEval(`()=>document.querySelector('[data-decisions-status]')?.textContent.includes('Provider evaluation succeeded') && document.querySelector('[data-decisions-settings]')?.textContent.includes('Last successful evaluation:')`).Bool() {
+		t.Fatal("successful provider test did not update readiness and last-success status")
+	}
+	for n, check := range []struct {
+		code, message string
+		status        int
+	}{
+		{code: "provider_auth_failed", message: "rejected authentication", status: 401},
+		{code: "provider_credit_exhausted", message: "no credits available", status: 402},
+		{code: "provider_rate_limited", message: "rate limit was reached", status: 429},
+	} {
+		page.MustEval(`check=>{window.decisionTestError=check.code;window.decisionTestStatus=check.status;document.querySelector('[data-decisions-action="test-provider"]').click()}`, map[string]any{"code": check.code, "status": check.status})
+		waitForJSBool(t, page, `()=>document.querySelector('#shared-modal-overlay')?.classList.contains('active')`)
+		page.MustElement(`#shared-modal-confirm`).MustClick()
+		waitForJSBool(t, page, fmt.Sprintf(`()=>decisionTestCalls===%d && document.querySelector('[data-decisions-provider-result]')?.textContent.includes(%q)`, n+2, check.message))
+	}
+	page.MustEval(`()=>{window.decisionTestError='';window.decisionTestStatus=0;}`)
+	page.MustEval(`()=>{window.decisionStatus={...window.decisionStatus,ready:false,state:'error',last_error:'external_outcome_unknown'};document.dispatchEvent(new Event('aurago:config-saved'));}`)
+	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-status]')?.textContent.includes('request outcome is unknown')`)
+	page.MustEval(`()=>document.querySelector('[data-decisions-action="test-provider"]').click()`)
+	waitForJSBool(t, page, `()=>document.querySelector('#shared-modal-overlay')?.classList.contains('active')`)
+	if !page.MustEval(`()=>document.querySelector('#shared-modal-message')?.textContent.includes('previous request may have reached the provider') && document.querySelector('#shared-modal-message')?.textContent.includes('Check usage')`).Bool() {
+		t.Fatal("uncertain provider outcome did not show a charge warning before retry")
+	}
+	page.MustElement(`#shared-modal-cancel`).MustClick()
+	if page.MustEval(`()=>decisionTestCalls`).Int() != 4 {
+		t.Fatal("cancelling retry confirmation sent another provider request")
+	}
+	for _, width := range []int{390, 1440} {
+		for _, theme := range []string{"standard", "fruity"} {
+			page.MustSetViewport(width, 900, 1, width == 390)
+			page.MustEval(`theme=>{document.documentElement.dataset.theme=theme;document.body.dataset.theme=theme;}`, theme)
+			page.MustEval(`()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))`)
+			if page.MustEval(`()=>document.documentElement.scrollWidth>innerWidth+1 || document.getElementById('content').scrollWidth>document.getElementById('content').clientWidth+1`).Bool() {
+				t.Fatalf("provider Decisions settings overflow at %dpx in %s theme", width, theme)
+			}
+			if dir := os.Getenv("AURAGO_DECISIONS_SCREENSHOTS"); dir != "" {
+				if err := os.MkdirAll(dir, 0o755); err != nil {
+					t.Fatal(err)
+				}
+				size := "narrow"
+				if width == 1440 {
+					size = "wide"
+				}
+				page.MustScreenshot(filepath.Join(dir, "decisions-provider-"+theme+"-"+size+".png"))
 			}
 		}
 	}
@@ -30,7 +194,7 @@ func TestDecisionsLocaleKeys(t *testing.T) {
 func TestDecisionsConfigBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	browser := newSmokeBrowser(t)
-	page := browser.MustPage(configRefreshFixtureOrigin(t, "de", false) + "/config#overview")
+	page := browser.MustPage(configRefreshFixtureOrigin(t, "de", false) + "/config#overview").Timeout(60 * time.Second)
 	defer page.MustClose()
 	page.MustSetViewport(1440, 900, 1, false)
 	waitForJSBool(t, page, `()=>!!document.querySelector('.pw-overview-card')`)

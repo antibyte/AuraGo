@@ -132,7 +132,10 @@ function renderA2ASection(section) {
     html += '<div class="field-help">' + t('help.a2a.llm_provider') + '</div>';
     html += '<select class="field-select a2a-input-lg" data-path="a2a.llm.provider">';
     html += '<option value="">' + t('config.a2a.llm_use_main') + '</option>';
-    var providers = configData.providers || [];
+    var providers = configGeneralProviders(configData.providers || []);
+    var preservedProvider = configPreservedProviderOptionHTML(llmCfg.provider, providers);
+    if (preservedProvider) preservedProvider = preservedProvider.replace('<option ', '<option disabled ');
+    html += preservedProvider;
     providers.forEach(function(p) {
         var sel = (llmCfg.provider === p.id) ? ' selected' : '';
         html += '<option value="' + escapeAttr(p.id) + '"' + sel + '>' + escapeAttr(p.name || p.id) + '</option>';

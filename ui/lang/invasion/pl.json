@@ -148,5 +148,6 @@
   "invasion.will_delete_egg": "zostanie trwale usunięty. Powiązany klucz API zostanie usunięty z vault.",
   "invasion.will_delete_nest": "zostanie trwale usunięte. Powiązany sekret zostanie usunięty z vault.",
   "invasion.ws_connected": "Połączony",
-  "invasion.ws_disconnected": "Rozłączony"
+  "invasion.ws_disconnected": "Rozłączony",
+  "invasion.provider_unavailable": "Profil tylko dla Decisions — niedostępny tutaj"
 }

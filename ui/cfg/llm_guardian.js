@@ -38,13 +38,14 @@ async function renderLLMGuardianSection(section) {
         <div class="field-label">${t('config.llm_guardian.provider_label')}</div>
         <select class="field-select" data-path="llm_guardian.provider">
             <option value=""${!curProvider ? ' selected' : ''}>${t('config.llm_guardian.select_provider')}</option>`;
-    providersCache.forEach(p => {
+    configGeneralProviders().forEach(p => {
         const sel = (String(curProvider) === String(p.id)) ? ' selected' : '';
         const name = p.name || p.id;
         const badge = p.type ? (' [' + p.type + ']') : '';
         const model = p.model ? (' — ' + p.model) : '';
         html += `<option value="${escapeAttr(p.id)}"${sel}>${escapeAttr(name + badge + model)}</option>`;
     });
+    html += configPreservedProviderOptionHTML(curProvider, configGeneralProviders());
     html += `</select></div>`;
 
     const curModel = cfg.model || '';

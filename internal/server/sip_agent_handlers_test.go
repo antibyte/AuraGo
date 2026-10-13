@@ -125,6 +125,9 @@ func TestSIPAgentGETKeepsConfigAvailableWhenHistoryFails(t *testing.T) {
 
 func TestSIPAgentCatalogIsSecretFreeAndReportsReadiness(t *testing.T) {
 	cfg := telephoneAgentTestConfig(t)
+	cfg.Providers = append(cfg.Providers, config.ProviderEntry{
+		ID: "decisions-only", Name: "Decision model", Type: "openrouter", Usage: config.ProviderUsageDecisions,
+	})
 	cfg.RealtimeSpeech.Profiles = []config.RealtimeSpeechProfile{{
 		ID: "phone-live", Name: "Phone Live", Provider: "gemini", Model: "gemini-live", Enabled: true, APIKey: "gemini-secret",
 	}}

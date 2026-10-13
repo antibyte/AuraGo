@@ -148,5 +148,6 @@
   "invasion.will_delete_egg": "kommer att tas bort permanent. Den associerade API-nyckeln kommer att tas bort från valvet.",
   "invasion.will_delete_nest": "kommer att tas bort permanent. Den associerade secret tas bort från vault.",
   "invasion.ws_connected": "Ansluten",
-  "invasion.ws_disconnected": "Frånkopplad"
+  "invasion.ws_disconnected": "Frånkopplad",
+  "invasion.provider_unavailable": "Endast för Decisions – inte tillgänglig här"
 }

@@ -254,6 +254,7 @@ type Provider struct {
 	Name  string `json:"name"`
 	Type  string `json:"type"`
 	Model string `json:"model"`
+	Usage string `json:"usage"`
 }
 
 type PreviewGrant struct {

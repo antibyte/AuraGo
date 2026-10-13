@@ -148,5 +148,6 @@
   "invasion.will_delete_egg": "vil blive permanent slettet. Den tilknyttede API-nøgle vil blive fjernet fra Vaulten.",
   "invasion.will_delete_nest": "vil blive permanent slettet. Den tilknyttede secret fjernes fra vault.",
   "invasion.ws_connected": "Forbundet",
-  "invasion.ws_disconnected": "Afbrudt"
+  "invasion.ws_disconnected": "Afbrudt",
+  "invasion.provider_unavailable": "Kun til Decisions — ikke tilgængelig her"
 }

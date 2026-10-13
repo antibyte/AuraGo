@@ -40,6 +40,9 @@ func providerReferences(cfg *config.Config, providerID string) []providerReferen
 	add("music_generation.provider", "music_generation", cfg.MusicGeneration.Provider)
 	add("video_generation.provider", "video_generation", cfg.VideoGeneration.Provider)
 	add("a2a.llm.provider", "a2a_llm", cfg.A2A.LLM.Provider)
+	if cfg.Decisions.Enabled && cfg.Decisions.Normalize().Backend == config.DecisionsBackendProvider {
+		add("decisions.provider", "decisions_external_model", cfg.Decisions.Provider)
+	}
 	sort.Slice(refs, func(i, j int) bool { return refs[i].Path < refs[j].Path })
 	return refs
 }

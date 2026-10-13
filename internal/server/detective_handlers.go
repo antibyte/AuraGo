@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/desktop"
 	"aurago/internal/detective"
 )
@@ -92,7 +93,14 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 		sort.Strings(private)
 		providers := []map[string]string{}
 		for _, p := range cfg.Providers {
-			providers = append(providers, map[string]string{"id": p.ID, "name": p.Name, "model": p.Model})
+			if strings.TrimSpace(p.ID) == "" || !config.ProviderUsageAllowsGeneralChat(&p) {
+				continue
+			}
+			usage := config.NormalizeProviderUsage(p.Usage)
+			if usage == "" {
+				usage = config.ProviderUsageGeneral
+			}
+			providers = append(providers, map[string]string{"id": p.ID, "name": p.Name, "model": p.Model, "usage": usage})
 		}
 		profiles := detective.Profiles()
 		ready := s.Detective != nil && s.Detective.Ready()
@@ -139,6 +147,17 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 			for _, name := range req.PrivateSources {
 				if len(cfg.Detective.ExtraReadOperations[name]) == 0 {
 					detectiveError(w, errors.New("private source is not approved for research"))
+					return
+				}
+			}
+			if providerID := strings.TrimSpace(req.ProviderID); providerID != "" {
+				provider := cfg.FindProvider(providerID)
+				if provider == nil {
+					detectiveError(w, errors.New("selected provider is unavailable"))
+					return
+				}
+				if !config.ProviderUsageAllowsGeneralChat(provider) {
+					detectiveError(w, errors.New("selected provider is not available for general chat"))
 					return
 				}
 			}

@@ -1253,6 +1253,7 @@
   "desktop.looper_pause": "Παύση",
   "desktop.looper_pause_error": "Η παύση απέτυχε.",
   "desktop.looper_provider": "Πάροχος",
+  "desktop.looper_provider_unavailable": "Προφίλ μόνο για Decisions — μη διαθέσιμο εδώ",
   "desktop.looper_resume": "Συνέχεια",
   "desktop.looper_resume_error": "Η συνέχεια απέτυχε.",
   "desktop.looper_round": "Γύρος {{n}}",
@@ -6117,5 +6118,7 @@
   "desktop.gog.no_account": "Κανένας λογαριασμός δεν έχει τα απαιτούμενα δικαιώματα.",
   "desktop.gog.office_help": "Η εισαγωγή δημιουργεί νέο τοπικό αντίγραφο. Η εξαγωγή δημιουργεί νέο αρχείο Google. Η μορφοποίηση μπορεί να αλλάξει.",
   "desktop.gog.resource_id": "ID εγγράφου Google",
-  "desktop.gog.parent": "ID φακέλου προορισμού (root = Το Drive μου)"
+  "desktop.gog.parent": "ID φακέλου προορισμού (root = Το Drive μου)",
+  "desktop.detective_provider_unavailable": "Μόνο για το Decisions — μη διαθέσιμο εδώ",
+  "game_maker.provider_unavailable": "Μόνο για το Decisions — μη διαθέσιμο εδώ"
 }

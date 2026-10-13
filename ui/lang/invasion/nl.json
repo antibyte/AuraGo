@@ -148,5 +148,6 @@
   "invasion.will_delete_egg": "wordt permanent verwijderd. De bijbehorende API-sleutel wordt uit de kluis verwijderd.",
   "invasion.will_delete_nest": "wordt permanent verwijderd. De bijbehorende secret wordt uit de vault verwijderd.",
   "invasion.ws_connected": "Verbonden",
-  "invasion.ws_disconnected": "Verbinding verbroken"
+  "invasion.ws_disconnected": "Verbinding verbroken",
+  "invasion.provider_unavailable": "Alleen voor Decisions — hier niet beschikbaar"
 }

@@ -126,3 +126,20 @@ func TestNonRetryableCodesAreTheDocumentedSet(t *testing.T) {
 		}
 	}
 }
+
+func TestEnginePreservesNonRetryableProviderTimeout(t *testing.T) {
+	reg := newTestRegistry(t)
+	var calls int
+	reg.MustRegister(&NodeDef{Type: "test.paidtimeout", DefaultTimeout: time.Millisecond, Execute: func(ctx context.Context, _ ExecInput) (ExecResult, error) {
+		calls++
+		<-ctx.Done()
+		return ExecResult{}, NewNodeError("FLOW_AI_UNAVAILABLE", "external outcome unknown")
+	}})
+	b, tr, n := singleNodeFlow("Paid timeout", "paid", "test.paidtimeout", nil)
+	f := b.build()
+	f.NodeByID(n).Settings.Retry = RetryPolicy{Count: 3}
+	result, _ := runWith(context.Background(), newTestEngine(reg, nil, 1), f, RunRequest{TriggerNode: tr})
+	if calls != 1 || result.ErrorCode != "FLOW_AI_UNAVAILABLE" {
+		t.Fatalf("calls=%d result=%+v", calls, result)
+	}
+}

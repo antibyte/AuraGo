@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"time"
 
 	"aurago/internal/config"
@@ -36,12 +37,13 @@ func (s *Server) initDecisions(installDir string) {
 			installDir = filepath.Dir(executable)
 		}
 	}
-	s.Decisions = decisions.NewManager(cfg.Decisions, cfg.Directories.DataDir, decisions.WithRuntimeDirectory(installDir),
+	local := decisions.NewManager(decisionsLocalPolicy(cfg.Decisions), cfg.Directories.DataDir, decisions.WithRuntimeDirectory(installDir),
 		decisions.WithLogger(s.Logger), decisions.WithDockerSelfContainer(s.decisionsDockerSelfContainer), decisions.WithRuntimeAccess(func() decisions.RuntimeAccess {
 			current := s.ConfigSnapshot()
 			return decisions.RuntimeAccess{IsDocker: current.Runtime.IsDocker, DockerEnabled: current.Docker.Enabled,
 				DockerReadOnly: current.Docker.ReadOnly, DockerHost: current.Docker.Host}
 		}))
+	s.Decisions = newRoutedDecisions(s, local, cfg)
 }
 
 func (s *Server) decisionsDockerSelfContainer(ctx context.Context, host string) (string, error) {
@@ -105,12 +107,18 @@ func (s *Server) reconfigureDecisions(previous, next *config.Config) {
 		return
 	}
 	changed := previous == nil || previous.Decisions != next.Decisions || previous.Docker.Enabled != next.Docker.Enabled ||
-		previous.Docker.ReadOnly != next.Docker.ReadOnly || previous.Docker.Host != next.Docker.Host
+		previous.Docker.ReadOnly != next.Docker.ReadOnly || previous.Docker.Host != next.Docker.Host || !reflect.DeepEqual(previous.Providers, next.Providers)
 	if !changed {
 		return
 	}
 	// Revoke immediately; process/container cleanup must not hold the config lock.
-	cleanup, err := s.Decisions.PrepareReconfigure(next.Decisions)
+	var cleanup func(context.Context) error
+	var err error
+	if router, ok := s.Decisions.(*routedDecisions); ok {
+		cleanup, err = router.prepareConfiguration(next)
+	} else {
+		cleanup, err = s.Decisions.PrepareReconfigure(next.Decisions)
+	}
 	if err != nil {
 		if s.Logger != nil {
 			s.Logger.Warn("Decisions configuration rejected", "code", decisions.ErrorCode(err))
@@ -144,6 +152,11 @@ func (e *flowCatalogEnv) DecisionAvailability() flows.Availability {
 	switch {
 	case !status.Enabled:
 		result.Code = "DECISIONS_DISABLED"
+	case status.Backend == "provider":
+		if status.Configured {
+			return flows.Availability{State: flows.AvailableState}
+		}
+		result.Code = "DECISIONS_NOT_CONFIGURED"
 	case status.Code == decisions.CodeCPUConsentRequired:
 		result.Code = "DECISIONS_CPU_FALLBACK_DENIED"
 	case status.Code == decisions.CodeRuntimeAttestationFailed:

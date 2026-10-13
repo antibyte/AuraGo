@@ -16,6 +16,7 @@ import (
 type providerJSON struct {
 	ID                        string                     `json:"id"`
 	Name                      string                     `json:"name"`
+	Usage                     string                     `json:"usage,omitempty"`
 	Type                      string                     `json:"type"`
 	BaseURL                   string                     `json:"base_url"`
 	APIKey                    string                     `json:"api_key"`
@@ -263,6 +264,7 @@ func handleGetProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 		out[i] = providerJSON{
 			ID:                        p.ID,
 			Name:                      p.Name,
+			Usage:                     p.Usage,
 			Type:                      p.Type,
 			BaseURL:                   p.BaseURL,
 			APIKey:                    apiKey,
@@ -315,9 +317,11 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 	oldKeyMap := make(map[string]string, len(s.Cfg.Providers))
 	oldSecretMap := make(map[string]string, len(s.Cfg.Providers))
 	oldAuthTypeMap := make(map[string]string, len(s.Cfg.Providers))
+	oldUsageMap := make(map[string]string, len(s.Cfg.Providers))
 	oldProviderIDs := make([]string, len(s.Cfg.Providers))
 	for i, p := range s.Cfg.Providers {
 		oldAuthTypeMap[p.ID] = normalizeProviderAuthType(p.AuthType)
+		oldUsageMap[p.ID] = p.Usage
 		if normalizeProviderAuthType(p.AuthType) != "oauth2" && strings.TrimSpace(p.APIKey) != "" {
 			oldKeyMap[p.ID] = p.APIKey
 		}
@@ -354,6 +358,10 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 	vaultMutations := make([]vaultMutation, 0, len(incoming)*3)
 	for i, p := range incoming {
 		p.ID = strings.TrimSpace(p.ID)
+		p.Usage = config.NormalizeProviderUsage(p.Usage)
+		if p.Usage == "" {
+			p.Usage = config.NormalizeProviderUsage(oldUsageMap[p.ID])
+		}
 		if p.ContextWindow < 0 || p.MaxOutputTokens < 0 {
 			jsonError(w, "context_window and max_output_tokens must be zero or positive", http.StatusBadRequest)
 			return
@@ -371,6 +379,10 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		seenIDs[p.ID] = true
+		if err := config.ValidateProviderEntryUsage(config.ProviderEntry{ID: p.ID, Type: p.Type, Usage: p.Usage}); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 
 		authType := normalizeProviderAuthType(p.AuthType)
 
@@ -446,6 +458,7 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 		entries[i] = config.ProviderEntry{
 			ID:                p.ID,
 			Name:              p.Name,
+			Usage:             p.Usage,
 			Type:              p.Type,
 			BaseURL:           p.BaseURL,
 			APIKey:            apiKey,
@@ -462,6 +475,15 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 			Models:            p.Models,
 			Capabilities:      providerCapabilitiesFromJSON(p.Capabilities),
 		}
+	}
+
+	s.CfgMu.RLock()
+	candidate := *s.Cfg
+	s.CfgMu.RUnlock()
+	candidate.Providers = append([]config.ProviderEntry(nil), entries...)
+	if err := config.ValidateDecisionsProvider(&candidate); err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	result, err := persistProviderEntries(s, entries, vaultMutations, oldProviderIDs)
@@ -485,8 +507,13 @@ func persistProviderEntries(s *Server, entries []config.ProviderEntry, vaultMuta
 		return providerSaveResult{}, fmt.Errorf("server config is not available")
 	}
 	s.CfgMu.RLock()
+	candidate := *s.Cfg
 	configPath := s.Cfg.ConfigPath
 	s.CfgMu.RUnlock()
+	candidate.Providers = append([]config.ProviderEntry(nil), entries...)
+	if err := config.ValidateDecisionsProvider(&candidate); err != nil {
+		return providerSaveResult{}, err
+	}
 	if strings.TrimSpace(configPath) == "" {
 		return providerSaveResult{}, fmt.Errorf("config path not set")
 	}
@@ -741,6 +768,7 @@ func buildProviderYAMLEntry(e config.ProviderEntry) map[string]interface{} {
 	m := map[string]interface{}{
 		"id":       e.ID,
 		"name":     e.Name,
+		"usage":    e.Usage,
 		"type":     e.Type,
 		"base_url": e.BaseURL,
 		"model":    e.Model,

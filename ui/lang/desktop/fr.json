@@ -1253,6 +1253,7 @@
   "desktop.looper_pause": "Pause",
   "desktop.looper_pause_error": "Impossible de mettre en pause.",
   "desktop.looper_provider": "Fournisseur",
+  "desktop.looper_provider_unavailable": "Profil réservé à Decisions — indisponible ici",
   "desktop.looper_resume": "Reprendre",
   "desktop.looper_resume_error": "Impossible de reprendre.",
   "desktop.looper_round": "Tour {{n}}",
@@ -6117,5 +6118,7 @@
   "desktop.gog.no_account": "Aucun compte ne dispose des autorisations requises.",
   "desktop.gog.office_help": "L’import crée une copie locale. L’export crée un nouveau fichier Google. La mise en forme peut changer.",
   "desktop.gog.resource_id": "Identifiant du document Google",
-  "desktop.gog.parent": "Identifiant du dossier cible (root = Mon Drive)"
+  "desktop.gog.parent": "Identifiant du dossier cible (root = Mon Drive)",
+  "desktop.detective_provider_unavailable": "Profil réservé à Decisions — indisponible ici",
+  "game_maker.provider_unavailable": "Profil réservé à Decisions — indisponible ici"
 }

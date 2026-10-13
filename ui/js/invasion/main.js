@@ -104,7 +104,7 @@ async function loadProviders() {
         sel.options[0].textContent = '— ' + t('invasion.inherit_llm') + ' —';
         // remove any previously populated provider options
         while (sel.options.length > 1) sel.remove(1);
-        providersData.forEach(p => {
+        invasionGeneralProviders().forEach(p => {
             const opt = document.createElement('option');
             opt.value = p.id;
             opt.textContent = p.name || p.id;
@@ -113,6 +113,22 @@ async function loadProviders() {
     } catch (e) {
         console.warn('[IC] Could not load providers:', e.message);
     }
+}
+
+function invasionGeneralProviders() {
+    return providersData.filter(provider => provider && provider.usage !== 'decisions');
+}
+
+function invasionPreserveProvider(select, providerID) {
+    const id = String(providerID || '');
+    if (!id || [...select.options].some(option => option.value === id)) return;
+    const provider = providersData.find(item => item && String(item.id) === id);
+    const option = document.createElement('option');
+    option.value = id;
+    option.disabled = true;
+    option.dataset.ineligible = 'true';
+    option.textContent = (provider ? (provider.name || provider.id) : id) + ' — ' + t('invasion.provider_unavailable');
+    select.appendChild(option);
 }
 
 // ── Tabs ─────────────────────────────────────────────────
@@ -358,6 +374,8 @@ function openEggModal(egg = null) {
     document.getElementById('egg-id').value = egg?.id || '';
     document.getElementById('egg-name').value = egg?.name || '';
     document.getElementById('egg-description').value = egg?.description || '';
+    document.getElementById('egg-provider').value = egg?.provider || '';
+    invasionPreserveProvider(document.getElementById('egg-provider'), egg?.provider);
     document.getElementById('egg-provider').value = egg?.provider || '';
     document.getElementById('egg-model').value = egg?.model || '';
     document.getElementById('egg-base-url').value = egg?.base_url || '';
@@ -669,7 +687,7 @@ async function openReconfigureModal(nestId) {
     // Populate provider dropdown
     const sel = document.getElementById('reconfigure-provider');
     sel.innerHTML = `<option value="">${t('invasion.reconfigure_keep_current')}</option>`;
-    providersData.forEach(p => {
+    invasionGeneralProviders().forEach(p => {
         const opt = document.createElement('option');
         opt.value = p.id;
         opt.textContent = p.name || p.id;

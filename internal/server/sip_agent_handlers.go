@@ -121,6 +121,9 @@ func handleSIPAgentCatalog(s *Server) http.HandlerFunc {
 		}
 		providers := make([]sipAgentProviderOption, 0, len(cfg.Providers))
 		for _, provider := range cfg.Providers {
+			if !config.ProviderUsageAllowsGeneralChat(&provider) {
+				continue
+			}
 			resolution := resolveTelephoneProvider(r.Context(), s, cfg, provider.ID, false)
 			providers = append(providers, sipAgentProviderOption{
 				ID: provider.ID, Name: provider.Name, Type: provider.Type, Model: provider.Model,

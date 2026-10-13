@@ -47,7 +47,7 @@ function vcCfgEnsureData() {
 }
 
 function vcCfgAgentProviderOptions(selectedProvider) {
-    const providers = (typeof providersCache !== 'undefined' && Array.isArray(providersCache) ? providersCache : [])
+    const providers = configGeneralProviders(typeof providersCache !== 'undefined' && Array.isArray(providersCache) ? providersCache : [])
         .filter(function(provider) {
             const baseURL = String(provider.base_url || '').trim().replace(/\/+$/, '').toLowerCase();
             return String(provider.type || '').trim().toLowerCase() === 'anthropic' &&
@@ -64,6 +64,7 @@ function vcCfgAgentProviderOptions(selectedProvider) {
         const label = name + (model ? ' — ' + model : '') + (configured ? '' : ' — ' + t('config.virtual_computers.agent_provider_key_missing'));
         html += '<option value="' + escapeAttr(id) + '"' + (id === selectedProvider ? ' selected' : '') + (configured ? '' : ' disabled') + '>' + escapeAttr(label) + '</option>';
     });
+    html += configPreservedProviderOptionHTML(selectedProvider, providers);
     return html;
 }
 

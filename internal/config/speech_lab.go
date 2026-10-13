@@ -192,6 +192,12 @@ func SpeechLabChatProviderEligibility(provider *ProviderEntry) (bool, string) {
 	if provider == nil {
 		return false, "unknown_provider"
 	}
+	if !ProviderUsageAllowsGeneralChat(provider) {
+		if NormalizeProviderUsage(provider.Usage) == ProviderUsageDecisions {
+			return false, "decisions_only"
+		}
+		return false, "unsupported_usage"
+	}
 	providerType := catalog.NormalizeProviderID(provider.Type)
 	if !catalog.IsRuntimeProviderType(providerType) {
 		return false, "unsupported_provider_type"
@@ -209,6 +215,17 @@ func SpeechLabChatProviderEligibility(provider *ProviderEntry) (bool, string) {
 		return false, "missing_model"
 	}
 	return true, "available"
+}
+
+// ProviderUsageAllowsGeneralChat reports whether a profile may be selected by
+// ordinary chat and media integrations. Empty usage keeps legacy profiles
+// compatible with the general-purpose default.
+func ProviderUsageAllowsGeneralChat(provider *ProviderEntry) bool {
+	if provider == nil {
+		return false
+	}
+	usage := NormalizeProviderUsage(provider.Usage)
+	return usage == "" || usage == ProviderUsageGeneral
 }
 
 func validateSpeechLabURL(field, raw string, required bool) error {

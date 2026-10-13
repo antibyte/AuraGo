@@ -1253,6 +1253,7 @@
   "desktop.looper_pause": "Pause",
   "desktop.looper_pause_error": "Pause mislykkedes.",
   "desktop.looper_provider": "Udbyder",
+  "desktop.looper_provider_unavailable": "Profil kun til Decisions — ikke tilgængelig her",
   "desktop.looper_resume": "Fortsæt",
   "desktop.looper_resume_error": "Fortsættelse mislykkedes.",
   "desktop.looper_round": "Runde {{n}}",
@@ -6117,5 +6118,7 @@
   "desktop.gog.no_account": "Ingen konto har de nødvendige rettigheder.",
   "desktop.gog.office_help": "Import opretter en ny lokal kopi. Eksport opretter en ny Google-fil. Formateringen kan ændres.",
   "desktop.gog.resource_id": "Google-dokument-ID",
-  "desktop.gog.parent": "Målmappens ID (root = Mit drev)"
+  "desktop.gog.parent": "Målmappens ID (root = Mit drev)",
+  "desktop.detective_provider_unavailable": "Kun til Decisions — ikke tilgængelig her",
+  "game_maker.provider_unavailable": "Kun til Decisions — ikke tilgængelig her"
 }

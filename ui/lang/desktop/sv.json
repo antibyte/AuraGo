@@ -1253,6 +1253,7 @@
   "desktop.looper_pause": "Paus",
   "desktop.looper_pause_error": "Pausen misslyckades.",
   "desktop.looper_provider": "Leverantör",
+  "desktop.looper_provider_unavailable": "Profil endast för Decisions – inte tillgänglig här",
   "desktop.looper_resume": "Återuppta",
   "desktop.looper_resume_error": "Det gick inte att återuppta.",
   "desktop.looper_round": "Runda {{n}}",
@@ -6117,5 +6118,7 @@
   "desktop.gog.no_account": "Inget konto har de behörigheter som krävs.",
   "desktop.gog.office_help": "Import skapar en ny lokal kopia. Export skapar en ny Google-fil. Formateringen kan ändras.",
   "desktop.gog.resource_id": "Google-dokument-ID",
-  "desktop.gog.parent": "Målmappens ID (root = Min enhet)"
+  "desktop.gog.parent": "Målmappens ID (root = Min enhet)",
+  "desktop.detective_provider_unavailable": "Endast för Decisions – inte tillgänglig här",
+  "game_maker.provider_unavailable": "Endast för Decisions – inte tillgänglig här"
 }

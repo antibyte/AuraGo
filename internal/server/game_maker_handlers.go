@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/gamemaker"
 )
 
@@ -44,11 +45,15 @@ func handleGameMakerCapabilities(s *Server) http.HandlerFunc {
 		}
 		var providers []gamemaker.Provider
 		for _, provider := range cfg.Providers {
-			if strings.TrimSpace(provider.ID) == "" {
+			if strings.TrimSpace(provider.ID) == "" || !config.ProviderUsageAllowsGeneralChat(&provider) {
 				continue
 			}
+			usage := config.NormalizeProviderUsage(provider.Usage)
+			if usage == "" {
+				usage = config.ProviderUsageGeneral
+			}
 			providers = append(providers, gamemaker.Provider{
-				ID: provider.ID, Name: provider.Name, Type: provider.Type, Model: provider.Model,
+				ID: provider.ID, Name: provider.Name, Type: provider.Type, Model: provider.Model, Usage: usage,
 			})
 		}
 		var skills []gamemaker.SkillInfo
@@ -237,6 +242,18 @@ func handleGameMakerStartJob(w http.ResponseWriter, r *http.Request, s *Server, 
 	var request gamemaker.StartJobRequest
 	if err := decodeGameMakerJSON(w, r, &request); err != nil {
 		return
+	}
+	providerID := strings.TrimSpace(request.ProviderID)
+	if providerID == "" {
+		if project, err := s.GameMaker.GetProject(r.Context(), projectID); err == nil {
+			providerID = strings.TrimSpace(project.ProviderID)
+		}
+	}
+	if cfg := s.ConfigSnapshot(); cfg != nil && providerID != "" {
+		if provider := cfg.FindProvider(providerID); provider != nil && !config.ProviderUsageAllowsGeneralChat(provider) {
+			jsonError(w, "selected Game Maker provider is not available for general chat", http.StatusBadRequest)
+			return
+		}
 	}
 	job, err := s.GameMaker.StartJob(r.Context(), projectID, request)
 	if err != nil {

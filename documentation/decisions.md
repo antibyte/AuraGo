@@ -1,12 +1,14 @@
 # Decisions
 
-Decisions is an optional shared local service for decisions from text and images.
+Decisions is an optional shared service for decisions from text and images,
+using either a managed local runtime or a saved external provider connection.
 It is off by default and is independent of normal chat, helper LLMs, and agents.
 EasyDrag's **Decisions** node is its first consumer.
 
 ## Setup and permissions
 
-Open **Configuration → Decisions**, enable the service, select its deployment,
+For local processing, open **Configuration → Decisions**, enable the service,
+select the **Local** backend and its deployment,
 and save. `auto` selects a native process for a native AuraGo installation and a
 managed container when AuraGo itself runs in Docker. Container management also
 requires the existing Docker enable/write permissions.
@@ -48,9 +50,71 @@ selected logits on the host are not CPU model inference.
 ```yaml
 decisions:
   enabled: false
+  backend: local         # local or provider; omitted values preserve local operation
   deployment: auto       # auto, native, docker
   cpu_fallback_allowed: false
 ```
+
+### External processing with OpenRouter
+
+In **Providers**, create an OpenRouter connection with purpose **Decisions**, or
+reuse an existing general OpenRouter connection. Store its API key through the
+provider editor; AuraGo keeps it in the encrypted Vault. A dedicated Decisions
+connection does not require a chat model and is excluded from chat, helper and
+media provider selectors.
+
+In **Decisions**, select the external backend and the saved connection, explicitly
+load its decision models, select a model, and save. The model belongs to Decisions
+configuration, independently of the connection's chat model. **Test decision**
+sends a fixed small example and may incur provider charges. Opening the settings
+or reading status never runs an inference. A configured connection can be used
+without running the test first; readiness and the last successful request are
+shown separately from configuration completeness.
+
+```yaml
+providers:
+  - id: decisions_cloud
+    type: openrouter
+    usage: decisions
+    name: Decision models
+    base_url: https://openrouter.ai/api/v1
+decisions:
+  enabled: true
+  backend: provider
+  provider: decisions_cloud
+  model: microsoft/microsoft-decision-1
+```
+
+The adapter uses OpenRouter's **`POST /api/alpha/decisions`**, not chat completions.
+It discovers models through **`GET /api/v1/models?output_modalities=decisions`**
+and verifies advertised capabilities before evaluation. Microsoft Decision 1 and
+Typesafe Jev 1.13 are text-only; models advertising image input can accept
+authorized images within the adapter's limits. An unavailable model or unsupported
+image input fails explicitly. There is no automatic fallback between local and
+external backends, models, or ordinary chat APIs.
+
+External processing sends the supplied state, questions and authorized images
+to OpenRouter and its executing provider. Selecting the external backend is the
+operator's choice to allow that transfer. Images use in-memory data URLs; AuraGo
+does not upload arbitrary URL references or expose filesystem paths. Only the
+canonical OpenRouter HTTPS origin is accepted, redirects are refused, and no
+credentials or provider response bodies are included in errors.
+
+Local install/start/stop, accelerator attestation and CPU consent do not apply to
+external inference. Existing local settings and downloads are preserved when
+switching backends. Disabling Decisions, changing its configuration or provider,
+or shutting down cancels active work and rejects late results. Remote cancellation
+cannot guarantee that the provider stopped processing or charging. An uncertain
+POST outcome is never automatically retried, including by EasyDrag node retries.
+
+Reported USD costs are recorded once in the existing Decisions budget category.
+An absent cost remains unknown, not zero; a timed-out request may still be charged
+upstream without an amount AuraGo can record. Budget enforcement blocks a new
+request once the configured limit has been reached; it cannot reserve an exact
+price for an in-flight request.
+
+See the [OpenRouter Decisions API](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request)
+and [model discovery documentation](https://openrouter.ai/docs/guides/overview/models).
 
 ## EasyDrag
 
@@ -86,6 +150,7 @@ The authenticated administrator API provides:
 | Method | Route | Purpose |
 | --- | --- | --- |
 | GET | `/api/decisions/status` | Passive status and actual runtime/device metadata |
+| GET | `/api/decisions/models?provider=<saved-id>` | Explicit external decision-model catalog lookup |
 | POST | `/api/decisions/install` | Start managed installation |
 | POST | `/api/decisions/start` | Start the installed service |
 | POST | `/api/decisions/stop` | Cancel and stop the service |
@@ -112,23 +177,42 @@ Example body:
 The Go `Evaluate(ctx, Request)` API is independent of EasyDrag. Its image values
 contain already authorized bytes; the public HTTP/flow adapters resolve file
 references first. A bounded queue serializes evaluations against the resident
-model and supports cancellation. Each question starts a separate prompt/context;
+model and supports cancellation. Each local question starts a separate prompt/context;
 there is no cross-request conversational memory.
 
-Prompts follow Jeff's published **Task / State / Options / Decision** format.
+Local prompts follow Jeff's published **Task / State / Options / Decision** format.
 Candidate codes must each be exactly one token in the actual prompt context.
 The private authenticated native service reads every candidate logit directly.
 Stable softmax is computed only over those candidates, retaining an entry even
 for very unlikely options. `confidence` is the largest resulting probability.
 Missing, duplicate, non-finite, or inconsistent scores are errors.
 
-The response includes the exact model revision, full answer distributions, actual
+The local response includes the exact model revision, full answer distributions, actual
 runtime/device information, and token counts. It explicitly says
 `calibration: "uncalibrated"`. The original Intern-Decision temperature is not
 transferred to Jeff. A high probability is a relative preference among the given
 options, not a calibrated guarantee of correctness.
 
+External results preserve those answer semantics: `decision` is the original
+option ID, `choice` its label, `confidence` the selected option's probability,
+and `score` uses the caller's numeric option values. OpenRouter's separate
+confidence measure is exposed as `provider_confidence` without replacing
+`confidence`. `execution` identifies the configured connection and executing
+provider; `usage.cost_usd` is present only when reported. External results remain
+`uncalibrated` and never claim local device attestation.
+
+The external adapter accepts JPEG and PNG (including server-normalized WebP),
+with additional conservative limits: four images, at most
+300 KiB each, a 3 MiB serialized request, and the model's advertised context
+budget. Known model-specific limits, including Clef's text truncation boundary,
+are checked before sending rather than silently dropping input. Exceeding a
+limit requires a smaller request or another compatible model.
+
 ## Limits
+
+The public input limits below apply to both backends. External evaluation also
+enforces the smaller image/request limits and advertised model context described
+above; the 8192-token scoring budget applies only to the local runtime.
 
 - 16 ordered questions per evaluation, 2–62 options per choice/rating question;
   yes/no uses the fixed stable IDs `no` and `yes`.
@@ -146,7 +230,7 @@ options, not a calibrated guarantee of correctness.
   Question and option IDs are at most 128 bytes (EasyDrag uses its stricter
   32-character lowercase identifier format for stable ports).
 
-## Pins and acceptance
+## Local runtime pins and acceptance
 
 Both model files come from
 [jersobh/jeff-2b-gguf](https://huggingface.co/jersobh/jeff-2b-gguf/tree/263ac27c59688a360d2db255c4f7e57f665bcca4),

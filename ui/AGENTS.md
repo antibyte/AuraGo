@@ -761,6 +761,13 @@ worker. Keep packaging, recovery and offline instructions in
 
 ## Decisions settings
 
+- External mode selects a saved OpenRouter connection and a separate decision
+  model; catalog loading is explicit and the paid test uses fixed example data.
+  Keep transfer/cost information visible. Never expose local lifecycle or CPU
+  controls as external provider actions. Dedicated Decisions provider profiles
+  are excluded from ordinary provider selectors; preserve invalid saved choices
+  visibly until corrected. Cancel stale catalog/test responses on mode, provider
+  or section changes. Keep setup errors and the last successful request visible.
 - `cfg/decisions.js` uses the shared saved/draft state for activation, deployment,
   and explicit CPU/mixed-offload permission. Its status polling is passive,
   bounded, cancelled on disposal, and cannot repaint another section. Install,

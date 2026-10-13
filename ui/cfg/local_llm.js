@@ -27,7 +27,7 @@ function renderLocalLLMSection(section) {
     const ling = data.model_family === 'ling';
     const spark = data.model_family === 'spark';
     const status = _localLLMStatus || {};
-    const providers = (configData.providers || []).filter(provider => provider && provider.id && provider.id !== 'aurago-qwen-local');
+    const providers = configGeneralProviders((configData.providers || []).filter(provider => provider && provider.id && provider.id !== 'aurago-qwen-local'));
     const displayedRole = data.enabled === false ? 'test_only' : (status.role || 'test_only');
     const selectedRegular = localLLMRegularProvider(displayedRole, providers);
 
@@ -93,7 +93,8 @@ function renderLocalLLMSection(section) {
         ['primary', t('config.local_llm.role_primary')]
     ], 'localLLMRenderRoutingPreview()');
     html += localLLMPlainSelect('local-llm-regular-provider', selectedRegular, 'config.local_llm.regular_provider',
-        providers.map(provider => [provider.id, provider.name || provider.id]), 'localLLMRenderRoutingPreview()');
+        providers.map(provider => [provider.id, provider.name || provider.id]), 'localLLMRenderRoutingPreview()',
+        localLLMPreservedProviderOption(selectedRegular, providers));
     html += '<div id="local-llm-routing-preview" class="cfg-note-banner"></div>';
     html += '<button type="button" class="btn-save" data-local-llm-saved-action data-policy-disabled="false" onclick="localLLMApplyRole()">' + t('config.local_llm.apply_role') + '</button>';
     html += '</div>';
@@ -148,7 +149,7 @@ function localLLMDisableRoutingPlan(config, providers) {
         return { ok: true, regularProvider: '', changes: {} };
     }
 
-    const regularProviders = (providers || []).filter(provider => provider && provider.id && provider.id !== localProvider);
+    const regularProviders = configGeneralProviders(providers || []).filter(provider => provider && provider.id && provider.id !== localProvider);
     let regularProvider = localIsPrimary ? fallbackProvider : mainProvider;
     if (!regularProviders.some(provider => provider.id === regularProvider)) {
         regularProvider = regularProviders.length ? regularProviders[0].id : '';
@@ -173,7 +174,7 @@ function localLLMToggleEnabled(element) {
     if (enabled) return;
 
     const draft = localLLMCurrentDraft();
-    const providers = (draft.providers || []).filter(provider => provider && provider.id);
+    const providers = configGeneralProviders((draft.providers || []).filter(provider => provider && provider.id));
     const plan = localLLMDisableRoutingPlan(draft, providers);
     if (!plan.ok) {
         element.classList.add('on');
@@ -212,9 +213,9 @@ function localLLMSelect(path, value, labelKey, options, dataType) {
         '</select></div>';
 }
 
-function localLLMPlainSelect(id, value, labelKey, options, onChange) {
+function localLLMPlainSelect(id, value, labelKey, options, onChange, preservedOptionHTML = '') {
     return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div><select class="field-select" id="' +
-        escapeAttr(id) + '" onchange="' + onChange + '">' + options.map(option => '<option value="' + escapeAttr(option[0]) + '"' +
+        escapeAttr(id) + '" onchange="' + onChange + '">' + preservedOptionHTML + options.map(option => '<option value="' + escapeAttr(option[0]) + '"' +
         (String(value) === String(option[0]) ? ' selected' : '') + '>' + escapeHtml(option[1]) + '</option>').join('') +
         '</select></div>';
 }
@@ -424,7 +425,13 @@ function localLLMRegularProvider(role, providers) {
     const fallback = configData.fallback_llm && configData.fallback_llm.provider;
     const candidate = role === 'primary' ? fallback : main;
     if (providers.some(provider => provider.id === candidate)) return candidate;
+    if (candidate && (configData.providers || []).some(provider => provider && provider.id === candidate)) return candidate;
     return providers.length ? providers[0].id : '';
+}
+
+function localLLMPreservedProviderOption(providerID, eligibleProviders) {
+    const option = configPreservedProviderOptionHTML(providerID, eligibleProviders);
+    return option.replace('<option ', '<option disabled ');
 }
 
 function localLLMRenderRoutingPreview() {
@@ -452,6 +459,13 @@ async function localLLMApplyRole() {
     const role = document.getElementById('local-llm-role').value;
     const regularProvider = document.getElementById('local-llm-regular-provider').value;
     const target = document.getElementById('local-llm-status');
+    if (!configGeneralProviders(configData.providers || []).some(provider => provider.id === regularProvider)) {
+        if (target) {
+            target.textContent = t('config.providers.not_available_here');
+            target.className = 'cfg-note-banner cfg-note-banner-warning';
+        }
+        return;
+    }
     try {
         const response = await fetch('/api/local-llm/role', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },

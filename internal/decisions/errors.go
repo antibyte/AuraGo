@@ -30,6 +30,11 @@ const (
 	CodeQueueFull                = "queue_full"
 	CodeLifecycleBusy            = "lifecycle_busy"
 	CodeRuntimeBusy              = "runtime_busy"
+	CodeExternalProviderFailed   = "external_provider_failed"
+	CodeExternalOutcomeUnknown   = "external_outcome_unknown"
+	CodeProviderAuthFailed       = "provider_auth_failed"
+	CodeProviderCreditExhausted  = "provider_credit_exhausted"
+	CodeProviderRateLimited      = "provider_rate_limited"
 )
 
 // Error carries a stable, safe-to-publish code and an optional wrapped cause.
@@ -81,13 +86,18 @@ func ErrorCode(err error) string {
 // IsNonRetryable reports whether repeating the same request without changing
 // configuration or input is known not to help.
 func IsNonRetryable(err error) bool {
+	var classified interface{ IsNonRetryable() bool }
+	if errors.As(err, &classified) {
+		return classified.IsNonRetryable()
+	}
 	switch ErrorCode(err) {
 	case CodeServiceDisabled, CodeCPUConsentRequired, CodeModelNotInstalled,
 		CodeModelIntegrityFailed, CodeRuntimeArtifactMissing, CodeRuntimeStartFailed,
 		CodeRuntimeUnavailable, CodeRuntimeAttestationFailed, CodeHardwareUnavailable,
 		CodeDockerUnavailable, CodeInvalidRuntimeResponse, CodeInferenceFailed,
 		CodeDeploymentDenied, CodeInvalidRequest, CodeCandidateNotScorable,
-		CodeInputTokenBudgetExceeded:
+		CodeInputTokenBudgetExceeded, CodeExternalProviderFailed,
+		CodeExternalOutcomeUnknown, CodeProviderAuthFailed, CodeProviderCreditExhausted, CodeProviderRateLimited:
 		return true
 	default:
 		return false

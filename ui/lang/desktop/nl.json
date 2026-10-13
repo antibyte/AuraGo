@@ -1253,6 +1253,7 @@
   "desktop.looper_pause": "Pauze",
   "desktop.looper_pause_error": "Pauzeren mislukt.",
   "desktop.looper_provider": "Provider",
+  "desktop.looper_provider_unavailable": "Profiel alleen voor Decisions — hier niet beschikbaar",
   "desktop.looper_resume": "Hervatten",
   "desktop.looper_resume_error": "Hervatten mislukt.",
   "desktop.looper_round": "Ronde {{n}}",
@@ -6117,5 +6118,7 @@
   "desktop.gog.no_account": "Geen account heeft de vereiste rechten.",
   "desktop.gog.office_help": "Import maakt een nieuwe lokale kopie. Export maakt een nieuw Google-bestand. De opmaak kan veranderen.",
   "desktop.gog.resource_id": "Google-document-ID",
-  "desktop.gog.parent": "Doelmap-ID (root = Mijn Drive)"
+  "desktop.gog.parent": "Doelmap-ID (root = Mijn Drive)",
+  "desktop.detective_provider_unavailable": "Alleen voor Decisions — hier niet beschikbaar",
+  "game_maker.provider_unavailable": "Alleen voor Decisions — hier niet beschikbaar"
 }

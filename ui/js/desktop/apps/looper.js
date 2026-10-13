@@ -359,7 +359,18 @@
             $(`looper-score-${windowId}`).value = d.target_score || 85;
             $(`looper-score-out-${windowId}`).value = d.target_score || 85;
             $(`looper-stall-${windowId}`).value = d.stall_rounds == null ? 3 : d.stall_rounds;
-            $(`looper-provider-${windowId}`).value = d.provider_id || '';
+            const providerSelect = $(`looper-provider-${windowId}`);
+            providerSelect.querySelectorAll('option[data-ineligible-provider="true"]').forEach(option => option.remove());
+            const savedProviderID = d.provider_id || '';
+            if (savedProviderID && !state.providers.some(provider => provider.id === savedProviderID)) {
+                const unavailable = document.createElement('option');
+                unavailable.value = savedProviderID;
+                unavailable.disabled = true;
+                unavailable.dataset.ineligibleProvider = 'true';
+                unavailable.textContent = savedProviderID + ' — ' + t('desktop.looper_provider_unavailable');
+                providerSelect.appendChild(unavailable);
+            }
+            providerSelect.value = savedProviderID;
             refreshModels(d.model || '');
             const finishWrap = $(`looper-finish-wrap-${windowId}`);
             if (finishWrap) finishWrap.open = !!String(d.finish || '').trim();
@@ -378,6 +389,9 @@
         }
 
         function validateForm(body) {
+            if (body.provider_id && !state.providers.some(provider => provider.id === body.provider_id)) {
+                return t('desktop.looper_provider_unavailable');
+            }
             for (const field of ['goal', 'work', 'evaluate']) {
                 if (!String(body[field] || '').trim()) {
                     return t('desktop.looper_field_required', { field: t('desktop.looper_' + field) });
@@ -508,8 +522,8 @@
             try {
                 const res = await api('/api/desktop/integrations/providers');
                 const providers = Array.isArray(res) ? res : ((res && res.providers) || []);
-                state.providers = providers;
-                providers.forEach(p => {
+                state.providers = providers.filter(p => p && p.usage !== 'decisions');
+                state.providers.forEach(p => {
                     const opt = document.createElement('option');
                     opt.value = p.id;
                     opt.textContent = p.name || p.id;

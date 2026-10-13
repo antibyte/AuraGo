@@ -1253,6 +1253,7 @@
   "desktop.looper_pause": "विराम",
   "desktop.looper_pause_error": "विराम असफल रहा।",
   "desktop.looper_provider": "प्रदाता",
+  "desktop.looper_provider_unavailable": "केवल Decisions प्रोफ़ाइल — यहाँ उपलब्ध नहीं है",
   "desktop.looper_resume": "जारी रखें",
   "desktop.looper_resume_error": "जारी रखना असफल रहा।",
   "desktop.looper_round": "राउंड {{n}}",
@@ -6117,5 +6118,7 @@
   "desktop.gog.no_account": "किसी खाते के पास आवश्यक अनुमतियाँ नहीं हैं।",
   "desktop.gog.office_help": "आयात एक नई स्थानीय प्रति बनाता है। निर्यात एक नई Google फ़ाइल बनाता है। स्वरूप बदल सकता है।",
   "desktop.gog.resource_id": "Google दस्तावेज़ ID",
-  "desktop.gog.parent": "गंतव्य फ़ोल्डर ID (root = मेरी ड्राइव)"
+  "desktop.gog.parent": "गंतव्य फ़ोल्डर ID (root = मेरी ड्राइव)",
+  "desktop.detective_provider_unavailable": "केवल Decisions के लिए प्रोफ़ाइल — यहाँ उपलब्ध नहीं",
+  "game_maker.provider_unavailable": "केवल Decisions के लिए प्रोफ़ाइल — यहाँ उपलब्ध नहीं"
 }

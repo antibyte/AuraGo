@@ -1,12 +1,20 @@
-# Local Decisions Service
+# Decisions Service
 
 ## Purpose and ownership
 
-`internal/decisions` owns the managed local multimodal decision model: pinned
+`internal/decisions` owns the OpenRouter Decisions adapter and managed local multimodal decision model: pinned
 model and runtime artifacts, native and Docker lifecycle, device/backend
 attestation, request validation, candidate-logit normalization, and status.
 
 ## Contracts
+
+- External requests use only the saved provider and canonical OpenRouter HTTPS
+  Decisions API, never chat completions or caller-supplied endpoints. Refuse
+  redirects and uncertain POST retries; bound time, body sizes and capabilities.
+  Catalog discovery explicitly filters decision output and never runs inference.
+  Preserve option IDs, labels, custom score values and selected-option probability
+  semantics. Provider confidence is separate; external calibration is unverified.
+  Missing cost stays unknown. Never claim local GPU/device attestation remotely.
 
 - The service is opt-in. Constructing or reconfiguring its manager is passive;
   only explicit install/start or an authorized evaluation may acquire runtime

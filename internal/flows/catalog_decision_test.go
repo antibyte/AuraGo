@@ -5,9 +5,39 @@ import (
 	"math"
 	"reflect"
 	"testing"
+	"time"
 
 	"aurago/internal/decisions"
 )
+
+type expiredDecisionEvaluator struct{}
+
+func (expiredDecisionEvaluator) Evaluate(ctx context.Context, _ DecisionRequest) (decisions.Response, error) {
+	<-ctx.Done()
+	return decisions.Response{}, NewNodeError("FLOW_AI_UNAVAILABLE", "external outcome unknown")
+}
+
+func TestAIDecisionPreservesProviderTimeoutAndProvenance(t *testing.T) {
+	def := decisionDef(t)
+	params := routeDecisionParams()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancel()
+	_, err := def.Execute(ctx, ExecInput{Node: &Node{Params: params}, Params: params, Services: &Services{Decisions: expiredDecisionEvaluator{}}})
+	if !hopeless(err) {
+		t.Fatalf("provider timeout became retryable: %v", err)
+	}
+	response := choiceResponse("intent", "approve", .8)
+	response.Execution = &decisions.ExternalExecution{Provider: "remote", ProviderID: "saved"}
+	result, err := execDef(def, params, &Services{Decisions: &fakeDecisionEvaluator{response: response}})
+	if err != nil || result.Output["execution"] != response.Execution {
+		t.Fatalf("provenance missing: %+v %v", result, err)
+	}
+	response.Answers = nil
+	_, err = execDef(def, params, &Services{Decisions: &fakeDecisionEvaluator{response: response}})
+	if !hopeless(err) {
+		t.Fatalf("malformed billed result became retryable: %v", err)
+	}
+}
 
 type fakeDecisionEvaluator struct {
 	request  DecisionRequest
@@ -102,7 +132,7 @@ func TestAIDecisionPortsAreStableAndModeAware(t *testing.T) {
 		}
 		return names
 	}
-	if got := fieldNames(def.FieldsOf(node)); !reflect.DeepEqual(got, []string{"answers", "model", "model_revision", "calibration", "runtime", "usage", "decision", "confidence"}) {
+	if got := fieldNames(def.FieldsOf(node)); !reflect.DeepEqual(got, []string{"answers", "model", "model_revision", "calibration", "runtime", "usage", "execution", "decision", "confidence"}) {
 		t.Fatalf("route output fields = %v", got)
 	}
 	want := []string{"choice_approve", "choice_reject", "uncertain"}
@@ -119,7 +149,7 @@ func TestAIDecisionPortsAreStableAndModeAware(t *testing.T) {
 	if got := def.OutputPorts(node); !reflect.DeepEqual(got, []string{PortOut, "uncertain"}) {
 		t.Fatalf("evaluate ports = %v", got)
 	}
-	if got := fieldNames(def.FieldsOf(node)); !reflect.DeepEqual(got, []string{"answers", "model", "model_revision", "calibration", "runtime", "usage"}) {
+	if got := fieldNames(def.FieldsOf(node)); !reflect.DeepEqual(got, []string{"answers", "model", "model_revision", "calibration", "runtime", "usage", "execution"}) {
 		t.Fatalf("evaluate output fields = %v", got)
 	}
 	node.Settings.OnError = ErrorPort

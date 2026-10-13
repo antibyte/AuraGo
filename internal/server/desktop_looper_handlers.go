@@ -496,6 +496,9 @@ func buildLooperRuntime(s *Server, providerID, model string) (*config.Config, ll
 	if providerID != "" {
 		for _, p := range cfg.Providers {
 			if p.ID == providerID {
+				if !config.ProviderUsageAllowsGeneralChat(&p) {
+					return nil, nil, "", nil, nil, fmt.Errorf("selected provider is not available for general chat")
+				}
 				client = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(cfg, p.Type, p.BaseURL, p.APIKey, p.AccountID))
 				if resolvedModel == "" {
 					resolvedModel = p.Model

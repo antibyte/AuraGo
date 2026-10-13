@@ -43,13 +43,14 @@ async function renderCoAgentsSection(section) {
     html += '<span class="ca-provider-caption">' + t('config.co_agents.provider_label') + '</span>';
     html += '<select class="field-select ca-provider-select" data-path="co_agents.llm.provider" onchange="setNestedValue(configData,\'co_agents.llm.provider\',this.value);setDirty(true)">';
     html += '<option value=""' + (!curProvider ? ' selected' : '') + '>' + t('config.co_agents.select_provider') + '</option>';
-    providersCache.forEach(function(p) {
+    configGeneralProviders().forEach(function(p) {
         var sel = (String(curProvider) === String(p.id)) ? ' selected' : '';
         var name = p.name || p.id;
         var badge = p.type ? (' [' + p.type + ']') : '';
         var model = p.model ? (' \u2014 ' + p.model) : '';
         html += '<option value="' + escapeAttr(p.id) + '"' + sel + '>' + escapeAttr(name + badge + model) + '</option>';
     });
+    html += configPreservedProviderOptionHTML(curProvider, configGeneralProviders());
     html += '</select></label>';
     html += '</div>';
 
@@ -113,13 +114,14 @@ function _renderSpecialistCard(role, spec) {
     html += '<span class="ca-spec-caption">' + t('config.co_agents.spec_provider_label') + '</span>';
     html += '<select class="field-select ca-spec-select" data-path="' + basePath + '.llm.provider" onchange="setNestedValue(configData,\'' + basePath + '.llm.provider\',this.value);setDirty(true)">';
     html += '<option value=""' + (!specProvider ? ' selected' : '') + '>' + t('config.co_agents.spec_inherit_provider') + '</option>';
-    providersCache.forEach(function(p) {
+    configGeneralProviders().forEach(function(p) {
         var sel = (String(specProvider) === String(p.id)) ? ' selected' : '';
         var name = p.name || p.id;
         var badge = p.type ? (' [' + p.type + ']') : '';
         var model = p.model ? (' \u2014 ' + p.model) : '';
         html += '<option value="' + escapeAttr(p.id) + '"' + sel + '>' + escapeAttr(name + badge + model) + '</option>';
     });
+    html += configPreservedProviderOptionHTML(specProvider, configGeneralProviders());
     html += '</select></label>';
 
     html += '<div class="ca-cb-title">' + t('config.co_agents.spec_cb_overrides') + '</div>';

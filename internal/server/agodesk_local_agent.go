@@ -625,7 +625,7 @@ func agodeskConfiguredProvider(cfg *config.Config, providerID string) (config.Pr
 		return config.ProviderEntry{}, false
 	}
 	for _, provider := range cfg.Providers {
-		if provider.ID == providerID {
+		if provider.ID == providerID && config.ProviderUsageAllowsGeneralChat(&provider) {
 			return provider, true
 		}
 	}

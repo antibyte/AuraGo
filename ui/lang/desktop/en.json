@@ -1253,6 +1253,7 @@
   "desktop.looper_pause": "Pause",
   "desktop.looper_pause_error": "Could not pause the loop.",
   "desktop.looper_provider": "Provider",
+  "desktop.looper_provider_unavailable": "Decisions-only profile — unavailable here",
   "desktop.looper_resume": "Resume",
   "desktop.looper_resume_error": "Could not resume the loop.",
   "desktop.looper_round": "Round {{n}}",
@@ -6117,5 +6118,7 @@
   "desktop.gog.no_account": "No account has the required permissions.",
   "desktop.gog.office_help": "Import creates a new local copy. Export creates a new Google file. Formatting may change.",
   "desktop.gog.resource_id": "Google document ID",
-  "desktop.gog.parent": "Destination folder ID (root = My Drive)"
+  "desktop.gog.parent": "Destination folder ID (root = My Drive)",
+  "desktop.detective_provider_unavailable": "Decisions-only profile — unavailable here",
+  "game_maker.provider_unavailable": "Decisions-only profile — unavailable here"
 }

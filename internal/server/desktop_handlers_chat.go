@@ -525,7 +525,7 @@ func applyDesktopAgentProvider(ctx context.Context, s *Server, cfg *config.Confi
 		return s.LLMClient
 	}
 	provider := cfg.FindProvider(selected)
-	if provider == nil {
+	if provider == nil || !config.ProviderUsageAllowsGeneralChat(provider) {
 		return s.LLMClient
 	}
 	cfg.LLM.Provider = provider.ID

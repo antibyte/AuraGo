@@ -18,6 +18,12 @@ Server-owned HTTP and cross-component integration contracts.
   tokens use the existing scope boundary. Bound request bodies, preserve context
   cancellation, and expose stable error codes rather than process output or
   paths. Install/start may outlive the request, never the server.
+- Provider-backed Decisions uses the same rooted input path and budget checks.
+  Provider credentials stay in the Vault; configuration/provider changes cancel
+  active calls and discard late results. Passive status must not perform remote
+  inference. Local lifecycle actions are unavailable in provider mode. Catalog
+  lookups use saved connections only. Unknown paid outcomes remain non-retryable
+  through the Flow adapter, even when a node deadline also expired.
 - `decisions_media.go` resolves registered media or existing authorized outgoing
   attachment paths to rooted regular-file handles. Never accept caller URLs as
   download authority. Enforce eight images, 12 MiB each, 24 MiB total, and 32

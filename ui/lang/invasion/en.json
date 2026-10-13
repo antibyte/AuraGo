@@ -148,5 +148,6 @@
   "invasion.will_delete_egg": "will be permanently deleted. The associated API key will be removed from the vault.",
   "invasion.will_delete_nest": "will be permanently deleted. The associated secret will be removed from the vault.",
   "invasion.ws_connected": "Connected",
-  "invasion.ws_disconnected": "Disconnected"
+  "invasion.ws_disconnected": "Disconnected",
+  "invasion.provider_unavailable": "Decisions-only profile — unavailable here"
 }

@@ -605,6 +605,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if err := config.ValidateDecisionsProvider(&validateCfg); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		if localLLMErr := config.ValidateLocalLLMConfig(&validateCfg); localLLMErr != nil {
 			s.Logger.Error("[Config] Invalid local LLM settings — save rejected", "error", localLLMErr)
 			jsonError(w, localLLMErr.Error(), http.StatusBadRequest)

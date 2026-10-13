@@ -142,6 +142,9 @@ func (r *detectiveRunner) Run(ctx context.Context, job *detective.Session) error
 		if p == nil {
 			return errors.New("selected provider is unavailable")
 		}
+		if !config.ProviderUsageAllowsGeneralChat(p) {
+			return errors.New("selected provider is not available for general chat")
+		}
 		cfg.LLM.Provider = p.ID
 		cfg.LLM.ProviderType = p.Type
 		cfg.LLM.BaseURL = p.BaseURL

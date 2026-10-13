@@ -34,23 +34,32 @@ type Image struct {
 // Response contains normalized choices. Calibration is "uncalibrated" unless
 // the selected model has a separately verified calibration contract.
 type Response struct {
-	Model         string            `json:"model"`
-	ModelRevision string            `json:"model_revision"`
-	Answers       map[string]Answer `json:"answers"`
-	Calibration   string            `json:"calibration"`
-	Runtime       RuntimeInfo       `json:"runtime"`
-	Usage         Usage             `json:"usage"`
+	Model         string             `json:"model"`
+	ModelRevision string             `json:"model_revision"`
+	Answers       map[string]Answer  `json:"answers"`
+	Calibration   string             `json:"calibration"`
+	Runtime       RuntimeInfo        `json:"runtime"`
+	Usage         Usage              `json:"usage"`
+	Execution     *ExternalExecution `json:"execution,omitempty"`
+}
+
+// ExternalExecution identifies the provider that executed a remotely routed
+// decision without claiming local runtime attestation.
+type ExternalExecution struct {
+	Provider   string `json:"provider,omitempty"`
+	ProviderID string `json:"provider_id,omitempty"`
 }
 
 // Answer is the normalized result for one Question.
 type Answer struct {
-	Type          string             `json:"type"`
-	Decision      string             `json:"decision"`
-	Probabilities map[string]float64 `json:"probabilities"`
-	Confidence    float64            `json:"confidence"`
-	Choice        string             `json:"choice,omitempty"`
-	Noul          *float64           `json:"noul,omitempty"`
-	Score         *float64           `json:"score,omitempty"`
+	Type               string             `json:"type"`
+	Decision           string             `json:"decision"`
+	Probabilities      map[string]float64 `json:"probabilities"`
+	Confidence         float64            `json:"confidence"`
+	Choice             string             `json:"choice,omitempty"`
+	Noul               *float64           `json:"noul,omitempty"`
+	Score              *float64           `json:"score,omitempty"`
+	ProviderConfidence *float64           `json:"provider_confidence,omitempty"`
 }
 
 // RuntimeInfo describes the runtime that produced a response and its
@@ -71,12 +80,14 @@ type RuntimeInfo struct {
 
 // Usage contains aggregate counts only; request text and images are excluded.
 type Usage struct {
-	Questions     int `json:"questions"`
-	Candidates    int `json:"candidates"`
-	Images        int `json:"images"`
-	PromptTokens  int `json:"prompt_tokens"`
-	ImageTokens   int `json:"image_tokens"`
-	ContextTokens int `json:"context_tokens"`
+	Questions        int      `json:"questions"`
+	Candidates       int      `json:"candidates"`
+	Images           int      `json:"images"`
+	PromptTokens     int      `json:"prompt_tokens"`
+	ImageTokens      int      `json:"image_tokens"`
+	ContextTokens    int      `json:"context_tokens"`
+	CompletionTokens int      `json:"completion_tokens"`
+	CostUSD          *float64 `json:"cost_usd,omitempty"`
 }
 
 // Status is a detached, safe-to-publish snapshot of the managed service.
@@ -90,6 +101,11 @@ type Status struct {
 	Deployment         string      `json:"deployment"`
 	ExecutionMode      string      `json:"execution_mode,omitempty"`
 	Backend            string      `json:"backend,omitempty"`
+	Provider           string      `json:"provider,omitempty"`
+	Model              string      `json:"model,omitempty"`
+	Configured         bool        `json:"configured"`
+	LastSuccess        string      `json:"last_success,omitempty"`
+	LastError          string      `json:"last_error,omitempty"`
 	Device             string      `json:"device,omitempty"`
 	ModelRevision      string      `json:"model_revision,omitempty"`
 	ModelSHA256        string      `json:"model_sha256,omitempty"`

@@ -1253,6 +1253,7 @@
   "desktop.looper_pause": "Pausa",
   "desktop.looper_pause_error": "Pausa non riuscita.",
   "desktop.looper_provider": "Provider",
+  "desktop.looper_provider_unavailable": "Profilo riservato a Decisions — non disponibile qui",
   "desktop.looper_resume": "Riprendi",
   "desktop.looper_resume_error": "Ripresa non riuscita.",
   "desktop.looper_round": "Giro {{n}}",
@@ -6117,5 +6118,7 @@
   "desktop.gog.no_account": "Nessun account dispone delle autorizzazioni richieste.",
   "desktop.gog.office_help": "L’importazione crea una copia locale. L’esportazione crea un nuovo file Google. La formattazione può cambiare.",
   "desktop.gog.resource_id": "ID documento Google",
-  "desktop.gog.parent": "ID cartella di destinazione (root = Il mio Drive)"
+  "desktop.gog.parent": "ID cartella di destinazione (root = Il mio Drive)",
+  "desktop.detective_provider_unavailable": "Profilo solo per Decisions — non disponibile qui",
+  "game_maker.provider_unavailable": "Profilo solo per Decisions — non disponibile qui"
 }

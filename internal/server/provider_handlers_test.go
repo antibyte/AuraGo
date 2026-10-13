@@ -735,6 +735,110 @@ llm:
 	}
 }
 
+func TestHandlePutProvidersPreservesUsageAndProtectsEnabledDecisionsProvider(t *testing.T) {
+	t.Run("preserve omitted usage", func(t *testing.T) {
+		server, _ := newProviderTestServer(t, `
+providers:
+  - id: router
+    name: OpenRouter
+    usage: decisions
+    type: openrouter
+    base_url: https://openrouter.ai/api/v1
+    model: ""
+decisions:
+  enabled: true
+  backend: provider
+  provider: router
+  model: vendor/decision-model
+llm:
+  provider: ""
+`)
+		body := `[{"id":"router","name":"OpenRouter","type":"openrouter","base_url":"https://openrouter.ai/api/v1","model":"","auth_type":"api_key"}]`
+		req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+		rec := httptest.NewRecorder()
+		handleProviders(server).ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("PUT status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+		}
+		if got := server.Cfg.FindProvider("router"); got == nil || got.Usage != config.ProviderUsageDecisions {
+			t.Fatalf("provider usage after re-save = %+v, want decisions", got)
+		}
+		persisted, err := os.ReadFile(server.Cfg.ConfigPath)
+		if err != nil {
+			t.Fatalf("ReadFile(config) error = %v", err)
+		}
+		if !strings.Contains(string(persisted), "usage: decisions") {
+			t.Fatalf("provider usage not preserved in config YAML: %s", persisted)
+		}
+	})
+
+	t.Run("reject removal of active provider", func(t *testing.T) {
+		server, _ := newProviderTestServer(t, `
+providers:
+  - id: router
+    name: OpenRouter
+    type: openrouter
+    base_url: https://openrouter.ai/api/v1
+    model: ""
+decisions:
+  enabled: true
+  backend: provider
+  provider: router
+  model: vendor/decision-model
+llm:
+  provider: ""
+`)
+		req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(`[]`))
+		rec := httptest.NewRecorder()
+		handleProviders(server).ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("PUT status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+		}
+		if got := server.Cfg.FindProvider("router"); got == nil {
+			t.Fatal("active Decisions provider was removed after rejected update")
+		}
+	})
+
+	t.Run("reject changing active provider away from OpenRouter", func(t *testing.T) {
+		server, _ := newProviderTestServer(t, `
+providers:
+  - id: router
+    name: OpenRouter
+    type: openrouter
+    base_url: https://openrouter.ai/api/v1
+    model: ""
+decisions:
+  enabled: true
+  backend: provider
+  provider: router
+  model: vendor/decision-model
+llm:
+  provider: ""
+`)
+		body := `[{"id":"router","name":"Router","type":"openai","base_url":"https://api.openai.com/v1","model":"","auth_type":"api_key"}]`
+		req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+		rec := httptest.NewRecorder()
+		handleProviders(server).ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("PUT status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+		}
+		if got := server.Cfg.FindProvider("router"); got == nil || got.Type != "openrouter" {
+			t.Fatalf("active Decisions provider changed after rejected update: %+v", got)
+		}
+	})
+
+	t.Run("reject unknown usage", func(t *testing.T) {
+		server, _ := newProviderTestServer(t, `providers: []`)
+		body := `[{"id":"router","name":"Router","usage":"surprise","type":"openrouter","base_url":"https://openrouter.ai/api/v1","model":"model"}]`
+		req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+		rec := httptest.NewRecorder()
+		handleProviders(server).ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("PUT status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+		}
+	})
+}
+
 func providerJSONReferenceContains(refs []struct {
 	Path string `json:"path"`
 	Role string `json:"role"`

@@ -1759,6 +1759,9 @@ func Load(path string) (*Config, error) {
 	// Resolve provider references → populates all yaml:"-" fields.
 	// Legacy migration creates provider entries from inline fields if Providers is empty.
 	cfg.ResolveProviders()
+	if err := ValidateDecisionsProvider(&cfg); err != nil {
+		return nil, err
+	}
 
 	// Environment overrides for API keys (applied AFTER provider resolution so
 	// they override any key from the providers list):
@@ -3066,6 +3069,9 @@ func (c *Config) Save(path string) error {
 		{[]string{"go2rtc", "webrtc", "port"}, c.Go2RTC.WebRTC.Port},
 		{[]string{"go2rtc", "streams"}, c.Go2RTC.Streams},
 		{[]string{"decisions", "enabled"}, c.Decisions.Enabled},
+		{[]string{"decisions", "backend"}, c.Decisions.Backend},
+		{[]string{"decisions", "provider"}, c.Decisions.Provider},
+		{[]string{"decisions", "model"}, c.Decisions.Model},
 		{[]string{"decisions", "deployment"}, c.Decisions.Deployment},
 		{[]string{"decisions", "cpu_fallback_allowed"}, c.Decisions.CPUFallbackAllowed},
 		{[]string{"local_llm", "enabled"}, c.LocalLLM.Enabled},

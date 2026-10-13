@@ -54,11 +54,20 @@ function taComparable(value) {
 
 function taOptions(items, selected, emptyKey) {
     const options = [`<option value="">${taEsc(t(emptyKey))}</option>`];
-    (items || []).forEach(item => {
+    const eligible = (items || []).filter(item => item.usage !== 'decisions');
+    eligible.forEach(item => {
         const label = `${item.name || item.id}${item.model ? ` · ${item.model}` : ''}${item.ready ? '' : ` · ${t('config.telephone_agent.not_ready')}`}`;
 		const reason = item.ready || !item.reason ? '' : ` · ${item.reason}`;
 		options.push(`<option value="${taEsc(item.id)}" ${item.id === selected ? 'selected' : ''} ${item.ready ? '' : 'disabled'}>${taEsc(label + reason)}</option>`);
-    });
+	});
+    if (selected && !eligible.some(item => String(item.id) === String(selected))) {
+        const saved = (items || []).find(item => String(item.id) === String(selected)) ||
+            (typeof providersCache !== 'undefined' && Array.isArray(providersCache) ? providersCache.find(item => String(item.id) === String(selected)) : null);
+        const label = saved && saved.usage === 'decisions'
+            ? `${saved.name || saved.id} · ${t('config.providers.decisions_only_unavailable')}`
+            : `${selected} · ${t('config.telephone_agent.provider_unavailable')}`;
+        options.push(`<option value="${taEsc(selected)}" selected disabled>${taEsc(label)}</option>`);
+    }
     return options.join('');
 }
 

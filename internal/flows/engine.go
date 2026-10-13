@@ -253,10 +253,11 @@ func (e *Engine) executeNode(ctx context.Context, def *NodeDef, n *Node, in Exec
 		if runErr == nil || ctx.Err() != nil {
 			break
 		}
+		if hopeless(runErr) {
+			break
+		}
 		if timedOut {
 			runErr = &NodeError{Code: "FLOW_NODE_TIMEOUT", Message: fmt.Sprintf("the node did not finish within %s", timeout)}
-		} else if hopeless(runErr) {
-			break
 		}
 	}
 	if runErr != nil {

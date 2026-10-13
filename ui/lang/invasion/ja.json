@@ -148,5 +148,6 @@
   "invasion.will_delete_egg": "は完全に削除されます。関連する API キーは Vault から削除されます。",
   "invasion.will_delete_nest": "は完全に削除されます。関連するシークレットは Vault から削除されます。",
   "invasion.ws_connected": "接続済み",
-  "invasion.ws_disconnected": "切断されました"
+  "invasion.ws_disconnected": "切断されました",
+  "invasion.provider_unavailable": "Decisions 専用プロファイル — ここでは使用できません"
 }

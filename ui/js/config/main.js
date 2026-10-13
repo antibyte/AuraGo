@@ -2317,6 +2317,27 @@ function cfgChoiceLoaded(source) {
     return source === 'personalities' ? personalitiesLoaded : providersLoaded;
 }
 
+function configProviderIsDecisionsOnly(provider) {
+    return String(provider && provider.usage || '').trim().toLowerCase() === 'decisions';
+}
+
+function configGeneralProviders(providers = providersCache) {
+    return (Array.isArray(providers) ? providers : []).filter(provider => !configProviderIsDecisionsOnly(provider));
+}
+
+/** Keeps a saved provider reference visible when that provider is no longer eligible here. */
+function configPreservedProviderOptionHTML(selected, eligibleProviders) {
+    const id = String(selected || '');
+    if (!id || (eligibleProviders || []).some(provider => String(provider.id) === id)) return '';
+    const provider = (Array.isArray(providersCache) ? providersCache : []).find(item => String(item.id) === id);
+    const name = provider ? String(provider.name || provider.id) : '';
+    const unavailable = provider && configProviderIsDecisionsOnly(provider)
+        ? t('config.providers.decisions_only_unavailable')
+        : t('config.providers.not_available_here');
+    const label = provider ? name + ' — ' + unavailable : t('config.field.option_missing', { value: id });
+    return '<option value="' + escapeAttr(id) + '" selected data-config-choice-preserved>' + escapeHtml(label) + '</option>';
+}
+
 /** Fixed and loaded options of a dynamic dropdown, in display order. help.empty_label_key names the empty provider option. */
 function cfgChoiceOptions(source, help) {
     const options = [];
@@ -2332,7 +2353,7 @@ function cfgChoiceOptions(source, help) {
             label: option === 'local-granite' ? t('config.embeddings.provider_local') : String(option)
         }));
     }
-    providersCache.forEach(p => {
+    configGeneralProviders().forEach(p => {
         const displayName = p.name || p.id;
         const badge = p.type ? (' [' + p.type + ']') : '';
         const modelHint = p.model ? (' — ' + p.model) : '';
@@ -2348,8 +2369,13 @@ function cfgChoiceOptionsHTML(source, help, value) {
     const options = cfgChoiceOptions(source, help || {});
     let html = '';
     if (current && !options.some(option => option.value === current)) {
-        const key = cfgChoiceLoaded(source) ? 'config.field.option_missing' : 'config.field.option_list_unavailable';
-        html += '<option value="' + escapeAttr(current) + '" selected data-config-choice-preserved>' + escapeHtml(t(key, { value: current })) + '</option>';
+        const provider = source === 'providers' && (Array.isArray(providersCache) ? providersCache : []).find(item => String(item.id) === current);
+        if (provider && configProviderIsDecisionsOnly(provider)) {
+            html += configPreservedProviderOptionHTML(current, options.map(option => ({ id: option.value })));
+        } else {
+            const key = cfgChoiceLoaded(source) ? 'config.field.option_missing' : 'config.field.option_list_unavailable';
+            html += '<option value="' + escapeAttr(current) + '" selected data-config-choice-preserved>' + escapeHtml(t(key, { value: current })) + '</option>';
+        }
     }
     options.forEach(option => {
         const selected = option.value === current ? ' selected' : '';

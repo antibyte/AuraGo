@@ -29,6 +29,8 @@ func TestDecisionsCatalogTracksRuntimeAvailability(t *testing.T) {
 		{"CPU permission required", decisions.Status{Enabled: true, Installed: true, Code: decisions.CodeCPUConsentRequired}, flows.NeedsSetupState, "DECISIONS_CPU_FALLBACK_DENIED"},
 		{"attestation failed", decisions.Status{Enabled: true, Installed: true, Code: decisions.CodeRuntimeAttestationFailed}, flows.NeedsSetupState, "DECISIONS_DEVICE_UNVERIFIED"},
 		{"disabled", decisions.Status{Installed: true}, flows.NeedsSetupState, "DECISIONS_DISABLED"},
+		{"provider missing key", decisions.Status{Enabled: true, Backend: "provider"}, flows.NeedsSetupState, "DECISIONS_NOT_CONFIGURED"},
+		{"provider configured", decisions.Status{Enabled: true, Backend: "provider", Configured: true}, flows.AvailableState, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			fake.status = tc.status

@@ -148,5 +148,6 @@
   "invasion.will_delete_egg": "स्थायी रूप से हटा दिया जाएगा। संबंधित API कुंजी vault से हटा दी जाएगी।",
   "invasion.will_delete_nest": "स्थायी रूप से हटा दिया जाएगा। संबंधित secret vault से हटा दिया जाएगा।",
   "invasion.ws_connected": "कनेक्टेड",
-  "invasion.ws_disconnected": "डिस्कनेक्टेड"
+  "invasion.ws_disconnected": "डिस्कनेक्टेड",
+  "invasion.provider_unavailable": "केवल Decisions के लिए प्रोफ़ाइल — यहाँ उपलब्ध नहीं"
 }

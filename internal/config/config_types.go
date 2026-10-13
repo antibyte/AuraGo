@@ -120,6 +120,7 @@ func (c ProviderCapabilities) AutoEnabled() bool {
 type ProviderEntry struct {
 	ID              string               `yaml:"id"       json:"id"`                                             // unique slug, e.g. "main", "vision", "local-ollama"
 	Name            string               `yaml:"name"     json:"name"`                                           // human-readable label shown in UI
+	Usage           string               `yaml:"usage,omitempty" json:"usage,omitempty"`                         // "general" (default/legacy) or "decisions"
 	Type            string               `yaml:"type"     json:"type"`                                           // openai, openrouter, ollama, anthropic, google, custom
 	BaseURL         string               `yaml:"base_url" json:"base_url"`                                       // API base URL
 	APIKey          string               `yaml:"-" vault:"api_key" json:"-"`                                     // API key (vault-only)

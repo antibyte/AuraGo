@@ -81,6 +81,8 @@ func TestSpeechLabChatProviderEligibilityUsesRuntimeCatalog(t *testing.T) {
 	}{
 		{ProviderEntry{Type: "github-copilot", Model: "copilot/gpt-5-mini"}, true, "available"},
 		{ProviderEntry{Type: "ollama", Model: "qwen3"}, true, "available"},
+		{ProviderEntry{Type: "openrouter", Model: "meta-llama/decision-model", Usage: ProviderUsageDecisions}, false, "decisions_only"},
+		{ProviderEntry{Type: "openrouter", Model: "gpt-4o", Usage: "unknown"}, false, "unsupported_usage"},
 		{ProviderEntry{Type: "vision", Model: "image-model"}, false, "media_provider"},
 		{ProviderEntry{Type: "not-runtime", Model: "model"}, false, "unsupported_provider_type"},
 	} {

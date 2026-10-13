@@ -27,6 +27,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   `FLOW_OUTPUT_TOO_LARGE`. Everything else is retried, in particular `FLOW_NODE_FAILED`,
   `FLOW_NODE_TIMEOUT`, `FLOW_TOOL_ERROR` and `FLOW_AI_OUTPUT_INVALID`, where a new attempt can answer
   differently. Choose the code of a new error with that in mind.
+  Preserve a non-retryable error even when the node deadline also expired:
+  external Decisions may already have been billed and must not be replayed.
 - Output must be JSON-encodable (else `FLOW_OUTPUT_INVALID`). `Ports == nil` means the default port;
   every returned port must be declared.
 - Read-only contract: resolved params and inputs may alias run data (a single-expression template
@@ -61,7 +63,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   a node whose output is nested beyond its own depth limit.
 - `ai.decision` calls only `Services.Decisions` (`DecisionEvaluator`); its `DecisionRequest.Images` are
   registered-media references, never paths or bytes. The server owns rooted media resolution and only then
-  passes `decisions.Image` bytes to the managed runtime. Do not import `internal/server` or put image bytes
+  passes `decisions.Image` bytes to the selected local runtime or external provider.
+  Do not import `internal/server` or put image bytes
   into flow params, outputs, events or logs. Validate the service response before routing; a missing,
   malformed or uncertain result must never reach a choice port.
 - `ai.decision` has `route` and `evaluate` modes. Route permits one `choice` or `noul` question and names

@@ -148,5 +148,6 @@
   "invasion.will_delete_egg": "θα διαγραφεί οριστικά. Το σχετικό κλειδί API θα αφαιρεθεί από τη θυρίδα.",
   "invasion.will_delete_nest": "θα διαγραφεί οριστικά. Το σχετικό secret θα αφαιρεθεί από το vault.",
   "invasion.ws_connected": "Συνδεδεμένο",
-  "invasion.ws_disconnected": "Αποσυνδεδεμένο"
+  "invasion.ws_disconnected": "Αποσυνδεδεμένο",
+  "invasion.provider_unavailable": "Μόνο για το Decisions — μη διαθέσιμο εδώ"
 }

@@ -1133,6 +1133,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                             </div>
                             <div class="prov-provider-meta">
                                 <span class="prov-provider-type">${escapeHtml(providerTypeLabel(p.type))}</span>
+                                ${p.usage === 'decisions' ? `<span class="prov-role-chip">${escapeHtml(t('config.providers.usage_decisions'))}</span>` : ''}
                                 <span class="prov-provider-auth ${auth.tone}" id="oauth-status-${idx}">${escapeHtml(auth.text)}</span>
                             </div>
                         </div>
@@ -1854,7 +1855,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             let initialModalSnapshot = '';
             function providerModalSnapshot() {
                 const ids = [
-                    'prov-id', 'prov-name', 'prov-type', 'prov-url', 'prov-account-id', 'prov-model',
+                    'prov-id', 'prov-name', 'prov-usage', 'prov-type', 'prov-url', 'prov-account-id', 'prov-model',
                     'prov-context-window', 'prov-max-output-tokens',
                     'prov-auth-type', 'prov-copy-key-from', 'prov-key', 'prov-oauth-client-id',
                     'prov-oauth-client-secret', 'prov-oauth-auth-url', 'prov-oauth-token-url',
@@ -1937,6 +1938,14 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     <div class="field-label">${t('config.providers.field_id_label')}</div>
                     <div class="field-help">${t('config.providers.id_help')}</div>
                     <input class="field-input ${data._editMode ? 'is-disabled' : ''}" id="prov-id" value="${escapeAttr(data.id || '')}" placeholder="${t('config.providers.id_placeholder')}" ${data._editMode ? 'disabled' : ''}>
+                </div>
+                <div class="field-group">
+                    <div class="field-label">${t('config.providers.usage_label')}</div>
+                    <div class="field-help">${t('config.providers.usage_help')}</div>
+                    <select class="field-select" id="prov-usage">
+                        <option value="general"${data.usage === 'decisions' ? '' : ' selected'}>${escapeHtml(t('config.providers.usage_general'))}</option>
+                        <option value="decisions"${data.usage === 'decisions' ? ' selected' : ''}>${escapeHtml(t('config.providers.usage_decisions'))}</option>
+                    </select>
                 </div>
                 <div class="field-group">
                     <div class="field-label">${t('config.providers.field_type_label')}</div>
@@ -2262,6 +2271,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             // ── Auto-fill Base URL when type changes (only if URL field is empty or was auto-filled) ──
             const typeSelect = document.getElementById('prov-type');
             const urlInput = document.getElementById('prov-url');
+            const usageSelect = document.getElementById('prov-usage');
             const hintEl = document.getElementById('prov-key-hint');
             const ollamaBlock = document.getElementById('prov-ollama-block');
             const openrouterBlock = document.getElementById('prov-openrouter-block');
@@ -2325,6 +2335,40 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 if (_oauthSec) setHidden(_oauthSec, typ === 'copilot' || (_authTypeSel && _authTypeSel.value !== 'oauth2'));
                 providerRefreshCapabilityDetection(false);
             });
+
+            const syncProviderUsage = () => {
+                const decisionsOnly = usageSelect.value === 'decisions';
+                if (decisionsOnly && typeSelect.value !== 'openrouter') {
+                    typeSelect.value = 'openrouter';
+                    typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                typeSelect.disabled = decisionsOnly;
+                if (urlInput) {
+                    if (decisionsOnly) {
+                        urlInput.value = providerBaseURLForType('openrouter') || PROVIDER_BASE_URL_FALLBACKS.openrouter;
+                        urlInput.disabled = true;
+                        urlInput.classList.add('is-disabled');
+                    } else if (urlInput.disabled && typeSelect.value === 'openrouter') {
+                        urlInput.disabled = false;
+                        urlInput.classList.remove('is-disabled');
+                    }
+                }
+                if (decisionsOnly) {
+                    const modelInput = document.getElementById('prov-model');
+                    if (modelInput) modelInput.value = '';
+                }
+                ['model', 'capabilities', 'pricing'].forEach(tab => {
+                    const button = overlay.querySelector('[data-prov-tab="' + tab + '"]');
+                    const panel = overlay.querySelector('[data-prov-panel="' + tab + '"]');
+                    if (button) setHidden(button, decisionsOnly);
+                    if (panel) setHidden(panel, decisionsOnly || !button?.classList.contains('is-active'));
+                });
+                if (decisionsOnly && overlay.querySelector('[data-prov-tab].is-active:not([data-prov-tab="identity"]):not([data-prov-tab="auth"])')) {
+                    overlay.querySelector('[data-prov-tab="identity"]')?.click();
+                }
+            };
+            usageSelect.addEventListener('change', syncProviderUsage);
+            syncProviderUsage();
 
             const modelInput = document.getElementById('prov-model');
             if (modelInput) {
@@ -2550,11 +2594,13 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 clearConfigValidation();
                 const id = document.getElementById('prov-id').value.trim();
                 const name = document.getElementById('prov-name').value.trim();
+                const usage = document.getElementById('prov-usage').value === 'decisions' ? 'decisions' : 'general';
                 const type = document.getElementById('prov-type').value;
                 const base_url = document.getElementById('prov-url').value.trim();
-                const model = document.getElementById('prov-model').value.trim();
-                const context_window = Number(document.getElementById('prov-context-window').value || 0);
-                const max_output_tokens = Number(document.getElementById('prov-max-output-tokens').value || 0);
+                const decisionsOnly = usage === 'decisions';
+                const model = decisionsOnly ? '' : document.getElementById('prov-model').value.trim();
+                const context_window = decisionsOnly ? 0 : Number(document.getElementById('prov-context-window').value || 0);
+                const max_output_tokens = decisionsOnly ? 0 : Number(document.getElementById('prov-max-output-tokens').value || 0);
                 const auth_type = document.getElementById('prov-auth-type').value;
                 const account_id = (document.getElementById('prov-account-id') || {}).value ? document.getElementById('prov-account-id').value.trim() : '';
 
@@ -2578,7 +2624,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     fieldError('prov-url', t('config.providers.url_empty_error')); return;
                 }
 
-                const entry = { id, name: name || id, type, base_url, model, context_window, max_output_tokens, auth_type, account_id };
+                const entry = { id, name: name || id, usage, type: decisionsOnly ? 'openrouter' : type, base_url, model, context_window, max_output_tokens, auth_type, account_id };
 
                 if (auth_type === 'oauth2') {
                     entry.api_key = data.api_key === '••••••••' ? '••••••••' : '';
@@ -2633,8 +2679,8 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 }
 
                 // Include model pricing data
-                entry.models = providerGetModels();
-                entry.capabilities = providerReadCapabilities();
+                entry.models = decisionsOnly ? [] : providerGetModels();
+                entry.capabilities = decisionsOnly ? {} : providerReadCapabilities();
 
                 const preparedPopup = connectAfterSave ? providerPrepareOAuthPopup() : null;
                 const savedID = await onSave(entry);
@@ -2673,11 +2719,11 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             });
         }
 
-        function providerAdd() {
+        function providerAdd(usage = 'general') {
             if (!providerEnsureLoaded()) return;
             providerShowModal(
                 t('config.providers.new_provider'),
-                {},
+                usage === 'decisions' ? { usage: 'decisions', type: 'openrouter', base_url: providerBaseURLForType('openrouter') || PROVIDER_BASE_URL_FALLBACKS.openrouter } : {},
                 async (entry) => {
                     // Check unique ID
                     if (providersCache.some(p => p.id === entry.id)) {
@@ -2685,7 +2731,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                         return null;
                     }
                     providersCache.push(entry);
-                    const ok = await providerSave();
+                    const ok = await providerSave(entry.id);
                     if (!ok) {
                         providersCache.pop();
                         providerRenderCards();
@@ -2705,7 +2751,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 async (entry) => {
                     const previous = providersCache[idx];
                     providersCache[idx] = entry;
-                    const ok = await providerSave();
+                    const ok = await providerSave(entry.id);
                     if (!ok) {
                         providersCache[idx] = previous;
                         providerRenderCards();
@@ -2734,7 +2780,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             }
         }
 
-        async function providerSave() {
+        async function providerSave(preferredProviderId = '') {
             if (!providerEnsureLoaded()) return false;
             try {
                 const resp = await fetch('/api/providers', {
@@ -2759,6 +2805,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     showToast(t('config.providers.load_failed_body', { error: providersLoadError }), 'warn');
                 }
                 providerRenderCards();
+                window.dispatchEvent(new CustomEvent('aurago:providers-saved', { detail: { preferredProviderId } }));
 
                 // Update dashboard agent banner immediately if model/provider changed.
                 if (result.active_llm_model) {

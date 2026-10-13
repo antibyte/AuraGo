@@ -690,6 +690,15 @@ func TestC19AIModelOptionsMatchTheRunTimeCheck(t *testing.T) {
 	}
 }
 
+func TestDecisionsOnlyProviderIsNotAFlowChatModel(t *testing.T) {
+	provider := &config.ProviderEntry{
+		ID: "decision-model", Type: "openrouter", Model: "meta-llama/decision-model", Usage: config.ProviderUsageDecisions,
+	}
+	if ok, reason := flowChatProviderEntryOK(provider); ok || reason != "decisions_only" {
+		t.Fatalf("flow provider eligibility = %v, %q; want false, decisions_only", ok, reason)
+	}
+}
+
 // Review item 2: the HA cache keeps an answer only for the current configuration.
 func TestC19HACacheKeepsOnlyTheCurrentConfiguration(t *testing.T) {
 	var c flowHACache

@@ -1253,6 +1253,7 @@
   "desktop.looper_pause": "Pauza",
   "desktop.looper_pause_error": "Pauza nie powiodła się.",
   "desktop.looper_provider": "Dostawca",
+  "desktop.looper_provider_unavailable": "Profil tylko dla Decisions — tutaj niedostępny",
   "desktop.looper_resume": "Wznów",
   "desktop.looper_resume_error": "Wznowienie nie powiodło się.",
   "desktop.looper_round": "Runda {{n}}",
@@ -6117,5 +6118,7 @@
   "desktop.gog.no_account": "Żadne konto nie ma wymaganych uprawnień.",
   "desktop.gog.office_help": "Import tworzy nową kopię lokalną. Eksport tworzy nowy plik Google. Formatowanie może się zmienić.",
   "desktop.gog.resource_id": "Identyfikator dokumentu Google",
-  "desktop.gog.parent": "Identyfikator folderu docelowego (root = Mój dysk)"
+  "desktop.gog.parent": "Identyfikator folderu docelowego (root = Mój dysk)",
+  "desktop.detective_provider_unavailable": "Profil tylko dla Decisions — niedostępny tutaj",
+  "game_maker.provider_unavailable": "Profil tylko dla Decisions — niedostępny tutaj"
 }

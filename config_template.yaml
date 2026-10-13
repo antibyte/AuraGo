@@ -466,6 +466,9 @@ fallback_llm:
 # Optional local text/image decisions. CPU and mixed offload require explicit consent.
 decisions:
   enabled: false
+  backend: local                       # local managed model or provider-backed OpenRouter model
+  provider: ""                         # provider entry ID; can reuse a general OpenRouter connection
+  model: ""                            # OpenRouter model ID (required when enabled with backend: provider)
   deployment: auto                     # auto: native on host, managed container in Docker
   cpu_fallback_allowed: false           # persistent, revocable permission; GPUs remain preferred
 

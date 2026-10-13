@@ -417,6 +417,12 @@ func flowChatProviderEntryOK(p *config.ProviderEntry) (bool, string) {
 	if p == nil {
 		return false, "unknown_provider"
 	}
+	if !config.ProviderUsageAllowsGeneralChat(p) {
+		if config.NormalizeProviderUsage(p.Usage) == config.ProviderUsageDecisions {
+			return false, "decisions_only"
+		}
+		return false, "unsupported_usage"
+	}
 	id := strings.TrimSpace(p.ID)
 	if id == "" || id != p.ID || strings.EqualFold(id, config.LocalLLMProviderID) {
 		return false, "unknown_provider"

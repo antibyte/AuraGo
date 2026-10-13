@@ -1253,6 +1253,7 @@
   "desktop.looper_pause": "Pausa",
   "desktop.looper_pause_error": "A pausa falhou.",
   "desktop.looper_provider": "Fornecedor",
+  "desktop.looper_provider_unavailable": "Perfil exclusivo do Decisions — indisponível aqui",
   "desktop.looper_resume": "Retomar",
   "desktop.looper_resume_error": "Não foi possível retomar.",
   "desktop.looper_round": "Ronda {{n}}",
@@ -6117,5 +6118,7 @@
   "desktop.gog.no_account": "Nenhuma conta tem as permissões necessárias.",
   "desktop.gog.office_help": "A importação cria uma cópia local. A exportação cria um novo ficheiro Google. A formatação pode mudar.",
   "desktop.gog.resource_id": "ID do documento Google",
-  "desktop.gog.parent": "ID da pasta de destino (root = O meu disco)"
+  "desktop.gog.parent": "ID da pasta de destino (root = O meu disco)",
+  "desktop.detective_provider_unavailable": "Perfil exclusivo de Decisions — indisponível aqui",
+  "game_maker.provider_unavailable": "Perfil exclusivo de Decisions — indisponível aqui"
 }

@@ -18,7 +18,7 @@ type decisionsAPIRequest struct {
 }
 
 func registerDecisionsRoutes(mux *http.ServeMux, s *Server) {
-	for _, action := range []string{"status", "install", "start", "stop", "test", "evaluate"} {
+	for _, action := range []string{"status", "models", "install", "start", "stop", "test", "evaluate"} {
 		mux.Handle("/api/decisions/"+action, requireAdmin(s, handleDecisions(s, action)))
 	}
 }
@@ -26,7 +26,7 @@ func registerDecisionsRoutes(mux *http.ServeMux, s *Server) {
 func handleDecisions(s *Server, action string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		method := http.MethodPost
-		if action == "status" {
+		if action == "status" || action == "models" {
 			method = http.MethodGet
 		}
 		if r.Method != method {
@@ -46,11 +46,29 @@ func handleDecisions(s *Server, action string) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Cache-Control", "no-store")
+		if action == "models" {
+			router, ok := s.Decisions.(*routedDecisions)
+			if !ok {
+				writeDecisionsError(w, "provider_not_configured", http.StatusConflict)
+				return
+			}
+			models, err := router.Models(r.Context(), r.URL.Query().Get("provider"))
+			if err != nil {
+				writeDecisionsFailure(w, err)
+				return
+			}
+			writeDecisionsJSON(w, http.StatusOK, map[string]any{"models": models})
+			return
+		}
 		if action == "status" {
 			writeDecisionsJSON(w, http.StatusOK, s.Decisions.Status())
 			return
 		}
 		if action == "install" || action == "start" {
+			if cfg := s.ConfigSnapshot(); cfg != nil && cfg.Decisions.Backend == "provider" {
+				writeDecisionsError(w, "provider_lifecycle_unavailable", http.StatusConflict)
+				return
+			}
 			if cfg := s.ConfigSnapshot(); cfg == nil || !cfg.Decisions.Enabled {
 				writeDecisionsError(w, "service_disabled", http.StatusConflict)
 				return
@@ -126,13 +144,17 @@ func decisionsFailureCode(err error) string {
 	if errors.Is(err, errDecisionImage) {
 		return "invalid_image"
 	}
+	code := decisions.ErrorCode(err)
+	if code == decisions.CodeExternalOutcomeUnknown || code == "configuration_changed" {
+		return code
+	}
 	if errors.Is(err, context.Canceled) {
 		return "request_cancelled"
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
 		return "request_timeout"
 	}
-	return decisions.ErrorCode(err)
+	return code
 }
 
 func writeDecisionsFailure(w http.ResponseWriter, err error) {
@@ -147,11 +169,29 @@ func writeDecisionsFailure(w http.ResponseWriter, err error) {
 	if code == "queue_full" {
 		status = http.StatusTooManyRequests
 	}
+	if code == decisions.CodeProviderRateLimited {
+		status = http.StatusTooManyRequests
+	}
+	if code == decisions.CodeProviderCreditExhausted {
+		status = http.StatusPaymentRequired
+	}
+	if code == decisions.CodeProviderAuthFailed {
+		status = http.StatusBadGateway
+	}
 	if code == "request_timeout" {
 		status = http.StatusGatewayTimeout
 	}
+	if code == decisions.CodeExternalOutcomeUnknown || code == decisions.CodeExternalProviderFailed {
+		status = http.StatusBadGateway
+	}
 	if code == "request_cancelled" {
 		status = http.StatusRequestTimeout
+	}
+	if code == "budget_exceeded" {
+		status = http.StatusPaymentRequired
+	}
+	if code == "provider_lifecycle_unavailable" || code == "configuration_changed" {
+		status = http.StatusConflict
 	}
 	writeDecisionsError(w, code, status)
 }

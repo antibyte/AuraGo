@@ -1253,6 +1253,7 @@
   "desktop.looper_pause": "一時停止",
   "desktop.looper_pause_error": "一時停止に失敗しました。",
   "desktop.looper_provider": "プロバイダー",
+  "desktop.looper_provider_unavailable": "Decisions 専用プロファイル — ここでは利用できません",
   "desktop.looper_resume": "再開",
   "desktop.looper_resume_error": "再開に失敗しました。",
   "desktop.looper_round": "ラウンド{{n}}",
@@ -6117,5 +6118,7 @@
   "desktop.gog.no_account": "必要な権限を持つアカウントがありません。",
   "desktop.gog.office_help": "インポートで新しいローカルコピーを作成します。エクスポートで新しいGoogleファイルを作成します。書式が変わる場合があります。",
   "desktop.gog.resource_id": "GoogleドキュメントID",
-  "desktop.gog.parent": "保存先フォルダID（root = マイドライブ）"
+  "desktop.gog.parent": "保存先フォルダID（root = マイドライブ）",
+  "desktop.detective_provider_unavailable": "Decisions 専用プロファイル — ここでは使用できません",
+  "game_maker.provider_unavailable": "Decisions 専用プロファイル — ここでは使用できません"
 }

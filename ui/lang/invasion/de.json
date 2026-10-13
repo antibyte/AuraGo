@@ -148,5 +148,6 @@
   "invasion.will_delete_egg": "wird unwiderruflich gelöscht. Der zugehörige API-Key wird aus dem Vault entfernt.",
   "invasion.will_delete_nest": "wird unwiderruflich gelöscht. Das zugehörige Secret wird aus dem Vault entfernt.",
   "invasion.ws_connected": "Verbunden",
-  "invasion.ws_disconnected": "Getrennt"
+  "invasion.ws_disconnected": "Getrennt",
+  "invasion.provider_unavailable": "Nur für Decisions — hier nicht verfügbar"
 }

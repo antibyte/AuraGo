@@ -60,6 +60,9 @@ func providerEntryYAMLNode(entry config.ProviderEntry) *yaml.Node {
 	node := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 	appendYAMLStringField(node, "id", entry.ID)
 	appendYAMLStringField(node, "name", entry.Name)
+	if entry.Usage != "" {
+		appendYAMLStringField(node, "usage", entry.Usage)
+	}
 	appendYAMLStringField(node, "type", entry.Type)
 	appendYAMLStringField(node, "base_url", entry.BaseURL)
 	appendYAMLStringField(node, "model", entry.Model)

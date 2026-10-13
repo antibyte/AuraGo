@@ -1253,6 +1253,7 @@
   "desktop.looper_pause": "Pause",
   "desktop.looper_pause_error": "Pause fehlgeschlagen.",
   "desktop.looper_provider": "Anbieter",
+  "desktop.looper_provider_unavailable": "Nur für Decisions bestimmtes Profil — hier nicht verfügbar",
   "desktop.looper_resume": "Fortsetzen",
   "desktop.looper_resume_error": "Fortsetzen fehlgeschlagen.",
   "desktop.looper_round": "Runde {{n}}",
@@ -6117,5 +6118,7 @@
   "desktop.gog.no_account": "Kein Konto hat die erforderlichen Rechte.",
   "desktop.gog.office_help": "Der Import erstellt eine neue lokale Kopie. Der Export erstellt eine neue Google-Datei. Die Formatierung kann sich ändern.",
   "desktop.gog.resource_id": "Google-Dokument-ID",
-  "desktop.gog.parent": "Zielordner-ID (root = Meine Ablage)"
+  "desktop.gog.parent": "Zielordner-ID (root = Meine Ablage)",
+  "desktop.detective_provider_unavailable": "Nur für Decisions — hier nicht verfügbar",
+  "game_maker.provider_unavailable": "Nur für Decisions — hier nicht verfügbar"
 }

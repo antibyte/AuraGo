@@ -148,5 +148,6 @@
   "invasion.will_delete_egg": "bude trvale smazán. Přidružený API klíč bude odstraněn z trezoru.",
   "invasion.will_delete_nest": "bude trvale smazáno. Přidružené tajemství bude odstraněno z trezoru.",
   "invasion.ws_connected": "Připojeno",
-  "invasion.ws_disconnected": "Odpojeno"
+  "invasion.ws_disconnected": "Odpojeno",
+  "invasion.provider_unavailable": "Profil pouze pro Decisions — zde nedostupný"
 }

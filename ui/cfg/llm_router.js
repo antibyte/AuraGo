@@ -38,7 +38,7 @@ function renderLLMRouterSection(section) {
     const rows = node('div', 'field-grid two-cols');
     const modelSelects = [];
     const isChatModel = (p, model) => p?.type !== 'agnes' || !/^(?:agnes\/)?agnes-(?:image|video)/i.test((model || '').trim());
-    const providers = (providersCache || []).filter(p => p.id !== 'aurago-qwen-local'
+    const providers = configGeneralProviders().filter(p => p.id !== 'aurago-qwen-local'
         && !['embedding', 'embeddings', 'tts', 'asr', 'whisper', 'stability', 'ideogram', 'vision'].includes(p.type)
         && isChatModel(p, p.model));
     const option = (select, value, text) => select.add(new Option(text, value));

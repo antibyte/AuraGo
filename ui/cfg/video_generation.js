@@ -56,13 +56,14 @@ function renderVideoGenerationSection(section) {
         <div class="field-label">${t('config.video_gen.provider_label')}</div>
         <select class="field-select" data-path="video_generation.provider" onchange="videoGenerationProviderChanged(this)">
             <option value=""${!curProvider ? ' selected' : ''}>${t('config.video_gen.select_provider')}</option>`;
-    providersCache.forEach(p => {
+    configGeneralProviders().forEach(p => {
         const sel = (String(curProvider) === String(p.id)) ? ' selected' : '';
         const name = p.name || p.id;
         const badge = p.type ? (' [' + p.type + ']') : '';
         const model = p.model ? (' - ' + p.model) : '';
         html += `<option value="${escapeAttr(p.id)}"${sel}>${escapeAttr(name + badge + model)}</option>`;
     });
+    html += configPreservedProviderOptionHTML(curProvider, configGeneralProviders());
     html += `</select></div>`;
 
     html += `<div class="field-group">

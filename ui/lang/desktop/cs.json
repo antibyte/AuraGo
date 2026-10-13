@@ -1253,6 +1253,7 @@
   "desktop.looper_pause": "Pauza",
   "desktop.looper_pause_error": "Pauza se nezdařila.",
   "desktop.looper_provider": "Poskytovatel",
+  "desktop.looper_provider_unavailable": "Profil pouze pro Decisions — zde není dostupný",
   "desktop.looper_resume": "Pokračovat",
   "desktop.looper_resume_error": "Pokračování se nezdařilo.",
   "desktop.looper_round": "Kolo {{n}}",
@@ -6117,5 +6118,7 @@
   "desktop.gog.no_account": "Žádný účet nemá potřebná oprávnění.",
   "desktop.gog.office_help": "Import vytvoří novou místní kopii. Export vytvoří nový soubor Google. Formátování se může změnit.",
   "desktop.gog.resource_id": "ID dokumentu Google",
-  "desktop.gog.parent": "ID cílové složky (root = Můj disk)"
+  "desktop.gog.parent": "ID cílové složky (root = Můj disk)",
+  "desktop.detective_provider_unavailable": "Profil pouze pro Decisions — zde nedostupný",
+  "game_maker.provider_unavailable": "Profil pouze pro Decisions — zde nedostupný"
 }
