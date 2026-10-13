@@ -48,7 +48,7 @@ func TestOllamaEmbeddingPullCollapsesOverlappingCalls(t *testing.T) {
 	finished := make(chan struct{})
 	var once sync.Once
 	orig := ollamaModelPullFn
-	ollamaModelPullFn = func(port int, model string, logger interface {
+	ollamaModelPullFn = func(port int, model, label string, logger interface {
 		Info(string, ...any)
 		Warn(string, ...any)
 		Error(string, ...any)
@@ -72,13 +72,13 @@ func TestOllamaEmbeddingPullCollapsesOverlappingCalls(t *testing.T) {
 		ollamaModelPullFn = orig
 	})
 
-	startOllamaModelPull(11435, "nomic-embed-text", ollamaTestLogger{})
+	startOllamaModelPull(11435, "nomic-embed-text", "Ollama Embeddings", ollamaTestLogger{})
 	select {
 	case <-started:
 	case <-time.After(2 * time.Second):
 		t.Fatal("pull did not start")
 	}
-	startOllamaModelPull(11435, "nomic-embed-text", ollamaTestLogger{})
+	startOllamaModelPull(11435, "nomic-embed-text", "Ollama Embeddings", ollamaTestLogger{})
 	time.Sleep(50 * time.Millisecond)
 	if calls.Load() != 1 {
 		t.Fatalf("pulls = %d, want 1", calls.Load())

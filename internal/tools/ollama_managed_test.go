@@ -2,6 +2,7 @@ package tools
 
 import (
 	"encoding/json"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
@@ -152,6 +153,99 @@ func TestOllamaManagedEnsureDoesNotAdoptByAncestor(t *testing.T) {
 		if strings.Contains(string(data), "ancestor") {
 			t.Fatalf("%s still adopts a foreign container by ancestor image", name)
 		}
+	}
+}
+
+func TestOllamaManagedSpecDriftIgnoresRegistryPrefixAndBindMode(t *testing.T) {
+	desired, err := ollamaManagedCreatePayload(11434, "", "", GPUInfo{}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var body ollamaCreateBody
+	if err := json.Unmarshal(desired, &body); err != nil {
+		t.Fatal(err)
+	}
+	body.Image = "docker.io/" + body.Image
+	body.HostConfig.Binds[0] += ":rw"
+	inspect, err := json.Marshal(map[string]any{
+		"Config":     map[string]any{"Image": body.Image},
+		"HostConfig": body.HostConfig,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ollamaManagedSpecDrift(inspect, desired) {
+		t.Fatal("registry prefix or bind mode was treated as drift")
+	}
+
+	hostDesired, err := ollamaManagedCreatePayload(11434, `C:\models`, "", GPUInfo{}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(hostDesired, &body); err != nil {
+		t.Fatal(err)
+	}
+	body.Image = "index.docker.io/" + body.Image
+	body.HostConfig.Binds[0] += ":rw,z"
+	inspect, err = json.Marshal(map[string]any{
+		"Config":     map[string]any{"Image": body.Image},
+		"HostConfig": body.HostConfig,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ollamaManagedSpecDrift(inspect, hostDesired) {
+		t.Fatal("windows bind mode was treated as drift")
+	}
+}
+
+func TestOllamaReconcileLeavesContainerWhenReplacementImageIsMissing(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, false)
+	desired, err := ollamaManagedCreatePayload(11434, "", "", GPUInfo{}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inspect := inspectFromCreatePayload(t, desired)
+	var doc map[string]any
+	if err := json.Unmarshal(inspect, &doc); err != nil {
+		t.Fatal(err)
+	}
+	configDoc, _ := doc["Config"].(map[string]any)
+	configDoc["Image"] = "ollama/ollama:latest"
+	inspect, err = json.Marshal(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var deleted bool
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/containers/"+ollamaManagedContainerName+"/json"):
+			_, _ = w.Write(inspect)
+		case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/images/json"):
+			_, _ = w.Write([]byte(`[]`))
+		case r.Method == http.MethodPost && strings.Contains(r.URL.Path, "/images/create"):
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"message":"registry unavailable"}`))
+		case r.Method == http.MethodDelete || strings.Contains(r.URL.Path, "/stop"):
+			deleted = true
+			t.Errorf("container mutated before a replacement image existed: %s %s", r.Method, r.URL.Path)
+		default:
+			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	})
+	reconcileNamedOllamaContainer(ollamaReconcile{
+		Label:         "Ollama Managed",
+		ContainerName: ollamaManagedContainerName,
+		Port:          11434,
+		Image:         "ollama/ollama:" + ollamaImageTag,
+		Payload:       desired,
+		Docker:        DockerConfig{Host: host},
+		Logger:        ollamaTestLogger{},
+	})
+	if deleted {
+		t.Fatal("existing container was removed")
 	}
 }
 

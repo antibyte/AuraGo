@@ -152,7 +152,7 @@ func TestPullModelIfNeededUsesCurrentModelField(t *testing.T) {
 		t.Fatalf("parse server port: %v", err)
 	}
 
-	pullModelIfNeeded(port, "nomic-embed-text", ollamaTestLogger{})
+	pullModelIfNeeded(port, "nomic-embed-text", "Ollama Embeddings", ollamaTestLogger{})
 
 	for _, path := range []string{"/api/show", "/api/pull"} {
 		mu.Lock()

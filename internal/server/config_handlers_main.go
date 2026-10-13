@@ -1298,8 +1298,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				}
 			}
 
-			// Auto-start local Ollama embeddings container if just enabled
-			if newCfg.Docker.Enabled && newCfg.Embeddings.LocalOllama.Enabled && !oldCfg.Embeddings.LocalOllama.Enabled {
+			// Reconcile the embeddings container when it is enabled and its port, GPU, or model changed.
+			if newCfg.Docker.Enabled && newCfg.Embeddings.LocalOllama.Enabled &&
+				(!oldCfg.Embeddings.LocalOllama.Enabled || ollamaEmbeddingsInputsChanged(&oldCfg, newCfg)) {
 				go tools.EnsureOllamaEmbeddingsRunning(newCfg, s.Logger)
 			}
 			if oldCfg.Embeddings.LocalOllama.Enabled && !newCfg.Embeddings.LocalOllama.Enabled {

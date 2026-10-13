@@ -231,7 +231,7 @@ func OllamaManagedContainerLogs(dockerHost string, tail int) string {
 }
 
 // pullManagedModels pulls all configured default models into the Ollama instance.
-func pullManagedModels(port int, models []string, logger interface {
+func pullManagedModels(port int, models []string, label string, logger interface {
 	Info(string, ...any)
 	Warn(string, ...any)
 	Error(string, ...any)
@@ -241,7 +241,7 @@ func pullManagedModels(port int, models []string, logger interface {
 		if model == "" {
 			continue
 		}
-		startOllamaModelPull(port, model, logger)
+		startOllamaModelPull(port, model, label, logger)
 	}
 }
 

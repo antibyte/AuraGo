@@ -294,7 +294,7 @@ func waitForOllamaReady(port int, label string, logger interface {
 }
 
 // pullModelIfNeeded ensures the configured embedding model is available in the Ollama instance.
-func pullModelIfNeeded(port int, model string, logger interface {
+func pullModelIfNeeded(port int, model, label string, logger interface {
 	Info(string, ...any)
 	Warn(string, ...any)
 	Error(string, ...any)
@@ -302,6 +302,10 @@ func pullModelIfNeeded(port int, model string, logger interface {
 	if model == "" {
 		model = "nomic-embed-text"
 	}
+	if strings.TrimSpace(label) == "" {
+		label = "Ollama"
+	}
+	prefix := "[" + label + "] "
 
 	baseURL := fmt.Sprintf("http://127.0.0.1:%d", port)
 	client := &http.Client{Timeout: 5 * time.Second}
@@ -312,25 +316,25 @@ func pullModelIfNeeded(port int, model string, logger interface {
 	if err == nil {
 		showResp.Body.Close()
 		if showResp.StatusCode == 200 {
-			logger.Info("[Ollama Embeddings] Model already available", "model", model)
+			logger.Info(prefix+"Model already available", "model", model)
 			return
 		}
 	}
 
 	// Model not present — pull it (this can take a while)
-	logger.Info("[Ollama Embeddings] Pulling model (this may take several minutes on first run)", "model", model)
+	logger.Info(prefix+"Pulling model (this may take several minutes on first run)", "model", model)
 	pullBody := fmt.Sprintf(`{"model":%q,"stream":false}`, model)
 	pullClient := &http.Client{Timeout: 30 * time.Minute} // model downloads can be large
 	pullResp, err := pullClient.Post(baseURL+"/api/pull", "application/json", strings.NewReader(pullBody))
 	if err != nil {
-		logger.Error("[Ollama Embeddings] Failed to pull model", "model", model, "error", err)
+		logger.Error(prefix+"Failed to pull model", "model", model, "error", err)
 		return
 	}
 	pullResp.Body.Close()
 
 	if pullResp.StatusCode == 200 {
-		logger.Info("[Ollama Embeddings] Model pulled successfully", "model", model)
+		logger.Info(prefix+"Model pulled successfully", "model", model)
 	} else {
-		logger.Error("[Ollama Embeddings] Model pull returned unexpected status", "model", model, "status", pullResp.StatusCode)
+		logger.Error(prefix+"Model pull returned unexpected status", "model", model, "status", pullResp.StatusCode)
 	}
 }

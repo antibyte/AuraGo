@@ -1696,6 +1696,38 @@ func TestConfigSaveKeepsGrandfatheredDockerHostAccess(t *testing.T) {
 	}
 }
 
+func TestOllamaEmbeddingsInputsChanged(t *testing.T) {
+	base := config.Config{}
+	base.Embeddings.LocalOllama.ContainerPort = 11435
+	base.Embeddings.LocalOllama.Model = "nomic-embed-text"
+	base.Embeddings.LocalOllama.GPUBackend = "auto"
+
+	same := base
+	if ollamaEmbeddingsInputsChanged(&base, &same) {
+		t.Fatal("identical embeddings settings were treated as changed")
+	}
+	model := base
+	model.Embeddings.LocalOllama.Model = "mxbai-embed-large"
+	if !ollamaEmbeddingsInputsChanged(&base, &model) {
+		t.Fatal("model change was ignored")
+	}
+	port := base
+	port.Embeddings.LocalOllama.ContainerPort = 11436
+	if !ollamaEmbeddingsInputsChanged(&base, &port) {
+		t.Fatal("port change was ignored")
+	}
+	gpu := base
+	gpu.Embeddings.LocalOllama.UseHostGPU = true
+	if !ollamaEmbeddingsInputsChanged(&base, &gpu) {
+		t.Fatal("GPU flag change was ignored")
+	}
+	backend := base
+	backend.Embeddings.LocalOllama.GPUBackend = "nvidia"
+	if !ollamaEmbeddingsInputsChanged(&base, &backend) {
+		t.Fatal("GPU backend change was ignored")
+	}
+}
+
 func TestInjectDockerHostAccessDefaultReplacesNullDockerSection(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Docker.AllowHostAccess = true

@@ -132,6 +132,15 @@ func handleOllamaManagedRecreate(s *Server) http.HandlerFunc {
 	}
 }
 
+func ollamaEmbeddingsInputsChanged(oldCfg, newCfg *config.Config) bool {
+	oldLO := oldCfg.Embeddings.LocalOllama
+	newLO := newCfg.Embeddings.LocalOllama
+	return oldLO.ContainerPort != newLO.ContainerPort ||
+		oldLO.UseHostGPU != newLO.UseHostGPU ||
+		oldLO.GPUBackend != newLO.GPUBackend ||
+		oldLO.Model != newLO.Model
+}
+
 func ollamaManagedInputsChanged(oldCfg, newCfg *config.Config) bool {
 	oldMI := oldCfg.Ollama.ManagedInstance
 	newMI := newCfg.Ollama.ManagedInstance

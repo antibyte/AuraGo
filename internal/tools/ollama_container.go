@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -186,7 +187,7 @@ func ollamaManagedSpecDrift(inspect, desired []byte) bool {
 	if !ollamaPortBindingsMatch(got.HostConfig.PortBindings, want.HostConfig.PortBindings) {
 		return true
 	}
-	if !stringSetEqual(got.HostConfig.Binds, want.HostConfig.Binds) {
+	if !stringSetEqual(normalizeOllamaBinds(got.HostConfig.Binds), normalizeOllamaBinds(want.HostConfig.Binds)) {
 		return true
 	}
 	if got.HostConfig.Memory != want.HostConfig.Memory || got.HostConfig.PidsLimit != want.HostConfig.PidsLimit {
@@ -206,15 +207,77 @@ func ollamaManagedSpecDrift(inspect, desired []byte) bool {
 }
 
 func ollamaImageMatches(inspectImage string, repoTags []string, desired string) bool {
-	if inspectImage == desired {
+	desired = ollamaImageRef(desired)
+	if ollamaImageRef(inspectImage) == desired {
 		return true
 	}
 	for _, tag := range repoTags {
-		if tag == desired {
+		if ollamaImageRef(tag) == desired {
 			return true
 		}
 	}
 	return false
+}
+
+func ollamaImageRef(image string) string {
+	image = strings.TrimSpace(image)
+	for _, prefix := range []string{"docker.io/", "index.docker.io/"} {
+		if rest, ok := strings.CutPrefix(image, prefix); ok {
+			return rest
+		}
+	}
+	return image
+}
+
+func normalizeOllamaBinds(binds []string) []string {
+	if len(binds) == 0 {
+		return nil
+	}
+	out := make([]string, len(binds))
+	for i, bind := range binds {
+		out[i] = ollamaBindIdentity(bind)
+	}
+	return out
+}
+
+func ollamaBindIdentity(bind string) string {
+	bind = strings.TrimSpace(bind)
+	colon := strings.LastIndex(bind, ":")
+	if colon <= 0 || !strings.Contains(bind[:colon], ":") || !ollamaBindMode(bind[colon+1:]) {
+		return bind
+	}
+	return bind[:colon]
+}
+
+func ollamaBindMode(mode string) bool {
+	if mode == "" {
+		return false
+	}
+	for _, part := range strings.Split(mode, ",") {
+		switch part {
+		case "rw", "ro", "z", "Z", "consistent", "delegated", "cached":
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func ensureOllamaImage(cfg DockerConfig, image string) error {
+	if ollamaImageIsLocal(cfg, image) {
+		return nil
+	}
+	return pullDockerImage(cfg, image)
+}
+
+func ollamaImageIsLocal(cfg DockerConfig, image string) bool {
+	filterURL := fmt.Sprintf("/images/json?filters=%%7B%%22reference%%22%%3A%%5B%%22%s%%22%%5D%%7D", url.QueryEscape(image))
+	data, code, err := dockerRequest(cfg, "GET", filterURL, "")
+	if err != nil || code != 200 {
+		return false
+	}
+	var images []json.RawMessage
+	return json.Unmarshal(data, &images) == nil && len(images) > 0
 }
 
 func ollamaPortBindingsMatch(got, want map[string][]ollamaPortBind) bool {
@@ -323,13 +386,17 @@ func reconcileNamedOllamaContainer(job ollamaReconcile) {
 	}
 	if code == 200 {
 		if ollamaContainerNeedsRecreateForHostDevices(data) || ollamaManagedSpecDrift(data, job.Payload) {
+			if err := ensureOllamaImage(job.Docker, job.Image); err != nil {
+				job.Logger.Error(prefix+"Replacement image is not available; leaving the existing container", "image", job.Image, "error", err)
+				return
+			}
 			job.Logger.Warn(prefix + "Existing container does not match the desired spec; recreating")
 			removeOllamaContainerBestEffort(job.Docker, job.ContainerName)
 			code = 404
 		} else if ollamaInspectRunning(data) {
 			job.Logger.Info(prefix + "Container already running")
 			waitForOllamaReady(job.Port, job.Label, job.Logger)
-			pullManagedModels(job.Port, job.Models, job.Logger)
+			pullManagedModels(job.Port, job.Models, job.Label, job.Logger)
 			return
 		} else {
 			startData, startCode, startErr := dockerRequest(job.Docker, "POST", "/containers/"+job.ContainerName+"/start", "")
@@ -339,7 +406,7 @@ func reconcileNamedOllamaContainer(job ollamaReconcile) {
 			}
 			job.Logger.Info(prefix + "Container started")
 			waitForOllamaReady(job.Port, job.Label, job.Logger)
-			pullManagedModels(job.Port, job.Models, job.Logger)
+			pullManagedModels(job.Port, job.Models, job.Label, job.Logger)
 			return
 		}
 	}
@@ -370,7 +437,7 @@ func reconcileNamedOllamaContainer(job ollamaReconcile) {
 	}
 	job.Logger.Info(prefix+"Container created and started", "image", job.Image, "port", job.Port, "gpu", job.GPUBackend)
 	waitForOllamaReady(job.Port, job.Label, job.Logger)
-	pullManagedModels(job.Port, job.Models, job.Logger)
+	pullManagedModels(job.Port, job.Models, job.Label, job.Logger)
 }
 
 func ollamaInspectRunning(data []byte) bool {
@@ -393,7 +460,7 @@ var (
 
 // startOllamaModelPull runs pullModelIfNeeded in the background. Overlapping
 // calls for the same port and model share one pull.
-func startOllamaModelPull(port int, model string, logger interface {
+func startOllamaModelPull(port int, model, label string, logger interface {
 	Info(string, ...any)
 	Warn(string, ...any)
 	Error(string, ...any)
@@ -416,6 +483,6 @@ func startOllamaModelPull(port int, model string, logger interface {
 			delete(ollamaPulls, key)
 			ollamaPullMu.Unlock()
 		}()
-		ollamaModelPullFn(port, model, logger)
+		ollamaModelPullFn(port, model, label, logger)
 	}()
 }
