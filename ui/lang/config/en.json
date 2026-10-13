@@ -709,5 +709,6 @@
   "config.providers.usage_help": "Decisions profiles are only for the Decisions service and are omitted from ordinary chat model selectors.",
   "config.providers.decisions_only_unavailable": "Decisions-only profile",
   "config.providers.not_available_here": "not available here",
-  "config.telephone_agent.provider_unavailable": "provider unavailable"
+  "config.telephone_agent.provider_unavailable": "provider unavailable",
+  "config.decisions.lifecycle_busy": "Another installation or start is already running."
 }

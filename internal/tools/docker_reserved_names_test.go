@@ -21,7 +21,7 @@ func TestDockerRenameContainerRejectsReservedManagedNames(t *testing.T) {
 	cfg := DockerConfig{Host: host}
 	for _, name := range []string{dockerutil.BoringGarageContainerName, dockerutil.HomepageContainerName, dockerutil.HomepageWebContainerName,
 		dockerutil.AppContainerName, "stack-aurago-1", dockerutil.LocalLLMContainerName, acestep.ContainerName, dockerutil.SecurityProxyContainerName,
-		dockerutil.CYDCreatorBuilderContainerName, "AURAGO-CYD-BUILDER"} {
+		dockerutil.CYDCreatorBuilderContainerName, "AURAGO-CYD-BUILDER", "aurago-decisions-runtime-abc"} {
 		if got := DockerRenameContainer(cfg, "victim", name); !strings.Contains(got, "reserved AuraGo") {
 			t.Fatalf("rename to %s = %s, want a reserved-name refusal", name, got)
 		}

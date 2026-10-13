@@ -75,6 +75,8 @@ func TestDockerComposePolicyBlocksOwnedResourcesHiddenFromRawText(t *testing.T) 
 		{"garage data bind", `{"services":{"web":{"image":"alpine","volumes":[{"type":"bind","source":"/opt/aurago/data/sidecars/garage","target":"/data"}]}}}`, "Boring Computers Garage"},
 		{"local llm named volume", `{"services":{"web":{"image":"alpine","volumes":[{"type":"volume","source":"models","target":"/m"}]}},"volumes":{"models":{"name":"aurago_models"}}}`, "managed local LLM volumes"},
 		{"app container name", `{"services":{"web":{"image":"alpine","container_name":"aurago"}}}`, `"code":"docker_managed_aurago_resource"`},
+		{"decisions runtime name", `{"services":{"web":{"image":"alpine","container_name":"aurago-decisions-runtime-abc"}}}`, `"code":"docker_managed_decisions_resource"`},
+		{"decisions label", `{"services":{"web":{"image":"alpine","labels":{"aurago.managed":"decisions"}}}}`, `"code":"docker_managed_decisions_resource"`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -287,6 +289,7 @@ func TestDockerComposeContainerReferenceDenialRefusesEveryProtectedOwner(t *test
 		dockerutil.AppOwner:          `"code":"docker_managed_aurago_resource"`,
 		dockerutil.CYDCreatorOwner:   `"code":"docker_managed_cyd_creator_resource"`,
 		dockerutil.LocalLLMOwner:     "managed local LLM",
+		dockerutil.DecisionsOwner:    `"code":"docker_managed_decisions_resource"`,
 	}
 	for _, owner := range dockerComposeReferenceOwners {
 		if owner == dockerutil.SecurityProxyOwner {
@@ -1203,5 +1206,19 @@ func TestDispatchDockerComposeChecksTheOutputTargetBeforeResolving(t *testing.T)
 	}
 	if len(*seen) != 0 {
 		t.Fatalf("Compose resolved the file %d times before the cheap output check", len(*seen))
+	}
+}
+
+// A network namespace of a reserved Decisions name is refused because
+// DecisionsOwner is one of dockerComposeReferenceOwners. The name matches
+// before any Engine request.
+func TestDockerComposeContainerReferenceDenialRefusesDecisionsRuntime(t *testing.T) {
+	model, err := tools.ParseDockerComposeModel(`{"services":{"web":{"image":"alpine","network_mode":"container:aurago-decisions-runtime-abc"}}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := dockerComposeContainerReferenceDenial(tools.DockerConfig{Host: "tcp://127.0.0.1:1"}, model)
+	if !strings.Contains(got, `"code":"docker_managed_decisions_resource"`) {
+		t.Fatalf("network_mode reference = %s, want docker_managed_decisions_resource", got)
 	}
 }

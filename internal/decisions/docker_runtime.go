@@ -212,9 +212,21 @@ func validDockerImageID(value string) bool {
 }
 
 func dockerHostConfig(backend, network string, portBindings map[string]any) map[string]any {
+	// 8 GiB covers the pinned Q4 weights (1,274,396,448 bytes), the projector
+	// (671,372,608 bytes), KV and compute for the shared 8192-token budget, and
+	// a consented CPU fallback that keeps those weights in host RAM.
+	// MemorySwap == Memory means the cgroup adds no swap, matching the CYD
+	// builder pattern (Memory and MemorySwap equal) at a size that fits this
+	// model rather than the builder's 2 GiB.
+	//
+	// Docker Memory limits host RAM, not GPU VRAM. Device ids from the runtime
+	// are ggml_backend_dev_name values (device_json in decisions_runtime/src/main.cpp),
+	// not NVIDIA indexes or DRM render-node paths. Do not set DeviceIDs or narrow
+	// /dev/dri in this task. A wrong filter fails attestation and surfaces as missing hardware.
 	host := map[string]any{
 		"AutoRemove": false, "ReadonlyRootfs": true, "PidsLimit": int64(128), "CapDrop": []string{"ALL"},
 		"SecurityOpt": []string{"no-new-privileges"}, "NetworkMode": network,
+		"Memory": int64(8 << 30), "MemorySwap": int64(8 << 30),
 		"Tmpfs":     map[string]string{"/tmp": "rw,noexec,nosuid,size=64m"},
 		"LogConfig": map[string]any{"Type": "json-file", "Config": map[string]string{"max-size": "1m", "max-file": "2"}},
 	}

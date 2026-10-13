@@ -223,9 +223,10 @@ above; the 8192-token scoring budget applies only to the local runtime.
 - 16 ordered questions per evaluation, 2–62 options per choice/rating question;
   yes/no uses the fixed stable IDs `no` and `yes`.
 - Eight images, at most 12 MiB each and 24 MiB combined, at most 32 million pixels
-  per image. Supported public inputs are PNG, JPEG, GIF, and WebP; WebP is
-  normalized to PNG within the same byte limits. Source files and normalized
-  images each have a separate 24 MiB total cap. Animated inputs use one frame.
+  per image. Supported public inputs are PNG, JPEG, GIF, and WebP; GIF and WebP
+  are decoded to one frame and re-encoded as PNG within the same byte limits.
+  PNG and JPEG stay as detected. Source files and normalized images each have a
+  separate 24 MiB total cap.
 - 8192 input tokens **including image tokens across the evaluation**. Independent
   questions repeat their shared state and images, so those tokens count again.
   Each question is tokenized against the remaining budget before inference.

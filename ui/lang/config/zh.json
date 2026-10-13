@@ -709,5 +709,6 @@
   "config.providers.usage_help": "Decisions 配置仅供 Decisions 服务使用，不会出现在普通聊天模型选择器中。",
   "config.providers.decisions_only_unavailable": "仅限 Decisions 的配置",
   "config.providers.not_available_here": "此处不可用",
-  "config.telephone_agent.provider_unavailable": "提供商不可用"
+  "config.telephone_agent.provider_unavailable": "提供商不可用",
+  "config.decisions.lifecycle_busy": "已有安装或启动正在进行。"
 }

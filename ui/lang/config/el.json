@@ -709,5 +709,6 @@
   "config.providers.usage_help": "Τα προφίλ Decisions προορίζονται μόνο για την υπηρεσία Decisions και δεν εμφανίζονται στις συνήθεις επιλογές μοντέλου συνομιλίας.",
   "config.providers.decisions_only_unavailable": "μόνο για Decisions",
   "config.providers.not_available_here": "μη διαθέσιμο εδώ",
-  "config.telephone_agent.provider_unavailable": "ο πάροχος δεν είναι διαθέσιμος"
+  "config.telephone_agent.provider_unavailable": "ο πάροχος δεν είναι διαθέσιμος",
+  "config.decisions.lifecycle_busy": "Μια εγκατάσταση ή εκκίνηση εκτελείται ήδη."
 }

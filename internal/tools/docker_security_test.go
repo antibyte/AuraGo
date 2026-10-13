@@ -332,7 +332,7 @@ func TestDockerCreateContainerRejectsReservedManagedNames(t *testing.T) {
 		w.WriteHeader(http.StatusNotFound)
 	})
 	cfg := DockerConfig{Host: host}
-	for _, name := range []string{"aurago-boring-garage", "aurago-homepage", "aurago-homepage-web", "aurago", "stack-aurago-1", "aurago-cyd-builder", "AURAGO-CYD-BUILDER"} {
+	for _, name := range []string{"aurago-boring-garage", "aurago-homepage", "aurago-homepage-web", "aurago", "stack-aurago-1", "aurago-cyd-builder", "AURAGO-CYD-BUILDER", "aurago-decisions-runtime-abc"} {
 		result := DockerCreateContainerWithOptions(cfg, name, "alpine:latest", nil, nil, nil, nil, "no", nil, ContainerCreateOptions{})
 		if !strings.Contains(result, "reserved AuraGo managed container name") {
 			t.Fatalf("%s: result = %s, want reserved-name denial", name, result)

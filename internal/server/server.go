@@ -198,6 +198,7 @@ type Server struct {
 	LocalLLM                  *localllm.Manager
 	Decisions                 decisionsService
 	routingDecisionEpoch      atomic.Uint64
+	decisionsHTTPAdmission    sync.Mutex // one HTTP install or start; not the manager lifecycle mutex
 	LocalMusic                *acestep.Manager
 	LocalWiki                 *localwiki.Manager
 	localWikiSyncMu           sync.Mutex // one step from reading the config snapshot to configuring LocalWiki

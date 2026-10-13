@@ -11,6 +11,7 @@ import (
 	"hash/crc32"
 	"image"
 	"image/color"
+	"image/gif"
 	"image/png"
 	"io"
 	"log/slog"
@@ -19,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -29,11 +31,21 @@ import (
 )
 
 type fakeDecisions struct {
-	status  decisions.Status
-	request decisions.Request
-	err     error
+	status    decisions.Status
+	request   decisions.Request
+	err       error
+	calls     int
+	policy    config.DecisionsConfig
+	startGate *decisionsStartGate
+}
+
+// decisionsStartGate blocks the first Start after publishing a transitional
+// status. A later Start returns nil and leaves that status alone, so a second
+// HTTP handler that observed it would answer 202. Status stays readable.
+type decisionsStartGate struct {
+	mu      sync.Mutex
+	release chan struct{}
 	calls   int
-	policy  config.DecisionsConfig
 }
 
 func TestDecisionsDockerSelfIdentity(t *testing.T) {
@@ -60,7 +72,13 @@ func TestDecisionsDockerSelfIdentity(t *testing.T) {
 	}
 }
 
-func (f *fakeDecisions) Status() decisions.Status { return f.status }
+func (f *fakeDecisions) Status() decisions.Status {
+	if f.startGate != nil {
+		f.startGate.mu.Lock()
+		defer f.startGate.mu.Unlock()
+	}
+	return f.status
+}
 func (f *fakeDecisions) Evaluate(ctx context.Context, r decisions.Request) (decisions.Response, error) {
 	f.calls++
 	f.request = r
@@ -75,9 +93,26 @@ func (f *fakeDecisions) PrepareReconfigure(c config.DecisionsConfig) (func(conte
 }
 func (f *fakeDecisions) AutoStart(context.Context) error { return nil }
 func (f *fakeDecisions) Install(context.Context) error   { return nil }
-func (f *fakeDecisions) Start(context.Context) error     { return nil }
-func (f *fakeDecisions) Stop(context.Context) error      { return nil }
-func (f *fakeDecisions) Shutdown(context.Context) error  { return nil }
+func (f *fakeDecisions) Start(context.Context) error {
+	if f.startGate == nil {
+		return nil
+	}
+	f.startGate.mu.Lock()
+	f.startGate.calls++
+	if f.startGate.calls == 1 {
+		f.status.State = "starting"
+		f.status.Code = ""
+		f.status.Ready = false
+		release := f.startGate.release
+		f.startGate.mu.Unlock()
+		<-release
+		return nil
+	}
+	f.startGate.mu.Unlock()
+	return nil
+}
+func (f *fakeDecisions) Stop(context.Context) error     { return nil }
+func (f *fakeDecisions) Shutdown(context.Context) error { return nil }
 
 func decisionsServerFixture(t *testing.T) (*Server, *fakeDecisions) {
 	t.Helper()
@@ -93,6 +128,69 @@ func decisionsServerFixture(t *testing.T) (*Server, *fakeDecisions) {
 	}
 	fake := &fakeDecisions{status: decisions.Status{Enabled: true, Installed: true, Ready: true, State: "ready"}}
 	return &Server{Cfg: cfg, Decisions: fake, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}, fake
+}
+
+func TestDecisionsStartRejectsASecondStart(t *testing.T) {
+	s, fake := decisionsServerFixture(t)
+	fake.startGate = &decisionsStartGate{release: make(chan struct{})}
+	t.Cleanup(func() {
+		select {
+		case <-fake.startGate.release:
+		default:
+			close(fake.startGate.release)
+		}
+	})
+	mux := http.NewServeMux()
+	registerDecisionsRoutes(mux, s)
+	post := func(action string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(http.MethodPost, "http://localhost/api/decisions/"+action, nil)
+		r.Header.Set("Origin", "http://localhost")
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, r)
+		return w
+	}
+	firstDone := make(chan *httptest.ResponseRecorder, 1)
+	go func() { firstDone <- post("start") }()
+	deadline := time.Now().Add(2 * time.Second)
+	for fake.Status().State != "starting" {
+		if time.Now().After(deadline) {
+			t.Fatal("first start did not publish a transitional state")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	var first *httptest.ResponseRecorder
+	select {
+	case first = <-firstDone:
+	case <-time.After(3 * time.Second):
+		t.Fatal("first start did not answer")
+	}
+	if first.Code != http.StatusAccepted || strings.TrimSpace(first.Body.String()) != `{"status":"accepted"}` {
+		t.Fatalf("first start = %d %s", first.Code, first.Body.String())
+	}
+	if fake.Status().State != "starting" {
+		t.Fatalf("status before the second start = %q, want starting", fake.Status().State)
+	}
+	// The first Start is still blocked and the status a poll would accept is
+	// already visible. A second handler must not turn that into 202.
+	for _, action := range []string{"start", "install"} {
+		second := post(action)
+		if second.Code != http.StatusConflict {
+			t.Fatalf("second %s = %d %s, want 409", action, second.Code, second.Body.String())
+		}
+		var body map[string]string
+		if err := json.Unmarshal(second.Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		if body["code"] != decisions.CodeLifecycleBusy {
+			t.Fatalf("second %s code = %q, want lifecycle_busy", action, body["code"])
+		}
+	}
+	fake.startGate.mu.Lock()
+	calls := fake.startGate.calls
+	fake.startGate.mu.Unlock()
+	if calls != 1 {
+		t.Fatalf("admission lock started %d Start calls, want 1", calls)
+	}
 }
 
 func TestDecisionsAPIInputAndAccess(t *testing.T) {
@@ -324,6 +422,49 @@ func TestDecisionsWebPNormalizesWithoutNativeCodec(t *testing.T) {
 	limited := decisionImageBuffer{limit: 3}
 	if _, err := limited.Write([]byte("four")); !errors.Is(err, errDecisionImage) || limited.Len() != 0 {
 		t.Fatal("normalization exceeded byte budget")
+	}
+}
+
+func TestDecisionsGIFUsesTheFirstFrameAsPNG(t *testing.T) {
+	s, fake := decisionsServerFixture(t)
+	red := image.NewPaletted(image.Rect(0, 0, 1, 1), color.Palette{color.RGBA{R: 255, A: 255}})
+	blue := image.NewPaletted(image.Rect(0, 0, 1, 1), color.Palette{color.RGBA{B: 255, A: 255}})
+	var encoded bytes.Buffer
+	if err := gif.EncodeAll(&encoded, &gif.GIF{Image: []*image.Paletted{red, blue}, Delay: []int{0, 0}}); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(s.Cfg.Directories.WorkspaceDir, "frames.gif")
+	if err := os.WriteFile(path, encoded.Bytes(), 0600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := s.evaluateDecisions(context.Background(), decisionsAPIRequest{Questions: []decisions.Question{{ID: "q", Type: "noul", Instructions: "Red?"}}, Images: []string{path}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fake.request.Images) != 1 || fake.request.Images[0].MIME != "image/png" || !bytes.HasPrefix(fake.request.Images[0].Data, []byte("\x89PNG")) {
+		t.Fatal("GIF not reduced to one PNG frame")
+	}
+	decoded, err := png.Decode(bytes.NewReader(fake.request.Images[0].Data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, g, b, _ := decoded.At(0, 0).RGBA()
+	if r != 65535 || g != 0 || b != 0 || fake.calls != 1 {
+		t.Fatalf("first frame not kept: r=%d g=%d b=%d calls=%d", r, g, b, fake.calls)
+	}
+
+	oversized, oversizedFake := decisionsServerFixture(t)
+	header := make([]byte, 13)
+	copy(header, "GIF89a")
+	binary.LittleEndian.PutUint16(header[6:8], 8192)
+	binary.LittleEndian.PutUint16(header[8:10], 8192)
+	pixelPath := filepath.Join(oversized.Cfg.Directories.WorkspaceDir, "huge.gif")
+	if err := os.WriteFile(pixelPath, header, 0600); err != nil {
+		t.Fatal(err)
+	}
+	_, err = oversized.evaluateDecisions(context.Background(), decisionsAPIRequest{Questions: []decisions.Question{{ID: "q", Type: "noul"}}, Images: []string{pixelPath}})
+	if !errors.Is(err, errDecisionImage) || oversizedFake.calls != 0 {
+		t.Fatalf("oversized GIF logical screen accepted: calls=%d, error=%v", oversizedFake.calls, err)
 	}
 }
 

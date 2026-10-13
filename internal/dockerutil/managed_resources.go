@@ -9,6 +9,10 @@ const (
 	// LocalLLMOwner is the canonical owner value for AuraGo-Qwen resources.
 	LocalLLMOwner = "local-llm"
 
+	// DecisionsOwner is the canonical owner of the managed Decisions runtime
+	// and discovery containers (internal/decisions).
+	DecisionsOwner = "decisions"
+
 	LocalLLMContainerName   = "aurago-local-llm"
 	LocalLLMKeySeedName     = "aurago-local-llm-key-seed"
 	LocalLLMModelVolumeName = "aurago_models"
@@ -74,6 +78,15 @@ func ManagedLabels(owner, component, role, fingerprint string) map[string]string
 		labels["aurago.fingerprint"] = fingerprint
 	}
 	return labels
+}
+
+// IsDecisionsContainerName recognizes the managed Decisions runtime and
+// discovery containers. Only the prefixes with a trailing hyphen match, so
+// aurago-decisions-runtime itself is not reserved.
+func IsDecisionsContainerName(name string) bool {
+	name = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(name)), "/")
+	return strings.HasPrefix(name, "aurago-decisions-runtime-") ||
+		strings.HasPrefix(name, "aurago-decisions-discover-")
 }
 
 // IsLocalLLMContainerName recognizes every reserved AuraGo-Qwen container.

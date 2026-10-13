@@ -77,8 +77,8 @@ func (s *Server) evaluateDecisions(ctx context.Context, request decisionsAPIRequ
 		if err != nil || size.Width <= 0 || size.Height <= 0 || int64(size.Width)*int64(size.Height) > decisionImagePixels {
 			return decisions.Response{}, errDecisionImage
 		}
-		if mime == "image/webp" {
-			// The pinned native decoder has no WebP dependency; normalize at the authorized media boundary.
+		if mime == "image/webp" || mime == "image/gif" {
+			// GIF and WebP are reduced to one PNG frame because the runtime decoder is not the animated path.
 			decoded, _, err := image.Decode(bytes.NewReader(data))
 			if err != nil {
 				return decisions.Response{}, errDecisionImage

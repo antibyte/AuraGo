@@ -282,15 +282,20 @@ func (manager *Manager) Install(ctx context.Context) error {
 	if err := manager.authorizeEnabled(); err != nil {
 		return err
 	}
+	// Publish before stopLocked. setState no-ops until beginOperation sets
+	// operationCancel, and the HTTP handler can return before that exists.
+	manager.publishLifecycleTransition("installing")
 	// Provisioning may replace the executable currently mapped by the native
 	// runtime (which Windows locks). Install is an explicit lifecycle action,
 	// so stop the serving generation before touching managed runtime files.
 	if err := manager.stopLocked(ctx); err != nil {
+		manager.publishLifecycleTransitionFailure(err)
 		return err
 	}
 	callerCtx := ctx
 	ctx, operationCancel, operationID, stopParent, err := manager.beginOperation(ctx)
 	if err != nil {
+		manager.publishLifecycleTransitionFailure(err)
 		return err
 	}
 	defer manager.finishOperation(operationCancel, operationID, stopParent, false)
@@ -415,12 +420,17 @@ func (manager *Manager) Start(ctx context.Context) error {
 	if err := manager.authorizeEnabled(); err != nil {
 		return err
 	}
+	// Publish before stopLocked. setState no-ops until beginOperation sets
+	// operationCancel, and the HTTP handler can return before that exists.
+	manager.publishLifecycleTransition("starting")
 	if err := manager.stopLocked(ctx); err != nil {
+		manager.publishLifecycleTransitionFailure(err)
 		return err
 	}
 	callerCtx := ctx
 	ctx, operationCancel, operationID, stopParent, err := manager.beginOperation(ctx)
 	if err != nil {
+		manager.publishLifecycleTransitionFailure(err)
 		return err
 	}
 	keepSession := false
@@ -1015,6 +1025,40 @@ func (manager *Manager) updateProgress(phase string, current, total int64) {
 		}
 	}
 	manager.status.Progress = progress
+}
+
+// publishLifecycleTransition records a busy state before operationCancel exists.
+// setState returns without writing until beginOperation registers one.
+func (manager *Manager) publishLifecycleTransition(state string) {
+	manager.mu.Lock()
+	defer manager.mu.Unlock()
+	if !manager.cfg.Enabled || manager.closed || manager.operationCancel != nil {
+		return
+	}
+	manager.status.Ready = false
+	manager.status.State = state
+	manager.status.Code = ""
+	manager.status.ErrorMessage = ""
+	manager.status.Progress = Progress{}
+}
+
+// publishLifecycleTransitionFailure records a failure that happened after the
+// transitional publish and before an operation was registered. A cancelled
+// call, or one that already owns operationCancel, keeps the status it has.
+func (manager *Manager) publishLifecycleTransitionFailure(err error) {
+	if err == nil || ErrorCode(err) == CodeCancelled {
+		return
+	}
+	manager.mu.Lock()
+	defer manager.mu.Unlock()
+	if manager.operationCancel != nil {
+		return
+	}
+	manager.status.Ready = false
+	manager.status.State = "error"
+	manager.status.Code = ErrorCode(err)
+	manager.status.ErrorMessage = ErrorCode(err)
+	manager.status.Progress = Progress{}
 }
 
 func (manager *Manager) setState(state, code string, progress Progress) {

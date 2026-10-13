@@ -709,5 +709,6 @@
   "config.providers.usage_help": "DecisionsプロファイルはDecisionsサービス専用で、通常のチャットモデル選択には表示されません。",
   "config.providers.decisions_only_unavailable": "Decisions専用プロファイル",
   "config.providers.not_available_here": "ここでは利用できません",
-  "config.telephone_agent.provider_unavailable": "プロバイダーを利用できません"
+  "config.telephone_agent.provider_unavailable": "プロバイダーを利用できません",
+  "config.decisions.lifecycle_busy": "インストールまたは開始がすでに実行中です。"
 }

@@ -709,5 +709,6 @@
   "config.providers.usage_help": "Decisions प्रोफ़ाइल केवल Decisions सेवा के लिए हैं और सामान्य चैट मॉडल सूचियों में नहीं दिखतीं।",
   "config.providers.decisions_only_unavailable": "केवल Decisions प्रोफ़ाइल",
   "config.providers.not_available_here": "यहाँ उपलब्ध नहीं",
-  "config.telephone_agent.provider_unavailable": "प्रदाता उपलब्ध नहीं"
+  "config.telephone_agent.provider_unavailable": "प्रदाता उपलब्ध नहीं",
+  "config.decisions.lifecycle_busy": "एक इंस्टॉलेशन या स्टार्ट पहले से चल रहा है।"
 }

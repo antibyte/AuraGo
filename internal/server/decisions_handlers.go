@@ -73,8 +73,18 @@ func handleDecisions(s *Server, action string) http.HandlerFunc {
 				writeDecisionsError(w, "service_disabled", http.StatusConflict)
 				return
 			}
+			// One HTTP install or start is admitted. A second request must not
+			// treat the first call's transitional status as its own acceptance.
+			if !s.decisionsHTTPAdmission.TryLock() {
+				writeDecisionsError(w, decisions.CodeLifecycleBusy, http.StatusConflict)
+				return
+			}
 			// Installation and model loading outlive the HTTP request, but never the server.
+			// Answer only after a transitional state is visible, or with the
+			// operation's own error if that arrives first.
+			errCh := make(chan error, 1)
 			go func() {
+				defer s.decisionsHTTPAdmission.Unlock()
 				ctx, cancel := context.WithTimeout(localLLMLifecycleContext(s), 6*time.Hour)
 				defer cancel()
 				var err error
@@ -86,9 +96,40 @@ func handleDecisions(s *Server, action string) http.HandlerFunc {
 				if err != nil && s.Logger != nil {
 					s.Logger.Warn("Decisions action failed", "action", action, "code", decisions.ErrorCode(err))
 				}
+				errCh <- err
 			}()
-			writeDecisionsJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
-			return
+			ticker := time.NewTicker(25 * time.Millisecond)
+			defer ticker.Stop()
+			deadline := time.NewTimer(2 * time.Second)
+			defer deadline.Stop()
+			for {
+				select {
+				case err := <-errCh:
+					writeDecisionsLifecycleAccept(w, err)
+					return
+				case <-deadline.C:
+					select {
+					case err := <-errCh:
+						writeDecisionsLifecycleAccept(w, err)
+						return
+					default:
+					}
+					writeDecisionsJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
+					return
+				case <-ticker.C:
+					select {
+					case err := <-errCh:
+						writeDecisionsLifecycleAccept(w, err)
+						return
+					default:
+					}
+					switch s.Decisions.Status().State {
+					case "installing", "downloading", "starting", "discovering_devices", "stopping":
+						writeDecisionsJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
+						return
+					}
+				}
+			}
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 		defer cancel()
@@ -123,6 +164,14 @@ func handleDecisions(s *Server, action string) http.HandlerFunc {
 		}
 		writeDecisionsJSON(w, http.StatusOK, response)
 	}
+}
+
+func writeDecisionsLifecycleAccept(w http.ResponseWriter, err error) {
+	if err != nil {
+		writeDecisionsFailure(w, err)
+		return
+	}
+	writeDecisionsJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
 }
 
 func writeDecisionsJSON(w http.ResponseWriter, status int, value any) {
@@ -190,7 +239,7 @@ func writeDecisionsFailure(w http.ResponseWriter, err error) {
 	if code == "budget_exceeded" {
 		status = http.StatusPaymentRequired
 	}
-	if code == "provider_lifecycle_unavailable" || code == "configuration_changed" {
+	if code == "provider_lifecycle_unavailable" || code == "configuration_changed" || code == decisions.CodeLifecycleBusy {
 		status = http.StatusConflict
 	}
 	writeDecisionsError(w, code, status)

@@ -709,5 +709,6 @@
   "config.providers.usage_help": "I profili Decisions sono riservati al servizio Decisions e non compaiono nei normali selettori di modelli chat.",
   "config.providers.decisions_only_unavailable": "profilo solo Decisions",
   "config.providers.not_available_here": "non disponibile qui",
-  "config.telephone_agent.provider_unavailable": "provider non disponibile"
+  "config.telephone_agent.provider_unavailable": "provider non disponibile",
+  "config.decisions.lifecycle_busy": "Un'installazione o un avvio è già in corso."
 }

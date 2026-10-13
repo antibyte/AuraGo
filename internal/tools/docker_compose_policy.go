@@ -187,7 +187,7 @@ func dockerComposeKeepEnd(text string, limit int) string {
 // (canonical and legacy) on services, top-level volumes and networks, the
 // homepage image repository, named and bind volume sources, local bind volume
 // devices, volumes_from and container: namespace references. Owners: acestep.Owner, dockerutil.LocalLLMOwner,
-// BoringGarageOwner, HomepageOwner, AppOwner and CYDCreatorOwner (the exact
+// DecisionsOwner, BoringGarageOwner, HomepageOwner, AppOwner and CYDCreatorOwner (the exact
 // builder container name, its two exact volume names and the published builder
 // image as a service image or build tag). The app container matches only
 // its exact name "aurago" or the aurago-app owner label: this tier also binds
@@ -335,7 +335,7 @@ func dockerComposeVolumesFromTarget(ref string) (target string, isContainer bool
 // dockerComposeLabelOwner reports the AuraGo owner named by canonical or legacy
 // aurago.managed labels on a service, volume or network.
 func dockerComposeLabelOwner(labels map[string]string) string {
-	for _, owner := range []string{acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner, dockerutil.HomepageOwner, dockerutil.AppOwner, dockerutil.CYDCreatorOwner} {
+	for _, owner := range []string{acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.DecisionsOwner, dockerutil.BoringGarageOwner, dockerutil.HomepageOwner, dockerutil.AppOwner, dockerutil.CYDCreatorOwner} {
 		if dockerutil.ManagedBy(labels, owner) {
 			return owner
 		}
@@ -352,6 +352,8 @@ func dockerComposeContainerOwner(name string) string {
 		return acestep.Owner
 	case dockerutil.IsLocalLLMContainerName(name):
 		return dockerutil.LocalLLMOwner
+	case dockerutil.IsDecisionsContainerName(name):
+		return dockerutil.DecisionsOwner
 	case dockerutil.IsBoringGarageContainerName(name):
 		return dockerutil.BoringGarageOwner
 	case dockerutil.IsHomepageContainerName(name):

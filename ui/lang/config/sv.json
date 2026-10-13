@@ -709,5 +709,6 @@
   "config.providers.usage_help": "Decisions-profiler är endast avsedda för Decisions-tjänsten och visas inte i vanliga chattmodellväljare.",
   "config.providers.decisions_only_unavailable": "endast för Decisions",
   "config.providers.not_available_here": "inte tillgänglig här",
-  "config.telephone_agent.provider_unavailable": "leverantören är inte tillgänglig"
+  "config.telephone_agent.provider_unavailable": "leverantören är inte tillgänglig",
+  "config.decisions.lifecycle_busy": "En installation eller start pågår redan."
 }

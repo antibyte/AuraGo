@@ -709,5 +709,6 @@
   "config.providers.usage_help": "Decisions-profielen zijn alleen voor de Decisions-service en staan niet in gewone chatmodelkeuzes.",
   "config.providers.decisions_only_unavailable": "alleen voor Decisions",
   "config.providers.not_available_here": "hier niet beschikbaar",
-  "config.telephone_agent.provider_unavailable": "provider niet beschikbaar"
+  "config.telephone_agent.provider_unavailable": "provider niet beschikbaar",
+  "config.decisions.lifecycle_busy": "Er loopt al een installatie of start."
 }

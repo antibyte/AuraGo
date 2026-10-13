@@ -709,5 +709,6 @@
   "config.providers.usage_help": "Les profils Decisions sont réservés au service Decisions et n’apparaissent pas dans les sélecteurs de modèles de chat ordinaires.",
   "config.providers.decisions_only_unavailable": "profil réservé à Decisions",
   "config.providers.not_available_here": "indisponible ici",
-  "config.telephone_agent.provider_unavailable": "fournisseur indisponible"
+  "config.telephone_agent.provider_unavailable": "fournisseur indisponible",
+  "config.decisions.lifecycle_busy": "Une installation ou un démarrage est déjà en cours."
 }

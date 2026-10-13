@@ -709,5 +709,6 @@
   "config.providers.usage_help": "Profile Decisions są przeznaczone tylko dla usługi Decisions i nie pojawiają się na zwykłych listach modeli czatu.",
   "config.providers.decisions_only_unavailable": "profil tylko dla Decisions",
   "config.providers.not_available_here": "niedostępny w tym miejscu",
-  "config.telephone_agent.provider_unavailable": "dostawca niedostępny"
+  "config.telephone_agent.provider_unavailable": "dostawca niedostępny",
+  "config.decisions.lifecycle_busy": "Instalace nebo spuštění už probíhá."
 }

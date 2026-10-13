@@ -912,4 +912,60 @@ func TestStartAndInstallReturnBusyInsteadOfQueueingLifecycleRequests(t *testing.
 	manager.lifecycle.Unlock()
 }
 
+func TestDecisionsStartPublishesStarting(t *testing.T) {
+	factory := &testFactory{
+		devices:           []runtimeDevice{{ID: "cuda0", Name: "GPU", Backend: "cuda", Type: "GPU", ModelLayers: 32, BinarySHA: strings.Repeat("a", 64)}},
+		blockFirstStart:   true,
+		firstStartEntered: make(chan struct{}),
+	}
+	manager := startManagerForTest(t, config.DecisionsConfig{Enabled: true, Deployment: config.DecisionsDeploymentNative}, factory)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- manager.Start(ctx) }()
+
+	deadline := time.Now().Add(2 * time.Second)
+	var held Status
+	for {
+		select {
+		case <-factory.firstStartEntered:
+			held = manager.Status()
+			if held.State != "starting" && held.State != "discovering_devices" {
+				t.Fatalf("status before runtime start = %#v, want starting or discovering_devices", held)
+			}
+			if held.Code != "" || held.Ready {
+				t.Fatalf("transitional status = %#v, want empty code and not ready", held)
+			}
+			goto held
+		default:
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("Start did not reach the blocked runtime launch")
+		}
+		time.Sleep(time.Millisecond)
+	}
+held:
+	if err := manager.Start(context.Background()); ErrorCode(err) != CodeLifecycleBusy {
+		t.Fatalf("second Start = %v, want lifecycle_busy", err)
+	}
+	if next := manager.Status(); next.State != held.State || next.State == "error" || next.Ready != held.Ready {
+		t.Fatalf("second Start replaced %#v with %#v", held, next)
+	}
+	if err := manager.Install(context.Background()); ErrorCode(err) != CodeLifecycleBusy {
+		t.Fatalf("Install during Start = %v, want lifecycle_busy", err)
+	}
+	if next := manager.Status(); next.State != held.State || next.Ready != held.Ready {
+		t.Fatalf("Install during Start replaced %#v with %#v", held, next)
+	}
+	cancel()
+	select {
+	case err := <-done:
+		if ErrorCode(err) != CodeCancelled {
+			t.Fatalf("canceled Start = %v, want cancelled", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("canceled Start did not finish")
+	}
+}
+
 func boolPointer(value bool) *bool { return &value }

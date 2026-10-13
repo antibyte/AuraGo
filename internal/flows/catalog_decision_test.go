@@ -93,6 +93,21 @@ func TestAIDecisionCatalogAndAvailability(t *testing.T) {
 	if def.Execute == nil || def.Validate == nil || !def.UntrustedOutput || !reflect.DeepEqual(def.ErrorModes, []ErrorMode{ErrorStop, ErrorPort}) {
 		t.Fatalf("definition contract = %+v", def)
 	}
+	wantSink := map[string]bool{"images": true, "questions": true, "state": false}
+	seenSink := map[string]bool{}
+	for _, param := range def.Params {
+		want, ok := wantSink[param.Name]
+		if !ok {
+			continue
+		}
+		seenSink[param.Name] = true
+		if param.SensitiveSink != want {
+			t.Fatalf("%s SensitiveSink = %v, want %v", param.Name, param.SensitiveSink, want)
+		}
+	}
+	if len(seenSink) != len(wantSink) {
+		t.Fatalf("sensitive sink specs = %v", seenSink)
+	}
 	availability := def.Availability()
 	if availability.State != BlockedState || availability.Code != "DECISIONS_RUNTIME_UNAVAILABLE" || availability.ConfigSection != "decisions" {
 		t.Fatalf("availability = %+v", availability)
