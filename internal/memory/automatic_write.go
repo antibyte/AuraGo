@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -50,11 +51,29 @@ func (s *SQLiteMemory) initializeAutomaticMemoryMeta(id string, details MemoryMe
 // StoreAutomaticMemoryDocument shares insert-only metadata and ownership
 // receipts across analysis, consolidation, hierarchy and queued retries.
 func StoreAutomaticMemoryDocument(s *SQLiteMemory, ltm VectorDB, concept, content string, details MemoryMetaUpdate) (AutomaticMemoryStoreResult, error) {
+	return storeAutomaticMemoryDocument(context.Background(), s, ltm, concept, content, details, StoreDocumentWithOwnership)
+}
+
+// StoreAutomaticMemoryDocumentWithContext propagates the run deadline through
+// embedding and vector storage. Receipts and metadata still describe any writes.
+func StoreAutomaticMemoryDocumentWithContext(ctx context.Context, s *SQLiteMemory, ltm VectorDB, concept, content string, details MemoryMetaUpdate) (AutomaticMemoryStoreResult, error) {
+	return storeAutomaticMemoryDocument(ctx, s, ltm, concept, content, details, func(ltm VectorDB, concept, content string) (VectorStoreResult, error) {
+		return StoreDocumentWithOwnershipContext(ctx, ltm, concept, content)
+	})
+}
+
+func storeAutomaticMemoryDocument(ctx context.Context, s *SQLiteMemory, ltm VectorDB, concept, content string, details MemoryMetaUpdate, store func(VectorDB, string, string) (VectorStoreResult, error)) (AutomaticMemoryStoreResult, error) {
+	if err := ctx.Err(); err != nil {
+		return AutomaticMemoryStoreResult{}, err
+	}
 	if s != nil {
 		s.automaticMemoryMu.Lock()
 		defer s.automaticMemoryMu.Unlock()
 	}
 	var result AutomaticMemoryStoreResult
+	if err := ctx.Err(); err != nil {
+		return result, err
+	}
 	if s != nil {
 		blocked, err := s.IsCorrectedMemoryFact(CorrectionFactText(buildContentString(concept, content)))
 		if err != nil {
@@ -69,7 +88,7 @@ func StoreAutomaticMemoryDocument(s *SQLiteMemory, ltm VectorDB, concept, conten
 		session, _ = MemoryAnalysisSession(content)
 		content = MemoryAnalysisSourceMarker
 	}
-	stored, storeErr := StoreDocumentWithOwnership(ltm, concept, content)
+	stored, storeErr := store(ltm, concept, content)
 	result.VectorStoreResult = stored
 	resultErr := storeErr
 	for _, id := range stored.CreatedIDs {

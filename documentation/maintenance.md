@@ -241,6 +241,12 @@ complete extraction without creating facts or retrying the same conversation;
 missing/null arrays and invalid facts remain errors on both LLM paths.
 Direct summaries and consolidation reserve reasoning output within the selected
 helper/main provider's output and context limits.
+Small facts use one document embedding for both the duplicate check and storage;
+duplicate identity does not decay with age. The phase deadline reaches embedding
+calls, including chunked facts. Cancellation during storage releases archive claims
+without consuming retries, while existing ownership checks protect reused memories
+during rollback. The maintenance log records extraction and storage durations
+separately to distinguish slow model responses from slow embeddings.
 For an old conversation backlog, `consolidation.catchup_minutes` can opt in to
 another daily consolidation run after the normal maintenance ledger and morning
 briefing are stored. The default is `0` (off); values above 60 are capped at

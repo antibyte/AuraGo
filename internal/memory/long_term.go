@@ -659,28 +659,26 @@ func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain stri
 	}
 
 	// Deduplication: serialise check+store per concept bucket so concurrent
-	// calls for the same concept cannot both pass the similarity gate.
+	// calls for the same concept cannot both pass the identity check.
 	mu := cv.getConceptMutex(concept)
 	mu.Lock()
 	defer mu.Unlock()
-	if docID := cv.findIdenticalMemory(concept, content, domain); docID != "" {
-		return []string{docID}, nil
-	}
-	return cv.storeDocumentLocked(concept, content, domain)
+	result, err := cv.storeMemoryDocumentLocked(context.Background(), concept, content, domain, VectorStoreDeduplicate)
+	return append(result.CreatedIDs, result.ReusedIDs...), err
 }
 
 // storeDocumentLocked stores a document in aurago_memories.
 // The caller must hold the concept's striped mutex. Embeddings are computed before
 // cv.mu is taken, so searches never wait for a provider call; cv.mu only covers the
 // chromem mutation. Every allocated ID is returned together with a write error.
-func (cv *ChromemVectorDB) storeDocumentLocked(concept, content, domain string) ([]string, error) {
+func (cv *ChromemVectorDB) storeDocumentLocked(parent context.Context, concept, content, domain string, embedding []float32) ([]string, error) {
 	const maxContentBytes = 500 * 1024 // 500 KB per document
 	if len(content) > maxContentBytes {
 		cv.logger.Warn("Document content exceeds 500 KB limit, truncating", "concept", concept, "bytes", len(content))
 		content = truncateUTF8Bytes(content, maxContentBytes)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(parent, 30*time.Second)
 	defer cancel()
 
 	fullContent := buildContentString(concept, content)
@@ -697,9 +695,10 @@ func (cv *ChromemVectorDB) storeDocumentLocked(concept, content, domain string) 
 	if len(fullContent) <= 4000 {
 		docID := fmt.Sprintf("mem_%d_%d", time.Now().UnixMilli(), cv.idCounter.Add(1))
 		doc := chromem.Document{
-			ID:       docID,
-			Metadata: cv.addEmbeddingMetadata(metadata),
-			Content:  fullContent,
+			ID:        docID,
+			Metadata:  cv.addEmbeddingMetadata(metadata),
+			Content:   fullContent,
+			Embedding: embedding,
 		}
 		if err := cv.addDocumentsWithPrecomputedEmbeddings(ctx, cv.collection, []chromem.Document{doc}); err != nil {
 			cv.logger.Error("Failed to store document in vector DB", "error", err)
@@ -739,7 +738,7 @@ func (cv *ChromemVectorDB) storeDocumentLocked(concept, content, domain string) 
 	}
 
 	// Embed sequentially outside cv.mu (avoids provider rate limits), then batch-add.
-	chunkCtx, chunkCancel := context.WithTimeout(context.Background(), calculateBatchTimeout(len(docs)))
+	chunkCtx, chunkCancel := context.WithTimeout(parent, calculateBatchTimeout(len(docs)))
 	defer chunkCancel()
 	if err := cv.addDocumentsWithPrecomputedEmbeddings(chunkCtx, cv.collection, docs); err != nil {
 		cv.logger.Error("Failed to store chunked document", "error", err, "chunks", len(chunks))
@@ -1035,6 +1034,13 @@ func (cv *ChromemVectorDB) rememberEmbeddingDimension(dim int) {
 // store-side provider calls one at a time, as cv.mu did, to respect rate limits.
 // Callers keep their concept stripe, so dedupe and storage stay serialized per concept.
 func (cv *ChromemVectorDB) embedDocumentsOutsideLock(ctx context.Context, docs []chromem.Document) error {
+	needsEmbedding := false
+	for _, doc := range docs {
+		needsEmbedding = needsEmbedding || len(doc.Embedding) == 0
+	}
+	if !needsEmbedding {
+		return ctx.Err()
+	}
 	cv.storeEmbedMu.Lock()
 	defer cv.storeEmbedMu.Unlock()
 	for i := range docs {
@@ -1069,6 +1075,9 @@ func (cv *ChromemVectorDB) addDocumentsWithPrecomputedEmbeddings(ctx context.Con
 	}
 	cv.mu.Lock()
 	defer cv.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if len(docs) == 1 {
 		return col.AddDocument(ctx, docs[0])
 	}
@@ -1213,9 +1222,9 @@ func chunkText(text string, chunkSize, overlap int) []string {
 	})
 }
 
-// StoreBatch stores multiple concept/content pairs. Small documents are collected
-// and batch-embedded in a single parallel call; large texts are chunked individually.
-// Performs deduplication by skipping items whose concept is already stored (similarity > 0.95).
+// StoreBatch stores multiple concept/content pairs using bounded workers.
+// Provider embedding calls remain serialized; large texts are chunked individually.
+// Reuses only identical complete documents in the same domain.
 func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 	if err := cv.requireReadyForStore(); err != nil {
 		return nil, err
@@ -1263,13 +1272,8 @@ func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 					mu.Lock()
 					defer mu.Unlock()
 
-					var ids []string
-					var err error
-					if docID := cv.findIdenticalMemory(item.Concept, item.Content, item.Domain); docID != "" {
-						ids = []string{docID}
-					} else {
-						ids, err = cv.storeDocumentLocked(item.Concept, item.Content, item.Domain)
-					}
+					stored, err := cv.storeMemoryDocumentLocked(context.Background(), item.Concept, item.Content, item.Domain, VectorStoreDeduplicate)
+					ids := append(stored.CreatedIDs, stored.ReusedIDs...)
 					resultsCh <- batchResult{idx: i, ids: ids, err: err}
 					sent = true
 				}()

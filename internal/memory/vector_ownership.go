@@ -7,7 +7,16 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	chromem "github.com/philippgille/chromem-go"
 )
+
+// ContextOwnershipAwareVectorDB keeps bounded automatic writes cancellable while
+// retaining the ownership receipts required for safe rollback.
+type ContextOwnershipAwareVectorDB interface {
+	OwnershipAwareVectorDB
+	StoreDocumentOwnedContext(context.Context, string, string, VectorStoreMode) (VectorStoreResult, error)
+}
 
 // StoreDocumentWithOwnership is the compatibility entry point for callers
 // that need ownership information. Legacy VectorDB implementations remain
@@ -26,12 +35,31 @@ func StoreDocumentWithOwnership(ltm VectorDB, concept, content string) (VectorSt
 	return VectorStoreResult{UnknownIDs: append([]string(nil), ids...)}, err
 }
 
+// StoreDocumentWithOwnershipContext prefers cancellable writes. The legacy
+// entry point keeps its original dispatch, including wrapper overrides.
+func StoreDocumentWithOwnershipContext(ctx context.Context, ltm VectorDB, concept, content string) (VectorStoreResult, error) {
+	if err := ctx.Err(); err != nil {
+		return VectorStoreResult{}, err
+	}
+	if owned, ok := ltm.(ContextOwnershipAwareVectorDB); ok {
+		return owned.StoreDocumentOwnedContext(ctx, concept, content, VectorStoreDeduplicate)
+	}
+	return StoreDocumentWithOwnership(ltm, concept, content)
+}
+
 // StoreDocumentOwned stores a document while preserving whether the returned
 // IDs were created by this operation or came from similarity deduplication.
 // Force-create intentionally skips the similarity check, but keeps the same
 // striped concept lock and collection mutation lock as normal writes.
 func (cv *ChromemVectorDB) StoreDocumentOwned(concept, content string, mode VectorStoreMode) (VectorStoreResult, error) {
+	return cv.StoreDocumentOwnedContext(context.Background(), concept, content, mode)
+}
+
+func (cv *ChromemVectorDB) StoreDocumentOwnedContext(ctx context.Context, concept, content string, mode VectorStoreMode) (VectorStoreResult, error) {
 	var result VectorStoreResult
+	if err := ctx.Err(); err != nil {
+		return result, err
+	}
 	if mode != VectorStoreDeduplicate && mode != VectorStoreForceCreate {
 		return result, fmt.Errorf("unsupported vector store mode %d", mode)
 	}
@@ -48,15 +76,42 @@ func (cv *ChromemVectorDB) StoreDocumentOwned(concept, content string, mode Vect
 	mu := cv.getConceptMutex(concept)
 	mu.Lock()
 	defer mu.Unlock()
+	return cv.storeMemoryDocumentLocked(ctx, concept, content, "", mode)
+}
 
-	if mode == VectorStoreDeduplicate {
-		if docID := cv.findIdenticalMemory(concept, content, ""); docID != "" {
-			result.ReusedIDs = []string{docID}
-			return result, nil
+// The caller holds the concept stripe. A small document needs one embedding:
+// use it for both the identity probe and the write, without an extra title query.
+func (cv *ChromemVectorDB) storeMemoryDocumentLocked(ctx context.Context, concept, content, domain string, mode VectorStoreMode) (VectorStoreResult, error) {
+	var result VectorStoreResult
+	if err := ctx.Err(); err != nil {
+		return result, err
+	}
+	var embedding []float32
+	if fullContent := buildContentString(concept, content); len(fullContent) <= 4000 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+		docs := []chromem.Document{{Content: fullContent}}
+		if err := cv.embedDocumentsOutsideLock(ctx, docs); err != nil {
+			return result, fmt.Errorf("prepare memory embedding: %w", err)
+		}
+		embedding = docs[0].Embedding
+		if mode == VectorStoreDeduplicate {
+			docID, err := cv.findIdenticalMemory(ctx, concept, content, domain, embedding)
+			if err != nil {
+				return result, err
+			}
+			if docID != "" {
+				result.ReusedIDs = []string{docID}
+				return result, nil
+			}
 		}
 	}
 
-	ids, err := cv.storeDocumentLocked(concept, content, "")
+	if err := ctx.Err(); err != nil {
+		return result, err
+	}
+	ids, err := cv.storeDocumentLocked(ctx, concept, content, domain, embedding)
 	// storeDocumentLocked returns every generated ID even when Chromem reports
 	// a partial chunk/persistence failure. Those IDs are owned by this call and
 	// must remain available to the caller for bounded rollback.
@@ -72,35 +127,43 @@ func (cv *ChromemVectorDB) StoreDocumentOwned(concept, content string, mode Vect
 
 // findIdenticalMemory uses similarity only to nominate a candidate. A topic
 // match must never discard a changed fact or knowledge from another domain.
-func (cv *ChromemVectorDB) findIdenticalMemory(concept, content, domain string) string {
+func (cv *ChromemVectorDB) findIdenticalMemory(ctx context.Context, concept, content, domain string, embedding []float32) (string, error) {
 	expected := buildContentString(normalizeMemoryDocumentPart(concept), normalizeMemoryDocumentPart(content))
 	// ponytail: chunks are not complete documents; store them again until a
 	// measured duplication problem justifies whole-document fingerprints.
 	if len(buildContentString(concept, content)) > 4000 {
-		return ""
-	}
-	id, similarity := cv.searchTopSimilarMemory(normalizeMemoryDocumentPart(concept))
-	if id == "" || similarity <= 0.95 {
-		return ""
+		return "", nil
 	}
 	cv.mu.RLock()
 	defer cv.mu.RUnlock()
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	doc, err := cv.collection.GetByID(ctx, id)
-	if err != nil || doc.Metadata["chunk_index"] != "" ||
-		normalizeMemoryDocumentPart(doc.Metadata["domain"]) != normalizeMemoryDocumentPart(domain) {
-		return ""
+	if err := ctx.Err(); err != nil {
+		return "", err
 	}
-	if normalizeMemoryDocumentPart(doc.Content) != expected {
-		incoming, incomingOK := AnalysisMemoryIdentity(concept, content, domain)
-		oldConcept, oldContent, complete := AnalysisDocumentParts(doc.Content)
-		existing, existingOK := AnalysisMemoryIdentity(oldConcept, oldContent, doc.Metadata["domain"])
-		if !incomingOK || !complete || !existingOK || incoming != existing {
-			return ""
+	count := cv.collection.Count()
+	if count == 0 {
+		return "", nil
+	}
+	// Retrieval age decay is not evidence that identical factual content changed.
+	candidates, err := cv.collection.QueryEmbedding(ctx, embedding, min(count, 8), nil, nil)
+	if err != nil {
+		return "", fmt.Errorf("find identical memory: %w", err)
+	}
+	for _, doc := range candidates {
+		if doc.Similarity <= 0.95 || doc.Metadata["chunk_index"] != "" ||
+			normalizeMemoryDocumentPart(doc.Metadata["domain"]) != normalizeMemoryDocumentPart(domain) {
+			continue
 		}
+		if normalizeMemoryDocumentPart(doc.Content) != expected {
+			incoming, incomingOK := AnalysisMemoryIdentity(concept, content, domain)
+			oldConcept, oldContent, complete := AnalysisDocumentParts(doc.Content)
+			existing, existingOK := AnalysisMemoryIdentity(oldConcept, oldContent, doc.Metadata["domain"])
+			if !incomingOK || !complete || !existingOK || incoming != existing {
+				continue
+			}
+		}
+		return doc.ID, nil
 	}
-	return id
+	return "", nil
 }
 
 func normalizeMemoryDocumentPart(text string) string {

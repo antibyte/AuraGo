@@ -1190,7 +1190,7 @@ func storeConsolidationFactsWithContext(ctx context.Context, logger *slog.Logger
 		if concept == "" || content == "" {
 			continue
 		}
-		owned, storeErr := memory.StoreAutomaticMemoryDocument(stm, ltm, concept, content, memory.MemoryMetaUpdate{
+		owned, storeErr := memory.StoreAutomaticMemoryDocumentWithContext(ctx, stm, ltm, concept, content, memory.MemoryMetaUpdate{
 			ExtractionConfidence: 0.82, VerificationStatus: "unverified", SourceType: "consolidation", SourceReliability: 0.82,
 		})
 		createdWrites = append(createdWrites, owned.Writes...)
@@ -1640,6 +1640,35 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 		workItems = append(workItems, buildConsolidationWorkItem(i, batch))
 	}
 
+	persistWorkItem := func(item consolidationWorkItem, batchIndex int, facts []helperConsolidationFact) {
+		started := time.Now()
+		stored, skipped, storeErr := storeConsolidationFactsWithContext(ctx, logger, stm, ltm, facts)
+		logger.Info("[Consolidation] Batch storage finished", "batch", batchIndex, "messages", len(item.messageIDs),
+			"facts", len(facts), "stored", stored, "skipped", skipped, "duration_ms", time.Since(started).Milliseconds(), "failed", storeErr != nil)
+		if storeErr != nil {
+			result.Errors = append(result.Errors, storeErr)
+			logger.Warn("[Consolidation] LTM storage failed for batch", "batch", batchIndex, "error", storeErr)
+			var claimErr error
+			if ctx.Err() != nil {
+				claimErr = stm.ReleaseConsolidationClaims(item.messageIDs)
+			} else {
+				claimErr = stm.MarkConsolidationFailure(item.messageIDs, storeErr.Error())
+			}
+			if claimErr != nil {
+				result.Errors = append(result.Errors, claimErr)
+			}
+			return
+		}
+		ok, storedCount, finalizeErr := finalizeConsolidationBatch(logger, stm, item, facts, stored, skipped, nil, batchIndex, len(workItems))
+		if finalizeErr != nil {
+			result.Errors = append(result.Errors, finalizeErr)
+		}
+		if ok {
+			result.FactsStored += storedCount
+			result.MessagesConsolidated += len(item.messageIDs)
+		}
+	}
+
 	processWorkItem := func(item consolidationWorkItem, batchIndex int) {
 		if err := ctx.Err(); err != nil {
 			result.Errors = append(result.Errors, err)
@@ -1649,7 +1678,10 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 			}
 			return
 		}
+		started := time.Now()
 		facts, err := extractConsolidationFactsWithLLM(ctx, cfg, logger, consolidationClient, consolidationModel, item.conversation)
+		logger.Info("[Consolidation] Batch extraction finished", "batch", batchIndex,
+			"duration_ms", time.Since(started).Milliseconds(), "failed", err != nil)
 		if err != nil {
 			result.Errors = append(result.Errors, err)
 			logger.Warn("[Consolidation] LLM extraction failed for batch", "batch", batchIndex, "error", err)
@@ -1664,23 +1696,7 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 			}
 			return
 		}
-		stored, skipped, storeErr := storeConsolidationFactsWithContext(ctx, logger, stm, ltm, facts)
-		if storeErr != nil {
-			result.Errors = append(result.Errors, storeErr)
-			logger.Warn("[Consolidation] LTM storage failed for batch", "batch", batchIndex, "error", storeErr)
-			if markErr := stm.MarkConsolidationFailure(item.messageIDs, storeErr.Error()); markErr != nil {
-				result.Errors = append(result.Errors, markErr)
-			}
-			return
-		}
-		ok, storedCount, finalizeErr := finalizeConsolidationBatch(logger, stm, item, facts, stored, skipped, nil, batchIndex, len(workItems))
-		if finalizeErr != nil {
-			result.Errors = append(result.Errors, finalizeErr)
-		}
-		if ok {
-			result.FactsStored += storedCount
-			result.MessagesConsolidated += len(item.messageIDs)
-		}
+		persistWorkItem(item, batchIndex, facts)
 	}
 
 	for i := 0; i < len(workItems); {
@@ -1715,8 +1731,11 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 		}
 
 		consolidationCtx, consolidationCancel := context.WithTimeout(ctx, 60*time.Second)
+		started := time.Now()
 		batchAnalysis, err := helperManager.AnalyzeConsolidationBatches(consolidationCtx, inputs)
 		consolidationCancel()
+		logger.Info("[Consolidation] Batch extraction finished", "start_batch", i+1, "batches", len(group),
+			"duration_ms", time.Since(started).Milliseconds(), "failed", err != nil)
 		if err != nil {
 			helperManager.ObserveFallback("consolidation_batches", err.Error())
 			logger.Warn("[HelperLLM] Consolidation batch failed, splitting into single batches", "start_batch", i+1, "error", err)
@@ -1746,23 +1765,7 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 					}
 					continue
 				}
-				facts := singleResult.Batches[0].Facts
-				stored, skipped, storeErr := storeConsolidationFactsWithContext(ctx, logger, stm, ltm, facts)
-				if storeErr != nil {
-					result.Errors = append(result.Errors, storeErr)
-					if markErr := stm.MarkConsolidationFailure(item.messageIDs, storeErr.Error()); markErr != nil {
-						result.Errors = append(result.Errors, markErr)
-					}
-					continue
-				}
-				ok, storedCount, finalizeErr := finalizeConsolidationBatch(logger, stm, item, facts, stored, skipped, nil, i+offset+1, len(workItems))
-				if finalizeErr != nil {
-					result.Errors = append(result.Errors, finalizeErr)
-				}
-				if ok {
-					result.FactsStored += storedCount
-					result.MessagesConsolidated += len(item.messageIDs)
-				}
+				persistWorkItem(item, i+offset+1, singleResult.Batches[0].Facts)
 			}
 			i = end
 			continue
@@ -1773,24 +1776,7 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 			byID[batchResult.BatchID] = batchResult.Facts
 		}
 		for offset, item := range group {
-			facts := byID[item.batchID]
-			stored, skipped, storeErr := storeConsolidationFactsWithContext(ctx, logger, stm, ltm, facts)
-			if storeErr != nil {
-				result.Errors = append(result.Errors, storeErr)
-				logger.Warn("[Consolidation] LTM storage failed for helper batch", "batch_id", item.batchID, "error", storeErr)
-				if markErr := stm.MarkConsolidationFailure(item.messageIDs, storeErr.Error()); markErr != nil {
-					result.Errors = append(result.Errors, markErr)
-				}
-				continue
-			}
-			ok, storedCount, finalizeErr := finalizeConsolidationBatch(logger, stm, item, facts, stored, skipped, nil, i+offset+1, len(workItems))
-			if finalizeErr != nil {
-				result.Errors = append(result.Errors, finalizeErr)
-			}
-			if ok {
-				result.FactsStored += storedCount
-				result.MessagesConsolidated += len(item.messageIDs)
-			}
+			persistWorkItem(item, i+offset+1, byID[item.batchID])
 		}
 		i = end
 	}
