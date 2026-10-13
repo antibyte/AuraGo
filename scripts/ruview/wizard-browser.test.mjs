@@ -9,9 +9,12 @@ const { chromium } = process.env.AURAGO_PLAYWRIGHT ? require(process.env.AURAGO_
 const locales = ['cs','da','de','el','en','es','fr','hi','it','ja','nl','no','pl','pt','sv','zh'];
 let setup = { mode:'docker', receiver_ip:'192.168.4.20', udp_port:5010, udp_enabled:false, candidates:['192.168.4.20'] };
 let setupDelay = 0, setupError = false, fresh = true, posts = 0, statusError = 0;
+let catalogFault = '';
+const buildVersion = 'ruview-browser-fixture', resourceRequests = [];
 const server = createServer(async (req, res) => {
     try {
         const url = new URL(req.url, 'http://localhost');
+        if (url.pathname.startsWith('/js/ruview/') || url.pathname.startsWith('/js/vendor/ruview-')) resourceRequests.push(url);
         if (url.pathname.startsWith('/api/desktop/integrations/ruview/')) {
             res.setHeader('Content-Type', 'application/json');
             const route = url.pathname.split('/ruview/')[1];
@@ -22,7 +25,12 @@ const server = createServer(async (req, res) => {
                 res.statusCode = setupError ? 503 : 200;
                 return res.end(JSON.stringify(setupError ? { error:'unavailable' } : snapshot));
             }
-            if (route === 'firmware') return res.end(await readFile('internal/ruview/artifacts.json'));
+            if (route === 'firmware') {
+                const catalog = JSON.parse(await readFile('internal/ruview/artifacts.json'));
+                if (catalogFault === 'missing-offset') for (const profile of catalog.firmware) delete profile.parts[0].offset;
+                if (catalogFault === 'revision') catalog.revision = '0'.repeat(40);
+                return res.end(JSON.stringify(catalog));
+            }
             if (route === 'status' && statusError) {res.statusCode=statusError;return res.end(JSON.stringify({error:'fixture status unavailable'}));}
             if (route === 'proxy/api/v1/nodes') return res.end(JSON.stringify({nodes:[{node_id:7,csi_status:'active',csi_last_seen_ms:42,csi_sequence:3}]}));
             return res.end(JSON.stringify({enabled:true,readonly:false,mode:'docker',source:'esp32',fresh,signal:'CSI',data_state:'unchecked'}));
@@ -33,7 +41,7 @@ const server = createServer(async (req, res) => {
             const theme = url.searchParams.get('theme') === 'standard' ? 'standard' : 'fruity';
             const mode = url.searchParams.get('mode') === 'dark' ? 'dark' : 'light';
             res.setHeader('Content-Type','text/html; charset=utf-8');
-            return res.end(`<!doctype html><html data-theme="dark"><head><meta charset="utf-8"><link rel="stylesheet" href="/shared-variables.css"><link rel="stylesheet" href="/shared-components.css"><link rel="stylesheet" href="/css/desktop-shell.bundle.css"><link rel="stylesheet" href="/css/ruview.css"></head><body class="desktop-body" data-theme="${theme}" data-fruity-mode="${mode}"><main id="app"></main><script src="/js/desktop/apps/ruview.js"></script><script>const dict=${JSON.stringify(dict)};RuViewApp.render(document.getElementById('app'),'fixture',{t:k=>dict[k]||k,esc:s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';')});</script></body></html>`);
+            return res.end(`<!doctype html><html data-theme="dark"><head><meta charset="utf-8"><link rel="stylesheet" href="/shared-variables.css"><link rel="stylesheet" href="/shared-components.css"><link rel="stylesheet" href="/css/desktop-shell.bundle.css"><link rel="stylesheet" href="/css/ruview.css"></head><body class="desktop-body" data-theme="${theme}" data-fruity-mode="${mode}"><main id="app"></main><script src="/js/shared/lazy-assets.js"></script><script src="/js/desktop/apps/ruview.js"></script><script>window.BUILD_VERSION=${JSON.stringify(buildVersion)};const dict=${JSON.stringify(dict)};RuViewApp.render(document.getElementById('app'),'fixture',{t:k=>dict[k]||k,esc:s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';')});</script></body></html>`);
         }
         const relative = url.pathname.slice(1);
         if (!relative || relative.includes('..')) { res.writeHead(404).end(); return; }
@@ -92,6 +100,7 @@ try {
         await page.setViewportSize({width,height:900});
         await open(`theme=${theme==='standard'?'standard':'fruity'}&mode=${theme.endsWith('dark')?'dark':'light'}&lang=${lang}`);
         await ready();
+        assert.ok(resourceRequests.every(url=>url.searchParams.get('v')===buildVersion),'wizard dependencies must use the same resource version as the Desktop');
         assert.equal(await page.locator('dialog section h3').count(), 3);
         assert.ok(!/ruview\.[a-z_]+/.test(await page.locator('dialog').innerText()), `translations ${lang}`);
         const metrics = await page.locator('dialog').evaluate(dialog => {
@@ -118,7 +127,9 @@ try {
     }
     assert.equal(posts,0,'opening the wizard must never test, start or configure the runtime');
     await page.setViewportSize({width:1100,height:900});
+    catalogFault='missing-offset';
     await open(); await ready();
+    catalogFault=''; // The server is repaired while this dialog remains open.
     const input = name => page.locator(`dialog [name="${name}"]`);
     const action = name => page.locator(`dialog [data-action="${name}"]`);
     assert.equal(await input('receiver').inputValue(),'192.168.4.20');
@@ -136,10 +147,10 @@ try {
     assert.equal(await action('flash').getAttribute('aria-busy'),'false');
     await page.evaluate(async () => {
         serialFixture.cancel=false;
-        const { ESPLoader, Transport } = await import('/js/vendor/ruview-esptool.js');
+        const { ESPLoader, Transport } = await import(window.AuraLazyAssets.versionedURL('/js/vendor/ruview-esptool.js'));
         const catalog=await (await fetch('/api/desktop/integrations/ruview/firmware')).json();
         const profile=catalog.firmware.find(p=>p.id==='esp32s3-16mb-cdc');
-        const images=new Map(await Promise.all(profile.parts.map(async p=>[p.offset,new Uint8Array(await (await fetch(`/js/vendor/ruview-firmware/${catalog.revision}/${profile.id}/${p.name}`)).arrayBuffer())])));
+        const images=new Map(await Promise.all(profile.parts.map(async p=>[p.offset,new Uint8Array(await (await fetch(window.AuraLazyAssets.versionedURL(`/js/vendor/ruview-firmware/${catalog.revision}/${profile.id}/${p.name}`))).arrayBuffer())])));
         serialFixture.flashWrites=0;
         const hold=async phase=>{if(!serialFixture.hold?.[phase])return;delete serialFixture.hold[phase];await new Promise(resolve=>serialFixture.resume=resolve);};
         ESPLoader.prototype.main=async function(){this.chip={CHIP_NAME:'ESP32-S3'};await hold('connecting');};
@@ -205,6 +216,21 @@ try {
     assert.equal(await input('receiver').evaluate(i=>i===document.activeElement),true,'preserved Wi-Fi skips the disabled credentials');
     await input('keep').uncheck();
     assert.equal(await input('password').inputValue(),'fixture-password','flashing must preserve WLAN drafts for step 2');
+    await action('flash').click();await ready();
+    assert.equal(await page.evaluate(()=>serialFixture.flashWrites),2,'a second board must flash in the same open dialog');
+    assert.equal(await flashStatus.getAttribute('data-state'),'success');
+    for (const fault of ['missing-offset','revision']) {
+        catalogFault=fault;
+        await action('flash').click();await ready();
+        assert.equal(await flashStatus.getAttribute('data-state'),'error','each attempt must validate the current catalog');
+        assert.equal(await page.evaluate(()=>serialFixture.flashWrites),2,'invalid current metadata must stop before writing');
+        assert.equal(await input('password').inputValue(),'fixture-password');
+    }
+    catalogFault='';
+    await action('flash').click();await ready();
+    assert.equal(await page.evaluate(()=>serialFixture.flashWrites),3,'an explicit new attempt must recover after catalog repair');
+    assert.equal(await flashStatus.getAttribute('data-state'),'success');
+    assert.ok(resourceRequests.every(url=>url.searchParams.get('v')===buildVersion),'firmware images and the serial loader must retain the wizard resource version');
     await page.evaluate(()=>{serialFixture.verifyFailure=true;serialFixture.flashWrites=0;});
     await action('flash').click();await ready();
     assert.equal(await flashStatus.getAttribute('data-state'),'error');
@@ -270,7 +296,7 @@ try {
     assert.ok((await page.locator('#ruview-receiver-lookup').innerText()).includes('nicht geladen'));
     assert.equal(await input('receiver').isEnabled(),true);
     assert.deepEqual(errors,[]);
-    console.log('RuView wizard: 96 locale/theme/size cases; native checkboxes; numbered steps; saved and detected receivers; cancellation, serial readback, fresh CSI checks and secret cleanup passed');
+    console.log('RuView wizard: 96 locale/theme/size cases; versioned modules and firmware; repeated boards and live catalog repair; cancellation, serial readback, fresh CSI checks and secret cleanup passed');
 } finally {
     await browser.close();
     await new Promise(resolve=>server.close(resolve));

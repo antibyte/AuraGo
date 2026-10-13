@@ -1,4 +1,5 @@
-import { validateProfile, sha256, revision } from './protocol.mjs';
+const resourceQuery = new URL(import.meta.url).search;
+const { validateProfile, sha256, revision } = await import('./protocol.mjs' + resourceQuery);
 
 export function serialAvailable(){return isSecureContext&&!!navigator.serial&&(!document.permissionsPolicy?.allowsFeature||document.permissionsPolicy.allowsFeature('serial'))&&(!document.featurePolicy?.allowsFeature||document.featurePolicy.allowsFeature('serial'));}
 export function serialVariant(info){if(info.usbVendorId===0x303a&&[0x1001,0x1002,0x1003,0x0002,0x0003].includes(info.usbProductId))return 'cdc';if((info.usbVendorId===0x10c4&&info.usbProductId===0xea60)||(info.usbVendorId===0x1a86&&[0x7523,0x55d4,0x55d3].includes(info.usbProductId))||(info.usbVendorId===0x0403&&info.usbProductId===0x6001))return 'uart';throw Error('unknown_usb');}
@@ -12,8 +13,8 @@ export async function flash(port,profile,{erase=false,signal,onProgress=()=>{},o
     validateProfile(profile);if(serialVariant(port.getInfo())!==profile.console)throw Error('wrong_console');
     onPhase('preparing');
     const files=[];
-    for(const part of profile.parts){const response=await fetch(`/js/vendor/ruview-firmware/${revision}/${profile.id}/${part.name}`,{signal});if(!response.ok)throw Error('firmware_missing');const data=new Uint8Array(await response.arrayBuffer());if(data.length!==part.size||await sha256(data)!==part.sha256)throw Error('checksum_failed');files.push({data,address:part.offset});}
-    const { ESPLoader, Transport } = await import('../vendor/ruview-esptool.js');
+    for(const part of profile.parts){const response=await fetch(`/js/vendor/ruview-firmware/${revision}/${profile.id}/${part.name}`+resourceQuery,{signal});if(!response.ok)throw Error('firmware_missing');const data=new Uint8Array(await response.arrayBuffer());if(data.length!==part.size||await sha256(data)!==part.sha256)throw Error('checksum_failed');files.push({data,address:part.offset});}
+    const { ESPLoader, Transport } = await import('../vendor/ruview-esptool.js' + resourceQuery);
     const transport=new Transport(port,false),loader=new ESPLoader({transport,baudrate:115200,terminal:{clean(){},writeLine(){},write(){}}});
     loader.WRITE_BLOCK_ATTEMPTS=1;
     let stage='bootloader_failed';

@@ -24,7 +24,7 @@
             const button=event.target.closest('button');if(!button)return;
             if(button.dataset.tab){tab=button.dataset.tab;content.replaceChildren();await show();return}
             if(!button.dataset.action)return;button.disabled=true;actionError='';
-            try{if(button.dataset.action==='flash'){const {openWizard}=await import('/js/ruview/wizard.mjs');wizardClose=await openWizard({base,t:ctx.t});if(dead)wizardClose?.();}else{status=await request(button.dataset.action,'POST');if(tab==='overview'&&!dead)summary();}}
+            try{if(button.dataset.action==='flash'){const {openWizard}=await import(window.AuraLazyAssets.versionedURL('/js/ruview/wizard.mjs'));wizardClose=await openWizard({base,t:ctx.t});if(dead)wizardClose?.();}else{status=await request(button.dataset.action,'POST');if(tab==='overview'&&!dead)summary();}}
             catch(error){actionError=error.message;const out=host.querySelector('[role="status"]');if(out)out.textContent=errorText(actionError);}
             finally{if(button.isConnected)button.disabled=false;}
         },{signal:controller.signal});

@@ -122,7 +122,7 @@ func TestRuViewConfigBrowser(t *testing.T) {
 	waitForJSBool(t, page, `() => !hasUnsavedConfigChanges() && !document.getElementById('ruview-setup').disabled`)
 	page.MustElement("#ruview-setup").MustClick()
 	waitForJSBool(t, page, `() => !!document.querySelector('dialog[open]')`)
-	if !page.MustEval(`() => ['/js/shared/lazy-assets.js','/css/ruview.css','/js/ruview/wizard.mjs'].every(path =>
+	if !page.MustEval(`() => ['/js/shared/lazy-assets.js','/css/ruview.css','/js/ruview/wizard.mjs','/js/ruview/protocol.mjs','/js/ruview/flash.mjs'].every(path =>
 	 performance.getEntriesByType('resource').some(entry => {const url=new URL(entry.name);return url.pathname===path && url.searchParams.get('v')===CONFIG_ASSET_VERSION;}))`).Bool() {
 		t.Fatal("board setup resources must load with the active Config asset version")
 	}

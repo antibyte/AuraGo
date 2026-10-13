@@ -705,6 +705,11 @@ worker. Keep packaging, recovery and offline instructions in
   Never enable UDP from the wizard. S3 N16R8 boards use the exact 16 MiB profile
   (8 MiB is PSRAM); capacity errors show detected and selected sizes before writes.
   Keep the pinned firmware build, catalog, artifacts and profile validation aligned.
+  Keep the wizard, protocol, flasher, serial loader and firmware URLs bound to the
+  caller's resource version in Config and Desktop. Each explicit flash attempt
+  refreshes the catalog, preserves the selected profile and verifies its revision;
+  an open dialog must not retain broken metadata after a server repair. Never
+  relax offset validation or automatically retry an uncertain write.
   Flashing reports file checks, connection, optional erase, writing, readback and
   restart as separate phases. Show byte-weighted write progress and a busy indicator
   until verification/reset finish. Only then show completion and an explicit step-2

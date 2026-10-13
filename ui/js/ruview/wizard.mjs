@@ -1,5 +1,7 @@
-import { Onboarding, privateIPv4, validateConfig } from './protocol.mjs';
-import { flash, serialAvailable } from './flash.mjs';
+const resourceQuery = new URL(import.meta.url).search;
+const [{ Onboarding, privateIPv4, validateConfig, revision }, { flash, serialAvailable }] = await Promise.all([
+    import('./protocol.mjs' + resourceQuery), import('./flash.mjs' + resourceQuery)
+]);
 
 export async function openWizard({base='/api/ruview/',t,receiverIP='',port}={}){
     const tr=key=>t('ruview.'+key),dialog=document.createElement('dialog');dialog.className='ruview-wizard';dialog.setAttribute('aria-label','RuView · ESP32');
@@ -87,6 +89,7 @@ export async function openWizard({base='/api/ruview/',t,receiverIP='',port}={}){
         const button=event.target.closest('[data-action]');if(!button||button.disabled||busy)return;
         activeMessage=button.closest('section').querySelector('[role="status"]');
         const action=button.dataset.action;
+        const selection=action==='flash'?{id:get('profile').value,erase:get('erase').checked}:null;
         if(message.textContent===tr('ready'))message.textContent='';
         busy=true;buttons.forEach(b=>b.disabled=true);next.disabled=true;button.setAttribute('aria-busy','true');feedback('working');
         if(action==='flash'){next.hidden=true;flashProgress.hidden=false;progress.removeAttribute('value');percentage.textContent='';}
@@ -96,9 +99,12 @@ export async function openWizard({base='/api/ruview/',t,receiverIP='',port}={}){
             if(action==='flash'||action==='configure'||action==='readback')selected=await navigator.serial.requestPort();
             await allowed();if(stopped)return;feedback('working');
             if(action==='flash'){
-                const profile=catalog.firmware.find(p=>p.id===get('profile').value);
                 identity=null;expected=null;dialog.querySelectorAll('.ruview-steps li').forEach(step=>{step.classList.remove('complete');step.removeAttribute('aria-label');});
-                await flash(selected,profile,{erase:get('erase').checked,signal:controller.signal,onPhase:flashPhase,onProgress:n=>{if(stopped)return;progress.value=n;percentage.textContent=n+' %';}});
+                // Long-lived dialogs must not keep metadata from before a server repair.
+                const current=await request('firmware');if(stopped)return;
+                const profile=current?.revision===revision&&Array.isArray(current.firmware)?current.firmware.find(p=>p?.id===selection.id):null;
+                if(!profile)throw Error('invalid_firmware');
+                await flash(selected,profile,{erase:selection.erase,signal:controller.signal,onPhase:flashPhase,onProgress:n=>{if(stopped)return;progress.value=n;percentage.textContent=n+' %';}});
                 if(stopped)return;
                 progress.value=100;percentage.textContent='100 %';completed(0);feedback('flashed');next.hidden=false;next.disabled=false;next.focus({preventScroll:true});next.scrollIntoView({block:'nearest'});
             }else if(action==='configure'){
