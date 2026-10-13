@@ -50,7 +50,7 @@ func (s *Server) configureRocketChatBot() {
 			return nil, nil
 		}
 		return current.Clone(), s.LLMClient
-	}, s.WebhookManager)
+	}, s.WebhookManager, taskDecisionService{s})
 	s.rocketChatBot.Store(bot)
 }
 

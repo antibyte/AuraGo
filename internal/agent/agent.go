@@ -1095,7 +1095,14 @@ type RunConfig struct {
 	TaskRouting           *TaskRoutingDecision
 	TaskRoutingImageInput bool
 	TaskRoutingPreview    bool
-	DiscoveryRunID        string
+	// RoutingDecisions is supplied by the server; it grants scoring only.
+	RoutingDecisions TaskDecisionService
+	// TaskRoutingClassifier restricts explicit previews to local/decisions/helper.
+	TaskRoutingClassifier string
+	// TaskRoutingText captures human text before media enrichment. A non-nil
+	// empty value prevents falling back to attachment contents or chat history.
+	TaskRoutingText *string
+	DiscoveryRunID  string
 	// ExecutionHooks are optional server-owned boundaries for isolated jobs.
 	ExecutionHooks     *ExecutionHooks
 	IterationLimit     int

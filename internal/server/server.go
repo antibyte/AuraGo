@@ -197,6 +197,7 @@ type Server struct {
 	RuView                    *ruview.Manager
 	LocalLLM                  *localllm.Manager
 	Decisions                 decisionsService
+	routingDecisionEpoch      atomic.Uint64
 	LocalMusic                *acestep.Manager
 	LocalWiki                 *localwiki.Manager
 	localWikiSyncMu           sync.Mutex // one step from reading the config snapshot to configuring LocalWiki
@@ -460,6 +461,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 		return
 	}
 	previous := s.ConfigSnapshot()
+	if previous != nil && (previous.LLMRouter.Enabled != cfg.LLMRouter.Enabled || previous.LLMRouter.DecisionsFallback != cfg.LLMRouter.DecisionsFallback) {
+		s.routingDecisionEpoch.Add(1)
+	}
 	if previous != nil && (previous.WebDAV != cfg.WebDAV || previous.Koofr != cfg.Koofr || previous.VirtualDesktop.ReadOnly != cfg.VirtualDesktop.ReadOnly || previous.VirtualDesktop.Enabled != cfg.VirtualDesktop.Enabled) {
 		s.revokeStorageRequests()
 	}

@@ -640,6 +640,7 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 	}
 	routingRun := buildDesktopRunConfigForSession(s, &cfg, llmClient, sessionID, messageSource)
 	routingRun.UserIntent = message
+	routingRun.TaskRoutingText = &message
 	routingRun.NativeToolSchemas = opts.NativeToolSchemas
 	routingRun.TaskRoutingImageInput = strings.TrimSpace(chatContext.ImageBase64) != "" || taskRoutingHasImages(routingReq.Messages)
 	if opts.RuntimeConfig != nil || opts.ProviderID != "" || (!opts.SkipDesktopProvider && desktopAgentProviderID(ctx, s) != "") {
@@ -745,6 +746,7 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 	}
 	turn.runCfg = buildDesktopRunConfigForSession(s, &cfg, llmClient, sessionID, messageSource)
 	turn.runCfg.UserIntent = message
+	turn.runCfg.TaskRoutingText = &message
 	turn.runCfg.TaskRouting = routingRun.TaskRouting
 	turn.runCfg.TaskRoutingMode = routingRun.TaskRoutingMode
 	turn.runCfg.TaskRoutingImageInput = routingRun.TaskRoutingImageInput
@@ -805,6 +807,7 @@ func buildDesktopRunConfigForSession(s *Server, cfg *config.Config, llmClient ll
 		messageSource = desktopChatMessageSource
 	}
 	return agent.RunConfig{
+		RoutingDecisions:   taskDecisionService{s},
 		Config:             cfg,
 		Logger:             s.Logger,
 		LLMClient:          llmClient,

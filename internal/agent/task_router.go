@@ -16,17 +16,18 @@ import (
 )
 
 type TaskRoutingDecision struct {
-	TurnID         string `json:"turn_id"`
-	Area           string `json:"area"`
-	Source         string `json:"source"`
-	Reason         string `json:"reason"`
-	Provider       string `json:"provider"`
-	Model          string `json:"model"`
-	ActualProvider string `json:"actual_provider"`
-	ActualModel    string `json:"actual_model"`
-	ElapsedMS      int64  `json:"elapsed_ms"`
-	HelperUseful   bool   `json:"helper_useful"`
-	SessionID      string `json:"session_id,omitempty"`
+	TurnID          string `json:"turn_id"`
+	Area            string `json:"area"`
+	Source          string `json:"source"`
+	Reason          string `json:"reason"`
+	Provider        string `json:"provider"`
+	Model           string `json:"model"`
+	ActualProvider  string `json:"actual_provider"`
+	ActualModel     string `json:"actual_model"`
+	ElapsedMS       int64  `json:"elapsed_ms"`
+	HelperUseful    bool   `json:"helper_useful"`
+	DecisionsUseful bool   `json:"decisions_useful"`
+	SessionID       string `json:"session_id,omitempty"`
 }
 
 var taskRoutingSequence atomic.Uint64
@@ -38,19 +39,21 @@ type activeTaskRouteProvider interface {
 type taskRoutingCacheEntry struct {
 	classification llm.TaskClassification
 	expires        time.Time
+	fromDecisions  bool
 }
 
 type TaskRouterStats struct {
-	Since              time.Time      `json:"since"`
-	Decisions          map[string]int `json:"decisions"`
-	Sources            map[string]int `json:"sources"`
-	HelperAttempts     int            `json:"helper_attempts"`
-	HelperFailures     int            `json:"helper_failures"`
-	HelperInputTokens  int            `json:"helper_input_tokens"`
-	HelperOutputTokens int            `json:"helper_output_tokens"`
-	HelperUsageReports int            `json:"helper_usage_reports"`
-	HelperUsageMissing int            `json:"helper_usage_missing"`
-	Fallbacks          int            `json:"fallbacks"`
+	Since              time.Time         `json:"since"`
+	Decisions          map[string]int    `json:"decisions"`
+	Sources            map[string]int    `json:"sources"`
+	HelperAttempts     int               `json:"helper_attempts"`
+	HelperFailures     int               `json:"helper_failures"`
+	HelperInputTokens  int               `json:"helper_input_tokens"`
+	HelperOutputTokens int               `json:"helper_output_tokens"`
+	HelperUsageReports int               `json:"helper_usage_reports"`
+	HelperUsageMissing int               `json:"helper_usage_missing"`
+	Fallbacks          int               `json:"fallbacks"`
+	DecisionAPI        TaskDecisionStats `json:"decision_api"`
 }
 
 var taskRouterState = struct {
@@ -95,6 +98,9 @@ func taskRouterEligible(run RunConfig) bool {
 }
 
 func taskRoutingIntent(req openai.ChatCompletionRequest, run RunConfig) string {
+	if run.TaskRoutingText != nil {
+		return *run.TaskRoutingText
+	}
 	if run.UserIntent != "" {
 		return run.UserIntent
 	}
@@ -156,7 +162,8 @@ func taskRoutingHelperUseful(cfg *config.Config) bool {
 func taskRoutingCacheKeys(cfg *config.Config, req openai.ChatCompletionRequest, run RunConfig, intent string) ([32]byte, [32]byte) {
 	// Full effective config identity prevents stale credential, limit and model reuse.
 	schemas, _ := json.Marshal(run.NativeToolSchemas)
-	identity := fmt.Sprintf("task-rules-v1|%q|%q|%q|%x|%x", run.SessionID, run.MessageSource, run.TaskRoutingMode, llm.TaskConfigFingerprint(cfg), sha256.Sum256(schemas))
+	decisionConfig, _ := json.Marshal(cfg.Decisions)
+	identity := fmt.Sprintf("task-rules-v2|%q|%q|%q|%x|%x|%s", run.SessionID, run.MessageSource, run.TaskRoutingMode, llm.TaskConfigFingerprint(cfg), sha256.Sum256(schemas), decisionConfig)
 	for _, message := range req.Messages {
 		for _, part := range message.MultiContent {
 			identity += "|" + string(part.Type)
@@ -168,7 +175,7 @@ func taskRoutingCacheKeys(cfg *config.Config, req openai.ChatCompletionRequest, 
 	return sha256.Sum256([]byte(identity + "|" + strings.TrimSpace(intent))), sha256.Sum256([]byte(identity))
 }
 
-func taskRoutingCached(key, sessionKey [32]byte, continuation bool) (llm.TaskClassification, bool) {
+func taskRoutingCached(key, sessionKey [32]byte, continuation bool) (llm.TaskClassification, bool, bool) {
 	taskRouterState.Lock()
 	defer taskRouterState.Unlock()
 	now := time.Now()
@@ -183,13 +190,13 @@ func taskRoutingCached(key, sessionKey [32]byte, continuation bool) (llm.TaskCla
 	if continuation {
 		entry, ok = taskRouterState.previous[sessionKey]
 	}
-	return entry.classification, ok
+	return entry.classification, ok, entry.fromDecisions
 }
 
-func taskRoutingRemember(key, sessionKey [32]byte, c llm.TaskClassification) {
+func taskRoutingRemember(key, sessionKey [32]byte, c llm.TaskClassification, fromDecisions bool) {
 	taskRouterState.Lock()
 	defer taskRouterState.Unlock()
-	entry := taskRoutingCacheEntry{c, time.Now().Add(10 * time.Minute)}
+	entry := taskRoutingCacheEntry{c, time.Now().Add(10 * time.Minute), fromDecisions}
 	for _, pair := range []struct {
 		cache map[[32]byte]taskRoutingCacheEntry
 		key   [32]byte
@@ -264,21 +271,44 @@ func PrepareTaskRouting(ctx context.Context, req *openai.ChatCompletionRequest, 
 		return nil
 	}
 	intent := taskRoutingIntent(*req, *run)
+	if strings.TrimSpace(intent) == "" {
+		d.Reason = "uncertain"
+		return nil
+	}
+	decisionService := taskDecisionSnapshot(*run)
 	key, sessionKey := taskRoutingCacheKeys(cfg, *req, *run, intent)
-	c, hit := taskRoutingCached(key, sessionKey, llm.IsTaskContinuation(intent))
+	key = sha256.Sum256(append(key[:], decisionService.Identity[:]...))
+	sessionKey = sha256.Sum256(append(sessionKey[:], decisionService.Identity[:]...))
+	c, hit, fromDecisions := taskRoutingCached(key, sessionKey, llm.IsTaskContinuation(intent))
+	if run.TaskRoutingPreview {
+		hit = false
+	}
 	if hit {
 		d.Source = "cache"
 	} else {
 		c = llm.ClassifyTask(intent)
 		d.Source = "rules"
+		fromDecisions = false
 	}
 	if c.Uncertain {
 		d.Source, d.Reason = "default", "uncertain"
 		d.HelperUseful = taskRoutingHelperUseful(cfg)
-		if d.HelperUseful && cfg.LLMRouter.HelperFallback && llm.IsHelperLLMAvailable(cfg) && !run.BudgetTracker.IsBlocked("routing") {
+		d.DecisionsUseful = d.HelperUseful && decisionService.Available
+		useDecisions := d.DecisionsUseful && run.TaskRoutingClassifier != "local" && run.TaskRoutingClassifier != "helper"
+		useHelper := !useDecisions && d.HelperUseful && cfg.LLMRouter.HelperFallback && llm.IsHelperLLMAvailable(cfg) && run.TaskRoutingClassifier != "local" && run.TaskRoutingClassifier != "decisions"
+		if (useDecisions || useHelper) && !run.BudgetTracker.IsBlocked("routing") {
 			if release, ok := reserveTaskRoutingHelper(key, run.SessionID, cfg.LLMRouter.HelperMaxCallsPerHour); ok {
 				defer release()
-				if result, err := classifyTaskWithHelper(ctx, *run, intent); err == nil {
+				if useDecisions {
+					var reason string
+					c, reason = classifyTaskWithDecisions(ctx, *run, decisionService, intent)
+					if reason == "" {
+						d.Source = "decisions"
+						fromDecisions = true
+					} else {
+						d.Reason = reason
+					}
+				} else if result, err := classifyTaskWithHelper(ctx, *run, intent); err == nil {
 					c = result
 					d.Source = "helper"
 				} else {
@@ -286,11 +316,22 @@ func PrepareTaskRouting(ctx context.Context, req *openai.ChatCompletionRequest, 
 				}
 			} else {
 				d.Reason = "helper_limited"
+				if useDecisions {
+					d.Reason = "decisions_limited"
+				}
 			}
+		} else if useDecisions || useHelper {
+			d.Reason = "classification_budget"
+		} else if run.TaskRoutingClassifier == "decisions" {
+			d.Reason = "decisions_unavailable"
 		}
 	}
 	if err := ctx.Err(); err != nil {
 		return err
+	}
+	if fromDecisions && decisionService.Current != nil && !decisionService.Current() {
+		d.Source, d.Reason = "default", "decisions_changed"
+		return nil
 	}
 	d.Area = c.Area()
 	if d.Area == "" {
@@ -302,7 +343,7 @@ func PrepareTaskRouting(ctx context.Context, req *openai.ChatCompletionRequest, 
 		return nil
 	}
 	if !run.TaskRoutingPreview {
-		taskRoutingRemember(key, sessionKey, c)
+		taskRoutingRemember(key, sessionKey, c, fromDecisions)
 	}
 	p, reason := taskRoutingTarget(cfg, d.Area)
 	d.Reason = reason
@@ -368,6 +409,10 @@ func PrepareTaskRouting(ctx context.Context, req *openai.ChatCompletionRequest, 
 			return ctx.Err()
 		}
 		d.Reason = "context_limit"
+		return nil
+	}
+	if fromDecisions && decisionService.Current != nil && !decisionService.Current() {
+		d.Area, d.Source, d.Reason = "", "default", "decisions_changed"
 		return nil
 	}
 	run.Config, run.LLMClient = view, client

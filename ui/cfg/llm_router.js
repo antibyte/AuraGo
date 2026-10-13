@@ -75,6 +75,15 @@ function renderLLMRouterSection(section) {
             setDirty(true);
         });
     }
+    const decisions = field(root, tr('decisions'), 'decisions_fallback', data.decisions_fallback !== false, 'checkbox');
+    node('p', 'field-help', tr('decisions_hint'));
+    const decisionStatus = node('p', 'cfg-note-banner', t('common.loading'));
+    decisionStatus.dataset.decisionStatus = '';
+    const externalHint = node('p', 'field-help', tr('decisions_external_hint'));
+    externalHint.hidden = configData.decisions?.backend !== 'provider';
+    const settingsButton = node('button', 'btn-save btn-secondary', tr('decisions_settings'));
+    settingsButton.type = 'button';
+    settingsButton.addEventListener('click', () => selectSection('decisions', {scrollBehavior: 'auto'}));
     const helper = field(root, tr('helper'), 'helper_fallback', data.helper_fallback !== false, 'checkbox');
     node('p', 'field-help', tr('helper_hint'));
     const limits = node('div', 'field-grid two-cols');
@@ -90,54 +99,105 @@ function renderLLMRouterSection(section) {
     const actions = node('div', 'cfg-actions cfg-actions-row');
     const localButton = node('button', 'btn-save', tr('preview_local'), actions);
     const helperButton = node('button', 'btn-save btn-secondary', tr('preview_helper'), actions);
-    localButton.type = helperButton.type = 'button';
+    const decisionButton = node('button', 'btn-save btn-secondary', tr('preview_decisions'), actions);
+    localButton.type = helperButton.type = decisionButton.type = 'button';
+    localButton.dataset.classifier = 'local';
+    helperButton.dataset.classifier = 'helper';
+    decisionButton.dataset.classifier = 'decisions';
     const result = node('p', 'cfg-note-banner');
     result.setAttribute('role', 'status');
     result.setAttribute('aria-live', 'polite');
     const helperStatus = node('p', 'field-help');
     let available = false;
+    let decisionsAvailable = false;
     let busy = false;
     let helperUseful = false;
+    let decisionsUseful = false;
     let controller;
+    let statusController;
     const lifetime = new AbortController();
     const initialTimer = setTimeout(() => lifetime.abort(), 7000);
     const syncButtons = () => {
+        const quota = Number(configData.llm_router?.helper_max_calls_per_hour ?? 20);
         localButton.disabled = busy || !input.value.trim();
-        helperButton.disabled = busy || !input.value.trim() || !available || !helper.classList.contains('on') || (data.helper_max_calls_per_hour ?? 20) === 0 || !helperUseful;
+        helperButton.disabled = busy || !input.value.trim() || !available || !helper.classList.contains('on') || quota === 0 || !helperUseful;
+        decisionButton.disabled = busy || !input.value.trim() || !decisionsAvailable || !decisions.classList.contains('on') || quota === 0 || !decisionsUseful;
     };
-    input.addEventListener('input', () => { helperUseful = false; syncButtons(); });
-    helper.addEventListener('click', syncButtons);
-    enabled.addEventListener('click', () => { helperUseful = false; syncButtons(); });
-    const preview = async useHelper => {
+    const invalidatePreview = () => {
+        helperUseful = decisionsUseful = false;
+        controller?.abort();
+        controller = null;
+        busy = false;
+        result.textContent = '';
+        syncButtons();
+    };
+    root.addEventListener('input', invalidatePreview);
+    root.addEventListener('change', invalidatePreview);
+    helper.addEventListener('click', invalidatePreview);
+    decisions.addEventListener('click', invalidatePreview);
+    enabled.addEventListener('click', invalidatePreview);
+    const preview = async classifier => {
         if (hasUnsavedConfigChanges()) { result.textContent = tr('save_first'); return; }
         busy = true;
         syncButtons();
         result.textContent = t('common.loading');
         controller?.abort();
-        controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 7000);
+        const requestController = new AbortController();
+        controller = requestController;
+        const text = input.value;
+        const current = () => root.isConnected && controller === requestController && input.value === text && !hasUnsavedConfigChanges();
+        const timer = setTimeout(() => requestController.abort(), 7000);
         try {
-            const response = await fetch('/api/llm-router/preview', { method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({text: input.value, helper: useHelper}), signal: controller.signal });
+            const response = await fetch('/api/llm-router/preview', { method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({text, classifier, helper: classifier === 'helper'}), signal: requestController.signal });
             if (!response.ok) throw new Error('preview');
             const body = await response.json();
-            if (!root.isConnected) return;
+            if (!current()) return;
             helperUseful = !!body.decision?.helper_useful && body.decision?.source === 'default';
+            decisionsUseful = !!body.decision?.decisions_useful && body.decision?.source === 'default';
             result.textContent = body.enabled && body.decision ? window.AuraLLMRouteLabel(body.decision) : t('common.disabled');
         } catch (error) {
-            if (root.isConnected) result.textContent = t('common.error');
-        } finally { clearTimeout(timer); busy = false; syncButtons(); }
+            if (current()) result.textContent = t('common.error');
+        } finally {
+            clearTimeout(timer);
+            if (controller === requestController) { controller = null; busy = false; syncButtons(); }
+        }
     };
-    localButton.addEventListener('click', () => preview(false));
-    helperButton.addEventListener('click', () => preview(true));
+    localButton.addEventListener('click', () => preview('local'));
+    helperButton.addEventListener('click', () => preview('helper'));
+    decisionButton.addEventListener('click', () => preview('decisions'));
     document.getElementById('content').replaceChildren(root);
     attachChangeListeners();
     syncButtons();
-    fetch('/api/llm-router/status', {credentials: 'same-origin', signal: lifetime.signal}).then(r => { if (!r.ok) throw new Error('status'); return r.json(); }).then(status => {
+    const refreshStatus = () => {
         if (!root.isConnected) return;
-        available = !!status.helper_available;
-        helperStatus.textContent = available ? '' : tr('helper_unavailable');
-        syncButtons();
-    }).catch(() => { if (root.isConnected) helperStatus.textContent = t('common.error'); });
+        statusController?.abort();
+        const active = new AbortController();
+        statusController = active;
+        const timer = setTimeout(() => active.abort(), 7000);
+        fetch('/api/llm-router/status', {credentials: 'same-origin', signal: active.signal}).then(r => { if (!r.ok) throw new Error('status'); return r.json(); }).then(status => {
+            if (!root.isConnected || statusController !== active) return;
+            available = !!status.helper_available;
+            decisionsAvailable = !!status.decisions?.available;
+            const info = status.decisions || {};
+            const reasons = {service_disabled: 'decisions_disabled', router_disabled: 'decisions_disabled',
+                provider_not_configured: 'decisions_not_configured', service_not_ready: 'decisions_not_ready', configuration_changed: 'decisions_changed'};
+            const code = reasons[info.code] || 'decisions_unavailable';
+            decisionStatus.textContent = (decisionsAvailable ? tr('decisions_available') : tr(code)) +
+                (info.model ? ' · ' + (info.provider ? info.provider + ' / ' : '') + info.model : '');
+            externalHint.hidden = info.backend !== 'provider';
+            helperStatus.textContent = available ? '' : tr('helper_unavailable');
+            syncButtons();
+        }).catch(() => {
+            if (root.isConnected && statusController === active) {
+                available = decisionsAvailable = false;
+                helperStatus.textContent = decisionStatus.textContent = t('common.error');
+                syncButtons();
+            }
+        }).finally(() => clearTimeout(timer));
+    };
+    const onSaved = () => { invalidatePreview(); refreshStatus(); };
+    document.addEventListener('aurago:config-saved', onSaved);
+    refreshStatus();
     fetch('/api/models/catalog', {credentials: 'same-origin', signal: lifetime.signal}).then(r => r.ok ? r.json() : null).then(catalog => {
         if (!root.isConnected || !catalog) return;
         root._routerCatalog = catalog;
@@ -145,7 +205,14 @@ function renderLLMRouterSection(section) {
     }).catch(() => {});
     // The observer also covers section switches and a closing embedded config panel.
     const observer = new MutationObserver(() => {
-        if (!root.isConnected) { clearTimeout(initialTimer); lifetime.abort(); controller?.abort(); observer.disconnect(); }
+        if (!root.isConnected) {
+            clearTimeout(initialTimer);
+            lifetime.abort();
+            controller?.abort();
+            statusController?.abort();
+            document.removeEventListener('aurago:config-saved', onSaved);
+            observer.disconnect();
+        }
     });
     observer.observe(document.body, {childList: true, subtree: true});
 }

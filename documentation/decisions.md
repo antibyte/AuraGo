@@ -2,8 +2,11 @@
 
 Decisions is an optional shared service for decisions from text and images,
 using either a managed local runtime or a saved external provider connection.
-It is off by default and is independent of normal chat, helper LLMs, and agents.
-EasyDrag's **Decisions** node is its first consumer.
+It is off by default. Consumers include EasyDrag's **Decisions** node and the
+optional [LLM router](llm-router.md). The router uses this service for unclear
+tasks when both features are enabled; its **Use Decisions** switch defaults on.
+Routing never starts or installs a stopped local service. External classification
+sends bounded task text and may incur cost, booked once under `routing`.
 
 ## Setup and permissions
 

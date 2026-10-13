@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/config"
@@ -26,6 +27,7 @@ func (e decisionProviderError) Unwrap() error        { return e.error }
 func (e decisionProviderError) IsNonRetryable() bool { return true }
 
 type decisionProviderGeneration struct {
+	id                    uint64
 	ctx                   context.Context
 	cancel                context.CancelFunc
 	active                sync.WaitGroup
@@ -36,6 +38,8 @@ type decisionProviderGeneration struct {
 	releaseCredential     func()
 	status                decisions.Status
 }
+
+var decisionGenerationSequence atomic.Uint64
 
 type decisionCatalogGeneration struct {
 	ctx                   context.Context
@@ -82,7 +86,7 @@ func decisionsLocalPolicy(c config.DecisionsConfig) config.DecisionsConfig {
 
 func (d *routedDecisions) newGeneration(cfg *config.Config) *decisionProviderGeneration {
 	ctx, cancel := context.WithCancel(context.Background())
-	g := &decisionProviderGeneration{ctx: ctx, cancel: cancel, settings: cfg.Decisions.Normalize()}
+	g := &decisionProviderGeneration{id: decisionGenerationSequence.Add(1), ctx: ctx, cancel: cancel, settings: cfg.Decisions.Normalize()}
 	if g.settings.Backend != "provider" {
 		return g
 	}
@@ -296,7 +300,8 @@ func (d *routedDecisions) Evaluate(ctx context.Context, request decisions.Reques
 	g.active.Add(1)
 	d.mu.Unlock()
 	defer func() { <-d.busy; g.active.Done() }()
-	if d.server.BudgetTracker != nil && d.server.BudgetTracker.IsBlocked("decisions") {
+	category := decisionUsageCategory(ctx)
+	if d.server.BudgetTracker != nil && d.server.BudgetTracker.IsBlocked(category) {
 		return decisions.Response{}, decisions.NewError("budget_exceeded", nil)
 	}
 	callCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
@@ -308,12 +313,18 @@ func (d *routedDecisions) Evaluate(ctx context.Context, request decisions.Reques
 	response, err = g.client.Evaluate(callCtx, g.settings.Model, request)
 	// A paid response still counts when policy revocation prevents its publication.
 	if response.Usage.CostUSD != nil && d.server.BudgetTracker != nil {
-		d.server.BudgetTracker.RecordCostForCategory("decisions", *response.Usage.CostUSD)
+		d.server.BudgetTracker.RecordCostForCategory(category, *response.Usage.CostUSD)
+	}
+	// Routing telemetry still needs reported usage when a paid result is rejected.
+	// Never release answers from a failed or revoked generation.
+	failedResponse := decisions.Response{}
+	if category == "routing" {
+		failedResponse.Usage = response.Usage
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if d.generation != g || d.closed || g.ctx.Err() != nil {
-		return decisions.Response{}, decisions.NewError("configuration_changed", context.Canceled)
+		return failedResponse, decisions.NewError("configuration_changed", context.Canceled)
 	}
 	if err == nil && callCtx.Err() != nil {
 		err = decisions.NewError("external_outcome_unknown", callCtx.Err())
@@ -323,7 +334,7 @@ func (d *routedDecisions) Evaluate(ctx context.Context, request decisions.Reques
 		g.status.State = "error"
 		g.status.Code = decisions.ErrorCode(err)
 		g.status.LastError = g.status.Code
-		return decisions.Response{}, err
+		return failedResponse, err
 	}
 	g.status.Ready = true
 	g.status.State = "ready"

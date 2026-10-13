@@ -161,11 +161,12 @@ func rocketChatSenderKey(msg message) string {
 // processMessage handles a single incoming Rocket.Chat message. The shared
 // history manager belongs to the owner's "default" session and is
 // deliberately unused: each room/sender pair has its own session.
-func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, _ *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, channelID string, msg message, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker, webhookManager *webhooks.Manager) {
+func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, _ *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, channelID string, msg message, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker, webhookManager *webhooks.Manager, routingDecisions ...agent.TaskDecisionService) {
 	if ctx.Err() != nil || !cfg.RocketChat.Enabled || !isAllowedRocketChatUser(cfg, msg) {
 		return
 	}
 	inputText := msg.Msg
+	routingText := inputText
 	sender := rocketChatSenderKey(msg)
 	if sender == "" {
 		logger.Warn("[RocketChat] Ignoring message without sender id or username")
@@ -216,7 +217,13 @@ func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger
 	if budgetTrackerSnapshot != nil {
 		budgetTracker = budgetTrackerSnapshot()
 	}
+	var decisionService agent.TaskDecisionService
+	if len(routingDecisions) > 0 {
+		decisionService = routingDecisions[0]
+	}
 	runCfg := agent.RunConfig{
+		RoutingDecisions:   decisionService,
+		TaskRoutingText:    &routingText,
 		Config:             cfg,
 		Logger:             logger,
 		LLMClient:          client,

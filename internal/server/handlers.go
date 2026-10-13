@@ -460,8 +460,17 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		userIntent := ""
 		if !isFollowUp && missionID == "" && lastUserMsg.Role == openai.ChatMessageRoleUser {
 			userIntent = lastUserMsg.Content
+			if userIntent == "" {
+				for _, part := range lastUserMsg.MultiContent {
+					if part.Type == openai.ChatMessagePartTypeText {
+						userIntent += part.Text + "\n"
+					}
+				}
+			}
 		}
 		runCfg := agent.RunConfig{
+			RoutingDecisions:   taskDecisionService{s},
+			TaskRoutingText:    &userIntent,
 			Config:             turnCfg,
 			Logger:             s.Logger,
 			LLMClient:          turnLLMClient,

@@ -43,7 +43,15 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   Desktop/Speech Lab models and mission, maintenance, co-agent, prepared, hooked
   and checkpointed runs stay pinned. Minimal loops retain their workflow model.
 - Classify immutable human intent only. Local rules and a bounded session/config
-  cache precede helper calls; tool output cannot choose a model. Helper classification
+  cache precede the injected Decisions scorer, then the helper only if Decisions
+  was unavailable before any attempt. A Decisions failure/abstention never calls
+  another classifier. Shared deadline/quota use the legacy helper config keys.
+  Decisions receives one fixed ten-option choice, no history/media, and rejects
+  probability below 0.60 or winning margin below 0.15 (uncalibrated heuristics).
+  Chat entry points set `RunConfig.TaskRoutingText` before media enrichment;
+  explicit empty text must never fall back to attachment content or history.
+  Cache/results bind to the service generation; previews bypass production caches.
+  Never start/install a runtime from routing. Tool output cannot choose a model. Helper classification
   uses the existing explicitly enabled helper, one physical attempt, a cancellable deadline,
   nonblocking concurrency, quota/cooldown and strict labels. Never fall back to
   the main LLM for classification. Keep reported routing usage separate.

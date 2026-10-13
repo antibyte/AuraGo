@@ -761,6 +761,13 @@ worker. Keep packaging, recovery and offline instructions in
 
 ## Decisions settings
 
+- LLM router settings expose `decisions_fallback`, passive service/model status
+  and an explicit Decisions preview. Local preview never invokes either model
+  classifier; preview uses saved settings and no production classification cache.
+  Retain the legacy helper API flag, visible external transfer/cost information,
+  separate Decisions statistics, and all sixteen router locales. Verify
+  `TestLLMRouterConfigBrowser` in both themes at narrow and wide sizes.
+
 - External mode selects a saved OpenRouter connection and a separate decision
   model; catalog loading is explicit and the paid test uses fixed example data.
   Keep transfer/cost information visible. Never expose local lifecycle or CPU

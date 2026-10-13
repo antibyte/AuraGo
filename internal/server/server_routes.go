@@ -699,10 +699,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// ── Integration bots (disabled in egg mode — eggs are headless workers) ──
 	if !s.Cfg.EggMode.Enabled {
 		// Phase 35.2: Start the Telegram Long Polling loop
-		telegram.StartLongPolling(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.PlannerDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.budgetTrackerSnapshot, s.WebhookManager)
+		telegram.StartLongPolling(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.PlannerDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.budgetTrackerSnapshot, s.WebhookManager, taskDecisionService{s})
 
 		// Discord Bot: listen for messages and relay to the agent
-		discord.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.budgetTrackerSnapshot, s.WebhookManager)
+		discord.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.budgetTrackerSnapshot, s.WebhookManager, taskDecisionService{s})
 
 		// Email Watcher: poll IMAP for new messages and wake the agent
 		s.EmailWatcher = tools.StartEmailWatcherContext(serverCtx, s.Cfg, s.Logger, s.Guardian, s.LLMGuardian, s.internalToken, s.CheatsheetDB)
@@ -749,6 +749,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				msg, quarantineAddenda := prepareIncomingSMSAgentInput(from, text, mediaURLs, quarantined)
 				s.Logger.Info("Telnyx SMS relayed to agent", "quarantined", quarantined)
 				runCfg := agent.RunConfig{
+					RoutingDecisions:   taskDecisionService{s},
+					TaskRoutingText:    &text,
 					Config:             s.Cfg,
 					Logger:             s.Logger,
 					LLMClient:          s.LLMClient,

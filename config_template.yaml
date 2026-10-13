@@ -765,7 +765,9 @@ model_catalog:
     upstream_version: ""                                  # optional note/pin for operators; bundled snapshot metadata remains authoritative
 llm_router:
   enabled: false
+  decisions_fallback: true
   helper_fallback: true
+  # Shared limits for Decisions and Helper classification; legacy key names.
   helper_timeout_ms: 1500
   helper_max_calls_per_hour: 20
   areas:

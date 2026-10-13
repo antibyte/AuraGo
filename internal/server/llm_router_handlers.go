@@ -27,7 +27,7 @@ func handleLLMRouterStatus(s *Server) http.HandlerFunc {
 		cfg := s.ConfigSnapshot()
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "no-store")
-		_ = json.NewEncoder(w).Encode(map[string]any{"enabled": cfg.LLMRouter.Enabled, "helper_available": llm.IsHelperLLMAvailable(cfg), "default_provider": cfg.LLM.Provider, "default_model": cfg.LLM.Model, "stats": agent.SnapshotTaskRouterStats()})
+		_ = json.NewEncoder(w).Encode(map[string]any{"enabled": cfg.LLMRouter.Enabled, "helper_available": llm.IsHelperLLMAvailable(cfg), "decisions": (taskDecisionService{s}).RoutingSnapshot(cfg), "default_provider": cfg.LLM.Provider, "default_model": cfg.LLM.Model, "stats": agent.SnapshotTaskRouterStats()})
 	}
 }
 
@@ -49,8 +49,9 @@ func handleLLMRouterPreview(s *Server) http.HandlerFunc {
 			return
 		}
 		var input struct {
-			Text   string `json:"text"`
-			Helper bool   `json:"helper"`
+			Text       string `json:"text"`
+			Helper     *bool  `json:"helper"`
+			Classifier string `json:"classifier"`
 		}
 		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16384))
 		decoder.DisallowUnknownFields()
@@ -62,11 +63,20 @@ func handleLLMRouterPreview(s *Server) http.HandlerFunc {
 			jsonError(w, "Invalid preview input", http.StatusBadRequest)
 			return
 		}
-		cfg := s.ConfigSnapshot().Clone()
-		if !input.Helper {
-			cfg.LLMRouter.HelperFallback = false
+		classifier := input.Classifier
+		if classifier == "" {
+			classifier = "local"
+			if input.Helper != nil && *input.Helper {
+				classifier = "helper"
+			}
 		}
-		run := agent.RunConfig{Config: cfg, Logger: s.Logger, LLMClient: s.LLMClient, BudgetTracker: s.BudgetTracker, SessionID: "router-preview", UserIntent: input.Text, TaskRoutingMode: "auto", TaskRoutingPreview: true}
+		if (classifier != "local" && classifier != "decisions" && classifier != "helper") ||
+			(input.Helper != nil && *input.Helper != (classifier == "helper")) {
+			jsonError(w, "Conflicting or invalid classifier", http.StatusBadRequest)
+			return
+		}
+		cfg := s.ConfigSnapshot().Clone()
+		run := agent.RunConfig{Config: cfg, Logger: s.Logger, LLMClient: s.LLMClient, BudgetTracker: s.BudgetTracker, SessionID: "router-preview", UserIntent: input.Text, TaskRoutingMode: "auto", TaskRoutingPreview: true, TaskRoutingClassifier: classifier, RoutingDecisions: taskDecisionService{s}}
 		req := openai.ChatCompletionRequest{Model: cfg.LLM.Model, Messages: []openai.ChatCompletionMessage{{Role: "user", Content: input.Text}}}
 		if err := agent.PrepareTaskRouting(r.Context(), &req, &run); err != nil {
 			jsonError(w, "Preview cancelled", http.StatusRequestTimeout)

@@ -95,6 +95,13 @@ func (manager *Manager) Status() Status {
 	return manager.status
 }
 
+// CacheGeneration invalidates derived classifications on every lifecycle change.
+func (manager *Manager) CacheGeneration() uint64 {
+	manager.mu.RLock()
+	defer manager.mu.RUnlock()
+	return manager.generation
+}
+
 // PrepareReconfigure immediately publishes a new policy and cancels any
 // operation or runtime generation that is no longer authorized. The returned
 // cleanup must be run after releasing caller-owned locks; it waits for any

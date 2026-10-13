@@ -2034,12 +2034,13 @@ function scheduleInit() {
 window.AuraLLMRouteLabel = function (route) {
     const tr = key => t('common.llm_router.' + key);
     const areas = ['general', 'easy', 'normal', 'complex', 'coding', 'research', 'creativity', 'security', 'writing'];
-    const sources = ['rules', 'cache', 'helper', 'default'];
+    const sources = ['rules', 'cache', 'helper', 'decisions', 'default'];
     const area = areas.includes(route?.area) ? tr('area_' + route.area) : tr('default');
     const source = sources.includes(route?.source) ? tr('source_' + route.source) : tr('source_default');
     const model = route?.actual_model || route?.model || '';
     const provider = route?.actual_provider || route?.provider || '';
-    const fallback = !['selected', 'unassigned', 'same_as_default'].includes(route?.reason) ? ' · ' + tr('fallback') : '';
+    const reasons = ['decisions_unavailable', 'decisions_timeout', 'decisions_uncertain', 'decisions_invalid', 'decisions_changed', 'decisions_limited', 'classification_budget'];
+    const fallback = !['selected', 'unassigned', 'same_as_default'].includes(route?.reason) ? ' · ' + tr(reasons.includes(route?.reason) ? route.reason : 'fallback') : '';
     return area + ' · ' + provider + ' / ' + model + ' · ' + source + fallback;
 };
 

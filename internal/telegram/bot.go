@@ -52,7 +52,7 @@ func buildTelegramAgentMessages(historyManager *memory.HistoryManager) []openai.
 
 // StartLongPolling initializes the Telegram bot in Long Polling mode.
 // It runs in a background goroutine and processes incoming messages.
-func StartLongPolling(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, plannerDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker, webhookManager *webhooks.Manager) {
+func StartLongPolling(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, plannerDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker, webhookManager *webhooks.Manager, routingDecisions ...agent.TaskDecisionService) {
 	if cfg.Telegram.BotToken == "" {
 		integrationstatus.SetTelegramConfigured(false, false)
 		logger.Warn("Telegram Bot Token is missing, skipping Long Polling start.")
@@ -119,7 +119,7 @@ func StartLongPolling(ctx context.Context, cfg *config.Config, logger *slog.Logg
 		}
 		go func(upd tgbotapi.Update) {
 			defer func() { <-workerSem }()
-			processUpdate(ctx, bot, upd, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2, remoteHub, guardian, budgetTrackerSnapshot, webhookManager)
+			processUpdate(ctx, bot, upd, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2, remoteHub, guardian, budgetTrackerSnapshot, webhookManager, routingDecisions...)
 		}(update)
 	})
 }
@@ -240,7 +240,7 @@ func telegramTestMessage(now time.Time) string {
 	return "AuraGo Telegram test (manual) — " + now.UTC().Format(time.RFC3339)
 }
 
-func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker, webhookManager *webhooks.Manager) {
+func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker, webhookManager *webhooks.Manager, routingDecisions ...agent.TaskDecisionService) {
 	// Maintenance check: Inform the user but allow the tool-based interaction
 	inMaintenance := tools.IsBusy()
 	if inMaintenance {
@@ -326,6 +326,8 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 		inputText = text
 	}
 
+	// Pin the caption or voice transcription before adding image/file contents.
+	routingText := inputText
 	// If it's a photo, process it
 	if len(msg.Photo) > 0 {
 		// Get the largest photo (usually the last one)
@@ -492,7 +494,13 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 	if budgetTrackerSnapshot != nil {
 		budgetTracker = budgetTrackerSnapshot()
 	}
+	var decisionService agent.TaskDecisionService
+	if len(routingDecisions) > 0 {
+		decisionService = routingDecisions[0]
+	}
 	runCfg := agent.RunConfig{
+		RoutingDecisions:   decisionService,
+		TaskRoutingText:    &routingText,
 		Config:             cfg,
 		Logger:             logger,
 		LLMClient:          client,

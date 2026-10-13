@@ -51,7 +51,7 @@ func TestLLMRouterConfigBrowser(t *testing.T) {
         window.routerCalls=[];
         const previousFetch=window.fetch;
         window.fetch=async(url,opts)=>{
-            if(url==='/api/llm-router/status') return new Response(JSON.stringify({enabled:true,helper_available:true}));
+            if(url==='/api/llm-router/status') return new Response(JSON.stringify({enabled:true,helper_available:true,decisions:window.routerDecisionStatus || {available:true,code:'available',backend:'provider',provider:'decision-cloud',model:'test-decision-model'}}));
             if(url==='/api/models/catalog') return new Response(JSON.stringify({models:[
                 {provider:'openai',id:'gpt-4o-mini'},
                 {provider:'agnes',id:'agnes-2.5-flash'},
@@ -60,7 +60,14 @@ func TestLLMRouterConfigBrowser(t *testing.T) {
             ]}));
             if(url==='/api/llm-router/preview') {
                 const body=JSON.parse(opts.body); routerCalls.push(body);
-                return new Response(JSON.stringify({enabled:true,decision:{turn_id:'preview',area:body.helper?'coding':'',source:body.helper?'helper':'default',reason:'selected',helper_useful:!body.helper,provider:'main',model:'gpt-4o'}}));
+                window.routerLastPreviewSignal=opts.signal;
+                if(window.routerHoldNextPreview) {
+                    window.routerHoldNextPreview=false;
+                    await new Promise(resolve=>window.routerReleasePreview=resolve);
+                }
+                if(window.routerFailNextPreview) {window.routerFailNextPreview=false;return new Response('',{status:503});}
+                const source=body.classifier==='decisions'?'decisions':body.helper?'helper':'default';
+                return new Response(JSON.stringify({enabled:true,decision:{turn_id:'preview',area:source==='default'?'':'coding',source,reason:'selected',helper_useful:source==='default',decisions_useful:source==='default',provider:'main',model:'gpt-4o'}}));
             }
             return previousFetch(url,opts);
         };
@@ -72,6 +79,7 @@ func TestLLMRouterConfigBrowser(t *testing.T) {
             {id:'agnes-video',name:'Agnes Video',type:'agnes',model:'agnes-video-v2.0'}
         ];
         configData.llm_router.areas.coding={provider:'code',model:'gpt-4o-mini'};
+        configData.llm_router.decisions_fallback=true;
         AuraConfigState.init(configData);
         await selectSection('llm_router',{scrollBehavior:'auto'});
     }`)
@@ -129,11 +137,41 @@ func TestLLMRouterConfigBrowser(t *testing.T) {
 	if !page.MustEval(`()=>routerCalls[1].helper`).Bool() {
 		t.Fatal("explicit helper preview missing")
 	}
+	page.MustEval(`()=>document.querySelector('[data-classifier="local"]').click()`)
+	waitForJSBool(t, page, `()=>routerCalls.length===3 && !document.querySelector('[data-classifier="decisions"]').disabled`)
+	if !page.MustEval(`()=>document.querySelector('[data-decision-status]').textContent.includes('test-decision-model')`).Bool() {
+		t.Fatal("saved Decisions route missing")
+	}
+	page.MustEval(`()=>document.querySelector('[data-classifier="decisions"]').click()`)
+	waitForJSBool(t, page, `()=>routerCalls.length===4 && document.querySelector('[role="status"]').textContent.includes('Decisions')`)
+	if !page.MustEval(`()=>routerCalls[3].classifier==='decisions' && routerCalls[3].helper===false`).Bool() {
+		t.Fatal("Decisions preview selected another classifier")
+	}
+	page.MustEval(`()=>{routerDecisionStatus={available:false,code:'router_disabled'};document.querySelector('[data-path="llm_router.decisions_fallback"]').click();}`)
+	if !page.MustEval(`async()=>{await saveConfig();const saved=await(await fetch('/api/config')).json();return saved.llm_router.decisions_fallback===false;}`).Bool() {
+		t.Fatal("explicit Decisions opt-out was lost")
+	}
+	waitForJSBool(t, page, `()=>document.querySelector('[data-decision-status]').textContent.includes('ausgeschaltet')`)
+	page.MustEval(`async()=>{await selectSection('llm_router',{scrollBehavior:'auto'});}`)
+	if !page.MustEval(`()=>document.querySelector('[data-path="llm_router.decisions_fallback"]').getAttribute('aria-checked')==='false' && document.querySelector('[data-classifier="decisions"]').disabled`).Bool() {
+		t.Fatal("Decisions opt-out not restored")
+	}
+	page.MustEval(`async()=>{routerDecisionStatus={available:true,code:'available',backend:'provider',model:'test-decision-model'};document.querySelector('[data-path="llm_router.decisions_fallback"]').click();await saveConfig();}`)
+	waitForJSBool(t, page, `()=>document.querySelector('[data-decision-status]').textContent.includes('test-decision-model')`)
+	// A late result must not classify a newly edited example or enable paid tests.
+	page.MustEval(`()=>{routerHoldNextPreview=true;const input=document.querySelector('[data-router-settings] textarea');input.value='Alter Auftrag';input.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('[data-classifier="local"]').click();}`)
+	waitForJSBool(t, page, `()=>typeof routerReleasePreview==='function'`)
+	page.MustEval(`async()=>{const input=document.querySelector('[data-router-settings] textarea');input.value='Neuer Auftrag';input.dispatchEvent(new Event('input',{bubbles:true}));routerReleasePreview();await new Promise(r=>setTimeout(r,20));}`)
+	if !page.MustEval(`()=>routerLastPreviewSignal.aborted && document.querySelector('[data-router-settings] [role="status"]').textContent==='' && document.querySelector('[data-classifier="helper"]').disabled`).Bool() {
+		t.Fatal("stale preview overwrote edited input")
+	}
+	page.MustEval(`()=>{routerFailNextPreview=true;document.querySelector('[data-classifier="local"]').click();}`)
+	waitForJSBool(t, page, `()=>document.querySelector('[data-router-settings] [role="status"]').textContent===t('common.error')`)
 	for _, width := range []int{390, 768, 1440} {
 		for _, theme := range []string{"dark", "light"} {
 			t.Run(fmt.Sprintf("%d/%s", width, theme), func(t *testing.T) {
 				page.MustSetViewport(width, 900, 1, width == 390)
-				page.MustEval(`theme=>{document.documentElement.dataset.theme=theme;document.body.dataset.theme=theme;}`, theme)
+				page.MustEval(`theme=>{document.documentElement.dataset.theme=theme;document.body.dataset.theme=theme;document.documentElement.dataset.desktopTheme=theme==='light'?'fruity':'standard';}`, theme)
 				page.MustEval(`()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))`)
 				if page.MustEval(`()=>document.documentElement.scrollWidth>innerWidth+1`).Bool() {
 					t.Fatal("router settings overflow")
@@ -162,5 +200,13 @@ func TestLLMRouterConfigBrowser(t *testing.T) {
 	// Provider output must stay text, and a repeated event updates one badge.
 	if !page.MustEval(`()=>{const c=document.createElement('div');const d={turn_id:'1',area:'coding',source:'rules',reason:'selected',model:'<img src=x onerror=alert(1)>',provider:'test'};AuraLLMRouteBadge(c,d);AuraLLMRouteBadge(c,{...d,actual_model:'fallback'});return c.children.length===1 && !c.querySelector('img') && c.textContent.includes('fallback');}`).Bool() {
 		t.Fatal("unsafe or duplicate routing badge")
+	}
+	page.MustEval(`async()=>{routerDecisionStatus={available:false,code:'provider_not_configured',backend:'provider'};await selectSection('llm_router',{scrollBehavior:'auto'});}`)
+	waitForJSBool(t, page, `()=>document.querySelector('[data-decision-status]').textContent.includes('Zugangsdaten')`)
+	page.MustEval(`()=>{routerReleasePreview=null;routerHoldNextPreview=true;const input=document.querySelector('[data-router-settings] textarea');input.value='Noch ein Auftrag';input.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('[data-classifier="local"]').click();}`)
+	waitForJSBool(t, page, `()=>typeof routerReleasePreview==='function'`)
+	page.MustEval(`async()=>{await selectSection('overview',{scrollBehavior:'auto'});routerReleasePreview();await new Promise(r=>setTimeout(r,20));}`)
+	if !page.MustEval(`()=>routerLastPreviewSignal.aborted && !document.querySelector('[data-router-settings]')`).Bool() {
+		t.Fatal("disposed router retained preview activity")
 	}
 }

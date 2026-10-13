@@ -641,11 +641,17 @@
             const tokens = Number((stats.helper_input_tokens || 0) + (stats.helper_output_tokens || 0));
             const usage = stats.helper_usage_missing ? (stats.helper_usage_reports ? '≥ ' + tokens : '?') : String(tokens);
             line(label('tokens') + ': ' + usage);
+            const decision = stats.decision_api || {};
+            const decisionTokens = Number(decision.input_tokens || 0) + Number(decision.output_tokens || 0);
+            const decisionUsage = decision.usage_missing ? (decision.usage_reports ? '≥ ' + decisionTokens : '?') : String(decisionTokens);
+            const decisionCost = decision.cost_missing ? (decision.cost_reports ? '≥ ' + Number(decision.cost_usd).toFixed(4) : '?') : (decision.cost_reports ? Number(decision.cost_usd).toFixed(4) : '?');
+            line(label('source_decisions') + ': ' + Number(decision.attempts || 0) + ' · ' + label('failures') + ': ' + Number(decision.failures || 0) + ' · ' + label('decisions_uncertain') + ': ' + Number(decision.uncertain || 0));
+            line(label('source_decisions') + ' · ' + label('tokens') + ': ' + decisionUsage + ' · USD: ' + decisionCost);
             line(label('fallback') + ': ' + Number(stats.fallbacks || 0));
             for (const area of ['general', 'easy', 'normal', 'complex', 'coding', 'research', 'creativity', 'security', 'writing']) {
                 if (stats.decisions?.[area]) line(label('area_' + area) + ': ' + Number(stats.decisions[area]));
             }
-            for (const source of ['rules', 'cache', 'helper', 'default']) {
+            for (const source of ['rules', 'cache', 'helper', 'decisions', 'default']) {
                 line(label('source_' + source) + ': ' + Number(stats.sources?.[source] || 0));
             }
         }

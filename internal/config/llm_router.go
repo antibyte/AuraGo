@@ -16,6 +16,7 @@ type LLMRouterTarget struct {
 
 type LLMRouterConfig struct {
 	Enabled               bool                       `yaml:"enabled" json:"enabled"`
+	DecisionsFallback     bool                       `yaml:"decisions_fallback" json:"decisions_fallback"`
 	HelperFallback        bool                       `yaml:"helper_fallback" json:"helper_fallback"`
 	HelperTimeoutMS       int                        `yaml:"helper_timeout_ms" json:"helper_timeout_ms"`
 	HelperMaxCallsPerHour int                        `yaml:"helper_max_calls_per_hour" json:"helper_max_calls_per_hour"`
@@ -23,7 +24,7 @@ type LLMRouterConfig struct {
 }
 
 func DefaultLLMRouterConfig() LLMRouterConfig {
-	c := LLMRouterConfig{HelperFallback: true, HelperTimeoutMS: 1500, HelperMaxCallsPerHour: 20, Areas: map[string]LLMRouterTarget{}}
+	c := LLMRouterConfig{DecisionsFallback: true, HelperFallback: true, HelperTimeoutMS: 1500, HelperMaxCallsPerHour: 20, Areas: map[string]LLMRouterTarget{}}
 	for _, area := range LLMRouterAreas {
 		c.Areas[area] = LLMRouterTarget{}
 	}

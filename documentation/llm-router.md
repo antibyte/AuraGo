@@ -42,15 +42,41 @@ The reserved managed-local provider remains available through its established
 primary/fallback roles; it is not a category target. The router never downloads
 models, starts a model family or adds providers on its own.
 
-## Helper use
+## Decisions and helper classification
 
-Local rules and cached decisions run first. The helper is only considered for
+When both the router and Decisions are enabled, unclear tasks use the existing
+Decisions service after local rules and cache. **Use Decisions** defaults on
+(`llm_router.decisions_fallback: true`) and can be disabled independently.
+The saved Decisions backend and model apply: managed local or OpenRouter.
+There is no separate router credential or model selector. A local service must
+already be ready; routing never installs or starts it.
+
+The classifier receives only a scrubbed, bounded copy of the immutable human
+task, isolated as untrusted data. No history, tool output, files or images are
+sent. External providers receive this shortened task text and may charge for it.
+Chat entry points pin this text before adding image analysis, attachment notes,
+or sender metadata. Attachment-only input without human text stays on the ordinary route.
+One choice question contains all nine categories plus `unknown`, including
+categories without an assignment. Only validated normalized probabilities are
+accepted: a winning probability of at least 0.60 and a lead of at least 0.15.
+These are conservative rejection heuristics, not calibrated model reliability.
+Unknown, malformed or uncertain results use the ordinary active model.
+
+At most one model classifier is attempted per task. The helper is considered
+only when Decisions is switched off or unavailable before the attempt. Once a
+Decisions attempt begins, errors, timeouts and uncertain outcomes return directly
+to the ordinary route: no helper follow-up and no automatic retry. A cancelled
+chat cancels classification; a classifier-only timeout leaves the chat running.
+
+Local rules and cached decisions run first. Model classification is only considered for
 uncertain input when at least one usable assignment differs from the ordinary
 route. No assignments means no classification work. The helper must already be
 explicitly enabled and configured in LLM settings; the main model is never used
 as a substitute classifier.
 
-Defaults are a 1,500 ms deadline, one physical completion attempt, at most 768
+The shared default deadline is 1,500 ms, including Decisions catalog validation
+and local queue time. Each classification has one physical inference attempt.
+Helper calls use at most 768
 counted input tokens and 256 generated tokens including reasoning. A reasoning
 model requiring a larger output reserve is skipped. The helper shares the
 existing concurrency and budget limits. Busy, timed-out, invalid or unavailable
@@ -58,24 +84,40 @@ helpers immediately leave the ordinary model in use.
 The configured AI Gateway also receives a one-attempt limit for classification;
 ordinary model requests keep their own gateway retry setting.
 
-The installation quota refills at 20 calls per hour with a maximum burst of two;
+The shared installation quota refills at 20 calls per hour with a maximum burst of two;
 each session also has a 60-second cooldown. Set the hourly limit to zero or turn
-off helper fallback to use local decisions only. The deadline can be set from
+off both classifier switches to use local rules only. The deadline can be set from
 250 to 5,000 ms and the refill rate from 0 to 120 calls per hour. Classification
 caches hold at most 256 entries for ten minutes and store no raw prompts.
+
+For compatibility the shared deadline and quota retain the YAML names
+`helper_timeout_ms` and `helper_max_calls_per_hour`. A zero quota disables both
+classifiers. Cache identity includes Decisions settings and its runtime/credential
+generation; reconfiguration, stop and credential revocation invalidate affected
+classifications. Late results cannot select a route after revocation.
+Reported external Decisions cost is charged exactly once to `routing`; ordinary
+Decisions API and Flow evaluations keep the `decisions` category. Unknown cost
+remains unknown, without a fabricated token-based price.
 
 ## Preview and feedback
 
 Save or discard configuration changes before testing the preview. **Test locally**
-classifies an example using saved assignments without a helper call, provider
+classifies an example using saved assignments without a model call, provider
 metadata probe or task execution. **Ask helper once** becomes available for an
 uncertain result when a configured helper could change the outcome. This explicit
 action may incur provider cost and consumes the same quota as ordinary routing.
 Preview never inserts a chat message or changes a session's previous decision.
 
+**Ask Decisions once** explicitly tests an unclear example using the configured
+service and shared quota. Preview bypasses and never populates production caches.
+The administrator-only preview API accepts `classifier: local|decisions|helper`
+and defaults to `local`; legacy `helper: true` still selects the helper.
+Conflicting inputs are rejected. Passive router status includes the selected
+Decisions service/model and never performs inference.
+
 Web Chat and Desktop show the area, decision source and actual provider/model in
 a transient turn badge. The Dashboard's system tab shows in-memory counters since
-restart, including helper calls, reported tokens, failures and fallbacks. Unknown
+restart, including separate Decisions/helper calls, tokens, failures and fallbacks. Unknown
 usage is shown as `?` or a lower bound rather than zero cost. No dollar savings are
 inferred. Routing metadata is not included in assistant text or persistent memory.
 

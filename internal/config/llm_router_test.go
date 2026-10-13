@@ -43,11 +43,12 @@ func TestTaskRouterLoadLegacyAndSave(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.LLMRouter.Enabled || !cfg.LLMRouter.HelperFallback || len(cfg.LLMRouter.Areas) != 9 {
+	if cfg.LLMRouter.Enabled || !cfg.LLMRouter.DecisionsFallback || !cfg.LLMRouter.HelperFallback || len(cfg.LLMRouter.Areas) != 9 {
 		t.Fatal("legacy config changed routing behavior")
 	}
 	cfg.LLMRouter.Enabled = true
 	cfg.LLMRouter.HelperFallback = false
+	cfg.LLMRouter.DecisionsFallback = false
 	cfg.LLMRouter.HelperMaxCallsPerHour = 0
 	if err := cfg.Save(path); err != nil {
 		t.Fatal(err)
@@ -56,7 +57,7 @@ func TestTaskRouterLoadLegacyAndSave(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reloaded.LLMRouter.Enabled || reloaded.LLMRouter.HelperFallback || reloaded.LLMRouter.HelperMaxCallsPerHour != 0 {
+	if !reloaded.LLMRouter.Enabled || reloaded.LLMRouter.DecisionsFallback || reloaded.LLMRouter.HelperFallback || reloaded.LLMRouter.HelperMaxCallsPerHour != 0 {
 		t.Fatal("runtime Save lost router settings")
 	}
 }

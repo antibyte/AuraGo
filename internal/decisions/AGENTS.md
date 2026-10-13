@@ -65,6 +65,12 @@ attestation, request validation, candidate-logit normalization, and status.
 
 ## Verification
 
+The task router consumes the existing service through an injected scoring
+capability. Passive readiness and `CacheGeneration` must not start/install a
+runtime. Reconfigure, stop and credential revocation invalidate classifications;
+caller deadlines include queue/metadata work. The server alone attributes
+router calls to `routing`; ordinary Decisions consumers retain `decisions`.
+
 Test consent/defaults, backend ordering, full-GPU-before-hybrid-before-CPU
 retry order, attestation failures, lifecycle revocation, bounded queue and
 generation cancellation, download resume/hash failures, native/Docker

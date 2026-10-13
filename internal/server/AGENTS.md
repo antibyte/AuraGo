@@ -19,6 +19,10 @@ Server-owned HTTP and cross-component integration contracts.
   cancellation, and expose stable error codes rather than process output or
   paths. Install/start may outlive the request, never the server.
 - Provider-backed Decisions uses the same rooted input path and budget checks.
+  The task router receives a passive generation-bound scoring capability, not
+  credentials or lifecycle methods. It must be wired to every eligible channel.
+  Its calls book reported provider cost once under `routing`; other Decisions
+  calls retain `decisions`. Revocation invalidates cache identity and late results.
   Provider credentials stay in the Vault; configuration/provider changes cancel
   active calls and discard late results. Passive status must not perform remote
   inference. Local lifecycle actions are unavailable in provider mode. Catalog
