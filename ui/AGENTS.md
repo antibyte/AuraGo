@@ -705,6 +705,10 @@ worker. Keep packaging, recovery and offline instructions in
   Never enable UDP from the wizard. S3 N16R8 boards use the exact 16 MiB profile
   (8 MiB is PSRAM); capacity errors show detected and selected sizes before writes.
   Keep the pinned firmware build, catalog, artifacts and profile validation aligned.
+  Flashing reports file checks, connection, optional erase, writing, readback and
+  restart as separate phases. Show byte-weighted write progress and a busy indicator
+  until verification/reset finish. Only then show completion and an explicit step-2
+  navigation action; navigation must not start serial I/O. Failure clears stale success.
   Transient policy/status failures retain the draft, but never bypass the fresh
   permission check before an action; confirmed revocation still closes and clears it.
   Verify `scripts/ruview/wizard-browser.test.mjs`

@@ -8,7 +8,7 @@ export async function openWizard({base='/api/ruview/',t,receiverIP='',port}={}){
     dialog.innerHTML=`<form method="dialog"><header><h2>RuView · ESP32</h2><button aria-label="${esc(tr('close'))}" value="close">×</button></header></form>
         <ol class="ruview-steps"><li>${esc(tr('firmware'))}</li><li>${esc(tr('configure'))}</li><li>${esc(tr('verify'))}</li></ol>
         <p>${esc(tr('prerequisites'))}</p><p class="ruview-feedback" role="status" aria-live="polite"></p>
-        <section><h3>${esc(tr('step_firmware'))}</h3><label>${esc(tr('profile'))}<select name="profile" aria-describedby="ruview-profile-help"></select></label><p id="ruview-profile-help" class="ruview-help">${esc(tr('profile_help'))}</p><label class="ruview-check"><input type="checkbox" name="erase"><span>${esc(tr('erase'))}</span></label><button type="button" data-action="flash">${esc(tr('flash'))}</button><progress max="100" value="0"></progress><p class="ruview-feedback" role="status" aria-live="polite"></p></section>
+        <section><h3>${esc(tr('step_firmware'))}</h3><label>${esc(tr('profile'))}<select name="profile" aria-describedby="ruview-profile-help"></select></label><p id="ruview-profile-help" class="ruview-help">${esc(tr('profile_help'))}</p><label class="ruview-check"><input type="checkbox" name="erase"><span>${esc(tr('erase'))}</span></label><button type="button" data-action="flash">${esc(tr('flash'))}</button><div class="ruview-flash-progress" hidden><progress max="100" aria-label="${esc(tr('firmware'))}" aria-describedby="ruview-flash-status"></progress><output aria-live="off"></output></div><p id="ruview-flash-status" class="ruview-feedback" role="status" aria-live="polite"></p><button type="button" data-flash-next hidden>${esc(tr('flash_continue'))}</button></section>
         <section><h3>${esc(tr('step_configure'))}</h3><p class="ruview-help">${esc(tr('step_configure_help'))}</p><label>${esc(tr('ssid'))}<input name="ssid" autocomplete="off" spellcheck="false"></label><label>${esc(tr('password'))}<input name="password" type="password" autocomplete="new-password"></label><label class="ruview-check"><input type="checkbox" name="keep"><span>${esc(tr('keep_wifi'))}</span></label>
         <p id="ruview-receiver-help" class="ruview-help">${esc(tr('receiver_purpose'))}</p>
         <div class="ruview-fields"><label>${esc(tr('node'))}<input name="node" type="number" min="1" max="255" value="1"></label><label>${esc(tr('receiver'))}<input name="receiver" value="${esc(receiverIP)}" inputmode="decimal" autocomplete="off" spellcheck="false" aria-describedby="ruview-receiver-help ruview-receiver-lookup"></label><label>${esc(tr('udp_port'))}<input name="port" type="number" min="1" max="65535" value="${esc(port??5005)}"></label></div>
@@ -19,7 +19,9 @@ export async function openWizard({base='/api/ruview/',t,receiverIP='',port}={}){
         <section><h3>${esc(tr('step_verify'))}</h3><button type="button" data-action="verify" aria-describedby="ruview-verify-reason">${esc(tr('verify'))}</button><p id="ruview-verify-reason" class="ruview-help">${esc(tr('confirm_first'))}</p><p class="ruview-feedback" role="status" aria-live="polite"></p><p class="ruview-help">${esc(tr('privacy'))}</p></section>`;
     (document.fullscreenElement||document.body).append(dialog);dialog.showModal();
     const get=n=>dialog.querySelector(`[name="${n}"]`),message=dialog.querySelector('[role="status"]'),buttons=[...dialog.querySelectorAll('[data-action]')];
+    const flashProgress=dialog.querySelector('.ruview-flash-progress'),progress=flashProgress.querySelector('progress'),percentage=flashProgress.querySelector('output'),next=dialog.querySelector('[data-flash-next]');
     let activeMessage=message;
+    next.addEventListener('click',()=>{if(busy||stopped)return;const target=get(get('keep').checked?'receiver':'ssid');target.focus({preventScroll:true});target.closest('section').scrollIntoView({block:'start'});});
     buttons.forEach(button=>button.disabled=true);
     for(const name of ['receiver','port'])get(name).addEventListener('input',()=>get(name).dataset.edited='true');
     get('keep').addEventListener('change',()=>{for(const name of ['ssid','password'])get(name).disabled=get('keep').checked;});
@@ -27,7 +29,13 @@ export async function openWizard({base='/api/ruview/',t,receiverIP='',port}={}){
     const updateReceiverChoice=()=>{const ip=get('receiver_choice').value;useReceiver.disabled=!privateIPv4(ip);useReceiver.textContent=tr('use_receiver').replace('{ip}',ip);};
     get('receiver_choice').addEventListener('change',updateReceiverChoice);
     useReceiver.addEventListener('click',()=>{const ip=get('receiver_choice').value;if(!privateIPv4(ip))return;get('receiver').value=ip;get('receiver').dataset.edited='true';get('receiver').focus();});
-    const feedback=(key,detail='')=>{activeMessage.textContent=tr(key)+(detail?' · '+detail:'');if(activeMessage!==message)activeMessage.scrollIntoView({block:'nearest'});};
+    const feedback=(key,detail='')=>{activeMessage.textContent=tr(key)+(detail?' · '+detail:'');activeMessage.dataset.state=key==='error'?'error':['flashed','reconnect','configured','received'].includes(key)?'success':'';if(activeMessage!==message)activeMessage.scrollIntoView({block:'nearest'});};
+    const flashPhase=phase=>{
+        if(stopped)return;
+        flashProgress.hidden=false;percentage.textContent='';
+        if(phase==='writing'){progress.value=0;percentage.textContent='0 %';}else progress.removeAttribute('value');
+        feedback('flash_'+phase);
+    };
     const explain=error=>{
         if(error.fromAPI)return error.message;
         if(error.message==='wrong_flash')return tr('flash_size_mismatch').replace('{detected}',error.detectedFlash).replace('{expected}',error.expectedFlash);
@@ -57,7 +65,7 @@ export async function openWizard({base='/api/ruview/',t,receiverIP='',port}={}){
         }catch(error){if(!stopped)hint.textContent=tr('receiver_lookup_failed')+' '+tr('receiver_manual_help');}
     }
     const policyTimer=setInterval(()=>allowed().then(()=>{
-        if(!stopped&&message.textContent===tr('connection_interrupted'))message.textContent=tr('ready');
+        if(!stopped&&message.textContent===tr('connection_interrupted'))message.textContent=busy?'':tr('ready');
     }).catch(error=>{
         if(stopped)return;
         if(error.message==='readonly'||[401,403].includes(error.httpStatus))close();
@@ -78,16 +86,21 @@ export async function openWizard({base='/api/ruview/',t,receiverIP='',port}={}){
     dialog.addEventListener('click',async event=>{
         const button=event.target.closest('[data-action]');if(!button||button.disabled||busy)return;
         activeMessage=button.closest('section').querySelector('[role="status"]');
-        busy=true;buttons.forEach(b=>b.disabled=true);button.setAttribute('aria-busy','true');feedback('working');
+        const action=button.dataset.action;
+        if(message.textContent===tr('ready'))message.textContent='';
+        busy=true;buttons.forEach(b=>b.disabled=true);next.disabled=true;button.setAttribute('aria-busy','true');feedback('working');
+        if(action==='flash'){next.hidden=true;flashProgress.hidden=false;progress.removeAttribute('value');percentage.textContent='';}
         try{
             // requestPort remains in the trusted click stack, before network awaits.
-            const action=button.dataset.action;let selected;
+            let selected;
             if(action==='flash'||action==='configure'||action==='readback')selected=await navigator.serial.requestPort();
             await allowed();if(stopped)return;feedback('working');
             if(action==='flash'){
                 const profile=catalog.firmware.find(p=>p.id===get('profile').value);
                 identity=null;expected=null;dialog.querySelectorAll('.ruview-steps li').forEach(step=>{step.classList.remove('complete');step.removeAttribute('aria-label');});
-                await flash(selected,profile,{erase:get('erase').checked,signal:controller.signal,onProgress:n=>dialog.querySelector('progress').value=n});completed(0);feedback('flashed');
+                await flash(selected,profile,{erase:get('erase').checked,signal:controller.signal,onPhase:flashPhase,onProgress:n=>{if(stopped)return;progress.value=n;percentage.textContent=n+' %';}});
+                if(stopped)return;
+                progress.value=100;percentage.textContent='100 %';completed(0);feedback('flashed');next.hidden=false;next.disabled=false;next.focus({preventScroll:true});next.scrollIntoView({block:'nearest'});
             }else if(action==='configure'){
                 const settings=validateConfig({ssid:get('ssid').value,password:get('password').value,keep:get('keep').checked,node_id:Number(get('node').value),target_ip:get('receiver').value.trim(),target_port:Number(get('port').value)});
                 identity=null;expected=null;dialog.querySelectorAll('.ruview-steps li').forEach((step,index)=>{if(index>0){step.classList.remove('complete');step.removeAttribute('aria-label');}});
@@ -97,8 +110,8 @@ export async function openWizard({base='/api/ruview/',t,receiverIP='',port}={}){
             }else if(action==='verify'){
                 if(!expected?.confirmed)throw Error('configure_first');const status=await request('test','POST');const data=await request('proxy/api/v1/nodes');const nodes=Array.isArray(data)?data:(data.nodes||[]);const node=nodes.find(n=>Number(n.node_id??n.id)===expected.node_id);if(!status.fresh||status.simulated||status.signal!=='CSI'||!node||node.csi_status!=='active'||!Number.isFinite(node.csi_last_seen_ms)||node.csi_last_seen_ms>10000||node.csi_sequence==null)throw Error('no_frames');completed(2);feedback('received');
             }
-        }catch(error){if(!stopped)feedback('error',explain(error));}
-        finally{busy=false;button.setAttribute('aria-busy','false');if(!stopped)enableButtons();}
+        }catch(error){if(!stopped){if(action==='flash')flashProgress.hidden=true;feedback('error',explain(error));}}
+        finally{busy=false;button.setAttribute('aria-busy','false');next.disabled=false;if(!stopped)enableButtons();}
     });
     return close;
 }

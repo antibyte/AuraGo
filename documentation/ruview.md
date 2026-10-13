@@ -60,6 +60,13 @@ The dialog labels its sections **Step 1: Write firmware**, **Step 2: Set up Wi-F
 
 Verify the shared wizard with `node scripts/ruview/wizard-browser.test.mjs` (Chrome/Playwright), plus the existing protocol/upstream tests, `TestRuViewConfigBrowser` and backend `TestBoardSetup*` / `TestRuViewBoardSetup*`. Serial fixtures verify the protocol and UI flow, not physical board acceptance.
 
+During flashing, the dialog shows file checks, connection, optional erase, writing,
+verification and restart separately. Writing includes a percentage based on image
+bytes; phases without a measured percentage show an activity indicator. The busy
+indicator ends only after verification and reset. **Step 1 complete** then shows
+**Continue to step 2**, which focuses the Wi-Fi form without opening a serial port
+or sending settings. Firmware completion does not confirm Wi-Fi or sensor reception.
+
 ## Artifact maintenance and release gate
 
 `internal/ruview/artifacts.json` pins source, image digest and every firmware/runtime hash. `scripts/ruview/vendor-ui.mjs` builds the reviewed UI adapter and local dependencies; `npm run build:browser-vendor` bundles the existing esptool-js dependency shared with ESP Web Tools. Preserve all vendored licenses and manifests. No external instance supplies executable UI content, login flows or service workers. Pose-Fusion includes its pinned WebAssembly modules, expires live CSI after ten seconds, and permits client-generated frames only with AuraGo's explicitly selected demo source. Its untrained upstream fusion/pose visualization remains experimental; displayed confidence is not a calibrated measurement.

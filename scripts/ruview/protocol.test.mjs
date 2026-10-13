@@ -50,24 +50,31 @@ test('SHA-256 is checked over exact bytes',async()=>assert.equal(await sha256(ne
 
 test('flashing preserves NVS, requires erase for layout changes, and never retries a write',async()=>{
  const {ESPLoader,Transport}=await import('../../ui/js/vendor/ruview-esptool.js');
- const p=profile(),images=await Promise.all(p.parts.map(async(part,i)=>{const data=new Uint8Array(part.size).fill(i+1);part.sha256=await sha256(data);return data;}));p.partition_sha256=p.parts[1].sha256;
- const fetchBefore=globalThis.fetch,restore=[];let writes=0,erases=0,disconnects=0,incompatible=false,fail=false,bootFailure=false,capacity=22;
+ const p=profile();p.parts[3].size=16384;
+ const images=await Promise.all(p.parts.map(async(part,i)=>{const data=new Uint8Array(part.size).fill(i+1);part.sha256=await sha256(data);return data;}));p.partition_sha256=p.parts[1].sha256;
+ const fetchBefore=globalThis.fetch,restore=[],phases=[],progress=[];let writes=0,erases=0,disconnects=0,incompatible=false,fail=false,bootFailure=false,verificationFailure=false,capacity=22;
  function patch(object,key,value){const old=object[key];restore.push(()=>object[key]=old);object[key]=value;}
  patch(ESPLoader.prototype,'main',async function(){if(bootFailure)throw Error('fixture_sync_failed');this.chip={CHIP_NAME:'ESP32-S3'};});
  patch(ESPLoader.prototype,'readFlashId',async()=>capacity<<16);
- patch(ESPLoader.prototype,'readFlash',async(address)=>incompatible&&address===0x8000&&writes===0?new Uint8Array(4096):images[p.parts.findIndex(part=>part.offset===address)]);
+ patch(ESPLoader.prototype,'readFlash',async(address)=>verificationFailure&&writes>0||incompatible&&address===0x8000&&writes===0?new Uint8Array(4096):images[p.parts.findIndex(part=>part.offset===address)]);
  patch(ESPLoader.prototype,'eraseFlash',async()=>{erases++;});
- patch(ESPLoader.prototype,'writeFlash',async function(options){writes++;assert.equal(this.WRITE_BLOCK_ATTEMPTS,1);assert.equal(options.eraseAll,false);assert.deepEqual(options.fileArray.map(f=>f.address),[0,0x8000,0xf000,0x20000]);if(fail)throw Error('uncertain_write');});
+ patch(ESPLoader.prototype,'writeFlash',async function(options){writes++;assert.equal(this.WRITE_BLOCK_ATTEMPTS,1);assert.equal(options.eraseAll,false);assert.deepEqual(options.fileArray.map(f=>f.address),[0,0x8000,0xf000,0x20000]);if(fail)throw Error('uncertain_write');for(let i=0;i<options.fileArray.length;i++){const total=options.fileArray[i].data.length;for(const n of [0,total/2,total])options.reportProgress(i,n,total);}});
  patch(ESPLoader.prototype,'after',async()=>{});
  patch(Transport.prototype,'disconnect',async()=>{disconnects++;});
  globalThis.fetch=async(url)=>new Response(images[p.parts.findIndex(part=>url.endsWith('/'+part.name))]);
  const port={getInfo:()=>({usbVendorId:0x10c4,usbProductId:0xea60})};
  try{
-  await flash(port,p);assert.equal(writes,1);assert.equal(erases,0);assert.equal(disconnects,1);
+  const feedback={onPhase:phase=>phases.push(phase),onProgress:value=>progress.push(value)};
+  await flash(port,p,feedback);assert.equal(writes,1);assert.equal(erases,0);assert.equal(disconnects,1);
+  assert.deepEqual(phases,['preparing','connecting','writing','verifying','restarting']);
+  assert.equal(progress[0],0);assert.equal(progress[1],7,'progress is weighted by image bytes, not file count');assert.equal(progress.at(-1),100);
+  assert.ok(progress.every((value,i)=>Number.isFinite(value)&&value>=0&&value<=100&&(i===0||value>=progress[i-1])));
   writes=0;incompatible=true;await assert.rejects(flash(port,p),/erase_required/);assert.equal(writes,0);assert.equal(erases,0);
-  await flash(port,p,{erase:true});assert.equal(erases,1);assert.equal(writes,1);
+  phases.length=0;await flash(port,p,{erase:true,...feedback});assert.equal(erases,1);assert.equal(writes,1);assert.deepEqual(phases,['preparing','connecting','erasing','writing','verifying','restarting']);
   writes=0;incompatible=false;fail=true;await assert.rejects(flash(port,p),error=>error.message==='uncertain_write'&&error.ruviewStage==='flash_failed');assert.equal(writes,1);
   writes=0;fail=false;capacity=24;await assert.rejects(flash(port,p,{erase:true}),/wrong_flash/);assert.equal(writes,0);assert.equal(erases,1,'capacity rejection must precede erase');
   bootFailure=true;await assert.rejects(flash(port,p),error=>error.message==='fixture_sync_failed'&&error.ruviewStage==='bootloader_failed');assert.equal(writes,0);
+  bootFailure=false;capacity=22;verificationFailure=true;phases.length=0;
+  await assert.rejects(flash(port,p,feedback),/write_verify_failed/);assert.equal(phases.at(-1),'verifying','failed verification must not report restart');
  }finally{globalThis.fetch=fetchBefore;for(const undo of restore.reverse())undo();}
 });
