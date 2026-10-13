@@ -31,7 +31,7 @@ type ArtifactFile struct {
 	Resource string `json:"resource,omitempty"`
 	SHA256   string `json:"sha256"`
 	Size     int64  `json:"size"`
-	Offset   int64  `json:"offset,omitempty"`
+	Offset   int64  `json:"offset"` // Address zero is required for browser bootloader validation.
 }
 type NativeArtifact struct {
 	Platform string         `json:"platform"`

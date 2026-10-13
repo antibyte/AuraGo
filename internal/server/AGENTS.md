@@ -360,6 +360,10 @@ Server-owned HTTP and cross-component integration contracts.
   Container interfaces cannot stand in for a Docker host; remote/external
   placement cannot enumerate AuraGo's local interfaces as receiver candidates.
   Verify `TestRuViewBoardSetupIsAdminOnlyAndPassive` and `internal/ruview/TestBoardSetup*`.
+- RuView firmware/capability catalogs and their Desktop aliases must serialize every
+  flash offset, including bootloader address `0`. Browser profile validation requires
+  explicit addresses. Verify `TestRuViewFirmwareResponsesPreserveFlashOffsets` and
+  `ui/TestRuViewSerializedFirmwareCatalogBrowser` against the Go-encoded catalog.
 - `/api/treg/` is admin-only. Connection tests read the saved Vault-backed organization and balance; they never execute a catalog endpoint or accept a token in the request body. Catalog, balance and local status routes share the client policy boundary.
 - Schema-rendered Telegram, Discord, Rocket.Chat, Home Assistant, Proxmox, S3, Frigate, and Ansible sections expose read-only connection tests through the shared registry in `ui/js/config/`.
 - Test actions are enabled only for saved configuration and available Vault-backed credentials. Their backend routes are POST-only and admin-protected; probes must not send messages, execute playbooks, mutate storage, or change remote state.
