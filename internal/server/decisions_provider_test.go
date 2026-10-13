@@ -2,10 +2,14 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -14,6 +18,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/decisions"
 	"aurago/internal/flows"
+	"aurago/internal/security"
 )
 
 type fakeDecisionProvider struct {
@@ -150,67 +155,84 @@ func TestDecisionProviderBudgetAndNoFallback(t *testing.T) {
 }
 
 func TestDecisionProviderRevokesActiveEvaluationAndCatalog(t *testing.T) {
-	for _, catalog := range []bool{false, true} {
-		t.Run(map[bool]string{false: "evaluation", true: "catalog"}[catalog], func(t *testing.T) {
-			s, d, _, remote := routedDecisionFixture(t)
-			started := make(chan struct{})
-			cancelled := make(chan struct{})
-			release := make(chan struct{})
-			finished := make(chan error, 1)
-			wait := func(ctx context.Context) { close(started); <-ctx.Done(); close(cancelled); <-release }
-			if catalog {
-				remote.models = func(ctx context.Context) ([]decisions.DecisionModel, error) {
-					wait(ctx)
-					return []decisions.DecisionModel{{ID: "late"}}, nil
-				}
-			} else {
-				remote.evaluate = func(ctx context.Context) (decisions.Response, error) {
-					wait(ctx)
-					return decisions.Response{Model: "late"}, nil
-				}
-			}
-			go func() {
-				var err error
-				if catalog {
-					_, err = d.Models(context.Background(), "cloud")
-				} else {
-					_, err = d.Evaluate(context.Background(), decisions.Request{})
-				}
-				finished <- err
-			}()
-			<-started
-			if !catalog {
-				if _, err := d.Evaluate(context.Background(), decisions.Request{}); decisions.ErrorCode(err) != decisions.CodeQueueFull || decisions.IsNonRetryable(err) {
-					t.Fatalf("parallel call: %v", err)
-				}
-				_, err := (flowDecisions{s: s}).Evaluate(context.Background(), flows.DecisionRequest{State: "queue check", Questions: []decisions.Question{{ID: "q", Type: "noul", Instructions: "Is capacity free?"}}})
-				var nodeError *flows.NodeError
-				if !errors.As(err, &nodeError) || nodeError.Code != "FLOW_NODE_FAILED" || remote.calls.Load() != 1 {
-					t.Fatalf("admission rejection must remain retryable without an upstream call: %v", err)
-				}
-			}
-			next := *s.Cfg
-			next.Decisions.Enabled = false
-			cleanup, err := d.prepareConfiguration(&next)
-			if err != nil {
-				t.Fatal(err)
-			}
-			select {
-			case <-cancelled:
-			case <-time.After(time.Second):
-				t.Fatal("request not cancelled")
-			}
-			close(release)
-			if err = <-finished; decisions.ErrorCode(err) != "configuration_changed" {
-				t.Fatalf("late response: %v", err)
-			}
-			if err = cleanup(context.Background()); err != nil {
-				t.Fatal(err)
-			}
-			if status := d.Status(); status.Ready || status.State != "disabled" {
-				t.Fatalf("stale status: %+v", status)
-			}
-		})
+	s, d, _, remote := routedDecisionFixture(t)
+	started := make(chan struct{})
+	cancelled := make(chan struct{})
+	release := make(chan struct{})
+	finished := make(chan error, 1)
+	remote.evaluate = func(ctx context.Context) (decisions.Response, error) {
+		close(started)
+		<-ctx.Done()
+		close(cancelled)
+		<-release
+		return decisions.Response{Model: "late"}, nil
+	}
+	go func() {
+		_, err := d.Evaluate(context.Background(), decisions.Request{})
+		finished <- err
+	}()
+	<-started
+	if _, err := d.Evaluate(context.Background(), decisions.Request{}); decisions.ErrorCode(err) != decisions.CodeQueueFull || decisions.IsNonRetryable(err) {
+		t.Fatalf("parallel call: %v", err)
+	}
+	_, err := (flowDecisions{s: s}).Evaluate(context.Background(), flows.DecisionRequest{State: "queue check", Questions: []decisions.Question{{ID: "q", Type: "noul", Instructions: "Is capacity free?"}}})
+	var nodeError *flows.NodeError
+	if !errors.As(err, &nodeError) || nodeError.Code != "FLOW_NODE_FAILED" || remote.calls.Load() != 1 {
+		t.Fatalf("admission rejection must remain retryable without an upstream call: %v", err)
+	}
+	next := *s.Cfg
+	next.Decisions.Enabled = false
+	cleanup, err := d.prepareConfiguration(&next)
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-cancelled:
+	case <-time.After(time.Second):
+		t.Fatal("request not cancelled")
+	}
+	close(release)
+	if err = <-finished; decisions.ErrorCode(err) != "configuration_changed" {
+		t.Fatalf("late response: %v", err)
+	}
+	if err = cleanup(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if status := d.Status(); status.Ready || status.State != "disabled" {
+		t.Fatalf("stale status: %+v", status)
+	}
+}
+
+func TestDecisionProviderDisableCancelsActiveCatalog(t *testing.T) {
+	_, d, _, remote := routedDecisionFixture(t)
+	started, cancelled, release := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	finished := make(chan error, 1)
+	remote.models = func(ctx context.Context) ([]decisions.DecisionModel, error) {
+		close(started)
+		<-ctx.Done()
+		close(cancelled)
+		<-release
+		return []decisions.DecisionModel{{ID: "late"}}, nil
+	}
+	go func() { _, err := d.Models(context.Background(), "cloud"); finished <- err }()
+	<-started
+	next := *d.server.ConfigSnapshot()
+	next.Decisions.Enabled = false
+	cleanup, err := d.prepareConfiguration(&next)
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-cancelled:
+	case <-time.After(time.Second):
+		t.Fatal("disabling Decisions did not cancel its active model catalog request")
+	}
+	close(release)
+	if err := <-finished; decisions.ErrorCode(err) != "configuration_changed" {
+		t.Fatalf("disabled catalog result code: %s", decisions.ErrorCode(err))
+	}
+	if err := cleanup(context.Background()); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -234,6 +256,36 @@ func TestDecisionProviderKeyAndShutdown(t *testing.T) {
 	}
 	if _, err = d.Models(context.Background(), "cloud"); decisions.ErrorCode(err) != decisions.CodeServiceNotReady {
 		t.Fatalf("shutdown catalog: %v", err)
+	}
+}
+
+func TestDecisionProviderPublicCatalogWithoutAPIKey(t *testing.T) {
+	s, d, _, remote := routedDecisionFixture(t)
+	next := *s.Cfg
+	next.Providers = append([]config.ProviderEntry(nil), next.Providers...)
+	next.Providers[0].APIKey = ""
+	cleanup, err := d.prepareConfiguration(&next)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := cleanup(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	s.Cfg = &next
+	s.cfgSnapshot.Store(&next)
+	usedEmptyKey := false
+	d.newClient = func(_ string, key string) (decisionProviderClient, error) {
+		usedEmptyKey = key == ""
+		return remote, nil
+	}
+	if _, err := d.Models(context.Background(), "cloud"); err != nil {
+		t.Fatalf("public catalog unavailable without an API key: %v", err)
+	}
+	if !usedEmptyKey || remote.catalogCalls.Load() != 1 {
+		t.Fatal("public catalog did not use the unauthenticated client")
+	}
+	if _, err := d.Evaluate(context.Background(), decisions.Request{}); decisions.ErrorCode(err) != "provider_key_missing" || remote.calls.Load() != 0 {
+		t.Fatalf("evaluation without credentials must remain blocked: %v", err)
 	}
 }
 
@@ -277,5 +329,324 @@ func TestDecisionProviderCallerCancellationRemainsCancellation(t *testing.T) {
 	}
 	if got := decisionsFailureCode(decisionProviderError{decisions.NewError(decisions.CodeExternalOutcomeUnknown, context.DeadlineExceeded)}); got != decisions.CodeExternalOutcomeUnknown {
 		t.Fatalf("lost unknown billed outcome: %s", got)
+	}
+}
+
+func putDecisionOAuthToken(t *testing.T, s *Server, providerID, access, refresh string) {
+	t.Helper()
+	if s.Vault == nil {
+		vault, err := security.NewVault(strings.Repeat("a", 64), filepath.Join(t.TempDir(), "vault.bin"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.Vault = vault
+	}
+	raw, err := json.Marshal(config.OAuthToken{AccessToken: access, RefreshToken: refresh, TokenType: "Bearer"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Vault.WriteSecret("oauth_"+providerID, string(raw)); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func configureDecisionOAuth(t *testing.T, s *Server, d *routedDecisions, access string) {
+	t.Helper()
+	provider := s.Cfg.FindProvider("cloud")
+	if provider == nil {
+		t.Fatal("cloud provider missing")
+	}
+	provider.AuthType = "oauth2"
+	provider.APIKey = "stale-hydrated-config-token-must-not-be-used"
+	putDecisionOAuthToken(t, s, "cloud", access, "refresh-token-cloud-1")
+}
+
+func TestDecisionProviderOAuthCredentialsResolveFromVaultForEvaluateAndModels(t *testing.T) {
+	s, d, _, remote := routedDecisionFixture(t)
+	access := "oauth-access-token-decisions-evaluate-and-models-20261013"
+	configureDecisionOAuth(t, s, d, access)
+	var keys []string
+	d.newOAuthClient = nil // exercise an injected client while retaining the scoped scrubber lease
+	d.newClient = func(_, key string) (decisionProviderClient, error) {
+		keys = append(keys, key)
+		return remote, nil
+	}
+	d.generation.cancel()
+	d.generation = d.newGeneration(s.Cfg)
+	if status := d.Status(); !status.Configured || status.Code != "" {
+		t.Fatalf("OAuth route was not configured from Vault: %+v", status)
+	}
+	if _, err := d.Models(context.Background(), "cloud"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.Evaluate(context.Background(), decisions.Request{}); err != nil {
+		t.Fatal(err)
+	}
+	if len(keys) != 2 || keys[0] != access || keys[1] != access {
+		t.Fatalf("OAuth credential was not applied to both route and catalog clients (clients=%d)", len(keys))
+	}
+	if got := security.Scrub(access); got == access {
+		t.Fatal("active OAuth credential was not scrubbed")
+	}
+	if err := d.Shutdown(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if got := security.Scrub(access); got != access {
+		t.Fatal("OAuth credential remained in the process-wide scrubber after shutdown")
+	}
+}
+
+func TestDecisionProviderOAuthModelsWorkWhileLocalDecisionsAreDisabled(t *testing.T) {
+	s, d, _, remote := routedDecisionFixture(t)
+	access := "oauth-access-token-model-catalog-while-local-disabled-20261013"
+	configureDecisionOAuth(t, s, d, access)
+	next := *s.Cfg
+	next.Decisions.Backend = "local"
+	next.Decisions.Enabled = false
+	cleanup, err := d.prepareConfiguration(&next)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := cleanup(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	s.Cfg = &next
+	s.cfgSnapshot.Store(&next)
+	var usedKey string
+	d.newClient = func(_, key string) (decisionProviderClient, error) {
+		usedKey = key
+		return remote, nil
+	}
+	if _, err := d.Models(context.Background(), "cloud"); err != nil {
+		t.Fatal(err)
+	}
+	if usedKey != access || remote.catalogCalls.Load() != 1 || remote.calls.Load() != 0 {
+		t.Fatalf("local/disabled catalog did not use its configured OAuth credential or made an inference (catalog calls=%d evals=%d)", remote.catalogCalls.Load(), remote.calls.Load())
+	}
+}
+
+func TestDecisionProviderOAuthRotationCancelsOnlyMatchingProviderWork(t *testing.T) {
+	s, d, _, first := routedDecisionFixture(t)
+	accessV1 := "oauth-access-token-v1-decisions-rotation-20261013"
+	accessV2 := "oauth-access-token-v2-decisions-rotation-20261013"
+	configureDecisionOAuth(t, s, d, accessV1)
+	other := config.ProviderEntry{ID: "other", Type: "openrouter", BaseURL: "https://openrouter.ai/api/v1", APIKey: "other-static-key"}
+	s.Cfg.Providers = append(s.Cfg.Providers, other)
+	otherClient := &fakeDecisionProvider{}
+	second := &fakeDecisionProvider{}
+	var keyMu sync.Mutex
+	var observedKeys []string
+	d.newOAuthClient = nil
+	d.newClient = func(_, key string) (decisionProviderClient, error) {
+		keyMu.Lock()
+		observedKeys = append(observedKeys, key)
+		keyMu.Unlock()
+		switch key {
+		case accessV1:
+			return first, nil
+		case accessV2:
+			return second, nil
+		case other.APIKey:
+			return otherClient, nil
+		default:
+			return nil, errors.New("unexpected test credential")
+		}
+	}
+	d.generation.cancel()
+	d.generation = d.newGeneration(s.Cfg)
+
+	firstEvalStarted, firstEvalCanceled := make(chan struct{}), make(chan struct{})
+	firstModelsStarted, firstModelsCanceled := make(chan struct{}), make(chan struct{})
+	otherStarted, otherCanceled := make(chan struct{}), make(chan struct{})
+	releaseFirst, releaseOther := make(chan struct{}), make(chan struct{})
+	var releaseFirstOnce, releaseOtherOnce sync.Once
+	defer func() {
+		releaseFirstOnce.Do(func() { close(releaseFirst) })
+		releaseOtherOnce.Do(func() { close(releaseOther) })
+	}()
+	first.evaluate = func(ctx context.Context) (decisions.Response, error) {
+		close(firstEvalStarted)
+		<-ctx.Done()
+		close(firstEvalCanceled)
+		<-releaseFirst
+		return decisions.Response{}, nil
+	}
+	first.models = func(ctx context.Context) ([]decisions.DecisionModel, error) {
+		close(firstModelsStarted)
+		<-ctx.Done()
+		close(firstModelsCanceled)
+		<-releaseFirst
+		return []decisions.DecisionModel{{ID: "late-cloud"}}, nil
+	}
+	otherClient.models = func(ctx context.Context) ([]decisions.DecisionModel, error) {
+		close(otherStarted)
+		select {
+		case <-ctx.Done():
+			close(otherCanceled)
+			return nil, ctx.Err()
+		case <-releaseOther:
+			return []decisions.DecisionModel{{ID: "other-model"}}, nil
+		}
+	}
+	finishedEval, finishedCloudModels, finishedOtherModels := make(chan error, 1), make(chan error, 1), make(chan error, 1)
+	go func() { _, err := d.Evaluate(context.Background(), decisions.Request{}); finishedEval <- err }()
+	go func() { _, err := d.Models(context.Background(), "cloud"); finishedCloudModels <- err }()
+	go func() { _, err := d.Models(context.Background(), "other"); finishedOtherModels <- err }()
+	<-firstEvalStarted
+	<-firstModelsStarted
+	<-otherStarted
+	if err := s.Vault.WriteSecret("oauth_cloud", `{"access_token":"`+accessV2+`","refresh_token":"refresh-token-cloud-2","token_type":"Bearer"}`); err != nil {
+		t.Fatal(err)
+	}
+	previous := s.ConfigSnapshot()
+	next := *previous
+	s.reconfigureDecisions(previous, &next)
+	for _, cancelled := range []<-chan struct{}{firstEvalCanceled, firstModelsCanceled} {
+		select {
+		case <-cancelled:
+		case <-time.After(time.Second):
+			t.Fatal("rotated OAuth credential did not cancel its active call")
+		}
+	}
+	select {
+	case <-otherCanceled:
+		t.Fatal("rotating cloud credentials cancelled an unrelated provider catalog call")
+	case <-time.After(40 * time.Millisecond):
+	}
+	releaseOtherOnce.Do(func() { close(releaseOther) })
+	if err := <-finishedOtherModels; err != nil {
+		t.Fatalf("unrelated provider catalog did not complete: %v", err)
+	}
+	releaseFirstOnce.Do(func() { close(releaseFirst) })
+	if err := <-finishedEval; decisions.ErrorCode(err) != "configuration_changed" {
+		t.Fatalf("rotated evaluation result: %v", err)
+	}
+	if err := <-finishedCloudModels; decisions.ErrorCode(err) != "configuration_changed" {
+		t.Fatalf("rotated catalog result: %v", err)
+	}
+	if _, err := d.Evaluate(context.Background(), decisions.Request{}); err != nil {
+		t.Fatalf("evaluation with rotated token: %v", err)
+	}
+	keyMu.Lock()
+	defer keyMu.Unlock()
+	foundV2 := false
+	for _, key := range observedKeys {
+		if key == accessV2 {
+			foundV2 = true
+		}
+	}
+	if !foundV2 {
+		t.Fatalf("new provider generation did not receive the rotated token (clients=%d)", len(observedKeys))
+	}
+}
+
+func TestDecisionProviderOAuthRevokeInvalidatesRoute(t *testing.T) {
+	s, d, _, remote := routedDecisionFixture(t)
+	access := "oauth-access-token-for-explicit-revoke-20261013"
+	configureDecisionOAuth(t, s, d, access)
+	d.newOAuthClient = nil
+	d.newClient = func(_, _ string) (decisionProviderClient, error) { return remote, nil }
+	d.generation.cancel()
+	d.generation = d.newGeneration(s.Cfg)
+	started, cancelled, release := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	finished := make(chan error, 1)
+	remote.evaluate = func(ctx context.Context) (decisions.Response, error) {
+		close(started)
+		<-ctx.Done()
+		close(cancelled)
+		<-release
+		return decisions.Response{}, nil
+	}
+	go func() { _, err := d.Evaluate(context.Background(), decisions.Request{}); finished <- err }()
+	<-started
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodDelete, "/api/oauth/revoke?provider=cloud", nil)
+	handleOAuthRevoke(s).ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("revoke response %d %s", w.Code, w.Body.String())
+	}
+	select {
+	case <-cancelled:
+	case <-time.After(time.Second):
+		t.Fatal("revocation did not cancel the active provider request")
+	}
+	close(release)
+	if err := <-finished; decisions.ErrorCode(err) != "configuration_changed" {
+		t.Fatalf("revoked request result: %v", err)
+	}
+	if status := d.Status(); status.Code != "provider_key_missing" || status.Configured {
+		t.Fatalf("revoked provider remained usable: %+v", status)
+	}
+	if _, err := d.Models(context.Background(), "cloud"); decisions.ErrorCode(err) != "provider_key_missing" {
+		t.Fatalf("revoked catalog credential: %v", err)
+	}
+}
+
+func TestOAuthRevokeReportsVaultDeleteFailure(t *testing.T) {
+	s, d, _, _ := routedDecisionFixture(t)
+	provider := s.Cfg.FindProvider("cloud")
+	provider.AuthType = "oauth2"
+	access := "oauth-access-token-revoke-delete-failure-20261013"
+	vaultPath := filepath.Join(t.TempDir(), "vault.bin")
+	vault, err := security.NewVault(strings.Repeat("b", 64), vaultPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Vault = vault
+	putDecisionOAuthToken(t, s, "cloud", access, "refresh-token-cloud")
+	d.newOAuthClient = nil
+	d.newClient = func(_, _ string) (decisionProviderClient, error) { return &fakeDecisionProvider{}, nil }
+	d.generation.cancel()
+	d.generation = d.newGeneration(s.Cfg)
+	if !d.Status().Configured {
+		t.Fatal("test OAuth provider was not configured")
+	}
+	if err := os.WriteFile(vaultPath, []byte("corrupted vault data"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodDelete, "/api/oauth/revoke?provider=cloud", nil)
+	handleOAuthRevoke(s).ServeHTTP(w, r)
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("revoke reported success after vault deletion failed: status=%d", w.Code)
+	}
+	if !d.Status().Configured {
+		t.Fatal("failed Vault deletion still invalidated the active Decisions credential")
+	}
+}
+
+type trackingLocalDecisions struct {
+	fakeDecisions
+	prepareCalls atomic.Int32
+	autoStarts   atomic.Int32
+}
+
+func (d *trackingLocalDecisions) PrepareReconfigure(config.DecisionsConfig) (func(context.Context) error, error) {
+	d.prepareCalls.Add(1)
+	return func(context.Context) error { return nil }, nil
+}
+
+func (d *trackingLocalDecisions) AutoStart(context.Context) error {
+	d.autoStarts.Add(1)
+	return nil
+}
+
+func TestUnrelatedProviderEditDoesNotReconfigureOrAutostartLocalDecisions(t *testing.T) {
+	s, _ := decisionsServerFixture(t)
+	s.Cfg.Providers = []config.ProviderEntry{{ID: "one", Type: "openrouter", BaseURL: "https://openrouter.ai/api/v1", APIKey: "static-provider-key"}}
+	s.cfgSnapshot.Store(s.Cfg)
+	local := &trackingLocalDecisions{fakeDecisions: fakeDecisions{status: decisions.Status{Enabled: true, Installed: true, Ready: false, State: "stopped"}}}
+	d := &routedDecisions{server: s, local: local, busy: make(chan struct{}, 1), newClient: func(string, string) (decisionProviderClient, error) {
+		return &fakeDecisionProvider{}, nil
+	}}
+	d.generation = d.newGeneration(s.Cfg)
+	s.Decisions = d
+	previous := s.ConfigSnapshot()
+	next := *previous
+	next.Providers = append([]config.ProviderEntry(nil), previous.Providers...)
+	next.Providers[0].Name = "renamed provider profile"
+	s.reconfigureDecisions(previous, &next)
+	if local.prepareCalls.Load() != 0 || local.autoStarts.Load() != 0 {
+		t.Fatalf("unrelated provider edit reconfigured local lifecycle: prepare=%d autostart=%d", local.prepareCalls.Load(), local.autoStarts.Load())
 	}
 }

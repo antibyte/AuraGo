@@ -60,8 +60,10 @@ type DecisionModelPricing struct {
 // OpenRouterClient talks only to OpenRouter's canonical HTTPS API origin.
 // Models may be listed without a key; Evaluate always requires one.
 type OpenRouterClient struct {
-	apiKey     string
-	httpClient *http.Client
+	apiKey            string
+	httpClient        *http.Client
+	releaseCredential func()
+	closeOnce         sync.Once
 
 	cacheMu  sync.RWMutex
 	models   []DecisionModel
@@ -71,15 +73,31 @@ type OpenRouterClient struct {
 // NewOpenRouterClient validates the optional base URL and creates a bounded
 // HTTP client. A blank key permits public model-catalog browsing only.
 func NewOpenRouterClient(baseURL, apiKey string) (*OpenRouterClient, error) {
+	return newOpenRouterClient(baseURL, apiKey, false)
+}
+
+// NewOpenRouterClientScoped keeps a short-lived credential in the exact-match
+// scrubber registry only while its owner retains this client. Call Close after
+// requests using the client have drained.
+func NewOpenRouterClientScoped(baseURL, apiKey string) (*OpenRouterClient, error) {
+	return newOpenRouterClient(baseURL, apiKey, true)
+}
+
+func newOpenRouterClient(baseURL, apiKey string, scopedCredential bool) (*OpenRouterClient, error) {
 	if _, err := canonicalOpenRouterBase(baseURL); err != nil {
 		return nil, err
 	}
 	apiKey = strings.TrimSpace(apiKey)
+	var releaseCredential func()
 	if apiKey != "" {
-		security.RegisterSensitive(apiKey)
+		if scopedCredential {
+			releaseCredential = security.RegisterScopedSensitiveExact(apiKey)
+		} else {
+			security.RegisterSensitive(apiKey)
+		}
 	}
 	return &OpenRouterClient{
-		apiKey: apiKey,
+		apiKey: apiKey, releaseCredential: releaseCredential,
 		httpClient: &http.Client{
 			Timeout: openRouterHTTPTimeout,
 			CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
@@ -87,6 +105,18 @@ func NewOpenRouterClient(baseURL, apiKey string) (*OpenRouterClient, error) {
 			},
 		},
 	}, nil
+}
+
+// Close releases any scoped credential registration held by the client.
+func (client *OpenRouterClient) Close() {
+	if client == nil {
+		return
+	}
+	client.closeOnce.Do(func() {
+		if client.releaseCredential != nil {
+			client.releaseCredential()
+		}
+	})
 }
 
 func canonicalOpenRouterBase(baseURL string) (string, error) {

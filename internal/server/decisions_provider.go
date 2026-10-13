@@ -2,13 +2,17 @@ package server
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"errors"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/decisions"
+	"aurago/internal/security"
 )
 
 type decisionProviderClient interface {
@@ -22,13 +26,25 @@ func (e decisionProviderError) Unwrap() error        { return e.error }
 func (e decisionProviderError) IsNonRetryable() bool { return true }
 
 type decisionProviderGeneration struct {
-	ctx      context.Context
-	cancel   context.CancelFunc
-	active   sync.WaitGroup
-	settings config.DecisionsConfig
-	provider config.ProviderEntry
-	client   decisionProviderClient
-	status   decisions.Status
+	ctx                   context.Context
+	cancel                context.CancelFunc
+	active                sync.WaitGroup
+	settings              config.DecisionsConfig
+	provider              config.ProviderEntry
+	credentialFingerprint [32]byte
+	client                decisionProviderClient
+	releaseCredential     func()
+	status                decisions.Status
+}
+
+type decisionCatalogGeneration struct {
+	ctx                   context.Context
+	cancel                context.CancelFunc
+	active                sync.WaitGroup
+	provider              config.ProviderEntry
+	credentialFingerprint [32]byte
+	client                decisionProviderClient
+	releaseCredential     func()
 }
 
 // routedDecisions keeps provider work outside the managed local runtime's lifecycle.
@@ -37,14 +53,21 @@ type routedDecisions struct {
 	server     *Server
 	mu         sync.Mutex
 	generation *decisionProviderGeneration
-	closed     bool
-	busy       chan struct{}
-	newClient  func(string, string) (decisionProviderClient, error)
+	catalogs   map[string]*decisionCatalogGeneration
+	// catalogActive covers requests detached by a config change as well as
+	// current catalog generations. Shutdown closes admission before waiting.
+	catalogActive  sync.WaitGroup
+	closed         bool
+	busy           chan struct{}
+	newClient      func(string, string) (decisionProviderClient, error)
+	newOAuthClient func(string, string) (decisionProviderClient, error)
 }
 
 func newRoutedDecisions(s *Server, local decisionsService, cfg *config.Config) *routedDecisions {
-	d := &routedDecisions{local: local, server: s, busy: make(chan struct{}, 1), newClient: func(base, key string) (decisionProviderClient, error) {
+	d := &routedDecisions{local: local, server: s, busy: make(chan struct{}, 1), catalogs: make(map[string]*decisionCatalogGeneration), newClient: func(base, key string) (decisionProviderClient, error) {
 		return decisions.NewOpenRouterClient(base, key)
+	}, newOAuthClient: func(base, key string) (decisionProviderClient, error) {
+		return decisions.NewOpenRouterClientScoped(base, key)
 	}}
 	d.generation = d.newGeneration(cfg)
 	return d
@@ -64,7 +87,7 @@ func (d *routedDecisions) newGeneration(cfg *config.Config) *decisionProviderGen
 		return g
 	}
 	if p := cfg.FindProvider(g.settings.Provider); p != nil {
-		g.provider = *p
+		g.provider = decisionProviderProfile(*p)
 	}
 	g.status = decisions.Status{Enabled: g.settings.Enabled, Backend: "provider", Deployment: "provider", Provider: g.settings.Provider, Model: g.settings.Model, State: "configured"}
 	if !g.settings.Enabled {
@@ -77,24 +100,138 @@ func (d *routedDecisions) newGeneration(cfg *config.Config) *decisionProviderGen
 		g.status.Code = "provider_not_configured"
 		return g
 	}
-	key := g.provider.APIKey
-	if key == "" && d.server.Vault != nil {
-		key, _ = d.server.Vault.ReadSecret("provider_" + g.provider.ID + "_api_key")
+	provider := cfg.FindProvider(g.settings.Provider)
+	if provider == nil {
+		g.status.State = "needs_setup"
+		g.status.Code = "provider_not_configured"
+		return g
 	}
+	key, fingerprint := decisionProviderCredential(d.server, *provider)
+	g.credentialFingerprint = fingerprint
 	if key == "" {
 		g.status.State = "needs_setup"
 		g.status.Code = "provider_key_missing"
 		return g
 	}
-	client, err := d.newClient(g.provider.BaseURL, key)
+	client, releaseCredential, err := d.newProviderClient(g.provider, key)
 	if err != nil {
 		g.status.State = "needs_setup"
 		g.status.Code = decisions.ErrorCode(err)
 		return g
 	}
 	g.client = client
+	g.releaseCredential = releaseCredential
 	g.status.Configured = true
 	return g
+}
+
+// decisionProviderCredential keeps OAuth credentials in the Vault-backed
+// credential path. Provider APIKey is intentionally ignored for OAuth profiles
+// because ApplyOAuthTokens also hydrates general LLM config snapshots.
+func decisionProviderCredential(s *Server, provider config.ProviderEntry) (string, [32]byte) {
+	var key string
+	var fingerprintSource string
+	if normalizeProviderAuthType(provider.AuthType) == "oauth2" {
+		if s != nil && s.Vault != nil {
+			if raw, err := s.Vault.ReadSecret("oauth_" + provider.ID); err == nil {
+				fingerprintSource = raw
+				var token config.OAuthToken
+				if json.Unmarshal([]byte(raw), &token) == nil {
+					key = strings.TrimSpace(token.AccessToken)
+				}
+			}
+		}
+	} else {
+		key = strings.TrimSpace(provider.APIKey)
+		if key == "" && s != nil && s.Vault != nil {
+			key, _ = s.Vault.ReadSecret("provider_" + provider.ID + "_api_key")
+			key = strings.TrimSpace(key)
+		}
+		fingerprintSource = key
+	}
+	return key, sha256.Sum256([]byte(fingerprintSource))
+}
+
+func (d *routedDecisions) newProviderClient(provider config.ProviderEntry, key string) (decisionProviderClient, func(), error) {
+	if normalizeProviderAuthType(provider.AuthType) == "oauth2" {
+		var client decisionProviderClient
+		var err error
+		if d.newOAuthClient != nil {
+			client, err = d.newOAuthClient(provider.BaseURL, key)
+		} else if d.newClient != nil {
+			client, err = d.newClient(provider.BaseURL, key)
+		} else {
+			err = errors.New("OAuth Decisions client is not configured")
+		}
+		if err != nil {
+			return nil, nil, err
+		}
+		if closer, ok := client.(interface{ Close() }); ok {
+			return client, onceDecisionCredentialRelease(closer.Close), nil
+		}
+		return client, onceDecisionCredentialRelease(security.RegisterScopedSensitiveExact(key)), nil
+	}
+	if d.newClient == nil {
+		return nil, nil, errors.New("Decisions provider client is not configured")
+	}
+	client, err := d.newClient(provider.BaseURL, key)
+	return client, nil, err
+}
+
+func onceDecisionCredentialRelease(release func()) func() {
+	var once sync.Once
+	return func() {
+		once.Do(release)
+	}
+}
+
+func releaseDecisionCredentialWhenDrained(active *sync.WaitGroup, release func()) {
+	if release == nil {
+		return
+	}
+	go func() {
+		active.Wait()
+		release()
+	}()
+}
+
+func decisionProviderProfile(provider config.ProviderEntry) config.ProviderEntry {
+	provider.APIKey = ""
+	return provider
+}
+
+func decisionProviderProfilesEqual(a, b config.ProviderEntry) bool {
+	return reflect.DeepEqual(decisionProviderProfile(a), decisionProviderProfile(b))
+}
+
+// configurationChanged compares the active route with the effective next
+// route, including Vault-only credential rotation.
+func (d *routedDecisions) configurationChanged(cfg *config.Config) bool {
+	if cfg == nil {
+		return true
+	}
+	settings := cfg.Decisions.Normalize()
+	d.mu.Lock()
+	current := d.generation
+	if current == nil || current.settings != settings {
+		d.mu.Unlock()
+		return true
+	}
+	provider := current.provider
+	credentialFingerprint := current.credentialFingerprint
+	d.mu.Unlock()
+	if settings.Backend != "provider" {
+		return false
+	}
+	if !settings.Enabled {
+		return false
+	}
+	next := cfg.FindProvider(settings.Provider)
+	if next == nil || !decisionProviderProfilesEqual(provider, *next) {
+		return true
+	}
+	_, nextFingerprint := decisionProviderCredential(d.server, *next)
+	return credentialFingerprint != nextFingerprint
 }
 
 func (d *routedDecisions) Status() decisions.Status {
@@ -206,55 +343,157 @@ func (d *routedDecisions) Models(ctx context.Context, providerID string) ([]deci
 		d.mu.Unlock()
 		return nil, decisions.NewError(decisions.CodeServiceNotReady, nil)
 	}
-	g := d.generation
 	cfg := d.server.ConfigSnapshot()
 	p := cfg.FindProvider(providerID)
 	if p == nil || !strings.EqualFold(strings.TrimSpace(p.Type), "openrouter") {
 		d.mu.Unlock()
 		return nil, decisions.NewError("provider_not_configured", nil)
 	}
-	key := p.APIKey
-	if key == "" && d.server.Vault != nil {
-		key, _ = d.server.Vault.ReadSecret("provider_" + p.ID + "_api_key")
-	}
-	client, err := d.newClient(p.BaseURL, key)
-	if err != nil {
+	profile := decisionProviderProfile(*p)
+	key, credentialFingerprint := decisionProviderCredential(d.server, *p)
+	if key == "" && normalizeProviderAuthType(p.AuthType) == "oauth2" {
 		d.mu.Unlock()
-		return nil, err
+		return nil, decisions.NewError("provider_key_missing", nil)
+	}
+	if d.catalogs == nil {
+		d.catalogs = make(map[string]*decisionCatalogGeneration)
+	}
+	g := d.catalogs[p.ID]
+	if g == nil || !decisionProviderProfilesEqual(g.provider, profile) || g.credentialFingerprint != credentialFingerprint {
+		client, releaseCredential, err := d.newProviderClient(*p, key)
+		if err != nil {
+			d.mu.Unlock()
+			return nil, err
+		}
+		if g != nil {
+			g.cancel()
+			releaseDecisionCredentialWhenDrained(&g.active, g.releaseCredential)
+		}
+		genCtx, cancel := context.WithCancel(context.Background())
+		g = &decisionCatalogGeneration{ctx: genCtx, cancel: cancel, provider: profile, credentialFingerprint: credentialFingerprint, client: client, releaseCredential: releaseCredential}
+		d.catalogs[p.ID] = g
 	}
 	g.active.Add(1)
+	d.catalogActive.Add(1)
 	d.mu.Unlock()
-	defer g.active.Done()
+	defer func() { g.active.Done(); d.catalogActive.Done() }()
 	callCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	stop := context.AfterFunc(g.ctx, cancel)
 	defer func() { stop(); cancel() }()
 	if g.ctx.Err() != nil {
 		cancel()
 	}
-	models, err := client.Models(callCtx)
+	models, err := g.client.Models(callCtx)
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if d.generation != g || g.ctx.Err() != nil || d.closed {
+	if d.catalogs[p.ID] != g || g.ctx.Err() != nil || d.closed {
 		return nil, decisions.NewError("configuration_changed", context.Canceled)
 	}
 	return models, err
 }
 
 func waitDecisionGeneration(ctx context.Context, g *decisionProviderGeneration) error {
-	done := make(chan struct{})
-	go func() { g.active.Wait(); close(done) }()
-	select {
-	case <-done:
+	err := waitDecisionGroup(ctx, &g.active)
+	if err == nil && g.releaseCredential != nil {
+		g.releaseCredential()
+	}
+	return err
+}
+
+func waitDecisionCatalogGeneration(ctx context.Context, g *decisionCatalogGeneration) error {
+	err := waitDecisionGroup(ctx, &g.active)
+	if err == nil && g.releaseCredential != nil {
+		g.releaseCredential()
+	}
+	return err
+}
+
+// prepareCatalogConfiguration revokes only model lookups tied to a provider
+// whose saved profile or effective credential changed.
+func (d *routedDecisions) prepareCatalogConfiguration(cfg *config.Config) func(context.Context) error {
+	d.mu.Lock()
+	var retired []*decisionCatalogGeneration
+	for id, current := range d.catalogs {
+		provider := cfg.FindProvider(id)
+		if provider == nil || !strings.EqualFold(strings.TrimSpace(provider.Type), "openrouter") {
+			current.cancel()
+			releaseDecisionCredentialWhenDrained(&current.active, current.releaseCredential)
+			delete(d.catalogs, id)
+			retired = append(retired, current)
+			continue
+		}
+		_, fingerprint := decisionProviderCredential(d.server, *provider)
+		if !decisionProviderProfilesEqual(current.provider, decisionProviderProfile(*provider)) || current.credentialFingerprint != fingerprint {
+			current.cancel()
+			releaseDecisionCredentialWhenDrained(&current.active, current.releaseCredential)
+			delete(d.catalogs, id)
+			retired = append(retired, current)
+		}
+	}
+	d.mu.Unlock()
+	if len(retired) == 0 {
 		return nil
-	case <-ctx.Done():
-		return ctx.Err()
+	}
+	return func(ctx context.Context) error {
+		return waitDecisionCatalogs(ctx, retired)
+	}
+}
+
+// invalidateProvider immediately revokes active route/catalog calls after an
+// OAuth token is deleted outside normal config snapshot publication.
+func (d *routedDecisions) invalidateProvider(providerID string) func(context.Context) error {
+	d.mu.Lock()
+	var oldRoute *decisionProviderGeneration
+	if d.generation.settings.Backend == "provider" && d.generation.settings.Provider == providerID {
+		oldRoute = d.generation
+		oldRoute.cancel()
+		releaseDecisionCredentialWhenDrained(&oldRoute.active, oldRoute.releaseCredential)
+		cfg := d.server.ConfigSnapshot()
+		d.generation = d.newGeneration(cfg)
+		if d.closed {
+			d.generation.cancel()
+		}
+	}
+	var oldCatalog *decisionCatalogGeneration
+	if d.catalogs != nil {
+		oldCatalog = d.catalogs[providerID]
+		if oldCatalog != nil {
+			oldCatalog.cancel()
+			releaseDecisionCredentialWhenDrained(&oldCatalog.active, oldCatalog.releaseCredential)
+			delete(d.catalogs, providerID)
+		}
+	}
+	d.mu.Unlock()
+	if oldRoute == nil && oldCatalog == nil {
+		return nil
+	}
+	return func(ctx context.Context) error {
+		var errs []error
+		if oldRoute != nil {
+			errs = append(errs, waitDecisionGeneration(ctx, oldRoute))
+		}
+		if oldCatalog != nil {
+			errs = append(errs, waitDecisionCatalogGeneration(ctx, oldCatalog))
+		}
+		return errors.Join(errs...)
 	}
 }
 
 func (d *routedDecisions) prepareConfiguration(cfg *config.Config) (func(context.Context) error, error) {
 	d.mu.Lock()
 	old := d.generation
+	policyChanged := old.settings != cfg.Decisions.Normalize()
+	var retiredCatalogs []*decisionCatalogGeneration
+	if policyChanged {
+		for providerID, catalog := range d.catalogs {
+			catalog.cancel()
+			releaseDecisionCredentialWhenDrained(&catalog.active, catalog.releaseCredential)
+			retiredCatalogs = append(retiredCatalogs, catalog)
+			delete(d.catalogs, providerID)
+		}
+	}
 	old.cancel()
+	releaseDecisionCredentialWhenDrained(&old.active, old.releaseCredential)
 	d.generation = d.newGeneration(cfg)
 	if d.closed {
 		d.generation.cancel()
@@ -264,7 +503,9 @@ func (d *routedDecisions) prepareConfiguration(cfg *config.Config) (func(context
 	if err != nil {
 		return nil, err
 	}
-	return func(ctx context.Context) error { return errors.Join(waitDecisionGeneration(ctx, old), cleanup(ctx)) }, nil
+	return func(ctx context.Context) error {
+		return errors.Join(waitDecisionGeneration(ctx, old), waitDecisionCatalogs(ctx, retiredCatalogs), cleanup(ctx))
+	}, nil
 }
 
 func (d *routedDecisions) PrepareReconfigure(c config.DecisionsConfig) (func(context.Context) error, error) {
@@ -305,9 +546,36 @@ func (d *routedDecisions) Shutdown(ctx context.Context) error {
 	d.closed = true
 	g := d.generation
 	g.cancel()
+	releaseDecisionCredentialWhenDrained(&g.active, g.releaseCredential)
 	g.status.Ready = false
 	g.status.State = "unavailable"
 	g.status.Code = decisions.CodeServiceNotReady
+	var catalogs []*decisionCatalogGeneration
+	for id, catalog := range d.catalogs {
+		catalog.cancel()
+		releaseDecisionCredentialWhenDrained(&catalog.active, catalog.releaseCredential)
+		catalogs = append(catalogs, catalog)
+		delete(d.catalogs, id)
+	}
 	d.mu.Unlock()
-	return errors.Join(waitDecisionGeneration(ctx, g), d.local.Shutdown(ctx))
+	return errors.Join(waitDecisionGeneration(ctx, g), waitDecisionCatalogs(ctx, catalogs), waitDecisionGroup(ctx, &d.catalogActive), d.local.Shutdown(ctx))
+}
+
+func waitDecisionCatalogs(ctx context.Context, generations []*decisionCatalogGeneration) error {
+	var errs []error
+	for _, generation := range generations {
+		errs = append(errs, waitDecisionCatalogGeneration(ctx, generation))
+	}
+	return errors.Join(errs...)
+}
+
+func waitDecisionGroup(ctx context.Context, group *sync.WaitGroup) error {
+	done := make(chan struct{})
+	go func() { group.Wait(); close(done) }()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }

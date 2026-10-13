@@ -329,15 +329,27 @@ func handleOAuthRevoke(s *Server) http.HandlerFunc {
 		}
 
 		if s.Vault != nil {
-			_ = s.Vault.DeleteSecret("oauth_" + providerID)
+			if err := s.Vault.DeleteSecret("oauth_" + providerID); err != nil {
+				jsonError(w, "Could not revoke OAuth token", http.StatusInternalServerError)
+				return
+			}
 		}
 
-		// Clear the live token
+		// Publish a copied snapshot so request paths never race a mutation of
+		// the immutable runtime configuration pointer.
 		s.CfgMu.Lock()
-		if p := s.Cfg.FindProvider(providerID); p != nil && p.AuthType == "oauth2" {
-			p.APIKey = ""
+		current := s.ConfigSnapshot()
+		if current != nil {
+			updated := *current
+			updated.Providers = append([]config.ProviderEntry(nil), current.Providers...)
+			if p := updated.FindProvider(providerID); p != nil && normalizeProviderAuthType(p.AuthType) == "oauth2" {
+				p.APIKey = ""
+			}
+			s.Cfg = &updated
+			s.cfgSnapshot.Store(&updated)
 		}
 		s.CfgMu.Unlock()
+		s.invalidateDecisionsProvider(providerID)
 
 		s.Logger.Info("[OAuth] Token revoked", "provider", providerID)
 

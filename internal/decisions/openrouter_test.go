@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"aurago/internal/security"
 )
 
 type openRouterRoundTripFunc func(*http.Request) (*http.Response, error)
@@ -69,6 +71,22 @@ func TestCanonicalOpenRouterBase(t *testing.T) {
 		if _, err := canonicalOpenRouterBase(base); err == nil {
 			t.Errorf("canonicalOpenRouterBase(%q) accepted an unsafe/noncanonical URL", base)
 		}
+	}
+}
+
+func TestOpenRouterScopedCredentialReleasesRedactionAfterClose(t *testing.T) {
+	key := "oauth-scoped-decision-credential-20261013"
+	client, err := NewOpenRouterClientScoped("https://openrouter.ai/api/v1", key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := security.Scrub(key); got == key {
+		t.Fatal("scoped credential was not redacted while its client was active")
+	}
+	client.Close()
+	client.Close()
+	if got := security.Scrub(key); got != key {
+		t.Fatal("scoped credential remained registered after close")
 	}
 }
 

@@ -8,6 +8,7 @@ let _providerCatalogCache = null;
 let _providerCatalogPromise = null;
 let _providerLimitRefreshTimer = null;
 let _providerLimitRefreshAttempts = 0;
+let _providerCapabilityDetectionGeneration = 0;
 const PROVIDER_LIMIT_REFRESH_MAX_ATTEMPTS = 16;
 const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
 
@@ -527,6 +528,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
         function providerMarkCapabilitiesManual() {
             const block = document.getElementById('prov-capabilities-block');
             if (!block) return;
+            _providerCapabilityDetectionGeneration++;
             block.dataset.auto = 'false';
             block.dataset.source = 'manual';
             block.dataset.detectedModel = (document.getElementById('prov-model') || {}).value || '';
@@ -559,6 +561,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
         }
 
         async function providerRefreshCapabilityDetection(force) {
+            const requestGeneration = ++_providerCapabilityDetectionGeneration;
             const block = document.getElementById('prov-capabilities-block');
             if (!block) return;
             if (!force && block.dataset.auto === 'false') return;
@@ -574,8 +577,15 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 const resp = await fetch('/api/providers/capabilities?' + qs.toString());
                 if (!resp.ok) throw new Error(await resp.text());
                 const caps = await resp.json();
+                if (requestGeneration !== _providerCapabilityDetectionGeneration ||
+                    block !== document.getElementById('prov-capabilities-block') || !block.isConnected ||
+                    type !== ((document.getElementById('prov-type') || {}).value || '') ||
+                    model !== ((document.getElementById('prov-model') || {}).value || '') ||
+                    id !== ((document.getElementById('prov-id') || {}).value || '')) return;
                 providerSetCapabilityUI({ ...caps, auto: true });
             } catch (e) {
+                if (requestGeneration !== _providerCapabilityDetectionGeneration ||
+                    block !== document.getElementById('prov-capabilities-block') || !block.isConnected) return;
                 block.dataset.source = 'legacy_fallback';
                 providerUpdateCapabilitySource();
             }
@@ -2278,6 +2288,58 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             const accountIdBlock = document.getElementById('prov-account-id-block');
             const urlAutoHint = document.getElementById('prov-url-auto-hint');
             const knownUrls = providerKnownBaseURLs();
+            let suppressCapabilityDetection = false;
+            let capDetectTimer = null;
+            let generalDraftForDecisions = null;
+            const captureGeneralDraftForDecisions = () => ({
+                type: typeSelect.value,
+                baseURL: urlInput.value,
+                model: document.getElementById('prov-model')?.value || '',
+                authType: document.getElementById('prov-auth-type')?.value || 'api_key',
+                // These non-secret fields can be rewritten by provider type/auth presets.
+                oauth: Object.fromEntries(['prov-oauth-auth-url', 'prov-oauth-token-url', 'prov-oauth-client-id', 'prov-oauth-scopes'].map(id => [id, document.getElementById(id)?.value || ''])),
+                oauthAdvancedOpen: !!document.getElementById('prov-oauth-advanced')?.open,
+                models: _provModalModels.map(model => ({...model})),
+                capabilities: {...providerReadCapabilities()}
+            });
+            const dispatchProviderTypeChange = () => {
+                suppressCapabilityDetection = true;
+                _providerCapabilityDetectionGeneration++;
+                try {
+                    typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                } finally {
+                    suppressCapabilityDetection = false;
+                }
+            };
+            const restoreGeneralDraftFromDecisions = draft => {
+                typeSelect.value = draft.type;
+                dispatchProviderTypeChange();
+
+                // Type changes can replace known OAuth presets and the provider URL.
+                if (urlInput) urlInput.value = draft.baseURL;
+                const modelInput = document.getElementById('prov-model');
+                if (modelInput) modelInput.value = draft.model;
+                Object.entries(draft.oauth).forEach(([id, value]) => {
+                    const input = document.getElementById(id);
+                    if (input) input.value = value;
+                });
+                const authTypeInput = document.getElementById('prov-auth-type');
+                if (authTypeInput && authTypeInput.value !== draft.authType) {
+                    authTypeInput.value = draft.authType;
+                    authTypeInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    Object.entries(draft.oauth).forEach(([id, value]) => {
+                        const input = document.getElementById(id);
+                        if (input) input.value = value;
+                    });
+                }
+                const oauthAdvanced = document.getElementById('prov-oauth-advanced');
+                if (oauthAdvanced) oauthAdvanced.open = draft.oauthAdvancedOpen;
+                if (document.getElementById('prov-catalog-model')) {
+                    document.getElementById('prov-catalog-model').value = draft.model;
+                }
+                providerInitModelsTable(draft.models);
+                providerSetCapabilityUI(draft.capabilities);
+            };
             typeSelect.addEventListener('change', () => {
                 const typ = typeSelect.value;
                 const currentUrl = urlInput.value.trim();
@@ -2333,14 +2395,23 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 if (_authTypeGroup) setHidden(_authTypeGroup, typ === 'copilot');
                 if (_apikeySec) setHidden(_apikeySec, typ === 'copilot' || (_authTypeSel && _authTypeSel.value === 'oauth2'));
                 if (_oauthSec) setHidden(_oauthSec, typ === 'copilot' || (_authTypeSel && _authTypeSel.value !== 'oauth2'));
-                providerRefreshCapabilityDetection(false);
+                if (!suppressCapabilityDetection) providerRefreshCapabilityDetection(false);
             });
 
             const syncProviderUsage = () => {
                 const decisionsOnly = usageSelect.value === 'decisions';
+                if (decisionsOnly && !generalDraftForDecisions) {
+                    generalDraftForDecisions = captureGeneralDraftForDecisions();
+                    if (capDetectTimer) clearTimeout(capDetectTimer);
+                    capDetectTimer = null;
+                    _providerCapabilityDetectionGeneration++;
+                }
                 if (decisionsOnly && typeSelect.value !== 'openrouter') {
                     typeSelect.value = 'openrouter';
-                    typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                    dispatchProviderTypeChange();
+                } else if (!decisionsOnly && generalDraftForDecisions) {
+                    restoreGeneralDraftFromDecisions(generalDraftForDecisions);
+                    generalDraftForDecisions = null;
                 }
                 typeSelect.disabled = decisionsOnly;
                 if (urlInput) {
@@ -2372,7 +2443,6 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
 
             const modelInput = document.getElementById('prov-model');
             if (modelInput) {
-                let capDetectTimer;
                 modelInput.addEventListener('input', () => {
                     clearTimeout(capDetectTimer);
                     capDetectTimer = setTimeout(() => providerRefreshCapabilityDetection(false), 350);

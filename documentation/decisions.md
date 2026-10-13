@@ -18,6 +18,7 @@ image projector with progress. **Start** loads one resident model for all caller
 **Test decision** runs a small explicit text test; merely opening settings only
 reads status. **Stop** stops the process or container. Disabling the feature
 cancels requests and stops it while preserving verified downloads.
+Editing unrelated provider connections does not restart a stopped local runtime.
 Reinstalling stops a loaded runtime before replacing its files. A runtime or
 device failure retires the active generation and cancels queued work; **Start**
 performs device selection again. The failed evaluation is never silently replayed.
@@ -59,7 +60,9 @@ decisions:
 
 In **Providers**, create an OpenRouter connection with purpose **Decisions**, or
 reuse an existing general OpenRouter connection. Store its API key through the
-provider editor; AuraGo keeps it in the encrypted Vault. A dedicated Decisions
+provider editor, or authorize an OAuth connection there; AuraGo keeps both kinds
+of credentials in the encrypted Vault. Decisions picks up renewed OAuth access
+tokens and cancels requests using revoked or replaced credentials. A dedicated Decisions
 connection does not require a chat model and is excluded from chat, helper and
 media provider selectors.
 

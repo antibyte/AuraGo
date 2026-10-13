@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"reflect"
 	"time"
 
 	"aurago/internal/config"
@@ -106,8 +105,27 @@ func (s *Server) reconfigureDecisions(previous, next *config.Config) {
 	if s.Decisions == nil {
 		return
 	}
-	changed := previous == nil || previous.Decisions != next.Decisions || previous.Docker.Enabled != next.Docker.Enabled ||
-		previous.Docker.ReadOnly != next.Docker.ReadOnly || previous.Docker.Host != next.Docker.Host || !reflect.DeepEqual(previous.Providers, next.Providers)
+	if next == nil {
+		return
+	}
+	changed := previous == nil || previous.Decisions != next.Decisions
+	if router, ok := s.Decisions.(*routedDecisions); ok {
+		catalogCleanup := router.prepareCatalogConfiguration(next)
+		if catalogCleanup != nil {
+			go func() {
+				ctx, cancel := context.WithTimeout(localLLMLifecycleContext(s), 10*time.Second)
+				defer cancel()
+				if err := catalogCleanup(ctx); err != nil && s.Logger != nil {
+					s.Logger.Warn("Decisions model catalog cleanup failed", "code", decisions.ErrorCode(err))
+				}
+			}()
+		}
+		changed = previous == nil || router.configurationChanged(next)
+	}
+	if previous != nil && decisionsUseLocalBackend(previous.Decisions) && decisionsUseLocalBackend(next.Decisions) &&
+		(previous.Docker.Enabled != next.Docker.Enabled || previous.Docker.ReadOnly != next.Docker.ReadOnly || previous.Docker.Host != next.Docker.Host) {
+		changed = true
+	}
 	if !changed {
 		return
 	}
@@ -139,6 +157,28 @@ func (s *Server) reconfigureDecisions(previous, next *config.Config) {
 		}
 		if current := s.ConfigSnapshot(); current != nil && current.Decisions.Enabled {
 			s.startDecisions(localLLMLifecycleContext(s))
+		}
+	}()
+}
+
+func decisionsUseLocalBackend(c config.DecisionsConfig) bool {
+	return c.Normalize().Backend != "provider"
+}
+
+func (s *Server) invalidateDecisionsProvider(providerID string) {
+	router, ok := s.Decisions.(*routedDecisions)
+	if !ok {
+		return
+	}
+	cleanup := router.invalidateProvider(providerID)
+	if cleanup == nil {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(localLLMLifecycleContext(s), 10*time.Second)
+		defer cancel()
+		if err := cleanup(ctx); err != nil && s.Logger != nil {
+			s.Logger.Warn("Decisions provider revocation cleanup failed", "code", decisions.ErrorCode(err))
 		}
 	}()
 }
