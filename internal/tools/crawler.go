@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/gocolly/colly/v2"
 )
 
@@ -18,7 +19,7 @@ import (
 type crawlPage struct {
 	URL            string `json:"url"`
 	Title          string `json:"title"`
-	ContentPreview string `json:"content_preview"` // first 500 chars of text
+	ContentPreview string `json:"content_preview"` // first 500 runes of text
 }
 
 // crawlResult is the JSON payload returned by ExecuteCrawler.
@@ -90,6 +91,8 @@ func ExecuteCrawler(startURL string, maxDepth, maxPages int, allowedDomains, sel
 		colly.MaxDepth(maxDepth),
 		colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"),
 	)
+	c.IgnoreRobotsTxt = false
+	c.MaxBodySize = security.MaxSSRFResponseBytes
 	c.SetClient(security.HTTPClientWithContext(security.NewSSRFProtectedHTTPClient(20*time.Second), requestContext(contexts)))
 	c.Limit(&colly.LimitRule{
 		Parallelism: 2,
@@ -131,33 +134,28 @@ func ExecuteCrawler(startURL string, maxDepth, maxPages int, allowedDomains, sel
 			URL: r.Request.URL.String(),
 		}
 
-		bodyStr := string(r.Body)
-
-		// Extract title
-		if idx := strings.Index(bodyStr, "<title"); idx >= 0 {
-			if start := strings.Index(bodyStr[idx:], ">"); start >= 0 {
-				if end := strings.Index(bodyStr[idx+start:], "</title>"); end >= 0 {
-					page.Title = strings.TrimSpace(bodyStr[idx+start+1 : idx+start+end])
+		var title, preview string
+		if len(r.Body) == security.MaxSSRFResponseBytes {
+			preview = "page skipped because it exceeds 5 MiB"
+		} else {
+			bodyStr := string(r.Body)
+			if idx := strings.Index(bodyStr, "<title"); idx >= 0 {
+				if start := strings.Index(bodyStr[idx:], ">"); start >= 0 {
+					if end := strings.Index(bodyStr[idx+start:], "</title>"); end >= 0 {
+						title = strings.TrimSpace(bodyStr[idx+start+1 : idx+start+end])
+					}
 				}
 			}
+			if selector != "" {
+				preview = extractSelectorText(bodyStr, selector)
+			} else {
+				preview = extractPlainText(bodyStr)
+			}
+			preview = cutPreviewRunes(preview, 500)
 		}
-
-		// Extract content
-		var text string
-		if selector != "" {
-			// Use the HTML element directly via a nested collector isn't practical here,
-			// so we fall back to full-page text extraction.
-			text = extractPlainText(bodyStr)
-		} else {
-			text = extractPlainText(bodyStr)
-		}
-
-		// Limit preview to 500 chars
-		if len(text) > 500 {
-			text = text[:500] + "…"
-		}
-		// Isolate external content with Guardian
-		page.ContentPreview = crawlerGuardian.ScanExternalContent(r.Request.URL.String(), text)
+		source := r.Request.URL.String()
+		page.Title = crawlerGuardian.ScanExternalContent(source, title)
+		page.ContentPreview = crawlerGuardian.ScanExternalContent(source, preview)
 
 		mu.Lock()
 		pages = append(pages, page)
@@ -176,6 +174,31 @@ func ExecuteCrawler(startURL string, maxDepth, maxPages int, allowedDomains, sel
 		LinksFound:   len(linkSet),
 		Pages:        pages,
 	})
+}
+
+func extractSelectorText(html, selector string) string {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		return ""
+	}
+	var parts []string
+	doc.Find(selector).Each(func(_ int, s *goquery.Selection) {
+		if text := strings.TrimSpace(s.Text()); text != "" {
+			parts = append(parts, text)
+		}
+	})
+	return strings.Join(parts, " ")
+}
+
+func cutPreviewRunes(text string, max int) string {
+	if max <= 0 {
+		return ""
+	}
+	runes := []rune(text)
+	if len(runes) <= max {
+		return text
+	}
+	return string(runes[:max])
 }
 
 // extractPlainText strips HTML tags and collapses whitespace.

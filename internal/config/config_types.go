@@ -2209,7 +2209,7 @@ type Config struct {
 			Enabled bool `yaml:"enabled"` // enable wake_on_lan tool (send magic packet to devices with MAC address)
 		} `yaml:"wol"`
 		WebScraper struct {
-			Enabled         bool   `yaml:"enabled"`                   // enable web_scraper (default true)
+			Enabled         bool   `yaml:"enabled"`                   // enable web_scraper (default false; the template writes false)
 			SummaryMode     bool   `yaml:"summary_mode"`              // send scraped content to a separate LLM for summarisation before returning to agent
 			SummaryProvider string `yaml:"summary_provider" json:"-"` // legacy provider entry for summarisation; helper-owned runtime prefers llm.helper_*
 			// resolved fields (populated by ResolveProviders)

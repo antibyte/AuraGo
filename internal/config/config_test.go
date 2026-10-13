@@ -1724,6 +1724,33 @@ agent:
 	}
 }
 
+func TestLoadWebScraperDefaultsOffWhenKeyMissing(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	raw := []byte(`
+providers:
+  - id: main
+    type: openrouter
+    name: Haupt-LLM
+    base_url: https://openrouter.ai/api/v1
+    model: openai/gpt-4o-mini
+llm:
+  provider: main
+`)
+	if err := os.WriteFile(configPath, raw, 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.Tools.WebScraper.Enabled {
+		t.Fatal("expected tools.web_scraper.enabled=false when both scraper keys are missing")
+	}
+}
+
 func TestLoadVideoDownloadDefaults(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")

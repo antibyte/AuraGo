@@ -45,6 +45,24 @@ func TestDispatchCommWebScraperMatchesExecuteSkillWhenDisabled(t *testing.T) {
 	}
 }
 
+func TestDispatchCommSiteCrawlerDeniedWhenWebScraperDisabled(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.WebScraper.Enabled = false
+	dc := newBuiltinHandlerTestDispatchContext(cfg)
+
+	got, ok := dispatchComm(context.Background(), ToolCall{
+		Action: "site_crawler",
+		URL:    "http://127.0.0.1/",
+	}, dc)
+	if !ok {
+		t.Fatal("expected dispatchComm to handle site_crawler")
+	}
+	const want = "Tool Output: [PERMISSION DENIED] web_scraper is disabled in settings (tools.web_scraper.enabled: false)."
+	if got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
 func TestDecodeWebScraperArgsIncludesModeAndWaitSelector(t *testing.T) {
 	req := decodeWebScraperArgs(map[string]interface{}{
 		"url":               "https://example.com/feed.xml",

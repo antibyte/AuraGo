@@ -46,9 +46,28 @@ func GuardRodPageSSRF(page *rod.Page) error {
 			h.Response.Fail(proto.NetworkErrorReasonBlockedByClient)
 			return
 		}
-		if err := h.LoadResponse(client, true); err != nil {
+		res, err := client.Do(h.Request.Req())
+		if err != nil {
 			h.Response.Fail(proto.NetworkErrorReasonConnectionFailed)
+			return
 		}
+		defer func() { _ = res.Body.Close() }()
+		body, err := ReadLimitedBody(res.Body, MaxSSRFResponseBytes)
+		if err != nil {
+			if err.Error() == "response exceeds 5 MiB" {
+				h.Response.Fail(proto.NetworkErrorReasonBlockedByClient)
+				return
+			}
+			h.Response.Fail(proto.NetworkErrorReasonConnectionFailed)
+			return
+		}
+		h.Response.Payload().ResponseCode = res.StatusCode
+		for k, vs := range res.Header {
+			for _, v := range vs {
+				h.Response.SetHeader(k, v)
+			}
+		}
+		h.Response.SetBody(body)
 	}); err != nil {
 		return err
 	}

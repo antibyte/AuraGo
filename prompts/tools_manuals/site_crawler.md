@@ -24,9 +24,11 @@ JSON with: `status`, `pages_crawled`, `links_found`, `pages` (array of `{url, ti
 ## Behaviour
 - Respects robots.txt.
 - Same-domain restriction by default (prevents crawling external sites).
-- Content previews are limited to 500 characters per page.
+- `selector` extracts those elements from each page.
+- Content previews are limited to 500 runes per page.
+- A page over 5 MiB is skipped.
 - External content is wrapped in security isolation tags.
-- Requires `web_scraper` permission to be enabled.
+- Requires `tools.web_scraper.enabled`.
 
 ## Example Calls
 ```json

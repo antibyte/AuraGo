@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -14,6 +15,12 @@ import (
 
 	"aurago/internal/httporigin"
 )
+
+// MaxSSRFResponseBytes is the largest response body a public scraper GET may keep.
+const MaxSSRFResponseBytes = 5 << 20
+
+// ScraperUserAgent identifies AuraGo on static, RSS, and auto fetches.
+const ScraperUserAgent = "AuraGo/1.0 (+https://github.com/antibyte/AuraGo)"
 
 // privateRanges holds all IP ranges that must not be reachable via user-supplied URLs.
 var privateRanges []*net.IPNet
@@ -257,6 +264,53 @@ func NewSSRFProtectedHTTPClient(timeout time.Duration) *http.Client {
 		return nil
 	}
 	return client
+}
+
+// ReadLimitedBody reads at most max+1 bytes. A body longer than max returns
+// a nil slice and the error text "response exceeds 5 MiB". A shorter body is
+// returned whole.
+func ReadLimitedBody(r io.Reader, max int64) ([]byte, error) {
+	if max < 0 {
+		return nil, fmt.Errorf("response exceeds 5 MiB")
+	}
+	body, err := io.ReadAll(io.LimitReader(r, max+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(body)) > max {
+		return nil, fmt.Errorf("response exceeds 5 MiB")
+	}
+	return body, nil
+}
+
+// GetPublic performs one SSRF-protected GET and returns the response
+// Content-Type plus a body capped by MaxSSRFResponseBytes.
+func GetPublic(ctx context.Context, rawURL string) (string, []byte, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ValidateSSRF(rawURL); err != nil {
+		return "", nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return "", nil, err
+	}
+	req.Header.Set("User-Agent", ScraperUserAgent)
+	client := NewSSRFProtectedHTTPClient(20 * time.Second)
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", nil, fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+	body, err := ReadLimitedBody(resp.Body, MaxSSRFResponseBytes)
+	if err != nil {
+		return "", nil, err
+	}
+	return resp.Header.Get("Content-Type"), body, nil
 }
 
 // redirectCredentialHeaders are removed from a redirect that leaves the

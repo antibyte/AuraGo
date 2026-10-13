@@ -8,9 +8,6 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"io"
-	"net/http"
-	"path"
 	"regexp"
 	"sort"
 	"strings"
@@ -33,6 +30,12 @@ var scraperHTTPClient = security.NewSSRFProtectedHTTPClient(15 * time.Second)
 // scraperGuardian is a package-level Guardian used to scan and isolate web content.
 var scraperGuardian = security.NewGuardian(nil)
 
+// fetchDynamicFallback is the auto-mode Chromium fallback. Tests replace it so
+// FetchDynamic never launches a browser.
+var fetchDynamicFallback = func(s *scraper.AgentScraper, rawURL, waitForSelector string) (*scraper.ScrapeResult, error) {
+	return s.FetchDynamic(rawURL, waitForSelector)
+}
+
 type WebScraperOptions struct {
 	Context         context.Context
 	Mode            string
@@ -52,10 +55,10 @@ type webScraperRSSItem struct {
 	GUID        string `json:"guid,omitempty"`
 }
 
-// ExecuteWebScraper fetches a URL using colly + go-readability, converts the main
-// article content to Markdown, then returns a compact JSON result.
-// SSRF protection, prompt-injection scanning, and <external_data> isolation are
-// all handled by the underlying AgentScraper.
+// ExecuteWebScraper fetches a URL, converts the main article content to Markdown,
+// then returns a compact JSON result.
+// Static, RSS, and auto share one SSRF-protected GET. Prompt-injection scanning
+// and <external_data> isolation still wrap text that is returned to the model.
 func ExecuteWebScraper(rawURL string) string {
 	return ExecuteWebScraperWithOptions(rawURL, WebScraperOptions{Mode: "auto"})
 }
@@ -95,21 +98,28 @@ func ExecuteWebScraperWithOptions(rawURL string, options WebScraperOptions) stri
 }
 
 func executeWebScraperAuto(rawURL, waitForSelector string, contexts ...context.Context) string {
-	if rss, ok := executeWebScraperRSSAuto(rawURL, contexts...); ok {
-		return rss
-	}
-	s := scraper.New(scraperGuardian).WithContext(requestContext(contexts))
-	result, err := s.FetchStatic(rawURL)
+	ctx := requestContext(contexts)
+	contentType, body, err := security.GetPublic(ctx, rawURL)
 	if err != nil {
-		return formatError(fmt.Sprintf("scrape failed: %v", err))
+		return formatScrapeError(err)
+	}
+	if rssResponseLooksLikeFeed(contentType, body) {
+		if feed, parseErr := parseRSSOrAtom(body); parseErr == nil {
+			return formatRSSFeedResult(rawURL, feed)
+		}
+	}
+	s := scraper.New(scraperGuardian).WithContext(ctx)
+	result, err := s.ScrapeHTML(rawURL, body)
+	if err != nil {
+		return formatScrapeError(err)
 	}
 	if scrapeResultLooksThin(result) {
-		dynamic, dynErr := s.FetchDynamic(rawURL, waitForSelector)
+		dynamic, dynErr := fetchDynamicFallback(s, rawURL, waitForSelector)
 		if dynErr == nil && !scrapeResultLooksThin(dynamic) {
 			return formatScrapeResult("dynamic", dynamic, "")
 		}
 		if dynErr != nil {
-			return formatScrapeResult("static", result, fmt.Sprintf("Dynamic fallback failed: %v", dynErr))
+			return formatScrapeResult("static", result, dynamicFallbackWarning(dynErr))
 		}
 	}
 	return formatScrapeResult("static", result, "")
@@ -119,7 +129,7 @@ func executeWebScraperStatic(rawURL, mode string, contexts ...context.Context) s
 	s := scraper.New(scraperGuardian).WithContext(requestContext(contexts))
 	result, err := s.FetchStatic(rawURL)
 	if err != nil {
-		return formatError(fmt.Sprintf("scrape failed: %v", err))
+		return formatScrapeError(err)
 	}
 	return formatScrapeResult(mode, result, "")
 }
@@ -128,12 +138,15 @@ func executeWebScraperDynamic(rawURL, waitForSelector string, contexts ...contex
 	s := scraper.New(scraperGuardian).WithContext(requestContext(contexts))
 	result, err := s.FetchDynamic(rawURL, waitForSelector)
 	if err != nil {
-		return formatError(fmt.Sprintf("dynamic scrape failed: %v", err))
+		return formatScrapeError(err)
 	}
 	return formatScrapeResult("dynamic", result, "")
 }
 
 func formatScrapeResult(mode string, result *scraper.ScrapeResult, warning string) string {
+	if result.ReadabilityError != "" && strings.TrimSpace(result.Markdown) == "" {
+		return formatError("readable text extraction failed")
+	}
 	out := map[string]interface{}{
 		"status":  "success",
 		"mode":    mode,
@@ -153,17 +166,9 @@ func formatScrapeResult(mode string, result *scraper.ScrapeResult, warning strin
 func executeWebScraperRSS(rawURL string, contexts ...context.Context) string {
 	feed, err := fetchRSSFeed(rawURL, false, contexts...)
 	if err != nil {
-		return formatError(fmt.Sprintf("rss scrape failed: %v", err))
+		return formatScrapeError(err)
 	}
 	return formatRSSFeedResult(rawURL, feed)
-}
-
-func executeWebScraperRSSAuto(rawURL string, contexts ...context.Context) (string, bool) {
-	feed, err := fetchRSSFeed(rawURL, !looksLikeFeedURL(rawURL), contexts...)
-	if err != nil {
-		return "", false
-	}
-	return formatRSSFeedResult(rawURL, feed), true
 }
 
 func formatRSSFeedResult(rawURL string, feed parsedRSSFeed) string {
@@ -245,25 +250,11 @@ func fetchRSSFeed(rawURL string, requireFeedResponse bool, contexts ...context.C
 	if err := security.ValidateSSRF(rawURL); err != nil {
 		return parsedRSSFeed{}, fmt.Errorf("URL not allowed: %w", err)
 	}
-	req, err := http.NewRequestWithContext(requestContext(contexts), http.MethodGet, rawURL, nil)
+	contentType, body, err := security.GetPublic(requestContext(contexts), rawURL)
 	if err != nil {
 		return parsedRSSFeed{}, err
 	}
-	req.Header.Set("User-Agent", "AuraGo/1.0 (+https://github.com/antibyte/AuraGo)")
-	req.Header.Set("Accept", "application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.5")
-	resp, err := scraperHTTPClient.Do(req)
-	if err != nil {
-		return parsedRSSFeed{}, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return parsedRSSFeed{}, fmt.Errorf("HTTP %d", resp.StatusCode)
-	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 5<<20))
-	if err != nil {
-		return parsedRSSFeed{}, err
-	}
-	if requireFeedResponse && !rssResponseLooksLikeFeed(resp.Header.Get("Content-Type"), body) {
+	if requireFeedResponse && !rssResponseLooksLikeFeed(contentType, body) {
 		return parsedRSSFeed{}, fmt.Errorf("response is not an RSS/Atom feed")
 	}
 	return parseRSSOrAtom(body)
@@ -362,16 +353,6 @@ func rssItemsContent(items []webScraperRSSItem) string {
 	return strings.TrimSpace(sb.String())
 }
 
-func looksLikeFeedURL(rawURL string) bool {
-	u := strings.ToLower(strings.TrimSpace(rawURL))
-	base := path.Base(u)
-	return strings.HasSuffix(base, ".xml") ||
-		strings.HasSuffix(base, ".rss") ||
-		strings.Contains(u, "/rss") ||
-		strings.Contains(u, "/atom") ||
-		strings.Contains(u, "feed")
-}
-
 func scrapeResultLooksThin(result *scraper.ScrapeResult) bool {
 	if result == nil {
 		return true
@@ -391,7 +372,7 @@ func executeWebScraperStructured(rawURL string, options WebScraperOptions, dynam
 		result, err = s.FetchStatic(rawURL)
 	}
 	if err != nil {
-		return formatError(fmt.Sprintf("scrape failed: %v", err))
+		return formatScrapeError(err)
 	}
 	mode := "static"
 	if dynamic {
@@ -404,16 +385,16 @@ func executeWebScraperStructuredAuto(rawURL string, options WebScraperOptions) s
 	s := scraper.New(scraperGuardian).WithContext(requestContext([]context.Context{options.Context}))
 	result, err := s.FetchStatic(rawURL)
 	if err != nil {
-		return formatError(fmt.Sprintf("scrape failed: %v", err))
+		return formatScrapeError(err)
 	}
 	if scrapeResultLooksThin(result) {
-		dynamic, dynErr := s.FetchDynamic(rawURL, options.WaitForSelector)
+		dynamic, dynErr := fetchDynamicFallback(s, rawURL, options.WaitForSelector)
 		if dynErr == nil && !scrapeResultLooksThin(dynamic) {
 			return extractStructuredHTML(dynamic.RawHTML, rawURL, options, "dynamic")
 		}
 		if dynErr != nil {
 			structured := extractStructuredHTML(result.RawHTML, rawURL, options, "static")
-			return withWarning(structured, fmt.Sprintf("Dynamic fallback failed: %v", dynErr))
+			return withWarning(structured, dynamicFallbackWarning(dynErr))
 		}
 	}
 	return extractStructuredHTML(result.RawHTML, rawURL, options, "static")
@@ -667,6 +648,22 @@ func isolateTableRows(rawURL string, rows [][]string) [][]string {
 		rows[i] = isolateStrings(rawURL, row)
 	}
 	return rows
+}
+
+func dynamicFallbackWarning(err error) string {
+	msg := err.Error()
+	if strings.Contains(msg, "SSRF") || strings.Contains(msg, "internal address") || strings.Contains(msg, "URL not allowed") {
+		return "Dynamic fallback failed: URL not allowed"
+	}
+	return fmt.Sprintf("Dynamic fallback failed: %v", err)
+}
+
+func formatScrapeError(err error) string {
+	msg := err.Error()
+	if strings.Contains(msg, "SSRF") || strings.Contains(msg, "internal address") || strings.Contains(msg, "URL not allowed") {
+		return formatError("URL not allowed")
+	}
+	return formatError(fmt.Sprintf("scrape failed: %v", err))
 }
 
 func formatError(msg string) string {

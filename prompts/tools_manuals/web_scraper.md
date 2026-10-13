@@ -37,14 +37,16 @@ and may miss the data you need.
 
 ### Parameters
 - `url` (string, required): The full URL of the page to scrape.
-- `mode` (string, optional): `auto` (default), `static`, `dynamic`, or `rss`. Use `rss` for RSS/Atom feeds. `auto` detects feed URLs or RSS/XML responses and may use dynamic rendering when static content is too thin.
+- `mode` (string, optional): `auto` (default), `static`, `dynamic`, or `rss`. Use `rss` for RSS/Atom feeds. `auto` performs one HTTP fetch and treats a feed response as RSS; a thin script-heavy page can still start one dynamic browser.
 - `wait_for_selector` (string, optional): CSS selector to wait for in `dynamic` mode or auto dynamic fallback.
 - `selector` (string, optional): CSS selector to extract matching element(s). When omitted, the full readable page is returned as Markdown.
 - `fields` (object, optional): Field mapping for structured row extraction. Keys are field names; values are CSS selectors relative to `selector`. Append `@attr` to read an attribute, e.g. `"link": "a@href"`.
-- `output_format` (string, optional): `auto` (default), `text`, `html`, `rows`, `table`. `auto` picks `rows` if `fields` is set, `list` if `attribute` is set, otherwise `text`.
+- `output_format` (string, optional): `auto` (default), `text`, `html`, `list`, `rows`, `table`. `auto` picks `rows` if `fields` is set, `list` if `attribute` is set, otherwise `text`.
 - `attribute` (string, optional): Attribute name to extract when `output_format` is `list`, e.g. `href` or `src`.
 - `limit` (integer, optional): Maximum number of matches to return when `selector` is set (1–1000, default: 50).
 - `search_query` (string, optional but **required in summary mode**): Tell the summarisation model exactly what information you are looking for on the page. Be specific — e.g. "pricing details and system requirements" rather than just "info".
+
+Public fetches send User-Agent `AuraGo/1.0`. A response over 5 MiB fails.
 
 ### Structured row extraction
 

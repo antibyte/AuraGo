@@ -52,7 +52,7 @@
   "config.web_scraper.disabled_notice": "Web Scraper está desativado",
   "config.web_scraper.empty_main_llm": "vazio = LLM principal",
   "config.web_scraper.enabled_label": "Web Scraper ativado:",
-  "config.web_scraper.summary_desc": "Páginas web extraídas são resumidas através do Helper LLM central quando ativado. O agente recebe o resumo limpo em vez do conteúdo completo da página.<br><strong>Benefícios:</strong> economiza tokens, reduz chamadas duplicadas do helper e fortalece o sistema contra injeção de prompts de conteúdo externo.",
+  "config.web_scraper.summary_desc": "Páginas web extraídas são resumidas através do Helper LLM central quando ativado. O agente recebe o resumo limpo em vez do conteúdo completo da página.<br><strong>Benefícios:</strong> economiza tokens, reduz chamadas duplicadas do helper e fortalece o sistema contra injeção de prompts de conteúdo externo. Se o LLM auxiliar não estiver configurado ou o resumo falhar, você recebe o conteúdo isolado da página.",
   "config.web_scraper.summary_mode": "Modo de resumo",
   "config.web_scraper.summary_provider": "LLM auxiliar",
   "config.web_scraper.use_main_llm": "— Usar LLM principal —",

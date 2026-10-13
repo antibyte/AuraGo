@@ -1,5 +1,5 @@
 // Package scraper provides static and dynamic web scraping for LLM agent tools.
-// Static fetching uses github.com/gocolly/colly/v2 (fast, no JS).
+// Static fetching uses one SSRF-protected GET (no JavaScript).
 // Dynamic fetching uses github.com/go-rod/rod (headless Chromium, JS rendering).
 // Both paths clean and convert the result to Markdown via go-readability + html-to-markdown.
 // All Markdown output is scanned for prompt injection and wrapped in <external_data> isolation
@@ -8,6 +8,7 @@ package scraper
 
 import (
 	"aurago/internal/security"
+	"bytes"
 	"context"
 	"fmt"
 	"net/url"
@@ -16,19 +17,20 @@ import (
 
 	readability "codeberg.org/readeck/go-readability/v2"
 	htmltomarkdown "github.com/JohannesKaufmann/html-to-markdown/v2"
+	"github.com/PuerkitoBio/goquery"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
-	"github.com/gocolly/colly/v2"
 )
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 // ScrapeResult holds the structured output of a scrape operation.
 type ScrapeResult struct {
-	Title    string   // Page title extracted by readability
-	Markdown string   // Main article content converted to Markdown
-	RawHTML  string   // Full raw HTML as received from the server
-	Links    []string // All absolute href links found on the page
+	Title            string   // Page title extracted by readability
+	Markdown         string   // Main article content converted to Markdown
+	RawHTML          string   // Full raw HTML as received from the server
+	Links            []string // All absolute href links found on the page
+	ReadabilityError string   // Set when readable text extraction fails; empty means success
 }
 
 // Scraper is the interface that both static and dynamic scrapers satisfy.
@@ -68,54 +70,90 @@ func (a *AgentScraper) WithContext(ctx context.Context) *AgentScraper {
 	return &copy
 }
 
-// FetchStatic fetches a URL using colly (no JavaScript) and returns a ScrapeResult.
+// FetchStatic fetches a URL with one SSRF-protected GET (no JavaScript) and returns a ScrapeResult.
 func (a *AgentScraper) FetchStatic(rawURL string) (*ScrapeResult, error) {
-	result := &ScrapeResult{}
-	var rawHTML strings.Builder
-	var links []string
-
 	if err := security.ValidateSSRF(rawURL); err != nil {
 		return nil, fmt.Errorf("URL not allowed: %w", err)
 	}
+	_, body, err := security.GetPublic(a.ctx, rawURL)
+	if err != nil {
+		return nil, err
+	}
+	return a.ScrapeHTML(rawURL, body)
+}
 
-	c := colly.NewCollector(
-		colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"),
-		colly.MaxDepth(1),
-	)
-	c.SetClient(security.HTTPClientWithContext(security.NewSSRFProtectedHTTPClient(20*time.Second), a.ctx))
-
-	// Capture the full HTML response body.
-	c.OnResponse(func(r *colly.Response) {
-		rawHTML.Write(r.Body)
-	})
-
-	// Collect all anchor href values and resolve them to absolute URLs.
-	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
-		href := e.Attr("href")
-		abs := e.Request.AbsoluteURL(href)
-		if abs != "" {
-			links = append(links, abs)
+// ScrapeHTML builds a ScrapeResult from HTML already retrieved for rawURL.
+// Links are resolved against rawURL, then deduplicated. Readability and
+// isolation stay on the shared processForLLM path.
+func (a *AgentScraper) ScrapeHTML(rawURL string, body []byte) (*ScrapeResult, error) {
+	result := &ScrapeResult{RawHTML: string(body)}
+	base, err := url.Parse(rawURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse url: %w", err)
+	}
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("parse html: %w", err)
+	}
+	var links []string
+	doc.Find("a[href]").Each(func(_ int, sel *goquery.Selection) {
+		href, ok := sel.Attr("href")
+		if !ok {
+			return
+		}
+		href = strings.TrimSpace(href)
+		if href == "" || strings.HasPrefix(href, "#") {
+			return
+		}
+		ref, parseErr := url.Parse(href)
+		if parseErr != nil {
+			return
+		}
+		abs := base.ResolveReference(ref)
+		abs.Fragment = ""
+		if abs.Scheme != "http" && abs.Scheme != "https" {
+			return
+		}
+		if abs.String() != "" {
+			links = append(links, abs.String())
 		}
 	})
-
-	c.OnError(func(r *colly.Response, err error) {
-		// Error is surfaced via c.Visit return below.
-	})
-
-	if err := c.Visit(rawURL); err != nil {
-		return nil, fmt.Errorf("colly visit %s: %w", rawURL, err)
-	}
-
-	result.RawHTML = rawHTML.String()
 	result.Links = dedupLinks(links)
-
-	// Enrich with readability + markdown conversion, then scan and isolate.
 	if err := processForLLM(result, rawURL, a.guardian); err != nil {
-		// Non-fatal: return raw content with a fallback title.
 		result.Title = rawURL
 	}
-
 	return result, nil
+}
+
+// dynamicScrapeSlot allows one in-process dynamic scrape at a time.
+var dynamicScrapeSlot = make(chan struct{}, 1)
+
+// newScraperLauncher builds the headless Rod launcher without forcing --no-sandbox.
+// Rod's New already sets that flag when running in a container.
+func newScraperLauncher(ctx context.Context) *launcher.Launcher {
+	return launcher.New().Context(ctx).Headless(true).
+		Set("force-webrtc-ip-handling-policy", "disable_non_proxied_udp")
+}
+
+func acquireDynamicScrape(ctx context.Context) error {
+	select {
+	case dynamicScrapeSlot <- struct{}{}:
+		return nil
+	default:
+	}
+	select {
+	case dynamicScrapeSlot <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("dynamic scrape is busy")
+	}
+}
+
+func releaseDynamicScrape() {
+	select {
+	case <-dynamicScrapeSlot:
+	default:
+	}
 }
 
 // FetchDynamic launches a headless Chromium instance, navigates to the URL, optionally
@@ -127,25 +165,29 @@ func (a *AgentScraper) FetchDynamic(rawURL string, waitForSelector string) (*Scr
 		return nil, fmt.Errorf("URL not allowed: %w", err)
 	}
 
-	// Launch a headless browser; prefer a system Chrome/Chromium installation,
-	// fall back to rod's auto-download mechanism.
-	l := launcher.New().Context(a.ctx).
-		Headless(true).
-		NoSandbox(true) // Required in containerised / CI environments.
+	if err := acquireDynamicScrape(a.ctx); err != nil {
+		return nil, err
+	}
+	defer releaseDynamicScrape()
+
+	ctx, cancel := context.WithTimeout(a.ctx, 30*time.Second)
+	defer cancel()
+
+	l := newScraperLauncher(ctx)
 	u, err := l.Launch()
 	if err != nil {
 		return nil, fmt.Errorf("rod launcher: %w", err)
 	}
 	defer func() { l.Kill(); l.Cleanup() }()
 
-	browser := rod.New().Context(a.ctx).ControlURL(u)
+	browser := rod.New().Context(ctx).ControlURL(u)
 	if err := browser.Connect(); err != nil {
 		return nil, fmt.Errorf("rod connect: %w", err)
 	}
 	defer func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
-		_ = browser.Context(ctx).Close()
+		closeCtx, closeCancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer closeCancel()
+		_ = browser.Context(closeCtx).Close()
 	}()
 
 	page, err := security.OpenRodPageWithSSRF(browser, rawURL)
@@ -158,11 +200,9 @@ func (a *AgentScraper) FetchDynamic(rawURL string, waitForSelector string) (*Scr
 		return nil, fmt.Errorf("rod wait load: %w", err)
 	}
 
-	// If a specific selector is requested, wait until it is visible.
 	if waitForSelector != "" {
 		if err := page.WaitElementsMoreThan(waitForSelector, 0); err != nil {
-			// Log but don't abort — page may still be usable.
-			_ = fmt.Errorf("rod wait selector %q: %w", waitForSelector, err)
+			return nil, fmt.Errorf("rod wait selector %q: %w", waitForSelector, err)
 		}
 	}
 
@@ -204,12 +244,19 @@ func processForLLM(result *ScrapeResult, rawURL string, g *security.Guardian) er
 		return fmt.Errorf("parse url: %w", err)
 	}
 
+	// Non-HTML bodies are a readability failure even when the library wraps them.
+	if !strings.Contains(result.RawHTML, "<") {
+		result.ReadabilityError = "readable text extraction failed"
+		return nil
+	}
+
 	article, err := readability.FromReader(
 		strings.NewReader(result.RawHTML),
 		parsedURL,
 	)
 	if err != nil {
-		return fmt.Errorf("readability: %w", err)
+		result.ReadabilityError = "readable text extraction failed"
+		return nil
 	}
 
 	result.Title = article.Title()
@@ -217,7 +264,8 @@ func processForLLM(result *ScrapeResult, rawURL string, g *security.Guardian) er
 	// Convert the readability-cleaned HTML to Markdown.
 	var cleanedHTML strings.Builder
 	if err := article.RenderHTML(&cleanedHTML); err != nil {
-		return fmt.Errorf("render readability html: %w", err)
+		result.ReadabilityError = "readable text extraction failed"
+		return nil
 	}
 	var md string
 	converted, err := htmltomarkdown.ConvertString(cleanedHTML.String())
@@ -225,7 +273,8 @@ func processForLLM(result *ScrapeResult, rawURL string, g *security.Guardian) er
 		// Fall back to plain text excerpt if conversion fails.
 		var plainText strings.Builder
 		if renderErr := article.RenderText(&plainText); renderErr != nil {
-			return fmt.Errorf("render readability text: %w", renderErr)
+			result.ReadabilityError = "readable text extraction failed"
+			return nil
 		}
 		md = plainText.String()
 	} else {
