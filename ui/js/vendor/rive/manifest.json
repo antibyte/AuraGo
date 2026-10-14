@@ -1,17 +1,17 @@
 {
   "name": "@rive-app/canvas",
-  "version": "2.43.1",
+  "version": "2.44.2",
   "license": "MIT",
-  "source": "https://www.npmjs.com/package/@rive-app/canvas/v/2.43.1",
-  "npm_integrity": "sha512-GqENtpSOK5KOnF+kmzDQ70tfEQYksSOb39jcPPAV5vj5XDJ3vekPdbqTWuQdEyOFMhJUir4iBo3On9Gy2hghtQ==",
+  "source": "https://www.npmjs.com/package/@rive-app/canvas/v/2.44.2",
+  "npm_integrity": "sha512-MzVTWpaWWjeGEyC9rhL8w53Mi3q+WfpG1ooj8IYuEcRPJNyh1LzCMYUAHel0M7Nj9xR/P41HvUPaikM9wrsIyA==",
   "files": {
     "rive.js": {
-      "bytes": 455789,
-      "sha256": "60928b9d4d0e88e430effe7b3e090e1e4e7b8b2852a6f020bf488952405c0949"
+      "bytes": 570043,
+      "sha256": "f8c01ccc78af7ad55a6672f5645d3544c6735fb401e5d08ae5f057a31564adf1"
     },
     "rive.wasm": {
-      "bytes": 1955136,
-      "sha256": "cc0827eddd7ce5d37a8691b0e587b856972b4fe3d36841864ab27e7fa4da0ef8"
+      "bytes": 2057365,
+      "sha256": "6c12783ad9cef87114264b1041a5bc3f2b6b91a79268d399e9cae391a163ab41"
     }
   }
 }

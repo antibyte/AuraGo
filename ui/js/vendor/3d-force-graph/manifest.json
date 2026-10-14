@@ -1,14 +1,14 @@
 {
   "name": "3d-force-graph",
-  "version": "1.80.0",
+  "version": "1.80.1",
   "license": "MIT",
-  "source": "https://www.npmjs.com/package/3d-force-graph/v/1.80.0",
-  "npm_integrity": "sha512-tzI353gW1nXPpnC7VTa3JjMg+3cp77qOLUFO0vucPTfF+q5R6sQsNsIqVTbRIb7RSypn14nBa4yfkOe9ThxASw==",
+  "source": "https://www.npmjs.com/package/3d-force-graph/v/1.80.1",
+  "npm_integrity": "sha512-8+JcH/K1MkVncxthCVg1vdNY49PSUY7gPMlFzBHJD91AmofqqxZNnVo5RfY61BShwZk6koqyYK7f5hp+NT6utQ==",
   "shared_three": "0.186.1",
   "files": {
     "../3d-force-graph.min.js": {
-      "bytes": 1035135,
-      "sha256": "f91ba9d6536e0c478852180fbb1746b298bf42b2b5db5a7fd093629e2d46591a"
+      "bytes": 1032617,
+      "sha256": "d00be1c8159276a45489d6fb55d19a197e1a20c5ac052941d99e82746d4dd3a8"
     }
   }
 }

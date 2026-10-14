@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-const canvasUIPinnedCommit = "81b65e159c63bde7167b9b4b458a775838e4cd39"
+const canvasUIPinnedCommit = "a04a99b235299ee79a123a16ccb2e6cf9da74b6b"
 
 func TestCanvasUIAssetsAreEmbedded(t *testing.T) {
 	t.Parallel()

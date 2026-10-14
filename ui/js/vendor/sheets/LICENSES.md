@@ -1,6 +1,6 @@
 # Tabellen — third-party licenses
 
-AuraGo host code remains MIT. Univer OSS is pinned to 1.0.3; no Pro packages are included.
+AuraGo host code remains MIT. Univer OSS is pinned to 1.0.4; no Pro packages are included.
 
 
 ## @flatten-js/interval-tree 1.1.3 — MIT
@@ -124,7 +124,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-## @radix-ui/primitive 1.1.7 — MIT
+## @radix-ui/primitive 1.2.0 — MIT
 
 MIT License
 
@@ -149,7 +149,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @radix-ui/react-arrow 1.1.15 — MIT
+## @radix-ui/react-arrow 1.1.17 — MIT
 
 MIT License
 
@@ -174,7 +174,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @radix-ui/react-collection 1.1.15 — MIT
+## @radix-ui/react-collection 1.2.0 — MIT
 
 MIT License
 
@@ -224,7 +224,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @radix-ui/react-context 1.2.2 — MIT
+## @radix-ui/react-context 1.3.0 — MIT
 
 MIT License
 
@@ -249,7 +249,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @radix-ui/react-dialog 1.1.23 — MIT
+## @radix-ui/react-dialog 1.3.1 — MIT
 
 MIT License
 
@@ -274,7 +274,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @radix-ui/react-direction 1.1.4 — MIT
+## @radix-ui/react-direction 1.2.0 — MIT
 
 MIT License
 
@@ -299,7 +299,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @radix-ui/react-dismissable-layer 1.1.19 — MIT
+## @radix-ui/react-dismissable-layer 1.2.1 — MIT
 
 MIT License
 
@@ -324,7 +324,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @radix-ui/react-dropdown-menu 2.1.24 — MIT
+## @radix-ui/react-dropdown-menu 2.2.1 — MIT
 
 MIT License
 
@@ -349,7 +349,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @radix-ui/react-focus-guards 1.1.6 — MIT
+## @radix-ui/react-focus-guards 1.2.0 — MIT
 
 MIT License
 
@@ -374,7 +374,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @radix-ui/react-focus-scope 1.1.16 — MIT
+## @radix-ui/react-focus-scope 1.3.1 — MIT
 
 MIT License
 
@@ -399,7 +399,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @radix-ui/react-hover-card 1.1.23 — MIT
+## @radix-ui/react-hover-card 1.2.1 — MIT
 
 MIT License
 
@@ -449,7 +449,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @radix-ui/react-menu 2.1.24 — MIT
+## @radix-ui/react-menu 2.2.1 — MIT
 
 MIT License
 
@@ -474,7 +474,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @radix-ui/react-popover 1.1.23 — MIT
+## @radix-ui/react-popover 1.3.1 — MIT
 
 MIT License
 
@@ -499,7 +499,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @radix-ui/react-popper 1.3.7 — MIT
+## @radix-ui/react-popper 1.4.0 — MIT
 
 MIT License
 
@@ -524,7 +524,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @radix-ui/react-portal 1.1.17 — MIT
+## @radix-ui/react-portal 1.2.0 — MIT
 
 MIT License
 
@@ -549,7 +549,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @radix-ui/react-presence 1.1.10 — MIT
+## @radix-ui/react-presence 1.1.11 — MIT
 
 MIT License
 
@@ -574,7 +574,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @radix-ui/react-primitive 2.1.10 — MIT
+## @radix-ui/react-primitive 2.2.0 — MIT
 
 MIT License
 
@@ -599,7 +599,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @radix-ui/react-roving-focus 1.1.19 — MIT
+## @radix-ui/react-roving-focus 1.2.1 — MIT
 
 MIT License
 
@@ -624,7 +624,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @radix-ui/react-separator 1.1.15 — MIT
+## @radix-ui/react-separator 1.2.0 — MIT
 
 MIT License
 
@@ -649,7 +649,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @radix-ui/react-slot 1.3.3 — MIT
+## @radix-ui/react-slot 1.5.0 — MIT
 
 MIT License
 
@@ -674,7 +674,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @radix-ui/react-use-callback-ref 1.1.4 — MIT
+## @radix-ui/react-use-callback-ref 1.1.5 — MIT
 
 MIT License
 
@@ -699,7 +699,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @radix-ui/react-use-controllable-state 1.2.6 — MIT
+## @radix-ui/react-use-controllable-state 1.3.0 — MIT
 
 MIT License
 
@@ -799,7 +799,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @radix-ui/react-use-size 1.1.4 — MIT
+## @radix-ui/react-use-size 1.1.5 — MIT
 
 MIT License
 
@@ -824,7 +824,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @univerjs/core 1.0.3 — Apache-2.0
+## @univerjs/core 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -1004,7 +1004,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/data-validation 1.0.3 — Apache-2.0
+## @univerjs/data-validation 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -1184,7 +1184,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/design 1.0.3 — Apache-2.0
+## @univerjs/design 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -1364,7 +1364,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/docs 1.0.3 — Apache-2.0
+## @univerjs/docs 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -1544,7 +1544,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/docs-ui 1.0.3 — Apache-2.0
+## @univerjs/docs-ui 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -1724,7 +1724,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/drawing 1.0.3 — Apache-2.0
+## @univerjs/drawing 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -1904,7 +1904,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/engine-formula 1.0.3 — Apache-2.0
+## @univerjs/engine-formula 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -2084,7 +2084,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/engine-render 1.0.3 — Apache-2.0
+## @univerjs/engine-render 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -2264,7 +2264,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/find-replace 1.0.3 — Apache-2.0
+## @univerjs/find-replace 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -2469,7 +2469,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @univerjs/network 1.0.3 — Apache-2.0
+## @univerjs/network 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -2649,7 +2649,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/preset-sheets-conditional-formatting 1.0.3 — Apache-2.0
+## @univerjs/preset-sheets-conditional-formatting 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -2829,7 +2829,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/preset-sheets-core 1.0.3 — Apache-2.0
+## @univerjs/preset-sheets-core 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -3009,7 +3009,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/preset-sheets-data-validation 1.0.3 — Apache-2.0
+## @univerjs/preset-sheets-data-validation 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -3189,7 +3189,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/preset-sheets-filter 1.0.3 — Apache-2.0
+## @univerjs/preset-sheets-filter 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -3369,7 +3369,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/preset-sheets-find-replace 1.0.3 — Apache-2.0
+## @univerjs/preset-sheets-find-replace 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -3549,7 +3549,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/preset-sheets-hyper-link 1.0.3 — Apache-2.0
+## @univerjs/preset-sheets-hyper-link 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -3729,7 +3729,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/preset-sheets-note 1.0.3 — Apache-2.0
+## @univerjs/preset-sheets-note 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -3909,7 +3909,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/preset-sheets-sort 1.0.3 — Apache-2.0
+## @univerjs/preset-sheets-sort 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -4089,7 +4089,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/preset-sheets-table 1.0.3 — Apache-2.0
+## @univerjs/preset-sheets-table 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -4269,7 +4269,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/presets 1.0.3 — Apache-2.0
+## @univerjs/presets 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -4449,190 +4449,10 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/protocol 1.0.3 — Apache-2.0
+## @univerjs/protocol 1.0.4 — Apache-2.0
 
 
-## @univerjs/rpc 1.0.3 — Apache-2.0
-
-                                 Apache License
-                           Version 2.0, January 2004
-                        http://www.apache.org/licenses/
-
-   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
-
-   1. Definitions.
-
-      "License" shall mean the terms and conditions for use, reproduction,
-      and distribution as defined by Sections 1 through 9 of this document.
-
-      "Licensor" shall mean the copyright owner or entity authorized by
-      the copyright owner that is granting the License.
-
-      "Legal Entity" shall mean the union of the acting entity and all
-      other entities that control, are controlled by, or are under common
-      control with that entity. For the purposes of this definition,
-      "control" means (i) the power, direct or indirect, to cause the
-      direction or management of such entity, whether by contract or
-      otherwise, or (ii) ownership of fifty percent (50%) or more of the
-      outstanding shares, or (iii) beneficial ownership of such entity.
-
-      "You" (or "Your") shall mean an individual or Legal Entity
-      exercising permissions granted by this License.
-
-      "Source" form shall mean the preferred form for making modifications,
-      including but not limited to software source code, documentation
-      source, and configuration files.
-
-      "Object" form shall mean any form resulting from mechanical
-      transformation or translation of a Source form, including but
-      not limited to compiled object code, generated documentation,
-      and conversions to other media types.
-
-      "Work" shall mean the work of authorship, whether in Source or
-      Object form, made available under the License, as indicated by a
-      copyright notice that is included in or attached to the work
-      (an example is provided in the Appendix below).
-
-      "Derivative Works" shall mean any work, whether in Source or Object
-      form, that is based on (or derived from) the Work and for which the
-      editorial revisions, annotations, elaborations, or other modifications
-      represent, as a whole, an original work of authorship. For the purposes
-      of this License, Derivative Works shall not include works that remain
-      separable from, or merely link (or bind by name) to the interfaces of,
-      the Work and Derivative Works thereof.
-
-      "Contribution" shall mean any work of authorship, including
-      the original version of the Work and any modifications or additions
-      to that Work or Derivative Works thereof, that is intentionally
-      submitted to Licensor for inclusion in the Work by the copyright owner
-      or by an individual or Legal Entity authorized to submit on behalf of
-      the copyright owner. For the purposes of this definition, "submitted"
-      means any form of electronic, verbal, or written communication sent
-      to the Licensor or its representatives, including but not limited to
-      communication on electronic mailing lists, source code control systems,
-      and issue tracking systems that are managed by, or on behalf of, the
-      Licensor for the purpose of discussing and improving the Work, but
-      excluding communication that is conspicuously marked or otherwise
-      designated in writing by the copyright owner as "Not a Contribution."
-
-      "Contributor" shall mean Licensor and any individual or Legal Entity
-      on behalf of whom a Contribution has been received by Licensor and
-      subsequently incorporated within the Work.
-
-   2. Grant of Copyright License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      copyright license to reproduce, prepare Derivative Works of,
-      publicly display, publicly perform, sublicense, and distribute the
-      Work and such Derivative Works in Source or Object form.
-
-   3. Grant of Patent License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      (except as stated in this section) patent license to make, have made,
-      use, offer to sell, sell, import, and otherwise transfer the Work,
-      where such license applies only to those patent claims licensable
-      by such Contributor that are necessarily infringed by their
-      Contribution(s) alone or by combination of their Contribution(s)
-      with the Work to which such Contribution(s) was submitted. If You
-      institute patent litigation against any entity (including a
-      cross-claim or counterclaim in a lawsuit) alleging that the Work
-      or a Contribution incorporated within the Work constitutes direct
-      or contributory patent infringement, then any patent licenses
-      granted to You under this License for that Work shall terminate
-      as of the date such litigation is filed.
-
-   4. Redistribution. You may reproduce and distribute copies of the
-      Work or Derivative Works thereof in any medium, with or without
-      modifications, and in Source or Object form, provided that You
-      meet the following conditions:
-
-      (a) You must give any other recipients of the Work or
-          Derivative Works a copy of this License; and
-
-      (b) You must cause any modified files to carry prominent notices
-          stating that You changed the files; and
-
-      (c) You must retain, in the Source form of any Derivative Works
-          that You distribute, all copyright, patent, trademark, and
-          attribution notices from the Source form of the Work,
-          excluding those notices that do not pertain to any part of
-          the Derivative Works; and
-
-      (d) If the Work includes a "NOTICE" text file as part of its
-          distribution, then any Derivative Works that You distribute must
-          include a readable copy of the attribution notices contained
-          within such NOTICE file, excluding those notices that do not
-          pertain to any part of the Derivative Works, in at least one
-          of the following places: within a NOTICE text file distributed
-          as part of the Derivative Works; within the Source form or
-          documentation, if provided along with the Derivative Works; or,
-          within a display generated by the Derivative Works, if and
-          wherever such third-party notices normally appear. The contents
-          of the NOTICE file are for informational purposes only and
-          do not modify the License. You may add Your own attribution
-          notices within Derivative Works that You distribute, alongside
-          or as an addendum to the NOTICE text from the Work, provided
-          that such additional attribution notices cannot be construed
-          as modifying the License.
-
-      You may add Your own copyright statement to Your modifications and
-      may provide additional or different license terms and conditions
-      for use, reproduction, or distribution of Your modifications, or
-      for any such Derivative Works as a whole, provided Your use,
-      reproduction, and distribution of the Work otherwise complies with
-      the conditions stated in this License.
-
-   5. Submission of Contributions. Unless You explicitly state otherwise,
-      any Contribution intentionally submitted for inclusion in the Work
-      by You to the Licensor shall be under the terms and conditions of
-      this License, without any additional terms or conditions.
-      Notwithstanding the above, nothing herein shall supersede or modify
-      the terms of any separate license agreement you may have executed
-      with Licensor regarding such Contributions.
-
-   6. Trademarks. This License does not grant permission to use the trade
-      names, trademarks, service marks, or product names of the Licensor,
-      except as required for reasonable and customary use in describing the
-      origin of the Work and reproducing the content of the NOTICE file.
-
-   7. Disclaimer of Warranty. Unless required by applicable law or
-      agreed to in writing, Licensor provides the Work (and each
-      Contributor provides its Contributions) on an "AS IS" BASIS,
-      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-      implied, including, without limitation, any warranties or conditions
-      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
-      PARTICULAR PURPOSE. You are solely responsible for determining the
-      appropriateness of using or redistributing the Work and assume any
-      risks associated with Your exercise of permissions under this License.
-
-   8. Limitation of Liability. In no event and under no legal theory,
-      whether in tort (including negligence), contract, or otherwise,
-      unless required by applicable law (such as deliberate and grossly
-      negligent acts) or agreed to in writing, shall any Contributor be
-      liable to You for damages, including any direct, indirect, special,
-      incidental, or consequential damages of any character arising as a
-      result of this License or out of the use or inability to use the
-      Work (including but not limited to damages for loss of goodwill,
-      work stoppage, computer failure or malfunction, or any and all
-      other commercial damages or losses), even if such Contributor
-      has been advised of the possibility of such damages.
-
-   9. Accepting Warranty or Additional Liability. While redistributing
-      the Work or Derivative Works thereof, You may choose to offer,
-      and charge a fee for, acceptance of support, warranty, indemnity,
-      or other liability obligations and/or rights consistent with this
-      License. However, in accepting such obligations, You may act only
-      on Your own behalf and on Your sole responsibility, not on behalf
-      of any other Contributor, and only if You agree to indemnify,
-      defend, and hold each Contributor harmless for any liability
-      incurred by, or claims asserted against, such Contributor by reason
-      of your accepting any such warranty or additional liability.
-
-   END OF TERMS AND CONDITIONS
-
-
-## @univerjs/sheets 1.0.3 — Apache-2.0
+## @univerjs/rpc 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -4812,7 +4632,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/sheets-conditional-formatting 1.0.3 — Apache-2.0
+## @univerjs/sheets 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -4992,7 +4812,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/sheets-conditional-formatting-ui 1.0.3 — Apache-2.0
+## @univerjs/sheets-conditional-formatting 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -5172,7 +4992,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/sheets-data-validation 1.0.3 — Apache-2.0
+## @univerjs/sheets-conditional-formatting-ui 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -5352,7 +5172,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/sheets-data-validation-ui 1.0.3 — Apache-2.0
+## @univerjs/sheets-data-validation 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -5532,7 +5352,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/sheets-filter 1.0.3 — Apache-2.0
+## @univerjs/sheets-data-validation-ui 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -5712,7 +5532,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/sheets-filter-ui 1.0.3 — Apache-2.0
+## @univerjs/sheets-filter 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -5892,7 +5712,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/sheets-find-replace 1.0.3 — Apache-2.0
+## @univerjs/sheets-filter-ui 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -6072,7 +5892,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/sheets-formula 1.0.3 — Apache-2.0
+## @univerjs/sheets-find-replace 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -6252,7 +6072,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/sheets-formula-ui 1.0.3 — Apache-2.0
+## @univerjs/sheets-formula 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -6432,7 +6252,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/sheets-hyper-link 1.0.3 — Apache-2.0
+## @univerjs/sheets-formula-ui 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -6612,7 +6432,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/sheets-hyper-link-ui 1.0.3 — Apache-2.0
+## @univerjs/sheets-hyper-link 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -6792,7 +6612,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/sheets-note 1.0.3 — Apache-2.0
+## @univerjs/sheets-hyper-link-ui 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -6972,7 +6792,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/sheets-note-ui 1.0.3 — Apache-2.0
+## @univerjs/sheets-note 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -7152,7 +6972,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/sheets-numfmt 1.0.3 — Apache-2.0
+## @univerjs/sheets-note-ui 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -7332,7 +7152,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/sheets-numfmt-ui 1.0.3 — Apache-2.0
+## @univerjs/sheets-numfmt 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -7512,7 +7332,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/sheets-sort 1.0.3 — Apache-2.0
+## @univerjs/sheets-numfmt-ui 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -7692,7 +7512,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/sheets-sort-ui 1.0.3 — Apache-2.0
+## @univerjs/sheets-sort 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -7872,7 +7692,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/sheets-table 1.0.3 — Apache-2.0
+## @univerjs/sheets-sort-ui 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -8052,7 +7872,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/sheets-table-ui 1.0.3 — Apache-2.0
+## @univerjs/sheets-table 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -8232,7 +8052,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/sheets-ui 1.0.3 — Apache-2.0
+## @univerjs/sheets-table-ui 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -8412,7 +8232,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/telemetry 1.0.3 — Apache-2.0
+## @univerjs/sheets-ui 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -8592,7 +8412,7 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/themes 1.0.3 — Apache-2.0
+## @univerjs/telemetry 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -8772,7 +8592,187 @@ SOFTWARE.
    END OF TERMS AND CONDITIONS
 
 
-## @univerjs/ui 1.0.3 — Apache-2.0
+## @univerjs/themes 1.0.4 — Apache-2.0
+
+                                 Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
+
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
+
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
+
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
+
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
+
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS
+
+
+## @univerjs/ui 1.0.4 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004

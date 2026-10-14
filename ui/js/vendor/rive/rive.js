@@ -349,149 +349,267 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
 /* harmony export */ });
-var Rive=(()=>{var _scriptName=globalThis.document?.currentScript?.src;return async function(moduleArg={}){var moduleRtn;var k=moduleArg,aa=!!globalThis.window,ba=!!globalThis.WorkerGlobalScope;
-function ca(){function a(g){const h=d;c=b=0;d=new Map;h.forEach(l=>{try{l(g)}catch(n){console.error(n)}});this.xb();e&&e.bc()}let b=0,c=0,d=new Map,e=null,f=null;this.requestAnimationFrame=function(g){b||=requestAnimationFrame(a.bind(this));const h=++c;d.set(h,g);return h};this.cancelAnimationFrame=function(g){d.delete(g);b&&0==d.size&&(cancelAnimationFrame(b),b=0)};this.$b=function(g){f&&(document.body.remove(f),f=null);g||(f=document.createElement("div"),f.style.backgroundColor="black",f.style.position=
-"fixed",f.style.right=0,f.style.top=0,f.style.color="white",f.style.padding="4px",f.innerHTML="RIVE FPS",g=function(h){f.innerHTML="RIVE FPS "+h.toFixed(1)},document.body.appendChild(f));e=new function(){let h=0,l=0;this.bc=function(){var n=performance.now();l?(++h,n-=l,1E3<n&&(g(1E3*h/n),h=l=0)):(l=n,h=0)}}};this.Xb=function(){f&&(document.body.remove(f),f=null);e=null};this.xb=function(){}}
-function ea(a){console.assert(!0);const b=new Map;let c=-Infinity;this.push=function(d){d=d+((1<<a)-1)>>a;b.has(d)&&clearTimeout(b.get(d));b.set(d,setTimeout(function(){b.delete(d);0==b.length?c=-Infinity:d==c&&(c=Math.max(...b.keys()),console.assert(c<d))},1E3));c=Math.max(d,c);return c<<a}}const fa=k.onRuntimeInitialized;
-k.onRuntimeInitialized=function(){fa&&fa();let a=k.decodeAudio;k.decodeAudio=function(g,h,l=null){g=a(g,l??null);h(g)};let b=k.decodeFont;k.decodeFont=function(g,h,l=null){g=b(g,l??null);h(g)};const c=k.FileAsset.prototype.decode;k.FileAsset.prototype.decode=function(g,h){return c.call(this,g,h??null)};let d=k.setFallbackFontCb;k.setFallbackFontCallback="function"===typeof d?function(g){d(g)}:function(){console.warn("Module.setFallbackFontCallback called, but text support is not enabled in this build.")};
-const e=k.FileAssetLoader;k.ptrToAsset=g=>{let h=k.ptrToFileAsset(g);return h.isImage?k.ptrToImageAsset(g):h.isFont?k.ptrToFontAsset(g):h.isAudio?k.ptrToAudioAsset(g):h};k.CustomFileAssetLoader=e.extend("CustomFileAssetLoader",{__construct:function({loadContents:g}){this.__parent.__construct.call(this);this.Pb=g},loadContents:function(g,h){g=k.ptrToAsset(g);return this.Pb(g,h)}});k.CDNFileAssetLoader=e.extend("CDNFileAssetLoader",{__construct:function(g){this.__parent.__construct.call(this);this.Rb=
-g??null},loadContents:function(g){let h=k.ptrToAsset(g);g=h.cdnUuid;if(""===g)return!1;const l=this.Rb??null;(function(n,t){var u=new XMLHttpRequest;u.responseType="arraybuffer";u.onreadystatechange=function(){4==u.readyState&&200==u.status&&t(u)};u.open("GET",n,!0);u.send(null)})(h.cdnBaseUrl+"/"+g,n=>{h.decode(new Uint8Array(n.response),l)});return!0}});k.FallbackFileAssetLoader=e.extend("FallbackFileAssetLoader",{__construct:function(){this.__parent.__construct.call(this);this.sb=[]},addLoader:function(g){this.sb.push(g)},
-loadContents:function(g,h){for(let l of this.sb)if(l.loadContents(g,h))return!0;return!1}});let f=k.computeAlignment;k.computeAlignment=function(g,h,l,n,t=1){return f.call(this,g,h,l,n,t)}};
-const ha="createConicGradient createImageData createLinearGradient createPattern createRadialGradient getContextAttributes getImageData getLineDash getTransform isContextLost isPointInPath isPointInStroke measureText".split(" "),ia=new function(){function a(){if(!b){var x=document.createElement("canvas"),y={alpha:1,depth:0,stencil:0,antialias:0,premultipliedAlpha:1,preserveDrawingBuffer:0,powerPreference:"high-performance",failIfMajorPerformanceCaveat:0,enableExtensionsByDefault:1,explicitSwapControl:1,
-renderViaOffscreenBackBuffer:1};let p;if(/iPhone|iPad|iPod/i.test(navigator.userAgent)){if(p=x.getContext("webgl",y),c=1,!p)return console.log("No WebGL support. Image mesh will not be drawn."),!1}else if(p=x.getContext("webgl2",y))c=2;else if(p=x.getContext("webgl",y))c=1;else return console.log("No WebGL support. Image mesh will not be drawn."),!1;p=new Proxy(p,{get(K,v){if(K.isContextLost()){if(l||(console.error("Cannot render the mesh because the GL Context was lost. Tried to invoke ",v),l=!0),
-"function"===typeof K[v])return function(){}}else return"function"===typeof K[v]?function(...N){return K[v].apply(K,N)}:K[v]},set(K,v,N){if(K.isContextLost())l||(console.error("Cannot render the mesh because the GL Context was lost. Tried to set property "+v),l=!0);else return K[v]=N,!0}});d=Math.min(p.getParameter(p.MAX_RENDERBUFFER_SIZE),p.getParameter(p.MAX_TEXTURE_SIZE));function I(K,v,N){v=p.createShader(v);p.shaderSource(v,N);p.compileShader(v);N=p.getShaderInfoLog(v);if(0<(N||"").length)throw N;
-p.attachShader(K,v)}x=p.createProgram();I(x,p.VERTEX_SHADER,"attribute vec2 vertex;\n                attribute vec2 uv;\n                uniform vec4 mat;\n                uniform vec2 translate;\n                varying vec2 st;\n                void main() {\n                    st = uv;\n                    gl_Position = vec4(mat2(mat) * vertex + translate, 0, 1);\n                }");I(x,p.FRAGMENT_SHADER,"precision highp float;\n                uniform sampler2D image;\n                varying vec2 st;\n                void main() {\n                    gl_FragColor = texture2D(image, st);\n                }");
-p.bindAttribLocation(x,0,"vertex");p.bindAttribLocation(x,1,"uv");p.linkProgram(x);y=p.getProgramInfoLog(x);if(0<(y||"").trim().length)throw y;e=p.getUniformLocation(x,"mat");f=p.getUniformLocation(x,"translate");p.useProgram(x);p.bindBuffer(p.ARRAY_BUFFER,p.createBuffer());p.enableVertexAttribArray(0);p.enableVertexAttribArray(1);p.bindBuffer(p.ELEMENT_ARRAY_BUFFER,p.createBuffer());p.uniform1i(p.getUniformLocation(x,"image"),0);p.pixelStorei(p.UNPACK_PREMULTIPLY_ALPHA_WEBGL,!0);b=p}return!0}let b=
-null,c=0,d=0,e=null,f=null,g=0,h=0,l=!1;a();this.pc=function(){a();return d};this.Wb=function(x){b&&b.deleteTexture&&b.deleteTexture(x)};this.Vb=function(x){if(!a())return null;const y=b.createTexture();if(!y)return null;b.bindTexture(b.TEXTURE_2D,y);b.texImage2D(b.TEXTURE_2D,0,b.RGBA,b.RGBA,b.UNSIGNED_BYTE,x);b.texParameteri(b.TEXTURE_2D,b.TEXTURE_WRAP_S,b.CLAMP_TO_EDGE);b.texParameteri(b.TEXTURE_2D,b.TEXTURE_WRAP_T,b.CLAMP_TO_EDGE);b.texParameteri(b.TEXTURE_2D,b.TEXTURE_MAG_FILTER,b.LINEAR);2==
-c?(b.texParameteri(b.TEXTURE_2D,b.TEXTURE_MIN_FILTER,b.LINEAR_MIPMAP_LINEAR),b.generateMipmap(b.TEXTURE_2D)):b.texParameteri(b.TEXTURE_2D,b.TEXTURE_MIN_FILTER,b.LINEAR);return y};const n=new ea(8),t=new ea(8),u=new ea(10),r=new ea(10);this.Zb=function(x,y,p,I,K){if(a()){var v=n.push(x),N=t.push(y);if(b.canvas){if(b.canvas.width!=v||b.canvas.height!=N)b.canvas.width=v,b.canvas.height=N;b.viewport(0,N-y,x,y);b.disable(b.SCISSOR_TEST);b.clearColor(0,0,0,0);b.clear(b.COLOR_BUFFER_BIT);b.enable(b.SCISSOR_TEST);
-p.sort((G,ja)=>ja.Eb-G.Eb);v=u.push(I);g!=v&&(b.bufferData(b.ARRAY_BUFFER,8*v,b.DYNAMIC_DRAW),g=v);v=0;for(var O of p)b.bufferSubData(b.ARRAY_BUFFER,v,O.ab),v+=4*O.ab.length;console.assert(v==4*I);for(var V of p)b.bufferSubData(b.ARRAY_BUFFER,v,V.Ib),v+=4*V.Ib.length;console.assert(v==8*I);v=r.push(K);h!=v&&(b.bufferData(b.ELEMENT_ARRAY_BUFFER,2*v,b.DYNAMIC_DRAW),h=v);O=0;for(var da of p)b.bufferSubData(b.ELEMENT_ARRAY_BUFFER,O,da.indices),O+=2*da.indices.length;console.assert(O==2*K);da=0;V=!0;v=
-O=0;for(const G of p){G.image.Pa!=da&&(b.bindTexture(b.TEXTURE_2D,G.image.Na||null),da=G.image.Pa);G.tc?(b.scissor(G.ib,N-G.jb-G.rb,G.Cc,G.rb),V=!0):V&&(b.scissor(0,N-y,x,y),V=!1);p=2/x;const ja=-2/y;b.uniform4f(e,G.ha[0]*p*G.Da,G.ha[1]*ja*G.Ea,G.ha[2]*p*G.Da,G.ha[3]*ja*G.Ea);b.uniform2f(f,G.ha[4]*p*G.Da+p*(G.ib-G.qc*G.Da)-1,G.ha[5]*ja*G.Ea+ja*(G.jb-G.rc*G.Ea)+1);b.vertexAttribPointer(0,2,b.FLOAT,!1,0,v);b.vertexAttribPointer(1,2,b.FLOAT,!1,0,v+4*I);b.drawElements(b.TRIANGLES,G.indices.length,b.UNSIGNED_SHORT,
-O);v+=4*G.ab.length;O+=2*G.indices.length}console.assert(v==4*I);console.assert(O==2*K)}}};this.canvas=function(){return a()&&b.canvas}},ka=k.onRuntimeInitialized;
-k.onRuntimeInitialized=function(){function a(m){switch(m){case n.srcOver:return"source-over";case n.Gc:return"plus-lighter";case n.screen:return"screen";case n.overlay:return"overlay";case n.darken:return"darken";case n.lighten:return"lighten";case n.colorDodge:return"color-dodge";case n.colorBurn:return"color-burn";case n.hardLight:return"hard-light";case n.softLight:return"soft-light";case n.difference:return"difference";case n.exclusion:return"exclusion";case n.multiply:return"multiply";case n.hue:return"hue";
-case n.saturation:return"saturation";case n.color:return"color";case n.luminosity:return"luminosity"}}function b(m){return"rgba("+((16711680&m)>>>16)+","+((65280&m)>>>8)+","+((255&m)>>>0)+","+((4278190080&m)>>>24)/255+")"}function c(){0<V.length&&(ia.Zb(O.drawWidth(),O.drawHeight(),V,da,G),V=[],G=da=0,O.reset(512,512));for(const m of v){for(const q of m.J)q();m.J=[]}v.clear()}ka&&ka();var d=k.RenderPaintStyle;const e=k.RenderPath,f=k.RenderPaint,g=k.Renderer,h=k.StrokeCap,l=k.StrokeJoin,n=k.BlendMode,
-t=d.fill,u=d.stroke,r=k.FillRule.evenOdd;let x=1;var y=k.RenderImage.extend("CanvasRenderImage",{__construct:function({oa:m,Ba:q}={}){this.__parent.__construct.call(this);this.Pa=x;x=x+1&2147483647||1;this.oa=m;this.Ba=q},__destruct:function(){this.Na&&(ia.Wb(this.Na),URL.revokeObjectURL(this.gb));this.__parent.__destruct.call(this)},decode:function(m){var q=this;q.Ba&&q.Ba(q);var B=new Image;q.gb=URL.createObjectURL(new Blob([m],{type:"image/png"}));B.onload=function(){q.Ob=B;q.Na=ia.Vb(B);q.size(B.width,
-B.height);q.oa&&q.oa(q)};B.src=q.gb}});class p{constructor(){this.Y=this.va=0;this.W=new Path2D}clear(){this.Y=this.va=0;this.W=new Path2D}Sb(m){for(0<this.va&&this.Y<m.length&&this.clear();this.Y<m.length;)m[this.Y++](this.W);this.va++;return this.W}release(m){m===this.W&&this.va--}}var I=e.extend("CanvasRenderPath",{__construct:function(){this.__parent.__construct.call(this);this.La=[];this.W=new p;this.Ka=!1;this.la=null},rewind:function(){this.La.length=0;this.W.clear();this.Ka=!1;this.la=null},
-addPath:function(m,q,B,z,L,C,D){const A=m.Kb();this.ka(J=>{const M=new DOMMatrix;M.a=q;M.b=B;M.c=z;M.d=L;M.e=C;M.f=D;J.addPath(A,M)})},fillRule:function(m){this.fb=m},moveTo:function(m,q){this.Ka=!0;const B={lb:!0};this.la=B;this.ka(z=>{z.moveTo(m,q);B.lb&&z.lineTo(m,q)})},lineTo:function(m,q){this.eb();this.Ia();this.ka(B=>{B.lineTo(m,q)})},cubicTo:function(m,q,B,z,L,C){this.eb();this.Ia();this.ka(D=>{D.bezierCurveTo(m,q,B,z,L,C)})},close:function(){this.Ia();this.ka(m=>{m.closePath()})},eb:function(){this.Ka||
-this.moveTo(0,0)},Ia:function(){null!==this.la&&(this.la.lb=!1,this.la=null)},ka:function(m){this.La.push(m)},Ha:function(){return this.W.Sb(this.La)},hb:function(m){this.W.release(m)},Kb:function(){const m=this.Ha();this.W.clear();return m}}),K=f.extend("CanvasRenderPaint",{__construct:function(){this.__parent.__construct.call(this);this.H=[];this.Ja=0;this.Ma=t;this.Qa=b(4278190080);this.Oa=1;this.ta="miter";this.sa="butt";this.bb=a(n.srcOver);this.ga=null},color:function(m){this.H.push(()=>{this.Qa=
-b(m)})},thickness:function(m){this.H.push(()=>{this.Oa=Math.abs(m)})},join:function(m){this.H.push(()=>{switch(m){case l.miter:this.ta="miter";break;case l.round:this.ta="round";break;case l.bevel:this.ta="bevel"}})},cap:function(m){this.H.push(()=>{switch(m){case h.butt:this.sa="butt";break;case h.round:this.sa="round";break;case h.square:this.sa="square"}})},style:function(m){this.H.push(()=>{this.Ma=m})},blendMode:function(m){this.H.push(()=>{this.bb=a(m)})},clearGradient:function(){this.H.push(()=>
-{this.ga=null})},linearGradient:function(m,q,B,z){this.H.push(()=>{this.ga={Fb:m,Gb:q,nb:B,ob:z,$a:[]}})},radialGradient:function(m,q,B,z){this.H.push(()=>{this.ga={Fb:m,Gb:q,nb:B,ob:z,$a:[],nc:!0}})},addStop:function(m,q){this.H.push(()=>{this.ga.$a.push({color:m,stop:q})})},completeGradient:function(){},Lb:function(m,q,B,z){if(this.Ma!==u||0<this.Oa){var L=this.Ma,C=this.Qa,D=this.ga,A=m.globalCompositeOperation,J=m.globalAlpha;m.globalCompositeOperation=this.bb;m.globalAlpha=z;if(null!=D){C=D.Fb;
-const R=D.Gb,U=D.nb;var M=D.ob;z=D.$a;D.nc?(D=U-C,M-=R,C=m.createRadialGradient(C,R,0,C,R,Math.sqrt(D*D+M*M))):C=m.createLinearGradient(C,R,U,M);for(let W=0,Ra=z.length;W<Ra;W++)D=z[W],C.addColorStop(D.stop,b(D.color));this.Qa=C;this.ga=null}switch(L){case u:m.strokeStyle=C;m.lineWidth=this.Oa;m.lineCap=this.sa;m.lineJoin=this.ta;m.stroke(q);break;case t:m.fillStyle=C,m.fill(q,B)}m.globalCompositeOperation=A;m.globalAlpha=J}},Nb:function(){return this.Ja+this.H.length},Mb:function(m){const q=m-this.Ja;
-for(let B=0;B<q;B++)this.H[B]();this.H.splice(0,q);this.Ja=m}});const v=new Set,N=Object.prototype.hasOwnProperty;let O=null,V=[],da=0,G=0;var ja=k.CanvasRenderer=g.extend("Renderer",{__construct:function(m){this.__parent.__construct.call(this);this.V=[1,0,0,1,0,0];this.G=[1];this.D=m.getContext("2d");this.cb=m;this.J=[]},save:function(){this.V.push(...this.V.slice(this.V.length-6));this.G.push(this.G[this.G.length-1]);this.J.push(this.D.save.bind(this.D))},restore:function(){const m=this.V.length-
-6;if(6>m)throw"restore() called without matching save().";this.V.splice(m);this.G.pop();this.J.push(this.D.restore.bind(this.D))},transform:function(m,q,B,z,L,C){const D=this.V,A=D.length-6;D.splice(A,6,D[A]*m+D[A+2]*q,D[A+1]*m+D[A+3]*q,D[A]*B+D[A+2]*z,D[A+1]*B+D[A+3]*z,D[A]*L+D[A+2]*C+D[A+4],D[A+1]*L+D[A+3]*C+D[A+5]);this.J.push(this.D.transform.bind(this.D,m,q,B,z,L,C))},rotate:function(m){const q=Math.sin(m);m=Math.cos(m);this.transform(m,q,-q,m,0,0)},modulateOpacity:function(m){this.G[this.G.length-
-1]*=m},_drawPath:function(m,q){const B=m.fb===r?"evenodd":"nonzero",z=Math.max(0,this.G[this.G.length-1]),L=m.Ha(),C=q.Nb();this.J.push(()=>{q.Mb(C);q.Lb(this.D,L,B,z);m.hb(L)})},_drawRiveImage:function(m,q,B){var z=m.Ob;if(z){var L=this.D,C=a(q),D=Math.max(0,B*this.G[this.G.length-1]);this.J.push(function(){L.globalCompositeOperation=C;L.globalAlpha=D;L.drawImage(z,0,0);L.globalAlpha=1})}},_getMatrix:function(m){const q=this.V,B=q.length-6;for(let z=0;6>z;++z)m[z]=q[B+z]},_drawImageMesh:function(m,
-q,B,z,L,C,D,A,J,M,R,U,W){let Ra,Tb,Ub;try{Ra=k.HEAPF32.slice(z>>2,(z>>2)+L),Tb=k.HEAPF32.slice(C>>2,(C>>2)+D),Ub=k.HEAPU16.slice(A>>1,(A>>1)+J)}catch(kb){console.error("[Rive] _drawImageMesh: failed to read mesh data from WASM heap. Mesh skipped for this frame.");return}z=this.D.canvas.width;C=this.D.canvas.height;D=U-M;A=W-R;M=Math.max(M,0);R=Math.max(R,0);U=Math.min(U,z);W=Math.min(W,C);const Ga=U-M,Ha=W-R;console.assert(Ga<=Math.min(D,z));console.assert(Ha<=Math.min(A,C));if(!(0>=Ga||0>=Ha)){U=
-Ga<D||Ha<A;z=W=1;var qa=Math.ceil(Ga*W),ra=Math.ceil(Ha*z);C=ia.pc();qa>C&&(W*=C/qa,qa=C);ra>C&&(z*=C/ra,ra=C);O||(O=new k.DynamicRectanizer(C),O.reset(512,512));C=O.addRect(qa,ra);0>C&&(c(),v.add(this),C=O.addRect(qa,ra),console.assert(0<=C));var Vb=C&65535,Wb=C>>16;V.push({ha:this.V.slice(this.V.length-6),image:m,ib:Vb,jb:Wb,qc:M,rc:R,Cc:qa,rb:ra,Da:W,Ea:z,ab:Ra,Ib:Tb,indices:Ub,tc:U,Eb:m.Pa<<1|(U?1:0)});da+=L;G+=J;var wa=this.D,Wc=a(q),Xc=Math.max(0,B*this.G[this.G.length-1]);this.J.push(function(){wa.save();
-wa.resetTransform();wa.globalCompositeOperation=Wc;wa.globalAlpha=Xc;const kb=ia.canvas();kb&&wa.drawImage(kb,Vb,Wb,qa,ra,M,R,Ga,Ha);wa.restore()})}},_clipPath:function(m){const q=m.fb===r?"evenodd":"nonzero",B=m.Ha();this.J.push(()=>{this.D.clip(B,q);m.hb(B)})},beginFrame:function(m=!0){v.add(this);m&&this.J.push(this.D.clearRect.bind(this.D,0,0,this.cb.width,this.cb.height))},clear:function(){this.beginFrame(!0)},flush:function(){},translate:function(m,q){this.transform(1,0,0,1,m,q)}});k.makeRenderer=
-function(m){const q=new ja(m),B=q.D;let z=null,L=null;const C={attachSession:function(A){if(A&&z===A)return!0;if(!A||z||"function"!==typeof k.c2dDeferredClaim||"function"!==typeof k.c2dDeferredRenderer||!k.c2dDeferredClaim(A))return!1;const J=k.c2dDeferredRenderer(A);if(!J)return!1;z=A;L=J;return!0},detachSession:function(){z&&k.c2dDeferredDetach(z);L=z=null},deferredActive:function(){return null!==L}},D={save:function(){k.c2dDeferredSave(z)},restore:function(){k.c2dDeferredRestore(z)},transform:function(A,
-J,M,R,U,W){k.c2dDeferredTransform(z,A,J,M,R,U,W)},translate:function(A,J){k.c2dDeferredTransform(z,1,0,0,1,A,J)},rotate:function(A){const J=Math.sin(A);A=Math.cos(A);k.c2dDeferredTransform(z,A,J,-J,A,0,0)},align:function(A,J,M,R,U){k.c2dDeferredAlign(z,A,J,M.minX,M.minY,M.maxX,M.maxY,R.minX,R.minY,R.maxX,R.maxY,void 0===U?1:U)},beginFrame:function(A=!0){q.beginFrame(A);k.c2dDeferredBeginFrame(z)},clear:function(){q.beginFrame(!0);k.c2dDeferredBeginFrame(z)},flush:function(){k.c2dDeferredReplay(z,
-q)}};return new Proxy(q,{get(A,J){if(N.call(C,J))return C[J];if("_deferredRecorder"===J)return L;if(null!==L&&N.call(D,J))return D[J];if("function"===typeof A[J])return function(...M){return A[J].apply(A,M)};if("function"===typeof B[J]){if(-1<ha.indexOf(J))throw Error("RiveException: Method call to '"+J+"()' is not allowed, as the renderer cannot immediately pass through the return                 values of any canvas 2d context methods.");return function(...M){q.J.push(B[J].bind(B,...M))}}return A[J]},
-set(A,J,M){if(J in B)return q.J.push(()=>{B[J]=M}),!0}})};k.decodeImage=function(m,q){(new y({oa:q})).decode(m)};k.renderFactory={makeRenderPaint:function(){return new K},makeRenderPath:function(){return new I},makeRenderImage:function(){let m=lb;return new y({Ba:()=>{m.total++},oa:()=>{m.loaded++;if(m.loaded===m.total){const q=m.ready;q&&(q(),m.ready=null)}}})}};let Yc=k.load,lb=null;k.load=function(m,q,B=!0,z=null){const L=new k.FallbackFileAssetLoader;void 0!==q&&L.addLoader(q);B&&(q=new k.CDNFileAssetLoader(z),
-L.addLoader(q));return new Promise(function(C){let D=null;lb={total:0,loaded:0,ready:function(){C(D)}};D=Yc(m,L,z??null);0==lb.total&&C(D)})};const Zc=k.Artboard.prototype.draw;k.Artboard.prototype.draw=function(m){Zc.call(this,m._deferredRecorder||m)};let $c=k.RendererWrapper.prototype.align;k.RendererWrapper.prototype.align=function(m,q,B,z,L=1){$c.call(this,m,q,B,z,L)};d=new ca;k.requestAnimationFrame=d.requestAnimationFrame.bind(d);k.cancelAnimationFrame=d.cancelAnimationFrame.bind(d);k.enableFPSCounter=
-d.$b.bind(d);k.disableFPSCounter=d.Xb;d.xb=c;k.resolveAnimationFrame=c;k.cleanup=function(){O&&O.delete()}};var la="./this.program";ba&&(_scriptName=self.location.href);var ma="",na,oa;
-if(aa||ba){try{ma=(new URL(".",_scriptName)).href}catch{}ba&&(oa=a=>{var b=new XMLHttpRequest;b.open("GET",a,!1);b.responseType="arraybuffer";b.send(null);return new Uint8Array(b.response)});na=async a=>{if(pa(a))return new Promise((c,d)=>{var e=new XMLHttpRequest;e.open("GET",a,!0);e.responseType="arraybuffer";e.onload=()=>{200==e.status||0==e.status&&e.response?c(e.response):d(e.status)};e.onerror=d;e.send(null)});var b=await fetch(a,{credentials:"same-origin"});if(b.ok)return b.arrayBuffer();throw Error(b.status+
-" : "+b.url);}}var sa=console.log.bind(console),ta=console.error.bind(console),ua,va=!1,xa,pa=a=>a.startsWith("file://"),ya,za,Aa,w,Ba,Ca,E,F,Da,Ea,Fa=!1;function Ia(){var a=Ja.buffer;k.HEAP8=Aa=new Int8Array(a);Ba=new Int16Array(a);k.HEAPU8=w=new Uint8Array(a);k.HEAPU16=Ca=new Uint16Array(a);k.HEAP32=E=new Int32Array(a);k.HEAPU32=F=new Uint32Array(a);k.HEAPF32=Da=new Float32Array(a);Ea=new Float64Array(a)}
-function Ka(a){k.onAbort?.(a);a="Aborted("+a+")";ta(a);va=!0;a=new WebAssembly.RuntimeError(a+". Build with -sASSERTIONS for more info.");za?.(a);throw a;}var La;async function Ma(a){if(!ua)try{var b=await na(a);return new Uint8Array(b)}catch{}if(a==La&&ua)a=new Uint8Array(ua);else if(oa)a=oa(a);else throw"both async and sync fetching of the wasm failed";return a}
-async function Na(a,b){try{var c=await Ma(a);return await WebAssembly.instantiate(c,b)}catch(d){ta(`failed to asynchronously prepare wasm: ${d}`),Ka(d)}}async function Oa(a){var b=La;if(!ua&&!pa(b))try{var c=fetch(b,{credentials:"same-origin"});return await WebAssembly.instantiateStreaming(c,a)}catch(d){ta(`wasm streaming compile failed: ${d}`),ta("falling back to ArrayBuffer instantiation")}return Na(b,a)}var H,Pa;
-class Qa{name="ExitStatus";constructor(a){this.message=`Program terminated with exit(${a})`;this.status=a}}
-var Sa=a=>{for(;0<a.length;)a.shift()(k)},Ta=[],Ua=[],Va=()=>{var a=k.preRun.shift();Ua.push(a)},Wa=!0,Ya=()=>{var a=E[+Xa>>2];Xa+=4;return a},Za=(a,b)=>{for(var c=0,d=a.length-1;0<=d;d--){var e=a[d];"."===e?a.splice(d,1):".."===e?(a.splice(d,1),c++):c&&(a.splice(d,1),c--)}if(b)for(;c;c--)a.unshift("..");return a},$a=a=>{var b="/"===a.charAt(0),c="/"===a.slice(-1);(a=Za(a.split("/").filter(d=>!!d),!b).join("/"))||b||(a=".");a&&c&&(a+="/");return(b?"/":"")+a},ab=a=>{var b=/^(\/?|)([\s\S]*?)((?:\.{1,2}|[^\/]+?|)(\.[^.\/]*|))(?:[\/]*)$/.exec(a).slice(1);
-a=b[0];b=b[1];if(!a&&!b)return".";b&&=b.slice(0,-1);return a+b},bb=()=>a=>crypto.getRandomValues(a),cb=a=>{(cb=bb())(a)},db=(...a)=>{for(var b="",c=!1,d=a.length-1;-1<=d&&!c;d--){c=0<=d?a[d]:"/";if("string"!=typeof c)throw new TypeError("Arguments to path.resolve must be strings");if(!c)return"";b=c+"/"+b;c="/"===c.charAt(0)}b=Za(b.split("/").filter(e=>!!e),!c).join("/");return(c?"/":"")+b||"."},eb=globalThis.TextDecoder&&new TextDecoder,fb=(a,b,c,d)=>{c=b+c;if(d)return c;for(;a[b]&&!(b>=c);)++b;
-return b},gb=(a,b=0,c,d)=>{c=fb(a,b,c,d);if(16<c-b&&a.buffer&&eb)return eb.decode(a.subarray(b,c));for(d="";b<c;){var e=a[b++];if(e&128){var f=a[b++]&63;if(192==(e&224))d+=String.fromCharCode((e&31)<<6|f);else{var g=a[b++]&63;e=224==(e&240)?(e&15)<<12|f<<6|g:(e&7)<<18|f<<12|g<<6|a[b++]&63;65536>e?d+=String.fromCharCode(e):(e-=65536,d+=String.fromCharCode(55296|e>>10,56320|e&1023))}}else d+=String.fromCharCode(e)}return d},hb=[],ib=a=>{for(var b=0,c=0;c<a.length;++c){var d=a.charCodeAt(c);127>=d?b++:
-2047>=d?b+=2:55296<=d&&57343>=d?(b+=4,++c):b+=3}return b},jb=(a,b,c,d)=>{if(!(0<d))return 0;var e=c;d=c+d-1;for(var f=0;f<a.length;++f){var g=a.codePointAt(f);if(127>=g){if(c>=d)break;b[c++]=g}else if(2047>=g){if(c+1>=d)break;b[c++]=192|g>>6;b[c++]=128|g&63}else if(65535>=g){if(c+2>=d)break;b[c++]=224|g>>12;b[c++]=128|g>>6&63;b[c++]=128|g&63}else{if(c+3>=d)break;b[c++]=240|g>>18;b[c++]=128|g>>12&63;b[c++]=128|g>>6&63;b[c++]=128|g&63;f++}}b[c]=0;return c-e},mb=[];
-function nb(a,b){mb[a]={input:[],output:[],$:b};ob(a,pb)}
-var pb={open(a){var b=mb[a.node.Ca];if(!b)throw new P(43);a.s=b;a.seekable=!1},close(a){a.s.$.ua(a.s)},ua(a){a.s.$.ua(a.s)},read(a,b,c,d){if(!a.s||!a.s.$.qb)throw new P(60);for(var e=0,f=0;f<d;f++){try{var g=a.s.$.qb(a.s)}catch(h){throw new P(29);}if(void 0===g&&0===e)throw new P(6);if(null===g||void 0===g)break;e++;b[c+f]=g}e&&(a.node.ea=Date.now());return e},write(a,b,c,d){if(!a.s||!a.s.$.Xa)throw new P(60);try{for(var e=0;e<d;e++)a.s.$.Xa(a.s,b[c+e])}catch(f){throw new P(29);}d&&(a.node.O=a.node.K=
-Date.now());return e}},qb={qb(){a:{if(!hb.length){var a=null;globalThis.window?.prompt&&(a=window.prompt("Input: "),null!==a&&(a+="\n"));if(!a){var b=null;break a}b=Array(ib(a)+1);a=jb(a,b,0,b.length);b.length=a;hb=b}b=hb.shift()}return b},Xa(a,b){null===b||10===b?(sa(gb(a.output)),a.output=[]):0!=b&&a.output.push(b)},ua(a){0<a.output?.length&&(sa(gb(a.output)),a.output=[])},kc(){return{Lc:25856,Nc:5,Kc:191,Mc:35387,Jc:[3,28,127,21,4,0,1,0,17,19,26,0,18,15,23,22,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}},
-lc(){return 0},mc(){return[24,80]}},rb={Xa(a,b){null===b||10===b?(ta(gb(a.output)),a.output=[]):0!=b&&a.output.push(b)},ua(a){0<a.output?.length&&(ta(gb(a.output)),a.output=[])}},Q={S:null,Z(){return Q.createNode(null,"/",16895,0)},createNode(a,b,c,d){if(24576===(c&61440)||4096===(c&61440))throw new P(63);Q.S||(Q.S={dir:{node:{ca:Q.l.ca,U:Q.l.U,na:Q.l.na,za:Q.l.za,Bb:Q.l.Bb,Hb:Q.l.Hb,Db:Q.l.Db,Za:Q.l.Za,Ga:Q.l.Ga},stream:{R:Q.i.R}},file:{node:{ca:Q.l.ca,U:Q.l.U},stream:{R:Q.i.R,read:Q.i.read,write:Q.i.write,
-ub:Q.i.ub,wb:Q.i.wb}},link:{node:{ca:Q.l.ca,U:Q.l.U,pa:Q.l.pa},stream:{}},kb:{node:{ca:Q.l.ca,U:Q.l.U},stream:sb}});c=tb(a,b,c,d);16384===(c.mode&61440)?(c.l=Q.S.dir.node,c.i=Q.S.dir.stream,c.j={}):32768===(c.mode&61440)?(c.l=Q.S.file.node,c.i=Q.S.file.stream,c.B=0,c.j=null):40960===(c.mode&61440)?(c.l=Q.S.link.node,c.i=Q.S.link.stream):8192===(c.mode&61440)&&(c.l=Q.S.kb.node,c.i=Q.S.kb.stream);c.ea=c.O=c.K=Date.now();a&&(a.j[b]=c,a.ea=a.O=a.K=c.ea);return c},Rc(a){return a.j?a.j.subarray?a.j.subarray(0,
-a.B):new Uint8Array(a.j):new Uint8Array(0)},l:{ca(a){var b={};b.Oc=8192===(a.mode&61440)?a.id:1;b.Tc=a.id;b.mode=a.mode;b.Vc=1;b.uid=0;b.Sc=0;b.Ca=a.Ca;16384===(a.mode&61440)?b.size=4096:32768===(a.mode&61440)?b.size=a.B:40960===(a.mode&61440)?b.size=a.link.length:b.size=0;b.ea=new Date(a.ea);b.O=new Date(a.O);b.K=new Date(a.K);b.Tb=4096;b.Ic=Math.ceil(b.size/b.Tb);return b},U(a,b){for(var c of["mode","atime","mtime","ctime"])null!=b[c]&&(a[c]=b[c]);void 0!==b.size&&(b=b.size,a.B!=b&&(0==b?(a.j=null,
-a.B=0):(c=a.j,a.j=new Uint8Array(b),c&&a.j.set(c.subarray(0,Math.min(b,a.B))),a.B=b)))},na(){Q.Ra||(Q.Ra=new P(44),Q.Ra.stack="<generic error, no stack>");throw Q.Ra;},za(a,b,c,d){return Q.createNode(a,b,c,d)},Bb(a,b,c){try{var d=ub(b,c)}catch(f){}if(d){if(16384===(a.mode&61440))for(var e in d.j)throw new P(55);e=vb(d.parent.id,d.name);if(wb[e]===d)wb[e]=d.ia;else for(e=wb[e];e;){if(e.ia===d){e.ia=d.ia;break}e=e.ia}}delete a.parent.j[a.name];b.j[c]=a;a.name=c;b.K=b.O=a.parent.K=a.parent.O=Date.now()},
-Hb(a,b){delete a.j[b];a.K=a.O=Date.now()},Db(a,b){var c=ub(a,b),d;for(d in c.j)throw new P(55);delete a.j[b];a.K=a.O=Date.now()},Za(a){return[".","..",...Object.keys(a.j)]},Ga(a,b,c){a=Q.createNode(a,b,41471,0);a.link=c;return a},pa(a){if(40960!==(a.mode&61440))throw new P(28);return a.link}},i:{read(a,b,c,d,e){var f=a.node.j;if(e>=a.node.B)return 0;a=Math.min(a.node.B-e,d);if(8<a&&f.subarray)b.set(f.subarray(e,e+a),c);else for(d=0;d<a;d++)b[c+d]=f[e+d];return a},write(a,b,c,d,e,f){b.buffer===Aa.buffer&&
-(f=!1);if(!d)return 0;a=a.node;a.O=a.K=Date.now();if(b.subarray&&(!a.j||a.j.subarray)){if(f)return a.j=b.subarray(c,c+d),a.B=d;if(0===a.B&&0===e)return a.j=b.slice(c,c+d),a.B=d;if(e+d<=a.B)return a.j.set(b.subarray(c,c+d),e),d}f=e+d;var g=a.j?a.j.length:0;g>=f||(f=Math.max(f,g*(1048576>g?2:1.125)>>>0),0!=g&&(f=Math.max(f,256)),g=a.j,a.j=new Uint8Array(f),0<a.B&&a.j.set(g.subarray(0,a.B),0));if(a.j.subarray&&b.subarray)a.j.set(b.subarray(c,c+d),e);else for(f=0;f<d;f++)a.j[e+f]=b[c+f];a.B=Math.max(a.B,
-e+d);return d},R(a,b,c){1===c?b+=a.position:2===c&&32768===(a.node.mode&61440)&&(b+=a.node.B);if(0>b)throw new P(28);return b},ub(a,b,c,d,e){if(32768!==(a.node.mode&61440))throw new P(43);a=a.node.j;if(e&2||!a||a.buffer!==Aa.buffer){d=!0;Ka();e=void 0;if(!e)throw new P(48);if(a){if(0<c||c+b<a.length)a.subarray?a=a.subarray(c,c+b):a=Array.prototype.slice.call(a,c,c+b);Aa.set(a,e)}}else d=!1,e=a.byteOffset;return{m:e,Hc:d}},wb(a,b,c,d){Q.i.write(a,b,0,d,c,!1);return 0}}},xb=(a,b)=>{var c=0;a&&(c|=365);
-b&&(c|=146);return c},yb=null,zb={},Ab=[],Bb=1,wb=null,Cb=!1,Db=!0,Eb={},P=class{name="ErrnoError";constructor(a){this.aa=a}},Fb=class{Y={};node=null;get flags(){return this.Y.flags}set flags(a){this.Y.flags=a}get position(){return this.Y.position}set position(a){this.Y.position=a}},Gb=class{l={};i={};Aa=null;constructor(a,b,c,d){a||=this;this.parent=a;this.Z=a.Z;this.id=Bb++;this.name=b;this.mode=c;this.Ca=d;this.ea=this.O=this.K=Date.now()}get read(){return 365===(this.mode&365)}set read(a){a?this.mode|=
-365:this.mode&=-366}get write(){return 146===(this.mode&146)}set write(a){a?this.mode|=146:this.mode&=-147}};
-function Hb(a,b={}){if(!a)throw new P(44);b.Ta??(b.Ta=!0);"/"===a.charAt(0)||(a="//"+a);var c=0;a:for(;40>c;c++){a=a.split("/").filter(h=>!!h);for(var d=yb,e="/",f=0;f<a.length;f++){var g=f===a.length-1;if(g&&b.parent)break;if("."!==a[f])if(".."===a[f])if(e=ab(e),d===d.parent){a=e+"/"+a.slice(f+1).join("/");c--;continue a}else d=d.parent;else{e=$a(e+"/"+a[f]);try{d=ub(d,a[f])}catch(h){if(44===h?.aa&&g&&b.uc)return{path:e};throw h;}!d.Aa||g&&!b.Ta||(d=d.Aa.root);if(40960===(d.mode&61440)&&(!g||b.Sa)){if(!d.l.pa)throw new P(52);
-d=d.l.pa(d);"/"===d.charAt(0)||(d=ab(e)+"/"+d);a=d+"/"+a.slice(f+1).join("/");continue a}}}return{path:e,node:d}}throw new P(32);}function vb(a,b){for(var c=0,d=0;d<b.length;d++)c=(c<<5)-c+b.charCodeAt(d)|0;return(a+c>>>0)%wb.length}function ub(a,b){var c=16384===(a.mode&61440)?(c=Ib(a,"x"))?c:a.l.na?0:2:54;if(c)throw new P(c);for(c=wb[vb(a.id,b)];c;c=c.ia){var d=c.name;if(c.parent.id===a.id&&d===b)return c}return a.l.na(a,b)}
-function tb(a,b,c,d){a=new Gb(a,b,c,d);b=vb(a.parent.id,a.name);a.ia=wb[b];return wb[b]=a}function Jb(a){var b=["r","w","rw"][a&3];a&512&&(b+="w");return b}function Ib(a,b){if(Db)return 0;if(!b.includes("r")||a.mode&292){if(b.includes("w")&&!(a.mode&146)||b.includes("x")&&!(a.mode&73))return 2}else return 2;return 0}function Kb(a,b){if(16384!==(a.mode&61440))return 54;try{return ub(a,b),20}catch(c){}return Ib(a,"wx")}function Lb(a){a=Ab[a];if(!a)throw new P(8);return a}
-function Mb(a,b=-1){a=Object.assign(new Fb,a);if(-1==b)a:{for(b=0;4096>=b;b++)if(!Ab[b])break a;throw new P(33);}a.ba=b;return Ab[b]=a}function Nb(a,b=-1){a=Mb(a,b);a.i?.Qc?.(a);return a}function Ob(a,b){var c= undefined,d=c?null:a;c??=a.l.U;if(!c)throw new P(63);c(d,b)}var sb={open(a){a.i=zb[a.node.Ca].i;a.i.open?.(a)},R(){throw new P(70);}};function ob(a,b){zb[a]={i:b}}
-function Pb(a,b){var c="/"===b;if(c&&yb)throw new P(10);if(!c&&b){var d=Hb(b,{Ta:!1});b=d.path;d=d.node;if(d.Aa)throw new P(10);if(16384!==(d.mode&61440))throw new P(54);}b={type:a,Wc:{},vb:b,sc:[]};a=a.Z(b);a.Z=b;b.root=a;c?yb=a:d&&(d.Aa=b,d.Z&&d.Z.sc.push(b))}function Qb(a,b,c){var d=Hb(a,{parent:!0}).node;a=a&&a.match(/([^\/]+|\/)\/*$/)[1];if(!a)throw new P(28);if("."===a||".."===a)throw new P(20);var e=Kb(d,a);if(e)throw new P(e);if(!d.l.za)throw new P(63);return d.l.za(d,a,b,c)}
-function Rb(a){return Qb(a,16895,0)}function Sb(a,b,c){"undefined"==typeof c&&(c=b,b=438);Qb(a,b|8192,c)}function Xb(a,b){if(!db(a))throw new P(44);var c=Hb(b,{parent:!0}).node;if(!c)throw new P(44);b=b&&b.match(/([^\/]+|\/)\/*$/)[1];var d=Kb(c,b);if(d)throw new P(d);if(!c.l.Ga)throw new P(63);c.l.Ga(c,b,a)}
-function Yb(a,b,c=438){if(""===a)throw new P(44);if("string"==typeof b){var d={r:0,"r+":2,w:577,"w+":578,a:1089,"a+":1090}[b];if("undefined"==typeof d)throw Error(`Unknown file open mode: ${b}`);b=d}c=b&64?c&4095|32768:0;if("object"==typeof a)d=a;else{var e=a.endsWith("/");a=Hb(a,{Sa:!(b&131072),uc:!0});d=a.node;a=a.path}var f=!1;if(b&64)if(d){if(b&128)throw new P(20);}else{if(e)throw new P(31);d=Qb(a,c|511,0);f=!0}if(!d)throw new P(44);8192===(d.mode&61440)&&(b&=-513);if(b&65536&&16384!==(d.mode&
-61440))throw new P(54);if(!f&&(e=d?40960===(d.mode&61440)?32:16384===(d.mode&61440)&&("r"!==Jb(b)||b&576)?31:Ib(d,Jb(b)):44))throw new P(e);if(b&512&&!f){e=d;e="string"==typeof e?Hb(e,{Sa:!0}).node:e;if(16384===(e.mode&61440))throw new P(31);if(32768!==(e.mode&61440))throw new P(28);var g=Ib(e,"w");if(g)throw new P(g);Ob(e,{size:0,timestamp:Date.now()})}b&=-131713;a:for(e=d;;){if(e===e.parent){e=e.Z.vb;var h=h?"/"!==e[e.length-1]?`${e}/${h}`:e+h:e;break a}h=h?`${e.name}/${h}`:e.name;e=e.parent}h=
-Mb({node:d,path:h,flags:b,seekable:!0,position:0,i:d.i,Bc:[],error:!1});h.i.open&&h.i.open(h);f&&(c&=511,d="string"==typeof d?Hb(d,{Sa:!0}).node:d,Ob(d,{mode:c&4095|d.mode&-4096,K:Date.now(),Pc:void 0}));!k.logReadFiles||b&1||a in Eb||(Eb[a]=1);return h}function Zb(a,b,c){if(null===a.ba)throw new P(8);if(!a.seekable||!a.i.R)throw new P(70);if(0!=c&&1!=c&&2!=c)throw new P(28);a.position=a.i.R(a,b,c);a.Bc=[]}
-function $b(a,b,c){a=$a("/dev/"+a);var d=xb(!!b,!!c);$b.tb??($b.tb=64);var e=$b.tb++<<8|0;ob(e,{open(f){f.seekable=!1},close(){c?.buffer?.length&&c(10)},read(f,g,h,l){for(var n=0,t=0;t<l;t++){try{var u=b()}catch(r){throw new P(29);}if(void 0===u&&0===n)throw new P(6);if(null===u||void 0===u)break;n++;g[h+t]=u}n&&(f.node.ea=Date.now());return n},write(f,g,h,l){for(var n=0;n<l;n++)try{c(g[h+n])}catch(t){throw new P(29);}l&&(f.node.O=f.node.K=Date.now());return n}});Sb(a,d,e)}
-var ac={},Xa=void 0,bc=(a,b)=>Object.defineProperty(b,"name",{value:a}),cc=[],dc=[0,1,,1,null,1,!0,1,!1,1],S=class extends Error{constructor(a){super(a);this.name="BindingError"}},ec=a=>{if(!a)throw new S(`Cannot use deleted val. handle = ${a}`);return dc[a]},fc=a=>{switch(a){case void 0:return 2;case null:return 4;case !0:return 6;case !1:return 8;default:const b=cc.pop()||dc.length;dc[b]=a;dc[b+1]=1;return b}};class gc extends Error{}
-var T=a=>{for(var b="";;){var c=w[a++];if(!c)return b;b+=String.fromCharCode(c)}},hc={},ic=(a,b)=>{if(void 0===b)throw new S("ptr should not be undefined");for(;a.C;)b=a.qa(b),a=a.C;return b},jc={},mc=a=>{a=kc(a);var b=T(a);lc(a);return b},nc=(a,b)=>{var c=jc[a];if(void 0===c)throw a=`${b} has unknown type ${mc(a)}`,new S(a);return c},oc=()=>{},pc=!1,qc=a=>{if(!globalThis.FinalizationRegistry)return qc=b=>b,a;pc=new FinalizationRegistry(b=>{b=b.g;--b.count.value;0===b.count.value&&(b.F?b.M.T(b.F):
-b.u.h.T(b.m))});qc=b=>{var c=b.g;c.F&&pc.register(b,{g:c},b);return b};oc=b=>{pc.unregister(b)};return qc(a)},rc={},sc=a=>{for(;a.length;){var b=a.pop();a.pop()(b)}};function tc(a){return this.o(F[a>>2])}
-var uc={},vc={},wc=class extends Error{constructor(a){super(a);this.name="InternalError"}},Y=(a,b,c)=>{function d(h){h=c(h);if(h.length!==a.length)throw new wc("Mismatched type converter count");for(var l=0;l<a.length;++l)X(a[l],h[l])}a.forEach(h=>vc[h]=b);var e=Array(b.length),f=[],g=0;for(let [h,l]of b.entries())jc.hasOwnProperty(l)?e[h]=jc[l]:(f.push(l),uc.hasOwnProperty(l)||(uc[l]=[]),uc[l].push(()=>{e[h]=jc[l];++g;g===f.length&&d(e)}));0===f.length&&d(e)};
-function xc(a,b,c={}){var d=b.name;if(!a)throw new S(`type "${d}" must have a positive integer typeid pointer`);if(jc.hasOwnProperty(a)){if(c.ic)return;throw new S(`Cannot register type '${d}' twice`);}jc[a]=b;delete vc[a];uc.hasOwnProperty(a)&&(b=uc[a],delete uc[a],b.forEach(e=>e()))}function X(a,b,c={}){return xc(a,b,c)}var yc=a=>{throw new S(a.g.u.h.name+" instance already deleted");},zc=[];function Ac(){}
-var Bc={},Cc=(a,b,c)=>{if(void 0===a[b].v){var d=a[b];a[b]=function(...e){if(!a[b].v.hasOwnProperty(e.length))throw new S(`Function '${c}' called with an invalid number of arguments (${e.length}) - expects one of (${a[b].v})!`);return a[b].v[e.length].apply(this,e)};a[b].v=[];a[b].v[d.X]=d}},Dc=(a,b,c)=>{if(k.hasOwnProperty(a)){if(void 0===c||void 0!==k[a].v&&void 0!==k[a].v[c])throw new S(`Cannot register public name '${a}' twice`);Cc(k,a,a);if(k[a].v.hasOwnProperty(c))throw new S(`Cannot register multiple overloads of a function with the same number of arguments (${c})!`);
-k[a].v[c]=b}else k[a]=b,k[a].X=c},Ec=a=>{a=a.replace(/[^a-zA-Z0-9_]/g,"$");var b=a.charCodeAt(0);return 48<=b&&57>=b?`_${a}`:a};function Fc(a,b,c,d,e,f,g,h){this.name=a;this.constructor=b;this.P=c;this.T=d;this.C=e;this.cc=f;this.qa=g;this.Yb=h;this.zb=[]}
-var Gc=(a,b,c)=>{for(;b!==c;){if(!b.qa)throw new S(`Expected null or instance of ${c.name}, got an instance of ${b.name}`);a=b.qa(a);b=b.C}return a},Hc=a=>{if(null===a)return"null";var b=typeof a;return"object"===b||"array"===b||"function"===b?a.toString():""+a};
-function Ic(a,b){if(null===b){if(this.Va)throw new S(`null is not a valid ${this.name}`);return 0}if(!b.g)throw new S(`Cannot pass "${Hc(b)}" as a ${this.name}`);if(!b.g.m)throw new S(`Cannot pass deleted object as a pointer of type ${this.name}`);return Gc(b.g.m,b.g.u.h,this.h)}
-function Jc(a,b){if(null===b){if(this.Va)throw new S(`null is not a valid ${this.name}`);if(this.ya){var c=this.Ya();null!==a&&a.push(this.T,c);return c}return 0}if(!b||!b.g)throw new S(`Cannot pass "${Hc(b)}" as a ${this.name}`);if(!b.g.m)throw new S(`Cannot pass deleted object as a pointer of type ${this.name}`);if(!this.xa&&b.g.u.xa)throw new S(`Cannot convert argument of type ${b.g.M?b.g.M.name:b.g.u.name} to parameter type ${this.name}`);c=Gc(b.g.m,b.g.u.h,this.h);if(this.ya){if(void 0===b.g.F)throw new S("Passing raw pointer to smart pointer is illegal");
-switch(this.Ac){case 0:if(b.g.M===this)c=b.g.F;else throw new S(`Cannot convert argument of type ${b.g.M?b.g.M.name:b.g.u.name} to parameter type ${this.name}`);break;case 1:c=b.g.F;break;case 2:if(b.g.M===this)c=b.g.F;else{var d=b.clone();c=this.wc(c,fc(()=>d["delete"]()));null!==a&&a.push(this.T,c)}break;default:throw new S("Unsupported sharing policy");}}return c}
-function Kc(a,b){if(null===b){if(this.Va)throw new S(`null is not a valid ${this.name}`);return 0}if(!b.g)throw new S(`Cannot pass "${Hc(b)}" as a ${this.name}`);if(!b.g.m)throw new S(`Cannot pass deleted object as a pointer of type ${this.name}`);if(b.g.u.xa)throw new S(`Cannot convert argument of type ${b.g.u.name} to parameter type ${this.name}`);return Gc(b.g.m,b.g.u.h,this.h)}
-var Lc=(a,b,c)=>{if(b===c)return a;if(void 0===c.C)return null;a=Lc(a,b,c.C);return null===a?null:c.Yb(a)},Mc=(a,b)=>{b=ic(a,b);return hc[b]},Nc=(a,b)=>{if(!b.u||!b.m)throw new wc("makeClassHandle requires ptr and ptrType");if(!!b.M!==!!b.F)throw new wc("Both smartPtrType and smartPtr must be specified");b.count={value:1};return qc(Object.create(a,{g:{value:b,writable:!0}}))};
-function Oc(a,b,c,d,e,f,g,h,l,n,t){this.name=a;this.h=b;this.Va=c;this.xa=d;this.ya=e;this.vc=f;this.Ac=g;this.Ab=h;this.Ya=l;this.wc=n;this.T=t;e||void 0!==b.C?this.A=Jc:(this.A=d?Ic:Kc,this.I=null)}
-var Pc=(a,b,c)=>{if(!k.hasOwnProperty(a))throw new wc("Replacing nonexistent public symbol");void 0!==k[a].v&&void 0!==c?k[a].v[c]=b:(k[a]=b,k[a].X=c)},Qc={},Sc=(a,b,c=[])=>{a.includes("j")?(a=a.replace(/p/g,"i"),b=(0,Qc[a])(b,...c)):b=Rc.get(b)(...c);return b},Tc=(a,b)=>(...c)=>Sc(a,b,c),Z=(a,b)=>{a=T(a);var c=a.includes("j")?Tc(a,b):Rc.get(b);if("function"!=typeof c)throw new S(`unknown function pointer with signature ${a}: ${b}`);return c};class Uc extends Error{}
-var Vc=(a,b)=>{function c(f){e[f]||jc[f]||(vc[f]?vc[f].forEach(c):(d.push(f),e[f]=!0))}var d=[],e={};b.forEach(c);throw new Uc(`${a}: `+d.map(mc).join([", "]));};function ad(a){for(var b=1;b<a.length;++b)if(null!==a[b]&&void 0===a[b].I)return!0;return!1}
-function bd(a,b,c,d,e){var f=b.length;if(2>f)throw new S("argTypes array size mismatch! Must at least get return value and 'this' types!");var g=null!==b[1]&&null!==c,h=ad(b),l=!b[0].oc,n=f-2,t=Array(n),u=[],r=[];return bc(a,function(...x){r.length=0;u.length=g?2:1;u[0]=e;if(g){var y=b[1].A(r,this);u[1]=y}for(var p=0;p<n;++p)t[p]=b[p+2].A(r,x[p]),u.push(t[p]);x=d(...u);if(h)sc(r);else for(p=g?1:2;p<b.length;p++){var I=1===p?y:t[p-2];null!==b[p].I&&b[p].I(I)}y=l?b[0].o(x):void 0;return y})}
-var cd=(a,b)=>{for(var c=[],d=0;d<a;d++)c.push(F[b+4*d>>2]);return c},dd=a=>{a=a.trim();const b=a.indexOf("(");return-1===b?a:a.slice(0,b)},ed=(a,b,c)=>{if(!(a instanceof Object))throw new S(`${c} with invalid "this": ${a}`);if(!(a instanceof b.h.constructor))throw new S(`${c} incompatible with "this" of type ${a.constructor.name}`);if(!a.g.m)throw new S(`cannot call emscripten binding method ${c} on deleted object`);return Gc(a.g.m,a.g.u.h,b.h)},fd=a=>{9<a&&0===--dc[a+1]&&(dc[a]=void 0,cc.push(a))},
-gd={name:"emscripten::val",o:a=>{var b=ec(a);fd(a);return b},A:(a,b)=>fc(b),L:tc,I:null},hd=(a,b,c)=>{switch(b){case 1:return c?function(d){return this.o(Aa[d])}:function(d){return this.o(w[d])};case 2:return c?function(d){return this.o(Ba[d>>1])}:function(d){return this.o(Ca[d>>1])};case 4:return c?function(d){return this.o(E[d>>2])}:function(d){return this.o(F[d>>2])};default:throw new TypeError(`invalid integer width (${b}): ${a}`);}},jd=(a,b)=>{switch(b){case 4:return function(c){return this.o(Da[c>>
-2])};case 8:return function(c){return this.o(Ea[c>>3])};default:throw new TypeError(`invalid float width (${b}): ${a}`);}},kd=(a,b,c)=>{switch(b){case 1:return c?d=>Aa[d]:d=>w[d];case 2:return c?d=>Ba[d>>1]:d=>Ca[d>>1];case 4:return c?d=>E[d>>2]:d=>F[d>>2];default:throw new TypeError(`invalid integer width (${b}): ${a}`);}},ld=globalThis.TextDecoder?new TextDecoder("utf-16le"):void 0,md=(a,b,c)=>{a>>=1;b=fb(Ca,a,b/2,c);if(16<b-a&&ld)return ld.decode(Ca.subarray(a,b));for(c="";a<b;++a)c+=String.fromCharCode(Ca[a]);
-return c},nd=(a,b,c)=>{c??=2147483647;if(2>c)return 0;c-=2;var d=b;c=c<2*a.length?c/2:a.length;for(var e=0;e<c;++e)Ba[b>>1]=a.charCodeAt(e),b+=2;Ba[b>>1]=0;return b-d},od=a=>2*a.length,pd=(a,b,c)=>{var d="";a>>=2;for(var e=0;!(e>=b/4);e++){var f=F[a+e];if(!f&&!c)break;d+=String.fromCodePoint(f)}return d},qd=(a,b,c)=>{c??=2147483647;if(4>c)return 0;var d=b;c=d+c-4;for(var e=0;e<a.length;++e){var f=a.codePointAt(e);65535<f&&e++;E[b>>2]=f;b+=4;if(b+4>c)break}E[b>>2]=0;return b-d},rd=a=>{for(var b=0,
-c=0;c<a.length;++c)65535<a.codePointAt(c)&&c++,b+=4;return b},sd=0,td=[],ud=a=>{var b=td.length;td.push(a);return b},vd=(a,b)=>{for(var c=Array(a),d=0;d<a;++d)c[d]=nc(F[b+4*d>>2],`parameter ${d}`);return c},wd={},xd=a=>{var b=wd[a];return void 0===b?T(a):b},yd=[0,31,60,91,121,152,182,213,244,274,305,335],zd=[0,31,59,90,120,151,181,212,243,273,304,334],Ad={},Bd=a=>{if(!(a instanceof Qa||"unwind"==a))throw a;},Cd=a=>{xa=a;Wa||0<sd||(k.onExit?.(a),va=!0);throw new Qa(a);},Dd=a=>{if(!va)try{if(a(),!(Wa||
-0<sd))try{xa=a=xa,Cd(a)}catch(b){Bd(b)}}catch(b){Bd(b)}},Ed=[],Fd={},Hd=()=>{if(!Gd){var a={USER:"web_user",LOGNAME:"web_user",PATH:"/",PWD:"/",HOME:"/home/web_user",LANG:(globalThis.navigator?.language??"C").replace("-","_")+".UTF-8",_:la||"./this.program"},b;for(b in Fd)void 0===Fd[b]?delete a[b]:a[b]=Fd[b];var c=[];for(b in a)c.push(`${b}=${a[b]}`);Gd=c}return Gd},Gd;wb=Array(4096);Pb(Q,"/");Rb("/tmp");Rb("/home");Rb("/home/web_user");
-(function(){Rb("/dev");ob(259,{read:()=>0,write:(d,e,f,g)=>g,R:()=>0});Sb("/dev/null",259);nb(1280,qb);nb(1536,rb);Sb("/dev/tty",1280);Sb("/dev/tty1",1536);var a=new Uint8Array(1024),b=0,c=()=>{0===b&&(cb(a),b=a.byteLength);return a[--b]};$b("random",c);$b("urandom",c);Rb("/dev/shm");Rb("/dev/shm/tmp")})();
-(function(){Rb("/proc");var a=Rb("/proc/self");Rb("/proc/self/fd");Pb({Z(){var b=tb(a,"fd",16895,73);b.i={R:Q.i.R};b.l={na(c,d){c=+d;var e=Lb(c);c={parent:null,Z:{vb:"fake"},l:{pa:()=>e.path},id:c+1};return c.parent=c},Za(){return Array.from(Ab.entries()).filter(([,c])=>c).map(([c])=>c.toString())}};return b}},"/proc/self/fd")})();
-(()=>{let a=Ac.prototype;Object.assign(a,{isAliasOf:function(c){if(!(this instanceof Ac&&c instanceof Ac))return!1;var d=this.g.u.h,e=this.g.m;c.g=c.g;var f=c.g.u.h;for(c=c.g.m;d.C;)e=d.qa(e),d=d.C;for(;f.C;)c=f.qa(c),f=f.C;return d===f&&e===c},clone:function(){this.g.m||yc(this);if(this.g.ja)return this.g.count.value+=1,this;var c=qc,d=Object,e=d.create,f=Object.getPrototypeOf(this),g=this.g;c=c(e.call(d,f,{g:{value:{count:g.count,ma:g.ma,ja:g.ja,m:g.m,u:g.u,F:g.F,M:g.M}}}));c.g.count.value+=1;c.g.ma=
-!1;return c},["delete"](){this.g.m||yc(this);if(this.g.ma&&!this.g.ja)throw new S("Object already scheduled for deletion");oc(this);var c=this.g;--c.count.value;0===c.count.value&&(c.F?c.M.T(c.F):c.u.h.T(c.m));this.g.ja||(this.g.F=void 0,this.g.m=void 0)},isDeleted:function(){return!this.g.m},deleteLater:function(){this.g.m||yc(this);if(this.g.ma&&!this.g.ja)throw new S("Object already scheduled for deletion");zc.push(this);this.g.ma=!0;return this}});const b=Symbol.dispose;b&&(a[b]=a["delete"])})();
-Object.assign(Oc.prototype,{dc(a){this.Ab&&(a=this.Ab(a));return a},mb(a){this.T?.(a)},L:tc,o:function(a){function b(){return this.ya?Nc(this.h.P,{u:this.vc,m:c,M:this,F:a}):Nc(this.h.P,{u:this,m:a})}var c=this.dc(a);if(!c)return this.mb(a),null;var d=Mc(this.h,c);if(void 0!==d){if(0===d.g.count.value)return d.g.m=c,d.g.F=a,d.clone();d=d.clone();this.mb(a);return d}d=this.h.cc(c);d=Bc[d];if(!d)return b.call(this);d=this.xa?d.Ub:d.pointerType;var e=Lc(c,this.h,d.h);return null===e?b.call(this):this.ya?
-Nc(d.h.P,{u:d,m:e,M:this,F:a}):Nc(d.h.P,{u:d,m:e})}});k.noExitRuntime&&(Wa=k.noExitRuntime);k.print&&(sa=k.print);k.printErr&&(ta=k.printErr);k.wasmBinary&&(ua=k.wasmBinary);k.thisProgram&&(la=k.thisProgram);if(k.preInit)for("function"==typeof k.preInit&&(k.preInit=[k.preInit]);0<k.preInit.length;)k.preInit.shift()();
-var Ld={259262:(a,b,c,d,e)=>{if("undefined"===typeof window||void 0===(window.AudioContext||window.webkitAudioContext))return 0;if("undefined"===typeof window.miniaudio){window.miniaudio={referenceCount:0};window.miniaudio.device_type={};window.miniaudio.device_type.playback=a;window.miniaudio.device_type.capture=b;window.miniaudio.device_type.duplex=c;window.miniaudio.device_state={};window.miniaudio.device_state.stopped=d;window.miniaudio.device_state.started=e;let f=window.miniaudio;f.devices=
-[];f.track_device=function(g){for(var h=0;h<f.devices.length;++h)if(null==f.devices[h])return f.devices[h]=g,h;f.devices.push(g);return f.devices.length-1};f.untrack_device_by_index=function(g){for(f.devices[g]=null;0<f.devices.length;)if(null==f.devices[f.devices.length-1])f.devices.pop();else break};f.untrack_device=function(g){for(var h=0;h<f.devices.length;++h)if(f.devices[h]==g)return f.untrack_device_by_index(h)};f.get_device_by_index=function(g){return f.devices[g]};f.unlock_event_types=["touchend",
-"click"];f.unlock=function(){for(var g=0;g<f.devices.length;++g){var h=f.devices[g];null!=h&&null!=h.N&&h.state===f.device_state.started&&h.N.resume().then(()=>{Id(h.yb)},l=>{console.error("Failed to resume audiocontext",l)})}f.unlock_event_types.map(function(l){document.removeEventListener(l,f.unlock,!0)})};f.unlock_event_types.map(function(g){document.addEventListener(g,f.unlock,!0)})}window.miniaudio.referenceCount+=1;return 1},261440:()=>{"undefined"!==typeof window.miniaudio&&(window.miniaudio.unlock_event_types.map(function(a){document.removeEventListener(a,
-window.miniaudio.unlock,!0)}),--window.miniaudio.referenceCount,0===window.miniaudio.referenceCount&&delete window.miniaudio)},261744:()=>void 0!==navigator.mediaDevices&&void 0!==navigator.mediaDevices.getUserMedia,261848:()=>{try{var a=new (window.AudioContext||window.webkitAudioContext),b=a.sampleRate;a.close();return b}catch(c){return 0}},262019:(a,b,c,d,e,f)=>{if("undefined"===typeof window.miniaudio)return-1;var g={},h={};a==window.miniaudio.device_type.playback&&0!=c&&(h.sampleRate=c);g.N=
-new (window.AudioContext||window.webkitAudioContext)(h);g.N.suspend();g.state=window.miniaudio.device_state.stopped;c=0;a!=window.miniaudio.device_type.playback&&(c=b);g.da=g.N.createScriptProcessor(d,c,b);g.da.onaudioprocess=function(l){if(null==g.wa||0==g.wa.length)g.wa=new Float32Array(Da.buffer,e,d*b);if(a==window.miniaudio.device_type.capture||a==window.miniaudio.device_type.duplex){for(var n=0;n<b;n+=1)for(var t=l.inputBuffer.getChannelData(n),u=g.wa,r=0;r<d;r+=1)u[r*b+n]=t[r];Jd(f,d,e)}if(a==
-window.miniaudio.device_type.playback||a==window.miniaudio.device_type.duplex)for(Kd(f,d,e),n=0;n<l.outputBuffer.numberOfChannels;++n)for(t=l.outputBuffer.getChannelData(n),u=g.wa,r=0;r<d;r+=1)t[r]=u[r*b+n];else for(n=0;n<l.outputBuffer.numberOfChannels;++n)l.outputBuffer.getChannelData(n).fill(0)};a!=window.miniaudio.device_type.capture&&a!=window.miniaudio.device_type.duplex||navigator.mediaDevices.getUserMedia({audio:!0,video:!1}).then(function(l){g.Fa=g.N.createMediaStreamSource(l);g.Fa.connect(g.da);
-g.da.connect(g.N.destination)}).catch(function(l){console.log("Failed to get user media: "+l)});a==window.miniaudio.device_type.playback&&g.da.connect(g.N.destination);g.yb=f;return window.miniaudio.track_device(g)},264896:a=>window.miniaudio.get_device_by_index(a).N.sampleRate,264969:a=>{a=window.miniaudio.get_device_by_index(a);void 0!==a.da&&(a.da.onaudioprocess=function(){},a.da.disconnect(),a.da=void 0);void 0!==a.Fa&&(a.Fa.disconnect(),a.Fa=void 0);a.N.close();a.N=void 0;a.yb=void 0},265369:a=>
-{window.miniaudio.untrack_device_by_index(a)},265419:a=>{a=window.miniaudio.get_device_by_index(a);a.N.resume();a.state=window.miniaudio.device_state.started},265558:a=>{a=window.miniaudio.get_device_by_index(a);a.N.suspend();a.state=window.miniaudio.device_state.stopped}},lc,Md,kc,Id,Jd,Kd,Nd,Od,Pd,Qd,Ja,Rc,Sd={__syscall_fcntl64:function(a,b,c){Xa=c;try{var d=Lb(a);switch(b){case 0:var e=Ya();if(0>e)break;for(;Ab[e];)e++;return Nb(d,e).ba;case 1:case 2:return 0;case 3:return d.flags;case 4:return e=
-Ya(),d.flags|=e,0;case 12:return e=Ya(),Ba[e+0>>1]=2,0;case 13:case 14:return 0}return-28}catch(f){if("undefined"==typeof ac||"ErrnoError"!==f.name)throw f;return-f.aa}},__syscall_ioctl:function(a,b,c){Xa=c;try{var d=Lb(a);switch(b){case 21509:return d.s?0:-59;case 21505:if(!d.s)return-59;if(d.s.$.kc){a=[3,28,127,21,4,0,1,0,17,19,26,0,18,15,23,22,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];var e=Ya();E[e>>2]=25856;E[e+4>>2]=5;E[e+8>>2]=191;E[e+12>>2]=35387;for(var f=0;32>f;f++)Aa[e+f+17]=a[f]||0}return 0;case 21510:case 21511:case 21512:return d.s?
-0:-59;case 21506:case 21507:case 21508:if(!d.s)return-59;if(d.s.$.lc)for(e=Ya(),a=[],f=0;32>f;f++)a.push(Aa[e+f+17]);return 0;case 21519:if(!d.s)return-59;e=Ya();return E[e>>2]=0;case 21520:return d.s?-28:-59;case 21537:case 21531:e=Ya();if(!d.i.jc)throw new P(59);return d.i.jc(d,b,e);case 21523:if(!d.s)return-59;d.s.$.mc&&(f=[24,80],e=Ya(),Ba[e>>1]=f[0],Ba[e+2>>1]=f[1]);return 0;case 21524:return d.s?0:-59;case 21515:return d.s?0:-59;default:return-28}}catch(g){if("undefined"==typeof ac||"ErrnoError"!==
-g.name)throw g;return-g.aa}},__syscall_openat:function(a,b,c,d){Xa=d;try{b=b?gb(w,b):"";var e=b;if("/"===e.charAt(0))b=e;else{var f=-100===a?"/":Lb(a).path;if(0==e.length)throw new P(44);b=f+"/"+e}var g=d?Ya():0;return Yb(b,c,g).ba}catch(h){if("undefined"==typeof ac||"ErrnoError"!==h.name)throw h;return-h.aa}},_abort_js:()=>Ka(""),_embind_create_inheriting_constructor:(a,b,c)=>{a=T(a);b=nc(b,"wrapper");c=ec(c);var d=b.h,e=d.P,f=d.C.P,g=d.C.constructor;a=bc(a,function(...h){for(var l of d.C.zb)if(this[l]===
-f[l])throw new gc(`Pure virtual function ${l} must be implemented in JavaScript`);Object.defineProperty(this,"__parent",{value:e});this.__construct(...h)});e.__construct=function(...h){if(this===e)throw new S("Pass correct 'this' to __construct");h=g.implement(this,...h);oc(h);var l=h.g;h.notifyOnDestruction();l.ja=!0;Object.defineProperties(this,{g:{value:l}});qc(this);h=l.m;h=ic(d,h);if(hc.hasOwnProperty(h))throw new S(`Tried to register registered instance: ${h}`);hc[h]=this};e.__destruct=function(){if(this===
-e)throw new S("Pass correct 'this' to __destruct");oc(this);var h=this.g.m;h=ic(d,h);if(hc.hasOwnProperty(h))delete hc[h];else throw new S(`Tried to unregister unregistered instance: ${h}`);};a.prototype=Object.create(e);Object.assign(a.prototype,c);return fc(a)},_embind_finalize_value_object:a=>{var b=rc[a];delete rc[a];var c=b.Ya,d=b.T,e=b.pb,f=e.map(g=>g.hc).concat(e.map(g=>g.yc));Y([a],f,g=>{var h={},l,n;for([l,n]of e.entries()){const t=g[l],u=n.ec,r=n.fc,x=g[l+e.length],y=n.xc,p=n.zc;h[n.ac]=
-{read:I=>t.o(u(r,I)),write:(I,K)=>{var v=[];y(p,I,x.A(v,K));sc(v)},optional:t.optional}}return[{name:b.name,o:t=>{var u={},r;for(r in h)u[r]=h[r].read(t);d(t);return u},A:(t,u)=>{for(var r in h)if(!(r in u||h[r].optional))throw new TypeError(`Missing field: "${r}"`);var x=c();for(r in h)h[r].write(x,u[r]);null!==t&&t.push(d,x);return x},L:tc,I:d}]})},_embind_register_bigint:()=>{},_embind_register_bool:(a,b,c,d)=>{b=T(b);X(a,{name:b,o:function(e){return!!e},A:function(e,f){return f?c:d},L:function(e){return this.o(w[e])},
-I:null})},_embind_register_class:(a,b,c,d,e,f,g,h,l,n,t,u,r)=>{t=T(t);f=Z(e,f);h&&=Z(g,h);n&&=Z(l,n);r=Z(u,r);var x=Ec(t);Dc(x,function(){Vc(`Cannot construct ${t} due to unbound types`,[d])});Y([a,b,c],d?[d]:[],y=>{y=y[0];if(d){var p=y.h;var I=p.P}else I=Ac.prototype;y=bc(t,function(...O){if(Object.getPrototypeOf(this)!==K)throw new S(`Use 'new' to construct ${t}`);if(void 0===v.fa)throw new S(`${t} has no accessible constructor`);var V=v.fa[O.length];if(void 0===V)throw new S(`Tried to invoke ctor of ${t} with invalid number of parameters (${O.length}) - expected (${Object.keys(v.fa).toString()}) parameters instead!`);
-return V.apply(this,O)});var K=Object.create(I,{constructor:{value:y}});y.prototype=K;var v=new Fc(t,y,K,r,p,f,h,n);if(v.C){var N;(N=v.C).ra??(N.ra=[]);v.C.ra.push(v)}p=new Oc(t,v,!0,!1,!1);N=new Oc(t+"*",v,!1,!1,!1);I=new Oc(t+" const*",v,!1,!0,!1);Bc[a]={pointerType:N,Ub:I};Pc(x,y);return[p,N,I]})},_embind_register_class_class_function:(a,b,c,d,e,f,g)=>{var h=cd(c,d);b=T(b);b=dd(b);f=Z(e,f);Y([],[a],l=>{function n(){Vc(`Cannot call ${t} due to unbound types`,h)}l=l[0];var t=`${l.name}.${b}`;b.startsWith("@@")&&
-(b=Symbol[b.substring(2)]);var u=l.h.constructor;void 0===u[b]?(n.X=c-1,u[b]=n):(Cc(u,b,t),u[b].v[c-1]=n);Y([],h,r=>{r=bd(t,[r[0],null].concat(r.slice(1)),null,f,g);void 0===u[b].v?(r.X=c-1,u[b]=r):u[b].v[c-1]=r;if(l.h.ra)for(const x of l.h.ra)x.constructor.hasOwnProperty(b)||(x.constructor[b]=r);return[]});return[]})},_embind_register_class_class_property:(a,b,c,d,e,f,g,h)=>{b=T(b);f=Z(e,f);Y([],[a],l=>{l=l[0];var n=`${l.name}.${b}`,t={get(){Vc(`Cannot access ${n} due to unbound types`,[c])},enumerable:!0,
-configurable:!0};t.set=h?()=>{Vc(`Cannot access ${n} due to unbound types`,[c])}:()=>{throw new S(`${n} is a read-only property`);};Object.defineProperty(l.h.constructor,b,t);Y([],[c],u=>{u=u[0];var r={get(){return u.o(f(d))},enumerable:!0};h&&(h=Z(g,h),r.set=x=>{var y=[];h(d,u.A(y,x));sc(y)});Object.defineProperty(l.h.constructor,b,r);return[]});return[]})},_embind_register_class_constructor:(a,b,c,d,e,f)=>{var g=cd(b,c);e=Z(d,e);Y([],[a],h=>{h=h[0];var l=`constructor ${h.name}`;void 0===h.h.fa&&
-(h.h.fa=[]);if(void 0!==h.h.fa[b-1])throw new S(`Cannot register multiple constructors with identical number of parameters (${b-1}) for class '${h.name}'! Overload resolution is currently only performed using the parameter count, not actual type info!`);h.h.fa[b-1]=()=>{Vc(`Cannot construct ${h.name} due to unbound types`,g)};Y([],g,n=>{n.splice(1,0,null);h.h.fa[b-1]=bd(l,n,null,e,f);return[]});return[]})},_embind_register_class_function:(a,b,c,d,e,f,g,h)=>{var l=cd(c,d);b=T(b);b=dd(b);f=Z(e,f);Y([],
-[a],n=>{function t(){Vc(`Cannot call ${u} due to unbound types`,l)}n=n[0];var u=`${n.name}.${b}`;b.startsWith("@@")&&(b=Symbol[b.substring(2)]);h&&n.h.zb.push(b);var r=n.h.P,x=r[b];void 0===x||void 0===x.v&&x.className!==n.name&&x.X===c-2?(t.X=c-2,t.className=n.name,r[b]=t):(Cc(r,b,u),r[b].v[c-2]=t);Y([],l,y=>{y=bd(u,y,n,f,g);void 0===r[b].v?(y.X=c-2,r[b]=y):r[b].v[c-2]=y;return[]});return[]})},_embind_register_class_property:(a,b,c,d,e,f,g,h,l,n)=>{b=T(b);e=Z(d,e);Y([],[a],t=>{t=t[0];var u=`${t.name}.${b}`,
-r={get(){Vc(`Cannot access ${u} due to unbound types`,[c,g])},enumerable:!0,configurable:!0};r.set=l?()=>Vc(`Cannot access ${u} due to unbound types`,[c,g]):()=>{throw new S(u+" is a read-only property");};Object.defineProperty(t.h.P,b,r);Y([],l?[c,g]:[c],x=>{var y=x[0],p={get(){var K=ed(this,t,u+" getter");return y.o(e(f,K))},enumerable:!0};if(l){l=Z(h,l);var I=x[1];p.set=function(K){var v=ed(this,t,u+" setter"),N=[];l(n,v,I.A(N,K));sc(N)}}Object.defineProperty(t.h.P,b,p);return[]});return[]})},
-_embind_register_emval:a=>X(a,gd),_embind_register_enum:(a,b,c,d,e)=>{b=T(b);e=0===e?"object":1===e?"number":"string";switch(e){case "object":function g(){}g.values={};X(a,{name:b,constructor:g,valueType:e,o:function(h){return this.constructor.values[h]},A:(h,l)=>l.value,L:hd(b,c,d),I:null});Dc(b,g);break;case "number":var f={};X(a,{name:b,Wa:f,valueType:e,o:h=>h,A:(h,l)=>l,L:hd(b,c,d),I:null});Dc(b,f);delete k[b].X;break;case "string":f={},X(a,{name:b,Jb:{},Cb:{},Wa:f,valueType:e,o:function(h){return this.Cb[h]},
-A:function(h,l){return this.Jb[l]},L:hd(b,c,d),I:null}),Dc(b,f),delete k[b].X}},_embind_register_enum_value:(a,b,c)=>{var d=nc(a,"enum");b=T(b);switch(d.valueType){case "object":a=d.constructor;d=Object.create(d.constructor.prototype,{value:{value:c},constructor:{value:bc(`${d.name}_${b}`,function(){})}});a.values[c]=d;a[b]=d;break;case "number":d.Wa[b]=c;break;case "string":d.Jb[b]=c,d.Cb[c]=b,d.Wa[b]=b}},_embind_register_float:(a,b,c)=>{b=T(b);X(a,{name:b,o:d=>d,A:(d,e)=>e,L:jd(b,c),I:null})},_embind_register_function:(a,
-b,c,d,e,f)=>{var g=cd(b,c);a=T(a);a=dd(a);e=Z(d,e);Dc(a,function(){Vc(`Cannot call ${a} due to unbound types`,g)},b-1);Y([],g,h=>{Pc(a,bd(a,[h[0],null].concat(h.slice(1)),null,e,f),b-1);return[]})},_embind_register_integer:(a,b,c,d,e)=>{b=T(b);let f=h=>h;if(0===d){var g=32-8*c;f=h=>h<<g>>>g;e=f(e)}X(a,{name:b,o:f,A:(h,l)=>l,L:kd(b,c,0!==d),I:null})},_embind_register_memory_view:(a,b,c)=>{function d(f){return new e(Aa.buffer,F[f+4>>2],F[f>>2])}var e=[Int8Array,Uint8Array,Int16Array,Uint16Array,Int32Array,
-Uint32Array,Float32Array,Float64Array][b];c=T(c);X(a,{name:c,o:d,L:d},{ic:!0})},_embind_register_std_string:(a,b)=>{b=T(b);X(a,{name:b,o(c){var d=(d=c+4)?gb(w,d,F[c>>2],!0):"";lc(c);return d},A(c,d){d instanceof ArrayBuffer&&(d=new Uint8Array(d));var e="string"==typeof d;if(!(e||ArrayBuffer.isView(d)&&1==d.BYTES_PER_ELEMENT))throw new S("Cannot pass non-string to std::string");var f=e?ib(d):d.length;var g=Md(4+f+1),h=g+4;F[g>>2]=f;e?jb(d,w,h,f+1):w.set(d,h);null!==c&&c.push(lc,g);return g},L:tc,I(c){lc(c)}})},
-_embind_register_std_wstring:(a,b,c)=>{c=T(c);if(2===b){var d=md;var e=nd;var f=od}else d=pd,e=qd,f=rd;X(a,{name:c,o:g=>{var h=d(g+4,F[g>>2]*b,!0);lc(g);return h},A:(g,h)=>{if("string"!=typeof h)throw new S(`Cannot pass non-string to C++ string type ${c}`);var l=f(h),n=Md(4+l+b);F[n>>2]=l/b;e(h,n+4,l+b);null!==g&&g.push(lc,n);return n},L:tc,I(g){lc(g)}})},_embind_register_value_object:(a,b,c,d,e,f)=>{rc[a]={name:T(b),Ya:Z(c,d),T:Z(e,f),pb:[]}},_embind_register_value_object_field:(a,b,c,d,e,f,g,h,
-l,n)=>{rc[a].pb.push({ac:T(b),hc:c,ec:Z(d,e),fc:f,yc:g,xc:Z(h,l),zc:n})},_embind_register_void:(a,b)=>{b=T(b);X(a,{oc:!0,name:b,o:()=>{},A:()=>{}})},_emscripten_runtime_keepalive_clear:()=>{Wa=!1;sd=0},_emscripten_throw_longjmp:()=>{throw Infinity;},_emval_create_invoker:(a,b,c)=>{var [d,...e]=vd(a,b),f=d.A.bind(d),g=e.map(l=>l.L.bind(l));a--;var h=Array(a);b=`methodCaller<(${e.map(l=>l.name)}) => ${d.name}>`;return ud(bc(b,(l,n,t,u)=>{for(var r=0,x=0;x<a;++x)h[x]=g[x](u+r),r+=8;switch(c){case 0:var y=
-ec(l).apply(null,h);break;case 2:y=Reflect.construct(ec(l),h);break;case 3:y=h[0];break;case 1:y=ec(l)[xd(n)](...h)}l=[];y=f(l,y);l.length&&(F[t>>2]=fc(l));return y}))},_emval_decref:fd,_emval_get_module_property:a=>{a=xd(a);return fc(k[a])},_emval_get_property:(a,b)=>{a=ec(a);b=ec(b);return fc(a[b])},_emval_incref:a=>{9<a&&(dc[a+1]+=1)},_emval_invoke:(a,b,c,d,e)=>td[a](b,c,d,e),_emval_new_array:()=>fc([]),_emval_new_cstring:a=>fc(xd(a)),_emval_new_object:()=>fc({}),_emval_run_destructors:a=>{var b=
-ec(a);sc(b);fd(a)},_emval_set_property:(a,b,c)=>{a=ec(a);b=ec(b);c=ec(c);a[b]=c},_gmtime_js:function(a,b,c){a=new Date(1E3*(b+2097152>>>0<4194305-!!a?(a>>>0)+4294967296*b:NaN));E[c>>2]=a.getUTCSeconds();E[c+4>>2]=a.getUTCMinutes();E[c+8>>2]=a.getUTCHours();E[c+12>>2]=a.getUTCDate();E[c+16>>2]=a.getUTCMonth();E[c+20>>2]=a.getUTCFullYear()-1900;E[c+24>>2]=a.getUTCDay();E[c+28>>2]=(a.getTime()-Date.UTC(a.getUTCFullYear(),0,1,0,0,0,0))/864E5|0},_localtime_js:function(a,b,c){a=new Date(1E3*(b+2097152>>>
-0<4194305-!!a?(a>>>0)+4294967296*b:NaN));E[c>>2]=a.getSeconds();E[c+4>>2]=a.getMinutes();E[c+8>>2]=a.getHours();E[c+12>>2]=a.getDate();E[c+16>>2]=a.getMonth();E[c+20>>2]=a.getFullYear()-1900;E[c+24>>2]=a.getDay();b=a.getFullYear();E[c+28>>2]=(0!==b%4||0===b%100&&0!==b%400?zd:yd)[a.getMonth()]+a.getDate()-1|0;E[c+36>>2]=-(60*a.getTimezoneOffset());b=(new Date(a.getFullYear(),6,1)).getTimezoneOffset();var d=(new Date(a.getFullYear(),0,1)).getTimezoneOffset();E[c+32>>2]=(b!=d&&a.getTimezoneOffset()==
-Math.min(d,b))|0},_setitimer_js:(a,b)=>{Ad[a]&&(clearTimeout(Ad[a].id),delete Ad[a]);if(!b)return 0;var c=setTimeout(()=>{delete Ad[a];Dd(()=>Nd(a,performance.now()))},b);Ad[a]={id:c,Yc:b};return 0},_tzset_js:(a,b,c,d)=>{var e=(new Date).getFullYear(),f=(new Date(e,0,1)).getTimezoneOffset();e=(new Date(e,6,1)).getTimezoneOffset();F[a>>2]=60*Math.max(f,e);E[b>>2]=Number(f!=e);b=g=>{var h=Math.abs(g);return`UTC${0<=g?"-":"+"}${String(Math.floor(h/60)).padStart(2,"0")}${String(h%60).padStart(2,"0")}`};
-a=b(f);b=b(e);e<f?(jb(a,w,c,17),jb(b,w,d,17)):(jb(a,w,d,17),jb(b,w,c,17))},clock_time_get:function(a,b,c,d){if(!(0<=a&&3>=a))return 28;a=Math.round(1E6*(0===a?Date.now():performance.now()));Pa=[a>>>0,(H=a,1<=+Math.abs(H)?0<H?+Math.floor(H/4294967296)>>>0:~~+Math.ceil((H-+(~~H>>>0))/4294967296)>>>0:0)];E[d>>2]=Pa[0];E[d+4>>2]=Pa[1];return 0},emscripten_asm_const_int:(a,b,c)=>{Ed.length=0;for(var d;d=w[b++];){var e=105!=d;e&=112!=d;c+=e&&c%8?4:0;Ed.push(112==d?F[c>>2]:105==d?E[c>>2]:Ea[c>>3]);c+=e?
-8:4}return Ld[a](...Ed)},emscripten_date_now:()=>Date.now(),emscripten_get_now:()=>performance.now(),emscripten_resize_heap:a=>{var b=w.length;a>>>=0;if(2147483648<a)return!1;for(var c=1;4>=c;c*=2){var d=b*(1+.2/c);d=Math.min(d,a+100663296);a:{d=(Math.min(2147483648,65536*Math.ceil(Math.max(a,d)/65536))-Ja.buffer.byteLength+65535)/65536|0;try{Ja.grow(d);Ia();var e=1;break a}catch(f){}e=void 0}if(e)return!0}return!1},environ_get:(a,b)=>{var c=0,d=0,e;for(e of Hd()){var f=b+c;F[a+d>>2]=f;c+=jb(e,w,
-f,Infinity)+1;d+=4}return 0},environ_sizes_get:(a,b)=>{var c=Hd();F[a>>2]=c.length;a=0;for(var d of c)a+=ib(d)+1;F[b>>2]=a;return 0},fd_close:function(a){try{var b=Lb(a);if(null===b.ba)throw new P(8);b.Ua&&(b.Ua=null);try{b.i.close&&b.i.close(b)}catch(c){throw c;}finally{Ab[b.ba]=null}b.ba=null;return 0}catch(c){if("undefined"==typeof ac||"ErrnoError"!==c.name)throw c;return c.aa}},fd_read:function(a,b,c,d){try{a:{var e=Lb(a);a=b;for(var f,g=b=0;g<c;g++){var h=F[a>>2],l=F[a+4>>2];a+=8;var n=e,t=h,
-u=l,r=f,x=Aa;if(0>u||0>r)throw new P(28);if(null===n.ba)throw new P(8);if(1===(n.flags&2097155))throw new P(8);if(16384===(n.node.mode&61440))throw new P(31);if(!n.i.read)throw new P(28);var y="undefined"!=typeof r;if(!y)r=n.position;else if(!n.seekable)throw new P(70);var p=n.i.read(n,x,t,u,r);y||(n.position+=p);var I=p;if(0>I){var K=-1;break a}b+=I;if(I<l)break;"undefined"!=typeof f&&(f+=I)}K=b}F[d>>2]=K;return 0}catch(v){if("undefined"==typeof ac||"ErrnoError"!==v.name)throw v;return v.aa}},fd_seek:function(a,
-b,c,d,e){b=c+2097152>>>0<4194305-!!b?(b>>>0)+4294967296*c:NaN;try{if(isNaN(b))return 61;var f=Lb(a);Zb(f,b,d);Pa=[f.position>>>0,(H=f.position,1<=+Math.abs(H)?0<H?+Math.floor(H/4294967296)>>>0:~~+Math.ceil((H-+(~~H>>>0))/4294967296)>>>0:0)];E[e>>2]=Pa[0];E[e+4>>2]=Pa[1];f.Ua&&0===b&&0===d&&(f.Ua=null);return 0}catch(g){if("undefined"==typeof ac||"ErrnoError"!==g.name)throw g;return g.aa}},fd_write:function(a,b,c,d){try{a:{var e=Lb(a);a=b;for(var f,g=b=0;g<c;g++){var h=F[a>>2],l=F[a+4>>2];a+=8;var n=
-e,t=h,u=l,r=f,x=Aa;if(0>u||0>r)throw new P(28);if(null===n.ba)throw new P(8);if(0===(n.flags&2097155))throw new P(8);if(16384===(n.node.mode&61440))throw new P(31);if(!n.i.write)throw new P(28);n.seekable&&n.flags&1024&&Zb(n,0,2);var y="undefined"!=typeof r;if(!y)r=n.position;else if(!n.seekable)throw new P(70);var p=n.i.write(n,x,t,u,r,void 0);y||(n.position+=p);var I=p;if(0>I){var K=-1;break a}b+=I;if(I<l)break;"undefined"!=typeof f&&(f+=I)}K=b}F[d>>2]=K;return 0}catch(v){if("undefined"==typeof ac||
-"ErrnoError"!==v.name)throw v;return v.aa}},invoke_vii:Rd,isWindowsBrowser:function(){return-1<navigator.platform.indexOf("Win")},proc_exit:Cd,wasm_start_image_decode:function(a,b,c){b=new Uint8Array(Ja.buffer,b,c);c=new Uint8Array(c);c.set(b);createImageBitmap(new Blob([c])).then(function(d){var e=(new OffscreenCanvas(d.width,d.height)).getContext("2d");e.drawImage(d,0,0);e=e.getImageData(0,0,d.width,d.height);var f=e.data.length,g=k.Qb(f);(new Uint8Array(Ja.buffer,g,f)).set(e.data);k.Ec(a,d.width,
-d.height,g,f)}).catch(function(d){d=d.message||"decode failed";var e=k.Uc(d)+1,f=k.Qb(e);k.Xc(d,f,e);k.Fc(a,f);k.Dc(f)})}};function Rd(a,b,c){var d=Qd();try{Rc.get(a)(b,c)}catch(e){Pd(d);if(e!==e+0)throw e;Od(1,0)}}var Td;
-Td=await (async function(){function a(c){c=Td=c.exports;lc=c.free;Md=c.malloc;kc=c.__getTypeName;k._wasm_image_decode_complete=c.wasm_image_decode_complete;k._wasm_image_decode_error=c.wasm_image_decode_error;Id=k._ma_device__on_notification_unlocked=c.ma_device__on_notification_unlocked;k._ma_malloc_emscripten=c.ma_malloc_emscripten;k._ma_free_emscripten=c.ma_free_emscripten;Jd=k._ma_device_process_pcm_frames_capture__webaudio=c.ma_device_process_pcm_frames_capture__webaudio;Kd=k._ma_device_process_pcm_frames_playback__webaudio=
-c.ma_device_process_pcm_frames_playback__webaudio;Nd=c._emscripten_timeout;Od=c.setThrew;Pd=c._emscripten_stack_restore;Qd=c.emscripten_stack_get_current;Qc.iiji=c.dynCall_iiji;Qc.jiji=c.dynCall_jiji;Qc.vij=c.dynCall_vij;Qc.iij=c.dynCall_iij;Qc.ji=c.dynCall_ji;Qc.iiiji=c.dynCall_iiiji;Qc.jii=c.dynCall_jii;Qc.viijii=c.dynCall_viijii;Qc.iiiiij=c.dynCall_iiiiij;Qc.iiiiijj=c.dynCall_iiiiijj;Qc.iiiiiijj=c.dynCall_iiiiiijj;Ja=c.memory;Rc=c.__indirect_function_table;Ia();return Td}var b={env:Sd,wasi_snapshot_preview1:Sd};
-if(k.instantiateWasm)return new Promise(c=>{k.instantiateWasm(b,(d,e)=>{c(a(d,e))})});La??=k.locateFile?k.locateFile("canvas_advanced.wasm",ma):ma+"canvas_advanced.wasm";return a((await Oa(b)).instance)}());
-(function(){function a(){k.calledRun=!0;if(!va){Fa=!0;if(!k.noFSInit&&!Cb){var b,c;Cb=!0;b??=k.stdin;c??=k.stdout;d??=k.stderr;b?$b("stdin",b):Xb("/dev/tty","/dev/stdin");c?$b("stdout",null,c):Xb("/dev/tty","/dev/stdout");d?$b("stderr",null,d):Xb("/dev/tty1","/dev/stderr");Yb("/dev/stdin",0);Yb("/dev/stdout",1);Yb("/dev/stderr",1)}Td.__wasm_call_ctors();Db=!1;ya?.(k);k.onRuntimeInitialized?.();if(k.postRun)for("function"==typeof k.postRun&&(k.postRun=[k.postRun]);k.postRun.length;){var d=k.postRun.shift();
-Ta.push(d)}Sa(Ta)}}if(k.preRun)for("function"==typeof k.preRun&&(k.preRun=[k.preRun]);k.preRun.length;)Va();Sa(Ua);k.setStatus?(k.setStatus("Running..."),setTimeout(()=>{setTimeout(()=>k.setStatus(""),1);a()},1)):a()})();Fa?moduleRtn=k:moduleRtn=new Promise((a,b)=>{ya=a;za=b});
+var Rive=(()=>{var _scriptName=globalThis.document?.currentScript?.src;return async function(moduleArg={}){var moduleRtn;var D=moduleArg,ba=!!globalThis.window,ca=!!globalThis.WorkerGlobalScope;
+function da(){function d(y){const B=t;l=e=0;t=new Map;B.forEach(F=>{try{F(y)}catch(I){console.error(I)}});this.Ib();x&&x.xc()}let e=0,l=0,t=new Map,x=null,z=null;this.requestAnimationFrame=function(y){e||=requestAnimationFrame(d.bind(this));const B=++l;t.set(B,y);return B};this.cancelAnimationFrame=function(y){t.delete(y);e&&0==t.size&&(cancelAnimationFrame(e),e=0)};this.tc=function(y){z&&(document.body.remove(z),z=null);y||(z=document.createElement("div"),z.style.backgroundColor="black",z.style.position=
+"fixed",z.style.right=0,z.style.top=0,z.style.color="white",z.style.padding="4px",z.innerHTML="RIVE FPS",y=function(B){z.innerHTML="RIVE FPS "+B.toFixed(1)},document.body.appendChild(z));x=new function(){let B=0,F=0;this.xc=function(){var I=performance.now();F?(++B,I-=F,1E3<I&&(y(1E3*B/I),B=F=0)):(F=I,B=0)}}};this.qc=function(){z&&(document.body.remove(z),z=null);x=null};this.Ib=function(){}}
+function ha(){console.assert(!0);const d=new Map;let e=-Infinity;this.push=function(l){l=l+255>>8;d.has(l)&&clearTimeout(d.get(l));d.set(l,setTimeout(function(){d.delete(l);0==d.length?e=-Infinity:l==e&&(e=Math.max(...d.keys()),console.assert(e<l))},1E3));e=Math.max(l,e);return e<<8}}const ia=D.onRuntimeInitialized;
+D.onRuntimeInitialized=function(){ia&&ia();D.startFileScripts=function(y){const B=D.riveScripting;return y&&B&&y.startScripts?B.prepare().then(function(){y.startScripts();return y}):Promise.resolve(y)};let d=D.decodeAudio;D.decodeAudio=function(y,B,F=null){y=d(y,F??null);B(y)};let e=D.decodeFont;D.decodeFont=function(y,B,F=null){y=e(y,F??null);B(y)};const l=D.FileAsset.prototype.decode;D.FileAsset.prototype.decode=function(y,B){return l.call(this,y,B??null)};let t=D.setFallbackFontCb;D.setFallbackFontCallback=
+"function"===typeof t?function(y){t(y)}:function(){console.warn("Module.setFallbackFontCallback called, but text support is not enabled in this build.")};const x=D.FileAssetLoader;D.ptrToAsset=y=>{let B=D.ptrToFileAsset(y);return B.isImage?D.ptrToImageAsset(y):B.isFont?D.ptrToFontAsset(y):B.isAudio?D.ptrToAudioAsset(y):B};D.CustomFileAssetLoader=x.extend("CustomFileAssetLoader",{__construct:function({loadContents:y}){this.__parent.__construct.call(this);this.cc=y},loadContents:function(y,B){y=D.ptrToAsset(y);
+return this.cc(y,B)}});D.CDNFileAssetLoader=x.extend("CDNFileAssetLoader",{__construct:function(y){this.__parent.__construct.call(this);this.fc=y??null},loadContents:function(y){let B=D.ptrToAsset(y);y=B.cdnUuid;if(""===y)return!1;const F=this.fc??null;(function(I,u){var a=new XMLHttpRequest;a.responseType="arraybuffer";a.onreadystatechange=function(){4==a.readyState&&200==a.status&&u(a)};a.open("GET",I,!0);a.send(null)})(B.cdnBaseUrl+"/"+y,I=>{B.decode(new Uint8Array(I.response),F)});return!0}});
+D.FallbackFileAssetLoader=x.extend("FallbackFileAssetLoader",{__construct:function(){this.__parent.__construct.call(this);this.Gb=[]},addLoader:function(y){this.Gb.push(y)},loadContents:function(y,B){for(let F of this.Gb)if(F.loadContents(y,B))return!0;return!1}});let z=D.computeAlignment;D.computeAlignment=function(y,B,F,I,u=1){return z.call(this,y,B,F,I,u)}};
+(function(){function d(u,a){const c=u.kc,p=u.ra,q=u.qa,v=u.ab??{i:!1},f=(k,h)=>{k=new Uint8Array(a().buffer,k,h);const m=4096<h?u.gb(h):u.Na(h);if(0===m)throw Error(`could not stage ${h} bytes for the host`);u.ia().set(k,m);v.i&&(v.Aa+=h);return m},b=(k,h)=>{0!==k&&4096<h&&u.cb(k)},g=(k,h,m)=>{(new Uint8Array(a().buffer,h,m)).set(u.ia().subarray(k,k+m));v.i&&(v.ya+=m)},n=k=>h=>{const m=(new Uint32Array(a().buffer,h-4,1))[0],w=p();let r=0;try{r=f(h,m),c.re(k,r,m)}finally{b(r,m),q(w)}};return{env:{seed:()=>
+Date.now()*Math.random(),emscripten_get_now:()=>performance.now(),emscripten_date_now:()=>Date.now(),trace:(k,h,m,w,r,C,G)=>{var N=console,U=N.log;const aa=a().buffer,fa=(new Uint32Array(aa,k-4,1))[0];k=(new TextDecoder("utf-16le")).decode(new Uint8Array(aa,k,fa));return U.call(N,"trace: "+k,...[m,w,r,C,G].slice(0,h))},"console.log":n(0),"console.debug":n(0),"console.info":n(0),"console.warn":n(0),"console.error":n(0),"console.time":n(1),"console.timeLog":n(2),"console.timeEnd":n(3)},rive_rt_v1:{log:(k,
+h,m)=>{const w=p();let r=0;try{r=f(h,m),c.ei(k,r,m)}finally{b(r,m),q(w)}},mark_needs_update:c.fi,budget_exceeded:c.Zh,error:(k,h)=>{const m=p();let w=0;try{w=f(k,h),c.ci(w,h)}finally{b(w,h),q(m)}},now:()=>performance.now(),date_now:()=>Date.now(),debug_enter:c.$h,debug_line:c.bi,debug_leave:c.ai,utc_offset:c.gi,is_dst:c.di,zone_name:(k,h,m)=>{const w=p();let r=0;try{r=f(h,m);const C=c.hi(k,r,m);g(r,h,m);return C}finally{b(r,m),q(w)}}},rive_data_v1:{view_model:c.pf,root_view_model:c.hf,global_view_model:(k,
+h,m)=>{const w=p();let r=0;try{return r=f(h,m),c.Oe(k,r,m)}finally{b(r,m),q(w)}},global_view_model_names:(k,h,m)=>{const w=p();let r=0;try{r=f(h,m);const C=c.Pe(k,r,m);g(r,h,m);return C}finally{b(r,m),q(w)}},context:c.De,context_parent:c.Ee,context_view_model:c.Ge,context_release:c.Fe,has_view_model:(k,h)=>{const m=p();let w=0;try{return w=f(k,h),c.Qe(w,h)}finally{b(w,h),q(m)}},new_view_model:(k,h,m,w)=>{const r=p();let C=0,G=0;try{return C=f(k,h),G=f(m,w),c.df(C,h,G,w)}finally{b(G,w),b(C,h),q(r)}},
+vmi_release:c.Ef,vmi_number:(k,h,m)=>{const w=p();let r=0;try{return r=f(h,m),c.Cf(k,r,m)}finally{b(r,m),q(w)}},vmi_boolean:(k,h,m)=>{const w=p();let r=0;try{return r=f(h,m),c.uf(k,r,m)}finally{b(r,m),q(w)}},vmi_string:(k,h,m)=>{const w=p();let r=0;try{return r=f(h,m),c.Ff(k,r,m)}finally{b(r,m),q(w)}},vmi_trigger:(k,h,m)=>{const w=p();let r=0;try{return r=f(h,m),c.Hf(k,r,m)}finally{b(r,m),q(w)}},vmi_color:(k,h,m)=>{const w=p();let r=0;try{return r=f(h,m),c.vf(k,r,m)}finally{b(r,m),q(w)}},vmi_view_model:(k,
+h,m)=>{const w=p();let r=0;try{return r=f(h,m),c.If(k,r,m)}finally{b(r,m),q(w)}},vmi_property:(k,h,m,w,r)=>{const C=p();let G=0,N=0;try{G=f(h,m);N=f(w,4*r);const U=c.Df(k,G,m,N,r);g(N,w,4*r);return U}finally{b(N,4*r),b(G,m),q(C)}},vmi_instance:(k,h,m)=>{const w=p();let r=0;try{return r=f(h,m),c.Af(k,r,m)}finally{b(r,m),q(w)}},vmi_symbol_index:c.Gf,vmi_equal:c.xf,view_model_get:c.qf,vmi_list:(k,h,m)=>{const w=p();let r=0;try{return r=f(h,m),c.Bf(k,r,m)}finally{b(r,m),q(w)}},vmi_enum:(k,h,m)=>{const w=
+p();let r=0;try{return r=f(h,m),c.wf(k,r,m)}finally{b(r,m),q(w)}},vmi_image:(k,h,m)=>{const w=p();let r=0;try{return r=f(h,m),c.zf(k,r,m)}finally{b(r,m),q(w)}},vmi_font:(k,h,m)=>{const w=p();let r=0;try{return r=f(h,m),c.yf(k,r,m)}finally{b(r,m),q(w)}},vmi_blob:(k,h,m)=>{const w=p();let r=0;try{return r=f(h,m),c.tf(k,r,m)}finally{b(r,m),q(w)}},vmi_artboard:(k,h,m)=>{const w=p();let r=0;try{return r=f(h,m),c.sf(k,r,m)}finally{b(r,m),q(w)}},image_get:c.Re,image_set:c.Se,font_get:c.Le,font_set:c.Ne,
+font_release:c.Me,blob_present:c.xe,blob_get:(k,h,m)=>{const w=p();let r=0;try{r=f(h,m);const C=c.ve(k,r,m);g(r,h,m);return C}finally{b(r,m),q(w)}},blob_name:(k,h,m)=>{const w=p();let r=0;try{r=f(h,m);const C=c.we(k,r,m);g(r,h,m);return C}finally{b(r,m),q(w)}},blob_set:(k,h,m)=>{const w=p();let r=0;try{r=f(h,m),c.ye(k,r,m)}finally{b(r,m),q(w)}},blob_clear:c.ue,artboard_get:c.se,artboard_set:c.te,enum_get:(k,h,m)=>{const w=p();let r=0;try{r=f(h,m);const C=c.Ie(k,r,m);g(r,h,m);return C}finally{b(r,
+m),q(w)}},enum_set:(k,h,m)=>{const w=p();let r=0;try{r=f(h,m),c.Je(k,r,m)}finally{b(r,m),q(w)}},enum_values:(k,h,m)=>{const w=p();let r=0;try{r=f(h,m);const C=c.Ke(k,r,m);g(r,h,m);return C}finally{b(r,m),q(w)}},prop_release:c.gf,trigger_fire:c.mf,list_length:c.We,list_push:c.Ye,list_pop:c.Xe,list_shift:c.bf,list_clear:c.Te,list_swap:c.cf,list_insert:c.Ve,list_remove:c.Ze,list_remove_at:c.af,list_remove_all_of:c.$e,list_get:c.Ue,view_model_set:c.rf,color_get:c.Be,color_set:c.Ce,number_get:c.ef,number_set:c.ff,
+boolean_get:c.ze,boolean_set:c.Ae,string_get:(k,h,m)=>{const w=p();let r=0;try{r=f(h,m);const C=c.kf(k,r,m);g(r,h,m);return C}finally{b(r,m),q(w)}},string_changed:c.jf,string_set:(k,h,m)=>{const w=p();let r=0;try{r=f(h,m),c.lf(k,r,m)}finally{b(r,m),q(w)}},watch:c.Jf,unwatch:c.nf,convert_result:(k,h,m,w,r,C)=>{const G=p();let N=0;try{N=f(r,C),c.He(k,h,m,w,N,C)}finally{b(N,C),q(G)}}},rive_artboard_v1:{release:c.Bd,advance:c.Uc,draw:c.bd,instance:c.md,data:c.ad,width:c.Gd,height:c.ld,set_width:c.Fd,
+set_height:c.Ed,frame_origin:c.jd,set_frame_origin:c.Dd,bounds:(k,h,m)=>{const w=p();let r=0;try{r=f(h,4*m),c.$c(k,r,m),g(r,h,4*m)}finally{b(r,4*m),q(w)}},pointer_event:c.zd,scroll_event:c.Cd,gamepad_event:(k,h,m)=>{const w=p();let r=0;try{return r=f(h,m),c.kd(k,r,m)}finally{b(r,m),q(w)}},animation:(k,h,m)=>{const w=p();let r=0;try{return r=f(h,m),c.Vc(k,r,m)}finally{b(r,m),q(w)}},animation_release:c.Yc,animation_duration:c.Xc,animation_advance:c.Wc,animation_set_time:c.Zc,add_to_path:c.Tc,node:(k,
+h,m)=>{const w=p();let r=0;try{return r=f(h,m),c.nd(k,r,m)}finally{b(r,m),q(w)}},node_release:c.ud,node_transform:(k,h,m)=>{const w=p();let r=0;try{r=f(h,4*m),c.xd(k,r,m),g(r,h,4*m)}finally{b(r,4*m),q(w)}},node_set:c.vd,node_world_transform:(k,h,m)=>{const w=p();let r=0;try{r=f(h,4*m),c.yd(k,r,m),g(r,h,4*m)}finally{b(r,4*m),q(w)}},node_set_world_transform:(k,h,m)=>{const w=p();let r=0;try{r=f(h,4*m),c.wd(k,r,m)}finally{b(r,4*m),q(w)}},node_decompose:(k,h,m)=>{const w=p();let r=0;try{r=f(h,4*m),c.pd(k,
+r,m)}finally{b(r,4*m),q(w)}},node_path_verbs:(k,h,m)=>{const w=p();let r=0;try{r=f(h,m);const C=c.td(k,r,m);g(r,h,m);return C}finally{b(r,m),q(w)}},node_path_points:(k,h,m)=>{const w=p();let r=0;try{r=f(h,4*m);const C=c.sd(k,r,m);g(r,h,4*m);return C}finally{b(r,4*m),q(w)}},node_paint:(k,h,m)=>{const w=p();let r=0;try{r=f(h,4*m);const C=c.qd(k,r,m);g(r,h,4*m);return C}finally{b(r,4*m),q(w)}},node_children:(k,h,m)=>{const w=p();let r=0;try{r=f(h,4*m);const C=c.od(k,r,m);g(r,h,4*m);return C}finally{b(r,
+4*m),q(w)}},node_parent:c.rd,property_key:(k,h,m)=>{const w=p();let r=0;try{return r=f(h,m),c.Ad(k,r,m)}finally{b(r,m),q(w)}},draw_visit:c.dd,draw_modulated:c.cd,drawable_draw:c.ed,drawable_value:(k,h,m,w)=>{const r=p();let C=0;try{C=f(m,4*w);const G=c.hd(k,h,C,w);g(C,m,4*w);return G}finally{b(C,4*w),q(r)}},drawable_string:(k,h,m,w)=>{const r=p();let C=0;try{C=f(m,w);const G=c.gd(k,h,C,w);g(C,m,w);return G}finally{b(C,w),q(r)}},drawable_properties:(k,h,m)=>{const w=p();let r=0;try{r=f(h,m);const C=
+c.fd(k,r,m);g(r,h,m);return C}finally{b(r,m),q(w)}}},rive_audio_v1:{source:(k,h,m)=>{const w=p();let r=0;try{return r=f(h,m),c.Zd(k,r,m)}finally{b(r,m),q(w)}},source_release:c.be,source_duration:c.ae,source_sample_rate:c.ce,source_channels:c.$d,play:c.Hd,play_at_time:c.Jd,play_in_time:c.Ld,play_at_frame:c.Id,play_in_frame:c.Kd,time:c.de,time_frame:c.ee,sample_rate:c.Md,sound_release:c.Qd,sound_play:c.Pd,sound_pause:c.Od,sound_resume:c.Rd,sound_stop:c.Vd,sound_seek:c.Sd,sound_seek_frame:c.Td,sound_completed:c.Nd,
+sound_time:c.Wd,sound_time_frame:c.Xd,sound_volume:c.Yd,sound_set_volume:c.Ud},rive_path_v1:{"new":c.Kh,update:(k,h,m,w,r,C)=>{const G=p();let N=0,U=0;try{N=f(h,m),U=f(w,4*r),c.Nh(k,N,m,U,r,C)}finally{b(U,4*r),b(N,m),q(G)}},release:c.Mh,add:c.Ih,verbs:(k,h,m)=>{const w=p();let r=0;try{r=f(h,m);const C=c.Oh(k,r,m);g(r,h,m);return C}finally{b(r,m),q(w)}},points:(k,h,m)=>{const w=p();let r=0;try{r=f(h,4*m);const C=c.Lh(k,r,m);g(r,h,4*m);return C}finally{b(r,4*m),q(w)}},effect_result:(k,h,m,w)=>{const r=
+p();let C=0,G=0;try{C=f(k,h),G=f(m,4*w),c.Jh(C,h,G,w)}finally{b(G,4*w),b(C,h),q(r)}}},rive_measure_v1:{path_new:(k,h,m,w)=>{const r=p();let C=0,G=0;try{return C=f(k,h),G=f(m,4*w),c.nh(C,h,G,w)}finally{b(G,4*w),b(C,h),q(r)}},contours_new:(k,h,m,w)=>{const r=p();let C=0,G=0;try{return C=f(k,h),G=f(m,4*w),c.ih(C,h,G,w)}finally{b(G,4*w),b(C,h),q(r)}},contour_next:c.hh,length:c.mh,is_closed:c.lh,pos_tan:(k,h,m,w)=>{const r=p();let C=0;try{C=f(m,4*w),c.oh(k,h,C,w),g(C,m,4*w)}finally{b(C,4*w),q(r)}},warp:(k,
+h,m,w,r)=>{const C=p();let G=0;try{G=f(w,4*r),c.qh(k,h,m,G,r),g(G,w,4*r)}finally{b(G,4*r),q(C)}},extract:c.jh,extract_read:(k,h,m,w,r)=>{const C=p();let G=0,N=0;try{G=f(h,m);N=f(w,4*r);const U=c.kh(k,G,m,N,r);g(G,h,m);g(N,w,4*r);return U}finally{b(N,4*r),b(G,m),q(C)}},release:c.ph},rive_paint_v1:{"new":c.Ch,release:c.Dh,style:c.Gh,color:c.zh,thickness:c.Hh,join:c.Bh,cap:c.yh,blend_mode:c.xh,feather:c.Ah,shader:c.Eh,shader_transform:(k,h,m)=>{const w=p();let r=0;try{r=f(h,4*m),c.Fh(k,r,m)}finally{b(r,
+4*m),q(w)}}},rive_canvas_v1:{"new":c.ne,release:c.oe,width:c.qe,height:c.le,resize:c.pe,image:c.me,begin_frame:c.je,end_frame:c.ke},rive_gpu_v1:{features:(k,h)=>{const m=p();let w=0;try{w=f(k,4*h);const r=c.ug(w,h);g(w,k,4*h);return r}finally{b(w,4*h),q(m)}},canvas_new:c.rg,canvas_release:c.sg,canvas_color_view:(k,h,m)=>{const w=p();let r=0;try{r=f(h,4*m);const C=c.pg(k,r,m);g(r,h,4*m);return C}finally{b(r,4*m),q(w)}},canvas_image:c.qg,canvas_resize:(k,h,m,w,r)=>{const C=p();let G=0;try{G=f(w,4*r);
+const N=c.tg(k,h,m,G,r);g(G,w,4*r);return N}finally{b(G,4*r),q(C)}},target_view:(k,h,m)=>{const w=p();let r=0;try{r=f(h,4*m);const C=c.Tg(k,r,m);g(r,h,4*m);return C}finally{b(r,4*m),q(w)}},pass_begin:(k,h,m,w)=>{const r=p();let C=0,G=0;try{return C=f(k,h),G=f(m,w),c.wg(C,h,G,w)}finally{b(G,w),b(C,h),q(r)}},pass_set_pipeline:c.Eg,pass_set_vertex_buffer:c.Hg,pass_set_index_buffer:c.Dg,pass_set_bind_group:(k,h,m,w,r)=>{const C=p();let G=0;try{G=f(w,r),c.Bg(k,h,m,G,r)}finally{b(G,r),q(C)}},pass_set_viewport:c.Ig,
+pass_set_scissor:c.Fg,pass_set_stencil_reference:c.Gg,pass_set_blend_color:c.Cg,pass_draw:c.xg,pass_draw_indexed:c.yg,pass_finish:c.zg,pass_release:c.Ag,image_view:c.vg,buffer_new:(k,h,m,w,r)=>{const C=p();let G=0;try{return G=f(w,r),c.mg(k,h,m,G,r)}finally{b(G,r),q(C)}},buffer_update:(k,h,m,w)=>{const r=p();let C=0;try{C=f(m,w),c.og(k,h,C,w)}finally{b(C,w),q(r)}},buffer_release:c.ng,texture_new:(k,h)=>{const m=p();let w=0;try{return w=f(k,h),c.Ug(w,h)}finally{b(w,h),q(m)}},texture_upload:(k,h,m,
+w,r)=>{const C=p();let G=0,N=0;try{G=f(h,m),N=f(w,r),c.Wg(k,G,m,N,r)}finally{b(N,r),b(G,m),q(C)}},texture_release:c.Vg,sampler_new:(k,h)=>{const m=p();let w=0;try{return w=f(k,h),c.Lg(w,h)}finally{b(w,h),q(m)}},sampler_release:c.Mg,texture_view_new:(k,h,m)=>{const w=p();let r=0;try{return r=f(h,m),c.Xg(k,r,m)}finally{b(r,m),q(w)}},texture_view_release:c.Yg,shader_target:c.Sg,shader_asset_bytes:(k,h,m,w,r)=>{const C=p();let G=0,N=0;try{G=f(h,m);N=f(w,r);const U=c.Ng(k,G,m,N,r);g(N,w,r);return U}finally{b(N,
+r),b(G,m),q(C)}},shader_asset_id:(k,h,m)=>{const w=p();let r=0;try{return r=f(h,m),c.Og(k,r,m)}finally{b(r,m),q(w)}},shader_module_from_asset:(k,h,m,w)=>{const r=p();let C=0;try{return C=f(h,m),c.Pg(k,C,m,w)}finally{b(C,m),q(r)}},shader_module_new:(k,h,m,w)=>{const r=p();let C=0,G=0;try{return C=f(k,h),G=f(m,w),c.Qg(C,h,G,w)}finally{b(G,w),b(C,h),q(r)}},shader_module_release:c.Rg,bind_group_layout_new:(k,h,m)=>{const w=p();let r=0;try{return r=f(h,m),c.ig(k,r,m)}finally{b(r,m),q(w)}},bind_group_layout_release:c.jg,
+bind_group_layout_from_shader:(k,h,m,w)=>{const r=p();let C=0;try{return C=f(m,4*w),c.gg(k,h,C,w)}finally{b(C,4*w),q(r)}},bind_group_layout_from_shaders:(k,h,m,w,r)=>{const C=p();let G=0;try{return G=f(w,4*r),c.hg(k,h,m,G,r)}finally{b(G,4*r),q(C)}},bind_group_new:(k,h,m,w,r,C,G)=>{const N=p();let U=0,aa=0,fa=0;try{return U=f(h,m),aa=f(w,r),fa=f(C,G),c.kg(k,U,m,aa,r,fa,G)}finally{b(fa,G),b(aa,r),b(U,m),q(N)}},bind_group_release:c.lg,pipeline_new:(k,h,m,w)=>{const r=p();let C=0,G=0;try{return C=f(k,
+h),G=f(m,w),c.Jg(C,h,G,w)}finally{b(G,w),b(C,h),q(r)}},pipeline_release:c.Kg},rive_mat4_v1:{multiply:(k,h,m,w,r,C)=>{const G=p();let N=0,U=0,aa=0;try{N=f(k,h),U=f(m,w),aa=f(r,C),c.gh(N,h,U,w,aa,C),g(N,k,h)}finally{b(aa,C),b(U,w),b(N,h),q(G)}},invert:(k,h,m,w)=>{const r=p();let C=0,G=0;try{C=f(k,h);G=f(m,w);const N=c.fh(C,h,G,w);g(C,k,h);return N}finally{b(G,w),b(C,h),q(r)}}},rive_buffer_v1:{"new":c.ge,update:(k,h,m)=>{const w=p();let r=0;try{r=f(h,m),c.ie(k,r,m)}finally{b(r,m),q(w)}},release:c.he},
+rive_mesh_instances_v1:{"new":c.rh,resize:c.th,update:(k,h,m,w)=>{const r=p();let C=0;try{C=f(m,w),c.uh(k,h,C,w)}finally{b(C,w),q(r)}},release:c.sh},rive_blob_v1:{asset_bytes:(k,h,m,w,r)=>{const C=p();let G=0,N=0;try{G=f(h,m);N=f(w,r);const U=c.fe(k,G,m,N,r);g(N,w,r);return U}finally{b(N,r),b(G,m),q(C)}}},rive_image_v1:{from_asset:(k,h,m)=>{const w=p();let r=0;try{return r=f(h,m),c.ah(k,r,m)}finally{b(r,m),q(w)}},width:c.eh,height:c.bh,release:c.dh,decode:(k,h,m)=>{const w=p();let r=0;try{return r=
+f(k,h),c.Zg(r,h,m)}finally{b(r,h),q(w)}},decode_cancel:c.$g},rive_font_v1:{from_asset:(k,h,m)=>{const w=p();let r=0;try{return r=f(h,m),c.Yf(k,r,m)}finally{b(r,m),q(w)}},decode:(k,h)=>{const m=p();let w=0;try{return w=f(k,h),c.Wf(w,h)}finally{b(w,h),q(m)}},release:c.dg,metrics:(k,h,m)=>{const w=p();let r=0;try{r=f(h,4*m),c.cg(k,r,m),g(r,h,4*m)}finally{b(r,4*m),q(w)}},weight:c.eg,is_italic:c.bg,axis_count:c.Uf,axis:(k,h,m,w)=>{const r=p();let C=0;try{C=f(m,4*w),c.Tf(k,h,C,w),g(C,m,4*w)}finally{b(C,
+4*w),q(r)}},axis_value:c.Vf,features:(k,h,m)=>{const w=p();let r=0;try{r=f(h,4*m);const C=c.Xf(k,r,m);g(r,h,4*m);return C}finally{b(r,4*m),q(w)}},has_glyph:c.ag,with_options:(k,h,m,w,r)=>{const C=p();let G=0,N=0;try{return G=f(h,4*m),N=f(w,4*r),c.fg(k,G,m,N,r)}finally{b(N,4*r),b(G,4*m),q(C)}},glyph_verbs:(k,h,m,w)=>{const r=p();let C=0;try{C=f(m,w);const G=c.$f(k,h,C,w);g(C,m,w);return G}finally{b(C,w),q(r)}},glyph_points:(k,h,m,w)=>{const r=p();let C=0;try{C=f(m,4*w);const G=c.Zf(k,h,C,w);g(C,m,
+4*w);return G}finally{b(C,4*w),q(r)}}},rive_text_v1:{"new":c.yi,release:c.zi,append:(k,h,m,w,r,C,G,N,U)=>{const aa=p();let fa=0;try{fa=f(h,m),c.ni(k,fa,m,w,r,C,G,N,U)}finally{b(fa,m),q(aa)}},clear:c.ri,layout:(k,h,m)=>{const w=p();let r=0;try{r=f(h,m),c.vi(k,r,m)}finally{b(r,m),q(w)}},draw:c.si,bounds:(k,h,m)=>{const w=p();let r=0;try{r=f(h,4*m),c.oi(k,r,m),g(r,h,4*m)}finally{b(r,4*m),q(w)}},length:c.wi,lines:(k,h,m)=>{const w=p();let r=0;try{r=f(h,4*m);const C=c.xi(k,r,m);g(r,h,4*m);return C}finally{b(r,
+4*m),q(w)}},runs:(k,h,m)=>{const w=p();let r=0;try{r=f(h,4*m);const C=c.Ai(k,r,m);g(r,h,4*m);return C}finally{b(r,4*m),q(w)}},glyphs:(k,h,m)=>{const w=p();let r=0;try{r=f(h,4*m);const C=c.ti(k,r,m);g(r,h,4*m);return C}finally{b(r,4*m),q(w)}},hit_test:c.ui,caret:(k,h,m,w)=>{const r=p();let C=0;try{C=f(m,4*w);const G=c.pi(k,h,C,w);g(C,m,4*w);return G}finally{b(C,4*w),q(r)}},selection_rects:(k,h,m,w,r)=>{const C=p();let G=0;try{G=f(w,4*r);const N=c.Bi(k,h,m,G,r);g(G,w,4*r);return N}finally{b(G,4*r),
+q(C)}}},rive_shader_v1:{linear:c.ii,radial:c.ki,release:c.li},rive_test_v1:{blob:(k,h,m,w)=>{const r=p();let C=0,G=0;try{C=f(k,h);G=f(m,w);const N=c.mi(C,h,G,w);g(G,m,w);return N}finally{b(G,w),b(C,h),q(r)}}},rive_transition_v1:{child_draw:c.Ci,child_width:c.Ei,child_height:c.Di},rive_renderer_v1:{save:c.Xh,restore:c.Wh,transform:c.Yh,draw_path:c.Th,clip_path:c.Ph,modulate_opacity:c.Vh,modulate_color:c.Uh,draw_image:c.Qh,draw_image_mesh:c.Rh,draw_image_mesh_instanced:c.Sh},rive_net_v1:{fetch:(k,h,
+m)=>{const w=p();let r=0;try{return r=f(k,h),c.vh(r,h,m)}finally{b(r,h),q(w)}},fetch_cancel:c.wh},rive_file_v1:{decode:(k,h,m,w)=>{const r=p();let C=0,G=0;try{C=f(k,h);G=f(m,4*w);const N=c.Rf(C,h,G,w);g(G,m,4*w);return N}finally{b(G,4*w),b(C,h),q(r)}},release:c.Sf,artboard_count:c.Kf,artboard_name:(k,h,m,w)=>{const r=p();let C=0;try{C=f(m,w);const G=c.Lf(k,h,C,w);g(C,m,w);return G}finally{b(C,w),q(r)}},bindable:(k,h,m,w)=>{const r=p();let C=0;try{return C=f(h,m),c.Mf(k,C,m,w)}finally{b(C,m),q(r)}},
+bindable_release:c.Qf,bindable_name:(k,h,m)=>{const w=p();let r=0;try{r=f(h,m);const C=c.Pf(k,r,m);g(r,h,m);return C}finally{b(r,m),q(w)}},bindable_data:c.Nf,bindable_equal:c.Of}}}function e(u,a){const c=a.ab??{i:!1},p=()=>{const f=Error(a.j);a.j=null;throw f;},q=()=>{throw Error("librive faulted in a nested script call");},v=()=>{throw Error("script VM was released");};return{ei:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(0)),fi:(f=>
+b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(1)),Zh:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(2)),ci:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(3)),$h:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(4)),bi:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=
+n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(5)),ai:(f=>()=>{0===a.g&&v();c.i&&c.l++;try{f(a.g)}catch(g){var b=g;a.h=!0;throw b;}a.h&&q();null!==a.j&&p()})(u(6)),gi:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(7)),di:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(8)),hi:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=
+h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(9)),pf:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(10)),hf:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(11)),Oe:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(12)),Pe:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=
+f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(13)),De:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(14)),Ee:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(15)),Ge:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(16)),Fe:(f=>b=>{0===a.g&&v();c.i&&c.l++;
+try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(17)),Qe:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;let n;try{n=f(a.g,b,g)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p();return n})(u(18)),df:(f=>(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;let h;try{h=f(a.g,b,g,n,k)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();null!==a.j&&p();return h})(u(19)),Ef:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(20)),Cf:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;
+let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(21)),uf:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(22)),Ff:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(23)),Hf:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(24)),
+vf:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(25)),If:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(26)),Df:(f=>(b,g,n,k,h)=>{0===a.g&&v();c.i&&c.l++;let m;try{m=f(a.g,b,g,n,k,h)}catch(w){throw b=w,a.h=!0,b;}a.h&&q();null!==a.j&&p();return m})(u(27)),Af:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=
+h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(28)),Gf:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(29)),xf:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;let n;try{n=f(a.g,b,g)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p();return n})(u(30)),qf:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(31)),Bf:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,
+b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(32)),wf:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(33)),zf:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(34)),yf:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(35)),tf:(f=>(b,
+g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(36)),sf:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(37)),Re:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(38)),Se:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(39)),
+Le:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(40)),Ne:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(41)),Me:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(42)),xe:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(43)),ve:(f=>(b,g,n)=>{0===
+a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(44)),we:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(45)),ye:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(46)),ue:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(47)),se:(f=>b=>{0===
+a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(48)),te:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(49)),Ie:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(50)),Je:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(51)),Ke:(f=>(b,g,
+n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(52)),gf:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(53)),mf:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(54)),We:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(55)),Ye:(f=>(b,g)=>{0===a.g&&v();
+c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(56)),Xe:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(57)),bf:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(58)),Te:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(59)),cf:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,
+b,g,n)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(60)),Ve:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(61)),Ze:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(62)),af:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(63)),$e:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=
+!0,b;}a.h&&q();null!==a.j&&p()})(u(64)),Ue:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;let n;try{n=f(a.g,b,g)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p();return n})(u(65)),rf:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(66)),Be:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(67)),Ce:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;
+}a.h&&q();null!==a.j&&p()})(u(68)),ef:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(69)),ff:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(70)),ze:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(71)),Ae:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==
+a.j&&p()})(u(72)),kf:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(73)),jf:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(74)),lf:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(75)),Jf:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==
+a.j&&p()})(u(76)),nf:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(77)),He:(f=>(b,g,n,k,h,m)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k,h,m)}catch(w){throw b=w,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(78)),Bd:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(79)),Uc:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;let n;try{n=f(a.g,b,g)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p();return n})(u(80)),
+bd:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(81)),md:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;let n;try{n=f(a.g,b,g)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p();return n})(u(82)),ad:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(83)),Gd:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(84)),
+ld:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(85)),Fd:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(86)),Ed:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(87)),jd:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(88)),Dd:(f=>(b,g)=>
+{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(89)),$c:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(90)),zd:(f=>(b,g,n,k,h)=>{0===a.g&&v();c.i&&c.l++;let m;try{m=f(a.g,b,g,n,k,h)}catch(w){throw b=w,a.h=!0,b;}a.h&&q();null!==a.j&&p();return m})(u(91)),Cd:(f=>(b,g,n,k,h,m,w,r,C)=>{0===a.g&&v();c.i&&c.l++;let G;try{G=f(a.g,b,g,n,k,h,m,w,r,C)}catch(N){throw b=N,a.h=!0,b;}a.h&&q();null!==
+a.j&&p();return G})(u(92)),kd:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(93)),Vc:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(94)),Yc:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(95)),Xc:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&
+q();null!==a.j&&p();return g})(u(96)),Wc:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;let n;try{n=f(a.g,b,g)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p();return n})(u(97)),Zc:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(98)),Tc:(f=>(b,g,n,k,h,m,w,r)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k,h,m,w,r)}catch(C){throw b=C,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(99)),nd:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=
+h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(100)),ud:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(101)),xd:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(102)),vd:(f=>(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(103)),yd:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n)}catch(k){throw b=k,a.h=!0,b;
+}a.h&&q();null!==a.j&&p()})(u(104)),wd:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(105)),pd:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(106)),td:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(107)),sd:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=
+h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(108)),qd:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(109)),od:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(110)),rd:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(111)),Ad:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;
+let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(112)),dd:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(113)),cd:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(114)),ed:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(115)),hd:(f=>(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;let h;
+try{h=f(a.g,b,g,n,k)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();null!==a.j&&p();return h})(u(116)),gd:(f=>(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;let h;try{h=f(a.g,b,g,n,k)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();null!==a.j&&p();return h})(u(117)),fd:(f=>void 0===f?l("rive_artboard_v1","drawable_properties"):(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(118)),Zd:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=
+h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(119)),be:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(120)),ae:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(121)),ce:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(122)),$d:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,
+a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(123)),Hd:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(124)),Jd:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;let n;try{n=f(a.g,b,g)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p();return n})(u(125)),Ld:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;let n;try{n=f(a.g,b,g)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p();return n})(u(126)),Id:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;let n;try{n=
+f(a.g,b,g)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p();return n})(u(127)),Kd:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;let n;try{n=f(a.g,b,g)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p();return n})(u(128)),de:(f=>()=>{0===a.g&&v();c.i&&c.l++;try{var b=f(a.g)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p();return b})(u(129)),ee:(f=>()=>{0===a.g&&v();c.i&&c.l++;try{var b=f(a.g)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p();return b})(u(130)),Md:(f=>()=>{0===a.g&&v();c.i&&
+c.l++;try{var b=f(a.g)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p();return b})(u(131)),Qd:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(132)),Pd:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(133)),Od:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(134)),Rd:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=
+!0,b;}a.h&&q();null!==a.j&&p()})(u(135)),Vd:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(136)),Sd:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;let n;try{n=f(a.g,b,g)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p();return n})(u(137)),Td:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;let n;try{n=f(a.g,b,g)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p();return n})(u(138)),Nd:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=
+n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(139)),Wd:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(140)),Xd:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(141)),Yd:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(142)),Ud:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=
+n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(143)),Kh:(f=>()=>{0===a.g&&v();c.i&&c.l++;try{var b=f(a.g)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p();return b})(u(144)),Nh:(f=>(b,g,n,k,h,m)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k,h,m)}catch(w){throw b=w,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(145)),Mh:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(146)),Ih:(f=>(b,g,n,k,h,m,w,r)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k,h,m,w,r)}catch(C){throw b=
+C,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(147)),Oh:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(148)),Lh:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(149)),Jh:(f=>(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(150)),nh:(f=>(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;let h;try{h=
+f(a.g,b,g,n,k)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();null!==a.j&&p();return h})(u(151)),ih:(f=>(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;let h;try{h=f(a.g,b,g,n,k)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();null!==a.j&&p();return h})(u(152)),hh:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(153)),mh:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(154)),lh:(f=>b=>{0===
+a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(155)),oh:(f=>(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(156)),qh:(f=>(b,g,n,k,h)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k,h)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(157)),jh:(f=>(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;let h;try{h=f(a.g,b,g,n,k)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();null!==a.j&&p();return h})(u(158)),
+kh:(f=>(b,g,n,k,h)=>{0===a.g&&v();c.i&&c.l++;let m;try{m=f(a.g,b,g,n,k,h)}catch(w){throw b=w,a.h=!0,b;}a.h&&q();null!==a.j&&p();return m})(u(159)),ph:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(160)),Ch:(f=>()=>{0===a.g&&v();c.i&&c.l++;try{var b=f(a.g)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p();return b})(u(161)),Dh:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(162)),Gh:(f=>
+(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(163)),zh:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(164)),Hh:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(165)),Bh:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(166)),yh:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;
+try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(167)),xh:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(168)),Ah:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(169)),Eh:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(170)),Fh:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n)}catch(k){throw b=
+k,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(171)),ne:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;let n;try{n=f(a.g,b,g)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p();return n})(u(172)),oe:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(173)),qe:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(174)),le:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=
+!0,b;}a.h&&q();null!==a.j&&p();return g})(u(175)),pe:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(176)),me:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(177)),je:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;let n;try{n=f(a.g,b,g)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p();return n})(u(178)),ke:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=
+g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(179)),ug:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;let n;try{n=f(a.g,b,g)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p();return n})(u(180)),rg:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;let n;try{n=f(a.g,b,g)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p();return n})(u(181)),sg:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(182)),pg:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=
+h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(183)),qg:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(184)),tg:(f=>(b,g,n,k,h)=>{0===a.g&&v();c.i&&c.l++;let m;try{m=f(a.g,b,g,n,k,h)}catch(w){throw b=w,a.h=!0,b;}a.h&&q();null!==a.j&&p();return m})(u(185)),Tg:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(186)),wg:(f=>(b,g,n,k)=>{0===a.g&&v();
+c.i&&c.l++;let h;try{h=f(a.g,b,g,n,k)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();null!==a.j&&p();return h})(u(187)),Eg:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(188)),Hg:(f=>(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(189)),Dg:(f=>(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(190)),Bg:(f=>(b,g,n,k,h)=>
+{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k,h)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(191)),Ig:(f=>(b,g,n,k,h,m,w)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k,h,m,w)}catch(r){throw b=r,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(192)),Fg:(f=>(b,g,n,k,h)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k,h)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(193)),Gg:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(194)),Cg:(f=>
+(b,g,n,k,h)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k,h)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(195)),xg:(f=>(b,g,n,k,h)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k,h)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(196)),yg:(f=>(b,g,n,k,h,m)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k,h,m)}catch(w){throw b=w,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(197)),zg:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(198)),Ag:(f=>
+b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(199)),vg:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(200)),mg:(f=>(b,g,n,k,h)=>{0===a.g&&v();c.i&&c.l++;let m;try{m=f(a.g,b,g,n,k,h)}catch(w){throw b=w,a.h=!0,b;}a.h&&q();null!==a.j&&p();return m})(u(201)),og:(f=>(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&
+p()})(u(202)),ng:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(203)),Ug:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;let n;try{n=f(a.g,b,g)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p();return n})(u(204)),Wg:(f=>(b,g,n,k,h)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k,h)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(205)),Vg:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(206)),
+Lg:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;let n;try{n=f(a.g,b,g)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p();return n})(u(207)),Mg:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(208)),Xg:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(209)),Yg:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(210)),Sg:(f=>
+()=>{0===a.g&&v();c.i&&c.l++;try{var b=f(a.g)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p();return b})(u(211)),Ng:(f=>(b,g,n,k,h)=>{0===a.g&&v();c.i&&c.l++;let m;try{m=f(a.g,b,g,n,k,h)}catch(w){throw b=w,a.h=!0,b;}a.h&&q();null!==a.j&&p();return m})(u(212)),Og:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(213)),Pg:(f=>(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;let h;try{h=f(a.g,b,g,n,k)}catch(m){throw b=m,a.h=!0,
+b;}a.h&&q();null!==a.j&&p();return h})(u(214)),Qg:(f=>void 0===f?l("rive_gpu_v1","shader_module_new"):(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;let h;try{h=f(a.g,b,g,n,k)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();null!==a.j&&p();return h})(u(215)),Rg:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(216)),ig:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(217)),jg:(f=>b=>{0===
+a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(218)),gg:(f=>(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;let h;try{h=f(a.g,b,g,n,k)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();null!==a.j&&p();return h})(u(219)),hg:(f=>(b,g,n,k,h)=>{0===a.g&&v();c.i&&c.l++;let m;try{m=f(a.g,b,g,n,k,h)}catch(w){throw b=w,a.h=!0,b;}a.h&&q();null!==a.j&&p();return m})(u(220)),kg:(f=>(b,g,n,k,h,m,w)=>{0===a.g&&v();c.i&&c.l++;let r;try{r=f(a.g,b,g,n,k,h,m,w)}catch(C){throw b=C,a.h=!0,b;}a.h&&
+q();null!==a.j&&p();return r})(u(221)),lg:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(222)),Jg:(f=>(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;let h;try{h=f(a.g,b,g,n,k)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();null!==a.j&&p();return h})(u(223)),Kg:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(224)),gh:(f=>(b,g,n,k,h,m)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k,h,m)}catch(w){throw b=w,a.h=!0,
+b;}a.h&&q();null!==a.j&&p()})(u(225)),fh:(f=>(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;let h;try{h=f(a.g,b,g,n,k)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();null!==a.j&&p();return h})(u(226)),ge:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(227)),ie:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(228)),he:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=
+g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(229)),rh:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(230)),th:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(231)),uh:(f=>(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(232)),sh:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&
+q();null!==a.j&&p()})(u(233)),fe:(f=>(b,g,n,k,h)=>{0===a.g&&v();c.i&&c.l++;let m;try{m=f(a.g,b,g,n,k,h)}catch(w){throw b=w,a.h=!0,b;}a.h&&q();null!==a.j&&p();return m})(u(234)),ah:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(235)),eh:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(236)),bh:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=
+n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(237)),dh:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(238)),Zg:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(239)),$g:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(240)),Yf:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=
+h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(241)),Wf:(f=>void 0===f?l("rive_font_v1","decode"):(b,g)=>{0===a.g&&v();c.i&&c.l++;let n;try{n=f(a.g,b,g)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p();return n})(u(242)),dg:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(243)),cg:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(244)),eg:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;
+try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(245)),bg:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(246)),Uf:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(247)),Tf:(f=>(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(248)),Vf:(f=>(b,g)=>{0===a.g&&v();c.i&&
+c.l++;let n;try{n=f(a.g,b,g)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p();return n})(u(249)),Xf:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(250)),ag:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;let n;try{n=f(a.g,b,g)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p();return n})(u(251)),fg:(f=>(b,g,n,k,h)=>{0===a.g&&v();c.i&&c.l++;let m;try{m=f(a.g,b,g,n,k,h)}catch(w){throw b=w,a.h=!0,b;}a.h&&q();null!==a.j&&p();
+return m})(u(252)),$f:(f=>void 0===f?l("rive_font_v1","glyph_verbs"):(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;let h;try{h=f(a.g,b,g,n,k)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();null!==a.j&&p();return h})(u(253)),Zf:(f=>void 0===f?l("rive_font_v1","glyph_points"):(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;let h;try{h=f(a.g,b,g,n,k)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();null!==a.j&&p();return h})(u(254)),yi:(f=>void 0===f?l("rive_text_v1","new"):()=>{0===a.g&&v();c.i&&c.l++;try{var b=f(a.g)}catch(g){throw b=g,a.h=
+!0,b;}a.h&&q();null!==a.j&&p();return b})(u(255)),zi:(f=>void 0===f?l("rive_text_v1","release"):b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(256)),ni:(f=>void 0===f?l("rive_text_v1","append"):(b,g,n,k,h,m,w,r,C)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k,h,m,w,r,C)}catch(G){throw b=G,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(257)),ri:(f=>void 0===f?l("rive_text_v1","clear"):b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&
+q();null!==a.j&&p()})(u(258)),vi:(f=>void 0===f?l("rive_text_v1","layout"):(b,g,n)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(259)),si:(f=>void 0===f?l("rive_text_v1","draw"):(b,g,n)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(260)),oi:(f=>void 0===f?l("rive_text_v1","bounds"):(b,g,n)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(261)),
+wi:(f=>void 0===f?l("rive_text_v1","length"):b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(262)),xi:(f=>void 0===f?l("rive_text_v1","lines"):(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(263)),Ai:(f=>void 0===f?l("rive_text_v1","runs"):(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(264)),
+ti:(f=>void 0===f?l("rive_text_v1","glyphs"):(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(265)),ui:(f=>void 0===f?l("rive_text_v1","hit_test"):(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(266)),pi:(f=>void 0===f?l("rive_text_v1","caret"):(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;let h;try{h=f(a.g,b,g,n,k)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();
+null!==a.j&&p();return h})(u(267)),Bi:(f=>void 0===f?l("rive_text_v1","selection_rects"):(b,g,n,k,h)=>{0===a.g&&v();c.i&&c.l++;let m;try{m=f(a.g,b,g,n,k,h)}catch(w){throw b=w,a.h=!0,b;}a.h&&q();null!==a.j&&p();return m})(u(268)),ii:(f=>(b,g,n,k,h,m,w)=>{0===a.g&&v();c.i&&c.l++;let r;try{r=f(a.g,b,g,n,k,h,m,w)}catch(C){throw b=C,a.h=!0,b;}a.h&&q();null!==a.j&&p();return r})(u(269)),ki:(f=>(b,g,n,k,h,m)=>{0===a.g&&v();c.i&&c.l++;let w;try{w=f(a.g,b,g,n,k,h,m)}catch(r){throw b=r,a.h=!0,b;}a.h&&q();null!==
+a.j&&p();return w})(u(270)),li:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(271)),mi:(f=>(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;let h;try{h=f(a.g,b,g,n,k)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();null!==a.j&&p();return h})(u(272)),Ci:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(273)),Ei:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==
+a.j&&p();return g})(u(274)),Di:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(275)),Xh:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(276)),Wh:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(277)),Yh:(f=>(b,g,n,k,h,m,w)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k,h,m,w)}catch(r){throw b=r,a.h=!0,b;}a.h&&q();null!==a.j&&
+p()})(u(278)),Th:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(279)),Ph:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(280)),Vh:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(281)),Uh:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(282)),Qh:(f=>
+(b,g,n,k,h)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k,h)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(283)),Rh:(f=>(b,g,n,k,h,m,w,r)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k,h,m,w,r)}catch(C){throw b=C,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(284)),Sh:(f=>(b,g,n,k,h,m,w)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n,k,h,m,w)}catch(r){throw b=r,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(285)),vh:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=h,a.h=!0,b;}a.h&&
+q();null!==a.j&&p();return k})(u(286)),wh:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(287)),Rf:(f=>(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;let h;try{h=f(a.g,b,g,n,k)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();null!==a.j&&p();return h})(u(288)),Sf:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(289)),Kf:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==
+a.j&&p();return g})(u(290)),Lf:(f=>(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;let h;try{h=f(a.g,b,g,n,k)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();null!==a.j&&p();return h})(u(291)),Mf:(f=>(b,g,n,k)=>{0===a.g&&v();c.i&&c.l++;let h;try{h=f(a.g,b,g,n,k)}catch(m){throw b=m,a.h=!0,b;}a.h&&q();null!==a.j&&p();return h})(u(292)),Qf:(f=>b=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b)}catch(g){throw b=g,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(293)),Pf:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;let k;try{k=f(a.g,b,g,n)}catch(h){throw b=
+h,a.h=!0,b;}a.h&&q();null!==a.j&&p();return k})(u(294)),Nf:(f=>b=>{0===a.g&&v();c.i&&c.l++;let g;try{g=f(a.g,b)}catch(n){throw b=n,a.h=!0,b;}a.h&&q();null!==a.j&&p();return g})(u(295)),Of:(f=>(b,g)=>{0===a.g&&v();c.i&&c.l++;let n;try{n=f(a.g,b,g)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p();return n})(u(296)),re:(f=>(b,g,n)=>{0===a.g&&v();c.i&&c.l++;try{f(a.g,b,g,n)}catch(k){throw b=k,a.h=!0,b;}a.h&&q();null!==a.j&&p()})(u(297))}}function l(u,a){return()=>{throw Error("failed to call unlinked import function "+
+u+"."+a);}}function t(u){u=[0,...u,11];return new Uint8Array([0,97,115,109,1,0,0,0,1,5,1,96,0,1,123,3,2,1,0,10,u.length+2,1,u.length,...u])}function x(u,a){let c=0,p=0,q;do q=u[a++],c|=(q&127)<<p,p+=7;while(q&128);return[c>>>0,a]}function z(u){const a=[];do{const c=u&127;u>>>=7;a.push(u?c|128:c)}while(u);return a}function y(u){var a=[],c=-1;for(var p=8;p<u.length;){const [q,v]=x(u,p+1);8===u[p]?c=x(u,v)[0]:a.push({id:u[p],at:p,body:v,end:v+q});p=v+q}if(0>c||!a.some(q=>7===q.id))return u;p=[u.subarray(0,
+8)];for(const q of a){if(7!==q.id){p.push(u.subarray(q.at,q.end));continue}const [v,f]=x(u,q.body);a=Array.from("__riveLiftedStart",n=>n.charCodeAt(0));a=[...z(a.length),...a,0,...z(c)];const b=z(v+1),g=u.subarray(f,q.end);p.push(Uint8Array.from([7,...z(b.length+g.length+a.length),...b]),g,Uint8Array.from(a))}u=new Uint8Array(p.reduce((q,v)=>q+v.length,0));c=0;for(const q of p)u.set(q,c),c+=q.length;return u}const B=[253,12,...Array(16).fill(0)],F=t([...B]),I=t([...B,...B,253,128,2]);(function(u){function a(h,
+m){const w=d({kc:e(v.Fc,h.U),ia:v.ia,ra:v.ra,Na:v.Na,qa:v.qa,gb:v.gb,cb:v.cb,ab:b},()=>{if(null===h.memory)throw Error("script passed memory to the host while its module was still starting");return h.memory});for(const r of WebAssembly.Module.imports(m))if("function"===r.kind){let C,G,N,U;(N=(C=w)[G=r.module]??(C[G]={}))[U=r.name]??(N[U]=l(r.module,r.name))}return w}function c(h,m){const w=v.ra();for(const {name:r}of WebAssembly.Module.exports(m)){if(!r.startsWith("__rive"))continue;m=3*r.length+
+1;const C=v.Na(m);v.Wb(r,C,m);v.exports._rive_web_vm_module_export(h.U.g,C)}v.qa(w)}function p(h,m){h.memory=m.exports.memory;h.$a=null;const w=v.exports._rive_web_vm_booting;w(h.U.g);const r=v.ra();try{m.exports.__riveLiftedStart?.()}catch(C){throw v.qa(r),h.U.j=null,C;}finally{w(0)}h.instance=m}async function q(h){try{const w=await WebAssembly.compile(y(h.$a));if(0!==h.U.g){c(h,w);var m=await WebAssembly.instantiate(w,a(h,w));0!==h.U.g&&p(h,m)}}catch(w){h.error=String(w?.message??w)}}let v=null;
+const f=new Map,b={i:!1,l:0,Aa:0,ya:0,za:0,Ba:0},g=u.riveScriptingValidate??(h=>WebAssembly.validate(h));let n=null;const k={ic(h){v??=h},register(h,m){m=m.slice();var w=f.set;n??={Ob:g(F),Rc:g(I)};var r=n.Ob&&n.Rc||g(m)?null:n.Ob?"this browser lacks WebAssembly relaxed SIMD, so this file's scripts are off; bake with wasmSimd: on to support it":"this browser lacks WebAssembly SIMD, so this file's scripts are off; bake with wasmSimd: off to support it";w.call(f,h,{U:{g:h,j:null,h:!1,ab:b},$a:m,instance:null,
+memory:null,ba:null,error:r,names:new Map})},release(h){const m=f.get(h);m&&(m.U.g=0,f.delete(h))},Oc(){const h=[];for(const m of f.values())if(null===m.instance&&null===m.error){let w;(w=m).ba??(w.ba=q(m));h.push(m.ba)}return Promise.all(h)},start(h){h=f.get(h);if(!h)return"script module was never registered";if(null===h.instance&&null===h.error){if(null!==h.ba)return"script module is still being prepared";try{const m=new WebAssembly.Module(y(h.$a));c(h,m);p(h,new WebAssembly.Instance(m,a(h,m)))}catch(m){h.error=
+String(m?.message??m)}}return h.error},ba(h){h=f.get(h);return null===h?.instance&&null===h.error&&null!==h.ba?1:0},Dc(h,m){return"function"===typeof f.get(h)?.instance?.exports[v.nb(m)]?1:0},call(h,m,w,r,C,G,N){h=f.get(h);if(!h||null===h.instance)return 1;let U=h.names.get(m);void 0===U&&(U=h.instance.exports[v.nb(m)]??null,h.names.set(m,U));if("function"!==typeof U)return 1;try{m=r>>3;const aa=U(...v.Eb().subarray(m,m+w));v.Eb()[C>>3]="number"===typeof aa?aa:0;return 0}catch(aa){return h.U.j=null,
+v.Wb(String(aa?.message??aa),G,N),h.U.h?3:2}},Pc(h,m){if(h=f.get(h))h.U.j=v.nb(m)},read(h,m,w,r){h=f.get(h)?.memory;if(!h||m+r>h.buffer.byteLength)return 0;v.ia().set(new Uint8Array(h.buffer,m,r),w);b.i&&(b.za+=r);return 1},write(h,m,w,r){h=f.get(h)?.memory;if(!h||m+r>h.buffer.byteLength)return 0;(new Uint8Array(h.buffer,m,r)).set(v.ia().subarray(w,w+r));b.i&&(b.Ba+=r);return 1},Ji(h,m){h=f.get(h)?.memory;if(!h||m>=h.buffer.byteLength)return-1;h=(new Uint8Array(h.buffer)).indexOf(0,m);return 0>h?
+-1:h-m},Mc(h){return(h=f.get(h)?.memory)?h.buffer.byteLength>>>16:0},oc(h){b.i=!!h;b.l=0;b.Aa=0;b.ya=0;b.za=0;b.Ba=0},Gc(){return{hostCalls:b.l,bytesStaged:b.Aa,bytesCopiedOut:b.ya,bytesRead:b.za,bytesWritten:b.Ba}}};k.prepare=k.Oc;k.countHostCalls=k.oc;k.hostCallCounts=k.Gc;return u.riveScripting=k})(D)})();function ja(){}const H=new Int32Array(5);
+function ka(d,e,l,t,x){d(e,l,H);d=Math.max(H[0],0);const z=Math.max(H[1],0);e=Math.min(H[2],Math.ceil(t*e));l=Math.min(H[3],Math.ceil(x*l));H[4]=d!==H[0]||z!==H[1]||e!==H[2]||l!==H[3]?1:0;H[0]=d;H[1]=z;H[2]=e;H[3]=l;return e>d&&l>z}function la(){var d=(d=na())?d.dc:0;return 0===d?0:d}
+function oa(d,e,l,t,x,z,y,B,F,I,u){var a=la(),c=a-1,p=c-6;if(!(0<p))return I(),ja;let q=1,v=1;if(!ka(B,q,v,l,t))return I(),ja;const f=H[2]-H[0],b=H[3]-H[1];if(f>c||b>c)if(q*=Math.min(1,p/f),v*=Math.min(1,p/b),!ka(B,q,v,l,t))return I(),ja;l=H[0];t=H[1];c=H[2];p=H[3];B=0!==H[4];if(1>q||1>v)--l,--t,c+=1,p+=1;const g=c-l,n=p-t;d.s||(d.s=new D.DynamicRectanizer(a),d.s.reset(512,512));a=d.s.addRect(g+1,n+1);if(0>a&&(u(),a=d.s.addRect(g+1,n+1),0>a))return console.assert(!1,"draw does not fit in an empty atlas"),
+I(),ja;const k=a&65535,h=a>>16;d.A.push({hc:[q*x[0],v*x[1],q*x[2],v*x[3],q*x[4]-l+k,v*x[5]-t+h],vb:k,wb:h,Mi:g,Ec:n,Hb:B,nc:F,Sc:()=>{I()}});const m=l/q,w=t/v,r=g/q,C=n/v,G=d.T;return function(){const N=G.canvas();N&&(e.save(),e.resetTransform(),e.globalCompositeOperation=z,e.globalAlpha=y,e.drawImage(N,k,h,g,n,m,w,r,C),e.restore())}}class pa{constructor(){this.T=new qa;this.s=null;this.A=[];this.Ha=new ha;this.W=new ha}}let ra=null,sa=!1,ta=!1,ua=null;
+function va(d){const e=document.createElement("canvas");e.width=1;e.height=1;var l={alpha:!0,depth:d,stencil:d,antialias:d,premultipliedAlpha:!0,preserveDrawingBuffer:0,powerPreference:"high-performance",failIfMajorPerformanceCaveat:0,enableExtensionsByDefault:!1,explicitSwapControl:0,renderViaOffscreenBackBuffer:0};d=e.getContext("webgl2",l);if(!d)return null;e.addEventListener("webglcontextlost",function(){ta||(ta=!0,console.error("WebGL context lost. Draws that rely on the WebGL2 renderer will be dropped."))});
+l=wa(d,l);xa(l);const t=D.makeWebGL2Renderer(e.width,e.height);if(!t)return ya(l),null;t.Ta=l;t.la=e;t.ac=d;t.ub=e.width;t.rb=e.height;t.bc=!!d.getExtension("WEBGL_shader_pixel_local_storage");t.dc=Math.min(d.getParameter(d.MAX_RENDERBUFFER_SIZE),d.getParameter(d.MAX_TEXTURE_SIZE));return t}
+function na(){if(ta)return null;if(sa)return ra;sa=!0;var d=va(!0);if(!d)return console.log("No WebGL2 support. Draws that Canvas2D can't make will be dropped."),null;if(d.bc)var e=!0;else{e=d.ac;var l=e.getExtension("WEBGL_debug_renderer_info");if(l){var t=e.getParameter(l.UNMASKED_RENDERER_WEBGL);e=e.getParameter(l.UNMASKED_VENDOR_WEBGL).includes("Google")&&t.includes("ANGLE Metal Renderer")}else e=!1}return e&&(xa(d.Ta),d["delete"](),ya(d.Ta),d=va(!1),!d)?null:ra=d}
+class za{constructor(d){this.ca=d;this.path=D.makeWebGL2Path();this.path.fillRule(d)}moveTo(d,e){this.path.moveTo(d,e)}lineTo(d,e){this.path.lineTo(d,e)}xb(d,e,l,t,x,z){this.path.cubicTo(d,e,l,t,x,z)}close(){this.path.close()}addPath(d,e,l,t,x,z,y){const B=new za(this.ca);for(const F of d)F(B);B.Da();this.path.addPath(B.path,e,l,t,x,z,y);B.dispose()}Da(){}Vb(){return!1}dispose(){this.path.unref();this.path=null}}class qa{constructor(){this.Pb=!0}canvas(){return ta||!ra?null:ra.la}}const Ba=new pa;
+function Ca(d,e,l,t,x,z){const y=new DOMMatrix;y.a=d;y.b=e;y.c=l;y.d=t;y.e=x;y.f=z;return y}const Da="createConicGradient createImageData createLinearGradient createPattern createRadialGradient getContextAttributes getImageData getLineDash getTransform isContextLost isPointInPath isPointInStroke measureText".split(" "),Ea=D.onRuntimeInitialized;
+D.onRuntimeInitialized=function(){function d(A){switch(A){case p.srcOver:return"source-over";case p.Ni:return"plus-lighter";case p.screen:return"screen";case p.overlay:return"overlay";case p.darken:return"darken";case p.lighten:return"lighten";case p.colorDodge:return"color-dodge";case p.colorBurn:return"color-burn";case p.hardLight:return"hard-light";case p.softLight:return"soft-light";case p.difference:return"difference";case p.exclusion:return"exclusion";case p.multiply:return"multiply";case p.hue:return"hue";
+case p.saturation:return"saturation";case p.color:return"color";case p.luminosity:return"luminosity"}}function e(A){return"rgba("+((16711680&A)>>>16)+","+((65280&A)>>>8)+","+((255&A)>>>0)+","+((4278190080&A)>>>24)/255+")"}function l(A,E,L,J,K){return{Qb:A,Rb:E,Ab:L,Bb:J,Fb:K,lb:[],ha:null}}function t(A,E,L,J){if(E.fa===v&&!(0<E.ga))return null;L=1===L;return{ib:A.ob(L?E.Va:null),gradientTransform:L?E.ma:null,Ki:L?E.ga*E.Ya:E.ga,fillRule:A.ca===f?"evenodd":"nonzero",opacity:J,style:E.fa,color:E.Ra,
+Db:E.R,lc:E.Qa,join:E.Wa,jc:E.Pa}}function x(A,E){return E.fa!==v||0<E.ga?{path:A.Yb(A.ca),hb:E.Zb()}:null}function z(){if(0!==g.A.length){var A=la();if(0!==A){var E=Math.min(g.Ha.push(g.s.drawWidth()),A),L=Math.min(g.W.push(g.s.drawHeight()),A),J=g.A;if(A=na()){xa(A.Ta);const K=A.la;if(K.width!==E||K.height!==L)K.width=E,K.height=L;if(A.ub!==E||A.rb!==L)A.resize(E,L),A.ub=E,A.rb=L;A.clear();ua||=new D.Mat2D;E=ua;for(const M of J)A.save(),M.Hb&&A.saveClipRect(M.vb,M.wb,M.vb+M.Mi,M.wb+M.Ec),J=M.hc,
+E.xx=J[0],E.xy=J[1],E.yx=J[2],E.yy=J[3],E.tx=J[4],E.ty=J[5],A.transform(E),M.nc(A),M.Hb&&A.restoreClipRect(),A.restore();A.flush()}}}for(const K of G){for(const M of K.L)M();K.L=[]}G.clear();for(const K of g.A)K.Sc();g.A=[];g.s&&g.s.reset(512,512)}Ea&&Ea();var y=D.RenderPaintStyle;const B=D.FillRule,F=D.RenderPath,I=D.RenderPaint,u=D.Renderer,a=D.StrokeCap,c=D.StrokeJoin,p=D.BlendMode,q=y.fill,v=y.stroke,f=B.evenOdd,b=B.nonZero,g=Ba,n=g.T;var k=D.RenderImage.extend("CanvasRenderImage",{__construct:function({pa:A,
+La:E}={}){this.__parent.__construct.call(this);this.pa=A;this.La=E;this.ec=this.na=this.va=this.sb=null},__destruct:function(){this.na&&(this.na.unref(),this.na=null);this.va&&URL.revokeObjectURL(this.va);this.__parent.__destruct.call(this)},decode:function(A){var E=this;E.La&&E.La(E);var L=new Image;E.va=URL.createObjectURL(new Blob([A],{type:"image/png"}));L.onload=function(){E.sb=L;E.na=D.adoptWebGL2Image(L,L.width,L.height);E.size(L.width,L.height);E.pa&&E.pa(E)};L.src=E.va}});class h{constructor(A){this.s=
+A;this.path=new Path2D;this.A=null;this.W=!1}T(){null!==this.A&&(this.path.lineTo(this.A.x,this.A.y),this.A=null)}moveTo(A,E){this.T();let L=A,J=E;null!==this.s&&(A=this.s.transformPoint({x:A,y:E}),L=A.x,J=A.y);this.path.moveTo(L,J);this.A={x:L,y:J}}lineTo(A,E){this.A=null;null!==this.s?(A=this.s.transformPoint({x:A,y:E}),this.path.lineTo(A.x,A.y)):this.path.lineTo(A,E)}xb(A,E,L,J,K,M){this.A=null;null!==this.s?(A=this.s.transformPoint({x:A,y:E}),L=this.s.transformPoint({x:L,y:J}),K=this.s.transformPoint({x:K,
+y:M}),this.path.bezierCurveTo(A.x,A.y,L.x,L.y,K.x,K.y)):this.path.bezierCurveTo(A,E,L,J,K,M)}close(){this.A=null;this.path.closePath()}addPath(A,E,L,J,K,M,R){this.T();const P=new h(null);for(const O of A)O(P);P.Da();A=Ca(E,L,J,K,M,R);null!==this.s&&(A=this.s.multiply(A));this.path.addPath(P.path,A)}Da(){null===this.A||this.W||(this.T(),this.W=!0)}Vb(){return this.W}dispose(){}}class m{constructor(A){this.Kc=A;this.W=this.T=0;this.A=null;this.s=A(null)}clear(){this.Ha(null)}Za(A,E){for(((null===E?
+null!==this.A:null===this.A||this.A.a!==E.a||this.A.b!==E.b||this.A.c!==E.c||this.A.d!==E.d||this.A.e!==E.e||this.A.f!==E.f)||this.W<A.length&&(0<this.T||this.s.Vb()))&&this.Ha(E);this.W<A.length;)A[this.W++](this.s);this.s.Da();this.T++;return this.s.path}kb(A){null!==this.s&&A===this.s.path&&this.T--}dispose(){this.s.dispose();this.s=null}Ha(A){this.s.dispose();this.W=this.T=0;this.A=A;this.s=this.Kc(A)}}var w=F.extend("CanvasRenderPath",{__construct:function(){this.__parent.__construct.call(this);
+this.da=[];this.wa=new m(A=>new h(A));this.xa=new m(A=>new h(A));this.ea=new Map;this.ca=b;this.Ua=!1},__destruct:function(){this.wa.dispose();this.xa.dispose();for(const A of this.ea.values())A.dispose();this.ea.clear();this.__parent.__destruct.call(this)},rewind:function(){this.da.length=0;this.wa.clear();this.xa.clear();for(const A of this.ea.values())A.clear();this.Ua=!1},addPath:function(A,E,L,J,K,M,R){const P=A.da.slice();this.ka(O=>O.addPath(P,E,L,J,K,M,R))},fillRule:function(A){this.ca=A},
+moveTo:function(A,E){this.Ua=!0;this.ka(L=>L.moveTo(A,E))},lineTo:function(A,E){this.qb();this.ka(L=>L.lineTo(A,E))},cubicTo:function(A,E,L,J,K,M){this.qb();this.ka(R=>R.xb(A,E,L,J,K,M))},close:function(){this.ka(A=>A.close())},qb:function(){this.Ua||this.moveTo(0,0)},ka:function(A){this.da.push(A)},ob:function(A){A=null===A?this.wa.Za(this.da,null):this.xa.Za(this.da,A);A.ref&&A.ref();return A},Yb:function(A){var E=this.ea.get(A);void 0===E&&(E=new m(()=>new za(A)),this.ea.set(A,E));E=E.Za(this.da,
+null);E.ref&&E.ref();return E},Xa:function(A){this.wa.kb(A);this.xa.kb(A);for(const E of this.ea.values())E.kb(A);A.unref&&A.unref()}});const r=l(0,0,0,0,!1);var C=I.extend("CanvasRenderPaint",{__construct:function(){this.__parent.__construct.call(this);this.fa=q;this.Ra=4278190080;this.ga=1;this.Wa=c.miter;this.Qa=a.butt;this.Sa=0;this.Pa=d(p.srcOver);this.Va=this.ma=this.R=null;this.Ya=1;this.K=0;this.Z=null;this.tb=-1},__destruct:function(){null!==this.Z&&(D.unrefWebGL2Paint(this.Z),this.Z=null);
+this.__parent.__destruct.call(this)},color:function(A){this.Ra=A;this.R=null;this.K++},thickness:function(A){this.ga=Math.abs(A);this.K++},join:function(A){this.Wa=A;this.K++},cap:function(A){this.Qa=A;this.K++},feather:function(A){this.Sa=Math.abs(A);this.K++},style:function(A){this.fa=A;this.K++},blendMode:function(A){this.Pa=d(A);this.K++},clearGradient:function(){this.R=null;this.K++},linearGradient:function(A,E,L,J){this.R=l(A,E,L,J,!1);this.K++},radialGradient:function(A,E,L,J){this.R=l(A,E,
+L,J,!0);this.K++},addStop:function(A,E){this.R.lb.push({color:A,stop:E});this.R.ha=null;this.K++},completeGradient:function(){},_setGradientTransform:function(A,E,L,J,K,M,R,P,O,T,V,ea,ma){1===A&&0===E&&0===L&&1===J&&0===K&&0===M?this.Va=this.ma=null:(this.ma=Ca(A,E,L,J,K,M),this.Va=Ca(R,P,O,T,V,ea));this.Ya=ma;this.K++},Zb:function(){if(this.tb!==this.K){null!==this.Z&&D.unrefWebGL2Paint(this.Z);const E=null!==this.R?this.R:r;let L=null,J=null;if(null!==this.R){var A=E.lb;L=new Uint32Array(A.length);
+J=new Float32Array(A.length);for(let V=0,ea=A.length;V<ea;V++)L[V]=A[V].color,J[V]=A[V].stop}A=1;let K=0,M=0,R=1,P=0,O=0;const T=this.ma;null!==T&&(A=T.a,K=T.b,M=T.c,R=T.d,P=T.e,O=T.f);this.Z=D.makeWebGL2Paint(this.fa,this.Ra,this.ga,this.Wa,this.Qa,this.Sa,L,J,E.Fb,E.Qb,E.Rb,E.Ab,E.Bb,A,K,M,R,P,O);this.tb=this.K}D.refWebGL2Paint(this.Z);return this.Z}});const G=new Set,N=Object.prototype.hasOwnProperty;var U=D.CanvasRenderer=u.extend("Renderer",{__construct:function(A){this.__parent.__construct.call(this);
+this.S=[1,0,0,1,0,0];this.J=[1];this.C=A.getContext("2d");this.la=A;this.L=[]},save:function(){this.S.push(...this.S.slice(this.S.length-6));this.J.push(this.J[this.J.length-1]);this.L.push(this.C.save.bind(this.C))},restore:function(){const A=this.S.length-6;if(6>A)throw"restore() called without matching save().";this.S.splice(A);this.J.pop();this.L.push(this.C.restore.bind(this.C))},transform:function(A,E,L,J,K,M){const R=this.S,P=R.length-6;R.splice(P,6,R[P]*A+R[P+2]*E,R[P+1]*A+R[P+3]*E,R[P]*L+
+R[P+2]*J,R[P+1]*L+R[P+3]*J,R[P]*K+R[P+2]*M+R[P+4],R[P+1]*K+R[P+3]*M+R[P+5]);this.L.push(this.C.transform.bind(this.C,A,E,L,J,K,M))},rotate:function(A){const E=Math.sin(A);A=Math.cos(A);this.transform(A,E,-E,A,0,0)},modulateOpacity:function(A){this.J[this.J.length-1]*=A},_drawPath:function(A,E){const L=Math.max(0,this.J[this.J.length-1]),J=0!==E.Sa?n.Pb?2:0:null===E.R||null===E.ma?0:E.fa!==v||0<E.Ya?1:n.Pb?2:0;if(2===J)this.$b(A,E,L);else{var K=t(A,E,J,L);null!==K&&this.L.push(()=>{var M=this.C;const R=
+M.globalCompositeOperation,P=M.globalAlpha;M.globalCompositeOperation=K.jc;M.globalAlpha=K.opacity;if(null!==K.Db){var O=K.Db;if(null===O.ha){var T=O.Qb;const ma=O.Rb;var V=O.Ab,ea=O.Bb;O.Fb?(V-=T,ea-=ma,O.ha=M.createRadialGradient(T,ma,0,T,ma,Math.sqrt(V*V+ea*ea))):O.ha=M.createLinearGradient(T,ma,V,ea);T=O.lb;for(let Aa=0,nb=T.length;Aa<nb;Aa++)O.ha.addColorStop(T[Aa].stop,e(T[Aa].color))}O=O.ha}else O=e(K.color);null!==K.gradientTransform&&(M.save(),M.transform(K.gradientTransform.a,K.gradientTransform.b,
+K.gradientTransform.c,K.gradientTransform.d,K.gradientTransform.e,K.gradientTransform.f));switch(K.style){case v:M.strokeStyle=O;M.lineWidth=K.Ki;a:{switch(K.lc){case a.butt:O="butt";break a;case a.round:O="round";break a;case a.square:O="square";break a}O=void 0}M.lineCap=O;a:{switch(K.join){case c.miter:O="miter";break a;case c.round:O="round";break a;case c.bevel:O="bevel";break a}O=void 0}M.lineJoin=O;M.miterLimit=4;M.stroke(K.ib);break;case q:M.fillStyle=O,M.fill(K.ib,K.fillRule)}null!==K.gradientTransform&&
+M.restore();M.globalCompositeOperation=R;M.globalAlpha=P;A.Xa(K.ib)})}},$b:function(A,E,L){const J=x(A,E);if(null!==J){var K=this.S.slice(this.S.length-6);E=oa(g,this.C,this.C.canvas.width,this.C.canvas.height,K,E.Pa,L,(M,R,P)=>D.webGL2PathPixelBounds(J.path,J.hb,M*K[0],R*K[1],M*K[2],R*K[3],M*K[4],R*K[5],P),M=>M.drawPath(J.path,J.hb),()=>{A.Xa(J.path);D.unrefWebGL2Paint(J.hb)},z);G.add(this);this.L.push(E)}},_drawRiveImage:function(A,E,L){var J=A.sb;if(J){var K=this.C,M=d(E),R=Math.max(0,L*this.J[this.J.length-
+1]);this.L.push(function(){K.globalCompositeOperation=M;K.globalAlpha=R;K.drawImage(J,0,0);K.globalAlpha=1})}},_getMatrix:function(A){const E=this.S,L=E.length-6;for(let J=0;6>J;++J)A[J]=E[L+J]},_drawImageMesh:function(A,E,L,J,K,M,R,P){const O=A.na;O?this.pb(L,J,K,M,R,P,T=>D.drawWebGL2PendingMesh(T,E,O),()=>E.unref()):E.unref()},_drawImageMeshFromHeap:function(A,E,L,J,K,M,R,P,O,T,V,ea,ma){if(A.ec){try{var Aa=D.HEAPF32.slice(J>>2,(J>>2)+K);var nb=D.HEAPF32.slice(M>>2,(M>>2)+R);var Vc=D.HEAPU16.slice(P>>
+1,(P>>1)+O)}catch(Ld){console.error("[Rive] _drawImageMesh: failed to read mesh data from WASM heap. Mesh skipped for this frame.");return}this.pb(E,L,T,V,ea,ma,{image:A,Ti:Aa,Si:nb,indices:Vc},()=>{})}},pb:function(A,E,L,J,K,M,R,P){A=oa(g,this.C,this.C.canvas.width,this.C.canvas.height,this.S.slice(this.S.length-6),d(A),Math.max(0,E*this.J[this.J.length-1]),(O,T,V)=>{V[0]=Math.floor(L*O);V[1]=Math.floor(J*T);V[2]=Math.ceil(K*O);V[3]=Math.ceil(M*T)},R,P,z);G.add(this);this.L.push(A)},_clipPath:function(A){const E=
+A.ca===f?"evenodd":"nonzero",L=A.ob(null);this.L.push(()=>{this.C.clip(L,E);A.Xa(L)})},beginFrame:function(A=!0){G.add(this);A&&this.L.push(this.C.clearRect.bind(this.C,0,0,this.la.width,this.la.height))},clear:function(){this.beginFrame(!0)},flush:function(){},translate:function(A,E){this.transform(1,0,0,1,A,E)}});D.makeRenderer=function(A){const E=new U(A),L=E.C;let J=null,K=null;const M={attachSession:function(P){if(P&&J===P)return!0;if(!P||J||"function"!==typeof D.c2dDeferredClaim||"function"!==
+typeof D.c2dDeferredRenderer||!D.c2dDeferredClaim(P))return!1;const O=D.c2dDeferredRenderer(P);if(!O)return!1;J=P;K=O;return!0},detachSession:function(){J&&D.c2dDeferredDetach(J);K=J=null},deferredActive:function(){return null!==K}},R={save:function(){D.c2dDeferredSave(J)},restore:function(){D.c2dDeferredRestore(J)},transform:function(P,O,T,V,ea,ma){D.c2dDeferredTransform(J,P,O,T,V,ea,ma)},translate:function(P,O){D.c2dDeferredTransform(J,1,0,0,1,P,O)},rotate:function(P){const O=Math.sin(P);P=Math.cos(P);
+D.c2dDeferredTransform(J,P,O,-O,P,0,0)},align:function(P,O,T,V,ea){D.c2dDeferredAlign(J,P,O,T.minX,T.minY,T.maxX,T.maxY,V.minX,V.minY,V.maxX,V.maxY,void 0===ea?1:ea)},beginFrame:function(P=!0){E.beginFrame(P);D.c2dDeferredBeginFrame(J)},clear:function(){E.beginFrame(!0);D.c2dDeferredBeginFrame(J)},flush:function(){D.c2dDeferredReplay(J,E)}};return new Proxy(E,{get(P,O){if(N.call(M,O))return M[O];if("_deferredRecorder"===O)return K;if(null!==K&&N.call(R,O))return R[O];if("function"===typeof P[O])return function(...T){return P[O].apply(P,
+T)};if("function"===typeof L[O]){if(-1<Da.indexOf(O))throw Error("RiveException: Method call to '"+O+"()' is not allowed, as the renderer cannot immediately pass through the return                 values of any canvas 2d context methods.");return function(...T){E.L.push(L[O].bind(L,...T))}}return P[O]},set(P,O,T){if(O in L)return E.L.push(()=>{L[O]=T}),!0}})};D.decodeImage=function(A,E){(new k({pa:E})).decode(A)};D.renderFactory={makeRenderPaint:function(){return new C},makeRenderPath:function(){return new w},
+makeRenderImage:function(){let A=fa;return new k({La:()=>{A.total++},pa:()=>{A.loaded++;if(A.loaded===A.total){const E=A.ready;E&&(E(),A.ready=null)}}})}};let aa=D.load,fa=null;D.load=function(A,E,L=!0,J=null){const K=new D.FallbackFileAssetLoader;void 0!==E&&K.addLoader(E);L&&(E=new D.CDNFileAssetLoader(J),K.addLoader(E));return(new Promise(function(M){let R=null;fa={total:0,loaded:0,ready:function(){M(R)}};R=aa(A,K,J??null);const P=D.riveScripting;P&&P.prepare();0==fa.total&&M(R)})).then(D.startFileScripts)};
+const Wc=D.Artboard.prototype.draw;D.Artboard.prototype.draw=function(A){Wc.call(this,A._deferredRecorder||A)};let Xc=D.RendererWrapper.prototype.align;D.RendererWrapper.prototype.align=function(A,E,L,J,K=1){Xc.call(this,A,E,L,J,K)};y=new da;D.requestAnimationFrame=y.requestAnimationFrame.bind(y);D.cancelAnimationFrame=y.cancelAnimationFrame.bind(y);D.enableFPSCounter=y.tc.bind(y);D.disableFPSCounter=y.qc;y.Ib=z;D.resolveAnimationFrame=z;D.cleanup=function(){g.s&&(g.s["delete"](),g.s=null)}};
+var Fa="./this.program";ca&&(_scriptName=self.location.href);var Ga="",Ha,Ia;
+if(ba||ca){try{Ga=(new URL(".",_scriptName)).href}catch{}ca&&(Ia=d=>{var e=new XMLHttpRequest;e.open("GET",d,!1);e.responseType="arraybuffer";e.send(null);return new Uint8Array(e.response)});Ha=async d=>{if(Ja(d))return new Promise((l,t)=>{var x=new XMLHttpRequest;x.open("GET",d,!0);x.responseType="arraybuffer";x.onload=()=>{200==x.status||0==x.status&&x.response?l(x.response):t(x.status)};x.onerror=t;x.send(null)});var e=await fetch(d,{credentials:"same-origin"});if(e.ok)return e.arrayBuffer();throw Error(e.status+
+" : "+e.url);}}var Ka=console.log.bind(console),La=console.error.bind(console),Ma,Na=!1,Ja=d=>d.startsWith("file://"),Oa,Pa,Qa,Q,Ra,Sa,S,W,Ta,Ua,Va=!1;function Wa(){var d=Xa.buffer;D.HEAP8=Qa=new Int8Array(d);Ra=new Int16Array(d);D.HEAPU8=Q=new Uint8Array(d);D.HEAPU16=Sa=new Uint16Array(d);D.HEAP32=S=new Int32Array(d);D.HEAPU32=W=new Uint32Array(d);D.HEAPF32=Ta=new Float32Array(d);Ua=new Float64Array(d)}
+function Ya(d){D.onAbort?.(d);d="Aborted("+d+")";La(d);Na=!0;d=new WebAssembly.RuntimeError(d+". Build with -sASSERTIONS for more info.");Pa?.(d);throw d;}var Za;async function $a(d){if(!Ma)try{var e=await Ha(d);return new Uint8Array(e)}catch{}if(d==Za&&Ma)d=new Uint8Array(Ma);else if(Ia)d=Ia(d);else throw"both async and sync fetching of the wasm failed";return d}
+async function ab(d,e){try{var l=await $a(d);return await WebAssembly.instantiate(l,e)}catch(t){La(`failed to asynchronously prepare wasm: ${t}`),Ya(t)}}async function bb(d){var e=Za;if(!Ma&&!Ja(e))try{var l=fetch(e,{credentials:"same-origin"});return await WebAssembly.instantiateStreaming(l,d)}catch(t){La(`wasm streaming compile failed: ${t}`),La("falling back to ArrayBuffer instantiation")}return ab(e,d)}
+var cb,db,eb=d=>{for(;0<d.length;)d.shift()(D)},fb=[],gb=[],hb=()=>{var d=D.preRun.shift();gb.push(d)},jb=d=>ib(d),lb=()=>kb(),mb=globalThis.TextDecoder&&new TextDecoder,ob=(d,e,l,t)=>{l=e+l;if(t)return l;for(;d[e]&&!(e>=l);)++e;return e},pb=(d,e=0,l,t)=>{l=ob(d,e,l,t);if(16<l-e&&d.buffer&&mb)return mb.decode(d.subarray(e,l));for(t="";e<l;){var x=d[e++];if(x&128){var z=d[e++]&63;if(192==(x&224))t+=String.fromCharCode((x&31)<<6|z);else{var y=d[e++]&63;x=224==(x&240)?(x&15)<<12|z<<6|y:(x&7)<<18|z<<
+12|y<<6|d[e++]&63;65536>x?t+=String.fromCharCode(x):(x-=65536,t+=String.fromCharCode(55296|x>>10,56320|x&1023))}}else t+=String.fromCharCode(x)}return t},qb=(d,e)=>Object.defineProperty(e,"name",{value:d}),rb=[],sb=[0,1,,1,null,1,!0,1,!1,1],X=class extends Error{constructor(d){super(d);this.name="BindingError"}},tb=d=>{if(!d)throw new X(`Cannot use deleted val. handle = ${d}`);return sb[d]},ub=d=>{switch(d){case void 0:return 2;case null:return 4;case !0:return 6;case !1:return 8;default:const e=
+rb.pop()||sb.length;sb[e]=d;sb[e+1]=1;return e}};class vb extends Error{}
+var Y=d=>{for(var e="";;){var l=Q[d++];if(!l)return e;e+=String.fromCharCode(l)}},wb={},xb=(d,e)=>{if(void 0===e)throw new X("ptr should not be undefined");for(;d.G;)e=d.ta(e),d=d.G;return e},yb={},Bb=d=>{d=zb(d);var e=Y(d);Ab(d);return e},Cb=(d,e)=>{var l=yb[d];if(void 0===l)throw d=`${e} has unknown type ${Bb(d)}`,new X(d);return l},Db=()=>{},Eb=!1,Fb=d=>{if(!globalThis.FinalizationRegistry)return Fb=e=>e,d;Eb=new FinalizationRegistry(e=>{e=e.m;--e.count.value;0===e.count.value&&(e.H?e.O.X(e.H):
+e.B.o.X(e.v))});Fb=e=>{var l=e.m;l.H&&Eb.register(e,{m:l},e);return e};Db=e=>{Eb.unregister(e)};return Fb(d)},Gb={},Hb=d=>{for(;d.length;){var e=d.pop();d.pop()(e)}};function Ib(d){return this.u(W[d>>2])}
+var Jb={},Kb={},Lb=class extends Error{constructor(d){super(d);this.name="InternalError"}},Nb=(d,e,l)=>{function t(B){B=l(B);if(B.length!==d.length)throw new Lb("Mismatched type converter count");for(var F=0;F<d.length;++F)Mb(d[F],B[F])}d.forEach(B=>Kb[B]=e);var x=Array(e.length),z=[],y=0;for(let [B,F]of e.entries())yb.hasOwnProperty(F)?x[B]=yb[F]:(z.push(F),Jb.hasOwnProperty(F)||(Jb[F]=[]),Jb[F].push(()=>{x[B]=yb[F];++y;y===z.length&&t(x)}));0===z.length&&t(x)};
+function Ob(d,e,l={}){var t=e.name;if(!d)throw new X(`type "${t}" must have a positive integer typeid pointer`);if(yb.hasOwnProperty(d)){if(l.Hc)return;throw new X(`Cannot register type '${t}' twice`);}yb[d]=e;delete Kb[d];Jb.hasOwnProperty(d)&&(e=Jb[d],delete Jb[d],e.forEach(x=>x()))}function Mb(d,e,l={}){return Ob(d,e,l)}var Pb=d=>{throw new X(d.m.B.o.name+" instance already deleted");},Qb=[];function Rb(){}
+var Sb={},Tb=(d,e,l)=>{if(void 0===d[e].D){var t=d[e];d[e]=function(...x){if(!d[e].D.hasOwnProperty(x.length))throw new X(`Function '${l}' called with an invalid number of arguments (${x.length}) - expects one of (${d[e].D})!`);return d[e].D[x.length].apply(this,x)};d[e].D=[];d[e].D[t.Y]=t}},Ub=(d,e,l)=>{if(D.hasOwnProperty(d)){if(void 0===l||void 0!==D[d].D&&void 0!==D[d].D[l])throw new X(`Cannot register public name '${d}' twice`);Tb(D,d,d);if(D[d].D.hasOwnProperty(l))throw new X(`Cannot register multiple overloads of a function with the same number of arguments (${l})!`);
+D[d].D[l]=e}else D[d]=e,D[d].Y=l},Vb=d=>{d=d.replace(/[^a-zA-Z0-9_]/g,"$");var e=d.charCodeAt(0);return 48<=e&&57>=e?`_${d}`:d};function Wb(d,e,l,t,x,z,y,B){this.name=d;this.constructor=e;this.V=l;this.X=t;this.G=x;this.yc=z;this.ta=y;this.rc=B;this.Kb=[]}
+var Xb=(d,e,l)=>{for(;e!==l;){if(!e.ta)throw new X(`Expected null or instance of ${l.name}, got an instance of ${e.name}`);d=e.ta(d);e=e.G}return d},Yb=d=>{if(null===d)return"null";var e=typeof d;return"object"===e||"array"===e||"function"===e?d.toString():""+d};
+function Zb(d,e){if(null===e){if(this.eb)throw new X(`null is not a valid ${this.name}`);return 0}if(!e.m)throw new X(`Cannot pass "${Yb(e)}" as a ${this.name}`);if(!e.m.v)throw new X(`Cannot pass deleted object as a pointer of type ${this.name}`);return Xb(e.m.v,e.m.B.o,this.o)}
+function $b(d,e){if(null===e){if(this.eb)throw new X(`null is not a valid ${this.name}`);if(this.Ga){var l=this.jb();null!==d&&d.push(this.X,l);return l}return 0}if(!e||!e.m)throw new X(`Cannot pass "${Yb(e)}" as a ${this.name}`);if(!e.m.v)throw new X(`Cannot pass deleted object as a pointer of type ${this.name}`);if(!this.Fa&&e.m.B.Fa)throw new X(`Cannot convert argument of type ${e.m.O?e.m.O.name:e.m.B.name} to parameter type ${this.name}`);l=Xb(e.m.v,e.m.B.o,this.o);if(this.Ga){if(void 0===e.m.H)throw new X("Passing raw pointer to smart pointer is illegal");
+switch(this.Ii){case 0:if(e.m.O===this)l=e.m.H;else throw new X(`Cannot convert argument of type ${e.m.O?e.m.O.name:e.m.B.name} to parameter type ${this.name}`);break;case 1:l=e.m.H;break;case 2:if(e.m.O===this)l=e.m.H;else{var t=e.clone();l=this.Qc(l,ub(()=>t["delete"]()));null!==d&&d.push(this.X,l)}break;default:throw new X("Unsupported sharing policy");}}return l}
+function ac(d,e){if(null===e){if(this.eb)throw new X(`null is not a valid ${this.name}`);return 0}if(!e.m)throw new X(`Cannot pass "${Yb(e)}" as a ${this.name}`);if(!e.m.v)throw new X(`Cannot pass deleted object as a pointer of type ${this.name}`);if(e.m.B.Fa)throw new X(`Cannot convert argument of type ${e.m.B.name} to parameter type ${this.name}`);return Xb(e.m.v,e.m.B.o,this.o)}
+var bc=(d,e,l)=>{if(e===l)return d;if(void 0===l.G)return null;d=bc(d,e,l.G);return null===d?null:l.rc(d)},cc=(d,e)=>{e=xb(d,e);return wb[e]},dc=(d,e)=>{if(!e.B||!e.v)throw new Lb("makeClassHandle requires ptr and ptrType");if(!!e.O!==!!e.H)throw new Lb("Both smartPtrType and smartPtr must be specified");e.count={value:1};return Fb(Object.create(d,{m:{value:e,writable:!0}}))};
+function ec(d,e,l,t,x,z,y,B,F,I,u){this.name=d;this.o=e;this.eb=l;this.Fa=t;this.Ga=x;this.Nc=z;this.Ii=y;this.Mb=B;this.jb=F;this.Qc=I;this.X=u;x||void 0!==e.G?this.F=$b:(this.F=t?Zb:ac,this.M=null)}
+var fc=(d,e,l)=>{if(!D.hasOwnProperty(d))throw new Lb("Replacing nonexistent public symbol");void 0!==D[d].D&&void 0!==l?D[d].D[l]=e:(D[d]=e,D[d].Y=l)},gc={},ic=(d,e,l=[])=>{d.includes("j")?(d=d.replace(/p/g,"i"),e=(0,gc[d])(e,...l)):e=hc.get(e)(...l);return e},jc=(d,e)=>(...l)=>ic(d,e,l),kc=(d,e)=>{d=Y(d);var l=d.includes("j")?jc(d,e):hc.get(e);if("function"!=typeof l)throw new X(`unknown function pointer with signature ${d}: ${e}`);return l};class lc extends Error{}
+var mc=(d,e)=>{function l(z){x[z]||yb[z]||(Kb[z]?Kb[z].forEach(l):(t.push(z),x[z]=!0))}var t=[],x={};e.forEach(l);throw new lc(`${d}: `+t.map(Bb).join([", "]));};function nc(d){for(var e=1;e<d.length;++e)if(null!==d[e]&&void 0===d[e].M)return!0;return!1}
+function oc(d,e,l,t,x){var z=e.length;if(2>z)throw new X("argTypes array size mismatch! Must at least get return value and 'this' types!");var y=null!==e[1]&&null!==l,B=nc(e),F=!e[0].Jc,I=z-2,u=Array(I),a=[],c=[];return qb(d,function(...p){c.length=0;a.length=y?2:1;a[0]=x;if(y){var q=e[1].F(c,this);a[1]=q}for(var v=0;v<I;++v)u[v]=e[v+2].F(c,p[v]),a.push(u[v]);p=t(...a);if(B)Hb(c);else for(v=y?1:2;v<e.length;v++){var f=1===v?q:u[v-2];null!==e[v].M&&e[v].M(f)}q=F?e[0].u(p):void 0;return q})}
+var pc=(d,e)=>{for(var l=[],t=0;t<d;t++)l.push(W[e+4*t>>2]);return l},qc=d=>{d=d.trim();const e=d.indexOf("(");return-1===e?d:d.slice(0,e)},rc=(d,e,l)=>{if(!(d instanceof Object))throw new X(`${l} with invalid "this": ${d}`);if(!(d instanceof e.o.constructor))throw new X(`${l} incompatible with "this" of type ${d.constructor.name}`);if(!d.m.v)throw new X(`cannot call emscripten binding method ${l} on deleted object`);return Xb(d.m.v,d.m.B.o,e.o)},sc=d=>{9<d&&0===--sb[d+1]&&(sb[d]=void 0,rb.push(d))},
+tc={name:"emscripten::val",u:d=>{var e=tb(d);sc(d);return e},F:(d,e)=>ub(e),N:Ib,M:null},uc=(d,e,l)=>{switch(e){case 1:return l?function(t){return this.u(Qa[t])}:function(t){return this.u(Q[t])};case 2:return l?function(t){return this.u(Ra[t>>1])}:function(t){return this.u(Sa[t>>1])};case 4:return l?function(t){return this.u(S[t>>2])}:function(t){return this.u(W[t>>2])};default:throw new TypeError(`invalid integer width (${e}): ${d}`);}},vc=(d,e)=>{switch(e){case 4:return function(l){return this.u(Ta[l>>
+2])};case 8:return function(l){return this.u(Ua[l>>3])};default:throw new TypeError(`invalid float width (${e}): ${d}`);}},wc=(d,e,l)=>{switch(e){case 1:return l?t=>Qa[t]:t=>Q[t];case 2:return l?t=>Ra[t>>1]:t=>Sa[t>>1];case 4:return l?t=>S[t>>2]:t=>W[t>>2];default:throw new TypeError(`invalid integer width (${e}): ${d}`);}},xc=(d,e,l)=>{var t=Q;if(!(0<l))return 0;var x=e;l=e+l-1;for(var z=0;z<d.length;++z){var y=d.codePointAt(z);if(127>=y){if(e>=l)break;t[e++]=y}else if(2047>=y){if(e+1>=l)break;t[e++]=
+192|y>>6;t[e++]=128|y&63}else if(65535>=y){if(e+2>=l)break;t[e++]=224|y>>12;t[e++]=128|y>>6&63;t[e++]=128|y&63}else{if(e+3>=l)break;t[e++]=240|y>>18;t[e++]=128|y>>12&63;t[e++]=128|y>>6&63;t[e++]=128|y&63;z++}}t[e]=0;return e-x},yc=d=>{for(var e=0,l=0;l<d.length;++l){var t=d.charCodeAt(l);127>=t?e++:2047>=t?e+=2:55296<=t&&57343>=t?(e+=4,++l):e+=3}return e},zc=globalThis.TextDecoder?new TextDecoder("utf-16le"):void 0,Ac=(d,e,l)=>{d>>=1;e=ob(Sa,d,e/2,l);if(16<e-d&&zc)return zc.decode(Sa.subarray(d,e));
+for(l="";d<e;++d)l+=String.fromCharCode(Sa[d]);return l},Bc=(d,e,l)=>{l??=2147483647;if(2>l)return 0;l-=2;var t=e;l=l<2*d.length?l/2:d.length;for(var x=0;x<l;++x)Ra[e>>1]=d.charCodeAt(x),e+=2;Ra[e>>1]=0;return e-t},Cc=d=>2*d.length,Dc=(d,e,l)=>{var t="";d>>=2;for(var x=0;!(x>=e/4);x++){var z=W[d+x];if(!z&&!l)break;t+=String.fromCodePoint(z)}return t},Ec=(d,e,l)=>{l??=2147483647;if(4>l)return 0;var t=e;l=t+l-4;for(var x=0;x<d.length;++x){var z=d.codePointAt(x);65535<z&&x++;S[e>>2]=z;e+=4;if(e+4>l)break}S[e>>
+2]=0;return e-t},Fc=d=>{for(var e=0,l=0;l<d.length;++l)65535<d.codePointAt(l)&&l++,e+=4;return e},Gc=[],Hc=d=>{var e=Gc.length;Gc.push(d);return e},Ic=(d,e)=>{for(var l=Array(d),t=0;t<d;++t)l[t]=Cb(W[e+4*t>>2],`parameter ${t}`);return l},Jc={},Kc=d=>{var e=Jc[d];return void 0===e?Y(d):e},Lc=[0,31,60,91,121,152,182,213,244,274,305,335],Mc=[0,31,59,90,120,151,181,212,243,273,304,334],Nc=[],Oc=d=>{d.Oi=d.getExtension("WEBGL_draw_instanced_base_vertex_base_instance")},Pc=d=>{d.Qi=d.getExtension("WEBGL_multi_draw_instanced_base_vertex_base_instance")},
+Z,Qc=d=>{var e="EXT_color_buffer_float EXT_conservative_depth EXT_disjoint_timer_query_webgl2 EXT_texture_norm16 NV_shader_noperspective_interpolation WEBGL_clip_cull_distance EXT_clip_control EXT_color_buffer_half_float EXT_depth_clamp EXT_float_blend EXT_polygon_offset_clamp EXT_texture_compression_bptc EXT_texture_compression_rgtc EXT_texture_filter_anisotropic KHR_parallel_shader_compile OES_texture_float_linear WEBGL_blend_func_extended WEBGL_compressed_texture_astc WEBGL_compressed_texture_etc WEBGL_compressed_texture_etc1 WEBGL_compressed_texture_s3tc WEBGL_compressed_texture_s3tc_srgb WEBGL_debug_renderer_info WEBGL_debug_shaders WEBGL_lose_context WEBGL_multi_draw WEBGL_polygon_mode".split(" ");
+return(d.getSupportedExtensions()||[]).filter(l=>e.includes(l))},Rc=1,Sc=[],Tc=[],Uc=[],Yc=[],Zc=[],$c=[],ad=[],bd=[],cd=[],dd={},ed=4,fd=0,gd=d=>{for(var e=Rc++,l=d.length;l<e;l++)d[l]=null;return e},jd=(d,e,l,t)=>{for(var x=0;x<d;x++){var z=Z[l](),y=z&&gd(t);z?(z.name=y,t[y]=z):hd||=1282;S[e+4*x>>2]=y}},wa=(d,e)=>{var l=gd(bd),t={handle:l,attributes:e,version:e.Pi,I:d};d.canvas&&(d.canvas.Xb=t);bd[l]=t;if("undefined"==typeof e.sc||e.sc)if((d=t)||(d=kd),!d.Ic){d.Ic=!0;e=d.I;e.Lc=e.getExtension("WEBGL_multi_draw");
+e.vc=e.getExtension("EXT_polygon_offset_clamp");e.uc=e.getExtension("EXT_clip_control");e.Li=e.getExtension("WEBGL_polygon_mode");Oc(e);Pc(e);2<=d.version&&(e.zb=e.getExtension("EXT_disjoint_timer_query_webgl2"));if(2>d.version||!e.zb)e.zb=e.getExtension("EXT_disjoint_timer_query");for(var x of Qc(e))x.includes("lose_context")||x.includes("debug")||e.getExtension(x)}return l},xa=d=>{kd=bd[d];D.ctx=Z=kd?.I;return!(d&&!Z)},ya=d=>{kd===bd[d]&&(kd=null);"object"==typeof JSEvents&&JSEvents.Ri(bd[d].I.canvas);
+bd[d]?.I.canvas&&(bd[d].I.canvas.Xb=void 0);bd[d]=null},hd,kd,ld={},nd=()=>{if(!md){var d={USER:"web_user",LOGNAME:"web_user",PATH:"/",PWD:"/",HOME:"/home/web_user",LANG:(globalThis.navigator?.language??"C").replace("-","_")+".UTF-8",_:Fa||"./this.program"},e;for(e in ld)void 0===ld[e]?delete d[e]:d[e]=ld[e];var l=[];for(e in d)l.push(`${e}=${d[e]}`);md=l}return md},md,od=[null,[],[]],pd=[],qd=()=>{var d=Qc(Z);return d=d.concat(d.map(e=>"GL_"+e))},rd=(d,e)=>{if(e){var l=void 0;switch(d){case 36346:l=
+1;break;case 36344:return;case 34814:case 36345:l=0;break;case 34466:var t=Z.getParameter(34467);l=t?t.length:0;break;case 33309:if(2>kd.version){hd||=1282;return}l=qd().length;break;case 33307:case 33308:if(2>kd.version){hd||=1280;return}l=33307==d?3:0}if(void 0===l)switch(t=Z.getParameter(d),typeof t){case "number":l=t;break;case "boolean":l=t?1:0;break;case "string":hd||=1280;return;case "object":if(null===t)switch(d){case 34964:case 35725:case 34965:case 36006:case 36007:case 32873:case 34229:case 36662:case 36663:case 35053:case 35055:case 36010:case 35097:case 35869:case 32874:case 36389:case 35983:case 35368:case 34068:l=
+0;break;default:hd||=1280;return}else{if(t instanceof Float32Array||t instanceof Uint32Array||t instanceof Int32Array||t instanceof Array){for(d=0;d<t.length;++d)S[e+4*d>>2]=t[d];return}try{l=t.name|0}catch(x){hd||=1280;La(`GL_INVALID_ENUM in glGet${0}v: Unknown object returned from WebGL getParameter(${d})! (error: ${x})`);return}}break;default:hd||=1280;La(`GL_INVALID_ENUM in glGet${0}v: Native code calling glGet${0}v(${d}) and it returns ${t} of type ${typeof t}!`);return}S[e>>2]=l}else hd||=1281},
+td=d=>{var e=yc(d)+1,l=sd(e);l&&xc(d,l,e);return l},ud=d=>"]"==d.slice(-1)&&d.lastIndexOf("["),vd=d=>{d-=5120;return 0==d?Qa:1==d?Q:2==d?Ra:4==d?S:6==d?Ta:5==d||28922==d||28520==d||30779==d||30782==d?W:Sa},xd=d=>wd(d);
+(()=>{let d=Rb.prototype;Object.assign(d,{isAliasOf:function(l){if(!(this instanceof Rb&&l instanceof Rb))return!1;var t=this.m.B.o,x=this.m.v;l.m=l.m;var z=l.m.B.o;for(l=l.m.v;t.G;)x=t.ta(x),t=t.G;for(;z.G;)l=z.ta(l),z=z.G;return t===z&&x===l},clone:function(){this.m.v||Pb(this);if(this.m.ja)return this.m.count.value+=1,this;var l=Fb,t=Object,x=t.create,z=Object.getPrototypeOf(this),y=this.m;l=l(x.call(t,z,{m:{value:{count:y.count,oa:y.oa,ja:y.ja,v:y.v,B:y.B,H:y.H,O:y.O}}}));l.m.count.value+=1;l.m.oa=
+!1;return l},["delete"](){this.m.v||Pb(this);if(this.m.oa&&!this.m.ja)throw new X("Object already scheduled for deletion");Db(this);var l=this.m;--l.count.value;0===l.count.value&&(l.H?l.O.X(l.H):l.B.o.X(l.v));this.m.ja||(this.m.H=void 0,this.m.v=void 0)},isDeleted:function(){return!this.m.v},deleteLater:function(){this.m.v||Pb(this);if(this.m.oa&&!this.m.ja)throw new X("Object already scheduled for deletion");Qb.push(this);this.m.oa=!0;return this}});const e=Symbol.dispose;e&&(d[e]=d["delete"])})();
+Object.assign(ec.prototype,{zc(d){this.Mb&&(d=this.Mb(d));return d},yb(d){this.X?.(d)},N:Ib,u:function(d){function e(){return this.Ga?dc(this.o.V,{B:this.Nc,v:l,O:this,H:d}):dc(this.o.V,{B:this,v:d})}var l=this.zc(d);if(!l)return this.yb(d),null;var t=cc(this.o,l);if(void 0!==t){if(0===t.m.count.value)return t.m.v=l,t.m.H=d,t.clone();t=t.clone();this.yb(d);return t}t=this.o.yc(l);t=Sb[t];if(!t)return e.call(this);t=this.Fa?t.mc:t.pointerType;var x=bc(l,this.o,t.o);return null===x?e.call(this):this.Ga?
+dc(t.o.V,{B:t,v:x,O:this,H:d}):dc(t.o.V,{B:t,v:x})}});for(let d=0;32>d;++d)pd.push(Array(d));D.print&&(Ka=D.print);D.printErr&&(La=D.printErr);D.wasmBinary&&(Ma=D.wasmBinary);D.thisProgram&&(Fa=D.thisProgram);if(D.preInit)for("function"==typeof D.preInit&&(D.preInit=[D.preInit]);0<D.preInit.length;)D.preInit.shift()();
+var Bd={332054:(d,e,l,t,x)=>{if("undefined"===typeof window||void 0===(window.AudioContext||window.webkitAudioContext))return 0;if("undefined"===typeof window.miniaudio){window.miniaudio={referenceCount:0};window.miniaudio.device_type={};window.miniaudio.device_type.playback=d;window.miniaudio.device_type.capture=e;window.miniaudio.device_type.duplex=l;window.miniaudio.device_state={};window.miniaudio.device_state.stopped=t;window.miniaudio.device_state.started=x;let z=window.miniaudio;z.devices=
+[];z.track_device=function(y){for(var B=0;B<z.devices.length;++B)if(null==z.devices[B])return z.devices[B]=y,B;z.devices.push(y);return z.devices.length-1};z.untrack_device_by_index=function(y){for(z.devices[y]=null;0<z.devices.length;)if(null==z.devices[z.devices.length-1])z.devices.pop();else break};z.untrack_device=function(y){for(var B=0;B<z.devices.length;++B)if(z.devices[B]==y)return z.untrack_device_by_index(B)};z.get_device_by_index=function(y){return z.devices[y]};z.unlock_event_types=["touchend",
+"click"];z.unlock=function(){for(var y=0;y<z.devices.length;++y){var B=z.devices[y];null!=B&&null!=B.P&&B.state===z.device_state.started&&B.P.resume().then(()=>{yd(B.Jb)},F=>{console.error("Failed to resume audiocontext",F)})}z.unlock_event_types.map(function(F){document.removeEventListener(F,z.unlock,!0)})};z.unlock_event_types.map(function(y){document.addEventListener(y,z.unlock,!0)})}window.miniaudio.referenceCount+=1;return 1},334232:()=>{"undefined"!==typeof window.miniaudio&&(window.miniaudio.unlock_event_types.map(function(d){document.removeEventListener(d,
+window.miniaudio.unlock,!0)}),--window.miniaudio.referenceCount,0===window.miniaudio.referenceCount&&delete window.miniaudio)},334536:()=>void 0!==navigator.mediaDevices&&void 0!==navigator.mediaDevices.getUserMedia,334640:()=>{try{var d=new (window.AudioContext||window.webkitAudioContext),e=d.sampleRate;d.close();return e}catch(l){return 0}},334811:(d,e,l,t,x,z)=>{if("undefined"===typeof window.miniaudio)return-1;var y={},B={};d==window.miniaudio.device_type.playback&&0!=l&&(B.sampleRate=l);y.P=
+new (window.AudioContext||window.webkitAudioContext)(B);y.P.suspend();y.state=window.miniaudio.device_state.stopped;l=0;d!=window.miniaudio.device_type.playback&&(l=e);y.$=y.P.createScriptProcessor(t,l,e);y.$.onaudioprocess=function(F){if(null==y.Ea||0==y.Ea.length)y.Ea=new Float32Array(Ta.buffer,x,t*e);if(d==window.miniaudio.device_type.capture||d==window.miniaudio.device_type.duplex){for(var I=0;I<e;I+=1)for(var u=F.inputBuffer.getChannelData(I),a=y.Ea,c=0;c<t;c+=1)a[c*e+I]=u[c];zd(z,t,x)}if(d==
+window.miniaudio.device_type.playback||d==window.miniaudio.device_type.duplex)for(Ad(z,t,x),I=0;I<F.outputBuffer.numberOfChannels;++I)for(u=F.outputBuffer.getChannelData(I),a=y.Ea,c=0;c<t;c+=1)u[c]=a[c*e+I];else for(I=0;I<F.outputBuffer.numberOfChannels;++I)F.outputBuffer.getChannelData(I).fill(0)};d!=window.miniaudio.device_type.capture&&d!=window.miniaudio.device_type.duplex||navigator.mediaDevices.getUserMedia({audio:!0,video:!1}).then(function(F){y.Oa=y.P.createMediaStreamSource(F);y.Oa.connect(y.$);
+y.$.connect(y.P.destination)}).catch(function(F){console.log("Failed to get user media: "+F)});d==window.miniaudio.device_type.playback&&y.$.connect(y.P.destination);y.Jb=z;return window.miniaudio.track_device(y)},337688:d=>window.miniaudio.get_device_by_index(d).P.sampleRate,337761:d=>{d=window.miniaudio.get_device_by_index(d);void 0!==d.$&&(d.$.onaudioprocess=function(){},d.$.disconnect(),d.$=void 0);void 0!==d.Oa&&(d.Oa.disconnect(),d.Oa=void 0);d.P.close();d.P=void 0;d.Jb=void 0},338161:d=>{window.miniaudio.untrack_device_by_index(d)},
+338211:d=>{d=window.miniaudio.get_device_by_index(d);d.P.resume();d.state=window.miniaudio.device_state.started},338350:d=>{d=window.miniaudio.get_device_by_index(d);d.P.suspend();d.state=window.miniaudio.device_state.stopped}},Ab,sd,zb,Cd,Dd,Ed,Fd,yd,zd,Ad,Gd,Hd,ib,wd,kb,Xa,hc,Jd={__syscall_fcntl64:function(){return 0},__syscall_ioctl:function(){return 0},__syscall_openat:function(){},_abort_js:()=>Ya(""),_embind_create_inheriting_constructor:(d,e,l)=>{d=Y(d);e=Cb(e,"wrapper");l=tb(l);var t=e.o,
+x=t.V,z=t.G.V,y=t.G.constructor;d=qb(d,function(...B){for(var F of t.G.Kb)if(this[F]===z[F])throw new vb(`Pure virtual function ${F} must be implemented in JavaScript`);Object.defineProperty(this,"__parent",{value:x});this.__construct(...B)});x.__construct=function(...B){if(this===x)throw new X("Pass correct 'this' to __construct");B=y.implement(this,...B);Db(B);var F=B.m;B.notifyOnDestruction();F.ja=!0;Object.defineProperties(this,{m:{value:F}});Fb(this);B=F.v;B=xb(t,B);if(wb.hasOwnProperty(B))throw new X(`Tried to register registered instance: ${B}`);
+wb[B]=this};x.__destruct=function(){if(this===x)throw new X("Pass correct 'this' to __destruct");Db(this);var B=this.m.v;B=xb(t,B);if(wb.hasOwnProperty(B))delete wb[B];else throw new X(`Tried to unregister unregistered instance: ${B}`);};d.prototype=Object.create(x);Object.assign(d.prototype,l);return ub(d)},_embind_finalize_value_object:d=>{var e=Gb[d];delete Gb[d];var l=e.jb,t=e.X,x=e.Cb,z=x.map(y=>y.Cc).concat(x.map(y=>y.Gi));Nb([d],z,y=>{var B={},F,I;for([F,I]of x.entries()){const u=y[F],a=I.Ac,
+c=I.Bc,p=y[F+x.length],q=I.Fi,v=I.Hi;B[I.wc]={read:f=>u.u(a(c,f)),write:(f,b)=>{var g=[];q(v,f,p.F(g,b));Hb(g)},optional:u.optional}}return[{name:e.name,u:u=>{var a={},c;for(c in B)a[c]=B[c].read(u);t(u);return a},F:(u,a)=>{for(var c in B)if(!(c in a||B[c].optional))throw new TypeError(`Missing field: "${c}"`);var p=l();for(c in B)B[c].write(p,a[c]);null!==u&&u.push(t,p);return p},N:Ib,M:t}]})},_embind_register_bigint:()=>{},_embind_register_bool:(d,e,l,t)=>{e=Y(e);Mb(d,{name:e,u:function(x){return!!x},
+F:function(x,z){return z?l:t},N:function(x){return this.u(Q[x])},M:null})},_embind_register_class:(d,e,l,t,x,z,y,B,F,I,u,a,c)=>{u=Y(u);z=kc(x,z);B&&=kc(y,B);I&&=kc(F,I);c=kc(a,c);var p=Vb(u);Ub(p,function(){mc(`Cannot construct ${u} due to unbound types`,[t])});Nb([d,e,l],t?[t]:[],q=>{q=q[0];if(t){var v=q.o;var f=v.V}else f=Rb.prototype;q=qb(u,function(...k){if(Object.getPrototypeOf(this)!==b)throw new X(`Use 'new' to construct ${u}`);if(void 0===g.aa)throw new X(`${u} has no accessible constructor`);
+var h=g.aa[k.length];if(void 0===h)throw new X(`Tried to invoke ctor of ${u} with invalid number of parameters (${k.length}) - expected (${Object.keys(g.aa).toString()}) parameters instead!`);return h.apply(this,k)});var b=Object.create(f,{constructor:{value:q}});q.prototype=b;var g=new Wb(u,q,b,c,v,z,B,I);if(g.G){var n;(n=g.G).ua??(n.ua=[]);g.G.ua.push(g)}v=new ec(u,g,!0,!1,!1);n=new ec(u+"*",g,!1,!1,!1);f=new ec(u+" const*",g,!1,!0,!1);Sb[d]={pointerType:n,mc:f};fc(p,q);return[v,n,f]})},_embind_register_class_class_function:(d,
+e,l,t,x,z,y)=>{var B=pc(l,t);e=Y(e);e=qc(e);z=kc(x,z);Nb([],[d],F=>{function I(){mc(`Cannot call ${u} due to unbound types`,B)}F=F[0];var u=`${F.name}.${e}`;e.startsWith("@@")&&(e=Symbol[e.substring(2)]);var a=F.o.constructor;void 0===a[e]?(I.Y=l-1,a[e]=I):(Tb(a,e,u),a[e].D[l-1]=I);Nb([],B,c=>{c=oc(u,[c[0],null].concat(c.slice(1)),null,z,y);void 0===a[e].D?(c.Y=l-1,a[e]=c):a[e].D[l-1]=c;if(F.o.ua)for(const p of F.o.ua)p.constructor.hasOwnProperty(e)||(p.constructor[e]=c);return[]});return[]})},_embind_register_class_class_property:(d,
+e,l,t,x,z,y,B)=>{e=Y(e);z=kc(x,z);Nb([],[d],F=>{F=F[0];var I=`${F.name}.${e}`,u={get(){mc(`Cannot access ${I} due to unbound types`,[l])},enumerable:!0,configurable:!0};u.set=B?()=>{mc(`Cannot access ${I} due to unbound types`,[l])}:()=>{throw new X(`${I} is a read-only property`);};Object.defineProperty(F.o.constructor,e,u);Nb([],[l],a=>{a=a[0];var c={get(){return a.u(z(t))},enumerable:!0};B&&(B=kc(y,B),c.set=p=>{var q=[];B(t,a.F(q,p));Hb(q)});Object.defineProperty(F.o.constructor,e,c);return[]});
+return[]})},_embind_register_class_constructor:(d,e,l,t,x,z)=>{var y=pc(e,l);x=kc(t,x);Nb([],[d],B=>{B=B[0];var F=`constructor ${B.name}`;void 0===B.o.aa&&(B.o.aa=[]);if(void 0!==B.o.aa[e-1])throw new X(`Cannot register multiple constructors with identical number of parameters (${e-1}) for class '${B.name}'! Overload resolution is currently only performed using the parameter count, not actual type info!`);B.o.aa[e-1]=()=>{mc(`Cannot construct ${B.name} due to unbound types`,y)};Nb([],y,I=>{I.splice(1,
+0,null);B.o.aa[e-1]=oc(F,I,null,x,z);return[]});return[]})},_embind_register_class_function:(d,e,l,t,x,z,y,B)=>{var F=pc(l,t);e=Y(e);e=qc(e);z=kc(x,z);Nb([],[d],I=>{function u(){mc(`Cannot call ${a} due to unbound types`,F)}I=I[0];var a=`${I.name}.${e}`;e.startsWith("@@")&&(e=Symbol[e.substring(2)]);B&&I.o.Kb.push(e);var c=I.o.V,p=c[e];void 0===p||void 0===p.D&&p.className!==I.name&&p.Y===l-2?(u.Y=l-2,u.className=I.name,c[e]=u):(Tb(c,e,a),c[e].D[l-2]=u);Nb([],F,q=>{q=oc(a,q,I,z,y);void 0===c[e].D?
+(q.Y=l-2,c[e]=q):c[e].D[l-2]=q;return[]});return[]})},_embind_register_class_property:(d,e,l,t,x,z,y,B,F,I)=>{e=Y(e);x=kc(t,x);Nb([],[d],u=>{u=u[0];var a=`${u.name}.${e}`,c={get(){mc(`Cannot access ${a} due to unbound types`,[l,y])},enumerable:!0,configurable:!0};c.set=F?()=>mc(`Cannot access ${a} due to unbound types`,[l,y]):()=>{throw new X(a+" is a read-only property");};Object.defineProperty(u.o.V,e,c);Nb([],F?[l,y]:[l],p=>{var q=p[0],v={get(){var b=rc(this,u,a+" getter");return q.u(x(z,b))},
+enumerable:!0};if(F){F=kc(B,F);var f=p[1];v.set=function(b){var g=rc(this,u,a+" setter"),n=[];F(I,g,f.F(n,b));Hb(n)}}Object.defineProperty(u.o.V,e,v);return[]});return[]})},_embind_register_emval:d=>Mb(d,tc),_embind_register_enum:(d,e,l,t,x)=>{e=Y(e);x=0===x?"object":1===x?"number":"string";switch(x){case "object":function y(){}y.values={};Mb(d,{name:e,constructor:y,valueType:x,u:function(B){return this.constructor.values[B]},F:(B,F)=>F.value,N:uc(e,l,t),M:null});Ub(e,y);break;case "number":var z=
+{};Mb(d,{name:e,fb:z,valueType:x,u:B=>B,F:(B,F)=>F,N:uc(e,l,t),M:null});Ub(e,z);delete D[e].Y;break;case "string":z={},Mb(d,{name:e,Ub:{},Nb:{},fb:z,valueType:x,u:function(B){return this.Nb[B]},F:function(B,F){return this.Ub[F]},N:uc(e,l,t),M:null}),Ub(e,z),delete D[e].Y}},_embind_register_enum_value:(d,e,l)=>{var t=Cb(d,"enum");e=Y(e);switch(t.valueType){case "object":d=t.constructor;t=Object.create(t.constructor.prototype,{value:{value:l},constructor:{value:qb(`${t.name}_${e}`,function(){})}});
+d.values[l]=t;d[e]=t;break;case "number":t.fb[e]=l;break;case "string":t.Ub[e]=l,t.Nb[l]=e,t.fb[e]=e}},_embind_register_float:(d,e,l)=>{e=Y(e);Mb(d,{name:e,u:t=>t,F:(t,x)=>x,N:vc(e,l),M:null})},_embind_register_function:(d,e,l,t,x,z)=>{var y=pc(e,l);d=Y(d);d=qc(d);x=kc(t,x);Ub(d,function(){mc(`Cannot call ${d} due to unbound types`,y)},e-1);Nb([],y,B=>{fc(d,oc(d,[B[0],null].concat(B.slice(1)),null,x,z),e-1);return[]})},_embind_register_integer:(d,e,l,t,x)=>{e=Y(e);let z=B=>B;if(0===t){var y=32-8*
+l;z=B=>B<<y>>>y;x=z(x)}Mb(d,{name:e,u:z,F:(B,F)=>F,N:wc(e,l,0!==t),M:null})},_embind_register_memory_view:(d,e,l)=>{function t(z){return new x(Qa.buffer,W[z+4>>2],W[z>>2])}var x=[Int8Array,Uint8Array,Int16Array,Uint16Array,Int32Array,Uint32Array,Float32Array,Float64Array][e];l=Y(l);Mb(d,{name:l,u:t,N:t},{Hc:!0})},_embind_register_std_string:(d,e)=>{e=Y(e);Mb(d,{name:e,u(l){var t=(t=l+4)?pb(Q,t,W[l>>2],!0):"";Ab(l);return t},F(l,t){t instanceof ArrayBuffer&&(t=new Uint8Array(t));var x="string"==typeof t;
+if(!(x||ArrayBuffer.isView(t)&&1==t.BYTES_PER_ELEMENT))throw new X("Cannot pass non-string to std::string");var z=x?yc(t):t.length;var y=sd(4+z+1),B=y+4;W[y>>2]=z;x?xc(t,B,z+1):Q.set(t,B);null!==l&&l.push(Ab,y);return y},N:Ib,M(l){Ab(l)}})},_embind_register_std_wstring:(d,e,l)=>{l=Y(l);if(2===e){var t=Ac;var x=Bc;var z=Cc}else t=Dc,x=Ec,z=Fc;Mb(d,{name:l,u:y=>{var B=t(y+4,W[y>>2]*e,!0);Ab(y);return B},F:(y,B)=>{if("string"!=typeof B)throw new X(`Cannot pass non-string to C++ string type ${l}`);var F=
+z(B),I=sd(4+F+e);W[I>>2]=F/e;x(B,I+4,F+e);null!==y&&y.push(Ab,I);return I},N:Ib,M(y){Ab(y)}})},_embind_register_value_object:(d,e,l,t,x,z)=>{Gb[d]={name:Y(e),jb:kc(l,t),X:kc(x,z),Cb:[]}},_embind_register_value_object_field:(d,e,l,t,x,z,y,B,F,I)=>{Gb[d].Cb.push({wc:Y(e),Cc:l,Ac:kc(t,x),Bc:z,Gi:y,Fi:kc(B,F),Hi:I})},_embind_register_void:(d,e)=>{e=Y(e);Mb(d,{Jc:!0,name:e,u:()=>{},F:()=>{}})},_emscripten_throw_longjmp:()=>{throw Infinity;},_emval_create_invoker:(d,e,l)=>{var [t,...x]=Ic(d,e),z=t.F.bind(t),
+y=x.map(F=>F.N.bind(F));d--;var B=Array(d);e=`methodCaller<(${x.map(F=>F.name)}) => ${t.name}>`;return Hc(qb(e,(F,I,u,a)=>{for(var c=0,p=0;p<d;++p)B[p]=y[p](a+c),c+=8;switch(l){case 0:var q=tb(F).apply(null,B);break;case 2:q=Reflect.construct(tb(F),B);break;case 3:q=B[0];break;case 1:q=tb(F)[Kc(I)](...B)}F=[];q=z(F,q);F.length&&(W[u>>2]=ub(F));return q}))},_emval_decref:sc,_emval_get_module_property:d=>{d=Kc(d);return ub(D[d])},_emval_get_property:(d,e)=>{d=tb(d);e=tb(e);return ub(d[e])},_emval_incref:d=>
+{9<d&&(sb[d+1]+=1)},_emval_invoke:(d,e,l,t,x)=>Gc[d](e,l,t,x),_emval_new_array:()=>ub([]),_emval_new_cstring:d=>ub(Kc(d)),_emval_new_object:()=>ub({}),_emval_run_destructors:d=>{var e=tb(d);Hb(e);sc(d)},_emval_set_property:(d,e,l)=>{d=tb(d);e=tb(e);l=tb(l);d[e]=l},_gmtime_js:function(d,e,l){d=new Date(1E3*(e+2097152>>>0<4194305-!!d?(d>>>0)+4294967296*e:NaN));S[l>>2]=d.getUTCSeconds();S[l+4>>2]=d.getUTCMinutes();S[l+8>>2]=d.getUTCHours();S[l+12>>2]=d.getUTCDate();S[l+16>>2]=d.getUTCMonth();S[l+20>>
+2]=d.getUTCFullYear()-1900;S[l+24>>2]=d.getUTCDay();S[l+28>>2]=(d.getTime()-Date.UTC(d.getUTCFullYear(),0,1,0,0,0,0))/864E5|0},_localtime_js:function(d,e,l){d=new Date(1E3*(e+2097152>>>0<4194305-!!d?(d>>>0)+4294967296*e:NaN));S[l>>2]=d.getSeconds();S[l+4>>2]=d.getMinutes();S[l+8>>2]=d.getHours();S[l+12>>2]=d.getDate();S[l+16>>2]=d.getMonth();S[l+20>>2]=d.getFullYear()-1900;S[l+24>>2]=d.getDay();e=d.getFullYear();S[l+28>>2]=(0!==e%4||0===e%100&&0!==e%400?Mc:Lc)[d.getMonth()]+d.getDate()-1|0;S[l+36>>
+2]=-(60*d.getTimezoneOffset());e=(new Date(d.getFullYear(),6,1)).getTimezoneOffset();var t=(new Date(d.getFullYear(),0,1)).getTimezoneOffset();S[l+32>>2]=(e!=t&&d.getTimezoneOffset()==Math.min(t,e))|0},_timegm_js:function(d){var e=new Date(Date.UTC(S[d+20>>2]+1900,S[d+16>>2],S[d+12>>2],S[d+8>>2],S[d+4>>2],S[d>>2],0));S[d+24>>2]=e.getUTCDay();S[d+28>>2]=(e.getTime()-Date.UTC(e.getUTCFullYear(),0,1,0,0,0,0))/864E5|0;d=e.getTime()/1E3;Hd((cb=d,1<=+Math.abs(cb)?0<cb?+Math.floor(cb/4294967296)>>>0:~~+Math.ceil((cb-
++(~~cb>>>0))/4294967296)>>>0:0));return d>>>0},_tzset_js:(d,e,l,t)=>{var x=(new Date).getFullYear(),z=(new Date(x,0,1)).getTimezoneOffset();x=(new Date(x,6,1)).getTimezoneOffset();W[d>>2]=60*Math.max(z,x);S[e>>2]=Number(z!=x);e=y=>{var B=Math.abs(y);return`UTC${0<=y?"-":"+"}${String(Math.floor(B/60)).padStart(2,"0")}${String(B%60).padStart(2,"0")}`};d=e(z);e=e(x);x<z?(xc(d,l,17),xc(e,t,17)):(xc(d,t,17),xc(e,l,17))},beginPixelLocalStorageWEBGL:function(d,e,l){(d=bd[d].I.Ma)&&d.beginPixelLocalStorageWEBGL(new Uint32Array(Xa.buffer,
+4*l,e))},clock_time_get:function(d,e,l,t){if(!(0<=d&&3>=d))return 28;d=Math.round(1E6*(0===d?Date.now():performance.now()));db=[d>>>0,(cb=d,1<=+Math.abs(cb)?0<cb?+Math.floor(cb/4294967296)>>>0:~~+Math.ceil((cb-+(~~cb>>>0))/4294967296)>>>0:0)];S[t>>2]=db[0];S[t+4>>2]=db[1];return 0},decode_image:function(d,e,l){var t=D.images;t||(t=new Map,D.images=t);var x=new Image;t.set(d,x);e=D.HEAP8.subarray(e,e+l);l=new Uint8Array(l);l.set(e);x.src=URL.createObjectURL(new Blob([l],{type:"image/png"}));x.onload=
+function(){D._setWebImage(d,x.width,x.height)}},delete_image:function(d){var e=D.images;e&&e.get(d)&&e.delete(d)},emscripten_asm_const_int:(d,e,l)=>{Nc.length=0;for(var t;t=Q[e++];){var x=105!=t;x&=112!=t;l+=x&&l%8?4:0;Nc.push(112==t?W[l>>2]:105==t?S[l>>2]:Ua[l>>3]);l+=x?8:4}return Bd[d](...Nc)},emscripten_date_now:()=>Date.now(),emscripten_get_now:()=>performance.now(),emscripten_resize_heap:d=>{var e=Q.length;d>>>=0;if(2147483648<d)return!1;for(var l=1;4>=l;l*=2){var t=e*(1+.2/l);t=Math.min(t,d+
+100663296);a:{t=(Math.min(2147483648,65536*Math.ceil(Math.max(d,t)/65536))-Xa.buffer.byteLength+65535)/65536|0;try{Xa.grow(t);Wa();var x=1;break a}catch(z){}x=void 0}if(x)return!0}return!1},emscripten_webgl_enable_extension:(d,e)=>{d=bd[d];e=e?pb(Q,e):"";e.startsWith("GL_")&&(e=e.slice(3));"WEBGL_draw_instanced_base_vertex_base_instance"==e&&Oc(Z);"WEBGL_multi_draw_instanced_base_vertex_base_instance"==e&&Pc(Z);"WEBGL_multi_draw"==e&&(Z.Lc=Z.getExtension("WEBGL_multi_draw"));"EXT_polygon_offset_clamp"==
+e&&(Z.vc=Z.getExtension("EXT_polygon_offset_clamp"));"EXT_clip_control"==e&&(Z.uc=Z.getExtension("EXT_clip_control"));"WEBGL_polygon_mode"==e&&(Z.Li=Z.getExtension("WEBGL_polygon_mode"));return!!d.I.getExtension(e)},emscripten_webgl_get_current_context:()=>kd?kd.handle:0,emscripten_webgl_make_context_current:d=>xa(d)?0:-5,enable_WEBGL_provoking_vertex:function(d){d=bd[d].I;d.Lb=d.getExtension("WEBGL_provoking_vertex");return!!d.Lb},enable_WEBGL_shader_pixel_local_storage_coherent:function(d){d=bd[d].I;
+const e=d.getExtension("WEBGL_shader_pixel_local_storage");if(e&&e.isCoherent()){if(5==e.framebufferTexturePixelLocalStorageWEBGL.length)return d.Ma=e,!0;console.warn("WEBGL_shader_pixel_local_storage is advertised, but a deprecated version has been detected. Disabling.")}return!1},endPixelLocalStorageWEBGL:function(d,e,l){(d=bd[d].I.Ma)&&d.endPixelLocalStorageWEBGL(new Uint32Array(Xa.buffer,4*l,e))},ensure_images_map:function(){D.images||(D.images=new Map)},environ_get:(d,e)=>{var l=0,t=0,x;for(x of nd()){var z=
+e+l;W[d+t>>2]=z;l+=xc(x,z,Infinity)+1;t+=4}return 0},environ_sizes_get:(d,e)=>{var l=nd();W[d>>2]=l.length;d=0;for(var t of l)d+=yc(t)+1;W[e>>2]=d;return 0},fd_close:()=>52,fd_read:()=>52,fd_seek:function(){return 70},fd_write:(d,e,l,t)=>{for(var x=0,z=0;z<l;z++){var y=W[e>>2],B=W[e+4>>2];e+=8;for(var F=0;F<B;F++){var I=d,u=Q[y+F],a=od[I];0===u||10===u?((1===I?Ka:La)(pb(a)),a.length=0):a.push(u)}x+=B}W[t>>2]=x;return 0},framebufferPixelLocalClearValuefvWEBGL:function(d,e,l,t,x,z){(d=bd[d].I.Ma)&&
+d.framebufferPixelLocalClearValuefvWEBGL(e,[l,t,x,z])},framebufferTexturePixelLocalStorageWEBGL:function(d,e,l,t,x,z){(d=bd[d].I.Ma)&&d.framebufferTexturePixelLocalStorageWEBGL(e,Zc[l],t,x,z)},glActiveTexture:d=>Z.activeTexture(d),glAttachShader:(d,e)=>{Z.attachShader(Tc[d],$c[e])},glBindBuffer:(d,e)=>{35051==d?Z.bb=e:35052==d&&(Z.Ca=e);Z.bindBuffer(d,Sc[e])},glBindBufferRange:(d,e,l,t,x)=>{Z.bindBufferRange(d,e,Sc[l],t,x)},glBindFramebuffer:(d,e)=>{Z.bindFramebuffer(d,Uc[e])},glBindRenderbuffer:(d,
+e)=>{Z.bindRenderbuffer(d,Yc[e])},glBindSampler:(d,e)=>{Z.bindSampler(d,cd[e])},glBindTexture:(d,e)=>{Z.bindTexture(d,Zc[e])},glBindVertexArray:d=>{Z.bindVertexArray(ad[d])},glBlendEquation:d=>Z.blendEquation(d),glBlendFunc:(d,e)=>Z.blendFunc(d,e),glBlitFramebuffer:(d,e,l,t,x,z,y,B,F,I)=>Z.blitFramebuffer(d,e,l,t,x,z,y,B,F,I),glBufferData:(d,e,l,t)=>{l&&e?Z.bufferData(d,Q,t,l,e):Z.bufferData(d,e,t)},glBufferSubData:(d,e,l,t)=>{l&&Z.bufferSubData(d,e,Q,t,l)},glClear:d=>Z.clear(d),glClearBufferfv:(d,
+e,l)=>{Z.clearBufferfv(d,e,Ta,l>>2)},glClearBufferuiv:(d,e,l)=>{Z.clearBufferuiv(d,e,W,l>>2)},glClearColor:(d,e,l,t)=>Z.clearColor(d,e,l,t),glClearDepthf:d=>Z.clearDepth(d),glClearStencil:d=>Z.clearStencil(d),glColorMask:(d,e,l,t)=>{Z.colorMask(!!d,!!e,!!l,!!t)},glCompileShader:d=>{Z.compileShader($c[d])},glCompressedTexSubImage2D:(d,e,l,t,x,z,y,B,F)=>{Z.Ca||!B?Z.compressedTexSubImage2D(d,e,l,t,x,z,y,B,F):Z.compressedTexSubImage2D(d,e,l,t,x,z,y,Q,F,B)},glCreateProgram:()=>{var d=gd(Tc),e=Z.createProgram();
+e.name=d;e.Ka=e.Ia=e.Ja=0;e.mb=1;Tc[d]=e;return d},glCreateShader:d=>{var e=gd($c);$c[e]=Z.createShader(d);return e},glCullFace:d=>Z.cullFace(d),glDeleteBuffers:(d,e)=>{for(var l=0;l<d;l++){var t=S[e+4*l>>2],x=Sc[t];x&&(Z.deleteBuffer(x),x.name=0,Sc[t]=null,t==Z.bb&&(Z.bb=0),t==Z.Ca&&(Z.Ca=0))}},glDeleteFramebuffers:(d,e)=>{for(var l=0;l<d;++l){var t=S[e+4*l>>2],x=Uc[t];x&&(Z.deleteFramebuffer(x),x.name=0,Uc[t]=null)}},glDeleteProgram:d=>{if(d){var e=Tc[d];e?(Z.deleteProgram(e),e.name=0,Tc[d]=null):
+hd||=1281}},glDeleteRenderbuffers:(d,e)=>{for(var l=0;l<d;l++){var t=S[e+4*l>>2],x=Yc[t];x&&(Z.deleteRenderbuffer(x),x.name=0,Yc[t]=null)}},glDeleteShader:d=>{if(d){var e=$c[d];e?(Z.deleteShader(e),$c[d]=null):hd||=1281}},glDeleteTextures:(d,e)=>{for(var l=0;l<d;l++){var t=S[e+4*l>>2],x=Zc[t];x&&(Z.deleteTexture(x),x.name=0,Zc[t]=null)}},glDeleteVertexArrays:(d,e)=>{for(var l=0;l<d;l++){var t=S[e+4*l>>2];Z.deleteVertexArray(ad[t]);ad[t]=null}},glDepthFunc:d=>Z.depthFunc(d),glDepthMask:d=>{Z.depthMask(!!d)},
+glDepthRangef:(d,e)=>Z.depthRange(d,e),glDisable:d=>Z.disable(d),glDrawArrays:(d,e,l)=>{Z.drawArrays(d,e,l)},glDrawArraysInstanced:(d,e,l,t)=>{Z.drawArraysInstanced(d,e,l,t)},glDrawBuffers:(d,e)=>{for(var l=pd[d],t=0;t<d;t++)l[t]=S[e+4*t>>2];Z.drawBuffers(l)},glDrawElements:(d,e,l,t)=>{Z.drawElements(d,e,l,t)},glDrawElementsInstanced:(d,e,l,t,x)=>{Z.drawElementsInstanced(d,e,l,t,x)},glEnable:d=>Z.enable(d),glEnableVertexAttribArray:d=>{Z.enableVertexAttribArray(d)},glFlush:()=>Z.flush(),glFramebufferRenderbuffer:(d,
+e,l,t)=>{Z.framebufferRenderbuffer(d,e,l,Yc[t])},glFramebufferTexture2D:(d,e,l,t,x)=>{Z.framebufferTexture2D(d,e,l,Zc[t],x)},glFrontFace:d=>Z.frontFace(d),glGenBuffers:(d,e)=>{jd(d,e,"createBuffer",Sc)},glGenFramebuffers:(d,e)=>{jd(d,e,"createFramebuffer",Uc)},glGenRenderbuffers:(d,e)=>{jd(d,e,"createRenderbuffer",Yc)},glGenTextures:(d,e)=>{jd(d,e,"createTexture",Zc)},glGenVertexArrays:(d,e)=>{jd(d,e,"createVertexArray",ad)},glGenerateMipmap:d=>Z.generateMipmap(d),glGetFramebufferAttachmentParameteriv:(d,
+e,l,t)=>{d=Z.getFramebufferAttachmentParameter(d,e,l);if(d instanceof WebGLRenderbuffer||d instanceof WebGLTexture)d=d.name|0;S[t>>2]=d},glGetIntegerv:(d,e)=>rd(d,e),glGetProgramiv:(d,e,l)=>{if(l)if(d>=Rc)hd||=1281;else if(d=Tc[d],35716==e)d=Z.getProgramInfoLog(d),null===d&&(d="(unknown error)"),S[l>>2]=d.length+1;else if(35719==e){if(!d.Ka){var t=Z.getProgramParameter(d,35718);for(e=0;e<t;++e)d.Ka=Math.max(d.Ka,Z.getActiveUniform(d,e).name.length+1)}S[l>>2]=d.Ka}else if(35722==e){if(!d.Ia)for(t=
+Z.getProgramParameter(d,35721),e=0;e<t;++e)d.Ia=Math.max(d.Ia,Z.getActiveAttrib(d,e).name.length+1);S[l>>2]=d.Ia}else if(35381==e){if(!d.Ja)for(t=Z.getProgramParameter(d,35382),e=0;e<t;++e)d.Ja=Math.max(d.Ja,Z.getActiveUniformBlockName(d,e).length+1);S[l>>2]=d.Ja}else S[l>>2]=Z.getProgramParameter(d,e);else hd||=1281},glGetString:d=>{var e=dd[d];if(!e){switch(d){case 7939:e=td(qd().join(" "));break;case 7936:case 7937:case 37445:case 37446:(e=Z.getParameter(d))||(hd||=1280);e=e?td(e):0;break;case 7938:e=
+td(`OpenGL ES 3.0 (${Z.getParameter(7938)})`);break;case 35724:e=Z.getParameter(35724);var l=e.match(/^WebGL GLSL ES ([0-9]\.[0-9][0-9]?)(?:$| .*)/);null!==l&&(3==l[1].length&&(l[1]+="0"),e=`OpenGL ES GLSL ES ${l[1]} (${e})`);e=td(e);break;default:hd||=1280}dd[d]=e}return e},glGetUniformBlockIndex:(d,e)=>Z.getUniformBlockIndex(Tc[d],e?pb(Q,e):""),glGetUniformLocation:(d,e)=>{e=e?pb(Q,e):"";if(d=Tc[d]){var l=d,t=l.sa,x=l.Tb,z;if(!t){l.sa=t={};l.Sb={};var y=Z.getProgramParameter(l,35718);for(z=0;z<
+y;++z){var B=Z.getActiveUniform(l,z);var F=B.name;B=B.size;var I=ud(F);I=0<I?F.slice(0,I):F;var u=l.mb;l.mb+=B;x[I]=[B,u];for(F=0;F<B;++F)t[u]=F,l.Sb[u++]=I}}l=d.sa;t=0;x=e;z=ud(e);0<z&&(t=parseInt(e.slice(z+1))>>>0,x=e.slice(0,z));if((x=d.Tb[x])&&t<x[0]&&(t+=x[1],l[t]=l[t]||Z.getUniformLocation(d,e)))return t}else hd||=1281;return-1},glInvalidateFramebuffer:(d,e,l)=>{for(var t=pd[e],x=0;x<e;x++)t[x]=S[l+4*x>>2];Z.invalidateFramebuffer(d,t)},glLinkProgram:d=>{d=Tc[d];Z.linkProgram(d);d.sa=0;d.Tb=
+{}},glPixelStorei:(d,e)=>{3317==d?ed=e:3314==d&&(fd=e);Z.pixelStorei(d,e)},glReadPixels:(d,e,l,t,x,z,y)=>{if(Z.bb)Z.readPixels(d,e,l,t,x,z,y);else{var B=vd(z);y>>>=31-Math.clz32(B.BYTES_PER_ELEMENT);Z.readPixels(d,e,l,t,x,z,B,y)}},glRenderbufferStorage:(d,e,l,t)=>Z.renderbufferStorage(d,e,l,t),glRenderbufferStorageMultisample:(d,e,l,t,x)=>Z.renderbufferStorageMultisample(d,e,l,t,x),glScissor:(d,e,l,t)=>Z.scissor(d,e,l,t),glShaderSource:(d,e,l,t)=>{for(var x="",z=0;z<e;++z){var y=(y=W[l+4*z>>2])?pb(Q,
+y,t?W[t+4*z>>2]:void 0):"";x+=y}Z.shaderSource($c[d],x)},glStencilFunc:(d,e,l)=>Z.stencilFunc(d,e,l),glStencilFuncSeparate:(d,e,l,t)=>Z.stencilFuncSeparate(d,e,l,t),glStencilMask:d=>Z.stencilMask(d),glStencilOp:(d,e,l)=>Z.stencilOp(d,e,l),glStencilOpSeparate:(d,e,l,t)=>Z.stencilOpSeparate(d,e,l,t),glTexParameteri:(d,e,l)=>Z.texParameteri(d,e,l),glTexStorage2D:(d,e,l,t,x)=>Z.texStorage2D(d,e,l,t,x),glTexStorage3D:(d,e,l,t,x,z)=>Z.texStorage3D(d,e,l,t,x,z),glTexSubImage2D:(d,e,l,t,x,z,y,B,F)=>{if(Z.Ca)Z.texSubImage2D(d,
+e,l,t,x,z,y,B,F);else if(F){var I=vd(B);Z.texSubImage2D(d,e,l,t,x,z,y,B,I,F>>>31-Math.clz32(I.BYTES_PER_ELEMENT))}else{if(F){I=vd(B);var u=z*((fd||x)*({5:3,6:4,8:2,29502:3,29504:4,26917:2,26918:2,29846:3,29847:4}[y-6402]||1)*I.BYTES_PER_ELEMENT+ed-1&-ed);F=I.subarray(F>>>31-Math.clz32(I.BYTES_PER_ELEMENT),F+u>>>31-Math.clz32(I.BYTES_PER_ELEMENT))}else F=null;Z.texSubImage2D(d,e,l,t,x,z,y,B,F)}},glUniform1i:(d,e)=>{var l=Z,t=l.uniform1i;var x=Z.pc;if(x){var z=x.sa[d];"number"==typeof z&&(x.sa[d]=z=
+Z.getUniformLocation(x,x.Sb[d]+(0<z?`[${z}]`:"")));d=z}else hd||=1282,d=void 0;t.call(l,d,e)},glUniformBlockBinding:(d,e,l)=>{d=Tc[d];Z.uniformBlockBinding(d,e,l)},glUseProgram:d=>{d=Tc[d];Z.useProgram(d);Z.pc=d},glVertexAttribDivisor:(d,e)=>{Z.vertexAttribDivisor(d,e)},glVertexAttribIPointer:(d,e,l,t,x)=>{Z.vertexAttribIPointer(d,e,l,t,x)},glVertexAttribPointer:(d,e,l,t,x,z)=>{Z.vertexAttribPointer(d,e,l,!!t,x,z)},glViewport:(d,e,l,t)=>Z.viewport(d,e,l,t),invoke_vii:Id,isWindowsBrowser:function(){return-1<
+navigator.platform.indexOf("Win")},provokingVertexWEBGL:function(d,e){(d=bd[d].I.Lb)&&d.provokingVertexWEBGL(e)},riveWebCall:function(d,e,l,t,x,z,y){return D.riveScripting.call(d,e,l,t,x,z,y)},riveWebHasExport:function(d,e){return D.riveScripting.Dc(d,e)},riveWebMemoryPages:function(d){return D.riveScripting.Mc(d)},riveWebPreparing:function(d){return D.riveScripting.ba(d)},riveWebRaise:function(d,e){D.riveScripting.Pc(d,e)},riveWebReadMemory:function(d,e,l,t){return D.riveScripting.read(d,e,l,t)},
+riveWebRegister:function(d,e,l){const t=D.riveScripting;if(!t)return 0;t.ic({exports:D,Fc:x=>{x=W[(Fd()>>2)+x];return 0===x?void 0:hc.get(x)},ia:()=>Q,Eb:()=>Ua,ra:lb,Na:xd,qa:jb,gb:sd,cb:Ab,nb:x=>x?pb(Q,x):"",Wb:(x,z,y)=>xc(x,z,y)});t.register(d,Q.subarray(e,e+l));return 1},riveWebRelease:function(d){D.riveScripting?.release(d)},riveWebStart:function(d){d=D.riveScripting.start(d);return null===d?0:td(d)},riveWebStringLength:function(d,e){return D.riveScripting.Ji(d,e)},riveWebWriteMemory:function(d,
+e,l,t){return D.riveScripting.write(d,e,l,t)},upload_image:function(d,e){var l=D.images;l&&(e=l.get(e))&&(d=bd[d].I,d.pixelStorei(d.UNPACK_PREMULTIPLY_ALPHA_WEBGL,!0),d.texImage2D(d.TEXTURE_2D,0,d.RGBA,d.RGBA,d.UNSIGNED_BYTE,e),d.pixelStorei(d.UNPACK_PREMULTIPLY_ALPHA_WEBGL,!1))},wasm_start_image_decode:function(d,e,l){e=new Uint8Array(Xa.buffer,e,l);var t=new Uint8Array(l);t.set(e);Promise.resolve().then(function(){return createImageBitmap(new Blob([t]))}).then(function(x){var z=(new OffscreenCanvas(x.width,
+x.height)).getContext("2d");z.drawImage(x,0,0);z=z.getImageData(0,0,x.width,x.height);var y=z.data.length,B=Cd(y);B?((new Uint8Array(Xa.buffer,B,y)).set(z.data),Dd(d,x.width,x.height,B,y)):Ed(d)}).catch(function(){Ed(d)})}};function Id(d,e,l){var t=kb();try{hc.get(d)(e,l)}catch(x){ib(t);if(x!==x+0)throw x;Gd(1,0)}}var Kd;
+Kd=await (async function(){function d(l){l=Kd=l.exports;Ab=l.free;sd=l.malloc;D._setWebImage=l.setWebImage;zb=l.__getTypeName;Cd=D._wasm_image_decode_alloc=l.wasm_image_decode_alloc;Dd=D._wasm_image_decode_complete=l.wasm_image_decode_complete;Ed=D._wasm_image_decode_error=l.wasm_image_decode_error;D._rive_web_vm_module_export=l.rive_web_vm_module_export;D._rive_web_vm_booting=l.rive_web_vm_booting;Fd=D._rive_web_calls=l.rive_web_calls;yd=D._ma_device__on_notification_unlocked=l.ma_device__on_notification_unlocked;
+D._ma_malloc_emscripten=l.ma_malloc_emscripten;D._ma_free_emscripten=l.ma_free_emscripten;zd=D._ma_device_process_pcm_frames_capture__webaudio=l.ma_device_process_pcm_frames_capture__webaudio;Ad=D._ma_device_process_pcm_frames_playback__webaudio=l.ma_device_process_pcm_frames_playback__webaudio;Gd=l.setThrew;Hd=l._emscripten_tempret_set;ib=l._emscripten_stack_restore;wd=l._emscripten_stack_alloc;kb=l.emscripten_stack_get_current;gc.vij=l.dynCall_vij;gc.iij=l.dynCall_iij;gc.ji=l.dynCall_ji;gc.iiiji=
+l.dynCall_iiiji;gc.iiji=l.dynCall_iiji;gc.jii=l.dynCall_jii;gc.vijj=l.dynCall_vijj;gc.jiji=l.dynCall_jiji;Xa=l.memory;hc=l.__indirect_function_table;Wa();return Kd}var e={env:Jd,wasi_snapshot_preview1:Jd};if(D.instantiateWasm)return new Promise(l=>{D.instantiateWasm(e,(t,x)=>{l(d(t,x))})});Za??=D.locateFile?D.locateFile("canvas_advanced.wasm",Ga):Ga+"canvas_advanced.wasm";return d((await bb(e)).instance)}());
+(function(){function d(){D.calledRun=!0;if(!Na){Va=!0;Kd.__wasm_call_ctors();Oa?.(D);D.onRuntimeInitialized?.();if(D.postRun)for("function"==typeof D.postRun&&(D.postRun=[D.postRun]);D.postRun.length;){var e=D.postRun.shift();fb.push(e)}eb(fb)}}if(D.preRun)for("function"==typeof D.preRun&&(D.preRun=[D.preRun]);D.preRun.length;)hb();eb(gb);D.setStatus?(D.setStatus("Running..."),setTimeout(()=>{setTimeout(()=>D.setStatus(""),1);d()},1)):d()})();Va?moduleRtn=D:moduleRtn=new Promise((d,e)=>{Oa=d;Pa=e});
 ;return moduleRtn}})();
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (Rive);
 
@@ -500,7 +618,7 @@ Ta.push(d)}Sa(Ta)}}if(k.preRun)for("function"==typeof k.preRun&&(k.preRun=[k.pre
 /* 5 */
 /***/ ((module) => {
 
-module.exports = /*#__PURE__*/JSON.parse('{"name":"@rive-app/canvas","version":"2.43.1","description":"Rive\'s canvas based web api.","main":"rive.js","homepage":"https://rive.app","repository":{"type":"git","url":"https://github.com/rive-app/rive-wasm/tree/master/js"},"keywords":["rive","animation"],"author":"Rive","contributors":["Luigi Rosso <luigi@rive.app> (https://rive.app)","Maxwell Talbot <max@rive.app> (https://rive.app)","Arthur Vivian <arthur@rive.app> (https://rive.app)","Umberto Sonnino <umberto@rive.app> (https://rive.app)","Matthew Sullivan <matt.j.sullivan@gmail.com> (mailto:matt.j.sullivan@gmail.com)"],"license":"MIT","files":["rive.js","rive.js.map","rive.wasm","rive_fallback.wasm","rive.d.ts","rive_advanced.mjs.d.ts","runtimeLoader.d.ts","utils","semantics"],"typings":"rive.d.ts","dependencies":{},"browser":{"fs":false,"path":false}}');
+module.exports = /*#__PURE__*/JSON.parse('{"name":"@rive-app/canvas","version":"2.44.2","description":"Rive\'s canvas based web api.","main":"rive.js","homepage":"https://rive.app","repository":{"type":"git","url":"https://github.com/rive-app/rive-wasm/tree/master/js"},"keywords":["rive","animation"],"author":"Rive","contributors":["Luigi Rosso <luigi@rive.app> (https://rive.app)","Maxwell Talbot <max@rive.app> (https://rive.app)","Arthur Vivian <arthur@rive.app> (https://rive.app)","Umberto Sonnino <umberto@rive.app> (https://rive.app)","Matthew Sullivan <matt.j.sullivan@gmail.com> (mailto:matt.j.sullivan@gmail.com)"],"license":"MIT","files":["rive.js","rive.js.map","rive.wasm","rive_fallback.wasm","rive.d.ts","rive_advanced.mjs.d.ts","runtimeLoader.d.ts","utils","semantics"],"typings":"rive.d.ts","dependencies":{},"browser":{"fs":false,"path":false}}');
 
 /***/ }),
 /* 6 */
@@ -625,6 +743,17 @@ var SemanticTreeModel = /** @class */ (function () {
     /** Look up a node by its ID, or undefined if not in the tree. */
     SemanticTreeModel.prototype.nodeById = function (id) {
         return this._nodesById.get(id);
+    };
+    /** The node with SemanticState.Focused, or undefined. */
+    SemanticTreeModel.prototype.focusedNode = function () {
+        // Manual iteration: runs every frame and must stop at the first hit (the
+        // TS target forbids for-of over Map iterators).
+        var it = this._nodesById.values();
+        for (var r = it.next(); !r.done; r = it.next()) {
+            if ((0,_types__WEBPACK_IMPORTED_MODULE_0__.hasState)(r.value.stateFlags, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticState.Focused))
+                return r.value;
+        }
+        return;
     };
     /** Current index of a node among its siblings (or roots), or -1 if absent. */
     SemanticTreeModel.prototype.siblingIndexOf = function (id) {
@@ -1173,8 +1302,42 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   AccessibilityOverlay: () => (/* binding */ AccessibilityOverlay)
 /* harmony export */ });
-/* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(8);
+/* harmony import */ var _claimedKeyEvents__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(10);
+/* harmony import */ var _utils_canvasOffset__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(11);
+/* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(8);
 
+
+
+var warnedUnpositionedWrapper = false;
+/**
+ * Warns once per page when no positioned element sits at or inside the canvas's
+ * nearest scroll container: the overlay then can't scroll with the canvas. Reads only.
+ */
+function warnIfWrapperUnpositioned(canvas) {
+    if (warnedUnpositionedWrapper)
+        return;
+    // Null when detached (or display:none / fixed); nothing to judge yet.
+    var offsetParent = canvas.offsetParent;
+    if (!offsetParent)
+        return;
+    var scrolls = function (v) { return v === "auto" || v === "scroll" || v === "overlay"; };
+    var scroller = null;
+    var el = canvas.parentElement;
+    // Bounds pathological nesting.
+    var MAX_ANCESTOR_WALK = 32;
+    for (var i = 0; el && el !== document.documentElement && i < MAX_ANCESTOR_WALK; i++, el = el.parentElement) {
+        var style = getComputedStyle(el);
+        if (scrolls(style.overflowX) || scrolls(style.overflowY)) {
+            scroller = el;
+            break;
+        }
+    }
+    // Only the viewport scrolls: any offsetParent scrolls with the page.
+    if (!scroller || scroller.contains(offsetParent))
+        return;
+    warnedUnpositionedWrapper = true;
+    console.warn('[Rive] Semantics: give the element wrapping the <canvas> "position: relative" (or another positioned value) so the semantic overlay scrolls with the canvas. Without it, screen readers may scroll to stale positions when the canvas is inside a scrolling container.');
+}
 /**
  * Creates and manages an invisible DOM tree overlaying a Rive canvas. This is for
  * screen readers to discover and interact with the Rive content.
@@ -1192,7 +1355,7 @@ __webpack_require__.r(__webpack_exports__);
 var AccessibilityOverlay = /** @class */ (function () {
     function AccessibilityOverlay(options) {
         var _this = this;
-        var _a;
+        var _a, _b;
         this.elements = new Map();
         /** Visually-hidden description spans keyed by node ID, referenced by aria-describedby. */
         this.descElements = new Map();
@@ -1202,6 +1365,8 @@ var AccessibilityOverlay = /** @class */ (function () {
         this.pendingTextGeometry = [];
         /** Last measured box-size|text key per text element, to skip redundant re-measures. */
         this.textGeometryKeys = new WeakMap();
+        /** Node data last passed to applyAttributes per element; see {@link setEditingHostNode}. */
+        this.appliedNodes = new WeakMap();
         this.lastCanvasPositioning = {
             width: -1, height: -1, offsetTop: -1, offsetLeft: -1,
         };
@@ -1214,6 +1379,10 @@ var AccessibilityOverlay = /** @class */ (function () {
         this._geometryDirty = true;
         /** True while reconciling the DOM (reserved for future focus-sync guards). */
         this.isUpdating = false;
+        /** Node whose element the editing host stands in for, or null. */
+        this.editingHostNodeId = null;
+        /** Semantic version last folded into the editing host's decoration. */
+        this.editingHostSemanticVersion = -1;
         /**
          * Single child div of the overlay container that carries the artboard→CSS
          * transform. All semantic node elements are children of this div and express
@@ -1238,9 +1407,116 @@ var AccessibilityOverlay = /** @class */ (function () {
         this.canvas = options.canvas;
         this.semanticsOptions = options.semanticsOptions;
         this.allowFocusInterrupt = (_a = options.allowFocusInterrupt) !== null && _a !== void 0 ? _a : false;
+        this.isEditingHostFocused = (_b = options.isEditingHostFocused) !== null && _b !== void 0 ? _b : (function () { return false; });
         this.container = this.createContainer(options.canvas);
         this.attachPositionObservers();
+        warnIfWrapperUnpositioned(options.canvas);
     }
+    /**
+     * Hide the stood-in node's element (no duplicate textbox for AT); re-derive the previous
+     * one's aria-hidden.
+     */
+    AccessibilityOverlay.prototype.setEditingHostNode = function (nodeId) {
+        if (this.editingHostNodeId === nodeId)
+            return;
+        var previous = this.editingHostNodeId;
+        this.editingHostNodeId = nodeId;
+        if (previous !== null) {
+            var previousEl = this.elements.get(previous);
+            // Re-derive rather than un-hide: the node may have become Hidden mid-session.
+            if (previousEl) {
+                var previousNode = this.appliedNodes.get(previousEl);
+                if (previousNode && this.isAriaHidden(previousNode)) {
+                    setAttr(previousEl, "aria-hidden", "true");
+                }
+                else {
+                    removeAttr(previousEl, "aria-hidden");
+                }
+            }
+        }
+        if (nodeId !== null) {
+            var el = this.elements.get(nodeId);
+            if (el)
+                setAttr(el, "aria-hidden", "true");
+        }
+    };
+    /**
+     * Describe the focused text field on the host and hide its element; no-op unless
+     * semantics changed.
+     * @param force - apply even if semantics are unchanged (session start).
+     */
+    AccessibilityOverlay.prototype.syncEditingHost = function (tree, host, force) {
+        var _a;
+        if (!force && tree.semanticVersion === this.editingHostSemanticVersion)
+            return;
+        this.editingHostSemanticVersion = tree.semanticVersion;
+        var node = tree.focusedNode();
+        if (node === undefined || node.role !== _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.textField) {
+            // Nothing to describe; drop the stale description rather than misname the host.
+            if (this.editingHostNodeId !== null) {
+                host.resetDecoration();
+                this.setEditingHostNode(null);
+            }
+            return;
+        }
+        // Every key is passed on every call, nulls included, so nothing survives from
+        // the previously described field.
+        host.setSecure((0,_types__WEBPACK_IMPORTED_MODULE_2__.hasState)(node.stateFlags, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticState.Obscured));
+        host.decorate({
+            "aria-label": node.label || null,
+            "aria-readonly": (0,_types__WEBPACK_IMPORTED_MODULE_2__.hasState)(node.stateFlags, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticState.ReadOnly) ? "true" : null,
+            "aria-multiline": (0,_types__WEBPACK_IMPORTED_MODULE_2__.hasState)(node.stateFlags, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticState.Multiline) ? "true" : null,
+            // Trait-gated to match applyAttributes.
+            "aria-required": (0,_types__WEBPACK_IMPORTED_MODULE_2__.hasTrait)(node.traitFlags, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticTrait.Requirable) &&
+                (0,_types__WEBPACK_IMPORTED_MODULE_2__.hasState)(node.stateFlags, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticState.Required)
+                ? "true"
+                : null,
+            // The hint span applyAttributes maintains (update() runs earlier in the frame).
+            "aria-describedby": (node.hint && ((_a = this.descElements.get(node.id)) === null || _a === void 0 ? void 0 : _a.id)) || null,
+        });
+        this.setEditingHostNode(node.id);
+    };
+    /** True while the editing host stands in for a node's element. */
+    AccessibilityOverlay.prototype.hasEditingHost = function () {
+        return this.editingHostNodeId !== null;
+    };
+    /**
+     * Undo the stand-in; if the host still has DOM focus, move it to the focused node's
+     * element so AT announces it.
+     */
+    AccessibilityOverlay.prototype.releaseEditingHost = function (tree, host) {
+        var _a;
+        host === null || host === void 0 ? void 0 : host.resetDecoration();
+        this.setEditingHostNode(null);
+        this.editingHostSemanticVersion = -1;
+        if (!(host === null || host === void 0 ? void 0 : host.hasDomFocus()))
+            return;
+        var focusedNodeId = (_a = tree === null || tree === void 0 ? void 0 : tree.focusedNode()) === null || _a === void 0 ? void 0 : _a.id;
+        if (focusedNodeId !== undefined)
+            this.focusNodeElement(focusedNodeId);
+    };
+    /** Move DOM focus onto a node's element. No-op for a node with no element. */
+    AccessibilityOverlay.prototype.focusNodeElement = function (nodeId) {
+        var el = this.elements.get(nodeId);
+        if (!el)
+            return;
+        this.focusElementInPlace(el);
+    };
+    // The overlay is positioned outside the canvas's scroll chain, so a plain focus()
+    // would scroll the root instead; scroll the canvas into view through its real ancestors.
+    AccessibilityOverlay.prototype.focusElementInPlace = function (el) {
+        var _a, _b;
+        this.syncContainerBeforeFocus();
+        el.focus({ preventScroll: true });
+        (_b = (_a = this.canvas).scrollIntoView) === null || _b === void 0 ? void 0 : _b.call(_a, {
+            block: "nearest",
+            inline: "nearest",
+            behavior: "instant",
+        });
+        // The scroll moved the canvas; re-align now rather than after the observer throttle.
+        this.syncContainerGeometry();
+        this.observePosition();
+    };
     AccessibilityOverlay.prototype.getSemanticOverlayContainer = function () {
         return this.container;
     };
@@ -1318,15 +1594,16 @@ var AccessibilityOverlay = /** @class */ (function () {
             _this.observePosition();
         }, 500); // Throttle to avoid rapid style recalculations
     };
+    /** Returns true when the container's size changed (node transforms need recomputing). */
     AccessibilityOverlay.prototype.syncContainerGeometry = function () {
         var rect = this.canvas.getBoundingClientRect();
-        var top = this.canvas.offsetTop;
-        var left = this.canvas.offsetLeft;
-        if (rect.width === this.lastCanvasPositioning.width &&
-            rect.height === this.lastCanvasPositioning.height &&
+        var _a = (0,_utils_canvasOffset__WEBPACK_IMPORTED_MODULE_1__.canvasOffset)(this.canvas), top = _a.top, left = _a.left;
+        var sizeChanged = rect.width !== this.lastCanvasPositioning.width ||
+            rect.height !== this.lastCanvasPositioning.height;
+        if (!sizeChanged &&
             top === this.lastCanvasPositioning.offsetTop &&
             left === this.lastCanvasPositioning.offsetLeft)
-            return;
+            return false;
         this.container.style.top = top + "px";
         this.container.style.left = left + "px";
         this.container.style.width = rect.width + "px";
@@ -1336,6 +1613,16 @@ var AccessibilityOverlay = /** @class */ (function () {
         this.lastCanvasPositioning.height = rect.height;
         this.lastCanvasPositioning.offsetTop = top;
         this.lastCanvasPositioning.offsetLeft = left;
+        return sizeChanged;
+    };
+    /**
+     * Re-align the container right before focusing one of its elements. The position
+     * observer re-syncs after scrolling on a throttle; focusing an element while the
+     * container is stale would make the browser scroll the page to where it sits.
+     */
+    AccessibilityOverlay.prototype.syncContainerBeforeFocus = function () {
+        if (this.syncContainerGeometry())
+            this._geometryDirty = true;
     };
     AccessibilityOverlay.prototype.createContainer = function (canvas) {
         var _a, _b;
@@ -1345,10 +1632,13 @@ var AccessibilityOverlay = /** @class */ (function () {
         container.setAttribute("aria-label", (_b = (_a = this.semanticsOptions) === null || _a === void 0 ? void 0 : _a.riveCanvasLabel) !== null && _b !== void 0 ? _b : "Rive animation");
         // Size to the canvas's CSS layout box, not the parent container.
         var rect = canvas.getBoundingClientRect();
+        var _c = (0,_utils_canvasOffset__WEBPACK_IMPORTED_MODULE_1__.canvasOffset)(this.canvas), top = _c.top, left = _c.left;
         container.style.cssText = [
             "position:absolute",
-            "top:".concat(canvas.offsetTop, "px"),
-            "left:".concat(canvas.offsetLeft, "px"),
+            "top:".concat(top, "px"),
+            "left:".concat(left, "px"),
+            "line-height:normal",
+            "font-size:16px",
             "width:".concat(rect.width, "px"),
             "height:".concat(rect.height, "px"),
             "overflow:hidden",
@@ -1525,8 +1815,8 @@ var AccessibilityOverlay = /** @class */ (function () {
             // The cheap trait/state flag checks gate the (per-node) DOM queries below,
             // so the activeElement/closest/contains walks only run for a node that is
             // actually focusable + focused — not for every node on every frame.
-            if ((0,_types__WEBPACK_IMPORTED_MODULE_0__.hasTrait)(nodeData.traitFlags, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticTrait.Focusable) &&
-                (0,_types__WEBPACK_IMPORTED_MODULE_0__.hasState)(nodeData.stateFlags, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticState.Focused)) {
+            if ((0,_types__WEBPACK_IMPORTED_MODULE_2__.hasTrait)(nodeData.traitFlags, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticTrait.Focusable) &&
+                (0,_types__WEBPACK_IMPORTED_MODULE_2__.hasState)(nodeData.stateFlags, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticState.Focused)) {
                 var active = document.activeElement;
                 // While focus is inside one of our modal dialogs, don't pull it back
                 // out to a background node.
@@ -1534,8 +1824,16 @@ var AccessibilityOverlay = /** @class */ (function () {
                 var trappedByModal = !!focusedModal &&
                     this.container.contains(focusedModal) &&
                     !focusedModal.contains(el);
-                if (active !== el && !trappedByModal && this.canMoveFocus()) {
-                    el.focus();
+                // Not while the proxy has focus (would steal the caret, drop the keyboard) nor onto
+                // its aria-hidden stand-in.
+                if (nodeId !== this.editingHostNodeId &&
+                    active !== el &&
+                    !trappedByModal &&
+                    !this.isEditingHostFocused() &&
+                    this.canMoveFocus()) {
+                    // No scrollIntoView: this runs on semantic diffs and must not drag the page.
+                    this.syncContainerBeforeFocus();
+                    el.focus({ preventScroll: true });
                 }
             }
             // Recurse into children with this node's absolute artboard position.
@@ -1674,7 +1972,7 @@ var AccessibilityOverlay = /** @class */ (function () {
         var el = document.createElement(tag);
         el.id = "".concat(this.nodeIdPrefix).concat(node.id);
         el.style.cssText = BASE_NODE_STYLE;
-        if (node.role === _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.text) {
+        if (node.role === _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.text) {
             // The positioned outer div is the AX element
             // VoiceOver uses for its highlight box; an inner <span> carries the text
             // without position:absolute (which would strip the span from VoiceOver's
@@ -1706,7 +2004,7 @@ var AccessibilityOverlay = /** @class */ (function () {
                 target = "last";
             if (!target)
                 return;
-            e.preventDefault();
+            (0,_claimedKeyEvents__WEBPACK_IMPORTED_MODULE_0__.claimKeyEvent)(e);
             var members = opts.members();
             var idx = members.indexOf(el);
             if (idx < 0)
@@ -1717,10 +2015,10 @@ var AccessibilityOverlay = /** @class */ (function () {
                     : target === "first" ? members[0]
                         : members[n - 1];
             if (next && next !== el) {
-                next.focus();
+                _this.focusElementInPlace(next);
                 var nextId = _this.nodeIdFromElement(next);
                 if (nextId !== null)
-                    _this.fireAction(nextId, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticActionType.tap);
+                    _this.fireAction(nextId, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticActionType.tap);
             }
         });
     };
@@ -1730,31 +2028,31 @@ var AccessibilityOverlay = /** @class */ (function () {
         var nodeId = node.id;
         if (isClickableRole(role)) {
             el.addEventListener("click", function () {
-                _this.fireAction(nodeId, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticActionType.tap);
+                _this.fireAction(nodeId, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticActionType.tap);
             });
             // Links activate on Enter only (Space scrolls the page per browser
             // convention). All other clickable roles accept both Enter and Space.
-            var activationKeys_1 = role === _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.link ? ["Enter"] : ["Enter", " "];
+            var activationKeys_1 = role === _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.link ? ["Enter"] : ["Enter", " "];
             el.addEventListener("keydown", function (e) {
                 if (activationKeys_1.includes(e.key)) {
-                    e.preventDefault();
-                    _this.fireAction(nodeId, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticActionType.tap);
+                    (0,_claimedKeyEvents__WEBPACK_IMPORTED_MODULE_0__.claimKeyEvent)(e);
+                    _this.fireAction(nodeId, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticActionType.tap);
                 }
             });
         }
-        if (role === _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.slider) {
+        if (role === _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.slider) {
             el.addEventListener("keydown", function (e) {
                 if (e.key === "ArrowRight" || e.key === "ArrowUp") {
-                    e.preventDefault();
-                    _this.fireAction(nodeId, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticActionType.increase);
+                    (0,_claimedKeyEvents__WEBPACK_IMPORTED_MODULE_0__.claimKeyEvent)(e);
+                    _this.fireAction(nodeId, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticActionType.increase);
                 }
                 else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
-                    e.preventDefault();
-                    _this.fireAction(nodeId, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticActionType.decrease);
+                    (0,_claimedKeyEvents__WEBPACK_IMPORTED_MODULE_0__.claimKeyEvent)(e);
+                    _this.fireAction(nodeId, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticActionType.decrease);
                 }
             });
         }
-        if (role === _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.tab) {
+        if (role === _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.tab) {
             this.attachRovingNav(el, {
                 includeHomeEnd: true,
                 members: function () {
@@ -1767,7 +2065,7 @@ var AccessibilityOverlay = /** @class */ (function () {
                 },
             });
         }
-        if (role === _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.radioButton) {
+        if (role === _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.radioButton) {
             this.attachRovingNav(el, {
                 includeHomeEnd: false,
                 members: function () {
@@ -1782,15 +2080,31 @@ var AccessibilityOverlay = /** @class */ (function () {
         // Focus handler for nodes with the Focusable trait. When AT focuses an
         // element, notify the C++ runtime so it can update internal focus state
         // (visual focus rings, etc.). Gated on Focusable trait
-        if ((0,_types__WEBPACK_IMPORTED_MODULE_0__.hasTrait)(node.traitFlags, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticTrait.Focusable)) {
+        if ((0,_types__WEBPACK_IMPORTED_MODULE_2__.hasTrait)(node.traitFlags, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticTrait.Focusable)) {
             el.addEventListener("focus", function () {
                 _this.requestFocus(nodeId);
             });
         }
     };
     // ---- Attribute application ----
+    AccessibilityOverlay.prototype.isAriaHidden = function (node) {
+        var role = node.role;
+        var flags = node.stateFlags;
+        // Hide from AT when explicitly hidden, or when an image has no accessible
+        // name — a nameless role="img" is a WCAG 1.1.1 violation; treat it as
+        // decorative instead.
+        var isDecorativeImage = role === _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.image && !node.label;
+        // The <input> proxy is the accessible element for the node it stands in for.
+        var isEditingHostStandIn = node.id === this.editingHostNodeId;
+        return ((0,_types__WEBPACK_IMPORTED_MODULE_2__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticState.Hidden) ||
+            // Obscured text fields stay reachable (value withheld, like a native password input).
+            ((0,_types__WEBPACK_IMPORTED_MODULE_2__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticState.Obscured) && role !== _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.textField) ||
+            isDecorativeImage ||
+            isEditingHostStandIn);
+    };
     AccessibilityOverlay.prototype.applyAttributes = function (el, node) {
         var _a, _b, _c;
+        this.appliedNodes.set(el, node);
         var role = node.role;
         var flags = node.stateFlags;
         var traits = node.traitFlags;
@@ -1804,7 +2118,7 @@ var AccessibilityOverlay = /** @class */ (function () {
         }
         // Links: a bare <a> with no href has no link semantics, so set the role
         // explicitly (ariaRoleForSemantic returns null for link → native <a>).
-        if (role === _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.link) {
+        if (role === _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.link) {
             setAttr(el, "role", "link");
         }
         // Tabindex — keep the screen-reader overlay out of the browser's sequential
@@ -1812,8 +2126,8 @@ var AccessibilityOverlay = /** @class */ (function () {
         // so AT/runtime focus sync can still target them when needed. List items are
         // included because Mobile Safari won't iterate them otherwise.
         if (isInteractiveRole(role) ||
-            (0,_types__WEBPACK_IMPORTED_MODULE_0__.hasTrait)(traits, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticTrait.Focusable) ||
-            role === _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.listItem) {
+            (0,_types__WEBPACK_IMPORTED_MODULE_2__.hasTrait)(traits, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticTrait.Focusable) ||
+            role === _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.listItem) {
             setAttr(el, "tabindex", "-1");
         }
         else {
@@ -1826,7 +2140,7 @@ var AccessibilityOverlay = /** @class */ (function () {
         else {
             removeAttr(el, "aria-label");
         }
-        if (role === _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.slider) {
+        if (role === _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.slider) {
             if (node.value) {
                 // aria-valuenow must be numeric; keep the display string (e.g. "75%")
                 // in aria-valuetext only.
@@ -1846,7 +2160,7 @@ var AccessibilityOverlay = /** @class */ (function () {
             // TODO: aria-valuemin / aria-valuemax are required by ARIA.
             // Defaulting to horizontal; vertical sliders need orientation data from C++.
             setAttr(el, "aria-orientation", "horizontal");
-            setBoolAttr(el, "aria-readonly", (0,_types__WEBPACK_IMPORTED_MODULE_0__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticState.ReadOnly));
+            setBoolAttr(el, "aria-readonly", (0,_types__WEBPACK_IMPORTED_MODULE_2__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticState.ReadOnly));
         }
         else {
             removeAttr(el, "aria-valuenow");
@@ -1880,7 +2194,7 @@ var AccessibilityOverlay = /** @class */ (function () {
         // Text nodes: use textContent rather than aria-label so screen readers
         // announce the text in virtual/browse mode (aria-label on a bare <span>
         // with no widget role is ignored by some AT in document browse mode).
-        if (role === _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.text) {
+        if (role === _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.text) {
             var textSpan = (_a = el.querySelector(":scope > span")) !== null && _a !== void 0 ? _a : el;
             var text = (_b = node.label) !== null && _b !== void 0 ? _b : "";
             if (textSpan.textContent !== text)
@@ -1900,77 +2214,73 @@ var AccessibilityOverlay = /** @class */ (function () {
         // Only set the ARIA property when the trait is present. When the trait
         // is absent, remove the attribute so AT sees "not applicable" rather
         // than "false".
-        if ((0,_types__WEBPACK_IMPORTED_MODULE_0__.hasTrait)(traits, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticTrait.Expandable) && ARIA_EXPANDED_ROLES.has(role)) {
-            setBoolAttr(el, "aria-expanded", (0,_types__WEBPACK_IMPORTED_MODULE_0__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticState.Expanded));
+        if ((0,_types__WEBPACK_IMPORTED_MODULE_2__.hasTrait)(traits, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticTrait.Expandable) && ARIA_EXPANDED_ROLES.has(role)) {
+            setBoolAttr(el, "aria-expanded", (0,_types__WEBPACK_IMPORTED_MODULE_2__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticState.Expanded));
         }
         else {
             removeAttr(el, "aria-expanded");
         }
         // aria-selected is required on ALL tabs per ARIA spec regardless of trait;
         // for other roles it is trait-gated and guarded to ARIA_SELECTED_ROLES.
-        if (role === _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.tab) {
-            setBoolAttr(el, "aria-selected", (0,_types__WEBPACK_IMPORTED_MODULE_0__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticState.Selected));
+        if (role === _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.tab) {
+            setBoolAttr(el, "aria-selected", (0,_types__WEBPACK_IMPORTED_MODULE_2__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticState.Selected));
         }
-        else if ((0,_types__WEBPACK_IMPORTED_MODULE_0__.hasTrait)(traits, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticTrait.Selectable) && ARIA_SELECTED_ROLES.has(role)) {
-            setBoolAttr(el, "aria-selected", (0,_types__WEBPACK_IMPORTED_MODULE_0__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticState.Selected));
+        else if ((0,_types__WEBPACK_IMPORTED_MODULE_2__.hasTrait)(traits, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticTrait.Selectable) && ARIA_SELECTED_ROLES.has(role)) {
+            setBoolAttr(el, "aria-selected", (0,_types__WEBPACK_IMPORTED_MODULE_2__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticState.Selected));
         }
         else {
             removeAttr(el, "aria-selected");
         }
-        if ((0,_types__WEBPACK_IMPORTED_MODULE_0__.hasTrait)(traits, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticTrait.Checkable) && ARIA_CHECKED_ROLES.has(role)) {
+        if ((0,_types__WEBPACK_IMPORTED_MODULE_2__.hasTrait)(traits, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticTrait.Checkable) && ARIA_CHECKED_ROLES.has(role)) {
             // Check state is a tri-state field, but not every checkable role
             // accepts all three values — see ARIA_MIXED_ROLES.
-            var checkState = (0,_types__WEBPACK_IMPORTED_MODULE_0__.checkStateOf)(flags);
-            if (checkState === _types__WEBPACK_IMPORTED_MODULE_0__.SemanticCheckState.Mixed &&
+            var checkState = (0,_types__WEBPACK_IMPORTED_MODULE_2__.checkStateOf)(flags);
+            if (checkState === _types__WEBPACK_IMPORTED_MODULE_2__.SemanticCheckState.Mixed &&
                 ARIA_MIXED_ROLES.has(role)) {
                 setAttr(el, "aria-checked", "mixed");
             }
             else {
-                setBoolAttr(el, "aria-checked", checkState === _types__WEBPACK_IMPORTED_MODULE_0__.SemanticCheckState.Checked);
+                setBoolAttr(el, "aria-checked", checkState === _types__WEBPACK_IMPORTED_MODULE_2__.SemanticCheckState.Checked);
             }
         }
         else {
             removeAttr(el, "aria-checked");
         }
-        if ((0,_types__WEBPACK_IMPORTED_MODULE_0__.hasTrait)(traits, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticTrait.Toggleable)) {
+        if ((0,_types__WEBPACK_IMPORTED_MODULE_2__.hasTrait)(traits, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticTrait.Toggleable)) {
             if (ARIA_PRESSED_ROLES.has(role)) {
-                setBoolAttr(el, "aria-pressed", (0,_types__WEBPACK_IMPORTED_MODULE_0__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticState.Toggled));
+                setBoolAttr(el, "aria-pressed", (0,_types__WEBPACK_IMPORTED_MODULE_2__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticState.Toggled));
             }
             else {
                 removeAttr(el, "aria-pressed");
             }
             // switch uses aria-checked (not aria-pressed) for its on/off state.
-            if (role === _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.switchControl) {
-                setBoolAttr(el, "aria-checked", (0,_types__WEBPACK_IMPORTED_MODULE_0__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticState.Toggled));
+            if (role === _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.switchControl) {
+                setBoolAttr(el, "aria-checked", (0,_types__WEBPACK_IMPORTED_MODULE_2__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticState.Toggled));
             }
         }
         else {
             removeAttr(el, "aria-pressed");
         }
-        if ((0,_types__WEBPACK_IMPORTED_MODULE_0__.hasTrait)(traits, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticTrait.Requirable) && ARIA_REQUIRED_ROLES.has(role)) {
-            setBoolAttr(el, "aria-required", (0,_types__WEBPACK_IMPORTED_MODULE_0__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticState.Required));
+        if ((0,_types__WEBPACK_IMPORTED_MODULE_2__.hasTrait)(traits, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticTrait.Requirable) && ARIA_REQUIRED_ROLES.has(role)) {
+            setBoolAttr(el, "aria-required", (0,_types__WEBPACK_IMPORTED_MODULE_2__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticState.Required));
         }
         else {
             removeAttr(el, "aria-required");
         }
-        if ((0,_types__WEBPACK_IMPORTED_MODULE_0__.hasTrait)(traits, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticTrait.Enablable)) {
-            setBoolAttr(el, "aria-disabled", (0,_types__WEBPACK_IMPORTED_MODULE_0__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticState.Disabled));
+        if ((0,_types__WEBPACK_IMPORTED_MODULE_2__.hasTrait)(traits, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticTrait.Enablable)) {
+            setBoolAttr(el, "aria-disabled", (0,_types__WEBPACK_IMPORTED_MODULE_2__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticState.Disabled));
         }
         else {
             removeAttr(el, "aria-disabled");
         }
         // ---- Non-trait states ----
-        // Hide from AT when explicitly hidden, or when an image has no accessible
-        // name — a nameless role="img" is a WCAG 1.1.1 violation; treat it as
-        // decorative instead.
-        var isDecorativeImage = role === _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.image && !node.label;
-        if ((0,_types__WEBPACK_IMPORTED_MODULE_0__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticState.Hidden) || (0,_types__WEBPACK_IMPORTED_MODULE_0__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticState.Obscured) || isDecorativeImage) {
+        if (this.isAriaHidden(node)) {
             setAttr(el, "aria-hidden", "true");
         }
         else {
             removeAttr(el, "aria-hidden");
         }
-        if ((0,_types__WEBPACK_IMPORTED_MODULE_0__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticState.LiveRegion)) {
+        if ((0,_types__WEBPACK_IMPORTED_MODULE_2__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticState.LiveRegion)) {
             setAttr(el, "aria-live", "polite");
         }
         else {
@@ -1978,16 +2288,25 @@ var AccessibilityOverlay = /** @class */ (function () {
         }
         // textField-specific
         // TODO: Details here may change once we implement text inputs
-        if (role === _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.textField) {
-            setBoolAttr(el, "aria-readonly", (0,_types__WEBPACK_IMPORTED_MODULE_0__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticState.ReadOnly));
-            setBoolAttr(el, "aria-multiline", (0,_types__WEBPACK_IMPORTED_MODULE_0__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticState.Multiline));
+        if (role === _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.textField) {
+            setBoolAttr(el, "aria-readonly", (0,_types__WEBPACK_IMPORTED_MODULE_2__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticState.ReadOnly));
+            setBoolAttr(el, "aria-multiline", (0,_types__WEBPACK_IMPORTED_MODULE_2__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticState.Multiline));
             // Surface the current field value as DOM text so screen readers can
             // announce it. Only safe when the node has no semantic children —
             // setting textContent would remove any child elements from the DOM.
             if (node.children.length === 0) {
-                var value = (_c = node.value) !== null && _c !== void 0 ? _c : "";
+                var value = (0,_types__WEBPACK_IMPORTED_MODULE_2__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticState.Obscured) ? "" : ((_c = node.value) !== null && _c !== void 0 ? _c : "");
                 if (el.textContent !== value)
                     el.textContent = value;
+            }
+            else {
+                // A value rendered earlier (before the node had children) must not linger,
+                // least of all once the field turns Obscured.
+                for (var _i = 0, _d = Array.from(el.childNodes); _i < _d.length; _i++) {
+                    var child = _d[_i];
+                    if (child.nodeType === Node.TEXT_NODE)
+                        child.remove();
+                }
             }
         }
         else {
@@ -2052,7 +2371,7 @@ var AccessibilityOverlay = /** @class */ (function () {
         // Clear any CSS transform from a previous render pass.
         if (el.style.transform)
             el.style.transform = "";
-        if (node.role === _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.text) {
+        if (node.role === _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.text) {
             this.pendingTextGeometry.push(el);
         }
     };
@@ -2111,7 +2430,8 @@ var AccessibilityOverlay = /** @class */ (function () {
      * Creates (on first call) and updates the artboard-space transform container.
      *
      * The container is sized to the artboard dimensions and carries a CSS
-     * `transform: matrix(...)` equivalent to `forwardMat / dpr`. All semantic
+     * `transform: matrix(...)` that maps artboard coordinates to the canvas's CSS box
+     * (forwardMat in backing-store pixels, scaled by CSS size / backing-store size). All semantic
      * node elements are children of this container and use raw artboard
      * coordinates as their CSS `left/top/width/height`, so the CSS compositor
      * applies the artboard→screen mapping in one pass.
@@ -2136,13 +2456,20 @@ var AccessibilityOverlay = /** @class */ (function () {
         var h = artboardBounds.maxY - artboardBounds.minY;
         this.transformContainer.style.width = Math.round(w) + "px";
         this.transformContainer.style.height = Math.round(h) + "px";
-        var s = 1 / (dpr || 1);
-        var a = forwardMat.xx * s;
-        var b = forwardMat.xy * s;
-        var c = forwardMat.yx * s;
-        var d = forwardMat.yy * s;
-        var tx = forwardMat.tx * s;
-        var ty = forwardMat.ty * s;
+        // Backing-store pixels → CSS pixels. Measured rather than 1/dpr: a canvas can be
+        // stretched by CSS, or have a stale backing store after a resize, and the drawn
+        // content follows the CSS box either way. Equal to 1/dpr when they match.
+        var cssWidth = this.lastCanvasPositioning.width;
+        var cssHeight = this.lastCanvasPositioning.height;
+        var fallback = 1 / (dpr || 1);
+        var sx = this.canvas.width > 0 && cssWidth > 0 ? cssWidth / this.canvas.width : fallback;
+        var sy = this.canvas.height > 0 && cssHeight > 0 ? cssHeight / this.canvas.height : fallback;
+        var a = forwardMat.xx * sx;
+        var b = forwardMat.xy * sy;
+        var c = forwardMat.yx * sx;
+        var d = forwardMat.yy * sy;
+        var tx = forwardMat.tx * sx;
+        var ty = forwardMat.ty * sy;
         this.transformContainer.style.transform =
             "matrix(".concat(a, ",").concat(b, ",").concat(c, ",").concat(d, ",").concat(tx, ",").concat(ty, ")");
     };
@@ -2165,11 +2492,11 @@ var AccessibilityOverlay = /** @class */ (function () {
 // ---------------------------------------------------------------------------
 /** aria-expanded: button, link, checkbox, switch (inherits button), tab. */
 var ARIA_EXPANDED_ROLES = new Set([
-    _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.button,
-    _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.link,
-    _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.checkbox,
-    _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.switchControl,
-    _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.tab,
+    _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.button,
+    _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.link,
+    _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.checkbox,
+    _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.switchControl,
+    _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.tab,
 ]);
 /**
  * aria-selected: tab is the only role in our current set that natively
@@ -2178,13 +2505,13 @@ var ARIA_EXPANDED_ROLES = new Set([
  * the set still lists it so the constraint is visible in one place.
  */
 var ARIA_SELECTED_ROLES = new Set([
-    _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.tab,
+    _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.tab,
 ]);
 /** aria-checked: checkbox, radio, switch. */
 var ARIA_CHECKED_ROLES = new Set([
-    _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.checkbox,
-    _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.radioButton,
-    _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.switchControl,
+    _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.checkbox,
+    _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.radioButton,
+    _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.switchControl,
 ]);
 /**
  * aria-checked="mixed": checkbox only. ARIA defines checkbox as three-valued
@@ -2193,7 +2520,7 @@ var ARIA_CHECKED_ROLES = new Set([
  * emitting a value they do not support.
  */
 var ARIA_MIXED_ROLES = new Set([
-    _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.checkbox,
+    _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.checkbox,
 ]);
 /**
  * aria-pressed: button only. switch is a button subclass in ARIA but uses
@@ -2201,13 +2528,13 @@ var ARIA_MIXED_ROLES = new Set([
  * excluded here and handled separately in the Toggleable block.
  */
 var ARIA_PRESSED_ROLES = new Set([
-    _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.button,
+    _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.button,
 ]);
 /** aria-required: checkbox, textbox, radiogroup. */
 var ARIA_REQUIRED_ROLES = new Set([
-    _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.checkbox,
-    _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.textField,
-    _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.radioGroup,
+    _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.checkbox,
+    _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.textField,
+    _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.radioGroup,
 ]);
 // ---------------------------------------------------------------------------
 /** Style for visually-hidden description spans used with aria-describedby. */
@@ -2256,12 +2583,12 @@ function setBoolAttr(el, attr, value) {
 /** Roles that receive click/Enter/Space action handlers. */
 function isClickableRole(role) {
     switch (role) {
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.button:
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.link:
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.checkbox:
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.switchControl:
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.tab:
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.radioButton:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.button:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.link:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.checkbox:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.switchControl:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.tab:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.radioButton:
             return true;
         default:
             return false;
@@ -2270,14 +2597,14 @@ function isClickableRole(role) {
 /** Roles that receive tabindex="-1" for programmatic/AT focus (not Tab order). */
 function isInteractiveRole(role) {
     switch (role) {
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.button:
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.link:
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.checkbox:
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.switchControl:
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.slider:
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.tab:
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.radioButton:
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.textField:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.button:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.link:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.checkbox:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.switchControl:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.slider:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.tab:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.radioButton:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.textField:
             return true;
         default:
             return false;
@@ -2288,13 +2615,13 @@ function isInteractiveRole(role) {
  * dialog only when the Modal state flag is set.
  */
 function isModalDialogRole(role, flags) {
-    return (role === _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.alertDialog ||
-        (role === _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.dialog && (0,_types__WEBPACK_IMPORTED_MODULE_0__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticState.Modal)));
+    return (role === _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.alertDialog ||
+        (role === _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.dialog && (0,_types__WEBPACK_IMPORTED_MODULE_2__.hasState)(flags, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticState.Modal)));
 }
 /** Whether a node can receive focus: an interactive role or the Focusable trait. */
 function isFocusableNode(node) {
     return (isInteractiveRole(node.role) ||
-        (0,_types__WEBPACK_IMPORTED_MODULE_0__.hasTrait)(node.traitFlags, _types__WEBPACK_IMPORTED_MODULE_0__.SemanticTrait.Focusable));
+        (0,_types__WEBPACK_IMPORTED_MODULE_2__.hasTrait)(node.traitFlags, _types__WEBPACK_IMPORTED_MODULE_2__.SemanticTrait.Focusable));
 }
 /**
  * Choose an HTML tag for a given role. Prefer native semantic elements
@@ -2303,9 +2630,9 @@ function isFocusableNode(node) {
  */
 function tagForRole(role) {
     switch (role) {
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.link:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.link:
             return "a";
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.text:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.text:
             // The outer div is the positioned AX element VoiceOver measures for its
             // highlight box. The text itself lives in a child <span> (see createElement).
             return "div";
@@ -2321,43 +2648,43 @@ function tagForRole(role) {
  */
 function ariaRoleForSemantic(role) {
     switch (role) {
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.none:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.none:
             // TODO: Role "none" removes the node from the accessibility tree. For now, setting to Group, but maybe we want to switch to "none"
             // or "presentation".
             return "group";
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.button:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.button:
             return "button";
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.link:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.link:
             return null; // native <a>
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.checkbox:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.checkbox:
             return "checkbox";
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.switchControl:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.switchControl:
             return "switch";
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.slider:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.slider:
             return "slider";
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.textField:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.textField:
             return "textbox";
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.image:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.image:
             return "img";
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.group:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.group:
             return "group";
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.list:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.list:
             return "list";
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.listItem:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.listItem:
             return "listitem";
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.tab:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.tab:
             return "tab";
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.tabList:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.tabList:
             return "tablist";
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.dialog:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.dialog:
             return "dialog";
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.alertDialog:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.alertDialog:
             return "alertdialog";
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.radioGroup:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.radioGroup:
             return "radiogroup";
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.radioButton:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.radioButton:
             return "radio";
-        case _types__WEBPACK_IMPORTED_MODULE_0__.SemanticRole.text:
+        case _types__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.text:
             // Text nodes use <span>; heading role is applied separately
             // when headingLevel > 0.
             return null;
@@ -2369,6 +2696,56 @@ function ariaRoleForSemantic(role) {
 
 /***/ }),
 /* 10 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   claimKeyEvent: () => (/* binding */ claimKeyEvent),
+/* harmony export */   isKeyEventClaimed: () => (/* binding */ isKeyEventClaimed)
+/* harmony export */ });
+var claimed = new WeakSet();
+/**
+ * Marks a key event as handled by a semantic overlay widget (and prevents its
+ * default), so the Rive keyboard handler leaves it alone. A plain
+ * `defaultPrevented` check can't tell these apart from host-page handlers.
+ */
+function claimKeyEvent(event) {
+    event.preventDefault();
+    claimed.add(event);
+}
+function isKeyEventClaimed(event) {
+    return claimed.has(event);
+}
+
+
+/***/ }),
+/* 11 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   canvasOffset: () => (/* binding */ canvasOffset)
+/* harmony export */ });
+/**
+ * Canvas offset within its offsetParent, minus the scroll of ancestors in between (they
+ * move the canvas, not absolutely positioned siblings).
+ */
+function canvasOffset(canvas) {
+    var top = canvas.offsetTop;
+    var left = canvas.offsetLeft;
+    var offsetParent = canvas.offsetParent;
+    if (!offsetParent)
+        return { top: top, left: left };
+    for (var el = canvas.parentElement; el && el !== offsetParent; el = el.parentElement) {
+        top -= el.scrollTop;
+        left -= el.scrollLeft;
+    }
+    return { top: top, left: left };
+}
+
+
+/***/ }),
+/* 12 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -2391,11 +2768,11 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   registerTouchInteractions: () => (/* reexport safe */ _registerTouchInteractions__WEBPACK_IMPORTED_MODULE_0__.registerTouchInteractions),
 /* harmony export */   sanitizeUrl: () => (/* reexport safe */ _sanitizeUrl__WEBPACK_IMPORTED_MODULE_2__.sanitizeUrl)
 /* harmony export */ });
-/* harmony import */ var _registerTouchInteractions__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(11);
-/* harmony import */ var _registerKeyboardInteractions__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(12);
-/* harmony import */ var _sanitizeUrl__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(13);
-/* harmony import */ var _finalizationRegistry__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(14);
-/* harmony import */ var _riveFont__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(15);
+/* harmony import */ var _registerTouchInteractions__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(13);
+/* harmony import */ var _registerKeyboardInteractions__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(14);
+/* harmony import */ var _sanitizeUrl__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(17);
+/* harmony import */ var _finalizationRegistry__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(18);
+/* harmony import */ var _riveFont__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(19);
 
 
 
@@ -2404,7 +2781,7 @@ __webpack_require__.r(__webpack_exports__);
 
 
 /***/ }),
-/* 11 */
+/* 13 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -2412,6 +2789,11 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   registerTouchInteractions: () => (/* binding */ registerTouchInteractions)
 /* harmony export */ });
 var _this = undefined;
+// A detented wheel reports lines; the runtime wants pixels.
+var PIXELS_PER_LINE = 16;
+// ScrollPhase.update. The DOM reports no gesture phase, so every wheel event
+// is an update and the runtime closes the gesture once it goes quiet.
+var SCROLL_PHASE_UPDATE = 1;
 /**
  * Extracts ClientCoordinates from a TouchList, respecting multi-touch vs.
  * single-touch mode. In single-touch mode, only the touch matching
@@ -2479,11 +2861,12 @@ var getClientCoordinates = function (event, isTouchScrollEnabled, enableMultiTou
     ];
 };
 /**
- * Registers mouse move/up/down callback handlers on the canvas to send meaningful coordinates to
- * the state machine pointer move/up/down functions based on cursor interaction
+ * Registers mouse move/up/down and wheel callback handlers on the canvas to send meaningful
+ * coordinates to the state machine pointer move/up/down/scroll functions based on cursor
+ * interaction
  */
 var registerTouchInteractions = function (_a) {
-    var canvas = _a.canvas, artboard = _a.artboard, _b = _a.stateMachines, stateMachines = _b === void 0 ? [] : _b, renderer = _a.renderer, rive = _a.rive, fit = _a.fit, alignment = _a.alignment, _c = _a.isTouchScrollEnabled, isTouchScrollEnabled = _c === void 0 ? false : _c, _d = _a.dispatchPointerExit, dispatchPointerExit = _d === void 0 ? true : _d, _e = _a.enableMultiTouch, enableMultiTouch = _e === void 0 ? false : _e, _f = _a.layoutScaleFactor, layoutScaleFactor = _f === void 0 ? 1.0 : _f, advanceAndDrain = _a.advanceAndDrain;
+    var canvas = _a.canvas, artboard = _a.artboard, _b = _a.stateMachines, stateMachines = _b === void 0 ? [] : _b, renderer = _a.renderer, rive = _a.rive, fit = _a.fit, alignment = _a.alignment, _c = _a.isTouchScrollEnabled, isTouchScrollEnabled = _c === void 0 ? false : _c, _d = _a.dispatchPointerExit, dispatchPointerExit = _d === void 0 ? true : _d, _e = _a.enableMultiTouch, enableMultiTouch = _e === void 0 ? false : _e, _f = _a.layoutScaleFactor, layoutScaleFactor = _f === void 0 ? 1.0 : _f, advanceAndDrain = _a.advanceAndDrain, summonKeyboard = _a.summonKeyboard, isTextProxyFocused = _a.isTextProxyFocused;
     if (!canvas ||
         !stateMachines.length ||
         !renderer ||
@@ -2491,6 +2874,13 @@ var registerTouchInteractions = function (_a) {
         !artboard ||
         typeof window === "undefined") {
         return null;
+    }
+    // A gesture latched before the previous listeners came down (a pause, say)
+    // never reached its idle timeout, and would take the next wheel wherever
+    // it lands. These instances are live here; at teardown they may not be.
+    for (var _i = 0, stateMachines_1 = stateMachines; _i < stateMachines_1.length; _i++) {
+        var stateMachine = stateMachines_1[_i];
+        stateMachine.cancelScroll();
     }
     /**
      * After a touchend event, some browsers may fire synthetic mouse events
@@ -2503,8 +2893,10 @@ var registerTouchInteractions = function (_a) {
      * We're keeping track of the previous event to not send the synthetic mouse events if the
      * touch event was a click (touchstart -> touchend).
      *
-     * This is only needed when `isTouchScrollEnabled` is false
-     * When true, `preventDefault()` is called which prevents this behaviour.
+     * Emulated events only occur when `isTouchScrollEnabled` is true; when false,
+     * touchstart is default-prevented, which suppresses them.
+     * Emulated mousedown is prevented while the proxy is focused, or it would blur it and
+     * drop the keyboard.
      **/
     var _prevEventType = null;
     var _syntheticEventsActive = false;
@@ -2515,12 +2907,43 @@ var registerTouchInteractions = function (_a) {
      * Reset to null when the primary finger lifts (or touchcancel is called)
      */
     var _primaryTouchId = null;
+    /**
+     * Maps client-space points into Artboard space through the fit and alignment
+     * of the canvas.
+     */
+    var mapToArtboard = function (boundingRect, points) {
+        var forwardMatrix = rive.computeAlignment(fit, alignment, {
+            minX: 0,
+            minY: 0,
+            maxX: boundingRect.width,
+            maxY: boundingRect.height,
+        }, artboard.bounds, layoutScaleFactor);
+        var invertedMatrix = new rive.Mat2D();
+        forwardMatrix.invert(invertedMatrix);
+        var mapped = points.map(function (_a) {
+            var clientX = _a.clientX, clientY = _a.clientY;
+            var canvasX = clientX - boundingRect.left;
+            var canvasY = clientY - boundingRect.top;
+            var canvasCoordinatesVector = new rive.Vec2D(canvasX, canvasY);
+            var transformedVector = rive.mapXY(invertedMatrix, canvasCoordinatesVector);
+            var point = { x: transformedVector.x(), y: transformedVector.y() };
+            transformedVector.delete();
+            canvasCoordinatesVector.delete();
+            return point;
+        });
+        invertedMatrix.delete();
+        forwardMatrix.delete();
+        return mapped;
+    };
     var processEventCallback = function (event) {
         var _a;
         // Exit early out of all synthetic mouse events
         // https://stackoverflow.com/questions/9656990/how-to-prevent-simulated-mouse-events-in-mobile-browsers
         // https://stackoverflow.com/questions/25572070/javascript-touchend-versus-click-dilemma
         if (_syntheticEventsActive && event instanceof MouseEvent) {
+            if (event.type === "mousedown" && (isTextProxyFocused === null || isTextProxyFocused === void 0 ? void 0 : isTextProxyFocused())) {
+                event.preventDefault();
+            }
             // Synthetic event finished
             if (event.type == "mouseup") {
                 _syntheticEventsActive = false;
@@ -2544,33 +2967,11 @@ var registerTouchInteractions = function (_a) {
             }
         }
         var coordinateSets = getClientCoordinates(event, isTouchScrollEnabled, enableMultiTouch, enableMultiTouch ? null : _primaryTouchId);
-        var forwardMatrix = rive.computeAlignment(fit, alignment, {
-            minX: 0,
-            minY: 0,
-            maxX: boundingRect.width,
-            maxY: boundingRect.height,
-        }, artboard.bounds, layoutScaleFactor);
-        var invertedMatrix = new rive.Mat2D();
-        forwardMatrix.invert(invertedMatrix);
-        coordinateSets.forEach(function (coordinateSet) {
-            var clientX = coordinateSet.clientX;
-            var clientY = coordinateSet.clientY;
-            if (!clientX && !clientY) {
-                return;
-            }
-            var canvasX = clientX - boundingRect.left;
-            var canvasY = clientY - boundingRect.top;
-            var canvasCoordinatesVector = new rive.Vec2D(canvasX, canvasY);
-            var transformedVector = rive.mapXY(invertedMatrix, canvasCoordinatesVector);
-            var transformedX = transformedVector.x();
-            var transformedY = transformedVector.y();
-            coordinateSet.transformedX = transformedX;
-            coordinateSet.transformedY = transformedY;
-            transformedVector.delete();
-            canvasCoordinatesVector.delete();
+        var positionedSets = coordinateSets.filter(function (coordinateSet) { return coordinateSet.clientX || coordinateSet.clientY; });
+        mapToArtboard(boundingRect, positionedSets).forEach(function (point, i) {
+            positionedSets[i].transformedX = point.x;
+            positionedSets[i].transformedY = point.y;
         });
-        invertedMatrix.delete();
-        forwardMatrix.delete();
         switch (event.type) {
             /**
              * There's a 2px buffer for a hitRadius when translating the pointer coordinates
@@ -2594,8 +2995,8 @@ var registerTouchInteractions = function (_a) {
                         });
                     }
                 };
-                for (var _i = 0, stateMachines_1 = stateMachines; _i < stateMachines_1.length; _i++) {
-                    var stateMachine = stateMachines_1[_i];
+                for (var _i = 0, stateMachines_2 = stateMachines; _i < stateMachines_2.length; _i++) {
+                    var stateMachine = stateMachines_2[_i];
                     _loop_1(stateMachine);
                 }
                 break;
@@ -2608,8 +3009,8 @@ var registerTouchInteractions = function (_a) {
                         stateMachine.pointerMove(coordinateSet.transformedX, coordinateSet.transformedY, coordinateSet.identifier);
                     });
                 };
-                for (var _b = 0, stateMachines_2 = stateMachines; _b < stateMachines_2.length; _b++) {
-                    var stateMachine = stateMachines_2[_b];
+                for (var _b = 0, stateMachines_3 = stateMachines; _b < stateMachines_3.length; _b++) {
+                    var stateMachine = stateMachines_3[_b];
                     _loop_2(stateMachine);
                 }
                 break;
@@ -2622,12 +3023,12 @@ var registerTouchInteractions = function (_a) {
                         stateMachine.pointerDown(coordinateSet.transformedX, coordinateSet.transformedY, coordinateSet.identifier);
                     });
                 };
-                for (var _c = 0, stateMachines_3 = stateMachines; _c < stateMachines_3.length; _c++) {
-                    var stateMachine = stateMachines_3[_c];
+                for (var _c = 0, stateMachines_4 = stateMachines; _c < stateMachines_4.length; _c++) {
+                    var stateMachine = stateMachines_4[_c];
                     _loop_3(stateMachine);
                 }
                 // Advance the state machine immediately so pointer down(s) takes effect synchronously
-                advanceAndDrain(0);
+                advanceAndDrain(0, { pointerDown: true });
                 break;
             }
             // Pointer click released on the canvas
@@ -2638,12 +3039,15 @@ var registerTouchInteractions = function (_a) {
                         stateMachine.pointerExit(coordinateSet.transformedX, coordinateSet.transformedY, coordinateSet.identifier);
                     });
                 };
-                for (var _d = 0, stateMachines_4 = stateMachines; _d < stateMachines_4.length; _d++) {
-                    var stateMachine = stateMachines_4[_d];
+                for (var _d = 0, stateMachines_5 = stateMachines; _d < stateMachines_5.length; _d++) {
+                    var stateMachine = stateMachines_5[_d];
                     _loop_4(stateMachine);
                 }
                 // Advance the state machine immediately so pointer up(s) takes effect synchronously
                 advanceAndDrain(0);
+                // Still inside the touch gesture — summon the keyboard if the tap focused a
+                // text input
+                summonKeyboard === null || summonKeyboard === void 0 ? void 0 : summonKeyboard();
                 // Release the primary touch lock once that finger lifts so the next
                 // touchstart can claim a new primary finger.
                 if (!enableMultiTouch &&
@@ -2658,12 +3062,13 @@ var registerTouchInteractions = function (_a) {
                         stateMachine.pointerUp(coordinateSet.transformedX, coordinateSet.transformedY, coordinateSet.identifier);
                     });
                 };
-                for (var _e = 0, stateMachines_5 = stateMachines; _e < stateMachines_5.length; _e++) {
-                    var stateMachine = stateMachines_5[_e];
+                for (var _e = 0, stateMachines_6 = stateMachines; _e < stateMachines_6.length; _e++) {
+                    var stateMachine = stateMachines_6[_e];
                     _loop_5(stateMachine);
                 }
                 // Advance the state machine immediately so pointer up(s) takes effect synchronously
                 advanceAndDrain(0);
+                summonKeyboard === null || summonKeyboard === void 0 ? void 0 : summonKeyboard();
                 break;
             }
             default:
@@ -2671,6 +3076,71 @@ var registerTouchInteractions = function (_a) {
     };
     var touchCancelCallback = function () {
         _primaryTouchId = null;
+    };
+    /**
+     * Forwards wheel and trackpad scrolling to the state machines. The page keeps
+     * the wheel unless a scroll view actually moves, so it still scrolls when
+     * Rive has nothing to scroll or a view sits at its edge.
+     */
+    var wheelCallback = function (event) {
+        // Pinch zoom arrives as a ctrl+wheel and belongs to the page. A wheel that
+        // can't be cancelled is part of a sequence the page is already scrolling;
+        // taking it too would move both.
+        if (event.ctrlKey || !event.cancelable) {
+            return;
+        }
+        // Read before the deltas: Firefox reports pixels once a delta has been
+        // read first.
+        var deltaMode = event.deltaMode;
+        var deltaX = event.deltaX;
+        var deltaY = event.deltaY;
+        // Shift+wheel scrolls sideways. Most browsers already report it on the x
+        // axis; a vertical-only view would decline it on y.
+        if (event.shiftKey && !deltaX) {
+            deltaX = deltaY;
+            deltaY = 0;
+        }
+        var boundingRect = event.currentTarget.getBoundingClientRect();
+        // A page is the canvas's visible size, the nearest the host can get to the
+        // scroll view's own.
+        var toPixelsX = deltaMode === WheelEvent.DOM_DELTA_LINE
+            ? PIXELS_PER_LINE
+            : deltaMode === WheelEvent.DOM_DELTA_PAGE
+                ? boundingRect.width
+                : 1;
+        var toPixelsY = deltaMode === WheelEvent.DOM_DELTA_LINE
+            ? PIXELS_PER_LINE
+            : deltaMode === WheelEvent.DOM_DELTA_PAGE
+                ? boundingRect.height
+                : 1;
+        // The DOM reports how far to scroll; the runtime wants how far content
+        // travels.
+        var scrollX = -deltaX * toPixelsX;
+        var scrollY = -deltaY * toPixelsY;
+        if (!scrollX && !scrollY) {
+            return;
+        }
+        // Mapping both ends of the delta keeps only the scale of the fit.
+        var _a = mapToArtboard(boundingRect, [
+            { clientX: event.clientX, clientY: event.clientY },
+            { clientX: event.clientX + scrollX, clientY: event.clientY + scrollY },
+        ]), position = _a[0], moved = _a[1];
+        // The DOM never says whether a pixel delta came from a trackpad, so it
+        // counts as precise either way, as it does in the browser's own scrolling.
+        var precise = deltaMode === WheelEvent.DOM_DELTA_PIXEL;
+        var timeStamp = event.timeStamp / 1000;
+        // A latched state machine owns the rest of its gesture, even past its edge.
+        var latched = stateMachines.filter(function (sm) { return sm.hasScrollLatch(); });
+        var ordered = latched.concat(stateMachines.filter(function (sm) { return latched.indexOf(sm) === -1; }));
+        var consumed = ordered.some(function (stateMachine) {
+            return stateMachine.pointerScroll(position.x, position.y, moved.x - position.x, moved.y - position.y, SCROLL_PHASE_UPDATE, precise, timeStamp, 0) !== 0;
+        });
+        if (!consumed) {
+            return;
+        }
+        event.preventDefault();
+        // Advance now so the scroll lands on the next frame drawn.
+        advanceAndDrain(0);
     };
     var callback = processEventCallback.bind(_this);
     canvas.addEventListener("mouseover", callback);
@@ -2686,6 +3156,8 @@ var registerTouchInteractions = function (_a) {
     });
     canvas.addEventListener("touchend", callback);
     canvas.addEventListener("touchcancel", touchCancelCallback);
+    // Not passive, or preventDefault could not keep the page from scrolling.
+    canvas.addEventListener("wheel", wheelCallback, { passive: false });
     return function () {
         canvas.removeEventListener("mouseover", callback);
         canvas.removeEventListener("mouseout", callback);
@@ -2696,12 +3168,13 @@ var registerTouchInteractions = function (_a) {
         canvas.removeEventListener("touchstart", callback);
         canvas.removeEventListener("touchend", callback);
         canvas.removeEventListener("touchcancel", touchCancelCallback);
+        canvas.removeEventListener("wheel", wheelCallback);
     };
 };
 
 
 /***/ }),
-/* 12 */
+/* 14 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -2709,6 +3182,43 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   FocusSessionState: () => (/* binding */ FocusSessionState),
 /* harmony export */   KeyboardInteractions: () => (/* binding */ KeyboardInteractions)
 /* harmony export */ });
+/* harmony import */ var _keyMap__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(15);
+/* harmony import */ var _semantics_claimedKeyEvents__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(10);
+/* harmony import */ var _textInputProxy__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(16);
+
+
+
+/**
+ * Defaults suppressed while typing (scroll/navigate/submit). Tab is traversal's; proxy
+ * Space returns earlier as a printable.
+ */
+var EDITING_NAV_CODES = new Set([
+    "Space",
+    "ArrowLeft",
+    "ArrowRight",
+    "ArrowUp",
+    "ArrowDown",
+    "Backspace",
+    "Delete",
+    "Home",
+    "End",
+    "Enter",
+    "NumpadEnter",
+]);
+/** A keystroke that types a character (not a Ctrl/Cmd shortcut). */
+function isPrintable(event) {
+    return event.key.length === 1 && !event.ctrlKey && !event.metaKey;
+}
+function isArrowKey(key) {
+    return (key === _keyMap__WEBPACK_IMPORTED_MODULE_0__.Key.left || key === _keyMap__WEBPACK_IMPORTED_MODULE_0__.Key.right || key === _keyMap__WEBPACK_IMPORTED_MODULE_0__.Key.up || key === _keyMap__WEBPACK_IMPORTED_MODULE_0__.Key.down);
+}
+/**
+ * Alt/Ctrl/Meta arrows are browser/OS shortcuts (Alt+Left = back, Cmd+Arrow, etc.).
+ * Shift is allowed: it is the spatial-navigation chord in Vivaldi/Opera.
+ */
+function hasShortcutModifier(event) {
+    return event.altKey || event.ctrlKey || event.metaKey;
+}
 /**
  * Tracks the relationship between DOM focus inside this Rive focus domain (canvas or semantic overlay)
  * and Rive's internal focus for the current focus session.
@@ -2734,7 +3244,8 @@ var FocusSessionState;
     FocusSessionState["RiveFocused"] = "riveFocused";
 })(FocusSessionState || (FocusSessionState = {}));
 /**
- * Manages keyboard and DOM focus interactions for Rive's focus domain (<canvas> or semantic overlay).
+ * Manages keyboard and DOM focus interactions for Rive's focus domain (<canvas>, semantic
+ * overlay, text input proxy). Owns the proxy and the text input session state.
  * Because keyboard events can apply on either part of the domain, we need to track what events we should
  * handle/intercept, and when to release focus back to the page outside of the domain.
  *
@@ -2746,7 +3257,7 @@ var KeyboardInteractions = /** @class */ (function () {
     function KeyboardInteractions(_a) {
         var canvas = _a.canvas, stateMachine = _a.stateMachine, hasFocusNodes = _a.hasFocusNodes, getOverlayElement = _a.getOverlayElement;
         var _this = this;
-        var _b;
+        var _b, _c;
         this.focusSessionState = FocusSessionState.NotFocused;
         /** Whether the canvas currently has browser DOM focus. */
         this.canvasHasFocus = false;
@@ -2754,6 +3265,19 @@ var KeyboardInteractions = /** @class */ (function () {
         this.focusDomainReleased = false;
         /** Overlay element currently wired with focusin/keydown listeners, if any. */
         this.currentOverlayElement = null;
+        /** Codes whose keydown an overlay widget took, so their keyup is skipped too. */
+        this.claimedKeyCodes = new Set();
+        this.textInputSessionActive = false;
+        /**
+         * The proxy is always empty: copy Rive's selection; always preventDefault.
+         */
+        this.onCopy = function (event) {
+            var _a;
+            event.preventDefault();
+            var selected = _this.mainSm.selectedText();
+            if (selected)
+                (_a = event.clipboardData) === null || _a === void 0 ? void 0 : _a.setData("text/plain", selected);
+        };
         /**
          * Handles the canvas gaining browser focus. The behavior differs based on how focus was gained -
          *
@@ -2769,10 +3293,11 @@ var KeyboardInteractions = /** @class */ (function () {
             _this.syncOverlayListener();
             _this.canvasHasFocus = true;
             _this.focusDomainReleased = false;
-            if (!_this.hasFocusNodes)
+            if (_this.isInFocusDomain(event.relatedTarget) ||
+                !_this.hasFocusNodes ||
+                _this.mainSm.focusState().hasFocus) {
                 return;
-            if (_this.mainSm.focusState().hasFocus)
-                return;
+            }
             _this.focusSessionState = FocusSessionState.EntryPending;
             // Pointer focus waits for the user's next Tab (handled in onKeyDown). Keyboard focus enters now.
             if (!_this.isKeyboardDrivenFocus())
@@ -2791,11 +3316,13 @@ var KeyboardInteractions = /** @class */ (function () {
          * When we're not in either of those buckets, it's safe to call `clearFocus()` on the SMI.
          */
         this.onCanvasBlur = function (event) {
+            // Must stay before the state reset because beginTextInputSession sets the session state and
+            // then focuses the proxy, which synchronously blurs the canvas.
+            if (_this.inputProxy.owns(event.relatedTarget))
+                return;
             _this.focusSessionState = FocusSessionState.NotFocused;
             _this.canvasHasFocus = false;
-            var movedWithinFocusDomain = _this.isInFocusDomain(event.relatedTarget);
-            var documentLostFocus = event.relatedTarget === null && !document.hasFocus();
-            if (movedWithinFocusDomain || documentLostFocus)
+            if (_this.blurStaysWithRive(event.relatedTarget))
                 return;
             _this.mainSm.clearFocus();
         };
@@ -2821,15 +3348,44 @@ var KeyboardInteractions = /** @class */ (function () {
         this.onFocusDomainHostFocusIn = function (event) {
             _this.syncOverlayListener();
             _this.onOverlayFocusIn(event);
+            // Focus entering the proxy re-enters the focus domain, so clear any earlier Tab-out
+            // release, or onKeyDown would drop the session's keystrokes.
+            if (_this.inputProxy.owns(event.target)) {
+                _this.focusDomainReleased = false;
+            }
         };
+        /**
+         * Handles keydown events in the Rive focus domain. We route certain keys to different functions, with the following
+         * fallback behavior:
+         * 1. Tab/Shift+Tab - check if keyInput() takes this key, if not, call focusNext/Previous traversal if there are focus nodes
+         * 2. Check - if a semantic overlay element's key handler claimed the event, don't intercept the key event further
+         * 3. Send key to `keyInput()` on Rive state machine if applicable.
+         * 4. If the keyInput returned false, and the key is directional arrow keys, call directional focus methods on state machine
+         * 5. Printables: in a session the proxy's input event supplies text; otherwise textInput().
+         *    A printable fires both keyInput and textInput even if a listener claims it.
+         * @param event KeyboardEvent
+         * @returns void
+         */
         this.onKeyDown = function (event) {
             _this.syncOverlayListener();
+            // Keys that are part of an IME composition belong to the IME (candidate
+            // navigation, commit). Safari reports the first one as keyCode 229 with
+            // isComposing still false.
+            if (event.isComposing || event.keyCode === 229)
+                return;
             // After Tab exits the last Rive node, ignore keys until focus re-enters the focus domain.
             if (_this.focusDomainReleased)
                 return;
             if (!_this.shouldRiveHandleKeyEvent(event))
                 return;
-            if (event.code === "Tab" && _this.hasFocusNodes) {
+            if (event.key === "Tab" && _this.hasFocusNodes) {
+                // Tab listeners are matched per phase (down/repeat/up), as in the editor, so
+                // each event is offered on its own; one that isn't claimed traverses.
+                if (_this.mainSm.focusState().hasFocus &&
+                    _this.mainSm.keyInput(_keyMap__WEBPACK_IMPORTED_MODULE_0__.Key.tab, (0,_keyMap__WEBPACK_IMPORTED_MODULE_0__.modifiersFromEvent)(event), true, event.repeat)) {
+                    event.preventDefault();
+                    return;
+                }
                 var forward = !event.shiftKey;
                 var focusMoved = forward ? _this.mainSm.focusNext() : _this.mainSm.focusPrevious();
                 var focusState = _this.mainSm.focusState();
@@ -2842,12 +3398,73 @@ var KeyboardInteractions = /** @class */ (function () {
                 }
                 else {
                     // No more traversable nodes — release Tab to the page.
+                    if (document.activeElement !== _this.canvas &&
+                        _this.isInFocusDomain(document.activeElement)) {
+                        // The browser's default Tab starts from the focused element; from an overlay element,
+                        // the nearest stop backward is the canvas itself. Start it from the
+                        // canvas instead, so a Shift+Tab goes to the proper element before Rive.
+                        _this.canvas.focus({ preventScroll: true });
+                    }
                     _this.focusSessionState = FocusSessionState.NotFocused;
                     _this.focusDomainReleased = true;
                     _this.canvasHasFocus = false;
                 }
                 _this.syncOverlayListener();
+                return;
             }
+            // A semantic overlay widget (roving radio/tab group, slider, Enter/Space activation)
+            // already acted on this key at its target, so don't act on it twice.
+            if ((0,_semantics_claimedKeyEvents__WEBPACK_IMPORTED_MODULE_1__.isKeyEventClaimed)(event)) {
+                _this.claimedKeyCodes.add(event.code);
+                return;
+            }
+            // A new unclaimed press: drop any claim whose keyup never arrived.
+            _this.claimedKeyCodes.delete(event.code);
+            var fromProxy = _this.textInputSessionActive && _this.inputProxy.owns(event.target);
+            var expectsKeyboardInput = _this.mainSm.focusState().expectsKeyboardInput;
+            // The focused node gets first refusal (a TextInput's caret, or a keyboard listener
+            // on that key). Keys with no Rive equivalent map to null and aren't dispatched.
+            var key = (0,_keyMap__WEBPACK_IMPORTED_MODULE_0__.keyboardEventToRiveKey)(event);
+            var consumed = key !== null &&
+                _this.mainSm.keyInput(key, (0,_keyMap__WEBPACK_IMPORTED_MODULE_0__.modifiersFromEvent)(event), true, event.repeat);
+            // An arrow key with no consumed key input moves focus spatially. While a Rive node holds focus,
+            // arrows never scroll the page
+            if (!consumed && key !== null && isArrowKey(key) && !hasShortcutModifier(event)) {
+                consumed =
+                    _this.focusInDirection(key) || _this.mainSm.focusState().hasFocus;
+            }
+            if (isPrintable(event)) {
+                // During a session the printable must reach the proxy: its input event is the
+                // (IME- and dead-key-correct) text source, and C++ inserts nothing from keyInput.
+                if (fromProxy)
+                    return;
+                // Session live but focus elsewhere in Rive: refocus the proxy so the default inserts there.
+                if (_this.textInputSessionActive && _this.isInFocusDomain(event.target)) {
+                    _this.inputProxy.focus();
+                    return;
+                }
+                if (!_this.textInputSessionActive && expectsKeyboardInput) {
+                    _this.mainSm.textInput(event.key);
+                }
+            }
+            // Rive consumed it, or an unmodified editing key while typing (would scroll/submit).
+            var typing = fromProxy || expectsKeyboardInput;
+            if (consumed ||
+                (typing && !hasShortcutModifier(event) && EDITING_NAV_CODES.has(event.code))) {
+                event.preventDefault();
+            }
+        };
+        this.onKeyUp = function (event) {
+            if (event.isComposing || event.keyCode === 229)
+                return;
+            if (_this.claimedKeyCodes.delete(event.code))
+                return;
+            if (_this.focusSessionState === FocusSessionState.NotFocused)
+                return;
+            var key = (0,_keyMap__WEBPACK_IMPORTED_MODULE_0__.keyboardEventToRiveKey)(event);
+            if (key === null)
+                return;
+            _this.mainSm.keyInput(key, (0,_keyMap__WEBPACK_IMPORTED_MODULE_0__.modifiersFromEvent)(event), false, false);
         };
         this.canvas = canvas;
         this.mainSm = stateMachine;
@@ -2857,9 +3474,74 @@ var KeyboardInteractions = /** @class */ (function () {
         canvas.addEventListener("focus", this.onCanvasFocus);
         canvas.addEventListener("blur", this.onCanvasBlur);
         canvas.addEventListener("keydown", this.onKeyDown);
+        canvas.addEventListener("keyup", this.onKeyUp);
         this.focusDomainHost.addEventListener("focusin", this.onFocusDomainHostFocusIn);
         this.syncOverlayListener();
+        this.inputProxy = new _textInputProxy__WEBPACK_IMPORTED_MODULE_2__.TextInputProxy({
+            container: (_c = canvas.parentElement) !== null && _c !== void 0 ? _c : document.body,
+            canvas: canvas,
+            textInput: function (text) { return _this.mainSm.textInput(text); },
+            // Proxy keystrokes go through the same handlers as the canvas.
+            onKeyDown: this.onKeyDown,
+            onKeyUp: this.onKeyUp,
+            onCopy: this.onCopy,
+            onBlur: function (relatedTarget) { return _this.handleProxyBlur(relatedTarget); },
+        });
     }
+    KeyboardInteractions.prototype.isTextInputSessionActive = function () {
+        return this.textInputSessionActive;
+    };
+    /** Session active and the proxy holds DOM focus. */
+    KeyboardInteractions.prototype.isEditingHostFocused = function () {
+        return this.textInputSessionActive && this.inputProxy.hasDomFocus();
+    };
+    /** @param focusProxy move DOM focus to the proxy; false leaves it where it is. */
+    KeyboardInteractions.prototype.beginTextInputSession = function (focusProxy) {
+        this.textInputSessionActive = true;
+        this.focusSessionState = FocusSessionState.RiveFocused;
+        if (focusProxy)
+            this.inputProxy.focus();
+    };
+    /** @param fromBlur focus is already leaving; don't park it on the canvas. */
+    KeyboardInteractions.prototype.endTextInputSession = function (fromBlur) {
+        if (fromBlur === void 0) { fromBlur = false; }
+        if (!this.textInputSessionActive)
+            return;
+        this.textInputSessionActive = false;
+        this.inputProxy.endSession();
+        if (fromBlur || !this.inputProxy.hasDomFocus())
+            return;
+        // Nothing took DOM focus from the proxy (e.g. semantics is off). Park it on the
+        // canvas so keys keep reaching Rive; onCanvasFocus ignores focus from the input proxy.
+        this.canvas.focus({ preventScroll: true });
+    };
+    /** Must run synchronously in the pointer gesture or mobile keyboards won't open. */
+    KeyboardInteractions.prototype.summonForPointer = function () {
+        if (this.textInputSessionActive)
+            this.inputProxy.focus();
+        else
+            this.beginTextInputSession(true);
+    };
+    Object.defineProperty(KeyboardInteractions.prototype, "editingHost", {
+        /** The text-input proxy, for the semantics layer to decorate while editing. */
+        get: function () {
+            return this.inputProxy;
+        },
+        enumerable: false,
+        configurable: true
+    });
+    KeyboardInteractions.prototype.handleProxyBlur = function (relatedTarget) {
+        // Teardown already in progress (endTextInputSession blurred the proxy).
+        if (!this.textInputSessionActive)
+            return;
+        // Still in Rive or the document blurred: keep the session (pollFocusState tears down).
+        if (this.blurStaysWithRive(relatedTarget))
+            return;
+        // Blurred out of Rive entirely: release C++ focus and end the session.
+        this.mainSm.clearFocus();
+        this.endTextInputSession(true);
+        this.focusSessionState = FocusSessionState.NotFocused;
+    };
     /**
      * Set the FocusSessionState. Useful for invoking a Rive "blur" without actually blurring from the <canvas>. This
      * helps put the DOM focus state on the canvas rather than the <body>, so the user doesn't lose the spot in page navigation
@@ -2878,6 +3560,26 @@ var KeyboardInteractions = /** @class */ (function () {
     KeyboardInteractions.prototype.notifyRiveFocused = function () {
         this.focusSessionState = FocusSessionState.RiveFocused;
     };
+    /** Blur into the focus domain, or the whole document losing focus (tab/window switch). */
+    KeyboardInteractions.prototype.blurStaysWithRive = function (relatedTarget) {
+        return (this.isInFocusDomain(relatedTarget) ||
+            (relatedTarget === null && !document.hasFocus()));
+    };
+    /** Arrow keys map to directional focus; anything else is not a focus move. */
+    KeyboardInteractions.prototype.focusInDirection = function (key) {
+        switch (key) {
+            case _keyMap__WEBPACK_IMPORTED_MODULE_0__.Key.left:
+                return this.mainSm.focusLeft();
+            case _keyMap__WEBPACK_IMPORTED_MODULE_0__.Key.right:
+                return this.mainSm.focusRight();
+            case _keyMap__WEBPACK_IMPORTED_MODULE_0__.Key.up:
+                return this.mainSm.focusUp();
+            case _keyMap__WEBPACK_IMPORTED_MODULE_0__.Key.down:
+                return this.mainSm.focusDown();
+            default:
+                return false;
+        }
+    };
     /**
      * Determine if Rive should handle keyboard input. If session state is `NotFocused` - no.
      * DOM focus stays parked on the canvas after Rive releases focus internally, and that Tab
@@ -2895,13 +3597,11 @@ var KeyboardInteractions = /** @class */ (function () {
         var eventOnCanvas = event.target === this.canvas;
         return inFocusDomain || this.canvasHasFocus || eventOnCanvas;
     };
-    /**
-     * The Rive focus domain: the DOM that counts as "inside" Rive for focus purposes — today the
-     * canvas itself OR the accessibility overlay subtree. Anything added later belongs here, so
-     * session bookkeeping and keydown routing pick it up for free.
-     */
+    /** DOM that counts as inside Rive for focus: canvas, overlay subtree, text-input proxy. */
     KeyboardInteractions.prototype.isInFocusDomain = function (target) {
         if (target === this.canvas)
+            return true;
+        if (this.inputProxy.owns(target))
             return true;
         return this.isInOverlay(target);
     };
@@ -2913,15 +3613,19 @@ var KeyboardInteractions = /** @class */ (function () {
         return (_c = (_b = (_a = this.getOverlayElement) === null || _a === void 0 ? void 0 : _a.call(this)) === null || _b === void 0 ? void 0 : _b.contains(target)) !== null && _c !== void 0 ? _c : false;
     };
     KeyboardInteractions.prototype.syncOverlayListener = function () {
-        var _a, _b, _c, _d, _e, _f;
+        var _a, _b, _c, _d, _e, _f, _g, _h;
         var nextOverlayElement = (_b = (_a = this.getOverlayElement) === null || _a === void 0 ? void 0 : _a.call(this)) !== null && _b !== void 0 ? _b : null;
         if (nextOverlayElement === this.currentOverlayElement)
             return;
         (_c = this.currentOverlayElement) === null || _c === void 0 ? void 0 : _c.removeEventListener("focusin", this.onOverlayFocusIn);
-        (_d = this.currentOverlayElement) === null || _d === void 0 ? void 0 : _d.removeEventListener("keydown", this.onKeyDown, true);
+        (_d = this.currentOverlayElement) === null || _d === void 0 ? void 0 : _d.removeEventListener("keydown", this.onKeyDown);
+        (_e = this.currentOverlayElement) === null || _e === void 0 ? void 0 : _e.removeEventListener("keyup", this.onKeyUp);
         this.currentOverlayElement = nextOverlayElement;
-        (_e = this.currentOverlayElement) === null || _e === void 0 ? void 0 : _e.addEventListener("focusin", this.onOverlayFocusIn);
-        (_f = this.currentOverlayElement) === null || _f === void 0 ? void 0 : _f.addEventListener("keydown", this.onKeyDown, true);
+        (_f = this.currentOverlayElement) === null || _f === void 0 ? void 0 : _f.addEventListener("focusin", this.onOverlayFocusIn);
+        // Bubble phase, so a semantic widget's own key handler runs first and can claim
+        // the key via claimKeyEvent (see onKeyDown).
+        (_g = this.currentOverlayElement) === null || _g === void 0 ? void 0 : _g.addEventListener("keydown", this.onKeyDown);
+        (_h = this.currentOverlayElement) === null || _h === void 0 ? void 0 : _h.addEventListener("keyup", this.onKeyUp);
     };
     /**
      * Whether the canvas currently matches :focus-visible — the browser's heuristic for keyboard-
@@ -2947,13 +3651,22 @@ var KeyboardInteractions = /** @class */ (function () {
         return true;
     };
     KeyboardInteractions.prototype.cleanup = function () {
-        var _a, _b;
+        var _a, _b, _c;
         this.canvas.removeEventListener("focus", this.onCanvasFocus);
         this.canvas.removeEventListener("blur", this.onCanvasBlur);
         this.canvas.removeEventListener("keydown", this.onKeyDown);
+        this.canvas.removeEventListener("keyup", this.onKeyUp);
+        this.claimedKeyCodes.clear();
         this.focusDomainHost.removeEventListener("focusin", this.onFocusDomainHostFocusIn);
         (_a = this.currentOverlayElement) === null || _a === void 0 ? void 0 : _a.removeEventListener("focusin", this.onOverlayFocusIn);
-        (_b = this.currentOverlayElement) === null || _b === void 0 ? void 0 : _b.removeEventListener("keydown", this.onKeyDown, true);
+        (_b = this.currentOverlayElement) === null || _b === void 0 ? void 0 : _b.removeEventListener("keydown", this.onKeyDown);
+        (_c = this.currentOverlayElement) === null || _c === void 0 ? void 0 : _c.removeEventListener("keyup", this.onKeyUp);
+        // Removing a focused element drops focus to <body> with no blur; park on the canvas.
+        if (this.inputProxy.hasDomFocus()) {
+            this.canvas.focus({ preventScroll: true });
+        }
+        this.inputProxy.cleanup();
+        this.textInputSessionActive = false;
     };
     return KeyboardInteractions;
 }());
@@ -2961,7 +3674,592 @@ var KeyboardInteractions = /** @class */ (function () {
 
 
 /***/ }),
-/* 13 */
+/* 15 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Key: () => (/* binding */ Key),
+/* harmony export */   KeyModifiers: () => (/* binding */ KeyModifiers),
+/* harmony export */   keyboardEventToRiveKey: () => (/* binding */ keyboardEventToRiveKey),
+/* harmony export */   modifiersFromEvent: () => (/* binding */ modifiersFromEvent)
+/* harmony export */ });
+/*
+ * Maps DOM keyboard events to the GLFW-style key codes and modifier bitmask
+ * that StateMachineInstance.keyInput() expects. Values mirror `enum class Key`
+ * and `enum class KeyModifiers` in rive-runtime focusable.hpp;
+ * they are stable GLFW codes, so they live here as constants instead of an
+ * embind enum.
+ */
+var __spreadArray = (undefined && undefined.__spreadArray) || function (to, from, pack) {
+    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
+        if (ar || !(i in from)) {
+            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+            ar[i] = from[i];
+        }
+    }
+    return to.concat(ar || Array.prototype.slice.call(from));
+};
+var Key = {
+    space: 32,
+    apostrophe: 39, // '
+    comma: 44, // ,
+    minus: 45, // -
+    period: 46, // .
+    slash: 47, // /
+    key0: 48,
+    key1: 49,
+    key2: 50,
+    key3: 51,
+    key4: 52,
+    key5: 53,
+    key6: 54,
+    key7: 55,
+    key8: 56,
+    key9: 57,
+    semicolon: 59, // ;
+    equal: 61, // =
+    a: 65,
+    b: 66,
+    c: 67,
+    d: 68,
+    e: 69,
+    f: 70,
+    g: 71,
+    h: 72,
+    i: 73,
+    j: 74,
+    k: 75,
+    l: 76,
+    m: 77,
+    n: 78,
+    o: 79,
+    p: 80,
+    q: 81,
+    r: 82,
+    s: 83,
+    t: 84,
+    u: 85,
+    v: 86,
+    w: 87,
+    x: 88,
+    y: 89,
+    z: 90,
+    leftBracket: 91, // [
+    backslash: 92, // \
+    rightBracket: 93, // ]
+    graveAccent: 96, // `
+    world1: 161, // non-US #1
+    world2: 162, // non-US #2
+    escape: 256,
+    enter: 257,
+    tab: 258,
+    backspace: 259,
+    insert: 260,
+    deleteKey: 261,
+    right: 262,
+    left: 263,
+    down: 264,
+    up: 265,
+    pageUp: 266,
+    pageDown: 267,
+    home: 268,
+    end: 269,
+    capsLock: 280,
+    scrollLock: 281,
+    numLock: 282,
+    printScreen: 283,
+    pause: 284,
+    f1: 290,
+    f2: 291,
+    f3: 292,
+    f4: 293,
+    f5: 294,
+    f6: 295,
+    f7: 296,
+    f8: 297,
+    f9: 298,
+    f10: 299,
+    f11: 300,
+    f12: 301,
+    f13: 302,
+    f14: 303,
+    f15: 304,
+    f16: 305,
+    f17: 306,
+    f18: 307,
+    f19: 308,
+    f20: 309,
+    f21: 310,
+    f22: 311,
+    f23: 312,
+    f24: 313,
+    f25: 314,
+    kp0: 320,
+    kp1: 321,
+    kp2: 322,
+    kp3: 323,
+    kp4: 324,
+    kp5: 325,
+    kp6: 326,
+    kp7: 327,
+    kp8: 328,
+    kp9: 329,
+    kpDecimal: 330,
+    kpDivide: 331,
+    kpMultiply: 332,
+    kpSubtract: 333,
+    kpAdd: 334,
+    kpEnter: 335,
+    kpEqual: 336,
+    leftShift: 340,
+    leftControl: 341,
+    leftAlt: 342,
+    leftSuper: 343,
+    rightShift: 344,
+    rightControl: 345,
+    rightAlt: 346,
+    rightSuper: 347,
+    menu: 348,
+};
+var KeyModifiers = {
+    none: 0,
+    shift: 1 << 0,
+    ctrl: 1 << 1,
+    alt: 1 << 2,
+    meta: 1 << 3,
+};
+// Physical key (KeyboardEvent.code) to Rive key, by US-QWERTY position.
+var CODE_TO_KEY = {
+    // Modifiers are keys too (the editor sends them), and are also in the bitmask.
+    ShiftLeft: Key.leftShift,
+    ShiftRight: Key.rightShift,
+    ControlLeft: Key.leftControl,
+    ControlRight: Key.rightControl,
+    AltLeft: Key.leftAlt,
+    AltRight: Key.rightAlt,
+    MetaLeft: Key.leftSuper,
+    MetaRight: Key.rightSuper,
+    KeyA: Key.a,
+    KeyB: Key.b,
+    KeyC: Key.c,
+    KeyD: Key.d,
+    KeyE: Key.e,
+    KeyF: Key.f,
+    KeyG: Key.g,
+    KeyH: Key.h,
+    KeyI: Key.i,
+    KeyJ: Key.j,
+    KeyK: Key.k,
+    KeyL: Key.l,
+    KeyM: Key.m,
+    KeyN: Key.n,
+    KeyO: Key.o,
+    KeyP: Key.p,
+    KeyQ: Key.q,
+    KeyR: Key.r,
+    KeyS: Key.s,
+    KeyT: Key.t,
+    KeyU: Key.u,
+    KeyV: Key.v,
+    KeyW: Key.w,
+    KeyX: Key.x,
+    KeyY: Key.y,
+    KeyZ: Key.z,
+    Digit0: Key.key0,
+    Digit1: Key.key1,
+    Digit2: Key.key2,
+    Digit3: Key.key3,
+    Digit4: Key.key4,
+    Digit5: Key.key5,
+    Digit6: Key.key6,
+    Digit7: Key.key7,
+    Digit8: Key.key8,
+    Digit9: Key.key9,
+    Numpad0: Key.kp0,
+    Numpad1: Key.kp1,
+    Numpad2: Key.kp2,
+    Numpad3: Key.kp3,
+    Numpad4: Key.kp4,
+    Numpad5: Key.kp5,
+    Numpad6: Key.kp6,
+    Numpad7: Key.kp7,
+    Numpad8: Key.kp8,
+    Numpad9: Key.kp9,
+    NumpadDecimal: Key.kpDecimal,
+    NumpadDivide: Key.kpDivide,
+    NumpadMultiply: Key.kpMultiply,
+    NumpadSubtract: Key.kpSubtract,
+    NumpadAdd: Key.kpAdd,
+    NumpadEnter: Key.kpEnter,
+    NumpadEqual: Key.kpEqual,
+    Minus: Key.minus,
+    Equal: Key.equal,
+    BracketLeft: Key.leftBracket,
+    BracketRight: Key.rightBracket,
+    Backslash: Key.backslash,
+    Semicolon: Key.semicolon,
+    Quote: Key.apostrophe,
+    Backquote: Key.graveAccent,
+    Comma: Key.comma,
+    Period: Key.period,
+    Slash: Key.slash,
+    IntlBackslash: Key.world1,
+    IntlRo: Key.world2,
+    Space: Key.space,
+    Enter: Key.enter,
+    Tab: Key.tab,
+    Backspace: Key.backspace,
+    Insert: Key.insert,
+    Delete: Key.deleteKey,
+    Escape: Key.escape,
+    ArrowRight: Key.right,
+    ArrowLeft: Key.left,
+    ArrowDown: Key.down,
+    ArrowUp: Key.up,
+    PageUp: Key.pageUp,
+    PageDown: Key.pageDown,
+    Home: Key.home,
+    End: Key.end,
+    CapsLock: Key.capsLock,
+    ScrollLock: Key.scrollLock,
+    NumLock: Key.numLock,
+    PrintScreen: Key.printScreen,
+    Pause: Key.pause,
+    ContextMenu: Key.menu,
+    F1: Key.f1,
+    F2: Key.f2,
+    F3: Key.f3,
+    F4: Key.f4,
+    F5: Key.f5,
+    F6: Key.f6,
+    F7: Key.f7,
+    F8: Key.f8,
+    F9: Key.f9,
+    F10: Key.f10,
+    F11: Key.f11,
+    F12: Key.f12,
+    F13: Key.f13,
+    F14: Key.f14,
+    F15: Key.f15,
+    F16: Key.f16,
+    F17: Key.f17,
+    F18: Key.f18,
+    F19: Key.f19,
+    F20: Key.f20,
+    F21: Key.f21,
+    F22: Key.f22,
+    F23: Key.f23,
+    F24: Key.f24,
+    F25: Key.f25,
+};
+// Unshifted characters (event.key, lowercased) that name a Rive key.
+var CHAR_TO_KEY = (function () {
+    var map = {
+        " ": Key.space,
+        "'": Key.apostrophe,
+        ",": Key.comma,
+        "-": Key.minus,
+        ".": Key.period,
+        "/": Key.slash,
+        ";": Key.semicolon,
+        "=": Key.equal,
+        "[": Key.leftBracket,
+        "\\": Key.backslash,
+        "]": Key.rightBracket,
+        "`": Key.graveAccent,
+    };
+    for (var c = 0; c < 26; c++)
+        map[String.fromCharCode(97 + c)] = Key.a + c;
+    for (var d = 0; d <= 9; d++)
+        map[String(d)] = Key.key0 + d;
+    return map;
+})();
+// Non-printable event.key values; each shares its name with its code.
+var NAMED_KEYS = new Set(__spreadArray([
+    "Enter",
+    "Tab",
+    "Backspace",
+    "Insert",
+    "Delete",
+    "Escape",
+    "ArrowRight",
+    "ArrowLeft",
+    "ArrowDown",
+    "ArrowUp",
+    "PageUp",
+    "PageDown",
+    "Home",
+    "End",
+    "CapsLock",
+    "ScrollLock",
+    "NumLock",
+    "PrintScreen",
+    "Pause",
+    "ContextMenu"
+], Array.from({ length: 25 }, function (_, i) { return "F".concat(i + 1); }), true));
+/**
+ * Maps a KeyboardEvent to a Rive key, or null if Rive has no equivalent.
+ *
+ * Resolves the logical key: what the user's layout labels the key, ignoring
+ * Shift, so a listener on "A" fires on AZERTY's A too. `event.key` is preferred;
+ * `event.code` is the fallback when `key` isn't a plain unshifted character
+ * (shifted symbols, Option/AltGr output, non-Latin letters, dead keys).
+ * Digit-row and numpad keys skip the character lookup so AZERTY's digit row
+ * still reports digits and numpad digits stay distinct from the digit row.
+ */
+function keyboardEventToRiveKey(event) {
+    var _a, _b;
+    var code = event.code, key = event.key;
+    if (NAMED_KEYS.has(key)) {
+        // NumpadEnter reports key "Enter"; keep it distinct.
+        return code === "NumpadEnter" ? Key.kpEnter : (_a = CODE_TO_KEY[key]) !== null && _a !== void 0 ? _a : null;
+    }
+    if (!code.startsWith("Digit") && !code.startsWith("Numpad") && key) {
+        var fromChar = CHAR_TO_KEY[key.toLowerCase()];
+        if (fromChar !== undefined)
+            return fromChar;
+    }
+    return (_b = CODE_TO_KEY[code]) !== null && _b !== void 0 ? _b : null;
+}
+function modifiersFromEvent(event) {
+    var modifiers = KeyModifiers.none;
+    if (event.shiftKey)
+        modifiers |= KeyModifiers.shift;
+    if (event.ctrlKey)
+        modifiers |= KeyModifiers.ctrl;
+    if (event.altKey)
+        modifiers |= KeyModifiers.alt;
+    if (event.metaKey)
+        modifiers |= KeyModifiers.meta;
+    return modifiers;
+}
+
+
+/***/ }),
+/* 16 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   TextInputProxy: () => (/* binding */ TextInputProxy)
+/* harmony export */ });
+/* harmony import */ var _canvasOffset__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(11);
+
+// 16px: the smallest font size at which iOS Safari doesn't zoom on focus
+var FONT_SIZE_PX = 16;
+/** Capture-critical attributes decorate() must not touch. */
+var PROTECTED_ATTRS = new Set([
+    "type",
+    "value",
+    "style",
+    "tabindex",
+    "autocapitalize",
+    "autocomplete",
+    "autocorrect",
+    "spellcheck",
+]);
+/**
+ * Invisible per-instance <input> capturing IME/dead-key/paste text; focusable inside a
+ * gesture to raise mobile keyboards. Always empty: C++ owns value and caret. Decorated
+ * for AT only while it holds DOM focus.
+ */
+var TextInputProxy = /** @class */ (function () {
+    function TextInputProxy(params) {
+        var _this = this;
+        // True between compositionstart/compositionend; we never commit mid-composition.
+        this.composing = false;
+        // Names set by decorate(), removed by resetDecoration().
+        this.decoratedKeys = new Set();
+        // Last written left/top, to skip no-op style writes.
+        this.lastLeft = NaN;
+        this.lastTop = NaN;
+        /** Re-sync before input: the canvas may have scrolled since the session began. */
+        this.reposition = function () { return _this.positionOverCanvas(); };
+        this.onCompositionStart = function () {
+            _this.composing = true;
+        };
+        this.onCompositionEnd = function () {
+            _this.composing = false;
+            // The composed text is now committed in element.value; forward it here. A
+            // trailing `input` event (order varies by browser) then sees an empty field.
+            _this.commit();
+        };
+        this.onInput = function () {
+            if (_this.composing)
+                return;
+            _this.commit();
+        };
+        // An <input type=text> strips line breaks from its value, so forward the clipboard
+        // text directly. Core's single-line fields strip them themselves.
+        this.onPaste = function (event) {
+            var _a;
+            var text = (_a = event.clipboardData) === null || _a === void 0 ? void 0 : _a.getData("text/plain");
+            if (!text)
+                return;
+            event.preventDefault();
+            _this.params.textInput(text.replace(/\r\n?/g, "\n"));
+        };
+        this.onBlur = function (event) {
+            _this.params.onBlur(event.relatedTarget);
+        };
+        this.params = params;
+        this.element = this.createElement();
+        this.positionOverCanvas();
+        // Order vs. the overlay is unspecified; fine, Tab release starts from the canvas.
+        this.params.container.appendChild(this.element);
+    }
+    // Registered first so it runs before the key handler inserts or moves the caret.
+    TextInputProxy.prototype.listeners = function () {
+        return [
+            ["keydown", this.reposition],
+            ["beforeinput", this.reposition],
+            ["keydown", this.params.onKeyDown],
+            ["keyup", this.params.onKeyUp],
+            ["input", this.onInput],
+            ["compositionstart", this.onCompositionStart],
+            ["compositionend", this.onCompositionEnd],
+            ["paste", this.onPaste],
+            ["copy", this.params.onCopy],
+            ["blur", this.onBlur],
+        ];
+    };
+    TextInputProxy.prototype.createElement = function () {
+        var el = document.createElement("input");
+        el.type = "text";
+        // Focusable but never in native tab order (Rive drives traversal synthetically),
+        // and invisible without display:none (which would forbid focus).
+        el.tabIndex = -1;
+        el.setAttribute("aria-hidden", "true");
+        // Always empty, so autocapitalize/autocorrect would misfire.
+        el.setAttribute("autocapitalize", "off");
+        el.setAttribute("autocomplete", "off");
+        el.setAttribute("autocorrect", "off");
+        el.spellcheck = false;
+        // Over the canvas (not display:none) so iOS doesn't scroll-jump on keyboard open.
+        // font-size must stay 16px or iOS Safari zooms on focus.
+        el.style.cssText =
+            "position:absolute;width:1px;height:1px;padding:0;margin:0;border:0;" +
+                "outline:none;opacity:0;background:transparent;color:transparent;" +
+                "caret-color:transparent;overflow:hidden;resize:none;z-index:0;" +
+                // Focused programmatically only; must not swallow clicks
+                "pointer-events:none;" +
+                "font-size:".concat(FONT_SIZE_PX, "px;line-height:1;");
+        for (var _i = 0, _a = this.listeners(); _i < _a.length; _i++) {
+            var _b = _a[_i], type = _b[0], listener = _b[1];
+            el.addEventListener(type, listener);
+        }
+        return el;
+    };
+    TextInputProxy.prototype.positionOverCanvas = function () {
+        // Track the canvas (browsers scroll to the caret); clamp on-screen, one caret line box
+        // (FONT_SIZE_PX) from the far edges, or the root scrolls to reveal it.
+        var _a = (0,_canvasOffset__WEBPACK_IMPORTED_MODULE_0__.canvasOffset)(this.params.canvas), top = _a.top, left = _a.left;
+        if (window.innerHeight > 0) {
+            var r = this.params.canvas.getBoundingClientRect();
+            top += clamp(r.top, 0, window.innerHeight - FONT_SIZE_PX) - r.top;
+            left += clamp(r.left, 0, window.innerWidth - FONT_SIZE_PX) - r.left;
+        }
+        if (left !== this.lastLeft) {
+            this.element.style.left = "".concat(left, "px");
+            this.lastLeft = left;
+        }
+        if (top !== this.lastTop) {
+            this.element.style.top = "".concat(top, "px");
+            this.lastTop = top;
+        }
+    };
+    /**
+     * Forward the field's text to Rive and clear it.
+     *
+     * TODO: iOS won't autorepeat Backspace in an empty field (needs a text mirror).
+     * */
+    TextInputProxy.prototype.commit = function () {
+        var text = this.element.value;
+        if (!text)
+            return;
+        this.element.value = "";
+        this.params.textInput(text);
+    };
+    /** Clear any transient value and decoration. Does not blur the element. */
+    TextInputProxy.prototype.endSession = function () {
+        this.element.value = "";
+        // Browsers fire compositionend on blur, but a stuck flag would drop every
+        // keystroke of the next session.
+        this.composing = false;
+        // Also covers blur-out, which bypasses the overlay.
+        this.resetDecoration();
+    };
+    /** Must be called synchronously inside a gesture on iOS to raise the keyboard. */
+    TextInputProxy.prototype.focus = function () {
+        // Reposition first: iOS scrolls the focused input into view when the keyboard opens.
+        this.positionOverCanvas();
+        this.element.focus({ preventScroll: true });
+    };
+    TextInputProxy.prototype.hasDomFocus = function () {
+        return document.activeElement === this.element;
+    };
+    TextInputProxy.prototype.owns = function (target) {
+        return target === this.element;
+    };
+    /** See EditingHost.decorate. */
+    TextInputProxy.prototype.decorate = function (attrs) {
+        // aria-hidden outranks every attribute set below, so it must come off before this
+        // element can stand in as the accessible element for the focused node.
+        this.element.removeAttribute("aria-hidden");
+        for (var _i = 0, _a = Object.entries(attrs); _i < _a.length; _i++) {
+            var _b = _a[_i], name_1 = _b[0], value = _b[1];
+            // Never override capture attrs.
+            if (PROTECTED_ATTRS.has(name_1.toLowerCase()))
+                continue;
+            if (value === null) {
+                this.element.removeAttribute(name_1);
+                this.decoratedKeys.delete(name_1);
+            }
+            else {
+                // Skip no-op writes: setting an attribute to the value it already has still
+                // emits a mutation, and assistive tech is focused on this element mid-edit.
+                if (this.element.getAttribute(name_1) !== value) {
+                    this.element.setAttribute(name_1, value);
+                }
+                this.decoratedKeys.add(name_1);
+            }
+        }
+    };
+    /**
+     * type=password for obscured fields so AT doesn't echo keys.
+     * TODO: source "type" from Core, not semantics.
+     */
+    TextInputProxy.prototype.setSecure = function (secure) {
+        var type = secure ? "password" : "text";
+        if (this.element.type !== type)
+            this.element.type = type;
+    };
+    /** Drop all decoration and return to the AT-invisible baseline. */
+    TextInputProxy.prototype.resetDecoration = function () {
+        var _this = this;
+        this.setSecure(false);
+        this.decoratedKeys.forEach(function (name) { return _this.element.removeAttribute(name); });
+        this.decoratedKeys.clear();
+        this.element.setAttribute("aria-hidden", "true");
+    };
+    TextInputProxy.prototype.cleanup = function () {
+        for (var _i = 0, _a = this.listeners(); _i < _a.length; _i++) {
+            var _b = _a[_i], type = _b[0], listener = _b[1];
+            this.element.removeEventListener(type, listener);
+        }
+        this.element.remove();
+    };
+    return TextInputProxy;
+}());
+
+function clamp(v, min, max) {
+    return Math.min(Math.max(v, min), Math.max(min, max));
+}
+
+
+/***/ }),
+/* 17 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -3014,7 +4312,7 @@ function sanitizeUrl(url) {
 
 
 /***/ }),
-/* 14 */
+/* 18 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -3314,7 +4612,7 @@ var createFinalization = function (target, finalizable) {
 
 
 /***/ }),
-/* 15 */
+/* 19 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -3486,7 +4784,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _animation__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(1);
 /* harmony import */ var _runtimeLoader__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(3);
 /* harmony import */ var _semantics__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(6);
-/* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(10);
+/* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(12);
 var __extends = (undefined && undefined.__extends) || (function () {
     var extendStatics = function (d, b) {
         extendStatics = Object.setPrototypeOf ||
@@ -5374,6 +6672,10 @@ var Rive = /** @class */ (function () {
         this._dataEnums = null;
         this._tabIndex = null;
         this._prevHasFocus = false;
+        this._prevWantsTextInputSession = false;
+        // Pointer-down defers the proxy focus: mousedown's default would refocus the canvas and
+        // touchstart isn't user activation; pointer-up focuses it.
+        this._inPointerDownDrain = false;
         this._focusOptions = {
             allowFocusInterrupt: false,
         };
@@ -5409,6 +6711,7 @@ var Rive = /** @class */ (function () {
                 _this.resizeToCanvas();
             }
         };
+        this.isEditingHostFocused = function () { var _a, _b; return (_b = (_a = _this._keyboardInteractions) === null || _a === void 0 ? void 0 : _a.isEditingHostFocused()) !== null && _b !== void 0 ? _b : false; };
         // Tracks the current animation frame request
         this.frameRequestId = null;
         /**
@@ -5729,11 +7032,21 @@ var Rive = /** @class */ (function () {
                 dispatchPointerExit: dispatchPointerExit,
                 enableMultiTouch: enableMultiTouch,
                 layoutScaleFactor: this._layout.layoutScaleFactor,
-                advanceAndDrain: this.advanceAndReportChanges.bind(this)
+                advanceAndDrain: this.advanceAndDrainForPointer.bind(this),
+                summonKeyboard: this.summonKeyboardForGesture.bind(this),
+                isTextProxyFocused: this.isEditingHostFocused,
             });
             this.ensureKeyboardInteractions();
         }
     };
+    Object.defineProperty(Rive.prototype, "focusStateMachine", {
+        // Assumes a single state machine drives focus.
+        get: function () {
+            return this.animator.stateMachines.find(function (sm) { return sm.playing && sm.hasFocusNodes; });
+        },
+        enumerable: false,
+        configurable: true
+    });
     /**
      * Wire keyboard interactions when a playing state machine has focus nodes.
      * Called at listener setup and lazily each frame so late-bound bindable artboards work.
@@ -5746,7 +7059,7 @@ var Rive = /** @class */ (function () {
             !(this.canvas instanceof HTMLCanvasElement)) {
             return;
         }
-        var smWithFocusNodes = this.animator.stateMachines.find(function (sm) { return sm.playing && sm.hasFocusNodes; });
+        var smWithFocusNodes = this.focusStateMachine;
         if (!smWithFocusNodes) {
             return;
         }
@@ -5756,16 +7069,51 @@ var Rive = /** @class */ (function () {
         }
         this._keyboardInteractions = new _utils__WEBPACK_IMPORTED_MODULE_3__.KeyboardInteractions({
             canvas: this.canvas,
-            stateMachine: smWithFocusNodes.instance, // work off assumption of single state machine
+            stateMachine: smWithFocusNodes.instance,
             hasFocusNodes: true,
             getOverlayElement: function () { var _a, _b; return (_b = (_a = _this._accessibilityOverlay) === null || _a === void 0 ? void 0 : _a.getSemanticOverlayContainer()) !== null && _b !== void 0 ? _b : null; },
         });
     };
+    /** Runs inside touchend/mouseup so focusing the proxy raises the mobile keyboard. */
+    Rive.prototype.summonKeyboardForGesture = function () {
+        if (!this._keyboardInteractions)
+            return;
+        var activeSm = this.focusStateMachine;
+        if (!activeSm)
+            return;
+        if (this.wantsTextInputSession(activeSm.focusState().expectsKeyboardInput)) {
+            this._keyboardInteractions.summonForPointer();
+        }
+    };
+    /** expectsKeyboardInput, and (with semantics on) the focused node is a textField. */
+    Rive.prototype.wantsTextInputSession = function (expectsKeyboardInput) {
+        var _a;
+        if (!expectsKeyboardInput)
+            return false;
+        var node = (_a = this._semanticTree) === null || _a === void 0 ? void 0 : _a.focusedNode();
+        return node === undefined || node.role === _semantics__WEBPACK_IMPORTED_MODULE_2__.SemanticRole.textField;
+    };
+    Rive.prototype.advanceAndDrainForPointer = function (elapsedTime, options) {
+        if (!(options === null || options === void 0 ? void 0 : options.pointerDown)) {
+            this.advanceAndReportChanges(elapsedTime);
+            return;
+        }
+        this._inPointerDownDrain = true;
+        try {
+            this.advanceAndReportChanges(elapsedTime);
+        }
+        finally {
+            this._inPointerDownDrain = false;
+        }
+    };
     Rive.prototype.cleanupKeyboardInteractions = function () {
+        var _a;
         if (this._keyboardInteractions) {
             this._keyboardInteractions.cleanup();
             this._keyboardInteractions = null;
         }
+        this._prevWantsTextInputSession = false;
+        (_a = this._accessibilityOverlay) === null || _a === void 0 ? void 0 : _a.releaseEditingHost(null, null);
     };
     /**
      * Remove Rive Listeners setup on the canvas
@@ -5857,6 +7205,7 @@ var Rive = /** @class */ (function () {
                         _c.label = 4;
                     case 4:
                         this.file = this.riveFile.getInstance();
+                        this.reportDisplayScale();
                         // Initialize and draw frame
                         this.initArtboard(artboardName, animationNames, stateMachineNames, autoplay, autoBind);
                         // Initialize the artboard size
@@ -6101,56 +7450,69 @@ var Rive = /** @class */ (function () {
         var _a, _b, _c;
         return (_c = (_b = (_a = this.riveFile) === null || _a === void 0 ? void 0 : _a.deferredSession) === null || _b === void 0 ? void 0 : _b.recordedThisFrame()) !== null && _c !== void 0 ? _c : false;
     };
-    /**
-     * Poll focus state each frame to see if we should focus/blur the canvas in case
-     * Rive internally updated focus outside of user interaction (e.g., via listener action)
-     */
+    /** Rive can move focus on its own, so reconcile the text session and DOM focus each frame. */
     Rive.prototype.pollFocusState = function () {
-        var _a, _b;
         this.ensureKeyboardInteractions();
-        if (!this._keyboardInteractions) {
+        var ki = this._keyboardInteractions;
+        var activeSm = ki ? this.focusStateMachine : undefined;
+        if (!ki || !activeSm || !(this.canvas instanceof HTMLCanvasElement)) {
             this._prevHasFocus = false;
+            this._prevWantsTextInputSession = false;
             return;
         }
-        var activeSm = this.animator.stateMachines.find(function (sm) { return sm.playing && sm.hasFocusNodes; }); // work off assumption of single state machine
-        if (!activeSm) {
-            this._prevHasFocus = false;
-            return;
-        }
-        if (this.canvas instanceof HTMLCanvasElement) {
-            var hasFocus = activeSm.focusState().hasFocus;
-            if (hasFocus) {
-                // Rive has an active focus node. Mark the session RiveFocused so Tab stays
-                // trapped and a later internal release (hasFocus true → false) is detected.
-                this._keyboardInteractions.notifyRiveFocused();
-                // Only steal DOM focus on the false→true transition. Rive can hold focus across
-                // frames while DOM focus sits elsewhere — a window switch preserves runtime focus
-                // by design — and that must not re-focus the canvas again.
-                if (!this._prevHasFocus) {
-                    // Steal DOM focus to the canvas only when focus isn't already held
-                    // somewhere inside this instance's focus scope. When the accessibility
-                    // overlay has driven focus onto a specific semantic node element (e.g.
-                    // an appearing alert dialog), focus is already in-scope. The steal
-                    // stays a fallback for runtime focus nodes that have no overlay element
-                    // to hold DOM focus.
-                    var scope = (_a = this._accessibilityOverlay) === null || _a === void 0 ? void 0 : _a.getSemanticOverlayContainer();
-                    var focusAlreadyInScope = document.activeElement === this.canvas ||
-                        ((_b = scope === null || scope === void 0 ? void 0 : scope.contains(document.activeElement)) !== null && _b !== void 0 ? _b : false);
-                    if (!focusAlreadyInScope && this._focusOptions.allowFocusInterrupt) {
-                        this.canvas.focus();
-                    }
-                    this._prevHasFocus = true;
-                }
-                return;
+        var _a = activeSm.focusState(), hasFocus = _a.hasFocus, expectsKeyboardInput = _a.expectsKeyboardInput;
+        this.syncTextInputSession(ki, this.wantsTextInputSession(expectsKeyboardInput));
+        this.syncRiveFocus(ki, this.canvas, hasFocus);
+    };
+    /** Begin/end the text session on wantsSession edges; decorate the proxy while it has DOM focus. */
+    Rive.prototype.syncTextInputSession = function (ki, wantsSession) {
+        var host = ki.editingHost;
+        var overlay = this._accessibilityOverlay;
+        if (wantsSession) {
+            var began = !this._prevWantsTextInputSession;
+            if (began) {
+                // In-domain or opted-in only; during pointer-down, pointer-up focuses instead.
+                var focusProxy = !this._inPointerDownDrain &&
+                    (ki.isInFocusDomain(document.activeElement) ||
+                        !!this._focusOptions.allowFocusInterrupt);
+                ki.beginTextInputSession(focusProxy);
             }
+            // The <input> proxy stands in for the semantic DOM field only while it holds DOM focus.
+            if (overlay && this._semanticTree) {
+                if (host.hasDomFocus()) {
+                    overlay.syncEditingHost(this._semanticTree, host, began || !overlay.hasEditingHost());
+                }
+                else if (overlay.hasEditingHost()) {
+                    overlay.releaseEditingHost(this._semanticTree, host);
+                }
+            }
+        }
+        else if (this._prevWantsTextInputSession) {
+            // Overlay hand-off first, ahead of endTextInputSession's park-on-canvas fallback.
+            overlay === null || overlay === void 0 ? void 0 : overlay.releaseEditingHost(this._semanticTree, host);
+            ki.endTextInputSession();
+        }
+        this._prevWantsTextInputSession = wantsSession;
+    };
+    /** Mirror Rive's hasFocus into the keyboard session state and, on opt-in, canvas focus. */
+    Rive.prototype.syncRiveFocus = function (ki, canvas, hasFocus) {
+        if (hasFocus) {
+            ki.notifyRiveFocused();
+            // Pull focus from outside Rive only with allowFocusInterrupt.
+            if (!this._prevHasFocus) {
+                if (!ki.isInFocusDomain(document.activeElement) &&
+                    this._focusOptions.allowFocusInterrupt) {
+                    canvas.focus();
+                }
+                this._prevHasFocus = true;
+            }
+        }
+        else {
             this._prevHasFocus = false;
-            // hasFocus is false — only act when Rive previously held focus and released it internally
-            // (state change clears focus). Release the DOM Tab trap so the next Tab moves to the next
-            // page element. A DOM blur reaches here too now that onCanvasBlur clears Rive focus, but it
-            // has already set NotFocused, so this is a no-op. EntryPending and NotFocused are likewise
-            // intentional no-ops — EntryPending must stay put (a click awaiting its first Tab).
-            if (this._keyboardInteractions.focusSessionState === _utils__WEBPACK_IMPORTED_MODULE_3__.FocusSessionState.RiveFocused) {
-                this._keyboardInteractions.setFocusSessionState(_utils__WEBPACK_IMPORTED_MODULE_3__.FocusSessionState.NotFocused);
+            // Rive released focus internally (e.g. a state change): drop the Tab trap so the next
+            // Tab leaves the canvas.
+            if (ki.focusSessionState === _utils__WEBPACK_IMPORTED_MODULE_3__.FocusSessionState.RiveFocused) {
+                ki.setFocusSessionState(_utils__WEBPACK_IMPORTED_MODULE_3__.FocusSessionState.NotFocused);
             }
         }
     };
@@ -6248,6 +7610,7 @@ var Rive = /** @class */ (function () {
                     instanceId: this._instanceId,
                     semanticsOptions: this.semanticsOptions,
                     allowFocusInterrupt: this._focusOptions.allowFocusInterrupt,
+                    isEditingHostFocused: this.isEditingHostFocused,
                     fireAction: function (nodeId, actionType) {
                         mainSm_1.fireSemanticAction(nodeId, actionType);
                     },
@@ -6785,6 +8148,7 @@ var Rive = /** @class */ (function () {
         // Sets a new layout
         set: function (layout) {
             this._layout = layout;
+            this.reportDisplayScale();
             // Fit/alignment/bounds feed the overlay transform.
             this._overlayTransformDirty = true;
             // If the maxX or maxY are 0, then set them to the canvas width and height
@@ -7492,10 +8856,17 @@ var Rive = /** @class */ (function () {
                 this._overlayTransformDirty = true;
             }
             this._devicePixelRatioUsed = value;
+            this.reportDisplayScale();
         },
         enumerable: false,
         configurable: true
     });
+    // Not per frame: the scale is per file, and instances sharing one would trade
+    // it every frame.
+    Rive.prototype.reportDisplayScale = function () {
+        var _a;
+        (_a = this.file) === null || _a === void 0 ? void 0 : _a.displayScale(this._devicePixelRatioUsed * this._layout.layoutScaleFactor);
+    };
     /**
      * Sets the main view model instance and applies it (rebinds). Equivalent to
      * `setViewModelInstance(vmi)` followed by `bind()`.

@@ -1,7 +1,7 @@
 {
   "packages": {
     "3d-force-graph": {
-      "version": "1.80.0",
+      "version": "1.80.1",
       "license": "MIT"
     },
     "@babel/runtime": {
@@ -13,19 +13,19 @@
       "license": "MIT"
     },
     "@chevrotain/cst-dts-gen": {
-      "version": "11.1.2",
+      "version": "13.2.0",
       "license": "Apache-2.0"
     },
     "@chevrotain/gast": {
-      "version": "11.1.2",
+      "version": "13.2.0",
       "license": "Apache-2.0"
     },
     "@chevrotain/regexp-to-ast": {
-      "version": "11.1.2",
+      "version": "13.2.0",
       "license": "Apache-2.0"
     },
     "@chevrotain/utils": {
-      "version": "11.1.2",
+      "version": "13.2.0",
       "license": "Apache-2.0"
     },
     "@highlightjs/cdn-assets": {
@@ -37,7 +37,7 @@
       "license": "MIT"
     },
     "@mermaid-js/parser": {
-      "version": "2.0.0",
+      "version": "2.0.1",
       "license": "MIT"
     },
     "@novnc/novnc": {
@@ -45,7 +45,7 @@
       "license": "MPL-2.0"
     },
     "@rive-app/canvas": {
-      "version": "2.43.1",
+      "version": "2.44.2",
       "license": "MIT"
     },
     "@tweenjs/tween.js": {
@@ -81,7 +81,7 @@
       "license": "MIT"
     },
     "chevrotain": {
-      "version": "11.1.2",
+      "version": "13.2.0",
       "license": "Apache-2.0"
     },
     "cose-base": {
@@ -257,7 +257,7 @@
       "license": "ISC"
     },
     "dompurify": {
-      "version": "3.4.16",
+      "version": "3.4.17",
       "license": "(MPL-2.0 OR Apache-2.0)"
     },
     "elkjs": {
@@ -324,7 +324,7 @@
       "license": "MIT"
     },
     "marked": {
-      "version": "18.0.14",
+      "version": "18.1.1",
       "license": "MIT"
     },
     "mdurl": {
@@ -332,7 +332,7 @@
       "license": "MIT"
     },
     "mermaid": {
-      "version": "12.0.0",
+      "version": "12.2.0",
       "license": "MIT"
     },
     "ngraph.events": {
@@ -360,7 +360,7 @@
       "license": "(MIT AND Zlib)"
     },
     "pdfjs-dist": {
-      "version": "6.3.289",
+      "version": "6.4.299",
       "license": "Apache-2.0"
     },
     "polished": {
@@ -426,8 +426,8 @@
       "sha256": "48444a82d4edcb5bec0f1965faacdde18d9c17db3063d042abada2f705c9f54a"
     },
     "ui/js/vendor/marked.min.js": {
-      "bytes": 46891,
-      "sha256": "21568877a938d2c4e7d74e27f18e60da96bb73a68809610ca39216e1efebae62"
+      "bytes": 47956,
+      "sha256": "b82b9334406d8bdd16b6236c08de1cb65b2a859873ca9503d9cc0b292ca3c12a"
     },
     "ui/js/vendor/highlight.min.js": {
       "bytes": 129254,
@@ -442,8 +442,8 @@
       "sha256": "9f208d022102b1d0c7aebfecd8e42ca7997d5de636649d2b31ea63093d809019"
     },
     "ui/js/vendor/purify.min.js": {
-      "bytes": 28885,
-      "sha256": "2c90a9b46d6463f26038a29b686e82bc91de01fdac9d5229e7cfe3b360134ea2"
+      "bytes": 29828,
+      "sha256": "cd37898f9782adf54820c413191b5691803f0f137c799d6edcfd38523b4c2c31"
     },
     "ui/js/vendor/hls.min.js": {
       "bytes": 619692,
@@ -470,24 +470,24 @@
       "sha256": "b85f8d4b3e9756bebb757e3fe47134d70f03ea3d6b187624426d2e2b65dec06c"
     },
     "ui/js/vendor/rive/rive.js": {
-      "bytes": 455789,
-      "sha256": "60928b9d4d0e88e430effe7b3e090e1e4e7b8b2852a6f020bf488952405c0949"
+      "bytes": 570043,
+      "sha256": "f8c01ccc78af7ad55a6672f5645d3544c6735fb401e5d08ae5f057a31564adf1"
     },
     "ui/js/vendor/rive/rive.wasm": {
-      "bytes": 1955136,
-      "sha256": "cc0827eddd7ce5d37a8691b0e587b856972b4fe3d36841864ab27e7fa4da0ef8"
+      "bytes": 2057365,
+      "sha256": "6c12783ad9cef87114264b1041a5bc3f2b6b91a79268d399e9cae391a163ab41"
     },
     "ui/js/vendor/webamp/webamp.bundle.min.mjs": {
       "bytes": 939426,
       "sha256": "41817e47fdb1f969a74e0202135e72d080d73236f5f0a7709f17b696784e0035"
     },
     "ui/js/vendor/pdf.module.js": {
-      "bytes": 458705,
-      "sha256": "f80490490320511e5df18c580b9edd6b5db8058dceebaf6f161992e0a964b9e2"
+      "bytes": 458904,
+      "sha256": "57456c8e0c81e46be31174b499ef77f2b9f5ee46d04412ba627320a36755d4c2"
     },
     "ui/js/vendor/pdf.worker.min.js": {
-      "bytes": 1265413,
-      "sha256": "8ab0e5e30031b4a06ecfddd5ae9562f0227f830ee7ec9ed1a968b134243d2386"
+      "bytes": 1264342,
+      "sha256": "9536359f1b8367850d485731ca1d5e45c159a7b7a0912325e539937aa21ceb18"
     },
     "internal/gamemaker/runtime/three-0.186.1.module.min.js": {
       "bytes": 376205,
@@ -1358,12 +1358,12 @@
       "sha256": "d2c4d5b3e115a519cb58eb691aa64538397e2611f9ebe801392cf9667997e7dc"
     },
     "ui/js/vendor/pdf/wasm/jbig2.wasm": {
-      "bytes": 104852,
-      "sha256": "e6bee67724a7b5436fe8162638e3708cfc8d52b6342db69a49715e30ff27cfdc"
+      "bytes": 103671,
+      "sha256": "466f45c2a61a698152fb5400c27e56ff2ceb73dcb71fde3fc366a502308eaab0"
     },
     "ui/js/vendor/pdf/wasm/jbig2_nowasm_fallback.js": {
-      "bytes": 145703,
-      "sha256": "04c795a6657a4553a64b781ea3e85256203d913c3b71b72b85fa3ce00622f458"
+      "bytes": 152009,
+      "sha256": "68686ced624a48c42f84cdaa482ec44b72b0de4dc84a0df903af1fb7b45b5d9a"
     },
     "ui/js/vendor/pdf/wasm/LICENSE_JBIG2": {
       "bytes": 12862,
@@ -1390,12 +1390,12 @@
       "sha256": "36d847ae882f6574ebc72f56a4f354e4f104fde4a584373496482e97d52d31bc"
     },
     "ui/js/vendor/pdf/wasm/openjpeg.wasm": {
-      "bytes": 252032,
-      "sha256": "004a0e62db930ba9ff2a22212f4554d0bb57a0635a8287caf70f98117cee14ba"
+      "bytes": 251131,
+      "sha256": "95e5002597af0824004aa57b1900fe019715db389e37640b1e58395e42f00cc5"
     },
     "ui/js/vendor/pdf/wasm/openjpeg_nowasm_fallback.js": {
-      "bytes": 451590,
-      "sha256": "0f998419819da4491d8302222aa9e2ff2494685641aa2a6c21c3760c29f3e319"
+      "bytes": 445781,
+      "sha256": "9047b34b6bc142d85e4b0aa1b08b0b9baad4c6f8b7ac87641b9e8f90eb6fd23e"
     },
     "ui/js/vendor/pdf/wasm/qcms_bg.wasm": {
       "bytes": 96589,
@@ -1442,12 +1442,12 @@
       "sha256": "d40fa5aeb07f843a6ab76f632b52177c826c7350dc555d400fd61bc71c3684b1"
     },
     "ui/js/vendor/3d-force-graph.min.js": {
-      "bytes": 1035135,
-      "sha256": "f91ba9d6536e0c478852180fbb1746b298bf42b2b5db5a7fd093629e2d46591a"
+      "bytes": 1032617,
+      "sha256": "d00be1c8159276a45489d6fb55d19a197e1a20c5ac052941d99e82746d4dd3a8"
     },
     "ui/js/vendor/mermaid.min.js": {
-      "bytes": 5280568,
-      "sha256": "d16bd1db4708412ae14e68b6f9bec4ca1e8e38cf28f088eb53439554a935ae66"
+      "bytes": 5255615,
+      "sha256": "93b01152b8d5565a8e5c028e8a40429d1d032e65ccb502860e4399348bf9a476"
     },
     "ui/js/vendor/novnc.min.js": {
       "bytes": 188679,
@@ -1467,7 +1467,7 @@
     },
     "ui/js/vendor/rive/manifest.json": {
       "bytes": 545,
-      "sha256": "00c85de749f01bb775578d9235e8ce33b0fd3abf1efd408247b5354d591ce2f3"
+      "sha256": "c950114f9739769a80637c28b3dc50beb870b9fa53c101dbfbfd5e4af95ba039"
     },
     "ui/js/vendor/webamp/manifest.json": {
       "bytes": 464,
@@ -1475,7 +1475,7 @@
     },
     "ui/js/vendor/3d-force-graph/manifest.json": {
       "bytes": 455,
-      "sha256": "3d800b96a63bb9e77a7065fc19511f529bfd6809185791a607477835dce542e5"
+      "sha256": "6828d66e664214e6c18df82c8e341dd4a1e05d751d7ec231ed26b8295215b750"
     },
     "ui/js/vendor/esptool-js/README.md": {
       "bytes": 266,
@@ -1486,8 +1486,8 @@
       "sha256": "bd9a843a7f83a857b52d0c1221770e27d9e890c6649b690b3b2e587dbdacb531"
     },
     "ui/js/vendor/LICENSES.md": {
-      "bytes": 239289,
-      "sha256": "3389b89bbd3a29fe59d0f58c581161930a9f5fcc5be4823bf7a1815711db66ae"
+      "bytes": 239288,
+      "sha256": "24f4ff60f350816acdb511c146f553f12379e7d3a0167eed5733bde7bead455f"
     }
   }
 }

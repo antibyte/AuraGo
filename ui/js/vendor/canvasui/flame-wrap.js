@@ -1,8 +1,10 @@
+import { getCanvasPixelRatio, createCanvasResizeObserver, prepareHtmlInCanvas, drawHtmlInCanvas } from './canvas-support.js';
+
 /**
  * CanvasUI Flame Wrap — local Vanilla ESM adaptation for AuraGo.
  *
  * Upstream: https://github.com/DavidHDev/canvas-ui
- * Pinned commit: 81b65e159c63bde7167b9b4b458a775838e4cd39
+ * Pinned commit: a04a99b235299ee79a123a16ccb2e6cf9da74b6b
  * Upstream path: src/lib/FlameWrap/FlameWrapVanilla.ts
  * License: MIT + Commons Clause License Condition v1.0 (see LICENSE.txt)
  *
@@ -396,10 +398,11 @@ export function createFlameWrap(elements, options = {}) {
   let wake = () => {};
 
   if (htmlInCanvas) {
+    prepareHtmlInCanvas(source, content);
     paintable.onpaint = () => {
       try {
         sourceCtx.reset();
-        sourceCtx.drawElementImage(content, 0, 0);
+        drawHtmlInCanvas(source, sourceCtx, content);
         contentDirty = true;
         wake();
       } catch {}
@@ -462,7 +465,7 @@ export function createFlameWrap(elements, options = {}) {
   let dpr = 1;
 
   function syncCanvasSize() {
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    dpr = getCanvasPixelRatio(output, gl);
     const width = Math.max(1, Math.round(output.clientWidth * dpr));
     const height = Math.max(1, Math.round(output.clientHeight * dpr));
     if (output.width !== width || output.height !== height) {
@@ -479,14 +482,14 @@ export function createFlameWrap(elements, options = {}) {
       rect.hy = boxRect.height / 2;
     }
     if (htmlInCanvas) {
-      const cssWidth = Math.max(1, Math.round(source.clientWidth));
-      const cssHeight = Math.max(1, Math.round(source.clientHeight));
+      const sourceWidth = Math.max(1, Math.round(source.clientWidth * dpr));
+      const sourceHeight = Math.max(1, Math.round(source.clientHeight * dpr));
       if (
-        source.width !== cssWidth * dpr ||
-        source.height !== cssHeight * dpr
+        source.width !== sourceWidth ||
+        source.height !== sourceHeight
       ) {
-        source.width = cssWidth * dpr;
-        source.height = cssHeight * dpr;
+        source.width = sourceWidth;
+        source.height = sourceHeight;
       }
       paintable.requestPaint();
     }
@@ -600,7 +603,7 @@ export function createFlameWrap(elements, options = {}) {
   }
   motionQuery.addEventListener("change", onMotionChange);
 
-  const observer = new ResizeObserver(() => {
+  const observer = createCanvasResizeObserver(() => {
     syncCanvasSize();
     start();
   });

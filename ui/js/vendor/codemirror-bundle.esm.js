@@ -4778,6 +4778,8 @@ class BlockWrapper extends RangeValue {
 }
 BlockWrapper.prototype.startSide = BlockWrapper.prototype.endSide = -1;
 
+const isElt = (node) => node.nodeType == 1;
+const isText = (node) => node.nodeType == 3;
 function getSelection(root) {
     let target;
     // Browsers differ on whether shadow roots have a getSelection
@@ -4808,9 +4810,9 @@ function hasSelection(dom, selection) {
     }
 }
 function clientRectsFor(dom) {
-    if (dom.nodeType == 3)
+    if (isText(dom))
         return textRange(dom, 0, dom.nodeValue.length).getClientRects();
-    else if (dom.nodeType == 1)
+    else if (isElt(dom))
         return dom.getClientRects();
     else
         return [];
@@ -4830,7 +4832,7 @@ function domIndex(node) {
     }
 }
 function isBlockElement(node) {
-    return node.nodeType == 1 && /^(DIV|P|LI|UL|OL|BLOCKQUOTE|DD|DT|H\d|SECTION|PRE)$/.test(node.nodeName);
+    return isElt(node) && /^(DIV|P|LI|UL|OL|BLOCKQUOTE|DD|DT|H\d|SECTION|PRE)$/.test(node.nodeName);
 }
 function scanFor(node, off, targetNode, targetOff, dir) {
     for (;;) {
@@ -4840,14 +4842,15 @@ function scanFor(node, off, targetNode, targetOff, dir) {
             if (node.nodeName == "DIV")
                 return false;
             let parent = node.parentNode;
-            if (!parent || parent.nodeType != 1)
+            if (!parent || !isElt(parent))
                 return false;
             off = domIndex(node) + (dir < 0 ? 0 : 1);
             node = parent;
         }
-        else if (node.nodeType == 1) {
+        else if (isElt(node)) {
             node = node.childNodes[off + (dir < 0 ? -1 : 0)];
-            if (node.nodeType == 1 && node.contentEditable == "false")
+            if (isElt(node) &&
+                (node.nodeName == "IMG" || node.nodeName == "BR" || node.contentEditable == "false"))
                 return false;
             off = dir < 0 ? maxOffset(node) : 0;
         }
@@ -4857,7 +4860,7 @@ function scanFor(node, off, targetNode, targetOff, dir) {
     }
 }
 function maxOffset(node) {
-    return node.nodeType == 3 ? node.nodeValue.length : node.childNodes.length;
+    return isText(node) ? node.nodeValue.length : node.childNodes.length;
 }
 function flattenRect(rect, toLeft) {
     let { left, right } = rect;
@@ -4888,7 +4891,7 @@ function getScale(elt, rect) {
 function scrollRectIntoView(dom, rect, side, x, y, xMargin, yMargin, ltr) {
     let doc = dom.ownerDocument, win = doc.defaultView || window;
     for (let cur = dom, stop = false; cur && !stop;) {
-        if (cur.nodeType == 1) { // Element
+        if (isElt(cur)) { // Element
             let bounding, top = cur == doc.body;
             let scaleX = 1, scaleY = 1;
             if (top) {
@@ -4991,7 +4994,7 @@ function scrollableParents(dom, getX = true) {
         if (cur == doc.body || ((!getX || x) && y)) {
             break;
         }
-        else if (cur.nodeType == 1) {
+        else if (isElt(cur)) {
             if (!y && cur.scrollHeight > cur.clientHeight)
                 y = cur;
             if (getX && !x && cur.scrollWidth > cur.clientWidth)
@@ -5033,7 +5036,7 @@ class DOMSelectionState {
 function getScrollStack(target) {
     let stack = [];
     for (let cur = target; cur; cur = cur.nodeType == 11 ? cur.host : cur.parentNode) {
-        if (cur.nodeType == 1)
+        if (isElt(cur))
             stack.push({ node: cur, left: cur.scrollLeft, top: cur.scrollTop });
     }
     return stack;
@@ -5104,7 +5107,7 @@ function atElementStart(doc, selection) {
     offset = Math.min(offset, maxOffset(node));
     for (;;) {
         if (offset) {
-            if (node.nodeType != 1)
+            if (!isElt(node))
                 return false;
             let prev = node.childNodes[offset - 1];
             if (prev.contentEditable == "false")
@@ -5130,10 +5133,10 @@ function isScrolledToBottom(elt) {
 }
 function textNodeBefore(startNode, startOffset) {
     for (let node = startNode, offset = startOffset;;) {
-        if (node.nodeType == 3 && offset > 0) {
+        if (isText(node) && offset > 0) {
             return { node: node, offset: offset };
         }
-        else if (node.nodeType == 1 && offset > 0) {
+        else if (isElt(node) && offset > 0) {
             if (node.contentEditable == "false")
                 return null;
             node = node.childNodes[offset - 1];
@@ -5150,10 +5153,10 @@ function textNodeBefore(startNode, startOffset) {
 }
 function textNodeAfter(startNode, startOffset) {
     for (let node = startNode, offset = startOffset;;) {
-        if (node.nodeType == 3 && offset < node.nodeValue.length) {
+        if (isText(node) && offset < node.nodeValue.length) {
             return { node: node, offset: offset };
         }
-        else if (node.nodeType == 1 && offset < node.childNodes.length) {
+        else if (isElt(node) && offset < node.childNodes.length) {
             if (node.contentEditable == "false")
                 return null;
             node = node.childNodes[offset];
@@ -6343,7 +6346,7 @@ class LineTile extends CompositeTile {
     // Side -2/2 is handled specially, in that it allows the position
     // returned to be before (-2) or after (2) widgets that would always
     // be after/before a cursor position.
-    resolveInline(pos, side, forCoords) {
+    resolveInline(pos, side, forCoords = false) {
         let before = null, beforeOff = -1, after = null, afterOff = -1;
         function scan(tile, pos) {
             for (let i = 0, off = 0; i < tile.children.length && off <= pos; i++) {
@@ -6352,12 +6355,12 @@ class LineTile extends CompositeTile {
                     if (child.isComposite()) {
                         scan(child, pos - off);
                     }
-                    else if ((!after || after.isHidden && (side > 0 && !(after.flags & 32 /* TileFlag.After */) || forCoords && onSameLine(after, child))) &&
+                    else if ((!after || (forCoords && after.isHidden) && (side > 0 && !(after.flags & 32 /* TileFlag.After */) || forCoords && onSameLine(after, child))) &&
                         (end > pos || (child.flags & 32 /* TileFlag.After */) && side <= 1)) {
                         after = child;
                         afterOff = pos - off;
                     }
-                    else if (off < pos || (child.flags & 16 /* TileFlag.Before */) && !child.isHidden && side >= -1) {
+                    else if (off < pos || (child.flags & 16 /* TileFlag.Before */) && !(forCoords && child.isHidden) && side >= -1) {
                         before = child;
                         beforeOff = pos - off;
                     }
@@ -7863,7 +7866,7 @@ function destroyDropped(tile, reused) {
     }
 }
 function betweenUneditable(pos) {
-    return pos.node.nodeType == 1 && pos.node.firstChild &&
+    return isElt(pos.node) && pos.node.firstChild &&
         (pos.offset == 0 || pos.node.childNodes[pos.offset - 1].contentEditable == "false") &&
         (pos.offset == pos.node.childNodes.length || pos.node.childNodes[pos.offset].contentEditable == "false");
 }
@@ -7905,7 +7908,7 @@ function findCompositionRange(view, changes, headPos) {
     return { range: new ChangedRange(inv.mapPos(from), inv.mapPos(to), from, to), text: textNode };
 }
 function nextToUneditable(node, offset) {
-    if (node.nodeType != 1)
+    if (!isElt(node))
         return 0;
     return (offset && node.childNodes[offset - 1].contentEditable == "false" ? 1 /* NextTo.Before */ : 0) |
         (offset < node.childNodes.length && node.childNodes[offset].contentEditable == "false" ? 2 /* NextTo.After */ : 0);
@@ -7938,9 +7941,8 @@ function findChangedWrappers(a, b, diff) {
 }
 function inUneditable(node, inside) {
     for (let cur = node; cur && cur != inside; cur = cur.assignedSlot || cur.parentNode) {
-        if (cur.nodeType == 1 && cur.contentEditable == 'false') {
+        if (isElt(cur) && cur.contentEditable == "false")
             return true;
-        }
     }
     return false;
 }
@@ -8368,7 +8370,7 @@ class InlineCoordsScan {
             let child = tile.children[i];
             if (child.flags & 48 /* TileFlag.PointWidget */)
                 return null;
-            return (child.dom.nodeType == 1 ? child.dom : textRange(child.dom, 0, child.length)).getClientRects();
+            return (isElt(child.dom) ? child.dom : textRange(child.dom, 0, child.length)).getClientRects();
         });
         let child = tile.children[scan.i], pos = positions[scan.i];
         if (child.isText())
@@ -8456,14 +8458,14 @@ class DOMReader {
                     this.append(i.value);
             }
         }
-        else if (node.nodeType == 3) {
+        else if (isText(node)) {
             this.readTextNode(node);
         }
         else if (node.nodeName == "BR") {
             if (node.nextSibling)
                 this.lineBreak();
         }
-        else if (node.nodeType == 1) {
+        else if (isElt(node)) {
             this.readRange(node.firstChild, null);
         }
     }
@@ -8474,7 +8476,7 @@ class DOMReader {
     }
     findPointInside(node, length) {
         for (let point of this.points)
-            if (node.nodeType == 3 ? point.node == node : node.contains(point.node))
+            if (isText(node) ? point.node == node : node.contains(point.node))
                 point.pos = this.text.length + (isAtEnd(node, point.node, point.offset) ? length : 0);
     }
 }
@@ -9628,14 +9630,14 @@ observers.blur = view => {
     view.observer.clearSelectionRange();
     updateForFocusChange(view);
 };
-observers.compositionstart = observers.compositionupdate = view => {
+observers.compositionstart = observers.compositionupdate = (view, event) => {
     if (view.observer.editContext)
         return; // Composition handled by edit context
     if (view.inputState.compositionFirstChange == null)
         view.inputState.compositionFirstChange = true;
     if (view.inputState.composing < 0) {
         let { main } = view.state.selection;
-        if (!main.empty && view.lineBlockAt(main.from).from != view.lineBlockAt(main.to).from) {
+        if (!main.empty && view.lineBlockAt(main.from).from != view.lineBlockAt(main.to).from && !view.state.readOnly) {
             view.dispatch({
                 changes: view.state.selection.ranges.filter(r => !r.empty).map(r => ({ from: r.from, to: r.to })),
                 userEvent: "input"
@@ -10496,18 +10498,17 @@ function visiblePixelRange(dom, paddingTop) {
     let left = Math.max(0, rect.left), right = Math.min(win.innerWidth, rect.right);
     let top = Math.max(0, rect.top), bottom = Math.min(win.innerHeight, rect.bottom);
     for (let parent = dom.parentNode; parent && parent != doc.body;) {
-        if (parent.nodeType == 1) {
-            let elt = parent;
-            let style = window.getComputedStyle(elt);
-            if ((elt.scrollHeight > elt.clientHeight || elt.scrollWidth > elt.clientWidth) &&
+        if (isElt(parent)) {
+            let style = window.getComputedStyle(parent);
+            if ((parent.scrollHeight > parent.clientHeight || parent.scrollWidth > parent.clientWidth) &&
                 style.overflow != "visible") {
-                let parentRect = elt.getBoundingClientRect();
+                let parentRect = parent.getBoundingClientRect();
                 left = Math.max(left, parentRect.left);
                 right = Math.min(right, parentRect.right);
                 top = Math.max(top, parentRect.top);
                 bottom = Math.min(parent == dom.parentNode ? win.innerHeight : bottom, parentRect.bottom);
             }
-            parent = style.position == "absolute" || style.position == "fixed" ? elt.offsetParent : elt.parentNode;
+            parent = style.position == "absolute" || style.position == "fixed" ? parent.offsetParent : parent.parentNode;
         }
         else if (parent.nodeType == 11) { // Shadow root
             parent = parent.host;
@@ -11405,7 +11406,7 @@ const baseTheme$1$1 = /*@__PURE__*/buildTheme("." + baseThemeID, {
         verticalAlign: "bottom"
     },
     ".cm-widgetBuffer": {
-        verticalAlign: "text-top",
+        verticalAlign: "baseline",
         height: "1em",
         width: 0,
         display: "inline"
@@ -11677,7 +11678,7 @@ class DOMObserver {
         this.parentCheck = -1;
         let i = 0, changed = null;
         for (let dom = this.dom; dom;) {
-            if (dom.nodeType == 1) {
+            if (isElt(dom)) {
                 if (!changed && i < this.scrollTargets.length && this.scrollTargets[i] == dom)
                     i++;
                 else if (!changed)
@@ -11836,7 +11837,7 @@ class DOMObserver {
             return false;
         if (readSelection)
             this.readSelectionRange();
-        let domChange = this.readChange();
+        let selChange = this.selectionChanged, domChange = this.readChange();
         if (!domChange) {
             this.view.requestMeasure();
             return false;
@@ -11844,8 +11845,7 @@ class DOMObserver {
         let startState = this.view.state;
         let handled = applyDOMChange(this.view, domChange);
         // The view wasn't updated but DOM/selection changes were seen. Reset the view.
-        if (this.view.state == startState &&
-            (domChange.domChanged || domChange.newSel && !sameSelPos(this.view.state.selection, domChange.newSel.main)))
+        if (this.view.state == startState && (domChange.domChanged || selChange))
             this.view.update([]);
         return handled;
     }
@@ -12707,7 +12707,7 @@ class EditorView {
     /**
     Schedule a layout measurement, optionally providing callbacks to
     do custom DOM measuring followed by a DOM write phase. Using
-    this is preferable reading DOM layout directly from, for
+    this is preferable to reading DOM layout directly from, for
     example, an event handler, because it'll make sure measuring and
     drawing done by other components is synchronized, avoiding
     unnecessary DOM layout computations.
@@ -13899,6 +13899,7 @@ function layer(config) {
     ];
 }
 
+const drawMainRange = !browser.ios;
 const selectionConfig = /*@__PURE__*/Facet.define({
     combine(configs) {
         return combineConfig(configs, {
@@ -13978,7 +13979,7 @@ const selectionLayer = /*@__PURE__*/layer({
     markers(view) {
         let markers = [], { main, ranges } = view.state.selection;
         for (let r of ranges)
-            if (!r.empty) {
+            if (!r.empty && (drawMainRange || r != main)) {
                 for (let marker of RectangleMarker.forRange(view, "cm-selectionBackground", r))
                     markers.push(marker);
             }
@@ -13999,16 +14000,20 @@ const selectionLayer = /*@__PURE__*/layer({
 const selectionBg = browser.gecko && browser.gecko_version == 153 ? "#ffffff01" : "transparent";
 const hideNativeSelection = /*@__PURE__*/Prec.highest(/*@__PURE__*/EditorView.theme({
     ".cm-line": {
-        "& ::selection, &::selection": { backgroundColor: `${selectionBg} !important` },
+        ...drawMainRange ? {
+            "& ::selection, &::selection": { backgroundColor: `${selectionBg} !important` }
+        } : {},
         caretColor: "transparent !important"
     },
     ".cm-content": {
         caretColor: "transparent !important",
         "& :focus": {
             caretColor: "initial !important",
-            "&::selection, & ::selection": {
-                backgroundColor: "Highlight !important"
-            }
+            ...drawMainRange ? {
+                "&::selection, & ::selection": {
+                    backgroundColor: "Highlight !important"
+                }
+            } : {}
         }
     }
 }));
@@ -14598,9 +14603,25 @@ class TooltipViewManager {
         return true;
     }
 }
+// The horizontal range fixed-position elements can occupy. Gutters
+// reserved by `scrollbar-gutter` (on either side) aren't reliably
+// excluded from clientWidth, but the root's margin box sits between
+// them.
+function fixedRange(view) {
+    let docElt = view.dom.ownerDocument.documentElement, width = docElt.clientWidth;
+    // Chrome reports specified rather than used margins, so without a gutter a narrow root would look like one
+    let style = getComputedStyle(docElt);
+    if (!/stable/.test(style.scrollbarGutter || ""))
+        return { left: 0, right: width };
+    let rect = docElt.getBoundingClientRect(), scrollX = view.win.scrollX;
+    return {
+        left: Math.max(0, rect.left + scrollX - parseFloat(style.marginLeft)),
+        right: Math.min(width, rect.right + scrollX + parseFloat(style.marginRight))
+    };
+}
 function windowSpace(view) {
-    let docElt = view.dom.ownerDocument.documentElement;
-    return { top: 0, left: 0, bottom: docElt.clientHeight, right: docElt.clientWidth };
+    let { left, right } = fixedRange(view);
+    return { top: 0, left, right, bottom: view.dom.ownerDocument.documentElement.clientHeight };
 }
 const tooltipConfig = /*@__PURE__*/Facet.define({
     combine: values => {
@@ -14730,7 +14751,7 @@ const tooltipPlugin = /*@__PURE__*/ViewPlugin.fromClass(class {
         clearTimeout(this.measureTimeout);
     }
     readMeasure() {
-        let scaleX = 1, scaleY = 1, makeAbsolute = false;
+        let scaleX = 1, scaleY = 1, makeAbsolute = false, fixedLeft = 0;
         if (this.position == "fixed" && this.manager.tooltipViews.length) {
             let { dom } = this.manager.tooltipViews[0];
             if (browser.safari) {
@@ -14758,6 +14779,10 @@ const tooltipPlugin = /*@__PURE__*/ViewPlugin.fromClass(class {
                 ({ scaleX, scaleY } = this.view.viewState);
             }
         }
+        else {
+            // Fixed coordinates start after a left scrollbar gutter, not at the viewport's edge
+            fixedLeft = fixedRange(this.view).left;
+        }
         let visible = this.view.scrollDOM.getBoundingClientRect(), margins = getScrollMargins(this.view);
         return {
             visible: {
@@ -14771,7 +14796,7 @@ const tooltipPlugin = /*@__PURE__*/ViewPlugin.fromClass(class {
             }),
             size: this.manager.tooltipViews.map(({ dom }) => dom.getBoundingClientRect()),
             space: this.view.state.facet(tooltipConfig).tooltipSpace(this.view),
-            scaleX, scaleY, makeAbsolute
+            scaleX, scaleY, makeAbsolute, fixedLeft
         };
     }
     writeMeasure(measured) {
@@ -14833,7 +14858,7 @@ const tooltipPlugin = /*@__PURE__*/ViewPlugin.fromClass(class {
             }
             else {
                 dom.style.top = top / scaleY + "px";
-                setLeftStyle(dom, left / scaleX);
+                setLeftStyle(dom, (left - measured.fixedLeft) / scaleX);
             }
             if (arrow) {
                 let arrowLeft = pos.left + (ltr ? offset.x : -offset.x) - (left + 14 /* Arrow.Offset */ - 7 /* Arrow.Size */);

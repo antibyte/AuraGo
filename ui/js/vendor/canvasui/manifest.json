@@ -1,17 +1,35 @@
 {
   "name": "canvasui",
-  "components": ["droplets", "flame-wrap"],
+  "components": [
+    "droplets",
+    "flame-wrap"
+  ],
   "source": "https://github.com/DavidHDev/canvas-ui",
-  "commit": "81b65e159c63bde7167b9b4b458a775838e4cd39",
+  "commit": "a04a99b235299ee79a123a16ccb2e6cf9da74b6b",
   "license": "MIT + Commons Clause License Condition v1.0",
   "license_file": "LICENSE.txt",
   "modules": {
     "droplets": "droplets.js",
-    "flame-wrap": "flame-wrap.js"
+    "flame-wrap": "flame-wrap.js",
+    "support": "canvas-support.js"
   },
   "adaptation": "react-source-to-vanilla-esm",
   "upstream_paths": {
     "droplets": "src/lib/Droplets/DropletsVanilla.ts",
     "flame-wrap": "src/lib/FlameWrap/FlameWrapVanilla.ts"
+  },
+  "upstream_sha256": {
+    "canvas-viewport.ts": "d88c8a55a656f81e6386570058f1bc0f7ad98b4f857da11457a862e10f4218bd",
+    "Droplets-new.ts": "a480a1c02bc56adab8fcc7b9a4207d66f247a4aba0ad56bbc0c8a4957360effa",
+    "FlameWrap-new.ts": "84930e4f1335fb6d66cad1d59dab4720e71ec3e5a10b03a8d6f13fc272bef29a",
+    "html-in-canvas.ts": "8fd3adf59ba3b54a32c8552f614321e123047e107f94e6272c64658e71501e9a",
+    "rect-cache.ts": "4f743f99a3cf0830f567d01143bd820776589dea1172f2eb0ccfa002d0a08382"
+  },
+  "adaptation_notes": "Retains AuraGo bitmap-priority rain and opaque-wallpaper fallback; ports upstream viewport, geometry and rect-cache updates.",
+  "files": {
+    "canvas-support.js": "a038bf0f3bd3198da0215797af345f36819c678c20ad9a5c89116c9267aef62d",
+    "droplets.js": "1f1b1cecc6945b322756e52696dc931ce4f491fb83b5f61b907b8a3dda62a4bf",
+    "flame-wrap.js": "9426b03d328b28f4b623566a51f9545f1a140010fdcb919a2db332c942f47ea3",
+    "LICENSE.txt": "2a9a221a47f581d7984ca3a568e38fb17d5b6e43164db3f3482b4767c8e8e5b3"
   }
 }

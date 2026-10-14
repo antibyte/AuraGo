@@ -3,7 +3,7 @@
 Rebuild with `npm run build:browser-vendor`. Versions are locked in package-lock.json.
 
 
-## 3d-force-graph 1.80.0 — MIT
+## 3d-force-graph 1.80.1 — MIT
 
 MIT License
 
@@ -79,7 +79,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @chevrotain/cst-dts-gen 11.1.2 — Apache-2.0
+## @chevrotain/cst-dts-gen 13.2.0 — Apache-2.0
 
 
                                  Apache License
@@ -285,7 +285,7 @@ SOFTWARE.
    limitations under the License.
 
 
-## @chevrotain/gast 11.1.2 — Apache-2.0
+## @chevrotain/gast 13.2.0 — Apache-2.0
 
 
                                  Apache License
@@ -491,7 +491,7 @@ SOFTWARE.
    limitations under the License.
 
 
-## @chevrotain/regexp-to-ast 11.1.2 — Apache-2.0
+## @chevrotain/regexp-to-ast 13.2.0 — Apache-2.0
 
 
                                  Apache License
@@ -697,7 +697,7 @@ SOFTWARE.
    limitations under the License.
 
 
-## @chevrotain/utils 11.1.2 — Apache-2.0
+## @chevrotain/utils 13.2.0 — Apache-2.0
 
 
                                  Apache License
@@ -960,7 +960,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-## @mermaid-js/parser 2.0.0 — MIT
+## @mermaid-js/parser 2.0.1 — MIT
 
 The MIT License (MIT)
 
@@ -1051,7 +1051,7 @@ Or alternatively the license texts may be found here:
     https://opensource.org/licenses/MIT
 
 
-## @rive-app/canvas 2.43.1 — MIT
+## @rive-app/canvas 2.44.2 — MIT
 
 
 ## @tweenjs/tween.js 25.0.0 — MIT
@@ -1238,7 +1238,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-## chevrotain 11.1.2 — Apache-2.0
+## chevrotain 13.2.0 — Apache-2.0
 
 
                                  Apache License
@@ -2352,7 +2352,7 @@ TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 
 
-## dompurify 3.4.16 — (MPL-2.0 OR Apache-2.0)
+## dompurify 3.4.17 — (MPL-2.0 OR Apache-2.0)
 
 
                                  Apache License
@@ -3992,7 +3992,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 
 
-## marked 18.0.14 — MIT
+## marked 18.1.1 — MIT
 
 # License information
 
@@ -4089,7 +4089,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 
 
-## mermaid 12.0.0 — MIT
+## mermaid 12.2.0 — MIT
 
 The MIT License (MIT)
 
@@ -4288,7 +4288,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## pdfjs-dist 6.3.289 — Apache-2.0
+## pdfjs-dist 6.4.299 — Apache-2.0
 
 
                                  Apache License

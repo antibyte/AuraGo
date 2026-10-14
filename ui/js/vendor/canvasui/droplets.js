@@ -1,8 +1,10 @@
+import { getCanvasPixelRatio, createCanvasResizeObserver, prepareHtmlInCanvas, drawHtmlInCanvas, createRectCache } from './canvas-support.js';
+
 /**
  * CanvasUI Droplets — local Vanilla ESM adaptation for AuraGo.
  *
  * Upstream: https://github.com/DavidHDev/canvas-ui
- * Pinned commit: 81b65e159c63bde7167b9b4b458a775838e4cd39
+ * Pinned commit: a04a99b235299ee79a123a16ccb2e6cf9da74b6b
  * Upstream path: src/lib/Droplets/DropletsVanilla.ts
  * License: MIT + Commons Clause License Condition v1.0 (see LICENSE.txt)
  *
@@ -354,11 +356,12 @@ export function createDroplets(elements, options = {}) {
   let wake = () => {};
 
   if (htmlInCanvasNative) {
+    prepareHtmlInCanvas(source, content);
     paintable.onpaint = () => {
       if (useBitmap()) return;
       try {
         sourceCtx.reset();
-        sourceCtx.drawElementImage(content, 0, 0);
+        drawHtmlInCanvas(source, sourceCtx, content);
         contentDirty = true;
         contentReady = true;
         wake();
@@ -458,7 +461,7 @@ export function createDroplets(elements, options = {}) {
   let contentMaxX = 1;
 
   function syncCanvasSize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = getCanvasPixelRatio(output, gl);
     const cssW = Math.max(1, output.clientWidth || output.offsetWidth || 1);
     const cssH = Math.max(1, output.clientHeight || output.offsetHeight || 1);
     const width = Math.max(1, Math.round(cssW * dpr));
@@ -477,11 +480,11 @@ export function createDroplets(elements, options = {}) {
       );
     }
     if (useHtmlInCanvas()) {
-      const cssWidth = Math.max(1, Math.round(source.clientWidth || cssW));
-      const cssHeight = Math.max(1, Math.round(source.clientHeight || cssH));
-      if (source.width !== cssWidth * dpr || source.height !== cssHeight * dpr) {
-        source.width = cssWidth * dpr;
-        source.height = cssHeight * dpr;
+      const sourceWidth = Math.max(1, Math.round((source.clientWidth || cssW) * dpr));
+      const sourceHeight = Math.max(1, Math.round((source.clientHeight || cssH) * dpr));
+      if (source.width !== sourceWidth || source.height !== sourceHeight) {
+        source.width = sourceWidth;
+        source.height = sourceHeight;
       }
       paintable.requestPaint();
     }
@@ -726,7 +729,7 @@ export function createDroplets(elements, options = {}) {
   }
   motionQuery.addEventListener("change", onMotionChange);
 
-  const observer = new ResizeObserver(() => {
+  const observer = createCanvasResizeObserver(() => {
     syncCanvasSize();
     start();
   });
@@ -741,9 +744,10 @@ export function createDroplets(elements, options = {}) {
 
   const listenTarget = output.parentElement ?? output;
 
+  const rectCache = createRectCache(output);
   function onPointerMove(event) {
     if (!config.interactive || reducedMotion) return;
-    const rect = output.getBoundingClientRect();
+    const rect = rectCache.current;
     const x = (event.clientX - rect.left) / Math.max(rect.width, 1);
     const y = 1 - (event.clientY - rect.top) / Math.max(rect.height, 1);
     if (!pointer.seen) {
@@ -799,6 +803,7 @@ export function createDroplets(elements, options = {}) {
       return useBitmap() ? contentUploaded : hasContent() && contentReady;
     },
     destroy() {
+      rectCache.destroy();
       destroyed = true;
       cancelAnimationFrame(raf);
       observer.disconnect();

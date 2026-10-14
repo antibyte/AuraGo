@@ -2,15 +2,15 @@
   "version": 1,
   "packages": {
     "@docx-editor.dev/core": {
-      "version": "2.23.0",
+      "version": "2.29.0",
       "license": "Apache-2.0"
     },
     "@docx-editor.dev/fonts": {
-      "version": "2.23.0",
+      "version": "2.29.0",
       "license": "Apache-2.0 AND OFL-1.1 AND LicenseRef-GUST-Font-License"
     },
     "@docx-editor.dev/i18n": {
-      "version": "2.23.0",
+      "version": "2.29.0",
       "license": "Apache-2.0"
     },
     "@nodable/entities": {
@@ -96,12 +96,12 @@
   },
   "files": {
     "engine.js": {
-      "bytes": 3458386,
-      "sha256": "07bb65bf796b16c4fe1e7470352b50672249fc6d4379172dc6fa60793eeacbcd"
+      "bytes": 3836508,
+      "sha256": "e10bdb286631848662db227323bd0bd8018eaa360be62f58ce033d8ba5d5f807"
     },
     "engine.css": {
-      "bytes": 135399,
-      "sha256": "71751fd54e1444848900cd9e35e4bd17f4665541cb0eef184a0288aaba291f0a"
+      "bytes": 151637,
+      "sha256": "c5c45f669d3508a8e7d3fa67c4ca93d16c44b69354e20464f44010734d30cdb5"
     },
     "harfbuzz.wasm": {
       "bytes": 426620,
@@ -205,7 +205,7 @@
     },
     "LICENSES.md": {
       "bytes": 106251,
-      "sha256": "1cfcdb11bcb3ed4f8fc9c29d33530f70add473142d9dbe9409c9a399fdf19978"
+      "sha256": "bce88111606755ffc813fa4c9a2b036ff6a24cb772e2ce21092899caede4bd00"
     }
   }
 }

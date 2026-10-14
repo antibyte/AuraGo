@@ -3,7 +3,7 @@
 AuraGo host code remains MIT. No Pro or AGPL packages are included.
 
 
-## @docx-editor.dev/core 2.23.0 — Apache-2.0
+## @docx-editor.dev/core 2.29.0 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -308,7 +308,7 @@ ON AN "AS IS" BASIS, AND THE COPYRIGHT HOLDER HAS NO OBLIGATION TO
 PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 
 
-## @docx-editor.dev/fonts 2.23.0 — Apache-2.0 AND OFL-1.1 AND LicenseRef-GUST-Font-License
+## @docx-editor.dev/fonts 2.29.0 — Apache-2.0 AND OFL-1.1 AND LicenseRef-GUST-Font-License
 
 This Apache-2.0 license covers this package's own code only.
 
@@ -1292,7 +1292,7 @@ FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
 
 
-## @docx-editor.dev/i18n 2.23.0 — Apache-2.0
+## @docx-editor.dev/i18n 2.29.0 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004

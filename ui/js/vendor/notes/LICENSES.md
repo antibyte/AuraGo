@@ -1,6 +1,6 @@
 # Notizen — third-party licenses
 
-AuraGo remains MIT. Milkdown/Crepe is pinned to 7.22.2.
+AuraGo remains MIT. Milkdown/Crepe is pinned to 7.22.3.
 
 
 ## @codemirror/autocomplete 6.20.3 — MIT
@@ -53,7 +53,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## @codemirror/language 6.12.4 — MIT
+## @codemirror/language 6.13.1 — MIT
 
 MIT License
 
@@ -153,7 +153,32 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## @codemirror/view 6.43.13 — MIT
+## @codemirror/streamparser 6.0.0 — MIT
+
+MIT License
+
+Copyright (C) 2018-2021 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+## @codemirror/view 6.43.14 — MIT
 
 MIT License
 
@@ -325,7 +350,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## @milkdown/components 7.22.2 — MIT
+## @milkdown/components 7.22.3 — MIT
 
 The MIT License (MIT)
 
@@ -350,7 +375,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/core 7.22.2 — MIT
+## @milkdown/core 7.22.3 — MIT
 
 The MIT License (MIT)
 
@@ -375,7 +400,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/crepe 7.22.2 — MIT
+## @milkdown/crepe 7.22.3 — MIT
 
 The MIT License (MIT)
 
@@ -400,7 +425,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/ctx 7.22.2 — MIT
+## @milkdown/ctx 7.22.3 — MIT
 
 The MIT License (MIT)
 
@@ -425,7 +450,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/exception 7.22.2 — MIT
+## @milkdown/exception 7.22.3 — MIT
 
 The MIT License (MIT)
 
@@ -450,7 +475,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/kit 7.22.2 — MIT
+## @milkdown/kit 7.22.3 — MIT
 
 The MIT License (MIT)
 
@@ -475,7 +500,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/plugin-clipboard 7.22.2 — MIT
+## @milkdown/plugin-clipboard 7.22.3 — MIT
 
 The MIT License (MIT)
 
@@ -500,7 +525,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/plugin-cursor 7.22.2 — MIT
+## @milkdown/plugin-cursor 7.22.3 — MIT
 
 The MIT License (MIT)
 
@@ -525,7 +550,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/plugin-history 7.22.2 — MIT
+## @milkdown/plugin-history 7.22.3 — MIT
 
 The MIT License (MIT)
 
@@ -550,7 +575,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/plugin-indent 7.22.2 — MIT
+## @milkdown/plugin-indent 7.22.3 — MIT
 
 The MIT License (MIT)
 
@@ -575,7 +600,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/plugin-listener 7.22.2 — MIT
+## @milkdown/plugin-listener 7.22.3 — MIT
 
 The MIT License (MIT)
 
@@ -600,7 +625,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/plugin-trailing 7.22.2 — MIT
+## @milkdown/plugin-trailing 7.22.3 — MIT
 
 The MIT License (MIT)
 
@@ -625,7 +650,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/plugin-upload 7.22.2 — MIT
+## @milkdown/plugin-upload 7.22.3 — MIT
 
 The MIT License (MIT)
 
@@ -650,7 +675,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/preset-commonmark 7.22.2 — MIT
+## @milkdown/preset-commonmark 7.22.3 — MIT
 
 The MIT License (MIT)
 
@@ -675,7 +700,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/preset-gfm 7.22.2 — MIT
+## @milkdown/preset-gfm 7.22.3 — MIT
 
 The MIT License (MIT)
 
@@ -700,7 +725,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/prose 7.22.2 — MIT
+## @milkdown/prose 7.22.3 — MIT
 
 The MIT License (MIT)
 
@@ -725,7 +750,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/transformer 7.22.2 — MIT
+## @milkdown/transformer 7.22.3 — MIT
 
 The MIT License (MIT)
 
@@ -750,7 +775,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/utils 7.22.2 — MIT
+## @milkdown/utils 7.22.3 — MIT
 
 The MIT License (MIT)
 
@@ -775,7 +800,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @ocavue/utils 1.8.0 — MIT
+## @ocavue/utils 1.9.0 — MIT
 
 MIT License
 
@@ -800,7 +825,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @vue/reactivity 3.5.43 — MIT
+## @vue/reactivity 3.5.44 — MIT
 
 The MIT License (MIT)
 
@@ -825,7 +850,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## @vue/runtime-core 3.5.43 — MIT
+## @vue/runtime-core 3.5.44 — MIT
 
 The MIT License (MIT)
 
@@ -850,7 +875,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## @vue/runtime-dom 3.5.43 — MIT
+## @vue/runtime-dom 3.5.44 — MIT
 
 The MIT License (MIT)
 
@@ -875,7 +900,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## @vue/shared 3.5.43 — MIT
+## @vue/shared 3.5.44 — MIT
 
 The MIT License (MIT)
 
@@ -1065,7 +1090,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-## dompurify 3.4.16 — (MPL-2.0 OR Apache-2.0)
+## dompurify 3.4.17 — (MPL-2.0 OR Apache-2.0)
 
 
                                  Apache License
@@ -1852,7 +1877,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-## mdast-util-find-and-replace 3.0.2 — MIT
+## mdast-util-find-and-replace 3.0.3 — MIT
 
 (The MIT License)
 
@@ -2841,7 +2866,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-## nanoid 6.0.1 — MIT
+## nanoid 6.0.2 — MIT
 
 The MIT License (MIT)
 
@@ -3569,7 +3594,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-## vue 3.5.43 — MIT
+## vue 3.5.44 — MIT
 
 The MIT License (MIT)
 
