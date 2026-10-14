@@ -589,6 +589,11 @@ Vendoring scripts must rewrite upstream CDN, Google Fonts and analytics referenc
   Every Desktop main-bundle part starts and ends at a function boundary inside the shell IIFE (only
   `desktop-foundation.js` opens and `sdk-events-bootstrap.js` closes it); never cut a function across
   part files to meet the line budget. Verify with `npm run test:ui-regressions`.
+- The shell receives server Desktop events over both its WebSocket and SSE.
+  `handleDesktopEvent` drops an event whose `id` it handled in the last minute
+  (`desktopEventAlreadyHandled`), so one notification shows one toast and one
+  bell count. Events without an id (agent tool events, SSE only) always run.
+  Verify the regression "Desktop event delivered over WebSocket and SSE is handled once".
 - `ui/css/desktop-polish.css` is the Desktop's finishing layer and stays the
   last part of the shell CSS bundle: it only refines existing surfaces (ambient
   wallpaper light in taskbar, dock, menubar and menus, focus edge light and

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -302,7 +303,12 @@ func desktopWSAuthorizationValid(s *Server, r *http.Request, requiredScope strin
 	return !enabled || IsAuthenticated(r, secret)
 }
 
+// broadcastDesktopEvent sends one event over the desktop WebSocket hub and SSE.
+// The shell listens to both and drops the second copy by its shared ID.
 func broadcastDesktopEvent(s *Server, hub *desktop.Hub, event desktop.Event) {
+	if event.ID == "" {
+		event.ID = rand.Text()
+	}
 	if hub != nil {
 		hub.Broadcast(event)
 	}

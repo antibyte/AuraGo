@@ -636,6 +636,10 @@ depends on the API, SSE and error contracts below; its side is in `ui/js/desktop
   local missions, mission preparation and Virtual Computer tasks retain this
   ownership across HTTP completion. Server cancellation drains before stores close.
 - Desktop HTTP/SDK file and archive contracts are in documentation/desktop-api.md.
+- Server Desktop events go out only through `broadcastDesktopEvent`, which sends
+  each one over the Desktop WebSocket hub and SSE with one `id` (assigned when
+  empty). The shell handles an id once; never give two events the same id or
+  broadcast to only one transport (`TestBroadcastDesktopEvent*`).
 
 ## Verification
 

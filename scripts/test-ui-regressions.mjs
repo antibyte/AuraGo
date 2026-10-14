@@ -3786,6 +3786,23 @@ async function testEasyDragFlowsChangedIsForwarded() {
   ]);
 }
 
+// broadcastDesktopEvent delivers a server event over the desktop WebSocket and SSE with one id:
+// the shell handles it once (one toast, one bell count), while events without an id still all run.
+async function testDesktopEventDeliveredTwiceIsHandledOnce() {
+  const source = sourceBetween(read('ui/js/desktop/core/sdk-events-bootstrap.js'), 'async function handleDesktopEvent(', 'function showDesktopNotification(');
+  const shown = [];
+  const context = { showDesktopNotification: payload => shown.push(payload.message) };
+  vm.createContext(context);
+  vm.runInContext(`${source}; globalThis.handle = handleDesktopEvent;`, context);
+  const event = { id: 'evt-1', type: 'notification', payload: { title: 'Person', message: 'Front door' } };
+  await context.handle(event); // WebSocket copy
+  await context.handle(JSON.parse(JSON.stringify(event))); // SSE copy
+  await context.handle({ id: 'evt-2', type: 'notification', payload: { message: 'Garage' } });
+  await context.handle({ type: 'notification', payload: { message: 'agent tool' } });
+  await context.handle({ type: 'notification', payload: { message: 'agent tool' } });
+  assert.deepEqual(shown, ['Front door', 'Garage', 'agent tool', 'agent tool']);
+}
+
 // Loads cfg/flows.js with the real config helpers it uses: escaping (utils.js), the provider choice helpers
 // and toggleBool (main.js), the validation rules (catalog.js) and the field metadata (lang/meta.json).
 function configFlowsContext({ flows, tools = {}, providers = [], loaded = true }) {
@@ -4399,6 +4416,7 @@ const tests = [
   ['Network Cameras notifications keep the detection event id', testNetworkCamerasNotificationContextKeepsEventIds],
   ['EasyDrag session keeps only valid flow ids', testEasyDragSessionKeepsOnlyValidFlowIds],
   ['EasyDrag flows_changed is forwarded as aurago:flows-changed', testEasyDragFlowsChangedIsForwarded],
+  ['Desktop event delivered over WebSocket and SSE is handled once', testDesktopEventDeliveredTwiceIsHandledOnce],
   ['Config EasyDrag flows section keeps providers, numbers and locked agent options', testConfigFlowsSection],
   ['Config go2rtc streams save as the complete list', testConfigGo2RTCStreamsSaveAsCompleteList],
   ['Config A2A skills and remote agents save as complete lists', testConfigA2AListsSaveAsCompleteLists],

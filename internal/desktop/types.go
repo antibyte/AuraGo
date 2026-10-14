@@ -228,8 +228,10 @@ type Widget struct {
 	UpdatedAt    time.Time              `json:"updated_at,omitempty"`
 }
 
-// Event is sent over WebSocket/SSE when the desktop state changes.
+// Event is sent over WebSocket/SSE when the desktop state changes. ID is the
+// same on both transports, so a client listening to both handles it once.
 type Event struct {
+	ID        string      `json:"id,omitempty"`
 	Type      string      `json:"type"`
 	Payload   interface{} `json:"payload,omitempty"`
 	CreatedAt time.Time   `json:"created_at"`

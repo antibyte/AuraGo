@@ -21498,6 +21498,7 @@ if (appId === 'pixel') {
 
     async function handleDesktopEvent(event) {
         if (!event || !event.type) return;
+        if (desktopEventAlreadyHandled(event.id)) return;
         if (event.type === 'desktop_policy') {
             Object.assign(state.bootstrap || (state.bootstrap = {}), event.payload || {});
             document.dispatchEvent(new CustomEvent('aurago:desktop-policy', { detail: event.payload || {} }));
@@ -21584,6 +21585,24 @@ if (appId === 'pixel') {
             }
             return;
         }
+    }
+
+    // The server sends each event over the WebSocket and SSE with one id; the
+    // second copy is dropped. Agent tool events come over SSE only, without an id.
+    const DESKTOP_EVENT_SEEN_MS = 60000;
+    const DESKTOP_EVENT_SEEN_MAX = 512;
+    const desktopEventSeen = new Map();
+
+    function desktopEventAlreadyHandled(id) {
+        if (typeof id !== 'string' || !id) return false;
+        const now = Date.now();
+        for (const [seenId, seenAt] of desktopEventSeen) {
+            if (now - seenAt < DESKTOP_EVENT_SEEN_MS && desktopEventSeen.size < DESKTOP_EVENT_SEEN_MAX) break;
+            desktopEventSeen.delete(seenId);
+        }
+        if (desktopEventSeen.has(id)) return true;
+        desktopEventSeen.set(id, now);
+        return false;
     }
 
     function showDesktopNotification(payload) {
