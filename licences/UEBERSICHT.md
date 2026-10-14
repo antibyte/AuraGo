@@ -1,6 +1,6 @@
 # Externe Projekte und Lizenzbedingungen
 
-Stand: 12. Oktober 2026. AuraGo selbst steht unter der MIT-Lizenz in `LICENSE`.
+Stand: 14. Oktober 2026. AuraGo selbst steht unter der MIT-Lizenz in `LICENSE`.
 Diese Datei listet fremde Projekte, die der Quellbaum direkt einbindet, auf dem
 virtuellen Desktop mitliefert oder als Docker-Image startet.
 
@@ -37,9 +37,10 @@ Diese Einträge binden enger als MIT.
 
 | Projekt | Lizenz | Was gilt |
 | --- | --- | --- |
-| Stockfish 19 | GPL-3.0 | Schach-Engine im Desktop, `ui/js/vendor/stockfish/`. Text: `texts/GPL-3.0-only.txt`. |
+| Stockfish 19.0.1 | GPL-3.0 | Schach-Engine im Desktop, `ui/js/vendor/stockfish/`. Text: `texts/GPL-3.0-only.txt`. |
 | Papirus, WhiteSur | GPL-3.0 | Icon-Themes des virtuellen Desktops. Texte liegen auch in `ui/img/papirus/` und `ui/img/whitesur/`. |
-| Layerling 1.57.0 | AGPL-3.0-only | Optionale CAD-App. Lizenz und Quellarchiv (`source.zip`) liegen in `ui/js/vendor/layerling/`. |
+| Layerling 1.71.0 | AGPL-3.0-only | Optionale CAD-App. Lizenz und Quellarchiv (`source.zip`) liegen in `ui/js/vendor/layerling/`. |
+| NASSCAD v4.7.0-desktop | CC BY-NC 4.0 mit zusätzlichen Upstream-Erlaubnissen | NassLab-Code und fremde Komponenten haben getrennte Bedingungen. `LICENSE`, `THIRD-PARTY.md` und die IFC-Lizenz werden mit den CAD-Ressourcen ausgeliefert. |
 | ByteStash, IT-Tools, AdGuard Home | GPL-3.0 | Store-Images, unverändert aus der Registry. |
 | OliveTin, RomM, MinIO, Garage | AGPL-3.0 | Store- oder Sidecar-Images. Änderungen an diesen Programmen bleiben AGPL, und Nutzer des laufenden Dienstes bekommen dessen Quellcode. |
 | SDRangel 7.27.2 | GPL-3.0 | Im RTL-SDR-Image zusammengesetzt. Hinweise bleiben im Image. |
@@ -69,18 +70,18 @@ AuraGo-eigene Oberflächen ohne Fremdcode stehen hier nicht.
 
 | Fläche | Fremdprojekt | Lizenz |
 | --- | --- | --- |
-| Schach | chess.js 1.4.0, cm-chessboard 8.15.1, Stockfish 19 | BSD-2-Clause, MIT, GPL-3.0 |
+| Schach | chess.js 1.4.0, cm-chessboard 8.15.3, Stockfish 19.0.1 | BSD-2-Clause, MIT, GPL-3.0 |
 | Terminal, Code Studio, Retro-Net | xterm.js 6, Fit- und WebGL-Addon | MIT |
 | Webamp | webamp 2.3.1 | MIT |
-| PDF-Anzeige | PDF.js 6.3.289, zuzüglich OpenJPEG, qcms, JBIG2 und der Standardschriften laut `ui/js/vendor/pdf/` | Apache-2.0 und die dort liegenden Schriftlizenzen |
+| PDF-Anzeige | PDF.js 6.4.299, zuzüglich OpenJPEG, qcms, JBIG2 und der Standardschriften laut `ui/js/vendor/pdf/` | Apache-2.0 und die dort liegenden Schriftlizenzen |
 | VNC in Quick Connect und virtuellen Rechnern | noVNC 1.7.0 | MPL-2.0 |
-| Autor | `@docx-editor.dev` 2.23.0 | Apache-2.0; Schriften zusätzlich OFL-1.1 und GUST. Volltexte in `ui/js/vendor/writer/LICENSES.md` |
-| Tabellen | Univer OSS 1.0.3 | Apache-2.0 |
-| Notizen | Milkdown Crepe/Kit 7.22.2, ProseMirror | MIT |
+| Autor | `@docx-editor.dev` 2.29.0 | Apache-2.0; Schriften zusätzlich OFL-1.1 und GUST. Volltexte in `ui/js/vendor/writer/LICENSES.md` |
+| Tabellen | Univer OSS 1.0.4 | Apache-2.0 |
+| Notizen | Milkdown Crepe/Kit 7.22.3, ProseMirror | MIT |
 | Code Studio, OpenSCAD, Cheater | CodeMirror 6 | MIT |
-| Cheater, Viewer, Notizen, Autor, Code Studio | marked 18, markdown-it 15, DOMPurify 3.4.16, highlight.js 11.12 | MIT, MIT, Apache-2.0 OR MPL-2.0, BSD-3-Clause |
+| Cheater, Viewer, Notizen, Autor, Code Studio | marked 18, markdown-it 15, DOMPurify 3.4.17, highlight.js 11.12 | MIT, MIT, Apache-2.0 OR MPL-2.0, BSD-3-Clause |
 | System World, Tiefsee, Galaxy, Wissensgraph | three.js 0.186.1; RuView zusätzlich three 0.160.0 | MIT |
-| Wissensgraph | 3d-force-graph 1.80.0, force-graph 1.52.0 | MIT |
+| Wissensgraph | 3d-force-graph 1.80.1, force-graph 1.52.0 | MIT |
 | Game Maker | Phaser 4.2.1 | MIT |
 | Game Maker 3D | Google Draco | Apache-2.0 |
 | Diagramme | Chart.js 4.5.1, Mermaid 12 | MIT |
@@ -172,7 +173,7 @@ Quelle: `internal/desktopstore/catalog.go`.
 | llama.cpp | Embedding- und lokale Modell-Sidecars | MIT |
 | ONNX Runtime 1.26.0 | Native Embeddings | MIT |
 | Granite Embedding 97M R2 | Modell, bei Bedarf geladen | Apache-2.0 |
-| Playwright 1.63 | Browser-Sidecar, Image `mcr.microsoft.com/playwright:v1.63.0-noble` | Apache-2.0. Das enthaltene Chromium steht unter der BSD-Lizenz des Chromium-Projekts. |
+| Playwright 1.64.1 | Browser-Sidecar, Image `mcr.microsoft.com/playwright:v1.64.1-noble` | Apache-2.0. Das enthaltene Chromium steht unter der BSD-Lizenz des Chromium-Projekts. |
 | CloakBrowser 0.5.11 | Browser-Sidecar | MIT |
 | gog-Buildhilfe | `internal/gog/build/LICENSE.gog` | MIT, Copyright 2026 Peter Steinberger |
 

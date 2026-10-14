@@ -94,8 +94,8 @@ another write. AuraGo never automatically repeats it.
 
 ## Maintainer contract
 
-The approved helper is `0.43.0-aurago1`, upstream commit
-`3b5122f4c81c5df6df38ee48e01327f1034364ee`. The versioned patch in
+The approved helper is `0.44.0-aurago1`, upstream commit
+`cf42bb7c9f67d3369090de95a7b84ee258be9b02`. The versioned patch in
 `internal/gog/build/single-attempt.patch` disables retries for non-read HTTP
 methods and Google SDK resumable upload retries on the admitted Drive upload
 paths. Do not upgrade the CLI independently of its catalog and these tests.

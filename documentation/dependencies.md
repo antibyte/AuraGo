@@ -25,11 +25,12 @@ the consuming library or reintroduces a vulnerability.
 | cloudflared | 2026.10.0; Docker manifest digest and Linux amd64/arm64 SHA-256 pins | Reviewed release metadata in `internal/tools/cloudflare_install.go` and `cloudflare_tunnel.go`; no moving latest URL or checksum sidecar. Run Cloudflare/HomepageQuick tests when refreshing. See [Cloudflare Tunnel](cloudflare-tunnel.md). |
 | gRPC Go | 1.83.2 | 1.84.0 is affected by GO-2026-6443; use a fixed stable successor when available. |
 | Excelize | 2.11.1-0.20261003002531-6258dcebc4e2 | Security exception to stable releases: 2.11.0 remains affected by 15 workbook-parsing advisories. This exact upstream commit contains all their fixes; move to a fixed stable release when available and rerun the Office preservation and security tests. |
-| pdfcpu | 0.15.0 | 0.16 changes `MergeRaw`; Maroto 2.4.2 still calls the previous API. |
+| pdfcpu | 0.15.0 | 0.16 changes `MergeRaw`; Maroto 2.4.3 still calls the previous API. |
 | fetchup | 0.2.4 | Rod 0.116.2 still needs its older browser-download API. |
+| ysmood/got and gop | 0.41.0 and 0.2.0 | Rod 0.116.2 imports `got/lib/lcs`, which newer got releases remove. |
 | gobwas/glob | 0.2.3 | Colly 2.3.0 uses the `Glob` API removed in 1.0. |
-| gVisor | Tailscale's February 2026 generated Go revision | Upstream main contains Bazel/template packages that do not build as a Go module. |
-| Pion media family | ICE 4.3, WebRTC 4.2, TURN 5.0, SRTP 3.0, DTLS 3.1 | Diago 0.40 requires this coherent family; newer minors change STUN/transport types. Exact patches are in `go.mod`. |
+| gVisor | Tailscale 1.104.1's September 2026 generated Go revision | Upstream main contains Bazel/template packages that do not build as a Go module. |
+| Pion media family | ICE 4.3.0, WebRTC 4.2.17, TURN 5.0.13, SRTP 3.0.15, DTLS 3.1.8 | Diago 0.41 requires this coherent family; later releases change STUN/transport types, including some patch releases. |
 | KaTeX | 0.18.9 override | Mermaid and micromark-extension-math still request the vulnerable 0.16 line. Share the fixed version already used by Milkdown and rebuild both browser and Notes vendors. |
 | lodash-es | 4.18.1 override | Mermaid's Chevrotain dependency otherwise selects a vulnerable older pin. |
 | argon2id | 1.0.1 exact pin | Desktop Tresor ships its local JS/WASM with the upstream license; cryptographic vector and vendor drift checks gate changes. |
@@ -49,10 +50,30 @@ qualified image, native-library and model hashes. Updating these is a separate
 release operation with the owning `AGENTS.md` checks and actual hardware/media
 qualification; editing a Docker build input does not update a published image.
 ACE-Step still exports its upstream frozen Python lock and uses matched hardware
-wheels. Its build-time uv is 0.12.20. Supertonic remains on upstream 1.3.1.
-The Ansible sidecar pins 14.4.0 and gives its unprivileged user a writable home.
+wheels. Its build-time uv is 0.13.1. Supertonic remains on upstream 1.3.1.
+The Ansible sidecar pins 14.5.0 and gives its unprivileged user a writable home.
+The CYD builder is 1.0.2; its refreshed hash lock includes Starlette 1.8.0 and
+setuptools 84.0.0. All nine offline board builds and both library-gating cases
+must pass before publishing this image. Hardware-qualified firmware libraries
+and board toolchains remain a coherent pinned set.
+
+The sanoTTS Python wheel remains the qualified 0.6.0 source revision. PyPI still
+publishes 0.5.0; upstream development 0.7.0 changes voice support and the root
+licensing scope and is not a drop-in released wheel. RuView retains its existing
+runtime/firmware release set; its separately tagged harness release does not
+qualify a replacement sensing runtime. Native ONNX/llama.cpp and Decisions pins
+likewise require the owning runtime's device and model checks, not just a newer
+upstream tag.
 
 ## Browser resources
+
+NASSCAD uses the v4.7.0-desktop release at
+`279da7c0f0ca28dfae19c11c8be231f326dfda4f`. Reproduce its browser adaptation with
+`node scripts/vendor-nasscad.mjs --source=<upstream checkout>` and verify it with
+`--check`. Provenance records each original and adapted file. The local browser
+test is `node scripts/test-nasscad-browser.mjs`; existing workspace entry files
+remain user-owned. Layerling 1.71.0 has its own pinned build and complete source
+archive, documented in `scripts/layerling/README.md`.
 
 Synth Studio vendors `@tonejs/midi` 2.0.28 (MIT) and only the factory synthesis
 tables from `webaudio-tinysynth` 1.1.4 (Apache-2.0) under

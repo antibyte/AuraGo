@@ -18,8 +18,8 @@ import (
 	"time"
 )
 
-const commit = "3b5122f4c81c5df6df38ee48e01327f1034364ee"
-const version = "0.43.0-aurago1"
+const commit = "cf42bb7c9f67d3369090de95a7b84ee258be9b02"
+const version = "0.44.0-aurago1"
 
 type artifact struct {
 	OS            string `json:"os"`
@@ -55,7 +55,7 @@ func main() {
 	build()
 }
 func build() {
-	source := flag.String("source", "disposable/_gog/build-source", "clean checkout/cache directory")
+	source := flag.String("source", "disposable/_gog/"+version, "clean checkout/cache directory")
 	out := flag.String("out", "deploy/gog", "package destination")
 	flag.Parse()
 	root, e := os.Getwd()
@@ -64,7 +64,7 @@ func build() {
 	fatal(e)
 	if _, e = os.Stat(filepath.Join(src, ".git")); os.IsNotExist(e) {
 		fatal(os.MkdirAll(filepath.Dir(src), 0700))
-		run(root, nil, "git", "clone", "--depth", "1", "--branch", "v0.43.0", "https://github.com/openclaw/gogcli.git", src)
+		run(root, nil, "git", "clone", "--depth", "1", "--branch", "v0.44.0", "https://github.com/openclaw/gogcli.git", src)
 	}
 	if string(run(src, nil, "git", "rev-parse", "HEAD")) != commit {
 		fatal(fmt.Errorf("unexpected gog source commit"))

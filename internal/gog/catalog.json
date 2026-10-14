@@ -168,13 +168,13 @@
         "name": "cc",
         "type": "string",
         "flag": "cc",
-        "description": "CC recipients (comma-separated)"
+        "description": "CC recipients (comma-separated; omit to keep existing, empty to clear)"
       },
       {
         "name": "bcc",
         "type": "string",
         "flag": "bcc",
-        "description": "BCC recipients (comma-separated)"
+        "description": "BCC recipients (comma-separated; omit to keep existing, empty to clear)"
       },
       {
         "name": "subject",
@@ -241,7 +241,7 @@
         "name": "body",
         "type": "string",
         "flag": "body",
-        "description": "Body (plain text; required unless --body-html is set)",
+        "description": "Body (plain text; explicitly empty allowed with attachments)",
         "required": true
       }
     ]

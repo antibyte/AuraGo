@@ -4,15 +4,21 @@ Inventory of external libraries, runtimes, fonts, icons, and other third-party a
 
 The German compact listing and the license texts that must travel with a redistribution are in [`licences/UEBERSICHT.md`](licences/UEBERSICHT.md).
 
-Layerling 1.57.0 (commit `25f12513802e322cdccecaf138f874ff526f331d`) is an optional
+Layerling 1.71.0 (commit `8704d5c99adfeb981be31bb5eddc9c17f75ab281`) is an optional
 AGPL-3.0-only browser CAD application, vendored in `ui/js/vendor/layerling`.
 Its license and complete corresponding source archive (including AuraGo's
 adapter and build instructions) are shipped as `LICENSE.txt` and `source.zip`.
 The running editor exposes both downloads. See `scripts/layerling/README.md`
 and [Layerling upstream](https://github.com/henmedia/layerling) for provenance.
 
+NASSCAD v4.7.0-desktop (commit `279da7c0f0ca28dfae19c11c8be231f326dfda4f`)
+is bundled with its CC BY-NC 4.0 license and upstream additional permissions.
+Its third-party components retain their own licenses. The complete notices,
+original/adapted checksums and local adaptation script are recorded in
+`internal/desktop/bundled_apps/nasscad/` and `scripts/vendor-nasscad.mjs`.
+
 - **AuraGo project license:** [MIT](LICENSE)
-- **Reviewed:** 2026-10-09
+- **Reviewed:** 2026-10-14
 - **Sources:** `go.mod`, root `package.json`, `browser_automation_sidecar/package.json`, `ui/js/vendor/`, `ui/fonts/`, `ui/img/`, `THIRD_PARTY_NOTICES.md`
 
 > **Note:** Upstream license texts are authoritative. This document is an attribution inventory. Versions may drift; check `go.mod` / `package.json` / vendored file headers for the exact pin in your checkout.
@@ -40,8 +46,8 @@ and [Layerling upstream](https://github.com/henmedia/layerling) for provenance.
 | Package | Version (from `go.mod`) | License | Project |
 |---|---|---|---|
 | `gopkg.in/yaml.v3` | v3.0.1 | MIT and Apache-2.0 | https://github.com/go-yaml/yaml |
-| `github.com/sashabaranov/go-openai` | v1.42.1 | Apache-2.0 | https://github.com/sashabaranov/go-openai |
-| `codeberg.org/readeck/go-readability/v2` | v2.1.2 | MIT | https://codeberg.org/readeck/go-readability |
+| `github.com/sashabaranov/go-openai` | v1.43.0 | Apache-2.0 | https://github.com/sashabaranov/go-openai |
+| `codeberg.org/readeck/go-readability/v2` | v2.1.3 | MIT | https://codeberg.org/readeck/go-readability |
 | `github.com/BurntSushi/toml` | v1.6.0 | MIT | https://github.com/BurntSushi/toml |
 | `github.com/JohannesKaufmann/html-to-markdown/v2` | v2.5.2 | MIT | https://github.com/JohannesKaufmann/html-to-markdown |
 | `github.com/PuerkitoBio/goquery` | v1.13.0 | BSD-2-Clause | https://github.com/PuerkitoBio/goquery |
@@ -51,12 +57,12 @@ and [Layerling upstream](https://github.com/henmedia/layerling) for provenance.
 | `github.com/blevesearch/snowballstem` | v0.9.0 | BSD-3-Clause | https://github.com/blevesearch/snowballstem |
 | `github.com/bwmarrin/discordgo` | v0.29.0 | BSD-3-Clause | https://github.com/bwmarrin/discordgo |
 | `github.com/danielthedm/promptsec` | v0.1.0 | Apache-2.0 | https://github.com/danielthedm/promptsec |
-| `github.com/emiago/diago` | v0.40.0 | MPL-2.0 | https://github.com/emiago/diago |
+| `github.com/emiago/diago` | v0.41.0 | MPL-2.0 | https://github.com/emiago/diago |
 | `github.com/emiago/sipgo` | v1.6.0 | BSD-2-Clause | https://github.com/emiago/sipgo |
 | `github.com/dlclark/regexp2` | v1.12.0 | MIT | https://github.com/dlclark/regexp2 |
 | `github.com/ebitengine/purego` | v0.11.1 | Apache-2.0 | https://github.com/ebitengine/purego |
 | `github.com/eclipse/paho.mqtt.golang` | v1.5.1 | EPL-2.0 | https://github.com/eclipse/paho.mqtt.golang |
-| `github.com/go-ldap/ldap/v3` | v3.4.14 | MIT | https://github.com/go-ldap/ldap |
+| `github.com/go-ldap/ldap/v3` | v3.4.15 | MIT | https://github.com/go-ldap/ldap |
 | `github.com/go-rod/rod` | v0.116.2 | MIT | https://github.com/go-rod/rod |
 | `github.com/go-sql-driver/mysql` | v1.10.1 | MPL-2.0 | https://github.com/go-sql-driver/mysql |
 | `github.com/go-telegram-bot-api/telegram-bot-api/v5` | v5.5.1 | MIT | https://github.com/go-telegram-bot-api/telegram-bot-api |
@@ -65,34 +71,34 @@ and [Layerling upstream](https://github.com/henmedia/layerling) for provenance.
 | `github.com/gorilla/websocket` | v1.5.4-0.20250319132907-e064f32e3674 | BSD-2-Clause | https://github.com/gorilla/websocket |
 | `github.com/huin/goupnp` | v1.3.0 | BSD-2-Clause | https://github.com/huin/goupnp |
 | `github.com/hajimehoshi/go-mp3` | v0.3.4 | Apache-2.0 | https://github.com/hajimehoshi/go-mp3 |
-| `github.com/johnfercher/maroto/v2` | v2.4.2 | MIT | https://github.com/johnfercher/maroto |
-| `github.com/klauspost/compress` | v1.20.1 | BSD-3-Clause (`zstd/internal/xxhash`: MIT) | https://github.com/klauspost/compress |
+| `github.com/johnfercher/maroto/v2` | v2.4.3 | MIT | https://github.com/johnfercher/maroto |
+| `github.com/klauspost/compress` | v1.20.3 | BSD-3-Clause (`zstd/internal/xxhash`: MIT) | https://github.com/klauspost/compress |
 | `github.com/ledongthuc/pdf` | v0.0.0-20260907135840-6c8c28e0e8a0 | BSD-style / MIT-compatible | https://github.com/ledongthuc/pdf |
 | `github.com/lib/pq` | v1.12.3 | MIT | https://github.com/lib/pq |
 | `github.com/miekg/dns` | v1.1.73 | BSD-3-Clause | https://github.com/miekg/dns |
-| `github.com/minio/minio-go/v7` | v7.3.0 | Apache-2.0 | https://github.com/minio/minio-go |
+| `github.com/minio/minio-go/v7` | v7.4.1 | Apache-2.0 | https://github.com/minio/minio-go |
 | `github.com/pdfcpu/pdfcpu` | v0.15.0 | Apache-2.0 | https://github.com/pdfcpu/pdfcpu |
 | `github.com/philippgille/chromem-go` | v0.7.0 | MPL-2.0 | https://github.com/philippgille/chromem-go |
 | `github.com/pkg/sftp` | v1.13.11 | BSD-2-Clause | https://github.com/pkg/sftp |
 | `github.com/pkoukk/tiktoken-go` | v0.1.8 | MIT | https://github.com/pkoukk/tiktoken-go |
 | `github.com/prometheus-community/pro-bing` | v0.9.1 | MIT | https://github.com/prometheus-community/pro-bing |
 | `github.com/robfig/cron/v3` | v3.0.1 | MIT | https://github.com/robfig/cron |
-| `github.com/shirou/gopsutil/v4` | v4.26.8 | BSD-3-Clause | https://github.com/shirou/gopsutil |
+| `github.com/shirou/gopsutil/v4` | v4.26.9 | BSD-3-Clause | https://github.com/shirou/gopsutil |
 | `github.com/tailscale/go-winio` | v0.0.0-20231025203758-c4f33415bf55 | MIT | https://github.com/tailscale/go-winio |
-| `github.com/tidwall/gjson` | v1.19.0 | MIT | https://github.com/tidwall/gjson |
+| `github.com/tidwall/gjson` | v1.20.0 | MIT | https://github.com/tidwall/gjson |
 | `github.com/tidwall/sjson` | v1.2.5 | MIT | https://github.com/tidwall/sjson |
 | `github.com/ulikunitz/xz` | v0.5.17 | BSD-3-Clause | https://github.com/ulikunitz/xz |
 | `github.com/vishen/go-chromecast` | v0.3.4 | Apache-2.0 | https://github.com/vishen/go-chromecast |
 | `github.com/xeipuuv/gojsonschema` | v1.2.0 | Apache-2.0 | https://github.com/xeipuuv/gojsonschema |
 | `github.com/xuri/excelize/v2` | v2.11.1-0.20261003002531-6258dcebc4e2 | BSD-3-Clause | https://github.com/qax-os/excelize |
-| `golang.org/x/crypto` | v0.57.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/crypto |
-| `golang.org/x/image` | v0.46.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/image |
-| `golang.org/x/net` | v0.60.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/net |
-| `golang.org/x/sync` | v0.23.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/sync |
-| `golang.org/x/sys` | v0.48.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/sys |
+| `golang.org/x/crypto` | v0.58.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/crypto |
+| `golang.org/x/image` | v0.47.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/image |
+| `golang.org/x/net` | v0.61.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/net |
+| `golang.org/x/sync` | v0.24.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/sync |
+| `golang.org/x/sys` | v0.49.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/sys |
 | `google.golang.org/grpc` | v1.83.2 | Apache-2.0 | https://github.com/grpc/grpc-go |
 | `modernc.org/sqlite` | v1.60.1 | BSD-3-Clause | https://gitlab.com/cznic/sqlite |
-| `tailscale.com` | v1.102.5 | BSD-3-Clause | https://github.com/tailscale/tailscale |
+| `tailscale.com` | v1.104.1 | BSD-3-Clause | https://github.com/tailscale/tailscale |
 
 ---
 
@@ -108,9 +114,9 @@ Selected transitive modules that matter operationally (not exhaustive):
 | `github.com/phpdave11/gofpdf` | v1.4.3 | https://github.com/phpdave11/gofpdf |
 | `github.com/ysmood/*` (rod ecosystem) | MIT | https://github.com/ysmood |
 | `golang.org/x/oauth2` | v0.37.0 | https://pkg.go.dev/golang.org/x/oauth2 |
-| `golang.org/x/text` | v0.42.0 | https://pkg.go.dev/golang.org/x/text |
+| `golang.org/x/text` | v0.43.0 | https://pkg.go.dev/golang.org/x/text |
 | `google.golang.org/protobuf` | v1.36.12 | https://github.com/protocolbuffers/protobuf-go |
-| `gvisor.dev/gvisor` | v0.0.0-20260224225140-573d5e7127a8 | https://github.com/google/gvisor |
+| `gvisor.dev/gvisor` | v0.0.0-20260915211658-a6f909f08a72 | https://github.com/google/gvisor |
 | `modernc.org/libc` / `mathutil` / `memory` | BSD-3-Clause | https://gitlab.com/cznic |
 | WireGuard / wintun related (`golang.zx2c4.com/*`, Tailscale forks) | MIT / BSD-style | https://www.wireguard.com/ |
 
@@ -133,7 +139,7 @@ Browser packages and SHA-256 checksums are recorded in `ui/js/vendor/manifest.js
 | marked | `ui/js/vendor/marked.min.js` | MIT | https://github.com/markedjs/marked |
 | highlight.js | `ui/js/vendor/highlight.min.js` | BSD-3-Clause | https://github.com/highlightjs/highlight.js |
 | highlight.js GitHub themes | `ui/css/hljs-github.min.css`, `ui/css/hljs-github-dark.min.css` | BSD-3-Clause (theme lineage) | https://github.com/highlightjs/highlight.js |
-| DOMPurify 3.4.16 | `ui/js/vendor/purify.min.js` | Apache-2.0 **or** MPL-2.0 | https://github.com/cure53/DOMPurify |
+| DOMPurify 3.4.17 | `ui/js/vendor/purify.min.js` | Apache-2.0 **or** MPL-2.0 | https://github.com/cure53/DOMPurify |
 | Mermaid | `ui/js/vendor/mermaid.min.js` | MIT | https://github.com/mermaid-js/mermaid |
 | CodeMirror 6 (bundled) | `ui/js/vendor/codemirror-bundle.esm.js` | MIT | https://codemirror.net / https://github.com/codemirror/dev |
 | xterm.js | `ui/js/vendor/xterm.min.js`, `ui/css/xterm.css` | MIT | https://github.com/xtermjs/xterm.js |
@@ -190,11 +196,11 @@ Root `package.json` (`aurago-web-assets`) — used to build/vendor UI assets; no
 |---|---|---|---|
 | `@codemirror/*` (autocomplete, commands, language packs, state, view, lint, search, theme-one-dark, …) | ^6.x | MIT | https://github.com/codemirror/dev |
 | `chess.js` | 1.4.0 | BSD-2-Clause | https://github.com/jhlywa/chess.js |
-| `cm-chessboard` | 8.15.1 | MIT | https://github.com/shaack/cm-chessboard |
-| `headroom-ai` | ^0.39.1 | Apache-2.0 | https://www.npmjs.com/package/headroom-ai |
+| `cm-chessboard` | 8.15.3 | MIT | https://github.com/shaack/cm-chessboard |
+| `headroom-ai` | ^0.40.0 | Apache-2.0 | https://www.npmjs.com/package/headroom-ai |
 | `onnxruntime-web` | 1.30.0 | MIT | https://github.com/microsoft/onnxruntime |
-| `stockfish` | 19.0.0 | **GPL-3.0** | https://www.npmjs.com/package/stockfish |
-| `rollup` | ^4.63.5 | MIT | https://rollupjs.org |
+| `stockfish` | 19.0.1 | **GPL-3.0** | https://www.npmjs.com/package/stockfish |
+| `rollup` | ^4.64.6 | MIT | https://rollupjs.org |
 | `@rollup/plugin-node-resolve` | ^16.0.3 | MIT | https://github.com/rollup/plugins |
 
 ---
@@ -205,8 +211,8 @@ Root `package.json` (`aurago-web-assets`) — used to build/vendor UI assets; no
 
 | Package | Declared version | License | Project |
 |---|---|---|---|
-| `playwright-core` | ^1.63.0 | Apache-2.0 | https://github.com/microsoft/playwright |
-| `cloakbrowser` | ^0.5.11 | MIT | https://www.npmjs.com/package/cloakbrowser |
+| `playwright-core` | ^1.64.1 | Apache-2.0 | https://github.com/microsoft/playwright |
+| `cloakbrowser` | ^0.6.2 | MIT | https://www.npmjs.com/package/cloakbrowser |
 
 ---
 

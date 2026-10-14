@@ -25,7 +25,7 @@ ENV VIRTUAL_ENV=/opt/ansible-venv
 ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 RUN python -m venv "${VIRTUAL_ENV}" \
     && "${VIRTUAL_ENV}/bin/pip" install --no-cache-dir --upgrade pip \
-    && "${VIRTUAL_ENV}/bin/pip" install --no-cache-dir ansible==14.4.0
+    && "${VIRTUAL_ENV}/bin/pip" install --no-cache-dir ansible==14.5.0
 
 WORKDIR /app
 COPY ansible_api/server.py /app/server.py

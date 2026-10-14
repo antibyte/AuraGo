@@ -21,8 +21,8 @@ import (
 	"aurago/internal/security"
 )
 
-const Version = "0.43.0-aurago1"
-const SourceCommit = "3b5122f4c81c5df6df38ee48e01327f1034364ee"
+const Version = "0.44.0-aurago1"
+const SourceCommit = "cf42bb7c9f67d3369090de95a7b84ee258be9b02"
 const MaxArchive = 128 << 20
 
 //go:embed build/artifacts.json

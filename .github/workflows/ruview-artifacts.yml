@@ -48,7 +48,7 @@ jobs:
       - name: Verify and package
         shell: bash
         run: node scripts/ruview/package-native.mjs --source=upstream --platform=${{ matrix.platform }} --out=artifacts/${{ matrix.platform }}
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ruview-${{ matrix.platform }}
           path: artifacts/
@@ -79,7 +79,7 @@ jobs:
           mkdir -p artifacts
           docker buildx build --platform linux/${{ matrix.arch }} -f scripts/ruview/Dockerfile --output type=oci,dest=artifacts/ruview-${{ matrix.arch }}.tar --metadata-file artifacts/build.json upstream
           sha256sum artifacts/ruview-${{ matrix.arch }}.tar > artifacts/SHA256SUMS
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ruview-linux-${{ matrix.arch }}
           path: artifacts/
@@ -99,7 +99,7 @@ jobs:
           cp scripts/ruview/build-firmware.sh upstream/firmware/esp32-csi-node/aurago-build.sh
           docker run --rm --mount type=bind,source="$PWD/upstream/firmware/esp32-csi-node",target=/project espressif/idf@sha256:f1e9f69dc052b9afc7801ca884e0ef40c17e014bb05ce73d9c09d29290bd17fb bash /project/aurago-build.sh
           node scripts/ruview/catalog-firmware.mjs --build=upstream/firmware/esp32-csi-node/out
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ruview-firmware
           path: |
