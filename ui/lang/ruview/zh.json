@@ -90,7 +90,7 @@
   "ruview.open": "打开 RuView",
   "ruview.quality": "实验性 Wi-Fi 动作检测（雷达，也可穿墙）。RSSI 需要受支持的网卡，CSI 需要可选 ESP32 开发板。演示数据会明确标注。此版本不支持切换模型或 LoRA。",
   "ruview.prerequisites": "使用 HTTPS 或 localhost 以及允许 Web Serial 的浏览器。关闭其他串口工具并使用 USB 数据线。识别失败时请按住 BOOT 重新连接。",
-  "ruview.privacy": "Wi-Fi 凭据仅保存在浏览器内存中，并直接发送到开发板。成功传输或关闭对话框后会被清除。取消和检查操作会保留你的输入。",
+  "ruview.privacy": "Wi-Fi 凭据仅保存在浏览器内存中，并直接发送到开发板。设置、重试和检查期间会保留你的输入。关闭对话框后，这些信息会被清除。",
   "ruview.board_mismatch": "芯片、闪存容量和 USB 控制台必须与配置匹配。请选择 S3 4/8/16 MiB 或 C6 4 MiB。",
   "ruview.verification_failed": "验证失败。不会自动重试。再次尝试前请检查固件文件、USB 连接和开发板。",
   "ruview.serial_unsupported": "使用 HTTPS 或 localhost 以及允许 Web Serial 的浏览器。关闭其他串口工具并使用 USB 数据线。识别失败时请按住 BOOT 重新连接。",

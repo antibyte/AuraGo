@@ -90,7 +90,7 @@
   "ruview.open": "RuView öffnen",
   "ruview.quality": "Experimentelle WLAN Bewegungserkennung (Radar, auch durch Wände). RSSI benötigt einen unterstützten Host-Adapter, CSI optionale ESP32-Boards. Demodaten sind gekennzeichnet. Modell- und LoRA-Wechsel sind in diesem Upstream-Stand nicht verfügbar.",
   "ruview.prerequisites": "Nutze HTTPS oder localhost und einen Browser mit freigegebenem Web Serial. Schließe andere serielle Werkzeuge und nutze ein USB-Datenkabel. Halte bei Erkennungsproblemen BOOT beim erneuten Verbinden gedrückt.",
-  "ruview.privacy": "WLAN-Zugangsdaten bleiben nur im Browser-Arbeitsspeicher und gehen direkt an das Board. Nach erfolgreicher Übertragung oder beim Schließen werden sie gelöscht. Abbruch und Prüfungen behalten Deine Eingaben.",
+  "ruview.privacy": "WLAN-Zugangsdaten bleiben nur im Browser-Arbeitsspeicher und gehen direkt an das Board. Sie bleiben bei Einrichtung, Wiederholungen und Prüfungen erhalten. Beim Schließen des Dialogs werden sie gelöscht.",
   "ruview.board_mismatch": "Chip, Flashgröße und USB-Konsole müssen zum Profil passen. Wähle ein unterstütztes S3-Board mit 4/8/16 MiB oder C6 mit 4 MiB.",
   "ruview.verification_failed": "Prüfung fehlgeschlagen. Es gibt keine automatische Wiederholung. Prüfe Firmwaredateien, USB-Verbindung und Board vor einem weiteren Versuch.",
   "ruview.serial_unsupported": "Nutze HTTPS oder localhost und einen Browser mit freigegebenem Web Serial. Schließe andere serielle Werkzeuge und nutze ein USB-Datenkabel. Halte bei Erkennungsproblemen BOOT beim erneuten Verbinden gedrückt.",

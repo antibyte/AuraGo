@@ -90,7 +90,7 @@
   "ruview.open": "Abrir RuView",
   "ruview.quality": "Deteção experimental de movimento por Wi-Fi (radar, também através de paredes). RSSI exige adaptador compatível; CSI placas ESP32 opcionais. Os dados de demonstração são identificados. A troca de modelos e LoRA não está disponível.",
   "ruview.prerequisites": "Use HTTPS ou localhost e um navegador com Web Serial. Feche outras ferramentas série e use um cabo USB de dados. Mantenha BOOT ao ligar se a deteção falhar.",
-  "ruview.privacy": "As credenciais Wi-Fi ficam apenas na memória do navegador e são enviadas diretamente para a placa. São apagadas após uma transferência bem-sucedida ou ao fechar o diálogo. Cancelamentos e verificações mantêm os dados introduzidos.",
+  "ruview.privacy": "As credenciais Wi-Fi ficam apenas na memória do navegador e são enviadas diretamente para a placa. São mantidas durante a configuração, novas tentativas e verificações. São apagadas ao fechar o diálogo.",
   "ruview.board_mismatch": "O chip, tamanho da flash e consola USB devem corresponder ao perfil. Escolha S3 4/8/16 MiB ou C6 4 MiB.",
   "ruview.verification_failed": "A verificação falhou. Não há repetição automática. Verifique ficheiros, USB e placa antes de tentar novamente.",
   "ruview.serial_unsupported": "Use HTTPS ou localhost e um navegador com Web Serial. Feche outras ferramentas série e use um cabo USB de dados. Mantenha BOOT ao ligar se a deteção falhar.",

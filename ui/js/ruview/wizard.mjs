@@ -115,7 +115,8 @@ export async function openWizard({base='/api/ruview/',t,receiverIP='',port}={}){
             }else if(action==='configure'){
                 const settings=validateConfig({ssid:get('ssid').value,password:get('password').value,keep:get('keep').checked,node_id:Number(get('node').value),target_ip:get('receiver').value.trim(),target_port:Number(get('port').value)});
                 identity=null;expected=null;dialog.querySelectorAll('.ruview-steps li').forEach((step,index)=>{if(index>0){step.classList.remove('complete');step.removeAttribute('aria-label');}});
-                serial=new Onboarding(selected);try{await serial.open();identity=await serial.configure(settings);if(stopped)return;expected={node_id:settings.node_id,target_ip:settings.target_ip,target_port:settings.target_port};get('ssid').value='';get('password').value='';feedback('reconnect');}finally{settings.ssid='';settings.password='';await serial.close();serial=null;}
+                // Keep the dialog draft for explicit retries; cleanup clears it when the dialog closes.
+                serial=new Onboarding(selected);try{await serial.open();identity=await serial.configure(settings);if(stopped)return;expected={node_id:settings.node_id,target_ip:settings.target_ip,target_port:settings.target_port};feedback('reconnect');}finally{settings.ssid='';settings.password='';await serial.close();serial=null;}
             }else if(action==='readback'){
                 if(!expected||!identity)throw Error('configure_first');serial=new Onboarding(selected);try{await serial.open();const h=await serial.hello();if(h.device_digest!==identity.device_digest||h.chip!==identity.chip||h.node_id!==String(expected.node_id)||h.target_ip!==expected.target_ip||h.target_port!==String(expected.target_port)||h.configured!=='1')throw Error('readback_failed');expected.confirmed=true;completed(1);feedback('configured');}finally{await serial.close();serial=null;}
             }else if(action==='verify'){

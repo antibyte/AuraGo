@@ -711,8 +711,10 @@ worker. Keep packaging, recovery and offline instructions in
   The shared board wizard uses host theme tokens and native checkbox semantics.
   Label firmware, WLAN/receiver setup and sensor checks as numbered steps; keep
   restart confirmation inside step 2, and show action feedback beside its button.
-  Preserve WLAN drafts on cancellation, failed transfer and unrelated checks;
-  clear them after acknowledged configuration or dialog disposal. Readback and
+  Preserve WLAN drafts for the entire open dialog, including acknowledged setup,
+  explicit retries, cancellation and readback/sensor checks. Keep them in memory
+  only; clear them on dialog disposal, including logout or policy revocation.
+  Clear each temporary transfer copy after its request finishes. Readback and
   fresh CSI verification require their preceding acknowledgements. Load saved
   receiver/port defaults through the administrative `board-setup` read, preserve
   typed values and require explicit acceptance of unverified LAN suggestions.

@@ -90,7 +90,7 @@
   "ruview.open": "Open RuView",
   "ruview.quality": "Experimental Wi-Fi motion detection (radar, including through walls). RSSI needs a supported host adapter; CSI needs optional ESP32 boards. Demo data is labelled. Model/LoRA switching is unavailable in this upstream version.",
   "ruview.prerequisites": "Use HTTPS or localhost and a browser with Web Serial enabled. Close other serial tools; use a data-capable USB cable. Hold BOOT while reconnecting if detection fails.",
-  "ruview.privacy": "Wi-Fi credentials stay only in browser memory and go directly to the board. They are cleared after a successful transfer or when the dialog closes. Cancellation and checks keep your entries.",
+  "ruview.privacy": "Wi-Fi credentials stay only in browser memory and go directly to the board. Setup, retries and checks keep your entries. Closing the dialog clears them.",
   "ruview.board_mismatch": "The chip, flash size and USB console must match the selected profile. Choose a supported S3 4/8/16 MiB or C6 4 MiB board.",
   "ruview.verification_failed": "Verification failed. Nothing is retried automatically. Check the firmware files, USB connection and board before another attempt.",
   "ruview.serial_unsupported": "Use HTTPS or localhost and a browser with Web Serial enabled. Close other serial tools; use a data-capable USB cable. Hold BOOT while reconnecting if detection fails.",

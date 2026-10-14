@@ -132,6 +132,7 @@ try {
     catalogFault=''; // The server is repaired while this dialog remains open.
     const input = name => page.locator(`dialog [name="${name}"]`);
     const action = name => page.locator(`dialog [data-action="${name}"]`);
+    const wifiDraft = async () => [await input('ssid').inputValue(),await input('password').inputValue()];
     assert.equal(await input('receiver').inputValue(),'192.168.4.20');
     assert.equal(await input('port').inputValue(),'5010');
     assert.equal(await page.locator('.ruview-udp-warning').isVisible(),true);
@@ -247,14 +248,25 @@ try {
     await page.evaluate(() => serialFixture.fail=false);
     await action('configure').click();
     await page.waitForFunction(() => !document.querySelector('dialog [data-action="readback"]').disabled);
-    assert.equal(await input('password').inputValue(),'');
+    assert.deepEqual(await wifiDraft(),['memory-only','fixture-password'],'acknowledged setup must retain both fields for retries after restart');
     assert.equal(await action('verify').isDisabled(),true);
+    const setupRequests=await page.evaluate(()=>serialFixture.requests);
+    await action('configure').click();await ready();
+    assert.equal(await page.evaluate(()=>serialFixture.requests),setupRequests+1,'setup can be explicitly repeated without retyping credentials');
+    assert.equal(await action('readback').isDisabled(),false);
+    assert.deepEqual(await wifiDraft(),['memory-only','fixture-password']);
+    await page.evaluate(()=>serialFixture.fail=true);
+    await action('readback').click();await ready();
+    assert.deepEqual(await wifiDraft(),['memory-only','fixture-password'],'a failed restart connection must retain the setup draft');
+    await page.evaluate(()=>serialFixture.fail=false);
     await page.evaluate(() => serialFixture.mismatch=true);
     await action('readback').click(); await ready();
     assert.equal(await action('verify').isDisabled(),true,'a different board cannot confirm the settings');
+    assert.deepEqual(await wifiDraft(),['memory-only','fixture-password'],'a mismatched board must not discard the draft');
     await page.evaluate(() => serialFixture.mismatch=false);
     await action('readback').click();
     await page.waitForFunction(() => !document.querySelector('dialog [data-action="verify"]').disabled);
+    assert.deepEqual(await wifiDraft(),['memory-only','fixture-password'],'successful restart confirmation keeps the draft until dialog close');
     await input('ssid').fill('next-draft'); await input('password').fill('next-password');
     fresh=false; await action('verify').click(); await ready();
     assert.ok((await page.locator('dialog section').last().innerText()).includes('Noch keine frischen CSI-Daten'));
@@ -277,6 +289,7 @@ try {
     assert.equal(await action('verify').isDisabled(),true,'cancelled readback revokes the previous confirmation');
     assert.equal(await page.locator('.ruview-steps li').evaluateAll(steps=>steps.slice(1).every(step=>!step.classList.contains('complete'))),true);
     assert.equal(await input('password').inputValue(),'next-password');
+    assert.deepEqual(await wifiDraft(),['next-draft','next-password'],'cancelled repeated confirmation retains both fields');
     await page.evaluate(()=>serialFixture.cancel=false);
     assert.equal(await page.evaluate(()=>localStorage.length+sessionStorage.length),0);
     await page.evaluate(()=>{window.closedInputs=[...document.querySelectorAll('dialog input')];});
@@ -285,15 +298,31 @@ try {
     assert.equal(await page.evaluate(()=>closedInputs.filter(i=>['ssid','password'].includes(i.name)).every(i=>i.value==='')),true);
 
     await open(); await ready();
+    assert.deepEqual(await wifiDraft(),['',''],'closed drafts must not reappear when reopening');
     await input('ssid').fill('reconnect-draft'); await input('password').fill('fixture-password');
     statusError=503;
     await page.waitForFunction(()=>document.querySelector('dialog > [role="status"]')?.textContent.includes('Verbindung unterbrochen'));
     assert.equal(await input('password').inputValue(),'fixture-password','a transient status failure must preserve the open draft');
     await action('configure').click(); await ready();
     assert.equal(await input('password').inputValue(),'fixture-password','failed authorization refresh must never provision or discard the draft');
+    await page.evaluate(()=>{window.closedInputs=[...document.querySelectorAll('dialog input')];});
     statusError=403;
     await page.locator('dialog').waitFor({state:'detached'});
+    assert.equal(await page.evaluate(()=>closedInputs.filter(i=>['ssid','password'].includes(i.name)).every(i=>i.value==='')),true,'revoked access clears the retained draft');
     statusError=0;
+
+    for(const event of ['aurago:auth-ended','aurago:desktop-policy']){
+        await open();await ready();
+        await input('ssid').fill('memory-only');await input('password').fill('fixture-password');
+        await action('configure').click();await ready();
+        assert.deepEqual(await wifiDraft(),['memory-only','fixture-password']);
+        await page.evaluate(event=>{
+            window.closedInputs=[...document.querySelectorAll('dialog input')];
+            window.dispatchEvent(new CustomEvent(event,{detail:{readonly:true}}));
+        },event);
+        await page.locator('dialog').waitFor({state:'detached'});
+        assert.equal(await page.evaluate(()=>closedInputs.filter(i=>['ssid','password'].includes(i.name)).every(i=>i.value==='')),true,`${event} clears acknowledged credentials`);
+    }
 
     setup={...setup,receiver_ip:'',candidates:['192.168.4.20','10.1.0.2','127.0.0.1'],udp_enabled:true};
     await open(); await ready();

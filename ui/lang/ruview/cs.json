@@ -90,7 +90,7 @@
   "ruview.open": "Otevřít RuView",
   "ruview.quality": "Experimentální detekce pohybu pomocí Wi-Fi (radar, i přes stěny). RSSI vyžaduje podporovaný adaptér, CSI volitelné desky ESP32. Ukázková data jsou označena. Přepínání modelů a LoRA zde není dostupné.",
   "ruview.prerequisites": "Použijte HTTPS nebo localhost a prohlížeč s povoleným Web Serial. Zavřete ostatní sériové nástroje a použijte datový USB kabel. Při potížích držte BOOT během připojení.",
-  "ruview.privacy": "Přihlašovací údaje Wi-Fi zůstávají pouze v paměti prohlížeče a jdou přímo do desky. Po úspěšném přenosu nebo zavření dialogu se smažou. Zrušení a kontroly je zachovají.",
+  "ruview.privacy": "Přihlašovací údaje Wi-Fi zůstávají pouze v paměti prohlížeče a odesílají se přímo do desky. Zachovají se při nastavování, opakovaných pokusech i kontrolách. Po zavření dialogu se smažou.",
   "ruview.board_mismatch": "Čip, velikost paměti a USB konzole musí odpovídat profilu. Vyberte S3 se 4/8/16 MiB nebo C6 se 4 MiB.",
   "ruview.verification_failed": "Ověření selhalo. Opakování není automatické. Před dalším pokusem zkontrolujte soubory, USB a desku.",
   "ruview.serial_unsupported": "Použijte HTTPS nebo localhost a prohlížeč s povoleným Web Serial. Zavřete ostatní sériové nástroje a použijte datový USB kabel. Při potížích držte BOOT během připojení.",

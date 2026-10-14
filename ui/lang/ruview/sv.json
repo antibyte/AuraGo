@@ -90,7 +90,7 @@
   "ruview.open": "Öppna RuView",
   "ruview.quality": "Experimentell rörelsedetektering med Wi-Fi (radar, även genom väggar). RSSI kräver en stödd adapter; CSI valfria ESP32-kort. Demodata markeras. Byte av modell och LoRA är inte tillgängligt.",
   "ruview.prerequisites": "Använd HTTPS eller localhost och en webbläsare med Web Serial. Stäng andra seriella verktyg och använd USB-datakabel. Håll BOOT vid återanslutning om kortet inte hittas.",
-  "ruview.privacy": "Wi-Fi-uppgifter stannar bara i webbläsarminnet och skickas direkt till kortet. De raderas efter en lyckad överföring eller när dialogen stängs. Avbrott och kontroller behåller dina uppgifter.",
+  "ruview.privacy": "Wi-Fi-uppgifter stannar bara i webbläsarminnet och skickas direkt till kortet. De behålls vid konfigurering, nya försök och kontroller. De raderas när dialogen stängs.",
   "ruview.board_mismatch": "Krets, flashstorlek och USB-konsol måste matcha profilen. Välj S3 4/8/16 MiB eller C6 4 MiB.",
   "ruview.verification_failed": "Verifieringen misslyckades. Inget automatiskt nytt försök. Kontrollera filer, USB och kortet innan du försöker igen.",
   "ruview.serial_unsupported": "Använd HTTPS eller localhost och en webbläsare med Web Serial. Stäng andra seriella verktyg och använd USB-datakabel. Håll BOOT vid återanslutning om kortet inte hittas.",

@@ -90,7 +90,7 @@
   "ruview.open": "Otwórz RuView",
   "ruview.quality": "Eksperymentalne wykrywanie ruchu przez Wi-Fi (radar, także przez ściany). RSSI wymaga obsługiwanego adaptera, CSI opcjonalnych płytek ESP32. Dane demonstracyjne są oznaczone. Zmiana modeli i LoRA jest niedostępna.",
   "ruview.prerequisites": "Użyj HTTPS lub localhost i przeglądarki z Web Serial. Zamknij inne narzędzia szeregowe i użyj kabla USB do danych. Przy problemach przytrzymaj BOOT podczas podłączania.",
-  "ruview.privacy": "Dane logowania Wi-Fi pozostają tylko w pamięci przeglądarki i trafiają bezpośrednio do płytki. Są usuwane po udanym przesłaniu lub zamknięciu okna. Anulowanie i kontrole zachowują wpisane dane.",
+  "ruview.privacy": "Dane logowania Wi-Fi pozostają tylko w pamięci przeglądarki i są wysyłane bezpośrednio do płytki. Są zachowywane podczas konfiguracji, ponownych prób i sprawdzania. Zostają usunięte po zamknięciu okna.",
   "ruview.board_mismatch": "Układ, rozmiar flash i konsola USB muszą pasować do profilu. Wybierz S3 4/8/16 MiB lub C6 4 MiB.",
   "ruview.verification_failed": "Weryfikacja nie powiodła się. Brak automatycznego ponawiania. Przed kolejną próbą sprawdź pliki, USB i płytkę.",
   "ruview.serial_unsupported": "Użyj HTTPS lub localhost i przeglądarki z Web Serial. Zamknij inne narzędzia szeregowe i użyj kabla USB do danych. Przy problemach przytrzymaj BOOT podczas podłączania.",
