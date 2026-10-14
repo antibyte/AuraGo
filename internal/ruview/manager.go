@@ -124,6 +124,9 @@ func (m *Manager) Status() Status {
 }
 
 func (m *Manager) Test(parent context.Context) (Status, error) {
+	m.mu.Lock()
+	generation := m.generation
+	m.mu.Unlock()
 	c := m.config()
 	if !c.RuView.Enabled {
 		return m.Status(), fmt.Errorf("RuView is disabled")
@@ -171,14 +174,15 @@ func (m *Manager) Test(parent context.Context) (Status, error) {
 		s.Error = err.Error()
 	}
 	m.mu.Lock()
-	if ctx.Err() == nil {
+	current := ctx.Err() == nil && generation == m.generation && generation.Err() == nil
+	if current {
 		s.StorageLimit = m.status.StorageLimit
 		m.status = s
 		m.observed = now
 	}
 	m.mu.Unlock()
-	if ctx.Err() != nil {
-		return m.Status(), ctx.Err()
+	if !current {
+		return m.Status(), context.Canceled
 	}
 	return m.Status(), err
 }
@@ -235,7 +239,10 @@ func (m *Manager) StartBackground(parent context.Context) {
 
 func (m *Manager) watch(ctx context.Context) {
 	m.Configure()
+	m.opMu.Lock()
+	defer m.opMu.Unlock()
 	m.mu.Lock()
+	m.reapNativeLocked()
 	managed := m.managed
 	running := m.runningConfig
 	m.mu.Unlock()
@@ -244,7 +251,7 @@ func (m *Manager) watch(ctx context.Context) {
 	}
 	c := m.config()
 	if !c.RuView.Enabled || running == nil || !sameRuntime(running, c) {
-		_ = m.Stop(ctx)
+		_ = m.stopRuntime(ctx)
 		return
 	}
 	limited := storageLimited(c)
@@ -256,6 +263,25 @@ func (m *Manager) watch(ctx context.Context) {
 	m.mu.Lock()
 	m.status.StorageLimit = limited
 	m.mu.Unlock()
+}
+
+// Called with mu held, and opMu held by lifecycle callers. The current pointer
+// ensures an old process completion cannot clear a replacement process.
+func (m *Manager) reapNativeLocked() {
+	if m.process == nil {
+		return
+	}
+	select {
+	case <-m.process.done:
+		m.process = nil
+		m.managed = false
+		m.runningConfig = nil
+		m.cancel()
+		m.generation, m.cancel = context.WithCancel(context.Background())
+		m.status = Status{DataState: "disconnected", Error: "process_exited"}
+		m.observed = time.Time{}
+	default:
+	}
 }
 
 func sameRuntime(a, b *config.Config) bool {

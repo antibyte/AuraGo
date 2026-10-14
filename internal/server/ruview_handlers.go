@@ -81,7 +81,7 @@ func registerRuViewRoutes(mux *http.ServeMux, s *Server) {
 				_ = json.NewEncoder(w).Encode(s.RuView.BoardSetup())
 				return
 			case "capabilities":
-				_ = json.NewEncoder(w).Encode(map[string]any{"revision": ruview.Revision, "catalog": ruview.Artifacts(), "unavailable": []string{"model_load", "model_unload", "lora_activate", "pose_stats", "demo_zones"}})
+				_ = json.NewEncoder(w).Encode(map[string]any{"revision": ruview.Revision, "catalog": ruview.Artifacts(), "unavailable": []string{"model_load", "model_unload", "lora_activate", "pose_stats", "demo_zones", "camera", "timed_recording"}})
 				return
 			case "firmware":
 				_ = json.NewEncoder(w).Encode(ruview.Artifacts())
@@ -96,7 +96,8 @@ func registerRuViewRoutes(mux *http.ServeMux, s *Server) {
 			jsonError(w, "Origin rejected", 403)
 			return
 		}
-		if rel != "test" && (s.ConfigSnapshot().RuView.ReadOnly || !s.ConfigSnapshot().RuView.Enabled) {
+		cfg := s.ConfigSnapshot().RuView
+		if rel != "test" && (!cfg.Enabled || cfg.ReadOnly && !ruview.IsStop(r.Method, rel)) {
 			jsonError(w, "RuView is disabled or read-only", 403)
 			return
 		}
@@ -116,6 +117,10 @@ func registerRuViewRoutes(mux *http.ServeMux, s *Server) {
 		case "runtime/start":
 			err = s.RuView.Start(ctx)
 		case "runtime/stop":
+			if cfg.Mode == "external" {
+				jsonError(w, "External RuView is managed by its operator", http.StatusForbidden)
+				return
+			}
 			err = s.RuView.Stop(ctx)
 		default:
 			http.NotFound(w, r)

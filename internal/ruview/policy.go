@@ -9,6 +9,12 @@ import (
 
 var resourceID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$`)
 
+// IsStop permits only termination of existing work while RuView is read-only.
+// These remain administrative mutations requiring the usual origin checks.
+func IsStop(method, p string) bool {
+	return method == http.MethodPost && (p == "runtime/stop" || p == "/api/v1/recording/stop" || p == "/api/v1/train/stop")
+}
+
 // Endpoint permits only the reviewed v3122 data/control API. In particular,
 // model load/unload and LoRA activation are upstream status-only stubs.
 func Endpoint(method, p string) (allowed, write, stream bool) {

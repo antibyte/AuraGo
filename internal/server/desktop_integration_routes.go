@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/ruview"
 	"net/http"
 	"path"
 	"strings"
@@ -48,6 +49,9 @@ func desktopIntegrationHandler(s *Server, routes http.Handler) http.HandlerFunc 
 }
 
 func desktopIntegrationOperation(method, route string) desktopOperation {
+	if (route == "ruview/runtime/stop" || strings.HasPrefix(route, "ruview/proxy/")) && ruview.IsStop(method, strings.TrimPrefix(strings.TrimPrefix(route, "ruview/"), "proxy")) {
+		return desktopStop
+	}
 	parts := strings.Split(strings.Trim(route, "/"), "/")
 	if method == http.MethodPost && len(parts) == 4 && parts[0] == "missions" && parts[1] == "v2" && parts[2] != "" && parts[3] == "cancel" {
 		return desktopStop

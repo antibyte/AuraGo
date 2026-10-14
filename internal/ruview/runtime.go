@@ -26,7 +26,8 @@ const containerName = "aurago-ruview"
 
 type nativeProcess struct {
 	cmd  *exec.Cmd
-	done chan error
+	done chan struct{}
+	err  error // Published by closing done; readers must wait for done first.
 	kill func() error
 }
 
@@ -37,6 +38,10 @@ func configCheck(c *config.Config) error {
 func (m *Manager) Start(ctx context.Context) error {
 	m.opMu.Lock()
 	defer m.opMu.Unlock()
+	m.mu.Lock()
+	m.reapNativeLocked()
+	generation := m.generation
+	m.mu.Unlock()
 	ctx, cancel := m.bound(ctx)
 	defer cancel()
 	c := m.config()
@@ -83,8 +88,17 @@ func (m *Manager) Start(ctx context.Context) error {
 	m.mu.Lock()
 	m.managed = true
 	m.runningConfig = c
+	current := generation == m.generation && generation.Err() == nil && ctx.Err() == nil
 	m.mu.Unlock()
-	return ctx.Err()
+	if !current {
+		cleanup, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		if err := m.stopRuntime(cleanup); err != nil {
+			return fmt.Errorf("RuView start cancelled; cleanup failed: %w", err)
+		}
+		return context.Canceled
+	}
+	return nil
 }
 
 func (m *Manager) managedToken() (string, error) {
@@ -160,7 +174,9 @@ func (m *Manager) startNative(c *config.Config, dir, token string) error {
 	if err != nil {
 		return err
 	}
+	m.mu.Lock()
 	m.process = p
+	m.mu.Unlock()
 	return nil
 }
 
@@ -310,22 +326,55 @@ func placement(ctx context.Context, d *dockerutil.Client, dir string) (string, m
 func (m *Manager) Stop(ctx context.Context) error {
 	m.opMu.Lock()
 	defer m.opMu.Unlock()
+	return m.stopRuntime(ctx)
+}
+
+// stopRuntime requires opMu; the caller's context is independent of generation.
+func (m *Manager) stopRuntime(ctx context.Context) (stopErr error) {
 	m.mu.Lock()
+	m.cancel()
+	m.status = Status{DataState: "stopping"}
+	m.observed = time.Time{}
 	c := m.runningConfig
+	p := m.process
 	m.mu.Unlock()
+	defer func() {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		m.cancel()
+		m.generation, m.cancel = context.WithCancel(context.Background())
+		m.observed = time.Time{}
+		if stopErr != nil {
+			m.status = Status{DataState: "disconnected", Error: "stop_failed"}
+			return
+		}
+		m.process = nil
+		m.managed = false
+		m.runningConfig = nil
+		m.status = Status{DataState: "stopped"}
+	}()
 	if c == nil {
 		c = m.config()
-		if !c.RuView.Enabled || c.RuView.Mode != "docker" || !c.Docker.Enabled {
+		if p == nil && (!c.RuView.Enabled || c.RuView.Mode != "docker" || !c.Docker.Enabled) {
 			return nil
 		}
 	}
-	if m.process != nil {
-		_ = m.process.kill()
+	if p != nil {
 		select {
-		case <-m.process.done:
-			m.process = nil
-		case <-ctx.Done():
-			return ctx.Err()
+		case <-p.done:
+		default:
+			if err := p.kill(); err != nil {
+				select {
+				case <-p.done:
+				default:
+					return fmt.Errorf("stop RuView process: %w", err)
+				}
+			}
+			select {
+			case <-p.done:
+			case <-ctx.Done():
+				return fmt.Errorf("wait for RuView process: %w", ctx.Err())
+			}
 		}
 	}
 	if c.RuView.Mode == "docker" {
@@ -341,10 +390,5 @@ func (m *Manager) Stop(ctx context.Context) error {
 			}
 		}
 	}
-	m.mu.Lock()
-	m.managed = false
-	m.runningConfig = nil
-	m.status = Status{DataState: "stopped"}
-	m.mu.Unlock()
 	return nil
 }

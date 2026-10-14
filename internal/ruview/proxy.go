@@ -23,7 +23,7 @@ func (m *Manager) Proxy(w http.ResponseWriter, r *http.Request, p string) {
 		http.Error(w, "RuView endpoint is unavailable", http.StatusNotFound)
 		return
 	}
-	if !c.RuView.Enabled || write && c.RuView.ReadOnly {
+	if !c.RuView.Enabled || write && c.RuView.ReadOnly && !IsStop(r.Method, p) {
 		http.Error(w, "RuView operation is disabled", http.StatusForbidden)
 		return
 	}
@@ -60,6 +60,10 @@ func (m *Manager) Proxy(w http.ResponseWriter, r *http.Request, p string) {
 			body, ok := value.(map[string]any)
 			if !ok || body == nil {
 				http.Error(w, "Invalid RuView recording payload", 400)
+				return
+			}
+			if _, timed := body["duration_secs"]; timed {
+				http.Error(w, "Timed RuView recording is unavailable; start and stop manually", 400)
 				return
 			}
 			prefix := "rec"

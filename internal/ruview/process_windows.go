@@ -39,7 +39,7 @@ func launchNative(cmd *exec.Cmd) (*nativeProcess, error) {
 	}
 	var once sync.Once
 	kill := func() error { var err error; once.Do(func() { err = windows.CloseHandle(job) }); return err }
-	p := &nativeProcess{cmd: cmd, done: make(chan error, 1), kill: kill}
-	go func() { err := cmd.Wait(); _ = kill(); p.done <- err; close(p.done) }()
+	p := &nativeProcess{cmd: cmd, done: make(chan struct{}), kill: kill}
+	go func() { p.err = cmd.Wait(); _ = kill(); close(p.done) }()
 	return p, nil
 }

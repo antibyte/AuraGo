@@ -12,7 +12,7 @@ func launchNative(cmd *exec.Cmd) (*nativeProcess, error) {
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
-	p := &nativeProcess{cmd: cmd, done: make(chan error, 1), kill: func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }}
-	go func() { p.done <- cmd.Wait() }()
+	p := &nativeProcess{cmd: cmd, done: make(chan struct{}), kill: func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }}
+	go func() { p.err = cmd.Wait(); close(p.done) }()
 	return p, nil
 }
