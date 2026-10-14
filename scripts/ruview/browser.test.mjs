@@ -40,7 +40,7 @@ const server=createServer(async(req,res)=>{
   }
   if(p==='/'){
    const locale=JSON.parse(await readFile(`ui/lang/ruview/${url.searchParams.get('lang')||'de'}.json`));
-   res.setHeader('Content-Type','text/html; charset=utf-8');return res.end(`<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/css/ruview.css"><style>body{margin:0}#app{height:100vh}</style></head><body><main id="app"></main><script src="/js/desktop/apps/ruview.js"></script><script>const dict=${JSON.stringify(locale)};window.render=()=>RuViewApp.render(document.getElementById('app'),'test',{t:k=>dict[k]||k,esc:s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';')});render();</script></body></html>`);
+   res.setHeader('Content-Type','text/html; charset=utf-8');return res.end(`<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/css/ruview.css"><style>body{margin:0}#app{height:100vh}</style></head><body><main id="app"></main><script src="/js/shared/lazy-assets.js"></script><script src="/js/desktop/apps/ruview.js"></script><script>const dict=${JSON.stringify(locale)};window.render=()=>RuViewApp.render(document.getElementById('app'),'test',{t:k=>dict[k]||k,esc:s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';')});render();</script></body></html>`);
   }
   const rel=p.includes('/ui/')?'js/vendor/ruview/'+p.split('/ui/')[1]:p.slice(1);
   if(!rel||rel.includes('..')){res.writeHead(404).end();return;}
@@ -60,7 +60,10 @@ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const browser=await chromium.launch({headless:true,channel:'chrome'});
 await mkdir('reports/ruview-browser',{recursive:true});
 try{
- const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const page=await browser.newPage();
+ await Promise.race([
+ new Promise((_,reject)=>page.on('pageerror',reject)),
+ (async()=>{
  for(const theme of ['standard','fruity'])for(const width of [1100,390])for(const lang of locales){
   await page.setViewportSize({width,height:800});await page.goto(`http://127.0.0.1:${server.address().port}/?lang=${lang}`);
   if(theme==='fruity')await page.addStyleTag({content:':root{--vd-theme-app-bg:#f5f6f7;--vd-text:#253044;--vd-theme-panel-bg:#fff;--vd-theme-border:#ccd3da}'});
@@ -140,6 +143,7 @@ try{
  source='simulated';await fusion.waitForFunction(()=>document.querySelector('#viz-container > canvas')?.style.visibility==='');
  source='esp32';await fusion.waitForFunction(()=>document.querySelector('#viz-container > canvas')?.style.visibility==='hidden');
  await page.evaluate(()=>RuViewApp.dispose('test'));assert.equal(await page.locator('iframe').count(),0);
- assert.deepEqual(errors,[]);
  console.log('RuView: 64 locale/theme/size cases, source provenance, live/stale recovery, health routing, API errors, wizard cleanup, read-only and iframe disposal passed');
+ })()
+ ]);
 }finally{await browser.close();for(const socket of sensingSockets)socket.destroy();await new Promise(resolve=>server.close(resolve));}
