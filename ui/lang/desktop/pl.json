@@ -1945,6 +1945,7 @@
   "desktop.network_cameras.detection.schedule_hint": "Obowiązuje, gdy uzbrojenie jest ustawione na Harmonogram. Przedział kończący się przed początkiem przechodzi przez północ.",
   "desktop.network_cameras.detection.schedule_server_zone": "Godziny obowiązują w strefie czasowej serwera ({{zone}}).",
   "desktop.network_cameras.detection.schedule_empty": "Brak przedziałów czasu.",
+  "desktop.network_cameras.detection.schedule_limit": "Harmonogram może mieć najwyżej 50 przedziałów czasu.",
   "desktop.network_cameras.detection.schedule_add": "Dodaj przedział czasu",
   "desktop.network_cameras.detection.schedule_remove": "Usuń przedział czasu",
   "desktop.network_cameras.detection.schedule_days": "Dni",

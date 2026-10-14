@@ -1945,6 +1945,7 @@
   "desktop.network_cameras.detection.schedule_hint": "Gäller när larmet står på Schema. Ett fönster som slutar innan det börjar går över midnatt.",
   "desktop.network_cameras.detection.schedule_server_zone": "Tiderna gäller i serverns tidszon ({{zone}}).",
   "desktop.network_cameras.detection.schedule_empty": "Inga tidsfönster ännu.",
+  "desktop.network_cameras.detection.schedule_limit": "Ett schema har högst 50 tidsfönster.",
   "desktop.network_cameras.detection.schedule_add": "Lägg till tidsfönster",
   "desktop.network_cameras.detection.schedule_remove": "Ta bort tidsfönster",
   "desktop.network_cameras.detection.schedule_days": "Dagar",

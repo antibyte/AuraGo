@@ -1945,6 +1945,7 @@
   "desktop.network_cameras.detection.schedule_hint": "तब लागू होती है जब सुरक्षा सक्रियण समय-सारणी पर हो। जो समय-खंड शुरू होने से पहले खत्म होता है, वह आधी रात के पार चलता है।",
   "desktop.network_cameras.detection.schedule_server_zone": "समय सर्वर के समय क्षेत्र में हैं ({{zone}})।",
   "desktop.network_cameras.detection.schedule_empty": "अभी कोई समय-खंड नहीं।",
+  "desktop.network_cameras.detection.schedule_limit": "एक समय-सारणी में अधिकतम 50 समय-खंड हो सकते हैं।",
   "desktop.network_cameras.detection.schedule_add": "समय-खंड जोड़ें",
   "desktop.network_cameras.detection.schedule_remove": "समय-खंड हटाएँ",
   "desktop.network_cameras.detection.schedule_days": "दिन",

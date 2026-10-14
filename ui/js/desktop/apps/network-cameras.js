@@ -230,8 +230,10 @@
         if (state.loading) return '<div class="nc-centered"><span class="nc-spinner"></span>' + state.ctx.esc(text(state.ctx, 'loading')) + '</div>';
         if (state.error && !state.data) return '<div class="nc-centered is-error"><strong>' + state.ctx.esc(text(state.ctx, 'load_error')) + '</strong><span>' + state.ctx.esc(state.error) + '</span><button class="nc-primary" data-action="refresh">' + state.ctx.esc(text(state.ctx, 'retry')) + '</button></div>';
         const runtime = state.data && state.data.integration;
+        // AuraGo serves the detection API itself: history, arming, deletion and settings keep
+        // working while go2rtc is stopped or its container is being recreated.
+        if (state.mode === 'detections' && runtime && runtime.enabled && allStreams(state).length > 0) return '<div class="nc-detection-host" data-role="detection"></div>';
         if (!runtime || !runtime.enabled || !runtime.api_usable || allStreams(state).length === 0) return emptyMarkup(state);
-        if (state.mode === 'detections') return '<div class="nc-detection-host" data-role="detection"></div>';
         const streams = filteredStreams(state);
         const liveIDs = liveGridIDs(state, streams);
         const liveGrid = state.mode === 'live';
@@ -708,7 +710,12 @@
             notify(state, text(state.ctx, mutationNoticeKey(result, 'camera_updated')));
             await loadState(state, false);
         } catch (error) {
-            modal.error = error.message;
+            // A 400 on the detection block names its field: show the localized text on its tab.
+            const field = error && error.body && typeof error.body.field === 'string' ? error.body.field : '';
+            const views = window.NetworkCamerasDetectionViews;
+            const key = field.startsWith('detection.') && views && typeof views.fieldErrorKey === 'function' ? views.fieldErrorKey(field) : '';
+            modal.error = key ? text(state.ctx, 'detection.' + key) : error.message;
+            if (field.startsWith('detection.') && detectionTabAvailable(state)) modal.tab = 'detection';
             modal.busy = false;
             drawModal(state);
         }

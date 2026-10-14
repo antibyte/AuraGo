@@ -1945,6 +1945,7 @@
   "desktop.network_cameras.detection.schedule_hint": "当布防设置为“计划”时生效。结束时间早于开始时间的时间段会跨越午夜。",
   "desktop.network_cameras.detection.schedule_server_zone": "时间按服务器时区计算（{{zone}}）。",
   "desktop.network_cameras.detection.schedule_empty": "暂无时间段。",
+  "desktop.network_cameras.detection.schedule_limit": "一个计划最多包含 50 个时间段。",
   "desktop.network_cameras.detection.schedule_add": "添加时间段",
   "desktop.network_cameras.detection.schedule_remove": "移除时间段",
   "desktop.network_cameras.detection.schedule_days": "星期",

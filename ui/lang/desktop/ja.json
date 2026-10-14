@@ -1945,6 +1945,7 @@
   "desktop.network_cameras.detection.schedule_hint": "警戒がスケジュールに設定されているときに適用されます。開始より前に終わる時間帯は深夜0時をまたぎます。",
   "desktop.network_cameras.detection.schedule_server_zone": "時刻はサーバーのタイムゾーン（{{zone}}）で扱われます。",
   "desktop.network_cameras.detection.schedule_empty": "時間帯はまだありません。",
+  "desktop.network_cameras.detection.schedule_limit": "スケジュールの時間帯は最大 50 個です。",
   "desktop.network_cameras.detection.schedule_add": "時間帯を追加",
   "desktop.network_cameras.detection.schedule_remove": "時間帯を削除",
   "desktop.network_cameras.detection.schedule_days": "曜日",

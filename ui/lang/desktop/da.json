@@ -1945,6 +1945,7 @@
   "desktop.network_cameras.detection.schedule_hint": "Gælder, når tilkoblingen står på Tidsplan. Et tidsrum, der slutter før det starter, går over midnat.",
   "desktop.network_cameras.detection.schedule_server_zone": "Tiderne gælder i serverens tidszone ({{zone}}).",
   "desktop.network_cameras.detection.schedule_empty": "Ingen tidsrum endnu.",
+  "desktop.network_cameras.detection.schedule_limit": "En tidsplan har højst 50 tidsrum.",
   "desktop.network_cameras.detection.schedule_add": "Tilføj tidsrum",
   "desktop.network_cameras.detection.schedule_remove": "Fjern tidsrum",
   "desktop.network_cameras.detection.schedule_days": "Dage",

@@ -1945,6 +1945,7 @@
   "desktop.network_cameras.detection.schedule_hint": "Se aplica cuando el armado está en Horario. Una franja que termina antes de empezar pasa de la medianoche.",
   "desktop.network_cameras.detection.schedule_server_zone": "Las horas usan la zona horaria del servidor ({{zone}}).",
   "desktop.network_cameras.detection.schedule_empty": "Todavía no hay franjas horarias.",
+  "desktop.network_cameras.detection.schedule_limit": "Un horario tiene como máximo 50 franjas horarias.",
   "desktop.network_cameras.detection.schedule_add": "Añadir franja horaria",
   "desktop.network_cameras.detection.schedule_remove": "Quitar franja horaria",
   "desktop.network_cameras.detection.schedule_days": "Días",

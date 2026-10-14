@@ -1945,6 +1945,7 @@
   "desktop.network_cameras.detection.schedule_hint": "Geldt als de inschakeling op Schema staat. Een venster dat eindigt vóór het begint, loopt over middernacht.",
   "desktop.network_cameras.detection.schedule_server_zone": "De tijden gelden in de tijdzone van de server ({{zone}}).",
   "desktop.network_cameras.detection.schedule_empty": "Nog geen tijdvensters.",
+  "desktop.network_cameras.detection.schedule_limit": "Een schema heeft hoogstens 50 tijdvensters.",
   "desktop.network_cameras.detection.schedule_add": "Tijdvenster toevoegen",
   "desktop.network_cameras.detection.schedule_remove": "Tijdvenster verwijderen",
   "desktop.network_cameras.detection.schedule_days": "Dagen",

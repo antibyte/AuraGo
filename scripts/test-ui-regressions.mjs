@@ -2134,10 +2134,12 @@ function testNetworkCamerasDetectionZones() {
   assert.match(zones, /if \(code === 'detection_unavailable' \|\| \(error && error\.status === 503\)\) return T\(ctx, 'test_unavailable'\);/, 'a 503 test is localized (add-on 8)');
   assert.match(zones, /if \(code === 'stream_not_found'\) return T\(ctx, 'test_stream_not_found'\);/, 'a 404 test is localized');
   assert.match(zones, /const key = fieldErrorKey\(body\.field\);\s*return key \? T\(ctx, key\) : T\(ctx, 'test_failed'\);/, '400 field errors are localized');
-  assert.match(zones, /if \(!svg \|\| event\.isPrimary === false \|\| ed\.drag \|\|/, 'only the primary pointer edits (add-on 6)');
+  assert.match(zones, /if \(!svg \|\| event\.isPrimary === false \|\| \(event\.pointerType === 'mouse'/, 'only the primary pointer edits (add-on 6)');
+  assert.match(zones, /if \(ed\.drag\) finishDrag\(\);/, 'a new primary press ends a drag whose pointerup got lost (4B review 3h)');
+  assert.match(zones, /listen\(stage, 'pointercancel', finishDrag\);/, 'pointercancel always ends the drag');
   assert.match(zones, /moved: false, pointerId: event\.pointerId \}/);
   assert.match(zones, /listen\(stage, 'pointermove', event => \{\s*if \(!ed\.drag \|\| event\.pointerId !== ed\.drag\.pointerId\) return;/, 'a drag moves only with its own pointer');
-  assert.match(zones, /const endDrag = event => \{\s*if \(!ed\.drag \|\| event\.pointerId !== ed\.drag\.pointerId\) return;/, 'a drag ends only with its own pointer');
+  assert.match(zones, /const endDrag = event => \{\s*if \(ed\.drag && event\.pointerId === ed\.drag\.pointerId\) finishDrag\(\);/, 'a drag ends only with its own pointer');
   assert.match(zones, /const clearTestBoxes = \(\) => \{\s*ed\.revision \+= 1;\s*if \(!ed\.boxes\.length\) return;\s*ed\.boxes = \[\];\s*redraw\(\);/, 'stale test boxes are cleared (add-on 7)');
   assert.ok((zones.match(/clearTestBoxes\(\);/g) || []).length >= 4, 'adding, deleting and moving zones and changing the score clear the test boxes');
   assert.match(zones, /ed\.boxes = revision === ed\.revision && Array\.isArray/, 'a test that ran on older zones draws no boxes');
@@ -2162,6 +2164,42 @@ function testNetworkCamerasDetectionRuntime() {
   for (const line of runtime.split('\n').filter(entry => entry.includes('.innerHTML ='))) {
     assert.match(line.trim(), /^(?:region\.innerHTML = html;|inst\.host\.innerHTML = '<div class="ncd-root"[^+]*';)/, `unexpected innerHTML assignment: ${line.trim()}`);
   }
+
+  // Batch 4B review fixes.
+  const ncd = loadNetworkCamerasDetectionViews();
+  const ctx = { t: (key, params) => key + (params && Object.keys(params).length ? JSON.stringify(params) : ''), esc: value => String(value), iconMarkup: () => '<i></i>' };
+  // 1: busy controls stay focusable; a reloading list keeps the workspace.
+  const busyStrip = ncd.stripMarkup(ctx, { canManage: true, armBusy: true, busy: true, status: { enabled: true, arm: { mode: 'on', armed: true }, detector: { state: 'error', error: 'x' }, cameras: [] } });
+  assert.match(busyStrip, /data-arm="on"[^>]*aria-disabled="true"/, 'busy arm buttons keep the focus');
+  assert.match(busyStrip, /data-ncd-action="retry"[^>]*aria-disabled="true"/);
+  assert.doesNotMatch(busyStrip, / disabled[ >]/, 'no disabled attribute on busy strip controls');
+  assert.match(runtime, /target\.disabled \|\| target\.getAttribute\('aria-disabled'\) === 'true'\) return;/, 'clicks on busy controls are ignored');
+  assert.match(runtime, /const restoring = !focusKey && !!lost && \(!active \|\| active === document\.body\);/, 'a vanished control gets the focus back when it reappears');
+  const status = { enabled: true, detector: { state: 'ready' }, cameras: [{ id: 'a' }] };
+  assert.equal(ncd.mainKind({ status, loaded: false, events: [], filter: { camera: 'a', day: '' } }), 'workspace', 'a filtered list reloads inside the workspace');
+  assert.equal(ncd.mainKind({ status, loaded: false, events: [], filter: { camera: '', day: '' }, listShown: true }), 'workspace', 'a list shown before reloads inside the workspace');
+  assert.equal(ncd.mainKind({ status, loaded: false, events: [], filter: { camera: '', day: '' } }), 'loading', 'the very first load shows the spinner');
+  assert.match(ncd.timelineMarkup(ctx, { events: [], armLog: [], filter: { camera: 'a', day: '' }, streams: [], status, loaded: false, hasMore: false }), /class="ncd-empty-list" role="status"/, 'the loading state sits in the list');
+  // 3a–3c: change feed.
+  assert.match(runtime, /const fresh = relevant\.filter\(event => !known\.has\(idOf\(event && event\.id\)\) && !inst\.announced\.has\(idOf\(event && event\.id\)\)\);/, 'only matching events are announced, once');
+  assert.match(runtime, /const snapshotFeed = inst\.cursor === 0;[\s\S]*applyChanges\(inst, changes, false, snapshotFeed\);[\s\S]*if \(snapshotFeed && inst\.cursor > 0\) loadEvents\(inst, true\);/, 'since=0 after cursor 0 is a snapshot');
+  assert.match(runtime, /if \(cursor != null && \(inst\.cursor === null \|\| cursor > inst\.cursor\)\) inst\.cursor = cursor;/, 'the cursor never moves back');
+  // 3d, 3g: fresh settings, focus back to the opener, Tab stays in the dialog.
+  assert.match(runtime, /refreshDialogSettings\(inst, dialog\);[\s\S]*request\(inst, '\/api\/desktop\/integrations\/go2rtc\/app\/state'\)[\s\S]*if \(!dialog\.dirty\) dialog\.values = globalDefaults\(fresh\);/, 'the dialog loads fresh settings');
+  assert.match(runtime, /busy: true, error: '', dirty: false \};/, 'Save waits for the fresh settings');
+  assert.match(runtime, /inst\.root\.querySelector\('\[data-focus-key="' \+ cssEscape\(inst\.dialogOpener \|\| 'settings'\) \+ '"\]'\)/, 'closing returns the focus to the opener');
+  assert.match(runtime, /if \(event\.key === 'Tab' && inst\.dialog && target\.closest\('\[data-ncd-dialog\]'\)\) \{\s*trapDialogFocus\(inst, event\);/, 'Tab stays inside the dialog');
+  // 3e: deleting an event deleted elsewhere.
+  assert.match(sourceBetween(runtime, 'async function deleteEvent(inst)', 'async function retryDetector'), /error\.status === 404[\s\S]*notify\(inst, T\(inst\.ctx, 'event_gone'\)\)/, 'a 404 on delete drops the event with event_gone');
+  // 3i: at most 50 schedule windows.
+  const windows = count => ncd.validateGlobalSettings(Object.assign(ncd.globalDefaults({}), { schedule: Array.from({ length: count }, () => ({ days: ['mon'], from: '22:00', to: '06:00' })) }));
+  assert.equal(windows(50), null);
+  assert.equal(windows(51).key, 'schedule_limit', 'the schedule is capped like on the server');
+  assert.match(runtime, /if \(values\.schedule\.length >= MAX_WINDOWS\) \{\s*inst\.dialog\.error = T\(inst\.ctx, 'schedule_limit'\);/);
+  // 3j: German wording.
+  const de = JSON.parse(read('ui/lang/desktop/de.json'));
+  assert.match(de['desktop.network_cameras.detection.cam_restart_hint'], /Ausschalten der Erkennung/);
+  assert.doesNotMatch(de['desktop.network_cameras.detection.test_result'], /\{\{counted\}\} zählen/, 'the count reads right for 1 too');
 }
 
 function testNetworkCamerasDetectionAppContracts() {
@@ -2190,7 +2228,8 @@ function testNetworkCamerasDetectionAppContracts() {
   assert.match(app, /state\.mode = coerceMode\(button\.dataset\.mode\)/, 'the segmented control must accept the detection mode');
   assert.match(app, /mode: launchContext\(ctx\) \? 'detections' : preferences\.mode/, 'a launch context opens the detection mode');
   assert.match(app, /data-mode="detections"/);
-  assert.match(app, /if \(state\.mode === 'detections'\) return '<div class="nc-detection-host" data-role="detection"><\/div>'/);
+  assert.match(app, /if \(state\.mode === 'detections' && runtime && runtime\.enabled && allStreams\(state\)\.length > 0\) return '<div class="nc-detection-host" data-role="detection"><\/div>';\s*if \(!runtime \|\| !runtime\.enabled \|\| !runtime\.api_usable/, 'the detection mode does not need a running go2rtc (4B review 2)');
+  assert.match(sourceBetween(app, 'async function saveManagedStream(state)', 'async function deleteManagedStream'), /views\.fieldErrorKey\(field\)[\s\S]*modal\.error = key \? text\(state\.ctx, 'detection\.' \+ key\) : error\.message;\s*if \(field\.startsWith\('detection\.'\) && detectionTabAvailable\(state\)\) modal\.tab = 'detection';/, 'a PATCH 400 on the detection block is localized and opens its tab (4B review 3f)');
   assert.match(app, /module\.unmount\(state\.windowId, \{ keepState: true \}\)/, 'hidden windows and other modes must stop detection polling');
   assert.match(sourceBetween(app, 'function syncDetection(state)', 'function bindMainEvents'), /const launch = state\.pendingLaunch;\s*state\.pendingLaunch = null;/, 'the launch context is consumed by exactly one mount');
   assert.match(sourceBetween(app, 'function stopActivity(state)', 'function installVisibilityLifecycle'), /detection\.unmount\(state\.windowId, \{ keepState: true \}\)/);

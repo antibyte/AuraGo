@@ -54,6 +54,8 @@
 }
 .ncd-button:hover:not(:disabled) { border-color: var(--nc-accent); }
 .ncd-button:disabled { cursor: not-allowed; opacity: .55; }
+/* Busy controls stay focusable (aria-disabled) so the keyboard focus never drops to <body>. */
+.ncd-root [aria-disabled="true"] { cursor: wait; opacity: .6; }
 .ncd-button.is-danger { color: var(--ncd-danger); }
 
 .ncd-notice { border: 1px solid var(--nc-border); border-radius: 9px; flex-basis: 100%; font-size: 12px; line-height: 1.45; padding: 7px 10px; }

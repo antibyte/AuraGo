@@ -1945,6 +1945,7 @@
   "desktop.network_cameras.detection.schedule_hint": "Applies while arming is set to Schedule. A window that ends before it starts runs past midnight.",
   "desktop.network_cameras.detection.schedule_server_zone": "Times use the server time zone ({{zone}}).",
   "desktop.network_cameras.detection.schedule_empty": "No time windows yet.",
+  "desktop.network_cameras.detection.schedule_limit": "A schedule has at most 50 time windows.",
   "desktop.network_cameras.detection.schedule_add": "Add time window",
   "desktop.network_cameras.detection.schedule_remove": "Remove time window",
   "desktop.network_cameras.detection.schedule_days": "Days",

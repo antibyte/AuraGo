@@ -53,6 +53,7 @@ type networkCamerasDetectionFixture struct {
 	mu            sync.Mutex
 	jpeg          []byte
 	enabled       bool
+	go2rtcStopped bool // integration.api_usable false: go2rtc is stopped or being recreated
 	releaseEvent  bool
 	released      bool
 	armMode       string
@@ -156,7 +157,7 @@ func (f *networkCamerasDetectionFixture) ServeHTTP(w http.ResponseWriter, r *htt
 		detection := map[string]any{"enabled": false, "interval_seconds": 2, "min_score": 0.5, "cooldown_seconds": 300, "zones": []any{}, "actions": map[string]any{"message": false, "channel": "all", "agent": false, "agent_instruction": "", "desktop": true}}
 		write(http.StatusOK, map[string]any{
 			"status": "ok", "can_manage": true, "webrtc_enabled": false, "web_ui_enabled": false, "thumbnail_refresh": 5,
-			"integration": map[string]any{"configured": true, "enabled": true, "container_running": true, "api_usable": true},
+			"integration": map[string]any{"configured": true, "enabled": true, "container_running": !f.go2rtcStopped, "api_usable": !f.go2rtcStopped},
 			"discovery":   map[string]any{"available": false, "reason": "", "reason_code": "broadcast_unavailable"},
 			"streams": []any{
 				map[string]any{"id": "front-door", "name": "Haustür", "reachable": true, "codecs": []string{"H264"}, "producers": 1, "consumers": 0, "detection": detection},
@@ -377,7 +378,8 @@ func TestDesktopNetworkCamerasDetectionBrowser(t *testing.T) {
 
 	// Global settings dialog sends the complete Go2RTCDetectionConfig.
 	page.MustEval(`()=>document.querySelector('[data-ncd-action="settings"]').click()`)
-	page.MustWait(`()=>!!document.querySelector('[data-ncd-dialog]')`)
+	// Save waits until the dialog has loaded fresh settings from app/state.
+	page.MustWait(`()=>{const save=document.querySelector('[data-ncd-dialog] [data-ncd-action="save-settings"]');return !!save&&!save.disabled&&save.getAttribute('aria-disabled')!=='true'}`)
 	if page.MustEval(`()=>!!document.querySelector('.ncd-gpu-hint')`).Bool() {
 		t.Fatal("GPU hint shown without a GPU fallback reason")
 	}
@@ -558,6 +560,8 @@ func TestDesktopNetworkCamerasZoneEditorBrowser(t *testing.T) {
 func TestDesktopNetworkCamerasDetectionActivateBrowser(t *testing.T) {
 	fixture := newNetworkCamerasDetectionFixture(t, false)
 	fixture.deletedEvents = map[string]bool{fmt.Sprint(ncdEventGarage): true, fmt.Sprint(ncdEventFrontDoor): true}
+	// The detection API is AuraGo's own: the mode works while go2rtc is stopped.
+	fixture.go2rtcStopped = true
 	page := networkCamerasOpenDetection(t, fixture)
 	page.MustEval(`()=>document.querySelector('.nc-segmented [data-mode="detections"]').click()`)
 	page.MustWait(`()=>!!document.querySelector('.ncd-empty [data-ncd-action="activate"]')`)
@@ -576,6 +580,9 @@ func TestDesktopNetworkCamerasDetectionActivateBrowser(t *testing.T) {
 	// The status refreshes right after saving (well before the next 5 s poll), also
 	// when reloadAppState remounts the mode, so "Activate" does not linger.
 	page.Timeout(2500 * time.Millisecond).MustWait(`()=>!document.querySelector('[data-ncd-action="activate"]')&&document.querySelectorAll('.ncd-chip').length===2`)
+	// The live and grid modes keep their "go2rtc unavailable" panel.
+	page.MustEval(`()=>document.querySelector('.nc-segmented [data-mode="snapshots"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('.nc-onboarding-icon.is-warning')&&!document.querySelector('.ncd-root')`)
 	if errs := page.MustEval(`()=>fixtureErrors.join('\n')`).Str(); errs != "" {
 		t.Fatalf("page errors: %s", errs)
 	}

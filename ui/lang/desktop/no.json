@@ -1945,6 +1945,7 @@
   "desktop.network_cameras.detection.schedule_hint": "Gjelder når aktiveringen står på Tidsplan. Et vindu som slutter før det starter, går over midnatt.",
   "desktop.network_cameras.detection.schedule_server_zone": "Tidene gjelder i serverens tidssone ({{zone}}).",
   "desktop.network_cameras.detection.schedule_empty": "Ingen tidsvinduer ennå.",
+  "desktop.network_cameras.detection.schedule_limit": "En tidsplan har høyst 50 tidsvinduer.",
   "desktop.network_cameras.detection.schedule_add": "Legg til tidsvindu",
   "desktop.network_cameras.detection.schedule_remove": "Fjern tidsvindu",
   "desktop.network_cameras.detection.schedule_days": "Dager",

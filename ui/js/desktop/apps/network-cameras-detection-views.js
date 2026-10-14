@@ -11,6 +11,7 @@
     const POLL_MS = 5000;
     const PAGE_SIZE = 30;
     const MAX_ZONES = 8;
+    const MAX_WINDOWS = 50;
     const MIN_POINTS = 3;
     const MAX_POINTS = 32;
     const MAX_ZONE_NAME = 48;
@@ -40,6 +41,12 @@
     const FLAT_AREA = 0.0001;
     const ZONE_ABBREVIATION = /^[A-Za-z0-9+_-]{1,16}$/;
     const UTC_OFFSET = /^([+-])(\d{2}):(\d{2})$/;
+
+    // busyAttr keeps a control focusable while its action runs: a disabled button would
+    // drop the keyboard focus to <body>; the runtime ignores clicks on aria-disabled ones.
+    function busyAttr(busy) {
+        return busy ? ' aria-disabled="true"' : '';
+    }
 
     function T(ctx, key, params) {
         return ctx.t(NS + key, params || {});
@@ -301,6 +308,7 @@
         if (!Number.isInteger(retention) || retention < 1 || retention > 365) return { key: 'invalid_retention' };
         const storage = Number(s.max_storage_mb);
         if (!Number.isInteger(storage) || storage < 100 || storage > 1000000) return { key: 'invalid_storage' };
+        if (Array.isArray(s.schedule) && s.schedule.length > MAX_WINDOWS) return { key: 'schedule_limit' };
         for (const slot of Array.isArray(s.schedule) ? s.schedule : []) {
             const days = Array.isArray(slot && slot.days) ? slot.days : [];
             if (!days.length || !days.every(day => DAY_KEYS.includes(day)) || !TIME_PATTERN.test(String(slot.from || '')) || !TIME_PATTERN.test(String(slot.to || ''))) return { key: 'invalid_window' };
@@ -422,9 +430,12 @@
     function mainKind(view) {
         const status = view.status;
         if (!status) return view.connectionLost ? 'error' : 'loading';
-        if (!view.loaded) return 'loading';
         const filtered = !!(view.filter && (view.filter.camera || view.filter.day));
-        if (filtered || (Array.isArray(view.events) && view.events.length)) return 'workspace';
+        const listed = filtered || (Array.isArray(view.events) && view.events.length > 0);
+        // A list that is filtered or was shown before stays in place while it reloads (the
+        // loading state goes into the list), so a filter change keeps the keyboard focus.
+        if (!view.loaded) return listed || view.listShown ? 'workspace' : 'loading';
+        if (listed) return 'workspace';
         if (!status.enabled) return 'off';
         const state = status.detector && status.detector.state;
         if (state === 'downloading' || state === 'preparing') return 'preparing';
@@ -562,7 +573,7 @@
         const cameras = Array.isArray(status.cameras) ? status.cameras : [];
         let html = '<div class="ncd-strip"><div class="ncd-arm" role="group" aria-label="' + ctx.esc(T(ctx, 'arm_label')) + '">';
         if (view.canManage && status.enabled) {
-            html += '<div class="ncd-arm-buttons">' + ARM_MODES.map(mode => '<button type="button" data-arm="' + mode + '" data-focus-key="arm-' + mode + '" aria-pressed="' + (arm.mode === mode) + '"' + (view.armBusy ? ' disabled' : '') + '>' + ctx.esc(T(ctx, 'arm_' + mode)) + '</button>').join('') + '</div>';
+            html += '<div class="ncd-arm-buttons">' + ARM_MODES.map(mode => '<button type="button" data-arm="' + mode + '" data-focus-key="arm-' + mode + '" aria-pressed="' + (arm.mode === mode) + '"' + busyAttr(view.armBusy) + '>' + ctx.esc(T(ctx, 'arm_' + mode)) + '</button>').join('') + '</div>';
         }
         html += '<span class="ncd-arm-summary ' + (arm.armed ? 'is-armed' : 'is-disarmed') + '"><span class="ncd-dot" aria-hidden="true"></span>' + ctx.esc(armSummary(ctx, arm, view.now)) + '</span>';
         // next_change is shown in the browser's zone; the schedule runs in the server's.
@@ -572,7 +583,7 @@
         html += '<div class="ncd-detector is-' + detector.state + '"><span class="ncd-dot" aria-hidden="true"></span><span class="ncd-detector-text">' + ctx.esc(detector.text) + '</span>';
         if (detector.progress) html += progressMarkup(ctx, detector.progress);
         if (detector.error) html += '<span class="ncd-error-text">' + ctx.esc(detector.error) + '</span>';
-        if (detector.state === 'error' && view.canManage) html += '<button type="button" class="ncd-button" data-ncd-action="retry" data-focus-key="retry"' + (view.busy ? ' disabled' : '') + '>' + ctx.esc(T(ctx, 'retry')) + '</button>';
+        if (detector.state === 'error' && view.canManage) html += '<button type="button" class="ncd-button" data-ncd-action="retry" data-focus-key="retry"' + busyAttr(view.busy) + '>' + ctx.esc(T(ctx, 'retry')) + '</button>';
         if (detector.fallback) html += '<span class="ncd-fallback">' + ctx.esc(detector.fallback) + '</span>';
         html += '</div>';
         if (cameras.length) html += '<div class="ncd-chips" role="list" aria-label="' + ctx.esc(T(ctx, 'cameras_label')) + '">' + cameras.map(camera => chipMarkup(ctx, camera)).join('') + '</div>';
@@ -592,7 +603,7 @@
             if (view.canManage) {
                 const settings = globalDefaults(view.settings);
                 html += '<p>' + ctx.esc(T(ctx, 'off_download', { model: MODEL_MB[settings.model], runtime: RUNTIME_MB[settings.backend === 'cpu' ? 'cpu' : 'gpu'] })) + '</p>';
-                html += '<div class="ncd-empty-actions"><button type="button" class="nc-primary" data-ncd-action="activate" data-focus-key="activate"' + (view.busy ? ' disabled' : '') + '>' + ctx.esc(T(ctx, 'activate')) + '</button><button type="button" class="ncd-button" data-ncd-action="settings" data-focus-key="settings-empty">' + ctx.esc(T(ctx, 'settings')) + '</button></div>';
+                html += '<div class="ncd-empty-actions"><button type="button" class="nc-primary" data-ncd-action="activate" data-focus-key="activate"' + busyAttr(view.busy) + '>' + ctx.esc(T(ctx, 'activate')) + '</button><button type="button" class="ncd-button" data-ncd-action="settings" data-focus-key="settings-empty">' + ctx.esc(T(ctx, 'settings')) + '</button></div>';
             }
             return html + '</div>';
         }
@@ -660,6 +671,8 @@
         if (filter.day) html += '<button type="button" class="ncd-button" data-ncd-action="clear-day" data-focus-key="clear-day">' + ctx.esc(T(ctx, 'filter_clear_day')) + '</button>';
         html += '</div><div class="ncd-list" data-scroll role="list">';
         const entries = timelineEntries(view.events, view.armLog, filter, view.hasMore);
+        const reloading = !view.loaded && !view.eventsError;
+        if (reloading) html += '<p class="ncd-empty-list" role="status"><span class="nc-spinner is-small" aria-hidden="true"></span> ' + ctx.esc(T(ctx, 'loading')) + '</p>';
         let lastDay = '';
         for (const entry of entries) {
             const key = dayKey(entry.at);
@@ -669,13 +682,13 @@
             }
             html += entry.kind === 'event' ? eventRowMarkup(ctx, entry.item, entry.at, view.selectedId) : armRowMarkup(ctx, entry.item, entry.at);
         }
-        if (!entries.length) {
+        if (!entries.length && !reloading) {
             const message = view.eventsError ? view.eventsError : (filter.camera || filter.day ? T(ctx, 'no_events_filtered') : T(ctx, 'no_events'));
             html += '<p class="ncd-empty-list">' + ctx.esc(message) + '</p>';
         }
         html += '</div>';
         if (view.eventsError && entries.length) html += '<p class="ncd-empty-list is-error" role="alert">' + ctx.esc(view.eventsError) + '</p>';
-        if (view.hasMore) html += '<button type="button" class="ncd-button ncd-more" data-ncd-action="more" data-focus-key="more"' + (view.loadingMore ? ' disabled' : '') + '>' + ctx.esc(T(ctx, 'load_more')) + '</button>';
+        if (view.hasMore) html += '<button type="button" class="ncd-button ncd-more" data-ncd-action="more" data-focus-key="more"' + busyAttr(view.loadingMore) + '>' + ctx.esc(T(ctx, 'load_more')) + '</button>';
         return html + '</section>';
     }
 
@@ -727,7 +740,7 @@
         } else {
             html += '<p class="ncd-hint">' + ctx.esc(T(ctx, 'alert_none')) + '</p>';
         }
-        if (view.canManage) html += '<div class="ncd-detail-actions"><button type="button" class="ncd-button is-danger" data-ncd-action="delete-event" data-focus-key="delete-event"' + (view.deleting ? ' disabled' : '') + '>' + ctx.iconMarkup('trash', '×', 'vd-sprite-icon nc-glyph', 15) + '<span>' + ctx.esc(T(ctx, 'delete_event')) + '</span></button></div>';
+        if (view.canManage) html += '<div class="ncd-detail-actions"><button type="button" class="ncd-button is-danger" data-ncd-action="delete-event" data-focus-key="delete-event"' + busyAttr(view.deleting) + '>' + ctx.iconMarkup('trash', '×', 'vd-sprite-icon nc-glyph', 15) + '<span>' + ctx.esc(T(ctx, 'delete_event')) + '</span></button></div>';
         return html + '</section>';
     }
 
@@ -736,8 +749,8 @@
         if (!rows.length) return '<p class="ncd-hint">' + ctx.esc(T(ctx, 'schedule_empty')) + '</p>';
         return rows.map((slot, index) => '<div class="ncd-window" data-window="' + index + '"><div class="ncd-days" role="group" aria-label="' + ctx.esc(T(ctx, 'schedule_days')) + '">' +
             DAY_KEYS.map((day, dayIndex) => '<button type="button" class="ncd-day-chip" data-window-day="' + index + ':' + day + '" data-focus-key="day-' + index + '-' + day + '" aria-pressed="' + slot.days.includes(day) + '">' + ctx.esc(weekdayLabel(dayIndex)) + '</button>').join('') + '</div>' +
-            '<label>' + ctx.esc(T(ctx, 'schedule_from')) + '<input type="time" data-window-from="' + index + '" value="' + ctx.esc(slot.from) + '"></label>' +
-            '<label>' + ctx.esc(T(ctx, 'schedule_to')) + '<input type="time" data-window-to="' + index + '" value="' + ctx.esc(slot.to) + '"></label>' +
+            '<label>' + ctx.esc(T(ctx, 'schedule_from')) + '<input type="time" data-window-from="' + index + '" data-focus-key="window-from-' + index + '" value="' + ctx.esc(slot.from) + '"></label>' +
+            '<label>' + ctx.esc(T(ctx, 'schedule_to')) + '<input type="time" data-window-to="' + index + '" data-focus-key="window-to-' + index + '" value="' + ctx.esc(slot.to) + '"></label>' +
             '<button type="button" class="ncd-button is-danger" data-window-remove="' + index + '" data-focus-key="remove-window-' + index + '" aria-label="' + ctx.esc(T(ctx, 'schedule_remove')) + '">' + ctx.iconMarkup('trash', '×', 'vd-sprite-icon nc-glyph', 14) + '</button></div>').join('');
     }
 
@@ -749,26 +762,26 @@
         if (!values) {
             body = '<p class="ncd-error-text" role="alert">' + ctx.esc(T(ctx, 'settings_load_failed')) + '</p>';
         } else {
-            body += '<label class="nc-check"><input type="checkbox" data-set-field="enabled"' + (values.enabled ? ' checked' : '') + '><span>' + ctx.esc(T(ctx, 'settings_enabled')) + '</span></label>';
-            body += '<fieldset class="ncd-fieldset"><legend>' + ctx.esc(T(ctx, 'settings_model')) + '</legend>' + ['standard', 'accurate'].map(model => '<label class="nc-check"><input type="radio" name="ncd-model-' + key + '" value="' + model + '" data-set-field="model"' + (values.model === model ? ' checked' : '') + '><span>' + ctx.esc(T(ctx, 'model_' + model)) + '</span></label>').join('') + '<small class="ncd-hint">' + ctx.esc(T(ctx, 'runtime_sizes')) + '</small></fieldset>';
-            body += '<label>' + ctx.esc(T(ctx, 'settings_backend')) + '<select data-set-field="backend">' + ['auto', 'gpu', 'cpu'].map(backend => '<option value="' + backend + '"' + (values.backend === backend ? ' selected' : '') + '>' + ctx.esc(T(ctx, 'backend_' + backend)) + '</option>').join('') + '</select></label>';
+            body += '<label class="nc-check"><input type="checkbox" data-set-field="enabled" data-focus-key="set-enabled"' + (values.enabled ? ' checked' : '') + '><span>' + ctx.esc(T(ctx, 'settings_enabled')) + '</span></label>';
+            body += '<fieldset class="ncd-fieldset"><legend>' + ctx.esc(T(ctx, 'settings_model')) + '</legend>' + ['standard', 'accurate'].map(model => '<label class="nc-check"><input type="radio" name="ncd-model-' + key + '" value="' + model + '" data-set-field="model" data-focus-key="set-model-' + model + '"' + (values.model === model ? ' checked' : '') + '><span>' + ctx.esc(T(ctx, 'model_' + model)) + '</span></label>').join('') + '<small class="ncd-hint">' + ctx.esc(T(ctx, 'runtime_sizes')) + '</small></fieldset>';
+            body += '<label>' + ctx.esc(T(ctx, 'settings_backend')) + '<select data-set-field="backend" data-focus-key="set-backend">' + ['auto', 'gpu', 'cpu'].map(backend => '<option value="' + backend + '"' + (values.backend === backend ? ' selected' : '') + '>' + ctx.esc(T(ctx, 'backend_' + backend)) + '</option>').join('') + '</select></label>';
             const reason = view.status && view.status.detector ? String(view.status.detector.fallback_reason || '') : '';
             if (reason && GPU_HINT_PATTERN.test(reason)) body += '<div class="ncd-gpu-hint" role="note"><p>' + ctx.esc(T(ctx, 'gpu_hint')) + '</p><code>sudo usermod -aG render aurago</code><p>' + ctx.esc(T(ctx, 'gpu_hint_user')) + '</p><small>' + ctx.esc(reason) + '</small></div>';
-            body += '<div class="nc-form-row"><label>' + ctx.esc(T(ctx, 'settings_retention')) + '<input type="number" min="1" max="365" step="1" inputmode="numeric" data-set-field="retention_days" value="' + ctx.esc(values.retention_days) + '"></label>' +
-                '<label>' + ctx.esc(T(ctx, 'settings_storage')) + '<input type="number" min="100" max="1000000" step="100" inputmode="numeric" data-set-field="max_storage_mb" value="' + ctx.esc(values.max_storage_mb) + '"></label></div>';
+            body += '<div class="nc-form-row"><label>' + ctx.esc(T(ctx, 'settings_retention')) + '<input type="number" min="1" max="365" step="1" inputmode="numeric" data-set-field="retention_days" data-focus-key="set-retention" value="' + ctx.esc(values.retention_days) + '"></label>' +
+                '<label>' + ctx.esc(T(ctx, 'settings_storage')) + '<input type="number" min="100" max="1000000" step="100" inputmode="numeric" data-set-field="max_storage_mb" data-focus-key="set-storage" value="' + ctx.esc(values.max_storage_mb) + '"></label></div>';
             const storage = view.status && view.status.storage && typeof view.status.storage === 'object' ? view.status.storage : null;
             if (storage && finite(storage.limit_bytes, 0) > 0) body += '<small class="ncd-hint">' + ctx.esc(T(ctx, 'storage_usage', { used: (finite(storage.bytes, 0) / 1048576).toFixed(1), limit: Math.round(finite(storage.limit_bytes, 0) / 1048576) })) + '</small>';
             const zone = serverZone(view.status && view.status.arm);
             const zoneHint = zone ? '<small class="ncd-hint ncd-server-zone">' + ctx.esc(T(ctx, 'schedule_server_zone', { zone: zone.label })) + '</small>' : '';
             body += '<fieldset class="ncd-fieldset"><legend>' + ctx.esc(T(ctx, 'settings_schedule')) + '</legend><small class="ncd-hint">' + ctx.esc(T(ctx, 'schedule_hint')) + '</small>' + zoneHint + '<div class="ncd-windows" data-schedule-rows>' + scheduleRowsMarkup(ctx, values.schedule) + '</div>' +
-                '<button type="button" class="ncd-button" data-ncd-action="add-window" data-focus-key="add-window">+ ' + ctx.esc(T(ctx, 'schedule_add')) + '</button></fieldset>';
+                '<button type="button" class="ncd-button" data-ncd-action="add-window" data-focus-key="add-window"' + busyAttr(values.schedule.length >= MAX_WINDOWS) + '>+ ' + ctx.esc(T(ctx, 'schedule_add')) + '</button></fieldset>';
         }
         const titleId = 'ncd-settings-title-' + key;
         return '<div class="nc-modal-backdrop ncd-dialog-backdrop"><section class="nc-modal ncd-settings" role="dialog" aria-modal="true" aria-labelledby="' + titleId + '" data-ncd-dialog>' +
             '<header><div><strong id="' + titleId + '">' + ctx.esc(T(ctx, 'settings_title')) + '</strong></div><button type="button" data-ncd-action="close-settings" data-focus-key="close-settings-x" aria-label="' + ctx.esc(ctx.t('desktop.close')) + '">×</button></header>' +
             '<div class="nc-modal-body"><div class="nc-form">' + body + '</div>' + (dialog.error ? '<div class="nc-modal-error" role="alert">' + ctx.esc(dialog.error) + '</div>' : '') + '</div>' +
             '<footer><button type="button" data-ncd-action="close-settings" data-focus-key="close-settings">' + ctx.esc(ctx.t('desktop.network_cameras.cancel')) + '</button>' +
-            '<button type="button" class="nc-primary" data-ncd-action="save-settings" data-focus-key="save-settings"' + (dialog.busy || !values ? ' disabled' : '') + '>' + ctx.esc(ctx.t('desktop.network_cameras.save')) + '</button></footer></section></div>';
+            '<button type="button" class="nc-primary" data-ncd-action="save-settings" data-focus-key="save-settings"' + (!values ? ' disabled' : busyAttr(dialog.busy)) + '>' + ctx.esc(ctx.t('desktop.network_cameras.save')) + '</button></footer></section></div>';
     }
 
     // No maxlength on the name: it counts UTF-16 units, the server counts runes (an emoji
@@ -824,6 +837,7 @@
         POLL_MS,
         PAGE_SIZE,
         MAX_ZONES,
+        MAX_WINDOWS,
         MIN_POINTS,
         MAX_POINTS,
         MAX_ZONE_NAME,
@@ -847,6 +861,7 @@
         ZONE_COLORS,
         EDGE_SNAP,
         T,
+        busyAttr,
         finite,
         clamp,
         round4,

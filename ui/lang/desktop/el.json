@@ -1945,6 +1945,7 @@
   "desktop.network_cameras.detection.schedule_hint": "Ισχύει όταν η όπλιση είναι ρυθμισμένη σε Πρόγραμμα. Ένα διάστημα που τελειώνει πριν αρχίσει περνά τα μεσάνυχτα.",
   "desktop.network_cameras.detection.schedule_server_zone": "Οι ώρες ισχύουν στη ζώνη ώρας του διακομιστή ({{zone}}).",
   "desktop.network_cameras.detection.schedule_empty": "Δεν υπάρχουν ακόμη χρονικά διαστήματα.",
+  "desktop.network_cameras.detection.schedule_limit": "Ένα πρόγραμμα έχει το πολύ 50 χρονικά διαστήματα.",
   "desktop.network_cameras.detection.schedule_add": "Προσθήκη χρονικού διαστήματος",
   "desktop.network_cameras.detection.schedule_remove": "Αφαίρεση χρονικού διαστήματος",
   "desktop.network_cameras.detection.schedule_days": "Ημέρες",

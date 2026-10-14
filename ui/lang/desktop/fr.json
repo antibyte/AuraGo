@@ -1945,6 +1945,7 @@
   "desktop.network_cameras.detection.schedule_hint": "S’applique quand l’armement est réglé sur Planning. Une plage qui finit avant de commencer passe minuit.",
   "desktop.network_cameras.detection.schedule_server_zone": "Les heures suivent le fuseau horaire du serveur ({{zone}}).",
   "desktop.network_cameras.detection.schedule_empty": "Aucune plage horaire pour l’instant.",
+  "desktop.network_cameras.detection.schedule_limit": "Un planning compte au plus 50 plages horaires.",
   "desktop.network_cameras.detection.schedule_add": "Ajouter une plage horaire",
   "desktop.network_cameras.detection.schedule_remove": "Supprimer la plage horaire",
   "desktop.network_cameras.detection.schedule_days": "Jours",

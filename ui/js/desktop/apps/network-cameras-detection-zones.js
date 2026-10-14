@@ -215,7 +215,9 @@
         listen(stage, 'pointerdown', event => {
             // A second finger (or a pen while a finger is down) neither sets points nor
             // steals a running drag: only the primary pointer edits.
-            if (!svg || event.isPrimary === false || ed.drag || (event.pointerType === 'mouse' && event.button !== 0)) return;
+            if (!svg || event.isPrimary === false || (event.pointerType === 'mouse' && event.button !== 0)) return;
+            // A new primary press means the last one ended, even if its pointerup got lost.
+            if (ed.drag) finishDrag();
             const handle = event.target && event.target.closest ? event.target.closest('[data-point], [data-drawing-point]') : null;
             if (handle && handle.hasAttribute('data-point') && !ed.drawing) {
                 ed.drag = { zone: Number(handle.getAttribute('data-zone')), point: Number(handle.getAttribute('data-point')), moved: false, pointerId: event.pointerId };
@@ -263,19 +265,24 @@
             ed.drag.moved = true;
             redraw();
         });
-        const endDrag = event => {
-            if (!ed.drag || event.pointerId !== ed.drag.pointerId) return;
-            const { moved, zone } = ed.drag;
+        // finishDrag ends the vertex drag; it can never stay stuck (pointercancel and the next
+        // primary pointerdown end it too).
+        const finishDrag = () => {
+            if (!ed.drag) return;
+            const { moved, zone, pointerId } = ed.drag;
             ed.drag = null;
-            try { stage.releasePointerCapture(event.pointerId); } catch (_) {}
+            try { stage.releasePointerCapture(pointerId); } catch (_) {}
             if (!moved) return;
             clearTestBoxes();
             const dragged = ed.draft.zones[zone];
             if (dragged) warnIfFlat(dragged);
             emit();
         };
+        const endDrag = event => {
+            if (ed.drag && event.pointerId === ed.drag.pointerId) finishDrag();
+        };
         listen(stage, 'pointerup', endDrag);
-        listen(stage, 'pointercancel', endDrag);
+        listen(stage, 'pointercancel', finishDrag);
         listen(stage, 'lostpointercapture', endDrag);
         listen(stage, 'dblclick', event => {
             event.preventDefault();

@@ -7,6 +7,7 @@
     const {
         API,
         NS,
+        MAX_WINDOWS,
         POLL_MS,
         PAGE_SIZE,
         DAY_KEYS,
@@ -49,7 +50,7 @@
             events: [], armLog: [], nextBefore: null, loaded: false, eventsError: '', loadingMore: false, eventsToken: 0,
             filter: { camera: '', day: '' },
             selectedId: null, detail: null, detailError: '', frameIndex: 0, detailToken: 0, deleting: false,
-            armBusy: false, busy: false, dialog: null,
+            armBusy: false, busy: false, dialog: null, dialogOpener: '', listShown: false, announced: new Set(), lostFocus: null,
             pollTimer: null, controllers: new Set(), signatures: {}, listeners: []
         };
     }
@@ -67,7 +68,7 @@
             requestOptions.body = JSON.stringify(requestOptions.body);
         }
         try {
-            return await inst.ctx.api(API + path, requestOptions);
+            return await inst.ctx.api(path.charAt(0) === '/' ? path : API + path, requestOptions);
         } finally {
             inst.controllers.delete(controller);
         }
@@ -91,7 +92,7 @@
         return {
             status: inst.status, canManage: !!inst.options.canManage, streams: inst.options.streams || [], settings: inst.options.detectionSettings || null,
             connectionLost: inst.connectionLost, armBusy: inst.armBusy, busy: inst.busy, now: new Date(), windowKey: inst.key,
-            events: inst.events, armLog: inst.armLog, filter: inst.filter, hasMore: inst.nextBefore != null, loaded: inst.loaded, loadingMore: inst.loadingMore, eventsError: inst.eventsError,
+            events: inst.events, armLog: inst.armLog, filter: inst.filter, hasMore: inst.nextBefore != null, loaded: inst.loaded, listShown: inst.listShown, loadingMore: inst.loadingMore, eventsError: inst.eventsError,
             selectedId: inst.selectedId, detail: inst.detail, error: inst.detailError, frameIndex: inst.frameIndex, deleting: inst.deleting, dialog: inst.dialog
         };
     }
@@ -105,7 +106,10 @@
         if (!region || inst.signatures[name] === html) return;
         inst.signatures[name] = html;
         const active = document.activeElement;
-        const focusKey = active && region.contains(active) ? active.getAttribute('data-focus-key') : null;
+        let focusKey = active && region.contains(active) ? active.getAttribute('data-focus-key') : null;
+        const lost = inst.lostFocus && Date.now() - inst.lostFocus.at < 10000 ? inst.lostFocus.key : null;
+        const restoring = !focusKey && !!lost && (!active || active === document.body);
+        if (restoring) focusKey = lost;
         const scroller = region.querySelector('[data-scroll]');
         const scrollTop = scroller ? scroller.scrollTop : 0;
         region.innerHTML = html;
@@ -114,8 +118,11 @@
         if (nextScroller) nextScroller.scrollTop = scrollTop;
         if (focusKey) {
             const next = region.querySelector('[data-focus-key="' + cssEscape(focusKey) + '"]');
-            if (next && !next.disabled) next.focus({ preventScroll: true });
-            else {
+            if (next && !next.disabled) {
+                next.focus({ preventScroll: true });
+                inst.lostFocus = null;
+            } else if (!restoring) {
+                inst.lostFocus = { key: focusKey, at: Date.now() };
                 const fallback = region.querySelector('[tabindex="0"]');
                 if (fallback) fallback.focus({ preventScroll: true });
             }
@@ -141,6 +148,7 @@
             renderRegion(inst, 'main', emptyMarkup(inst.ctx, Object.assign(view, { kind })));
             return;
         }
+        inst.listShown = true;
         renderRegion(inst, 'main', '<div class="ncd-workspace"><div class="ncd-cell" data-region="timeline"></div><div class="ncd-cell" data-region="detail"></div></div>');
         renderTimeline(inst);
         renderDetail(inst);
@@ -260,13 +268,16 @@
             return;
         }
         try {
+            const snapshotFeed = inst.cursor === 0;
             const changes = await request(inst, 'state?since=' + encodeURIComponent(String(inst.cursor)));
             if (!inst.mounted) return;
             inst.lastPollAt = Date.now();
             const lost = inst.connectionLost;
             inst.connectionLost = false;
-            applyChanges(inst, changes, false);
+            applyChanges(inst, changes, false, snapshotFeed);
             if (lost) renderStrip(inst);
+            // The database appeared: its events come paged, as on a first load.
+            if (snapshotFeed && inst.cursor > 0) loadEvents(inst, true);
         } catch (error) {
             if (isAbort(error) || !inst.mounted) return;
             if (!inst.connectionLost) {
@@ -289,7 +300,7 @@
         if (previousState !== nextState) announce(inst, detectorSummary(inst.ctx, next.detector).text);
     }
 
-    function applyChanges(inst, changes, initial) {
+    function applyChanges(inst, changes, initial, snapshotFeed) {
         const data = changes && typeof changes === 'object' ? changes : {};
         const status = data.status && typeof data.status === 'object' ? data.status : null;
         if (status) {
@@ -297,17 +308,24 @@
             inst.status = status;
             if (!initial) announceStatus(inst, previous, status);
         }
-        const cursor = data.cursor != null ? data.cursor : (status && status.cursor != null ? status.cursor : null);
-        if (cursor != null) inst.cursor = cursor;
+        const raw = data.cursor != null ? data.cursor : (status && status.cursor != null ? status.cursor : null);
+        const cursor = Number.isSafeInteger(Number(raw)) && Number(raw) >= 0 ? Number(raw) : null;
+        // The cursor only moves forward: an older poll answering late cannot rewind it.
+        if (cursor != null && (inst.cursor === null || cursor > inst.cursor)) inst.cursor = cursor;
         else if (inst.cursor === null) inst.cursor = 0;
         const armRows = Array.isArray(data.arm_log) ? data.arm_log : [];
         if (armRows.length) inst.armLog = mergeArmLog(inst.armLog, armRows);
-        const incoming = initial ? [] : (Array.isArray(data.events) ? data.events : []);
+        const incoming = initial || snapshotFeed ? [] : (Array.isArray(data.events) ? data.events : []);
         let refreshDetail = false;
         if (incoming.length) {
             const known = new Set(inst.events.map(event => idOf(event.id)));
-            const fresh = incoming.filter(event => !known.has(idOf(event && event.id)));
             const relevant = incoming.filter(event => known.has(idOf(event && event.id)) || eventMatches(event, inst.filter));
+            // Announce an event once, and only when it matches the filter; every id seen is
+            // remembered, so an ongoing event outside the filter is not announced on each poll.
+            const fresh = relevant.filter(event => !known.has(idOf(event && event.id)) && !inst.announced.has(idOf(event && event.id)));
+            if (inst.announced.size > 2000) inst.announced.clear();
+            incoming.forEach(event => { if (idOf(event && event.id)) inst.announced.add(idOf(event.id)); });
+            inst.events.forEach(event => inst.announced.add(idOf(event.id)));
             inst.events = upsertEvents(inst.events, relevant);
             refreshDetail = inst.selectedId != null && incoming.some(event => idOf(event && event.id) === inst.selectedId);
             if (fresh.length) announce(inst, T(inst.ctx, 'new_event', { camera: fresh[0].camera_name || fresh[0].camera_id || '' }));
@@ -318,6 +336,7 @@
     }
 
     async function loadEvents(inst, reset) {
+        if (!reset && inst.loadingMore) return;
         const query = new URLSearchParams();
         query.set('limit', String(PAGE_SIZE));
         if (inst.filter.camera) query.set('stream_id', inst.filter.camera);
@@ -447,7 +466,16 @@
             notify(inst, T(inst.ctx, 'event_deleted'));
         } catch (error) {
             if (isAbort(error)) return;
-            notify(inst, (error && error.message) || T(inst.ctx, 'event_failed'), 'error');
+            if (error && (error.status === 404 || (error.body && error.body.code === 'event_not_found'))) {
+                inst.events = inst.events.filter(event => idOf(event.id) !== id);
+                inst.selectedId = null;
+                inst.detail = null;
+                inst.detailError = '';
+                notify(inst, T(inst.ctx, 'event_gone'));
+                announce(inst, T(inst.ctx, 'event_gone'));
+            } else {
+                notify(inst, (error && error.message) || T(inst.ctx, 'event_failed'), 'error');
+            }
         } finally {
             inst.deleting = false;
             if (inst.mounted) renderMain(inst);
@@ -503,17 +531,55 @@
 
     function openSettings(inst) {
         if (!inst.options.canManage) return;
-        inst.dialog = { values: inst.options.detectionSettings ? globalDefaults(inst.options.detectionSettings) : null, busy: false, error: '' };
+        const opener = document.activeElement && inst.root.contains(document.activeElement) ? document.activeElement.getAttribute('data-focus-key') : '';
+        inst.dialogOpener = opener || 'settings';
+        // Save waits for fresh settings, so a schedule saved elsewhere is never overwritten.
+        const dialog = { values: inst.options.detectionSettings ? globalDefaults(inst.options.detectionSettings) : null, busy: true, error: '', dirty: false };
+        inst.dialog = dialog;
         renderDialog(inst);
         const first = inst.root.querySelector('[data-ncd-dialog] input, [data-ncd-dialog] footer button');
         if (first) first.focus();
+        refreshDialogSettings(inst, dialog);
+    }
+
+    async function refreshDialogSettings(inst, dialog) {
+        try {
+            const state = await request(inst, '/api/desktop/integrations/go2rtc/app/state');
+            const fresh = state && state.detection_settings && typeof state.detection_settings === 'object' ? state.detection_settings : null;
+            if (inst.dialog !== dialog) return;
+            if (fresh) {
+                inst.options = Object.assign({}, inst.options, { detectionSettings: fresh });
+                if (!dialog.dirty) dialog.values = globalDefaults(fresh);
+            }
+        } catch (error) {
+            if (isAbort(error) || inst.dialog !== dialog) return;
+        }
+        dialog.busy = false;
+        // renderRegion keeps the focused dialog control (all of them carry a focus key).
+        rerenderDialog(inst, null);
     }
 
     function closeSettings(inst) {
         inst.dialog = null;
         renderDialog(inst);
-        const button = inst.root.querySelector('[data-ncd-action="settings"]');
-        if (button) button.focus();
+        const opener = inst.root.querySelector('[data-focus-key="' + cssEscape(inst.dialogOpener || 'settings') + '"]') || inst.root.querySelector('[data-ncd-action="settings"]');
+        if (opener) opener.focus();
+    }
+
+    function trapDialogFocus(inst, event) {
+        const dialog = inst.root.querySelector('[data-ncd-dialog]');
+        if (!dialog) return;
+        const focusables = Array.from(dialog.querySelectorAll('button, input, select, textarea, [tabindex="0"]')).filter(node => !node.disabled && node.offsetParent !== null);
+        if (!focusables.length) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+            event.preventDefault();
+            first.focus();
+        }
     }
 
     function rerenderDialog(inst, focusSelector) {
@@ -526,6 +592,7 @@
     function updateSettingsField(inst, target) {
         const values = inst.dialog && inst.dialog.values;
         if (!values) return;
+        inst.dialog.dirty = true;
         const field = target.dataset.setField;
         if (field === 'enabled') values.enabled = target.checked;
         else if (field === 'model' && target.checked) values.model = target.value === 'accurate' ? 'accurate' : 'standard';
@@ -539,6 +606,7 @@
         const isFrom = target.dataset.windowFrom !== undefined;
         const slot = values.schedule[Number(isFrom ? target.dataset.windowFrom : target.dataset.windowTo)];
         if (!slot) return;
+        inst.dialog.dirty = true;
         if (isFrom) slot.from = target.value;
         else slot.to = target.value;
     }
@@ -550,6 +618,7 @@
         const slot = values.schedule[Number(parts[0])];
         const day = parts[1];
         if (!slot || !DAY_KEYS.includes(day)) return;
+        inst.dialog.dirty = true;
         const on = !slot.days.includes(day);
         slot.days = DAY_KEYS.filter(key => (key === day ? on : slot.days.includes(key)));
         button.setAttribute('aria-pressed', String(on));
@@ -559,6 +628,12 @@
     function addWindow(inst) {
         const values = inst.dialog && inst.dialog.values;
         if (!values) return;
+        if (values.schedule.length >= MAX_WINDOWS) {
+            inst.dialog.error = T(inst.ctx, 'schedule_limit');
+            rerenderDialog(inst, '[data-ncd-action="add-window"]');
+            return;
+        }
+        inst.dialog.dirty = true;
         values.schedule.push({ days: DAY_KEYS.slice(), from: '22:00', to: '06:00' });
         rerenderDialog(inst, '[data-window="' + (values.schedule.length - 1) + '"] .ncd-day-chip');
     }
@@ -566,6 +641,8 @@
     function removeWindow(inst, index) {
         const values = inst.dialog && inst.dialog.values;
         if (!values || !values.schedule[index]) return;
+        inst.dialog.dirty = true;
+        inst.dialog.error = '';
         values.schedule.splice(index, 1);
         rerenderDialog(inst, '[data-ncd-action="add-window"]');
     }
@@ -605,7 +682,7 @@
 
     function onClick(inst, event) {
         const target = event.target && event.target.closest ? event.target.closest('button') : null;
-        if (!target || !inst.root.contains(target) || target.disabled) return;
+        if (!target || !inst.root.contains(target) || target.disabled || target.getAttribute('aria-disabled') === 'true') return;
         const data = target.dataset;
         if (data.arm) { setArm(inst, data.arm); return; }
         if (data.event) { selectEvent(inst, data.event); return; }
@@ -661,6 +738,10 @@
             event.preventDefault();
             event.stopPropagation();
             closeSettings(inst);
+            return;
+        }
+        if (event.key === 'Tab' && inst.dialog && target.closest('[data-ncd-dialog]')) {
+            trapDialogFocus(inst, event);
             return;
         }
         if (target.classList.contains('ncd-row') && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
