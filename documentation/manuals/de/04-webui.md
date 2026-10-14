@@ -244,7 +244,7 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | **Homepage Studio** | Verwaltete Website-Projekte bauen, prüfen und deployen |
 | **Software Store** | Verwaltete Docker-Apps wie Homarr, n8n, Node-RED, Open WebUI, Arcane, Termix, code-server, Dozzle, Beszel und OliveTin installieren und bedienen |
 | **Quick Connect** | SSH-/VNC-Verbindungen verwalten |
-| **Network Cameras** | go2rtc-Kamera-Streams ansehen |
+| **Network Cameras** | go2rtc-Kamera-Streams ansehen; Personenerkennung mit Ereignissen, Zonen und Scharfschaltung |
 | **Virtual Computers** | Boring-Computers-Maschinen und Workspaces steuern |
 | **MeshCore** | Desktop-Messenger für das MeshCore-Funkgerät (siehe Kapitel 8) |
 | **Phone** | SIP-Softphone (Browser-Telefon) |

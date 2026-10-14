@@ -91,6 +91,12 @@ mapped public port is retained in the browser; AuraGo cannot infer arbitrary
 host mappings. See [HTTPS configuration](https.md).
 
 
+The container runs in UTC unless you set `TZ`. Schedules that follow the server
+clock, such as the person detection arming schedule of the Network Cameras app,
+use that zone. For local time, uncomment `- TZ=Europe/Berlin` (or your zone) in
+the `aurago` service's `environment` block and run `docker compose up -d` again;
+the image ships the time zone database.
+
 Quick Connect can also use serial hardware attached to the AuraGo server. The
 Docker service does not receive device access by default. To pass one through,
 add a `devices` entry and the host device group's numeric GID to `group_add` in

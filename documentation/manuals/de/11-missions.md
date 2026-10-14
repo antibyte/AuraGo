@@ -183,7 +183,7 @@ AuraGo akzeptiert **Cron-Ausdrücke** mit 5 Feldern und optional 6 Feldern mit S
 
 ### Ereignis-Trigger
 
-Für ereignisgesteuerte Missionen setze `execution_type: triggered` und wähle einen `trigger_type` (z. B. `webhook`, `email_received`, `mqtt_message`, `home_assistant_state`, `budget_warning`, `mission_completed`). Filter konfigurierst du in `trigger_config`.
+Für ereignisgesteuerte Missionen setze `execution_type: triggered` und wähle einen `trigger_type` (z. B. `webhook`, `email_received`, `mqtt_message`, `home_assistant_state`, `budget_warning`, `mission_completed`). Filter konfigurierst du in `trigger_config`. `person_detected` startet bei jedem Ereignis der Personenerkennung (App **Netzwerkkameras**); `trigger_config` filtert mit `person_camera_id`, `person_zone` und `person_include_disarmed` – ohne den letzten Schalter nur bei scharf geschaltetem System.
 
 **Ketten von Missionen.** Missionen, die sich gegenseitig beim Abschluss starten (`mission_completed`; Agenten-Missionen und Flows gleichermaßen), bilden eine Kette, und eine Kette endet nach 10 Schritten (11 Läufen). Der Abschluss des 10. Schritts startet nichts mehr: AuraGo protokolliert eine Warnung, und die Ausgabe dieser letzten Mission beginnt mit „Stopped a chain of missions triggered by completions after 10 steps; check for a loop between missions". Eine gerade Kette mit bis zu 10 Gliedern läuft vollständig. Auch eine Mission, die durch ihren eigenen Abschluss startet (eine Selbstschleife), ist eine solche Kette: Sie läuft höchstens 11-mal und stoppt dann mit derselben Warnung. Einen Flow, der auf seine eigene Mission wartet, veröffentlicht EasyDrag nicht. Jeder andere Start (Zeitplan, Ereignis, **Ausführen**, Wiederaufnahme nach einem Neustart) beginnt eine neue Kette.
 

@@ -291,6 +291,78 @@
   IsolateSandboxedIframes`); reach into the frame with `el.MustFrame()`. Screenshots land in
   `reports/retro-games/`. Server contract: `internal/retrogames/AGENTS.md`.
 
+## Network Cameras person detection
+- `network-cameras-detection-views.js` (constants, pure helpers and string-only
+  markup builders, no DOM; `window.NetworkCamerasDetectionViews`),
+  `network-cameras-detection-zones.js` (camera tab controller and zone editor;
+  `window.NetworkCamerasDetectionZones`) and `network-cameras-detection.js`
+  (detection mode runtime and settings dialog) load in this order before
+  `network-cameras.js`, with `desktop-app-network-cameras-detection.css`. Public
+  API: `window.NetworkCamerasDetection = { mount, unmount, cameraSettingsMarkup,
+  bindCameraSettings, validateCameraSettings }`; each file stays below the
+  1100-line budget.
+- `network-cameras.js` stores the mode `detections` (`coerceMode`), mounts into
+  `[data-role="detection"]` from `draw` (`syncDetection`), unmounts with
+  `{ keepState: true }` when the window is hidden or another mode is shown, and
+  forgets the state in `dispose`. The manage modal shows General | Person
+  detection tabs to admins (both panels rendered once, toggled with `hidden`);
+  `PATCH streams/<id>` carries `detection` only when the tab changed it, after
+  `commitDrawing()` (closes a zone being drawn; under 3 points it blocks the
+  save with `zone_unfinished`) and `validateCameraSettings`. The server MERGES
+  that object per key and rejects `null` and unknown keys, so `cameraPayload`
+  sends exactly the C5 keys with the full `zones` list. `detection_enabled` is
+  top-level in app/state and copied onto the stream for `cam_global_off`.
+- Launch contexts `{event_id, camera_id}` (person detection toasts, kept by the
+  notification center) open mode `detections` on that event: `render` reads
+  them from its context, `open(windowId, context)` handles an open window and
+  is called from `openApp` in `core/window-shell-runtime.js` (main bundle:
+  `npm run build:ui`). `mount(…, { launch })` sets the camera filter and loads
+  `events/<id>` even when the event is not on the loaded page. A 404 /
+  `event_not_found` on `events/<id>` (the change feed has no tombstones)
+  drops the event, closes the detail and shows `detection.event_gone`.
+- The camera tab shows `detection.cam_restart_hint` under the detection switch
+  (`aria-describedby`): while go2rtc runs, toggling recreates its container (a
+  stopped go2rtc stays stopped).
+- API base `/api/desktop/integrations/go2rtc/detection/`. The first mount of a
+  window runs `state?since=0` (a snapshot: status + arm log; its events are
+  ignored, they come paged from `events?…` with `before`), then
+  `state?since=<cursor>` every 5 s only while mounted; a remount with kept state
+  resumes the cycle. A settings save or "Activate" clears `lastPollAt`, so the
+  remount from `reloadAppState` polls at once. The settings dialog and
+  "Activate" need `detection_settings` from `GET app/state` and send the FULL
+  object (`PUT settings` replaces); they never save guessed values.
+- Ids are int64 around 1.8e12: read them only through `idOf()` (safe-integer
+  check, no float parsing). Times are ms UTC; `next_change` shows in the browser
+  zone, while the strip (when the zones differ) and the schedule editor show the
+  server zone from `ArmState.time_zone`/`utc_offset` (`serverZone()`; a UTC
+  server reads "UTC").
+- Zone editor: points snap within 0.015 of a frame edge (the server maps with
+  0.01); polygons keep the default nonzero fill rule (`evenodd` is forbidden);
+  a zone under 0.01 % of the frame or with collinear points warns
+  `zone_flat`; names are trimmed only when edited and carry `aria-invalid`
+  over 48 runes; test results show localized texts, never server messages.
+- Escaping: server strings only via `ctx.esc` or `textContent`; `innerHTML` only
+  for region/skeleton strings, the zone SVG and the zone list (regression-
+  tested); SVG from numbers; the test image only as `data:image/jpeg;base64,…`.
+  No `alert/confirm/prompt`; deletion uses `ctx.confirmDialog`.
+- Accessibility: `aria-pressed` arm and day buttons, ↑/↓/Home/End between
+  timeline rows, ←/→ on the focused detail, Enter/Esc/Backspace in the zone
+  stage, list-based zone rename/select/delete, one `aria-live` region, focus
+  kept across re-renders via `data-focus-key`.
+- Strings: `desktop.network_cameras.tab_general` and
+  `desktop.network_cameras.detection.*` (182 keys, including the server's alert
+  keys, whose single-brace Go placeholders such as `{camera}` never go through
+  the JS `{{…}}` interpolation) in all sixteen locales.
+- Verify: `node scripts/test-ui-regressions.mjs` (four "Network Cameras person
+  detection" contracts), `go test ./ui/ -run TestDesktopNetworkCamerasDetection`
+  and, with `AURAGO_RUN_BROWSER_SMOKE=1`,
+  `TestDesktopNetworkCamerasDetectionBrowser`,
+  `TestDesktopNetworkCamerasZoneEditorBrowser`,
+  `TestDesktopNetworkCamerasDetectionActivateBrowser`,
+  `TestDesktopNetworkCamerasDetectionLaunchBrowser` (fake API with the real C4/C6
+  shapes, browser in Europe/Berlin against a UTC server; screenshots in
+  `reports/network-cameras-detection/`).
+
 ## Looper
 - `looper-monitor.js` precedes `looper.js`. The monitor owns the run view
   (`createRunView`), the log-delta merge (`mergeStatus`) and the history views;
@@ -2950,12 +3022,16 @@ registration lives in `internal/desktop/types.go`.
   minimize or close. It must use AuraGo viewer/thumbnail APIs only, must never
   receive or persist camera credentials, and stores only non-sensitive grid
   mode and selected-stream preferences. Loaded lazily by `module-loader.js` and
-  exposes `window.NetworkCamerasApp { render, dispose }`. An empty visible-ID
+  exposes `window.NetworkCamerasApp { render, dispose, open }`. An empty visible-ID
   set means no thumbnail requests; the no-`IntersectionObserver` fallback must
   explicitly mark all cards visible, and focus mode must stop grid polling.
   HTTP 202 mutation responses are saved partial successes: close the dialog,
   refresh state, and show the localized reconciliation warning. True save
   failures keep retryable manual sources and setup tokens in window memory.
+  The third mode `detections` and the manage modal's Person detection tab are
+  delegated to `window.NetworkCamerasDetection` (section "Network Cameras
+  person detection"). Toasts go through `notify(state, message, type)`:
+  `ctx.notify` needs `{title, message, type}`, never a bare string.
 - `noisemaker.js` — Noisemaker shell (`window.NoisemakerApp = { render, dispose }`):
   workbench layout (create pane | splitter | library, player bar), prefs in
   `aurago.desktop.noisemaker.prefs`, API calls to `/api/desktop/noisemaker/*`

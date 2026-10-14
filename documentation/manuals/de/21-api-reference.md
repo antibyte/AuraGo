@@ -2554,9 +2554,19 @@ GET /api/go2rtc/status
 POST /api/go2rtc/test
 GET /api/go2rtc/viewer/{stream_id}
 GET /api/go2rtc/thumbnail/{stream_id}.jpg
+GET /api/go2rtc/detection/state?since={cursor}
+GET /api/go2rtc/detection/events?stream_id=&from=&to=&before=&limit=
+GET|DELETE /api/go2rtc/detection/events/{id}
+GET /api/go2rtc/detection/images/{frame_id}?thumb=1
+POST /api/go2rtc/detection/arm
+PUT /api/go2rtc/detection/settings
+POST /api/go2rtc/detection/test
+POST /api/go2rtc/detection/retry
 ```
 
 Stream-Mutationen und ONVIF-Discovery sind Admin-POST/PUT. Ein HTTP 202 heißt: gewünschter Zustand ist gespeichert, die Runtime holt nach. Details: [go2rtc](../../go2rtc.md).
+
+Lesende Zugriffe der Personenerkennung brauchen `go2rtc.view`; Scharfschaltung, Einstellungen, Test, Retry und das Löschen von Ereignissen brauchen einen Administrator und einen Same-Origin-Request (403 `forbidden`). Fehler kommen als `{"error","code"}`, z. B. `detection_unavailable` (503), `detection_disabled` (409, von `arm` und `test` bei ausgeschalteter Erkennung), `detector_not_ready` (409), `frame_unavailable` (502) und `event_not_found` (404). Listen sind immer Arrays, Zeiten UTC im RFC-3339-Format mit Millisekunden und IDs große int64-Zahlen. `state?since=0` liefert einen Schnappschuss, ein höherer Cursor die späteren Änderungen; Löschungen hinterlassen im Feed keine Spur. Das `detection`-Objekt einer Kamera in `PATCH /api/go2rtc/streams/{id}` wird schlüsselweise zusammengeführt; `PUT settings` ersetzt den ganzen globalen Block. Details: [Personenerkennung](../../go2rtc.md#person-detection).
 
 ## Bluetooth API
 

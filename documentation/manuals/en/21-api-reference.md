@@ -2556,9 +2556,19 @@ GET /api/go2rtc/status
 POST /api/go2rtc/test
 GET /api/go2rtc/viewer/{stream_id}
 GET /api/go2rtc/thumbnail/{stream_id}.jpg
+GET /api/go2rtc/detection/state?since={cursor}
+GET /api/go2rtc/detection/events?stream_id=&from=&to=&before=&limit=
+GET|DELETE /api/go2rtc/detection/events/{id}
+GET /api/go2rtc/detection/images/{frame_id}?thumb=1
+POST /api/go2rtc/detection/arm
+PUT /api/go2rtc/detection/settings
+POST /api/go2rtc/detection/test
+POST /api/go2rtc/detection/retry
 ```
 
 Stream mutations and ONVIF discovery are admin POST/PUT. HTTP 202 means the desired state is stored and runtime will catch up. Details: [go2rtc](../../go2rtc.md).
+
+Person detection reads need `go2rtc.view`; arming, settings, test, retry and deleting events need an administrator and a same-origin request (403 `forbidden`). Errors are `{"error","code"}`, for example `detection_unavailable` (503), `detection_disabled` (409, from `arm` and `test` while detection is off), `detector_not_ready` (409), `frame_unavailable` (502) and `event_not_found` (404). Lists are always arrays, times UTC RFC 3339 with milliseconds, and ids large int64 numbers. `state?since=0` is a snapshot, a higher cursor returns later changes, and deletions leave no trace in the feed. A camera's `detection` object in `PATCH /api/go2rtc/streams/{id}` is merged key by key; `PUT settings` replaces the whole global block. Details: [Person detection](../../go2rtc.md#person-detection).
 
 ## Bluetooth API
 

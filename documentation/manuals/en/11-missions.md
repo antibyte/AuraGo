@@ -194,6 +194,7 @@ Set `execution_type: triggered` and choose a `trigger_type`:
 | `mqtt_message` | MQTT message |
 | `system_startup` | AuraGo startup |
 | `home_assistant_state` | HA entity state change |
+| `person_detected` | Person detection event of a Network Cameras camera (filters `person_camera_id`, `person_zone`; armed events only unless `person_include_disarmed`) |
 | `fritzbox_call` | Fritz!Box call/voicemail |
 | `budget_warning` / `budget_exceeded` | Budget thresholds |
 | `device_connected` / `device_disconnected` | Remote device events |

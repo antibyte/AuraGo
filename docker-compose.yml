@@ -39,6 +39,9 @@ services:
       - DOCKER_HOST=tcp://docker-proxy:2375
       # Soft memory limit for the Go runtime (leaves headroom for sidecars).
       - GOMEMLIMIT=1600MiB
+      # Time zone of the server clock (default UTC). Schedules such as the person
+      # detection arming schedule use it; the image ships the zone database.
+      # - TZ=Europe/Berlin
       # Optional Linux host GIDs for managed Vulkan sidecars. The native
       # installer detects these automatically; Compose deployments can set
       # AURAGO_GPU_GROUP_IDS to comma-separated render/video GIDs.
