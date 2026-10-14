@@ -23,7 +23,7 @@
   "ruview.receiver_manual_help": "Zoek de RuView-computer in de lijst met netwerkapparaten van je router. Gebruik voor Docker het LAN-IP van de Docker-host. Gebruik voor een externe instantie de bijbehorende computer, niet de pc met het USB-bord.",
   "ruview.receiver_lookup_failed": "De ontvangerinstellingen konden niet worden geladen. Je kunt het adres handmatig invoeren.",
   "ruview.receiver_udp_disabled": "UDP-ontvangst staat nog uit. Schakel deze in bij de RuView-instellingen en sta de bordadressen toe voordat je sensorgegevens controleert.",
-  "ruview.readonly_notice": "Alleen-lezen is actief: installeren, starten, opnamen starten en borden instellen zijn geblokkeerd.",
+  "ruview.readonly_notice": "Alleen-lezen blokkeert starten, wijzigen en verwijderen. Beheerders kunnen de dienst, opname en training stoppen.",
   "ruview.receiver_purpose": "In beheerde Docker-modus verbindt AuraGo automatisch met de RuView-dienst. Alleen ESP32-borden hebben het IP nodig: ze sturen naar het LAN-adres van de RuView-computer, niet naar een container-IP.",
   "ruview.use_receiver": "LAN-adres {ip} gebruiken",
   "ruview.receiver_suggestion_help": "Voorstel uit je instellingen of de browser-URL. Controleer of het bord deze computer via Wi-Fi kan bereiken. Een proxy of tunnel kan een ander LAN-adres vereisen.",
@@ -128,7 +128,7 @@
   "ruview.source_help_esp32": "Echte CSI-metingen met optionele ESP32-S3- of ESP32-C6-borden. Stel ze hieronder via USB in.",
   "ruview.source_help_wifi": "Bewegingsdetectie via de Wi-Fi-adapter van de RuView-computer. Vereist Windows of macOS en een native of externe instantie.",
   "ruview.source_help_simulated": "Probeer zonder hardware. Alle gegenereerde gegevens worden duidelijk als demogegevens gemarkeerd.",
-  "ruview.readonly_help": "Voorkomt wijzigingen. Schakel Alleen-lezen uit om de runtime te starten of een bord in te stellen.",
+  "ruview.readonly_help": "Alleen-lezen blokkeert starten, wijzigen en verwijderen. Beheerders kunnen de dienst, opname en training stoppen.",
   "ruview.agent_help": "De agent mag alleen status en metingen lezen. Hij kan geen borden instellen of opnamen starten.",
   "ruview.token_help": "Optioneel voor beveiligde externe instanties. Wordt bij het opslaan versleuteld in de kluis bewaard.",
   "ruview.managed_help": "Sla de instellingen op en open RuView om de runtime te installeren of starten.",
@@ -138,5 +138,10 @@
   "ruview.udp_allow_help": "Scheid bordadressen met komma’s. Een volledig netwerk is ook mogelijk, bijvoorbeeld 192.168.1.0/24.",
   "ruview.enable_first": "Schakel RuView in en sla de instellingen op voordat je verdergaat.",
   "ruview.write_first": "Schakel Alleen-lezen hierboven uit en sla op om een bord in te stellen.",
-  "ruview.wifi_mode": "Host-Wi-Fi vereist een native of externe instantie. Kies die bedrijfsmodus of een andere gegevensbron."
+  "ruview.wifi_mode": "Host-Wi-Fi vereist een native of externe instantie. Kies die bedrijfsmodus of een andere gegevensbron.",
+  "ruview.last_measurement": "Laatste meting",
+  "ruview.devices_stale": "Vernieuwen mislukt. De laatste gegevens zijn verouderd.",
+  "ruview.process_exited": "De dienst is beëindigd. Je kunt deze opnieuw starten.",
+  "ruview.stop_failed": "Het stoppen kon niet worden bevestigd. Controleer de dienst.",
+  "ruview.stopping": "Bezig met stoppen…"
 }

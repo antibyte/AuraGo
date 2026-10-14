@@ -74,7 +74,7 @@ export class TrainingService {
   async getTrainingStatus() {
     try {
       const data = await apiService.get('/api/v1/train/status');
-      if (typeof data?.active !== 'boolean') throw Error('Invalid training status');
+      if (data?.error || data?.success === false || typeof data?.active !== 'boolean') throw Error('Invalid training status');
       return data;
     } catch (error) {
       this.logger.error('Failed to get training status', { error: error.message });
@@ -111,7 +111,7 @@ export class TrainingService {
   async listRecordings() {
     try {
       const data = await apiService.get('/api/v1/recording/list');
-      if (!Array.isArray(data?.recordings)) throw Error('Invalid recordings response');
+      if (data?.error || data?.success === false || !Array.isArray(data?.recordings)) throw Error('Invalid recordings response');
       return data.recordings;
     } catch (error) {
       this.logger.error('Failed to list recordings', { error: error.message });

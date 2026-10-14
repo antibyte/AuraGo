@@ -23,7 +23,7 @@
   "ruview.receiver_manual_help": "Finn RuView-maskinen i ruterens liste over nettverksenheter. For Docker bruker du Docker-vertens LAN-IP. For en ekstern instans bruker du dens maskin, ikke PC-en med USB-kortet.",
   "ruview.receiver_lookup_failed": "Mottakerinnstillingene kunne ikke lastes. Du kan skrive inn adressen manuelt.",
   "ruview.receiver_udp_disabled": "UDP-mottak er fortsatt slått av. Slå det på i RuView-innstillingene og tillat kortenes adresser før du kontrollerer sensordata.",
-  "ruview.readonly_notice": "Skrivebeskyttet er aktiv: installasjon, oppstart, start av opptak og oppsett av kort er blokkert.",
+  "ruview.readonly_notice": "Skrivebeskyttelse blokkerer oppstart, endringer og sletting. Administratorer kan stoppe tjenesten, opptak og trening.",
   "ruview.receiver_purpose": "I administrert Docker-modus kobler AuraGo automatisk til RuView-tjenesten. Bare ESP32-kort trenger IP-adressen: de sender til RuView-maskinens LAN-adresse, ikke en container-IP.",
   "ruview.use_receiver": "Bruk LAN-adressen {ip}",
   "ruview.receiver_suggestion_help": "Forslag fra innstillingene eller nettleserens URL. Sjekk at kortet kan nå maskinen via Wi-Fi. En proxy eller tunnel kan kreve en annen LAN-adresse.",
@@ -128,7 +128,7 @@
   "ruview.source_help_esp32": "Ekte CSI-målinger med valgfrie ESP32-S3- eller ESP32-C6-kort. Sett dem opp via USB nedenfor.",
   "ruview.source_help_wifi": "Bevegelsesregistrering via Wi-Fi-adapteren på RuView-maskinen. Krever Windows eller macOS og en innebygd eller ekstern instans.",
   "ruview.source_help_simulated": "Prøv uten maskinvare. Alle genererte data merkes tydelig som demodata.",
-  "ruview.readonly_help": "Hindrer endringer. Slå av Skrivebeskyttet for å starte kjøremiljøet eller sette opp et kort.",
+  "ruview.readonly_help": "Skrivebeskyttelse blokkerer oppstart, endringer og sletting. Administratorer kan stoppe tjenesten, opptak og trening.",
   "ruview.agent_help": "Agenten kan bare lese status og målinger. Den kan ikke sette opp kort eller starte opptak.",
   "ruview.token_help": "Valgfritt for beskyttede eksterne instanser. Krypteres i hvelvet når du lagrer.",
   "ruview.managed_help": "Lagre innstillingene og åpne RuView for å installere eller starte kjøremiljøet.",
@@ -138,5 +138,10 @@
   "ruview.udp_allow_help": "Skill kortadressene med komma. Et helt nettverk er også mulig, f.eks. 192.168.1.0/24.",
   "ruview.enable_first": "Aktiver RuView og lagre innstillingene før du fortsetter.",
   "ruview.write_first": "Slå av Skrivebeskyttet ovenfor og lagre for å sette opp et kort.",
-  "ruview.wifi_mode": "Vertens Wi-Fi krever en innebygd eller ekstern instans. Velg denne driftsformen eller en annen datakilde."
+  "ruview.wifi_mode": "Vertens Wi-Fi krever en innebygd eller ekstern instans. Velg denne driftsformen eller en annen datakilde.",
+  "ruview.last_measurement": "Siste måling",
+  "ruview.devices_stale": "Oppdateringen mislyktes. De siste dataene er utdaterte.",
+  "ruview.process_exited": "Tjenesten ble avsluttet. Du kan starte den igjen.",
+  "ruview.stop_failed": "Kunne ikke bekrefte stansen. Kontroller tjenesten.",
+  "ruview.stopping": "Stopper…"
 }

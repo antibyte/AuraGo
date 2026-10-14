@@ -89,6 +89,11 @@ export async function openWizard({base='/api/ruview/',t,receiverIP='',port}={}){
         const button=event.target.closest('[data-action]');if(!button||button.disabled||busy)return;
         activeMessage=button.closest('section').querySelector('[role="status"]');
         const action=button.dataset.action;
+        // Invalidate dependent success even when a new port selection is cancelled.
+        if(action==='flash'||action==='configure'){identity=null;expected=null;}
+        if(action==='readback'&&expected)expected.confirmed=false;
+        const firstStep=action==='flash'?0:action==='verify'?2:1;
+        dialog.querySelectorAll('.ruview-steps li').forEach((step,index)=>{if(index>=firstStep){step.classList.remove('complete');step.removeAttribute('aria-label');}});
         const selection=action==='flash'?{id:get('profile').value,erase:get('erase').checked}:null;
         if(message.textContent===tr('ready'))message.textContent='';
         busy=true;buttons.forEach(b=>b.disabled=true);next.disabled=true;button.setAttribute('aria-busy','true');feedback('working');

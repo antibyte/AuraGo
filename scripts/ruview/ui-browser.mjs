@@ -1,0 +1,69 @@
+import assert from 'node:assert/strict';
+
+export async function checkDevices(page,fixture) {
+    let release;
+    fixture.hold=new Promise(resolve=>{release=resolve;});
+    fixture.statusFail=true;
+    try {
+        const age=Number((await page.locator('[data-age]').innerText()).split(' ')[0]);
+        await page.waitForFunction(age=>parseInt(document.querySelector('[data-age]')?.textContent)>age+500,age);
+        await page.waitForFunction(()=>parseInt(document.querySelector('[data-age]')?.textContent)>10000,{},{timeout:16000});
+        assert.match(await page.locator('[data-fresh]').innerText(),/Veraltet/i);
+        assert.equal(fixture.max,1,'device polling must not overlap');
+        fixture.fail=true;release();fixture.hold=null;
+        await page.waitForFunction(()=>document.querySelector('.ruview-feedback')?.textContent.includes('Aktualisierung fehlgeschlagen'));
+        assert.equal(await page.locator('.ruview-node').count(),1,'failed refresh retains old values');
+        fixture.fail=false;fixture.statusFail=false;
+        await page.waitForFunction(()=>document.querySelector('.ruview-feedback')?.textContent==='');
+        fixture.hold=new Promise(resolve=>{release=resolve;});
+        await page.waitForRequest(request=>request.url().endsWith('/proxy/api/v1/nodes'));
+        await page.locator('[data-tab=overview]').click();await page.locator('[data-action=test]').waitFor();
+        await page.locator('[data-tab=devices]').click();await page.waitForTimeout(4200);
+        assert.equal(fixture.max,1,'returning to devices must not overlap a previous request');
+        release();fixture.hold=null;
+        await page.waitForFunction(()=>parseInt(document.querySelector('[data-age]')?.textContent)<1000);
+        await page.evaluate(()=>Object.defineProperty(document,'hidden',{configurable:true,value:true}));
+        const reads=fixture.reads;await page.waitForTimeout(4200);
+        assert.equal(fixture.reads,reads,'hidden document pauses polling');
+        await page.evaluate(()=>delete document.hidden);
+        await page.waitForFunction(()=>document.querySelector('[data-fresh]')?.textContent==='Frische Sensordaten empfangen');
+        await page.locator('#app').evaluate(el=>el.style.display='none');
+        const hiddenReads=fixture.reads;await page.waitForTimeout(4200);
+        assert.equal(fixture.reads,hiddenReads,'hidden desktop window pauses polling');
+        await page.locator('#app').evaluate(el=>el.style.display='');
+        await page.locator('[data-tab=overview]').click();await page.locator('[data-action=test]').waitFor();
+        const leftReads=fixture.reads;await page.waitForTimeout(4200);
+        assert.equal(fixture.reads,leftReads,'hidden devices view does not poll');
+        await page.locator('[data-tab=devices]').click();await page.locator('.ruview-node').waitFor();
+        await page.evaluate(()=>RuViewApp.dispose('test'));
+        const closedReads=fixture.reads,closedAge=await page.locator('[data-age]').innerText();await page.waitForTimeout(4200);
+        assert.equal(fixture.reads,closedReads);assert.equal(await page.locator('[data-age]').innerText(),closedAge,'disposed app has no age timer');
+        await page.evaluate(()=>render());await page.locator('[data-action=test]').waitFor();
+        await page.locator('[data-tab=devices]').click();await page.locator('.ruview-node').waitFor();
+    } finally {release();fixture.hold=null;fixture.fail=false;fixture.statusFail=false;await page.evaluate(()=>delete document.hidden);}
+}
+
+export async function checkPolicy(frame,setReadonly) {
+    await frame.evaluate(()=>{
+        const host=document.createElement('div');host.id='policy-fixture';
+        for(const [id,action,disabled] of [['start','training_start',true],['stop','training_stop',false],['load','model_load',false]]){
+            const button=document.createElement('button');button.id='policy-'+id;button.dataset.ruviewAction=action;button.disabled=disabled;button.textContent='Localized label';host.append(button);
+        }
+        document.body.append(host);
+    });
+    try {
+        setReadonly(true);
+        await frame.waitForFunction(()=>document.getElementById('policy-start').disabled&&!document.getElementById('policy-stop').disabled);
+        assert.equal(await frame.locator('#policy-load').isDisabled(),true);
+        assert.equal(await frame.evaluate(async()=>{try{await fetch('/api/v1/recording/start',{method:'POST'});return false}catch{return true}}),true);
+        assert.equal(await frame.evaluate(async()=>(await fetch('/api/v1/recording/stop',{method:'POST'})).ok),true);
+        assert.equal(await frame.evaluate(async()=>(await fetch('/api/v1/train/stop',{method:'POST'})).ok),true);
+        setReadonly(false);await frame.waitForTimeout(3400);
+        assert.equal(await frame.locator('#policy-start').isDisabled(),true,'permission changes preserve business-disabled training');
+        await frame.evaluate(()=>document.getElementById('policy-start').disabled=false);
+        assert.equal(await frame.locator('#policy-start').isDisabled(),false);
+        setReadonly(true);await frame.waitForFunction(()=>document.getElementById('policy-start').disabled);
+        await frame.evaluate(()=>document.getElementById('policy-start').disabled=false);
+        assert.equal(await frame.locator('#policy-start').isDisabled(),true,'component update cannot override read-only');
+    } finally {setReadonly(false);await frame.evaluate(()=>document.getElementById('policy-fixture').remove());}
+}

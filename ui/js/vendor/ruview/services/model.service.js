@@ -47,7 +47,7 @@ export class ModelService {
   async listModels() {
     try {
       const data = await apiService.get('/api/v1/models');
-      if (!Array.isArray(data?.models)) throw Error('Invalid model list');
+      if (data?.error || data?.success === false || !Array.isArray(data?.models)) throw Error('Invalid model list');
       this.logger.info('Listed models', { count: data?.models?.length ?? 0 });
       return data;
     } catch (error) {
@@ -95,6 +95,7 @@ export class ModelService {
   async getActiveModel() {
     try {
       const data = await apiService.get('/api/v1/models/active');
+      if (data?.error || data?.success === false) throw Error('Invalid active model response');
       this.activeModel = data || null;
       return this.activeModel;
     } catch (error) {
@@ -122,7 +123,7 @@ export class ModelService {
   async getLoraProfiles() {
     try {
       const data = await apiService.get('/api/v1/models/lora/profiles');
-      if (!Array.isArray(data?.profiles)) throw Error('Invalid profile list');
+      if (data?.error || data?.success === false || !Array.isArray(data?.profiles)) throw Error('Invalid profile list');
       return data.profiles;
     } catch (error) {
       this.logger.error('Failed to get LoRA profiles', { error: error.message });

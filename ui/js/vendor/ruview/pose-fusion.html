@@ -12,13 +12,13 @@
   <header class="header">
     <div class="header-left">
       <div class="logo"><span class="pi">&pi;</span> RuView</div>
-      <div class="header-title">Dual-Modal Pose Estimation — Live Video + WiFi CSI Fusion</div>
+      <div class="header-title" id="camera-unavailable">CSI Only — camera and video modes are unavailable in AuraGo.</div>
     </div>
     <div class="header-right">
-      <select id="mode-select" class="mode-select">
-        <option value="dual">Dual Mode (Video + CSI)</option>
-        <option value="video">Video Only</option>
-        <option value="csi">CSI Only (WiFi)</option>
+      <select id="mode-select" class="mode-select" aria-label="Sensing mode" aria-describedby="camera-unavailable">
+        <option value="dual" disabled>Dual Mode (Video + CSI)</option>
+        <option value="video" disabled>Video Only</option>
+        <option value="csi" selected>CSI Only (WiFi)</option>
       </select>
       <div class="status-badge">
         <span id="status-dot" class="status-dot offline"></span>
@@ -43,7 +43,7 @@
         <div class="camera-prompt-label" id="prompt-mode-label">DUAL FUSION</div>
         <p>Enable your webcam for live video pose estimation.<br>
            Or switch to <strong>CSI Only</strong> mode for WiFi-based sensing.</p>
-        <button id="start-camera-btn">Enable Camera</button>
+        <button id="start-camera-btn" data-ruview-action="camera" disabled>Enable Camera</button>
       </div>
     </div>
 

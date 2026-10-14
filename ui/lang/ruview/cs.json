@@ -23,7 +23,7 @@
   "ruview.receiver_manual_help": "Najdi počítač s RuView v seznamu zařízení sítě na routeru. Pro Docker použij LAN IP hostitele Dockeru. U externí instance použij její počítač, ne počítač připojený k desce přes USB.",
   "ruview.receiver_lookup_failed": "Nastavení přijímače se nepodařilo načíst. Adresu můžeš zadat ručně.",
   "ruview.receiver_udp_disabled": "Příjem UDP je stále vypnutý. Před ověřením dat senzorů ho zapni v nastavení RuView a povol adresy desek.",
-  "ruview.readonly_notice": "Režim Pouze čtení je aktivní: instalace, spuštění, zahájení záznamu a nastavení desek jsou zablokovány.",
+  "ruview.readonly_notice": "Režim pouze pro čtení blokuje spouštění, změny a mazání. Správci mohou zastavit službu, nahrávání a trénování.",
   "ruview.receiver_purpose": "Ve spravovaném režimu Docker se AuraGo ke službě RuView připojí automaticky. IP potřebují pouze desky ESP32: odesílají na adresu LAN počítače s RuView, ne na IP kontejneru.",
   "ruview.use_receiver": "Použít adresu LAN {ip}",
   "ruview.receiver_suggestion_help": "Návrh z nastavení nebo adresy v prohlížeči. Ověř, že deska tento počítač dosáhne přes Wi-Fi. Proxy nebo tunel může vyžadovat jinou adresu LAN.",
@@ -128,7 +128,7 @@
   "ruview.source_help_esp32": "Skutečná měření CSI s volitelnými deskami ESP32-S3 nebo ESP32-C6. Níže je nastav přes USB.",
   "ruview.source_help_wifi": "Detekce pohybu pomocí adaptéru Wi-Fi počítače s RuView. Vyžaduje Windows nebo macOS a nativní či externí instanci.",
   "ruview.source_help_simulated": "Vyzkoušej bez hardwaru. Všechna generovaná data jsou jasně označena jako ukázková.",
-  "ruview.readonly_help": "Brání změnám. Pro spuštění prostředí nebo nastavení desky vypni režim Pouze čtení.",
+  "ruview.readonly_help": "Režim pouze pro čtení blokuje spouštění, změny a mazání. Správci mohou zastavit službu, nahrávání a trénování.",
   "ruview.agent_help": "Agent smí pouze číst stav a měření. Nemůže nastavovat desky ani spouštět záznamy.",
   "ruview.token_help": "Volitelné pro chráněné externí instance. Při uložení se zašifruje do trezoru.",
   "ruview.managed_help": "Ulož nastavení a otevři RuView pro instalaci nebo spuštění prostředí.",
@@ -138,5 +138,10 @@
   "ruview.udp_allow_help": "Adresy desek odděl čárkami. Lze povolit i celou síť, např. 192.168.1.0/24.",
   "ruview.enable_first": "Než budeš pokračovat, zapni RuView a ulož nastavení.",
   "ruview.write_first": "Pro nastavení desky vypni výše režim Pouze čtení a ulož změny.",
-  "ruview.wifi_mode": "Wi-Fi hostitele vyžaduje nativní nebo externí instanci. Zvol takový režim nebo jiný zdroj dat."
+  "ruview.wifi_mode": "Wi-Fi hostitele vyžaduje nativní nebo externí instanci. Zvol takový režim nebo jiný zdroj dat.",
+  "ruview.last_measurement": "Poslední měření",
+  "ruview.devices_stale": "Aktualizace selhala. Poslední údaje jsou zastaralé.",
+  "ruview.process_exited": "Služba byla ukončena. Můžeš ji znovu spustit.",
+  "ruview.stop_failed": "Zastavení se nepodařilo potvrdit. Zkontroluj službu.",
+  "ruview.stopping": "Zastavování…"
 }

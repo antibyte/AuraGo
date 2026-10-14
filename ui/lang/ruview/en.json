@@ -23,7 +23,7 @@
   "ruview.receiver_manual_help": "Find the RuView computer in your router’s network/device list. For Docker, use the Docker host’s LAN IP. For an external instance, use that computer, not the PC connected to the USB board.",
   "ruview.receiver_lookup_failed": "Receiver settings could not be loaded. You can enter the address manually.",
   "ruview.receiver_udp_disabled": "UDP reception is still off. Enable it in RuView settings and allow the board addresses before checking sensor data.",
-  "ruview.readonly_notice": "Read only is active: installing, starting, starting recordings and setting up boards are blocked.",
+  "ruview.readonly_notice": "Read only blocks starts, changes and deletions. Administrators can stop the service, recording and training.",
   "ruview.receiver_purpose": "In managed Docker mode, AuraGo connects to the RuView service automatically. Only ESP32 boards need the IP: they send to the RuView computer's LAN address, not a container IP.",
   "ruview.use_receiver": "Use LAN address {ip}",
   "ruview.receiver_suggestion_help": "Suggested from your settings or browser URL. Check that the board can reach this computer over Wi-Fi. A proxy or tunnel may require a different LAN address.",
@@ -128,7 +128,7 @@
   "ruview.source_help_esp32": "Real CSI measurements with optional ESP32-S3 or ESP32-C6 boards. Set them up over USB below.",
   "ruview.source_help_wifi": "Motion detection using the RuView computer's Wi-Fi adapter. Requires Windows or macOS and a native or external instance.",
   "ruview.source_help_simulated": "Try it without hardware. All generated data is explicitly labelled as demo data.",
-  "ruview.readonly_help": "Prevents changes. Turn off Read only to start the runtime or set up a board.",
+  "ruview.readonly_help": "Read only blocks starts, changes and deletions. Administrators can stop the service, recording and training.",
   "ruview.agent_help": "The agent can only read status and measurements. It cannot configure boards or start recordings.",
   "ruview.token_help": "Optional for protected external instances. Encrypted in the Vault when you save.",
   "ruview.managed_help": "Save your settings and open RuView to install or start the runtime.",
@@ -138,5 +138,10 @@
   "ruview.udp_allow_help": "Separate board addresses with commas. A whole network is also supported, e.g. 192.168.1.0/24.",
   "ruview.enable_first": "Enable RuView and save your settings before continuing.",
   "ruview.write_first": "Turn off Read only above and save to set up a board.",
-  "ruview.wifi_mode": "Host Wi-Fi requires a native or external instance. Choose that runtime or another data source."
+  "ruview.wifi_mode": "Host Wi-Fi requires a native or external instance. Choose that runtime or another data source.",
+  "ruview.last_measurement": "Last measurement",
+  "ruview.devices_stale": "Refresh failed. The last data is stale.",
+  "ruview.process_exited": "The service exited. You can start it again.",
+  "ruview.stop_failed": "Could not confirm the stop. Check the service.",
+  "ruview.stopping": "Stopping…"
 }

@@ -23,7 +23,7 @@
   "ruview.receiver_manual_help": "Die gesuchte Adresse findest Du im Router unter Heimnetz/Geräte beim RuView-Rechner. Bei Docker ist es die LAN-IP des Docker-Hosts. Bei einer externen Instanz verwende deren Rechner, nicht den PC mit dem USB-Board.",
   "ruview.receiver_lookup_failed": "Empfängereinstellungen konnten nicht geladen werden. Du kannst die Adresse manuell eingeben.",
   "ruview.receiver_udp_disabled": "UDP-Empfang ist noch ausgeschaltet. Aktiviere ihn in den RuView-Einstellungen und erlaube die Board-Adressen, bevor Du Sensordaten prüfst.",
-  "ruview.readonly_notice": "Nur lesen ist aktiv: Installieren, Starten, Aufnahmen starten und Boards einrichten sind gesperrt.",
+  "ruview.readonly_notice": "Der Schreibschutz sperrt Starten, Ändern und Löschen. Administratoren dürfen Dienst, Aufnahme und Training stoppen.",
   "ruview.receiver_purpose": "Im verwalteten Docker-Betrieb verbindet AuraGo den RuView-Dienst automatisch. Die IP wird nur für ESP32-Boards benötigt: Sie senden an die LAN-Adresse des RuView-Rechners, nicht an eine Container-IP.",
   "ruview.use_receiver": "LAN-Adresse {ip} übernehmen",
   "ruview.receiver_suggestion_help": "Vorschlag aus Deinen Einstellungen oder der Browser-URL. Prüfe, ob das Board diesen Rechner im WLAN erreicht. Bei Proxy- oder Tunnelzugriff kann eine andere LAN-Adresse nötig sein.",
@@ -128,7 +128,7 @@
   "ruview.source_help_esp32": "Echte CSI-Messungen mit optionalen ESP32-S3- oder ESP32-C6-Boards. Richte sie unten per USB ein.",
   "ruview.source_help_wifi": "Bewegungserkennung über den WLAN-Adapter des RuView-Rechners. Benötigt Windows oder macOS und eine native oder externe Instanz.",
   "ruview.source_help_simulated": "Ohne Hardware ausprobieren. Alle erzeugten Daten werden ausdrücklich als Demo gekennzeichnet.",
-  "ruview.readonly_help": "Schützt vor Änderungen. Zum Starten der Laufzeit oder Einrichten eines Boards musst Du „Nur lesen“ ausschalten.",
+  "ruview.readonly_help": "Der Schreibschutz sperrt Starten, Ändern und Löschen. Administratoren dürfen Dienst, Aufnahme und Training stoppen.",
   "ruview.agent_help": "Der Agent darf nur Status und Messungen lesen. Er kann weder Boards einrichten noch Aufnahmen starten.",
   "ruview.token_help": "Optional für geschützte externe Instanzen. Wird beim Speichern verschlüsselt im Vault abgelegt.",
   "ruview.managed_help": "Speichere die Einstellungen und öffne RuView, um die Laufzeit zu installieren oder zu starten.",
@@ -138,5 +138,10 @@
   "ruview.udp_allow_help": "Board-Adressen mit Kommas trennen. Ein ganzes Netz ist ebenfalls möglich, z. B. 192.168.1.0/24.",
   "ruview.enable_first": "Aktiviere RuView und speichere die Einstellungen, bevor Du fortfährst.",
   "ruview.write_first": "Schalte oben „Nur lesen“ aus und speichere, um ein Board einzurichten.",
-  "ruview.wifi_mode": "Host-WLAN benötigt eine native oder externe Instanz. Wähle diese Betriebsart oder eine andere Datenquelle."
+  "ruview.wifi_mode": "Host-WLAN benötigt eine native oder externe Instanz. Wähle diese Betriebsart oder eine andere Datenquelle.",
+  "ruview.last_measurement": "Letzte Messung",
+  "ruview.devices_stale": "Aktualisierung fehlgeschlagen. Die letzten Daten sind veraltet.",
+  "ruview.process_exited": "Der Dienst wurde beendet. Du kannst ihn erneut starten.",
+  "ruview.stop_failed": "Das Stoppen konnte nicht bestätigt werden. Prüfe den Dienst.",
+  "ruview.stopping": "Wird gestoppt…"
 }

@@ -23,7 +23,7 @@
   "ruview.receiver_manual_help": "Procura o computador RuView na lista de dispositivos de rede do router. Para Docker, usa o IP LAN do anfitrião Docker. Para uma instância externa, usa o respetivo computador, não o PC ligado à placa por USB.",
   "ruview.receiver_lookup_failed": "Não foi possível carregar as definições do recetor. Podes introduzir o endereço manualmente.",
   "ruview.receiver_udp_disabled": "A receção UDP ainda está desativada. Ativa-a nas definições RuView e permite os endereços das placas antes de verificar os dados dos sensores.",
-  "ruview.readonly_notice": "Só leitura está ativo: a instalação, o arranque, o início de gravações e a configuração de placas estão bloqueados.",
+  "ruview.readonly_notice": "Só de leitura bloqueia inícios, alterações e eliminações. Os administradores podem parar o serviço, a gravação e o treino.",
   "ruview.receiver_purpose": "No modo Docker gerido, o AuraGo liga-se automaticamente ao serviço RuView. Só as placas ESP32 precisam do IP: enviam para o endereço LAN do computador RuView, não para o IP de um contentor.",
   "ruview.use_receiver": "Usar endereço LAN {ip}",
   "ruview.receiver_suggestion_help": "Sugestão das definições ou do URL do navegador. Verifica se a placa alcança este computador por Wi-Fi. Um proxy ou túnel pode exigir outro endereço LAN.",
@@ -128,7 +128,7 @@
   "ruview.source_help_esp32": "Medições CSI reais com placas ESP32-S3 ou ESP32-C6 opcionais. Configura-as por USB abaixo.",
   "ruview.source_help_wifi": "Deteção de movimento pelo adaptador Wi-Fi do computador RuView. Requer Windows ou macOS e uma instância nativa ou externa.",
   "ruview.source_help_simulated": "Experimenta sem hardware. Todos os dados gerados são claramente identificados como dados de demonstração.",
-  "ruview.readonly_help": "Impede alterações. Desativa Só leitura para iniciar o ambiente ou configurar uma placa.",
+  "ruview.readonly_help": "Só de leitura bloqueia inícios, alterações e eliminações. Os administradores podem parar o serviço, a gravação e o treino.",
   "ruview.agent_help": "O agente só pode ler o estado e as medições. Não pode configurar placas nem iniciar gravações.",
   "ruview.token_help": "Opcional para instâncias externas protegidas. Cifrado no cofre ao guardar.",
   "ruview.managed_help": "Guarda as definições e abre o RuView para instalar ou iniciar o ambiente.",
@@ -138,5 +138,10 @@
   "ruview.udp_allow_help": "Separa os endereços por vírgulas. Também podes permitir uma rede inteira, por exemplo, 192.168.1.0/24.",
   "ruview.enable_first": "Ativa o RuView e guarda as definições antes de continuar.",
   "ruview.write_first": "Desativa Só leitura acima e guarda para configurar uma placa.",
-  "ruview.wifi_mode": "O Wi-Fi do computador requer uma instância nativa ou externa. Escolhe esse modo ou outra fonte de dados."
+  "ruview.wifi_mode": "O Wi-Fi do computador requer uma instância nativa ou externa. Escolhe esse modo ou outra fonte de dados.",
+  "ruview.last_measurement": "Última medição",
+  "ruview.devices_stale": "Falha ao atualizar. Os últimos dados estão desatualizados.",
+  "ruview.process_exited": "O serviço terminou. Podes iniciá-lo novamente.",
+  "ruview.stop_failed": "Não foi possível confirmar a paragem. Verifica o serviço.",
+  "ruview.stopping": "A parar…"
 }

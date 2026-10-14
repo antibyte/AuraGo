@@ -5,10 +5,12 @@ import {createRequire} from 'node:module';
 import assert from 'node:assert/strict';
 import {randomBytes,createHash} from 'node:crypto';
 import {checkControls} from './control-browser.mjs';
+import {checkDevices,checkPolicy} from './ui-browser.mjs';
 const require=createRequire(import.meta.url);
 const {chromium}=process.env.AURAGO_PLAYWRIGHT?require(process.env.AURAGO_PLAYWRIGHT):require('playwright');
 const locales=['cs','da','de','el','en','es','fr','hi','it','ja','nl','no','pl','pt','sv','zh'];
-let writes=0,readonly=false,offline=false,source='esp32',failure='',statusError='',firmwareError=false,sourceState='disconnected',sourceProbeFailed=false;
+let writes=0,readonly=false,offline=false,mode='external',source='esp32',failure='',statusError='',firmwareError=false,sourceState='disconnected',sourceProbeFailed=false;
+const nodeFixture={reads:0,active:0,max:0,fail:false,statusFail:false,hold:null};
 const sensingSockets=new Set(),healthRequests=new Set();
 function sendSensing(data){
  const body=Buffer.from(JSON.stringify(data));assert.ok(body.length<126);
@@ -30,14 +32,20 @@ const server=createServer(async(req,res)=>{
      if(sourceProbeFailed){res.statusCode=503;return res.end('{}');}
      return res.end(JSON.stringify({source,source_state:sourceState}));
     }
-    if(upstream==='/api/v1/nodes')return res.end(JSON.stringify({nodes:[{node_id:7,csi_status:'active',csi_last_seen_ms:42,csi_sequence:3,rssi_dbm:-51}]}));
+    if(upstream==='/api/v1/nodes'){
+     nodeFixture.reads++;nodeFixture.active++;nodeFixture.max=Math.max(nodeFixture.max,nodeFixture.active);
+     try {if(nodeFixture.hold)await nodeFixture.hold;if(nodeFixture.fail){res.statusCode=503;return res.end('{}');}return res.end(JSON.stringify({nodes:[{node_id:7,csi_status:'active',csi_last_seen_ms:42,csi_sequence:3,rssi_dbm:-51}]}));}finally{nodeFixture.active--;}
+    }
+    if(['/api/v1/recording/stop','/api/v1/train/stop'].includes(upstream)&&req.method==='POST')return res.end(JSON.stringify({success:true,status:'stopping'}));
     res.statusCode=404;return res.end('{}');
    }
    if(failure&&req.method==='POST'){res.statusCode=502;return res.end(failure==='html'?'<html>upstream unavailable</html>':JSON.stringify({[failure]:'RuView image pull returned HTTP 403: registry denied <img src=x onerror="window.ruviewInjected=1">'}));}
    if(firmwareError&&p.endsWith('/firmware')){res.statusCode=503;return res.end(JSON.stringify({error:'Firmware catalog unavailable'}));}
    if(p.endsWith('/firmware'))return res.end(await readFile('internal/ruview/artifacts.json'));
+   if(p.endsWith('/capabilities'))return res.end(JSON.stringify({unavailable:['model_load','model_unload','lora_activate','camera','timed_recording']}));
+   if(p.endsWith('/status')&&nodeFixture.statusFail){res.statusCode=503;return res.end('{}');}
    if(p.endsWith('/nodes'))return res.end(JSON.stringify({nodes:[{node_id:7,csi_status:'active',csi_last_seen_ms:42,csi_sequence:3,rssi_dbm:-51}]}));
-   return res.end(JSON.stringify({enabled:true,readonly,mode:'external',source,ready:!offline,fresh:!offline,data_state:offline?'disconnected':'live_unverified',signal:'CSI',observed_at:new Date().toISOString(),error:statusError||undefined}));
+   return res.end(JSON.stringify({enabled:true,readonly,mode,source,ready:!offline,fresh:!offline,data_state:offline?'disconnected':'live_unverified',signal:'CSI',observed_at:new Date().toISOString(),error:statusError||undefined}));
   }
   if(p==='/'){
    const locale=JSON.parse(await readFile(`ui/lang/ruview/${url.searchParams.get('lang')||'de'}.json`));
@@ -65,9 +73,10 @@ try{
  await Promise.race([
  new Promise((_,reject)=>page.on('pageerror',reject)),
  (async()=>{
- for(const theme of ['standard','fruity'])for(const width of [1100,390])for(const lang of locales){
+ for(const theme of ['standard','fruity-light','fruity-dark'])for(const width of [1100,390])for(const lang of locales){
   await page.setViewportSize({width,height:800});await page.goto(`http://127.0.0.1:${server.address().port}/?lang=${lang}`);
-  if(theme==='fruity')await page.addStyleTag({content:':root{--vd-theme-app-bg:#f5f6f7;--vd-text:#253044;--vd-theme-panel-bg:#fff;--vd-theme-border:#ccd3da}'});
+  if(theme==='fruity-light')await page.addStyleTag({content:':root{--vd-theme-app-bg:#f5f6f7;--vd-text:#253044;--vd-theme-panel-bg:#fff;--vd-theme-border:#ccd3da}'});
+  if(theme==='fruity-dark')await page.addStyleTag({content:':root{--vd-theme-app-bg:#16171b;--vd-text:#f0f0f2;--vd-theme-panel-bg:#24252b;--vd-theme-border:#46474d}'});
   await page.locator('[data-action=test]').waitFor();assert.equal(writes,0,'render must not probe');
   assert.ok(!/ruview\.[a-z_]+/.test(await page.locator('#app').innerText()),`missing ${lang} labels`);
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`overflow ${lang} ${width}`);
@@ -76,6 +85,7 @@ try{
  await page.setViewportSize({width:1100,height:800});await page.emulateMedia({colorScheme:'dark'});
  await page.goto(`http://127.0.0.1:${server.address().port}/?lang=de`);await page.locator('[data-action=test]').waitFor();
  await page.locator('[data-tab=devices]').click();await page.locator('.ruview-node').waitFor();
+ await checkDevices(page,nodeFixture);
  await page.locator('[data-action=flash]').click();await page.locator('dialog').waitFor();
  await page.locator('dialog input[name=ssid]').fill('memory-only');await page.locator('dialog input[name=password]').fill('memory-password');await page.locator('dialog button[value=close]').click();await page.locator('dialog').waitFor({state:'detached'});
  assert.equal(await page.evaluate(()=>localStorage.length),0);
@@ -94,6 +104,10 @@ try{
  await page.waitForFunction(()=>document.querySelector('dialog [role=status]')?.textContent.includes('Firmware catalog unavailable'));
  await page.locator('dialog button[value=close]').click();firmwareError=false;statusError='';
  readonly=true;await page.evaluate(()=>render());await page.waitForFunction(()=>document.querySelector('[data-action=flash]')?.disabled);assert.equal(await page.locator('[data-action=test]').isDisabled(),false);
+ assert.equal(await page.locator('[data-action="runtime/stop"]').isDisabled(),true,'external service cannot be stopped');
+ mode='native';await page.evaluate(()=>render());await page.waitForFunction(()=>document.querySelector('[data-action="runtime/stop"]')&&!document.querySelector('[data-action="runtime/stop"]').disabled);
+ assert.equal(await page.locator('[data-action="runtime/start"]').isDisabled(),true,'read-only still blocks start');
+ await page.locator('[data-action="runtime/stop"]').click();mode='external';
  offline=true;await page.evaluate(()=>render());await page.locator('.ruview-summary').waitFor();
  for(const view of ['index.html','observatory.html','pose-fusion.html']){
   await page.locator(`[data-tab="${view}"]`).click();await page.locator('iframe').waitFor();await page.waitForTimeout(1500);assert.equal(await page.locator('iframe').getAttribute('allow'),"serial 'none'; camera 'none'; microphone 'none'");
@@ -124,6 +138,7 @@ try{
     const button=document.createElement('button');button.setAttribute('onclick','window.ruviewInjected=1');document.body.append(button);button.click();button.remove();
     return count===0&&!window.ruviewInjected;
    }),true,'untrusted counters and inline event handlers must not execute');
+   await checkPolicy(frame,value=>{readonly=value;});
    readonly=false;await checkControls(frame);
   }
   if(view==='observatory.html'){
@@ -134,6 +149,10 @@ try{
   }
  }
  const fusion=page.frames().find(f=>f.url().endsWith('/pose-fusion.html'));
+ assert.equal(await fusion.locator('#mode-select').inputValue(),'csi');
+ assert.equal(await fusion.locator('#mode-select option:disabled').count(),2);
+ assert.equal(await fusion.locator('#start-camera-btn').isDisabled(),true);
+ assert.equal(await fusion.locator('#camera-prompt').isVisible(),false);
  await fusion.waitForFunction(()=>document.getElementById('status-label')?.textContent==='NO LIVE CSI');
  await fusion.waitForFunction(()=>document.getElementById('cnn-backend')?.textContent.includes('RuVector WASM'));
  assert.equal(await fusion.locator('#csi-bar-val').textContent(),'Unavailable');
@@ -145,7 +164,7 @@ try{
  source='simulated';await fusion.waitForFunction(()=>document.querySelector('#viz-container > canvas')?.style.visibility==='');
  source='esp32';await fusion.waitForFunction(()=>document.querySelector('#viz-container > canvas')?.style.visibility==='hidden');
  await page.evaluate(()=>RuViewApp.dispose('test'));assert.equal(await page.locator('iframe').count(),0);
- console.log('RuView: 64 locale/theme/size cases, source provenance, live/stale recovery, health routing, API errors, wizard cleanup, read-only and iframe disposal passed');
+ console.log('RuView: 96 locale/theme/size cases, device aging, read failures, stop permissions, controls, source provenance, live/stale recovery, health routing, wizard cleanup and disposal passed');
  })()
  ]);
 }finally{await browser.close();for(const socket of sensingSockets)socket.destroy();await new Promise(resolve=>server.close(resolve));}

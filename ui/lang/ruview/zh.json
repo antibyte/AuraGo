@@ -23,7 +23,7 @@
   "ruview.receiver_manual_help": "在路由器的联网设备列表中查找 RuView 计算机。使用 Docker 时，请填写 Docker 主机的局域网 IP。使用外部实例时，请填写该实例所在计算机的地址，而不是连接 USB 开发板的电脑地址。",
   "ruview.receiver_lookup_failed": "无法加载接收端设置。你可以手动输入地址。",
   "ruview.receiver_udp_disabled": "UDP 接收尚未开启。检查传感器数据前，请在 RuView 设置中开启 UDP 接收并允许开发板的地址。",
-  "ruview.readonly_notice": "只读模式已启用：安装、启动、开始录制和配置开发板均被禁止。",
+  "ruview.readonly_notice": "只读模式禁止启动、更改和删除。管理员仍可停止服务、录制和训练。",
   "ruview.receiver_purpose": "在托管 Docker 模式下，AuraGo 会自动连接 RuView 服务。只有 ESP32 开发板需要 IP：它们发送到 RuView 计算机的 LAN 地址，而不是容器 IP。",
   "ruview.use_receiver": "使用 LAN 地址 {ip}",
   "ruview.receiver_suggestion_help": "此建议来自设置或浏览器 URL。请确认开发板能通过 Wi-Fi 访问这台计算机。使用代理或隧道时，可能需要其他 LAN 地址。",
@@ -128,7 +128,7 @@
   "ruview.source_help_esp32": "通过可选的 ESP32-S3 或 ESP32-C6 开发板进行真实 CSI 测量。在下方通过 USB 配置。",
   "ruview.source_help_wifi": "通过 RuView 计算机的 Wi-Fi 网卡检测动作。需要 Windows 或 macOS，以及本机或外部实例。",
   "ruview.source_help_simulated": "无需硬件即可试用。所有生成的数据都会明确标为演示数据。",
-  "ruview.readonly_help": "防止更改。启动运行环境或配置开发板前，请关闭只读模式。",
+  "ruview.readonly_help": "只读模式禁止启动、更改和删除。管理员仍可停止服务、录制和训练。",
   "ruview.agent_help": "代理只能读取状态和测量值，不能配置开发板或开始录制。",
   "ruview.token_help": "受保护的外部实例可选用此令牌。保存时会加密存入保险库。",
   "ruview.managed_help": "保存设置并打开 RuView，以安装或启动运行环境。",
@@ -138,5 +138,10 @@
   "ruview.udp_allow_help": "用逗号分隔开发板地址。也可以允许整个网段，例如 192.168.1.0/24。",
   "ruview.enable_first": "继续前请启用 RuView 并保存设置。",
   "ruview.write_first": "要配置开发板，请关闭上方的只读模式并保存。",
-  "ruview.wifi_mode": "主机 Wi-Fi 需要本机或外部实例。请选择相应运行方式或其他数据源。"
+  "ruview.wifi_mode": "主机 Wi-Fi 需要本机或外部实例。请选择相应运行方式或其他数据源。",
+  "ruview.last_measurement": "最近测量",
+  "ruview.devices_stale": "刷新失败。上次的数据已过时。",
+  "ruview.process_exited": "服务已退出。你可以重新启动。",
+  "ruview.stop_failed": "无法确认停止。请检查服务。",
+  "ruview.stopping": "正在停止…"
 }

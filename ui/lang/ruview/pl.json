@@ -23,7 +23,7 @@
   "ruview.receiver_manual_help": "Znajdź komputer z RuView na liście urządzeń sieciowych routera. Dla Dockera użyj adresu LAN IP hosta Dockera. Dla instancji zewnętrznej użyj jej komputera, a nie komputera z płytką podłączoną przez USB.",
   "ruview.receiver_lookup_failed": "Nie udało się wczytać ustawień odbiornika. Możesz wpisać adres ręcznie.",
   "ruview.receiver_udp_disabled": "Odbiór UDP jest nadal wyłączony. Włącz go w ustawieniach RuView i zezwól na adresy płytek przed sprawdzeniem danych czujników.",
-  "ruview.readonly_notice": "Tryb Tylko odczyt jest aktywny: instalacja, uruchamianie, rozpoczynanie nagrań i konfiguracja płytek są zablokowane.",
+  "ruview.readonly_notice": "Tryb tylko do odczytu blokuje uruchamianie, zmiany i usuwanie. Administratorzy mogą zatrzymać usługę, nagrywanie i trening.",
   "ruview.receiver_purpose": "W zarządzanym trybie Docker AuraGo łączy się z usługą RuView automatycznie. IP potrzebują tylko płytki ESP32: wysyłają na adres LAN komputera z RuView, a nie na IP kontenera.",
   "ruview.use_receiver": "Użyj adresu LAN {ip}",
   "ruview.receiver_suggestion_help": "Propozycja z ustawień lub adresu przeglądarki. Sprawdź, czy płytka może dotrzeć do tego komputera przez Wi-Fi. Proxy lub tunel może wymagać innego adresu LAN.",
@@ -128,7 +128,7 @@
   "ruview.source_help_esp32": "Rzeczywiste pomiary CSI z opcjonalnymi płytkami ESP32-S3 lub ESP32-C6. Skonfiguruj je poniżej przez USB.",
   "ruview.source_help_wifi": "Wykrywanie ruchu przez adapter Wi-Fi komputera z RuView. Wymaga Windows lub macOS i instancji natywnej albo zewnętrznej.",
   "ruview.source_help_simulated": "Wypróbuj bez sprzętu. Wszystkie generowane dane są wyraźnie oznaczone jako demonstracyjne.",
-  "ruview.readonly_help": "Zapobiega zmianom. Wyłącz tryb Tylko odczyt, aby uruchomić środowisko lub skonfigurować płytkę.",
+  "ruview.readonly_help": "Tryb tylko do odczytu blokuje uruchamianie, zmiany i usuwanie. Administratorzy mogą zatrzymać usługę, nagrywanie i trening.",
   "ruview.agent_help": "Agent może tylko odczytywać stan i pomiary. Nie może konfigurować płytek ani rozpoczynać nagrań.",
   "ruview.token_help": "Opcjonalny dla chronionych instancji zewnętrznych. Szyfrowany w skarbcu przy zapisie.",
   "ruview.managed_help": "Zapisz ustawienia i otwórz RuView, aby zainstalować lub uruchomić środowisko.",
@@ -138,5 +138,10 @@
   "ruview.udp_allow_help": "Oddziel adresy przecinkami. Możesz też dopuścić całą sieć, np. 192.168.1.0/24.",
   "ruview.enable_first": "Włącz RuView i zapisz ustawienia przed kontynuowaniem.",
   "ruview.write_first": "Wyłącz powyżej Tylko odczyt i zapisz, aby skonfigurować płytkę.",
-  "ruview.wifi_mode": "Wi-Fi hosta wymaga instancji natywnej lub zewnętrznej. Wybierz ten tryb albo inne źródło danych."
+  "ruview.wifi_mode": "Wi-Fi hosta wymaga instancji natywnej lub zewnętrznej. Wybierz ten tryb albo inne źródło danych.",
+  "ruview.last_measurement": "Ostatni pomiar",
+  "ruview.devices_stale": "Odświeżanie nie powiodło się. Ostatnie dane są nieaktualne.",
+  "ruview.process_exited": "Usługa zakończyła działanie. Możesz uruchomić ją ponownie.",
+  "ruview.stop_failed": "Nie udało się potwierdzić zatrzymania. Sprawdź usługę.",
+  "ruview.stopping": "Zatrzymywanie…"
 }

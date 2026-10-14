@@ -6,6 +6,14 @@ Wi-Fi sensing is experimental. Readiness does not prove measurements, presence o
 
 The embedded Dashboard distinguishes service health from sensor data. A connected ESP32 source with no frames shows **Waiting for sensor data**, not simulation; failed source probes also make no simulation claim. Only an explicit synthetic source is labelled simulated. New frames restore the live indicator even when the source name is unchanged, and a stream without fresh frames becomes stale after ten seconds. Health, liveness and metrics endpoints remain read-only through AuraGo's authenticated proxy.
 
+The Devices view refreshes every three seconds while visible, without overlapping requests. **Last measurement** advances between replies; measurements older than ten seconds and failed refreshes are marked stale. Previously received values remain visible. Closing the app cancels requests and timers. Pose Fusion starts in **CSI Only**; camera and video modes are unavailable.
+
+Recording uses explicit **Start Recording** and **Stop Recording** actions in both Live View and Training. A recording continues until stopped, including after closing the view. This runtime has no recording-status endpoint: after reload or an uncertain response the UI shows **Recording status unknown**, and an administrator can still stop it. The file list does not prove whether recording is active. Timed recording is unsupported; the proxy rejects `duration_secs` with HTTP 400. Mutations are not automatically retried, and success requires the operation's explicit acknowledgement.
+
+Training, Pretrain and LoRA expose only their supported parameters. LoRA uses a listed base model, a validated profile name and rank 8; ordinary training includes early stopping patience. Server-disabled training remains disabled. Failed or unsupported model, recording and training reads are distinguished from successfully empty lists, retain old values as stale, and offer refresh. Controls dependent on unavailable data remain disabled.
+
+Read-only blocks starts, changes and deletions. Administrators may still stop a managed service, stop recording or cancel training; these remain authenticated, origin-checked writes. AuraGo never shuts down an external service, but administrators may stop its recording and training. Agent access remains limited to the five existing read operations. Native process exit clears readiness and revision confirmation and permits a manual restart. No automatic restart is attempted. A failed or timed-out stop retains ownership and reports that stopping was not confirmed.
+
 ## Setup
 
 Open **Configuration → RuView**, enable the integration, select a runtime and source, then save. Start and agent access are disabled by default; read-only starts enabled. Connection tests are explicit administrative POST actions using the saved target and Vault token. Merely opening AuraGo's overview never probes a service. Opening an upstream view or requesting an agent read retrieves data.
@@ -68,6 +76,8 @@ bytes; phases without a measured percentage show an activity indicator. The busy
 indicator ends only after verification and reset. **Step 1 complete** then shows
 **Continue to step 2**, which focuses the Wi-Fi form without opening a serial port
 or sending settings. Firmware completion does not confirm Wi-Fi or sensor reception.
+
+Repeating readback clears its previous confirmation and the dependent sensor success before opening a port. A cancelled attempt, failed readback or different board leaves sensor verification disabled. Repeating the sensor check clears its previous success even if the new check fails. Wi-Fi drafts and the resource-version binding are preserved.
 
 ## Artifact maintenance and release gate
 

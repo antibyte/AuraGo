@@ -189,7 +189,7 @@ if (check) {
         }
         bytes = Buffer.from(text);
       }
-      if (name.endsWith('.js')) bytes = Buffer.from(patchControls(name, bytes.toString('utf8'), patch));
+      if (/\.(js|html)$/.test(name)) bytes = Buffer.from(patchControls(name, bytes.toString('utf8'), patch));
       await put(name, bytes);
     }
   }

@@ -23,7 +23,7 @@
   "ruview.receiver_manual_help": "Trova il computer RuView nell’elenco dei dispositivi di rete del router. Per Docker, usa l’IP LAN dell’host Docker. Per un’istanza esterna, usa il suo computer, non il PC collegato alla scheda via USB.",
   "ruview.receiver_lookup_failed": "Impossibile caricare le impostazioni del ricevitore. Puoi inserire l’indirizzo manualmente.",
   "ruview.receiver_udp_disabled": "La ricezione UDP è ancora disattivata. Attivala nelle impostazioni RuView e autorizza gli indirizzi delle schede prima di verificare i dati dei sensori.",
-  "ruview.readonly_notice": "Sola lettura è attiva: installazione, avvio, avvio di registrazioni e configurazione delle schede sono bloccati.",
+  "ruview.readonly_notice": "La sola lettura blocca avvii, modifiche ed eliminazioni. Gli amministratori possono arrestare il servizio, la registrazione e l’addestramento.",
   "ruview.receiver_purpose": "In modalità Docker gestita, AuraGo si collega automaticamente al servizio RuView. Solo le schede ESP32 richiedono l’IP: inviano all’indirizzo LAN del computer RuView, non all’IP di un contenitore.",
   "ruview.use_receiver": "Usa l’indirizzo LAN {ip}",
   "ruview.receiver_suggestion_help": "Proposta dalle impostazioni o dall’URL del browser. Verifica che la scheda raggiunga questo computer tramite Wi-Fi. Un proxy o tunnel può richiedere un altro indirizzo LAN.",
@@ -128,7 +128,7 @@
   "ruview.source_help_esp32": "Misurazioni CSI reali con schede ESP32-S3 o ESP32-C6 opzionali. Configurale tramite USB qui sotto.",
   "ruview.source_help_wifi": "Rilevamento del movimento con l’adattatore Wi-Fi del computer RuView. Richiede Windows o macOS e un’istanza nativa o esterna.",
   "ruview.source_help_simulated": "Prova senza hardware. Tutti i dati generati sono chiaramente indicati come dati dimostrativi.",
-  "ruview.readonly_help": "Impedisce le modifiche. Disattiva Sola lettura per avviare l’ambiente o configurare una scheda.",
+  "ruview.readonly_help": "La sola lettura blocca avvii, modifiche ed eliminazioni. Gli amministratori possono arrestare il servizio, la registrazione e l’addestramento.",
   "ruview.agent_help": "L’agente può solo leggere stato e misurazioni. Non può configurare schede né avviare registrazioni.",
   "ruview.token_help": "Facoltativo per istanze esterne protette. Cifrato nella cassaforte al salvataggio.",
   "ruview.managed_help": "Salva le impostazioni e apri RuView per installare o avviare l’ambiente.",
@@ -138,5 +138,10 @@
   "ruview.udp_allow_help": "Separa gli indirizzi con virgole. Puoi consentire anche un’intera rete, ad es. 192.168.1.0/24.",
   "ruview.enable_first": "Attiva RuView e salva le impostazioni prima di continuare.",
   "ruview.write_first": "Disattiva Sola lettura qui sopra e salva per configurare una scheda.",
-  "ruview.wifi_mode": "Il Wi-Fi del computer richiede un’istanza nativa o esterna. Scegli questa modalità o un’altra fonte dati."
+  "ruview.wifi_mode": "Il Wi-Fi del computer richiede un’istanza nativa o esterna. Scegli questa modalità o un’altra fonte dati.",
+  "ruview.last_measurement": "Ultima misurazione",
+  "ruview.devices_stale": "Aggiornamento non riuscito. Gli ultimi dati non sono aggiornati.",
+  "ruview.process_exited": "Il servizio è terminato. Puoi avviarlo di nuovo.",
+  "ruview.stop_failed": "Impossibile confermare l’arresto. Controlla il servizio.",
+  "ruview.stopping": "Arresto in corso…"
 }

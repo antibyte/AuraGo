@@ -4,7 +4,9 @@
     const base = location.pathname.includes('/desktop/integrations/') ? '/api/desktop/integrations/ruview/' : '/api/ruview/';
     const nativeFetch = window.fetch.bind(window), NativeSocket = window.WebSocket;
     const sockets = new Set(), requests = new Set();
-    let readonly=true, enabled=false, simulation=false, policyTimer, observer;
+    let readonly=true, enabled=false, simulation=false, policyTimer, observer, capabilities=null, policyBusy=false;
+    const controlStates=new WeakMap();
+    const stopActions=new Set(['recording_stop','training_stop']);
     Object.defineProperty(window,'auragoRuViewSimulationAllowed',{value:()=>enabled&&simulation});
     const lifetime=new AbortController();
     const blocked = /\/(?:oauth|auth)(?:\/|$)|\/models\/(?:load|unload|lora\/activate)$|\/model\/sona\/activate$|\/pose\/(?:stats|zones\/summary)$/;
@@ -22,7 +24,8 @@
         const request = input instanceof Request ? input : null;
         const url = routed(request ? request.url : input);
         const method=(options.method||request?.method||'GET').toUpperCase();
-        if(url.pathname.startsWith(base+'proxy/')&&method!=='GET'&&method!=='HEAD'&&(!enabled||readonly))throw new Error('Read-only in AuraGo');
+        const stop=method==='POST'&&[base+'proxy/api/v1/recording/stop',base+'proxy/api/v1/train/stop'].includes(url.pathname);
+        if(url.pathname.startsWith(base+'proxy/')&&method!=='GET'&&method!=='HEAD'&&(!enabled||readonly&&!stop))throw new Error('Read-only in AuraGo');
         const headers = new Headers(options.headers || request?.headers);
         headers.delete('Authorization'); headers.delete('X-Api-Key');
         const controller = new AbortController(); requests.add(controller);
@@ -40,19 +43,35 @@
     const memory = new Map();
     const storage = {getItem:k => /token|simulation|server|url/i.test(k)?null:(memory.get(k)??null),setItem:(k,v)=>{if(!/token|simulation|server|url/i.test(k))memory.set(k,String(v));},removeItem:k=>memory.delete(k),clear:()=>memory.clear()};
     try { Object.defineProperty(window,'localStorage',{value:storage}); Object.defineProperty(window,'sessionStorage',{value:storage}); } catch (_) {}
+    // Preserve component-owned disabled state while applying the independent policy gate.
+    function gate(control, denied, reason){
+        let state=controlStates.get(control);
+        if(!state){
+            const prototype=control instanceof HTMLSelectElement?HTMLSelectElement.prototype:HTMLButtonElement.prototype;
+            const descriptor=Object.getOwnPropertyDescriptor(prototype,'disabled');
+            state={business:descriptor.get.call(control),denied:false,title:control.title};controlStates.set(control,state);
+            Object.defineProperty(control,'disabled',{configurable:true,get:()=>descriptor.get.call(control),set:value=>{state.business=!!value;descriptor.set.call(control,state.business||state.denied);}});
+            state.apply=()=>descriptor.set.call(control,state.business||state.denied);
+        }
+        state.denied=denied;state.apply();control.title=denied?reason:state.title;
+    }
     function policyControls(){
-        for(const button of document.querySelectorAll('button')){
+        for(const button of document.querySelectorAll('button,select[data-ruview-action]')){
             const label=button.textContent.trim();
-            const unavailable=/^(Load Model|Unload Model|Activate LoRA|Activate Profile|Sign In|Sign in|Connect Account)$/i.test(label);
-            const mutator=/^(Start Recording|Stop Recording|Delete|Start Training|Stop Training|Pretrain|LoRA|Calibrate|Start Calibration|Stop Calibration|Reset Calibration|Promote|Refine)/i.test(label);
-            if(unavailable||mutator&&(!enabled||readonly)){button.disabled=true;button.dataset.auragoDisabled='1';button.title=unavailable?'Unavailable in this pinned RuView release':'Read-only in AuraGo';}
-            else if(button.dataset.auragoDisabled==='1'){button.disabled=false;delete button.dataset.auragoDisabled;}
+            const action=button.dataset.ruviewAction;
+            const unavailable=action?capabilities===null||capabilities.has(action):/^(Sign In|Connect Account)$/i.test(label);
+            const mutator=!!action||/^(Calibrate|Start Calibration|Stop Calibration|Reset Calibration|Promote|Refine)/i.test(label);
+            if(action||unavailable||mutator)gate(button,unavailable||mutator&&(!enabled||readonly&&!stopActions.has(action)),unavailable?'Unavailable in this RuView service':'Read-only in AuraGo');
         }
         document.querySelectorAll('input[type=password]').forEach(input=>{input.disabled=true;input.value='';input.placeholder='Managed by AuraGo';});
     }
     async function policy(){
-        try{const response=await nativeFetch(base+'status',{credentials:'same-origin',signal:lifetime.signal});if(!response.ok)throw Error();const state=await response.json();readonly=state.readonly;enabled=state.enabled;simulation=state.source==='simulated'&&!state.error;}
+        if(policyBusy||lifetime.signal.aborted)return;policyBusy=true;
+        try{const response=await nativeFetch(base+'status',{credentials:'same-origin',signal:lifetime.signal});if(!response.ok)throw Error();const state=await response.json();readonly=state.readonly!==false;enabled=state.enabled===true;simulation=state.source==='simulated'&&!state.error;
+            if(capabilities===null){const response=await nativeFetch(base+'capabilities',{credentials:'same-origin',signal:lifetime.signal});if(!response.ok)throw Error();const data=await response.json();if(!Array.isArray(data.unavailable))throw Error();capabilities=new Set(data.unavailable);}
+        }
         catch{readonly=true;enabled=false;}
+        finally{policyBusy=false;}
         if(!enabled)for(const socket of sockets)socket.close();
         policyControls();
     }

@@ -13,7 +13,7 @@ import { CanvasRenderer } from './canvas-renderer.js?v=13';
 import { withWsTicket } from '../../services/ws-ticket.js';
 
 // === State ===
-let mode = 'dual';  // 'dual' | 'video' | 'csi'
+let mode = 'csi';  // 'dual' | 'video' | 'csi'
 let isRunning = false;
 let isPaused = false;
 let startTime = 0;

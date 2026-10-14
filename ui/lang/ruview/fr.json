@@ -23,7 +23,7 @@
   "ruview.receiver_manual_help": "Trouve l’ordinateur RuView dans la liste des appareils réseau du routeur. Pour Docker, utilise l’IP LAN de l’hôte Docker. Pour une instance externe, utilise son ordinateur, pas le PC connecté à la carte en USB.",
   "ruview.receiver_lookup_failed": "Impossible de charger les paramètres du récepteur. Tu peux saisir l’adresse manuellement.",
   "ruview.receiver_udp_disabled": "La réception UDP est encore désactivée. Active-la dans les paramètres RuView et autorise les adresses des cartes avant de vérifier les données des capteurs.",
-  "ruview.readonly_notice": "Lecture seule est actif : l’installation, le démarrage, le lancement d’enregistrements et la configuration des cartes sont bloqués.",
+  "ruview.readonly_notice": "La lecture seule bloque les démarrages, modifications et suppressions. Les administrateurs peuvent arrêter le service, l’enregistrement et l’entraînement.",
   "ruview.receiver_purpose": "En mode Docker géré, AuraGo se connecte automatiquement au service RuView. Seules les cartes ESP32 ont besoin de l’IP : elles envoient à l’adresse LAN de l’ordinateur RuView, pas à l’IP d’un conteneur.",
   "ruview.use_receiver": "Utiliser l’adresse LAN {ip}",
   "ruview.receiver_suggestion_help": "Suggestion issue de tes réglages ou de l’URL du navigateur. Vérifie que la carte peut joindre cet ordinateur par Wi-Fi. Un proxy ou tunnel peut nécessiter une autre adresse LAN.",
@@ -128,7 +128,7 @@
   "ruview.source_help_esp32": "Mesures CSI réelles avec des cartes ESP32-S3 ou ESP32-C6 facultatives. Configure-les ci-dessous par USB.",
   "ruview.source_help_wifi": "Détection des mouvements via l’adaptateur Wi-Fi de l’ordinateur RuView. Nécessite Windows ou macOS et une instance native ou externe.",
   "ruview.source_help_simulated": "Essaie sans matériel. Toutes les données générées sont explicitement signalées comme données de démonstration.",
-  "ruview.readonly_help": "Empêche les modifications. Désactive Lecture seule pour démarrer l’environnement ou configurer une carte.",
+  "ruview.readonly_help": "La lecture seule bloque les démarrages, modifications et suppressions. Les administrateurs peuvent arrêter le service, l’enregistrement et l’entraînement.",
   "ruview.agent_help": "L’agent peut uniquement lire l’état et les mesures. Il ne peut ni configurer les cartes ni lancer des enregistrements.",
   "ruview.token_help": "Facultatif pour les instances externes protégées. Chiffré dans le coffre lors de l’enregistrement.",
   "ruview.managed_help": "Enregistre les réglages et ouvre RuView pour installer ou démarrer l’environnement.",
@@ -138,5 +138,10 @@
   "ruview.udp_allow_help": "Sépare les adresses par des virgules. Un réseau entier est aussi possible, par ex. 192.168.1.0/24.",
   "ruview.enable_first": "Active RuView et enregistre les réglages avant de continuer.",
   "ruview.write_first": "Désactive Lecture seule ci-dessus et enregistre pour configurer une carte.",
-  "ruview.wifi_mode": "Le Wi-Fi de l’ordinateur nécessite une instance native ou externe. Choisis ce mode ou une autre source de données."
+  "ruview.wifi_mode": "Le Wi-Fi de l’ordinateur nécessite une instance native ou externe. Choisis ce mode ou une autre source de données.",
+  "ruview.last_measurement": "Dernière mesure",
+  "ruview.devices_stale": "Échec de l’actualisation. Les dernières données sont périmées.",
+  "ruview.process_exited": "Le service s’est arrêté. Tu peux le relancer.",
+  "ruview.stop_failed": "L’arrêt n’a pas pu être confirmé. Vérifie le service.",
+  "ruview.stopping": "Arrêt en cours…"
 }

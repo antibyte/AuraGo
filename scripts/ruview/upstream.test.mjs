@@ -91,7 +91,7 @@ test('Pose-Fusion requires real CSI and expires live frames',()=>{
 
 test('ModelPanel treats upstream counters as text',()=>{
  const source=readFileSync('ui/js/vendor/ruview/components/ModelPanel.js','utf8').replace(/^import .*;\r?\n/gm,'').replace('export default class ModelPanel','class ModelPanel');
- const document={createElement:()=>({children:[],appendChild(c){this.children.push(c)},addEventListener(){},set innerHTML(value){assert.ok(!value.includes('<img'),'upstream value became executable markup')},set textContent(value){this.text=String(value)}})};
+ const document={createElement:()=>({dataset:{},children:[],appendChild(c){this.children.push(c)},addEventListener(){},setAttribute(){},set innerHTML(value){assert.ok(!value.includes('<img'),'upstream value became executable markup')},set textContent(value){this.text=String(value)}})};
  const Panel=vm.runInNewContext(source+'\nModelPanel',{document});
  const panel=Object.create(Panel.prototype);
  panel.state={activeModel:{avg_inference_ms:1,frames_processed:'<img src=x onerror="alert(1)">'},models:[],loraProfiles:[]};

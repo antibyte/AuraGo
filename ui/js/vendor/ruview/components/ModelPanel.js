@@ -1,3 +1,4 @@
+import {readError, preserveFocus} from '../control-contracts.js';
 // ModelPanel Component for WiFi-DensePose UI
 // Dark-mode panel for model management: listing, loading, LoRA profiles.
 
@@ -45,7 +46,8 @@ export default class ModelPanel {
       ? document.getElementById(container) : container;
     if (!this.container) throw new Error('ModelPanel: container element not found');
 
-    this.state = { models: [], activeModel: null, loraProfiles: [], loading: false, error: null };
+    this.refreshEpoch=0; this.destroyed=false;
+    this.state = { modelsLoaded:false, activeLoaded:false, profilesLoaded:false, models: [], activeModel: null, loraProfiles: [], loading: false, error: null };
     this.unsubs = [];
     this._injectStyles();
     this.render();
@@ -60,16 +62,16 @@ export default class ModelPanel {
   // --- Data ---
 
   async refresh() {
-    this._set({ loading: true, error: null });
-    try {
-      const [listRes, active] = await Promise.all([
-        modelService.listModels().catch(() => ({ models: [] })),
-        modelService.getActiveModel().catch(() => null)
-      ]);
-      let lora = [];
-      if (active) lora = await modelService.getLoraProfiles().catch(() => []);
-      this._set({ models: listRes?.models ?? [], activeModel: active, loraProfiles: lora, loading: false });
-    } catch (e) { this._set({ loading: false, error: e.message }); }
+    const epoch=++this.refreshEpoch;this._set({loading:true});
+    const results=await Promise.allSettled([modelService.listModels(),modelService.getActiveModel(),modelService.getLoraProfiles()]);
+    if(this.destroyed||epoch!==this.refreshEpoch)return;
+    const next={loading:false,readErrors:[]};
+    for(const [index,key,loaded] of [[0,'models','modelsLoaded'],[1,'activeModel','activeLoaded'],[2,'loraProfiles','profilesLoaded']]) {
+      const result=results[index];next[loaded]=result.status==='fulfilled';
+      if(result.status==='fulfilled')next[key]=index===0?result.value.models:result.value;
+      else next.readErrors.push(['Models: ','Active model: ','LoRA profiles: '][index]+readError(result.reason));
+    }
+    this._set(next);
   }
 
   // --- Actions ---
@@ -99,22 +101,26 @@ export default class ModelPanel {
     catch (e) { this._set({ loading: false, error: `LoRA failed: ${e.message}` }); }
   }
 
-  _set(p) { Object.assign(this.state, p); this.render(); }
+  _set(p) { if(this.destroyed)return; Object.assign(this.state, p); this.render(); }
 
   // --- Render ---
 
   render() {
-    const el = this.container;
+    if(this.destroyed)return;
+    const el = this.container, restore=preserveFocus(el);
     el.innerHTML = '';
     const panel = this._el('div', 'mp-panel');
+    panel.setAttribute('aria-busy',String(this.state.loading));
+    const message=this.state.loading?'Loading…':this.state.readErrors?.length?this.state.readErrors.join(' ')+' Previously loaded data may be stale.':'';
+    if(message){const note=this._el('p','mp-error',message);note.setAttribute('role','status');panel.appendChild(note);}
 
     // Header
     const hdr = this._el('div', 'mp-header');
     hdr.appendChild(this._el('span', 'mp-title', 'Model Library'));
-    hdr.appendChild(this._el('span', 'mp-badge', String(this.state.models.length)));
+    hdr.appendChild(this._el('span', 'mp-badge', this.state.modelsLoaded?String(this.state.models.length):'Unknown'));
     panel.appendChild(hdr);
 
-    if (this.state.error) panel.appendChild(this._el('div', 'mp-error', this.state.error));
+    if (this.state.error) {const error=this._el('div','mp-error',this.state.error);error.setAttribute('role','alert');panel.appendChild(error);}
 
     // Active model
     if (this.state.activeModel) panel.appendChild(this._renderActive());
@@ -125,7 +131,7 @@ export default class ModelPanel {
     const models = this.state.models.filter(
       m => !(this.state.activeModel && this.state.activeModel.model_id === m.id)
     );
-    if (models.length === 0 && !this.state.loading) {
+    if (this.state.modelsLoaded && models.length === 0 && !this.state.loading) {
       ls.appendChild(this._el('div', 'mp-empty', 'No .rvf models found. Train a model or place .rvf files in data/models/'));
     } else {
       models.forEach(m => ls.appendChild(this._renderCard(m)));
@@ -135,11 +141,11 @@ export default class ModelPanel {
     // Footer
     const ft = this._el('div', 'mp-footer');
     const rb = this._btn('Refresh', 'mp-btn mp-btn-secondary', () => this.refresh());
-    rb.disabled = this.state.loading;
+    rb.dataset.ruviewFocus='model-refresh';rb.disabled = this.state.loading;
     ft.appendChild(rb);
     panel.appendChild(ft);
 
-    el.appendChild(panel);
+    el.appendChild(panel);restore();
   }
 
   _renderActive() {
@@ -169,7 +175,7 @@ export default class ModelPanel {
       const row = this._el('div', 'mp-lora-row');
       row.appendChild(this._el('span', 'mp-lora-label', 'LoRA Profile:'));
       const sel = document.createElement('select');
-      sel.className = 'mp-lora-select';
+      sel.className = 'mp-lora-select';sel.dataset.ruviewAction='lora_activate';sel.setAttribute('aria-label','LoRA Profile');
       const def = document.createElement('option');
       def.value = ''; def.textContent = '-- none --'; sel.appendChild(def);
       this.state.loraProfiles.forEach(p => {
@@ -182,7 +188,8 @@ export default class ModelPanel {
     }
 
     const ub = this._btn('Unload', 'mp-btn mp-btn-danger', () => this._unload());
-    ub.disabled = this.state.loading;
+    ub.dataset.ruviewAction='model_unload';ub.dataset.ruviewFocus='model_unload';
+    ub.disabled = this.state.loading || !this.state.modelsLoaded;
     card.appendChild(ub);
     return card;
   }
@@ -199,9 +206,11 @@ export default class ModelPanel {
 
     const acts = this._el('div', 'mp-card-actions');
     const lb = this._btn('Load', 'mp-btn mp-btn-success', () => this._load(model.id));
-    lb.disabled = this.state.loading;
+    lb.dataset.ruviewAction='model_load';lb.dataset.ruviewFocus='model_load-'+model.id;
+    lb.disabled = this.state.loading || !this.state.modelsLoaded;
     const db = this._btn('Delete', 'mp-btn mp-btn-muted', () => this._delete(model.id));
-    db.disabled = this.state.loading;
+    db.dataset.ruviewAction='model_delete';db.dataset.ruviewFocus='model_delete-'+model.id;
+    db.disabled = this.state.loading || !this.state.modelsLoaded;
     acts.appendChild(lb); acts.appendChild(db);
     card.appendChild(acts);
     return card;
@@ -223,6 +232,7 @@ export default class ModelPanel {
   }
 
   destroy() {
+    this.destroyed=true;++this.refreshEpoch;
     this.unsubs.forEach(fn => fn());
     this.unsubs = [];
     if (this.container) this.container.innerHTML = '';

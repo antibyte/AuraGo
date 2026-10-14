@@ -10,9 +10,10 @@ function method(text, name, replacement) {
 export function patchControls(name, text, patch) {
     if (name === 'services/model.service.js') {
         text = "import {controlResult} from '../control-contracts.js';\n" + text;
-        text = patch(text, "      const data = await apiService.get('/api/v1/models');", "      const data = await apiService.get('/api/v1/models');\n      if (!Array.isArray(data?.models)) throw Error('Invalid model list');");
+        text = patch(text, "      const data = await apiService.get('/api/v1/models');", "      const data = await apiService.get('/api/v1/models');\n      if (data?.error || data?.success === false || !Array.isArray(data?.models)) throw Error('Invalid model list');");
         text = patch(text, "      if (error.status === 404) {\n        this.activeModel = null;\n        return null;\n      }", '');
-        text = patch(text, "      return data?.profiles ?? [];", "      if (!Array.isArray(data?.profiles)) throw Error('Invalid profile list');\n      return data.profiles;");
+        text = patch(text, "      return data?.profiles ?? [];", "      if (data?.error || data?.success === false || !Array.isArray(data?.profiles)) throw Error('Invalid profile list');\n      return data.profiles;");
+        text = patch(text, "      this.activeModel = data || null;", "      if (data?.error || data?.success === false) throw Error('Invalid active model response');\n      this.activeModel = data || null;");
         text = patch(text, "      return data;\n    } catch (error) {\n      this.logger.error('Failed to delete model'", "      return controlResult(data, 'success');\n    } catch (error) {\n      this.logger.error('Failed to delete model'");
     }
     if (name === 'services/training.service.js') {
@@ -42,16 +43,33 @@ export function patchControls(name, text, patch) {
         text = method(text, 'stopRecording', `  async stopRecording() {
     return this._recordingRequest('stop');
   }`);
-        text = patch(text, "      return data?.recordings ?? [];", "      if (!Array.isArray(data?.recordings)) throw Error('Invalid recordings response');\n      return data.recordings;");
+        text = patch(text, "      return data?.recordings ?? [];", "      if (data?.error || data?.success === false || !Array.isArray(data?.recordings)) throw Error('Invalid recordings response');\n      return data.recordings;");
         text = patch(text, "      return data;\n    } catch (error) {\n      this.logger.error('Failed to delete recording'", "      return controlResult(data, 'success');\n    } catch (error) {\n      this.logger.error('Failed to delete recording'");
         for (const [endpoint, expected] of [['start','started'],['stop','stopping'],['pretrain','started'],['lora','started']]) {
             const body = endpoint === 'stop' ? '{}' : 'config';
             text = patch(text, `const data = await apiService.post('/api/v1/train/${endpoint}', ${body});`, `const data = controlResult(await apiService.post('/api/v1/train/${endpoint}', ${body}), '${expected}');`);
         }
         text = patch(text, "this.emit('training-stopped', data)", "this.emit('training-stopping', data)");
-        text = patch(text, "      const data = await apiService.get('/api/v1/train/status');", "      const data = await apiService.get('/api/v1/train/status');\n      if (typeof data?.active !== 'boolean') throw Error('Invalid training status');");
+        text = patch(text, "      const data = await apiService.get('/api/v1/train/status');", "      const data = await apiService.get('/api/v1/train/status');\n      if (data?.error || data?.success === false || typeof data?.active !== 'boolean') throw Error('Invalid training status');");
     }
     if (name === 'components/LiveDemoTab.js') {
+        text="import {readError} from '../control-contracts.js';\n"+text;
+        text=patch(text,'<div class="model-status-text" id="model-status-text">No model loaded</div>','<div class="model-status-text" id="model-status-text" role="status">Model status unknown</div><button id="retry-models-btn" class="btn-ld btn-ld-muted">Refresh models</button>');
+        text=method(text,'fetchModels',`  async fetchModels() {
+    if (!modelService || this.modelsPending) return;
+    this.modelsPending=true;this.setModelStatus('Loading models…');
+    const retry=this.container.querySelector('#retry-models-btn');if(retry)retry.disabled=true;
+    try {
+      const data=await modelService.listModels();
+      this.modelState.models=data.models;this.populateModelSelector();
+      const active=await modelService.getActiveModel();
+      this.modelState.activeModelId=active?.model_id||null;this.modelState.activeModelInfo=active;
+      this.updateModelUI();
+    } catch(error) { this.setModelStatus(readError(error)+' Model status unknown; previous data may be stale.'); }
+    finally {this.modelsPending=false;if(retry)retry.disabled=false;}
+  }`);
+        text=patch(text,"    if (quickRecordBtn) quickRecordBtn.addEventListener('click', () => this.handleQuickRecord());", "    this.container.querySelector('#retry-models-btn')?.addEventListener('click',()=>this.fetchModels());\n    if (quickRecordBtn) quickRecordBtn.addEventListener('click', () => this.handleQuickRecord());");
+        for (const [id, action] of [['load-model-btn','model_load'],['unload-model-btn','model_unload'],['lora-profile-selector','lora_activate']]) text=patch(text, 'id="'+id+'"', 'id="'+id+'" data-ruview-action="'+action+'"');
         text = patch(text, '<button class="btn-ld btn-ld-muted" id="quick-record-btn">Record 60s</button>', `<button class="btn-ld btn-ld-muted" id="quick-record-btn" data-ruview-action="recording_start">Start Recording</button>
                   <button class="btn-ld btn-ld-muted" id="stop-record-btn" data-ruview-action="recording_stop">Stop Recording</button>
                   <p>Recording continues until you stop it, even if you close this view.</p>
@@ -189,7 +207,7 @@ export function patchControls(name, text, patch) {
     const datasets = this._el('fieldset', 'tp-ds-container'); datasets.appendChild(this._el('legend', 'tp-label', 'Datasets'));
     for (const rec of this.state.recordings) {
       const label = this._el('label','tp-ds-item'), cb = document.createElement('input');
-      cb.type='checkbox'; cb.dataset.ruviewFocus='dataset-' + rec.id; cb.checked=this.config.selectedRecordings.includes(rec.id); cb.disabled=!this.state.recordingsLoaded;
+      cb.type='checkbox'; cb.id=this.fieldPrefix+'-dataset-'+datasets.children.length; label.htmlFor=cb.id; cb.dataset.ruviewFocus='dataset-' + rec.id; cb.checked=this.config.selectedRecordings.includes(rec.id); cb.disabled=!this.state.recordingsLoaded;
       cb.addEventListener('change',()=>{this.config.selectedRecordings=cb.checked?[...new Set([...this.config.selectedRecordings,rec.id])]:this.config.selectedRecordings.filter(id=>id!==rec.id);});
       label.append(cb,this._el('span',null,rec.name||rec.id));datasets.appendChild(label);
     }
@@ -219,6 +237,54 @@ export function patchControls(name, text, patch) {
         text = patch(text, "    if (this.state.error) panel.appendChild(this._el('div', 'tp-error', this.state.error));", "    if (this.state.error) { const error=this._el('div','tp-error',this.state.error); error.setAttribute('role','alert'); panel.appendChild(error); }");
         text = patch(text, "    const stop = this._btn('Stop Training', 'tp-btn tp-btn-danger', () => this._stopTraining());\n    stop.disabled = this.state.loading; stop.style.marginTop = '10px'; s.appendChild(stop);", '');
         text = patch(text, "        del.disabled = this.state.loading;", "        del.dataset.ruviewAction='recording_delete'; del.disabled = this.state.loading || !this.state.recordingsLoaded;");
+        text = patch(text, "    const active = ts && ts.active;", "    const active = this.state.statusLoaded && ts && ts.active;");
+        text = text.replaceAll('else if (ts && !ts.active && this.progressData.losses.length > 0)', 'else if (this.state.statusLoaded && ts && !ts.active && this.progressData.losses.length > 0)');
+        text = patch(text, "    panel.appendChild(this._renderHeader());", "    panel.setAttribute('aria-busy', String(this.state.loading));\n    panel.appendChild(this._renderHeader());\n    if (this.state.loading) { const pending=this._el('p','tp-empty','Loading…'); pending.setAttribute('role','status'); panel.appendChild(pending); }");
+        text = patch(text, "    h.appendChild(this._el('span', cls, txt));", "    const badge=this._el('span',cls,txt);badge.setAttribute('role','status');h.appendChild(badge);");
+        text = patch(text, "txt = 'Training';", "txt = ts.phase === 'stopping' ? 'Stopping training…' : 'Training';");
+        text = patch(text, "    this._set({ trainingStatus: { ...this.state.trainingStatus, ...data } });", "    this._set({ trainingStatus: { ...this.state.trainingStatus, ...data }, statusLoaded: typeof data?.active === 'boolean' || this.state.statusLoaded });");
+    }
+    if (name === 'components/ModelPanel.js') {
+        text="import {readError, preserveFocus} from '../control-contracts.js';\n"+text;
+        text=patch(text,'    this.state = { models:', '    this.refreshEpoch=0; this.destroyed=false;\n    this.state = { modelsLoaded:false, activeLoaded:false, profilesLoaded:false, models:');
+        text=method(text,'refresh',`  async refresh() {
+    const epoch=++this.refreshEpoch;this._set({loading:true});
+    const results=await Promise.allSettled([modelService.listModels(),modelService.getActiveModel(),modelService.getLoraProfiles()]);
+    if(this.destroyed||epoch!==this.refreshEpoch)return;
+    const next={loading:false,readErrors:[]};
+    for(const [index,key,loaded] of [[0,'models','modelsLoaded'],[1,'activeModel','activeLoaded'],[2,'loraProfiles','profilesLoaded']]) {
+      const result=results[index];next[loaded]=result.status==='fulfilled';
+      if(result.status==='fulfilled')next[key]=index===0?result.value.models:result.value;
+      else next.readErrors.push(['Models: ','Active model: ','LoRA profiles: '][index]+readError(result.reason));
+    }
+    this._set(next);
+  }`);
+        text=patch(text,'  _set(p) { Object.assign(this.state, p); this.render(); }','  _set(p) { if(this.destroyed)return; Object.assign(this.state, p); this.render(); }');
+        text=patch(text,'    const el = this.container;','    if(this.destroyed)return;\n    const el = this.container, restore=preserveFocus(el);');
+        text=patch(text,"    const panel = this._el('div', 'mp-panel');",`    const panel = this._el('div', 'mp-panel');
+    panel.setAttribute('aria-busy',String(this.state.loading));
+    const message=this.state.loading?'Loading…':this.state.readErrors?.length?this.state.readErrors.join(' ')+' Previously loaded data may be stale.':'';
+    if(message){const note=this._el('p','mp-error',message);note.setAttribute('role','status');panel.appendChild(note);}`);
+        text=patch(text,"String(this.state.models.length)","this.state.modelsLoaded?String(this.state.models.length):'Unknown'");
+        text=patch(text,"    if (this.state.error) panel.appendChild(this._el('div', 'mp-error', this.state.error));","    if (this.state.error) {const error=this._el('div','mp-error',this.state.error);error.setAttribute('role','alert');panel.appendChild(error);}");
+        text=patch(text,'if (models.length === 0 && !this.state.loading)','if (this.state.modelsLoaded && models.length === 0 && !this.state.loading)');
+        text=patch(text,'    rb.disabled = this.state.loading;',"    rb.dataset.ruviewFocus='model-refresh';rb.disabled = this.state.loading;");
+        text=patch(text,'    el.appendChild(panel);','    el.appendChild(panel);restore();');
+        text=patch(text,"      sel.className = 'mp-lora-select';","      sel.className = 'mp-lora-select';sel.dataset.ruviewAction='lora_activate';sel.setAttribute('aria-label','LoRA Profile');");
+        for(const [variable,action] of [['ub','model_unload'],['lb','model_load'],['db','model_delete']]) {
+            const focus=variable==='ub'?`'${action}'`:`'${action}-'+model.id`;
+            text=patch(text,`    ${variable}.disabled = this.state.loading;`,`    ${variable}.dataset.ruviewAction='${action}';${variable}.dataset.ruviewFocus=${focus};\n    ${variable}.disabled = this.state.loading || !this.state.modelsLoaded;`);
+        }
+        text=patch(text,'    this.unsubs.forEach(fn => fn());','    this.destroyed=true;++this.refreshEpoch;\n    this.unsubs.forEach(fn => fn());');
+    }
+    if(name==='pose-fusion/js/main.js')text=patch(text,"let mode = 'dual';","let mode = 'csi';");
+    if(name==='pose-fusion.html') {
+        text=patch(text,'<div class="header-title">Dual-Modal Pose Estimation — Live Video + WiFi CSI Fusion</div>','<div class="header-title" id="camera-unavailable">CSI Only — camera and video modes are unavailable in AuraGo.</div>');
+        text=patch(text,'<select id="mode-select" class="mode-select">','<select id="mode-select" class="mode-select" aria-label="Sensing mode" aria-describedby="camera-unavailable">');
+        text=patch(text,'<option value="dual">','<option value="dual" disabled>');
+        text=patch(text,'<option value="video">','<option value="video" disabled>');
+        text=patch(text,'<option value="csi">','<option value="csi" selected>');
+        text=patch(text,'<button id="start-camera-btn">','<button id="start-camera-btn" data-ruview-action="camera" disabled>');
     }
     return text;
 }

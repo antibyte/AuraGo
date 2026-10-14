@@ -98,7 +98,7 @@ export default class TrainingPanel {
   _onProgress(data) {
     if (data.train_loss != null) this.progressData.losses.push(data.train_loss);
     if (data.val_pck != null) this.progressData.pcks.push(data.val_pck);
-    this._set({ trainingStatus: { ...this.state.trainingStatus, ...data } });
+    this._set({ trainingStatus: { ...this.state.trainingStatus, ...data }, statusLoaded: typeof data?.active === 'boolean' || this.state.statusLoaded });
   }
 
   // --- Data ---
@@ -172,13 +172,15 @@ export default class TrainingPanel {
     const el = this.container, restore = preserveFocus(el);
     el.innerHTML = '';
     const panel = this._el('div', 'tp-panel');
+    panel.setAttribute('aria-busy', String(this.state.loading));
     panel.appendChild(this._renderHeader());
+    if (this.state.loading) { const pending=this._el('p','tp-empty','Loading…'); pending.setAttribute('role','status'); panel.appendChild(pending); }
     if (this.state.error) { const error=this._el('div','tp-error',this.state.error); error.setAttribute('role','alert'); panel.appendChild(error); }
     panel.appendChild(this._renderRecordings());
     const ts = this.state.trainingStatus;
-    const active = ts && ts.active;
+    const active = this.state.statusLoaded && ts && ts.active;
     if (active) panel.appendChild(this._renderProgress());
-    else if (ts && !ts.active && this.progressData.losses.length > 0) panel.appendChild(this._renderComplete());
+    else if (this.state.statusLoaded && ts && !ts.active && this.progressData.losses.length > 0) panel.appendChild(this._renderComplete());
     else panel.appendChild(this._renderConfig());
     if (this.state.readErrors?.length) {
       const error = this._el('p', 'tp-error', this.state.readErrors.join(' ') + ' Previously loaded data may be stale.');
@@ -197,9 +199,9 @@ export default class TrainingPanel {
     h.appendChild(this._el('span', 'tp-title', 'Training'));
     const ts = this.state.trainingStatus;
     let cls = 'tp-badge tp-badge-idle', txt = this.state.statusLoaded ? 'Idle' : 'Status unknown';
-    if (this.state.statusLoaded && ts && ts.active) { cls = 'tp-badge tp-badge-active'; txt = 'Training'; }
-    else if (ts && !ts.active && this.progressData.losses.length > 0) { cls = 'tp-badge tp-badge-done'; txt = 'Completed'; }
-    h.appendChild(this._el('span', cls, txt));
+    if (this.state.statusLoaded && ts && ts.active) { cls = 'tp-badge tp-badge-active'; txt = ts.phase === 'stopping' ? 'Stopping training…' : 'Training'; }
+    else if (this.state.statusLoaded && ts && !ts.active && this.progressData.losses.length > 0) { cls = 'tp-badge tp-badge-done'; txt = 'Completed'; }
+    const badge=this._el('span',cls,txt);badge.setAttribute('role','status');h.appendChild(badge);
     return h;
   }
 
@@ -259,7 +261,7 @@ export default class TrainingPanel {
     const datasets = this._el('fieldset', 'tp-ds-container'); datasets.appendChild(this._el('legend', 'tp-label', 'Datasets'));
     for (const rec of this.state.recordings) {
       const label = this._el('label','tp-ds-item'), cb = document.createElement('input');
-      cb.type='checkbox'; cb.dataset.ruviewFocus='dataset-' + rec.id; cb.checked=this.config.selectedRecordings.includes(rec.id); cb.disabled=!this.state.recordingsLoaded;
+      cb.type='checkbox'; cb.id=this.fieldPrefix+'-dataset-'+datasets.children.length; label.htmlFor=cb.id; cb.dataset.ruviewFocus='dataset-' + rec.id; cb.checked=this.config.selectedRecordings.includes(rec.id); cb.disabled=!this.state.recordingsLoaded;
       cb.addEventListener('change',()=>{this.config.selectedRecordings=cb.checked?[...new Set([...this.config.selectedRecordings,rec.id])]:this.config.selectedRecordings.filter(id=>id!==rec.id);});
       label.append(cb,this._el('span',null,rec.name||rec.id));datasets.appendChild(label);
     }

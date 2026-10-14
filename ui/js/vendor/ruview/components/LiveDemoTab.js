@@ -1,3 +1,4 @@
+import {readError} from '../control-contracts.js';
 // Live Demo Tab Component - Enhanced Version
 
 import { PoseDetectionCanvas } from './PoseDetectionCanvas.js';
@@ -226,15 +227,15 @@ export class LiveDemoTab {
                 </div>
                 <div class="setting-row-ld" id="lora-profile-row" style="display: none;">
                   <label class="ld-label">LoRA Profile:</label>
-                  <select class="ld-select" id="lora-profile-selector">
+                  <select class="ld-select" id="lora-profile-selector" data-ruview-action="lora_activate">
                     <option value="">None</option>
                   </select>
                 </div>
                 <div class="model-actions">
-                  <button class="btn-ld btn-ld-accent" id="load-model-btn">Load Model</button>
-                  <button class="btn-ld btn-ld-muted" id="unload-model-btn" disabled>Unload</button>
+                  <button class="btn-ld btn-ld-accent" id="load-model-btn" data-ruview-action="model_load">Load Model</button>
+                  <button class="btn-ld btn-ld-muted" id="unload-model-btn" data-ruview-action="model_unload" disabled>Unload</button>
                 </div>
-                <div class="model-status-text" id="model-status-text">No model loaded</div>
+                <div class="model-status-text" id="model-status-text" role="status">Model status unknown</div><button id="retry-models-btn" class="btn-ld btn-ld-muted">Refresh models</button>
               </div>
 
               <div class="split-view-panel">
@@ -1514,21 +1515,17 @@ export class LiveDemoTab {
   // --- Model Control Methods ---
 
   async fetchModels() {
-    if (!modelService) return;
+    if (!modelService || this.modelsPending) return;
+    this.modelsPending=true;this.setModelStatus('Loading models…');
+    const retry=this.container.querySelector('#retry-models-btn');if(retry)retry.disabled=true;
     try {
-      const data = await modelService.listModels();
-      this.modelState.models = data?.models || [];
-      this.populateModelSelector();
-      // Check if a model is already active
-      const active = await modelService.getActiveModel();
-      if (active && active.model_id) {
-        this.modelState.activeModelId = active.model_id;
-        this.modelState.activeModelInfo = active;
-        this.updateModelUI();
-      }
-    } catch (error) {
-      this.logger.warn('Could not fetch models', { error: error.message });
-    }
+      const data=await modelService.listModels();
+      this.modelState.models=data.models;this.populateModelSelector();
+      const active=await modelService.getActiveModel();
+      this.modelState.activeModelId=active?.model_id||null;this.modelState.activeModelInfo=active;
+      this.updateModelUI();
+    } catch(error) { this.setModelStatus(readError(error)+' Model status unknown; previous data may be stale.'); }
+    finally {this.modelsPending=false;if(retry)retry.disabled=false;}
   }
 
   populateModelSelector() {
@@ -1853,6 +1850,7 @@ export class LiveDemoTab {
     if (loraSel) loraSel.addEventListener('change', (e) => this.handleLoraProfileChange(e.target.value));
     if (splitToggle) splitToggle.addEventListener('click', () => this.toggleSplitView());
     if (openTrainingBtn) openTrainingBtn.addEventListener('click', () => this.showTrainingPanel());
+    this.container.querySelector('#retry-models-btn')?.addEventListener('click',()=>this.fetchModels());
     if (quickRecordBtn) quickRecordBtn.addEventListener('click', () => this.handleQuickRecord());
     this.container.querySelector('#stop-record-btn')?.addEventListener('click', () => this.handleQuickRecord(true));
     this.updateRecordingControls();

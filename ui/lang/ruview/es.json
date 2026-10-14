@@ -23,7 +23,7 @@
   "ruview.receiver_manual_help": "Busca el equipo con RuView en la lista de dispositivos de red del router. Para Docker, usa la IP LAN del equipo que ejecuta Docker. Para una instancia externa, usa su equipo, no el PC conectado a la placa por USB.",
   "ruview.receiver_lookup_failed": "No se pudieron cargar los ajustes del receptor. Puedes introducir la dirección manualmente.",
   "ruview.receiver_udp_disabled": "La recepción UDP sigue desactivada. Actívala en los ajustes de RuView y permite las direcciones de las placas antes de comprobar los datos del sensor.",
-  "ruview.readonly_notice": "Solo lectura está activo: se bloquean la instalación, el inicio, el inicio de grabaciones y la configuración de placas.",
+  "ruview.readonly_notice": "Solo lectura bloquea inicios, cambios y eliminaciones. Los administradores pueden detener el servicio, la grabación y el entrenamiento.",
   "ruview.receiver_purpose": "En el modo Docker administrado, AuraGo conecta automáticamente con el servicio RuView. Solo las placas ESP32 necesitan la IP: envían a la dirección LAN del equipo RuView, no a una IP del contenedor.",
   "ruview.use_receiver": "Usar dirección LAN {ip}",
   "ruview.receiver_suggestion_help": "Sugerencia de tus ajustes o de la URL del navegador. Comprueba que la placa llegue a este equipo por Wi-Fi. Un proxy o túnel puede requerir otra dirección LAN.",
@@ -128,7 +128,7 @@
   "ruview.source_help_esp32": "Mediciones CSI reales con placas ESP32-S3 o ESP32-C6 opcionales. Configúralas por USB a continuación.",
   "ruview.source_help_wifi": "Detección de movimiento mediante el adaptador Wi-Fi del equipo de RuView. Requiere Windows o macOS y una instancia nativa o externa.",
   "ruview.source_help_simulated": "Pruébalo sin hardware. Todos los datos generados se identifican expresamente como datos de demostración.",
-  "ruview.readonly_help": "Impide cambios. Desactiva Solo lectura para iniciar el entorno o configurar una placa.",
+  "ruview.readonly_help": "Solo lectura bloquea inicios, cambios y eliminaciones. Los administradores pueden detener el servicio, la grabación y el entrenamiento.",
   "ruview.agent_help": "El agente solo puede leer el estado y las mediciones. No puede configurar placas ni iniciar grabaciones.",
   "ruview.token_help": "Opcional para instancias externas protegidas. Se cifra en la bóveda al guardar.",
   "ruview.managed_help": "Guarda los ajustes y abre RuView para instalar o iniciar el entorno.",
@@ -138,5 +138,10 @@
   "ruview.udp_allow_help": "Separa las direcciones con comas. También puedes permitir una red completa, p. ej., 192.168.1.0/24.",
   "ruview.enable_first": "Activa RuView y guarda los ajustes antes de continuar.",
   "ruview.write_first": "Desactiva Solo lectura arriba y guarda para configurar una placa.",
-  "ruview.wifi_mode": "El Wi-Fi del equipo requiere una instancia nativa o externa. Elige ese modo u otra fuente de datos."
+  "ruview.wifi_mode": "El Wi-Fi del equipo requiere una instancia nativa o externa. Elige ese modo u otra fuente de datos.",
+  "ruview.last_measurement": "Última medición",
+  "ruview.devices_stale": "Error al actualizar. Los últimos datos están desactualizados.",
+  "ruview.process_exited": "El servicio terminó. Puedes iniciarlo de nuevo.",
+  "ruview.stop_failed": "No se pudo confirmar la detención. Comprueba el servicio.",
+  "ruview.stopping": "Deteniendo…"
 }
