@@ -3556,6 +3556,7 @@ function configSectionContext(configData, modules, { regions = [], globals = {} 
     window: {},
     content,
     configData: JSON.parse(JSON.stringify(configData)),
+    providersCache: [],
     isDirty: false,
     t: key => key,
     document: { getElementById: id => (id === 'content' ? content : (elements.get(id) || null)), dispatchEvent() {} },
@@ -3570,6 +3571,8 @@ function configSectionContext(configData, modules, { regions = [], globals = {} 
   vm.createContext(context);
   vm.runInContext(read('ui/js/config/state.js'), context);
   vm.runInContext(sourceBetween(read('ui/js/config/utils.js'), 'function escapeAttr(', 'function formatKey('), context);
+  // Provider dropdown helpers that section modules (A2A) call while rendering.
+  vm.runInContext(sourceBetween(read('ui/js/config/main.js'), 'function configProviderIsDecisionsOnly(', '/** Fixed and loaded options'), context);
   modules.forEach(module => vm.runInContext(read(module), context));
   const state = context.window.AuraConfigState;
   state.init(context.configData);
