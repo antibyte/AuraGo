@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -8,6 +9,115 @@ import (
 	"strings"
 	"testing"
 )
+
+func TestFileApplyPatchIsolationAndFailures(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Fatal("git is required for patch isolation tests")
+	}
+	for _, inRepo := range []bool{false, true} {
+		placement := "plain-temp"
+		if inRepo {
+			placement = "temp-inside-repository"
+		}
+		t.Run(placement, func(t *testing.T) {
+			for _, tc := range []struct {
+				name, hunk, want string
+				redirect         bool
+			}{
+				{name: "apply", hunk: "-old\n+new\n", want: "new\n"},
+				{name: "inherited-git-redirects", hunk: "-old\n+new\n", want: "new\n", redirect: true},
+				{name: "invalid-hunk", hunk: "-missing\n+new\n", want: "old\n"},
+				{name: "unchanged", hunk: "-old\n+old\n", want: "old\n"},
+				{name: "foreign-file", want: "old\n"},
+				{name: "traversal", want: "old\n"},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					repo := t.TempDir()
+					git := func(args ...string) {
+						t.Helper()
+						cmd := exec.Command("git", args...)
+						cmd.Dir, cmd.Env = repo, patchGitEnvironment(repo)
+						if out, err := cmd.CombinedOutput(); err != nil {
+							t.Fatalf("fixture git: %s: %v", out, err)
+						}
+					}
+					git("init", "--quiet")
+					selected := filepath.Join(repo, "file.txt")
+					other := filepath.Join(repo, "other.txt")
+					for path, content := range map[string]string{selected: "old\n", other: "untouched\n"} {
+						if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+							t.Fatal(err)
+						}
+					}
+					git("-c", "core.autocrlf=false", "add", "--", "file.txt", "other.txt")
+					indexPath := filepath.Join(repo, ".git", "index")
+					index, err := os.ReadFile(indexPath)
+					if err != nil {
+						t.Fatal(err)
+					}
+					tempBase := t.TempDir()
+					if inRepo {
+						tempBase = filepath.Join(repo, "scratch")
+						if err := os.Mkdir(tempBase, 0o700); err != nil {
+							t.Fatal(err)
+						}
+					}
+					for _, key := range []string{"TMPDIR", "TEMP", "TMP"} {
+						t.Setenv(key, tempBase)
+					}
+					redirectIndex := filepath.Join(repo, "redirect-index")
+					if err := os.WriteFile(redirectIndex, index, 0o600); err != nil {
+						t.Fatal(err)
+					}
+					if tc.redirect {
+						for key, value := range map[string]string{
+							"GIT_DIR": filepath.Join(repo, ".git"), "GIT_WORK_TREE": repo,
+							"GIT_INDEX_FILE": redirectIndex, "GIT_COMMON_DIR": filepath.Join(repo, ".git"),
+							"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "apply.ignoreWhitespace", "GIT_CONFIG_VALUE_0": "all",
+							"GIT_CONFIG_PARAMETERS": "'apply.ignoreWhitespace=all'", "GIT_PREFIX": "scratch/",
+						} {
+							t.Setenv(key, value)
+						}
+					}
+					patch := "diff --git a/file.txt b/file.txt\n--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n" + tc.hunk
+					if tc.name == "foreign-file" {
+						patch = "--- a/other.txt\n+++ b/other.txt\n@@ -1 +1 @@\n-untouched\n+changed\n"
+					}
+					if tc.name == "traversal" {
+						patch = "--- a/../other.txt\n+++ b/../other.txt\n@@ -1 +1 @@\n-untouched\n+changed\n"
+					}
+					encode := func(result FileEditorResult) string { data, _ := json.Marshal(result); return string(data) }
+					var result FileEditorResult
+					if err := json.Unmarshal([]byte(fileApplyPatch(selected, patch, repo, encode)), &result); err != nil {
+						t.Fatal(err)
+					}
+					wantStatus := "error"
+					if tc.want == "new\n" {
+						wantStatus = "success"
+					}
+					if result.Status != wantStatus {
+						t.Fatalf("patch result = %+v, want %s", result, wantStatus)
+					}
+					if tc.name == "unchanged" && !strings.Contains(result.Message, "did not change") {
+						t.Fatalf("wrong no-op failure: %+v", result)
+					}
+					for path, want := range map[string][]byte{selected: []byte(tc.want), other: []byte("untouched\n"), indexPath: index, redirectIndex: index} {
+						got, err := os.ReadFile(path)
+						if err != nil || !bytes.Equal(got, want) {
+							t.Fatalf("unexpected content at %s: %v", path, err)
+						}
+					}
+					if tc.redirect && os.Getenv("GIT_INDEX_FILE") != redirectIndex {
+						t.Fatal("child environment changed the parent")
+					}
+					if entries, err := os.ReadDir(tempBase); err != nil || len(entries) != 0 {
+						t.Fatalf("patch staging not cleaned: %v, %v", entries, err)
+					}
+				})
+			}
+		})
+	}
+}
 
 func TestTextDiffFilesReportsWorkspacePaths(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {

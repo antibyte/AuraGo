@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -297,22 +298,35 @@ func fileApplyPatch(resolved, patchContent, workspaceDir string, encode func(Fil
 		return encode(FileEditorResult{Status: "error", Message: fmt.Errorf("failed to create temp patch file: %v", err).Error()})
 	}
 	defer os.Remove(tmpPatch.Name())
-	tmpPatch.WriteString(patchContent)
-	tmpPatch.Close()
+	if _, err := tmpPatch.WriteString(patchContent); err != nil {
+		_ = tmpPatch.Close()
+		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("cannot write staged patch: %v", err)})
+	}
+	if err := tmpPatch.Close(); err != nil {
+		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("cannot close staged patch: %v", err)})
+	}
 
-	// Try `git apply`
-	cmd := exec.Command("git", "-c", "core.autocrlf=false", "apply", "--whitespace=nowarn", tmpPatch.Name())
+	// Git must not discover a repository above the staging directory or inherit
+	// an index, worktree or configuration redirect from the parent process.
+	cmd := exec.Command("git", "-c", "core.autocrlf=false", "apply", "--no-index", "--whitespace=nowarn", tmpPatch.Name())
 	cmd.Dir = stagingDir
+	cmd.Env = patchGitEnvironment(stagingDir)
 	out, err := cmd.CombinedOutput()
 
 	if err != nil {
 		// Fallback to `patch`
-		cmd2 := exec.Command("patch", "-p1", "-i", tmpPatch.Name())
+		if err := os.WriteFile(stagedFile, original, 0o600); err != nil {
+			return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("cannot reset staged file: %v", err)})
+		}
+		cmd2 := exec.Command("patch", "--batch", "--forward", "-p1", "-i", tmpPatch.Name())
 		cmd2.Dir = stagingDir
 		out2, err2 := cmd2.CombinedOutput()
 		if err2 != nil {
 			// One more fallback, try without -p1
-			cmd3 := exec.Command("patch", "-i", tmpPatch.Name())
+			if err := os.WriteFile(stagedFile, original, 0o600); err != nil {
+				return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("cannot reset staged file: %v", err)})
+			}
+			cmd3 := exec.Command("patch", "--batch", "--forward", "-i", tmpPatch.Name())
 			cmd3.Dir = stagingDir
 			out3, err3 := cmd3.CombinedOutput()
 			if err3 != nil {
@@ -325,8 +339,26 @@ func fileApplyPatch(resolved, patchContent, workspaceDir string, encode func(Fil
 	if err != nil {
 		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("patched file missing: %v", err)})
 	}
+	if bytes.Equal(original, updated) {
+		return encode(FileEditorResult{Status: "error", Message: "patch did not change the selected file"})
+	}
 	if err := rootedToolWriteFileAtomic(resolved, updated); err != nil {
 		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("cannot save patched file: %v", err)})
 	}
 	return encode(FileEditorResult{Status: "success", Message: "Patch applied successfully"})
+}
+
+func patchGitEnvironment(stagingDir string) []string {
+	env := make([]string, 0, len(os.Environ())+3)
+	for _, value := range os.Environ() {
+		key, _, _ := strings.Cut(value, "=")
+		if !strings.HasPrefix(strings.ToUpper(key), "GIT_") {
+			env = append(env, value)
+		}
+	}
+	return append(env,
+		"GIT_CEILING_DIRECTORIES="+filepath.Dir(stagingDir),
+		"GIT_CONFIG_NOSYSTEM=1",
+		"GIT_CONFIG_GLOBAL="+devNullPath,
+	)
 }
