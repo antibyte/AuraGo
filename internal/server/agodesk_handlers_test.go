@@ -563,6 +563,12 @@ func TestAgodeskAttachmentTurnPersistsVisibleTextButKeepsLLMContext(t *testing.T
 	s := newTestDesktopChatServer(t)
 	s.Cfg.LLM.ProviderType = "openrouter"
 	s.Cfg.LLM.Multimodal = true
+	auto := false
+	s.Cfg.LLM.Provider = "test-vision"
+	s.Cfg.Providers = []config.ProviderEntry{{
+		ID: "test-vision", Type: "openrouter", Model: s.Cfg.LLM.Model,
+		Capabilities: config.ProviderCapabilities{Auto: &auto, Multimodal: true},
+	}}
 	sess, err := s.ShortTermMem.CreateChatSession()
 	if err != nil {
 		t.Fatalf("CreateChatSession: %v", err)
