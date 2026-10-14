@@ -139,7 +139,7 @@ Es gibt **keinen Deployments-Tab**. Deployment-Historie ist nur über die REST A
 | Notes | Optional |
 | Access Type | `SSH`, `Docker API` oder `Local` |
 | Host / Port / Username | Für SSH und Docker; bei Local ausgeblendet, außer mit der Deploy-Methode `Docker (über SSH)` |
-| Secret | SSH-Key oder Passwort; wird im Vault gespeichert. `Docker (Entfernt)` und `Docker (Lokal)` nutzen es nicht; dort ist das Feld ausgeblendet, außer ein Secret ist gespeichert, **Secret dieses Nests in den Egg-Vault kopieren** ist an oder Du hast etwas eingegeben |
+| Secret | SSH-Key oder Passwort; wird im Vault gespeichert. `Docker (Entfernt)` und `Docker (Lokal)` nutzen es nicht; dort ist das Feld ausgeblendet, außer ein Secret ist gespeichert, **Secret dieses Nests in den Egg-Vault kopieren** ist an oder du hast etwas eingegeben |
 | Secret dieses Nests in den Egg-Vault kopieren | Bei neuen Nests aus. Mit einem Egg mit `include_vault` kopiert es das Secret dieses Nests (`nest_<id>`) in den Vault des Eggs, wo das Egg es lesen kann. Nests von vor dieser Option behalten es eingeschaltet |
 | Assign Egg | Egg auswählen oder leer lassen |
 | Deploy Method | `SSH`, `Docker (Entfernt)`, `Docker (über SSH)` oder `Docker (Lokal)` |
@@ -206,7 +206,7 @@ REST-Felder: `docker_tls` (`""`, `"tls"`, `"mtls"`), `docker_tls_ca`, `docker_tl
 
 Ein leeres CA-Feld behält eine gespeicherte CA. Um bei TLS wieder die Systemzertifikate zu nutzen, speichere zweimal: zuerst mit **Docker-TLS** auf `Aus`, was das gespeicherte Material löscht, dann mit `TLS` und leerem CA-Feld.
 
-Bevor Du auf ein Release ohne Docker-TLS zurückgehst, schalte TLS bei den Nests ab oder lösche sie. Ein älteres Release ignoriert `docker_tls` und spricht den TLS-Port mit unverschlüsseltem HTTP an, diese Nests funktionieren dann nicht mehr.
+Bevor du auf ein Release ohne Docker-TLS zurückgehst, schalte TLS bei den Nests ab oder lösche sie. Ein älteres Release ignoriert `docker_tls` und spricht den TLS-Port mit unverschlüsseltem HTTP an, diese Nests funktionieren dann nicht mehr.
 
 **Docker über SSH.** Die Deploy-Methode `Docker (über SSH)` (`docker_ssh`) startet denselben Egg-Container wie `Docker (Entfernt)`. Sie erreicht den Engine-Socket `/var/run/docker.sock` über eine SSH-Verbindung mit Host, Port (Standard `22`), Benutzername und Secret des Nests. Jede Anfrage, auch die Kopie der Konfiguration, ist verschlüsselt, und Host-Keys werden wie bei SSH-Deploys gegen `known_hosts` geprüft.
 
@@ -214,7 +214,7 @@ Voraussetzungen auf dem Ziel:
 - der SSH-Benutzer darf den Docker-Socket nutzen, zum Beispiel als Mitglied der Gruppe `docker`. Die Mitgliedschaft in `docker` kommt Root-Rechten auf diesem Host gleich.
 - `sshd` erlaubt Stream-Local-Forwarding (`AllowStreamLocalForwarding`, Standard `yes`). Auch `DisableForwarding yes` in der `sshd_config` verhindert es, ebenso `restrict` oder `no-port-forwarding` in der Zeile des Schlüssels in `authorized_keys`.
 - der Engine-Socket ist `/var/run/docker.sock`. Der Pfad ist fest, deshalb wird Rootless Docker (Socket unter `$XDG_RUNTIME_DIR`) nicht unterstützt.
-- der Host-Key steht in `~/.ssh/known_hosts` des Benutzers, unter dem der AuraGo-Dienst läuft, nicht in dem Deines eigenen Logins. Für einen anderen Port als `22` lautet der Eintrag `[host]:port`, zum Beispiel mit `ssh-keyscan -p 2222 host >> ~/.ssh/known_hosts`.
+- der Host-Key steht in `~/.ssh/known_hosts` des Benutzers, unter dem der AuraGo-Dienst läuft, nicht in dem deines eigenen Logins. Für einen anderen Port als `22` lautet der Eintrag `[host]:port`, zum Beispiel mit `ssh-keyscan -p 2222 host >> ~/.ssh/known_hosts`.
 
 Wähle für solche Nests den Zugriffstyp `SSH`. `Docker (über SSH)` ignoriert `HTTP_PROXY`, `HTTPS_PROXY` und `NO_PROXY`: Die SSH-Verbindung geht direkt zum Host.
 
@@ -614,5 +614,5 @@ Dateien über verschlüsselte Standardeingabe und veröffentlichen sie atomar.
 
 ---
 
-**Vorheriges Kapitel:** [Kapitel 11: Mission Control](./11-missions.md)  
+**Vorheriges Kapitel:** [Kapitel 11: Mission Control](./11-missions.md)
 **Nächstes Kapitel:** [Kapitel 13: Dashboard](./13-dashboard.md)

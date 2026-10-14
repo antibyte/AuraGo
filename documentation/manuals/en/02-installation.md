@@ -297,14 +297,14 @@ You should see the login screen or chat (depending on auth configuration).
 
 ## Updating
 
-### Installer script (Option A):
+### Installer script (Option A)
 Run the updater from the install directory. The installer put `update.sh` there; the binary is `bin/aurago_linux`:
 ```bash
 cd ~/aurago
 ./update.sh
 ```
 
-### Manual installation (Option C):
+### Manual installation (Option C)
 Replace the executable (on arm64 download `aurago_linux_arm64`):
 ```bash
 cd ~/aurago
@@ -313,7 +313,7 @@ chmod +x aurago
 sudo systemctl restart aurago
 ```
 
-### Docker:
+### Docker
 ```bash
 docker compose pull
 docker compose up -d
@@ -375,3 +375,8 @@ Remove-Item -Recurse -Force C:\Users\$env:USERNAME\aurago
 - **[Configuration](07-configuration.md)** – Fine-tuning
 
 The full web interface is installed as a matching local resource set; the binary retains a small recovery/login page. See [resources and offline installation](../../web-assets.md).
+
+---
+
+**Previous Chapter:** [Chapter 1: Introduction](./01-introduction.md)
+**Next Chapter:** [Chapter 3: Quick start](./03-quickstart.md)

@@ -348,6 +348,44 @@ Dashboard history: `GET /api/dashboard/mission-history`
 
 ---
 
+## Best Practices for Automation
+
+### 1. Ensure Idempotency
+
+Missions should be safe to run multiple times without causing problems:
+
+```bash
+# ❌ Bad: append without check
+echo "backup done" >> backup.log
+
+# ✅ Good: idempotent with check
+if ! grep -q "$(date +%Y-%m-%d)" backup.log; then
+    echo "$(date +%Y-%m-%d): backup done" >> backup.log
+fi
+```
+
+### 2. Retry Strategies
+
+| Scenario | Retries | Reason |
+|----------|---------|--------|
+| Network request | 5 | Transient failures |
+| Database backup | 2 | Lock conflicts |
+| API call | 3 | Rate limiting |
+
+### 3. Spread Schedules
+
+```yaml
+# ❌ Bad: everything at the same time
+- "0 0 * * *"  # All 3 missions at midnight
+
+# ✅ Good: evenly distributed
+- "0 2 * * *"  # Backup at 02:00
+- "0 3 * * *"  # Reports at 03:00
+- "0 4 * * *"  # Cleanup at 04:00
+```
+
+---
+
 ## Examples
 
 ### Daily System Check
@@ -401,5 +439,15 @@ Dashboard history: `GET /api/dashboard/mission-history`
 
 ---
 
-**Previous:** [Chapter 10: Personality](10-personality.md)  
-**Next:** [Chapter 12: Invasion Control](12-invasion.md)
+**Previous Chapter:** [Chapter 10: Personality](./10-personality.md)
+## Synchronized Notes on Mission Control V2
+
+The current Mission Control implementation supports, in addition to simple cron jobs, queue and execution views, dependencies, remote targets, and prepared missions. The main REST areas are `/api/missions/v2`, `/api/missions/v2/queue`, `/api/missions/v2/execution`, `/api/missions/v2/dependencies`, `/api/missions/v2/history`, and `/api/missions/v2/remote-targets`.
+
+Mission Preparation can automatically create a plan before execution: required tools, risks, steps, decision points, preload hints, and a confidence score. This preparation is cached and refreshed when the mission changes.
+
+Missions remain primarily a web UI/API feature. There are no dedicated slash commands for Mission Control.
+
+---
+
+**Next Chapter:** [Chapter 12: Invasion Control](./12-invasion.md)

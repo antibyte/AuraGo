@@ -18,7 +18,7 @@ Die Illustrationen sind Anleitungszeichnungen, keine UI-Screenshots. Klicke ein 
 
 ## Die Werkzeugkiste
 
-- **Dein Home Lab, auf Sprechbasis.** Docker, Proxmox, TrueNAS, Home Assistant, MQTT, Fritz!Box, AdGuard, Tailscale, SSH und Wake-on-LAN.
+- **dein Home Lab, auf Sprechbasis.** Docker, Proxmox, TrueNAS, Home Assistant, MQTT, Fritz!Box, AdGuard, Tailscale, SSH und Wake-on-LAN.
 - **Ein Desktop mit Nebenquests.** Chat, Dateien, Terminal, Galerie, Kalender, Radio, Winamp-artiger Player. Dazu Code Studio, Homepage Studio und Game Maker.
 - **Er erinnert sich.** Verlauf, Kernfakten, lokale Embeddings, Dokument-RAG, Knowledge Graph, Notizen, Journal. Persönlichkeit ändert den Ton, nicht die Rechte.
 - **Autopilot.** Missionen, Cron, Webhooks, Co-Agenten. **Invasion Control** schlüpft Worker-„Eggs“ auf Remote-„Nests“. Ja, so heißen die wirklich.
@@ -116,10 +116,10 @@ Daten liegen bei deiner Installation. **Gehostete Modelle sehen trotzdem ihre Re
 19. [Skills](19-skills.md) — Python-Skills und Agent Skills
 
 ### Teil 5 — Nachschlagen
-20. [Chat-Commands](20-chat-commands.md)
-21. [API-Referenz](21-api-reference.md)
-22. [Interne Tools](22-interne-tools.md)
-23. [Interna](23-interna.md)
+20. [Chat-Commands](20-chat-commands.md) — Slash-Befehle direkt im Chat
+21. [API-Referenz](21-api-reference.md) — REST-Endpunkte, SSE, Auth
+22. [Interne Tools](22-interne-tools.md) — Der vollständige Werkzeugkatalog
+23. [Interna](23-interna.md) — Module, Datenflüsse, Architektur
 
 ### Teil 6 — Studio-Apps
 24. [EasyDrag](24-easydrag.md) — Automationen per Drag & Drop (erweitert Mission Control aus Kapitel 11)

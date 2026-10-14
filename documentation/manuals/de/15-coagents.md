@@ -594,3 +594,8 @@ circuit_breaker:
 > - **[Sicherheit](14-sicherheit.md)** – Co-Agenten sicher konfigurieren
 > - **[Konfiguration](07-konfiguration.md)** – Alle Parameter im Detail
 > - **[Tools](06-tools.md)** – Verfügbare Werkzeuge kennenlernen
+
+---
+
+**Vorheriges Kapitel:** [Kapitel 14: Sicherheit](./14-sicherheit.md)
+**Nächstes Kapitel:** [Kapitel 16: Troubleshooting](./16-troubleshooting.md)

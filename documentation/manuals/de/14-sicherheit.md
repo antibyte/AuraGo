@@ -42,11 +42,11 @@ Der Vault ist das Herzstück der AuraGo-Sicherheitsarchitektur. Hier werden alle
 ### Agent-Zugriff auf den Vault
 
 > 🔒 **Wichtiger Sicherheitshinweis:**
-> 
+>
 > Der Agent hat **niemals** direkten Zugriff auf die im Vault gespeicherten Geheimnisse bei internen Integrationen und Tools. Er kann diese weder lesen noch abrufen.
-> 
+>
 > **Ausnahme:** Geheimnisse, die der Agent **selbst angelegt** hat (z.B. über den Chat oder die API), kann er jederzeit abrufen und verwalten.
-> 
+>
 > Die Anwendung (nicht der Agent) lädt Vault-Secrets zur Laufzeit und injiziert sie sicher in die entsprechenden Tools, ohne dass der Agent jemals die Klartext-Werte sieht.
 
 ### Vault initialisieren
@@ -681,7 +681,7 @@ curl -X POST http://localhost:8088/api/backup/import \
      --data-binary @vault_backup.aurago
 ```
 
-> 📖 Vollständige API-Referenz: [Kapitel 21: API-Referenz](21-api-reference.md#backup--restore)
+> 📖 Vollständige API-Referenz: [Kapitel 21: API-Referenz](21-api-reference.md#backup-api)
 
 ### Vault-Status prüfen
 
@@ -840,3 +840,8 @@ Bei Verdacht: Keys beim Provider drehen, Webhook-Tokens ungültig machen, Logs l
 > - **[Co-Agenten](15-coagents.md)** – Parallele Agenten sicher nutzen
 > - **[Konfiguration](07-konfiguration.md)** – Feintuning aller Parameter
 > - **[Docker-Deployment](../../docker_installation.md)** – Isolierte Produktivumgebung
+
+---
+
+**Vorheriges Kapitel:** [Kapitel 13: Dashboard](./13-dashboard.md)
+**Nächstes Kapitel:** [Kapitel 15: Co-Agenten](./15-coagents.md)

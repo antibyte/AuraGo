@@ -223,3 +223,7 @@ Archiv werden ignoriert und neu erzeugt. CYD Creator lehnt ein Archiv ab, wenn
 | Gerät taucht nie unter **Geräte** auf | Prüfen, ob das Board die AuraGo-Adresse aus seinem WLAN erreicht; der serielle Monitor zeigt die Versuche. |
 | „AuraGo-Zertifikat geändert – bitte per USB neu flashen“ | Das Board einmal per USB neu flashen. |
 | „Dieses Projekt muss nach einer unterbrochenen Veröffentlichung geprüft werden …“ | Ein Admin löst das nach der [Betriebsreferenz](../../cyd-creator.md#troubleshooting) auf. |
+
+---
+
+**Vorheriges Kapitel:** [Kapitel 24: EasyDrag](./24-easydrag.md)

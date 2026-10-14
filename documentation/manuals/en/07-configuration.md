@@ -98,6 +98,47 @@ For advanced use cases or headless setups, you can edit `config.yaml` directly:
 
 ---
 
+## The config.yaml Structure
+
+```yaml
+# Top-level sections
+providers:        # LLM providers (multiple allowed)
+llm:              # Main LLM configuration
+embeddings:       # Embedding model for RAG
+agent:            # Agent behavior
+server:           # Web server settings
+tools:            # Tool permissions
+rules:            # Task-related agent guardrails
+
+# Integrations (selection)
+telegram:         # Telegram bot
+discord:          # Discord bot
+email:            # Email (IMAP/SMTP)
+home_assistant:   # Home Assistant
+docker:           # Docker API
+webhooks:         # Incoming webhooks
+mcp:              # Model Context Protocol
+
+# Further features
+budget:           # Cost control
+fallback_llm:     # Backup LLM
+co_agents:        # Parallel sub-agents
+maintenance:      # Nightly maintenance
+invasion_control: # Remote deployment
+indexing:         # File indexing
+sandbox:          # Isolated execution
+notifications:    # Push notifications
+personality:      # Personality & mood
+a2a:              # Agent-to-Agent protocol
+music_generation: # AI music generation
+security_proxy:   # Reverse proxy & protection
+egg_mode:         # Cluster worker mode
+firewall:         # Firewall integration
+journal:          # Auto-journal entries
+```
+
+---
+
 ## Task Rules
 
 Task rules are Markdown guardrails that AuraGo loads before matching workflows or tools. They live under `prompts/rules/<id>/rule.md`, can be edited in **Config → Rules**, and are matched by tool name, workflow tag, or keyword. Built-in rules are embedded in the binary, disk files override them, and the UI can restore the embedded version.
@@ -498,6 +539,29 @@ media_registry:
 
 ---
 
+## Background Tasks
+
+Background processing for follow-ups, cron jobs, and wait events. In the **Web UI** under *Config → Agent → Optimizations* (group **Background Processing**), you can adjust timeout and retry values.
+
+```yaml
+agent:
+  background_tasks:
+    enabled: true
+    follow_up_delay_seconds: 2
+    http_timeout_seconds: 120
+    max_retries: 2
+    retry_delay_seconds: 60
+    wait_poll_interval_seconds: 5
+    wait_default_timeout_secs: 600
+```
+
+**Use cases:**
+- **Follow-ups**: "Remind me tomorrow to..."
+- **Cron jobs**: Schedule recurring tasks
+- **Wait events**: Wait for external events
+
+---
+
 ## Embeddings Configuration
 
 Embeddings power AuraGo's long-term memory and semantic search.
@@ -734,6 +798,27 @@ services:
 ```
 
 > 💡 **Tip:** Put the vault master key in `./secrets/aurago_master.key` or use your Docker secret manager. If no key is mounted, AuraGo generates one into the persistent data volume on first start.
+
+---
+
+## Configuration Validation
+
+AuraGo validates the configuration on startup:
+
+```
+[INFO] Loading config from ./config.yaml
+[INFO] Configuration validated successfully
+[ERROR] Invalid config: providers section requires at least one provider
+```
+
+### Common Validation Errors
+
+| Error | Solution |
+|-------|----------|
+| `providers section requires at least one provider` | Configure a provider with an API key in the `providers` list |
+| `invalid yaml` | Check YAML syntax (indentation!) |
+| `invalid port number` | Choose a port between 1–65535 |
+| `directory not found` | Correct the directory path |
 
 ---
 
@@ -1188,6 +1273,70 @@ The blocks below are available for advanced and headless setups. Most can be con
 
 ---
 
+## Advanced Config Blocks
+
+Remaining media and background blocks. The current overview is in the [Compact YAML Reference](#compact-yaml-reference).
+
+### Media and Generation Features
+
+Configurable in the Web UI under **Config → Integrations → Image Generation / Music Generation / Video Generation**. See the note above for `media_registry`.
+
+### YAML Reference
+```yaml
+image_generation:
+  enabled: true
+  provider: "openai"
+
+music_generation:
+  enabled: true
+  provider: "minimax"
+  max_daily: 10
+
+video_generation:
+  enabled: true
+  provider: "minimax"
+  model: "hailuo-02"
+  duration_seconds: 6
+  resolution: "720p"
+  aspect_ratio: "16:9"
+  max_daily: 5
+
+media_registry:
+  enabled: true
+```
+
+### Background Services
+
+| Block | Purpose |
+|-------|---------|
+| `indexing` | Watch files, chunk, and update the RAG index |
+| `mission_preparation` | Pre-analyze missions with the LLM and cache results |
+| `maintenance` | Nightly maintenance, consolidation, and memory care |
+| `agent.output_compression` | Compress retained tool outputs before the LLM context |
+| `co_agents` | Configure specialist agents with budgets and circuit breakers |
+
+### External Protocols and Bridges
+
+| Block | Purpose |
+|-------|---------|
+| `mcp` | Use external MCP servers as a client |
+| `mcp_server` | Expose AuraGo itself as an MCP server |
+| `a2a` | Agent-to-agent communication and remote agents |
+| `python_tool_bridge` | Expose selected native tools to Python skills |
+
+### Security and Public Exposure
+
+| Block | Purpose |
+|-------|---------|
+| `auth` | Login, sessions, TOTP, and lockout rules |
+| `vault` | AES-GCM secret storage |
+| `llm_guardian` | LLM-based risk analysis for tool calls and external content |
+| `security_proxy` | Managed Caddy proxy with rate limiting / IP filtering |
+| `cloudflare_tunnel` | Cloudflare Tunnel for remote access |
+| `tailscale.tsnet` | Embedded Tailscale node with optional funnel |
+
+---
+
 ## Next Steps
 
 Now that you understand AuraGo configuration:
@@ -1197,3 +1346,8 @@ Now that you understand AuraGo configuration:
 3. **[Troubleshooting](16-troubleshooting.md)** – Fix common configuration issues
 
 > 💡 **Pro Tip:** Keep a backup of your working `config.yaml` before making major changes. Configuration errors can prevent AuraGo from starting.
+
+---
+
+**Previous Chapter:** [Chapter 6: Tools](./06-tools.md)
+**Next Chapter:** [Chapter 8: Integrations](./08-integrations.md)

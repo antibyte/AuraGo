@@ -211,3 +211,7 @@ refuses an archive when
 | A device never shows up under **Devices** | Check that the board reaches the AuraGo address from its Wi-Fi; the serial monitor shows the attempts. |
 | "AuraGo certificate changed – please reflash via USB" | Flash the board once more over USB. |
 | "This project needs a review after an interrupted publication …" | An administrator resolves it as the [operator reference](../../cyd-creator.md#troubleshooting) describes. |
+
+---
+
+**Previous Chapter:** [Chapter 24: EasyDrag](./24-easydrag.md)

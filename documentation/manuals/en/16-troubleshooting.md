@@ -749,3 +749,8 @@ Contact: [Security contact information from project]
 There is no `E001`…`E008` catalog. Read the log line and the HTTP/JSON `error` field. Vault problems almost always mean `AURAGO_MASTER_KEY`. A recovery page without a resource ID means an unpinned binary. Chat cannot read `config.yaml` — that is the workspace jail.
 
 > Logs, toggles, then the resource set. Restart is cheap; a missing master key is not.
+
+---
+
+**Previous Chapter:** [Chapter 15: Co-agents](./15-coagents.md)
+**Next Chapter:** [Chapter 17: Glossary](./17-glossary.md)

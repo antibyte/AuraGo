@@ -9,7 +9,7 @@ Fünf Minuten. Setup durchklicken, etwas Harmloses fragen, nicht die Config-Date
 ## Voraussetzungen
 
 - AuraGo ist [installiert](02-installation.md) und läuft
-- Du hast einen [API-Key](02-installation.md#1-api-key-konfigurieren) konfiguriert
+- Du hast einen [API-Key](02-installation.md#1-api-key-konfigurieren-web-ui--empfohlen) konfiguriert
 - Die Web-UI ist erreichbar unter http://localhost:8088
 
 ## Der Quick Setup Wizard
@@ -52,7 +52,7 @@ Wähle deinen KI-Provider:
 - Punk – Rebellisch, unkonventionell
 ```
 
-> 💡 Du kannst die Persönlichkeit später jederzeit ändern.
+> 💡 du kannst die Persönlichkeit später jederzeit ändern.
 
 ### Schritt 4: Erste Integrationen (optional)
 
@@ -230,4 +230,9 @@ Klicke auf das **Mond/Sonne-Symbol** (🌙/☀️) im Header, um zwischen Dark u
 - [ ] Theme gewechselt (optional)
 - [ ] Alle UI-Bereiche angeklickt
 
-> 🎉 **Herzlichen Glückwunsch!** Du hast AuraGo erfolgreich eingerichtet und die ersten Schritte gemacht.
+> 🎉 **Herzlichen Glückwunsch!** du hast AuraGo erfolgreich eingerichtet und die ersten Schritte gemacht.
+
+---
+
+**Vorheriges Kapitel:** [Kapitel 2: Installation](./02-installation.md)
+**Nächstes Kapitel:** [Kapitel 4: Web-Oberfläche](./04-webui.md)

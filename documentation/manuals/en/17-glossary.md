@@ -456,6 +456,17 @@ A comprehensive reference of technical terms, abbreviations, and concepts used i
 | **Broker** | Event distribution | SSE updates |
 | **Registry** | Tool/process tracking | Background processes |
 
+### File Locations
+
+| Path | Contents |
+|------|----------|
+| `prompts/` | Identity, rules, personalities |
+| `agent_workspace/skills/` | Python skills |
+| `agent_workspace/tools/` | Tools created by the agent |
+| `agent_workspace/workdir/` | Working directory (sandbox) |
+| `data/` | Databases, vault, vector database |
+| `log/` | Application logs |
+
 ---
 
 ## Cross-Reference Index
@@ -528,6 +539,15 @@ SQL  → Structured Query Language
 
 | Term | Meaning |
 |------|---------|
+| **A2A** | Agent-to-Agent protocol for tasks between compatible AI agents |
+| **Agent Card** | Machine-readable description of an A2A agent with name, skills, endpoints and auth requirements |
+| **File KG Sync** | Background service that turns indexed files into knowledge-graph entities and relationships |
+| **Managed Ollama** | AuraGo-managed Ollama Docker container with a persistent model volume and optional GPU detection |
+| **Security Proxy** | Managed Caddy protection layer for publicly reachable AuraGo instances |
+| **VAPID** | Key mechanism for browser web-push notifications |
+| **Video generation** | AI generation of short videos from text or image prompts |
+| **Media Registry** | Database for generated or imported media with search, tags and metadata |
+| **Mission preparation** | LLM-assisted pre-analysis of missions before execution |
 | **Web assets** | Versioned UI set beside the binary; an unpinned build is recovery only |
 | **Workspace jail** | File tools stay in `agent_workspace`; `config.yaml` and `data/` are off limits |
 | **MeshCore** | Companion radio with a trust model and desktop messenger |
@@ -537,3 +557,8 @@ SQL  → Structured Query Language
 | **Operational issues** | Sanitized ops problems; the agent does not notify on its own |
 
 > Bookmark this glossary when a Config label or log line looks like jargon.
+
+---
+
+**Previous Chapter:** [Chapter 16: Troubleshooting](./16-troubleshooting.md)
+**Next Chapter:** [Chapter 18: Appendix](./18-appendix.md)

@@ -19,7 +19,7 @@ JSON, Admin-Auth wo es weh tut, SSE unter `GET /events`. Kein öffentlicher Chat
 5. [Config API](#config-api)
 6. [Config Rules API](#config-rules-api)
 7. [Vault API](#vault-api)
-8. [Geräte API](#geräte-api)
+8. [Geräte API](#geräte-api-device-registry)
 9. [Credentials API](#credentials-api)
 10. [Mission Control API](#mission-control-api)
 11. [Container API](#container-api)
@@ -2771,7 +2771,7 @@ GET  /api/desktop/local-wikipedia/main
 GET  /api/desktop/local-wikipedia/content/{path}   # Original-ZIM-Inhalt mit Range und ETag
 ```
 
-Administrator-Routen brauchen eine Sitzung oder ein Bearer-Token mit dem Scope `admin` (sonst 403 `admin_required`); ein POST von einem fremden Ursprung ohne Bearer-Token antwortet mit 403 `csrf_check_failed`, eine falsche Methode mit 405. Abgelehnte Anfragen antworten mit `{"error","error_code","recommendation"}` ohne Pfade oder Hostnamen: 409 bei `busy`, `disabled`, `free_space_unknown`, `already_installed` und `no_operation`; 422 bei `insufficient_disk_space` (mit `required_bytes`, `free_bytes`, `can_delete_old`) und `data_dir_invalid`; 502 bei `catalog_unreachable`; 400 bei `unknown_language` und `invalid_request`; 503 bei `localwiki_unavailable`; 500 bei `localwiki_error`. `GET /api/local-wikipedia/status` meldet `readable` (eine installierte Ausgabe ist geöffnet und wird bedient; daran, nicht an `state`, erkennst Du, ob Inhalte verfügbar sind) und `loading` (das erste Laden nach dem Start oder ein geändertes Speicherverzeichnis wird noch geladen; die bisherige Ausgabe wird währenddessen weiter bedient; frage ab, bis es false ist). Desktop-Routen melden Fehler als `{"error","code"}`, zum Beispiel `not_ready` (409), `busy` (503 mit `Retry-After`), `timeout` (504), `query_too_long` (400) und `not_found` (404); Fehler der Content-Route sind kleine HTML-Seiten mit einem Meta-Marker `aurago-local-wikipedia-error`. Jede Content-Antwort trägt eine Sandbox-Content-Security-Policy ohne Skripte. Die vollständige Codeliste steht im englischen Leitfaden [Local Wikipedia](../../local-wikipedia.md).
+Administrator-Routen brauchen eine Sitzung oder ein Bearer-Token mit dem Scope `admin` (sonst 403 `admin_required`); ein POST von einem fremden Ursprung ohne Bearer-Token antwortet mit 403 `csrf_check_failed`, eine falsche Methode mit 405. Abgelehnte Anfragen antworten mit `{"error","error_code","recommendation"}` ohne Pfade oder Hostnamen: 409 bei `busy`, `disabled`, `free_space_unknown`, `already_installed` und `no_operation`; 422 bei `insufficient_disk_space` (mit `required_bytes`, `free_bytes`, `can_delete_old`) und `data_dir_invalid`; 502 bei `catalog_unreachable`; 400 bei `unknown_language` und `invalid_request`; 503 bei `localwiki_unavailable`; 500 bei `localwiki_error`. `GET /api/local-wikipedia/status` meldet `readable` (eine installierte Ausgabe ist geöffnet und wird bedient; daran, nicht an `state`, erkennst du, ob Inhalte verfügbar sind) und `loading` (das erste Laden nach dem Start oder ein geändertes Speicherverzeichnis wird noch geladen; die bisherige Ausgabe wird währenddessen weiter bedient; frage ab, bis es false ist). Desktop-Routen melden Fehler als `{"error","code"}`, zum Beispiel `not_ready` (409), `busy` (503 mit `Retry-After`), `timeout` (504), `query_too_long` (400) und `not_found` (404); Fehler der Content-Route sind kleine HTML-Seiten mit einem Meta-Marker `aurago-local-wikipedia-error`. Jede Content-Antwort trägt eine Sandbox-Content-Security-Policy ohne Skripte. Die vollständige Codeliste steht im englischen Leitfaden [Local Wikipedia](../../local-wikipedia.md).
 
 ## SSE Events
 
@@ -2833,4 +2833,9 @@ Die API verwendet standard HTTP-Statuscodes:
 
 ## Desktop-Workspace-API
 
-Im [Desktop-HTTP- und SDK-Vertrag](../../desktop-api.md) findest Du die Regeln für Schreibschutz, Berechtigungen, versionierte Dateizugriffe, Konfliktabfragen, Archivvorschauen und Sitzungskompatibilität.
+Im [Desktop-HTTP- und SDK-Vertrag](../../desktop-api.md) findest du die Regeln für Schreibschutz, Berechtigungen, versionierte Dateizugriffe, Konfliktabfragen, Archivvorschauen und Sitzungskompatibilität.
+
+---
+
+**Vorheriges Kapitel:** [Kapitel 20: Chat-Commands](./20-chat-commands.md)
+**Nächstes Kapitel:** [Kapitel 22: Interne Tools](./22-interne-tools.md)

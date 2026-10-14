@@ -69,3 +69,7 @@ File tools stay inside `agent_workspace`. `../../config.yaml` and `data/` fail o
 3. **[Web UI](04-webui.md)** — chat, desktop, Config
 
 > Tip: start with the web UI. Ask for system information, not for the config file.
+
+---
+
+**Next Chapter:** [Chapter 2: Installation](./02-installation.md)

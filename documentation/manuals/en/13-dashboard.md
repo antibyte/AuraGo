@@ -116,8 +116,8 @@ Profile entries can be updated via `PUT /api/dashboard/profile/entry`.
 
 The **Knowledge Graph** tab is a full KG operations view.
 
-| Section | Function |
-|---------|----------|
+| Section | Function | Endpoints |
+|---------|----------|-----------|
 | **Summary** | Node/edge counts, type breakdown, search bar | `GET /api/knowledge-graph/stats`, `GET /api/knowledge-graph/search` |
 | **Graph Quality** | Protected, isolated, untyped, and duplicate-candidate nodes | `GET /api/knowledge-graph/quality` |
 | **KG Explorer** | Search results, recent nodes, recent edges | `GET /api/knowledge-graph/nodes`, `GET /api/knowledge-graph/edges`, `GET /api/knowledge-graph/important` |
@@ -395,3 +395,8 @@ For programmatic access, use the dashboard REST endpoints listed below and [Chap
 - **[Chapter 12: Invasion Control](12-invasion.md)** — Remote nodes reflected in operations stats
 - **[Chapter 14: Security](14-security.md)** — Audit log and LLM Guardian
 - **[Chapter 21: REST API Reference](21-api-reference.md)** — Full endpoint details
+
+---
+
+**Previous Chapter:** [Chapter 12: Invasion Control](./12-invasion.md)
+**Next Chapter:** [Chapter 14: Security](./14-security.md)

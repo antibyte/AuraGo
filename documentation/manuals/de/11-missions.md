@@ -242,6 +242,32 @@ Schritte, die ein Passwort oder einen Schlüssel brauchen (etwa die Anmeldung ei
 
 ---
 
+## Ereignis-Trigger (Event Triggers)
+
+Setze `execution_type: triggered` und wähle einen `trigger_type`:
+
+| Trigger | Beschreibung |
+|---------|--------------|
+| `mission_completed` | Eine andere Mission wurde beendet |
+| `email_received` | Eingehende E-Mail |
+| `webhook` | Eingehender Webhook |
+| `mqtt_message` | MQTT-Nachricht |
+| `system_startup` | AuraGo-Start |
+| `home_assistant_state` | HA-Entitätsänderung |
+| `fritzbox_call` | Fritz!Box-Anruf/Anrufbeantworter |
+| `budget_warning` / `budget_exceeded` | Budget-Schwellenwerte |
+| `device_connected` / `device_disconnected` | Remote-Geräte-Ereignisse |
+| `planner_appointment_due` / `planner_todo_overdue` | Planner-Erinnerungen |
+| `egg_hatched` / `nest_cleared` | Invasion-Ereignisse |
+
+Filter werden in `trigger_config` konfiguriert (z. B. E-Mail-Betreff, MQTT-Topic, HA-Entität).
+
+**Ketten von Missionen.** Missionen, die einander bei Beendigung starten (`mission_completed`), bilden eine Kette, die nach 10 Schritten (11 Läufen) stoppt; die Beendigung des 10. Schritts startet nichts mehr und loggt eine Warnung bei Verdacht auf eine Endlosschleife. Jeder andere Start (Zeitplan, Ereignis, **Run**, Wiederanlauf nach Neustart) beginnt eine neue Kette.
+
+**Flow-Missionen (EasyDrag).** Flows aus der **EasyDrag**-Desktop-App erscheinen in der Mission Control als Missionen vom Typ **flow** (Editor in [Kapitel 24: EasyDrag](24-easydrag.md)). Ihre Trigger entsprechen den Trigger-Knoten des Flows; Flow-Läufe warten nicht in der Mission-Warteschlange, sondern laufen auf einer eigenen Engine (`flows.max_parallel_runs`, Standard 8). Details zu Läufen, Abbruch, Limits, Secrets, Fehlern und Neustarts sind in Kapitel 24 beschrieben.
+
+---
+
 ## Der Decisions-Service (optional)
 
 **Decisions** ist ein optionaler, lokaler Dienst für Entscheidungen aus Text und Bildern. Er ist standardmäßig aus und läuft unabhängig vom normalen Chat, von Hilfs-LLMs und Agenten. Er hält ein residentes Modell für alle Aufrufer; der Baustein **Entscheidung** in EasyDrag ist sein erster Verbraucher.
@@ -484,5 +510,5 @@ Missions sind weiterhin primär Web-UI/API-Features. Es gibt keine eigenen Slash
 
 ---
 
-**Vorheriges Kapitel:** [Kapitel 10: Persönlichkeit](./10-personality.md)  
+**Vorheriges Kapitel:** [Kapitel 10: Persönlichkeit](./10-personality.md)
 **Nächstes Kapitel:** [Kapitel 12: Invasion Control](./12-invasion.md)

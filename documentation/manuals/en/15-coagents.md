@@ -387,8 +387,6 @@ Co-agent activities are logged with:
 
 ### Operational Limits and Safety
 
-The German chapter contains extra safety guidance that is now reflected here:
-
 | Area | Guidance |
 |------|----------|
 | Concurrency | Keep `max_concurrent` low until you know the token and CPU impact |
@@ -401,23 +399,116 @@ Specialists are best used for bounded, independently verifiable work: research, 
 
 ---
 
-> 🔍 **Deep Dive: Lifecycle**
->
-> ```
-> Main Agent          Co-Agent Goroutine
->     │                      │
->     ├─ spawn(task) ───────►│ Starts
->     │                      ├─ Own LLM client
->     │                      ├─ System prompt (helper)
->     │                      ├─ RunSyncAgentLoop
->     │   ...continues...    │  ├─ LLM Call
->     ├─ list() ◄────────────┤  ├─ Tool dispatch
->     │   Running            │  └─ Final answer
->     │                      └─ Registry.Complete(result)
->     ├─ get_result(id) ◄────┤
->     └─ Uses result         │
-> ```
+## 🔍 Deep Dive: Co-Agent Lifecycle
+
+```
+Main Agent                          Co-Agent Goroutine
+    │                                      │
+    ├─ spawn("Analyse X")                  │
+    │   ├─ Check slot ✓                    │
+    │   ├─ context.WithTimeout()           │
+    │   ├─ Registry.Register() ──────────► │ Goroutine starts
+    │   └─ return co_agent_id              │ ├─ Own LLM client
+    │                                      │ ├─ System prompt (helper)
+    │   ... Main agent keeps working ...   │ ├─ RunSyncAgentLoop()
+    │                                      │ │  ├─ LLM Call
+    ├─ list() ◄─ Status: "running"         │ │  ├─ Tool Dispatch
+    │                                      │ │  ├─ LLM Call
+    │                                      │ │  └─ Final Answer
+    │                                      │ └─ Registry.Complete(result)
+    │                                      │
+    ├─ list() ◄─ Status: "completed"       │
+    ├─ get_result(id) ◄─ Result            │
+    └─ Merges result into the answer       │
+```
+
+### Resource Sharing
+
+| Resource | Sharing model | Reason |
+|----------|---------------|--------|
+| **Config** | Shallow copy with overrides | Own limits, personality disabled |
+| **LLM client** | Own instance | Different model, own rate limits |
+| **ShortTermMem** | Shared, read-only | SQLite is thread-safe |
+| **LongTermMem** | Shared, read-only | VectorDB with RWMutex |
+| **Vault** | Shared reference | Thread-safe, API keys needed |
+| **HistoryManager** | Own instance | Ephemeral (not persisted) |
+| **CronManager** | nil | No cron access |
 
 ---
 
-> 💡 **Tip:** Start with simple tasks. Co-agents excel at parallel research and data processing, but add complexity. Use them when the time savings justify the overhead.
+## Troubleshooting
+
+### Problem: "all 3 co-agent slots are occupied"
+
+**Fix:**
+```json
+// Check running co-agents
+{"action": "co_agent", "operation": "list"}
+
+// Clean up old co-agents or wait
+{"action": "co_agent", "operation": "stop_all"}
+```
+
+**Prevention:** Raise `max_concurrent` under **Config → Agent → Co-Agents**:
+```yaml
+co_agents:
+  max_concurrent: 5
+```
+
+### Problem: Co-agent hangs (timeout)
+
+**Symptom:** Status stays `running` with no progress
+
+**Fix:**
+```json
+// Stop it manually
+{"action": "co_agent", "operation": "stop", "co_agent_id": "coagent-X"}
+```
+
+**Prevention:** Lower `timeout_seconds` or `max_tool_calls` under **Config → Agent → Co-Agents**:
+```yaml
+circuit_breaker:
+  timeout_seconds: 120
+  max_tool_calls: 8
+```
+
+### Problem: Result is empty
+
+**Causes:**
+1. Task was too vague
+2. Co-agent hit its timeout
+3. The LLM returned no content
+
+**Debug:**
+```json
+// Give more context with context_hints
+{"action": "co_agent", "operation": "spawn",
+ "task": "...",
+ "context_hints": ["Very precise instruction", "Expected format: Markdown list"]}
+```
+
+---
+
+## Summary
+
+| Aspect | Recommendation |
+|--------|----------------|
+| **Enable** | `co_agents.enabled: true` |
+| **Model** | Cheaper/faster than the main agent |
+| **Concurrency** | 3 for standard workloads, 5+ for servers |
+| **Timeout** | 120–300 seconds depending on the task |
+| **Token budget** | 0 (unlimited) or 8000+ when controlling cost |
+| **Good for** | Parallel, independent tasks |
+| **Avoid** | Dependent tasks, real-time interaction |
+
+---
+
+> 💡 **Next steps:**
+> - **[Security](14-security.md)** – Configure co-agents safely
+> - **[Configuration](07-configuration.md)** – Every parameter in detail
+> - **[Tools](06-tools.md)** – Learn the available tools
+
+---
+
+**Previous Chapter:** [Chapter 14: Security](./14-security.md)
+**Next Chapter:** [Chapter 16: Troubleshooting](./16-troubleshooting.md)

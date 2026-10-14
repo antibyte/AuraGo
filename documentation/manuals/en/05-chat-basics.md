@@ -344,6 +344,68 @@ Agent: Here's what I remember:
 
 > 🔍 **Deep Dive:** The agent uses RAG (Retrieval-Augmented Generation) to fetch relevant memories. When you ask a question, it searches its memory store for semantically similar information and includes relevant facts in its context.
 
+## Memory Systems Overview
+
+AuraGo has several memory layers:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Short-Term Memory                                  │
+│  Current chat context (last ~20 messages)           │
+├─────────────────────────────────────────────────────┤
+│  Core Memory                                        │
+│  Important facts that are always available          │
+├─────────────────────────────────────────────────────┤
+│  Long-Term Memory (RAG)                             │
+│  Vector-based semantic search                       │
+├─────────────────────────────────────────────────────┤
+│  Knowledge Graph                                    │
+│  Structured entities and relationships              │
+└─────────────────────────────────────────────────────┘
+```
+
+### Short-Term Memory
+
+The current conversation context. Managed automatically.
+
+### Core Memory
+
+Permanent facts AuraGo always keeps "in mind":
+
+```
+User: Remember: My favorite editor is VS Code
+Agent: ✅ Stored in Core Memory
+
+[Later, new chat]
+User: Which editor should I use?
+Agent: You mentioned VS Code is your favorite editor. I recommend it!
+```
+
+### Long-Term Memory (RAG)
+
+Semantic search across all past conversations:
+
+```
+User: Do you remember the Python script we wrote last week for data processing?
+
+Agent: 🔍 Searching Long-Term Memory...
+       Yes! You probably mean 'data_processor.py' from 03/15, which parses CSV files and converts them to JSON.
+```
+
+### Knowledge Graph
+
+Structured information about entities (people, projects, concepts):
+
+```
+User: Create a knowledge graph for my project "Aura"
+User: The project has 3 modules: Core, UI, and API
+User: Max works on Core, Lisa on UI
+
+[Knowledge Graph updates automatically]
+```
+
+---
+
 ## Best Practices for Prompts
 
 ### Prompt Structure
@@ -536,6 +598,18 @@ Agent: 🌤️ London Weather:
 
 ---
 
+## Troubleshooting
+
+| Problem | Possible Cause | Solution |
+|---------|----------------|----------|
+| Agent doesn't understand what I want | Too complex a request | Break into smaller steps |
+| Wrong tool execution | Unclear wording | Be more specific, give examples |
+| No context from earlier chats | `/reset` was used | Store important info as notes |
+| Responses too long | No format directive | Add "short answer" or "in bullet points" |
+| Agent "hallucinates" facts | No web access for facts | Explicitly say "search the web for..." |
+
+---
+
 ## Quick Reference Card
 
 ### Essential Commands
@@ -568,4 +642,5 @@ Agent: 🌤️ London Weather:
 
 ---
 
-> 🎓 **Next Chapter:** [Chapter 6: Tools](06-tools.md) – Explore AuraGo's 100+ built-in tools in detail.
+**Previous Chapter:** [Chapter 4: Web UI](./04-webui.md)
+**Next Chapter:** [Chapter 6: Tools](./06-tools.md)

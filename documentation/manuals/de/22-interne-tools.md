@@ -1,4 +1,4 @@
-# Interne Tools
+# Kapitel 22: Interne Tools
 
 <p align="center">
   <a href="../images/manual-tools.webp"><img src="../images/manual-tools.webp" width="480" alt="AuraGo-Gopher vor der Werkzeugkiste"></a>
@@ -1725,3 +1725,8 @@ Koofr Cloud-Storage Dateioperationen (Listen, Upload, Download, Links).
 
 ### `pdf_extractor`
 Text und Metadaten aus PDF-Dateien extrahieren (inkl. OCR-Unterstützung). Wird als Skill ausgeführt.
+
+---
+
+**Vorheriges Kapitel:** [Kapitel 21: REST API Referenz](./21-api-reference.md)
+**Nächstes Kapitel:** [Kapitel 23: Interna](./23-interna.md)

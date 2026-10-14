@@ -1,4 +1,4 @@
-# Internal Tools
+# Chapter 22: Internal Tools
 
 <p align="center">
   <a href="../images/manual-tools.webp"><img src="../images/manual-tools.webp" width="480" alt="AuraGo gopher in front of the toolbox"></a>
@@ -1805,5 +1805,63 @@ Most tools use `{tool_name}.md`. Exceptions and grouped manuals:
 - [API Reference](21-api-reference.md) – REST API
 - [Security](14-security.md) – Permissions & Danger Zone
 
+---
+
+**Previous Chapter:** [Chapter 21: REST API Reference](./21-api-reference.md)
+## Additional Tools & Integrations
+
+### `tts`
+Text-to-speech synthesis via configurable providers (Google, ElevenLabs, MiniMax, Piper, Supertonic). Piper and Supertonic run locally via Docker; Supertonic is reached through the local HTTP sidecar and can deliver WAV, FLAC, or Ogg. Always available.
+
+### `chromecast`
+Discover and control Chromecast devices on the network (play, TTS, discover). Local audio/video/image files are served under `/cast-media/` for `play`; direct private LAN media URLs need `chromecast.media_host_allowlist`.
+
+### `brave_search`
+Web search via the Brave Search API.
+
+### `ddg_search`
+Web search via DuckDuckGo (Instant Answers and HTML results).
+
+### `wikipedia_search`
+Search and read Wikipedia articles.
+
+### `local_wikipedia`
+Search the locally installed Wikipedia edition (`search`) and read articles section by section (`read`) — Local Wikipedia integration. Present only when **Enable Local Wikipedia** and **Agent may use local Wikipedia** are on and an edition is installed and readable. With adaptive tool selection (default), the agent gets the tool on requests mentioning Wikipedia, an encyclopedia, or Kiwix, and otherwise finds it via `discover_tools`; if the tool limit is reached, it can take the slot of `wikipedia_search`, unless the message explicitly names the online Wikipedia. Read-only; article text is treated as external data, and responses cite the article and edition date. `search` returns per hit `title`, `path`, and `snippet` (the first three also a `lead`); `read` returns Markdown pages up to 8,000 characters with `sections` (at most 100; `sections_total` gives the total) and `next_offset`. Every response stays under the inline limit for tool output (`agent.output_compression.reversible.max_inline_chars`); with a small limit and non-Latin scripts, introductions, the section list, and pages are therefore shorter.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | string | `search` or `read` |
+| `query` | string | Search terms or a likely article title, at most 200 characters and 16 words (`search`, required) |
+| `limit` | integer | Number of hits, 1–10 (default 5; `search`) |
+| `title` | string | Article title (`read`; `title` or `path` required) |
+| `path` | string | Article path from a search hit (`read`) |
+| `section` | string | Heading or section index (`read`, optional) |
+| `offset` | integer | Continue a long article at `next_offset` (`read`, optional) |
+
+### `retro_games`
+Search the local index of archive.org games playable in the browser and open a game in the Retro Games desktop app (see [Retro Games](../../retro-games.md)). Present only when **Enable Retro Games** and **Agent may search for and start games** are on. With adaptive tool selection (default), the agent gets the tool on requests about retro games, arcade, old games, or classics, DOS games, or classic systems like C64, Amiga, Atari, ZX Spectrum, and Mega Drive, and otherwise finds it via `discover_tools`; it takes no other tool's slot. Titles and makers are treated as external data. `search` without `query` lists classics from the Hall of Fame; while the index still has no games, a search falls back to matching Hall of Fame games (`note: index_building` while the first sync runs, `note: index_unavailable` if it failed and no sync is running), and an empty result, while a searched platform (none specified: any platform) has not finished its first sync, carries `note: index_incomplete`. Index searches exclude games the user marked "won't start". Results are rows of the form `n. identifier | title | system | year | maker` up to about 2,800 bytes (`truncated: true` if the list was shortened; titles are cut to 80, makers to 60 characters). `play` opens the game only when the Virtual Desktop, its agent tool, and **Allow agent control** are on (otherwise `desktop_unavailable` or `desktop_agent_control_disabled`); the user starts the emulator with the power button.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | string | `search` or `play` |
+| `query` | string | Title, maker, or keywords, at most 200 characters (`search`, optional) |
+| `platform` | string | `msdos`, `arcade`, `console`, `c64`, `amiga`, `apple2`, `zx`, or `win3` (`search`, optional) |
+| `decade` | integer | 1970, 1980, 1990, or 2000 (`search`, optional; any decade from 1950 to 2020 is accepted) |
+| `limit` | integer | Number of results, 1–20 (default 10; larger values are capped at 20; `search`) |
+| `identifier` | string | Game id from a search result (`play`, required) |
+
+### `truenas`
+Manage TrueNAS SCALE storage (pools, datasets, shares, snapshots).
+
+### `jellyfin`
+Control the Jellyfin media server (libraries, sessions, playback).
+
+### `koofr`
+Koofr cloud storage file operations (list, upload, download, links).
+
+### `pdf_extractor`
+Extract text and metadata from PDF files (including OCR support). Runs as a skill.
 
 ---
+
+**Next Chapter:** [Chapter 23: Internals](./23-internals.md)

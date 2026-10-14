@@ -331,5 +331,5 @@ Quick Info         → terminator
 
 ---
 
-**Previous Chapter:** [Chapter 9: Memory & Knowledge](./09-memory.md)  
+**Previous Chapter:** [Chapter 9: Memory & Knowledge](./09-memory.md)
 **Next Chapter:** [Chapter 11: Mission Control](./11-missions.md)

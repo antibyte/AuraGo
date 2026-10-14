@@ -603,3 +603,8 @@ Agent: 🛠️ Erstelle neues Tool "weather_check"...
 - **[Werkzeuge](06-tools.md)** – Alle verfügbaren Tools im Detail
 - **[Konfiguration](07-konfiguration.md)** – Feintuning deines Agents
 - **[Integrationen](08-integrations.md)** – Telegram, Discord, Email einrichten
+
+---
+
+**Vorheriges Kapitel:** [Kapitel 4: Web-Oberfläche](./04-webui.md)
+**Nächstes Kapitel:** [Kapitel 6: Werkzeuge](./06-tools.md)

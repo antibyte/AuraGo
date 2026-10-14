@@ -9,7 +9,7 @@ Five minutes. Click through setup, ask something harmless, do not poke the confi
 ## Prerequisites
 
 - AuraGo is [installed](02-installation.md) and running
-- You have configured an [API key](02-installation.md#1-configure-api-key)
+- You have configured an [API key](02-installation.md#1-configure-api-key-web-ui--recommended)
 - The Web UI is accessible at http://localhost:8088
 
 ## The Quick Setup Wizard
@@ -231,3 +231,8 @@ Click the **Moon/Sun icon** (🌙/☀️) in the header to toggle between dark a
 - [ ] Clicked all UI areas
 
 > 🎉 **Congratulations!** You have successfully set up AuraGo and taken the first steps.
+
+---
+
+**Previous Chapter:** [Chapter 2: Installation](./02-installation.md)
+**Next Chapter:** [Chapter 4: Web UI](./04-webui.md)

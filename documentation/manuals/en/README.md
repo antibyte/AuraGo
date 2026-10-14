@@ -116,10 +116,10 @@ Your data stays with the installation. **Hosted models still see their request i
 19. [Skills](19-skills.md) — Python skills and Agent Skills
 
 ### Part 5 — Look up
-20. [Chat commands](20-chat-commands.md)
-21. [API reference](21-api-reference.md)
-22. [Internal tools](22-internal-tools.md)
-23. [Internals](23-internals.md)
+20. [Chat commands](20-chat-commands.md) — Slash commands right in the chat
+21. [API reference](21-api-reference.md) — REST endpoints, SSE, auth
+22. [Internal tools](22-internal-tools.md) — The full tool catalog
+23. [Internals](23-internals.md) — Modules, data flow, architecture
 
 ### Part 6 — Studio apps
 24. [EasyDrag](24-easydrag.md) — Automations by drag and drop (extends Mission Control from chapter 11)

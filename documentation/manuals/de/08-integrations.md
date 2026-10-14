@@ -8,7 +8,7 @@ Vom NAS bis zum Funkgerät. Jede Integration hat einen Schalter. Die gefährlich
 
 > **Web-UI zuerst.** Sidebar-Suche oder die Gruppen **Messenger**, **Smart Home**, **Netzwerk & Remote**, **Externe KI**, **Gefahrenzone**. YAML nur für Headless und GitOps. Verbindungstests sind POST und nur lesend.
 
-### Sprungmarken
+## Sprungmarken
 
 | Gruppe | Abschnitte |
 |--------|------------|
@@ -298,7 +298,7 @@ Der Agent kann `docker compose` für Dateien in seinem Workspace ausführen. Vor
 - **Namen verwalteter Sidecars:** Ohne Hostzugriff dürfen `create`/`run` und ein Compose-`container_name` bei `up`/`create` die Namen von AuraGo-verwalteten Sidecars nicht verwenden (`aurago_gotenberg`, `aurago_ollama_managed`, `aurago_ollama_embeddings`, `aurago-piper-tts`, `aurago-supertonic-tts`, `aurago_ansible`, `aurago_browser_automation`, `aurago_go2rtc`, `aurago_space_agent`, `aurago_manifest`, `aurago_manifest_postgres`, `aurago_omniroute`, die `aurago_dograh_*`-Services, `aurago-cloudflared` und die dafür konfigurierten eigenen Namen), weil AuraGo diese Sidecars über ihren Namen findet. Mit Hostzugriff ändert sich nichts. Den Namen des Security-Proxys `aurago-security-proxy` lehnt AuraGo als Compose-`container_name` in jeder Installation ab, wie schon bei `create`/`run`.
 - **`create`/`run` ohne Workspace:** Ist ein Agenten-Workspace konfiguriert, müssen Binds von `create`/`run` darin bleiben. Ohne Workspace und ohne Hostzugriff lehnen `create`/`run` außerdem Binds von AuraGos eigenem Datenverzeichnis, `config.yaml`, der `.env` daneben, `/etc/aurago` und dem Master-Key ab (`docker_protected_path_denied`). Mit Hostzugriff ändert sich nichts.
 - `build --push` ist erlaubt: Es lädt die Images hoch, die der Build selbst erzeugt. `docker compose push` bleibt gesperrt. Die Master-Key-Prüfungen von `build` gelten auch hier.
-- `kill`, `pause`, `unpause`, `ps`, `logs` und die Abfragebefehle prüft AuraGo nie auf Hostzugriff – Stacks, die schon laufen, kannst Du also weiter verwalten.
+- `kill`, `pause`, `unpause`, `ps`, `logs` und die Abfragebefehle prüft AuraGo nie auf Hostzugriff – Stacks, die schon laufen, kannst du also weiter verwalten.
 - Geprüft wird nur, was ein Befehl ausführt: Ein Service eines inaktiven Profils zählt erst, wenn ein Befehl ihn nennt (z. B. `up -d tools` oder `build tools`), zusammen mit den Services, von denen er abhängt; eine optionale Abhängigkeit (`required: false`) zählt nur, wenn ihr Profil aktiv ist, denn nur dann startet Compose sie.
 
 Mit einem Docker Compose älter als v2.35 löst AuraGo einen genannten Service eines inaktiven Profils mit `docker compose config -- <service>` auf. Schlägt das fehl (etwa weil eine env-Datei fehlt), lehnt es `up` und `create` ab; `build` und `pull`, die keine env-Dateien brauchen, laufen mit Hostzugriff ungeprüft (außer die Compose-Datei selbst nennt AuraGos eigene Dateien oder den Master-Key) und werden ohne ihn abgelehnt. Die Pfade von env-Dateien kann es dort nicht auflisten: Ohne Hostzugriff lehnt es `up`/`create` für Dateien mit `env_file`, `include:` oder `extends:` ab. Bekannte Einschränkung: `down`, `start`, `stop`, `restart` und `rm` können bei so einem Compose die Provider und Hooks eines genannten Profil-Service nicht prüfen.
@@ -884,7 +884,7 @@ mcp_server:
 
 > Der MCP-Server teilt sich den Haupt-HTTP-Server — es gibt kein separates `port`-Feld. MCP-Client-Zugriff erfordert zusätzlich **Config → Gefahrenzone** → MCP (`agent.allow_mcp: true`).
 
-`allowed_tools` ist eine explizite serverseitige Freigabeliste. Eine leere Liste veröffentlicht keine Tools, auch im IDE-Modus. Das Öffnen der Einstellungen und Umschalten der Bridge ergänzt keine Berechtigungen. Mit **Empfohlene Tools hinzufügen** kannst Du das IDE-Preset des Backends ausdrücklich übernehmen und anschließend speichern. Die Auswahl aller Tools speichert deren aktuelle Namen.
+`allowed_tools` ist eine explizite serverseitige Freigabeliste. Eine leere Liste veröffentlicht keine Tools, auch im IDE-Modus. Das Öffnen der Einstellungen und Umschalten der Bridge ergänzt keine Berechtigungen. Mit **Empfohlene Tools hinzufügen** kannst du das IDE-Preset des Backends ausdrücklich übernehmen und anschließend speichern. Die Auswahl aller Tools speichert deren aktuelle Namen.
 
 **Kompatibilitätsänderung:** Bestehende IDE-Konfigurationen mit leerer Liste benötigen nach dem Update eine bewusste Tool-Auswahl. Eine automatische Migration zum Preset findet nicht statt. MCP-Client-Freigabelisten behalten ihre getrennte Bedeutung.
 
@@ -1614,7 +1614,7 @@ Schutzschicht für öffentlich erreichbare AuraGo-Instanzen: TLS (Let's Encrypt 
 1. Öffne **Config → Integrationen → Security Proxy**.
 2. Aktiviere den Proxy und trage Domain, ACME-E-Mail und Ports ein.
 3. Aktiviere bei Bedarf Ratenbegrenzung, IP-Filter oder Basic Auth.
-4. Speichere. Das Aktivieren startet den Proxy. Einstellungen aus der Config-UI oder dem Vault gelten beim nächsten Start oder Neuladen, ohne AuraGo neu zu starten. Nach Änderungen an Domain, E-Mail, Werten der Ratenbegrenzung, IP-Filter, Basic Auth oder zusätzlichen Routen drückst Du **Neu laden**. Nach Änderungen an den Ports oder an der Platzierung des Containers drückst Du **Starten**. Um den Proxy auf einen anderen `docker_host` zu verlegen, drückst Du zuerst **Entfernen**, speicherst dann den neuen `docker_host` und drückst **Starten**. Neu laden wendet nur das Caddyfile neu an und erstellt den Container nicht neu (siehe [Neu laden](#neu-laden)).
+4. Speichere. Das Aktivieren startet den Proxy. Einstellungen aus der Config-UI oder dem Vault gelten beim nächsten Start oder Neuladen, ohne AuraGo neu zu starten. Nach Änderungen an Domain, E-Mail, Werten der Ratenbegrenzung, IP-Filter, Basic Auth oder zusätzlichen Routen drückst du **Neu laden**. Nach Änderungen an den Ports oder an der Platzierung des Containers drückst du **Starten**. Um den Proxy auf einen anderen `docker_host` zu verlegen, drückst du zuerst **Entfernen**, speicherst dann den neuen `docker_host` und drückst **Starten**. Neu laden wendet nur das Caddyfile neu an und erstellt den Container nicht neu (siehe [Neu laden](#neu-laden)).
 
 ### Basic Auth
 Hinterlege das Konto im Vault als `proxy_basic_auth_user` und `proxy_basic_auth_pass`. AuraGo schreibt nur einen bcrypt-Hash des Passworts ins Caddyfile (Dateimodus 0600). Ist Basic Auth aktiv, fehlt aber eines der Secrets, startet der Proxy nicht und die UI nennt die fehlenden Secrets. Benutzernamen dürfen weder `:`, Anführungszeichen, Backslashes noch geschweifte Klammern enthalten; Passwörter dürfen höchstens 72 Byte lang sein.
@@ -1622,12 +1622,12 @@ Hinterlege das Konto im Vault als `proxy_basic_auth_user` und `proxy_basic_auth_
 ### Ratenbegrenzung
 Das offizielle Caddy-Image kennt keine Ratenbegrenzung. Ist sie aktiv, baut AuraGo einmalig das Image `aurago-proxy:ratelimit-<Version>` aus einem festen Caddy-Release und einem festen Modul `caddy-ratelimit` (Go-Modul-Prüfsummen werden verifiziert). Der Build braucht Docker-Build-Rechte und Internetzugang und dauert ein paar Minuten; spätere Starts verwenden das Image wieder. Jede Client-IP darf `burst` Anfragen innerhalb von `burst / requests_per_second` Sekunden senden (gleitendes Fenster): kurze Spitzen gehen durch, im Mittel bleibt es bei `requests_per_second`. Die Ratenbegrenzung greift vor Basic Auth und bremst so auch Passwortraten aus. Scheitert der Build, startet der Proxy nicht, ein laufender Proxy läuft mit seinem bisherigen Caddyfile weiter, und die UI erklärt, was fehlt. Ist der Docker-Nur-Lese-Modus (`docker.read_only`) aktiv, kann AuraGo weder das Image bauen noch den Proxy-Container anlegen oder ändern; schalte den Nur-Lese-Modus dann zuerst aus.
 
-Solange der erste Build des Images mit Ratenbegrenzung oder das erste Herunterladen des offiziellen Caddy-Images läuft, warten die übrigen Proxy-Aktionen darauf: **Stoppen**, **Entfernen**, **Neu laden**, ein weiteres **Starten** sowie das automatische Starten oder Stoppen nach dem Speichern der Config laufen erst, wenn der Vorgang fertig oder gescheitert ist. Der erste Build kann diese Aktionen bis zu 30 Minuten aufhalten, das erste Herunterladen bis zu 15 Minuten. Status und Logs kannst Du währenddessen weiter abrufen.
+Solange der erste Build des Images mit Ratenbegrenzung oder das erste Herunterladen des offiziellen Caddy-Images läuft, warten die übrigen Proxy-Aktionen darauf: **Stoppen**, **Entfernen**, **Neu laden**, ein weiteres **Starten** sowie das automatische Starten oder Stoppen nach dem Speichern der Config laufen erst, wenn der Vorgang fertig oder gescheitert ist. Der erste Build kann diese Aktionen bis zu 30 Minuten aufhalten, das erste Herunterladen bis zu 15 Minuten. Status und Logs kannst du währenddessen weiter abrufen.
 
 ### AuraGo in Docker (Compose)
-Läuft AuraGo selbst in einem Container, existieren seine Pfade und sein Containername nur innerhalb von Docker. Der Proxy bindet dann das Datenvolume von AuraGo ein (Docker Engine 26 oder neuer, für Volume-Unterpfade) oder dessen Bind-Mount-Datenverzeichnis, tritt dem nicht-internen Netzwerk von AuraGo bei (bei Compose das `default`-Netzwerk des Projekts) und erreicht AuraGo über den Containernamen. Ohne ein solches Netzwerk nutzt er `host.docker.internal` und den veröffentlichten Port von AuraGo. Da der Proxy-Container am Compose-Netzwerk hängt, drückst Du **Entfernen**, bevor `docker compose down` dieses Netzwerk löscht.
+Läuft AuraGo selbst in einem Container, existieren seine Pfade und sein Containername nur innerhalb von Docker. Der Proxy bindet dann das Datenvolume von AuraGo ein (Docker Engine 26 oder neuer, für Volume-Unterpfade) oder dessen Bind-Mount-Datenverzeichnis, tritt dem nicht-internen Netzwerk von AuraGo bei (bei Compose das `default`-Netzwerk des Projekts) und erreicht AuraGo über den Containernamen. Ohne ein solches Netzwerk nutzt er `host.docker.internal` und den veröffentlichten Port von AuraGo. Da der Proxy-Container am Compose-Netzwerk hängt, drückst du **Entfernen**, bevor `docker compose down` dieses Netzwerk löscht.
 
-Der Socket-Proxy aus der Standard-Compose-Datei behält `BUILD=0`, dort kann AuraGo das Image für die Ratenbegrenzung also nicht bauen. Entweder setzt Du `BUILD=1` beim Dienst `docker-proxy`, oder Du baust das Image einmalig auf dem Docker-Host. AuraGo verwendet ein vorhandenes Image mit genau diesem Tag wieder; er gehört zu den festen Caddy- und Modulversionen dieses AuraGo-Release:
+Der Socket-Proxy aus der Standard-Compose-Datei behält `BUILD=0`, dort kann AuraGo das Image für die Ratenbegrenzung also nicht bauen. Entweder setzt du `BUILD=1` beim Dienst `docker-proxy`, oder du baust das Image einmalig auf dem Docker-Host. AuraGo verwendet ein vorhandenes Image mit genau diesem Tag wieder; er gehört zu den festen Caddy- und Modulversionen dieses AuraGo-Release:
 
 ```bash
 docker build -t aurago-proxy:ratelimit-2.11.6-5625512f24f6 - <<'EOF'
@@ -1646,12 +1646,12 @@ Der Proxy-Container behält den root-Benutzer von Caddy und ein beschreibbares R
 - `DAC_OVERRIDE`: Das Caddyfile (Modus 0600) sowie `caddy_data` und `caddy_config` (Modus 0750) gehören dem Benutzer von AuraGo. Ohne sie kann Caddy weder seine Konfiguration lesen noch Zertifikate speichern.
 - `CHOWN` und `FOWNER`: Besitzänderungen an Dateien, die Caddy nicht selbst angelegt hat, zum Beispiel in `caddy_data` kopierte Zertifikate.
 
-Zertifikate, die ein früherer Proxy-Container gespeichert hat, bleiben in Gebrauch. Drückst Du **Starten**, bekommt ein Proxy-Container aus einer älteren AuraGo-Version dieses Profil; **Neu laden** behält den bestehenden Container.
+Zertifikate, die ein früherer Proxy-Container gespeichert hat, bleiben in Gebrauch. Drückst du **Starten**, bekommt ein Proxy-Container aus einer älteren AuraGo-Version dieses Profil; **Neu laden** behält den bestehenden Container.
 
-Der Proxy gilt als von AuraGo verwalteter Container (Owner `security-proxy`): Öffnest Du auf der Seite **Container** ein Terminal für `aurago-security-proxy`, aktualisierst oder entfernst ihn, fragt AuraGo nach einer Bestätigung, auch bei einem Container aus einer älteren AuraGo-Version ohne AuraGos Labels. Das Docker-Werkzeug des Agenten lehnt `create` und `run` mit diesem Namen ab, ebenso Compose-`up`/`create` eines Stacks, der ihn als `container_name` verwendet; seine übrigen Aktionen am Proxy-Container bleiben, wie sie waren. Verwalte ihn über **Starten**, **Stoppen**, **Neu laden** und **Entfernen** in den Proxy-Einstellungen.
+Der Proxy gilt als von AuraGo verwalteter Container (Owner `security-proxy`): Öffnest du auf der Seite **Container** ein Terminal für `aurago-security-proxy`, aktualisierst oder entfernst ihn, fragt AuraGo nach einer Bestätigung, auch bei einem Container aus einer älteren AuraGo-Version ohne AuraGos Labels. Das Docker-Werkzeug des Agenten lehnt `create` und `run` mit diesem Namen ab, ebenso Compose-`up`/`create` eines Stacks, der ihn als `container_name` verwendet; seine übrigen Aktionen am Proxy-Container bleiben, wie sie waren. Verwalte ihn über **Starten**, **Stoppen**, **Neu laden** und **Entfernen** in den Proxy-Einstellungen.
 
 ### Neu laden
-**Neu laden** schreibt das Caddyfile neu und führt `caddy reload` im Container aus. Lehnt Caddy die neue Konfiguration ab, arbeitet es mit der bisherigen weiter, AuraGo stellt das vorherige Caddyfile wieder her, und die UI verweist auf die Proxy-Logs. Das Ein- oder Ausschalten der Ratenbegrenzung wechselt das Image; Neu laden erstellt den Container dann neu. Sonst lässt Neu laden den Container, wie er ist: Portfreigaben, die Docker-Engine (`docker_host`) und die Platzierung (Mounts und Netzwerk) ändern sich erst, wenn **Starten** den Container entfernt und neu erstellt. Starten arbeitet mit der Engine aus dem aktuellen `docker_host` (oder aus `docker.host`, solange `docker_host` leer ist). Erreicht ein neuer Wert einen anderen Docker-Daemon, drückst Du vor dem Wechsel **Entfernen**; sonst läuft der alte Proxy auf der bisherigen Engine weiter. Hast Du schon gewechselt, stellst Du den alten Wert wieder ein, drückst **Entfernen** und wechselst dann erneut (oder Du führst `docker rm -f aurago-security-proxy` auf der alten Engine aus).
+**Neu laden** schreibt das Caddyfile neu und führt `caddy reload` im Container aus. Lehnt Caddy die neue Konfiguration ab, arbeitet es mit der bisherigen weiter, AuraGo stellt das vorherige Caddyfile wieder her, und die UI verweist auf die Proxy-Logs. Das Ein- oder Ausschalten der Ratenbegrenzung wechselt das Image; Neu laden erstellt den Container dann neu. Sonst lässt Neu laden den Container, wie er ist: Portfreigaben, die Docker-Engine (`docker_host`) und die Platzierung (Mounts und Netzwerk) ändern sich erst, wenn **Starten** den Container entfernt und neu erstellt. Starten arbeitet mit der Engine aus dem aktuellen `docker_host` (oder aus `docker.host`, solange `docker_host` leer ist). Erreicht ein neuer Wert einen anderen Docker-Daemon, drückst du vor dem Wechsel **Entfernen**; sonst läuft der alte Proxy auf der bisherigen Engine weiter. Hast du schon gewechselt, stellst du den alten Wert wieder ein, drückst **Entfernen** und wechselst dann erneut (oder du führst `docker rm -f aurago-security-proxy` auf der alten Engine aus).
 
 ### YAML-Referenz
 ```yaml
@@ -2235,7 +2235,7 @@ Details: der [System-World-Deep-Dive](../../system-world-2.md).
 
 Zwei weitere Desktop-Features mit Integrationsberührung:
 
-- **Retro-Net** verwandelt das Desktop-**Terminal** in ein Wählerverzeichnis für noch lebende Textdienste (Telnet-BBS, C64-Boards, MUDs u. a.). Es ist standardmäßig an (`virtual_desktop.retronet_enabled`); jede Verbindung läuft über den AuraGo-Server. Beschrieben in [Kapitel 4](04-webui.md#retronet-im-terminal) und im [Retro-Net-Deep-Dive](../../retro-net.md).
+- **Retro-Net** verwandelt das Desktop-**Terminal** in ein Wählerverzeichnis für noch lebende Textdienste (Telnet-BBS, C64-Boards, MUDs u. a.). Es ist standardmäßig an (`virtual_desktop.retronet_enabled`); jede Verbindung läuft über den AuraGo-Server. Beschrieben in [Kapitel 4](04-webui.md#retro-net-im-terminal) und im [Retro-Net-Deep-Dive](../../retro-net.md).
 - **Personal Radio** ist eine eingebaute Desktop-App für den eigenen Sender: importierte und/oder generierte Musik, LLM-Moderation im Stationsstil und optional recherchierte Nachrichten über die aktive Sprachausgabe. Beschrieben in [Kapitel 4](04-webui.md#personal-radio) und im [Personal-Radio-Deep-Dive](../../personal-radio.md).
 
 ## Shell Sandbox Integration
@@ -2356,7 +2356,7 @@ AuraGo kann **statische Sites / Homepages** per Agent-Tools anlegen, bearbeiten,
 | Build & Deploy | `homepage_deploy`, `homepage_quality` |
 | Design-Regeln | Globales `prompts/rules/homepage/DESIGN.md`; projekt-eigenes `DESIGN.md` nur als Design-Kontext |
 
-**Docker-Socket-Proxy:** Das Homepage-Tool baut sein Dev-Image `aurago-homepage:latest` bei der ersten Nutzung. Der Standard-Socket-Proxy aus Compose lehnt Builds ab (`BUILD=0`); `init` scheitert dann mit `homepage_image_build_forbidden`, und **Config → Homepage** zeigt den Befehl, mit dem Du das Image auf dem Docker-Host baust: `docker exec aurago /app/aurago --print-homepage-dockerfile | docker build -t aurago-homepage:latest -`. Siehe [Docker-Socket-Sicherheit](../../docker_installation.md#4-docker-socket-security).
+**Docker-Socket-Proxy:** Das Homepage-Tool baut sein Dev-Image `aurago-homepage:latest` bei der ersten Nutzung. Der Standard-Socket-Proxy aus Compose lehnt Builds ab (`BUILD=0`); `init` scheitert dann mit `homepage_image_build_forbidden`, und **Config → Homepage** zeigt den Befehl, mit dem du das Image auf dem Docker-Host baust: `docker exec aurago /app/aurago --print-homepage-dockerfile | docker build -t aurago-homepage:latest -`. Siehe [Docker-Socket-Sicherheit](../../docker_installation.md#4-docker-socket-security).
 
 Vor größeren Änderungen `list_history`, danach `add_history`. Bei `init_project` automatische Registrierung.
 
@@ -2371,7 +2371,7 @@ homepage:
 
 AuraGo kann einen fest gekoppelten und gehärteten go2rtc-Docker-Sidecar für Kamerastreams betreiben. Kameraquellen bleiben ausschließlich im Vault. Unter **Config → Netzwerk & Remote → go2rtc-Kameras** kannst du die gespeicherte Konfiguration testen und den Container verwalten. Die Virtual-Desktop-App **Netzwerkkameras** (`/desktop?app=network-cameras`) bietet Kameraansichten, begrenzte ONVIF-Suche, manuelle Einrichtung und Snapshots. Die originale go2rtc-Weboberfläche ist optional und schreibgeschützt.
 
-Standardmäßig verwendet AuraGo MSE/HLS/MP4/MJPEG über den Proxy. Direktes LAN-WebRTC muss mit einer konkreten privaten LAN-IP ausdrücklich aktiviert werden, weil WebRTC-Medien nicht vollständig durch einen HTTP-Proxy laufen. Die automatische Suche benötigt ebenfalls lokalen Broadcast-Zugriff; bei Docker-Bridge-Betrieb nutzt Du in der App die manuelle lokale IP oder Stream-URL.
+Standardmäßig verwendet AuraGo MSE/HLS/MP4/MJPEG über den Proxy. Direktes LAN-WebRTC muss mit einer konkreten privaten LAN-IP ausdrücklich aktiviert werden, weil WebRTC-Medien nicht vollständig durch einen HTTP-Proxy laufen. Die automatische Suche benötigt ebenfalls lokalen Broadcast-Zugriff; bei Docker-Bridge-Betrieb nutzt du in der App die manuelle lokale IP oder Stream-URL.
 
 AuraGo führt sowohl die sicherheitsbegrenzte Suche als auch die ONVIF-Einrichtungsabfragen zum privaten Kamerahost selbst aus. Dabei erkennt AuraGo Profile und Snapshot-Unterstützung sowie, sofern verfügbar, Codec-, Auflösungs- und Geräteinformationen. Erst beim Laufzeitabgleich erhält go2rtc die ausgewählte Vault-geschützte Quelle. Die rohe go2rtc-ONVIF-API bleibt für Browser, Agenten und die optionale Admin-Oberfläche gesperrt und wird bei der Einrichtung nicht verwendet. Details stehen in der [go2rtc-Dokumentation](../../go2rtc.md).
 
@@ -2659,16 +2659,16 @@ API-Key und Node-Secret sind Vault-only (`evomap_api_key` und `evomap_node_secre
 
 ## Lokale Wikipedia
 
-Eine komplette Wikipedia-Ausgabe auf Deinem AuraGo-Host – offline lesbar für den Agenten und in der Desktop-App **Wikipedia**. AuraGo lädt eine Kiwix-ZIM-Datei herunter und liest sie samt Suchindex in reinem Go: ohne Container, ohne Sidecar, ohne kiwix-serve.
+Eine komplette Wikipedia-Ausgabe auf deinem AuraGo-Host – offline lesbar für den Agenten und in der Desktop-App **Wikipedia**. AuraGo lädt eine Kiwix-ZIM-Datei herunter und liest sie samt Suchindex in reinem Go: ohne Container, ohne Sidecar, ohne kiwix-serve.
 
 ### Einrichtung in der Web-UI
 
 1. Öffne **Config** und wähle **Lokale Wikipedia** in der Gruppe **Agent-Tools** (oder suche in der Sidebar danach).
 2. Schalte **Lokale Wikipedia aktivieren** ein, wähle die **Sprache** (Standard: Systemsprache) und die **Variante** (**Ohne Medien** oder **Mit Medien**) und klicke auf **Speichern**.
-3. Prüfe die Infobox (Ausgabedatum, Größe, Artikelzahl, freier Speicher), klicke auf **Installieren** und bestätige. Der Download läuft im Hintergrund; Du kannst die Seite schließen.
+3. Prüfe die Infobox (Ausgabedatum, Größe, Artikelzahl, freier Speicher), klicke auf **Installieren** und bestätige. Der Download läuft im Hintergrund; du kannst die Seite schließen.
 4. Nach Prüfsumme und Archivprüfung steht der Status auf **Bereit**. Das Agenten-Tool `local_wikipedia` und die Desktop-App sind dann verfügbar.
 
-Die Größen reichen von etwa 0,9 GB (Hindi ohne Medien) bis 127 GB (Englisch mit Medien); Deutsch ohne Medien hat 18,6 GB. AuraGo startet den Download nicht, wenn der freie Speicher unter Restgröße plus Reserve (mindestens 1 GiB) liegt, und pausiert, bevor die Platte vollläuft. **Download abbrechen** behält den Teil-Download für **Fortsetzen**; nach einem Neustart wartet ein unfertiger Download auf **Fortsetzen**. Eine fehlgeschlagene Installation oder ein fehlgeschlagenes Update nimmt Dir nie eine funktionierende Ausgabe weg, außer Du lässt AuraGo die alte Ausgabe vorher löschen. Eine tägliche Katalogprüfung zeigt einen Hinweis auf der Config-Seite, im Dashboard (**Neue Ausgabe**) und in der App; Updates installierst Du nur per Klick.
+Die Größen reichen von etwa 0,9 GB (Hindi ohne Medien) bis 127 GB (Englisch mit Medien); Deutsch ohne Medien hat 18,6 GB. AuraGo startet den Download nicht, wenn der freie Speicher unter Restgröße plus Reserve (mindestens 1 GiB) liegt, und pausiert, bevor die Platte vollläuft. **Download abbrechen** behält den Teil-Download für **Fortsetzen**; nach einem Neustart wartet ein unfertiger Download auf **Fortsetzen**. Eine fehlgeschlagene Installation oder ein fehlgeschlagenes Update nimmt dir nie eine funktionierende Ausgabe weg, außer du lässt AuraGo die alte Ausgabe vorher löschen. Eine tägliche Katalogprüfung zeigt einen Hinweis auf der Config-Seite, im Dashboard (**Neue Ausgabe**) und in der App; Updates installierst du nur per Klick.
 
 ### YAML-Referenz
 
@@ -2774,4 +2774,7 @@ Die beiden Freigaben `meshcore.allow_device_settings` und `meshcore.allow_remote
 
 Details stehen in der [MeshCore-Anleitung](../../meshcore-de.md). Die praktische Hardwareabnahme steht auf allen unterstützten Plattformen noch aus.
 
+---
+
+**Vorheriges Kapitel:** [Kapitel 7: Konfiguration](./07-konfiguration.md)
 **Nächstes Kapitel:** [Kapitel 9: Gedächtnis & Wissen](./09-memory.md)

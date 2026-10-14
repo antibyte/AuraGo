@@ -8,7 +8,7 @@ From NAS boxes to radios. Every integration has a switch. The dangerous ones sta
 
 > **Web UI first.** Sidebar search or the groups **Messenger**, **Smart Home**, **Network & Remote**, **External AI**, **Danger Zone**. YAML is for headless and GitOps. Connection tests are POST and read-only.
 
-### Jump list
+## Jump list
 
 | Group | Sections |
 |-------|----------|
@@ -2630,7 +2630,7 @@ Details: the [System World deep dive](../../system-world-2.md).
 
 Two more Desktop features with integration overlap:
 
-- **Retro-Net** turns the Desktop **Terminal** into a dialing directory for text services that are still online (Telnet BBSes, C64 boards, MUDs and more). It is enabled by default (`virtual_desktop.retronet_enabled`); every connection runs through the AuraGo server. Described in [chapter 4](04-webui.md#retronet-in-the-terminal) and the [Retro-Net deep dive](../../retro-net.md).
+- **Retro-Net** turns the Desktop **Terminal** into a dialing directory for text services that are still online (Telnet BBSes, C64 boards, MUDs and more). It is enabled by default (`virtual_desktop.retronet_enabled`); every connection runs through the AuraGo server. Described in [chapter 4](04-webui.md#retro-net-in-the-terminal) and the [Retro-Net deep dive](../../retro-net.md).
 - **Personal Radio** is a built-in Desktop app for your own station: imported and/or generated music, LLM moderation in your station's style and optional researched news through the active speech output. Described in [chapter 4](04-webui.md#personal-radio) and the [Personal Radio deep dive](../../personal-radio.md).
 
 ## Shell Sandbox Integration
@@ -3156,3 +3156,8 @@ Now that your integrations are set up:
 1. **[Security](14-security.md)** – Secure your AuraGo installation
 2. **[Advanced Usage](15-coagents.md)** – Workflows, co-agents, and automation
 3. **[Troubleshooting](16-troubleshooting.md)** – Solve common issues
+
+---
+
+**Previous Chapter:** [Chapter 7: Configuration](./07-configuration.md)
+**Next Chapter:** [Chapter 9: Memory & Knowledge](./09-memory.md)

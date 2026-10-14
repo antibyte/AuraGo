@@ -5,7 +5,9 @@
 </p>
 
 > 📅 **Updated:** 3 October 2026 (UI set and recovery corrected; the rest of this chapter is still an architecture deep dive)
-> 🎯 **Audience:** Developers, contributors, and advanced users  
+>
+> 🎯 **Audience:** Developers, contributors, and advanced users
+>
 > 🔧 **Prerequisites:** Basic understanding of Go, SQLite, and REST APIs
 
 This chapter describes the internal workings of AuraGo in detail: all modules, components, data flows, and architectural decisions. It is aimed at developers who want to work with the source code and advanced users who want a deep understanding of the system.
@@ -1178,3 +1180,8 @@ The system is designed to operate **fully autonomously** while being protected f
 ---
 
 *This chapter is kept in sync with the codebase. For any questions or discrepancies, the source code in `internal/` should always serve as the authoritative reference.*
+
+---
+
+**Previous Chapter:** [Chapter 22: Internal tools](./22-internal-tools.md)
+**Next Chapter:** [Chapter 24: EasyDrag](./24-easydrag.md)

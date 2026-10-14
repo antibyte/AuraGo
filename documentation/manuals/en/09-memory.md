@@ -574,6 +574,46 @@ Memory is managed via **natural language** and **agent tools** (`remember`, `man
 
 Use `/reset` to clear short-term chat history (see [Chat Commands](20-chat-commands.md)).
 
+## Knowledge Indexing (File Indexing)
+
+AuraGo can automatically index local files for fast retrieval.
+
+### Configuration
+
+### Web UI Setup
+1. Open **Config → Server → Indexing**.
+2. Enable indexing, choose directories and file types.
+3. Save.
+
+### YAML Reference
+```yaml
+# config.yaml
+indexing:
+  enabled: true
+  directories:
+    - "./knowledge"           # Directories to index
+  poll_interval_seconds: 60   # Change-check interval
+  extensions:                 # File types to index
+    - .txt
+    - .md
+    - .json
+    - .csv
+    - .log
+    - .yaml
+    - .yml
+```
+
+### Usage
+
+Place files in the `knowledge/` directory. The agent can then access them:
+
+```
+User: What's in documentation.txt?
+Agent: [Contents of the indexed file]
+```
+
+---
+
 ## Helper LLM — Automated Maintenance
 
 The Helper LLM is a secondary, lower-cost LLM that handles background maintenance tasks to keep the main agent fast and efficient.
@@ -714,3 +754,8 @@ helper_llm:
 ---
 
 > 💡 **Remember:** Good memory management is key to a personalized experience. Be intentional about what you store, and your AI assistant will become increasingly helpful over time.
+
+---
+
+**Previous Chapter:** [Chapter 8: Integrations](./08-integrations.md)
+**Next Chapter:** [Chapter 10: Personality](./10-personality.md)

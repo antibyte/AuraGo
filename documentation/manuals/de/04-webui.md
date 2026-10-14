@@ -117,7 +117,7 @@ Der Chat ist die am häufigsten genutzte Ansicht.
 - Links ausgerichtet
 - Zeigen Tool-Ausführungen an
 
-**Deine Nachrichten:**
+**deine Nachrichten:**
 - Farbiger Hintergrund (Akzentfarbe)
 - Rechts ausgerichtet
 - Zeigen Anhänge/Dateien an
@@ -432,3 +432,8 @@ Die Web-UI passt sich an verschiedene Bildschirmgrößen an:
 - **[Chat-Grundlagen](05-chatgrundlagen.md)** – Effektiv kommunizieren
 - **[Werkzeuge](06-tools.md)** – Alle Tools kennenlernen
 - **[Konfiguration](07-konfiguration.md)** – Feintuning
+
+---
+
+**Vorheriges Kapitel:** [Kapitel 3: Schnellstart](./03-schnellstart.md)
+**Nächstes Kapitel:** [Kapitel 5: Chat-Grundlagen](./05-chatgrundlagen.md)

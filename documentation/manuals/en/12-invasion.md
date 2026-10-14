@@ -668,3 +668,8 @@ and reconfiguration send private files over encrypted stdin and publish them ato
 - **[Chapter 13: Dashboard](13-dashboard.md)** — Overview of system health
 - **[Chapter 21: API Reference](21-api-reference.md)** — Full API listing
 - **[Chapter 22: Internal Tools](22-internal-tools.md)** — `invasion_control` tool details
+
+---
+
+**Previous Chapter:** [Chapter 11: Mission Control](./11-missions.md)
+**Next Chapter:** [Chapter 13: Dashboard](./13-dashboard.md)

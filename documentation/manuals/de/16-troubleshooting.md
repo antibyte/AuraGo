@@ -6,6 +6,23 @@
 
 Erst die Logs, dann die Schalter, dann das Ressourcenpaket. `log/aurago.log` ist die Spur — nicht `supervisor.log`.
 
+## Inhaltsverzeichnis
+
+1. [Systematische Fehlersuche](#systematische-fehlersuche)
+2. [Installationsprobleme](#installationsprobleme)
+3. [Verbindungsprobleme](#verbindungsprobleme)
+4. [LLM/API-Fehler](#llmapi-fehler)
+5. [Gedächtnis- und Performance-Probleme](#gedächtnis--und-performance-probleme)
+6. [Docker-spezifische Probleme](#docker-spezifische-probleme)
+7. [Logs effektiv lesen](#logs-effektiv-lesen)
+8. [Debug-Modus](#debug-modus)
+9. [Diagnose-Befehle](#diagnose-befehle)
+10. [Wiederherstellungsverfahren](#wiederherstellungsverfahren)
+11. [Hilfe erhalten](#hilfe-erhalten)
+12. [Zusätzliche Diagnosepunkte für aktuelle Features](#zusätzliche-diagnosepunkte-für-aktuelle-features)
+
+---
+
 ## Systematische Fehlersuche
 
 Bevor du einzelne Lösungen ausprobierst, gehe systematisch vor:
@@ -380,3 +397,16 @@ Bei schwer reproduzierbaren Fehlern zuerst Debug Mode, dann die Status-Endpunkte
 ---
 
 > 💡 **Tipp:** Die meisten Probleme lassen sich durch sorgfältiges Lesen der Logs lösen. Nimm dir Zeit, die Fehlermeldungen zu verstehen.
+
+---
+
+**Vorheriges Kapitel:** [Kapitel 15: Co-Agenten](./15-coagents.md)
+## Kurzreferenz
+
+Es gibt keinen `E001`…`E008`-Katalog. Lies die Log-Zeile und das HTTP/JSON-`error`-Feld. Vault-Probleme bedeuten fast immer `AURAGO_MASTER_KEY`. Eine Recovery-Seite ohne Resource-ID deutet auf eine ungepinnt Binary hin. Chat kann `config.yaml` nicht lesen — das ist der Workspace-Jail.
+
+> Logs, Toggles, dann der Resource-Satz. Neustart ist günstig; ein fehlender Master-Key ist es nicht.
+
+---
+
+**Nächstes Kapitel:** [Kapitel 17: Glossar](./17-glossar.md)

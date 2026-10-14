@@ -489,81 +489,43 @@ Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `con
 
 | Block | Zweck | YAML-Kurzbeispiel |
 |-------|-------|-------------------|
-| `telegram` | Telegram Bot | `telegram:\n  bot_token: "..."\n  telegram_user_id: 12345678` |
-| `discord` | Discord Bot | `discord:\n  enabled: true\n  bot_token: "..."\n  guild_id: "..."` |
-| `email_accounts` | E-Mail IMAP/SMTP (Array) | `email_accounts:
-  - id: personal
-    name: Personal
-    imap_host: imap.gmail.com
-    smtp_host: smtp.gmail.com` |
-| `email` | *(Legacy)* E-Mail IMAP/SMTP | `email:\n  enabled: true\n  imap_host: imap.gmail.com\n  smtp_host: smtp.gmail.com` |
-| `home_assistant` | Home Assistant | `home_assistant:\n  enabled: true\n  url: "http://homeassistant.local:8123"` |
-| `docker` | Docker API | `docker:\n  enabled: true\n  host: "unix:///var/run/docker.sock"` |
-| `budget` | Kostenkontrolle | `budget:\n  enabled: false\n  daily_limit_usd: 5\n  enforcement: warn` |
-| `fallback_llm` | Backup-LLM | `fallback_llm:\n  enabled: true\n  provider: fallback` |
-| `co_agents` | Parallele Sub-Agenten | `co_agents:\n  enabled: true\n  max_concurrent: 3` |
-| `circuit_breaker` | Resilienz | `circuit_breaker:\n  max_tool_calls: 20\n  llm_timeout_seconds: 600` |
-| `auth` | Login-Schutz | `auth:\n  enabled: true\n  session_timeout_hours: 24` |
-| `llm_guardian` | Sicherheitsprüfung | `llm_guardian:\n  enabled: false\n  default_level: medium` |
-| `mcp_server` | MCP-Interoperabilität | `mcp_server:\n  enabled: false\n  require_auth: true` |
-| `sandbox` | Isolierte Ausführung | `sandbox:\n  enabled: true\n  backend: docker\n  network_enabled: false` |
-| `notifications` | Push-Benachrichtigungen | `notifications:\n  ntfy:\n    enabled: false\n  pushover:\n    enabled: true` |
-| `tailscale` | Tailscale VPN | `tailscale:\n  enabled: false\n  tsnet:\n    enabled: false` |
-| `ollama` | Lokale LLM-Verwaltung | `ollama:
-  enabled: false
-  url: ""
-  managed_instance:
-    enabled: false
-    container_port: 11434
-    use_host_gpu: false
-    gpu_backend: auto` |
+| `telegram` | Telegram Bot | `telegram:`<br>`  bot_token: "..."`<br>`  telegram_user_id: 12345678` |
+| `discord` | Discord Bot | `discord:`<br>`  enabled: true`<br>`  bot_token: "..."`<br>`  guild_id: "..."` |
+| `email_accounts` | E-Mail IMAP/SMTP (Array) | `email_accounts:`<br>`  - id: personal`<br>`    name: Personal`<br>`    imap_host: imap.gmail.com`<br>`    smtp_host: smtp.gmail.com` |
+| `email` | *(Legacy)* E-Mail IMAP/SMTP | `email:`<br>`  enabled: true`<br>`  imap_host: imap.gmail.com`<br>`  smtp_host: smtp.gmail.com` |
+| `home_assistant` | Home Assistant | `home_assistant:`<br>`  enabled: true`<br>`  url: "http://homeassistant.local:8123"` |
+| `docker` | Docker API | `docker:`<br>`  enabled: true`<br>`  host: "unix:///var/run/docker.sock"` |
+| `budget` | Kostenkontrolle | `budget:`<br>`  enabled: false`<br>`  daily_limit_usd: 5`<br>`  enforcement: warn` |
+| `fallback_llm` | Backup-LLM | `fallback_llm:`<br>`  enabled: true`<br>`  provider: fallback` |
+| `co_agents` | Parallele Sub-Agenten | `co_agents:`<br>`  enabled: true`<br>`  max_concurrent: 3` |
+| `circuit_breaker` | Resilienz | `circuit_breaker:`<br>`  max_tool_calls: 20`<br>`  llm_timeout_seconds: 600` |
+| `auth` | Login-Schutz | `auth:`<br>`  enabled: true`<br>`  session_timeout_hours: 24` |
+| `llm_guardian` | Sicherheitsprüfung | `llm_guardian:`<br>`  enabled: false`<br>`  default_level: medium` |
+| `mcp_server` | MCP-Interoperabilität | `mcp_server:`<br>`  enabled: false`<br>`  require_auth: true` |
+| `sandbox` | Isolierte Ausführung | `sandbox:`<br>`  enabled: true`<br>`  backend: docker`<br>`  network_enabled: false` |
+| `notifications` | Push-Benachrichtigungen | `notifications:`<br>`  ntfy:`<br>`    enabled: false`<br>`  pushover:`<br>`    enabled: true` |
+| `tailscale` | Tailscale VPN | `tailscale:`<br>`  enabled: false`<br>`  tsnet:`<br>`    enabled: false` |
+| `ollama` | Lokale LLM-Verwaltung | `ollama:`<br>`  enabled: false`<br>`  url: ""`<br>`  managed_instance:`<br>`    enabled: false`<br>`    container_port: 11434`<br>`    use_host_gpu: false`<br>`    gpu_backend: auto` |
 | `proxmox` / `ansible` | Infrastruktur | Jeweils `enabled: false`, `url: ""`, `readonly: false` |
 | `meshcentral` | Control-WebSocket für Geräte, Wake, Strom und MeshAgent-Befehle | `enabled: false`, `readonly: true`, `allow_power_actions: false` |
-| `github` | GitHub API | `github:\n  enabled: false\n  owner: ""` |
+| `github` | GitHub API | `github:`<br>`  enabled: false`<br>`  owner: ""` |
 | `s3` / `onedrive` / `webdav` / `koofr` | Cloud-Speicher | Jeweils `enabled: false`, Endpoint/Credentials in UI/Vault |
-| `paperless_ngx` | Dokumentenworkflow | `paperless_ngx:\n  enabled: false\n  url: ""` |
+| `paperless_ngx` | Dokumentenworkflow | `paperless_ngx:`<br>`  enabled: false`<br>`  url: ""` |
 | `telnyx` / `rocketchat` | Telefonie/Chat | `enabled: false`, Details über Web-UI |
-| `google_workspace` | Google APIs | `google_workspace:\n  enabled: false\n  gmail: false\n  drive: false` |
-| `egg_mode` | Worker-Mode | `egg_mode:
-  enabled: false
-  master_url: ""
-  egg_id: ""
-  nest_id: ""
-  tls_pin_sha256: ""
-  tls_skip_verify: false` |
-| `invasion_control` | Remote Deployment | `invasion_control:
-  enabled: false
-  readonly: false` |
-| `security_proxy` | Reverse Proxy | `security_proxy:
-  enabled: false
-  domain: ""
-  rate_limiting:
-    enabled: true` |
-| `indexing` | Datei-Indexierung | `indexing:
-  enabled: false
-  poll_interval_seconds: 60
-  index_images: false` |
-| `a2a` | Agent-to-Agent | `a2a:
-  server:
-    enabled: false
-    port: 0
-  client:
-    enabled: false` |
+| `google_workspace` | Google APIs | `google_workspace:`<br>`  enabled: false`<br>`  gmail: false`<br>`  drive: false` |
+| `egg_mode` | Worker-Mode | `egg_mode:`<br>`  enabled: false`<br>`  master_url: ""`<br>`  egg_id: ""`<br>`  nest_id: ""`<br>`  tls_pin_sha256: ""`<br>`  tls_skip_verify: false` |
+| `invasion_control` | Remote Deployment | `invasion_control:`<br>`  enabled: false`<br>`  readonly: false` |
+| `security_proxy` | Reverse Proxy | `security_proxy:`<br>`  enabled: false`<br>`  domain: ""`<br>`  rate_limiting:`<br>`    enabled: true` |
+| `indexing` | Datei-Indexierung | `indexing:`<br>`  enabled: false`<br>`  poll_interval_seconds: 60`<br>`  index_images: false` |
+| `a2a` | Agent-to-Agent | `a2a:`<br>`  server:`<br>`    enabled: false`<br>`    port: 0`<br>`  client:`<br>`    enabled: false` |
 | `realtime_speech` | Live-Sprachsessions | `realtime_speech:`<br>`  enabled: false`<br>`  default_profile: ""` |
 | `virtual_computers` | Verwaltete virtuelle Computer | `virtual_computers:`<br>`  enabled: false`<br>`  auto_setup: false`<br>`  readonly: false` |
 | `manus` | Asynchrone Manus-Aufgaben | `manus:`<br>`  enabled: false`<br>`  read_only: true` |
 | `omniroute` | OpenAI-kompatibles Gateway | `omniroute:`<br>`  enabled: false`<br>`  mode: managed` |
 | `evomap` | EvoMap GEP/A2A | `evomap:`<br>`  enabled: false`<br>`  readonly: true` |
-| `music_generation` | KI-Musik | `music_generation:
-  enabled: false
-  provider: ""
-  max_daily: 0` |
-| `firewall` | Firewall-Integration | `firewall:
-  enabled: false
-  mode: readonly` |
-| `journal` | Journaleinträge | `journal:
-  auto_entries: true
-  daily_summary: true` |
+| `music_generation` | KI-Musik | `music_generation:`<br>`  enabled: false`<br>`  provider: ""`<br>`  max_daily: 0` |
+| `firewall` | Firewall-Integration | `firewall:`<br>`  enabled: false`<br>`  mode: readonly` |
+| `journal` | Journaleinträge | `journal:`<br>`  auto_entries: true`<br>`  daily_summary: true` |
 | `llm_router` | Optionaler task-basierter Modell-Router | `llm_router:`<br>`  enabled: false`<br>`  helper_fallback: true`<br>`  areas:`<br>`    coding: {provider: "", model: ""}` |
 | `newspaper` | Persönliche Tageszeitung (Desktop-App) | `newspaper:`<br>`  enabled: false`<br>`  readonly: false`<br>`  allow_email: false`<br>`  allow_telegram: false` |
 | `treg` | treg-Katalog-Gateway (drei Agent-Tools) | `treg:`<br>`  enabled: false`<br>`  readonly: true`<br>`  max_call_cost_micro: 1000000`<br>`  allowed_endpoints: []` |
@@ -964,5 +926,5 @@ media_registry:
 
 ---
 
-**Vorheriges Kapitel:** [Kapitel 6: Werkzeuge](./06-tools.md)  
+**Vorheriges Kapitel:** [Kapitel 6: Werkzeuge](./06-tools.md)
 **Nächstes Kapitel:** [Kapitel 8: Integrationen](./08-integrations.md)

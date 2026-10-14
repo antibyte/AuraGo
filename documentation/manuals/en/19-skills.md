@@ -206,15 +206,15 @@ api_key = os.environ.get('AURAGO_SECRET_OPENWEATHER_API_KEY')
 ### Security notes
 
 > ⚠️ **Important:** Skills are a special case for vault access!
-> 
+>
 > Normally, the agent has **no access** to vault secrets. For skills, however, the secrets must be transferred to the Python process in order to be used by the skill.
-> 
+>
 > This means:
 > - Secrets **leave** the protected vault environment of AuraGo
 > - They are passed as environment variables to the skill process
 > - During skill execution, they are only protected by **operating system user isolation**
 > - The skill process runs in a sandbox (venv), but with access to the passed secrets
-> 
+>
 > **Recommendation:**
 > - Use dedicated, restricted API keys for skills (not your main keys)
 > - Only enable `tools.python_secret_injection.enabled` when necessary
@@ -797,3 +797,8 @@ The agent loads them via `activate_agent_skill` and `run_agent_skill_script` too
 - **[Chapter 6: Tools](06-tools.md)** – Learn about built-in tools
 - **[Chapter 14: Security](14-security.md)** – Security policies for skills
 - **Web-UI** → Skills → Discover new skills
+
+---
+
+**Previous Chapter:** [Chapter 18: Appendix](./18-appendix.md)
+**Next Chapter:** [Chapter 20: Chat commands](./20-chat-commands.md)

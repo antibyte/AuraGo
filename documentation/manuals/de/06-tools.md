@@ -663,3 +663,8 @@ Erstellte Tools werden in `agent_workspace/tools/` gespeichert und sind sofort v
 
 - **[Konfiguration](07-konfiguration.md)** — Tools feinjustieren
 - **[Integrationen](08-integrations.md)** — Externe Dienste verbinden
+
+---
+
+**Vorheriges Kapitel:** [Kapitel 5: Chat-Grundlagen](./05-chatgrundlagen.md)
+**Nächstes Kapitel:** [Kapitel 7: Konfiguration](./07-konfiguration.md)

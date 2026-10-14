@@ -672,3 +672,8 @@ Created tools are saved to `agent_workspace/tools/` and available immediately.
 
 - **[Configuration](07-configuration.md)** — Fine-tune tools
 - **[Integrations](08-integrations.md)** — Connect external services
+
+---
+
+**Previous Chapter:** [Chapter 5: Chat basics](./05-chat-basics.md)
+**Next Chapter:** [Chapter 7: Configuration](./07-configuration.md)

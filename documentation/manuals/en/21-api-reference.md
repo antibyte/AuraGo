@@ -19,7 +19,7 @@ JSON, admin auth where it hurts, SSE at `GET /events`. No public chat `/ws`. Def
 5. [Config API](#config-api)
 6. [Config Rules API](#config-rules-api)
 7. [Vault API](#vault-api)
-8. [Device API](#device-api)
+8. [Device API](#device-api-device-registry)
 9. [Credentials API](#credentials-api)
 10. [Mission Control API](#mission-control-api)
 11. [Container API](#container-api)
@@ -2836,3 +2836,8 @@ The API uses standard HTTP status codes:
 ## Desktop workspace API
 
 See the [Desktop HTTP and SDK contract](../../desktop-api.md) for readonly, scoped bootstrap/events, conditional file writes, conflict handling, archive previews and session compatibility.
+
+---
+
+**Previous Chapter:** [Chapter 20: Chat commands](./20-chat-commands.md)
+**Next Chapter:** [Chapter 22: Internal tools](./22-internal-tools.md)

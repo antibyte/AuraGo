@@ -131,4 +131,9 @@ Ctrl+S, Ctrl+Enter and Ctrl+K work anywhere in the editor, but not while a dialo
 
 ---
 
-**See also:** [Chapter 11: Mission Control](11-missions.md) · [Chapter 4: Web UI](04-webui.md) · [Chapter 14: Security](14-security.md)
+**See also:** [Chapter 11: Mission Control](./11-missions.md) · [Chapter 4: Web UI](./04-webui.md) · [Chapter 14: Security](./14-security.md)
+
+---
+
+**Previous Chapter:** [Chapter 23: Internals](./23-internals.md)
+**Next Chapter:** [Chapter 25: CYD Creator](./25-cyd-creator.md)

@@ -432,3 +432,8 @@ The Web UI adapts to different screen sizes:
 - **[Chat Basics](05-chat-basics.md)** – Communicate effectively
 - **[Tools](06-tools.md)** – Learn all tools
 - **[Configuration](07-configuration.md)** – Fine-tuning
+
+---
+
+**Previous Chapter:** [Chapter 3: Quick start](./03-quickstart.md)
+**Next Chapter:** [Chapter 5: Chat basics](./05-chat-basics.md)

@@ -295,14 +295,14 @@ Du solltest den Login-Screen oder den Chat sehen (je nach Auth-Konfiguration).
 
 ## Update durchführen
 
-### Installer-Skript (Option A):
+### Installer-Skript (Option A)
 Starte den Updater im Installationsverzeichnis. Der Installer hat dort `update.sh` abgelegt; das Binary ist `bin/aurago_linux`:
 ```bash
 cd ~/aurago
 ./update.sh
 ```
 
-### Manuelle Installation (Option C):
+### Manuelle Installation (Option C)
 Ersetze die Executable (auf arm64 lädst du `aurago_linux_arm64`):
 ```bash
 cd ~/aurago
@@ -311,7 +311,7 @@ chmod +x aurago
 sudo systemctl restart aurago
 ```
 
-### Docker:
+### Docker
 ```bash
 docker compose pull
 docker compose up -d
@@ -373,3 +373,8 @@ Remove-Item -Recurse -Force C:\Users\$env:USERNAME\aurago
 - **[Konfiguration](07-konfiguration.md)** – Feintuning
 
 Die vollständige Weboberfläche wird als passendes lokales Ressourcenpaket installiert; im Binary bleibt eine kleine Reparatur-/Anmeldeseite. Details: [Ressourcen und Offline-Installation](../../web-assets.md).
+
+---
+
+**Vorheriges Kapitel:** [Kapitel 1: Einführung](./01-einfuehrung.md)
+**Nächstes Kapitel:** [Kapitel 3: Schnellstart](./03-schnellstart.md)

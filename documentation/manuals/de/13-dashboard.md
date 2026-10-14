@@ -116,8 +116,8 @@ Profil-Einträge können über `PUT /api/dashboard/profile/entry` aktualisiert w
 
 Der Tab **Knowledge Graph** ist die vollständige KG-Verwaltungsansicht.
 
-| Bereich | Funktion |
-|---------|----------|
+| Bereich | Funktion | Endpunkte |
+|---------|----------|-----------|
 | **Zusammenfassung** | Knoten-/Kanten-Zahlen, Typ-Verteilung, Suchfeld | `GET /api/knowledge-graph/stats`, `GET /api/knowledge-graph/search` |
 | **Graph Quality** | Geschützte, isolierte, untypisierte und Duplikat-Kandidaten | `GET /api/knowledge-graph/quality` |
 | **KG Explorer** | Suchergebnisse, letzte Knoten und Kanten | `GET /api/knowledge-graph/nodes`, `GET /api/knowledge-graph/edges`, `GET /api/knowledge-graph/important` |
@@ -395,3 +395,8 @@ Für programmatischen Zugriff nutze die Dashboard-REST-Endpunkte unten und [Kapi
 - **[Kapitel 12: Invasion Control](12-invasion.md)** — Remote-Nodes in den Betriebs-Stats
 - **[Kapitel 14: Sicherheit](14-sicherheit.md)** — Audit-Protokoll und LLM Guardian
 - **[Kapitel 21: REST-API-Referenz](21-api-reference.md)** — Vollständige Endpunkt-Details
+
+---
+
+**Vorheriges Kapitel:** [Kapitel 12: Invasion Control](./12-invasion.md)
+**Nächstes Kapitel:** [Kapitel 14: Sicherheit](./14-sicherheit.md)

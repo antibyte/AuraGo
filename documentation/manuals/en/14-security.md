@@ -42,11 +42,11 @@ The vault is the heart of AuraGo's security architecture. All sensitive data –
 ### Agent Access to the Vault
 
 > 🔒 **Important Security Note:**
-> 
+>
 > The agent **never** has direct access to secrets stored in the vault for internal integrations and tools. It cannot read or retrieve these secrets.
-> 
+>
 > **Exception:** Secrets that the agent **created itself** (e.g., via chat or API) can be retrieved and managed by it at any time.
-> 
+>
 > The application (not the agent) loads vault secrets at runtime and securely injects them into the appropriate tools without the agent ever seeing the plaintext values.
 
 ### Initializing the vault
@@ -90,44 +90,110 @@ The password only reaches `sudo -v`; commands run with `sudo -n` and a closed st
 
 ## Web UI Authentication
 
-AuraGo supports password protection with optional TOTP two-factor authentication.
+AuraGo ships a layered authentication system for the web interface.
 
-### Password Setup
+### Overview of Auth Methods
 
-**Via Web UI:**
-1. Go to **Config → Web Config & Login**
-2. Enable **Authentication**
-3. Enter password
-4. Save and restart
+| Method | Strength | Use case |
+|--------|----------|----------|
+| **Password (bcrypt)** | High | Baseline protection for the web UI |
+| **TOTP 2FA** | Very high | Extra protection for external access |
+| **Session cookies** | High | Stateless authentication |
+| **IP rate limiting** | Medium | Brute-force protection |
 
-**Via CLI (for hashing):**
-```bash
-# Generate bcrypt hash (cost 10)
-python3 -c "import bcrypt; print(bcrypt.hashpw(b'your-password', bcrypt.gensalt(10)).decode())"
-```
+### bcrypt Password Hashing
 
-**Storage:** Password hashes and TOTP secrets are stored in the **encrypted vault**, not in `config.yaml`. Set them via the Web UI (**Config → Web Config & Login**) or the API (`POST /api/auth/password`, `/api/auth/totp/setup`).
+- **Algorithm:** bcrypt with cost factor 12
+- **Salt:** Automatic, unique per password
+- **Cost:** ~250 ms per hashing operation (protection against rainbow tables)
+
+### TOTP (Time-based One-Time Password)
+
+- **Standards:** RFC 6238 / RFC 4226
+- **Time window:** 30 seconds
+- **Tolerance:** ±1 window (90 second grace period)
+- **QR code:** Compatible with Google Authenticator, Authy, Bitwarden
+
+---
+
+## Setting Up Password Protection
+
+### Step 1: Initial configuration
+
+**In the web UI:**
+1. Open **Config → Server → Web Config & Login**.
+2. Enable login protection, session timeout and rate limiting.
+3. Set the password and optionally TOTP via `POST /api/auth/password` and `POST /api/auth/totp/setup` (or directly in the web UI).
+4. Save.
 
 ### YAML Reference
 ```yaml
+# config.yaml
 auth:
-  enabled: true
-  session_timeout_hours: 24
-  totp_enabled: false
+    enabled: true
+    session_timeout_hours: 24
+    totp_enabled: false
+    max_login_attempts: 5
+    lockout_minutes: 15
 ```
 
-Vault keys: `auth_password_hash`, `auth_totp_secret`, `auth_session_secret`.
+The password hash, TOTP secret and session secret are stored in the **vault** (`auth_password_hash`, `auth_totp_secret`, `auth_session_secret`), not in `config.yaml`. Set them through the web UI (**Config → Server → Web Config & Login** or `/auth/login`) or the API (`POST /api/auth/password`, `/api/auth/totp/setup`).
 
-### Two-Factor Authentication (2FA)
+### Step 2: Set the password in the web UI
 
-**Setup via Web UI:**
-1. Enable authentication in Configuration → Auth
-2. Set password and save
-3. Enable TOTP and follow the QR code setup
-4. Confirm with a 6-digit code (`POST /api/auth/totp/confirm`)
-5. Scan with an authenticator app (Google Authenticator, Authy, Aegis)
+1. Start AuraGo with `auth.enabled: true`
+2. Open the web UI (`http://localhost:8088`)
+3. You are redirected to the setup page automatically
+4. Choose a strong password (at least 12 characters, mixed character sets)
 
-> ⚠️ **Warning:** Store the TOTP secret safely! If you lose your authenticator app, you'll need the secret to recover access.
+> ⚠️ **Warning:** Without a configured password, authentication is disabled automatically to prevent a lockout!
+
+### Hashing a password manually (CLI)
+
+If you want to set the password directly in `config.yaml`:
+
+```bash
+# With Python
+python3 -c "import bcrypt; print(bcrypt.hashpw(b'your-password', bcrypt.gensalt(12)).decode())"
+
+# With Node.js
+node -e "const bcrypt = require('bcrypt'); console.log(bcrypt.hashSync('your-password', 12))"
+```
+
+---
+
+## Enabling Two-Factor Authentication (2FA)
+
+### Prerequisites
+
+- Password authentication is configured
+- A TOTP app is installed (Google Authenticator, Authy, …)
+
+### Setup
+
+1. **Enable it in the web UI:** **Config → Server → Web Config & Login** → enable TOTP, or in the YAML reference:
+   ```yaml
+   auth:
+       totp_enabled: true
+       totp_secret: ""              # Generated automatically
+   ```
+
+2. **Restart AuraGo**
+
+3. **Scan the QR code:**
+   - Open the login page `/auth/login` and follow the TOTP setup wizard (or call `POST /api/auth/totp/setup` directly for the QR code)
+   - Scan the displayed QR code with your authenticator app
+   - Confirm with `POST /api/auth/totp/confirm` and the 6-digit code
+
+### Important notes on 2FA
+
+> ⚠️ **Save a backup code!** If you lose access to your authenticator, you cannot log in without the TOTP secret. Export the secret from the config or store it separately.
+
+```yaml
+# Backup: keep this value safe!
+auth:
+    totp_secret: "JBSWY3DPEHPK3PXP"    # Base32-encoded secret
+```
 
 ## Danger Zone – Capability Gates
 
@@ -193,6 +259,44 @@ Two additional default boundaries limit what the agent can reach regardless of t
 
 - **Workspace jail:** agent file access (filesystem and file-editor tools) is jailed to `agent_workspace`. From the working directory, `../skills` and `../tools` stay reachable; attempts such as `../../config.yaml` or `data/` fail path resolution. Defense-in-depth additionally blocks protected system paths (data directory, `config.yaml`, vault, SQLite databases, `.env`, and the master key file) case-insensitively and with symlinks resolved. Files served under `/files/` follow symlinks and junctions only while they stay inside the served directory; links leaving `agent_workspace` or a media directory are not served.
 - **Docker inspect redaction:** agent `docker inspect` output redacts `AURAGO_*` environment variables and keys ending in `_PASSWORD`, `_SECRET`, `_TOKEN`, `_API_KEY`, `_ACCESS_KEY`, `_PRIVATE_KEY`, or `_MASTER_KEY`. The AuraGo app container itself (compose service `aurago`) is hidden from inspect, lifecycle, log, exec, and copy access, and the managed Garage container is invisible as well.
+
+## Read-only vs Read-write Mode
+
+### Comparison
+
+| Aspect | Read-only | Read-write |
+|--------|-----------|------------|
+| **Security** | 🔒 Very high | 🔓 Higher risk |
+| **Usefulness** | Limited | Full |
+| **Typical use** | Monitoring, research | Automation, control |
+| **Error message** | "Tool is in read-only mode" | – |
+
+### Granular control
+
+Per integration under **Config → Integrations → …** (toggle **Read-only**):
+
+### YAML Reference
+```yaml
+# Example: safe configuration for monitoring
+docker:
+    enabled: true
+    readonly: true              # Show containers, do not change them
+
+home_assistant:
+    enabled: true
+    readonly: true              # Read temperature, do not control heating
+
+email:
+    enabled: true
+    readonly: true              # Read mail, do not send
+
+# The agent can still:
+# - read and write files in the workspace
+# - run web searches
+# - execute Python code
+```
+
+---
 
 ## File Locks and Instance Prevention
 
@@ -385,35 +489,82 @@ export AURAGO_MASTER_KEY=$(openssl rand -hex 32)
 
 ---
 
-## Additional Public-Facing Protections
+## 🔍 Deep Dive: Cryptographic Implementation
 
-The German security chapter contains a more detailed public-exposure checklist; the current English sync adds the key operational points here.
+### AES-256-GCM Details
+
+```go
+// Simplified view
+block, _ := aes.NewCipher(key)      // 256-bit key
+gcm, _ := cipher.NewGCM(block)      // GCM mode
+nonce := make([]byte, gcm.NonceSize()) // 96-bit nonce
+io.ReadFull(rand.Reader, nonce)     // Cryptographically secure
+
+ciphertext := gcm.Seal(nonce, nonce, plaintext, nil)
+```
+
+**Security properties:**
+- **Confidentiality:** AES-256 encryption
+- **Integrity:** GCM authentication (AEAD)
+- **Non-replay:** Unique nonce per operation
+- **Forward secrecy:** No implicit key derivation
+
+### Session Cookie Security
+
+```
+Cookie: aurago_session=<payload>.<hmac>
+
+payload = base64("user|<expiry_unix>")
+hmac = SHA256(secret + payload)
+```
+
+- **HttpOnly:** Prevents XSS access to the cookie
+- **SameSite=Strict:** CSRF protection
+- **HMAC-SHA256:** Integrity protection
+- **Expiry:** Configurable (default: 24 hours)
+
+---
+
+## Public Access
 
 | Protection | Recommendation |
 |------------|----------------|
-| Login protection | Enable auth before exposing AuraGo beyond localhost |
-| TOTP | Enable 2FA for all internet-facing deployments |
+| Login | Enable auth before anything stops being localhost-only |
+| TOTP | 2FA for every internet-facing deployment |
 | Proxy trust | Set `behind_proxy` + `trusted_proxy_cidrs`, otherwise forwarding headers are ignored |
-| Security Proxy | Use the managed Caddy proxy for TLS termination, rate limiting, IP filtering and Basic Auth; geo-blocking is not implemented yet |
-| Cloudflare Tunnel / Tailscale | Prefer private tunnels or VPN access over direct port forwarding |
-| Webhooks | Require tokens/HMAC, narrow scopes, and rate limits |
-| Tool permissions | Keep Danger Zone toggles disabled until a feature is actually needed |
+| Security Proxy | Managed Caddy for TLS termination, rate limiting, IP filtering and Basic Auth |
+| Tunnel / VPN | Cloudflare Tunnel or Tailscale instead of port forwarding |
+| Webhooks | Token or HMAC, narrow scopes, rate limits |
+| Danger Zone | Off until you actually need the feature |
 | Unsafe exceptions | Keep `allow_unauthenticated_remote`, `allow_unsafe_host_execution` and `allow_unsandboxed_shell` at `false` |
-| Backups | Encrypt `.ago` backups and store passphrases outside the repository |
+| Backups | Encrypt `.ago` backups and keep the passphrase out of the repository |
 
-For incident response, rotate exposed API keys immediately, invalidate webhook tokens, review recent logs, and regenerate credentials stored in Vault if compromise is suspected.
+If compromise is suspected: rotate keys with the provider, invalidate webhook tokens, read the logs, and regenerate vault secrets.
+
+## Summary
+
+| Feature | Configuration | Recommended setting |
+|---------|---------------|---------------------|
+| Vault encryption | `AURAGO_MASTER_KEY` env | 64 random hex characters |
+| Password auth | `auth.enabled` | `true` (production) |
+| 2FA | `auth.totp_enabled` | `true` (external access) |
+| Session timeout | `auth.session_timeout_hours` | `24` |
+| Rate limiting | `auth.max_login_attempts` | `5` |
+| Proxy trust | `server.https.trusted_proxy_cidrs` | Explicit proxy IPs/CIDRs |
+| SSRF protection | `internal/security/ssrf.go` | Always on, no gate |
+| Host execution | `agent.allow_unsafe_host_execution` | `false` |
+| Host shell without sandbox | `agent.allow_unsandboxed_shell` | `false` |
+| Docker gate | `docker.readonly` | `true` (monitoring) |
+| Vault gate | `tools.secrets_vault.readonly` | `true` |
 
 ---
 
-> 🔍 **Deep Dive: Cryptography**
-> 
-> The vault uses AES-256-GCM:
-> - **AES-256**: Symmetric encryption with 256-bit key
-> - **GCM**: Galois/Counter Mode provides authenticated encryption
-> - **AEAD**: Authenticated Encryption with Associated Data prevents tampering
-> - **Key derivation**: Master key is hashed with SHA-256 for subkeys
-> - **Random nonces**: Each encryption uses a unique 96-bit nonce
+> 💡 **Next steps:**
+> - **[Co-agents](15-coagents.md)** – Use parallel agents safely
+> - **[Configuration](07-configuration.md)** – Fine-tune every parameter
+> - **[Docker deployment](../../docker_installation.md)** – Isolated production environment
 
 ---
 
-> 💡 **Tip:** Security is a process, not a product. Regularly review your configuration and update credentials.
+**Previous Chapter:** [Chapter 13: Dashboard](./13-dashboard.md)
+**Next Chapter:** [Chapter 15: Co-agents](./15-coagents.md)

@@ -1,4 +1,4 @@
-# Chat-Commands
+# Kapitel 20: Chat-Commands
 
 <p align="center">
   <a href="../images/manual-chat.webp"><img src="../images/manual-chat.webp" width="400" alt="AuraGo-Gopher am Chat-Rechner"></a>
@@ -349,3 +349,8 @@ Commands können auch programmatisch über die API ausgelöst werden:
 - [Web-Oberfläche](04-webui.md) – Alternative zur Command-Zeile
 - [REST API Referenz](21-api-reference.md) – Programmatischer Zugriff
 - [Sicherheit](14-sicherheit.md) – Vault und Verschlüsselung
+
+---
+
+**Vorheriges Kapitel:** [Kapitel 19: Skills](./19-skills.md)
+**Nächstes Kapitel:** [Kapitel 21: REST API Referenz](./21-api-reference.md)

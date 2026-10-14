@@ -1,4 +1,4 @@
-# Chat Commands
+# Chapter 20: Chat Commands
 
 <p align="center">
   <a href="../images/manual-chat.webp"><img src="../images/manual-chat.webp" width="400" alt="AuraGo gopher at the chat computer"></a>
@@ -349,3 +349,8 @@ curl -X POST http://localhost:8088/v1/chat/completions \
 - [Web Interface](04-webui.md) – Alternative to command line
 - [REST API Reference](21-api-reference.md) – Programmatic access
 - [Security](14-security.md) – Vault and encryption
+
+---
+
+**Previous Chapter:** [Chapter 19: Skills](./19-skills.md)
+**Next Chapter:** [Chapter 21: REST API Reference](./21-api-reference.md)

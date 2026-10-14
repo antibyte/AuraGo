@@ -1059,6 +1059,34 @@ When updating AuraGo:
 
 ---
 
+## Updated Endpoint Short Reference
+
+| Feature | Endpoints |
+|---------|-----------|
+| Security Proxy | `GET /api/proxy/status`, `POST /api/proxy/start`, `POST /api/proxy/stop`, `POST /api/proxy/reload`, `GET /api/proxy/logs` |
+| Web Push | `GET /api/push/vapid-pubkey`, `POST /api/push/subscribe`, `POST /api/push/unsubscribe`, `GET /api/push/status` |
+| Video generation | `POST /api/video-generation/test` |
+| Managed Ollama | `GET /api/ollama/managed/status`, `POST /api/ollama/managed/recreate` |
+| File KG Sync | `GET /api/debug/file-sync-status`, `GET /api/debug/kg-file-sync-stats`, `POST /api/debug/kg-file-sync-cleanup` |
+| A2A | `GET /api/a2a/status`, `GET /api/a2a/card`, `GET /api/a2a/remote-agents`, `POST /api/a2a/test` |
+| Backup/Restore | `POST /api/backup/create`, `POST /api/backup/import` |
+| go2rtc | `GET /api/go2rtc/status`, `POST /api/go2rtc/test` |
+| MeshCore | `GET /api/meshcore/status`, `POST /api/meshcore/test` |
+| Bluetooth | `GET /api/bluetooth/status`, `POST /api/bluetooth/reprobe` |
+| CYD | `GET /api/cyd/status`, `POST /api/cyd/test` |
+
+## Updated Tool Short Reference
+
+| Tool | Purpose |
+|------|---------|
+| `generate_video` | Create short AI videos from text or image prompts |
+| `send_video` | Send video files to the user with an inline player |
+| `ldap` | Search and authenticate against LDAP/Active Directory |
+| `wait_for_event` | Wait asynchronously for a background process, HTTP endpoint or file change |
+| `follow_up` | Schedule an autonomous follow-up task after the current answer |
+
+---
+
 ## License Information
 
 ### AuraGo License
@@ -1123,3 +1151,8 @@ When using AuraGo in projects or publications, please consider acknowledging:
 ---
 
 *End of Appendix - Last updated: 2024*
+
+---
+
+**Previous Chapter:** [Chapter 17: Glossary](./17-glossary.md)
+**Next Chapter:** [Chapter 19: Skills](./19-skills.md)

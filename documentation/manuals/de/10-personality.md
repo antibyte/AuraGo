@@ -329,5 +329,5 @@ Schnelle Infos  → terminator
 
 ---
 
-**Vorheriges Kapitel:** [Kapitel 9: Gedächtnis & Wissen](./09-memory.md)  
+**Vorheriges Kapitel:** [Kapitel 9: Gedächtnis & Wissen](./09-memory.md)
 **Nächstes Kapitel:** [Kapitel 11: Mission Control](./11-missions.md)

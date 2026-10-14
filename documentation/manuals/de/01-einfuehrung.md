@@ -69,3 +69,7 @@ Datei-Tools bleiben in `agent_workspace`. `../../config.yaml` und `data/` scheit
 3. **[Web-Oberfläche](04-webui.md)** — Chat, Desktop, Config
 
 > Tipp: Fang mit der Web-UI an. Frag nach Systeminformationen, nicht nach der Config-Datei.
+
+---
+
+**Nächstes Kapitel:** [Kapitel 2: Installation](./02-installation.md)

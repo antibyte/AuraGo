@@ -6,6 +6,23 @@
 
 Kurzreferenz. Die lange Wahrheit liegt in `config_template.yaml` und [Kapitel 21](21-api-reference.md).
 
+## Inhaltsverzeichnis
+
+1. [Vollständige Konfigurationsreferenz](#vollständige-konfigurationsreferenz)
+2. [API Endpoints](#api-endpoints)
+3. [Chat-Befehle Referenz](#chat-befehle-referenz)
+4. [Tool-Referenz](#tool-referenz)
+5. [Beispiel-Konfigurationen](#beispiel-konfigurationen)
+6. [Umgebungsvariablen](#umgebungsvariablen)
+7. [Datei-Pfade](#datei-pfade)
+8. [Update-Historie (Changelog)](#update-historie-changelog)
+9. [Nützliche Ressourcen](#nützliche-ressourcen)
+10. [Aktualisierte Kurzreferenz aktueller Endpunkte](#aktualisierte-kurzreferenz-aktueller-endpunkte)
+11. [Aktualisierte Tool-Kurzreferenz](#aktualisierte-tool-kurzreferenz)
+12. [Lizenz](#lizenz)
+
+---
+
 ## Vollständige Konfigurationsreferenz
 
 > 💡 **Web-UI zuerst:** Änderungen im Alltag über **Menü → Config** vornehmen. Dieser Anhang dokumentiert die vollständige `config.yaml`-Struktur als Referenz für Automatisierung und Headless-Deployments.
@@ -253,29 +270,44 @@ web_config:
 
 ### REST API
 
-| Methode | Endpoint | Beschreibung |
-|---------|----------|--------------|
-| GET | `/api/health` | Health-Check |
-| POST | `/api/chat` | Chat-Nachricht senden |
-| GET | `/api/history` | Chat-Verlauf abrufen |
-| POST | `/api/reset` | Chat zurücksetzen |
-| GET | `/api/config` | Konfiguration abrufen |
-| PUT | `/api/config` | Konfiguration aktualisieren |
-| GET | `/api/memory` | Speicher abfragen |
-| GET | `/api/budget` | Budget-Status |
-| GET | `/api/dashboard/activity` | Dashboard-Aktivität (inkl. `coagents`) |
+| Methode | Endpoint | Beschreibung | Auth |
+|---------|----------|--------------|------|
+| GET | `/api/health` | Health-Check | Nein |
+| GET | `/api/config` | Konfiguration abrufen (maskiert) | Ja* |
+| POST | `/api/config` | Konfiguration aktualisieren | Ja* |
+| GET | `/api/dashboard` | System-Kennzahlen | Ja* |
+| GET | `/api/memory/short-term` | Kurzzeitgedächtnis | Ja* |
+| GET | `/api/memory/long-term` | Langzeitgedächtnis | Ja* |
+| POST | `/api/memory/query` | Erinnerungen abfragen | Ja* |
+| GET | `/api/tools` | Verfügbare Tools auflisten | Ja* |
+| GET | `/api/vault/status` | Vault-Status | Ja* |
+| POST | `/api/vault/rotate` | Master-Key rotieren | Ja* |
+| GET | `/api/dashboard/activity` | Dashboard-Aktivität (inkl. `coagents`) | Ja* |
+| POST | `/api/webhook/:token` | Eingehender Webhook | Token |
+
+\* Wenn Authentifizierung aktiviert ist
 
 ### WebSocket / SSE
 
 | Endpoint | Zweck |
 |----------|-------|
 | `GET /events` | Server-Sent Events (Chat und Live-UI) |
-| `GET /api/agodesk/ws` | AgoDesk |
+| `GET /api/agodesk/ws` | AgoDesk-Desktopclient |
 | `WS /api/invasion/ws` | Invasion-Eggs |
 
-Es gibt keinen öffentlichen Chat-`/ws` und kein `/api/tools/execute`. Ohne UI-Paket ist `/` die Reparaturseite. Vollständige Liste: [Kapitel 21](21-api-reference.md).
+Es gibt keinen öffentlichen Chat-`/ws` und kein `/api/tools/execute`. Die vollständige UI ist ein Ressourcenpaket; `/` ohne Pin ist die Reparaturseite. Vollständige Liste: [Kapitel 21](21-api-reference.md).
+
+### Statische Dateien
+
+| Endpoint | Beschreibung |
+|----------|--------------|
+| `/` | Chat oder Reparaturseite, je nach UI-Paket |
+| `/desktop`, `/config`, `/dashboard` | Mehrseitige Oberfläche |
+| `/attachments/*` | Hochgeladene Dateien der Nutzer |
 
 ## Chat-Befehle Referenz
+
+### Befehlsübersicht
 
 | Befehl | Beschreibung | Beispiel |
 |--------|--------------|----------|
@@ -294,7 +326,243 @@ Es gibt keinen öffentlichen Chat-`/ws` und kein `/api/tools/execute`. Ohne UI-P
 | `/addssh` | SSH-Gerät hinzufügen | `/addssh` |
 | `/credits` | OpenRouter Credits | `/credits` |
 
+### Ausführliche Befehlsreferenz
+
+#### `/reset`
+```
+Verwendung: /reset
+
+Löscht den Gesprächsverlauf der aktuellen Sitzung aus dem
+Kurzzeitgedächtnis. Betrifft NICHT:
+- Langzeit-Erinnerungen
+- Knowledge Graph
+- Notizen und To-Dos
+- Core Memory
+
+Sinnvoll wenn:
+- Der Kontext zu lang wird
+- Der Agent verwirrt wirkt
+- Ein neues Thema beginnt
+```
+
+#### `/stop`
+```
+Verwendung: /stop
+
+Unterbricht die aktuelle Agenten-Aktion sofort. Sinnvoll wenn:
+- Ein Tool-Aufruf zu lange dauert
+- Der Agent in einer Endlosschleife steckt
+- Du eine laufende Aufgabe abbrechen willst
+
+Hinweis: Bereits abgeschlossene Aktionen werden nicht rückgängig gemacht.
+```
+
+#### `/restart`
+```
+Verwendung: /restart
+
+Startet den AuraGo-Server kontrolliert neu. Alle Verbindungen werden
+getrennt. Der Agent:
+1. Schließt die aktuelle Operation ab
+2. Speichert den Zustand
+3. Beendet sich mit Code 42
+4. Startet neu (bei systemd/Service-Betrieb automatisch)
+```
+
+#### `/debug`
+```
+Verwendung: /debug [on|off]
+
+Steuert die Ausführlichkeit der Debug-Ausgabe.
+
+Argumente:
+  on        - Detaillierte Fehlermeldungen einschalten
+  off       - Detaillierte Ausgabe ausschalten
+  (keins)   - Aktuellen Zustand umschalten
+
+Wenn aktiv:
+- Vollständige Tool-Ausgaben
+- Stacktraces bei Fehlern
+- Ausführliches Logging
+```
+
+#### `/personality`
+```
+Verwendung: /personality [name]
+
+Ohne Argument: Listet verfügbare Persönlichkeiten
+Mit Argument:  Wechselt zur angegebenen Persönlichkeit
+
+Verfügbare Persönlichkeiten:
+  - friend        (locker, warm)
+  - professional  (förmlich, effizient)
+  - neutral       (ausgewogen)
+  - punk          (aufmüpfig)
+  - terminator    (direkt, knapp)
+  - mcp           (protokollorientiert)
+
+Beispiel:
+Du: /personality professional
+Agent: 🎭 Persönlichkeit zu professional gewechselt
+```
+
+#### `/budget`
+```
+Verwendung: /budget
+
+Zeigt die API-Nutzung des heutigen Tages:
+- Eingabe-Tokens
+- Ausgabe-Tokens
+- Geschätzte Kosten in USD
+- Status des Tageslimits
+- Zeitpunkt der Zurücksetzung
+
+Nur verfügbar, wenn budget.enabled true ist.
+```
+
 ## Tool-Referenz
+
+### Tool-Kategorien
+
+| Kategorie | Tools | Beschreibung |
+|-----------|-------|--------------|
+| System | execute_shell, execute_python, get_system_metrics | Grundlegende Systemoperationen |
+| Dateisystem | read_file, write_file, list_directory | Dateiverwaltung |
+| Gedächtnis | manage_memory, query_memory | Gedächtnisoperationen |
+| Wissen | knowledge_graph_query | Knowledge Graph |
+| Web | web_search, web_scraper, fetch_url | Internetzugriff |
+| Kommunikation | send_email, telegram_send | Nachrichten |
+| Smart Home | home_assistant_* | Home Assistant |
+| Infrastruktur | docker_*, proxmox_*, ollama_* | Infrastruktur-Verwaltung |
+| Speicher | webdav_*, koofr_* | Cloud-Speicher |
+| Planung | cron_scheduler, follow_up | Aufgabenplanung |
+| Entwicklung | git_*, github_* | Entwicklerwerkzeuge |
+| Hilfswerkzeuge | analyze_image, transcribe_audio | Sonstige |
+
+### Häufige Tool-Parameter
+
+#### Dateioperationen
+```yaml
+read_file:
+  path: string        # Dateipfad (erforderlich)
+  offset: int         # Ab Zeile lesen (optional)
+  limit: int          # Maximale Zeilenzahl (optional)
+
+write_file:
+  path: string        # Dateipfad (erforderlich)
+  content: string     # Zu schreibender Inhalt (erforderlich)
+  append: boolean     # Anhängen statt überschreiben (optional)
+```
+
+#### Shell-Ausführung
+```yaml
+execute_shell:
+  command: string     # Shell-Befehl (erforderlich)
+  timeout: int        # Zeitlimit in Sekunden (optional, Standard: 60)
+  background: boolean # Im Hintergrund ausführen (optional)
+  workdir: string     # Arbeitsverzeichnis (optional)
+```
+
+#### Python-Ausführung
+```yaml
+execute_python:
+  code: string        # Python-Code (erforderlich)
+  timeout: int        # Zeitlimit in Sekunden (optional, Standard: 120)
+  packages: []string  # Zu installierende pip-Pakete (optional)
+```
+
+#### Websuche
+```yaml
+web_search:
+  query: string       # Suchanfrage (erforderlich)
+  num_results: int    # Anzahl Ergebnisse (optional, Standard: 5)
+  source: string      # Suchmaschine (optional: duckduckgo, google)
+
+web_scraper:
+  url: string         # Zu lesende URL (erforderlich)
+  selector: string    # CSS-Selektor (optional)
+  extract_text: boolean  # Nur Text extrahieren (optional)
+```
+
+#### Gedächtnisoperationen
+```yaml
+manage_memory:
+  operation: string   # add, update, delete, read (erforderlich)
+  key: string         # Gedächtnis-Schlüssel (erforderlich für update/delete)
+  content: string     # Inhalt (erforderlich für add/update)
+  category: string    # Kategorie (optional)
+  priority: int       # Priorität 1-10 (optional)
+
+query_memory:
+  query: string       # Suchanfrage (erforderlich)
+  limit: int          # Maximale Treffer (optional, Standard: 5)
+  threshold: float    # Ähnlichkeitsschwelle (optional)
+
+recall_memory:
+  ids: [string]       # Gedächtnis-IDs aus dem AVAILABLE CONTEXT INDEX
+
+explore_kg:
+  ids: [string]       # KG-Knoten-IDs aus dem AVAILABLE CONTEXT INDEX
+  depth: int          # Traversierungstiefe 1-3 (optional)
+  limit: int          # Max. Knoten/Kanten pro ID (optional)
+```
+
+#### E-Mail
+```yaml
+send_email:
+  to: string          # Empfänger (erforderlich)
+  subject: string     # Betreff (erforderlich)
+  body: string        # Nachrichtentext (erforderlich)
+  attachments: []string  # Dateipfade (optional)
+```
+
+#### Docker
+```yaml
+docker_list:
+  type: string        # containers, images, volumes, networks
+  all: boolean        # Auch gestoppte Container
+
+docker_start:
+  name: string        # Container-Name oder -ID (erforderlich)
+
+docker_stop:
+  name: string        # Container-Name oder -ID (erforderlich)
+  timeout: int        # Stopp-Zeitlimit (optional)
+
+docker_logs:
+  name: string        # Container-Name oder -ID (erforderlich)
+  lines: int          # Zeilenzahl (optional)
+  follow: boolean     # Logs streamen (optional)
+```
+
+#### Home Assistant
+```yaml
+home_assistant_get_state:
+  entity_id: string   # Entity-ID (erforderlich)
+
+home_assistant_call_service:
+  domain: string      # Service-Domäne (erforderlich)
+  service: string     # Service-Name (erforderlich)
+  entity_id: string   # Ziel-Entity (optional)
+  data: object        # Service-Daten (optional)
+
+home_assistant_toggle:
+  entity_id: string   # Umzuschaltende Entity (erforderlich)
+```
+
+#### Planung
+```yaml
+cron_scheduler:
+  operation: string   # add, list, remove (erforderlich)
+  name: string        # Job-Name (erforderlich für add/remove)
+  schedule: string    # Cron-Ausdruck (erforderlich für add)
+  command: string     # Auszuführender Befehl (erforderlich für add)
+  enabled: boolean    # Aktivieren/Deaktivieren (optional)
+
+follow_up:
+  task: string        # Aufgabenbeschreibung (erforderlich)
+  delay: string       # Verzögerung (z. B. "1h", "30m") (erforderlich)
+```
 
 ### Filesystem-Tools
 
@@ -457,14 +725,21 @@ embeddings:
 
 ## Umgebungsvariablen
 
-| Variable | Beschreibung | Beispiel |
+### Erforderliche Variablen
+
+| Variable | Beschreibung | Format |
+|----------|--------------|--------|
+| `AURAGO_MASTER_KEY` | Vault-Verschlüsselungsschlüssel | 64 Zeichen Hex |
+
+### Optionale Variablen
+
+| Variable | Beschreibung | Standard |
 |----------|--------------|----------|
-| `AURAGO_MASTER_KEY` | Vault-Verschlüsselung | `a1b2c3d4...` (64 Hex) |
-| `LLM_API_KEY` | Fallback für LLM | `sk-or-v1-...` |
-| `EMBEDDINGS_API_KEY` | Fallback für Embeddings | `sk-...` |
-| `AURAGO_CONFIG_PATH` | Alternativer Config-Pfad | `/etc/aurago/config.yaml` |
-| `AURAGO_DATA_DIR` | Alternatives Datenverzeichnis | `/var/lib/aurago` |
-| `LOG_LEVEL` | Logging-Level | `debug`, `info`, `warn`, `error` |
+| `AURAGO_CONFIG_PATH` | Alternativer Config-Pfad | `./config.yaml` |
+| `AURAGO_LOG_LEVEL` | Logging-Level | `info` |
+| `AURAGO_DATA_DIR` | Datenverzeichnis | `./data` |
+| `LLM_API_KEY` | LLM-API-Key | Aus der Config |
+| `EMBEDDINGS_API_KEY` | Embeddings-API-Key | Aus der Config |
 
 ### Master-Key generieren
 
@@ -474,6 +749,23 @@ export AURAGO_MASTER_KEY=$(openssl rand -hex 32)
 
 # Windows PowerShell
 $env:AURAGO_MASTER_KEY = -join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Random -Max 256) })
+
+# Länge prüfen (sollte 64 Zeichen sein)
+echo ${#AURAGO_MASTER_KEY}        # Linux/macOS
+$env:AURAGO_MASTER_KEY.Length     # PowerShell
+```
+
+### Docker-Umgebung
+
+```bash
+# .env-Datei anlegen
+cat > .env << EOF
+AURAGO_MASTER_KEY=$(openssl rand -hex 32)
+EOF
+
+# Oder direkt exportieren
+export AURAGO_MASTER_KEY="dein-64-Zeichen-Hex-Key"
+docker compose up -d
 ```
 
 ## Datei-Pfade
@@ -507,6 +799,18 @@ $env:AURAGO_MASTER_KEY = -join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Rand
 | Linux | `~/.config/aurago/` | `~/.local/share/aurago/` | `~/.local/share/aurago/log/` |
 | macOS | `~/Library/Application Support/aurago/` | `~/Library/Application Support/aurago/` | `~/Library/Logs/aurago/` |
 | Windows | `%APPDATA%\aurago\` | `%LOCALAPPDATA%\aurago\` | `%LOCALAPPDATA%\aurago\log\` |
+
+### Konfigurationsdatei-Orte
+
+| Datei | Zweck | Suchreihenfolge |
+|-------|-------|-----------------|
+| `config.yaml` | Hauptkonfiguration | 1. Arbeitsverzeichnis 2. `~/.aurago/` 3. `/etc/aurago/` |
+| `.env` | Umgebungsvariablen | 1. Arbeitsverzeichnis 2. `~/.aurago/` |
+| `prompts/` | System-Prompts | Config: `directories.prompts_dir` |
+
+### Logs
+
+Die Anwendungsausgabe läuft in `log/aurago.log`, HTTP-Zugriffe in `log/web_access.log`. Es gibt kein Rotationsschema über eine `supervisor.log`.
 
 ## Update-Historie (Changelog)
 
@@ -544,6 +848,19 @@ Beim Aktualisieren von AuraGo:
 ### Community
 - Discord: [Link im Repository]
 - Reddit: r/AuraGo
+
+### Verwandte Projekte
+- chromem-go: github.com/philippgille/chromem-go — Vektordatenbank
+- go-openai: github.com/sashabaranov/go-openai — OpenAI-Client
+- telegram-bot-api: github.com/go-telegram-bot-api — Telegram-Integration
+- discordgo: github.com/bwmarrin/discordgo — Discord-Integration
+
+### Lernressourcen
+- YAML: yaml.org/spec
+- Markdown: markdownguide.org
+- Go: go.dev/doc
+- SQLite: sqlite.org/docs
+- Docker: docs.docker.com
 
 ### Tools & Hilfsmittel
 - YAML Validator: yamllint.com
@@ -590,3 +907,8 @@ Siehe LICENSE-Datei im Repository für Details.
 ---
 
 > 💡 **Tipp:** Speichere dir diese Seite als Lesezeichen – sie ist die ultimative Referenz für alle technischen Details!
+
+---
+
+**Vorheriges Kapitel:** [Kapitel 17: Glossar](./17-glossar.md)
+**Nächstes Kapitel:** [Kapitel 19: Skills](./19-skills.md)

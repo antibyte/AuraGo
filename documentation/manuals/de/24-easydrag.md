@@ -131,4 +131,9 @@ Strg+S, Strg+Enter und Strg+K wirken überall im Editor, aber nicht, solange ein
 
 ---
 
-**Siehe auch:** [Kapitel 11: Mission Control](11-missions.md) · [Kapitel 4: Web-Oberfläche](04-webui.md) · [Kapitel 14: Sicherheit](14-sicherheit.md)
+**Siehe auch:** [Kapitel 11: Mission Control](./11-missions.md) · [Kapitel 4: Web-Oberfläche](./04-webui.md) · [Kapitel 14: Sicherheit](./14-sicherheit.md)
+
+---
+
+**Vorheriges Kapitel:** [Kapitel 23: Interna](./23-interna.md)
+**Nächstes Kapitel:** [Kapitel 25: CYD Creator](./25-cyd-creator.md)
