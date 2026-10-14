@@ -117,7 +117,8 @@ try{
    assert.ok((await frame.locator('#ruview-data-source-banner').innerText()).includes('WAITING FOR SENSOR DATA'));
    assert.ok(!(await frame.locator('body').innerText()).includes('Backend unavailable'));
    assert.ok(healthRequests.has('/health/live'));
-   const tour=frame.getByText('Skip tour',{exact:true});if(await tour.isVisible())await tour.click();
+   await frame.getByText('Skip tour',{exact:true}).click();
+   assert.equal(await page.evaluate(()=>localStorage.getItem('aurago.ruview.onboarding.done')),'true');
    await page.screenshot({path:'reports/ruview-browser/upstream-waiting.png'});
    sendSensing({source:'esp32',features:{mean_rssi:-50}});
    await frame.waitForFunction(()=>document.querySelector('.conn-status-label')?.textContent==='Live');
@@ -163,8 +164,34 @@ try{
  await fusion.waitForFunction(()=>document.querySelector('#viz-container > canvas')?.style.visibility==='hidden');
  source='simulated';await fusion.waitForFunction(()=>document.querySelector('#viz-container > canvas')?.style.visibility==='');
  source='esp32';await fusion.waitForFunction(()=>document.querySelector('#viz-container > canvas')?.style.visibility==='hidden');
+ // Tab changes, app reopening and full reload must preserve a dismissed tour.
+ for(const reopen of [
+  async()=>{},
+  async()=>{await page.evaluate(()=>{RuViewApp.dispose('test');render();});},
+  async()=>{await page.reload();}
+ ]){
+  await reopen();await page.locator('[data-tab="index.html"]').click();await page.locator('iframe').waitFor();
+  const dashboard=page.frameLocator('iframe');
+  await dashboard.locator('.conn-status-label').waitFor();await page.waitForTimeout(1100);
+  assert.equal(await dashboard.locator('.onboarding-overlay').count(),0,'dismissed tour must not restart');
+ }
+ const dashboard=page.frames().find(f=>f.url().endsWith('/index.html'));
+ // Explicit replay remains available and completing every step is also remembered.
+ await dashboard.getByRole('button',{name:'Settings',exact:true}).click();
+ await dashboard.locator('#qs-reset-tour').click();
+ assert.equal(await page.evaluate(()=>localStorage.getItem('aurago.ruview.onboarding.done')),null);
+ await dashboard.locator('.onboarding-overlay').waitFor();
+ for(let step=0;step<6;step++){
+  assert.equal(await dashboard.locator('.onboarding-next').evaluate(button=>button===document.activeElement),true);
+  await dashboard.locator('.onboarding-next').press('Enter');
+ }
+ assert.equal(await dashboard.locator('.onboarding-overlay').count(),0);
+ assert.equal(await page.evaluate(()=>localStorage.getItem('aurago.ruview.onboarding.done')),'true');
+ await page.reload();await page.locator('[data-tab="index.html"]').click();
+ await page.frameLocator('iframe').locator('.conn-status-label').waitFor();await page.waitForTimeout(1100);
+ assert.equal(await page.frameLocator('iframe').locator('.onboarding-overlay').count(),0,'completed tour must not restart');
  await page.evaluate(()=>RuViewApp.dispose('test'));assert.equal(await page.locator('iframe').count(),0);
- console.log('RuView: 96 locale/theme/size cases, device aging, read failures, stop permissions, controls, source provenance, live/stale recovery, health routing, wizard cleanup and disposal passed');
+ console.log('RuView: 96 locale/theme/size cases, tour dismissal/replay/persistence, device aging, read failures, stop permissions, controls, source provenance, live/stale recovery, health routing, wizard cleanup and disposal passed');
  })()
  ]);
 }finally{await browser.close();for(const socket of sensingSockets)socket.destroy();await new Promise(resolve=>server.close(resolve));}

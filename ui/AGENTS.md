@@ -703,6 +703,11 @@ worker. Keep packaging, recovery and offline instructions in
 
 - RuView's pinned upstream UI is regenerated through `scripts/ruview/vendor-ui.mjs`;
   never edit vendor outputs without updating that adapter and its provenance hashes.
+  Remember skipped/completed Dashboard tours across iframe, app and page reopening
+  using only the boolean `aurago.ruview.onboarding.done` browser preference. Keep
+  explicit replay available; all other upstream storage stays memory-only and
+  clearing it must never clear unrelated AuraGo preferences. Blocked storage falls
+  back to memory without breaking the Dashboard.
   Connected services without frames show waiting, never synthetic data. Only explicit
   synthetic sources show simulation; fresh frames recover the live state and expire
   after ten seconds. Source probes and timers must respect connection disposal.

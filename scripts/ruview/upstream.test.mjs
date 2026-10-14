@@ -5,6 +5,30 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {controlResult,trainingPayload} from '../../ui/js/ruview/control-contracts.mjs';
 
+test('embedded tour completion survives reopening without persisting other upstream settings',()=>{
+ const source=readFileSync('ui/js/ruview/upstream-adapter.js','utf8');
+ const saved=new Map([['host-preference','keep']]),key='ruview-onboarding-done',savedKey='aurago.ruview.onboarding.done';
+ const native={getItem:k=>saved.get(k)??null,setItem:(k,v)=>saved.set(k,v),removeItem:k=>saved.delete(k)};
+ const open=(storage=native)=>{
+  const window={fetch(){},WebSocket:class {}};
+  Object.defineProperty(window,'localStorage',{configurable:true,get(){if(storage instanceof Error)throw storage;return storage;}});
+  vm.runInNewContext(source,{window,location:{pathname:'/api/ruview/ui/index.html'},AbortController,addEventListener(){},document:{addEventListener(){}}});
+  return window.localStorage;
+ };
+ let storage=open();assert.equal(storage.getItem(key),null);
+ for(const name of ['token','simulation','server','url']){storage.setItem(name,'blocked');assert.equal(storage.getItem(name),null);}
+ storage.setItem('theme','dark');storage.setItem(key,'true');
+ assert.deepEqual([...saved],[['host-preference','keep'],[savedKey,'true']]);
+ storage=open();assert.equal(storage.getItem(key),'true');assert.equal(storage.getItem('theme'),null);
+ assert.equal(storage.getItem('host-preference'),null);
+ storage.setItem(key,'not-a-boolean');assert.equal(open().getItem(key),null);
+ storage.setItem(key,'true');storage.removeItem(key);assert.equal(open().getItem(key),null);
+ storage.setItem(key,'true');storage.clear();assert.deepEqual([...saved],[['host-preference','keep']]);
+ for(const blocked of [new Error('storage unavailable'),{getItem(){throw Error('blocked')},setItem(){throw Error('quota')},removeItem(){throw Error('blocked')}}]){
+  storage=open(blocked);storage.setItem(key,'true');assert.equal(storage.getItem(key),'true');storage.clear();assert.equal(storage.getItem(key),null);
+ }
+});
+
 test('training requests follow each pinned operation contract and reject free model paths',()=>{
  const config={selectedRecordings:['rec_1'],epochs:12,batch_size:4,learning_rate:0.002,patience:3,base_model:'model_1',lora_profile_name:'room_1'};
  assert.deepEqual(trainingPayload('startTraining',config),{dataset_ids:['rec_1'],config:{epochs:12,batch_size:4,learning_rate:0.002,early_stopping_patience:3}});

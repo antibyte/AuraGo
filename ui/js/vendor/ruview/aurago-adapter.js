@@ -38,10 +38,21 @@
     window.WebSocket = class extends NativeSocket {
         constructor(input, protocols) { const u=routed(input); u.protocol=location.protocol==='https:'?'wss:':'ws:'; super(u.href,protocols); sockets.add(this); this.addEventListener('close',()=>sockets.delete(this)); }
     };
-    // Upstream preferences remain in memory. Tokens, simulation fallbacks and
-    // stored service origins must never override AuraGo's saved configuration.
+    // Only tour completion persists; upstream tokens and service settings stay isolated.
     const memory = new Map();
-    const storage = {getItem:k => /token|simulation|server|url/i.test(k)?null:(memory.get(k)??null),setItem:(k,v)=>{if(!/token|simulation|server|url/i.test(k))memory.set(k,String(v));},removeItem:k=>memory.delete(k),clear:()=>memory.clear()};
+    const tourKey='ruview-onboarding-done',savedTourKey='aurago.ruview.onboarding.done';
+    let preferences;
+    try { preferences=window.localStorage;if(preferences.getItem(savedTourKey)==='true')memory.set(tourKey,'true'); } catch (_) {}
+    const storage = {
+        getItem:k => /token|simulation|server|url/i.test(k)?null:(memory.get(k)??null),
+        setItem(k,v){
+            if(/token|simulation|server|url/i.test(k))return;
+            memory.set(k,String(v));
+            if(k===tourKey)try{if(String(v)==='true')preferences?.setItem(savedTourKey,'true');else preferences?.removeItem(savedTourKey);}catch(_){}
+        },
+        removeItem(k){memory.delete(k);if(k===tourKey)try{preferences?.removeItem(savedTourKey);}catch(_){}},
+        clear(){memory.clear();try{preferences?.removeItem(savedTourKey);}catch(_){} }
+    };
     try { Object.defineProperty(window,'localStorage',{value:storage}); Object.defineProperty(window,'sessionStorage',{value:storage}); } catch (_) {}
     // Preserve component-owned disabled state while applying the independent policy gate.
     function gate(control, denied, reason){
