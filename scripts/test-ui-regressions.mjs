@@ -2185,7 +2185,11 @@ function testNetworkCamerasDetectionRuntime() {
   assert.match(runtime, /const snapshotFeed = inst\.cursor === 0;[\s\S]*applyChanges\(inst, changes, false, snapshotFeed\);[\s\S]*if \(snapshotFeed && inst\.cursor > 0\) loadEvents\(inst, true\);/, 'since=0 after cursor 0 is a snapshot');
   assert.match(runtime, /if \(cursor != null && \(inst\.cursor === null \|\| cursor > inst\.cursor\)\) inst\.cursor = cursor;/, 'the cursor never moves back');
   // 3d, 3g: fresh settings, focus back to the opener, Tab stays in the dialog.
-  assert.match(runtime, /refreshDialogSettings\(inst, dialog\);[\s\S]*request\(inst, '\/api\/desktop\/integrations\/go2rtc\/app\/state'\)[\s\S]*if \(!dialog\.dirty\) dialog\.values = globalDefaults\(fresh\);/, 'the dialog loads fresh settings');
+  assert.match(runtime, /async function freshSettings\(inst\) \{\s*const state = await request\(inst, '\/api\/desktop\/integrations\/go2rtc\/app\/state'\);/, 'fresh settings come from app/state');
+  assert.match(sourceBetween(runtime, 'async function refreshDialogSettings(inst, dialog)', 'function closeSettings'), /const fresh = await freshSettings\(inst\);[\s\S]*if \(fresh && !dialog\.dirty\) dialog\.values = globalDefaults\(fresh\);/, 'the dialog loads fresh settings');
+  // Final review: Activate refetches before its PUT; a save outlives a closed dialog.
+  assert.match(sourceBetween(runtime, 'async function activate(inst)', 'function openSettings'), /const settings = await freshSettings\(inst\);[\s\S]*globalDefaults\(settings\)[\s\S]*method: 'PUT'/, 'Activate never PUTs a stale copy');
+  assert.match(sourceBetween(runtime, 'async function saveSettings(inst)', 'function openCameraSettings'), /if \(inst\.dialog === dialog\) \{\s*inst\.dialog = null;\s*renderDialog\(inst\);\s*\}\s*notify\([\s\S]*settingsSaved\(inst, result\);/, 'a save finishes its follow-up after the dialog was closed');
   assert.match(runtime, /busy: true, error: '', dirty: false \};/, 'Save waits for the fresh settings');
   assert.match(runtime, /inst\.root\.querySelector\('\[data-focus-key="' \+ cssEscape\(inst\.dialogOpener \|\| 'settings'\) \+ '"\]'\)/, 'closing returns the focus to the opener');
   assert.match(runtime, /if \(event\.key === 'Tab' && inst\.dialog && target\.closest\('\[data-ncd-dialog\]'\)\) \{\s*trapDialogFocus\(inst, event\);/, 'Tab stays inside the dialog');

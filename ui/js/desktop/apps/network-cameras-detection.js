@@ -507,16 +507,27 @@
         if (typeof inst.options.reloadAppState === 'function') inst.options.reloadAppState();
     }
 
+    // freshSettings reads the stored global block from app/state: the cached copy can be
+    // older than a save made elsewhere, and PUT settings replaces the whole block.
+    async function freshSettings(inst) {
+        const state = await request(inst, '/api/desktop/integrations/go2rtc/app/state');
+        const fresh = state && state.detection_settings && typeof state.detection_settings === 'object' ? state.detection_settings : null;
+        if (fresh) inst.options = Object.assign({}, inst.options, { detectionSettings: fresh });
+        return fresh;
+    }
+
     async function activate(inst) {
         if (inst.busy || !inst.options.canManage) return;
-        if (!inst.options.detectionSettings) {
-            notify(inst, T(inst.ctx, 'settings_load_failed'), 'error');
-            return;
-        }
-        const payload = Object.assign(globalDefaults(inst.options.detectionSettings), { enabled: true });
         inst.busy = true;
         renderMain(inst);
         try {
+            // Activate never sends a stale copy: it refetches the stored settings first.
+            const settings = await freshSettings(inst);
+            if (!settings) {
+                notify(inst, T(inst.ctx, 'settings_load_failed'), 'error');
+                return;
+            }
+            const payload = Object.assign(globalDefaults(settings), { enabled: true });
             const result = await request(inst, 'settings', { method: 'PUT', body: payload });
             notify(inst, inst.ctx.t(result && result.status === 'degraded' ? 'desktop.network_cameras.saved_degraded' : NS + 'activated'));
             inst.busy = false;
@@ -544,13 +555,9 @@
 
     async function refreshDialogSettings(inst, dialog) {
         try {
-            const state = await request(inst, '/api/desktop/integrations/go2rtc/app/state');
-            const fresh = state && state.detection_settings && typeof state.detection_settings === 'object' ? state.detection_settings : null;
+            const fresh = await freshSettings(inst);
             if (inst.dialog !== dialog) return;
-            if (fresh) {
-                inst.options = Object.assign({}, inst.options, { detectionSettings: fresh });
-                if (!dialog.dirty) dialog.values = globalDefaults(fresh);
-            }
+            if (fresh && !dialog.dirty) dialog.values = globalDefaults(fresh);
         } catch (error) {
             if (isAbort(error) || inst.dialog !== dialog) return;
         }
@@ -662,9 +669,11 @@
         rerenderDialog(inst, null);
         try {
             const result = await request(inst, 'settings', { method: 'PUT', body: payload });
-            if (inst.dialog !== dialog) return;
-            inst.dialog = null;
-            renderDialog(inst);
+            // The save stands even when the dialog was closed meanwhile: only its UI is skipped.
+            if (inst.dialog === dialog) {
+                inst.dialog = null;
+                renderDialog(inst);
+            }
             notify(inst, inst.ctx.t(result && result.status === 'degraded' ? 'desktop.network_cameras.saved_degraded' : NS + 'settings_saved'));
             settingsSaved(inst, result);
         } catch (error) {

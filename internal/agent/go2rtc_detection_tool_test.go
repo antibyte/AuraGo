@@ -465,3 +465,27 @@ func TestGo2RTCAnalyzeDetectionEventReadsFramesBelowALinkedRoot(t *testing.T) {
 		t.Fatal("a path leaving the image root was staged")
 	}
 }
+
+// A camera wake-up runs without a chat (NoopBroker, message source camera_detection):
+// show_detection_event must not claim it showed the picture.
+func TestGo2RTCShowDetectionEventInAutonomousRunsShowsNothing(t *testing.T) {
+	api := &fakeDetectionAPI{
+		events:    map[int64]detectionEventView{42: detectionTestEvent()},
+		frameRoot: "/data/go2rtc/detections",
+		frames:    map[int64]string{7: "2026/10/11/garden/42_1.jpg"},
+	}
+	useDetectionAPI(t, api)
+	broker := &captureBroker{}
+	for name, dc := range map[string]*DispatchContext{
+		"camera wake-up source": {Cfg: detectionTestConfig(), Logger: testLogger, Broker: broker, MessageSource: "camera_detection"},
+		"noop broker":           {Cfg: detectionTestConfig(), Logger: testLogger, Broker: NoopBroker{}},
+	} {
+		m := runDetection(t, dc, "show_detection_event", map[string]interface{}{"event_id": float64(42)})
+		if m["status"] != "ok" || m["shown"] != false || !strings.Contains(fmt.Sprint(m["message"]), "send_notification") {
+			t.Fatalf("%s: show = %v", name, m)
+		}
+	}
+	if len(broker.events) != 0 {
+		t.Fatalf("an autonomous run sent %d broker events", len(broker.events))
+	}
+}

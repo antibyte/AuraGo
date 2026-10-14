@@ -414,6 +414,25 @@ func go2RTCShowDetectionEvent(ctx context.Context, api detectionAPI, tc ToolCall
 	if failure != "" {
 		return failure
 	}
+	// A camera wake-up (and every other autonomous run) has no chat attached: its broker
+	// is a NoopBroker, so the picture would reach nobody. Say so instead of claiming it.
+	noopBroker := false
+	switch dc.Broker.(type) {
+	case NoopBroker, *NoopBroker:
+		noopBroker = true
+	}
+	if dc.Broker == nil || noopBroker || isAutonomousMessageSource(dc.MessageSource) {
+		return go2RTCDetectionResult(map[string]any{
+			"status":    "ok",
+			"operation": "show_detection_event",
+			"event_id":  ev.ID,
+			"camera_id": ev.CameraID,
+			"frame_id":  frameID,
+			"shown":     false,
+			"message":   "No chat is attached to this run, so the picture was not shown to anyone; use send_notification to reach the user.",
+			"event":     security.IsolateExternalData(detectionEventLine(ev)),
+		})
+	}
 	shown := false
 	if dc.Broker != nil {
 		payload, err := json.Marshal(map[string]string{

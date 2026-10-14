@@ -350,7 +350,7 @@
   stage, list-based zone rename/select/delete, one `aria-live` region, focus
   kept across re-renders via `data-focus-key`.
 - Strings: `desktop.network_cameras.tab_general` and
-  `desktop.network_cameras.detection.*` (182 keys, including the server's alert
+  `desktop.network_cameras.detection.*` (including the server's alert
   keys, whose single-brace Go placeholders such as `{camera}` never go through
   the JS `{{…}}` interpolation) in all sixteen locales.
 - Verify: `node scripts/test-ui-regressions.mjs` (four "Network Cameras person

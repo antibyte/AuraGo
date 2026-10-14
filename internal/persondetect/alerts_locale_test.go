@@ -37,7 +37,7 @@ func TestAlertTextsExistInEveryDesktopLocale(t *testing.T) {
 		AlertTextTitle:       {"{camera}"},
 		AlertTextMessage:     {"{camera}", "{zones}", "{time}", "{score}"},
 		AlertTextAllZones:    {},
-		AlertTextAgentPrompt: {"{event_id}", "go2rtc", "analyze_detection_event", "show_detection_event"},
+		AlertTextAgentPrompt: {"{event_id}", "go2rtc", "analyze_detection_event"},
 	}
 	en := alertLocaleTexts(t, "en")
 	for key, want := range alertDefaultTexts {
@@ -57,6 +57,11 @@ func TestAlertTextsExistInEveryDesktopLocale(t *testing.T) {
 				if !strings.Contains(value, p) {
 					t.Errorf("%s.json %s lacks %s: %q", lang, key, p, value)
 				}
+			}
+			// A camera wake-up has no chat: the prompt must not offer show_detection_event,
+			// which cannot show the picture to anyone there.
+			if key == AlertTextAgentPrompt && strings.Contains(value, "show_detection_event") {
+				t.Errorf("%s.json %s points to show_detection_event: %q", lang, key, value)
 			}
 			if key == AlertTextAllZones && strings.ContainsAny(value, "{}") {
 				t.Errorf("%s.json %s must not hold placeholders: %q", lang, key, value)
