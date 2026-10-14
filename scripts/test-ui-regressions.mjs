@@ -2204,6 +2204,10 @@ function testNetworkCamerasDetectionRuntime() {
   const de = JSON.parse(read('ui/lang/desktop/de.json'));
   assert.match(de['desktop.network_cameras.detection.cam_restart_hint'], /Ausschalten der Erkennung/);
   assert.doesNotMatch(de['desktop.network_cameras.detection.test_result'], /\{\{counted\}\} zählen/, 'the count reads right for 1 too');
+  // The CPU runtime size depends on the platform (about 8 MB on Linux, 76 MB on Windows).
+  const en = JSON.parse(read('ui/lang/desktop/en.json'));
+  for (const key of ['off_download', 'runtime_sizes']) assert.match(en['desktop.network_cameras.detection.' + key], /10–80 MB for the CPU, depending on the platform/, key);
+  assert.doesNotMatch(read('ui/js/desktop/apps/network-cameras-detection-views.js'), /RUNTIME_MB/, 'no single runtime size');
 }
 
 function testNetworkCamerasDetectionAppContracts() {

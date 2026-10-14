@@ -28,7 +28,6 @@
     const CAMERA_STATES = ['active', 'unreachable', 'waiting', 'error'];
     const PHASES = ['downloading_model', 'downloading_runtime', 'preparing_gpu_model', 'starting_worker', 'self_test'];
     const MODEL_MB = Object.freeze({ standard: 15, accurate: 41 });
-    const RUNTIME_MB = Object.freeze({ cpu: 9, gpu: 25 });
     const GPU_HINT_PATTERN = /gpu|render|dri|webgpu|adapter|vulkan/i;
     const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
     const JPEG_DATA_URL = /^data:image\/jpeg;base64,[A-Za-z0-9+/]+=*$/;
@@ -602,7 +601,7 @@
             let html = '<div class="ncd-empty"><h2>' + ctx.esc(T(ctx, 'off_title')) + '</h2><p>' + ctx.esc(T(ctx, view.canManage ? 'off_body_admin' : 'off_body_viewer')) + '</p>';
             if (view.canManage) {
                 const settings = globalDefaults(view.settings);
-                html += '<p>' + ctx.esc(T(ctx, 'off_download', { model: MODEL_MB[settings.model], runtime: RUNTIME_MB[settings.backend === 'cpu' ? 'cpu' : 'gpu'] })) + '</p>';
+                html += '<p>' + ctx.esc(T(ctx, 'off_download', { model: MODEL_MB[settings.model] })) + '</p>';
                 html += '<div class="ncd-empty-actions"><button type="button" class="nc-primary" data-ncd-action="activate" data-focus-key="activate"' + busyAttr(view.busy) + '>' + ctx.esc(T(ctx, 'activate')) + '</button><button type="button" class="ncd-button" data-ncd-action="settings" data-focus-key="settings-empty">' + ctx.esc(T(ctx, 'settings')) + '</button></div>';
             }
             return html + '</div>';
@@ -854,7 +853,6 @@
         CAMERA_STATES,
         PHASES,
         MODEL_MB,
-        RUNTIME_MB,
         GPU_HINT_PATTERN,
         TIME_PATTERN,
         JPEG_DATA_URL,
