@@ -37,8 +37,20 @@ func TestSeedNasscadBundledAppWritesWorkspaceEntry(t *testing.T) {
 		t.Fatal("seeded nasscad index still contains external script tags")
 	}
 	for name, minSize := range map[string]int64{
-		"nasscad_occt_wasm.js":  10_000_000,
-		"opencascade.wasm.wasm": 65_000_000,
+		"nasscad_occt_wasm.js":          10_000_000,
+		"opencascade.wasm.wasm":         65_000_000,
+		"nasscad-manifold-wasm.js":      500_000,
+		"nasscad-ifc-wasm.js":           1_000_000,
+		"web-ifc-api-iife.js":           100_000,
+		"nass-demo-engine.js":           100,
+		"nass-demo-solar.js":            100,
+		"nasscad_user_manual.html":      100,
+		"nasscript_doc.html":            100,
+		"nassscript-engine-preview.png": 100,
+		"solar-system-snapshot.png":     100,
+		"LICENSE":                       100,
+		"THIRD-PARTY.md":                100,
+		"web-ifc-LICENSE.md":            100,
 	} {
 		info, err := os.Stat(filepath.Join(root, "Apps", "nasscad", name))
 		if err != nil {

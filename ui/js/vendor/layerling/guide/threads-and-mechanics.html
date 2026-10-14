@@ -4,15 +4,16 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Threads, gears and other parts - layerling user guide</title>
-    <meta name="description" content="Screws, nuts and tapped holes that fit together, plus gear, spring, bent tube, honeycomb, dovetail, teardrop hole, counterbore and countersink.">
+    <meta name="description" content="Screws, nuts and tapped holes that fit together, plus gear, spring, bent tube, dovetail, teardrop hole, counterbore and countersink.">
     <link rel="canonical" href="https://layerling.com/guide/threads-and-mechanics.html">
     <link rel="alternate" hreflang="en" href="https://layerling.com/guide/threads-and-mechanics.html">
     <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/gewinde-und-mechanik.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/schroefdraad-en-mechanica.html">
     <meta property="og:title" content="Threads, gears and other parts - layerling user guide">
-    <meta property="og:description" content="Screws, nuts and tapped holes that fit together, plus gear, spring, bent tube, honeycomb, dovetail, teardrop hole, counterbore and countersink.">
+    <meta property="og:description" content="Screws, nuts and tapped holes that fit together, plus gear, spring, bent tube, dovetail, teardrop hole, counterbore and countersink.">
     <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
     <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
-    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite")document.documentElement.dataset.theme="dark"}catch(e){}</script>
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
     <style>
 :root {
   color-scheme: light;
@@ -31,6 +32,11 @@
   --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
   --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
 }
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
 * { box-sizing: border-box; }
 html { scroll-padding-top: 76px; }
 body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
@@ -42,10 +48,30 @@ a { color: var(--accent); }
 .brand b { font-size: 19px; letter-spacing: -0.03em; }
 .brand-text { display: flex; align-items: baseline; gap: 10px; }
 .brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
 .editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
 .editor-elsewhere[hidden] { display: none; }
 .bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
-.bar a.lang { color: var(--muted); font-size: 14px; font-weight: 600; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
 .shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
 nav.chapters { position: sticky; top: 76px; font-size: 14px; }
 nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
@@ -90,6 +116,7 @@ th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transfor
 .cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
 footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
 .site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
 .site-footer a { color: var(--muted); text-decoration: none; }
 .site-footer a:hover { color: var(--accent); text-decoration: underline; }
 .site-footer .dot { margin: 0 8px; }
@@ -100,21 +127,26 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
   h1 { font-size: 28px; }
   .brand-note { display: none; }
 }
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
 @media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
 </style>
   </head>
   <body>
     <header class="bar"><div class="bar-inner">
       <a class="brand" href="/api/desktop/layerling/ui/guide/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">User guide</span></span></a>
-      <a class="lang" href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html" hreflang="de" title="Auf Deutsch lesen">Deutsch</a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/guide/search-index.json" data-nothing="Nothing found." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Search the guide" aria-label="Search the guide" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Language">English</summary><ul><li><a href="/api/desktop/layerling/ui/guide/threads-and-mechanics.html" hreflang="en" lang="en" aria-current="true">English</a></li><li><a href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schroefdraad-en-mechanica.html" hreflang="nl" lang="nl">Nederlands</a></li></ul></details>
       <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Open the editor</a>
     </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>The editor is already open in another tab - just switch to it.</p></header>
     <div class="shell">
       <nav class="chapters" aria-label="Chapters"><h2>Chapters</h2><ol><li><a href="/api/desktop/layerling/ui/guide/getting-started.html">Getting started</a></li><li><a href="/api/desktop/layerling/ui/guide/view-and-workplane.html">View and workplane</a></li><li><a href="/api/desktop/layerling/ui/guide/shapes.html">Placing and adjusting shapes</a></li><li><a href="/api/desktop/layerling/ui/guide/select-and-arrange.html">Selecting and arranging</a></li><li><a href="/api/desktop/layerling/ui/guide/solids-and-holes.html">Solids and holes</a></li><li><a href="/api/desktop/layerling/ui/guide/edges-and-hollowing.html">Breaking edges and hollowing bodies</a></li><li><a href="/api/desktop/layerling/ui/guide/sketches.html">Sketches: from outline to body</a></li><li><a href="/api/desktop/layerling/ui/guide/text.html">Text and curved lettering</a></li><li><a href="/api/desktop/layerling/ui/guide/threads-and-mechanics.html" aria-current="page">Threads, gears and other parts</a></li><li><a href="/api/desktop/layerling/ui/guide/measuring-and-notes.html">Measuring and notes</a></li><li><a href="/api/desktop/layerling/ui/guide/printing.html">Preparing for 3D printing</a></li><li><a href="/api/desktop/layerling/ui/guide/files-and-saving.html">Files, saving and sharing</a></li><li><a href="/api/desktop/layerling/ui/guide/shortcuts.html">Keyboard shortcuts</a></li><li><a href="/api/desktop/layerling/ui/guide/ai-with-mcp.html">Building with an AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/guide/offline-and-install.html">Installing as an app, working offline and self-hosting</a></li><li><a href="/api/desktop/layerling/ui/guide/videos.html">Videos about layerling</a></li></ol></nav>
       <main>
 <h1>Threads, gears and other parts</h1>
-<p class="lead">Screws, nuts and tapped holes that fit together, plus gear, spring, bent tube, honeycomb, dovetail, teardrop hole, counterbore and countersink.</p>
-<div class="toc"><b>On this page</b><ul><li><a href="#threads">Threads</a></li><li><a href="#gears">Gears</a></li><li><a href="#springs">Springs</a></li><li><a href="#bent-tubes">Bent tubes</a></li><li><a href="#loft">Loft</a></li><li><a href="#honeycomb">Honeycomb</a></li><li><a href="#hinge">Hinge</a></li><li><a href="#knurling">Knurling</a></li><li><a href="#dovetail">Dovetail</a></li><li><a href="#teardrop-hole">Teardrop hole</a></li><li><a href="#counterbore-and-countersink">Counterbore and countersink</a></li></ul></div>
+<p class="lead">Screws, nuts and tapped holes that fit together, plus gear, spring, bent tube, dovetail, teardrop hole, counterbore and countersink.</p>
+<div class="toc"><b>On this page</b><ul><li><a href="#threads">Threads</a></li><li><a href="#threads-for-3d-printing">Threads for 3D printing</a></li><li><a href="#gears">Gears</a></li><li><a href="#springs">Springs</a></li><li><a href="#bent-tubes">Bent tubes</a></li><li><a href="#loft">Loft</a></li><li><a href="#hinge">Hinge</a></li><li><a href="#knurling">Knurling</a></li><li><a href="#dovetail">Dovetail</a></li><li><a href="#teardrop-hole">Teardrop hole</a></li><li><a href="#counterbore-and-countersink">Counterbore and countersink</a></li></ul></div>
 <p>Besides the basic shapes, the library contains some parts that would be tedious to put together yourself. All of them can be changed afterwards in their settings.</p>
 <h2 id="threads">Threads</h2>
 <p>Choose <strong class="ui">“Thread”</strong> in the shape library. Under <strong class="ui">“Type”</strong> you decide what it should be:</p>
@@ -125,13 +157,27 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
 <ul><li><strong>M, metric coarse:</strong> the ISO metric coarse thread to ISO 261, as on standard screws and nuts.</li><li><strong>UNC, US inch coarse:</strong> the camera and tripod screw is 1/4&quot;-20 UNC (ISO 1222), larger tripod heads use 3/8&quot;-16 UNC.</li><li><strong>UNF, US inch fine:</strong> the same diameters as UNC with a finer pitch (ASME B1.1).</li><li><strong>G, pipe thread:</strong> a shower hose connects with G1/2, a washing-machine inlet hose with G3/4. A garden tap ends in G3/4, smaller taps in G1/2; that is where the tap connector of a click-on hose system screws on.</li></ul>
 <p>The G sizes are the parallel Whitworth pipe threads to ISO 228-1, found on fittings for water, gas, hydraulics and pneumatics. The size names the pipe, not the thread: a G1 measures 33.249 mm across the thread. Choosing a G size sets the profile to <strong class="ui">“Whitworth (55°)”</strong>, and choosing a metric or inch size sets it back to <strong class="ui">“V-thread (ISO)”</strong>. A <strong class="ui">“Trapezoidal”</strong> or <strong class="ui">“Round”</strong> profile you picked yourself stays. The standard only defines the thread, so the head of a screw and a nut on a G size get the same proportions as on a diameter you set yourself. The tapered pipe threads R, Rc and Rp are not included.</p>
 <p>More settings:</p>
-<ul><li><strong><strong class="ui">“Direction”</strong>:</strong> <strong class="ui">“Right-hand”</strong> or <strong class="ui">“Left-hand”</strong>.</li><li><strong><strong class="ui">“Profile”</strong>:</strong> <strong class="ui">“V-thread (ISO)”</strong> is the standard profile of metric and inch threads, <strong class="ui">“Whitworth (55°)”</strong> that of the G pipe threads: 55° with rounded crests and roots. <strong class="ui">“Trapezoidal”</strong> and <strong class="ui">“Round”</strong> have flat crests and roots. That usually prints more reliably because no thin tips result.</li><li><strong><strong class="ui">“Clearance”</strong>:</strong> For nut and tapped hole, the room that makes sure a printed pair really turns. The coarser your printer works, the more clearance the pair needs. Rods and screws have a clearance of their own here, which makes the bolt that much thinner in diameter. It is set to 0. If you need it because a printed bolt has to go into a metal nut, which has no play itself, 0.2 to 0.3 mm is a good start.</li><li><strong><strong class="ui">“Chamfer”</strong>, <strong class="ui">“Head chamfer”</strong> and <strong class="ui">“Rim chamfer”</strong>:</strong> Chamfers at the ends so the thread starts cleanly and the head has no sharp edge.</li><li><strong><strong class="ui">“Quality”</strong>:</strong> How finely the thread is calculated. Higher is more exact, but slower.</li></ul>
+<ul><li><strong><strong class="ui">“Direction”</strong>:</strong> <strong class="ui">“Right-hand”</strong> or <strong class="ui">“Left-hand”</strong>.</li><li><strong><strong class="ui">“Profile”</strong>:</strong> <strong class="ui">“V-thread (ISO)”</strong> is the standard profile of metric and inch threads, <strong class="ui">“Whitworth (55°)”</strong> that of the G pipe threads: 55° with rounded crests and roots. <strong class="ui">“Trapezoidal”</strong> and <strong class="ui">“Round”</strong> have flat crests and roots. That usually prints more reliably because no thin tips result.</li><li><strong><strong class="ui">“Custom (trapezoid)”</strong>:</strong> A trapezoid you shape yourself, with a flat crest and a flat root of the same width. <strong class="ui">“Flank angle”</strong> is the angle between the two flanks of a tooth: 60° is the sharp V thread, 30° the trapezoid thread, and at 90° or less no flank is flatter than 45°, so the thread prints without supports. <strong class="ui">“Thread depth”</strong> and <strong class="ui">“Core diameter”</strong> are one measure said two ways: the core diameter is the diameter minus twice the depth, and changing one changes the other. A new own profile starts with the V thread's depth at 60°. The depth has limits that depend on the angle and the pitch: not shallower than a tenth of the pitch, not deeper than 40 % of the diameter, and not so deep that the two flanks take more than nine tenths of the pitch. If you change the pitch, the depth follows in proportion; if you scale the thread, so does the depth. The play and the chamfers work as with the other profiles. Through the MCP bridge the profile is <code>custom</code> with <code>threadFlankAngle</code> and <code>threadDepth</code>.</li><li><strong><strong class="ui">“Clearance (XY)”</strong>:</strong> For nut and tapped hole, the room that makes sure a printed pair really turns. The coarser your printer works, the more clearance the pair needs. It is the extra room across the whole diameter, and the gap between the flanks of a V thread is only about half of it, so a printed pair needs more than you might expect: new nuts start at 0.4 mm, 0.3 is tight and 0.5 loose. Print a test pair first. Rods and screws have a clearance of their own here, which makes the bolt that much thinner in diameter. It is set to 0. Which side gets the room depends on what you pair:</li><li><strong>Printed screw and printed nut:</strong> leave the screw at 0 and give the nut the room (the 0.4 mm it starts with).</li><li><strong>Real screw in a printed nut or tapped hole:</strong> the printed side takes all of it, so the nut keeps its 0.4 mm. A tighter 0.3 mm is worth a test if the screw wobbles.</li><li><strong>Printed screw in a real nut:</strong> the real nut has no play, so the screw has to be thinner: 0.3 to 0.4 mm here, as much as a printed nut would have.</li><li><strong><strong class="ui">“Play along the axis (Z)”</strong>:</strong> For nut and tapped hole, the play along the axis, on top of the <strong class="ui">“Clearance (XY)”</strong>. Every tooth of the nut gets this much thinner, the diameter stays as it is. The reason: the <strong class="ui">“Clearance (XY)”</strong> works on the diameter only and opens the flanks of a V thread to about 0.58 of its value. Anyone who wants air between the flanks has to open the diameter wide and gets sideways slop for it. The play along the axis sets the two apart. It is set to 0, so a saved thread does not change, and it goes up to a fifth of the pitch at most, because above that nothing would be left of the nut's teeth. The field exists for nut and tapped hole only; rod and screw keep their own clearance. More below under &quot;Threads for 3D printing&quot;.</li><li><strong><strong class="ui">“Chamfer, top end”</strong>, <strong class="ui">“Chamfer, bottom end”</strong>, <strong class="ui">“Head chamfer”</strong> and <strong class="ui">“Rim chamfer”</strong>:</strong> Chamfers at the ends so the thread starts cleanly and the head has no sharp edge. Each end of a rod, nut or tapped hole has its own chamfer, so the top can be long and the bottom short or none. A screw has only one at its tip, labelled <strong class="ui">“Chamfer”</strong>. On a nut or tapped hole the chamfer is the room the mouth opens beyond the outer diameter; the cone runs at 45 degrees on down to the thread core, so no ledge is left at the outer diameter.</li></ul>
+<p>Switching a thread between <strong class="ui">“Threaded rod”</strong> and <strong class="ui">“Tapped hole”</strong> keeps its length. A nut and a screw start from their standard measures.</p>
+<ul><li><strong><strong class="ui">“Quality”</strong>:</strong> How finely the thread is calculated. Higher is more exact, but slower.</li></ul>
 <p>Printed threads are a topic of their own. Make the screw-and-nut pair as a test first before you print a large part, and adjust the clearance to your printer.</p>
+<h2 id="threads-for-3d-printing">Threads for 3D printing</h2>
+<p>A printed thread needs air in two places, and they act differently:</p>
+<ul><li><strong>Clearance in the diameter (<strong class="ui">“Clearance (XY)”</strong>):</strong> makes the nut wider. The screw then has half the value as air on each side, 0.2 mm at 0.4 mm. The thread turns easily, but the screw can wobble sideways.</li><li><strong>Play along the axis (<strong class="ui">“Play along the axis (Z)”</strong>):</strong> makes the teeth of the nut thinner. The screw can then move back and forth along the axis by that value when it is not tightened. There is no extra air to the side for it.</li></ul>
+<p>Together they make the gap between the flanks: about 0.58 times the clearance in the diameter plus the play along the axis. An example for a 0.3 mm gap: it used to take 0.5 mm in the diameter, that is 0.25 mm of air on each side. Now 0.2 mm in the diameter (0.1 mm on each side) and 0.2 mm along the axis do it, and the gap is 0.32 mm.</p>
+<p><strong>Consequences to know</strong></p>
+<ul><li><strong>The screw has play along the axis.</strong> Without load it can move back and forth by that value. For fastenings, lids and housings that does not matter; for a lead screw that has to position exactly it does, so keep it small or at 0 there.</li><li><strong>The nut's teeth get thinner.</strong> With 0.3 mm at a pitch of 1.75 mm every tooth is almost a third thinner at its middle and so clearly less strong. For heavily loaded parts take a coarser thread instead.</li><li><strong>More to calculate.</strong> The tooth shape gets extra points, so the thread has more triangles and takes a little longer to compute.</li><li><strong>No true arc in the STEP export for the Whitworth profile.</strong> A <strong class="ui">“Whitworth (55°)”</strong> thread with play along the axis goes to the edge tool and the STEP export as a tooth shape made of straight pieces, not with the true circular arcs. At 0 everything stays as before.</li></ul>
+<p><strong>Tips</strong></p>
+<ol><li><strong>A test pair first.</strong> A screw and a nut, each only 4 to 6 mm tall, take a few minutes. Print three pairs with different play side by side and take the one that turns easily and does not wobble.</li><li><strong>Start with values that often fit.</strong> Clearance in the diameter 0.2 to 0.3 mm and play along the axis 0.2 mm. If the screw wobbles sideways, lower the clearance in the diameter; if it jams, raise the play along the axis. If you would rather do without the play along the axis, use 0.4 mm in the diameter as before.</li><li><strong>The play along the axis should be at least one layer height.</strong> What lies below one layer the printer does not resolve. With a layer height of 0.2 mm, 0.2 mm is a good start; with 0.1 mm, less is enough.</li><li><strong>Print screw and nut upright.</strong> The axis points up, so every turn lies in whole layers and the flanks come out clean. Lying down, the flanks sag.</li><li><strong>Fine pitches are hard.</strong> Below about 1 mm of pitch the turns often fuse. A coarser thread, or a <strong class="ui">“Trapezoidal”</strong> profile with flat crests, prints more reliably than a fine V thread.</li><li><strong>Avoid thin tips.</strong> The V thread has a narrow tip that the printer hardly hits with its nozzle width. The <strong class="ui">“Trapezoidal”</strong> and <strong class="ui">“Round”</strong> profiles have flatter teeth.</li><li><strong>Deburr and run it in.</strong> The first turns are often stiff because small remains of the print stand on the flanks. Turn it back and forth a few times and it runs easier. The chamfer at the start helps threading it in.</li><li><strong>Another printer or filament.</strong> The play depends on the printer, the material and the nozzle. Print the test pair again when you change either.</li></ol>
 <p>The edge tool takes a thread as its exact body. You can chamfer or round the part that carries it with the thread already in place, or the rims of a screw head, see <a href="/api/desktop/layerling/ui/guide/edges-and-hollowing.html">Breaking edges and hollowing bodies</a>. Working out a thread's edges takes a while: a few seconds for an M6, about half a minute for a G1/2 pipe thread. The quickest way to break the edge of a screw head is still the head chamfer in the properties.</p>
 <h2 id="gears">Gears</h2>
-<p><strong class="ui">“Gear”</strong> comes as <strong class="ui">“Spur gear”</strong>, <strong class="ui">“Helical gear”</strong> and <strong class="ui">“Bevel gear”</strong>. New gears have <strong class="ui">“Involute”</strong> under <strong class="ui">“Tooth Shape”</strong>: teeth with involute flanks, as gear generators and engineering use them. Such teeth roll cleanly on each other. You set the number of <strong class="ui">“Teeth”</strong> and the <strong class="ui">“Module (mm)”</strong>, and the size follows: the outside diameter is module × (teeth + 2), the pitch circle module × teeth. New gears start at module 2. Two gears mesh when they have the same module and the same <strong class="ui">“Pressure Angle”</strong> (usually 20°) and their centres stand (teeth + teeth) × module / 2 apart. Select both gears and the properties panel gives that centre distance and how far apart the centres are now. If a tooth then meets a tooth instead of a gap, turn one of the gears by half a tooth, which is 180° divided by its number of teeth. <strong class="ui">“Backlash”</strong> takes a little off the teeth so a printed pair does not bind. The value is for the pair, and each gear takes half of it; 0.2 mm is a good start, 0 gives the exact gear. Below the base circle the flank runs straight down to the root and is not undercut as a cutter would do it. That suits printing, but a very small pinion below about 17 teeth may rub slightly at the root.</p>
-<p>A helical gear adds the <strong class="ui">“Helix Angle”</strong>. With involute teeth it is the true helix angle on the pitch circle: two helical gears mesh when they have the same module and the same angle, one positive and the other negative. The bevel gear takes the involute teeth and makes them smaller towards its top. That is an approximation, not an exactly worked out bevel pair.</p>
-<p><strong class="ui">“Simple”</strong> are the straight teeth every gear had so far. There you set <strong class="ui">“Tooth Size”</strong> and <strong class="ui">“Tooth Width”</strong> by hand. Older designs keep them until you change the tooth shape. Both have the <strong class="ui">“Center Hole”</strong>.</p>
+<p><strong class="ui">“Gear”</strong> comes as <strong class="ui">“Spur gear”</strong>, <strong class="ui">“Helical gear”</strong>, <strong class="ui">“Herringbone gear”</strong> and <strong class="ui">“Bevel gear”</strong>, and as <strong class="ui">“Ring gear”</strong> and <strong class="ui">“Rack”</strong> (further down). New gears have <strong class="ui">“Involute”</strong> under <strong class="ui">“Tooth Shape”</strong>: teeth with involute flanks, as gear generators and engineering use them. Such teeth roll cleanly on each other. You set the number of <strong class="ui">“Teeth”</strong> and the <strong class="ui">“Module (mm)”</strong>, and the size follows: the outside diameter is module × (teeth + 2), the pitch circle module × teeth. New gears start at module 2. Two gears mesh when they have the same module and the same <strong class="ui">“Pressure Angle”</strong> (usually 20°) and their centres stand (teeth + teeth) × module / 2 apart. Select both gears and the properties panel gives that centre distance and how far apart the centres are now. If a tooth then meets a tooth instead of a gap, turn one of the gears by half a tooth, which is 180° divided by its number of teeth. <strong class="ui">“Backlash”</strong> takes a little off the teeth so a printed pair does not bind. The value is for the pair, and each gear takes half of it; 0.2 mm is a good start, 0 gives the exact gear. Below the base circle the flank runs straight down to the root and is not undercut as a cutter would do it. That suits printing, but a very small pinion below about 17 teeth may rub slightly at the root.</p>
+<p>A helical gear adds the <strong class="ui">“Helix Angle”</strong>. With involute teeth it is the true helix angle on the pitch circle: two helical gears mesh when they have the same module and the same angle, one positive and the other negative. The <strong class="ui">“Herringbone gear”</strong> is two helical halves turning opposite ways: the teeth run one way up to half the height and back after it, like an arrow. That has two advantages for 3D printing: the gear centres itself on its shaft, and it has no axial thrust, because the forces of the two halves cancel. A helical gear, in contrast, pushes sideways along its axis. You set the <strong class="ui">“Helix Angle”</strong> and the <strong class="ui">“Helix quality”</strong> as for the helical gear; the angle applies to each half. Two herringbone gears mesh when they have the same module and the same angle with opposite signs, one positive and the other negative. There is no groove in the middle, as on milled herringbone gears: the two halves run into each other without a step. The edge tool and the STEP export take the herringbone gear as a triangle mesh, not as an exact body.</p>
+<p>The bevel gear takes the involute teeth and makes them smaller towards its top. That is an approximation, not an exactly worked out bevel pair.</p>
+<p><strong class="ui">“Round”</strong> are round teeth made of arcs, like Tinkercad's Useful gear: tip and gap run into each other without a corner. Small gears print more forgivingly that way and turn more easily, and on a knob the teeth make a pleasant grip. Round teeth are set by <strong class="ui">“Teeth”</strong>, <strong class="ui">“Module (mm)”</strong> and <strong class="ui">“Backlash”</strong> too; they have no pressure angle. They stand lower than involute teeth, so the outside diameter is module × (teeth + 1.2). Round gears with the same module mesh, at the same centre distance as involute ones; with an involute gear they do not fit.</p>
+<p><strong class="ui">“Simple”</strong> are the straight teeth every gear had so far. There you set <strong class="ui">“Tooth Size”</strong> and <strong class="ui">“Tooth Width”</strong> by hand. Older designs keep them until you change the tooth shape. All three tooth shapes have the <strong class="ui">“Center Hole”</strong>.</p>
+<p>The <strong class="ui">“Ring gear”</strong> has its teeth pointing in: a ring that a smaller gear runs inside, like the outer wheel of a planetary set. You set it like an involute or round gear by <strong class="ui">“Teeth”</strong>, <strong class="ui">“Module (mm)”</strong> and <strong class="ui">“Backlash”</strong>, plus the <strong class="ui">“Rim”</strong>, the ring outside the teeth. Its outside diameter is module × (teeth + 2.5) plus twice the rim, with round teeth module × (teeth + 1.7). A gear of the same module runs in it when its centre stands (ring teeth − its teeth) × module / 2 from the ring's centre; select both and the properties panel gives that distance. For a planetary set, ring teeth = sun teeth + 2 × planet teeth, for example 30 = 12 + 2 × 9. A ring gear has no centre hole, it is the ring itself. Between 26 and 33 teeth its tips are up to a quarter module shorter, because a tiny edge would otherwise form at the base circle; meshing is not affected.</p>
+<p>The <strong class="ui">“Rack”</strong> is the gear of endless radius: a bar with teeth along one side, whose flanks are straight lines at the pressure angle with involute teeth. Its width (along X) is teeth × pitch, the pitch being π × module, so racks of one module line up end to end, each end falling in a gap. Its length (along Y) is the thickness of the bar and free, as long as the teeth and half a millimetre of bar fit in. The teeth point to the front, towards the viewer of the home view; turn the rack as you need it. A gear of the same module rolls on it when its centre stands its teeth × module / 2 in front of the pitch line; the pitch line lies a module behind the tooth tips, 0.6 module with round teeth. Ring gear and rack come with involute and with round teeth, not with simple ones; switching the gear type keeps the module.</p>
 <p>The edge tool and the STEP export take every gear as its exact body, involute flanks as smooth curves. A helical gear on an oval footprint stays a triangle mesh, and so does a helical gear with involute teeth from about 31 teeth. Small teeth limit how far edges can be rounded: on a gear with simple teeth, 30 mm across with 12 teeth the flat between two teeth at the foot is only about 0.65 mm wide, so rounding every edge works up to about 0.5 mm, and on a bevel gear, whose top is smaller, up to about 0.4 mm. A helical gear's teeth lean, which narrows that flat across its slanted edges: the larger the helix angle against the gear's height, the smaller the rounding that fits. The edges of its two flat ends can be rounded, but chamfering just those edges fails in the CAD kernel; round them, or chamfer all edges together at a smaller size, such as 0.2 mm.</p>
 <h2 id="springs">Springs</h2>
 <p>The <strong class="ui">“Spring”</strong> has <strong class="ui">“Turns”</strong> and a <strong class="ui">“Wire”</strong>. Together with the height they decide how soft the spring is. <strong class="ui">“Winding”</strong> sets which way the wire runs: <strong class="ui">“Right-hand”</strong> like a usual compression spring, or <strong class="ui">“Left-hand”</strong>.</p>
@@ -141,16 +187,15 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
 <h2 id="loft">Loft</h2>
 <p>The <strong class="ui">“Loft”</strong> joins one outline at the bottom to another at the top, like a loft in Fusion: a hose adapter from one diameter to another, a square fan onto a round duct, a stand that turns round towards the top. For each end you pick <strong class="ui">“Bottom Outline”</strong> and <strong class="ui">“Top Outline”</strong>: <strong class="ui">“Circle / ellipse”</strong>, <strong class="ui">“Rectangle”</strong> with <strong class="ui">“Bottom Corner Radius”</strong>, or <strong class="ui">“Polygon”</strong> with its number of corners, plus the width and length of each end and the height. <strong class="ui">“Top Offset in Width”</strong> and <strong class="ui">“Top Offset in Length”</strong> move the top end sideways for a slanted transition; the bottom end stays where it is.</p>
 <p><strong class="ui">“Wall Thickness (0 = solid)”</strong> turns the solid body into a tube open at the top and the bottom. The opening is smaller by the wall at both ends, measured across; where the wall slants it is a little thinner. Drag the frame bigger and both ends grow along, while the corner radius and the wall keep their size.</p>
+<p><strong class="ui">“Smooth transition (%)”</strong> makes the transition smooth. At 0 the sides run straight from the bottom to the top, as on a cone. At 100 they leave both ends straight up and change their size in between along an S-curve: a hose adapter that flares smoothly from a narrow to a wide pipe, instead of running like a funnel. In between the slider mixes the two. A smooth transition works together with <strong class="ui">“Wall Thickness (0 = solid)”</strong>, a twist, a tilt and a sideways offset; a tube with a wall stays open at both ends. It is an exact body like the straight one, so its edges can be chamfered and filleted, but it is built through several sections and takes a little longer to calculate.</p>
 <p><strong class="ui">“Twist”</strong> turns the section evenly about the vertical on the way up, up to 360° either way; the sides then wind round. <strong class="ui">“Top Tilt, Front/Back”</strong> and <strong class="ui">“Top Tilt, Left/Right”</strong> tilt the top end, up to 45°: a positive value raises its front edge or its right side. The sections in between tilt by their share, so the wall runs smoothly into the slant. The highest point stays at the set height. If the height later becomes so small that the slanted end would reach under the plate, the tilt gives way until it fits. A bend along a path, such as a pipe elbow, is not something the loft does.</p>
 <p>The loft is an exact body, twisted and tilted too: its edges can be chamfered and filleted, and STEP export keeps it. Add a flange with screw holes as usual and group them.</p>
-<h2 id="honeycomb">Honeycomb</h2>
-<p>The <strong class="ui">“Honeycomb”</strong> is a plate with hexagonal holes: light, stiff and nice to look at. The <strong class="ui">“Cell size”</strong>, the <strong class="ui">“Wall thickness”</strong> and the <strong class="ui">“Frame width”</strong> set the look.</p>
 <h2 id="hinge">Hinge</h2>
 <p>The <strong class="ui">“Hinge”</strong> prints in one piece and moves afterwards (print-in-place): two leaves lying open flat on the plate, with alternating knuckles on one axis between them. The pin belongs to the back leaf and runs with play through the knuckles of the front one. You set the <strong class="ui">“Length (axis)”</strong>, the <strong class="ui">“Width opened”</strong> and the <strong class="ui">“Knuckle diameter”</strong>, plus the number of <strong class="ui">“Knuckles”</strong> (odd, so the pin is held at both ends), the <strong class="ui">“Pin diameter”</strong> and the <strong class="ui">“Leaf thickness”</strong>.</p>
 <p><strong class="ui">“Clearance”</strong> is the gap between the moving parts: around the pin, between the knuckles and in front of the leaves. With 0.4 mm a well-tuned printer usually breaks free with a small twist; if the parts fuse, raise it, if it wobbles too much, lower it. Print the hinge lying down as it appears on the plate, without supports. You can add holes to the leaves or group them into a larger part, such as a lid.</p>
 <h2 id="knurling">Knurling</h2>
-<p>The <strong class="ui">“Knurl”</strong> is a round grip with grooves all around, for knobs, thumb wheels and tool handles. Under <strong class="ui">“Pattern”</strong> you pick <strong class="ui">“Straight”</strong>, grooves along the axis as on a control knob, or <strong class="ui">“Crossed”</strong>: two slanted rows of grooves cross into small diamonds. You set the <strong class="ui">“Diameter”</strong> and the <strong class="ui">“Height”</strong>, the number of <strong class="ui">“Grooves”</strong> and the <strong class="ui">“Groove depth”</strong>; for crossed knurling also the <strong class="ui">“Groove angle”</strong> to the axis. The <strong class="ui">“Chamfer at the ends”</strong> breaks both ends at 45 degrees, as on a turned knob; 0 leaves them sharp.</p>
-<p>Straight knurling is an exact body, so its edges can be broken and rounded. Crossed knurling stays a mesh, because as an exact body it would take almost a minute to compute with 30 grooves. For a knob on a shaft, group the knurl with a hole, such as a <strong class="ui">“Thread”</strong> set as a tapped hole. Grooves shallower than 0.4 mm hardly any printer prints cleanly, and layerling does not set them closer than 0.8 mm around the grip: a thin grip gets fewer of them.</p>
+<p>The <strong class="ui">“Knurl”</strong> is a round grip with grooves all around, for knobs, thumb wheels and tool handles. Under <strong class="ui">“Pattern”</strong> you pick <strong class="ui">“Straight”</strong>, grooves along the axis as on a control knob, <strong class="ui">“Crossed”</strong>: two slanted rows of grooves cross into small diamonds, or <strong class="ui">“Round”</strong>: grooves and ridges along the axis as a soft wave of arcs, a pleasant grip without sharp ridges. Round grooves stay shallower than half a pitch, or the ridges would bulge at their foot; a depth too great gives way. You set the <strong class="ui">“Diameter”</strong> and the <strong class="ui">“Height”</strong>, the number of <strong class="ui">“Grooves”</strong> and the <strong class="ui">“Groove depth”</strong>; for crossed knurling also the <strong class="ui">“Groove angle”</strong> to the axis. The <strong class="ui">“Chamfer at the ends”</strong> breaks both ends at 45 degrees, as on a turned knob; 0 leaves them sharp.</p>
+<p>Straight and round knurling are exact bodies, so their edges can be broken and rounded. Crossed knurling stays a mesh, because as an exact body it would take almost a minute to compute with 30 grooves. For a knob on a shaft, group the knurl with a hole, such as a <strong class="ui">“Thread”</strong> set as a tapped hole. Grooves shallower than 0.4 mm hardly any printer prints cleanly, and layerling does not set them closer than 0.8 mm around the grip: a thin grip gets fewer of them.</p>
 <h2 id="dovetail">Dovetail</h2>
 <p>The <strong class="ui">“Dovetail”</strong> is the joint in which two parts lock into each other and can only be slid together sideways. You set the width at the wide end, the <strong class="ui">“Neck width”</strong> and the length of the tail. Copy the tail for the other side and make the copy a hole: <strong class="ui">“Clearance as a hole”</strong> then gives a little play so the joint does not jam after printing.</p>
 <aside class="tip"><p><strong>Tip:</strong> A tapped hole cuts into the part it overlaps when grouped. So put it a bit into the material rather than just touching the surface.</p></aside>
@@ -164,7 +209,94 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
       </main>
     </div>
     <footer class="note">This guide grows with the program. If something is missing or wrong, tell us in the <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussions</a>.</footer>
-    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=en" rel="noopener">Support the project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussions</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">More about the project on GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.57.0</a></div></footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=en" rel="noopener">Support the project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussions</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">More about the project on GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.71.0</a></div><p class="trademark">Tinkercad is a trademark of Autodesk, Inc. layerling is an independent project and is not affiliated with, endorsed or sponsored by Autodesk.</p></footer>
     <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Back to the editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Open the editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text){var out="";for(var i=0;i<text.length;i++){out+=text.charAt(i).toLowerCase().normalize("NFD").charAt(0);}return out;}
+function guideForms(word,umlauts){
+  var forms=[word];
+  if(umlauts){var plain=word.split("ae").join("a").split("oe").join("o").split("ue").join("u");if(plain!==word)forms.push(plain);}
+  if(word.indexOf("ss")>=0)forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if(word.indexOf(String.fromCharCode(223))>=0)forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text,forms,from){
+  var best=null;
+  for(var i=0;i<forms.length;i++){var k=text.indexOf(forms[i],from);if(k>=0&&(!best||k<best.at))best={at:k,len:forms[i].length};}
+  return best;
+}
+function guidePrepare(entries){return entries.map(function(e){return {e:e,c:guideFold(e.c),h:guideFold(e.h),t:guideFold(e.t)};});}
+function guideTokens(query){return guideFold(query).split(" ").filter(function(w){return w.length>0;});}
+function guideSearch(prepared,query,limit,umlauts){
+  var tokens=guideTokens(query);if(!tokens.length)return [];
+  var forms=tokens.map(function(w){return guideForms(w,umlauts);}),phrase=guideForms(tokens.join(" "),umlauts),found=[];
+  prepared.forEach(function(p){
+    var score=0;
+    for(var i=0;i<tokens.length;i++){
+      var inH=guideFind(p.h,forms[i],0),inC=guideFind(p.c,forms[i],0),at=guideFind(p.t,forms[i],0);
+      if(!inH&&!inC&&!at)return;
+      if(inH)score+=10;
+      if(inC)score+=3;
+      if(at){score+=1;var n=0,k=at;while(k&&n<5){n++;k=guideFind(p.t,forms[i],k.at+k.len);}score+=n*0.3;}
+    }
+    if(tokens.length>1&&(guideFind(p.h,phrase,0)||guideFind(p.t,phrase,0)))score+=6;
+    found.push({entry:p.e,score:score,folded:p.t,forms:forms});
+  });
+  found.sort(function(a,b){return b.score-a.score;});
+  return found.slice(0,limit||8);
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,form.getAttribute("data-umlauts")==="true");
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first)window.location.href=first.href;});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
   </body>
 </html>

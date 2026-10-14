@@ -70,7 +70,7 @@ func TestNasscadDesktopAppAssets(t *testing.T) {
 	if !strings.HasSuffix(strings.TrimSpace(string(bundledHTML)), "</html>") {
 		t.Fatal("bundled nasscad document is incomplete")
 	}
-	if !strings.Contains(string(bundledHTML[:min(len(bundledHTML), 2048)]), "NASSCAD V4.7.0") {
+	if !regexp.MustCompile(`(?is)<title>NASSCAD\b[^<]*</title>`).Match(bundledHTML) || !strings.Contains(string(bundledHTML), "NASSCAD V4.7.0") {
 		t.Fatal("bundled nasscad source should identify itself as NASSCAD V4.7.0")
 	}
 	if !nasscadExternalScriptTagPattern.Match(bundledHTML) {

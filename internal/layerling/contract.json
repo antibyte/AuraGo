@@ -57,7 +57,7 @@
     }
   },
   "create_shape": {
-    "description": "Create any of Layerling's shapes: boxes, cylinders, slots, polygons, spheres, cones, pyramids, wedges, roofs, tori, tubes, stars, hearts, crescents, honeycomb grids, print-in-place hinges, knurled grips, raised text, threads (rod, screw, nut, tapped hole), springs, gears, or a simple extruded sketch. Width, depth and height default to what the editor uses for that shape; everything a shape has beyond its size is optional and falls back to the same defaults as a shape placed by hand. With a workplane set on a face (layerling_set_workplane), the shape stands on that face and x and z count on it (0, 0 is where the workplane sits) - unless elevation or a rotation is given, which mean the base plate.",
+    "description": "Create any of Layerling's shapes: boxes, cylinders, slots, polygons, spheres, cones, pyramids, wedges, roofs, tori, tubes, stars, hearts, crescents, print-in-place hinges, knurled grips, raised text, threads (rod, screw, nut, tapped hole), springs, gears, or a simple extruded sketch. Width, depth and height default to what the editor uses for that shape; everything a shape has beyond its size is optional and falls back to the same defaults as a shape placed by hand. With a workplane set on a face (layerling_set_workplane), the shape stands on that face and x and z count on it (0, 0 is where the workplane sits) - unless elevation or a rotation is given, which mean the base plate.",
     "schema": {
       "type": "object",
       "properties": {
@@ -88,7 +88,6 @@
             "thread",
             "spring",
             "gear",
-            "honeycomb",
             "hinge",
             "knurl",
             "dovetail",
@@ -138,7 +137,7 @@
         },
         "stroke": {
           "type": "object",
-          "description": "Only for kind sketch: build the sketch's outline as a frame of this width instead of a filled area, as the editor's Stroke does. align says where the wall lies against the outline (center, inside or outside), join how corners are filled (miter, round or bevel), cap the ends of an open line (flat, square or round).",
+          "description": "For kind sketch and kind text: build the outline as a frame of this width instead of the filled area, as the editor's fill modes do. align says where the wall lies against the outline (center, inside or outside), or grow keeps the area and widens it by the width all round (a base layer under a text or logo for a multicolour print); join how corners are filled (miter, round or bevel), cap the ends of an open line (flat, square or round). On a text the box grows with an outside, centred or grow stroke; the letters keep their size.",
           "properties": {
             "width": {
               "type": "number"
@@ -148,7 +147,8 @@
               "enum": [
                 "center",
                 "inside",
-                "outside"
+                "outside",
+                "grow"
               ]
             },
             "join": {
@@ -174,15 +174,15 @@
         },
         "silhouette": {
           "type": "boolean",
-          "description": "Only for kind sketch: leave out every outline inside another - holes, and islands in them - so only the outermost outlines count, as Tinkercad's Silhouette."
+          "description": "For kind sketch and kind text: leave out every outline inside another - holes, and islands in them; on a text the counters of O, A and e - so only the outermost outlines count, as Tinkercad's Silhouette."
         },
         "sides": {
           "type": "number",
-          "description": "Cylinder, slot, cone, tube, polygon, pyramid, round roof, teardrop, counterbore, countersink. Left out on a round body, the side count follows the diameter."
+          "description": "Cylinder, slot, cone, tube, polygon, pyramid, round roof, teardrop, counterbore, countersink, torus (around the ring). Left out on a round body, the side count follows the diameter."
         },
         "steps": {
           "type": "number",
-          "description": "Sphere and half sphere: how finely the surface is divided."
+          "description": "Sphere and half sphere: how finely the surface is divided. Torus: how finely the tube is divided; left out, it follows the size."
         },
         "bevel": {
           "type": "number",
@@ -244,9 +244,10 @@
           "type": "string",
           "enum": [
             "involute",
+            "round",
             "simple"
           ],
-          "description": "Gear only: involute teeth that mesh (new gears), or the plain straight teeth older designs have. An involute gear's width and depth are its outside diameter, module x (teeth + 2): for module 1.5 and 20 teeth give width and depth 33. Two gears with the same module mesh at a centre distance of module x (teeth1 + teeth2) / 2."
+          "description": "Gear only: involute teeth that mesh (new gears), round teeth made of arcs (like Tinkercad's Useful gear: forgiving on small printed gears, a smooth grip on knobs), or the plain straight teeth older designs have. An involute gear's width and depth are its outside diameter, module x (teeth + 2): for module 1.5 and 20 teeth give width and depth 33. Round teeth stand lower, so a round gear's outside diameter is module x (teeth + 1.2): module 1.5 and 20 teeth give 31.8. Two gears with the same module and tooth shape mesh at a centre distance of module x (teeth1 + teeth2) / 2; gearBacklash applies to both, gearPressureAngle only to involute teeth."
         },
         "gearPressureAngle": {
           "type": "number",
@@ -273,13 +274,20 @@
           "enum": [
             "spur",
             "helical",
-            "bevel"
+            "herringbone",
+            "bevel",
+            "internal",
+            "rack"
           ],
-          "description": "Gear only."
+          "description": "Gear only. \"herringbone\" is two helical halves turning opposite ways, like an arrow: it centres itself on its shaft and has no axial thrust, which is why it suits 3D printing; it takes the same helixAngle and helixQuality as a helical gear, and two meshing herringbone gears have angles of opposite sign. \"internal\" is a ring gear with its teeth pointing in, the outer wheel of a planetary set: width and depth are its outside diameter, module x (teeth + 2.5) + 2 x gearRim (round teeth: module x (teeth + 1.7)), and a pinion of the same module meshes inside it at a centre distance of module x (teeth - pinion teeth) / 2; ring teeth = sun teeth + 2 x planet teeth. \"rack\" is a bar along x with its teeth towards +z: width = teeth x pi x module (so racks of one module line up end to end), depth the bar's thickness, free above the teeth plus 0.5; a gear of the same module rolls on it with its centre teeth x module / 2 in front of the pitch line, which lies a module behind the tooth tips. Both take involute or round teeth, never simple ones, and no centerHoleSize."
+        },
+        "gearRim": {
+          "type": "number",
+          "description": "Ring gear only: the rim outside the teeth, in mm (default 3)."
         },
         "helixAngle": {
           "type": "number",
-          "description": "Helical gear only. With involute teeth the true helix angle on the pitch circle: two helical gears mesh with the same module and angle, one positive and one negative; with simple teeth the turn from foot to top."
+          "description": "Helical and herringbone gear only. With involute teeth the true helix angle on the pitch circle: two helical gears mesh with the same module and angle, one positive and one negative; with simple teeth the turn from foot to top."
         },
         "helixQuality": {
           "type": "number",
@@ -318,9 +326,10 @@
             "v",
             "trapezoidal",
             "round",
-            "whitworth"
+            "whitworth",
+            "custom"
           ],
-          "description": "Thread only: tooth shape. \"v\" is the sharp 60-degree ISO default (M, UNC, UNF); trapezoidal and round both leave a flat crest and root, which prints more reliably; \"whitworth\" is the 55-degree profile with rounded crest and root of the G pipe threads (ISO 228-1)."
+          "description": "Thread only: tooth shape. \"v\" is the sharp 60-degree ISO default (M, UNC, UNF); trapezoidal and round both leave a flat crest and root, which prints more reliably; \"whitworth\" is the 55-degree profile with rounded crest and root of the G pipe threads (ISO 228-1); \"custom\" is a symmetric trapezoid whose depth and flank angle you set with threadDepth and threadFlankAngle."
         },
         "threadDiameter": {
           "type": "number",
@@ -334,6 +343,18 @@
           "type": "number",
           "description": "Thread only, for nuts and tapped holes: how much room the thread leaves so a printed pair still turns."
         },
+        "threadAxialClearance": {
+          "type": "number",
+          "description": "Thread only, for nuts and tapped holes: extra play along the axis (mm, 0 to 1 but at most a fifth of the pitch, default 0): each tooth of the part gets this much thinner while the diameter stays. Add it to a small threadClearance for a thread that turns freely without rattling sideways."
+        },
+        "threadDepth": {
+          "type": "number",
+          "description": "Thread only, with threadProfile \"custom\": the thread depth in millimetres, outer minus core radius, so the core diameter is threadDiameter minus twice this. Default is the V thread's depth at the pitch (0.54 of it); at least a tenth of the pitch, at most 40 % of the diameter, and not so deep that the two flanks would take more than nine tenths of the pitch at the flank angle."
+        },
+        "threadFlankAngle": {
+          "type": "number",
+          "description": "Thread only, with threadProfile \"custom\": the angle between the two flanks of a tooth in degrees, 10 to 90, default 60 (the V thread; 30 is a trapezoid thread). At 90 or less no flank is flatter than 45 degrees to the horizontal, so the thread prints without supports."
+        },
         "threadBoltClearance": {
           "type": "number",
           "description": "Thread only, for rods and screws: how much thinner in diameter (mm, 0 to 1, default 0) the bolt is built, so a printed bolt fits a metal nut. Try 0.2 to 0.3."
@@ -344,7 +365,11 @@
         },
         "threadChamfer": {
           "type": "number",
-          "description": "Thread only: the break at the ends that leads the first turn in."
+          "description": "Thread only: the break at the ends that leads the first turn in. On a nut, tapped hole and rod it is the top end (and the bottom end too, unless threadChamferBottom is given); on a screw it is the tip. On a nut or tapped hole the 45 degree cone reaches down to the thread core."
+        },
+        "threadChamferBottom": {
+          "type": "number",
+          "description": "Thread only, for a rod, nut or tapped hole: the chamfer at the bottom end when it should differ from the top one. Left out, the bottom end has threadChamfer. A screw has no chamfer there."
         },
         "threadHeadHeight": {
           "type": "number",
@@ -414,25 +439,14 @@
           "type": "number",
           "description": "Crescent only: quality / segment count for arc and tip rounding (16 to 64)."
         },
-        "honeycombCellSize": {
-          "type": "number",
-          "description": "Honeycomb only: cell diameter / distance across flats in mm (3 to 50)."
-        },
-        "honeycombWallThickness": {
-          "type": "number",
-          "description": "Honeycomb only: wall thickness between cells in mm (0.4 to 10)."
-        },
-        "honeycombFrameWidth": {
-          "type": "number",
-          "description": "Honeycomb only: solid frame border width around grid in mm (0 to 50)."
-        },
         "knurlPattern": {
           "type": "string",
           "enum": [
             "straight",
-            "diamond"
+            "diamond",
+            "round"
           ],
-          "description": "Knurl only: \"straight\" grooves along the axis (default; an exact CAD body, so the edge tool works on it) or \"diamond\", two slanted rows crossing into small diamonds (a mesh). A knurl is a round grip: width is the diameter (depth follows), height the length."
+          "description": "Knurl only: \"straight\" grooves along the axis (default; an exact CAD body, so the edge tool works on it), \"diamond\", two slanted rows crossing into small diamonds (a mesh), or \"round\", straight grooves and ridges as a smooth wave of arcs, a pleasant grip for knobs (an exact body; its depth stays below 0.45 of the pitch round the grip). A knurl is a round grip: width is the diameter (depth follows), height the length."
         },
         "knurlCount": {
           "type": "number",
@@ -544,6 +558,10 @@
           "type": "number",
           "description": "Loft only: wall thickness in mm. 0 (default) is a solid body; more makes a tube open at both ends, the opening inset by the wall at the bottom and at the top."
         },
+        "loftSmooth": {
+          "type": "number",
+          "description": "Loft only: 0 to 1 (default 0), how much of an S-curve the sides take between the two ends instead of a straight line: the sides leave both ends straight up and change their size in between, like a hose adapter that flares smoothly from a narrow to a wide pipe. It works with a wall, a twist, a tilt and an offset."
+        },
         "loftTwist": {
           "type": "number",
           "description": "Loft only: degrees the section turns from bottom to top about the vertical, evenly on the way up, -360 to 360 (default 0). The sides then wind round."
@@ -574,7 +592,7 @@
         },
         "roundedBoxQuality": {
           "type": "number",
-          "description": "Rounded box only: quality / segment count for fillet rounding (4 to 32)."
+          "description": "Rounded box only: quality / segment count for fillet rounding (1 to 32; 1 gives chamfered corners)."
         },
         "bentTubeProfile": {
           "type": "string",
@@ -647,7 +665,7 @@
         },
         "font": {
           "type": "string",
-          "description": "Text only."
+          "description": "Text only: a built-in font (Multilanguage, Sans, Serif, Script, Monospace, Rounded, Stencil), or a font of one's own by its id (custom:...) or its name, as layerling_list_fonts gives them."
         },
         "textCurved": {
           "type": "boolean",
@@ -853,7 +871,8 @@
                   "enum": [
                     "center",
                     "inside",
-                    "outside"
+                    "outside",
+                    "grow"
                   ]
                 },
                 "join": {
@@ -878,11 +897,39 @@
               "type": "null"
             }
           ],
-          "description": "Extruded sketch bodies only, an imported SVG among them: how the body is filled. An object builds the outline as a frame - align outside is Tinkercad's outer line, inside its inner line, center on the line; width in mm; join miter (sharp), round or bevel; values left out keep the current ones. null makes it a filled area again. The body is built again from its sketch, where it stands."
+          "description": "Extruded sketch bodies (an imported SVG among them) and texts: how the body is filled. An object builds the outline as a frame - align outside is Tinkercad's outer line, inside its inner line, center on the line - or with align grow keeps the area and widens it by width all round; width in mm; join miter (sharp), round or bevel; values left out keep the current ones. null makes it a filled area again. A sketch body is built again from its sketch, where it stands; a text keeps its letters and its box grows by the stroke's reach (outside and grow by width, center by half)."
         },
         "silhouette": {
           "type": "boolean",
-          "description": "Extruded sketch bodies only: true leaves out every outline inside another - holes, and islands in them - false brings them back. With an outside stroke this makes a cookie cutter from one SVG."
+          "description": "Extruded sketch bodies and texts: true leaves out every outline inside another - holes, and islands in them; on a text the counters of its letters - false brings them back. With an outside stroke this makes a cookie cutter from one SVG; with grow, a base layer under a text."
+        },
+        "letterEdge": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "round",
+                    "chamfer"
+                  ]
+                },
+                "size": {
+                  "type": "number",
+                  "description": "How wide and high the edge is, in mm (0.05 to 5, at most the text's height)."
+                }
+              },
+              "required": [
+                "kind",
+                "size"
+              ]
+            }
+          ],
+          "description": "Text only: the top edge of the letters rounded or chamfered, as the top layer of a name tag is finished. null takes it off. Built from the outline stepped inwards, so it works for every font and word; the edge tool takes such a text as a mesh."
         },
         "x": {
           "type": "number"
@@ -916,11 +963,11 @@
         },
         "sides": {
           "type": "number",
-          "description": "Cylinder, slot, cone, tube, polygon, pyramid, round roof, teardrop, counterbore, countersink. Left out on a round body, the side count follows the diameter."
+          "description": "Cylinder, slot, cone, tube, polygon, pyramid, round roof, teardrop, counterbore, countersink, torus (around the ring). Left out on a round body, the side count follows the diameter."
         },
         "steps": {
           "type": "number",
-          "description": "Sphere and half sphere: how finely the surface is divided."
+          "description": "Sphere and half sphere: how finely the surface is divided. Torus: how finely the tube is divided; left out, it follows the size."
         },
         "bevel": {
           "type": "number",
@@ -982,9 +1029,10 @@
           "type": "string",
           "enum": [
             "involute",
+            "round",
             "simple"
           ],
-          "description": "Gear only: involute teeth that mesh (new gears), or the plain straight teeth older designs have. An involute gear's width and depth are its outside diameter, module x (teeth + 2): for module 1.5 and 20 teeth give width and depth 33. Two gears with the same module mesh at a centre distance of module x (teeth1 + teeth2) / 2."
+          "description": "Gear only: involute teeth that mesh (new gears), round teeth made of arcs (like Tinkercad's Useful gear: forgiving on small printed gears, a smooth grip on knobs), or the plain straight teeth older designs have. An involute gear's width and depth are its outside diameter, module x (teeth + 2): for module 1.5 and 20 teeth give width and depth 33. Round teeth stand lower, so a round gear's outside diameter is module x (teeth + 1.2): module 1.5 and 20 teeth give 31.8. Two gears with the same module and tooth shape mesh at a centre distance of module x (teeth1 + teeth2) / 2; gearBacklash applies to both, gearPressureAngle only to involute teeth."
         },
         "gearPressureAngle": {
           "type": "number",
@@ -1011,13 +1059,20 @@
           "enum": [
             "spur",
             "helical",
-            "bevel"
+            "herringbone",
+            "bevel",
+            "internal",
+            "rack"
           ],
-          "description": "Gear only."
+          "description": "Gear only. \"herringbone\" is two helical halves turning opposite ways, like an arrow: it centres itself on its shaft and has no axial thrust, which is why it suits 3D printing; it takes the same helixAngle and helixQuality as a helical gear, and two meshing herringbone gears have angles of opposite sign. \"internal\" is a ring gear with its teeth pointing in, the outer wheel of a planetary set: width and depth are its outside diameter, module x (teeth + 2.5) + 2 x gearRim (round teeth: module x (teeth + 1.7)), and a pinion of the same module meshes inside it at a centre distance of module x (teeth - pinion teeth) / 2; ring teeth = sun teeth + 2 x planet teeth. \"rack\" is a bar along x with its teeth towards +z: width = teeth x pi x module (so racks of one module line up end to end), depth the bar's thickness, free above the teeth plus 0.5; a gear of the same module rolls on it with its centre teeth x module / 2 in front of the pitch line, which lies a module behind the tooth tips. Both take involute or round teeth, never simple ones, and no centerHoleSize."
+        },
+        "gearRim": {
+          "type": "number",
+          "description": "Ring gear only: the rim outside the teeth, in mm (default 3)."
         },
         "helixAngle": {
           "type": "number",
-          "description": "Helical gear only. With involute teeth the true helix angle on the pitch circle: two helical gears mesh with the same module and angle, one positive and one negative; with simple teeth the turn from foot to top."
+          "description": "Helical and herringbone gear only. With involute teeth the true helix angle on the pitch circle: two helical gears mesh with the same module and angle, one positive and one negative; with simple teeth the turn from foot to top."
         },
         "helixQuality": {
           "type": "number",
@@ -1056,9 +1111,10 @@
             "v",
             "trapezoidal",
             "round",
-            "whitworth"
+            "whitworth",
+            "custom"
           ],
-          "description": "Thread only: tooth shape. \"v\" is the sharp 60-degree ISO default (M, UNC, UNF); trapezoidal and round both leave a flat crest and root, which prints more reliably; \"whitworth\" is the 55-degree profile with rounded crest and root of the G pipe threads (ISO 228-1)."
+          "description": "Thread only: tooth shape. \"v\" is the sharp 60-degree ISO default (M, UNC, UNF); trapezoidal and round both leave a flat crest and root, which prints more reliably; \"whitworth\" is the 55-degree profile with rounded crest and root of the G pipe threads (ISO 228-1); \"custom\" is a symmetric trapezoid whose depth and flank angle you set with threadDepth and threadFlankAngle."
         },
         "threadDiameter": {
           "type": "number",
@@ -1072,6 +1128,18 @@
           "type": "number",
           "description": "Thread only, for nuts and tapped holes: how much room the thread leaves so a printed pair still turns."
         },
+        "threadAxialClearance": {
+          "type": "number",
+          "description": "Thread only, for nuts and tapped holes: extra play along the axis (mm, 0 to 1 but at most a fifth of the pitch, default 0): each tooth of the part gets this much thinner while the diameter stays. Add it to a small threadClearance for a thread that turns freely without rattling sideways."
+        },
+        "threadDepth": {
+          "type": "number",
+          "description": "Thread only, with threadProfile \"custom\": the thread depth in millimetres, outer minus core radius, so the core diameter is threadDiameter minus twice this. Default is the V thread's depth at the pitch (0.54 of it); at least a tenth of the pitch, at most 40 % of the diameter, and not so deep that the two flanks would take more than nine tenths of the pitch at the flank angle."
+        },
+        "threadFlankAngle": {
+          "type": "number",
+          "description": "Thread only, with threadProfile \"custom\": the angle between the two flanks of a tooth in degrees, 10 to 90, default 60 (the V thread; 30 is a trapezoid thread). At 90 or less no flank is flatter than 45 degrees to the horizontal, so the thread prints without supports."
+        },
         "threadBoltClearance": {
           "type": "number",
           "description": "Thread only, for rods and screws: how much thinner in diameter (mm, 0 to 1, default 0) the bolt is built, so a printed bolt fits a metal nut. Try 0.2 to 0.3."
@@ -1082,7 +1150,11 @@
         },
         "threadChamfer": {
           "type": "number",
-          "description": "Thread only: the break at the ends that leads the first turn in."
+          "description": "Thread only: the break at the ends that leads the first turn in. On a nut, tapped hole and rod it is the top end (and the bottom end too, unless threadChamferBottom is given); on a screw it is the tip. On a nut or tapped hole the 45 degree cone reaches down to the thread core."
+        },
+        "threadChamferBottom": {
+          "type": "number",
+          "description": "Thread only, for a rod, nut or tapped hole: the chamfer at the bottom end when it should differ from the top one. Left out, the bottom end has threadChamfer. A screw has no chamfer there."
         },
         "threadHeadHeight": {
           "type": "number",
@@ -1152,25 +1224,14 @@
           "type": "number",
           "description": "Crescent only: quality / segment count for arc and tip rounding (16 to 64)."
         },
-        "honeycombCellSize": {
-          "type": "number",
-          "description": "Honeycomb only: cell diameter / distance across flats in mm (3 to 50)."
-        },
-        "honeycombWallThickness": {
-          "type": "number",
-          "description": "Honeycomb only: wall thickness between cells in mm (0.4 to 10)."
-        },
-        "honeycombFrameWidth": {
-          "type": "number",
-          "description": "Honeycomb only: solid frame border width around grid in mm (0 to 50)."
-        },
         "knurlPattern": {
           "type": "string",
           "enum": [
             "straight",
-            "diamond"
+            "diamond",
+            "round"
           ],
-          "description": "Knurl only: \"straight\" grooves along the axis (default; an exact CAD body, so the edge tool works on it) or \"diamond\", two slanted rows crossing into small diamonds (a mesh). A knurl is a round grip: width is the diameter (depth follows), height the length."
+          "description": "Knurl only: \"straight\" grooves along the axis (default; an exact CAD body, so the edge tool works on it), \"diamond\", two slanted rows crossing into small diamonds (a mesh), or \"round\", straight grooves and ridges as a smooth wave of arcs, a pleasant grip for knobs (an exact body; its depth stays below 0.45 of the pitch round the grip). A knurl is a round grip: width is the diameter (depth follows), height the length."
         },
         "knurlCount": {
           "type": "number",
@@ -1282,6 +1343,10 @@
           "type": "number",
           "description": "Loft only: wall thickness in mm. 0 (default) is a solid body; more makes a tube open at both ends, the opening inset by the wall at the bottom and at the top."
         },
+        "loftSmooth": {
+          "type": "number",
+          "description": "Loft only: 0 to 1 (default 0), how much of an S-curve the sides take between the two ends instead of a straight line: the sides leave both ends straight up and change their size in between, like a hose adapter that flares smoothly from a narrow to a wide pipe. It works with a wall, a twist, a tilt and an offset."
+        },
         "loftTwist": {
           "type": "number",
           "description": "Loft only: degrees the section turns from bottom to top about the vertical, evenly on the way up, -360 to 360 (default 0). The sides then wind round."
@@ -1312,7 +1377,7 @@
         },
         "roundedBoxQuality": {
           "type": "number",
-          "description": "Rounded box only: quality / segment count for fillet rounding (4 to 32)."
+          "description": "Rounded box only: quality / segment count for fillet rounding (1 to 32; 1 gives chamfered corners)."
         },
         "bentTubeProfile": {
           "type": "string",
@@ -1385,7 +1450,7 @@
         },
         "font": {
           "type": "string",
-          "description": "Text only."
+          "description": "Text only: a built-in font (Multilanguage, Sans, Serif, Script, Monospace, Rounded, Stencil), or a font of one's own by its id (custom:...) or its name, as layerling_list_fonts gives them."
         },
         "textCurved": {
           "type": "boolean",
@@ -1474,7 +1539,7 @@
     }
   },
   "align_objects": {
-    "description": "Align two or more Layerling objects using the same alignment logic as the editor Alignment button.",
+    "description": "Align two or more Layerling objects using the same alignment logic as the editor Alignment button. On the plate the axes are the world's; with a workplane set on a face (layerling_set_workplane) the objects are measured and moved along that plane's axes instead - x along the face, y out of it, z across - so a part turned 45° lines up with its own edges.",
     "schema": {
       "type": "object",
       "properties": {
@@ -1496,7 +1561,7 @@
             "y",
             "z"
           ],
-          "description": "x=left/right, z=front/back, y=bottom/top."
+          "description": "x=left/right, z=front/back, y=bottom/top - or along the set workplane's x, z and normal."
         },
         "target": {
           "type": "string",
@@ -2500,6 +2565,10 @@
         "flip": {
           "type": "boolean",
           "description": "Let the workplane face into the object instead of out of it."
+        },
+        "onSection": {
+          "type": "boolean",
+          "description": "Put the workplane on the cut of the section view (layerling_section_view must have it switched on), facing out of the body that stays; a sketch started there shows the outline of the cut."
         },
         "reset": {
           "type": "boolean",

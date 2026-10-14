@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Selecteren en schikken - layerling handleiding</title>
+    <meta name="description" content="Vormen selecteren, ze terugvinden in de objectlijst, uitlijnen, spiegelen, draaien, plat op een vlak leggen en in patronen vermenigvuldigen.">
+    <link rel="canonical" href="https://layerling.com/handleiding/selecteren-en-schikken.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/select-and-arrange.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/auswaehlen-und-anordnen.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/selecteren-en-schikken.html">
+    <meta property="og:title" content="Selecteren en schikken - layerling handleiding">
+    <meta property="og:description" content="Vormen selecteren, ze terugvinden in de objectlijst, uitlijnen, spiegelen, draaien, plat op een vlak leggen en in patronen vermenigvuldigen.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: left; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-left: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-left: auto; text-align: right; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+@media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/handleiding/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Handleiding</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/handleiding/search-index.json" data-nothing="Niets gevonden." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Handleiding doorzoeken" aria-label="Handleiding doorzoeken" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Taal">Nederlands</summary><ul><li><a href="/api/desktop/layerling/ui/guide/select-and-arrange.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/handleiding/selecteren-en-schikken.html" hreflang="nl" lang="nl" aria-current="true">Nederlands</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Naar de editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>De editor is al open in een ander tabblad - schakel daar gewoon naartoe.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Hoofdstukken"><h2>Hoofdstukken</h2><ol><li><a href="/api/desktop/layerling/ui/handleiding/aan-de-slag.html">Aan de slag</a></li><li><a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html">Weergave en werkvlak</a></li><li><a href="/api/desktop/layerling/ui/handleiding/vormen.html">Vormen plaatsen en aanpassen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/selecteren-en-schikken.html" aria-current="page">Selecteren en schikken</a></li><li><a href="/api/desktop/layerling/ui/handleiding/lichamen-en-gaten.html">Lichamen en gaten</a></li><li><a href="/api/desktop/layerling/ui/handleiding/randen-en-uithollen.html">Randen breken en lichamen uithollen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schetsen.html">Schetsen: van omtrek naar lichaam</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tekst.html">Tekst en gebogen belettering</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schroefdraad-en-mechanica.html">Schroefdraad, tandwielen en andere onderdelen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/meten-en-notities.html">Meten en notities</a></li><li><a href="/api/desktop/layerling/ui/handleiding/printen.html">Voorbereiden op 3D-printen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/bestanden-en-opslaan.html">Bestanden, opslaan en delen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/sneltoetsen.html">Sneltoetsen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/ai-met-mcp.html">Bouwen met een AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/handleiding/offline-en-installeren.html">Installeren als app, offline werken en zelf hosten</a></li><li><a href="/api/desktop/layerling/ui/handleiding/videos.html">Video's over layerling</a></li></ol></nav>
+      <main>
+<h1>Selecteren en schikken</h1>
+<p class="lead">Vormen selecteren, ze terugvinden in de objectlijst, uitlijnen, spiegelen, draaien, plat op een vlak leggen en in patronen vermenigvuldigen.</p>
+<div class="toc"><b>Op deze pagina</b><ul><li><a href="#selecteren">Selecteren</a></li><li><a href="#de-objectlijst">De objectlijst</a></li><li><a href="#een-positie-typen">Een positie typen</a></li><li><a href="#onderdelen-naast-de-plaat-parkeren">Onderdelen naast de plaat parkeren</a></li><li><a href="#uitlijnen-tijdens-het-verplaatsen">Uitlijnen tijdens het verplaatsen</a></li><li><a href="#uitlijnen">Uitlijnen</a></li><li><a href="#spiegelen">Spiegelen</a></li><li><a href="#draaien-en-het-draaipunt-instellen">Draaien en het draaipunt instellen</a></li><li><a href="#plat-op-een-vlak-leggen">Plat op een vlak leggen</a></li><li><a href="#patronen-rij-en-cirkel">Patronen: rij en cirkel</a></li><li><a href="#gatenpatroon-op-een-vlak">Gatenpatroon op een vlak</a></li><li><a href="#meerdere-onderdelen-tegelijk-veranderen">Meerdere onderdelen tegelijk veranderen</a></li><li><a href="#schalen-in-procenten">Schalen in procenten</a></li><li><a href="#ongedaan-maken">Ongedaan maken</a></li><li><a href="#terugkijken-de-geschiedenisweergave">Terugkijken: de geschiedenisweergave</a></li></ul></div>
+<h2 id="selecteren">Selecteren</h2>
+<p>Een klik op een vorm selecteert hem. Met <kbd>Shift</kbd> voeg je er meer toe of haal je ze weer weg. Een klik op een lege plek maakt de selectie leeg, en <kbd>Esc</kbd> doet dat ook. Sleep een kader op het lege werkvlak om alles te selecteren wat het raakt; met <kbd>Shift</kbd> ingedrukt voegt het kader toe wat nog niet geselecteerd was en haalt het weg wat dat wel was. En <kbd>Ctrl</kbd>+<kbd>A</kbd> selecteert alle zichtbare lichamen.</p>
+<p>Wat in de weg zit, verberg je (<strong class="ui">“Selectie verbergen”</strong>, <kbd>Ctrl</kbd>+<kbd>H</kbd>). Verborgen vormen blijven in het ontwerp, ze zijn alleen niet te zien en gaan niet mee in de export; het exportvenster zegt vooraf hoeveel het er zijn. <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> haalt ze allemaal terug. Wat moet blijven staan, vergrendel je met het hangslot bovenaan in de instellingen of met <kbd>Ctrl</kbd>+<kbd>L</kbd>. Een vergrendelde vorm kun je niet verplaatsen, van grootte veranderen, draaien, een andere kleur geven of verwijderen: zijn grepen worden grijs, naast de pijl bovenop verschijnt een hangslot, en de gereedschappen die hem zouden veranderen zijn grijs. Als je over een greep beweegt, zie je nog steeds zijn maten, en een toets die hem zou veranderen meldt &quot;Object vergrendeld&quot;. Zolang er één vergrendelde vorm in de selectie zit, verandert er ook aan de andere niets. Verbergen, hernoemen, kopiëren en dupliceren werken nog gewoon.</p>
+<h2 id="de-objectlijst">De objectlijst</h2>
+<p>Met veel onderdelen raak je in de weergave makkelijk het overzicht kwijt. De objectlijst (<strong class="ui">“Objectenlijst tonen”</strong> of <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd>) toont alle vormen als een lijst.</p>
+<figure><img src="/api/desktop/layerling/ui/handleiding/img/object-list.webp" alt="De objectlijst: de groep &quot;Groep&quot; met twee onderdelen en een bol ernaast. Een mappictogram opent de groep." width="1280" height="800" loading="lazy"><figcaption>De objectlijst: de groep &quot;Groep&quot; met twee onderdelen en een bol ernaast. Een mappictogram opent de groep.</figcaption></figure>
+<ul><li>Een klik op een regel selecteert de vorm, ook onderdelen binnen een groep. Met <kbd>Shift</kbd> ingedrukt voeg je meer regels toe of haal je ze weer weg, net als in de weergave. De pijltjes klappen groepen open en dicht.</li><li>Het label laat zien of een onderdeel <strong class="ui">“Massief”</strong> of <strong class="ui">“Gat”</strong> is.</li><li>Hangslot en oog vergrendelen en verbergen afzonderlijke onderdelen.</li><li><strong class="ui">“Hernoemen”</strong> geeft een onderdeel een eigen naam; het potlood naast de naam bovenaan in de instellingen doet hetzelfde voor de geselecteerde vorm. Zinnige namen helpen enorm in grotere ontwerpen.</li><li>Het zoekveld vindt vormen op naam en op soort, dus ook &quot;cilinder&quot; of &quot;gat&quot;. Het zoekt ook binnen groepen, hoe diep ook genest: een groep met een treffer blijft in de lijst staan en klapt open om de gevonden onderdelen te tonen en de groepen die ernaartoe leiden. Een groep die op zijn eigen naam gevonden is, toont al zijn onderdelen als je hem opent.</li><li>Het pijltje helemaal links in de titelbalk klapt de lijst in tot alleen de titelbalk, en weer terug.</li></ul>
+<p>De lijst zit vastgezet net rechts van de weergavekubus. Sleep hem aan zijn titelbalk om hem ergens op het werkvlak neer te zetten; hij schuift onder de weergavekubus en de camerabalk door. Laat hem weer naast de weergavekubus los, of dubbelklik op de titelbalk, en hij zit weer vast. Waar hij stond en of hij ingeklapt was, onthoudt deze browser.</p>
+<h2 id="een-positie-typen">Een positie typen</h2>
+<p>De kaart <strong class="ui">“Positie”</strong> in het eigenschappenpaneel laat zien waar het geselecteerde lichaam staat, en je kunt die positie typen: <strong class="ui">“X”</strong> en <strong class="ui">“Y”</strong> zijn het midden van zijn kader op de plaat, met dezelfde tekens als de afstanden die op het werkvlak staan, en <strong class="ui">“Z (hoogte)”</strong> is de hoogte van zijn onderkant. X telt naar rechts, Y naar achteren en Z omhoog, volgens de rechterhandregel zoals in Tinkercad en CAD-programma's; de aspijlen op de plaat tonen de richtingen. De waarden staan in de eenheid die je hebt ingesteld, en de schuifregelaars reiken net zo ver als slepen.</p>
+<h2 id="onderdelen-naast-de-plaat-parkeren">Onderdelen naast de plaat parkeren</h2>
+<p>Je kunt een vorm voorbij de rand van de plaat slepen en hem daar laten liggen, tot ongeveer één plaatbreedte buiten elke kant, om hem voor later te bewaren. Met de pijltoetsen verplaats je hem zo ver als je wilt. Een geparkeerd onderdeel hoort nog steeds bij het ontwerp en gaat met al het andere mee in de export. Wil je het weglaten, verberg het dan of exporteer alleen de selectie. Als je een printer hebt gekozen, waarschuwt layerling bij het exporteren wanneer er iets buiten de plaat ervan ligt.</p>
+<h2 id="uitlijnen-tijdens-het-verplaatsen">Uitlijnen tijdens het verplaatsen</h2>
+<p>Als je een vorm over het werkvlak sleept, lijnt hij uit op andere vormen: zijn linker-, rechter-, voor- of achterrand of zijn midden komt precies op een rand of midden van een andere vorm te liggen. Een roze hulplijn laat zien waaraan hij zich vasthoudt. Zo staan twee onderdelen strak naast elkaar of gecentreerd achter elkaar zonder dat je getallen hoeft te typen. Het werkt ook als het raster uitstaat.</p>
+<p>Houd <kbd>Shift</kbd> ingedrukt tijdens het slepen om de verplaatsing op één as te houden: de vorm volgt de richting, X of Y, waarin je het verst hebt gesleept, en laat de andere met rust. Druk <kbd>Shift</kbd> het best pas in als je al aan het slepen bent; bij een vorm die nog niet geselecteerd is, voegt een klik met <kbd>Shift</kbd> hem alleen aan de selectie toe.</p>
+<p>Heb je <kbd>Alt</kbd> al ingedrukt als het slepen begint, dan sleep je een kopie, zoals in Tinkercad: de vorm blijft waar hij is en de kopie komt waar je loslaat. Druk je <kbd>Alt</kbd> pas onderweg in, dan pauzeert het uitlijnen; de vorm volgt dan alleen het raster. Ook een kopie lijnt pas uit als je <kbd>Alt</kbd> onderweg loslaat. Om het uitlijnen voorgoed uit te zetten, gebruik je het rastermenu rechtsonder (<strong class="ui">“Aan vormen uitlijnen”</strong>) of de instellingen. Voorlopig lijnt alleen verplaatsen op het normale werkvlak uit, niet optillen en niet van grootte veranderen.</p>
+<h2 id="uitlijnen">Uitlijnen</h2>
+<p>Twee of meer geselecteerde vormen zet je op één lijn met <strong class="ui">“Uitlijnen”</strong>: rond de selectie verschijnen punten voor links, midden en rechts, voor, midden en achter, en boven, midden en onder. Een klik op een punt verplaatst alle vormen daarheen. Klik je eerst op een van de geselecteerde vormen, dan blijft die op zijn plek en lijnen de andere ermee uit. Een vergrendelde vorm in de selectie is vanzelf die vaste vorm.</p>
+<p>Een vorm die schuin staat, zeg 45° gedraaid, wordt uitgelijnd op het kader eromheen, niet op zijn eigen randen. Om op de randen uit te lijnen, zet je eerst een werkvlak op een vlak van die vorm (<strong class="ui">“Werkvlak plaatsen”</strong>, dan op het vlak klikken): de punten staan dan op de assen van dat vlak, en de vormen worden langs die assen gemeten en verplaatst, zoals in Tinkercad. Zet het werkvlak terug om weer langs de plaat uit te lijnen.</p>
+<figure><img src="/api/desktop/layerling/ui/handleiding/img/align.webp" alt="Uitlijnen toont de mogelijke doelen als stippen rond de selectie." width="1280" height="800" loading="lazy"><figcaption>Uitlijnen toont de mogelijke doelen als stippen rond de selectie.</figcaption></figure>
+<p>De toets is <kbd>L</kbd>. <kbd>Esc</kbd> annuleert.</p>
+<h2 id="spiegelen">Spiegelen</h2>
+<p><strong class="ui">“Spiegelen”</strong> (<kbd>M</kbd>, of klik met rechts op de selectie en kies het) klapt de selectie om over een vlak: <strong class="ui">“links-rechts”</strong>, <strong class="ui">“voor-achter”</strong> of <strong class="ui">“boven-onder”</strong>. Klik op de bijbehorende aspijl. Dat is handig voor symmetrische onderdelen: bouw één helft, kopieer die en spiegel de kopie.</p>
+<h2 id="draaien-en-het-draaipunt-instellen">Draaien en het draaipunt instellen</h2>
+<p>Je draait met de gebogen pijlen op de vorm, met de getallen in de instellingen of met <kbd>R</kbd> in stappen van 45°. Als je op de draaicirkel sleept, klikt de draaiing vast op elk streepje, dus elke 22,5°; houd <kbd>Shift</kbd> ingedrukt voor fijnere stappen, dan verschijnen er extra streepjes om de 11,25°. Sleep buiten de cirkel om vrij te draaien in stappen van 1°, of in stappen van 45° met <kbd>Shift</kbd>. Normaal draait de selectie om haar midden. Soms moet dat niet, bijvoorbeeld als een schuine buis aan zijn uiteinde verder gedraaid moet worden. Daarvoor is er <strong class="ui">“Draaipunt instellen”</strong>: klik daarna op een vlak. Een plat vlak levert zijn middelpunt, bijvoorbeeld de as van een buiseinde. De selectie draait nu om dat punt. Een tweede klik op het gereedschap haalt het weer weg.</p>
+<p>De hoeken blijven bij het lichaam. In zijn instellingen toont <strong class="ui">“Rotatie”</strong> ze als <strong class="ui">“Om X”</strong>, <strong class="ui">“Om Y”</strong> en <strong class="ui">“Om Z (hoogte)”</strong>, genoemd zoals de positie: Y loopt over de plaat, Z is omhoog. Typ daar een hoek en het lichaam draait ernaartoe - om zijn midden, of om zijn eigen draaipunt als het er een heeft. Zolang een gedraaid lichaam geselecteerd is, staan zijn hoeken ook eronder op het werkvlak; <strong class="ui">“Hoeken van gedraaide lichamen tonen”</strong> in de instellingen zet dat uit.</p>
+<figure><img src="/api/desktop/layerling/ui/handleiding/img/rotation-card.webp" alt="Een lichaam gedraaid om twee assen: zijn hoeken staan eronder, en de kaart Rotatie in zijn instellingen neemt ze als getallen." width="1280" height="800" loading="lazy"><figcaption>Een lichaam gedraaid om twee assen: zijn hoeken staan eronder, en de kaart Rotatie in zijn instellingen neemt ze als getallen.</figcaption></figure>
+<p>Met <strong>één lichaam</strong> geselecteerd hoort het draaipunt bij dat lichaam: selecteer andere onderdelen en kom terug, en het is er nog steeds. Het verplaatst, draait en schaalt mee met het lichaam, wordt in het project opgeslagen en komt terug met Ongedaan maken. Onder <strong class="ui">“Positie”</strong> heeft het draaipunt een eigen X, Y en Z, die je kunt typen of een tikje kunt verschuiven, en <strong class="ui">“Verwijderen”</strong> haalt het weg. Je kunt de rode markering van het draaipunt ook met de muis slepen: ze glijdt over het oppervlak van de lichamen en klikt vast op hoeken, randmiddens en randen, zodat een scharnierpen precies op een hoek terechtkomt. Met meerdere lichamen geselecteerd geldt het draaipunt alleen voor die selectie, en een nieuwe selectie haalt het weg.</p>
+<h2 id="plat-op-een-vlak-leggen">Plat op een vlak leggen</h2>
+<p>Moet een onderdeel op zijn beste kant liggen om te printen? Selecteer het, klik op <strong class="ui">“Plat leggen op vlak”</strong> en dan op het vlak dat naar beneden moet. Terwijl je de aanwijzer over het onderdeel beweegt, licht het vlak eronder op, zodat je ziet welk vlak je gaat kiezen; draai de weergave om de andere kanten te bekijken. Het onderdeel draait zo dat dit vlak op het werkvlak rust.</p>
+<p>Moeten twee onderdelen vlak tegen vlak komen, of strak gelijk liggen? Selecteer het onderdeel dat moet bewegen, klik op <strong class="ui">“Vlakken uitlijnen”</strong>, klik dan op een vlak ervan en daarna op het vlak van het andere onderdeel. In het paneel zet <strong class="ui">“Vlak tegen vlak”</strong> de vlakken tegen elkaar (rug aan rug, rakend), <strong class="ui">“Gelijk”</strong> legt ze in één vlak naast elkaar; <strong class="ui">“Tussenruimte”</strong> laat ruimte ertussen, bijvoorbeeld voor speling. <strong class="ui">“Uitlijnen”</strong> verplaatst het onderdeel: het draait de kortste weg tot de vlakken evenwijdig zijn - helemaal niet als ze dat al zijn - en schuift dan alleen in de richting van het andere vlak, zodat het zijdelings op zijn plek blijft. Het andere onderdeel blijft waar het is, en één keer Ongedaan maken draait alles terug.</p>
+<figure><img src="/api/desktop/layerling/ui/handleiding/img/mate-faces.webp" alt="Het paneel Vlakken uitlijnen: het onderdeel dat beweegt is gekozen, een vlak van het andere onderdeel komt daarna, dan vlak tegen vlak of gelijk, en een optionele tussenruimte." width="1280" height="800" loading="lazy"><figcaption>Het paneel Vlakken uitlijnen: het onderdeel dat beweegt is gekozen, een vlak van het andere onderdeel komt daarna, dan vlak tegen vlak of gelijk, en een optionele tussenruimte.</figcaption></figure>
+<p>Net zo eenvoudig zijn <strong class="ui">“Laten zakken naar werkvlak”</strong> (<kbd>D</kbd>), dat de selectie op het werkvlak laat zakken, en <strong class="ui">“Centreren op werkvlak”</strong>.</p>
+<p><kbd>C</kbd> pakt de selectie op, zoals Cruise in Tinkercad: ze volgt de muisaanwijzer en gaat liggen op het vlak van een ander lichaam waar je boven bent, ook op schuine vlakken. Een klik zet haar daar neer, <kbd>Esc</kbd> laat haar waar ze was. Haar onderkant rust dan op het vlak, uitgelijnd op de randen van het vlak zoals een nieuwe vorm dat zou zijn; haar eigen draaiing om haar verticale as houdt ze. Meerdere onderdelen reizen samen en houden hun onderlinge afstand. Boven de lege plaat zet <kbd>C</kbd> een gekanteld onderdeel weer rechtop op het werkvlak.</p>
+<h2 id="patronen-rij-en-cirkel">Patronen: rij en cirkel</h2>
+<p>Voor gatenrasters, boutcirkels en getande ringen is er het <strong class="ui">“Patroon”</strong>. Selecteer de vormen die vermenigvuldigd moeten worden en klik erop in het lint.</p>
+<figure><img src="/api/desktop/layerling/ui/handleiding/img/pattern-tool.webp" alt="Het patroon in de modus &quot;Cirkel&quot;: de kopieën verschijnen eerst als voorbeeld." width="1280" height="800" loading="lazy"><figcaption>Het patroon in de modus &quot;Cirkel&quot;: de kopieën verschijnen eerst als voorbeeld.</figcaption></figure>
+<ul><li><strong><strong class="ui">“Rij”</strong>:</strong> De selectie wordt op gelijke afstanden herhaald. De rij stapt langs alle drie de assen tegelijk, met <strong class="ui">“Tussenafstand X”</strong>, <strong class="ui">“Tussenafstand Y”</strong> en <strong class="ui">“Tussenafstand Z (hoogte)”</strong>: één ervan geeft een rechte rij, twee of drie een diagonale rij of een trap. Een negatieve afstand legt de rij de andere kant op.</li><li><strong><strong class="ui">“Cirkel”</strong>:</strong> De selectie wordt rond een middelpunt verdeeld. Hoeveel kopieën er zijn, stel je in onder <strong class="ui">“Aantal (incl. origineel)”</strong>, en de <strong class="ui">“Totale hoek”</strong> is 360° voor een volle cirkel. Kies of de kopieën meedraaien. <strong class="ui">“Stijging per kopie”</strong> tilt elke kopie iets hoger dan de vorige (een schroef of een oplopende spiraal), en <strong class="ui">“Straalverandering per kopie”</strong> zet haar verder van het middelpunt af of er dichter bij (een platte spiraal); samen geven ze een kegelvormige spiraal.</li></ul>
+<p>Tip: zet eerst met <strong class="ui">“Draaipunt instellen”</strong> het draaipunt op een vlak, dan ligt het middelpunt van de cirkel precies daar.</p>
+<figure><img src="/api/desktop/layerling/ui/handleiding/img/pattern-spiral.webp" alt="Het patroon in de modus &quot;Cirkel&quot; met per kopie een stijging en een straalverandering: de kopieën klimmen en worden wijder, als een spiraal." width="1280" height="800" loading="lazy"><figcaption>Het patroon in de modus &quot;Cirkel&quot; met per kopie een stijging en een straalverandering: de kopieën klimmen en worden wijder, als een spiraal.</figcaption></figure>
+<p>De kopieën verschijnen eerst als voorbeeld. Pas <strong class="ui">“Maken”</strong> maakt ze aan. Zijn de kopieën gaten, groepeer ze dan daarna met het lichaam waarin ze moeten snijden.</p>
+<h2 id="gatenpatroon-op-een-vlak">Gatenpatroon op een vlak</h2>
+<p>Voor ventilatieopeningen, luidsprekerroosters, mandjes en behuizingen verdeelt het <strong class="ui">“Gatenpatroon”</strong> gaten gelijkmatig over een plat vlak. Je hoeft niet meer één gat te maken, het te herhalen en op de wand te zetten. Selecteer precies één lichaam en klik op <strong class="ui">“Gatenpatroon”</strong> in de groep <strong class="ui">“Bewerken”</strong> van de werkbalk, naast het patroon. Je kunt ook met rechts op het lichaam klikken, of het vinden met <kbd>Ctrl</kbd>+<kbd>K</kbd>.</p>
+<ol><li>Klik op een plat vlak van het lichaam. Het hele platte vlak rond je klik telt, niet alleen de driehoek onder de aanwijzer. Een gebogen vlak werkt niet: je krijgt een hint en klikt in plaats daarvan op een plat vlak.</li><li>Stel in het venster in hoe de gaten eruitzien en liggen:</li></ol>
+<ul><li><strong><strong class="ui">“Gatvorm”</strong>:</strong> <strong class="ui">“Rond”</strong>, <strong class="ui">“Vierkant”</strong>, <strong class="ui">“Rechthoek”</strong>, <strong class="ui">“Zeshoek”</strong> of <strong class="ui">“Sleuf”</strong>.</li><li><strong>Maat:</strong> de <strong class="ui">“Diameter (Ø)”</strong> van een rond gat, de <strong class="ui">“Zijdelengte”</strong> van een vierkant gat, <strong class="ui">“Breedte”</strong> en <strong class="ui">“Hoogte”</strong> voor een rechthoek en een sleuf. Bij de zeshoek is de maat de <strong class="ui">“Diameter over de hoeken (Ø)”</strong>.</li><li><strong><strong class="ui">“Hart-op-hartafstand”</strong>:</strong> de afstand van het midden van het ene gat tot het volgende. Is die kleiner dan de gaten toelaten, dan verhoogt layerling hem tot de kleinst mogelijke waarde, zodat er een wand tussen de gaten blijft.</li><li><strong><strong class="ui">“Wand tussen de gaten”</strong>:</strong> dezelfde afstand anders uitgedrukt: de wand die tussen twee naburige gaten overblijft, en dat is de wanddikte in de print. Stel die in en de afstand van midden tot midden volgt, en andersom. Bij zeshoeken, rechthoeken en sleuven meet layerling de kleinste afstand tussen hun randen.</li><li><strong><strong class="ui">“Opstelling”</strong>:</strong> <strong class="ui">“Raster”</strong> zet de gaten in rijen en kolommen. <strong class="ui">“Verspringend”</strong> verschuift elke tweede rij een halve afstand en schuift de rijen dichter op elkaar, zodat elk gat buren op dezelfde afstand heeft - met zeshoeken geeft dat een honingraat.</li><li><strong><strong class="ui">“Marge tot de rand van het vlak”</strong>:</strong> de vrije afstand tussen de gaten en de rand van het vlak. Alleen gaten die helemaal binnen het vlak min deze marge liggen, worden gemaakt; wat daarbuiten zou komen, valt weg. De marge geldt ook rond openingen in het vlak.</li><li><strong><strong class="ui">“Diepte”</strong>:</strong> <strong class="ui">“Door het hele lichaam”</strong> (de standaard) snijdt door de hele wand. Met <strong class="ui">“Eigen diepte”</strong> geef je de diepte in millimeters op, bijvoorbeeld voor verdiepingen.</li></ul>
+<ol><li>De gaten verschijnen meteen als voorbeeld op het vlak en volgen elke waarde. Het venster zegt hoeveel gaten er passen. <strong class="ui">“Ander vlak”</strong> kiest een ander vlak, <kbd>Esc</kbd> sluit het gereedschap, en net als de andere gereedschapsvensters verplaats je het aan zijn titelbalk.</li><li>Pas <strong class="ui">“Maken”</strong> maakt de gaten.</li></ol>
+<p>De gaten zijn gewone gaten, gegroepeerd met het lichaam, net als na <strong class="ui">“Groeperen”</strong>: er wordt niets vastgebakken. <strong class="ui">“Groep opheffen”</strong> heft de groep weer op en maakt elk gat los, zodat je het daarna een voor een kunt verplaatsen, veranderen of verwijderen. Het geheel is één stap voor <strong class="ui">“Ongedaan maken”</strong>. Het gereedschap maakt niet meer dan 400 gaten tegelijk; maak de gaten dan groter of de afstand wijder.</p>
+<p>Een AI kan hetzelfde via de MCP-brug met <code>layerling_perforate_face</code> (zie het hoofdstuk <a href="/api/desktop/layerling/ui/handleiding/ai-met-mcp.html">AI met MCP</a>).</p>
+<h2 id="meerdere-onderdelen-tegelijk-veranderen">Meerdere onderdelen tegelijk veranderen</h2>
+<p>Met meerdere onderdelen geselecteerd laat het eigenschappenpaneel rechts zien hoeveel het er zijn en biedt het wat voor ze allemaal samen geldt: <strong class="ui">“Massief”</strong> of <strong class="ui">“Gat”</strong>, één kleur voor allemaal (een klik op <strong class="ui">“Massief”</strong> opent de kleuren) en het slot. Bij een gemengde selectie maakt één klik ze allemaal tot lichamen of allemaal tot gaten. Is een van de onderdelen vergrendeld, dan is alleen het slot te gebruiken. Maten verander je met de grepen, met <strong class="ui">“Schalen in procenten”</strong> of door een getal in een maatlabel te typen. Bij meerdere onderdelen is het getal de maat van de hele selectie: elk onderdeel groeit mee, de ruimtes ertussen ook, net als wanneer je aan een greep sleept. Lichaam en gat werken ook met een klik met rechts of met de toetsen <kbd>S</kbd> en <kbd>H</kbd>.</p>
+<h2 id="schalen-in-procenten">Schalen in procenten</h2>
+<p>Om een of meer onderdelen met hetzelfde deel groter of kleiner te maken, zeg alle onderdelen van een printbestand met 20 %, gebruik je <strong class="ui">“Schalen in procenten”</strong>. Selecteer de onderdelen, klik er met rechts op en kies <strong class="ui">“Schalen in procenten”</strong>, of zoek het met <kbd>Ctrl</kbd>+<kbd>K</kbd>.</p>
+<p>Onder <strong class="ui">“Nieuwe grootte”</strong> typ je de nieuwe maat als percentage van de huidige: 120 % is een vijfde groter, 50 % half zo groot. Breedte, diepte en hoogte veranderen gelijk, zodat de verhoudingen blijven. De onderkant blijft waar hij is, zodat er niets in de plaat zakt.</p>
+<p>Met meerdere onderdelen kies je hoe ze groeien:</p>
+<ul><li><strong><strong class="ui">“Samen”</strong>:</strong> De onderdelen groeien rond hun gezamenlijke midden, en de tussenruimtes groeien mee. Het geheel wordt groter alsof het één onderdeel is.</li><li><strong><strong class="ui">“Elk op zijn plek”</strong>:</strong> Elk onderdeel groeit waar het staat, en de tussenruimtes blijven gelijk.</li></ul>
+<p>Pas <strong class="ui">“Schalen”</strong> verandert het ontwerp, en één stap terug maakt het ongedaan. Met een vergrendeld onderdeel in de selectie gaat het niet open.</p>
+<h2 id="ongedaan-maken">Ongedaan maken</h2>
+<p><strong class="ui">“Ongedaan maken”</strong> (<kbd>Ctrl</kbd>+<kbd>Z</kbd>) en <strong class="ui">“Opnieuw”</strong> (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> of <kbd>Ctrl</kbd>+<kbd>Y</kbd>) stappen door je geschiedenis. Hoeveel stappen er met het opgeslagen ontwerp meegaan, stel je in de instellingen in onder <strong class="ui">“Geschiedenis”</strong>.</p>
+<h2 id="terugkijken-de-geschiedenisweergave">Terugkijken: de geschiedenisweergave</h2>
+<p><strong class="ui">“Geschiedenis”</strong>, naast ongedaan maken en opnieuw, opent een weergave van je geschiedenis zonder iets te veranderen. Het werkgebied toont het ontwerp zoals het was, en een schuifregelaar onderaan loopt door elke stap van ongedaan maken: helemaal rechts is de huidige stand, elke stap naar links is één keer ongedaan maken eerder, en standen die je ongedaan hebt gemaakt staan rechts van de huidige. De pijltoetsen stappen door de standen, <kbd>Esc</kbd> gaat terug naar de huidige stand. Je kunt de weergave intussen draaien en zoomen, maar er kan niets geselecteerd of verplaatst worden; het ontwerp zelf blijft precies zoals het is. Zit de balk ergens voor, sleep hem dan aan zijn titelbalk weg; een dubbelklik erop haalt hem terug.</p>
+<p>Twee dingen kun je uit een eerdere stand meenemen. <strong class="ui">“Nieuw project van deze toestand”</strong> zet die stand in een nieuw ontwerp in het overzicht, genoemd naar dit ontwerp met de tijd van die stand tussen haakjes - een ontwerp dat is opgeslagen voordat layerling tijden bijhield, krijgt in plaats daarvan &quot;kopie&quot; - en met de geschiedenis tot dat punt, zodat ongedaan maken daar blijft werken. <strong class="ui">“Deze toestand exporteren”</strong> opent de gewone export met die stand als ontwerp, zodat je hem kunt opslaan als STL, 3MF, STEP, een afbeelding of een LYL-bestand met de geschiedenis tot die stand.</p>
+<p><strong class="ui">“Geschiedenis verwijderen”</strong> staat alleen linksonder in de balk. Na een vraag verwijdert het elke eerdere stap voorgoed: het ontwerp houdt de stand die het nu heeft (niet de getoonde), Ongedaan maken heeft niets meer om naar terug te gaan en een bestand dat je daarna opslaat, bevat geen geschiedenis. Gebruik het om een ontwerp te delen zonder zijn verleden, of om de stappen van ongedaan maken opnieuw te beginnen. Het kan niet ongedaan worden gemaakt; om een bestand te delen zonder je eigen ontwerp aan te raken, kies je in plaats daarvan <strong class="ui">“Geen”</strong> bij het exporteren.</p>
+<div class="pager"><a href="/api/desktop/layerling/ui/handleiding/vormen.html"><small>Vorig hoofdstuk</small>Vormen plaatsen en aanpassen</a><a class="next" href="/api/desktop/layerling/ui/handleiding/lichamen-en-gaten.html"><small>Volgend hoofdstuk</small>Lichamen en gaten</a></div>
+      </main>
+    </div>
+    <footer class="note">Deze handleiding groeit mee met het programma. Mis je iets of klopt er iets niet, laat het ons weten in de <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussies</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=nl" rel="noopener">Steun het project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussies</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Meer over het project op GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.71.0</a></div><p class="trademark">Tinkercad is een handelsmerk van Autodesk, Inc. layerling is een onafhankelijk project en is niet gelieerd aan, goedgekeurd of gesponsord door Autodesk.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Terug naar de editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Naar de editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text){var out="";for(var i=0;i<text.length;i++){out+=text.charAt(i).toLowerCase().normalize("NFD").charAt(0);}return out;}
+function guideForms(word,umlauts){
+  var forms=[word];
+  if(umlauts){var plain=word.split("ae").join("a").split("oe").join("o").split("ue").join("u");if(plain!==word)forms.push(plain);}
+  if(word.indexOf("ss")>=0)forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if(word.indexOf(String.fromCharCode(223))>=0)forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text,forms,from){
+  var best=null;
+  for(var i=0;i<forms.length;i++){var k=text.indexOf(forms[i],from);if(k>=0&&(!best||k<best.at))best={at:k,len:forms[i].length};}
+  return best;
+}
+function guidePrepare(entries){return entries.map(function(e){return {e:e,c:guideFold(e.c),h:guideFold(e.h),t:guideFold(e.t)};});}
+function guideTokens(query){return guideFold(query).split(" ").filter(function(w){return w.length>0;});}
+function guideSearch(prepared,query,limit,umlauts){
+  var tokens=guideTokens(query);if(!tokens.length)return [];
+  var forms=tokens.map(function(w){return guideForms(w,umlauts);}),phrase=guideForms(tokens.join(" "),umlauts),found=[];
+  prepared.forEach(function(p){
+    var score=0;
+    for(var i=0;i<tokens.length;i++){
+      var inH=guideFind(p.h,forms[i],0),inC=guideFind(p.c,forms[i],0),at=guideFind(p.t,forms[i],0);
+      if(!inH&&!inC&&!at)return;
+      if(inH)score+=10;
+      if(inC)score+=3;
+      if(at){score+=1;var n=0,k=at;while(k&&n<5){n++;k=guideFind(p.t,forms[i],k.at+k.len);}score+=n*0.3;}
+    }
+    if(tokens.length>1&&(guideFind(p.h,phrase,0)||guideFind(p.t,phrase,0)))score+=6;
+    found.push({entry:p.e,score:score,folded:p.t,forms:forms});
+  });
+  found.sort(function(a,b){return b.score-a.score;});
+  return found.slice(0,limit||8);
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,form.getAttribute("data-umlauts")==="true");
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first)window.location.href=first.href;});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

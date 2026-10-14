@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Schroefdraad, tandwielen en andere onderdelen - layerling handleiding</title>
+    <meta name="description" content="Schroeven, moeren en getapte gaten die op elkaar passen, plus tandwiel, veer, gebogen buis, zwaluwstaart, druppelgat, verzinkboring en verzinking.">
+    <link rel="canonical" href="https://layerling.com/handleiding/schroefdraad-en-mechanica.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/threads-and-mechanics.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/gewinde-und-mechanik.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/schroefdraad-en-mechanica.html">
+    <meta property="og:title" content="Schroefdraad, tandwielen en andere onderdelen - layerling handleiding">
+    <meta property="og:description" content="Schroeven, moeren en getapte gaten die op elkaar passen, plus tandwiel, veer, gebogen buis, zwaluwstaart, druppelgat, verzinkboring en verzinking.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: left; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-left: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-left: auto; text-align: right; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+@media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/handleiding/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Handleiding</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/handleiding/search-index.json" data-nothing="Niets gevonden." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Handleiding doorzoeken" aria-label="Handleiding doorzoeken" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Taal">Nederlands</summary><ul><li><a href="/api/desktop/layerling/ui/guide/threads-and-mechanics.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schroefdraad-en-mechanica.html" hreflang="nl" lang="nl" aria-current="true">Nederlands</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Naar de editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>De editor is al open in een ander tabblad - schakel daar gewoon naartoe.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Hoofdstukken"><h2>Hoofdstukken</h2><ol><li><a href="/api/desktop/layerling/ui/handleiding/aan-de-slag.html">Aan de slag</a></li><li><a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html">Weergave en werkvlak</a></li><li><a href="/api/desktop/layerling/ui/handleiding/vormen.html">Vormen plaatsen en aanpassen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/selecteren-en-schikken.html">Selecteren en schikken</a></li><li><a href="/api/desktop/layerling/ui/handleiding/lichamen-en-gaten.html">Lichamen en gaten</a></li><li><a href="/api/desktop/layerling/ui/handleiding/randen-en-uithollen.html">Randen breken en lichamen uithollen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schetsen.html">Schetsen: van omtrek naar lichaam</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tekst.html">Tekst en gebogen belettering</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schroefdraad-en-mechanica.html" aria-current="page">Schroefdraad, tandwielen en andere onderdelen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/meten-en-notities.html">Meten en notities</a></li><li><a href="/api/desktop/layerling/ui/handleiding/printen.html">Voorbereiden op 3D-printen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/bestanden-en-opslaan.html">Bestanden, opslaan en delen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/sneltoetsen.html">Sneltoetsen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/ai-met-mcp.html">Bouwen met een AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/handleiding/offline-en-installeren.html">Installeren als app, offline werken en zelf hosten</a></li><li><a href="/api/desktop/layerling/ui/handleiding/videos.html">Video's over layerling</a></li></ol></nav>
+      <main>
+<h1>Schroefdraad, tandwielen en andere onderdelen</h1>
+<p class="lead">Schroeven, moeren en getapte gaten die op elkaar passen, plus tandwiel, veer, gebogen buis, zwaluwstaart, druppelgat, verzinkboring en verzinking.</p>
+<div class="toc"><b>Op deze pagina</b><ul><li><a href="#schroefdraad">Schroefdraad</a></li><li><a href="#schroefdraad-voor-3d-printen">Schroefdraad voor 3D-printen</a></li><li><a href="#tandwielen">Tandwielen</a></li><li><a href="#veren">Veren</a></li><li><a href="#gebogen-buizen">Gebogen buizen</a></li><li><a href="#loft">Loft</a></li><li><a href="#scharnier">Scharnier</a></li><li><a href="#kartel">Kartel</a></li><li><a href="#zwaluwstaart">Zwaluwstaart</a></li><li><a href="#druppelgat">Druppelgat</a></li><li><a href="#verzinkboring-en-verzinking">Verzinkboring en verzinking</a></li></ul></div>
+<p>Naast de basisvormen bevat de bibliotheek een paar onderdelen die je zelf maar moeizaam in elkaar zou zetten. Ze zijn allemaal achteraf aan te passen in hun instellingen.</p>
+<h2 id="schroefdraad">Schroefdraad</h2>
+<p>Kies <strong class="ui">“Schroefdraad”</strong> in de vormenbibliotheek. Onder <strong class="ui">“Type”</strong> bepaal je wat het moet worden:</p>
+<ul><li><strong><strong class="ui">“Draadeind”</strong>:</strong> een cilinder met schroefdraad, bijvoorbeeld een schroef zonder kop.</li><li><strong><strong class="ui">“Schroef”</strong>:</strong> met een kop. Je kiest de <strong class="ui">“Kop”</strong>: <strong class="ui">“Cilinderkop (inbus)”</strong>, <strong class="ui">“Verzonken kop”</strong> of <strong class="ui">“Zeskantkop”</strong>.</li><li><strong><strong class="ui">“Moer”</strong>:</strong> de bijpassende moer.</li><li><strong><strong class="ui">“Getapt gat”</strong>:</strong> een getapt gat. Het is een gat. Sleep het in een onderdeel, groepeer de twee, en het onderdeel heeft binnendraad.</li></ul>
+<figure><img src="/api/desktop/layerling/ui/handleiding/img/thread-screw.webp" alt="Een schroef met een cilinderkop. Rechts: soort en kopvorm, verder omlaag maat, spoed en profiel." width="1280" height="800" loading="lazy"><figcaption>Een schroef met een cilinderkop. Rechts: soort en kopvorm, verder omlaag maat, spoed en profiel.</figcaption></figure>
+<p>De maat kies je onder <strong class="ui">“Maat”</strong> uit een lijst: metrisch van M2 tot M12, de inchmaten UNC en UNF van No. 4 tot 1 inch, en de pijpdraden G1/16 tot G4. Kies je <strong class="ui">“Aangepast”</strong>, dan stel je <strong class="ui">“Diameter”</strong> en <strong class="ui">“Spoed”</strong> zelf in. Bij een inchmaat of een G-maat vraagt het veld om <strong class="ui">“Gangen per inch”</strong> in plaats van de spoed in millimeters.</p>
+<p>De lijst groepeert de maten per serie, en een regel onder het veld noemt de serie van de maat die je koos, met voorbeelden die je uit het dagelijks leven kent:</p>
+<ul><li><strong>M, metrisch grof:</strong> de ISO metrische grove draad volgens ISO 261, zoals op standaard schroeven en moeren.</li><li><strong>UNC, Amerikaanse inch grof:</strong> de camera- en statiefschroef is 1/4&quot;-20 UNC (ISO 1222), grotere statiefkoppen gebruiken 3/8&quot;-16 UNC.</li><li><strong>UNF, Amerikaanse inch fijn:</strong> dezelfde diameters als UNC met een fijnere spoed (ASME B1.1).</li><li><strong>G, pijpdraad:</strong> een doucheslang sluit aan met G1/2, een toevoerslang van een wasmachine met G3/4. Een buitenkraan eindigt in G3/4, kleinere kranen in G1/2; daar schroef je de kraanaansluiting van een kliksysteem voor tuinslangen op.</li></ul>
+<p>De G-maten zijn de cilindrische Whitworth-pijpdraden volgens ISO 228-1, te vinden op fittingen voor water, gas, hydrauliek en pneumatiek. De maat noemt de pijp, niet de draad: een G1 meet 33,249 mm over de draad. Kies je een G-maat, dan wordt het profiel <strong class="ui">“Whitworth (55°)”</strong>, en kies je een metrische of inchmaat, dan gaat het terug naar <strong class="ui">“V-draad (ISO)”</strong>. Een <strong class="ui">“Trapeziumdraad”</strong>- of <strong class="ui">“Ronddraad”</strong>-profiel dat je zelf koos, blijft staan. De norm legt alleen de draad vast, dus de kop van een schroef en een moer op een G-maat krijgen dezelfde verhoudingen als op een diameter die je zelf instelt. De conische pijpdraden R, Rc en Rp zitten er niet bij.</p>
+<p>Meer instellingen:</p>
+<ul><li><strong><strong class="ui">“Richting”</strong>:</strong> <strong class="ui">“Rechtsdraaiend”</strong> of <strong class="ui">“Linksdraaiend”</strong>.</li><li><strong><strong class="ui">“Profiel”</strong>:</strong> <strong class="ui">“V-draad (ISO)”</strong> is het standaardprofiel van metrische en inchdraden, <strong class="ui">“Whitworth (55°)”</strong> dat van de G-pijpdraden: 55° met afgeronde toppen en bodems. <strong class="ui">“Trapeziumdraad”</strong> en <strong class="ui">“Ronddraad”</strong> hebben vlakke toppen en bodems. Dat print meestal betrouwbaarder, omdat er geen dunne punten ontstaan.</li><li><strong><strong class="ui">“Aangepast (trapezium)”</strong>:</strong> Een trapezium dat je zelf vormgeeft, met een vlakke top en een vlakke bodem van dezelfde breedte. <strong class="ui">“Flankhoek”</strong> is de hoek tussen de twee flanken van een tand: 60° is de scherpe V-draad, 30° de trapeziumdraad, en bij 90° of minder is geen flank vlakker dan 45°, zodat de draad zonder ondersteuning print. <strong class="ui">“Draaddiepte”</strong> en <strong class="ui">“Kerndiameter”</strong> zijn één maat op twee manieren gezegd: de kerndiameter is de diameter min tweemaal de diepte, en verander je de een, dan verandert de ander mee. Een nieuw eigen profiel begint met de diepte van de V-draad bij 60°. De diepte heeft grenzen die van de hoek en de spoed afhangen: niet ondieper dan een tiende van de spoed, niet dieper dan 40 % van de diameter, en niet zo diep dat de twee flanken meer dan negen tiende van de spoed innemen. Verander je de spoed, dan schaalt de diepte naar verhouding mee; schaal je de schroefdraad, dan ook. De speling en de afschuiningen werken zoals bij de andere profielen. Via de MCP-koppeling is het profiel <code>custom</code> met <code>threadFlankAngle</code> en <code>threadDepth</code>.</li><li><strong><strong class="ui">“Speling (XY)”</strong>:</strong> Voor moer en getapt gat de ruimte die ervoor zorgt dat een geprint paar echt draait. Hoe grover je printer werkt, hoe meer speling het paar nodig heeft. Het is de extra ruimte over de hele diameter, en de spleet tussen de flanken van een V-draad is maar ongeveer de helft daarvan, dus een geprint paar heeft meer nodig dan je zou verwachten: nieuwe moeren beginnen op 0,4 mm, 0,3 is krap en 0,5 ruim. Print eerst een testpaar. Draadeinden en schroeven hebben hier een eigen speling, die de bout in diameter zoveel dunner maakt. Die staat op 0. Welke kant de ruimte krijgt, hangt af van wat je combineert:</li><li><strong>Geprinte schroef en geprinte moer:</strong> laat de schroef op 0 en geef de moer de ruimte (de 0,4 mm waarmee hij begint).</li><li><strong>Echte schroef in een geprinte moer of getapt gat:</strong> de geprinte kant neemt alles, dus de moer houdt zijn 0,4 mm. Een krappere 0,3 mm is een test waard als de schroef wiebelt.</li><li><strong>Geprinte schroef in een echte moer:</strong> de echte moer heeft geen speling, dus moet de schroef dunner: hier 0,3 tot 0,4 mm, net zoveel als een geprinte moer zou hebben.</li><li><strong><strong class="ui">“Speling langs de as (Z)”</strong>:</strong> Voor moer en getapt gat de speling langs de as, bovenop de <strong class="ui">“Speling (XY)”</strong>. Elke tand van de moer wordt zoveel dunner, de diameter blijft zoals hij is. De reden: de <strong class="ui">“Speling (XY)”</strong> werkt alleen op de diameter en opent de flanken van een V-draad tot ongeveer 0,58 van zijn waarde. Wie lucht tussen de flanken wil, moet de diameter ver openen en krijgt daar zijdelingse speling voor terug. De speling langs de as haalt die twee uit elkaar. Hij staat op 0, zodat een opgeslagen schroefdraad niet verandert, en gaat tot hoogstens een vijfde van de spoed, omdat er daarboven niets van de tanden van de moer overblijft. Het veld bestaat alleen voor moer en getapt gat; draadeind en schroef houden hun eigen speling. Meer hieronder bij &quot;Schroefdraad voor 3D-printen&quot;.</li><li><strong><strong class="ui">“Afschuining, bovenkant”</strong>, <strong class="ui">“Afschuining, onderkant”</strong>, <strong class="ui">“Afschuining kop”</strong> en <strong class="ui">“Afschuining rand”</strong>:</strong> Afschuiningen aan de uiteinden, zodat de draad netjes begint en de kop geen scherpe rand heeft. Elk uiteinde van een draadeind, moer of getapt gat heeft een eigen afschuining, dus de bovenkant kan lang zijn en de onderkant kort of zonder. Een schroef heeft er maar één, aan zijn punt, met het label <strong class="ui">“Afschuining”</strong>. Bij een moer of getapt gat is de afschuining de ruimte die de opening verder opent dan de buitendiameter; de kegel loopt onder 45 graden door tot aan de kern van de draad, zodat er bij de buitendiameter geen richel overblijft.</li></ul>
+<p>Wissel je een schroefdraad tussen <strong class="ui">“Draadeind”</strong> en <strong class="ui">“Getapt gat”</strong>, dan houdt hij zijn lengte. Een moer en een schroef beginnen vanuit hun standaardmaten.</p>
+<ul><li><strong><strong class="ui">“Kwaliteit”</strong>:</strong> Hoe fijn de schroefdraad wordt berekend. Hoger is nauwkeuriger, maar trager.</li></ul>
+<p>Geprinte schroefdraad is een onderwerp op zich. Maak eerst het paar van schroef en moer als test voordat je een groot onderdeel print, en stem de speling af op je printer.</p>
+<h2 id="schroefdraad-voor-3d-printen">Schroefdraad voor 3D-printen</h2>
+<p>Een geprinte schroefdraad heeft op twee plekken lucht nodig, en die werken verschillend:</p>
+<ul><li><strong>Speling in de diameter (<strong class="ui">“Speling (XY)”</strong>):</strong> maakt de moer wijder. De schroef heeft dan aan elke kant de halve waarde als lucht, 0,2 mm bij 0,4 mm. De draad loopt soepel, maar de schroef kan zijwaarts wiebelen.</li><li><strong>Speling langs de as (<strong class="ui">“Speling langs de as (Z)”</strong>):</strong> maakt de tanden van de moer dunner. De schroef kan dan, als hij niet is aangedraaid, met die waarde heen en weer bewegen langs de as. Er komt geen extra lucht aan de zijkant bij.</li></ul>
+<p>Samen vormen ze de spleet tussen de flanken: ongeveer 0,58 keer de speling in de diameter plus de speling langs de as. Een voorbeeld voor een spleet van 0,3 mm: vroeger was daar 0,5 mm in de diameter voor nodig, dat is 0,25 mm lucht aan elke kant. Nu doen 0,2 mm in de diameter (0,1 mm aan elke kant) en 0,2 mm langs de as het, en de spleet is 0,32 mm.</p>
+<p><strong>Gevolgen die je moet kennen</strong></p>
+<ul><li><strong>De schroef heeft speling langs de as.</strong> Zonder belasting kan hij met die waarde heen en weer bewegen. Voor bevestigingen, deksels en behuizingen maakt dat niet uit; voor een spindel die precies moet positioneren wel, dus houd hem daar klein of op 0.</li><li><strong>De tanden van de moer worden dunner.</strong> Met 0,3 mm bij een spoed van 1,75 mm is elke tand in het midden bijna een derde dunner en dus duidelijk minder sterk. Neem voor zwaar belaste onderdelen liever een grovere draad.</li><li><strong>Meer te berekenen.</strong> De tandvorm krijgt extra punten, dus de schroefdraad heeft meer driehoeken en het berekenen duurt iets langer.</li><li><strong>Geen echte boog in de STEP-export bij het Whitworth-profiel.</strong> Een <strong class="ui">“Whitworth (55°)”</strong>-draad met speling langs de as gaat naar het randgereedschap en de STEP-export als een tandvorm van rechte stukjes, niet met de echte cirkelbogen. Bij 0 blijft alles zoals voorheen.</li></ul>
+<p><strong>Tips</strong></p>
+<ol><li><strong>Eerst een testpaar.</strong> Een schroef en een moer, elk maar 4 tot 6 mm hoog, kosten een paar minuten. Print drie paren met verschillende speling naast elkaar en neem het paar dat soepel draait en niet wiebelt.</li><li><strong>Begin met waarden die vaak passen.</strong> Speling in de diameter 0,2 tot 0,3 mm en speling langs de as 0,2 mm. Wiebelt de schroef zijwaarts, verlaag dan de speling in de diameter; loopt hij vast, verhoog dan de speling langs de as. Wil je liever zonder speling langs de as, gebruik dan zoals vroeger 0,4 mm in de diameter.</li><li><strong>De speling langs de as moet minstens één laaghoogte zijn.</strong> Wat kleiner is dan één laag, lost de printer niet op. Bij een laaghoogte van 0,2 mm is 0,2 mm een goed begin; bij 0,1 mm is minder genoeg.</li><li><strong>Print schroef en moer rechtop.</strong> De as wijst omhoog, zodat elke winding in hele lagen ligt en de flanken netjes worden. Liggend zakken de flanken door.</li><li><strong>Fijne spoeden zijn lastig.</strong> Onder ongeveer 1 mm spoed smelten de windingen vaak samen. Een grovere draad, of een <strong class="ui">“Trapeziumdraad”</strong>-profiel met vlakke toppen, print betrouwbaarder dan een fijne V-draad.</li><li><strong>Vermijd dunne punten.</strong> De V-draad heeft een smalle punt die de printer met zijn nozzlebreedte nauwelijks raakt. De profielen <strong class="ui">“Trapeziumdraad”</strong> en <strong class="ui">“Ronddraad”</strong> hebben vlakkere tanden.</li><li><strong>Ontbramen en inlopen.</strong> De eerste windingen zijn vaak stroef, omdat er kleine printresten op de flanken staan. Draai hem een paar keer heen en weer en hij loopt soepeler. De afschuining aan het begin helpt bij het indraaien.</li><li><strong>Andere printer of ander filament.</strong> De speling hangt af van de printer, het materiaal en de nozzle. Print het testpaar opnieuw als je een van die dingen verandert.</li></ol>
+<p>Het randgereedschap neemt een schroefdraad als zijn exacte lichaam. Je kunt het onderdeel dat de draad draagt afschuinen of afronden terwijl de draad er al in zit, of de randen van een schroefkop, zie <a href="/api/desktop/layerling/ui/handleiding/randen-en-uithollen.html">Randen breken en lichamen uithollen</a>. Het uitrekenen van de randen van een schroefdraad duurt even: een paar seconden voor een M6, ongeveer een halve minuut voor een G1/2-pijpdraad. De snelste manier om de rand van een schroefkop te breken is nog steeds de kopafschuining in de eigenschappen.</p>
+<h2 id="tandwielen">Tandwielen</h2>
+<p><strong class="ui">“Tandwiel”</strong> is er als <strong class="ui">“Recht tandwiel”</strong>, <strong class="ui">“Schuin tandwiel”</strong>, <strong class="ui">“Visgraattandwiel”</strong> en <strong class="ui">“Kegeltandwiel”</strong>, en als <strong class="ui">“Binnentandwiel”</strong> en <strong class="ui">“Tandheugel”</strong> (verderop). Nieuwe tandwielen hebben <strong class="ui">“Evolvente”</strong> onder <strong class="ui">“Tandvorm”</strong>: tanden met evolvente flanken, zoals tandwielgeneratoren en de techniek ze gebruiken. Zulke tanden rollen netjes over elkaar af. Je stelt het aantal <strong class="ui">“Tanden”</strong> en de <strong class="ui">“Module (mm)”</strong> in, en de maat volgt daaruit: de buitendiameter is module × (tanden + 2), de steekcirkel module × tanden. Nieuwe tandwielen beginnen bij module 2. Twee tandwielen grijpen in elkaar als ze dezelfde module en dezelfde <strong class="ui">“Aangrijpingshoek”</strong> hebben (meestal 20°) en hun middelpunten (tanden + tanden) × module / 2 uit elkaar staan. Selecteer beide tandwielen en het eigenschappenpaneel geeft die hartafstand en hoe ver de middelpunten nu uit elkaar staan. Komt er dan een tand op een tand terecht in plaats van in een tussenruimte, draai dan een van de tandwielen een halve tand, dat is 180° gedeeld door zijn aantal tanden. <strong class="ui">“Speling”</strong> haalt een beetje van de tanden af, zodat een geprint paar niet klemt. De waarde geldt voor het paar, en elk tandwiel neemt de helft; 0,2 mm is een goed begin, 0 geeft het exacte tandwiel. Onder de grondcirkel loopt de flank recht omlaag naar de voet en wordt hij niet ondersneden zoals een frees dat zou doen. Dat past bij printen, maar een heel klein rondsel onder ongeveer 17 tanden kan aan de voet licht aanlopen.</p>
+<p>Een tandwiel met schuine tanden krijgt er de <strong class="ui">“Schuine tandhoek”</strong> bij. Bij evolvente tanden is dat de echte schroefhoek op de steekcirkel: twee tandwielen met schuine tanden grijpen in elkaar als ze dezelfde module en dezelfde hoek hebben, de een positief en de ander negatief. Het <strong class="ui">“Visgraattandwiel”</strong> bestaat uit twee schuine helften die tegengesteld draaien: de tanden lopen tot halverwege de hoogte de ene kant op en daarna terug, als een pijl. Dat heeft voor 3D-printen twee voordelen: het tandwiel centreert zich op zijn as, en het heeft geen axiale kracht, omdat de krachten van de twee helften elkaar opheffen. Een tandwiel met schuine tanden duwt daarentegen zijwaarts langs zijn as. Je stelt de <strong class="ui">“Schuine tandhoek”</strong> en de <strong class="ui">“Kwaliteit van de helix”</strong> in zoals bij het tandwiel met schuine tanden; de hoek geldt voor elke helft. Twee visgraattandwielen grijpen in elkaar als ze dezelfde module en dezelfde hoek met tegengesteld teken hebben, de een positief en de ander negatief. Er zit geen groef in het midden, zoals bij gefreesde visgraattandwielen: de twee helften lopen zonder trede in elkaar over. Het randgereedschap en de STEP-export nemen het visgraattandwiel als driehoeksmesh, niet als exact lichaam.</p>
+<p>Het kegeltandwiel neemt de evolvente tanden en maakt ze naar boven toe kleiner. Dat is een benadering, geen exact uitgewerkt kegelwielpaar.</p>
+<p><strong class="ui">“Rond”</strong> zijn ronde tanden uit bogen, zoals het Useful gear van Tinkercad: top en tussenruimte lopen zonder hoek in elkaar over. Kleine tandwielen printen zo vergevingsgezinder en draaien soepeler, en op een knop geven de tanden een prettige grip. Ook ronde tanden stel je in met <strong class="ui">“Tanden”</strong>, <strong class="ui">“Module (mm)”</strong> en <strong class="ui">“Speling”</strong>; ze hebben geen drukhoek. Ze zijn lager dan evolvente tanden, dus de buitendiameter is module × (tanden + 1,2). Ronde tandwielen met dezelfde module grijpen in elkaar, op dezelfde hartafstand als evolvente; met een evolvent tandwiel passen ze niet.</p>
+<p><strong class="ui">“Eenvoudig”</strong> zijn de rechte tanden die elk tandwiel tot nu toe had. Daar stel je <strong class="ui">“Tandgrootte”</strong> en <strong class="ui">“Tandbreedte”</strong> met de hand in. Oudere ontwerpen houden ze tot je de tandvorm verandert. Alle drie de tandvormen hebben het <strong class="ui">“Middengat”</strong>.</p>
+<p>Het <strong class="ui">“Binnentandwiel”</strong> heeft zijn tanden naar binnen gericht: een ring waarin een kleiner tandwiel loopt, zoals het buitenwiel van een planetaire overbrenging. Je stelt het in zoals een evolvent of rond tandwiel, met <strong class="ui">“Tanden”</strong>, <strong class="ui">“Module (mm)”</strong> en <strong class="ui">“Speling”</strong>, plus de <strong class="ui">“Velg”</strong>, de ring buiten de tanden. De buitendiameter is module × (tanden + 2,5) plus tweemaal de velg, met ronde tanden module × (tanden + 1,7). Een tandwiel met dezelfde module loopt erin als zijn middelpunt (ringtanden − zijn tanden) × module / 2 van het middelpunt van de ring staat; selecteer beide en het eigenschappenpaneel geeft die afstand. Voor een planetaire overbrenging geldt: ringtanden = zontanden + 2 × planeettanden, bijvoorbeeld 30 = 12 + 2 × 9. Een binnentandwiel heeft geen middengat, het is zelf de ring. Tussen 26 en 33 tanden zijn de toppen tot een kwart module korter, omdat er anders een piepklein randje bij de grondcirkel ontstaat; het ingrijpen verandert daar niet door.</p>
+<p>De <strong class="ui">“Tandheugel”</strong> is het tandwiel met een oneindige straal: een staaf met tanden langs één kant, waarvan de flanken bij evolvente tanden rechte lijnen onder de drukhoek zijn. De breedte (langs X) is tanden × steek, waarbij de steek π × module is, zodat tandheugels van één module aan elkaar sluiten, met elk uiteinde in een tussenruimte. De lengte (langs Y) is de dikte van de staaf en vrij te kiezen, zolang de tanden en een halve millimeter staaf erin passen. De tanden wijzen naar voren, naar de kijker in de beginweergave; draai de tandheugel zoals je hem nodig hebt. Een tandwiel met dezelfde module rolt erover als zijn middelpunt zijn tanden × module / 2 vóór de steeklijn staat; de steeklijn ligt een module achter de tandtoppen, met ronde tanden 0,6 module. Binnentandwiel en tandheugel zijn er met evolvente en met ronde tanden, niet met eenvoudige; wissel je van tandwielsoort, dan blijft de module behouden.</p>
+<p>Het randgereedschap en de STEP-export nemen elk tandwiel als zijn exacte lichaam, evolvente flanken als vloeiende krommen. Een tandwiel met schuine tanden op een ovale voetafdruk blijft een driehoeksmesh, en dat geldt ook voor een tandwiel met schuine evolvente tanden vanaf ongeveer 31 tanden. Kleine tanden beperken hoe ver randen afgerond kunnen worden: bij een tandwiel met eenvoudige tanden, 30 mm doorsnee met 12 tanden, is het vlakke stuk tussen twee tanden aan de voet maar ongeveer 0,65 mm breed, dus het afronden van alle randen lukt tot ongeveer 0,5 mm, en bij een kegeltandwiel, waarvan de bovenkant kleiner is, tot ongeveer 0,4 mm. De tanden van een tandwiel met schuine tanden hellen, waardoor dat vlakke stuk over de schuine randen smaller wordt: hoe groter de schroefhoek ten opzichte van de hoogte van het tandwiel, hoe kleiner de afronding die past. De randen van de twee vlakke uiteinden kunnen worden afgerond, maar alleen die randen afschuinen mislukt in de CAD-kernel; rond ze af, of schuin alle randen samen af met een kleinere maat, zoals 0,2 mm.</p>
+<h2 id="veren">Veren</h2>
+<p>De <strong class="ui">“Veer”</strong> heeft <strong class="ui">“Windingen”</strong> en een <strong class="ui">“Draad”</strong>. Samen met de hoogte bepalen die hoe zacht de veer is. <strong class="ui">“Windrichting”</strong> bepaalt welke kant de draad op loopt: <strong class="ui">“Rechtsdraaiend”</strong> zoals bij een gewone drukveer, of <strong class="ui">“Linksdraaiend”</strong>.</p>
+<p>Het randgereedschap en de STEP-export nemen een veer als zijn exacte lichaam: een ronde draad langs een schroeflijn, aan beide uiteinden recht afgesneden. Die twee draaduiteinden kun je bijvoorbeeld afronden of afschuinen.</p>
+<h2 id="gebogen-buizen">Gebogen buizen</h2>
+<p>Een <strong class="ui">“Gebogen buis”</strong> bestaat uit maximaal twaalf secties: een recht stuk gevolgd door een bocht. Voor elke sectie stel je de <strong class="ui">“Rechte lengte”</strong>, de <strong class="ui">“Buighoek”</strong>, de <strong class="ui">“Buigstraal”</strong> en de <strong class="ui">“Rolhoek”</strong> in. De sectie die je bewerkt, licht oranje op op de buis, zodat je de volgorde kunt volgen. Een rolhoek van 0° buigt binnen het vlak van het werkvlak, bij 90° buigt de buis omhoog. Het profiel kan rond, vierkant, zeshoekig of achthoekig zijn, de binnenkant net zo, of helemaal massief. Loopt de buis door zichzelf heen, dan waarschuwt layerling je.</p>
+<h2 id="loft">Loft</h2>
+<p>De <strong class="ui">“Loft”</strong> verbindt een omtrek aan de onderkant met een andere aan de bovenkant, zoals een loft in Fusion: een slangverloop van de ene diameter naar de andere, een vierkante ventilator op een ronde buis, een standaard die naar boven toe rond wordt. Voor elk uiteinde kies je <strong class="ui">“Omtrek onder”</strong> en <strong class="ui">“Omtrek boven”</strong>: <strong class="ui">“Cirkel / ellips”</strong>, <strong class="ui">“Rechthoek”</strong> met <strong class="ui">“Hoekradius onder”</strong>, of <strong class="ui">“Veelhoek”</strong> met zijn aantal hoeken, plus de breedte en lengte van elk uiteinde en de hoogte. <strong class="ui">“Verschuiving boven in breedte”</strong> en <strong class="ui">“Verschuiving boven in lengte”</strong> verschuiven het bovenste uiteinde zijwaarts voor een schuine overgang; het onderste uiteinde blijft waar het is.</p>
+<p><strong class="ui">“Wanddikte (0 = massief)”</strong> maakt van het massieve lichaam een buis die aan boven- en onderkant open is. De opening is aan beide uiteinden kleiner met de wand, dwars gemeten; waar de wand schuin loopt, is hij iets dunner. Sleep het kader groter en beide uiteinden groeien mee, terwijl de hoekradius en de wand hun maat houden.</p>
+<p><strong class="ui">“Vloeiende overgang (%)”</strong> maakt de overgang vloeiend. Bij 0 lopen de zijkanten recht van onder naar boven, zoals bij een kegel. Bij 100 verlaten ze beide uiteinden recht omhoog en veranderen ze daartussen van maat langs een S-curve: een slangverloop dat vloeiend van een smalle naar een brede buis uitloopt, in plaats van als een trechter te lopen. Daartussen mengt de schuifregelaar de twee. Een vloeiende overgang werkt samen met <strong class="ui">“Wanddikte (0 = massief)”</strong>, een draaiing, een kanteling en een zijwaartse verschuiving; een buis met een wand blijft aan beide uiteinden open. Het is een exact lichaam, net als het rechte, dus de randen kunnen worden afgeschuind en afgerond, maar het wordt opgebouwd uit meerdere secties en het berekenen duurt iets langer.</p>
+<p><strong class="ui">“Draaiing”</strong> draait de doorsnede op weg naar boven gelijkmatig om de verticaal, tot 360° naar beide kanten; de zijkanten winden dan rond. <strong class="ui">“Kanteling bovenkant, voor/achter”</strong> en <strong class="ui">“Kanteling bovenkant, links/rechts”</strong> kantelen het bovenste uiteinde, tot 45°: een positieve waarde brengt de voorrand of de rechterkant omhoog. De secties daartussen kantelen naar hun deel mee, zodat de wand vloeiend in de schuinte overloopt. Het hoogste punt blijft op de ingestelde hoogte. Wordt de hoogte later zo klein dat het schuine uiteinde onder de plaat zou komen, dan geeft de kanteling mee tot het past. Een bocht langs een pad, zoals een buisbocht, doet de loft niet.</p>
+<p>De loft is een exact lichaam, ook gedraaid en gekanteld: de randen kunnen worden afgeschuind en afgerond, en de STEP-export behoudt hem. Voeg zoals gewoonlijk een flens met schroefgaten toe en groepeer ze.</p>
+<h2 id="scharnier">Scharnier</h2>
+<p>Het <strong class="ui">“Scharnier”</strong> print in één stuk en beweegt daarna (print-in-place): twee bladen die open plat op de plaat liggen, met afwisselende knokkels op één as ertussen. De pen hoort bij het achterste blad en loopt met speling door de knokkels van het voorste. Je stelt de <strong class="ui">“Lengte (as)”</strong>, de <strong class="ui">“Breedte geopend”</strong> en de <strong class="ui">“Diameter scharnierogen”</strong> in, plus het aantal <strong class="ui">“Scharnierogen”</strong> (oneven, zodat de pen aan beide uiteinden vastzit), de <strong class="ui">“Pendiameter”</strong> en de <strong class="ui">“Bladdikte”</strong>.</p>
+<p><strong class="ui">“Speling”</strong> is de spleet tussen de bewegende delen: rond de pen, tussen de knokkels en voor de bladen. Met 0,4 mm komt het bij een goed afgestelde printer meestal met een kleine draai los; smelten de delen samen, verhoog het dan, wiebelt het te veel, verlaag het dan. Print het scharnier liggend zoals het op de plaat staat, zonder ondersteuning. Je kunt gaten in de bladen maken of ze groeperen tot een groter onderdeel, zoals een deksel.</p>
+<h2 id="kartel">Kartel</h2>
+<p>De <strong class="ui">“Kartel”</strong> is een ronde greep met groeven rondom, voor knoppen, duimwielen en gereedschapshandvatten. Onder <strong class="ui">“Patroon”</strong> kies je <strong class="ui">“Recht”</strong>, groeven langs de as zoals op een regelknop, <strong class="ui">“Gekruist”</strong>: twee schuine rijen groeven kruisen elkaar tot kleine ruitjes, of <strong class="ui">“Rond”</strong>: groeven en ribbels langs de as als een zachte golf van bogen, een prettige grip zonder scherpe ribbels. Ronde groeven blijven ondieper dan een halve steek, anders zouden de ribbels aan hun voet uitstulpen; een te grote diepte geeft mee. Je stelt de <strong class="ui">“Diameter”</strong> en de <strong class="ui">“Hoogte”</strong> in, het aantal <strong class="ui">“Groeven”</strong> en de <strong class="ui">“Groefdiepte”</strong>; bij gekruiste kartels ook de <strong class="ui">“Groefhoek”</strong> ten opzichte van de as. De <strong class="ui">“Afschuining aan de uiteinden”</strong> breekt beide uiteinden onder 45 graden, zoals op een gedraaide knop; 0 laat ze scherp.</p>
+<p>Rechte en ronde kartels zijn exacte lichamen, dus de randen kunnen worden gebroken en afgerond. Gekruiste kartels blijven een mesh, omdat het als exact lichaam met 30 groeven bijna een minuut zou duren om te berekenen. Voor een knop op een as groepeer je de kartel met een gat, zoals een <strong class="ui">“Schroefdraad”</strong> ingesteld als getapt gat. Groeven ondieper dan 0,4 mm print bijna geen printer netjes, en layerling zet ze rondom de greep niet dichter dan 0,8 mm bij elkaar: een dunne greep krijgt er minder.</p>
+<h2 id="zwaluwstaart">Zwaluwstaart</h2>
+<p>De <strong class="ui">“Zwaluwstaart”</strong> is de verbinding waarbij twee delen in elkaar haken en alleen zijwaarts in elkaar geschoven kunnen worden. Je stelt de breedte aan het brede uiteinde in, de <strong class="ui">“Halsbreedte”</strong> en de lengte van de staart. Kopieer de staart voor de andere kant en maak van de kopie een gat: <strong class="ui">“Speling als gat”</strong> geeft dan een beetje speling, zodat de verbinding na het printen niet klemt.</p>
+<aside class="tip"><p><strong>Tip:</strong> Een getapt gat snijdt bij het groeperen in het onderdeel dat het overlapt. Zet het dus een stukje in het materiaal, in plaats van dat het het oppervlak net raakt.</p></aside>
+<h2 id="druppelgat">Druppelgat</h2>
+<p>Een gat dat op zijn kant ligt, krijgt bij het printen een brug over de bovenkant, en die brug zakt door. Het <strong class="ui">“Druppelgat”</strong> heeft daarom een punt aan de bovenkant: elke laag rust op de laag eronder, en het gat wordt zonder ondersteuning rond genoeg. Stel de <strong class="ui">“Diameter (rond deel)”</strong> in op de maat van het gat, ongeveer 3,4 mm voor een M3-schroef, en de <strong class="ui">“Gatlengte”</strong> lang genoeg om door het onderdeel heen te reiken. De <strong class="ui">“Punthoek”</strong> is 90°, zodat de flanken onder 45° samenkomen. De meeste printers kunnen dat netjes aan; een vlakkere punt heeft meer hoogte nodig, een steilere bespaart die.</p>
+<p>Maak van het druppelgat een gat en groepeer het met het onderdeel. De lengte loopt langs de diepte en de punt wijst omhoog. Voor een gat in de andere richting draai je het 90° om de verticale as.</p>
+<h2 id="verzinkboring-en-verzinking">Verzinkboring en verzinking</h2>
+<p>Een schroefkop moet vaak niet uitsteken. De <strong class="ui">“Verzinkboring”</strong> snijdt een ronde kamer voor een cilinderkopschroef met binnenzeskant (DIN 912), de <strong class="ui">“Verzinking”</strong> een kegel voor een verzonken schroef (DIN 7991). Beide staan met het kopeinde omhoog: de <strong class="ui">“Kopdiameter”</strong> is de diameter van de kamer of de kegel, de <strong class="ui">“Schachtdiameter”</strong> de boring eronder, de <strong class="ui">“Totale lengte”</strong> de hele lengte. Bij de verzinkboring stel je de <strong class="ui">“Kopdiepte”</strong> in, bij de verzinking de <strong class="ui">“Kegelhoek”</strong> (90° past bij verzonken schroeven). De standaardwaarden passen bij een M3-schroef.</p>
+<p>Maak van de vorm een gat en groepeer het met het onderdeel. Laat de bovenkant een stukje boven het oppervlak uitkomen waarop de kop moet rusten, zodat de kamer netjes opent. Voor de kamer van een zeskantmoer gebruik je een <strong class="ui">“Veelhoek”</strong> met zes zijden als gat.</p>
+<div class="pager"><a href="/api/desktop/layerling/ui/handleiding/tekst.html"><small>Vorig hoofdstuk</small>Tekst en gebogen belettering</a><a class="next" href="/api/desktop/layerling/ui/handleiding/meten-en-notities.html"><small>Volgend hoofdstuk</small>Meten en notities</a></div>
+      </main>
+    </div>
+    <footer class="note">Deze handleiding groeit mee met het programma. Mis je iets of klopt er iets niet, laat het ons weten in de <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussies</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=nl" rel="noopener">Steun het project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussies</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Meer over het project op GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.71.0</a></div><p class="trademark">Tinkercad is een handelsmerk van Autodesk, Inc. layerling is een onafhankelijk project en is niet gelieerd aan, goedgekeurd of gesponsord door Autodesk.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Terug naar de editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Naar de editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text){var out="";for(var i=0;i<text.length;i++){out+=text.charAt(i).toLowerCase().normalize("NFD").charAt(0);}return out;}
+function guideForms(word,umlauts){
+  var forms=[word];
+  if(umlauts){var plain=word.split("ae").join("a").split("oe").join("o").split("ue").join("u");if(plain!==word)forms.push(plain);}
+  if(word.indexOf("ss")>=0)forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if(word.indexOf(String.fromCharCode(223))>=0)forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text,forms,from){
+  var best=null;
+  for(var i=0;i<forms.length;i++){var k=text.indexOf(forms[i],from);if(k>=0&&(!best||k<best.at))best={at:k,len:forms[i].length};}
+  return best;
+}
+function guidePrepare(entries){return entries.map(function(e){return {e:e,c:guideFold(e.c),h:guideFold(e.h),t:guideFold(e.t)};});}
+function guideTokens(query){return guideFold(query).split(" ").filter(function(w){return w.length>0;});}
+function guideSearch(prepared,query,limit,umlauts){
+  var tokens=guideTokens(query);if(!tokens.length)return [];
+  var forms=tokens.map(function(w){return guideForms(w,umlauts);}),phrase=guideForms(tokens.join(" "),umlauts),found=[];
+  prepared.forEach(function(p){
+    var score=0;
+    for(var i=0;i<tokens.length;i++){
+      var inH=guideFind(p.h,forms[i],0),inC=guideFind(p.c,forms[i],0),at=guideFind(p.t,forms[i],0);
+      if(!inH&&!inC&&!at)return;
+      if(inH)score+=10;
+      if(inC)score+=3;
+      if(at){score+=1;var n=0,k=at;while(k&&n<5){n++;k=guideFind(p.t,forms[i],k.at+k.len);}score+=n*0.3;}
+    }
+    if(tokens.length>1&&(guideFind(p.h,phrase,0)||guideFind(p.t,phrase,0)))score+=6;
+    found.push({entry:p.e,score:score,folded:p.t,forms:forms});
+  });
+  found.sort(function(a,b){return b.score-a.score;});
+  return found.slice(0,limit||8);
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,form.getAttribute("data-umlauts")==="true");
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first)window.location.href=first.href;});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

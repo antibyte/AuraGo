@@ -8,11 +8,12 @@
     <link rel="canonical" href="https://layerling.com/guide/shapes.html">
     <link rel="alternate" hreflang="en" href="https://layerling.com/guide/shapes.html">
     <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/formen.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/vormen.html">
     <meta property="og:title" content="Placing and adjusting shapes - layerling user guide">
     <meta property="og:description" content="The shape library, dimensions by number and by handle, colour, rotating, tapering and twisting.">
     <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
     <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
-    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite")document.documentElement.dataset.theme="dark"}catch(e){}</script>
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
     <style>
 :root {
   color-scheme: light;
@@ -31,6 +32,11 @@
   --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
   --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
 }
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
 * { box-sizing: border-box; }
 html { scroll-padding-top: 76px; }
 body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
@@ -42,10 +48,30 @@ a { color: var(--accent); }
 .brand b { font-size: 19px; letter-spacing: -0.03em; }
 .brand-text { display: flex; align-items: baseline; gap: 10px; }
 .brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
 .editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
 .editor-elsewhere[hidden] { display: none; }
 .bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
-.bar a.lang { color: var(--muted); font-size: 14px; font-weight: 600; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
 .shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
 nav.chapters { position: sticky; top: 76px; font-size: 14px; }
 nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
@@ -90,6 +116,7 @@ th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transfor
 .cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
 footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
 .site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
 .site-footer a { color: var(--muted); text-decoration: none; }
 .site-footer a:hover { color: var(--accent); text-decoration: underline; }
 .site-footer .dot { margin: 0 8px; }
@@ -100,13 +127,18 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
   h1 { font-size: 28px; }
   .brand-note { display: none; }
 }
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
 @media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
 </style>
   </head>
   <body>
     <header class="bar"><div class="bar-inner">
       <a class="brand" href="/api/desktop/layerling/ui/guide/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">User guide</span></span></a>
-      <a class="lang" href="/api/desktop/layerling/ui/anleitung/formen.html" hreflang="de" title="Auf Deutsch lesen">Deutsch</a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/guide/search-index.json" data-nothing="Nothing found." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Search the guide" aria-label="Search the guide" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Language">English</summary><ul><li><a href="/api/desktop/layerling/ui/guide/shapes.html" hreflang="en" lang="en" aria-current="true">English</a></li><li><a href="/api/desktop/layerling/ui/anleitung/formen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/handleiding/vormen.html" hreflang="nl" lang="nl">Nederlands</a></li></ul></details>
       <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Open the editor</a>
     </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>The editor is already open in another tab - just switch to it.</p></header>
     <div class="shell">
@@ -121,25 +153,25 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
 <figure><img src="/api/desktop/layerling/ui/guide/img/shape-menu.webp" alt="The shape library. Every little picture is rendered from the shape's real geometry." width="1280" height="800" loading="lazy"><figcaption>The shape library. Every little picture is rendered from the shape's real geometry.</figcaption></figure>
 <p>Pick a shape. It now hangs on the mouse pointer and lands where you click. Move it over a body and it lies down on the face under the pointer, sloped ones too, like Cruise in Tinkercad; over the empty plate it lands on the workplane. <kbd>Esc</kbd> cancels placing. A tool that waits for a click, such as the tape measure, the framing square, a note, <strong class="ui">“Place workplane”</strong>, <strong class="ui">“Lay flat on face”</strong> or the edge tools, is switched off when you pick a shape, so the click places the shape. The other way round, switching one of those tools on puts the shape down again. If you would rather have the shape appear in the middle of the plate, you can switch off placing by click in the settings (area <strong class="ui">“Appearance”</strong>, switch <strong class="ui">“Cruise when adding new shapes”</strong>).</p>
 <p>What the library offers:</p>
-<ul><li><strong>Basic shapes:</strong> <strong class="ui">“Box”</strong>, <strong class="ui">“Rounded Box”</strong>, <strong class="ui">“Cylinder”</strong>, <strong class="ui">“Capsule”</strong>, <strong class="ui">“Ellipse”</strong>, <strong class="ui">“Polygon”</strong> (three to twenty-four sides), <strong class="ui">“Sphere”</strong>, <strong class="ui">“Cone”</strong>, <strong class="ui">“Pyramid”</strong> (with three to twenty-four sides, so three-sided too), <strong class="ui">“Wedge”</strong>, <strong class="ui">“Round Roof”</strong>, <strong class="ui">“Half Sphere”</strong> and <strong class="ui">“Torus”</strong>.</li><li><strong>Tubes:</strong> <strong class="ui">“Tube”</strong> and <strong class="ui">“Bent Tube”</strong>, made of up to twelve straight pieces with bends in between, and the <strong class="ui">“Loft”</strong> from one outline to another, say from square to round.</li><li><strong>Decorative shapes:</strong> <strong class="ui">“Star”</strong>, <strong class="ui">“Heart”</strong> and <strong class="ui">“Crescent”</strong>.</li><li><strong>Lettering:</strong> <strong class="ui">“Text”</strong>, also along a circular arc. More in <a href="/api/desktop/layerling/ui/guide/text.html">Text</a>.</li><li><strong>Mechanics:</strong> <strong class="ui">“Thread”</strong> (threaded rod, screw, nut and tapped hole), <strong class="ui">“Spring”</strong>, <strong class="ui">“Gear”</strong> and the <strong class="ui">“Knurl”</strong> for grips. More in <a href="/api/desktop/layerling/ui/guide/threads-and-mechanics.html">Threads and mechanics</a>.</li><li><strong>For constructions:</strong> <strong class="ui">“Honeycomb”</strong>, the print-in-place <strong class="ui">“Hinge”</strong>, <strong class="ui">“Dovetail”</strong>, the <strong class="ui">“Teardrop hole”</strong> for horizontal holes, the <strong class="ui">“Counterbore”</strong> and <strong class="ui">“Countersink”</strong> for screw heads and the <strong class="ui">“Ruler”</strong>, which is only a measuring tool and never shows up in an export.</li></ul>
+<ul><li><strong>Basic shapes:</strong> <strong class="ui">“Box”</strong>, <strong class="ui">“Rounded Box”</strong>, <strong class="ui">“Cylinder”</strong>, <strong class="ui">“Capsule”</strong>, <strong class="ui">“Ellipse”</strong>, <strong class="ui">“Polygon”</strong> (three to twenty-four sides), <strong class="ui">“Sphere”</strong>, <strong class="ui">“Cone”</strong>, <strong class="ui">“Pyramid”</strong> (with three to twenty-four sides, so three-sided too), <strong class="ui">“Wedge”</strong>, <strong class="ui">“Round Roof”</strong>, <strong class="ui">“Half Sphere”</strong> and <strong class="ui">“Torus”</strong>.</li><li><strong>Tubes:</strong> <strong class="ui">“Tube”</strong> and <strong class="ui">“Bent Tube”</strong>, made of up to twelve straight pieces with bends in between, and the <strong class="ui">“Loft”</strong> from one outline to another, say from square to round.</li><li><strong>Decorative shapes:</strong> <strong class="ui">“Star”</strong>, <strong class="ui">“Heart”</strong> and <strong class="ui">“Crescent”</strong>.</li><li><strong>Lettering:</strong> <strong class="ui">“Text”</strong>, also along a circular arc. More in <a href="/api/desktop/layerling/ui/guide/text.html">Text</a>.</li><li><strong>Mechanics:</strong> <strong class="ui">“Thread”</strong> (threaded rod, screw, nut and tapped hole), <strong class="ui">“Spring”</strong>, <strong class="ui">“Gear”</strong> and the <strong class="ui">“Knurl”</strong> for grips. More in <a href="/api/desktop/layerling/ui/guide/threads-and-mechanics.html">Threads and mechanics</a>.</li><li><strong>For constructions:</strong> the print-in-place <strong class="ui">“Hinge”</strong>, <strong class="ui">“Dovetail”</strong>, the <strong class="ui">“Teardrop hole”</strong> for horizontal holes, the <strong class="ui">“Counterbore”</strong> and <strong class="ui">“Countersink”</strong> for screw heads and the <strong class="ui">“Ruler”</strong>, which is only a measuring tool and never shows up in an export.</li></ul>
 <p>You get a triangle in two ways: the <strong class="ui">“Polygon”</strong> with three sides is an isosceles triangle, the &quot;Roof&quot; of Tinkercad, and the <strong class="ui">“Wedge”</strong> is a right triangle. Both are true triangular prisms. For a triangular hole, copy the shape, make the copy smaller, mark it as a hole and line it up with <strong class="ui">“Center on workplane”</strong> or <strong class="ui">“Align”</strong>. Both work with the shape's bounding box, the smallest box that encloses it, so a halved square still counts as a whole square. The command search (<kbd>Ctrl</kbd>+<kbd>K</kbd>) also finds both shapes under &quot;triangle&quot; or &quot;roof&quot;.</p>
 <p>The <strong class="ui">“Capsule”</strong> can be narrower at one end than at the other, say for a guard over a belt between two pulleys. Under <strong class="ui">“Properties”</strong> set <strong class="ui">“Small End (Diameter)”</strong>; the large end is as wide as the capsule, and the sides run straight from one arc to the other. <strong class="ui">“Centre Distance”</strong> is the distance between the two arcs' centres, that is how far apart the pulleys are. Change the small end and the centre distance stays, the capsule getting longer or shorter. The tapered capsule stays an exact body too, for fillets and STEP.</p>
 <h2 id="the-shape-s-settings">The shape's settings</h2>
 <p>As soon as a shape is selected, its settings appear on the right. At the top is the name; the pencil beside it (<strong class="ui">“Rename”</strong>) lets you type a new one. <kbd>Enter</kbd> keeps it, <kbd>Esc</kbd> cancels, and an empty name brings back the shape's default name. Further right, the padlock locks the shape against accidental moving and the eye hides it. The arrow on the far left folds the settings down to their title bar.</p>
 <p>The settings sit docked at the right edge. If they cover something you want to see, drag them by their title bar and they float wherever you drop them; they stay there for the next shape too. Drop them back at the top right, or double-click the title bar, and they dock again. While they float or are folded down, the snap step moves from the bottom of the settings to the bottom right of the workplane.</p>
 <figure><img src="/api/desktop/layerling/ui/guide/img/editor-overview.webp" alt="The settings of a cylinder: solid or hole, diameter and height as a number and as a slider." width="1280" height="800" loading="lazy"><figcaption>The settings of a cylinder: solid or hole, diameter and height as a number and as a slider.</figcaption></figure>
-<ul><li><strong><strong class="ui">“Solid”</strong> or <strong class="ui">“Hole”</strong>:</strong> A solid stays, a hole takes material away. A click on <strong class="ui">“Solid”</strong> opens the colours; colours of your own that you mix there wait under <strong class="ui">“Recently used”</strong> afterwards, the last eight. More in <a href="/api/desktop/layerling/ui/guide/solids-and-holes.html">Solids and holes</a>.</li><li><strong><strong class="ui">“Transparent”</strong>:</strong> Lets you see through the body, for example to spot a shape behind it.</li><li><strong><strong class="ui">“Multicolor”</strong>:</strong> For a group only. Switched on, every part of the group shows in its own colour, also in a group that was cut with holes into one body (the walls a hole leaves take the colour of the body they were cut into). Picking a colour for the group switches it off and colours the whole group. Bundles always keep their parts' colours. In a 3MF export every part keeps its colour, so the slicer can map the parts onto filaments; OBJ carries the colours on its points, so the border between two colours is a little rougher there.</li><li><strong><strong class="ui">“Properties”</strong>:</strong> The dimensions and everything that belongs to this shape. For a cylinder the diameter, the height and the number of sides. For a gear the teeth, for a spring the turns. A value you have moved away from its default gets a small arrow next to its name: a click takes just that value back, whatever else you did since, unlike Undo. <strong class="ui">“Save as default”</strong> at the bottom makes the current values the start values of this kind of shape (the same as <strong class="ui">“Shape defaults”</strong> in the settings), and <strong class="ui">“Reset defaults”</strong> goes back to the app's own.</li><li><strong><strong class="ui">“Taper”</strong>:</strong> Different sizes at the top and bottom, for example for a slope or a funnel.</li><li><strong><strong class="ui">“Twist &amp; Lean”</strong>:</strong> Twists the top against the bottom or shifts it sideways. That gives twisted columns and leaning towers.</li></ul>
+<ul><li><strong><strong class="ui">“Solid”</strong> or <strong class="ui">“Hole”</strong>:</strong> A solid stays, a hole takes material away. A click on <strong class="ui">“Solid”</strong> opens the colours; colours of your own that you mix there wait under <strong class="ui">“Recently used”</strong> afterwards, the last eight. More in <a href="/api/desktop/layerling/ui/guide/solids-and-holes.html">Solids and holes</a>.</li><li><strong><strong class="ui">“Transparent”</strong>:</strong> Lets you see through the body, for example to spot a shape behind it.</li><li><strong><strong class="ui">“Multicolor”</strong>:</strong> For a group only. Switched on, every part of the group shows in its own colour, also in a group that was cut with holes into one body (the walls a hole leaves take the colour of the body they were cut into). Picking a colour for the group switches it off and colours the whole group. Bundles always keep their parts' colours. In a 3MF export every part keeps its colour, so the slicer can map the parts onto filaments; OBJ carries the colours on its points, so the border between two colours is a little rougher there.</li><li><strong><strong class="ui">“Properties”</strong>:</strong> The dimensions and everything that belongs to this shape. For a cylinder the diameter, the height and the number of sides. For a gear the teeth, for a spring the turns. A value you have moved away from its default gets a small arrow next to its name: a click takes just that value back, whatever else you did since, unlike Undo. Dragged with the mouse, the slider of a length snaps to the snap step, so a height comes out in whole millimetres (not with the grid off, and not on short sliders); a typed value and the arrow keys on the slider stay exact. <strong class="ui">“Save as default”</strong> at the bottom makes the current values the start values of this kind of shape (the same as <strong class="ui">“Shape defaults”</strong> in the settings), and <strong class="ui">“Reset defaults”</strong> goes back to the app's own.</li><li><strong><strong class="ui">“Taper”</strong>:</strong> Different sizes at the top and bottom, for example for a slope or a funnel.</li><li><strong><strong class="ui">“Twist &amp; Lean”</strong>:</strong> Twists the top against the bottom or shifts it sideways. That gives twisted columns and leaning towers.</li></ul>
 <figure><img src="/api/desktop/layerling/ui/guide/img/group-multicolor.webp" alt="A group of an orange block, a blue peg and a hole, cut into one body. With Multicolor switched on, the peg stays blue, the block orange, and the walls of the hole take the block's colour." width="1280" height="800" loading="lazy"><figcaption>A group of an orange block, a blue peg and a hole, cut into one body. With Multicolor switched on, the peg stays blue, the block orange, and the walls of the hole take the block's colour.</figcaption></figure>
 <p>Taper and twist work on almost every shape. Only the gear, thread, spring, knurl, hinge, pyramid, bent tube, teardrop, the screw-head cutters and the ruler leave them out: they have fixed measures of their own or, like the pyramid, a top of their own already.</p>
 <figure><img src="/api/desktop/layerling/ui/guide/img/property-reset.webp" alt="A cone whose top radius and height were changed: a small arrow next to each takes the value back, and the two buttons at the bottom save or reset the defaults of the shape." width="1280" height="1180" loading="lazy"><figcaption>A cone whose top radius and height were changed: a small arrow next to each takes the value back, and the two buttons at the bottom save or reset the defaults of the shape.</figcaption></figure>
-<p>A tapered or leaning box, cylinder, ellipse, polygon, tube or ring keeps its exact shape, and so do the capsule, star, heart, crescent, honeycomb, dovetail and a rounded box without rounded top and bottom edges: chamfers and fillets work on it as on the plain shape, and the STEP export writes it. The same holds for a twisted shape: its section turns exactly as it rises, and the sides wind evenly from bottom to top.</p>
-<p>Typing is more exact than dragging. All number fields take millimetres, but also percentages: type &quot;50 %&quot; into a width of 40 mm and you get 20 mm. They calculate too: &quot;15*3&quot;, &quot;120-2*4&quot; or &quot;(40+2)/2&quot; give 45, 112 and 21; x works instead of *.</p>
+<p>A tapered or leaning box, cylinder, ellipse, polygon, tube or ring keeps its exact shape, and so do the capsule, star, heart, crescent, dovetail and a rounded box without rounded top and bottom edges: chamfers and fillets work on it as on the plain shape, and the STEP export writes it. The same holds for a twisted shape: its section turns exactly as it rises, and the sides wind evenly from bottom to top.</p>
+<p>Typing is more exact than dragging. All number fields take millimetres, but also percentages: type &quot;50 %&quot; into a width of 40 mm and you get 20 mm. They calculate too: &quot;15*3&quot;, &quot;120-2*4&quot; or &quot;(40+2)/2&quot; give 45, 112 and 21; x works instead of *. The field remembers the calculation, in the Properties panel as well as in the dimension boxes around the selected body: click into it again later and the formula stands there instead of the number, as long as the value still matches it, and you change it in place, &quot;(140+2)/2&quot; becoming &quot;(40+6)/2&quot;. Drag the body by a handle or scale it and the formula no longer fits, so the field shows just the number again.</p>
 <h2 id="how-round-is-round-the-side-count">How round is round? The side count</h2>
-<p>Round shapes such as cylinder, cone, tube, ellipse or the bores have the switch <strong class="ui">“Sides follow the size”</strong> and the slider <strong class="ui">“Sides”</strong> in their properties. The reason: for the view and for STL, 3MF and OBJ, layerling draws a circle as a polygon of many small sides. The more sides, the smoother it is, and the more triangles it takes.</p>
+<p>Round shapes such as cylinder, cone, tube, ellipse or the bores have the switch <strong class="ui">“Sides follow the size”</strong> and the slider <strong class="ui">“Sides”</strong> in their properties. The <strong class="ui">“Torus”</strong> has two sliders: <strong class="ui">“Ring sides”</strong> around the ring and <strong class="ui">“Tube steps”</strong> around the tube. They follow the size there too until you hold them, so a large torus shows no facets. The reason: for the view and for STL, 3MF and OBJ, layerling draws a circle as a polygon of many small sides. The more sides, the smoother it is, and the more triangles it takes.</p>
 <p><strong>Where the side count matters</strong></p>
 <ul><li><strong>In the export for the slicer</strong> (STL, 3MF, OBJ). A cylinder with few sides arrives there as a polygon.</li><li><strong>When bodies and holes are combined.</strong> A bore cut by a hole with few sides is angular in the finished part. That includes screw holes.</li><li><strong>In the view.</strong> Many very fine shapes slow the editor down.</li></ul>
 <p><strong>Where it does not matter</strong></p>
-<ul><li><strong>For the STEP export.</strong> It writes the round shape, not the polygon.</li><li><strong>For chamfers and fillets</strong> (<strong class="ui">“Chamfer”</strong>, <strong class="ui">“Fillet”</strong>) as long as the shape stays round. That is the case when you have not set a side count, when the count is at least the shape's default, or when the polygon strays at most 0.05 mm from the circle. The default is 96 sides for cylinder, ellipse, tube and cone, 64 for the <strong class="ui">“Round Roof”</strong>, 24 steps for the <strong class="ui">“Sphere”</strong>, 32 for the <strong class="ui">“Half Sphere”</strong>, and a <strong class="ui">“Quality”</strong> of 32 for a round <strong class="ui">“Bent Tube”</strong>.</li><li><strong>For a thread, a spring or a helical gear.</strong> The edge tool and the STEP export take its exact body; its <strong class="ui">“Quality”</strong> only sets how finely it is drawn.</li></ul>
+<ul><li><strong>For the STEP export.</strong> It writes the round shape, not the polygon.</li><li><strong>For chamfers and fillets</strong> (<strong class="ui">“Chamfer”</strong>, <strong class="ui">“Fillet”</strong>) as long as the shape stays round. That is the case when you have not set a side count, when the count is at least the shape's default, or when the polygon strays at most 0.05 mm from the circle. The default is 96 sides for cylinder, ellipse, tube and cone, 64 for the <strong class="ui">“Round Roof”</strong>, 24 steps for the <strong class="ui">“Sphere”</strong>, 32 for the <strong class="ui">“Half Sphere”</strong>, 96 sides and 24 steps for the <strong class="ui">“Torus”</strong>, and a <strong class="ui">“Quality”</strong> of 32 for a round <strong class="ui">“Bent Tube”</strong>.</li><li><strong>For a thread, a spring or a helical gear.</strong> The edge tool and the STEP export take its exact body; its <strong class="ui">“Quality”</strong> only sets how finely it is drawn.</li></ul>
 <p><strong>Where it matters again</strong></p>
 <ul><li><strong>For chamfers and fillets on a shape with few sides.</strong> If you set the side count below the default, the edge tool takes the shape as it is drawn: a cylinder with 6 sides stays a hexagonal bar, and the fillet runs round its six edges. That is how you can build, for instance, a nut pocket with rounded corners. For a round shape, leave <strong class="ui">“Sides follow the size”</strong> on.</li></ul>
 <p><strong>How to use it</strong></p>
@@ -147,7 +179,8 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
 <h2 id="working-with-the-handles">Working with the handles</h2>
 <p>Besides the settings there are handles on the shape itself:</p>
 <ul><li>The <strong>corners and edges</strong> make the shape larger or smaller. Hold <kbd>Shift</kbd> while dragging a corner to scale width, depth and height together and keep the proportions; hold <kbd>Alt</kbd> to scale from the center instead of the opposite corner. Without a keyboard, or if you do not want to hold a key, switch on <strong class="ui">“Keep proportions”</strong> at the top of the properties: then the corners always keep the proportions, and typing one of width, depth or height scales the other two by the same factor. The setting is remembered.</li><li>The <strong>arrow on top</strong> changes the height, the handle <strong>in the middle</strong> lifts or lowers the shape.</li><li>The <strong>curved arrows</strong> rotate it.</li><li>The <strong>numbers</strong> beside the shape show the dimensions. A click on one opens a field in which you type the number you want.</li><li>A <strong>click on a corner</strong> (without dragging) opens width and depth together. Type the first, press <kbd>Tab</kbd> for the second and <kbd>Enter</kbd> to apply both. <kbd>Esc</kbd> cancels.</li></ul>
-<p>Without the mouse, use the keyboard: the arrow keys move the selection by one snap step, with <kbd>Shift</kbd> by five. They follow the view: <kbd>→</kbd> moves to where the screen's right is, <kbd>↑</kbd> away from you, even after turning the plate. Push a shape out of the picture and the view moves along. <kbd>Ctrl</kbd>+<kbd>↑</kbd> and <kbd>Ctrl</kbd>+<kbd>↓</kbd> raise and lower it. <kbd>R</kbd> rotates by 45°, <kbd>Shift</kbd>+<kbd>R</kbd> by 22.5°. <kbd>D</kbd> drops the selection onto the workplane.</p>
+<p>Once a shape is turned by right angles, for instance laid on its side with <strong class="ui">“Lay flat on face”</strong>, the fields in the properties are named after the direction each measure runs in now: <strong class="ui">“Height”</strong> is what goes up, <strong class="ui">“Width”</strong> runs along X and <strong class="ui">“Length”</strong> along Y. Typing the height of a shape lying down therefore changes the vertical measure, and its underside stays on the plate. A shape tilted at any other angle shows its own measures in the fields, and a note below says so.</p>
+<p>Without the mouse, use the keyboard: the arrow keys move the selection by one snap step (0.1 mm when the grid is off), with <kbd>Shift</kbd> by five, or by ten if you set <strong class="ui">“Darker grid line every”</strong> to 10 <strong class="ui">“{count} grid steps”</strong> in the settings under <strong class="ui">“Appearance”</strong>: as far as the next darker line, as in Tinkercad. They follow the view: <kbd>→</kbd> moves to where the screen's right is, <kbd>↑</kbd> away from you, even after turning the plate. Push a shape out of the picture and the view moves along. <kbd>Ctrl</kbd>+<kbd>↑</kbd> and <kbd>Ctrl</kbd>+<kbd>↓</kbd> raise and lower it. <kbd>R</kbd> rotates by 45°, <kbd>Shift</kbd>+<kbd>R</kbd> by 22.5°. <kbd>D</kbd> drops the selection onto the workplane.</p>
 <p>The handles pull a shape as large as your plate, at least 220 mm wide and deep. Typing a number in the properties goes beyond that, and a shape made that large does not shrink back when you grab it again. A ceiling of your own per shape is set in the settings under <strong class="ui">“Shape defaults”</strong> with <strong class="ui">“Custom size limit”</strong>.</p>
 <p>The snap step is at the bottom right of the editor and can be changed at any time.</p>
 <h2 id="copying-and-duplicating">Copying and duplicating</h2>
@@ -163,14 +196,101 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
 <p>The <code>Custom shapes</code> folder shows on the start page as well. Open a shape there like a design, change it, and it is saved automatically like any design on the server; the next insert takes the new version. As the server store has no login, everyone who reaches the server sees the same shapes.</p>
 <h2 id="wrapping-around-a-cylinder">Wrapping around a cylinder</h2>
 <p>Should a pattern, a logo or lettering go onto a cup, a can or a tube? First lay it flat on the plate, as an imported SVG or as text for example, the way it should look from above. Then wrap it around a cylinder in the shape's settings under <strong class="ui">“Wrap around a cylinder”</strong>:</p>
-<ol><li>Open <strong class="ui">“Wrap around a cylinder”</strong> and enter the <strong class="ui">“Diameter”</strong> of the cylinder wall, such as the outside diameter of your cup.</li><li>Click <strong class="ui">“Wrap”</strong>. What ran from left to right now runs around the cylinder, the back edge becomes the top, and the thickness stands out of the wall.</li><li>Select the wrapped shape and the cylinder and centre both, left to right and front to back. The middle of the wrapped shape is the cylinder's axis, so it then sits right on its wall.</li></ol>
+<ol><li>Open <strong class="ui">“Wrap around a cylinder”</strong> and enter the <strong class="ui">“Diameter”</strong> of the cylinder wall, such as the outside diameter of your cup. Tenths of a millimetre work too, such as 63.5.</li><li>Click <strong class="ui">“Wrap”</strong>. What ran from left to right now runs around the cylinder, the back edge becomes the top, and the thickness stands out of the wall.</li><li>Select the wrapped shape and the cylinder and centre both, left to right and front to back. The middle of the wrapped shape is the cylinder's axis, so it then sits right on its wall.</li></ol>
 <p>For an engraving, switch on <strong class="ui">“Inward (engraving)”</strong>: the thickness then goes into the wall. Make the shape a hole, centre it and group it with the cylinder.</p>
 <p>The result is a mesh like an imported model. Undo lays the shape flat again; for another diameter, undo first and wrap again. It cannot go further than once around the cylinder; then layerling names the smallest diameter that fits.</p>
 <div class="pager"><a href="/api/desktop/layerling/ui/guide/view-and-workplane.html"><small>Previous chapter</small>View and workplane</a><a class="next" href="/api/desktop/layerling/ui/guide/select-and-arrange.html"><small>Next chapter</small>Selecting and arranging</a></div>
       </main>
     </div>
     <footer class="note">This guide grows with the program. If something is missing or wrong, tell us in the <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussions</a>.</footer>
-    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=en" rel="noopener">Support the project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussions</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">More about the project on GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.57.0</a></div></footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=en" rel="noopener">Support the project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussions</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">More about the project on GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.71.0</a></div><p class="trademark">Tinkercad is a trademark of Autodesk, Inc. layerling is an independent project and is not affiliated with, endorsed or sponsored by Autodesk.</p></footer>
     <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Back to the editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Open the editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text){var out="";for(var i=0;i<text.length;i++){out+=text.charAt(i).toLowerCase().normalize("NFD").charAt(0);}return out;}
+function guideForms(word,umlauts){
+  var forms=[word];
+  if(umlauts){var plain=word.split("ae").join("a").split("oe").join("o").split("ue").join("u");if(plain!==word)forms.push(plain);}
+  if(word.indexOf("ss")>=0)forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if(word.indexOf(String.fromCharCode(223))>=0)forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text,forms,from){
+  var best=null;
+  for(var i=0;i<forms.length;i++){var k=text.indexOf(forms[i],from);if(k>=0&&(!best||k<best.at))best={at:k,len:forms[i].length};}
+  return best;
+}
+function guidePrepare(entries){return entries.map(function(e){return {e:e,c:guideFold(e.c),h:guideFold(e.h),t:guideFold(e.t)};});}
+function guideTokens(query){return guideFold(query).split(" ").filter(function(w){return w.length>0;});}
+function guideSearch(prepared,query,limit,umlauts){
+  var tokens=guideTokens(query);if(!tokens.length)return [];
+  var forms=tokens.map(function(w){return guideForms(w,umlauts);}),phrase=guideForms(tokens.join(" "),umlauts),found=[];
+  prepared.forEach(function(p){
+    var score=0;
+    for(var i=0;i<tokens.length;i++){
+      var inH=guideFind(p.h,forms[i],0),inC=guideFind(p.c,forms[i],0),at=guideFind(p.t,forms[i],0);
+      if(!inH&&!inC&&!at)return;
+      if(inH)score+=10;
+      if(inC)score+=3;
+      if(at){score+=1;var n=0,k=at;while(k&&n<5){n++;k=guideFind(p.t,forms[i],k.at+k.len);}score+=n*0.3;}
+    }
+    if(tokens.length>1&&(guideFind(p.h,phrase,0)||guideFind(p.t,phrase,0)))score+=6;
+    found.push({entry:p.e,score:score,folded:p.t,forms:forms});
+  });
+  found.sort(function(a,b){return b.score-a.score;});
+  return found.slice(0,limit||8);
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,form.getAttribute("data-umlauts")==="true");
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first)window.location.href=first.href;});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
   </body>
 </html>

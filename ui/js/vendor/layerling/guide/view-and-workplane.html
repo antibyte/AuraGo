@@ -8,11 +8,12 @@
     <link rel="canonical" href="https://layerling.com/guide/view-and-workplane.html">
     <link rel="alternate" hreflang="en" href="https://layerling.com/guide/view-and-workplane.html">
     <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/ansicht-und-arbeitsebene.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/weergave-en-werkvlak.html">
     <meta property="og:title" content="View and workplane - layerling user guide">
     <meta property="og:description" content="Moving around the scene, looking straight on, and placing new shapes on any surface you like.">
     <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
     <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
-    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite")document.documentElement.dataset.theme="dark"}catch(e){}</script>
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
     <style>
 :root {
   color-scheme: light;
@@ -31,6 +32,11 @@
   --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
   --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
 }
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
 * { box-sizing: border-box; }
 html { scroll-padding-top: 76px; }
 body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
@@ -42,10 +48,30 @@ a { color: var(--accent); }
 .brand b { font-size: 19px; letter-spacing: -0.03em; }
 .brand-text { display: flex; align-items: baseline; gap: 10px; }
 .brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
 .editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
 .editor-elsewhere[hidden] { display: none; }
 .bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
-.bar a.lang { color: var(--muted); font-size: 14px; font-weight: 600; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
 .shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
 nav.chapters { position: sticky; top: 76px; font-size: 14px; }
 nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
@@ -90,6 +116,7 @@ th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transfor
 .cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
 footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
 .site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
 .site-footer a { color: var(--muted); text-decoration: none; }
 .site-footer a:hover { color: var(--accent); text-decoration: underline; }
 .site-footer .dot { margin: 0 8px; }
@@ -100,13 +127,18 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
   h1 { font-size: 28px; }
   .brand-note { display: none; }
 }
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
 @media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
 </style>
   </head>
   <body>
     <header class="bar"><div class="bar-inner">
       <a class="brand" href="/api/desktop/layerling/ui/guide/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">User guide</span></span></a>
-      <a class="lang" href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html" hreflang="de" title="Auf Deutsch lesen">Deutsch</a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/guide/search-index.json" data-nothing="Nothing found." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Search the guide" aria-label="Search the guide" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Language">English</summary><ul><li><a href="/api/desktop/layerling/ui/guide/view-and-workplane.html" hreflang="en" lang="en" aria-current="true">English</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html" hreflang="nl" lang="nl">Nederlands</a></li></ul></details>
       <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Open the editor</a>
     </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>The editor is already open in another tab - just switch to it.</p></header>
     <div class="shell">
@@ -119,16 +151,18 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
 <p>With the mouse:</p>
 <div class="table-scroll"><table><thead><tr><th>What you do</th><th>What happens</th></tr></thead><tbody><tr><td>drag with the right button</td><td>rotate the view</td></tr><tr><td>click the right button</td><td>on a body, a menu with the most used commands: duplicate, hole or solid, group, hide, lock, delete and more; on empty space Paste and Select all</td></tr><tr><td>drag with the middle button</td><td>move the view</td></tr><tr><td>mouse wheel</td><td>zoom in and out</td></tr><tr><td>hold <kbd>Ctrl</kbd> and drag with the left button</td><td>also moves the view</td></tr></tbody></table></div>
 <p>On a tablet or phone, two fingers zoom (spread and pinch) and move the view (slide together). One finger works on the design, just like the left mouse button. To rotate with one finger, switch on <strong class="ui">“Rotate the view with one finger”</strong> in the camera bar. That switch only shows on devices with a touch screen.</p>
+<p>A graphics tablet with a pen behaves like a mouse: the tip is the left button, the barrel button on the pen the right one, for turning the view and for the menu. The tablet's hotkeys can be set in its driver to layerling's <a href="/api/desktop/layerling/ui/guide/shortcuts.html">keyboard shortcuts</a>.</p>
 <h3 id="the-view-cube">The view cube</h3>
 <p>The cube in the top left shows where you are looking. A click on one of its sides jumps to the straight view from top, bottom, front, back, left or right. A click on a corner of the cube looks at the model diagonally from that corner, and a click near an edge looks from that edge, between two sides; the spot lights up while the pointer is on it. The number keys <kbd>1</kbd> to <kbd>6</kbd> give the straight views too. Hold <kbd>Shift</kbd> with them and the view also zooms to the selection, as <kbd>Shift</kbd>+<kbd>F</kbd> does.</p>
 <p>Drag the cube to turn the view around, just like dragging with the right mouse button. With nothing selected, the arrow keys turn the view as well: 15° a press, 90° with <kbd>Shift</kbd>. They turn the model the way they point - <kbd>→</kbd> turns its front to the right, <kbd>↑</kbd> tilts its front upwards. If something is selected, the arrows move it; click on empty space first to turn the view. On a touch screen this works with one finger, without switching on <strong class="ui">“Rotate the view with one finger”</strong>.</p>
 <h3 id="the-camera-bar">The camera bar</h3>
 <p>At the left edge is a narrow bar. From the top:</p>
-<ul><li><strong class="ui">“Home”</strong> brings the whole scene back into view. The key is <kbd>F</kbd> or <kbd>Home</kbd>.</li><li><strong class="ui">“Center view on selection”</strong> zooms to the selection (<kbd>Shift</kbd>+<kbd>F</kbd>).</li><li><strong class="ui">“Zoom in”</strong> and <strong class="ui">“Zoom out”</strong> zoom step by step.</li><li><strong class="ui">“Orthographic view”</strong> switches to a flat view in which parallel edges stay parallel. For measuring and lining up edges that is often more comfortable than the perspective view. <kbd>O</kbd> switches back and forth, and a second click returns.</li><li><strong class="ui">“Hide workplane”</strong> (the eye over a grid) hides the plate with its grid, so you can look at the underside of a design from below. Only the view changes: new shapes still land on the workplane. A second click shows it again.</li><li><strong class="ui">“Place workplane”</strong>, the tape measure and the framing square are tools of their own, covered below and in <a href="/api/desktop/layerling/ui/guide/measuring-and-notes.html">Measuring and notes</a>.</li></ul>
+<ul><li><strong class="ui">“Home”</strong> brings the whole scene back into view. The key is <kbd>F</kbd> or <kbd>Home</kbd>.</li><li><strong class="ui">“Center view on selection”</strong> zooms to the selection (<kbd>Shift</kbd>+<kbd>F</kbd>).</li><li><strong class="ui">“Zoom in”</strong> and <strong class="ui">“Zoom out”</strong> zoom step by step, as do the keys <kbd>+</kbd> and <kbd>−</kbd>.</li><li><strong class="ui">“Orthographic view”</strong> switches to a flat view in which parallel edges stay parallel. For measuring and lining up edges that is often more comfortable than the perspective view. <kbd>O</kbd> switches back and forth, and a second click returns.</li><li><strong class="ui">“Hide workplane”</strong> (the eye over a grid) hides the plate with its grid, so you can look at the underside of a design from below. Only the view changes: new shapes still land on the workplane. A second click shows it again.</li><li><strong class="ui">“Place workplane”</strong>, the tape measure and the framing square are tools of their own, covered below and in <a href="/api/desktop/layerling/ui/guide/measuring-and-notes.html">Measuring and notes</a>.</li></ul>
 <p>The small arrow at the very top of the bar hides it if it gets in the way.</p>
+<p>A design opens the way you left it: the angle, zoom and position of the view are kept with it in this browser, so you continue where you stopped, also after going Home or closing the page. A saved file (.lyl) carries the view along, so it opens in it elsewhere too. The view is not part of the undo history.</p>
 <h2 id="looking-inside-the-section-view">Looking inside: the section view</h2>
 <p><strong class="ui">“Section view”</strong>, the last button in the bar (the cut tool), cuts the view open along a plane so you can check walls, cavities and parts that fit into each other. Nothing is cut for real: the design, its files and every export stay whole.</p>
-<ul><li>Choose the axis the plane stands across: X (width), Y (depth) or Z (height), as in the position fields. The plane starts in the middle of your design.</li><li><strong class="ui">“Coarse”</strong> moves the plane across the whole design, <strong class="ui">“Fine”</strong> moves it a little either side of where it stands, for tenths of a millimetre. You can also type the position.</li><li>The button beside the axes shows the other side of the cut, <strong class="ui">“Center”</strong> puts the plane back in the middle, and <strong class="ui">“Show cutting plane”</strong> hides the blue plane.</li><li>You can click and select what the cut lays open, inner walls included.</li><li><strong class="ui">“Measure”</strong> measures right on the cut: the outline shows in blue, and two clicks on it give the distance, plus its parts along the plane's two axes. Both points snap to the outline, corners first. When the second click lands anywhere on the opposite wall, it snaps square to the first point - so you read wall thickness, gaps and clearance without aiming exactly. A third click starts the next measurement, <kbd>Esc</kbd> ends measuring. Moving the plane clears the measurement.</li><li><strong class="ui">“Section as SVG”</strong> saves the outlines on the cutting plane as an SVG at 1:1, for a laser, a plotter, a template or a gasket. An X cut is seen from the right, a Y cut from the front, a Z cut from above. As in the export, only visible bodies go in, holes are already taken off, and bodies of the same colour are joined into one outline. Each colour stays its own path without a fill, so laser software keeps them apart as layers.</li></ul>
+<ul><li>Choose the axis the plane stands across: X (width), Y (depth) or Z (height), as in the position fields. The plane starts in the middle of your design.</li><li><strong class="ui">“Coarse”</strong> moves the plane across the whole design, <strong class="ui">“Fine”</strong> moves it a little either side of where it stands, for tenths of a millimetre. You can also type the position.</li><li>The button beside the axes shows the other side of the cut, <strong class="ui">“Center”</strong> puts the plane back in the middle, and <strong class="ui">“Show cutting plane”</strong> hides the blue plane.</li><li>You can click and select what the cut lays open, inner walls included.</li><li><strong class="ui">“Workplane here”</strong> puts the workplane on the cut. It lies on the plane of the section and faces out of the body that stays, like the face a cut leaves. If you then switch to the sketch, it starts exactly there, and the faint outline shows the cut, which you can draw along and snap to. That is how you sketch a lid that fits the cavity you opened with the section, for example. The button beside the axes chooses which side stays, and with it which way the workplane faces. You put the workplane back on the base plate as usual.</li><li><strong class="ui">“Measure”</strong> measures right on the cut: the outline shows in blue, and two clicks on it give the distance, plus its parts along the plane's two axes. Both points snap to the outline, corners first. When the second click lands anywhere on the opposite wall, it snaps square to the first point - so you read wall thickness, gaps and clearance without aiming exactly. A third click starts the next measurement, <kbd>Esc</kbd> ends measuring. Moving the plane clears the measurement.</li><li><strong class="ui">“Section as SVG”</strong> saves the outlines on the cutting plane as an SVG at 1:1, for a laser, a plotter, a template or a gasket. An X cut is seen from the right, a Y cut from the front, a Z cut from above. As in the export, only visible bodies go in, holes are already taken off, and bodies of the same colour are joined into one outline. Each colour stays its own path without a fill, so laser software keeps them apart as layers.</li></ul>
 <p>The panel hangs on its button. If it covers something, drag it by its title bar anywhere on the workplane; it opens there next time too. Double-click the title bar or drop it at the button to put it back.</p>
 <p><kbd>Esc</kbd> closes the panel; the cut stays until you switch it off or go back to the design overview. While it is on, its button stays highlighted. Anything you place on the side that is cut away only shows once you switch the cut off.</p>
 <h2 id="the-workplane">The workplane</h2>
@@ -142,12 +176,13 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
 <p>The grid shows the size of the plate. At the bottom right is the <strong>snap step</strong>: moving and scaling snap in steps of that size, for example 1 mm. Make it smaller for fine work and larger for rough arranging. <strong class="ui">“Snap to grid”</strong> in the ribbon moves the selected shapes afterwards onto the nearest grid crossing. While moving, shapes also snap to other shapes, see <a href="/api/desktop/layerling/ui/guide/select-and-arrange.html">Selecting and arranging</a>.</p>
 <p>Under <strong class="ui">“Measurement”</strong> in the settings you set the <strong class="ui">“Units”</strong>. With <strong class="ui">“Imperial”</strong>, layerling shows every measure in inches, on the shape, in the properties panel, on the tape measure and the ruler. The snap grid then offers steps from 1/64 to 1 inch, and the grid on the plate is drawn in inches (1/8 to 1 inch, 1/4 inch by default) with a stronger line on every whole inch. Under <strong class="ui">“Show inches as”</strong> you choose whether inches appear as fractions like in Tinkercad (1 5/8, rounded to 1/64 inch) or as decimals (1.625) with as many decimal places as set under <strong class="ui">“Accuracy”</strong>. You can type either, &quot;1 5/8&quot; included.</p>
 <p>Under <strong class="ui">“Custom snap grids”</strong> in the same place you add snap steps of your own: a name and a size in millimetres, for example &quot;Pin pitch 2.54 mm&quot; for the spacing of DIP chips, pin headers and perfboard holes, or &quot;MX Key Unit&quot; with 19.05 mm for the spacing of keyboard keys. The snap step menu then offers that measure whole, halved and quartered (1 ×, ½ × and ¼ ×), so shapes can be moved by one pitch, half a pitch or a quarter pitch. Custom steps are kept with the design and go along with <strong class="ui">“Make default”</strong>.</p>
-<p>Size, grid width and colour of the plate are changed in the settings (the cogwheel in the ribbon): the areas are <strong class="ui">“Appearance”</strong>, <strong class="ui">“Measurement”</strong>, <strong class="ui">“Workplane”</strong>, <strong class="ui">“Shape defaults”</strong> and <strong class="ui">“History”</strong>. Under <strong class="ui">“Appearance”</strong> you find switches such as <strong class="ui">“Start editor in perspective view”</strong> and <strong class="ui">“Show shadows”</strong>, under <strong class="ui">“Workplane”</strong> <strong class="ui">“Show grid”</strong>. The colours of the work area are set under <strong class="ui">“Appearance”</strong> too: <strong class="ui">“Window background (light theme)”</strong> and <strong class="ui">“Workplane under the grid (light theme)”</strong> for the light theme (the dark themes keep their own), next to the grid colour under <strong class="ui">“Workplane”</strong>. There you also choose whether the darker grid line comes every 5 or every 10 grid steps (<strong class="ui">“Darker grid line every”</strong>) and give it a colour of its own with <strong class="ui">“Darker line color”</strong>; the centre cross and the plate border take it too. In the colour field, <kbd>Enter</kbd> takes a typed hex value. <strong class="ui">“Edge lines on all bodies”</strong> draws an outline on every body, in the colour of <strong class="ui">“Edge line color”</strong> (black to begin with, as in Tinkercad): it helps when dark colours run into each other. It is off by default, and very large imported meshes are left out. The grid always runs through the origin, so the stronger lines lie on the axes whatever the plate measures.</p>
+<p>Size, grid width and colour of the plate are changed in the settings (the cogwheel in the ribbon): the areas are <strong class="ui">“Appearance”</strong>, <strong class="ui">“Measurement”</strong>, <strong class="ui">“Workplane”</strong>, <strong class="ui">“Shape defaults”</strong> and <strong class="ui">“History”</strong>. Under <strong class="ui">“Appearance”</strong> you find switches such as <strong class="ui">“Start editor in perspective view”</strong> and <strong class="ui">“Show shadows”</strong>, under <strong class="ui">“Workplane”</strong> <strong class="ui">“Show grid”</strong>. The colours of the work area are set under <strong class="ui">“Appearance”</strong> too: <strong class="ui">“Window background (light theme)”</strong> and <strong class="ui">“Workplane under the grid (light theme)”</strong> for the light theme (the dark themes keep their own), next to the grid colour under <strong class="ui">“Workplane”</strong>. There you also choose whether the darker grid line comes every 5 or every 10 grid steps (<strong class="ui">“Darker grid line every”</strong>) and give it a colour of its own with <strong class="ui">“Darker line color”</strong>; the centre cross and the plate border take it too. Every line of the grid grows wider as you zoom in, as in Tinkercad, and stays visible as you zoom out; if that is too much for you, switch off <strong class="ui">“Grid lines grow when zooming”</strong> and the lines stay one pixel wide at every zoom, as in the sketch. In the colour field, <kbd>Enter</kbd> takes a typed hex value. <strong class="ui">“Edge lines on all bodies”</strong> draws an outline on every body, in the colour of <strong class="ui">“Edge line color”</strong> (black to begin with, as in Tinkercad): it helps when dark colours run into each other. It is off by default, and very large imported meshes are left out. The grid always runs through the origin, so the stronger lines lie on the axes whatever the plate measures.</p>
 <p><strong class="ui">“Axis arrows”</strong> (on by default) draws three arrows at the back left corner of the plate: <strong>X</strong> in red to the right, <strong>Y</strong> in green to the back and <strong>Z</strong> in blue upwards, the way the position fields count. That is the right-hand rule Tinkercad, CAD programs and the slicers use too. With the workplane on a face they follow it. Switch them off here if they are in your way.</p>
-<p>Two sliders under <strong class="ui">“Appearance”</strong> set how the bodies are lit. <strong class="ui">“Shadow strength”</strong> says how dark the cast shadows are, and <strong class="ui">“Shading contrast”</strong> moves light from the even ambient light to the main light: towards &quot;punchy&quot; the shaded sides get darker and the shadows show more, towards &quot;soft&quot; everything gets flatter. At the top end the contrast gets very strong, so shaded sides and shadows turn really dark. <strong class="ui">“Shadow softness”</strong> makes the edges of the shadows soft instead of crisp. <strong class="ui">“Light direction”</strong> turns the main light round the plate (0° from the front, 90° from the right), and <strong class="ui">“Light height”</strong> lifts it; at 90° it stands straight above the plate as in Tinkercad, and the shadows fall right under the bodies. <strong class="ui">“Reset light and shadows”</strong> puts everything back. <strong class="ui">“Tinkercad look”</strong> sets the work area up as Tinkercad shows it: white ground, a pale blue millimetre grid with a darker line every centimetre, black edge lines, light from above with soft shadows. Every value can still be changed on its own afterwards. All of them start as layerling always looked, and what suits you depends on your monitor. The sketch view has its own colours: <strong class="ui">“Sketch: window background (light theme)”</strong> for the window round the sheet, <strong class="ui">“Sketch: area under the grid (light theme)”</strong> for the sheet under the grid, and <strong class="ui">“Sketch: grid color (light theme)”</strong>, all for the light theme. <strong class="ui">“Sketch like work area”</strong> takes over the work area's three colours in one click.</p>
+<p>Two sliders under <strong class="ui">“Appearance”</strong> set how the bodies are lit. <strong class="ui">“Shadow strength”</strong> says how dark the cast shadows are, and <strong class="ui">“Shading contrast”</strong> moves light from the even ambient light to the main light: towards &quot;punchy&quot; the shaded sides get darker and the shadows show more, towards &quot;soft&quot; everything gets flatter. At the top end the contrast gets very strong, so shaded sides and shadows turn really dark. <strong class="ui">“Shadow softness”</strong> makes the edges of the shadows soft instead of crisp. <strong class="ui">“Light direction”</strong> turns the main light round the plate (0° from the front, 90° from the right), and <strong class="ui">“Light height”</strong> lifts it; at 90° it stands straight above the plate as in Tinkercad, and the shadows fall right under the bodies. <strong class="ui">“Reset light and shadows”</strong> puts everything back. <strong class="ui">“Classic look”</strong> sets the work area up as Tinkercad shows it: white ground, a pale blue millimetre grid with a darker line every centimetre, black edge lines, light from above with soft shadows. Every value can still be changed on its own afterwards. All of them start as layerling always looked, and what suits you depends on your monitor. The sketch view has its own colours: <strong class="ui">“Sketch: window background (light theme)”</strong> for the window round the sheet, <strong class="ui">“Sketch: area under the grid (light theme)”</strong> for the sheet under the grid, and <strong class="ui">“Sketch: grid color (light theme)”</strong>, all for the light theme. <strong class="ui">“Sketch like work area”</strong> takes over the work area's three colours in one click.</p>
 <figure><img src="/api/desktop/layerling/ui/guide/img/settings-appearance.webp" alt="The settings under Appearance: background and workplane colours for the light theme, and the switch for edge lines on all bodies." width="1280" height="800" loading="lazy"><figcaption>The settings under Appearance: background and workplane colours for the light theme, and the switch for edge lines on all bodies.</figcaption></figure>
 <figure><img src="/api/desktop/layerling/ui/guide/img/edge-lines.webp" alt="Three dark bodies with edge lines switched on: the outlines keep them apart." width="1280" height="800" loading="lazy"><figcaption>Three dark bodies with edge lines switched on: the outlines keep them apart.</figcaption></figure>
 <figure><img src="/api/desktop/layerling/ui/guide/img/editor-dark.webp" alt="The editor in the dark colour scheme. You set the colour scheme at the top right: System, Light, Dark or Graphite." width="1280" height="800" loading="lazy"><figcaption>The editor in the dark colour scheme. You set the colour scheme at the top right: System, Light, Dark or Graphite.</figcaption></figure>
+<p><strong class="ui">“Toolbar size”</strong> under <strong class="ui">“Appearance”</strong> makes the buttons of the ribbon on top, its shape menu and the camera controls on the left smaller or larger: <strong class="ui">“Small”</strong>, <strong class="ui">“Medium”</strong> (as it always was) or <strong class="ui">“Large”</strong>. Small leaves more room for the workplane on a laptop; large is easier to hit on a big screen or with a finger. With large buttons the groups of the ribbon go onto a second row when the window is too narrow for them. The size is kept in this browser and holds for every design.</p>
 <aside class="tip"><p><strong>Tip:</strong> Stop rotating the view when you fit parts together exactly. Use the number keys to go to the straight view from top or front and press <kbd>O</kbd> for the flat display. Then you see at once whether two edges are really flush.</p></aside>
 <h2 id="when-layerling-feels-slow">When layerling feels slow</h2>
 <p>layerling calculates and draws everything in your browser. On an older computer, with a weak graphics card or on several large screens the view can therefore feel sluggish. This helps:</p>
@@ -156,7 +191,94 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
       </main>
     </div>
     <footer class="note">This guide grows with the program. If something is missing or wrong, tell us in the <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussions</a>.</footer>
-    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=en" rel="noopener">Support the project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussions</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">More about the project on GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.57.0</a></div></footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=en" rel="noopener">Support the project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussions</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">More about the project on GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.71.0</a></div><p class="trademark">Tinkercad is a trademark of Autodesk, Inc. layerling is an independent project and is not affiliated with, endorsed or sponsored by Autodesk.</p></footer>
     <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Back to the editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Open the editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text){var out="";for(var i=0;i<text.length;i++){out+=text.charAt(i).toLowerCase().normalize("NFD").charAt(0);}return out;}
+function guideForms(word,umlauts){
+  var forms=[word];
+  if(umlauts){var plain=word.split("ae").join("a").split("oe").join("o").split("ue").join("u");if(plain!==word)forms.push(plain);}
+  if(word.indexOf("ss")>=0)forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if(word.indexOf(String.fromCharCode(223))>=0)forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text,forms,from){
+  var best=null;
+  for(var i=0;i<forms.length;i++){var k=text.indexOf(forms[i],from);if(k>=0&&(!best||k<best.at))best={at:k,len:forms[i].length};}
+  return best;
+}
+function guidePrepare(entries){return entries.map(function(e){return {e:e,c:guideFold(e.c),h:guideFold(e.h),t:guideFold(e.t)};});}
+function guideTokens(query){return guideFold(query).split(" ").filter(function(w){return w.length>0;});}
+function guideSearch(prepared,query,limit,umlauts){
+  var tokens=guideTokens(query);if(!tokens.length)return [];
+  var forms=tokens.map(function(w){return guideForms(w,umlauts);}),phrase=guideForms(tokens.join(" "),umlauts),found=[];
+  prepared.forEach(function(p){
+    var score=0;
+    for(var i=0;i<tokens.length;i++){
+      var inH=guideFind(p.h,forms[i],0),inC=guideFind(p.c,forms[i],0),at=guideFind(p.t,forms[i],0);
+      if(!inH&&!inC&&!at)return;
+      if(inH)score+=10;
+      if(inC)score+=3;
+      if(at){score+=1;var n=0,k=at;while(k&&n<5){n++;k=guideFind(p.t,forms[i],k.at+k.len);}score+=n*0.3;}
+    }
+    if(tokens.length>1&&(guideFind(p.h,phrase,0)||guideFind(p.t,phrase,0)))score+=6;
+    found.push({entry:p.e,score:score,folded:p.t,forms:forms});
+  });
+  found.sort(function(a,b){return b.score-a.score;});
+  return found.slice(0,limit||8);
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,form.getAttribute("data-umlauts")==="true");
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first)window.location.href=first.href;});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
   </body>
 </html>

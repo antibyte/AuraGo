@@ -8,6 +8,8 @@ let attached = false;
 let loaded: (() => void) | null = null;
 export function waitForEditor() { return new Promise<void>(resolve => { loaded = resolve; }); }
 export const isReadOnly = () => readonly;
+// File pickers and persistent file handles belong to the AuraGo host.
+export const desktopFileAccessSupported = (): boolean => false;
 export function notify(event: string, data: unknown = null) {
   port?.postMessage({ type: "aurago.layerling.event", event, data });
 }

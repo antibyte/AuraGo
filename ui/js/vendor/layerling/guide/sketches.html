@@ -8,11 +8,12 @@
     <link rel="canonical" href="https://layerling.com/guide/sketches.html">
     <link rel="alternate" hreflang="en" href="https://layerling.com/guide/sketches.html">
     <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/skizzen.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/schetsen.html">
     <meta property="og:title" content="Sketches: from outline to body - layerling user guide">
     <meta property="og:description" content="Draw a flat outline, round or chamfer its corners and pull or spin it into a body.">
     <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
     <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
-    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite")document.documentElement.dataset.theme="dark"}catch(e){}</script>
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
     <style>
 :root {
   color-scheme: light;
@@ -31,6 +32,11 @@
   --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
   --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
 }
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
 * { box-sizing: border-box; }
 html { scroll-padding-top: 76px; }
 body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
@@ -42,10 +48,30 @@ a { color: var(--accent); }
 .brand b { font-size: 19px; letter-spacing: -0.03em; }
 .brand-text { display: flex; align-items: baseline; gap: 10px; }
 .brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
 .editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
 .editor-elsewhere[hidden] { display: none; }
 .bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
-.bar a.lang { color: var(--muted); font-size: 14px; font-weight: 600; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
 .shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
 nav.chapters { position: sticky; top: 76px; font-size: 14px; }
 nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
@@ -90,6 +116,7 @@ th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transfor
 .cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
 footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
 .site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
 .site-footer a { color: var(--muted); text-decoration: none; }
 .site-footer a:hover { color: var(--accent); text-decoration: underline; }
 .site-footer .dot { margin: 0 8px; }
@@ -100,13 +127,18 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
   h1 { font-size: 28px; }
   .brand-note { display: none; }
 }
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
 @media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
 </style>
   </head>
   <body>
     <header class="bar"><div class="bar-inner">
       <a class="brand" href="/api/desktop/layerling/ui/guide/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">User guide</span></span></a>
-      <a class="lang" href="/api/desktop/layerling/ui/anleitung/skizzen.html" hreflang="de" title="Auf Deutsch lesen">Deutsch</a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/guide/search-index.json" data-nothing="Nothing found." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Search the guide" aria-label="Search the guide" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Language">English</summary><ul><li><a href="/api/desktop/layerling/ui/guide/sketches.html" hreflang="en" lang="en" aria-current="true">English</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schetsen.html" hreflang="nl" lang="nl">Nederlands</a></li></ul></details>
       <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Open the editor</a>
     </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>The editor is already open in another tab - just switch to it.</p></header>
     <div class="shell">
@@ -114,7 +146,7 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
       <main>
 <h1>Sketches: from outline to body</h1>
 <p class="lead">Draw a flat outline, round or chamfer its corners and pull or spin it into a body.</p>
-<div class="toc"><b>On this page</b><ul><li><a href="#starting-a-sketch">Starting a sketch</a></li><li><a href="#drawing">Drawing</a></li><li><a href="#lines-by-numbers">Lines by numbers</a></li><li><a href="#curving-a-straight-side">Curving a straight side</a></li><li><a href="#reading-and-typing-angles">Reading and typing angles</a></li><li><a href="#rounding-or-chamfering-corners">Rounding or chamfering corners</a></li><li><a href="#making-a-body-from-it">Making a body from it</a></li><li><a href="#building-as-a-stroke">Building as a stroke</a></li><li><a href="#fill-and-silhouette">Fill and silhouette</a></li><li><a href="#a-picture-as-template">A picture as template</a></li><li><a href="#keys-in-sketch-mode">Keys in sketch mode</a></li></ul></div>
+<div class="toc"><b>On this page</b><ul><li><a href="#starting-a-sketch">Starting a sketch</a></li><li><a href="#drawing">Drawing</a></li><li><a href="#lines-by-numbers">Lines by numbers</a></li><li><a href="#curving-a-straight-side">Curving a straight side</a></li><li><a href="#reading-and-typing-angles">Reading and typing angles</a></li><li><a href="#rounding-or-chamfering-corners">Rounding or chamfering corners</a></li><li><a href="#construction-lines">Construction lines</a></li><li><a href="#making-a-body-from-it">Making a body from it</a></li><li><a href="#building-as-a-stroke">Building as a stroke</a></li><li><a href="#fill-and-silhouette">Fill and silhouette</a></li><li><a href="#slanted-walls-for-stamps">Slanted walls, for stamps</a></li><li><a href="#a-picture-as-template">A picture as template</a></li><li><a href="#keys-in-sketch-mode">Keys in sketch mode</a></li></ul></div>
 <p>Not everything can be put together from basic shapes. For parts with a contour of their own, such as a bracket, a tooth profile or a vase, you first draw the <strong>outline</strong> and then make a body from it. That is what sketch mode is for.</p>
 <h2 id="starting-a-sketch">Starting a sketch</h2>
 <p>At the top, switch from <strong class="ui">“3D editor”</strong> to <strong class="ui">“Sketch”</strong>. Click <strong class="ui">“Sketch to 3D”</strong> in the ribbon and choose what the outline should become:</p>
@@ -122,7 +154,7 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
 <p>The editor then shows a sheet with a grid. That is your drawing surface.</p>
 <h2 id="drawing">Drawing</h2>
 <p>The ribbon in sketch mode is divided into areas:</p>
-<ul><li><strong>Draw:</strong> <strong class="ui">“Line”</strong> makes straight sections: click points one after another; holding <kbd>Shift</kbd> snaps the new line in 15° steps, horizontal and vertical included. The length and angle of the new line show at the pointer. You can also type how long it should be, see <a href="#lines-by-numbers">Lines by numbers</a>. The <strong class="ui">“Bezier Curve”</strong> is shaped with its handles: click a point and drag in the direction the line should carry on, as with the pen tool in Illustrator or Inkscape. The further you drag, the more it bends; the stretch to the new point bends along while you drag, so you see what you get. Dragging while you place a point bends the curve; if you come from Tinkercad and just want to click points, take the <strong class="ui">“Smooth Curve”</strong>. The <strong class="ui">“Smooth Curve”</strong> lays a flowing path through the points you click. To close the outline, click the first point again at the end.</li><li><strong>Shapes:</strong> <strong class="ui">“Add sketch shape”</strong> offers ready-made outlines: <strong class="ui">“Rectangle”</strong>, <strong class="ui">“Circle”</strong>, <strong class="ui">“Oval”</strong>, <strong class="ui">“Half circle”</strong>, <strong class="ui">“Pie slice”</strong>, <strong class="ui">“Bolt circle”</strong> (a disc with holes), <strong class="ui">“Triangle”</strong> and <strong class="ui">“Hexagon”</strong>. Pick one and drag a frame.</li><li><strong>Selection:</strong> <strong class="ui">“Select”</strong> moves points and lines. A click inside a closed outline selects the whole outline, so you can drag or resize it straight away; inside a hole it picks the hole. The frame around the selection has eight handles: the corners change width and height together, keeping the proportions while you hold <kbd>Shift</kbd>. The ones on the sides change one direction only. Click the width or height pill to type a new size, also as a sum (&quot;60+12.5&quot;) or in percent (&quot;150%&quot;). With <kbd>Shift</kbd> held, a click on a point or line adds it to the selection or takes it away again, so you can pick several and move them together. Drag a box over empty space to select everything in it. A line can be dragged too (it moves by its two ends, or all of the selection if it is part of one). The arrow keys move the selection by one grid step, <kbd>Shift</kbd> with them by a larger one, and <kbd>Shift</kbd> held while you drag keeps the move on one axis. <strong class="ui">“Add or Remove Points”</strong>: a click on a section adds a point, a click on a point removes it. Also there are <strong class="ui">“Erase”</strong> and inserting a template image (<strong class="ui">“Add Image”</strong>).</li><li><strong>Clipboard:</strong> <strong class="ui">“Copy”</strong>, <strong class="ui">“Paste”</strong>, <strong class="ui">“Duplicate”</strong> and <strong class="ui">“Delete”</strong> work on the selected points, lines and images, as in the 3D editor; <kbd>Ctrl</kbd>+<kbd>X</kbd> cuts. Pasted and duplicated geometry lands next to the original with a 10 mm gap, on a free spot where it touches no existing line, so it never gets joined to what is already there. It stays selected, so you can drag it straight into place.</li><li><strong>History:</strong> <strong class="ui">“Sketch undo”</strong> and <strong class="ui">“Sketch redo”</strong>.</li><li><strong>View:</strong> <kbd>F</kbd> fits the whole sketch in the view, <kbd>Shift</kbd>+<kbd>F</kbd> zooms to the selection, as in the 3D editor. The <strong class="ui">“Tape measure”</strong> on the side bar measures the distance between two points. The sketch also shows dimensions as soon as you click something: the length of a line, or for a point the lengths of the lines that meet there. The <strong class="ui">“Show measurements”</strong> button on the side bar hides and shows these dimensions when they get in the way, for example while shaping curves; the tape measure keeps working. On a straight line you can click the dimension pill and type the length in millimetres; <kbd>Enter</kbd> applies it, <kbd>Esc</kbd> cancels. The line keeps its direction, its start point stays where it is, and the lines at the other end follow. With an end point selected, that one moves. <kbd>Alt</kbd>+<kbd>Enter</kbd> grows the line to both sides around its middle. On curves the pill only shows the length.</li></ul>
+<ul><li><strong>Draw:</strong> <strong class="ui">“Line”</strong> makes straight sections: click points one after another; holding <kbd>Shift</kbd> snaps the new line in 15° steps, horizontal and vertical included. The length and angle of the new line show at the pointer. You can also type how long it should be, see <a href="#lines-by-numbers">Lines by numbers</a>. The <strong class="ui">“Bezier Curve”</strong> is shaped with its handles: click a point and drag in the direction the line should carry on, as with the pen tool in Illustrator or Inkscape. The further you drag, the more it bends; the stretch to the new point bends along while you drag, so you see what you get. Dragging while you place a point bends the curve; if you come from Tinkercad and just want to click points, take the <strong class="ui">“Smooth Curve”</strong>. The <strong class="ui">“Smooth Curve”</strong> lays a flowing path through the points you click. To close the outline, click the first point again at the end.</li><li><strong>Shapes:</strong> <strong class="ui">“Add sketch shape”</strong> offers ready-made outlines: <strong class="ui">“Rectangle”</strong>, <strong class="ui">“Circle”</strong>, <strong class="ui">“Oval”</strong>, <strong class="ui">“Half circle”</strong>, <strong class="ui">“Pie slice”</strong>, <strong class="ui">“Bolt circle”</strong> (a disc with holes), <strong class="ui">“Triangle”</strong>, <strong class="ui">“Hexagon”</strong>, a <strong class="ui">“Polygon”</strong> and a <strong class="ui">“Star”</strong>. Click one to put it at the origin of the sketch, or drag it from the menu to where you want it. At the bottom of the menu, <strong class="ui">“Sides / points”</strong> sets the number of sides of the polygon and of points of the star, and <strong class="ui">“Star inner size”</strong> how deep the star's valleys reach in towards the middle (10 to 90 percent of the outer radius); both apply to the next shape you add. Like every sketch shape they are ordinary corner points afterwards, so you can move, round or chamfer them one by one.</li><li><strong>Overlapping:</strong> Push two closed outlines over each other and they stay two bodies, which merge in the 3D editor; the overlap is not a hole. A hole only comes from an outline lying wholly inside another. Moving does not join the lines where they cross, so you can pull the shapes apart again. If you draw a line across others, though, layerling puts a point at every crossing.</li><li><strong>Selection:</strong> <strong class="ui">“Select”</strong> moves points and lines. A click inside a closed outline selects the whole outline, so you can drag or resize it straight away; inside a hole it picks the hole. The frame around the selection has eight handles: the corners change width and height together, keeping the proportions while you hold <kbd>Shift</kbd>. The ones on the sides change one direction only. Click the width or height pill to type a new size, also as a sum (&quot;60+12.5&quot;) or in percent (&quot;150%&quot;). With <kbd>Shift</kbd> held, a click on a point or line adds it to the selection or takes it away again, so you can pick several and move them together. Drag a box over empty space to select everything in it. A line can be dragged too (it moves by its two ends, or all of the selection if it is part of one). The arrow keys move the selection by one grid step, <kbd>Shift</kbd> with them by a larger one, and <kbd>Shift</kbd> held while you drag keeps the move on one axis. <strong class="ui">“Add or Remove Points”</strong>: a click on a section adds a point, a click on a point removes it. Also there are <strong class="ui">“Erase”</strong> and inserting a template image (<strong class="ui">“Add Image”</strong>).</li><li><strong>Clipboard:</strong> <strong class="ui">“Copy”</strong>, <strong class="ui">“Paste”</strong>, <strong class="ui">“Duplicate”</strong> and <strong class="ui">“Delete”</strong> work on the selected points, lines and images, as in the 3D editor; <kbd>Ctrl</kbd>+<kbd>X</kbd> cuts. Pasted and duplicated geometry lands next to the original with a 10 mm gap, on a free spot where it touches no existing line, so it never gets joined to what is already there. It stays selected, so you can drag it straight into place.</li><li><strong>History:</strong> <strong class="ui">“Sketch undo”</strong> and <strong class="ui">“Sketch redo”</strong>.</li><li><strong>View:</strong> Pan it with the middle mouse button or with <kbd>Shift</kbd> or <kbd>Ctrl</kbd> plus the right mouse button, as in the 3D editor. <kbd>F</kbd> fits the whole sketch in the view, <kbd>Shift</kbd>+<kbd>F</kbd> zooms to the selection, and <kbd>+</kbd> and <kbd>−</kbd> zoom in and out, as in the 3D editor. The <strong class="ui">“Tape measure”</strong> on the side bar measures the distance between two points. The sketch also shows dimensions as soon as you click something: the length of a line, or for a point the lengths of the lines that meet there. The <strong class="ui">“Show measurements”</strong> button on the side bar hides and shows these dimensions when they get in the way, for example while shaping curves; the tape measure keeps working. On a straight line you can click the dimension pill and type the length in millimetres; <kbd>Enter</kbd> applies it, <kbd>Esc</kbd> cancels. The line keeps its direction, its start point stays where it is, and the lines at the other end follow. With an end point selected, that one moves. <kbd>Alt</kbd>+<kbd>Enter</kbd> grows the line to both sides around its middle. On curves the pill only shows the length.</li></ul>
 <p>A body comes only from a <strong>closed</strong> outline.</p>
 <figure><img src="/api/desktop/layerling/ui/guide/img/sketch-outline.webp" alt="An L-shaped outline. At the selected corner point, top left, the lengths of the two lines are shown in millimetres, and the angle between them in degrees." width="1280" height="800" loading="lazy"><figcaption>An L-shaped outline. At the selected corner point, top left, the lengths of the two lines are shown in millimetres, and the angle between them in degrees.</figcaption></figure>
 <h2 id="lines-by-numbers">Lines by numbers</h2>
@@ -137,7 +169,11 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
 <p>A corner shows no angle where a curve meets it, or where more than two lines meet. The <strong class="ui">“Show measurements”</strong> button on the side bar hides the angle together with the lengths.</p>
 <h2 id="rounding-or-chamfering-corners">Rounding or chamfering corners</h2>
 <p>Click a corner point and choose <strong class="ui">“Fillet corner”</strong> or <strong class="ui">“Chamfer corner”</strong>. A small field appears for the <strong class="ui">“Radius”</strong> or the <strong class="ui">“Distance”</strong>. Enter the size and confirm with the check mark. This works for corners between two straight lines.</p>
+<p>Several corners at once work too: select them with <kbd>Shift</kbd> and a click each, or pull a frame round them, and choose <strong class="ui">“Fillet corner”</strong> or <strong class="ui">“Chamfer corner”</strong> from the bar that appears. All of them get the same radius or distance. Where two selected corners share a side, each takes at most 45 % of it, so a rectangle rounded all round comes out alike at every corner. Points that are not a corner between two straight lines are left out, and the message says how many. A frame round a whole shape, or a click inside it, selects its corners and its lines together, and the bar then offers <strong class="ui">“Curve line”</strong> and <strong class="ui">“Straight line”</strong> for all the selected lines next to the corner tools.</p>
 <figure><img src="/api/desktop/layerling/ui/guide/img/sketch-fillet.webp" alt="The corner at the top left is rounded with a 12 mm radius." width="1280" height="800" loading="lazy"><figcaption>The corner at the top left is rounded with a 12 mm radius.</figcaption></figure>
+<h2 id="construction-lines">Construction lines</h2>
+<p>A construction line helps you place points without becoming part of the body. It is drawn dashed and never counts as outline: you can pull it as far beyond the shape as you like and the body does not grow.</p>
+<ul><li>Switch on <strong class="ui">“Construction line”</strong> in the <strong class="ui">“Draw”</strong> group. New lines, those typed by measure too, are then construction lines. The button switches back to normal lines.</li><li>A line you have drawn already becomes a construction line when you click it and choose <strong class="ui">“Construction”</strong>. <strong class="ui">“Make a line”</strong> makes it a normal line again.</li><li>New points snap to where a construction line crosses another line, a blue ring shows it, and to the ends of the construction line. That is how you put a corner on a middle, at a fixed distance from an edge or on a crossing, without calculating.</li><li>A construction line does not cut the outline apart where it crosses it. When revolving it may lie to the right of the axis too.</li></ul>
 <h2 id="making-a-body-from-it">Making a body from it</h2>
 <p>Click <strong class="ui">“Finish sketch”</strong>. The outline stands as a body on the workplane. In its settings you change the height, the colour and everything else as with any other shape. When you resize it, layerling builds it again from the sketch a moment later, and the sketch grows with it. So it stays an exact body that takes chamfers and fillets, and the next time you edit it the sketch has the size the body has.</p>
 <p>If the workplane lies on the side of a body, you draw the way you look at that side: up in the sketch is up on the finished body too. The faint outline of the body in the sketch view shows where it stands. If the workplane cuts through a body, the sketch view shows the outline of that cut instead, so a hollow body appears as a ring and you can line the sketch up with its walls. A point you set or drag close to a corner of these outlines snaps exactly onto it; a small blue ring shows it. That way you take edges of other bodies into the sketch, even when the workplane does not lie exactly on them.</p>
@@ -151,11 +187,18 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
 <ul><li>A <strong>closed outline</strong> becomes a frame. <strong class="ui">“Position”</strong> says where the wall lies: <strong class="ui">“Centred”</strong> on the drawn line, <strong class="ui">“Inside”</strong> within it or <strong class="ui">“Outside”</strong> outside it. Outside is handy for a tolerance: draw the outline of a hole, a dovetail for instance, and give it a 0.2 mm stroke outside to get the gap the print needs.</li><li>An <strong>open line</strong> becomes a stripe, centred on the line. <strong class="ui">“Ends”</strong> sets how its ends look: <strong class="ui">“Flat”</strong>, <strong class="ui">“Square”</strong> (longer by half the width) or <strong class="ui">“Round”</strong>.</li><li><strong class="ui">“Corners”</strong> applies to both: <strong class="ui">“Sharp”</strong>, <strong class="ui">“Round”</strong> or <strong class="ui">“Bevel”</strong>.</li></ul>
 <p>The sketch keeps the drawn line. Open it again and you go on changing line and stroke; untick the box and the area is built again. Curves are broken into short straight pieces for it. A revolve has no stroke.</p>
 <h2 id="fill-and-silhouette">Fill and silhouette</h2>
-<p>You can set the stroke without opening the sketch too: in the properties of a sketch body, choose <strong class="ui">“Area”</strong>, <strong class="ui">“Stroke Outside”</strong>, <strong class="ui">“Stroke Inside”</strong> or <strong class="ui">“Stroke Centred”</strong> under <strong class="ui">“Fill”</strong>, with <strong class="ui">“Line Width”</strong> and <strong class="ui">“Corners”</strong>. The body is built again straight away, where it stands. These match the fill modes of Tinkercad's SVG import: default, outer line and inner line.</p>
+<p>You can set the stroke without opening the sketch too: in the properties of a sketch body, choose <strong class="ui">“Area”</strong>, <strong class="ui">“Stroke Outside”</strong>, <strong class="ui">“Stroke Inside”</strong> or <strong class="ui">“Stroke Centred”</strong> under <strong class="ui">“Fill”</strong>, with <strong class="ui">“Line Width”</strong> and <strong class="ui">“Corners”</strong>. The body is built again straight away, where it stands. These match the fill modes of Tinkercad's SVG import: default, outer line and inner line. <strong class="ui">“Wider”</strong> keeps the area filled and grows it by the line width all round, with sharp, round or bevelled corners: a base layer under a logo for a multicolour print, which the stroke outside alone would only give as a ring.</p>
 <p><strong class="ui">“Silhouette (No Holes)”</strong> leaves out every outline lying inside another: holes and whatever lies in them. Only the outer outline stays. Together with <strong class="ui">“Stroke Outside”</strong> it makes a cookie cutter: import an SVG twice, once with the silhouette as an area for the base and once with the silhouette and 1 to 2 mm of stroke outside as the wall. The switch is in the <strong class="ui">“Stroke”</strong> panel in sketch mode as well.</p>
 <p>Fillets and chamfers on the edges go when the body is built again, as when the sketch is edited.</p>
+<h2 id="slanted-walls-for-stamps">Slanted walls, for stamps</h2>
+<p>An extruded sketch has vertical walls. A stamp, an embossing die or a punch wants slanted ones, outside and inside, with the same wall thickness all the way. Layerling has no draft angle for an extrusion, but for plain outlines the <strong class="ui">“Taper”</strong> gets you there. One way that works:</p>
+<ol><li>Draw the outline with the hole it needs and make a body of it. Duplicate the body (<kbd>Ctrl</kbd>+<kbd>D</kbd>).</li><li>On the first body, switch on <strong class="ui">“Silhouette (No Holes)”</strong>, so the hole is filled, and give it a wider bottom than top with <strong class="ui">“Taper”</strong>.</li><li>On the copy, open its sketch again and delete the outer outline, so that only the outline of the hole is left. Finish the sketch, switch the body to <strong class="ui">“Hole”</strong> and give it a narrower bottom than top with <strong class="ui">“Taper”</strong>.</li><li>Move the hole into the first body, where the hole was, and group the two.</li></ol>
+<p>The walls now slope outside and inside. Taper scales the whole outline, so this is exact for plain shapes, where you can choose the sizes so the walls run parallel, and only an approximation for fine details such as lettering.</p>
 <h2 id="a-picture-as-template">A picture as template</h2>
 <p>With <strong class="ui">“Add Image”</strong> you put a photo or a drawing under the sketch and trace it. You can set its size, opacity and position. Once the picture sits right, lock it with <kbd>L</kbd> so you do not move it by accident while drawing. A locked image is out of the way: clicks go through it, so you can pick lines and points on top of it and drag a frame over them. To select it again, for example to unlock it, <kbd>Alt</kbd>+click it. If its settings at the right edge cover the picture, drag them away by their title bar; a double-click on it docks them again.</p>
+<p>Under <strong class="ui">“Align”</strong> you line up a photo that was not taken straight:</p>
+<ul><li><strong><strong class="ui">“Rotation”</strong>:</strong> Turn the picture about its centre, with the round handle above its frame or as a number in degrees. With <kbd>Shift</kbd> the handle snaps in 15° steps.</li><li><strong><strong class="ui">“To X = 0”</strong></strong> and <strong><strong class="ui">“To Y = 0”</strong>:</strong> put the picture's centre on X = 0 or Y = 0. For a revolve, X = 0 is the axis, so the picture then lies symmetric about it.</li><li><strong><strong class="ui">“Calibrate”</strong>:</strong> Click two points in the picture whose distance you know, the ends of a ruler or a known diameter, and type the real distance. The picture is scaled evenly so that distance is right; the first point stays where it was.</li><li><strong><strong class="ui">“Crop”</strong>:</strong> The handles on the frame now crop the picture instead of scaling it; what is cut away stays stored and comes back with <strong class="ui">“Show whole picture”</strong> or when a handle is pulled out again.</li></ul>
+<p>All four touch the reference only, never the sketch.</p>
 <h2 id="keys-in-sketch-mode">Keys in sketch mode</h2>
 <div class="table-scroll"><table><thead><tr><th>Key</th><th>Effect</th></tr></thead><tbody><tr><td><kbd>Esc</kbd></td><td>end the line chain, clear the selection</td></tr><tr><td><kbd>Delete</kbd></td><td>delete the selected element</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd></td><td>copy the selection</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>X</kbd></td><td>cut the selection</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>paste</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>duplicate the selection</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td><td>undo</td></tr><tr><td><kbd>Shift</kbd></td><td>while drawing: snap the line in 15° steps; while dragging: keep movement on one axis</td></tr><tr><td>digit, <kbd>&lt;</kbd>, <kbd>Tab</kbd>, <kbd>Enter</kbd></td><td>while drawing: type and set the length and angle of the next line</td></tr><tr><td><kbd>R</kbd></td><td>rotate the closed sketch by 45°</td></tr><tr><td><kbd>L</kbd></td><td>lock or unlock the template image</td></tr></tbody></table></div>
 <aside class="tip"><p><strong>Tip:</strong> Draw as few points as needed. An outline with a few well-placed points gives a smoother body than a tangle of many.</p></aside>
@@ -163,7 +206,94 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
       </main>
     </div>
     <footer class="note">This guide grows with the program. If something is missing or wrong, tell us in the <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussions</a>.</footer>
-    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=en" rel="noopener">Support the project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussions</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">More about the project on GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.57.0</a></div></footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=en" rel="noopener">Support the project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussions</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">More about the project on GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.71.0</a></div><p class="trademark">Tinkercad is a trademark of Autodesk, Inc. layerling is an independent project and is not affiliated with, endorsed or sponsored by Autodesk.</p></footer>
     <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Back to the editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Open the editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text){var out="";for(var i=0;i<text.length;i++){out+=text.charAt(i).toLowerCase().normalize("NFD").charAt(0);}return out;}
+function guideForms(word,umlauts){
+  var forms=[word];
+  if(umlauts){var plain=word.split("ae").join("a").split("oe").join("o").split("ue").join("u");if(plain!==word)forms.push(plain);}
+  if(word.indexOf("ss")>=0)forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if(word.indexOf(String.fromCharCode(223))>=0)forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text,forms,from){
+  var best=null;
+  for(var i=0;i<forms.length;i++){var k=text.indexOf(forms[i],from);if(k>=0&&(!best||k<best.at))best={at:k,len:forms[i].length};}
+  return best;
+}
+function guidePrepare(entries){return entries.map(function(e){return {e:e,c:guideFold(e.c),h:guideFold(e.h),t:guideFold(e.t)};});}
+function guideTokens(query){return guideFold(query).split(" ").filter(function(w){return w.length>0;});}
+function guideSearch(prepared,query,limit,umlauts){
+  var tokens=guideTokens(query);if(!tokens.length)return [];
+  var forms=tokens.map(function(w){return guideForms(w,umlauts);}),phrase=guideForms(tokens.join(" "),umlauts),found=[];
+  prepared.forEach(function(p){
+    var score=0;
+    for(var i=0;i<tokens.length;i++){
+      var inH=guideFind(p.h,forms[i],0),inC=guideFind(p.c,forms[i],0),at=guideFind(p.t,forms[i],0);
+      if(!inH&&!inC&&!at)return;
+      if(inH)score+=10;
+      if(inC)score+=3;
+      if(at){score+=1;var n=0,k=at;while(k&&n<5){n++;k=guideFind(p.t,forms[i],k.at+k.len);}score+=n*0.3;}
+    }
+    if(tokens.length>1&&(guideFind(p.h,phrase,0)||guideFind(p.t,phrase,0)))score+=6;
+    found.push({entry:p.e,score:score,folded:p.t,forms:forms});
+  });
+  found.sort(function(a,b){return b.score-a.score;});
+  return found.slice(0,limit||8);
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,form.getAttribute("data-umlauts")==="true");
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first)window.location.href=first.href;});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
   </body>
 </html>

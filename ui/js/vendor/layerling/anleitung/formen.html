@@ -6,13 +6,14 @@
     <title>Formen setzen und einstellen - layerling Anleitung</title>
     <meta name="description" content="Die Formenbibliothek, Maße per Zahl und per Griff, Farbe, Drehen, Verjüngen und Verdrehen.">
     <link rel="canonical" href="https://layerling.com/anleitung/formen.html">
-    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/formen.html">
     <link rel="alternate" hreflang="en" href="https://layerling.com/guide/shapes.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/formen.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/vormen.html">
     <meta property="og:title" content="Formen setzen und einstellen - layerling Anleitung">
     <meta property="og:description" content="Die Formenbibliothek, Maße per Zahl und per Griff, Farbe, Drehen, Verjüngen und Verdrehen.">
     <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
     <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
-    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite")document.documentElement.dataset.theme="dark"}catch(e){}</script>
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
     <style>
 :root {
   color-scheme: light;
@@ -31,6 +32,11 @@
   --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
   --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
 }
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
 * { box-sizing: border-box; }
 html { scroll-padding-top: 76px; }
 body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
@@ -42,10 +48,30 @@ a { color: var(--accent); }
 .brand b { font-size: 19px; letter-spacing: -0.03em; }
 .brand-text { display: flex; align-items: baseline; gap: 10px; }
 .brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
 .editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
 .editor-elsewhere[hidden] { display: none; }
 .bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
-.bar a.lang { color: var(--muted); font-size: 14px; font-weight: 600; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
 .shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
 nav.chapters { position: sticky; top: 76px; font-size: 14px; }
 nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
@@ -90,6 +116,7 @@ th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transfor
 .cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
 footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
 .site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
 .site-footer a { color: var(--muted); text-decoration: none; }
 .site-footer a:hover { color: var(--accent); text-decoration: underline; }
 .site-footer .dot { margin: 0 8px; }
@@ -100,13 +127,18 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
   h1 { font-size: 28px; }
   .brand-note { display: none; }
 }
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
 @media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
 </style>
   </head>
   <body>
     <header class="bar"><div class="bar-inner">
       <a class="brand" href="/api/desktop/layerling/ui/anleitung/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Anleitung</span></span></a>
-      <a class="lang" href="/api/desktop/layerling/ui/guide/shapes.html" hreflang="en" title="Read this in English">English</a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/anleitung/search-index.json" data-nothing="Nichts gefunden." data-umlauts="true"><input type="search" id="guide-search-input" name="q" placeholder="Anleitung durchsuchen" aria-label="Anleitung durchsuchen" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Sprache">Deutsch</summary><ul><li><a href="/api/desktop/layerling/ui/guide/shapes.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/anleitung/formen.html" hreflang="de" lang="de" aria-current="true">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/handleiding/vormen.html" hreflang="nl" lang="nl">Nederlands</a></li></ul></details>
       <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Zum Editor</a>
     </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Der Editor ist schon in einem anderen Tab offen - wechsle einfach dorthin.</p></header>
     <div class="shell">
@@ -121,25 +153,25 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
 <figure><img src="/api/desktop/layerling/ui/anleitung/img/shape-menu.webp" alt="Die Formenbibliothek. Jedes Bildchen ist aus der echten Geometrie der Form gerendert." width="1280" height="800" loading="lazy"><figcaption>Die Formenbibliothek. Jedes Bildchen ist aus der echten Geometrie der Form gerendert.</figcaption></figure>
 <p>Wähle eine Form aus. Sie hängt jetzt am Mauszeiger und landet dort, wo du klickst. Fährst du dabei über einen Körper, legt sie sich auf die Fläche unter dem Zeiger, auch auf eine schräge, wie beim Cruise in Tinkercad; über der leeren Platte landet sie auf der Arbeitsebene. Drückst du <kbd>Esc</kbd>, wird das Absetzen abgebrochen. Ein Werkzeug, das auf einen Klick wartet, etwa das Maßband, das Winkellineal, eine Notiz, <strong class="ui">„Arbeitsebene setzen“</strong>, <strong class="ui">„Auf Fläche legen“</strong> oder die Kantenwerkzeuge, wird beim Wählen einer Form abgeschaltet, damit der Klick die Form absetzt. Umgekehrt legt das Einschalten eines dieser Werkzeuge die Form wieder weg. Wer die Form lieber direkt in der Mitte der Platte haben möchte, kann das Absetzen per Klick in den Einstellungen abschalten (Bereich <strong class="ui">„Darstellung“</strong>, Schalter <strong class="ui">„Neue Formen im Flug platzieren“</strong>).</p>
 <p>Was die Bibliothek bietet:</p>
-<ul><li><strong>Grundformen:</strong> <strong class="ui">„Quader“</strong>, <strong class="ui">„Abgerundeter Quader“</strong>, <strong class="ui">„Zylinder“</strong>, <strong class="ui">„Kapsel“</strong>, <strong class="ui">„Ellipse“</strong>, <strong class="ui">„Mehrkant“</strong> (drei bis vierundzwanzig Seiten), <strong class="ui">„Kugel“</strong>, <strong class="ui">„Kegel“</strong>, <strong class="ui">„Pyramide“</strong> (mit drei bis vierundzwanzig Seiten, also auch dreiseitig), <strong class="ui">„Keil“</strong>, <strong class="ui">„Rundes Dach“</strong>, <strong class="ui">„Halbkugel“</strong> und <strong class="ui">„Torus“</strong>.</li><li><strong>Rohre:</strong> <strong class="ui">„Rohr“</strong> und <strong class="ui">„Gebogenes Rohr“</strong> aus bis zu zwölf geraden Stücken mit Biegungen dazwischen, dazu der <strong class="ui">„Übergang“</strong> von einem Umriss zu einem anderen, etwa von eckig auf rund.</li><li><strong>Zierformen:</strong> <strong class="ui">„Stern“</strong>, <strong class="ui">„Herz“</strong> und <strong class="ui">„Sichel“</strong>.</li><li><strong>Beschriftung:</strong> <strong class="ui">„Text“</strong>, auch auf einem Kreisbogen. Mehr im Kapitel <a href="/api/desktop/layerling/ui/anleitung/text.html">Text</a>.</li><li><strong>Mechanik:</strong> <strong class="ui">„Gewinde“</strong> (Gewindestange, Schraube, Mutter und Gewindeloch), <strong class="ui">„Feder“</strong>, <strong class="ui">„Zahnrad“</strong> und die <strong class="ui">„Rändelung“</strong> für Griffe. Mehr im Kapitel <a href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html">Gewinde und Mechanik</a>.</li><li><strong>Für Konstruktionen:</strong> <strong class="ui">„Wabengitter“</strong>, das druckbare <strong class="ui">„Scharnier“</strong>, <strong class="ui">„Schwalbenschwanz“</strong>, die <strong class="ui">„Tropfenbohrung“</strong> für waagerechte Löcher, die <strong class="ui">„Stufenbohrung“</strong> und <strong class="ui">„Senkbohrung“</strong> für Schraubenköpfe und das <strong class="ui">„Lineal“</strong>, das nur ein Messwerkzeug ist und in keinem Export auftaucht.</li></ul>
+<ul><li><strong>Grundformen:</strong> <strong class="ui">„Quader“</strong>, <strong class="ui">„Abgerundeter Quader“</strong>, <strong class="ui">„Zylinder“</strong>, <strong class="ui">„Kapsel“</strong>, <strong class="ui">„Ellipse“</strong>, <strong class="ui">„Mehrkant“</strong> (drei bis vierundzwanzig Seiten), <strong class="ui">„Kugel“</strong>, <strong class="ui">„Kegel“</strong>, <strong class="ui">„Pyramide“</strong> (mit drei bis vierundzwanzig Seiten, also auch dreiseitig), <strong class="ui">„Keil“</strong>, <strong class="ui">„Rundes Dach“</strong>, <strong class="ui">„Halbkugel“</strong> und <strong class="ui">„Torus“</strong>.</li><li><strong>Rohre:</strong> <strong class="ui">„Rohr“</strong> und <strong class="ui">„Gebogenes Rohr“</strong> aus bis zu zwölf geraden Stücken mit Biegungen dazwischen, dazu der <strong class="ui">„Übergang“</strong> von einem Umriss zu einem anderen, etwa von eckig auf rund.</li><li><strong>Zierformen:</strong> <strong class="ui">„Stern“</strong>, <strong class="ui">„Herz“</strong> und <strong class="ui">„Sichel“</strong>.</li><li><strong>Beschriftung:</strong> <strong class="ui">„Text“</strong>, auch auf einem Kreisbogen. Mehr im Kapitel <a href="/api/desktop/layerling/ui/anleitung/text.html">Text</a>.</li><li><strong>Mechanik:</strong> <strong class="ui">„Gewinde“</strong> (Gewindestange, Schraube, Mutter und Gewindeloch), <strong class="ui">„Feder“</strong>, <strong class="ui">„Zahnrad“</strong> und die <strong class="ui">„Rändelung“</strong> für Griffe. Mehr im Kapitel <a href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html">Gewinde und Mechanik</a>.</li><li><strong>Für Konstruktionen:</strong> das druckbare <strong class="ui">„Scharnier“</strong>, <strong class="ui">„Schwalbenschwanz“</strong>, die <strong class="ui">„Tropfenbohrung“</strong> für waagerechte Löcher, die <strong class="ui">„Stufenbohrung“</strong> und <strong class="ui">„Senkbohrung“</strong> für Schraubenköpfe und das <strong class="ui">„Lineal“</strong>, das nur ein Messwerkzeug ist und in keinem Export auftaucht.</li></ul>
 <p>Ein Dreieck bekommst du auf zwei Wegen: Der <strong class="ui">„Mehrkant“</strong> mit drei Seiten ist ein gleichschenkliges Dreieck, das „Dach“ aus Tinkercad, der <strong class="ui">„Keil“</strong> ein rechtwinkliges. Beide sind echte Dreiecksprismen. Für ein dreieckiges Loch kopierst du die Form, machst die Kopie kleiner, markierst sie als Aussparung und richtest sie mit <strong class="ui">„Auf der Arbeitsebene zentrieren“</strong> oder <strong class="ui">„Ausrichten“</strong> aus. Beides arbeitet mit dem Umgrenzungskasten der Form, also dem kleinsten Quader, der sie umschließt; ein halbiertes Quadrat gilt deshalb weiter als ganzes Quadrat. Mit der Befehlssuche (<kbd>Strg</kbd>+<kbd>K</kbd>) findest du beide Formen auch unter „Dreieck“ oder „Dach“.</p>
 <p>Die <strong class="ui">„Kapsel“</strong> kann an einem Ende schmaler sein als am anderen, etwa für eine Abdeckung über einem Riemen zwischen zwei Riemenscheiben. Unter <strong class="ui">„Eigenschaften“</strong> stellst du dafür <strong class="ui">„Kleines Ende (Durchmesser)“</strong> ein; das große Ende ist so breit wie die Kapsel, und die Seiten laufen gerade von einem Bogen zum anderen. <strong class="ui">„Mittenabstand“</strong> ist der Abstand der beiden Bogenmitten, also wie weit die Riemenscheiben auseinanderliegen. Änderst du das kleine Ende, bleibt der Mittenabstand stehen und die Kapsel wird länger oder kürzer. Auch die verjüngte Kapsel bleibt ein exakter Körper zum Verrunden und für STEP.</p>
 <h2 id="die-einstellungen-der-form">Die Einstellungen der Form</h2>
 <p>Sobald eine Form ausgewählt ist, erscheinen rechts ihre Einstellungen. Ganz oben steht der Name; über den Stift daneben (<strong class="ui">„Umbenennen“</strong>) tippst du einen neuen ein. <kbd>Enter</kbd> übernimmt ihn, <kbd>Esc</kbd> bricht ab, und ein leerer Name bringt den Standardnamen der Form zurück. Weiter rechts schließt das Schloss die Form gegen versehentliches Verschieben ab, und das Auge blendet sie aus. Der Pfeil ganz links klappt die Einstellungen bis auf ihre Titelleiste ein.</p>
 <p>Die Einstellungen sind am rechten Rand angedockt. Verdecken sie etwas, ziehst du sie an ihrer Titelleiste weg; sie schweben dann dort, wo du sie loslässt, auch bei der nächsten Form. Legst du sie oben rechts wieder ab oder doppelklickst auf die Titelleiste, docken sie wieder an. Solange sie schweben oder eingeklappt sind, wandert der Rasterschritt vom unteren Ende der Einstellungen nach unten rechts auf die Arbeitsfläche.</p>
 <figure><img src="/api/desktop/layerling/ui/anleitung/img/editor-overview.webp" alt="Die Einstellungen eines Zylinders: Körper oder Aussparung, Durchmesser und Höhe als Zahl und als Schieber." width="1280" height="800" loading="lazy"><figcaption>Die Einstellungen eines Zylinders: Körper oder Aussparung, Durchmesser und Höhe als Zahl und als Schieber.</figcaption></figure>
-<ul><li><strong><strong class="ui">„Körper“</strong> oder <strong class="ui">„Aussparung“</strong>:</strong> Ein Körper bleibt stehen, eine Aussparung nimmt Material weg. Ein Klick auf <strong class="ui">„Körper“</strong> öffnet die Farben; eigene Farben, die du dort mischst, stehen danach unter <strong class="ui">„Zuletzt benutzt“</strong> bereit, die letzten acht. Mehr im Kapitel <a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html">Körper und Aussparungen</a>.</li><li><strong><strong class="ui">„Durchsichtig darstellen“</strong>:</strong> Damit siehst du durch den Körper hindurch, zum Beispiel um eine Form dahinter zu erkennen.</li><li><strong><strong class="ui">„Mehrfarbig“</strong>:</strong> Nur bei einer Gruppe. Eingeschaltet zeigt jedes Teil der Gruppe seine eigene Farbe, auch in einer Gruppe, die mit Aussparungen zu einem Körper verrechnet wurde (die Wände, die eine Aussparung hinterlässt, nehmen die Farbe des Körpers an, in den sie geschnitten wurde). Wählst du eine Farbe für die Gruppe, schaltet das den Schalter aus und färbt die ganze Gruppe. Ein Bündel behält immer die Farben seiner Teile. Im 3MF-Export behält jedes Teil seine Farbe, so dass der Slicer die Teile verschiedenen Filamenten zuordnen kann; das OBJ trägt die Farben an den Punkten, an der Grenze zweier Farben also etwas ungenauer.</li><li><strong><strong class="ui">„Eigenschaften“</strong>:</strong> Die Maße und alles, was zu dieser Form gehört. Beim Zylinder etwa der Durchmesser, die Höhe und die Zahl der Seiten. Bei einem Zahnrad die Zähne, bei einer Feder die Windungen. Ein Wert, den du von seiner Vorgabe wegbewegt hast, bekommt neben seinem Namen einen kleinen Pfeil: Ein Klick holt genau diesen Wert zurück, egal was du seitdem sonst getan hast, anders als Rückgängig. <strong class="ui">„Als Vorgabe speichern“</strong> unten macht die aktuellen Werte zu den Startwerten dieser Art von Form (dasselbe wie <strong class="ui">„Formvorgaben“</strong> in den Einstellungen), und <strong class="ui">„Vorgaben zurücksetzen“</strong> geht auf die der App zurück.</li><li><strong>Lage und Drehung</strong> weiter unten im Bereich.</li><li><strong><strong class="ui">„Verjüngung“</strong>:</strong> Oben und unten unterschiedlich groß, zum Beispiel für eine Schräge oder einen Trichter.</li><li><strong><strong class="ui">„Verdrehung &amp; Neigung“</strong>:</strong> Verdreht die Oberseite gegen die Unterseite oder schiebt sie zur Seite. So entstehen gedrehte Säulen und geneigte Türme.</li></ul>
+<ul><li><strong><strong class="ui">„Körper“</strong> oder <strong class="ui">„Aussparung“</strong>:</strong> Ein Körper bleibt stehen, eine Aussparung nimmt Material weg. Ein Klick auf <strong class="ui">„Körper“</strong> öffnet die Farben; eigene Farben, die du dort mischst, stehen danach unter <strong class="ui">„Zuletzt benutzt“</strong> bereit, die letzten acht. Mehr im Kapitel <a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html">Körper und Aussparungen</a>.</li><li><strong><strong class="ui">„Durchsichtig darstellen“</strong>:</strong> Damit siehst du durch den Körper hindurch, zum Beispiel um eine Form dahinter zu erkennen.</li><li><strong><strong class="ui">„Mehrfarbig“</strong>:</strong> Nur bei einer Gruppe. Eingeschaltet zeigt jedes Teil der Gruppe seine eigene Farbe, auch in einer Gruppe, die mit Aussparungen zu einem Körper verrechnet wurde (die Wände, die eine Aussparung hinterlässt, nehmen die Farbe des Körpers an, in den sie geschnitten wurde). Wählst du eine Farbe für die Gruppe, schaltet das den Schalter aus und färbt die ganze Gruppe. Ein Bündel behält immer die Farben seiner Teile. Im 3MF-Export behält jedes Teil seine Farbe, so dass der Slicer die Teile verschiedenen Filamenten zuordnen kann; das OBJ trägt die Farben an den Punkten, an der Grenze zweier Farben also etwas ungenauer.</li><li><strong><strong class="ui">„Eigenschaften“</strong>:</strong> Die Maße und alles, was zu dieser Form gehört. Beim Zylinder etwa der Durchmesser, die Höhe und die Zahl der Seiten. Bei einem Zahnrad die Zähne, bei einer Feder die Windungen. Ein Wert, den du von seiner Vorgabe wegbewegt hast, bekommt neben seinem Namen einen kleinen Pfeil: Ein Klick holt genau diesen Wert zurück, egal was du seitdem sonst getan hast, anders als Rückgängig. Mit der Maus gezogen, rastet der Schieber einer Länge am Rasterschritt ein, so dass eine Höhe in ganzen Millimetern herauskommt (nicht bei ausgeschaltetem Raster und nicht bei kurzen Schiebern); ein getippter Wert und die Pfeiltasten auf dem Schieber bleiben genau. <strong class="ui">„Als Vorgabe speichern“</strong> unten macht die aktuellen Werte zu den Startwerten dieser Art von Form (dasselbe wie <strong class="ui">„Formvorgaben“</strong> in den Einstellungen), und <strong class="ui">„Vorgaben zurücksetzen“</strong> geht auf die der App zurück.</li><li><strong>Lage und Drehung</strong> weiter unten im Bereich.</li><li><strong><strong class="ui">„Verjüngung“</strong>:</strong> Oben und unten unterschiedlich groß, zum Beispiel für eine Schräge oder einen Trichter.</li><li><strong><strong class="ui">„Verdrehung &amp; Neigung“</strong>:</strong> Verdreht die Oberseite gegen die Unterseite oder schiebt sie zur Seite. So entstehen gedrehte Säulen und geneigte Türme.</li></ul>
 <figure><img src="/api/desktop/layerling/ui/anleitung/img/group-multicolor.webp" alt="Eine Gruppe aus einem orangen Block, einem blauen Zapfen und einer Aussparung, zu einem Körper verrechnet. Mit Mehrfarbig bleibt der Zapfen blau, der Block orange, und die Wände der Aussparung nehmen die Farbe des Blocks an." width="1280" height="800" loading="lazy"><figcaption>Eine Gruppe aus einem orangen Block, einem blauen Zapfen und einer Aussparung, zu einem Körper verrechnet. Mit Mehrfarbig bleibt der Zapfen blau, der Block orange, und die Wände der Aussparung nehmen die Farbe des Blocks an.</figcaption></figure>
 <p>Verjüngen und Verdrehen gibt es bei fast allen Formen. Nur Zahnrad, Gewinde, Feder, Rändel, Scharnier, Pyramide, gebogenes Rohr, Tropfen, Senkungen und Lineal haben sie nicht: Diese Formen haben ihre eigenen festen Maße oder, wie die Pyramide, schon eine eigene Oberseite.</p>
 <figure><img src="/api/desktop/layerling/ui/anleitung/img/property-reset.webp" alt="Ein Kegel, bei dem Radius oben und Höhe geändert wurden: Ein kleiner Pfeil neben jedem Wert holt ihn zurück, und die beiden Knöpfe unten speichern oder setzen die Vorgaben der Form zurück." width="1280" height="1180" loading="lazy"><figcaption>Ein Kegel, bei dem Radius oben und Höhe geändert wurden: Ein kleiner Pfeil neben jedem Wert holt ihn zurück, und die beiden Knöpfe unten speichern oder setzen die Vorgaben der Form zurück.</figcaption></figure>
-<p>Ein verjüngter oder geneigter Quader, Zylinder, eine Ellipse, ein Vieleck, Rohr oder Ring behält seine exakte Form, ebenso Kapsel, Stern, Herz, Halbmond, Wabe, Schwalbenschwanz und ein abgerundeter Quader ohne gerundete Ober- und Unterkante: Fasen und Rundungen gehen daran wie an der unveränderten Form, und der STEP-Export schreibt sie. Das gilt auch für eine verdrehte Form: Ihr Querschnitt dreht sich exakt mit, und die Seiten winden sich gleichmäßig von unten nach oben.</p>
-<p>Tippen ist genauer als Ziehen. Alle Zahlenfelder nehmen Millimeter, aber auch Prozent: Wer bei einer Breite von 40 mm „50 %“ eintippt, bekommt 20 mm. Sie rechnen auch: „15*3“, „120-2*4“ oder „(40+2)/2“ ergeben 45, 112 und 21; statt * geht auch x.</p>
+<p>Ein verjüngter oder geneigter Quader, Zylinder, eine Ellipse, ein Vieleck, Rohr oder Ring behält seine exakte Form, ebenso Kapsel, Stern, Herz, Halbmond, Schwalbenschwanz und ein abgerundeter Quader ohne gerundete Ober- und Unterkante: Fasen und Rundungen gehen daran wie an der unveränderten Form, und der STEP-Export schreibt sie. Das gilt auch für eine verdrehte Form: Ihr Querschnitt dreht sich exakt mit, und die Seiten winden sich gleichmäßig von unten nach oben.</p>
+<p>Tippen ist genauer als Ziehen. Alle Zahlenfelder nehmen Millimeter, aber auch Prozent: Wer bei einer Breite von 40 mm „50 %“ eintippt, bekommt 20 mm. Sie rechnen auch: „15*3“, „120-2*4“ oder „(40+2)/2“ ergeben 45, 112 und 21; statt * geht auch x. Die Rechnung merkt sich das Feld, in den Eigenschaften wie in den Maßfeldern um den markierten Körper: Klickst du später wieder hinein, steht statt der Zahl die Formel da, solange der Wert noch zu ihr passt, und du änderst sie an Ort und Stelle, aus „(140+2)/2“ wird „(40+6)/2“. Ziehst du den Körper am Griff oder skalierst ihn, passt die Formel nicht mehr und das Feld zeigt wieder nur die Zahl.</p>
 <h2 id="wie-rund-ist-rund-die-seitenzahl">Wie rund ist rund? Die Seitenzahl</h2>
-<p>Runde Formen wie Zylinder, Kegel, Rohr, Ellipse oder die Bohrungen haben in den Eigenschaften den Schalter <strong class="ui">„Seiten folgen der Größe“</strong> und den Regler <strong class="ui">„Seiten“</strong>. Der Hintergrund: Für die Anzeige und für STL, 3MF und OBJ zeichnet layerling einen Kreis als Vieleck aus vielen kleinen Seiten. Je mehr Seiten, desto glatter, aber desto mehr Dreiecke.</p>
+<p>Runde Formen wie Zylinder, Kegel, Rohr, Ellipse oder die Bohrungen haben in den Eigenschaften den Schalter <strong class="ui">„Seiten folgen der Größe“</strong> und den Regler <strong class="ui">„Seiten“</strong>. Der <strong class="ui">„Torus“</strong> hat zwei Regler: <strong class="ui">„Seiten am Ring“</strong> rund um den Ring und <strong class="ui">„Stufen am Wulst“</strong> rund um den Wulst. Auch bei ihm folgen beide der Größe, solange du sie nicht festhältst, und ein großer Torus zeigt so keine Facetten. Der Hintergrund: Für die Anzeige und für STL, 3MF und OBJ zeichnet layerling einen Kreis als Vieleck aus vielen kleinen Seiten. Je mehr Seiten, desto glatter, aber desto mehr Dreiecke.</p>
 <p><strong>Wo die Seitenzahl wichtig ist</strong></p>
 <ul><li><strong>Beim Export für den Slicer</strong> (STL, 3MF, OBJ). Ein Zylinder mit wenigen Seiten kommt dort als Vieleck an.</li><li><strong>Beim Zusammenrechnen von Körpern und Aussparungen.</strong> Eine Bohrung, die aus einer Aussparung mit wenigen Seiten geschnitten wird, ist im fertigen Teil eckig. Das gilt auch für Schraubenlöcher.</li><li><strong>In der Anzeige.</strong> Viele sehr feine Formen machen den Editor langsamer.</li></ul>
 <p><strong>Wo sie keine Rolle spielt</strong></p>
-<ul><li><strong>Beim STEP-Export.</strong> Er schreibt die runde Form, nicht das Vieleck.</li><li><strong>Bei Fasen und Verrundungen</strong> (<strong class="ui">„Fase“</strong>, <strong class="ui">„Verrundung“</strong>), solange die Form rund bleibt. Das ist der Fall, wenn du keine Seitenzahl eingestellt hast, wenn die Zahl mindestens so hoch ist wie der Vorgabewert der Form oder wenn das Vieleck höchstens 0,05 mm vom Kreis abweicht. Der Vorgabewert ist 96 Seiten bei Zylinder, Ellipse, Rohr und Kegel, 64 beim <strong class="ui">„Rundes Dach“</strong>, 24 Schritte bei der <strong class="ui">„Kugel“</strong>, 32 bei der <strong class="ui">„Halbkugel“</strong> und eine <strong class="ui">„Qualität“</strong> von 32 bei einem runden <strong class="ui">„Gebogenes Rohr“</strong>.</li><li><strong>Bei einem Gewinde, einer Feder oder einem Schrägrad.</strong> Das Kantenwerkzeug und der STEP-Export nehmen den exakten Körper; die <strong class="ui">„Qualität“</strong> bestimmt nur, wie fein die Form gezeichnet wird.</li></ul>
+<ul><li><strong>Beim STEP-Export.</strong> Er schreibt die runde Form, nicht das Vieleck.</li><li><strong>Bei Fasen und Verrundungen</strong> (<strong class="ui">„Fase“</strong>, <strong class="ui">„Verrundung“</strong>), solange die Form rund bleibt. Das ist der Fall, wenn du keine Seitenzahl eingestellt hast, wenn die Zahl mindestens so hoch ist wie der Vorgabewert der Form oder wenn das Vieleck höchstens 0,05 mm vom Kreis abweicht. Der Vorgabewert ist 96 Seiten bei Zylinder, Ellipse, Rohr und Kegel, 64 beim <strong class="ui">„Rundes Dach“</strong>, 24 Schritte bei der <strong class="ui">„Kugel“</strong>, 32 bei der <strong class="ui">„Halbkugel“</strong>, 96 Seiten und 24 Stufen beim <strong class="ui">„Torus“</strong> und eine <strong class="ui">„Qualität“</strong> von 32 bei einem runden <strong class="ui">„Gebogenes Rohr“</strong>.</li><li><strong>Bei einem Gewinde, einer Feder oder einem Schrägrad.</strong> Das Kantenwerkzeug und der STEP-Export nehmen den exakten Körper; die <strong class="ui">„Qualität“</strong> bestimmt nur, wie fein die Form gezeichnet wird.</li></ul>
 <p><strong>Wo sie wieder wichtig wird</strong></p>
 <ul><li><strong>Bei Fasen und Verrundungen einer Form mit wenigen Seiten.</strong> Stellst du die Seitenzahl unter den Vorgabewert, behandelt das Kantenwerkzeug die Form so, wie sie gezeichnet ist: Ein Zylinder mit 6 Seiten bleibt ein Sechskant-Stab, und die Verrundung läuft um seine sechs Kanten. So lässt sich zum Beispiel eine Mutterntasche mit abgerundeten Ecken bauen. Für eine runde Form lass <strong class="ui">„Seiten folgen der Größe“</strong> eingeschaltet.</li></ul>
 <p><strong>Wie du es einsetzt</strong></p>
@@ -147,7 +179,8 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
 <h2 id="mit-den-griffen-arbeiten">Mit den Griffen arbeiten</h2>
 <p>Neben den Einstellungen gibt es Griffe an der Form selbst:</p>
 <ul><li>Die <strong>Ecken und Kanten</strong> ziehen die Form größer oder kleiner. Hältst du beim Ziehen an einer Ecke <kbd>Umschalt</kbd>, wachsen Breite, Tiefe und Höhe gemeinsam und die Proportionen bleiben erhalten; mit <kbd>Alt</kbd> wächst die Form von der Mitte aus statt von der gegenüberliegenden Ecke. Ohne Tastatur oder wenn du keine Taste halten willst, schaltest du oben in den Eigenschaften <strong class="ui">„Proportionen beibehalten“</strong> ein: Dann behalten die Ecken immer die Proportionen, und gibst du Breite, Tiefe oder Höhe ein, ziehen die beiden anderen um denselben Faktor mit. Die Einstellung wird gemerkt.</li><li>Der <strong>Pfeil oben</strong> ändert die Höhe, der Griff <strong>in der Mitte</strong> hebt die Form an oder senkt sie.</li><li>Die <strong>gebogenen Pfeile</strong> drehen sie.</li><li>An den <strong>Zahlen</strong> neben der Form siehst du die Maße. Ein Klick darauf öffnet ein Feld, in das du die gewünschte Zahl tippst.</li><li>Ein <strong>Klick auf eine Ecke</strong> (ohne zu ziehen) öffnet Breite und Tiefe gemeinsam. Gib die erste Zahl ein, wechsle mit <kbd>Tab</kbd> zur zweiten und übernimm beide mit <kbd>Enter</kbd>. <kbd>Esc</kbd> bricht ab.</li></ul>
-<p>Ohne Maus geht es mit der Tastatur: Die Pfeiltasten schieben die Auswahl um einen Rasterschritt, mit <kbd>Umschalt</kbd> um fünf. Sie richten sich nach der Ansicht: <kbd>→</kbd> schiebt dahin, wo auf dem Bildschirm rechts ist, <kbd>↑</kbd> vom Betrachter weg, auch wenn du die Platte gedreht hast. Schiebst du eine Form aus dem Bild, rückt die Ansicht mit. <kbd>Strg</kbd>+<kbd>↑</kbd> und <kbd>Strg</kbd>+<kbd>↓</kbd> heben und senken sie. <kbd>R</kbd> dreht um 45°, <kbd>Umschalt</kbd>+<kbd>R</kbd> um 22,5°. <kbd>D</kbd> setzt die Auswahl auf die Arbeitsebene ab.</p>
+<p>Hast du eine Form um rechte Winkel gedreht, etwa mit <strong class="ui">„Auf Fläche legen“</strong> auf die Seite gelegt, heißen die Felder in den Eigenschaften nach der Richtung, in die das Maß jetzt läuft: <strong class="ui">„Höhe“</strong> ist, was nach oben geht, <strong class="ui">„Breite“</strong> läuft entlang X und <strong class="ui">„Länge“</strong> entlang Y. Gibst du bei der liegenden Form die Höhe ein, ändert sich also das senkrechte Maß, und die Unterseite bleibt auf der Platte. Steht die Form in einem anderen Winkel schräg, zeigen die Felder ihre eigenen Maße, und ein Hinweis darunter sagt es.</p>
+<p>Ohne Maus geht es mit der Tastatur: Die Pfeiltasten schieben die Auswahl um einen Rasterschritt (0,1 mm, wenn das Raster aus ist), mit <kbd>Umschalt</kbd> um fünf, oder um zehn, wenn du in den Einstellungen unter <strong class="ui">„Darstellung“</strong> die <strong class="ui">„Kräftige Rasterlinie alle“</strong> auf 10 <strong class="ui">„{count} Rasterschritte“</strong> stellst: So weit wie bis zur nächsten dunkleren Linie, wie in Tinkercad. Sie richten sich nach der Ansicht: <kbd>→</kbd> schiebt dahin, wo auf dem Bildschirm rechts ist, <kbd>↑</kbd> vom Betrachter weg, auch wenn du die Platte gedreht hast. Schiebst du eine Form aus dem Bild, rückt die Ansicht mit. <kbd>Strg</kbd>+<kbd>↑</kbd> und <kbd>Strg</kbd>+<kbd>↓</kbd> heben und senken sie. <kbd>R</kbd> dreht um 45°, <kbd>Umschalt</kbd>+<kbd>R</kbd> um 22,5°. <kbd>D</kbd> setzt die Auswahl auf die Arbeitsebene ab.</p>
 <p>Die Griffe ziehen eine Form so groß wie deine Platte, mindestens 220 mm breit und tief. Größer geht es per Zahl in den Eigenschaften; eine so vergrößerte Form schrumpft beim nächsten Anfassen nicht zurück. Eine eigene Obergrenze je Form setzt du in den Einstellungen unter <strong class="ui">„Formvorgaben“</strong> mit <strong class="ui">„Eigene Größengrenze“</strong>.</p>
 <p>Der Rasterschritt steht unten rechts im Editor und lässt sich jederzeit ändern.</p>
 <h2 id="kopieren-und-duplizieren">Kopieren und duplizieren</h2>
@@ -163,14 +196,101 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
 <p>Der Ordner <code>Custom shapes</code> erscheint auch auf der Startseite. Dort öffnest du eine Form wie einen Entwurf, änderst sie, und sie wird wie jeder Serverentwurf automatisch gespeichert. Beim nächsten Einsetzen ist sie neu. Weil der Serverspeicher keine Anmeldung hat, sieht jeder, der den Server erreicht, dieselben Formen.</p>
 <h2 id="um-einen-zylinder-wickeln">Um einen Zylinder wickeln</h2>
 <p>Ein Muster, ein Logo oder ein Schriftzug soll auf einen Becher, eine Dose oder ein Rohr? Lege es zuerst flach auf die Platte, etwa als importiertes SVG oder als Text, so wie es von oben gesehen aussehen soll. Dann wickelst du es in den Einstellungen der Form unter <strong class="ui">„Um einen Zylinder wickeln“</strong> um einen Zylinder:</p>
-<ol><li>Klappe <strong class="ui">„Um einen Zylinder wickeln“</strong> auf und gib den <strong class="ui">„Durchmesser“</strong> der Zylinderwand ein, etwa den Außendurchmesser deines Bechers.</li><li>Klicke auf <strong class="ui">„Wickeln“</strong>. Was von links nach rechts lag, läuft jetzt um den Zylinder herum, der hintere Rand wird oben, und die Dicke steht nach außen ab.</li><li>Markiere die gewickelte Form und den Zylinder und richte sie beide mittig aus, links-rechts und vorne-hinten. Die Mitte der gewickelten Form ist die Achse des Zylinders, also sitzt sie dann genau auf seiner Wand.</li></ol>
+<ol><li>Klappe <strong class="ui">„Um einen Zylinder wickeln“</strong> auf und gib den <strong class="ui">„Durchmesser“</strong> der Zylinderwand ein, etwa den Außendurchmesser deines Bechers. Auch Zehntelmillimeter gehen, etwa 63,5.</li><li>Klicke auf <strong class="ui">„Wickeln“</strong>. Was von links nach rechts lag, läuft jetzt um den Zylinder herum, der hintere Rand wird oben, und die Dicke steht nach außen ab.</li><li>Markiere die gewickelte Form und den Zylinder und richte sie beide mittig aus, links-rechts und vorne-hinten. Die Mitte der gewickelten Form ist die Achse des Zylinders, also sitzt sie dann genau auf seiner Wand.</li></ol>
 <p>Für eine Gravur schaltest du <strong class="ui">„Nach innen (Gravur)“</strong> ein: Dann geht die Dicke in die Wand hinein. Setze die Form als Aussparung, richte sie mittig aus und gruppiere sie mit dem Zylinder.</p>
 <p>Das Ergebnis ist ein Netz wie ein importiertes Modell. Mit Rückgängig liegt die Form wieder flach da; für einen anderen Durchmesser erst zurück und dann neu wickeln. Länger als einmal um den Zylinder geht nicht, dann nennt layerling den kleinsten Durchmesser, der passt.</p>
 <div class="pager"><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html"><small>Vorheriges Kapitel</small>Ansicht und Arbeitsebene</a><a class="next" href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html"><small>Nächstes Kapitel</small>Auswählen und Anordnen</a></div>
       </main>
     </div>
     <footer class="note">Diese Anleitung wächst mit dem Programm. Fehlt dir etwas oder stimmt etwas nicht, sag es im <a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a>.</footer>
-    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=de" rel="noopener">Projekt unterstützen</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mehr Informationen zum Projekt auf GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Versionshinweise v1.57.0</a></div></footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=de" rel="noopener">Projekt unterstützen</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mehr Informationen zum Projekt auf GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Versionshinweise v1.71.0</a></div><p class="trademark">Tinkercad ist eine Marke von Autodesk, Inc. layerling ist ein unabhängiges Projekt und steht in keiner Verbindung zu Autodesk, wird nicht von Autodesk unterstützt oder gesponsert.</p></footer>
     <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Zurück zum Editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Zum Editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text){var out="";for(var i=0;i<text.length;i++){out+=text.charAt(i).toLowerCase().normalize("NFD").charAt(0);}return out;}
+function guideForms(word,umlauts){
+  var forms=[word];
+  if(umlauts){var plain=word.split("ae").join("a").split("oe").join("o").split("ue").join("u");if(plain!==word)forms.push(plain);}
+  if(word.indexOf("ss")>=0)forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if(word.indexOf(String.fromCharCode(223))>=0)forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text,forms,from){
+  var best=null;
+  for(var i=0;i<forms.length;i++){var k=text.indexOf(forms[i],from);if(k>=0&&(!best||k<best.at))best={at:k,len:forms[i].length};}
+  return best;
+}
+function guidePrepare(entries){return entries.map(function(e){return {e:e,c:guideFold(e.c),h:guideFold(e.h),t:guideFold(e.t)};});}
+function guideTokens(query){return guideFold(query).split(" ").filter(function(w){return w.length>0;});}
+function guideSearch(prepared,query,limit,umlauts){
+  var tokens=guideTokens(query);if(!tokens.length)return [];
+  var forms=tokens.map(function(w){return guideForms(w,umlauts);}),phrase=guideForms(tokens.join(" "),umlauts),found=[];
+  prepared.forEach(function(p){
+    var score=0;
+    for(var i=0;i<tokens.length;i++){
+      var inH=guideFind(p.h,forms[i],0),inC=guideFind(p.c,forms[i],0),at=guideFind(p.t,forms[i],0);
+      if(!inH&&!inC&&!at)return;
+      if(inH)score+=10;
+      if(inC)score+=3;
+      if(at){score+=1;var n=0,k=at;while(k&&n<5){n++;k=guideFind(p.t,forms[i],k.at+k.len);}score+=n*0.3;}
+    }
+    if(tokens.length>1&&(guideFind(p.h,phrase,0)||guideFind(p.t,phrase,0)))score+=6;
+    found.push({entry:p.e,score:score,folded:p.t,forms:forms});
+  });
+  found.sort(function(a,b){return b.score-a.score;});
+  return found.slice(0,limit||8);
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,form.getAttribute("data-umlauts")==="true");
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first)window.location.href=first.href;});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
   </body>
 </html>

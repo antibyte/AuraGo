@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Vormen plaatsen en aanpassen - layerling handleiding</title>
+    <meta name="description" content="De vormenbibliotheek, maten als getal en met grepen, kleur, draaien, taps maken en tordieren.">
+    <link rel="canonical" href="https://layerling.com/handleiding/vormen.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/shapes.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/formen.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/vormen.html">
+    <meta property="og:title" content="Vormen plaatsen en aanpassen - layerling handleiding">
+    <meta property="og:description" content="De vormenbibliotheek, maten als getal en met grepen, kleur, draaien, taps maken en tordieren.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: left; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-left: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-left: auto; text-align: right; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+@media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/handleiding/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Handleiding</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/handleiding/search-index.json" data-nothing="Niets gevonden." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Handleiding doorzoeken" aria-label="Handleiding doorzoeken" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Taal">Nederlands</summary><ul><li><a href="/api/desktop/layerling/ui/guide/shapes.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/anleitung/formen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/handleiding/vormen.html" hreflang="nl" lang="nl" aria-current="true">Nederlands</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Naar de editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>De editor is al open in een ander tabblad - schakel daar gewoon naartoe.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Hoofdstukken"><h2>Hoofdstukken</h2><ol><li><a href="/api/desktop/layerling/ui/handleiding/aan-de-slag.html">Aan de slag</a></li><li><a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html">Weergave en werkvlak</a></li><li><a href="/api/desktop/layerling/ui/handleiding/vormen.html" aria-current="page">Vormen plaatsen en aanpassen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/selecteren-en-schikken.html">Selecteren en schikken</a></li><li><a href="/api/desktop/layerling/ui/handleiding/lichamen-en-gaten.html">Lichamen en gaten</a></li><li><a href="/api/desktop/layerling/ui/handleiding/randen-en-uithollen.html">Randen breken en lichamen uithollen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schetsen.html">Schetsen: van omtrek naar lichaam</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tekst.html">Tekst en gebogen belettering</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schroefdraad-en-mechanica.html">Schroefdraad, tandwielen en andere onderdelen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/meten-en-notities.html">Meten en notities</a></li><li><a href="/api/desktop/layerling/ui/handleiding/printen.html">Voorbereiden op 3D-printen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/bestanden-en-opslaan.html">Bestanden, opslaan en delen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/sneltoetsen.html">Sneltoetsen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/ai-met-mcp.html">Bouwen met een AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/handleiding/offline-en-installeren.html">Installeren als app, offline werken en zelf hosten</a></li><li><a href="/api/desktop/layerling/ui/handleiding/videos.html">Video's over layerling</a></li></ol></nav>
+      <main>
+<h1>Vormen plaatsen en aanpassen</h1>
+<p class="lead">De vormenbibliotheek, maten als getal en met grepen, kleur, draaien, taps maken en tordieren.</p>
+<div class="toc"><b>Op deze pagina</b><ul><li><a href="#een-vorm-toevoegen">Een vorm toevoegen</a></li><li><a href="#de-instellingen-van-de-vorm">De instellingen van de vorm</a></li><li><a href="#hoe-rond-is-rond-het-aantal-zijden">Hoe rond is rond? Het aantal zijden</a></li><li><a href="#werken-met-de-grepen">Werken met de grepen</a></li><li><a href="#kopieren-en-dupliceren">Kopiëren en dupliceren</a></li><li><a href="#eigen-vormen">Eigen vormen</a></li><li><a href="#om-een-cilinder-wikkelen">Om een cilinder wikkelen</a></li></ul></div>
+<p>Elk onderdeel in layerling begint met een vorm. Daarmee bouw je al het andere: vormen vullen elkaar aan, snijden elkaar weg of worden samengevoegd tot een nieuwe vorm.</p>
+<h2 id="een-vorm-toevoegen">Een vorm toevoegen</h2>
+<p>Klik op <strong class="ui">“Vorm toevoegen”</strong> in het lint. De vormenbibliotheek gaat open.</p>
+<figure><img src="/api/desktop/layerling/ui/handleiding/img/shape-menu.webp" alt="De vormenbibliotheek. Elk plaatje wordt getekend uit de echte geometrie van de vorm." width="1280" height="800" loading="lazy"><figcaption>De vormenbibliotheek. Elk plaatje wordt getekend uit de echte geometrie van de vorm.</figcaption></figure>
+<p>Kies een vorm. Die hangt nu aan de muisaanwijzer en landt waar je klikt. Beweeg je hem over een lichaam, dan gaat hij op het vlak onder de aanwijzer liggen, ook op schuine vlakken, net als Cruise in Tinkercad; boven de lege plaat landt hij op het werkvlak. <kbd>Esc</kbd> breekt het plaatsen af. Een gereedschap dat op een klik wacht, zoals het meetlint, de winkelhaak, een notitie, <strong class="ui">“Werkvlak plaatsen”</strong>, <strong class="ui">“Plat leggen op vlak”</strong> of de randgereedschappen, wordt uitgezet zodra je een vorm kiest, zodat de klik de vorm plaatst. Andersom zet het aanzetten van zo'n gereedschap de vorm weer neer. Wil je liever dat de vorm midden op de plaat verschijnt, dan kun je plaatsen met een klik uitzetten in de instellingen (onderdeel <strong class="ui">“Weergave”</strong>, schakelaar <strong class="ui">“Meebewegen bij toevoegen van nieuwe vormen”</strong>).</p>
+<p>Wat de bibliotheek te bieden heeft:</p>
+<ul><li><strong>Basisvormen:</strong> <strong class="ui">“Blok”</strong>, <strong class="ui">“Afgerond blok”</strong>, <strong class="ui">“Cilinder”</strong>, <strong class="ui">“Capsule”</strong>, <strong class="ui">“Ellips”</strong>, <strong class="ui">“Veelhoek”</strong> (drie tot vierentwintig zijden), <strong class="ui">“Bol”</strong>, <strong class="ui">“Kegel”</strong>, <strong class="ui">“Piramide”</strong> (met drie tot vierentwintig zijden, dus ook driezijdig), <strong class="ui">“Wig”</strong>, <strong class="ui">“Rond dak”</strong>, <strong class="ui">“Halve bol”</strong> en <strong class="ui">“Torus”</strong>.</li><li><strong>Buizen:</strong> <strong class="ui">“Buis”</strong> en <strong class="ui">“Gebogen buis”</strong>, opgebouwd uit maximaal twaalf rechte stukken met bochten ertussen, en de <strong class="ui">“Loft”</strong> van de ene omtrek naar de andere, bijvoorbeeld van vierkant naar rond.</li><li><strong>Decoratieve vormen:</strong> <strong class="ui">“Ster”</strong>, <strong class="ui">“Hart”</strong> en <strong class="ui">“Halvemaan”</strong>.</li><li><strong>Belettering:</strong> <strong class="ui">“Tekst”</strong>, ook langs een cirkelboog. Meer in <a href="/api/desktop/layerling/ui/handleiding/tekst.html">Tekst</a>.</li><li><strong>Mechanica:</strong> <strong class="ui">“Schroefdraad”</strong> (draadstang, schroef, moer en getapt gat), <strong class="ui">“Veer”</strong>, <strong class="ui">“Tandwiel”</strong> en de <strong class="ui">“Kartel”</strong> voor handgrepen. Meer in <a href="/api/desktop/layerling/ui/handleiding/schroefdraad-en-mechanica.html">Schroefdraad en mechanica</a>.</li><li><strong>Voor constructies:</strong> het in één keer te printen <strong class="ui">“Scharnier”</strong>, <strong class="ui">“Zwaluwstaart”</strong>, het <strong class="ui">“Druppelgat”</strong> voor horizontale gaten, de <strong class="ui">“Verzinkboring”</strong> en <strong class="ui">“Verzinking”</strong> voor schroefkoppen en de <strong class="ui">“Liniaal”</strong>, die alleen een meetinstrument is en nooit in een export terechtkomt.</li></ul>
+<p>Een driehoek krijg je op twee manieren: de <strong class="ui">“Veelhoek”</strong> met drie zijden is een gelijkbenige driehoek, het &quot;Roof&quot; van Tinkercad, en de <strong class="ui">“Wig”</strong> is een rechthoekige driehoek. Beide zijn echte driehoekige prisma's. Voor een driehoekig gat kopieer je de vorm, maak je de kopie kleiner, markeer je hem als gat en lijn je hem uit met <strong class="ui">“Centreren op werkvlak”</strong> of <strong class="ui">“Uitlijnen”</strong>. Beide werken met de omhullende doos van de vorm, de kleinste doos waar hij in past, dus een gehalveerd vierkant telt nog steeds als een heel vierkant. Opdrachten zoeken (<kbd>Ctrl</kbd>+<kbd>K</kbd>) vindt beide vormen ook onder &quot;driehoek&quot; of &quot;dak&quot;.</p>
+<p>De <strong class="ui">“Capsule”</strong> kan aan het ene uiteinde smaller zijn dan aan het andere, bijvoorbeeld voor een kap over een riem tussen twee poelies. Stel onder <strong class="ui">“Eigenschappen”</strong> de <strong class="ui">“Smal uiteinde (diameter)”</strong> in; het brede uiteinde is zo breed als de capsule, en de zijden lopen recht van de ene boog naar de andere. <strong class="ui">“Hartafstand”</strong> is de afstand tussen de middelpunten van de twee bogen, dus hoe ver de poelies uit elkaar staan. Verander je het smalle uiteinde, dan blijft de hartafstand gelijk en wordt de capsule langer of korter. Ook de taps toelopende capsule blijft een exact lichaam, voor afrondingen en STEP.</p>
+<h2 id="de-instellingen-van-de-vorm">De instellingen van de vorm</h2>
+<p>Zodra een vorm geselecteerd is, verschijnen rechts zijn instellingen. Bovenaan staat de naam; met het potlood ernaast (<strong class="ui">“Hernoemen”</strong>) typ je een nieuwe. <kbd>Enter</kbd> bewaart hem, <kbd>Esc</kbd> breekt af, en een lege naam brengt de standaardnaam van de vorm terug. Verder naar rechts vergrendelt het hangslot de vorm tegen per ongeluk verplaatsen en verbergt het oog hem. Het pijltje helemaal links klapt de instellingen in tot hun titelbalk.</p>
+<p>De instellingen zijn vastgezet aan de rechterrand. Zitten ze in de weg, sleep ze dan aan hun titelbalk en ze zweven waar je ze loslaat; daar blijven ze ook voor de volgende vorm. Laat je ze weer rechtsboven los, of dubbelklik je op de titelbalk, dan zitten ze weer vast. Zolang ze zweven of ingeklapt zijn, verhuist de snapstap van de onderkant van de instellingen naar rechtsonder in het werkvlak.</p>
+<figure><img src="/api/desktop/layerling/ui/handleiding/img/editor-overview.webp" alt="De instellingen van een cilinder: massief of gat, diameter en hoogte als getal en als schuifregelaar." width="1280" height="800" loading="lazy"><figcaption>De instellingen van een cilinder: massief of gat, diameter en hoogte als getal en als schuifregelaar.</figcaption></figure>
+<ul><li><strong><strong class="ui">“Massief”</strong> of <strong class="ui">“Gat”</strong>:</strong> Een massief lichaam blijft, een gat haalt materiaal weg. Een klik op <strong class="ui">“Massief”</strong> opent de kleuren; eigen kleuren die je daar mengt, staan daarna klaar onder <strong class="ui">“Recent gebruikt”</strong>, de laatste acht. Meer in <a href="/api/desktop/layerling/ui/handleiding/lichamen-en-gaten.html">Lichamen en gaten</a>.</li><li><strong><strong class="ui">“Doorzichtig”</strong>:</strong> Laat je door het lichaam heen kijken, bijvoorbeeld om een vorm erachter te zien.</li><li><strong><strong class="ui">“Meerkleurig”</strong>:</strong> Alleen voor een groep. Staat het aan, dan toont elk onderdeel van de groep zijn eigen kleur, ook in een groep die met gaten tot één lichaam is gesneden (de wanden die een gat achterlaat, krijgen de kleur van het lichaam waarin het gesneden is). Een kleur kiezen voor de groep zet het uit en kleurt de hele groep. Bundels houden altijd de kleuren van hun onderdelen. In een 3MF-export houdt elk onderdeel zijn kleur, zodat de slicer de onderdelen aan filamenten kan koppelen; OBJ draagt de kleuren op zijn punten, dus de grens tussen twee kleuren is daar wat ruwer.</li><li><strong><strong class="ui">“Eigenschappen”</strong>:</strong> De maten en alles wat bij deze vorm hoort. Bij een cilinder de diameter, de hoogte en het aantal zijden. Bij een tandwiel de tanden, bij een veer de windingen. Een waarde die je van zijn standaard hebt veranderd, krijgt een klein pijltje naast zijn naam: een klik zet precies die waarde terug, wat je verder ook gedaan hebt, anders dan Ongedaan maken. Sleep je met de muis, dan klikt de schuifregelaar van een lengte vast op de snapstap, zodat een hoogte op hele millimeters uitkomt (niet met het raster uit, en niet bij korte schuifregelaars); een getypte waarde en de pijltjestoetsen op de schuifregelaar blijven exact. <strong class="ui">“Als standaard opslaan”</strong> onderaan maakt de huidige waarden de startwaarden van dit soort vorm (hetzelfde als <strong class="ui">“Standaardwaarden van vormen”</strong> in de instellingen), en <strong class="ui">“Standaardwaarden herstellen”</strong> gaat terug naar die van de app zelf.</li><li><strong><strong class="ui">“Tapsheid”</strong>:</strong> Verschillende maten aan boven- en onderkant, bijvoorbeeld voor een helling of een trechter.</li><li><strong><strong class="ui">“Draaiing &amp; helling”</strong>:</strong> Draait de bovenkant ten opzichte van de onderkant of verschuift hem opzij. Zo krijg je gedraaide zuilen en scheve torens.</li></ul>
+<figure><img src="/api/desktop/layerling/ui/handleiding/img/group-multicolor.webp" alt="Een groep van een oranje blok, een blauwe pen en een gat, gesneden tot één lichaam. Met Meerkleurig aan blijft de pen blauw, het blok oranje, en de wanden van het gat krijgen de kleur van het blok." width="1280" height="800" loading="lazy"><figcaption>Een groep van een oranje blok, een blauwe pen en een gat, gesneden tot één lichaam. Met Meerkleurig aan blijft de pen blauw, het blok oranje, en de wanden van het gat krijgen de kleur van het blok.</figcaption></figure>
+<p>Taps maken en tordieren werken op bijna elke vorm. Alleen het tandwiel, de schroefdraad, de veer, de kartel, het scharnier, de piramide, de gebogen buis, het druppelgat, de schroefkopfrezen en de liniaal doen niet mee: die hebben eigen vaste maten of, zoals de piramide, al een eigen top.</p>
+<figure><img src="/api/desktop/layerling/ui/handleiding/img/property-reset.webp" alt="Een kegel waarvan de bovenstraal en de hoogte zijn veranderd: een klein pijltje naast elk zet de waarde terug, en de twee knoppen onderaan bewaren of herstellen de standaardwaarden van de vorm." width="1280" height="1180" loading="lazy"><figcaption>Een kegel waarvan de bovenstraal en de hoogte zijn veranderd: een klein pijltje naast elk zet de waarde terug, en de twee knoppen onderaan bewaren of herstellen de standaardwaarden van de vorm.</figcaption></figure>
+<p>Een taps toelopende of schuine kubus, cilinder, ellips, veelhoek, buis of ring houdt zijn exacte vorm, en dat geldt ook voor de capsule, ster, hart, maansikkel, zwaluwstaart en een afgeronde kubus zonder afgeronde boven- en onderranden: afschuiningen en afrondingen werken erop zoals op de gewone vorm, en de STEP-export schrijft hem weg. Hetzelfde geldt voor een getordeerde vorm: zijn doorsnede draait precies mee terwijl hij stijgt, en de zijden winden gelijkmatig van onder naar boven.</p>
+<p>Typen is nauwkeuriger dan slepen. Alle getalvelden nemen millimeters, maar ook percentages: typ &quot;50 %&quot; in een breedte van 40 mm en je krijgt 20 mm. Ze rekenen ook: &quot;15*3&quot;, &quot;120-2*4&quot; of &quot;(40+2)/2&quot; geven 45, 112 en 21; x werkt in plaats van *. Het veld onthoudt de berekening, zowel in het eigenschappenpaneel als in de maatvakjes rond het geselecteerde lichaam: klik je er later weer in, dan staat de formule er in plaats van het getal, zolang de waarde er nog bij past, en je past hem ter plekke aan, waarbij &quot;(140+2)/2&quot; bijvoorbeeld &quot;(40+6)/2&quot; wordt. Sleep je het lichaam aan een greep of schaal je het, dan past de formule niet meer en toont het veld weer alleen het getal.</p>
+<h2 id="hoe-rond-is-rond-het-aantal-zijden">Hoe rond is rond? Het aantal zijden</h2>
+<p>Ronde vormen zoals cilinder, kegel, buis, ellips of de boringen hebben in hun eigenschappen de schakelaar <strong class="ui">“Zijden volgen de grootte”</strong> en de schuifregelaar <strong class="ui">“Zijden”</strong>. De <strong class="ui">“Torus”</strong> heeft er twee: <strong class="ui">“Ringzijden”</strong> rond de ring en <strong class="ui">“Buisstappen”</strong> rond de buis. Ook daar volgen ze de grootte tot je ze vastzet, zodat een grote torus geen facetten toont. De reden: voor de weergave en voor STL, 3MF en OBJ tekent layerling een cirkel als een veelhoek met veel kleine zijden. Hoe meer zijden, hoe gladder, en hoe meer driehoeken het kost.</p>
+<p><strong>Waar het aantal zijden uitmaakt</strong></p>
+<ul><li><strong>In de export voor de slicer</strong> (STL, 3MF, OBJ). Een cilinder met weinig zijden komt daar aan als veelhoek.</li><li><strong>Bij het combineren van lichamen en gaten.</strong> Een boring die door een gat met weinig zijden is gesneden, is hoekig in het eindproduct. Dat geldt ook voor schroefgaten.</li><li><strong>In de weergave.</strong> Veel heel fijne vormen maken de editor trager.</li></ul>
+<p><strong>Waar het niet uitmaakt</strong></p>
+<ul><li><strong>Voor de STEP-export.</strong> Die schrijft de ronde vorm weg, niet de veelhoek.</li><li><strong>Voor afschuiningen en afrondingen</strong> (<strong class="ui">“Afschuining”</strong>, <strong class="ui">“Afronding”</strong>) zolang de vorm rond blijft. Dat is zo als je geen aantal zijden hebt ingesteld, als het aantal minstens de standaard van de vorm is, of als de veelhoek hooguit 0,05 mm van de cirkel afwijkt. De standaard is 96 zijden voor cilinder, ellips, buis en kegel, 64 voor het <strong class="ui">“Rond dak”</strong>, 24 stappen voor de <strong class="ui">“Bol”</strong>, 32 voor de <strong class="ui">“Halve bol”</strong>, 96 zijden en 24 stappen voor de <strong class="ui">“Torus”</strong>, en een <strong class="ui">“Kwaliteit”</strong> van 32 voor een ronde <strong class="ui">“Gebogen buis”</strong>.</li><li><strong>Voor schroefdraad, een veer of een schuin vertand tandwiel.</strong> Het randgereedschap en de STEP-export nemen het exacte lichaam; de <strong class="ui">“Kwaliteit”</strong> bepaalt alleen hoe fijn het getekend wordt.</li></ul>
+<p><strong>Waar het toch weer uitmaakt</strong></p>
+<ul><li><strong>Voor afschuiningen en afrondingen op een vorm met weinig zijden.</strong> Zet je het aantal zijden onder de standaard, dan neemt het randgereedschap de vorm zoals hij getekend is: een cilinder met 6 zijden blijft een zeskantige staaf, en de afronding loopt langs zijn zes randen. Zo kun je bijvoorbeeld een moeruitsparing met afgeronde hoeken bouwen. Voor een ronde vorm laat je <strong class="ui">“Zijden volgen de grootte”</strong> aan.</li></ul>
+<p><strong>Zo gebruik je het</strong></p>
+<ul><li><strong>Laat <strong class="ui">“Zijden volgen de grootte”</strong> aan.</strong> Dan kiest layerling het aantal zijden op basis van de diameter, zodat de veelhoek hooguit 0,005 mm van de echte cirkel afwijkt, ver onder wat een printer kan weergeven. Kleine vormen krijgen minstens 24 zijden, grote meer.</li><li><strong>Minder zijden</strong> neem je als je bewust een veelhoek wilt (al is daar de <strong class="ui">“Veelhoek”</strong> voor) of als de editor traag wordt van heel veel ronde vormen.</li><li><strong>Meer zijden</strong> heb je bijna nooit nodig. Alleen bij heel grote ronde onderdelen, als je randen ziet in de STL.</li><li><strong>Voor onderdelen die je alleen met randgereedschap bewerkt of als STEP doorgeeft,</strong> maakt het aantal zijden niet uit.</li></ul>
+<h2 id="werken-met-de-grepen">Werken met de grepen</h2>
+<p>Naast de instellingen zitten er grepen op de vorm zelf:</p>
+<ul><li>De <strong>hoeken en randen</strong> maken de vorm groter of kleiner. Houd <kbd>Shift</kbd> ingedrukt terwijl je een hoek sleept om breedte, diepte en hoogte samen te schalen en de verhoudingen te behouden; houd <kbd>Alt</kbd> ingedrukt om vanuit het midden te schalen in plaats van vanuit de tegenoverliggende hoek. Zonder toetsenbord, of als je geen toets wilt vasthouden, zet je <strong class="ui">“Verhoudingen behouden”</strong> bovenaan de eigenschappen aan: dan houden de hoeken altijd de verhoudingen, en als je breedte, diepte of hoogte typt, schalen de andere twee met dezelfde factor mee. De instelling wordt onthouden.</li><li>De <strong>pijl bovenop</strong> verandert de hoogte, de greep <strong>in het midden</strong> tilt de vorm op of laat hem zakken.</li><li>De <strong>gebogen pijlen</strong> draaien hem.</li><li>De <strong>getallen</strong> naast de vorm tonen de maten. Een klik op een ervan opent een veld waarin je het gewenste getal typt.</li><li>Een <strong>klik op een hoek</strong> (zonder te slepen) opent breedte en diepte samen. Typ de eerste, druk op <kbd>Tab</kbd> voor de tweede en op <kbd>Enter</kbd> om beide toe te passen. <kbd>Esc</kbd> breekt af.</li></ul>
+<p>Is een vorm over rechte hoeken gedraaid, bijvoorbeeld op zijn kant gelegd met <strong class="ui">“Plat leggen op vlak”</strong>, dan zijn de velden in de eigenschappen genoemd naar de richting waarin elke maat nu loopt: <strong class="ui">“Hoogte”</strong> is wat omhoog gaat, <strong class="ui">“Breedte”</strong> loopt langs X en <strong class="ui">“Lengte”</strong> langs Y. Typ je de hoogte van een liggende vorm, dan verander je dus de verticale maat, en zijn onderkant blijft op de plaat. Een vorm die onder een andere hoek gekanteld is, toont zijn eigen maten in de velden, en een opmerking eronder zegt dat.</p>
+<p>Zonder muis gebruik je het toetsenbord: de pijltjestoetsen verplaatsen de selectie met één snapstap (0,1 mm als het raster uit staat), met <kbd>Shift</kbd> met vijf, of met tien als je in de instellingen onder <strong class="ui">“Weergave”</strong> <strong class="ui">“Donkerdere rasterlijn elke”</strong> op 10 <strong class="ui">“{count} rasterstappen”</strong> zet: tot aan de volgende donkerdere lijn, zoals in Tinkercad. Ze volgen de weergave: <kbd>→</kbd> verplaatst naar waar rechts op het scherm is, <kbd>↑</kbd> van je af, ook nadat je de plaat hebt gedraaid. Duw je een vorm uit beeld, dan schuift de weergave mee. <kbd>Ctrl</kbd>+<kbd>↑</kbd> en <kbd>Ctrl</kbd>+<kbd>↓</kbd> tillen hem op en laten hem zakken. <kbd>R</kbd> draait 45°, <kbd>Shift</kbd>+<kbd>R</kbd> 22,5°. <kbd>D</kbd> laat de selectie op het werkvlak vallen.</p>
+<p>De grepen trekken een vorm zo groot als je plaat, minstens 220 mm breed en diep. Een getal typen in de eigenschappen gaat daar voorbij, en een vorm die zo groot is gemaakt, krimpt niet terug als je hem opnieuw vastpakt. Een eigen bovengrens per vorm stel je in de instellingen in onder <strong class="ui">“Standaardwaarden van vormen”</strong> met <strong class="ui">“Eigen groottelimiet”</strong>.</p>
+<p>De snapstap staat rechtsonder in de editor en kun je op elk moment veranderen.</p>
+<h2 id="kopieren-en-dupliceren">Kopiëren en dupliceren</h2>
+<p><strong class="ui">“Kopiëren”</strong>, <strong class="ui">“Plakken”</strong> en <strong class="ui">“Dupliceren”</strong> staan in het lint (<strong class="ui">“Klembord”</strong>). <kbd>Ctrl</kbd>+<kbd>D</kbd> dupliceert een selectie. layerling onthoudt hoe je de kopie het laatst hebt verplaatst of gedraaid en past bij het volgende dupliceren hetzelfde opnieuw toe. Zo maak je met een paar toetsaanslagen een rij gaten of treden. Voor regelmatige opstellingen is er ook het patroon, beschreven in <a href="/api/desktop/layerling/ui/handleiding/selecteren-en-schikken.html">Selecteren en schikken</a>.</p>
+<aside class="tip"><p><strong>Tip:</strong> Wil een vorm de gewenste maat niet aannemen, dan ligt het vaak aan de grenzen voor nieuwe vormen. Onder <strong class="ui">“Standaardwaarden van vormen”</strong> in de instellingen bepaal je hoe elke vorm begint en hoe groot hij mag worden.</p></aside>
+<h2 id="eigen-vormen">Eigen vormen</h2>
+<p>Een houder, een handgreep of een grondplaat die je steeds opnieuw nodig hebt, gaat in de <strong class="ui">“Eigen vormen”</strong>. Die staan bovenaan de vormenbibliotheek, boven de <strong class="ui">“Basisvormen”</strong>, en klappen in met hun pijltje.</p>
+<ol><li>Selecteer een of meer lichamen, gaten, groepen, een geïmporteerd model inbegrepen.</li><li>Open de vormenbibliotheek en klik op <strong class="ui">“Selectie bewaren”</strong>. Voer een naam in en bevestig met <strong class="ui">“Opslaan”</strong>.</li><li>In elk ontwerp voegt een klik op de tegel de vorm in, net als elke andere vorm. Je kunt de tegel ook naar het werkvlak slepen; hij landt dan waar je loslaat.</li></ol>
+<p>Meerdere lichamen komen samen terug, geplaatst zoals ze ten opzichte van elkaar stonden, en blijven elk afzonderlijk te selecteren. Het potlood op een tegel geeft hem een andere naam, de prullenbak verwijdert hem na een vraag. Vormen die al in ontwerpen zijn ingevoegd, blijven zoals ze zijn.</p>
+<p>De <strong class="ui">“Eigen vormen”</strong> staan in deze browser, los van de ontwerpen, en zijn er bij de volgende start weer. <strong class="ui">“Alles back-uppen”</strong> op de startpagina maakt er samen met de ontwerpen een back-up van, en het openen van de back-up brengt beide terug. Om alleen de vormen naar een andere browser mee te nemen, bewaart <strong class="ui">“Back-up van eigen vormen maken”</strong> (het pijltje naar beneden) ze als ZIP-bestand en brengt <strong class="ui">“Vormen laden”</strong> (het pijltje naar boven) ze daar terug. <strong class="ui">“Vormen laden”</strong> neemt ook losse <code>.lyl</code>-ontwerpen aan; elk ervan wordt een vorm. Vormen die er al zijn, worden niet dubbel toegevoegd.</p>
+<h3 id="eigen-vormen-op-de-server">Eigen vormen op de server</h3>
+<p>Met de <a href="/api/desktop/layerling/ui/handleiding/bestanden-en-opslaan.html">gedeelde opslag op de server</a> aan toont het onderdeel twee groepen: <strong class="ui">“Op de server”</strong> en <strong class="ui">“In deze browser”</strong>. Bij het bewaren kies je waar de vorm heen gaat; de server is vooraf gekozen. Daar staat hij in de map <code>Custom shapes</code>, als een eigen <code>.lyl</code>-bestand met een afbeelding, klaar op elk apparaat dat de server bereikt. De wolk op een browsertegel zet die vorm op de server; hij wordt dan niet meer dubbel bewaard.</p>
+<p>De map <code>Custom shapes</code> staat ook op de startpagina. Open daar een vorm zoals een ontwerp, verander hem, en hij wordt automatisch opgeslagen zoals elk ontwerp op de server; de volgende keer invoegen neemt de nieuwe versie. Omdat de opslag op de server geen inlog heeft, ziet iedereen die de server bereikt dezelfde vormen.</p>
+<h2 id="om-een-cilinder-wikkelen">Om een cilinder wikkelen</h2>
+<p>Moet een patroon, een logo of belettering op een beker, een blik of een buis? Leg het eerst plat op de plaat, bijvoorbeeld als geïmporteerde SVG of als tekst, zoals het er van bovenaf uit moet zien. Wikkel het daarna om een cilinder in de instellingen van de vorm onder <strong class="ui">“Om een cilinder wikkelen”</strong>:</p>
+<ol><li>Open <strong class="ui">“Om een cilinder wikkelen”</strong> en voer de <strong class="ui">“Diameter”</strong> van de cilinderwand in, zoals de buitendiameter van je beker. Tienden van een millimeter werken ook, zoals 63,5.</li><li>Klik op <strong class="ui">“Wikkelen”</strong>. Wat van links naar rechts liep, loopt nu rond de cilinder, de achterrand wordt de bovenkant, en de dikte steekt uit de wand.</li><li>Selecteer de gewikkelde vorm en de cilinder en centreer beide, van links naar rechts en van voor naar achter. Het midden van de gewikkelde vorm is de as van de cilinder, dus dan zit hij precies op de wand.</li></ol>
+<p>Voor een gravure zet je <strong class="ui">“Naar binnen (graveren)”</strong> aan: de dikte gaat dan de wand in. Maak de vorm een gat, centreer hem en groepeer hem met de cilinder.</p>
+<p>Het resultaat is een mesh, net als een geïmporteerd model. Ongedaan maken legt de vorm weer plat; voor een andere diameter maak je eerst ongedaan en wikkel je opnieuw. Verder dan één keer rond de cilinder gaat het niet; dan noemt layerling de kleinste diameter die past.</p>
+<div class="pager"><a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html"><small>Vorig hoofdstuk</small>Weergave en werkvlak</a><a class="next" href="/api/desktop/layerling/ui/handleiding/selecteren-en-schikken.html"><small>Volgend hoofdstuk</small>Selecteren en schikken</a></div>
+      </main>
+    </div>
+    <footer class="note">Deze handleiding groeit mee met het programma. Mis je iets of klopt er iets niet, laat het ons weten in de <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussies</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=nl" rel="noopener">Steun het project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussies</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Meer over het project op GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.71.0</a></div><p class="trademark">Tinkercad is een handelsmerk van Autodesk, Inc. layerling is een onafhankelijk project en is niet gelieerd aan, goedgekeurd of gesponsord door Autodesk.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Terug naar de editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Naar de editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text){var out="";for(var i=0;i<text.length;i++){out+=text.charAt(i).toLowerCase().normalize("NFD").charAt(0);}return out;}
+function guideForms(word,umlauts){
+  var forms=[word];
+  if(umlauts){var plain=word.split("ae").join("a").split("oe").join("o").split("ue").join("u");if(plain!==word)forms.push(plain);}
+  if(word.indexOf("ss")>=0)forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if(word.indexOf(String.fromCharCode(223))>=0)forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text,forms,from){
+  var best=null;
+  for(var i=0;i<forms.length;i++){var k=text.indexOf(forms[i],from);if(k>=0&&(!best||k<best.at))best={at:k,len:forms[i].length};}
+  return best;
+}
+function guidePrepare(entries){return entries.map(function(e){return {e:e,c:guideFold(e.c),h:guideFold(e.h),t:guideFold(e.t)};});}
+function guideTokens(query){return guideFold(query).split(" ").filter(function(w){return w.length>0;});}
+function guideSearch(prepared,query,limit,umlauts){
+  var tokens=guideTokens(query);if(!tokens.length)return [];
+  var forms=tokens.map(function(w){return guideForms(w,umlauts);}),phrase=guideForms(tokens.join(" "),umlauts),found=[];
+  prepared.forEach(function(p){
+    var score=0;
+    for(var i=0;i<tokens.length;i++){
+      var inH=guideFind(p.h,forms[i],0),inC=guideFind(p.c,forms[i],0),at=guideFind(p.t,forms[i],0);
+      if(!inH&&!inC&&!at)return;
+      if(inH)score+=10;
+      if(inC)score+=3;
+      if(at){score+=1;var n=0,k=at;while(k&&n<5){n++;k=guideFind(p.t,forms[i],k.at+k.len);}score+=n*0.3;}
+    }
+    if(tokens.length>1&&(guideFind(p.h,phrase,0)||guideFind(p.t,phrase,0)))score+=6;
+    found.push({entry:p.e,score:score,folded:p.t,forms:forms});
+  });
+  found.sort(function(a,b){return b.score-a.score;});
+  return found.slice(0,limit||8);
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,form.getAttribute("data-umlauts")==="true");
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first)window.location.href=first.href;});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

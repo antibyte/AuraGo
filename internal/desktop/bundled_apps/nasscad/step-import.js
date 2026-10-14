@@ -7,7 +7,9 @@
 //   - Import STEP via occt-import-js (chargement OCCT WASM)
 //   - Cache IndexedDB des résultats STEP parsés (_stepCache*)
 //   - OCCT Worker pool dédié (offload du parsing hors thread principal)
-//   - STEP Slicer (découpage en chunks pour très gros assemblages)
+//   - STEP Turbo (très gros fichiers sans MEDUSA) : stepSliceAssembly découpe en
+//     tranches qui portent chacune toute la structure d'assemblage, _stepTurboRead
+//     les lit en parallèle, _importSTEPSingle traite le tout en un seul import
 //   - STEP OmniReader (normalisation des conteneurs STEP/ZIP)
 //   - NASSCAD PMI — Product Manufacturing Information (AP242/MBD)
 //   - importSTEP() + _importSTEPSingle() — les orchestrateurs finaux
@@ -97,7 +99,7 @@ function _ensureOcctB64Companion(){
     s.src = 'nasscad_occt_wasm.js' + location.search;
     s.onload = () => resolve();
     s.onerror = () => {
-      nasLog('WARN', 'nasscad_occt_wasm.js companion introuvable — repli sur le fetch direct du .wasm');
+      nasLog('WARN', 'nasscad_occt_wasm.js companion not found — falling back to fetching the .wasm directly');
       resolve();
     };
     document.head.appendChild(s);
@@ -173,7 +175,144 @@ const _STEP_CACHE_DB    = 'nasscad_step_cache';
 const _STEP_CACHE_STORE = 'nstp';
 const _STEP_CACHE_MAX   = 400 * 1024 * 1024;  // 400 MB total — éviction LRU au-delà
 let _stepCacheDbP = null;   // promesse d'ouverture (lazy singleton)
-let _stepCacheOff = false;  // panne IDB → cache désactivé pour la session, import inchangé
+let _stepCacheOff = false;  // [RESTAURÉ 17/09] forcé à true par le test CAP du 16/09
+                            // (« À REMETTRE À false »), remis à sa valeur d'origine. Tant
+                            // qu'il vaut true, AUCUN réimport ne ressort du cache : chaque
+                            // ouverture du même fichier repaie le parsing complet. C'est la
+                            // première chose à regarder devant un « import lent ».
+
+// ══════════════════════════════════════════════════════════════════════════
+// [PERF 17/09] RÉGLAGES D'IMPORT — rassemblés ici, modifiables à chaud depuis
+// la console Script via window.NASSCAD_STEP_TUNING. Chacun est là parce qu'il
+// était soit codé en dur, soit absent, et qu'il pèse mesurablement.
+// ══════════════════════════════════════════════════════════════════════════
+
+// ── Tessellation du chemin WASM (occt-import-js) ──────────────────────────
+// Jusqu'ici RIEN n'était passé hormis linearUnit : le lecteur retombait donc
+// sur ses défauts, vérifiés dans SON source (importer.cpp / importer-utils.cpp,
+// dépôt kovacsv/occt-import-js) — linearDeflectionType 'bounding_box_ratio',
+// linearDeflection 0.001, angularDeflection 0.5 rad.
+// Ce 0.001 est un ratio de ((dx+dy+dz)/3) de la bbox de CHAQUE shape libre, et
+// le coût de tout l'aval (couture, réparation, lissage, upload GPU) est presque
+// linéaire en nombre de triangles : c'est le levier le moins cher du pipeline.
+// 0.002 = deux fois moins fin sur les surfaces courbes, invisible à l'œil sur
+// une pièce mécanique ; remettre 0.001 rend EXACTEMENT le maillage d'avant.
+// Ne concerne QUE le chemin WASM : MEDUSA ignore ces paramètres (il POSTe le
+// buffer brut et calcule sa propre déflexion adaptative PAR CORPS, cf.
+// adaptiveBodyDeflection côté C++ — ce que le WASM, lui, n'a pas).
+// [17/09] Valeur = celle de FreeCAD, littéralement. La propriété Deviation
+// d'un Part Feature vaut 0,5 % par défaut et s'applique, dit sa doc, à
+// « the dimensions in millimeters of the bounding box of the object », soit
+// (w+h+d)/3 × Deviation/100. Or le mode 'bounding_box_ratio' d'occt-import-js
+// calcule exactement ((dx+dy+dz)/3) × ratio : mettre 0.005 ici, c'est faire
+// tourner le lecteur WASM avec le réglage de FreeCAD, au chiffre près.
+// Le défaut d'occt-import-js (0.001) était cinq fois plus fin que FreeCAD, et
+// personne ne l'avait jamais comparé à quoi que ce soit.
+// Seule différence restante : occt-import-js applique le ratio par SHAPE LIBRE
+// (par racine), là où FreeCAD l'applique par objet. MEDUSA, lui, l'applique
+// bien par corps (cf. freecadBodyDeflection côté C++).
+let _STEP_WASM_DEFLECTION = 0.005;  // = Deviation 0,5 % de FreeCAD
+// 28,5° = 0,4974 rad : l'Angular Deflection par défaut de FreeCAD. L'ancien
+// 0,5 rad valait 28,65° — le même réglage, écrit par quelqu'un qui ne savait
+// pas qu'il recopiait FreeCAD.
+let _STEP_WASM_ANGULAR    = 0.497419;
+
+// ── [17/09] IMPORT LÉGER — ne pas post-traiter ce qu'OCCT a déjà fait ─────
+// FreeCAD lit le STEP, garde le B-Rep, et maille pour l'affichage. Il ne coud
+// pas, ne répare pas, ne relisse pas : les normales viennent de la surface,
+// exactes et gratuites, et chaque face porte sa propre triangulation — donc
+// une arête vive est vive par construction, sans heuristique d'angle.
+//
+// NASSCAD faisait l'inverse : il soudait par position (ce qui détruit les
+// arêtes vives), jetait les normales d'OCCT, puis les reconstruisait par un
+// BFS d'angle de crête, et réparait chaque corps par une auto-union Manifold.
+// Mesuré sur Scania-8x4 : réparation 33,8 s, couture plusieurs dizaines de
+// secondes sur le thread principal — pour un résultat qu'OCCT donnait déjà.
+//
+// En mode FreeCAD :
+//   - pas de couture ni de bouche-trou à l'import (le buffer d'index reste
+//     celui d'OCCT, donc les plages de couleurs par face restent exactes) ;
+//   - pas de réparation manifold, jamais — le CSG l'évaluera le jour où il en
+//     aura besoin, corps par corps (cf. nasEnsureManifold dans le host) ;
+//   - les normales d'OCCT sont ADOPTÉES quand la source les fournit
+//     (occt-import-js les renvoie), et le lissage BFS est alors sauté ;
+//   - isManifold vaut null = « pas évalué », et non false : un corps sain ne
+//     doit pas porter un ⚠ que personne n'a calculé.
+// false = pipeline d'avant le 17/09, à l'identique.
+let _STEP_LEAN_IMPORT = true;
+
+// ── Réparation manifold à l'import (auto-union Manifold, un corps = une union) ──
+// Mesuré (Scania-Engine-V8-XT-Turbo, 1297 corps) : 234,6 s par le pool client,
+// contre 17,5 s pour le lissage natif du MÊME lot. Or la réparation ne sert pas
+// à AFFICHER : elle sert à rendre un corps utilisable par le CSG. Le pipeline le
+// reconnaît déjà pour les corps multicolores, dont la géométrie NON réparée est
+// reprise telle quelle en phase 2b, sans aucune régression visuelle.
+//   - MEDUSA présent : /repair en un seul batch, quelques secondes → toujours fait.
+//   - MEDUSA absent  : le pool client coûte plus cher que tout le reste de
+//                      l'import réuni → différé. Les corps restent marqués
+//                      non-manifold et _manifoldRepair sera appelé par le CSG
+//                      le jour où il en a besoin, exactement comme aujourd'hui
+//                      pour les corps multicolores.
+// true = comportement d'avant le 17/09 (réparation systématique à l'import).
+let _STEP_REPAIR_CLIENT_POOL = false;
+
+// ── Bouche-trou de couture (_capStepGaps) ─────────────────────────────────
+// Neutralisé par un `false &&` le 16/09 (« À REMETTRE EN ÉTAT ») pour savoir
+// s'il était responsable du soudage des lumières. Rétabli — mais derrière un
+// interrupteur nommé : le test se refait en mettant ce drapeau à false, sans
+// plus jamais toucher au code.
+let _STEP_CAP_GAPS = true;
+
+if(typeof window !== 'undefined'){
+  window.NASSCAD_STEP_TUNING = {
+    get cacheOff(){ return _stepCacheOff; },                     set cacheOff(v){ _stepCacheOff = !!v; },
+    get deflection(){ return _STEP_WASM_DEFLECTION; },           set deflection(v){ _STEP_WASM_DEFLECTION = +v; },
+    get angular(){ return _STEP_WASM_ANGULAR; },                 set angular(v){ _STEP_WASM_ANGULAR = +v; },
+    get repairClientPool(){ return _STEP_REPAIR_CLIENT_POOL; },  set repairClientPool(v){ _STEP_REPAIR_CLIENT_POOL = !!v; },
+    get capGaps(){ return _STEP_CAP_GAPS; },                     set capGaps(v){ _STEP_CAP_GAPS = !!v; },
+    get leanImport(){ return _STEP_LEAN_IMPORT; },               set leanImport(v){ _STEP_LEAN_IMPORT = !!v; },
+    // Déviation exprimée comme dans FreeCAD : en POURCENTS de la bbox.
+    get deviation(){ return _STEP_WASM_DEFLECTION * 100; },      set deviation(v){ _STEP_WASM_DEFLECTION = (+v) / 100; },
+    get geoCache(){ return _STEP_GEO_CACHE; },                   set geoCache(v){ _STEP_GEO_CACHE = !!v; }
+  };
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// [PERF 17/09] CHRONOMÈTRE PAR ÉTAGE — « un import lent sans découpage par
+// étage, c'est une opinion ». Les lignes [perf-step] existantes ne couvraient
+// que couture et réparation, en DBG (donc filtrées du log visible par défaut),
+// et jamais le parsing ni le lissage ni la construction des meshes : impossible
+// de dire où passent les minutes. Chaque étage dépose sa marque ici, et une
+// seule table est imprimée en fin d'import, en OK (donc lisible sans filtre).
+// Le reliquat non mesuré est affiché explicitement plutôt que dilué : c'est lui
+// qui désigne le prochain endroit à instrumenter.
+// ══════════════════════════════════════════════════════════════════════════
+// Le collecteur est un OBJET LOCAL à un import, passé explicitement — pas un
+// singleton de module. C'est délibéré : en mode Turbo, plusieurs chunks
+// traversent _importSTEPSingle EN CONCURRENCE, et un singleton mélangerait
+// leurs mesures en une table qui n'existerait dans aucun import réel.
+function _stepPerfNew(label){ return { label, marks: [], t0: performance.now() }; }
+function _stepPerfMark(p, name, ms, info){
+  if(!p) return;
+  p.marks.push({ name, ms: Math.max(0, ms), info: info || '' });
+}
+function _stepPerfReport(p){
+  if(!p || p.done) return;
+  p.done = true;
+  const total = Math.max(1, performance.now() - p.t0);
+  const rows  = p.marks.slice();
+  const acc   = rows.reduce((s, m) => s + m.ms, 0);
+  rows.push({ name: '(unmeasured remainder)', ms: Math.max(0, total - acc), info: '' });
+  const w = rows.reduce((m, r) => Math.max(m, r.name.length), 0);
+  const head = `[perf-step] ${p.label} — total ${(total/1000).toFixed(2)} s`;
+  nasLog('OK', head);
+  try{ if(typeof _csgLog === 'function') _csgLog(head); }catch(e){ /* panneau CSG absent : sans importance */ }
+  for(const r of rows){
+    if(r.ms < 1 && r.name !== '(unmeasured remainder)') continue; // étage inactif : ne pas polluer
+    nasLog('OK', `  ${r.name.padEnd(w)}  ${(r.ms/1000).toFixed(2).padStart(8)} s  `
+      + `${String(Math.round(r.ms/total*100)).padStart(3)}%` + (r.info ? '   ' + r.info : ''));
+  }
+}
 
 function _stepCacheOpen(){
   if(_stepCacheOff) return Promise.resolve(null);
@@ -197,16 +336,41 @@ function _stepCacheOpen(){
 // partout en pratique ; fallback double-FNV-1a JS pur sinon (cache local
 // non-adversarial : la collision-résistance crypto est inutile ici).
 // null = cache désactivé silencieusement, l'import continue normalement.
-async function _stepCacheKey(buffer, params){
+async function _stepCacheKey(buffer, params, hashHex){
   if(_stepCacheOff) return null;
   // [26/08] NSTP3 → NSTP4 : les entrées mises en cache avant la correction
   // couleur contiennent du linéaire. Bump du salt = invalidation propre, sans
   // purge explicite (l'éviction LRU nettoie les anciennes entrées).
-  const salt = '|' + ((params && params.linearUnit) || 'mm') + '|NSTP6';
+  // [17/09] La déflexion entre dans la clé : elle change le MAILLAGE, donc une
+  // entrée calculée à 0.001 n'est pas réutilisable à 0.002. Sans ça, régler
+  // _STEP_WASM_DEFLECTION resterait sans effet visible sur tout fichier déjà
+  // importé une fois — le pire des cas : un réglage qui a l'air de ne rien faire.
+  // Bump NSTP6 → NSTP7 : invalide proprement les entrées d'avant ce changement.
+  // [24/09, soir] NSTP7 → NSTP8 : les entrées portent désormais la référence
+  // exacte de chaque corps (cf. _stepExactRef) ; une entrée sans elle ferait
+  // exporter en maillage un fichier que MEDUSA sait réécrire à l'identique.
+  const salt = '|' + ((params && params.linearUnit) || 'mm')
+             + '|d' + ((params && params.linearDeflection)  ?? _STEP_WASM_DEFLECTION)
+             + '|a' + ((params && params.angularDeflection) ?? _STEP_WASM_ANGULAR)
+             + '|NSTP9';
+  // [17/09] Le digest lui-même est calculé par _stepDigestHex (plus bas), et
+  // l'appelant peut le passer déjà calculé : sur 235 Mo, hacher deux fois le
+  // même buffer — une fois pour le cache de parsing, une fois pour le cache de
+  // géométrie — coûterait une seconde pleine pour un résultat identique.
+  const h = hashHex || await _stepDigestHex(buffer);
+  return h ? (h + salt) : null;
+}
+
+// Digest du buffer en hexa : SHA-256 si disponible (file:// est un contexte
+// sécurisé, donc crypto.subtle y est présent en pratique), sinon double FNV-1a
+// en JS pur — le cache est local et non adversarial, la résistance aux
+// collisions cryptographique n'y sert à rien, seule l'unicité de fait compte.
+async function _stepDigestHex(buffer){
+  if(buffer?.nasscadFileToken)return buffer.hashHex;
   try{
     if(typeof crypto !== 'undefined' && crypto.subtle && crypto.subtle.digest){
       const h = await crypto.subtle.digest('SHA-256', buffer);
-      return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2,'0')).join('') + salt;
+      return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2,'0')).join('');
     }
   }catch(e){ /* tombe sur FNV ci-dessous */ }
   try{
@@ -214,8 +378,7 @@ async function _stepCacheKey(buffer, params){
     let h1 = 0x811c9dc5 | 0, h2 = 0x811c9dc5 | 0;
     for(let i = 0; i < u8.length; i++){ h1 ^= u8[i]; h1 = Math.imul(h1, 0x01000193); }
     for(let i = u8.length - 1; i >= 0; i--){ h2 ^= u8[i]; h2 = Math.imul(h2, 0x01000193); }
-    return 'fnv_' + (h1 >>> 0).toString(16) + '_' + (h2 >>> 0).toString(16) +
-           '_' + u8.length + salt;
+    return 'fnv_' + (h1 >>> 0).toString(16) + '_' + (h2 >>> 0).toString(16) + '_' + u8.length;
   }catch(e){ return null; }
 }
 
@@ -303,6 +466,7 @@ function _nstpEncode(result){
       // [27/08] Les couleurs par face doivent survivre au cache : sans cette
       // ligne, un second import du même fichier ressortait monochrome.
       faces: (m.faces && m.faces.length) ? m.faces : undefined,
+      ref: m.ref || undefined,       // [24/09, soir] cf. _stepExactRef
       posOffset, posCount: pos.length, idxOffset, idxCount: idx.length });
     bufs.push(pos, idx);
   }
@@ -349,6 +513,7 @@ function _nstpDecode(arrayBuffer, cached){
     name:  m.name,
     color: m.color || undefined,
     faces: (m.faces && m.faces.length) ? m.faces : undefined,
+    ref:   m.ref || undefined,        // [24/09] cf. _stepExactRef
     attributes: { position: { array:
       new Float32Array(arrayBuffer, binBase + m.posOffset, m.posCount) } },
     index: { array:
@@ -356,6 +521,227 @@ function _nstpDecode(arrayBuffer, cached){
   }));
   return { success: true, meshes };
 }
+// ═══════════════════════════════════════════════════════════════════════════
+// [PERF 17/09] NSPG v1 — CACHE DE GÉOMÉTRIE FINALE
+//
+// Le cache NSTP ci-dessus range le résultat du PARSING. C'est l'étage le moins
+// cher : mesuré sur Scania-Engine-V8-XT-Turbo (1297 corps), le parsing natif
+// coûte 113 s, la réparation 234,6 s et le lissage 17,5 s. Un hit NSTP annonce
+// « zéro parsing » — c'est vrai, et c'est précisément le problème : il ne
+// rembourse que 113 s sur 365, puis refait couture, réparation et lissage à
+// l'identique, à chaque ouverture du même fichier, pour un résultat au bit près
+// identique. Un cache qui ne sert que pour le tiers le moins cher n'est pas un
+// cache, c'est un acompte.
+//
+// NSPG range l'AUTRE bout : la géométrie telle qu'elle part à l'écran. Après
+// couture, réparation, lissage, bascule Z-up→Y-up et offset global — tout est
+// cuit dans les buffers. Restaurer un import revient alors à construire des
+// BufferGeometry sur des vues typées et à les accrocher à la scène : plus
+// aucun calcul, quelle que soit la taille du fichier.
+//
+// Format — même esprit que NSTP (binaire, framé, zéro JSON dans le chemin
+// chaud) :
+//   [u32 'NSPG'][u32 version][u32 jsonLen][JSON utf8][padding 4][BIN]
+// Le JSON ne porte que la table des matières (noms, couleurs, drapeaux,
+// offsets) ; tout ce qui est volumineux est dans BIN, aligné 4, lu par VUES et
+// non par copies — la géométrie restaurée pointe directement dans le tampon du
+// cache, il n'existe donc jamais deux exemplaires des sommets en mémoire.
+//
+// Ce qui entre dans la CLÉ (cf. _geoCacheKey) : tout ce qui change le maillage
+// produit — hash du fichier, déflexion, angle, angle de crête du lissage,
+// bouche-trou, et le fait qu'une réparation ait été appliquée ou non. Ce
+// dernier point est là pour une raison précise : importer sans MEDUSA (corps
+// laissés non-manifold), puis lancer MEDUSA et réimporter en attendant des
+// corps réparés, ne doit PAS ressortir la version non réparée du cache. Deux
+// variantes coexistent donc, jamais plus.
+//
+// Le cache NSTP est conservé tel quel : il reste le filet quand la clé
+// géométrique change (on a touché à un réglage) — le parsing, lui, n'a pas à
+// être refait pour autant.
+// ═══════════════════════════════════════════════════════════════════════════
+let _STEP_GEO_CACHE = true;
+const _NSPG_MAGIC = 0x4750534E; // 'NSPG' en little-endian
+
+// Clé du cache géométrique. `repairApplied` doit être connu AVANT l'import —
+// c'est le cas : il ne dépend que de la présence de MEDUSA et du drapeau
+// _STEP_REPAIR_CLIENT_POOL, tous deux déterminés en amont.
+function _geoCacheKey(hashHex, repairApplied){
+  if(_stepCacheOff || !_STEP_GEO_CACHE || !hashHex) return null;
+  // [17/09] Le mode FreeCAD entre dans la clé. Il change la géométrie produite
+  // — pas de couture, normales d'OCCT, pas de lissage — donc une entrée écrite
+  // dans un mode n'est pas réutilisable dans l'autre. Sans ce champ, basculer
+  // NASSCAD_STEP_TUNING.freecadMode sur un fichier déjà importé n'aurait
+  // strictement aucun effet visible, et on chercherait longtemps pourquoi.
+  return hashHex
+    + '|d' + _STEP_WASM_DEFLECTION
+    + '|a' + _STEP_WASM_ANGULAR
+    + '|c30'                                  // angle de crête du lissage BFS (cf. _smoothBatch)
+    + '|g' + (_STEP_CAP_GAPS ? 1 : 0)
+    + '|r' + (repairApplied ? 1 : 0)
+    + '|f' + (_STEP_LEAN_IMPORT ? 1 : 0)
+    + '|coords'+(window.NasscadImportSettings?.preserveCoordinates!==false?1:0)
+    + '|NSPG4';                               // [24/09, soir] 2 : les corps portent leur référence exacte
+                                              // [28/09 — audit] 3 : corps tessellés complétés (cf. _stepTessMissing)
+}
+
+function _geoCacheGet(key){
+  return _stepCacheOpen().then(db => {
+    if(!db) return null;
+    return new Promise((resolve) => {
+      try{
+        const rq = db.transaction(_STEP_CACHE_STORE, 'readonly')
+                     .objectStore(_STEP_CACHE_STORE).get(key);
+        rq.onsuccess = () => resolve(rq.result ? rq.result.nstp : null);
+        rq.onerror   = () => resolve(null);
+      }catch(e){ resolve(null); }
+    });
+  });
+}
+
+// Même magasin, même éviction LRU, même budget que le cache NSTP : seule la clé
+// diffère (suffixe NSPG2). Aucun changement de schéma IndexedDB — donc aucune
+// migration à écrire, et une base existante continue de s'ouvrir en version 1.
+function _geoCachePut(key, ab, label){
+  try{
+    _stepCacheOpen().then(db => {
+      if(!db) return;
+      try{
+        const tx = db.transaction(_STEP_CACHE_STORE, 'readwrite');
+        tx.objectStore(_STEP_CACHE_STORE).put({ hash: key, nstp: ab,
+          size: ab.byteLength, ts: Date.now(), name: label || '' });
+        tx.oncomplete = () => _stepCacheEvict(db);
+      }catch(e){ /* quota/priv — silencieux, le cache est un bonus */ }
+    });
+  }catch(e){ /* idem */ }
+}
+
+// bodies : [{name, color:'#rrggbb', isManifold, geo, faces}] — `geo` est la
+// géométrie FINALE, celle accrochée à la scène ; `faces` la table mFaces
+// ([r,g,b,start,count] par face topologique) ou null.
+function _nspgEncode(bodies, meta){
+  const chunks = [];
+  let off = 0;
+  // Tous les tableaux stockés sont des f32/u32 : leur byteLength est toujours
+  // multiple de 4, l'alignement des vues est donc acquis sans padding interne.
+  const put = (ta) => { const o = off; chunks.push(ta); off += ta.byteLength; return o; };
+  const jb = [];
+  for(const b of bodies){
+    const g = b.geo;
+    if(!g || !g.attributes || !g.attributes.position) continue;
+    const pos = g.attributes.position.array;
+    const nrm = g.attributes.normal ? g.attributes.normal.array : null;
+    const idx = g.index ? g.index.array : null;
+    const e = { n: b.name || '', c: b.color || null, m: !!b.isManifold };
+    if(b.ref) e.r = String(b.ref);          // [24/09, soir] cf. _stepExactRef
+    e.p = [put(pos instanceof Float32Array ? pos : new Float32Array(pos)), pos.length];
+    if(nrm) e.nr = [put(nrm instanceof Float32Array ? nrm : new Float32Array(nrm)), nrm.length];
+    if(idx) e.ix = [put(idx instanceof Uint32Array ? idx : new Uint32Array(idx)), idx.length];
+    if(b.faces && b.faces.length){
+      // Couleur stockée DÉJÀ QUANTIFIÉE en 0xRRGGBB, pas en trois flottants.
+      // Les deux seuls consommateurs de cette table (_applyFaceColors et
+      // _dominantFaceHex) font exactement Math.round(v*255) : ranger l'octet et
+      // le rendre en octet/255 est donc rigoureusement sans perte pour eux,
+      // alors qu'un aller-retour par float32 fait dériver 1/3 en 0,33333334 —
+      // inoffensif ici, mais c'est le genre d'écart qu'on finit par payer.
+      // Bonus : 12 octets par face au lieu de 20, et tout est aligné 4.
+      const n = b.faces.length;
+      const fa = new Uint32Array(n * 3);
+      for(let i = 0; i < n; i++){
+        const f = b.faces[i];
+        fa[i*3]   = ((Math.round(f[0]*255)<<16)|(Math.round(f[1]*255)<<8)|Math.round(f[2]*255)) >>> 0;
+        fa[i*3+1] = f[3];
+        fa[i*3+2] = f[4];
+      }
+      e.fc = [put(fa), n];
+    }
+    jb.push(e);
+  }
+  const jsonBytes = new TextEncoder().encode(JSON.stringify({ v:1, meta: meta || {}, bodies: jb }));
+  const head = 12 + jsonBytes.length;
+  const base = head + ((4 - (head % 4)) % 4);
+  const out = new ArrayBuffer(base + off);
+  const dv = new DataView(out);
+  dv.setUint32(0, _NSPG_MAGIC, true);
+  dv.setUint32(4, 1, true);
+  dv.setUint32(8, jsonBytes.length, true);
+  new Uint8Array(out, 12, jsonBytes.length).set(jsonBytes);
+  let p = base;
+  for(const c of chunks){
+    new Uint8Array(out, p, c.byteLength).set(new Uint8Array(c.buffer, c.byteOffset, c.byteLength));
+    p += c.byteLength;
+  }
+  return out;
+}
+
+function _nspgDecode(ab){
+  const dv = new DataView(ab);
+  if(dv.getUint32(0, true) !== _NSPG_MAGIC) throw new Error('NSPG: invalid signature');
+  const ver = dv.getUint32(4, true);
+  if(ver !== 1) throw new Error('NSPG: version ' + ver + ' not supported');
+  const jsonLen = dv.getUint32(8, true);
+  const j = JSON.parse(new TextDecoder().decode(new Uint8Array(ab, 12, jsonLen)));
+  const head = 12 + jsonLen;
+  const base = head + ((4 - (head % 4)) % 4);
+  const f32 = (o, l) => new Float32Array(ab, base + o, l);
+  const u32 = (o, l) => new Uint32Array(ab, base + o, l);
+  const out = [];
+  for(const e of j.bodies){
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(f32(e.p[0], e.p[1]), 3));
+    if(e.nr) g.setAttribute('normal', new THREE.BufferAttribute(f32(e.nr[0], e.nr[1]), 3));
+    if(e.ix) g.setIndex(new THREE.BufferAttribute(u32(e.ix[0], e.ix[1]), 1));
+    let faces = null;
+    if(e.fc){
+      const n = e.fc[1];
+      const fa = u32(e.fc[0], n * 3);
+      faces = new Array(n);
+      for(let i = 0; i < n; i++){
+        const h = fa[i*3];
+        faces[i] = [((h>>16)&255)/255, ((h>>8)&255)/255, (h&255)/255, fa[i*3+1], fa[i*3+2]];
+      }
+    }
+    out.push({ name: e.n, color: e.c, isManifold: e.m, geo: g, faces, ref: e.r || null });
+  }
+  return { meta: j.meta || {}, bodies: out };
+}
+
+// Reconstruction des objets NASSCAD depuis une entrée NSPG. Volontairement le
+// MIROIR EXACT de la phase 2c de _importSTEPSingle : même ordre, mêmes champs,
+// même matériau de repli, même convention de nom. Toute divergence entre les
+// deux ferait un import « depuis le cache » subtilement différent d'un import
+// normal — exactement le genre de bug qu'on ne retrouve jamais.
+function _geoCacheRestore(dec, file, groupId, groupLabel){
+  const bodies = dec.bodies;
+  undoPush('import');
+  // [18/09] La table teinte → opacité voyage dans l'entrée de cache : un import
+  // « depuis le cache » ne relit pas le texte, et sans elle le même fichier
+  // ressortait opaque au second import. Miroir exact, comme le reste ici.
+  _stepAlphaTable = (dec.meta && dec.meta.styleAlpha) ? { styleAlpha: dec.meta.styleAlpha } : null;
+  const _impObjs = [];
+  let meshCount = 0;
+  for(const b of bodies){
+    objCnt++;
+    const _faceMats = _applyFaceColors(b.geo, b.faces, b.name, _stepAlphaOf);
+    const col = b.color || COL[objCnt % COL.length];
+    const _alpha = _stepAlphaOf(col);
+    const mat = _faceMats || new THREE.MeshPhongMaterial({color:col, shininess:8,
+      specular:0x1a1a1a, side:THREE.DoubleSide, transparent:_alpha < 1, opacity:_alpha});
+    const mesh = new THREE.Mesh(b.geo, mat); mesh.castShadow = true; scene.add(mesh);
+    mesh.position.set(0, 0, 0); // positions déjà cuites dans la géo (offset global inclus)
+    mesh.updateMatrixWorld(true);
+    const name = (b.name || file.name.replace(/\.[^.]+$/,'')) + '_' + objCnt;
+    const obj  = {id:objCnt, name, type:'csg', mesh, color:col, isHole:false, isManifold:b.isManifold,
+      stepGroupId:groupId, stepGroupLabel:groupLabel};
+    // [24/09, soir] Même lien vers le B-Rep exact qu'un import complet : sans
+    // lui, un fichier sorti de ce cache s'exporterait en maillage.
+    if(b.ref) obj._medusaRef = _stepExactRef(b.ref,
+      [(dec.meta && dec.meta.gOx) || 0, (dec.meta && dec.meta.gOy) || 0, (dec.meta && dec.meta.gOz) || 0], b.geo, col, file);
+    objs.push(obj); _impObjs.push(obj); meshCount++;
+  }
+  selObjs = _impObjs;
+  return meshCount;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // [NEW V4.7.1] NASSCAD BOOSTER — pont de communication réel (client HTTP local).
 // Complète l'implémentation : le protocole NSTP v1 et le cache IDB existaient
@@ -374,17 +760,36 @@ function _nstpDecode(arrayBuffer, cached){
 const _BOOSTER_PORT = 8765;
 const _BOOSTER_URL  = `http://127.0.0.1:${_BOOSTER_PORT}`;
 let _boosterState = null; // null=pas encore testé, true/false=résultat mis en cache pour la session
+// [PERF 17/09] Horodatage de la dernière sonde NÉGATIVE. _repairBatch et
+// _smoothBatch remettaient _boosterState à null à CHAQUE appel (« il a pu
+// démarrer depuis »), donc re-sondaient le port à chaque lot : sur une session
+// sans MEDUSA et un fichier découpé en N chunks, cela fait 2 × N sondes de
+// 300 ms de pure latence, payées pour une réponse qu'on connaît déjà. La
+// re-sonde garde tout son sens — juste pas plus d'une par minute.
+let _boosterProbeTs = 0;
+const _BOOSTER_REPROBE_MS = 60000;
+function _boosterMaybeReprobe(){
+  if(_boosterState === false && (performance.now() - _boosterProbeTs) > _BOOSTER_REPROBE_MS)
+    _boosterState = null;
+}
 
 async function _detectBooster(timeoutMs = 300){
+  // [FIX 28/09 — audit] Un « absent » n'est plus définitif pour toute la session :
+  // MEDUSA lancé après l'ouverture de la page, ou trop occupé pour répondre en
+  // 300 ms à la première sonde, restait ignoré par les imports STEP jusqu'à F5.
+  // Même règle que _repairBatch/_smoothBatch : re-sonde, au plus une par minute.
+  _boosterMaybeReprobe();
   if(_boosterState !== null) return _boosterState;
+  _boosterProbeTs = performance.now();
   try{
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-    const res = await fetch(`${_BOOSTER_URL}/ping`, { signal: ctrl.signal });
+    const res = await fetch(`${_BOOSTER_URL}/ping`, (typeof _nasPingInit === 'function') ? _nasPingInit(ctrl.signal) : { signal: ctrl.signal });
     clearTimeout(timer);
     _boosterState = res.ok;
+    await res.arrayBuffer();
   }catch(e){ _boosterState = false; }
-  if(_boosterState) nasLog('OK', '⚡ NASSCAD Engine detected (native localhost companion) — native tessellation available');
+  if(_boosterState) nasLog('OK', '⚡ NASSCAD Engine detected (native engine) — native tessellation available');
   return _boosterState;
 }
 
@@ -420,7 +825,7 @@ async function _detectBooster(timeoutMs = 300){
 // MEDUSA a répondu.
 async function _repairBatch(geos){
   if(!geos.length) return [];
-  if(_boosterState === false) _boosterState = null; // re-sonde : peut avoir demarre depuis
+  _boosterMaybeReprobe(); // re-sonde : peut avoir demarre depuis — mais throttlee (cf. sa definition)
   if(await _detectBooster()){
     try{
       const _bt0 = performance.now();
@@ -499,7 +904,7 @@ async function _repairBatch(geos){
 
 async function _smoothBatch(geos, creaseDeg){
   if(!geos.length) return [];
-  if(_boosterState === false) _boosterState = null; // re-sonde : peut avoir demarre depuis
+  _boosterMaybeReprobe(); // re-sonde : peut avoir demarre depuis — mais throttlee (cf. sa definition)
   if(await _detectBooster()){
     try{
       const _bt0 = performance.now();
@@ -604,14 +1009,95 @@ async function _smoothBatch(geos, creaseDeg){
 // extrait chaque frame [u32 jsonLen][json][pos f32][idx u32] dès qu'elle est
 // complète. Frame {"end":true} = fin (ou {"end":true,"error"} = échec côté
 // serveur en cours de route → on jette, l'appelant retombe sur /step classique).
-async function _readStepFileViaBoosterStream(buffer, params, onMesh){
-  const res = await fetch(`${_BOOSTER_URL}/stepstream`, { method: 'POST', body: buffer });
+// ── [24/09] Référence au B-Rep exact d'un corps importé ─────────────────────
+// MEDUSA garde la géométrie exacte de chaque corps qu'il lit et la désigne par
+// « ref » (« h<empreinte du fichier>:<rang>:<signature> », cf. ImportEntry dans
+// nasscad_medusa.cpp). On mémorise avec elle ce qu'il faut pour la replacer à
+// l'export :
+//   off  — la translation globale appliquée à l'import (pass 2, centrage) ;
+//   col0 — la couleur d'origine (une couleur changée = couleurs de faces
+//          d'origine abandonnées, cf. step-export.js) ;
+//   fp   — l'empreinte de la géométrie affichée (nombres de sommets et
+//          d'indices, hash du contenu). Une géométrie modifiée depuis l'import
+//          (booléenne, réparation, transformation « cuite », édition) ne
+//          correspond plus : l'export retombe alors sur le maillage, jamais
+//          sur l'ancien corps ;
+// Le fichier source (File/Blob) est rangé à part, par étiquette, dans
+// _stepExactSources : si MEDUSA ne tient plus ce B-Rep au moment de l'export
+// (redémarré, ou import sorti du cache du navigateur sans passer par lui),
+// step-export.js le lui renvoie (/stepload) — une relecture sans maillage,
+// sous la même empreinte. À part, et non dans _medusaRef : le journal
+// d'annulation et le fichier projet sérialisent _medusaRef, et un File n'a
+// rien à y faire (IndexedDB en recopierait le contenu à chaque action).
+//
+// Hash du contenu : MurmurHash3 (x86, 32 bits) sur les BITS des positions puis
+// sur les indices. Un multiply-xor naïf ne suffirait pas : deux inversions de
+// signe s'y annulent, et un miroir « cuit » d'une pièce centrée garde nombre
+// de sommets ET boîte englobante — c'est exactement le cas à attraper.
+function _stepGeoHash(g){
+  const pa = g.attributes.position, ix = g.index;
+  let h = 0x9747b28c | 0, len = 0;
+  const eat = (w) => {
+    let k = Math.imul(w | 0, 0xcc9e2d51);
+    k = (k << 15) | (k >>> 17);
+    h ^= Math.imul(k, 0x1b873593);
+    h = (h << 13) | (h >>> 19);
+    h = (Math.imul(h, 5) + 0xe6546b64) | 0;
+  };
+  const arr = pa.array;
+  if(arr instanceof Float32Array && pa.itemSize === 3 && !pa.isInterleavedBufferAttribute){
+    const u = new Uint32Array(arr.buffer, arr.byteOffset, pa.count * 3);
+    for(let i = 0; i < u.length; i++) eat(u[i]);
+    len += u.length;
+  }else{
+    const f = new Float32Array(3), u = new Uint32Array(f.buffer);
+    for(let i = 0; i < pa.count; i++){
+      f[0] = pa.getX(i); f[1] = pa.getY(i); f[2] = pa.getZ(i);
+      eat(u[0]); eat(u[1]); eat(u[2]);
+    }
+    len += pa.count * 3;
+  }
+  if(ix){
+    const a = ix.array, n = ix.count;
+    for(let i = 0; i < n; i++) eat(a[i]);
+    len += n;
+  }
+  h ^= len;
+  h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
+  return h >>> 0;
+}
+function _stepGeoFingerprint(g){
+  if(!g || !g.attributes || !g.attributes.position) return null;
+  return { n: g.attributes.position.count, i: g.index ? g.index.count : 0, h: _stepGeoHash(g) };
+}
+const _stepExactSources = new Map();          // étiquette MEDUSA → File/Blob source
+function _stepExactRef(ref, off, geo, col, src){
+  const r = String(ref), tag = r.split(':')[0];
+  if(src && typeof src.slice === 'function' && /^h[0-9a-f]{32}$/.test(tag)) _stepExactSources.set(tag, src);
+  return { ref: r, off: off.slice(0, 3), col0: col, fp: _stepGeoFingerprint(geo) };
+}
+// ?tag= pour MEDUSA : les 32 premiers chiffres hexa du SHA-256 du fichier. Il
+// identifie le fichier auprès du moteur d'une session à l'autre ; sans lui
+// (digest indisponible), MEDUSA prend une étiquette de session, comme avant.
+function _stepTagQuery(hashHex){
+  return (typeof hashHex === 'string' && /^[0-9a-f]{32,}$/.test(hashHex)) ? '?tag=' + hashHex.slice(0, 32) : '';
+}
+
+async function _readStepFileViaBoosterStream(buffer, params, onMesh, hashHex){
+  const ctrl=new AbortController();
+  const timeoutMs=Math.max(120000,Math.ceil(buffer.byteLength/(1024*1024))*3000);
+  const timer=setTimeout(()=>ctrl.abort(),timeoutMs);
+  let reader;
+  try {
+  const res = await fetch(`${_BOOSTER_URL}/stepstream${_stepTagQuery(hashHex)}`, { method: 'POST', body: buffer, signal:ctrl.signal });
   if(!res.ok || !res.body){
     const err = new Error('stream unavailable (HTTP ' + res.status + ')');
     err.streamUnsupported = true; // vieux serveur sans /stepstream → repli /step
     throw err;
   }
-  const reader = res.body.getReader();
+  reader = res.body.getReader();
   let buf = new Uint8Array(0);
   const meshes = [];
   let endInfo = null;
@@ -641,6 +1127,7 @@ async function _readStepFileViaBoosterStream(buffer, params, onMesh){
       const idx = new Uint32Array(buf.slice(4 + jsonLen + posBytes, total).buffer);
       const mesh = { name: meta.name, color: meta.color || undefined,
         faces: (meta.faces && meta.faces.length) ? meta.faces : undefined,
+        ref: meta.ref || undefined,   // [24/09] B-Rep exact gardé par MEDUSA (cf. _stepExactRef)
         attributes: { position: { array: pos } }, index: { array: idx } };
       meshes.push(mesh);
       if(onMesh) try{ onMesh(mesh, meshes.length); }catch(e){ /* la progression ne doit jamais casser l'import */ }
@@ -651,23 +1138,31 @@ async function _readStepFileViaBoosterStream(buffer, params, onMesh){
   for(;;){
     const { done, value } = await reader.read();
     if(value && value.length){ append(value); tryParseFrames(); }
-    if(endInfo || done) break;
+    if(done) break;
   }
   if(endInfo && endInfo.error) throw new Error(endInfo.error);
   if(!meshes.length) throw new Error('empty stream');
   return { success: true, meshes };
+  }catch(error){
+    if(ctrl.signal.aborted){const e=new Error('MEDUSA import timed out after '+Math.round(timeoutMs/1000)+' seconds.');e.boosterAlive=true;e.nativeCanceled=true;throw e;}
+    throw error;
+  }finally{clearTimeout(timer);if(reader){await reader.cancel().catch(()=>{});reader.releaseLock();}}
 }
 
 // POST du buffer STEP brut au compagnon natif. Le buffer n'est PAS détaché par
 // fetch() (contrairement à un postMessage transferable vers un Worker) — reste
 // utilisable ensuite si ce chemin échoue et qu'on retombe sur le Worker WASM.
-async function _readStepFileViaBooster(buffer, params){
+async function _readStepFileViaBooster(buffer, params, hashHex){
   const ctrl = new AbortController();
   const timeoutMs = Math.max(120000, Math.ceil(buffer.byteLength / (1024*1024)) * 3000); // 3s/Mo, plancher 2min
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   let res;
   try{
-    res = await fetch(`${_BOOSTER_URL}/step`, { method: 'POST', body: buffer, signal: ctrl.signal });
+    // [19/09] IFC et STEP partagent le conteneur ISO 10303-21 ; seul le schema
+    // change. MEDUSA a un point d'entree dedie, et /step sait aussi renifler —
+    // on vise quand meme /ifc explicitement, c'est plus clair dans ses logs.
+    const _ep = (params && params.ifc) ? '/ifc' : '/step' + _stepTagQuery(hashHex);
+    res = await fetch(`${_BOOSTER_URL}${_ep}`, { method: 'POST', body: buffer, signal: ctrl.signal });
   }catch(e){
     if(e.name === 'AbortError'){
       const err = new Error(`timeout after ${(timeoutMs/1000).toFixed(0)}s — server probably stuck on this file`);
@@ -719,7 +1214,17 @@ function _occtWorkerSrc(occtJsAbsUrl){
     `  const d = ev.data;`,
     `  if(d.type === 'init'){`,
     `    try{`,
-    `      _occt = await occtimportjs({ wasmBinary: d.wasmBytes, locateFile: function(p){ return p; } });`,
+    `      var cfg = { locateFile: function(p){ return p; } };`,
+    `      if(d.wasmModule){`,
+    `        cfg.instantiateWasm = function(imports, receive){`,
+    `          WebAssembly.instantiate(d.wasmModule, imports).then(function(inst){ receive(inst, d.wasmModule); })`,
+    `            .catch(function(e){ self.postMessage({type:'error', msg:'instantiateWasm: ' + ((e&&e.message)||e)}); });`,
+    `          return {};`,
+    `        };`,
+    `      } else {`,
+    `        cfg.wasmBinary = d.wasmBytes;`,
+    `      }`,
+    `      _occt = await occtimportjs(cfg);`,
     `      self.postMessage({type:'ready'});`,
     `    } catch(err){`,
     `      self.postMessage({type:'error', msg:'OCCT Worker init failed: ' + ((err&&err.message)||err)});`,
@@ -731,7 +1236,39 @@ function _occtWorkerSrc(occtJsAbsUrl){
     `    try{`,
     `      if(!_occt) throw new Error('OCCT Worker not initialized');`,
     `      const result = _occt.ReadStepFile(new Uint8Array(buffer), params);`,
-    `      self.postMessage({type:'result', id, result});`,
+    // [PERF 17/09] Sommets et index convertis en tableaux TYPÉS ici, dans le
+    // Worker, puis renvoyés en TRANSFERABLES. occt-import-js sort des tableaux
+    // JS ordinaires (emval) : sur un corps de 2,7 M triangles, ce sont ~12 M de
+    // nombres boxés que le structured clone du postMessage recopie un par un
+    // vers le thread principal, avant que la passe 1 ne les recopie encore dans
+    // un Float32Array. Converti ici, le passage de frontière devient un simple
+    // changement de propriétaire d'ArrayBuffer — coût nul — et la conversion
+    // elle-même ne pèse plus sur le thread qui doit rester réactif.
+    // En cas de structure inattendue, on renvoie le résultat BRUT : une
+    // optimisation ne doit jamais pouvoir casser ce qui marchait.
+    `      var _tr = new Set();`,
+    `      try{`,
+    `        var _ms = (result && result.meshes) || [];`,
+    `        for(var _i = 0; _i < _ms.length; _i++){`,
+    `          var _m = _ms[_i], _a = _m.attributes;`,
+    `          if(_a && _a.position && _a.position.array){`,
+    `            var _p = _a.position.array;`,
+    `            if(!(_p instanceof Float32Array)) _p = new Float32Array(_p);`,
+    `            _a.position.array = _p; _tr.add(_p.buffer);`,
+    `          }`,
+    `          if(_a && _a.normal && _a.normal.array){`,
+    `            var _n = _a.normal.array;`,
+    `            if(!(_n instanceof Float32Array)) _n = new Float32Array(_n);`,
+    `            _a.normal.array = _n; _tr.add(_n.buffer);`,
+    `          }`,
+    `          if(_m.index && _m.index.array){`,
+    `            var _x = _m.index.array;`,
+    `            if(!(_x instanceof Uint32Array)) _x = new Uint32Array(_x);`,
+    `            _m.index.array = _x; _tr.add(_x.buffer);`,
+    `          }`,
+    `        }`,
+    `      } catch(convErr){ _tr.clear(); }`,
+    `      self.postMessage({type:'result', id, result}, Array.from(_tr));`,
     `    } catch(err){`,
     `      self.postMessage({type:'error', id, msg:(err&&err.message)||String(err)});`,
     `    }`,
@@ -790,7 +1327,7 @@ function _initStepWorkerSlot(idx){
     nasLog('WARN', `OCCT Worker #${idx} unavailable (${err.message})` +
       (idx === 0 ? ' — fallback to main-thread. If this persists: some browsers restrict ' +
       'Workers under file:// — serve NASSCAD via a small local HTTP server ' +
-      '(ex: python -m http.server) contourne ce genre de restriction.' : ''));
+      '(e.g. python -m http.server) to get around this restriction.' : ''));
     if(idx === 0) _stepWorkerFailed = true;
     _stepPool[idx] = null;
     return null;
@@ -799,6 +1336,29 @@ function _initStepWorkerSlot(idx){
 // Transfert zero-copy du WASM déjà décodé (base64 inline ou XHR fallback, cf. _getOcct)
 // vers UN worker du pool — celui-ci ne doit JAMAIS tenter de fetch() le .wasm lui-même
 // (c'est exactement ce fetch qui posait problème sous file:// avant l'inlining base64).
+// [PERF 17/09] Compilation UNIQUE du binaire OCCT, partagée par le pool.
+// Chaque slot recevait jusqu'ici sa propre copie des ~7,25 Mo et appelait
+// occtimportjs({wasmBinary}) : autant de compilations WebAssembly complètes que
+// de slots, pour un binaire rigoureusement identique. Un WebAssembly.Module est
+// structured-cloneable vers un Worker du même agent cluster — on compile donc
+// une fois ici, et les slots suivants instancient directement via le hook
+// instantiateWasm d'Emscripten. Économie : (N-1) compilations et (N-1) copies
+// de 7,25 Mo.
+// Le slot 0 garde DÉLIBÉRÉMENT le chemin par octets : sa compilation est de
+// toute façon la première (rien à mutualiser), et c'est le seul slot dont
+// l'échec bascule toute la session en main-thread — on ne lui fait donc courir
+// aucun risque nouveau. Un slot >0 qui échouerait ne fait que réduire le pool,
+// cas déjà géré (cf. onmessage/onerror, branche idx !== 0).
+let _occtWasmModP = null;
+function _occtWasmModule(bytes){
+  if(_occtWasmModP) return _occtWasmModP;
+  _occtWasmModP = WebAssembly.compile(bytes).catch(e => {
+    nasLog('DBG', `OCCT WASM pre-compile unavailable (${e.message}) — pool slots fall back to raw bytes`);
+    return null;
+  });
+  return _occtWasmModP;
+}
+
 async function _sendOcctWasmToStepWorker(worker, idx){
   if(!window._OCCT_WASM) await _ensureOcctB64Companion();
   let bytes = window._OCCT_WASM || _decodeOcctWasmB64();
@@ -808,6 +1368,15 @@ async function _sendOcctWasmToStepWorker(worker, idx){
       nasLog('WARN', `OCCT Worker #${idx||0}: WASM not found (${e.message}) — fallback to main-thread`);
       const s = _stepPool[idx||0]; if(s) s.dead = true;
       if(!idx) _stepWorkerFailed = true;
+      return;
+    }
+  }
+  // [PERF 17/09] Slots >0 : on envoie le MODULE déjà compilé, pas les octets.
+  if(idx > 0){
+    const mod = await _occtWasmModule(bytes);
+    if(mod){
+      worker.postMessage({type:'init', wasmModule: mod});
+      nasLog('DBG', `OCCT Worker #${idx} — reusing pre-compiled WASM module (no recompilation)`);
       return;
     }
   }
@@ -898,32 +1467,154 @@ async function _stepPoolAcquire(timeoutMs=15000){
 //
 // Retourne le tableau de matériaux, ou null si rien d'exploitable — l'appelant
 // retombe alors sur son matériau unique, comportement d'avant inchangé.
-function _applyFaceColors(geo, mFaces){
-  if(!mFaces || mFaces.length < 2) return null;
+// [11/09] Diagnostic couleurs par face. Mesuré DANS le fichier Scania :
+// 38 635 faces topologiques, 14 906 portent un style propre, et seulement 176
+// sont réellement jaunes #dddd0d — sur 2 corps. Les 53 corps dont le SOLIDE est
+// jaune ont, pour 50 d'entre eux, 100 % de leurs faces stylées : la règle OCCT
+// dit que le jaune y est intégralement écrasé. S'il reste du jaune à l'écran,
+// ce n'est donc pas le fichier — c'est que la table de faces n'arrive pas
+// jusqu'ici, ou qu'elle n'est plus alignée sur la géométrie. Ces compteurs
+// disent lequel des deux, corps par corps. `nasFaceColorReport()` dans la
+// console Script imprime le bilan après un import.
+// Les lignes sont GARDÉES en mémoire, pas seulement écrites : le niveau DBG est
+// filtré du log visible par défaut (cf. le bouton DBG du panneau Logs), donc un
+// diagnostic qui n'existe qu'en DBG est un diagnostic que personne ne lit.
+// nasFaceColorReport() les réimprime en OK — visibles sans toucher au filtre —
+// et le bilan part aussi dans le panneau CSG, à côté du « STEP imported ».
+let _facDiagN = 0, _facDiagOk = 0, _facDiagTally = {}, _facDiagLines = [];
+function _facDiag(kind, name, info){
+  _facDiagTally[kind] = (_facDiagTally[kind] || 0) + 1;
+  // Les corps sains sont l'immense majorité et n'apprennent rien : on n'en
+  // garde qu'un échantillon. Un plafond commun aux deux remplissait le tampon
+  // avec 200 lignes « ok » et jetait précisément les cas qu'on cherche.
+  const _ok = (kind === 'ok');
+  if(_ok ? (_facDiagOk++ < 10) : (_facDiagN++ < 200)){
+    const _l = `[face-color] ${kind} — ${name || '?'}: ${info}`;
+    _facDiagLines.push(_l);
+    nasLog('DBG', _l);
+  }
+}
+function nasFaceColorReset(){ _facDiagN = 0; _facDiagOk = 0; _facDiagTally = {}; _facDiagLines = []; }
+// Bilan lisible sans filtre : une ligne de synthèse + les cas à problème.
+// Retourne le texte complet, pour un copier-coller depuis la console Script.
+function nasFaceColorReport(n){
+  const t = Object.entries(_facDiagTally).sort((a,b)=>b[1]-a[1]);
+  if(!t.length){ nasLog('OK','[face-color] no body analysed'); return '[face-color] no body analysed'; }
+  const bilan = '[face-color] summary — ' + t.map(([k,v])=>k+':'+v).join('  ');
+  nasLog('OK', bilan);
+  try{ if(typeof _csgLog === 'function') _csgLog(bilan); }catch(e){}
+  // Les lignes « ok » n'apprennent rien : on remonte d'abord les autres.
+  const bad = _facDiagLines.filter(l => l.indexOf('[face-color] ok —') !== 0);
+  const pick = (bad.length ? bad : _facDiagLines).slice(0, n || 20);
+  pick.forEach(l => nasLog('OK', l));
+  if(bad.length > pick.length) nasLog('OK', `[face-color] … ${bad.length - pick.length} more line(s) — nasFaceColorReport(200)`);
+  return [bilan].concat(_facDiagLines).join('\n');
+}
+// Export explicite : un Run NassScript s'exécute dans une IIFE isolée, où une
+// déclaration de fonction de ce fichier n'est pas forcément visible.
+try{ window.nasFaceColorReport = nasFaceColorReport; window.nasFaceColorReset = nasFaceColorReset; }catch(e){}
+
+// [18/09] alphaOf : fonction teinte(0xRRGGBB) → opacité, ou absente. Elle vient
+// de la table de styles du fichier (nasStepDeclaredAlpha) et ne touche que les
+// teintes que le fichier déclare explicitement transparentes ; sans elle, ou
+// pour toute teinte inconnue, le matériau est opaque — comportement d'avant.
+function _applyFaceColors(geo, mFaces, _dbgName, alphaOf){
+  if(!mFaces || mFaces.length < 2){
+    _facDiag('single-colour', _dbgName, `mFaces=${mFaces ? mFaces.length : 'null'}`);
+    return null;
+  }
   const _idxCount = geo.index ? geo.index.count : geo.attributes.position.count;
-  const _mk = c => new THREE.MeshPhongMaterial({color:c, shininess:8, specular:0x1a1a1a, side:THREE.DoubleSide});
+  let _drop = 0, _span = 0;
+  const _mk = c => {
+    const a = alphaOf ? alphaOf(c) : 1;
+    return new THREE.MeshPhongMaterial({color:c, shininess:8, specular:0x1a1a1a,
+      side:THREE.DoubleSide, transparent:a < 1, opacity:a});
+  };
   const _mats = [], _byColor = new Map();
+  const _groups = [], _areaOf = [];
   let _covered = 0, _run = null;
   geo.clearGroups();
   for(const f of mFaces){
     const _fs = f[3];
-    if(_fs >= _idxCount) continue;
+    if(_fs + f[4] > _span) _span = _fs + f[4];
+    if(_fs >= _idxCount){ _drop++; continue; }
     const _cnt = Math.min(f[4], _idxCount - _fs);
-    if(_cnt <= 0) continue;
+    if(_cnt <= 0){ _drop++; continue; }
     const _hex = (Math.round(f[0]*255)<<16)|(Math.round(f[1]*255)<<8)|Math.round(f[2]*255);
     let _mi = _byColor.get(_hex);
     if(_mi === undefined){ _mi = _mats.length; _byColor.set(_hex, _mi); _mats.push(_mk(_hex)); }
     if(_run && _run.mi === _mi && _run.start + _run.count === _fs){ _run.count += _cnt; }
-    else { if(_run) geo.addGroup(_run.start, _run.count, _run.mi); _run = { start:_fs, count:_cnt, mi:_mi }; }
+    else { if(_run) _groups.push(_run); _run = { start:_fs, count:_cnt, mi:_mi }; }
+    _areaOf[_mi] = (_areaOf[_mi] || 0) + _cnt;
     if(_fs + _cnt > _covered) _covered = _fs + _cnt;
   }
-  if(_run) geo.addGroup(_run.start, _run.count, _run.mi);
-  // Triangles ajoutés en aval par le gap-fill : ils tombent après la dernière
-  // face. Sans ce rattrapage ils n'auraient aucun matériau et disparaîtraient.
-  if(_mats.length && _covered < _idxCount) geo.addGroup(_covered, _idxCount - _covered, 0);
-  if(!_mats.length){ geo.clearGroups(); return null; }
+  if(_run) _groups.push(_run);
+  if(!_mats.length){
+    // Toutes les plages hors buffer : la géométrie n'est plus celle sur
+    // laquelle la table a été calculée. `span` contre `idx` donne le facteur.
+    _facDiag('ranges-off-mesh', _dbgName, `${mFaces.length} face(s), span=${_span}, idx=${_idxCount}, ratio=${(_span/(_idxCount||1)).toFixed(3)}`);
+    geo.clearGroups(); return null;
+  }
+  // ── [11/09] Triangles qu'AUCUNE face ne revendique ───────────────────────
+  // Deux origines : le gap-fill (_capStepGaps) qui ajoute en fin de buffer, et
+  // les trous INTÉRIEURS — des triangles nés du sewing, entre deux plages de
+  // faces, que la table ne couvre pas. Ils étaient traités différemment et tous
+  // les deux mal : la queue partait sur le matériau 0, les trous sur AUCUN.
+  //
+  // Matériau 0, c'est la couleur de la PREMIÈRE face rencontrée — un accident
+  // d'ordre de parcours, sans aucun rapport avec l'endroit où sont ces
+  // triangles. Sur un corps comme le carter Scania (#2950 : 1 751 faces orange,
+  // 7 gris clair, 15 gris foncé) l'orange est premier, donc tout ce qui n'était
+  // revendiqué par personne devenait orange. C'est exactement la contamination
+  // par proximité de couture : ce n'est pas le fichier qui déborde, c'est nous
+  // qui peignons les raccords avec la teinte de la face n° 0.
+  //
+  // On prend le matériau DOMINANT en surface, pas le premier venu, et on
+  // comble aussi les trous intérieurs — sans groupe, three.js ne dessinait
+  // simplement pas ces triangles.
+  let _dom = 0;
+  for(let i = 1; i < _areaOf.length; i++) if((_areaOf[i]||0) > (_areaOf[_dom]||0)) _dom = i;
+  _groups.sort((a,b)=>a.start-b.start);
+  let _hole = 0, _tail = 0, _cursor = 0;
+  for(const g of _groups){
+    if(g.start > _cursor){ _hole += g.start - _cursor; geo.addGroup(_cursor, g.start - _cursor, _dom); }
+    geo.addGroup(g.start, g.count, g.mi);
+    if(g.start + g.count > _cursor) _cursor = g.start + g.count;
+  }
+  if(_cursor < _idxCount){ _tail = _idxCount - _cursor; geo.addGroup(_cursor, _tail, _dom); }
+  const _fill = `holes=${_hole} tail=${_tail} dominant=#${_mats[_dom].color.getHex().toString(16).padStart(6,'0')}`;
+  if(_drop) _facDiag('ranges-partial', _dbgName, `${_drop}/${mFaces.length} face(s) outside buffer, span=${_span}, idx=${_idxCount}, ${_fill}`);
+  else if(_hole || _tail) _facDiag('gaps-filled', _dbgName, `${mFaces.length} face(s), ${_mats.length} colour(s), ${geo.groups.length} group(s), ${_fill}`);
+  else _facDiag('ok', _dbgName, `${mFaces.length} face(s), ${_mats.length} colour(s), ${geo.groups.length} group(s)`);
   geo.userData.faceRanges = mFaces;
   return _mats;
+}
+
+// [11/09] _dominantFaceHex — la teinte qui couvre le plus de triangles dans une
+// table mFaces. UNE seule implémentation, appelée par les deux importeurs, pour
+// la même raison que _applyFaceColors ci-dessus : deux chemins censés donner le
+// même résultat finissent toujours par diverger.
+//
+// Sert à trancher le cas MÉLANGÉ, celui que _adoptBrepFaces et _xcafFaceColors
+// laissaient en l'état : les faces sont peintes correctement, mais la couleur
+// du CORPS reste celle que le fichier a posée sur le MANIFOLD_SOLID_BREP, et
+// elle peut contredire tout ce qui est affiché. Les faces héritées portent déjà
+// la couleur du solide dans la table, donc si l'essentiel du corps n'est pas
+// stylé c'est elle qui l'emporte d'elle-même et rien ne bouge.
+//
+// Départage par teinte la plus basse à surface égale : deux imports du même
+// fichier doivent donner la même couleur.
+function _dominantFaceHex(mFaces){
+  if(!mFaces || !mFaces.length) return null;
+  const area = new Map();
+  for(const f of mFaces){
+    if(!f || !(f[4] > 0)) continue;
+    const k = (Math.round(f[0]*255)<<16)|(Math.round(f[1]*255)<<8)|Math.round(f[2]*255);
+    area.set(k, (area.get(k)||0) + f[4]);
+  }
+  let bk = null, bv = -1;
+  for(const [k,v] of area) if(v > bv || (v === bv && k < bk)){ bv = v; bk = k; }
+  return bk;
 }
 
 function _lin2srgb(c){
@@ -962,7 +1653,8 @@ function _lin2srgb(c){
 function _adoptBrepFaces(m){
   const bf = m.brep_faces;
   // `m.faces` déjà présent = chemin MEDUSA ou cache NSTP : conversion déjà faite.
-  if(!bf || !bf.length || (m.faces && m.faces.length)) return;
+  if(m.faces && m.faces.length) return;
+  if(!bf || !bf.length){ _facDiag('brep_faces-absent', m.name, 'occt-import-js returned no face'); return; }
   const body = (m.color && m.color.r !== undefined) ? [m.color.r, m.color.g, m.color.b] : null;
   const out = [];
   let key = null, uniform = true, nStyled = 0;
@@ -985,13 +1677,30 @@ function _adoptBrepFaces(m){
     // brep_faces indexe des TRIANGLES, _applyFaceColors indexe le BUFFER.
     out.push([rgb[0], rgb[1], rgb[2], f.first * 3, nTri * 3]);
   }
-  if(!nStyled) return;                       // aucune couleur de face : le solide gouverne
+  if(!nStyled){                              // aucune couleur de face : le solide gouverne
+    _facDiag('no-styled-face', m.name, `${bf.length} face(s) returned, 0 with colour`);
+    return;
+  }
   if(uniform){
     // Corps uniforme au niveau des faces : la face gagne contre le solide.
     m.color = { r: out[0][0], g: out[0][1], b: out[0][2] };
     return;                                  // un seul matériau, pas de groupes
   }
-  if(out.length > 1) m.faces = out;
+  if(out.length > 1){
+    m.faces = out;
+    // [11/09] Corps mélangé : jusqu'ici m.color restait la couleur de niveau
+    // SOLIDE. Le rendu, lui, est déjà juste — les plages sont figées dans `out`
+    // avant ce point, donc ce qui suit ne change PAS un pixel à l'import. Mais
+    // m.color devient o.color, et c'est lui que voient la pastille de l'Object
+    // List, _softenColor sur un résultat CSG, l'export STEP et le repli de
+    // _buildSceneFromData. Un corps affiché gris acier avec une pastille jaune
+    // #DDDD0D, c'est la même contradiction que celle du fichier, recopiée dans
+    // l'application au lieu d'être tranchée.
+    const dom = _dominantFaceHex(out);
+    const cur = body ? ((Math.round(body[0]*255)<<16)|(Math.round(body[1]*255)<<8)|Math.round(body[2]*255)) : null;
+    if(dom !== null && dom !== cur)
+      m.color = { r:((dom>>16)&255)/255, g:((dom>>8)&255)/255, b:(dom&255)/255 };
+  }
 }
 
 function _srgbNormalizeMeshColors(result){
@@ -1007,22 +1716,29 @@ function _srgbNormalizeMeshColors(result){
     // s'en sert comme couleur de repli pour les faces sans style, et peut la
     // remplacer quand toutes les faces s'accordent sur une autre couleur.
     try { _adoptBrepFaces(m); }
-    catch(e){ nasLog('WARN', `brep_faces ignoré sur ${m.name||'?'} (${e.message})`); }
+    catch(e){ nasLog('WARN', `brep_faces ignored on ${m.name||'?'} (${e.message})`); }
   }
   return result;
 }
 
-async function _readStepFileOffloaded(buffer, params){
+async function _readStepFileOffloaded(buffer, params, _perf, _hashHex){
   // [NEW V4.4.8] Booster Inside — cache navigateur consulté AVANT tout calcul.
   // Hash calculé ICI, en premier : plus bas, le buffer est détaché par le
   // postMessage transferable vers le Worker — il serait illisible après.
-  const _ck = await _stepCacheKey(buffer, params);
+  const _tHash0 = performance.now();
+  const _ck = await _stepCacheKey(buffer, params, _hashHex);
+  _stepPerfMark(_perf, 'parse cache key', performance.now() - _tHash0);
+  // [24/09, soir] Empreinte du fichier, remise à MEDUSA (?tag=) : cf. _stepTagQuery.
+  const _fileHash = _hashHex || (_ck ? _ck.slice(0, _ck.indexOf('|')) : null);
   if(_ck){
+    const _tLook0 = performance.now();
     const _hit = await _stepCacheGet(_ck);
+    _stepPerfMark(_perf, 'parse cache lookup', performance.now() - _tLook0, _hit ? 'HIT' : 'miss');
     if(_hit){
       const _t0 = performance.now();
       try{
         const _out = _nstpDecode(_hit, false);
+        _stepPerfMark(_perf, 'NSTP decode (cache)', performance.now() - _t0, `${_out.meshes.length} bodies`);
         nasLog('OK', `⚡ Booster Inside: ${_out.meshes.length} bodies in ` +
           `${((performance.now()-_t0)/1000).toFixed(2)}s — browser cache (IndexedDB), zero parsing`);
         return _out;
@@ -1039,26 +1755,34 @@ async function _readStepFileOffloaded(buffer, params){
     try{
       const _bt0 = performance.now();
       let _bres;
+      // [19/09] /stepstream ne sert que le STEP : un IFC part directement sur
+      // /ifc, sans tenter un streaming qui echouerait pour rien.
+      if(params && params.ifc){
+        _bres = await _readStepFileViaBooster(buffer, params, _fileHash);
+      } else
       try{
         _bres = await _readStepFileViaBoosterStream(buffer, params, (mesh, n) => {
           // Progression RÉELLE, corps par corps, pendant que le natif calcule —
           // remplace le spinner "opaque lib" sans pourcentage.
           if(typeof showSpinner === 'function') showSpinner('MEDUSA (streaming)',
             `${n} body(ies) received…`, 'indeterminate');
-        });
+        }, _fileHash);
       }catch(_se){
+        if(_se.nativeCanceled)throw _se;
         // Vieux serveur (pas de /stepstream), coupure en cours, erreur serveur :
         // le /step classique reste la voie sûre — comportement identique à avant.
         nasLog('DBG', `MEDUSA stream unavailable (${_se.message}) — falling back to classic /step`);
-        _bres = await _readStepFileViaBooster(buffer, params);
+        _bres = await _readStepFileViaBooster(buffer, params, _fileHash);
       }
       nasLog('OK', `⚡ MEDUSA: ${_bres.meshes.length} bodies in ` +
         `${((performance.now()-_bt0)/1000).toFixed(2)}s — native parallel OCCT, no WASM`);
+      _stepPerfMark(_perf, 'parsing (MEDUSA native)', performance.now() - _bt0, `${_bres.meshes.length} bodies`);
       if(_ck && _bres && _bres.success && _bres.meshes && _bres.meshes.length){
         _stepCachePut(_ck, _bres);
       }
       return _bres;
     }catch(e){
+      if(e.nativeCanceled)throw e;
       if(e.boosterAlive){
         // Serveur vivant, seul ce fichier a échoué (géométrie exotique...) —
         // ne pas pénaliser les imports suivants dans la même session.
@@ -1074,9 +1798,14 @@ async function _readStepFileOffloaded(buffer, params){
   }
   // [26/08] Seul point de sortie du chemin WASM : normalisation couleur AVANT
   // la mise en cache, pour que l'IDB ne stocke jamais de linéaire.
+  const _tWasm0 = performance.now();
   const _res = _srgbNormalizeMeshColors(await _readStepFileUncached(buffer, params));
-  if(_ck && _res && _res.success && _res.meshes && _res.meshes.length){
-    _stepCachePut(_ck, _res); // fire-and-forget : encode NSTP + store + LRU
+  _stepPerfMark(_perf, 'parsing (OCCT WASM)', performance.now() - _tWasm0,
+    `${(_res && _res.meshes ? _res.meshes.length : 0)} bodies` +
+    `, deflection ${(params && params.linearDeflection) ?? _STEP_WASM_DEFLECTION}` +
+    ` (emval + structured clone included)`);
+  if(_ck && _res && _res.success && _res.meshes && _res.meshes.length && !_stepResultUntriangulated(_res)){
+    _stepCachePut(_ck, _res); // fire-and-forget : encode NSTP + store + LRU (jamais un résultat sans triangle : il serait resservi tel quel)
   }
   return _res;
 }
@@ -1085,7 +1814,8 @@ async function _readStepFileUncached(buffer, params){
   if(!slot){
     nasLog('DBG', 'STEP parsing: main-thread path (Worker unavailable) — UI frozen during parsing');
     const occt = await _getOcct();
-    return occt.ReadStepFile(new Uint8Array(buffer), params);
+    try { return occt.ReadStepFile(new Uint8Array(buffer), params); }
+    catch(e){ _occtInst = null; throw e; }   // [29/09] module WASM à court de mémoire : inutilisable, recréé à la prochaine lecture
   }
   nasLog('DBG', `STEP parsing: Worker #${slot.idx} — UI non-blocking (pool ×${_STEP_POOL_MAX})`);
   const id = ++_stepJobId;
@@ -1109,7 +1839,11 @@ async function _readStepFileUncached(buffer, params){
     }, watchdogMs);
     slot.cbs.set(id, {
       resolve: (r)=>{ clearTimeout(tWdog); resolve(r); },
-      reject:  (e)=>{ clearTimeout(tWdog); reject(e); }
+      // [29/09] Un worker dont la lecture a échoué est remplacé, pas réutilisé :
+      // un module WASM à court de mémoire (abort) reste inutilisable, et la
+      // lecture suivante — le Turbo qui prend le relais, par exemple — échouerait
+      // à son tour sur lui.
+      reject:  (e)=>{ clearTimeout(tWdog); slot.dead = true; slot.ready = false; try{ slot.worker.terminate(); }catch(_e){ /* déjà arrêté */ } reject(e); }
     });
     // buffer transféré en zero-copy — plus besoin après cet appel dans importSTEP()
     slot.worker.postMessage({type:'read', id, buffer, params}, [buffer]);
@@ -1174,7 +1908,7 @@ async function _stepOpfsSupported(){
 // Retourne { text, cleanup() } — cleanup() purge le fichier tampon OPFS (no-op si repli RAM).
 async function _stepLoadTextBuffered(file){
   if(!(await _stepOpfsSupported())){
-    nasLog('DBG', 'STEP buffer tampon : OPFS indisponible — repli 100% RAM (ancien chemin)');
+    nasLog('DBG', 'STEP scratch buffer: OPFS unavailable — falling back to 100% RAM (legacy path)');
     const buffer = await file.arrayBuffer();
     return { text: _bytesToLatin1Str(new Uint8Array(buffer)), cleanup: async () => {} };
   }
@@ -1209,13 +1943,736 @@ async function _stepLoadTextBuffered(file){
     const cleanup = async () => { try { await root.removeEntry(opfsName); } catch(e){ /* déjà purgé, sans conséquence */ } };
     return { text, cleanup };
   } catch(e){
-    nasLog('WARN', `STEP buffer tampon (OPFS) échoué (${e.message}) — repli 100% RAM`);
+    nasLog('WARN', `STEP scratch buffer (OPFS) failed (${e.message}) — falling back to 100% RAM`);
     if(root && opfsName){ try { await root.removeEntry(opfsName); } catch(_e){ /* rien à purger */ } }
     const buffer = await file.arrayBuffer();
     return { text: _bytesToLatin1Str(new Uint8Array(buffer)), cleanup: async () => {} };
   }
 }
 
+// ═══ STEP Turbo — découpeur EXACT (squelette d'assemblage + géométrie répartie) ═══
+// [29/09] Remplace stepSliceBySize pour le Turbo. Principe : CHAQUE tranche est
+// un STEP complet qui porte TOUTE la structure du fichier — produits, NAUO,
+// placements (CDSR / RRWT / ITEM_DEFINED_TRANSFORMATION), MAPPED_ITEM, unités,
+// contextes — mais la géométrie d'une partie seulement des pièces. Dans une
+// tranche, une pièce dont la géométrie est ailleurs garde sa représentation
+// (tout ce qui la référence reste valide) ; ses items géométriques y sont
+// remplacés par les 8 coins de sa boîte englobante (GEOMETRIC_SET de points) :
+// OCCT la place comme les autres mais n'en tire aucun maillage. Chaque instance
+// de chaque pièce sort donc exactement UNE fois, dans la tranche qui porte sa
+// géométrie, placée par OCCT lui-même avec toute la chaîne d'assemblage.
+//
+// Pourquoi les coins : occt-import-js règle la finesse du maillage sur la boîte
+// englobante de chaque racine (0,5 % de sa taille). Une tranche qui ne porterait
+// que quelques petites pièces serait maillée jusqu'à 35 fois plus fin qu'un
+// import entier (mesuré sur Stealthburner). Avec les coins de toutes les autres
+// pièces à leur place, chaque racine garde la taille de tout le modèle : la
+// finesse ne dépend plus du découpage. Mesuré le 29/09 : as1-oc-214, as1_pe_203,
+// Rocky_House… maillage identique, triangle pour triangle, à l'import entier.
+//
+// Ce que faisait l'ancien découpeur, mesuré le 29/09 sur Stealthburner_CW2
+// (26,7 Mo, 198 corps, lu par le même occt-import-js) avec des tranches de 8 Mo :
+// 684 corps au lieu de 198 — des pièces sorties sans leurs liens d'assemblage,
+// donc en double à leur position locale, et des tranches qui embarquaient
+// presque tout le fichier. La déduplication par boîte englobante ne pouvait
+// pas rattraper ça : chaque tranche était en plus recentrée séparément.
+//
+// Vocabulaire :
+//   représentation  = SHAPE_REPRESENTATION et sous-types (ADVANCED_BREP_…,
+//                     TESSELLATED_…) ; items = son 2e paramètre ;
+//   graine          = item géométrique d'une représentation (solide, coque,
+//                     GEOMETRIC_SET, TESSELLATED_SOLID…) — tout sauf placements
+//                     (AXIS2_PLACEMENT_*) et MAPPED_ITEM, qui sont de la structure ;
+//   unité           = représentations d'une même pièce, lues ensemble : même
+//                     produit, SHAPE_REPRESENTATION_RELATIONSHIP simple, graine
+//                     ou topologie partagée (faces d'un SHAPE_ASPECT…), MAPPED_ITEM
+//                     vers une représentation sans produit ;
+//   squelette       = fermeture de la structure (produits, liens, représentations
+//                     SANS leurs graines) : présente dans toutes les tranches ;
+//   annexes         = le reste (styles, couleurs, calques, PMI, propriétés) :
+//                     pris dans une tranche si tout ce qu'ils visent y est, avec
+//                     leurs listes filtrées (MDGPR, calques) — sinon laissés.
+//
+// Les tranches sont produites À LA DEMANDE (emitSeeds) : on ne garde en mémoire
+// que celles en cours de lecture, et une tranche que le lecteur WASM n'avale pas
+// (mémoire) peut être redécoupée sans rien relire du disque. Le plan (quelle
+// graine dans quelle tranche) ne dépend que du fichier.
+//
+// Retour : { info, plan:[{seeds, units, bytes}…], emitSeeds(graines) → texte STEP,
+//            unitLabel(u), unitsOfSeeds(graines), seedUnit(s), unitSplittable(u), release() }
+function stepSliceAssembly(text, maxChunkBytes, opts){
+  opts = opts || {};
+  const N = text.length;
+  const isWs = c => c === 32 || c === 10 || c === 13 || c === 9;
+  const isKw = c => (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || (c >= 48 && c <= 57) || c === 95;
+  const isDigit = c => c >= 48 && c <= 57;
+  const skipComment = k => { const e = text.indexOf('*/', k + 2); return e < 0 ? N : e + 2; };   // k sur '/*' → après '*/'
+
+  // ── 1. Section DATA (accepte « DATA; », « DATA(…); », CRLF, commentaires) ──
+  function findData(from){
+    let i = from, inStr = false;
+    while(i < N){
+      const c = text.charCodeAt(i);
+      if(inStr){ if(c === 39) inStr = false; i++; continue; }
+      if(c === 39){ inStr = true; i++; continue; }
+      if(c === 47 && text.charCodeAt(i + 1) === 42){ i = skipComment(i); continue; }
+      if(c === 68 && text.startsWith('DATA', i) && !(i > 0 && (isKw(text.charCodeAt(i - 1)) || text.charCodeAt(i - 1) === 45))){
+        let j = i + 4; while(j < N && isWs(text.charCodeAt(j))) j++;
+        const q = text.charCodeAt(j);
+        if(q === 59 || q === 40){
+          let d = 0, s = false;
+          for(; j < N; j++){
+            const ch = text.charCodeAt(j);
+            if(s){ if(ch === 39) s = false; continue; }
+            if(ch === 39){ s = true; continue; }
+            if(ch === 40) d++; else if(ch === 41) d--; else if(ch === 59 && d <= 0) break;
+          }
+          return j + 1;
+        }
+      }
+      i++;
+    }
+    return -1;
+  }
+  const data0 = findData(0);
+  if(data0 < 0) throw new Error('DATA section not found — invalid STEP file?');
+  const headerBlock = text.slice(0, data0);
+
+  // ── 2. Lecture des entités : bornes, type, références ──
+  // rList[k] : 0 = référence scalaire ; sinon n° (1..255) de la liste qui la
+  // contient — une liste filtrée ne doit jamais se retrouver vide.
+  function growI32(a){ const b = new Int32Array(a.length * 2); b.set(a); return b; }
+  function growU8(a, len){ const b = new Uint8Array(len); b.set(a); return b; }
+  let cap = Math.max(1024, (N / 60) | 0);
+  let eId = new Int32Array(cap), eRec = new Int32Array(cap), eEnd = new Int32Array(cap),
+      eBody = new Int32Array(cap), eType = new Int32Array(cap), eRef0 = new Int32Array(cap + 1);
+  let rId = new Int32Array(cap * 3), rList = new Uint8Array(cap * 3);
+  const typeCode = new Map(), typeNames = [];
+  const complexParts = [];               // eType = -(k+1) → complexParts[k] = [codes]
+  const intern = s => { let c = typeCode.get(s); if(c === undefined){ c = typeNames.length; typeNames.push(s); typeCode.set(s, c); } return c; };
+  const listStack = [];
+  let n = 0, nr = 0, maxId = 0;
+  let i = data0;
+  scan:
+  while(i < N){
+    const c = text.charCodeAt(i);
+    if(isWs(c)){ i++; continue; }
+    if(c === 47 && text.charCodeAt(i + 1) === 42){ i = skipComment(i); continue; }
+    if(c === 69 && text.startsWith('ENDSEC', i)){          // fin de section : une autre section DATA peut suivre (Part 21 éd. 3)
+      const nx = findData(i + 6);
+      if(nx < 0) break scan;
+      i = nx; continue;
+    }
+    if(c !== 35){ i++; continue; }
+    const rec = i;
+    let j = i + 1, id = 0;
+    while(j < N && isDigit(text.charCodeAt(j))){ id = id * 10 + (text.charCodeAt(j) - 48); j++; }
+    if(j === i + 1 || id > 2147483000){ i = j; continue; }
+    for(;;){ const q = text.charCodeAt(j); if(isWs(q)){ j++; continue; } if(q === 47 && text.charCodeAt(j + 1) === 42){ j = skipComment(j); continue; } break; }
+    if(text.charCodeAt(j) !== 61){ i = j; continue; }
+    j++;
+    for(;;){ const q = text.charCodeAt(j); if(isWs(q)){ j++; continue; } if(q === 47 && text.charCodeAt(j + 1) === 42){ j = skipComment(j); continue; } break; }
+    const body = j;
+    const complex = text.charCodeAt(j) === 40;
+    const base = complex ? 2 : 1;
+    let tcode;
+    if(!complex){
+      let k = j; while(k < N && isKw(text.charCodeAt(k))) k++;
+      tcode = intern(text.slice(j, k).toUpperCase());
+    }
+    const parts = complex ? [] : null;
+    let depth = 0, k = j, listN = 0;
+    listStack.length = 0;
+    if(n === eId.length){ eId = growI32(eId); eRec = growI32(eRec); eEnd = growI32(eEnd); eBody = growI32(eBody); eType = growI32(eType); eRef0 = growI32(eRef0); }
+    eRef0[n] = nr;
+    for(; k < N; k++){
+      const q = text.charCodeAt(k);
+      if(q === 39){ k = text.indexOf("'", k + 1); if(k < 0){ k = N; break; } continue; }    // chaîne ('' = deux chaînes accolées : même résultat)
+      if(q === 34){ k = text.indexOf('"', k + 1); if(k < 0){ k = N; break; } continue; }    // binaire "…"
+      if(q === 47 && text.charCodeAt(k + 1) === 42){ k = skipComment(k) - 1; continue; }
+      if(q === 40){ depth++; if(depth > base){ listN++; listStack.push(listN > 255 ? 255 : listN); } continue; }
+      if(q === 41){ if(depth > base) listStack.pop(); depth--; continue; }
+      if(q === 59 && depth <= 0) break;
+      if(q === 35 && isDigit(text.charCodeAt(k + 1))){
+        let v = 0, m = k + 1;
+        while(m < N && isDigit(text.charCodeAt(m))){ v = v * 10 + (text.charCodeAt(m) - 48); m++; }
+        if(nr === rId.length){ rId = growI32(rId); rList = growU8(rList, rId.length); }
+        rId[nr] = v; rList[nr] = depth > base ? listStack[listStack.length - 1] : 0; nr++;
+        k = m - 1; continue;
+      }
+      if(complex && depth === 1 && isKw(q) && !isDigit(q)){
+        let m = k; while(m < N && isKw(text.charCodeAt(m))) m++;
+        parts.push(intern(text.slice(k, m).toUpperCase()));
+        k = m - 1; continue;
+      }
+    }
+    if(k >= N) break;                                       // entité tronquée en fin de fichier : ignorée
+    eId[n] = id; eRec[n] = rec; eEnd[n] = k + 1; eBody[n] = body;
+    if(complex){ eType[n] = -(complexParts.length + 1); complexParts.push(parts); } else eType[n] = tcode;
+    if(id > maxId) maxId = id;
+    n++;
+    i = k + 1;
+  }
+  eRef0[n] = nr;
+  if(!n) throw new Error('No entity found in DATA section');
+
+  // ── 3. #id → indice ; références résolues (‑1 = référence pendante d'origine) ──
+  const dense = maxId <= 8 * n + 1000000;
+  const idx = dense ? new Int32Array(maxId + 1).fill(-1) : new Map();
+  for(let e = 0; e < n; e++){ if(dense) idx[eId[e]] = e; else idx.set(eId[e], e); }
+  const ixOf = v => dense ? (v <= maxId ? idx[v] : -1) : (idx.has(v) ? idx.get(v) : -1);
+  const rTo = new Int32Array(nr);
+  for(let k = 0; k < nr; k++) rTo[k] = ixOf(rId[k]);
+  rId = null;
+
+  // ── 4. Familles de types ──
+  const nameOf = e => eType[e] >= 0 ? typeNames[eType[e]] : '(' + complexParts[-eType[e] - 1].map(c => typeNames[c]).join(' ') + ')';
+  const hasPart = (e, name) => {
+    const t = eType[e];
+    if(t >= 0) return typeNames[t] === name;
+    const c = typeCode.get(name); return c !== undefined && complexParts[-t - 1].indexOf(c) >= 0;
+  };
+  const PASSIVE = ['CARTESIAN_POINT', 'DIRECTION', 'VECTOR', 'AXIS1_PLACEMENT', 'AXIS2_PLACEMENT_2D', 'AXIS2_PLACEMENT_3D',
+    'CARTESIAN_TRANSFORMATION_OPERATOR', 'CARTESIAN_TRANSFORMATION_OPERATOR_3D'];
+  const STRUCT_ITEM = ['AXIS2_PLACEMENT_3D', 'AXIS2_PLACEMENT_2D', 'AXIS1_PLACEMENT', 'MAPPED_ITEM',
+    'DESCRIPTIVE_REPRESENTATION_ITEM', 'MEASURE_REPRESENTATION_ITEM', 'VALUE_REPRESENTATION_ITEM'];
+  const PD_TYPES = ['PRODUCT_DEFINITION', 'PRODUCT_DEFINITION_WITH_ASSOCIATED_DOCUMENTS'];
+  const SK_ROOT = ['PRODUCT', 'PRODUCT_DEFINITION_FORMATION', 'PRODUCT_DEFINITION_FORMATION_WITH_SPECIFIED_SOURCE',
+    'PRODUCT_DEFINITION', 'PRODUCT_DEFINITION_WITH_ASSOCIATED_DOCUMENTS', 'PRODUCT_DEFINITION_SHAPE',
+    'SHAPE_DEFINITION_REPRESENTATION', 'CONTEXT_DEPENDENT_SHAPE_REPRESENTATION',
+    'NEXT_ASSEMBLY_USAGE_OCCURRENCE', 'ASSEMBLY_COMPONENT_USAGE', 'PRODUCT_DEFINITION_USAGE', 'SPECIFIED_HIGHER_USAGE_OCCURRENCE',
+    'PROMISSORY_USAGE_OCCURRENCE', 'QUANTIFIED_ASSEMBLY_COMPONENT_USAGE',
+    'SHAPE_REPRESENTATION_RELATIONSHIP', 'REPRESENTATION_RELATIONSHIP', 'REPRESENTATION_RELATIONSHIP_WITH_TRANSFORMATION',
+    'ITEM_DEFINED_TRANSFORMATION', 'MAPPED_ITEM', 'REPRESENTATION_MAP',
+    'PRODUCT_RELATED_PRODUCT_CATEGORY', 'PRODUCT_CATEGORY', 'PRODUCT_CATEGORY_RELATIONSHIP',
+    'APPLICATION_PROTOCOL_DEFINITION', 'APPLICATION_CONTEXT', 'PRODUCT_CONTEXT', 'PRODUCT_DEFINITION_CONTEXT',
+    'MECHANICAL_CONTEXT', 'DESIGN_CONTEXT'];
+  // Topologie : partagée entre deux représentations, elle les lie (une face d'un
+  // SHAPE_ASPECT est aussi une face du solide ; lues séparément, elle sortirait deux fois).
+  const TOPO = ['MANIFOLD_SOLID_BREP', 'BREP_WITH_VOIDS', 'FACETED_BREP', 'CLOSED_SHELL', 'OPEN_SHELL', 'ORIENTED_CLOSED_SHELL',
+    'ORIENTED_OPEN_SHELL', 'ADVANCED_FACE', 'FACE_SURFACE', 'FACE', 'ORIENTED_FACE', 'SUBFACE', 'FACE_BOUND', 'FACE_OUTER_BOUND',
+    'EDGE_LOOP', 'POLY_LOOP', 'VERTEX_LOOP', 'ORIENTED_EDGE', 'EDGE_CURVE', 'SUBEDGE', 'VERTEX_POINT', 'CONNECTED_FACE_SET',
+    'SHELL_BASED_SURFACE_MODEL', 'FACE_BASED_SURFACE_MODEL'];
+  const SOLID_SEED = ['MANIFOLD_SOLID_BREP', 'BREP_WITH_VOIDS'];
+  // Boîte d'une pièce = ses SOMMETS (et points de polylignes / polyboucles) :
+  // des points qui sont sur la géométrie. Ni pôles de B-spline ni cercles
+  // complets : sur Stealthburner, ils donnaient des boîtes de 13 m pour des
+  // pièces de 10 cm (arcs de très grand rayon, pôles lointains).
+  const BOX_PARENT = ['VERTEX_POINT', 'POLYLINE', 'POLY_LOOP'];
+  const codeSet = S => { const a = new Uint8Array(typeNames.length); for(const s of S){ const c = typeCode.get(s); if(c !== undefined) a[c] = 1; } return a; };
+  const cPassive = codeSet(PASSIVE), cStruct = codeSet(STRUCT_ITEM), cPD = codeSet(PD_TYPES), cSK = codeSet(SK_ROOT),
+        cTopo = codeSet(TOPO), cSolid = codeSet(SOLID_SEED), cBoxP = codeSet(BOX_PARENT);
+  const cPoint = typeCode.get('CARTESIAN_POINT');
+  const anyPart = (e, cs) => { const t = eType[e]; if(t >= 0) return cs[t] === 1; for(const c of complexParts[-t - 1]) if(cs[c]) return true; return false; };
+  const isRepCode = new Uint8Array(typeNames.length);
+  for(let c = 0; c < typeNames.length; c++){
+    const s = typeNames[c];
+    if(s.endsWith('SHAPE_REPRESENTATION') && s !== 'CONTEXT_DEPENDENT_SHAPE_REPRESENTATION') isRepCode[c] = 1;
+  }
+  const cREPRESENTATION = typeCode.get('REPRESENTATION');
+  const isRepEntity = e => {
+    const t = eType[e];
+    if(t >= 0) return isRepCode[t] === 1;
+    const ps = complexParts[-t - 1];
+    if(cREPRESENTATION === undefined || ps.indexOf(cREPRESENTATION) < 0) return false;
+    for(const c of ps) if(isRepCode[c]) return true;
+    return false;
+  };
+  const isStructItem = e => anyPart(e, cStruct);
+  const isPassive = e => anyPart(e, cPassive);
+  const refs = e => { const a = []; for(let k = eRef0[e]; k < eRef0[e + 1]; k++) a.push(rTo[k]); return a; };
+
+  // Items d'une représentation = références directes du 2e paramètre de
+  // REPRESENTATION (simple : TYPE('n',(items),ctx) ; complexe : partiel REPRESENTATION).
+  function repItems(e){
+    const b = eBody[e], end = eEnd[e] - 1;
+    const complex = eType[e] < 0;
+    let depth = 0, pIndex = 0, inRepPartial = !complex, listDepth = -1;
+    const out = [], partDepth = complex ? 2 : 1;
+    for(let k = b; k < end; k++){
+      const q = text.charCodeAt(k);
+      if(q === 39){ k = text.indexOf("'", k + 1); if(k < 0) break; continue; }
+      if(q === 34){ k = text.indexOf('"', k + 1); if(k < 0) break; continue; }
+      if(q === 47 && text.charCodeAt(k + 1) === 42){ k = skipComment(k) - 1; continue; }
+      if(complex && depth === 1 && isKw(q) && !isDigit(q)){
+        let m = k; while(m < end && isKw(text.charCodeAt(m))) m++;
+        inRepPartial = text.slice(k, m).toUpperCase() === 'REPRESENTATION'; pIndex = 0;
+        k = m - 1; continue;
+      }
+      if(q === 40){ depth++; if(inRepPartial && depth === partDepth + 1 && pIndex === 1) listDepth = depth; continue; }
+      if(q === 41){ if(depth === listDepth) listDepth = -1; depth--; continue; }
+      if(q === 44 && inRepPartial && depth === partDepth){ pIndex++; continue; }
+      if(q === 35 && listDepth > 0 && depth === listDepth){
+        let v = 0, m = k + 1; while(m < end && isDigit(text.charCodeAt(m))){ v = v * 10 + (text.charCodeAt(m) - 48); m++; }
+        const t = ixOf(v);
+        if(t >= 0) out.push(t);
+        k = m - 1;
+      }
+    }
+    return out;
+  }
+  // Nombres d'une entité (coordonnées d'un point, rayon d'un cercle…) : tous les
+  // réels du corps, hors chaînes, dans l'ordre.
+  function numbersOf(e){
+    const b = eBody[e], end = eEnd[e] - 1, out = [];
+    for(let k = b; k < end; k++){
+      const q = text.charCodeAt(k);
+      if(q === 39){ k = text.indexOf("'", k + 1); if(k < 0) break; continue; }
+      if(q === 35){ k++; while(k < end && isDigit(text.charCodeAt(k))) k++; k--; continue; }
+      if(isDigit(q) || ((q === 45 || q === 43 || q === 46) && isDigit(text.charCodeAt(k + 1)))){
+        let m = k + 1;
+        while(m < end){ const x = text.charCodeAt(m); if(isDigit(x) || x === 46 || x === 69 || x === 101 || ((x === 45 || x === 43) && (text.charCodeAt(m - 1) | 32) === 101)) m++; else break; }
+        out.push(parseFloat(text.slice(k, m)));
+        k = m - 1;
+      } else if(isKw(q)){ while(k < end && isKw(text.charCodeAt(k))) k++; k--; }   // mot-clé (évite de lire des chiffres dans un nom de type)
+    }
+    return out;
+  }
+
+  // ── 5. Représentations, graines, unités (union-find) ──
+  const repOrd = new Int32Array(n).fill(-1);      // entité → n° de représentation
+  const reps = [];
+  for(let e = 0; e < n; e++) if(isRepEntity(e)){ repOrd[e] = reps.length; reps.push(e); }
+  const R = reps.length;
+  const repSeeds = new Array(R), repItemsN = new Int32Array(R);
+  const isSeed = new Uint8Array(n);
+  for(let r = 0; r < R; r++){
+    const items = repItems(reps[r]); const seeds = [];
+    for(const it of items) if(!isStructItem(it)){ seeds.push(it); isSeed[it] = 1; }
+    repSeeds[r] = seeds; repItemsN[r] = items.length;
+  }
+  const uf = new Int32Array(R); for(let r = 0; r < R; r++) uf[r] = r;
+  const find = r => { while(uf[r] !== r){ uf[r] = uf[uf[r]]; r = uf[r]; } return r; };
+  const unite = (a, b) => { a = find(a); b = find(b); if(a !== b) uf[b] = a; };
+  const repProduct = new Int32Array(R).fill(-1);
+  const pdFirstRep = new Map();
+  const cSDR = typeCode.get('SHAPE_DEFINITION_REPRESENTATION'), cPDS = typeCode.get('PRODUCT_DEFINITION_SHAPE');
+  const cRR = typeCode.get('REPRESENTATION_RELATIONSHIP'), cSRR = typeCode.get('SHAPE_REPRESENTATION_RELATIONSHIP');
+  for(let e = 0; e < n; e++){
+    const t = eType[e];
+    if(t >= 0 && t === cSDR){                                       // SDR(définition, représentation)
+      const [pds, rep] = refs(e);
+      if(rep >= 0 && repOrd[rep] >= 0 && pds >= 0 && eType[pds] === cPDS){
+        const pd = refs(pds)[0];
+        if(pd >= 0 && anyPart(pd, cPD)){
+          repProduct[repOrd[rep]] = pd;
+          const f = pdFirstRep.get(pd);
+          if(f === undefined) pdFirstRep.set(pd, repOrd[rep]); else unite(f, repOrd[rep]);
+        }
+      }
+    } else {
+      const plainRR = (t >= 0 && (t === cSRR || t === cRR)) ||
+        (t < 0 && (hasPart(e, 'REPRESENTATION_RELATIONSHIP') || hasPart(e, 'SHAPE_REPRESENTATION_RELATIONSHIP')) && !hasPart(e, 'REPRESENTATION_RELATIONSHIP_WITH_TRANSFORMATION'));
+      if(plainRR){                                                  // même pièce, autre représentation
+        const [a, b] = refs(e);
+        if(a >= 0 && b >= 0 && repOrd[a] >= 0 && repOrd[b] >= 0) unite(repOrd[a], repOrd[b]);
+      }
+    }
+  }
+  // Une même graine listée par deux représentations → même unité. Cas réel
+  // (Pro/E, as1_pe_203) : le solide est item de l'ADVANCED_BREP_… de la pièce
+  // ET d'une SHAPE_REPRESENTATION rattachée à un SHAPE_ASPECT du produit. Dans
+  // un import entier, OCCT ne le sort qu'une fois (l'entité est déjà
+  // transférée) ; réparties sur deux tranches, les deux représentations le
+  // sortaient chacune — un doublon exact, mesuré avant ce garde-fou.
+  const seedRep = new Int32Array(n).fill(-1);
+  for(let r = 0; r < R; r++) for(const s of repSeeds[r]){ if(seedRep[s] < 0) seedRep[s] = r; else unite(seedRep[s], r); }
+  // MAPPED_ITEM vers une représentation SANS produit : elle fait partie de la
+  // forme de la pièce hôte (un seul maillage pour OCCT) → même unité.
+  const classHasProduct = new Uint8Array(R);
+  for(let r = 0; r < R; r++) if(repProduct[r] >= 0) classHasProduct[find(r)] = 1;
+  for(let r = 0; r < R; r++){
+    for(const it of refs(reps[r])){
+      if(it < 0 || !hasPart(it, 'MAPPED_ITEM')) continue;
+      const src = refs(it)[0];
+      if(src < 0 || !hasPart(src, 'REPRESENTATION_MAP')) continue;
+      const mapped = refs(src)[1];
+      if(mapped >= 0 && repOrd[mapped] >= 0 && !classHasProduct[find(repOrd[mapped])]) unite(r, repOrd[mapped]);
+    }
+  }
+  // Topologie partagée (faces, arêtes, coques…) entre représentations de
+  // classes différentes → même unité. Parcours des fermetures par classe.
+  const stack = [];
+  {
+    const owner = new Int32Array(n).fill(-1), seen = new Int32Array(n);
+    let tag = 0;
+    const byClass = new Map();
+    for(let r = 0; r < R; r++) if(repSeeds[r].length){ const c = find(r); if(!byClass.has(c)) byClass.set(c, []); byClass.get(c).push(r); }
+    for(const [c, rs] of byClass){
+      tag++;
+      for(const r of rs) for(const s of repSeeds[r]) stack.push(s);
+      while(stack.length){
+        const e = stack.pop();
+        if(e < 0 || seen[e] === tag) continue;
+        seen[e] = tag;
+        if(anyPart(e, cTopo)){
+          if(owner[e] < 0) owner[e] = c; else if(find(owner[e]) !== find(c)) unite(owner[e], c);
+        }
+        for(let k = eRef0[e]; k < eRef0[e + 1]; k++){ const t = rTo[k]; if(t >= 0 && seen[t] !== tag) stack.push(t); }
+      }
+    }
+  }
+  const unitOfClass = new Map(), units = [];               // unité = classe portant ≥ 1 graine
+  for(let r = 0; r < R; r++){
+    if(!repSeeds[r].length) continue;
+    const c = find(r);
+    let u = unitOfClass.get(c);
+    if(u === undefined){ u = units.length; unitOfClass.set(c, u); units.push({ reps: [], seeds: [], bytes: 0, first: reps[r] }); }
+    units[u].reps.push(r); for(const s of repSeeds[r]) units[u].seeds.push(s);
+  }
+  if(!units.length) throw new Error('No SHAPE_REPRESENTATION with geometry found — non-standard file?');
+  // Produit de chaque unité : porté par N'IMPORTE quelle représentation de sa
+  // classe — souvent la SHAPE_REPRESENTATION sans géométrie, reliée par SRR à
+  // l'ADVANCED_BREP_… qui porte les solides (SolidWorks, Inventor, Creo…).
+  const classPD = new Int32Array(R).fill(-1);
+  for(let r = 0; r < R; r++) if(repProduct[r] >= 0 && classPD[find(r)] < 0) classPD[find(r)] = repProduct[r];
+  const seedUnit = new Int32Array(n).fill(-1);
+  units.forEach((U, u) => {
+    U.pd = classPD[find(U.reps[0])];
+    const seen = new Set(), uniq = [];
+    for(const s of U.seeds) if(!seen.has(s)){ seen.add(s); uniq.push(s); }
+    U.seeds = uniq;
+    for(const s of uniq) seedUnit[s] = u;
+    // Découpable entre graines : une seule représentation, rien que des solides.
+    // Le lecteur sort alors un maillage par solide, qu'ils soient lus ensemble
+    // ou non. Des faces, coques ou courbes en items, ou plusieurs représentations
+    // (MAPPED_ITEM, SHAPE_ASPECT…), changeraient le résultat si on les séparait.
+    U.splittable = U.reps.length === 1 && uniq.length >= 4 && uniq.every(s => anyPart(s, cSolid));
+  });
+  const repUnit = new Int32Array(R).fill(-1);
+  units.forEach((U, ui) => { for(const r of U.reps) repUnit[r] = ui; });
+
+  // ── 6. Fermetures géométriques : taille des unités, propriétaire, boîte de chaque représentation ──
+  const gcOwner = new Int32Array(n);              // 0 = hors géométrie, u+1 = une unité, -1 = partagée
+  const stampU = new Int32Array(n), stampR = new Int32Array(n);
+  const repBox = new Array(R).fill(null);
+  const addPt = (bx, x, y, z) => {
+    if(!(isFinite(x) && isFinite(y) && isFinite(z))) return;
+    if(x < bx[0]) bx[0] = x; if(y < bx[1]) bx[1] = y; if(z < bx[2]) bx[2] = z;
+    if(x > bx[3]) bx[3] = x; if(y > bx[4]) bx[4] = y; if(z > bx[5]) bx[5] = z;
+  };
+  const pointXYZ = e => { if(e < 0 || eType[e] !== cPoint) return null; const v = numbersOf(e); return v.length >= 3 ? v : null; };
+  for(let u = 0; u < units.length; u++){
+    const U = units[u], tagU = u + 1; let bytes = 0;
+    for(const r of U.reps){
+      const tagR = r + 1, bx = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+      for(const s of repSeeds[r]) stack.push(s);
+      while(stack.length){
+        const e = stack.pop();
+        if(e < 0 || stampR[e] === tagR) continue;
+        stampR[e] = tagR;
+        if(stampU[e] !== tagU){
+          stampU[e] = tagU; bytes += eEnd[e] - eRec[e] + 1;
+          gcOwner[e] = gcOwner[e] === 0 ? tagU : (gcOwner[e] === tagU ? tagU : -1);
+        }
+        if(anyPart(e, cBoxP)){
+          for(let k = eRef0[e]; k < eRef0[e + 1]; k++){ const p = pointXYZ(rTo[k]); if(p) addPt(bx, p[0], p[1], p[2]); }
+        }
+        for(let k = eRef0[e]; k < eRef0[e + 1]; k++){ const t = rTo[k]; if(t >= 0 && stampR[t] !== tagR) stack.push(t); }
+      }
+      if(bx[0] <= bx[3]) repBox[r] = bx;
+    }
+    U.bytes = bytes;
+  }
+
+  // ── 7. Squelette : fermeture de la structure, graines coupées ──
+  const inSK = new Uint8Array(n);
+  const cutTag = new Int32Array(n);
+  for(let e = 0; e < n; e++){
+    if(repOrd[e] >= 0 || anyPart(e, cSK)) stack.push(e);
+  }
+  let skBytes = 0; const skList = [];
+  while(stack.length){
+    const e = stack.pop();
+    if(e < 0 || inSK[e]) continue;
+    inSK[e] = 1; skBytes += eEnd[e] - eRec[e] + 1; skList.push(e);
+    const r = repOrd[e];
+    if(r >= 0) for(const s of repSeeds[r]) cutTag[s] = e + 1;
+    for(let k = eRef0[e]; k < eRef0[e + 1]; k++){
+      const t = rTo[k];
+      if(t < 0 || inSK[t]) continue;
+      if(r >= 0 && cutTag[t] === e + 1) continue;             // graine de CETTE représentation : pas dans le squelette
+      stack.push(t);
+    }
+  }
+  skList.sort((a, b) => a - b);
+
+  // ── 8. Annexes (ni squelette ni géométrie) : racines = entités jamais référencées ──
+  const indeg = new Int32Array(n);
+  for(let k = 0; k < nr; k++){ const t = rTo[k]; if(t >= 0) indeg[t]++; }
+  const otherTop = [];
+  for(let e = 0; e < n; e++) if(!inSK[e] && gcOwner[e] === 0 && indeg[e] === 0) otherTop.push(e);
+
+  // ── 9. Plan : quelles graines dans quelle tranche ──
+  // Une unité découpable (cf. plus haut) qui dépasse 1,5 × la taille visée est
+  // répartie PAR SOLIDES, au moins deux par morceau : une pièce multi-solide
+  // est lue comme un composé (un maillage par solide, sans nom propre) ; un
+  // solide SEUL prendrait le nom et la couleur de la pièce — mesuré sur
+  // Scania-8x4, d'où cette règle. Répartition LPT : le plus gros morceau
+  // d'abord, dans la tranche la moins chargée.
+  const total = units.reduce((s, u) => s + u.bytes, 0);
+  const capBytes = Math.max(maxChunkBytes - skBytes, maxChunkBytes / 2, opts.floorBytes != null ? opts.floorBytes : 256 * 1024);
+  const splitAbove = opts.splitAbove != null ? opts.splitAbove : capBytes * 1.5;
+  const items = [];
+  let sTag = 0;
+  const stampS = new Int32Array(n);
+  const seedBytes = s => {                       // fermeture d'une seule graine
+    const tag = ++sTag; let b = 0;
+    stack.push(s);
+    while(stack.length){
+      const e = stack.pop();
+      if(e < 0 || stampS[e] === tag) continue;
+      stampS[e] = tag; b += eEnd[e] - eRec[e] + 1;
+      for(let k = eRef0[e]; k < eRef0[e + 1]; k++){ const t = rTo[k]; if(t >= 0 && stampS[t] !== tag) stack.push(t); }
+    }
+    return b;
+  };
+  units.forEach(U => {
+    if(U.bytes <= splitAbove || !U.splittable || opts.noSeedSplit){ items.push({ seeds: U.seeds, bytes: U.bytes, first: U.first }); return; }
+    const groups = [];
+    let cur = [], curB = 0;
+    for(const s of U.seeds){
+      const b = seedBytes(s);
+      if(cur.length >= 2 && curB + b > capBytes){ groups.push({ seeds: cur, bytes: curB }); cur = []; curB = 0; }
+      cur.push(s); curB += b;
+    }
+    if(cur.length){
+      const g = groups.length ? groups[groups.length - 1] : null;
+      if(cur.length < 2 && g && g.seeds.length >= 3){          // un solide du morceau précédent lui tient compagnie
+        const s = g.seeds.pop(), b = seedBytes(s); g.bytes -= b; cur.unshift(s); curB += b;
+        groups.push({ seeds: cur, bytes: curB });
+      } else if(cur.length < 2 && g){ g.seeds.push(...cur); g.bytes += curB; }
+      else groups.push({ seeds: cur, bytes: curB });
+    }
+    for(const g of groups) items.push({ seeds: g.seeds, bytes: g.bytes, first: g.seeds[0] });
+  });
+  const itemsTotal = items.reduce((s, it) => s + it.bytes, 0);
+  let K = Math.max(1, Math.ceil(itemsTotal / capBytes));
+  if(opts.maxChunks) K = Math.min(K, opts.maxChunks);
+  K = Math.min(K, items.length);
+  const bins = Array.from({ length: K }, () => ({ items: [], bytes: 0 }));
+  const order = items.map((it, j) => j).sort((a, b) => items[b].bytes - items[a].bytes || items[a].first - items[b].first);
+  for(const j of order){
+    let best = 0; for(let b = 1; b < K; b++) if(bins[b].bytes < bins[best].bytes) best = b;
+    bins[best].items.push(j); bins[best].bytes += items[j].bytes;
+  }
+  const binsUsed = bins.filter(b => b.items.length);
+
+  // ── 10. Réécriture d'un corps : filtre des références dans les agrégats ──
+  // decide(cible, estAgrégat) → null (retirer), true (garder) ou une chaîne (remplacer).
+  function rewrite(e, decide){
+    const s = text, end = eEnd[e] - 1;
+    const complex = eType[e] < 0, base = complex ? 2 : 1;
+    let k = eBody[e];
+    const skipWs = () => { for(;;){ const q = s.charCodeAt(k); if(isWs(q)){ k++; continue; } if(q === 47 && s.charCodeAt(k + 1) === 42){ k = skipComment(k); continue; } return; } };
+    function list(depth){                     // s[k] === '('
+      k++; const parts = [];
+      for(;;){
+        skipWs();
+        if(k >= end) break;
+        const q = s.charCodeAt(k);
+        if(q === 41){ k++; break; }
+        if(q === 44){ k++; continue; }
+        let el;
+        if(q === 40) el = list(depth + 1);
+        else if(q === 35){
+          let m = k + 1, v = 0; while(m < end && isDigit(s.charCodeAt(m))){ v = v * 10 + (s.charCodeAt(m) - 48); m++; }
+          const t = ixOf(v);
+          const d = t >= 0 ? decide(t, depth > base) : true;
+          el = d === null ? null : (d === true ? s.slice(k, m) : d);
+          k = m;
+        } else if(q === 39 || q === 34){
+          const x = s.indexOf(q === 39 ? "'" : '"', k + 1); const m = x < 0 ? end : x + 1;
+          el = s.slice(k, m); k = m;
+          while(q === 39 && s.charCodeAt(k) === 39){ const y = s.indexOf("'", k + 1); const m2 = y < 0 ? end : y + 1; el += s.slice(k, m2); k = m2; }
+        } else if(isKw(q) && !isDigit(q)){
+          let m = k; while(m < end && isKw(s.charCodeAt(m))) m++;
+          const kw = s.slice(k, m); k = m; skipWs();
+          el = s.charCodeAt(k) === 40 ? kw + list(depth + 1) : kw;
+        } else {
+          let m = k;
+          while(m < end){ const c = s.charCodeAt(m); if(c === 44 || c === 41 || (c === 47 && s.charCodeAt(m + 1) === 42)) break; m++; }
+          el = s.slice(k, m).trim(); k = m;
+        }
+        if(el !== null) parts.push(el);
+      }
+      // Les partiels d'une entité complexe se suivent SANS virgule : (A(…) B(…))
+      return '(' + parts.join(complex && depth === 1 ? ' ' : ',') + ')';
+    }
+    skipWs();
+    let head = '';
+    if(!complex){ let m = k; while(m < end && isKw(s.charCodeAt(m))) m++; head = s.slice(k, m); k = m; skipWs(); }
+    return '#' + eId[e] + '=' + head + list(1) + ';';
+  }
+
+  // ── 11. Émission d'une tranche (à la demande) ──
+  const mk = new Int32Array(n);            // mk[e] === stamp ⇔ e dans la tranche
+  const seedSel = new Int32Array(n);       // seedSel[s] === stamp ⇔ graine retenue
+  const mState = new Int32Array(n), mVal = new Uint8Array(n);   // mémo de disponibilité des annexes
+  let stamp = 0;
+  const PH_P = maxId + 1, PH_A = maxId + 2;   // placement neutre pour une liste d'items vidée sans boîte connue
+  const real = v => { const x = v.toExponential(15).replace('e', 'E'); return x.indexOf('.') < 0 ? x.replace('E', '.E') : x; };
+  const markClosure = root => {
+    stack.push(root);
+    while(stack.length){
+      const e = stack.pop();
+      if(e < 0 || mk[e] === stamp) continue;
+      mk[e] = stamp;
+      for(let k = eRef0[e]; k < eRef0[e + 1]; k++){ const t = rTo[k]; if(t >= 0 && mk[t] !== stamp) stack.push(t); }
+    }
+  };
+  // disponibilité d'une cible dans la tranche courante
+  function avail(t){
+    if(inSK[t]) return true;
+    if(gcOwner[t] !== 0) return mk[t] === stamp || isPassive(t);
+    return availOther(t);
+  }
+  const listTot = new Uint16Array(256), listOk = new Uint16Array(256);
+  function availOther(root){            // DFS itératif, mémo par tranche ; cycle = disponible
+    if(mState[root] === stamp * 2) return mVal[root] === 1;
+    const st = [root];
+    while(st.length){
+      const x = st[st.length - 1];
+      if(mState[x] === stamp * 2){ st.pop(); continue; }
+      if(mState[x] !== stamp * 2 - 1){                      // première visite : empiler les annexes non évaluées
+        mState[x] = stamp * 2 - 1;
+        for(let k = eRef0[x]; k < eRef0[x + 1]; k++){
+          const t = rTo[k];
+          if(t < 0 || inSK[t] || gcOwner[t] !== 0) continue;
+          if(mState[t] !== stamp * 2 && mState[t] !== stamp * 2 - 1) st.push(t);
+        }
+        continue;
+      }
+      // enfants évalués : scalaires tous disponibles, chaque liste garde au moins un élément
+      let ok = true; const touched = [];
+      for(let k = eRef0[x]; k < eRef0[x + 1]; k++){
+        const t = rTo[k]; if(t < 0) continue;
+        const a = inSK[t] ? true : (gcOwner[t] !== 0 ? (mk[t] === stamp || isPassive(t)) : (mState[t] === stamp * 2 ? mVal[t] === 1 : true));
+        const L = rList[k];
+        if(L){ if(!listTot[L]) touched.push(L); listTot[L]++; if(a) listOk[L]++; }
+        else if(!a){ ok = false; break; }
+      }
+      for(const L of touched){ if(ok && !listOk[L]) ok = false; listTot[L] = 0; listOk[L] = 0; }
+      mState[x] = stamp * 2; mVal[x] = ok ? 1 : 0;
+      st.pop();
+    }
+    return mVal[root] === 1;
+  }
+  const rewritten = new Map();
+  function includeOther(root){
+    const st = [root];
+    while(st.length){
+      const x = st.pop();
+      if(mk[x] === stamp) continue;
+      mk[x] = stamp;
+      let drop = false;
+      for(let k = eRef0[x]; k < eRef0[x + 1]; k++){
+        const t = rTo[k]; if(t < 0) continue;
+        if(rList[k] && !avail(t)){ drop = true; continue; }
+        if(mk[t] === stamp) continue;
+        if(inSK[t]) continue;
+        if(gcOwner[t] !== 0) markClosure(t);              // cible passive (placement, point…) : incluse avec sa fermeture
+        else st.push(t);
+      }
+      if(drop) rewritten.set(x, rewrite(x, (t, agg) => (agg && !avail(t)) ? null : true));
+    }
+  }
+  function emitSeeds(seeds){
+    stamp++;
+    rewritten.clear();
+    for(const s of seeds) seedSel[s] = stamp;
+    for(const e of skList) mk[e] = stamp;
+    for(const s of seeds) markClosure(s);
+    const extra = [];
+    let nextId = maxId + 3, needPH = false, proxies = 0;
+    for(let r = 0; r < R; r++){
+      const sd = repSeeds[r];
+      if(!sd.length) continue;
+      let nSel = 0; for(const s of sd) if(seedSel[s] === stamp) nSel++;
+      if(nSel === sd.length) continue;                          // toute la géométrie de cette représentation est ici : intacte
+      let first = true, repl = null;
+      if(nSel === 0 && repBox[r]){
+        // Pièce lue ailleurs : ses 8 coins, pour que la racine garde sa vraie
+        // taille (même finesse de maillage que dans un import entier).
+        const b = repBox[r], ids = [];
+        for(let c = 0; c < 8; c++){
+          const id = nextId++;
+          extra.push(`#${id}=CARTESIAN_POINT('',(${real(c & 1 ? b[3] : b[0])},${real(c & 2 ? b[4] : b[1])},${real(c & 4 ? b[5] : b[2])}));`);
+          ids.push('#' + id);
+        }
+        const gid = nextId++;
+        extra.push(`#${gid}=GEOMETRIC_SET('',(${ids.join(',')}));`);
+        repl = '#' + gid; proxies++;
+      } else if(nSel === 0 && sd.length >= repItemsN[r]){
+        repl = '#' + PH_A; needPH = true;                       // plus aucun item et pas de boîte : un placement neutre
+      }
+      rewritten.set(reps[r], rewrite(reps[r], t => {
+        if(!isSeed[t] || seedSel[t] === stamp) return true;
+        if(repl && first){ first = false; return repl; }
+        return null;
+      }));
+    }
+    for(const t of otherTop) if(avail(t)) includeOther(t);
+    const out = [headerBlock];
+    for(let e = 0; e < n; e++){
+      if(mk[e] !== stamp) continue;
+      const w = rewritten.get(e);
+      out.push(w !== undefined ? w : text.slice(eRec[e], eEnd[e]));
+    }
+    if(needPH) out.push(`#${PH_P}=CARTESIAN_POINT('',(0.,0.,0.));`, `#${PH_A}=AXIS2_PLACEMENT_3D('',#${PH_P},$,$);`);
+    for(const x of extra) out.push(x);
+    out.push('ENDSEC;', 'END-ISO-10303-21;', '');
+    rewritten.clear();
+    emitSeeds.lastProxies = proxies;
+    return out.join('\n');
+  }
+
+  // Nom lisible d'une unité (journal) : PRODUCT.name de sa pièce, sinon le nom de la représentation.
+  function strParam(e, want){
+    const b = eBody[e], end = eEnd[e] - 1, base = eType[e] < 0 ? 2 : 1;
+    let depth = 0, p = 0;
+    for(let k = b; k < end; k++){
+      const q = text.charCodeAt(k);
+      if(q === 39){
+        let m = k + 1, s = '';
+        for(;;){ const x = text.indexOf("'", m); if(x < 0) return null; s += text.slice(m, x); if(text.charCodeAt(x + 1) === 39){ s += "'"; m = x + 2; continue; } k = x; break; }
+        if(depth === base && p === want) return s;
+        continue;
+      }
+      if(q === 40) depth++; else if(q === 41) depth--; else if(q === 44 && depth === base) p++;
+    }
+    return null;
+  }
+  function unitLabel(u){
+    const U = units[u];
+    const pd = U.pd;
+    if(pd >= 0){
+      const pdf = refs(pd)[0], prod = pdf >= 0 ? refs(pdf)[0] : -1;
+      if(prod >= 0){ const s = strParam(prod, 1) || strParam(prod, 0); if(s) return s; }
+    }
+    return strParam(reps[U.reps[0]], 0) || ('#' + eId[reps[U.reps[0]]]);
+  }
+  const plan = binsUsed.map(b => {
+    const its = b.items.slice().sort((x, y) => items[x].first - items[y].first);
+    const seeds = [], us = new Set();
+    for(const j of its) for(const s of items[j].seeds){ seeds.push(s); us.add(seedUnit[s]); }
+    return { seeds, units: Array.from(us).sort((x, y) => x - y), bytes: b.bytes };
+  });
+  const unitsOfSeeds = seeds => { const us = new Set(); for(const s of seeds) us.add(seedUnit[s]); return Array.from(us).sort((x, y) => x - y); };
+  const info = { entities: n, reps: R, units: units.length, seeds: items.reduce((s, it) => s + it.seeds.length, 0),
+    skeletonBytes: skBytes, geometryBytes: total, annexRoots: otherTop.length,
+    boxes: repBox.filter(Boolean).length,
+    chunks: plan.map(p => ({ units: p.units.length, seeds: p.seeds.length, geoBytes: p.bytes })) };
+  if(opts.debug) info.debug = { nameOf, units, reps, repSeeds, repBox, gcOwner, inSK, eId, repProduct, refs, idOf: e => eId[e] };
+  return { info, plan, emitSeeds, unitLabel, unitsOfSeeds,
+    seedUnit: s => seedUnit[s], unitSplittable: u => !!units[u].splittable, unitSeeds: u => units[u].seeds,
+    release(){ text = null; } };
+}
+
+// [29/09] Ancien découpeur du Turbo — n'est PLUS appelé par l'import (cf.
+// stepSliceAssembly juste au-dessus et _stepTurboImportRead). Gardé pour la
+// console ⚡ Script : ses tranches ne portent pas la structure d'assemblage
+// (instances doublées ou déplacées), à ne pas réutiliser pour importer.
 function stepSliceBySize(text, maxChunkBytes) {
   const dataIdx = text.indexOf('\nDATA;');
   if (dataIdx === -1) throw new Error('DATA section not found — invalid STEP file?');
@@ -1426,23 +2883,23 @@ function stepSliceBySize(text, maxChunkBytes) {
 function _computeAdaptiveSTEPThresholds() {
   const cores = navigator.hardwareConcurrency || 4;
   const deviceMemGB = navigator.deviceMemory || 8;
-
+  
   let heapLimit = 536870912;
   try {
     if (performance.memory?.jsHeapSizeLimit) {
       heapLimit = performance.memory.jsHeapSizeLimit;
     }
   } catch (e) { /* performance.memory inaccessible (Firefox/Safari) → heapLimit reste à 512 MB. NB: deviceBudget (deviceMemory) domine souvent ce min — c'est ici que se règle le budget chunks STEP. */ }
-
+  
   const heapBudget = Math.max(heapLimit * 0.30, 50 * 1024 * 1024);
   const deviceBudget = Math.max(deviceMemGB * 100 * 1024 * 1024 * 0.10, 50 * 1024 * 1024);
   const totalBudget = Math.min(heapBudget, deviceBudget);
-
+  
   const threshold = Math.max(40 * 1024 * 1024, totalBudget * 0.55);
   const chunkSize = Math.max(45 * 1024 * 1024, totalBudget * 0.40);
   const workerPoolSize = (cores >= 8 && deviceMemGB >= 16) ? 2 : 1;
   const watchdogBase = 25 * 60 * 1000;
-
+  
   const result = {
     threshold,
     chunkSize,
@@ -1455,7 +2912,7 @@ function _computeAdaptiveSTEPThresholds() {
                  `workers ×${workerPoolSize}, threshold ${Math.round(threshold / 1024 / 1024)}MB, ` +
                  `chunks ${Math.round(chunkSize / 1024 / 1024)}MB`
   };
-
+  
   return result;
 }
 
@@ -1479,6 +2936,9 @@ if (typeof window !== 'undefined') {
 // sont des copies à l'identique (mêmes entités STEP sources) → même bbox/position à la
 // tolérance de flottants près. Comparaison géométrique, terrain où on a une vraie prise,
 // plutôt que de continuer à deviner la sémantique d'export STEP à l'aveugle.
+// [29/09] Plus appelée : le Turbo lit chaque instance une seule fois (cf.
+// stepSliceAssembly), il n'y a plus de doublon à deviner — et ce filtre
+// retirait aussi deux pièces réellement superposées dans le modèle.
 function _dedupOverlappingObjects(newObjs, epsMm = 0.1){
   // [TUNED] 0.1mm validé empiriquement sur données réelles : reproduit EXACTEMENT le
   // même résultat que si on appliquait ce dédup au fichier complet importé en un seul
@@ -1517,189 +2977,17 @@ function _dedupOverlappingObjects(newObjs, epsMm = 0.1){
 }
 
 // ══ SMART HYBRID CHUNKING — Composants + taille équilibrée ══
+// [28/09 — audit] Cette fonction était une copie ANCIENNE de stepSliceBySize
+// (même algorithme, sans le type racine PRODUCT_DEFINITION_FORMATION_WITH_SPECIFIED_SOURCE
+// ajouté depuis dans l'original). Elle n'a jamais produit une seule tranche :
+// l'identifiant d'entité y était lu avec son '#' (parseInt('#12') = NaN), toutes
+// les entités tombaient sous la même clé et elle levait à chaque appel « No
+// SHAPE_REPRESENTATION with geometry ». STEP Turbo relisait donc le fichier
+// entier DEUX fois (ici pour rien, puis dans stepSliceBySize) et journalisait un
+// WARN à chaque gros import. Alias vers la version maintenue, pour ne casser
+// aucun appel éventuel depuis la console ⚡ Script.
 function stepSliceByComponentsAndSize(text, maxChunkBytes) {
-  const dataIdx = text.indexOf('\nDATA;');
-  if (dataIdx === -1) throw new Error('DATA section not found');
-
-  const headerBlock = text.slice(0, dataIdx).trimEnd();
-  const afterData = text.slice(dataIdx + 1);
-  const endIdx = afterData.search(/ENDSEC;\s*END-ISO-10303-21;/);
-  const dataBody = endIdx === -1
-    ? afterData.slice(afterData.indexOf(';') + 1)
-    : afterData.slice(afterData.indexOf(';') + 1, endIdx);
-
-  // Parse entités
-  const entities = new Map();
-  {
-    let i = 0;
-    const n = dataBody.length;
-    while (i < n) {
-      while (i < n && /\s/.test(dataBody[i])) i++;
-      if (i < n && dataBody[i] === '/' && dataBody[i + 1] === '*') {
-        const end = dataBody.indexOf('*/', i + 2);
-        i = (end === -1) ? n : end + 2;
-        continue;
-      }
-      if (i >= n) break;
-      let j = i;
-      while (j < n && dataBody[j] !== '=') j++;
-      if (j >= n) break;
-      const id = parseInt(dataBody.slice(i, j).trim(), 10);
-      i = j + 1;
-      let k = j + 1, depth = 0, inStr = false;
-      for (; k < n; k++) {
-        const c = dataBody[k];
-        if (inStr) { if (c === "'") inStr = false; continue; }
-        if (c === "'") { inStr = true; continue; }
-        if (c === '(') depth++;
-        else if (c === ')') depth--;
-        else if (c === ';' && depth <= 0) break;
-      }
-      entities.set(id, dataBody.slice(j + 1, k));  // Exclure le '='
-      i = k + 1;
-    }
-  }
-
-  // Graphe de dépendances
-  const refRe = /#(\d+)/g;
-  const forward = new Map();
-  const reverse = new Map();
-  for (const [id, txt] of entities) {
-    const refs = new Set();
-    let m;
-    refRe.lastIndex = 0;
-    while ((m = refRe.exec(txt))) {
-      const rid = parseInt(m[1], 10);
-      if (rid !== id) refs.add(rid);
-    }
-    forward.set(id, refs);
-    for (const rid of refs) {
-      if (!reverse.has(rid)) reverse.set(rid, new Set());
-      reverse.get(rid).add(id);
-    }
-  }
-
-  function entityType(id) {
-    const txt = entities.get(id);
-    if (!txt) return null;
-    const m = txt.match(/^([A-Z0-9_]+)\s*\(/);
-    return m ? m[1] : null;
-  }
-
-  function closure(rootIds) {
-    const seen = new Set();
-    const stack = Array.isArray(rootIds) ? rootIds.slice() : [rootIds];
-    while (stack.length) {
-      const id = stack.pop();
-      if (seen.has(id) || !entities.has(id)) continue;
-      seen.add(id);
-      for (const rid of forward.get(id) || []) if (!seen.has(rid)) stack.push(rid);
-    }
-    return seen;
-  }
-
-  // Identifier les feuilles géométriques
-  const GEOM_LEAF_TYPES = new Set([
-    'ADVANCED_FACE', 'MANIFOLD_SOLID_BREP', 'FACETED_BREP', 'BREP_WITH_VOIDS',
-    'CLOSED_SHELL', 'COMPLEX_TRIANGULATED_FACE', 'TRIANGULATED_FACE', 'OPEN_SHELL'
-  ]);
-  const shapeRepCandidates = [];
-  for (const [id] of entities) {
-    const t = entityType(id);
-    if (t && (t === 'SHAPE_REPRESENTATION' || t.endsWith('_SHAPE_REPRESENTATION'))) {
-      shapeRepCandidates.push(id);
-    }
-  }
-  const leafRoots = [];
-  for (const id of shapeRepCandidates) {
-    const clos = closure([id]);
-    let hasGeom = false;
-    for (const cid of clos) { if (GEOM_LEAF_TYPES.has(entityType(cid))) { hasGeom = true; break; } }
-    if (hasGeom) leafRoots.push(id);
-  }
-  if (!leafRoots.length) throw new Error('No SHAPE_REPRESENTATION with geometry');
-
-  const leafRootsSet = new Set(leafRoots);
-  const STYLE_TYPES = new Set([
-    'STYLED_ITEM', 'OVER_RIDING_STYLED_ITEM', 'PRESENTATION_STYLE_ASSIGNMENT',
-    'PRESENTATION_STYLE_BY_CONTEXT', 'SURFACE_STYLE_USAGE', 'SURFACE_SIDE_STYLE',
-    'SURFACE_STYLE_FILL_AREA', 'SURFACE_STYLE_BOUNDARY', 'SURFACE_STYLE_PARAMETER_LINE',
-    'FILL_AREA_STYLE', 'FILL_AREA_STYLE_COLOUR', 'COLOUR_RGB', 'COLOUR_SPECIFICATION',
-    'CURVE_STYLE', 'CURVE_STYLE_FONT', 'MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION',
-    'PRESENTATION_LAYER_ASSIGNMENT', 'DRAUGHTING_PRE_DEFINED_COLOUR'
-  ]);
-  const ROOT_TYPES = new Set(['PRODUCT_DEFINITION', 'PRODUCT', 'PRODUCT_DEFINITION_FORMATION']);
-  const FANOUT_FREEZE_THRESHOLD = 80;
-
-  function isOtherGeomLeaf(id, selfRoot) { return id !== selfRoot && leafRootsSet.has(id); }
-  function fanoutOf(id) { return (reverse.get(id) || []).size + (forward.get(id) || []).size; }
-
-  function chainFor(rootId) {
-    const found = new Set([rootId]);
-    let frontier = [rootId];
-    const MAX_HOPS = 12;
-    for (let hop = 0; hop < MAX_HOPS && frontier.length; hop++) {
-      const next = [];
-      for (const id of frontier) {
-        const t = entityType(id);
-        const isRoot = ROOT_TYPES.has(t);
-        const isHighFanout = (id !== rootId) && fanoutOf(id) > FANOUT_FREEZE_THRESHOLD;
-        const exploreForward = (id === rootId) || !isHighFanout;
-        const exploreReverse = (id === rootId) || (!isHighFanout && !isRoot);
-        const candidates = [];
-        if (exploreForward) for (const rid of forward.get(id) || []) candidates.push(rid);
-        if (exploreReverse) for (const rid of reverse.get(id) || []) candidates.push(rid);
-        for (const rid of candidates) {
-          if (found.has(rid)) continue;
-          if (isOtherGeomLeaf(rid, rootId)) continue;
-          found.add(rid);
-          // [FIX couleur réactivée] Même logique que stepSliceBySize ci-dessus : noeud STYLE
-          // conservé (couleur récupérée via closure() forward pur, plus bas) mais BFS gelé
-          // ici — pas de push dans `next`, pour ne pas traverser un contexte de présentation
-          // partagé comme pont vers la géométrie d'une autre pièce.
-          if (STYLE_TYPES.has(entityType(rid))) continue;
-          next.push(rid);
-        }
-      }
-      frontier = next;
-    }
-    return found;
-  }
-
-  // Composants
-  const pieceClosures = leafRoots.map(rootId => {
-    const chainIds = chainFor(rootId);
-    return closure([rootId, ...chainIds]);
-  });
-
-  // Bin packing
-  const chunks = [];
-  let curIds = new Set();
-  let curBytes = headerBlock.length + 60;
-
-  function flushChunk() {
-    if (curIds.size === 0) return;
-    const ids = Array.from(curIds).sort((a, b) => a - b);
-    const lines = ids.map(id => `#${id}=${entities.get(id)};`);
-    const out = headerBlock + '\nDATA;\n' + lines.join('\n') + '\nENDSEC;\nEND-ISO-10303-21;\n';
-    chunks.push(out);
-    curIds = new Set();
-    curBytes = headerBlock.length + 60;
-  }
-
-  for (const pieceIds of pieceClosures) {
-    let addedBytes = 0;
-    for (const id of pieceIds) {
-      if (curIds.has(id)) continue;
-      addedBytes += entities.get(id).length + 12;
-    }
-    if (curIds.size > 0 && curBytes + addedBytes > maxChunkBytes) flushChunk();
-    for (const id of pieceIds) curIds.add(id);
-    curBytes += addedBytes;
-  }
-  flushChunk();
-
-  return chunks;
+  return stepSliceBySize(text, maxChunkBytes);
 }
 
 // ═══ STEP OmniReader — normalisation universelle des conteneurs STEP ════════
@@ -1767,7 +3055,7 @@ function _stepZipList(u8){
 async function _stepZipPull(u8, entry){
   const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
   if(dv.getUint32(entry.lhOff, true) !== 0x04034B50)
-    throw new Error('Local header ZIP invalide (offset ' + entry.lhOff + ')');
+    throw new Error('Invalid ZIP local header (offset ' + entry.lhOff + ')');
   const fnl = dv.getUint16(entry.lhOff + 26, true);
   const exl = dv.getUint16(entry.lhOff + 28, true);
   const start = entry.lhOff + 30 + fnl + exl;
@@ -1807,7 +3095,7 @@ function _stepRebaseName(orig, innerName){
 // stricte) pour survivre aux variantes d'édition (ex: suffixes AP242
 // _MIM_LF, _ED2…). Aligné sur le commentaire d'en-tête de ce fichier :
 // "supporte tout STEP AP203/AP214/AP242".
-const _STEP_KNOWN_SCHEMAS = ['CONFIG_CONTROL_DESIGN', 'AUTOMOTIVE_DESIGN', 'AP242'];
+const _STEP_KNOWN_SCHEMAS = ['CONFIG_CONTROL_DESIGN', 'CONFIGURATION_CONTROL', 'AUTOMOTIVE_DESIGN', 'AP242', 'SHAPE_APPEARANCE_LAYER_MIM', 'STRUCTURAL_ANALYSIS_DESIGN'];
 function _checkStepSchema(headText, fileName){
   const m = headText.match(/FILE_SCHEMA\s*\(\s*\(([^)]*)\)/i);
   if(!m) return; // header tronqué avant FILE_SCHEMA (rare, >4KB de préambule) — OCCT tranchera
@@ -1906,7 +3194,21 @@ async function _stepNormalizeFile(file){
 // Le scan tourne AVANT le transfert du buffer au Worker OCCT (postMessage transfer =
 // ArrayBuffer détaché). Part 21 = ASCII → décodage latin1 rapide (_bytesToLatin1Str).
 
-let _pmiPending = null;   // résultat du scan, consommé en fin d'import
+let _pmiPending = null;
+let _stepDeclared = null;   // [16/09] relevé de la déclaration du fichier courant   // résultat du scan, consommé en fin d'import
+// [18/09] Opacité déclarée par le fichier courant, par teinte. Le porteur est
+// séparé de _stepDeclared parce que le chemin « depuis le cache » n'a pas de
+// texte à relire : il restitue la table rangée dans l'entrée NSPG.
+let _stepAlphaTable = null;
+// Accepte '#rrggbb' (matériau unique) ou 0xRRGGBB (table de faces). Rend 1 —
+// donc opaque, comportement d'avant — dès que le fichier ne déclare rien.
+function _stepAlphaOf(c){
+  if(!_stepAlphaTable || typeof nasStepDeclaredAlpha !== 'function') return 1;
+  const hex = (typeof c === 'number')
+    ? '#' + ((c >>> 0) & 0xffffff).toString(16).padStart(6, '0')
+    : String(c).toLowerCase();
+  try { return nasStepDeclaredAlpha(_stepAlphaTable, hex); } catch(e){ return 1; }
+}
 let _pmiRoot = null;      // THREE.Group racine des overlays PMI (lazy)
 // [NEW V4.4.0 05/07] subs : liens { sub, label, anchor } — chaque sous-groupe PMI suit
 // l'objet ancre (1er corps de son import) via _pmiSync() dans anim(). Voir _pmiSync.
@@ -1921,6 +3223,11 @@ function _p21Records(text, wanted, semTol){
   while(i !== -1 && i < N){
     let j = i + 1, id = 0, any = false;
     while(j < N){ const c = text.charCodeAt(j); if(c >= 48 && c <= 57){ id = id * 10 + (c - 48); j++; any = true; } else break; }
+    // [FIX 28/09 — audit] Part 21 autorise des blancs autour du '=' : NASSCAD
+    // (MEDUSA et writer JS) et OCCT écrivent « #12 = TYPE(...) ». Sans ce saut,
+    // AUCUN record de ces fichiers n'était retenu : corps tessellés et PMI
+    // ignorés en silence (0 corps décodé sur nos propres exports AP242).
+    if(any) while(j < N && (text[j] === ' ' || text[j] === '\t' || text[j] === '\r' || text[j] === '\n')) j++;
     if(!any || text[j] !== '='){ i = text.indexOf('#', j); continue; }
     j++;
     while(j < N && (text[j] === ' ' || text[j] === '\n' || text[j] === '\r' || text[j] === '\t')) j++;
@@ -2338,6 +3645,27 @@ function _pmiScan(text, f){
   return { annotations, semantics, tessMeshes, unit };
 }
 
+// [FIX 28/09 — audit] Corps tessellés décodés en JS absents du résultat du lecteur.
+// Présent = même nom, ou même boîte englobante (1 % de la taille + 0,01 mm) : les
+// deux sont dans le repère STEP en mm (le recentrage global vient après).
+function _stepTessMissing(meshes, tess){
+  const bb = a => { let x0=Infinity,y0=Infinity,z0=Infinity,x1=-Infinity,y1=-Infinity,z1=-Infinity;
+    for(let i = 0; i + 2 < a.length; i += 3){ const x=a[i], y=a[i+1], z=a[i+2];
+      if(x<x0)x0=x; if(y<y0)y0=y; if(z<z0)z0=z; if(x>x1)x1=x; if(y>y1)y1=y; if(z>z1)z1=z; }
+    return [x0,y0,z0,x1,y1,z1]; };
+  const posOf = m => (m && m.attributes && m.attributes.position && m.attributes.position.array) || [];
+  const have = (meshes || []).map(m => ({ name: (m && m.name) || '', b: bb(posOf(m)) }));
+  const near = (a, b) => {
+    const tol = 0.01 * Math.max(a[3]-a[0], a[4]-a[1], a[5]-a[2], 0) + 0.01;
+    for(let k = 0; k < 6; k++) if(!(Math.abs(a[k] - b[k]) <= tol)) return false;
+    return true;
+  };
+  return (tess || []).filter(t => {
+    const n = t.name || '', tb = bb(posOf(t));
+    return !have.some(h => (n && h.name === n) || near(h.b, tb));
+  });
+}
+
 function _pmiScanIfRelevant(buffer, fname){
   if(fname && fname.indexOf('[chunk ') !== -1) return null;   // chunk Turbo : réfs coupées
   if(buffer.byteLength > 64 * 1024 * 1024){ nasLog('DBG', 'PMI scan skipped (>64 MB)'); return null; }
@@ -2353,24 +3681,33 @@ function _pmiScanIfRelevant(buffer, fname){
          || text.indexOf('DATUM') !== -1
   };
   if(!flags.hasTessAnn && !flags.hasPolyAnn && !flags.hasTessGeo && !flags.hasSem) return null;
-  return _pmiScan(text, flags);
+  const res = _pmiScan(text, flags);
+  // [FIX 28/09 — audit] Fichier écrit par NASSCAD (MEDUSA ou writer JS) : ses corps
+  // tessellés sont en coordonnées monde, un produit = un corps nommé — ils peuvent
+  // être complétés sans risque de doublon (cf. _stepTessMissing).
+  if(res){
+    const _hdEnd = text.indexOf('ENDSEC;');
+    const _hd = text.slice(0, _hdEnd > 0 ? Math.min(_hdEnd, 8000) : 8000);
+    res.nasscadWriter = /FILE_NAME\s*\([\s\S]*NASSCAD/i.test(_hd);
+  }
+  return res;
 }
 
 // ── Overlay Three.js + UI ─────────────────────────────────────────────────────
-const _PMI_FAM_COLOR = { datum: 0xffd447, forme: 0x4fc3f7, orientation: 0x4dd0e1,
-  localisation: 0xff8a65, dimension: 0x81c784, texte: 0xd0d0d0, autre: 0xce93d8 };
+const _PMI_FAM_COLOR = { datum: 0xffd447, form: 0x4fc3f7, orientation: 0x4dd0e1,
+  location: 0xff8a65, dimension: 0x81c784, text: 0xd0d0d0, other: 0xce93d8 };
 const _PMI_CSS = { white: 0xf2f2f2, black: 0x202020, red: 0xff4040, green: 0x33cc55,
   blue: 0x4488ff, yellow: 0xffd447, cyan: 0x33cccc, magenta: 0xcc44cc };
 
 function _pmiFamily(name){
   const n = (name || '').toLowerCase();
   if(/datum/.test(n)) return 'datum';
-  if(/flat|straight|circular|cylindric|angular/.test(n)) return 'forme';
+  if(/flat|straight|circular|cylindric|angular/.test(n)) return 'form';
   if(/parallel|perpendic|orient/.test(n)) return 'orientation';
-  if(/position|profile|runout|concentr|symmetr|coaxial/.test(n)) return 'localisation';
+  if(/position|profile|runout|concentr|symmetr|coaxial/.test(n)) return 'location';
   if(/size|diamet|radius|linear|dimension|angle|chamfer|thread/.test(n)) return 'dimension';
-  if(/text|note|label/.test(n)) return 'texte';
-  return 'autre';
+  if(/text|note|label/.test(n)) return 'text';
+  return 'other';
 }
 
 function _pmiCommit(p, ox, oy, oz, label){
@@ -2436,7 +3773,10 @@ function _pmiTogglePanel(){
   if(m) m.style.display = m.style.display === 'flex' ? 'none' : 'flex';
 }
 function _pmiEsc(s){ return String(s).replace(/[<>&"]/g, c => '&#' + c.charCodeAt(0) + ';'); }
-function _pmiRepaint(){ try{ if(typeof render === 'function') render(); }catch(e){} }
+// [FIX 28/09 — audit] Appelait render(), qui n'existe pas en global (celui du
+// sketcher vit dans son IIFE) : cocher/décocher une annotation ne redessinait rien
+// avant le prochain mouvement de caméra. Le rendu est paresseux : on le demande.
+function _pmiRepaint(){ try{ _camDirty = true; }catch(e){} }
 
 // [NEW V4.4.0 05/07] Suivi des annotations : appelé chaque frame dans anim() (coût
 // négligeable — copie de 10 floats par import). Copie pos+quat+scale de l'objet ancre
@@ -2474,7 +3814,7 @@ function _pmiBuildPanel(){
   const fams = {};
   _pmiState.items.forEach((it, ix) => { (fams[it.fam] = fams[it.fam] || []).push(ix); });
   let rows = '';
-  for(const f of ['datum','forme','orientation','localisation','dimension','texte','autre']){
+  for(const f of ['datum','form','orientation','location','dimension','text','other']){
     if(!fams[f]) continue;
     const col = '#' + _PMI_FAM_COLOR[f].toString(16).padStart(6, '0');
     rows += `<div style="margin:7px 0 2px;font-weight:700;font-size:11px;color:${col}">■ ${f.toUpperCase()} <span style="opacity:.55">(${fams[f].length})</span></div>`;
@@ -2527,204 +3867,325 @@ function _pmiClear(){
   _pmiRepaint();
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// IMPORT IFC MEDUSA — optional native entry; default import is in ifc-import.js.
+//
+// Trois lignes de code, parce que tout le travail est ailleurs : MEDUSA lit
+// l'IFC nativement (namespace nasifc) et rend le MEME buffer NSTP que pour un
+// STEP. Tout ce qui suit — decodage, construction des maillages, couleurs par
+// face, opacite, cache IndexedDB, arborescence — est strictement le chemin
+// STEP, inchange.
+//
+// DEUX DIFFERENCES, et elles sont voulues :
+//   - boosterOnly. occt-import-js ne sait PAS lire l'IFC : retomber sur le WASM
+//     ne produirait qu'une erreur incomprehensible. Sans MEDUSA, on le dit.
+//   - pas de decoupage Turbo. Le slicer traverse un graphe Part-21 depuis les
+//     PRODUCT STEP ; les racines d'un IFC sont ailleurs. MEDUSA avale le
+//     fichier entier de toute facon (10,5 Mo / 147 712 entites en 13 s).
+async function importIFCMedusa(file) {
+  nasFaceColorReset();
+  if (!(await _detectBooster())) {
+    throw new Error('IFC import needs the MEDUSA engine — start it and try again '
+                  + '(unlike STEP there is no browser fallback: the WASM reader does not speak IFC)');
+  }
+  nasLog('OK', `IFC: ${file.name} (${(file.size/1024/1024).toFixed(1)} MB) — native MEDUSA reader`);
+  return _importSTEPSingle(file, { boosterOnly: true, ifc: true });
+}
+try{ window.importIFCMedusa = importIFCMedusa; }catch(e){}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// [29/09] STEP TURBO — lecture exacte d'un gros fichier sans MEDUSA.
+//
+// Le fichier est découpé par stepSliceAssembly (ci-dessus) en tranches qui
+// portent chacune toute la structure d'assemblage et la géométrie d'une partie
+// des pièces ; les tranches sont lues en parallèle par le pool de workers OCCT,
+// puis leurs maillages passent UNE seule fois dans le pipeline d'import normal
+// (_importSTEPSingle) : un seul centrage global, un seul groupe dans l'arbre,
+// un seul cache de géométrie pour le fichier entier.
+//
+// Ce qui a été remplacé : chaque tranche était importée comme un fichier à part
+// — recentrée sur SA propre boîte (les pièces de tranches différentes ne se
+// retrouvaient donc pas à leur place relative), rangée dans son propre groupe
+// « … [chunk k-N].step », puis dédoublonnée par boîte englobante. Mesuré le
+// 29/09 sur Stealthburner_CW2 (26,7 Mo, lu par le même occt-import-js) : 684
+// corps au lieu de 198 avant déduplication.
+//
+// Contrôlé le 29/09 avec le même occt-import-js et les réglages de NASSCAD :
+// import en tranches = import entier, instance par instance (nom, couleur,
+// position, triangle pour triangle) — Rocky_House 161/161 (6 tranches),
+// as1-oc-214 et as1_pe_203 18/18 (une pièce par tranche). Stealthburner 198/198
+// (même maillage à finesse égale ; en réglage normal, une de ses pièces gonfle
+// la boîte d'OCCT et l'import entier maille tout à 15 mm près — en tranches,
+// les pièces qui ne la côtoient pas sont maillées plus fin). Là où l'import
+// entier échoue, le Turbo lit tout : Cruise_Assembly (42 Mo) 2 873 corps SANS
+// UN triangle d'un bloc, tous maillés en tranches ; Scania-8x4 (295 Mo) 1 449
+// corps, le compte de MEDUSA ; moteur Scania V8 (374 Mo) 1 295 corps, autant
+// que la structure du fichier en déclare, 0 triangle d'un bloc.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Taille visée d'une tranche : ne dépend QUE du fichier (pas de la machine) —
+// le même fichier est découpé pareil partout, donc maillé pareil partout.
+function _stepTurboChunkTarget(fileBytes){
+  return Math.min(32 * 1048576, Math.max(16 * 1048576, Math.ceil(fileBytes / 12)));
+}
+
+// Lecture d'une tranche sur le pool. Différence avec _readStepFileUncached :
+// un worker dont la lecture a échoué est REMPLACÉ, pas réutilisé — un module
+// WASM qui a manqué de mémoire (abort) reste inutilisable, et chaque tranche
+// suivante qui tomberait dessus échouerait à son tour.
+async function _stepTurboReadChunk(buffer, params){
+  const slot = await _stepPoolAcquire();
+  if(!slot){
+    const occt = await _getOcct();
+    try { return occt.ReadStepFile(new Uint8Array(buffer), params); }
+    catch(e){ _occtInst = null; throw e; }
+  }
+  const id = ++_stepJobId;
+  const bytes = buffer.byteLength;
+  return new Promise((resolve, reject) => {
+    const retire = () => { slot.dead = true; slot.ready = false; try { slot.worker.terminate(); } catch(e){ /* déjà arrêté */ } };
+    const wdMs = Math.round((_STEP_WORKER_WATCHDOG_BASE || 25 * 60 * 1000)
+      + Math.max(0, bytes - 50 * 1048576) / (50 * 1048576) * 60000);
+    const tWdog = setTimeout(() => {
+      slot.cbs.delete(id); retire();
+      reject(new Error(`timeout after ${Math.round(wdMs / 60000)} min`));
+    }, wdMs);
+    slot.cbs.set(id, {
+      resolve: r => { clearTimeout(tWdog); resolve(r); },
+      reject:  e => { clearTimeout(tWdog); retire(); reject(e); }
+    });
+    slot.worker.postMessage({ type: 'read', id, buffer, params }, [buffer]);
+  });
+}
+
+// Après un Turbo, les workers gardent le tas WASM de leur plus grosse tranche
+// (une mémoire WebAssembly ne rétrécit jamais) : plusieurs Go immobilisés pour
+// rien. Les workers libres sont arrêtés ; le pool les recrée à la demande.
+function _stepPoolTrim(){
+  for(const s of _stepPool){
+    if(!s || s.dead || s.busy) continue;
+    s.dead = true; s.ready = false;
+    try { s.worker.terminate(); } catch(e){ /* déjà arrêté */ }
+  }
+}
+
+// Un corps qui a des faces mais pas un triangle : le maillage a échoué (vu sur
+// Cruise_Assembly lu d'un bloc : 2 873 corps, 0 triangle, sans aucune erreur).
+function _stepMeshUntriangulated(m){
+  const ix = m && m.index && m.index.array;
+  return !(ix && ix.length) && !!(m && ((m.brep_faces && m.brep_faces.length) || (m.faces && m.faces.length)));
+}
+function _stepResultUntriangulated(res){
+  const ms = res && res.meshes;
+  if(!ms || !ms.length) return false;
+  let faced = 0;
+  for(const m of ms){
+    const ix = m.index && m.index.array;
+    if(ix && ix.length) return false;
+    if(_stepMeshUntriangulated(m)) faced++;
+  }
+  return faced > 0;
+}
+
+// Ordre final des corps : chemin dans l'arbre d'assemblage (identique dans
+// toutes les tranches), puis nom, puis position. Il ne dépend pas du découpage
+// — les numéros « _N » des objets sont les mêmes d'une machine à l'autre.
+function _stepTurboSortKeys(res){
+  const path = new Array(res.meshes.length).fill('');
+  const walk = (node, p, depth) => {
+    if(!node || depth > 200) return;
+    const q = p + '/' + (node.name || '');
+    for(const mi of (node.meshes || [])) if(mi >= 0 && mi < path.length) path[mi] = q;
+    for(const c of (node.children || [])) walk(c, q, depth + 1);
+  };
+  walk(res.root, '', 0);
+  return res.meshes.map((m, i) => {
+    const p = m.attributes && m.attributes.position && m.attributes.position.array;
+    let cx = 0, cy = 0, cz = 0;
+    if(p && p.length){
+      let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
+      for(let k = 0; k < p.length; k += 3){
+        const x = p[k], y = p[k + 1], z = p[k + 2];
+        if(x < x0) x0 = x; if(x > x1) x1 = x; if(y < y0) y0 = y; if(y > y1) y1 = y; if(z < z0) z0 = z; if(z > z1) z1 = z;
+      }
+      cx = Math.round((x0 + x1) * 500) / 1000; cy = Math.round((y0 + y1) * 500) / 1000; cz = Math.round((z0 + z1) * 500) / 1000;
+    }
+    return { m, p: path[i], n: m.name || '', cx, cy, cz };
+  });
+}
+
+// Coupe d'une tranche en échec : entre pièces tant qu'il y en a plusieurs ;
+// dans une pièce seule, seulement si elle est découpable (des solides d'une
+// même représentation, cf. stepSliceAssembly), deux solides au moins de chaque
+// côté. Sinon null : la pièce est signalée, pas lue de travers.
+function _stepTurboSplit(S, seeds){
+  const us = S.unitsOfSeeds(seeds);
+  if(us.length > 1){
+    const first = new Set(us.slice(0, us.length >> 1));
+    return [seeds.filter(s => first.has(S.seedUnit(s))), seeds.filter(s => !first.has(S.seedUnit(s)))];
+  }
+  if(us.length === 1 && S.unitSplittable(us[0]) && seeds.length >= 4){
+    const h = seeds.length >> 1;
+    return [seeds.slice(0, h), seeds.slice(h)];
+  }
+  return null;
+}
+
+// Décodage d'un gros fichier pour le Turbo. Au-delà de ~512 Mo, une chaîne
+// JavaScript ne peut pas le contenir : on le dit, MEDUSA le lit sans ce passage.
+function _stepDecodeBig(buffer, file){
+  try { return _bytesToLatin1Str(new Uint8Array(buffer)); }
+  catch(e){
+    throw new Error(`${file.name} (${(file.size / 1048576).toFixed(0)} MB) is too large for the browser reader (${e.message}) — start MEDUSA to import it`);
+  }
+}
+
+// Lit toutes les tranches du plan. Une tranche qui échoue par manque de mémoire
+// (ou rendue sans un triangle) est coupée en deux et relue ; ce qui ne peut pas
+// être lu est signalé par le nom de la pièce — jamais perdu en silence.
+async function _stepTurboRead(S, params, fileName){
+  const queue = S.plan.map((p, i) => ({ seeds: p.seeds, tag: String(i + 1) }));
+  const planned = queue.length;
+  const maxSplits = planned * 3 + 8;
+  const got = [], failed = [];
+  let inFlight = 0, done = 0, splits = 0, bodies = 0;
+  const t0 = performance.now();
+  const conc = Math.max(1, Math.min(_STEP_POOL_MAX, planned));   // un worker par tranche en vol, jamais plus que le pool
+  const labels = seeds => {
+    const us = S.unitsOfSeeds(seeds);
+    return us.slice(0, 4).map(u => S.unitLabel(u)).join(', ') + (us.length > 4 ? `… (${us.length} parts)` : '');
+  };
+  const progress = () => showSpinner('STEP Turbo',
+    `${fileName} — ${done}/${planned + splits} chunk(s) read, ${bodies} bod${bodies > 1 ? 'ies' : 'y'}…`,
+    'indeterminate');
+  async function loop(){
+    for(;;){
+      if(!queue.length){
+        if(inFlight === 0) return;
+        await new Promise(r => setTimeout(r, 50));
+        continue;
+      }
+      const job = queue.shift();
+      inFlight++;
+      const tj = performance.now();
+      try {
+        let bytes = _latin1StrToBytes(S.emitSeeds(job.seeds));
+        const mb = (bytes.length / 1048576).toFixed(1);
+        let res = await _stepTurboReadChunk(bytes.buffer, params);
+        bytes = null;
+        if(!res || !res.success) throw new Error('the reader returned no result');
+        if(_stepResultUntriangulated(res)) throw new Error(`${res.meshes.length} bodies without a single triangle`);
+        _srgbNormalizeMeshColors(res);
+        const keys = _stepTurboSortKeys(res);
+        for(const k of keys) if(k.m.index && k.m.index.array && k.m.index.array.length) got.push(k);
+        done++; bodies += keys.length;
+        nasLog('DBG', `STEP Turbo: chunk ${job.tag} (${mb} MB, ${job.seeds.length} bodies' geometry) read — `
+          + `${res.meshes.length} mesh(es) in ${((performance.now() - tj) / 1000).toFixed(1)} s`);
+      } catch(e){
+        const msg = (e && e.message) || String(e);
+        // Recoupe seulement quand une tranche plus petite a une chance de passer
+        // (mémoire, maillage vide) — pas sur un délai dépassé ni une erreur qui
+        // se reproduirait à l'identique — et jamais plus de maxSplits fois.
+        const halves = (splits < maxSplits && /memory|abort|out of bounds|allocat|enlarge|OOM|crash|RangeError|single triangle|no result/i.test(msg))
+          ? _stepTurboSplit(S, job.seeds) : null;
+        if(halves){
+          queue.unshift({ seeds: halves[0], tag: job.tag + 'a' }, { seeds: halves[1], tag: job.tag + 'b' });
+          splits++;
+          nasLog('WARN', `STEP Turbo: chunk ${job.tag} failed (${msg}) — split in two and read again`);
+        } else {
+          failed.push({ label: labels(job.seeds), msg, bodies: job.seeds.length });
+          nasLog('ERROR', `STEP Turbo: « ${labels(job.seeds)} » could not be read (${msg})`);
+        }
+      } finally { inFlight--; }
+      progress();
+      await _breathe();
+    }
+  }
+  progress();
+  await Promise.all(Array.from({ length: conc }, loop));
+  _stepPoolTrim();
+  got.sort((a, b) => a.p < b.p ? -1 : a.p > b.p ? 1 : a.n < b.n ? -1 : a.n > b.n ? 1
+    : (a.cx - b.cx) || (a.cy - b.cy) || (a.cz - b.cz));
+  return { success: true, meshes: got.map(k => k.m),
+    turbo: { chunks: done, planned, splits, failed, ms: Math.round(performance.now() - t0), workers: conc } };
+}
+
+// Découpe + lecture, appelé par _importSTEPSingle avec le texte latin1 du fichier.
+async function _stepTurboImportRead(text, fileName, fileBytes, params, perf){
+  showSpinner('STEP Turbo', `${fileName} — analyzing the assembly structure…`, 'indeterminate');
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));   // spinner peint avant le calcul synchrone
+  const tS = performance.now();
+  const target = _stepTurboChunkTarget(fileBytes);
+  let S;
+  try { S = stepSliceAssembly(text, target); }
+  catch(e){
+    // Structure non reconnue : lecture d'un bloc, comme avant le Turbo.
+    nasLog('WARN', `STEP Turbo: slicing impossible (${e.message}) — the file is read in one go`);
+    return _readStepFileUncached(_latin1StrToBytes(text).buffer, params).then(_srgbNormalizeMeshColors);
+  }
+  const I = S.info;
+  _stepPerfMark(perf, 'Turbo slicing', performance.now() - tS,
+    `${I.units} parts, ${I.seeds} bodies' geometry, ${S.plan.length} chunks`);
+  nasLog('OK', `STEP Turbo: ${fileName} — ${I.units} part(s) spread over ${S.plan.length} chunk(s) of ≈${(target / 1048576).toFixed(target < 10 * 1048576 ? 1 : 0)} MB, `
+    + `each carrying the whole assembly structure (${(I.skeletonBytes / 1024).toFixed(0)} KB): every instance is read once, `
+    + `in place — sliced in ${((performance.now() - tS) / 1000).toFixed(1)} s`);
+  const tR = performance.now();
+  const res = await _stepTurboRead(S, params, fileName);
+  S.release();
+  const T = res.turbo;
+  _stepPerfMark(perf, 'parsing (OCCT WASM, Turbo)', performance.now() - tR,
+    `${T.chunks} chunks, ${res.meshes.length} bodies, workers ×${T.workers}`);
+  nasLog('OK', `STEP Turbo: ${res.meshes.length} bodies read from ${T.chunks} chunk(s) in ${_fmtDur(T.ms)}`
+    + (T.splits ? ` — ${T.splits} chunk(s) split and read again` : ''));
+  if(T.failed.length){
+    const names = T.failed.map(f => f.label).join(' ; ');
+    nasLog('ERROR', `STEP Turbo: ${T.failed.length} body(ies) could not be read by the browser reader — ${names}`);
+    try { _csgLog(`⚠ ${T.failed.length} body(ies) not imported — start MEDUSA to read them`); } catch(e){}
+    _nasAlert(`⚠ STEP Turbo: ${T.failed.length} body(ies) could not be read by the browser reader:\n${names}\n\n`
+      + `Everything else was imported. Start MEDUSA to read the whole file natively.`);
+  }
+  return res;
+}
+
 async function importSTEP(file) {
+  nasFaceColorReset();   // [11/09] compteurs couleurs par face, remis a zero par import
   // [NEW V4.4.0 03/07] Normalisation conteneur AVANT la décision de slicing : un
   // .stpz de 30 MB peut cacher un Part 21 de 300 MB — la taille pertinente pour le
   // seuil Turbo est celle du payload décompressé, pas celle du conteneur.
   file = await _stepNormalizeFile(file);
-  // Décision : slicer ou import direct
-  if (file.size <= _STEP_SLICE_THRESHOLD) {
-    return _importSTEPSingle(file);
-  }
-  // [NEW V4.7.1] TURBO BYPASS — Booster natif d'abord, sur le fichier ENTIER.
-  // Le slicer JS traverse le graphe Part21 depuis les produits : les STYLED_ITEM
-  // (couleurs) et la structure NAUO d'assemblage ne sont pas atteignables depuis
-  // ces racines → chunks amputés → couleurs/noms perdus, fusion possible par
-  // chunk. Le natif n'a aucun de ces problèmes : il avale le fichier entier avec
-  // fidélité complète (validé : 235 MB / 107k faces en ~113s). Le slicing ne
-  // garde de sens QUE comme repli quand le Booster est absent ou échoue —
-  // auquel cas on retombe ici et le Turbo classique reprend, inchangé.
-  if (await _detectBooster()) {
-    nasLog('OK', `⚡ Turbo bypass: ${file.name} (${(file.size/1024/1024).toFixed(1)} MB) — whole file to native MEDUSA, zero slicing`);
-    try {
-      return await _importSTEPSingle(file, { boosterOnly: true });
-    } catch (e) {
-      nasLog('WARN', `Turbo bypass: MEDUSA failed (${e.message}) — falling back to classic slicing`);
-    }
-  }
-
-  nasLog('DBG',
-    `STEP Turbo: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB) ` +
-    `> threshold ${(_STEP_SLICE_THRESHOLD / 1024 / 1024).toFixed(0)}MB — ` +
-    `smart slicing (components + size), adaptive chunk sizing`
-  );
-
-  const _turboT0 = performance.now(); // chrono total import STEP Turbo
-  showSpinner('STEP Turbo', `${file.name} — buffering to disk…`, 'indeterminate');
-  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))); // [FIX] Double rAF : garantit le paint du spinner avant le parsing synchrone lourd (freeze silencieux constaté sur Voron 235MB/1438 corps)
-  // [NEW] Fichier tampon (OPFS) + relecture par fenêtres — cf. _stepLoadTextBuffered plus
-  // haut. Remplace l'ancien `await file.arrayBuffer()` qui faisait vivre le fichier ENTIER
-  // deux fois en RAM (bytes bruts + string latin1) pendant tout le slicing.
-  const _stepBuf = await _stepLoadTextBuffered(file);
-  showSpinner('STEP Turbo', `${file.name} — analyzing entity graph…`, 'indeterminate');
-
-  // Pool navigateur — remonté AVANT le slicing : la taille de chunk adaptative en dépend.
-  const concurrency = Math.max(_STEP_WORKER_POOL_SIZE, _STEP_POOL_MAX);
-
-  // ── File-size-adaptive chunk sizing ──────────────────────────────────
-  // [NEW 30/07 — validé terrain Voron 230MB : 11 chunks, ~5min gagnées vs cap machine]
-  // _STEP_SLICE_CHUNK ne dépend que de la machine (RAM/heap) — un fichier juste
-  // au-dessus du seuil sortait en 1-3 chunks pour 2-4 workers : rien à équilibrer.
-  // Cible : ~3 chunks par worker (lisse la charge entre chunks hétérogènes, sans
-  // exploser l'overhead OCCT par appel). Bornes : 24MB plancher (sous ça, l'overhead
-  // fixe de ReadStepFile domine), _STEP_SLICE_CHUNK plafond (budget RAM machine,
-  // jamais dépassé). Le slicer par composants traite ça comme un max souple — une
-  // pièce unique plus grosse que le chunk reste entière (jamais coupée).
-  const _CHUNKS_PER_WORKER = 3;
-  const _idealChunk = Math.ceil(file.size / (concurrency * _CHUNKS_PER_WORKER));
-  const _effChunk = Math.min(_STEP_SLICE_CHUNK, Math.max(24 * 1024 * 1024, _idealChunk));
-  nasLog('DBG', `STEP Turbo: adaptive chunk size ${(_effChunk/1024/1024).toFixed(0)}MB ` +
-    `(file ${(file.size/1024/1024).toFixed(0)}MB ÷ ${concurrency}×${_CHUNKS_PER_WORKER} targets, ` +
-    `machine cap ${(_STEP_SLICE_CHUNK/1024/1024).toFixed(0)}MB)`);
-
-  let chunks;
-  try {
-    chunks = stepSliceByComponentsAndSize(_stepBuf.text, _effChunk);
-  } catch (err) {
-    // FALLBACK #1 : Essayer l'ancienne méthode stepSliceBySize (stable)
-    nasLog('WARN', `STEP Turbo slicer failed (${err.message}) — fallback to stepSliceBySize`);
-    try {
-      showSpinner('STEP Turbo', `${file.name} — fallback slicing simple…`, 'indeterminate');
-      chunks = stepSliceBySize(_stepBuf.text, _effChunk);
-      nasLog('OK', `STEP fallback: ${chunks.length} chunk(s) generated by stepSliceBySize`);
-    } catch (err2) {
-      // FALLBACK #2 : Import direct (UI peut geler sur gros fichiers)
-      await _stepBuf.cleanup();
-      hideSpinner();
-      nasLog('ERROR', `STEP slicing failed entirely (${err2.message}) — direct import (risk of blocking on large file)`);
-      return _importSTEPSingle(file);
-    }
-  }
-  // Chunks (strings STEP indépendantes) construits : le fichier tampon disque et le texte
-  // source ne servent plus à rien — purge immédiate, pas d'attente jusqu'à la fin de l'import.
-  await _stepBuf.cleanup();
-
-  nasLog('OK', `STEP Turbo: ${chunks.length} chunk(s) generated, ` +
-    `workers ×${concurrency}, mode ` +
-    `${concurrency > 1 ? 'PARALLEL ⚡⚡' : 'sequential ⚡'}`);
-
-  const _allNewObjs = [];
-  const _chunkErrors = [];
-  const _before = objs.length;
-
-  // ── FIFO worker-pool scheduler ────────────────────────────────────────
-  // [NEW 30/07 — validé terrain] Remplace l'ancien dispatch par lots synchronisés
-  // (Promise.all sur un batch de `concurrency` chunks : un chunk lent bloquait les
-  // workers déjà libres du même lot). Ici : file FIFO unique (curseur _nextChunkIdx),
-  // N "workers logiques" tournent en parallèle et repiochent le chunk suivant dès
-  // qu'ils se libèrent — load balancing réel entre chunks hétérogènes (smart hybrid
-  // chunking = chunks par composant, pas de taille garantie uniforme).
-  let _nextChunkIdx = 0;
-  let _doneChunks = 0;
-  const _totalChunks = chunks.length;
-
-  async function _runChunk(idx){
-    const chunkNum = idx + 1;
-    const bytes = _latin1StrToBytes(chunks[idx]);
-    const chunkName = file.name.replace(/\.[^.]+$/, '') +
-                      ` [chunk ${chunkNum}-${_totalChunks}].step`;
-    const chunkFile = new File([bytes], chunkName, { type: 'text/plain' });
-
-    nasLog('DBG',
-      `STEP Turbo: dequeuing chunk ${chunkNum}/${_totalChunks} ` +
-      `(${(bytes.length / 1024 / 1024).toFixed(1)} MB)`);
-
-    try {
-      await _importSTEPSingle(chunkFile);
-      nasLog('OK', `STEP Turbo: chunk ${chunkNum}/${_totalChunks} imported`);
-    } catch (err) {
-      const msg = `chunk ${chunkNum}/${_totalChunks}: ${err.message}`;
-      nasLog('WARN', `STEP Turbo: ${msg}`);
-      _chunkErrors.push(msg);
-    }
-    _doneChunks++;
-    showSpinner('STEP Turbo',
-      `Processing: ${_doneChunks}/${_totalChunks} chunks done…`,
-      'indeterminate');
-  }
-
-  async function _fifoWorkerLoop(){
-    // Incrément synchrone AVANT tout await → pas de race condition possible sur
-    // _nextChunkIdx malgré les N boucles concurrentes (JS single-thread).
-    while (_nextChunkIdx < _totalChunks){
-      const idx = _nextChunkIdx++;
-      await _runChunk(idx);
-      await _breathe();
-    }
-  }
-
-  _stepTurboBatch = true; // gate hideSpinner + stats par chunk (voir déclaration)
-  try {
-    showSpinner('STEP Turbo', `Processing: 0/${_totalChunks} chunks done…`, 'indeterminate');
-    await _breathe();
-    await Promise.all(
-      Array.from({length: Math.min(concurrency, _totalChunks)}, () => _fifoWorkerLoop())
-    );
-
-    // Récupérer les objets importés
-    for (let k = _before; k < objs.length; k++) {
-      _allNewObjs.push(objs[k]);
-    }
-
-    // Déduplique robuste
-    if (_allNewObjs.length) {
-      showSpinner('STEP Turbo',
-        `Deduplication — ${_allNewObjs.length} objects…`,
-        'indeterminate');
-      await _breathe();
-      const _removed = _dedupOverlappingObjects(_allNewObjs);
-      if (_removed) {
-        nasLog('OK', `STEP Turbo: ${_removed} duplicate(s) removed`);
-      }
-    }
-  } finally {
-    // Fermeture GARANTIE : couvre aussi le cas "tous les chunks en erreur"
-    // (_allNewObjs vide) où l'ancien code laissait le spinner bloqué à l'écran.
-    // Le chrono affiché aura couru en continu depuis le premier showSpinner du
-    // Turbo — temps réel total (validé terrain : 22m37s continus sur Voron).
-    _stepTurboBatch = false;
-    hideSpinner(true);
-  }
-
-  updProps();
-  updOList();
-  updStats();
-
-  const summary = _chunkErrors.length
-    ? `${chunks.length} chunk(s), ${_chunkErrors.length} error(s)`
-    : `${chunks.length} chunk(s)`;
-
-  const _turboMs = Math.round(performance.now() - _turboT0);
-  _lastImportStats = { chunks: chunks.length, ms: _turboMs, label: file.name };
-  updStats();
-  nasLog('OK', `STEP Turbo: import complete — ${summary} — ${_fmtDur(_turboMs)}`);
+  // [29/09] Au-delà du seuil : MEDUSA d'abord (fichier entier, natif), sinon
+  // Turbo exact dans le navigateur — les deux décidés dans _importSTEPSingle,
+  // APRÈS le cache de géométrie : un gros fichier déjà importé ressort du cache
+  // sans être relu ni découpé. (Avant : le repli MEDUSA → découpage n'avait
+  // jamais lieu — l'échec de MEDUSA était avalé par _importSTEPSingle, qui
+  // affichait une erreur au lieu de passer au Turbo.)
+  if (file.size <= _STEP_SLICE_THRESHOLD) return _importSTEPSingle(file);
+  return _importSTEPSingle(file, { big: true });
 }
 
 async function _importSTEPSingle(file, _impOpts){
-  showSpinner('Import STEP (OCCT)', file.name);
+  showSpinner((_impOpts && _impOpts.ifc) ? 'Import IFC (MEDUSA)' : 'Import STEP (OCCT)', file.name);
   const t0 = performance.now();
+  const _perf = _stepPerfNew(file.name); // [PERF 17/09] cf. _stepPerfReport() dans le finally
   const _stepGroupId = 'stepgrp_' + (++_stepGroupSeq);
   const _seenN = (_stepFilenameSeen.get(file.name) || 0) + 1;
   _stepFilenameSeen.set(file.name, _seenN);
   const _stepGroupLabel = _seenN > 1 ? `${file.name} (${_seenN})` : file.name;
+  const _big = !!(_impOpts && _impOpts.big) && !(_impOpts && _impOpts.ifc);
+  let _bigText = null, _turboInfo = null;
   try {
-    const buffer = await file.arrayBuffer();
+    let buffer=null;
+    if(file.size>64*1048576 && window.electronAPI?.prepareStepFile && await _detectBooster()){
+      try{buffer=await electronAPI.prepareStepFile(file);}catch(error){nasLog('WARN','Direct disk transport unavailable: '+error.message);}
+    }
+    if(!buffer)buffer=await file.arrayBuffer();
+    if(buffer.nasscadFileToken)nasLog('OK','STEP file streamed from disk to Medusa; no full source buffer in the 3D view.');
     // [NEW V4.2.7 19/06] Détection schéma STEP — diagnostic only, header ASCII en clair
     // (ISO 10303-21). N'influence rien pour l'instant — juste de la visibilité avant
     // d'éventuellement adapter la stratégie de repair par schéma/exportateur plus tard.
     let _stepSchema = '?';
     try {
-      const _head = new TextDecoder('ascii').decode(new Uint8Array(buffer, 0, Math.min(4096, buffer.byteLength)));
+      const _head = new TextDecoder('ascii').decode(buffer.nasscadFileToken?buffer.head:new Uint8Array(buffer, 0, Math.min(4096, buffer.byteLength)));
       const _sm = _head.match(/FILE_SCHEMA\s*\(\s*\(\s*'([^']+)'/i);
       if(_sm){
         const _proto = _sm[1].toUpperCase();
@@ -2742,15 +4203,99 @@ async function _importSTEPSingle(file, _impOpts){
     // [NEW V4.4.0 03/07] Badge AP dans le titre du spinner — l'utilisateur voit ENFIN
     // quel protocole il importe au lieu d'un générique "(OCCT)".
     const _spTitle = 'Import STEP' + (_stepSchema !== '?' ? ' ' + _stepSchema : '') + ' (OCCT)';
+    // ══════════════════════════════════════════════════════════════════════
+    // [PERF 17/09] CACHE DE GÉOMÉTRIE FINALE — consulté AVANT tout le reste.
+    // Le hash est calculé ici, une seule fois, puis resservi plus bas au cache
+    // de parsing : deux SHA-256 sur le même buffer, ce serait une seconde
+    // perdue sur un gros fichier pour deux résultats identiques.
+    // ══════════════════════════════════════════════════════════════════════
+    const _tHash0 = performance.now();
+    const _hashHex = await _stepDigestHex(buffer);
+    _stepPerfMark(_perf, 'file hash', performance.now() - _tHash0,
+      `${(buffer.byteLength/1024/1024).toFixed(1)} MB`);
+    // [17/09] En mode FreeCAD aucune réparation n'a lieu, MEDUSA présent ou non :
+    // le drapeau doit dire ce qui se PASSE, pas ce qui serait possible.
+    const _repairApplied = !_STEP_LEAN_IMPORT
+      && ((await _detectBooster()) || _STEP_REPAIR_CLIENT_POOL);
+    const _gk = _geoCacheKey(_hashHex, _repairApplied);
+    if(_gk){
+      const _tG0 = performance.now();
+      const _gHit = await _geoCacheGet(_gk);
+      _stepPerfMark(_perf, 'geometry cache lookup', performance.now() - _tG0, _gHit ? 'HIT' : 'miss');
+      if(_gHit){
+        try{
+          const _tR0 = performance.now();
+          const _dec = _nspgDecode(_gHit);
+          // Le scan PMI reste nécessaire : l'overlay d'annotations n'est pas de
+          // la géométrie de corps, il n'est donc pas dans le NSPG. Il est peu
+          // coûteux (0,1 s pour 17 Mo) et se recale sur l'offset global stocké
+          // dans l'entrée — c'est pour ça qu'on le stocke.
+          _pmiPending = null;
+          try { _pmiPending = _pmiScanIfRelevant(buffer, file.name); }
+          catch(e){ nasLog('WARN', `PMI scan failed (${e.message}) — import continues without PMI`); }
+          const _n = _geoCacheRestore(_dec, file, _stepGroupId, _stepGroupLabel);
+          if(_pmiPending && (_pmiPending.annotations.length || _pmiPending.semantics.length)){
+            try { _pmiCommit(_pmiPending, _dec.meta.gOx || 0, _dec.meta.gOy || 0, _dec.meta.gOz || 0, _stepGroupLabel); }
+            catch(e){ nasLog('WARN', `PMI overlay failed (${e.message})`); }
+          }
+          _pmiPending = null;
+          _stepPerfMark(_perf, 'geometry restore (cache)', performance.now() - _tR0, `${_n} bodies`);
+          updProps(); updOList(); updStats();
+          const _cms = Math.round(performance.now() - t0);
+          if(!_stepTurboBatch){ _lastImportStats = { chunks: 1, ms: _cms, label: file.name }; updStats(); }
+          const _cnm = _dec.meta.nonManifoldCount || 0;
+          nasLog('OK', `⚡ STEP import from geometry cache: ${_n} mesh(es) — ${_cms} ms `
+            + `(no parsing, no sewing, no repair, no smoothing)`
+            + (_cnm ? ` — ⚠ ${_cnm} non-manifold` : ''));
+          _csgLog(`✓ STEP imported (geometry cache): ${_n} mesh(es)`
+            + (_cnm ? ` — ⚠ ${_cnm} non-manifold` : ''));
+          nasFaceColorReport();
+          return; // l'audit déclaration↔obtenu est sauté : il compare au résultat
+                  // du LECTEUR, qui n'a pas tourné. Le dire plutôt que l'inventer.
+        }catch(e){
+          nasLog('WARN', `Geometry cache entry unreadable (${e.message}) — purged, falling back to a full import`);
+          _stepCacheDelete(_gk);
+        }
+      }
+    }
     // [NEW V4.4.0 03/07] Scan PMI + géométrie tessellée — impérativement AVANT le
     // transfert du buffer au Worker (postMessage transfer = ArrayBuffer détaché).
     _pmiPending = null;
+    const _tPmi0 = performance.now();
     try { _pmiPending = _pmiScanIfRelevant(buffer, file.name); }
-    catch(e){ nasLog('WARN', `PMI scan failed (${e.message}) — import continue sans PMI`); }
+    catch(e){ nasLog('WARN', `PMI scan failed (${e.message}) — import continues without PMI`); }
+    _stepPerfMark(_perf, 'PMI scan', performance.now() - _tPmi0);
+    // [16/09] Ce que le fichier DÉCLARE, lu avant tout calcul géométrique — et
+    // impérativement ici, avant que le transfert au Worker ne détache le buffer.
+    // Sans ce relevé, « ⚠ non manifold » est une opinion sans référence ; avec
+    // lui, c'est une contradiction chiffrée entre ce que le fichier affirme et
+    // ce que l'import a produit. Mesuré : 0,1 s pour 17 Mo, 0,6 s pour 40 Mo —
+    // négligeable devant les 28 s et 110 s des imports correspondants.
+    _stepDeclared = null;
+    _stepAlphaTable = null;
+    // [29/09] Gros fichier sans MEDUSA : texte latin1 décodé UNE fois, servi à
+    // la passe de déclaration ET au découpage Turbo (nasStepDeclared accepte une
+    // chaîne). Avec MEDUSA rien n'est décodé ici : le buffer lui part tel quel.
+    const _medusaForBig = _big && await _detectBooster();
+    if(_big && !_medusaForBig){
+      showSpinner('Import STEP', `${file.name} — reading ${(file.size / 1048576).toFixed(0)} MB…`, 'indeterminate');
+      await _breathe();
+      _bigText = _stepDecodeBig(buffer, file);
+    }
+    const _tDecl0 = performance.now();
+    try { if(buffer.nasscadFileToken){nasLog('INFO','Full STEP declaration scan skipped for direct disk transport; geometry and colours are read by Medusa.');}else if(typeof nasStepDeclared === 'function') _stepDeclared = nasStepDeclared(_bigText || buffer); }
+    catch(e){ nasLog('WARN', `STEP declaration scan failed (${e.message}) — import continue`); }
+    _stepAlphaTable = _stepDeclared;
+    if(_stepDeclared && _stepDeclared.styleAlpha){
+      const _nA = Object.keys(_stepDeclared.styleAlpha).length;
+      if(_nA) nasLog('OK', `STEP declares ${_nA} translucent colour(s) — applied to the bodies painted with them`
+        + (_stepDeclared.styleAlphaAmbiguous ? `, ${_stepDeclared.styleAlphaAmbiguous} ambiguous one(s) left opaque` : ''));
+    }
+    _stepPerfMark(_perf, 'STEP declaration scan', performance.now() - _tDecl0);
     // [NEW V4.2.7p4 20/06] Parsing offloadé vers le Worker OCCT dédié si dispo (gros
     // fichiers multi-corps sans geler l'UI) — fallback to main-thread transparent sinon.
-    if(buffer.byteLength > 20*1024*1024)
-      nasLog('DBG', `Large STEP file (${(buffer.byteLength/1024/1024).toFixed(1)} MB) — import may take several minutes, UI non-blocking if Worker available`);
+    if(file.size > 20*1024*1024)
+      nasLog('DBG', `Large STEP file (${(file.size/1024/1024).toFixed(1)} MB) — import may take several minutes, UI non-blocking if Worker available`);
     // [NEW V4.2.7p4 20/06] Barre indéterminée pendant le parsing — AUCUN callback de
     // progression possible côté occt-import-js (vérifié dans son source : ReadStepFile
     // est un appel opaque, un seul résultat en sortie, rien entre les deux). Plutôt qu'un
@@ -2764,16 +4309,62 @@ async function _importSTEPSingle(file, _impOpts){
     // troublant. Le cas vraiment opaque (occt-import-js WASM, aucun callback exposé,
     // vérifié dans son source) ne subsiste que quand le serveur natif est absent.
     if(_boosterState){
-      showSpinner(_spTitle, `${file.name} — MEDUSA: parsing file… (detailed progress in the server window)`, 'indeterminate');
+      showSpinner(_spTitle, `${file.name} — MEDUSA: parsing file…`, 'indeterminate');
     }else{
       showSpinner(_spTitle, `${file.name} — parsing OCCT… (no progress % available — opaque lib)`, 'indeterminate');
     }
     let result;
-    try {
-      result = await _readStepFileOffloaded(buffer, { linearUnit:'millimeter',
-        boosterOnly: !!(_impOpts && _impOpts.boosterOnly) });
-    } finally {
-      /* rien à nettoyer ici — le chrono est géré globalement par showSpinner/hideSpinner */
+    // [PERF 17/09] Déflexion et angle passés EXPLICITEMENT. Avant, seul
+    // linearUnit était transmis : occt-import-js appliquait donc ses défauts
+    // (ratio bbox 0.001 / 0.5 rad) sans que rien, côté NASSCAD, ne le dise ni
+    // ne permette de le régler. Cf. _STEP_WASM_DEFLECTION pour le pourquoi du
+    // nouveau défaut. MEDUSA ignore ces champs (il POSTe le buffer brut).
+    const _rdParams = { linearUnit:'millimeter',
+      linearDeflectionType: 'bounding_box_ratio',
+      linearDeflection:  _STEP_WASM_DEFLECTION,
+      angularDeflection: _STEP_WASM_ANGULAR,
+      boosterOnly: !!buffer.nasscadFileToken || !!(_impOpts && _impOpts.boosterOnly),
+      ifc:         !!(_impOpts && _impOpts.ifc) };
+    if(_big){
+      // [NEW V4.7.1 → 29/09] Gros fichier : MEDUSA lit le fichier ENTIER s'il
+      // est là (fidélité complète, validé 235 MB / 107k faces en ~113 s) ;
+      // sinon, ou s'il échoue, Turbo exact dans le navigateur.
+      if(_medusaForBig){
+        nasLog('OK', `⚡ Turbo bypass: ${file.name} (${(file.size/1024/1024).toFixed(1)} MB) — whole file to native MEDUSA, zero slicing`);
+        try { result = await _readStepFileOffloaded(buffer, Object.assign({}, _rdParams, { boosterOnly: true }), _perf, _hashHex); }
+        catch(e){ result = null; nasLog('WARN', `Turbo bypass: MEDUSA failed (${e.message}) — STEP Turbo in the browser`); }
+      }
+      if(!result){
+        if(buffer?.nasscadFileToken)buffer=await file.arrayBuffer();
+        if(!_bigText) _bigText = _stepDecodeBig(buffer, file);
+        buffer = null;   // plus utile : le Turbo travaille sur le texte
+        result = await _stepTurboImportRead(_bigText, file.name, file.size, _rdParams, _perf);
+        _turboInfo = result.turbo;
+      }
+      _bigText = null;
+    } else {
+      // [29/09] Lecture d'un bloc ; si le lecteur WASM n'y arrive pas (mémoire
+      // épuisée, ou corps rendus sans un triangle — Cruise_Assembly, 42 Mo), le
+      // même fichier est relu en tranches par le Turbo au lieu d'échouer.
+      const _isIfc = !!(_impOpts && _impOpts.ifc);
+      try {
+        result = await _readStepFileOffloaded(buffer, _rdParams, _perf, _hashHex);
+      } catch(e){
+        if(_isIfc || (_impOpts && _impOpts.boosterOnly)
+           || !/memory|abort|out of bounds|allocat|enlarge|OOM|crash|RangeError/i.test(String(e && e.message))) throw e;
+        nasLog('WARN', `STEP: the browser reader could not read ${file.name} in one go (${e.message}) — reading it again in slices (Turbo)`);
+        result = null;
+      }
+      if(!_isIfc && result && _stepResultUntriangulated(result)){
+        nasLog('WARN', `STEP: the reader returned ${result.meshes.length} bodies without a single triangle — reading ${file.name} again in slices (Turbo)`);
+        result = null;
+      }
+      if(!result){
+        const _sb = await _stepLoadTextBuffered(file);
+        try { result = await _stepTurboImportRead(_sb.text, file.name, file.size, _rdParams, _perf); }
+        finally { await _sb.cleanup(); }
+        _turboInfo = result.turbo;
+      }
     }
     if(!result.success || !result.meshes || !result.meshes.length){
       // [NEW V4.4.0 03/07] Fallback solide tessellé AP242 — occt-import-js ignore les
@@ -2786,6 +4377,24 @@ async function _importSTEPSingle(file, _impOpts){
         result = { success: true, meshes: _pmiPending.tessMeshes };
       } else
         throw new Error('No geometry found in the STEP file');
+    } else if(_pmiPending && _pmiPending.tessMeshes && _pmiPending.tessMeshes.length){
+      // [FIX 28/09 — audit] Fichier MIXTE (B-Rep + tessellé). occt-import-js et
+      // OCCT < 7.7 rendent les corps B-Rep mais ignorent les TESSELLATED_SOLID :
+      // nos propres exports AP242 (cylindres, cônes, résultats CSG) perdaient ces
+      // corps sans un mot. Ceux que le lecteur n'a pas rendus sont complétés ici
+      // depuis le décodage JS — pour un fichier NASSCAD seulement (coordonnées
+      // monde, noms uniques) ; ailleurs on prévient au lieu de deviner.
+      const _miss = _stepTessMissing(result.meshes, _pmiPending.tessMeshes);
+      if(_miss.length){
+        const _names = _miss.slice(0, 6).map(m => m.name || '?').join(', ') + (_miss.length > 6 ? '…' : '');
+        if(_pmiPending.nasscadWriter){
+          result = Object.assign({}, result, { meshes: result.meshes.concat(_miss) });
+          nasLog('OK', `STEP tessellated AP242: ${_miss.length} body(ies) not returned by the reader — decoded in pure JS and added (${_names})`);
+        } else {
+          nasLog('WARN', `STEP: ${_miss.length} AP242 tessellated body(ies) not read by this reader (${_names}) — start MEDUSA (OCCT 7.7 or later) to import them`);
+          try { _csgLog(`⚠ ${_miss.length} tessellated body(ies) not imported — start MEDUSA`); } catch(e){}
+        }
+      }
     }
     undoPush('import');
     // STEP Z-up → Three.js Y-up : X→X, Z→Y(up), -Y→Z
@@ -2846,71 +4455,104 @@ async function _importSTEPSingle(file, _impOpts){
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
       geo.setIndex(new THREE.BufferAttribute(new Uint32Array(idxArr), 1));
-      // [CLEANUP V4.2.7 19/06] Injection normales OCCT SUPPRIMÉE — plus aucun consommateur
-      // depuis le retrait du moyennage dans _weldAndCheckManifold (cf. ce fichier, plus haut).
-      // Le lissage final vient exclusivement de postProcessCSGGeo (BFS, position+index).
-      // Sewing adaptatif : 0.001mm → 0.01mm → 0.1mm
-      // Couvre les gaps SolidWorks/Parasolid (>0.001mm) et la dérive Float32 grands assemblages.
-      // Chaque retry repart du buffer original (le weld modifie geo en place).
-      // Bbox protection : maxSewTol limité à minDim/3 — évite de coller les faces
-      // opposées d'objets ultra-minces (ex: disque 0.01mm : tol=0.1mm les collapse).
-      const _sP = new Float32Array(geo.attributes.position.array);
-      const _sI = geo.index  ? new Uint32Array(geo.index.array)             : null;
-      const _sN = geo.attributes.normal ? new Float32Array(geo.attributes.normal.array) : null;
-      const _rG = () => {
-        geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(_sP), 3));
-        if(_sI) geo.setIndex(new THREE.BufferAttribute(new Uint32Array(_sI), 1));
-        if(_sN) geo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(_sN), 3));
-      };
-      // minDim = plus petite dimension de la bbox → plafond de la tol adaptative
-      const _bb0 = new THREE.Box3().setFromBufferAttribute(geo.attributes.position);
-      const _sz0 = new THREE.Vector3(); _bb0.getSize(_sz0);
-      const _minDim = Math.min(_sz0.x, _sz0.y, _sz0.z);
-      // maxSewTol : tol (1/2/3) max autorisée pour éviter le collapse
-      // _minDim ≥ 0.3mm → tol jusqu'à 0.1mm ok  (maxSewTol=1)
-      // _minDim ≥ 0.03mm → tol jusqu'à 0.01mm ok (maxSewTol=2)
-      // _minDim < 0.03mm → pas de retry           (maxSewTol=3, tol=3 seulement)
-      const _maxSewTol = _minDim >= 0.3 ? 1 : _minDim >= 0.03 ? 2 : 3;
-      let _sTol = 3;
-      let isManifold = _weldAndCheckManifold(geo, 3);
-      // [NEW] Breathe AVANT chaque retry, pas seulement entre meshes : sur un gros mesh
-      // (centaines de milliers de vertices), _weldAndCheckManifold hache via toFixed()
-      // — coûteux — et peut à elle seule dépasser largement les 16ms du throttle du haut
-      // de boucle. Jusqu'à 3 passes d'affilée (tol 3→2→1) sans pause = le vrai responsable
-      // des gels de plusieurs dizaines de secondes constatés (chrono spinner y compris —
-      // il est calculé depuis performance.now(), donc jamais "faux", juste incapable de
-      // se rafraîchir tant que le thread unique ne respire pas). Coupe le bloc en tranches.
-      if(!isManifold && _sTol > _maxSewTol){ await _breathe(); _rG(); _sTol=2; isManifold = _weldAndCheckManifold(geo, 2); }
-      if(!isManifold && _sTol > _maxSewTol){ await _breathe(); _rG(); _sTol=1; isManifold = _weldAndCheckManifold(geo, 1); }
-      if(_sTol < 3) nasLog('DBG', `STEP sewing adaptatif tol=${_sTol} (${[,'0.1','0.01','0.001'][_sTol]}mm) — ${m.name||'?'} — minDim=${_minDim.toFixed(3)}mm`);
-      // Skip micro-meshes non-manifold : annotations/GD&T AP242 parasites (< 20 tris)
-      const _nTri = (geo.index ? geo.index.count : geo.attributes.position.count) / 3;
-      if(!isManifold && _nTri < 20){
-        nasLog('DBG', `STEP skip micro-mesh non-manifold : ${m.name||'?'} (${_nTri} tris)`);
-        continue;
-      }
-      if(!isManifold) nonManifoldCount++;
-      // [NEW V4.2.7 19/06] Diagnostic trous résiduels — cf. instrumentation _weldAndCheckManifold.
-      // Mesure empirique avant de décider si un hole-filling (boundary-loop+triangulation) est
-      // justifié : combien d'arêtes à nu, et où (bbox), une fois la cascade de sewing épuisée.
-      if(!isManifold && geo._nakedEdges){
-        const _bb=geo._gapBBox;
-        nasLog('DBG', `STEP gap residual — ${m.name||'?'} : ${geo._nakedEdges} naked edge(s)`
-          + (geo._overEdges?`, ${geo._overEdges} over-valenced edge(s)`:'')
-          + ` — bbox [${_bb.min.map(v=>v.toFixed(4)).join(',')}] → [${_bb.max.map(v=>v.toFixed(4)).join(',')}]`);
-      }
-      // [NEW V4.2.7 19/06] Tentative de cap (boundary-loop + ear-clip planaire) — cf.
-      // _capStepGaps. Best-effort : seules les boucles fermées quasi-planes sont comblées,
-      // tout le reste reste inchangé (CSG désactivé comme aujourd'hui). Validé sur
-      // boxy_with_cylindricity.stp (NIST AP214) avant ce patch.
-      if(!isManifold && geo._nakedEdgePairs && geo._nakedEdgePairs.length){
-        await _breathe(); // idem — _capStepGaps refait un _edgeManifoldCheck complet
-        if(_capStepGaps(geo)){
-          isManifold = true; nonManifoldCount--;
-          nasLog('DBG', `STEP gap filled — ${m.name||'?'} : mesh now watertight`);
+      // ── [17/09] IMPORT LÉGER ─────────────────────────────────────────────
+      // On garde ce qu'OCCT a produit : sa triangulation, son ordre de faces,
+      // et ses normales quand il les fournit. Rien d'autre n'est touché.
+      // Les normales subissent la MÊME bascule Z-up→Y-up que les sommets —
+      // une normale est un vecteur, la rotation s'y applique à l'identique
+      // (rotation pure, pas de mise à l'échelle : pas de matrice inverse
+      // transposée à sortir).
+      let isManifold = null;   // null = non évalué, cf. nasEnsureManifold côté host
+      if(_STEP_LEAN_IMPORT){
+        const check=_edgeManifoldCheck(geo.index.array,geo.attributes.position.array);
+        isManifold=check.manifold;
+        if(!isManifold){const test=geo.clone();try{isManifold=_weldAndCheckManifold(test,6);}finally{test.dispose();}}
+        _nasNormalizeClosedMesh(geo,isManifold);
+        if(!isManifold){nonManifoldCount++;nasLog('WARN','Imported STEP body is not a closed manifold mesh: '+m.name);}
+        const _nSrc = m.attributes?.normal?.array;
+        if(!geo.attributes.normal && _nSrc && _nSrc.length === posArr.length){
+          const _nrm = new Float32Array(_nSrc.length);
+          for(let i=0; i<_nSrc.length; i+=3){
+            _nrm[i]   = _nSrc[i];
+            _nrm[i+1] = _nSrc[i+2];
+            _nrm[i+2] = -_nSrc[i+1];
+          }
+          geo.setAttribute('normal', new THREE.BufferAttribute(_nrm, 3));
+        }
+      } else {
+        // [CLEANUP V4.2.7 19/06] Injection normales OCCT SUPPRIMÉE — plus aucun consommateur
+        // depuis le retrait du moyennage dans _weldAndCheckManifold (cf. ce fichier, plus haut).
+        // Le lissage final vient exclusivement de postProcessCSGGeo (BFS, position+index).
+        // Sewing adaptatif : 0.001mm → 0.01mm → 0.1mm
+        // Couvre les gaps SolidWorks/Parasolid (>0.001mm) et la dérive Float32 grands assemblages.
+        // Chaque retry repart du buffer original (le weld modifie geo en place).
+        // Bbox protection : maxSewTol limité à minDim/3 — évite de coller les faces
+        // opposées d'objets ultra-minces (ex: disque 0.01mm : tol=0.1mm les collapse).
+        const _sP = new Float32Array(geo.attributes.position.array);
+        const _sI = geo.index  ? new Uint32Array(geo.index.array)             : null;
+        const _sN = geo.attributes.normal ? new Float32Array(geo.attributes.normal.array) : null;
+        const _rG = () => {
+          geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(_sP), 3));
+          if(_sI) geo.setIndex(new THREE.BufferAttribute(new Uint32Array(_sI), 1));
+          if(_sN) geo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(_sN), 3));
+        };
+        // minDim = plus petite dimension de la bbox → plafond de la tol adaptative
+        const _bb0 = new THREE.Box3().setFromBufferAttribute(geo.attributes.position);
+        const _sz0 = new THREE.Vector3(); _bb0.getSize(_sz0);
+        const _minDim = Math.min(_sz0.x, _sz0.y, _sz0.z);
+        // maxSewTol : tol (1/2/3) max autorisée pour éviter le collapse
+        // _minDim ≥ 0.3mm → tol jusqu'à 0.1mm ok  (maxSewTol=1)
+        // _minDim ≥ 0.03mm → tol jusqu'à 0.01mm ok (maxSewTol=2)
+        // _minDim < 0.03mm → pas de retry           (maxSewTol=3, tol=3 seulement)
+        const _maxSewTol = _minDim >= 0.3 ? 1 : _minDim >= 0.03 ? 2 : 3;
+        let _sTol = 3;
+        isManifold = _weldAndCheckManifold(geo, 3);
+        // [NEW] Breathe AVANT chaque retry, pas seulement entre meshes : sur un gros mesh
+        // (centaines de milliers de vertices), _weldAndCheckManifold hache via toFixed()
+        // — coûteux — et peut à elle seule dépasser largement les 16ms du throttle du haut
+        // de boucle. Jusqu'à 3 passes d'affilée (tol 3→2→1) sans pause = le vrai responsable
+        // des gels de plusieurs dizaines de secondes constatés (chrono spinner y compris —
+        // il est calculé depuis performance.now(), donc jamais "faux", juste incapable de
+        // se rafraîchir tant que le thread unique ne respire pas). Coupe le bloc en tranches.
+        if(!isManifold && _sTol > _maxSewTol){ await _breathe(); _rG(); _sTol=2; isManifold = _weldAndCheckManifold(geo, 2); }
+        if(!isManifold && _sTol > _maxSewTol){ await _breathe(); _rG(); _sTol=1; isManifold = _weldAndCheckManifold(geo, 1); }
+        if(_sTol < 3) nasLog('DBG', `STEP sewing adaptatif tol=${_sTol} (${[,'0.1','0.01','0.001'][_sTol]}mm) — ${m.name||'?'} — minDim=${_minDim.toFixed(3)}mm`);
+        // Skip micro-meshes non-manifold : annotations/GD&T AP242 parasites (< 20 tris)
+        const _nTri = (geo.index ? geo.index.count : geo.attributes.position.count) / 3;
+        if(!isManifold && _nTri < 20){
+          nasLog('DBG', `STEP skip micro-mesh non-manifold : ${m.name||'?'} (${_nTri} tris)`);
+          continue;
+        }
+        if(!isManifold) nonManifoldCount++;
+        // [NEW V4.2.7 19/06] Diagnostic trous résiduels — cf. instrumentation _weldAndCheckManifold.
+        // Mesure empirique avant de décider si un hole-filling (boundary-loop+triangulation) est
+        // justifié : combien d'arêtes à nu, et où (bbox), une fois la cascade de sewing épuisée.
+        if(!isManifold && geo._nakedEdges){
+          const _bb=geo._gapBBox;
+          nasLog('DBG', `STEP gap residual — ${m.name||'?'} : ${geo._nakedEdges} naked edge(s)`
+            + (geo._overEdges?`, ${geo._overEdges} over-valenced edge(s)`:'')
+            + ` — bbox [${_bb.min.map(v=>v.toFixed(4)).join(',')}] → [${_bb.max.map(v=>v.toFixed(4)).join(',')}]`);
+        }
+        // [NEW V4.2.7 19/06] Tentative de cap (boundary-loop + ear-clip planaire) — cf.
+        // _capStepGaps. Best-effort : seules les boucles fermées quasi-planes sont comblées,
+        // tout le reste reste inchangé (CSG désactivé comme aujourd'hui). Validé sur
+        // boxy_with_cylindricity.stp (NIST AP214) avant ce patch.
+        if(!isManifold && geo._nakedEdgePairs && geo._nakedEdgePairs.length){
+          await _breathe(); // idem — _capStepGaps refait un _edgeManifoldCheck complet
+          // [TEST CAP 16/09 — À REMETTRE EN ÉTAT] bouche-trou neutralisé.
+          // On cherche à savoir si le « soudage en surface » des lumières vient d'ici :
+          // _capStepGaps ferme toute boucle de bord quasi-plane, sans pouvoir distinguer
+          // un jour laissé par la tessellation d'une ouverture voulue par le concepteur.
+          // Retirer le `false &&` pour rétablir. Original : if(_capStepGaps(geo)){
+          // [RESTAURÉ 17/09] le `false &&` du test du 16/09 est remplacé par un
+          // interrupteur nommé : _STEP_CAP_GAPS = false refait le test sans patch.
+          if(_STEP_CAP_GAPS && _capStepGaps(geo)){
+            isManifold = true; nonManifoldCount--;
+            nasLog('DBG', `STEP gap filled — ${m.name||'?'} : mesh now watertight`);
+          }
         }
       }
-      _stepGeos.push({ geo, mName: m.name, mColor: m.color, mFaces: m.faces, isManifold });
+      _stepGeos.push({ geo, mName: m.name, mColor: m.color, mFaces: m.faces, isManifold, mRef: m.ref });
     }
     // ── Pass 2 : centrage GLOBAL — une seule translation identique pour tous les corps.
     // Les vertices occt-import-js sont en coordonnées world STEP (Z-up, déjà converties Y-up).
@@ -2918,12 +4560,15 @@ async function _importSTEPSingle(file, _impOpts){
     if(_stepGeos.length){
       const _gBB = new THREE.Box3();
       _stepGeos.forEach(({geo}) => { geo.computeBoundingBox(); _gBB.union(geo.boundingBox); });
-      const _gOx = -(_gBB.min.x + _gBB.max.x) * 0.5;
-      const _gOy =  -_gBB.min.y;
-      const _gOz = -(_gBB.min.z + _gBB.max.z) * 0.5;
+      const _keep=window.NasscadImportSettings?.preserveCoordinates!==false;
+      const _gOx = _keep?0:-(_gBB.min.x + _gBB.max.x) * 0.5;
+      const _gOy = _keep?0:-_gBB.min.y;
+      const _gOz = _keep?0:-(_gBB.min.z + _gBB.max.z) * 0.5;
       const _impObjs = [];
 
       nasLog('DBG', `[perf-step] sewing: ${(performance.now()-_tSewStart).toFixed(0)}ms — ${_stepGeos.length} body(ies)`);
+      _stepPerfMark(_perf, 'sewing + manifold check', performance.now() - _tSewStart,
+        `${_stepGeos.length} bodies (main thread)`);
       const _tRepairStart = performance.now();
 
       // ── Phase 2a : offset global + reparation manifold, PAR CORPS.
@@ -2942,7 +4587,12 @@ async function _importSTEPSingle(file, _impOpts){
       // de la dupliquer entre chemin MEDUSA et chemin pool-client.
       for(const s of _stepGeos) s.geo.translate(_gOx, _gOy, _gOz);
 
-      const _mrGeos = _p2Total ? await _repairBatch(_stepGeos.map(s => s.geo)) : [];
+      // [17/09] En mode FreeCAD on ne répare RIEN à l'import — pas même par
+      // MEDUSA (33,8 s mesurées sur le Scania). FreeCAD n'a pas d'équivalent de
+      // cette étape : sa réparation, quand elle a lieu, est une opération que
+      // l'utilisateur demande. On tombe donc dans la branche « différé ».
+      const _mrGeos = _STEP_LEAN_IMPORT ? null
+                    : (_p2Total ? await _repairBatch(_stepGeos.map(s => s.geo)) : []);
       let _p2Path;
       if(_mrGeos){
         // Chemin MEDUSA reussi : re-check manifold par corps. Synchrone et
@@ -2963,6 +4613,25 @@ async function _importSTEPSingle(file, _impOpts){
           _repaired[_i] = { geoRepaired: _geoRepaired, mName, mColor, isManifold };
         }
         if(_p2Total) showSpinner('Import STEP (OCCT)', `${file.name} — repair ${_p2Total}/${_p2Total}`, 0.5);
+      } else if(!_STEP_REPAIR_CLIENT_POOL){
+        // ── [PERF 17/09] RÉPARATION DIFFÉRÉE — MEDUSA absent et pool client
+        // désactivé (cf. _STEP_REPAIR_CLIENT_POOL pour la mesure qui motive ce
+        // défaut). On garde la géométrie SOUDÉE telle quelle : c'est exactement
+        // ce que la phase 2b fait déjà, sans discussion, pour tous les corps
+        // multicolores (« la réparation existe pour rendre un corps utilisable
+        // par le CSG, pas pour l'afficher »). Les corps restent marqués
+        // non-manifold ; _manifoldRepair sera appelé par le CSG au moment où il
+        // en aura réellement besoin.
+        _p2Path = 'deferred';
+        for(let _i = 0; _i < _p2Total; _i++){
+          const { geo, mName, mColor, isManifold } = _stepGeos[_i];
+          _repaired[_i] = { geoRepaired: geo, mName, mColor, isManifold };
+        }
+        if(_p2Total) nasLog('OK', `STEP repair deferred — ${_p2Total} bodies shown exactly as OCCT produced them `
+          + `(repaired on demand, at the first CSG). Set `
+          + (_STEP_LEAN_IMPORT ? `NASSCAD_STEP_TUNING.leanImport = false`
+                               : `NASSCAD_STEP_TUNING.repairClientPool = true`)
+          + ` to repair at import time like before.`);
       } else {
         // ── Repli : pool client concurrent — IDENTIQUE a la session precedente,
         // sauf geo.translate() retire (deja fait ci-dessus, une seule fois).
@@ -3031,6 +4700,8 @@ async function _importSTEPSingle(file, _impOpts){
         if(_p2Total) showSpinner('Import STEP (OCCT)', `${file.name} — repair ${_p2Total}/${_p2Total}`, 0.5);
       }
       nasLog('DBG', `[perf-step] repair: ${(performance.now()-_tRepairStart).toFixed(0)}ms — ${_p2Total} body(ies), path=${_p2Path}, ${nonManifoldCount} still non-manifold`);
+      _stepPerfMark(_perf, 'manifold repair', performance.now() - _tRepairStart,
+        `path=${_p2Path}, ${nonManifoldCount} still non-manifold`);
 
       // ── Phase 2b : lissage BFS — UN SEUL appel batch (MEDUSA natif si dispo,
       // N corps en parallèle serveur ; repli séquentiel JS identique à l'ancien
@@ -3059,10 +4730,27 @@ async function _importSTEPSingle(file, _impOpts){
         _repaired[_i].geoRepaired = _stepGeos[_i].geo;
       }
 
-      const _smoothGeos = await _smoothBatch(_repaired.map(r => r.geoRepaired), 30);
+      // [17/09] Le lissage BFS n'existe que pour REMPLACER les normales qu'on
+      // jetait. Quand la source les fournit — occt-import-js les calcule via
+      // Poly_Triangulation::ComputeNormals, donc depuis la SURFACE et non depuis
+      // les triangles — elles sont exactes, déjà là, et meilleures que toute
+      // heuristique d'angle de crête. C'est exactement ce que fait FreeCAD.
+      // Le chemin MEDUSA ne les transporte pas encore dans le NSTP : il garde
+      // donc le lissage natif, qui coûte 1,5 s pour 1449 corps — trop peu cher
+      // pour justifier une migration de protocole.
+      const _tSmooth0 = performance.now();
+      const _srcGeos = _repaired.map(r => r && r.geoRepaired);
+      const _haveNormals = _STEP_LEAN_IMPORT && _srcGeos.length
+        && _srcGeos.every(g => g && g.attributes && g.attributes.normal);
+      const _smoothGeos = _haveNormals ? _srcGeos : await _smoothBatch(_srcGeos, 30);
+      _stepPerfMark(_perf, _haveNormals ? 'smoothing (skipped — OCCT normals)' : 'BFS smoothing',
+        performance.now() - _tSmooth0, `${_repaired.length} bodies`);
+      const _tBuild0 = performance.now();
 
       // ── Phase 2c : construction des meshes + enregistrement objets NASSCAD
       // (logique métier inchangée, juste déplacée hors de la boucle repair) ──
+      const _cacheBodies = []; // [PERF 17/09] matière du cache NSPG, cf. plus bas
+      let _nColoured = 0;      // [18/09] corps dont la COULEUR vient du lecteur, pas de la palette
       for(let _i = 0; _i < _repaired.length; _i++){
         const { mName, mColor, isManifold, mFaces } = _repaired[_i];
         const geoSmooth = _smoothGeos[_i];
@@ -3088,23 +4776,83 @@ async function _importSTEPSingle(file, _impOpts){
         // l'invariant "o.color est une chaine '#rrggbb'" soit enfin vrai partout.
         let col;
         if(mColor && mColor.r !== undefined){
+          _nColoured++;
           const _cr=Math.round(mColor.r*255),_cg=Math.round(mColor.g*255),_cb=Math.round(mColor.b*255);
           col = '#' + (((_cr<<16)|(_cg<<8)|_cb) >>> 0).toString(16).padStart(6,'0');
         } else { col = COL[objCnt % COL.length]; }
         // [27/08] Couleurs par face — implémentation partagée avec step-xcaf.js.
-        const _faceMats = _applyFaceColors(geoSmooth, mFaces);
+        // [18/09] _stepAlphaOf : opacité déclarée par le fichier pour cette
+        // teinte. Aucun lecteur (MEDUSA, occt-import-js, cache) ne transporte
+        // d'alpha ; la table vient de la passe de déclaration, faite plus haut
+        // sur le texte, et vaut 1 partout si le fichier n'a pas de transparence.
+        const _faceMats = _applyFaceColors(geoSmooth, mFaces, mName, _stepAlphaOf);
+        // [11/09] La couleur du CORPS doit s'accorder avec ce qui est peint.
+        // _adoptBrepFaces et _xcafFaceColors le font déjà chacun de leur côté,
+        // mais le chemin MEDUSA ne passe par NI l'un NI l'autre : la table de
+        // faces arrive telle quelle dans le NSTP et o.color reste la couleur de
+        // niveau SOLIDE du fichier. D'où un corps rendu gris acier avec une
+        // pastille jaune #dddd0d dans l'Object List. Ici, c'est le seul point
+        // par où passent les TROIS chemins.
+        if(_faceMats){
+          const _dom = _dominantFaceHex(mFaces);
+          if(_dom !== null){
+            const _domHex = '#' + _dom.toString(16).padStart(6,'0');
+            if(_domHex !== col){
+              nasLog('DBG', `[face-color] body colour aligned on the dominant face colour — ${mName||'?'} : ${col} -> ${_domHex}`);
+              col = _domHex;
+            }
+          }
+        }
         if(_faceMats){
           nasLog('DBG', `STEP per-face colors — ${mName||'?'} : ${mFaces.length} face(s), `
             + `${new Set(_faceMats.map(m=>m.color.getHex())).size} color(s), ${geoSmooth.groups.length} draw group(s)`);
         }
-        const mat = _faceMats || new THREE.MeshPhongMaterial({color:col, shininess:8, specular:0x1a1a1a, side:THREE.DoubleSide});
+        // [19/09] L'opacite du LECTEUR l'emporte sur la table de declaration.
+        // Le commentaire ci-dessus datait d'avant le 18/09 : MEDUSA transporte
+        // desormais `a` dans le NSTP (SURFACE_STYLE_RENDERING cote STEP,
+        // IfcSurfaceStyleRendering cote IFC). Et un IFC n'a PAS de passe de
+        // declaration — elle lit du Part-21 STEP — donc sans cette ligne tout
+        // le vitrage d'un batiment ressort opaque : mesure du 19/09, 206 corps
+        // translucides dans le NSTP, 0 a l'ecran. La table reste le repli pour
+        // les lecteurs qui ne disent rien (occt-import-js, vieux caches).
+        const _alpha = (mColor && mColor.a !== undefined && mColor.a < 1) ? mColor.a
+                     : (_stepAlphaOf ? _stepAlphaOf(col) : 1);
+        const mat = _faceMats || new THREE.MeshPhongMaterial({color:col, shininess:8,
+          specular:0x1a1a1a, side:THREE.DoubleSide, transparent:_alpha < 1, opacity:_alpha});
         const mesh = new THREE.Mesh(geoSmooth, mat); mesh.castShadow = true; scene.add(mesh);
         mesh.position.set(0, 0, 0); // positions baked dans la géo via offset global
         mesh.updateMatrixWorld(true);
         const name = (mName || file.name.replace(/\.[^.]+$/,'')) + '_' + objCnt;
         const obj  = {id:objCnt, name, type:'csg', mesh, color:col, isHole:false, isManifold,
           stepGroupId:_stepGroupId, stepGroupLabel:_stepGroupLabel};
+        // [24/09] Lien vers le B-Rep EXACT que MEDUSA garde pour ce corps : à
+        // l'export, tant que la géométrie n'a pas changé, c'est lui qui est
+        // réécrit (taille et précision du fichier d'origine), pas ce maillage.
+        const _ref = _stepGeos[_i] && _stepGeos[_i].mRef;
+        if(_ref) obj._medusaRef = _stepExactRef(_ref, [_gOx, _gOy, _gOz], geoSmooth, col, file);
         objs.push(obj); _impObjs.push(obj); meshCount++;
+        _cacheBodies.push({ name: mName, color: col, isManifold, geo: geoSmooth, faces: mFaces, ref: _ref });
+      }
+      _stepPerfMark(_perf, 'mesh build + scene', performance.now() - _tBuild0,
+        `${_repaired.length} bodies`);
+      // [18/09] Le fichier déclare-t-il des couleurs que le lecteur n'a pas
+      // rendues ? Un modèle gris peut venir du fichier ou du lecteur, et jusqu'ici
+      // rien ne permettait de trancher depuis l'écran. Mesuré : occt-import-js
+      // (WASM, le repli quand MEDUSA n'est pas là) ne rend AUCUNE couleur de face
+      // — `brep_faces[].color` vaut null même sur un fichier écrit par OCCT — et
+      // sur Rocky_House il ne rend pas non plus les couleurs de corps. Le dire est
+      // la moitié du travail ; l'autre moitié est de démarrer MEDUSA.
+      if(_stepDeclared && meshCount){
+        const _dc = _stepDeclared.counts || {};
+        const _declStyles = (_dc.STYLED_ITEM || 0) + (_dc.OVER_RIDING_STYLED_ITEM || 0);
+        const _declFaceStyles = _dc.OVER_RIDING_STYLED_ITEM || 0;
+        if(_declStyles && !_nColoured)
+          nasLog('WARN', `STEP colours: the file declares ${_declStyles.toLocaleString()} style(s) `
+            + `but the reader returned none — every body is showing a palette colour. `
+            + `MEDUSA (native) reads them; the browser fallback does not.`);
+        else if(_declFaceStyles && !_cacheBodies.some(b => b.faces && b.faces.length))
+          nasLog('WARN', `STEP colours: ${_declFaceStyles.toLocaleString()} per-face style(s) declared, `
+            + `none returned by the reader — bodies are painted with their solid colour only.`);
       }
       selObjs = _impObjs;
       // [NEW V4.4.0 03/07] Overlay PMI — construit APRÈS le centrage global pass 2 :
@@ -3115,17 +4863,57 @@ async function _importSTEPSingle(file, _impOpts){
         catch(e){ nasLog('WARN', `PMI overlay failed (${e.message})`); }
       }
       _pmiPending = null;
+      // [PERF 17/09] Écriture du cache de géométrie finale — DIFFÉRÉE d'une
+      // macrotask : la scène doit s'afficher d'abord. L'encodage recopie les
+      // buffers (quelques centaines de ms sur un gros assemblage), et rien ne
+      // justifie de retarder le premier rendu de ce que l'utilisateur vient
+      // d'attendre. Fire-and-forget : un échec ne casse rien, il coûte juste un
+      // import complet la prochaine fois.
+      // [29/09] Jamais un Turbo incomplet : ressorti du cache, il masquerait les
+      // corps manquants même une fois MEDUSA démarré.
+      if(_gk && _cacheBodies.length && !(_turboInfo && _turboInfo.failed && _turboInfo.failed.length)){
+        const _lbl = file.name, _mGOx = _gOx, _mGOy = _gOy, _mGOz = _gOz;
+        const _mNm = nonManifoldCount, _mPath = _p2Path;
+        const _mAlpha = (_stepDeclared && _stepDeclared.styleAlpha
+          && Object.keys(_stepDeclared.styleAlpha).length) ? _stepDeclared.styleAlpha : undefined;
+        setTimeout(() => {
+          try{
+            const _t0e = performance.now();
+            const _ab = _nspgEncode(_cacheBodies, { gOx:_mGOx, gOy:_mGOy, gOz:_mGOz,
+              nonManifoldCount:_mNm, path:_mPath, deflection:_STEP_WASM_DEFLECTION,
+              styleAlpha:_mAlpha });
+            _geoCachePut(_gk, _ab, _lbl);
+            nasLog('DBG', `[cache-geo] ${_lbl} — ${(_ab.byteLength/1024/1024).toFixed(1)} MB encoded `
+              + `in ${Math.round(performance.now()-_t0e)} ms — the next import of this file `
+              + `will be near-instant`);
+          }catch(e){ nasLog('DBG', `[cache-geo] write skipped (${e.message})`); }
+        }, 0);
+      }
     }
     updProps(); updOList(); updStats();
     const ms = Math.round(performance.now()-t0);
     const kb = Math.round(file.size/1024);
-    if(!_stepTurboBatch){ _lastImportStats = { chunks: 1, ms, label: file.name }; updStats(); } // chrono stats panel — gated en Turbo : le vrai total {chunks:N, ms:_turboMs} est écrit par importSTEP en fin de batch
-    nasLog('OK', `Import STEP (OCCT) : ${meshCount} mesh(es) — ${kb} KB — ${ms}ms`
+    if(!_stepTurboBatch){ _lastImportStats = { chunks: _turboInfo ? _turboInfo.chunks : 1, ms, label: file.name }; updStats(); } // chrono stats panel (Turbo : nombre de tranches lues)
+    // [19/09] Le meme code sert aux deux formats : dire lequel, plutot que
+    // d'annoncer « STEP » a quelqu'un qui vient de deposer un IFC.
+    const _fmt = (_impOpts && _impOpts.ifc) ? 'IFC (MEDUSA)' : 'STEP (OCCT)';
+    nasLog('OK', `Import ${_fmt} : ${meshCount} mesh(es) — ${kb} KB — ${ms}ms`
+      + (_turboInfo ? ` — Turbo, ${_turboInfo.chunks} chunk(s)` : '')
       + (nonManifoldCount ? ` — ⚠ ${nonManifoldCount} non-manifold (CSG disabled)` : ''));
-    _csgLog(`✓ STEP imported (OCCT): ${meshCount} mesh(es)`
+    _csgLog(`✓ ${_fmt} imported: ${meshCount} mesh(es)`
       + (nonManifoldCount ? ` — ⚠ ${nonManifoldCount} non-manifold` : ''));
+    nasFaceColorReport();   // [11/09] bilan couleurs par face — une ligne, toujours
+    // [16/09] Confrontation déclaration ↔ obtenu. C'est ce qui a permis de
+    // trancher : sur Rocky_House, le fichier déclare 143 solides tous fermés et
+    // 10 corps ressortent ouverts — parce que 12 faces sur 8 285 n'ont produit
+    // AUCUN triangle. Un trou de face manquante, pas un interstice : aucune
+    // tolérance de couture ne peut le fermer, il n'y a rien en face.
+    try {
+      if(_stepDeclared && typeof nasStepAudit === 'function')
+        nasStepAudit(_stepDeclared, result, { nonManifoldCount });
+    } catch(e){ nasLog('WARN', `STEP audit failed (${e.message})`); }
   } catch(err){
     nasLog('ERROR', 'Import STEP : ' + err.message);
     _nasAlert('⚠ Import STEP failed:\n' + err.message);
-  } finally { hideSpinner(); }
+  } finally { hideSpinner(); _stepPerfReport(_perf); }
 }

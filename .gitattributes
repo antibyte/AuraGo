@@ -24,6 +24,7 @@ ui/js/desktop/bundles/*.js text eol=lf
 
 # Preserve generated template literals and upstream license text byte-for-byte.
 ui/js/vendor/** text=auto eol=lf -whitespace
+internal/desktop/bundled_apps/nasscad/** text=auto eol=lf -whitespace
 internal/gamemaker/runtime/three-*.min.js text eol=lf -whitespace
 
 # CYD Creator: the embedded device template, the generator's reference and

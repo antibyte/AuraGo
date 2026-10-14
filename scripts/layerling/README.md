@@ -1,19 +1,23 @@
 # Layerling adapter build
 
-Upstream: https://github.com/henmedia/layerling, AGPL-3.0-only, version 1.57.0,
-commit `25f12513802e322cdccecaf138f874ff526f331d`.
+Upstream: https://github.com/henmedia/layerling, AGPL-3.0-only, version 1.71.0,
+commit `8704d5c99adfeb981be31bb5eddc9c17f75ab281`.
 
-Download https://codeload.github.com/henmedia/layerling/zip/25f12513802e322cdccecaf138f874ff526f331d
-as `disposable/_layerling/upstream.zip`. SHA-256:
-`9d81fcb78d13afb07511ec75279c341cce87c4ec7efa10ed4cc6a972c43bc5e8`.
+Download https://codeload.github.com/henmedia/layerling/zip/8704d5c99adfeb981be31bb5eddc9c17f75ab281
+as `disposable/_layerling/upstream-1.71.0.zip`. SHA-256:
+`53a613e5fa04e003d47d5aedf552595c8774a1c846984aa8cab0058358ed41d6`.
 Extract there, run `npm ci` in the extracted source, then from AuraGo run
-`node scripts/build-layerling-vendor.mjs`. Use exactly Node 24.15.0.
+`node scripts/build-layerling-vendor.mjs`. Use exactly Node 24.21.0.
 `node scripts/build-layerling-vendor.mjs --check` verifies the shipped files.
 
 The build applies checked source patches for the fixed URL prefix, substitutes
 the Desktop entry page, connects the existing CAD dispatcher to the document
 MessageChannel, directs exports to Desktop storage and disables the upstream
 service worker. The upstream lockfile and CAD implementation are retained.
+`operations.json` keeps the existing AuraGo agent operation set explicit;
+upstream browser launch, font-download and drawing-export operations are not
+automatically granted by a dependency update. Parameter schemas are regenerated
+for the supported operations and checked against their training fixtures.
 
 Patches are checked replacements in `build-layerling-vendor.mjs`: fixed
 `basePath`, deterministic build ID, two build workers, the standalone entry

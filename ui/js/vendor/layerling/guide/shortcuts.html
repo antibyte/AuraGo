@@ -8,11 +8,12 @@
     <link rel="canonical" href="https://layerling.com/guide/shortcuts.html">
     <link rel="alternate" hreflang="en" href="https://layerling.com/guide/shortcuts.html">
     <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/tastenkuerzel.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/sneltoetsen.html">
     <meta property="og:title" content="Keyboard shortcuts - layerling user guide">
     <meta property="og:description" content="All keys at a glance, taken straight from the program so the list is always right.">
     <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
     <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
-    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite")document.documentElement.dataset.theme="dark"}catch(e){}</script>
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
     <style>
 :root {
   color-scheme: light;
@@ -31,6 +32,11 @@
   --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
   --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
 }
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
 * { box-sizing: border-box; }
 html { scroll-padding-top: 76px; }
 body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
@@ -42,10 +48,30 @@ a { color: var(--accent); }
 .brand b { font-size: 19px; letter-spacing: -0.03em; }
 .brand-text { display: flex; align-items: baseline; gap: 10px; }
 .brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
 .editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
 .editor-elsewhere[hidden] { display: none; }
 .bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
-.bar a.lang { color: var(--muted); font-size: 14px; font-weight: 600; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
 .shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
 nav.chapters { position: sticky; top: 76px; font-size: 14px; }
 nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
@@ -90,6 +116,7 @@ th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transfor
 .cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
 footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
 .site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
 .site-footer a { color: var(--muted); text-decoration: none; }
 .site-footer a:hover { color: var(--accent); text-decoration: underline; }
 .site-footer .dot { margin: 0 8px; }
@@ -100,13 +127,18 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
   h1 { font-size: 28px; }
   .brand-note { display: none; }
 }
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
 @media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
 </style>
   </head>
   <body>
     <header class="bar"><div class="bar-inner">
       <a class="brand" href="/api/desktop/layerling/ui/guide/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">User guide</span></span></a>
-      <a class="lang" href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html" hreflang="de" title="Auf Deutsch lesen">Deutsch</a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/guide/search-index.json" data-nothing="Nothing found." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Search the guide" aria-label="Search the guide" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Language">English</summary><ul><li><a href="/api/desktop/layerling/ui/guide/shortcuts.html" hreflang="en" lang="en" aria-current="true">English</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/handleiding/sneltoetsen.html" hreflang="nl" lang="nl">Nederlands</a></li></ul></details>
       <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Open the editor</a>
     </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>The editor is already open in another tab - just switch to it.</p></header>
     <div class="shell">
@@ -120,7 +152,9 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
 <figure><img src="/api/desktop/layerling/ui/guide/img/shortcuts.webp" alt="The keyboard shortcuts window in the editor." width="1280" height="800" loading="lazy"><figcaption>The keyboard shortcuts window in the editor.</figcaption></figure>
 <h2 id="command-search">Command search</h2>
 <p>Can't find a tool? Press <kbd>Ctrl</kbd>+<kbd>K</kbd> or click the magnifying glass in the <strong class="ui">“Help”</strong> area, then type what you are looking for: a tool (&quot;fillet&quot;, &quot;mirror&quot;), a shape (&quot;cylinder&quot;) or a command (&quot;export&quot;, &quot;undo&quot;). Move with the arrow keys and press <kbd>Enter</kbd>, or click the entry.</p>
-<ul><li>The search understands the English and the German word alike and ignores capital letters and umlauts: &quot;aushoehlen&quot; finds <strong class="ui">“Hollow”</strong>.</li><li>Every entry shows the keys that do the same and the area of the toolbar it lives in, so you learn where it is.</li><li>Entries that are greyed out cannot run right now, mostly because nothing is selected. They stay in the list so the search still tells you where the tool is.</li><li>A shape's name adds that shape to the workplane, just like clicking it in the shapes menu.</li><li>With an empty field the search lists the commands you used last at the top.</li><li>The name of a body in your design finds that body and selects it, which helps in a design with many parts. Bodies only appear once you type.</li><li>It works in sketch mode as well, with the sketch tools.</li></ul>
+<ul><li>The search understands the English and the German word alike and ignores capital letters and umlauts: &quot;aushoehlen&quot; finds <strong class="ui">“Hollow”</strong>.</li><li>Every entry shows the keys that do the same and the area of the toolbar it lives in, so you learn where it is.</li><li>Entries that are greyed out cannot run right now, mostly because nothing is selected. They stay in the list so the search still tells you where the tool is.</li></ul>
+<p>The guide you are reading has a search box too, at the top of every page: type a word or two and it lists the sections that contain all of them, with the matching words marked. Click one, or press <kbd>Enter</kbd> for the first, to jump straight there.</p>
+<ul><li>A shape's name adds that shape to the workplane, just like clicking it in the shapes menu.</li><li>With an empty field the search lists the commands you used last at the top.</li><li>The name of a body in your design finds that body and selects it, which helps in a design with many parts. Bodies only appear once you type.</li><li>It works in sketch mode as well, with the sketch tools.</li></ul>
 <h2 id="selection">Selection</h2>
 <div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>Esc</kbd></td><td>Clear the selection</td></tr><tr><td><kbd>Delete</kbd> or <kbd>Backspace</kbd></td><td>Delete the selection</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>A</kbd></td><td>Select every visible shape</td></tr><tr><td><kbd>Shift</kbd>+<kbd>Click</kbd></td><td>Add to the selection or take out of it</td></tr><tr><td><kbd>Right click</kbd></td><td>Menu with the most used commands for the selection</td></tr></tbody></table></div>
 <h2 id="clipboard">Clipboard</h2>
@@ -128,11 +162,11 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
 <h2 id="history">History</h2>
 <div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td><td>Undo</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> or <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Redo</td></tr><tr><td><kbd>← / →</kbd></td><td>In the history view: earlier or later state</td></tr><tr><td><kbd>Esc</kbd></td><td>In the history view: back to the current state</td></tr></tbody></table></div>
 <h2 id="file">File</h2>
-<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>Ctrl</kbd>+<kbd>I</kbd></td><td>Open the import dialog</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>E</kbd></td><td>Open the export dialog</td></tr></tbody></table></div>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>Ctrl</kbd>+<kbd>I</kbd></td><td>Open the import dialog</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>E</kbd></td><td>Open the export dialog</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save the design into its file</td></tr></tbody></table></div>
 <h2 id="grouping-and-visibility">Grouping and visibility</h2>
 <div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>Ctrl</kbd>+<kbd>G</kbd></td><td>Group</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>B</kbd></td><td>Bundle (hold together without merging)</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></td><td>Ungroup or unbundle</td></tr><tr><td><kbd>E</kbd></td><td>Edit the selected group</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>L</kbd></td><td>Lock or unlock the selection</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>H</kbd></td><td>Hide the selection</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd></td><td>Show everything hidden</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd></td><td>Show or hide the object list</td></tr></tbody></table></div>
 <h2 id="shaping-the-selection">Shaping the selection</h2>
-<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>H</kbd></td><td>Turn the selection into a hole</td></tr><tr><td><kbd>S</kbd></td><td>Turn the selection back into a solid</td></tr><tr><td><kbd>M</kbd></td><td>Mirror mode</td></tr><tr><td><kbd>L</kbd></td><td>Align mode</td></tr><tr><td><kbd>D</kbd></td><td>Drop the selection onto the workplane</td></tr><tr><td><kbd>C</kbd></td><td>Pick up the selection and set it down on a face (like Cruise in Tinkercad)</td></tr><tr><td><kbd>N</kbd></td><td>Place a note</td></tr></tbody></table></div>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>H</kbd></td><td>Turn the selection into a hole</td></tr><tr><td><kbd>S</kbd></td><td>Turn the selection back into a solid</td></tr><tr><td><kbd>T</kbd></td><td>Make the selection see-through, or opaque again</td></tr><tr><td><kbd>M</kbd></td><td>Mirror mode</td></tr><tr><td><kbd>B</kbd></td><td>Fillet tool for the selected body (again: close it)</td></tr><tr><td><kbd>Shift</kbd>+<kbd>B</kbd></td><td>Chamfer tool for the selected body (again: close it)</td></tr><tr><td><kbd>L</kbd></td><td>Align mode</td></tr><tr><td><kbd>D</kbd></td><td>Drop the selection onto the workplane</td></tr><tr><td><kbd>C</kbd></td><td>Pick up the selection and set it down on a face (like Cruise in Tinkercad)</td></tr><tr><td><kbd>N</kbd></td><td>Place a note</td></tr></tbody></table></div>
 <h2 id="moving-and-rotating">Moving and rotating</h2>
 <div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>← / → / ↑ / ↓</kbd></td><td>Move by one grid step, as the view is turned</td></tr><tr><td><kbd>Shift</kbd>+<kbd>← / → / ↑ / ↓</kbd></td><td>Move by five grid steps</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>↑ / ↓</kbd></td><td>Raise or lower the selection</td></tr><tr><td><kbd>R</kbd></td><td>Rotate by 45°</td></tr><tr><td><kbd>Shift</kbd>+<kbd>R</kbd></td><td>Rotate by 22.5°</td></tr><tr><td><kbd>Shift</kbd></td><td>Hold while dragging: move along X or Y only</td></tr><tr><td><kbd>Alt</kbd>+<kbd>Drag</kbd></td><td>Drag a copy, the original stays put</td></tr><tr><td><kbd>Alt</kbd></td><td>Pressed once dragging: pause snapping to other shapes</td></tr></tbody></table></div>
 <h2 id="view-and-workplane">View and workplane</h2>
@@ -140,14 +174,101 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
 <h2 id="help">Help</h2>
 <div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>Open the command search</td></tr></tbody></table></div>
 <h2 id="sketch-mode">Sketch mode</h2>
-<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>Open the command search</td></tr><tr><td><kbd>Esc</kbd></td><td>End the chain, clear the selection</td></tr><tr><td><kbd>Delete</kbd> or <kbd>Backspace</kbd></td><td>Delete the selected element</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd></td><td>Copy</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>X</kbd></td><td>Cut</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>Paste</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>Duplicate</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td><td>Undo</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> or <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Redo</td></tr><tr><td><kbd>R</kbd></td><td>Rotate a closed sketch by 45°</td></tr><tr><td><kbd>L</kbd></td><td>Lock or unlock the reference image</td></tr><tr><td><kbd>F</kbd> or <kbd>Home</kbd></td><td>Fit the whole sketch in the view</td></tr><tr><td><kbd>Shift</kbd>+<kbd>F</kbd></td><td>Zoom to the selection in the sketch</td></tr><tr><td><kbd>Alt</kbd>+<kbd>Enter</kbd></td><td>In a line's length field: grow to both sides</td></tr><tr><td><kbd>← / → / ↑ / ↓</kbd> or <kbd>Shift</kbd>+<kbd>← / → / ↑ / ↓</kbd></td><td>Move the selected points, lines or image by one grid step (Shift: a larger step)</td></tr><tr><td><kbd>Shift</kbd></td><td>While drawing: snap the new line in 15° steps</td></tr><tr><td><kbd>Shift</kbd></td><td>While dragging: keep the move on one axis</td></tr><tr><td><kbd>0-9</kbd> or <kbd>&lt;</kbd> or <kbd>Tab</kbd> or <kbd>Enter</kbd></td><td>While drawing: type the length, &quot;&lt;&quot; or Tab for the angle, Enter sets the point</td></tr></tbody></table></div>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>Open the command search</td></tr><tr><td><kbd>Esc</kbd></td><td>End the chain, clear the selection</td></tr><tr><td><kbd>Delete</kbd> or <kbd>Backspace</kbd></td><td>Delete the selected element</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd></td><td>Copy</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>X</kbd></td><td>Cut</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>Paste</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>Duplicate</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td><td>Undo</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> or <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Redo</td></tr><tr><td><kbd>R</kbd></td><td>Rotate a closed sketch by 45°</td></tr><tr><td><kbd>L</kbd></td><td>Lock or unlock the reference image</td></tr><tr><td><kbd>F</kbd> or <kbd>Home</kbd></td><td>Fit the whole sketch in the view</td></tr><tr><td><kbd>Shift</kbd>+<kbd>F</kbd></td><td>Zoom to the selection in the sketch</td></tr><tr><td><kbd>+</kbd> or <kbd>−</kbd></td><td>Zoom in or out of the sketch</td></tr><tr><td><kbd>Alt</kbd>+<kbd>Enter</kbd></td><td>In a line's length field: grow to both sides</td></tr><tr><td><kbd>← / → / ↑ / ↓</kbd> or <kbd>Shift</kbd>+<kbd>← / → / ↑ / ↓</kbd></td><td>Move the selected points, lines or image by one grid step (Shift: a larger step)</td></tr><tr><td><kbd>Shift</kbd></td><td>While drawing: snap the new line in 15° steps</td></tr><tr><td><kbd>Shift</kbd></td><td>While dragging: keep the move on one axis</td></tr><tr><td><kbd>0-9</kbd> or <kbd>&lt;</kbd> or <kbd>Tab</kbd> or <kbd>Enter</kbd></td><td>While drawing: type the length, &quot;&lt;&quot; or Tab for the angle, Enter sets the point</td></tr></tbody></table></div>
 <h2 id="chamfer-and-fillet">Chamfer and fillet</h2>
 <div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>Enter</kbd></td><td>Apply the preview</td></tr><tr><td><kbd>Esc</kbd></td><td>Discard the preview</td></tr></tbody></table></div>
 <div class="pager"><a href="/api/desktop/layerling/ui/guide/files-and-saving.html"><small>Previous chapter</small>Files, saving and sharing</a><a class="next" href="/api/desktop/layerling/ui/guide/ai-with-mcp.html"><small>Next chapter</small>Building with an AI (MCP)</a></div>
       </main>
     </div>
     <footer class="note">This guide grows with the program. If something is missing or wrong, tell us in the <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussions</a>.</footer>
-    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=en" rel="noopener">Support the project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussions</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">More about the project on GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.57.0</a></div></footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=en" rel="noopener">Support the project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussions</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">More about the project on GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.71.0</a></div><p class="trademark">Tinkercad is a trademark of Autodesk, Inc. layerling is an independent project and is not affiliated with, endorsed or sponsored by Autodesk.</p></footer>
     <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Back to the editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Open the editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text){var out="";for(var i=0;i<text.length;i++){out+=text.charAt(i).toLowerCase().normalize("NFD").charAt(0);}return out;}
+function guideForms(word,umlauts){
+  var forms=[word];
+  if(umlauts){var plain=word.split("ae").join("a").split("oe").join("o").split("ue").join("u");if(plain!==word)forms.push(plain);}
+  if(word.indexOf("ss")>=0)forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if(word.indexOf(String.fromCharCode(223))>=0)forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text,forms,from){
+  var best=null;
+  for(var i=0;i<forms.length;i++){var k=text.indexOf(forms[i],from);if(k>=0&&(!best||k<best.at))best={at:k,len:forms[i].length};}
+  return best;
+}
+function guidePrepare(entries){return entries.map(function(e){return {e:e,c:guideFold(e.c),h:guideFold(e.h),t:guideFold(e.t)};});}
+function guideTokens(query){return guideFold(query).split(" ").filter(function(w){return w.length>0;});}
+function guideSearch(prepared,query,limit,umlauts){
+  var tokens=guideTokens(query);if(!tokens.length)return [];
+  var forms=tokens.map(function(w){return guideForms(w,umlauts);}),phrase=guideForms(tokens.join(" "),umlauts),found=[];
+  prepared.forEach(function(p){
+    var score=0;
+    for(var i=0;i<tokens.length;i++){
+      var inH=guideFind(p.h,forms[i],0),inC=guideFind(p.c,forms[i],0),at=guideFind(p.t,forms[i],0);
+      if(!inH&&!inC&&!at)return;
+      if(inH)score+=10;
+      if(inC)score+=3;
+      if(at){score+=1;var n=0,k=at;while(k&&n<5){n++;k=guideFind(p.t,forms[i],k.at+k.len);}score+=n*0.3;}
+    }
+    if(tokens.length>1&&(guideFind(p.h,phrase,0)||guideFind(p.t,phrase,0)))score+=6;
+    found.push({entry:p.e,score:score,folded:p.t,forms:forms});
+  });
+  found.sort(function(a,b){return b.score-a.score;});
+  return found.slice(0,limit||8);
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,form.getAttribute("data-umlauts")==="true");
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first)window.location.href=first.href;});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
   </body>
 </html>

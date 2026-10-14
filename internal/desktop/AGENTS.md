@@ -34,6 +34,14 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 
 ## Work Guidance
 
+- NASSCAD 4.7.0 is pinned to upstream `279da7c0f0ca28dfae19c11c8be231f326dfda4f`.
+  Rebuild with `node scripts/vendor-nasscad.mjs --source=<release source>` and
+  verify with `--check` and `scripts/test-nasscad-browser.mjs`. Preserve the
+  CC BY-NC license, local Manifold/IFC/OCCT runtimes and authenticated sibling
+  URLs. The seeder publishes the monolithic entry last and preserves existing
+  user workspace apps; its lazy assets, guides and license files must all be
+  included in `assets/web-assets.json`.
+
 - Code Studio's managed image includes GCC, libc development headers and make;
   the runtime probe requires GCC alongside Go, Python and Node. The shared
   sample map seeds `hello.go`, `hello.py` and `hello.c`. Existing workspaces with

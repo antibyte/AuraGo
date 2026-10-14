@@ -6,13 +6,14 @@
     <title>Ansicht und Arbeitsebene - layerling Anleitung</title>
     <meta name="description" content="Sich in der Szene bewegen, gerade von vorn schauen und neue Formen auf jede beliebige Fläche setzen.">
     <link rel="canonical" href="https://layerling.com/anleitung/ansicht-und-arbeitsebene.html">
-    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/ansicht-und-arbeitsebene.html">
     <link rel="alternate" hreflang="en" href="https://layerling.com/guide/view-and-workplane.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/ansicht-und-arbeitsebene.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/weergave-en-werkvlak.html">
     <meta property="og:title" content="Ansicht und Arbeitsebene - layerling Anleitung">
     <meta property="og:description" content="Sich in der Szene bewegen, gerade von vorn schauen und neue Formen auf jede beliebige Fläche setzen.">
     <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
     <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
-    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite")document.documentElement.dataset.theme="dark"}catch(e){}</script>
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
     <style>
 :root {
   color-scheme: light;
@@ -31,6 +32,11 @@
   --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
   --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
 }
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
 * { box-sizing: border-box; }
 html { scroll-padding-top: 76px; }
 body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
@@ -42,10 +48,30 @@ a { color: var(--accent); }
 .brand b { font-size: 19px; letter-spacing: -0.03em; }
 .brand-text { display: flex; align-items: baseline; gap: 10px; }
 .brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
 .editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
 .editor-elsewhere[hidden] { display: none; }
 .bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
-.bar a.lang { color: var(--muted); font-size: 14px; font-weight: 600; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
 .shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
 nav.chapters { position: sticky; top: 76px; font-size: 14px; }
 nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
@@ -90,6 +116,7 @@ th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transfor
 .cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
 footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
 .site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
 .site-footer a { color: var(--muted); text-decoration: none; }
 .site-footer a:hover { color: var(--accent); text-decoration: underline; }
 .site-footer .dot { margin: 0 8px; }
@@ -100,13 +127,18 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
   h1 { font-size: 28px; }
   .brand-note { display: none; }
 }
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
 @media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
 </style>
   </head>
   <body>
     <header class="bar"><div class="bar-inner">
       <a class="brand" href="/api/desktop/layerling/ui/anleitung/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Anleitung</span></span></a>
-      <a class="lang" href="/api/desktop/layerling/ui/guide/view-and-workplane.html" hreflang="en" title="Read this in English">English</a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/anleitung/search-index.json" data-nothing="Nichts gefunden." data-umlauts="true"><input type="search" id="guide-search-input" name="q" placeholder="Anleitung durchsuchen" aria-label="Anleitung durchsuchen" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Sprache">Deutsch</summary><ul><li><a href="/api/desktop/layerling/ui/guide/view-and-workplane.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html" hreflang="de" lang="de" aria-current="true">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html" hreflang="nl" lang="nl">Nederlands</a></li></ul></details>
       <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Zum Editor</a>
     </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Der Editor ist schon in einem anderen Tab offen - wechsle einfach dorthin.</p></header>
     <div class="shell">
@@ -119,16 +151,18 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
 <p>Mit der Maus:</p>
 <div class="table-scroll"><table><thead><tr><th>Was du tust</th><th>Was passiert</th></tr></thead><tbody><tr><td>rechte Maustaste ziehen</td><td>die Ansicht drehen</td></tr><tr><td>rechte Maustaste kurz klicken</td><td>auf einem Körper ein Menü mit den häufigsten Befehlen: duplizieren, Aussparung oder Körper, gruppieren, ausblenden, sperren, löschen und mehr; auf leerer Fläche Einfügen und Alle auswählen</td></tr><tr><td>mittlere Maustaste ziehen</td><td>die Ansicht verschieben</td></tr><tr><td>Mausrad</td><td>hinein- und herauszoomen</td></tr><tr><td><kbd>Strg</kbd> halten und mit links ziehen</td><td>ebenfalls verschieben</td></tr></tbody></table></div>
 <p>Auf einem Tablet oder Handy zoomen zwei Finger (spreizen und zusammenziehen) und verschieben die Ansicht (gemeinsam schieben). Ein Finger arbeitet am Entwurf, so wie die linke Maustaste. Wer mit einem Finger drehen möchte, schaltet in der Kameraleiste <strong class="ui">„Ansicht mit einem Finger drehen“</strong> ein. Der Schalter erscheint nur auf Geräten mit Touchscreen.</p>
+<p>Ein Grafiktablett mit Stift verhält sich wie eine Maus: Die Spitze ist die linke Taste, die Seitentaste am Stift die rechte, zum Drehen der Ansicht und für das Menü. Die Schnelltasten des Tabletts belegst du in dessen Treiber mit layerlings <a href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html">Tastenkürzeln</a>.</p>
 <h3 id="der-ansichtswuerfel">Der Ansichtswürfel</h3>
 <p>Der Würfel links oben zeigt, wohin du gerade schaust. Ein Klick auf eine seiner Seiten springt in die gerade Ansicht von oben, unten, vorn, hinten, links oder rechts. Ein Klick auf eine Ecke des Würfels schaut schräg von dieser Ecke auf das Modell, ein Klick nahe einer Kante von dieser Kante, also zwischen zwei Seiten hindurch; die Stelle färbt sich, sobald der Zeiger darüber steht. Die geraden Ansichten gehen auch mit den Zifferntasten <kbd>1</kbd> bis <kbd>6</kbd>. Hältst du dabei <kbd>Umschalt</kbd> gedrückt, zoomt die Ansicht zugleich auf die Auswahl, wie mit <kbd>Umschalt</kbd>+<kbd>F</kbd>.</p>
 <p>Ziehst du am Würfel, drehst du die Ansicht, genau wie beim Ziehen mit der rechten Maustaste. Ist nichts ausgewählt, drehen auch die Pfeiltasten die Ansicht: 15° pro Druck, 90° mit <kbd>Umschalt</kbd>. Sie drehen das Modell in ihre Richtung – <kbd>→</kbd> dreht seine Vorderseite nach rechts, <kbd>↑</kbd> kippt seine Vorderseite nach oben. Ist etwas ausgewählt, klicke zuerst ins Leere; sonst verschieben die Pfeile die Auswahl. Auf einem Touchscreen geht das mit einem Finger, auch ohne <strong class="ui">„Ansicht mit einem Finger drehen“</strong> einzuschalten.</p>
 <h3 id="die-kameraleiste">Die Kameraleiste</h3>
 <p>Am linken Rand liegt eine schmale Leiste. Von oben nach unten:</p>
-<ul><li><strong class="ui">„Ausgangsansicht“</strong> holt die ganze Szene wieder ins Bild. Die Taste dazu ist <kbd>F</kbd> oder <kbd>Pos1</kbd>.</li><li><strong class="ui">„Ansicht auf die Auswahl zentrieren“</strong> zoomt auf die Auswahl (<kbd>Umschalt</kbd>+<kbd>F</kbd>).</li><li><strong class="ui">„Vergrößern“</strong> und <strong class="ui">„Verkleinern“</strong> zoomen schrittweise.</li><li><strong class="ui">„Orthografische Ansicht“</strong> schaltet auf eine flache Ansicht um, in der parallele Kanten parallel bleiben. Das ist zum Messen und zum Ausrichten von Kanten oft angenehmer als die perspektivische Ansicht. Mit <kbd>O</kbd> wechselst du hin und her, ein zweiter Klick geht zurück.</li><li><strong class="ui">„Arbeitsebene ausblenden“</strong> (das Auge über dem Gitter) blendet die Platte mit ihrem Gitter aus, damit du die Unterseite eines Entwurfs von unten ansehen kannst. Es ändert sich nur die Ansicht: Neue Formen landen weiter auf der Arbeitsebene. Ein zweiter Klick blendet sie wieder ein.</li><li><strong class="ui">„Arbeitsebene setzen“</strong>, das Massband und das Winkellineal sind eigene Werkzeuge, sie kommen weiter unten und im Kapitel <a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html">Messen und Notizen</a> vor.</li></ul>
+<ul><li><strong class="ui">„Ausgangsansicht“</strong> holt die ganze Szene wieder ins Bild. Die Taste dazu ist <kbd>F</kbd> oder <kbd>Pos1</kbd>.</li><li><strong class="ui">„Ansicht auf die Auswahl zentrieren“</strong> zoomt auf die Auswahl (<kbd>Umschalt</kbd>+<kbd>F</kbd>).</li><li><strong class="ui">„Vergrößern“</strong> und <strong class="ui">„Verkleinern“</strong> zoomen schrittweise, ebenso die Tasten <kbd>+</kbd> und <kbd>−</kbd>.</li><li><strong class="ui">„Orthografische Ansicht“</strong> schaltet auf eine flache Ansicht um, in der parallele Kanten parallel bleiben. Das ist zum Messen und zum Ausrichten von Kanten oft angenehmer als die perspektivische Ansicht. Mit <kbd>O</kbd> wechselst du hin und her, ein zweiter Klick geht zurück.</li><li><strong class="ui">„Arbeitsebene ausblenden“</strong> (das Auge über dem Gitter) blendet die Platte mit ihrem Gitter aus, damit du die Unterseite eines Entwurfs von unten ansehen kannst. Es ändert sich nur die Ansicht: Neue Formen landen weiter auf der Arbeitsebene. Ein zweiter Klick blendet sie wieder ein.</li><li><strong class="ui">„Arbeitsebene setzen“</strong>, das Maßband und das Winkellineal sind eigene Werkzeuge, sie kommen weiter unten und im Kapitel <a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html">Messen und Notizen</a> vor.</li></ul>
 <p>Über den kleinen Pfeil ganz oben in der Leiste kannst du sie ausblenden, wenn sie stört.</p>
+<p>Ein Entwurf öffnet sich so, wie du ihn verlassen hast: Blickwinkel, Zoom und Ausschnitt der Ansicht bleiben mit ihm in diesem Browser erhalten, du machst also dort weiter, wo du aufgehört hast, auch nach „Home“ oder dem Schließen der Seite. Eine gespeicherte Datei (.lyl) nimmt die Ansicht mit, sie öffnet sich also auch anderswo darin. Die Ansicht gehört nicht zum Rückgängig-Verlauf.</p>
 <h2 id="ins-innere-schauen-die-schnittansicht">Ins Innere schauen: die Schnittansicht</h2>
 <p><strong class="ui">„Schnittansicht“</strong>, der letzte Knopf der Leiste (das Schnittwerkzeug), schneidet die Ansicht entlang einer Ebene auf. So prüfst du Wände, Hohlräume und Teile, die ineinandergreifen. Geschnitten wird nur die Ansicht: Entwurf, Dateien und jeder Export bleiben vollständig.</p>
-<ul><li>Wähle die Achse, quer zu der die Ebene steht: X (Breite), Y (Tiefe) oder Z (Höhe), wie bei den Positionsfeldern. Sie beginnt in der Mitte deines Entwurfs.</li><li><strong class="ui">„Grob“</strong> schiebt die Ebene über den ganzen Entwurf, <strong class="ui">„Fein“</strong> nur ein Stück um ihre aktuelle Stelle, für Zehntelmillimeter. Die Position kannst du auch eintippen.</li><li>Der Knopf neben den Achsen zeigt die andere Seite des Schnitts, <strong class="ui">„Zentrieren“</strong> setzt die Ebene zurück in die Mitte, <strong class="ui">„Schnittebene anzeigen“</strong> blendet die blaue Ebene aus.</li><li>Was der Schnitt freilegt, kannst du anklicken und auswählen, auch innere Wände.</li><li><strong class="ui">„Messen“</strong> misst direkt auf dem Schnitt: Der Umriss erscheint blau, und zwei Klicks darauf ergeben den Abstand, dazu seine Anteile entlang der beiden Achsen der Ebene. Beide Punkte rasten am Umriss ein, an Ecken bevorzugt. Liegt der zweite Klick irgendwo an der gegenüberliegenden Wand, rastet er im rechten Winkel zum ersten Punkt ein – so liest du Wandstärken, Spalte und Spiel ab, ohne genau zielen zu müssen. Ein dritter Klick beginnt die nächste Messung, <kbd>Esc</kbd> beendet das Messen. Verschiebst du die Ebene, verschwindet die Messung.</li><li><strong class="ui">„Schnitt als SVG“</strong> speichert die Umrisse auf der Schnittebene als SVG im Maßstab 1:1, für Laser, Plotter, Schablonen oder Dichtungen. Ein X-Schnitt ist von rechts gesehen, ein Y-Schnitt von vorn, ein Z-Schnitt von oben. Wie beim Export kommen nur sichtbare Körper hinein, Aussparungen sind schon abgezogen, und Körper gleicher Farbe sind zu einem Umriss vereinigt. Jede Farbe bleibt ein eigener Pfad ohne Füllung, so dass eine Lasersoftware sie als Ebenen trennt.</li></ul>
+<ul><li>Wähle die Achse, quer zu der die Ebene steht: X (Breite), Y (Tiefe) oder Z (Höhe), wie bei den Positionsfeldern. Sie beginnt in der Mitte deines Entwurfs.</li><li><strong class="ui">„Grob“</strong> schiebt die Ebene über den ganzen Entwurf, <strong class="ui">„Fein“</strong> nur ein Stück um ihre aktuelle Stelle, für Zehntelmillimeter. Die Position kannst du auch eintippen.</li><li>Der Knopf neben den Achsen zeigt die andere Seite des Schnitts, <strong class="ui">„Zentrieren“</strong> setzt die Ebene zurück in die Mitte, <strong class="ui">„Schnittebene anzeigen“</strong> blendet die blaue Ebene aus.</li><li>Was der Schnitt freilegt, kannst du anklicken und auswählen, auch innere Wände.</li><li><strong class="ui">„Arbeitsebene hier“</strong> legt die Arbeitsebene auf den Schnitt. Sie liegt auf der Schnittebene und zeigt aus dem Körper heraus, der stehen bleibt, so wie bei der Fläche, die ein Schnitt hinterlässt. Wechselst du dann in die Skizze, beginnt sie genau dort, und der blasse Umriss zeigt die Kontur des Schnitts, an der du zeichnen und einrasten kannst. So skizzierst du etwa einen Deckel passend zum Innenraum, den du mit dem Schnitt freigelegt hast. Mit dem Knopf neben den Achsen wählst du, welche Seite stehen bleibt, und damit, in welche Richtung die Arbeitsebene zeigt. Die Arbeitsebene setzt du wie sonst auf die Grundplatte zurück.</li><li><strong class="ui">„Messen“</strong> misst direkt auf dem Schnitt: Der Umriss erscheint blau, und zwei Klicks darauf ergeben den Abstand, dazu seine Anteile entlang der beiden Achsen der Ebene. Beide Punkte rasten am Umriss ein, an Ecken bevorzugt. Liegt der zweite Klick irgendwo an der gegenüberliegenden Wand, rastet er im rechten Winkel zum ersten Punkt ein – so liest du Wandstärken, Spalte und Spiel ab, ohne genau zielen zu müssen. Ein dritter Klick beginnt die nächste Messung, <kbd>Esc</kbd> beendet das Messen. Verschiebst du die Ebene, verschwindet die Messung.</li><li><strong class="ui">„Schnitt als SVG“</strong> speichert die Umrisse auf der Schnittebene als SVG im Maßstab 1:1, für Laser, Plotter, Schablonen oder Dichtungen. Ein X-Schnitt ist von rechts gesehen, ein Y-Schnitt von vorn, ein Z-Schnitt von oben. Wie beim Export kommen nur sichtbare Körper hinein, Aussparungen sind schon abgezogen, und Körper gleicher Farbe sind zu einem Umriss vereinigt. Jede Farbe bleibt ein eigener Pfad ohne Füllung, so dass eine Lasersoftware sie als Ebenen trennt.</li></ul>
 <p>Das Fenster hängt an seinem Knopf. Verdeckt es etwas, ziehst du es an seiner Titelleiste frei über die Arbeitsfläche; dort öffnet es sich auch beim nächsten Mal. Ein Doppelklick auf die Titelleiste oder das Ablegen am Knopf bringt es zurück.</p>
 <p><kbd>Esc</kbd> schließt das Fenster; der Schnitt bleibt, bis du ihn ausschaltest oder zur Entwurfsübersicht zurückgehst. Solange er an ist, ist der Knopf hervorgehoben. Was du dann auf der weggeschnittenen Seite ablegst, siehst du erst, wenn du den Schnitt ausschaltest.</p>
 <h2 id="die-arbeitsebene">Die Arbeitsebene</h2>
@@ -142,12 +176,13 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
 <p>Das Gitter zeigt die Größe der Platte. Unten rechts steht das <strong>Raster</strong>: Verschieben und Skalieren rasten in Schritten dieser Größe ein, zum Beispiel 1 mm. Für Feinarbeit stellst du es kleiner, für grobes Anordnen größer. <strong class="ui">„Am Raster ausrichten“</strong> im Menüband rückt die ausgewählten Formen nachträglich auf das nächste Rasterkreuz. Beim Verschieben rasten Formen außerdem an anderen Formen ein, siehe <a href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html">Auswählen und Anordnen</a>.</p>
 <p>Unter <strong class="ui">„Maße“</strong> in den Einstellungen stellst du die <strong class="ui">„Einheiten“</strong> ein. Mit <strong class="ui">„Imperial (Zoll, Fuß)“</strong> zeigt layerling alle Maße in Zoll, an der Form, im Eigenschaftenfeld, bei Maßband und Lineal. Das Raster bietet dann Schritte von 1/64 bis 1 Zoll, und das Gitter auf der Platte wird in Zoll gezeichnet (1/8 bis 1 Zoll, Vorgabe 1/4 Zoll), mit einer kräftigeren Linie bei jedem vollen Zoll. Bei <strong class="ui">„Zoll anzeigen als“</strong> wählst du, ob Zoll als Bruch wie in Tinkercad erscheinen (1 5/8, auf 1/64 Zoll gerundet) oder als Dezimalzahl (1.625) mit so vielen Nachkommastellen, wie unter <strong class="ui">„Genauigkeit“</strong> eingestellt ist. Eintippen kannst du beides, auch „1 5/8“.</p>
 <p>Unter <strong class="ui">„Eigene Einrastraster“</strong> an derselben Stelle legst du eigene Rasterschritte an: einen Namen und eine Größe in Millimetern, zum Beispiel „Rastermaß 2,54 mm&quot; für den Abstand von DIP-Chips, Stiftleisten und Lochrasterplatinen oder „MX Key Unit&quot; mit 19,05 mm für den Abstand von Tastaturtasten. Das Rastermenü bietet dieses Maß dann ganz, halbiert und geviertelt an (1 ×, ½ × und ¼ ×), sodass sich Formen um ein ganzes, ein halbes oder ein viertel Rastermaß verschieben lassen. Eigene Schritte bleiben beim Entwurf und gehen mit <strong class="ui">„Als Vorgabe sichern“</strong> mit.</p>
-<p>Größe, Gitterweite und Farbe der Platte änderst du in den Einstellungen (das Zahnrad im Menüband): Dort liegen die Bereiche <strong class="ui">„Darstellung“</strong>, <strong class="ui">„Maße“</strong>, <strong class="ui">„Arbeitsebene“</strong>, <strong class="ui">„Formvorgaben“</strong> und <strong class="ui">„Verlauf“</strong>. Unter <strong class="ui">„Darstellung“</strong> gibt es zum Beispiel die Schalter <strong class="ui">„Editor in perspektivischer Ansicht starten“</strong> und <strong class="ui">„Schatten zeigen“</strong>, unter <strong class="ui">„Arbeitsebene“</strong> <strong class="ui">„Gitter zeigen“</strong>. Die Farben des Arbeitsbereichs stellst du ebenfalls unter <strong class="ui">„Darstellung“</strong> ein: <strong class="ui">„Fensterhintergrund (helles Thema)“</strong> und <strong class="ui">„Arbeitsebene unter dem Raster (helles Thema)“</strong> für das helle Thema (die dunklen Themen behalten ihre eigenen), die Rasterfarbe liegt unter <strong class="ui">„Arbeitsebene“</strong>. Dort wählst du auch, ob die kräftige Rasterlinie alle 5 oder alle 10 Rasterschritte kommt (<strong class="ui">„Kräftige Rasterlinie alle“</strong>), und gibst ihr mit <strong class="ui">„Farbe der kräftigen Linien“</strong> eine eigene Farbe; Mittelkreuz und Plattenrand nehmen sie dann mit. Im Farbfeld übernimmt <kbd>Enter</kbd> einen eingetippten Hex-Wert. <strong class="ui">„Kantenlinien an allen Körpern“</strong> zeichnet an jedem Körper eine Umrisslinie in der Farbe von <strong class="ui">„Farbe der Kantenlinien“</strong> (zunächst Schwarz, wie bei Tinkercad): Das hilft, wenn dunkle Farben ineinander verschwimmen. Es ist zunächst aus, und sehr große importierte Netze bleiben ausgenommen. Das Gitter läuft immer durch den Nullpunkt, sodass die kräftigen Linien auf den Achsen liegen, wie groß die Platte auch ist.</p>
+<p>Größe, Gitterweite und Farbe der Platte änderst du in den Einstellungen (das Zahnrad im Menüband): Dort liegen die Bereiche <strong class="ui">„Darstellung“</strong>, <strong class="ui">„Maße“</strong>, <strong class="ui">„Arbeitsebene“</strong>, <strong class="ui">„Formvorgaben“</strong> und <strong class="ui">„Verlauf“</strong>. Unter <strong class="ui">„Darstellung“</strong> gibt es zum Beispiel die Schalter <strong class="ui">„Editor in perspektivischer Ansicht starten“</strong> und <strong class="ui">„Schatten zeigen“</strong>, unter <strong class="ui">„Arbeitsebene“</strong> <strong class="ui">„Gitter zeigen“</strong>. Die Farben des Arbeitsbereichs stellst du ebenfalls unter <strong class="ui">„Darstellung“</strong> ein: <strong class="ui">„Fensterhintergrund (helles Thema)“</strong> und <strong class="ui">„Arbeitsebene unter dem Raster (helles Thema)“</strong> für das helle Thema (die dunklen Themen behalten ihre eigenen), die Rasterfarbe liegt unter <strong class="ui">„Arbeitsebene“</strong>. Dort wählst du auch, ob die kräftige Rasterlinie alle 5 oder alle 10 Rasterschritte kommt (<strong class="ui">„Kräftige Rasterlinie alle“</strong>), und gibst ihr mit <strong class="ui">„Farbe der kräftigen Linien“</strong> eine eigene Farbe; Mittelkreuz und Plattenrand nehmen sie dann mit. Alle Linien des Rasters werden beim Hineinzoomen breiter, wie in Tinkercad, und bleiben beim Herauszoomen sichtbar; wem das zu viel ist, schaltet <strong class="ui">„Gitterlinien wachsen beim Zoomen“</strong> aus, dann bleiben die Linien bei jedem Zoom einen Pixel breit, wie in der Skizze. Im Farbfeld übernimmt <kbd>Enter</kbd> einen eingetippten Hex-Wert. <strong class="ui">„Kantenlinien an allen Körpern“</strong> zeichnet an jedem Körper eine Umrisslinie in der Farbe von <strong class="ui">„Farbe der Kantenlinien“</strong> (zunächst Schwarz, wie bei Tinkercad): Das hilft, wenn dunkle Farben ineinander verschwimmen. Es ist zunächst aus, und sehr große importierte Netze bleiben ausgenommen. Das Gitter läuft immer durch den Nullpunkt, sodass die kräftigen Linien auf den Achsen liegen, wie groß die Platte auch ist.</p>
 <p><strong class="ui">„Achsenpfeile“</strong> (zunächst an) zeichnet am hinteren linken Eck der Platte drei Pfeile: <strong>X</strong> in Rot nach rechts, <strong>Y</strong> in Grün nach hinten und <strong>Z</strong> in Blau nach oben, so wie die Positionsfelder zählen. Das ist die Rechte-Hand-Regel, die auch Tinkercad, CAD-Programme und die Slicer nutzen. Liegt die Arbeitsebene auf einer Fläche, wandern sie mit. Hier schaltest du sie aus, wenn sie stören.</p>
-<p>Zwei Regler unter <strong class="ui">„Darstellung“</strong> bestimmen, wie die Körper beleuchtet sind. <strong class="ui">„Schattenstärke“</strong> sagt, wie dunkel die Schlagschatten sind, und <strong class="ui">„Kontrast der Schattierung“</strong> schiebt Licht vom gleichmäßigen Umgebungslicht zum Hauptlicht: Richtung „kräftig“ werden die Schattenseiten dunkler und die Schatten besser sichtbar, Richtung „weich“ wird alles flacher. Am oberen Ende wird der Kontrast sehr kräftig, so dass Schattenseiten und Schatten richtig dunkel werden. <strong class="ui">„Weichheit der Schatten“</strong> macht die Ränder der Schatten weich statt scharf. <strong class="ui">„Lichtrichtung“</strong> dreht das Hauptlicht um die Platte (0° von vorn, 90° von rechts), und <strong class="ui">„Lichthöhe“</strong> hebt es an, bei 90° steht es wie bei Tinkercad senkrecht über der Platte, und die Schatten fallen genau unter die Körper. <strong class="ui">„Licht und Schatten zurücksetzen“</strong> stellt alles zurück. <strong class="ui">„Wie Tinkercad“</strong> stellt den Arbeitsbereich so ein, wie Tinkercad ihn zeigt: weißer Hintergrund, hellblaues Raster im Millimeterabstand mit einer kräftigen Linie jeden Zentimeter, schwarze Kantenlinien, Licht von oben mit weichen Schatten. Danach lässt sich jeder Wert weiter einzeln ändern. Alle starten so, wie layerling immer aussah, und was passt, hängt auch von deinem Monitor ab. Die Skizzenansicht hat eigene Farben: <strong class="ui">„Skizze: Fensterhintergrund (helles Thema)“</strong> für das Fenster rund um die Fläche, <strong class="ui">„Skizze: Fläche unter dem Raster (helles Thema)“</strong> für die Fläche unter dem Raster und <strong class="ui">„Skizze: Rasterfarbe (helles Thema)“</strong>, alle für das helle Thema. <strong class="ui">„Skizze wie Arbeitsbereich“</strong> übernimmt die drei Farben des Arbeitsbereichs mit einem Klick.</p>
+<p>Zwei Regler unter <strong class="ui">„Darstellung“</strong> bestimmen, wie die Körper beleuchtet sind. <strong class="ui">„Schattenstärke“</strong> sagt, wie dunkel die Schlagschatten sind, und <strong class="ui">„Kontrast der Schattierung“</strong> schiebt Licht vom gleichmäßigen Umgebungslicht zum Hauptlicht: Richtung „kräftig“ werden die Schattenseiten dunkler und die Schatten besser sichtbar, Richtung „weich“ wird alles flacher. Am oberen Ende wird der Kontrast sehr kräftig, so dass Schattenseiten und Schatten richtig dunkel werden. <strong class="ui">„Weichheit der Schatten“</strong> macht die Ränder der Schatten weich statt scharf. <strong class="ui">„Lichtrichtung“</strong> dreht das Hauptlicht um die Platte (0° von vorn, 90° von rechts), und <strong class="ui">„Lichthöhe“</strong> hebt es an, bei 90° steht es wie bei Tinkercad senkrecht über der Platte, und die Schatten fallen genau unter die Körper. <strong class="ui">„Licht und Schatten zurücksetzen“</strong> stellt alles zurück. <strong class="ui">„Klassische Optik“</strong> stellt den Arbeitsbereich so ein, wie Tinkercad ihn zeigt: weißer Hintergrund, hellblaues Raster im Millimeterabstand mit einer kräftigen Linie jeden Zentimeter, schwarze Kantenlinien, Licht von oben mit weichen Schatten. Danach lässt sich jeder Wert weiter einzeln ändern. Alle starten so, wie layerling immer aussah, und was passt, hängt auch von deinem Monitor ab. Die Skizzenansicht hat eigene Farben: <strong class="ui">„Skizze: Fensterhintergrund (helles Thema)“</strong> für das Fenster rund um die Fläche, <strong class="ui">„Skizze: Fläche unter dem Raster (helles Thema)“</strong> für die Fläche unter dem Raster und <strong class="ui">„Skizze: Rasterfarbe (helles Thema)“</strong>, alle für das helle Thema. <strong class="ui">„Skizze wie Arbeitsbereich“</strong> übernimmt die drei Farben des Arbeitsbereichs mit einem Klick.</p>
 <figure><img src="/api/desktop/layerling/ui/anleitung/img/settings-appearance.webp" alt="Die Einstellungen unter Darstellung: Hintergrund- und Arbeitsebenenfarbe für das helle Thema und der Schalter für Kantenlinien an allen Körpern." width="1280" height="800" loading="lazy"><figcaption>Die Einstellungen unter Darstellung: Hintergrund- und Arbeitsebenenfarbe für das helle Thema und der Schalter für Kantenlinien an allen Körpern.</figcaption></figure>
 <figure><img src="/api/desktop/layerling/ui/anleitung/img/edge-lines.webp" alt="Drei dunkle Körper mit eingeschalteten Kantenlinien: Die Umrisse halten sie auseinander." width="1280" height="800" loading="lazy"><figcaption>Drei dunkle Körper mit eingeschalteten Kantenlinien: Die Umrisse halten sie auseinander.</figcaption></figure>
 <figure><img src="/api/desktop/layerling/ui/anleitung/img/editor-dark.webp" alt="Der Editor im dunklen Farbschema. Das Farbschema stellst du oben rechts ein: System, Hell, Dunkel oder Graphit." width="1280" height="800" loading="lazy"><figcaption>Der Editor im dunklen Farbschema. Das Farbschema stellst du oben rechts ein: System, Hell, Dunkel oder Graphit.</figcaption></figure>
+<p><strong class="ui">„Größe der Werkzeugleiste“</strong> unter <strong class="ui">„Darstellung“</strong> macht die Knöpfe der Leiste oben, ihr Formenmenü und die Kamerasteuerung links kleiner oder größer: <strong class="ui">„Klein“</strong>, <strong class="ui">„Mittel“</strong> (wie bisher) oder <strong class="ui">„Groß“</strong>. Klein lässt auf einem Laptop mehr Platz für die Arbeitsebene, groß trifft sich leichter auf einem großen Bildschirm oder mit dem Finger. Mit großen Knöpfen gehen die Gruppen der Leiste in eine zweite Zeile, wenn das Fenster für sie zu schmal ist. Die Größe merkt sich dieser Browser, sie gilt für jedes Design.</p>
 <aside class="tip"><p><strong>Tipp:</strong> Dreh die Ansicht nicht mehr, wenn du Teile genau aneinander setzt. Wechsle mit den Zifferntasten in die gerade Ansicht von oben oder von vorn und schalte mit <kbd>O</kbd> auf die flache Darstellung um. So erkennst du sofort, ob zwei Kanten wirklich bündig sind.</p></aside>
 <h2 id="wenn-sich-layerling-langsam-anfuehlt">Wenn sich layerling langsam anfühlt</h2>
 <p>layerling rechnet und zeichnet alles in deinem Browser. Auf einem älteren Rechner, mit einer schwachen Grafikkarte oder auf mehreren großen Bildschirmen kann die Ansicht deshalb zäh wirken. Das hilft:</p>
@@ -156,7 +191,94 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
       </main>
     </div>
     <footer class="note">Diese Anleitung wächst mit dem Programm. Fehlt dir etwas oder stimmt etwas nicht, sag es im <a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a>.</footer>
-    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=de" rel="noopener">Projekt unterstützen</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mehr Informationen zum Projekt auf GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Versionshinweise v1.57.0</a></div></footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=de" rel="noopener">Projekt unterstützen</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mehr Informationen zum Projekt auf GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Versionshinweise v1.71.0</a></div><p class="trademark">Tinkercad ist eine Marke von Autodesk, Inc. layerling ist ein unabhängiges Projekt und steht in keiner Verbindung zu Autodesk, wird nicht von Autodesk unterstützt oder gesponsert.</p></footer>
     <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Zurück zum Editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Zum Editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text){var out="";for(var i=0;i<text.length;i++){out+=text.charAt(i).toLowerCase().normalize("NFD").charAt(0);}return out;}
+function guideForms(word,umlauts){
+  var forms=[word];
+  if(umlauts){var plain=word.split("ae").join("a").split("oe").join("o").split("ue").join("u");if(plain!==word)forms.push(plain);}
+  if(word.indexOf("ss")>=0)forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if(word.indexOf(String.fromCharCode(223))>=0)forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text,forms,from){
+  var best=null;
+  for(var i=0;i<forms.length;i++){var k=text.indexOf(forms[i],from);if(k>=0&&(!best||k<best.at))best={at:k,len:forms[i].length};}
+  return best;
+}
+function guidePrepare(entries){return entries.map(function(e){return {e:e,c:guideFold(e.c),h:guideFold(e.h),t:guideFold(e.t)};});}
+function guideTokens(query){return guideFold(query).split(" ").filter(function(w){return w.length>0;});}
+function guideSearch(prepared,query,limit,umlauts){
+  var tokens=guideTokens(query);if(!tokens.length)return [];
+  var forms=tokens.map(function(w){return guideForms(w,umlauts);}),phrase=guideForms(tokens.join(" "),umlauts),found=[];
+  prepared.forEach(function(p){
+    var score=0;
+    for(var i=0;i<tokens.length;i++){
+      var inH=guideFind(p.h,forms[i],0),inC=guideFind(p.c,forms[i],0),at=guideFind(p.t,forms[i],0);
+      if(!inH&&!inC&&!at)return;
+      if(inH)score+=10;
+      if(inC)score+=3;
+      if(at){score+=1;var n=0,k=at;while(k&&n<5){n++;k=guideFind(p.t,forms[i],k.at+k.len);}score+=n*0.3;}
+    }
+    if(tokens.length>1&&(guideFind(p.h,phrase,0)||guideFind(p.t,phrase,0)))score+=6;
+    found.push({entry:p.e,score:score,folded:p.t,forms:forms});
+  });
+  found.sort(function(a,b){return b.score-a.score;});
+  return found.slice(0,limit||8);
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,form.getAttribute("data-umlauts")==="true");
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first)window.location.href=first.href;});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
   </body>
 </html>

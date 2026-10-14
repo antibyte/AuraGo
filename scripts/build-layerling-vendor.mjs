@@ -7,14 +7,14 @@ import { createRequire } from 'node:module';
 import { writeContract } from './layerling/contract.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const commit = '25f12513802e322cdccecaf138f874ff526f331d';
+const commit = '8704d5c99adfeb981be31bb5eddc9c17f75ab281';
 const source = path.join(root, 'disposable/_layerling/layerling-' + commit);
 const output = path.join(root, 'ui/js/vendor/layerling');
 const base = '/api/desktop/layerling/ui';
 const hash = data => crypto.createHash('sha256').update(data).digest('hex');
 const inputBytes = name => Buffer.from(fs.readFileSync(path.join(root,name),'utf8').replaceAll('\r\n','\n'));
 const files = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? files(path.join(dir,e.name)) : [path.join(dir,e.name)]);
-const inputs = ['scripts/build-layerling-vendor.mjs','scripts/layerling/bridge.ts','scripts/layerling/page.tsx','scripts/layerling/contract.mjs','scripts/layerling/README.md'];
+const inputs = ['scripts/build-layerling-vendor.mjs','scripts/layerling/bridge.ts','scripts/layerling/page.tsx','scripts/layerling/contract.mjs','scripts/layerling/operations.json','scripts/layerling/README.md'];
 if (process.argv.includes('--check')) {
   const manifest = JSON.parse(fs.readFileSync(path.join(output,'vendor.json')));
   if(manifest.commit !== commit) throw new Error('Wrong Layerling revision');
@@ -24,10 +24,10 @@ if (process.argv.includes('--check')) {
   console.log('Layerling vendor checksums verified');
   process.exit(0);
 }
-if(process.version !== 'v24.15.0') throw new Error('Use pinned Node 24.15.0 for the vendor build');
+if(process.version !== 'v24.21.0') throw new Error('Use pinned Node 24.21.0 for the vendor build');
 if (!fs.existsSync(source)) throw new Error('Extract the pinned upstream archive into '+source+'; see scripts/layerling/README.md');
-const archive = path.join(root,'disposable/_layerling/upstream.zip');
-if(hash(fs.readFileSync(archive)) !== '9d81fcb78d13afb07511ec75279c341cce87c4ec7efa10ed4cc6a972c43bc5e8') throw new Error('Upstream archive checksum mismatch');
+const archive = path.join(root,'disposable/_layerling/upstream-1.71.0.zip');
+if(hash(fs.readFileSync(archive)) !== '53a613e5fa04e003d47d5aedf552595c8774a1c846984aa8cab0058358ed41d6') throw new Error('Upstream archive checksum mismatch');
 const { unzipSync, zipSync } = createRequire(path.join(source,'package.json'))('fflate');
 const reset = ['apps/web/next.config.ts','apps/web/src/components/LayerlingEditor.tsx','apps/web/src/app/layout.tsx','apps/web/src/components/AppFooter.tsx','scripts/build-guide.mjs','scripts/verify-static-worker-assets.mjs','tests/unit/cadModifierRuntime.test.ts','tests/unit/appTheme.test.ts'];
 const originals = unzipSync(fs.readFileSync(archive), {filter:entry=>reset.some(name=>entry.name==='layerling-'+commit+'/'+name)});
@@ -60,10 +60,16 @@ patch('apps/web/src/components/AppFooter.tsx','${SOURCE_CODE_URL.replace(/\\/+$/
 }
 const editor = 'apps/web/src/components/LayerlingEditor.tsx';
 patch(editor,'    const localDevelopment = process.env.NODE_ENV', '    return; // AuraGo uses a document-bound channel, never the HTTP MCP bridge.\n    const localDevelopment = process.env.NODE_ENV');
-patch(editor,'"use client";','"use client";\nimport { bindEditor, captureFile, deliverFile, isReadOnly, notify } from "@/lib/auragoBridge";');
+patch(editor,'"use client";','"use client";\nimport { bindEditor, captureFile, deliverFile, desktopFileAccessSupported, isReadOnly, notify } from "@/lib/auragoBridge";');
 patch(editor,'onPickFile={() => fileInputRef.current?.click()}', 'onPickFile={() => notify("import")}');
-patch(editor,'onPickProjectFile={() => projectFileInputRef.current?.click()}', 'onPickProjectFile={() => notify("open")}');
+patch(editor,'onPickProjectFile={() => void pickProjectFile()}', 'onPickProjectFile={() => notify("open")}');
 patch(editor,'onPickInsertProjectFile={() => insertProjectFileInputRef.current?.click()}', 'onPickInsertProjectFile={() => notify("import")}');
+// AuraGo owns file selection and persistence, including upstream's linked STL files.
+{
+  const name = path.join(source,editor), text = fs.readFileSync(name,'utf8');
+  if (!text.includes('lylFileAccessSupported()')) throw new Error('File picker patch drift');
+  fs.writeFileSync(name,text.replaceAll('lylFileAccessSupported()', 'desktopFileAccessSupported()'));
+}
 patch(editor,'  triggerBrowserDownload(filename, content, type);','  await deliverFile(filename, new Blob([content], { type }));');
 // Serializing a recovery draft is not a completed Desktop file save.
 patch(editor,'        setNotice(t("status.savedProject"));','        setNotice(""); // AuraGo confirms the actual Desktop save.');
@@ -76,9 +82,11 @@ patch(editor,'        setNotice(t("status.savedProject"));','        setNotice("
   fs.writeFileSync(name,text.slice(0,start)+section.replaceAll('void exportBodiesWithLooseHoles','return exportBodiesWithLooseHoles')+text.slice(end));
 }
 {
-  const name = path.join(source,editor);
-  fs.writeFileSync(name,fs.readFileSync(name,'utf8').replace(/async function downloadBlobFile\(filename: string, blob: Blob\) \{[\s\S]*?(?=function shapeAabb)/,
-    'async function downloadBlobFile(filename: string, blob: Blob) { return deliverFile(filename, blob); }\n\n'));
+  const name = path.join(source,editor), text = fs.readFileSync(name,'utf8');
+  const pattern = /^async function downloadBlobFile\(filename: string, blob: Blob\) \{\r?\n[\s\S]*?^\}/gm;
+  if ([...text.matchAll(pattern)].length !== 1) throw new Error('Blob export patch drift');
+  fs.writeFileSync(name,text.replace(pattern,
+    'async function downloadBlobFile(filename: string, blob: Blob) { return deliverFile(filename, blob); }'));
 }
 patch(editor,'  importFilesRef.current = importFiles;',`  importFilesRef.current = importFiles;
   useEffect(() => bindEditor(async (action, params) => {
@@ -123,7 +131,7 @@ fs.cpSync(path.join(source,'apps/web/.next-export'),output,{recursive:true});
 // Upstream's optional PHP storage endpoint and public-site sitemap are not browser resources.
 for(const name of ['store.php','sitemap.xml']) fs.rmSync(path.join(output,name),{force:true});
 fs.copyFileSync(path.join(source,'LICENSE'),path.join(output,'LICENSE.txt'));
-const manifest = {version:'1.57.0',commit,base,node:'24.15.0',inputs:Object.fromEntries(inputs.map(name=>[name,hash(inputBytes(name))])),files:{}};
+const manifest = {version:'1.71.0',commit,base,node:'24.21.0',inputs:Object.fromEntries(inputs.map(name=>[name,hash(inputBytes(name))])),files:{}};
 await writeContract(source,path.join(root,'internal/layerling'));
 const corresponding = {};
 function sourceFiles(dir) {
@@ -135,8 +143,8 @@ function sourceFiles(dir) {
   }
 }
 sourceFiles(source);
-corresponding['AURAGO-BUILD.txt'] = new TextEncoder().encode('Corresponding source for Layerling 1.57.0 / '+commit+' with AuraGo patches.\nLicense: layerling/LICENSE.\nUse Node 24.15.0, cd layerling, npm ci.\nSet environment STATIC_EXPORT=true, NEXT_TELEMETRY_DISABLED=1, NEXT_PUBLIC_SOURCE_CODE_URL='+base+'/source.zip.\nThen run: node scripts/copy-occt-wasm.mjs; node scripts/build-guide.mjs; node node_modules/next/dist/bin/next build apps/web; node scripts/verify-static-worker-assets.mjs.\nOutput: layerling/apps/web/.next-export. The patched basePath is '+base+'. No Node server is needed at runtime.\nThe aurago/scripts directory contains the reproducible patch generator and its guide.\n');
-for(const name of ['build-layerling-vendor.mjs','layerling/bridge.ts','layerling/page.tsx','layerling/contract.mjs','layerling/README.md']) corresponding['aurago/scripts/'+name]=[inputBytes('scripts/'+name),{mtime:new Date('1980-01-01T00:00:00Z')}];
+corresponding['AURAGO-BUILD.txt'] = new TextEncoder().encode('Corresponding source for Layerling 1.71.0 / '+commit+' with AuraGo patches.\nLicense: layerling/LICENSE.\nUse Node 24.21.0, cd layerling, npm ci.\nSet environment STATIC_EXPORT=true, NEXT_TELEMETRY_DISABLED=1, NEXT_PUBLIC_SOURCE_CODE_URL='+base+'/source.zip.\nThen run: node scripts/copy-occt-wasm.mjs; node scripts/build-guide.mjs; node node_modules/next/dist/bin/next build apps/web; node scripts/verify-static-worker-assets.mjs.\nOutput: layerling/apps/web/.next-export. The patched basePath is '+base+'. No Node server is needed at runtime.\nThe aurago/scripts directory contains the reproducible patch generator and its guide.\n');
+for(const name of ['build-layerling-vendor.mjs','layerling/bridge.ts','layerling/page.tsx','layerling/contract.mjs','layerling/operations.json','layerling/README.md']) corresponding['aurago/scripts/'+name]=[inputBytes('scripts/'+name),{mtime:new Date('1980-01-01T00:00:00Z')}];
 fs.writeFileSync(path.join(output,'source.zip'),zipSync(corresponding,{level:6,mtime:new Date('1980-01-01T00:00:00Z')}));
 for(const file of files(output)) if(!file.endsWith('vendor.json')) manifest.files[path.relative(output,file).replaceAll('\\','/')] = hash(fs.readFileSync(file));
 fs.writeFileSync(path.join(output,'vendor.json'),JSON.stringify(manifest,null,2)+'\n');
