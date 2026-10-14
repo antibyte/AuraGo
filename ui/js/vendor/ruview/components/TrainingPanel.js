@@ -1,3 +1,6 @@
+import {trainingPayload, readError, preserveFocus} from '../control-contracts.js';
+import {modelService} from '../services/model.service.js';
+let panelSerial = 0;
 // TrainingPanel Component for WiFi-DensePose UI
 // Dark-mode panel for training management, CSI recordings, and progress charts.
 
@@ -62,13 +65,16 @@ export default class TrainingPanel {
       ? document.getElementById(container) : container;
     if (!this.container) throw new Error('TrainingPanel: container element not found');
 
+    this.fieldPrefix = 'ruview-training-' + (++panelSerial);
+    this.refreshEpoch = 0;
+    this.destroyed = false;
     this.state = {
-      recordings: [], trainingStatus: null, isRecording: false,
+      recordings: [], trainingStatus: null, models: [], recordingsLoaded: false, statusLoaded: false, modelsLoaded: false,
       configOpen: true, loading: false, error: null
     };
     this.config = {
       epochs: 100, batch_size: 32, learning_rate: 3e-4, patience: 15,
-      selectedRecordings: [], base_model: '', lora_profile_name: ''
+      selectedRecordings: [], base_model: '', lora_profile_name: 'default', method: 'startTraining'
     };
     this.progressData = { losses: [], pcks: [] };
     this.unsubscribers = [];
@@ -82,8 +88,8 @@ export default class TrainingPanel {
     this.unsubscribers.push(
       trainingService.on('progress', (d) => this._onProgress(d)),
       trainingService.on('training-started', () => this.refresh()),
-      trainingService.on('training-stopped', () => {
-        trainingService.disconnectProgressStream();
+      trainingService.on('recording-state', () => this.render()),
+      trainingService.on('training-stopping', () => {
         this.refresh();
       })
     );
@@ -98,35 +104,32 @@ export default class TrainingPanel {
   // --- Data ---
 
   async refresh() {
-    this._set({ loading: true, error: null });
-    try {
-      const [recordings, status] = await Promise.all([
-        trainingService.listRecordings().catch(() => []),
-        trainingService.getTrainingStatus().catch(() => null)
-      ]);
-      if (status && !status.active) this.progressData = { losses: [], pcks: [] };
-      this._set({ recordings, trainingStatus: status, loading: false });
-    } catch (e) { this._set({ loading: false, error: e.message }); }
+    const epoch = ++this.refreshEpoch;
+    this._set({loading: true});
+    const results = await Promise.allSettled([trainingService.listRecordings(), trainingService.getTrainingStatus(), modelService.listModels()]);
+    if (this.destroyed || epoch !== this.refreshEpoch) return;
+    const next = {loading: false, readErrors: []};
+    for (const [index, key, loaded] of [[0,'recordings','recordingsLoaded'],[1,'trainingStatus','statusLoaded'],[2,'models','modelsLoaded']]) {
+      const result = results[index];
+      next[loaded] = result.status === 'fulfilled';
+      if (result.status === 'fulfilled') next[key] = index === 2 ? result.value.models : result.value;
+      else next.readErrors.push((index === 0 ? 'Recordings: ' : index === 1 ? 'Training: ' : 'Models: ') + readError(result.reason));
+    }
+    this._set(next);
   }
 
   // --- Actions ---
 
   async _startRec() {
-    this._set({ loading: true, error: null });
-    try {
-      await trainingService.startRecording({ session_name: `rec_${Date.now()}`, label: 'pose' });
-      this._set({ isRecording: true, loading: false });
-      await this.refresh();
-    } catch (e) { this._set({ loading: false, error: `Recording failed: ${e.message}` }); }
+    this._set({error: null});
+    try { await trainingService.startRecording({id: 'rec'}); await this.refresh(); }
+    catch (e) { this._set({error: 'Recording failed: ' + e.message}); }
   }
 
   async _stopRec() {
-    this._set({ loading: true, error: null });
-    try {
-      await trainingService.stopRecording();
-      this._set({ isRecording: false, loading: false });
-      await this.refresh();
-    } catch (e) { this._set({ loading: false, error: `Stop recording failed: ${e.message}` }); }
+    this._set({error: null});
+    try { await trainingService.stopRecording(); await this.refresh(); }
+    catch (e) { this._set({error: 'Stop recording failed: ' + e.message}); }
   }
 
   async _delRec(id) {
@@ -138,55 +141,54 @@ export default class TrainingPanel {
     } catch (e) { this._set({ loading: false, error: `Delete failed: ${e.message}` }); }
   }
 
-  async _launchTraining(method, extraCfg = {}) {
-    this._set({ loading: true, error: null });
-    this.progressData = { losses: [], pcks: [] };
+  async _launchTraining() {
+    if (!this.state.recordingsLoaded || !this.state.statusLoaded || this.state.trainingStatus?.enabled === false) return;
+    this._set({loading: true, error: null});
     try {
+      const payload = trainingPayload(this.config.method, this.config, this.state.modelsLoaded ? this.state.models : []);
+      await trainingService[this.config.method](payload);
+      this.progressData = {losses: [], pcks: []};
       trainingService.connectProgressStream();
-      const payload = {
-        dataset_ids: this.config.selectedRecordings,
-        config: {
-          epochs: this.config.epochs,
-          batch_size: this.config.batch_size,
-          learning_rate: this.config.learning_rate,
-          ...extraCfg
-        }
-      };
-      await trainingService[method](payload);
       await this.refresh();
     } catch (e) {
-      // Start was rejected (e.g. server training disabled → HTTP 409). Tear down
-      // the progress socket we opened optimistically and refresh so the button
-      // reflects the real (possibly disabled) state instead of a silent no-op.
-      trainingService.disconnectProgressStream();
-      this._set({ loading: false, error: `Training failed: ${e.message}` });
-      this.refresh();
+      this._set({loading: false, error: 'Training failed: ' + e.message});
     }
   }
 
   async _stopTraining() {
-    this._set({ loading: true, error: null });
+    if (this.state.stopPending) return;
+    this._set({stopPending: true, error: null});
     try { await trainingService.stopTraining(); await this.refresh(); }
-    catch (e) { this._set({ loading: false, error: `Stop failed: ${e.message}` }); }
+    catch (e) { this._set({error: 'Stop failed: ' + e.message}); }
+    finally { this._set({stopPending: false}); }
   }
 
-  _set(p) { Object.assign(this.state, p); this.render(); }
+  _set(p) { if (this.destroyed) return; Object.assign(this.state, p); this.render(); }
 
   // --- Render ---
 
   render() {
-    const el = this.container;
+    if (this.destroyed) return;
+    const el = this.container, restore = preserveFocus(el);
     el.innerHTML = '';
     const panel = this._el('div', 'tp-panel');
     panel.appendChild(this._renderHeader());
-    if (this.state.error) panel.appendChild(this._el('div', 'tp-error', this.state.error));
+    if (this.state.error) { const error=this._el('div','tp-error',this.state.error); error.setAttribute('role','alert'); panel.appendChild(error); }
     panel.appendChild(this._renderRecordings());
     const ts = this.state.trainingStatus;
     const active = ts && ts.active;
     if (active) panel.appendChild(this._renderProgress());
     else if (ts && !ts.active && this.progressData.losses.length > 0) panel.appendChild(this._renderComplete());
     else panel.appendChild(this._renderConfig());
-    el.appendChild(panel);
+    if (this.state.readErrors?.length) {
+      const error = this._el('p', 'tp-error', this.state.readErrors.join(' ') + ' Previously loaded data may be stale.');
+      error.setAttribute('role', 'status'); panel.appendChild(error);
+    }
+    const retry = this._btn('Refresh', 'tp-btn tp-btn-secondary', () => this.refresh());
+    retry.disabled = this.state.loading; retry.dataset.ruviewFocus = 'refresh'; panel.appendChild(retry);
+    const stop = this._btn('Stop Training', 'tp-btn tp-btn-danger', () => this._stopTraining());
+    stop.dataset.ruviewAction = 'training_stop'; stop.dataset.ruviewFocus='training_stop'; stop.disabled=!!this.state.stopPending; panel.appendChild(stop);
+    el.appendChild(panel); restore();
     if (active) requestAnimationFrame(() => this._drawCharts());
   }
 
@@ -194,8 +196,8 @@ export default class TrainingPanel {
     const h = this._el('div', 'tp-header');
     h.appendChild(this._el('span', 'tp-title', 'Training'));
     const ts = this.state.trainingStatus;
-    let cls = 'tp-badge tp-badge-idle', txt = 'Idle';
-    if (ts && ts.active) { cls = 'tp-badge tp-badge-active'; txt = 'Training'; }
+    let cls = 'tp-badge tp-badge-idle', txt = this.state.statusLoaded ? 'Idle' : 'Status unknown';
+    if (this.state.statusLoaded && ts && ts.active) { cls = 'tp-badge tp-badge-active'; txt = 'Training'; }
     else if (ts && !ts.active && this.progressData.losses.length > 0) { cls = 'tp-badge tp-badge-done'; txt = 'Completed'; }
     h.appendChild(this._el('span', cls, txt));
     return h;
@@ -204,7 +206,7 @@ export default class TrainingPanel {
   _renderRecordings() {
     const s = this._el('div', 'tp-section');
     s.appendChild(this._el('div', 'tp-section-title', 'CSI Recordings'));
-    if (this.state.recordings.length === 0 && !this.state.loading) {
+    if (this.state.recordingsLoaded && this.state.recordings.length === 0 && !this.state.loading) {
       s.appendChild(this._el('div', 'tp-empty', 'Start recording CSI data to train a model'));
     } else {
       this.state.recordings.forEach(rec => {
@@ -218,18 +220,21 @@ export default class TrainingPanel {
         info.appendChild(this._el('span', 'tp-rec-meta', parts.join(' / ')));
         row.appendChild(info);
         const del = this._btn('Delete', 'tp-btn tp-btn-muted', () => this._delRec(rec.id));
-        del.disabled = this.state.loading;
+        del.dataset.ruviewAction='recording_delete'; del.disabled = this.state.loading || !this.state.recordingsLoaded;
         row.appendChild(del);
         s.appendChild(row);
       });
     }
     const acts = this._el('div', 'tp-rec-actions');
-    if (this.state.isRecording) {
-      const b = this._btn('Stop Recording', 'tp-btn tp-btn-danger', () => this._stopRec());
-      b.disabled = this.state.loading; acts.appendChild(b);
-    } else {
-      const b = this._btn('Start Recording', 'tp-btn tp-btn-rec', () => this._startRec());
-      b.disabled = this.state.loading; acts.appendChild(b);
+    const state = trainingService.recordingState;
+    const note = this._el('p', 'tp-empty', state === 'recording' ? 'Recording — stop it manually' : state === 'idle' ? 'Recording stopped' : 'Recording status unknown');
+    note.setAttribute('role', 'status'); s.appendChild(note);
+    s.appendChild(this._el('p', 'tp-empty', 'Recording continues until you stop it, even if you close this view.'));
+    for (const [label, action, run] of [['Start Recording','recording_start',()=>this._startRec()],['Stop Recording','recording_stop',()=>this._stopRec()]]) {
+      const button = this._btn(label, 'tp-btn tp-btn-rec', run);
+      button.dataset.ruviewAction = action; button.dataset.ruviewFocus = action;
+      button.disabled = trainingService.recordingBusy || action === 'recording_start' && state === 'recording';
+      button.setAttribute('aria-busy', String(trainingService.recordingBusy)); acts.appendChild(button);
     }
     s.appendChild(acts);
     return s;
@@ -237,73 +242,48 @@ export default class TrainingPanel {
 
   _renderConfig() {
     const s = this._el('div', 'tp-section');
-    const hdr = this._el('div', 'tp-config-header');
-    hdr.appendChild(this._el('span', 'tp-section-title', 'Training Configuration'));
-    hdr.appendChild(this._btn(this.state.configOpen ? 'Collapse' : 'Expand', 'tp-btn tp-btn-muted',
-      () => { this.state.configOpen = !this.state.configOpen; this.render(); }));
-    s.appendChild(hdr);
-    if (!this.state.configOpen) return s;
-
+    s.appendChild(this._el('div', 'tp-section-title', 'Training Configuration'));
     const form = this._el('div', 'tp-config-form');
-    if (this.state.recordings.length > 0) {
-      form.appendChild(this._el('label', 'tp-label', 'Datasets'));
-      const dc = this._el('div', 'tp-ds-container');
-      this.state.recordings.forEach(rec => {
-        const lb = this._el('label', 'tp-ds-item');
-        const cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.checked = this.config.selectedRecordings.includes(rec.id);
-        cb.addEventListener('change', () => {
-          if (cb.checked) { if (!this.config.selectedRecordings.includes(rec.id)) this.config.selectedRecordings.push(rec.id); }
-          else { this.config.selectedRecordings = this.config.selectedRecordings.filter(r => r !== rec.id); }
-        });
-        lb.appendChild(cb);
-        lb.appendChild(this._el('span', null, rec.name || rec.id));
-        dc.appendChild(lb);
-      });
-      form.appendChild(dc);
-    }
-    const ir = (l, t, v, fn) => {
-      const r = this._el('div', 'tp-input-row');
-      r.appendChild(this._el('label', 'tp-label', l));
-      const inp = document.createElement('input');
-      inp.type = t; inp.className = 'tp-input'; inp.value = v;
-      inp.addEventListener('change', () => fn(inp.value));
-      r.appendChild(inp); return r;
+    const field = (key, label, input) => {
+      input.id = this.fieldPrefix + '-' + key; input.dataset.ruviewFocus = key; input.className = 'tp-input';
+      const row = this._el('div', 'tp-input-row'), lb = this._el('label', 'tp-label', label);
+      lb.htmlFor = input.id; row.append(lb, input); form.appendChild(row); return input;
     };
-    form.appendChild(ir('Epochs', 'number', this.config.epochs, v => { this.config.epochs = parseInt(v) || 100; }));
-    form.appendChild(ir('Batch Size', 'number', this.config.batch_size, v => { this.config.batch_size = parseInt(v) || 32; }));
-    form.appendChild(ir('Learning Rate', 'text', this.config.learning_rate, v => { this.config.learning_rate = parseFloat(v) || 3e-4; }));
-    form.appendChild(ir('Early Stop Patience', 'number', this.config.patience, v => { this.config.patience = parseInt(v) || 15; }));
-    form.appendChild(ir('Base Model (opt.)', 'text', this.config.base_model, v => { this.config.base_model = v; }));
-    form.appendChild(ir('LoRA Profile (opt.)', 'text', this.config.lora_profile_name, v => { this.config.lora_profile_name = v; }));
-    s.appendChild(form);
-
-    // ADR-186 P5: if the server reports in-server training disabled
-    // (enabled:false), the Start buttons must be disabled with a CLI tooltip —
-    // never a silent no-op. Enablement is surfaced on the status payload.
-    const ts = this.state.trainingStatus;
-    const disabled = ts && ts.enabled === false;
-    const cli = (ts && ts.cli) || 'wifi-densepose train-room';
-    if (disabled) {
-      const note = this._el('div', 'tp-empty',
-        `In-server training is disabled on this build. Train from the CLI:  ${cli}`);
-      s.appendChild(note);
+    const select = (key,label,entries) => {
+      const input = document.createElement('select');
+      for (const [value,label] of entries) { const option = this._el('option', null, label); option.value=value; input.appendChild(option); }
+      input.value = this.config[key]; input.addEventListener('change',()=>{this.config[key]=input.value;this.render();});
+      return field(key,label,input);
+    };
+    select('method','Training type',[['startTraining','Training'],['startPretraining','Pretrain'],['startLoraTraining','LoRA']]);
+    const datasets = this._el('fieldset', 'tp-ds-container'); datasets.appendChild(this._el('legend', 'tp-label', 'Datasets'));
+    for (const rec of this.state.recordings) {
+      const label = this._el('label','tp-ds-item'), cb = document.createElement('input');
+      cb.type='checkbox'; cb.dataset.ruviewFocus='dataset-' + rec.id; cb.checked=this.config.selectedRecordings.includes(rec.id); cb.disabled=!this.state.recordingsLoaded;
+      cb.addEventListener('change',()=>{this.config.selectedRecordings=cb.checked?[...new Set([...this.config.selectedRecordings,rec.id])]:this.config.selectedRecordings.filter(id=>id!==rec.id);});
+      label.append(cb,this._el('span',null,rec.name||rec.id));datasets.appendChild(label);
     }
-
-    const acts = this._el('div', 'tp-train-actions');
-    const btns = [
-      this._btn('Start Training', 'tp-btn tp-btn-success', () => this._launchTraining('startTraining', { patience: this.config.patience, base_model: this.config.base_model || undefined })),
-      this._btn('Pretrain', 'tp-btn tp-btn-secondary', () => this._launchTraining('startPretraining')),
-      this._btn('LoRA', 'tp-btn tp-btn-secondary', () => this._launchTraining('startLoraTraining', { base_model: this.config.base_model || undefined, profile_name: this.config.lora_profile_name || 'default' }))
-    ];
-    btns.forEach(b => {
-      b.disabled = this.state.loading || disabled;
-      if (disabled) b.title = `In-server training disabled — use: ${cli}`;
-      acts.appendChild(b);
-    });
-    s.appendChild(acts);
-    return s;
+    form.appendChild(datasets);
+    const numeric = (key,label,integer=true) => {
+      const input=document.createElement('input');input.type='number';input.min=integer?'1':'0';input.step=integer?'1':'any';input.value=this.config[key];
+      input.addEventListener('input',()=>{this.config[key]=input.valueAsNumber;});field(key,label,input);
+    };
+    numeric('epochs','Epochs');
+    if (this.config.method !== 'startLoraTraining') numeric('learning_rate','Learning Rate',false);
+    if (this.config.method === 'startTraining') { numeric('batch_size','Batch Size'); numeric('patience','Early Stop Patience'); }
+    if (this.config.method === 'startLoraTraining') {
+      select('base_model','Base Model',[['','Select a model'],...this.state.models.map(m=>[m.id,m.name||m.id])]).disabled=!this.state.modelsLoaded;
+      const input=document.createElement('input');input.type='text';input.value=this.config.lora_profile_name;input.maxLength=128;
+      input.addEventListener('input',()=>{this.config.lora_profile_name=input.value;});field('lora_profile_name','LoRA Profile',input);
+      form.appendChild(this._el('p','tp-empty','LoRA rank: 8. Learning rate is controlled by this server.'));
+    }
+    s.appendChild(form);
+    const disabled=this.state.trainingStatus?.enabled===false;
+    if (disabled) s.appendChild(this._el('p','tp-empty','In-server training is disabled on this build.'));
+    const button=this._btn('Start Training','tp-btn tp-btn-success',()=>this._launchTraining());
+    button.dataset.ruviewAction='training_start';button.dataset.ruviewFocus='training_start';
+    button.disabled=this.state.loading||disabled||!this.state.recordingsLoaded||!this.state.statusLoaded||(this.config.method==='startLoraTraining'&&!this.state.modelsLoaded);
+    s.appendChild(button);return s;
   }
 
   _renderProgress() {
@@ -335,8 +315,7 @@ export default class TrainingPanel {
     g.appendChild(mc('Phase', ts.phase || '--'));
     s.appendChild(g);
 
-    const stop = this._btn('Stop Training', 'tp-btn tp-btn-danger', () => this._stopTraining());
-    stop.disabled = this.state.loading; stop.style.marginTop = '10px'; s.appendChild(stop);
+
     return s;
   }
 
@@ -430,6 +409,7 @@ export default class TrainingPanel {
   }
 
   destroy() {
+    this.destroyed = true; ++this.refreshEpoch;
     this.unsubscribers.forEach(fn => fn());
     this.unsubscribers = [];
     trainingService.disconnectProgressStream();

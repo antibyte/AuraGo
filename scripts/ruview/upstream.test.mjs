@@ -3,6 +3,39 @@ import assert from 'node:assert/strict';
 import {CsiSimulator} from '../../ui/js/vendor/ruview/pose-fusion/js/csi-simulator.js';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {controlResult,trainingPayload} from '../../ui/js/ruview/control-contracts.mjs';
+
+test('training requests follow each pinned operation contract and reject free model paths',()=>{
+ const config={selectedRecordings:['rec_1'],epochs:12,batch_size:4,learning_rate:0.002,patience:3,base_model:'model_1',lora_profile_name:'room_1'};
+ assert.deepEqual(trainingPayload('startTraining',config),{dataset_ids:['rec_1'],config:{epochs:12,batch_size:4,learning_rate:0.002,early_stopping_patience:3}});
+ assert.deepEqual(trainingPayload('startPretraining',config),{dataset_ids:['rec_1'],epochs:12,lr:0.002});
+ assert.deepEqual(trainingPayload('startLoraTraining',config,[{id:'model_1'}]),{dataset_ids:['rec_1'],base_model_id:'model_1',profile_name:'room_1',epochs:12,rank:8});
+ for(const base_model of ['../secret','C:\\secret','unlisted']) assert.throws(()=>trainingPayload('startLoraTraining',{...config,base_model},[{id:base_model==='unlisted'?'model_1':base_model}]));
+ for(const changed of [{epochs:NaN},{batch_size:0},{patience:-1},{learning_rate:Infinity},{selectedRecordings:[]}]) assert.throws(()=>trainingPayload('startTraining',{...config,...changed}));
+ assert.throws(()=>trainingPayload('startLoraTraining',{...config,lora_profile_name:'../room'},[{id:'model_1'}]));
+});
+
+test('control responses require explicit operation-specific success',()=>{
+ for(const response of [{success:false,error:'disk failure'},{status:'error',message:'busy'},{error:'failed'},{},null]) {
+  assert.throws(()=>controlResult(response,'success'));assert.throws(()=>controlResult(response,'started'));
+ }
+ assert.equal(controlResult({success:true},'success').success,true);
+ assert.equal(controlResult({status:'stopping'},'stopping').status,'stopping');
+ assert.throws(()=>controlResult({status:'stopping'},'started'));
+});
+
+test('recording service shares acknowledged state, reports unknown failures and never retries writes',async()=>{
+ const source=readFileSync('ui/js/vendor/ruview/services/training.service.js','utf8').replace(/^import .*;\r?\n/gm,'').replaceAll('export ','');
+ let calls=0,response={success:true,recording_id:'test'},pending;
+ const Service=vm.runInNewContext(source+'\nTrainingService',{controlResult,console:{debug(){},info(){},warn(){},error(){}},apiService:{post:async()=>{calls++;if(pending)return pending;if(response instanceof Error)throw response;return response},delete:async()=>response}});
+ const service=new Service();let started=0,stopped=0;service.on('recording-started',()=>started++);service.on('recording-stopped',()=>stopped++);
+ assert.equal(service.recordingState,'unknown');await service.startRecording({id:'test'});assert.equal(service.recordingState,'recording');assert.equal(started,1);
+ response={success:false,error:'cannot stop'};await assert.rejects(service.stopRecording());assert.equal(service.recordingState,'unknown');assert.equal(stopped,0);
+ response=new Error('network lost');await assert.rejects(service.startRecording());assert.equal(calls,3);assert.equal(started,1);assert.equal(service.recordingBusy,false);
+ response={success:true};await service.stopRecording();assert.equal(service.recordingState,'idle');assert.equal(stopped,1);
+ let resolve;pending=new Promise(r=>resolve=r);const start=service.startRecording();await assert.rejects(service.startRecording(),/pending/);resolve({success:true});await start;assert.equal(calls,5);
+ response={success:false,error:'delete failed'};await assert.rejects(service.deleteRecording('test'));assert.equal(service.recordingState,'recording');
+});
 
 function sensingFixture(fetch = async()=>({ok:true,json:async()=>({source:'esp32',source_state:'disconnected'})})) {
  const source=readFileSync('ui/js/vendor/ruview/services/sensing.service.js','utf8').replace(/^import .*;\r?\n/gm,'').replaceAll('export ','');

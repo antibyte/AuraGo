@@ -1,3 +1,4 @@
+import {controlResult} from '../control-contracts.js';
 // Model Service for WiFi-DensePose UI
 // Manages model loading, listing, LoRA profiles, and lifecycle events.
 
@@ -46,6 +47,7 @@ export class ModelService {
   async listModels() {
     try {
       const data = await apiService.get('/api/v1/models');
+      if (!Array.isArray(data?.models)) throw Error('Invalid model list');
       this.logger.info('Listed models', { count: data?.models?.length ?? 0 });
       return data;
     } catch (error) {
@@ -96,10 +98,7 @@ export class ModelService {
       this.activeModel = data || null;
       return this.activeModel;
     } catch (error) {
-      if (error.status === 404) {
-        this.activeModel = null;
-        return null;
-      }
+
       this.logger.error('Failed to get active model', { error: error.message });
       throw error;
     }
@@ -123,7 +122,8 @@ export class ModelService {
   async getLoraProfiles() {
     try {
       const data = await apiService.get('/api/v1/models/lora/profiles');
-      return data?.profiles ?? [];
+      if (!Array.isArray(data?.profiles)) throw Error('Invalid profile list');
+      return data.profiles;
     } catch (error) {
       this.logger.error('Failed to get LoRA profiles', { error: error.message });
       throw error;
@@ -134,7 +134,7 @@ export class ModelService {
     try {
       this.logger.info('Deleting model', { id });
       const data = await apiService.delete(`/api/v1/models/${encodeURIComponent(id)}`);
-      return data;
+      return controlResult(data, 'success');
     } catch (error) {
       this.logger.error('Failed to delete model', { id, error: error.message });
       throw error;

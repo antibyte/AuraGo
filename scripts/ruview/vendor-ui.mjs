@@ -2,6 +2,7 @@ import { readFile, writeFile, readdir, mkdir, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
+import {patchControls} from './patch-controls.mjs';
 
 const revision = 'a71634ae8a606bba5463489450c69e8b42de114e';
 const source = process.argv.find(x => x.startsWith('--source='))?.slice(9);
@@ -188,12 +189,14 @@ if (check) {
         }
         bytes = Buffer.from(text);
       }
+      if (name.endsWith('.js')) bytes = Buffer.from(patchControls(name, bytes.toString('utf8'), patch));
       await put(name, bytes);
     }
   }
   await copy(path.join(source, 'ui'));
   for (const name of ['LICENSE', 'NOTICE']) { try { await put(`${name}.txt`, await readFile(path.join(source, name))); } catch (e) { if (name === 'LICENSE') throw e; } }
   await put('aurago-adapter.js', await readFile('ui/js/ruview/upstream-adapter.js'));
+  await put('control-contracts.js', await readFile('ui/js/ruview/control-contracts.mjs'));
   await put('deps/three/build/three.module.js',await readFile('node_modules/three-ruview/build/three.module.js'));
   // Copy the five pinned entry points and their relative imports, not unused loaders/decoders.
   const seen=new Set();

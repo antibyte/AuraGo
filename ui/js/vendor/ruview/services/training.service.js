@@ -1,3 +1,4 @@
+import {controlResult} from '../control-contracts.js';
 // Training Service for WiFi-DensePose UI
 // Manages training lifecycle, progress streaming, and CSI recordings.
 
@@ -7,6 +8,8 @@ import { apiService } from './api.service.js';
 export class TrainingService {
   constructor() {
     this.progressSocket = null;
+    this.recordingState = 'unknown';
+    this.recordingBusy = false;
     this.listeners = {};
     this.logger = this.createLogger();
   }
@@ -47,7 +50,7 @@ export class TrainingService {
   async startTraining(config) {
     try {
       this.logger.info('Starting training', { config });
-      const data = await apiService.post('/api/v1/train/start', config);
+      const data = controlResult(await apiService.post('/api/v1/train/start', config), 'started');
       this.emit('training-started', data);
       return data;
     } catch (error) {
@@ -59,8 +62,8 @@ export class TrainingService {
   async stopTraining() {
     try {
       this.logger.info('Stopping training');
-      const data = await apiService.post('/api/v1/train/stop', {});
-      this.emit('training-stopped', data);
+      const data = controlResult(await apiService.post('/api/v1/train/stop', {}), 'stopping');
+      this.emit('training-stopping', data);
       return data;
     } catch (error) {
       this.logger.error('Failed to stop training', { error: error.message });
@@ -71,6 +74,7 @@ export class TrainingService {
   async getTrainingStatus() {
     try {
       const data = await apiService.get('/api/v1/train/status');
+      if (typeof data?.active !== 'boolean') throw Error('Invalid training status');
       return data;
     } catch (error) {
       this.logger.error('Failed to get training status', { error: error.message });
@@ -81,7 +85,7 @@ export class TrainingService {
   async startPretraining(config) {
     try {
       this.logger.info('Starting pretraining', { config });
-      const data = await apiService.post('/api/v1/train/pretrain', config);
+      const data = controlResult(await apiService.post('/api/v1/train/pretrain', config), 'started');
       this.emit('training-started', data);
       return data;
     } catch (error) {
@@ -93,7 +97,7 @@ export class TrainingService {
   async startLoraTraining(config) {
     try {
       this.logger.info('Starting LoRA training', { config });
-      const data = await apiService.post('/api/v1/train/lora', config);
+      const data = controlResult(await apiService.post('/api/v1/train/lora', config), 'started');
       this.emit('training-started', data);
       return data;
     } catch (error) {
@@ -107,35 +111,38 @@ export class TrainingService {
   async listRecordings() {
     try {
       const data = await apiService.get('/api/v1/recording/list');
-      return data?.recordings ?? [];
+      if (!Array.isArray(data?.recordings)) throw Error('Invalid recordings response');
+      return data.recordings;
     } catch (error) {
       this.logger.error('Failed to list recordings', { error: error.message });
       throw error;
     }
   }
 
-  async startRecording(config) {
+  async startRecording(config = {}) {
+    return this._recordingRequest('start', config);
+  }
+
+  async _recordingRequest(action, config = {}) {
+    if (this.recordingBusy) throw Error('A recording request is already pending');
+    this.recordingBusy = true;
+    this.emit('recording-state');
     try {
-      this.logger.info('Starting recording', { config });
-      const data = await apiService.post('/api/v1/recording/start', config);
-      this.emit('recording-started', data);
+      const data = controlResult(await apiService.post('/api/v1/recording/' + action, config), 'success');
+      this.recordingState = action === 'start' ? 'recording' : 'idle';
+      this.emit(action === 'start' ? 'recording-started' : 'recording-stopped', data);
       return data;
     } catch (error) {
-      this.logger.error('Failed to start recording', { error: error.message });
+      this.recordingState = 'unknown';
       throw error;
+    } finally {
+      this.recordingBusy = false;
+      this.emit('recording-state');
     }
   }
 
   async stopRecording() {
-    try {
-      this.logger.info('Stopping recording');
-      const data = await apiService.post('/api/v1/recording/stop', {});
-      this.emit('recording-stopped', data);
-      return data;
-    } catch (error) {
-      this.logger.error('Failed to stop recording', { error: error.message });
-      throw error;
-    }
+    return this._recordingRequest('stop');
   }
 
   async deleteRecording(id) {
@@ -144,7 +151,7 @@ export class TrainingService {
       const data = await apiService.delete(
         `/api/v1/recording/${encodeURIComponent(id)}`
       );
-      return data;
+      return controlResult(data, 'success');
     } catch (error) {
       this.logger.error('Failed to delete recording', { id, error: error.message });
       throw error;

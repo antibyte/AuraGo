@@ -4,6 +4,7 @@ import path from 'node:path';
 import {createRequire} from 'node:module';
 import assert from 'node:assert/strict';
 import {randomBytes,createHash} from 'node:crypto';
+import {checkControls} from './control-browser.mjs';
 const require=createRequire(import.meta.url);
 const {chromium}=process.env.AURAGO_PLAYWRIGHT?require(process.env.AURAGO_PLAYWRIGHT):require('playwright');
 const locales=['cs','da','de','el','en','es','fr','hi','it','ja','nl','no','pl','pt','sv','zh'];
@@ -123,6 +124,7 @@ try{
     const button=document.createElement('button');button.setAttribute('onclick','window.ruviewInjected=1');document.body.append(button);button.click();button.remove();
     return count===0&&!window.ruviewInjected;
    }),true,'untrusted counters and inline event handlers must not execute');
+   readonly=false;await checkControls(frame);
   }
   if(view==='observatory.html'){
    await frame.waitForFunction(()=>document.getElementById('data-source-label')?.textContent==='NO LIVE DATA');

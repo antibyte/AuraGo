@@ -251,7 +251,10 @@ export class LiveDemoTab {
                 </div>
                 <div class="training-actions">
                   <button class="btn-ld btn-ld-accent" id="open-training-panel-btn">Open Training Panel</button>
-                  <button class="btn-ld btn-ld-muted" id="quick-record-btn">Record 60s</button>
+                  <button class="btn-ld btn-ld-muted" id="quick-record-btn" data-ruview-action="recording_start">Start Recording</button>
+                  <button class="btn-ld btn-ld-muted" id="stop-record-btn" data-ruview-action="recording_stop">Stop Recording</button>
+                  <p>Recording continues until you stop it, even if you close this view.</p>
+                  <p id="recording-feedback" role="status" aria-live="polite">Recording status unknown</p>
                 </div>
               </div>
 
@@ -1734,40 +1737,34 @@ export class LiveDemoTab {
   updateTrainingStatus() {
     const badge = this.container.querySelector('#training-status-badge');
     if (!badge) return;
-
-    const state = this.trainingState.status;
     badge.classList.remove('training', 'recording');
+    if (this.trainingState.status === 'training') badge.textContent = 'Training epoch ' + this.trainingState.epoch + '/' + this.trainingState.totalEpochs;
+    else if (this.trainingState.status === 'stopping') badge.textContent = 'Stopping training…';
+    else this.updateRecordingControls();
+  }
 
-    if (state === 'training') {
-      badge.classList.add('training');
-      badge.textContent = `Training epoch ${this.trainingState.epoch}/${this.trainingState.totalEpochs}`;
-    } else if (state === 'recording') {
-      badge.classList.add('recording');
-      badge.textContent = 'Recording...';
-    } else {
-      badge.textContent = 'Idle';
+  async handleQuickRecord(stop = false) {
+    if (!trainingService) return;
+    const feedback = this.container.querySelector('#recording-feedback');
+    if (feedback) feedback.textContent = stop ? 'Stopping recording…' : 'Starting recording…';
+    try {
+      if (stop) await trainingService.stopRecording();
+      else await trainingService.startRecording({id: 'quick'});
+      if (feedback?.isConnected) feedback.textContent = stop ? 'Recording stopped' : 'Recording started — stop it manually';
+    } catch (error) {
+      if (feedback?.isConnected) feedback.textContent = error.message + ' — recording status unknown';
     }
   }
 
-  async handleQuickRecord() {
-    if (!trainingService) {
-      this.logger.warn('Training service not available');
-      return;
-    }
-    try {
-      await trainingService.startRecording({ session_name: `quick_${Date.now()}`, duration_secs: 60 });
-      this.trainingState.status = 'recording';
-      this.updateTrainingStatus();
-      // Auto-reset after ~65 seconds
-      setTimeout(() => {
-        if (this.trainingState.status === 'recording') {
-          this.trainingState.status = 'idle';
-          this.updateTrainingStatus();
-        }
-      }, 65000);
-    } catch (error) {
-      this.logger.error('Quick record failed', { error: error.message });
-    }
+  updateRecordingControls() {
+    const service = trainingService;
+    const start = this.container.querySelector('#quick-record-btn');
+    const stop = this.container.querySelector('#stop-record-btn');
+    if (start) start.disabled = !service || service.recordingBusy || service.recordingState === 'recording';
+    if (stop) stop.disabled = !service || service.recordingBusy;
+    for (const button of [start, stop]) if (button) button.setAttribute('aria-busy', String(!!service?.recordingBusy));
+    const badge = this.container.querySelector('#training-status-badge');
+    if (badge && !['training','stopping'].includes(this.trainingState.status)) badge.textContent = service?.recordingState === 'recording' ? 'Recording' : service?.recordingState === 'idle' ? 'Recording stopped' : 'Recording status unknown';
   }
 
   showTrainingPanel() {
@@ -1827,15 +1824,16 @@ export class LiveDemoTab {
         if (data && data.epoch != null) {
           this.trainingState.epoch = data.epoch;
           this.trainingState.totalEpochs = data.total_epochs || data.totalEpochs || this.trainingState.totalEpochs;
-          this.trainingState.status = 'training';
+          this.trainingState.status = data.active === false ? 'idle' : data.phase === 'stopping' ? 'stopping' : 'training';
           this.updateTrainingStatus();
         }
       });
-      const unsub4 = trainingService.on('training-stopped', () => {
-        this.trainingState.status = 'idle';
+      const unsub4 = trainingService.on('training-stopping', () => {
+        this.trainingState.status = 'stopping';
         this.updateTrainingStatus();
       });
-      this.subscriptions.push(unsub3, unsub4);
+      this.subscriptions.push(unsub3, unsub4, trainingService.on('recording-state', () => this.updateRecordingControls()));
+      this.updateRecordingControls();
     }
   }
 
@@ -1856,6 +1854,8 @@ export class LiveDemoTab {
     if (splitToggle) splitToggle.addEventListener('click', () => this.toggleSplitView());
     if (openTrainingBtn) openTrainingBtn.addEventListener('click', () => this.showTrainingPanel());
     if (quickRecordBtn) quickRecordBtn.addEventListener('click', () => this.handleQuickRecord());
+    this.container.querySelector('#stop-record-btn')?.addEventListener('click', () => this.handleQuickRecord(true));
+    this.updateRecordingControls();
   }
 
   // Clean up
