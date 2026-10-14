@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/chromedp/cdproto/browser"
-	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/chromedp"
 )
 
@@ -19,10 +18,12 @@ func startManagedBrowser(requestCtx, allocatorCtx context.Context, downloadDir s
 	browserCtx, closeBrowser := chromedp.NewContext(allocatorCtx)
 	startupCtx, cancelStartup := context.WithTimeout(requestCtx, 30*time.Second)
 	stopCancellation := context.AfterFunc(startupCtx, closeBrowser)
-	err := chromedp.Run(browserCtx, chromedp.ActionFunc(func(ctx context.Context) error {
-		return browser.SetDownloadBehavior(browser.SetDownloadBehaviorBehaviorAllow).
-			WithDownloadPath(downloadDir).WithEventsEnabled(true).
-			Do(cdp.WithExecutor(ctx, chromedp.FromContext(ctx).Browser))
+	err := chromedp.Do(browserCtx, chromedp.Func(func(ctx context.Context, _ *chromedp.Target) error {
+		eventsEnabled := true
+		_, err := chromedp.CallBrowser(ctx, browser.SetDownloadBehavior, browser.SetDownloadBehaviorParams{
+			Behavior: browser.SetDownloadBehaviorBehaviorAllow, DownloadPath: downloadDir, EventsEnabled: &eventsEnabled,
+		})
+		return err
 	}))
 	stopped := stopCancellation()
 	startupErr := startupCtx.Err()

@@ -1363,7 +1363,7 @@ func (b *browserController) perform(ctx context.Context, request browserRequest)
 			b.tabEnd()
 		}
 		b.tabCtx, b.tabEnd = chromedp.NewContext(b.browserCtx, chromedp.WithTargetID(target.ID(request.PageID)))
-		if err := chromedp.Run(b.tabCtx); err != nil {
+		if err := chromedp.Do(b.tabCtx); err != nil {
 			return browserResult{}, fmt.Errorf("switch browser tab: %w", err)
 		}
 		b.session.ActivePageID = request.PageID
@@ -1371,14 +1371,14 @@ func (b *browserController) perform(ctx context.Context, request browserRequest)
 		if err := validateBrowserURL(request.URL); err != nil {
 			return browserResult{}, err
 		}
-		if err := chromedp.Run(actionCtx, chromedp.Navigate(request.URL)); err != nil {
+		if err := chromedp.Do(actionCtx, chromedp.Navigate(request.URL)); err != nil {
 			return browserResult{}, fmt.Errorf("navigate browser: %w", err)
 		}
 		b.session.URLOrigin = origin(request.URL)
 		data["url"] = request.URL
 	case "inspect":
-		var inspected map[string]interface{}
-		if err := chromedp.Run(actionCtx, chromedp.Evaluate(inspectScript, &inspected)); err != nil {
+		inspected, err := chromedp.Run(actionCtx, chromedp.Evaluate[map[string]interface{}](inspectScript))
+		if err != nil {
 			return browserResult{}, fmt.Errorf("inspect browser page: %w", err)
 		}
 		data = inspected
@@ -1386,64 +1386,64 @@ func (b *browserController) perform(ctx context.Context, request browserRequest)
 		if selector == "" {
 			return browserResult{}, &rpcError{Code: "invalid_argument", Message: "element_ref or selector is required"}
 		}
-		if err := chromedp.Run(actionCtx, chromedp.Click(selector, chromedp.ByQuery)); err != nil {
+		if err := chromedp.Do(actionCtx, chromedp.Click(chromedp.CSS(selector))); err != nil {
 			return browserResult{}, fmt.Errorf("click browser element: %w", err)
 		}
 	case "type":
 		if selector == "" {
 			return browserResult{}, &rpcError{Code: "invalid_argument", Message: "element_ref or selector is required"}
 		}
-		if err := chromedp.Run(actionCtx, chromedp.Focus(selector, chromedp.ByQuery), chromedp.SetValue(selector, "", chromedp.ByQuery), chromedp.SendKeys(selector, request.Text, chromedp.ByQuery)); err != nil {
+		if err := chromedp.Do(actionCtx, chromedp.Focus(chromedp.CSS(selector)), chromedp.SetValue(chromedp.CSS(selector), ""), chromedp.SendKeys(chromedp.CSS(selector), request.Text)); err != nil {
 			return browserResult{}, fmt.Errorf("type browser text: %w", err)
 		}
 	case "select":
 		if selector == "" {
 			return browserResult{}, &rpcError{Code: "invalid_argument", Message: "element_ref or selector is required"}
 		}
-		if err := chromedp.Run(actionCtx, chromedp.SetValue(selector, request.Value, chromedp.ByQuery)); err != nil {
+		if err := chromedp.Do(actionCtx, chromedp.SetValue(chromedp.CSS(selector), request.Value)); err != nil {
 			return browserResult{}, fmt.Errorf("select browser option: %w", err)
 		}
 	case "press":
 		if request.Key == "" {
 			return browserResult{}, &rpcError{Code: "invalid_argument", Message: "key is required"}
 		}
-		if err := chromedp.Run(actionCtx, chromedp.KeyEvent(request.Key)); err != nil {
+		if err := chromedp.Do(actionCtx, chromedp.KeyEvent(request.Key)); err != nil {
 			return browserResult{}, fmt.Errorf("press browser key: %w", err)
 		}
 	case "wait":
 		if selector == "" {
-			if err := chromedp.Run(actionCtx, chromedp.Sleep(250*time.Millisecond)); err != nil {
+			if err := chromedp.Do(actionCtx, chromedp.Sleep(250*time.Millisecond)); err != nil {
 				return browserResult{}, err
 			}
-		} else if err := chromedp.Run(actionCtx, chromedp.WaitVisible(selector, chromedp.ByQuery)); err != nil {
+		} else if err := chromedp.Do(actionCtx, chromedp.WaitVisible(chromedp.CSS(selector))); err != nil {
 			return browserResult{}, fmt.Errorf("wait for browser element: %w", err)
 		}
 	case "click_xy":
-		if err := chromedp.Run(actionCtx, chromedp.Evaluate(fmt.Sprintf(`document.elementFromPoint(%f,%f)?.click()`, request.X, request.Y), nil)); err != nil {
+		if err := chromedp.Do(actionCtx, chromedp.Evaluate[chromedp.Void](fmt.Sprintf(`document.elementFromPoint(%f,%f)?.click()`, request.X, request.Y))); err != nil {
 			return browserResult{}, fmt.Errorf("click browser coordinates: %w", err)
 		}
 	case "scroll":
-		if err := chromedp.Run(actionCtx, chromedp.Evaluate(fmt.Sprintf(`window.scrollBy(%f,%f)`, request.DeltaX, request.DeltaY), nil)); err != nil {
+		if err := chromedp.Do(actionCtx, chromedp.Evaluate[chromedp.Void](fmt.Sprintf(`window.scrollBy(%f,%f)`, request.DeltaX, request.DeltaY))); err != nil {
 			return browserResult{}, fmt.Errorf("scroll browser page: %w", err)
 		}
 	case "drag":
 		script := fmt.Sprintf(`(()=>{const e=document.elementFromPoint(%f,%f);if(!e)return false;const fire=(t,x,y)=>e.dispatchEvent(new MouseEvent(t,{bubbles:true,clientX:x,clientY:y,buttons:1}));fire('mousedown',%f,%f);fire('mousemove',%f,%f);fire('mouseup',%f,%f);return true})()`, request.X, request.Y, request.X, request.Y, request.ToX, request.ToY, request.ToX, request.ToY)
-		var dragged bool
-		if err := chromedp.Run(actionCtx, chromedp.Evaluate(script, &dragged)); err != nil {
+		dragged, err := chromedp.Run(actionCtx, chromedp.Evaluate[bool](script))
+		if err != nil {
 			return browserResult{}, fmt.Errorf("drag browser element: %w", err)
 		}
 		if !dragged {
 			return browserResult{}, &rpcError{Code: "element_not_found", Message: "no draggable element was found at the requested coordinates"}
 		}
 	case "screenshot":
-		var image []byte
-		var action chromedp.Action
+		var action chromedp.Action[[]byte]
 		if request.FullPage {
-			action = chromedp.FullScreenshot(&image, 90)
+			action = chromedp.FullScreenshot(90)
 		} else {
-			action = chromedp.CaptureScreenshot(&image)
+			action = chromedp.CaptureScreenshot()
 		}
-		if err := chromedp.Run(actionCtx, action); err != nil {
+		image, err := chromedp.Run(actionCtx, action)
+		if err != nil {
 			return browserResult{}, fmt.Errorf("capture browser screenshot: %w", err)
 		}
 		if request.Path != "" {
@@ -1470,7 +1470,7 @@ func (b *browserController) perform(ctx context.Context, request browserRequest)
 		if err != nil {
 			return browserResult{}, err
 		}
-		if err := chromedp.Run(actionCtx, chromedp.SetUploadFiles(selector, []string{resolved}, chromedp.ByQuery)); err != nil {
+		if err := chromedp.Do(actionCtx, chromedp.SetUploadFiles(chromedp.CSS(selector), []string{resolved})); err != nil {
 			return browserResult{}, fmt.Errorf("upload browser file: %w", err)
 		}
 	case "list_downloads":
@@ -1480,8 +1480,8 @@ func (b *browserController) perform(ctx context.Context, request browserRequest)
 		}
 		data["downloads"] = downloads
 	case "credential_fill":
-		var liveOrigin string
-		if err := chromedp.Run(actionCtx, chromedp.Evaluate(`window.location.origin`, &liveOrigin)); err != nil {
+		liveOrigin, err := chromedp.Run(actionCtx, chromedp.Evaluate[string](`window.location.origin`))
+		if err != nil {
 			return browserResult{}, fmt.Errorf("read current browser origin: %w", err)
 		}
 		if expected := origin(request.URL); expected == "" || expected != liveOrigin {
@@ -1497,9 +1497,8 @@ func (b *browserController) perform(ctx context.Context, request browserRequest)
 	default:
 		return browserResult{}, &rpcError{Code: "method_not_found", Message: "unsupported browser operation"}
 	}
-	var liveURL string
 	locationCtx, locationCancel := context.WithTimeout(b.tabCtx, 5*time.Second)
-	if err := chromedp.Run(locationCtx, chromedp.Location(&liveURL)); err == nil {
+	if liveURL, err := chromedp.Run(locationCtx, chromedp.Location()); err == nil {
 		b.session.URLOrigin = origin(liveURL)
 		data["url"] = liveURL
 	}
@@ -1551,7 +1550,7 @@ func (b *browserController) openLocked(ctx context.Context, request browserReque
 	b.tabCtx, b.tabEnd = context.WithCancel(b.browserCtx)
 	startCtx, cancel := context.WithTimeout(b.tabCtx, 30*time.Second)
 	defer cancel()
-	if err := chromedp.Run(startCtx, chromedp.Navigate(initialURL)); err != nil {
+	if err := chromedp.Do(startCtx, chromedp.Navigate(initialURL)); err != nil {
 		b.closeLocked()
 		return fmt.Errorf("start Chromium: %w", err)
 	}
@@ -1621,8 +1620,8 @@ func fillCredential(ctx context.Context, fields map[string]string, options map[s
 	}
 	submit, _ := options["submit"].(bool)
 	script := fmt.Sprintf(`(()=>{const f=%s;const find=(names)=>{for(const n of names){const e=document.querySelector(n);if(e)return e}return null};const set=(e,v)=>{if(!e)return false;e.focus();const p=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value');p.set.call(e,v);e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));return true};const done=[];if(f.username&&set(find(['input[autocomplete="username"]','input[name*="user" i]','input[type="email"]']),f.username))done.push('username');if(f.password&&set(find(['input[autocomplete="current-password"]','input[type="password"]']),f.password))done.push('password');if(f.token&&set(find(['input[name*="token" i]','input[autocomplete="one-time-code"]']),f.token))done.push('token');if(%t){const b=find(['button[type="submit"]','input[type="submit"]']);if(b)b.click()}return done})()`, string(encoded), submit)
-	var filled []string
-	if err := chromedp.Run(ctx, chromedp.Evaluate(script, &filled)); err != nil {
+	filled, err := chromedp.Run(ctx, chromedp.Evaluate[[]string](script))
+	if err != nil {
 		return fmt.Errorf("fill browser credential: %w", err)
 	}
 	if len(filled) == 0 {

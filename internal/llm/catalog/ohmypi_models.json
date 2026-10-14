@@ -26741,6 +26741,29 @@
     "source": "oh-my-pi"
   },
   {
+    "id": "gemini-4-argon",
+    "name": "Gemini 4 Argon",
+    "provider": "google-antigravity",
+    "api": "google-gemini-cli",
+    "base_url": "https://daily-cloudcode-pa.googleapis.com",
+    "input": [
+      "text",
+      "image"
+    ],
+    "context_window": 1048576,
+    "max_tokens": 65536,
+    "supports_tools": true,
+    "structured_outputs": true,
+    "multimodal": true,
+    "reasoning": true,
+    "cost": {
+      "input": 2,
+      "output": 10,
+      "cache_read": 0.1
+    },
+    "source": "oh-my-pi"
+  },
+  {
     "id": "gpt-oss-120b",
     "name": "GPT OSS 120B",
     "provider": "google-antigravity",
@@ -44181,6 +44204,75 @@
       "input": 4,
       "output": 20,
       "cache_read": 0.2
+    },
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "muse-wonder-1.0-contributor",
+    "name": "Muse Wonder (C)",
+    "provider": "muse-code",
+    "api": "openai-responses",
+    "base_url": "https://api.meta.ai/v1",
+    "input": [
+      "text",
+      "image"
+    ],
+    "context_window": 1048576,
+    "max_tokens": 131072,
+    "supports_tools": true,
+    "structured_outputs": true,
+    "multimodal": true,
+    "reasoning": true,
+    "cost": {
+      "input": 1.6,
+      "output": 8,
+      "cache_read": 0.08
+    },
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "muse-wonder-full-1.0",
+    "name": "Muse Wonder Full",
+    "provider": "muse-code",
+    "api": "openai-responses",
+    "base_url": "https://api.meta.ai/v1",
+    "input": [
+      "text",
+      "image"
+    ],
+    "context_window": 1048576,
+    "max_tokens": 131072,
+    "supports_tools": true,
+    "structured_outputs": true,
+    "multimodal": true,
+    "reasoning": true,
+    "cost": {
+      "input": 4,
+      "output": 20,
+      "cache_read": 0.2
+    },
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "muse-wonder-full-1.0-contributor",
+    "name": "Muse Wonder Full (C)",
+    "provider": "muse-code",
+    "api": "openai-responses",
+    "base_url": "https://api.meta.ai/v1",
+    "input": [
+      "text",
+      "image"
+    ],
+    "context_window": 1048576,
+    "max_tokens": 131072,
+    "supports_tools": true,
+    "structured_outputs": true,
+    "multimodal": true,
+    "reasoning": true,
+    "cost": {
+      "input": 1.6,
+      "output": 8,
+      "cache_read": 0.08
     },
     "source": "oh-my-pi"
   },

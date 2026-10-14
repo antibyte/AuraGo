@@ -49,8 +49,8 @@ func TestManagedBrowserSurvivesStartupRequest(t *testing.T) {
 	defer closeTab()
 	actionCtx, endAction := context.WithTimeout(tabCtx, 10*time.Second)
 	defer endAction()
-	var value int
-	if err := chromedp.Run(actionCtx, chromedp.Evaluate("21 * 2", &value)); err != nil || value != 42 {
+	value, err := chromedp.Run(actionCtx, chromedp.Evaluate[int]("21 * 2"))
+	if err != nil || value != 42 {
 		t.Fatalf("browser did not survive startup: value=%d err=%v", value, err)
 	}
 	if chromedp.FromContext(tabCtx).Browser.Process() != process {
