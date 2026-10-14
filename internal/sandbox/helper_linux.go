@@ -120,7 +120,7 @@ func applyLandlock() error {
 	handledAccess := landlockHandledAccessForABI(envInt("AURAGO_SBX_ABI"))
 
 	attr := unix.LandlockRulesetAttr{
-		Access_fs: handledAccess,
+		Handled_access_fs: handledAccess,
 	}
 
 	rulesetFd, _, errno := unix.Syscall(
