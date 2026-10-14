@@ -114,24 +114,24 @@
         let partialTimer = 0;
         let renderTimer = 0;
 
-        const statusPill = el('span', { class: 'cc-pill', role: 'status', dataset: { ccMonitorStatus: 'disconnected' } });
-        const connectBtn = el('button', { type: 'button', class: 'cc-btn cc-btn--small cc-btn--primary', dataset: { ccMonitorAction: 'connect' }, text: t('cyd_creator.monitor.connect') });
-        const disconnectBtn = el('button', { type: 'button', class: 'cc-btn cc-btn--small', dataset: { ccMonitorAction: 'disconnect' }, text: t('cyd_creator.monitor.disconnect') });
-        const resetBtn = el('button', { type: 'button', class: 'cc-btn cc-btn--small', dataset: { ccMonitorAction: 'reset' }, text: t('cyd_creator.monitor.reset') });
-        const baudSelect = el('select', { class: 'cc-select', dataset: { ccMonitorBaud: '' }, 'aria-label': t('cyd_creator.monitor.baud') },
+        const statusPill = el('span', { class: 'cydc-pill', role: 'status', dataset: { ccMonitorStatus: 'disconnected' } });
+        const connectBtn = el('button', { type: 'button', class: 'cydc-btn cydc-btn--small cydc-btn--primary', dataset: { ccMonitorAction: 'connect' }, text: t('cyd_creator.monitor.connect') });
+        const disconnectBtn = el('button', { type: 'button', class: 'cydc-btn cydc-btn--small', dataset: { ccMonitorAction: 'disconnect' }, text: t('cyd_creator.monitor.disconnect') });
+        const resetBtn = el('button', { type: 'button', class: 'cydc-btn cydc-btn--small', dataset: { ccMonitorAction: 'reset' }, text: t('cyd_creator.monitor.reset') });
+        const baudSelect = el('select', { class: 'cydc-select', dataset: { ccMonitorBaud: '' }, 'aria-label': t('cyd_creator.monitor.baud') },
             BAUD_RATES.map(rate => el('option', { value: String(rate), selected: rate === Number(prefs.baud), text: t('cyd_creator.monitor.baud_option', { baud: rate }) })));
         const stampBox = el('input', { type: 'checkbox', checked: !!prefs.timestamps, dataset: { ccMonitorTimestamps: '' } });
-        const filterInput = el('input', { type: 'search', class: 'cc-input cc-monitor-filter', placeholder: t('cyd_creator.monitor.filter'), 'aria-label': t('cyd_creator.monitor.filter'), dataset: { ccMonitorFilter: '' } });
-        const pauseBtn = el('button', { type: 'button', class: 'cc-btn cc-btn--small', 'aria-pressed': 'false', dataset: { ccMonitorAction: 'pause' }, text: t('cyd_creator.monitor.pause') });
-        const clearBtn = el('button', { type: 'button', class: 'cc-btn cc-btn--small cc-btn--ghost', dataset: { ccMonitorAction: 'clear' }, text: t('cyd_creator.monitor.clear') });
-        const attachBtn = el('button', { type: 'button', class: 'cc-btn cc-btn--small', dataset: { ccMonitorAction: 'attach' }, text: t('cyd_creator.monitor.attach') });
-        const notice = el('p', { class: 'cc-monitor-notice', hidden: true, dataset: { ccMonitorNotice: '' } });
-        const lines = el('div', { class: 'cc-monitor-lines', role: 'log', 'aria-live': 'off', tabindex: '0', dataset: { ccMonitorLines: '' } });
-        const empty = el('p', { class: 'cc-empty', dataset: { ccMonitorEmpty: '' }, text: t('cyd_creator.monitor.empty') });
-        const panel = el('div', { class: 'cc-monitor' },
-            el('div', { class: 'cc-log-head cc-monitor-head' }, statusPill, connectBtn, disconnectBtn, resetBtn, baudSelect,
-                el('label', { class: 'cc-checkline' }, stampBox, el('span', { text: t('cyd_creator.monitor.timestamps') })),
-                filterInput, el('span', { class: 'cc-dock-spacer' }), pauseBtn, clearBtn, attachBtn),
+        const filterInput = el('input', { type: 'search', class: 'cydc-input cydc-monitor-filter', placeholder: t('cyd_creator.monitor.filter'), 'aria-label': t('cyd_creator.monitor.filter'), dataset: { ccMonitorFilter: '' } });
+        const pauseBtn = el('button', { type: 'button', class: 'cydc-btn cydc-btn--small', 'aria-pressed': 'false', dataset: { ccMonitorAction: 'pause' }, text: t('cyd_creator.monitor.pause') });
+        const clearBtn = el('button', { type: 'button', class: 'cydc-btn cydc-btn--small cydc-btn--ghost', dataset: { ccMonitorAction: 'clear' }, text: t('cyd_creator.monitor.clear') });
+        const attachBtn = el('button', { type: 'button', class: 'cydc-btn cydc-btn--small', dataset: { ccMonitorAction: 'attach' }, text: t('cyd_creator.monitor.attach') });
+        const notice = el('p', { class: 'cydc-monitor-notice', hidden: true, dataset: { ccMonitorNotice: '' } });
+        const lines = el('div', { class: 'cydc-monitor-lines', role: 'log', 'aria-live': 'off', tabindex: '0', dataset: { ccMonitorLines: '' } });
+        const empty = el('p', { class: 'cydc-empty', dataset: { ccMonitorEmpty: '' }, text: t('cyd_creator.monitor.empty') });
+        const panel = el('div', { class: 'cydc-monitor' },
+            el('div', { class: 'cydc-log-head cydc-monitor-head' }, statusPill, connectBtn, disconnectBtn, resetBtn, baudSelect,
+                el('label', { class: 'cydc-checkline' }, stampBox, el('span', { text: t('cyd_creator.monitor.timestamps') })),
+                filterInput, el('span', { class: 'cydc-dock-spacer' }), pauseBtn, clearBtn, attachBtn),
             notice, empty, lines);
 
         // The agent panel is created after the monitor (app.js): look it up when it is needed.
@@ -159,13 +159,13 @@
             return !state.filter || entry.text.toLowerCase().includes(state.filter);
         }
         function lineNode(entry) {
-            const node = el('div', { class: 'cc-monitor-line', dataset: { ccMonitorLine: String(entry.id) } },
-                prefs.timestamps ? el('span', { class: 'cc-monitor-time', text: formatTime(entry.time) + ' ' }) : null,
-                el('span', { class: 'cc-monitor-text', text: entry.text }));
+            const node = el('div', { class: 'cydc-monitor-line', dataset: { ccMonitorLine: String(entry.id) } },
+                prefs.timestamps ? el('span', { class: 'cydc-monitor-time', text: formatTime(entry.time) + ' ' }) : null,
+                el('span', { class: 'cydc-monitor-text', text: entry.text }));
             const addresses = parseBacktrace(entry.text);
             if (addresses.length) {
                 node.classList.add('is-backtrace');
-                node.appendChild(el('button', { type: 'button', class: 'cc-btn cc-btn--small', dataset: { ccMonitorDecode: String(entry.id) }, text: t('cyd_creator.monitor.decode'), onClick: () => decode(entry, addresses, node) }));
+                node.appendChild(el('button', { type: 'button', class: 'cydc-btn cydc-btn--small', dataset: { ccMonitorDecode: String(entry.id) }, text: t('cyd_creator.monitor.decode'), onClick: () => decode(entry, addresses, node) }));
                 const known = state.decoded.get(entry.id);
                 if (known) node.appendChild(known);
             }
@@ -205,18 +205,18 @@
 
         async function decode(entry, addresses, node) {
             const buildId = (P.flasher && P.flasher.lastFlashed(inst.projectId)) || ((inst.lastGreenBuild() || {}).id) || '';
-            const box = el('div', { class: 'cc-monitor-frames', dataset: { ccMonitorFrames: String(entry.id) } });
-            const old = node.querySelector('.cc-monitor-frames');
+            const box = el('div', { class: 'cydc-monitor-frames', dataset: { ccMonitorFrames: String(entry.id) } });
+            const old = node.querySelector('.cydc-monitor-frames');
             if (old) old.remove();
             node.appendChild(box);
             if (!buildId) { box.textContent = t('cyd_creator.monitor.decode_no_build'); return; }
             box.textContent = t('cyd_creator.monitor.decoding');
             try {
                 const frames = await P.api.decodeBacktrace(buildId, addresses);
-                box.replaceChildren(el('p', { class: 'cc-monitor-frames-head', text: t('cyd_creator.monitor.decoded_with', { build: buildId }) }),
+                box.replaceChildren(el('p', { class: 'cydc-monitor-frames-head', text: t('cyd_creator.monitor.decoded_with', { build: buildId }) }),
                     el('ol', {}, frames.map(f => el('li', {},
                         el('code', { text: f.address }), ' ', el('strong', { text: f.function || '??' }),
-                        f.file ? el('span', { class: 'cc-monitor-where', text: ' ' + f.file + (f.line ? ':' + f.line : '') }) : null))));
+                        f.file ? el('span', { class: 'cydc-monitor-where', text: ' ' + f.file + (f.line ? ':' + f.line : '') }) : null))));
                 state.decoded.set(entry.id, box);
             } catch (err) {
                 box.textContent = P.errors.message(t, err);

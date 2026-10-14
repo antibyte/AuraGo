@@ -256,11 +256,11 @@
             const theme = d.theme();
             const screen = d.screen();
             const ghost = document.createElement('div');
-            ghost.className = 'cc-drag-ghost';
+            ghost.className = 'cydc-drag-ghost';
             ghost.style.width = sample.w * scale + 'px';
             ghost.style.height = sample.h * scale + 'px';
             const inner = document.createElement('div');
-            inner.className = 'cc-drag-ghost-inner';
+            inner.className = 'cydc-drag-ghost-inner';
             inner.style.width = sample.w + 'px';
             inner.style.height = sample.h + 'px';
             inner.style.transform = 'scale(' + scale + ')';

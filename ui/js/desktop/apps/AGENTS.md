@@ -612,7 +612,7 @@
   `group.*`, `prop.*`, `event.*`, `action.*`, `transition.*`, `issue.*` and `designer.*`; shell code reads
   them with `t.or(key, fallback)` / `t.has` (the dock falls back to the English Issue message). `t(key,
   vars)` fills `{{name}}` and `{name}`. Shell CSS classes stay distinct from the designer's global ones
-  (`.cc-tag`, `.cc-pill`, `.cc-form-*` here; `.cc-badge`, `.cc-chip`, `.cc-field*` belong to 4b), and the
+  (`.cydc-tag`, `.cydc-pill`, `.cydc-form-*` here; `.cydc-badge`, `.cydc-chip`, `.cydc-field*` belong to 4b), and the
   designer rules live at the end of the stylesheet in the section that starts with
   `/* ==== CYD Creator designer (plan 4b) — begin` (the theme-token test stops there). No
   alert/confirm/prompt: `P.dialog` (core) and `inst.confirm` render inside the window, and one shared key
@@ -694,14 +694,14 @@
   semantics of `patch.go` (behaviour tests only).
 - CSS: the designer section ends at `/* ==== CYD Creator designer (plan 4b) — end`; keep that end marker, plan
   5's CSS test requires it before its own section. `TestCYDCreatorDesignerStaticContracts/css` checks: every
-  selector starts at `.cc-app` or the body-level `.cc-drag-ghost`; literal colours (hex, `rgb()`/`hsl()`, named)
-  stand only in the token block `.cc-app, .cc-drag-ghost {…}` (marks over the device preview that read on every
+  selector starts at `.cydc-app` or the body-level `.cydc-drag-ghost`; literal colours (hex, `rgb()`/`hsl()`, named)
+  stand only in the token block `.cydc-app, .cydc-drag-ghost {…}` (marks over the device preview that read on every
   device theme); every `var()` in the section is a `--cc-*` token the stylesheet defines, and the file has no
-  `--ccd-*`; `.cc-canvas-stage` padding = `PAD` (24), `.cc-device-frame` padding = `BEZEL` (14) and
-  `.cc-device-label` margin-top + min-height = `LABEL_H` (the `cyd-creator-canvas.js` constants `fitZoom`
+  `--ccd-*`; `.cydc-canvas-stage` padding = `PAD` (24), `.cydc-device-frame` padding = `BEZEL` (14) and
+  `.cydc-device-label` margin-top + min-height = `LABEL_H` (the `cyd-creator-canvas.js` constants `fitZoom`
   subtracts); non-active screen rows stay on one line and their tools change only `visibility` on hover or focus;
   no rule sets the dock's height (`cyd-creator-dock.js` limits only its first, unsaved Design-mode height to
-  30 %); the `@container cc-app (max-width: 820px)` rule shows `.cc-left` again in Design mode. Conventions
+  30 %); the `@container cydc-app (max-width: 820px)` rule shows `.cydc-left` again in Design mode. Conventions
   without a test: status text through the `*-ink` tokens, solid fills `--cc-accent-deep`/`--cc-on-accent`; at
   560 px the left column becomes a strip above the canvas (Code mode keeps the shell layout); `@media
   (forced-colors: active)` keeps the device preview's own colours and marks selection, handles, pressed tools and
@@ -797,7 +797,7 @@
   `transfer.import_`); errors reuse 4a's `error.<CODE>`.
 - CSS: the section between `/* ==== CYD Creator flash, monitor and devices (plan 5) — begin` and `… — end` (both
   with U+2014) follows the designer's end marker; `TestCYDCreatorFlashStylesheetSection` allows no literal colour
-  or colour function, only `--cc-*` tokens the stylesheet defines and only selectors scoped to `.cc-app`.
+  or colour function, only `--cc-*` tokens the stylesheet defines and only selectors scoped to `.cydc-app`.
 - Verify: `npm run test:cyd-creator-flash`, `go test ./ui -run '(?i)CYDCreator'` (plan 5 adds the module, offset,
   vendor, wiring, stylesheet, devices/transfer and key tests) and, with `AURAGO_RUN_BROWSER_SMOKE=1`,
   `TestDesktopCYDCreatorFlashBrowser` (fixture `ui/testdata/cyd-creator-flash-fixture.js`: fake `navigator.serial`

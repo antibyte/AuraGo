@@ -110,24 +110,24 @@
         };
 
         // ── DOM ──
-        const newBtn = el('button', { type: 'button', class: 'cc-icon-btn', dataset: { ccCodeAction: 'new' }, 'aria-label': t('cyd_creator.code.new_file'), title: t('cyd_creator.code.new_file'), text: '+' });
-        const groups = el('div', { class: 'cc-tree-groups' });
-        const tree = el('nav', { class: 'cc-tree', 'aria-label': t('cyd_creator.code.files') },
-            el('div', { class: 'cc-tree-head' }, el('span', { text: t('cyd_creator.code.files') }), newBtn),
+        const newBtn = el('button', { type: 'button', class: 'cydc-icon-btn', dataset: { ccCodeAction: 'new' }, 'aria-label': t('cyd_creator.code.new_file'), title: t('cyd_creator.code.new_file'), text: '+' });
+        const groups = el('div', { class: 'cydc-tree-groups' });
+        const tree = el('nav', { class: 'cydc-tree', 'aria-label': t('cyd_creator.code.files') },
+            el('div', { class: 'cydc-tree-head' }, el('span', { text: t('cyd_creator.code.files') }), newBtn),
             groups);
-        const pathLabel = el('span', { class: 'cc-code-path', dataset: { ccCodePath: '' } });
-        const chip = el('span', { class: 'cc-pill', role: 'status', dataset: { ccCodeState: '' }, hidden: true });
-        const saveBtn = el('button', { type: 'button', class: 'cc-btn cc-btn--small', dataset: { ccCodeAction: 'save' }, hidden: true, text: t('cyd_creator.code.save_now') });
-        const hint = el('p', { class: 'cc-code-hint', dataset: { ccCodeHint: '' }, hidden: true });
-        const editorHost = el('div', { class: 'cc-code-editor', dataset: { ccCodeEditor: '' } });
-        const markers = el('div', { class: 'cc-code-markers', 'aria-hidden': 'true' });
-        const empty = el('div', { class: 'cc-empty cc-code-empty', text: t('cyd_creator.code.choose_file') });
-        const main = el('section', { class: 'cc-code-main' },
-            el('div', { class: 'cc-code-bar' }, pathLabel, chip, el('span', { class: 'cc-dock-spacer' }), saveBtn),
+        const pathLabel = el('span', { class: 'cydc-code-path', dataset: { ccCodePath: '' } });
+        const chip = el('span', { class: 'cydc-pill', role: 'status', dataset: { ccCodeState: '' }, hidden: true });
+        const saveBtn = el('button', { type: 'button', class: 'cydc-btn cydc-btn--small', dataset: { ccCodeAction: 'save' }, hidden: true, text: t('cyd_creator.code.save_now') });
+        const hint = el('p', { class: 'cydc-code-hint', dataset: { ccCodeHint: '' }, hidden: true });
+        const editorHost = el('div', { class: 'cydc-code-editor', dataset: { ccCodeEditor: '' } });
+        const markers = el('div', { class: 'cydc-code-markers', 'aria-hidden': 'true' });
+        const empty = el('div', { class: 'cydc-empty cydc-code-empty', text: t('cyd_creator.code.choose_file') });
+        const main = el('section', { class: 'cydc-code-main' },
+            el('div', { class: 'cydc-code-bar' }, pathLabel, chip, el('span', { class: 'cydc-dock-spacer' }), saveBtn),
             hint,
-            el('div', { class: 'cc-code-surface' }, editorHost, markers),
+            el('div', { class: 'cydc-code-surface' }, editorHost, markers),
             empty);
-        const root = el('div', { class: 'cc-code', dataset: { ccCode: '' } }, tree, main);
+        const root = el('div', { class: 'cydc-code', dataset: { ccCode: '' } }, tree, main);
 
         // The editor is read-only while it switches or renames a file, so nothing typed between the
         // flush and the new document is lost.
@@ -174,19 +174,19 @@
                 const items = list.map(info => {
                     const label = group === 'app' ? info.path.slice(APP_DIR.length) : info.path;
                     const item = el('button', {
-                        type: 'button', class: 'cc-tree-item', dataset: { ccFile: info.path },
+                        type: 'button', class: 'cydc-tree-item', dataset: { ccFile: info.path },
                         'aria-current': info.path === state.openPath ? 'true' : null, title: info.path
-                    }, el('span', { class: 'cc-tree-name', text: label }),
-                    counts.get(info.path) ? el('span', { class: 'cc-tag', dataset: { tone: tones[counts.get(info.path).worst] }, text: String(counts.get(info.path).n) }) : null);
+                    }, el('span', { class: 'cydc-tree-name', text: label }),
+                    counts.get(info.path) ? el('span', { class: 'cydc-tag', dataset: { tone: tones[counts.get(info.path).worst] }, text: String(counts.get(info.path).n) }) : null);
                     item.addEventListener('click', () => openFile(info.path));
-                    const tools = group === 'app' && canEdit ? el('span', { class: 'cc-tree-tools' },
-                        el('button', { type: 'button', class: 'cc-icon-btn', dataset: { ccCodeAction: 'rename', path: info.path }, 'aria-label': t('cyd_creator.code.rename_file', { name: label }), title: t('cyd_creator.code.rename'), text: '✎', onClick: () => renameFile(info) }),
-                        el('button', { type: 'button', class: 'cc-icon-btn', dataset: { ccCodeAction: 'delete', path: info.path }, 'aria-label': t('cyd_creator.code.delete_file', { name: label }), title: t('cyd_creator.code.delete'), text: '×', onClick: () => deleteFile(info) })) : null;
-                    return el('li', { class: 'cc-tree-row' }, item, tools);
+                    const tools = group === 'app' && canEdit ? el('span', { class: 'cydc-tree-tools' },
+                        el('button', { type: 'button', class: 'cydc-icon-btn', dataset: { ccCodeAction: 'rename', path: info.path }, 'aria-label': t('cyd_creator.code.rename_file', { name: label }), title: t('cyd_creator.code.rename'), text: '✎', onClick: () => renameFile(info) }),
+                        el('button', { type: 'button', class: 'cydc-icon-btn', dataset: { ccCodeAction: 'delete', path: info.path }, 'aria-label': t('cyd_creator.code.delete_file', { name: label }), title: t('cyd_creator.code.delete'), text: '×', onClick: () => deleteFile(info) })) : null;
+                    return el('li', { class: 'cydc-tree-row' }, item, tools);
                 });
-                const details = el('details', { class: 'cc-tree-group', dataset: { group }, open },
+                const details = el('details', { class: 'cydc-tree-group', dataset: { group }, open },
                     el('summary', { text: t('cyd_creator.code.group_' + group) }),
-                    list.length ? el('ul', {}, items) : el('p', { class: 'cc-empty', text: t('cyd_creator.code.no_app_files') }));
+                    list.length ? el('ul', {}, items) : el('p', { class: 'cydc-empty', text: t('cyd_creator.code.no_app_files') }));
                 return details;
             });
             const openGroups = new Set(Array.from(groups.querySelectorAll('details[open]')).map(d => d.dataset.group));
@@ -318,7 +318,7 @@
             }).catch(err => {
                 console.warn('CYD Creator: CodeMirror failed to load, using a plain text area', err);
                 if (state.disposed || state.textarea) return;
-                state.textarea = el('textarea', { class: 'cc-code-fallback', spellcheck: 'false', 'aria-label': t('cyd_creator.code.editor_label'), dataset: { ccCodeFallback: '' } });
+                state.textarea = el('textarea', { class: 'cydc-code-fallback', spellcheck: 'false', 'aria-label': t('cyd_creator.code.editor_label'), dataset: { ccCodeFallback: '' } });
                 b.on(state.textarea, 'input', () => { if (!state.applying) onEdit(state.textarea.value); });
                 b.on(state.textarea, 'keydown', event => {
                     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); flush(); }
@@ -552,11 +552,11 @@
         }
 
         function nameDialog(titleKey, value, ignorePath) {
-            const input = el('input', { class: 'cc-input', type: 'text', value: value || '', autofocus: true, spellcheck: 'false', 'aria-label': t('cyd_creator.code.file_name'), dataset: { ccFileName: '' } });
-            const help = el('p', { class: 'cc-form-help', text: t('cyd_creator.code.file_name_help') });
+            const input = el('input', { class: 'cydc-input', type: 'text', value: value || '', autofocus: true, spellcheck: 'false', 'aria-label': t('cyd_creator.code.file_name'), dataset: { ccFileName: '' } });
+            const help = el('p', { class: 'cydc-form-help', text: t('cyd_creator.code.file_name_help') });
             const d = P.dialog.open(inst.root, {
                 title: t(titleKey),
-                body: [el('label', { class: 'cc-form-field' }, el('span', { text: t('cyd_creator.code.file_name') }), input), help],
+                body: [el('label', { class: 'cydc-form-field' }, el('span', { text: t('cyd_creator.code.file_name') }), input), help],
                 actions: [{ id: 'cancel', label: t('cyd_creator.app.cancel') }, { id: 'ok', label: t('cyd_creator.app.ok'), kind: 'primary' }],
                 onAction(id, dialog) {
                     if (id !== 'ok') { dialog.close(null); return; }
@@ -717,7 +717,7 @@
                 if (top + block.height < 0 || top > box.height) return;
                 const severity = severityOf(d);
                 markers.appendChild(el('div', {
-                    class: 'cc-code-marker is-' + severity,
+                    class: 'cydc-code-marker is-' + severity,
                     title: (d.line ? d.line + ': ' : '') + String(d.message || ''),
                     dataset: { ccMarker: String(line), severity },
                     style: { top: top + 'px', height: block.height + 'px' }

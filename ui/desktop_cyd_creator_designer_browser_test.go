@@ -62,7 +62,7 @@ func (s *cydDesignerSmoke) noRawKeys(step string) {
 	s.t.Helper()
 	found := s.page.MustEval(`()=>{
 		const texts=[];
-		document.querySelectorAll('.cc-app').forEach(app=>{
+		document.querySelectorAll('.cydc-app').forEach(app=>{
 			texts.push(app.innerText);
 			app.querySelectorAll('[title],[aria-label],[placeholder],option').forEach(n=>['title','aria-label','placeholder','label'].forEach(a=>texts.push(n.getAttribute(a)||'')));
 		});
@@ -180,8 +180,8 @@ func startCYDDesignerSmoke(t *testing.T, motion, lang, theme string) *cydDesigne
 		w.Header().Set("Content-Type", "image/png")
 		_, _ = w.Write(sun.Bytes())
 	})
-	// The page holds the shell's workbench columns (plan 4a: .cc-left with screens and palette,
-	// .cc-center-design, .cc-right .cc-panel) inside .cc-app, with the desktop theme tokens.
+	// The page holds the shell's workbench columns (plan 4a: .cydc-left with screens and palette,
+	// .cydc-center-design, .cydc-right .cydc-panel) inside .cydc-app, with the desktop theme tokens.
 	mux.HandleFunc("/fixture", func(w http.ResponseWriter, r *http.Request) {
 		theme := r.URL.Query().Get("theme")
 		if theme == "" {
@@ -191,10 +191,10 @@ func startCYDDesignerSmoke(t *testing.T, motion, lang, theme string) *cydDesigne
 		_, _ = fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="/fonts/fonts.css"><link rel="stylesheet" href="/shared-variables.css"><link rel="stylesheet" href="/css/desktop-shell.bundle.css"><link rel="stylesheet" href="/css/desktop-app-cyd-creator.css">
 <style>html,body{margin:0;height:100%%;overflow:hidden}</style></head>
-<body class="desktop-body" data-theme="%s" data-fruity-mode="light"><div class="cc-app"><div class="cc-workbench">
-<aside class="cc-left"><div class="cc-left-screens" id="screens"></div><div class="cc-left-palette" id="palette"></div></aside>
-<section class="cc-center"><div class="cc-center-design" id="canvas"></div></section>
-<aside class="cc-right"><div class="cc-panel" id="inspector"></div></aside></div></div>
+<body class="desktop-body" data-theme="%s" data-fruity-mode="light"><div class="cydc-app"><div class="cydc-workbench">
+<aside class="cydc-left"><div class="cydc-left-screens" id="screens"></div><div class="cydc-left-palette" id="palette"></div></aside>
+<section class="cydc-center"><div class="cydc-center-design" id="canvas"></div></section>
+<aside class="cydc-right"><div class="cydc-panel" id="inspector"></div></aside></div></div>
 <script src="/js/desktop/apps/cyd-creator-core.js"></script>%s<script src="/testdata/cyd-creator-designer-fixture.js"></script></body></html>`, theme, scripts.String())
 	})
 	server := httptest.NewServer(mux)
@@ -224,7 +224,7 @@ func startCYDDesignerSmoke(t *testing.T, motion, lang, theme string) *cydDesigne
 	}
 	// Pointer maths below assume zoom 2 and snapping to 8 px.
 	page.MustEval(`()=>{cydFixture.state.setZoom(2);cydFixture.state.setSnap(8);cydFixture.state.setGrid(true)}`)
-	s.wait(`()=>document.querySelector('.cc-zoom-label').textContent==='2×'`)
+	s.wait(`()=>document.querySelector('.cydc-zoom-label').textContent==='2×'`)
 	return s
 }
 
@@ -254,10 +254,10 @@ func TestDesktopCYDCreatorDesignerBrowser(t *testing.T) {
 // render: device frame, visible widgets (the LED sits on the hidden tab page), palette, layers.
 func (s *cydDesignerSmoke) render() {
 	s.t.Helper()
-	s.wait(`()=>document.querySelector('.cc-device-frame .cc-screen[data-cc-screen-id="s_home"]')!==null`)
-	s.wait(`()=>document.querySelectorAll('.cc-screen [data-cc-widget-id]').length===6 && !document.querySelector('[data-cc-widget-id="w_led"]')`)
-	s.wait(`()=>document.querySelectorAll('[data-cc-palette]').length===26 && document.querySelectorAll('.cc-layer-select').length===7`)
-	s.wait(`()=>document.querySelector('.cc-device-label').textContent.includes('320 × 240')`)
+	s.wait(`()=>document.querySelector('.cydc-device-frame .cydc-screen[data-cc-screen-id="s_home"]')!==null`)
+	s.wait(`()=>document.querySelectorAll('.cydc-screen [data-cc-widget-id]').length===6 && !document.querySelector('[data-cc-widget-id="w_led"]')`)
+	s.wait(`()=>document.querySelectorAll('[data-cc-palette]').length===26 && document.querySelectorAll('.cydc-layer-select').length===7`)
+	s.wait(`()=>document.querySelector('.cydc-device-label').textContent.includes('320 × 240')`)
 	s.noErrors("render")
 	s.noRawKeys("render")
 	s.shot("designer-night")
@@ -269,18 +269,18 @@ func (s *cydDesignerSmoke) canvasContracts() {
 	s.t.Helper()
 	page := s.page
 	// The device label names the orientation with plan 4a's cyd_creator.orientation.* strings.
-	s.wait(`()=>cydFixture.t.has('cyd_creator.orientation.landscape') && document.querySelector('.cc-device-size').textContent==='320 × 240 · '+cydFixture.t('cyd_creator.orientation.landscape')`)
+	s.wait(`()=>cydFixture.t.has('cyd_creator.orientation.landscape') && document.querySelector('.cydc-device-size').textContent==='320 × 240 · '+cydFixture.t('cyd_creator.orientation.landscape')`)
 
 	// The statusbar shows its title (else the screen title), the clock and Wi-Fi as the settings say.
 	const bar = `document.querySelector('[data-cc-widget-id="w_status"]')`
-	s.wait(`()=>{const b=` + bar + `;return b.textContent.includes('Wetter') && b.textContent.includes('12:34') && !!b.querySelector('.cc-glyph')}`)
+	s.wait(`()=>{const b=` + bar + `;return b.textContent.includes('Wetter') && b.textContent.includes('12:34') && !!b.querySelector('.cydc-glyph')}`)
 	page.MustElement(`[data-cc-field="statusbar_clock"]`).MustClick()
-	s.wait(`()=>{const b=` + bar + `;return cydFixture.store.get().settings.statusbar_clock===false && !b.textContent.includes('12:34') && !!b.querySelector('.cc-glyph')}`)
+	s.wait(`()=>{const b=` + bar + `;return cydFixture.store.get().settings.statusbar_clock===false && !b.textContent.includes('12:34') && !!b.querySelector('.cydc-glyph')}`)
 	page.MustEval(`()=>{const s=document.querySelector('[data-cc-field="wifi"]');s.value='off';s.dispatchEvent(new Event('change',{bubbles:true}))}`)
-	s.wait(`()=>{const b=` + bar + `;return cydFixture.store.get().settings.wifi==='off' && !b.querySelector('.cc-glyph')}`)
+	s.wait(`()=>{const b=` + bar + `;return cydFixture.store.get().settings.wifi==='off' && !b.querySelector('.cydc-glyph')}`)
 	page.MustEval(`()=>{const s=document.querySelector('[data-cc-field="wifi"]');s.value='optional';s.dispatchEvent(new Event('change',{bubbles:true}))}`)
 	page.MustElement(`[data-cc-field="statusbar_clock"]`).MustClick()
-	s.wait(`()=>{const b=` + bar + `;const st=cydFixture.store.get().settings;return st.wifi==='optional' && st.statusbar_clock===true && b.textContent.includes('12:34') && !!b.querySelector('.cc-glyph')}`)
+	s.wait(`()=>{const b=` + bar + `;const st=cydFixture.store.get().settings;return st.wifi==='optional' && st.statusbar_clock===true && b.textContent.includes('12:34') && !!b.querySelector('.cydc-glyph')}`)
 	page.MustElement(`[data-cc-layer-id="w_status"]`).MustClick()
 	page.MustElement(`[data-cc-field="prop:title"]`).MustSelectAllText()
 	s.keys(input.Backspace)
@@ -290,21 +290,21 @@ func (s *cydDesignerSmoke) canvasContracts() {
 
 	// Layout values are untrusted: a url() colour never reaches CSS, boxes are finite and clamped.
 	page.MustEval(`()=>cydFixture.remote(p=>{p.screens[0].style={bg_color:'url(/fixture-asset/a_sun)'};p.screens[0].widgets[1].style={bg_color:'url(/fixture-asset/a_sun)'};p.screens[0].widgets.push({id:'w_huge',type:'label',name:'lbl_huge',x:1e9,y:-1e9,w:1e9,h:-5},{id:'w_str',type:'label',name:'lbl_str',x:'12',y:null,w:'40',h:20.6})})`)
-	s.wait(`()=>{const scr=document.querySelector('.cc-screen');const night=cydFixture.inst.caps.themes.find(t=>t.id==='night').tokens.bg;const probe=document.createElement('i');probe.style.color=night;document.body.append(probe);const want=getComputedStyle(probe).color;probe.remove();const imgs=[scr,...scr.querySelectorAll('*')].map(n=>getComputedStyle(n).backgroundImage).filter(v=>v.includes('url('));return getComputedStyle(scr).backgroundColor===want && imgs.length===0 && !scr.getAttribute('style').includes('url(')}`)
+	s.wait(`()=>{const scr=document.querySelector('.cydc-screen');const night=cydFixture.inst.caps.themes.find(t=>t.id==='night').tokens.bg;const probe=document.createElement('i');probe.style.color=night;document.body.append(probe);const want=getComputedStyle(probe).color;probe.remove();const imgs=[scr,...scr.querySelectorAll('*')].map(n=>getComputedStyle(n).backgroundImage).filter(v=>v.includes('url('));return getComputedStyle(scr).backgroundColor===want && imgs.length===0 && !scr.getAttribute('style').includes('url(')}`)
 	s.wait(`()=>{const st=id=>document.querySelector('[data-cc-widget-id="'+id+'"]').style;const h=st('w_huge'),k=st('w_str');return h.left==='4096px' && h.top==='-4096px' && h.width==='2048px' && h.height==='1px' && k.left==='0px' && k.top==='0px' && k.width==='1px' && k.height==='21px'}`)
 	page.MustEval(`()=>cydFixture.remote(p=>{p.screens[0].style={};delete p.screens[0].widgets[1].style;p.screens[0].widgets=p.screens[0].widgets.filter(w=>w.id!=='w_huge' && w.id!=='w_str')})`)
-	s.wait(`()=>!document.querySelector('[data-cc-widget-id="w_huge"]') && document.querySelectorAll('.cc-layer-select').length===7`)
+	s.wait(`()=>!document.querySelector('[data-cc-widget-id="w_huge"]') && document.querySelectorAll('.cydc-layer-select').length===7`)
 	s.noErrors("untrusted layout")
 
 	// Read-only (plan 4a setReadonly → readonly:changed): handles, tools, palette, screen tools and
 	// fields are disabled, keys change nothing; switching back enables them again.
 	page.MustEval(`()=>cydFixture.state.select(['w_btn'])`)
-	s.wait(`()=>document.querySelectorAll('.cc-handle').length===8 && !document.querySelector('[data-cc-cmd="align-left"]').disabled`)
+	s.wait(`()=>document.querySelectorAll('.cydc-handle').length===8 && !document.querySelector('[data-cc-cmd="align-left"]').disabled`)
 	page.MustEval(`()=>cydFixture.setReadonly(true)`)
-	const disabled = `()=>document.querySelectorAll('.cc-handle').length===0 && document.querySelector('.cc-canvas').classList.contains('is-readonly') && ['align-left','lock','hide','delete','z-front'].every(c=>document.querySelector('.cc-canvas-bar [data-cc-cmd="'+c+'"]').disabled) && [...document.querySelectorAll('[data-cc-palette]')].every(b=>b.disabled) && document.querySelector('[data-cc-cmd="screen-add"]').disabled && [...document.querySelectorAll('.cc-inspector fieldset, .cc-screens fieldset')].every(f=>f.disabled) && [...document.querySelectorAll('.cc-layer-flag')].every(b=>b.disabled)`
+	const disabled = `()=>document.querySelectorAll('.cydc-handle').length===0 && document.querySelector('.cydc-canvas').classList.contains('is-readonly') && ['align-left','lock','hide','delete','z-front'].every(c=>document.querySelector('.cydc-canvas-bar [data-cc-cmd="'+c+'"]').disabled) && [...document.querySelectorAll('[data-cc-palette]')].every(b=>b.disabled) && document.querySelector('[data-cc-cmd="screen-add"]').disabled && [...document.querySelectorAll('.cydc-inspector fieldset, .cydc-screens fieldset')].every(f=>f.disabled) && [...document.querySelectorAll('.cydc-layer-flag')].every(b=>b.disabled)`
 	s.wait(disabled)
 	before := page.MustEval(`()=>JSON.stringify(cydFixture.store.get())`).Str()
-	page.MustEval(`()=>document.querySelector('.cc-canvas').focus()`)
+	page.MustEval(`()=>document.querySelector('.cydc-canvas').focus()`)
 	s.keys(input.Delete, input.ArrowRight)
 	bx, by := s.client(40, 60)
 	s.drag(bx, by, bx+30, by+30, "")
@@ -313,7 +313,7 @@ func (s *cydDesignerSmoke) canvasContracts() {
 	}
 	s.shot("designer-readonly")
 	page.MustEval(`()=>cydFixture.setReadonly(false)`)
-	s.wait(`()=>document.querySelectorAll('.cc-handle').length===8 && !document.querySelector('.cc-canvas').classList.contains('is-readonly') && [...document.querySelectorAll('[data-cc-palette]')].every(b=>!b.disabled) && !document.querySelector('.cc-inspector fieldset').disabled`)
+	s.wait(`()=>document.querySelectorAll('.cydc-handle').length===8 && !document.querySelector('.cydc-canvas').classList.contains('is-readonly') && [...document.querySelectorAll('[data-cc-palette]')].every(b=>!b.disabled) && !document.querySelector('.cydc-inspector fieldset').disabled`)
 	page.MustEval(`()=>cydFixture.state.select([])`)
 
 	// A hidden canvas (Code mode) keeps its zoom: fitting a 0×0 viewport would fall back to zoom 1.
@@ -326,9 +326,9 @@ func (s *cydDesignerSmoke) canvasContracts() {
 		s.t.Fatalf("hidden canvas changed the zoom from %d to %d", zoom, got)
 	}
 	page.MustEval(`()=>{document.getElementById('canvas').style.display='';cydFixture.bus.emit('mode:changed','design')}`)
-	s.wait(fmt.Sprintf(`()=>cydFixture.state.zoom===%d && document.querySelector('.cc-screen-host').getBoundingClientRect().width===320*%d`, zoom, zoom))
+	s.wait(fmt.Sprintf(`()=>cydFixture.state.zoom===%d && document.querySelector('.cydc-screen-host').getBoundingClientRect().width===320*%d`, zoom, zoom))
 	page.MustEval(`()=>cydFixture.state.setZoom(2)`)
-	s.wait(`()=>document.querySelector('.cc-zoom-label').textContent==='2×' && !cydFixture.state.zoomAuto`)
+	s.wait(`()=>document.querySelector('.cydc-zoom-label').textContent==='2×' && !cydFixture.state.zoomAuto`)
 	s.noErrors("canvas contracts")
 }
 
@@ -341,11 +341,11 @@ func (s *cydDesignerSmoke) planScenarios() {
 	// Palette drag: a label dropped at device (232, 92) lands centred there, snapped to 8 px.
 	px, py := s.center(`[data-cc-palette="label"]`)
 	tx, ty := s.client(232, 92)
-	if !s.drag(px, py, tx, ty, `()=>!!document.querySelector('.cc-drag-ghost')`) {
+	if !s.drag(px, py, tx, ty, `()=>!!document.querySelector('.cydc-drag-ghost')`) {
 		t.Fatal("palette drag showed no ghost")
 	}
 	s.wait(`()=>{const w=cydFixture.store.get().screens[0].widgets.find(w=>w.name==='lbl_2');return !!w && w.x===176 && w.y===80 && cydFixture.state.selection[0]===w.id}`)
-	s.wait(`()=>!document.querySelector('.cc-drag-ghost')`)
+	s.wait(`()=>!document.querySelector('.cydc-drag-ghost')`)
 
 	// Keyboard "add at centre": Enter on a palette entry adds the widget in the middle of the screen.
 	page.MustEval(`()=>document.querySelector('[data-cc-palette="led"]').focus()`)
@@ -357,17 +357,17 @@ func (s *cydDesignerSmoke) planScenarios() {
 	// Move with guides (grid off): lbl_1 dragged 6 px up snaps its top to btn_1's top (y 40).
 	page.MustEval(`()=>cydFixture.state.setSnap(0)`)
 	lx, ly := s.client(220, 60)
-	if !s.drag(lx, ly, lx, ly-12, `()=>document.querySelectorAll('.cc-guide-h').length>0`) {
+	if !s.drag(lx, ly, lx, ly-12, `()=>document.querySelectorAll('.cydc-guide-h').length>0`) {
 		t.Fatal("no horizontal alignment guide during the move")
 	}
 	s.wait(`()=>{const w=cydFixture.widget('w_lbl');return w.x===160 && w.y===40}`)
-	s.wait(`()=>document.querySelectorAll('.cc-guide').length===0`)
+	s.wait(`()=>document.querySelectorAll('.cydc-guide').length===0`)
 	page.MustEval(`()=>cydFixture.state.setSnap(8)`)
 
 	// Resize via the south-east handle: +13/+5 device px snap to the 8 px grid (w 136, h 48).
 	page.MustEval(`()=>cydFixture.state.select(['w_btn'])`)
-	s.wait(`()=>document.querySelectorAll('.cc-handle').length===8`)
-	hx, hy := s.center(`.cc-handle-se`)
+	s.wait(`()=>document.querySelectorAll('.cydc-handle').length===8`)
+	hx, hy := s.center(`.cydc-handle-se`)
 	s.drag(hx, hy, hx+26, hy+10, "")
 	s.wait(`()=>{const w=cydFixture.widget('w_btn');return w.w===136 && w.h===48 && w.x===16 && w.y===40}`)
 
@@ -382,12 +382,12 @@ func (s *cydDesignerSmoke) planScenarios() {
 	if err := page.Keyboard.Release(input.ShiftLeft); err != nil {
 		t.Fatal(err)
 	}
-	s.wait(`()=>cydFixture.state.selection.join()==='w_btn,w_lbl' && document.querySelectorAll('.cc-sel').length===2`)
+	s.wait(`()=>cydFixture.state.selection.join()==='w_btn,w_lbl' && document.querySelectorAll('.cydc-sel').length===2`)
 	page.MustElement(`[data-cc-cmd="align-bottom"]`).MustClick()
 	s.wait(`()=>cydFixture.widget('w_lbl').y===64 && cydFixture.widget('w_btn').y===40`)
 
 	// Undo/redo on the focused canvas (Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z).
-	page.MustEval(`()=>document.querySelector('.cc-canvas').focus()`)
+	page.MustEval(`()=>document.querySelector('.cydc-canvas').focus()`)
 	page.KeyActions().Press(input.ControlLeft).Type('z').MustDo()
 	s.wait(`()=>cydFixture.widget('w_lbl').y===40`)
 	page.KeyActions().Press(input.ControlLeft).Type('y').MustDo()
@@ -407,7 +407,7 @@ func (s *cydDesignerSmoke) planScenarios() {
 	// Reparent: lbl_2 dragged into the panel becomes its child (coordinates relative to the content box).
 	sx, sy := s.client(236, 92)
 	ex, ey := s.client(88, 164)
-	if !s.drag(sx, sy, ex, ey, `()=>!document.querySelector('.cc-drop').hidden`) {
+	if !s.drag(sx, sy, ex, ey, `()=>!document.querySelector('.cydc-drop').hidden`) {
 		t.Fatal("no drop target while dragging over the panel")
 	}
 	s.wait(`()=>{const w=cydFixture.store.get().screens[0].widgets.find(w=>w.id==='w_pnl').children.find(c=>c.name==='lbl_2');if(!w)return false;const a=cydFixture.abs(w.id);return a.x>=16 && a.y>=104 && a.x+a.w<=200 && w.x===a.x-16 && w.y===a.y-104}`)
@@ -418,11 +418,11 @@ func (s *cydDesignerSmoke) planScenarios() {
 	s.wait(`()=>!!document.querySelector('[data-cc-widget-id="w_led"]') && !document.querySelector('[data-cc-widget-id="w_sw"]')`)
 
 	// Theme switch: no selection shows project settings; Terminal re-renders the preview.
-	page.MustEval(`()=>document.querySelector('.cc-canvas').focus()`)
+	page.MustEval(`()=>document.querySelector('.cydc-canvas').focus()`)
 	page.Keyboard.MustType(input.Escape)
 	s.wait(`()=>cydFixture.state.selection.length===0 && !!document.querySelector('[data-cc-theme="terminal"]')`)
 	page.MustElement(`[data-cc-theme="terminal"]`).MustClick()
-	s.wait(`()=>{const th=cydFixture.inst.caps.themes.find(t=>t.id==='terminal');const probe=document.createElement('i');probe.style.color=th.tokens.bg;document.body.append(probe);const want=getComputedStyle(probe).color;probe.remove();return cydFixture.store.get().theme==='terminal' && getComputedStyle(document.querySelector('.cc-screen')).backgroundColor===want && document.querySelector('[data-cc-widget-id="w_btn"]').textContent.includes('[')}`)
+	s.wait(`()=>{const th=cydFixture.inst.caps.themes.find(t=>t.id==='terminal');const probe=document.createElement('i');probe.style.color=th.tokens.bg;document.body.append(probe);const want=getComputedStyle(probe).color;probe.remove();return cydFixture.store.get().theme==='terminal' && getComputedStyle(document.querySelector('.cydc-screen')).backgroundColor===want && document.querySelector('[data-cc-widget-id="w_btn"]').textContent.includes('[')}`)
 	page.Mouse.MustMoveTo(5, 5)
 	s.wait(`()=>cydFixture.state.previewTheme===''`)
 	s.shot("designer-terminal")
@@ -451,25 +451,25 @@ func (s *cydDesignerSmoke) planScenarios() {
 
 	// Issues from the shell mark the widget and appear in the inspector.
 	page.MustEval(`()=>cydFixture.bus.emit('layout:issues',[{severity:'error',code:'NAME_DUPLICATE',widget:'w_btn',message:'duplicate'}])`)
-	s.wait(`()=>!!document.querySelector('.cc-issue-dot.is-error') && document.querySelector('.cc-issues').textContent.length>0 && document.querySelector('[data-cc-widget-id="w_btn"]').title.length>0`)
+	s.wait(`()=>!!document.querySelector('.cydc-issue-dot.is-error') && document.querySelector('.cydc-issues').textContent.length>0 && document.querySelector('[data-cc-widget-id="w_btn"]').title.length>0`)
 
 	// Screens: add, inline rename (Enter), delete with the shell confirm.
 	page.MustElement(`[data-cc-cmd="screen-add"]`).MustClick()
 	s.wait(`()=>cydFixture.store.get().screens.length===3 && cydFixture.state.screenId===cydFixture.store.get().screens[2].id`)
-	page.MustEval(`()=>document.querySelector('.cc-screen-row.is-active [data-cc-cmd="screen-rename"]').click()`)
-	s.wait(`()=>document.activeElement && document.activeElement.classList.contains('cc-screen-rename')`)
-	page.MustElement(`.cc-screen-rename`).MustSelectAllText().MustInput("settings")
+	page.MustEval(`()=>document.querySelector('.cydc-screen-row.is-active [data-cc-cmd="screen-rename"]').click()`)
+	s.wait(`()=>document.activeElement && document.activeElement.classList.contains('cydc-screen-rename')`)
+	page.MustElement(`.cydc-screen-rename`).MustSelectAllText().MustInput("settings")
 	page.Keyboard.MustType(input.Enter)
 	s.wait(`()=>cydFixture.store.get().screens[2].name==='settings'`)
-	page.MustEval(`()=>document.querySelector('.cc-screen-row.is-active [data-cc-cmd="screen-delete"]').click()`)
+	page.MustEval(`()=>document.querySelector('.cydc-screen-row.is-active [data-cc-cmd="screen-delete"]').click()`)
 	s.wait(`()=>cydFixture.store.get().screens.length===2 && cydFixture.confirms.length===1 && cydFixture.confirms[0].titleKey==='cyd_creator.designer.screen_delete_title'`)
 	// The Wi-Fi setup screen is a locked system entry with a themed preview.
-	page.MustElement(`[data-cc-screen-id="__wifi_setup__"] .cc-screen-open`).MustClick()
-	s.wait(`()=>!!document.querySelector('.cc-screen .cc-system-screen') && document.querySelector('.cc-canvas').classList.contains('is-system')`)
+	page.MustElement(`[data-cc-screen-id="__wifi_setup__"] .cydc-screen-open`).MustClick()
+	s.wait(`()=>!!document.querySelector('.cydc-screen .cydc-system-screen') && document.querySelector('.cydc-canvas').classList.contains('is-system')`)
 
 	// Reveal (agent/problems): switches screen, selects and flashes the widget.
 	page.MustEval(`()=>cydFixture.bus.emit('designer:reveal',{widget:'gauge_1'})`)
-	s.wait(`()=>cydFixture.state.screenId==='s_details' && cydFixture.state.selection[0]==='w_gauge' && !!document.querySelector('.cc-flash')`)
+	s.wait(`()=>cydFixture.state.screenId==='s_details' && cydFixture.state.selection[0]==='w_gauge' && !!document.querySelector('.cydc-flash')`)
 	s.wait(`()=>document.querySelector('[data-cc-widget-id="w_img"] img')?.getAttribute('src')==='/fixture-asset/a_sun'`)
 
 	// Image upload: an SVG is rasterised to a PNG at the widget size on a real canvas, uploaded
@@ -489,7 +489,7 @@ func (s *cydDesignerSmoke) planScenarios() {
 	s.wait(`()=>cydFixture.widget('w_img').props.asset==='a_up'`)
 
 	// Duplicate (Ctrl+D), copy/paste (Ctrl+C, Ctrl+V), z-order, distribute, lock from the toolbar.
-	page.MustEval(`()=>{cydFixture.state.select(['w_gauge']);document.querySelector('.cc-canvas').focus()}`)
+	page.MustEval(`()=>{cydFixture.state.select(['w_gauge']);document.querySelector('.cydc-canvas').focus()}`)
 	page.KeyActions().Press(input.ControlLeft).Type('d').MustDo()
 	s.wait(`()=>{const ws=cydFixture.store.get().screens[1].widgets;const d=ws.find(w=>w.name==='gauge_2');return ws.length===3 && !!d && d.x===98 && d.y===48 && cydFixture.state.selection[0]===d.id}`)
 	page.KeyActions().Press(input.ControlLeft).Type('c').MustDo()
@@ -508,24 +508,24 @@ func (s *cydDesignerSmoke) planScenarios() {
 	s.wait(`()=>!cydFixture.widget('w_img').locked`)
 
 	// Layers list: arrow keys move the focus between rows (roving tab stop).
-	page.MustEval(`()=>document.querySelector('.cc-layer-select').focus()`)
+	page.MustEval(`()=>document.querySelector('.cydc-layer-select').focus()`)
 	page.Keyboard.MustType(input.ArrowDown)
-	s.wait(`()=>document.activeElement===document.querySelectorAll('.cc-layer-select')[1]`)
+	s.wait(`()=>document.activeElement===document.querySelectorAll('.cydc-layer-select')[1]`)
 
 	// Project settings: orientation swaps the device size, Wi-Fi off hides the system screen,
 	// hovering a theme previews it without changing the layout.
-	page.MustEval(`()=>{document.querySelector('.cc-canvas').focus();cydFixture.state.select([])}`)
+	page.MustEval(`()=>{document.querySelector('.cydc-canvas').focus();cydFixture.state.select([])}`)
 	s.wait(`()=>!!document.querySelector('[data-cc-field="orientation"]')`)
 	page.MustEval(`()=>{const s=document.querySelector('[data-cc-field="orientation"]');s.value='portrait';s.dispatchEvent(new Event('change',{bubbles:true}))}`)
-	s.wait(`()=>{const r=document.querySelector('.cc-screen-host').getBoundingClientRect();return cydFixture.store.get().orientation==='portrait' && Math.round(r.width)===240*cydFixture.state.zoom && Math.round(r.height)===320*cydFixture.state.zoom && document.querySelector('.cc-device-size').textContent==='240 × 320 · '+cydFixture.t('cyd_creator.orientation.portrait')}`)
+	s.wait(`()=>{const r=document.querySelector('.cydc-screen-host').getBoundingClientRect();return cydFixture.store.get().orientation==='portrait' && Math.round(r.width)===240*cydFixture.state.zoom && Math.round(r.height)===320*cydFixture.state.zoom && document.querySelector('.cydc-device-size').textContent==='240 × 320 · '+cydFixture.t('cyd_creator.orientation.portrait')}`)
 	page.MustEval(`()=>{const s=document.querySelector('[data-cc-field="orientation"]');s.value='landscape';s.dispatchEvent(new Event('change',{bubbles:true}))}`)
 	page.MustEval(`()=>{const s=document.querySelector('[data-cc-field="wifi"]');s.value='off';s.dispatchEvent(new Event('change',{bubbles:true}))}`)
 	s.wait(`()=>cydFixture.store.get().settings.wifi==='off' && !document.querySelector('[data-cc-screen-id="__wifi_setup__"]') && cydFixture.store.get().settings.aurago_link===false`)
 	page.MustEval(`()=>{const s=document.querySelector('[data-cc-field="wifi"]');s.value='optional';s.dispatchEvent(new Event('change',{bubbles:true}))}`)
 	s.wait(`()=>!!document.querySelector('[data-cc-screen-id="__wifi_setup__"]')`)
 	page.MustEval(`()=>document.querySelector('[data-cc-theme="clear"]').dispatchEvent(new PointerEvent('pointerenter'))`)
-	s.wait(`()=>{const th=cydFixture.inst.caps.themes.find(t=>t.id==='clear');const probe=document.createElement('i');probe.style.color=th.tokens.bg;document.body.append(probe);const want=getComputedStyle(probe).color;probe.remove();return cydFixture.store.get().theme==='terminal' && getComputedStyle(document.querySelector('.cc-screen')).backgroundColor===want}`)
-	page.MustEval(`()=>document.querySelector('.cc-theme-grid').dispatchEvent(new PointerEvent('pointerleave'))`)
+	s.wait(`()=>{const th=cydFixture.inst.caps.themes.find(t=>t.id==='clear');const probe=document.createElement('i');probe.style.color=th.tokens.bg;document.body.append(probe);const want=getComputedStyle(probe).color;probe.remove();return cydFixture.store.get().theme==='terminal' && getComputedStyle(document.querySelector('.cydc-screen')).backgroundColor===want}`)
+	page.MustEval(`()=>document.querySelector('.cydc-theme-grid').dispatchEvent(new PointerEvent('pointerleave'))`)
 	s.wait(`()=>cydFixture.state.previewTheme===''`)
 
 	// Duplicate screen: the copy follows the original and becomes active; one undo removes it.
@@ -537,11 +537,11 @@ func (s *cydDesignerSmoke) planScenarios() {
 	// Locked by an agent job (lock:changed(true, jobId)): no edits from palette, canvas, keyboard
 	// or inspector.
 	page.MustEval(`()=>{cydFixture.state.setScreen('s_details');cydFixture.setLocked(true);cydFixture.state.select(['w_gauge'])}`)
-	s.wait(`()=>[...document.querySelectorAll('[data-cc-palette]')].every(b=>b.disabled) && document.querySelector('.cc-inspector fieldset').disabled && document.querySelectorAll('.cc-handle').length===0 && cydFixture.events.some(e=>e[0]==='lock:changed' && e[1]===true && e[2]==='ccj_fixture')`)
+	s.wait(`()=>[...document.querySelectorAll('[data-cc-palette]')].every(b=>b.disabled) && document.querySelector('.cydc-inspector fieldset').disabled && document.querySelectorAll('.cydc-handle').length===0 && cydFixture.events.some(e=>e[0]==='lock:changed' && e[1]===true && e[2]==='ccj_fixture')`)
 	before := page.MustEval(`()=>JSON.stringify(cydFixture.store.get())`).Str()
 	gx, gy := s.client(160, 110)
 	s.drag(gx, gy, gx+40, gy+40, "")
-	page.MustEval(`()=>document.querySelector('.cc-canvas').focus()`)
+	page.MustEval(`()=>document.querySelector('.cydc-canvas').focus()`)
 	page.Keyboard.MustType(input.Delete)
 	page.KeyActions().Press(input.ControlLeft).Type('z').MustDo()
 	if after := page.MustEval(`()=>JSON.stringify(cydFixture.store.get())`).Str(); after != before {
@@ -560,7 +560,7 @@ func (s *cydDesignerSmoke) inspectorContracts() {
 	t := s.t
 	page := s.page
 	page.MustEval(`()=>{cydFixture.state.setScreen('s_home');cydFixture.state.select([])}`)
-	s.wait(`()=>{const f=cydFixture.byFocus;return !!f('backlight') && f('orientation').value==='landscape' && f('language').value==='de' && f('wifi').value==='optional' && f('backlight').value==='80' && document.querySelector('.cc-range-row output').textContent==='80 %' && f('timezone').value==='CET-1CEST,M3.5.0,M10.5.0/3'}`)
+	s.wait(`()=>{const f=cydFixture.byFocus;return !!f('backlight') && f('orientation').value==='landscape' && f('language').value==='de' && f('wifi').value==='optional' && f('backlight').value==='80' && document.querySelector('.cydc-range-row output').textContent==='80 %' && f('timezone').value==='CET-1CEST,M3.5.0,M10.5.0/3'}`)
 	page.MustEval(`()=>cydFixture.state.select(['w_lbl'])`)
 	s.wait(`()=>{const f=cydFixture.byFocus;return !!f('prop:size') && f('prop:size').value==='20' && f('prop:align').value==='left' && f('prop:text').tagName==='TEXTAREA' && f('prop:text').value==='22,5 °C'}`)
 
@@ -571,7 +571,7 @@ func (s *cydDesignerSmoke) inspectorContracts() {
 	s.wait(`()=>{const n=cydFixture.byFocus('name');return n!==window.__ccName && n.value==='Bad Name' && document.activeElement===n && n.selectionStart===3 && n.selectionEnd===3 && n.getAttribute('aria-invalid')==='true' && cydFixture.widget('w_btn').y===48}`)
 	// A new issue list replaces only the list: the field (and what it holds) stays.
 	page.MustEval(`()=>{window.__ccName=cydFixture.byFocus('name');cydFixture.bus.emit('layout:issues',[{severity:'warning',code:'PARTLY_OUT_OF_BOUNDS',widget:'w_lbl',message:'partly outside'}])}`)
-	s.wait(`()=>{const n=cydFixture.byFocus('name');return n===window.__ccName && n.value==='Bad Name' && document.activeElement===n && document.querySelectorAll('.cc-inspector .cc-issue').length===1}`)
+	s.wait(`()=>{const n=cydFixture.byFocus('name');return n===window.__ccName && n.value==='Bad Name' && document.activeElement===n && document.querySelectorAll('.cydc-inspector .cydc-issue').length===1}`)
 	page.MustElement(`[data-cc-field="name"]`).MustSelectAllText().MustInput("lbl_1")
 	s.wait(`()=>cydFixture.byFocus('name').getAttribute('aria-invalid')==='false' && cydFixture.widget('w_lbl').name==='lbl_1'`)
 
@@ -589,14 +589,14 @@ func (s *cydDesignerSmoke) inspectorContracts() {
 	// the focus to the panel, never to the page.
 	s.focus("geo:x")
 	page.MustEval(`()=>cydFixture.setReadonly(true)`)
-	s.wait(`()=>{const f=cydFixture.byFocus;return document.querySelector('.cc-inspector fieldset').disabled && ['geo:x','prop:text','prop:size','style:bg_color','name'].every(k=>f(k).matches(':disabled')) && document.activeElement===document.querySelector('.cc-inspector')}`)
+	s.wait(`()=>{const f=cydFixture.byFocus;return document.querySelector('.cydc-inspector fieldset').disabled && ['geo:x','prop:text','prop:size','style:bg_color','name'].every(k=>f(k).matches(':disabled')) && document.activeElement===document.querySelector('.cydc-inspector')}`)
 	page.MustEval(`()=>cydFixture.setReadonly(false)`)
-	s.wait(`()=>!document.querySelector('.cc-inspector fieldset').disabled && !cydFixture.byFocus('geo:x').matches(':disabled')`)
+	s.wait(`()=>!document.querySelector('.cydc-inspector fieldset').disabled && !cydFixture.byFocus('geo:x').matches(':disabled')`)
 
 	// Colours: the picker holds lower case, the layout gets upper case #RRGGBB; "Use theme" resets.
 	s.wait(`()=>/^#[0-9a-f]{6}$/.test(cydFixture.byFocus('style:bg_color').value)`)
 	page.MustEval(`()=>{const c=cydFixture.byFocus('style:bg_color');c.value='#a1b2c3';c.dispatchEvent(new Event('input',{bubbles:true}))}`)
-	s.wait(`()=>{const c=cydFixture.byFocus('style:bg_color');return cydFixture.widget('w_lbl').style.bg_color==='#A1B2C3' && c.value==='#a1b2c3' && c.parentElement.querySelector('.cc-color-value').textContent==='#A1B2C3'}`)
+	s.wait(`()=>{const c=cydFixture.byFocus('style:bg_color');return cydFixture.widget('w_lbl').style.bg_color==='#A1B2C3' && c.value==='#a1b2c3' && c.parentElement.querySelector('.cydc-color-value').textContent==='#A1B2C3'}`)
 	page.MustEval(`()=>cydFixture.byFocus('style:bg_color:reset').click()`)
 	s.wait(`()=>!(cydFixture.widget('w_lbl').style||{}).bg_color && cydFixture.byFocus('style:bg_color:reset').getAttribute('aria-pressed')==='true'`)
 
@@ -629,7 +629,7 @@ func (s *cydDesignerSmoke) screensContracts() {
 	s.keys(input.End)
 	s.insertText(" Haus")
 	s.keys(input.Tab)
-	s.wait(`()=>{const a=document.activeElement;return cydFixture.store.get().screens[0].title==='Start Haus' && a && a.getAttribute('data-cc-focus')==='screen-transition' && document.querySelector('.cc-screens').contains(a) && document.querySelector('[data-cc-title="s_home"]').textContent==='Start Haus'}`)
+	s.wait(`()=>{const a=document.activeElement;return cydFixture.store.get().screens[0].title==='Start Haus' && a && a.getAttribute('data-cc-focus')==='screen-transition' && document.querySelector('.cydc-screens').contains(a) && document.querySelector('[data-cc-title="s_home"]').textContent==='Start Haus'}`)
 
 	rename := func(id, name string) {
 		s.t.Helper()
@@ -656,9 +656,9 @@ func (s *cydDesignerSmoke) screensContracts() {
 	s.wait(`()=>!document.querySelector('[data-cc-rename]') && cydFixture.store.get().screens[0].name==='start' && document.activeElement===cydFixture.byFocus('open:s_home')`)
 	// The add tool: stored and a screen added. Pointer and focus leave the s_home row first (its
 	// tools show while it is hovered or focused; rowsStayPut checks what that does to the rows).
-	x, y = s.center(`.cc-canvas-viewport`)
+	x, y = s.center(`.cydc-canvas-viewport`)
 	page.Mouse.MustMoveTo(x, y)
-	page.MustEval(`()=>{cydFixture.state.setScreen('s_details');document.querySelector('.cc-canvas').focus()}`)
+	page.MustEval(`()=>{cydFixture.state.setScreen('s_details');document.querySelector('.cydc-canvas').focus()}`)
 	rename("s_details", "details_x")
 	s.press("screen-add", 100*time.Millisecond)
 	s.wait(`()=>{const ss=cydFixture.store.get().screens;return ss[1].name==='details_x' && ss.length===3 && cydFixture.state.screenId===ss[2].id}`)
@@ -678,19 +678,19 @@ func (s *cydDesignerSmoke) screensContracts() {
 func (s *cydDesignerSmoke) rowsStayPut() {
 	s.t.Helper()
 	page := s.page
-	const top = `()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r(Math.round(document.querySelector('.cc-screen-row[data-cc-screen-id="s_details"]').getBoundingClientRect().top)))))`
-	page.MustEval(`()=>{cydFixture.state.setScreen('s_details');document.querySelector('.cc-canvas').focus()}`)
-	x, y := s.center(`.cc-canvas-viewport`)
+	const top = `()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r(Math.round(document.querySelector('.cydc-screen-row[data-cc-screen-id="s_details"]').getBoundingClientRect().top)))))`
+	page.MustEval(`()=>{cydFixture.state.setScreen('s_details');document.querySelector('.cydc-canvas').focus()}`)
+	x, y := s.center(`.cydc-canvas-viewport`)
 	page.Mouse.MustMoveTo(x, y)
 	rest := page.MustEval(top).Int()
 	x, y = s.focusCenter("open:s_home")
 	page.Mouse.MustMoveTo(x, y)
 	hovered := page.MustEval(top).Int()
-	x, y = s.center(`.cc-canvas-viewport`)
+	x, y = s.center(`.cydc-canvas-viewport`)
 	page.Mouse.MustMoveTo(x, y)
 	s.focus("open:s_home")
 	focused := page.MustEval(top).Int()
-	page.MustEval(`()=>document.querySelector('.cc-canvas').focus()`)
+	page.MustEval(`()=>document.querySelector('.cydc-canvas').focus()`)
 	if hovered != rest || focused != rest {
 		s.t.Errorf("showing the tools of screen entry s_home moves the entry below it: top %d at rest, %d with s_home hovered, %d with s_home focused", rest, hovered, focused)
 	}
@@ -702,7 +702,7 @@ func (s *cydDesignerSmoke) rowsStayPut() {
 func (s *cydDesignerSmoke) keyboardStaysInDesigner() {
 	s.t.Helper()
 	page := s.page
-	page.MustEval(`()=>{cydFixture.state.setScreen('s_details');cydFixture.state.select(['w_gauge']);cydFixture.pageKeys.length=0;document.querySelector('.cc-canvas').focus()}`)
+	page.MustEval(`()=>{cydFixture.state.setScreen('s_details');cydFixture.state.select(['w_gauge']);cydFixture.pageKeys.length=0;document.querySelector('.cydc-canvas').focus()}`)
 	s.keys(input.Enter, input.F2, input.Delete)
 	s.wait(`()=>!cydFixture.widget('w_gauge')`)
 	page.KeyActions().Press(input.ControlLeft).Type('z').MustDo()
@@ -711,12 +711,12 @@ func (s *cydDesignerSmoke) keyboardStaysInDesigner() {
 
 	// Toolbar buttons sit inside the canvas root: Enter still clicks natively (the grid toggles),
 	// and Enter, F2, Delete and Backspace never reach the document.
-	page.MustEval(`()=>{cydFixture.state.select([]);window.__ccGrid=cydFixture.state.showGrid;document.querySelector('.cc-canvas-bar [data-cc-cmd="grid"]').focus()}`)
+	page.MustEval(`()=>{cydFixture.state.select([]);window.__ccGrid=cydFixture.state.showGrid;document.querySelector('.cydc-canvas-bar [data-cc-cmd="grid"]').focus()}`)
 	s.keys(input.Enter)
 	s.wait(`()=>cydFixture.state.showGrid===!window.__ccGrid`)
 	s.keys(input.F2, input.Delete, input.Backspace, input.Enter)
 	s.wait(`()=>cydFixture.state.showGrid===window.__ccGrid`)
-	page.MustEval(`()=>document.querySelector('.cc-canvas-bar [data-cc-cmd="zoom-fit"]').focus()`)
+	page.MustEval(`()=>document.querySelector('.cydc-canvas-bar [data-cc-cmd="zoom-fit"]').focus()`)
 	s.keys(input.Enter, input.F2, input.Delete, input.Backspace)
 	s.noPageKeys("canvas toolbar")
 
@@ -771,11 +771,11 @@ func (s *cydDesignerSmoke) germanFruity() {
 	s.shot("designer-fruity-de")
 
 	// The palette column narrowed until its entries reach their 150 px minimum.
-	page.MustEval(`()=>{const host=document.getElementById('palette');const bar=host.offsetWidth-host.clientWidth;document.querySelector('.cc-workbench').style.gridTemplateColumns=(170+bar)+'px minmax(0,1fr) minmax(270px,330px)'}`)
-	s.wait(`()=>Math.abs(document.querySelector('.cc-palette-item').getBoundingClientRect().width-150)<0.6`)
+	page.MustEval(`()=>{const host=document.getElementById('palette');const bar=host.offsetWidth-host.clientWidth;document.querySelector('.cydc-workbench').style.gridTemplateColumns=(170+bar)+'px minmax(0,1fr) minmax(270px,330px)'}`)
+	s.wait(`()=>Math.abs(document.querySelector('.cydc-palette-item').getBoundingClientRect().width-150)<0.6`)
 	broken := page.MustEval(`()=>{
 		const out=[];
-		document.querySelectorAll('.cc-palette-name').forEach(n=>{
+		document.querySelectorAll('.cydc-palette-name').forEach(n=>{
 			const text=n.textContent;
 			const r=document.createRange();r.selectNodeContents(n);
 			const tops=new Set([...r.getClientRects()].filter(x=>x.width>0).map(x=>Math.round(x.top)));

@@ -15,6 +15,9 @@ worker. Keep packaging, recovery and offline instructions in
 Shipped pages load fonts, images, styles and libraries only from AuraGo itself.
 Vendoring scripts must rewrite upstream CDN, Google Fonts and analytics references;
 `TestShippedWebAssetsLoadNothingExternal` guards `ui/` and the bundled desktop apps.
+Never use the cookieconsent `cc-` prefix for classes or IDs: cookie-banner blockers hide
+`.cc-banner`, `.cc-modal-backdrop` and similar on every site (CYD Creator uses `cydc-`,
+the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPrefix` guards it.
 
 ## Ownership
 

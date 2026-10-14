@@ -2165,11 +2165,11 @@ transform:none; filter:none;
     margin-top: 0.8rem;
 }
 
-.pw-page[data-workspace-page="config"] .cc-tts-port-input {
+.pw-page[data-workspace-page="config"] .cfgdev-tts-port-input {
     width: 120px;
 }
 
-.pw-page[data-workspace-page="config"] .cc-section-title {
+.pw-page[data-workspace-page="config"] .cfgdev-section-title {
     margin-top: 2rem;
     margin-bottom: 0.5rem;
     padding-bottom: 0.4rem;
@@ -2179,11 +2179,11 @@ transform:none; filter:none;
     font-weight: 600;
 }
 
-.pw-page[data-workspace-page="config"] .cc-section-help {
+.pw-page[data-workspace-page="config"] .cfgdev-section-help {
     margin-bottom: 1rem;
 }
 
-.pw-page[data-workspace-page="config"] .cc-actions-row {
+.pw-page[data-workspace-page="config"] .cfgdev-actions-row {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
@@ -2192,23 +2192,23 @@ transform:none; filter:none;
 }
 
 @media (max-width: 480px) {
-    .pw-page[data-workspace-page="config"] .cc-actions-row {
+    .pw-page[data-workspace-page="config"] .cfgdev-actions-row {
         flex-direction: column;
         align-items: stretch;
     }
-    .pw-page[data-workspace-page="config"] .cc-actions-row .btn-save {
+    .pw-page[data-workspace-page="config"] .cfgdev-actions-row .btn-save {
         width: 100%;
         text-align: center;
     }
 }
 
-.pw-page[data-workspace-page="config"] .cc-btn-primary {
+.pw-page[data-workspace-page="config"] .cfgdev-btn-primary {
     padding: 0.45rem 1.1rem;
     font-size: 0.82rem;
     white-space: nowrap;
 }
 
-.pw-page[data-workspace-page="config"] .cc-btn-secondary {
+.pw-page[data-workspace-page="config"] .cfgdev-btn-secondary {
     padding: 0.45rem 1.1rem;
     font-size: 0.82rem;
     white-space: nowrap;
@@ -2217,41 +2217,41 @@ transform:none; filter:none;
     border: 1px solid var(--border-subtle);
 }
 
-.pw-page[data-workspace-page="config"] .cc-btn-disabled {
+.pw-page[data-workspace-page="config"] .cfgdev-btn-disabled {
     opacity: 0.45;
     pointer-events: none;
 }
 
-.pw-page[data-workspace-page="config"] .cc-discover-area {
+.pw-page[data-workspace-page="config"] .cfgdev-discover-area {
     margin-bottom: 1.2rem;
 }
 
-.pw-page[data-workspace-page="config"] .cc-discovery-state {
+.pw-page[data-workspace-page="config"] .cfgdev-discovery-state {
     padding: 0.8rem 1rem;
     border-radius: 9px;
     font-size: 0.82rem;
 }
 
-.pw-page[data-workspace-page="config"] .cc-discovery-state-loading {
+.pw-page[data-workspace-page="config"] .cfgdev-discovery-state-loading {
     padding: 1rem;
     text-align: center;
     color: var(--text-secondary);
     font-size: 0.85rem;
 }
 
-.pw-page[data-workspace-page="config"] .cc-discovery-state-warn {
+.pw-page[data-workspace-page="config"] .cfgdev-discovery-state-warn {
     background: color-mix(in srgb, var(--warning) 8%, transparent);
     border: 1px solid color-mix(in srgb, var(--warning) 28%, transparent);
     color: var(--text-secondary);
 }
 
-.pw-page[data-workspace-page="config"] .cc-discovery-state-error {
+.pw-page[data-workspace-page="config"] .cfgdev-discovery-state-error {
     background: color-mix(in srgb, #ef4444 8%, transparent);
     border: 1px solid color-mix(in srgb, #ef4444 25%, transparent);
     color: var(--danger);
 }
 
-.pw-page[data-workspace-page="config"] .cc-discovery-list {
+.pw-page[data-workspace-page="config"] .cfgdev-discovery-list {
     padding: 0.8rem 1rem;
     border-radius: 9px;
     border: 1px solid color-mix(in srgb, #60a5fa 22%, transparent);
@@ -2259,18 +2259,18 @@ transform:none; filter:none;
     font-size: 0.82rem;
 }
 
-.pw-page[data-workspace-page="config"] .cc-discovery-list-title {
+.pw-page[data-workspace-page="config"] .cfgdev-discovery-list-title {
     margin-bottom: 0.6rem;
     font-weight: 600;
 }
 
-.pw-page[data-workspace-page="config"] .cc-discovery-items {
+.pw-page[data-workspace-page="config"] .cfgdev-discovery-items {
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
 }
 
-.pw-page[data-workspace-page="config"] .cc-discovery-item {
+.pw-page[data-workspace-page="config"] .cfgdev-discovery-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -2283,11 +2283,11 @@ transform:none; filter:none;
     flex-wrap: wrap;
 }
 
-.pw-page[data-workspace-page="config"] .cc-discovery-item.is-added {
+.pw-page[data-workspace-page="config"] .cfgdev-discovery-item.is-added {
     opacity: 0.5;
 }
 
-.pw-page[data-workspace-page="config"] .cc-discovery-item > div:first-child {
+.pw-page[data-workspace-page="config"] .cfgdev-discovery-item > div:first-child {
     display: flex;
     align-items: baseline;
     gap: 0.5rem;
@@ -2297,14 +2297,14 @@ transform:none; filter:none;
 }
 
 @media (max-width: 480px) {
-    .pw-page[data-workspace-page="config"] .cc-discovery-item > div:first-child {
+    .pw-page[data-workspace-page="config"] .cfgdev-discovery-item > div:first-child {
         flex-direction: column;
         gap: 0.15rem;
         width: 100%;
     }
 }
 
-.pw-page[data-workspace-page="config"] .cc-discovery-name {
+.pw-page[data-workspace-page="config"] .cfgdev-discovery-name {
     font-weight: 500;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2312,7 +2312,7 @@ transform:none; filter:none;
     min-width: 0;
 }
 
-.pw-page[data-workspace-page="config"] .cc-discovery-meta {
+.pw-page[data-workspace-page="config"] .cfgdev-discovery-meta {
     color: var(--text-tertiary);
     font-family: 'SF Mono', 'Fira Code', monospace;
     font-size: 0.78rem;
@@ -2320,97 +2320,97 @@ transform:none; filter:none;
     flex-shrink: 0;
 }
 
-.pw-page[data-workspace-page="config"] .cc-discovery-added {
+.pw-page[data-workspace-page="config"] .cfgdev-discovery-added {
     color: var(--text-tertiary);
     font-size: 0.78rem;
     white-space: nowrap;
     flex-shrink: 0;
 }
 
-.pw-page[data-workspace-page="config"] .cc-btn-compact {
+.pw-page[data-workspace-page="config"] .cfgdev-btn-compact {
     padding: 0.3rem 0.8rem;
     font-size: 0.78rem;
     white-space: nowrap;
     flex-shrink: 0;
 }
 
-.pw-page[data-workspace-page="config"] .cc-table-wrap {
+.pw-page[data-workspace-page="config"] .cfgdev-table-wrap {
     overflow-x: auto;
 }
 
-.pw-page[data-workspace-page="config"] .cc-table {
+.pw-page[data-workspace-page="config"] .cfgdev-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.82rem;
 }
 
-.pw-page[data-workspace-page="config"] .cc-table-head {
+.pw-page[data-workspace-page="config"] .cfgdev-table-head {
     border-bottom: 2px solid var(--border-subtle);
     text-align: left;
 }
 
-.pw-page[data-workspace-page="config"] .cc-table th {
+.pw-page[data-workspace-page="config"] .cfgdev-table th {
     padding: 0.5rem 0.6rem;
 }
 
-.pw-page[data-workspace-page="config"] .cc-th-actions {
+.pw-page[data-workspace-page="config"] .cfgdev-th-actions {
     text-align: right;
 }
 
-.pw-page[data-workspace-page="config"] .cc-device-row {
+.pw-page[data-workspace-page="config"] .cfgdev-device-row {
     border-bottom: 1px solid var(--border-subtle);
 }
 
-.pw-page[data-workspace-page="config"] .cc-cell {
+.pw-page[data-workspace-page="config"] .cfgdev-cell {
     padding: 0.5rem 0.6rem;
 }
 
-.pw-page[data-workspace-page="config"] .cc-cell-name {
+.pw-page[data-workspace-page="config"] .cfgdev-cell-name {
     font-weight: 500;
 }
 
-.pw-page[data-workspace-page="config"] .cc-cell-ip {
+.pw-page[data-workspace-page="config"] .cfgdev-cell-ip {
     font-family: 'SF Mono', 'Fira Code', monospace;
     font-size: 0.8rem;
 }
 
-.pw-page[data-workspace-page="config"] .cc-cell-desc {
+.pw-page[data-workspace-page="config"] .cfgdev-cell-desc {
     color: var(--text-secondary);
     font-size: 0.8rem;
 }
 
-.pw-page[data-workspace-page="config"] .cc-cell-actions {
+.pw-page[data-workspace-page="config"] .cfgdev-cell-actions {
     text-align: right;
     white-space: nowrap;
 }
 
-.pw-page[data-workspace-page="config"] .cc-icon-btn {
+.pw-page[data-workspace-page="config"] .cfgdev-icon-btn {
     border: none;
     background: none;
     cursor: pointer;
     font-size: 0.9rem;
 }
 
-.pw-page[data-workspace-page="config"] .cc-icon-btn-danger {
+.pw-page[data-workspace-page="config"] .cfgdev-icon-btn-danger {
     margin-left: 0.3rem;
 }
 
-.pw-page[data-workspace-page="config"] .cc-empty,
-.pw-page[data-workspace-page="config"] .cc-loading {
+.pw-page[data-workspace-page="config"] .cfgdev-empty,
+.pw-page[data-workspace-page="config"] .cfgdev-loading {
     padding: 2rem;
     text-align: center;
     font-size: 0.85rem;
 }
 
-.pw-page[data-workspace-page="config"] .cc-empty {
+.pw-page[data-workspace-page="config"] .cfgdev-empty {
     color: var(--text-tertiary);
 }
 
-.pw-page[data-workspace-page="config"] .cc-loading {
+.pw-page[data-workspace-page="config"] .cfgdev-loading {
     color: var(--text-secondary);
 }
 
-.pw-page[data-workspace-page="config"] .cc-modal-overlay {
+.pw-page[data-workspace-page="config"] .cfgdev-modal-overlay {
     position: fixed;
     inset: 0;
     z-index: 9100;
@@ -2422,7 +2422,7 @@ transform:none; filter:none;
     padding: 1rem;
 }
 
-.pw-page[data-workspace-page="config"] .cc-modal-card {
+.pw-page[data-workspace-page="config"] .cfgdev-modal-card {
     position: relative;
     width: min(480px, 90vw);
     max-height: 85vh;
@@ -2435,19 +2435,19 @@ transform:none; filter:none;
     box-shadow: none;
 }
 
-.pw-page[data-workspace-page="config"] .cc-modal-header {
+.pw-page[data-workspace-page="config"] .cfgdev-modal-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 1.2rem;
 }
 
-.pw-page[data-workspace-page="config"] .cc-modal-title {
+.pw-page[data-workspace-page="config"] .cfgdev-modal-title {
     font-size: 1rem;
     font-weight: 600;
 }
 
-.pw-page[data-workspace-page="config"] .cc-modal-close {
+.pw-page[data-workspace-page="config"] .cfgdev-modal-close {
     border: none;
     background: none;
     color: var(--text-secondary);
@@ -2455,17 +2455,17 @@ transform:none; filter:none;
     cursor: pointer;
 }
 
-.pw-page[data-workspace-page="config"] .cc-field-group-sm {
+.pw-page[data-workspace-page="config"] .cfgdev-field-group-sm {
     margin-bottom: 0.8rem;
 }
 
-.pw-page[data-workspace-page="config"] .cc-grid-ip-port {
+.pw-page[data-workspace-page="config"] .cfgdev-grid-ip-port {
     display: grid;
     grid-template-columns: 2fr 1fr;
     gap: 0.8rem;
 }
 
-.pw-page[data-workspace-page="config"] .cc-modal-error {
+.pw-page[data-workspace-page="config"] .cfgdev-modal-error {
     margin-top: 0.7rem;
     padding: 0.5rem 0.8rem;
     border-radius: 8px;
@@ -2475,7 +2475,7 @@ transform:none; filter:none;
     font-size: 0.8rem;
 }
 
-.pw-page[data-workspace-page="config"] .cc-modal-actions {
+.pw-page[data-workspace-page="config"] .cfgdev-modal-actions {
     display: flex;
     justify-content: flex-end;
     gap: 0.6rem;
@@ -6359,7 +6359,7 @@ transform:none; filter:none;
 [data-theme="light"] .pw-page[data-workspace-page="config"] .sidebar-backdrop,
 [data-theme="light"] .pw-page[data-workspace-page="config"] #vault-delete-overlay,
 [data-theme="light"] .pw-page[data-workspace-page="config"] .og-modal-overlay,
-[data-theme="light"] .pw-page[data-workspace-page="config"] .cc-modal-overlay,
+[data-theme="light"] .pw-page[data-workspace-page="config"] .cfgdev-modal-overlay,
 [data-theme="light"] .pw-page[data-workspace-page="config"] .devices-modal-overlay,
 [data-theme="light"] .pw-page[data-workspace-page="config"] .sec-modal-overlay,
 [data-theme="light"] .pw-page[data-workspace-page="config"] .prov-or-overlay,

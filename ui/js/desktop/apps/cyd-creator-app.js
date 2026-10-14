@@ -60,7 +60,7 @@
             layoutIssues: [],
             pullTimer: 0
         };
-        inst.domId = suffix => 'cc-' + String(windowId).replace(/[^A-Za-z0-9_-]/g, '_') + '-' + suffix;
+        inst.domId = suffix => 'cydc-' + String(windowId).replace(/[^A-Za-z0-9_-]/g, '_') + '-' + suffix;
         inst.isLocked = () => !!(inst.project && inst.project.locked_by_job);
         inst.layout = () => ({ version: inst.layoutVersion, project: inst.layoutStore ? inst.layoutStore.get() : inst.layoutSnapshot });
         inst.assetUrl = assetId => P.api.assetUrl(inst.projectId, assetId);
@@ -116,29 +116,29 @@
     // problemDetail shows details.problem of CYD_DISABLED (a generic reason, no paths or secrets).
     function problemDetail(err) {
         const problem = err && err.details && typeof err.details.problem === 'string' ? err.details.problem : '';
-        return problem ? P.util.el('code', { class: 'cc-banner-detail', text: problem }) : null;
+        return problem ? P.util.el('code', { class: 'cydc-banner-detail', text: problem }) : null;
     }
 
     // ── start and states ────────────────────────────────────────────────────
 
     function stateCard(inst, titleKey, text, actions, detail) {
         const { el } = P.util;
-        return el('div', { class: 'cc-state-card', dataset: { ccState: titleKey } },
+        return el('div', { class: 'cydc-state-card', dataset: { ccState: titleKey } },
             el('h2', { text: inst.t(titleKey) }),
             el('p', { text }),
             detail || null,
-            actions ? el('div', { class: 'cc-state-actions' }, actions) : null);
+            actions ? el('div', { class: 'cydc-state-actions' }, actions) : null);
     }
 
     async function start(inst) {
         const { el } = P.util;
-        inst.root.replaceChildren(el('div', { class: 'cc-loading', role: 'status', text: inst.t('cyd_creator.app.loading') }));
+        inst.root.replaceChildren(el('div', { class: 'cydc-loading', role: 'status', text: inst.t('cyd_creator.app.loading') }));
         try {
             inst.caps = await P.api.capabilities();
         } catch (err) {
             if (inst.disposed) return;
             const disabled = err && (err.code === 'CYD_DISABLED' || err.status === 404);
-            const retry = el('button', { type: 'button', class: 'cc-btn cc-btn--primary', dataset: { ccAction: 'retry' }, text: inst.t('cyd_creator.app.retry'), onClick: () => start(inst) });
+            const retry = el('button', { type: 'button', class: 'cydc-btn cydc-btn--primary', dataset: { ccAction: 'retry' }, text: inst.t('cyd_creator.app.retry'), onClick: () => start(inst) });
             inst.root.replaceChildren(stateCard(inst, disabled ? 'cyd_creator.app.disabled_title' : 'cyd_creator.app.error_title',
                 disabled ? inst.t('cyd_creator.error.CYD_DISABLED') : P.errors.message(inst.t, err), retry, problemDetail(err)));
             return;
@@ -146,7 +146,7 @@
         if (inst.disposed) return;
         if (inst.caps.enabled === false) {
             inst.root.replaceChildren(stateCard(inst, 'cyd_creator.app.disabled_title', inst.t('cyd_creator.error.CYD_DISABLED'),
-                el('button', { type: 'button', class: 'cc-btn cc-btn--primary', dataset: { ccAction: 'retry' }, text: inst.t('cyd_creator.app.retry'), onClick: () => start(inst) })));
+                el('button', { type: 'button', class: 'cydc-btn cydc-btn--primary', dataset: { ccAction: 'retry' }, text: inst.t('cyd_creator.app.retry'), onClick: () => start(inst) })));
             return;
         }
         inst.readonly = !!(inst.ctxReadonly || inst.caps.readonly);
@@ -160,7 +160,7 @@
         if (inst.home) inst.home.dispose();
         inst.home = P.home.create(inst);
         const { el } = P.util;
-        const scroller = el('div', { class: 'cc-home-scroll' });
+        const scroller = el('div', { class: 'cydc-home-scroll' });
         inst.root.replaceChildren(scroller);
         inst.root.dataset.ccView = 'home';
         inst.home.mount(scroller);
@@ -207,22 +207,22 @@
         if (tc.docker_available && tc.present) { container.replaceChildren(); container.hidden = true; return; }
         container.hidden = false;
         if (!tc.docker_available) {
-            container.replaceChildren(el('div', { class: 'cc-banner cc-banner--danger', role: 'status', dataset: { ccToolchainState: 'docker' } },
+            container.replaceChildren(el('div', { class: 'cydc-banner cydc-banner--danger', role: 'status', dataset: { ccToolchainState: 'docker' } },
                 el('strong', { text: t('cyd_creator.error.CYD_DOCKER_UNAVAILABLE') }), el('span', { text: t('cyd_creator.app.docker_help') })));
             return;
         }
         if (tc.pulling) {
             const percent = Math.round(P.util.clamp(tc.progress, 0, 1) * 100);
-            container.replaceChildren(el('div', { class: 'cc-banner', role: 'status', dataset: { ccToolchainState: 'pulling' } },
+            container.replaceChildren(el('div', { class: 'cydc-banner', role: 'status', dataset: { ccToolchainState: 'pulling' } },
                 el('span', { text: t('cyd_creator.app.toolchain_pulling', { percent }) }),
-                el('progress', { class: 'cc-progress', max: '100', value: String(percent), 'aria-label': t('cyd_creator.app.toolchain_pulling', { percent }) })));
+                el('progress', { class: 'cydc-progress', max: '100', value: String(percent), 'aria-label': t('cyd_creator.app.toolchain_pulling', { percent }) })));
             return;
         }
-        const pull = el('button', { type: 'button', class: 'cc-btn cc-btn--primary', dataset: { ccAction: 'pull-toolchain' }, disabled: inst.readonly, text: t(tc.error ? 'cyd_creator.app.toolchain_retry' : 'cyd_creator.app.toolchain_pull') });
+        const pull = el('button', { type: 'button', class: 'cydc-btn cydc-btn--primary', dataset: { ccAction: 'pull-toolchain' }, disabled: inst.readonly, text: t(tc.error ? 'cyd_creator.app.toolchain_retry' : 'cyd_creator.app.toolchain_pull') });
         pull.addEventListener('click', () => pullToolchain(inst));
-        container.replaceChildren(el('div', { class: 'cc-banner ' + (tc.error ? 'cc-banner--danger' : 'cc-banner--warn'), role: 'status', dataset: { ccToolchainState: tc.error ? 'error' : 'missing' } },
+        container.replaceChildren(el('div', { class: 'cydc-banner ' + (tc.error ? 'cydc-banner--danger' : 'cydc-banner--warn'), role: 'status', dataset: { ccToolchainState: tc.error ? 'error' : 'missing' } },
             el('span', { text: tc.error ? t('cyd_creator.error.CYD_IMAGE_PULL_FAILED') : t('cyd_creator.app.toolchain_missing') }),
-            tc.error ? el('code', { class: 'cc-banner-detail', text: String(tc.error) }) : null,
+            tc.error ? el('code', { class: 'cydc-banner-detail', text: String(tc.error) }) : null,
             pull));
     }
 
@@ -264,61 +264,61 @@
     function buildView(inst) {
         const { el } = P.util;
         const t = inst.t;
-        const btn = (action, label, extra) => el('button', Object.assign({ type: 'button', class: 'cc-btn', dataset: { ccAction: action }, text: label }, extra || {}));
+        const btn = (action, label, extra) => el('button', Object.assign({ type: 'button', class: 'cydc-btn', dataset: { ccAction: action }, text: label }, extra || {}));
         const v = {};
-        v.homeBtn = el('button', { type: 'button', class: 'cc-icon-btn', dataset: { ccAction: 'home' }, 'aria-label': t('cyd_creator.toolbar.home'), title: t('cyd_creator.toolbar.home'), text: '‹' });
-        v.title = el('span', { class: 'cc-project-title', dataset: { ccProjectTitle: '' } });
-        v.boardChip = el('span', { class: 'cc-board-chip' });
-        // extra replaces the default class: the segment buttons keep the button frame and add .cc-seg.
-        v.modeDesign = btn('mode-design', t('cyd_creator.toolbar.design'), { class: 'cc-btn cc-seg', 'aria-pressed': 'true' });
-        v.modeCode = btn('mode-code', t('cyd_creator.toolbar.code'), { class: 'cc-btn cc-seg', 'aria-pressed': 'false' });
-        v.saveChip = el('span', { class: 'cc-pill', role: 'status', dataset: { ccSaveState: '' } });
-        v.streamChip = el('span', { class: 'cc-pill', dataset: { ccStreamState: '' }, hidden: true, text: t('cyd_creator.app.reconnecting') });
-        v.readonlyChip = el('span', { class: 'cc-pill', dataset: { tone: 'warning' }, hidden: true, text: t('cyd_creator.app.readonly') });
-        v.buildBtn = btn('build', t('cyd_creator.toolbar.build'), { class: 'cc-btn cc-btn--primary' });
+        v.homeBtn = el('button', { type: 'button', class: 'cydc-icon-btn', dataset: { ccAction: 'home' }, 'aria-label': t('cyd_creator.toolbar.home'), title: t('cyd_creator.toolbar.home'), text: '‹' });
+        v.title = el('span', { class: 'cydc-project-title', dataset: { ccProjectTitle: '' } });
+        v.boardChip = el('span', { class: 'cydc-board-chip' });
+        // extra replaces the default class: the segment buttons keep the button frame and add .cydc-seg.
+        v.modeDesign = btn('mode-design', t('cyd_creator.toolbar.design'), { class: 'cydc-btn cydc-seg', 'aria-pressed': 'true' });
+        v.modeCode = btn('mode-code', t('cyd_creator.toolbar.code'), { class: 'cydc-btn cydc-seg', 'aria-pressed': 'false' });
+        v.saveChip = el('span', { class: 'cydc-pill', role: 'status', dataset: { ccSaveState: '' } });
+        v.streamChip = el('span', { class: 'cydc-pill', dataset: { ccStreamState: '' }, hidden: true, text: t('cyd_creator.app.reconnecting') });
+        v.readonlyChip = el('span', { class: 'cydc-pill', dataset: { tone: 'warning' }, hidden: true, text: t('cyd_creator.app.readonly') });
+        v.buildBtn = btn('build', t('cyd_creator.toolbar.build'), { class: 'cydc-btn cydc-btn--primary' });
         v.flashBtn = btn('flash', t('cyd_creator.toolbar.flash'));
         v.otaBtn = btn('ota', t('cyd_creator.toolbar.ota'));
         v.exportBtn = btn('export', t('cyd_creator.toolbar.export'));
-        v.revisionsBtn = btn('revisions', t('cyd_creator.toolbar.revisions'), { class: 'cc-btn cc-btn--ghost' });
-        v.toolbar = el('header', { class: 'cc-toolbar', role: 'toolbar', 'aria-label': t('cyd_creator.toolbar.label') },
+        v.revisionsBtn = btn('revisions', t('cyd_creator.toolbar.revisions'), { class: 'cydc-btn cydc-btn--ghost' });
+        v.toolbar = el('header', { class: 'cydc-toolbar', role: 'toolbar', 'aria-label': t('cyd_creator.toolbar.label') },
             v.homeBtn,
-            el('div', { class: 'cc-toolbar-project' }, v.title, v.boardChip),
-            el('div', { class: 'cc-segmented', role: 'group', 'aria-label': t('cyd_creator.toolbar.mode') }, v.modeDesign, v.modeCode),
-            el('span', { class: 'cc-dock-spacer' }),
+            el('div', { class: 'cydc-toolbar-project' }, v.title, v.boardChip),
+            el('div', { class: 'cydc-segmented', role: 'group', 'aria-label': t('cyd_creator.toolbar.mode') }, v.modeDesign, v.modeCode),
+            el('span', { class: 'cydc-dock-spacer' }),
             v.readonlyChip, v.streamChip, v.saveChip,
             v.revisionsBtn, v.exportBtn, v.otaBtn, v.flashBtn, v.buildBtn);
-        v.lockBanner = el('div', { class: 'cc-banner cc-banner--lock', role: 'status', dataset: { ccLock: '' }, hidden: true },
-            el('span', { class: 'cc-spinner', 'aria-hidden': 'true' }), el('span', { text: t('cyd_creator.app.locked_banner') }));
+        v.lockBanner = el('div', { class: 'cydc-banner cydc-banner--lock', role: 'status', dataset: { ccLock: '' }, hidden: true },
+            el('span', { class: 'cydc-spinner', 'aria-hidden': 'true' }), el('span', { text: t('cyd_creator.app.locked_banner') }));
         // A project fenced after an interrupted publication refuses every change until it is resolved.
         // renderToolbar inserts the sentence when the banner appears, so screen readers announce it.
-        v.reviewText = el('span', { class: 'cc-banner-text' });
-        v.reviewBanner = el('div', { class: 'cc-banner cc-banner--danger', role: 'alert', dataset: { ccPublishReview: '' }, hidden: true }, v.reviewText);
+        v.reviewText = el('span', { class: 'cydc-banner-text' });
+        v.reviewBanner = el('div', { class: 'cydc-banner cydc-banner--danger', role: 'alert', dataset: { ccPublishReview: '' }, hidden: true }, v.reviewText);
         // The event stream stopped for good (see probeStream): its reason and a Retry button.
-        v.streamBanner = el('div', { class: 'cc-banner cc-banner--danger', role: 'alert', dataset: { ccStreamStopped: '' }, hidden: true });
-        v.toolchainSlot = el('div', { class: 'cc-toolchain-slot', dataset: { ccToolchain: '' } });
-        v.screensHost = el('div', { class: 'cc-left-screens', dataset: { ccScreensHost: '' } });
-        v.paletteHost = el('div', { class: 'cc-left-palette', dataset: { ccPaletteHost: '' } });
-        v.left = el('aside', { class: 'cc-left', 'aria-label': t('cyd_creator.app.left_label') }, v.screensHost, v.paletteHost);
-        v.canvasHost = el('div', { class: 'cc-center-design', dataset: { ccCanvasHost: '' } });
-        v.codeHost = el('div', { class: 'cc-center-code', hidden: true });
-        v.center = el('main', { class: 'cc-center' }, v.canvasHost, v.codeHost);
-        v.tabProps = el('button', { type: 'button', role: 'tab', class: 'cc-panel-tab', id: inst.domId('tab-properties'), 'aria-controls': inst.domId('panel-properties'), dataset: { ccPanel: 'properties' } },
+        v.streamBanner = el('div', { class: 'cydc-banner cydc-banner--danger', role: 'alert', dataset: { ccStreamStopped: '' }, hidden: true });
+        v.toolchainSlot = el('div', { class: 'cydc-toolchain-slot', dataset: { ccToolchain: '' } });
+        v.screensHost = el('div', { class: 'cydc-left-screens', dataset: { ccScreensHost: '' } });
+        v.paletteHost = el('div', { class: 'cydc-left-palette', dataset: { ccPaletteHost: '' } });
+        v.left = el('aside', { class: 'cydc-left', 'aria-label': t('cyd_creator.app.left_label') }, v.screensHost, v.paletteHost);
+        v.canvasHost = el('div', { class: 'cydc-center-design', dataset: { ccCanvasHost: '' } });
+        v.codeHost = el('div', { class: 'cydc-center-code', hidden: true });
+        v.center = el('main', { class: 'cydc-center' }, v.canvasHost, v.codeHost);
+        v.tabProps = el('button', { type: 'button', role: 'tab', class: 'cydc-panel-tab', id: inst.domId('tab-properties'), 'aria-controls': inst.domId('panel-properties'), dataset: { ccPanel: 'properties' } },
             el('span', { text: t('cyd_creator.app.panel_properties') }));
-        v.agentDot = el('span', { class: 'cc-dot', hidden: true, 'aria-label': t('cyd_creator.agent.running'), dataset: { ccAgentDot: '' } });
-        v.tabAgent = el('button', { type: 'button', role: 'tab', class: 'cc-panel-tab', id: inst.domId('tab-agent'), 'aria-controls': inst.domId('panel-agent'), dataset: { ccPanel: 'agent' } },
+        v.agentDot = el('span', { class: 'cydc-dot', hidden: true, 'aria-label': t('cyd_creator.agent.running'), dataset: { ccAgentDot: '' } });
+        v.tabAgent = el('button', { type: 'button', role: 'tab', class: 'cydc-panel-tab', id: inst.domId('tab-agent'), 'aria-controls': inst.domId('panel-agent'), dataset: { ccPanel: 'agent' } },
             el('span', { text: t('cyd_creator.app.panel_agent') }), v.agentDot);
-        v.inspectorHost = el('div', { class: 'cc-panel', role: 'tabpanel', id: inst.domId('panel-properties'), 'aria-labelledby': inst.domId('tab-properties'), dataset: { ccInspectorHost: '' } });
-        v.agentHost = el('div', { class: 'cc-panel', role: 'tabpanel', id: inst.domId('panel-agent'), 'aria-labelledby': inst.domId('tab-agent'), hidden: true, dataset: { ccAgentHost: '' } });
-        v.right = el('aside', { class: 'cc-right' },
-            el('div', { class: 'cc-panel-tabs', role: 'tablist', 'aria-label': t('cyd_creator.app.right_label') }, v.tabProps, v.tabAgent),
+        v.inspectorHost = el('div', { class: 'cydc-panel', role: 'tabpanel', id: inst.domId('panel-properties'), 'aria-labelledby': inst.domId('tab-properties'), dataset: { ccInspectorHost: '' } });
+        v.agentHost = el('div', { class: 'cydc-panel', role: 'tabpanel', id: inst.domId('panel-agent'), 'aria-labelledby': inst.domId('tab-agent'), hidden: true, dataset: { ccAgentHost: '' } });
+        v.right = el('aside', { class: 'cydc-right' },
+            el('div', { class: 'cydc-panel-tabs', role: 'tablist', 'aria-label': t('cyd_creator.app.right_label') }, v.tabProps, v.tabAgent),
             v.inspectorHost, v.agentHost);
-        v.workbench = el('div', { class: 'cc-workbench' }, v.left, v.center, v.right);
-        v.root = el('div', { class: 'cc-project' }, v.toolbar, v.lockBanner, v.reviewBanner, v.streamBanner, v.toolchainSlot, v.workbench);
+        v.workbench = el('div', { class: 'cydc-workbench' }, v.left, v.center, v.right);
+        v.root = el('div', { class: 'cydc-project' }, v.toolbar, v.lockBanner, v.reviewBanner, v.streamBanner, v.toolchainSlot, v.workbench);
         return v;
     }
 
     function placeholder(inst, key) {
-        return P.util.el('div', { class: 'cc-empty cc-designer-placeholder', dataset: { ccDesignerPlaceholder: '' }, text: inst.t(key) });
+        return P.util.el('div', { class: 'cydc-empty cydc-designer-placeholder', dataset: { ccDesignerPlaceholder: '' }, text: inst.t(key) });
     }
 
     function wireView(inst) {
@@ -581,7 +581,7 @@
         teardownProject(inst);
         const seq = inst.projectSeq;
         if (inst.home) { inst.home.dispose(); inst.home = null; }
-        inst.root.replaceChildren(P.util.el('div', { class: 'cc-loading', role: 'status', text: t('cyd_creator.app.loading') }));
+        inst.root.replaceChildren(P.util.el('div', { class: 'cydc-loading', role: 'status', text: t('cyd_creator.app.loading') }));
         let summary;
         let layout;
         try {
@@ -849,8 +849,8 @@
         if (!v) return;
         const { el } = P.util;
         v.streamChip.hidden = true;
-        const retry = el('button', { type: 'button', class: 'cc-btn cc-btn--small', dataset: { ccAction: 'reconnect' }, text: inst.t('cyd_creator.app.retry'), onClick: () => reconnectStream(inst) });
-        v.streamBanner.replaceChildren(...[el('span', { class: 'cc-banner-text', text: P.errors.message(inst.t, err) }), problemDetail(err), retry].filter(Boolean));
+        const retry = el('button', { type: 'button', class: 'cydc-btn cydc-btn--small', dataset: { ccAction: 'reconnect' }, text: inst.t('cyd_creator.app.retry'), onClick: () => reconnectStream(inst) });
+        v.streamBanner.replaceChildren(...[el('span', { class: 'cydc-banner-text', text: P.errors.message(inst.t, err) }), problemDetail(err), retry].filter(Boolean));
         v.streamBanner.hidden = false;
     }
 
@@ -901,7 +901,7 @@
     function render(host, windowId, ctx) {
         dispose(windowId);
         const inst = createInstance(host, windowId, ctx);
-        inst.root = P.util.el('div', { class: 'cc-app', dataset: { ccRoot: '', ccWindow: String(windowId) } });
+        inst.root = P.util.el('div', { class: 'cydc-app', dataset: { ccRoot: '', ccWindow: String(windowId) } });
         host.replaceChildren(inst.root);
         instances.set(windowId, inst);
         if (inst.ctx && typeof inst.ctx.setWindowBeforeClose === 'function') {

@@ -12,7 +12,7 @@ var cydDesignerMarkers = map[string][]string{
 	"cyd-creator-geometry.js":         {"P.geometry = {", "function snapMove(", "function resizeRect(", "function distribute("},
 	"cyd-creator-model.js":            {"P.model = {", "function createStore(", "coalesceMs", "RESERVED_NAMES", "function applyOps("},
 	"cyd-creator-render.js":           {"P.render = {", "function widget(spec, w, theme, assetUrl, opts)", "'image-rendering': 'pixelated'"},
-	"cyd-creator-canvas.js":           {"P.designerCanvas = {", "cc-device-frame", "dataset.ccWidgetId", "dataset.ccScreenId"},
+	"cyd-creator-canvas.js":           {"P.designerCanvas = {", "cydc-device-frame", "dataset.ccWidgetId", "dataset.ccScreenId"},
 	"cyd-creator-interact.js":         {"P.designerInteract = {", "function startPaletteDrag(", "function handleKey("},
 	"cyd-creator-palette.js":          {"P.designerPalette = {", "'data-cc-palette': s.type"},
 	"cyd-creator-inspector-fields.js": {"P.designerFields = {", "async function rasterizeSVG("},
@@ -65,7 +65,7 @@ func TestCYDCreatorDesignerStaticContracts(t *testing.T) {
 	}
 	t.Run("css", func(t *testing.T) {
 		css := readDesktopAssetText(t, "css/desktop-app-cyd-creator.css")
-		for _, marker := range []string{"CYD Creator designer (plan 4b) — begin", "CYD Creator designer (plan 4b) — end", "font-family: 'CYD Montserrat'", "font-family: 'CYD JetBrains Mono'", ".cc-device-frame", ".cc-handle-se", "@media (prefers-reduced-motion: reduce)"} {
+		for _, marker := range []string{"CYD Creator designer (plan 4b) — begin", "CYD Creator designer (plan 4b) — end", "font-family: 'CYD Montserrat'", "font-family: 'CYD JetBrains Mono'", ".cydc-device-frame", ".cydc-handle-se", "@media (prefers-reduced-motion: reduce)"} {
 			if !strings.Contains(css, marker) {
 				t.Errorf("desktop-app-cyd-creator.css misses %q", marker)
 			}
@@ -85,12 +85,12 @@ func TestCYDCreatorDesignerStaticContracts(t *testing.T) {
 		// tools only change visibility.
 		oneLine := false
 		for _, rule := range cydCSSRules(section) {
-			if cydTargets(rule, "cc-screen-row") && strings.Contains(rule.selector, ":not(.is-active)") {
+			if cydTargets(rule, "cydc-screen-row") && strings.Contains(rule.selector, ":not(.is-active)") {
 				for _, d := range cydDeclarations(rule.body) {
 					oneLine = oneLine || (d[0] == "flex-wrap" && d[1] == "nowrap")
 				}
 			}
-			if !cydTargets(rule, "cc-row-tools") || !regexp.MustCompile(`:hover|:focus`).MatchString(rule.selector) {
+			if !cydTargets(rule, "cydc-row-tools") || !regexp.MustCompile(`:hover|:focus`).MatchString(rule.selector) {
 				continue
 			}
 			for _, d := range cydDeclarations(rule.body) {
@@ -105,7 +105,7 @@ func TestCYDCreatorDesignerStaticContracts(t *testing.T) {
 		// The dock keeps the height the user drags (cyd-creator-dock.js limits only its first,
 		// unsaved height in Design mode): no designer rule caps or sets it.
 		for _, rule := range cydCSSRules(section) {
-			if !cydTargets(rule, "cc-dock") {
+			if !cydTargets(rule, "cydc-dock") {
 				continue
 			}
 			for _, d := range cydDeclarations(rule.body) {
@@ -114,9 +114,9 @@ func TestCYDCreatorDesignerStaticContracts(t *testing.T) {
 				}
 			}
 		}
-		// Narrow windows: the shell hides .cc-left at ≤ 820 px; Design mode must bring screens,
+		// Narrow windows: the shell hides .cydc-left at ≤ 820 px; Design mode must bring screens,
 		// layers and palette back (Code mode keeps the shell layout).
-		for _, marker := range []string{"@container cc-app (max-width: 820px)", `.cc-app:not(.no-designer):not([data-cc-mode="code"]) .cc-left { display: grid;`} {
+		for _, marker := range []string{"@container cydc-app (max-width: 820px)", `.cydc-app:not(.no-designer):not([data-cc-mode="code"]) .cydc-left { display: grid;`} {
 			if !strings.Contains(section, marker) {
 				t.Errorf("the designer section misses %q", marker)
 			}
@@ -187,9 +187,9 @@ func checkCYDDesignerSectionTokens(t *testing.T, css, section string) {
 	if strings.Contains(css, "--ccd-") {
 		t.Error("desktop-app-cyd-creator.css uses --ccd-* tokens; the designer reads the shell's --cc-* tokens")
 	}
-	open := strings.Index(section, ".cc-app, .cc-drag-ghost {")
+	open := strings.Index(section, ".cydc-app, .cydc-drag-ghost {")
 	if open < 0 {
-		t.Fatal("the designer section has no token block for .cc-app and the drag ghost")
+		t.Fatal("the designer section has no token block for .cydc-app and the drag ghost")
 	}
 	head := section[:open]
 	rules := section[open:]
@@ -221,24 +221,24 @@ func checkCYDDesignerSectionTokens(t *testing.T, css, section string) {
 }
 
 // checkCYDDesignerScope keeps every designer rule inside the CYD Creator window: each selector
-// starts at .cc-app, or at the palette drag ghost that hangs in document.body (@font-face and
+// starts at .cydc-app, or at the palette drag ghost that hangs in document.body (@font-face and
 // keyframe selectors aside).
 func checkCYDDesignerScope(t *testing.T, section string) {
 	t.Helper()
-	scoped := regexp.MustCompile(`^\.cc-(?:app|drag-ghost(?:-inner)?)(?:$|[\s.:\[>+~])`)
+	scoped := regexp.MustCompile(`^\.cydc-(?:app|drag-ghost(?:-inner)?)(?:$|[\s.:\[>+~])`)
 	for _, rule := range cydCSSRules(section) {
 		if strings.HasPrefix(rule.selector, "@") || rule.selector == "from" || rule.selector == "to" || strings.HasSuffix(rule.selector, "%") {
 			continue
 		}
 		for _, sel := range cydSelectors(rule.selector) {
 			if !scoped.MatchString(sel) {
-				t.Errorf("designer selector %q is not scoped to .cc-app (or the drag ghost)", sel)
+				t.Errorf("designer selector %q is not scoped to .cydc-app (or the drag ghost)", sel)
 			}
 		}
 	}
 }
 
-// cydTargets reports whether one of the rule's selectors has class (e.g. "cc-canvas-stage") in its
+// cydTargets reports whether one of the rule's selectors has class (e.g. "cydc-canvas-stage") in its
 // subject, the last compound selector.
 func cydTargets(rule cydCSSRule, class string) bool {
 	subject := regexp.MustCompile(`\.` + regexp.QuoteMeta(class) + `(?:$|[^-\w])`)
@@ -265,7 +265,7 @@ func checkCYDDesignerStageMetrics(t *testing.T, section string) {
 		return m[1]
 	}
 	rules := cydCSSRules(section)
-	for _, pin := range []struct{ constant, class string }{{"PAD", "cc-canvas-stage"}, {"BEZEL", "cc-device-frame"}} {
+	for _, pin := range []struct{ constant, class string }{{"PAD", "cydc-canvas-stage"}, {"BEZEL", "cydc-device-frame"}} {
 		want := constant(pin.constant) + "px"
 		found := false
 		for _, rule := range rules {
@@ -289,7 +289,7 @@ func checkCYDDesignerStageMetrics(t *testing.T, section string) {
 	px := regexp.MustCompile(`^(\d+)px$`)
 	label := map[string]int{}
 	for _, rule := range rules {
-		if !cydTargets(rule, "cc-device-label") {
+		if !cydTargets(rule, "cydc-device-label") {
 			continue
 		}
 		for _, d := range cydDeclarations(rule.body) {
@@ -308,7 +308,7 @@ func checkCYDDesignerStageMetrics(t *testing.T, section string) {
 		}
 	}
 	if got, want := label["margin-top"]+label["min-height"], constant("LABEL_H"); strconv.Itoa(got) != want {
-		t.Errorf(".cc-device-label margin-top %dpx + min-height %dpx = %d, cyd-creator-canvas.js LABEL_H = %s (used by fitZoom)", label["margin-top"], label["min-height"], got, want)
+		t.Errorf(".cydc-device-label margin-top %dpx + min-height %dpx = %d, cyd-creator-canvas.js LABEL_H = %s (used by fitZoom)", label["margin-top"], label["min-height"], got, want)
 	}
 }
 

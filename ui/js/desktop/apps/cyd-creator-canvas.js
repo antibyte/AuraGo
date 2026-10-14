@@ -10,7 +10,7 @@
 
     const P = window.CYDCreatorParts = window.CYDCreatorParts || {};
     const BEZEL = 14;
-    // PAD must match the padding of .cc-canvas-stage in the designer CSS section (plan 4b Task 11).
+    // PAD must match the padding of .cydc-canvas-stage in the designer CSS section (plan 4b Task 11).
     const PAD = 24;
     const LABEL_H = 30;
     const MAX_COORD = 4096; // maxCoordinate, internal/cydcreator/limits.go
@@ -34,42 +34,42 @@
         const refs = {};
         const tools = new Map(); // command → toolbar button
         const hintId = P.util.uid('cc_hint');
-        const tool = (cmd, name, key, extra) => h('button', Object.assign({ type: 'button', class: 'cc-tool', 'data-cc-cmd': cmd, title: t(key), 'aria-label': t(key), ref: el => { tools.set(cmd, el); } }, extra || {}), icon(name));
+        const tool = (cmd, name, key, extra) => h('button', Object.assign({ type: 'button', class: 'cydc-tool', 'data-cc-cmd': cmd, title: t(key), 'aria-label': t(key), ref: el => { tools.set(cmd, el); } }, extra || {}), icon(name));
         const ref = key => el => { refs[key] = el; };
 
-        const root = dom(h('div', { class: 'cc-canvas', tabindex: '0', role: 'group', 'aria-roledescription': t('cyd_creator.designer.canvas_role'), 'aria-label': t('cyd_creator.designer.canvas_label'), 'aria-describedby': hintId, ref: ref('root') },
-            h('div', { class: 'cc-canvas-bar', role: 'toolbar', 'aria-label': t('cyd_creator.designer.toolbar_label'), ref: ref('bar') },
-                h('div', { class: 'cc-tool-group' },
+        const root = dom(h('div', { class: 'cydc-canvas', tabindex: '0', role: 'group', 'aria-roledescription': t('cyd_creator.designer.canvas_role'), 'aria-label': t('cyd_creator.designer.canvas_label'), 'aria-describedby': hintId, ref: ref('root') },
+            h('div', { class: 'cydc-canvas-bar', role: 'toolbar', 'aria-label': t('cyd_creator.designer.toolbar_label'), ref: ref('bar') },
+                h('div', { class: 'cydc-tool-group' },
                     tool('zoom-out', 'zoom-out', 'cyd_creator.designer.zoom_out'),
-                    h('span', { class: 'cc-zoom-label', ref: ref('zoom') }),
+                    h('span', { class: 'cydc-zoom-label', ref: ref('zoom') }),
                     tool('zoom-in', 'zoom-in', 'cyd_creator.designer.zoom_in'),
                     tool('zoom-fit', 'fit', 'cyd_creator.designer.zoom_fit')),
-                h('div', { class: 'cc-tool-group' },
-                    h('label', { class: 'cc-snap' }, h('span', {}, t('cyd_creator.designer.snap')),
+                h('div', { class: 'cydc-tool-group' },
+                    h('label', { class: 'cydc-snap' }, h('span', {}, t('cyd_creator.designer.snap')),
                         h('select', { 'data-cc-cmd': 'snap', ref: ref('snap') }, G.SNAP_STEPS.map(s => h('option', { value: String(s) }, s ? t('cyd_creator.designer.snap_px', { px: s }) : t('cyd_creator.designer.snap_off'))))),
                     tool('grid', 'grid', 'cyd_creator.designer.grid', { 'aria-pressed': 'false' })),
-                h('div', { class: 'cc-tool-group' },
+                h('div', { class: 'cydc-tool-group' },
                     ALIGN.map(m => tool('align-' + m, 'align-' + m, 'cyd_creator.designer.align_' + m)),
                     tool('distribute-h', 'distribute-h', 'cyd_creator.designer.distribute_h'),
                     tool('distribute-v', 'distribute-v', 'cyd_creator.designer.distribute_v')),
-                h('div', { class: 'cc-tool-group' }, ZORDER.map(z => tool('z-' + z, 'z-' + z, 'cyd_creator.designer.z_' + z))),
-                h('div', { class: 'cc-tool-group' },
+                h('div', { class: 'cydc-tool-group' }, ZORDER.map(z => tool('z-' + z, 'z-' + z, 'cyd_creator.designer.z_' + z))),
+                h('div', { class: 'cydc-tool-group' },
                     tool('lock', 'lock', 'cyd_creator.designer.lock'),
                     tool('hide', 'eye-off', 'cyd_creator.designer.hide'),
                     tool('delete', 'trash', 'cyd_creator.designer.delete'))),
-            h('div', { class: 'cc-canvas-viewport', ref: ref('viewport') },
-                h('div', { class: 'cc-canvas-stage' },
-                    h('div', { class: 'cc-device-frame', ref: ref('frame') },
-                        h('div', { class: 'cc-screen-host', ref: ref('host') },
-                            h('div', { class: 'cc-screen', 'aria-hidden': 'true', ref: ref('screen') }),
-                            h('div', { class: 'cc-overlay', 'aria-hidden': 'true', ref: ref('overlay') },
-                                h('div', { class: 'cc-overlay-sel', ref: ref('sel') }),
-                                h('div', { class: 'cc-guides', ref: ref('guides') }),
-                                h('div', { class: 'cc-marquee', hidden: true, ref: ref('marquee') }),
-                                h('div', { class: 'cc-drop', hidden: true, ref: ref('drop') })))),
-                    h('div', { class: 'cc-device-label', ref: ref('label') }))),
-            h('p', { class: 'cc-sr-only', id: hintId }, t('cyd_creator.designer.canvas_hint')),
-            h('div', { class: 'cc-sr-only', 'aria-live': 'polite', ref: ref('live') })));
+            h('div', { class: 'cydc-canvas-viewport', ref: ref('viewport') },
+                h('div', { class: 'cydc-canvas-stage' },
+                    h('div', { class: 'cydc-device-frame', ref: ref('frame') },
+                        h('div', { class: 'cydc-screen-host', ref: ref('host') },
+                            h('div', { class: 'cydc-screen', 'aria-hidden': 'true', ref: ref('screen') }),
+                            h('div', { class: 'cydc-overlay', 'aria-hidden': 'true', ref: ref('overlay') },
+                                h('div', { class: 'cydc-overlay-sel', ref: ref('sel') }),
+                                h('div', { class: 'cydc-guides', ref: ref('guides') }),
+                                h('div', { class: 'cydc-marquee', hidden: true, ref: ref('marquee') }),
+                                h('div', { class: 'cydc-drop', hidden: true, ref: ref('drop') })))),
+                    h('div', { class: 'cydc-device-label', ref: ref('label') }))),
+            h('p', { class: 'cydc-sr-only', id: hintId }, t('cyd_creator.designer.canvas_hint')),
+            h('div', { class: 'cydc-sr-only', 'aria-live': 'polite', ref: ref('live') })));
         host.appendChild(root);
 
         // The elements of the current render by widget id (ids are only checked for duplicates, so
@@ -115,7 +115,7 @@
             const spec = d.spec(w.type);
             const b = boxOf(w);
             const el = document.createElement('div');
-            el.className = 'cc-w' + (w.locked ? ' is-locked' : '');
+            el.className = 'cydc-w' + (w.locked ? ' is-locked' : '');
             el.dataset.ccWidgetId = w.id;
             place(el, b);
             const issues = d.issuesFor(w);
@@ -128,10 +128,10 @@
             // A duplicate id (ID_DUPLICATE issue) maps to the first widget, as M.findWidget does.
             const first = !els.has(w.id);
             if (first) { els.set(w.id, el); views.set(w.id, view); }
-            if (flashing.has(w.id)) el.classList.add('cc-flash');
+            if (flashing.has(w.id)) el.classList.add('cydc-flash');
             if (spec && spec.container) {
                 const slot = document.createElement('div');
-                slot.className = 'cc-slot';
+                slot.className = 'cydc-slot';
                 place(slot, M.contentBox(b, spec));
                 el.appendChild(slot);
                 if (first) slots.set(w.id, slot);
@@ -179,8 +179,8 @@
             const board = d.board();
             const status = board ? String(board.status || '') : '';
             refs.label.replaceChildren(dom(h('span', {}, board ? board.label : String(d.project().board || ''))),
-                board ? dom(h('span', { class: 'cc-tag', 'data-tone': status === 'verified' ? 'ok' : null }, t.or('cyd_creator.board.status_' + status, status))) : document.createTextNode(''),
-                dom(h('span', { class: 'cc-device-size' }, size.w + ' × ' + size.h + ' · ' + t('cyd_creator.orientation.' + (d.project().orientation || 'landscape')))));
+                board ? dom(h('span', { class: 'cydc-tag', 'data-tone': status === 'verified' ? 'ok' : null }, t.or('cyd_creator.board.status_' + status, status))) : document.createTextNode(''),
+                dom(h('span', { class: 'cydc-device-size' }, size.w + ' × ' + size.h + ' · ' + t('cyd_creator.orientation.' + (d.project().orientation || 'landscape')))));
             renderOverlay();
             syncBar();
         }
@@ -204,7 +204,7 @@
                     if (!issues.length || !els.has(w.id)) return true;
                     const r = M.absRect(p, w.id, env);
                     const dot = document.createElement('div');
-                    dot.className = 'cc-issue-dot' + (issues.some(i => i.severity === 'error') ? ' is-error' : ' is-warning');
+                    dot.className = 'cydc-issue-dot' + (issues.some(i => i.severity === 'error') ? ' is-error' : ' is-warning');
                     dot.style.left = px((r.x + r.w) * scale - 5);
                     dot.style.top = px(r.y * scale - 5);
                     layer.appendChild(dot);
@@ -219,12 +219,12 @@
                 if (preview && preview.ids && preview.ids.has(id)) r = G.translate(r, preview.delta.x, preview.delta.y);
                 if (preview && preview.rect && preview.rect.id === id) r = preview.rect;
                 const box = document.createElement('div');
-                box.className = 'cc-sel' + (f.widget.locked ? ' is-locked' : '') + (els.has(id) ? '' : ' is-hidden');
+                box.className = 'cydc-sel' + (f.widget.locked ? ' is-locked' : '') + (els.has(id) ? '' : ' is-hidden');
                 place(box, r, scale);
                 if (single && !f.widget.locked && !d.readonly()) {
                     G.HANDLES.forEach(hd => {
                         const handle = document.createElement('div');
-                        handle.className = 'cc-handle cc-handle-' + hd;
+                        handle.className = 'cydc-handle cydc-handle-' + hd;
                         handle.dataset.ccHandle = hd;
                         box.appendChild(handle);
                     });
@@ -288,8 +288,8 @@
         function showGuides(guides) {
             const scale = z();
             refs.guides.replaceChildren();
-            (guides && guides.x || []).forEach(x => { const g = document.createElement('div'); g.className = 'cc-guide cc-guide-v'; g.style.left = px(x * scale); refs.guides.appendChild(g); });
-            (guides && guides.y || []).forEach(y => { const g = document.createElement('div'); g.className = 'cc-guide cc-guide-h'; g.style.top = px(y * scale); refs.guides.appendChild(g); });
+            (guides && guides.x || []).forEach(x => { const g = document.createElement('div'); g.className = 'cydc-guide cydc-guide-v'; g.style.left = px(x * scale); refs.guides.appendChild(g); });
+            (guides && guides.y || []).forEach(y => { const g = document.createElement('div'); g.className = 'cydc-guide cydc-guide-h'; g.style.top = px(y * scale); refs.guides.appendChild(g); });
         }
         function showRect(el, r) { el.hidden = !r; if (r) place(el, r, z()); }
 
@@ -298,13 +298,13 @@
                 flashing.add(id);
                 const el = els.get(id);
                 if (!el) return;
-                el.classList.remove('cc-flash');
+                el.classList.remove('cydc-flash');
                 void el.offsetWidth; // restarts the animation
-                el.classList.add('cc-flash');
+                el.classList.add('cydc-flash');
             });
             if (!flashing.size) return;
             later('flash', () => {
-                flashing.forEach(id => { const el = els.get(id); if (el) el.classList.remove('cc-flash'); });
+                flashing.forEach(id => { const el = els.get(id); if (el) el.classList.remove('cydc-flash'); });
                 flashing.clear();
             }, FLASH_MS);
         }

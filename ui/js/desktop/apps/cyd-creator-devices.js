@@ -47,18 +47,18 @@
         };
         const boardLabel = id => (((inst.caps && inst.caps.boards) || []).find(b => b.id === id) || {}).label || id;
 
-        const list = el('ul', { class: 'cc-device-list', dataset: { ccDeviceList: '' } });
+        const list = el('ul', { class: 'cydc-device-list', dataset: { ccDeviceList: '' } });
         const banners = [];
-        if (ota.enabled === false) banners.push(el('p', { class: 'cc-banner cc-banner--warn', dataset: { ccDevicesOta: 'off' }, text: t('cyd_creator.devices.ota_off') }));
-        if (ota.public_url) banners.push(el('p', { class: 'cc-form-help', dataset: { ccDevicesUrl: '' }, text: t('cyd_creator.devices.url', { url: ota.public_url }) }));
-        if (ota.insecure) banners.push(el('p', { class: 'cc-banner cc-banner--warn', role: 'alert', dataset: { ccDevicesInsecure: '' }, text: t('cyd_creator.devices.insecure') }));
-        const readonlyBanner = el('p', { class: 'cc-banner', dataset: { ccDevicesReadonly: '' }, text: t('cyd_creator.devices.readonly') });
+        if (ota.enabled === false) banners.push(el('p', { class: 'cydc-banner cydc-banner--warn', dataset: { ccDevicesOta: 'off' }, text: t('cyd_creator.devices.ota_off') }));
+        if (ota.public_url) banners.push(el('p', { class: 'cydc-form-help', dataset: { ccDevicesUrl: '' }, text: t('cyd_creator.devices.url', { url: ota.public_url }) }));
+        if (ota.insecure) banners.push(el('p', { class: 'cydc-banner cydc-banner--warn', role: 'alert', dataset: { ccDevicesInsecure: '' }, text: t('cyd_creator.devices.insecure') }));
+        const readonlyBanner = el('p', { class: 'cydc-banner', dataset: { ccDevicesReadonly: '' }, text: t('cyd_creator.devices.readonly') });
         if (readonly) banners.push(readonlyBanner);
-        const errorBox = el('p', { class: 'cc-dialog-error', role: 'alert', hidden: true });
+        const errorBox = el('p', { class: 'cydc-dialog-error', role: 'alert', hidden: true });
         const d = P.dialog.open(inst.root, {
             title: t('cyd_creator.devices.title'),
-            className: 'cc-dialog--wide cc-devices-dialog',
-            body: el('div', { class: 'cc-devices' }, banners, errorBox, list),
+            className: 'cydc-dialog--wide cydc-devices-dialog',
+            body: el('div', { class: 'cydc-devices' }, banners, errorBox, list),
             actions: [{ id: 'close', label: t('cyd_creator.app.close') }],
             // The dialog belongs to the open project: switching projects or closing the window closes it.
             owner: inst.projectBag || inst.bag
@@ -71,7 +71,7 @@
 
         function statusTag(device) {
             const key = device.status === 'pending' ? 'pending' : (device.online ? 'online' : 'offline');
-            return el('span', { class: 'cc-tag', dataset: { tone: key === 'online' ? 'ok' : (key === 'pending' ? 'warning' : ''), ccDeviceState: key }, text: t('cyd_creator.devices.state_' + key) });
+            return el('span', { class: 'cydc-tag', dataset: { tone: key === 'online' ? 'ok' : (key === 'pending' ? 'warning' : ''), ccDeviceState: key }, text: t('cyd_creator.devices.state_' + key) });
         }
 
         function facts(device) {
@@ -83,17 +83,17 @@
             if (device.target_build_id && device.target_build_id !== device.build_id) rows.push([t('cyd_creator.devices.target'), buildName(device.target_build_id)]);
             if (device.ip) rows.push([t('cyd_creator.devices.ip'), device.ip]);
             if (device.rssi) rows.push([t('cyd_creator.devices.rssi'), t('cyd_creator.devices.rssi_value', { rssi: device.rssi })]);
-            return el('dl', { class: 'cc-device-facts' }, rows.map(([k, v]) => [el('dt', { text: k }), el('dd', { text: v })]));
+            return el('dl', { class: 'cydc-device-facts' }, rows.map(([k, v]) => [el('dt', { text: k }), el('dd', { text: v })]));
         }
 
         function actionsFor(device) {
             if (readonly) return null;
-            const box = el('div', { class: 'cc-device-actions' });
+            const box = el('div', { class: 'cydc-device-actions' });
             // Only builds for the device's board: the server refuses a target for another board.
-            const select = el('select', { class: 'cc-select', dataset: { ccDeviceTarget: device.id }, 'aria-label': t('cyd_creator.devices.update_to') },
+            const select = el('select', { class: 'cydc-select', dataset: { ccDeviceTarget: device.id }, 'aria-label': t('cyd_creator.devices.update_to') },
                 builds().filter(b => !b.board || !device.board || b.board === device.board)
                     .map(b => el('option', { value: b.id, selected: b.id === (device.target_build_id || device.build_id), text: buildName(b.id) })));
-            const update = el('button', { type: 'button', class: 'cc-btn cc-btn--small cc-btn--primary', dataset: { ccDeviceAction: 'update', ccDeviceId: device.id }, text: t('cyd_creator.devices.update') });
+            const update = el('button', { type: 'button', class: 'cydc-btn cydc-btn--small cydc-btn--primary', dataset: { ccDeviceAction: 'update', ccDeviceId: device.id }, text: t('cyd_creator.devices.update') });
             const syncUpdate = () => { update.disabled = ota.enabled === false || !select.value || select.value === device.target_build_id; };
             select.addEventListener('change', syncUpdate);
             syncUpdate();
@@ -104,9 +104,9 @@
                     showError(null);
                 } catch (err) { showError(err); syncUpdate(); }
             });
-            const rename = el('button', { type: 'button', class: 'cc-btn cc-btn--small cc-btn--ghost', dataset: { ccDeviceAction: 'rename', ccDeviceId: device.id }, text: t('cyd_creator.devices.rename') });
+            const rename = el('button', { type: 'button', class: 'cydc-btn cydc-btn--small cydc-btn--ghost', dataset: { ccDeviceAction: 'rename', ccDeviceId: device.id }, text: t('cyd_creator.devices.rename') });
             rename.addEventListener('click', () => { state.editing = device.id; state.draft = device.name; render(); });
-            const remove = el('button', { type: 'button', class: 'cc-btn cc-btn--small cc-btn--danger', dataset: { ccDeviceAction: 'remove', ccDeviceId: device.id }, text: t('cyd_creator.devices.remove') });
+            const remove = el('button', { type: 'button', class: 'cydc-btn cydc-btn--small cydc-btn--danger', dataset: { ccDeviceAction: 'remove', ccDeviceId: device.id }, text: t('cyd_creator.devices.remove') });
             remove.addEventListener('click', async () => {
                 const ok = await inst.confirm({ titleKey: 'cyd_creator.devices.remove_title', bodyKey: 'cyd_creator.devices.remove_body', vars: { name: device.name }, okKey: 'cyd_creator.devices.remove', danger: true });
                 if (!ok || readonly) return;
@@ -117,14 +117,14 @@
                     showError(null);
                 } catch (err) { showError(err); }
             });
-            box.append(el('label', { class: 'cc-device-update' }, el('span', { text: t('cyd_creator.devices.update_to') }), select), update, rename, remove);
+            box.append(el('label', { class: 'cydc-device-update' }, el('span', { text: t('cyd_creator.devices.update_to') }), select), update, rename, remove);
             return box;
         }
 
         function nameRow(device) {
-            if (readonly || state.editing !== device.id) return el('strong', { class: 'cc-device-name', dataset: { ccDeviceName: device.id }, text: device.name });
+            if (readonly || state.editing !== device.id) return el('strong', { class: 'cydc-device-name', dataset: { ccDeviceName: device.id }, text: device.name });
             // The draft survives the re-renders of live events and the 30 s refresh.
-            const input = el('input', { class: 'cc-input', value: state.draft, maxlength: '64', dataset: { ccDeviceNameInput: device.id }, 'aria-label': t('cyd_creator.devices.name') });
+            const input = el('input', { class: 'cydc-input', value: state.draft, maxlength: '64', dataset: { ccDeviceNameInput: device.id }, 'aria-label': t('cyd_creator.devices.name') });
             input.addEventListener('input', () => { state.draft = input.value; });
             const save = async () => {
                 const name = input.value.trim();
@@ -139,17 +139,17 @@
                 if (event.key === 'Enter') { event.preventDefault(); save(); }
             });
             setTimeout(() => input.focus(), 0);
-            return el('span', { class: 'cc-device-rename' }, input,
-                el('button', { type: 'button', class: 'cc-btn cc-btn--small', dataset: { ccDeviceAction: 'save-name' }, text: t('cyd_creator.devices.save'), onClick: save }));
+            return el('span', { class: 'cydc-device-rename' }, input,
+                el('button', { type: 'button', class: 'cydc-btn cydc-btn--small', dataset: { ccDeviceAction: 'save-name' }, text: t('cyd_creator.devices.save'), onClick: save }));
         }
 
         function render() {
-            if (state.loading) { list.replaceChildren(el('li', { class: 'cc-loading', text: t('cyd_creator.app.loading') })); return; }
-            if (!state.devices.length) { list.replaceChildren(el('li', { class: 'cc-empty', dataset: { ccDevicesEmpty: '' }, text: t('cyd_creator.devices.empty') })); return; }
-            list.replaceChildren(...state.devices.map(device => el('li', { class: 'cc-device', dataset: { ccDevice: device.id } },
-                el('div', { class: 'cc-device-head' }, nameRow(device), statusTag(device)),
+            if (state.loading) { list.replaceChildren(el('li', { class: 'cydc-loading', text: t('cyd_creator.app.loading') })); return; }
+            if (!state.devices.length) { list.replaceChildren(el('li', { class: 'cydc-empty', dataset: { ccDevicesEmpty: '' }, text: t('cyd_creator.devices.empty') })); return; }
+            list.replaceChildren(...state.devices.map(device => el('li', { class: 'cydc-device', dataset: { ccDevice: device.id } },
+                el('div', { class: 'cydc-device-head' }, nameRow(device), statusTag(device)),
                 facts(device),
-                device.last_error ? el('p', { class: 'cc-device-error', role: 'status', dataset: { ccDeviceError: device.id }, text: errorText(t, device.last_error) }) : null,
+                device.last_error ? el('p', { class: 'cydc-device-error', role: 'status', dataset: { ccDeviceError: device.id }, text: errorText(t, device.last_error) }) : null,
                 actionsFor(device))));
         }
 

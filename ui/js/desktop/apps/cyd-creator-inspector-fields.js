@@ -73,7 +73,7 @@
     function create(t, env) {
         const announce = env && typeof env.announce === 'function' ? env.announce : () => {};
         const text = s => document.createTextNode(s);
-        const field = (label, id, control, ...extra) => h('div', { class: 'cc-field' }, h('label', { class: 'cc-field-label', for: id }, label), control, extra);
+        const field = (label, id, control, ...extra) => h('div', { class: 'cydc-field' }, h('label', { class: 'cydc-field-label', for: id }, label), control, extra);
 
         // note is the line under a control: the static hint, or the message o.check returns for the
         // shown value. show(input, msg) shows a message (or the hint again); update(input, raw)
@@ -84,13 +84,13 @@
             let el = null;
             const first = o.check ? o.check(shown) : '';
             const show = (input, msg) => {
-                if (el) { el.replaceChildren(text(msg || o.hint || '')); el.setAttribute('class', msg ? 'cc-field-error' : 'cc-field-hint'); }
+                if (el) { el.replaceChildren(text(msg || o.hint || '')); el.setAttribute('class', msg ? 'cydc-field-error' : 'cydc-field-hint'); }
                 input.setAttribute('aria-invalid', msg ? 'true' : 'false');
             };
             return {
                 id,
                 invalid: !!first,
-                node: h('span', { class: first ? 'cc-field-error' : 'cc-field-hint', id, 'aria-live': o.check || o.live ? 'polite' : null, ref: x => { el = x; } }, first || o.hint || ''),
+                node: h('span', { class: first ? 'cydc-field-error' : 'cydc-field-hint', id, 'aria-live': o.check || o.live ? 'polite' : null, ref: x => { el = x; } }, first || o.hint || ''),
                 show,
                 update(input, raw) { const msg = o.check ? o.check(raw) : ''; show(input, msg); return msg; }
             };
@@ -132,7 +132,7 @@
                 id, rows: '3', value: shown, maxlength: o.maxlength ? String(o.maxlength) : null, placeholder: o.placeholder || null,
                 'data-cc-field': key, 'data-cc-focus': key, 'aria-describedby': [n.id, countId].filter(Boolean).join(' ') || null, 'aria-invalid': n.invalid ? 'true' : null,
                 on: { input: e => { if (counter) counter.replaceChildren(text(o.counter(e.target.value))); input(e); } }
-            }), n.node, o.counter ? h('span', { class: 'cc-field-count', id: countId, ref: x => { counter = x; } }, o.counter(shown)) : null);
+            }), n.node, o.counter ? h('span', { class: 'cydc-field-count', id: countId, ref: x => { counter = x; } }, o.counter(shown)) : null);
         }
 
         // wholeNumber: an integer clamped to [o.min, o.max] on every keystroke (a clamp is announced);
@@ -179,11 +179,11 @@
         function check(label, key, value, onChange, opts) {
             const o = opts || {};
             const hintId = o.hint ? P.util.uid('cc_hint') : null;
-            return h('div', { class: 'cc-check-field' },
-                h('label', { class: 'cc-check' + (o.disabled ? ' is-disabled' : '') },
+            return h('div', { class: 'cydc-check-field' },
+                h('label', { class: 'cydc-check' + (o.disabled ? ' is-disabled' : '') },
                     h('input', { type: 'checkbox', checked: !!value, disabled: !!o.disabled, 'aria-describedby': hintId, 'data-cc-field': key, 'data-cc-focus': key, on: { change: e => onChange(!!e.target.checked) } }),
                     h('span', {}, label)),
-                o.hint ? h('span', { class: 'cc-field-hint', id: hintId }, o.hint) : null);
+                o.hint ? h('span', { class: 'cydc-field-hint', id: hintId }, o.hint) : null);
         }
 
         // select: options are [value, label, disabled?]. A stored value that is not among them (an
@@ -204,8 +204,8 @@
             const shown = own ? value : (typeof fallback === 'string' && HEX.test(fallback) ? fallback : '#000000');
             let code = null;
             let reset = null;
-            return h('div', { class: 'cc-field' }, h('label', { class: 'cc-field-label', for: id }, label),
-                h('div', { class: 'cc-color-row' },
+            return h('div', { class: 'cydc-field' }, h('label', { class: 'cydc-field-label', for: id }, label),
+                h('div', { class: 'cydc-color-row' },
                     h('input', {
                         id, type: 'color', value: shown.toLowerCase(), 'data-cc-field': key, 'data-cc-focus': key,
                         on: {
@@ -219,8 +219,8 @@
                             }
                         }
                     }),
-                    h('code', { class: 'cc-color-value', ref: x => { code = x; } }, value ? String(value) : t.or('cyd_creator.designer.theme_value', 'Theme')),
-                    h('button', { type: 'button', class: 'cc-chip', 'aria-pressed': value ? 'false' : 'true', 'data-cc-focus': key + ':reset', ref: x => { reset = x; }, on: { click: onReset } },
+                    h('code', { class: 'cydc-color-value', ref: x => { code = x; } }, value ? String(value) : t.or('cyd_creator.designer.theme_value', 'Theme')),
+                    h('button', { type: 'button', class: 'cydc-chip', 'aria-pressed': value ? 'false' : 'true', 'data-cc-focus': key + ':reset', ref: x => { reset = x; }, on: { click: onReset } },
                         t.or('cyd_creator.designer.use_theme', 'Use theme'))));
         }
 
@@ -243,18 +243,18 @@
             const assets = Array.isArray(d.project().assets) ? d.project().assets : [];
             const base = file => String(file || '').split('/').pop();
             const statusId = P.util.uid('cc_hint');
-            return h('div', { class: 'cc-field' },
+            return h('div', { class: 'cydc-field' },
                 select(label, key, [['', t.or('cyd_creator.designer.asset_none', 'No image')]].concat(assets.map(a => [String(a.id), base(a.file) + ' (' + a.w + '×' + a.h + ')'])), value, onSelect),
-                h('div', { class: 'cc-asset-row' },
-                    h('label', { class: 'cc-chip cc-upload' + (uploading ? ' is-busy' : '') }, P.render.icon('upload'), h('span', {}, t.or('cyd_creator.designer.asset_upload', 'Upload image')),
+                h('div', { class: 'cydc-asset-row' },
+                    h('label', { class: 'cydc-chip cydc-upload' + (uploading ? ' is-busy' : '') }, P.render.icon('upload'), h('span', {}, t.or('cyd_creator.designer.asset_upload', 'Upload image')),
                         h('input', {
-                            type: 'file', class: 'cc-sr-only', disabled: !!uploading, accept: '.png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml', 'aria-describedby': statusId,
+                            type: 'file', class: 'cydc-sr-only', disabled: !!uploading, accept: '.png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml', 'aria-describedby': statusId,
                             'data-cc-field': key + ':upload', 'data-cc-focus': key + ':upload',
                             on: { change: e => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) onUpload(f); } }
                         })),
                     uploading
-                        ? h('span', { class: 'cc-field-hint', id: statusId, role: 'status' }, t.or('cyd_creator.designer.asset_uploading', 'Uploading…'))
-                        : h('span', { class: 'cc-field-hint', id: statusId }, t.or('cyd_creator.designer.asset_hint', 'PNG or JPEG; SVG becomes a PNG in the widget’s size.'))));
+                        ? h('span', { class: 'cydc-field-hint', id: statusId, role: 'status' }, t.or('cyd_creator.designer.asset_uploading', 'Uploading…'))
+                        : h('span', { class: 'cydc-field-hint', id: statusId }, t.or('cyd_creator.designer.asset_hint', 'PNG or JPEG; SVG becomes a PNG in the widget’s size.'))));
         }
 
         return { text: textField, textarea, number, optionalNumber, check, select, color, list, asset, isSVG, rasterizeSVG };

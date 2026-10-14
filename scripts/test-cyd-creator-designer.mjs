@@ -444,7 +444,7 @@ for (const theme of caps.themes) {
         const w = { id: 'w_' + spec.type, type: spec.type, x: 0, y: 0, w: spec.default_w || 320, h: spec.default_h, props: spec.type === 'image' ? { asset: 'a_sun' } : {} };
         let out = '';
         try { out = R.html(R.tree(spec, w, theme, { assetUrl: id => '/assets/' + id, activeTab: 1 })); } catch (err) { out = 'ERROR ' + err.message; }
-        check('render ' + theme.id + '/' + spec.type, out.startsWith('<div') && out.includes('cc-wv-' + spec.type) && !out.includes('undefined') && !out.includes('NaN'), out.slice(0, 200));
+        check('render ' + theme.id + '/' + spec.type, out.startsWith('<div') && out.includes('cydc-wv-' + spec.type) && !out.includes('undefined') && !out.includes('NaN'), out.slice(0, 200));
     }
 }
 const byStyle = style => caps.themes.find(t => t.button_style === style);
@@ -471,7 +471,7 @@ check('statusbar title + clock', sb.includes('Wetter') && sb.includes('12:34'), 
 const pw = R.html(R.tree(specs.get('textarea'), { type: 'textarea', w: 200, h: 40, props: { text: 'abc', password: true } }, night, {}));
 check('textarea password bullets like the device (*)', pw.includes('***') && !pw.includes('abc'), pw);
 const sys = R.html(R.wifiSetup(night, { w: 320, h: 240 }, k => k));
-check('wifi setup system preview', sys.includes('cyd_creator.designer.system_wifi_title') && sys.includes('cc-system-screen'), sys.slice(0, 200));
+check('wifi setup system preview', sys.includes('cyd_creator.designer.system_wifi_title') && sys.includes('cydc-system-screen'), sys.slice(0, 200));
 const xss = R.html(R.tree(specs.get('label'), { type: 'label', w: 10, h: 10, props: { text: '<img src=x onerror=alert(1)>' } }, night, {}));
 check('render escapes text', !xss.includes('<img') && xss.includes('&lt;img'), xss);
 check('render source holds no hex colour literals', !/#[0-9a-fA-F]{6}\b/.test(fs.readFileSync(path.join(apps, 'cyd-creator-render.js'), 'utf8')));
@@ -906,7 +906,7 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     d.interact.startPaletteDrag('statusbar', Object.assign({ target: item }, press), item);
     fire(viewport, 'pointermove', { pointerId: 2, clientX: 700, clientY: 300 });
     const ghost = fakeDoc.body.kids[0];
-    eq('the palette ghost has the new widget\'s default size (statusbar: screen width, zoom 2)', [ghost && ghost.className, ghost && ghost.style.width, ghost && ghost.classList.contains('is-outside')], ['cc-drag-ghost', '640px', true]);
+    eq('the palette ghost has the new widget\'s default size (statusbar: screen width, zoom 2)', [ghost && ghost.className, ghost && ghost.style.width, ghost && ghost.classList.contains('is-outside')], ['cydc-drag-ghost', '640px', true]);
     fire(viewport, 'pointerup', { pointerId: 2, clientX: 700, clientY: 300 });
     check('a drop outside the screen adds nothing and removes the ghost', !fakeDoc.body.kids.length && !M.findWidget(iStore.get(), 'status_1'));
     d.setZoom(1);
@@ -1015,7 +1015,7 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     const odd = canvas.widgetEl('w_odd"\n]');
     eq('a widget id with quotes and a newline is found; its box is clamped', odd && [odd.style.left, odd.style.top, odd.style.width, odd.style.height], ['0px', '4096px', '2048px', '1px']);
     eq('an invalid screen bg_color falls back to the theme bg with the bg_opacity', scr.style.background, 'rgba(15,21,34,0.502)');
-    const tag = all(canvas.root, el => el.attrs.class === 'cc-tag')[0];
+    const tag = all(canvas.root, el => el.attrs.class === 'cydc-tag')[0];
     check('the board status uses the 4a tag with tone and t.or', !!tag && tag.attrs['data-tone'] === 'ok' && textOf(tag) === 'verified', tag && JSON.stringify(tag.attrs));
     check('the orientation label reuses cyd_creator.orientation.*', textOf(canvas.root).includes('cyd_creator.orientation.landscape'));
 
@@ -1072,12 +1072,12 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     before = renders;
     dStore.replace(next, { resetHistory: false });
     eq('a remote replace drops missing ids and keeps the survivors', d.selection, ['w_btn']);
-    check('a remote replace on the same screen renders once and flashes the changed widget', renders === before + 1 && canvas.widgetEl('w_btn').classList.contains('cc-flash'));
+    check('a remote replace on the same screen renders once and flashes the changed widget', renders === before + 1 && canvas.widgetEl('w_btn').classList.contains('cydc-flash'));
     shellBus.emit('layout:issues', issues);
-    check('a render during the flash keeps it', renders === before + 2 && canvas.widgetEl('w_btn').classList.contains('cc-flash'));
+    check('a render during the flash keeps it', renders === before + 2 && canvas.widgetEl('w_btn').classList.contains('cydc-flash'));
     runTimers();
     shellBus.emit('layout:issues', []);
-    check('the flash ends after its timer', !canvas.widgetEl('w_btn').classList.contains('cc-flash'));
+    check('the flash ends after its timer', !canvas.widgetEl('w_btn').classList.contains('cydc-flash'));
     d.setScreen('s_two');
     eq('a valid screen bg_color is shown with its bg_opacity', scr.style.background, 'rgba(18,52,86,0.502)');
     const gone = JSON.parse(JSON.stringify(dStore.get()));
@@ -1181,8 +1181,8 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     const items = () => all(pal, el => el.dataset.ccPalette !== undefined);
     const item = type => items().find(el => el.dataset.ccPalette === type);
     const types = () => items().map(el => el.dataset.ccPalette);
-    const nameOf = el => textOf(all(el, k => k.attrs.class === 'cc-palette-name')[0]);
-    const glyphOf = el => all(el, k => k.attrs.class === 'cc-palette-glyph')[0];
+    const nameOf = el => textOf(all(el, k => k.attrs.class === 'cydc-palette-name')[0]);
+    const glyphOf = el => all(el, k => k.attrs.class === 'cydc-palette-glyph')[0];
     const roots = () => pStore.get().screens[0].widgets;
     const ghosts = () => fakeDoc.body.kids.length;
     const used = ev => ev.defaultPrevented && ev.stopped;
@@ -1198,7 +1198,7 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     eq('GLYPHS covers every catalog type', caps.widgets.map(s => s.type).filter(type => !GLYPHS[type]), []);
     eq('every entry shows its type\'s glyph', items().filter(el => textOf(glyphOf(el)) !== GLYPHS[el.dataset.ccPalette]).map(el => el.dataset.ccPalette), []);
     eq('group headings are translated or fall back to the catalog group id', all(pal, el => el.tagName === 'H4').map(textOf), ['Grundlagen', 'input', 'display', 'structure', 'composite']);
-    eq('every group is a role=group labelled like its heading', all(pal, el => el.attrs.class === 'cc-palette-group').map(g => [g.attrs.role, g.attrs['aria-label']]), [['group', 'Grundlagen'], ['group', 'input'], ['group', 'display'], ['group', 'structure'], ['group', 'composite']]);
+    eq('every group is a role=group labelled like its heading', all(pal, el => el.attrs.class === 'cydc-palette-group').map(g => [g.attrs.role, g.attrs['aria-label']]), [['group', 'Grundlagen'], ['group', 'input'], ['group', 'display'], ['group', 'structure'], ['group', 'composite']]);
     eq('glyphs are hidden from assistive technology', items().filter(el => glyphOf(el).attrs['aria-hidden'] !== 'true').length, 0);
     eq('the palette is a labelled section', [pal.tagName, pal.attrs['aria-label']], ['SECTION', 'cyd_creator.designer.palette_title']);
     eq('the search field is a labelled search input', [search.attrs.type, search.attrs['aria-label']], ['search', 'cyd_creator.designer.palette_search']);
@@ -1213,7 +1213,7 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     eq('search matches the type id of a translated entry (trimmed, any case)', types(), ['button']);
     setSearch('zzz');
     eq('a search without a match lists no entry', items().length, 0);
-    eq('… and shows the empty hint', all(pal, el => el.attrs.class === 'cc-panel-empty').length, 1);
+    eq('… and shows the empty hint', all(pal, el => el.attrs.class === 'cydc-panel-empty').length, 1);
     setSearch('');
     eq('clearing the search lists every entry again', items().length, caps.widgets.length);
 
@@ -1438,7 +1438,7 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     const widget = id => M.findWidget(iStore.get(), id).widget;
     const settings = () => iStore.get().settings;
     const fieldset = () => all(insp, el => el.tagName === 'FIELDSET')[0];
-    const refused = el => el.attrs['aria-invalid'] === 'true' && !!noteOf(el) && noteOf(el).attrs.class === 'cc-field-error';
+    const refused = el => el.attrs['aria-invalid'] === 'true' && !!noteOf(el) && noteOf(el).attrs.class === 'cydc-field-error';
     const settle = () => new Promise(resolve => setTimeout(resolve, 0));
     const insideLabel = el => { for (let x = el; x; x = x.parent) if (x.tagName === 'LABEL') return true; return false; };
     const labelOf = el => all(insp, x => x.tagName === 'LABEL' && !!el.attrs.id && x.attrs.for === el.attrs.id)[0];
@@ -1479,7 +1479,7 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     const linkHint = noteOf(field('aurago_link'));
     check('a11y: a checkbox hint is linked with aria-describedby, outside its label', !!linkHint && textOf(linkHint) === 'Needs Wi-Fi.' && !insideLabel(linkHint));
     shellBus.emit('layout:issues', [{ code: 'LIBRARY_UNKNOWN', severity: 'error', path: 'settings/libraries/0', message: 'unknown library' }]);
-    check('a new issue list replaces only the issue list (the fields stay)', all(insp, el => el.attrs.class === 'cc-issue is-error').length === 1 && field('timezone') === all(insp, el => el.attrs['data-cc-focus'] === 'timezone')[0]);
+    check('a new issue list replaces only the issue list (the fields stay)', all(insp, el => el.attrs.class === 'cydc-issue is-error').length === 1 && field('timezone') === all(insp, el => el.attrs['data-cc-focus'] === 'timezone')[0]);
     const nvBoard = Object.assign({}, caps.boards[0], { display: Object.assign({}, caps.boards[0].display, { driver: 'NV3041A', native_orientation: 'landscape' }) });
     inst.caps = Object.assign({}, caps, { boards: [nvBoard] });
     d.bus.emit('lock');
@@ -1494,7 +1494,7 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     const nameEl = type('name', 'Bad Name');
     check('an invalid name is refused: the layout keeps the last valid name, the field keeps the entry', widget('w_btn').name === 'btn_1' && refused(nameEl) && nameEl.value === 'Bad Name' && textOf(noteOf(nameEl)).startsWith('Names use lowercase'));
     shellBus.emit('layout:issues', [{ code: 'PROP_INVALID', severity: 'error', widget: 'w_btn', message: 'x' }]);
-    check('an issue list after a save keeps the field and the half-typed name', field('name') === nameEl && nameEl.value === 'Bad Name' && all(insp, el => el.attrs.class === 'cc-issue is-error').length === 1);
+    check('an issue list after a save keeps the field and the half-typed name', field('name') === nameEl && nameEl.value === 'Bad Name' && all(insp, el => el.attrs.class === 'cydc-issue is-error').length === 1);
     check('a changed issue list of the shown panel is announced', announced[announced.length - 1] === 'Issues: 1', announced.join(' | '));
     const spokenBefore = announced.length;
     shellBus.emit('layout:issues', [{ code: 'PROP_INVALID', severity: 'error', widget: 'w_btn', message: 'x' }, { code: 'NAME_INVALID', severity: 'error', widget: 'w_img', message: 'y' }]);
@@ -1507,7 +1507,7 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     d.select(['w_btn']);
     check('another panel drops refused entries', field('name').value === 'btn_1' && field('name').attrs['aria-invalid'] !== 'true');
     shellBus.emit('layout:issues', []);
-    check('an emptied issue list is announced too', announced[announced.length - 1] === 'No issues left.' && !all(insp, el => el.attrs.class === 'cc-issue is-error').length);
+    check('an emptied issue list is announced too', announced[announced.length - 1] === 'No issues left.' && !all(insp, el => el.attrs.class === 'cydc-issue is-error').length);
     type('name', 'lbl_1');
     check('a duplicate name is refused', widget('w_btn').name === 'btn_1' && textOf(noteOf(field('name'))).startsWith('Another widget'));
     type('name', 'init');
@@ -1582,7 +1582,7 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     fire(led, 'input', {});
     led.value = 'red';
     fire(led, 'input', {});
-    check('a picked colour is stored as #RRGGBB; anything else is ignored', widget('w_led').props.color === '#12AB34' && textOf(all(insp, el => el.attrs.class === 'cc-color-value')[0]) === '#12AB34');
+    check('a picked colour is stored as #RRGGBB; anything else is ignored', widget('w_led').props.color === '#12AB34' && textOf(all(insp, el => el.attrs.class === 'cydc-color-value')[0]) === '#12AB34');
     click('prop:color:reset');
     check('"Use theme" removes the colour', !widget('w_led').props);
     const bg = field('style:bg_color');
@@ -1634,7 +1634,7 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     check('a hook request that throws is reported and the button works again', notes.join() === 'error: cyd_creator.error.generic' && field('event:0:hook').disabled === false, notes.join());
     inst.code.ensureHook = async spec => { hooks.push(spec); return true; };
     type('name', 'temp_lbl');
-    check('a new name updates the hook row in place', textOf(all(insp, el => el.attrs.class === 'cc-hook-name')[0]) === 'on_temp_lbl_clicked()');
+    check('a new name updates the hook row in place', textOf(all(insp, el => el.attrs.class === 'cydc-hook-name')[0]) === 'on_temp_lbl_clicked()');
     type('name', '');
     check('a widget with events cannot lose its name', widget('w_plain').name === 'temp_lbl' && textOf(noteOf(field('name'))).startsWith('Widgets with events'));
     const wifiOption = all(field('event:0:action'), el => el.tagName === 'OPTION' && el.value === 'open_wifi_setup')[0];
@@ -1857,13 +1857,13 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
 
     // structure: screens in order with the system entry, start marker, active entry, names, issue counts
     eq('screen rows in layout order, then the Wi-Fi system entry (Wi-Fi is not off)', rows().map(el => el.dataset.ccScreenId), ['s_home', 's_two', d.SYSTEM_WIFI]);
-    check('only the start screen carries the start marker', all(rowOf('s_home'), el => el.attrs.class === 'cc-start').length === 1 && all(rowOf('s_two'), el => el.attrs.class === 'cc-start').length === 0);
+    check('only the start screen carries the start marker', all(rowOf('s_home'), el => el.attrs.class === 'cydc-start').length === 1 && all(rowOf('s_two'), el => el.attrs.class === 'cydc-start').length === 0);
     eq('the active screen\'s entry is aria-current', [byKey('open:s_home').attrs['aria-current'], byKey('open:s_two').attrs['aria-current']], ['true', undefined]);
     check('translated headings and English fallbacks', textOf(scr).includes('Bildschirme') && byKey('screen-add').attrs['aria-label'] === 'Add screen' && textOf(scr).includes('Layers'));
     shellBus.emit('layout:issues', [{ code: 'SCREEN_NAME_INVALID', severity: 'error', screen: 's_two', message: 'x' }, { code: 'NAME_INVALID', severity: 'error', widget: 'w_btn', message: 'bad name' }]);
-    const count = all(rowOf('s_two'), el => el.attrs.class === 'cc-count is-error')[0];
-    eq('a screen\'s issue count shows the number and gives screen readers words', count && count.kids.map(k => [k.attrs['aria-hidden'] || k.attrs.class, textOf(k)]), [['true', '1'], ['cc-sr-only', 'Issues: 1']]);
-    check('a widget issue marks its layer with the issue text', all(layer('w_btn').parent, el => el.attrs.class === 'cc-issue-mark is-error' && el.attrs.title === 'bad name').length === 1);
+    const count = all(rowOf('s_two'), el => el.attrs.class === 'cydc-count is-error')[0];
+    eq('a screen\'s issue count shows the number and gives screen readers words', count && count.kids.map(k => [k.attrs['aria-hidden'] || k.attrs.class, textOf(k)]), [['true', '1'], ['cydc-sr-only', 'Issues: 1']]);
+    check('a widget issue marks its layer with the issue text', all(layer('w_btn').parent, el => el.attrs.class === 'cydc-issue-mark is-error' && el.attrs.title === 'bad name').length === 1);
     check('… and its accessible name counts the issues', layer('w_btn').attrs['aria-label'] === 'btn_1, button, Issues: 1', layer('w_btn').attrs['aria-label']);
 
     // layers: front-most first, nested by depth, states in the accessible name, one tab stop
@@ -1878,7 +1878,7 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     fire(layer('w_tk'), 'click', { shiftKey: true });
     check('… but not when the click unselects it', !d.selection.length && d.activeTab('w_tabs') === 0);
     let before = renders;
-    fire(all(layer('w_lbl'), el => el.attrs.class === 'cc-layer-name')[0], 'click', {});
+    fire(all(layer('w_lbl'), el => el.attrs.class === 'cydc-layer-name')[0], 'click', {});
     check('a click on a layer (also on its text) selects the widget and renders once', d.selection.join() === 'w_lbl' && renders === before + 1);
     check('… marks it pressed and makes it the tab stop', layer('w_lbl').attrs['aria-pressed'] === 'true' && layer('w_lbl').parent.attrs.class.includes('is-selected') && tabStops().join() === 'w_lbl');
     fire(layer('w_btn'), 'click', { shiftKey: true });
@@ -2050,7 +2050,7 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     fire(byKey('screen-up:s_home'), 'click', {});
     check('a tool that disables itself hands the focus to its screen\'s entry', screenIds()[0] === 's_home' && byKey('screen-up:s_home').disabled === true && fakeDoc.activeElement === byKey('open:s_home'));
     fire(byKey('screen-start:s_two'), 'click', {});
-    check('the star makes a screen the start screen (by id) and is disabled there', sStore.get().start_screen === 's_two' && byKey('screen-start:s_two').disabled === true && all(rowOf('s_two'), el => el.attrs.class === 'cc-start').length === 1);
+    check('the star makes a screen the start screen (by id) and is disabled there', sStore.get().start_screen === 's_two' && byKey('screen-start:s_two').disabled === true && all(rowOf('s_two'), el => el.attrs.class === 'cydc-start').length === 1);
 
     // delete through inst.confirm
     fire(byKey('open:s_two'), 'click', {});

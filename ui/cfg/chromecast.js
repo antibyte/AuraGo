@@ -4,7 +4,7 @@ let ccDiscoveredCache = [];
 
 function ccRenderDiscoveryState(area, type, message) {
     if (!area) return;
-    area.innerHTML = `<div class="cc-discovery-state cc-discovery-state-${type}">${message}</div>`;
+    area.innerHTML = `<div class="cfgdev-discovery-state cfgdev-discovery-state-${type}">${message}</div>`;
 }
 
 function ccNormalizeDiscoveryValue(value) {
@@ -50,31 +50,31 @@ function ccRenderDiscoveryResults(area, devices) {
     const existingIPs = ccExistingChromecastIPs();
 
     const listContainer = document.createElement('div');
-    listContainer.className = 'cc-discovery-list';
+    listContainer.className = 'cfgdev-discovery-list';
 
     const title = document.createElement('div');
-    title.className = 'cc-discovery-list-title';
+    title.className = 'cfgdev-discovery-list-title';
     title.textContent = t('config.chromecast.found_devices', { count: devices.length });
     listContainer.appendChild(title);
 
     const itemsContainer = document.createElement('div');
-    itemsContainer.className = 'cc-discovery-items';
+    itemsContainer.className = 'cfgdev-discovery-items';
 
     devices.forEach((d, i) => {
         const discoveredIP = ccNormalizeDiscoveryValue(d.addr);
         const alreadyAdded = !!discoveredIP && existingIPs.has(discoveredIP);
 
         const item = document.createElement('div');
-        item.className = 'cc-discovery-item' + (alreadyAdded ? ' is-added' : '');
+        item.className = 'cfgdev-discovery-item' + (alreadyAdded ? ' is-added' : '');
 
         const infoDiv = document.createElement('div');
 
         const nameSpan = document.createElement('span');
-        nameSpan.className = 'cc-discovery-name';
+        nameSpan.className = 'cfgdev-discovery-name';
         nameSpan.textContent = ccDiscoveryDisplayName(d) || t('config.chromecast.unknown');
 
         const metaSpan = document.createElement('span');
-        metaSpan.className = 'cc-discovery-meta';
+        metaSpan.className = 'cfgdev-discovery-meta';
         metaSpan.textContent = (d.addr || '—') + ':' + (d.port || 8009);
 
         infoDiv.appendChild(nameSpan);
@@ -83,12 +83,12 @@ function ccRenderDiscoveryResults(area, devices) {
 
         if (alreadyAdded) {
             const addedSpan = document.createElement('span');
-            addedSpan.className = 'cc-discovery-added';
+            addedSpan.className = 'cfgdev-discovery-added';
             addedSpan.textContent = '✓ ' + t('config.chromecast.already_added');
             item.appendChild(addedSpan);
         } else {
             const btn = document.createElement('button');
-            btn.className = 'btn-save cc-btn-compact';
+            btn.className = 'btn-save cfgdev-btn-compact';
             btn.dataset.ccIdx = String(i);
             btn.textContent = '＋ ' + t('config.chromecast.add_device');
             btn.addEventListener('click', () => ccAddDiscovered(i));
@@ -135,7 +135,7 @@ function renderChromecastSection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.chromecast.tts_port_label') + '</div>';
     if (helpPort) html += '<div class="field-help">' + helpPort + '</div>';
-    html += '<input class="field-input cc-tts-port-input" type="number" data-path="chromecast.tts_port" value="' + ttsPort + '">';
+    html += '<input class="field-input cfgdev-tts-port-input" type="number" data-path="chromecast.tts_port" value="' + ttsPort + '">';
     html += '</div>';
 
     // ── Media host allowlist ──
@@ -152,69 +152,69 @@ function renderChromecastSection(section) {
     html += '<div class="field-group-desc">' + t('config.chromecast.devices_desc') + '</div>';
 
     // Action buttons row
-    html += '<div class="cc-actions-row">';
-    html += '<button class="btn-save cc-btn-primary ' + (ccDiscBlocked ? 'cc-btn-disabled' : '') + '" onclick="ccDiscoverDevices()" id="cc-discover-btn">🔍 ' + t('config.chromecast.discover_btn') + '</button>';
-    html += '<button class="btn-save cc-btn-secondary" onclick="ccShowAddManual()">＋ ' + t('config.chromecast.add_manual_btn') + '</button>';
+    html += '<div class="cfgdev-actions-row">';
+    html += '<button class="btn-save cfgdev-btn-primary ' + (ccDiscBlocked ? 'cfgdev-btn-disabled' : '') + '" onclick="ccDiscoverDevices()" id="cfgdev-discover-btn">🔍 ' + t('config.chromecast.discover_btn') + '</button>';
+    html += '<button class="btn-save cfgdev-btn-secondary" onclick="ccShowAddManual()">＋ ' + t('config.chromecast.add_manual_btn') + '</button>';
     html += '</div>';
 
     // Discovery results area (hidden initially)
-    html += '<div id="cc-discover-area" class="cc-discover-area is-hidden"></div>';
+    html += '<div id="cfgdev-discover-area" class="cfgdev-discover-area is-hidden"></div>';
 
     // Device table
     html += `
-    <div id="cc-table-wrap" class="cc-table-wrap is-hidden">
-        <table class="cc-table">
+    <div id="cfgdev-table-wrap" class="cfgdev-table-wrap is-hidden">
+        <table class="cfgdev-table">
             <thead>
-                <tr class="cc-table-head">
+                <tr class="cfgdev-table-head">
                     <th>${t('config.chromecast.col_name')}</th>
                     <th>${t('config.chromecast.col_ip')}</th>
                     <th>${t('config.chromecast.col_port')}</th>
                     <th>${t('config.chromecast.col_desc')}</th>
-                    <th class="cc-th-actions">${t('config.chromecast.col_actions')}</th>
+                    <th class="cfgdev-th-actions">${t('config.chromecast.col_actions')}</th>
                 </tr>
             </thead>
-            <tbody id="cc-tbody"></tbody>
+            <tbody id="cfgdev-tbody"></tbody>
         </table>
     </div>
-    <div id="cc-empty" class="cc-empty is-hidden">
+    <div id="cfgdev-empty" class="cfgdev-empty is-hidden">
         ${t('config.chromecast.no_devices')}
     </div>
-    <div id="cc-loading" class="cc-loading">
+    <div id="cfgdev-loading" class="cfgdev-loading">
         ${t('config.chromecast.loading')}
     </div>`;
 
     // ── Edit modal ──
     html += `
-    <div id="cc-modal-overlay" class="cc-modal-overlay is-hidden" onclick="ccCloseModal(event)">
-        <div class="cc-modal-card" onclick="event.stopPropagation()">
-            <div class="cc-modal-header">
-                <span id="cc-modal-title" class="cc-modal-title"></span>
-                <button onclick="ccCloseModal()" class="cc-modal-close">✕</button>
+    <div id="cfgdev-modal-overlay" class="cfgdev-modal-overlay is-hidden" onclick="ccCloseModal(event)">
+        <div class="cfgdev-modal-card" onclick="event.stopPropagation()">
+            <div class="cfgdev-modal-header">
+                <span id="cfgdev-modal-title" class="cfgdev-modal-title"></span>
+                <button onclick="ccCloseModal()" class="cfgdev-modal-close">✕</button>
             </div>
-            <input type="hidden" id="cc-edit-id">
-            <div class="field-group cc-field-group-sm">
+            <input type="hidden" id="cfgdev-edit-id">
+            <div class="field-group cfgdev-field-group-sm">
                 <div class="field-label">${t('config.chromecast.field_name')} *</div>
                 <div class="field-help">${t('config.chromecast.field_name_help')}</div>
-                <input type="text" id="cc-field-name" class="field-input" placeholder="${t('config.chromecast.name_placeholder')}">
+                <input type="text" id="cfgdev-field-name" class="field-input" placeholder="${t('config.chromecast.name_placeholder')}">
             </div>
-            <div class="cc-grid-ip-port">
+            <div class="cfgdev-grid-ip-port">
                 <div class="field-group">
                     <div class="field-label">${t('config.chromecast.field_ip')}</div>
-                    <input type="text" id="cc-field-ip" class="field-input" placeholder="${t('config.chromecast.ip_placeholder')}">
+                    <input type="text" id="cfgdev-field-ip" class="field-input" placeholder="${t('config.chromecast.ip_placeholder')}">
                 </div>
                 <div class="field-group">
                     <div class="field-label">${t('config.chromecast.port_label')}</div>
-                    <input type="number" id="cc-field-port" class="field-input" placeholder="${t('config.chromecast.port_placeholder')}" value="8009">
+                    <input type="number" id="cfgdev-field-port" class="field-input" placeholder="${t('config.chromecast.port_placeholder')}" value="8009">
                 </div>
             </div>
             <div class="field-group mt-sm">
                 <div class="field-label">${t('config.chromecast.field_desc')}</div>
-                <input type="text" id="cc-field-desc" class="field-input" placeholder="${t('config.chromecast.desc_placeholder')}">
+                <input type="text" id="cfgdev-field-desc" class="field-input" placeholder="${t('config.chromecast.desc_placeholder')}">
             </div>
-            <div id="cc-modal-error" class="cc-modal-error is-hidden"></div>
-            <div class="cc-modal-actions">
-                <button class="btn-save cc-btn-secondary" onclick="ccCloseModal()">${t('config.chromecast.cancel')}</button>
-                <button class="btn-save cc-btn-primary" id="cc-modal-save" onclick="ccSaveDevice()">${t('config.chromecast.save')}</button>
+            <div id="cfgdev-modal-error" class="cfgdev-modal-error is-hidden"></div>
+            <div class="cfgdev-modal-actions">
+                <button class="btn-save cfgdev-btn-secondary" onclick="ccCloseModal()">${t('config.chromecast.cancel')}</button>
+                <button class="btn-save cfgdev-btn-primary" id="cfgdev-modal-save" onclick="ccSaveDevice()">${t('config.chromecast.save')}</button>
             </div>
         </div>
     </div>`;
@@ -227,9 +227,9 @@ function renderChromecastSection(section) {
 
 // ── Load chromecast devices from registry ──
 async function ccLoadDevices() {
-    const empty = document.getElementById('cc-empty');
-    const loading = document.getElementById('cc-loading');
-    const table = document.getElementById('cc-table-wrap');
+    const empty = document.getElementById('cfgdev-empty');
+    const loading = document.getElementById('cfgdev-loading');
+    const table = document.getElementById('cfgdev-table-wrap');
     setHidden(loading, false);
     setHidden(table, true);
     setHidden(empty, true);
@@ -254,20 +254,20 @@ async function ccLoadDevices() {
 }
 
 function ccRenderRows(devices) {
-    const tbody = document.getElementById('cc-tbody');
+    const tbody = document.getElementById('cfgdev-tbody');
     tbody.innerHTML = '';
     devices.forEach(d => {
         const tr = document.createElement('tr');
-        tr.className = 'cc-device-row';
+        tr.className = 'cfgdev-device-row';
         tr.dataset.id = d.id;
         tr.innerHTML = `
-            <td class="cc-cell cc-cell-name">${escapeHtml(d.name)}</td>
-            <td class="cc-cell cc-cell-ip">${escapeHtml(d.ip_address || '—')}</td>
-            <td class="cc-cell">${d.port || 8009}</td>
-            <td class="cc-cell cc-cell-desc">${escapeHtml(d.description || '—')}</td>
-            <td class="cc-cell cc-cell-actions">
-                <button onclick="ccShowEditModal('${escapeAttr(d.id)}')" class="cc-icon-btn" title="${t('config.chromecast.edit_tooltip')}">✏️</button>
-                <button onclick="ccDeleteDevice('${escapeAttr(d.id)}','${escapeAttr(d.name)}')" class="cc-icon-btn cc-icon-btn-danger" title="${t('config.chromecast.delete_tooltip')}">🗑️</button>
+            <td class="cfgdev-cell cfgdev-cell-name">${escapeHtml(d.name)}</td>
+            <td class="cfgdev-cell cfgdev-cell-ip">${escapeHtml(d.ip_address || '—')}</td>
+            <td class="cfgdev-cell">${d.port || 8009}</td>
+            <td class="cfgdev-cell cfgdev-cell-desc">${escapeHtml(d.description || '—')}</td>
+            <td class="cfgdev-cell cfgdev-cell-actions">
+                <button onclick="ccShowEditModal('${escapeAttr(d.id)}')" class="cfgdev-icon-btn" title="${t('config.chromecast.edit_tooltip')}">✏️</button>
+                <button onclick="ccDeleteDevice('${escapeAttr(d.id)}','${escapeAttr(d.name)}')" class="cfgdev-icon-btn cfgdev-icon-btn-danger" title="${t('config.chromecast.delete_tooltip')}">🗑️</button>
             </td>`;
         tbody.appendChild(tr);
     });
@@ -275,8 +275,8 @@ function ccRenderRows(devices) {
 
 // ── mDNS discovery ──
 async function ccDiscoverDevices() {
-    const btn = document.getElementById('cc-discover-btn');
-    const area = document.getElementById('cc-discover-area');
+    const btn = document.getElementById('cfgdev-discover-btn');
+    const area = document.getElementById('cfgdev-discover-area');
     btn.disabled = true;
     btn.textContent = '⏳ ' + t('config.chromecast.discovering');
     setHidden(area, false);
@@ -339,7 +339,7 @@ async function ccAddDiscovered(index) {
             throw new Error(data.error || 'Request failed');
         }
         await ccLoadDevices();
-        const area = document.getElementById('cc-discover-area');
+        const area = document.getElementById('cfgdev-discover-area');
         if (area && !area.classList.contains('is-hidden') && ccDiscoveredCache.length > 0) {
             ccRenderDiscoveryResults(area, ccDiscoveredCache);
         }
@@ -358,58 +358,58 @@ function ccShowAddManual() {
 
 // ── Show modal (edit existing or add new) ──
 function ccShowEditModal(id, prefill) {
-    const overlay = document.getElementById('cc-modal-overlay');
-    const title = document.getElementById('cc-modal-title');
-    setHidden(document.getElementById('cc-modal-error'), true);
+    const overlay = document.getElementById('cfgdev-modal-overlay');
+    const title = document.getElementById('cfgdev-modal-title');
+    setHidden(document.getElementById('cfgdev-modal-error'), true);
 
     if (id) {
         // Editing existing device
         const d = ccDevicesCache.find(x => x.id === id);
         if (!d) return;
         title.textContent = '✏️ ' + t('config.chromecast.edit_device');
-        document.getElementById('cc-edit-id').value = d.id;
-        document.getElementById('cc-field-name').value = d.name || '';
-        document.getElementById('cc-field-ip').value = d.ip_address || '';
-        document.getElementById('cc-field-port').value = d.port || 8009;
-        document.getElementById('cc-field-desc').value = d.description || '';
+        document.getElementById('cfgdev-edit-id').value = d.id;
+        document.getElementById('cfgdev-field-name').value = d.name || '';
+        document.getElementById('cfgdev-field-ip').value = d.ip_address || '';
+        document.getElementById('cfgdev-field-port').value = d.port || 8009;
+        document.getElementById('cfgdev-field-desc').value = d.description || '';
     } else if (prefill) {
         // Adding from discovery
         title.textContent = '＋ ' + t('config.chromecast.add_device');
-        document.getElementById('cc-edit-id').value = '';
-        document.getElementById('cc-field-name').value = ccDiscoveryDisplayName(prefill);
-        document.getElementById('cc-field-ip').value = prefill.addr || '';
-        document.getElementById('cc-field-port').value = prefill.port || 8009;
-        document.getElementById('cc-field-desc').value = ccDiscoveryDescription(prefill);
+        document.getElementById('cfgdev-edit-id').value = '';
+        document.getElementById('cfgdev-field-name').value = ccDiscoveryDisplayName(prefill);
+        document.getElementById('cfgdev-field-ip').value = prefill.addr || '';
+        document.getElementById('cfgdev-field-port').value = prefill.port || 8009;
+        document.getElementById('cfgdev-field-desc').value = ccDiscoveryDescription(prefill);
     } else {
         // Manual add
         title.textContent = '＋ ' + t('config.chromecast.add_device');
-        document.getElementById('cc-edit-id').value = '';
-        document.getElementById('cc-field-name').value = '';
-        document.getElementById('cc-field-ip').value = '';
-        document.getElementById('cc-field-port').value = '8009';
-        document.getElementById('cc-field-desc').value = '';
+        document.getElementById('cfgdev-edit-id').value = '';
+        document.getElementById('cfgdev-field-name').value = '';
+        document.getElementById('cfgdev-field-ip').value = '';
+        document.getElementById('cfgdev-field-port').value = '8009';
+        document.getElementById('cfgdev-field-desc').value = '';
     }
     setHidden(overlay, false);
 }
 
 function ccCloseModal(e) {
     if (e && e.target !== e.currentTarget) return;
-    setHidden(document.getElementById('cc-modal-overlay'), true);
+    setHidden(document.getElementById('cfgdev-modal-overlay'), true);
 }
 
 // ── Save device (create/update via device registry API) ──
 async function ccSaveDevice() {
-    const errBox = document.getElementById('cc-modal-error');
+    const errBox = document.getElementById('cfgdev-modal-error');
     setHidden(errBox, true);
 
-    const name = document.getElementById('cc-field-name').value.trim();
+    const name = document.getElementById('cfgdev-field-name').value.trim();
     if (!name) {
         errBox.textContent = t('config.chromecast.name_required');
         setHidden(errBox, false);
         return;
     }
 
-    const ip = document.getElementById('cc-field-ip').value.trim();
+    const ip = document.getElementById('cfgdev-field-ip').value.trim();
     if (!ip) {
         errBox.textContent = t('config.chromecast.ip_required');
         setHidden(errBox, false);
@@ -419,13 +419,13 @@ async function ccSaveDevice() {
     const payload = ccBuildDevicePayload({
         name: name,
         ip: ip,
-        port: document.getElementById('cc-field-port').value,
-        description: document.getElementById('cc-field-desc').value
+        port: document.getElementById('cfgdev-field-port').value,
+        description: document.getElementById('cfgdev-field-desc').value
     });
 
-    const editId = document.getElementById('cc-edit-id').value;
+    const editId = document.getElementById('cfgdev-edit-id').value;
     const isEdit = !!editId;
-    const btn = document.getElementById('cc-modal-save');
+    const btn = document.getElementById('cfgdev-modal-save');
     btn.disabled = true;
 
     try {
@@ -442,7 +442,7 @@ async function ccSaveDevice() {
         }
         ccCloseModal();
         await ccLoadDevices();
-        const area = document.getElementById('cc-discover-area');
+        const area = document.getElementById('cfgdev-discover-area');
         if (area && !area.classList.contains('is-hidden') && ccDiscoveredCache.length > 0) {
             ccRenderDiscoveryResults(area, ccDiscoveredCache);
         }

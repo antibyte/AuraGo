@@ -437,18 +437,18 @@
         const linkAllowed = () => wantsLink && mayMint();
         const state = { busy: false, minted: null, done: false, previousDevice: '' };
 
-        const buildSelect = el('select', { class: 'cc-select', dataset: { ccFlashBuild: '' }, 'aria-label': t('cyd_creator.flash.build') },
+        const buildSelect = el('select', { class: 'cydc-select', dataset: { ccFlashBuild: '' }, 'aria-label': t('cyd_creator.flash.build') },
             builds.map((b, i) => el('option', { value: b.id, text: buildLabel(inst, b, i, builds.length) })));
-        const modeSelect = el('select', { class: 'cc-select', dataset: { ccFlashMode: '' }, 'aria-label': t('cyd_creator.flash.mode') },
+        const modeSelect = el('select', { class: 'cydc-select', dataset: { ccFlashMode: '' }, 'aria-label': t('cyd_creator.flash.mode') },
             MODES.map(mode => el('option', { value: mode, text: t(MODE_LABELS[mode]) })));
-        const modeHint = el('p', { class: 'cc-form-help', dataset: { ccFlashModeHint: '' } });
-        const modeChosen = el('p', { class: 'cc-form-help', hidden: true, dataset: { ccFlashModeChosen: '' } });
+        const modeHint = el('p', { class: 'cydc-form-help', dataset: { ccFlashModeHint: '' } });
+        const modeChosen = el('p', { class: 'cydc-form-help', hidden: true, dataset: { ccFlashModeChosen: '' } });
         const monitorBox = el('input', { type: 'checkbox', checked: true, dataset: { ccFlashMonitor: '' } });
-        const phase = el('p', { class: 'cc-flasher-phase', role: 'status', dataset: { ccFlashPhase: 'idle' }, text: t('cyd_creator.flash.ready') });
-        const bar = el('progress', { class: 'cc-progress', max: '100', value: '0', dataset: { ccFlashProgress: '' }, 'aria-label': t('cyd_creator.flash.progress') });
-        const logPre = el('pre', { class: 'cc-flasher-log', dataset: { ccFlashLog: '' } });
-        const download = el('a', { class: 'cc-btn cc-btn--ghost', dataset: { ccFlashAction: 'download' }, download: '', text: t('cyd_creator.flash.download') });
-        const container = el('div', { class: 'cc-flasher' });
+        const phase = el('p', { class: 'cydc-flasher-phase', role: 'status', dataset: { ccFlashPhase: 'idle' }, text: t('cyd_creator.flash.ready') });
+        const bar = el('progress', { class: 'cydc-progress', max: '100', value: '0', dataset: { ccFlashProgress: '' }, 'aria-label': t('cyd_creator.flash.progress') });
+        const logPre = el('pre', { class: 'cydc-flasher-log', dataset: { ccFlashLog: '' } });
+        const download = el('a', { class: 'cydc-btn cydc-btn--ghost', dataset: { ccFlashAction: 'download' }, download: '', text: t('cyd_creator.flash.download') });
+        const container = el('div', { class: 'cydc-flasher' });
         const syncDownload = () => {
             const build = builds.find(b => b.id === buildSelect.value);
             download.hidden = !build;
@@ -466,12 +466,12 @@
         syncMode();
 
         function linkNote(link) {
-            if (wantsLink && inst.readonly) return el('p', { class: 'cc-banner', dataset: { ccFlashLink: 'readonly' }, text: t('cyd_creator.flash.link_readonly') });
-            if (wantsLink && ota().enabled === false) return el('p', { class: 'cc-banner cc-banner--warn', dataset: { ccFlashLink: 'off' }, text: t('cyd_creator.flash.link_ota_off') });
+            if (wantsLink && inst.readonly) return el('p', { class: 'cydc-banner', dataset: { ccFlashLink: 'readonly' }, text: t('cyd_creator.flash.link_readonly') });
+            if (wantsLink && ota().enabled === false) return el('p', { class: 'cydc-banner cydc-banner--warn', dataset: { ccFlashLink: 'off' }, text: t('cyd_creator.flash.link_ota_off') });
             if (!link) return null;
-            return el('div', { class: 'cc-banner', dataset: { ccFlashLink: 'on' } },
+            return el('div', { class: 'cydc-banner', dataset: { ccFlashLink: 'on' } },
                 el('span', { text: t('cyd_creator.flash.link_on', { url: ota().public_url || '' }) }),
-                ota().insecure ? el('strong', { class: 'cc-flasher-insecure', text: t('cyd_creator.flash.link_insecure') }) : null);
+                ota().insecure ? el('strong', { class: 'cydc-flasher-insecure', text: t('cyd_creator.flash.link_insecure') }) : null);
         }
 
         // render (re)builds the body: on open, on a desktop serial policy change and on a read-only
@@ -482,23 +482,23 @@
             if (!supported.ok) {
                 // A policy reason (the admin switch, a read-only desktop) is not the browser's fault.
                 const browser = supported.reason !== 'disabled' && supported.reason !== 'readonly';
-                body.push(el('div', { class: 'cc-banner cc-banner--warn', role: 'alert', dataset: { ccFlashUnsupported: supported.reason } },
+                body.push(el('div', { class: 'cydc-banner cydc-banner--warn', role: 'alert', dataset: { ccFlashUnsupported: supported.reason } },
                     browser ? el('strong', { text: t('cyd_creator.error.CYD_SERIAL_UNSUPPORTED') }) : null,
                     el('span', { text: t('cyd_creator.flash.unsupported_' + supported.reason) })));
             }
             if (!builds.length) {
-                body.push(el('p', { class: 'cc-empty', dataset: { ccFlashNoBuild: '' }, text: t('cyd_creator.flash.no_build') }));
+                body.push(el('p', { class: 'cydc-empty', dataset: { ccFlashNoBuild: '' }, text: t('cyd_creator.flash.no_build') }));
             } else {
-                body.push(el('label', { class: 'cc-form-field' }, el('span', { class: 'cc-form-label', text: t('cyd_creator.flash.build') }), buildSelect));
+                body.push(el('label', { class: 'cydc-form-field' }, el('span', { class: 'cydc-form-label', text: t('cyd_creator.flash.build') }), buildSelect));
                 const note = linkNote(linkAllowed());
                 if (note && supported.ok) body.push(note);
                 if (supported.ok) {
-                    body.push(el('label', { class: 'cc-form-field' }, el('span', { class: 'cc-form-label', text: t('cyd_creator.flash.mode') }), modeSelect), modeHint, modeChosen);
-                    body.push(el('label', { class: 'cc-checkline' }, monitorBox, el('span', { text: t('cyd_creator.flash.open_monitor') })));
-                    body.push(el('p', { class: 'cc-form-help', text: t('cyd_creator.flash.hint') }));
-                    body.push(phase, bar, el('details', { class: 'cc-flasher-details' }, el('summary', { text: t('cyd_creator.flash.details') }), logPre));
+                    body.push(el('label', { class: 'cydc-form-field' }, el('span', { class: 'cydc-form-label', text: t('cyd_creator.flash.mode') }), modeSelect), modeHint, modeChosen);
+                    body.push(el('label', { class: 'cydc-checkline' }, monitorBox, el('span', { text: t('cyd_creator.flash.open_monitor') })));
+                    body.push(el('p', { class: 'cydc-form-help', text: t('cyd_creator.flash.hint') }));
+                    body.push(phase, bar, el('details', { class: 'cydc-flasher-details' }, el('summary', { text: t('cyd_creator.flash.details') }), logPre));
                 } else {
-                    body.push(el('p', { class: 'cc-form-help', text: t('cyd_creator.flash.download_hint') }));
+                    body.push(el('p', { class: 'cydc-form-help', text: t('cyd_creator.flash.download_hint') }));
                 }
             }
             container.replaceChildren(...body);
@@ -515,7 +515,7 @@
         render();
         d = P.dialog.open(inst.root, {
             title: t('cyd_creator.flash.title'),
-            className: 'cc-dialog--wide cc-flasher-dialog',
+            className: 'cydc-dialog--wide cydc-flasher-dialog',
             body: container,
             actions,
             owner: inst.projectBag || inst.bag,
@@ -526,7 +526,7 @@
         });
         syncFlashButton();
         if (builds.length) {
-            d.el.querySelector('.cc-dialog-actions').prepend(download);
+            d.el.querySelector('.cydc-dialog-actions').prepend(download);
             syncDownload();
         }
         // While flashing, Escape and the backdrop must not close the dialog (the board would be left

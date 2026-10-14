@@ -69,21 +69,21 @@ function renderBluetoothSection(section) {
         <div class="field-group">
             <div class="field-group-title">${escapeHtml(t('config.bluetooth.devices'))}</div>
             <div class="field-group-desc">${escapeHtml(t('config.bluetooth.devices_desc'))}</div>
-            <div class="cc-actions-row">
-                <button id="bt-reprobe-btn" class="btn-save cc-btn-secondary" onclick="btReprobe()">↻ ${escapeHtml(t('config.bluetooth.reprobe'))}</button>
-                <button id="bt-discover-btn" class="btn-save cc-btn-primary" onclick="btDiscover()">⌕ ${escapeHtml(t('config.bluetooth.discover'))}</button>
-                <button id="bt-test-btn" class="btn-save cc-btn-secondary" onclick="btTestAudio()">♪ ${escapeHtml(t('config.bluetooth.test_audio'))}</button>
-                <button id="bt-stop-btn" class="btn-save cc-btn-secondary" onclick="btStopAudio()">■ ${escapeHtml(t('config.bluetooth.stop_audio'))}</button>
+            <div class="cfgdev-actions-row">
+                <button id="bt-reprobe-btn" class="btn-save cfgdev-btn-secondary" onclick="btReprobe()">↻ ${escapeHtml(t('config.bluetooth.reprobe'))}</button>
+                <button id="bt-discover-btn" class="btn-save cfgdev-btn-primary" onclick="btDiscover()">⌕ ${escapeHtml(t('config.bluetooth.discover'))}</button>
+                <button id="bt-test-btn" class="btn-save cfgdev-btn-secondary" onclick="btTestAudio()">♪ ${escapeHtml(t('config.bluetooth.test_audio'))}</button>
+                <button id="bt-stop-btn" class="btn-save cfgdev-btn-secondary" onclick="btStopAudio()">■ ${escapeHtml(t('config.bluetooth.stop_audio'))}</button>
             </div>
             <div id="bt-action-result" class="adg-test-result" role="status" aria-live="polite"></div>
-            <div id="bt-devices" class="cc-discover-area"></div>
+            <div id="bt-devices" class="cfgdev-discover-area"></div>
         </div>
 
-        <div id="bt-pin-modal" class="cc-modal-overlay is-hidden" onclick="btClosePINModal(event)">
-            <div class="cc-modal-card" role="dialog" aria-modal="true" aria-labelledby="bt-pin-title" onclick="event.stopPropagation()">
-                <div class="cc-modal-header">
-                    <span id="bt-pin-title" class="cc-modal-title">${escapeHtml(t('config.bluetooth.pin_title'))}</span>
-                    <button class="cc-modal-close" onclick="btClosePINModal()" aria-label="${escapeAttr(t('config.bluetooth.cancel'))}">✕</button>
+        <div id="bt-pin-modal" class="cfgdev-modal-overlay is-hidden" onclick="btClosePINModal(event)">
+            <div class="cfgdev-modal-card" role="dialog" aria-modal="true" aria-labelledby="bt-pin-title" onclick="event.stopPropagation()">
+                <div class="cfgdev-modal-header">
+                    <span id="bt-pin-title" class="cfgdev-modal-title">${escapeHtml(t('config.bluetooth.pin_title'))}</span>
+                    <button class="cfgdev-modal-close" onclick="btClosePINModal()" aria-label="${escapeAttr(t('config.bluetooth.cancel'))}">✕</button>
                 </div>
                 <input id="bt-pin-address" type="hidden">
                 <div class="field-group">
@@ -91,9 +91,9 @@ function renderBluetoothSection(section) {
                     <div class="field-help">${escapeHtml(t('config.bluetooth.pin_help'))}</div>
                     <input id="bt-pin-value" class="field-input" type="password" inputmode="numeric" autocomplete="one-time-code" maxlength="16">
                 </div>
-                <div class="cc-modal-actions">
-                    <button class="btn-save cc-btn-secondary" onclick="btClosePINModal()">${escapeHtml(t('config.bluetooth.cancel'))}</button>
-                    <button class="btn-save cc-btn-primary" onclick="btConfirmPair()">${escapeHtml(t('config.bluetooth.pair'))}</button>
+                <div class="cfgdev-modal-actions">
+                    <button class="btn-save cfgdev-btn-secondary" onclick="btClosePINModal()">${escapeHtml(t('config.bluetooth.cancel'))}</button>
+                    <button class="btn-save cfgdev-btn-primary" onclick="btConfirmPair()">${escapeHtml(t('config.bluetooth.pair'))}</button>
                 </div>
             </div>
         </div>
@@ -170,17 +170,17 @@ function btRenderDevices() {
     const area = document.getElementById('bt-devices');
     if (!area) return;
     if (!btDevices.length) {
-        area.innerHTML = `<div class="cc-empty">${escapeHtml(t('config.bluetooth.no_devices'))}</div>`;
+        area.innerHTML = `<div class="cfgdev-empty">${escapeHtml(t('config.bluetooth.no_devices'))}</div>`;
         return;
     }
     const readonly = (configData.bluetooth || {}).readonly !== false;
-    area.innerHTML = `<div class="cc-table-wrap">
-        <table class="cc-table">
-            <thead><tr class="cc-table-head">
+    area.innerHTML = `<div class="cfgdev-table-wrap">
+        <table class="cfgdev-table">
+            <thead><tr class="cfgdev-table-head">
                 <th>${escapeHtml(t('config.bluetooth.col_device'))}</th>
                 <th>${escapeHtml(t('config.bluetooth.col_address'))}</th>
                 <th>${escapeHtml(t('config.bluetooth.col_state'))}</th>
-                <th class="cc-th-actions">${escapeHtml(t('config.bluetooth.col_actions'))}</th>
+                <th class="cfgdev-th-actions">${escapeHtml(t('config.bluetooth.col_actions'))}</th>
             </tr></thead>
             <tbody>${btDevices.map(device => {
                 const state = [
@@ -192,21 +192,21 @@ function btRenderDevices() {
                 let actions = '';
                 if (!readonly) {
                     if (!device.paired) {
-                        actions += `<button class="btn-save cc-btn-compact" onclick="btOpenPINModal('${address}')">${escapeHtml(t('config.bluetooth.pair'))}</button>`;
+                        actions += `<button class="btn-save cfgdev-btn-compact" onclick="btOpenPINModal('${address}')">${escapeHtml(t('config.bluetooth.pair'))}</button>`;
                     }
                     if (device.paired && !device.connected) {
-                        actions += `<button class="btn-save cc-btn-compact" onclick="btDeviceAction('connect','${address}')">${escapeHtml(t('config.bluetooth.connect'))}</button>`;
+                        actions += `<button class="btn-save cfgdev-btn-compact" onclick="btDeviceAction('connect','${address}')">${escapeHtml(t('config.bluetooth.connect'))}</button>`;
                     }
                     if (device.connected) {
-                        actions += `<button class="btn-save cc-btn-compact" onclick="btDeviceAction('disconnect','${address}')">${escapeHtml(t('config.bluetooth.disconnect'))}</button>`;
+                        actions += `<button class="btn-save cfgdev-btn-compact" onclick="btDeviceAction('disconnect','${address}')">${escapeHtml(t('config.bluetooth.disconnect'))}</button>`;
                     }
                 }
                 if (!actions) actions = '—';
-                return `<tr class="cc-device-row">
-                    <td class="cc-cell cc-cell-name">${escapeHtml(btDeviceName(device))}</td>
-                    <td class="cc-cell">${escapeHtml(device.address || '—')}</td>
-                    <td class="cc-cell">${escapeHtml(state)}</td>
-                    <td class="cc-cell cc-cell-actions">${actions}</td>
+                return `<tr class="cfgdev-device-row">
+                    <td class="cfgdev-cell cfgdev-cell-name">${escapeHtml(btDeviceName(device))}</td>
+                    <td class="cfgdev-cell">${escapeHtml(device.address || '—')}</td>
+                    <td class="cfgdev-cell">${escapeHtml(state)}</td>
+                    <td class="cfgdev-cell cfgdev-cell-actions">${actions}</td>
                 </tr>`;
             }).join('')}</tbody>
         </table>

@@ -49,7 +49,7 @@ func TestCYDCreatorFlashStylesheetSection(t *testing.T) {
 	if hex := regexp.MustCompile(`#[0-9a-fA-F]{3,8}\b`).FindString(section); hex != "" {
 		t.Fatalf("literal colour %s in the plan 5 section; use the --cc-* tokens", hex)
 	}
-	for _, class := range []string{".cc-flasher", ".cc-monitor-lines", ".cc-monitor-line.is-backtrace", ".cc-device-facts", "@container cc-app"} {
+	for _, class := range []string{".cydc-flasher", ".cydc-monitor-lines", ".cydc-monitor-line.is-backtrace", ".cydc-device-facts", "@container cydc-app"} {
 		if !strings.Contains(section, class) {
 			t.Errorf("the plan 5 section misses %s", class)
 		}
@@ -69,11 +69,11 @@ func TestCYDCreatorFlashStylesheetSection(t *testing.T) {
 			t.Errorf("the plan 5 section reads %s, which is no --cc-* token of desktop-app-cyd-creator.css", m[1])
 		}
 	}
-	scoped := regexp.MustCompile(`^\.cc-app(?:$|[\s.:\[>+~])`)
+	scoped := regexp.MustCompile(`^\.cydc-app(?:$|[\s.:\[>+~])`)
 	for _, rule := range cydCSSRules(section) {
 		for _, sel := range cydSelectors(rule.selector) {
 			if !scoped.MatchString(sel) {
-				t.Errorf("plan 5 selector %q is not scoped to .cc-app", sel)
+				t.Errorf("plan 5 selector %q is not scoped to .cydc-app", sel)
 			}
 		}
 	}

@@ -40,13 +40,13 @@
         let blurAfterRelease = false;
         let shownSelection = null;
         const errorId = P.util.uid('cc_rename_err');
-        const root = dom(h('div', { class: 'cc-screens', tabindex: '-1' }));
+        const root = dom(h('div', { class: 'cydc-screens', tabindex: '-1' }));
         host.appendChild(root);
         const str = v => (typeof v === 'string' ? v : v == null ? '' : String(v));
         const issueCount = count => t.or('cyd_creator.designer.issue_count', 'Issues: {count}', { count });
 
-        const tool = (cmd, name, label, id, disabled) => h('button', { type: 'button', class: 'cc-tool cc-tool-sm', 'data-cc-cmd': cmd, 'data-cc-id': id, 'data-cc-focus': cmd + ':' + id, title: label, 'aria-label': label, disabled: !!disabled }, icon(name));
-        const field = (label, control) => h('label', { class: 'cc-field' }, h('span', { class: 'cc-field-label' }, label), control);
+        const tool = (cmd, name, label, id, disabled) => h('button', { type: 'button', class: 'cydc-tool cydc-tool-sm', 'data-cc-cmd': cmd, 'data-cc-id': id, 'data-cc-focus': cmd + ':' + id, title: label, 'aria-label': label, disabled: !!disabled }, icon(name));
+        const field = (label, control) => h('label', { class: 'cydc-field' }, h('span', { class: 'cydc-field-label' }, label), control);
         const renameMessage = code => (code === 'SCREEN_NAME_DUPLICATE'
             ? t.or('cyd_creator.issue.SCREEN_NAME_DUPLICATE', 'Another screen already uses this name.')
             : t.or('cyd_creator.issue.SCREEN_NAME_INVALID', 'Screen names use lowercase letters, digits and _, start with a letter and have at most 32 characters.'));
@@ -63,20 +63,20 @@
             const renameLabel = t.or('cyd_creator.designer.screen_rename', 'Rename screen');
             if (renaming === s.id) {
                 // The reason is spoken once when it changes (commitRename); re-renders stay silent.
-                return h('li', { class: 'cc-screen-row is-renaming', 'data-cc-screen-id': s.id },
-                    h('input', { type: 'text', class: 'cc-screen-rename', value: draft, maxlength: '32', spellcheck: 'false', autocomplete: 'off', 'data-cc-rename': s.id, 'data-cc-focus': 'rename:' + s.id, 'aria-label': renameLabel, 'aria-invalid': renameError ? 'true' : null, 'aria-describedby': renameError ? errorId : null }),
-                    renameError ? h('span', { class: 'cc-field-error', id: errorId }, renameMessage(renameError)) : null);
+                return h('li', { class: 'cydc-screen-row is-renaming', 'data-cc-screen-id': s.id },
+                    h('input', { type: 'text', class: 'cydc-screen-rename', value: draft, maxlength: '32', spellcheck: 'false', autocomplete: 'off', 'data-cc-rename': s.id, 'data-cc-focus': 'rename:' + s.id, 'aria-label': renameLabel, 'aria-invalid': renameError ? 'true' : null, 'aria-describedby': renameError ? errorId : null }),
+                    renameError ? h('span', { class: 'cydc-field-error', id: errorId }, renameMessage(renameError)) : null);
             }
             const startLabel = t.or('cyd_creator.designer.screen_start', 'Start screen');
-            return h('li', { class: 'cc-screen-row' + (active ? ' is-active' : ''), 'data-cc-screen-id': s.id },
-                h('button', { type: 'button', class: 'cc-screen-open', 'data-cc-cmd': 'screen-open', 'data-cc-id': s.id, 'data-cc-focus': openKey(s.id), 'aria-current': active ? 'true' : null },
-                    start ? h('span', { class: 'cc-start', title: startLabel, 'aria-label': startLabel }, icon('star')) : null,
-                    h('span', { class: 'cc-screen-name' }, str(s.name)),
+            return h('li', { class: 'cydc-screen-row' + (active ? ' is-active' : ''), 'data-cc-screen-id': s.id },
+                h('button', { type: 'button', class: 'cydc-screen-open', 'data-cc-cmd': 'screen-open', 'data-cc-id': s.id, 'data-cc-focus': openKey(s.id), 'aria-current': active ? 'true' : null },
+                    start ? h('span', { class: 'cydc-start', title: startLabel, 'aria-label': startLabel }, icon('star')) : null,
+                    h('span', { class: 'cydc-screen-name' }, str(s.name)),
                     // Always present (empty without a title): typing a title updates it in place.
-                    h('span', { class: 'cc-screen-title', 'data-cc-title': s.id }, str(s.title)),
-                    issues ? h('span', { class: 'cc-count is-error', title: issueCount(issues) },
-                        h('span', { 'aria-hidden': 'true' }, String(issues)), h('span', { class: 'cc-sr-only' }, issueCount(issues))) : null),
-                h('span', { class: 'cc-row-tools' },
+                    h('span', { class: 'cydc-screen-title', 'data-cc-title': s.id }, str(s.title)),
+                    issues ? h('span', { class: 'cydc-count is-error', title: issueCount(issues) },
+                        h('span', { 'aria-hidden': 'true' }, String(issues)), h('span', { class: 'cydc-sr-only' }, issueCount(issues))) : null),
+                h('span', { class: 'cydc-row-tools' },
                     tool('screen-start', 'star', t.or('cyd_creator.designer.screen_set_start', 'Make start screen'), s.id, ro || start),
                     tool('screen-rename', 'edit', renameLabel, s.id, ro),
                     tool('screen-duplicate', 'copy', t.or('cyd_creator.designer.screen_duplicate', 'Duplicate screen'), s.id, ro || n >= M.LIMITS.screens),
@@ -87,9 +87,9 @@
 
         function systemRow() {
             const active = d.isSystem();
-            return h('li', { class: 'cc-screen-row is-system' + (active ? ' is-active' : ''), 'data-cc-screen-id': SYSTEM },
-                h('button', { type: 'button', class: 'cc-screen-open', 'data-cc-cmd': 'screen-open', 'data-cc-id': SYSTEM, 'data-cc-focus': openKey(SYSTEM), 'aria-current': active ? 'true' : null, title: t.or('cyd_creator.designer.system_hint', 'This screen comes from the template and appears while Wi-Fi still needs to be set up. It follows the theme and cannot be edited.') },
-                    icon('lock'), h('span', { class: 'cc-screen-name' }, t.or('cyd_creator.designer.system_wifi', 'Wi-Fi setup')), h('span', { class: 'cc-badge' }, t.or('cyd_creator.designer.system_badge', 'System'))));
+            return h('li', { class: 'cydc-screen-row is-system' + (active ? ' is-active' : ''), 'data-cc-screen-id': SYSTEM },
+                h('button', { type: 'button', class: 'cydc-screen-open', 'data-cc-cmd': 'screen-open', 'data-cc-id': SYSTEM, 'data-cc-focus': openKey(SYSTEM), 'aria-current': active ? 'true' : null, title: t.or('cyd_creator.designer.system_hint', 'This screen comes from the template and appears while Wi-Fi still needs to be set up. It follows the theme and cannot be edited.') },
+                    icon('lock'), h('span', { class: 'cydc-screen-name' }, t.or('cyd_creator.designer.system_wifi', 'Wi-Fi setup')), h('span', { class: 'cydc-badge' }, t.or('cyd_creator.designer.system_badge', 'System'))));
         }
 
         function screenProps(screen, ro) {
@@ -98,17 +98,17 @@
             const themeBg = str((d.theme().tokens || {}).bg);
             const bgLabel = t.or('cyd_creator.designer.screen_background', 'Background');
             const settingsLabel = t.or('cyd_creator.designer.screen_settings', 'Screen settings');
-            return h('section', { class: 'cc-screen-props', 'aria-label': settingsLabel },
+            return h('section', { class: 'cydc-screen-props', 'aria-label': settingsLabel },
                 h('h3', {}, settingsLabel),
-                h('fieldset', { class: 'cc-fieldset', disabled: ro },
+                h('fieldset', { class: 'cydc-fieldset', disabled: ro },
                     field(t.or('cyd_creator.designer.screen_title', 'Title'), h('input', { type: 'text', maxlength: '64', value: str(screen.title), 'data-cc-field': 'title', 'data-cc-focus': 'screen-title' })),
                     field(t.or('cyd_creator.designer.screen_transition', 'Transition'), h('select', { 'data-cc-field': 'transition', 'data-cc-focus': 'screen-transition' },
                         M.TRANSITIONS.map(x => h('option', { value: x, selected: (screen.transition || 'none') === x }, t.or('cyd_creator.transition.' + x, pretty(x)))))),
-                    h('div', { class: 'cc-field' }, h('span', { class: 'cc-field-label' }, bgLabel),
-                        h('div', { class: 'cc-color-row' },
+                    h('div', { class: 'cydc-field' }, h('span', { class: 'cydc-field-label' }, bgLabel),
+                        h('div', { class: 'cydc-color-row' },
                             // A colour input shows only #rrggbb: an invalid stored value shows the theme's.
                             h('input', { type: 'color', value: (HEX.test(bg) ? bg : HEX.test(themeBg) ? themeBg : '#000000').toLowerCase(), 'data-cc-field': 'bg', 'data-cc-focus': 'screen-bg', 'aria-label': bgLabel }),
-                            h('button', { type: 'button', class: 'cc-chip', 'data-cc-cmd': 'screen-bg-reset', 'aria-pressed': bg ? 'false' : 'true', 'data-cc-focus': 'screen-bg-reset', disabled: ro }, t.or('cyd_creator.designer.use_theme', 'Use theme'))))));
+                            h('button', { type: 'button', class: 'cydc-chip', 'data-cc-cmd': 'screen-bg-reset', 'aria-pressed': bg ? 'false' : 'true', 'data-cc-focus': 'screen-bg-reset', disabled: ro }, t.or('cyd_creator.designer.use_theme', 'Use theme'))))));
         }
 
         function layerRows(screen, ro) {
@@ -124,14 +124,14 @@
                     const lockLabel = w.locked ? t.or('cyd_creator.designer.unlock', 'Unlock') : t.or('cyd_creator.designer.lock', 'Lock');
                     const hideLabel = w.hidden ? t.or('cyd_creator.designer.show', 'Show') : t.or('cyd_creator.designer.hide', 'Hide');
                     // aria-level carries the nesting the indentation shows.
-                    rows.push(h('li', { class: 'cc-layer' + (selected.has(w.id) ? ' is-selected' : '') + (w.hidden ? ' is-hidden' : ''), 'aria-level': String(depth + 1), style: { '--cc-depth': String(depth) } },
-                        h('button', { type: 'button', class: 'cc-layer-select', 'data-cc-layer-id': w.id, 'data-cc-focus': 'layer:' + w.id, tabindex: '-1', 'aria-pressed': selected.has(w.id) ? 'true' : 'false', 'aria-label': [name, d.label(w.type), state].filter(Boolean).join(', ') },
-                            h('span', { class: 'cc-layer-glyph', 'aria-hidden': 'true' }, P.designerPalette ? (P.designerPalette.GLYPHS[w.type] || '◆') : '◆'),
-                            h('span', { class: 'cc-layer-name' }, name),
-                            h('span', { class: 'cc-layer-type' }, d.label(w.type)),
-                            issues.length ? h('span', { class: 'cc-issue-mark ' + (issues.some(i => i.severity === 'error') ? 'is-error' : 'is-warning'), title: issues.map(i => d.issueText(i)).join('\n') }, '!') : null),
-                        h('button', { type: 'button', class: 'cc-layer-flag', 'data-cc-cmd': 'layer-lock', 'data-cc-id': w.id, 'data-cc-focus': 'layer-lock:' + w.id, tabindex: '-1', disabled: ro, 'aria-pressed': w.locked ? 'true' : 'false', title: lockLabel, 'aria-label': lockLabel }, icon(w.locked ? 'lock' : 'unlock')),
-                        h('button', { type: 'button', class: 'cc-layer-flag', 'data-cc-cmd': 'layer-hide', 'data-cc-id': w.id, 'data-cc-focus': 'layer-hide:' + w.id, tabindex: '-1', disabled: ro, 'aria-pressed': w.hidden ? 'true' : 'false', title: hideLabel, 'aria-label': hideLabel }, icon(w.hidden ? 'eye-off' : 'eye'))));
+                    rows.push(h('li', { class: 'cydc-layer' + (selected.has(w.id) ? ' is-selected' : '') + (w.hidden ? ' is-hidden' : ''), 'aria-level': String(depth + 1), style: { '--cc-depth': String(depth) } },
+                        h('button', { type: 'button', class: 'cydc-layer-select', 'data-cc-layer-id': w.id, 'data-cc-focus': 'layer:' + w.id, tabindex: '-1', 'aria-pressed': selected.has(w.id) ? 'true' : 'false', 'aria-label': [name, d.label(w.type), state].filter(Boolean).join(', ') },
+                            h('span', { class: 'cydc-layer-glyph', 'aria-hidden': 'true' }, P.designerPalette ? (P.designerPalette.GLYPHS[w.type] || '◆') : '◆'),
+                            h('span', { class: 'cydc-layer-name' }, name),
+                            h('span', { class: 'cydc-layer-type' }, d.label(w.type)),
+                            issues.length ? h('span', { class: 'cydc-issue-mark ' + (issues.some(i => i.severity === 'error') ? 'is-error' : 'is-warning'), title: issues.map(i => d.issueText(i)).join('\n') }, '!') : null),
+                        h('button', { type: 'button', class: 'cydc-layer-flag', 'data-cc-cmd': 'layer-lock', 'data-cc-id': w.id, 'data-cc-focus': 'layer-lock:' + w.id, tabindex: '-1', disabled: ro, 'aria-pressed': w.locked ? 'true' : 'false', title: lockLabel, 'aria-label': lockLabel }, icon(w.locked ? 'lock' : 'unlock')),
+                        h('button', { type: 'button', class: 'cydc-layer-flag', 'data-cc-cmd': 'layer-hide', 'data-cc-id': w.id, 'data-cc-focus': 'layer-hide:' + w.id, tabindex: '-1', disabled: ro, 'aria-pressed': w.hidden ? 'true' : 'false', title: hideLabel, 'aria-label': hideLabel }, icon(w.hidden ? 'eye-off' : 'eye'))));
                     if (Array.isArray(w.children) && w.children.length) visit(w.children, depth + 1, w);
                 });
             })(Array.isArray(screen.widgets) ? screen.widgets : [], 0, null);
@@ -142,9 +142,9 @@
             const screen = d.isSystem() ? null : d.screen();
             const rows = screen ? layerRows(screen, ro) : [];
             const title = t.or('cyd_creator.designer.layers_title', 'Layers');
-            return h('section', { class: 'cc-layers', 'aria-label': title },
-                h('div', { class: 'cc-panel-head' }, h('h3', {}, title)),
-                rows.length ? h('ul', { class: 'cc-layer-list', role: 'list' }, rows) : h('p', { class: 'cc-panel-empty' }, d.isSystem()
+            return h('section', { class: 'cydc-layers', 'aria-label': title },
+                h('div', { class: 'cydc-panel-head' }, h('h3', {}, title)),
+                rows.length ? h('ul', { class: 'cydc-layer-list', role: 'list' }, rows) : h('p', { class: 'cydc-panel-empty' }, d.isSystem()
                     ? t.or('cyd_creator.designer.system_hint', 'This screen comes from the template and appears while Wi-Fi still needs to be set up. It follows the theme and cannot be edited.')
                     : t.or('cyd_creator.designer.layers_empty', 'No widgets on this screen yet.')));
         }
@@ -183,10 +183,10 @@
             const addLabel = t.or('cyd_creator.designer.screen_add', 'Add screen');
             const title = t.or('cyd_creator.designer.screens_title', 'Screens');
             swap(root, [
-                h('section', { class: 'cc-screen-section', 'aria-label': title },
-                    h('div', { class: 'cc-panel-head' }, h('h3', {}, title),
-                        h('button', { type: 'button', class: 'cc-tool', 'data-cc-cmd': 'screen-add', 'data-cc-focus': 'screen-add', disabled: ro || screens.length >= M.LIMITS.screens, title: addLabel, 'aria-label': addLabel }, icon('plus'))),
-                    h('ul', { class: 'cc-screen-list', role: 'list' }, screens.map((s, i) => screenRow(s, i, screens.length, p, ro)), wifiOn ? systemRow() : null)),
+                h('section', { class: 'cydc-screen-section', 'aria-label': title },
+                    h('div', { class: 'cydc-panel-head' }, h('h3', {}, title),
+                        h('button', { type: 'button', class: 'cydc-tool', 'data-cc-cmd': 'screen-add', 'data-cc-focus': 'screen-add', disabled: ro || screens.length >= M.LIMITS.screens, title: addLabel, 'aria-label': addLabel }, icon('plus'))),
+                    h('ul', { class: 'cydc-screen-list', role: 'list' }, screens.map((s, i) => screenRow(s, i, screens.length, p, ro)), wifiOn ? systemRow() : null)),
                 d.isSystem() ? null : screenProps(d.screen(), ro),
                 layers(ro)
             ]);

@@ -267,7 +267,7 @@ func TestCYDCreatorFoundationModules(t *testing.T) {
 
 func TestCYDCreatorStylesheetUsesThemeTokens(t *testing.T) {
 	css := rawDesktopAssetText(t, "css/desktop-app-cyd-creator.css")
-	split := strings.Index(css, ".cc-app [hidden] { display: none !important; }")
+	split := strings.Index(css, ".cydc-app [hidden] { display: none !important; }")
 	if split < 0 {
 		t.Fatal("the [hidden] rule must follow the token block")
 	}
@@ -277,10 +277,10 @@ func TestCYDCreatorStylesheetUsesThemeTokens(t *testing.T) {
 		shell = shell[:end]
 	}
 	if hex := regexp.MustCompile(`#[0-9a-fA-F]{3,8}\b`).FindString(shell); hex != "" {
-		t.Fatalf("literal colour %s outside the .cc-app token block", hex)
+		t.Fatalf("literal colour %s outside the .cydc-app token block", hex)
 	}
 	if fn := regexp.MustCompile(`\b(?:rgba?|hsla?)\(`).FindString(shell); fn != "" {
-		t.Fatalf("literal colour function %s…) outside the .cc-app token block", fn)
+		t.Fatalf("literal colour function %s…) outside the .cydc-app token block", fn)
 	}
 	// Shell rules only read --cc-* tokens the stylesheet defines (plan 4b's inline --cc-grid/--cc-depth
 	// live in its own section).
@@ -295,8 +295,8 @@ func TestCYDCreatorStylesheetUsesThemeTokens(t *testing.T) {
 	}
 	for _, marker := range []string{
 		"--cc-bg: var(--vd-theme-app-bg", "--cc-panel: var(--vd-theme-panel-bg", "--cc-border: var(--vd-theme-border",
-		"--cc-text: var(--vd-text", "container: cc-app / inline-size;", "@container cc-app (max-width: 820px)",
-		"@media (prefers-reduced-motion: reduce)", ".cc-app .cc-modal-backdrop",
+		"--cc-text: var(--vd-text", "container: cydc-app / inline-size;", "@container cydc-app (max-width: 820px)",
+		"@media (prefers-reduced-motion: reduce)", ".cydc-app .cydc-modal-backdrop",
 	} {
 		if !strings.Contains(css, marker) {
 			t.Errorf("desktop-app-cyd-creator.css misses %q", marker)
@@ -546,7 +546,7 @@ func TestCYDCreatorAppCarriesTheModuleContracts(t *testing.T) {
 		"inst.code ? inst.code.refreshFiles() : null", "inst.dock.trackBuild(build);",
 		"bus.on('events:failed'", "await P.api.getProject(inst.projectId);", "stopStream(inst, err);",
 		"dataset: { ccPublishReview: '' }", "v.reviewBanner.hidden = !project.publish_review;",
-		"if (!(await flushAll(inst))) throw unsavedError(inst);", "class: 'cc-btn cc-seg'",
+		"if (!(await flushAll(inst))) throw unsavedError(inst);", "class: 'cydc-btn cydc-seg'",
 		"'aurago:desktop-policy'", "if (inst.code) inst.code.updateReadOnly();", "if (inst.home) inst.home.refresh();")
 	checkCYDCreatorModule(t, "cyd-creator-events.js", "inst.bus.emit('events:failed', attempt);")
 }

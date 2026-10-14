@@ -263,7 +263,7 @@
         const glyph = symbolGlyph(symbol);
         return h('span', { style: { 'white-space': 'pre' } },
             kind === 'bracket' ? '[ ' : null,
-            glyph ? h('span', { class: 'cc-glyph' }, glyph) : null,
+            glyph ? h('span', { class: 'cydc-glyph' }, glyph) : null,
             glyph && text ? ' ' : null,
             text || null,
             kind === 'bracket' ? ' ]' : null);
@@ -288,7 +288,7 @@
                 return h('div', { style: box({ background: x.c.bg || 'transparent', 'border-radius': own(x.c.ownRadius, 0) + 'px' }) },
                     h('img', { src: x.assetUrl(id), alt: '', draggable: 'false', style: { width: '100%', height: '100%', 'object-fit': 'none', 'object-position': 'center', 'image-rendering': 'pixelated', 'pointer-events': 'none' } }));
             }
-            return h('div', { class: 'cc-wv-placeholder', style: box(center({ color: x.c.tk.text_muted, border: '1px dashed ' + x.c.tk.text_muted, 'font-size': '18px' })) }, symbolGlyph('image'));
+            return h('div', { class: 'cydc-wv-placeholder', style: box(center({ color: x.c.tk.text_muted, border: '1px dashed ' + x.c.tk.text_muted, 'font-size': '18px' })) }, symbolGlyph('image'));
         },
         panel(x) {
             return h('div', { style: box({ background: fill(x.c, x.c.tk.surface), border: border(x.c, x.c.tk.border_width || 0), 'border-radius': x.c.radius + 'px' }) });
@@ -314,7 +314,7 @@
             const on = x.bool('checked');
             const s = Math.round(parseInt(x.font['font-size'], 10) * 1.2) + 2 * LV.MARKER_PAD;
             return h('div', { style: box(Object.assign({}, x.font, { display: 'flex', 'align-items': 'flex-start', gap: LV.PAD_SMALL + 'px', color: x.c.text, background: x.c.bg || 'transparent', border: border(x.c, 0), 'border-radius': own(x.c.ownRadius, 0) + 'px' })) },
-                h('span', { class: 'cc-glyph', style: center({ width: s + 'px', height: s + 'px', flex: 'none', 'box-sizing': 'border-box', 'border-radius': Math.min(s / 2, x.c.tk.radius || 0) + 'px', border: Math.max(1, x.c.tk.border_width || 1) + 'px solid ' + x.c.tk.border, background: on ? x.c.accent : x.c.tk.surface, color: LV_WHITE }) }, on ? '✓' : ''),
+                h('span', { class: 'cydc-glyph', style: center({ width: s + 'px', height: s + 'px', flex: 'none', 'box-sizing': 'border-box', 'border-radius': Math.min(s / 2, x.c.tk.radius || 0) + 'px', border: Math.max(1, x.c.tk.border_width || 1) + 'px solid ' + x.c.tk.border, background: on ? x.c.accent : x.c.tk.surface, color: LV_WHITE }) }, on ? '✓' : ''),
                 h('span', { style: { 'white-space': 'nowrap', overflow: 'hidden', 'text-overflow': 'clip', 'line-height': s + 'px' } }, x.str('text')));
         },
         slider(x) {
@@ -354,7 +354,7 @@
             const opts = x.items('options');
             const sel = opts[Math.max(0, Math.min(opts.length - 1, x.num('selected')))] || '';
             return h('div', { style: box(Object.assign({}, x.font, { display: 'flex', 'align-items': 'center', 'justify-content': 'space-between', padding: '0 8px', color: x.c.text, background: fill(x.c, x.c.tk.surface), border: border(x.c, x.c.tk.border_width || 1), 'border-radius': x.c.radius + 'px', 'white-space': 'nowrap' })) },
-                h('span', { style: { overflow: 'hidden', 'text-overflow': 'ellipsis' } }, sel), h('span', { class: 'cc-glyph' }, '▾'));
+                h('span', { style: { overflow: 'hidden', 'text-overflow': 'ellipsis' } }, sel), h('span', { class: 'cydc-glyph' }, '▾'));
         },
         roller(x) {
             const opts = x.items('options');
@@ -382,7 +382,7 @@
             const sign = x.num('min') < 0 ? (v < 0 ? '-' : '+') : '';
             const text = sign + (decimals ? raw.slice(0, raw.length - decimals) + '.' + raw.slice(raw.length - decimals) : raw);
             const b = buttonFace(x.theme, colors(x.theme, null));
-            const btn = glyph => h('span', { class: 'cc-glyph', style: center(Object.assign({}, b.face, { width: x.w.h + 'px', height: '100%', flex: 'none', 'box-sizing': 'border-box' })) }, glyph);
+            const btn = glyph => h('span', { class: 'cydc-glyph', style: center(Object.assign({}, b.face, { width: x.w.h + 'px', height: '100%', flex: 'none', 'box-sizing': 'border-box' })) }, glyph);
             return h('div', { style: box(Object.assign({}, x.font, { display: 'flex', gap: '4px', color: x.c.text })) },
                 btn(SYMBOLS.minus), h('div', { style: center({ flex: '1', 'min-width': '0', overflow: 'hidden', background: fill(x.c, x.c.tk.surface), border: border(x.c, x.c.tk.border_width || 1), 'border-radius': x.c.radius + 'px', 'box-sizing': 'border-box' }) }, text), btn(SYMBOLS.plus));
         },
@@ -540,7 +540,7 @@
             if (pos === 'right') Object.assign(barStyle, { right: '0', top: '0', bottom: '0', width: size + 'px' });
             const active = Math.max(0, Math.min(tabs.length - 1, x.activeTab));
             return h('div', { style: box(Object.assign({}, x.font, { background: fill(x.c, x.c.tk.bg), border: border(x.c, 0), 'border-radius': own(x.c.ownRadius, 0) + 'px', color: x.c.text })) },
-                h('div', { class: 'cc-tabbar', style: barStyle }, tabs.map((label, i) => h('span', {
+                h('div', { class: 'cydc-tabbar', style: barStyle }, tabs.map((label, i) => h('span', {
                     'data-cc-tab': String(i),
                     style: center({ flex: '1', 'min-width': '0', 'min-height': '0', overflow: 'hidden', 'white-space': 'nowrap', padding: '0 4px', 'box-sizing': 'border-box', color: i === active ? x.c.tk.accent : x.c.tk.text, background: i === active ? rgba(x.c.tk.accent, 0.2) : 'transparent', 'border-bottom': i === active ? LV.TAB_BORDER + 'px solid ' + x.c.tk.accent : 'none', 'padding-top': i === active ? LV.TAB_BORDER + 'px' : '0' })
                 }, label))));
@@ -559,21 +559,21 @@
             const title = x.str('title');
             const b = buttonFace(x.theme, colors(x.theme, null));
             const bar = { flex: 'none', height: LV.BAR_H + 'px', 'box-sizing': 'border-box', display: 'flex' };
-            return h('div', { class: 'cc-wv-modal', style: box(Object.assign({}, x.font, { display: 'flex', 'flex-direction': 'column', color: x.c.text, background: fill(x.c, x.c.tk.surface), border: border(x.c, Math.max(1, x.c.tk.border_width || 1)), 'border-radius': x.c.radius + 'px' })) },
+            return h('div', { class: 'cydc-wv-modal', style: box(Object.assign({}, x.font, { display: 'flex', 'flex-direction': 'column', color: x.c.text, background: fill(x.c, x.c.tk.surface), border: border(x.c, Math.max(1, x.c.tk.border_width || 1)), 'border-radius': x.c.radius + 'px' })) },
                 title ? h('div', { style: Object.assign({}, bar, { 'align-items': 'center', padding: '0 ' + LV.PAD_SMALL + 'px', background: x.c.tk.surface_alt, 'white-space': 'nowrap', overflow: 'hidden' }) }, h('span', { style: { overflow: 'hidden', 'text-overflow': 'ellipsis' } }, title)) : null,
                 h('div', { style: { flex: '1', 'min-height': '0', overflow: 'hidden', padding: LV.PAD_SMALL + 'px', 'white-space': 'pre-wrap', 'overflow-wrap': 'anywhere' } }, x.str('text')),
                 buttons.length ? h('div', { style: Object.assign({}, bar, { 'align-items': 'stretch', 'justify-content': 'space-evenly', padding: LV.PAD_SMALL + 'px' }) },
                     buttons.map(t => h('span', { style: center(Object.assign({}, b.face, { padding: '0 ' + LV.PAD_DEF + 'px', 'white-space': 'nowrap', 'box-sizing': 'border-box' })) }, buttonLabel(b.kind, '', t)))) : null);
         },
         canvas(x) {
-            return h('div', { class: 'cc-wv-placeholder', style: box(center({ background: fill(x.c, x.c.tk.surface_alt), border: '1px dashed ' + x.c.tk.text_muted, color: x.c.tk.text_muted, 'font-size': '18px' })) }, '▦');
+            return h('div', { class: 'cydc-wv-placeholder', style: box(center({ background: fill(x.c, x.c.tk.surface_alt), border: '1px dashed ' + x.c.tk.text_muted, color: x.c.tk.text_muted, 'font-size': '18px' })) }, '▦');
         },
         statusbar(x) {
             // ui__st_statusbar: surface, bottom border only, no radius, the theme's small font. An empty
             // title shows the screen title; Wi-Fi/clock follow the project settings when given.
             const set = x.settings;
             const parts = [];
-            if (x.bool('show_wifi') && (!set || set.wifi !== 'off')) parts.push(h('span', { class: 'cc-glyph' }, symbolGlyph('wifi')));
+            if (x.bool('show_wifi') && (!set || set.wifi !== 'off')) parts.push(h('span', { class: 'cydc-glyph' }, symbolGlyph('wifi')));
             if (x.bool('show_clock') && (!set || set.statusbar_clock === true)) parts.push(h('span', {}, '12:34'));
             const bw = x.c.bw === null ? (x.c.tk.border_width || 0) : x.c.bw;
             return h('div', { style: box(Object.assign({}, x.font, { display: 'flex', 'align-items': 'center', 'justify-content': 'space-between', gap: '8px', padding: '0 6px', color: x.c.text, background: fill(x.c, x.c.tk.surface), 'border-bottom': bw > 0 ? bw + 'px solid ' + x.c.border : 'none', 'border-radius': own(x.c.ownRadius, 0) + 'px', 'white-space': 'nowrap', 'font-size': smallSize((x.theme && x.theme.font_size) || 16) + 'px' })) },
@@ -595,8 +595,8 @@
             screenTitle: typeof o.screenTitle === 'string' ? o.screenTitle.slice(0, MAX_TEXT) : '',
             settings
         });
-        const node = renderer ? renderer(ctx) : h('div', { class: 'cc-wv-placeholder', style: box(center({ border: '1px dashed ' + (c.tk.danger || 'currentColor'), color: c.tk.danger })) }, '?');
-        node.attrs.class = ('cc-wv cc-wv-' + (renderer ? spec.type : 'unknown') + ' ' + (node.attrs.class || '')).trim();
+        const node = renderer ? renderer(ctx) : h('div', { class: 'cydc-wv-placeholder', style: box(center({ border: '1px dashed ' + (c.tk.danger || 'currentColor'), color: c.tk.danger })) }, '?');
+        node.attrs.class = ('cydc-wv cydc-wv-' + (renderer ? spec.type : 'unknown') + ' ' + (node.attrs.class || '')).trim();
         return node;
     }
 
@@ -611,7 +611,7 @@
         const font = { 'font-family': fontFamily(theme && theme.font), 'font-size': ((theme && theme.font_size) || 16) + 'px', 'line-height': '1.25' };
         const qrSize = Math.max(64, Math.min(120, Math.round(Math.min(size.w, size.h) * 0.4)));
         const qr = tree({ type: 'qrcode', props: [{ name: 'text', kind: 'string', default: 'WIFI:T:WPA;S:CYD-Setup;P:12345678;;' }] }, { id: 'sys_qr', type: 'qrcode', x: 0, y: 0, w: qrSize, h: qrSize }, theme, {});
-        return h('div', { class: 'cc-system-screen', style: box(Object.assign({}, font, { display: 'flex', 'flex-direction': 'column', gap: '8px', padding: '12px', color: tk.text, background: tk.bg })) },
+        return h('div', { class: 'cydc-system-screen', style: box(Object.assign({}, font, { display: 'flex', 'flex-direction': 'column', gap: '8px', padding: '12px', color: tk.text, background: tk.bg })) },
             h('div', { style: { 'font-weight': '600', 'font-size': '1.1em' } }, t('cyd_creator.designer.system_wifi_title')),
             h('div', { style: { display: 'flex', gap: '12px', 'align-items': 'center', flex: '1', 'min-height': '0' } },
                 h('div', { style: { position: 'relative', width: qrSize + 'px', height: qrSize + 'px', flex: 'none' } }, qr),
@@ -656,7 +656,7 @@
         close: 'M6 6l12 12M18 6L6 18'
     };
     function icon(name, cls) {
-        return h('svg', { class: 'cc-icon' + (cls ? ' ' + cls : ''), viewBox: '0 0 24 24', width: '16', height: '16', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true', focusable: 'false' }, h('path', { d: ICONS[name] || ICONS.close }));
+        return h('svg', { class: 'cydc-icon' + (cls ? ' ' + cls : ''), viewBox: '0 0 24 24', width: '16', height: '16', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true', focusable: 'false' }, h('path', { d: ICONS[name] || ICONS.close }));
     }
 
     P.render = { h, dom, html, swap, esc, rgba, colors, fontFamily, fontStyle, symbolGlyph, tree, widget, wifiSetup, icon, ICONS, TYPES: Object.keys(R), FAMILIES, SYMBOLS, FONT_SIZES };

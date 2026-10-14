@@ -538,17 +538,17 @@
         const promise = new Promise(resolve => { resolveFn = resolve; });
         const previousFocus = document.activeElement;
         const titleId = util.uid('cc_dlg');
-        const errorBox = util.el('p', { class: 'cc-dialog-error', role: 'alert', hidden: true });
-        const actions = util.el('div', { class: 'cc-dialog-actions' });
+        const errorBox = util.el('p', { class: 'cydc-dialog-error', role: 'alert', hidden: true });
+        const actions = util.el('div', { class: 'cydc-dialog-actions' });
         const dialog = util.el('div', {
-            class: 'cc-dialog' + (s.className ? ' ' + s.className : ''),
+            class: 'cydc-dialog' + (s.className ? ' ' + s.className : ''),
             role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': titleId
         },
-        util.el('h2', { class: 'cc-dialog-title', id: titleId, text: s.title || '' }),
-        util.el('div', { class: 'cc-dialog-body' }, s.body || null),
+        util.el('h2', { class: 'cydc-dialog-title', id: titleId, text: s.title || '' }),
+        util.el('div', { class: 'cydc-dialog-body' }, s.body || null),
         errorBox,
         actions);
-        const backdrop = util.el('div', { class: 'cc-modal-backdrop' }, dialog);
+        const backdrop = util.el('div', { class: 'cydc-modal-backdrop' }, dialog);
         let closed = false;
         let entry = null;
         let release = () => {};
@@ -578,7 +578,7 @@
         (s.actions || []).forEach(action => {
             const button = util.el('button', {
                 type: 'button',
-                class: 'cc-btn' + (action.kind ? ' cc-btn--' + action.kind : ''),
+                class: 'cydc-btn' + (action.kind ? ' cydc-btn--' + action.kind : ''),
                 dataset: { ccDialogAction: action.id, locked: action.disabled ? '1' : null },
                 disabled: !!action.disabled,
                 text: action.label

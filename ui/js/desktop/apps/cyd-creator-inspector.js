@@ -62,7 +62,7 @@
         const drafts = new Map();
         // live: elements of the shown panel that own edits update in place (the panel is not rebuilt).
         let live = { issues: null, hooks: [] };
-        const root = dom(h('div', { class: 'cc-inspector', role: 'region', tabindex: '-1', 'aria-label': t.or('cyd_creator.designer.inspector_title', 'Properties') }));
+        const root = dom(h('div', { class: 'cydc-inspector', role: 'region', tabindex: '-1', 'aria-label': t.or('cyd_creator.designer.inspector_title', 'Properties') }));
         host.appendChild(root);
         const current = id => { const f = d.find(id); return f ? f.widget : null; };
         const widgetLabel = type => t.or('cyd_creator.widget.' + type, pretty(type));
@@ -78,7 +78,7 @@
         const setWidget = (id, set, coalesce, rerender) => edit('edit', [{ op: 'update_widget', id, set }], coalesce, rerender);
         const setSettings = (set, coalesce, rerender) => edit('settings', [{ op: 'set_settings', set }], coalesce, rerender);
         const setProject = (set, coalesce, rerender) => edit('project', [{ op: 'set_project', set }], coalesce, rerender);
-        const section = (title, ...body) => h('section', { class: 'cc-insp-section' }, h('h4', {}, title), body);
+        const section = (title, ...body) => h('section', { class: 'cydc-insp-section' }, h('h4', {}, title), body);
         // guard gives a checked field its refused entry (draft) and keeps the next one.
         const guard = (key, check, extra) => Object.assign({ check, draft: drafts.get(key), onRefuse: raw => drafts.set(key, raw), onAccept: () => drafts.delete(key) }, extra || {});
 
@@ -116,8 +116,8 @@
         };
 
         // ── issues (replaced in place when the shell reports a new list) ────
-        const issueList = list => (list.length ? h('ul', { class: 'cc-issues', role: 'list' }, list.map(i => h('li', { class: 'cc-issue is-' + (i.severity === 'error' ? 'error' : 'warning') }, d.issueText(i)))) : null);
-        const issueBox = () => h('div', { class: 'cc-insp-issues', ref: el => { live.issues = el; } }, issueList(ui.issuesOf ? ui.issuesOf() : []));
+        const issueList = list => (list.length ? h('ul', { class: 'cydc-issues', role: 'list' }, list.map(i => h('li', { class: 'cydc-issue is-' + (i.severity === 'error' ? 'error' : 'warning') }, d.issueText(i)))) : null);
+        const issueBox = () => h('div', { class: 'cydc-insp-issues', ref: el => { live.issues = el; } }, issueList(ui.issuesOf ? ui.issuesOf() : []));
         const issueKey = list => JSON.stringify(list.map(i => [i.code, i.severity, i.path || '']));
         function refreshIssues() {
             if (ui.disposed || !live.issues || !ui.issuesOf) return;
@@ -136,7 +136,7 @@
             const pick = id => { d.setPreviewTheme(''); edit('theme', [{ op: 'set_theme', theme: id }], null, true); };
             const tabbable = Math.max(0, themes.findIndex(x => x.id === currentId));
             return h('div', {
-                class: 'cc-theme-grid', role: 'radiogroup', 'aria-label': t.or('cyd_creator.designer.section_theme', 'Theme'),
+                class: 'cydc-theme-grid', role: 'radiogroup', 'aria-label': t.or('cyd_creator.designer.section_theme', 'Theme'),
                 on: {
                     keydown(event) {
                         const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
@@ -155,12 +155,12 @@
                 const tk = th.tokens || {};
                 const on = th.id === currentId;
                 return h('button', {
-                    type: 'button', role: 'radio', class: 'cc-theme-swatch', 'aria-checked': on ? 'true' : 'false', tabindex: index === tabbable ? '0' : '-1',
+                    type: 'button', role: 'radio', class: 'cydc-theme-swatch', 'aria-checked': on ? 'true' : 'false', tabindex: index === tabbable ? '0' : '-1',
                     'data-cc-theme': th.id, 'data-cc-focus': 'theme:' + th.id,
                     on: { click: () => pick(th.id), pointerenter: () => d.setPreviewTheme(th.id), focus: () => d.setPreviewTheme(th.id), blur: () => d.setPreviewTheme('') }
-                }, h('span', { class: 'cc-swatch', style: { background: tk.bg, color: tk.text, 'border-color': tk.border, 'font-family': P.render.fontFamily(th.font) } },
-                    h('span', { class: 'cc-swatch-surface', style: { background: tk.surface } }), h('span', { class: 'cc-swatch-accent', style: { background: tk.accent } }), 'Aa'),
-                h('span', { class: 'cc-theme-name' }, t.or('cyd_creator.theme.' + th.id, pretty(th.id))));
+                }, h('span', { class: 'cydc-swatch', style: { background: tk.bg, color: tk.text, 'border-color': tk.border, 'font-family': P.render.fontFamily(th.font) } },
+                    h('span', { class: 'cydc-swatch-surface', style: { background: tk.surface } }), h('span', { class: 'cydc-swatch-accent', style: { background: tk.accent } }), 'Aa'),
+                h('span', { class: 'cydc-theme-name' }, t.or('cyd_creator.theme.' + th.id, pretty(th.id))));
             }));
         }
 
@@ -179,18 +179,18 @@
             const backlight = Number.isInteger(s.backlight) && s.backlight >= LIMITS.backlight[0] && s.backlight <= LIMITS.backlight[1] ? s.backlight : LIMITS.backlight[1];
             const libs = new Set(Array.isArray(s.libraries) ? s.libraries : []);
             let out = null;
-            return h('div', { class: 'cc-insp', 'data-cc-inspect': 'project' },
-                h('div', { class: 'cc-insp-head' }, h('h3', {}, t.or('cyd_creator.designer.project_title', 'Project')), h('span', { class: 'cc-insp-sub' }, str(p.name))),
+            return h('div', { class: 'cydc-insp', 'data-cc-inspect': 'project' },
+                h('div', { class: 'cydc-insp-head' }, h('h3', {}, t.or('cyd_creator.designer.project_title', 'Project')), h('span', { class: 'cydc-insp-sub' }, str(p.name))),
                 issueBox(),
-                h('fieldset', { class: 'cc-fieldset', disabled: ro },
+                h('fieldset', { class: 'cydc-fieldset', disabled: ro },
                     section(t.or('cyd_creator.designer.section_theme', 'Theme'), themeGrid(p.theme)),
                     section(t.or('cyd_creator.designer.section_display', 'Display'),
-                        board ? h('p', { class: 'cc-board' }, h('span', {}, board.label), h('span', { class: 'cc-badge cc-badge-' + board.status }, t.or('cyd_creator.board.status_' + board.status, pretty(board.status)))) : null,
+                        board ? h('p', { class: 'cydc-board' }, h('span', {}, board.label), h('span', { class: 'cydc-badge cydc-badge-' + board.status }, t.or('cyd_creator.board.status_' + board.status, pretty(board.status)))) : null,
                         F.select(t.or('cyd_creator.designer.orientation', 'Orientation'), 'orientation',
                             M.ORIENTATIONS.map(o => [o, t.or('cyd_creator.orientation.' + o, pretty(o)), !!native && o.startsWith('portrait') !== (native === 'portrait')]),
                             p.orientation, v => setProject({ orientation: v }, null, true)),
-                        h('div', { class: 'cc-field' }, h('label', { class: 'cc-field-label', for: rangeId }, t.or('cyd_creator.designer.backlight', 'Backlight')),
-                            h('div', { class: 'cc-range-row' },
+                        h('div', { class: 'cydc-field' }, h('label', { class: 'cydc-field-label', for: rangeId }, t.or('cyd_creator.designer.backlight', 'Backlight')),
+                            h('div', { class: 'cydc-range-row' },
                                 h('input', {
                                     id: rangeId, type: 'range', min: String(LIMITS.backlight[0]), max: String(LIMITS.backlight[1]), step: '5', value: String(backlight),
                                     'data-cc-field': 'backlight', 'data-cc-focus': 'backlight', 'aria-describedby': outId,
@@ -219,7 +219,7 @@
                             v => setProject({ timezone: v.trim() }, 'timezone', false)),
                         h('datalist', { id: tzList }, TIMEZONES.map(([label, value]) => h('option', { value, label })))),
                     section(t.or('cyd_creator.designer.section_libraries', 'Libraries'),
-                        h('div', { class: 'cc-check-list' }, (caps.libraries || []).map(lib => F.check(lib.name, 'lib:' + lib.id, libs.has(lib.id), on => {
+                        h('div', { class: 'cydc-check-list' }, (caps.libraries || []).map(lib => F.check(lib.name, 'lib:' + lib.id, libs.has(lib.id), on => {
                             const next = new Set(Array.isArray((d.project().settings || {}).libraries) ? d.project().settings.libraries : []);
                             if (on) next.add(lib.id); else next.delete(lib.id);
                             setSettings({ libraries: (caps.libraries || []).map(l => l.id).filter(id => next.has(id)) }, null, true);
@@ -251,14 +251,14 @@
             const num = key => F.number(labels[key], 'geo:' + key, w[key], range(key), v => setWidget(w.id, { [key]: v }, 'geo:' + w.id + ':' + key, false));
             const tabs = f.parent && f.parent.type === 'tabview' ? (M.propValue(f.parent, d.spec('tabview'), 'tabs') || []) : null;
             return [
-                h('div', { class: 'cc-grid-2' }, num('x'), num('y'), num('w'), num('h')),
+                h('div', { class: 'cydc-grid-2' }, num('x'), num('y'), num('w'), num('h')),
                 Array.isArray(tabs) ? F.select(t.or('cyd_creator.designer.tab_page', 'Tab page'), 'tab', tabs.map((label, i) => [String(i), str(label)]), String(w.tab || 0), v => {
                     const tab = P.designerFields.clampInt(v, 0, Math.max(0, tabs.length - 1));
                     if (tab === null) return;
                     setWidget(w.id, { tab }, null, true);
                     d.setTab(f.parent.id, tab);
                 }) : null,
-                h('div', { class: 'cc-grid-2' },
+                h('div', { class: 'cydc-grid-2' },
                     F.check(t.or('cyd_creator.designer.lock', 'Lock'), 'locked', !!w.locked, v => setWidget(w.id, { locked: v }, null, true)),
                     F.check(t.or('cyd_creator.designer.hide', 'Hide'), 'hidden', !!w.hidden, v => setWidget(w.id, { hidden: v }, null, true)))
             ];
@@ -302,13 +302,13 @@
             const color = ([k, token]) => F.color(label(k), 'style:' + k, str(st[k]), tk[token], v => setStyle(k, v), () => setStyle(k, null, true));
             const num = k => F.optionalNumber(label(k), 'style:' + k, st[k], { min: 0, max: LIMITS.style[k] }, t.or('cyd_creator.designer.theme_value', 'Theme'), v => setStyle(k, v));
             return [STYLE_COLORS.slice(0, 1).map(color), num('bg_opacity'), STYLE_COLORS.slice(1).map(color),
-                h('div', { class: 'cc-grid-2' }, num('border_width'), num('radius'))];
+                h('div', { class: 'cydc-grid-2' }, num('border_width'), num('radius'))];
         }
 
         function eventsEditor(w, spec) {
             const allowed = (spec && spec.events) || [];
             const events = Array.isArray(w.events) ? w.events : [];
-            const none = h('p', { class: 'cc-panel-empty' }, t.or('cyd_creator.designer.events_none', 'This widget has no events.'));
+            const none = h('p', { class: 'cydc-panel-empty' }, t.or('cyd_creator.designer.events_none', 'This widget has no events.'));
             // Events on a type without events (an imported or agent-written layout) stay listed, so
             // they can be removed.
             if (!allowed.length && !events.length) return none;
@@ -358,8 +358,8 @@
                         if (button) button.disabled = hookOff(name);
                     });
                 }
-                return h('div', { class: 'cc-event', 'data-cc-event': String(i) },
-                    h('div', { class: 'cc-event-head' },
+                return h('div', { class: 'cydc-event', 'data-cc-event': String(i) },
+                    h('div', { class: 'cydc-event-head' },
                         F.select(t.or('cyd_creator.designer.event_on', 'Event'), 'event:' + i + ':on', allowed.map(e => [e, t.or('cyd_creator.event.' + e, pretty(e)), used.has(e)]), on, v => {
                             // An event of another type, or one bound already, would be EVENT_NOT_ALLOWED.
                             if (!allowed.includes(v) || listOf().some((e, j) => j !== i && e && e.on === v)) return;
@@ -369,30 +369,30 @@
                             M.ACTIONS.map(a => [a, t.or('cyd_creator.action.' + a, pretty(a)), a === 'open_wifi_setup' && wifiOff]), str(action.type),
                             v => patch(i, b => { b.action = normalize(b.action || {}, v); }, true)),
                         h('button', {
-                            type: 'button', class: 'cc-tool', 'data-cc-focus': 'event:' + i + ':remove', title: t.or('cyd_creator.designer.event_remove', 'Remove event'), 'aria-label': t.or('cyd_creator.designer.event_remove', 'Remove event'),
+                            type: 'button', class: 'cydc-tool', 'data-cc-focus': 'event:' + i + ':remove', title: t.or('cyd_creator.designer.event_remove', 'Remove event'), 'aria-label': t.or('cyd_creator.designer.event_remove', 'Remove event'),
                             on: { click: () => { const list = listOf(); list.splice(i, 1); dropEventDrafts(); save(list, true); } }
                         }, icon('trash'))),
-                    action.type === 'goto_screen' ? h('div', { class: 'cc-event-body' },
+                    action.type === 'goto_screen' ? h('div', { class: 'cydc-event-body' },
                         F.select(t.or('cyd_creator.designer.event_screen', 'Target screen'), 'event:' + i + ':screen', screens.map(s => [s.id, str(s.name)]), str(action.screen),
                             v => { if (screens.some(s => s.id === v)) patch(i, b => { b.action.screen = v; }, true); }, t.or('cyd_creator.designer.screen_missing', 'Missing screen')),
                         F.select(t.or('cyd_creator.designer.event_transition', 'Transition'), 'event:' + i + ':transition',
                             [['', t.or('cyd_creator.designer.transition_screen_default', 'Screen’s own transition')]].concat(M.TRANSITIONS.map(x => [x, t.or('cyd_creator.transition.' + x, pretty(x))])),
                             str(action.transition), v => patch(i, b => { if (v) b.action.transition = v; else delete b.action.transition; }, true))) : null,
-                    action.type === 'logic' ? h('div', { class: 'cc-event-body' },
+                    action.type === 'logic' ? h('div', { class: 'cydc-event-body' },
                         F.textarea(t.or('cyd_creator.designer.event_hint', 'What should happen? (for the agent)'), 'event:' + i + ':hint', str(action.hint),
                             guard('event:' + i + ':hint', hintCheck, { placeholder: t.or('cyd_creator.designer.event_hint_placeholder', 'e.g. reload the weather and show it'), counter: raw => Array.from(String(raw)).length + ' / ' + M.LIMITS.hintRunes }),
                             v => patch(i, b => { if (!b.action) b.action = { type: 'logic' }; b.action.hint = v; }, false, 'hint:' + w.id + ':' + i)),
-                        h('div', { class: 'cc-hook-row' },
-                            h('code', { class: 'cc-hook-name', ref: el => { code = el; } }, hookName(w.name)),
+                        h('div', { class: 'cydc-hook-row' },
+                            h('code', { class: 'cydc-hook-name', ref: el => { code = el; } }, hookName(w.name)),
                             h('button', {
-                                type: 'button', class: 'cc-chip', 'data-cc-focus': 'event:' + i + ':hook', disabled: hookOff(w.name), ref: el => { button = el; },
+                                type: 'button', class: 'cydc-chip', 'data-cc-focus': 'event:' + i + ':hook', disabled: hookOff(w.name), ref: el => { button = el; },
                                 on: { click: () => createHook(w.id, on) }
                             }, icon('code'), t.or('cyd_creator.designer.create_hook', 'Create hook')))) : null);
             });
             if (!allowed.length) return [none, rows];
             const free = allowed.filter(e => !events.some(b => b && b.on === e));
             return [rows, h('button', {
-                type: 'button', class: 'cc-chip', 'data-cc-focus': 'event:add', disabled: !free.length,
+                type: 'button', class: 'cydc-chip', 'data-cc-focus': 'event:add', disabled: !free.length,
                 on: { click: () => { const list = listOf(); list.push({ on: free[0], action: { type: 'logic', hint: '' } }); dropEventDrafts(); save(list, true); } }
             }, icon('plus'), t.or('cyd_creator.designer.event_add', 'Add event'))];
         }
@@ -464,12 +464,12 @@
         function widgetPanel(f, ro) {
             const w = f.widget;
             const spec = d.spec(w.type);
-            return h('div', { class: 'cc-insp', 'data-cc-inspect': w.id },
-                h('div', { class: 'cc-insp-head' },
-                    h('span', { class: 'cc-insp-glyph', 'aria-hidden': 'true' }, (P.designerPalette && P.designerPalette.GLYPHS[w.type]) || '◆'),
-                    h('h3', {}, widgetLabel(w.type)), h('code', { class: 'cc-insp-id' }, str(w.id))),
+            return h('div', { class: 'cydc-insp', 'data-cc-inspect': w.id },
+                h('div', { class: 'cydc-insp-head' },
+                    h('span', { class: 'cydc-insp-glyph', 'aria-hidden': 'true' }, (P.designerPalette && P.designerPalette.GLYPHS[w.type]) || '◆'),
+                    h('h3', {}, widgetLabel(w.type)), h('code', { class: 'cydc-insp-id' }, str(w.id))),
                 issueBox(),
-                h('fieldset', { class: 'cc-fieldset', disabled: ro },
+                h('fieldset', { class: 'cydc-fieldset', disabled: ro },
                     section(t.or('cyd_creator.designer.section_name', 'Name'), nameField(w)),
                     section(t.or('cyd_creator.designer.section_geometry', 'Position and size'), geometry(f)),
                     spec && (spec.props || []).length ? section(t.or('cyd_creator.designer.section_props', 'Properties'), spec.props.map(ps => propField(w, spec, ps))) : null,
@@ -478,10 +478,10 @@
         }
 
         function multiPanel(ids) {
-            return h('div', { class: 'cc-insp', 'data-cc-inspect': 'multi' },
-                h('div', { class: 'cc-insp-head' }, h('h3', {}, t.or('cyd_creator.designer.multi_title', '{count} widgets selected', { count: ids.length }))),
-                h('ul', { class: 'cc-multi-list', role: 'list' }, ids.map(id => { const w = current(id); return w ? h('li', {}, h('span', {}, str(w.name) || widgetLabel(w.type)), h('span', { class: 'cc-layer-type' }, widgetLabel(w.type))) : null; })),
-                h('p', { class: 'cc-panel-hint' }, t.or('cyd_creator.designer.multi_hint', 'Use the toolbar above the screen to align, distribute, lock or delete them.')));
+            return h('div', { class: 'cydc-insp', 'data-cc-inspect': 'multi' },
+                h('div', { class: 'cydc-insp-head' }, h('h3', {}, t.or('cyd_creator.designer.multi_title', '{count} widgets selected', { count: ids.length }))),
+                h('ul', { class: 'cydc-multi-list', role: 'list' }, ids.map(id => { const w = current(id); return w ? h('li', {}, h('span', {}, str(w.name) || widgetLabel(w.type)), h('span', { class: 'cydc-layer-type' }, widgetLabel(w.type))) : null; })),
+                h('p', { class: 'cydc-panel-hint' }, t.or('cyd_creator.designer.multi_hint', 'Use the toolbar above the screen to align, distribute, lock or delete them.')));
         }
 
         function render() {
@@ -499,8 +499,8 @@
             ui.issuesOf = null;
             let node;
             if (panel === 'system') {
-                node = h('div', { class: 'cc-insp', 'data-cc-inspect': 'system' }, h('div', { class: 'cc-insp-head' }, h('h3', {}, t.or('cyd_creator.designer.system_wifi', 'Wi-Fi setup'))),
-                    h('p', { class: 'cc-panel-hint' }, t.or('cyd_creator.designer.system_hint', 'This screen comes from the template and appears while Wi-Fi still needs to be set up. It follows the theme and cannot be edited.')));
+                node = h('div', { class: 'cydc-insp', 'data-cc-inspect': 'system' }, h('div', { class: 'cydc-insp-head' }, h('h3', {}, t.or('cyd_creator.designer.system_wifi', 'Wi-Fi setup'))),
+                    h('p', { class: 'cydc-panel-hint' }, t.or('cyd_creator.designer.system_hint', 'This screen comes from the template and appears while Wi-Fi still needs to be set up. It follows the theme and cannot be edited.')));
             } else if (one) {
                 const id = one.widget.id;
                 ui.issuesOf = () => { const cur = current(id); return cur ? d.issuesFor(cur) : []; };

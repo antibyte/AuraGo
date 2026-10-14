@@ -2,7 +2,7 @@
 // P.i18n, P.createBus) is loaded before the designer modules; this file adds a fake shell instance
 // with the 4a seam (layout store, capabilities, bus events lock:changed(locked, jobId) and
 // readonly:changed(bool), asset upload that replaces the store remotely like plan 4a's window,
-// hooks, confirm) and mounts the designer into the shell's workbench columns inside .cc-app.
+// hooks, confirm) and mounts the designer into the shell's workbench columns inside .cydc-app.
 // Keys Delete, Backspace, Enter and F2 that reach the document (where the desktop's own handler
 // listens) are recorded in pageKeys. Test hooks: window.cydFixture.
 (function () {
@@ -101,7 +101,7 @@
             widget: id => { const f = P.model.findWidget(store.get(), id); return f ? f.widget : null; },
             parentOf: id => { const f = P.model.findWidget(store.get(), id); return f && f.parent ? f.parent.id : ''; },
             abs: id => P.model.absRect(store.get(), id, designer.state.env()),
-            client(x, y) { const r = document.querySelector('.cc-screen-host').getBoundingClientRect(); const z = designer.state.zoom; return { x: r.left + x * z, y: r.top + y * z }; },
+            client(x, y) { const r = document.querySelector('.cydc-screen-host').getBoundingClientRect(); const z = designer.state.zoom; return { x: r.left + x * z, y: r.top + y * z }; },
             // byFocus finds a control by its data-cc-focus key.
             byFocus: key => Array.from(document.querySelectorAll('[data-cc-focus]')).find(el => el.getAttribute('data-cc-focus') === key) || null,
             // setLocked and setReadonly send the events plan 4a sends (app.js lock:changed, setReadonly).

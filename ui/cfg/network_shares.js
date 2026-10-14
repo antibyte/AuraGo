@@ -115,39 +115,39 @@ function renderNetworkSharesSection(section) {
 
         <div class="field-group">
             <div class="field-group-title">${escapeHtml(t('config.network_shares.runtime_title'))}</div>
-            <div class="cc-actions-row">
-                <button id="ns-reprobe-btn" type="button" class="btn-save cc-btn-secondary" onclick="nsReprobe()">↻ ${escapeHtml(t('config.network_shares.reprobe'))}</button>
-                <button id="ns-create-btn" type="button" class="btn-save cc-btn-primary" onclick="nsOpenShareModal('')" disabled>＋ ${escapeHtml(t('config.network_shares.create'))}</button>
+            <div class="cfgdev-actions-row">
+                <button id="ns-reprobe-btn" type="button" class="btn-save cfgdev-btn-secondary" onclick="nsReprobe()">↻ ${escapeHtml(t('config.network_shares.reprobe'))}</button>
+                <button id="ns-create-btn" type="button" class="btn-save cfgdev-btn-primary" onclick="nsOpenShareModal('')" disabled>＋ ${escapeHtml(t('config.network_shares.create'))}</button>
             </div>
             <div id="ns-action-result" class="adg-test-result" role="status" aria-live="polite"></div>
             <div id="ns-protocol-status"></div>
             <div id="ns-share-table"></div>
         </div>
 
-        <div id="ns-share-modal" class="cc-modal-overlay is-hidden" onclick="nsCloseShareModal(event)">
-            <div class="cc-modal-card" role="dialog" aria-modal="true" aria-labelledby="ns-modal-title" onclick="event.stopPropagation()">
-                <div class="cc-modal-header">
-                    <span id="ns-modal-title" class="cc-modal-title"></span>
-                    <button type="button" class="cc-modal-close" onclick="nsCloseShareModal()" aria-label="${escapeAttr(t('config.network_shares.cancel'))}">✕</button>
+        <div id="ns-share-modal" class="cfgdev-modal-overlay is-hidden" onclick="nsCloseShareModal(event)">
+            <div class="cfgdev-modal-card" role="dialog" aria-modal="true" aria-labelledby="ns-modal-title" onclick="event.stopPropagation()">
+                <div class="cfgdev-modal-header">
+                    <span id="ns-modal-title" class="cfgdev-modal-title"></span>
+                    <button type="button" class="cfgdev-modal-close" onclick="nsCloseShareModal()" aria-label="${escapeAttr(t('config.network_shares.cancel'))}">✕</button>
                 </div>
-                <div id="ns-modal-error" class="cc-modal-error is-hidden" role="alert"></div>
+                <div id="ns-modal-error" class="cfgdev-modal-error is-hidden" role="alert"></div>
                 <div id="ns-modal-body"></div>
-                <div class="cc-modal-actions">
-                    <button type="button" class="btn-save cc-btn-secondary" onclick="nsCloseShareModal()">${escapeHtml(t('config.network_shares.cancel'))}</button>
-                    <button id="ns-modal-save" type="button" class="btn-save cc-btn-primary" onclick="nsSaveShare()">${escapeHtml(t('config.network_shares.save_share'))}</button>
+                <div class="cfgdev-modal-actions">
+                    <button type="button" class="btn-save cfgdev-btn-secondary" onclick="nsCloseShareModal()">${escapeHtml(t('config.network_shares.cancel'))}</button>
+                    <button id="ns-modal-save" type="button" class="btn-save cfgdev-btn-primary" onclick="nsSaveShare()">${escapeHtml(t('config.network_shares.save_share'))}</button>
                 </div>
             </div>
         </div>
 
-        <div id="ns-delete-modal" class="cc-modal-overlay is-hidden" onclick="nsCloseDeleteModal(event)">
-            <div class="cc-modal-card" role="dialog" aria-modal="true" aria-labelledby="ns-delete-title" onclick="event.stopPropagation()">
-                <div class="cc-modal-header">
-                    <span id="ns-delete-title" class="cc-modal-title">${escapeHtml(t('config.network_shares.delete_title'))}</span>
-                    <button type="button" class="cc-modal-close" onclick="nsCloseDeleteModal()" aria-label="${escapeAttr(t('config.network_shares.cancel'))}">✕</button>
+        <div id="ns-delete-modal" class="cfgdev-modal-overlay is-hidden" onclick="nsCloseDeleteModal(event)">
+            <div class="cfgdev-modal-card" role="dialog" aria-modal="true" aria-labelledby="ns-delete-title" onclick="event.stopPropagation()">
+                <div class="cfgdev-modal-header">
+                    <span id="ns-delete-title" class="cfgdev-modal-title">${escapeHtml(t('config.network_shares.delete_title'))}</span>
+                    <button type="button" class="cfgdev-modal-close" onclick="nsCloseDeleteModal()" aria-label="${escapeAttr(t('config.network_shares.cancel'))}">✕</button>
                 </div>
                 <div id="ns-delete-message" class="field-help"></div>
-                <div class="cc-modal-actions">
-                    <button type="button" class="btn-save cc-btn-secondary" onclick="nsCloseDeleteModal()">${escapeHtml(t('config.network_shares.cancel'))}</button>
+                <div class="cfgdev-modal-actions">
+                    <button type="button" class="btn-save cfgdev-btn-secondary" onclick="nsCloseDeleteModal()">${escapeHtml(t('config.network_shares.cancel'))}</button>
                     <button id="ns-delete-confirm" type="button" class="btn-save btn-danger" onclick="nsDeleteShare()">${escapeHtml(t('config.network_shares.delete'))}</button>
                 </div>
             </div>
@@ -179,12 +179,12 @@ function nsListEditor(path, rawValues, labelKey, helpKey, placeholderKey) {
         <div class="three-d-printer-list">
             ${values.map((value, index) => `<div class="adg-password-row">
                 <input class="field-input" type="text" value="${escapeAttr(value)}" data-ns-list="${escapeAttr(path)}" data-ns-index="${index}" onchange="nsChangeListValue(this)">
-                <button type="button" class="btn-save cc-btn-secondary" data-ns-list="${escapeAttr(path)}" data-ns-index="${index}" onclick="nsRemoveListValue(this)">${escapeHtml(t('config.network_shares.remove'))}</button>
+                <button type="button" class="btn-save cfgdev-btn-secondary" data-ns-list="${escapeAttr(path)}" data-ns-index="${index}" onclick="nsRemoveListValue(this)">${escapeHtml(t('config.network_shares.remove'))}</button>
             </div>`).join('')}
         </div>
         <div class="adg-password-row">
             <input id="ns-new-${token}" class="field-input" type="text" placeholder="${escapeAttr(t(placeholderKey))}">
-            <button type="button" class="btn-save cc-btn-secondary" data-ns-list="${escapeAttr(path)}" data-ns-input="ns-new-${token}" onclick="nsAddListValue(this)">＋ ${escapeHtml(t('config.network_shares.add'))}</button>
+            <button type="button" class="btn-save cfgdev-btn-secondary" data-ns-list="${escapeAttr(path)}" data-ns-input="ns-new-${token}" onclick="nsAddListValue(this)">＋ ${escapeHtml(t('config.network_shares.add'))}</button>
         </div>
     </div>`;
 }
@@ -291,8 +291,8 @@ function nsRenderRuntime() {
     const area = document.getElementById('ns-protocol-status');
     if (!area) return;
     const protocols = [['SMB', (nsRuntime || {}).smb || {}], ['NFS', (nsRuntime || {}).nfs || {}]];
-    area.innerHTML = `<div class="cc-table-wrap"><table class="cc-table">
-        <thead><tr class="cc-table-head">
+    area.innerHTML = `<div class="cfgdev-table-wrap"><table class="cfgdev-table">
+        <thead><tr class="cfgdev-table-head">
             <th>${escapeHtml(t('config.network_shares.protocol'))}</th>
             <th>${escapeHtml(t('config.network_shares.installed'))}</th>
             <th>${escapeHtml(t('config.network_shares.service'))}</th>
@@ -306,12 +306,12 @@ function nsRenderRuntime() {
                 : (status.readable
                     ? `${escapeHtml(t('config.network_shares.read'))}${reason ? `<div class="field-help">${escapeHtml(reason)}</div>` : ''}`
                     : escapeHtml(reason || t('config.network_shares.unavailable')));
-            return `<tr class="cc-device-row">
-            <td class="cc-cell cc-cell-name">${name}</td>
-            <td class="cc-cell">${escapeHtml(nsYesNo(status.installed))}</td>
-            <td class="cc-cell">${escapeHtml(nsYesNo(status.service_active))}</td>
-            <td class="cc-cell">${escapeHtml(nsYesNo(status.configured))}</td>
-            <td class="cc-cell">${access}</td>
+            return `<tr class="cfgdev-device-row">
+            <td class="cfgdev-cell cfgdev-cell-name">${name}</td>
+            <td class="cfgdev-cell">${escapeHtml(nsYesNo(status.installed))}</td>
+            <td class="cfgdev-cell">${escapeHtml(nsYesNo(status.service_active))}</td>
+            <td class="cfgdev-cell">${escapeHtml(nsYesNo(status.configured))}</td>
+            <td class="cfgdev-cell">${access}</td>
         </tr>`;
         }).join('')}</tbody>
     </table></div>`;
@@ -330,16 +330,16 @@ function nsRenderShares() {
     const area = document.getElementById('ns-share-table');
     if (!area) return;
     if (!nsShares.length) {
-        area.innerHTML = `<div class="cc-empty">${escapeHtml(t('config.network_shares.no_shares'))}</div>`;
+        area.innerHTML = `<div class="cfgdev-empty">${escapeHtml(t('config.network_shares.no_shares'))}</div>`;
         return;
     }
-    area.innerHTML = `<div class="cc-table-wrap"><table class="cc-table">
-        <thead><tr class="cc-table-head">
+    area.innerHTML = `<div class="cfgdev-table-wrap"><table class="cfgdev-table">
+        <thead><tr class="cfgdev-table-head">
             <th>${escapeHtml(t('config.network_shares.name'))}</th>
             <th>${escapeHtml(t('config.network_shares.protocol'))}</th>
             <th>${escapeHtml(t('config.network_shares.path'))}</th>
             <th>${escapeHtml(t('config.network_shares.state'))}</th>
-            <th class="cc-th-actions">${escapeHtml(t('config.network_shares.actions'))}</th>
+            <th class="cfgdev-th-actions">${escapeHtml(t('config.network_shares.actions'))}</th>
         </tr></thead>
         <tbody>${nsShares.map(share => {
             const state = share.drift ? t('config.network_shares.drifted') :
@@ -349,14 +349,14 @@ function nsRenderShares() {
                 : '';
             const canUpdate = share.mutable && nsPermissions && nsPermissions.allow_update;
             const canDelete = share.mutable && nsPermissions && nsPermissions.allow_delete;
-            return `<tr class="cc-device-row">
-                <td class="cc-cell cc-cell-name">${escapeHtml(share.name || '')}</td>
-                <td class="cc-cell">${escapeHtml(String(share.protocol || '').toUpperCase())}</td>
-                <td class="cc-cell">${escapeHtml(share.path || '')}</td>
-                <td class="cc-cell">${escapeHtml(state)}${driftDetail}</td>
-                <td class="cc-cell cc-cell-actions">
-                    ${canUpdate ? `<button type="button" class="btn-save cc-btn-compact" data-share-id="${escapeAttr(share.id)}" onclick="nsOpenShareModal(this.dataset.shareId)">${escapeHtml(t('config.network_shares.edit'))}</button>` : ''}
-                    ${canDelete ? `<button type="button" class="btn-save cc-btn-compact" data-share-id="${escapeAttr(share.id)}" onclick="nsOpenDeleteModal(this.dataset.shareId)">${escapeHtml(t('config.network_shares.delete'))}</button>` : '—'}
+            return `<tr class="cfgdev-device-row">
+                <td class="cfgdev-cell cfgdev-cell-name">${escapeHtml(share.name || '')}</td>
+                <td class="cfgdev-cell">${escapeHtml(String(share.protocol || '').toUpperCase())}</td>
+                <td class="cfgdev-cell">${escapeHtml(share.path || '')}</td>
+                <td class="cfgdev-cell">${escapeHtml(state)}${driftDetail}</td>
+                <td class="cfgdev-cell cfgdev-cell-actions">
+                    ${canUpdate ? `<button type="button" class="btn-save cfgdev-btn-compact" data-share-id="${escapeAttr(share.id)}" onclick="nsOpenShareModal(this.dataset.shareId)">${escapeHtml(t('config.network_shares.edit'))}</button>` : ''}
+                    ${canDelete ? `<button type="button" class="btn-save cfgdev-btn-compact" data-share-id="${escapeAttr(share.id)}" onclick="nsOpenDeleteModal(this.dataset.shareId)">${escapeHtml(t('config.network_shares.delete'))}</button>` : '—'}
                 </td>
             </tr>`;
         }).join('')}</tbody>

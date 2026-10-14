@@ -32,30 +32,30 @@ func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 	page := s.page
 
 	// Start screen: describe / designer entry points, Import (plan 5's transfer module), the seeded project.
-	s.wait(`()=>!!document.querySelector('.cc-home') && document.querySelectorAll('.cc-project-row').length===1`)
+	s.wait(`()=>!!document.querySelector('.cydc-home') && document.querySelectorAll('.cydc-project-row').length===1`)
 	s.wait(`()=>!!document.querySelector('[data-cc-action="new-agent"]') && !!document.querySelector('[data-cc-action="new-designer"]') && !document.querySelector('[data-cc-action="import"]').hidden`)
 	s.noRawKeys("home")
 	s.shot("home")
 
 	// New project in the designer: two boards with their badge, seven theme swatches, portrait.
 	page.MustElement(`[data-cc-action="new-designer"]`).MustClick()
-	s.wait(`()=>document.querySelectorAll('.cc-dialog [data-cc-board]').length===2 && document.querySelectorAll('.cc-dialog [data-cc-theme]').length===7`)
+	s.wait(`()=>document.querySelectorAll('.cydc-dialog [data-cc-board]').length===2 && document.querySelectorAll('.cydc-dialog [data-cc-theme]').length===7`)
 	// Board states and theme names are plan-4b strings: without them the shell shows its fallbacks.
-	s.wait(`()=>{const tag=r=>document.querySelector('.cc-dialog [data-cc-board="'+r+'"]').closest('label').querySelector('.cc-tag');return tag('esp32-2432s028r').dataset.tone==='ok' && tag('esp32-2432s028r').textContent.trim()!=='' && tag('esp32-3248s035c').dataset.tone!=='ok'}`)
-	s.wait(`()=>document.querySelector('.cc-dialog [data-cc-theme="dark_sun"]').closest('label').textContent.trim()===(I18N['cyd_creator.theme.dark_sun']||'Dark sun')`)
+	s.wait(`()=>{const tag=r=>document.querySelector('.cydc-dialog [data-cc-board="'+r+'"]').closest('label').querySelector('.cydc-tag');return tag('esp32-2432s028r').dataset.tone==='ok' && tag('esp32-2432s028r').textContent.trim()!=='' && tag('esp32-3248s035c').dataset.tone!=='ok'}`)
+	s.wait(`()=>document.querySelector('.cydc-dialog [data-cc-theme="dark_sun"]').closest('label').textContent.trim()===(I18N['cyd_creator.theme.dark_sun']||'Dark sun')`)
 	s.noRawKeys("new project dialog")
 	s.shot("new-project-dialog")
-	page.MustElement(`.cc-dialog [data-cc-field="name"]`).MustInput("Thermometer")
-	page.MustEval(`()=>{document.querySelector('.cc-dialog [data-cc-field="orientation"]').value='portrait';}`)
-	page.MustElement(`.cc-dialog [data-cc-dialog-action="create"]`).MustClick()
+	page.MustElement(`.cydc-dialog [data-cc-field="name"]`).MustInput("Thermometer")
+	page.MustEval(`()=>{document.querySelector('.cydc-dialog [data-cc-field="orientation"]').value='portrait';}`)
+	page.MustElement(`.cydc-dialog [data-cc-dialog-action="create"]`).MustClick()
 	// Design mode shows the designer (plan 4b), not the placeholder of a shell without it.
-	s.wait(`()=>document.querySelector('[data-cc-project-title]')?.textContent==='Thermometer' && !!document.querySelector('.cc-canvas') && !document.querySelector('[data-cc-designer-placeholder]')`)
+	s.wait(`()=>document.querySelector('[data-cc-project-title]')?.textContent==='Thermometer' && !!document.querySelector('.cydc-canvas') && !document.querySelector('[data-cc-designer-placeholder]')`)
 	// The orientation is not part of POST /projects: the layout is saved once with If-Match 1.
 	s.wait(`()=>cydFixture.state.layoutPuts.some(p=>p.version===2 && p.project.orientation==='portrait')`)
 	// Plan 5 modules are loaded: Flash, OTA and Export are shown; Build is ready; Design is active.
 	s.wait(`()=>{const q=a=>document.querySelector('[data-cc-action="'+a+'"]');return !q('flash').hidden && !q('ota').hidden && !q('export').hidden && !q('build').disabled && q('mode-design').getAttribute('aria-pressed')==='true'}`)
 	// The layout warning of the save answer reaches Problems through layout:issues.
-	s.wait(`()=>document.querySelector('[data-cc-dock-tab="problems"] .cc-dock-badge')?.textContent==='1'`)
+	s.wait(`()=>document.querySelector('[data-cc-dock-tab="problems"] .cydc-dock-badge')?.textContent==='1'`)
 	s.noRawKeys("project")
 	s.shot("project-design")
 	s.failOnPageErrors("new project")
@@ -71,36 +71,36 @@ func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 
 	// Code mode: your files and the generated group; edit app_main.cpp, autosave with If-Match.
 	page.MustElement(`[data-cc-action="mode-code"]`).MustClick()
-	s.wait(`()=>!!document.querySelector('[data-cc-file="src/app/app_main.cpp"]') && !!document.querySelector('.cc-tree-group[data-group="generated"]')`)
+	s.wait(`()=>!!document.querySelector('[data-cc-file="src/app/app_main.cpp"]') && !!document.querySelector('.cydc-tree-group[data-group="generated"]')`)
 	page.MustElement(`[data-cc-file="src/app/app_main.cpp"]`).MustClick()
-	s.wait(`()=>!!document.querySelector('.cc-code-editor .cm-editor') && !!document.querySelector('.cc-code-editor .cm-content')?.textContent.includes('app_setup')`)
+	s.wait(`()=>!!document.querySelector('.cydc-code-editor .cm-editor') && !!document.querySelector('.cydc-code-editor .cm-content')?.textContent.includes('app_setup')`)
 	page.MustEval(`()=>{window.__ccSha=cydFixture.sha(cydFixture.state.files.get(cydFixture.inst().projectId).get('src/app/app_main.cpp').text);window.__ccPuts=cydFixture.state.filePuts.length;}`)
-	page.MustElement(`.cc-code-editor .cm-content`).MustClick()
+	page.MustElement(`.cydc-code-editor .cm-content`).MustClick()
 	page.MustInsertText("// Temperatur")
 	s.wait(`()=>{const p=cydFixture.state.filePuts.at(-1);return cydFixture.state.filePuts.length===window.__ccPuts+1 && p.path==='src/app/app_main.cpp' && p.text.includes('// Temperatur') && p.ifMatch===window.__ccSha}`)
 	s.wait(`()=>document.querySelector('[data-cc-code-state]')?.dataset.state==='saved'`)
 	s.shot("code-saved")
 
 	// Generated files are read-only and say where to change them.
-	page.MustElement(`.cc-tree-group[data-group="generated"] summary`).MustClick()
+	page.MustElement(`.cydc-tree-group[data-group="generated"] summary`).MustClick()
 	page.MustElement(`[data-cc-file="src/generated/ui.h"]`).MustClick()
-	s.wait(`()=>{const h=document.querySelector('[data-cc-code-hint]');return !h.hidden && h.textContent===t('cyd_creator.code.generated_hint') && document.querySelector('.cc-code-editor .cm-content').getAttribute('contenteditable')==='false'}`)
+	s.wait(`()=>{const h=document.querySelector('[data-cc-code-hint]');return !h.hidden && h.textContent===t('cyd_creator.code.generated_hint') && document.querySelector('.cydc-code-editor .cm-content').getAttribute('contenteditable')==='false'}`)
 	s.shot("code-generated")
 
 	// A change made elsewhere reaches the clean editor through project_changed: it reloads silently.
 	page.MustElement(`[data-cc-file="src/app/app_main.cpp"]`).MustClick()
-	s.wait(`()=>document.querySelector('.cc-code-editor .cm-content').textContent.includes('// Temperatur')`)
+	s.wait(`()=>document.querySelector('.cydc-code-editor .cm-content').textContent.includes('// Temperatur')`)
 	page.MustEval(`()=>{const i=cydFixture.inst();window.__ccElsewhere='// changed elsewhere\n'+cydFixture.state.files.get(i.projectId).get('src/app/app_main.cpp').text;cydFixture.touchFile(i.projectId,'src/app/app_main.cpp',window.__ccElsewhere)}`)
-	s.wait(`()=>document.querySelector('.cc-code-editor .cm-content').textContent.startsWith('// changed elsewhere') && !document.querySelector('.cc-dialog') && document.querySelector('[data-cc-code-state]').dataset.state==='saved'`)
+	s.wait(`()=>document.querySelector('.cydc-code-editor .cm-content').textContent.startsWith('// changed elsewhere') && !document.querySelector('.cydc-dialog') && document.querySelector('[data-cc-code-state]').dataset.state==='saved'`)
 	// The same file changed elsewhere while it has unsaved edits: the save conflicts, Overwrite saves
 	// with the server's sha.
-	page.MustElement(`.cc-code-editor .cm-content`).MustClick()
+	page.MustElement(`.cydc-code-editor .cm-content`).MustClick()
 	page.MustInsertText(" mine")
 	page.MustEval(`()=>{const i=cydFixture.inst();window.__ccAgain='// changed again\n'+window.__ccElsewhere;cydFixture.touchFile(i.projectId,'src/app/app_main.cpp',window.__ccAgain)}`)
-	s.wait(`()=>!!document.querySelector('.cc-dialog [data-cc-dialog-action="overwrite"]')`)
+	s.wait(`()=>!!document.querySelector('.cydc-dialog [data-cc-dialog-action="overwrite"]')`)
 	s.noRawKeys("conflict")
 	s.shot("code-conflict")
-	page.MustElement(`.cc-dialog [data-cc-dialog-action="overwrite"]`).MustClick()
+	page.MustElement(`.cydc-dialog [data-cc-dialog-action="overwrite"]`).MustClick()
 	s.wait(`()=>{const p=cydFixture.state.filePuts.at(-1);return p.text.includes(' mine') && !p.text.includes('// changed again') && p.ifMatch===cydFixture.sha(window.__ccAgain) && document.querySelector('[data-cc-code-state]').dataset.state==='saved'}`)
 	s.failOnPageErrors("code")
 
@@ -109,7 +109,7 @@ func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 	// Build is blocked with the reason. The fence lives in the server's memory: a restart clears it
 	// without an event, and the window re-reads the summary when its stream comes back.
 	page.MustEval(`()=>cydFixture.fence(cydFixture.inst().projectId)`)
-	page.MustElement(`.cc-code-editor .cm-content`).MustClick()
+	page.MustElement(`.cydc-code-editor .cm-content`).MustClick()
 	page.MustInsertText(" fenced")
 	s.wait(`()=>{const c=document.querySelector('[data-cc-code-state]');return c.dataset.state==='failed' && c.title===t('cyd_creator.error.publication_review') && document.querySelector('[data-cc-save-state]').dataset.state==='failed'}`)
 	s.wait(`()=>{const b=document.querySelector('[data-cc-publish-review]'),build=document.querySelector('[data-cc-action="build"]');return !b.hidden && b.textContent===t('cyd_creator.error.publication_review') && build.disabled && build.title===t('cyd_creator.error.publication_review')}`)
@@ -123,29 +123,29 @@ func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 
 	// Build: streamed log lines, failed status, the diagnostic in Problems opens the file at the line.
 	page.MustElement(`[data-cc-action="build"]`).MustClick()
-	s.wait(`()=>document.querySelectorAll('[data-cc-log] .cc-log-line').length>=4 && document.querySelector('[data-cc-build-status]')?.dataset.status==='failed'`)
+	s.wait(`()=>document.querySelectorAll('[data-cc-log] .cydc-log-line').length>=4 && document.querySelector('[data-cc-build-status]')?.dataset.status==='failed'`)
 	s.wait(`()=>document.querySelector('[data-cc-build-status]').textContent.includes(t('cyd_creator.build.status_failed'))`)
 	s.noRawKeys("build")
 	s.shot("build-failed")
 	page.MustElement(`[data-cc-dock-tab="problems"]`).MustClick()
-	s.wait(`()=>document.querySelectorAll('[data-cc-problems] .cc-problem[data-source="build"]').length===1 && document.querySelectorAll('[data-cc-problems] .cc-problem[data-source="layout"]').length===1`)
-	page.MustElement(`[data-cc-problems] .cc-problem[data-source="build"]`).MustClick()
-	s.wait(`()=>cydFixture.inst().code.openPath()==='src/app/app_main.cpp' && document.querySelectorAll('.cc-code-marker').length===1`)
+	s.wait(`()=>document.querySelectorAll('[data-cc-problems] .cydc-problem[data-source="build"]').length===1 && document.querySelectorAll('[data-cc-problems] .cydc-problem[data-source="layout"]').length===1`)
+	page.MustElement(`[data-cc-problems] .cydc-problem[data-source="build"]`).MustClick()
+	s.wait(`()=>cydFixture.inst().code.openPath()==='src/app/app_main.cpp' && document.querySelectorAll('.cydc-code-marker').length===1`)
 	s.shot("problem-marker")
 	s.failOnPageErrors("build")
 
 	// A change job from the composer saves the unsaved code edit first (PUT before POST /jobs). Its
 	// cancel answers 202 while the job still runs; the job then ends cancelled with a system line,
 	// and the work it already wrote stays as the draft (resume / discard).
-	page.MustElement(`.cc-code-editor .cm-content`).MustClick()
+	page.MustElement(`.cydc-code-editor .cm-content`).MustClick()
 	page.MustInsertText(" // vor dem Job")
 	page.MustElement(`[data-cc-panel="agent"]`).MustClick()
 	page.MustElement(`[data-cc-agent-input]`).MustInput("Zeige zusätzlich die Uhrzeit.")
 	page.MustElement(`[data-cc-agent-action="send"]`).MustClick()
 	s.wait(`()=>{const r=cydFixture.state.requests,id=cydFixture.inst().projectId,put=r.lastIndexOf('PUT /api/desktop/cyd-creator/projects/'+id+'/files/src/app/app_main.cpp'),post=r.lastIndexOf('POST /api/desktop/cyd-creator/projects/'+id+'/jobs');return put>=0 && post>put && cydFixture.state.filePuts.at(-1).text.includes('// vor dem Job') && cydFixture.state.jobBodies.at(-1).mode==='change'}`)
-	s.wait(`()=>cydFixture.state.heldJob!==null && !document.querySelector('[data-cc-lock]').hidden && !!document.querySelector('.cc-job [data-cc-agent-action="cancel"]')`)
-	page.MustElement(`.cc-job [data-cc-agent-action="cancel"]`).MustClick()
-	page.MustElement(`.cc-dialog [data-cc-dialog-action="ok"]`).MustClick()
+	s.wait(`()=>cydFixture.state.heldJob!==null && !document.querySelector('[data-cc-lock]').hidden && !!document.querySelector('.cydc-job [data-cc-agent-action="cancel"]')`)
+	page.MustElement(`.cydc-job [data-cc-agent-action="cancel"]`).MustClick()
+	page.MustElement(`.cydc-dialog [data-cc-dialog-action="ok"]`).MustClick()
 	// The system line comes with its code (job_cancelled_draft) and shows in the UI language.
 	s.wait(`()=>{const sys=[...document.querySelectorAll('[data-cc-message][data-role="system"]')].map(m=>m.textContent).join(' ');return document.querySelector('[data-cc-lock]').hidden && !document.querySelector('[data-cc-draft]').hidden && sys.includes(t('cyd_creator.msg.job_cancelled_draft')) && !sys.includes('cancelled') && !document.querySelector('[data-cc-agent-input]').disabled}`)
 	s.noRawKeys("cancelled")
@@ -154,17 +154,17 @@ func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 
 	// Agent: a new app from a description plans first; the plan waits for a confirmation.
 	page.MustElement(`[data-cc-action="home"]`).MustClick()
-	s.wait(`()=>document.querySelectorAll('.cc-project-row').length===2`)
+	s.wait(`()=>document.querySelectorAll('.cydc-project-row').length===2`)
 	page.MustElement(`[data-cc-action="new-agent"]`).MustClick()
-	page.MustElement(`.cc-dialog [data-cc-field="name"]`).MustInput("Wetteruhr")
-	page.MustElement(`.cc-dialog [data-cc-field="description"]`).MustInput("Zeige die Temperatur groß und den Verlauf der letzten Stunden.")
-	page.MustElement(`.cc-dialog [data-cc-dialog-action="create"]`).MustClick()
+	page.MustElement(`.cydc-dialog [data-cc-field="name"]`).MustInput("Wetteruhr")
+	page.MustElement(`.cydc-dialog [data-cc-field="description"]`).MustInput("Zeige die Temperatur groß und den Verlauf der letzten Stunden.")
+	page.MustElement(`.cydc-dialog [data-cc-dialog-action="create"]`).MustClick()
 	s.wait(`()=>document.querySelector('[data-cc-panel="agent"]')?.getAttribute('aria-selected')==='true' && !!document.querySelector('[data-cc-plan]')`)
 	s.wait(`()=>{const b=cydFixture.state.jobBodies.at(-1);return b.mode==='new' && b.prompt.startsWith('Zeige')}`)
 	s.wait(`()=>{const p=document.querySelector('[data-cc-plan]')?.textContent||'';return p.includes('verlauf') && p.includes('ArduinoJson')}`)
 	// The planning step arrives with its code and vars: the German UI shows the translated line,
 	// never the server's English text.
-	s.wait(`()=>{const steps=[...document.querySelectorAll('[data-cc-step] .cc-step-text')].map(n=>n.textContent);return steps.includes(t('cyd_creator.step.plan_submitted',{screens:2,widgets:2,data_sources:1})) && !document.querySelector('[data-cc-agent-log]').textContent.includes('Plan submitted')}`)
+	s.wait(`()=>{const steps=[...document.querySelectorAll('[data-cc-step] .cydc-step-text')].map(n=>n.textContent);return steps.includes(t('cyd_creator.step.plan_submitted',{screens:2,widgets:2,data_sources:1})) && !document.querySelector('[data-cc-agent-log]').textContent.includes('Plan submitted')}`)
 	s.noRawKeys("plan")
 	s.shot("agent-plan")
 	// The desktop policy switches read-only on while the plan waits: Confirm and Change plan lock at
@@ -182,24 +182,24 @@ func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 	s.wait(`()=>document.querySelector('[data-cc-panel="properties"]').getAttribute('aria-selected')==='true'`)
 	page.MustElement(`[data-cc-action="mode-code"]`).MustClick()
 	page.MustElement(`[data-cc-file="src/app/app_main.cpp"]`).MustClick()
-	s.wait(`()=>document.querySelector('.cc-code-editor .cm-content')?.getAttribute('contenteditable')==='false' && document.querySelector('[data-cc-code-action="new"]').disabled`)
+	s.wait(`()=>document.querySelector('.cydc-code-editor .cm-content')?.getAttribute('contenteditable')==='false' && document.querySelector('[data-cc-code-action="new"]').disabled`)
 	s.noRawKeys("locked")
 	s.shot("locked")
 	// A read-only viewer can still cancel the running job (plan 2 allows the cancel routes in read-only mode).
 	page.MustEval(`()=>` + fmt.Sprintf(policy, true))
-	s.wait(`()=>{const c=document.querySelector('.cc-job [data-cc-agent-action="cancel"]');return !!c && !c.disabled && document.querySelector('[data-cc-agent-input]').disabled}`)
+	s.wait(`()=>{const c=document.querySelector('.cydc-job [data-cc-agent-action="cancel"]');return !!c && !c.disabled && document.querySelector('[data-cc-agent-input]').disabled}`)
 	page.MustEval(`()=>` + fmt.Sprintf(policy, false))
 	s.wait(`()=>!document.querySelector('[data-cc-agent-input]').disabled`)
 	page.MustEval(`()=>cydFixture.finishJob()`)
 	// The job builds before it publishes: its build (origin agent) is the job's build_id and shows in the dock.
 	s.wait(`()=>{const j=[...cydFixture.state.jobs.values()].at(-1);return j.status==='succeeded' && !!j.build_id && cydFixture.inst().dock.builds.list().some(b=>b.id===j.build_id && b.job_id===j.id && b.status==='succeeded')}`)
-	s.wait(`()=>document.querySelector('[data-cc-lock]').hidden && document.querySelector('[data-cc-agent-dot]').hidden && document.querySelector('.cc-code-editor .cm-content').getAttribute('contenteditable')==='true'`)
+	s.wait(`()=>document.querySelector('[data-cc-lock]').hidden && document.querySelector('[data-cc-agent-dot]').hidden && document.querySelector('.cydc-code-editor .cm-content').getAttribute('contenteditable')==='true'`)
 	s.wait(`()=>document.querySelector('[data-cc-panel="properties"]').getAttribute('aria-selected')==='true'`)
 	// The job's layout change reached the window (project_changed with origin job:<id>).
 	s.wait(`()=>{const i=cydFixture.inst();return i.layout().version===cydFixture.state.layouts.get(i.projectId).version && i.layout().project.screens[0].title==='Thermometer'}`)
 	page.MustElement(`[data-cc-panel="agent"]`).MustClick()
 	s.wait(`()=>[...document.querySelectorAll('[data-cc-message][data-role="agent"]')].some(m=>m.textContent.includes('Fertig')) && document.querySelectorAll('[data-cc-message][data-role="user"]').length===1`)
-	s.wait(`()=>{const steps=[...document.querySelectorAll('[data-cc-step] .cc-step-text')].map(n=>n.textContent);return steps.includes(t('cyd_creator.step.file_written',{path:'src/app/app_main.cpp',lines:12})) && steps.includes(t('cyd_creator.step.build_succeeded_flash',{n:1,percent:63}))}`)
+	s.wait(`()=>{const steps=[...document.querySelectorAll('[data-cc-step] .cydc-step-text')].map(n=>n.textContent);return steps.includes(t('cyd_creator.step.file_written',{path:'src/app/app_main.cpp',lines:12})) && steps.includes(t('cyd_creator.step.build_succeeded_flash',{n:1,percent:63}))}`)
 	s.shot("agent-done")
 	s.failOnPageErrors("agent")
 
@@ -207,11 +207,11 @@ func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 	page.MustElement(`[data-cc-action="revisions"]`).MustClick()
 	s.wait(`()=>document.querySelectorAll('[data-cc-revision]').length===2`)
 	page.MustElement(`[data-cc-revision]`).MustClick()
-	s.wait(`()=>!!document.querySelector('[data-cc-revision-diff]')?.textContent.includes('cyd::log::info') && document.querySelector('.cc-dialog [data-cc-dialog-action="restore"]')?.disabled===false`)
+	s.wait(`()=>!!document.querySelector('[data-cc-revision-diff]')?.textContent.includes('cyd::log::info') && document.querySelector('.cydc-dialog [data-cc-dialog-action="restore"]')?.disabled===false`)
 	s.noRawKeys("revisions")
 	s.shot("revisions")
 	page.Keyboard.MustType(input.Escape)
-	s.wait(`()=>!document.querySelector('.cc-dialog')`)
+	s.wait(`()=>!document.querySelector('.cydc-dialog')`)
 
 	// The stream gives up: after three failed connects in a row GET /projects/{id} answers 401, the
 	// window stops reconnecting and shows why; Retry resumes after the last applied event.
@@ -226,7 +226,7 @@ func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 	s.failOnPageErrors("stream")
 
 	// Both desktop themes keep the chrome readable; the editor follows a light theme (no One Dark).
-	const oneDark = `getComputedStyle(document.querySelector('.cc-code-editor .cm-editor')).backgroundColor==='rgb(40, 44, 52)'`
+	const oneDark = `getComputedStyle(document.querySelector('.cydc-code-editor .cm-editor')).backgroundColor==='rgb(40, 44, 52)'`
 	page.MustEval(`()=>fixtureTheme('fruity-light')`)
 	s.wait(`()=>!(` + oneDark + `)`)
 	s.shot("project-fruity-light")
@@ -237,14 +237,14 @@ func TestDesktopCYDCreatorShellBrowser(t *testing.T) {
 
 	// A narrow window stacks the side panel under the editor without horizontal scrolling.
 	page.MustSetViewport(820, 900, 1, false)
-	s.wait(`()=>{const a=document.querySelector('.cc-app');return a.scrollWidth<=a.clientWidth+1 && getComputedStyle(document.querySelector('.cc-workbench')).gridTemplateRows.split(' ').length===2}`)
+	s.wait(`()=>{const a=document.querySelector('.cydc-app');return a.scrollWidth<=a.clientWidth+1 && getComputedStyle(document.querySelector('.cydc-workbench')).gridTemplateRows.split(' ').length===2}`)
 	s.shot("project-narrow")
 	page.MustSetViewport(1440, 900, 1, false)
 
 	// A project deleted in another window: its stream ends, the reconnects fail, the probe answers 404
 	// and the window returns to the start screen with a notice.
 	page.MustEval(`()=>cydFixture.deleteElsewhere(cydFixture.inst().projectId)`)
-	s.waitFor(`()=>!!document.querySelector('.cc-home') && document.querySelectorAll('.cc-project-row').length===2 && [...document.querySelectorAll('.vd-toast')].some(x=>x.textContent.includes(t('cyd_creator.error.CYD_NOT_FOUND')))`, 10*time.Second)
+	s.waitFor(`()=>!!document.querySelector('.cydc-home') && document.querySelectorAll('.cydc-project-row').length===2 && [...document.querySelectorAll('.vd-toast')].some(x=>x.textContent.includes(t('cyd_creator.error.CYD_NOT_FOUND')))`, 10*time.Second)
 	s.noRawKeys("deleted elsewhere")
 	s.shot("deleted-elsewhere")
 	s.failOnPageErrors("deleted elsewhere")
@@ -389,7 +389,7 @@ func (s *cydCreatorSmoke) noRawKeys(step string) {
 			texts.push(node.innerText);
 			node.querySelectorAll('[title],[aria-label],[placeholder]').forEach(n=>['title','aria-label','placeholder'].forEach(a=>texts.push(n.getAttribute(a)||'')));
 		};
-		document.querySelectorAll('.cc-app').forEach(app=>scan(app.closest('.vd-window')||app));
+		document.querySelectorAll('.cydc-app').forEach(app=>scan(app.closest('.vd-window')||app));
 		document.querySelectorAll('.vd-toast').forEach(scan);
 		texts.forEach(text=>(String(text).match(/cyd_creator\.[A-Za-z0-9_.]+/g)||[]).forEach(k=>out.add(k)));
 		return JSON.stringify([...out]);

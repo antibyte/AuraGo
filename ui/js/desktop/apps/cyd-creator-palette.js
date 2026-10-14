@@ -29,11 +29,11 @@
         let search = null;
         let list = null;
         let shown = null;
-        const root = dom(h('section', { class: 'cc-palette', 'aria-label': t('cyd_creator.designer.palette_title') },
-            h('div', { class: 'cc-panel-head' }, h('h3', {}, t('cyd_creator.designer.palette_title'))),
-            h('input', { type: 'search', class: 'cc-palette-search', placeholder: t('cyd_creator.designer.palette_search'), 'aria-label': t('cyd_creator.designer.palette_search'), ref: el => { search = el; } }),
-            h('div', { class: 'cc-palette-list', ref: el => { list = el; } }),
-            h('p', { class: 'cc-panel-hint' }, t('cyd_creator.designer.palette_hint'))));
+        const root = dom(h('section', { class: 'cydc-palette', 'aria-label': t('cyd_creator.designer.palette_title') },
+            h('div', { class: 'cydc-panel-head' }, h('h3', {}, t('cyd_creator.designer.palette_title'))),
+            h('input', { type: 'search', class: 'cydc-palette-search', placeholder: t('cyd_creator.designer.palette_search'), 'aria-label': t('cyd_creator.designer.palette_search'), ref: el => { search = el; } }),
+            h('div', { class: 'cydc-palette-list', ref: el => { list = el; } }),
+            h('p', { class: 'cydc-panel-hint' }, t('cyd_creator.designer.palette_hint'))));
         host.appendChild(root);
 
         function render() {
@@ -49,15 +49,15 @@
             const sections = groups.map(g => {
                 const items = specs.filter(s => s.group === g && match(s));
                 if (!items.length) return null;
-                return h('div', { class: 'cc-palette-group', role: 'group', 'aria-label': groupLabel(g) },
+                return h('div', { class: 'cydc-palette-group', role: 'group', 'aria-label': groupLabel(g) },
                     h('h4', {}, groupLabel(g)),
-                    h('div', { class: 'cc-palette-items' }, items.map(s => h('button', {
-                        type: 'button', class: 'cc-palette-item', 'data-cc-palette': s.type, disabled: off,
+                    h('div', { class: 'cydc-palette-items' }, items.map(s => h('button', {
+                        type: 'button', class: 'cydc-palette-item', 'data-cc-palette': s.type, disabled: off,
                         title: t('cyd_creator.designer.palette_item_hint', { name: label(s.type) }),
                         ref: el => { made.set(s.type, el); }
-                    }, h('span', { class: 'cc-palette-glyph', 'aria-hidden': 'true' }, GLYPHS[s.type] || '◆'), h('span', { class: 'cc-palette-name' }, label(s.type))))));
+                    }, h('span', { class: 'cydc-palette-glyph', 'aria-hidden': 'true' }, GLYPHS[s.type] || '◆'), h('span', { class: 'cydc-palette-name' }, label(s.type))))));
             }).filter(Boolean);
-            list.replaceChildren(...(sections.length ? sections.map(n => dom(n)) : [dom(h('p', { class: 'cc-panel-empty' }, t('cyd_creator.designer.palette_empty')))]));
+            list.replaceChildren(...(sections.length ? sections.map(n => dom(n)) : [dom(h('p', { class: 'cydc-panel-empty' }, t('cyd_creator.designer.palette_empty')))]));
             root.classList.toggle('is-readonly', ro);
             root.classList.toggle('is-system', d.isSystem());
             shown = state();

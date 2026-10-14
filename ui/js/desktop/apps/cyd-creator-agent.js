@@ -71,26 +71,26 @@
         };
 
         // ── DOM ──
-        const revisionsBtn = el('button', { type: 'button', class: 'cc-btn cc-btn--small cc-btn--ghost', dataset: { ccAgentAction: 'revisions' }, text: t('cyd_creator.revisions.open') });
-        const resumeBtn = el('button', { type: 'button', class: 'cc-btn cc-btn--small', dataset: { ccAgentAction: 'resume' }, text: t('cyd_creator.agent.draft_resume') });
-        const discardBtn = el('button', { type: 'button', class: 'cc-btn cc-btn--small cc-btn--ghost', dataset: { ccAgentAction: 'discard' }, text: t('cyd_creator.agent.draft_discard') });
-        const draftBanner = el('div', { class: 'cc-banner cc-banner--warn', dataset: { ccDraft: '' }, hidden: true },
-            el('span', { class: 'cc-banner-text', text: t('cyd_creator.agent.draft_text') }), resumeBtn, discardBtn);
-        const log = el('div', { class: 'cc-agent-log', role: 'log', 'aria-live': 'polite', 'aria-label': t('cyd_creator.agent.history'), dataset: { ccAgentLog: '' } });
-        const emptyNote = el('p', { class: 'cc-empty cc-agent-empty', text: t('cyd_creator.agent.empty') });
-        const jobCard = el('section', { class: 'cc-job', dataset: { ccJob: '' }, hidden: true });
-        const attachmentsRow = el('div', { class: 'cc-attachments', hidden: true });
-        const input = el('textarea', { class: 'cc-input cc-agent-input', rows: '3', placeholder: t('cyd_creator.agent.placeholder'), 'aria-label': t('cyd_creator.agent.placeholder'), dataset: { ccAgentInput: '' } });
-        const generateBtn = el('button', { type: 'button', class: 'cc-btn cc-btn--ghost', dataset: { ccAgentAction: 'generate' }, text: t('cyd_creator.agent.generate_code'), title: t('cyd_creator.agent.generate_code_hint') });
-        const sendBtn = el('button', { type: 'submit', class: 'cc-btn cc-btn--primary', dataset: { ccAgentAction: 'send' }, text: t('cyd_creator.agent.send') });
-        const composerHint = el('p', { class: 'cc-form-help', dataset: { ccComposerHint: '' }, hidden: true });
-        const composer = el('form', { class: 'cc-agent-composer', dataset: { ccComposer: '' } },
-            attachmentsRow, input, composerHint, el('div', { class: 'cc-composer-actions' }, generateBtn, el('span', { class: 'cc-dock-spacer' }), sendBtn));
+        const revisionsBtn = el('button', { type: 'button', class: 'cydc-btn cydc-btn--small cydc-btn--ghost', dataset: { ccAgentAction: 'revisions' }, text: t('cyd_creator.revisions.open') });
+        const resumeBtn = el('button', { type: 'button', class: 'cydc-btn cydc-btn--small', dataset: { ccAgentAction: 'resume' }, text: t('cyd_creator.agent.draft_resume') });
+        const discardBtn = el('button', { type: 'button', class: 'cydc-btn cydc-btn--small cydc-btn--ghost', dataset: { ccAgentAction: 'discard' }, text: t('cyd_creator.agent.draft_discard') });
+        const draftBanner = el('div', { class: 'cydc-banner cydc-banner--warn', dataset: { ccDraft: '' }, hidden: true },
+            el('span', { class: 'cydc-banner-text', text: t('cyd_creator.agent.draft_text') }), resumeBtn, discardBtn);
+        const log = el('div', { class: 'cydc-agent-log', role: 'log', 'aria-live': 'polite', 'aria-label': t('cyd_creator.agent.history'), dataset: { ccAgentLog: '' } });
+        const emptyNote = el('p', { class: 'cydc-empty cydc-agent-empty', text: t('cyd_creator.agent.empty') });
+        const jobCard = el('section', { class: 'cydc-job', dataset: { ccJob: '' }, hidden: true });
+        const attachmentsRow = el('div', { class: 'cydc-attachments', hidden: true });
+        const input = el('textarea', { class: 'cydc-input cydc-agent-input', rows: '3', placeholder: t('cyd_creator.agent.placeholder'), 'aria-label': t('cyd_creator.agent.placeholder'), dataset: { ccAgentInput: '' } });
+        const generateBtn = el('button', { type: 'button', class: 'cydc-btn cydc-btn--ghost', dataset: { ccAgentAction: 'generate' }, text: t('cyd_creator.agent.generate_code'), title: t('cyd_creator.agent.generate_code_hint') });
+        const sendBtn = el('button', { type: 'submit', class: 'cydc-btn cydc-btn--primary', dataset: { ccAgentAction: 'send' }, text: t('cyd_creator.agent.send') });
+        const composerHint = el('p', { class: 'cydc-form-help', dataset: { ccComposerHint: '' }, hidden: true });
+        const composer = el('form', { class: 'cydc-agent-composer', dataset: { ccComposer: '' } },
+            attachmentsRow, input, composerHint, el('div', { class: 'cydc-composer-actions' }, generateBtn, el('span', { class: 'cydc-dock-spacer' }), sendBtn));
         // History and job card scroll together (one scroller): the plan card grows with its facts
         // and keeps its actions in view (sticky), the composer stays below.
-        const scroller = el('div', { class: 'cc-agent-scroll', dataset: { ccAgentScroll: '' } }, emptyNote, log, jobCard);
-        const root = el('div', { class: 'cc-agent', dataset: { ccAgent: '' } },
-            el('div', { class: 'cc-agent-head' }, el('span', { class: 'cc-agent-title', text: t('cyd_creator.agent.title') }), el('span', { class: 'cc-dock-spacer' }), revisionsBtn),
+        const scroller = el('div', { class: 'cydc-agent-scroll', dataset: { ccAgentScroll: '' } }, emptyNote, log, jobCard);
+        const root = el('div', { class: 'cydc-agent', dataset: { ccAgent: '' } },
+            el('div', { class: 'cydc-agent-head' }, el('span', { class: 'cydc-agent-title', text: t('cyd_creator.agent.title') }), el('span', { class: 'cydc-dock-spacer' }), revisionsBtn),
             draftBanner, scroller, composer);
 
         // ── history ──
@@ -112,17 +112,17 @@
         function messageNode(message) {
             const role = ['user', 'agent', 'system'].includes(message.role) ? message.role : 'system';
             const attachments = Array.isArray(message.attachments) ? message.attachments : [];
-            return el('div', { class: 'cc-msg cc-msg--' + role + (message.pending ? ' is-pending' : ''), dataset: { ccMessage: message.id, role } },
-                el('div', { class: 'cc-msg-text', text: role === 'system' ? serverText('cyd_creator.msg.', message) : String(message.text || '') }),
-                attachments.length ? el('div', { class: 'cc-msg-attachments' }, attachments.map(a => el('span', { class: 'cc-pill', text: t('cyd_creator.agent.attachment_log', { lines: String(a.text || '').split('\n').length }) }))) : null,
-                message.created_at ? el('time', { class: 'cc-msg-time', datetime: message.created_at, text: P.format.time(message.created_at) }) : null);
+            return el('div', { class: 'cydc-msg cydc-msg--' + role + (message.pending ? ' is-pending' : ''), dataset: { ccMessage: message.id, role } },
+                el('div', { class: 'cydc-msg-text', text: role === 'system' ? serverText('cyd_creator.msg.', message) : String(message.text || '') }),
+                attachments.length ? el('div', { class: 'cydc-msg-attachments' }, attachments.map(a => el('span', { class: 'cydc-pill', text: t('cyd_creator.agent.attachment_log', { lines: String(a.text || '').split('\n').length }) }))) : null,
+                message.created_at ? el('time', { class: 'cydc-msg-time', datetime: message.created_at, text: P.format.time(message.created_at) }) : null);
         }
 
         function stepNode(step) {
             const kind = STEP_ICONS[step.kind] ? step.kind : 'info';
-            return el('div', { class: 'cc-step', dataset: { ccStep: kind } },
-                el('span', { class: 'cc-step-icon', 'aria-hidden': 'true', text: STEP_ICONS[kind] }),
-                el('span', { class: 'cc-step-text', text: serverText('cyd_creator.step.', step) }));
+            return el('div', { class: 'cydc-step', dataset: { ccStep: kind } },
+                el('span', { class: 'cydc-step-icon', 'aria-hidden': 'true', text: STEP_ICONS[kind] }),
+                el('span', { class: 'cydc-step-text', text: serverText('cyd_creator.step.', step) }));
         }
 
         // stickToEnd runs fn and keeps a reader who was at the end there; it returns whether they were.
@@ -216,7 +216,7 @@
         function phaseList(job) {
             const current = job.status === 'succeeded' ? 'done' : job.phase;
             const index = PHASES.indexOf(current);
-            return el('ol', { class: 'cc-phases', 'aria-label': t('cyd_creator.agent.phases') }, PHASES.filter(p => p !== 'repairing' || job.phase === 'repairing' || Number(job.repair_attempt) > 0).map(phase => {
+            return el('ol', { class: 'cydc-phases', 'aria-label': t('cyd_creator.agent.phases') }, PHASES.filter(p => p !== 'repairing' || job.phase === 'repairing' || Number(job.repair_attempt) > 0).map(phase => {
                 const pos = PHASES.indexOf(phase);
                 const mode = phase === current ? 'is-current' : (index >= 0 && pos < index ? 'is-done' : '');
                 const label = phase === 'repairing' && Number(job.repair_attempt) > 0
@@ -240,23 +240,23 @@
                 }).join(', ')]
             ].filter(row => row[1]);
             // The edited description survives re-renders (opening/closing the box, a finished request).
-            const replanInput = el('textarea', { class: 'cc-input', rows: '4', 'aria-label': t('cyd_creator.agent.replan_label'), dataset: { ccReplanInput: '' }, onInput: () => { state.replanText = replanInput.value; } });
+            const replanInput = el('textarea', { class: 'cydc-input', rows: '4', 'aria-label': t('cyd_creator.agent.replan_label'), dataset: { ccReplanInput: '' }, onInput: () => { state.replanText = replanInput.value; } });
             replanInput.value = state.replanText == null ? lastUserPrompt(job.id) : state.replanText;
             // Confirm and re-plan change the project and wait for one answer; Cancel stays usable for
             // read-only viewers (the server allows the cancel routes in read-only mode).
             const disabled = inst.readonly || state.confirming;
-            const replanBox = el('div', { class: 'cc-replan', hidden: !state.replanOpen },
-                el('label', { class: 'cc-form-field' }, el('span', { text: t('cyd_creator.agent.replan_label') }), replanInput),
-                el('button', { type: 'button', class: 'cc-btn cc-btn--primary', dataset: { ccAgentAction: 'replan-send' }, disabled, text: t('cyd_creator.agent.replan_send'), onClick: () => replan(replanInput) }));
-            return el('article', { class: 'cc-plan-card', dataset: { ccPlan: job.id } },
+            const replanBox = el('div', { class: 'cydc-replan', hidden: !state.replanOpen },
+                el('label', { class: 'cydc-form-field' }, el('span', { text: t('cyd_creator.agent.replan_label') }), replanInput),
+                el('button', { type: 'button', class: 'cydc-btn cydc-btn--primary', dataset: { ccAgentAction: 'replan-send' }, disabled, text: t('cyd_creator.agent.replan_send'), onClick: () => replan(replanInput) }));
+            return el('article', { class: 'cydc-plan-card', dataset: { ccPlan: job.id } },
                 el('h3', { text: t('cyd_creator.agent.plan_title') }),
-                plan.summary ? el('p', { class: 'cc-plan-summary', text: plan.summary }) : null,
-                el('dl', { class: 'cc-plan-facts' }, rows.map(row => [el('dt', { text: t(row[0]) }), el('dd', { text: row[1] })])),
-                el('p', { class: 'cc-form-help', text: t('cyd_creator.agent.plan_hint') }),
-                el('div', { class: 'cc-plan-actions' },
-                    el('button', { type: 'button', class: 'cc-btn cc-btn--primary', dataset: { ccAgentAction: 'confirm' }, disabled, text: t('cyd_creator.agent.plan_confirm'), onClick: () => confirmJob('') }),
-                    el('button', { type: 'button', class: 'cc-btn', dataset: { ccAgentAction: 'replan' }, disabled, 'aria-expanded': state.replanOpen ? 'true' : 'false', text: t('cyd_creator.agent.plan_replan'), onClick: () => { state.replanOpen = !state.replanOpen; renderJob(); } }),
-                    el('button', { type: 'button', class: 'cc-btn cc-btn--ghost', dataset: { ccAgentAction: 'cancel' }, text: t('cyd_creator.agent.cancel'), onClick: cancelJob })),
+                plan.summary ? el('p', { class: 'cydc-plan-summary', text: plan.summary }) : null,
+                el('dl', { class: 'cydc-plan-facts' }, rows.map(row => [el('dt', { text: t(row[0]) }), el('dd', { text: row[1] })])),
+                el('p', { class: 'cydc-form-help', text: t('cyd_creator.agent.plan_hint') }),
+                el('div', { class: 'cydc-plan-actions' },
+                    el('button', { type: 'button', class: 'cydc-btn cydc-btn--primary', dataset: { ccAgentAction: 'confirm' }, disabled, text: t('cyd_creator.agent.plan_confirm'), onClick: () => confirmJob('') }),
+                    el('button', { type: 'button', class: 'cydc-btn', dataset: { ccAgentAction: 'replan' }, disabled, 'aria-expanded': state.replanOpen ? 'true' : 'false', text: t('cyd_creator.agent.plan_replan'), onClick: () => { state.replanOpen = !state.replanOpen; renderJob(); } }),
+                    el('button', { type: 'button', class: 'cydc-btn cydc-btn--ghost', dataset: { ccAgentAction: 'cancel' }, text: t('cyd_creator.agent.cancel'), onClick: cancelJob })),
                 replanBox);
         }
 
@@ -340,16 +340,16 @@
                 jobCard.hidden = false;
                 const statusText = t('cyd_creator.job.status_' + job.status);
                 const error = job.error_code || job.error_message
-                    ? el('p', { class: 'cc-job-error', role: 'alert', text: jobError(job) })
+                    ? el('p', { class: 'cydc-job-error', role: 'alert', text: jobError(job) })
                     : null;
                 // replaceChildren turns null into the text "null": pass real nodes only.
                 jobCard.replaceChildren(...[
-                    el('div', { class: 'cc-job-head' },
-                        el('span', { class: 'cc-job-status', dataset: { status: job.status }, text: statusText }),
-                        el('span', { class: 'cc-job-elapsed', dataset: { ccJobElapsed: '' }, text: elapsed(job) }),
-                        el('span', { class: 'cc-dock-spacer' }),
+                    el('div', { class: 'cydc-job-head' },
+                        el('span', { class: 'cydc-job-status', dataset: { status: job.status }, text: statusText }),
+                        el('span', { class: 'cydc-job-elapsed', dataset: { ccJobElapsed: '' }, text: elapsed(job) }),
+                        el('span', { class: 'cydc-dock-spacer' }),
                         isActive(job) && job.status !== 'awaiting_confirmation'
-                            ? el('button', { type: 'button', class: 'cc-btn cc-btn--small cc-btn--ghost', dataset: { ccAgentAction: 'cancel' }, text: t('cyd_creator.agent.cancel'), onClick: cancelJob })
+                            ? el('button', { type: 'button', class: 'cydc-btn cydc-btn--small cydc-btn--ghost', dataset: { ccAgentAction: 'cancel' }, text: t('cyd_creator.agent.cancel'), onClick: cancelJob })
                             : null),
                     job.status === 'awaiting_confirmation' ? planCard(job) : phaseList(job),
                     error].filter(Boolean));
@@ -397,9 +397,9 @@
         function renderAttachment() {
             if (!state.attachment) { attachmentsRow.hidden = true; attachmentsRow.replaceChildren(); return; }
             attachmentsRow.hidden = false;
-            attachmentsRow.replaceChildren(el('span', { class: 'cc-pill', dataset: { ccAttachment: 'log' } },
+            attachmentsRow.replaceChildren(el('span', { class: 'cydc-pill', dataset: { ccAttachment: 'log' } },
                 el('span', { text: t('cyd_creator.agent.attachment_log', { lines: state.attachment.split('\n').length }) }),
-                el('button', { type: 'button', class: 'cc-pill-remove', 'aria-label': t('cyd_creator.agent.attachment_remove'), title: t('cyd_creator.agent.attachment_remove'), text: '×', onClick: () => { state.attachment = ''; renderAttachment(); } })));
+                el('button', { type: 'button', class: 'cydc-pill-remove', 'aria-label': t('cyd_creator.agent.attachment_remove'), title: t('cyd_creator.agent.attachment_remove'), text: '×', onClick: () => { state.attachment = ''; renderAttachment(); } })));
         }
 
         async function startJob(body) {
@@ -511,17 +511,17 @@
         // ── revisions ──
         function diffNode(file) {
             const lines = String(file.diff || '').split('\n');
-            return el('section', { class: 'cc-diff-file' },
-                el('h4', {}, el('span', { text: file.path }), el('span', { class: 'cc-tag', dataset: { tone: file.status === 'deleted' ? 'danger' : (file.status === 'added' ? 'ok' : 'accent') }, text: t('cyd_creator.revisions.status_' + file.status) })),
-                el('pre', { class: 'cc-diff' }, lines.map(line => el('span', {
+            return el('section', { class: 'cydc-diff-file' },
+                el('h4', {}, el('span', { text: file.path }), el('span', { class: 'cydc-tag', dataset: { tone: file.status === 'deleted' ? 'danger' : (file.status === 'added' ? 'ok' : 'accent') }, text: t('cyd_creator.revisions.status_' + file.status) })),
+                el('pre', { class: 'cydc-diff' }, lines.map(line => el('span', {
                     class: line.startsWith('+') ? 'is-add' : (line.startsWith('-') ? 'is-del' : (line.startsWith('@@') ? 'is-hunk' : '')),
                     text: line + '\n'
                 }))));
         }
 
         async function openRevisions() {
-            const list = el('ul', { class: 'cc-rev-list', dataset: { ccRevisions: '' } }, el('li', { class: 'cc-empty', text: t('cyd_creator.app.loading') }));
-            const detail = el('div', { class: 'cc-rev-detail', dataset: { ccRevisionDiff: '' } }, el('p', { class: 'cc-empty', text: t('cyd_creator.revisions.pick') }));
+            const list = el('ul', { class: 'cydc-rev-list', dataset: { ccRevisions: '' } }, el('li', { class: 'cydc-empty', text: t('cyd_creator.app.loading') }));
+            const detail = el('div', { class: 'cydc-rev-detail', dataset: { ccRevisionDiff: '' } }, el('p', { class: 'cydc-empty', text: t('cyd_creator.revisions.pick') }));
             let selected = null;
             let token = 0;
             let restoreBtn = null;
@@ -534,8 +534,8 @@
             }
             const d = P.dialog.open(inst.root, {
                 title: t('cyd_creator.revisions.title'),
-                className: 'cc-dialog--wide',
-                body: el('div', { class: 'cc-rev' }, list, detail),
+                className: 'cydc-dialog--wide',
+                body: el('div', { class: 'cydc-rev' }, list, detail),
                 actions: [{ id: 'close', label: t('cyd_creator.app.close') }, { id: 'restore', label: t('cyd_creator.revisions.restore'), kind: 'danger', disabled: true }],
                 owner: b,
                 async onAction(id, dialog) {
@@ -572,33 +572,33 @@
             try {
                 const revisions = await inst.api.listRevisions(inst.projectId);
                 if (d.closed) return;
-                if (!revisions.length) { list.replaceChildren(el('li', { class: 'cc-empty', text: t('cyd_creator.revisions.none') })); return; }
+                if (!revisions.length) { list.replaceChildren(el('li', { class: 'cydc-empty', text: t('cyd_creator.revisions.none') })); return; }
                 list.replaceChildren(...revisions.map(rev => {
-                    const button = el('button', { type: 'button', class: 'cc-rev-item', dataset: { ccRevision: rev.id } },
-                        el('span', { class: 'cc-rev-label', text: rev.label || t('cyd_creator.revisions.reason_' + rev.reason) }),
-                        el('span', { class: 'cc-tag', text: t('cyd_creator.revisions.reason_' + rev.reason) }),
+                    const button = el('button', { type: 'button', class: 'cydc-rev-item', dataset: { ccRevision: rev.id } },
+                        el('span', { class: 'cydc-rev-label', text: rev.label || t('cyd_creator.revisions.reason_' + rev.reason) }),
+                        el('span', { class: 'cydc-tag', text: t('cyd_creator.revisions.reason_' + rev.reason) }),
                         el('time', { datetime: rev.created_at, text: P.format.time(rev.created_at) }));
                     button.addEventListener('click', async () => {
                         selected = rev;
                         list.querySelectorAll('[data-cc-revision]').forEach(node => node.setAttribute('aria-pressed', node === button ? 'true' : 'false'));
                         syncRestore();
                         const mine = ++token;
-                        detail.replaceChildren(el('p', { class: 'cc-empty', text: t('cyd_creator.app.loading') }));
+                        detail.replaceChildren(el('p', { class: 'cydc-empty', text: t('cyd_creator.app.loading') }));
                         try {
                             const diff = await inst.api.revisionDiff(rev.id);
                             if (mine !== token || d.closed) return;
                             const files = Array.isArray(diff.files) ? diff.files : [];
                             detail.replaceChildren(
-                                el('p', { class: 'cc-rev-layout', text: t(diff.layout_changed ? 'cyd_creator.revisions.layout_changed' : 'cyd_creator.revisions.layout_same') }),
-                                ...(files.length ? files.map(diffNode) : [el('p', { class: 'cc-empty', text: t('cyd_creator.revisions.no_file_changes') })]));
+                                el('p', { class: 'cydc-rev-layout', text: t(diff.layout_changed ? 'cyd_creator.revisions.layout_changed' : 'cyd_creator.revisions.layout_same') }),
+                                ...(files.length ? files.map(diffNode) : [el('p', { class: 'cydc-empty', text: t('cyd_creator.revisions.no_file_changes') })]));
                         } catch (err) {
-                            if (mine === token && !d.closed) detail.replaceChildren(el('p', { class: 'cc-dialog-error', text: P.errors.message(t, err) }));
+                            if (mine === token && !d.closed) detail.replaceChildren(el('p', { class: 'cydc-dialog-error', text: P.errors.message(t, err) }));
                         }
                     });
                     return el('li', {}, button);
                 }));
             } catch (err) {
-                if (!d.closed) list.replaceChildren(el('li', { class: 'cc-dialog-error', text: P.errors.message(t, err) }));
+                if (!d.closed) list.replaceChildren(el('li', { class: 'cydc-dialog-error', text: P.errors.message(t, err) }));
             }
         }
 

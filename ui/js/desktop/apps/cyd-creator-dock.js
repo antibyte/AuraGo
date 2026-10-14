@@ -77,13 +77,13 @@
             buildsLoaded: false
         };
 
-        const tabBar = el('div', { class: 'cc-dock-tabs', role: 'tablist', 'aria-label': t('cyd_creator.dock.label') });
-        const toggleBtn = el('button', { type: 'button', class: 'cc-icon-btn cc-dock-toggle', dataset: { ccDockToggle: '' } });
-        const handle = el('div', { class: 'cc-dock-handle', role: 'separator', tabindex: '0', 'aria-orientation': 'horizontal', 'aria-label': t('cyd_creator.dock.resize') });
-        const body = el('div', { class: 'cc-dock-body' });
-        const root = el('section', { class: 'cc-dock', 'aria-label': t('cyd_creator.dock.label') },
+        const tabBar = el('div', { class: 'cydc-dock-tabs', role: 'tablist', 'aria-label': t('cyd_creator.dock.label') });
+        const toggleBtn = el('button', { type: 'button', class: 'cydc-icon-btn cydc-dock-toggle', dataset: { ccDockToggle: '' } });
+        const handle = el('div', { class: 'cydc-dock-handle', role: 'separator', tabindex: '0', 'aria-orientation': 'horizontal', 'aria-label': t('cyd_creator.dock.resize') });
+        const body = el('div', { class: 'cydc-dock-body' });
+        const root = el('section', { class: 'cydc-dock', 'aria-label': t('cyd_creator.dock.label') },
             handle,
-            el('div', { class: 'cc-dock-bar' }, tabBar, el('span', { class: 'cc-dock-spacer' }), toggleBtn),
+            el('div', { class: 'cydc-dock-bar' }, tabBar, el('span', { class: 'cydc-dock-spacer' }), toggleBtn),
             body);
 
         // ── tabs ──
@@ -91,14 +91,14 @@
             if (tabs.has(id)) return;
             const s = spec || {};
             const order = Object.prototype.hasOwnProperty.call(TAB_ORDER, id) ? TAB_ORDER[id] : (s.order == null ? 10 : s.order);
-            const label = el('span', { class: 'cc-dock-tab-label', text: t(s.labelKey || ('cyd_creator.dock.' + id)) });
-            const badge = el('span', { class: 'cc-tag cc-dock-badge', hidden: true });
+            const label = el('span', { class: 'cydc-dock-tab-label', text: t(s.labelKey || ('cyd_creator.dock.' + id)) });
+            const badge = el('span', { class: 'cydc-tag cydc-dock-badge', hidden: true });
             const button = el('button', {
-                type: 'button', class: 'cc-dock-tab', role: 'tab', id: inst.domId('dock-tab-' + id),
+                type: 'button', class: 'cydc-dock-tab', role: 'tab', id: inst.domId('dock-tab-' + id),
                 'aria-selected': 'false', 'aria-controls': inst.domId('dock-panel-' + id), tabindex: '-1',
                 dataset: { ccDockTab: id, order: String(order) }
             }, label, badge);
-            const panel = el('div', { class: 'cc-dock-panel', role: 'tabpanel', id: inst.domId('dock-panel-' + id), 'aria-labelledby': inst.domId('dock-tab-' + id), hidden: true, dataset: { ccDockPanel: id } });
+            const panel = el('div', { class: 'cydc-dock-panel', role: 'tabpanel', id: inst.domId('dock-panel-' + id), 'aria-labelledby': inst.domId('dock-tab-' + id), hidden: true, dataset: { ccDockPanel: id } });
             const entry = { id, order, button, panel, badge, mount: s.mount, dispose: null, mounted: false };
             tabs.set(id, entry);
             const after = Array.from(tabBar.children).find(node => Number(node.dataset.order) > order);
@@ -226,17 +226,17 @@
         });
 
         // ── build log ──
-        const buildSelect = el('select', { class: 'cc-select cc-log-builds', 'aria-label': t('cyd_creator.dock.build_select'), dataset: { ccLogBuilds: '' } });
-        const statusLine = el('span', { class: 'cc-build-status', role: 'status', dataset: { ccBuildStatus: '' } });
-        const usageLine = el('span', { class: 'cc-build-usage', dataset: { ccBuildUsage: '' } });
-        const cancelBtn = el('button', { type: 'button', class: 'cc-btn cc-btn--small', dataset: { ccLogAction: 'cancel' }, hidden: true, text: t('cyd_creator.build.cancel') });
-        const downloadLink = el('a', { class: 'cc-btn cc-btn--small cc-btn--ghost', dataset: { ccLogAction: 'download' }, hidden: true, download: '', text: t('cyd_creator.dock.download_log') });
+        const buildSelect = el('select', { class: 'cydc-select cydc-log-builds', 'aria-label': t('cyd_creator.dock.build_select'), dataset: { ccLogBuilds: '' } });
+        const statusLine = el('span', { class: 'cydc-build-status', role: 'status', dataset: { ccBuildStatus: '' } });
+        const usageLine = el('span', { class: 'cydc-build-usage', dataset: { ccBuildUsage: '' } });
+        const cancelBtn = el('button', { type: 'button', class: 'cydc-btn cydc-btn--small', dataset: { ccLogAction: 'cancel' }, hidden: true, text: t('cyd_creator.build.cancel') });
+        const downloadLink = el('a', { class: 'cydc-btn cydc-btn--small cydc-btn--ghost', dataset: { ccLogAction: 'download' }, hidden: true, download: '', text: t('cyd_creator.dock.download_log') });
         const followBox = el('input', { type: 'checkbox', checked: true, dataset: { ccLogFollow: '' } });
-        const logPre = el('pre', { class: 'cc-log-lines', role: 'log', 'aria-live': 'off', tabindex: '0', dataset: { ccLog: '' } });
-        const logEmpty = el('p', { class: 'cc-empty cc-log-empty', text: t('cyd_creator.dock.no_build') });
-        const logPanel = el('div', { class: 'cc-log' },
-            el('div', { class: 'cc-log-head' }, buildSelect, statusLine, usageLine, el('span', { class: 'cc-dock-spacer' }), cancelBtn, downloadLink,
-                el('label', { class: 'cc-checkline' }, followBox, el('span', { text: t('cyd_creator.dock.follow') }))),
+        const logPre = el('pre', { class: 'cydc-log-lines', role: 'log', 'aria-live': 'off', tabindex: '0', dataset: { ccLog: '' } });
+        const logEmpty = el('p', { class: 'cydc-empty cydc-log-empty', text: t('cyd_creator.dock.no_build') });
+        const logPanel = el('div', { class: 'cydc-log' },
+            el('div', { class: 'cydc-log-head' }, buildSelect, statusLine, usageLine, el('span', { class: 'cydc-dock-spacer' }), cancelBtn, downloadLink,
+                el('label', { class: 'cydc-checkline' }, followBox, el('span', { text: t('cyd_creator.dock.follow') }))),
             logEmpty, logPre);
 
         function selectedBuild() { return state.builds.find(x => x.id === state.selected) || null; }
@@ -285,10 +285,10 @@
         }
 
         function lineNode(line) {
-            return el('span', { class: 'cc-log-line ' + lineClass(line), text: line + '\n' });
+            return el('span', { class: 'cydc-log-line ' + lineClass(line), text: line + '\n' });
         }
         function noteNode() {
-            return el('span', { class: 'cc-log-line is-note', text: t('cyd_creator.dock.log_truncated') + '\n' });
+            return el('span', { class: 'cydc-log-line is-note', text: t('cyd_creator.dock.log_truncated') + '\n' });
         }
 
         // While state.truncated is set, the truncation note is the log's first node.
@@ -462,10 +462,10 @@
         });
 
         // ── problems ──
-        const problemsHead = el('p', { class: 'cc-problems-summary', dataset: { ccProblemsSummary: '' } });
-        const problemsList = el('ul', { class: 'cc-problems-list', dataset: { ccProblems: '' } });
-        const problemsEmpty = el('p', { class: 'cc-empty', text: t('cyd_creator.dock.no_problems') });
-        const problemsPanel = el('div', { class: 'cc-problems' }, problemsHead, problemsEmpty, problemsList);
+        const problemsHead = el('p', { class: 'cydc-problems-summary', dataset: { ccProblemsSummary: '' } });
+        const problemsList = el('ul', { class: 'cydc-problems-list', dataset: { ccProblems: '' } });
+        const problemsEmpty = el('p', { class: 'cydc-empty', text: t('cyd_creator.dock.no_problems') });
+        const problemsPanel = el('div', { class: 'cydc-problems' }, problemsHead, problemsEmpty, problemsList);
 
         function issueText(issue) {
             const key = 'cyd_creator.issue.' + issue.code;
@@ -498,14 +498,14 @@
             problemsEmpty.hidden = rows.length > 0;
             problemsList.replaceChildren(...rows.map(row => {
                 const button = el('button', {
-                    type: 'button', class: 'cc-problem', disabled: !row.open,
+                    type: 'button', class: 'cydc-problem', disabled: !row.open,
                     dataset: { severity: row.severity, source: row.source, ccProblem: '' }
                 },
-                el('span', { class: 'cc-problem-icon', 'aria-hidden': 'true', text: row.severity === 'error' ? '✕' : (row.severity === 'warning' ? '!' : 'i') }),
-                el('span', { class: 'cc-problem-text', text: row.text }),
-                row.generated ? el('span', { class: 'cc-tag', title: t('cyd_creator.dock.generated_hint'), text: t('cyd_creator.dock.generated') }) : null,
-                el('span', { class: 'cc-problem-source', text: t('cyd_creator.dock.source_' + row.source) }),
-                row.where ? el('span', { class: 'cc-problem-where', text: row.where }) : null);
+                el('span', { class: 'cydc-problem-icon', 'aria-hidden': 'true', text: row.severity === 'error' ? '✕' : (row.severity === 'warning' ? '!' : 'i') }),
+                el('span', { class: 'cydc-problem-text', text: row.text }),
+                row.generated ? el('span', { class: 'cydc-tag', title: t('cyd_creator.dock.generated_hint'), text: t('cyd_creator.dock.generated') }) : null,
+                el('span', { class: 'cydc-problem-source', text: t('cyd_creator.dock.source_' + row.source) }),
+                row.where ? el('span', { class: 'cydc-problem-where', text: row.where }) : null);
                 if (row.open) button.addEventListener('click', row.open);
                 return el('li', {}, button);
             }));

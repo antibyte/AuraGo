@@ -1146,7 +1146,7 @@ async function makeCode(initial) {
         { file: 'src/app/a.cpp', line: 1, severity: 'note' },
         { file: 'src/app/b.cpp', line: 2, severity: 'note' }, { file: 'src/app/b.cpp', line: 3, severity: 'warning' }
     ]);
-    const tag = p => findNode(c.file(p), n => n.className === 'cc-tag');
+    const tag = p => findNode(c.file(p), n => n.className === 'cydc-tag');
     eq('notes count as notes in the tree', [tag('src/app/a.cpp').dataset.tone, tag('src/app/b.cpp').dataset.tone, tag('src/app/b.cpp').textContent], [undefined, 'warning', '2']);
     c.file('src/app/b.cpp').focus();
     c.code.setProblems([]);
@@ -1268,7 +1268,7 @@ async function makeAgent(opts) {
     return {
         agent, inst, calls, byData, inDialog, confirms,
         log: () => byData('ccAgentLog'),
-        errorText: () => { const n = findNode(agent.el, x => x.className === 'cc-job-error'); return n ? n.textContent : null; },
+        errorText: () => { const n = findNode(agent.el, x => x.className === 'cydc-job-error'); return n ? n.textContent : null; },
         setLocked(v) { locked = v; },
         dispose() { agent.dispose(); host.remove(); inst.root.remove(); }
     };
@@ -1739,7 +1739,7 @@ const appT = P.i18n({});
     const a = await makeApp({ projectId: 'ccp_1' });
     const design = a.find('ccAction', 'mode-design');
     const code = a.find('ccAction', 'mode-code');
-    eq('the Design/Code buttons keep the button frame and are segments', [design.className, code.className], ['cc-btn cc-seg', 'cc-btn cc-seg']);
+    eq('the Design/Code buttons keep the button frame and are segments', [design.className, code.className], ['cydc-btn cydc-seg', 'cydc-btn cydc-seg']);
     code.click();
     await settle();
     eq('the mode toggle presses one segment and mounts the editor', [design.getAttribute('aria-pressed'), code.getAttribute('aria-pressed'), a.inst.root.dataset.ccMode, !!a.find('ccCode')],
@@ -1825,7 +1825,7 @@ const appT = P.i18n({});
     const a = await makeApp({ projectId: 'ccp_1', project: { publish_review: true } });
     const banner = a.find('ccPublishReview');
     eq('a fenced project shows the publication review banner as an alert', [banner.hidden, banner.textContent, banner.className, banner.getAttribute('role')],
-        [false, appT('cyd_creator.error.publication_review'), 'cc-banner cc-banner--danger', 'alert']);
+        [false, appT('cyd_creator.error.publication_review'), 'cydc-banner cydc-banner--danger', 'alert']);
     a.be.project.publish_review = false;
     await a.inst.refreshProject();
     eq('the banner disappears (and loses its sentence) once the summary no longer reports the fence', [banner.hidden, banner.textContent], [true, '']);
