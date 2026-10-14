@@ -18,7 +18,7 @@ integration and versioned HTTP serving. See `documentation/web-assets.md`.
   ICC color profiles (`.icc`) and WASM decoders; keep these in the asset manifest.
 - Keep tests runnable with `go test ./internal/webassets ./cmd/assetpack`.
   `scripts/check-web-assets.mjs` enforces a 10 MB first-party embed budget and
-  the separate 1 MB recovery-page and 125 MB stripped-binary budgets.
+  the separate 1 MB recovery-page and 130 MB stripped-binary budgets (decimal).
 - `ui.Content` and per-package test fixtures are test inputs, never production
   fallback sources. Maintain missing-set behavior for Desktop and Game Maker.
 

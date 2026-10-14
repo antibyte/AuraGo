@@ -124,7 +124,7 @@ See [update retention](update-retention.md) for previews, legacy adoption and
 recovery of interrupted updates.
 
 `node scripts/check-web-assets.mjs <stripped-binary>...` enforces a
-125 MB executable ceiling, a 10 MB first-party embed budget and a 1 MB bootstrap
+130 MB (130,000,000 bytes) executable ceiling, a 10 MB first-party embed budget and a 1 MB bootstrap
 limit. The packaging CI checks Windows and Linux. Production assets are never
 committed as generated archives; source files and the inclusion manifest are.
 
