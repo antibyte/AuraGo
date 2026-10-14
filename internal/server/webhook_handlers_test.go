@@ -302,8 +302,12 @@ webhooks:
 	if err != nil {
 		t.Fatalf("NewVault() error = %v", err)
 	}
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("load test config: %v", err)
+	}
 	server := &Server{
-		Cfg:    &config.Config{ConfigPath: configPath},
+		Cfg:    cfg,
 		Vault:  vault,
 		Logger: logger,
 	}

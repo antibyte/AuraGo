@@ -13,7 +13,7 @@ import (
 )
 
 func TestPatchAuthConfigRestoresVaultWhenReloadFails(t *testing.T) {
-	s := newBootstrapTestServer(t, "127.0.0.1")
+	s := newBootstrapTestServer(t, "127.0.0.1", false)
 	if err := s.Vault.WriteSecret("auth_password_hash", "old-hash"); err != nil {
 		t.Fatalf("WriteSecret: %v", err)
 	}
@@ -38,7 +38,7 @@ func TestPatchAuthConfigRestoresVaultWhenReloadFails(t *testing.T) {
 }
 
 func TestPatchAuthConfigLeavesVaultUntouchedWhenYAMLCannotBeRead(t *testing.T) {
-	s := newBootstrapTestServer(t, "127.0.0.1")
+	s := newBootstrapTestServer(t, "127.0.0.1", false)
 	if err := s.Vault.WriteSecret("auth_totp_secret", "JBSWY3DPEHPK3PXP"); err != nil {
 		t.Fatalf("WriteSecret: %v", err)
 	}
@@ -53,7 +53,7 @@ func TestPatchAuthConfigLeavesVaultUntouchedWhenYAMLCannotBeRead(t *testing.T) {
 }
 
 func TestPatchAuthConfigPersistsYAMLAndVaultTogether(t *testing.T) {
-	s := newBootstrapTestServer(t, "127.0.0.1")
+	s := newBootstrapTestServer(t, "127.0.0.1", false)
 	if err := patchAuthConfig(s, map[string]interface{}{"totp_secret": "JBSWY3DPEHPK3PXP", "totp_enabled": true}); err != nil {
 		t.Fatalf("patchAuthConfig: %v", err)
 	}

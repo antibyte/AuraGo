@@ -85,7 +85,10 @@ func TestPersistOutgoingWebhooksSerializesVaultAndConfigUpdates(t *testing.T) {
 		aWriteSeen: make(chan struct{}),
 		releaseA:   make(chan struct{}),
 	}
-	current := &Config{ConfigPath: configPath}
+	current, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("load test config: %v", err)
+	}
 	current.Webhooks.Outgoing = []OutgoingWebhook{{ID: "hook_1", Name: "Initial", Method: "POST", URL: "https://initial.example/"}}
 
 	type result struct {
@@ -185,11 +188,14 @@ func TestPersistOutgoingWebhooksRollsBackWhenRemovedBundleCannotBeDeleted(t *tes
 		t.Fatalf("json.Marshal() error = %v", err)
 	}
 	vault := &failingOutgoingDeleteVault{data: map[string]string{key: string(bundle)}, failKey: key}
-	current := &Config{ConfigPath: configPath}
+	current, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("load test config: %v", err)
+	}
 	current.Webhooks.Outgoing = []OutgoingWebhook{{ID: "hook_1", Name: "Old", Method: "POST", URL: "https://old.example/hook"}}
 
-	if _, err := PersistOutgoingWebhooks(configPath, current, nil, vault); err == nil {
-		t.Fatal("PersistOutgoingWebhooks() error = nil, want delete failure")
+	if _, err := PersistOutgoingWebhooks(configPath, current, nil, vault); err == nil || !strings.Contains(err.Error(), "delete failed") {
+		t.Fatalf("PersistOutgoingWebhooks() error = %v, want delete failure", err)
 	}
 	data, err := os.ReadFile(configPath)
 	if err != nil {
@@ -218,14 +224,17 @@ func TestPersistOutgoingWebhooksRestoresEarlierRemovedBundlesWhenLaterDeleteFail
 		data:    map[string]string{key1: bundle1, key2: bundle2},
 		failKey: key2,
 	}
-	current := &Config{ConfigPath: configPath}
+	current, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("load test config: %v", err)
+	}
 	current.Webhooks.Outgoing = []OutgoingWebhook{
 		{ID: "hook_1", Name: "One", Method: "POST", URL: "https://one.example/hook"},
 		{ID: "hook_2", Name: "Two", Method: "POST", URL: "https://two.example/hook"},
 	}
 
-	if _, err := PersistOutgoingWebhooks(configPath, current, nil, vault); err == nil {
-		t.Fatal("PersistOutgoingWebhooks() error = nil, want second delete failure")
+	if _, err := PersistOutgoingWebhooks(configPath, current, nil, vault); err == nil || !strings.Contains(err.Error(), "delete failed") {
+		t.Fatalf("PersistOutgoingWebhooks() error = %v, want second delete failure", err)
 	}
 	if got := vault.data[key1]; got != bundle1 {
 		t.Fatalf("first removed bundle was not restored: got %q, want %q", got, bundle1)

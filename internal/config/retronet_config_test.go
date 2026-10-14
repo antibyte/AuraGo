@@ -64,7 +64,10 @@ func TestVirtualDesktopRetroNetToggleDefaultsOnAndPersists(t *testing.T) {
 		if err := os.WriteFile(savedPath, []byte("server:\n  ui_language: en\nvirtual_desktop:\n  enabled: true\n"), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		toSave := &Config{}
+		toSave, err := Load(savedPath)
+		if err != nil {
+			t.Fatalf("load test config: %v", err)
+		}
 		toSave.VirtualDesktop.RetroNetEnabled = value
 		if err := toSave.Save(savedPath); err != nil {
 			t.Fatalf("Save(%v): %v", value, err)

@@ -30,7 +30,7 @@ func resetLoginRecordsForStepUpTest(t *testing.T) {
 func newStepUpTestServer(t *testing.T) (*Server, *http.Cookie) {
 	t.Helper()
 	resetLoginRecordsForStepUpTest(t)
-	s := newBootstrapTestServer(t, "127.0.0.1")
+	s := newBootstrapTestServer(t, "127.0.0.1", false)
 	hash, err := HashPassword(stepUpTestPassword)
 	if err != nil {
 		t.Fatalf("HashPassword: %v", err)

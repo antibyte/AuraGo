@@ -744,7 +744,13 @@ func TestManagedGo2RTCConfigUpdateKeepsSourcesVaultOnlyAndRollsBackValidationFai
 
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")
-	cfg := &config.Config{ConfigPath: configPath}
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("load test config: %v", err)
+	}
 	cfg.Directories.DataDir = filepath.Join(tmpDir, "data")
 	cfg.Docker.Enabled = true
 	cfg.Docker.Host = "tcp://127.0.0.1:2375"
@@ -1063,7 +1069,13 @@ func newGo2RTCMutationTestServer(t *testing.T, upstreamURL string, enabled bool)
 	}
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")
-	cfg := &config.Config{ConfigPath: configPath}
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("load test config: %v", err)
+	}
 	cfg.Directories.DataDir = filepath.Join(tmpDir, "data")
 	cfg.Docker.Enabled = true
 	cfg.Docker.Host = "tcp://127.0.0.1:2375"

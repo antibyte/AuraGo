@@ -155,7 +155,10 @@ func TestPersistOutgoingWebhooksDeletesRemovedVaultBundleAfterSave(t *testing.T)
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 	vault := &testSecretVault{data: map[string]string{OutgoingWebhookSecretsVaultKey("hook_1"): `{"url":"https://old.example/hook"}`}}
-	cfg := &Config{ConfigPath: configPath}
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("load test config: %v", err)
+	}
 	cfg.Webhooks.Outgoing = []OutgoingWebhook{{ID: "hook_1", Name: "Old", Method: "POST", URL: "https://old.example/hook"}}
 
 	updated, err := PersistOutgoingWebhooks(configPath, cfg, []OutgoingWebhook{}, vault)

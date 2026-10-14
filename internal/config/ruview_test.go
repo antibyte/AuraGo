@@ -1,6 +1,25 @@
 package config
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestLoadRejectsExplicitInvalidRuViewSettings(t *testing.T) {
+	for _, setting := range []string{"mode: invalid", "source: invalid", "http_port: 0", "udp_port: 0", "storage_mb: -1"} {
+		t.Run(setting, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(path, []byte("ruview:\n  "+setting+"\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := Load(path); err == nil || !strings.Contains(strings.ToLower(err.Error()), "ruview") {
+				t.Fatalf("explicit invalid RuView setting accepted or wrong error: %v", err)
+			}
+		})
+	}
+}
 
 func TestRuViewDefaultsAndNetworkBoundary(t *testing.T) {
 	c := DefaultRuViewConfig()

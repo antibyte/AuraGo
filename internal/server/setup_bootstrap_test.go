@@ -30,8 +30,9 @@ func withSetupBootstrapToken(s *Server, req *http.Request) {
 }
 
 // newBootstrapTestServer loads the shipped config template the way a fresh
-// install does. host mirrors AURAGO_SERVER_HOST (the Docker image uses 0.0.0.0).
-func newBootstrapTestServer(t *testing.T, host string) *Server {
+// install does, with an explicit HTTP/HTTPS selection for the tested scenario.
+// host mirrors AURAGO_SERVER_HOST (the Docker image uses 0.0.0.0).
+func newBootstrapTestServer(t *testing.T, host string, https bool) *Server {
 	t.Helper()
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.yaml")
@@ -46,6 +47,10 @@ func newBootstrapTestServer(t *testing.T, host string) *Server {
 	cfg, err := config.Load(configPath)
 	if err != nil {
 		t.Fatalf("load config: %v", err)
+	}
+	cfg.Server.HTTPS.Enabled = https
+	if err := cfg.Save(configPath); err != nil {
+		t.Fatalf("save test transport: %v", err)
 	}
 	cfg.ConfigPath = configPath
 	vault, err := security.NewVault(strings.Repeat("c", 64), filepath.Join(dir, "vault.bin"))
@@ -92,7 +97,7 @@ func responseCode(t *testing.T, rec *httptest.ResponseRecorder) string {
 }
 
 func TestSetupSaveRejectsRemoteRequestWithoutBootstrapToken(t *testing.T) {
-	s := newBootstrapTestServer(t, "0.0.0.0")
+	s := newBootstrapTestServer(t, "0.0.0.0", false)
 	addSetupCSRFTokenForTest(s, "csrf-a")
 	setSetupBootstrapTokenForTest(s, "bootstrap-secret")
 
@@ -128,7 +133,7 @@ func TestSetupSaveRejectsRemoteRequestWithoutBootstrapToken(t *testing.T) {
 }
 
 func TestSetupSaveAllowsLoopbackPeerOnLocalOnlyListener(t *testing.T) {
-	s := newBootstrapTestServer(t, "127.0.0.1")
+	s := newBootstrapTestServer(t, "127.0.0.1", false)
 	addSetupCSRFTokenForTest(s, "csrf-local")
 
 	rec := postSetup(s, "127.0.0.1:50000", setupClaimPatch(t), map[string]string{"X-CSRF-Token": "csrf-local"})
@@ -138,7 +143,7 @@ func TestSetupSaveAllowsLoopbackPeerOnLocalOnlyListener(t *testing.T) {
 }
 
 func TestSetupSaveRequiresBootstrapTokenFromLoopbackWhenTunnelExposesUI(t *testing.T) {
-	s := newBootstrapTestServer(t, "127.0.0.1")
+	s := newBootstrapTestServer(t, "127.0.0.1", false)
 	s.Cfg.CloudflareTunnel.Enabled = true
 	s.Cfg.CloudflareTunnel.ExposeWebUI = true
 	addSetupCSRFTokenForTest(s, "csrf-tunnel")
@@ -150,8 +155,38 @@ func TestSetupSaveRequiresBootstrapTokenFromLoopbackWhenTunnelExposesUI(t *testi
 	}
 }
 
+func TestSetupBootstrapRequiresTokenForEveryRemoteIngress(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		host      string
+		https     bool
+		configure func(*config.Config)
+	}{
+		{name: "HTTPS", host: "127.0.0.1", https: true},
+		{name: "wildcard", host: "0.0.0.0"},
+		{name: "IPv6 wildcard", host: "::"},
+		{name: "reverse proxy", host: "127.0.0.1", configure: func(c *config.Config) { c.Server.HTTPS.BehindProxy = true }},
+		{name: "security proxy", host: "127.0.0.1", configure: func(c *config.Config) { c.SecurityProxy.Enabled = true }},
+		{name: "tunnel", host: "127.0.0.1", configure: func(c *config.Config) { c.CloudflareTunnel.Enabled = true; c.CloudflareTunnel.ExposeWebUI = true }},
+		{name: "Tailscale", host: "127.0.0.1", configure: func(c *config.Config) { c.Tailscale.TsNet.Enabled = true }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newBootstrapTestServer(t, tc.host, tc.https)
+			if tc.configure != nil {
+				tc.configure(s.Cfg)
+			}
+			addSetupCSRFTokenForTest(s, "csrf-ingress")
+			setSetupBootstrapTokenForTest(s, "test-bootstrap-token")
+			rec := postSetup(s, "127.0.0.1:50000", setupClaimPatch(t), map[string]string{"X-CSRF-Token": "csrf-ingress"})
+			if rec.Code != http.StatusForbidden || responseCode(t, rec) != "setup_bootstrap_token_required" {
+				t.Fatalf("remote ingress accepted loopback without token: status=%d body=%s", rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
+
 func TestSetupSaveRefusesToDisableAuthOnRemoteListener(t *testing.T) {
-	s := newBootstrapTestServer(t, "0.0.0.0")
+	s := newBootstrapTestServer(t, "0.0.0.0", false)
 	addSetupCSRFTokenForTest(s, "csrf-b")
 	setSetupBootstrapTokenForTest(s, "bootstrap-secret")
 
@@ -185,7 +220,7 @@ func TestRemoteAuthExposureUsesServerHostEnvOverride(t *testing.T) {
 }
 
 func TestSetupStatusReportsBootstrapRequirement(t *testing.T) {
-	s := newBootstrapTestServer(t, "0.0.0.0")
+	s := newBootstrapTestServer(t, "0.0.0.0", false)
 	setSetupBootstrapTokenForTest(s, "bootstrap-secret")
 
 	status := func(remoteAddr, token string) map[string]interface{} {
@@ -211,7 +246,7 @@ func TestSetupStatusReportsBootstrapRequirement(t *testing.T) {
 		t.Fatalf("remote status with token = %v", valid)
 	}
 
-	local := newBootstrapTestServer(t, "127.0.0.1")
+	local := newBootstrapTestServer(t, "127.0.0.1", false)
 	req := httptest.NewRequest(http.MethodGet, "/api/setup/status", nil)
 	req.RemoteAddr = "127.0.0.1:50002"
 	rec := httptest.NewRecorder()
@@ -224,7 +259,7 @@ func TestSetupStatusReportsBootstrapRequirement(t *testing.T) {
 }
 
 func TestSetupStatusGeneratesBootstrapTokenForRemoteRequests(t *testing.T) {
-	s := newBootstrapTestServer(t, "0.0.0.0")
+	s := newBootstrapTestServer(t, "0.0.0.0", false)
 	req := httptest.NewRequest(http.MethodGet, "/api/setup/status", nil)
 	req.RemoteAddr = bootstrapTestRemotePeer
 	handleSetupStatus(s).ServeHTTP(httptest.NewRecorder(), req)
@@ -247,13 +282,13 @@ func activeSetupBootstrapToken(s *Server) string {
 }
 
 func TestAnnounceSetupBootstrapOnlyForReachableOpenSetup(t *testing.T) {
-	remote := newBootstrapTestServer(t, "0.0.0.0")
+	remote := newBootstrapTestServer(t, "0.0.0.0", false)
 	remote.announceSetupBootstrap()
 	if activeSetupBootstrapToken(remote) == "" {
 		t.Fatal("remote unconfigured instance started without a bootstrap token in the log")
 	}
 
-	local := newBootstrapTestServer(t, "127.0.0.1")
+	local := newBootstrapTestServer(t, "127.0.0.1", false)
 	local.announceSetupBootstrap()
 	if activeSetupBootstrapToken(local) != "" {
 		t.Fatal("local-only instance logged a bootstrap token nobody needs")
@@ -267,7 +302,7 @@ func TestAnnounceSetupBootstrapOnlyForReachableOpenSetup(t *testing.T) {
 }
 
 func TestSetupTestConnectionRequiresBootstrapToken(t *testing.T) {
-	s := newBootstrapTestServer(t, "0.0.0.0")
+	s := newBootstrapTestServer(t, "0.0.0.0", false)
 	addSetupCSRFTokenForTest(s, "csrf-test")
 	setSetupBootstrapTokenForTest(s, "bootstrap-secret")
 
@@ -283,7 +318,7 @@ func TestSetupTestConnectionRequiresBootstrapToken(t *testing.T) {
 }
 
 func TestSetupLocalLLMProbeRequiresBootstrapToken(t *testing.T) {
-	s := newBootstrapTestServer(t, "0.0.0.0")
+	s := newBootstrapTestServer(t, "0.0.0.0", false)
 	s.LocalLLM = &localllm.Manager{}
 	addSetupCSRFTokenForTest(s, "csrf-probe")
 	setSetupBootstrapTokenForTest(s, "bootstrap-secret")
@@ -313,7 +348,7 @@ func postFirstPassword(s *Server, remoteAddr, token string) *httptest.ResponseRe
 }
 
 func TestAuthSetPasswordLockdownRequiresBootstrapToken(t *testing.T) {
-	s := newBootstrapTestServer(t, "0.0.0.0")
+	s := newBootstrapTestServer(t, "0.0.0.0", false)
 	setSetupBootstrapTokenForTest(s, "bootstrap-secret")
 
 	rec := postFirstPassword(s, bootstrapTestRemotePeer, "")
@@ -334,7 +369,7 @@ func TestAuthSetPasswordLockdownRequiresBootstrapToken(t *testing.T) {
 }
 
 func TestAuthSetPasswordWithAuthDisabledKeepsSameOriginFirstSetup(t *testing.T) {
-	s := newBootstrapTestServer(t, "0.0.0.0")
+	s := newBootstrapTestServer(t, "0.0.0.0", false)
 	s.Cfg.Auth.Enabled = false
 
 	rec := postFirstPassword(s, bootstrapTestRemotePeer, "")
@@ -347,7 +382,7 @@ func TestAuthSetPasswordWithAuthDisabledKeepsSameOriginFirstSetup(t *testing.T) 
 // wrong AURAGO_MASTER_KEY: the vault exists but cannot be decrypted.
 func newVaultLockedTestServer(t *testing.T, host string) *Server {
 	t.Helper()
-	s := newBootstrapTestServer(t, host)
+	s := newBootstrapTestServer(t, host, false)
 	vaultPath := filepath.Join(filepath.Dir(s.Cfg.ConfigPath), "vault.bin")
 	if err := s.Vault.WriteSecret("auth_password_hash", "$2a$12$existing-owner-hash"); err != nil {
 		t.Fatalf("seed vault: %v", err)
