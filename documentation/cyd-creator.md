@@ -85,10 +85,11 @@ The build takes about ten minutes (the prewarm compiles every board profile once
 reference without `/` (such as `aurago-cyd-builder:dev`) is a local-only tag the administrator chose: AuraGo uses it
 as it is and never pulls it.
 
-Contents (version `1.0.0`, `CYD_BUILDER_VERSION`): Node 22 bookworm-slim base with `tini`, PlatformIO Core 6.1.19
+Contents (version `1.0.1`, `CYD_BUILDER_VERSION`): Node 22 bookworm-slim base with `tini`, PlatformIO Core 6.2.0
 (hash-pinned), platform `espressif32@6.13.0` with Arduino-ESP32 2.0.17 (framework-arduinoespressif32
-3.20017.241212) and exactly pinned packages, LVGL 9.5.0, LovyanGFX 1.2.30, WiFiManager 2.0.17, ArduinoJson 7.4.3
-and the curated libraries a project can enable in its settings: PubSubClient 2.8, OneWire 2.3.8, DallasTemperature
+3.20017.241212) and exactly pinned packages including SCons 4.11.1, LVGL 9.5.0, LovyanGFX 1.2.30,
+WiFiManager 2.0.17, ArduinoJson 7.4.3 and the curated libraries a project can enable in its settings:
+PubSubClient 2.8, OneWire 2.3.8, DallasTemperature
 4.0.6, DHT sensor library 1.4.7, Adafruit BME280 2.3.0, Adafruit BMP280 3.0.0 and Adafruit NeoPixel 1.15.5 (with
 Adafruit Unified Sensor 1.1.15 and BusIO 1.17.4). Builds run offline; a new library needs a new image version.
 

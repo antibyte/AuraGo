@@ -13,7 +13,7 @@
 # read-only root filesystem (writable: /work, /cache, /tmp) as uid 1000.
 FROM node:22-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392
 
-ARG CYD_BUILDER_VERSION=1.0.0
+ARG CYD_BUILDER_VERSION=1.0.1
 # The licences label names the main licences of what the image ships (AuraGo's
 # scripts are MIT; the toolchains, esptool, the Arduino core, NeoPixel, certifi,
 # Python and the Debian packages bring the rest). The per-component list with
@@ -63,7 +63,7 @@ ENV PLATFORMIO_CORE_DIR=/tmp/cyd-pio-build \
 RUN /opt/cyd/pio-venv/bin/pio pkg install --global \
       --tool "platformio/framework-arduinoespressif32@3.20017.241212" \
       --tool "platformio/tool-esptoolpy@2.41100.260830" \
-      --tool "platformio/tool-scons@4.40801.0" \
+      --tool "platformio/tool-scons@4.41101.0" \
       --tool "espressif/toolchain-xtensa-esp32@8.4.0+2021r2-patch5" \
       --tool "espressif/toolchain-xtensa-esp32s3@8.4.0+2021r2-patch5" \
       --tool "espressif/toolchain-riscv32-esp@8.4.0+2021r2-patch5" \
@@ -162,7 +162,7 @@ sys.exit(0 if got == want else "toolchain drift: expected %s" % want)' \
       "espressif32 6.13.0" \
       "framework-arduinoespressif32 3.20017.241212+sha.dcc1105b" \
       "tool-esptoolpy 2.41100.260830" \
-      "tool-scons 4.40801.0" \
+      "tool-scons 4.41101.0" \
       "toolchain-riscv32-esp 8.4.0+2021r2-patch5" \
       "toolchain-xtensa-esp32 8.4.0+2021r2-patch5" \
       "toolchain-xtensa-esp32s3 8.4.0+2021r2-patch5"

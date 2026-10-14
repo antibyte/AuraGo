@@ -341,10 +341,11 @@ OTA updates and the ZIP export and import.
 
 ### Builder image
 
-- The builder image pins PlatformIO Core 6.1.19 (hash-pinned `requirements.txt`, generated from
-  `requirements.in`), the platform `espressif32@6.13.0`, every platform package at an exact version
-  (framework-arduinoespressif32 3.20017.241212 = Arduino-ESP32 2.0.17, tool-esptoolpy, tool-scons and the
-  8.4.0+2021r2-patch5 toolchains), the template libraries (LVGL 9.5.0, LovyanGFX 1.2.30, WiFiManager 2.0.17,
+- The builder image pins PlatformIO Core 6.2.0 (hash-pinned `requirements.txt`, generated from
+  `requirements.in`, with Starlette >=1.3.1 and setuptools >=83.0.0 security floors), the platform
+  `espressif32@6.13.0`, every platform package at an exact version (framework-arduinoespressif32
+  3.20017.241212 = Arduino-ESP32 2.0.17, tool-esptoolpy, tool-scons 4.41101.0 and the 8.4.0+2021r2-patch5
+  toolchains), the template libraries (LVGL 9.5.0, LovyanGFX 1.2.30, WiFiManager 2.0.17,
   ArduinoJson 7.4.3) and every `Libraries()` spec. The packages are installed before the platform so PlatformIO never
   resolves a range against the registry of the day, and a drift check after the prewarm fails the image build when
   the installed platform/package set differs from the pinned one. A pin change touches the Dockerfile, `Libraries()`,

@@ -20,6 +20,8 @@ the consuming library or reintroduces a vulnerability.
 
 | Dependency | Supported version | Reason to retain the bound |
 | --- | --- | --- |
+| CYD builder PlatformIO / Starlette | PlatformIO 6.2.0; Starlette >=1.3.1,<2 (hash-pinned lock); SCons 4.11.1 | PlatformIO 6.1.19 restricts Starlette below 0.53, excluding the fixes for GHSA-82w8-qh3p-5jfq, GHSA-jp82-jpqv-5vv3, GHSA-wqp7-x3pw-xc5r, GHSA-x746-7m8f-x49c and GHSA-86qp-5c8j-p5mr. PlatformIO 6.2 also requires the matching SCons update. Rebuild the builder and run its offline self-test before publishing an image. |
+| CYD builder setuptools | >=83.0.0 (hash-pinned lock) | Python 3.11's venv seeds an older version outside PlatformIO's dependency graph. Pin its replacement too, and audit the installed Python environment as well as the requirements file. |
 | cloudflared | 2026.10.0; Docker manifest digest and Linux amd64/arm64 SHA-256 pins | Reviewed release metadata in `internal/tools/cloudflare_install.go` and `cloudflare_tunnel.go`; no moving latest URL or checksum sidecar. Run Cloudflare/HomepageQuick tests when refreshing. See [Cloudflare Tunnel](cloudflare-tunnel.md). |
 | gRPC Go | 1.83.2 | 1.84.0 is affected by GO-2026-6443; use a fixed stable successor when available. |
 | Excelize | 2.11.1-0.20261003002531-6258dcebc4e2 | Security exception to stable releases: 2.11.0 remains affected by 15 workbook-parsing advisories. This exact upstream commit contains all their fixes; move to a fixed stable release when available and rerun the Office preservation and security tests. |
