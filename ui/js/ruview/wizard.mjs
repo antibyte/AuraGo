@@ -13,7 +13,8 @@ export async function openWizard({base='/api/ruview/',t,receiverIP='',port}={}){
         <section><h3>${esc(tr('step_firmware'))}</h3><label>${esc(tr('profile'))}<select name="profile" aria-describedby="ruview-profile-help"></select></label><p id="ruview-profile-help" class="ruview-help">${esc(tr('profile_help'))}</p><label class="ruview-check"><input type="checkbox" name="erase"><span>${esc(tr('erase'))}</span></label><button type="button" data-action="flash">${esc(tr('flash'))}</button><div class="ruview-flash-progress" hidden><progress max="100" aria-label="${esc(tr('firmware'))}" aria-describedby="ruview-flash-status"></progress><output aria-live="off"></output></div><p id="ruview-flash-status" class="ruview-feedback" role="status" aria-live="polite"></p><button type="button" data-flash-next hidden>${esc(tr('flash_continue'))}</button></section>
         <section><h3>${esc(tr('step_configure'))}</h3><p class="ruview-help">${esc(tr('step_configure_help'))}</p><label>${esc(tr('ssid'))}<input name="ssid" autocomplete="off" spellcheck="false"></label><label>${esc(tr('password'))}<input name="password" type="password" autocomplete="new-password"></label><label class="ruview-check"><input type="checkbox" name="keep"><span>${esc(tr('keep_wifi'))}</span></label>
         <p id="ruview-receiver-help" class="ruview-help">${esc(tr('receiver_purpose'))}</p>
-        <div class="ruview-fields"><label>${esc(tr('node'))}<input name="node" type="number" min="1" max="255" value="1"></label><label>${esc(tr('receiver'))}<input name="receiver" value="${esc(receiverIP)}" inputmode="decimal" autocomplete="off" spellcheck="false" aria-describedby="ruview-receiver-help ruview-receiver-lookup"></label><label>${esc(tr('udp_port'))}<input name="port" type="number" min="1" max="65535" value="${esc(port??5005)}"></label></div>
+        <div class="ruview-fields"><label>${esc(tr('node'))}<input name="node" type="number" min="1" max="255" required aria-describedby="ruview-node-hint"></label><label>${esc(tr('receiver'))}<input name="receiver" value="${esc(receiverIP)}" inputmode="decimal" autocomplete="off" spellcheck="false" aria-describedby="ruview-receiver-help ruview-receiver-lookup"></label><label>${esc(tr('udp_port'))}<input name="port" type="number" min="1" max="65535" value="${esc(port??5005)}"></label></div>
+        <p id="ruview-node-hint" class="ruview-help" aria-live="polite">${esc(tr('node_loading'))}</p>
         <div class="ruview-receiver-suggestions" hidden><label>${esc(tr('receiver_candidates'))}<select name="receiver_choice"></select></label><button type="button" data-use-receiver>${esc(tr('use_receiver').replace('{ip}',''))}</button></div>
         <p id="ruview-receiver-lookup" class="ruview-help" aria-live="polite">${esc(tr('receiver_loading'))}</p>
         <p class="ruview-udp-warning ruview-feedback" hidden>${esc(tr('receiver_udp_disabled'))} <a href="/config#ruview" target="_blank" rel="noopener">${esc(tr('settings'))}</a></p>
@@ -25,7 +26,7 @@ export async function openWizard({base='/api/ruview/',t,receiverIP='',port}={}){
     let activeMessage=message;
     next.addEventListener('click',()=>{if(busy||stopped)return;const target=get(get('keep').checked?'receiver':'ssid');target.focus({preventScroll:true});target.closest('section').scrollIntoView({block:'start'});});
     buttons.forEach(button=>button.disabled=true);
-    for(const name of ['receiver','port'])get(name).addEventListener('input',()=>get(name).dataset.edited='true');
+    for(const name of ['node','receiver','port'])get(name).addEventListener('input',()=>get(name).dataset.edited='true');
     get('keep').addEventListener('change',()=>{for(const name of ['ssid','password'])get(name).disabled=get('keep').checked;});
     const useReceiver=dialog.querySelector('[data-use-receiver]');
     const updateReceiverChoice=()=>{const ip=get('receiver_choice').value;useReceiver.disabled=!privateIPv4(ip);useReceiver.textContent=tr('use_receiver').replace('{ip}',ip);};
@@ -53,6 +54,22 @@ export async function openWizard({base='/api/ruview/',t,receiverIP='',port}={}){
     dialog.addEventListener('close',cleanup,{once:true});window.addEventListener('aurago:auth-ended',close);window.addEventListener('aurago:desktop-policy',policy);
     async function request(route,method='GET') {const response=await fetch(base+route,{method,signal:controller.signal});const body=await response.json().catch(()=>({}));if(!response.ok){const error=Error(body.error||body.message||('HTTP '+response.status));error.fromAPI=true;error.httpStatus=response.status;throw error;}return body;}
     async function allowed(){const status=await request('status');if(typeof status.enabled!=='boolean'||typeof status.readonly!=='boolean')throw Error('invalid_reply');if(!status.enabled||status.readonly)throw Error('readonly');return status;}
+    async function loadNodeID(){
+        const hint=dialog.querySelector('#ruview-node-hint');
+        try{
+            const data=await request('proxy/api/v1/nodes');if(stopped)return;
+            const nodes=Array.isArray(data)?data:data.nodes;
+            if(!Array.isArray(nodes))throw Error('invalid_reply');
+            const used=new Set(nodes.map(node=>{
+                const raw=node?.node_id??node?.id;
+                if(!['number','string'].includes(typeof raw)||!/^\d+$/.test(String(raw)))throw Error('invalid_reply');
+                const id=Number(raw);if(!Number.isInteger(id)||id<0||id>255)throw Error('invalid_reply');return id;
+            }));
+            let id=1;while(id<=255&&used.has(id))id++;
+            if(!get('node').dataset.edited)get('node').value=id<=255?String(id):'';
+            hint.textContent=tr(id<=255?'node_suggested':'node_exhausted').replace('{id}',id);
+        }catch(error){if(!stopped)hint.textContent=tr('node_lookup_failed');}
+    }
     async function loadBoardSetup(){
         const hint=dialog.querySelector('#ruview-receiver-lookup');
         try{
@@ -74,17 +91,18 @@ export async function openWizard({base='/api/ruview/',t,receiverIP='',port}={}){
         else message.textContent=tr('connection_interrupted');
     }),3000);
     let catalog;
-    try{await allowed();if(stopped)return close;await Promise.all([loadBoardSetup(),request('firmware').then(value=>catalog=value)]);if(stopped)return close;get('profile').innerHTML=catalog.firmware.map(p=>`<option value="${esc(p.id)}">${esc(p.id)}</option>`).join('');if(!serialAvailable())throw Error('serial_unsupported');feedback(catalog.firmware.length?'ready':'firmware_missing');}
+    try{await allowed();if(stopped)return close;await Promise.all([loadBoardSetup(),loadNodeID(),request('firmware').then(value=>catalog=value)]);if(stopped)return close;get('profile').innerHTML=catalog.firmware.map(p=>`<option value="${esc(p.id)}">${esc(p.id)}</option>`).join('');if(!serialAvailable())throw Error('serial_unsupported');feedback(catalog.firmware.length?'ready':'firmware_missing');}
     catch(error){feedback('error',explain(error));buttons.forEach(b=>b.disabled=true);return close;}
     const enableButtons=()=>{
         for(const button of buttons){
             const action=button.dataset.action;
-            button.disabled=(action==='flash'&&!catalog.firmware.length)||(action==='readback'&&(!expected||!identity))||(action==='verify'&&!expected?.confirmed);
+            button.disabled=(action==='flash'&&!catalog.firmware.length)||(action==='configure'&&!get('node').validity.valid)||(action==='readback'&&(!expected||!identity))||(action==='verify'&&!expected?.confirmed);
         }
         dialog.querySelector('#ruview-readback-reason').hidden=!!expected&&!!identity;
         dialog.querySelector('#ruview-verify-reason').hidden=!!expected?.confirmed;
     };
     enableButtons();
+    get('node').addEventListener('input',()=>{if(!busy&&!stopped)enableButtons();});
     dialog.addEventListener('click',async event=>{
         const button=event.target.closest('[data-action]');if(!button||button.disabled||busy)return;
         activeMessage=button.closest('section').querySelector('[role="status"]');

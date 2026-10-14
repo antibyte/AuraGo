@@ -9,13 +9,15 @@ const { chromium } = process.env.AURAGO_PLAYWRIGHT ? require(process.env.AURAGO_
 const locales = ['cs','da','de','el','en','es','fr','hi','it','ja','nl','no','pl','pt','sv','zh'];
 let setup = { mode:'docker', receiver_ip:'192.168.4.20', udp_port:5010, udp_enabled:false, candidates:['192.168.4.20'] };
 let setupDelay = 0, setupError = false, fresh = true, posts = 0, statusError = 0;
+const knownNodes=[{node_id:1,csi_status:'stale'},{node_id:7,csi_status:'active',csi_last_seen_ms:42,csi_sequence:3}];
+let nodeData={nodes:knownNodes},nodeError=false,nodeDelay=0;
 let catalogFault = '';
 const buildVersion = 'ruview-browser-fixture', resourceRequests = [];
 const server = createServer(async (req, res) => {
     try {
         const url = new URL(req.url, 'http://localhost');
         if (url.pathname.startsWith('/js/ruview/') || url.pathname.startsWith('/js/vendor/ruview-')) resourceRequests.push(url);
-        if (url.pathname.startsWith('/api/desktop/integrations/ruview/')) {
+        if (url.pathname.startsWith('/api/desktop/integrations/ruview/') || url.pathname.startsWith('/api/ruview/')) {
             res.setHeader('Content-Type', 'application/json');
             const route = url.pathname.split('/ruview/')[1];
             if (req.method === 'POST') posts++;
@@ -32,7 +34,12 @@ const server = createServer(async (req, res) => {
                 return res.end(JSON.stringify(catalog));
             }
             if (route === 'status' && statusError) {res.statusCode=statusError;return res.end(JSON.stringify({error:'fixture status unavailable'}));}
-            if (route === 'proxy/api/v1/nodes') return res.end(JSON.stringify({nodes:[{node_id:7,csi_status:'active',csi_last_seen_ms:42,csi_sequence:3}]}));
+            if (route === 'proxy/api/v1/nodes') {
+                const snapshot=structuredClone(nodeData);
+                if(nodeDelay)await new Promise(resolve=>setTimeout(resolve,nodeDelay));
+                res.statusCode=nodeError?503:200;
+                return res.end(JSON.stringify(nodeError?{error:'unavailable'}:snapshot));
+            }
             return res.end(JSON.stringify({enabled:true,readonly:false,mode:'docker',source:'esp32',fresh,signal:'CSI',data_state:'unchecked'}));
         }
         if (url.pathname === '/') {
@@ -100,6 +107,7 @@ try {
         await page.setViewportSize({width,height:900});
         await open(`theme=${theme==='standard'?'standard':'fruity'}&mode=${theme.endsWith('dark')?'dark':'light'}&lang=${lang}`);
         await ready();
+        assert.equal(await page.locator('dialog [name="node"]').inputValue(),'2','known node IDs, including stale boards, must not be suggested again');
         assert.ok(resourceRequests.every(url=>url.searchParams.get('v')===buildVersion),'wizard dependencies must use the same resource version as the Desktop');
         assert.equal(await page.locator('dialog section h3').count(), 3);
         assert.ok(!/ruview\.[a-z_]+/.test(await page.locator('dialog').innerText()), `translations ${lang}`);
@@ -127,6 +135,40 @@ try {
     }
     assert.equal(posts,0,'opening the wizard must never test, start or configure the runtime');
     await page.setViewportSize({width:1100,height:900});
+    for(const [data,expected] of [
+        [{nodes:[]},'1'],
+        [[{id:'1'},{node_id:3,csi_status:'stale'},{node_id:2},{node_id:1},{node_id:0}],'4'],
+        [{nodes:Array.from({length:254},(_,i)=>({node_id:i+1}))},'255']
+    ]){
+        nodeData=data;await open();await ready();
+        assert.equal(await page.getByRole('spinbutton',{name:'Knoten-ID',exact:true}).inputValue(),expected);
+        assert.ok((await page.locator('#ruview-node-hint').innerText()).includes(`ID: ${expected}.`));
+    }
+    for(const data of [{nodes:Array.from({length:255},(_,i)=>({node_id:i+1}))},{},{nodes:[{}]},{nodes:[{node_id:true}]}]){
+        nodeData=data;await open();
+        await page.waitForFunction(()=>!document.querySelector('#ruview-node-hint').textContent.includes('werden geprüft'));
+        assert.equal(await page.locator('dialog [name="node"]').inputValue(),'');
+        assert.equal(await page.locator('dialog [data-action="configure"]').isDisabled(),true);
+        assert.equal(await page.locator('dialog [name="node"]').isEnabled(),true);
+        await page.locator('dialog [name="node"]').fill('1');await ready();
+        assert.equal(await page.locator('dialog [name="node"]').inputValue(),'1','existing IDs remain selectable for deliberate reconfiguration');
+    }
+    nodeData={nodes:knownNodes};nodeError=true;
+    await open();await page.waitForFunction(()=>document.querySelector('#ruview-node-hint').textContent.includes('nicht geprüft'));
+    assert.equal(await page.locator('dialog [name="node"]').inputValue(),'','failed discovery must not silently suggest 1');
+    await page.locator('dialog [name="node"]').fill('42');await ready();
+    nodeError=false;nodeDelay=800;
+    await open();await page.locator('dialog [name="node"]').fill('42');await ready();
+    assert.equal(await page.locator('dialog [name="node"]').inputValue(),'42','late discovery must preserve a manually entered ID');
+    await open();await page.locator('dialog button[value="close"]').click();
+    await page.locator('dialog').waitFor({state:'detached'});
+    nodeDelay=0;
+    await page.evaluate(async()=>{
+        const {openWizard}=await import(window.AuraLazyAssets.versionedURL('/js/ruview/wizard.mjs'));
+        await openWizard({base:'/api/ruview/',t:key=>dict[key]||key});
+    });
+    await ready();assert.equal(await page.locator('dialog [name="node"]').inputValue(),'2','the Config API entry must receive the same proposal');
+    assert.equal(posts,0,'ID discovery must only read existing nodes');
     catalogFault='missing-offset';
     await open(); await ready();
     catalogFault=''; // The server is repaired while this dialog remains open.
@@ -248,6 +290,8 @@ try {
     await page.evaluate(() => serialFixture.fail=false);
     await action('configure').click();
     await page.waitForFunction(() => !document.querySelector('dialog [data-action="readback"]').disabled);
+    assert.equal(await input('node').inputValue(),'7','setup and retries must preserve the chosen node ID');
+    assert.equal(await page.evaluate(()=>serialFixture.configured.node),'7','the selected ID must reach the board');
     assert.deepEqual(await wifiDraft(),['memory-only','fixture-password'],'acknowledged setup must retain both fields for retries after restart');
     assert.equal(await action('verify').isDisabled(),true);
     const setupRequests=await page.evaluate(()=>serialFixture.requests);
@@ -342,7 +386,7 @@ try {
     assert.ok((await page.locator('#ruview-receiver-lookup').innerText()).includes('nicht geladen'));
     assert.equal(await input('receiver').isEnabled(),true);
     assert.deepEqual(errors,[]);
-    console.log('RuView wizard: 96 locale/theme/size cases; versioned modules and firmware; repeated boards and live catalog repair; cancellation, serial readback, fresh CSI checks and secret cleanup passed');
+    console.log('RuView wizard: 96 locale/theme/size cases; free node IDs, discovery failures and manual drafts; versioned modules and firmware; repeated boards and live catalog repair; cancellation, serial readback, fresh CSI checks and secret cleanup passed');
 } finally {
     await browser.close();
     await new Promise(resolve=>server.close(resolve));

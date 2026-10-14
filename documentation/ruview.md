@@ -62,7 +62,7 @@ The native USB (`cdc`) profiles also recognize `303a:4001`, shown by Windows as 
 
 1. Choose the exact profile and USB device. New installation or an incompatible partition table requires the explicit erase checkbox.
 2. Write and read back the verified firmware. Compatible updates leave the NVS sectors intact.
-3. Reconnect and configure Wi-Fi, node ID (1–255), private receiver IPv4 and UDP port through `RUVIEW_HELLO_V1` / `RUVIEW_CONFIG_V1` at 115200 baud.
+3. Reconnect and configure Wi-Fi, node ID (1–255), private receiver IPv4 and UDP port through `RUVIEW_HELLO_V1` / `RUVIEW_CONFIG_V1` at 115200 baud. On opening, the wizard proposes the lowest ID absent from the service's known nodes, including stale nodes. It preserves manual input and keeps the ID unchanged during retries and confirmation. If discovery fails or all IDs are occupied, enter an ID explicitly; use an existing ID only when reconfiguring that board. The suggestion does not reserve an ID and cannot account for boards the service no longer reports.
 4. Reconnect after restart and confirm the same board identity and non-secret settings. Wi-Fi credentials remain only in browser memory and are sent directly to the board. Both fields stay filled while the dialog is open, including successful setup, explicit retries, cancellation and restart/sensor checks. Closing the dialog, logging out or losing access clears them; reopening starts with empty fields. They never enter AuraGo APIs or browser storage.
 5. Check reception separately. Success requires a fresh real CSI source and a recently seen CSI sequence for the configured node. Firmware success and configuration success alone do not prove UDP delivery.
 

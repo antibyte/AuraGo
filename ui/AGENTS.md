@@ -723,6 +723,12 @@ worker. Keep packaging, recovery and offline instructions in
   fresh CSI verification require their preceding acknowledgements. Load saved
   receiver/port defaults through the administrative `board-setup` read, preserve
   typed values and require explicit acceptance of unverified LAN suggestions.
+  On each wizard opening, suggest the lowest unused node ID in 1–255 from the
+  existing nodes read, including stale nodes. Preserve manually typed IDs; the
+  suggestion is not a reservation and cannot account for unreported boards.
+  Failed/malformed reads or exhausted IDs leave the unedited field empty with
+  an explanation. Configuration requires a valid ID; manual IDs still allow
+  reconfiguring an existing board. Never change IDs on retries or readback.
   Never enable UDP from the wizard. S3 N16R8 boards use the exact 16 MiB profile
   (8 MiB is PSRAM); capacity errors show detected and selected sizes before writes.
   Recognize Espressif CDC USB ID `303a:4001` as a native USB transport. USB IDs
