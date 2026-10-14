@@ -30,7 +30,7 @@
             const focused = content.contains(document.activeElement) ? document.activeElement.dataset.action : null;
             const card = (title, value, detail) => '<article>'+esc(t(title))+'<strong>'+esc(value)+'</strong>'+esc(detail)+'</article>';
             content.innerHTML = '<h2>'+esc(t('overview'))+'</h2><div class="ruview-summary">' +
-                card('service',t(status.ready?'ready':'unavailable'),status.mode?t(status.mode):'—') +
+                card('service',t(!status.enabled?'disabled':status.ready?'ready':status.data_state==='starting'?'working':status.data_state==='unchecked'?'unchecked':'unavailable'),status.mode?t(status.mode):'—') +
                 card('sensing',t(status.fresh?'received':status.simulated?'demo':status.data_state==='live_unverified'?'unavailable':status.data_state||'unchecked'),status.signal||'—') +
                 card('source',status.source?t(status.source):'—',status.observed_at?new Date(status.observed_at).toLocaleString():'—') +
                 '</div><p class="ruview-note">'+esc(t('quality'))+'</p>'+(status.readonly?'<p>'+esc(t('readonly_notice'))+'</p>':'')+'<div class="ruview-toolbar">' +

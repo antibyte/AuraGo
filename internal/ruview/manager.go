@@ -127,12 +127,21 @@ func (m *Manager) Test(parent context.Context) (Status, error) {
 	m.mu.Lock()
 	generation := m.generation
 	m.mu.Unlock()
+	return m.test(parent, generation)
+}
+
+func (m *Manager) test(parent context.Context, generation context.Context) (Status, error) {
 	c := m.config()
 	if !c.RuView.Enabled {
 		return m.Status(), fmt.Errorf("RuView is disabled")
 	}
-	ctx, cancel := m.bound(parent)
+	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
+	stop := context.AfterFunc(generation, cancel)
+	defer stop()
+	if generation.Err() != nil || ctx.Err() != nil {
+		return m.Status(), context.Canceled
+	}
 	data, err := m.request(ctx, c, "GET", "/api/v1/status", nil)
 	now := time.Now().UTC()
 	s := Status{ObservedAt: &now, DataState: "disconnected"}
@@ -220,24 +229,52 @@ func (m *Manager) StartBackground(parent context.Context) {
 	}
 	m.lifetime, m.stop = context.WithCancel(parent)
 	ctx := m.lifetime
+	generation := m.generation
 	m.done = make(chan struct{})
 	m.mu.Unlock()
 	go func() {
 		defer close(m.done)
+		c := m.config().RuView
+		if c.Enabled && !c.ReadOnly && c.Mode != "external" {
+			startup, cancel := context.WithTimeout(ctx, 10*time.Minute)
+			err := m.start(startup, generation)
+			cancel()
+			if err != nil && ctx.Err() == nil && generation.Err() == nil {
+				m.logger.Warn("RuView automatic start failed", "error", err)
+			}
+		}
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
+		var checked time.Time
+		probeDone := make(chan struct{}, 1)
+		probing := false
+		defer func() {
+			if probing {
+				<-probeDone
+			}
+		}()
 		for {
 			select {
 			case <-ctx.Done():
 				return
+			case <-probeDone:
+				probing = false
+				checked = time.Now()
 			case <-ticker.C:
-				m.watch(ctx)
+				if generation := m.watch(ctx); generation != nil && !probing && time.Since(checked) >= 3*time.Second {
+					probing = true
+					// Network latency must not delay process reaping or the storage limit.
+					go func() {
+						_, _ = m.test(ctx, generation)
+						probeDone <- struct{}{}
+					}()
+				}
 			}
 		}
 	}()
 }
 
-func (m *Manager) watch(ctx context.Context) {
+func (m *Manager) watch(ctx context.Context) context.Context {
 	m.Configure()
 	m.opMu.Lock()
 	defer m.opMu.Unlock()
@@ -245,14 +282,15 @@ func (m *Manager) watch(ctx context.Context) {
 	m.reapNativeLocked()
 	managed := m.managed
 	running := m.runningConfig
+	stopFailed := m.status.Error == "stop_failed"
 	m.mu.Unlock()
-	if !managed {
-		return
+	if !managed || stopFailed {
+		return nil
 	}
 	c := m.config()
 	if !c.RuView.Enabled || running == nil || !sameRuntime(running, c) {
 		_ = m.stopRuntime(ctx)
-		return
+		return nil
 	}
 	limited := storageLimited(c)
 	if limited {
@@ -262,7 +300,9 @@ func (m *Manager) watch(ctx context.Context) {
 	}
 	m.mu.Lock()
 	m.status.StorageLimit = limited
+	generation := m.generation
 	m.mu.Unlock()
+	return generation
 }
 
 // Called with mu held, and opMu held by lifecycle callers. The current pointer

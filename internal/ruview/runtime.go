@@ -36,20 +36,25 @@ func configCheck(c *config.Config) error {
 }
 
 func (m *Manager) Start(ctx context.Context) error {
+	return m.start(ctx, nil)
+}
+
+// Startup carries its original generation so a preceding stop/config change wins.
+func (m *Manager) start(ctx context.Context, expected context.Context) (startErr error) {
 	m.opMu.Lock()
 	defer m.opMu.Unlock()
 	m.mu.Lock()
 	m.reapNativeLocked()
 	generation := m.generation
 	m.mu.Unlock()
+	if ctx.Err() != nil || generation.Err() != nil || expected != nil && expected != generation {
+		return context.Canceled
+	}
 	ctx, cancel := m.bound(ctx)
 	defer cancel()
 	c := m.config()
 	if !c.RuView.Enabled || c.RuView.ReadOnly {
 		return fmt.Errorf("RuView start requires enabled, writable integration")
-	}
-	if err := configCheck(c); err != nil {
-		return err
 	}
 	if c.RuView.Mode == "external" {
 		return fmt.Errorf("external RuView is managed by its operator")
@@ -58,7 +63,27 @@ func (m *Manager) Start(ctx context.Context) error {
 	active := m.managed
 	m.mu.Unlock()
 	if active {
+		if expected != nil {
+			return nil
+		}
 		return fmt.Errorf("RuView is already started; stop it before reconfiguration")
+	}
+	m.mu.Lock()
+	m.status = Status{DataState: "starting"}
+	m.observed = time.Time{}
+	m.mu.Unlock()
+	defer func() {
+		if startErr == nil {
+			return
+		}
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		if generation == m.generation && generation.Err() == nil {
+			m.status = Status{DataState: "disconnected", Error: security.Scrub(startErr.Error())}
+		}
+	}()
+	if err := configCheck(c); err != nil {
+		return err
 	}
 	dir, err := filepath.Abs(filepath.Join(c.Directories.DataDir, "ruview", "data"))
 	if err != nil {
@@ -324,6 +349,9 @@ func placement(ctx context.Context, d *dockerutil.Client, dir string) (string, m
 }
 
 func (m *Manager) Stop(ctx context.Context) error {
+	m.mu.Lock()
+	m.cancel()
+	m.mu.Unlock()
 	m.opMu.Lock()
 	defer m.opMu.Unlock()
 	return m.stopRuntime(ctx)

@@ -10,6 +10,7 @@ const require=createRequire(import.meta.url);
 const {chromium}=process.env.AURAGO_PLAYWRIGHT?require(process.env.AURAGO_PLAYWRIGHT):require('playwright');
 const locales=['cs','da','de','el','en','es','fr','hi','it','ja','nl','no','pl','pt','sv','zh'];
 let writes=0,readonly=false,offline=false,mode='external',source='esp32',failure='',statusError='',firmwareError=false,sourceState='disconnected',sourceProbeFailed=false;
+let serviceState='';
 const nodeFixture={reads:0,active:0,max:0,fail:false,statusFail:false,hold:null};
 const sensingSockets=new Set(),poseSockets=new Set(),poseRequests=[],healthRequests=new Set();
 function sendFrames(sockets,data){
@@ -48,7 +49,7 @@ const server=createServer(async(req,res)=>{
    if(p.endsWith('/capabilities'))return res.end(JSON.stringify({unavailable:['model_load','model_unload','lora_activate','camera','timed_recording']}));
    if(p.endsWith('/status')&&nodeFixture.statusFail){res.statusCode=503;return res.end('{}');}
    if(p.endsWith('/nodes'))return res.end(JSON.stringify({nodes:[{node_id:7,csi_status:'active',csi_last_seen_ms:42,csi_sequence:3,rssi_dbm:-51}]}));
-   return res.end(JSON.stringify({enabled:true,readonly,mode,source,ready:!offline,fresh:!offline,data_state:offline?'disconnected':'live_unverified',signal:'CSI',observed_at:new Date().toISOString(),error:statusError||undefined}));
+   return res.end(JSON.stringify({enabled:true,readonly,mode,source,ready:!offline&&!serviceState,fresh:!offline&&!serviceState,data_state:serviceState||(offline?'disconnected':'live_unverified'),signal:'CSI',observed_at:new Date().toISOString(),error:statusError||undefined}));
   }
   if(p==='/'){
    const locale=JSON.parse(await readFile(`ui/lang/ruview/${url.searchParams.get('lang')||'de'}.json`));
@@ -90,6 +91,13 @@ try{
  }
  await page.setViewportSize({width:1100,height:800});await page.emulateMedia({colorScheme:'dark'});
  await page.goto(`http://127.0.0.1:${server.address().port}/?lang=de`);await page.locator('[data-action=test]').waitFor();
+ for(const [state,label] of [['unchecked','Nicht geprüft'],['starting','Wird ausgeführt…'],['','Bereit']]){
+  serviceState=state;await page.evaluate(()=>render());
+  await page.waitForFunction(label=>document.querySelector('.ruview-summary article strong')?.textContent===label,label);
+  assert.equal(writes,0,'opening the app must not start or probe a service');
+ }
+ await page.evaluate(()=>render());await page.waitForFunction(()=>document.querySelector('.ruview-summary article strong')?.textContent==='Bereit');
+ assert.equal(writes,0,'reopening preserves backend readiness without another start');
  await page.locator('[data-tab=devices]').click();await page.locator('.ruview-node').waitFor();
  await checkDevices(page,nodeFixture);
  await page.locator('[data-action=flash]').click();await page.locator('dialog').waitFor();

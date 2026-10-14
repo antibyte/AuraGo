@@ -712,6 +712,10 @@ Vendoring scripts must rewrite upstream CDN, Google Fonts and analytics referenc
 
 - RuView's pinned upstream UI is regenerated through `scripts/ruview/vendor-ui.mjs`;
   never edit vendor outputs without updating that adapter and its provenance hashes.
+  Enabled, writable managed runtimes start once with AuraGo; external runtimes
+  remain operator-managed. Background health reads update the cached status;
+  app opening stays passive. Show unchecked/starting separately from unavailable.
+  Manual stop, process exit and uncertain stop must not trigger an automatic restart.
   Remember skipped/completed Dashboard tours across iframe, app and page reopening
   using only the boolean `aurago.ruview.onboarding.done` browser preference. Keep
   explicit replay available; all other upstream storage stays memory-only and

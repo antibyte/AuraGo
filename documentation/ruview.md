@@ -20,7 +20,9 @@ Read-only blocks starts, changes and deletions. Administrators may still stop a 
 
 ## Setup
 
-Open **Configuration → RuView**, enable the integration, select a runtime and source, then save. Start and agent access are disabled by default; read-only starts enabled. Connection tests are explicit administrative POST actions using the saved target and Vault token. Merely opening AuraGo's overview never probes a service. Opening an upstream view or requesting an agent read retrieves data.
+Open **Configuration → RuView**, enable the integration, select a runtime and source, then save. The integration and agent access are disabled by default; read-only starts enabled. At AuraGo startup, an enabled, writable managed runtime starts once in the background. Docker also requires its existing write permission; native packages must already be installed and verified. External services are never started automatically. Enabling RuView during an existing AuraGo session still requires **Start** or the next AuraGo startup.
+
+Managed runtimes receive non-overlapping health checks about every three seconds while running, so the overview follows readiness, connection failures and recovery without a manual test. Startup failures remain visible and are not retried automatically. Manual stop and native process exit remain stopped until an explicit start or the next AuraGo startup. **Not checked** and pending startup are shown separately from unavailable. Opening or reopening the app never starts or probes a service. Explicit connection tests still use the saved target and Vault token; external services are probed only by these tests or explicit data reads.
 
 The configuration shows external credentials only for external instances, and board networking only for ESP32 sensing. Switching modes preserves unsaved fields. Read-only stays visible under Operation, with a notice explaining the blocked actions; Permissions contains the agent switch. Advanced contains the managed HTTP port and storage budget. Save before testing or setting up a board. Disabled actions explain the missing step. Use **Open RuView** to install or start a managed runtime, and **Set up board** for USB firmware and Wi-Fi provisioning.
 
@@ -33,7 +35,7 @@ If starting Docker fails, the overview retains the concrete Engine error across 
 | Runtime | Intended use |
 | --- | --- |
 | Managed Docker | Linux sensing server for ESP32 CSI or explicit demo; AuraGo creates and stops its own labelled container. |
-| Native host | Optional verified Windows amd64 or macOS amd64/arm64 package; install and start explicitly. Hosts need a working Wi-Fi adapter for RSSI. |
+| Native host | Optional verified Windows amd64 or macOS amd64/arm64 package; install explicitly, then start manually or with AuraGo when enabled and writable. Hosts need a working Wi-Fi adapter for RSSI. |
 | External | Existing RuView service at the saved HTTP(S) origin. Private/loopback access requires `allow_private`. AuraGo never installs, starts or upgrades it. |
 
 Containerized AuraGo must use an external native instance for host Wi-Fi. Linux has no native RSSI scanner in this integration: the pinned server does not connect its Linux adapter to that runtime path. Select `esp32` for real CSI or `simulated` explicitly for a demo; there is no automatic demo fallback.
