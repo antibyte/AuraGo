@@ -59,14 +59,14 @@ try {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.addInitScript(() => {
-        window.serialFixture = {cancel:false, fail:false, mismatch:false, requests:0, configured:null};
+        window.serialFixture = {cancel:false, fail:false, mismatch:false, requests:0, configured:null, usbProductId:0x1001};
         Object.defineProperty(navigator, 'serial', {value:{requestPort:async () => {
             const state = window.serialFixture;
             state.requests++;
             if (state.cancel) throw new DOMException('No port selected', 'NotFoundError');
             let receiver;
             const port = {
-                getInfo:() => ({usbVendorId:0x303a,usbProductId:0x1001}),
+                getInfo:() => ({usbVendorId:0x303a,usbProductId:state.usbProductId}),
                 async open() {
                     if (state.fail) throw Error('Fixture port busy');
                     this.readable = new ReadableStream({start(controller){receiver=controller;}});
@@ -216,8 +216,9 @@ try {
     assert.equal(await input('receiver').evaluate(i=>i===document.activeElement),true,'preserved Wi-Fi skips the disabled credentials');
     await input('keep').uncheck();
     assert.equal(await input('password').inputValue(),'fixture-password','flashing must preserve WLAN drafts for step 2');
+    await page.evaluate(()=>serialFixture.usbProductId=0x4001);
     await action('flash').click();await ready();
-    assert.equal(await page.evaluate(()=>serialFixture.flashWrites),2,'a second board must flash in the same open dialog');
+    assert.equal(await page.evaluate(()=>serialFixture.flashWrites),2,'a second S3 16 MiB board using Espressif CDC 303a:4001 must flash in the same open dialog');
     assert.equal(await flashStatus.getAttribute('data-state'),'success');
     for (const fault of ['missing-offset','revision']) {
         catalogFault=fault;

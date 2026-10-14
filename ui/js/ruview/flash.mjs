@@ -2,7 +2,8 @@ const resourceQuery = new URL(import.meta.url).search;
 const { validateProfile, sha256, revision } = await import('./protocol.mjs' + resourceQuery);
 
 export function serialAvailable(){return isSecureContext&&!!navigator.serial&&(!document.permissionsPolicy?.allowsFeature||document.permissionsPolicy.allowsFeature('serial'))&&(!document.featurePolicy?.allowsFeature||document.featurePolicy.allowsFeature('serial'));}
-export function serialVariant(info){if(info.usbVendorId===0x303a&&[0x1001,0x1002,0x1003,0x0002,0x0003].includes(info.usbProductId))return 'cdc';if((info.usbVendorId===0x10c4&&info.usbProductId===0xea60)||(info.usbVendorId===0x1a86&&[0x7523,0x55d4,0x55d3].includes(info.usbProductId))||(info.usbVendorId===0x0403&&info.usbProductId===0x6001))return 'uart';throw Error('unknown_usb');}
+// Espressif's 303a:4001 CDC descriptor identifies the transport, not the chip or flash capacity.
+export function serialVariant(info){if(info.usbVendorId===0x303a&&[0x1001,0x1002,0x1003,0x0002,0x0003,0x4001].includes(info.usbProductId))return 'cdc';if((info.usbVendorId===0x10c4&&info.usbProductId===0xea60)||(info.usbVendorId===0x1a86&&[0x7523,0x55d4,0x55d3].includes(info.usbProductId))||(info.usbVendorId===0x0403&&info.usbProductId===0x6001))return 'uart';throw Error('unknown_usb');}
 export function validateBoard(profile,chipName,flashID){
     const chip=chipName.toLowerCase().replaceAll('-',''),bytes=2**((flashID>>>16)&255);
     if(chip!==profile.chip)throw Error('wrong_chip');

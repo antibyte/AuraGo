@@ -718,6 +718,9 @@ worker. Keep packaging, recovery and offline instructions in
   typed values and require explicit acceptance of unverified LAN suggestions.
   Never enable UDP from the wizard. S3 N16R8 boards use the exact 16 MiB profile
   (8 MiB is PSRAM); capacity errors show detected and selected sizes before writes.
+  Recognize Espressif CDC USB ID `303a:4001` as a native USB transport. USB IDs
+  never establish chip or flash capacity: verify both through the loader before
+  erase/write, and keep unknown vendor/product combinations rejected.
   Keep the pinned firmware build, catalog, artifacts and profile validation aligned.
   Keep the wizard, protocol, flasher, serial loader and firmware URLs bound to the
   caller's resource version in Config and Desktop. Each explicit flash attempt

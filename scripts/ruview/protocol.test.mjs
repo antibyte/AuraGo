@@ -24,6 +24,12 @@ test('damaged firmware never opens the serial transport',async()=>{
  const previous=globalThis.fetch;globalThis.fetch=async()=>new Response(new Uint8Array(4096));
  try{await assert.rejects(flash({getInfo:()=>({usbVendorId:0x10c4,usbProductId:0xea60}),open:()=>assert.fail('opened damaged firmware')},profile()),/checksum_failed/);}finally{globalThis.fetch=previous;}
 });
+test('Espressif CDC 303a:4001 uses the native USB profile without accepting unrelated USB devices',async()=>{
+ for(const usbProductId of [0x1001,0x1002,0x1003,0x0002,0x0003,0x4001])assert.equal(serialVariant({usbVendorId:0x303a,usbProductId}),'cdc');
+ for(const info of [{usbVendorId:0x303a,usbProductId:0x4002},{usbVendorId:0x303b,usbProductId:0x4001},{}])assert.throws(()=>serialVariant(info),/unknown_usb/);
+ const port={getInfo:()=>({usbVendorId:0x303a,usbProductId:0x4001})};
+ await assert.rejects(flash(port,profile()),/wrong_console/);
+});
 test('N16R8 uses a 16 MB S3 profile and capacity mismatches report both sizes',()=>{
  for(const console of ['uart','cdc']){
   const p={...profile(),id:`esp32s3-16mb-${console}`,console,flash_bytes:16777216};
@@ -52,9 +58,9 @@ test('flashing preserves NVS, requires erase for layout changes, and never retri
  const {ESPLoader,Transport}=await import('../../ui/js/vendor/ruview-esptool.js');
  const p=profile();p.parts[3].size=16384;
  const images=await Promise.all(p.parts.map(async(part,i)=>{const data=new Uint8Array(part.size).fill(i+1);part.sha256=await sha256(data);return data;}));p.partition_sha256=p.parts[1].sha256;
- const fetchBefore=globalThis.fetch,restore=[],phases=[],progress=[];let writes=0,erases=0,disconnects=0,incompatible=false,fail=false,bootFailure=false,verificationFailure=false,capacity=22;
+ const fetchBefore=globalThis.fetch,restore=[],phases=[],progress=[];let writes=0,erases=0,disconnects=0,incompatible=false,fail=false,bootFailure=false,verificationFailure=false,capacity=22,chip='ESP32-S3';
  function patch(object,key,value){const old=object[key];restore.push(()=>object[key]=old);object[key]=value;}
- patch(ESPLoader.prototype,'main',async function(){if(bootFailure)throw Error('fixture_sync_failed');this.chip={CHIP_NAME:'ESP32-S3'};});
+ patch(ESPLoader.prototype,'main',async function(){if(bootFailure)throw Error('fixture_sync_failed');this.chip={CHIP_NAME:chip};});
  patch(ESPLoader.prototype,'readFlashId',async()=>capacity<<16);
  patch(ESPLoader.prototype,'readFlash',async(address)=>verificationFailure&&writes>0||incompatible&&address===0x8000&&writes===0?new Uint8Array(4096):images[p.parts.findIndex(part=>part.offset===address)]);
  patch(ESPLoader.prototype,'eraseFlash',async()=>{erases++;});
@@ -76,5 +82,13 @@ test('flashing preserves NVS, requires erase for layout changes, and never retri
   bootFailure=true;await assert.rejects(flash(port,p),error=>error.message==='fixture_sync_failed'&&error.ruviewStage==='bootloader_failed');assert.equal(writes,0);
   bootFailure=false;capacity=22;verificationFailure=true;phases.length=0;
   await assert.rejects(flash(port,p,feedback),/write_verify_failed/);assert.equal(phases.at(-1),'verifying','failed verification must not report restart');
+  const cdcProfile={...p,id:'esp32s3-16mb-cdc',console:'cdc',flash_bytes:16777216};
+  const cdcPort={getInfo:()=>({usbVendorId:0x303a,usbProductId:0x4001})};
+  verificationFailure=false;writes=0;capacity=24;
+  await flash(cdcPort,cdcProfile);assert.equal(writes,1,'303a:4001 must reach verified S3 16 MiB flashing');
+  writes=0;chip='ESP32-S2';
+  await assert.rejects(flash(cdcPort,cdcProfile,{erase:true}),/wrong_chip/);assert.equal(writes,0);assert.equal(erases,1,'USB identity must not bypass chip validation before erase');
+  chip='ESP32-S3';capacity=23;
+  await assert.rejects(flash(cdcPort,cdcProfile,{erase:true}),/wrong_flash/);assert.equal(writes,0);assert.equal(erases,1,'USB identity must not bypass capacity validation before erase');
  }finally{globalThis.fetch=fetchBefore;for(const undo of restore.reverse())undo();}
 });
