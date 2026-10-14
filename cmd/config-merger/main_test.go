@@ -512,7 +512,7 @@ func TestRepositoryTemplateMergeKeepsPreUpgradeBehaviour(t *testing.T) {
 		want        map[string]interface{}
 		wantChanged bool
 	}{
-		{"absent keys, no legacy key", "server:\n    port: 8088\n", want(true, 0, "auth.enabled", false), true},
+		{"absent keys, no legacy key", "server:\n    port: 8088\n", want(false, 0, "auth.enabled", false), true},
 		{"absent scraper key, legacy false", legacyScraper + "false\ntools:\n    web_scraper:\n        summary_mode: true\nwebhooks:\n    enabled: true\n", want(false, 0), true},
 		{"absent scraper key, legacy true", legacyScraper + "true\n", want(true, 0), true},
 		{"legacy quoted false", legacyScraper + "\"false\"\n", want(false, 0), true},
@@ -523,24 +523,26 @@ func TestRepositoryTemplateMergeKeepsPreUpgradeBehaviour(t *testing.T) {
 		{"legacy yes", legacyScraper + "yes\n", want(true, 0), true},
 		{"legacy On", legacyScraper + "On\n", want(true, 0), true},
 		{"legacy unrecognised string", legacyScraper + "maybe\n", want(false, 0), true},
-		{"legacy null", legacyScraper + "\n", want(true, 0), true},
+		{"legacy null", legacyScraper + "\n", want(false, 0), true},
 		{"scraper yes", "tools:\n    web_scraper:\n        enabled: yes\n", want(true, 0), true},
 		{"scraper on", "tools:\n    web_scraper:\n        enabled: on\n", want(true, 0), true},
 		{"scraper off", "tools:\n    web_scraper:\n        enabled: off\n", want(false, 0), true},
-		{"null enabled", "tools:\n    web_scraper:\n        enabled:\n", want(true, 0), true},
-		{"null enabled keeps code default over legacy false", legacyScraper + "false\ntools:\n    web_scraper:\n        enabled:\n", want(true, 0), true},
-		{"null web_scraper section", "tools:\n    web_scraper:\n", want(true, 0, "tools.web_scraper.summary_mode", false), true},
+		{"null enabled", "tools:\n    web_scraper:\n        enabled:\n", want(false, 0), true},
+		{"null enabled keeps code default over legacy false", legacyScraper + "false\ntools:\n    web_scraper:\n        enabled:\n", want(false, 0), true},
+		{"null enabled overrides legacy true", legacyScraper + "true\ntools:\n    web_scraper:\n        enabled:\n", want(false, 0), true},
+		{"explicit false overrides legacy true", legacyScraper + "true\ntools:\n    web_scraper:\n        enabled: false\n", want(false, 0), true},
+		{"null web_scraper section", "tools:\n    web_scraper:\n", want(false, 0, "tools.web_scraper.summary_mode", false), true},
 		{"null web_scraper section, legacy false", legacyScraper + "false\ntools:\n    web_scraper:\n", want(false, 0), true},
-		{"null tools section", "tools:\n", want(true, 0), true},
-		{"null rate_limit", "webhooks:\n    rate_limit:\n", want(true, 0), true},
-		{"null webhooks section", "webhooks:\n", want(true, 0), true},
-		{"null agent section", "agent:\n", want(true, 0, "agent.allow_unsandboxed_shell", false), true},
-		{"totp_enabled yes", "auth:\n    totp_enabled: yes\n", want(true, 0, "auth.totp_enabled", true, "auth.enabled", false), true},
-		{"require_origin_header on", "auth:\n    enabled: true\n    require_origin_header: on\n", want(true, 0, "auth.require_origin_header", true, "auth.enabled", true), true},
-		{"allow_shell yes", "agent:\n    allow_shell: yes\n", want(true, 0, "agent.allow_shell", true, "agent.allow_unsandboxed_shell", true), true},
-		{"allow_shell off", "agent:\n    allow_shell: off\n", want(true, 0, "agent.allow_shell", false, "agent.allow_unsandboxed_shell", false), true},
-		{"null auth enabled", "auth:\n    enabled:\n", want(true, 0, "auth.enabled", false), true},
-		{"null auth section", "auth:\n", want(true, 0, "auth.enabled", false, "auth.session_timeout_hours", 24), true},
+		{"null tools section", "tools:\n", want(false, 0), true},
+		{"null rate_limit", "webhooks:\n    rate_limit:\n", want(false, 0), true},
+		{"null webhooks section", "webhooks:\n", want(false, 0), true},
+		{"null agent section", "agent:\n", want(false, 0, "agent.allow_unsandboxed_shell", false), true},
+		{"totp_enabled yes", "auth:\n    totp_enabled: yes\n", want(false, 0, "auth.totp_enabled", true, "auth.enabled", false), true},
+		{"require_origin_header on", "auth:\n    enabled: true\n    require_origin_header: on\n", want(false, 0, "auth.require_origin_header", true, "auth.enabled", true), true},
+		{"allow_shell yes", "agent:\n    allow_shell: yes\n", want(false, 0, "agent.allow_shell", true, "agent.allow_unsandboxed_shell", true), true},
+		{"allow_shell off", "agent:\n    allow_shell: off\n", want(false, 0, "agent.allow_shell", false, "agent.allow_unsandboxed_shell", false), true},
+		{"null auth enabled", "auth:\n    enabled:\n", want(false, 0, "auth.enabled", false), true},
+		{"null auth section", "auth:\n", want(false, 0, "auth.enabled", false, "auth.session_timeout_hours", 24), true},
 		{"explicit false and 60", "tools:\n    web_scraper:\n        enabled: false\nwebhooks:\n    rate_limit: 60\n", want(false, 60), true},
 		{"explicit true and 0, legacy false", legacyScraper + "false\ntools:\n    web_scraper:\n        enabled: true\nwebhooks:\n    rate_limit: 0\n", want(true, 0), true},
 		{"fresh install from template", tmplData, want(false, 60, "auth.enabled", true), false},
@@ -565,6 +567,11 @@ func TestRepositoryTemplateMergeKeepsPreUpgradeBehaviour(t *testing.T) {
 				}
 			}
 			assertMergeMatchesLoad(t, tc.user, res.merged)
+			second := mergeUserConfig(tmplMap, res.merged)
+			if !reflect.DeepEqual(second.merged, res.merged) {
+				t.Fatal("repeated merge changed the effective configuration")
+			}
+			assertMergeMatchesLoad(t, tc.user, second.merged)
 		})
 	}
 }

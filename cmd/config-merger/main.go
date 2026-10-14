@@ -392,9 +392,9 @@ func grandfatherUnsandboxedShell(merged, user map[string]interface{}) bool {
 // changing an existing installation.
 //
 // The template ships tools.web_scraper.enabled: false. A config without a
-// value there ran with the scraper on unless the legacy agent.allow_web_scraper
-// said otherwise, so write that effective value, mirroring config.Load: the
-// code default is true, a null enabled leaves it (and, being present, skips
+// value there uses the legacy agent.allow_web_scraper value when present,
+// otherwise false. Mirror config.Load: the code default is false, a null
+// enabled leaves it (and, being present, skips
 // the legacy migration), and the legacy key wins only when enabled is absent,
 // including under a null tools or web_scraper section.
 //
@@ -411,7 +411,7 @@ func grandfatherWebScraperAndWebhookLimit(merged, user map[string]interface{}) b
 		if toolsMap, ok := asStringMap(merged["tools"]); ok {
 			if scraperMap, ok := asStringMap(toolsMap["web_scraper"]); ok {
 				scraperMap = maps.Clone(scraperMap)
-				scraperMap["enabled"] = hasEnabled || legacyWebScraperEnabled(userAgent)
+				scraperMap["enabled"] = !hasEnabled && legacyWebScraperEnabled(userAgent)
 				toolsMap = maps.Clone(toolsMap)
 				toolsMap["web_scraper"] = scraperMap
 				merged["tools"] = toolsMap
@@ -552,14 +552,14 @@ func yamlStringSet(v interface{}) bool {
 }
 
 // legacyWebScraperEnabled returns the scraper state config.Load derived for a
-// config without tools.web_scraper.enabled: the code default true when the
+// config without tools.web_scraper.enabled: the code default false when the
 // legacy agent.allow_web_scraper is absent or null, else its value in any
 // yaml.v3 bool spelling. Any other value counts as false, the safe side, as
 // enforceTemplateTypes falls back to the template's false for it.
 func legacyWebScraperEnabled(userAgent map[string]interface{}) bool {
 	v := userAgent["allow_web_scraper"]
 	if v == nil {
-		return true
+		return false
 	}
 	enabled, ok := yamlBoolValue(v)
 	return ok && enabled
