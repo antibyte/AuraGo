@@ -1,7 +1,8 @@
 /* RuView — Dual-Modal Pose Fusion Demo
    Dark theme matching Observatory */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+@import url('/fonts/fonts.css');
+@import url('/fonts/jetbrains-mono.css');
 
 :root {
   --bg-deep:     #080c14;

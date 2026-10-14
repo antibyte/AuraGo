@@ -70,7 +70,9 @@ upstream tag.
 NASSCAD uses the v4.7.0-desktop release at
 `279da7c0f0ca28dfae19c11c8be231f326dfda4f`. Reproduce its browser adaptation with
 `node scripts/vendor-nasscad.mjs --source=<upstream checkout>` and verify it with
-`--check`. Provenance records each original and adapted file. The local browser
+`--check`. Provenance records each original and adapted file. The adaptation removes
+Google Analytics from the main page and the NassScript guide and drops the guide's Google
+Fonts link; its font stacks fall back to local fonts. The local browser
 test is `node scripts/test-nasscad-browser.mjs`; existing workspace entry files
 remain user-owned. Layerling 1.71.0 has its own pinned build and complete source
 archive, documented in `scripts/layerling/README.md`.

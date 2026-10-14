@@ -49,6 +49,11 @@ for (const name of names) {
     text = patch(text, 'new URL(demoSources[key],document.baseURI)', 'new URL(demoSources[key]+location.search,document.baseURI)');
     // Signed workspace access must also cover the local illustrated guides.
     text = patch(text, '</head>', `<script>document.addEventListener('DOMContentLoaded',()=>{for(const link of document.querySelectorAll('a[href]')){const url=new URL(link.href);if(url.origin===location.origin&&url.pathname.startsWith(new URL('.',location.href).pathname)) {url.search=location.search;link.href=url.href;}}});</script>\n</head>`);
+  } else if (name === 'nasscript_doc.html') {
+    // The guide must not reach Google: no analytics, and its font stacks fall back to local fonts.
+    text = text.replace(/<!-- GA4[^]*?<\/script>/, '<!-- AuraGo: no analytics. -->');
+    text = patch(text, '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">\n', '');
+    if (/googletagmanager\.com|fonts\.googleapis\.com/.test(text)) throw Error('NASSCAD guide patch failed');
   } else if (name === 'step-import.js') {
     text = patch(text, "s.src = 'nasscad_occt_wasm.js';", "s.src = 'nasscad_occt_wasm.js' + location.search;");
   } else if (name === 'quick-fillet.js') {
@@ -57,7 +62,7 @@ for (const name of names) {
     text = patch(text, "new URL('.', document.currentScript.src)", "new URL('.', document.baseURI)");
     text = patch(text, 'new URL(name, _ifcAssetBase).href', 'new URL(name, _ifcAssetBase).href + location.search');
   }
-  outputs.set(target, name.endsWith('.js') || name.endsWith('.htm') ? Buffer.from(text) : bytes);
+  outputs.set(target, name.endsWith('.js') || name.endsWith('.htm') || name === 'nasscript_doc.html' ? Buffer.from(text) : bytes);
 }
 fs.mkdirSync(out, {recursive:true});
 for (const [name, bytes] of outputs) fs.writeFileSync(`${out}/${name}`, bytes);

@@ -3,6 +3,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import {patchControls} from './patch-controls.mjs';
+import {localizeFonts} from './local-fonts.mjs';
 
 const revision = 'a71634ae8a606bba5463489450c69e8b42de114e';
 const source = process.argv.find(x => x.startsWith('--source='))?.slice(9);
@@ -34,6 +35,7 @@ if (check) {
       if (/\.(js|css|html)$/.test(name)) {
         let text = bytes.toString('utf8').replaceAll('\r\n','\n');
         text = text.replaceAll('https://unpkg.com/three@0.160.0/', './deps/three/').replaceAll('https://unpkg.com/stats.js@0.17.0/build/stats.min.js', './deps/stats.min.js').replaceAll('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', './deps/three-global.js');
+        if (name.endsWith('.css')) text = localizeFonts(name, text, patch);
         if (name.endsWith('.html')) {
           text = text.replace(/<img\b[^>]*\bsrc="https:[^"]*"[^>]*>/g, '');
           text = text.replace(/<head([^>]*)>/i, '<head$1><script src="./aurago-adapter.js"></script>');

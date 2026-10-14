@@ -2,7 +2,7 @@
   "version": "4.7.0",
   "revision": "279da7c0f0ca28dfae19c11c8be231f326dfda4f",
   "source": "https://github.com/Nx-Nass/NASSCAD/tree/279da7c0f0ca28dfae19c11c8be231f326dfda4f",
-  "adapter_sha256": "831c8fbdef53f90a214726d10bf1b452fa3c7512ce22565c023bb2d1f408baab",
+  "adapter_sha256": "b50abeae904fa14778ec063b28c283356ff98e34f28bbd71a7ff366213faaa58",
   "upstream": {
     "NASSCAD_V4_7_0.htm": "8e3ffcb497bb9a165bf9027749012d647bdbc0928353c01e48c8681d0c0e626a",
     "LICENSE": "746b75eeea1571ec99e2de94fbbbe9b8c85d8719c69487026ae3a2ab562fb0ec",
@@ -77,7 +77,7 @@
     "nass-demo-engine.js": "d664e312b48331fb8a5f9713576267884534fd51eb2e4e66be929869c328b3fe",
     "nass-demo-solar.js": "524ec53cfbc31f767a69c476a40cee8567bfdd24252fb38d62aaed3bcec23c49",
     "nasscad_user_manual.html": "0dfa3045a91b0a0b9bff34048167e23b4eaca9e5116732bf43b127e30ff78418",
-    "nasscript_doc.html": "8b83c97284a18b792a63ca023a349ee1bb2d9de8acc8a9595bbe024d27cb711a",
+    "nasscript_doc.html": "3ee2b27cfeb19180c5af49c761705d986e219850afdc92c93a07d97820aa3498",
     "nassscript-engine-preview.png": "4003c3bc681a6489588afc85c5413ef82aed8f5a5b42349bd4e24f11fea78c51",
     "solar-system-snapshot.png": "d678e9dc11d185c1e17285dd9d78f79a7b80989231a140815e76f33755ce28ec"
   }

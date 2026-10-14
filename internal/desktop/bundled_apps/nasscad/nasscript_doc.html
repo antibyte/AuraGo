@@ -15,44 +15,7 @@
 <meta property="og:description" content="NassScript signatures, verified runtime contracts, lifecycle guidance and ready-to-paste scripts.">
 <meta property="og:url" content="https://www.nasscad.com/nasscript_doc.html">
 <meta property="og:image" content="https://www.nasscad.com/og-image.png">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
-<!-- GA4 — production host only. Never loaded when the visit comes from a school
-     portal (ClassLink, Clever, Google Classroom, Schoology, Canvas), with ?edu=1,
-     after an opt-out (?analytics=off or the switch on /privacy.html), or when the
-     browser sends Global Privacy Control / Do Not Track. See /privacy.html. -->
-<script>
-  (function() {
-    if (!/^(?:www\.)?nasscad\.com$/i.test(window.location.hostname)) return;
-    var KEY = 'nasscad_analytics', off = false, q = null, ref = '';
-    try { q = new URLSearchParams(window.location.search); } catch (_) {}
-    try { ref = new URL(document.referrer).hostname; } catch (_) {}
-    var fromSchool = /(^|\.)(classlink\.com|clever\.com|schoology\.com|instructure\.com)$/i.test(ref)
-                  || /^classroom\.google\.com$/i.test(ref);
-    var askOff = !!q && (q.get('edu') === '1' || q.get('analytics') === 'off');
-    var askOn  = !!q && q.get('analytics') === 'on';
-    // Stockage : la preference suit l'appareil (poste d'ecole = jamais suivi).
-    // S'il est bloque, la decision de CETTE page reste prise sur fromSchool/askOff.
-    try {
-      if (fromSchool || askOff) window.localStorage.setItem(KEY, 'off');
-      else if (askOn) window.localStorage.removeItem(KEY);
-      off = window.localStorage.getItem(KEY) === 'off';
-    } catch (_) {}
-    if (fromSchool || askOff) off = true;
-    if (navigator.globalPrivacyControl === true || navigator.doNotTrack === '1' || window.doNotTrack === '1') off = true;
-    if (off) return;
-    window.dataLayer = window.dataLayer || [];
-    window.gtag = window.gtag || function(){ window.dataLayer.push(arguments); };
-    window.nasscadTrackEvent = function(name, parameters){
-      try { window.gtag('event', name, parameters); } catch (_) { /* Analytics must not interrupt CAD. */ }
-    };
-    window.gtag('js', new Date());
-    window.gtag('config', 'G-3181YHN32V', { allow_google_signals: false, allow_ad_personalization_signals: false });
-    var s = document.createElement('script');
-    s.src = 'https://www.googletagmanager.com/gtag/js?id=G-3181YHN32V';
-    s.async = true;
-    document.head.appendChild(s);
-  })();
-</script>
+<!-- AuraGo: no analytics. -->
 </head>
 <body>
 <style>

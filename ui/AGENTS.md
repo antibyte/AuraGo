@@ -12,6 +12,10 @@ the asset digest. Unversioned subresources remain network-only in the service
 worker. Keep packaging, recovery and offline instructions in
 `documentation/web-assets.md` synchronized.
 
+Shipped pages load fonts, images, styles and libraries only from AuraGo itself.
+Vendoring scripts must rewrite upstream CDN, Google Fonts and analytics references;
+`TestShippedWebAssetsLoadNothingExternal` guards `ui/` and the bundled desktop apps.
+
 ## Ownership
 
 - File Manager cloud references keep provider, Koofr mount and relative path
