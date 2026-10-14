@@ -5,6 +5,18 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {controlResult,trainingPayload} from '../../ui/js/ruview/control-contracts.mjs';
 
+test('pose stream uses the pinned parameter-free WebSocket contract',async()=>{
+ const source=readFileSync('ui/js/vendor/ruview/services/pose.service.js','utf8').replace(/^import .*;\r?\n/gm,'').replaceAll('export ','');
+ let request;
+ const Service=vm.runInNewContext(source+'\nPoseService',{console:{debug(){},info(){},warn(){},error(){}},
+  API_CONFIG:{ENDPOINTS:{STREAM:{WS_POSE:'/api/v1/stream/pose'}}},apiService:{authToken:'fixture-token'},
+  wsService:{connect:async(path,params)=>{request={path,params};return 'pose-test'},onConnectionStateChange(){}}});
+ const service=new Service();
+ assert.equal(await service.startPoseStream({zoneIds:['zone_1'],minConfidence:0.3,maxFps:30,token:'fixture-token'}),'pose-test');
+ assert.equal(request.path,'/api/v1/stream/pose');
+ assert.deepEqual(Object.keys(request.params),[],'unsupported filters and browser credentials must not enter the socket URL');
+});
+
 test('embedded tour completion survives reopening without persisting other upstream settings',()=>{
  const source=readFileSync('ui/js/ruview/upstream-adapter.js','utf8');
  const saved=new Map([['host-preference','keep']]),key='ruview-onboarding-done',savedKey='aurago.ruview.onboarding.done';

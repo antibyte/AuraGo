@@ -55,7 +55,7 @@
     "services/data-processor.js": "9fa5f442225476dc0b527e5f3ae5b90e15198adbddc8529ea9c09608c2527db6",
     "services/health.service.js": "b6db9edf7276b3737bb17dc916cf81f3be2470ff2c82665e11b5dbed28139e86",
     "services/model.service.js": "a44079645e0c5113882438a880b5b53f9d5585f8efc270ce10d4692c942674c2",
-    "services/pose.service.js": "994888f71f62cca40d835f78dd939178b62c095f70f77a394fe314e9a02e12e9",
+    "services/pose.service.js": "23e19004efea0bf7c86d3272989485bcca58b8c11fa82d7917a90bb8197cd246",
     "services/sensing.service.js": "0b75987c505321cb59ef04e875ac6bd1adb54666d5ff494bc974c6a1bff22249",
     "services/stream.service.js": "0ddfaf4a7e571b14780d83055ba54cf947e97add509d810bd4bdc6ebf2fc2dc2",
     "services/training.service.js": "4f85a0e0325fdb37b5828ae8d9584cd9e1504d6b4e9d6e9025b379f29fee32a6",

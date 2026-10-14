@@ -6,6 +6,8 @@ Wi-Fi sensing is experimental. Readiness does not prove measurements, presence o
 
 The embedded Dashboard distinguishes service health from sensor data. A connected ESP32 source with no frames shows **Waiting for sensor data**, not simulation; failed source probes also make no simulation claim. Only an explicit synthetic source is labelled simulated. New frames restore the live indicator even when the source name is unchanged, and a stream without fresh frames becomes stale after ten seconds. Health, liveness and metrics endpoints remain read-only through AuraGo's authenticated proxy.
 
+Live Demo uses the separate `/api/v1/stream/pose` WebSocket through AuraGo. The pinned Rust service accepts no zone, confidence or frame-rate query filters on this stream; the bundled client omits them. AuraGo supplies upstream authentication from the Vault. A connected sensor stream alone does not prove that the pose stream is connected or that pose frames have arrived.
+
 The Devices view refreshes every three seconds while visible, without overlapping requests. **Last measurement** advances between replies; measurements older than ten seconds and failed refreshes are marked stale. Previously received values remain visible. Closing the app cancels requests and timers. Pose Fusion starts in **CSI Only**; camera and video modes are unavailable.
 
 Skipping or completing the Dashboard tour is remembered in this browser, including after reopening RuView or reloading AuraGo. To replay it, open the Dashboard's gear menu and choose **Reset onboarding → Reset**. Only this completion flag is persisted; other upstream preferences remain in memory. If browser storage is blocked or cleared, the tour may appear again.

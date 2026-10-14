@@ -131,22 +131,8 @@ export class PoseService {
       throw new Error(`Invalid stream options: ${validationResult.errors.join(', ')}`);
     }
 
-    // Use a lower confidence threshold when model inference is active
-    const defaultThreshold = this.modelActive
-      ? this.config.confidenceThresholdModelInference
-      : this.config.confidenceThreshold;
-
-    const params = {
-      zone_ids: options.zoneIds?.join(','),
-      min_confidence: options.minConfidence || defaultThreshold,
-      max_fps: options.maxFps || 30,
-      token: options.token || apiService.authToken
-    };
-
-    // Remove undefined values
-    Object.keys(params).forEach(key => 
-      params[key] === undefined && delete params[key]
-    );
+    // The pinned Rust pose stream has no query filters; AuraGo supplies authentication.
+    const params = {};
 
     try {
       this.connectionState = 'connecting';

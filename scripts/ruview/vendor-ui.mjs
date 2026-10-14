@@ -39,6 +39,25 @@ if (check) {
           text = text.replace(/<head([^>]*)>/i, '<head$1><script src="./aurago-adapter.js"></script>');
         }
         if (name === 'app.js') text = text.replace("if ('serviceWorker' in navigator)", 'if (false)').replace('const useMock = await backendDetector.shouldUseMockServer();','const useMock = false;');
+        if (name === 'services/pose.service.js') {
+          text=patch(text,`    // Use a lower confidence threshold when model inference is active
+    const defaultThreshold = this.modelActive
+      ? this.config.confidenceThresholdModelInference
+      : this.config.confidenceThreshold;
+
+    const params = {
+      zone_ids: options.zoneIds?.join(','),
+      min_confidence: options.minConfidence || defaultThreshold,
+      max_fps: options.maxFps || 30,
+      token: options.token || apiService.authToken
+    };
+
+    // Remove undefined values
+    Object.keys(params).forEach(key =>${' '}
+      params[key] === undefined && delete params[key]
+    );`, `    // The pinned Rust pose stream has no query filters; AuraGo supplies authentication.
+    const params = {};`);
+        }
         if (name === 'services/sensing.service.js') {
           text = text.replace(/function clientSimulationAllowed\([^)]*\)\s*\{[\s\S]*?\n\}/, 'function clientSimulationAllowed() { return false; }');
           const start=text.indexOf('  async _detectServerSource() {'),end=text.indexOf('  /** @return {string|null} Raw server source');

@@ -711,6 +711,10 @@ worker. Keep packaging, recovery and offline instructions in
   Connected services without frames show waiting, never synthetic data. Only explicit
   synthetic sources show simulation; fresh frames recover the live state and expire
   after ten seconds. Source probes and timers must respect connection disposal.
+  The pinned Rust pose WebSocket accepts no zone/confidence/FPS query options.
+  Strip those in the reproducible client adapter; keep proxy query restrictions
+  and Vault authentication unchanged. Browser coverage must open the actual
+  Live Demo stream and deliver a pose frame through its renderer callbacks.
   Verify `scripts/ruview/upstream.test.mjs`, `scripts/ruview/browser.test.mjs` and
   backend `TestDashboardHealthEndpointsAreReadOnly`; keep `documentation/ruview.md` aligned.
   The shared board wizard uses host theme tokens and native checkbox semantics.

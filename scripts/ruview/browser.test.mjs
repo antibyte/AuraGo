@@ -11,11 +11,14 @@ const {chromium}=process.env.AURAGO_PLAYWRIGHT?require(process.env.AURAGO_PLAYWR
 const locales=['cs','da','de','el','en','es','fr','hi','it','ja','nl','no','pl','pt','sv','zh'];
 let writes=0,readonly=false,offline=false,mode='external',source='esp32',failure='',statusError='',firmwareError=false,sourceState='disconnected',sourceProbeFailed=false;
 const nodeFixture={reads:0,active:0,max:0,fail:false,statusFail:false,hold:null};
-const sensingSockets=new Set(),healthRequests=new Set();
-function sendSensing(data){
- const body=Buffer.from(JSON.stringify(data));assert.ok(body.length<126);
- for(const socket of sensingSockets)socket.write(Buffer.concat([Buffer.from([0x81,body.length]),body]));
+const sensingSockets=new Set(),poseSockets=new Set(),poseRequests=[],healthRequests=new Set();
+function sendFrames(sockets,data){
+ const body=Buffer.from(JSON.stringify(data));assert.ok(body.length<65536);
+ const header=body.length<126?Buffer.from([0x81,body.length]):Buffer.from([0x81,126,0,0]);
+ if(body.length>=126)header.writeUInt16BE(body.length,2);
+ for(const socket of sockets)socket.write(Buffer.concat([header,body]));
 }
+const sendSensing=data=>sendFrames(sensingSockets,data);
 const server=createServer(async(req,res)=>{
  try{
   const url=new URL(req.url,'http://localhost'),p=url.pathname;
@@ -59,10 +62,13 @@ const server=createServer(async(req,res)=>{
  }catch{res.writeHead(404).end();}
 });
 server.on('upgrade',(req,socket)=>{
- if(req.url!=='/api/desktop/integrations/ruview/proxy/ws/sensing'){socket.destroy();return;}
+ const posePath='/api/desktop/integrations/ruview/proxy/api/v1/stream/pose';
+ if(req.url.startsWith(posePath))poseRequests.push(req.url);
+ const sockets=req.url===posePath?poseSockets:req.url==='/api/desktop/integrations/ruview/proxy/ws/sensing'?sensingSockets:null;
+ if(!sockets){socket.destroy();return;}
  const accept=createHash('sha1').update(req.headers['sec-websocket-key']+'258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64');
  socket.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: '+accept+'\r\n\r\n');
- sensingSockets.add(socket);socket.on('close',()=>sensingSockets.delete(socket));socket.on('error',()=>{});
+ sockets.add(socket);socket.on('close',()=>sockets.delete(socket));socket.on('error',()=>{});
  socket.on('data',data=>{if((data[0]&15)===8)socket.end(Buffer.from([0x88,0]));});
 });
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -122,6 +128,19 @@ try{
    await page.screenshot({path:'reports/ruview-browser/upstream-waiting.png'});
    sendSensing({source:'esp32',features:{mean_rssi:-50}});
    await frame.waitForFunction(()=>document.querySelector('.conn-status-label')?.textContent==='Live');
+   await frame.getByRole('tab',{name:'Live Demo',exact:true}).click();
+   await frame.waitForFunction(()=>document.querySelector('#status-text-pose-detection-main')?.textContent==='Connected');
+   assert.equal(poseRequests.length,1,'Live Demo opens one pose stream');
+   assert.equal(poseRequests[0],'/api/desktop/integrations/ruview/proxy/api/v1/stream/pose','pose stream has no unsupported query parameters');
+   sendFrames(poseSockets,{type:'pose_data',zone_id:'zone_1',timestamp:Date.now()/1000,payload:{
+    pose:{persons:[]},confidence:0,activity:'absent',pose_source:'signal_derived',
+    metadata:{frame_id:'fixture_pose_1',processing_time_ms:1,source:'esp32',tick:1}
+   }});
+   await frame.waitForFunction(()=>Number(document.querySelector('#frame-count')?.textContent)>0);
+   assert.equal(await frame.locator('#pose-source-badge').textContent(),'Signal-Derived');
+   assert.equal(await frame.locator('#error-pose-detection-main').isVisible(),false);
+   await page.screenshot({path:'reports/ruview-browser/upstream-pose-connected.png'});
+   await frame.getByRole('tab',{name:'Dashboard',exact:true}).click();
    await frame.waitForFunction(()=>document.querySelector('.conn-status-label')?.textContent==='Stale data',{},{timeout:15000});
    sendSensing({source:'esp32',features:{mean_rssi:-50}});
    await frame.waitForFunction(()=>document.querySelector('.conn-status-label')?.textContent==='Live');
@@ -191,7 +210,7 @@ try{
  await page.frameLocator('iframe').locator('.conn-status-label').waitFor();await page.waitForTimeout(1100);
  assert.equal(await page.frameLocator('iframe').locator('.onboarding-overlay').count(),0,'completed tour must not restart');
  await page.evaluate(()=>RuViewApp.dispose('test'));assert.equal(await page.locator('iframe').count(),0);
- console.log('RuView: 96 locale/theme/size cases, tour dismissal/replay/persistence, device aging, read failures, stop permissions, controls, source provenance, live/stale recovery, health routing, wizard cleanup and disposal passed');
+ console.log('RuView: 96 locale/theme/size cases, pose WebSocket and frame delivery, tour dismissal/replay/persistence, device aging, read failures, stop permissions, controls, source provenance, live/stale recovery, health routing, wizard cleanup and disposal passed');
  })()
  ]);
-}finally{await browser.close();for(const socket of sensingSockets)socket.destroy();await new Promise(resolve=>server.close(resolve));}
+}finally{await browser.close();for(const socket of [...sensingSockets,...poseSockets])socket.destroy();await new Promise(resolve=>server.close(resolve));}
